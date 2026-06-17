@@ -17,19 +17,13 @@
 推荐采用：
 
 ```text
-AstrBot 官方镜像 + AstrBot 插件 + Node.js 22 d2-service 源码服务
+通用 d2-service 能力服务 + AstrBot 插件作为第一客户端
 ```
 
 整体关系：
 
 ```text
-群友消息
-  ↓
-聊天平台适配器
-  ↓
-AstrBot 官方容器
-  ↓
-astrbot_plugin_destiny2
+AstrBot 插件 / CLI / Web UI / 其他 Agent 工具
   ↓ HTTP /api/v1
 d2-service：node:22-bookworm + 自研 HTTP 服务
   ↓
@@ -39,6 +33,8 @@ Bungie API / Manifest / SQLite / Cache
 d2-service 使用官方 `node:22-bookworm` 镜像运行，不单独构建业务镜像。代码通过宿主机目录挂载进容器，后续更新时覆盖 `./d2-service` 源码并重启容器即可。历史数据全部放到独立的 `./d2-data` 目录，源码覆盖和镜像更新都不能影响它。
 
 `d2-skill` 不作为 d2-service 的运行时强依赖。它只作为参考资料，用来借鉴 Bungie OAuth、Manifest 查询、能力边界和数据模型。d2-service 自研实现核心能力，避免被第三方 CLI 的目录结构、命令格式、构建方式和输出格式绑定。
+
+d2-service 不绑定 AstrBot 的消息模型。AstrBot 是第一客户端，后续 CLI、Web UI、Codex/Claude skill 或其他 Agent 工具也通过同一套 HTTP API 调用 d2-service。
 
 ## 设计原则
 
@@ -61,9 +57,23 @@ docker compose restart d2-service
 
 d2-service 启动时自动执行数据库 migration。新增功能需要表结构变化时，只能通过 migration 升级数据库，不能要求手动删库或重建数据。
 
+### 客户端无关
+
+d2-service 是通用 Destiny 2 能力服务，不是 AstrBot 专用 sidecar。它只接受通用 external identity：
+
+```text
+client_key
+external_platform
+external_group_id
+external_user_id
+display_name
+```
+
+AstrBot 插件负责把群聊上下文转换成这组字段。其他客户端也用同一模型表达调用者身份。
+
 ### API 稳定
 
-AstrBot 插件只调用 d2-service 的 HTTP API，不直接调用 Bungie API，不读取 SQLite，不执行 Node CLI。第一版 API 使用 `/api/v1` 前缀，后续大改时可以引入 `/api/v2`，避免插件和服务互相锁死。
+所有客户端只调用 d2-service 的 HTTP API，不直接调用 Bungie API，不读取 SQLite，不执行 Node CLI。第一版 API 使用 `/api/v1` 前缀，后续大改时可以引入 `/api/v2`，避免客户端和服务互相锁死。
 
 ### Manifest 可重建
 
@@ -222,6 +232,36 @@ d2-service 历史数据保存在 `./d2-data`。覆盖源码时不要覆盖 `./d2
 
 每次 d2-service 启动都执行 migration。migration 必须幂等，可以重复执行。升级失败时服务应停止启动并写入日志，避免半升级状态继续对外服务。
 
+## 客户端接入模型
+
+d2-service 面向多种客户端提供统一 HTTP API。每个客户端负责把自己的用户上下文转换成通用身份字段。
+
+AstrBot 调用示例：
+
+```json
+{
+  "client_key": "astrbot",
+  "external_platform": "qq",
+  "external_group_id": "群ID",
+  "external_user_id": "发送者ID",
+  "display_name": "群友昵称"
+}
+```
+
+本地 CLI 或其他 Agent 调用示例：
+
+```json
+{
+  "client_key": "local-cli",
+  "external_platform": "local",
+  "external_group_id": null,
+  "external_user_id": "sandrew",
+  "display_name": "Sandrew"
+}
+```
+
+d2-service 使用这组 external identity 查找绑定的 Bungie 账号。它不关心消息来自 QQ 群、Web UI、CLI 还是其他 Agent。
+
 ## AstrBot 插件职责
 
 插件名建议：
@@ -233,7 +273,8 @@ astrbot_plugin_destiny2
 插件只负责聊天入口：
 
 - 识别 Destiny 2 命令。
-- 提取平台、群 ID、用户 ID 和命令参数。
+- 提取平台、群 ID、用户 ID、昵称和命令参数。
+- 转换为 d2-service 的通用 external identity。
 - 调用 d2-service `/api/v1`。
 - 根据 d2-service 返回结果发送文本、图片或确认提示。
 
@@ -244,6 +285,7 @@ astrbot_plugin_destiny2
 - 直接调用 Bungie API。
 - 直接执行 d2-skill 或其他 CLI。
 - 保存装备操作的 pending state。
+- 假设 d2-service 只服务 AstrBot。
 
 插件配置示例：
 
@@ -255,12 +297,13 @@ enable_dangerous_actions: false
 
 ## d2-service 职责
 
-d2-service 是核心后端，使用 Node.js 22 自研实现 HTTP API。
+d2-service 是通用 Destiny 2 能力服务，使用 Node.js 22 自研实现 HTTP API。
 
 核心模块：
 
 - `auth`：Bungie OAuth 登录、回调、token 刷新、解绑。
-- `users`：聊天平台用户与 Bungie 账号绑定关系。
+- `clients`：调用方登记，例如 AstrBot、CLI、Web UI、其他 Agent。
+- `identities`：外部用户身份与 Bungie 账号绑定关系。
 - `manifest`：Manifest 下载、版本检测、中文索引。
 - `public-info`：日报、周报、遗失区域、商人售卖、武器查询。
 - `profile`：角色、光等、装备、仓库、战绩、最近活动。
@@ -279,7 +322,7 @@ application service
 Bungie client / repository / cache
 ```
 
-这样后续换缓存、换数据库、增加图片渲染或补充新命令时，不需要改 AstrBot 插件。
+这样后续换缓存、换数据库、增加图片渲染或补充新命令时，不需要改 AstrBot 插件，也不会影响其他客户端。
 
 ## 和 d2-skill 的关系
 
@@ -320,9 +363,13 @@ POST http://d2-service:8080/api/v1/auth/start
 
 ```json
 {
-  "platform": "qq",
-  "group_id": "群ID",
-  "user_id": "发送者ID"
+  "identity": {
+    "client_key": "astrbot",
+    "external_platform": "qq",
+    "external_group_id": "群ID",
+    "external_user_id": "发送者ID",
+    "display_name": "群友昵称"
+  }
 }
 ```
 
@@ -345,7 +392,7 @@ https://你的域名/d2/oauth/callback
 d2-service 校验 `state`，保存绑定关系和 token：
 
 ```text
-platform + user_id -> bungie_membership_id + access_token + refresh_token
+client_key + external_platform + external_user_id -> bungie_membership_id + access_token + refresh_token
 ```
 
 `PUBLIC_BASE_URL` 建议统一配置为：
@@ -421,16 +468,16 @@ GET /api/v1/perks/search?q=爆破专家
 POST /api/v1/auth/start
 GET /api/v1/oauth/callback
 POST /api/v1/auth/unbind
-GET /api/v1/auth/status?platform=qq&user_id=...
+GET /api/v1/auth/status?client_key=astrbot&external_platform=qq&external_user_id=...
 ```
 
 个人查询：
 
 ```http
-GET /api/v1/profile/characters?platform=qq&user_id=...
-GET /api/v1/profile/equipment?platform=qq&user_id=...
-GET /api/v1/profile/inventory/search?q=风险管理者&platform=qq&user_id=...
-GET /api/v1/profile/activities/recent?platform=qq&user_id=...
+GET /api/v1/profile/characters?client_key=astrbot&external_platform=qq&external_user_id=...
+GET /api/v1/profile/equipment?client_key=astrbot&external_platform=qq&external_user_id=...
+GET /api/v1/profile/inventory/search?q=风险管理者&client_key=astrbot&external_platform=qq&external_user_id=...
+GET /api/v1/profile/activities/recent?client_key=astrbot&external_platform=qq&external_user_id=...
 ```
 
 装备操作：
@@ -485,6 +532,8 @@ confirm
 
 这样 AstrBot 插件只处理回复形态，不理解 Destiny 2 业务细节。
 
+其他客户端也使用同样的回复结构，只是渲染方式不同。CLI 可以打印 `text`，Web UI 可以展示 `images`，Agent 工具可以把 `confirm` 转成自己的确认流程。
+
 ## 数据存储
 
 6 人群使用规模不大，SQLite 足够。
@@ -496,18 +545,27 @@ schema_migrations
 - version
 - applied_at
 
-users
+clients
 - id
-- platform
-- group_id
-- user_id
+- client_key
+- name
+- description
+- created_at
+- updated_at
+
+external_identities
+- id
+- client_id
+- external_platform
+- external_group_id
+- external_user_id
 - display_name
 - created_at
 - updated_at
 
 bungie_accounts
 - id
-- user_id
+- external_identity_id
 - membership_type
 - membership_id
 - display_name
@@ -527,8 +585,7 @@ manifest_versions
 
 pending_actions
 - id
-- platform
-- user_id
+- external_identity_id
 - action_type
 - payload_json
 - confirm_code
@@ -537,9 +594,11 @@ pending_actions
 
 operation_logs
 - id
-- platform
-- group_id
-- user_id
+- client_id
+- external_identity_id
+- external_platform
+- external_group_id
+- external_user_id
 - action_type
 - request_json
 - result_json
@@ -698,12 +757,14 @@ enable_dangerous_actions: false
 
 ## 当前推荐决策
 
-采用“HTTP sidecar 作为主通道”的设计：
+采用“通用 HTTP 能力服务作为主通道”的设计：
 
 ```text
-AstrBot 插件负责聊天体验，d2-service 负责 Destiny 2 业务。
+d2-service 负责 Destiny 2 业务，AstrBot 插件负责把群聊体验适配到通用 HTTP API。
 ```
 
 d2-service 使用 `node:22-bookworm` 官方镜像运行自研 Node.js HTTP 服务，不单独构建业务镜像。代码通过 `./d2-service` 覆盖更新，数据通过 `./d2-data` 持久化保存。
 
-`d2-skill` 只作为参考资料，不作为运行时强依赖。第一版先实现部署骨架和公共查询闭环；第二版再做绑定和个人查询；第三版再谨慎开放装备操作。
+`d2-skill` 只作为参考资料，不作为运行时强依赖。d2-service 不绑定 AstrBot，AstrBot 只是第一客户端；后续 CLI、Web UI、Codex/Claude skill 或其他 Agent 工具也可以通过同一套 `/api/v1` 接入。
+
+第一版先实现部署骨架和公共查询闭环；第二版再做绑定和个人查询；第三版再谨慎开放装备操作。
