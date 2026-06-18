@@ -1,11 +1,13 @@
 appId: local.d2-service.desktop
 productName: d2-service
+electronDist: node_modules/electron/dist
 directories:
   output: release
 files:
   - "dist/**"
   - "package.json"
 win:
+  signAndEditExecutable: false
   target:
     - target: zip
       arch:

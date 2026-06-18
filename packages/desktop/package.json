@@ -6,6 +6,7 @@
   "main": "dist/main/main.js",
   "scripts": {
     "dev": "vite --host 127.0.0.1",
+    "dev:electron": "set NODE_ENV=development&& electron dist/main/main.js",
     "build": "pnpm --filter @d2-service/core build && pnpm --filter @d2-service/http build && vite build && tsc -p tsconfig.main.json",
     "typecheck": "pnpm --filter @d2-service/core build && pnpm --filter @d2-service/http build && tsc -p tsconfig.main.json --noEmit && tsc -p tsconfig.renderer.json --noEmit",
     "test": "vitest --root ../.. --run",
@@ -13,16 +14,16 @@
   },
   "dependencies": {
     "@d2-service/core": "workspace:*",
-    "@d2-service/http": "workspace:*",
+    "@d2-service/http": "workspace:*"
+  },
+  "devDependencies": {
     "@vitejs/plugin-react": "^4.3.4",
     "electron": "^33.2.1",
     "electron-builder": "^25.1.8",
-    "vite": "^6.0.3",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
-  },
-  "devDependencies": {
+    "react-dom": "^19.0.0",
     "@types/react": "^19.0.1",
-    "@types/react-dom": "^19.0.2"
+    "@types/react-dom": "^19.0.2",
+    "vite": "^6.0.3"
   }
 }

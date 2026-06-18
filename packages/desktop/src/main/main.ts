@@ -10,6 +10,9 @@ async function createWindow(): Promise<void> {
   const window = new BrowserWindow({
     width: 1200,
     height: 800,
+    minWidth: 980,
+    minHeight: 680,
+    title: "d2-service",
     webPreferences: {
       preload: join(currentDir, "../preload/preload.js"),
       contextIsolation: true,
