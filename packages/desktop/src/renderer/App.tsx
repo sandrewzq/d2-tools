@@ -20,5 +20,11 @@ export function App() {
     return <WizardPage onSaved={() => void refresh()} />;
   }
 
-  return <HomePage state={state} onManifestInitialized={() => void refresh()} />;
+  return (
+    <HomePage
+      state={state}
+      onLoginComplete={() => void refresh()}
+      onManifestInitialized={() => void refresh()}
+    />
+  );
 }

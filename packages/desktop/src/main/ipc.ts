@@ -1,16 +1,22 @@
-import { ipcMain } from "electron";
+import { ipcMain, shell } from "electron";
+import { randomBytes } from "node:crypto";
 import {
+  buildBungieAuthorizationUrl,
   computeStartupState,
+  exchangeBungieOAuthCode,
   getDefinitionStatus,
   getHealth,
   getManifestStatus,
+  hasOAuthToken,
   initializeDefinitionComponent,
   initializeManifestMetadata,
   loadConfig,
   loadDefinitionComponent,
   loadManifestMetadataCache,
   saveConfig,
+  saveOAuthToken,
   searchItemDefinitions,
+  startOAuthCallbackServer,
   type D2Config
 } from "@d2-service/core";
 
@@ -24,6 +30,46 @@ export function registerIpcHandlers(): void {
     return loadConfig();
   });
 
+  ipcMain.handle("auth:login", async () => {
+    const config = loadConfig();
+    const redirectUrl = new URL(config.bungie.redirect_uri);
+    const port = Number(redirectUrl.port || 80);
+    const state = randomBytes(16).toString("hex");
+    const server = await startOAuthCallbackServer({
+      host: redirectUrl.hostname,
+      port
+    });
+
+    try {
+      const authorizationUrl = buildBungieAuthorizationUrl({
+        clientId: config.bungie.client_id,
+        redirectUri: config.bungie.redirect_uri,
+        state
+      });
+      await shell.openExternal(authorizationUrl);
+
+      const callback = await server.waitForCallback();
+      if (callback.state !== state) {
+        throw new Error("Bungie 登录校验失败，请重新登录");
+      }
+
+      const token = await exchangeBungieOAuthCode({
+        clientId: config.bungie.client_id,
+        clientSecret: config.bungie.client_secret,
+        code: callback.code,
+        redirectUri: config.bungie.redirect_uri
+      });
+      saveOAuthToken(config.data.data_dir, token);
+
+      return {
+        ok: true,
+        message: "Bungie 登录成功"
+      };
+    } finally {
+      await server.close();
+    }
+  });
+
   ipcMain.handle("startup:get", () => {
     const config = loadConfig();
     const itemDefinitionStatus = getDefinitionStatus(
@@ -33,7 +79,7 @@ export function registerIpcHandlers(): void {
 
     return computeStartupState({
       config,
-      hasToken: false,
+      hasToken: hasOAuthToken(config.data.data_dir),
       hasManifest: itemDefinitionStatus.initialized
     });
   });

@@ -11,4 +11,5 @@ export * from "./manifest/cache.js";
 export * from "./manifest/definitions.js";
 export * from "./manifest/metadata.js";
 export * from "./oauth/callbackServer.js";
+export * from "./oauth/login.js";
 export * from "./startup/startupState.js";

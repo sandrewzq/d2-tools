@@ -4,6 +4,7 @@ declare global {
       getHealth(): Promise<{ ok: true; service: string; version: string; timestamp: string }>;
       getConfig(): Promise<D2Config>;
       saveConfig(config: D2Config): Promise<D2Config>;
+      loginBungie(): Promise<AuthLoginResult>;
       getStartupState(): Promise<StartupState>;
       getManifestStatus(): Promise<ManifestStatus>;
       initializeManifest(): Promise<ManifestStatus>;
@@ -30,6 +31,11 @@ export type D2Config = {
     api_key: string;
     model: string;
   };
+};
+
+export type AuthLoginResult = {
+  ok: true;
+  message: string;
 };
 
 export type StartupState = {

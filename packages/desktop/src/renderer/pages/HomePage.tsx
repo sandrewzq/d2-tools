@@ -4,8 +4,12 @@ import { StatusCard } from "../components/StatusCard";
 
 export function HomePage(props: {
   state: StartupState;
+  onLoginComplete: () => void;
   onManifestInitialized: () => void;
 }) {
+  const [loginMessage, setLoginMessage] = useState("");
+  const [loginError, setLoginError] = useState("");
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [manifestMessage, setManifestMessage] = useState("");
   const [manifestError, setManifestError] = useState("");
   const [isInitializingManifest, setIsInitializingManifest] = useState(false);
@@ -13,6 +17,22 @@ export function HomePage(props: {
   const [items, setItems] = useState<ItemSearchResult[]>([]);
   const [searchError, setSearchError] = useState("");
   const [isSearching, setIsSearching] = useState(false);
+
+  async function loginBungie() {
+    setIsLoggingIn(true);
+    setLoginMessage("");
+    setLoginError("");
+
+    try {
+      const result = await api.loginBungie();
+      setLoginMessage(result.message);
+      props.onLoginComplete();
+    } catch (error) {
+      setLoginError(error instanceof Error ? error.message : "Bungie 登录失败");
+    } finally {
+      setIsLoggingIn(false);
+    }
+  }
 
   async function initializeManifest() {
     setIsInitializingManifest(true);
@@ -50,7 +70,13 @@ export function HomePage(props: {
       <p>今日面板会在后续阶段接入遗失区域、商人、角色和 AI 摘要。</p>
       <div className="status-grid">
         <StatusCard title="Bungie 配置" {...props.state.cards.bungieConfig} action="去配置" />
-        <StatusCard title="账号登录" {...props.state.cards.account} action="登录 Bungie" />
+        <StatusCard
+          title="账号登录"
+          {...props.state.cards.account}
+          action={isLoggingIn ? "等待授权..." : "登录 Bungie"}
+          disabled={isLoggingIn}
+          onAction={() => void loginBungie()}
+        />
         <StatusCard
           title="资料库"
           {...props.state.cards.manifest}
@@ -60,6 +86,8 @@ export function HomePage(props: {
         />
         <StatusCard title="AI" {...props.state.cards.ai} action="配置 AI" />
       </div>
+      {loginMessage ? <p className="notice">{loginMessage}</p> : null}
+      {loginError ? <p className="error">{loginError}</p> : null}
       {manifestMessage ? <p className="notice">{manifestMessage}</p> : null}
       {manifestError ? <p className="error">{manifestError}</p> : null}
 
