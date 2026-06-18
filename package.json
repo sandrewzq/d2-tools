@@ -7,7 +7,7 @@
     "dev": "pnpm --filter @d2-service/desktop dev",
     "dev:electron": "pnpm --filter @d2-service/desktop dev:electron",
     "build": "pnpm -r build",
-    "test": "pnpm -r test",
+    "test": "pnpm build && vitest --run",
     "typecheck": "pnpm -r typecheck",
     "package:win": "pnpm --filter @d2-service/desktop package:win"
   },

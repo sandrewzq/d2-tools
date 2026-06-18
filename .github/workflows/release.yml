@@ -85,29 +85,18 @@ jobs:
           path: release-artifacts
 
       - name: Create or update GitHub release
-        env:
-          GH_TOKEN: ${{ github.token }}
-          TAG_NAME: ${{ github.ref_name }}
-        run: |
-          set -euo pipefail
-          package_file="$(ls release-artifacts/d2-service-win-x64-*.7z | head -n 1)"
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: d2-service ${{ github.ref_name }}
+          files: release-artifacts/d2-service-win-x64-*.7z
+          fail_on_unmatched_files: true
+          body: |
+            Windows x64 绿色包，7z 格式。
 
-          cat > release-notes.md <<EOF
-          Windows x64 绿色包，7z 格式。
+            使用方式：
+            1. 下载 7z。
+            2. 用 7-Zip、Bandizip、WinRAR 等工具解压到任意目录。
+            3. 双击 d2-service.exe。
 
-          使用方式：
-          1. 下载 7z。
-          2. 用 7-Zip、Bandizip、WinRAR 等工具解压到任意目录。
-          3. 双击 d2-service.exe。
-
-          覆盖升级不会删除 %APPDATA%\\d2-service 里的本地配置、token 和缓存。
-          EOF
-
-          if gh release view "$TAG_NAME" >/dev/null 2>&1; then
-            gh release upload "$TAG_NAME" "$package_file" --clobber
-          else
-            gh release create "$TAG_NAME" "$package_file" \
-              --title "d2-service $TAG_NAME" \
-              --notes-file release-notes.md \
-              --verify-tag
-          fi
+            覆盖升级不会删除 %APPDATA%\d2-service 里的本地配置、token 和缓存。
