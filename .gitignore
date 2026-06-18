@@ -3,6 +3,8 @@ dist/
 release/
 out/
 .env
+.env.*
+!.env.example
 .local-data/
 coverage/
 *.log
