@@ -34,19 +34,19 @@ export function computeStartupState(input: {
     cards: {
       bungieConfig: {
         status: bungieReady ? "ready" : "missing",
-        label: bungieReady ? "Bungie configuration complete" : "Bungie configuration required"
+        label: bungieReady ? "Bungie 配置已完成" : "需要填写 Bungie 配置"
       },
       account: {
         status: input.hasToken ? "ready" : "missing",
-        label: input.hasToken ? "Bungie account connected" : "Bungie login required"
+        label: input.hasToken ? "Bungie 账号已登录" : "需要登录 Bungie"
       },
       manifest: {
         status: input.hasManifest ? "ready" : "missing",
-        label: input.hasManifest ? "Manifest initialized" : "Manifest not initialized"
+        label: input.hasManifest ? "资料库已初始化" : "资料库未初始化"
       },
       ai: {
         status: input.config.ai.provider.trim() ? "ready" : "skipped",
-        label: input.config.ai.provider.trim() ? "AI configured" : "AI not configured"
+        label: input.config.ai.provider.trim() ? "AI 已配置" : "AI 未配置"
       }
     }
   };

@@ -1,0 +1,185 @@
+name: Release Windows Package
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+env:
+  GITEE_OWNER: Sandrew
+  GITEE_REPO: d2-service
+
+jobs:
+  build-windows:
+    name: Build Windows green package
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify tag matches package versions
+        shell: pwsh
+        run: |
+          $rootVersion = node -p "require('./package.json').version"
+          $desktopVersion = node -p "require('./packages/desktop/package.json').version"
+          $tagName = "${{ github.ref_name }}"
+
+          if ($rootVersion -ne $desktopVersion) {
+            throw "Root package version $rootVersion does not match desktop package version $desktopVersion"
+          }
+
+          if ($tagName -ne "v$rootVersion") {
+            throw "Release tag $tagName must match package version v$rootVersion"
+          }
+
+      - name: Test
+        run: pnpm test
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Build Windows ZIP
+        run: pnpm package:win
+
+      - name: Collect release asset
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path release-artifacts | Out-Null
+          $zip = Get-ChildItem packages/desktop/release/d2-service-win-x64-*.zip | Select-Object -First 1
+          if (-not $zip) {
+            throw "Windows ZIP artifact was not created"
+          }
+          Copy-Item $zip.FullName release-artifacts/
+
+      - name: Upload release artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: d2-service-win-x64
+          path: release-artifacts/d2-service-win-x64-*.zip
+          if-no-files-found: error
+
+  publish-github:
+    name: Publish GitHub Release
+    runs-on: ubuntu-latest
+    needs: build-windows
+
+    steps:
+      - name: Download release artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: d2-service-win-x64
+          path: release-artifacts
+
+      - name: Create or update GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          zip_file="$(ls release-artifacts/d2-service-win-x64-*.zip | head -n 1)"
+
+          cat > release-notes.md <<EOF
+          Windows x64 绿色包。
+
+          使用方式：
+          1. 下载 ZIP。
+          2. 解压到任意目录。
+          3. 双击 d2-service.exe。
+
+          覆盖升级不会删除 %APPDATA%\\d2-service 里的本地配置、token 和缓存。
+          EOF
+
+          if gh release view "$TAG_NAME" >/dev/null 2>&1; then
+            gh release upload "$TAG_NAME" "$zip_file" --clobber
+          else
+            gh release create "$TAG_NAME" "$zip_file" \
+              --title "d2-service $TAG_NAME" \
+              --notes-file release-notes.md \
+              --verify-tag
+          fi
+
+  publish-gitee:
+    name: Publish Gitee Release
+    runs-on: ubuntu-latest
+    needs: build-windows
+
+    steps:
+      - name: Checkout tag
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download release artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: d2-service-win-x64
+          path: release-artifacts
+
+      - name: Check Gitee secrets
+        env:
+          GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
+          GITEE_SSH_PRIVATE_KEY: ${{ secrets.GITEE_SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "$GITEE_TOKEN" ]; then
+            echo "GITEE_TOKEN is required to create the Gitee release."
+            exit 1
+          fi
+          if [ -z "$GITEE_SSH_PRIVATE_KEY" ]; then
+            echo "GITEE_SSH_PRIVATE_KEY is required to push the release tag to Gitee."
+            exit 1
+          fi
+
+      - name: Push tag to Gitee
+        env:
+          GITEE_SSH_PRIVATE_KEY: ${{ secrets.GITEE_SSH_PRIVATE_KEY }}
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          printf '%s\n' "$GITEE_SSH_PRIVATE_KEY" > ~/.ssh/gitee_key
+          chmod 600 ~/.ssh/gitee_key
+          ssh-keyscan gitee.com >> ~/.ssh/known_hosts
+          git remote add gitee-release "git@gitee.com:${GITEE_OWNER}/${GITEE_REPO}.git"
+          GIT_SSH_COMMAND="ssh -i ~/.ssh/gitee_key -o IdentitiesOnly=yes" \
+            git push gitee-release "refs/tags/${TAG_NAME}:refs/tags/${TAG_NAME}"
+
+      - name: Create Gitee release
+        uses: nicennnnnnnlee/action-gitee-release@v2.0.0
+        with:
+          gitee_action: create_release
+          gitee_owner: ${{ env.GITEE_OWNER }}
+          gitee_repo: ${{ env.GITEE_REPO }}
+          gitee_token: ${{ secrets.GITEE_TOKEN }}
+          gitee_tag_name: ${{ github.ref_name }}
+          gitee_release_name: d2-service ${{ github.ref_name }}
+          gitee_release_body: |
+            Windows x64 绿色包。
+
+            使用方式：
+            1. 下载 ZIP。
+            2. 解压到任意目录。
+            3. 双击 d2-service.exe。
+
+            覆盖升级不会删除 %APPDATA%\d2-service 里的本地配置、token 和缓存。
+          gitee_target_commitish: ${{ github.sha }}
+          gitee_upload_retry_times: 3
+          gitee_files: release-artifacts/d2-service-win-x64-*.zip

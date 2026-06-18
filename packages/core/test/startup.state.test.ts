@@ -47,4 +47,17 @@ describe("startup state", () => {
     expect(state.nextStep).toBe("home");
     expect(state.cards.manifest.status).toBe("missing");
   });
+
+  it("returns Chinese status labels for the desktop home cards", () => {
+    const state = computeStartupState({
+      config: config({ api_key: "api", client_id: "client", client_secret: "secret" }),
+      hasToken: true,
+      hasManifest: true
+    });
+
+    expect(state.cards.bungieConfig.label).toBe("Bungie 配置已完成");
+    expect(state.cards.account.label).toBe("Bungie 账号已登录");
+    expect(state.cards.manifest.label).toBe("资料库已初始化");
+    expect(state.cards.ai.label).toBe("AI 未配置");
+  });
 });

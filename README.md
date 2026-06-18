@@ -241,6 +241,51 @@ d2-service 的设计原则是本地优先：
 
 如果后续要做更傻瓜式的大规模分发，可以再评估“官方统一应用 + 安全授权服务”的方案；第一版先保持本地配置，风险最低，也方便快速迭代。
 
+## 下载和发布
+
+普通玩家只需要去 Release 页面下载绿色包：
+
+- GitHub Release：适合能正常访问 GitHub 的玩家。
+- Gitee Release：适合 GitHub 下载慢的玩家。
+
+维护者发布新版本时，不需要手动上传 ZIP。项目已经配置 GitHub Actions：
+
+1. 在 `package.json` 和 `packages/desktop/package.json` 里把版本号改成同一个值，例如 `0.1.1`。
+2. 提交代码。
+3. 打 tag，tag 必须和版本号一致，例如：
+
+```powershell
+git tag v0.1.1
+git push origin v0.1.1
+```
+
+4. GitHub Actions 会自动执行：
+
+- 安装依赖。
+- 运行测试。
+- 运行类型检查。
+- 构建 Windows x64 绿色包。
+- 上传到 GitHub Release。
+- 同时推送 tag 到 Gitee，并上传到 Gitee Release。
+
+Gitee 自动发布需要在 GitHub 仓库的 `Settings -> Secrets and variables -> Actions` 里配置：
+
+- `GITEE_TOKEN`: Gitee 的私人令牌，用来创建 Release 和上传附件。
+- `GITEE_SSH_PRIVATE_KEY`: 有 Gitee 仓库写权限的 SSH 私钥，用来把 release tag 推到 Gitee。
+
+如果希望 Gitee 上的源码也同步更新，平时合并代码后再执行：
+
+```powershell
+git push origin main
+git push gitee main
+```
+
+Release ZIP 的文件名类似：
+
+```text
+d2-service-win-x64-0.1.1.zip
+```
+
 ## 开发
 
 安装依赖：
