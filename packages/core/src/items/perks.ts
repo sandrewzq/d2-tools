@@ -76,7 +76,11 @@ function toPlugSummary(
   hash: number,
   definition: DefinitionRecord | undefined
 ): ItemPlugSummary | null {
-  const name = definition?.displayProperties?.name?.trim();
+  if (!definition) {
+    return null;
+  }
+
+  const name = definition.displayProperties?.name?.trim();
   if (!name) {
     return null;
   }

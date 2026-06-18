@@ -66,7 +66,7 @@ export function HomePage(props: {
       <section className="tool-panel">
         <div>
           <h2>物品搜索</h2>
-          <p>先初始化资料库，然后搜索本地 Manifest 物品定义。</p>
+          <p>先初始化资料库，然后搜索本地 Manifest 物品定义和可用 perk。</p>
         </div>
         <div className="search-row">
           <input
@@ -87,6 +87,17 @@ export function HomePage(props: {
                 <h3>{item.name}</h3>
                 <p>{[item.tier, item.item_type].filter(Boolean).join(" / ")}</p>
                 <p>{item.description}</p>
+                {item.perks?.length ? (
+                  <div className="perk-groups">
+                    {item.perks.slice(0, 6).map((group) => (
+                      <div className="perk-group" key={group.socket_index}>
+                        {group.plugs.slice(0, 6).map((plug) => (
+                          <span className="perk-chip" key={plug.hash}>{plug.name}</span>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
               </div>
             </article>
           ))}

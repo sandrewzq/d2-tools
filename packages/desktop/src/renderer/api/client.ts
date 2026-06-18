@@ -62,4 +62,17 @@ export type ItemSearchResult = {
   icon?: string;
   item_type?: string;
   tier?: string;
+  perks?: ItemPerkGroup[];
+};
+
+export type ItemPerkGroup = {
+  socket_index: number;
+  plugs: ItemPlugSummary[];
+};
+
+export type ItemPlugSummary = {
+  hash: number;
+  name: string;
+  description: string;
+  icon?: string;
 };

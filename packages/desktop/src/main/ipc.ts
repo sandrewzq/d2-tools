@@ -4,10 +4,10 @@ import {
   getDefinitionStatus,
   getHealth,
   getManifestStatus,
-  initializeManifestMetadata,
   initializeDefinitionComponent,
-  loadDefinitionComponent,
+  initializeManifestMetadata,
   loadConfig,
+  loadDefinitionComponent,
   loadManifestMetadataCache,
   saveConfig,
   searchItemDefinitions,
@@ -51,12 +51,26 @@ export function registerIpcHandlers(): void {
       throw new Error("Manifest metadata cache was not created");
     }
 
-    await initializeDefinitionComponent({
-      dataDir: config.data.data_dir,
-      language: cache.language,
-      metadata: cache.metadata,
-      component: "DestinyInventoryItemDefinition"
-    });
+    await Promise.all([
+      initializeDefinitionComponent({
+        dataDir: config.data.data_dir,
+        language: cache.language,
+        metadata: cache.metadata,
+        component: "DestinyInventoryItemDefinition"
+      }),
+      initializeDefinitionComponent({
+        dataDir: config.data.data_dir,
+        language: cache.language,
+        metadata: cache.metadata,
+        component: "DestinyPlugSetDefinition"
+      }),
+      initializeDefinitionComponent({
+        dataDir: config.data.data_dir,
+        language: cache.language,
+        metadata: cache.metadata,
+        component: "DestinySandboxPerkDefinition"
+      })
+    ]);
 
     return status;
   });
@@ -67,11 +81,18 @@ export function registerIpcHandlers(): void {
       config.data.data_dir,
       "DestinyInventoryItemDefinition"
     );
+    const plugSetDefinitions = loadDefinitionComponent(
+      config.data.data_dir,
+      "DestinyPlugSetDefinition"
+    );
 
     if (!definitions) {
       throw new Error("请先初始化资料库");
     }
 
-    return searchItemDefinitions(definitions, query, { limit: 20 });
+    return searchItemDefinitions(definitions, query, {
+      limit: 20,
+      plugSetDefinitions: plugSetDefinitions ?? undefined
+    });
   });
 }

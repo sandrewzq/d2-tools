@@ -126,3 +126,24 @@ h2 {
 .item-result p {
   margin: 0 0 6px;
 }
+
+.perk-groups {
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.perk-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.perk-chip {
+  padding: 4px 8px;
+  border: 1px solid #384152;
+  border-radius: 999px;
+  color: #dce4f4;
+  background: #202838;
+  font-size: 12px;
+}
