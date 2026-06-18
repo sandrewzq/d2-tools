@@ -5,5 +5,7 @@ export * from "./config/schema.js";
 export * from "./config/store.js";
 export * from "./health/health.js";
 export * from "./logging/logger.js";
+export * from "./manifest/cache.js";
+export * from "./manifest/metadata.js";
 export * from "./oauth/callbackServer.js";
 export * from "./startup/startupState.js";
