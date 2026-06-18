@@ -5,6 +5,7 @@ declare global {
       getConfig(): Promise<D2Config>;
       saveConfig(config: D2Config): Promise<D2Config>;
       loginBungie(): Promise<AuthLoginResult>;
+      getAccountSummary(): Promise<AccountSummary>;
       getStartupState(): Promise<StartupState>;
       getManifestStatus(): Promise<ManifestStatus>;
       initializeManifest(): Promise<ManifestStatus>;
@@ -36,6 +37,34 @@ export type D2Config = {
 export type AuthLoginResult = {
   ok: true;
   message: string;
+};
+
+export type AccountSummary = {
+  account_name: string;
+  destiny_membership_id: string;
+  membership_type: number;
+  characters: CharacterSummary[];
+  vault: {
+    item_count: number;
+    sample_items: AccountItemSummary[];
+  };
+};
+
+export type CharacterSummary = {
+  character_id: string;
+  class_name: string;
+  light?: number;
+  emblem_url?: string;
+  equipped_items: AccountItemSummary[];
+};
+
+export type AccountItemSummary = {
+  hash: number;
+  instance_id?: string;
+  name: string;
+  icon?: string;
+  item_type?: string;
+  tier?: string;
 };
 
 export type StartupState = {

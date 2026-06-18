@@ -19,8 +19,12 @@ describe("desktop Bungie login wiring", () => {
     const ipc = readFileSync(join(desktopRoot, "src", "main", "ipc.ts"), "utf8");
 
     expect(homePage).toContain("loginBungie()");
+    expect(homePage).toContain("loadAccountSummary()");
     expect(apiClient).toContain("loginBungie(): Promise");
+    expect(apiClient).toContain("getAccountSummary(): Promise");
     expect(preload).toContain('ipcRenderer.invoke("auth:login")');
+    expect(preload).toContain('ipcRenderer.invoke("account:summary")');
     expect(ipc).toContain('ipcMain.handle("auth:login"');
+    expect(ipc).toContain('ipcMain.handle("account:summary"');
   });
 });

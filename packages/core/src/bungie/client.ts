@@ -1,5 +1,6 @@
 export type FetchBungieJsonOptions = {
   apiKey: string;
+  accessToken?: string;
   baseUrl?: string;
   fetchImpl?: typeof fetch;
 };
@@ -26,6 +27,7 @@ export async function fetchBungieJson<T>(
   const response = await fetchImpl(url, {
     headers: {
       "X-API-Key": apiKey,
+      ...(options.accessToken ? { "Authorization": `Bearer ${options.accessToken}` } : {}),
       "Accept": "application/json"
     }
   });

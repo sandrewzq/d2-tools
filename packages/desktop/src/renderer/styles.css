@@ -94,6 +94,74 @@ h2 {
   border-top: 1px solid #303848;
 }
 
+.section-heading {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: end;
+}
+
+.section-heading p {
+  margin: 8px 0 0;
+}
+
+.account-summary {
+  display: grid;
+  gap: 16px;
+}
+
+.account-summary h3,
+.account-summary p {
+  margin: 0 0 6px;
+}
+
+.character-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+}
+
+.character-card {
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid #303848;
+  border-radius: 8px;
+  background: #181d27;
+}
+
+.character-title {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+}
+
+.character-title img {
+  width: 48px;
+  height: 48px;
+  border-radius: 6px;
+}
+
+.compact-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.compact-items span {
+  max-width: 180px;
+  overflow: hidden;
+  padding: 4px 8px;
+  border: 1px solid #384152;
+  border-radius: 6px;
+  color: #dce4f4;
+  background: #202838;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+}
+
 .search-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;

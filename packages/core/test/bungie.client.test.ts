@@ -31,6 +31,27 @@ describe("Bungie API client", () => {
     expect(request?.headers.get("x-api-key")).toBe("api-key");
   });
 
+  it("sends bearer tokens for authenticated Bungie requests", async () => {
+    let request: Request | undefined;
+    const fetchImpl: typeof fetch = async (input, init) => {
+      request = new Request(input, init);
+      return jsonResponse({
+        ErrorCode: 1,
+        Message: "Ok",
+        Response: { ok: true }
+      });
+    };
+
+    await fetchBungieJson<{ ok: boolean }>("/User/GetMembershipsForCurrentUser/", {
+      apiKey: "api-key",
+      accessToken: "access-token",
+      baseUrl: "https://example.test/Platform",
+      fetchImpl
+    });
+
+    expect(request?.headers.get("authorization")).toBe("Bearer access-token");
+  });
+
   it("rejects missing API keys before making a request", async () => {
     let called = false;
     const fetchImpl: typeof fetch = async () => {

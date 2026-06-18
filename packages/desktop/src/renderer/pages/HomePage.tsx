@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { api, type ItemSearchResult, type StartupState } from "../api/client";
+import { api, type AccountSummary, type ItemSearchResult, type StartupState } from "../api/client";
 import { StatusCard } from "../components/StatusCard";
 
 export function HomePage(props: {
@@ -13,6 +13,9 @@ export function HomePage(props: {
   const [manifestMessage, setManifestMessage] = useState("");
   const [manifestError, setManifestError] = useState("");
   const [isInitializingManifest, setIsInitializingManifest] = useState(false);
+  const [accountSummary, setAccountSummary] = useState<AccountSummary | null>(null);
+  const [accountError, setAccountError] = useState("");
+  const [isLoadingAccount, setIsLoadingAccount] = useState(false);
   const [query, setQuery] = useState("");
   const [items, setItems] = useState<ItemSearchResult[]>([]);
   const [searchError, setSearchError] = useState("");
@@ -47,6 +50,20 @@ export function HomePage(props: {
       setManifestError(error instanceof Error ? error.message : "资料库初始化失败");
     } finally {
       setIsInitializingManifest(false);
+    }
+  }
+
+  async function loadAccountSummary() {
+    setIsLoadingAccount(true);
+    setAccountError("");
+
+    try {
+      setAccountSummary(await api.getAccountSummary());
+    } catch (error) {
+      setAccountError(error instanceof Error ? error.message : "账号数据读取失败");
+      setAccountSummary(null);
+    } finally {
+      setIsLoadingAccount(false);
     }
   }
 
@@ -90,6 +107,57 @@ export function HomePage(props: {
       {loginError ? <p className="error">{loginError}</p> : null}
       {manifestMessage ? <p className="notice">{manifestMessage}</p> : null}
       {manifestError ? <p className="error">{manifestError}</p> : null}
+
+      <section className="tool-panel">
+        <div className="section-heading">
+          <div>
+            <h2>账号摘要</h2>
+            <p>读取当前 Bungie 账号、角色装备和仓库简表。</p>
+          </div>
+          <button type="button" disabled={isLoadingAccount} onClick={() => void loadAccountSummary()}>
+            {isLoadingAccount ? "读取中..." : "读取账号数据"}
+          </button>
+        </div>
+        {accountError ? <p className="error">{accountError}</p> : null}
+        {accountSummary ? (
+          <div className="account-summary">
+            <div>
+              <h3>{accountSummary.account_name}</h3>
+              <p>
+                Membership {accountSummary.membership_type} / {accountSummary.destiny_membership_id}
+              </p>
+              <p>仓库物品：{accountSummary.vault.item_count}</p>
+            </div>
+            <div className="character-grid">
+              {accountSummary.characters.map((character) => (
+                <article className="character-card" key={character.character_id}>
+                  <div className="character-title">
+                    {character.emblem_url ? <img alt="" src={character.emblem_url} /> : null}
+                    <div>
+                      <h3>{character.class_name}</h3>
+                      <p>光等 {character.light ?? "-"}</p>
+                    </div>
+                  </div>
+                  <div className="compact-items">
+                    {character.equipped_items.slice(0, 10).map((item) => (
+                      <span title={item.item_type} key={`${item.hash}-${item.instance_id ?? ""}`}>
+                        {item.name}
+                      </span>
+                    ))}
+                  </div>
+                </article>
+              ))}
+            </div>
+            <div className="compact-items">
+              {accountSummary.vault.sample_items.map((item) => (
+                <span title={item.item_type} key={`${item.hash}-${item.instance_id ?? ""}`}>
+                  {item.name}
+                </span>
+              ))}
+            </div>
+          </div>
+        ) : null}
+      </section>
 
       <section className="tool-panel">
         <div>

@@ -4,6 +4,7 @@ import {
   buildBungieAuthorizationUrl,
   computeStartupState,
   exchangeBungieOAuthCode,
+  fetchAccountSummary,
   getDefinitionStatus,
   getHealth,
   getManifestStatus,
@@ -13,6 +14,7 @@ import {
   loadConfig,
   loadDefinitionComponent,
   loadManifestMetadataCache,
+  loadOAuthToken,
   saveConfig,
   saveOAuthToken,
   searchItemDefinitions,
@@ -83,6 +85,28 @@ export function registerIpcHandlers(): void {
       config,
       hasToken: hasOAuthToken(config.data.data_dir),
       hasManifest: itemDefinitionStatus.initialized
+    });
+  });
+
+  ipcMain.handle("account:summary", async () => {
+    const config = loadConfig();
+    const token = loadOAuthToken(config.data.data_dir);
+    if (!token) {
+      throw new Error("请先登录 Bungie");
+    }
+
+    const itemDefinitions = loadDefinitionComponent(
+      config.data.data_dir,
+      "DestinyInventoryItemDefinition"
+    );
+    if (!itemDefinitions) {
+      throw new Error("请先初始化资料库");
+    }
+
+    return fetchAccountSummary({
+      config,
+      token,
+      itemDefinitions
     });
   });
 
