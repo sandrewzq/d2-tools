@@ -4,6 +4,7 @@ import type {
   AuthLoginResult,
   AccountSummary,
   HealthStatus,
+  ItemDefinitionDetail,
   ItemSearchResult,
   ManifestStatus,
   StartupState
@@ -15,6 +16,7 @@ contextBridge.exposeInMainWorld("d2", {
   saveConfig: (config: D2Config) => ipcRenderer.invoke("config:save", config) as Promise<D2Config>,
   loginBungie: () => ipcRenderer.invoke("auth:login") as Promise<AuthLoginResult>,
   getAccountSummary: () => ipcRenderer.invoke("account:summary") as Promise<AccountSummary>,
+  getItemDetail: (hash: number) => ipcRenderer.invoke("items:detail", hash) as Promise<ItemDefinitionDetail>,
   getStartupState: () => ipcRenderer.invoke("startup:get") as Promise<StartupState>,
   getManifestStatus: () => ipcRenderer.invoke("manifest:status") as Promise<ManifestStatus>,
   initializeManifest: () => ipcRenderer.invoke("manifest:initialize") as Promise<ManifestStatus>,

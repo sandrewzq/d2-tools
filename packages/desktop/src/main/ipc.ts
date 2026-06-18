@@ -5,6 +5,7 @@ import {
   computeStartupState,
   exchangeBungieOAuthCode,
   fetchAccountSummary,
+  getItemDefinitionDetail,
   getDefinitionStatus,
   getHealth,
   getManifestStatus,
@@ -166,5 +167,30 @@ export function registerIpcHandlers(): void {
       limit: 20,
       plugSetDefinitions: plugSetDefinitions ?? undefined
     });
+  });
+
+  ipcMain.handle("items:detail", (_event, hash: number) => {
+    const config = loadConfig();
+    const definitions = loadDefinitionComponent(
+      config.data.data_dir,
+      "DestinyInventoryItemDefinition"
+    );
+    const plugSetDefinitions = loadDefinitionComponent(
+      config.data.data_dir,
+      "DestinyPlugSetDefinition"
+    );
+
+    if (!definitions) {
+      throw new Error("请先初始化资料库");
+    }
+
+    const detail = getItemDefinitionDetail(definitions, Number(hash), {
+      plugSetDefinitions: plugSetDefinitions ?? undefined
+    });
+    if (!detail) {
+      throw new Error("未找到物品详情");
+    }
+
+    return detail;
   });
 }

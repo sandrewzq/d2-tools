@@ -1,5 +1,12 @@
 import { useState } from "react";
-import { api, type AccountSummary, type ItemSearchResult, type StartupState } from "../api/client";
+import {
+  api,
+  type AccountItemSummary,
+  type AccountSummary,
+  type ItemDefinitionDetail,
+  type ItemSearchResult,
+  type StartupState
+} from "../api/client";
 import { StatusCard } from "../components/StatusCard";
 
 export function HomePage(props: {
@@ -16,6 +23,8 @@ export function HomePage(props: {
   const [accountSummary, setAccountSummary] = useState<AccountSummary | null>(null);
   const [accountError, setAccountError] = useState("");
   const [isLoadingAccount, setIsLoadingAccount] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<ItemDefinitionDetail | null>(null);
+  const [itemDetailError, setItemDetailError] = useState("");
   const [query, setQuery] = useState("");
   const [items, setItems] = useState<ItemSearchResult[]>([]);
   const [searchError, setSearchError] = useState("");
@@ -64,6 +73,16 @@ export function HomePage(props: {
       setAccountSummary(null);
     } finally {
       setIsLoadingAccount(false);
+    }
+  }
+
+  async function openItemDetail(item: AccountItemSummary | ItemSearchResult) {
+    setItemDetailError("");
+
+    try {
+      setSelectedItem(await api.getItemDetail(item.hash));
+    } catch (error) {
+      setItemDetailError(error instanceof Error ? error.message : "物品详情读取失败");
     }
   }
 
@@ -119,6 +138,7 @@ export function HomePage(props: {
           </button>
         </div>
         {accountError ? <p className="error">{accountError}</p> : null}
+        {itemDetailError ? <p className="error">{itemDetailError}</p> : null}
         {accountSummary ? (
           <div className="account-summary">
             <div>
@@ -144,13 +164,18 @@ export function HomePage(props: {
                         <h4>{group.label}</h4>
                         <div className="equipment-grid">
                           {group.items.map((item) => (
-                            <div className="equipment-item" key={`${item.hash}-${item.instance_id ?? ""}`}>
+                            <button
+                              className="equipment-item"
+                              key={`${item.hash}-${item.instance_id ?? ""}`}
+                              type="button"
+                              onClick={() => void openItemDetail(item)}
+                            >
                               {item.icon ? <img alt="" src={item.icon} /> : <div className="item-icon-placeholder" />}
                               <div>
                                 <strong>{item.name}</strong>
                                 <span>{[item.bucket_name, item.tier].filter(Boolean).join(" / ")}</span>
                               </div>
-                            </div>
+                            </button>
                           ))}
                         </div>
                       </section>
@@ -163,10 +188,16 @@ export function HomePage(props: {
               <h3>仓库预览</h3>
               <div className="vault-grid">
                 {accountSummary.vault.sample_items.slice(0, 30).map((item) => (
-                  <div className="vault-item" title={item.name} key={`${item.hash}-${item.instance_id ?? ""}`}>
+                  <button
+                    className="vault-item"
+                    title={item.name}
+                    key={`${item.hash}-${item.instance_id ?? ""}`}
+                    type="button"
+                    onClick={() => void openItemDetail(item)}
+                  >
                     {item.icon ? <img alt="" src={item.icon} /> : <div className="item-icon-placeholder" />}
                     <span>{item.name}</span>
-                  </div>
+                  </button>
                 ))}
               </div>
             </section>
@@ -209,11 +240,52 @@ export function HomePage(props: {
                     ))}
                   </div>
                 ) : null}
+                <button type="button" className="inline-action" onClick={() => void openItemDetail(item)}>
+                  查看详情
+                </button>
               </div>
             </article>
           ))}
         </div>
       </section>
+
+      {selectedItem ? (
+        <div className="modal-backdrop" role="presentation" onClick={() => setSelectedItem(null)}>
+          <section className="item-modal" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
+            <button className="modal-close" type="button" onClick={() => setSelectedItem(null)}>关闭</button>
+            <div className="modal-title">
+              {selectedItem.icon ? <img alt="" src={selectedItem.icon} /> : null}
+              <div>
+                <h2>{selectedItem.name}</h2>
+                <p>{[selectedItem.tier, selectedItem.item_type].filter(Boolean).join(" / ")}</p>
+              </div>
+            </div>
+            {selectedItem.description ? <p>{selectedItem.description}</p> : null}
+            {selectedItem.perks?.length ? (
+              <div className="modal-perks">
+                {selectedItem.perks.map((group) => (
+                  <section className="modal-perk-group" key={group.socket_index}>
+                    <h3>插槽 {group.socket_index + 1}</h3>
+                    <div className="modal-plug-grid">
+                      {group.plugs.map((plug) => (
+                        <div className="modal-plug" key={plug.hash}>
+                          {plug.icon ? <img alt="" src={plug.icon} /> : null}
+                          <div>
+                            <strong>{plug.name}</strong>
+                            {plug.description ? <p>{plug.description}</p> : null}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                ))}
+              </div>
+            ) : (
+              <p className="notice">暂无可展示 perk。</p>
+            )}
+          </section>
+        </div>
+      ) : null}
     </main>
   );
 }

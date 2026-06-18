@@ -6,6 +6,7 @@ declare global {
       saveConfig(config: D2Config): Promise<D2Config>;
       loginBungie(): Promise<AuthLoginResult>;
       getAccountSummary(): Promise<AccountSummary>;
+      getItemDetail(hash: number): Promise<ItemDefinitionDetail>;
       getStartupState(): Promise<StartupState>;
       getManifestStatus(): Promise<ManifestStatus>;
       initializeManifest(): Promise<ManifestStatus>;
@@ -69,6 +70,16 @@ export type AccountItemSummary = {
   bucket_hash?: number;
   bucket_name?: string;
   group_key: EquipmentGroupKey;
+};
+
+export type ItemDefinitionDetail = {
+  hash: number;
+  name: string;
+  description: string;
+  icon?: string;
+  item_type?: string;
+  tier?: string;
+  perks?: ItemPerkGroup[];
 };
 
 export type EquipmentGroupKey = "weapons" | "armor" | "equipment" | "other";

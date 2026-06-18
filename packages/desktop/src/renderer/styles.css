@@ -171,11 +171,20 @@ h2 {
   grid-template-columns: 42px minmax(0, 1fr);
   gap: 8px;
   align-items: center;
+  width: 100%;
   min-height: 42px;
   padding: 6px;
   border: 1px solid #303848;
   border-radius: 6px;
+  color: #eceff4;
   background: #141924;
+  text-align: left;
+  cursor: pointer;
+}
+
+.equipment-item:hover,
+.vault-item:hover {
+  border-color: #8bd3ff;
 }
 
 .equipment-item img,
@@ -228,8 +237,10 @@ h2 {
   padding: 8px;
   border: 1px solid #303848;
   border-radius: 6px;
+  color: #eceff4;
   background: #141924;
   text-align: center;
+  cursor: pointer;
 }
 
 .vault-item span {
@@ -308,5 +319,105 @@ h2 {
   border-radius: 999px;
   color: #dce4f4;
   background: #202838;
+  font-size: 12px;
+}
+
+.inline-action {
+  margin-top: 6px;
+  padding: 6px 10px;
+  font-size: 12px;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgb(0 0 0 / 0.62);
+  z-index: 10;
+}
+
+.item-modal {
+  display: grid;
+  gap: 16px;
+  width: min(760px, 100%);
+  max-height: 88vh;
+  overflow: auto;
+  padding: 20px;
+  border: 1px solid #3a465a;
+  border-radius: 8px;
+  background: #181d27;
+  box-shadow: 0 18px 60px rgb(0 0 0 / 0.45);
+}
+
+.modal-close {
+  justify-self: end;
+}
+
+.modal-title {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: 14px;
+  align-items: center;
+}
+
+.modal-title img {
+  width: 72px;
+  height: 72px;
+  border-radius: 8px;
+}
+
+.modal-title h2,
+.modal-title p,
+.modal-plug p {
+  margin: 0;
+}
+
+.modal-perks {
+  display: grid;
+  gap: 14px;
+}
+
+.modal-perk-group {
+  display: grid;
+  gap: 8px;
+}
+
+.modal-perk-group h3 {
+  margin: 0;
+  color: #cbd6e8;
+  font-size: 14px;
+}
+
+.modal-plug-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 8px;
+}
+
+.modal-plug {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr);
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid #303848;
+  border-radius: 6px;
+  background: #141924;
+}
+
+.modal-plug img {
+  width: 36px;
+  height: 36px;
+  border-radius: 5px;
+}
+
+.modal-plug strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.modal-plug p {
+  color: #aeb9ca;
   font-size: 12px;
 }
