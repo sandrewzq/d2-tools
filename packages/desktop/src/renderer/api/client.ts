@@ -5,6 +5,8 @@ declare global {
       getConfig(): Promise<D2Config>;
       saveConfig(config: D2Config): Promise<D2Config>;
       getStartupState(): Promise<StartupState>;
+      getManifestStatus(): Promise<ManifestStatus>;
+      initializeManifest(): Promise<ManifestStatus>;
     };
   }
 }
@@ -42,4 +44,12 @@ export type StartupState = {
 export type StatusCardState = {
   status: "ready" | "missing" | "skipped";
   label: string;
+};
+
+export type ManifestStatus = {
+  initialized: boolean;
+  version?: string;
+  language?: string;
+  sqlite_path?: string;
+  cached_at?: string;
 };

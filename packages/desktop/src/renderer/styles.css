@@ -41,6 +41,11 @@ button {
   background: #8bd3ff;
 }
 
+button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
 .status-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -70,4 +75,8 @@ button {
 
 .notice {
   color: #8bd3ff;
+}
+
+.error {
+  color: #ff9a8b;
 }
