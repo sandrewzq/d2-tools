@@ -46,6 +46,11 @@ button:disabled {
   opacity: 0.65;
 }
 
+h2 {
+  margin: 0;
+  font-size: 20px;
+}
+
 .status-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -79,4 +84,45 @@ button:disabled {
 
 .error {
   color: #ff9a8b;
+}
+
+.tool-panel {
+  display: grid;
+  gap: 16px;
+  margin-top: 28px;
+  padding-top: 24px;
+  border-top: 1px solid #303848;
+}
+
+.search-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+}
+
+.item-results {
+  display: grid;
+  gap: 10px;
+}
+
+.item-result {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  padding: 12px;
+  border: 1px solid #303848;
+  border-radius: 8px;
+  background: #181d27;
+}
+
+.item-result img {
+  width: 56px;
+  height: 56px;
+  border-radius: 6px;
+}
+
+.item-result h3,
+.item-result p {
+  margin: 0 0 6px;
 }

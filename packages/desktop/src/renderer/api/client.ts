@@ -7,6 +7,7 @@ declare global {
       getStartupState(): Promise<StartupState>;
       getManifestStatus(): Promise<ManifestStatus>;
       initializeManifest(): Promise<ManifestStatus>;
+      searchItems(query: string): Promise<ItemSearchResult[]>;
     };
   }
 }
@@ -52,4 +53,13 @@ export type ManifestStatus = {
   language?: string;
   sqlite_path?: string;
   cached_at?: string;
+};
+
+export type ItemSearchResult = {
+  hash: number;
+  name: string;
+  description: string;
+  icon?: string;
+  item_type?: string;
+  tier?: string;
 };

@@ -1,11 +1,16 @@
 import { ipcMain } from "electron";
 import {
   computeStartupState,
+  getDefinitionStatus,
   getHealth,
   getManifestStatus,
   initializeManifestMetadata,
+  initializeDefinitionComponent,
+  loadDefinitionComponent,
   loadConfig,
+  loadManifestMetadataCache,
   saveConfig,
+  searchItemDefinitions,
   type D2Config
 } from "@d2-service/core";
 
@@ -21,12 +26,15 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle("startup:get", () => {
     const config = loadConfig();
-    const manifestStatus = getManifestStatus(config.data.data_dir);
+    const itemDefinitionStatus = getDefinitionStatus(
+      config.data.data_dir,
+      "DestinyInventoryItemDefinition"
+    );
 
     return computeStartupState({
       config,
       hasToken: false,
-      hasManifest: manifestStatus.initialized
+      hasManifest: itemDefinitionStatus.initialized
     });
   });
 
@@ -37,6 +45,33 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle("manifest:initialize", async () => {
     const config = loadConfig();
-    return initializeManifestMetadata({ config });
+    const status = await initializeManifestMetadata({ config });
+    const cache = loadManifestMetadataCache(config.data.data_dir);
+    if (!cache) {
+      throw new Error("Manifest metadata cache was not created");
+    }
+
+    await initializeDefinitionComponent({
+      dataDir: config.data.data_dir,
+      language: cache.language,
+      metadata: cache.metadata,
+      component: "DestinyInventoryItemDefinition"
+    });
+
+    return status;
+  });
+
+  ipcMain.handle("items:search", (_event, query: string) => {
+    const config = loadConfig();
+    const definitions = loadDefinitionComponent(
+      config.data.data_dir,
+      "DestinyInventoryItemDefinition"
+    );
+
+    if (!definitions) {
+      throw new Error("请先初始化资料库");
+    }
+
+    return searchItemDefinitions(definitions, query, { limit: 20 });
   });
 }
