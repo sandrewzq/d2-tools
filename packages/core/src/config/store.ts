@@ -13,13 +13,32 @@ export function configPath(dataDir: string): string {
   return join(dataDir, "config.json");
 }
 
+function mergeConfigWithDefaults(config: Partial<D2Config>, dataDir: string): D2Config {
+  const defaults = defaultConfig(dataDir);
+
+  return {
+    bungie: {
+      ...defaults.bungie,
+      ...config.bungie
+    },
+    data: {
+      ...defaults.data,
+      ...config.data
+    },
+    ai: {
+      ...defaults.ai,
+      ...config.ai
+    }
+  };
+}
+
 export function loadConfig(options: ConfigStoreOptions = {}): D2Config {
   const selectedDataDir = options.dataDir ?? options.env?.D2_DATA_DIR ?? defaultDataDir();
   mkdirSync(selectedDataDir, { recursive: true });
 
   const path = configPath(selectedDataDir);
   const base = existsSync(path)
-    ? ({ ...defaultConfig(selectedDataDir), ...JSON.parse(readFileSync(path, "utf8")) } as D2Config)
+    ? mergeConfigWithDefaults(JSON.parse(readFileSync(path, "utf8")) as Partial<D2Config>, selectedDataDir)
     : defaultConfig(selectedDataDir);
 
   base.data.data_dir = selectedDataDir;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mkdtempSync, readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { loadConfig, saveConfig } from "../src/config/store.js";
@@ -78,5 +78,23 @@ describe("config store", () => {
 
     expect(loaded.bungie.api_key).toBe("from-env");
     expect(loaded.data.manifest_language).toBe("en");
+  });
+
+  it("keeps defaults for missing fields in a partial config file", () => {
+    const dir = mkdtempSync(join(tmpdir(), "d2-service-config-"));
+    writeFileSync(
+      join(dir, "config.json"),
+      `${JSON.stringify({ bungie: { api_key: "x" } }, null, 2)}\n`,
+      "utf8"
+    );
+
+    const loaded = loadConfig({ dataDir: dir, env: {} });
+
+    expect(loaded.bungie.api_key).toBe("x");
+    expect(loaded.bungie.redirect_uri).toBe("http://127.0.0.1:28780/oauth/callback");
+    expect(loaded.data.manifest_language).toBe("zh-chs");
+    expect(loaded.ai.provider).toBe("");
+    expect(loaded.ai.api_key).toBe("");
+    expect(loaded.ai.model).toBe("");
   });
 });
