@@ -7,7 +7,8 @@
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "dev:electron": "set NODE_ENV=development&& electron dist/main/main.js",
-    "build": "pnpm --filter @d2-service/core build && pnpm --filter @d2-service/http build && vite build && tsc -p tsconfig.main.json",
+    "clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",
+    "build": "pnpm clean && pnpm --filter @d2-service/core build && pnpm --filter @d2-service/http build && vite build && tsc -p tsconfig.main.json",
     "typecheck": "pnpm --filter @d2-service/core build && pnpm --filter @d2-service/http build && tsc -p tsconfig.main.json --noEmit && tsc -p tsconfig.renderer.json --noEmit",
     "test": "vitest --root ../.. --run",
     "package:win": "pnpm build && electron-builder --config ../../electron-builder.yml --win zip"

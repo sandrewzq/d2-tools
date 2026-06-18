@@ -14,7 +14,7 @@ async function createWindow(): Promise<void> {
     minHeight: 680,
     title: "d2-service",
     webPreferences: {
-      preload: join(currentDir, "../preload/preload.js"),
+      preload: join(currentDir, "../preload/preload.cjs"),
       contextIsolation: true,
       nodeIntegration: false
     }
