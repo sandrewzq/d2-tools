@@ -11,6 +11,7 @@ import { StatusCard } from "../components/StatusCard";
 
 export function HomePage(props: {
   state: StartupState;
+  onConfigure: () => void;
   onLoginComplete: () => void;
   onManifestInitialized: () => void;
 }) {
@@ -105,7 +106,12 @@ export function HomePage(props: {
       <h1>d2-service</h1>
       <p>今日面板会在后续阶段接入遗失区域、商人、角色和 AI 摘要。</p>
       <div className="status-grid">
-        <StatusCard title="Bungie 配置" {...props.state.cards.bungieConfig} action="去配置" />
+        <StatusCard
+          title="Bungie 配置"
+          {...props.state.cards.bungieConfig}
+          action="去配置"
+          onAction={props.onConfigure}
+        />
         <StatusCard
           title="账号登录"
           {...props.state.cards.account}

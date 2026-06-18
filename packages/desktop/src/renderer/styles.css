@@ -46,6 +46,19 @@ button:disabled {
   opacity: 0.65;
 }
 
+.button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.secondary-button {
+  border: 1px solid #384152;
+  color: #dce4f4;
+  background: #202838;
+}
+
 h2 {
   margin: 0;
   font-size: 20px;

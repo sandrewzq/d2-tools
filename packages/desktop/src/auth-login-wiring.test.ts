@@ -11,6 +11,11 @@ describe("desktop Bungie login wiring", () => {
       join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"),
       "utf8"
     );
+    const app = readFileSync(join(desktopRoot, "src", "renderer", "App.tsx"), "utf8");
+    const wizardPage = readFileSync(
+      join(desktopRoot, "src", "renderer", "pages", "WizardPage.tsx"),
+      "utf8"
+    );
     const apiClient = readFileSync(
       join(desktopRoot, "src", "renderer", "api", "client.ts"),
       "utf8"
@@ -20,6 +25,9 @@ describe("desktop Bungie login wiring", () => {
 
     expect(homePage).toContain("loginBungie()");
     expect(homePage).toContain("loadAccountSummary()");
+    expect(homePage).toContain("props.onConfigure");
+    expect(app).toContain("setIsConfiguring(true)");
+    expect(wizardPage).toContain("api.getConfig()");
     expect(apiClient).toContain("loginBungie(): Promise");
     expect(apiClient).toContain("getAccountSummary(): Promise");
     expect(preload).toContain('ipcRenderer.invoke("auth:login")');
