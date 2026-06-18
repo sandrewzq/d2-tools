@@ -8,3 +8,4 @@ out/
 .local-data/
 coverage/
 *.log
+.idea/

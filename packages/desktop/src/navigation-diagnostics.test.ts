@@ -1,0 +1,46 @@
+import { describe, expect, it } from "vitest";
+import { buildDiagnosticRows } from "./renderer/components/DiagnosticsPanel";
+import { navItems } from "./renderer/components/ShellLayout";
+import type { StartupState } from "./renderer/api/client";
+
+function startupState(): StartupState {
+  return {
+    nextStep: "home",
+    cards: {
+      bungieConfig: { status: "ready", label: "Bungie 配置已完成" },
+      account: { status: "missing", label: "需要登录 Bungie 账号" },
+      manifest: { status: "ready", label: "资料库已初始化" },
+      ai: { status: "skipped", label: "AI 未配置" }
+    }
+  };
+}
+
+describe("desktop shell navigation and diagnostics", () => {
+  it("defines the first public navigation entries", () => {
+    expect(navItems.map((item) => item.label)).toEqual(["首页", "账号", "仓库", "资料库", "AI 助手", "设置"]);
+  });
+
+  it("builds readable diagnostic rows from startup state and local paths", () => {
+    const rows = buildDiagnosticRows({
+      state: startupState(),
+      dataDir: "C:\\Users\\player\\AppData\\Roaming\\d2-service",
+      manifestVersion: "12345"
+    });
+
+    expect(rows).toContainEqual({
+      label: "本地数据目录",
+      value: "C:\\Users\\player\\AppData\\Roaming\\d2-service",
+      tone: "neutral"
+    });
+    expect(rows).toContainEqual({
+      label: "账号登录",
+      value: "需要登录 Bungie 账号",
+      tone: "warning"
+    });
+    expect(rows).toContainEqual({
+      label: "资料库版本",
+      value: "12345",
+      tone: "ok"
+    });
+  });
+});

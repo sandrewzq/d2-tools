@@ -23,7 +23,8 @@ export function defaultConfig(dataDir = defaultDataDir()): D2Config {
     ai: {
       provider: "",
       api_key: "",
-      model: ""
+      model: "",
+      base_url: ""
     }
   };
 }

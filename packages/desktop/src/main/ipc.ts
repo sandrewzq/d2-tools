@@ -1,10 +1,12 @@
 import { ipcMain, shell } from "electron";
 import { randomBytes } from "node:crypto";
 import {
+  analyzeVault,
   buildBungieAuthorizationUrl,
   computeStartupState,
   exchangeBungieOAuthCode,
   fetchAccountSummary,
+  generateVaultAiAdvice,
   getItemDefinitionDetail,
   getDefinitionStatus,
   getHealth,
@@ -16,11 +18,17 @@ import {
   loadDefinitionComponent,
   loadManifestMetadataCache,
   loadOAuthToken,
+  loadVaultTags,
   saveConfig,
   saveOAuthToken,
+  saveVaultTag,
   searchItemDefinitions,
   startOAuthCallbackServer,
-  type D2Config
+  testAiConnection,
+  type D2Config,
+  type AccountItemSummary,
+  type SaveVaultTagInput,
+  type VaultTags
 } from "@d2-service/core";
 
 export function registerIpcHandlers(): void {
@@ -31,6 +39,11 @@ export function registerIpcHandlers(): void {
   ipcMain.handle("config:save", (_event, config: D2Config) => {
     saveConfig(config);
     return loadConfig();
+  });
+
+  ipcMain.handle("ai:test", () => {
+    const config = loadConfig();
+    return testAiConnection({ config });
   });
 
   ipcMain.handle("auth:login", async () => {
@@ -192,5 +205,28 @@ export function registerIpcHandlers(): void {
     }
 
     return detail;
+  });
+
+  ipcMain.handle("vault:tags:get", () => {
+    const config = loadConfig();
+    return loadVaultTags(config.data.data_dir);
+  });
+
+  ipcMain.handle("vault:tag:save", (_event, input: SaveVaultTagInput) => {
+    const config = loadConfig();
+    return saveVaultTag(config.data.data_dir, input);
+  });
+
+  ipcMain.handle("analysis:vault", (_event, input: { items: AccountItemSummary[]; tags: VaultTags }) => {
+    return analyzeVault(input);
+  });
+
+  ipcMain.handle("analysis:vault:ai", (_event, input: { items: AccountItemSummary[]; tags: VaultTags }) => {
+    const config = loadConfig();
+    return generateVaultAiAdvice({
+      config,
+      items: input.items,
+      tags: input.tags
+    });
   });
 }

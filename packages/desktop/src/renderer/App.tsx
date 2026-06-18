@@ -36,6 +36,7 @@ export function App() {
     <HomePage
       state={state}
       onConfigure={() => setIsConfiguring(true)}
+      onConfigChanged={() => void refresh()}
       onLoginComplete={() => void refresh()}
       onManifestInitialized={() => void refresh()}
     />

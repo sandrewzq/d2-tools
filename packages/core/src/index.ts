@@ -1,3 +1,5 @@
+export * from "./ai/chat.js";
+export * from "./analysis/vault.js";
 export * from "./items/detail.js";
 export * from "./account/summary.js";
 export * from "./bungie/client.js";
@@ -15,3 +17,4 @@ export * from "./manifest/metadata.js";
 export * from "./oauth/callbackServer.js";
 export * from "./oauth/login.js";
 export * from "./startup/startupState.js";
+export * from "./vault/tags.js";

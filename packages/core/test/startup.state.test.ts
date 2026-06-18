@@ -18,7 +18,8 @@ function config(overrides: Partial<D2Config["bungie"]> = {}): D2Config {
     ai: {
       provider: "",
       api_key: "",
-      model: ""
+      model: "",
+      base_url: ""
     }
   };
 }

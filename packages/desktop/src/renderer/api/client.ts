@@ -4,6 +4,7 @@ declare global {
       getHealth(): Promise<{ ok: true; service: string; version: string; timestamp: string }>;
       getConfig(): Promise<D2Config>;
       saveConfig(config: D2Config): Promise<D2Config>;
+      testAiConnection(): Promise<AiConnectionTestResult>;
       loginBungie(): Promise<AuthLoginResult>;
       getAccountSummary(): Promise<AccountSummary>;
       getItemDetail(hash: number): Promise<ItemDefinitionDetail>;
@@ -11,6 +12,10 @@ declare global {
       getManifestStatus(): Promise<ManifestStatus>;
       initializeManifest(): Promise<ManifestStatus>;
       searchItems(query: string): Promise<ItemSearchResult[]>;
+      getVaultTags(): Promise<VaultTags>;
+      saveVaultTag(input: SaveVaultTagInput): Promise<VaultTags>;
+      analyzeVault(input: VaultAnalysisInput): Promise<VaultAnalysisResult>;
+      generateVaultAiAdvice(input: VaultAnalysisInput): Promise<VaultAiAdviceResult>;
     };
   }
 }
@@ -32,6 +37,7 @@ export type D2Config = {
     provider: string;
     api_key: string;
     model: string;
+    base_url: string;
   };
 };
 
@@ -47,6 +53,7 @@ export type AccountSummary = {
   characters: CharacterSummary[];
   vault: {
     item_count: number;
+    items: AccountItemSummary[];
     sample_items: AccountItemSummary[];
   };
 };
@@ -70,6 +77,69 @@ export type AccountItemSummary = {
   bucket_hash?: number;
   bucket_name?: string;
   group_key: EquipmentGroupKey;
+  power?: number;
+  locked?: boolean;
+  socket_plugs?: AccountItemPlugSummary[];
+};
+
+export type AccountItemPlugSummary = {
+  hash: number;
+  name: string;
+  description?: string;
+  icon?: string;
+};
+
+export type VaultTagValue = "none" | "keep" | "review" | "junk";
+
+export type VaultTags = {
+  items: Record<string, { tag: Exclude<VaultTagValue, "none"> }>;
+};
+
+export type SaveVaultTagInput = {
+  item_key: string;
+  tag: VaultTagValue;
+};
+
+export type VaultAnalysisInput = {
+  items: AccountItemSummary[];
+  tags: VaultTags;
+};
+
+export type VaultAnalysisItem = {
+  item_key: string;
+  name: string;
+  tier?: string;
+  item_type?: string;
+  power?: number;
+  plugs: string[];
+};
+
+export type VaultAnalysisResult = {
+  facts: string[];
+  analysis: string[];
+  suggestions: string[];
+  items: {
+    keep: VaultAnalysisItem[];
+    review: VaultAnalysisItem[];
+    junk: VaultAnalysisItem[];
+  };
+};
+
+export type VaultAiAdviceResult = {
+  local: VaultAnalysisResult;
+  ai: {
+    provider: string;
+    model: string;
+    text: string;
+  } | null;
+  skipped_reason?: string;
+};
+
+export type AiConnectionTestResult = {
+  ok: true;
+  provider: string;
+  model: string;
+  message: string;
 };
 
 export type ItemDefinitionDetail = {

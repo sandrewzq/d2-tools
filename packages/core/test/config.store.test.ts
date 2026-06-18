@@ -32,7 +32,8 @@ describe("config store", () => {
         ai: {
           provider: "",
           api_key: "",
-          model: ""
+          model: "",
+          base_url: ""
         }
       },
       { dataDir: dir }
@@ -62,7 +63,8 @@ describe("config store", () => {
         ai: {
           provider: "",
           api_key: "",
-          model: ""
+          model: "",
+          base_url: ""
         }
       },
       { dataDir: dir }
@@ -96,6 +98,7 @@ describe("config store", () => {
     expect(loaded.ai.provider).toBe("");
     expect(loaded.ai.api_key).toBe("");
     expect(loaded.ai.model).toBe("");
+    expect(loaded.ai.base_url).toBe("");
   });
 
   it("migrates the old local HTTP redirect URI to HTTPS", () => {

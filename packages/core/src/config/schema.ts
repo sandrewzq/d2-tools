@@ -13,6 +13,7 @@ export type D2Config = {
     provider: string;
     api_key: string;
     model: string;
+    base_url: string;
   };
 };
 
@@ -25,6 +26,7 @@ export type ConfigEnv = Partial<Record<
   | "D2_MANIFEST_LANGUAGE"
   | "AI_PROVIDER"
   | "AI_API_KEY"
-  | "AI_MODEL",
+  | "AI_MODEL"
+  | "AI_BASE_URL",
   string
 >>;

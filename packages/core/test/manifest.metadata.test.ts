@@ -42,7 +42,8 @@ function config(dataDir: string): D2Config {
     ai: {
       provider: "",
       api_key: "",
-      model: ""
+      model: "",
+      base_url: ""
     }
   };
 }

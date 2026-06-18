@@ -1,6 +1,6 @@
 {
   "name": "@d2-service/desktop",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "private": true,
   "type": "module",
   "main": "dist/main/main.js",
@@ -11,7 +11,7 @@
     "build": "pnpm clean && pnpm --filter @d2-service/core build && pnpm --filter @d2-service/http build && vite build && tsc -p tsconfig.main.json",
     "typecheck": "pnpm --filter @d2-service/core build && pnpm --filter @d2-service/http build && tsc -p tsconfig.main.json --noEmit && tsc -p tsconfig.renderer.json --noEmit",
     "test": "vitest --root ../.. --run",
-    "package:win": "pnpm build && electron-builder --config ../../electron-builder.yml --win 7z"
+    "package:win": "pnpm build && electron-builder --config electron-builder.yml --win 7z"
   },
   "dependencies": {
     "@d2-service/core": "workspace:*",

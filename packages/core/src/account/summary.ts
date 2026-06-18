@@ -13,6 +13,16 @@ export type AccountItemSummary = {
   bucket_hash?: number;
   bucket_name?: string;
   group_key: EquipmentGroupKey;
+  power?: number;
+  locked?: boolean;
+  socket_plugs: AccountItemPlugSummary[];
+};
+
+export type AccountItemPlugSummary = {
+  hash: number;
+  name: string;
+  icon?: string;
+  description?: string;
 };
 
 export type EquipmentGroupKey = "weapons" | "armor" | "equipment" | "other";
@@ -39,6 +49,7 @@ export type AccountSummary = {
   characters: CharacterSummary[];
   vault: {
     item_count: number;
+    items: AccountItemSummary[];
     sample_items: AccountItemSummary[];
   };
 };
@@ -78,6 +89,14 @@ type DestinyProfileResponse = {
   profileInventory?: {
     data?: { items?: DestinyProfileItem[] };
   };
+  itemComponents?: {
+    instances?: {
+      data?: Record<string, DestinyItemInstanceComponent>;
+    };
+    sockets?: {
+      data?: Record<string, DestinyItemSocketsComponent>;
+    };
+  };
 };
 
 type DestinyCharacter = {
@@ -91,6 +110,22 @@ type DestinyProfileItem = {
   itemHash: number;
   itemInstanceId?: string;
   bucketHash?: number;
+  state?: number;
+};
+
+type DestinyItemInstanceComponent = {
+  primaryStat?: {
+    value?: number;
+  };
+};
+
+type DestinyItemSocketsComponent = {
+  sockets?: DestinyItemSocket[];
+};
+
+type DestinyItemSocket = {
+  plugHash?: number;
+  isVisible?: boolean;
 };
 
 const bungieStaticBaseUrl = "https://www.bungie.net";
@@ -98,7 +133,9 @@ const profileComponents = [
   100, // Profiles
   102, // ProfileInventories
   200, // Characters
-  205 // CharacterEquipment
+  205, // CharacterEquipment
+  300, // ItemInstances
+  305 // ItemSockets
 ].join(",");
 
 const bucketLabels: Record<number, { name: string; group: EquipmentGroupKey }> = {
@@ -187,7 +224,7 @@ function summarizeCharacters(
   return characters.map((character) => {
     const equippedItems = (profile.characterEquipment?.data?.[character.characterId]?.items ?? [])
       .slice(0, 16)
-      .map((item) => summarizeItem(item, definitions));
+      .map((item) => summarizeItem(item, definitions, profile.itemComponents));
 
     return {
       character_id: character.characterId,
@@ -204,31 +241,70 @@ function summarizeVault(
   profile: DestinyProfileResponse,
   definitions: DefinitionComponentData
 ): AccountSummary["vault"] {
-  const items = profile.profileInventory?.data?.items ?? [];
+  const items = (profile.profileInventory?.data?.items ?? [])
+    .map((item) => summarizeItem(item, definitions, profile.itemComponents));
   return {
     item_count: items.length,
-    sample_items: items.slice(0, 30).map((item) => summarizeItem(item, definitions))
+    items,
+    sample_items: items.slice(0, 30)
   };
 }
 
 function summarizeItem(
   item: DestinyProfileItem,
-  definitions: DefinitionComponentData
+  definitions: DefinitionComponentData,
+  components?: DestinyProfileResponse["itemComponents"]
 ): AccountItemSummary {
   const definition = definitions[String(item.itemHash)] as DefinitionRecord | undefined;
   const bucketHash = item.bucketHash ?? definition?.inventory?.bucketTypeHash;
   const bucket = bucketHash ? bucketLabels[bucketHash] : undefined;
+  const instanceId = item.itemInstanceId;
+  const instance = instanceId ? components?.instances?.data?.[instanceId] : undefined;
   return {
     hash: item.itemHash,
-    instance_id: item.itemInstanceId,
+    instance_id: instanceId,
     name: definition?.displayProperties?.name?.trim() || `Item ${item.itemHash}`,
     icon: normalizeBungieAssetUrl(definition?.displayProperties?.icon),
     item_type: definition?.itemTypeDisplayName,
     tier: definition?.inventory?.tierTypeName,
     bucket_hash: bucketHash,
     bucket_name: bucket?.name,
-    group_key: bucket?.group ?? "other"
+    group_key: bucket?.group ?? "other",
+    power: instance?.primaryStat?.value,
+    locked: isLocked(item.state),
+    socket_plugs: summarizeSocketPlugs(instanceId, components, definitions)
   };
+}
+
+function summarizeSocketPlugs(
+  instanceId: string | undefined,
+  components: DestinyProfileResponse["itemComponents"] | undefined,
+  definitions: DefinitionComponentData
+): AccountItemPlugSummary[] {
+  if (!instanceId) {
+    return [];
+  }
+
+  return (components?.sockets?.data?.[instanceId]?.sockets ?? [])
+    .filter((socket) => socket.isVisible !== false && socket.plugHash)
+    .map((socket) => {
+      const hash = Number(socket.plugHash);
+      const definition = definitions[String(hash)] as DefinitionRecord | undefined;
+      return {
+        hash,
+        name: definition?.displayProperties?.name?.trim() || `Plug ${hash}`,
+        icon: normalizeBungieAssetUrl(definition?.displayProperties?.icon),
+        description: definition?.displayProperties?.description
+      };
+    });
+}
+
+function isLocked(state: number | undefined): boolean | undefined {
+  if (state === undefined) {
+    return undefined;
+  }
+
+  return (state & 1) === 1;
 }
 
 function groupEquipment(items: AccountItemSummary[]): CharacterEquipmentGroup[] {
