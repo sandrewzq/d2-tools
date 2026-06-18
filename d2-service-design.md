@@ -6,11 +6,11 @@
 
 `d2-service` 是给 6 人小圈子使用的 Windows 本地 Destiny 2 工具。每个使用者在自己的 Windows 电脑上运行程序，程序直接访问 Bungie API，不再默认依赖 AstrBot、Hermes、NAS Docker 或中心 d2-service。
 
-项目仍然叫 `d2-service`，但这里的 service 指“本机能力服务”：它可以作为桌面工具、CLI、localhost HTTP API 或 MCP 工具被调用。后续接入 AI 时，AI 通过这些稳定接口使用 Destiny 2 能力，而不是直接操作 token、Manifest 或 Bungie API。
+项目仍然叫 `d2-service`，但第一入口是 Windows 图形化客户端。这里的 service 指“本机能力服务”：图形界面、CLI、localhost HTTP API 和 MCP 工具共享同一套本地能力。后续接入 AI 时，AI 通过这些稳定接口使用 Destiny 2 能力，而不是直接操作 token、Manifest 或 Bungie API。
 
 第一版目标：
 
-- 每个用户本机配置 Bungie API Key、Client ID、Client Secret。
+- 每个用户通过图形化配置向导填写 Bungie API Key、Client ID、Client Secret。
 - 每个用户本机完成 Bungie OAuth 登录。
 - 每个用户本机保存 token、Manifest、缓存和日志。
 - 支持武器、perk、遗失区域、商人等公共查询。
@@ -42,17 +42,17 @@ Bungie API / OAuth / Manifest
 - Hermes/Open WebUI 网关。
 - 中心服务的更新、备份和网络暴露。
 
-6 个人的 OAuth token 本来就不同。中心服务不能减少 token 数量，只是把 token 和 `client_secret` 从 6 台电脑集中到一台服务上。对小圈子来说，每个人本机用 `.env` 配置自己的 Bungie 应用信息，可以接受。
+6 个人的 OAuth token 本来就不同。中心服务不能减少 token 数量，只是把 token 和 `client_secret` 从 6 台电脑集中到一台服务上。对小圈子来说，每个人本机通过图形界面配置自己的 Bungie 应用信息，可以接受。
 
 ### 小圈子安全模型
 
 `client_secret` 属于 Bungie 应用，不属于某个 Bungie 账号。严格来说，桌面客户端不适合公开分发 `client_secret`。但本项目是 6 人可信小圈子使用，不公开发布，配置也不进仓库，因此可以采用：
 
 ```text
-每个使用者本机 .env 配置 BUNGIE_API_KEY / BUNGIE_CLIENT_ID / BUNGIE_CLIENT_SECRET
+每个使用者本机配置 BUNGIE_API_KEY / BUNGIE_CLIENT_ID / BUNGIE_CLIENT_SECRET，配置保存到本机用户数据目录
 ```
 
-这能避免 secret 写进代码仓库、安装包和提交历史。风险边界要写清楚：这不是公开软件的安全模型，只适合可信小圈子。
+这能避免 secret 写进代码仓库、绿色包和提交历史。风险边界要写清楚：这不是公开软件的安全模型，只适合可信小圈子。
 
 ## 参考 d2-skill 的方式
 
@@ -61,7 +61,7 @@ Bungie API / OAuth / Manifest
 可借鉴：
 
 - Node.js 22 + TypeScript 的技术路线。
-- `.env` 放配置，仓库不包含用户密钥。
+- 配置放在用户本机数据目录，仓库不包含用户密钥。
 - 本地 OAuth callback 流程。
 - Manifest 下载、缓存和中文查询思路。
 - CLI 命令返回结构化 JSON，方便自动化和 AI 调用。
@@ -90,32 +90,43 @@ Node.js 22 + TypeScript
 
 ### 第一版形态
 
-第一版不急着做完整桌面 UI，建议先做：
+第一版直接做完整 Windows 图形化客户端，普通用户双击即可使用：
 
 ```text
-CLI + localhost HTTP API + 可选 MCP server
+d2-service.exe
+  ↓
+Electron 图形界面
+  ↓
+本机 core / OAuth / Manifest / 查询 / AI 工具
 ```
 
-这样可以尽快跑通 OAuth、Manifest、查询和 AI 调用。等核心能力稳定后，再包一层 Windows 桌面壳。
+CLI、localhost HTTP API 和 MCP server 仍然保留，但它们是高级入口和 AI/自动化入口，不是普通用户主入口。
 
-### 后续桌面形态
+### 桌面形态
 
-可选方向：
+首选：
 
-- Tauri：更轻，适合做 Windows 桌面壳。
-- Electron：生态成熟，但体积更大。
-- Web UI + localhost API：开发简单，先作为调试和本地管理界面。
+- Electron：与 Node.js 22 + TypeScript 主线一致，适合快速实现 Windows GUI、OAuth、本地文件、托盘、自动更新和调试工具。
 
-推荐顺序：
+备选：
+
+- Tauri：更轻，但会引入 Rust 和 sidecar 打包复杂度，后续轻量化时再考虑。
+- Web UI + localhost API：可作为开发调试界面，但不作为普通用户入口。
+
+第一版分发方式：
 
 ```text
-CLI / HTTP / MCP → 本地 Web UI → Windows 桌面包
+绿色包 zip：解压后双击 d2-service.exe
 ```
+
+暂不做安装器。后续用户变多后再考虑 NSIS/MSIX 安装包、开始菜单快捷方式和自动更新。
 
 ## 本地架构
 
 ```text
 d2-service
+  ├─ Electron desktop
+  ├─ Core service
   ├─ CLI
   ├─ localhost HTTP API
   ├─ MCP server
@@ -133,7 +144,7 @@ d2-service
 ```text
 用户 / AI / 本地 UI
   ↓
-CLI / HTTP API / MCP tool
+Electron UI / CLI / HTTP API / MCP tool
   ↓
 d2-service 应用层
   ↓
@@ -142,7 +153,7 @@ Bungie API client / Manifest cache / Local storage
 结构化结果
 ```
 
-AI 只能通过工具接口拿到结构化结果。AI 不直接读取 `.env`、token 文件或 SQLite。
+AI 只能通过工具接口拿到结构化结果。AI 不直接读取 config、token 文件或 SQLite。
 
 ## 本地目录结构
 
@@ -154,6 +165,7 @@ d2-service/
   pnpm-lock.yaml
   .env.example
   src/
+    desktop/
     cli/
     http/
     mcp/
@@ -193,7 +205,26 @@ d2-service/
 
 ## 配置设计
 
-仓库只提供：
+普通用户不需要手写 `.env`。首次启动时进入配置向导：
+
+```text
+1. 选择数据目录，默认 %APPDATA%\d2-service
+2. 填写 Bungie API Key
+3. 填写 Bungie Client ID
+4. 填写 Bungie Client Secret
+5. 测试配置
+6. 打开浏览器完成 Bungie 登录
+7. 下载 Manifest
+8. 进入首页
+```
+
+配置保存到：
+
+```text
+%APPDATA%\d2-service\config.json
+```
+
+开发者和高级用户可以继续使用 `.env` 覆盖配置。仓库只提供：
 
 ```text
 .env.example
@@ -215,11 +246,148 @@ AI_MODEL=
 
 规则：
 
-- `.env` 不提交 Git。
+- 普通用户通过 GUI 写入 `config.json`。
+- `.env` 只用于开发或高级覆盖，不提交 Git。
+- `config.json` 不提交 Git。
 - `tokens.json` 不提交 Git。
 - `d2.sqlite` 不提交 Git。
 - 用户可以各自使用自己的 Bungie Application，也可以小圈子共享同一组 Bungie 应用配置。
 - 如果共享同一组 Bungie 应用配置，必须只在可信范围内分发。
+
+## GUI 信息架构
+
+首版打开即完整图形界面，不要求用户接触命令行。
+
+首次启动：
+
+```text
+欢迎页
+  ↓
+配置向导
+  ↓
+Bungie 登录
+  ↓
+Manifest 初始化
+  ↓
+首页
+```
+
+日常启动：
+
+```text
+启动 d2-service.exe
+  ↓
+读取本地配置和 token
+  ↓
+检查 Manifest 状态
+  ↓
+进入首页
+```
+
+主导航：
+
+```text
+首页
+资料库
+仓库
+角色
+活动
+Raid
+AI 助手
+设置
+```
+
+第一版可以收缩为：
+
+```text
+首页
+资料库
+仓库
+AI 助手
+设置
+```
+
+首页参考 Today In Destiny 和小日向式 Bot 摘要体验：
+
+- 今日/本周轮换。
+- 遗失区域。
+- Xur / 商人库存。
+- 当前账号和角色概览。
+- 最近活动摘要。
+- 常用查询入口。
+- AI 快捷提问。
+
+资料库参考 light.gg：
+
+- 武器搜索。
+- perk 搜索。
+- 获取来源。
+- 可用 perk 池。
+- roll 展示。
+- 本地收藏和关注。
+
+仓库参考 DIM：
+
+- 角色装备。
+- 仓库搜索。
+- 按类型、元素、perk、职业过滤。
+- 物品详情。
+- 锁定状态。
+- 转移计划，第一版可以只展示不执行。
+
+活动和 Raid 参考 Destiny Tracker、Raid Report：
+
+- 最近活动。
+- PVE/PVP 基础统计。
+- Raid clear 数。
+- 每个 raid 的完成次数。
+- 最快通关、flawless、周进度，后续逐步补。
+
+AI 助手：
+
+- 自然语言查装备、查 perk、查仓库。
+- 解释武器 roll。
+- 给出配装建议。
+- 汇总本周可刷内容。
+- 生成装备操作 plan，但不自动 execute。
+
+设置：
+
+- Bungie 配置。
+- AI 配置。
+- 数据目录。
+- Manifest 刷新。
+- 日志和诊断。
+- 备份/恢复非敏感配置。
+
+## 绿色包分发
+
+第一版使用绿色包：
+
+```text
+d2-service-win-x64.zip
+  d2-service.exe
+  resources\
+  README.txt
+```
+
+用户使用方式：
+
+```text
+1. 解压 zip
+2. 双击 d2-service.exe
+3. 跟随配置向导
+```
+
+升级方式：
+
+```text
+1. 关闭 d2-service
+2. 解压新版覆盖程序目录
+3. 重新打开 d2-service.exe
+```
+
+用户数据不放在程序目录，而是放在 `%APPDATA%\d2-service`。覆盖绿色包不会删除配置、token、Manifest、缓存和日志。
 
 ## OAuth 设计
 
@@ -308,21 +476,36 @@ d2 action execute <plan_id>
 
 路线图参考“小日向 Bot”的使用体验和 `d2-skill` 的工具化思路，但不追求第一版完整复刻。优先顺序是：先让用户稳定查资料，再查自己的账号，随后接入 AI，最后谨慎开放装备写操作。
 
+### 参考工具能力矩阵
+
+| 参考工具 | 主要能力 | d2-service 对应页面 | MVP 边界 |
+| --- | --- | --- | --- |
+| DIM | 仓库、装备、loadout、配装 | 仓库、角色、配装 | 先做查看、搜索和计划，不做完整配装优化 |
+| light.gg | 物品库、perk、获取来源、roll 研究 | 资料库 | 先基于 Bungie Manifest 和本地规则，不复制社区评分 |
+| Today In Destiny / FTW | 今日轮换、Xur、商人、遗失区域 | 首页、活动 | 先做常用轮换和商人摘要 |
+| Destiny Tracker | PVP/PVE 战绩、最近比赛、趋势 | 活动 | 先做个人基础统计，不做全站排行和 Elo |
+| Raid Report | Raid clears、最快通关、flawless、周进度 | Raid | 先做个人和小队查看，不做排行榜 |
+| Destiny Sets / 周报源 | 赛季收藏、奖励、周常信息 | 首页、活动、资料库 | 先做可由 Bungie API/Manifest 支撑的数据 |
+| 小日向 Bot | 中文摘要、快捷命令、卡片化展示 | 首页、资料库、仓库、AI 助手 | 参考体验，不以完整复刻为目标 |
+
 ### P0：本地基础能力
 
-目标：让每台 Windows 机器都能独立跑起来。
+目标：让每台 Windows 机器解压后双击就能跑起来。
 
 能力：
 
-- 配置检测：检查 `.env`、Bungie API Key、Client ID、Client Secret。
+- Electron 图形界面。
+- 绿色包启动。
+- 配置向导：检查 Bungie API Key、Client ID、Client Secret。
 - 本地数据目录：初始化 `%APPDATA%\d2-service`。
-- 健康检查：CLI 和 HTTP API 都能确认服务状态。
+- 健康检查：GUI、CLI 和 HTTP API 都能确认服务状态。
 - 日志：记录启动、配置错误、Bungie API 错误。
 - 结构化输出：所有命令都能返回 JSON，方便 AI 和脚本使用。
 
 验收：
 
-- 新用户按 `.env.example` 配好后能启动。
+- 新用户解压后双击 `d2-service.exe` 能启动。
+- 新用户能通过配置向导完成基础配置。
 - 缺配置时给出明确提示。
 - `d2 health` 和 `/api/v1/health` 都可用。
 
@@ -423,21 +606,22 @@ d2 action execute <plan_id>
 
 ### P6：Windows 桌面体验
 
-目标：让非技术用户也能轻松使用。
+目标：在首版 GUI 基础上补齐正式桌面软件体验。
 
 能力：
 
-- 配置向导：填写 Bungie API 配置和数据目录。
-- 登录向导：一键打开浏览器完成 OAuth。
-- 查询面板：武器、perk、仓库、角色。
-- AI 面板：自然语言提问和建议。
+- 托盘图标。
 - 本地更新提示。
+- 快捷方式生成。
+- 崩溃诊断导出。
+- UI 主题和字体优化。
 - 数据备份/恢复：导出 token 以外的本地配置、别名和收藏。
 
 验收：
 
-- 新用户不需要命令行也能完成配置和登录。
-- 桌面 UI 调用同一套本地 API，不另写业务逻辑。
+- 绿色包升级不丢用户数据。
+- 用户能在设置页完成诊断、备份和恢复。
+- 桌面 UI 仍然调用同一套 core，不另写业务逻辑。
 
 ## HTTP API
 
@@ -517,7 +701,7 @@ d2_execute_action(plan_id)
 
 ### d2-service 调用 AI
 
-这部分作为后续增强，不放在第一版核心路径。用户可以在 `.env` 里配置 AI provider：
+这部分作为后续增强，不放在第一版核心路径。普通用户在设置页配置 AI provider；开发者可以用 `.env` 覆盖：
 
 ```env
 AI_PROVIDER=openai-compatible
@@ -538,10 +722,10 @@ AI 输出只能作为建议。涉及装备转移、装备、锁定、loadout 的
 
 必须遵守：
 
-- `.env`、token、SQLite、日志不进 Git。
+- `.env`、`config.json`、token、SQLite、日志不进 Git。
 - HTTP API 默认只监听 `127.0.0.1`。
 - MCP 工具只能访问 d2-service 暴露的能力。
-- AI 不直接读取 `.env` 和 token 文件。
+- AI 不直接读取 config、`.env` 和 token 文件。
 - 写操作必须二次确认。
 - 所有写操作写入 audit log。
 - 出错时不要把 access token、refresh token、client secret 打进日志。
@@ -561,22 +745,26 @@ AI 输出只能作为建议。涉及装备转移、装备、锁定、loadout 的
 
 ### 阶段 0：本地骨架
 
-目标：先跑通本地程序结构。
+目标：先跑通绿色包和图形化启动体验。
 
 范围：
 
 - Node.js 22 + TypeScript 工程。
-- 配置加载和 `.env.example`。
+- Electron 主进程和渲染进程。
+- 配置向导。
+- 配置加载、`config.json` 和 `.env.example`。
 - `%APPDATA%\d2-service` 数据目录。
-- CLI 入口。
+- 绿色包目录结构。
+- CLI 入口，作为高级和调试入口。
 - `/api/v1/health`。
 - 基础日志和错误格式。
 
 完成标志：
 
-- Windows 上能启动 d2-service。
-- CLI 和 HTTP health 都可用。
-- 配置缺失时有清晰提示。
+- Windows 上解压绿色包后能双击启动 d2-service。
+- 首次启动进入配置向导。
+- GUI、CLI 和 HTTP health 都可用。
+- 配置缺失时 GUI 给出清晰提示。
 
 ### 阶段 1：公共资料查询
 
@@ -673,18 +861,18 @@ AI 输出只能作为建议。涉及装备转移、装备、锁定、loadout 的
 - 误触不会直接执行。
 - 所有写操作可审计。
 
-### 阶段 6：桌面体验
+### 阶段 6：桌面体验完善
 
-目标：做成更像 Windows 程序的体验。
+目标：在可用 GUI 基础上补齐正式 Windows 程序体验。
 
 范围：
 
-- 本地 Web UI 或 Tauri/Electron 壳。
-- 配置向导。
-- 登录状态展示。
-- 查询面板。
-- AI 建议面板。
-- 自动更新策略。
+- 托盘图标。
+- 快捷方式生成。
+- 本地更新提示。
+- 崩溃诊断导出。
+- UI 主题和字体优化。
+- 数据备份/恢复。
 
 ## 风险
 
@@ -719,7 +907,13 @@ d2-service = Windows 本地 Destiny 2 能力程序
 技术路线：
 
 ```text
-Node.js 22 + TypeScript + CLI + localhost HTTP API + MCP server
+Node.js 22 + TypeScript + Electron GUI + CLI + localhost HTTP API + MCP server
 ```
 
-`d2-skill` 作为重要参考项目，借鉴它的 OAuth、Manifest、CLI、AI 工具和安全操作思路，但 `d2-service` 保持自己的架构边界：本地优先、用户数据本机保存、AI 通过结构化工具接口接入。
+首版分发方式：
+
+```text
+绿色包 zip，解压后双击 d2-service.exe
+```
+
+`d2-skill` 作为重要参考项目，借鉴它的 OAuth、Manifest、CLI、AI 工具和安全操作思路，但 `d2-service` 保持自己的架构边界：GUI 优先、本地优先、用户数据本机保存、AI 通过结构化工具接口接入。
