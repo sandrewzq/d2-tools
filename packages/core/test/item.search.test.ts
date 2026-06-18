@@ -29,6 +29,20 @@ const definitions: DefinitionComponentData = {
       name: "",
       description: "Hidden item"
     }
+  },
+  "100": {
+    hash: 100,
+    displayProperties: {
+      name: "爆破专家",
+      description: "使用技能会重新装填武器。"
+    }
+  },
+  "101": {
+    hash: 101,
+    displayProperties: {
+      name: "萤火虫",
+      description: "精准击杀产生元素爆炸。"
+    }
   }
 };
 
@@ -44,6 +58,57 @@ describe("item definition search", () => {
         tier: "异域"
       }
     ]);
+  });
+
+  it("includes perk groups when plug set definitions are provided", () => {
+    const itemWithPerks: DefinitionComponentData = {
+      "1": {
+        ...definitions["1"],
+        sockets: {
+          socketEntries: [{ reusablePlugSetHash: 500 }]
+        }
+      },
+      "100": definitions["100"],
+      "101": definitions["101"]
+    };
+    const plugSets: DefinitionComponentData = {
+      "500": {
+        hash: 500,
+        reusablePlugItems: [
+          { plugItemHash: 100 },
+          { plugItemHash: 101 }
+        ]
+      }
+    };
+
+    expect(searchItemDefinitions(itemWithPerks, "风险", { plugSetDefinitions: plugSets }))
+      .toEqual([
+        {
+          hash: 1,
+          name: "风险管理者",
+          description: "一把会导引电弧的异域冲锋枪。",
+          icon: "https://www.bungie.net/common/destiny2_content/icons/riskrunner.png",
+          item_type: "冲锋枪",
+          tier: "异域",
+          perks: [
+            {
+              socket_index: 0,
+              plugs: [
+                {
+                  hash: 100,
+                  name: "爆破专家",
+                  description: "使用技能会重新装填武器。"
+                },
+                {
+                  hash: 101,
+                  name: "萤火虫",
+                  description: "精准击杀产生元素爆炸。"
+                }
+              ]
+            }
+          ]
+        }
+      ]);
   });
 
   it("matches English display names case-insensitively", () => {

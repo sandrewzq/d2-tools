@@ -1,7 +1,9 @@
 import type { DefinitionComponentData, DefinitionRecord } from "../manifest/definitions.js";
+import { summarizeItemPerks, type ItemPerkGroup } from "./perks.js";
 
 export type ItemSearchOptions = {
   limit?: number;
+  plugSetDefinitions?: DefinitionComponentData;
 };
 
 export type ItemSearchResult = {
@@ -11,6 +13,7 @@ export type ItemSearchResult = {
   icon?: string;
   item_type?: string;
   tier?: string;
+  perks?: ItemPerkGroup[];
 };
 
 const bungieStaticBaseUrl = "https://www.bungie.net";
@@ -34,7 +37,7 @@ export function searchItemDefinitions(
       continue;
     }
 
-    results.push(toItemSearchResult(definition));
+    results.push(toItemSearchResult(definition, definitions, options));
     if (results.length >= limit) {
       break;
     }
@@ -43,8 +46,12 @@ export function searchItemDefinitions(
   return results;
 }
 
-function toItemSearchResult(definition: DefinitionRecord): ItemSearchResult {
-  return {
+function toItemSearchResult(
+  definition: DefinitionRecord,
+  definitions: DefinitionComponentData,
+  options: ItemSearchOptions
+): ItemSearchResult {
+  const result: ItemSearchResult = {
     hash: Number(definition.hash),
     name: definition.displayProperties?.name ?? "",
     description: definition.displayProperties?.description ?? "",
@@ -52,6 +59,16 @@ function toItemSearchResult(definition: DefinitionRecord): ItemSearchResult {
     item_type: definition.itemTypeDisplayName,
     tier: definition.inventory?.tierTypeName
   };
+
+  const perks = summarizeItemPerks(definition, definitions, {
+    plugSetDefinitions: options.plugSetDefinitions,
+    maxPlugsPerSocket: 6
+  });
+  if (perks.length > 0) {
+    result.perks = perks;
+  }
+
+  return result;
 }
 
 function normalizeBungieAssetUrl(path: string | undefined): string | undefined {
