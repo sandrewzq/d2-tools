@@ -2,7 +2,10 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { DestinyManifestMetadata } from "./metadata.js";
 
-export type DefinitionComponentName = "DestinyInventoryItemDefinition";
+export type DefinitionComponentName =
+  | "DestinyInventoryItemDefinition"
+  | "DestinyPlugSetDefinition"
+  | "DestinySandboxPerkDefinition";
 
 export type DefinitionRecord = {
   hash?: number;
@@ -14,6 +17,18 @@ export type DefinitionRecord = {
   itemTypeDisplayName?: string;
   inventory?: {
     tierTypeName?: string;
+  };
+  reusablePlugItems?: Array<{
+    plugItemHash?: number;
+  }>;
+  sockets?: {
+    socketEntries?: Array<{
+      reusablePlugItems?: Array<{ plugItemHash?: number }>;
+      reusablePlugSetHash?: number;
+      randomizedPlugSetHash?: number;
+      singleInitialItemHash?: number;
+      hidePerksInItemTooltip?: boolean;
+    }>;
   };
   [key: string]: unknown;
 };
