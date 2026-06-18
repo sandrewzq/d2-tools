@@ -5,7 +5,7 @@ export type HealthStatus = {
   timestamp: string;
 };
 
-export function getHealth(version = "0.1.0"): HealthStatus {
+export function getHealth(version = "0.0.1"): HealthStatus {
   return {
     ok: true,
     service: "d2-service",

@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 const repoRoot = fileURLToPath(new URL("../../..", import.meta.url));
 
 describe("desktop package format", () => {
-  it("uses 7z as the Windows green package format for Gitee releases", () => {
+  it("uses 7z as the Windows green package format for GitHub releases", () => {
     const electronBuilderConfig = readFileSync(join(repoRoot, "electron-builder.yml"), "utf8");
     const desktopPackageJson = readFileSync(join(repoRoot, "packages", "desktop", "package.json"), "utf8");
 

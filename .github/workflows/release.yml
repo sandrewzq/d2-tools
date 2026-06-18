@@ -8,10 +8,6 @@ on:
 permissions:
   contents: write
 
-env:
-  GITEE_OWNER: Sandrew
-  GITEE_REPO: d2-service
-
 jobs:
   build-windows:
     name: Build Windows green package
@@ -56,7 +52,7 @@ jobs:
       - name: Typecheck
         run: pnpm typecheck
 
-      - name: Build Windows ZIP
+      - name: Build Windows 7z
         run: pnpm package:win
 
       - name: Collect release asset

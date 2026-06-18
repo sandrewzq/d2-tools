@@ -2,7 +2,7 @@
 
 d2-service 是一个面向 Windows 的本地 Destiny 2 助手客户端。它的目标是把 DIM、Light.gg、Today In Destiny、Destiny Tracker、Raid Report 等常用工具里最适合日常使用的能力，做成一个打开即用的中文图形界面，并在后续接入 AI 分析能力。
 
-第一版采用绿色包分发：下载 ZIP、解压、运行 `d2-service.exe`。配置、OAuth token、Manifest 缓存和历史数据都保存在用户自己的电脑里，覆盖更新程序目录不会丢失本地数据。
+第一版采用绿色包分发：下载 7z、解压、运行 `d2-service.exe`。配置、OAuth token、Manifest 缓存和历史数据都保存在用户自己的电脑里，覆盖更新程序目录不会丢失本地数据。
 
 ## 当前状态
 
@@ -45,7 +45,7 @@ d2-service 是一个面向 Windows 的本地 Destiny 2 助手客户端。它的�
 
 ### 第一步：下载并打开
 
-1. 下载 Windows 绿色包，文件名类似 `d2-service-win-x64-0.1.0.7z`。
+1. 下载 Windows 绿色包，文件名类似 `d2-service-win-x64-0.0.1.7z`。
 2. 用 7-Zip、Bandizip、WinRAR 等工具解压。
 3. 解压到一个你找得到的位置，例如：
 
@@ -145,7 +145,7 @@ Manifest 是 Destiny 2 的物品资料库。搜索装备、显示 perk、展示�
 绿色包升级不会删除你的登录状态和历史数据。
 
 1. 关闭正在运行的 d2-service。
-2. 下载新版 ZIP。
+2. 下载新版 7z。
 3. 解压新版文件。
 4. 覆盖旧的程序目录。
 5. 重新打开 `d2-service.exe`。
@@ -193,7 +193,7 @@ https://127.0.0.1:28780/oauth/callback
 ## 快速检查清单
 
 1. 下载 Windows 绿色包。
-2. 解压 ZIP 到任意目录，例如 `D:\Apps\d2-service`。
+2. 解压 7z 到任意目录，例如 `D:\Apps\d2-service`。
 3. 双击运行 `d2-service.exe`。
 4. 按首次启动向导填写 Bungie 应用配置。
 5. 点击“登录 Bungie”完成授权。
@@ -243,22 +243,17 @@ d2-service 的设计原则是本地优先：
 
 ## 下载和发布
 
-普通玩家只需要去 Release 页面下载绿色包：
+普通玩家只需要去 GitHub Release 页面下载 Windows 绿色包。
 
-- GitHub Release：适合能正常访问 GitHub 的玩家。
-- Gitee Release：适合 GitHub 下载慢的玩家。
+GitHub Release 已配置 GitHub Actions：推送版本 tag 后会自动打包，并自动创建/更新 Release，挂载 `.7z` 下载附件。
 
-维护者发布新版本时，构建产物统一使用 `.7z`。Gitee 普通项目发行版单个附件有 100M 限制，当前 Electron 绿色包用 `.zip` 会超过限制，用 `.7z` 可以压到 100M 以下。
-
-GitHub Release 已配置 GitHub Actions 自动上传 `.7z`：
-
-1. 在 `package.json` 和 `packages/desktop/package.json` 里把版本号改成同一个值，例如 `0.1.1`。
+1. 在 `package.json` 和 `packages/desktop/package.json` 里把版本号改成同一个值，例如 `0.0.1`。
 2. 提交代码。
 3. 打 tag，tag 必须和版本号一致，例如：
 
 ```powershell
-git tag v0.1.1
-git push origin v0.1.1
+git tag v0.0.1
+git push origin v0.0.1
 ```
 
 4. GitHub Actions 会自动执行：
@@ -267,34 +262,12 @@ git push origin v0.1.1
 - 运行测试。
 - 运行类型检查。
 - 构建 Windows x64 `.7z` 绿色包。
-- 上传到 GitHub Release。
-
-Gitee 优先使用官方发行版页面发布：
-
-1. 先同步代码和 tag 到 Gitee。
-
-```powershell
-git push gitee codex/phase-0-local-gui-bootstrap
-git push gitee v0.1.1
-```
-
-2. 打开 Gitee 仓库右侧“发行版”，点击“创建”。
-3. 选择对应 tag，例如 `v0.1.1`。
-4. 标题填写 `d2-service v0.1.1`。
-5. 上传本地构建出的 `.7z` 文件。
-6. 保存发行版。
-
-如果希望 Gitee 上的源码分支也同步更新，平时合并代码后再执行：
-
-```powershell
-git push origin main
-git push gitee main
-```
+- 创建或更新 GitHub Release，并添加 `.7z` 下载附件。
 
 Release 文件名类似：
 
 ```text
-d2-service-win-x64-0.1.1.7z
+d2-service-win-x64-0.0.1.7z
 ```
 
 ## 开发
@@ -339,7 +312,7 @@ npx pnpm@9.15.0 package:win
 构建产物会输出到：
 
 ```text
-packages/desktop/release/d2-service-win-x64-0.1.0.7z
+packages/desktop/release/d2-service-win-x64-0.0.1.7z
 ```
 
 ## 项目结构
