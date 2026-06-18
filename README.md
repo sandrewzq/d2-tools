@@ -329,6 +329,7 @@ docs               阶段计划和设计文档
 - [Bungie Application](https://www.bungie.net/en/Application)：创建 API Key、Client ID 和 Client Secret。
 - [Bungie.Net API](https://bungie-net.github.io/multi/index.html)：Bungie 官方 API、OAuth 和 Scope 文档。
 - [d2-skill](https://github.com/Lin-Guanguo/d2-skill)：AI 工具化和 Bungie OAuth 思路参考。
+- [命运2小日向Bot](https://qun.qq.com/qunpro/robot/share?robot_appid=102076550)：中文 Bot 指令体验、日报、周报图片、遗失区域、商人售卖、武器 perk 查询参考。
 - [DIM](https://app.destinyitemmanager.com)：仓库、装备移动、配装体验参考。
 - [Light.gg](https://www.light.gg/db/category/1/weapons/)：武器、perk、来源和推荐信息参考。
 - [Today In Destiny](https://www.todayindestiny.com/)：每周活动、轮换内容参考。
