@@ -205,7 +205,7 @@ d2-service/
 
 ## 配置设计
 
-普通用户不需要手写 `.env`。首次启动时进入配置向导：
+普通用户不需要手写 `.env`。首次启动时进入配置向导；日常启动时按状态自动进入首页或跳转到需要补齐的配置步骤。
 
 ```text
 1. 选择数据目录，默认 %APPDATA%\d2-service
@@ -253,6 +253,143 @@ AI_MODEL=
 - `d2.sqlite` 不提交 Git。
 - 用户可以各自使用自己的 Bungie Application，也可以小圈子共享同一组 Bungie 应用配置。
 - 如果共享同一组 Bungie 应用配置，必须只在可信范围内分发。
+
+### 配置变量分级
+
+用户实际必须手填：
+
+```text
+BUNGIE_API_KEY
+BUNGIE_CLIENT_ID
+BUNGIE_CLIENT_SECRET
+```
+
+程序自动生成默认值，用户一般不用改：
+
+```text
+BUNGIE_REDIRECT_URI=http://127.0.0.1:28780/oauth/callback
+D2_DATA_DIR=%APPDATA%\d2-service
+D2_MANIFEST_LANGUAGE=zh-chs
+```
+
+可选配置：
+
+```text
+AI_PROVIDER
+AI_API_KEY
+AI_MODEL
+```
+
+AI 配置允许跳过。跳过后，AI 助手页显示“未配置 AI”，但首页、资料库、仓库、角色和活动查询仍然可用。
+
+### 配置优先级
+
+```text
+.env > config.json > 默认值
+```
+
+如果某个字段被 `.env` 覆盖，GUI 设置页要显示“由 .env 管理”。用户可以查看但不能通过 GUI 保存覆盖值，避免出现界面保存了却不生效的错觉。
+
+### config.json 结构
+
+示例：
+
+```json
+{
+  "bungie": {
+    "api_key": "",
+    "client_id": "",
+    "client_secret": "",
+    "redirect_uri": "http://127.0.0.1:28780/oauth/callback"
+  },
+  "data": {
+    "data_dir": "%APPDATA%\\d2-service",
+    "manifest_language": "zh-chs"
+  },
+  "ai": {
+    "provider": "",
+    "api_key": "",
+    "model": ""
+  }
+}
+```
+
+`config.json` 可以保存 `client_secret`，但不能写入日志、诊断包或 AI 上下文。
+
+## 首次启动和配置向导
+
+启动状态机：
+
+```text
+启动 d2-service.exe
+  ↓
+检查用户数据目录
+  ↓
+检查 config.json / .env
+  ↓
+检查 Bungie 配置
+  ↓
+检查 OAuth token
+  ↓
+检查 Manifest
+  ↓
+检查 AI 配置，可跳过
+  ↓
+进入首页
+```
+
+如果中间任何一步缺失或失败，GUI 不直接报错退出，而是跳转到对应向导页。
+
+向导页面：
+
+```text
+欢迎页
+  说明这是本地工具，数据保存在本机。
+
+数据目录页
+  默认 %APPDATA%\d2-service，可修改。
+
+Bungie 配置页
+  填写 API Key、Client ID、Client Secret。
+
+配置测试页
+  检查字段、测试 API Key、生成 OAuth 授权 URL。
+
+Bungie 登录页
+  点击按钮后程序先启动本地 callback server，再打开 Bungie 授权页。
+
+Manifest 初始化页
+  下载 Manifest、建立中文索引，失败可重试或稍后处理。
+
+AI 配置页
+  可选，可跳过。
+
+完成页
+  展示配置、登录、资料库、AI 四项状态，进入首页。
+```
+
+首页降级状态：
+
+```text
+Bungie 配置：已完成 / 未完成
+账号登录：已完成 / 未登录
+资料库：已初始化 / 未初始化
+AI：已配置 / 未配置
+```
+
+每张状态卡都提供“去配置”按钮。Manifest 初始化失败时，用户仍可进入首页，但资料库、物品查询和 AI 分析中依赖 Manifest 的能力要显示不可用原因和重试入口。
+
+### 配置校验
+
+Bungie 配置校验分三层：
+
+```text
+1. 字段检查：必填、格式、空格、明显错误。
+2. API Key 测试：调用不需要登录的 Bungie API。
+3. OAuth 测试：生成授权 URL，确认 client_id 和 redirect_uri 组合可用。
+```
+
+OAuth callback 地址不能让用户手动直接打开。只有在 d2-service 已经启动本地 callback server 并开始登录流程后，`http://127.0.0.1:28780/oauth/callback` 才能接收 Bungie 回调。用户手动访问该地址时，如果没有监听进程，浏览器出现 `ERR_CONNECTION_REFUSED` 是正常现象。
 
 ## GUI 信息架构
 
@@ -396,13 +533,15 @@ d2-service-win-x64.zip
 流程：
 
 ```text
-1. 用户运行 d2 auth login
-2. d2-service 启动本地 callback server
-3. 浏览器打开 Bungie 授权页面
+1. 用户在 GUI 中点击“登录 Bungie”
+2. d2-service 启动本地 callback server，监听 127.0.0.1:28780
+3. d2-service 打开浏览器访问 Bungie 授权页面
 4. Bungie 回调 http://127.0.0.1:28780/oauth/callback
 5. d2-service 用 code + client_secret 换取 token
 6. token 加密或至少限制权限后保存到本机数据目录
 ```
+
+命令行 `d2 auth login` 可以保留为高级入口，但必须走同一套本地 callback server 和 token 保存逻辑。
 
 本机保存：
 
@@ -908,7 +1047,9 @@ GUI 不只展示一段聊天文本，而是固定分区：
 - Node.js 22 + TypeScript 工程。
 - Electron 主进程和渲染进程。
 - 配置向导。
+- 启动状态机。
 - 配置加载、`config.json` 和 `.env.example`。
+- `.env > config.json > 默认值` 的覆盖规则。
 - `%APPDATA%\d2-service` 数据目录。
 - 绿色包目录结构。
 - CLI 入口，作为高级和调试入口。
@@ -919,6 +1060,8 @@ GUI 不只展示一段聊天文本，而是固定分区：
 
 - Windows 上解压绿色包后能双击启动 d2-service。
 - 首次启动进入配置向导。
+- 缺少任一关键配置时能跳转到对应向导页。
+- OAuth 登录前能启动本地 callback server，未监听时手动访问 callback 有明确解释。
 - GUI、CLI 和 HTTP health 都可用。
 - 配置缺失时 GUI 给出清晰提示。
 
