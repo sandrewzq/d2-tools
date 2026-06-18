@@ -1,0 +1,16 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": "src",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "declaration": true,
+    "paths": {
+      "@d2-service/core": ["packages/core/dist/index.d.ts"],
+      "@d2-service/http": ["packages/http/dist/server.d.ts"]
+    },
+    "types": ["node", "electron"]
+  },
+  "include": ["src/main/**/*.ts", "src/preload/**/*.ts"]
+}

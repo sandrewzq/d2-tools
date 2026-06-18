@@ -1,0 +1,73 @@
+:root {
+  color: #eceff4;
+  background: #12151b;
+  font-family: "Segoe UI", system-ui, sans-serif;
+}
+
+body {
+  margin: 0;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+.page {
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 32px;
+}
+
+label {
+  display: grid;
+  gap: 8px;
+  margin: 16px 0;
+}
+
+input {
+  padding: 10px 12px;
+  border: 1px solid #384152;
+  border-radius: 6px;
+  color: #eceff4;
+  background: #1a1f2a;
+}
+
+button {
+  padding: 10px 14px;
+  border: 0;
+  border-radius: 6px;
+  color: #10131a;
+  background: #8bd3ff;
+}
+
+.status-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.status-card {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid #303848;
+  border-radius: 8px;
+  background: #181d27;
+}
+
+.status-ready {
+  border-color: #4f9d69;
+}
+
+.status-missing {
+  border-color: #c26b5a;
+}
+
+.status-skipped {
+  border-color: #8a8f9c;
+}
+
+.notice {
+  color: #8bd3ff;
+}

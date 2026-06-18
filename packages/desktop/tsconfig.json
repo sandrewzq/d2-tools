@@ -1,15 +1,8 @@
 {
   "extends": "../../tsconfig.base.json",
-  "compilerOptions": {
-    "outDir": "dist",
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
-    "declaration": true,
-    "paths": {
-      "@d2-service/core": ["packages/core/src/index.ts"],
-      "@d2-service/http": ["packages/http/src/server.ts"]
-    },
-    "types": ["node", "electron"]
-  },
-  "include": ["src/**/*.ts", "vite.config.ts"]
+  "files": [],
+  "references": [
+    { "path": "./tsconfig.main.json" },
+    { "path": "./tsconfig.renderer.json" }
+  ]
 }
