@@ -577,12 +577,15 @@ d2 action execute <plan_id>
 - 装备解释：解释某个 roll 适合什么活动。
 - 仓库分析：根据用户仓库给出保留、关注、可清理建议。
 - 配装建议：基于当前角色、装备和活动目标给出建议。
+- 本周刷取建议：结合轮换、商人、遗失区域、收藏缺口和用户目标给出优先级。
+- Raid / Dungeon 分析：汇总完成次数、周进度、最快通关、flawless 和小队缺口。
 - 活动复盘：摘要最近活动表现。
 
 验收：
 
 - AI 能调用工具查询真实数据，而不是凭记忆回答。
 - AI 输出中区分事实、推断和建议。
+- AI 能完成仓库/roll、本周刷取、Raid/活动三类分析。
 - AI 不能读取 `.env`、token 或直接执行写操作。
 
 ### P5：装备操作
@@ -671,7 +674,25 @@ POST /api/v1/actions/execute
 
 ## AI 接入设计
 
-AI 能力分两类：让 AI 使用 d2-service 的工具，以及让 d2-service 调用 AI。
+AI 能力参考 `d2-skill` 的工具化思路：d2-service 提供确定性事实和安全操作原语，AI 负责解释、比较、归纳和建议。AI 不直接访问 Bungie API，也不直接读取 token、配置或 SQLite。
+
+核心链路：
+
+```text
+GUI 用户提问
+  ↓
+AI 助手页
+  ↓
+AI Orchestrator
+  ↓
+d2-service tools 获取事实
+  ↓
+AI 基于事实生成分析
+  ↓
+GUI 展示：事实 / 分析 / 建议 / 操作计划
+```
+
+AI 能力分两类：让 AI 使用 d2-service 的工具，以及让 d2-service 调用 AI 做分析。
 
 ### AI 使用 d2-service
 
@@ -688,16 +709,47 @@ Bungie API / Manifest / 本地缓存
 工具示例：
 
 ```text
-d2_search_item(query)
-d2_search_perk(query)
-d2_get_characters()
-d2_get_equipment()
-d2_search_inventory(query)
-d2_plan_transfer(item, target)
-d2_execute_action(plan_id)
+d2_info.search_item(query)
+d2_info.search_perk(query)
+d2_info.get_vendor(name)
+d2_info.get_rotations()
+
+d2_profile.get_characters()
+d2_profile.get_equipment(character_id?)
+d2_profile.get_inventory_summary()
+d2_profile.search_inventory(query, filters?)
+
+d2_analysis.get_duplicate_items(filters?)
+d2_analysis.compare_rolls(item_instance_ids)
+d2_analysis.get_collection_gaps()
+d2_analysis.get_weekly_opportunities()
+d2_analysis.get_activity_summary(range?)
+d2_analysis.get_raid_report(range?)
+
+d2_actions.plan_transfer(item_instance_id, target)
+d2_actions.plan_equip(item_instance_id, character_id)
+d2_actions.execute(plan_id)
 ```
 
 工具返回必须是结构化 JSON，并包含适合 AI 阅读的摘要字段。高风险工具必须拆成 plan 和 execute，execute 必须要求用户确认。
+
+### 工具分类
+
+```text
+d2_info
+  物品、perk、来源、商人、遗失区域、周常轮换
+
+d2_profile
+  角色、装备、仓库、收藏、货币、最近活动
+
+d2_analysis
+  重复物品、roll 对比、收藏缺口、本周机会、活动/Raid 摘要
+
+d2_actions
+  转移、装备、锁定、loadout 的 plan / execute
+```
+
+`d2_info`、`d2_profile`、`d2_analysis` 是只读工具。`d2_actions.execute` 是写工具，必须由用户在 GUI 中确认后才能执行。
 
 ### d2-service 调用 AI
 
@@ -717,6 +769,110 @@ AI_MODEL=
 - 对活动记录做摘要。
 
 AI 输出只能作为建议。涉及装备转移、装备、锁定、loadout 的写操作，必须由 d2-service 生成可审计计划并要求用户确认。
+
+### AI 分析场景
+
+第一版 AI 分析三类都要做，但每类先做轻量闭环。
+
+#### 仓库 / roll 分析
+
+典型问题：
+
+```text
+我这把不朽怎么样？
+帮我看看哪些脉冲步枪可以清。
+我有没有爆破专家 + 萤火虫的手炮？
+```
+
+工具链：
+
+```text
+d2_profile.search_inventory
+d2_analysis.get_duplicate_items
+d2_analysis.compare_rolls
+d2_info.search_perk
+d2_info.search_item
+```
+
+输出：
+
+- 拥有哪些相关物品。
+- 每件物品的关键 perk、框架、属性和来源。
+- PvE/PvP 适用性分析。
+- 保留、关注、可清理建议。
+- 不执行拆解或转移。
+
+#### 本周刷取建议
+
+典型问题：
+
+```text
+这周我该刷什么？
+今天遗失区域值不值得打？
+老九卖的东西我有没有必要买？
+```
+
+工具链：
+
+```text
+d2_info.get_rotations
+d2_info.get_vendor
+d2_analysis.get_collection_gaps
+d2_profile.get_inventory_summary
+```
+
+输出：
+
+- 当前轮换和商人信息。
+- 与用户收藏、仓库和角色相关的缺口。
+- 按收益排序的刷取建议。
+- 时间敏感提醒，例如本周限定、今日限定。
+
+#### Raid / 活动 / 小队进度分析
+
+典型问题：
+
+```text
+我这个 raid 熟练度怎么样？
+我们 6 个人谁缺这个 raid？
+最近活动表现有什么问题？
+```
+
+工具链：
+
+```text
+d2_analysis.get_activity_summary
+d2_analysis.get_raid_report
+d2_profile.get_characters
+```
+
+输出：
+
+- Raid / Dungeon 完成次数。
+- 周进度。
+- 最快通关、flawless、关键活动记录。
+- 最近活动趋势。
+- 小队缺口和建议分工，后续支持多人数据导入后再增强。
+
+### AI 输出格式
+
+GUI 不只展示一段聊天文本，而是固定分区：
+
+```text
+事实
+  来自 Bungie API、Manifest、本地仓库和缓存的确定数据
+
+分析
+  AI 对事实的解释、比较和归纳
+
+建议
+  保留、刷取、配装、关注项或下一步行动
+
+操作计划
+  可选，只能由 d2_actions.plan_* 生成，必须用户确认后执行
+```
+
+每次 AI 分析结果都要记录工具调用摘要，方便用户知道结论来自哪些数据。
 
 ## 安全边界
 
@@ -827,12 +983,16 @@ AI 输出只能作为建议。涉及装备转移、装备、锁定、loadout 的
 
 ### 阶段 4：AI 工具接入
 
-目标：让 AI 能安全使用 d2-service。
+目标：让 AI 能安全使用 d2-service，并完成仓库/roll、本周刷取、Raid/活动三类分析。
 
 范围：
 
 - MCP server。
-- item/perk/profile/inventory 工具。
+- info/profile/analysis/actions 工具分组。
+- 仓库 / roll 分析。
+- 本周刷取 / 商人 / 遗失区域建议。
+- Raid / Dungeon / 活动摘要。
+- AI 输出分区：事实、分析、建议、操作计划。
 - 结构化 JSON 返回。
 - 工具调用审计日志。
 
@@ -840,6 +1000,8 @@ AI 输出只能作为建议。涉及装备转移、装备、锁定、loadout 的
 
 - AI 客户端能通过 MCP 调用物品查询。
 - AI 客户端能读取角色、装备、仓库摘要。
+- AI 能回答“我这把 roll 怎么样”“这周该刷什么”“这个 raid 进度怎么样”三类问题。
+- AI 输出能列出数据来源和工具调用摘要。
 - AI 不能直接读取 secret 和 token。
 
 ### 阶段 5：装备操作
