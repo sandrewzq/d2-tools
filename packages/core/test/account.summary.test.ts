@@ -27,20 +27,29 @@ const itemDefinitions: DefinitionComponentData = {
   "1001": {
     hash: 1001,
     displayProperties: {
-      name: "紫黄晶SP-11",
+      name: "Vehicle A",
       icon: "/common/destiny2_content/icons/amethyst.png"
     },
-    itemTypeDisplayName: "异域 / 载具",
-    inventory: { tierTypeName: "异域" }
+    itemTypeDisplayName: "Vehicle",
+    inventory: { tierTypeName: "Exotic", bucketTypeHash: 2025709351 }
   },
   "2001": {
     hash: 2001,
     displayProperties: {
-      name: "风险管理者",
+      name: "Riskrunner",
       icon: "/common/destiny2_content/icons/riskrunner.png"
     },
-    itemTypeDisplayName: "冲锋枪",
-    inventory: { tierTypeName: "异域" }
+    itemTypeDisplayName: "Submachine Gun",
+    inventory: { tierTypeName: "Exotic", bucketTypeHash: 2465295065 }
+  },
+  "3001": {
+    hash: 3001,
+    displayProperties: {
+      name: "Helmet A",
+      icon: "/common/destiny2_content/icons/helmet.png"
+    },
+    itemTypeDisplayName: "Helmet",
+    inventory: { tierTypeName: "Legendary", bucketTypeHash: 3448274439 }
   }
 };
 
@@ -85,7 +94,10 @@ describe("account summary", () => {
           characterEquipment: {
             data: {
               "char-1": {
-                items: [{ itemHash: 2001, itemInstanceId: "instance-1" }]
+                items: [
+                  { itemHash: 2001, itemInstanceId: "instance-1" },
+                  { itemHash: 3001, itemInstanceId: "instance-2" }
+                ]
               }
             }
           },
@@ -122,16 +134,67 @@ describe("account summary", () => {
           {
             hash: 2001,
             instance_id: "instance-1",
-            name: "风险管理者",
+            name: "Riskrunner",
             icon: "https://www.bungie.net/common/destiny2_content/icons/riskrunner.png",
-            item_type: "冲锋枪",
-            tier: "异域"
+            item_type: "Submachine Gun",
+            tier: "Exotic",
+            bucket_hash: 2465295065,
+            bucket_name: "能量武器",
+            group_key: "weapons"
+          },
+          {
+            hash: 3001,
+            instance_id: "instance-2",
+            name: "Helmet A",
+            icon: "https://www.bungie.net/common/destiny2_content/icons/helmet.png",
+            item_type: "Helmet",
+            tier: "Legendary",
+            bucket_hash: 3448274439,
+            bucket_name: "头盔",
+            group_key: "armor"
+          }
+        ],
+        equipment_groups: [
+          {
+            key: "weapons",
+            label: "武器",
+            items: [
+              {
+                hash: 2001,
+                instance_id: "instance-1",
+                name: "Riskrunner",
+                icon: "https://www.bungie.net/common/destiny2_content/icons/riskrunner.png",
+                item_type: "Submachine Gun",
+                tier: "Exotic",
+                bucket_hash: 2465295065,
+                bucket_name: "能量武器",
+                group_key: "weapons"
+              }
+            ]
+          },
+          {
+            key: "armor",
+            label: "护甲",
+            items: [
+              {
+                hash: 3001,
+                instance_id: "instance-2",
+                name: "Helmet A",
+                icon: "https://www.bungie.net/common/destiny2_content/icons/helmet.png",
+                item_type: "Helmet",
+                tier: "Legendary",
+                bucket_hash: 3448274439,
+                bucket_name: "头盔",
+                group_key: "armor"
+              }
+            ]
           }
         ]
       }
     ]);
     expect(summary.vault.item_count).toBe(2);
-    expect(summary.vault.sample_items.map((item) => item.name)).toEqual(["紫黄晶SP-11", "风险管理者"]);
+    expect(summary.vault.sample_items.map((item) => item.name)).toEqual(["Vehicle A", "Riskrunner"]);
+    expect(summary.vault.sample_items.map((item) => item.group_key)).toEqual(["equipment", "weapons"]);
   });
 });
 

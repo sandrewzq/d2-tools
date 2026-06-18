@@ -138,23 +138,38 @@ export function HomePage(props: {
                       <p>光等 {character.light ?? "-"}</p>
                     </div>
                   </div>
-                  <div className="compact-items">
-                    {character.equipped_items.slice(0, 10).map((item) => (
-                      <span title={item.item_type} key={`${item.hash}-${item.instance_id ?? ""}`}>
-                        {item.name}
-                      </span>
+                  <div className="equipment-groups">
+                    {character.equipment_groups.map((group) => (
+                      <section className="equipment-group" key={group.key}>
+                        <h4>{group.label}</h4>
+                        <div className="equipment-grid">
+                          {group.items.map((item) => (
+                            <div className="equipment-item" key={`${item.hash}-${item.instance_id ?? ""}`}>
+                              {item.icon ? <img alt="" src={item.icon} /> : <div className="item-icon-placeholder" />}
+                              <div>
+                                <strong>{item.name}</strong>
+                                <span>{[item.bucket_name, item.tier].filter(Boolean).join(" / ")}</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </section>
                     ))}
                   </div>
                 </article>
               ))}
             </div>
-            <div className="compact-items">
-              {accountSummary.vault.sample_items.map((item) => (
-                <span title={item.item_type} key={`${item.hash}-${item.instance_id ?? ""}`}>
-                  {item.name}
-                </span>
-              ))}
-            </div>
+            <section className="vault-preview">
+              <h3>仓库预览</h3>
+              <div className="vault-grid">
+                {accountSummary.vault.sample_items.slice(0, 30).map((item) => (
+                  <div className="vault-item" title={item.name} key={`${item.hash}-${item.instance_id ?? ""}`}>
+                    {item.icon ? <img alt="" src={item.icon} /> : <div className="item-icon-placeholder" />}
+                    <span>{item.name}</span>
+                  </div>
+                ))}
+              </div>
+            </section>
           </div>
         ) : null}
       </section>

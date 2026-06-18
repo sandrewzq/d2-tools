@@ -56,6 +56,7 @@ export type CharacterSummary = {
   light?: number;
   emblem_url?: string;
   equipped_items: AccountItemSummary[];
+  equipment_groups: CharacterEquipmentGroup[];
 };
 
 export type AccountItemSummary = {
@@ -65,6 +66,17 @@ export type AccountItemSummary = {
   icon?: string;
   item_type?: string;
   tier?: string;
+  bucket_hash?: number;
+  bucket_name?: string;
+  group_key: EquipmentGroupKey;
+};
+
+export type EquipmentGroupKey = "weapons" | "armor" | "equipment" | "other";
+
+export type CharacterEquipmentGroup = {
+  key: EquipmentGroupKey;
+  label: string;
+  items: AccountItemSummary[];
 };
 
 export type StartupState = {

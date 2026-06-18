@@ -123,7 +123,7 @@ h2 {
 
 .character-card {
   display: grid;
-  gap: 12px;
+  gap: 16px;
   padding: 12px;
   border: 1px solid #303848;
   border-radius: 8px;
@@ -141,6 +141,101 @@ h2 {
   width: 48px;
   height: 48px;
   border-radius: 6px;
+}
+
+.equipment-groups {
+  display: grid;
+  gap: 14px;
+}
+
+.equipment-group {
+  display: grid;
+  gap: 8px;
+}
+
+.equipment-group h4,
+.vault-preview h3 {
+  margin: 0;
+  color: #cbd6e8;
+  font-size: 13px;
+}
+
+.equipment-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 8px;
+}
+
+.equipment-item {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  min-height: 42px;
+  padding: 6px;
+  border: 1px solid #303848;
+  border-radius: 6px;
+  background: #141924;
+}
+
+.equipment-item img,
+.vault-item img,
+.item-icon-placeholder {
+  width: 42px;
+  height: 42px;
+  border-radius: 5px;
+}
+
+.item-icon-placeholder {
+  background: #263044;
+}
+
+.equipment-item strong,
+.equipment-item span,
+.vault-item span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.equipment-item strong {
+  color: #f3f6fc;
+  font-size: 13px;
+}
+
+.equipment-item span {
+  color: #9da9bc;
+  font-size: 12px;
+}
+
+.vault-preview {
+  display: grid;
+  gap: 10px;
+}
+
+.vault-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 8px;
+}
+
+.vault-item {
+  display: grid;
+  gap: 6px;
+  justify-items: center;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid #303848;
+  border-radius: 6px;
+  background: #141924;
+  text-align: center;
+}
+
+.vault-item span {
+  max-width: 100%;
+  color: #dce4f4;
+  font-size: 12px;
 }
 
 .compact-items {

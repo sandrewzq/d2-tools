@@ -17,6 +17,7 @@ export type DefinitionRecord = {
   itemTypeDisplayName?: string;
   inventory?: {
     tierTypeName?: string;
+    bucketTypeHash?: number;
   };
   reusablePlugItems?: Array<{
     plugItemHash?: number;
