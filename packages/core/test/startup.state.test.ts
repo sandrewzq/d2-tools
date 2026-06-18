@@ -8,7 +8,7 @@ function config(overrides: Partial<D2Config["bungie"]> = {}): D2Config {
       api_key: "",
       client_id: "",
       client_secret: "",
-      redirect_uri: "http://127.0.0.1:28780/oauth/callback",
+      redirect_uri: "https://127.0.0.1:28780/oauth/callback",
       ...overrides
     },
     data: {

@@ -10,7 +10,7 @@ describe("config store", () => {
     const config = loadConfig({ dataDir: dir, env: {} });
 
     expect(config.data.data_dir).toBe(dir);
-    expect(config.bungie.redirect_uri).toBe("http://127.0.0.1:28780/oauth/callback");
+    expect(config.bungie.redirect_uri).toBe("https://127.0.0.1:28780/oauth/callback");
     expect(config.data.manifest_language).toBe("zh-chs");
   });
 
@@ -23,7 +23,7 @@ describe("config store", () => {
           api_key: "api",
           client_id: "client",
           client_secret: "secret",
-          redirect_uri: "http://127.0.0.1:28780/oauth/callback"
+          redirect_uri: "https://127.0.0.1:28780/oauth/callback"
         },
         data: {
           data_dir: dir,
@@ -53,7 +53,7 @@ describe("config store", () => {
           api_key: "from-config",
           client_id: "client",
           client_secret: "secret",
-          redirect_uri: "http://127.0.0.1:28780/oauth/callback"
+          redirect_uri: "https://127.0.0.1:28780/oauth/callback"
         },
         data: {
           data_dir: dir,
@@ -91,10 +91,30 @@ describe("config store", () => {
     const loaded = loadConfig({ dataDir: dir, env: {} });
 
     expect(loaded.bungie.api_key).toBe("x");
-    expect(loaded.bungie.redirect_uri).toBe("http://127.0.0.1:28780/oauth/callback");
+    expect(loaded.bungie.redirect_uri).toBe("https://127.0.0.1:28780/oauth/callback");
     expect(loaded.data.manifest_language).toBe("zh-chs");
     expect(loaded.ai.provider).toBe("");
     expect(loaded.ai.api_key).toBe("");
     expect(loaded.ai.model).toBe("");
+  });
+
+  it("migrates the old local HTTP redirect URI to HTTPS", () => {
+    const dir = mkdtempSync(join(tmpdir(), "d2-service-config-"));
+    writeFileSync(
+      join(dir, "config.json"),
+      `${JSON.stringify({
+        bungie: {
+          api_key: "api",
+          client_id: "client",
+          client_secret: "secret",
+          redirect_uri: "http://127.0.0.1:28780/oauth/callback"
+        }
+      }, null, 2)}\n`,
+      "utf8"
+    );
+
+    const loaded = loadConfig({ dataDir: dir, env: {} });
+
+    expect(loaded.bungie.redirect_uri).toBe("https://127.0.0.1:28780/oauth/callback");
   });
 });

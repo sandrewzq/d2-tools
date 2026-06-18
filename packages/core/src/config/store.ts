@@ -9,6 +9,9 @@ export type ConfigStoreOptions = {
   env?: ConfigEnv;
 };
 
+const legacyLocalRedirectUri = "http://127.0.0.1:28780/oauth/callback";
+const currentLocalRedirectUri = "https://127.0.0.1:28780/oauth/callback";
+
 export function configPath(dataDir: string): string {
   return join(dataDir, "config.json");
 }
@@ -42,11 +45,26 @@ export function loadConfig(options: ConfigStoreOptions = {}): D2Config {
     : defaultConfig(selectedDataDir);
 
   base.data.data_dir = selectedDataDir;
-  return applyEnvOverrides(base, options.env ?? process.env);
+  return normalizeConfig(applyEnvOverrides(base, options.env ?? process.env));
 }
 
 export function saveConfig(config: D2Config, options: { dataDir?: string } = {}): void {
-  const selectedDataDir = options.dataDir ?? config.data.data_dir ?? defaultDataDir();
+  const normalizedConfig = normalizeConfig(config);
+  const selectedDataDir = options.dataDir ?? normalizedConfig.data.data_dir ?? defaultDataDir();
   mkdirSync(selectedDataDir, { recursive: true });
-  writeFileSync(configPath(selectedDataDir), `${JSON.stringify(config, null, 2)}\n`, "utf8");
+  writeFileSync(configPath(selectedDataDir), `${JSON.stringify(normalizedConfig, null, 2)}\n`, "utf8");
+}
+
+function normalizeConfig(config: D2Config): D2Config {
+  if (config.bungie.redirect_uri === legacyLocalRedirectUri) {
+    return {
+      ...config,
+      bungie: {
+        ...config.bungie,
+        redirect_uri: currentLocalRedirectUri
+      }
+    };
+  }
+
+  return config;
 }

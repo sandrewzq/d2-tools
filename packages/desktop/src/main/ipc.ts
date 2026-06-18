@@ -34,10 +34,12 @@ export function registerIpcHandlers(): void {
     const config = loadConfig();
     const redirectUrl = new URL(config.bungie.redirect_uri);
     const port = Number(redirectUrl.port || 80);
+    const protocol = redirectUrl.protocol === "https:" ? "https" : "http";
     const state = randomBytes(16).toString("hex");
     const server = await startOAuthCallbackServer({
       host: redirectUrl.hostname,
-      port
+      port,
+      protocol
     });
 
     try {

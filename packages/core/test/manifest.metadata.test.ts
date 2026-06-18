@@ -33,7 +33,7 @@ function config(dataDir: string): D2Config {
       api_key: "api-key",
       client_id: "client",
       client_secret: "secret",
-      redirect_uri: "http://127.0.0.1:28780/oauth/callback"
+      redirect_uri: "https://127.0.0.1:28780/oauth/callback"
     },
     data: {
       data_dir: dataDir,

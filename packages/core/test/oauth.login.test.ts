@@ -26,7 +26,7 @@ describe("Bungie OAuth login", () => {
   it("builds an authorization URL for the system browser", () => {
     const url = new URL(buildBungieAuthorizationUrl({
       clientId: "53056",
-      redirectUri: "http://127.0.0.1:28780/oauth/callback",
+      redirectUri: "https://127.0.0.1:28780/oauth/callback",
       state: "state-123"
     }));
 
@@ -34,7 +34,7 @@ describe("Bungie OAuth login", () => {
     expect(url.searchParams.get("client_id")).toBe("53056");
     expect(url.searchParams.get("response_type")).toBe("code");
     expect(url.searchParams.get("state")).toBe("state-123");
-    expect(url.searchParams.get("redirect_uri")).toBe("http://127.0.0.1:28780/oauth/callback");
+    expect(url.searchParams.get("redirect_uri")).toBe("https://127.0.0.1:28780/oauth/callback");
     expect(url.searchParams.has("scope")).toBe(false);
   });
 
