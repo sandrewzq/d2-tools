@@ -1,3 +1,4 @@
+export * from "./bungie/client.js";
 export * from "./config/defaults.js";
 export * from "./config/env.js";
 export * from "./config/schema.js";
