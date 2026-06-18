@@ -44,15 +44,49 @@ export async function startOAuthCallbackServer(options: {
     response.end("<h1>Bungie login received</h1><p>You can return to d2-service.</p>");
   });
 
-  await new Promise<void>((resolve) => server.listen(options.port, options.host, resolve));
+  await new Promise<void>((resolve, reject) => {
+    const cleanup = () => {
+      server.off("error", onError);
+      server.off("listening", onListening);
+    };
+    const onError = (error: Error) => {
+      cleanup();
+      reject(error);
+    };
+    const onListening = () => {
+      cleanup();
+      resolve();
+    };
+
+    server.once("error", onError);
+    server.once("listening", onListening);
+
+    try {
+      server.listen(options.port, options.host);
+    } catch (error) {
+      cleanup();
+      reject(error);
+    }
+  });
   const address = server.address() as AddressInfo;
+  let closePromise: Promise<void> | undefined;
 
   return {
     origin: `http://${options.host}:${address.port}`,
     waitForCallback: () => callbackPromise,
-    close: () =>
-      new Promise<void>((resolve, reject) => {
-        server.close((error) => (error ? reject(error) : resolve()));
-      })
+    close: () => {
+      closePromise ??= new Promise<void>((resolve, reject) => {
+        server.close((error) => {
+          if (!error || (error as NodeJS.ErrnoException).code === "ERR_SERVER_NOT_RUNNING") {
+            resolve();
+            return;
+          }
+
+          reject(error);
+        });
+      });
+
+      return closePromise;
+    }
   };
 }
