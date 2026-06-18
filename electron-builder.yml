@@ -1,0 +1,13 @@
+appId: local.d2-service.desktop
+productName: d2-service
+directories:
+  output: release
+files:
+  - "dist/**"
+  - "package.json"
+win:
+  target:
+    - target: zip
+      arch:
+        - x64
+artifactName: "d2-service-win-x64-${version}.${ext}"
