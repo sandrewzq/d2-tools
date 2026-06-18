@@ -45,8 +45,8 @@ d2-service 是一个面向 Windows 的本地 Destiny 2 助手客户端。它的�
 
 ### 第一步：下载并打开
 
-1. 下载 Windows 绿色包，文件名类似 `d2-service-win-x64-0.1.0.zip`。
-2. 右键 ZIP，选择“全部解压缩”。
+1. 下载 Windows 绿色包，文件名类似 `d2-service-win-x64-0.1.0.7z`。
+2. 用 7-Zip、Bandizip、WinRAR 等工具解压。
 3. 解压到一个你找得到的位置，例如：
 
 ```text
@@ -248,7 +248,9 @@ d2-service 的设计原则是本地优先：
 - GitHub Release：适合能正常访问 GitHub 的玩家。
 - Gitee Release：适合 GitHub 下载慢的玩家。
 
-维护者发布新版本时，不需要手动上传 ZIP。项目已经配置 GitHub Actions：
+维护者发布新版本时，构建产物统一使用 `.7z`。Gitee 普通项目发行版单个附件有 100M 限制，当前 Electron 绿色包用 `.zip` 会超过限制，用 `.7z` 可以压到 100M 以下。
+
+GitHub Release 已配置 GitHub Actions 自动上传 `.7z`：
 
 1. 在 `package.json` 和 `packages/desktop/package.json` 里把版本号改成同一个值，例如 `0.1.1`。
 2. 提交代码。
@@ -264,26 +266,35 @@ git push origin v0.1.1
 - 安装依赖。
 - 运行测试。
 - 运行类型检查。
-- 构建 Windows x64 绿色包。
+- 构建 Windows x64 `.7z` 绿色包。
 - 上传到 GitHub Release。
-- 同时推送 tag 到 Gitee，并上传到 Gitee Release。
 
-Gitee 自动发布需要在 GitHub 仓库的 `Settings -> Secrets and variables -> Actions` 里配置：
+Gitee 优先使用官方发行版页面发布：
 
-- `GITEE_TOKEN`: Gitee 的私人令牌，用来创建 Release 和上传附件。
-- `GITEE_SSH_PRIVATE_KEY`: 有 Gitee 仓库写权限的 SSH 私钥，用来把 release tag 推到 Gitee。
+1. 先同步代码和 tag 到 Gitee。
 
-如果希望 Gitee 上的源码也同步更新，平时合并代码后再执行：
+```powershell
+git push gitee codex/phase-0-local-gui-bootstrap
+git push gitee v0.1.1
+```
+
+2. 打开 Gitee 仓库右侧“发行版”，点击“创建”。
+3. 选择对应 tag，例如 `v0.1.1`。
+4. 标题填写 `d2-service v0.1.1`。
+5. 上传本地构建出的 `.7z` 文件。
+6. 保存发行版。
+
+如果希望 Gitee 上的源码分支也同步更新，平时合并代码后再执行：
 
 ```powershell
 git push origin main
 git push gitee main
 ```
 
-Release ZIP 的文件名类似：
+Release 文件名类似：
 
 ```text
-d2-service-win-x64-0.1.1.zip
+d2-service-win-x64-0.1.1.7z
 ```
 
 ## 开发
@@ -328,7 +339,7 @@ npx pnpm@9.15.0 package:win
 构建产物会输出到：
 
 ```text
-packages/desktop/release/d2-service-win-x64-0.1.0.zip
+packages/desktop/release/d2-service-win-x64-0.1.0.7z
 ```
 
 ## 项目结构

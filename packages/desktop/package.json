@@ -11,7 +11,7 @@
     "build": "pnpm clean && pnpm --filter @d2-service/core build && pnpm --filter @d2-service/http build && vite build && tsc -p tsconfig.main.json",
     "typecheck": "pnpm --filter @d2-service/core build && pnpm --filter @d2-service/http build && tsc -p tsconfig.main.json --noEmit && tsc -p tsconfig.renderer.json --noEmit",
     "test": "vitest --root ../.. --run",
-    "package:win": "pnpm build && electron-builder --config ../../electron-builder.yml --win zip"
+    "package:win": "pnpm build && electron-builder --config ../../electron-builder.yml --win 7z"
   },
   "dependencies": {
     "@d2-service/core": "workspace:*",

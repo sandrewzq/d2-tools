@@ -9,7 +9,7 @@ files:
 win:
   signAndEditExecutable: false
   target:
-    - target: zip
+    - target: 7z
       arch:
         - x64
 artifactName: "d2-service-win-x64-${version}.${ext}"
