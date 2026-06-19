@@ -31,6 +31,10 @@ function mergeConfigWithDefaults(config: Partial<D2Config>, dataDir: string): D2
     ai: {
       ...defaults.ai,
       ...config.ai
+    },
+    features: {
+      ...defaults.features,
+      ...config.features
     }
   };
 }

@@ -20,6 +20,9 @@ function config(overrides: Partial<D2Config["bungie"]> = {}): D2Config {
       api_key: "",
       model: "",
       base_url: ""
+    },
+    features: {
+      write_actions_enabled: false
     }
   };
 }
@@ -47,6 +50,22 @@ describe("startup state", () => {
 
     expect(state.nextStep).toBe("home");
     expect(state.cards.manifest.status).toBe("missing");
+  });
+
+  it("requires login when a saved Bungie token is expired or invalid", () => {
+    const state = computeStartupState({
+      config: config({ api_key: "api", client_id: "client", client_secret: "secret" }),
+      hasToken: true,
+      hasManifest: true,
+      auth: {
+        status: "invalid",
+        message: "Bungie 登录已失效，请重新登录"
+      }
+    });
+
+    expect(state.nextStep).toBe("login");
+    expect(state.cards.account.status).toBe("missing");
+    expect(state.cards.account.label).toBe("Bungie 登录已失效，请重新登录");
   });
 
   it("returns Chinese status labels for the desktop home cards", () => {

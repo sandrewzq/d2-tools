@@ -55,7 +55,12 @@ describe("item definition search", () => {
         description: "一把会导引电弧的异域冲锋枪。",
         icon: "https://www.bungie.net/common/destiny2_content/icons/riskrunner.png",
         item_type: "冲锋枪",
-        tier: "异域"
+        tier: "异域",
+        source: {
+          status: "missing",
+          label: "来源",
+          description: "Bungie Manifest 未提供完整来源，后续再接入更细的数据源。"
+        }
       }
     ]);
   });
@@ -97,16 +102,23 @@ describe("item definition search", () => {
                 {
                   hash: 100,
                   name: "爆破专家",
-                  description: "使用技能会重新装填武器。"
+                  description: "使用技能会重新装填武器。",
+                  icon: undefined
                 },
                 {
                   hash: 101,
                   name: "萤火虫",
-                  description: "精准击杀产生元素爆炸。"
+                  description: "精准击杀产生元素爆炸。",
+                  icon: undefined
                 }
               ]
             }
-          ]
+          ],
+          source: {
+            status: "missing",
+            label: "来源",
+            description: "Bungie Manifest 未提供完整来源，后续再接入更细的数据源。"
+          }
         }
       ]);
   });

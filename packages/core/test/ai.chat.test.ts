@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { generateVaultAiAdvice } from "../src/ai/chat.js";
+import { extractAiSections, generateVaultAiAdvice } from "../src/ai/chat.js";
 import type { AccountItemSummary } from "../src/account/summary.js";
 import type { D2Config } from "../src/config/schema.js";
 import type { VaultTags } from "../src/vault/tags.js";
@@ -19,11 +19,29 @@ const items: AccountItemSummary[] = [
 
 const tags: VaultTags = {
   items: {
-    "weapon-1": { tag: "keep" }
+    "weapon-1": { tag: "keep", note: "留给电猎清怪" }
   }
 };
 
 describe("AI chat analysis", () => {
+  it("extracts facts, analysis, suggestions, and action reminders from AI text", () => {
+    const sections = extractAiSections([
+      "事实：",
+      "- 仓库有 2 把同名武器",
+      "分析：",
+      "- 第一把更适合 PVE",
+      "建议：",
+      "- 保留第一把",
+      "操作提醒：",
+      "- 不会自动分解"
+    ].join("\n"));
+
+    expect(sections.facts).toEqual(["仓库有 2 把同名武器"]);
+    expect(sections.analysis).toEqual(["第一把更适合 PVE"]);
+    expect(sections.suggestions).toEqual(["保留第一把"]);
+    expect(sections.action_reminders).toEqual(["不会自动分解"]);
+  });
+
   it("returns local analysis without calling the network when AI is disabled", async () => {
     let called = false;
 
@@ -79,10 +97,19 @@ describe("AI chat analysis", () => {
     });
     expect(JSON.stringify(JSON.parse(String(requests[0].init.body)))).toContain("Riskrunner");
     expect(JSON.stringify(JSON.parse(String(requests[0].init.body)))).toContain("Voltshot");
+    expect(JSON.stringify(JSON.parse(String(requests[0].init.body)))).toContain("留给电猎清怪");
+    expect(JSON.stringify(JSON.parse(String(requests[0].init.body)))).toContain("score_summary");
     expect(result.ai).toEqual({
       provider: "deepseek",
       model: "deepseek-chat",
-      text: "这把 Riskrunner 建议保留，用于电弧场景。"
+      text: "这把 Riskrunner 建议保留，用于电弧场景。",
+      sections: {
+        facts: [],
+        analysis: [],
+        suggestions: [],
+        action_reminders: [],
+        raw: "这把 Riskrunner 建议保留，用于电弧场景。"
+      }
     });
   });
 

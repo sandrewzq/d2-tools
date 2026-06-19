@@ -48,11 +48,17 @@ describe("item definition detail", () => {
             {
               hash: 100,
               name: "Arc Conductor",
-              description: "Taking Arc damage increases weapon power."
+              description: "Taking Arc damage increases weapon power.",
+              icon: undefined
             }
           ]
         }
-      ]
+      ],
+      source: {
+        status: "missing",
+        label: "来源",
+        description: "Bungie Manifest 未提供完整来源，后续再接入更细的数据源。"
+      }
     });
   });
 

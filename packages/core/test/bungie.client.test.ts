@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fetchBungieJson } from "../src/bungie/client.js";
+import { fetchBungieJson, postBungieJson } from "../src/bungie/client.js";
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -80,5 +80,40 @@ describe("Bungie API client", () => {
 
     await expect(fetchBungieJson("/Destiny2/Manifest/", { apiKey: "api", fetchImpl }))
       .rejects.toThrow("Bungie request failed: HTTP 503");
+  });
+
+  it("posts JSON bodies with bearer tokens for authenticated write requests", async () => {
+    let request: Request | undefined;
+    const fetchImpl: typeof fetch = async (input, init) => {
+      request = new Request(input, init);
+      return jsonResponse({
+        ErrorCode: 1,
+        Message: "Ok",
+        Response: { ok: true }
+      });
+    };
+
+    const result = await postBungieJson<{ ok: boolean }>(
+      "/Destiny2/Actions/Items/EquipItem/",
+      { itemId: "item-1", characterId: "character-1", membershipType: 3 },
+      {
+        apiKey: "api-key",
+        accessToken: "access-token",
+        baseUrl: "https://example.test/Platform",
+        fetchImpl
+      }
+    );
+
+    expect(result).toEqual({ ok: true });
+    expect(request?.method).toBe("POST");
+    expect(request?.url).toBe("https://example.test/Platform/Destiny2/Actions/Items/EquipItem/");
+    expect(request?.headers.get("x-api-key")).toBe("api-key");
+    expect(request?.headers.get("authorization")).toBe("Bearer access-token");
+    expect(request?.headers.get("content-type")).toContain("application/json");
+    expect(await request?.json()).toEqual({
+      itemId: "item-1",
+      characterId: "character-1",
+      membershipType: 3
+    });
   });
 });

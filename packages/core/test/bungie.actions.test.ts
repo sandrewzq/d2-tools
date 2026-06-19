@@ -1,0 +1,127 @@
+import { describe, expect, it } from "vitest";
+import {
+  equipItem,
+  setItemLockState,
+  transferItem
+} from "../src/bungie/actions.js";
+import type { D2Config } from "../src/config/schema.js";
+import type { BungieOAuthToken } from "../src/oauth/login.js";
+
+function jsonResponse(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "content-type": "application/json" }
+  });
+}
+
+const config: D2Config = {
+  bungie: {
+    api_key: "api-key",
+    client_id: "client",
+    client_secret: "secret",
+    redirect_uri: "https://127.0.0.1:28780/oauth/callback"
+  },
+  data: {
+    data_dir: "data",
+    manifest_language: "zh-chs"
+  },
+  ai: {
+    provider: "",
+    api_key: "",
+    model: "",
+    base_url: ""
+  },
+  features: {
+    write_actions_enabled: false
+  }
+};
+
+const token: BungieOAuthToken = {
+  access_token: "access-token",
+  token_type: "Bearer",
+  expires_in: 3600
+};
+
+describe("Bungie item actions", () => {
+  it("sets item lock state through the Bungie Actions endpoint", async () => {
+    const calls: Request[] = [];
+    const fetchImpl: typeof fetch = async (input, init) => {
+      calls.push(new Request(input, init));
+      return jsonResponse({ ErrorCode: 1, Message: "Ok", Response: 0 });
+    };
+
+    await setItemLockState({
+      config,
+      token,
+      membershipType: 3,
+      characterId: "character-1",
+      itemId: "item-1",
+      state: true,
+      baseUrl: "https://example.test/Platform",
+      fetchImpl
+    });
+
+    expect(calls[0].url).toBe("https://example.test/Platform/Destiny2/Actions/Items/SetLockState/");
+    expect(await calls[0].json()).toEqual({
+      state: true,
+      itemId: "item-1",
+      characterId: "character-1",
+      membershipType: 3
+    });
+  });
+
+  it("equips an item onto a selected character", async () => {
+    let request: Request | undefined;
+    const fetchImpl: typeof fetch = async (input, init) => {
+      request = new Request(input, init);
+      return jsonResponse({ ErrorCode: 1, Message: "Ok", Response: 0 });
+    };
+
+    await equipItem({
+      config,
+      token,
+      membershipType: 3,
+      characterId: "character-1",
+      itemId: "item-1",
+      baseUrl: "https://example.test/Platform",
+      fetchImpl
+    });
+
+    expect(request?.url).toBe("https://example.test/Platform/Destiny2/Actions/Items/EquipItem/");
+    expect(await request?.json()).toEqual({
+      itemId: "item-1",
+      characterId: "character-1",
+      membershipType: 3
+    });
+  });
+
+  it("transfers items to and from the vault", async () => {
+    const requests: Request[] = [];
+    const fetchImpl: typeof fetch = async (input, init) => {
+      requests.push(new Request(input, init));
+      return jsonResponse({ ErrorCode: 1, Message: "Ok", Response: 0 });
+    };
+
+    await transferItem({
+      config,
+      token,
+      membershipType: 3,
+      characterId: "character-1",
+      itemReferenceHash: 123,
+      itemId: "item-1",
+      transferToVault: true,
+      baseUrl: "https://example.test/Platform",
+      fetchImpl
+    });
+
+    expect(requests[0].url).toBe("https://example.test/Platform/Destiny2/Actions/Items/TransferItem/");
+    expect(await requests[0].json()).toEqual({
+      itemReferenceHash: 123,
+      stackSize: 1,
+      transferToVault: true,
+      itemId: "item-1",
+      characterId: "character-1",
+      membershipType: 3
+    });
+  });
+});

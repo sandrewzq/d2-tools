@@ -17,6 +17,31 @@ export async function fetchBungieJson<T>(
   path: string,
   options: FetchBungieJsonOptions
 ): Promise<T> {
+  return requestBungieJson<T>(path, {
+    ...options,
+    method: "GET"
+  });
+}
+
+export async function postBungieJson<T>(
+  path: string,
+  body: unknown,
+  options: FetchBungieJsonOptions
+): Promise<T> {
+  return requestBungieJson<T>(path, {
+    ...options,
+    method: "POST",
+    body
+  });
+}
+
+async function requestBungieJson<T>(
+  path: string,
+  options: FetchBungieJsonOptions & {
+    method: "GET" | "POST";
+    body?: unknown;
+  }
+): Promise<T> {
   const apiKey = options.apiKey.trim();
   if (!apiKey) {
     throw new Error("Bungie API key is required");
@@ -25,11 +50,14 @@ export async function fetchBungieJson<T>(
   const fetchImpl = options.fetchImpl ?? fetch;
   const url = new URL(normalizePath(path), ensureTrailingSlash(options.baseUrl ?? defaultBaseUrl));
   const response = await fetchImpl(url, {
+    method: options.method,
     headers: {
       "X-API-Key": apiKey,
       ...(options.accessToken ? { "Authorization": `Bearer ${options.accessToken}` } : {}),
-      "Accept": "application/json"
-    }
+      "Accept": "application/json",
+      ...(options.method === "POST" ? { "Content-Type": "application/json" } : {})
+    },
+    ...(options.method === "POST" ? { body: JSON.stringify(options.body ?? {}) } : {})
   });
 
   if (!response.ok) {

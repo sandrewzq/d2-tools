@@ -20,6 +20,9 @@ function config(): D2Config {
       api_key: "",
       model: "",
       base_url: ""
+    },
+    features: {
+      write_actions_enabled: false
     }
   };
 }
@@ -41,7 +44,8 @@ const itemDefinitions: DefinitionComponentData = {
       icon: "/common/destiny2_content/icons/riskrunner.png"
     },
     itemTypeDisplayName: "Submachine Gun",
-    inventory: { tierTypeName: "Exotic", bucketTypeHash: 2465295065 }
+    inventory: { tierTypeName: "Exotic", bucketTypeHash: 2465295065 },
+    equippingBlock: { ammoType: 1 }
   },
   "3001": {
     hash: 3001,
@@ -71,6 +75,15 @@ const itemDefinitions: DefinitionComponentData = {
     },
     itemTypeDisplayName: "Trait",
     inventory: { tierTypeName: "Legendary" }
+  },
+  "5001": {
+    hash: 5001,
+    displayProperties: {
+      name: "Enhancement Core",
+      icon: "/common/destiny2_content/icons/core.png"
+    },
+    itemTypeDisplayName: "Currency",
+    inventory: { tierTypeName: "Legendary", bucketTypeHash: 1469714392 }
   }
 };
 
@@ -122,19 +135,35 @@ describe("account summary", () => {
               }
             }
           },
+          characterInventories: {
+            data: {
+              "char-1": {
+                items: [
+                  { itemHash: 2001, itemInstanceId: "backpack-1", state: 0 },
+                  { itemHash: 3001, itemInstanceId: "backpack-2", state: 1 }
+                ]
+              }
+            }
+          },
           profileInventory: {
             data: {
-              items: Array.from({ length: 35 }, (_, index) => ({
-                itemHash: index % 2 === 0 ? 1001 : 2001,
-                itemInstanceId: `vault-${index + 1}`,
-                state: index === 1 ? 1 : 0
-              }))
+              items: [
+                ...Array.from({ length: 35 }, (_, index) => ({
+                  itemHash: index % 2 === 0 ? 1001 : 2001,
+                  itemInstanceId: `vault-${index + 1}`,
+                  bucketHash: index === 1 ? 999999999 : undefined,
+                  state: index === 1 ? 1 : 0
+                })),
+                { itemHash: 5001, quantity: 42 },
+                { itemHash: 1001, quantity: 3 }
+              ]
             }
           },
           itemComponents: {
             instances: {
               data: {
                 "instance-1": { primaryStat: { value: 1810 } },
+                "backpack-1": { primaryStat: { value: 1809 } },
                 "vault-2": { primaryStat: { value: 1805 } }
               }
             },
@@ -143,6 +172,11 @@ describe("account summary", () => {
                 "instance-1": {
                   sockets: [
                     { plugHash: 4001, isVisible: true },
+                    { plugHash: 4002, isVisible: true }
+                  ]
+                },
+                "backpack-1": {
+                  sockets: [
                     { plugHash: 4002, isVisible: true }
                   ]
                 },
@@ -168,6 +202,7 @@ describe("account summary", () => {
     });
 
     expect(requested[1]).toContain("/Destiny2/3/Profile/destiny-1/");
+    expect(requested[1]).toContain("components=100,102,200,201,205,300,305");
     expect(summary.account_name).toBe("Big Brother is watching");
     expect(summary.destiny_membership_id).toBe("destiny-1");
     expect(summary.characters).toHaveLength(1);
@@ -189,7 +224,8 @@ describe("account summary", () => {
       bucket_name: "能量武器",
       group_key: "weapons",
       power: 1810,
-      locked: true
+      locked: true,
+      ammo_type: "primary"
     });
     expect(summary.characters[0]?.equipped_items[0]?.socket_plugs).toEqual([
       {
@@ -205,16 +241,40 @@ describe("account summary", () => {
         description: "Reloading after defeating a target overcharges this weapon."
       }
     ]);
+    expect(summary.characters[0]?.inventory_items).toHaveLength(2);
+    expect(summary.characters[0]?.inventory_items[0]).toMatchObject({
+      hash: 2001,
+      instance_id: "backpack-1",
+      name: "Riskrunner",
+      group_key: "weapons",
+      power: 1809,
+      locked: false
+    });
+    expect(summary.characters[0]?.inventory_groups.map((group) => group.key)).toEqual(["weapons", "armor"]);
+    expect(summary.characters[0]?.inventory_groups[0]?.items.map((item) => item.instance_id)).toEqual(["backpack-1"]);
     expect(summary.vault.item_count).toBe(35);
     expect(summary.vault.items).toHaveLength(35);
     expect(summary.vault.items[0]?.instance_id).toBe("vault-1");
     expect(summary.vault.items[34]?.instance_id).toBe("vault-35");
     expect(summary.vault.items[1]?.power).toBe(1805);
     expect(summary.vault.items[1]?.locked).toBe(true);
+    expect(summary.vault.items[1]?.bucket_hash).toBe(2465295065);
+    expect(summary.vault.items[1]?.bucket_name).toBe("能量武器");
+    expect(summary.vault.items[1]?.group_key).toBe("weapons");
     expect(summary.vault.items[1]?.socket_plugs.map((plug) => plug.name)).toEqual(["Voltshot"]);
     expect(summary.vault.sample_items).toHaveLength(30);
     expect(summary.vault.sample_items.slice(0, 2).map((item) => item.name)).toEqual(["Vehicle A", "Riskrunner"]);
     expect(summary.vault.sample_items.slice(0, 2).map((item) => item.group_key)).toEqual(["equipment", "weapons"]);
+    expect(summary.materials.item_count).toBe(2);
+    expect(summary.materials.items.map((item) => `${item.name}:${item.quantity}`))
+      .toEqual(["Enhancement Core:42", "Vehicle A:3"]);
+    expect(summary.materials.items[0]).toMatchObject({
+      hash: 5001,
+      name: "Enhancement Core",
+      icon: "https://www.bungie.net/common/destiny2_content/icons/core.png",
+      item_type: "Currency",
+      quantity: 42
+    });
   });
 });
 

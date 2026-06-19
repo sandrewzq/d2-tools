@@ -1,9 +1,12 @@
 import type { DefinitionComponentData, DefinitionRecord } from "../manifest/definitions.js";
+import { expandAliasQuery, type ItemAliases } from "./aliases.js";
 import { summarizeItemPerks, type ItemPerkGroup } from "./perks.js";
+import { summarizeItemSource, type ItemSourceSummary } from "./source.js";
 
 export type ItemSearchOptions = {
   limit?: number;
   plugSetDefinitions?: DefinitionComponentData;
+  aliases?: ItemAliases;
 };
 
 export type ItemSearchResult = {
@@ -13,6 +16,7 @@ export type ItemSearchResult = {
   icon?: string;
   item_type?: string;
   tier?: string;
+  source: ItemSourceSummary;
   perks?: ItemPerkGroup[];
 };
 
@@ -23,8 +27,9 @@ export function searchItemDefinitions(
   query: string,
   options: ItemSearchOptions = {}
 ): ItemSearchResult[] {
-  const normalizedQuery = query.trim().toLocaleLowerCase();
-  if (!normalizedQuery) {
+  const terms = options.aliases ? expandAliasQuery(query, options.aliases) : [query.trim()];
+  const normalizedTerms = terms.map((term) => term.toLocaleLowerCase()).filter(Boolean);
+  if (!normalizedTerms.length) {
     return [];
   }
 
@@ -33,7 +38,7 @@ export function searchItemDefinitions(
 
   for (const definition of Object.values(definitions)) {
     const name = definition.displayProperties?.name?.trim();
-    if (!name || !name.toLocaleLowerCase().includes(normalizedQuery)) {
+    if (!name || !normalizedTerms.some((term) => name.toLocaleLowerCase().includes(term))) {
       continue;
     }
 
@@ -57,7 +62,8 @@ function toItemSearchResult(
     description: definition.displayProperties?.description ?? "",
     icon: normalizeBungieAssetUrl(definition.displayProperties?.icon),
     item_type: definition.itemTypeDisplayName,
-    tier: definition.inventory?.tierTypeName
+    tier: definition.inventory?.tierTypeName,
+    source: summarizeItemSource(definition)
   };
 
   const perks = summarizeItemPerks(definition, definitions, {

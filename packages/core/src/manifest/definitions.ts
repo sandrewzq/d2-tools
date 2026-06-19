@@ -5,7 +5,9 @@ import type { DestinyManifestMetadata } from "./metadata.js";
 export type DefinitionComponentName =
   | "DestinyInventoryItemDefinition"
   | "DestinyPlugSetDefinition"
-  | "DestinySandboxPerkDefinition";
+  | "DestinySandboxPerkDefinition"
+  | "DestinyActivityDefinition"
+  | "DestinyVendorDefinition";
 
 export type DefinitionRecord = {
   hash?: number;
@@ -18,6 +20,12 @@ export type DefinitionRecord = {
   inventory?: {
     tierTypeName?: string;
     bucketTypeHash?: number;
+  };
+  equippingBlock?: {
+    ammoType?: number;
+  };
+  sourceData?: {
+    sourceString?: string;
   };
   reusablePlugItems?: Array<{
     plugItemHash?: number;

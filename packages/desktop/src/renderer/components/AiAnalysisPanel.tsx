@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { api, type AccountItemSummary, type VaultAiAdviceResult, type VaultAnalysisResult, type VaultTags } from "../api/client";
+import { api, type AccountItemSummary, type AiAdviceSections, type VaultAiAdviceResult, type VaultAnalysisResult, type VaultTags } from "../api/client";
 
 export function AiAnalysisPanel(props: {
   items: AccountItemSummary[];
@@ -91,11 +91,22 @@ export function AiAnalysisPanel(props: {
           <AnalysisSection title="事实" lines={result.facts} />
           <AnalysisSection title="分析" lines={result.analysis} />
           <AnalysisSection title="建议" lines={result.suggestions} />
+          <section className="analysis-section">
+            <h3>本地评分</h3>
+            <div className="score-summary-row">
+              <span>建议保留 <strong>{result.scoring.counts.keep}</strong></span>
+              <span>建议复查 <strong>{result.scoring.counts.review}</strong></span>
+              <span>可清理 <strong>{result.scoring.counts.junk}</strong></span>
+            </div>
+            <ScoreExamples title="高分装备" items={result.scoring.top_keep} />
+            <ScoreExamples title="复查装备" items={result.scoring.top_review} />
+            <ScoreExamples title="清理候选" items={result.scoring.top_junk} />
+          </section>
           {aiResult ? (
             <section className="analysis-section ai-advice-section">
               <h3>AI 深度建议</h3>
               <p className="muted-copy">{aiResult.provider} / {aiResult.model}</p>
-              <div className="ai-advice-text">{aiResult.text}</div>
+              <AiSectionView sections={aiResult.sections} />
             </section>
           ) : null}
           <section className="analysis-section">
@@ -109,6 +120,57 @@ export function AiAnalysisPanel(props: {
         <p className="notice">点击“分析仓库”生成第一版本地分析。</p>
       )}
     </section>
+  );
+}
+
+function AiSectionView(props: { sections: AiAdviceSections }) {
+  const hasSections = props.sections.facts.length
+    || props.sections.analysis.length
+    || props.sections.suggestions.length
+    || props.sections.action_reminders.length;
+  if (!hasSections) {
+    return <div className="ai-advice-text">{props.sections.raw}</div>;
+  }
+
+  return (
+    <div className="ai-section-grid">
+      <AiSection title="事实" items={props.sections.facts} />
+      <AiSection title="分析" items={props.sections.analysis} />
+      <AiSection title="建议" items={props.sections.suggestions} />
+      <AiSection title="操作提醒" items={props.sections.action_reminders} />
+    </div>
+  );
+}
+
+function AiSection(props: { title: string; items: string[] }) {
+  if (!props.items.length) return null;
+  return (
+    <section className="ai-section-card">
+      <h4>{props.title}</h4>
+      <ul>
+        {props.items.map((item) => <li key={item}>{item}</li>)}
+      </ul>
+    </section>
+  );
+}
+
+function ScoreExamples(props: { title: string; items: VaultAnalysisResult["scoring"]["top_keep"] }) {
+  if (!props.items.length) {
+    return null;
+  }
+
+  return (
+    <div className="analysis-tag-block">
+      <strong>{props.title}</strong>
+      <ul>
+        {props.items.slice(0, 4).map((item) => (
+          <li key={item.item_key}>
+            {item.name}
+            <span>{item.score} 分 / {item.reasons.slice(0, 2).join(" / ")}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 

@@ -33,6 +33,7 @@ export function StatusOverview(props: {
         title="账号登录"
         {...props.state.cards.account}
         action={accountAction}
+        busy={props.isLoggingIn}
         disabled={props.isLoggingIn}
         onAction={props.onLogin}
       />
@@ -40,6 +41,7 @@ export function StatusOverview(props: {
         title="资料库"
         {...props.state.cards.manifest}
         action={manifestAction}
+        busy={props.isInitializingManifest}
         disabled={props.isInitializingManifest}
         onAction={props.onInitializeManifest}
       />

@@ -1,6 +1,6 @@
 {
   "name": "@d2-service/core",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "private": true,
   "type": "module",
   "main": "dist/index.js",
@@ -9,6 +9,70 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./analysis/scoring": {
+      "types": "./dist/analysis/scoring.d.ts",
+      "import": "./dist/analysis/scoring.js"
+    },
+    "./analysis/duplicates": {
+      "types": "./dist/analysis/duplicates.d.ts",
+      "import": "./dist/analysis/duplicates.js"
+    },
+    "./analysis/wishlist": {
+      "types": "./dist/analysis/wishlist.d.ts",
+      "import": "./dist/analysis/wishlist.js"
+    },
+    "./actions/plan": {
+      "types": "./dist/actions/plan.d.ts",
+      "import": "./dist/actions/plan.js"
+    },
+    "./items/aliases": {
+      "types": "./dist/items/aliases.d.ts",
+      "import": "./dist/items/aliases.js"
+    },
+    "./items/perkSearch": {
+      "types": "./dist/items/perkSearch.d.ts",
+      "import": "./dist/items/perkSearch.js"
+    },
+    "./items/source": {
+      "types": "./dist/items/source.d.ts",
+      "import": "./dist/items/source.js"
+    },
+    "./library/history": {
+      "types": "./dist/library/history.d.ts",
+      "import": "./dist/library/history.js"
+    },
+    "./loadouts/templates": {
+      "types": "./dist/loadouts/templates.d.ts",
+      "import": "./dist/loadouts/templates.js"
+    },
+    "./loadouts/plan": {
+      "types": "./dist/loadouts/plan.d.ts",
+      "import": "./dist/loadouts/plan.js"
+    },
+    "./activities/history": {
+      "types": "./dist/activities/history.d.ts",
+      "import": "./dist/activities/history.js"
+    },
+    "./activities/recent": {
+      "types": "./dist/activities/recent.d.ts",
+      "import": "./dist/activities/recent.js"
+    },
+    "./activities/raidSummary": {
+      "types": "./dist/activities/raidSummary.d.ts",
+      "import": "./dist/activities/raidSummary.js"
+    },
+    "./diagnostics/export": {
+      "types": "./dist/diagnostics/export.d.ts",
+      "import": "./dist/diagnostics/export.js"
+    },
+    "./tools/audit": {
+      "types": "./dist/tools/audit.d.ts",
+      "import": "./dist/tools/audit.js"
+    },
+    "./tools/registry": {
+      "types": "./dist/tools/registry.d.ts",
+      "import": "./dist/tools/registry.js"
     }
   },
   "scripts": {

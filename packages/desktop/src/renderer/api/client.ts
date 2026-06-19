@@ -12,10 +12,32 @@ declare global {
       getManifestStatus(): Promise<ManifestStatus>;
       initializeManifest(): Promise<ManifestStatus>;
       searchItems(query: string): Promise<ItemSearchResult[]>;
+      searchPerks(query: string): Promise<PerkSearchResult[]>;
+      getItemAliases(): Promise<ItemAliases>;
+      saveItemAlias(input: ItemAliasEntry): Promise<ItemAliases>;
+      getLibraryHistory(): Promise<LibraryHistory>;
+      addRecentItem(item: Omit<LibraryHistoryItem, "viewed_at">): Promise<LibraryHistory>;
+      addFavoriteItem(item: Omit<LibraryHistoryItem, "viewed_at">): Promise<LibraryHistory>;
+      removeFavoriteItem(hash: number): Promise<LibraryHistory>;
+      listLoadoutTemplates(): Promise<LoadoutTemplate[]>;
+      createLoadoutTemplate(input: CreateLoadoutTemplateInput): Promise<LoadoutTemplate>;
+      deleteLoadoutTemplate(id: string): Promise<LoadoutTemplate[]>;
+      createLoadoutTemplateTransferPlan(input: LoadoutTemplateTransferPlanInput): Promise<BatchTransferPlan>;
       getVaultTags(): Promise<VaultTags>;
       saveVaultTag(input: SaveVaultTagInput): Promise<VaultTags>;
+      saveVaultNote(input: SaveVaultNoteInput): Promise<VaultTags>;
       analyzeVault(input: VaultAnalysisInput): Promise<VaultAnalysisResult>;
       generateVaultAiAdvice(input: VaultAnalysisInput): Promise<VaultAiAdviceResult>;
+      generateItemAiAdvice(input: ItemAiAdviceInput): Promise<ItemAiAdviceResult>;
+      setItemLockState(input: ItemLockActionInput): Promise<ItemActionResult>;
+      equipItem(input: ItemEquipActionInput): Promise<ItemActionResult>;
+      transferItem(input: ItemTransferActionInput): Promise<ItemActionResult>;
+      getActionLog(): Promise<ActionLogEntry[]>;
+      createItemActionPlan(input: ItemActionPlanInput): Promise<ItemActionPlan>;
+      createBatchTransferPlan(input: BatchTransferPlanInput): Promise<BatchTransferPlan>;
+      getDailySummary(): Promise<DailySummary>;
+      getActivitySummary(input: ActivitySummaryInput): Promise<ActivityHistorySummary>;
+      exportDiagnostics(): Promise<string>;
     };
   }
 }
@@ -39,6 +61,9 @@ export type D2Config = {
     model: string;
     base_url: string;
   };
+  features: {
+    write_actions_enabled: boolean;
+  };
 };
 
 export type AuthLoginResult = {
@@ -56,6 +81,10 @@ export type AccountSummary = {
     items: AccountItemSummary[];
     sample_items: AccountItemSummary[];
   };
+  materials: {
+    item_count: number;
+    items: AccountMaterialSummary[];
+  };
 };
 
 export type CharacterSummary = {
@@ -65,6 +94,8 @@ export type CharacterSummary = {
   emblem_url?: string;
   equipped_items: AccountItemSummary[];
   equipment_groups: CharacterEquipmentGroup[];
+  inventory_items: AccountItemSummary[];
+  inventory_groups: CharacterEquipmentGroup[];
 };
 
 export type AccountItemSummary = {
@@ -73,6 +104,7 @@ export type AccountItemSummary = {
   name: string;
   icon?: string;
   item_type?: string;
+  ammo_type?: AmmoTypeKey;
   tier?: string;
   bucket_hash?: number;
   bucket_name?: string;
@@ -80,6 +112,15 @@ export type AccountItemSummary = {
   power?: number;
   locked?: boolean;
   socket_plugs?: AccountItemPlugSummary[];
+};
+
+export type AccountMaterialSummary = {
+  hash: number;
+  name: string;
+  icon?: string;
+  item_type?: string;
+  tier?: string;
+  quantity: number;
 };
 
 export type AccountItemPlugSummary = {
@@ -92,12 +133,17 @@ export type AccountItemPlugSummary = {
 export type VaultTagValue = "none" | "keep" | "review" | "junk";
 
 export type VaultTags = {
-  items: Record<string, { tag: Exclude<VaultTagValue, "none"> }>;
+  items: Record<string, { tag?: Exclude<VaultTagValue, "none">; note?: string }>;
 };
 
 export type SaveVaultTagInput = {
   item_key: string;
   tag: VaultTagValue;
+};
+
+export type SaveVaultNoteInput = {
+  item_key: string;
+  note: string;
 };
 
 export type VaultAnalysisInput = {
@@ -123,6 +169,25 @@ export type VaultAnalysisResult = {
     review: VaultAnalysisItem[];
     junk: VaultAnalysisItem[];
   };
+  scoring: VaultScoreSummary;
+};
+
+export type VaultScoreGrade = "keep" | "review" | "junk";
+
+export type VaultItemScore = {
+  item_key: string;
+  name: string;
+  score: number;
+  grade: VaultScoreGrade;
+  reasons: string[];
+  warnings: string[];
+};
+
+export type VaultScoreSummary = {
+  counts: Record<VaultScoreGrade, number>;
+  top_keep: VaultItemScore[];
+  top_review: VaultItemScore[];
+  top_junk: VaultItemScore[];
 };
 
 export type VaultAiAdviceResult = {
@@ -131,8 +196,114 @@ export type VaultAiAdviceResult = {
     provider: string;
     model: string;
     text: string;
+    sections: AiAdviceSections;
   } | null;
   skipped_reason?: string;
+};
+
+export type ItemAiAdviceInput = {
+  item: AccountItemSummary & {
+    description?: string;
+    note?: string;
+  };
+  tags: VaultTags;
+};
+
+export type ItemAiAdviceResult = {
+  score: VaultItemScore;
+  ai: {
+    provider: string;
+    model: string;
+    text: string;
+    sections: AiAdviceSections;
+  } | null;
+  skipped_reason?: string;
+};
+
+export type AiAdviceSections = {
+  facts: string[];
+  analysis: string[];
+  suggestions: string[];
+  action_reminders: string[];
+  raw: string;
+};
+
+export type ItemLockActionInput = {
+  membership_type: number;
+  character_id: string;
+  item_id: string;
+  item_name?: string;
+  state: boolean;
+};
+
+export type ItemEquipActionInput = {
+  membership_type: number;
+  character_id: string;
+  item_id: string;
+  item_name?: string;
+};
+
+export type ItemTransferActionInput = {
+  membership_type: number;
+  character_id: string;
+  item_id: string;
+  item_reference_hash: number;
+  item_name?: string;
+  transfer_to_vault: boolean;
+};
+
+export type ItemActionResult = {
+  ok: true;
+  message: string;
+};
+
+export type ActionLogEntry = {
+  id: string;
+  created_at: string;
+  action: "set-lock" | "equip" | "transfer";
+  item_name?: string;
+  item_instance_id?: string;
+  character_id?: string;
+  ok: boolean;
+  message?: string;
+};
+
+export type DailySourceStatus = "ready" | "pending";
+
+export type DailySummarySource = {
+  status: DailySourceStatus;
+  label: string;
+  message: string;
+  items?: DailySummaryItem[];
+};
+
+export type DailySummaryItem = {
+  title: string;
+  subtitle?: string;
+  description?: string;
+  source?: string;
+};
+
+export type DailySummary = {
+  date_label: string;
+  daily_reset: {
+    label: string;
+    next_reset_iso: string;
+    time_remaining_label: string;
+  };
+  weekly_reset: {
+    label: string;
+    next_reset_iso: string;
+    time_remaining_label: string;
+  };
+  sources: {
+    rotations: DailySummarySource;
+    vendors: DailySummarySource;
+    lost_sector: DailySummarySource;
+    weekly_report: DailySummarySource;
+  };
+  checklist: string[];
+  recommendations: string[];
 };
 
 export type AiConnectionTestResult = {
@@ -149,10 +320,12 @@ export type ItemDefinitionDetail = {
   icon?: string;
   item_type?: string;
   tier?: string;
+  source: ItemSourceSummary;
   perks?: ItemPerkGroup[];
 };
 
 export type EquipmentGroupKey = "weapons" | "armor" | "equipment" | "other";
+export type AmmoTypeKey = "primary" | "special" | "heavy";
 
 export type CharacterEquipmentGroup = {
   key: EquipmentGroupKey;
@@ -190,7 +363,133 @@ export type ItemSearchResult = {
   icon?: string;
   item_type?: string;
   tier?: string;
+  source: ItemSourceSummary;
   perks?: ItemPerkGroup[];
+};
+
+export type ItemSourceSummary = {
+  status: "ready" | "missing";
+  label: string;
+  description: string;
+};
+
+export type PerkSearchResult = {
+  hash: number;
+  name: string;
+  description: string;
+  icon?: string;
+  related_items?: Array<{ hash: number; name: string }>;
+};
+
+export type ItemAliasEntry = {
+  alias: string;
+  target: string;
+  kind: "item" | "perk";
+};
+
+export type ItemAliases = {
+  entries: ItemAliasEntry[];
+};
+
+export type LibraryHistoryItem = {
+  hash: number;
+  name: string;
+  icon?: string;
+  viewed_at?: string;
+};
+
+export type LibraryHistory = {
+  recent: LibraryHistoryItem[];
+  favorites: LibraryHistoryItem[];
+};
+
+export type LoadoutTemplate = {
+  id: string;
+  name: string;
+  character_id: string;
+  class_name: string;
+  created_at: string;
+  items: Array<{
+    hash: number;
+    instance_id?: string;
+    name: string;
+    bucket_name?: string;
+  }>;
+};
+
+export type CreateLoadoutTemplateInput = {
+  name: string;
+  character_id: string;
+  class_name: string;
+  equipped_items: AccountItemSummary[];
+};
+
+export type ItemActionPlanInput = {
+  action: "set-lock" | "equip" | "transfer";
+  item_name: string;
+  item_instance_id?: string;
+  item_reference_hash?: number;
+  character_id?: string;
+  state?: boolean;
+  transfer_to_vault?: boolean;
+};
+
+export type ItemActionPlan = {
+  action: ItemActionPlanInput["action"];
+  title: string;
+  description: string;
+  requires_confirmation: true;
+  executable: false;
+  input: ItemActionPlanInput;
+};
+
+export type BatchTransferPlanInput = {
+  character_id: string;
+  transfer_to_vault: boolean;
+  items: AccountItemSummary[];
+};
+
+export type LoadoutTemplateTransferPlanInput = {
+  template: LoadoutTemplate;
+  target_character_id: string;
+  available_items: AccountItemSummary[];
+  equipped_items: AccountItemSummary[];
+};
+
+export type BatchTransferPlan = {
+  summary: string;
+  steps: ItemActionPlan[];
+};
+
+export type ActivitySummaryInput = {
+  membership_type: number;
+  membership_id: string;
+  character_ids: string[];
+};
+
+export type ActivityHistorySummary = {
+  recent: {
+    total: number;
+    latest_period?: string;
+    pve: { total: number; completed: number };
+    pvp: { total: number; completed: number };
+    other: { total: number; completed: number };
+  };
+  raids: {
+    entries: Array<{
+      activity_name: string;
+      activity_type: "raid" | "dungeon";
+      completions: number;
+      attempts: number;
+      last_completed_at?: string;
+    }>;
+  };
+  recent_items: Array<{
+    activity_name: string;
+    mode: "pve" | "pvp" | "other";
+    completed: boolean;
+    period: string;
+  }>;
 };
 
 export type ItemPerkGroup = {

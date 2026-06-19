@@ -2,6 +2,10 @@ import type { D2Config } from "../config/schema.js";
 
 export type StartupStep = "bungie-config" | "login" | "home";
 export type StatusValue = "ready" | "missing" | "skipped";
+export type StartupAuthStatus = {
+  status: "missing" | "valid" | "invalid";
+  message?: string;
+};
 
 export type StartupState = {
   nextStep: StartupStep;
@@ -26,19 +30,23 @@ export function computeStartupState(input: {
   config: D2Config;
   hasToken: boolean;
   hasManifest: boolean;
+  auth?: StartupAuthStatus;
 }): StartupState {
   const bungieReady = hasRequiredBungieConfig(input.config);
+  const auth = input.auth ?? { status: input.hasToken ? "valid" : "missing" };
+  const accountReady = auth.status === "valid";
+  const accountLabel = getAccountLabel(auth);
 
   return {
-    nextStep: !bungieReady ? "bungie-config" : !input.hasToken ? "login" : "home",
+    nextStep: !bungieReady ? "bungie-config" : !accountReady ? "login" : "home",
     cards: {
       bungieConfig: {
         status: bungieReady ? "ready" : "missing",
         label: bungieReady ? "Bungie 配置已完成" : "需要填写 Bungie 配置"
       },
       account: {
-        status: input.hasToken ? "ready" : "missing",
-        label: input.hasToken ? "Bungie 账号已登录" : "需要登录 Bungie"
+        status: accountReady ? "ready" : "missing",
+        label: accountLabel
       },
       manifest: {
         status: input.hasManifest ? "ready" : "missing",
@@ -50,4 +58,16 @@ export function computeStartupState(input: {
       }
     }
   };
+}
+
+function getAccountLabel(auth: StartupAuthStatus): string {
+  if (auth.status === "valid") {
+    return "Bungie 账号已登录";
+  }
+
+  if (auth.status === "invalid") {
+    return auth.message?.trim() || "Bungie 登录已失效，请重新登录";
+  }
+
+  return "需要登录 Bungie";
 }

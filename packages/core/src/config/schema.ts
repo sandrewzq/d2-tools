@@ -15,6 +15,9 @@ export type D2Config = {
     model: string;
     base_url: string;
   };
+  features: {
+    write_actions_enabled: boolean;
+  };
 };
 
 export type ConfigEnv = Partial<Record<
@@ -27,6 +30,7 @@ export type ConfigEnv = Partial<Record<
   | "AI_PROVIDER"
   | "AI_API_KEY"
   | "AI_MODEL"
-  | "AI_BASE_URL",
+  | "AI_BASE_URL"
+  | "D2_WRITE_ACTIONS_ENABLED",
   string
 >>;

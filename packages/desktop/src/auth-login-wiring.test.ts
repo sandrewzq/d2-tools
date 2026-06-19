@@ -34,5 +34,9 @@ describe("desktop Bungie login wiring", () => {
     expect(preload).toContain('ipcRenderer.invoke("account:summary")');
     expect(ipc).toContain('ipcMain.handle("auth:login"');
     expect(ipc).toContain('ipcMain.handle("account:summary"');
+    expect(ipc).toContain('ipcMain.handle("startup:get", async');
+    expect(ipc).toContain("getStartupAuthStatus(config)");
+    expect(ipc).toContain("loadFreshOAuthToken");
+    expect(ipc).toContain("refreshBungieOAuthToken");
   });
 });

@@ -3,6 +3,7 @@ export type StatusCardProps = {
   status: "ready" | "missing" | "skipped";
   label: string;
   action?: string;
+  busy?: boolean;
   disabled?: boolean;
   onAction?: () => void;
 };
@@ -15,7 +16,7 @@ export function StatusCard(props: StatusCardProps) {
         <p>{props.label}</p>
       </div>
       {props.action ? (
-        <button type="button" disabled={props.disabled} onClick={props.onAction}>
+        <button type="button" aria-busy={props.busy ?? false} disabled={props.disabled} onClick={props.onAction}>
           {props.action}
         </button>
       ) : null}

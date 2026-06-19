@@ -2,11 +2,13 @@
 
 日期：2026-06-18
 
+> 2026-06-19 更新：项目已经从“6 人小圈子自用”调整为“可公开分发的 Windows 绿色包”。公开包不内置任何 Bungie 密钥，每个用户在本机配置自己的 Bungie Application。写操作已进入候选能力，必须同时满足 Bungie `MoveEquipDestinyItems` 授权、本地写操作开关和二次确认。`0.0.3` 增加了 DIM 式仓库整理、账号/仓库按位置分组、武器弹药筛选、一键最高光等、今日面板、AI 分析和安全写操作日志。最新功能状态与路线图以 `README.md` 和 `docs/ROADMAP.md` 为准，本设计文档保留早期架构取舍和背景分析。
+
 ## 目标
 
-`d2-service` 是给 6 人小圈子使用的 Windows 本地 Destiny 2 工具。每个使用者在自己的 Windows 电脑上运行程序，程序直接访问 Bungie API，不再默认依赖 AstrBot、Hermes、NAS Docker 或中心 d2-service。
+`d2-service` 是面向 Windows 玩家公开分发的本地 Destiny 2 工具。每个使用者在自己的 Windows 电脑上运行程序，程序直接访问 Bungie API，不再默认依赖 AstrBot、Hermes、NAS Docker 或中心 d2-service。
 
-项目仍然叫 `d2-service`，但第一入口是 Windows 图形化客户端。这里的 service 指“本机能力服务”：图形界面、CLI、localhost HTTP API 和 MCP 工具共享同一套本地能力。后续接入 AI 时，AI 通过这些稳定接口使用 Destiny 2 能力，而不是直接操作 token、Manifest 或 Bungie API。
+项目仍然叫 `d2-service`，但第一入口是 Windows 图形化客户端。这里的 service 指“本机能力服务”：GUI 调用同一套 core 能力，后续 localhost HTTP API 和 MCP 工具也可以复用这些能力。`d2-skill` 只作为功能和安全模型参考，不意味着 d2-service 要变成 CLI 工具。
 
 第一版目标：
 
@@ -35,24 +37,24 @@ Bungie API / OAuth / Manifest
 
 ### 为什么不再默认做中心服务
 
-数据源都在 Bungie 服务器，6 个使用者也都是 Windows 用户。每个人本机直接访问 Bungie 可以省掉：
+数据源都在 Bungie 服务器，目标用户也主要是 Windows 玩家。每个人本机直接访问 Bungie 可以省掉：
 
 - NAS Docker 部署。
 - AstrBot 插件适配。
 - Hermes/Open WebUI 网关。
 - 中心服务的更新、备份和网络暴露。
 
-6 个人的 OAuth token 本来就不同。中心服务不能减少 token 数量，只是把 token 和 `client_secret` 从 6 台电脑集中到一台服务上。对小圈子来说，每个人本机通过图形界面配置自己的 Bungie 应用信息，可以接受。
+每个玩家的 OAuth token 本来就不同。中心服务不能减少 token 数量，只是把 token 和 `client_secret` 从用户电脑集中到一台服务上。当前主线选择本地配置：每个玩家通过图形界面填写自己的 Bungie 应用信息，配置只保存在本机。
 
-### 小圈子安全模型
+### 公开分发安全模型
 
-`client_secret` 属于 Bungie 应用，不属于某个 Bungie 账号。严格来说，桌面客户端不适合公开分发 `client_secret`。但本项目是 6 人可信小圈子使用，不公开发布，配置也不进仓库，因此可以采用：
+`client_secret` 属于 Bungie 应用，不属于某个 Bungie 账号。公开分发包不能内置任何人的 `client_secret`，也不能把它提交到仓库或写进日志。因此采用：
 
 ```text
 每个使用者本机配置 BUNGIE_API_KEY / BUNGIE_CLIENT_ID / BUNGIE_CLIENT_SECRET，配置保存到本机用户数据目录
 ```
 
-这能避免 secret 写进代码仓库、绿色包和提交历史。风险边界要写清楚：这不是公开软件的安全模型，只适合可信小圈子。
+这能避免 secret 写进代码仓库、绿色包和提交历史。普通玩家需要多做一步创建 Bungie Application，但公开分发的风险边界更清晰。
 
 ## 参考 d2-skill 的方式
 
@@ -64,7 +66,7 @@ Bungie API / OAuth / Manifest
 - 配置放在用户本机数据目录，仓库不包含用户密钥。
 - 本地 OAuth callback 流程。
 - Manifest 下载、缓存和中文查询思路。
-- CLI 命令返回结构化 JSON，方便自动化和 AI 调用。
+- 功能能力拆成结构化 core 服务，方便 GUI、AI 和后续接口复用。
 - 高风险操作采用“先 plan，再 execute”的安全模型。
 - 审计日志记录工具调用和装备操作。
 
@@ -72,7 +74,7 @@ Bungie API / OAuth / Manifest
 
 - 把项目做成只给 Codex/Claude 使用的 skill 包。
 - 让 AI 直接持有 token 或直接拼 Bungie API 请求。
-- 把所有功能藏在单一 CLI 命令里，导致桌面 UI、HTTP API、MCP 无法共享。
+- 照抄 CLI 使用方式，导致普通玩家必须接触命令行。
 
 ## 推荐技术路线
 
@@ -84,8 +86,8 @@ Node.js 22 + TypeScript
 
 选择 Node.js 的原因：
 
-- 和 d2-skill 的生态接近，后续参考或迁移思路更顺。
-- 适合同时提供 CLI、localhost HTTP API、MCP server 和桌面壳。
+- 和 d2-skill 的 TypeScript 生态接近，后续参考功能实现更顺。
+- 适合把 Bungie、Manifest、AI 和写操作能力沉到 core，再由 GUI 和后续接口复用。
 - JSON、HTTP、OAuth、工具协议和 AI 接入生态成熟。
 
 ### 第一版形态
@@ -100,7 +102,7 @@ Electron 图形界面
 本机 core / OAuth / Manifest / 查询 / AI 工具
 ```
 
-CLI、localhost HTTP API 和 MCP server 仍然保留，但它们是高级入口和 AI/自动化入口，不是普通用户主入口。
+localhost HTTP API 和 MCP server 只作为后续 AI/自动化接口预留，不是普通用户主入口。CLI 不作为产品路线，最多保留为开发调试工具。
 
 ### 桌面形态
 
@@ -116,7 +118,7 @@ CLI、localhost HTTP API 和 MCP server 仍然保留，但它们是高级入口�
 第一版分发方式：
 
 ```text
-绿色包 zip：解压后双击 d2-service.exe
+绿色包 7z：解压后双击 d2-service.exe
 ```
 
 暂不做安装器。后续用户变多后再考虑 NSIS/MSIX 安装包、开始菜单快捷方式和自动更新。
@@ -127,7 +129,6 @@ CLI、localhost HTTP API 和 MCP server 仍然保留，但它们是高级入口�
 d2-service
   ├─ Electron desktop
   ├─ Core service
-  ├─ CLI
   ├─ localhost HTTP API
   ├─ MCP server
   ├─ OAuth manager
@@ -144,7 +145,7 @@ d2-service
 ```text
 用户 / AI / 本地 UI
   ↓
-Electron UI / CLI / HTTP API / MCP tool
+Electron UI / HTTP API / MCP tool
   ↓
 d2-service 应用层
   ↓
@@ -236,7 +237,7 @@ d2-service/
 BUNGIE_API_KEY=
 BUNGIE_CLIENT_ID=
 BUNGIE_CLIENT_SECRET=
-BUNGIE_REDIRECT_URI=http://127.0.0.1:28780/oauth/callback
+BUNGIE_REDIRECT_URI=https://127.0.0.1:28780/oauth/callback
 D2_DATA_DIR=%APPDATA%\d2-service
 D2_MANIFEST_LANGUAGE=zh-chs
 AI_PROVIDER=
@@ -251,8 +252,8 @@ AI_MODEL=
 - `config.json` 不提交 Git。
 - `tokens.json` 不提交 Git。
 - `d2.sqlite` 不提交 Git。
-- 用户可以各自使用自己的 Bungie Application，也可以小圈子共享同一组 Bungie 应用配置。
-- 如果共享同一组 Bungie 应用配置，必须只在可信范围内分发。
+- 用户各自使用自己的 Bungie Application。
+- 公开发布包不内置 `API Key`、`Client ID` 或 `Client Secret`。
 
 ### 配置变量分级
 
@@ -267,7 +268,7 @@ BUNGIE_CLIENT_SECRET
 程序自动生成默认值，用户一般不用改：
 
 ```text
-BUNGIE_REDIRECT_URI=http://127.0.0.1:28780/oauth/callback
+BUNGIE_REDIRECT_URI=https://127.0.0.1:28780/oauth/callback
 D2_DATA_DIR=%APPDATA%\d2-service
 D2_MANIFEST_LANGUAGE=zh-chs
 ```
@@ -300,7 +301,7 @@ AI 配置允许跳过。跳过后，AI 助手页显示“未配置 AI”，但�
     "api_key": "",
     "client_id": "",
     "client_secret": "",
-    "redirect_uri": "http://127.0.0.1:28780/oauth/callback"
+    "redirect_uri": "https://127.0.0.1:28780/oauth/callback"
   },
   "data": {
     "data_dir": "%APPDATA%\\d2-service",
@@ -502,7 +503,7 @@ AI 助手：
 第一版使用绿色包：
 
 ```text
-d2-service-win-x64.zip
+d2-service-win-x64-0.0.x.7z
   d2-service.exe
   resources\
   README.txt
@@ -511,7 +512,7 @@ d2-service-win-x64.zip
 用户使用方式：
 
 ```text
-1. 解压 zip
+1. 解压 7z
 2. 双击 d2-service.exe
 3. 跟随配置向导
 ```
@@ -536,12 +537,12 @@ d2-service-win-x64.zip
 1. 用户在 GUI 中点击“登录 Bungie”
 2. d2-service 启动本地 callback server，监听 127.0.0.1:28780
 3. d2-service 打开浏览器访问 Bungie 授权页面
-4. Bungie 回调 http://127.0.0.1:28780/oauth/callback
+4. Bungie 回调 https://127.0.0.1:28780/oauth/callback
 5. d2-service 用 code + client_secret 换取 token
 6. token 加密或至少限制权限后保存到本机数据目录
 ```
 
-命令行 `d2 auth login` 可以保留为高级入口，但必须走同一套本地 callback server 和 token 保存逻辑。
+OAuth 登录以 GUI 流程为准。后续如果增加调试入口，也必须走同一套本地 callback server 和 token 保存逻辑。
 
 本机保存：
 
@@ -578,42 +579,37 @@ Manifest 由每台 Windows 客户端本机下载和缓存。
 
 Manifest 缓存可删除重建，不影响 OAuth token 和用户配置。
 
-## 命令能力
+## GUI / Core 能力
 
 ### 公共查询
 
-```text
-d2 item search 风险管理者
-d2 perk search 爆破专家
-d2 vendor xur
-d2 lost-sector
-```
+- GUI 物品搜索：输入“风险管理者”等中英文名称，展示物品摘要和详情。
+- GUI perk 搜索：输入“爆破专家”等 perk 名称，展示效果和关联物品。
+- GUI 商人查询：展示 Xur、枪匠、常用供应商售卖。
+- GUI 今日面板：展示遗失区域、轮换和每周重点。
 
 ### 个人查询
 
-```text
-d2 auth login
-d2 auth status
-d2 profile characters
-d2 profile equipment
-d2 inventory search 风险管理者
-d2 activities recent
-```
+- GUI 登录 Bungie。
+- GUI 展示登录状态和当前账号。
+- GUI 展示角色、当前装备、仓库和最近活动。
+- GUI 仓库搜索本账号拥有的物品。
 
 ### 装备操作
 
 装备操作放到后续阶段，必须采用两段式：
 
 ```text
-d2 action plan transfer --item 风险管理者 --to 泰坦
-d2 action execute <plan_id>
+GUI 生成操作影响说明
+用户确认
+d2-service 执行写操作并记录日志
 ```
 
-第一步只生成计划，不执行写操作。第二步必须确认后才执行。
+第一步只生成影响说明，不执行写操作。第二步必须由用户在 GUI 中确认后才执行。
 
 ## 功能路线图
 
-路线图参考“小日向 Bot”的使用体验和 `d2-skill` 的工具化思路，但不追求第一版完整复刻。优先顺序是：先让用户稳定查资料，再查自己的账号，随后接入 AI，最后谨慎开放装备写操作。
+路线图参考“小日向 Bot”的使用体验和 `d2-skill` 的功能、安全写操作、AI 分析思路，但不追求第一版完整复刻。优先顺序是：先让用户稳定查资料，再查自己的账号，随后接入 AI，最后谨慎开放装备写操作。
 
 ### 参考工具能力矩阵
 
@@ -637,16 +633,16 @@ d2 action execute <plan_id>
 - 绿色包启动。
 - 配置向导：检查 Bungie API Key、Client ID、Client Secret。
 - 本地数据目录：初始化 `%APPDATA%\d2-service`。
-- 健康检查：GUI、CLI 和 HTTP API 都能确认服务状态。
+- 健康检查：GUI 和后续 HTTP API 都能确认服务状态。
 - 日志：记录启动、配置错误、Bungie API 错误。
-- 结构化输出：所有命令都能返回 JSON，方便 AI 和脚本使用。
+- 结构化数据：core 能返回稳定数据结构，方便 GUI、AI 和后续接口使用。
 
 验收：
 
 - 新用户解压后双击 `d2-service.exe` 能启动。
 - 新用户能通过配置向导完成基础配置。
 - 缺配置时给出明确提示。
-- `d2 health` 和 `/api/v1/health` 都可用。
+- GUI 能展示健康状态；后续 `/api/v1/health` 可复用同一套检查逻辑。
 
 ### P1：公共资料查询
 
@@ -663,8 +659,8 @@ d2 action execute <plan_id>
 
 验收：
 
-- `d2 item search 风险管理者` 能返回可读摘要和原始结构化数据。
-- `d2 perk search 爆破专家` 能返回 perk 说明和关联物品。
+- GUI 搜索“风险管理者”能返回可读摘要和原始结构化数据。
+- GUI 搜索“爆破专家”能返回 perk 说明和关联物品。
 - 公共查询不要求用户登录。
 
 ### P2：个人账号与角色查询
@@ -682,9 +678,9 @@ d2 action execute <plan_id>
 
 验收：
 
-- `d2 auth login` 完成登录。
-- `d2 profile characters` 能列出角色。
-- `d2 inventory search 风险管理者` 能找到本账号拥有的物品。
+- GUI 能完成 Bungie 登录。
+- GUI 能列出角色。
+- GUI 仓库搜索“风险管理者”能找到本账号拥有的物品。
 
 ### P3：小日向式体验增强
 
@@ -697,13 +693,13 @@ d2 action execute <plan_id>
 - 查询结果分页：大量结果可翻页、过滤、排序。
 - 别名系统：支持常用简称、黑话和中英文混查。
 - 收藏和快捷查询：本地记录常查武器、常用角色、关注商人。
-- 文本摘要：给 CLI、HTTP、MCP 都提供人类可读摘要。
+- 文本摘要：给 GUI、HTTP、MCP 都提供人类可读摘要。
 
 验收：
 
 - 查询武器时能输出接近 Bot 卡片的信息层次。
 - 查询个人数据时能给出一段适合直接展示给用户的摘要。
-- 同一个能力可以同时被 CLI、HTTP 和 MCP 复用。
+- 同一个能力可以被 GUI、HTTP 和 MCP 复用。
 
 ### P4：AI 助手能力
 
@@ -813,7 +809,7 @@ POST /api/v1/actions/execute
 
 ## AI 接入设计
 
-AI 能力参考 `d2-skill` 的工具化思路：d2-service 提供确定性事实和安全操作原语，AI 负责解释、比较、归纳和建议。AI 不直接访问 Bungie API，也不直接读取 token、配置或 SQLite。
+AI 能力参考 `d2-skill` 的功能设计和安全边界：d2-service 提供确定性事实和安全操作原语，AI 负责解释、比较、归纳和建议。AI 不直接访问 Bungie API，也不直接读取 token、配置或 SQLite。
 
 核心链路：
 
@@ -1025,10 +1021,10 @@ GUI 不只展示一段聊天文本，而是固定分区：
 - 所有写操作写入 audit log。
 - 出错时不要把 access token、refresh token、client secret 打进日志。
 
-小圈子可接受：
+公开分发可接受：
 
-- 每个用户本机保存 `client_secret`。
-- 共享 Bungie Application 配置。
+- 每个用户本机保存自己的 `client_secret`。
+- 每个用户自己创建并配置 Bungie Application。
 
 不适合：
 
@@ -1052,7 +1048,6 @@ GUI 不只展示一段聊天文本，而是固定分区：
 - `.env > config.json > 默认值` 的覆盖规则。
 - `%APPDATA%\d2-service` 数据目录。
 - 绿色包目录结构。
-- CLI 入口，作为高级和调试入口。
 - `/api/v1/health`。
 - 基础日志和错误格式。
 
@@ -1062,7 +1057,7 @@ GUI 不只展示一段聊天文本，而是固定分区：
 - 首次启动进入配置向导。
 - 缺少任一关键配置时能跳转到对应向导页。
 - OAuth 登录前能启动本地 callback server，未监听时手动访问 callback 有明确解释。
-- GUI、CLI 和 HTTP health 都可用。
+- GUI 可用；后续 HTTP health 可复用同一套健康检查。
 - 配置缺失时 GUI 给出清晰提示。
 
 ### 阶段 1：公共资料查询
@@ -1080,8 +1075,8 @@ GUI 不只展示一段聊天文本，而是固定分区：
 
 完成标志：
 
-- `d2 item search 风险管理者` 返回结构化结果。
-- `d2 perk search 爆破专家` 返回结构化结果。
+- GUI 搜索“风险管理者”返回结构化结果。
+- GUI 搜索“爆破专家”返回结构化结果。
 - 公共查询不要求用户登录。
 
 ### 阶段 2：OAuth 和个人查询
@@ -1100,14 +1095,14 @@ GUI 不只展示一段聊天文本，而是固定分区：
 
 完成标志：
 
-- `d2 auth login` 完成登录。
-- `d2 auth status` 显示当前账号。
+- GUI 完成 Bungie 登录。
+- GUI 显示当前账号。
 - 每个用户本机能查到自己的角色、装备和仓库。
 - token 过期后能自动刷新。
 
 ### 阶段 3：小日向式体验增强
 
-目标：从命令式查询升级到更接近 Bot 的信息组织方式。
+目标：从基础列表查询升级到更接近 Bot 的信息组织方式。
 
 范围：
 
@@ -1116,13 +1111,13 @@ GUI 不只展示一段聊天文本，而是固定分区：
 - 查询结果分页。
 - 常用别名。
 - 收藏和快捷查询。
-- 适合 CLI、HTTP、MCP 复用的文本摘要。
+- 适合 GUI、HTTP、MCP 复用的文本摘要。
 
 完成标志：
 
 - 武器查询能返回卡片级信息层次。
 - 个人查询能返回适合直接展示的摘要。
-- 同一能力可以被 CLI、HTTP 和 MCP 复用。
+- 同一能力可以被 GUI、HTTP 和 MCP 复用。
 
 ### 阶段 4：AI 工具接入
 
@@ -1131,13 +1126,14 @@ GUI 不只展示一段聊天文本，而是固定分区：
 范围：
 
 - MCP server。
-- info/profile/analysis/actions 工具分组。
+- `d2.*` 工具清单和 info/profile/analysis/actions 工具分组。
 - 仓库 / roll 分析。
 - 本周刷取 / 商人 / 遗失区域建议。
 - Raid / Dungeon / 活动摘要。
 - AI 输出分区：事实、分析、建议、操作计划。
 - 结构化 JSON 返回。
 - 工具调用审计日志。
+- 本地 HTTP 工具发现和注入式工具调用骨架。
 
 完成标志：
 
@@ -1146,6 +1142,7 @@ GUI 不只展示一段聊天文本，而是固定分区：
 - AI 能回答“我这把 roll 怎么样”“这周该刷什么”“这个 raid 进度怎么样”三类问题。
 - AI 输出能列出数据来源和工具调用摘要。
 - AI 不能直接读取 secret 和 token。
+- HTTP/MCP 暴露的工具定义不包含 API Key、client secret、access token 或 refresh token 字段。
 
 ### 阶段 5：装备操作
 
@@ -1186,7 +1183,7 @@ GUI 不只展示一段聊天文本，而是固定分区：
 - Bungie API 限流和不稳定。
 - Manifest 首次下载和索引耗时。
 - 中文搜索需要别名、繁简和模糊匹配。
-- 本机 `client_secret` 只适合可信小圈子。
+- 公开分发时不能内置 `client_secret`，需要每个用户本机自行配置。
 - AI 可能给出错误建议。
 - 装备写操作存在误触风险。
 
@@ -1212,13 +1209,13 @@ d2-service = Windows 本地 Destiny 2 能力程序
 技术路线：
 
 ```text
-Node.js 22 + TypeScript + Electron GUI + CLI + localhost HTTP API + MCP server
+Node.js 22 + TypeScript + Electron GUI + core 能力层 + 后续 localhost HTTP API / MCP server
 ```
 
 首版分发方式：
 
 ```text
-绿色包 zip，解压后双击 d2-service.exe
+绿色包 7z，解压后双击 d2-service.exe
 ```
 
-`d2-skill` 作为重要参考项目，借鉴它的 OAuth、Manifest、CLI、AI 工具和安全操作思路，但 `d2-service` 保持自己的架构边界：GUI 优先、本地优先、用户数据本机保存、AI 通过结构化工具接口接入。
+`d2-skill` 作为重要参考项目，借鉴它的 OAuth、Manifest、AI 分析能力和安全操作思路，但不照抄 CLI 形态。`d2-service` 保持自己的架构边界：GUI 优先、本地优先、用户数据本机保存、AI 通过结构化 core 能力接入。

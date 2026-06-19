@@ -17,6 +17,20 @@ export function applyEnvOverrides(config: D2Config, env: ConfigEnv): D2Config {
       api_key: env.AI_API_KEY ?? config.ai.api_key,
       model: env.AI_MODEL ?? config.ai.model,
       base_url: env.AI_BASE_URL ?? config.ai.base_url
+    },
+    features: {
+      write_actions_enabled: parseBooleanEnv(
+        env.D2_WRITE_ACTIONS_ENABLED,
+        config.features.write_actions_enabled
+      )
     }
   };
+}
+
+function parseBooleanEnv(value: string | undefined, fallback: boolean): boolean {
+  if (value === undefined) {
+    return fallback;
+  }
+
+  return ["1", "true", "yes", "on"].includes(value.trim().toLocaleLowerCase());
 }

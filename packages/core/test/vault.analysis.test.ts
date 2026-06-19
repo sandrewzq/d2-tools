@@ -29,7 +29,7 @@ const items: AccountItemSummary[] = [
 
 const tags: VaultTags = {
   items: {
-    "riskrunner-1": { tag: "keep" },
+    "riskrunner-1": { tag: "keep", note: "留给电猎清怪" },
     "helmet-1": { tag: "review" },
     "vehicle-1": { tag: "junk" }
   }
@@ -42,12 +42,16 @@ describe("vault analysis", () => {
     expect(result.facts).toEqual([
       "仓库共 3 件物品，其中武器 1 件、护甲 1 件、其他装备 1 件、其他 0 件。",
       "本地标记：保留 1 件、关注 1 件、可清理 1 件、未标记 0 件。",
-      "已读取实际 roll 的物品 1 件。"
+      "已读取实际 roll 的物品 1 件。",
+      "本地评分：建议保留 1 件、建议复查 1 件、可清理候选 1 件。"
     ]);
     expect(result.analysis).toContain("保留标记集中在 Riskrunner。");
     expect(result.analysis).toContain("关注标记集中在 Helmet A，适合后续人工复查。");
     expect(result.suggestions).toContain("优先查看“关注”标记的 1 件装备，确认是否改为保留或可清理。");
     expect(result.items.keep.map((entry) => entry.name)).toEqual(["Riskrunner"]);
+    expect(result.items.keep[0].note).toBe("留给电猎清怪");
+    expect(result.scoring.counts).toEqual({ keep: 1, review: 1, junk: 1 });
+    expect(result.scoring.top_keep.map((entry) => entry.name)).toEqual(["Riskrunner"]);
   });
 });
 

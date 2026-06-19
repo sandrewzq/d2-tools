@@ -1,5 +1,6 @@
 import type { DefinitionComponentData, DefinitionRecord } from "../manifest/definitions.js";
 import { summarizeItemPerks, type ItemPerkGroup } from "./perks.js";
+import { summarizeItemSource, type ItemSourceSummary } from "./source.js";
 
 export type ItemDefinitionDetail = {
   hash: number;
@@ -8,6 +9,7 @@ export type ItemDefinitionDetail = {
   icon?: string;
   item_type?: string;
   tier?: string;
+  source: ItemSourceSummary;
   perks?: ItemPerkGroup[];
 };
 
@@ -33,7 +35,8 @@ export function getItemDefinitionDetail(
     description: definition.displayProperties?.description ?? "",
     icon: normalizeBungieAssetUrl(definition.displayProperties?.icon),
     item_type: definition.itemTypeDisplayName,
-    tier: definition.inventory?.tierTypeName
+    tier: definition.inventory?.tierTypeName,
+    source: summarizeItemSource(definition as DefinitionRecord)
   };
 
   const perks = summarizeItemPerks(definition as DefinitionRecord, definitions, {

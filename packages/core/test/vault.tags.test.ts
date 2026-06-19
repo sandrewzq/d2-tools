@@ -2,7 +2,7 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { loadVaultTags, saveVaultTag } from "../src/vault/tags.js";
+import { loadVaultTags, saveVaultNote, saveVaultTag, saveVaultTagsBatch } from "../src/vault/tags.js";
 
 describe("vault tags", () => {
   it("loads empty tags when no local tag file exists", () => {
@@ -29,5 +29,71 @@ describe("vault tags", () => {
     });
     expect(removed.items["instance-1"]).toBeUndefined();
     expect(loadVaultTags(dir).items).toEqual({});
+  });
+
+  it("persists local notes without losing tags", () => {
+    const dir = mkdtempSync(join(tmpdir(), "d2-service-vault-tags-"));
+
+    saveVaultTag(dir, {
+      item_key: "instance-1",
+      tag: "review"
+    });
+
+    const noted = saveVaultNote(dir, {
+      item_key: "instance-1",
+      note: "PVP 手感好，等队友确认 perk"
+    });
+
+    expect(noted.items["instance-1"]).toEqual({
+      tag: "review",
+      note: "PVP 手感好，等队友确认 perk"
+    });
+
+    const retagged = saveVaultTag(dir, {
+      item_key: "instance-1",
+      tag: "keep"
+    });
+    expect(retagged.items["instance-1"]).toEqual({
+      tag: "keep",
+      note: "PVP 手感好，等队友确认 perk"
+    });
+  });
+
+  it("removes note-only entries when the note is cleared", () => {
+    const dir = mkdtempSync(join(tmpdir(), "d2-service-vault-tags-"));
+
+    saveVaultNote(dir, {
+      item_key: "instance-1",
+      note: "temporary"
+    });
+
+    const cleared = saveVaultNote(dir, {
+      item_key: "instance-1",
+      note: " "
+    });
+
+    expect(cleared.items["instance-1"]).toBeUndefined();
+  });
+
+  it("saves multiple tag changes without dropping existing notes", () => {
+    const dir = mkdtempSync(join(tmpdir(), "d2-service-vault-tags-"));
+
+    saveVaultNote(dir, {
+      item_key: "instance-1",
+      note: "good roll"
+    });
+
+    const tags = saveVaultTagsBatch(dir, [
+      { item_key: "instance-1", tag: "keep" },
+      { item_key: "instance-2", tag: "junk" }
+    ]);
+
+    expect(tags.items["instance-1"]).toEqual({
+      tag: "keep",
+      note: "good roll"
+    });
+    expect(tags.items["instance-2"]).toEqual({
+      tag: "junk"
+    });
   });
 });

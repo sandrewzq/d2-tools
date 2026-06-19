@@ -25,6 +25,9 @@ export function defaultConfig(dataDir = defaultDataDir()): D2Config {
       api_key: "",
       model: "",
       base_url: ""
+    },
+    features: {
+      write_actions_enabled: false
     }
   };
 }

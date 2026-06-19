@@ -36,10 +36,12 @@ jobs:
         run: |
           $rootVersion = node -p "require('./package.json').version"
           $desktopVersion = node -p "require('./packages/desktop/package.json').version"
+          $coreVersion = node -p "require('./packages/core/package.json').version"
+          $httpVersion = node -p "require('./packages/http/package.json').version"
           $tagName = "${{ github.ref_name }}"
 
-          if ($rootVersion -ne $desktopVersion) {
-            throw "Root package version $rootVersion does not match desktop package version $desktopVersion"
+          if ($rootVersion -ne $desktopVersion -or $rootVersion -ne $coreVersion -or $rootVersion -ne $httpVersion) {
+            throw "Package versions must match. root=$rootVersion desktop=$desktopVersion core=$coreVersion http=$httpVersion"
           }
 
           if ($tagName -ne "v$rootVersion") {
@@ -93,6 +95,14 @@ jobs:
           fail_on_unmatched_files: true
           body: |
             Windows x64 绿色包，7z 格式。
+
+            0.0.3 重点：
+            - 首版公开测试基线：配置向导、Bungie 登录、Manifest、账号、仓库、资料库、AI 助手和设置页。
+            - 仓库按位置分段，支持位置筛选和主弹/特殊/重弹筛选。
+            - 账号页支持角色装备、背包、材料数量和一键装备最高光等。
+            - DIM 式整理：本地评分、同名 roll 对比、批量标记、清理清单、批量解锁和转移到角色背包。
+            - 写操作默认关闭，必须经过 Bungie Scope、本地开关和二次确认。
+            - 按钮增加等待文案、禁用态和忙碌态反馈。
 
             使用方式：
             1. 下载 7z。

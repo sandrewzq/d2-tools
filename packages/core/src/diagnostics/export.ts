@@ -1,0 +1,52 @@
+import type { ActionLogEntry } from "../actions/log.js";
+import type { D2Config } from "../config/schema.js";
+import type { ManifestStatus } from "../manifest/cache.js";
+import type { ToolAuditEntry } from "../tools/audit.js";
+import { buildToolAuditDiagnosticText } from "../tools/audit.js";
+
+export type DiagnosticsExportInput = {
+  app_version: string;
+  config: D2Config;
+  manifest: Partial<ManifestStatus>;
+  action_log: ActionLogEntry[];
+  tool_audit_log?: ToolAuditEntry[];
+};
+
+const redacted = "[已脱敏]";
+
+export function buildDiagnosticsExport(input: DiagnosticsExportInput): string {
+  return [
+    "d2-service 诊断导出",
+    `版本：${input.app_version}`,
+    `Manifest：${input.manifest.initialized ? "已初始化" : "未初始化"} / ${input.manifest.version ?? "-"} / ${input.manifest.language ?? input.config.data.manifest_language}`,
+    `数据目录：${input.config.data.data_dir}`,
+    `Bungie API Key：${redactedValue(input.config.bungie.api_key)}`,
+    `Bungie Client ID：${input.config.bungie.client_id ? redacted : "-"}`,
+    `Bungie Client Secret：${redactedValue(input.config.bungie.client_secret)}`,
+    `Bungie Redirect URI：${input.config.bungie.redirect_uri}`,
+    `AI Provider：${input.config.ai.provider || "-"}`,
+    `AI Model：${input.config.ai.model || "-"}`,
+    `AI API Key：${redactedValue(input.config.ai.api_key)}`,
+    `写操作：${input.config.features.write_actions_enabled ? "已开启" : "已关闭"}`,
+    "",
+    "最近写操作：",
+    ...input.action_log.slice(0, 10).map((entry) =>
+      `- ${entry.created_at} / ${entry.action} / ${entry.ok ? "成功" : "失败"} / ${entry.item_name ?? "-"} / ${entry.message ?? "-"}`
+    ),
+    "",
+    "最近工具调用：",
+    ...(input.tool_audit_log ?? []).slice(0, 10).map((entry) =>
+      `- ${entry.created_at} / ${entry.tool} / ${entry.caller} / ${entry.ok ? "成功" : "失败"} / ${toolAuditSummary(entry)}`
+    )
+  ].join("\n");
+}
+
+function redactedValue(value: string): string {
+  return value ? redacted : "-";
+}
+
+function toolAuditSummary(entry: ToolAuditEntry): string {
+  const text = buildToolAuditDiagnosticText(entry);
+  const inputLine = text.split(/\r?\n/).find((line) => line.startsWith("input: "));
+  return inputLine?.replace(/^input: /, "") ?? "-";
+}

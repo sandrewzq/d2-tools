@@ -9,6 +9,7 @@ export type AccountItemSummary = {
   name: string;
   icon?: string;
   item_type?: string;
+  ammo_type?: AmmoTypeKey;
   tier?: string;
   bucket_hash?: number;
   bucket_name?: string;
@@ -16,6 +17,15 @@ export type AccountItemSummary = {
   power?: number;
   locked?: boolean;
   socket_plugs: AccountItemPlugSummary[];
+};
+
+export type AccountMaterialSummary = {
+  hash: number;
+  name: string;
+  icon?: string;
+  item_type?: string;
+  tier?: string;
+  quantity: number;
 };
 
 export type AccountItemPlugSummary = {
@@ -26,6 +36,7 @@ export type AccountItemPlugSummary = {
 };
 
 export type EquipmentGroupKey = "weapons" | "armor" | "equipment" | "other";
+export type AmmoTypeKey = "primary" | "special" | "heavy";
 
 export type CharacterEquipmentGroup = {
   key: EquipmentGroupKey;
@@ -40,6 +51,8 @@ export type CharacterSummary = {
   emblem_url?: string;
   equipped_items: AccountItemSummary[];
   equipment_groups: CharacterEquipmentGroup[];
+  inventory_items: AccountItemSummary[];
+  inventory_groups: CharacterEquipmentGroup[];
 };
 
 export type AccountSummary = {
@@ -51,6 +64,10 @@ export type AccountSummary = {
     item_count: number;
     items: AccountItemSummary[];
     sample_items: AccountItemSummary[];
+  };
+  materials: {
+    item_count: number;
+    items: AccountMaterialSummary[];
   };
 };
 
@@ -83,6 +100,9 @@ type DestinyProfileResponse = {
   characters?: {
     data?: Record<string, DestinyCharacter>;
   };
+  characterInventories?: {
+    data?: Record<string, { items?: DestinyProfileItem[] }>;
+  };
   characterEquipment?: {
     data?: Record<string, { items?: DestinyProfileItem[] }>;
   };
@@ -110,6 +130,7 @@ type DestinyProfileItem = {
   itemHash: number;
   itemInstanceId?: string;
   bucketHash?: number;
+  quantity?: number;
   state?: number;
 };
 
@@ -133,6 +154,7 @@ const profileComponents = [
   100, // Profiles
   102, // ProfileInventories
   200, // Characters
+  201, // CharacterInventories
   205, // CharacterEquipment
   300, // ItemInstances
   305 // ItemSockets
@@ -201,7 +223,7 @@ export async function fetchAccountSummary(options: FetchAccountSummaryOptions): 
     destiny_membership_id: destinyMembership.membershipId,
     membership_type: destinyMembership.membershipType,
     characters: summarizeCharacters(profile, options.itemDefinitions ?? {}),
-    vault: summarizeVault(profile, options.itemDefinitions ?? {})
+    ...summarizeProfileInventory(profile, options.itemDefinitions ?? {})
   };
 }
 
@@ -225,6 +247,8 @@ function summarizeCharacters(
     const equippedItems = (profile.characterEquipment?.data?.[character.characterId]?.items ?? [])
       .slice(0, 16)
       .map((item) => summarizeItem(item, definitions, profile.itemComponents));
+    const inventoryItems = (profile.characterInventories?.data?.[character.characterId]?.items ?? [])
+      .map((item) => summarizeItem(item, definitions, profile.itemComponents));
 
     return {
       character_id: character.characterId,
@@ -232,22 +256,64 @@ function summarizeCharacters(
       light: character.light,
       emblem_url: normalizeBungieAssetUrl(character.emblemPath),
       equipped_items: equippedItems,
-      equipment_groups: groupEquipment(equippedItems)
+      equipment_groups: groupEquipment(equippedItems),
+      inventory_items: inventoryItems,
+      inventory_groups: groupEquipment(inventoryItems)
     };
   });
 }
 
-function summarizeVault(
+function summarizeProfileInventory(
   profile: DestinyProfileResponse,
   definitions: DefinitionComponentData
-): AccountSummary["vault"] {
-  const items = (profile.profileInventory?.data?.items ?? [])
+): Pick<AccountSummary, "vault" | "materials"> {
+  const profileItems = profile.profileInventory?.data?.items ?? [];
+  const items = profileItems
+    .filter((item) => Boolean(item.itemInstanceId))
     .map((item) => summarizeItem(item, definitions, profile.itemComponents));
+  const materials = profileItems
+    .filter((item) => !item.itemInstanceId)
+    .map((item) => summarizeMaterial(item, definitions));
+
   return {
-    item_count: items.length,
-    items,
-    sample_items: items.slice(0, 30)
+    vault: {
+      item_count: items.length,
+      items,
+      sample_items: items.slice(0, 30)
+    },
+    materials: {
+      item_count: materials.length,
+      items: materials
+    }
   };
+}
+
+function summarizeMaterial(
+  item: DestinyProfileItem,
+  definitions: DefinitionComponentData
+): AccountMaterialSummary {
+  const definition = definitions[String(item.itemHash)] as DefinitionRecord | undefined;
+  return {
+    hash: item.itemHash,
+    name: definition?.displayProperties?.name?.trim() || `Item ${item.itemHash}`,
+    icon: normalizeBungieAssetUrl(definition?.displayProperties?.icon),
+    item_type: definition?.itemTypeDisplayName,
+    tier: definition?.inventory?.tierTypeName,
+    quantity: item.quantity ?? 1
+  };
+}
+
+function ammoTypeKey(ammoType: number | undefined): AmmoTypeKey | undefined {
+  switch (ammoType) {
+    case 1:
+      return "primary";
+    case 2:
+      return "special";
+    case 3:
+      return "heavy";
+    default:
+      return undefined;
+  }
 }
 
 function summarizeItem(
@@ -256,7 +322,7 @@ function summarizeItem(
   components?: DestinyProfileResponse["itemComponents"]
 ): AccountItemSummary {
   const definition = definitions[String(item.itemHash)] as DefinitionRecord | undefined;
-  const bucketHash = item.bucketHash ?? definition?.inventory?.bucketTypeHash;
+  const bucketHash = definition?.inventory?.bucketTypeHash ?? item.bucketHash;
   const bucket = bucketHash ? bucketLabels[bucketHash] : undefined;
   const instanceId = item.itemInstanceId;
   const instance = instanceId ? components?.instances?.data?.[instanceId] : undefined;
@@ -266,6 +332,7 @@ function summarizeItem(
     name: definition?.displayProperties?.name?.trim() || `Item ${item.itemHash}`,
     icon: normalizeBungieAssetUrl(definition?.displayProperties?.icon),
     item_type: definition?.itemTypeDisplayName,
+    ammo_type: ammoTypeKey(definition?.equippingBlock?.ammoType),
     tier: definition?.inventory?.tierTypeName,
     bucket_hash: bucketHash,
     bucket_name: bucket?.name,
