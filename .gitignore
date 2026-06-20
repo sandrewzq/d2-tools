@@ -9,3 +9,4 @@ out/
 coverage/
 *.log
 .idea/
+.worktrees/
