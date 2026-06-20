@@ -1,9 +1,11 @@
 import type { DefinitionComponentData, DefinitionRecord } from "../manifest/definitions.js";
+import { classifyBucket, type EquipmentGroupKey } from "./classification.js";
 import { expandAliasQuery, type ItemAliases } from "./aliases.js";
 
 export type PerkRelatedItem = {
   hash: number;
   name: string;
+  group_key?: EquipmentGroupKey;
 };
 
 export type PerkSearchResult = {
@@ -78,7 +80,12 @@ function findRelatedItems(perkHash: number, itemDefinitions: DefinitionComponent
       continue;
     }
 
-    matches.push({ hash: Number(definition.hash), name });
+    const groupKey = classifyBucket(definition.inventory?.bucketTypeHash)?.group;
+    matches.push({
+      hash: Number(definition.hash),
+      name,
+      ...(groupKey ? { group_key: groupKey } : {})
+    });
     if (matches.length >= 8) {
       break;
     }

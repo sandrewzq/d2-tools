@@ -7,7 +7,7 @@
     "moduleResolution": "NodeNext",
     "declaration": true,
     "paths": {
-      "@d2-service/core": ["packages/core/dist/index.d.ts"]
+      "@d2-tools/core": ["packages/core/dist/index.d.ts"]
     },
     "types": ["node", "vitest"]
   },

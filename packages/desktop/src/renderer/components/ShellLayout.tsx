@@ -25,7 +25,7 @@ export function ShellLayout(props: {
     <main className="app-shell">
       <aside className="shell-sidebar" aria-label="主导航">
         <div className="brand-block">
-          <h1>d2-service</h1>
+          <h1>d2-tools</h1>
           <p>Destiny 2 本地助手</p>
         </div>
         <nav className="shell-nav">

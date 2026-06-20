@@ -1,6 +1,6 @@
 {
-  "name": "@d2-service/core",
-  "version": "0.0.3",
+  "name": "@d2-tools/core",
+  "version": "0.0.4",
   "private": true,
   "type": "module",
   "main": "dist/index.js",
@@ -22,9 +22,25 @@
       "types": "./dist/analysis/wishlist.d.ts",
       "import": "./dist/analysis/wishlist.js"
     },
+    "./ai/chat": {
+      "types": "./dist/ai/chat.d.ts",
+      "import": "./dist/ai/chat.js"
+    },
     "./actions/plan": {
       "types": "./dist/actions/plan.d.ts",
       "import": "./dist/actions/plan.js"
+    },
+    "./actions/transferQueue": {
+      "types": "./dist/actions/transferQueue.d.ts",
+      "import": "./dist/actions/transferQueue.js"
+    },
+    "./actions/farmingMode": {
+      "types": "./dist/actions/farmingMode.d.ts",
+      "import": "./dist/actions/farmingMode.js"
+    },
+    "./analysis/wishlistImport": {
+      "types": "./dist/analysis/wishlistImport.d.ts",
+      "import": "./dist/analysis/wishlistImport.js"
     },
     "./items/aliases": {
       "types": "./dist/items/aliases.d.ts",
@@ -49,6 +65,10 @@
     "./loadouts/plan": {
       "types": "./dist/loadouts/plan.d.ts",
       "import": "./dist/loadouts/plan.js"
+    },
+    "./loadouts/analysis": {
+      "types": "./dist/loadouts/analysis.d.ts",
+      "import": "./dist/loadouts/analysis.js"
     },
     "./activities/history": {
       "types": "./dist/activities/history.d.ts",

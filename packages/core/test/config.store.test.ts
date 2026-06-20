@@ -1,12 +1,65 @@
 import { describe, expect, it } from "vitest";
-import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { loadConfig, saveConfig } from "../src/config/store.js";
 
 describe("config store", () => {
+  it("uses d2-tools as the default data directory", () => {
+    const originalAppData = process.env.APPDATA;
+    const appData = mkdtempSync(join(tmpdir(), "d2-tools-appdata-"));
+    process.env.APPDATA = appData;
+
+    try {
+      const config = loadConfig({ env: {} });
+
+      expect(config.data.data_dir).toBe(join(appData, "d2-tools"));
+    } finally {
+      if (originalAppData === undefined) {
+        delete process.env.APPDATA;
+      } else {
+        process.env.APPDATA = originalAppData;
+      }
+    }
+  });
+
+  it("migrates the old d2-service data directory into d2-tools", () => {
+    const originalAppData = process.env.APPDATA;
+    const appData = mkdtempSync(join(tmpdir(), "d2-tools-appdata-"));
+    const legacyDir = join(appData, "d2-service");
+    const nextDir = join(appData, "d2-tools");
+    process.env.APPDATA = appData;
+    mkdirSync(legacyDir, { recursive: true });
+    writeFileSync(
+      join(legacyDir, "config.json"),
+      `${JSON.stringify({
+        bungie: {
+          api_key: "legacy-api",
+          client_id: "legacy-client",
+          client_secret: "legacy-secret",
+          redirect_uri: "https://127.0.0.1:28780/oauth/callback"
+        }
+      }, null, 2)}\n`,
+      { encoding: "utf8", flag: "w" }
+    );
+
+    try {
+      const config = loadConfig({ env: {} });
+
+      expect(config.data.data_dir).toBe(nextDir);
+      expect(config.bungie.api_key).toBe("legacy-api");
+      expect(existsSync(join(nextDir, "config.json"))).toBe(true);
+    } finally {
+      if (originalAppData === undefined) {
+        delete process.env.APPDATA;
+      } else {
+        process.env.APPDATA = originalAppData;
+      }
+    }
+  });
+
   it("creates defaults in the selected data directory", () => {
-    const dir = mkdtempSync(join(tmpdir(), "d2-service-config-"));
+    const dir = mkdtempSync(join(tmpdir(), "d2-tools-config-"));
     const config = loadConfig({ dataDir: dir, env: {} });
 
     expect(config.data.data_dir).toBe(dir);
@@ -16,7 +69,7 @@ describe("config store", () => {
   });
 
   it("persists GUI-provided Bungie credentials without logging them", () => {
-    const dir = mkdtempSync(join(tmpdir(), "d2-service-config-"));
+    const dir = mkdtempSync(join(tmpdir(), "d2-tools-config-"));
 
     saveConfig(
       {
@@ -52,7 +105,7 @@ describe("config store", () => {
   });
 
   it("lets env override config values", () => {
-    const dir = mkdtempSync(join(tmpdir(), "d2-service-config-"));
+    const dir = mkdtempSync(join(tmpdir(), "d2-tools-config-"));
     saveConfig(
       {
         bungie: {
@@ -91,7 +144,7 @@ describe("config store", () => {
   });
 
   it("keeps defaults for missing fields in a partial config file", () => {
-    const dir = mkdtempSync(join(tmpdir(), "d2-service-config-"));
+    const dir = mkdtempSync(join(tmpdir(), "d2-tools-config-"));
     writeFileSync(
       join(dir, "config.json"),
       `${JSON.stringify({ bungie: { api_key: "x" } }, null, 2)}\n`,
@@ -111,7 +164,7 @@ describe("config store", () => {
   });
 
   it("migrates the old local HTTP redirect URI to HTTPS", () => {
-    const dir = mkdtempSync(join(tmpdir(), "d2-service-config-"));
+    const dir = mkdtempSync(join(tmpdir(), "d2-tools-config-"));
     writeFileSync(
       join(dir, "config.json"),
       `${JSON.stringify({

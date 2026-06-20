@@ -15,7 +15,7 @@ describe("release workflow", () => {
     expect(workflow).toContain("publish-github");
     expect(workflow).toContain("softprops/action-gh-release@v2");
     expect(workflow).not.toContain("publish-gitee");
-    expect(workflow).toContain("d2-service-win-x64");
+    expect(workflow).toContain("d2-tools-win-x64");
     expect(workflow).toContain("*.7z");
     expect(workflow).not.toContain("*.zip");
   });

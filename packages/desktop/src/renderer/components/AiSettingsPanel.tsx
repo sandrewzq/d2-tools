@@ -21,10 +21,11 @@ export function AiSettingsPanel(props: {
 
       try {
         const config = await api.getConfig();
-        setProvider(config.ai.provider || "none");
-        setApiKey(config.ai.api_key);
-        setModel(config.ai.model);
-        setBaseUrl(config.ai.base_url);
+        const ai = normalizeAiSettings(config.ai);
+        setProvider(ai.provider || "none");
+        setApiKey(ai.api_key);
+        setModel(ai.model);
+        setBaseUrl(ai.base_url);
       } catch (loadError) {
         setError(loadError instanceof Error ? loadError.message : "AI 配置读取失败");
       } finally {
@@ -98,9 +99,10 @@ export function AiSettingsPanel(props: {
         AI 提供方
         <select disabled={isLoading || isSaving || isTesting} value={provider} onChange={(event) => setProvider(event.target.value)}>
           <option value="none">不启用 AI</option>
-          <option value="openai">OpenAI 兼容接口</option>
-          <option value="deepseek">DeepSeek</option>
-          <option value="custom">自定义兼容接口</option>
+          <option value="openai_responses">OpenAI Responses API（推荐）</option>
+          <option value="openai_chat">OpenAI Chat Completions</option>
+          <option value="openai_compatible">OpenAI 兼容接口</option>
+          <option value="anthropic">Anthropic Claude</option>
         </select>
       </label>
       <label>
@@ -117,7 +119,7 @@ export function AiSettingsPanel(props: {
         模型
         <input
           disabled={isLoading || isSaving || isTesting || disabled}
-          placeholder="例如：gpt-4.1 / deepseek-chat"
+          placeholder="例如：gpt-4.1 / gpt-4.1-mini / deepseek-chat / claude-sonnet-4-5"
           value={model}
           onChange={(event) => setModel(event.target.value)}
         />
@@ -126,11 +128,14 @@ export function AiSettingsPanel(props: {
         接口地址
         <input
           disabled={isLoading || isSaving || isTesting || disabled}
-          placeholder="OpenAI/DeepSeek 可留空；自定义填写 https://.../v1"
+          placeholder="OpenAI/Claude 官方可留空；兼容接口填写 https://.../v1"
           value={baseUrl}
           onChange={(event) => setBaseUrl(event.target.value)}
         />
       </label>
+      <p className="muted-copy">
+        DeepSeek、硅基流动、通义千问兼容模式等请选择 OpenAI 兼容接口，并填写对应平台的接口地址。
+      </p>
       <div className="button-row">
         <button type="button" disabled={isLoading || isSaving || isTesting} onClick={() => void save()}>
           {isSaving ? "保存中..." : "保存 AI 配置"}

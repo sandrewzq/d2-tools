@@ -39,13 +39,13 @@ export async function startOAuthCallbackServer(options: {
 
     if (!code) {
       response.writeHead(400, { "content-type": "text/html; charset=utf-8" });
-      response.end("<h1>Missing OAuth code</h1><p>Return to d2-service and try login again.</p>");
+      response.end("<h1>Missing OAuth code</h1><p>Return to d2-tools and try login again.</p>");
       return;
     }
 
     resolveCallback({ code, state });
     response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
-    response.end("<h1>Bungie login received</h1><p>You can return to d2-service.</p>");
+    response.end("<h1>Bungie login received</h1><p>You can return to d2-tools.</p>");
   };
 
   const server: Server = protocol === "https"

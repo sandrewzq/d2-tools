@@ -6,7 +6,7 @@ import { expandAliasQuery, loadItemAliases, saveItemAlias } from "../src/items/a
 
 describe("item aliases", () => {
   it("saves local aliases and expands search terms", () => {
-    const dir = mkdtempSync(join(tmpdir(), "d2-service-aliases-"));
+    const dir = mkdtempSync(join(tmpdir(), "d2-tools-aliases-"));
 
     saveItemAlias(dir, { alias: "ff", target: "喂食狂热", kind: "perk" });
     saveItemAlias(dir, { alias: "小米", target: "米达多功能", kind: "item" });

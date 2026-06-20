@@ -22,6 +22,21 @@ export type TransferItemOptions = BungieItemActionOptions & {
   stackSize?: number;
 };
 
+export type PullFromPostmasterOptions = BungieItemActionOptions & {
+  itemReferenceHash: number;
+  stackSize?: number;
+};
+
+export type BungieLoadoutActionOptions = {
+  config: D2Config;
+  token: BungieOAuthToken;
+  membershipType: number;
+  characterId: string;
+  loadoutIndex: number;
+  baseUrl?: string;
+  fetchImpl?: typeof fetch;
+};
+
 export async function setItemLockState(options: SetItemLockStateOptions): Promise<void> {
   await postBungieJson<unknown>(
     "/Destiny2/Actions/Items/SetLockState/",
@@ -57,6 +72,44 @@ export async function transferItem(options: TransferItemOptions): Promise<void> 
       itemId: options.itemId,
       characterId: options.characterId,
       membershipType: options.membershipType
+    },
+    bungieWriteOptions(options)
+  );
+}
+
+export async function pullFromPostmaster(options: PullFromPostmasterOptions): Promise<void> {
+  await postBungieJson<unknown>(
+    "/Destiny2/Actions/Items/PullFromPostmaster/",
+    {
+      itemReferenceHash: options.itemReferenceHash,
+      stackSize: options.stackSize ?? 1,
+      itemId: options.itemId,
+      characterId: options.characterId,
+      membershipType: options.membershipType
+    },
+    bungieWriteOptions(options)
+  );
+}
+
+export async function equipLoadout(options: BungieLoadoutActionOptions): Promise<void> {
+  await postBungieJson<unknown>(
+    "/Destiny2/Actions/Loadouts/EquipLoadout/",
+    {
+      characterId: options.characterId,
+      membershipType: options.membershipType,
+      loadoutIndex: options.loadoutIndex
+    },
+    bungieWriteOptions(options)
+  );
+}
+
+export async function snapshotLoadout(options: BungieLoadoutActionOptions): Promise<void> {
+  await postBungieJson<unknown>(
+    "/Destiny2/Actions/Loadouts/SnapshotLoadout/",
+    {
+      characterId: options.characterId,
+      membershipType: options.membershipType,
+      loadoutIndex: options.loadoutIndex
     },
     bungieWriteOptions(options)
   );

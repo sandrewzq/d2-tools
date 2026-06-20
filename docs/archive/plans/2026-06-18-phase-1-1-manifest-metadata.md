@@ -57,5 +57,5 @@ This phase downloads and caches Manifest metadata only. It does not download the
 
 - [ ] Run `npx pnpm@9.15.0 test`.
 - [ ] Run `npx pnpm@9.15.0 typecheck`.
-- [ ] Run `npx pnpm@9.15.0 --filter @d2-service/desktop build`.
+- [ ] Run `npx pnpm@9.15.0 --filter @d2-tools/desktop build`.
 - [ ] Check `git status --short`.

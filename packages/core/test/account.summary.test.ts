@@ -12,7 +12,7 @@ function config(): D2Config {
       redirect_uri: "https://127.0.0.1:28780/oauth/callback"
     },
     data: {
-      data_dir: "C:/Users/test/AppData/Roaming/d2-service",
+      data_dir: "C:/Users/test/AppData/Roaming/d2-tools",
       manifest_language: "zh-chs"
     },
     ai: {
@@ -87,6 +87,22 @@ const itemDefinitions: DefinitionComponentData = {
   }
 };
 
+const bucketDefinitions: DefinitionComponentData = {
+  "215593132": {
+    hash: 215593132,
+    displayProperties: {
+      name: "Postmaster"
+    }
+  }
+};
+
+const loadoutNameDefinitions: DefinitionComponentData = {
+  "9001": {
+    hash: 9001,
+    name: "日落速刷"
+  } as DefinitionComponentData[string]
+};
+
 describe("account summary", () => {
   it("fetches memberships, characters, equipment, and vault items", async () => {
     const requested: string[] = [];
@@ -140,7 +156,28 @@ describe("account summary", () => {
               "char-1": {
                 items: [
                   { itemHash: 2001, itemInstanceId: "backpack-1", state: 0 },
-                  { itemHash: 3001, itemInstanceId: "backpack-2", state: 1 }
+                  { itemHash: 3001, itemInstanceId: "backpack-2", state: 1 },
+                  { itemHash: 3001, itemInstanceId: "postmaster-1", bucketHash: 215593132 }
+                ]
+              }
+            }
+          },
+          characterLoadouts: {
+            data: {
+              "char-1": {
+                loadouts: [
+                  {
+                    nameHash: 9001,
+                    iconHash: 777,
+                    colorHash: 888,
+                    items: [
+                      { itemInstanceId: "instance-1" },
+                      { itemInstanceId: "backpack-2" }
+                    ]
+                  },
+                  {
+                    items: []
+                  }
                 ]
               }
             }
@@ -197,12 +234,14 @@ describe("account summary", () => {
       config: config(),
       token: { access_token: "access", token_type: "Bearer", expires_in: 3600 },
       itemDefinitions,
+      bucketDefinitions,
+      loadoutNameDefinitions,
       fetchImpl,
       baseUrl: "https://example.test/Platform"
     });
 
     expect(requested[1]).toContain("/Destiny2/3/Profile/destiny-1/");
-    expect(requested[1]).toContain("components=100,102,200,201,205,300,305");
+    expect(requested[1]).toContain("components=100,102,200,201,205,206,300,305");
     expect(summary.account_name).toBe("Big Brother is watching");
     expect(summary.destiny_membership_id).toBe("destiny-1");
     expect(summary.characters).toHaveLength(1);
@@ -252,6 +291,32 @@ describe("account summary", () => {
     });
     expect(summary.characters[0]?.inventory_groups.map((group) => group.key)).toEqual(["weapons", "armor"]);
     expect(summary.characters[0]?.inventory_groups[0]?.items.map((item) => item.instance_id)).toEqual(["backpack-1"]);
+    expect(summary.characters[0]?.postmaster_items).toHaveLength(1);
+    expect(summary.characters[0]?.postmaster_items[0]).toMatchObject({
+      instance_id: "postmaster-1",
+      name: "Helmet A",
+      bucket_hash: 215593132,
+      bucket_name: "Postmaster"
+    });
+    expect(summary.characters[0]?.loadout_slots).toEqual([
+      {
+        index: 0,
+        name: "日落速刷",
+        icon_hash: 777,
+        color_hash: 888,
+        item_count: 2,
+        items: [
+          { instance_id: "instance-1", name: "Riskrunner", bucket_name: "能量武器" },
+          { instance_id: "backpack-2", name: "Helmet A", bucket_name: "头盔" }
+        ]
+      },
+      {
+        index: 1,
+        name: "配装槽 2",
+        item_count: 0,
+        items: []
+      }
+    ]);
     expect(summary.vault.item_count).toBe(35);
     expect(summary.vault.items).toHaveLength(35);
     expect(summary.vault.items[0]?.instance_id).toBe("vault-1");

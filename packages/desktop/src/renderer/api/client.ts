@@ -23,15 +23,25 @@ declare global {
       createLoadoutTemplate(input: CreateLoadoutTemplateInput): Promise<LoadoutTemplate>;
       deleteLoadoutTemplate(id: string): Promise<LoadoutTemplate[]>;
       createLoadoutTemplateTransferPlan(input: LoadoutTemplateTransferPlanInput): Promise<BatchTransferPlan>;
+      getDimWishlist(): Promise<DimWishlist | null>;
+      saveDimWishlist(wishlist: DimWishlist): Promise<DimWishlist>;
+      clearDimWishlist(): Promise<null>;
       getVaultTags(): Promise<VaultTags>;
       saveVaultTag(input: SaveVaultTagInput): Promise<VaultTags>;
+      saveVaultTagsBatch(inputs: SaveVaultTagInput[]): Promise<VaultTags>;
       saveVaultNote(input: SaveVaultNoteInput): Promise<VaultTags>;
       analyzeVault(input: VaultAnalysisInput): Promise<VaultAnalysisResult>;
       generateVaultAiAdvice(input: VaultAnalysisInput): Promise<VaultAiAdviceResult>;
       generateItemAiAdvice(input: ItemAiAdviceInput): Promise<ItemAiAdviceResult>;
+      sendAiChat(input: AiChatRequest): Promise<AiChatReplyResult>;
       setItemLockState(input: ItemLockActionInput): Promise<ItemActionResult>;
       equipItem(input: ItemEquipActionInput): Promise<ItemActionResult>;
       transferItem(input: ItemTransferActionInput): Promise<ItemActionResult>;
+      batchEquipItems(input: BatchEquipItemsInput): Promise<BatchItemActionResult>;
+      batchTransferItems(input: BatchTransferItemsInput): Promise<BatchItemActionResult>;
+      pullFromPostmaster(input: PostmasterPullActionInput): Promise<ItemActionResult>;
+      equipLoadout(input: LoadoutEquipActionInput): Promise<ItemActionResult>;
+      snapshotLoadout(input: LoadoutSnapshotActionInput): Promise<ItemActionResult>;
       getActionLog(): Promise<ActionLogEntry[]>;
       createItemActionPlan(input: ItemActionPlanInput): Promise<ItemActionPlan>;
       createBatchTransferPlan(input: BatchTransferPlanInput): Promise<BatchTransferPlan>;
@@ -96,6 +106,21 @@ export type CharacterSummary = {
   equipment_groups: CharacterEquipmentGroup[];
   inventory_items: AccountItemSummary[];
   inventory_groups: CharacterEquipmentGroup[];
+  postmaster_items: AccountItemSummary[];
+  loadout_slots: CharacterLoadoutSlotSummary[];
+};
+
+export type CharacterLoadoutSlotSummary = {
+  index: number;
+  name: string;
+  icon_hash?: number;
+  color_hash?: number;
+  item_count: number;
+  items: Array<{
+    instance_id?: string;
+    name: string;
+    bucket_name?: string;
+  }>;
 };
 
 export type AccountItemSummary = {
@@ -128,6 +153,20 @@ export type AccountItemPlugSummary = {
   name: string;
   description?: string;
   icon?: string;
+};
+
+export type DimWishlistMode = "pve" | "pvp" | "general";
+
+export type DimWishlistRule = {
+  item_hash: number;
+  perk_hashes: number[];
+  mode: DimWishlistMode;
+  note: string;
+};
+
+export type DimWishlist = {
+  title: string;
+  rules: DimWishlistRule[];
 };
 
 export type VaultTagValue = "none" | "keep" | "review" | "junk";
@@ -220,6 +259,17 @@ export type ItemAiAdviceResult = {
   skipped_reason?: string;
 };
 
+export type AiChatRequest = {
+  question: string;
+  context: string;
+};
+
+export type AiChatReplyResult = {
+  provider: string;
+  model: string;
+  text: string;
+};
+
 export type AiAdviceSections = {
   facts: string[];
   analysis: string[];
@@ -252,15 +302,58 @@ export type ItemTransferActionInput = {
   transfer_to_vault: boolean;
 };
 
+export type PostmasterPullActionInput = {
+  membership_type: number;
+  character_id: string;
+  item_id: string;
+  item_reference_hash: number;
+  item_name?: string;
+  stack_size?: number;
+};
+
+export type LoadoutEquipActionInput = {
+  membership_type: number;
+  character_id: string;
+  loadout_index: number;
+  loadout_name?: string;
+};
+
+export type LoadoutSnapshotActionInput = {
+  membership_type: number;
+  character_id: string;
+  loadout_index: number;
+  loadout_name?: string;
+};
+
 export type ItemActionResult = {
   ok: true;
+  message: string;
+};
+
+export type BatchEquipItemsInput = {
+  membership_type: number;
+  character_id: string;
+  items: ItemEquipActionInput[];
+};
+
+export type BatchTransferItemsInput = {
+  membership_type: number;
+  character_id: string;
+  items: ItemTransferActionInput[];
+};
+
+export type BatchItemActionResult = {
+  ok: true;
+  total: number;
+  success_count: number;
+  failed_count: number;
   message: string;
 };
 
 export type ActionLogEntry = {
   id: string;
   created_at: string;
-  action: "set-lock" | "equip" | "transfer";
+  action: "set-lock" | "equip" | "transfer" | "postmaster-pull" | "loadout-equip" | "loadout-snapshot";
   item_name?: string;
   item_instance_id?: string;
   character_id?: string;
@@ -363,6 +456,10 @@ export type ItemSearchResult = {
   icon?: string;
   item_type?: string;
   tier?: string;
+  ammo_type?: AmmoTypeKey;
+  bucket_hash?: number;
+  bucket_name?: string;
+  group_key?: EquipmentGroupKey;
   source: ItemSourceSummary;
   perks?: ItemPerkGroup[];
 };
@@ -378,7 +475,7 @@ export type PerkSearchResult = {
   name: string;
   description: string;
   icon?: string;
-  related_items?: Array<{ hash: number; name: string }>;
+  related_items?: Array<{ hash: number; name: string; group_key?: EquipmentGroupKey }>;
 };
 
 export type ItemAliasEntry = {

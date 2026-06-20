@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 const desktopRoot = fileURLToPath(new URL("..", import.meta.url));
 
 describe("desktop config help copy", () => {
-  it("explains how Bungie application fields map to d2-service fields", () => {
+  it("explains how Bungie application fields map to d2-tools fields", () => {
     const wizardPage = readFileSync(
       join(desktopRoot, "src", "renderer", "pages", "WizardPage.tsx"),
       "utf8"

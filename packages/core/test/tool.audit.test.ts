@@ -6,7 +6,7 @@ import { appendToolAuditLog, buildToolAuditDiagnosticText, loadToolAuditLog } fr
 
 describe("tool audit log", () => {
   it("appends tool calls newest first and limits diagnostics data", () => {
-    const dir = mkdtempSync(join(tmpdir(), "d2-service-tool-audit-"));
+    const dir = mkdtempSync(join(tmpdir(), "d2-tools-tool-audit-"));
 
     appendToolAuditLog(dir, {
       tool: "d2.search_items",

@@ -1,5 +1,6 @@
 import type { DefinitionComponentData, DefinitionRecord } from "../manifest/definitions.js";
 import { expandAliasQuery, type ItemAliases } from "./aliases.js";
+import { ammoTypeKey, classifyBucket, type AmmoTypeKey, type EquipmentGroupKey } from "./classification.js";
 import { summarizeItemPerks, type ItemPerkGroup } from "./perks.js";
 import { summarizeItemSource, type ItemSourceSummary } from "./source.js";
 
@@ -16,6 +17,10 @@ export type ItemSearchResult = {
   icon?: string;
   item_type?: string;
   tier?: string;
+  ammo_type?: AmmoTypeKey;
+  bucket_hash?: number;
+  bucket_name?: string;
+  group_key: EquipmentGroupKey;
   source: ItemSourceSummary;
   perks?: ItemPerkGroup[];
 };
@@ -56,15 +61,28 @@ function toItemSearchResult(
   definitions: DefinitionComponentData,
   options: ItemSearchOptions
 ): ItemSearchResult {
+  const bucketHash = definition.inventory?.bucketTypeHash;
+  const bucket = classifyBucket(bucketHash);
   const result: ItemSearchResult = {
     hash: Number(definition.hash),
     name: definition.displayProperties?.name ?? "",
     description: definition.displayProperties?.description ?? "",
     icon: normalizeBungieAssetUrl(definition.displayProperties?.icon),
     item_type: definition.itemTypeDisplayName,
+    group_key: bucket?.group ?? "other",
     tier: definition.inventory?.tierTypeName,
     source: summarizeItemSource(definition)
   };
+  const ammoType = ammoTypeKey(definition.equippingBlock?.ammoType);
+  if (ammoType) {
+    result.ammo_type = ammoType;
+  }
+  if (bucketHash) {
+    result.bucket_hash = bucketHash;
+  }
+  if (bucket?.name) {
+    result.bucket_name = bucket.name;
+  }
 
   const perks = summarizeItemPerks(definition, definitions, {
     plugSetDefinitions: options.plugSetDefinitions,

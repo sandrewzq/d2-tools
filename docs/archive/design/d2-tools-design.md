@@ -1,14 +1,14 @@
-# d2-service Windows 本地能力设计
+# d2-tools Windows 本地能力设计
 
 日期：2026-06-18
 
-> 2026-06-19 更新：项目已经从“6 人小圈子自用”调整为“可公开分发的 Windows 绿色包”。公开包不内置任何 Bungie 密钥，每个用户在本机配置自己的 Bungie Application。写操作已进入候选能力，必须同时满足 Bungie `MoveEquipDestinyItems` 授权、本地写操作开关和二次确认。`0.0.3` 增加了 DIM 式仓库整理、账号/仓库按位置分组、武器弹药筛选、一键最高光等、今日面板、AI 分析和安全写操作日志。最新功能状态与路线图以 `README.md` 和 `docs/ROADMAP.md` 为准，本设计文档保留早期架构取舍和背景分析。
+> 2026-06-20 更新：项目已经从早期自用方案调整为“可公开分发的 Windows 绿色包”。公开包不内置任何 Bungie 密钥，每个用户在本机配置自己的 Bungie Application。写操作必须同时满足 Bungie `MoveEquipDestinyItems` 授权、本地写操作开关和二次确认。当前功能状态请看 `docs/project-status.md`，后续规划请看 `docs/roadmap.md`，开发与结构说明请看 `docs/development.md`，玩家使用入口请看 `README.md` 和 `docs/user-guide.md`。本设计文档保留早期架构取舍和背景分析。
 
 ## 目标
 
-`d2-service` 是面向 Windows 玩家公开分发的本地 Destiny 2 工具。每个使用者在自己的 Windows 电脑上运行程序，程序直接访问 Bungie API，不再默认依赖 AstrBot、Hermes、NAS Docker 或中心 d2-service。
+`d2-tools` 是面向 Windows 玩家公开分发的本地 Destiny 2 工具。每个使用者在自己的 Windows 电脑上运行程序，程序直接访问 Bungie API，不再默认依赖 AstrBot、Hermes、NAS Docker 或中心服务。
 
-项目仍然叫 `d2-service`，但第一入口是 Windows 图形化客户端。这里的 service 指“本机能力服务”：GUI 调用同一套 core 能力，后续 localhost HTTP API 和 MCP 工具也可以复用这些能力。`d2-skill` 只作为功能和安全模型参考，不意味着 d2-service 要变成 CLI 工具。
+项目现在叫 `d2-tools`，第一入口是 Windows 图形化客户端。GUI 调用同一套 core 能力，后续 localhost HTTP API 和 MCP 工具也可以复用这些能力。`d2-skill` 只作为功能和安全模型参考，不意味着 d2-tools 要变成 CLI 工具。
 
 第一版目标：
 
@@ -24,14 +24,14 @@
 推荐采用：
 
 ```text
-Windows 本地 d2-service
+Windows 本地 d2-tools
   ↓
 Bungie API / OAuth / Manifest
   ↓
 本地数据目录
 ```
 
-不再把 AstrBot、Hermes 或远程 HTTP 服务作为第一入口。后续如果仍想在群聊中使用，可以让 AstrBot 调用某台机器上的 d2-service，或单独做一个轻量适配器，但这不是主线。
+不再把 AstrBot、Hermes 或远程 HTTP 服务作为第一入口。后续如果仍想在群聊中使用，可以让 AstrBot 调用某台机器上的 d2-tools，或单独做一个轻量适配器，但这不是主线。
 
 ## 设计取舍
 
@@ -58,7 +58,7 @@ Bungie API / OAuth / Manifest
 
 ## 参考 d2-skill 的方式
 
-`d2-service` 参考 [Lin-Guanguo/d2-skill](https://github.com/Lin-Guanguo/d2-skill)，但不直接复制它的项目形态。
+`d2-tools` 参考 [Lin-Guanguo/d2-skill](https://github.com/Lin-Guanguo/d2-skill)，但不直接复制它的项目形态。
 
 可借鉴：
 
@@ -95,7 +95,7 @@ Node.js 22 + TypeScript
 第一版直接做完整 Windows 图形化客户端，普通用户双击即可使用：
 
 ```text
-d2-service.exe
+d2-tools.exe
   ↓
 Electron 图形界面
   ↓
@@ -118,7 +118,7 @@ localhost HTTP API 和 MCP server 只作为后续 AI/自动化接口预留，不
 第一版分发方式：
 
 ```text
-绿色包 7z：解压后双击 d2-service.exe
+绿色包 7z：解压后双击 d2-tools.exe
 ```
 
 暂不做安装器。后续用户变多后再考虑 NSIS/MSIX 安装包、开始菜单快捷方式和自动更新。
@@ -126,7 +126,7 @@ localhost HTTP API 和 MCP server 只作为后续 AI/自动化接口预留，不
 ## 本地架构
 
 ```text
-d2-service
+d2-tools
   ├─ Electron desktop
   ├─ Core service
   ├─ localhost HTTP API
@@ -147,7 +147,7 @@ d2-service
   ↓
 Electron UI / HTTP API / MCP tool
   ↓
-d2-service 应用层
+d2-tools 应用层
   ↓
 Bungie API client / Manifest cache / Local storage
   ↓
@@ -161,7 +161,7 @@ AI 只能通过工具接口拿到结构化结果。AI 不直接读取 config、t
 项目目录：
 
 ```text
-d2-service/
+d2-tools/
   package.json
   pnpm-lock.yaml
   .env.example
@@ -186,7 +186,7 @@ d2-service/
 用户数据目录建议放到：
 
 ```text
-%APPDATA%\d2-service\
+%APPDATA%\d2-tools\
   config.json
   tokens.json
   d2.sqlite
@@ -202,14 +202,14 @@ d2-service/
 ./.local-data/
 ```
 
-但生产 Windows 程序默认写入 `%APPDATA%\d2-service`，避免覆盖源码或升级程序时丢数据。
+但生产 Windows 程序默认写入 `%APPDATA%\d2-tools`，避免覆盖源码或升级程序时丢数据。
 
 ## 配置设计
 
 普通用户不需要手写 `.env`。首次启动时进入配置向导；日常启动时按状态自动进入首页或跳转到需要补齐的配置步骤。
 
 ```text
-1. 选择数据目录，默认 %APPDATA%\d2-service
+1. 选择数据目录，默认 %APPDATA%\d2-tools
 2. 填写 Bungie API Key
 3. 填写 Bungie Client ID
 4. 填写 Bungie Client Secret
@@ -222,7 +222,7 @@ d2-service/
 配置保存到：
 
 ```text
-%APPDATA%\d2-service\config.json
+%APPDATA%\d2-tools\config.json
 ```
 
 开发者和高级用户可以继续使用 `.env` 覆盖配置。仓库只提供：
@@ -238,11 +238,12 @@ BUNGIE_API_KEY=
 BUNGIE_CLIENT_ID=
 BUNGIE_CLIENT_SECRET=
 BUNGIE_REDIRECT_URI=https://127.0.0.1:28780/oauth/callback
-D2_DATA_DIR=%APPDATA%\d2-service
+D2_DATA_DIR=%APPDATA%\d2-tools
 D2_MANIFEST_LANGUAGE=zh-chs
 AI_PROVIDER=
 AI_API_KEY=
 AI_MODEL=
+AI_BASE_URL=
 ```
 
 规则：
@@ -269,7 +270,7 @@ BUNGIE_CLIENT_SECRET
 
 ```text
 BUNGIE_REDIRECT_URI=https://127.0.0.1:28780/oauth/callback
-D2_DATA_DIR=%APPDATA%\d2-service
+D2_DATA_DIR=%APPDATA%\d2-tools
 D2_MANIFEST_LANGUAGE=zh-chs
 ```
 
@@ -279,9 +280,19 @@ D2_MANIFEST_LANGUAGE=zh-chs
 AI_PROVIDER
 AI_API_KEY
 AI_MODEL
+AI_BASE_URL
 ```
 
 AI 配置允许跳过。跳过后，AI 助手页显示“未配置 AI”，但首页、资料库、仓库、角色和活动查询仍然可用。
+
+`AI_PROVIDER` 使用内部协议名：
+
+- `openai_responses`：OpenAI 官方 Responses API，默认地址 `https://api.openai.com/v1/responses`。
+- `openai_chat`：OpenAI 官方 Chat Completions，默认地址 `https://api.openai.com/v1/chat/completions`。
+- `openai_compatible`：DeepSeek、硅基流动、通义千问兼容模式、本地 Ollama OpenAI 兼容服务等，需要填写 `AI_BASE_URL`。
+- `anthropic`：Anthropic Claude Messages API，默认地址 `https://api.anthropic.com/v1/messages`。
+
+旧配置兼容规则：`openai` 映射为 `openai_chat`，`deepseek` 映射为 `openai_compatible` 并默认使用 `https://api.deepseek.com`，`custom` 映射为 `openai_compatible`。
 
 ### 配置优先级
 
@@ -304,13 +315,14 @@ AI 配置允许跳过。跳过后，AI 助手页显示“未配置 AI”，但�
     "redirect_uri": "https://127.0.0.1:28780/oauth/callback"
   },
   "data": {
-    "data_dir": "%APPDATA%\\d2-service",
+    "data_dir": "%APPDATA%\\d2-tools",
     "manifest_language": "zh-chs"
   },
   "ai": {
     "provider": "",
     "api_key": "",
-    "model": ""
+    "model": "",
+    "base_url": ""
   }
 }
 ```
@@ -322,7 +334,7 @@ AI 配置允许跳过。跳过后，AI 助手页显示“未配置 AI”，但�
 启动状态机：
 
 ```text
-启动 d2-service.exe
+启动 d2-tools.exe
   ↓
 检查用户数据目录
   ↓
@@ -348,7 +360,7 @@ AI 配置允许跳过。跳过后，AI 助手页显示“未配置 AI”，但�
   说明这是本地工具，数据保存在本机。
 
 数据目录页
-  默认 %APPDATA%\d2-service，可修改。
+  默认 %APPDATA%\d2-tools，可修改。
 
 Bungie 配置页
   填写 API Key、Client ID、Client Secret。
@@ -390,7 +402,7 @@ Bungie 配置校验分三层：
 3. OAuth 测试：生成授权 URL，确认 client_id 和 redirect_uri 组合可用。
 ```
 
-OAuth callback 地址不能让用户手动直接打开。只有在 d2-service 已经启动本地 callback server 并开始登录流程后，`http://127.0.0.1:28780/oauth/callback` 才能接收 Bungie 回调。用户手动访问该地址时，如果没有监听进程，浏览器出现 `ERR_CONNECTION_REFUSED` 是正常现象。
+OAuth callback 地址不能让用户手动直接打开。只有在 d2-tools 已经启动本地 callback server 并开始登录流程后，`http://127.0.0.1:28780/oauth/callback` 才能接收 Bungie 回调。用户手动访问该地址时，如果没有监听进程，浏览器出现 `ERR_CONNECTION_REFUSED` 是正常现象。
 
 ## GUI 信息架构
 
@@ -413,7 +425,7 @@ Manifest 初始化
 日常启动：
 
 ```text
-启动 d2-service.exe
+启动 d2-tools.exe
   ↓
 读取本地配置和 token
   ↓
@@ -503,8 +515,8 @@ AI 助手：
 第一版使用绿色包：
 
 ```text
-d2-service-win-x64-0.0.x.7z
-  d2-service.exe
+d2-tools-win-x64-0.0.x.7z
+  d2-tools.exe
   resources\
   README.txt
 ```
@@ -513,19 +525,19 @@ d2-service-win-x64-0.0.x.7z
 
 ```text
 1. 解压 7z
-2. 双击 d2-service.exe
+2. 双击 d2-tools.exe
 3. 跟随配置向导
 ```
 
 升级方式：
 
 ```text
-1. 关闭 d2-service
+1. 关闭 d2-tools
 2. 解压新版覆盖程序目录
-3. 重新打开 d2-service.exe
+3. 重新打开 d2-tools.exe
 ```
 
-用户数据不放在程序目录，而是放在 `%APPDATA%\d2-service`。覆盖绿色包不会删除配置、token、Manifest、缓存和日志。
+用户数据不放在程序目录，而是放在 `%APPDATA%\d2-tools`。覆盖绿色包不会删除配置、token、Manifest、缓存和日志。
 
 ## OAuth 设计
 
@@ -535,10 +547,10 @@ d2-service-win-x64-0.0.x.7z
 
 ```text
 1. 用户在 GUI 中点击“登录 Bungie”
-2. d2-service 启动本地 callback server，监听 127.0.0.1:28780
-3. d2-service 打开浏览器访问 Bungie 授权页面
+2. d2-tools 启动本地 callback server，监听 127.0.0.1:28780
+3. d2-tools 打开浏览器访问 Bungie 授权页面
 4. Bungie 回调 https://127.0.0.1:28780/oauth/callback
-5. d2-service 用 code + client_secret 换取 token
+5. d2-tools 用 code + client_secret 换取 token
 6. token 加密或至少限制权限后保存到本机数据目录
 ```
 
@@ -555,7 +567,7 @@ membership_id
 display_name
 ```
 
-token 刷新由本机 d2-service 完成。刷新失败时提示用户重新登录。
+token 刷新由本机 d2-tools 完成。刷新失败时提示用户重新登录。
 
 ## Manifest 设计
 
@@ -602,7 +614,7 @@ Manifest 缓存可删除重建，不影响 OAuth token 和用户配置。
 ```text
 GUI 生成操作影响说明
 用户确认
-d2-service 执行写操作并记录日志
+d2-tools 执行写操作并记录日志
 ```
 
 第一步只生成影响说明，不执行写操作。第二步必须由用户在 GUI 中确认后才执行。
@@ -613,7 +625,7 @@ d2-service 执行写操作并记录日志
 
 ### 参考工具能力矩阵
 
-| 参考工具 | 主要能力 | d2-service 对应页面 | MVP 边界 |
+| 参考工具 | 主要能力 | d2-tools 对应页面 | MVP 边界 |
 | --- | --- | --- | --- |
 | DIM | 仓库、装备、loadout、配装 | 仓库、角色、配装 | 先做查看、搜索和计划，不做完整配装优化 |
 | light.gg | 物品库、perk、获取来源、roll 研究 | 资料库 | 先基于 Bungie Manifest 和本地规则，不复制社区评分 |
@@ -632,14 +644,14 @@ d2-service 执行写操作并记录日志
 - Electron 图形界面。
 - 绿色包启动。
 - 配置向导：检查 Bungie API Key、Client ID、Client Secret。
-- 本地数据目录：初始化 `%APPDATA%\d2-service`。
+- 本地数据目录：初始化 `%APPDATA%\d2-tools`。
 - 健康检查：GUI 和后续 HTTP API 都能确认服务状态。
 - 日志：记录启动、配置错误、Bungie API 错误。
 - 结构化数据：core 能返回稳定数据结构，方便 GUI、AI 和后续接口使用。
 
 验收：
 
-- 新用户解压后双击 `d2-service.exe` 能启动。
+- 新用户解压后双击 `d2-tools.exe` 能启动。
 - 新用户能通过配置向导完成基础配置。
 - 缺配置时给出明确提示。
 - GUI 能展示健康状态；后续 `/api/v1/health` 可复用同一套检查逻辑。
@@ -809,7 +821,7 @@ POST /api/v1/actions/execute
 
 ## AI 接入设计
 
-AI 能力参考 `d2-skill` 的功能设计和安全边界：d2-service 提供确定性事实和安全操作原语，AI 负责解释、比较、归纳和建议。AI 不直接访问 Bungie API，也不直接读取 token、配置或 SQLite。
+AI 能力参考 `d2-skill` 的功能设计和安全边界：d2-tools 提供确定性事实和安全操作原语，AI 负责解释、比较、归纳和建议。AI 不直接访问 Bungie API，也不直接读取 token、配置或 SQLite。
 
 核心链路：
 
@@ -820,23 +832,23 @@ AI 助手页
   ↓
 AI Orchestrator
   ↓
-d2-service tools 获取事实
+d2-tools tools 获取事实
   ↓
 AI 基于事实生成分析
   ↓
 GUI 展示：事实 / 分析 / 建议 / 操作计划
 ```
 
-AI 能力分两类：让 AI 使用 d2-service 的工具，以及让 d2-service 调用 AI 做分析。
+AI 能力分两类：让 AI 使用 d2-tools 的工具，以及让 d2-tools 调用 AI 做分析。
 
-### AI 使用 d2-service
+### AI 使用 d2-tools
 
 推荐优先支持 MCP server：
 
 ```text
 AI Agent / Claude / Codex / 其他 MCP 客户端
   ↓ MCP tools
-d2-service
+d2-tools
   ↓
 Bungie API / Manifest / 本地缓存
 ```
@@ -886,24 +898,27 @@ d2_actions
 
 `d2_info`、`d2_profile`、`d2_analysis` 是只读工具。`d2_actions.execute` 是写工具，必须由用户在 GUI 中确认后才能执行。
 
-### d2-service 调用 AI
+### d2-tools 调用 AI
 
-这部分作为后续增强，不放在第一版核心路径。普通用户在设置页配置 AI provider；开发者可以用 `.env` 覆盖：
+普通用户在设置页配置 AI provider；开发者可以用 `.env` 覆盖：
 
 ```env
-AI_PROVIDER=openai-compatible
+AI_PROVIDER=openai_responses
 AI_API_KEY=
 AI_MODEL=
+AI_BASE_URL=
 ```
+
+OpenAI 官方分为 `openai_responses` 和 `openai_chat` 两种模式。第三方兼容平台统一使用 `openai_compatible`，不要再为 DeepSeek 这类兼容平台新增单独协议。Anthropic Claude 使用独立的 Messages API 请求格式和鉴权头。
 
 可做能力：
 
 - 用自然语言解释装备和 perk。
 - 根据仓库和角色状态给配装建议。
-- 把用户自然语言转换成 d2-service 查询。
+- 把用户自然语言转换成 d2-tools 查询。
 - 对活动记录做摘要。
 
-AI 输出只能作为建议。涉及装备转移、装备、锁定、loadout 的写操作，必须由 d2-service 生成可审计计划并要求用户确认。
+AI 输出只能作为建议。涉及装备转移、装备、锁定、loadout 的写操作，必须由 d2-tools 生成可审计计划并要求用户确认。
 
 ### AI 分析场景
 
@@ -1015,7 +1030,7 @@ GUI 不只展示一段聊天文本，而是固定分区：
 
 - `.env`、`config.json`、token、SQLite、日志不进 Git。
 - HTTP API 默认只监听 `127.0.0.1`。
-- MCP 工具只能访问 d2-service 暴露的能力。
+- MCP 工具只能访问 d2-tools 暴露的能力。
 - AI 不直接读取 config、`.env` 和 token 文件。
 - 写操作必须二次确认。
 - 所有写操作写入 audit log。
@@ -1046,14 +1061,14 @@ GUI 不只展示一段聊天文本，而是固定分区：
 - 启动状态机。
 - 配置加载、`config.json` 和 `.env.example`。
 - `.env > config.json > 默认值` 的覆盖规则。
-- `%APPDATA%\d2-service` 数据目录。
+- `%APPDATA%\d2-tools` 数据目录。
 - 绿色包目录结构。
 - `/api/v1/health`。
 - 基础日志和错误格式。
 
 完成标志：
 
-- Windows 上解压绿色包后能双击启动 d2-service。
+- Windows 上解压绿色包后能双击启动 d2-tools。
 - 首次启动进入配置向导。
 - 缺少任一关键配置时能跳转到对应向导页。
 - OAuth 登录前能启动本地 callback server，未监听时手动访问 callback 有明确解释。
@@ -1121,7 +1136,7 @@ GUI 不只展示一段聊天文本，而是固定分区：
 
 ### 阶段 4：AI 工具接入
 
-目标：让 AI 能安全使用 d2-service，并完成仓库/roll、本周刷取、Raid/活动三类分析。
+目标：让 AI 能安全使用 d2-tools，并完成仓库/roll、本周刷取、Raid/活动三类分析。
 
 范围：
 
@@ -1201,10 +1216,10 @@ GUI 不只展示一段聊天文本，而是固定分区：
 主线改为：
 
 ```text
-d2-service = Windows 本地 Destiny 2 能力程序
+d2-tools = Windows 本地 Destiny 2 能力程序
 ```
 
-它直接访问 Bungie API，本地保存配置、token、Manifest、缓存和日志。AstrBot、Hermes、NAS Docker 和远程 d2-service 都不作为第一阶段目标。
+它直接访问 Bungie API，本地保存配置、token、Manifest、缓存和日志。AstrBot、Hermes、NAS Docker 和远程中心服务都不作为第一阶段目标。
 
 技术路线：
 
@@ -1215,7 +1230,7 @@ Node.js 22 + TypeScript + Electron GUI + core 能力层 + 后续 localhost HTTP 
 首版分发方式：
 
 ```text
-绿色包 7z，解压后双击 d2-service.exe
+绿色包 7z，解压后双击 d2-tools.exe
 ```
 
-`d2-skill` 作为重要参考项目，借鉴它的 OAuth、Manifest、AI 分析能力和安全操作思路，但不照抄 CLI 形态。`d2-service` 保持自己的架构边界：GUI 优先、本地优先、用户数据本机保存、AI 通过结构化 core 能力接入。
+`d2-skill` 作为重要参考项目，借鉴它的 OAuth、Manifest、AI 分析能力和安全操作思路，但不照抄 CLI 形态。`d2-tools` 保持自己的架构边界：GUI 优先、本地优先、用户数据本机保存、AI 通过结构化 core 能力接入。

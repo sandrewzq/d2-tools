@@ -4,7 +4,7 @@ import { buildDiagnosticsExport } from "../src/diagnostics/export.js";
 describe("diagnostics export", () => {
   it("redacts secrets while keeping useful status", () => {
     const text = buildDiagnosticsExport({
-      app_version: "0.0.3",
+      app_version: "0.0.4",
       config: {
         bungie: {
           api_key: "api-secret",
@@ -12,7 +12,7 @@ describe("diagnostics export", () => {
           client_secret: "client-secret",
           redirect_uri: "https://127.0.0.1:28780/oauth/callback"
         },
-        data: { data_dir: "C:/Users/dell/AppData/Roaming/d2-service", manifest_language: "zh-chs" },
+        data: { data_dir: "C:/Users/dell/AppData/Roaming/d2-tools", manifest_language: "zh-chs" },
         ai: { provider: "openai", api_key: "ai-secret", model: "gpt-test", base_url: "https://api.example.com" },
         features: { write_actions_enabled: true }
       },
@@ -29,7 +29,7 @@ describe("diagnostics export", () => {
       }]
     });
 
-    expect(text).toContain("0.0.3");
+    expect(text).toContain("0.0.4");
     expect(text).toContain("zh-chs");
     expect(text).toContain("[已脱敏]");
     expect(text).toContain("d2.search_items");

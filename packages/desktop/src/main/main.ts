@@ -12,7 +12,7 @@ async function createWindow(): Promise<void> {
     height: 800,
     minWidth: 980,
     minHeight: 680,
-    title: "d2-service",
+    title: "d2-tools",
     webPreferences: {
       preload: join(currentDir, "../preload/preload.cjs"),
       contextIsolation: true,

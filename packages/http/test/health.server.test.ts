@@ -10,7 +10,7 @@ describe("health server", () => {
 
       expect(response.status).toBe(200);
       expect(body.ok).toBe(true);
-      expect(body.service).toBe("d2-service");
+      expect(body.service).toBe("d2-tools");
     } finally {
       await server.close();
     }

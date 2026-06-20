@@ -1,7 +1,10 @@
 import { fetchBungieJson } from "../bungie/client.js";
 import type { D2Config } from "../config/schema.js";
+import { ammoTypeKey, classifyBucket, type AmmoTypeKey, type EquipmentGroupKey } from "../items/classification.js";
 import type { DefinitionComponentData, DefinitionRecord } from "../manifest/definitions.js";
 import type { BungieOAuthToken } from "../oauth/login.js";
+
+export type { AmmoTypeKey, EquipmentGroupKey } from "../items/classification.js";
 
 export type AccountItemSummary = {
   hash: number;
@@ -35,9 +38,6 @@ export type AccountItemPlugSummary = {
   description?: string;
 };
 
-export type EquipmentGroupKey = "weapons" | "armor" | "equipment" | "other";
-export type AmmoTypeKey = "primary" | "special" | "heavy";
-
 export type CharacterEquipmentGroup = {
   key: EquipmentGroupKey;
   label: string;
@@ -53,6 +53,23 @@ export type CharacterSummary = {
   equipment_groups: CharacterEquipmentGroup[];
   inventory_items: AccountItemSummary[];
   inventory_groups: CharacterEquipmentGroup[];
+  postmaster_items: AccountItemSummary[];
+  loadout_slots: CharacterLoadoutSlotSummary[];
+};
+
+export type CharacterLoadoutSlotItemSummary = {
+  instance_id?: string;
+  name: string;
+  bucket_name?: string;
+};
+
+export type CharacterLoadoutSlotSummary = {
+  index: number;
+  name: string;
+  icon_hash?: number;
+  color_hash?: number;
+  item_count: number;
+  items: CharacterLoadoutSlotItemSummary[];
 };
 
 export type AccountSummary = {
@@ -75,6 +92,8 @@ export type FetchAccountSummaryOptions = {
   config: D2Config;
   token: BungieOAuthToken;
   itemDefinitions?: DefinitionComponentData;
+  bucketDefinitions?: DefinitionComponentData;
+  loadoutNameDefinitions?: DefinitionComponentData;
   baseUrl?: string;
   fetchImpl?: typeof fetch;
 };
@@ -105,6 +124,9 @@ type DestinyProfileResponse = {
   };
   characterEquipment?: {
     data?: Record<string, { items?: DestinyProfileItem[] }>;
+  };
+  characterLoadouts?: {
+    data?: Record<string, { loadouts?: DestinyCharacterLoadout[] }>;
   };
   profileInventory?: {
     data?: { items?: DestinyProfileItem[] };
@@ -149,6 +171,15 @@ type DestinyItemSocket = {
   isVisible?: boolean;
 };
 
+type DestinyCharacterLoadout = {
+  nameHash?: number;
+  iconHash?: number;
+  colorHash?: number;
+  items?: Array<{
+    itemInstanceId?: string;
+  }>;
+};
+
 const bungieStaticBaseUrl = "https://www.bungie.net";
 const profileComponents = [
   100, // Profiles
@@ -156,28 +187,10 @@ const profileComponents = [
   200, // Characters
   201, // CharacterInventories
   205, // CharacterEquipment
+  206, // CharacterLoadouts
   300, // ItemInstances
   305 // ItemSockets
 ].join(",");
-
-const bucketLabels: Record<number, { name: string; group: EquipmentGroupKey }> = {
-  1498876634: { name: "动能武器", group: "weapons" },
-  2465295065: { name: "能量武器", group: "weapons" },
-  953998645: { name: "威能武器", group: "weapons" },
-  3448274439: { name: "头盔", group: "armor" },
-  3551918588: { name: "臂铠", group: "armor" },
-  14239492: { name: "胸甲", group: "armor" },
-  20886954: { name: "腿甲", group: "armor" },
-  1585787867: { name: "职业物品", group: "armor" },
-  3284755031: { name: "职业分支", group: "equipment" },
-  4023194814: { name: "机灵", group: "equipment" },
-  2025709351: { name: "载具", group: "equipment" },
-  284967655: { name: "飞船", group: "equipment" },
-  4274335291: { name: "徽标", group: "equipment" },
-  4292445962: { name: "公会战旗", group: "equipment" },
-  3683254069: { name: "终结技", group: "equipment" },
-  1107761855: { name: "动作", group: "equipment" }
-};
 
 const equipmentGroupLabels: Record<EquipmentGroupKey, string> = {
   weapons: "武器",
@@ -222,8 +235,13 @@ export async function fetchAccountSummary(options: FetchAccountSummaryOptions): 
       ?? "Unknown Guardian",
     destiny_membership_id: destinyMembership.membershipId,
     membership_type: destinyMembership.membershipType,
-    characters: summarizeCharacters(profile, options.itemDefinitions ?? {}),
-    ...summarizeProfileInventory(profile, options.itemDefinitions ?? {})
+    characters: summarizeCharacters(
+      profile,
+      options.itemDefinitions ?? {},
+      options.bucketDefinitions ?? {},
+      options.loadoutNameDefinitions ?? {}
+    ),
+    ...summarizeProfileInventory(profile, options.itemDefinitions ?? {}, options.bucketDefinitions ?? {})
   };
 }
 
@@ -240,15 +258,24 @@ function selectDestinyMembership(data: UserMembershipData): DestinyMembership {
 
 function summarizeCharacters(
   profile: DestinyProfileResponse,
-  definitions: DefinitionComponentData
+  definitions: DefinitionComponentData,
+  bucketDefinitions: DefinitionComponentData,
+  loadoutNameDefinitions: DefinitionComponentData
 ): CharacterSummary[] {
   const characters = Object.values(profile.characters?.data ?? {});
+  const vaultItems = (profile.profileInventory?.data?.items ?? [])
+    .filter((item) => Boolean(item.itemInstanceId))
+    .map((item) => summarizeItem(item, definitions, profile.itemComponents, bucketDefinitions));
+
   return characters.map((character) => {
     const equippedItems = (profile.characterEquipment?.data?.[character.characterId]?.items ?? [])
       .slice(0, 16)
-      .map((item) => summarizeItem(item, definitions, profile.itemComponents));
-    const inventoryItems = (profile.characterInventories?.data?.[character.characterId]?.items ?? [])
-      .map((item) => summarizeItem(item, definitions, profile.itemComponents));
+      .map((item) => summarizeItem(item, definitions, profile.itemComponents, bucketDefinitions));
+    const allCharacterItems = (profile.characterInventories?.data?.[character.characterId]?.items ?? [])
+      .map((item) => summarizeItem(item, definitions, profile.itemComponents, bucketDefinitions));
+    const inventoryItems = allCharacterItems.filter((item) => !isPostmasterItem(item, bucketDefinitions));
+    const postmasterItems = allCharacterItems.filter((item) => isPostmasterItem(item, bucketDefinitions));
+    const knownItems = [...equippedItems, ...inventoryItems, ...postmasterItems, ...vaultItems];
 
     return {
       character_id: character.characterId,
@@ -258,19 +285,26 @@ function summarizeCharacters(
       equipped_items: equippedItems,
       equipment_groups: groupEquipment(equippedItems),
       inventory_items: inventoryItems,
-      inventory_groups: groupEquipment(inventoryItems)
+      inventory_groups: groupEquipment(inventoryItems),
+      postmaster_items: postmasterItems,
+      loadout_slots: summarizeCharacterLoadouts(
+        profile.characterLoadouts?.data?.[character.characterId]?.loadouts ?? [],
+        loadoutNameDefinitions,
+        knownItems
+      )
     };
   });
 }
 
 function summarizeProfileInventory(
   profile: DestinyProfileResponse,
-  definitions: DefinitionComponentData
+  definitions: DefinitionComponentData,
+  bucketDefinitions: DefinitionComponentData
 ): Pick<AccountSummary, "vault" | "materials"> {
   const profileItems = profile.profileInventory?.data?.items ?? [];
   const items = profileItems
     .filter((item) => Boolean(item.itemInstanceId))
-    .map((item) => summarizeItem(item, definitions, profile.itemComponents));
+    .map((item) => summarizeItem(item, definitions, profile.itemComponents, bucketDefinitions));
   const materials = profileItems
     .filter((item) => !item.itemInstanceId)
     .map((item) => summarizeMaterial(item, definitions));
@@ -303,27 +337,22 @@ function summarizeMaterial(
   };
 }
 
-function ammoTypeKey(ammoType: number | undefined): AmmoTypeKey | undefined {
-  switch (ammoType) {
-    case 1:
-      return "primary";
-    case 2:
-      return "special";
-    case 3:
-      return "heavy";
-    default:
-      return undefined;
-  }
-}
-
 function summarizeItem(
   item: DestinyProfileItem,
   definitions: DefinitionComponentData,
-  components?: DestinyProfileResponse["itemComponents"]
+  components?: DestinyProfileResponse["itemComponents"],
+  bucketDefinitions: DefinitionComponentData = {}
 ): AccountItemSummary {
   const definition = definitions[String(item.itemHash)] as DefinitionRecord | undefined;
-  const bucketHash = definition?.inventory?.bucketTypeHash ?? item.bucketHash;
-  const bucket = bucketHash ? bucketLabels[bucketHash] : undefined;
+  const explicitBucketHash = item.bucketHash;
+  const definitionBucketHash = definition?.inventory?.bucketTypeHash;
+  const resolvedExplicitBucket = explicitBucketHash
+    && (classifyBucket(explicitBucketHash) || bucketDefinitions[String(explicitBucketHash)]);
+  const bucketHash = resolvedExplicitBucket
+    ? explicitBucketHash
+    : definitionBucketHash ?? explicitBucketHash;
+  const bucket = classifyBucket(bucketHash);
+  const bucketDefinition = bucketHash ? bucketDefinitions[String(bucketHash)] as DefinitionRecord | undefined : undefined;
   const instanceId = item.itemInstanceId;
   const instance = instanceId ? components?.instances?.data?.[instanceId] : undefined;
   return {
@@ -335,12 +364,63 @@ function summarizeItem(
     ammo_type: ammoTypeKey(definition?.equippingBlock?.ammoType),
     tier: definition?.inventory?.tierTypeName,
     bucket_hash: bucketHash,
-    bucket_name: bucket?.name,
+    bucket_name: bucket?.name ?? bucketDefinition?.displayProperties?.name?.trim(),
     group_key: bucket?.group ?? "other",
     power: instance?.primaryStat?.value,
     locked: isLocked(item.state),
     socket_plugs: summarizeSocketPlugs(instanceId, components, definitions)
   };
+}
+
+function summarizeCharacterLoadouts(
+  loadouts: DestinyCharacterLoadout[],
+  loadoutNameDefinitions: DefinitionComponentData,
+  knownItems: AccountItemSummary[]
+): CharacterLoadoutSlotSummary[] {
+  const itemsByInstanceId = new Map(
+    knownItems
+      .filter((item) => item.instance_id)
+      .map((item) => [item.instance_id as string, item] as const)
+  );
+
+  return loadouts.map((loadout, index) => ({
+    index,
+    name: resolveLoadoutName(loadout.nameHash, index, loadoutNameDefinitions),
+    icon_hash: loadout.iconHash,
+    color_hash: loadout.colorHash,
+    item_count: loadout.items?.length ?? 0,
+    items: (loadout.items ?? []).map((item) => {
+      const matched = item.itemInstanceId ? itemsByInstanceId.get(item.itemInstanceId) : undefined;
+      return {
+        instance_id: item.itemInstanceId,
+        name: matched?.name ?? `物品 ${item.itemInstanceId ?? "未知"}`,
+        bucket_name: matched?.bucket_name
+      };
+    })
+  }));
+}
+
+function resolveLoadoutName(
+  nameHash: number | undefined,
+  index: number,
+  loadoutNameDefinitions: DefinitionComponentData
+): string {
+  const definition = nameHash ? loadoutNameDefinitions[String(nameHash)] as DefinitionRecord | undefined : undefined;
+  const resolved = definition?.name?.trim() || definition?.displayProperties?.name?.trim();
+  return resolved || `配装槽 ${index + 1}`;
+}
+
+function isPostmasterItem(item: AccountItemSummary, bucketDefinitions: DefinitionComponentData): boolean {
+  if (!item.bucket_hash) {
+    return false;
+  }
+
+  const bucketDefinition = bucketDefinitions[String(item.bucket_hash)] as DefinitionRecord | undefined;
+  const bucketName = bucketDefinition?.displayProperties?.name?.trim().toLowerCase() ?? "";
+  return bucketName.includes("postmaster")
+    || bucketName.includes("lost items")
+    || bucketName.includes("邮政")
+    || bucketName.includes("失物");
 }
 
 function summarizeSocketPlugs(

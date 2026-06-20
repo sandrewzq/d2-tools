@@ -7,8 +7,8 @@
     "moduleResolution": "NodeNext",
     "declaration": true,
     "paths": {
-      "@d2-service/core": ["packages/core/dist/index.d.ts"],
-      "@d2-service/http": ["packages/http/dist/server.d.ts"]
+      "@d2-tools/core": ["packages/core/dist/index.d.ts"],
+      "@d2-tools/http": ["packages/http/dist/server.d.ts"]
     },
     "types": ["node", "electron"]
   },

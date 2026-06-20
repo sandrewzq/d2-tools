@@ -1,6 +1,6 @@
 import { createServer, type Server, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
-import { findD2ToolDefinition, getHealth, listD2ToolDefinitions } from "@d2-service/core";
+import { findD2ToolDefinition, getHealth, listD2ToolDefinitions } from "@d2-tools/core";
 
 export type HealthServer = {
   origin: string;

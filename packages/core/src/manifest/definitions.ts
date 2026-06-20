@@ -7,10 +7,13 @@ export type DefinitionComponentName =
   | "DestinyPlugSetDefinition"
   | "DestinySandboxPerkDefinition"
   | "DestinyActivityDefinition"
-  | "DestinyVendorDefinition";
+  | "DestinyVendorDefinition"
+  | "DestinyInventoryBucketDefinition"
+  | "DestinyLoadoutNameDefinition";
 
 export type DefinitionRecord = {
   hash?: number;
+  name?: string;
   displayProperties?: {
     name?: string;
     description?: string;
@@ -30,6 +33,9 @@ export type DefinitionRecord = {
   reusablePlugItems?: Array<{
     plugItemHash?: number;
   }>;
+  itemCount?: number;
+  fifo?: boolean;
+  scope?: number;
   sockets?: {
     socketEntries?: Array<{
       reusablePlugItems?: Array<{ plugItemHash?: number }>;
@@ -71,6 +77,7 @@ type DefinitionComponentCache = {
 };
 
 const bungieStaticBaseUrl = "https://www.bungie.net";
+const definitionMemoryCache = new Map<string, DefinitionComponentCache>();
 
 export function selectDefinitionComponentPath(
   metadata: DestinyManifestMetadata,
@@ -117,6 +124,7 @@ export async function initializeDefinitionComponent(
     `${JSON.stringify(cache, null, 2)}\n`,
     "utf8"
   );
+  definitionMemoryCache.set(definitionCachePath(options.dataDir, options.component), cache);
 
   return statusFromCache(cache);
 }
@@ -141,11 +149,17 @@ function loadDefinitionComponentCache(
   component: DefinitionComponentName
 ): DefinitionComponentCache | null {
   const path = definitionCachePath(dataDir, component);
+  const cached = definitionMemoryCache.get(path);
+  if (cached) {
+    return cached;
+  }
   if (!existsSync(path)) {
     return null;
   }
 
-  return JSON.parse(readFileSync(path, "utf8")) as DefinitionComponentCache;
+  const loaded = JSON.parse(readFileSync(path, "utf8")) as DefinitionComponentCache;
+  definitionMemoryCache.set(path, loaded);
+  return loaded;
 }
 
 function definitionDir(dataDir: string): string {

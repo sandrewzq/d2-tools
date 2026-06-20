@@ -60,7 +60,7 @@ describe("manifest metadata", () => {
   });
 
   it("persists metadata cache and exposes status", () => {
-    const dataDir = mkdtempSync(join(tmpdir(), "d2-service-manifest-"));
+    const dataDir = mkdtempSync(join(tmpdir(), "d2-tools-manifest-"));
 
     saveManifestMetadataCache({
       dataDir,
@@ -85,7 +85,7 @@ describe("manifest metadata", () => {
   });
 
   it("initializes metadata through an injected fetcher", async () => {
-    const dataDir = mkdtempSync(join(tmpdir(), "d2-service-manifest-"));
+    const dataDir = mkdtempSync(join(tmpdir(), "d2-tools-manifest-"));
     const seenApiKeys: string[] = [];
 
     const status = await initializeManifestMetadata({

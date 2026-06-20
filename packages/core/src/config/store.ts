@@ -1,7 +1,7 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { applyEnvOverrides } from "./env.js";
-import { defaultConfig, defaultDataDir } from "./defaults.js";
+import { defaultConfig, defaultDataDir, legacyDefaultDataDir } from "./defaults.js";
 import type { ConfigEnv, D2Config } from "./schema.js";
 
 export type ConfigStoreOptions = {
@@ -40,7 +40,7 @@ function mergeConfigWithDefaults(config: Partial<D2Config>, dataDir: string): D2
 }
 
 export function loadConfig(options: ConfigStoreOptions = {}): D2Config {
-  const selectedDataDir = options.dataDir ?? options.env?.D2_DATA_DIR ?? defaultDataDir();
+  const selectedDataDir = selectDataDir(options);
   mkdirSync(selectedDataDir, { recursive: true });
 
   const path = configPath(selectedDataDir);
@@ -50,6 +50,20 @@ export function loadConfig(options: ConfigStoreOptions = {}): D2Config {
 
   base.data.data_dir = selectedDataDir;
   return normalizeConfig(applyEnvOverrides(base, options.env ?? process.env));
+}
+
+function selectDataDir(options: ConfigStoreOptions): string {
+  if (options.dataDir) return options.dataDir;
+  if (options.env?.D2_DATA_DIR) return options.env.D2_DATA_DIR;
+
+  const nextDataDir = defaultDataDir();
+  const legacyDataDir = legacyDefaultDataDir();
+
+  if (!existsSync(nextDataDir) && existsSync(legacyDataDir)) {
+    cpSync(legacyDataDir, nextDataDir, { recursive: true });
+  }
+
+  return nextDataDir;
 }
 
 export function saveConfig(config: D2Config, options: { dataDir?: string } = {}): void {

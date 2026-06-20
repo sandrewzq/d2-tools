@@ -55,7 +55,7 @@ export function appendToolAuditLog(dataDir: string, entry: NewToolAuditEntry): T
 export function buildToolAuditDiagnosticText(entry: ToolAuditEntry): string {
   const safeEntry = redactEntry(entry);
   return [
-    "d2-service tool diagnostic",
+    "d2-tools tool diagnostic",
     `time: ${safeEntry.created_at}`,
     `tool: ${safeEntry.tool}`,
     `caller: ${safeEntry.caller}`,

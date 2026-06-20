@@ -16,12 +16,14 @@ import type {
   VaultAiAdviceResult,
   ItemAiAdviceInput,
   ItemAiAdviceResult,
+  AiChatReplyResult,
   AiConnectionTestResult,
   ActionLogEntry,
   DailySummary,
   ItemAliases,
   ItemAliasEntry,
   PerkSearchResult,
+  DimWishlist,
   LibraryHistory,
   LibraryHistoryItem,
   LoadoutTemplate,
@@ -30,7 +32,7 @@ import type {
   ItemActionPlanInput,
   BatchTransferPlan,
   ActivityHistorySummary
-} from "@d2-service/core";
+} from "@d2-tools/core";
 
 type ItemLockActionInput = {
   membership_type: number;
@@ -56,8 +58,51 @@ type ItemTransferActionInput = {
   transfer_to_vault: boolean;
 };
 
+type PostmasterPullActionInput = {
+  membership_type: number;
+  character_id: string;
+  item_id: string;
+  item_reference_hash: number;
+  item_name?: string;
+  stack_size?: number;
+};
+
+type LoadoutEquipActionInput = {
+  membership_type: number;
+  character_id: string;
+  loadout_index: number;
+  loadout_name?: string;
+};
+
+type LoadoutSnapshotActionInput = {
+  membership_type: number;
+  character_id: string;
+  loadout_index: number;
+  loadout_name?: string;
+};
+
 type ItemActionResult = {
   ok: true;
+  message: string;
+};
+
+type BatchEquipItemsInput = {
+  membership_type: number;
+  character_id: string;
+  items: ItemEquipActionInput[];
+};
+
+type BatchTransferItemsInput = {
+  membership_type: number;
+  character_id: string;
+  items: ItemTransferActionInput[];
+};
+
+type BatchItemActionResult = {
+  ok: true;
+  total: number;
+  success_count: number;
+  failed_count: number;
   message: string;
 };
 
@@ -93,8 +138,13 @@ contextBridge.exposeInMainWorld("d2", {
     available_items: AccountSummary["vault"]["items"];
     equipped_items: AccountSummary["vault"]["items"];
   }) => ipcRenderer.invoke("loadouts:transfer-plan", input) as Promise<BatchTransferPlan>,
+  getDimWishlist: () => ipcRenderer.invoke("wishlist:get") as Promise<DimWishlist | null>,
+  saveDimWishlist: (wishlist: DimWishlist) => ipcRenderer.invoke("wishlist:save", wishlist) as Promise<DimWishlist>,
+  clearDimWishlist: () => ipcRenderer.invoke("wishlist:clear") as Promise<null>,
   getVaultTags: () => ipcRenderer.invoke("vault:tags:get") as Promise<VaultTags>,
   saveVaultTag: (input: SaveVaultTagInput) => ipcRenderer.invoke("vault:tag:save", input) as Promise<VaultTags>,
+  saveVaultTagsBatch: (inputs: SaveVaultTagInput[]) =>
+    ipcRenderer.invoke("vault:tags:save-batch", inputs) as Promise<VaultTags>,
   saveVaultNote: (input: SaveVaultNoteInput) => ipcRenderer.invoke("vault:note:save", input) as Promise<VaultTags>,
   analyzeVault: (input: { items: AccountItemSummary[]; tags: VaultTags }) =>
     ipcRenderer.invoke("analysis:vault", input) as Promise<VaultAnalysisResult>,
@@ -102,12 +152,24 @@ contextBridge.exposeInMainWorld("d2", {
     ipcRenderer.invoke("analysis:vault:ai", input) as Promise<VaultAiAdviceResult>,
   generateItemAiAdvice: (input: Omit<ItemAiAdviceInput, "config">) =>
     ipcRenderer.invoke("analysis:item:ai", input) as Promise<ItemAiAdviceResult>,
+  sendAiChat: (input: { question: string; context: string }) =>
+    ipcRenderer.invoke("analysis:chat:ai", input) as Promise<AiChatReplyResult>,
   setItemLockState: (input: ItemLockActionInput) =>
     ipcRenderer.invoke("actions:item:set-lock", input) as Promise<ItemActionResult>,
   equipItem: (input: ItemEquipActionInput) =>
     ipcRenderer.invoke("actions:item:equip", input) as Promise<ItemActionResult>,
   transferItem: (input: ItemTransferActionInput) =>
     ipcRenderer.invoke("actions:item:transfer", input) as Promise<ItemActionResult>,
+  batchEquipItems: (input: BatchEquipItemsInput) =>
+    ipcRenderer.invoke("actions:items:batch-equip", input) as Promise<BatchItemActionResult>,
+  batchTransferItems: (input: BatchTransferItemsInput) =>
+    ipcRenderer.invoke("actions:items:batch-transfer", input) as Promise<BatchItemActionResult>,
+  pullFromPostmaster: (input: PostmasterPullActionInput) =>
+    ipcRenderer.invoke("actions:item:pull-postmaster", input) as Promise<ItemActionResult>,
+  equipLoadout: (input: LoadoutEquipActionInput) =>
+    ipcRenderer.invoke("actions:loadout:equip", input) as Promise<ItemActionResult>,
+  snapshotLoadout: (input: LoadoutSnapshotActionInput) =>
+    ipcRenderer.invoke("actions:loadout:snapshot", input) as Promise<ItemActionResult>,
   getActionLog: () => ipcRenderer.invoke("actions:log:get") as Promise<ActionLogEntry[]>,
   createItemActionPlan: (input: ItemActionPlanInput) =>
     ipcRenderer.invoke("actions:plan:item", input) as Promise<ItemActionPlan>,

@@ -1,17 +1,22 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildDuplicateGroupBatchTagPlan,
+  buildVaultCleanupLocatorText,
   buildVaultCleanupText,
   buildVaultDuplicateSummary,
   buildVaultGroups,
+  countWishlistMatches,
   buildVaultSections,
   filterVaultItems,
+  type VaultScoreRangeFilter,
   getVaultItemKey,
   scoreVaultItemForDisplay,
+  selectDuplicateGroupItems,
   selectMarkedCleanupItems,
   selectVaultBatchItems,
   sortVaultItems
 } from "./renderer/components/VaultPanel";
-import type { AccountItemSummary, VaultTags } from "./renderer/api/client";
+import type { AccountItemSummary, DimWishlist, VaultTags } from "./renderer/api/client";
 import { readFileSync } from "node:fs";
 
 const items: AccountItemSummary[] = [
@@ -25,7 +30,11 @@ const items: AccountItemSummary[] = [
     group_key: "weapons",
     ammo_type: "primary",
     power: 1990,
-    locked: true
+    locked: true,
+    socket_plugs: [
+      { hash: 11, name: "Threat Detector" },
+      { hash: 22, name: "Voltshot" }
+    ]
   },
   {
     hash: 4,
@@ -75,12 +84,15 @@ const items: AccountItemSummary[] = [
 ];
 
 describe("vault panel helpers", () => {
-  it("shows advanced search syntax in the vault UI copy", () => {
+  it("uses dropdown filters instead of teaching English search syntax", () => {
     const source = readFileSync("packages/desktop/src/renderer/components/VaultPanel.tsx", "utf8");
 
-    expect(source).toContain("tag:junk");
-    expect(source).toContain("locked:false");
-    expect(source).toContain("score&gt;=75");
+    expect(source).toContain("清空筛选");
+    expect(source).toContain("scoreRangeFilter");
+    expect(source).toContain("自然搜索名称、类型、perk 或备注");
+    expect(source).not.toContain("tag:junk");
+    expect(source).not.toContain("locked:false");
+    expect(source).not.toContain("score&gt;=75");
     expect(source).toContain("aria-busy");
     expect(source).toContain("处理中");
   });
@@ -120,6 +132,40 @@ describe("vault panel helpers", () => {
       .toEqual(["Vehicle A"]);
   });
 
+  it("filters vault items by imported DIM wishlist hits", () => {
+    const wishlist: DimWishlist = {
+      title: "DIM Wishlist",
+      rules: [
+        {
+          item_hash: 1,
+          perk_hashes: [11, 22],
+          mode: "pve"
+        }
+      ]
+    };
+
+    expect(filterVaultItems(items, { group: "all", query: "", tag: "wishlist", wishlist }).map((item) => item.name))
+      .toEqual(["Riskrunner"]);
+    expect(filterVaultItems(items, { group: "all", query: "tag:wishlist", wishlist }).map((item) => item.name))
+      .toEqual(["Riskrunner"]);
+  });
+
+  it("counts imported DIM wishlist hits for vault summary", () => {
+    const wishlist: DimWishlist = {
+      title: "DIM Wishlist",
+      rules: [
+        {
+          item_hash: 1,
+          perk_hashes: [11, 22],
+          mode: "pve"
+        }
+      ]
+    };
+
+    expect(countWishlistMatches(items, wishlist)).toBe(1);
+    expect(countWishlistMatches(items, null)).toBe(0);
+  });
+
   it("searches vault item notes", () => {
     const tags: VaultTags = {
       items: {
@@ -142,6 +188,20 @@ describe("vault panel helpers", () => {
     expect(filterVaultItems(items, { group: "all", query: "", score: "keep", tags }).map((item) => item.name))
       .toEqual(["Riskrunner", "Beloved", "Thunderlord"]);
     expect(filterVaultItems(items, { group: "all", query: "", score: "junk", tags }).map((item) => item.name))
+      .toEqual(["Vehicle A"]);
+  });
+
+  it("filters vault items by score range dropdown", () => {
+    const tags: VaultTags = {
+      items: {
+        a: { tag: "keep" },
+        c: { tag: "junk" }
+      }
+    };
+
+    expect(filterVaultItems(items, { group: "all", query: "", scoreRange: "80-100" as VaultScoreRangeFilter, tags }).map((item) => item.name))
+      .toEqual(["Riskrunner", "Thunderlord"]);
+    expect(filterVaultItems(items, { group: "all", query: "", scoreRange: "0-39" as VaultScoreRangeFilter, tags }).map((item) => item.name))
       .toEqual(["Vehicle A"]);
   });
 
@@ -264,11 +324,46 @@ describe("vault panel helpers", () => {
       }
     });
 
-    expect(text).toContain("d2-service 仓库清理清单");
+    expect(text).toContain("d2-tools 仓库清理清单");
     expect(text).toContain("Vehicle A");
     expect(text).toContain("clean duplicate vehicle");
     expect(text).toContain("可清理");
     expect(text).toContain("本地标记为可清理");
+  });
+
+  it("builds in-game locator details for cleanup candidates with duplicate names", () => {
+    const duplicateItems: AccountItemSummary[] = [
+      {
+        ...items[1],
+        instance_id: "beloved-a",
+        power: 2000,
+        locked: false,
+        socket_plugs: [{ hash: 11, name: "速射瞄准" }, { hash: 12, name: "精准连击" }]
+      },
+      {
+        ...items[1],
+        instance_id: "beloved-b",
+        power: 1990,
+        locked: true,
+        socket_plugs: [{ hash: 13, name: "滑射" }, { hash: 14, name: "首发射击" }]
+      }
+    ];
+
+    const text = buildVaultCleanupLocatorText(duplicateItems, {
+      items: {
+        "beloved-a": { tag: "junk", note: "低分 PVE roll" },
+        "beloved-b": { tag: "keep", note: "PVP 留着" }
+      }
+    });
+
+    expect(text).toContain("游戏内定位提示");
+    expect(text).toContain("Beloved");
+    expect(text).toContain("能量武器 / Sniper Rifle / 特殊");
+    expect(text).toContain("光等 2000");
+    expect(text).toContain("未锁定");
+    expect(text).toContain("速射瞄准 / 精准连击");
+    expect(text).toContain("备注：低分 PVE roll");
+    expect(text).toContain("同名装备有 2 件");
   });
 
   it("builds duplicate summary for same-name roll comparison", () => {
@@ -287,5 +382,107 @@ describe("vault panel helpers", () => {
 
     expect(summary.total_duplicate_groups).toBe(1);
     expect(summary.groups[0].items.map((item) => item.roll_text)).toEqual(["爆破专家", "萤火虫"]);
+  });
+  it("builds duplicate-group quick-tag plans that keep the top roll and retag the rest", () => {
+    const duplicateItems: AccountItemSummary[] = [
+      { ...items[0], instance_id: "risk-1", socket_plugs: [{ hash: 1, name: "explosive" }] },
+      { ...items[0], instance_id: "risk-2", socket_plugs: [{ hash: 2, name: "firefly" }] },
+      { ...items[0], instance_id: "risk-3", socket_plugs: [{ hash: 3, name: "slideshot" }] }
+    ];
+
+    const summary = buildVaultDuplicateSummary(duplicateItems, { items: {} });
+    const group = summary.groups[0];
+
+    expect(buildDuplicateGroupBatchTagPlan(group, "keep-best-review-rest")).toEqual([
+      { item_key: group.items[0]?.item_key, tag: "keep" },
+      { item_key: group.items[1]?.item_key, tag: "review" },
+      { item_key: group.items[2]?.item_key, tag: "review" }
+    ]);
+    expect(buildDuplicateGroupBatchTagPlan(group, "keep-best-junk-rest")).toEqual([
+      { item_key: group.items[0]?.item_key, tag: "keep" },
+      { item_key: group.items[1]?.item_key, tag: "junk" },
+      { item_key: group.items[2]?.item_key, tag: "junk" }
+    ]);
+    expect(buildDuplicateGroupBatchTagPlan(group, "clear-group-tags")).toEqual([
+      { item_key: group.items[0]?.item_key, tag: "none" },
+      { item_key: group.items[1]?.item_key, tag: "none" },
+      { item_key: group.items[2]?.item_key, tag: "none" }
+    ]);
+  });
+
+  it("supports keeping a chosen duplicate instead of always keeping the top row", () => {
+    const duplicateItems: AccountItemSummary[] = [
+      { ...items[0], instance_id: "risk-1", socket_plugs: [{ hash: 1, name: "explosive" }] },
+      { ...items[0], instance_id: "risk-2", socket_plugs: [{ hash: 2, name: "firefly" }] },
+      { ...items[0], instance_id: "risk-3", socket_plugs: [{ hash: 3, name: "slideshot" }] }
+    ];
+
+    const summary = buildVaultDuplicateSummary(duplicateItems, { items: {} });
+    const group = summary.groups[0];
+    const keepItemKey = group.items[1]?.item_key ?? "";
+
+    expect(buildDuplicateGroupBatchTagPlan(group, "keep-best-junk-rest", keepItemKey)).toEqual([
+      { item_key: group.items[0]?.item_key, tag: "junk" },
+      { item_key: group.items[1]?.item_key, tag: "keep" },
+      { item_key: group.items[2]?.item_key, tag: "junk" }
+    ]);
+  });
+
+  it("selects duplicate candidates by rest items and junk recommendations", () => {
+    const duplicateItems: AccountItemSummary[] = [
+      { ...items[0], instance_id: "risk-1", socket_plugs: [{ hash: 1, name: "explosive" }] },
+      { ...items[0], instance_id: "risk-2", socket_plugs: [{ hash: 2, name: "firefly" }] },
+      { ...items[0], instance_id: "risk-3", socket_plugs: [{ hash: 3, name: "slideshot" }] }
+    ];
+
+    const summary = buildVaultDuplicateSummary(duplicateItems, {
+      items: {
+        "risk-1": { tag: "keep" },
+        "risk-2": { tag: "junk" },
+        "risk-3": { tag: "review" }
+      }
+    });
+    const group = summary.groups[0];
+
+    expect(selectDuplicateGroupItems(group, "rest")).toEqual([
+      group.items[1]?.item_key,
+      group.items[2]?.item_key
+    ]);
+    expect(selectDuplicateGroupItems(group, "junk")).toEqual([
+      "risk-2"
+    ]);
+  });
+
+  it("renders duplicate group quick actions and richer meta in the vault UI", () => {
+    const source = readFileSync("packages/desktop/src/renderer/components/VaultPanel.tsx", "utf8");
+
+    expect(source).toContain("onSaveTagBatch");
+    expect(source).toContain("selectDuplicateGroupItems");
+    expect(source).toContain("keep-best-review-rest");
+    expect(source).toContain("keep-best-junk-rest");
+    expect(source).toContain("clear-group-tags");
+    expect(source).toContain("duplicate-row-actions");
+    expect(source).toContain("duplicate-row-meta");
+    expect(source).toContain("保留这件，其余可清理");
+    expect(source).toContain("选择其余候选");
+    expect(source).toContain("已选候选");
+    expect(source).toContain("其余标记关注");
+    expect(source).toContain("其余标记可清理");
+    expect(source).toContain("清除本组标记");
+    expect(source).toContain("formatVaultItemMeta(item)");
+    expect(source).toContain("wishlist-hit-badge");
+    expect(source).toContain("DIM 愿望单");
+    expect(source).toContain("wishlistSummaryCount");
+  });
+
+  it("uses top-level vault content tabs so weapons and armor are split into easier views", () => {
+    const source = readFileSync("packages/desktop/src/renderer/components/VaultPanel.tsx", "utf8");
+
+    expect(source).toContain("defaultVaultGroupTab");
+    expect(source).toContain('const defaultVaultGroupTab: VaultGroupFilter = "weapons"');
+    expect(source).toContain("vault-content-tabs");
+    expect(source).toContain("vault-content-tab");
+    expect(source).toContain("aria-label=\"仓库内容标签\"");
+    expect(source).toContain("setGroup(defaultVaultGroupTab)");
   });
 });

@@ -1,5 +1,5 @@
-appId: local.d2-service.desktop
-productName: d2-service
+appId: local.d2-tools.desktop
+productName: d2-tools
 electronDist: node_modules/electron/dist
 directories:
   output: release
@@ -12,4 +12,4 @@ win:
     - target: 7z
       arch:
         - x64
-artifactName: "d2-service-win-x64-${version}.${ext}"
+artifactName: "d2-tools-win-x64-${version}.${ext}"

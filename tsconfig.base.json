@@ -5,8 +5,8 @@
     "moduleResolution": "Bundler",
     "baseUrl": ".",
     "paths": {
-      "@d2-service/core": ["packages/core/src/index.ts"],
-      "@d2-service/http": ["packages/http/src/server.ts"]
+      "@d2-tools/core": ["packages/core/src/index.ts"],
+      "@d2-tools/http": ["packages/http/src/server.ts"]
     },
     "strict": true,
     "esModuleInterop": true,

@@ -6,13 +6,13 @@ import { loadVaultTags, saveVaultNote, saveVaultTag, saveVaultTagsBatch } from "
 
 describe("vault tags", () => {
   it("loads empty tags when no local tag file exists", () => {
-    const dir = mkdtempSync(join(tmpdir(), "d2-service-vault-tags-"));
+    const dir = mkdtempSync(join(tmpdir(), "d2-tools-vault-tags-"));
 
     expect(loadVaultTags(dir)).toEqual({ items: {} });
   });
 
   it("persists and removes local tags by item instance id", () => {
-    const dir = mkdtempSync(join(tmpdir(), "d2-service-vault-tags-"));
+    const dir = mkdtempSync(join(tmpdir(), "d2-tools-vault-tags-"));
 
     const saved = saveVaultTag(dir, {
       item_key: "instance-1",
@@ -32,7 +32,7 @@ describe("vault tags", () => {
   });
 
   it("persists local notes without losing tags", () => {
-    const dir = mkdtempSync(join(tmpdir(), "d2-service-vault-tags-"));
+    const dir = mkdtempSync(join(tmpdir(), "d2-tools-vault-tags-"));
 
     saveVaultTag(dir, {
       item_key: "instance-1",
@@ -60,7 +60,7 @@ describe("vault tags", () => {
   });
 
   it("removes note-only entries when the note is cleared", () => {
-    const dir = mkdtempSync(join(tmpdir(), "d2-service-vault-tags-"));
+    const dir = mkdtempSync(join(tmpdir(), "d2-tools-vault-tags-"));
 
     saveVaultNote(dir, {
       item_key: "instance-1",
@@ -76,7 +76,7 @@ describe("vault tags", () => {
   });
 
   it("saves multiple tag changes without dropping existing notes", () => {
-    const dir = mkdtempSync(join(tmpdir(), "d2-service-vault-tags-"));
+    const dir = mkdtempSync(join(tmpdir(), "d2-tools-vault-tags-"));
 
     saveVaultNote(dir, {
       item_key: "instance-1",

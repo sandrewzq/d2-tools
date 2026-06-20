@@ -6,7 +6,7 @@ import { addFavoriteItem, addRecentItem, loadLibraryHistory, removeFavoriteItem 
 
 describe("library history", () => {
   it("keeps recent items newest first without duplicates", () => {
-    const dir = mkdtempSync(join(tmpdir(), "d2-service-history-"));
+    const dir = mkdtempSync(join(tmpdir(), "d2-tools-history-"));
 
     addRecentItem(dir, { hash: 1, name: "Riskrunner" }, new Date("2026-06-19T00:00:00.000Z"));
     addRecentItem(dir, { hash: 2, name: "Gjallarhorn" }, new Date("2026-06-19T00:01:00.000Z"));
@@ -16,7 +16,7 @@ describe("library history", () => {
   });
 
   it("adds and removes favorites", () => {
-    const dir = mkdtempSync(join(tmpdir(), "d2-service-history-"));
+    const dir = mkdtempSync(join(tmpdir(), "d2-tools-history-"));
 
     addFavoriteItem(dir, { hash: 1, name: "Riskrunner" });
     removeFavoriteItem(dir, 1);

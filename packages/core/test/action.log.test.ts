@@ -6,7 +6,7 @@ import { appendActionLog, buildActionLogDiagnosticText, filterActionLog, loadAct
 
 describe("action log", () => {
   it("appends write-operation entries newest first", () => {
-    const dir = mkdtempSync(join(tmpdir(), "d2-service-action-log-"));
+    const dir = mkdtempSync(join(tmpdir(), "d2-tools-action-log-"));
 
     appendActionLog(dir, {
       action: "set-lock",
@@ -41,7 +41,7 @@ describe("action log", () => {
   });
 
   it("can limit loaded entries", () => {
-    const dir = mkdtempSync(join(tmpdir(), "d2-service-action-log-"));
+    const dir = mkdtempSync(join(tmpdir(), "d2-tools-action-log-"));
     appendActionLog(dir, { action: "set-lock", ok: true });
     appendActionLog(dir, { action: "equip", ok: true });
 

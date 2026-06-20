@@ -41,5 +41,5 @@ This phase supports `DestinyInventoryItemDefinition` only. It searches cached lo
 
 - [ ] Run `npx pnpm@9.15.0 test`.
 - [ ] Run `npx pnpm@9.15.0 typecheck`.
-- [ ] Run `npx pnpm@9.15.0 --filter @d2-service/desktop build`.
+- [ ] Run `npx pnpm@9.15.0 --filter @d2-tools/desktop build`.
 - [ ] Run `npx pnpm@9.15.0 package:win`.

@@ -1,15 +1,15 @@
 {
-  "name": "d2-service",
-  "version": "0.0.3",
+  "name": "d2-tools",
+  "version": "0.0.4",
   "private": true,
   "packageManager": "pnpm@9.15.0",
   "scripts": {
-    "dev": "pnpm --filter @d2-service/desktop dev",
-    "dev:electron": "pnpm --filter @d2-service/desktop dev:electron",
+    "dev": "pnpm --filter @d2-tools/desktop dev",
+    "dev:electron": "pnpm --filter @d2-tools/desktop dev:electron",
     "build": "pnpm -r build",
     "test": "pnpm build && vitest --run",
     "typecheck": "pnpm -r typecheck",
-    "package:win": "pnpm --filter @d2-service/desktop package:win"
+    "package:win": "pnpm --filter @d2-tools/desktop package:win"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",

@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build the first runnable Windows GUI shell for `d2-service`: double-click app, first-run configuration wizard, local config persistence, health checks, OAuth callback listener stub, and green-package output.
+**Goal:** Build the first runnable Windows GUI shell for `d2-tools`: double-click app, first-run configuration wizard, local config persistence, health checks, OAuth callback listener stub, and green-package output.
 
 **Architecture:** Use Electron as the primary Windows desktop shell. Keep Destiny 2 business logic out of the renderer by putting config, state checks, health, logging, and OAuth callback lifecycle in typed main-process/core modules exposed through a small IPC bridge. CLI, HTTP, and MCP remain advanced entry points, but phase 0 only creates the app foundation and verifies the ordinary user path.
 
@@ -16,7 +16,7 @@ Phase 0 implements the local GUI bootstrap only:
 
 - Electron main process and React renderer.
 - Green package build target.
-- `%APPDATA%\d2-service` data directory resolution.
+- `%APPDATA%\d2-tools` data directory resolution.
 - `config.json` read/write with defaults.
 - `.env > config.json > defaults` precedence.
 - First-run wizard state machine.
@@ -32,7 +32,7 @@ Phase 0 does not implement real Bungie OAuth token exchange, Manifest download, 
 Create this structure:
 
 ```text
-d2-service/
+d2-tools/
   package.json
   pnpm-workspace.yaml
   tsconfig.base.json
@@ -102,16 +102,16 @@ Create `package.json`:
 
 ```json
 {
-  "name": "d2-service",
+  "name": "d2-tools",
   "version": "0.1.0",
   "private": true,
   "packageManager": "pnpm@9.15.0",
   "scripts": {
-    "dev": "pnpm --filter @d2-service/desktop dev",
+    "dev": "pnpm --filter @d2-tools/desktop dev",
     "build": "pnpm -r build",
     "test": "pnpm -r test",
     "typecheck": "pnpm -r typecheck",
-    "package:win": "pnpm --filter @d2-service/desktop package:win"
+    "package:win": "pnpm --filter @d2-tools/desktop package:win"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
@@ -138,8 +138,8 @@ Create `tsconfig.base.json`:
     "moduleResolution": "Bundler",
     "baseUrl": ".",
     "paths": {
-      "@d2-service/core": ["packages/core/src/index.ts"],
-      "@d2-service/http": ["packages/http/src/server.ts"]
+      "@d2-tools/core": ["packages/core/src/index.ts"],
+      "@d2-tools/http": ["packages/http/src/server.ts"]
     },
     "strict": true,
     "esModuleInterop": true,
@@ -181,8 +181,8 @@ AI_MODEL=
 Create `electron-builder.yml`:
 
 ```yaml
-appId: local.d2-service.desktop
-productName: d2-service
+appId: local.d2-tools.desktop
+productName: d2-tools
 directories:
   output: release
 files:
@@ -193,7 +193,7 @@ win:
     - target: zip
       arch:
         - x64
-artifactName: "d2-service-win-x64-${version}.${ext}"
+artifactName: "d2-tools-win-x64-${version}.${ext}"
 ```
 
 - [ ] **Step 2: Install dependencies**
@@ -238,7 +238,7 @@ import { loadConfig, saveConfig } from "../src/config/store";
 
 describe("config store", () => {
   it("creates defaults in the selected data directory", () => {
-    const dir = mkdtempSync(join(tmpdir(), "d2-service-config-"));
+    const dir = mkdtempSync(join(tmpdir(), "d2-tools-config-"));
     const config = loadConfig({ dataDir: dir, env: {} });
 
     expect(config.data.data_dir).toBe(dir);
@@ -247,7 +247,7 @@ describe("config store", () => {
   });
 
   it("persists GUI-provided Bungie credentials without logging them", () => {
-    const dir = mkdtempSync(join(tmpdir(), "d2-service-config-"));
+    const dir = mkdtempSync(join(tmpdir(), "d2-tools-config-"));
 
     saveConfig(
       {
@@ -278,7 +278,7 @@ describe("config store", () => {
   });
 
   it("lets env override config values", () => {
-    const dir = mkdtempSync(join(tmpdir(), "d2-service-config-"));
+    const dir = mkdtempSync(join(tmpdir(), "d2-tools-config-"));
     saveConfig(
       {
         bungie: {
@@ -319,10 +319,10 @@ describe("config store", () => {
 Run:
 
 ```powershell
-pnpm --filter @d2-service/core test -- --run packages/core/test/config.store.test.ts
+pnpm --filter @d2-tools/core test -- --run packages/core/test/config.store.test.ts
 ```
 
-Expected: FAIL because `@d2-service/core` and `loadConfig` do not exist yet.
+Expected: FAIL because `@d2-tools/core` and `loadConfig` do not exist yet.
 
 - [ ] **Step 3: Implement the core config package**
 
@@ -330,7 +330,7 @@ Create `packages/core/package.json`:
 
 ```json
 {
-  "name": "@d2-service/core",
+  "name": "@d2-tools/core",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -411,8 +411,8 @@ import type { D2Config } from "./schema";
 
 export function defaultDataDir(): string {
   return process.env.APPDATA
-    ? join(process.env.APPDATA, "d2-service")
-    : join(homedir(), ".d2-service");
+    ? join(process.env.APPDATA, "d2-tools")
+    : join(homedir(), ".d2-tools");
 }
 
 export function defaultConfig(dataDir = defaultDataDir()): D2Config {
@@ -514,7 +514,7 @@ export * from "./config/store";
 Run:
 
 ```powershell
-pnpm --filter @d2-service/core test -- --run packages/core/test/config.store.test.ts
+pnpm --filter @d2-tools/core test -- --run packages/core/test/config.store.test.ts
 ```
 
 Expected: PASS.
@@ -553,7 +553,7 @@ function config(overrides: Partial<D2Config["bungie"]> = {}): D2Config {
       ...overrides
     },
     data: {
-      data_dir: "C:/Users/test/AppData/Roaming/d2-service",
+      data_dir: "C:/Users/test/AppData/Roaming/d2-tools",
       manifest_language: "zh-chs"
     },
     ai: {
@@ -596,7 +596,7 @@ describe("startup state", () => {
 Run:
 
 ```powershell
-pnpm --filter @d2-service/core test -- --run packages/core/test/startup.state.test.ts
+pnpm --filter @d2-tools/core test -- --run packages/core/test/startup.state.test.ts
 ```
 
 Expected: FAIL because `computeStartupState` does not exist.
@@ -666,7 +666,7 @@ Create `packages/core/src/health/health.ts`:
 ```ts
 export type HealthStatus = {
   ok: true;
-  service: "d2-service";
+  service: "d2-tools";
   version: string;
   timestamp: string;
 };
@@ -674,7 +674,7 @@ export type HealthStatus = {
 export function getHealth(version = "0.1.0"): HealthStatus {
   return {
     ok: true,
-    service: "d2-service",
+    service: "d2-tools",
     version,
     timestamp: new Date().toISOString()
   };
@@ -697,7 +697,7 @@ export * from "./startup/startupState";
 Run:
 
 ```powershell
-pnpm --filter @d2-service/core test -- --run packages/core/test/startup.state.test.ts
+pnpm --filter @d2-tools/core test -- --run packages/core/test/startup.state.test.ts
 ```
 
 Expected: PASS.
@@ -756,7 +756,7 @@ describe("OAuth callback server", () => {
 Run:
 
 ```powershell
-pnpm --filter @d2-service/core test -- --run packages/core/test/oauth.callbackServer.test.ts
+pnpm --filter @d2-tools/core test -- --run packages/core/test/oauth.callbackServer.test.ts
 ```
 
 Expected: FAIL because `startOAuthCallbackServer` does not exist.
@@ -803,13 +803,13 @@ export async function startOAuthCallbackServer(options: {
 
     if (!code) {
       response.writeHead(400, { "content-type": "text/html; charset=utf-8" });
-      response.end("<h1>Missing OAuth code</h1><p>Return to d2-service and try login again.</p>");
+      response.end("<h1>Missing OAuth code</h1><p>Return to d2-tools and try login again.</p>");
       return;
     }
 
     resolveCallback({ code, state });
     response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
-    response.end("<h1>Bungie login received</h1><p>You can return to d2-service.</p>");
+    response.end("<h1>Bungie login received</h1><p>You can return to d2-tools.</p>");
   });
 
   await new Promise<void>((resolve) => server.listen(options.port, options.host, resolve));
@@ -842,7 +842,7 @@ export * from "./startup/startupState";
 Run:
 
 ```powershell
-pnpm --filter @d2-service/core test -- --run packages/core/test/oauth.callbackServer.test.ts
+pnpm --filter @d2-tools/core test -- --run packages/core/test/oauth.callbackServer.test.ts
 ```
 
 Expected: PASS.
@@ -878,7 +878,7 @@ describe("health server", () => {
 
     expect(response.status).toBe(200);
     expect(body.ok).toBe(true);
-    expect(body.service).toBe("d2-service");
+    expect(body.service).toBe("d2-tools");
 
     await server.close();
   });
@@ -890,10 +890,10 @@ describe("health server", () => {
 Run:
 
 ```powershell
-pnpm --filter @d2-service/http test -- --run packages/http/test/health.server.test.ts
+pnpm --filter @d2-tools/http test -- --run packages/http/test/health.server.test.ts
 ```
 
-Expected: FAIL because `@d2-service/http` does not exist.
+Expected: FAIL because `@d2-tools/http` does not exist.
 
 - [ ] **Step 3: Implement HTTP package**
 
@@ -901,7 +901,7 @@ Create `packages/http/package.json`:
 
 ```json
 {
-  "name": "@d2-service/http",
+  "name": "@d2-tools/http",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -911,7 +911,7 @@ Create `packages/http/package.json`:
     "test": "vitest"
   },
   "dependencies": {
-    "@d2-service/core": "workspace:*"
+    "@d2-tools/core": "workspace:*"
   }
 }
 ```
@@ -937,7 +937,7 @@ Create `packages/http/src/server.ts`:
 ```ts
 import { createServer, type Server } from "node:http";
 import { AddressInfo } from "node:net";
-import { getHealth } from "@d2-service/core";
+import { getHealth } from "@d2-tools/core";
 
 export type HealthServer = {
   origin: string;
@@ -978,7 +978,7 @@ export async function startHealthServer(options: {
 Run:
 
 ```powershell
-pnpm --filter @d2-service/http test -- --run packages/http/test/health.server.test.ts
+pnpm --filter @d2-tools/http test -- --run packages/http/test/health.server.test.ts
 ```
 
 Expected: PASS.
@@ -1007,7 +1007,7 @@ Create `packages/desktop/package.json`:
 
 ```json
 {
-  "name": "@d2-service/desktop",
+  "name": "@d2-tools/desktop",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -1020,8 +1020,8 @@ Create `packages/desktop/package.json`:
     "package:win": "pnpm build && electron-builder --config ../../electron-builder.yml --win zip"
   },
   "dependencies": {
-    "@d2-service/core": "workspace:*",
-    "@d2-service/http": "workspace:*",
+    "@d2-tools/core": "workspace:*",
+    "@d2-tools/http": "workspace:*",
     "@vitejs/plugin-react": "^4.3.4",
     "electron": "^33.2.1",
     "electron-builder": "^25.1.8",
@@ -1084,7 +1084,7 @@ Create `packages/desktop/index.html`:
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>d2-service</title>
+    <title>d2-tools</title>
   </head>
   <body>
     <div id="root"></div>
@@ -1099,7 +1099,7 @@ Create `packages/desktop/src/main/ipc.ts`:
 
 ```ts
 import { ipcMain } from "electron";
-import { computeStartupState, getHealth, loadConfig, saveConfig } from "@d2-service/core";
+import { computeStartupState, getHealth, loadConfig, saveConfig } from "@d2-tools/core";
 
 export function registerIpcHandlers(): void {
   ipcMain.handle("health:get", () => getHealth());
@@ -1152,7 +1152,7 @@ async function createWindow(): Promise<void> {
     height: 780,
     minWidth: 980,
     minHeight: 680,
-    title: "d2-service",
+    title: "d2-tools",
     webPreferences: {
       preload: join(currentDir, "../preload/preload.js"),
       contextIsolation: true,
@@ -1182,7 +1182,7 @@ app.on("window-all-closed", () => {
 Run:
 
 ```powershell
-pnpm --filter @d2-service/desktop typecheck
+pnpm --filter @d2-tools/desktop typecheck
 ```
 
 Expected: PASS.
@@ -1278,7 +1278,7 @@ export function WizardPage({ onSaved }: { onSaved: () => void }) {
 
   return (
     <main className="page">
-      <h1>欢迎使用 d2-service</h1>
+      <h1>欢迎使用 d2-tools</h1>
       <p>这是本地 Destiny 2 工具，配置和 token 都保存在你的电脑上。</p>
       <label>
         Bungie API Key
@@ -1311,7 +1311,7 @@ import { StatusCard } from "../components/StatusCard";
 export function HomePage({ state }: { state: any }) {
   return (
     <main className="page">
-      <h1>d2-service</h1>
+      <h1>d2-tools</h1>
       <p>今日面板会在后续阶段接入遗失区域、商人、角色和 AI 摘要。</p>
       <div className="status-grid">
         <StatusCard title="Bungie 配置" {...state.cards.bungieConfig} action="去配置" />
@@ -1345,7 +1345,7 @@ export function App() {
     void refresh();
   }, []);
 
-  if (!state) return <main className="page">正在启动 d2-service...</main>;
+  if (!state) return <main className="page">正在启动 d2-tools...</main>;
 
   if (state.nextStep === "bungie-config") {
     return <WizardPage onSaved={() => void refresh()} />;
@@ -1448,7 +1448,7 @@ button {
 Run:
 
 ```powershell
-pnpm --filter @d2-service/desktop typecheck
+pnpm --filter @d2-tools/desktop typecheck
 ```
 
 Expected: PASS.
@@ -1498,7 +1498,7 @@ Modify `packages/desktop/package.json` scripts:
 Run:
 
 ```powershell
-pnpm --filter @d2-service/desktop build
+pnpm --filter @d2-tools/desktop build
 ```
 
 Expected: PASS and `packages/desktop/dist` exists.
@@ -1508,13 +1508,13 @@ Expected: PASS and `packages/desktop/dist` exists.
 In terminal 1:
 
 ```powershell
-pnpm --filter @d2-service/desktop dev
+pnpm --filter @d2-tools/desktop dev
 ```
 
 In terminal 2:
 
 ```powershell
-pnpm --filter @d2-service/desktop dev:electron
+pnpm --filter @d2-tools/desktop dev:electron
 ```
 
 Expected: Electron opens a window. With no config, it shows the welcome/config wizard.
@@ -1527,7 +1527,7 @@ Run:
 pnpm package:win
 ```
 
-Expected: `release/d2-service-win-x64-0.1.0.zip` exists.
+Expected: `release/d2-tools-win-x64-0.1.0.zip` exists.
 
 - [ ] **Step 5: Commit**
 
@@ -1577,7 +1577,7 @@ describe("logger redaction", () => {
 Run:
 
 ```powershell
-pnpm --filter @d2-service/core test -- --run packages/core/test/logger.test.ts
+pnpm --filter @d2-tools/core test -- --run packages/core/test/logger.test.ts
 ```
 
 Expected: FAIL because `redactSecrets` does not exist.
@@ -1633,7 +1633,7 @@ export * from "./startup/startupState";
 Run:
 
 ```powershell
-pnpm --filter @d2-service/core test -- --run packages/core/test/logger.test.ts
+pnpm --filter @d2-tools/core test -- --run packages/core/test/logger.test.ts
 ```
 
 Expected: PASS.
@@ -1655,7 +1655,7 @@ git commit -m "feat: redact secrets in diagnostics"
 Create `README.md`:
 
 ````markdown
-# d2-service
+# d2-tools
 
 Windows local Destiny 2 assistant.
 
@@ -1665,7 +1665,7 @@ Windows local Destiny 2 assistant.
 pnpm install
 pnpm test
 pnpm typecheck
-pnpm --filter @d2-service/desktop build
+pnpm --filter @d2-tools/desktop build
 ```
 
 ## Run the GUI in development
@@ -1673,19 +1673,19 @@ pnpm --filter @d2-service/desktop build
 Terminal 1:
 
 ```powershell
-pnpm --filter @d2-service/desktop dev
+pnpm --filter @d2-tools/desktop dev
 ```
 
 Terminal 2:
 
 ```powershell
-pnpm --filter @d2-service/desktop build
-pnpm --filter @d2-service/desktop dev:electron
+pnpm --filter @d2-tools/desktop build
+pnpm --filter @d2-tools/desktop dev:electron
 ```
 
 ## User data
 
-Runtime data is stored under `%APPDATA%\d2-service`.
+Runtime data is stored under `%APPDATA%\d2-tools`.
 
 Do not commit `.env`, `config.json`, token files, SQLite databases, logs, or packaged release artifacts.
 ````
@@ -1697,7 +1697,7 @@ Run:
 ```powershell
 pnpm test
 pnpm typecheck
-pnpm --filter @d2-service/desktop build
+pnpm --filter @d2-tools/desktop build
 pnpm package:win
 ```
 

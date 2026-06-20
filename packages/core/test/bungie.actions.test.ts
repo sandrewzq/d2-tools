@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   equipItem,
+  equipLoadout,
+  pullFromPostmaster,
   setItemLockState,
+  snapshotLoadout,
   transferItem
 } from "../src/bungie/actions.js";
 import type { D2Config } from "../src/config/schema.js";
@@ -122,6 +125,85 @@ describe("Bungie item actions", () => {
       itemId: "item-1",
       characterId: "character-1",
       membershipType: 3
+    });
+  });
+
+  it("pulls an item from the postmaster to a character", async () => {
+    let request: Request | undefined;
+    const fetchImpl: typeof fetch = async (input, init) => {
+      request = new Request(input, init);
+      return jsonResponse({ ErrorCode: 1, Message: "Ok", Response: 0 });
+    };
+
+    await pullFromPostmaster({
+      config,
+      token,
+      membershipType: 3,
+      characterId: "character-1",
+      itemId: "item-1",
+      itemReferenceHash: 456,
+      stackSize: 2,
+      baseUrl: "https://example.test/Platform",
+      fetchImpl
+    });
+
+    expect(request?.url).toBe("https://example.test/Platform/Destiny2/Actions/Items/PullFromPostmaster/");
+    expect(await request?.json()).toEqual({
+      itemReferenceHash: 456,
+      stackSize: 2,
+      itemId: "item-1",
+      characterId: "character-1",
+      membershipType: 3
+    });
+  });
+
+  it("equips a Bungie in-game loadout slot onto a character", async () => {
+    let request: Request | undefined;
+    const fetchImpl: typeof fetch = async (input, init) => {
+      request = new Request(input, init);
+      return jsonResponse({ ErrorCode: 1, Message: "Ok", Response: 0 });
+    };
+
+    await equipLoadout({
+      config,
+      token,
+      membershipType: 3,
+      characterId: "character-1",
+      loadoutIndex: 5,
+      baseUrl: "https://example.test/Platform",
+      fetchImpl
+    });
+
+    expect(request?.url).toBe("https://example.test/Platform/Destiny2/Actions/Loadouts/EquipLoadout/");
+    expect(await request?.json()).toEqual({
+      characterId: "character-1",
+      membershipType: 3,
+      loadoutIndex: 5
+    });
+  });
+
+  it("snapshots currently equipped items into a Bungie in-game loadout slot", async () => {
+    let request: Request | undefined;
+    const fetchImpl: typeof fetch = async (input, init) => {
+      request = new Request(input, init);
+      return jsonResponse({ ErrorCode: 1, Message: "Ok", Response: 0 });
+    };
+
+    await snapshotLoadout({
+      config,
+      token,
+      membershipType: 3,
+      characterId: "character-1",
+      loadoutIndex: 2,
+      baseUrl: "https://example.test/Platform",
+      fetchImpl
+    });
+
+    expect(request?.url).toBe("https://example.test/Platform/Destiny2/Actions/Loadouts/SnapshotLoadout/");
+    expect(await request?.json()).toEqual({
+      characterId: "character-1",
+      membershipType: 3,
+      loadoutIndex: 2
     });
   });
 });

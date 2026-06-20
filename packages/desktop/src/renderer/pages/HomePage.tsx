@@ -1,6 +1,10 @@
-import { useEffect, useState } from "react";
-import { scoreVaultItem } from "@d2-service/core/analysis/scoring";
-import { evaluateWishlistRoll } from "@d2-service/core/analysis/wishlist";
+import { useEffect, useRef, useState } from "react";
+import { scoreVaultItem } from "@d2-tools/core/analysis/scoring";
+import { evaluateWishlistRoll } from "@d2-tools/core/analysis/wishlist";
+import { parseDimWishlist } from "@d2-tools/core/analysis/wishlistImport";
+import { createTransferQueue } from "@d2-tools/core/actions/transferQueue";
+import { createFarmingModePlan } from "@d2-tools/core/actions/farmingMode";
+import { analyzeLoadoutTemplate, suggestArmorStatSets } from "@d2-tools/core/loadouts/analysis";
 import {
   api,
   type AccountItemSummary,
@@ -10,9 +14,11 @@ import {
   type ActivityHistorySummary,
   type D2Config,
   type DailySummary,
+  type DimWishlist,
   type ItemActionResult,
   type ItemAiAdviceResult,
   type ItemDefinitionDetail,
+  type ItemSourceSummary,
   type ItemSearchResult,
   type LibraryHistory,
   type LoadoutTemplate,
@@ -23,14 +29,40 @@ import {
 } from "../api/client";
 import { AiSettingsPanel } from "../components/AiSettingsPanel";
 import { AiAnalysisPanel } from "../components/AiAnalysisPanel";
+import { isAiSettingsConfigured } from "../components/aiSettings";
 import { buildDiagnosticRows, DiagnosticsPanel } from "../components/DiagnosticsPanel";
 import { ShellLayout, type ShellPageKey } from "../components/ShellLayout";
 import { StatusOverview } from "../components/StatusOverview";
-import { VaultPanel } from "../components/VaultPanel";
+import {
+  buildDuplicateGroupBatchTagPlan,
+  buildVaultCleanupLocatorText,
+  buildVaultDuplicateSummary,
+  VaultPanel
+} from "../components/VaultPanel";
 import { buildItemChatGuideText, buildItemShareText } from "../utils/itemShare";
-import { buildDailyShareText } from "../utils/dailyShare";
+import {
+  buildDailyShareText,
+  buildWeeklyDigestSections,
+  buildWeeklyFocusText,
+  formatDailySourceStatus
+} from "../utils/dailyShare";
 import { groupAccountItemsBySlot, type AccountSlotCategory } from "../utils/accountSlots";
-import { createHighestPowerEquipPlan } from "../utils/highestPower";
+import {
+  createHighestPowerEquipPlan,
+  createHighestPowerExecutionPlan
+} from "../utils/highestPower";
+import { buildSameNameSourceStats } from "../utils/sameName";
+import {
+  buildLibraryEquipmentFilterOptions,
+  buildLibraryPerkGroupOptions,
+  defaultLibraryEquipmentFilter,
+  defaultLibraryPerkFilter,
+  filterLibraryEquipmentItems,
+  filterLibraryPerks,
+  type LibraryEquipmentFilter,
+  type LibraryPerkFilter,
+  type LibraryViewMode
+} from "../utils/libraryFilters";
 
 export function HomePage(props: {
   state: StartupState;
@@ -50,19 +82,32 @@ export function HomePage(props: {
   const [vaultTags, setVaultTags] = useState<VaultTags>({ items: {} });
   const [accountError, setAccountError] = useState("");
   const [isLoadingAccount, setIsLoadingAccount] = useState(false);
+  const [selectedCharacterId, setSelectedCharacterId] = useState("");
+  const [hasAutoLoadedAccount, setHasAutoLoadedAccount] = useState(false);
   const [selectedItem, setSelectedItem] = useState<SelectedItemDetail | null>(null);
+  const [itemDetailLoadingKey, setItemDetailLoadingKey] = useState("");
   const [itemDetailError, setItemDetailError] = useState("");
+  const itemDetailCacheRef = useRef(new Map<number, ItemDefinitionDetail>());
+  const itemDetailRequestKeyRef = useRef("");
   const [itemAiResult, setItemAiResult] = useState<ItemAiAdviceResult | null>(null);
   const [itemAiError, setItemAiError] = useState("");
   const [itemNoteDraft, setItemNoteDraft] = useState("");
   const [itemNoteMessage, setItemNoteMessage] = useState("");
   const [itemShareMessage, setItemShareMessage] = useState("");
   const [isGeneratingItemAi, setIsGeneratingItemAi] = useState(false);
-  const [query, setQuery] = useState("");
-  const [searchMode, setSearchMode] = useState<"items" | "perks">("items");
+  const [aiSettings, setAiSettings] = useState<D2Config["ai"]>({
+    provider: "",
+    api_key: "",
+    model: "",
+    base_url: ""
+  });
+  const [libraryViewMode, setLibraryViewMode] = useState<LibraryViewMode>("equipment");
   const [items, setItems] = useState<ItemSearchResult[]>([]);
   const [perks, setPerks] = useState<PerkSearchResult[]>([]);
-  const [searchTouched, setSearchTouched] = useState(false);
+  const [equipmentFilters, setEquipmentFilters] = useState<LibraryEquipmentFilter>(defaultLibraryEquipmentFilter);
+  const [perkFilters, setPerkFilters] = useState<LibraryPerkFilter>(defaultLibraryPerkFilter);
+  const [equipmentSearchTouched, setEquipmentSearchTouched] = useState(false);
+  const [perkSearchTouched, setPerkSearchTouched] = useState(false);
   const [libraryHistory, setLibraryHistory] = useState<LibraryHistory>({ recent: [], favorites: [] });
   const [aliasDraft, setAliasDraft] = useState("");
   const [aliasTargetDraft, setAliasTargetDraft] = useState("");
@@ -89,8 +134,13 @@ export function HomePage(props: {
   const [dailySummary, setDailySummary] = useState<DailySummary | null>(null);
   const [dailyMessage, setDailyMessage] = useState("");
   const [dailyError, setDailyError] = useState("");
+  const [isLoadingDaily, setIsLoadingDaily] = useState(false);
   const [actionLogResultFilter, setActionLogResultFilter] = useState<"all" | "success" | "failed">("all");
   const [actionLogTypeFilter, setActionLogTypeFilter] = useState<ActionLogEntry["action"] | "all">("all");
+  const [wishlistImportDraft, setWishlistImportDraft] = useState("");
+  const [wishlistImportMessage, setWishlistImportMessage] = useState("");
+  const [importedWishlist, setImportedWishlist] = useState<DimWishlist | null>(null);
+  const [dimToolsMessage, setDimToolsMessage] = useState("");
 
   async function refreshDiagnostics() {
     setIsRefreshingDiagnostics(true);
@@ -104,6 +154,7 @@ export function HomePage(props: {
       ]);
       setDiagnosticDataDir(config.data.data_dir);
       setDiagnosticManifestVersion(manifest.version);
+      setAiSettings(config.ai);
       setWriteActionsEnabled(config.features.write_actions_enabled);
       setActionLog(log);
     } catch (error) {
@@ -118,7 +169,23 @@ export function HomePage(props: {
     void loadDailySummary();
     void loadLibraryHistory();
     void loadLoadoutTemplates();
+    void loadPersistedWishlist();
   }, []);
+
+  useEffect(() => {
+    if (hasAutoLoadedAccount || props.state.nextStep !== "home") {
+      return;
+    }
+    setHasAutoLoadedAccount(true);
+    void loadAccountSummary();
+  }, [hasAutoLoadedAccount, props.state.nextStep]);
+
+  const isAiConfigured = isAiSettingsConfigured(aiSettings);
+
+  function handleAiSettingsSaved() {
+    props.onConfigChanged();
+    void refreshDiagnostics();
+  }
 
   async function loadLibraryHistory() {
     try {
@@ -136,12 +203,23 @@ export function HomePage(props: {
     }
   }
 
+  async function loadPersistedWishlist() {
+    try {
+      setImportedWishlist(await api.getDimWishlist());
+    } catch {
+      setImportedWishlist(null);
+    }
+  }
+
   async function loadDailySummary() {
+    setIsLoadingDaily(true);
     setDailyError("");
     try {
       setDailySummary(await api.getDailySummary());
     } catch (error) {
       setDailyError(error instanceof Error ? error.message : "今日面板读取失败");
+    } finally {
+      setIsLoadingDaily(false);
     }
   }
 
@@ -155,12 +233,22 @@ export function HomePage(props: {
     }
   }
 
+  async function copyWeeklyFocus() {
+    if (!dailySummary) return;
+    try {
+      await navigator.clipboard.writeText(buildWeeklyFocusText(dailySummary));
+      setDailyMessage("已复制本周重点");
+    } catch {
+      setDailyMessage("复制失败，请检查系统剪贴板权限");
+    }
+  }
+
   async function copyActionDiagnostic(entry: ActionLogEntry) {
     try {
       await navigator.clipboard.writeText(buildActionDiagnosticText(entry));
       setSettingsMessage("已复制操作诊断");
     } catch {
-      setSettingsError("复制失败，请检查系统剪贴板权限");
+      setSettingsError("澶嶅埗澶辫触锛岃妫€鏌ョ郴缁熷壀璐存澘鏉冮檺");
     }
   }
 
@@ -206,9 +294,18 @@ export function HomePage(props: {
       const [summary, tags] = await Promise.all([api.getAccountSummary(), api.getVaultTags()]);
       setAccountSummary(summary);
       setVaultTags(tags);
+      setSelectedCharacterId((current) => {
+        if (current && summary.characters.some((character) => character.character_id === current)) {
+          return current;
+        }
+        return summary.characters[0]?.character_id ?? "";
+      });
       void loadActivitySummary(summary);
     } catch (error) {
-      setAccountError(error instanceof Error ? error.message : "账号数据读取失败");
+      const message = error instanceof Error ? error.message : "账号数据读取失败";
+      setAccountError(props.state.nextStep === "home"
+        ? `登录可能已失效，请重新登录 Bungie。${message}`
+        : message);
       setAccountSummary(null);
     } finally {
       setIsLoadingAccount(false);
@@ -228,26 +325,43 @@ export function HomePage(props: {
       ?? accountSummary?.characters[0]?.character_id
       ?? "";
     setSelectedActionCharacterId(defaultCharacterId);
+    itemDetailRequestKeyRef.current = itemKey;
+    setItemDetailLoadingKey(itemKey);
+    setSelectedItem(createSelectedItemPreview(item, source));
+
+    void api.addRecentItem({ hash: item.hash, name: item.name, icon: item.icon })
+      .then((history) => {
+        setLibraryHistory(history);
+      })
+      .catch(() => {
+        // Recent-item history is a convenience feature; item detail should still open if it cannot be saved.
+      });
+
+    const cachedDetail = itemDetailCacheRef.current.get(item.hash);
+    if (cachedDetail) {
+      setSelectedItem((current) => {
+        if (!current || current.item_key !== itemKey) {
+          return current;
+        }
+        return mergeSelectedItemDetail(current, cachedDetail);
+      });
+      setItemDetailLoadingKey((current) => current === itemKey ? "" : current);
+      return;
+    }
 
     try {
       const detail = await api.getItemDetail(item.hash);
-      try {
-        setLibraryHistory(await api.addRecentItem({ hash: detail.hash, name: detail.name, icon: detail.icon }));
-      } catch {
-        // Recent-item history is a convenience feature; item detail should still open if it cannot be saved.
+      itemDetailCacheRef.current.set(item.hash, detail);
+      if (itemDetailRequestKeyRef.current !== itemKey) {
+        return;
       }
-      setSelectedItem({
-        ...detail,
-        item_key: itemKey,
-        instance_id: "instance_id" in item ? item.instance_id : undefined,
-        power: "power" in item ? item.power : undefined,
-        locked: "locked" in item ? item.locked : undefined,
-        socket_plugs: "socket_plugs" in item ? item.socket_plugs : undefined,
-        group_key: "group_key" in item ? item.group_key : undefined,
-        bucket_name: "bucket_name" in item ? item.bucket_name : undefined,
-        source_character_id: source.source_character_id,
-        is_vault_item: source.is_vault_item
+      setSelectedItem((current) => {
+        if (!current || current.item_key !== itemKey) {
+          return current;
+        }
+        return mergeSelectedItemDetail(current, detail);
       });
+      setItemDetailLoadingKey((current) => current === itemKey ? "" : current);
     } catch (error) {
       setItemDetailError(error instanceof Error ? error.message : "物品详情读取失败");
     }
@@ -304,7 +418,7 @@ export function HomePage(props: {
       await navigator.clipboard.writeText(text);
       setItemShareMessage("已复制装备结论");
     } catch {
-      setItemShareMessage("复制失败，请检查系统剪贴板权限");
+      setItemShareMessage("澶嶅埗澶辫触锛岃妫€鏌ョ郴缁熷壀璐存澘鏉冮檺");
     }
   }
 
@@ -325,7 +439,7 @@ export function HomePage(props: {
       await navigator.clipboard.writeText(text);
       setItemShareMessage("已复制群聊说明");
     } catch {
-      setItemShareMessage("复制失败，请检查系统剪贴板权限");
+      setItemShareMessage("澶嶅埗澶辫触锛岃妫€鏌ョ郴缁熷壀璐存澘鏉冮檺");
     }
   }
 
@@ -348,17 +462,98 @@ export function HomePage(props: {
     }
   }
 
+  function closeSelectedItemDetail() {
+    itemDetailRequestKeyRef.current = "";
+    setItemDetailLoadingKey("");
+    setSelectedItem(null);
+  }
+
+  async function saveSelectedItemTag(tag: VaultTagValue) {
+    if (!selectedItem) return;
+
+    setItemNoteMessage("");
+    setItemShareMessage("");
+
+    try {
+      const tags = await api.saveVaultTag({
+        item_key: selectedItem.item_key,
+        tag
+      });
+      setVaultTags(tags);
+      setItemNoteMessage(tag === "none" ? "已清除本地标记" : "已更新本地标记");
+    } catch (error) {
+      setItemNoteMessage(error instanceof Error ? error.message : "本地标记保存失败");
+    }
+  }
+
+  async function copyWishlistInsight() {
+    if (!selectedItem) return;
+    const accountItem = selectedItemToAccountItem(selectedItem);
+    if (!accountItem) return;
+
+    const wishlist = evaluateWishlistRoll({
+      ...accountItem,
+      socket_plugs: accountItem.socket_plugs ?? []
+    }, importedWishlist ?? undefined);
+    if (!wishlist.matched) return;
+
+    const localTag = vaultTags.items[selectedItem.item_key]?.tag ?? "none";
+    const text = [
+      `${selectedItem.name} / DIM 愿望单命中`,
+      `标签：${wishlist.labels.join(" / ")}`,
+      `本地标记：${formatVaultTagLabel(localTag)}`,
+      "",
+      "命中原因",
+      ...wishlist.reasons.map((reason, index) => `${index + 1}. ${reason}`),
+      "",
+      `说明：${wishlist.disclaimer}`
+    ].join("\n");
+
+    try {
+      await navigator.clipboard.writeText(text);
+      setItemShareMessage("已复制命中结论");
+    } catch {
+      setItemShareMessage("复制失败，请检查系统剪贴板权限");
+    }
+  }
+
+  async function copySameNameLocator(items: SameNameItemSummary[]) {
+    if (!selectedItem || !items.length) return;
+
+    const text = [
+      `${selectedItem.name} / 同名定位清单`,
+      `总计 ${items.length} 件`,
+      "",
+      buildVaultCleanupLocatorText(items, vaultTags)
+    ].join("\n");
+
+    try {
+      await navigator.clipboard.writeText(text);
+      setItemShareMessage("已复制同名定位清单");
+    } catch {
+      setItemShareMessage("复制失败，请检查系统剪贴板权限");
+    }
+  }
+
   async function searchItems() {
     setIsSearching(true);
     setSearchError("");
-    setSearchTouched(true);
+    if (libraryViewMode === "perks") {
+      setPerkSearchTouched(true);
+    } else {
+      setEquipmentSearchTouched(true);
+    }
+
+    const activeQuery = libraryViewMode === "perks"
+      ? perkFilters.query
+      : equipmentFilters.query;
 
     try {
-      if (searchMode === "perks") {
-        setPerks(await api.searchPerks(query));
+      if (libraryViewMode === "perks") {
+        setPerks(await api.searchPerks(activeQuery));
         setItems([]);
       } else {
-        setItems(await api.searchItems(query));
+        setItems(await api.searchItems(activeQuery));
         setPerks([]);
       }
     } catch (error) {
@@ -413,7 +608,7 @@ export function HomePage(props: {
         equipped_items: character.equipped_items
       });
       setLoadoutTemplates(await api.listLoadoutTemplates());
-      setLoadoutMessage(`已保存本地配装模板：${template.name}`);
+      setLoadoutMessage(`宸蹭繚瀛樻湰鍦伴厤瑁呮ā鏉匡細${template.name}`);
     } catch (error) {
       setLoadoutMessage(error instanceof Error ? error.message : "配装模板保存失败");
     }
@@ -426,12 +621,13 @@ export function HomePage(props: {
       character,
       vaultItems: accountSummary.vault.items
     });
+    const executionPlan = createHighestPowerExecutionPlan(plan);
 
     setLoadoutMessage("");
     setItemActionMessage("");
 
     if (!plan.executable_items.length) {
-      setLoadoutMessage(`${character.class_name} 当前已是最高光等组合。`);
+      setLoadoutMessage(`${character.class_name} 当前已经是最高光等组合。`);
       return;
     }
 
@@ -445,16 +641,19 @@ export function HomePage(props: {
     }
 
     if (!latestConfig.features.write_actions_enabled) {
-      setLoadoutMessage("d2-service 本地写操作开关未开启。请到左侧“设置”页开启后再执行。");
+      setLoadoutMessage("d2-tools 本地写操作开关未开启。请到左侧“设置”页开启后再执行。");
       return;
     }
 
+    const executionSummary = [plan.summary, executionPlan.summary]
+      .filter(Boolean)
+      .join("\n");
     const actionPreview = plan.executable_items
       .map((entry) => `${entry.slot_label}：${entry.item.name} / 光等 ${entry.item.power ?? "-"} / ${formatHighestPowerSource(entry.source)}`)
       .join("\n");
     if (!window.confirm([
       `确认给 ${character.class_name} 装备最高光等组合？`,
-      plan.summary,
+      executionSummary,
       actionPreview,
       "说明：仓库里的装备会先取出到该角色，再执行装备。不会分解装备。"
     ].join("\n"))) {
@@ -463,49 +662,137 @@ export function HomePage(props: {
     }
 
     setIsRunningItemAction(true);
-    let successCount = 0;
-    let failedCount = 0;
 
     try {
-      for (const entry of plan.executable_items) {
-        try {
-          if (entry.needs_transfer) {
-            await api.transferItem({
-              membership_type: accountSummary.membership_type,
-              character_id: character.character_id,
-              item_id: entry.item.instance_id ?? "",
-              item_reference_hash: entry.item.hash,
-              item_name: entry.item.name,
-              transfer_to_vault: false
-            });
-          }
-          if (entry.needs_equip) {
-            await api.equipItem({
-              membership_type: accountSummary.membership_type,
-              character_id: character.character_id,
-              item_id: entry.item.instance_id ?? "",
-              item_name: entry.item.name
-            });
-          }
-          successCount += 1;
-        } catch {
-          failedCount += 1;
-        }
+      let transferResult = { success_count: 0, failed_count: 0 };
+      let equipResult = { success_count: 0, failed_count: 0 };
+
+      if (executionPlan.transfer_items.length) {
+        setItemActionMessage(`正在从仓库取出 ${executionPlan.transfer_items.length} 件最高光等装备...`);
+        transferResult = await api.batchTransferItems({
+          membership_type: accountSummary.membership_type,
+          character_id: character.character_id,
+          items: executionPlan.transfer_items.map((entry) => ({
+            membership_type: accountSummary.membership_type,
+            character_id: character.character_id,
+            item_id: entry.item.instance_id ?? "",
+            item_reference_hash: entry.item.hash,
+            item_name: entry.item.name,
+            transfer_to_vault: false
+          }))
+        });
       }
 
-      await Promise.all([loadAccountSummary(), loadActionLog()]);
-      setLoadoutMessage(failedCount
-        ? `最高光等装备完成 ${successCount} 件，失败 ${failedCount} 件。可以在设置页查看操作日志。`
-        : `已给 ${character.class_name} 装备 ${successCount} 件最高光等装备。`);
+      if (executionPlan.equip_items.length) {
+        setItemActionMessage(`正在装备最高光等 ${executionPlan.equip_items.length} 件装备...`);
+        equipResult = await api.batchEquipItems({
+          membership_type: accountSummary.membership_type,
+          character_id: character.character_id,
+          items: executionPlan.equip_items.map((entry) => ({
+            membership_type: accountSummary.membership_type,
+            character_id: character.character_id,
+            item_id: entry.item.instance_id ?? "",
+            item_name: entry.item.name
+          }))
+        });
+      }
+
+      const failedSteps = transferResult.failed_count + equipResult.failed_count;
+      setLoadoutMessage(failedSteps
+        ? `最高光等执行完成：转移成功 ${transferResult.success_count}/${executionPlan.transfer_items.length}，装备成功 ${equipResult.success_count}/${executionPlan.equip_items.length}，失败步骤 ${failedSteps}。可在设置页查看操作日志。`
+        : `已给 ${character.class_name} 装备 ${equipResult.success_count} 件最高光等装备。`);
+      setItemActionMessage("正在刷新账号数据...");
+      void Promise.all([loadAccountSummary(), loadActionLog()]).finally(() => {
+        setItemActionMessage("");
+      });
     } finally {
       setIsRunningItemAction(false);
     }
   }
 
+  async function runLoadoutWriteAction(
+    character: AccountSummary["characters"][number],
+    slot: AccountSummary["characters"][number]["loadout_slots"][number],
+    label: string,
+    run: () => Promise<ItemActionResult>
+  ) {
+    setLoadoutMessage("");
+    setItemActionMessage(`${label}执行中...`);
+
+    let latestConfig: D2Config;
+    try {
+      latestConfig = await api.getConfig();
+      setWriteActionsEnabled(latestConfig.features.write_actions_enabled);
+    } catch (error) {
+      setLoadoutMessage(error instanceof Error ? error.message : "读取写操作配置失败");
+      return;
+    }
+
+    if (!latestConfig.features.write_actions_enabled) {
+      setLoadoutMessage("d2-tools 本地写操作开关未开启，请先到设置页开启后再执行。");
+      return;
+    }
+
+    if (!window.confirm([
+      `确认要${label}吗？`,
+      `角色：${character.class_name}`,
+      `配装栏：${slot.name || `槽位 ${slot.index + 1}`}`,
+      "说明：这会直接调用 Bungie 的游戏内配装栏接口，并写入本地操作日志。"
+    ].join("\n"))) {
+      return;
+    }
+
+    setIsRunningItemAction(true);
+    try {
+      const result = await run();
+      setLoadoutMessage(result.message);
+      await Promise.all([loadAccountSummary(), loadActionLog()]);
+    } catch (error) {
+      setLoadoutMessage(error instanceof Error ? error.message : `${label}失败`);
+      await loadActionLog();
+    } finally {
+      setIsRunningItemAction(false);
+    }
+  }
+
+  async function equipSavedLoadout(
+    character: AccountSummary["characters"][number],
+    slot: AccountSummary["characters"][number]["loadout_slots"][number]
+  ) {
+    await runLoadoutWriteAction(
+      character,
+      slot,
+      `应用游戏内配装栏「${slot.name}」`,
+      () => api.equipLoadout({
+        membership_type: accountSummary?.membership_type ?? 0,
+        character_id: character.character_id,
+        loadout_index: slot.index,
+        loadout_name: slot.name
+      })
+    );
+  }
+
+  async function snapshotCurrentLoadout(
+    character: AccountSummary["characters"][number],
+    slot: AccountSummary["characters"][number]["loadout_slots"][number]
+  ) {
+    await runLoadoutWriteAction(
+      character,
+      slot,
+      `用当前装备覆盖游戏内配装栏「${slot.name}」`,
+      () => api.snapshotLoadout({
+        membership_type: accountSummary?.membership_type ?? 0,
+        character_id: character.character_id,
+        loadout_index: slot.index,
+        loadout_name: slot.name
+      })
+    );
+  }
+
   async function deleteLoadoutTemplate(id: string) {
     try {
       setLoadoutTemplates(await api.deleteLoadoutTemplate(id));
-      setLoadoutMessage("已删除本地配装模板");
+      setLoadoutMessage("已删除本地配装模板。");
     } catch (error) {
       setLoadoutMessage(error instanceof Error ? error.message : "删除配装模板失败");
     }
@@ -529,12 +816,12 @@ export function HomePage(props: {
         equipped_items: targetCharacter.equipped_items
       });
       await navigator.clipboard.writeText([
-        "d2-service 配装转移计划",
+        "d2-tools 閰嶈杞Щ璁″垝",
         plan.summary,
         ...plan.steps.map((step, index) => `${index + 1}. ${step.title}：${step.description}`),
         "说明：这只是计划，不会执行 Bungie 写操作。"
       ].join("\n"));
-      setLoadoutMessage(plan.summary || "已复制配装转移计划");
+      setLoadoutMessage(plan.summary || "已复制配装转移计划。");
     } catch (error) {
       setLoadoutMessage(error instanceof Error ? error.message : "配装转移计划生成失败");
     }
@@ -551,7 +838,7 @@ export function HomePage(props: {
         membership_id: summary.destiny_membership_id,
         character_ids: summary.characters.map((character) => character.character_id)
       }));
-      setActivityMessage("最近活动已更新");
+      setActivityMessage("鏈€杩戞椿鍔ㄥ凡鏇存柊");
     } catch (error) {
       setActivitySummary(null);
       setActivityError(error instanceof Error ? error.message : "最近活动读取失败");
@@ -584,15 +871,38 @@ export function HomePage(props: {
     try {
       const plan = await api.createItemActionPlan(input);
       await navigator.clipboard.writeText([
-        "d2-service 装备操作计划",
+        "d2-tools 瑁呭鎿嶄綔璁″垝",
         plan.title,
         plan.description,
         `需要确认：${plan.requires_confirmation ? "是" : "否"}`,
         "说明：这只是计划，不会执行 Bungie 写操作。"
       ].join("\n"));
-      setItemActionMessage("已复制操作计划");
+      setItemActionMessage("已复制操作计划。");
     } catch (error) {
       setItemActionMessage(error instanceof Error ? error.message : "操作计划生成失败");
+    }
+  }
+
+  async function copyBatchTransferPlanText(
+    input: {
+      character_id: string;
+      transfer_to_vault: boolean;
+      items: AccountItemSummary[];
+    }
+  ) {
+    setDimToolsMessage("");
+    try {
+      const plan = await api.createBatchTransferPlan(input);
+      await navigator.clipboard.writeText([
+        "d2-tools 批量转移计划",
+        plan.summary,
+        ...plan.steps.map((step, index) => `${index + 1}. ${step.title} - ${step.description}`),
+        "",
+        "说明：这只是计划，不会直接执行 Bungie 写操作。"
+      ].join("\n"));
+      setDimToolsMessage("已复制批量转移计划。");
+    } catch (error) {
+      setDimToolsMessage(error instanceof Error ? error.message : "批量转移计划生成失败");
     }
   }
 
@@ -606,6 +916,82 @@ export function HomePage(props: {
     } catch (error) {
       setAccountError(error instanceof Error ? error.message : "本地标记保存失败");
     }
+  }
+
+  async function saveVaultTagsBatch(inputs: Array<{ item_key: string; tag: VaultTagValue }>) {
+    try {
+      setVaultTags(await api.saveVaultTagsBatch(inputs));
+    } catch (error) {
+      setAccountError(error instanceof Error ? error.message : "批量标记保存失败");
+      throw error;
+    }
+  }
+
+  async function applySameNameBatchTags(
+    items: AccountItemSummary[],
+    mode: Parameters<typeof buildDuplicateGroupBatchTagPlan>[1]
+  ) {
+    const group = buildVaultDuplicateSummary(items, vaultTags).groups[0];
+    if (!group) return;
+
+    setItemNoteMessage("");
+    setItemShareMessage("");
+
+    try {
+      await saveVaultTagsBatch(buildDuplicateGroupBatchTagPlan(group, mode));
+      setItemNoteMessage(
+        mode === "keep-best-review-rest"
+          ? "已将最高分保留，其余标记为关注。"
+          : mode === "keep-best-junk-rest"
+            ? "已将最高分保留，其余标记为可清理。"
+            : "已清除这组同名装备的本地标记。"
+      );
+    } catch (error) {
+      setItemNoteMessage(error instanceof Error ? error.message : "同名装备批量标记失败");
+    }
+  }
+
+  async function applySameNameCurrentKeepTags(
+    items: AccountItemSummary[],
+    currentItemKey: string,
+    mode: "keep-current-review-rest" | "keep-current-junk-rest"
+  ) {
+    setItemNoteMessage("");
+    setItemShareMessage("");
+
+    try {
+      await saveVaultTagsBatch(
+        items.map((item) => ({
+          item_key: getItemKey(item),
+          tag: getItemKey(item) === currentItemKey
+            ? "keep"
+            : mode === "keep-current-review-rest"
+              ? "review"
+              : "junk"
+        }))
+      );
+      setItemNoteMessage(
+        mode === "keep-current-review-rest"
+          ? "已保留当前这件，其余同名装备已标记为关注。"
+          : "已保留当前这件，其余同名装备已标记为可清理。"
+      );
+    } catch (error) {
+      setItemNoteMessage(error instanceof Error ? error.message : "同名装备批量标记失败");
+    }
+  }
+
+  function openBestSameNameItem(items: SameNameItemSummary[]) {
+    const bestItem = [...items].sort((left, right) =>
+      scoreVaultItem(right, vaultTags).score - scoreVaultItem(left, vaultTags).score
+      || Number(Boolean(right.locked)) - Number(Boolean(left.locked))
+    )[0];
+    if (!bestItem) return;
+
+    void openItemDetail(bestItem, {
+      source_character_id: bestItem.source_character_id,
+      is_vault_item: bestItem.is_vault_item,
+      is_postmaster_item: bestItem.is_postmaster_item
+    });
   }
 
   async function saveWriteActionsEnabled(enabled: boolean) {
@@ -656,7 +1042,7 @@ export function HomePage(props: {
     }
 
     if (!latestConfig.features.write_actions_enabled) {
-      setItemActionMessage("d2-service 本地写操作开关未开启。请到左侧“设置”页开启“允许单件装备写操作”。");
+      setItemActionMessage("d2-tools 本地写操作开关未开启。请到左侧“设置”页开启“允许单件装备写操作”。");
       return;
     }
     if (!selectedItem.instance_id) {
@@ -667,19 +1053,21 @@ export function HomePage(props: {
       setItemActionMessage("请先选择目标角色。");
       return;
     }
-    if (!window.confirm(`确认要${label}：${selectedItem.name}？`)) {
+    if (!window.confirm(`确认要${label}${selectedItem.name}吗？`)) {
       return;
     }
 
     setIsRunningItemAction(true);
-    setItemActionMessage("");
+    setItemActionMessage(`${label}执行中...`);
     setItemShareMessage("");
 
     try {
       const result = await run();
       setItemActionMessage(result.message);
-      await Promise.all([loadAccountSummary(), loadActionLog()]);
-      setSelectedItem(null);
+      closeSelectedItemDetail();
+      void Promise.all([loadAccountSummary(), loadActionLog()]).catch((error) => {
+        setAccountError(error instanceof Error ? error.message : "操作完成，但刷新账号数据失败");
+      });
     } catch (error) {
       setItemActionMessage(error instanceof Error ? error.message : `${label}失败`);
       await loadActionLog();
@@ -708,7 +1096,7 @@ export function HomePage(props: {
     }
 
     if (!latestConfig.features.write_actions_enabled) {
-      return "d2-service 本地写操作开关未开启。请到左侧“设置”页开启后再执行。";
+      return "d2-tools 本地写操作开关未开启。请到左侧“设置”页开启后再执行。";
     }
     if (!targetCharacterId) {
       return "请先选择目标角色。";
@@ -718,7 +1106,7 @@ export function HomePage(props: {
     if (!actionableItems.length) {
       return "没有可执行的装备。可能已经全部解锁，或缺少实例 ID。";
     }
-    if (!window.confirm(`确认要${label} ${actionableItems.length} 件可清理装备？这个操作不会分解装备。`)) {
+    if (!window.confirm(`确认要${label} ${actionableItems.length} 件可清理装备吗？这个操作不会分解装备。`)) {
       return "已取消操作。";
     }
 
@@ -749,7 +1137,7 @@ export function HomePage(props: {
 
   async function handleVaultCleanupUnlock(items: AccountItemSummary[], targetCharacterId: string): Promise<string> {
     return runVaultCleanupWriteAction(
-      "批量解锁",
+      "鎵归噺瑙ｉ攣",
       items,
       targetCharacterId,
       (item) => api.setItemLockState({
@@ -801,7 +1189,7 @@ export function HomePage(props: {
         onConfigure={props.onConfigure}
         onLogin={() => void loginBungie()}
         onInitializeManifest={() => void initializeManifest()}
-        onConfigureAi={() => setActivePage("ai")}
+        onConfigureAi={() => setActivePage("settings")}
       />
 
       {loginMessage ? <p className="notice">{loginMessage}</p> : null}
@@ -822,12 +1210,12 @@ export function HomePage(props: {
             <div className="section-heading">
               <div>
                 <h2>常用入口</h2>
-                <p>先完成状态诊断，再进入账号、资料库或设置。</p>
+                <p>先完成状态诊断，再进入账号、资料库或设置页。</p>
               </div>
             </div>
             <div className="quick-actions">
               <button type="button" onClick={() => setActivePage("account")}>查看账号</button>
-              <button type="button" onClick={() => setActivePage("library")}>搜索物品</button>
+              <button type="button" onClick={() => setActivePage("library")}>搜索资料库</button>
               <button type="button" className="secondary-button" onClick={() => setActivePage("settings")}>打开设置</button>
             </div>
           </section>
@@ -838,18 +1226,32 @@ export function HomePage(props: {
       {activePage === "library" ? renderSearchPanel() : null}
       {activePage === "vault" ? renderVaultPanel() : null}
       {activePage === "ai" ? (
-        <>
-          <AiSettingsPanel onSaved={props.onConfigChanged} />
+        !isAiConfigured ? (
+          <section className="tool-panel placeholder-panel">
+            <div className="section-heading">
+              <div>
+                <h2>AI 助手</h2>
+                <p>还没有配置 AI。先到设置页填写提供商、模型和 API Key，再回来聊天分析。</p>
+              </div>
+              <button type="button" onClick={() => setActivePage("settings")}>去设置配置 AI</button>
+            </div>
+          </section>
+        ) : (
           <AiAnalysisPanel
+            account={accountSummary}
+            daily={dailySummary}
+            activity={activitySummary}
             items={accountSummary?.vault.items ?? []}
             tags={vaultTags}
             isLoadingAccount={isLoadingAccount}
             onLoadAccount={() => void loadAccountSummary()}
           />
-        </>
+        )
       ) : null}
       {activePage === "settings" ? (
-        <section className="tool-panel">
+        <>
+          <AiSettingsPanel onSaved={handleAiSettingsSaved} />
+          <section className="tool-panel">
           <div className="section-heading">
             <div>
               <h2>设置</h2>
@@ -873,7 +1275,7 @@ export function HomePage(props: {
             <div>
               <h3>危险操作保护</h3>
               <p>
-                开启后才能锁定/解锁、装备、移入或取出仓库。需要 Bungie App 勾选
+                开启后才能锁定、解锁、装备、移入或取出仓库。需要在 Bungie App 勾选
                 MoveEquipDestinyItems 权限并重新登录。
               </p>
             </div>
@@ -899,7 +1301,7 @@ export function HomePage(props: {
             <div className="section-heading compact-heading">
               <div>
                 <h3>最近操作</h3>
-                <p>只记录本机操作结果，不上传。</p>
+                <p>只记录本机操作结果，不上报。</p>
               </div>
               <button type="button" className="secondary-button" onClick={() => void loadActionLog()}>
                 刷新日志
@@ -921,6 +1323,9 @@ export function HomePage(props: {
                   <option value="set-lock">锁定状态</option>
                   <option value="equip">装备</option>
                   <option value="transfer">仓库转移</option>
+                  <option value="postmaster-pull">邮政官取回</option>
+                  <option value="loadout-equip">应用游戏内配装栏</option>
+                  <option value="loadout-snapshot">覆盖游戏内配装栏</option>
                 </select>
               </label>
             </div>
@@ -943,7 +1348,8 @@ export function HomePage(props: {
               <p className="notice">还没有写操作记录。</p>
             )}
           </section>
-        </section>
+          </section>
+        </>
       ) : null}
 
       {selectedItem ? renderItemModal() : null}
@@ -951,6 +1357,10 @@ export function HomePage(props: {
   );
 
   function renderAccountPanel() {
+    const selectedCharacter = accountSummary?.characters.find((character) => character.character_id === selectedCharacterId)
+      ?? accountSummary?.characters[0]
+      ?? null;
+
     return (
       <section className="tool-panel">
         <div className="section-heading">
@@ -966,6 +1376,8 @@ export function HomePage(props: {
         {itemDetailError ? <p className="error">{itemDetailError}</p> : null}
         {accountSummary ? (
           <div className="account-summary">
+            {selectedCharacter ? (
+              <>
             <div>
               <h3>{accountSummary.account_name}</h3>
               <p>
@@ -973,55 +1385,63 @@ export function HomePage(props: {
               </p>
               <p>仓库装备：{accountSummary.vault.item_count} / 材料与消耗品：{accountSummary.materials.item_count}</p>
             </div>
-            <div className="character-grid">
+            <div className="character-tabs" role="tablist" aria-label="角色切换">
               {accountSummary.characters.map((character) => (
-                <article className="character-card" key={character.character_id}>
-                  <div className="character-title">
-                    {character.emblem_url ? <img alt="" src={character.emblem_url} /> : null}
-                    <div>
-                      <h3>{character.class_name}</h3>
-                      <p>光等 {character.light ?? "-"}</p>
-                    </div>
-                    <button type="button" className="inline-action" onClick={() => void saveCharacterLoadout(character)}>
-                      保存当前装备为模板
-                    </button>
-                    <button
-                      type="button"
-                      className="inline-action"
-                      disabled={isRunningItemAction}
-                      onClick={() => void equipHighestPowerItems(character)}
-                    >
-                      装备最高光等
-                    </button>
-                  </div>
-                  <div className="equipment-section-heading">
-                    <h4>已装备</h4>
-                    <span>{character.equipped_items.length} 件</span>
-                  </div>
-                  <AccountSlotCategories
-                    categories={groupAccountItemsBySlot(character.equipped_items)}
-                    onOpenItem={(item) => void openItemDetail(item, { source_character_id: character.character_id })}
-                  />
-                  <div className="equipment-section-heading">
-                    <h4>背包</h4>
-                    <span>{character.inventory_items.length} 件</span>
-                  </div>
-                  {character.inventory_items.length ? (
-                    <AccountSlotCategories
-                      categories={groupAccountItemsBySlot(character.inventory_items)}
-                      onOpenItem={(item) => void openItemDetail(item, { source_character_id: character.character_id })}
-                    />
-                  ) : (
-                    <p className="muted-copy">背包暂无未装备物品。</p>
-                  )}
-                </article>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={selectedCharacter.character_id === character.character_id}
+                  className={selectedCharacter.character_id === character.character_id ? "character-tab active" : "character-tab"}
+                  key={character.character_id}
+                  onClick={() => setSelectedCharacterId(character.character_id)}
+                >
+                  {character.emblem_url ? <img alt="" src={character.emblem_url} /> : null}
+                  <span>{character.class_name}</span>
+                  <strong>光等 {character.light ?? "-"}</strong>
+                </button>
               ))}
             </div>
+            <article className="character-card character-card-focused">
+              <div className="character-title">
+                {selectedCharacter.emblem_url ? <img alt="" src={selectedCharacter.emblem_url} /> : null}
+                <div>
+                  <h3>{selectedCharacter.class_name}</h3>
+                  <p>
+                    光等 {selectedCharacter.light ?? "-"} / 已装备 {selectedCharacter.equipped_items.length} 件 / 背包 {selectedCharacter.inventory_items.length} 件 / 邮政官 {selectedCharacter.postmaster_items.length} 件
+                  </p>
+                </div>
+                <div className="character-actions">
+                  <button type="button" className="inline-action" onClick={() => void saveCharacterLoadout(selectedCharacter)}>
+                    保存当前装备为模板
+                  </button>
+                  <button
+                    type="button"
+                    className="inline-action"
+                    disabled={isRunningItemAction}
+                    onClick={() => void equipHighestPowerItems(selectedCharacter)}
+                  >
+                    {isRunningItemAction ? "执行中..." : "装备最高光等"}
+                  </button>
+                </div>
+              </div>
+              <div className="equipment-section-heading">
+                <h4>当前角色装备</h4>
+                <span>{selectedCharacter.equipped_items.length + selectedCharacter.inventory_items.length} 件</span>
+              </div>
+              <AccountSlotCategories
+                categories={groupAccountItemsBySlot(getCharacterCombinedItems(selectedCharacter))}
+                openingItemKey={itemDetailLoadingKey}
+                onOpenItem={(item) => void openItemDetail(item, { source_character_id: selectedCharacter.character_id })}
+              />
+            </article>
+            {renderDimToolsPanel(selectedCharacter)}
+              </>
+            ) : null}
             <section className="vault-preview">
               <h3>材料与消耗品</h3>
               {accountSummary.materials.items.length ? (
                 <div className="material-grid">
-                  {accountSummary.materials.items.slice(0, 40).map((material) => (
+                  {accountSummary.materials.items.map((material) => (
                     <article className="material-item" title={material.name} key={material.hash}>
                       {material.icon ? <img alt="" src={material.icon} /> : <div className="item-icon-placeholder" />}
                       <div>
@@ -1035,6 +1455,81 @@ export function HomePage(props: {
                 <p className="muted-copy">没有读取到材料或消耗品数量。</p>
               )}
             </section>
+            {selectedCharacter ? (
+              <>
+                <section className="vault-preview">
+                  <div className="section-heading compact-heading">
+                    <div>
+                      <h3>游戏内配装栏</h3>
+                      <p>只读显示 Bungie 游戏内已保存的配装槽，先做查看，不直接改名或切换。</p>
+                    </div>
+                  </div>
+                  {selectedCharacter.loadout_slots.length ? (
+                    <div className="action-log-list">
+                      {selectedCharacter.loadout_slots.map((slot) => (
+                        <div className="action-log-row log-ok" key={`${selectedCharacter.character_id}-loadout-${slot.index}`}>
+                          <strong>{slot.name}</strong>
+                          <span>槽位 {slot.index + 1} / {slot.item_count} 件装备</span>
+                          <small>{slot.items.slice(0, 4).map((item) => item.name).join(" / ") || "当前槽位为空"}</small>
+                          <div className="button-row">
+                            <button
+                              type="button"
+                              className="secondary-button"
+                              disabled={isRunningItemAction}
+                              onClick={() => void equipSavedLoadout(selectedCharacter, slot)}
+                            >
+                              应用到当前角色
+                            </button>
+                            <button
+                              type="button"
+                              className="secondary-button"
+                              disabled={isRunningItemAction}
+                              onClick={() => void snapshotCurrentLoadout(selectedCharacter, slot)}
+                            >
+                              用当前装备覆盖
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="notice">当前角色还没有读取到游戏内配装栏。</p>
+                  )}
+                </section>
+                <section className="vault-preview">
+                  <div className="section-heading compact-heading">
+                    <div>
+                      <h3>邮政官</h3>
+                      <p>只读显示角色邮政官里的待领取物品，先帮助你发现堆积，不直接执行取回。</p>
+                    </div>
+                  </div>
+                  {selectedCharacter.postmaster_items.length ? (
+                    <div className="equipment-grid">
+                      {selectedCharacter.postmaster_items.slice(0, 12).map((item) => (
+                        <button
+                          type="button"
+                          className={getItemKey(item) === itemDetailLoadingKey ? "equipment-item inventory pending" : "equipment-item inventory"}
+                          key={`${item.hash}-${item.instance_id ?? "postmaster"}`}
+                          aria-busy={getItemKey(item) === itemDetailLoadingKey}
+                          onClick={() => void openItemDetail(item, {
+                            source_character_id: selectedCharacter.character_id,
+                            is_postmaster_item: true
+                          })}
+                        >
+                          {item.icon ? <img alt="" src={item.icon} /> : <div className="item-icon-placeholder" />}
+                          <div>
+                            <strong>{item.name}</strong>
+                            <span>{formatAccountItemMeta(item)}</span>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="notice">当前角色邮政官为空。</p>
+                  )}
+                </section>
+              </>
+            ) : null}
             <section className="vault-preview">
               <div className="section-heading compact-heading">
                 <div>
@@ -1118,20 +1613,240 @@ export function HomePage(props: {
     );
   }
 
-  function renderDailyPanel() {
+  function importWishlistDraft() {
+    const wishlist = parseDimWishlist(wishlistImportDraft);
+    setWishlistImportMessage(wishlist.rules.length
+      ? `已识别 ${wishlist.rules.length} 条 DIM 愿望单规则：${wishlist.title}`
+      : "没有识别到 DIM 愿望单规则。");
+  }
+
+  async function saveImportedWishlist() {
+    const wishlist = parseDimWishlist(wishlistImportDraft);
+    if (!wishlist.rules.length) {
+      setWishlistImportMessage("没有识别到 DIM 愿望单规则。");
+      return;
+    }
+
+    try {
+      const saved = await api.saveDimWishlist(wishlist);
+      setImportedWishlist(saved);
+      setWishlistImportMessage(`已导入 ${saved.rules.length} 条 DIM 愿望单规则：${saved.title}`);
+    } catch (error) {
+      setWishlistImportMessage(error instanceof Error ? error.message : "DIM 愿望单保存失败");
+    }
+  }
+
+  async function clearImportedWishlist() {
+    try {
+      await api.clearDimWishlist();
+      setImportedWishlist(null);
+      setWishlistImportMessage("已清空 DIM 愿望单。");
+    } catch (error) {
+      setWishlistImportMessage(error instanceof Error ? error.message : "DIM 愿望单清空失败");
+    }
+  }
+
+  function renderDimToolsPanel(character: AccountSummary["characters"][number]) {
+    const transferQueueItems = normalizeAccountItemsForCore(
+      [...character.inventory_items]
+        .filter((item) => {
+          const localTag = vaultTags.items[getItemKey(item)]?.tag;
+          return localTag === "junk" || scoreVaultItem(item, vaultTags).grade === "junk";
+        })
+        .sort((left, right) =>
+          scoreVaultItem(left, vaultTags).score - scoreVaultItem(right, vaultTags).score
+          || (left.power ?? 0) - (right.power ?? 0)
+        )
+        .slice(0, 8)
+    );
+    const transferQueue = createTransferQueue({
+      character_id: character.character_id,
+      transfer_to_vault: true,
+      items: transferQueueItems
+    });
+    const farmingPlan = createFarmingModePlan({
+      character_id: character.character_id,
+      inventory_items: normalizeAccountItemsForCore(character.inventory_items),
+      max_inventory_slots: Math.max(character.inventory_items.length, 10),
+      keep_free_slots: 3
+    });
+    const availableItems = accountSummary ? normalizeAccountItemsForCore(getAllKnownAccountItemsWithSource(accountSummary)) : [];
+    const loadoutAnalyses = loadoutTemplates.slice(0, 3).map((template) => ({
+      template,
+      analysis: analyzeLoadoutTemplate(template, availableItems)
+    }));
+    const armorSuggestions = suggestArmorStatSets([], { preferred_stats: ["resilience", "recovery"], limit: 1 });
+
+    return (
+      <section className="vault-preview dim-tools-panel">
+        <div className="section-heading compact-heading">
+          <div>
+            <h3>DIM 整理工具</h3>
+            <p>先生成可读计划，涉及转移或装备的动作仍需要你确认后执行。</p>
+          </div>
+        </div>
+        <div className="daily-source-grid">
+          <div className="daily-source source-ready">
+            <strong>转移队列</strong>
+            <span>{transferQueueItems.length ? transferQueue.summary : "当前背包没有低分或可清理候选。"}</span>
+            <ul className="daily-source-items">
+              {transferQueue.steps.slice(0, 5).map((step) => (
+                <li key={step.id}>
+                  <b>{step.item_name}</b>
+                  <small>{step.transfer_to_vault ? "移入仓库" : "取出到角色"} / {step.status}</small>
+                </li>
+              ))}
+            </ul>
+            <div className="button-row">
+              <button
+                type="button"
+                className="secondary-button"
+                disabled={!transferQueueItems.length}
+                onClick={() => void copyBatchTransferPlanText({
+                  character_id: character.character_id,
+                  transfer_to_vault: true,
+                  items: transferQueueItems
+                })}
+              >
+                复制转移计划
+              </button>
+              <button
+                type="button"
+                disabled={!transferQueueItems.length || isRunningItemAction}
+                onClick={() => void runVaultCleanupWriteAction(
+                  "移入仓库",
+                  transferQueueItems,
+                  character.character_id,
+                  (item) => api.transferItem({
+                    membership_type: accountSummary?.membership_type ?? 0,
+                    character_id: character.character_id,
+                    item_id: item.instance_id ?? "",
+                    item_reference_hash: item.hash,
+                    item_name: item.name,
+                    transfer_to_vault: true
+                  })
+                ).then(setDimToolsMessage)}
+              >
+                {isRunningItemAction ? "执行中..." : "执行转移"}
+              </button>
+            </div>
+          </div>
+          <div className="daily-source source-ready">
+            <strong>Farming Mode</strong>
+            <span>{farmingPlan.summary}</span>
+            <ul className="daily-source-items">
+              {farmingPlan.transfer_items.slice(0, 5).map((item) => (
+                <li key={item.instance_id ?? item.hash}>
+                  <b>{item.name}</b>
+                  <small>{item.bucket_name ?? "未知位置"} / 光等 {item.power ?? "-"}</small>
+                </li>
+              ))}
+            </ul>
+            <div className="button-row">
+              <button
+                type="button"
+                className="secondary-button"
+                disabled={!farmingPlan.transfer_items.length}
+                onClick={() => void copyBatchTransferPlanText({
+                  character_id: character.character_id,
+                  transfer_to_vault: true,
+                  items: farmingPlan.transfer_items
+                })}
+              >
+                复制腾包计划
+              </button>
+              <button
+                type="button"
+                disabled={!farmingPlan.transfer_items.length || isRunningItemAction}
+                onClick={() => void runVaultCleanupWriteAction(
+                  "腾包移入仓库",
+                  farmingPlan.transfer_items,
+                  character.character_id,
+                  (item) => api.transferItem({
+                    membership_type: accountSummary?.membership_type ?? 0,
+                    character_id: character.character_id,
+                    item_id: item.instance_id ?? "",
+                    item_reference_hash: item.hash,
+                    item_name: item.name,
+                    transfer_to_vault: true
+                  })
+                ).then(setDimToolsMessage)}
+              >
+                {isRunningItemAction ? "执行中..." : "立即腾包"}
+              </button>
+            </div>
+          </div>
+          <div className="daily-source source-ready">
+            <strong>Loadout 分析</strong>
+            <span>{loadoutAnalyses.length ? "已检查本地模板缺失项。" : "暂无本地配装模板。"}</span>
+            <ul className="daily-source-items">
+              {loadoutAnalyses.map(({ template, analysis }) => (
+                <li key={template.id}>
+                  <b>{template.name}</b>
+                  <small>已有 {analysis.equipped.length} 件 / 缺失 {analysis.missing.length} 件</small>
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div className="daily-source source-pending">
+            <strong>护甲组合建议</strong>
+            <span>{armorSuggestions.length ? `${armorSuggestions[0].score} 分组合` : "暂未接入护甲属性明细，不能猜测组合。"}</span>
+          </div>
+        </div>
+        {dimToolsMessage ? <p className="notice">{dimToolsMessage}</p> : null}
+        <div className="wishlist-import-panel">
+          <label htmlFor="dim-wishlist-import">导入 DIM 愿望单</label>
+          <p className="muted-copy">
+            {importedWishlist
+              ? `当前已启用 ${importedWishlist.title} / ${importedWishlist.rules.length} 条规则`
+              : "当前未启用 DIM 愿望单。导入后，仓库评分和装备详情会一起使用这份愿望单。"}
+          </p>
+          <textarea
+            id="dim-wishlist-import"
+            value={wishlistImportDraft}
+            onChange={(event) => setWishlistImportDraft(event.target.value)}
+            placeholder="粘贴 DIM wishlist 文本，例如 dimwishlist:item=123&perks=11,22#notes:PVE"
+            rows={4}
+          />
+          <div className="button-row">
+            <button type="button" className="secondary-button" onClick={importWishlistDraft}>
+              解析愿望单
+            </button>
+            <button
+              type="button"
+              className="secondary-button"
+              disabled={!wishlistImportDraft.trim()}
+              onClick={() => void saveImportedWishlist()}
+            >
+              导入并启用
+            </button>
+            <button type="button" className="secondary-button" disabled={!importedWishlist} onClick={() => void clearImportedWishlist()}>
+              清空愿望单
+            </button>
+            {wishlistImportMessage ? <span className="muted-copy">{wishlistImportMessage}</span> : null}
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+function renderDailyPanel() {
     return (
       <section className="tool-panel">
         <div className="section-heading">
           <div>
             <h2>今日 / 本周</h2>
-            <p>只展示玩家能看懂的真实信息；看不到名称的 Bungie 原始数据会被隐藏。</p>
+            <p>只展示可确认的真实数据；未接入或不可确认的内容不会猜测。</p>
           </div>
           <div className="button-row">
-            <button type="button" className="secondary-button" onClick={() => void loadDailySummary()}>
-              刷新
+            <button type="button" className="secondary-button" disabled={isLoadingDaily} onClick={() => void loadDailySummary()}>
+              {isLoadingDaily ? "刷新中..." : "刷新"}
             </button>
             <button type="button" disabled={!dailySummary} onClick={() => void copyDailySummary()}>
               复制日报
+            </button>
+            <button type="button" className="secondary-button" disabled={!dailySummary} onClick={() => void copyWeeklyFocus()}>
+              复制本周重点
             </button>
           </div>
         </div>
@@ -1149,37 +1864,57 @@ export function HomePage(props: {
                 <span>{dailySummary.weekly_reset.time_remaining_label}</span>
               </div>
             </div>
-            <div className="daily-brief">
-              <strong>建议先做</strong>
-              <div>
-                {dailySummary.checklist.slice(0, 3).map((item) => (
-                  <span key={item}>{item}</span>
-                ))}
-              </div>
-            </div>
-            <div className="daily-source-grid">
-              {Object.values(dailySummary.sources).map((source) => (
-                <div className={`daily-source source-${source.status}`} key={source.label}>
-                  <strong>{source.label}</strong>
-                  <span>{source.message}</span>
-                  {source.items?.length ? (
-                    <ul className="daily-source-items">
-                      {source.items.map((item) => (
-                        <li key={`${source.label}-${item.title}`}>
-                          <b>{item.title}</b>
-                          {item.subtitle ? <small>{item.subtitle}</small> : null}
-                        </li>
-                      ))}
-                    </ul>
-                  ) : null}
+            <div className="daily-board">
+              <section className="daily-column">
+                <div className="daily-brief">
+                  <div className="daily-brief-heading">
+                    <strong>今日行动</strong>
+                    <div className="daily-brief-meta">
+                      <span className="daily-date-badge">{dailySummary.date_label}</span>
+                      <span className="daily-brief-count">{dailySummary.checklist.length} 条</span>
+                    </div>
+                  </div>
+                  <ol className="daily-action-list">
+                    {dailySummary.checklist.slice(0, 5).map((item) => (
+                      <li key={item}>{item}</li>
+                    ))}
+                  </ol>
                 </div>
-              ))}
+                {renderDailySourceCard(dailySummary.sources.rotations)}
+                {renderDailySourceCard(dailySummary.sources.lost_sector)}
+                {renderDailySourceCard(dailySummary.sources.vendors)}
+              </section>
+              <section className="daily-column">
+                <div className="daily-brief weekly-brief">
+                  <div className="daily-brief-heading">
+                    <strong>本周周报</strong>
+                    <span className="daily-brief-count">{dailySummary.recommendations.length} 条</span>
+                  </div>
+                  <ul className="weekly-focus-list">
+                    {dailySummary.recommendations.map((item) => (
+                      <li key={item}>{item}</li>
+                    ))}
+                  </ul>
+                  <div className="weekly-focus-sections">
+                    {buildWeeklyDigestSections(dailySummary).map((section) => (
+                      <section className="weekly-focus-section" key={section.key}>
+                        <strong>{section.title}</strong>
+                        <ul>
+                          {section.items.map((item) => (
+                            <li key={section.key + item}>{item}</li>
+                          ))}
+                        </ul>
+                      </section>
+                    ))}
+                  </div>
+                </div>
+                {renderDailySourceCard(dailySummary.sources.weekly_report)}
+                <div className="daily-source source-pending">
+                  <strong>掉落地图 / 轮换细节</strong>
+                  <span>只展示 Bungie API 或本地资料库能确认的内容；未接入时保持为空，不猜测。</span>
+                </div>
+              </section>
             </div>
-            <ul className="compact-list">
-              {dailySummary.recommendations.map((item) => (
-                <li key={item}>{item}</li>
-              ))}
-            </ul>
           </>
         ) : (
           <p className="notice">今日面板读取中。</p>
@@ -1188,44 +1923,182 @@ export function HomePage(props: {
     );
   }
 
+  function renderDailySourceCard(source: DailySummary["sources"][keyof DailySummary["sources"]]) {
+    return (
+      <div className={"daily-source source-" + source.status} key={source.label}>
+        <div className="daily-source-heading">
+          <strong>{source.label}</strong>
+          <div className="daily-source-meta">
+            <span className={"daily-source-status status-" + source.status}>{formatDailySourceStatus(source.status)}</span>
+            {source.items?.length ? <span className="daily-source-count">{source.items.length} 条</span> : null}
+          </div>
+        </div>
+        <span>{source.message}</span>
+        {source.items?.length ? (
+          <ul className="daily-source-items">
+            {source.items.map((item) => (
+              <li key={"${source.label}-" + item.title}>
+                <b>{item.title}</b>
+                {item.subtitle ? <small>{item.subtitle}</small> : null}
+                {item.description ? <small>{item.description}</small> : null}
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </div>
+    );
+  }
+
   function renderSearchPanel() {
+    const equipmentFilterOptions = buildLibraryEquipmentFilterOptions(items);
+    const perkGroupOptions = buildLibraryPerkGroupOptions(perks);
+    const visibleItems = filterLibraryEquipmentItems(items, equipmentFilters);
+    const visiblePerks = filterLibraryPerks(perks, perkFilters);
+    const hitCount = libraryViewMode === "equipment" ? visibleItems.length : visiblePerks.length;
+    const searchTouched = libraryViewMode === "equipment" ? equipmentSearchTouched : perkSearchTouched;
+
+    function updateEquipmentFilters(patch: Partial<LibraryEquipmentFilter>) {
+      setEquipmentFilters((current) => ({ ...current, ...patch }));
+    }
+
+    function updatePerkFilters(patch: Partial<LibraryPerkFilter>) {
+      setPerkFilters((current) => ({ ...current, ...patch }));
+    }
+
     return (
       <section className="tool-panel">
         <div>
           <h2>资料库搜索</h2>
-          <p>搜索本地 Manifest 物品定义、perk，并支持你自己的中文别名。</p>
+          <p>按装备和 Perk 分开检索，筛选只基于本地 Manifest 里已经确认的字段。</p>
         </div>
-        <div className="action-log-filters">
+        <div className="segmented-control">
           <button
             type="button"
-            className={searchMode === "items" ? "secondary-button active-filter" : "secondary-button"}
-            onClick={() => setSearchMode("items")}
+            value="equipment"
+            className={libraryViewMode === "equipment" ? "active" : ""}
+            onClick={() => setLibraryViewMode("equipment")}
           >
-            物品
+            装备
           </button>
           <button
             type="button"
-            className={searchMode === "perks" ? "secondary-button active-filter" : "secondary-button"}
-            onClick={() => setSearchMode("perks")}
+            value="perks"
+            className={libraryViewMode === "perks" ? "active" : ""}
+            onClick={() => setLibraryViewMode("perks")}
           >
             Perk
           </button>
         </div>
+        <div className="library-filter-grid">
+          {libraryViewMode === "equipment" ? (
+            <>
+              <label className="compact-field">
+                分类
+                <select
+                  value={equipmentFilters.group}
+                  onChange={(event) => updateEquipmentFilters({ group: event.target.value as LibraryEquipmentFilter["group"] })}
+                >
+                  {equipmentFilterOptions.groups.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="compact-field">
+                稀有度
+                <select value={equipmentFilters.tier} onChange={(event) => updateEquipmentFilters({ tier: event.target.value })}>
+                  {equipmentFilterOptions.tiers.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="compact-field">
+                位置
+                <select value={equipmentFilters.bucket} onChange={(event) => updateEquipmentFilters({ bucket: event.target.value })}>
+                  {equipmentFilterOptions.buckets.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
+                </select>
+              </label>
+              {equipmentFilters.group === "weapons" ? (
+                <label className="compact-field">
+                  弹药
+                  <select
+                    value={equipmentFilters.ammo}
+                    onChange={(event) => updateEquipmentFilters({ ammo: event.target.value as LibraryEquipmentFilter["ammo"] })}
+                  >
+                    {equipmentFilterOptions.ammo.map((option) => (
+                      <option key={option.value} value={option.value}>{option.label}</option>
+                    ))}
+                  </select>
+                </label>
+              ) : null}
+            </>
+          ) : (
+            <>
+              <label className="compact-field">
+                关联分类
+                <select
+                  value={perkFilters.relatedGroup}
+                  onChange={(event) => updatePerkFilters({ relatedGroup: event.target.value as LibraryPerkFilter["relatedGroup"] })}
+                >
+                  {perkGroupOptions.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="compact-field">
+                关联装备
+                <select
+                  value={perkFilters.hasRelatedItems}
+                  onChange={(event) => updatePerkFilters({ hasRelatedItems: event.target.value as LibraryPerkFilter["hasRelatedItems"] })}
+                >
+                  <option value="all">全部</option>
+                  <option value="yes">有</option>
+                  <option value="no">无</option>
+                </select>
+              </label>
+            </>
+          )}
+        </div>
         <div className="search-row">
           <input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder={searchMode === "perks" ? "例如：爆破专家 / ff" : "例如：风险管理者 / Riskrunner"}
+            value={libraryViewMode === "equipment" ? equipmentFilters.query : perkFilters.query}
+            onChange={(event) => {
+              if (libraryViewMode === "equipment") {
+                updateEquipmentFilters({ query: event.target.value });
+              } else {
+                updatePerkFilters({ query: event.target.value });
+              }
+            }}
+            placeholder={libraryViewMode === "perks" ? "输入 Perk 名称或别名，例如 ff" : "输入装备名称，例如 Riskrunner"}
           />
           <button type="button" disabled={isSearching} onClick={() => void searchItems()}>
             {isSearching ? "搜索中..." : "搜索"}
           </button>
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={() => {
+              if (libraryViewMode === "equipment") {
+                setEquipmentFilters(defaultLibraryEquipmentFilter);
+                setItems([]);
+                setEquipmentSearchTouched(false);
+              } else {
+                setPerkFilters(defaultLibraryPerkFilter);
+                setPerks([]);
+                setPerkSearchTouched(false);
+              }
+            }}
+          >
+            清空筛选
+          </button>
         </div>
+        <p className="muted-copy">命中 {hitCount} 条。不会补猜来源、分类或关联项，缺字段就按缺字段显示。</p>
         <div className="alias-editor">
           <input value={aliasDraft} onChange={(event) => setAliasDraft(event.target.value)} placeholder="别名，例如 ff" />
           <input value={aliasTargetDraft} onChange={(event) => setAliasTargetDraft(event.target.value)} placeholder="实际名称，例如 喂食狂热" />
           <select value={aliasKind} onChange={(event) => setAliasKind(event.target.value as typeof aliasKind)}>
-            <option value="item">物品</option>
+            <option value="item">装备</option>
             <option value="perk">Perk</option>
           </select>
           <button
@@ -1237,26 +2110,26 @@ export function HomePage(props: {
             保存别名
           </button>
         </div>
-        <p className="muted-copy">别名会保存在本机，只影响你自己的搜索，不会上传。</p>
+        <p className="muted-copy">别名会保存在本机，只影响你自己的搜索。</p>
         {aliasMessage ? <p className="notice">{aliasMessage}</p> : null}
         {searchError ? <p className="error">{searchError}</p> : null}
         <div className="daily-source-grid">
           <div className="daily-source source-ready">
             <strong>最近查看</strong>
-            <span>{libraryHistory.recent.slice(0, 5).map((item) => item.name).join("、") || "暂无"}</span>
+            <span>{libraryHistory.recent.slice(0, 5).map((item) => item.name).join(" / ") || "暂无"}</span>
           </div>
           <div className="daily-source source-ready">
             <strong>收藏</strong>
-            <span>{libraryHistory.favorites.slice(0, 5).map((item) => item.name).join("、") || "暂无"}</span>
+            <span>{libraryHistory.favorites.slice(0, 5).map((item) => item.name).join(" / ") || "暂无"}</span>
           </div>
         </div>
         <div className="item-results">
-          {searchMode === "items" ? items.map((item) => (
+          {libraryViewMode === "equipment" ? visibleItems.map((item) => (
             <article className="item-result" key={item.hash}>
               {item.icon ? <img alt="" src={item.icon} /> : null}
               <div>
                 <h3>{item.name}</h3>
-                <p>{[item.tier, item.item_type].filter(Boolean).join(" / ")}</p>
+                <p>{[item.tier, item.item_type, item.bucket_name].filter(Boolean).join(" / ")}</p>
                 <p>{item.description}</p>
                 <p><strong>{item.source.label}：</strong>{item.source.description}</p>
                 {item.perks?.length ? (
@@ -1270,7 +2143,12 @@ export function HomePage(props: {
                     ))}
                   </div>
                 ) : null}
-                <button type="button" className="inline-action" onClick={() => void openItemDetail(item)}>
+                <button
+                  type="button"
+                  className="inline-action"
+                  aria-busy={getItemKey(item) === itemDetailLoadingKey}
+                  onClick={() => void openItemDetail(item)}
+                >
                   查看详情
                 </button>
                 <button type="button" className="inline-action" onClick={() => void addSelectedItemToFavorites(item)}>
@@ -1283,16 +2161,22 @@ export function HomePage(props: {
                 ) : null}
               </div>
             </article>
-          )) : perks.map((perk) => (
+          )) : visiblePerks.map((perk) => (
             <article className="item-result" key={perk.hash}>
               {perk.icon ? <img alt="" src={perk.icon} /> : null}
               <div>
                 <h3>{perk.name}</h3>
                 <p>{perk.description}</p>
                 {perk.related_items?.length ? (
-                  <p><strong>可能出现于：</strong>{perk.related_items.map((item) => item.name).join("、")}</p>
+                  <>
+                    <p>
+                      <strong>关联分类：</strong>
+                      {[...new Set(perk.related_items.map((item) => formatLibraryGroupLabel(item.group_key)).filter(Boolean))].join(" / ")}
+                    </p>
+                    <p><strong>可能出现于：</strong>{perk.related_items.map((item) => item.name).join(" / ")}</p>
+                  </>
                 ) : (
-                  <p>暂未从本地 Manifest 反查到关联武器。</p>
+                  <p>本地 Manifest 里还没有查到关联装备。</p>
                 )}
                 <button type="button" className="inline-action" onClick={() => void addSelectedItemToFavorites(perk)}>
                   收藏
@@ -1301,8 +2185,8 @@ export function HomePage(props: {
             </article>
           ))}
         </div>
-        {searchTouched && !isSearching && !searchError && !items.length && !perks.length ? (
-          <p className="notice">未找到匹配结果。可以换个中文名、英文名，或者先保存一个常用别名。</p>
+        {searchTouched && !isSearching && !searchError && !hitCount ? (
+          <p className="notice">未找到匹配结果。可以换中文名、英文名，或者先保存一个常用别名再搜。</p>
         ) : null}
       </section>
     );
@@ -1330,12 +2214,15 @@ export function HomePage(props: {
       <VaultPanel
         items={accountSummary.vault.items}
         tags={vaultTags}
+        openingItemKey={itemDetailLoadingKey}
+        onSaveTagBatch={(inputs) => saveVaultTagsBatch(inputs)}
         cleanupActions={{
           characters: accountSummary.characters,
           writeActionsEnabled,
           onBatchUnlock: handleVaultCleanupUnlock,
           onBatchTransferToCharacter: handleVaultCleanupTransfer
         }}
+        wishlist={importedWishlist}
         onOpenItem={(item) => void openItemDetail(item, { is_vault_item: true })}
         onSaveTag={(item, tag) => saveVaultTag(item, tag)}
       />
@@ -1344,7 +2231,7 @@ export function HomePage(props: {
 
   function renderItemModal() {
     if (!selectedItem) return null;
-  const itemScore = selectedItem.group_key
+    const itemScore = selectedItem.group_key
       ? scoreVaultItem({
         hash: selectedItem.hash,
         instance_id: selectedItem.instance_id,
@@ -1359,16 +2246,39 @@ export function HomePage(props: {
     const wishlist = selectedAsAccountItem ? evaluateWishlistRoll({
       ...selectedAsAccountItem,
       socket_plugs: selectedAsAccountItem.socket_plugs ?? []
-    }) : null;
+    }, importedWishlist ?? undefined) : null;
+    const wishlistModeLabels = wishlist ? formatWishlistModeLabels(wishlist.labels) : [];
     const sameNameItems = selectedAsAccountItem && accountSummary
-      ? getAllKnownAccountItems(accountSummary)
+      ? getAllKnownAccountItemsWithSource(accountSummary)
         .filter((item) => item.name.trim() === selectedAsAccountItem.name.trim())
       : [];
+    const sameNameSourceStats = buildSameNameSourceStats(sameNameItems);
+    const sameNameDuplicateGroup = sameNameItems.length > 1
+      ? buildVaultDuplicateSummary(sameNameItems, vaultTags).groups[0]
+      : undefined;
+    const sortedSameNameItems = [...sameNameItems].sort((left, right) => {
+      const leftKey = getItemKey(left);
+      const rightKey = getItemKey(right);
+      const currentKey = selectedItem.item_key;
+
+      if (leftKey === currentKey && rightKey !== currentKey) return -1;
+      if (rightKey === currentKey && leftKey !== currentKey) return 1;
+
+      return scoreVaultItem(right, vaultTags).score - scoreVaultItem(left, vaultTags).score
+        || Number(Boolean(right.locked)) - Number(Boolean(left.locked))
+        || left.name.localeCompare(right.name, "zh-Hans-CN");
+    });
 
     return (
-      <div className="modal-backdrop" role="presentation" onClick={() => setSelectedItem(null)}>
-        <section className="item-modal" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
-          <button className="modal-close" type="button" onClick={() => setSelectedItem(null)}>关闭</button>
+      <div className="modal-backdrop" role="presentation" onClick={closeSelectedItemDetail}>
+        <section
+          className="item-modal"
+          role="dialog"
+          aria-modal="true"
+          aria-busy={selectedItem.is_detail_loading ? "true" : "false"}
+          onClick={(event) => event.stopPropagation()}
+        >
+          <button className="modal-close" type="button" onClick={closeSelectedItemDetail}>关闭</button>
           <div className="modal-title">
             {selectedItem.icon ? <img alt="" src={selectedItem.icon} /> : null}
             <div>
@@ -1378,28 +2288,91 @@ export function HomePage(props: {
               {selectedItem.locked !== undefined ? <p>{selectedItem.locked ? "已锁定" : "未锁定"}</p> : null}
             </div>
           </div>
+          {selectedItem.is_detail_loading ? (
+            <section className="item-detail-loading" aria-live="polite">
+              <strong>正在打开详情...</strong>
+              <span>先显示基础信息，来源、perk 和详细说明会继续加载。</span>
+            </section>
+          ) : null}
           {selectedItem.description ? <p>{selectedItem.description}</p> : null}
-          <section className="daily-source source-ready">
+          <section className={selectedItem.is_detail_loading ? "daily-source item-detail-loading" : "daily-source source-ready"}>
             <strong>{selectedItem.source.label}</strong>
             <span>{selectedItem.source.description}</span>
           </section>
           {wishlist?.matched ? (
             <section className="wishlist-panel">
-              <h3>疑似好 roll</h3>
-              <p>{wishlist.labels.join(" / ")}</p>
+              <div className="wishlist-detail-header">
+                <div>
+                  <h3>{wishlist.labels.includes("DIM Wishlist") ? "DIM 愿望单命中" : "疑似好 roll"}</h3>
+                  <p>{wishlistModeLabels.length ? wishlistModeLabels.join(" / ") : wishlist.labels.join(" / ")}</p>
+                </div>
+                <div className="wishlist-mode-badges">
+                  {wishlist.labels.includes("DIM Wishlist") ? <span className="wishlist-detail-badge">DIM 愿望单</span> : null}
+                  {wishlistModeLabels.map((label) => (
+                    <span className="wishlist-detail-badge secondary" key={label}>{label}</span>
+                  ))}
+                </div>
+              </div>
+              <div className="wishlist-local-tag">
+                <strong>当前本地标记</strong>
+                <span>{formatVaultTagLabel(vaultTags.items[selectedItem.item_key]?.tag ?? "none")}</span>
+              </div>
+              {sameNameItems.length > 1 ? (
+                <div className="wishlist-same-name-summary">
+                  <strong>{"同名共 " + sameNameSourceStats.total + " 件"}</strong>
+                  <div className="wishlist-same-name-chips">
+                    <span className="wishlist-same-name-chip">{"已装备 " + sameNameSourceStats.equipped}</span>
+                    <span className="wishlist-same-name-chip">{"背包 " + sameNameSourceStats.inventory}</span>
+                    <span className="wishlist-same-name-chip">{"仓库 " + sameNameSourceStats.vault}</span>
+                    <span className="wishlist-same-name-chip">{"邮政官 " + sameNameSourceStats.postmaster}</span>
+                  </div>
+                </div>
+              ) : null}
               <ul>
                 {wishlist.reasons.map((reason) => <li key={reason}>{reason}</li>)}
               </ul>
+              <div className="button-row wishlist-quick-actions">
+                <button type="button" className="secondary-button" onClick={() => void saveSelectedItemTag("keep")}>
+                  标记保留
+                </button>
+                <button type="button" className="secondary-button" onClick={() => void saveSelectedItemTag("review")}>
+                  标记关注
+                </button>
+                <button type="button" className="secondary-button" onClick={() => void saveSelectedItemTag("none")}>
+                  清除标记
+                </button>
+                <button type="button" className="secondary-button" onClick={() => void copyWishlistInsight()}>
+                  复制命中结论
+                </button>
+                {sameNameItems.length > 1 ? (
+                  <>
+                    <button type="button" className="secondary-button" onClick={() => openBestSameNameItem(sortedSameNameItems)}>
+                      打开最佳同名
+                    </button>
+                    <button type="button" className="secondary-button" onClick={() => void copySameNameLocator(sameNameItems)}>
+                      复制同名定位
+                    </button>
+                    <button type="button" className="secondary-button" onClick={() => void applySameNameCurrentKeepTags(sameNameItems, selectedItem.item_key, "keep-current-review-rest")}>
+                      当前保留，其余关注
+                    </button>
+                    <button type="button" className="secondary-button" onClick={() => void applySameNameCurrentKeepTags(sameNameItems, selectedItem.item_key, "keep-current-junk-rest")}>
+                      当前保留，其余可清理
+                    </button>
+                  </>
+                ) : null}
+              </div>
               <small>{wishlist.disclaimer}</small>
             </section>
           ) : null}
+
+
           <section className="item-note-panel">
             <label htmlFor="item-note-draft">本地备注</label>
             <textarea
               id="item-note-draft"
               value={itemNoteDraft}
               onChange={(event) => setItemNoteDraft(event.target.value)}
-              placeholder="例如：留给电猎清怪 / 等队友复查 PVP 手感 / 同名已有更好 roll"
+              placeholder="例如：留给电猎清杂 / 等队友复查 PVP 手感 / 同名已有更好 roll"
               rows={3}
             />
             <div className="button-row">
@@ -1437,6 +2410,7 @@ export function HomePage(props: {
                   type="button"
                   className="secondary-button"
                   disabled={isRunningItemAction}
+                  hidden={selectedItem.is_postmaster_item}
                   onClick={() => void runItemWriteAction(
                     selectedItem.locked ? "解锁" : "锁定",
                     () => api.setItemLockState({
@@ -1450,7 +2424,7 @@ export function HomePage(props: {
                 >
                   {selectedItem.locked ? "解锁" : "锁定"}
                 </button>
-                {!selectedItem.is_vault_item ? (
+                {!selectedItem.is_vault_item && !selectedItem.is_postmaster_item ? (
                   <button
                     type="button"
                     className="secondary-button"
@@ -1468,46 +2442,69 @@ export function HomePage(props: {
                     装备到角色
                   </button>
                 ) : null}
-                <button
-                  type="button"
-                  className="secondary-button"
-                  disabled={isRunningItemAction}
-                  onClick={() => void copyItemActionPlanText({
-                    action: "transfer",
-                    item_name: selectedItem.name,
-                    item_instance_id: selectedItem.instance_id,
-                    item_reference_hash: selectedItem.hash,
-                    character_id: selectedItem.is_vault_item
-                      ? selectedActionCharacterId
-                      : selectedItem.source_character_id ?? selectedActionCharacterId,
-                    transfer_to_vault: !selectedItem.is_vault_item
-                  })}
-                >
-                  复制转移计划
-                </button>
-                <button
-                  type="button"
-                  className="secondary-button"
-                  disabled={isRunningItemAction}
-                  onClick={() => void runItemWriteAction(
-                    selectedItem.is_vault_item ? "取出到角色" : "移入仓库",
-                    () => api.transferItem({
-                      membership_type: accountSummary?.membership_type ?? 0,
-                      character_id: selectedItem.is_vault_item
-                        ? selectedActionCharacterId
-                        : selectedItem.source_character_id ?? selectedActionCharacterId,
-                      item_id: selectedItem.instance_id ?? "",
-                      item_reference_hash: selectedItem.hash,
-                      item_name: selectedItem.name,
-                      transfer_to_vault: !selectedItem.is_vault_item
-                    })
-                  )}
-                >
-                  {selectedItem.is_vault_item ? "取出到角色" : "移入仓库"}
-                </button>
+                {!selectedItem.is_postmaster_item ? (
+                  <>
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      disabled={isRunningItemAction}
+                      onClick={() => void copyItemActionPlanText({
+                        action: "transfer",
+                        item_name: selectedItem.name,
+                        item_instance_id: selectedItem.instance_id,
+                        item_reference_hash: selectedItem.hash,
+                        character_id: selectedItem.is_vault_item
+                          ? selectedActionCharacterId
+                          : selectedItem.source_character_id ?? selectedActionCharacterId,
+                        transfer_to_vault: !selectedItem.is_vault_item
+                      })}
+                    >
+                      复制转移计划
+                    </button>
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      disabled={isRunningItemAction}
+                      onClick={() => void runItemWriteAction(
+                        selectedItem.is_vault_item ? "取出到角色" : "移入仓库",
+                        () => api.transferItem({
+                          membership_type: accountSummary?.membership_type ?? 0,
+                          character_id: selectedItem.is_vault_item
+                            ? selectedActionCharacterId
+                            : selectedItem.source_character_id ?? selectedActionCharacterId,
+                          item_id: selectedItem.instance_id ?? "",
+                          item_reference_hash: selectedItem.hash,
+                          item_name: selectedItem.name,
+                          transfer_to_vault: !selectedItem.is_vault_item
+                        })
+                      )}
+                    >
+                      {selectedItem.is_vault_item ? "取出到角色" : "移入仓库"}
+                    </button>
+                  </>
+                ) : null}
+                {selectedItem.is_postmaster_item ? (
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    disabled={isRunningItemAction}
+                    onClick={() => void runItemWriteAction(
+                      "从邮政官取回",
+                      () => api.pullFromPostmaster({
+                        membership_type: accountSummary?.membership_type ?? 0,
+                        character_id: selectedItem.source_character_id ?? selectedActionCharacterId,
+                        item_id: selectedItem.instance_id ?? "",
+                        item_reference_hash: selectedItem.hash,
+                        item_name: selectedItem.name
+                      })
+                    )}
+                  >
+                    取回到角色背包
+                  </button>
+                ) : null}
               </div>
               {!writeActionsEnabled ? (
-                <p className="notice">d2-service 本地写操作开关未开启，请先到设置页开启。Bungie 后台权限是另一项设置。</p>
+                <p className="notice">d2-tools 本地写操作开关未开启，请先到设置页开启。Bungie 后台权限是另一项设置。</p>
               ) : null}
               {itemActionMessage ? <p className={itemActionMessage.includes("失败") ? "error" : "notice"}>{itemActionMessage}</p> : null}
             </section>
@@ -1545,7 +2542,7 @@ export function HomePage(props: {
               {itemShareMessage ? <p className="notice">{itemShareMessage}</p> : null}
               <div className="modal-score-columns">
                 <div>
-                  <strong>评分原因</strong>
+                    <strong>评分原因</strong>
                   <ul>
                     {itemScore.reasons.map((reason) => <li key={reason}>{reason}</li>)}
                   </ul>
@@ -1575,8 +2572,54 @@ export function HomePage(props: {
           {sameNameItems.length > 1 ? (
             <section className="modal-perk-group">
               <h3>同名对比</h3>
+              {sameNameDuplicateGroup ? (
+                <div className="button-row">
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={() => openBestSameNameItem(sortedSameNameItems)}
+                  >
+                    打开最高分
+                  </button>
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={() => void applySameNameCurrentKeepTags(sameNameItems, selectedItem.item_key, "keep-current-review-rest")}
+                  >
+                    保留当前，其余关注
+                  </button>
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={() => void applySameNameCurrentKeepTags(sameNameItems, selectedItem.item_key, "keep-current-junk-rest")}
+                  >
+                    保留当前，其余可清理
+                  </button>
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={() => void applySameNameBatchTags(sameNameItems, "keep-best-review-rest")}
+                  >
+                    其余标记关注
+                  </button>
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={() => void applySameNameBatchTags(sameNameItems, "keep-best-junk-rest")}
+                  >
+                    其余标记可清理
+                  </button>
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={() => void applySameNameBatchTags(sameNameItems, "clear-group-tags")}
+                  >
+                    清除本组标记
+                  </button>
+                </div>
+              ) : null}
               <div className="same-roll-list">
-                {sameNameItems.map((item) => {
+                {sortedSameNameItems.map((item) => {
                   const score = scoreVaultItem(item, vaultTags);
                   const isCurrent = getItemKey(item) === selectedItem.item_key;
                   return (
@@ -1584,10 +2627,15 @@ export function HomePage(props: {
                       type="button"
                       className={isCurrent ? "same-roll-row current" : "same-roll-row"}
                       key={getItemKey(item)}
-                      onClick={() => void openItemDetail(item, { is_vault_item: true })}
+                      onClick={() => void openItemDetail(item, {
+                        source_character_id: item.source_character_id,
+                        is_vault_item: item.is_vault_item,
+                        is_postmaster_item: item.is_postmaster_item
+                      })}
                     >
                       <strong>{item.name} / {score.score} 分</strong>
                       <span>{item.socket_plugs?.slice(0, 5).map((plug) => plug.name).join(" / ") || "暂无实际 roll"}</span>
+                      <small>{formatAccountItemMeta(item)}</small>
                       <small>{item.locked ? "已锁定" : "未锁定"} / {vaultTags.items[getItemKey(item)]?.tag ?? "未标记"}</small>
                     </button>
                   );
@@ -1630,6 +2678,8 @@ export function HomePage(props: {
                 </section>
               ))}
             </div>
+          ) : selectedItem.is_detail_loading ? (
+            <p className="notice">正在读取 perk...</p>
           ) : (
             <p className="notice">暂无可展示 perk。</p>
           )}
@@ -1656,17 +2706,80 @@ function selectedItemToAccountItem(item: SelectedItemDetail): AccountItemSummary
   };
 }
 
-function getAllKnownAccountItems(summary: AccountSummary): AccountItemSummary[] {
+function getAllKnownAccountItemsWithSource(summary: AccountSummary): SameNameItemSummary[] {
   const characterItems = summary.characters.flatMap((character) => [
-    ...character.equipped_items,
-    ...character.inventory_items
+    ...character.equipped_items.map((item) => ({
+      ...item,
+      source_character_id: character.character_id,
+      source_kind: "equipped" as const,
+      source_label: "已装备"
+    })),
+    ...character.inventory_items.map((item) => ({
+      ...item,
+      source_character_id: character.character_id,
+      source_kind: "inventory" as const,
+      source_label: "背包"
+    })),
+    ...character.postmaster_items.map((item) => ({
+      ...item,
+      source_character_id: character.character_id,
+      is_postmaster_item: true,
+      source_kind: "postmaster" as const,
+      source_label: "邮政官"
+    }))
   ]);
 
-  return [...summary.vault.items, ...characterItems];
+  return [
+    ...summary.vault.items.map((item) => ({
+      ...item,
+      is_vault_item: true,
+      source_kind: "vault" as const,
+      source_label: "仓库"
+    })),
+    ...characterItems
+  ];
+}
+
+
+function normalizeAccountItemsForCore(
+  items: AccountItemSummary[]
+): Array<AccountItemSummary & { socket_plugs: NonNullable<AccountItemSummary["socket_plugs"]> }> {
+  return items.map((item) => ({
+    ...item,
+    socket_plugs: item.socket_plugs ?? []
+  }));
+}
+
+type AccountItemWithSource = AccountItemSummary & {
+  account_source: "equipped" | "inventory";
+  source_label: string;
+};
+
+function getCharacterCombinedItems(character: AccountSummary["characters"][number]): AccountItemWithSource[] {
+  return [
+    ...character.equipped_items.map((item) => ({
+      ...item,
+      account_source: "equipped" as const,
+      source_label: "已装备"
+    })),
+    ...character.inventory_items.map((item) => ({
+      ...item,
+      account_source: "inventory" as const,
+      source_label: "背包"
+    }))
+  ];
+}
+
+function isAccountItemFromSource(
+  item: AccountItemSummary,
+  source: AccountItemWithSource["account_source"]
+): item is AccountItemWithSource {
+  return "account_source" in item && item.account_source === source;
 }
 
 function AccountSlotCategories(props: {
   categories: AccountSlotCategory[];
+  openingItemKey?: string;
   onOpenItem: (item: AccountItemSummary) => void;
 }) {
   return (
@@ -1684,28 +2797,68 @@ function AccountSlotCategories(props: {
                   <strong>{group.label}</strong>
                   <span>{group.items.length} 件</span>
                 </div>
-                <div className="equipment-grid">
-                  {group.items.map((item) => (
-                    <button
-                      className="equipment-item"
-                      key={`${item.hash}-${item.instance_id ?? ""}`}
-                      type="button"
-                      onClick={() => props.onOpenItem(item)}
-                    >
-                      {item.icon ? <img alt="" src={item.icon} /> : <div className="item-icon-placeholder" />}
-                      <div>
-                        <strong>{item.name}</strong>
-                        <span>{formatAccountItemMeta(item)}</span>
-                      </div>
-                    </button>
-                  ))}
-                </div>
+                <AccountSlotSourceCluster
+                  label="已装备"
+                  items={group.items.filter((item): item is AccountItemWithSource => isAccountItemFromSource(item, "equipped"))}
+                  openingItemKey={props.openingItemKey}
+                  onOpenItem={props.onOpenItem}
+                />
+                <AccountSlotSourceCluster
+                  label="背包"
+                  items={group.items.filter((item): item is AccountItemWithSource => isAccountItemFromSource(item, "inventory"))}
+                  openingItemKey={props.openingItemKey}
+                  onOpenItem={props.onOpenItem}
+                />
               </section>
             ))}
           </div>
         </section>
       ))}
     </div>
+  );
+}
+
+function AccountSlotSourceCluster(props: {
+  label: "已装备" | "背包";
+  items: AccountItemWithSource[];
+  openingItemKey?: string;
+  onOpenItem: (item: AccountItemSummary) => void;
+}) {
+  if (!props.items.length) return null;
+
+  const isEquipped = props.label === "已装备";
+
+  return (
+    <section className="account-slot-source-cluster">
+      <div className="account-slot-source-heading">
+        <span className={isEquipped ? "account-slot-source-badge equipped" : "account-slot-source-badge inventory"}>
+          {props.label}
+        </span>
+        <small>{props.items.length} 件</small>
+      </div>
+      <div className="equipment-grid">
+        {props.items.map((item) => {
+          const isPending = getItemKey(item) === props.openingItemKey;
+          return (
+            <button
+              className={isEquipped
+                ? (isPending ? "equipment-item equipped pending" : "equipment-item equipped")
+                : (isPending ? "equipment-item inventory pending" : "equipment-item inventory")}
+              key={`${item.hash}-${item.instance_id ?? ""}`}
+              type="button"
+              aria-busy={isPending}
+              onClick={() => props.onOpenItem(item)}
+            >
+              {item.icon ? <img alt="" src={item.icon} /> : <div className="item-icon-placeholder" />}
+              <div>
+                <strong>{item.name}</strong>
+                <span>{formatAccountItemMeta(item)}</span>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 
@@ -1719,10 +2872,10 @@ function ItemAiSections(props: { sections: NonNullable<ItemAiAdviceResult["ai"]>
   }
   return (
     <div className="ai-section-grid">
-      <SimpleAiSection title="事实" items={props.sections.facts} />
-      <SimpleAiSection title="分析" items={props.sections.analysis} />
-      <SimpleAiSection title="建议" items={props.sections.suggestions} />
-      <SimpleAiSection title="操作提醒" items={props.sections.action_reminders} />
+      <SimpleAiSection title="浜嬪疄" items={props.sections.facts} />
+      <SimpleAiSection title="鍒嗘瀽" items={props.sections.analysis} />
+      <SimpleAiSection title="寤鸿" items={props.sections.suggestions} />
+      <SimpleAiSection title="鎿嶄綔鎻愰啋" items={props.sections.action_reminders} />
     </div>
   );
 }
@@ -1749,11 +2902,63 @@ type SelectedItemDetail = ItemDefinitionDetail & {
   bucket_name?: string;
   source_character_id?: string;
   is_vault_item?: boolean;
+  is_postmaster_item?: boolean;
+  is_detail_loading?: boolean;
 };
 
 type SelectedItemSource = {
   source_character_id?: string;
   is_vault_item?: boolean;
+  is_postmaster_item?: boolean;
+};
+
+type SameNameItemSummary = AccountItemSummary & SelectedItemSource & {
+  source_kind: "equipped" | "inventory" | "vault" | "postmaster";
+  source_label?: string;
+};
+
+function createSelectedItemPreview(
+  item: AccountItemSummary | ItemSearchResult,
+  source: SelectedItemSource
+): SelectedItemDetail {
+  return {
+    hash: item.hash,
+    name: item.name,
+    description: "description" in item ? item.description : "",
+    icon: item.icon,
+    item_type: item.item_type,
+    tier: item.tier,
+    source: "source" in item ? item.source : itemDetailLoadingSource,
+    perks: "perks" in item ? item.perks : undefined,
+    item_key: getItemKey(item),
+    instance_id: "instance_id" in item ? item.instance_id : undefined,
+    power: "power" in item ? item.power : undefined,
+    locked: "locked" in item ? item.locked : undefined,
+    socket_plugs: "socket_plugs" in item ? item.socket_plugs : undefined,
+    group_key: "group_key" in item ? item.group_key : undefined,
+    bucket_name: "bucket_name" in item ? item.bucket_name : undefined,
+    source_character_id: source.source_character_id,
+    is_vault_item: source.is_vault_item,
+    is_postmaster_item: source.is_postmaster_item,
+    is_detail_loading: true
+  };
+}
+
+function mergeSelectedItemDetail(
+  current: SelectedItemDetail,
+  detail: ItemDefinitionDetail
+): SelectedItemDetail {
+  return {
+    ...current,
+    ...detail,
+    is_detail_loading: false
+  };
+}
+
+const itemDetailLoadingSource: ItemSourceSummary = {
+  status: "missing",
+  label: "详情",
+  description: "正在读取来源、perk 和物品说明..."
 };
 
 function getItemKey(item: AccountItemSummary | ItemSearchResult): string {
@@ -1764,7 +2969,10 @@ function formatActionLogTitle(entry: ActionLogEntry): string {
   const actionLabels: Record<ActionLogEntry["action"], string> = {
     "set-lock": "锁定状态",
     equip: "装备",
-    transfer: "仓库转移"
+    transfer: "仓库转移",
+    "postmaster-pull": "邮政官取回",
+    "loadout-equip": "应用游戏内配装栏",
+    "loadout-snapshot": "覆盖游戏内配装栏"
   };
 
   return [
@@ -1789,7 +2997,7 @@ function filteredActionLog(
 
 function buildActionDiagnosticText(entry: ActionLogEntry): string {
   return [
-    "d2-service 写操作诊断",
+    "d2-tools 写操作诊断",
     `时间：${entry.created_at}`,
     `操作：${entry.action}`,
     `结果：${entry.ok ? "成功" : "失败"}`,
@@ -1804,6 +3012,7 @@ function buildActionDiagnosticText(entry: ActionLogEntry): string {
 
 function formatAccountItemMeta(item: AccountItemSummary): string {
   return [
+    "source_label" in item ? `来源：${item.source_label}` : undefined,
     item.bucket_name,
     item.tier,
     item.power ? `光等 ${item.power}` : undefined,
@@ -1818,6 +3027,27 @@ function formatHighestPowerSource(source: "equipped" | "inventory" | "vault"): s
     vault: "仓库"
   };
   return labels[source];
+}
+
+function formatWishlistModeLabels(labels: string[]): string[] {
+  return labels.filter((label) => label !== "DIM Wishlist");
+}
+
+function formatLibraryGroupLabel(
+  group: ItemSearchResult["group_key"] | NonNullable<PerkSearchResult["related_items"]>[number]["group_key"]
+) {
+  if (group === "weapons") return "武器";
+  if (group === "armor") return "护甲";
+  if (group === "equipment") return "装备";
+  if (group === "other") return "其他";
+  return "";
+}
+
+function formatVaultTagLabel(tag: VaultTagValue): string {
+  if (tag === "keep") return "保留";
+  if (tag === "review") return "关注";
+  if (tag === "junk") return "可清理";
+  return "未标记";
 }
 
 function pageTitle(page: ShellPageKey) {

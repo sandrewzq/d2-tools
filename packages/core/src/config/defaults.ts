@@ -4,6 +4,12 @@ import type { D2Config } from "./schema.js";
 
 export function defaultDataDir(): string {
   return process.env.APPDATA
+    ? join(process.env.APPDATA, "d2-tools")
+    : join(homedir(), ".d2-tools");
+}
+
+export function legacyDefaultDataDir(): string {
+  return process.env.APPDATA
     ? join(process.env.APPDATA, "d2-service")
     : join(homedir(), ".d2-service");
 }

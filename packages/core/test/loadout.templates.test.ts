@@ -6,7 +6,7 @@ import { createLoadoutTemplate, deleteLoadoutTemplate, listLoadoutTemplates } fr
 
 describe("loadout templates", () => {
   it("creates a local template from equipped items", () => {
-    const dir = mkdtempSync(join(tmpdir(), "d2-service-loadouts-"));
+    const dir = mkdtempSync(join(tmpdir(), "d2-tools-loadouts-"));
 
     const template = createLoadoutTemplate(dir, {
       name: "术士日落",
@@ -22,7 +22,7 @@ describe("loadout templates", () => {
   });
 
   it("deletes local templates", () => {
-    const dir = mkdtempSync(join(tmpdir(), "d2-service-loadouts-"));
+    const dir = mkdtempSync(join(tmpdir(), "d2-tools-loadouts-"));
     const template = createLoadoutTemplate(dir, {
       name: "术士日落",
       character_id: "char-1",

@@ -26,10 +26,10 @@ importers:
 
   packages/desktop:
     dependencies:
-      '@d2-service/core':
+      '@d2-tools/core':
         specifier: workspace:*
         version: link:../core
-      '@d2-service/http':
+      '@d2-tools/http':
         specifier: workspace:*
         version: link:../http
     devDependencies:
@@ -60,7 +60,7 @@ importers:
 
   packages/http:
     dependencies:
-      '@d2-service/core':
+      '@d2-tools/core':
         specifier: workspace:*
         version: link:../core
 

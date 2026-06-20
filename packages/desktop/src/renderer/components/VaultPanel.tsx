@@ -1,16 +1,25 @@
 import { useMemo, useState } from "react";
-import { scoreVaultItem, type VaultItemScore, type VaultScoreGrade } from "@d2-service/core/analysis/scoring";
-import { analyzeDuplicateItems, type DuplicateAnalysisResult } from "@d2-service/core/analysis/duplicates";
-import { evaluateWishlistRoll } from "@d2-service/core/analysis/wishlist";
-import type { AccountItemSummary, AmmoTypeKey, EquipmentGroupKey, VaultTags, VaultTagValue } from "../api/client";
+import { scoreVaultItem, type VaultItemScore, type VaultScoreGrade } from "@d2-tools/core/analysis/scoring";
+import { analyzeDuplicateItems, type DuplicateAnalysisResult, type DuplicateItemGroup } from "@d2-tools/core/analysis/duplicates";
+import { evaluateWishlistRoll } from "@d2-tools/core/analysis/wishlist";
+import type {
+  AccountItemSummary,
+  AmmoTypeKey,
+  DimWishlist,
+  EquipmentGroupKey,
+  SaveVaultTagInput,
+  VaultTags,
+  VaultTagValue
+} from "../api/client";
 import { getAccountItemSlotLabel } from "../utils/accountSlots";
 
 export type VaultGroupFilter = EquipmentGroupKey | "all";
 export type VaultSlotFilter = string | "all";
 export type VaultAmmoFilter = AmmoTypeKey | "all";
 export type VaultSortKey = "name" | "group" | "tier" | "score" | "power";
-export type VaultTagFilter = Exclude<VaultTagValue, "none"> | "all" | "untagged" | "noted";
+export type VaultTagFilter = Exclude<VaultTagValue, "none"> | "all" | "untagged" | "noted" | "wishlist";
 export type VaultScoreFilter = VaultScoreGrade | "all";
+export type VaultScoreRangeFilter = "all" | "80-100" | "60-79" | "40-59" | "0-39";
 export type VaultLockFilter = "all" | "locked" | "unlocked";
 export type VaultBatchSelectionMode = "visible" | "junk" | "review" | "untagged" | "noted";
 export type VaultViewMode = "list" | "duplicates";
@@ -27,10 +36,12 @@ export type VaultFilter = {
   query: string;
   tag?: VaultTagFilter;
   score?: VaultScoreFilter;
+  scoreRange?: VaultScoreRangeFilter;
   lock?: VaultLockFilter;
   slot?: VaultSlotFilter;
   ammo?: VaultAmmoFilter;
   tags?: VaultTags;
+  wishlist?: DimWishlist | null;
 };
 
 type ParsedVaultQuery = {
@@ -72,19 +83,28 @@ const vaultGroupLabels: Record<VaultGroupFilter, string> = {
 };
 
 const vaultGroupOrder: VaultGroupFilter[] = ["all", "weapons", "armor", "equipment", "other"];
+const defaultVaultGroupTab: VaultGroupFilter = "weapons";
 const tagLabels: Record<VaultTagFilter, string> = {
   all: "全部标记",
   keep: "保留",
   review: "关注",
   junk: "可清理",
   untagged: "未标记",
-  noted: "有备注"
+  noted: "有备注",
+  wishlist: "DIM 愿望单"
 };
 const scoreFilterLabels: Record<VaultScoreFilter, string> = {
   all: "全部推荐",
   keep: "建议保留",
   review: "建议复查",
   junk: "可清理"
+};
+const scoreRangeFilterLabels: Record<VaultScoreRangeFilter, string> = {
+  all: "全部评分",
+  "80-100": "80-100 分",
+  "60-79": "60-79 分",
+  "40-59": "40-59 分",
+  "0-39": "0-39 分"
 };
 const sortLabels: Record<VaultSortKey, string> = {
   name: "按名称",
@@ -118,9 +138,10 @@ export function filterVaultItems(items: AccountItemSummary[], filter: VaultFilte
     const entry = (filter.tags ?? { items: {} }).items[getVaultItemKey(item)];
     const matchesGroup = filter.group === "all" || item.group_key === filter.group;
     if (!matchesGroup) return false;
-    if (!matchesTag(item, filter.tag ?? "all", filter.tags ?? { items: {} })) return false;
-    if (parsedQuery.tag && !matchesTag(item, parsedQuery.tag, filter.tags ?? { items: {} })) return false;
+    if (!matchesTag(item, filter.tag ?? "all", filter.tags ?? { items: {} }, filter.wishlist)) return false;
+    if (parsedQuery.tag && !matchesTag(item, parsedQuery.tag, filter.tags ?? { items: {} }, filter.wishlist)) return false;
     if (!matchesScore(item, filter.score ?? "all", filter.tags ?? { items: {} })) return false;
+    if (!matchesScoreRange(item, filter.scoreRange ?? "all", filter.tags ?? { items: {} })) return false;
     if (parsedQuery.score && !matchesScoreExpression(item, parsedQuery.score, filter.tags ?? { items: {} })) return false;
     if (!matchesLock(item, filter.lock ?? "all")) return false;
     if (!matchesSlot(item, filter.slot ?? "all")) return false;
@@ -293,7 +314,7 @@ export function selectMarkedCleanupItems(items: AccountItemSummary[], tags: Vaul
 
 export function buildVaultCleanupText(items: AccountItemSummary[], tags: VaultTags): string {
   const lines = [
-    "d2-service 仓库清理清单",
+    "d2-tools 仓库清理清单",
     `生成时间：${new Date().toLocaleString("zh-CN")}`,
     `物品数量：${items.length}`,
     ""
@@ -318,22 +339,114 @@ export function buildVaultCleanupText(items: AccountItemSummary[], tags: VaultTa
   return lines.join("\n").trimEnd();
 }
 
+export function buildVaultCleanupLocatorText(items: AccountItemSummary[], tags: VaultTags): string {
+  const duplicateNameCounts = items.reduce<Map<string, number>>((counts, item) => {
+    counts.set(item.name, (counts.get(item.name) ?? 0) + 1);
+    return counts;
+  }, new Map());
+  const lines = [
+    "游戏内定位提示",
+    "d2-tools 的标记只保存在本机，游戏里不会显示。建议先把候选装备转移到同一个角色背包，再按下面信息逐件核对。",
+    ""
+  ];
+
+  items.forEach((item, index) => {
+    const key = getVaultItemKey(item);
+    const tag = tags.items[key]?.tag;
+    const note = tags.items[key]?.note;
+    const plugs = item.socket_plugs?.map((plug) => plug.name).filter(Boolean).slice(0, 5).join(" / ");
+    const duplicateCount = duplicateNameCounts.get(item.name) ?? 0;
+    lines.push(`${index + 1}. ${item.name}`);
+    lines.push(`   定位：${formatVaultItemMeta(item) || "未知位置 / 未知类型"}`);
+    if (item.power) lines.push(`   光等 ${item.power}`);
+    lines.push(`   ${item.locked ? "已锁定" : "未锁定"}`);
+    if (plugs) lines.push(`   Perk：${plugs}`);
+    if (tag) lines.push(`   本地标记：${tagLabels[tag]}`);
+    if (note) lines.push(`   备注：${note}`);
+    if (duplicateCount > 1) lines.push(`   同名装备有 ${duplicateCount} 件，请按光等、锁定状态和 Perk 区分。`);
+    lines.push("");
+  });
+
+  return lines.join("\n").trimEnd();
+}
+
 export function buildVaultDuplicateSummary(items: AccountItemSummary[], tags: VaultTags): DuplicateAnalysisResult {
   return analyzeDuplicateItems(items.map(normalizeCoreItem), tags);
+}
+
+export function countWishlistMatches(items: AccountItemSummary[], wishlist?: DimWishlist | null): number {
+  if (!wishlist) {
+    return 0;
+  }
+
+  return items.reduce((count, item) => (
+    evaluateWishlistRoll(normalizeCoreItem(item), wishlist).matched ? count + 1 : count
+  ), 0);
+}
+
+export type DuplicateGroupBatchTagMode =
+  | "keep-best-review-rest"
+  | "keep-best-junk-rest"
+  | "clear-group-tags";
+
+export type DuplicateGroupSelectionMode =
+  | "rest"
+  | "junk";
+
+export function buildDuplicateGroupBatchTagPlan(
+  group: DuplicateItemGroup,
+  mode: DuplicateGroupBatchTagMode,
+  keepItemKey = group.items[0]?.item_key ?? ""
+): SaveVaultTagInput[] {
+  if (mode === "clear-group-tags") {
+    return group.items.map((item) => ({
+      item_key: item.item_key,
+      tag: "none"
+    }));
+  }
+
+  return group.items.map((item, index) => ({
+    item_key: item.item_key,
+    tag: item.item_key === keepItemKey || (!keepItemKey && index === 0)
+      ? "keep"
+      : mode === "keep-best-review-rest"
+        ? "review"
+        : "junk"
+  }));
+}
+
+export function selectDuplicateGroupItems(
+  group: DuplicateItemGroup,
+  mode: DuplicateGroupSelectionMode,
+  keepItemKey = group.items[0]?.item_key ?? ""
+): string[] {
+  if (mode === "junk") {
+    return group.items
+      .filter((item) => item.item_key !== keepItemKey && item.recommendation === "junk")
+      .map((item) => item.item_key);
+  }
+
+  return group.items
+    .filter((item) => item.item_key !== keepItemKey)
+    .map((item) => item.item_key);
 }
 
 export function VaultPanel(props: {
   items: AccountItemSummary[];
   tags: VaultTags;
+  wishlist?: DimWishlist | null;
+  openingItemKey?: string;
   onOpenItem: (item: AccountItemSummary) => void;
   onSaveTag: (item: AccountItemSummary, tag: VaultTagValue) => void | Promise<void>;
+  onSaveTagBatch: (inputs: SaveVaultTagInput[]) => void | Promise<void>;
   cleanupActions?: VaultCleanupActions;
 }) {
   const [query, setQuery] = useState("");
-  const [group, setGroup] = useState<VaultGroupFilter>("all");
+  const [group, setGroup] = useState<VaultGroupFilter>(defaultVaultGroupTab);
   const [sortKey, setSortKey] = useState<VaultSortKey>("name");
   const [tagFilter, setTagFilter] = useState<VaultTagFilter>("all");
   const [scoreFilter, setScoreFilter] = useState<VaultScoreFilter>("all");
+  const [scoreRangeFilter, setScoreRangeFilter] = useState<VaultScoreRangeFilter>("all");
   const [lockFilter, setLockFilter] = useState<VaultLockFilter>("all");
   const [slotFilter, setSlotFilter] = useState<VaultSlotFilter>("all");
   const [ammoFilter, setAmmoFilter] = useState<VaultAmmoFilter>("all");
@@ -344,6 +457,7 @@ export function VaultPanel(props: {
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(() => new Set());
   const [batchMessage, setBatchMessage] = useState("");
   const [isBatchSaving, setIsBatchSaving] = useState(false);
+  const [activeBatchAction, setActiveBatchAction] = useState("");
   const cleanupCharacters = props.cleanupActions?.characters ?? [];
   const cleanupTargetCharacterId = cleanupCharacterId || cleanupCharacters[0]?.character_id || "";
   const groups = useMemo(() => buildVaultGroups(props.items), [props.items]);
@@ -353,11 +467,13 @@ export function VaultPanel(props: {
       query: "",
       tag: tagFilter,
       score: scoreFilter,
+      scoreRange: scoreRangeFilter,
       lock: lockFilter,
       ammo: ammoFilter,
-      tags: props.tags
+      tags: props.tags,
+      wishlist: props.wishlist
     })),
-    [ammoFilter, group, lockFilter, props.items, props.tags, scoreFilter, tagFilter]
+    [ammoFilter, group, lockFilter, props.items, props.tags, props.wishlist, scoreFilter, scoreRangeFilter, tagFilter]
   );
   const filteredItems = useMemo(
     () => sortVaultItems(
@@ -366,15 +482,17 @@ export function VaultPanel(props: {
         query,
         tag: tagFilter,
         score: scoreFilter,
+        scoreRange: scoreRangeFilter,
         lock: lockFilter,
         slot: slotFilter,
         ammo: ammoFilter,
-        tags: props.tags
+        tags: props.tags,
+        wishlist: props.wishlist
       }),
       sortKey,
       props.tags
     ),
-    [ammoFilter, group, lockFilter, props.items, props.tags, query, scoreFilter, slotFilter, sortKey, tagFilter]
+    [ammoFilter, group, lockFilter, props.items, props.tags, props.wishlist, query, scoreFilter, scoreRangeFilter, slotFilter, sortKey, tagFilter]
   );
   const filteredSections = useMemo(
     () => buildVaultSections(filteredItems),
@@ -387,6 +505,10 @@ export function VaultPanel(props: {
   const markedCleanupItems = useMemo(
     () => selectMarkedCleanupItems(props.items, props.tags),
     [props.items, props.tags]
+  );
+  const wishlistSummaryCount = useMemo(
+    () => countWishlistMatches(props.items, props.wishlist),
+    [props.items, props.wishlist]
   );
   const selectedCleanupItems = useMemo(
     () => markedCleanupItems.filter((item) => selectedKeys.has(getVaultItemKey(item))),
@@ -417,9 +539,42 @@ export function VaultPanel(props: {
     setBatchMessage("");
   }
 
+  function clearFilters() {
+    setQuery("");
+    setGroup(defaultVaultGroupTab);
+    setSortKey("name");
+    setTagFilter("all");
+    setScoreFilter("all");
+    setScoreRangeFilter("all");
+    setLockFilter("all");
+    setSlotFilter("all");
+    setAmmoFilter("all");
+    setActiveBatchAction("");
+    setBatchMessage("");
+  }
+
+  function mergeSelectedKeys(keys: string[]) {
+    if (!keys.length) {
+      setBatchMessage("这一组没有可加入的候选。");
+      return;
+    }
+
+    setSelectedKeys((current) => {
+      const next = new Set(current);
+      for (const key of keys) {
+        next.add(key);
+      }
+      setBatchMessage(`已加入 ${keys.length} 件候选，当前共 ${next.size} 件。`);
+      return next;
+    });
+    setIsOrganizing(true);
+    setIsCleanupMode(false);
+  }
+
   async function applyBatchTag(tag: VaultTagValue) {
     setIsBatchSaving(true);
-    setBatchMessage("");
+    setActiveBatchAction(tag === "review" ? "批量关注" : tag === "junk" ? "批量可清理" : "批量清除");
+    setBatchMessage(tag === "review" ? "正在批量标记为关注..." : tag === "junk" ? "正在批量标记为可清理..." : "正在批量清除本地标记...");
 
     try {
       for (const item of selectedItems) {
@@ -431,6 +586,7 @@ export function VaultPanel(props: {
       setBatchMessage(error instanceof Error ? error.message : "批量标记失败");
     } finally {
       setIsBatchSaving(false);
+      setActiveBatchAction("");
     }
   }
 
@@ -442,7 +598,7 @@ export function VaultPanel(props: {
       : selectVaultBatchItems(filteredItems, "junk", props.tags);
     const text = buildVaultCleanupText(cleanupItems, props.tags);
     try {
-      await navigator.clipboard.writeText(text);
+      await navigator.clipboard.writeText(`${text}\n\n${buildVaultCleanupLocatorText(cleanupItems, props.tags)}`);
       setBatchMessage(`已复制 ${cleanupItems.length} 件装备的清理清单。`);
     } catch {
       setBatchMessage("剪贴板不可用，请稍后重试。");
@@ -457,7 +613,8 @@ export function VaultPanel(props: {
     }
 
     setIsBatchSaving(true);
-    setBatchMessage("");
+    setActiveBatchAction(action === "unlock" ? "批量解锁" : "转移到角色背包");
+    setBatchMessage(action === "unlock" ? "正在批量解锁..." : "正在转移到角色背包...");
 
     try {
       const message = action === "unlock"
@@ -468,6 +625,44 @@ export function VaultPanel(props: {
       setBatchMessage(error instanceof Error ? error.message : "清理操作失败");
     } finally {
       setIsBatchSaving(false);
+      setActiveBatchAction("");
+    }
+  }
+
+  async function applyDuplicateGroupTags(
+    group: DuplicateItemGroup,
+    mode: DuplicateGroupBatchTagMode,
+    keepItemKey = group.items[0]?.item_key ?? ""
+  ) {
+    setIsBatchSaving(true);
+    setActiveBatchAction(
+      mode === "keep-best-review-rest"
+        ? "重复组标记为关注"
+        : mode === "keep-best-junk-rest"
+          ? "重复组标记为可清理"
+          : "清除重复组标记"
+    );
+    setBatchMessage(
+      mode === "keep-best-review-rest"
+        ? `正在处理 ${group.name}，保留选中件，其余标记为关注...`
+        : mode === "keep-best-junk-rest"
+          ? `正在处理 ${group.name}，保留选中件，其余标记为可清理...`
+          : `正在清除 ${group.name} 这组装备的本地标记...`
+    );
+
+    try {
+      await props.onSaveTagBatch(buildDuplicateGroupBatchTagPlan(group, mode, keepItemKey));
+      const message = mode === "keep-best-review-rest"
+        ? `已处理 ${group.name}，保留选中件，其余标记为关注`
+        : mode === "keep-best-junk-rest"
+          ? `已处理 ${group.name}，保留选中件，其余标记为可清理`
+          : `已清除 ${group.name} 这组装备的本地标记`;
+      setBatchMessage(message);
+    } catch (error) {
+      setBatchMessage(error instanceof Error ? error.message : "重复组批量标记失败");
+    } finally {
+      setIsBatchSaving(false);
+      setActiveBatchAction("");
     }
   }
 
@@ -481,6 +676,21 @@ export function VaultPanel(props: {
         <div className="vault-count">
           {filteredItems.length} / {props.items.length}
         </div>
+      </div>
+      <div className="vault-content-tabs" role="tablist" aria-label="仓库内容标签">
+        {groups.map((item) => (
+          <button
+            className={item.key === group ? "vault-content-tab active" : "vault-content-tab"}
+            key={item.key}
+            role="tab"
+            aria-selected={item.key === group}
+            type="button"
+            onClick={() => setGroup(item.key)}
+          >
+            <strong>{item.label}</strong>
+            <span>{item.count}</span>
+          </button>
+        ))}
       </div>
       <div className="vault-organize-bar">
         <button
@@ -533,15 +743,15 @@ export function VaultPanel(props: {
       </div>
       {isOrganizing ? (
         <div className="vault-batch-panel">
-          <span>已选择 {selectedItems.length} 件</span>
+          <span>{isBatchSaving && activeBatchAction ? `${activeBatchAction}...` : `已选择 ${selectedItems.length} 件`}</span>
             <button type="button" aria-busy={isBatchSaving} disabled={!selectedItems.length || isBatchSaving} onClick={() => void applyBatchTag("review")}>
-            {isBatchSaving ? "处理中..." : "批量关注"}
+            {isBatchSaving && activeBatchAction === "批量关注" ? "处理中..." : "批量关注"}
           </button>
           <button type="button" aria-busy={isBatchSaving} disabled={!selectedItems.length || isBatchSaving} onClick={() => void applyBatchTag("junk")}>
-            {isBatchSaving ? "处理中..." : "批量可清理"}
+            {isBatchSaving && activeBatchAction === "批量可清理" ? "处理中..." : "批量可清理"}
           </button>
           <button type="button" aria-busy={isBatchSaving} disabled={!selectedItems.length || isBatchSaving} onClick={() => void applyBatchTag("none")}>
-            {isBatchSaving ? "处理中..." : "批量清除"}
+            {isBatchSaving && activeBatchAction === "批量清除" ? "处理中..." : "批量清除"}
           </button>
           <button type="button" aria-busy={isBatchSaving} disabled={isBatchSaving} onClick={() => void copyCleanupList()}>
             {isBatchSaving ? "处理中..." : "复制清理清单"}
@@ -595,7 +805,28 @@ export function VaultPanel(props: {
           {!props.cleanupActions?.writeActionsEnabled ? (
             <p className="notice">写操作未开启。需要到设置页开启后，才能批量解锁或转移装备。</p>
           ) : null}
-          <p className="muted-copy">提示：游戏里看不到 d2-service 的本地标记；转移到角色背包后，可以按这份清单在游戏里逐件分解。</p>
+          <p className="muted-copy">提示：游戏里看不到 d2-tools 的本地标记；转移到角色背包后，可以按这份清单在游戏里逐件分解。</p>
+          {cleanupActionItems.length ? (
+            <div className="vault-cleanup-locator">
+              <strong>游戏内定位</strong>
+              <p>先转移到目标角色背包，再按位置、光等、锁定状态和 Perk 核对。同名装备很多时，这些信息比只看名字更可靠。</p>
+              <ul>
+                {cleanupActionItems.slice(0, 8).map((item) => {
+                  const key = getVaultItemKey(item);
+                  const note = props.tags.items[key]?.note;
+                  const plugText = item.socket_plugs?.map((plug) => plug.name).filter(Boolean).slice(0, 3).join(" / ");
+                  return (
+                    <li key={key}>
+                      <b>{item.name}</b>
+                      <small>{formatVaultItemMeta(item) || "未知位置"}{plugText ? ` / ${plugText}` : ""}</small>
+                      {note ? <small>备注：{note}</small> : null}
+                    </li>
+                  );
+                })}
+              </ul>
+              {cleanupActionItems.length > 8 ? <span>还有 {cleanupActionItems.length - 8} 件，复制清单可查看完整定位信息。</span> : null}
+            </div>
+          ) : null}
         </div>
       ) : null}
       {batchMessage ? <p className="notice">{batchMessage}</p> : null}
@@ -605,11 +836,17 @@ export function VaultPanel(props: {
           <span>共 {duplicateSummary.total_duplicate_items} 件同名或同 Hash 装备，可优先检查低分项。</span>
         </div>
       ) : null}
+      {props.wishlist ? (
+        <div className="vault-duplicate-summary">
+          <strong>DIM 愿望单命中 {wishlistSummaryCount} 件</strong>
+          <span>当前仓库里命中你已导入 DIM 规则的装备数量，可直接用“DIM 愿望单”筛选查看。</span>
+        </div>
+      ) : null}
       <div className="vault-toolbar">
         <input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="搜索仓库，例如：风险管理者 / tag:junk / locked:false / score>=75"
+          placeholder="自然搜索名称、类型、perk 或备注"
         />
         <label className="compact-field">
           排序
@@ -632,6 +869,14 @@ export function VaultPanel(props: {
           <select value={scoreFilter} onChange={(event) => setScoreFilter(event.target.value as VaultScoreFilter)}>
             {(Object.keys(scoreFilterLabels) as VaultScoreFilter[]).map((key) => (
               <option key={key} value={key}>{scoreFilterLabels[key]}</option>
+            ))}
+          </select>
+        </label>
+        <label className="compact-field">
+          评分
+          <select value={scoreRangeFilter} onChange={(event) => setScoreRangeFilter(event.target.value as VaultScoreRangeFilter)}>
+            {(Object.keys(scoreRangeFilterLabels) as VaultScoreRangeFilter[]).map((key) => (
+              <option key={key} value={key}>{scoreRangeFilterLabels[key]}</option>
             ))}
           </select>
         </label>
@@ -671,37 +916,128 @@ export function VaultPanel(props: {
             </button>
           ))}
         </div>
+        <button type="button" className="secondary-button" onClick={clearFilters}>
+          清空筛选
+        </button>
       </div>
-      <p className="muted-copy">
-        支持组合搜索：`tag:keep`、`tag:junk`、`locked:true`、`locked:false`、`type:weapon`、`type:armor`、`score&gt;=75`。
-      </p>
       {viewMode === "duplicates" ? (
         duplicateSummary.groups.length ? (
           <div className="duplicate-group-list">
-            {duplicateSummary.groups.map((group) => (
-              <section className="duplicate-group" key={group.group_key}>
+            {duplicateSummary.groups.map((group) => {
+              const selectedGroupCount = group.items.filter((entry) => selectedKeys.has(entry.item_key)).length;
+              const junkCandidateKeys = selectDuplicateGroupItems(group, "junk");
+              const restCandidateKeys = selectDuplicateGroupItems(group, "rest");
+              return (
+                <section className="duplicate-group" key={group.group_key}>
                 <div className="duplicate-group-heading">
                   <h3>{group.name}</h3>
-                  <span>{group.count} 件</span>
+                  <span>{group.count} 件 / 已选候选 {selectedGroupCount}</span>
+                </div>
+                <div className="vault-batch-panel">
+                  <button
+                    type="button"
+                    aria-busy={isBatchSaving}
+                    disabled={isBatchSaving}
+                    onClick={() => {
+                      const topItem = props.items.find((candidate) => getVaultItemKey(candidate) === group.items[0]?.item_key);
+                      if (topItem) props.onOpenItem(topItem);
+                    }}
+                  >
+                    打开最高分
+                  </button>
+                  <button
+                    type="button"
+                    aria-busy={isBatchSaving}
+                    disabled={isBatchSaving || !restCandidateKeys.length}
+                    onClick={() => mergeSelectedKeys(restCandidateKeys)}
+                  >
+                    选择其余候选
+                  </button>
+                  <button
+                    type="button"
+                    aria-busy={isBatchSaving}
+                    disabled={isBatchSaving || !junkCandidateKeys.length}
+                    onClick={() => mergeSelectedKeys(junkCandidateKeys)}
+                  >
+                    选择可清理候选
+                  </button>
+                  <button
+                    type="button"
+                    aria-busy={isBatchSaving}
+                    disabled={isBatchSaving}
+                    onClick={() => void applyDuplicateGroupTags(group, "keep-best-review-rest")}
+                  >
+                    其余标记关注
+                  </button>
+                  <button
+                    type="button"
+                    aria-busy={isBatchSaving}
+                    disabled={isBatchSaving}
+                    onClick={() => void applyDuplicateGroupTags(group, "keep-best-junk-rest")}
+                  >
+                    其余标记可清理
+                  </button>
+                  <button
+                    type="button"
+                    aria-busy={isBatchSaving}
+                    disabled={isBatchSaving}
+                    onClick={() => void applyDuplicateGroupTags(group, "clear-group-tags")}
+                  >
+                    清除本组标记
+                  </button>
                 </div>
                 {group.items.map((entry) => {
                   const item = props.items.find((candidate) => getVaultItemKey(candidate) === entry.item_key);
+                  const itemMeta = item ? formatVaultItemMeta(item) : "未找到实例信息";
+                  const note = item ? props.tags.items[getVaultItemKey(item)]?.note : undefined;
+                  const isSelected = selectedKeys.has(entry.item_key);
                   return (
-                    <button
-                      className={`duplicate-row duplicate-${entry.recommendation}`}
+                    <article
+                      className={item && getVaultItemKey(item) === props.openingItemKey
+                        ? `duplicate-row duplicate-${entry.recommendation} pending${isSelected ? " selected" : ""}`
+                        : `duplicate-row duplicate-${entry.recommendation}${isSelected ? " selected" : ""}`}
                       key={entry.item_key}
-                      type="button"
-                      disabled={!item}
-                      onClick={() => item && props.onOpenItem(item)}
                     >
-                      <strong>{entry.score.score} 分 / {scoreFilterLabels[entry.recommendation]}</strong>
-                      <span>{entry.roll_text || "暂无实际 roll"}</span>
-                      <small>{entry.locked ? "已锁定" : "未锁定"} / {entry.tag ?? "未标记"}</small>
-                    </button>
+                      <button
+                        className="duplicate-row-main"
+                        type="button"
+                        title={itemMeta}
+                        disabled={!item}
+                        aria-busy={Boolean(item && getVaultItemKey(item) === props.openingItemKey)}
+                        onClick={() => item && props.onOpenItem(item)}
+                      >
+                        <strong>{entry.score.score} 分 / {scoreFilterLabels[entry.recommendation]}</strong>
+                        <span>{entry.roll_text || "暂无实际 roll"}</span>
+                        <small className="duplicate-row-meta">{itemMeta}</small>
+                        <small>{entry.locked ? "已锁定" : "未锁定"} / {entry.tag ?? "未标记"}{isSelected ? " / 已选候选" : ""}</small>
+                        {note ? <small className="duplicate-row-note">备注：{note}</small> : null}
+                      </button>
+                      <div className="duplicate-row-actions">
+                        <button
+                          type="button"
+                          className="secondary-button"
+                          aria-busy={isBatchSaving}
+                          disabled={isBatchSaving || !item}
+                          onClick={() => item && void applyDuplicateGroupTags(group, "keep-best-review-rest", entry.item_key)}
+                        >
+                          保留这件，其余关注
+                        </button>
+                        <button
+                          type="button"
+                          className="secondary-button"
+                          aria-busy={isBatchSaving}
+                          disabled={isBatchSaving || !item}
+                          onClick={() => item && void applyDuplicateGroupTags(group, "keep-best-junk-rest", entry.item_key)}
+                        >
+                          保留这件，其余可清理
+                        </button>
+                      </div>
+                    </article>
                   );
                 })}
-              </section>
-            ))}
+                </section>
+              );
+            })}
           </div>
         ) : (
           <p className="notice">当前仓库没有发现同名重复装备。</p>
@@ -720,8 +1056,10 @@ export function VaultPanel(props: {
                     item={item}
                     key={`${item.hash}-${item.instance_id ?? ""}`}
                     tags={props.tags}
+                    wishlist={props.wishlist}
                     isOrganizing={isOrganizing}
                     isSelected={selectedKeys.has(getVaultItemKey(item))}
+                    openingItemKey={props.openingItemKey}
                     onOpenItem={props.onOpenItem}
                     onSaveTag={props.onSaveTag}
                     onToggleSelected={toggleSelected}
@@ -741,15 +1079,18 @@ export function VaultPanel(props: {
 function VaultListItem(props: {
   item: AccountItemSummary;
   tags: VaultTags;
+  wishlist?: DimWishlist | null;
   isOrganizing: boolean;
   isSelected: boolean;
+  openingItemKey?: string;
   onOpenItem: (item: AccountItemSummary) => void;
   onSaveTag: (item: AccountItemSummary, tag: VaultTagValue) => void | Promise<void>;
   onToggleSelected: (item: AccountItemSummary) => void;
 }) {
   const score = scoreVaultItemForDisplay(props.item, props.tags);
   const note = props.tags.items[getVaultItemKey(props.item)]?.note;
-  const wishlist = evaluateWishlistRoll(normalizeCoreItem(props.item));
+  const wishlist = evaluateWishlistRoll(normalizeCoreItem(props.item), props.wishlist ?? undefined);
+  const isPending = getVaultItemKey(props.item) === props.openingItemKey;
 
   return (
     <article className="vault-list-item">
@@ -763,7 +1104,12 @@ function VaultListItem(props: {
           选择
         </label>
       ) : null}
-      <button type="button" className="vault-list-main" onClick={() => props.onOpenItem(props.item)}>
+      <button
+        type="button"
+        className={isPending ? "vault-list-main pending" : "vault-list-main"}
+        aria-busy={isPending}
+        onClick={() => props.onOpenItem(props.item)}
+      >
         {props.item.icon ? <img alt="" src={props.item.icon} /> : <div className="item-icon-placeholder" />}
         <div>
           <div className="vault-title-row">
@@ -772,7 +1118,12 @@ function VaultListItem(props: {
           </div>
           <span>{formatVaultItemMeta(props.item)}</span>
           <small className="vault-score-reason">{score.label}：{score.reasons.slice(0, 2).join(" / ")}</small>
-          {wishlist.matched ? <small className="wishlist-hit">疑似好 roll：{wishlist.labels.join(" / ")}</small> : null}
+          {wishlist.matched ? (
+            <small className="wishlist-hit">
+              <span className="wishlist-hit-badge">DIM 愿望单</span>
+              <span>{formatWishlistHint(wishlist.labels)}</span>
+            </small>
+          ) : null}
           {props.item.socket_plugs?.length ? (
             <small>{props.item.socket_plugs.slice(0, 4).map((plug) => plug.name).join(" / ")}</small>
           ) : null}
@@ -794,12 +1145,20 @@ function VaultListItem(props: {
   );
 }
 
-function matchesTag(item: AccountItemSummary, tag: VaultTagFilter, tags: VaultTags): boolean {
+function matchesTag(
+  item: AccountItemSummary,
+  tag: VaultTagFilter,
+  tags: VaultTags,
+  wishlist?: DimWishlist | null
+): boolean {
   if (tag === "all") {
     return true;
   }
 
   const itemTag = tags.items[getVaultItemKey(item)]?.tag;
+  if (tag === "wishlist") {
+    return evaluateWishlistRoll(normalizeCoreItem(item), wishlist ?? undefined).matched;
+  }
   if (tag === "untagged") {
     return !itemTag;
   }
@@ -816,6 +1175,18 @@ function matchesScore(item: AccountItemSummary, score: VaultScoreFilter, tags: V
   }
 
   return scoreVaultItemForDisplay(item, tags).grade === score;
+}
+
+function matchesScoreRange(item: AccountItemSummary, range: VaultScoreRangeFilter, tags: VaultTags): boolean {
+  if (range === "all") {
+    return true;
+  }
+
+  const score = scoreVaultItemForDisplay(item, tags).score;
+  if (range === "80-100") return score >= 80 && score <= 100;
+  if (range === "60-79") return score >= 60 && score <= 79;
+  if (range === "40-59") return score >= 40 && score <= 59;
+  return score >= 0 && score <= 39;
 }
 
 function matchesScoreExpression(
@@ -840,7 +1211,7 @@ function matchesScoreExpression(
 
 function isVaultTagFilter(value: string): value is VaultTagFilter {
   return value === "all" || value === "keep" || value === "review" || value === "junk"
-    || value === "untagged" || value === "noted";
+    || value === "untagged" || value === "noted" || value === "wishlist";
 }
 
 function typeFilterFor(value: string): VaultGroupFilter | undefined {
@@ -869,6 +1240,11 @@ function matchesSlot(item: AccountItemSummary, slot: VaultSlotFilter): boolean {
 
 function matchesAmmo(item: AccountItemSummary, ammo: VaultAmmoFilter): boolean {
   return ammo === "all" || item.ammo_type === ammo;
+}
+
+function formatWishlistHint(labels: string[]): string {
+  const detailLabels = labels.filter((label) => label !== "DIM Wishlist");
+  return detailLabels.length ? detailLabels.join(" / ") : "已命中";
 }
 
 function tagLabelForItem(item: AccountItemSummary, tags: VaultTags): string {

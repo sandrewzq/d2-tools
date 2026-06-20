@@ -56,6 +56,7 @@ describe("item definition search", () => {
         icon: "https://www.bungie.net/common/destiny2_content/icons/riskrunner.png",
         item_type: "冲锋枪",
         tier: "异域",
+        group_key: "other",
         source: {
           status: "missing",
           label: "来源",
@@ -95,6 +96,7 @@ describe("item definition search", () => {
           icon: "https://www.bungie.net/common/destiny2_content/icons/riskrunner.png",
           item_type: "冲锋枪",
           tier: "异域",
+          group_key: "other",
           perks: [
             {
               socket_index: 0,
@@ -125,6 +127,28 @@ describe("item definition search", () => {
 
   it("matches English display names case-insensitively", () => {
     expect(searchItemDefinitions(definitions, "runner").map((item) => item.hash)).toEqual([2]);
+  });
+
+  it("returns confirmed bucket, group, and ammo fields for library filters", () => {
+    const weaponDefinitions: DefinitionComponentData = {
+      "1": {
+        ...definitions["1"],
+        inventory: {
+          tierTypeName: "异域",
+          bucketTypeHash: 2465295065
+        },
+        equippingBlock: {
+          ammoType: 1
+        }
+      }
+    };
+
+    expect(searchItemDefinitions(weaponDefinitions, "风险")[0]).toMatchObject({
+      bucket_hash: 2465295065,
+      bucket_name: "能量武器",
+      group_key: "weapons",
+      ammo_type: "primary"
+    });
   });
 
   it("limits result count", () => {

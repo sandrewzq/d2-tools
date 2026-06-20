@@ -23,13 +23,13 @@ describe("desktop shell navigation and diagnostics", () => {
   it("builds readable diagnostic rows from startup state and local paths", () => {
     const rows = buildDiagnosticRows({
       state: startupState(),
-      dataDir: "C:\\Users\\player\\AppData\\Roaming\\d2-service",
+      dataDir: "C:\\Users\\player\\AppData\\Roaming\\d2-tools",
       manifestVersion: "12345"
     });
 
     expect(rows).toContainEqual({
       label: "本地数据目录",
-      value: "C:\\Users\\player\\AppData\\Roaming\\d2-service",
+      value: "C:\\Users\\player\\AppData\\Roaming\\d2-tools",
       tone: "neutral"
     });
     expect(rows).toContainEqual({

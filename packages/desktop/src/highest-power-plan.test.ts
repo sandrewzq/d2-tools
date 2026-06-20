@@ -17,7 +17,9 @@ describe("highest power equip plan", () => {
         item("inventory-kinetic", "Better Kinetic", "动能武器", 1810),
         item("inventory-energy", "Best Energy", "能量武器", 1805)
       ],
-      inventory_groups: []
+      inventory_groups: [],
+      postmaster_items: [],
+      loadout_slots: []
     };
     const vaultItems = [
       item("vault-helmet", "Best Helmet", "头盔", 1812),
@@ -49,7 +51,9 @@ describe("highest power equip plan", () => {
       equipped_items: [item("equipped-kinetic", "Best Kinetic", "动能武器", 1810)],
       equipment_groups: [],
       inventory_items: [item("inventory-kinetic", "Lower Kinetic", "动能武器", 1800)],
-      inventory_groups: []
+      inventory_groups: [],
+      postmaster_items: [],
+      loadout_slots: []
     };
 
     const plan = createHighestPowerEquipPlan({ character, vaultItems: [] });

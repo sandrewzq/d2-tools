@@ -12,7 +12,7 @@ function config(overrides: Partial<D2Config["bungie"]> = {}): D2Config {
       ...overrides
     },
     data: {
-      data_dir: "C:/Users/test/AppData/Roaming/d2-service",
+      data_dir: "C:/Users/test/AppData/Roaming/d2-tools",
       manifest_language: "zh-chs"
     },
     ai: {

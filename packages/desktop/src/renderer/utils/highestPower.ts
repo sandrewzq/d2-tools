@@ -17,6 +17,12 @@ export type HighestPowerEquipPlan = {
   executable_items: HighestPowerEquipPlanItem[];
 };
 
+export type HighestPowerExecutionPlan = {
+  summary: string;
+  transfer_items: HighestPowerEquipPlanItem[];
+  equip_items: HighestPowerEquipPlanItem[];
+};
+
 type Candidate = {
   item: AccountItemSummary;
   source: HighestPowerItemSource;
@@ -105,9 +111,30 @@ export function createHighestPowerEquipPlan(input: {
   return {
     summary: executableItems.length
       ? `准备装备 ${executableItems.length} 件最高光等装备，涉及 ${items.length} 个位置。`
-      : "当前已是最高光等组合。",
+      : "当前已经是最高光等组合。",
     items,
     executable_items: executableItems
+  };
+}
+
+export function createHighestPowerExecutionPlan(
+  plan: HighestPowerEquipPlan
+): HighestPowerExecutionPlan {
+  const transferItems = plan.executable_items.filter((entry) => entry.needs_transfer);
+  const equipItems = plan.executable_items.filter((entry) => entry.needs_equip);
+
+  const summaryParts: string[] = [];
+  if (transferItems.length) {
+    summaryParts.push(`先转移 ${transferItems.length} 件`);
+  }
+  if (equipItems.length) {
+    summaryParts.push(`再装备 ${equipItems.length} 件`);
+  }
+
+  return {
+    summary: summaryParts.length ? `${summaryParts.join("，")}。` : "当前没有需要执行的最高光等操作。",
+    transfer_items: transferItems,
+    equip_items: equipItems
   };
 }
 

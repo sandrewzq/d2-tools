@@ -1,6 +1,6 @@
 {
-  "name": "@d2-service/desktop",
-  "version": "0.0.3",
+  "name": "@d2-tools/desktop",
+  "version": "0.0.4",
   "private": true,
   "type": "module",
   "main": "dist/main/main.js",
@@ -8,14 +8,14 @@
     "dev": "vite --host 127.0.0.1",
     "dev:electron": "set NODE_ENV=development&& electron dist/main/main.js",
     "clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",
-    "build": "pnpm clean && pnpm --filter @d2-service/core build && pnpm --filter @d2-service/http build && vite build && tsc -p tsconfig.main.json",
-    "typecheck": "pnpm --filter @d2-service/core build && pnpm --filter @d2-service/http build && tsc -p tsconfig.main.json --noEmit && tsc -p tsconfig.renderer.json --noEmit",
+    "build": "pnpm clean && pnpm --filter @d2-tools/core build && pnpm --filter @d2-tools/http build && vite build && tsc -p tsconfig.main.json",
+    "typecheck": "pnpm --filter @d2-tools/core build && pnpm --filter @d2-tools/http build && tsc -p tsconfig.main.json --noEmit && tsc -p tsconfig.renderer.json --noEmit",
     "test": "vitest --root ../.. --run",
     "package:win": "pnpm build && electron-builder --config electron-builder.yml --win 7z"
   },
   "dependencies": {
-    "@d2-service/core": "workspace:*",
-    "@d2-service/http": "workspace:*"
+    "@d2-tools/core": "workspace:*",
+    "@d2-tools/http": "workspace:*"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.4",

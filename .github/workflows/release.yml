@@ -61,7 +61,7 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path release-artifacts | Out-Null
-          $package = Get-ChildItem packages/desktop/release/d2-service-win-x64-*.7z | Select-Object -First 1
+          $package = Get-ChildItem packages/desktop/release/d2-tools-win-x64-*.7z | Select-Object -First 1
           if (-not $package) {
             throw "Windows 7z artifact was not created"
           }
@@ -70,8 +70,8 @@ jobs:
       - name: Upload release artifact
         uses: actions/upload-artifact@v4
         with:
-          name: d2-service-win-x64
-          path: release-artifacts/d2-service-win-x64-*.7z
+          name: d2-tools-win-x64
+          path: release-artifacts/d2-tools-win-x64-*.7z
           if-no-files-found: error
 
   publish-github:
@@ -83,30 +83,23 @@ jobs:
       - name: Download release artifact
         uses: actions/download-artifact@v4
         with:
-          name: d2-service-win-x64
+          name: d2-tools-win-x64
           path: release-artifacts
 
       - name: Create or update GitHub release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
-          name: d2-service ${{ github.ref_name }}
-          files: release-artifacts/d2-service-win-x64-*.7z
+          name: d2-tools ${{ github.ref_name }}
+          files: release-artifacts/d2-tools-win-x64-*.7z
           fail_on_unmatched_files: true
           body: |
             Windows x64 绿色包，7z 格式。
 
-            0.0.3 重点：
-            - 首版公开测试基线：配置向导、Bungie 登录、Manifest、账号、仓库、资料库、AI 助手和设置页。
-            - 仓库按位置分段，支持位置筛选和主弹/特殊/重弹筛选。
-            - 账号页支持角色装备、背包、材料数量和一键装备最高光等。
-            - DIM 式整理：本地评分、同名 roll 对比、批量标记、清理清单、批量解锁和转移到角色背包。
-            - 写操作默认关闭，必须经过 Bungie Scope、本地开关和二次确认。
-            - 按钮增加等待文案、禁用态和忙碌态反馈。
-
             使用方式：
-            1. 下载 7z。
+            1. 下载 d2-tools-win-x64-*.7z。
             2. 用 7-Zip、Bandizip、WinRAR 等工具解压到任意目录。
-            3. 双击 d2-service.exe。
+            3. 双击 d2-tools.exe。
 
-            覆盖升级不会删除 %APPDATA%\d2-service 里的本地配置、token 和缓存。
+            覆盖升级不会删除 %APPDATA%\d2-tools 里的本地配置、token 和缓存。
+            从旧版 d2-service 升级时，首次启动会复制 %APPDATA%\d2-service 到 %APPDATA%\d2-tools。

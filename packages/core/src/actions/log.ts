@@ -2,7 +2,13 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 
-export type ActionLogType = "set-lock" | "equip" | "transfer";
+export type ActionLogType =
+  | "set-lock"
+  | "equip"
+  | "transfer"
+  | "postmaster-pull"
+  | "loadout-equip"
+  | "loadout-snapshot";
 
 export type ActionLogEntry = {
   id: string;
@@ -65,7 +71,7 @@ export function filterActionLog(entries: ActionLogEntry[], filter: ActionLogFilt
 
 export function buildActionLogDiagnosticText(entry: ActionLogEntry): string {
   return [
-    "d2-service 写操作诊断",
+    "d2-tools 写操作诊断",
     `时间：${entry.created_at}`,
     `操作：${entry.action}`,
     `结果：${entry.ok ? "成功" : "失败"}`,

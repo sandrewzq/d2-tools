@@ -2,25 +2,76 @@ import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { normalizeAiSettings } from "./renderer/components/aiSettings";
+import { isAiSettingsConfigured, normalizeAiSettings } from "./renderer/components/aiSettings";
 
 const desktopRoot = fileURLToPath(new URL("..", import.meta.url));
 
 describe("AI settings panel helpers", () => {
   it("trims AI settings and keeps empty provider as disabled", () => {
     expect(normalizeAiSettings({
-      provider: " openai ",
+      provider: " openai_responses ",
       api_key: " key ",
       model: " gpt-4.1 ",
       base_url: " https://api.example.com/v1 "
     })).toEqual({
-      provider: "openai",
+      provider: "openai_responses",
       api_key: "key",
       model: "gpt-4.1",
       base_url: "https://api.example.com/v1"
     });
     expect(normalizeAiSettings({ provider: " none ", api_key: " key ", model: " model ", base_url: " url " }))
       .toEqual({ provider: "", api_key: "", model: "", base_url: "" });
+  });
+
+  it("normalizes legacy AI providers to the new provider modes", () => {
+    expect(normalizeAiSettings({
+      provider: " openai ",
+      api_key: " key ",
+      model: " gpt-4.1 ",
+      base_url: ""
+    }).provider).toBe("openai_chat");
+
+    expect(normalizeAiSettings({
+      provider: " deepseek ",
+      api_key: " key ",
+      model: " deepseek-chat ",
+      base_url: ""
+    })).toEqual({
+      provider: "openai_compatible",
+      api_key: "key",
+      model: "deepseek-chat",
+      base_url: "https://api.deepseek.com"
+    });
+
+    expect(normalizeAiSettings({
+      provider: " custom ",
+      api_key: " key ",
+      model: " model ",
+      base_url: " https://example.test/v1 "
+    }).provider).toBe("openai_compatible");
+  });
+
+  it("detects whether AI is actually configured for the assistant page", () => {
+    expect(isAiSettingsConfigured({
+      provider: " none ",
+      api_key: " key ",
+      model: " model ",
+      base_url: " https://example.test/v1 "
+    })).toBe(false);
+
+    expect(isAiSettingsConfigured({
+      provider: " openai_responses ",
+      api_key: " key ",
+      model: " gpt-4.1-mini ",
+      base_url: ""
+    })).toBe(true);
+
+    expect(isAiSettingsConfigured({
+      provider: " anthropic ",
+      api_key: "",
+      model: " claude-sonnet-4-5 ",
+      base_url: ""
+    })).toBe(false);
   });
 
   it("wires the AI connection test button through preload and main IPC", () => {
@@ -36,9 +87,26 @@ describe("AI settings panel helpers", () => {
     const ipc = readFileSync(join(desktopRoot, "src", "main", "ipc.ts"), "utf8");
 
     expect(panel).toContain("保存并测试连接");
+    expect(panel).toContain("OpenAI Responses API（推荐）");
+    expect(panel).toContain("OpenAI Chat Completions");
+    expect(panel).toContain("OpenAI 兼容接口");
+    expect(panel).toContain("Anthropic Claude");
     expect(panel).toContain("api.testAiConnection()");
     expect(apiClient).toContain("testAiConnection(): Promise<AiConnectionTestResult>");
     expect(preload).toContain('ipcRenderer.invoke("ai:test")');
     expect(ipc).toContain('ipcMain.handle("ai:test"');
+  });
+
+  it("mounts AI settings in the settings page and sends unconfigured users there", () => {
+    const homePage = readFileSync(
+      join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"),
+      "utf8"
+    );
+
+    expect(homePage).toContain('onConfigureAi={() => setActivePage("settings")}');
+    expect(homePage).toContain("activePage === \"settings\"");
+    expect(homePage).toContain("activePage === \"ai\"");
+    expect(homePage).toContain("!isAiConfigured");
+    expect(homePage).toContain('setActivePage("settings")');
   });
 });

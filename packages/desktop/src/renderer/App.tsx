@@ -20,7 +20,7 @@ export function App() {
     void refresh();
   }, []);
 
-  if (!state) return <main className="page">正在启动 d2-service...</main>;
+  if (!state) return <main className="page">正在启动 d2-tools...</main>;
 
   if (state.nextStep === "bungie-config" || isConfiguring) {
     return (

@@ -44,7 +44,7 @@ describe("manifest definition components", () => {
   });
 
   it("downloads, caches, and reports definition status", async () => {
-    const dataDir = mkdtempSync(join(tmpdir(), "d2-service-definitions-"));
+    const dataDir = mkdtempSync(join(tmpdir(), "d2-tools-definitions-"));
     const seenUrls: string[] = [];
 
     const status = await initializeDefinitionComponent({
@@ -96,7 +96,7 @@ describe("manifest definition components", () => {
   });
 
   it("downloads plug set and sandbox perk definitions", async () => {
-    const dataDir = mkdtempSync(join(tmpdir(), "d2-service-definitions-"));
+    const dataDir = mkdtempSync(join(tmpdir(), "d2-tools-definitions-"));
 
     const plugSetStatus = await initializeDefinitionComponent({
       dataDir,
@@ -133,5 +133,31 @@ describe("manifest definition components", () => {
       component: "DestinySandboxPerkDefinition",
       count: 1
     });
+  });
+
+  it("reuses parsed definition data from memory after the first load", async () => {
+    const dataDir = mkdtempSync(join(tmpdir(), "d2-tools-definitions-"));
+
+    await initializeDefinitionComponent({
+      dataDir,
+      language: "zh-chs",
+      metadata,
+      component: "DestinyInventoryItemDefinition",
+      fetchJson: async () => ({
+        "1": {
+          hash: 1,
+          displayProperties: {
+            name: "缓存测试武器",
+            description: "用于验证内存缓存",
+            icon: "/icon.png"
+          }
+        }
+      })
+    });
+
+    const firstLoad = loadDefinitionComponent(dataDir, "DestinyInventoryItemDefinition");
+    const secondLoad = loadDefinitionComponent(dataDir, "DestinyInventoryItemDefinition");
+
+    expect(firstLoad).toBe(secondLoad);
   });
 });
