@@ -78,6 +78,7 @@ import {
   LOADOUT_ACTION_FEEDBACK_TIMEOUT_MS,
   type LoadoutActionFeedbackState
 } from "../utils/loadoutActionFeedback";
+import { resolveItemTransferCharacterId } from "../utils/itemActions";
 
 export function HomePage(props: {
   state: StartupState;
@@ -2107,7 +2108,10 @@ export function HomePage(props: {
                 categories={groupAccountItemsBySlot(getCharacterCombinedItems(selectedCharacter))}
                 highlightedTemplate={activeLoadoutLookup}
                 openingItemKey={itemDetailLoadingKey}
-                onOpenItem={(item) => void openItemDetail(item, { source_character_id: selectedCharacter.character_id })}
+                onOpenItem={(item) => void openItemDetail(item, {
+                  source_character_id: selectedCharacter.character_id,
+                  source_kind: isAccountItemFromSource(item, "equipped") ? "equipped" : "inventory"
+                })}
               />
             </article>
             {renderDimToolsPanel(selectedCharacter)}
@@ -3469,9 +3473,12 @@ function renderDailyPanel() {
                         selectedItem.is_vault_item ? "取出到角色" : "移入仓库",
                         () => api.transferItem({
                           membership_type: accountSummary?.membership_type ?? 0,
-                          character_id: selectedItem.is_vault_item
-                            ? selectedActionCharacterId
-                            : selectedItem.source_character_id ?? selectedActionCharacterId,
+                          character_id: resolveItemTransferCharacterId({
+                            selectedCharacterId: selectedActionCharacterId,
+                            sourceCharacterId: selectedItem.source_character_id,
+                            sourceKind: selectedItem.source_kind,
+                            transferToVault: !selectedItem.is_vault_item
+                          }),
                           item_id: selectedItem.instance_id ?? "",
                           item_reference_hash: selectedItem.hash,
                           item_name: selectedItem.name,
@@ -3990,19 +3997,23 @@ type SelectedItemDetail = ItemDefinitionDetail & {
   group_key?: AccountItemSummary["group_key"];
   bucket_name?: string;
   source_character_id?: string;
+  source_kind?: SelectedItemSourceKind;
   is_vault_item?: boolean;
   is_postmaster_item?: boolean;
   is_detail_loading?: boolean;
 };
 
+type SelectedItemSourceKind = "equipped" | "inventory" | "vault" | "postmaster";
+
 type SelectedItemSource = {
   source_character_id?: string;
+  source_kind?: SelectedItemSourceKind;
   is_vault_item?: boolean;
   is_postmaster_item?: boolean;
 };
 
 type SameNameItemSummary = AccountItemSummary & SelectedItemSource & {
-  source_kind: "equipped" | "inventory" | "vault" | "postmaster";
+  source_kind: SelectedItemSourceKind;
   source_label?: string;
 };
 
@@ -4211,6 +4222,7 @@ function createSelectedItemPreview(
     group_key: "group_key" in item ? item.group_key : undefined,
     bucket_name: "bucket_name" in item ? item.bucket_name : undefined,
     source_character_id: source.source_character_id,
+    source_kind: source.source_kind,
     is_vault_item: source.is_vault_item,
     is_postmaster_item: source.is_postmaster_item,
     is_detail_loading: true
