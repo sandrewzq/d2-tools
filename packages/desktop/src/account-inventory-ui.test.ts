@@ -24,10 +24,34 @@ describe("account inventory UI", () => {
     expect(homePage).toContain('isAccountItemFromSource(item, "equipped")');
     expect(homePage).toContain('isAccountItemFromSource(item, "inventory")');
     expect(homePage).toContain("account-slot-source-cluster");
-    expect(homePage).toContain("equipment-item equipped");
+    expect(homePage).toContain('"equipment-item"');
+    expect(homePage).toContain('isEquipped ? "equipped" : "inventory"');
     expect(homePage).toContain("装备最高光等");
     expect(homePage).toContain("createHighestPowerEquipPlan");
     expect(homePage).toContain("source_character_id: selectedCharacter.character_id");
+  });
+
+  it("highlights items that belong to the selected local loadout template", () => {
+    const homePage = readFileSync(
+      join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"),
+      "utf8"
+    );
+
+    expect(homePage).toContain("buildLoadoutTemplateLookup");
+    expect(homePage).toContain("matchesLoadoutTemplateItem");
+    expect(homePage).toContain("loadout-template-badge");
+    expect(homePage).toContain("loadout-highlight");
+    expect(homePage).toContain("highlightedTemplate");
+  });
+
+  it("shows how many current character items match the active local loadout", () => {
+    const homePage = readFileSync(
+      join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"),
+      "utf8"
+    );
+
+    expect(homePage).toContain("selectedCharacterLoadoutMatchCount");
+    expect(homePage).toContain("方案命中");
   });
 
   it("auto-loads account data when startup says login is ready", () => {

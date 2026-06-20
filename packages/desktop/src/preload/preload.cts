@@ -131,6 +131,8 @@ contextBridge.exposeInMainWorld("d2", {
   listLoadoutTemplates: () => ipcRenderer.invoke("loadouts:list") as Promise<LoadoutTemplate[]>,
   createLoadoutTemplate: (input: CreateLoadoutTemplateInput) =>
     ipcRenderer.invoke("loadouts:create", input) as Promise<LoadoutTemplate>,
+  renameLoadoutTemplate: (id: string, name: string) =>
+    ipcRenderer.invoke("loadouts:rename", { id, name }) as Promise<LoadoutTemplate>,
   deleteLoadoutTemplate: (id: string) => ipcRenderer.invoke("loadouts:delete", id) as Promise<LoadoutTemplate[]>,
   createLoadoutTemplateTransferPlan: (input: {
     template: LoadoutTemplate;

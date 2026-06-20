@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
+  applyVisibleVaultSelection,
   buildDuplicateGroupBatchTagPlan,
+  buildVaultBulkMoveResultMessage,
   buildVaultCleanupLocatorText,
   buildVaultCleanupText,
   buildVaultDuplicateSummary,
   buildVaultGroups,
+  buildVaultSelectionSummary,
   countWishlistMatches,
   buildVaultSections,
   filterVaultItems,
@@ -16,7 +19,7 @@ import {
   selectVaultBatchItems,
   sortVaultItems
 } from "./renderer/components/VaultPanel";
-import type { AccountItemSummary, DimWishlist, VaultTags } from "./renderer/api/client";
+import type { AccountItemSummary, BatchItemActionResult, DimWishlist, VaultTags } from "./renderer/api/client";
 import { readFileSync } from "node:fs";
 
 const items: AccountItemSummary[] = [
@@ -29,6 +32,10 @@ const items: AccountItemSummary[] = [
     bucket_name: "能量武器",
     group_key: "weapons",
     ammo_type: "primary",
+    weapon_frame: {
+      key: "lightweight-frame",
+      name: "Lightweight Frame"
+    },
     power: 1990,
     locked: true,
     socket_plugs: [
@@ -45,6 +52,10 @@ const items: AccountItemSummary[] = [
     bucket_name: "能量武器",
     group_key: "weapons",
     ammo_type: "special",
+    weapon_frame: {
+      key: "adaptive-frame",
+      name: "Adaptive Frame"
+    },
     power: 2000,
     locked: true
   },
@@ -57,6 +68,10 @@ const items: AccountItemSummary[] = [
     bucket_name: "威能武器",
     group_key: "weapons",
     ammo_type: "heavy",
+    weapon_frame: {
+      key: "high-impact-frame",
+      name: "High-Impact Frame"
+    },
     power: 1995,
     locked: true
   },
@@ -89,6 +104,7 @@ describe("vault panel helpers", () => {
 
     expect(source).toContain("清空筛选");
     expect(source).toContain("scoreRangeFilter");
+    expect(source).toContain("frameFilters");
     expect(source).toContain("自然搜索名称、类型、perk 或备注");
     expect(source).not.toContain("tag:junk");
     expect(source).not.toContain("locked:false");
@@ -130,6 +146,65 @@ describe("vault panel helpers", () => {
       .toEqual(["Beloved", "Thunderlord", "Vehicle A"]);
     expect(filterVaultItems(items, { group: "all", query: "", tag: "noted", tags }).map((item) => item.name))
       .toEqual(["Vehicle A"]);
+  });
+
+  it("summarizes visible and hidden selections for the vault batch toolbar", () => {
+    const summary = buildVaultSelectionSummary({
+      selectedTotalCount: 5,
+      selectedVisibleCount: 3
+    });
+
+    expect(summary).toBe("已选 5 件，其中当前结果 3 件，另外 2 件来自其他筛选结果。");
+    expect(buildVaultSelectionSummary({
+      selectedTotalCount: 2,
+      selectedVisibleCount: 2
+    })).toBe("已选 2 件，全部都在当前结果中。");
+    expect(buildVaultSelectionSummary({
+      selectedTotalCount: 0,
+      selectedVisibleCount: 0
+    })).toBe("未选择任何装备。");
+  });
+
+  it("supports replacing, appending, and removing visible vault selections", () => {
+    const visibleItems = [items[0], items[1], items[2]];
+
+    expect([...applyVisibleVaultSelection(new Set(["b", "c", "hash:99"]), visibleItems, "replace")]).toEqual(["a", "d", "e"]);
+    expect([...applyVisibleVaultSelection(new Set(["hash:99"]), visibleItems, "append")]).toEqual(["hash:99", "a", "d", "e"]);
+    expect([...applyVisibleVaultSelection(new Set(["a", "d", "e", "hash:99"]), visibleItems, "remove")]).toEqual(["hash:99"]);
+  });
+
+  it("builds a clearer bulk move result with target character and failure guidance", () => {
+    const partialResult: BatchItemActionResult = {
+      ok: true,
+      total: 4,
+      success_count: 3,
+      failed_count: 1,
+      message: "批量操作完成"
+    };
+
+    expect(buildVaultBulkMoveResultMessage("猎人", partialResult))
+      .toContain("已转移到猎人");
+    expect(buildVaultBulkMoveResultMessage("猎人", partialResult))
+      .toContain("成功 3 件，失败 1 件");
+    expect(buildVaultBulkMoveResultMessage("猎人", partialResult))
+      .toContain("设置");
+    expect(buildVaultBulkMoveResultMessage("猎人", partialResult))
+      .toContain("操作日志");
+
+    expect(buildVaultBulkMoveResultMessage("泰坦", {
+      ok: true,
+      total: 2,
+      success_count: 2,
+      failed_count: 0,
+      message: "批量操作完成"
+    })).toBe("已转移到泰坦：共 2 件。");
+  });
+
+  it("filters vault items by selected weapon frames", () => {
+    expect(filterVaultItems(items, { group: "all", query: "", frames: ["lightweight-frame"] }).map((item) => item.name))
+      .toEqual(["Riskrunner"]);
+    expect(filterVaultItems(items, { group: "all", query: "", frames: ["adaptive-frame", "high-impact-frame"] }).map((item) => item.name))
+      .toEqual(["Beloved", "Thunderlord"]);
   });
 
   it("filters vault items by imported DIM wishlist hits", () => {
@@ -484,5 +559,24 @@ describe("vault panel helpers", () => {
     expect(source).toContain("vault-content-tab");
     expect(source).toContain("aria-label=\"仓库内容标签\"");
     expect(source).toContain("setGroup(defaultVaultGroupTab)");
+  });
+  it("shows a bulk move entry for selected visible vault results", () => {
+    const source = readFileSync("packages/desktop/src/renderer/components/VaultPanel.tsx", "utf8");
+
+    expect(source).toContain("批量移动");
+    expect(source).toContain("currentCharacterId");
+    expect(source).toContain("runSelectedBulkMove");
+    expect(source).toContain("全选当前结果");
+    expect(source).toContain("追加当前结果");
+    expect(source).toContain("移除当前结果");
+    expect(source).toContain("buildVaultSelectionSummary");
+  });
+  it("shows local loadout highlights inside the vault list", () => {
+    const source = readFileSync("packages/desktop/src/renderer/components/VaultPanel.tsx", "utf8");
+
+    expect(source).toContain("highlightedItemKeys");
+    expect(source).toContain("isLoadoutMatch");
+    expect(source).toContain("loadout-template-badge");
+    expect(source).toContain("方案命中");
   });
 });

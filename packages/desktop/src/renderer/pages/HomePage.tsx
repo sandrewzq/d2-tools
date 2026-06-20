@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+﻿import { useEffect, useRef, useState } from "react";
 import { scoreVaultItem } from "@d2-tools/core/analysis/scoring";
 import { evaluateWishlistRoll } from "@d2-tools/core/analysis/wishlist";
 import { parseDimWishlist } from "@d2-tools/core/analysis/wishlistImport";
@@ -12,6 +12,7 @@ import {
   type AccountSummary,
   type ActionLogEntry,
   type ActivityHistorySummary,
+  type BatchItemActionResult,
   type D2Config,
   type DailySummary,
   type DimWishlist,
@@ -63,6 +64,20 @@ import {
   type LibraryPerkFilter,
   type LibraryViewMode
 } from "../utils/libraryFilters";
+import {
+  buildMissingLoadoutTransferPlan,
+  describeMissingLoadoutBlockedReason
+} from "../utils/loadoutTransfer";
+import {
+  buildLoadoutItemStatus,
+  summarizeLoadoutItemStatuses
+} from "../utils/loadoutItemStatus";
+import {
+  buildLoadoutActionFeedbackKey,
+  getLoadoutActionButtonLabel,
+  LOADOUT_ACTION_FEEDBACK_TIMEOUT_MS,
+  type LoadoutActionFeedbackState
+} from "../utils/loadoutActionFeedback";
 
 export function HomePage(props: {
   state: StartupState;
@@ -114,6 +129,10 @@ export function HomePage(props: {
   const [aliasKind, setAliasKind] = useState<"item" | "perk">("item");
   const [aliasMessage, setAliasMessage] = useState("");
   const [loadoutTemplates, setLoadoutTemplates] = useState<LoadoutTemplate[]>([]);
+  const [selectedLoadoutTemplateId, setSelectedLoadoutTemplateId] = useState("");
+  const [compareLoadoutTemplateId, setCompareLoadoutTemplateId] = useState("");
+  const [loadoutRenameDraft, setLoadoutRenameDraft] = useState("");
+  const [showLoadoutDiffOnly, setShowLoadoutDiffOnly] = useState(true);
   const [loadoutMessage, setLoadoutMessage] = useState("");
   const [activitySummary, setActivitySummary] = useState<ActivityHistorySummary | null>(null);
   const [activityMessage, setActivityMessage] = useState("");
@@ -130,6 +149,7 @@ export function HomePage(props: {
   const [actionLog, setActionLog] = useState<ActionLogEntry[]>([]);
   const [isRunningItemAction, setIsRunningItemAction] = useState(false);
   const [itemActionMessage, setItemActionMessage] = useState("");
+  const [loadoutActionFeedback, setLoadoutActionFeedback] = useState<Record<string, LoadoutActionFeedbackState>>({});
   const [selectedActionCharacterId, setSelectedActionCharacterId] = useState("");
   const [dailySummary, setDailySummary] = useState<DailySummary | null>(null);
   const [dailyMessage, setDailyMessage] = useState("");
@@ -141,6 +161,7 @@ export function HomePage(props: {
   const [wishlistImportMessage, setWishlistImportMessage] = useState("");
   const [importedWishlist, setImportedWishlist] = useState<DimWishlist | null>(null);
   const [dimToolsMessage, setDimToolsMessage] = useState("");
+  const loadoutActionFeedbackTimersRef = useRef<Record<string, ReturnType<typeof window.setTimeout>>>({});
 
   async function refreshDiagnostics() {
     setIsRefreshingDiagnostics(true);
@@ -180,7 +201,49 @@ export function HomePage(props: {
     void loadAccountSummary();
   }, [hasAutoLoadedAccount, props.state.nextStep]);
 
+  useEffect(() => () => {
+    Object.values(loadoutActionFeedbackTimersRef.current).forEach((timer) => window.clearTimeout(timer));
+    loadoutActionFeedbackTimersRef.current = {};
+  }, []);
+
   const isAiConfigured = isAiSettingsConfigured(aiSettings);
+
+  function setSingleLoadoutActionFeedback(key: string, state: LoadoutActionFeedbackState) {
+    const existingTimer = loadoutActionFeedbackTimersRef.current[key];
+    if (existingTimer) {
+      window.clearTimeout(existingTimer);
+      delete loadoutActionFeedbackTimersRef.current[key];
+    }
+
+    setLoadoutActionFeedback((current) => {
+      if (state === "idle") {
+        if (!(key in current)) {
+          return current;
+        }
+        const next = { ...current };
+        delete next[key];
+        return next;
+      }
+      return {
+        ...current,
+        [key]: state
+      };
+    });
+
+    if (state === "success") {
+      loadoutActionFeedbackTimersRef.current[key] = window.setTimeout(() => {
+        setLoadoutActionFeedback((current) => {
+          if (!(key in current)) {
+            return current;
+          }
+          const next = { ...current };
+          delete next[key];
+          return next;
+        });
+        delete loadoutActionFeedbackTimersRef.current[key];
+      }, LOADOUT_ACTION_FEEDBACK_TIMEOUT_MS);
+    }
+  }
 
   function handleAiSettingsSaved() {
     props.onConfigChanged();
@@ -197,10 +260,23 @@ export function HomePage(props: {
 
   async function loadLoadoutTemplates() {
     try {
-      setLoadoutTemplates(await api.listLoadoutTemplates());
+      applyLoadoutTemplates(await api.listLoadoutTemplates());
     } catch {
-      setLoadoutTemplates([]);
+      applyLoadoutTemplates([]);
     }
+  }
+
+  function applyLoadoutTemplates(templates: LoadoutTemplate[]) {
+    const currentSelectedId = selectedLoadoutTemplateId;
+    const currentCompareId = compareLoadoutTemplateId;
+    const nextSelected = templates.find((template) => template.id === currentSelectedId) ?? templates[0] ?? null;
+    const nextCompare = templates.find((template) =>
+      template.id === currentCompareId && template.id !== nextSelected?.id
+    ) ?? templates.find((template) => template.id !== nextSelected?.id) ?? null;
+    setLoadoutTemplates(templates);
+    setSelectedLoadoutTemplateId(nextSelected?.id ?? "");
+    setCompareLoadoutTemplateId(nextCompare?.id ?? "");
+    setLoadoutRenameDraft(nextSelected?.name ?? "");
   }
 
   async function loadPersistedWishlist() {
@@ -607,7 +683,7 @@ export function HomePage(props: {
         class_name: character.class_name,
         equipped_items: character.equipped_items
       });
-      setLoadoutTemplates(await api.listLoadoutTemplates());
+      applyLoadoutTemplates(await api.listLoadoutTemplates());
       setLoadoutMessage(`宸蹭繚瀛樻湰鍦伴厤瑁呮ā鏉匡細${template.name}`);
     } catch (error) {
       setLoadoutMessage(error instanceof Error ? error.message : "配装模板保存失败");
@@ -791,10 +867,23 @@ export function HomePage(props: {
 
   async function deleteLoadoutTemplate(id: string) {
     try {
-      setLoadoutTemplates(await api.deleteLoadoutTemplate(id));
+      applyLoadoutTemplates(await api.deleteLoadoutTemplate(id));
       setLoadoutMessage("已删除本地配装模板。");
     } catch (error) {
       setLoadoutMessage(error instanceof Error ? error.message : "删除配装模板失败");
+    }
+  }
+
+  async function renameLoadoutTemplate(template: LoadoutTemplate) {
+    setLoadoutMessage("");
+    try {
+      const renamed = await api.renameLoadoutTemplate(template.id, loadoutRenameDraft);
+      applyLoadoutTemplates(await api.listLoadoutTemplates());
+      setSelectedLoadoutTemplateId(renamed.id);
+      setLoadoutRenameDraft(renamed.name);
+      setLoadoutMessage(`宸查噸鍛藉悕鏈湴鏂规锛?{renamed.name}`);
+    } catch (error) {
+      setLoadoutMessage(error instanceof Error ? error.message : "鏈湴鏂规閲嶅懡鍚嶅け璐?");
     }
   }
 
@@ -825,6 +914,481 @@ export function HomePage(props: {
     } catch (error) {
       setLoadoutMessage(error instanceof Error ? error.message : "配装转移计划生成失败");
     }
+  }
+
+  async function copyMissingLoadoutItems(
+    template: LoadoutTemplate,
+    analysis: ReturnType<typeof analyzeLoadoutTemplate> | null
+  ) {
+    if (!accountSummary) {
+      setLoadoutMessage("请先读取账号数据。");
+      return;
+    }
+
+    const transferPlan = buildMissingLoadoutTransferPlan({
+      template,
+      missingItems: template.items,
+      accountSummary
+    });
+    const pendingItems = template.items.filter((item) => !isTemplateItemReadyFromPlan(item, transferPlan));
+    if (!pendingItems.length) {
+      setLoadoutMessage("当前方案装备已全部就位。");
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(
+        buildMissingLoadoutItemsText(template, pendingItems, accountSummary)
+      );
+      setLoadoutMessage(`已复制待补齐清单，共 ${pendingItems.length} 件。`);
+    } catch {
+      setLoadoutMessage("复制缺失清单失败，请检查系统剪贴板权限。");
+    }
+  }
+
+  async function executeMissingLoadoutTransfer(
+    template: LoadoutTemplate,
+    analysis: ReturnType<typeof analyzeLoadoutTemplate> | null
+  ) {
+    if (!accountSummary) {
+      setLoadoutMessage("请先读取账号数据。");
+      return;
+    }
+
+    const targetCharacter = accountSummary.characters.find((character) => character.character_id === template.character_id)
+      ?? accountSummary.characters[0];
+    if (!targetCharacter) {
+      setLoadoutMessage("没有可用角色，无法转移缺失件。");
+      return;
+    }
+
+    const transferPlan = buildMissingLoadoutTransferPlan({
+      template,
+      missingItems: template.items,
+      accountSummary
+    });
+    const actionableItemCount = new Set(
+      transferPlan.steps
+        .filter((step) => step.phase !== "equip-swap")
+        .flatMap((step) => step.items.map((item) => item.item_id))
+    ).size;
+    if (!actionableItemCount) {
+      if (transferPlan.blocked.length > 0) {
+        setLoadoutMessage(`当前没有可自动转移的缺失件，还有 ${transferPlan.blocked.length} 件需要手动处理。`);
+      } else {
+        setLoadoutMessage("当前方案装备已全部就位。");
+      }
+      return;
+    }
+
+    let latestConfig: D2Config;
+    try {
+      latestConfig = await api.getConfig();
+      setWriteActionsEnabled(latestConfig.features.write_actions_enabled);
+    } catch (error) {
+      setLoadoutMessage(error instanceof Error ? error.message : "读取写操作配置失败");
+      return;
+    }
+
+    if (!latestConfig.features.write_actions_enabled) {
+      setLoadoutMessage("d2-tools 本地写操作开关未开启。请到左侧“设置”页开启后再执行。");
+      return;
+    }
+
+    if (!window.confirm([
+      `确认给 ${targetCharacter.class_name} 补齐 ${actionableItemCount} 件缺失装备？`,
+      transferPlan.steps.some((step) => step.phase === "equip-swap")
+        ? "其中一部分会先在来源角色身上装备替代装备，再把目标装备转出。"
+        : null,
+      transferPlan.steps.some((step) => step.phase === "pull-postmaster")
+        ? "其中一部分会先从邮政官取回，再继续后续转移。"
+        : null,
+      transferPlan.steps.some((step) => step.phase === "to-vault")
+        ? "其中一部分会先从其他角色背包移回仓库，再转到当前角色。"
+        : "这次可以直接从仓库补齐到当前角色。",
+      transferPlan.steps.some((step) => step.phase === "equip-target")
+        ? "补齐完成后，会自动把这些方案装备穿到目标角色身上。"
+        : null,
+      transferPlan.blocked.length > 0
+        ? `还有 ${transferPlan.blocked.length} 件暂时不会自动转移，例如其他角色已装备或仍在邮政官。`
+        : null
+    ].filter(Boolean).join("\n"))) {
+      setLoadoutMessage("已取消缺失件转移。");
+      return;
+    }
+
+    setIsRunningItemAction(true);
+    setItemActionMessage(`正在准备 ${actionableItemCount} 件缺失装备...`);
+
+    try {
+      let targetTransferCount = 0;
+      let autoEquipCount = 0;
+      let prepStepCount = 0;
+      for (const step of transferPlan.steps) {
+        if (step.phase === "equip-swap") {
+          setItemActionMessage(`正在在来源角色身上装备 ${step.items.length} 件替代装备...`);
+          const equipResult = await api.batchEquipItems({
+            membership_type: accountSummary.membership_type,
+            character_id: step.character_id,
+            items: step.items.map((item) => ({
+              membership_type: accountSummary.membership_type,
+              character_id: step.character_id,
+              item_id: item.item_id,
+              item_name: item.item_name
+            }))
+          });
+
+          if (equipResult.failed_count > 0) {
+            throw new Error(equipResult.message || "替代装备装备失败，请检查来源角色装备状态后重试。");
+          }
+          prepStepCount += equipResult.success_count;
+          continue;
+        }
+        if (step.phase === "pull-postmaster") {
+          setItemActionMessage(`正在从邮政官取回 ${step.items.length} 件装备...`);
+          for (const item of step.items) {
+            await api.pullFromPostmaster({
+              membership_type: accountSummary.membership_type,
+              character_id: step.character_id,
+              item_id: item.item_id,
+              item_reference_hash: item.item_reference_hash,
+              item_name: item.item_name
+            });
+          }
+          prepStepCount += step.items.length;
+          continue;
+        }
+        if (step.phase === "equip-target") {
+          setItemActionMessage(`正在给 ${targetCharacter.class_name} 自动装备 ${step.items.length} 件方案装备...`);
+          const equipResult = await api.batchEquipItems({
+            membership_type: accountSummary.membership_type,
+            character_id: step.character_id,
+            items: step.items.map((item) => ({
+              membership_type: accountSummary.membership_type,
+              character_id: step.character_id,
+              item_id: item.item_id,
+              item_name: item.item_name
+            }))
+          });
+
+          autoEquipCount += equipResult.success_count;
+          if (equipResult.failed_count > 0) {
+            throw new Error(equipResult.message || "方案装备自动穿戴失败，请检查当前角色状态后重试。");
+          }
+          continue;
+        }
+        setItemActionMessage(
+          step.phase === "to-vault"
+            ? `正在从来源角色移回 ${step.items.length} 件装备到仓库...`
+            : `正在转入 ${step.items.length} 件装备到 ${targetCharacter.class_name}...`
+        );
+
+        const result = await api.batchTransferItems({
+          membership_type: accountSummary.membership_type,
+          character_id: step.character_id,
+          items: step.items.map((item) => ({
+            membership_type: accountSummary.membership_type,
+            character_id: step.character_id,
+            item_id: item.item_id,
+            item_reference_hash: item.item_reference_hash,
+            item_name: item.item_name,
+            transfer_to_vault: step.transfer_to_vault
+          }))
+        });
+        if (step.phase === "to-character") {
+          targetTransferCount += result.success_count;
+        } else {
+          prepStepCount += result.success_count;
+        }
+
+        if (result.failed_count > 0) {
+          throw new Error(result.message || "缺失件转移未全部成功，请检查物品状态后重试。");
+        }
+      }
+      await Promise.all([loadAccountSummary(), loadActionLog()]);
+      const finishedParts = [
+        targetTransferCount > 0 ? `转入 ${targetTransferCount} 件` : null,
+        autoEquipCount > 0 ? `自动装备 ${autoEquipCount} 件` : null,
+        prepStepCount > 0 ? `前置处理 ${prepStepCount} 步` : null,
+        transferPlan.blocked.length > 0 ? `仍有 ${transferPlan.blocked.length} 件需手动处理` : null
+      ].filter(Boolean);
+      setLoadoutMessage(
+        finishedParts.length
+          ? `方案补齐完成：${finishedParts.join("，")}。`
+          : "方案补齐完成。"
+      );
+    } catch (error) {
+      setLoadoutMessage(error instanceof Error ? error.message : "缺失件转移失败");
+    } finally {
+      setIsRunningItemAction(false);
+      setItemActionMessage("");
+    }
+  }
+
+  async function executeSingleLoadoutItemTransfer(
+    template: LoadoutTemplate,
+    item: LoadoutTemplate["items"][number]
+  ) {
+    const feedbackKey = buildLoadoutActionFeedbackKey(template.id, item, "transfer");
+    if (!accountSummary) {
+      setLoadoutMessage("请先读取账号数据。");
+      return;
+    }
+
+    const targetCharacter = accountSummary.characters.find((character) => character.character_id === template.character_id)
+      ?? accountSummary.characters[0];
+    if (!targetCharacter) {
+      setLoadoutMessage("没有可用角色，无法补齐这件装备。");
+      return;
+    }
+
+    const transferPlan = buildMissingLoadoutTransferPlan({
+      template: {
+        ...template,
+        items: [item]
+      },
+      missingItems: [item],
+      accountSummary
+    });
+    const actionableItemCount = getMissingLoadoutActionableCount(transferPlan);
+    if (!actionableItemCount) {
+      if (transferPlan.blocked.length > 0) {
+        setLoadoutMessage(`这件装备当前无法自动补齐：${item.name}。`);
+      } else {
+        setLoadoutMessage(`这件装备已经就位：${item.name}。`);
+      }
+      return;
+    }
+
+    let latestConfig: D2Config;
+    try {
+      latestConfig = await api.getConfig();
+      setWriteActionsEnabled(latestConfig.features.write_actions_enabled);
+    } catch (error) {
+      setSingleLoadoutActionFeedback(feedbackKey, "idle");
+      setLoadoutMessage(error instanceof Error ? error.message : "读取写操作配置失败");
+      return;
+    }
+
+    if (!latestConfig.features.write_actions_enabled) {
+      setLoadoutMessage("d2-tools 本地写操作开关未开启。请到左侧“设置”页开启后再执行。");
+      return;
+    }
+
+    if (!window.confirm(`确认只补齐「${item.name}」吗？`)) {
+      setLoadoutMessage("已取消单件补齐。");
+      return;
+    }
+
+    setIsRunningItemAction(true);
+    setSingleLoadoutActionFeedback(feedbackKey, "pending");
+    setItemActionMessage(`正在补齐 ${item.name}...`);
+    setLoadoutMessage(`正在补齐 ${item.name}...`);
+    let actionSucceeded = false;
+
+    try {
+      let targetTransferCount = 0;
+      let autoEquipCount = 0;
+      let prepStepCount = 0;
+      for (const step of transferPlan.steps) {
+        if (step.phase === "equip-swap") {
+          const stepMessage = `正在为来源角色换下 ${item.name}...`;
+          setItemActionMessage(stepMessage);
+          setLoadoutMessage(stepMessage);
+          const equipResult = await api.batchEquipItems({
+            membership_type: accountSummary.membership_type,
+            character_id: step.character_id,
+            items: step.items.map((entry) => ({
+              membership_type: accountSummary.membership_type,
+              character_id: step.character_id,
+              item_id: entry.item_id,
+              item_name: entry.item_name
+            }))
+          });
+
+          if (equipResult.failed_count > 0) {
+            throw new Error(equipResult.message || "来源角色替换装备失败，请稍后重试。");
+          }
+          prepStepCount += equipResult.success_count;
+          continue;
+        }
+
+        if (step.phase === "pull-postmaster") {
+          const stepMessage = `正在从邮政官取回 ${item.name}...`;
+          setItemActionMessage(stepMessage);
+          setLoadoutMessage(stepMessage);
+          for (const entry of step.items) {
+            await api.pullFromPostmaster({
+              membership_type: accountSummary.membership_type,
+              character_id: step.character_id,
+              item_id: entry.item_id,
+              item_reference_hash: entry.item_reference_hash,
+              item_name: entry.item_name
+            });
+          }
+          prepStepCount += step.items.length;
+          continue;
+        }
+
+        if (step.phase === "equip-target") {
+          const stepMessage = `正在给 ${targetCharacter.class_name} 装备 ${item.name}...`;
+          setItemActionMessage(stepMessage);
+          setLoadoutMessage(stepMessage);
+          const equipResult = await api.batchEquipItems({
+            membership_type: accountSummary.membership_type,
+            character_id: step.character_id,
+            items: step.items.map((entry) => ({
+              membership_type: accountSummary.membership_type,
+              character_id: step.character_id,
+              item_id: entry.item_id,
+              item_name: entry.item_name
+            }))
+          });
+
+          autoEquipCount += equipResult.success_count;
+          if (equipResult.failed_count > 0) {
+            throw new Error(equipResult.message || "目标角色装备失败，请稍后重试。");
+          }
+          continue;
+        }
+
+        const stepMessage = step.phase === "to-vault"
+          ? `正在把 ${item.name} 转回仓库...`
+          : `正在把 ${item.name} 转入 ${targetCharacter.class_name}...`;
+        setItemActionMessage(stepMessage);
+        setLoadoutMessage(stepMessage);
+
+        const result = await api.batchTransferItems({
+          membership_type: accountSummary.membership_type,
+          character_id: step.character_id,
+          items: step.items.map((entry) => ({
+            membership_type: accountSummary.membership_type,
+            character_id: step.character_id,
+            item_id: entry.item_id,
+            item_reference_hash: entry.item_reference_hash,
+            item_name: entry.item_name,
+            transfer_to_vault: step.transfer_to_vault
+          }))
+        });
+
+        if (step.phase === "to-character") {
+          targetTransferCount += result.success_count;
+        } else {
+          prepStepCount += result.success_count;
+        }
+
+        if (result.failed_count > 0) {
+          throw new Error(result.message || "单件补齐未全部成功，请检查物品状态后重试。");
+        }
+      }
+
+      await Promise.all([loadAccountSummary(), loadActionLog()]);
+      const finishedParts = [
+        targetTransferCount > 0 ? `转入 ${targetTransferCount} 件` : null,
+        autoEquipCount > 0 ? `自动装备 ${autoEquipCount} 件` : null,
+        prepStepCount > 0 ? `前置处理 ${prepStepCount} 步` : null
+      ].filter(Boolean);
+      setLoadoutMessage(
+        finishedParts.length
+          ? `单件补齐完成：${item.name}，${finishedParts.join("，")}。`
+          : `单件补齐完成：${item.name}。`
+      );
+      actionSucceeded = true;
+      setSingleLoadoutActionFeedback(feedbackKey, "success");
+    } catch (error) {
+      setLoadoutMessage(error instanceof Error ? error.message : `单件补齐失败：${item.name}`);
+    } finally {
+      setIsRunningItemAction(false);
+      setItemActionMessage("");
+      if (!actionSucceeded) {
+        setSingleLoadoutActionFeedback(feedbackKey, "idle");
+      }
+    }
+  }
+
+  async function equipSingleLoadoutItem(
+    template: LoadoutTemplate,
+    item: LoadoutTemplate["items"][number]
+  ) {
+    const feedbackKey = buildLoadoutActionFeedbackKey(template.id, item, "equip");
+    if (!accountSummary) {
+      setLoadoutMessage("请先读取账号数据。");
+      return;
+    }
+
+    const sourceItem = findBestTemplateSourceItem(item, accountSummary, template.character_id);
+    if (!sourceItem?.instance_id) {
+      setLoadoutMessage(`找不到可直接装备的物品实例：${item.name}。`);
+      return;
+    }
+    if (sourceItem.source_kind !== "inventory" || sourceItem.source_character_id !== template.character_id) {
+      setLoadoutMessage(`「${item.name}」当前不在目标角色背包，请先用“只补这一件”。`);
+      return;
+    }
+
+    let latestConfig: D2Config;
+    try {
+      latestConfig = await api.getConfig();
+      setWriteActionsEnabled(latestConfig.features.write_actions_enabled);
+    } catch (error) {
+      setSingleLoadoutActionFeedback(feedbackKey, "idle");
+      setLoadoutMessage(error instanceof Error ? error.message : "读取写操作配置失败");
+      return;
+    }
+
+    if (!latestConfig.features.write_actions_enabled) {
+      setLoadoutMessage("d2-tools 本地写操作开关未开启。请到左侧“设置”页开启后再执行。");
+      return;
+    }
+
+    if (!window.confirm(`确认只装备「${item.name}」吗？`)) {
+      setLoadoutMessage("已取消单件装备。");
+      return;
+    }
+
+    setIsRunningItemAction(true);
+    setSingleLoadoutActionFeedback(feedbackKey, "pending");
+    setItemActionMessage(`正在装备 ${item.name}...`);
+    setLoadoutMessage(`正在装备 ${item.name}...`);
+    let actionSucceeded = false;
+
+    try {
+      const result = await api.equipItem({
+        membership_type: accountSummary.membership_type,
+        character_id: template.character_id,
+        item_id: sourceItem.instance_id,
+        item_name: sourceItem.name
+      });
+      await Promise.all([loadAccountSummary(), loadActionLog()]);
+      setLoadoutMessage(result.message);
+      actionSucceeded = true;
+      setSingleLoadoutActionFeedback(feedbackKey, "success");
+    } catch (error) {
+      setLoadoutMessage(error instanceof Error ? error.message : `单件装备失败：${item.name}`);
+    } finally {
+      setIsRunningItemAction(false);
+      setItemActionMessage("");
+      if (!actionSucceeded) {
+        setSingleLoadoutActionFeedback(feedbackKey, "idle");
+      }
+    }
+  }
+
+  function openTemplateSourceItem(
+    item: LoadoutTemplate["items"][number],
+    templateCharacterId?: string
+  ) {
+    const matchedItem = findBestTemplateSourceItem(item, accountSummary, templateCharacterId);
+    if (!matchedItem) {
+      setLoadoutMessage(`没有找到「${item.name}」的可用来源。`);
+      return;
+    }
+
+    void openItemDetail(matchedItem, {
+      source_character_id: matchedItem.source_character_id,
+      is_vault_item: matchedItem.is_vault_item,
+      is_postmaster_item: matchedItem.is_postmaster_item
+    });
   }
 
   async function loadActivitySummary(summary = accountSummary) {
@@ -1134,10 +1698,9 @@ export function HomePage(props: {
       ? `${label}完成 ${successCount} 件，失败 ${failedCount} 件。可以在设置页查看操作日志。`
       : `${label}完成 ${successCount} 件。`;
   }
-
   async function handleVaultCleanupUnlock(items: AccountItemSummary[], targetCharacterId: string): Promise<string> {
     return runVaultCleanupWriteAction(
-      "鎵归噺瑙ｉ攣",
+      "\u6279\u91cf\u89e3\u9501",
       items,
       targetCharacterId,
       (item) => api.setItemLockState({
@@ -1151,22 +1714,72 @@ export function HomePage(props: {
     );
   }
 
-  async function handleVaultCleanupTransfer(items: AccountItemSummary[], targetCharacterId: string): Promise<string> {
-    return runVaultCleanupWriteAction(
-      "转移到角色背包",
-      items,
-      targetCharacterId,
-      (item) => api.transferItem({
-        membership_type: accountSummary?.membership_type ?? 0,
-        character_id: targetCharacterId,
-        item_id: item.instance_id ?? "",
-        item_reference_hash: item.hash,
-        item_name: item.name,
-        transfer_to_vault: false
-      })
-    );
+  async function handleVaultCleanupTransfer(items: AccountItemSummary[], targetCharacterId: string): Promise<BatchItemActionResult> {
+    // api.batchTransferItems(
+    return runVaultBatchTransfer(items, targetCharacterId);
   }
 
+  async function runVaultBatchTransfer(items: AccountItemSummary[], targetCharacterId: string): Promise<BatchItemActionResult> {
+    if (!accountSummary) {
+      throw new Error("\u8bf7\u5148\u8bfb\u53d6\u8d26\u53f7\u6570\u636e\u3002");
+    }
+
+    let latestConfig: D2Config;
+    try {
+      latestConfig = await api.getConfig();
+      setWriteActionsEnabled(latestConfig.features.write_actions_enabled);
+    } catch (error) {
+      throw error instanceof Error ? error : new Error("\u8bfb\u53d6\u5199\u64cd\u4f5c\u914d\u7f6e\u5931\u8d25");
+    }
+
+    if (!latestConfig.features.write_actions_enabled) {
+      throw new Error("d2-tools \u672c\u5730\u5199\u64cd\u4f5c\u5f00\u5173\u672a\u5f00\u542f\u3002\u8bf7\u5230\u5de6\u4fa7\u201c\u8bbe\u7f6e\u201d\u9875\u5f00\u542f\u540e\u518d\u6267\u884c\u3002");
+    }
+    if (!targetCharacterId) {
+      throw new Error("\u8bf7\u5148\u9009\u62e9\u76ee\u6807\u89d2\u8272\u3002");
+    }
+
+    const actionableItems = items.filter((item) => item.instance_id);
+    if (!actionableItems.length) {
+      throw new Error("\u6ca1\u6709\u53ef\u6267\u884c\u7684\u88c5\u5907\u3002\u53ef\u80fd\u7f3a\u5c11\u5b9e\u4f8b ID\u3002");
+    }
+    if (!window.confirm(`\u786e\u8ba4\u8981\u6279\u91cf\u8f6c\u79fb ${actionableItems.length} \u4ef6\u4ed3\u5e93\u88c5\u5907\u5230\u76ee\u6807\u89d2\u8272\u5417\uff1f`)) {
+      throw new Error("\u5df2\u53d6\u6d88\u64cd\u4f5c\u3002");
+    }
+
+    setIsRunningItemAction(true);
+    setItemActionMessage(`\u6b63\u5728\u6279\u91cf\u8f6c\u79fb ${actionableItems.length} \u4ef6\u88c5\u5907...`);
+    setItemShareMessage("");
+
+    try {
+      const result = await api.batchTransferItems({
+        membership_type: accountSummary.membership_type,
+        character_id: targetCharacterId,
+        items: actionableItems.map((item) => ({
+          membership_type: accountSummary.membership_type,
+          character_id: targetCharacterId,
+          item_id: item.instance_id ?? "",
+          item_reference_hash: item.hash,
+          item_name: item.name,
+          transfer_to_vault: false
+        }))
+      });
+      await Promise.all([loadAccountSummary(), loadActionLog()]);
+      return result;
+    } catch (error) {
+      throw error instanceof Error ? error : new Error("\u6279\u91cf\u8f6c\u79fb\u5931\u8d25");
+    } finally {
+      setIsRunningItemAction(false);
+      setItemActionMessage("");
+    }
+  }
+
+  const activeLoadoutTemplate = loadoutTemplates.find((template) => template.id === selectedLoadoutTemplateId)
+    ?? loadoutTemplates[0]
+    ?? null;
+  const activeLoadoutLookup = activeLoadoutTemplate
+    ? buildLoadoutTemplateLookup(activeLoadoutTemplate)
+    : null;
   const diagnosticRows = buildDiagnosticRows({
     state: props.state,
     dataDir: diagnosticDataDir,
@@ -1360,6 +1973,65 @@ export function HomePage(props: {
     const selectedCharacter = accountSummary?.characters.find((character) => character.character_id === selectedCharacterId)
       ?? accountSummary?.characters[0]
       ?? null;
+    const selectedLoadoutTemplate = activeLoadoutTemplate;
+    const availableLoadoutItems = accountSummary
+      ? normalizeAccountItemsForCore(getAllKnownAccountItemsWithSource(accountSummary))
+      : [];
+    const selectedLoadoutAnalysis = selectedLoadoutTemplate
+      ? analyzeLoadoutTemplate(selectedLoadoutTemplate, availableLoadoutItems)
+      : null;
+    const selectedLoadoutTransferPlan = selectedLoadoutTemplate && accountSummary && selectedLoadoutAnalysis
+      ? buildMissingLoadoutTransferPlan({
+        template: selectedLoadoutTemplate,
+        missingItems: selectedLoadoutTemplate.items,
+        accountSummary
+      })
+      : null;
+    const selectedLoadoutActionableCount = selectedLoadoutTransferPlan
+      ? getMissingLoadoutActionableCount(selectedLoadoutTransferPlan)
+      : 0;
+    const selectedLoadoutReadyCount = selectedLoadoutTemplate && selectedLoadoutTransferPlan
+      ? Math.max(
+        selectedLoadoutTemplate.items.length - selectedLoadoutActionableCount - selectedLoadoutTransferPlan.blocked.length,
+        0
+      )
+      : selectedLoadoutAnalysis?.equipped.length ?? 0;
+    const selectedLoadoutMissingCount = selectedLoadoutTemplate && selectedLoadoutTransferPlan
+      ? selectedLoadoutActionableCount + selectedLoadoutTransferPlan.blocked.length
+      : selectedLoadoutAnalysis?.missing.length ?? 0;
+    const selectedLoadoutCharacter = selectedLoadoutTemplate
+      ? accountSummary?.characters.find((character) => character.character_id === selectedLoadoutTemplate.character_id) ?? null
+      : null;
+    const selectedLoadoutStatuses = selectedLoadoutTemplate
+      ? selectedLoadoutTemplate.items.map((item) => {
+        const isReady = selectedLoadoutTransferPlan
+          ? isTemplateItemReadyFromPlan(item, selectedLoadoutTransferPlan)
+          : isTemplateItemReady(item, selectedLoadoutAnalysis);
+        const sourceItem = !isReady
+          ? findBestTemplateSourceItem(item, accountSummary, selectedLoadoutTemplate.character_id)
+          : null;
+        return buildLoadoutItemStatus({
+          isReady,
+          sourceItem,
+          targetCharacterId: selectedLoadoutTemplate.character_id,
+          accountSummary
+        });
+      })
+      : [];
+    const selectedLoadoutStatusSummary = summarizeLoadoutItemStatuses(selectedLoadoutStatuses);
+    const compareLoadoutTemplate = loadoutTemplates.find((template) => template.id === compareLoadoutTemplateId)
+      ?? null;
+    const loadoutCompareRows = selectedLoadoutTemplate && compareLoadoutTemplate
+      ? buildLoadoutCompareRows(selectedLoadoutTemplate, compareLoadoutTemplate)
+      : [];
+    const visibleLoadoutCompareRows = showLoadoutDiffOnly
+      ? loadoutCompareRows.filter((row) => row.changed)
+      : loadoutCompareRows;
+    const selectedCharacterLoadoutMatchCount = selectedCharacter && activeLoadoutLookup
+      ? getCharacterCombinedItems(selectedCharacter)
+        .filter((item) => matchesLoadoutTemplateItem(item, activeLoadoutLookup))
+        .length
+      : 0;
 
     return (
       <section className="tool-panel">
@@ -1426,15 +2098,296 @@ export function HomePage(props: {
               </div>
               <div className="equipment-section-heading">
                 <h4>当前角色装备</h4>
-                <span>{selectedCharacter.equipped_items.length + selectedCharacter.inventory_items.length} 件</span>
+                <span>
+                  {selectedCharacter.equipped_items.length + selectedCharacter.inventory_items.length} 件
+                  {selectedLoadoutTemplate ? ` / 方案命中 ${selectedCharacterLoadoutMatchCount}` : ""}
+                </span>
               </div>
               <AccountSlotCategories
                 categories={groupAccountItemsBySlot(getCharacterCombinedItems(selectedCharacter))}
+                highlightedTemplate={activeLoadoutLookup}
                 openingItemKey={itemDetailLoadingKey}
                 onOpenItem={(item) => void openItemDetail(item, { source_character_id: selectedCharacter.character_id })}
               />
             </article>
             {renderDimToolsPanel(selectedCharacter)}
+            <section className="vault-preview">
+              <div className="section-heading compact-heading">
+                <div>
+                  <h3>本地方案库</h3>
+                  <p>按方案查看角色装备快照，支持重命名和生成转移计划。</p>
+                </div>
+              </div>
+              {selectedLoadoutTemplate ? (
+                <div className="daily-source-grid">
+                  <section className="daily-source source-ready">
+                    <strong>当前方案</strong>
+                    <span>{selectedLoadoutTemplate.name}</span>
+                    <div className="action-log-list">
+                      {loadoutTemplates.slice(0, 8).map((template) => (
+                        <button
+                          type="button"
+                          key={template.id}
+                          className={selectedLoadoutTemplate.id === template.id ? "action-log-row log-ok" : "action-log-row"}
+                          onClick={() => {
+                            setSelectedLoadoutTemplateId(template.id);
+                            setLoadoutRenameDraft(template.name);
+                          }}
+                        >
+                          <strong>{template.name}</strong>
+                          <span>{template.class_name} / {template.items.length} 件装备</span>
+                          <small>{new Date(template.updated_at ?? template.created_at).toLocaleString("zh-CN")}</small>
+                        </button>
+                      ))}
+                    </div>
+                  </section>
+                  <section className="daily-source source-ready">
+                    <strong>方案详情</strong>
+                    <span>
+                      {selectedLoadoutAnalysis
+                        ? `已就位 ${selectedLoadoutReadyCount} / 待补齐 ${selectedLoadoutMissingCount}`
+                        : `${selectedLoadoutTemplate.items.length} 件装备`}
+                    </span>
+                    <div className="field-grid">
+                      <label>
+                        <span>重命名</span>
+                        <input
+                          value={loadoutRenameDraft}
+                          onChange={(event) => setLoadoutRenameDraft(event.target.value)}
+                          placeholder="输入方案名称"
+                        />
+                      </label>
+                    </div>
+                    <div className="button-row">
+                      <button
+                        type="button"
+                        className="secondary-button"
+                        onClick={() => void renameLoadoutTemplate(selectedLoadoutTemplate)}
+                      >
+                        重命名
+                      </button>
+                      <button
+                        type="button"
+                        className="secondary-button"
+                        onClick={() => void createTemplateTransferPlan(selectedLoadoutTemplate)}
+                      >
+                        生成转移计划
+                      </button>
+                      <button
+                        type="button"
+                        className="secondary-button"
+                        onClick={() => void copyMissingLoadoutItems(selectedLoadoutTemplate, selectedLoadoutAnalysis)}
+                      >
+                        复制缺失清单
+                      </button>
+                      <button
+                        type="button"
+                        className="secondary-button"
+                        disabled={isRunningItemAction}
+                        onClick={() => void executeMissingLoadoutTransfer(selectedLoadoutTemplate, selectedLoadoutAnalysis)}
+                      >
+                        {isRunningItemAction ? "执行中..." : "转移缺失件"}
+                      </button>
+                      <button
+                        type="button"
+                        className="secondary-button"
+                        onClick={() => void deleteLoadoutTemplate(selectedLoadoutTemplate.id)}
+                      >
+                        删除
+                      </button>
+                    </div>
+                    {selectedLoadoutAnalysis?.warnings.length ? (
+                      selectedLoadoutMissingCount > 0 ? (
+                        <p className="notice">
+                          当前有 {selectedLoadoutMissingCount} 件方案装备还没在目标角色就位，可用“转移缺失件”自动补齐并穿戴。
+                        </p>
+                      ) : null
+                    ) : null}
+                    {selectedLoadoutStatusSummary.length ? (
+                      <div className="loadout-status-summary">
+                        {selectedLoadoutStatusSummary.map((entry) => (
+                          <span className="loadout-status-chip" key={entry.key}>
+                            <b>{entry.label}</b>
+                            <small>{entry.count} 件</small>
+                          </span>
+                        ))}
+                      </div>
+                    ) : null}
+                    {selectedLoadoutTransferPlan?.blocked.length ? (
+                      <p className="notice">
+                        有 {selectedLoadoutTransferPlan.blocked.length} 件当前无法自动补齐，下面会显示原因和处理建议。
+                      </p>
+                    ) : null}
+                    <ul className="daily-source-items">
+                      {selectedLoadoutTemplate.items.slice(0, 10).map((item, index) => {
+                        const isReady = selectedLoadoutTransferPlan
+                          ? isTemplateItemReadyFromPlan(item, selectedLoadoutTransferPlan)
+                          : isTemplateItemReady(item, selectedLoadoutAnalysis);
+                        const blockedEntry = !isReady
+                          ? selectedLoadoutTransferPlan?.blocked.find((entry) => {
+                            if (item.instance_id && entry.item.instance_id) {
+                              return item.instance_id === entry.item.instance_id;
+                            }
+
+                            return entry.item.hash === item.hash
+                              && entry.item.bucket_name === item.bucket_name;
+                          }) ?? null
+                          : null;
+                        const blockedDetails = blockedEntry
+                          ? describeMissingLoadoutBlockedReason(blockedEntry.reason)
+                          : null;
+                        const sourceItem = !isReady
+                          ? findBestTemplateSourceItem(item, accountSummary, selectedLoadoutTemplate.character_id)
+                          : null;
+                        const status = buildLoadoutItemStatus({
+                          isReady,
+                          sourceItem,
+                          targetCharacterId: selectedLoadoutTemplate.character_id,
+                          accountSummary
+                        });
+                        const transferFeedbackKey = buildLoadoutActionFeedbackKey(
+                          selectedLoadoutTemplate.id,
+                          item,
+                          "transfer"
+                        );
+                        const equipFeedbackKey = buildLoadoutActionFeedbackKey(
+                          selectedLoadoutTemplate.id,
+                          item,
+                          "equip"
+                        );
+                        const transferFeedbackState = loadoutActionFeedback[transferFeedbackKey] ?? "idle";
+                        const equipFeedbackState = loadoutActionFeedback[equipFeedbackKey] ?? "idle";
+                        return (
+                          <li
+                            className={`loadout-item status-${status.badge_tone}`}
+                            key={`${selectedLoadoutTemplate.id}-${item.instance_id ?? item.hash}-${index}`}
+                          >
+                            <b>{item.name}</b>
+                            <span className={`loadout-status-badge ${status.badge_tone}`}>
+                              {status.badge_label}
+                            </span>
+                            <small>
+                              {[
+                                status.location_label,
+                                item.bucket_name,
+                                item.weapon_frame_name,
+                                item.perk_names?.slice(0, 2).join(" / ")
+                              ].filter(Boolean).join(" / ") || "暂无额外信息"}
+                            </small>
+                            {status.guidance_label && !blockedDetails ? (
+                              <>
+                                <small className="loadout-blocked-reason">{status.guidance_label}</small>
+                                {status.guidance_hint ? (
+                                  <small className="loadout-blocked-hint">{status.guidance_hint}</small>
+                                ) : null}
+                              </>
+                            ) : null}
+                            {blockedDetails ? (
+                              <>
+                                <small className="loadout-blocked-reason">无法自动补齐：{blockedDetails.label}</small>
+                                <small className="loadout-blocked-hint">{blockedDetails.hint}</small>
+                              </>
+                            ) : null}
+                            {!isReady ? (
+                              <div className="button-row compact">
+                                {!blockedDetails && status.key !== "current-inventory" && sourceItem?.instance_id ? (
+                                  <button
+                                    type="button"
+                                    className={`secondary-button inline-action ${transferFeedbackState === "pending" ? "is-pending" : ""} ${transferFeedbackState === "success" ? "is-success" : ""}`.trim()}
+                                    aria-busy={transferFeedbackState === "pending"}
+                                    disabled={isRunningItemAction}
+                                    onClick={() => void executeSingleLoadoutItemTransfer(selectedLoadoutTemplate, item)}
+                                  >
+                                    {getLoadoutActionButtonLabel("transfer", transferFeedbackState)}
+                                  </button>
+                                ) : null}
+                                {!blockedDetails && status.key === "current-inventory" ? (
+                                  <button
+                                    type="button"
+                                    className={`secondary-button inline-action ${equipFeedbackState === "pending" ? "is-pending" : ""} ${equipFeedbackState === "success" ? "is-success" : ""}`.trim()}
+                                    aria-busy={equipFeedbackState === "pending"}
+                                    disabled={isRunningItemAction}
+                                    onClick={() => void equipSingleLoadoutItem(selectedLoadoutTemplate, item)}
+                                  >
+                                    {getLoadoutActionButtonLabel("equip", equipFeedbackState)}
+                                  </button>
+                                ) : null}
+                                <button
+                                  type="button"
+                                  className="secondary-button"
+                                  onClick={() => openTemplateSourceItem(item, selectedLoadoutTemplate.character_id)}
+                                >
+                                  查看来源
+                                </button>
+                              </div>
+                            ) : null}
+                          </li>
+                        )})}
+                    </ul>
+                    <div className="field-grid">
+                      <label>
+                        <span>对比方案</span>
+                        <select
+                          value={compareLoadoutTemplateId}
+                          onChange={(event) => setCompareLoadoutTemplateId(event.target.value)}
+                        >
+                          <option value="">不对比</option>
+                          {loadoutTemplates
+                            .filter((template) => template.id !== selectedLoadoutTemplate.id)
+                            .map((template) => (
+                              <option key={template.id} value={template.id}>
+                                {template.name}
+                              </option>
+                            ))}
+                        </select>
+                      </label>
+                      <label>
+                        <span>差异预览</span>
+                        <input
+                          type="checkbox"
+                          checked={showLoadoutDiffOnly}
+                          onChange={(event) => setShowLoadoutDiffOnly(event.target.checked)}
+                        />
+                        <small>仅看差异</small>
+                      </label>
+                    </div>
+                    {compareLoadoutTemplate ? (
+                      <div className="loadout-compare-grid">
+                        {visibleLoadoutCompareRows.length ? visibleLoadoutCompareRows.map((row) => (
+                          <article
+                            className={row.changed ? "loadout-compare-row changed" : "loadout-compare-row"}
+                            key={`${selectedLoadoutTemplate.id}-${compareLoadoutTemplate.id}-${row.slot}`}
+                          >
+                            <b>{row.slot}</b>
+                            <section className="loadout-compare-side">
+                              <strong>{selectedLoadoutTemplate.name}</strong>
+                              <span>{row.left.name}</span>
+                              <small>框架：{row.left.frame}</small>
+                              <small>Perk：{formatLoadoutComparePerks(row.left.perks)}</small>
+                            </section>
+                            <section className="loadout-compare-side">
+                              <strong>{compareLoadoutTemplate.name}</strong>
+                              <span>{row.right.name}</span>
+                              <small>框架：{row.right.frame}</small>
+                              <small>Perk：{formatLoadoutComparePerks(row.right.perks)}</small>
+                            </section>
+                          </article>
+                        )) : (
+                          <article className="loadout-compare-row">
+                            <b>差异预览</b>
+                            <section className="loadout-compare-side">
+                              <span>两个方案当前没有可展示差异。</span>
+                            </section>
+                          </article>
+                        )}
+                      </div>
+                    ) : null}
+                  </section>
+                </div>
+              ) : (
+                <p className="notice">本地方案库还没有内容。</p>
+              )}
+            </section>
               </>
             ) : null}
             <section className="vault-preview">
@@ -1505,24 +2458,34 @@ export function HomePage(props: {
                   </div>
                   {selectedCharacter.postmaster_items.length ? (
                     <div className="equipment-grid">
-                      {selectedCharacter.postmaster_items.slice(0, 12).map((item) => (
-                        <button
-                          type="button"
-                          className={getItemKey(item) === itemDetailLoadingKey ? "equipment-item inventory pending" : "equipment-item inventory"}
-                          key={`${item.hash}-${item.instance_id ?? "postmaster"}`}
-                          aria-busy={getItemKey(item) === itemDetailLoadingKey}
-                          onClick={() => void openItemDetail(item, {
-                            source_character_id: selectedCharacter.character_id,
-                            is_postmaster_item: true
-                          })}
-                        >
-                          {item.icon ? <img alt="" src={item.icon} /> : <div className="item-icon-placeholder" />}
-                          <div>
-                            <strong>{item.name}</strong>
-                            <span>{formatAccountItemMeta(item)}</span>
-                          </div>
-                        </button>
-                      ))}
+                      {selectedCharacter.postmaster_items.slice(0, 12).map((item) => {
+                        const isPending = getItemKey(item) === itemDetailLoadingKey;
+                        const isLoadoutMatch = matchesLoadoutTemplateItem(item, activeLoadoutLookup);
+                        return (
+                          <button
+                            type="button"
+                            className={[
+                              "equipment-item",
+                              "inventory",
+                              isPending ? "pending" : "",
+                              isLoadoutMatch ? "loadout-highlight" : ""
+                            ].filter(Boolean).join(" ")}
+                            key={`${item.hash}-${item.instance_id ?? "postmaster"}`}
+                            aria-busy={isPending}
+                            onClick={() => void openItemDetail(item, {
+                              source_character_id: selectedCharacter.character_id,
+                              is_postmaster_item: true
+                            })}
+                          >
+                            {item.icon ? <img alt="" src={item.icon} /> : <div className="item-icon-placeholder" />}
+                            <div>
+                              <strong>{item.name}</strong>
+                              {isLoadoutMatch ? <small className="loadout-template-badge">方案命中</small> : null}
+                              <span>{formatAccountItemMeta(item)}</span>
+                            </div>
+                          </button>
+                        );
+                      })}
                     </div>
                   ) : (
                     <p className="notice">当前角色邮政官为空。</p>
@@ -1950,9 +2913,10 @@ function renderDailyPanel() {
   }
 
   function renderSearchPanel() {
+    const libraryEquipmentFilter = equipmentFilters;
     const equipmentFilterOptions = buildLibraryEquipmentFilterOptions(items);
     const perkGroupOptions = buildLibraryPerkGroupOptions(perks);
-    const visibleItems = filterLibraryEquipmentItems(items, equipmentFilters);
+    const visibleItems = filterLibraryEquipmentItems(items, libraryEquipmentFilter);
     const visiblePerks = filterLibraryPerks(perks, perkFilters);
     const hitCount = libraryViewMode === "equipment" ? visibleItems.length : visiblePerks.length;
     const searchTouched = libraryViewMode === "equipment" ? equipmentSearchTouched : perkSearchTouched;
@@ -1995,7 +2959,7 @@ function renderDailyPanel() {
               <label className="compact-field">
                 分类
                 <select
-                  value={equipmentFilters.group}
+                  value={libraryEquipmentFilter.group}
                   onChange={(event) => updateEquipmentFilters({ group: event.target.value as LibraryEquipmentFilter["group"] })}
                 >
                   {equipmentFilterOptions.groups.map((option) => (
@@ -2005,7 +2969,7 @@ function renderDailyPanel() {
               </label>
               <label className="compact-field">
                 稀有度
-                <select value={equipmentFilters.tier} onChange={(event) => updateEquipmentFilters({ tier: event.target.value })}>
+                <select value={libraryEquipmentFilter.tier} onChange={(event) => updateEquipmentFilters({ tier: event.target.value })}>
                   {equipmentFilterOptions.tiers.map((option) => (
                     <option key={option.value} value={option.value}>{option.label}</option>
                   ))}
@@ -2013,24 +2977,56 @@ function renderDailyPanel() {
               </label>
               <label className="compact-field">
                 位置
-                <select value={equipmentFilters.bucket} onChange={(event) => updateEquipmentFilters({ bucket: event.target.value })}>
+                <select value={libraryEquipmentFilter.bucket} onChange={(event) => updateEquipmentFilters({ bucket: event.target.value })}>
                   {equipmentFilterOptions.buckets.map((option) => (
                     <option key={option.value} value={option.value}>{option.label}</option>
                   ))}
                 </select>
               </label>
-              {equipmentFilters.group === "weapons" ? (
-                <label className="compact-field">
-                  弹药
-                  <select
-                    value={equipmentFilters.ammo}
-                    onChange={(event) => updateEquipmentFilters({ ammo: event.target.value as LibraryEquipmentFilter["ammo"] })}
-                  >
-                    {equipmentFilterOptions.ammo.map((option) => (
-                      <option key={option.value} value={option.value}>{option.label}</option>
-                    ))}
-                  </select>
-                </label>
+              {libraryEquipmentFilter.group === "weapons" ? (
+                <>
+                  <label className="compact-field">
+                    弹药
+                    <select
+                      value={libraryEquipmentFilter.ammo}
+                      onChange={(event) => updateEquipmentFilters({ ammo: event.target.value as LibraryEquipmentFilter["ammo"] })}
+                    >
+                      {equipmentFilterOptions.ammo.map((option) => (
+                        <option key={option.value} value={option.value}>{option.label}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <div className="compact-field">
+                    <span>框架</span>
+                    <div className="segmented-control" aria-label="资料库武器框架筛选">
+                      {equipmentFilterOptions.frames.map((option) => (
+                        option.value === "all" ? (
+                          <button
+                            type="button"
+                            key={option.value}
+                            className={!libraryEquipmentFilter.frame.length ? "active" : ""}
+                            onClick={() => updateEquipmentFilters({ frame: [] })}
+                          >
+                            {option.label}
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            key={option.value}
+                            className={libraryEquipmentFilter.frame.includes(option.value) ? "active" : ""}
+                            onClick={() => updateEquipmentFilters({
+                              frame: libraryEquipmentFilter.frame.includes(option.value)
+                                ? libraryEquipmentFilter.frame.filter((value) => value !== option.value)
+                                : [...libraryEquipmentFilter.frame, option.value]
+                            })}
+                          >
+                            {option.label}
+                          </button>
+                        )
+                      ))}
+                    </div>
+                  </div>
+                </>
               ) : null}
             </>
           ) : (
@@ -2213,11 +3209,15 @@ function renderDailyPanel() {
     return (
       <VaultPanel
         items={accountSummary.vault.items}
+        highlightedItemKeys={activeLoadoutLookup}
+        highlightedLabel={activeLoadoutTemplate?.name}
         tags={vaultTags}
         openingItemKey={itemDetailLoadingKey}
         onSaveTagBatch={(inputs) => saveVaultTagsBatch(inputs)}
         cleanupActions={{
           characters: accountSummary.characters,
+          currentCharacterId: selectedCharacterId || accountSummary.characters[0]?.character_id,
+          currentCharacterLabel: accountSummary.characters.find((character) => character.character_id === (selectedCharacterId || accountSummary.characters[0]?.character_id))?.class_name,
           writeActionsEnabled,
           onBatchUnlock: handleVaultCleanupUnlock,
           onBatchTransferToCharacter: handleVaultCleanupTransfer
@@ -2689,6 +3689,86 @@ function renderDailyPanel() {
   }
 }
 
+type LoadoutCompareRow = {
+  slot: string;
+  left: LoadoutCompareCell;
+  right: LoadoutCompareCell;
+  changed: boolean;
+};
+
+type LoadoutCompareCell = {
+  name: string;
+  frame: string;
+  perks: string[];
+};
+
+function buildLoadoutCompareRows(primary: LoadoutTemplate, secondary: LoadoutTemplate): LoadoutCompareRow[] {
+  const primaryItems = new Map(primary.items.map((item) => [loadoutCompareSlotKey(item), item]));
+  const secondaryItems = new Map(secondary.items.map((item) => [loadoutCompareSlotKey(item), item]));
+  const slots = Array.from(new Set([...primaryItems.keys(), ...secondaryItems.keys()]));
+
+  return slots.map((slot) => {
+    const leftItem = primaryItems.get(slot);
+    const rightItem = secondaryItems.get(slot);
+    const left = formatLoadoutCompareItem(leftItem);
+    const right = formatLoadoutCompareItem(rightItem);
+    return {
+      slot,
+      left,
+      right,
+      changed: left.name !== right.name
+        || left.frame !== right.frame
+        || formatLoadoutComparePerks(left.perks) !== formatLoadoutComparePerks(right.perks)
+    };
+  });
+}
+
+function loadoutCompareSlotKey(item: LoadoutTemplate["items"][number]): string {
+  return item.bucket_name || item.name;
+}
+
+function formatLoadoutCompareItem(item: LoadoutTemplate["items"][number] | undefined): LoadoutCompareCell {
+  if (!item) {
+    return {
+      name: "未配置",
+      frame: "未配置",
+      perks: []
+    };
+  }
+
+  return {
+    name: item.name,
+    frame: item.weapon_frame_name || "未标注",
+    perks: item.perk_names?.slice(0, 2) ?? []
+  };
+}
+
+function formatLoadoutComparePerks(perks: string[]): string {
+  return perks.length ? perks.join(" / ") : "无";
+}
+
+function buildMissingLoadoutItemsText(
+  template: LoadoutTemplate,
+  missingItems: LoadoutTemplate["items"],
+  summary: AccountSummary | null
+): string {
+  return [
+    `d2-tools 缺失清单：${template.name}`,
+    `职业：${template.class_name}`,
+    `缺失数量：${missingItems.length}`,
+    "",
+    ...missingItems.map((item, index) => [
+      `${index + 1}. ${item.name}`,
+      `   来源：${findTemplateItemSourceLabel(item, summary, template.character_id)}`,
+      `   槽位：${item.bucket_name ?? "未标注"}`,
+      `   框架：${item.weapon_frame_name ?? "未标注"}`,
+      `   Perk：${formatLoadoutComparePerks(item.perk_names?.slice(0, 2) ?? [])}`
+    ].join("\n")),
+    "",
+    "说明：这只是本地缺失清单，不会执行 Bungie 写操作。"
+  ].join("\n");
+}
+
 function selectedItemToAccountItem(item: SelectedItemDetail): AccountItemSummary | null {
   if (!item.group_key) return null;
   return {
@@ -2779,6 +3859,7 @@ function isAccountItemFromSource(
 
 function AccountSlotCategories(props: {
   categories: AccountSlotCategory[];
+  highlightedTemplate?: LoadoutTemplateLookup | null;
   openingItemKey?: string;
   onOpenItem: (item: AccountItemSummary) => void;
 }) {
@@ -2800,12 +3881,14 @@ function AccountSlotCategories(props: {
                 <AccountSlotSourceCluster
                   label="已装备"
                   items={group.items.filter((item): item is AccountItemWithSource => isAccountItemFromSource(item, "equipped"))}
+                  highlightedTemplate={props.highlightedTemplate}
                   openingItemKey={props.openingItemKey}
                   onOpenItem={props.onOpenItem}
                 />
                 <AccountSlotSourceCluster
                   label="背包"
                   items={group.items.filter((item): item is AccountItemWithSource => isAccountItemFromSource(item, "inventory"))}
+                  highlightedTemplate={props.highlightedTemplate}
                   openingItemKey={props.openingItemKey}
                   onOpenItem={props.onOpenItem}
                 />
@@ -2820,6 +3903,7 @@ function AccountSlotCategories(props: {
 
 function AccountSlotSourceCluster(props: {
   label: "已装备" | "背包";
+  highlightedTemplate?: LoadoutTemplateLookup | null;
   items: AccountItemWithSource[];
   openingItemKey?: string;
   onOpenItem: (item: AccountItemSummary) => void;
@@ -2839,11 +3923,15 @@ function AccountSlotSourceCluster(props: {
       <div className="equipment-grid">
         {props.items.map((item) => {
           const isPending = getItemKey(item) === props.openingItemKey;
+          const isLoadoutMatch = matchesLoadoutTemplateItem(item, props.highlightedTemplate);
           return (
             <button
-              className={isEquipped
-                ? (isPending ? "equipment-item equipped pending" : "equipment-item equipped")
-                : (isPending ? "equipment-item inventory pending" : "equipment-item inventory")}
+              className={[
+                "equipment-item",
+                isEquipped ? "equipped" : "inventory",
+                isPending ? "pending" : "",
+                isLoadoutMatch ? "loadout-highlight" : ""
+              ].filter(Boolean).join(" ")}
               key={`${item.hash}-${item.instance_id ?? ""}`}
               type="button"
               aria-busy={isPending}
@@ -2852,6 +3940,7 @@ function AccountSlotSourceCluster(props: {
               {item.icon ? <img alt="" src={item.icon} /> : <div className="item-icon-placeholder" />}
               <div>
                 <strong>{item.name}</strong>
+                {isLoadoutMatch ? <small className="loadout-template-badge">方案命中</small> : null}
                 <span>{formatAccountItemMeta(item)}</span>
               </div>
             </button>
@@ -2916,6 +4005,190 @@ type SameNameItemSummary = AccountItemSummary & SelectedItemSource & {
   source_kind: "equipped" | "inventory" | "vault" | "postmaster";
   source_label?: string;
 };
+
+type LoadoutTemplateLookup = {
+  instanceIds: Set<string>;
+  bucketHashKeys: Set<string>;
+  hashKeys: Set<number>;
+};
+
+function buildLoadoutTemplateLookup(template: LoadoutTemplate): LoadoutTemplateLookup {
+  return {
+    instanceIds: new Set(template.items.map((item) => item.instance_id).filter((item): item is string => Boolean(item))),
+    bucketHashKeys: new Set(template.items.map((item) => `${item.bucket_name ?? ""}:${item.hash}`)),
+    hashKeys: new Set(template.items.map((item) => item.hash))
+  };
+}
+
+function matchesLoadoutTemplateItem(
+  item: Pick<AccountItemSummary, "hash" | "instance_id" | "bucket_name">,
+  lookup?: LoadoutTemplateLookup | null
+): boolean {
+  if (!lookup) {
+    return false;
+  }
+  if (item.instance_id && lookup.instanceIds.has(item.instance_id)) {
+    return true;
+  }
+
+  return lookup.bucketHashKeys.has(`${item.bucket_name ?? ""}:${item.hash}`)
+    || lookup.hashKeys.has(item.hash);
+}
+
+function isTemplateItemReady(
+  item: LoadoutTemplate["items"][number],
+  analysis: ReturnType<typeof analyzeLoadoutTemplate> | null
+): boolean {
+  if (!analysis) {
+    return false;
+  }
+
+  return analysis.equipped.some((equippedItem) => {
+    if (item.instance_id && equippedItem.instance_id) {
+      return item.instance_id === equippedItem.instance_id;
+    }
+
+    return equippedItem.hash === item.hash
+      && equippedItem.bucket_name === item.bucket_name;
+  });
+}
+
+function getMissingLoadoutActionableCount(
+  plan: ReturnType<typeof buildMissingLoadoutTransferPlan>
+): number {
+  return new Set(
+    plan.steps
+      .filter((step) => step.phase !== "equip-swap")
+      .flatMap((step) => step.items.map((entry) => entry.item_id))
+  ).size;
+}
+
+function isTemplateItemReadyFromPlan(
+  item: LoadoutTemplate["items"][number],
+  plan: ReturnType<typeof buildMissingLoadoutTransferPlan>
+): boolean {
+  if (plan.blocked.some((entry) => isMatchingTemplateItem(item, entry.item))) {
+    return false;
+  }
+
+  return !plan.steps.some((step) =>
+    step.phase !== "equip-swap"
+    && step.items.some((entry) => isMatchingTemplateItemIdentity(item, entry.item_id, entry.item_reference_hash, entry.bucket_name))
+  );
+}
+
+function isMatchingTemplateItem(
+  left: Pick<LoadoutTemplate["items"][number], "hash" | "instance_id" | "bucket_name">,
+  right: Pick<LoadoutTemplate["items"][number], "hash" | "instance_id" | "bucket_name">
+): boolean {
+  if (left.instance_id && right.instance_id) {
+    return left.instance_id === right.instance_id;
+  }
+
+  return left.hash === right.hash
+    && left.bucket_name === right.bucket_name;
+}
+
+function isMatchingTemplateItemIdentity(
+  item: Pick<LoadoutTemplate["items"][number], "hash" | "instance_id" | "bucket_name">,
+  itemId: string,
+  itemHash?: number,
+  bucketName?: string
+): boolean {
+  if (item.instance_id) {
+    return item.instance_id === itemId;
+  }
+
+  return item.hash === itemHash
+    && item.bucket_name === bucketName;
+}
+
+function findTemplateItemSourceLabel(
+  item: LoadoutTemplate["items"][number],
+  summary: AccountSummary | null,
+  templateCharacterId?: string
+): string {
+  const matchedItem = findBestTemplateSourceItem(item, summary, templateCharacterId);
+  if (!matchedItem) {
+    return "未找到";
+  }
+
+  const isCurrentCharacter = Boolean(templateCharacterId && matchedItem.source_character_id === templateCharacterId);
+  const characterLabel = summary?.characters.find((character) => character.character_id === matchedItem.source_character_id)?.class_name
+    ?? "其他角色";
+
+  if (matchedItem.source_kind === "vault") {
+    return "仓库";
+  }
+
+  if (matchedItem.source_kind === "postmaster") {
+    return isCurrentCharacter ? "当前角色邮政官" : `${characterLabel}邮政官`;
+  }
+
+  if (matchedItem.source_kind === "equipped") {
+    return isCurrentCharacter ? "当前角色已装备" : `${characterLabel}已装备`;
+  }
+
+  return isCurrentCharacter ? "当前角色背包" : `${characterLabel}背包`;
+}
+
+function findBestTemplateSourceItem(
+  item: LoadoutTemplate["items"][number],
+  summary: AccountSummary | null,
+  templateCharacterId?: string
+): SameNameItemSummary | null {
+  if (!summary) {
+    return null;
+  }
+
+  const candidates = getAllKnownAccountItemsWithSource(summary)
+    .filter((candidate) => isTemplateSourceMatch(item, candidate))
+    .sort((left, right) => scoreTemplateSourceCandidate(right, item, templateCharacterId)
+      - scoreTemplateSourceCandidate(left, item, templateCharacterId));
+
+  return candidates[0] ?? null;
+}
+
+function isTemplateSourceMatch(
+  item: LoadoutTemplate["items"][number],
+  candidate: SameNameItemSummary
+): boolean {
+  if (item.instance_id && candidate.instance_id) {
+    return item.instance_id === candidate.instance_id;
+  }
+
+  return candidate.hash === item.hash
+    && (!item.bucket_name || candidate.bucket_name === item.bucket_name);
+}
+
+function scoreTemplateSourceCandidate(
+  candidate: SameNameItemSummary,
+  item: LoadoutTemplate["items"][number],
+  templateCharacterId?: string
+): number {
+  let score = 0;
+
+  if (item.instance_id && candidate.instance_id && item.instance_id === candidate.instance_id) {
+    score += 100;
+  } else if (candidate.hash === item.hash && candidate.bucket_name === item.bucket_name) {
+    score += 20;
+  } else if (candidate.hash === item.hash) {
+    score += 10;
+  }
+
+  if (templateCharacterId && candidate.source_character_id === templateCharacterId) {
+    score += 8;
+  }
+
+  const sourceScores: Record<SameNameItemSummary["source_kind"], number> = {
+    equipped: 4,
+    inventory: 3,
+    vault: 2,
+    postmaster: 1
+  };
+
+  return score + sourceScores[candidate.source_kind];
+}
 
 function createSelectedItemPreview(
   item: AccountItemSummary | ItemSearchResult,

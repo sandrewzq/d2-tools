@@ -43,6 +43,7 @@ import {
   listLoadoutTemplates,
   loadVaultTags,
   refreshBungieOAuthToken,
+  renameLoadoutTemplate,
   removeFavoriteItem,
   saveConfig,
   saveDimWishlist,
@@ -221,6 +222,10 @@ export function registerIpcHandlers(): void {
       config.data.data_dir,
       "DestinyInventoryBucketDefinition"
     );
+    const plugSetDefinitions = loadDefinitionComponent(
+      config.data.data_dir,
+      "DestinyPlugSetDefinition"
+    );
     const loadoutNameDefinitions = loadDefinitionComponent(
       config.data.data_dir,
       "DestinyLoadoutNameDefinition"
@@ -234,6 +239,7 @@ export function registerIpcHandlers(): void {
       token,
       itemDefinitions,
       bucketDefinitions: bucketDefinitions ?? undefined,
+      plugSetDefinitions: plugSetDefinitions ?? undefined,
       loadoutNameDefinitions: loadoutNameDefinitions ?? undefined
     });
   });
@@ -406,6 +412,11 @@ export function registerIpcHandlers(): void {
   ipcMain.handle("loadouts:create", (_event, input: CreateLoadoutTemplateInput) => {
     const config = loadConfig();
     return createLoadoutTemplate(config.data.data_dir, input);
+  });
+
+  ipcMain.handle("loadouts:rename", (_event, input: { id: string; name: string }) => {
+    const config = loadConfig();
+    return renameLoadoutTemplate(config.data.data_dir, input.id, input.name);
   });
 
   ipcMain.handle("loadouts:delete", (_event, id: string) => {

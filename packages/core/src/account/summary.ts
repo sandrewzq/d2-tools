@@ -1,6 +1,7 @@
 import { fetchBungieJson } from "../bungie/client.js";
 import type { D2Config } from "../config/schema.js";
 import { ammoTypeKey, classifyBucket, type AmmoTypeKey, type EquipmentGroupKey } from "../items/classification.js";
+import { summarizeWeaponFrame, type WeaponFrameSummary } from "../items/weaponFrames.js";
 import type { DefinitionComponentData, DefinitionRecord } from "../manifest/definitions.js";
 import type { BungieOAuthToken } from "../oauth/login.js";
 
@@ -17,6 +18,7 @@ export type AccountItemSummary = {
   bucket_hash?: number;
   bucket_name?: string;
   group_key: EquipmentGroupKey;
+  weapon_frame?: WeaponFrameSummary;
   power?: number;
   locked?: boolean;
   socket_plugs: AccountItemPlugSummary[];
@@ -93,6 +95,7 @@ export type FetchAccountSummaryOptions = {
   token: BungieOAuthToken;
   itemDefinitions?: DefinitionComponentData;
   bucketDefinitions?: DefinitionComponentData;
+  plugSetDefinitions?: DefinitionComponentData;
   loadoutNameDefinitions?: DefinitionComponentData;
   baseUrl?: string;
   fetchImpl?: typeof fetch;
@@ -239,9 +242,15 @@ export async function fetchAccountSummary(options: FetchAccountSummaryOptions): 
       profile,
       options.itemDefinitions ?? {},
       options.bucketDefinitions ?? {},
-      options.loadoutNameDefinitions ?? {}
+      options.loadoutNameDefinitions ?? {},
+      options.plugSetDefinitions ?? {}
     ),
-    ...summarizeProfileInventory(profile, options.itemDefinitions ?? {}, options.bucketDefinitions ?? {})
+    ...summarizeProfileInventory(
+      profile,
+      options.itemDefinitions ?? {},
+      options.bucketDefinitions ?? {},
+      options.plugSetDefinitions ?? {}
+    )
   };
 }
 
@@ -260,19 +269,20 @@ function summarizeCharacters(
   profile: DestinyProfileResponse,
   definitions: DefinitionComponentData,
   bucketDefinitions: DefinitionComponentData,
-  loadoutNameDefinitions: DefinitionComponentData
+  loadoutNameDefinitions: DefinitionComponentData,
+  plugSetDefinitions: DefinitionComponentData
 ): CharacterSummary[] {
   const characters = Object.values(profile.characters?.data ?? {});
   const vaultItems = (profile.profileInventory?.data?.items ?? [])
     .filter((item) => Boolean(item.itemInstanceId))
-    .map((item) => summarizeItem(item, definitions, profile.itemComponents, bucketDefinitions));
+    .map((item) => summarizeItem(item, definitions, profile.itemComponents, bucketDefinitions, plugSetDefinitions));
 
   return characters.map((character) => {
     const equippedItems = (profile.characterEquipment?.data?.[character.characterId]?.items ?? [])
       .slice(0, 16)
-      .map((item) => summarizeItem(item, definitions, profile.itemComponents, bucketDefinitions));
+      .map((item) => summarizeItem(item, definitions, profile.itemComponents, bucketDefinitions, plugSetDefinitions));
     const allCharacterItems = (profile.characterInventories?.data?.[character.characterId]?.items ?? [])
-      .map((item) => summarizeItem(item, definitions, profile.itemComponents, bucketDefinitions));
+      .map((item) => summarizeItem(item, definitions, profile.itemComponents, bucketDefinitions, plugSetDefinitions));
     const inventoryItems = allCharacterItems.filter((item) => !isPostmasterItem(item, bucketDefinitions));
     const postmasterItems = allCharacterItems.filter((item) => isPostmasterItem(item, bucketDefinitions));
     const knownItems = [...equippedItems, ...inventoryItems, ...postmasterItems, ...vaultItems];
@@ -299,12 +309,13 @@ function summarizeCharacters(
 function summarizeProfileInventory(
   profile: DestinyProfileResponse,
   definitions: DefinitionComponentData,
-  bucketDefinitions: DefinitionComponentData
+  bucketDefinitions: DefinitionComponentData,
+  plugSetDefinitions: DefinitionComponentData
 ): Pick<AccountSummary, "vault" | "materials"> {
   const profileItems = profile.profileInventory?.data?.items ?? [];
   const items = profileItems
     .filter((item) => Boolean(item.itemInstanceId))
-    .map((item) => summarizeItem(item, definitions, profile.itemComponents, bucketDefinitions));
+    .map((item) => summarizeItem(item, definitions, profile.itemComponents, bucketDefinitions, plugSetDefinitions));
   const materials = profileItems
     .filter((item) => !item.itemInstanceId)
     .map((item) => summarizeMaterial(item, definitions));
@@ -341,7 +352,8 @@ function summarizeItem(
   item: DestinyProfileItem,
   definitions: DefinitionComponentData,
   components?: DestinyProfileResponse["itemComponents"],
-  bucketDefinitions: DefinitionComponentData = {}
+  bucketDefinitions: DefinitionComponentData = {},
+  plugSetDefinitions: DefinitionComponentData = {}
 ): AccountItemSummary {
   const definition = definitions[String(item.itemHash)] as DefinitionRecord | undefined;
   const explicitBucketHash = item.bucketHash;
@@ -355,7 +367,7 @@ function summarizeItem(
   const bucketDefinition = bucketHash ? bucketDefinitions[String(bucketHash)] as DefinitionRecord | undefined : undefined;
   const instanceId = item.itemInstanceId;
   const instance = instanceId ? components?.instances?.data?.[instanceId] : undefined;
-  return {
+  const summary: AccountItemSummary = {
     hash: item.itemHash,
     instance_id: instanceId,
     name: definition?.displayProperties?.name?.trim() || `Item ${item.itemHash}`,
@@ -370,6 +382,14 @@ function summarizeItem(
     locked: isLocked(item.state),
     socket_plugs: summarizeSocketPlugs(instanceId, components, definitions)
   };
+  const weaponFrame = definition
+    ? summarizeWeaponFrame(definition, definitions, { plugSetDefinitions })
+    : undefined;
+  if (weaponFrame) {
+    summary.weapon_frame = weaponFrame;
+  }
+
+  return summary;
 }
 
 function summarizeCharacterLoadouts(

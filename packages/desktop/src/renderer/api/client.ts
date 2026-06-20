@@ -21,6 +21,7 @@ declare global {
       removeFavoriteItem(hash: number): Promise<LibraryHistory>;
       listLoadoutTemplates(): Promise<LoadoutTemplate[]>;
       createLoadoutTemplate(input: CreateLoadoutTemplateInput): Promise<LoadoutTemplate>;
+      renameLoadoutTemplate(id: string, name: string): Promise<LoadoutTemplate>;
       deleteLoadoutTemplate(id: string): Promise<LoadoutTemplate[]>;
       createLoadoutTemplateTransferPlan(input: LoadoutTemplateTransferPlanInput): Promise<BatchTransferPlan>;
       getDimWishlist(): Promise<DimWishlist | null>;
@@ -134,6 +135,7 @@ export type AccountItemSummary = {
   bucket_hash?: number;
   bucket_name?: string;
   group_key: EquipmentGroupKey;
+  weapon_frame?: WeaponFrameSummary;
   power?: number;
   locked?: boolean;
   socket_plugs?: AccountItemPlugSummary[];
@@ -460,8 +462,14 @@ export type ItemSearchResult = {
   bucket_hash?: number;
   bucket_name?: string;
   group_key?: EquipmentGroupKey;
+  weapon_frame?: WeaponFrameSummary;
   source: ItemSourceSummary;
   perks?: ItemPerkGroup[];
+};
+
+export type WeaponFrameSummary = {
+  key: string;
+  name: string;
 };
 
 export type ItemSourceSummary = {
@@ -506,11 +514,14 @@ export type LoadoutTemplate = {
   character_id: string;
   class_name: string;
   created_at: string;
+  updated_at?: string;
   items: Array<{
     hash: number;
     instance_id?: string;
     name: string;
     bucket_name?: string;
+    weapon_frame_name?: string;
+    perk_names?: string[];
   }>;
 };
 

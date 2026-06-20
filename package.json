@@ -8,7 +8,7 @@
     "dev:electron": "pnpm --filter @d2-tools/desktop dev:electron",
     "build": "pnpm -r build",
     "test": "pnpm build && vitest --run",
-    "typecheck": "pnpm -r typecheck",
+    "typecheck": "pnpm --filter @d2-tools/core build && pnpm -r typecheck",
     "package:win": "pnpm --filter @d2-tools/desktop package:win"
   },
   "devDependencies": {

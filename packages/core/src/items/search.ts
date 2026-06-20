@@ -3,6 +3,7 @@ import { expandAliasQuery, type ItemAliases } from "./aliases.js";
 import { ammoTypeKey, classifyBucket, type AmmoTypeKey, type EquipmentGroupKey } from "./classification.js";
 import { summarizeItemPerks, type ItemPerkGroup } from "./perks.js";
 import { summarizeItemSource, type ItemSourceSummary } from "./source.js";
+import { summarizeWeaponFrame, type WeaponFrameSummary } from "./weaponFrames.js";
 
 export type ItemSearchOptions = {
   limit?: number;
@@ -21,6 +22,7 @@ export type ItemSearchResult = {
   bucket_hash?: number;
   bucket_name?: string;
   group_key: EquipmentGroupKey;
+  weapon_frame?: WeaponFrameSummary;
   source: ItemSourceSummary;
   perks?: ItemPerkGroup[];
 };
@@ -82,6 +84,12 @@ function toItemSearchResult(
   }
   if (bucket?.name) {
     result.bucket_name = bucket.name;
+  }
+  const weaponFrame = summarizeWeaponFrame(definition, definitions, {
+    plugSetDefinitions: options.plugSetDefinitions
+  });
+  if (weaponFrame) {
+    result.weapon_frame = weaponFrame;
   }
 
   const perks = summarizeItemPerks(definition, definitions, {

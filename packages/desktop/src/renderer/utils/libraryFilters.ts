@@ -15,6 +15,7 @@ export type LibraryEquipmentFilter = {
   tier: string;
   bucket: string;
   ammo: AmmoTypeKey | "all";
+  frame: string[];
 };
 
 export type LibraryPerkFilter = {
@@ -33,6 +34,7 @@ export type LibraryEquipmentFilterOptions = {
   tiers: LibraryFilterOption[];
   buckets: LibraryFilterOption[];
   ammo: LibraryFilterOption[];
+  frames: LibraryFilterOption[];
 };
 
 const groupLabels: Record<LibraryEquipmentGroupFilter, string> = {
@@ -58,7 +60,8 @@ export const defaultLibraryEquipmentFilter: LibraryEquipmentFilter = {
   group: "all",
   tier: "all",
   bucket: "all",
-  ammo: "all"
+  ammo: "all",
+  frame: []
 };
 
 export const defaultLibraryPerkFilter: LibraryPerkFilter = {
@@ -78,6 +81,7 @@ export function filterLibraryEquipmentItems(
     if (filter.tier !== "all" && item.tier !== filter.tier) return false;
     if (filter.bucket !== "all" && item.bucket_name !== filter.bucket) return false;
     if (filter.ammo !== "all" && item.ammo_type !== filter.ammo) return false;
+    if (filter.frame.length && !filter.frame.includes(item.weapon_frame?.key ?? "")) return false;
     if (!query) return true;
 
     return [
@@ -86,6 +90,7 @@ export function filterLibraryEquipmentItems(
       item.item_type,
       item.tier,
       item.bucket_name,
+      item.weapon_frame?.name,
       ...(item.perks ?? []).flatMap((group) => group.plugs.map((plug) => plug.name))
     ]
       .filter(Boolean)
@@ -135,6 +140,14 @@ export function buildLibraryEquipmentFilterOptions(items: ItemSearchResult[]): L
       ...ammoOrder
         .filter((ammo) => items.some((item) => item.ammo_type === ammo))
         .map((value) => ({ value, label: ammoLabels[value] }))
+    ],
+    frames: [
+      { value: "all", label: "全部框架" },
+      ...uniqueInOrder(items.map((item) => item.weapon_frame?.key))
+        .map((value) => ({
+          value,
+          label: items.find((item) => item.weapon_frame?.key === value)?.weapon_frame?.name ?? value
+        }))
     ]
   };
 }

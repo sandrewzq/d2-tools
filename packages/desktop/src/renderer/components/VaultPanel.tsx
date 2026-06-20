@@ -5,6 +5,7 @@ import { evaluateWishlistRoll } from "@d2-tools/core/analysis/wishlist";
 import type {
   AccountItemSummary,
   AmmoTypeKey,
+  BatchItemActionResult,
   DimWishlist,
   EquipmentGroupKey,
   SaveVaultTagInput,
@@ -22,13 +23,16 @@ export type VaultScoreFilter = VaultScoreGrade | "all";
 export type VaultScoreRangeFilter = "all" | "80-100" | "60-79" | "40-59" | "0-39";
 export type VaultLockFilter = "all" | "locked" | "unlocked";
 export type VaultBatchSelectionMode = "visible" | "junk" | "review" | "untagged" | "noted";
+export type VaultVisibleSelectionMode = "replace" | "append" | "remove";
 export type VaultViewMode = "list" | "duplicates";
 
 type VaultCleanupActions = {
   characters: Array<{ character_id: string; class_name: string; light?: number }>;
+  currentCharacterId?: string;
+  currentCharacterLabel?: string;
   writeActionsEnabled: boolean;
   onBatchUnlock: (items: AccountItemSummary[], targetCharacterId: string) => Promise<string>;
-  onBatchTransferToCharacter: (items: AccountItemSummary[], targetCharacterId: string) => Promise<string>;
+  onBatchTransferToCharacter: (items: AccountItemSummary[], targetCharacterId: string) => Promise<BatchItemActionResult>;
 };
 
 export type VaultFilter = {
@@ -40,6 +44,7 @@ export type VaultFilter = {
   lock?: VaultLockFilter;
   slot?: VaultSlotFilter;
   ammo?: VaultAmmoFilter;
+  frames?: string[];
   tags?: VaultTags;
   wishlist?: DimWishlist | null;
 };
@@ -72,6 +77,12 @@ export type VaultSection = {
   label: string;
   count: number;
   items: AccountItemSummary[];
+};
+
+type VaultLoadoutHighlight = {
+  instanceIds: Set<string>;
+  bucketHashKeys: Set<string>;
+  hashKeys: Set<number>;
 };
 
 const vaultGroupLabels: Record<VaultGroupFilter, string> = {
@@ -131,6 +142,14 @@ const groupSortOrder: Record<EquipmentGroupKey, number> = {
   other: 3
 };
 
+export type VaultFrameFilter = string[];
+
+export type VaultFrameOption = {
+  key: string;
+  label: string;
+  count: number;
+};
+
 export function filterVaultItems(items: AccountItemSummary[], filter: VaultFilter): AccountItemSummary[] {
   const parsedQuery = parseVaultQuery(filter.query);
   const query = parsedQuery.text.toLocaleLowerCase();
@@ -146,6 +165,7 @@ export function filterVaultItems(items: AccountItemSummary[], filter: VaultFilte
     if (!matchesLock(item, filter.lock ?? "all")) return false;
     if (!matchesSlot(item, filter.slot ?? "all")) return false;
     if (!matchesAmmo(item, filter.ammo ?? "all")) return false;
+    if (filter.frames?.length && !filter.frames.includes(item.weapon_frame?.key ?? "")) return false;
     if (parsedQuery.locked !== undefined && item.locked !== parsedQuery.locked) return false;
     if (parsedQuery.type && parsedQuery.type !== "all" && item.group_key !== parsedQuery.type) return false;
     if (!query) return true;
@@ -155,6 +175,7 @@ export function filterVaultItems(items: AccountItemSummary[], filter: VaultFilte
       item.item_type,
       item.tier,
       item.bucket_name,
+      item.weapon_frame?.name,
       tierAlias(item.tier),
       entry?.note
     ]
@@ -229,6 +250,23 @@ export function buildVaultSlotFilters(items: AccountItemSummary[]): VaultSlotSum
       count: section.count
     }))
   ];
+}
+
+export function buildVaultFrameFilters(items: AccountItemSummary[]): VaultFrameOption[] {
+  const frameCounts = new Map<string, VaultFrameOption>();
+
+  for (const item of items) {
+    if (!item.weapon_frame) continue;
+    const current = frameCounts.get(item.weapon_frame.key) ?? {
+      key: item.weapon_frame.key,
+      label: item.weapon_frame.name,
+      count: 0
+    };
+    current.count += 1;
+    frameCounts.set(item.weapon_frame.key, current);
+  }
+
+  return [...frameCounts.values()].sort((left, right) => right.count - left.count || compareText(left.label, right.label));
 }
 
 export function buildVaultSections(items: AccountItemSummary[]): VaultSection[] {
@@ -306,6 +344,55 @@ export function selectVaultBatchItems(
   }
 
   return items.filter((item) => scoreVaultItemForDisplay(item, tags).grade === mode);
+}
+
+export function applyVisibleVaultSelection(
+  currentKeys: Set<string>,
+  visibleItems: AccountItemSummary[],
+  mode: VaultVisibleSelectionMode
+): Set<string> {
+  const visibleKeys = visibleItems.map(getVaultItemKey);
+  if (mode === "replace") {
+    return new Set(visibleKeys);
+  }
+
+  const next = new Set(currentKeys);
+  for (const key of visibleKeys) {
+    if (mode === "append") {
+      next.add(key);
+    } else {
+      next.delete(key);
+    }
+  }
+  return next;
+}
+
+export function buildVaultSelectionSummary(input: {
+  selectedTotalCount: number;
+  selectedVisibleCount: number;
+}): string {
+  if (!input.selectedTotalCount) {
+    return "未选择任何装备。";
+  }
+
+  const hiddenCount = Math.max(0, input.selectedTotalCount - input.selectedVisibleCount);
+  if (!hiddenCount) {
+    return `已选 ${input.selectedTotalCount} 件，全部都在当前结果中。`;
+  }
+
+  return `已选 ${input.selectedTotalCount} 件，其中当前结果 ${input.selectedVisibleCount} 件，另外 ${hiddenCount} 件来自其他筛选结果。`;
+}
+
+export function buildVaultBulkMoveResultMessage(
+  targetCharacterLabel: string,
+  result: BatchItemActionResult
+): string {
+  const targetLabel = targetCharacterLabel || "目标角色";
+  if (!result.failed_count) {
+    return `已转移到${targetLabel}：共 ${result.success_count} 件。`;
+  }
+
+  return `已转移到${targetLabel}：成功 ${result.success_count} 件，失败 ${result.failed_count} 件。可到设置 -> 操作日志查看失败详情。`;
 }
 
 export function selectMarkedCleanupItems(items: AccountItemSummary[], tags: VaultTags): AccountItemSummary[] {
@@ -433,6 +520,8 @@ export function selectDuplicateGroupItems(
 
 export function VaultPanel(props: {
   items: AccountItemSummary[];
+  highlightedItemKeys?: VaultLoadoutHighlight | null;
+  highlightedLabel?: string;
   tags: VaultTags;
   wishlist?: DimWishlist | null;
   openingItemKey?: string;
@@ -450,6 +539,7 @@ export function VaultPanel(props: {
   const [lockFilter, setLockFilter] = useState<VaultLockFilter>("all");
   const [slotFilter, setSlotFilter] = useState<VaultSlotFilter>("all");
   const [ammoFilter, setAmmoFilter] = useState<VaultAmmoFilter>("all");
+  const [frameFilters, setFrameFilters] = useState<VaultFrameFilter>([]);
   const [isOrganizing, setIsOrganizing] = useState(false);
   const [isCleanupMode, setIsCleanupMode] = useState(false);
   const [cleanupCharacterId, setCleanupCharacterId] = useState("");
@@ -459,8 +549,26 @@ export function VaultPanel(props: {
   const [isBatchSaving, setIsBatchSaving] = useState(false);
   const [activeBatchAction, setActiveBatchAction] = useState("");
   const cleanupCharacters = props.cleanupActions?.characters ?? [];
-  const cleanupTargetCharacterId = cleanupCharacterId || cleanupCharacters[0]?.character_id || "";
+  const cleanupTargetCharacterId = cleanupCharacterId
+    || props.cleanupActions?.currentCharacterId
+    || cleanupCharacters[0]?.character_id
+    || "";
   const groups = useMemo(() => buildVaultGroups(props.items), [props.items]);
+  const availableFrameFilters = useMemo(
+    () => buildVaultFrameFilters(filterVaultItems(props.items, {
+      group,
+      query: "",
+      tag: tagFilter,
+      score: scoreFilter,
+      scoreRange: scoreRangeFilter,
+      lock: lockFilter,
+      slot: slotFilter,
+      ammo: ammoFilter,
+      tags: props.tags,
+      wishlist: props.wishlist
+    })),
+    [ammoFilter, group, lockFilter, props.items, props.tags, props.wishlist, scoreFilter, scoreRangeFilter, slotFilter, tagFilter]
+  );
   const slotFilters = useMemo(
     () => buildVaultSlotFilters(filterVaultItems(props.items, {
       group,
@@ -470,10 +578,11 @@ export function VaultPanel(props: {
       scoreRange: scoreRangeFilter,
       lock: lockFilter,
       ammo: ammoFilter,
+      frames: frameFilters,
       tags: props.tags,
       wishlist: props.wishlist
     })),
-    [ammoFilter, group, lockFilter, props.items, props.tags, props.wishlist, scoreFilter, scoreRangeFilter, tagFilter]
+    [ammoFilter, frameFilters, group, lockFilter, props.items, props.tags, props.wishlist, scoreFilter, scoreRangeFilter, tagFilter]
   );
   const filteredItems = useMemo(
     () => sortVaultItems(
@@ -486,13 +595,14 @@ export function VaultPanel(props: {
         lock: lockFilter,
         slot: slotFilter,
         ammo: ammoFilter,
+        frames: frameFilters,
         tags: props.tags,
         wishlist: props.wishlist
       }),
       sortKey,
       props.tags
     ),
-    [ammoFilter, group, lockFilter, props.items, props.tags, props.wishlist, query, scoreFilter, scoreRangeFilter, slotFilter, sortKey, tagFilter]
+    [ammoFilter, frameFilters, group, lockFilter, props.items, props.tags, props.wishlist, query, scoreFilter, scoreRangeFilter, slotFilter, sortKey, tagFilter]
   );
   const filteredSections = useMemo(
     () => buildVaultSections(filteredItems),
@@ -502,6 +612,13 @@ export function VaultPanel(props: {
     () => filteredItems.filter((item) => selectedKeys.has(getVaultItemKey(item))),
     [filteredItems, selectedKeys]
   );
+  const selectionSummary = useMemo(
+    () => buildVaultSelectionSummary({
+      selectedTotalCount: selectedKeys.size,
+      selectedVisibleCount: selectedItems.length
+    }),
+    [selectedItems.length, selectedKeys]
+  );
   const markedCleanupItems = useMemo(
     () => selectMarkedCleanupItems(props.items, props.tags),
     [props.items, props.tags]
@@ -509,6 +626,12 @@ export function VaultPanel(props: {
   const wishlistSummaryCount = useMemo(
     () => countWishlistMatches(props.items, props.wishlist),
     [props.items, props.wishlist]
+  );
+  const loadoutMatchCount = useMemo(
+    () => props.highlightedItemKeys
+      ? filteredItems.filter((item) => isLoadoutMatchItem(item, props.highlightedItemKeys)).length
+      : 0,
+    [filteredItems, props.highlightedItemKeys]
   );
   const selectedCleanupItems = useMemo(
     () => markedCleanupItems.filter((item) => selectedKeys.has(getVaultItemKey(item))),
@@ -522,6 +645,11 @@ export function VaultPanel(props: {
 
   function setBatchSelection(mode: VaultBatchSelectionMode) {
     setSelectedKeys(new Set(selectVaultBatchItems(filteredItems, mode, props.tags).map(getVaultItemKey)));
+    setBatchMessage("");
+  }
+
+  function updateVisibleSelection(mode: VaultVisibleSelectionMode) {
+    setSelectedKeys((current) => applyVisibleVaultSelection(current, filteredItems, mode));
     setBatchMessage("");
   }
 
@@ -549,8 +677,17 @@ export function VaultPanel(props: {
     setLockFilter("all");
     setSlotFilter("all");
     setAmmoFilter("all");
+    setFrameFilters([]);
     setActiveBatchAction("");
     setBatchMessage("");
+  }
+
+  function toggleFrameFilter(key: string) {
+    setFrameFilters((current) => (
+      current.includes(key)
+        ? current.filter((value) => value !== key)
+        : [...current, key]
+    ));
   }
 
   function mergeSelectedKeys(keys: string[]) {
@@ -590,6 +727,39 @@ export function VaultPanel(props: {
     }
   }
 
+  function getCleanupTargetCharacterLabel() {
+    return cleanupCharacters.find((character) => character.character_id === cleanupTargetCharacterId)?.class_name
+      ?? props.cleanupActions?.currentCharacterLabel
+      ?? "";
+  }
+
+  async function runSelectedBulkMove() {
+    if (!props.cleanupActions) return;
+    if (!selectedItems.length) {
+      setBatchMessage("请先选择要移动的装备。");
+      return;
+    }
+    if (!cleanupTargetCharacterId) {
+      setBatchMessage("请先选择目标角色。");
+      return;
+    }
+
+    setIsBatchSaving(true);
+    setActiveBatchAction("批量移动");
+    setBatchMessage(`正在准备移动 ${selectedItems.length} 件装备...`);
+
+    try {
+      const result = await props.cleanupActions.onBatchTransferToCharacter(selectedItems, cleanupTargetCharacterId);
+      setBatchMessage(buildVaultBulkMoveResultMessage(getCleanupTargetCharacterLabel(), result));
+      setSelectedKeys(new Set());
+    } catch (error) {
+      setBatchMessage(error instanceof Error ? error.message : "批量移动失败");
+    } finally {
+      setIsBatchSaving(false);
+      setActiveBatchAction("");
+    }
+  }
+
   async function copyCleanupList() {
     const cleanupItems = isCleanupMode
       ? cleanupActionItems
@@ -619,7 +789,10 @@ export function VaultPanel(props: {
     try {
       const message = action === "unlock"
         ? await props.cleanupActions.onBatchUnlock(cleanupActionItems, cleanupTargetCharacterId)
-        : await props.cleanupActions.onBatchTransferToCharacter(cleanupActionItems, cleanupTargetCharacterId);
+        : buildVaultBulkMoveResultMessage(
+          getCleanupTargetCharacterLabel(),
+          await props.cleanupActions.onBatchTransferToCharacter(cleanupActionItems, cleanupTargetCharacterId)
+        );
       setBatchMessage(message);
     } catch (error) {
       setBatchMessage(error instanceof Error ? error.message : "清理操作失败");
@@ -677,6 +850,12 @@ export function VaultPanel(props: {
           {filteredItems.length} / {props.items.length}
         </div>
       </div>
+      {props.highlightedItemKeys ? (
+        <p className="notice">
+          {props.highlightedLabel ? `${props.highlightedLabel} / ` : ""}
+          方案命中 {loadoutMatchCount} 件
+        </p>
+      ) : null}
       <div className="vault-content-tabs" role="tablist" aria-label="仓库内容标签">
         {groups.map((item) => (
           <button
@@ -732,7 +911,9 @@ export function VaultPanel(props: {
         </button>
         {isOrganizing ? (
           <>
-            <button type="button" onClick={() => setBatchSelection("visible")}>选择当前结果</button>
+            <button type="button" onClick={() => updateVisibleSelection("replace")}>全选当前结果 {filteredItems.length}</button>
+            <button type="button" onClick={() => updateVisibleSelection("append")}>追加当前结果 {filteredItems.length}</button>
+            <button type="button" className="secondary-button" onClick={() => updateVisibleSelection("remove")}>移除当前结果</button>
             <button type="button" onClick={() => setBatchSelection("junk")}>选择可清理</button>
             <button type="button" onClick={() => setBatchSelection("review")}>选择复查</button>
             <button type="button" onClick={() => setBatchSelection("untagged")}>选择未标记</button>
@@ -743,7 +924,7 @@ export function VaultPanel(props: {
       </div>
       {isOrganizing ? (
         <div className="vault-batch-panel">
-          <span>{isBatchSaving && activeBatchAction ? `${activeBatchAction}...` : `已选择 ${selectedItems.length} 件`}</span>
+          <span>{isBatchSaving && activeBatchAction ? `${activeBatchAction}...` : selectionSummary}</span>
             <button type="button" aria-busy={isBatchSaving} disabled={!selectedItems.length || isBatchSaving} onClick={() => void applyBatchTag("review")}>
             {isBatchSaving && activeBatchAction === "批量关注" ? "处理中..." : "批量关注"}
           </button>
@@ -756,6 +937,35 @@ export function VaultPanel(props: {
           <button type="button" aria-busy={isBatchSaving} disabled={isBatchSaving} onClick={() => void copyCleanupList()}>
             {isBatchSaving ? "处理中..." : "复制清理清单"}
           </button>
+          {props.cleanupActions ? (
+            <>
+              <label className="compact-field">
+                {"\u76ee\u6807\u89d2\u8272"}
+                <select value={cleanupTargetCharacterId} onChange={(event) => setCleanupCharacterId(event.target.value)}>
+                  {props.cleanupActions.currentCharacterId ? (
+                    <option value={props.cleanupActions.currentCharacterId}>
+                      {"\u5f53\u524d\u89d2\u8272"}{props.cleanupActions.currentCharacterLabel ? ` / ${props.cleanupActions.currentCharacterLabel}` : ""}
+                    </option>
+                  ) : null}
+                  {cleanupCharacters
+                    .filter((character) => character.character_id !== props.cleanupActions?.currentCharacterId)
+                    .map((character) => (
+                      <option key={character.character_id} value={character.character_id}>
+                        {character.class_name} / {"\u5149\u7b49"} {character.light ?? "-"}
+                      </option>
+                    ))}
+                </select>
+              </label>
+              <button
+                type="button"
+                aria-busy={isBatchSaving}
+                disabled={!selectedItems.length || !cleanupTargetCharacterId || isBatchSaving || !props.cleanupActions.writeActionsEnabled}
+                onClick={() => void runSelectedBulkMove()}
+              >
+                {isBatchSaving && activeBatchAction === "\u6279\u91cf\u79fb\u52a8" ? "\u5904\u7406\u4e2d..." : "\u6279\u91cf\u79fb\u52a8"}
+              </button>
+            </>
+          ) : null}
         </div>
       ) : null}
       {isCleanupMode ? (
@@ -904,6 +1114,23 @@ export function VaultPanel(props: {
             ))}
           </select>
         </label>
+        {availableFrameFilters.length ? (
+          <div className="compact-field">
+            <span>框架</span>
+            <div className="segmented-control" aria-label="仓库武器框架筛选">
+              {availableFrameFilters.map((item) => (
+                <button
+                  type="button"
+                  key={item.key}
+                  className={frameFilters.includes(item.key) ? "active" : ""}
+                  onClick={() => toggleFrameFilter(item.key)}
+                >
+                  {item.label} <span>{item.count}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : null}
         <div className="segmented-control" aria-label="仓库分组">
           {groups.map((item) => (
             <button
@@ -1055,6 +1282,7 @@ export function VaultPanel(props: {
                   <VaultListItem
                     item={item}
                     key={`${item.hash}-${item.instance_id ?? ""}`}
+                    highlightedItemKeys={props.highlightedItemKeys}
                     tags={props.tags}
                     wishlist={props.wishlist}
                     isOrganizing={isOrganizing}
@@ -1078,6 +1306,7 @@ export function VaultPanel(props: {
 
 function VaultListItem(props: {
   item: AccountItemSummary;
+  highlightedItemKeys?: VaultLoadoutHighlight | null;
   tags: VaultTags;
   wishlist?: DimWishlist | null;
   isOrganizing: boolean;
@@ -1091,6 +1320,7 @@ function VaultListItem(props: {
   const note = props.tags.items[getVaultItemKey(props.item)]?.note;
   const wishlist = evaluateWishlistRoll(normalizeCoreItem(props.item), props.wishlist ?? undefined);
   const isPending = getVaultItemKey(props.item) === props.openingItemKey;
+  const isLoadoutMatch = isLoadoutMatchItem(props.item, props.highlightedItemKeys);
 
   return (
     <article className="vault-list-item">
@@ -1106,7 +1336,11 @@ function VaultListItem(props: {
       ) : null}
       <button
         type="button"
-        className={isPending ? "vault-list-main pending" : "vault-list-main"}
+        className={[
+          "vault-list-main",
+          isPending ? "pending" : "",
+          isLoadoutMatch ? "loadout-highlight" : ""
+        ].filter(Boolean).join(" ")}
         aria-busy={isPending}
         onClick={() => props.onOpenItem(props.item)}
       >
@@ -1116,6 +1350,7 @@ function VaultListItem(props: {
             <strong>{props.item.name}</strong>
             <span className={`vault-score-badge score-${score.grade}`}>{score.score}</span>
           </div>
+          {isLoadoutMatch ? <small className="loadout-template-badge">方案命中</small> : null}
           <span>{formatVaultItemMeta(props.item)}</span>
           <small className="vault-score-reason">{score.label}：{score.reasons.slice(0, 2).join(" / ")}</small>
           {wishlist.matched ? (
@@ -1143,6 +1378,21 @@ function VaultListItem(props: {
       </div>
     </article>
   );
+}
+
+function isLoadoutMatchItem(
+  item: Pick<AccountItemSummary, "hash" | "instance_id" | "bucket_name">,
+  highlightedItemKeys?: VaultLoadoutHighlight | null
+): boolean {
+  if (!highlightedItemKeys) {
+    return false;
+  }
+  if (item.instance_id && highlightedItemKeys.instanceIds.has(item.instance_id)) {
+    return true;
+  }
+
+  return highlightedItemKeys.bucketHashKeys.has(`${item.bucket_name ?? ""}:${item.hash}`)
+    || highlightedItemKeys.hashKeys.has(item.hash);
 }
 
 function matchesTag(

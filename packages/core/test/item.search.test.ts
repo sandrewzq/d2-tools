@@ -151,6 +151,35 @@ describe("item definition search", () => {
     });
   });
 
+  it("returns a weapon frame summary when a frame plug is available", () => {
+    const weaponDefinitions: DefinitionComponentData = {
+      "1": {
+        ...definitions["1"],
+        inventory: {
+          tierTypeName: "异域",
+          bucketTypeHash: 2465295065
+        },
+        sockets: {
+          socketEntries: [{ singleInitialItemHash: 102 }]
+        }
+      },
+      "102": {
+        hash: 102,
+        displayProperties: {
+          name: "Rapid-Fire Frame"
+        },
+        itemTypeDisplayName: "Intrinsic"
+      }
+    };
+
+    expect(searchItemDefinitions(weaponDefinitions, "风险")[0]).toMatchObject({
+      weapon_frame: {
+        key: "rapid-fire-frame",
+        name: "Rapid-Fire Frame"
+      }
+    });
+  });
+
   it("limits result count", () => {
     expect(searchItemDefinitions(definitions, "risk", { limit: 1 })).toHaveLength(1);
   });

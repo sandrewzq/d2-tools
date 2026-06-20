@@ -45,7 +45,10 @@ const itemDefinitions: DefinitionComponentData = {
     },
     itemTypeDisplayName: "Submachine Gun",
     inventory: { tierTypeName: "Exotic", bucketTypeHash: 2465295065 },
-    equippingBlock: { ammoType: 1 }
+    equippingBlock: { ammoType: 1 },
+    sockets: {
+      socketEntries: [{ singleInitialItemHash: 4003 }]
+    }
   },
   "3001": {
     hash: 3001,
@@ -74,6 +77,16 @@ const itemDefinitions: DefinitionComponentData = {
       description: "Reloading after defeating a target overcharges this weapon."
     },
     itemTypeDisplayName: "Trait",
+    inventory: { tierTypeName: "Legendary" }
+  },
+  "4003": {
+    hash: 4003,
+    displayProperties: {
+      name: "Lightweight Frame",
+      icon: "/common/destiny2_content/icons/lightweight.png",
+      description: "Move faster with this weapon equipped."
+    },
+    itemTypeDisplayName: "Intrinsic",
     inventory: { tierTypeName: "Legendary" }
   },
   "5001": {
@@ -265,6 +278,10 @@ describe("account summary", () => {
       power: 1810,
       locked: true,
       ammo_type: "primary"
+    });
+    expect(summary.characters[0]?.equipped_items[0]?.weapon_frame).toEqual({
+      key: "lightweight-frame",
+      name: "Lightweight Frame"
     });
     expect(summary.characters[0]?.equipped_items[0]?.socket_plugs).toEqual([
       {
