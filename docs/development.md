@@ -18,7 +18,7 @@ packages/
   core/      核心能力：Bungie、Manifest、分析、配置、本地存储
   http/      本地 HTTP / 工具接口层
   desktop/   Electron 桌面应用
-docs/        正式文档与归档材料
+docs/        正式文档
 ```
 
 ### 2.1 核心边界
@@ -79,7 +79,21 @@ npx pnpm@9.15.0 vitest --run packages/desktop/src/vault-panel.test.ts
 
 ## 5. 打包
 
-构建 Windows 绿色包：
+一键本地打包（安装依赖 + 测试 + 类型检查 + 打包，完成后自动打开产物目录）：
+
+```powershell
+powershell -File scripts/local-package.ps1
+```
+
+该脚本内部执行：
+
+1. `pnpm install`
+2. `pnpm build`
+3. `vitest --run`
+4. `pnpm typecheck`
+5. `pnpm package:win`
+
+仅构建 Windows 绿色包（跳过测试和类型检查）：
 
 ```powershell
 npx pnpm@9.15.0 package:win
@@ -151,25 +165,9 @@ docs/
   development.md
 ```
 
-历史材料放在：
-
-```text
-docs/archive/
-```
-
 `docs/superpowers/` 保留给设计稿、执行计划等内部工作材料，不作为普通读者主入口。
 
-## 8. 归档说明
-
-这些内容不应该再被当成“当前正式文档”引用：
-
-- 历史设计稿
-- 阶段计划
-- superpowers 计划文档
-
-如果它们仍有价值，应迁入 `docs/archive/`，而不是继续和正式文档并列展示。
-
-## 9. 文档维护原则
+## 8. 文档维护原则
 
 - README 只做入口，不塞太多细节
 - 同一件事只保留一个权威文档

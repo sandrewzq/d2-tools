@@ -8,8 +8,9 @@
     "dev:electron": "pnpm --filter @d2-tools/desktop dev:electron",
     "build": "pnpm -r build",
     "test": "pnpm build && vitest --run",
-    "typecheck": "pnpm --filter @d2-tools/core build && pnpm -r typecheck",
+    "typecheck": "pnpm --filter @d2-tools/core build && pnpm --filter @d2-tools/http build && pnpm -r typecheck",
     "package:win": "pnpm --filter @d2-tools/desktop package:win",
+    "package:local": "pnpm build && vitest --run && pnpm typecheck && pnpm package:win",
     "release:preview": "node scripts/preview-release-notes.mjs"
   },
   "devDependencies": {

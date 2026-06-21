@@ -6,7 +6,7 @@ import { saveDimWishlist } from "../src/analysis/wishlistStore.js";
 import {
   createDefaultCommunityPerkService,
   createDimWishlistSource
-} from "../src/communityPerks/index.js";
+} from "../src/community-perks/index.js";
 
 describe("community perk recommendations", () => {
   it("returns recommendations from a local DIM wishlist", async () => {

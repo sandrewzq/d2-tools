@@ -11,8 +11,14 @@ export default defineConfig({
   build: {
     outDir: "dist/renderer",
     emptyOutDir: false,
+    target: "es2022",
     rollupOptions: {
-      input: fileURLToPath(new URL("index.html", import.meta.url))
+      input: fileURLToPath(new URL("index.html", import.meta.url)),
+      output: {
+        manualChunks: {
+          vendor: ["react", "react-dom"]
+        }
+      }
     }
   }
 });

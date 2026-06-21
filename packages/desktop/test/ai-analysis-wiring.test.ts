@@ -1,0 +1,27 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { describe, expect, it } from "vitest";
+
+const desktopRoot = fileURLToPath(new URL("..", import.meta.url));
+
+describe("desktop AI analysis wiring", () => {
+  it("wires AI advice generation through renderer, preload, and main IPC", () => {
+    const panel = readFileSync(
+      join(desktopRoot, "src", "renderer", "components", "AiAnalysisPanel.tsx"),
+      "utf8"
+    );
+    const apiClient = readFileSync(
+      join(desktopRoot, "src", "renderer", "api", "client.ts"),
+      "utf8"
+    );
+    const preload = readFileSync(join(desktopRoot, "src", "preload", "preload.ts"), "utf8");
+    const ipc = readFileSync(join(desktopRoot, "src", "main", "ipc.ts"), "utf8");
+
+    expect(panel).toContain("api.generateVaultAiAdvice");
+    expect(panel).toContain("AI 深度建议");
+    expect(apiClient).toContain("generateVaultAiAdvice(input: VaultAnalysisInput): Promise<VaultAiAdviceResult>");
+    expect(preload).toContain('ipcRenderer.invoke("analysis:vault:ai"');
+    expect(ipc).toContain('ipcMain.handle("analysis:vault:ai"');
+  });
+});

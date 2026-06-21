@@ -1,86 +1,141 @@
 import { ipcMain, shell } from "electron";
 import { randomBytes } from "node:crypto";
 import {
-  analyzeVault,
-  appendActionLog,
-  addFavoriteItem,
-  addRecentItem,
-  buildDailySummary,
-  fetchDailyLiveData,
-  buildDiagnosticsExport,
-  buildBungieAuthorizationUrl,
-  clearLightggCache,
-  computeStartupState,
-  createBatchTransferPlan,
-  createFullCommunityPerkService,
-  createItemActionPlan,
-  createLoadoutTemplate,
-  createLoadoutTemplateTransferPlan,
-  deleteLoadoutTemplate,
-  equipItem as bungieEquipItem,
-  equipLoadout as bungieEquipLoadout,
-  exchangeBungieOAuthCode,
-  fetchAccountSummary,
-  fetchCharacterActivityHistory,
   generateAiChatReply,
   generateItemAiAdvice,
   generateVaultAiAdvice,
-  getItemDefinitionDetail,
-  getDefinitionStatus,
-  getHealth,
-  getManifestStatus,
-  hasOAuthToken,
-  hasRequiredBungieConfig,
-  initializeDefinitionComponent,
-  initializeManifestMetadata,
-  loadConfig,
-  loadDefinitionComponent,
-  loadManifestMetadataCache,
-  loadOAuthToken,
-  loadActionLog,
-  loadToolAuditLog,
-  loadItemAliases,
-  loadLibraryHistory,
-  loadDimWishlist,
-  listLoadoutTemplates,
-  loadVaultTags,
-  refreshBungieOAuthToken,
-  renameLoadoutTemplate,
-  removeFavoriteItem,
-  saveConfig,
-  saveDimWishlist,
-  saveItemAlias,
-  saveOAuthToken,
-  saveVaultNote,
-  saveVaultTag,
-  saveVaultTagsBatch,
-  searchPerkDefinitions,
-  searchItemDefinitions,
+  testAiConnection,
+  type ItemAiAdviceInput
+} from "@d2-tools/core/ai/chat";
+import { analyzeVault } from "@d2-tools/core/analysis/vault";
+import {
+  type DimWishlist
+} from "@d2-tools/core/analysis/wishlistImport";
+import {
   clearDimWishlist,
+  loadDimWishlist,
+  saveDimWishlist
+} from "@d2-tools/core/analysis/wishlistStore";
+import {
+  appendActionLog,
+  loadActionLog,
+  type ActionLogType
+} from "@d2-tools/core/actions/log";
+import {
+  createBatchTransferPlan,
+  createItemActionPlan,
+  type ItemActionPlanInput
+} from "@d2-tools/core/actions/plan";
+import {
+  fetchAccountSummary,
+  type AccountItemSummary
+} from "@d2-tools/core/account/summary";
+import {
+  equipItem as bungieEquipItem,
+  equipLoadout as bungieEquipLoadout,
   pullFromPostmaster as bungiePullFromPostmaster,
   setItemLockState as bungieSetItemLockState,
   snapshotLoadout as bungieSnapshotLoadout,
-  startOAuthCallbackServer,
-  summarizeActivityHistory,
-  testAiConnection,
-  transferItem as bungieTransferItem,
-  type D2Config,
-  type AccountItemSummary,
-  type ActionLogType,
+  transferItem as bungieTransferItem
+} from "@d2-tools/core/bungie/actions";
+import {
+  clearLightggCache,
+  createDefaultCommunityPerkService,
+  createFullCommunityPerkService
+} from "@d2-tools/core/community-perks";
+import {
+  type SourceOptions,
+  type VaultItemMatchInfo,
+  type VaultItemMatchInput
+} from "@d2-tools/core/community-perks";
+import { type D2Config } from "@d2-tools/core/config/schema";
+import {
+  loadConfig,
+  saveConfig
+} from "@d2-tools/core/config/store";
+import { buildDailySummary } from "@d2-tools/core/daily/summary";
+import { fetchDailyLiveData } from "@d2-tools/core/daily/liveData";
+import {
+  buildDiagnosticsExport
+} from "@d2-tools/core/diagnostics/export";
+import { getHealth } from "@d2-tools/core/health";
+import {
+  loadItemAliases,
+  saveItemAlias,
+  type ItemAliasEntry
+} from "@d2-tools/core/items/aliases";
+import {
+  getItemDefinitionDetail
+} from "@d2-tools/core/items/detail";
+import {
+  searchPerkDefinitions
+} from "@d2-tools/core/items/perkSearch";
+import {
+  searchItemDefinitions
+} from "@d2-tools/core/items/search";
+import {
+  addFavoriteItem,
+  addRecentItem,
+  loadLibraryHistory,
+  removeFavoriteItem,
+  type LibraryHistoryItem
+} from "@d2-tools/core/library/history";
+import {
+  createLoadoutTemplate,
+  deleteLoadoutTemplate,
+  listLoadoutTemplates,
+  renameLoadoutTemplate,
   type CreateLoadoutTemplateInput,
-  type DimWishlist,
-  type ItemActionPlanInput,
-  type ItemAliasEntry,
-  type ItemAiAdviceInput,
-  type LibraryHistoryItem,
-  type LoadoutTemplate,
+  type LoadoutTemplate
+} from "@d2-tools/core/loadouts/templates";
+import {
+  createLoadoutTemplateTransferPlan
+} from "@d2-tools/core/loadouts/plan";
+import {
+  fetchCharacterActivityHistory,
+  summarizeActivityHistory
+} from "@d2-tools/core/activities/history";
+import {
+  getDefinitionStatus,
+  initializeDefinitionComponent,
+  loadDefinitionComponent,
+  loadDefinitionComponentByLanguage,
+  type DefinitionComponentName,
+  type DefinitionComponentStatus
+} from "@d2-tools/core/manifest/definitions";
+import {
+  getManifestStatus,
+  initializeManifestMetadata,
+  loadManifestMetadataCache
+} from "@d2-tools/core/manifest/cache";
+import {
+  startOAuthCallbackServer
+} from "@d2-tools/core/oauth/callbackServer";
+import {
+  buildBungieAuthorizationUrl,
+  exchangeBungieOAuthCode,
+  hasOAuthToken,
+  loadOAuthToken,
+  refreshBungieOAuthToken,
+  saveOAuthToken
+} from "@d2-tools/core/oauth/login";
+import {
+  computeStartupState,
+  hasRequiredBungieConfig,
+  type StartupAuthStatus
+} from "@d2-tools/core/startup/startupState";
+import {
+  loadToolAuditLog
+} from "@d2-tools/core/tools/audit";
+import {
+  loadVaultTags,
+  saveVaultNote,
+  saveVaultTag,
+  saveVaultTagsBatch,
   type SaveVaultNoteInput,
   type SaveVaultTagInput,
-  type SourceOptions,
-  type StartupAuthStatus,
-  type VaultItemMatchInput,
   type VaultTags
-} from "@d2-tools/core";
+} from "@d2-tools/core/vault/tags";
 
 type ItemLockActionInput = {
   membership_type: number;
@@ -199,19 +254,35 @@ export function registerIpcHandlers(): void {
   });
 
   ipcMain.handle("startup:get", async () => {
-    const config = loadConfig();
-    const itemDefinitionStatus = getDefinitionStatus(
-      config.data.data_dir,
-      "DestinyInventoryItemDefinition"
-    );
-    const auth = await getStartupAuthStatus(config);
-
-    return computeStartupState({
-      config,
-      hasToken: hasOAuthToken(config.data.data_dir),
-      auth,
-      hasManifest: itemDefinitionStatus.initialized
-    });
+    // #region debug-point B:main-startup-entry
+    fetch("http://127.0.0.1:7777/event", { method: "POST", body: JSON.stringify({ sessionId: "startup-stuck", runId: "pre-fix", hypothesisId: "B", location: "ipc.ts:startup:get:entry", msg: "[DEBUG] main startup:get entry", data: { pid: process.pid }, ts: Date.now() }) }).catch(() => {});
+    // #endregion
+    try {
+      const config = loadConfig();
+      // #region debug-point C:main-startup-config
+      fetch("http://127.0.0.1:7777/event", { method: "POST", body: JSON.stringify({ sessionId: "startup-stuck", runId: "pre-fix", hypothesisId: "C", location: "ipc.ts:startup:get:config", msg: "[DEBUG] main startup:get config loaded", data: { dataDir: config.data.data_dir, language: config.data.manifest_language }, ts: Date.now() }) }).catch(() => {});
+      // #endregion
+      const itemDefinitionStatus = getDefinitionStatus(
+        config.data.data_dir,
+        "DestinyInventoryItemDefinition"
+      );
+      const auth = await getStartupAuthStatus(config);
+      const result = computeStartupState({
+        config,
+        hasToken: hasOAuthToken(config.data.data_dir),
+        auth,
+        hasManifest: itemDefinitionStatus.initialized
+      });
+      // #region debug-point D:main-startup-success
+      fetch("http://127.0.0.1:7777/event", { method: "POST", body: JSON.stringify({ sessionId: "startup-stuck", runId: "pre-fix", hypothesisId: "D", location: "ipc.ts:startup:get:success", msg: "[DEBUG] main startup:get success", data: { nextStep: result.nextStep, hasManifest: itemDefinitionStatus.initialized }, ts: Date.now() }) }).catch(() => {});
+      // #endregion
+      return result;
+    } catch (error) {
+      // #region debug-point E:main-startup-error
+      fetch("http://127.0.0.1:7777/event", { method: "POST", body: JSON.stringify({ sessionId: "startup-stuck", runId: "pre-fix", hypothesisId: "E", location: "ipc.ts:startup:get:error", msg: "[DEBUG] main startup:get error", data: { error: error instanceof Error ? { name: error.name, message: error.message, stack: error.stack } : String(error) }, ts: Date.now() }) }).catch(() => {});
+      // #endregion
+      throw error;
+    }
   });
 
   ipcMain.handle("account:summary", async () => {
@@ -261,50 +332,45 @@ export function registerIpcHandlers(): void {
       throw new Error("Manifest metadata cache was not created");
     }
 
-    await Promise.all([
+    const primaryLanguage = cache.language;
+    const definitionsToInitialize: DefinitionComponentName[] = [
+      "DestinyInventoryItemDefinition",
+      "DestinyPlugSetDefinition",
+      "DestinySandboxPerkDefinition",
+      "DestinyActivityDefinition",
+      "DestinyVendorDefinition",
+      "DestinyInventoryBucketDefinition",
+      "DestinyLoadoutNameDefinition"
+    ];
+
+    const primaryTasks = definitionsToInitialize.map((component) =>
       initializeDefinitionComponent({
         dataDir: config.data.data_dir,
-        language: cache.language,
+        language: primaryLanguage,
         metadata: cache.metadata,
-        component: "DestinyInventoryItemDefinition"
-      }),
-      initializeDefinitionComponent({
-        dataDir: config.data.data_dir,
-        language: cache.language,
-        metadata: cache.metadata,
-        component: "DestinyPlugSetDefinition"
-      }),
-      initializeDefinitionComponent({
-        dataDir: config.data.data_dir,
-        language: cache.language,
-        metadata: cache.metadata,
-        component: "DestinySandboxPerkDefinition"
-      }),
-      initializeDefinitionComponent({
-        dataDir: config.data.data_dir,
-        language: cache.language,
-        metadata: cache.metadata,
-        component: "DestinyActivityDefinition"
-      }),
-      initializeDefinitionComponent({
-        dataDir: config.data.data_dir,
-        language: cache.language,
-        metadata: cache.metadata,
-        component: "DestinyVendorDefinition"
-      }),
-      initializeDefinitionComponent({
-        dataDir: config.data.data_dir,
-        language: cache.language,
-        metadata: cache.metadata,
-        component: "DestinyInventoryBucketDefinition"
-      }),
-      initializeDefinitionComponent({
-        dataDir: config.data.data_dir,
-        language: cache.language,
-        metadata: cache.metadata,
-        component: "DestinyLoadoutNameDefinition"
+        component
       })
-    ]);
+    );
+
+    const englishTasks: Promise<DefinitionComponentStatus | null>[] = [];
+    if (primaryLanguage.toLowerCase() !== "en") {
+      englishTasks.push(
+        initializeDefinitionComponent({
+          dataDir: config.data.data_dir,
+          language: "en",
+          metadata: cache.metadata,
+          component: "DestinyInventoryItemDefinition"
+        }).catch(() => null),
+        initializeDefinitionComponent({
+          dataDir: config.data.data_dir,
+          language: "en",
+          metadata: cache.metadata,
+          component: "DestinyPlugSetDefinition"
+        }).catch(() => null)
+      );
+    }
+
+    await Promise.all([...primaryTasks, ...englishTasks]);
 
     return status;
   });
@@ -453,30 +519,38 @@ export function registerIpcHandlers(): void {
     return null;
   });
 
-  ipcMain.handle("community:recommendations:get", (_event, item_hash: number, options?: SourceOptions) => {
+  ipcMain.handle("community:recommendations:get", async (_event, item_hash: number, options?: SourceOptions) => {
     const config = loadConfig();
     const service = createFullCommunityPerkService(config);
 
+    const itemDefinitions = options?.itemDefinitions ?? loadDefinitionComponent(config.data.data_dir, "DestinyInventoryItemDefinition") ?? undefined;
+    const plugSetDefinitions = options?.plugSetDefinitions ?? loadDefinitionComponent(config.data.data_dir, "DestinyPlugSetDefinition") ?? undefined;
+    const manifestLanguage = config.data.manifest_language;
+    const englishItemDefinitions = options?.englishItemDefinitions ?? (manifestLanguage.toLowerCase() !== "en" ? loadDefinitionComponentByLanguage(config.data.data_dir, "DestinyInventoryItemDefinition", "en") ?? undefined : undefined);
+    const englishPlugSetDefinitions = options?.englishPlugSetDefinitions ?? (manifestLanguage.toLowerCase() !== "en" ? loadDefinitionComponentByLanguage(config.data.data_dir, "DestinyPlugSetDefinition", "en") ?? undefined : undefined);
+
     const merged: SourceOptions = {
-      itemDefinitions: options?.itemDefinitions ?? loadDefinitionComponent(config.data.data_dir, "DestinyInventoryItemDefinition") ?? undefined,
-      plugSetDefinitions: options?.plugSetDefinitions ?? loadDefinitionComponent(config.data.data_dir, "DestinyPlugSetDefinition") ?? undefined,
+      itemDefinitions,
+      plugSetDefinitions,
+      englishItemDefinitions,
+      englishPlugSetDefinitions,
       item_name: options?.item_name
     };
 
     return service.getRecommendations(Number(item_hash), merged);
   });
 
-  ipcMain.handle("community:vault:match", (_event, items: VaultItemMatchInput[]) => {
+  ipcMain.handle("community:vault:match", async (_event, items: VaultItemMatchInput[]) => {
     const config = loadConfig();
-    const service = createFullCommunityPerkService(config);
+    // 仓库/资料库匹配只使用本地 DIM wishlist，避免触发大量 AI 查询
+    const service = createDefaultCommunityPerkService(config);
 
-    return service.matchVaultItems(items).then((resultMap) => {
-      const arr: Array<{ hash: number; matched: number; modes: Array<"pve" | "pvp" | "general"> }> = [];
-      resultMap.forEach((value, hash) => {
-        arr.push({ hash, matched: value.matched, modes: value.modes });
-      });
-      return arr;
+    const resultMap = await service.matchVaultItems(items);
+    const arr: Array<{ hash: number; matched: number; modes: Array<"pve" | "pvp" | "general"> }> = [];
+    resultMap.forEach((value, hash) => {
+      arr.push({ hash, matched: value.matched, modes: value.modes });
     });
+    return arr;
   });
 
   ipcMain.handle("community:lightgg:cache:clear", () => {

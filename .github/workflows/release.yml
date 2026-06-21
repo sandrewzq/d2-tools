@@ -48,14 +48,17 @@ jobs:
             throw "Release tag $tagName must match package version v$rootVersion"
           }
 
+      - name: Build
+        run: pnpm build
+
       - name: Test
-        run: pnpm test
+        run: pnpm vitest --run
 
       - name: Typecheck
-        run: pnpm typecheck
+        run: pnpm -r typecheck
 
       - name: Build Windows 7z
-        run: pnpm package:win
+        run: cd packages/desktop && pnpm exec electron-builder --config electron-builder.yml --win 7z
 
       - name: Collect release asset
         shell: pwsh

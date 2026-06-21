@@ -1,4 +1,4 @@
-import type { WeaponRecommendation, VaultItemMatchInfo } from "@d2-tools/core";
+import type { VaultItemMatchInfo, WeaponRecommendation } from "@d2-tools/core/community-perks";
 
 export type { WeaponRecommendation, VaultItemMatchInfo };
 

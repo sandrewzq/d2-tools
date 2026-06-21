@@ -76,10 +76,6 @@ d2-tools.exe
 
 - [开发说明](docs/development.md)
 
-历史材料：
-
-- [归档说明](docs/archive/README.md)
-
 ## 安全边界
 
 - 公开分发包不内置任何人的 Bungie `API Key`、`Client ID` 或 `Client Secret`
@@ -107,28 +103,19 @@ d2-tools.exe
 
 ## 开发
 
-安装依赖：
+一键本地打包（install + 测试 + 类型检查 + 打包）：
 
 ```powershell
-npx pnpm@9.15.0 install
+powershell -File scripts/local-package.ps1
 ```
 
-运行测试：
+如需分步执行：
 
 ```powershell
-npx pnpm@9.15.0 test
-```
-
-类型检查：
-
-```powershell
-npx pnpm@9.15.0 typecheck
-```
-
-构建 Windows 绿色包：
-
-```powershell
-npx pnpm@9.15.0 package:win
+npx pnpm@9.15.0 install      # 安装依赖
+npx pnpm@9.15.0 test          # 运行测试
+npx pnpm@9.15.0 typecheck     # 类型检查
+npx pnpm@9.15.0 package:win   # 仅打包
 ```
 
 更多开发和发布细节见 [开发说明](docs/development.md)。

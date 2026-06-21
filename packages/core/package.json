@@ -93,6 +93,82 @@
     "./tools/registry": {
       "types": "./dist/tools/registry.d.ts",
       "import": "./dist/tools/registry.js"
+    },
+    "./analysis/vault": {
+      "types": "./dist/analysis/vault.d.ts",
+      "import": "./dist/analysis/vault.js"
+    },
+    "./analysis/wishlistStore": {
+      "types": "./dist/analysis/wishlistStore.d.ts",
+      "import": "./dist/analysis/wishlistStore.js"
+    },
+    "./actions/log": {
+      "types": "./dist/actions/log.d.ts",
+      "import": "./dist/actions/log.js"
+    },
+    "./account/summary": {
+      "types": "./dist/account/summary.d.ts",
+      "import": "./dist/account/summary.js"
+    },
+    "./bungie/actions": {
+      "types": "./dist/bungie/actions.d.ts",
+      "import": "./dist/bungie/actions.js"
+    },
+    "./config/schema": {
+      "types": "./dist/config/schema.d.ts",
+      "import": "./dist/config/schema.js"
+    },
+    "./config/store": {
+      "types": "./dist/config/store.d.ts",
+      "import": "./dist/config/store.js"
+    },
+    "./daily/summary": {
+      "types": "./dist/daily/summary.d.ts",
+      "import": "./dist/daily/summary.js"
+    },
+    "./daily/liveData": {
+      "types": "./dist/daily/liveData.d.ts",
+      "import": "./dist/daily/liveData.js"
+    },
+    "./health": {
+      "types": "./dist/health/index.d.ts",
+      "import": "./dist/health/index.js"
+    },
+    "./items/detail": {
+      "types": "./dist/items/detail.d.ts",
+      "import": "./dist/items/detail.js"
+    },
+    "./items/search": {
+      "types": "./dist/items/search.d.ts",
+      "import": "./dist/items/search.js"
+    },
+    "./manifest/cache": {
+      "types": "./dist/manifest/cache.d.ts",
+      "import": "./dist/manifest/cache.js"
+    },
+    "./manifest/definitions": {
+      "types": "./dist/manifest/definitions.d.ts",
+      "import": "./dist/manifest/definitions.js"
+    },
+    "./oauth/callbackServer": {
+      "types": "./dist/oauth/callbackServer.d.ts",
+      "import": "./dist/oauth/callbackServer.js"
+    },
+    "./oauth/login": {
+      "types": "./dist/oauth/login.d.ts",
+      "import": "./dist/oauth/login.js"
+    },
+    "./startup/startupState": {
+      "types": "./dist/startup/startupState.d.ts",
+      "import": "./dist/startup/startupState.js"
+    },
+    "./vault/tags": {
+      "types": "./dist/vault/tags.d.ts",
+      "import": "./dist/vault/tags.js"
+    },
+    "./community-perks": {
+      "types": "./dist/community-perks/index.d.ts",
+      "import": "./dist/community-perks/index.js"
     }
   },
   "scripts": {
@@ -102,5 +178,6 @@
   },
   "dependencies": {
     "selfsigned": "^5.5.0"
-  }
+  },
+  "sideEffects": false
 }

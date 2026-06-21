@@ -8,5 +8,7 @@ out/
 .local-data/
 coverage/
 *.log
+*.tsbuildinfo
+.trae/
 .idea/
 .worktrees/

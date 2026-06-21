@@ -5,12 +5,12 @@
     "rootDir": "src",
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
-    "declaration": true,
+    "declaration": false,
     "paths": {
       "@d2-tools/core": ["packages/core/dist/index.d.ts"],
       "@d2-tools/http": ["packages/http/dist/server.d.ts"]
     },
     "types": ["node", "electron"]
   },
-  "include": ["src/main/**/*.ts", "src/preload/**/*.cts"]
+  "include": ["src/main/**/*.ts", "src/preload/**/*.ts"]
 }

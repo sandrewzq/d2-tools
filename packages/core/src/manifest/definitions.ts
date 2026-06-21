@@ -118,13 +118,14 @@ export async function initializeDefinitionComponent(
     data
   };
 
+  const cachePath = definitionCachePath(options.dataDir, options.component);
   mkdirSync(definitionDir(options.dataDir), { recursive: true });
   writeFileSync(
-    definitionCachePath(options.dataDir, options.component),
+    cachePath,
     `${JSON.stringify(cache, null, 2)}\n`,
     "utf8"
   );
-  definitionMemoryCache.set(definitionCachePath(options.dataDir, options.component), cache);
+  definitionMemoryCache.set(cachePath, cache);
 
   return statusFromCache(cache);
 }
@@ -134,6 +135,14 @@ export function loadDefinitionComponent(
   component: DefinitionComponentName
 ): DefinitionComponentData | null {
   return loadDefinitionComponentCache(dataDir, component)?.data ?? null;
+}
+
+export function loadDefinitionComponentByLanguage(
+  dataDir: string,
+  component: DefinitionComponentName,
+  language: string
+): DefinitionComponentData | null {
+  return loadDefinitionComponentCacheByLanguage(dataDir, component, language)?.data ?? null;
 }
 
 export function getDefinitionStatus(
@@ -148,7 +157,15 @@ function loadDefinitionComponentCache(
   dataDir: string,
   component: DefinitionComponentName
 ): DefinitionComponentCache | null {
-  const path = definitionCachePath(dataDir, component);
+  return loadDefinitionComponentCacheByLanguage(dataDir, component, "");
+}
+
+function loadDefinitionComponentCacheByLanguage(
+  dataDir: string,
+  component: DefinitionComponentName,
+  language: string
+): DefinitionComponentCache | null {
+  const path = definitionCachePathForLanguage(dataDir, component, language);
   const cached = definitionMemoryCache.get(path);
   if (cached) {
     return cached;
@@ -166,8 +183,20 @@ function definitionDir(dataDir: string): string {
   return join(dataDir, "manifest", "definitions");
 }
 
-function definitionCachePath(dataDir: string, component: DefinitionComponentName): string {
-  return join(definitionDir(dataDir), `${component}.json`);
+function definitionCachePath(
+  dataDir: string,
+  component: DefinitionComponentName
+): string {
+  return definitionCachePathForLanguage(dataDir, component, "");
+}
+
+function definitionCachePathForLanguage(
+  dataDir: string,
+  component: DefinitionComponentName,
+  language: string
+): string {
+  const dir = language ? join(definitionDir(dataDir), language) : definitionDir(dataDir);
+  return join(dir, `${component}.json`);
 }
 
 function staticContentUrl(path: string): string {

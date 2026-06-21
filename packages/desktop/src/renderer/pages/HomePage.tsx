@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { scoreVaultItem } from "@d2-tools/core/analysis/scoring";
 import { evaluateWishlistRoll } from "@d2-tools/core/analysis/wishlist";
 import { parseDimWishlist } from "@d2-tools/core/analysis/wishlistImport";
@@ -31,16 +31,14 @@ import {
   type WeaponRecommendation
 } from "../api/client";
 import { AiSettingsPanel } from "../components/AiSettingsPanel";
-import { AiAnalysisPanel } from "../components/AiAnalysisPanel";
-import { isAiSettingsConfigured } from "../components/aiSettings";
-import { buildDiagnosticRows, DiagnosticsPanel } from "../components/DiagnosticsPanel";
+import { isAiSettingsConfigured } from "../utils/aiSettings";
+import { buildDiagnosticRows } from "../components/DiagnosticsPanel";
 import { ShellLayout, type ShellPageKey } from "../components/ShellLayout";
 import { StatusOverview } from "../components/StatusOverview";
 import {
   buildDuplicateGroupBatchTagPlan,
   buildVaultCleanupLocatorText,
   buildVaultDuplicateSummary,
-  VaultPanel
 } from "../components/VaultPanel";
 import { buildItemChatGuideText, buildItemShareText } from "../utils/itemShare";
 import {
@@ -81,6 +79,16 @@ import {
   type LoadoutActionFeedbackState
 } from "../utils/loadoutActionFeedback";
 import { resolveItemTransferCharacterId } from "../utils/itemActions";
+
+const DiagnosticsPanel = lazy(() =>
+  import("../components/DiagnosticsPanel").then((m) => ({ default: m.DiagnosticsPanel }))
+);
+const VaultPanel = lazy(() =>
+  import("../components/VaultPanel").then((m) => ({ default: m.VaultPanel }))
+);
+const AiAnalysisPanel = lazy(() =>
+  import("../components/AiAnalysisPanel").then((m) => ({ default: m.AiAnalysisPanel }))
+);
 
 function formatCommunityMode(mode: "pve" | "pvp" | "general"): string {
   switch (mode) {
@@ -1893,7 +1901,8 @@ export function HomePage(props: {
       {manifestMessage ? <p className="notice">{manifestMessage}</p> : null}
       {manifestError ? <p className="error">{manifestError}</p> : null}
 
-      {activePage === "home" ? (
+      <Suspense fallback={<div className="page-loading">加载中...</div>}>
+        {activePage === "home" ? (
         <>
           <DiagnosticsPanel
             rows={diagnosticRows}
@@ -2047,6 +2056,7 @@ export function HomePage(props: {
           </section>
         </>
       ) : null}
+      </Suspense>
 
       {selectedItem ? renderItemModal() : null}
     </ShellLayout>
@@ -2178,6 +2188,15 @@ export function HomePage(props: {
                     {isRunningItemAction ? "执行中..." : "装备最高光等"}
                   </button>
                 </div>
+                {(!writeActionsEnabled || loadoutMessage || itemActionMessage) ? (
+                  <div className="character-action-feedback">
+                    {!writeActionsEnabled ? (
+                      <p className="notice">d2-tools 本地写操作开关未开启，请先到设置页开启。</p>
+                    ) : null}
+                    {loadoutMessage ? <p className="notice">{loadoutMessage}</p> : null}
+                    {itemActionMessage ? <p className={itemActionMessage.includes("失败") ? "error" : "notice"}>{itemActionMessage}</p> : null}
+                  </div>
+                ) : null}
               </div>
               <div className="equipment-section-heading">
                 <h4>当前角色装备</h4>
@@ -3485,7 +3504,7 @@ function renderDailyPanel() {
                         <div className="community-perk" key={perk.hash}>
                           {perk.icon ? <img alt="" src={perk.icon} /> : null}
                           <div>
-                            <strong>{perk.name}</strong>
+                            <strong>{perk.englishName ? `${perk.name} / ${perk.englishName}` : perk.name}</strong>
                             {perk.description ? <p>{perk.description}</p> : null}
                           </div>
                         </div>
@@ -3656,10 +3675,6 @@ function renderDailyPanel() {
                   </button>
                 ) : null}
               </div>
-              {!writeActionsEnabled ? (
-                <p className="notice">d2-tools 本地写操作开关未开启，请先到设置页开启。Bungie 后台权限是另一项设置。</p>
-              ) : null}
-              {itemActionMessage ? <p className={itemActionMessage.includes("失败") ? "error" : "notice"}>{itemActionMessage}</p> : null}
             </section>
           ) : null}
           {itemScore ? (

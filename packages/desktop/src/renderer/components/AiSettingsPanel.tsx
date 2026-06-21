@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
-import { normalizeAiSettings } from "./aiSettings";
+import { normalizeAiSettings } from "../utils/aiSettings";
 
 export function AiSettingsPanel(props: {
   onSaved: () => void;

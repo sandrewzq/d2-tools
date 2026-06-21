@@ -4,8 +4,13 @@ electronDist: node_modules/electron/dist
 directories:
   output: release
 files:
-  - "dist/**"
+  - "dist/**/*.js"
+  - "dist/**/*.cjs"
+  - "dist/**/*.mjs"
+  - "dist/renderer/**"
   - "package.json"
+asar: true
+compression: maximum
 win:
   signAndEditExecutable: false
   target:
