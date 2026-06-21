@@ -61,7 +61,10 @@ async function requestBungieJson<T>(
   });
 
   if (!response.ok) {
-    throw new Error(`Bungie request failed: HTTP ${response.status}`);
+    const details = await readBungieErrorDetails(response);
+    throw new Error(details
+      ? `Bungie request failed: HTTP ${response.status} (${details})`
+      : `Bungie request failed: HTTP ${response.status}`);
   }
 
   const body = await response.json() as BungiePlatformResponse<T>;
@@ -82,4 +85,23 @@ function normalizePath(path: string): string {
 
 function ensureTrailingSlash(value: string): string {
   return value.endsWith("/") ? value : `${value}/`;
+}
+
+async function readBungieErrorDetails(response: Response): Promise<string | undefined> {
+  const contentType = response.headers.get("content-type")?.toLowerCase() ?? "";
+  if (!contentType.includes("application/json")) {
+    return undefined;
+  }
+
+  try {
+    const body = await response.clone().json() as BungiePlatformResponse<unknown>;
+    if (body.ErrorCode !== undefined || body.Message) {
+      const errorCode = body.ErrorCode !== undefined ? `ErrorCode ${body.ErrorCode}` : undefined;
+      return [errorCode, body.Message].filter(Boolean).join(": ");
+    }
+  } catch {
+    return undefined;
+  }
+
+  return undefined;
 }

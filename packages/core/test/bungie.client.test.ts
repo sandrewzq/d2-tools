@@ -82,6 +82,17 @@ describe("Bungie API client", () => {
       .rejects.toThrow("Bungie request failed: HTTP 503");
   });
 
+  it("includes Bungie ErrorCode and Message when HTTP request fails", async () => {
+    const fetchImpl: typeof fetch = async () => jsonResponse({
+      ErrorCode: 1665,
+      Message: "Item is not in the player's inventory",
+      MessageData: { itemInstanceId: "6917530186022057493" }
+    }, 500);
+
+    await expect(fetchBungieJson("/Destiny2/Actions/Items/EquipItem/", { apiKey: "api", fetchImpl }))
+      .rejects.toThrow("Bungie request failed: HTTP 500 (ErrorCode 1665: Item is not in the player's inventory)");
+  });
+
   it("posts JSON bodies with bearer tokens for authenticated write requests", async () => {
     let request: Request | undefined;
     const fetchImpl: typeof fetch = async (input, init) => {
