@@ -11,6 +11,8 @@ import {
   buildBungieAuthorizationUrl,
   computeStartupState,
   createBatchTransferPlan,
+  createDefaultCommunityPerkService,
+  createFullCommunityPerkService,
   createItemActionPlan,
   createLoadoutTemplate,
   createLoadoutTemplateTransferPlan,
@@ -66,15 +68,17 @@ import {
   type AccountItemSummary,
   type ActionLogType,
   type CreateLoadoutTemplateInput,
+  type DimWishlist,
   type ItemActionPlanInput,
   type ItemAliasEntry,
   type ItemAiAdviceInput,
-  type DimWishlist,
   type LibraryHistoryItem,
   type LoadoutTemplate,
   type SaveVaultNoteInput,
   type SaveVaultTagInput,
+  type SourceOptions,
   type StartupAuthStatus,
+  type VaultItemMatchInput,
   type VaultTags
 } from "@d2-tools/core";
 
@@ -447,6 +451,32 @@ export function registerIpcHandlers(): void {
     const config = loadConfig();
     clearDimWishlist(config.data.data_dir);
     return null;
+  });
+
+  ipcMain.handle("community:recommendations:get", (_event, item_hash: number, options?: SourceOptions) => {
+    const config = loadConfig();
+    const service = createDefaultCommunityPerkService({ data: { data_dir: config.data.data_dir } });
+
+    const merged: SourceOptions = {
+      itemDefinitions: options?.itemDefinitions ?? loadDefinitionComponent(config.data.data_dir, "DestinyInventoryItemDefinition") ?? undefined,
+      plugSetDefinitions: options?.plugSetDefinitions ?? loadDefinitionComponent(config.data.data_dir, "DestinyPlugSetDefinition") ?? undefined,
+      item_name: options?.item_name
+    };
+
+    return service.getRecommendations(Number(item_hash), merged);
+  });
+
+  ipcMain.handle("community:vault:match", (_event, items: VaultItemMatchInput[]) => {
+    const config = loadConfig();
+    const service = createDefaultCommunityPerkService({ data: { data_dir: config.data.data_dir } });
+
+    return service.matchVaultItems(items).then((resultMap) => {
+      const arr: Array<{ hash: number; matched: number; modes: Array<"pve" | "pvp" | "general"> }> = [];
+      resultMap.forEach((value, hash) => {
+        arr.push({ hash, matched: value.matched, modes: value.modes });
+      });
+      return arr;
+    });
   });
 
   ipcMain.handle("vault:tags:get", () => {
