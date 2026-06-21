@@ -100,12 +100,39 @@ packages/desktop/release/
 
 当前发布主路径是 GitHub Release 自动打包 Windows `.7z` 绿色包。
 
-发布前至少确认：
+### 6.1 发版流程
+
+1. 更新所有 `package.json` 版本号（root、core、desktop、http 保持一致）
+2. 更新 `CHANGELOG.md`，新增 `## x.y.z - YYYY-MM-DD` 章节
+3. 本地预览 Release Body：
+   ```powershell
+   npx pnpm@9.15.0 release:preview --version x.y.z
+   ```
+4. 提交改动：
+   ```powershell
+   git add .
+   git commit -m "release: prepare vX.Y.Z"
+   ```
+5. 打 tag 并推送：
+   ```powershell
+   git tag vX.Y.Z
+   git push origin vX.Y.Z
+   ```
+6. CI 自动构建、校验 CHANGELOG、生成 Release Body 并发布 GitHub Release
+
+### 6.2 注意事项
+
+- 如果 `CHANGELOG.md` 没有对应版本章节，CI 会失败，不会发布 Release
+- `v0.0.x` 版本会自动标记为 Pre-release
+- Release Assets 会同时包含 `d2-tools-win-x64-<version>.7z` 和 `latest.yml`
+
+### 6.3 发布前检查
 
 1. `test` 通过
 2. `typecheck` 通过
-3. README 和核心文档没有明显失真
-4. 版本号和包名一致
+3. `pnpm release:preview --version x.y.z` 输出符合预期
+4. README 和核心文档没有明显失真
+5. 版本号和 tag 一致
 
 ## 7. 文档结构
 
