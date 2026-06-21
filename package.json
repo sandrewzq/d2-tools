@@ -9,7 +9,8 @@
     "build": "pnpm -r build",
     "test": "pnpm build && vitest --run",
     "typecheck": "pnpm --filter @d2-tools/core build && pnpm -r typecheck",
-    "package:win": "pnpm --filter @d2-tools/desktop package:win"
+    "package:win": "pnpm --filter @d2-tools/desktop package:win",
+    "release:preview": "node scripts/preview-release-notes.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
