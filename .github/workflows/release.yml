@@ -62,16 +62,21 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force -Path release-artifacts | Out-Null
           $package = Get-ChildItem packages/desktop/release/d2-tools-win-x64-*.7z | Select-Object -First 1
+          $latestYml = Get-ChildItem packages/desktop/release/latest.yml | Select-Object -First 1
           if (-not $package) {
             throw "Windows 7z artifact was not created"
           }
+          if (-not $latestYml) {
+            throw "latest.yml was not created"
+          }
           Copy-Item $package.FullName release-artifacts/
+          Copy-Item $latestYml.FullName release-artifacts/
 
       - name: Upload release artifact
         uses: actions/upload-artifact@v4
         with:
           name: d2-tools-win-x64
-          path: release-artifacts/d2-tools-win-x64-*.7z
+          path: release-artifacts/*
           if-no-files-found: error
 
   publish-github:
@@ -86,20 +91,34 @@ jobs:
           name: d2-tools-win-x64
           path: release-artifacts
 
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Validate changelog section
+        shell: pwsh
+        run: |
+          $version = "${{ github.ref_name }}".Substring(1)
+          node scripts/extract-changelog.mjs --version $version
+
+      - name: Generate release notes
+        shell: pwsh
+        run: |
+          $version = "${{ github.ref_name }}".Substring(1)
+          node scripts/generate-release-notes.mjs --version $version --output release-notes.md
+
       - name: Create or update GitHub release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
           name: d2-tools ${{ github.ref_name }}
-          files: release-artifacts/d2-tools-win-x64-*.7z
+          body_path: release-notes.md
+          files: |
+            release-artifacts/d2-tools-win-x64-*.7z
+            release-artifacts/latest.yml
           fail_on_unmatched_files: true
-          body: |
-            Windows x64 绿色包，7z 格式。
-
-            使用方式：
-            1. 下载 d2-tools-win-x64-*.7z。
-            2. 用 7-Zip、Bandizip、WinRAR 等工具解压到任意目录。
-            3. 双击 d2-tools.exe。
-
-            覆盖升级不会删除 %APPDATA%\d2-tools 里的本地配置、token 和缓存。
-            从旧版 d2-service 升级时，首次启动会复制 %APPDATA%\d2-service 到 %APPDATA%\d2-tools。
+          prerelease: true
