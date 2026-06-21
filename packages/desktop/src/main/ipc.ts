@@ -9,9 +9,9 @@ import {
   fetchDailyLiveData,
   buildDiagnosticsExport,
   buildBungieAuthorizationUrl,
+  clearLightggCache,
   computeStartupState,
   createBatchTransferPlan,
-  createDefaultCommunityPerkService,
   createFullCommunityPerkService,
   createItemActionPlan,
   createLoadoutTemplate,
@@ -455,7 +455,7 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle("community:recommendations:get", (_event, item_hash: number, options?: SourceOptions) => {
     const config = loadConfig();
-    const service = createDefaultCommunityPerkService({ data: { data_dir: config.data.data_dir } });
+    const service = createFullCommunityPerkService(config);
 
     const merged: SourceOptions = {
       itemDefinitions: options?.itemDefinitions ?? loadDefinitionComponent(config.data.data_dir, "DestinyInventoryItemDefinition") ?? undefined,
@@ -468,7 +468,7 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle("community:vault:match", (_event, items: VaultItemMatchInput[]) => {
     const config = loadConfig();
-    const service = createDefaultCommunityPerkService({ data: { data_dir: config.data.data_dir } });
+    const service = createFullCommunityPerkService(config);
 
     return service.matchVaultItems(items).then((resultMap) => {
       const arr: Array<{ hash: number; matched: number; modes: Array<"pve" | "pvp" | "general"> }> = [];
@@ -477,6 +477,12 @@ export function registerIpcHandlers(): void {
       });
       return arr;
     });
+  });
+
+  ipcMain.handle("community:lightgg:cache:clear", () => {
+    const config = loadConfig();
+    clearLightggCache(config.data.data_dir);
+    return null;
   });
 
   ipcMain.handle("vault:tags:get", () => {

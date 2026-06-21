@@ -9,11 +9,13 @@ export function AiSettingsPanel(props: {
   const [apiKey, setApiKey] = useState("");
   const [model, setModel] = useState("");
   const [baseUrl, setBaseUrl] = useState("");
+  const [enableLightgg, setEnableLightgg] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
+  const [isClearingCache, setIsClearingCache] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -26,6 +28,7 @@ export function AiSettingsPanel(props: {
         setApiKey(ai.api_key);
         setModel(ai.model);
         setBaseUrl(ai.base_url);
+        setEnableLightgg(ai.enable_lightgg ?? false);
       } catch (loadError) {
         setError(loadError instanceof Error ? loadError.message : "AI 配置读取失败");
       } finally {
@@ -49,7 +52,8 @@ export function AiSettingsPanel(props: {
           provider,
           api_key: apiKey,
           model,
-          base_url: baseUrl
+          base_url: baseUrl,
+          enable_lightgg: enableLightgg
         })
       });
       setMessage("AI 配置已保存。");
@@ -74,7 +78,8 @@ export function AiSettingsPanel(props: {
           provider,
           api_key: apiKey,
           model,
-          base_url: baseUrl
+          base_url: baseUrl,
+          enable_lightgg: enableLightgg
         })
       });
       const result = await api.testAiConnection();
@@ -88,6 +93,22 @@ export function AiSettingsPanel(props: {
   }
 
   const disabled = provider === "none";
+  const lightggEnabled = provider === "openai_responses" && !disabled;
+
+  async function clearCache() {
+    setIsClearingCache(true);
+    setMessage("");
+    setError("");
+
+    try {
+      await api.clearLightggCache();
+      setMessage("light.gg 缓存已清除。");
+    } catch (clearError) {
+      setError(clearError instanceof Error ? clearError.message : "清除缓存失败");
+    } finally {
+      setIsClearingCache(false);
+    }
+  }
 
   return (
     <section className="tool-panel">
@@ -136,12 +157,31 @@ export function AiSettingsPanel(props: {
       <p className="muted-copy">
         DeepSeek、硅基流动、通义千问兼容模式等请选择 OpenAI 兼容接口，并填写对应平台的接口地址。
       </p>
+      <label className="checkbox-row">
+        <input
+          checked={enableLightgg}
+          disabled={isLoading || isSaving || isTesting || !lightggEnabled}
+          type="checkbox"
+          onChange={(event) => setEnableLightgg(event.target.checked)}
+        />
+        启用 light.gg 实时分析（仅 OpenAI Responses API）
+      </label>
+      {lightggEnabled ? (
+        <p className="muted-copy">
+          开启后，武器详情和资料库会自动通过 AI 查询 light.gg 社区推荐。每次查询都会产生 OpenAI 费用，结果会本地缓存 24 小时。
+        </p>
+      ) : (
+        <p className="muted-copy">light.gg 实时分析需要选择 OpenAI Responses API 并提供有效模型。</p>
+      )}
       <div className="button-row">
         <button type="button" disabled={isLoading || isSaving || isTesting} onClick={() => void save()}>
           {isSaving ? "保存中..." : "保存 AI 配置"}
         </button>
         <button type="button" disabled={isLoading || isSaving || isTesting || disabled} onClick={() => void saveAndTest()}>
           {isTesting ? "测试中..." : "保存并测试连接"}
+        </button>
+        <button type="button" disabled={isLoading || isSaving || isTesting || isClearingCache || !lightggEnabled} onClick={() => void clearCache()}>
+          {isClearingCache ? "清除中..." : "清除 light.gg 缓存"}
         </button>
       </div>
       {error ? <p className="error">{error}</p> : null}

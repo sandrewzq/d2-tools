@@ -14,6 +14,7 @@ export type D2Config = {
     api_key: string;
     model: string;
     base_url: string;
+    enable_lightgg: boolean;
   };
   features: {
     write_actions_enabled: boolean;
@@ -31,6 +32,7 @@ export type ConfigEnv = Partial<Record<
   | "AI_API_KEY"
   | "AI_MODEL"
   | "AI_BASE_URL"
+  | "AI_ENABLE_LIGHTGG"
   | "D2_WRITE_ACTIONS_ENABLED",
   string
 >>;

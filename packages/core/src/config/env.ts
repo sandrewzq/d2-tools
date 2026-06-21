@@ -16,7 +16,8 @@ export function applyEnvOverrides(config: D2Config, env: ConfigEnv): D2Config {
       provider: env.AI_PROVIDER ?? config.ai.provider,
       api_key: env.AI_API_KEY ?? config.ai.api_key,
       model: env.AI_MODEL ?? config.ai.model,
-      base_url: env.AI_BASE_URL ?? config.ai.base_url
+      base_url: env.AI_BASE_URL ?? config.ai.base_url,
+      enable_lightgg: parseBooleanEnv(env.AI_ENABLE_LIGHTGG, config.ai.enable_lightgg)
     },
     features: {
       write_actions_enabled: parseBooleanEnv(

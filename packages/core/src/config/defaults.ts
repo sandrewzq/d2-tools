@@ -30,7 +30,8 @@ export function defaultConfig(dataDir = defaultDataDir()): D2Config {
       provider: "",
       api_key: "",
       model: "",
-      base_url: ""
+      base_url: "",
+      enable_lightgg: false
     },
     features: {
       write_actions_enabled: false

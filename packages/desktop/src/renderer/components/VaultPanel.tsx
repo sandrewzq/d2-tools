@@ -9,6 +9,7 @@ import type {
   DimWishlist,
   EquipmentGroupKey,
   SaveVaultTagInput,
+  VaultItemMatchInfo,
   VaultTags,
   VaultTagValue
 } from "../api/client";
@@ -525,6 +526,7 @@ export function VaultPanel(props: {
   tags: VaultTags;
   wishlist?: DimWishlist | null;
   openingItemKey?: string;
+  communityMatch?: Map<number, VaultItemMatchInfo>;
   onOpenItem: (item: AccountItemSummary) => void;
   onSaveTag: (item: AccountItemSummary, tag: VaultTagValue) => void | Promise<void>;
   onSaveTagBatch: (inputs: SaveVaultTagInput[]) => void | Promise<void>;
@@ -1285,6 +1287,7 @@ export function VaultPanel(props: {
                     highlightedItemKeys={props.highlightedItemKeys}
                     tags={props.tags}
                     wishlist={props.wishlist}
+                    communityMatch={props.communityMatch?.get(item.hash)}
                     isOrganizing={isOrganizing}
                     isSelected={selectedKeys.has(getVaultItemKey(item))}
                     openingItemKey={props.openingItemKey}
@@ -1309,6 +1312,7 @@ function VaultListItem(props: {
   highlightedItemKeys?: VaultLoadoutHighlight | null;
   tags: VaultTags;
   wishlist?: DimWishlist | null;
+  communityMatch?: VaultItemMatchInfo;
   isOrganizing: boolean;
   isSelected: boolean;
   openingItemKey?: string;
@@ -1319,6 +1323,7 @@ function VaultListItem(props: {
   const score = scoreVaultItemForDisplay(props.item, props.tags);
   const note = props.tags.items[getVaultItemKey(props.item)]?.note;
   const wishlist = evaluateWishlistRoll(normalizeCoreItem(props.item), props.wishlist ?? undefined);
+  const communityMatch = props.communityMatch;
   const isPending = getVaultItemKey(props.item) === props.openingItemKey;
   const isLoadoutMatch = isLoadoutMatchItem(props.item, props.highlightedItemKeys);
 
@@ -1357,6 +1362,12 @@ function VaultListItem(props: {
             <small className="wishlist-hit">
               <span className="wishlist-hit-badge">DIM 愿望单</span>
               <span>{formatWishlistHint(wishlist.labels)}</span>
+            </small>
+          ) : null}
+          {communityMatch && communityMatch.matched > 0 ? (
+            <small className="community-match">
+              <span className="community-match-badge">社区推荐</span>
+              <span>命中 {communityMatch.matched} 个组合{communityMatch.modes.length ? ` · ${communityMatch.modes.map(formatCommunityMode).join(" / ")}` : ""}</span>
             </small>
           ) : null}
           {props.item.socket_plugs?.length ? (
@@ -1495,6 +1506,15 @@ function matchesAmmo(item: AccountItemSummary, ammo: VaultAmmoFilter): boolean {
 function formatWishlistHint(labels: string[]): string {
   const detailLabels = labels.filter((label) => label !== "DIM Wishlist");
   return detailLabels.length ? detailLabels.join(" / ") : "已命中";
+}
+
+function formatCommunityMode(mode: "pve" | "pvp" | "general"): string {
+  switch (mode) {
+    case "pve": return "PvE";
+    case "pvp": return "PvP";
+    case "general": return "通用";
+    default: return mode;
+  }
 }
 
 function tagLabelForItem(item: AccountItemSummary, tags: VaultTags): string {

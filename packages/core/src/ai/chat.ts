@@ -83,6 +83,7 @@ type ChatResponse = {
   }>;
   output_text?: string;
   output?: Array<{
+    type?: string;
     content?: Array<{
       text?: string;
     }>;
@@ -366,6 +367,81 @@ function normalizeSectionHeading(line: string): keyof Omit<AiAdviceSections, "ra
   if (normalized === "建议") return "suggestions";
   if (normalized === "操作提醒" || normalized === "操作") return "action_reminders";
   return undefined;
+}
+
+export type AiWebSearchResult = {
+  text: string;
+  source?: string;
+};
+
+export async function callAiWithWebSearch(input: {
+  config: D2Config;
+  query: string;
+  fetcher?: typeof fetch;
+}): Promise<AiWebSearchResult> {
+  const settings = normalizeAiConfig(input.config.ai);
+
+  if (!settings.provider) {
+    throw new Error("请先启用 AI 提供方。");
+  }
+  if (settings.provider !== "openai_responses") {
+    throw new Error("light.gg 实时分析需要 OpenAI Responses API 以使用网页搜索工具。");
+  }
+  if (!settings.api_key) {
+    throw new Error("请先填写 AI API Key。");
+  }
+  if (!settings.model) {
+    throw new Error("请先填写 AI 模型名称。");
+  }
+
+  const request = buildAiWebSearchRequest(settings, input.query);
+  const response = await (input.fetcher ?? fetch)(request.url, {
+    method: "POST",
+    headers: request.headers,
+    body: JSON.stringify(request.body)
+  });
+
+  const body = await readJson(response);
+  if (!response.ok) {
+    throw new Error(`AI 接口调用失败：${body.error?.message ?? response.statusText}`);
+  }
+
+  const text = extractAiWebSearchText(body);
+  if (!text) {
+    throw new Error("AI 接口没有返回可读取的网页搜索结果。");
+  }
+
+  return { text };
+}
+
+function buildAiWebSearchRequest(settings: NormalizedAiConfig, query: string): {
+  url: string;
+  headers: Record<string, string>;
+  body: unknown;
+} {
+  return {
+    url: openAiResponsesEndpoint(settings.base_url),
+    headers: openAiHeaders(settings.api_key),
+    body: {
+      model: settings.model,
+      tools: [{ type: "web_search_preview" }],
+      input: [
+        {
+          role: "user",
+          content: query
+        }
+      ]
+    }
+  };
+}
+
+function extractAiWebSearchText(body: ChatResponse): string {
+  if (body.output_text) return body.output_text;
+  const messageOutput = body.output?.find((item) => item.type === "message" || item.content);
+  if (messageOutput?.content) {
+    return messageOutput.content.map((content) => content.text).filter(Boolean).join("\n");
+  }
+  return extractAiText(body);
 }
 
 export async function testAiConnection(input: {

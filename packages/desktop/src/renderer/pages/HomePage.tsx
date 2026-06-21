@@ -1,4 +1,4 @@
-﻿import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { scoreVaultItem } from "@d2-tools/core/analysis/scoring";
 import { evaluateWishlistRoll } from "@d2-tools/core/analysis/wishlist";
 import { parseDimWishlist } from "@d2-tools/core/analysis/wishlistImport";
@@ -25,8 +25,10 @@ import {
   type LoadoutTemplate,
   type PerkSearchResult,
   type StartupState,
+  type VaultItemMatchInfo,
   type VaultTags,
-  type VaultTagValue
+  type VaultTagValue,
+  type WeaponRecommendation
 } from "../api/client";
 import { AiSettingsPanel } from "../components/AiSettingsPanel";
 import { AiAnalysisPanel } from "../components/AiAnalysisPanel";
@@ -80,6 +82,15 @@ import {
 } from "../utils/loadoutActionFeedback";
 import { resolveItemTransferCharacterId } from "../utils/itemActions";
 
+function formatCommunityMode(mode: "pve" | "pvp" | "general"): string {
+  switch (mode) {
+    case "pve": return "PvE";
+    case "pvp": return "PvP";
+    case "general": return "通用";
+    default: return mode;
+  }
+}
+
 export function HomePage(props: {
   state: StartupState;
   onConfigure: () => void;
@@ -101,6 +112,11 @@ export function HomePage(props: {
   const [selectedCharacterId, setSelectedCharacterId] = useState("");
   const [hasAutoLoadedAccount, setHasAutoLoadedAccount] = useState(false);
   const [selectedItem, setSelectedItem] = useState<SelectedItemDetail | null>(null);
+  const [communityRecommendations, setCommunityRecommendations] = useState<WeaponRecommendation | null>(null);
+  const [isCommunityRecommendationsLoading, setIsCommunityRecommendationsLoading] = useState(false);
+  const [vaultCommunityMatch, setVaultCommunityMatch] = useState<Map<number, VaultItemMatchInfo>>(new Map());
+  const [isVaultCommunityMatchLoading, setIsVaultCommunityMatchLoading] = useState(false);
+  const [libraryCommunityMatch, setLibraryCommunityMatch] = useState<Map<number, VaultItemMatchInfo>>(new Map());
   const [itemDetailLoadingKey, setItemDetailLoadingKey] = useState("");
   const [itemDetailError, setItemDetailError] = useState("");
   const itemDetailCacheRef = useRef(new Map<number, ItemDefinitionDetail>());
@@ -115,7 +131,8 @@ export function HomePage(props: {
     provider: "",
     api_key: "",
     model: "",
-    base_url: ""
+    base_url: "",
+    enable_lightgg: false
   });
   const [libraryViewMode, setLibraryViewMode] = useState<LibraryViewMode>("equipment");
   const [items, setItems] = useState<ItemSearchResult[]>([]);
@@ -162,7 +179,7 @@ export function HomePage(props: {
   const [wishlistImportMessage, setWishlistImportMessage] = useState("");
   const [importedWishlist, setImportedWishlist] = useState<DimWishlist | null>(null);
   const [dimToolsMessage, setDimToolsMessage] = useState("");
-  const loadoutActionFeedbackTimersRef = useRef<Record<string, ReturnType<typeof window.setTimeout>>>({});
+  const loadoutActionFeedbackTimersRef = useRef<Record<string, number>>({});
 
   async function refreshDiagnostics() {
     setIsRefreshingDiagnostics(true);
@@ -206,6 +223,26 @@ export function HomePage(props: {
     Object.values(loadoutActionFeedbackTimersRef.current).forEach((timer) => window.clearTimeout(timer));
     loadoutActionFeedbackTimersRef.current = {};
   }, []);
+
+  useEffect(() => {
+    if (libraryViewMode !== "equipment" || !items.length) {
+      setLibraryCommunityMatch(new Map());
+      return;
+    }
+    const uniqueHashes = [...new Set(items.map((item) => item.hash))];
+    const inputs = uniqueHashes.map((hash) => ({ hash, socket_plugs: undefined }));
+    api.matchCommunityVaultItems(inputs)
+      .then((result) => {
+        const map = new Map<number, VaultItemMatchInfo>();
+        for (const item of result) {
+          map.set(item.hash, { matched: item.matched, modes: item.modes });
+        }
+        setLibraryCommunityMatch(map);
+      })
+      .catch((error) => {
+        console.warn("资料库社区推荐匹配失败：", error);
+      });
+  }, [libraryViewMode, items]);
 
   const isAiConfigured = isAiSettingsConfigured(aiSettings);
 
@@ -378,6 +415,7 @@ export function HomePage(props: {
         return summary.characters[0]?.character_id ?? "";
       });
       void loadActivitySummary(summary);
+      void loadVaultCommunityMatch(summary);
     } catch (error) {
       const message = error instanceof Error ? error.message : "账号数据读取失败";
       setAccountError(props.state.nextStep === "home"
@@ -386,6 +424,34 @@ export function HomePage(props: {
       setAccountSummary(null);
     } finally {
       setIsLoadingAccount(false);
+    }
+  }
+
+  async function loadVaultCommunityMatch(summary: AccountSummary) {
+    setIsVaultCommunityMatchLoading(true);
+    try {
+      const allItems = [
+        ...summary.characters.flatMap((character) => [
+          ...character.equipped_items,
+          ...character.inventory_items,
+          ...character.postmaster_items
+        ]),
+        ...summary.vault.items
+      ];
+      const inputs = allItems.map((item) => ({
+        hash: item.hash,
+        socket_plugs: item.socket_plugs?.map((plug) => ({ hash: plug.hash }))
+      }));
+      const result = await api.matchCommunityVaultItems(inputs);
+      const map = new Map<number, VaultItemMatchInfo>();
+      for (const item of result) {
+        map.set(item.hash, { matched: item.matched, modes: item.modes });
+      }
+      setVaultCommunityMatch(map);
+    } catch (error) {
+      console.warn("社区推荐匹配失败：", error);
+    } finally {
+      setIsVaultCommunityMatchLoading(false);
     }
   }
 
@@ -405,6 +471,20 @@ export function HomePage(props: {
     itemDetailRequestKeyRef.current = itemKey;
     setItemDetailLoadingKey(itemKey);
     setSelectedItem(createSelectedItemPreview(item, source));
+    setCommunityRecommendations(null);
+    setIsCommunityRecommendationsLoading(true);
+    void api.getCommunityPerkRecommendations(item.hash, { item_name: item.name })
+      .then((result) => {
+        if (itemDetailRequestKeyRef.current !== itemKey) return;
+        setCommunityRecommendations(result);
+      })
+      .catch((error) => {
+        console.warn("社区推荐加载失败：", error);
+      })
+      .finally(() => {
+        if (itemDetailRequestKeyRef.current !== itemKey) return;
+        setIsCommunityRecommendationsLoading(false);
+      });
 
     void api.addRecentItem({ hash: item.hash, name: item.name, icon: item.icon })
       .then((history) => {
@@ -543,6 +623,8 @@ export function HomePage(props: {
     itemDetailRequestKeyRef.current = "";
     setItemDetailLoadingKey("");
     setSelectedItem(null);
+    setCommunityRecommendations(null);
+    setIsCommunityRecommendationsLoading(false);
   }
 
   async function saveSelectedItemTag(tag: VaultTagValue) {
@@ -3143,6 +3225,11 @@ function renderDailyPanel() {
                     ))}
                   </div>
                 ) : null}
+                {libraryCommunityMatch.get(item.hash)?.matched ? (
+                  <small className="library-community-match">
+                    社区推荐 {libraryCommunityMatch.get(item.hash)?.matched} 个组合
+                  </small>
+                ) : null}
                 <button
                   type="button"
                   className="inline-action"
@@ -3227,6 +3314,7 @@ function renderDailyPanel() {
           onBatchTransferToCharacter: handleVaultCleanupTransfer
         }}
         wishlist={importedWishlist}
+        communityMatch={vaultCommunityMatch}
         onOpenItem={(item) => void openItemDetail(item, { is_vault_item: true })}
         onSaveTag={(item, tag) => saveVaultTag(item, tag)}
       />
@@ -3369,6 +3457,64 @@ function renderDailyPanel() {
             </section>
           ) : null}
 
+          {communityRecommendations ? (
+            <section className="community-recommendations-panel">
+              <div className="community-recommendations-header">
+                <div>
+                  <h3>社区推荐 Perk 组合</h3>
+                  <p>{communityRecommendations.matched_modes.map(formatCommunityMode).join(" / ") || "未标注模式"}</p>
+                </div>
+                <div className="community-source-badges">
+                  {communityRecommendations.combos[0]?.source === "dim_wishlist" ? (
+                    <span className="community-source-badge">DIM Wishlist</span>
+                  ) : null}
+                  {communityRecommendations.combos[0]?.source === "ai_lightgg" ? (
+                    <span className="community-source-badge">AI · light.gg</span>
+                  ) : null}
+                </div>
+              </div>
+              <ul className="community-combos">
+                {communityRecommendations.combos.map((combo, index) => (
+                  <li key={index} className={`community-combo mode-${combo.mode}`}>
+                    <div className="community-combo-mode">
+                      <strong>{formatCommunityMode(combo.mode)}</strong>
+                      {combo.popularity ? <small>热度 {combo.popularity.toFixed(1)}%</small> : null}
+                    </div>
+                    <div className="community-combo-perks">
+                      {combo.perks.map((perk) => (
+                        <div className="community-perk" key={perk.hash}>
+                          {perk.icon ? <img alt="" src={perk.icon} /> : null}
+                          <div>
+                            <strong>{perk.name}</strong>
+                            {perk.description ? <p>{perk.description}</p> : null}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    {combo.note ? (
+                      <small className="community-combo-note">{combo.note}</small>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+              {communityRecommendations.disclaimer ? (
+                <small>{communityRecommendations.disclaimer}</small>
+              ) : null}
+            </section>
+          ) : isCommunityRecommendationsLoading ? (
+            <section className="community-recommendations-panel loading">
+              <p className="notice">正在读取社区推荐...</p>
+            </section>
+          ) : (
+            <section className="community-recommendations-panel empty">
+              <h3>社区推荐</h3>
+              <p className="notice">
+                {aiSettings.enable_lightgg
+                  ? "暂无社区推荐。已尝试查询 light.gg 和本地 DIM wishlist，均未命中。"
+                  : "暂无社区推荐。导入 DIM wishlist 或在 AI 设置中开启 light.gg 实时分析以获取推荐。"}
+              </p>
+            </section>
+          )}
 
           <section className="item-note-panel">
             <label htmlFor="item-note-draft">本地备注</label>

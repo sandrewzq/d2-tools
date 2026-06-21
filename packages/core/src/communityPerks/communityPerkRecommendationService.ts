@@ -1,3 +1,4 @@
+import { createAiLightggSource } from "./aiLightggSource.js";
 import { createDimWishlistSource } from "./dimWishlistSource.js";
 import type {
   CommunityPerkSource,
@@ -10,7 +11,7 @@ import type {
 
 type FullServiceConfig = {
   data?: { data_dir?: string };
-  ai?: { provider?: string; api_key?: string; model?: string; base_url?: string };
+  ai?: { provider?: string; api_key?: string; model?: string; base_url?: string; enable_lightgg?: boolean };
 } | null | undefined;
 
 export class CommunityPerkRecommendationService {
@@ -136,8 +137,7 @@ export function createFullCommunityPerkService(
 
   const ai = config?.ai;
   if (ai?.provider && ai?.api_key && ai?.model) {
-    // aiLightggSource 动态注册，避免在未配置 AI 时引入不必要依赖
-    // Phase 3 实现在单独文件中被此函数通过 createAiLightggSource 引入
+    service.addSource(createAiLightggSource(config));
   }
 
   return service;

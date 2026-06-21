@@ -31,7 +31,9 @@ import type {
   ItemActionPlan,
   ItemActionPlanInput,
   BatchTransferPlan,
-  ActivityHistorySummary
+  ActivityHistorySummary,
+  WeaponRecommendation,
+  VaultItemMatchInfo
 } from "@d2-tools/core";
 
 type ItemLockActionInput = {
@@ -180,5 +182,10 @@ contextBridge.exposeInMainWorld("d2", {
   getDailySummary: () => ipcRenderer.invoke("daily:summary") as Promise<DailySummary>,
   getActivitySummary: (input: { membership_type: number; membership_id: string; character_ids: string[] }) =>
     ipcRenderer.invoke("activities:summary", input) as Promise<ActivityHistorySummary>,
-  exportDiagnostics: () => ipcRenderer.invoke("diagnostics:export") as Promise<string>
+  exportDiagnostics: () => ipcRenderer.invoke("diagnostics:export") as Promise<string>,
+  getCommunityPerkRecommendations: (item_hash: number, options?: { item_name?: string }) =>
+    ipcRenderer.invoke("community:recommendations:get", item_hash, options) as Promise<WeaponRecommendation | null>,
+  matchCommunityVaultItems: (items: Array<{ hash: number; socket_plugs?: Array<{ hash: number }> }>) =>
+    ipcRenderer.invoke("community:vault:match", items) as Promise<Array<{ hash: number } & VaultItemMatchInfo>>,
+  clearLightggCache: () => ipcRenderer.invoke("community:lightgg:cache:clear") as Promise<void>
 });

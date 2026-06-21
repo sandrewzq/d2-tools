@@ -46,5 +46,6 @@ export * from "./tools/audit.js";
 export * from "./tools/registry.js";
 export * from "./vault/tags.js";
 export * from "./communityPerks/types.js";
+export * from "./communityPerks/aiLightggSource.js";
 export * from "./communityPerks/dimWishlistSource.js";
 export * from "./communityPerks/communityPerkRecommendationService.js";

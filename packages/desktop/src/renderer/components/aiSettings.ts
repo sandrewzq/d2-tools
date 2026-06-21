@@ -9,7 +9,8 @@ export function normalizeAiSettings(settings: AiSettings): AiSettings {
       provider: "",
       api_key: "",
       model: "",
-      base_url: ""
+      base_url: "",
+      enable_lightgg: false
     };
   }
 
@@ -18,7 +19,8 @@ export function normalizeAiSettings(settings: AiSettings): AiSettings {
       provider: "openai_chat",
       api_key: settings.api_key.trim(),
       model: settings.model.trim(),
-      base_url: settings.base_url.trim()
+      base_url: settings.base_url.trim(),
+      enable_lightgg: false
     };
   }
 
@@ -27,7 +29,8 @@ export function normalizeAiSettings(settings: AiSettings): AiSettings {
       provider: "openai_compatible",
       api_key: settings.api_key.trim(),
       model: settings.model.trim(),
-      base_url: settings.base_url.trim() || "https://api.deepseek.com"
+      base_url: settings.base_url.trim() || "https://api.deepseek.com",
+      enable_lightgg: false
     };
   }
 
@@ -36,7 +39,8 @@ export function normalizeAiSettings(settings: AiSettings): AiSettings {
       provider: "openai_compatible",
       api_key: settings.api_key.trim(),
       model: settings.model.trim(),
-      base_url: settings.base_url.trim()
+      base_url: settings.base_url.trim(),
+      enable_lightgg: false
     };
   }
 
@@ -44,7 +48,8 @@ export function normalizeAiSettings(settings: AiSettings): AiSettings {
     provider,
     api_key: settings.api_key.trim(),
     model: settings.model.trim(),
-    base_url: settings.base_url.trim()
+    base_url: settings.base_url.trim(),
+    enable_lightgg: settings.enable_lightgg ?? false
   };
 }
 

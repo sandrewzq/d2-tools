@@ -1,3 +1,7 @@
+import type { WeaponRecommendation, VaultItemMatchInfo } from "@d2-tools/core";
+
+export type { WeaponRecommendation, VaultItemMatchInfo };
+
 declare global {
   interface Window {
     d2: {
@@ -49,6 +53,9 @@ declare global {
       getDailySummary(): Promise<DailySummary>;
       getActivitySummary(input: ActivitySummaryInput): Promise<ActivityHistorySummary>;
       exportDiagnostics(): Promise<string>;
+      getCommunityPerkRecommendations(item_hash: number, options?: { item_name?: string }): Promise<WeaponRecommendation | null>;
+      matchCommunityVaultItems(items: Array<{ hash: number; socket_plugs?: Array<{ hash: number }> }>): Promise<Array<{ hash: number } & VaultItemMatchInfo>>;
+      clearLightggCache(): Promise<void>;
     };
   }
 }
@@ -71,6 +78,7 @@ export type D2Config = {
     api_key: string;
     model: string;
     base_url: string;
+    enable_lightgg: boolean;
   };
   features: {
     write_actions_enabled: boolean;
