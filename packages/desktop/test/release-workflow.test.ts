@@ -13,7 +13,7 @@ describe("release workflow", () => {
     expect(workflow).toContain("v*.*.*");
     expect(workflow).toContain("electron-builder");
     expect(workflow).toContain("publish-github");
-    expect(workflow).toContain("softprops/action-gh-release@v2");
+    expect(workflow).toContain("softprops/action-gh-release@v3");
     expect(workflow).not.toContain("publish-gitee");
     expect(workflow).toContain("d2-tools-win-x64");
     expect(workflow).toContain("*.7z");
