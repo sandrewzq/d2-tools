@@ -65,15 +65,10 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force -Path release-artifacts | Out-Null
           $package = Get-ChildItem packages/desktop/release/d2-tools-win-x64-*.7z | Select-Object -First 1
-          $latestYml = Get-ChildItem packages/desktop/release/latest.yml | Select-Object -First 1
           if (-not $package) {
             throw "Windows 7z artifact was not created"
           }
-          if (-not $latestYml) {
-            throw "latest.yml was not created"
-          }
           Copy-Item $package.FullName release-artifacts/
-          Copy-Item $latestYml.FullName release-artifacts/
 
       - name: Upload release artifact
         uses: actions/upload-artifact@v4
@@ -122,6 +117,5 @@ jobs:
           body_path: release-notes.md
           files: |
             release-artifacts/d2-tools-win-x64-*.7z
-            release-artifacts/latest.yml
           fail_on_unmatched_files: true
           prerelease: true
