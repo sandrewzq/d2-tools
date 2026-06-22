@@ -101,6 +101,12 @@ const itemDefinitions: DefinitionComponentData = {
 };
 
 const bucketDefinitions: DefinitionComponentData = {
+  "999999999": {
+    hash: 999999999,
+    displayProperties: {
+      name: "General"
+    }
+  },
   "215593132": {
     hash: 215593132,
     displayProperties: {
@@ -217,6 +223,20 @@ describe("account summary", () => {
                 "vault-2": { primaryStat: { value: 1805 } }
               }
             },
+            stats: {
+              data: {
+                "instance-2": {
+                  stats: {
+                    "2996146975": { statHash: 2996146975, value: 2 },
+                    "392767087": { statHash: 392767087, value: 26 },
+                    "1943323491": { statHash: 1943323491, value: 16 },
+                    "1735777505": { statHash: 1735777505, value: 12 },
+                    "144602215": { statHash: 144602215, value: 4 },
+                    "4244567218": { statHash: 4244567218, value: 8 }
+                  }
+                }
+              }
+            },
             sockets: {
               data: {
                 "instance-1": {
@@ -254,7 +274,7 @@ describe("account summary", () => {
     });
 
     expect(requested[1]).toContain("/Destiny2/3/Profile/destiny-1/");
-    expect(requested[1]).toContain("components=100,102,200,201,205,206,300,305");
+    expect(requested[1]).toContain("components=100,102,200,201,205,206,300,304,305");
     expect(summary.account_name).toBe("Big Brother is watching");
     expect(summary.destiny_membership_id).toBe("destiny-1");
     expect(summary.characters).toHaveLength(1);
@@ -334,6 +354,19 @@ describe("account summary", () => {
         items: []
       }
     ]);
+    expect(summary.characters[0]?.equipped_items[1]).toMatchObject({
+      name: "Helmet A",
+      group_key: "armor",
+      armor_stats: {
+        mobility: 2,
+        resilience: 26,
+        recovery: 16,
+        discipline: 12,
+        intellect: 4,
+        strength: 8,
+        total: 68
+      }
+    });
     expect(summary.vault.item_count).toBe(35);
     expect(summary.vault.items).toHaveLength(35);
     expect(summary.vault.items[0]?.instance_id).toBe("vault-1");

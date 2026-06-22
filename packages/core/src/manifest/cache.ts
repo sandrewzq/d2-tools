@@ -3,6 +3,12 @@ import { join } from "node:path";
 import { fetchBungieJson } from "../bungie/client.js";
 import type { D2Config } from "../config/schema.js";
 import {
+  getDefinitionStatus,
+  requiredDefinitionComponents,
+  type DefinitionComponentName,
+  type DefinitionComponentStatus
+} from "./definitions.js";
+import {
   selectManifestLanguagePath,
   type DestinyManifestMetadata
 } from "./metadata.js";
@@ -20,6 +26,8 @@ export type ManifestStatus = {
   language?: string;
   sqlite_path?: string;
   cached_at?: string;
+  definitions?: DefinitionComponentStatus[];
+  missing_required_components?: DefinitionComponentName[];
 };
 
 export type InitializeManifestMetadataOptions = {
@@ -74,7 +82,8 @@ export function getManifestStatus(dataDir: string): ManifestStatus {
     version: cache.metadata.version,
     language: cache.language,
     sqlite_path: cache.sqlite_path,
-    cached_at: cache.cached_at
+    cached_at: cache.cached_at,
+    ...definitionStatusSummary(dataDir)
   };
 }
 
@@ -94,10 +103,25 @@ export async function initializeManifestMetadata(
     version: cache.metadata.version,
     language: cache.language,
     sqlite_path: cache.sqlite_path,
-    cached_at: cache.cached_at
+    cached_at: cache.cached_at,
+    ...definitionStatusSummary(options.config.data.data_dir)
   };
 }
 
 async function fetchManifestMetadata(apiKey: string): Promise<DestinyManifestMetadata> {
   return fetchBungieJson<DestinyManifestMetadata>("/Destiny2/Manifest/", { apiKey });
+}
+
+function definitionStatusSummary(dataDir: string): Pick<ManifestStatus, "definitions" | "missing_required_components"> {
+  const definitions = requiredDefinitionComponents.map((component) => {
+    const status = getDefinitionStatus(dataDir, component);
+    return status.initialized ? status : { ...status, component };
+  });
+
+  return {
+    definitions,
+    missing_required_components: definitions
+      .filter((status) => !status.initialized)
+      .map((status) => status.component as DefinitionComponentName)
+  };
 }

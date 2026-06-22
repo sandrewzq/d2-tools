@@ -235,7 +235,6 @@ describe("AI chat analysis", () => {
     expect(JSON.stringify(JSON.parse(String(requests[0].init.body)))).toContain("Riskrunner");
     expect(JSON.stringify(JSON.parse(String(requests[0].init.body)))).toContain("Voltshot");
     expect(JSON.stringify(JSON.parse(String(requests[0].init.body)))).toContain("留给电猎清怪");
-    expect(JSON.stringify(JSON.parse(String(requests[0].init.body)))).toContain("score_summary");
     expect(result.ai).toEqual({
       provider: "openai_responses",
       model: "gpt-test",

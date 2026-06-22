@@ -1,6 +1,5 @@
 import type { AccountItemSummary, EquipmentGroupKey } from "../account/summary.js";
 import type { VaultTags } from "../vault/tags.js";
-import { summarizeVaultScores, type VaultScoreSummary } from "./scoring.js";
 
 export type VaultAnalysisInput = {
   items: AccountItemSummary[];
@@ -26,7 +25,6 @@ export type VaultAnalysisResult = {
     review: VaultAnalysisItem[];
     junk: VaultAnalysisItem[];
   };
-  scoring: VaultScoreSummary;
 };
 
 const groupLabels: Record<EquipmentGroupKey, string> = {
@@ -46,14 +44,12 @@ export function analyzeVault(input: VaultAnalysisInput): VaultAnalysisResult {
   const taggedCount = keep.length + review.length + junk.length;
   const untaggedCount = input.items.length - taggedCount;
   const rollCount = input.items.filter((item) => item.socket_plugs?.length).length;
-  const scoring = summarizeVaultScores(input.items, input.tags);
 
   return {
     facts: [
       `仓库共 ${input.items.length} 件物品，其中${formatGroupCounts(groupCounts)}。`,
       `本地标记：保留 ${keep.length} 件、关注 ${review.length} 件、可清理 ${junk.length} 件、未标记 ${untaggedCount} 件。`,
-      `已读取实际 roll 的物品 ${rollCount} 件。`,
-      `本地评分：建议保留 ${scoring.counts.keep} 件、建议复查 ${scoring.counts.review} 件、可清理候选 ${scoring.counts.junk} 件。`
+      `已读取实际 roll 的物品 ${rollCount} 件。`
     ],
     analysis: buildAnalysis({ keep, review, junk, untaggedCount }),
     suggestions: buildSuggestions({ review, junk, untaggedCount }),
@@ -61,8 +57,7 @@ export function analyzeVault(input: VaultAnalysisInput): VaultAnalysisResult {
       keep,
       review,
       junk
-    },
-    scoring
+    }
   };
 }
 

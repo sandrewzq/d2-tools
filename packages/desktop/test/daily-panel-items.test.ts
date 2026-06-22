@@ -7,14 +7,14 @@ const desktopRoot = fileURLToPath(new URL("..", import.meta.url));
 
 describe("daily panel source item rendering", () => {
   it("renders real daily source items instead of only source status", () => {
-    const homePage = readFileSync(
-      join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"),
+    const dailyPage = readFileSync(
+      join(desktopRoot, "src", "renderer", "features", "daily", "DailyPage.tsx"),
       "utf8"
     );
 
-    expect(homePage).toContain("daily-source-items");
-    expect(homePage).toContain("source.items");
-    expect(homePage).toContain("item.subtitle");
-    expect(homePage).toContain("item.description");
+    expect(dailyPage).toContain("daily-source-items");
+    expect(dailyPage).toContain("source.items");
+    expect(dailyPage).toContain("item.subtitle");
+    expect(dailyPage).toContain("item.description");
   });
 });

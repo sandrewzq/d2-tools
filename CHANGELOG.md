@@ -2,7 +2,35 @@
 
 这个项目使用面向玩家的更新日志。这里优先记录“玩家能感知到什么变化”，而不是逐条展开内部实现细节。
 
-## 0.0.4 - 2026-06-20
+## 0.0.5 - 2026-06-22
+
+### 移除
+
+- 删除本地评分系统：装备不再显示分值，仓库整理仅依赖玩家手动标签和实际属性数据
+- 移除仓库筛选中的"推荐"和"评分"下拉框
+- 移除装备详情中的评分分解面板（加分项/扣分项/评分原因/风险提示）
+- 移除 AI 提示中的本地评分数据
+
+### 新增
+
+- 社区 Perk 推荐支持本地导入（CSV/JSON 格式），可导入自定义推荐表
+- 社区推荐增加来源标签区分：DIM 愿望单、AI light.gg、本地社区表
+- 新增 AGENTS.md 定义 Agent 工作规则
+- 新增文档策略自动检查脚本（`pnpm docs:check`）
+
+### 改进
+
+- README 参考方向大幅扩展：新增 D2ArmorPicker、Destiny Recipes、Bray.tech、Destiny Sets、D2 Gunsmith 5 个参考工具，每个工具均列出完整能力描述
+- 仓库分类逻辑优化
+- AI light.gg 查询失败时增加降级提示
+- IPC 模块按功能域拆分（account/vault/manifest/ai/loadout/wishlist/daily）
+- 桌面端代码按 features/shared 重构目录结构
+
+### 文档
+
+- 文档结构重组：superpowers 目录迁移至 work/ 归档
+- `docs/todo.md` 设为唯一短期待办来源
+- `docs/bug-list.md` 设为唯一 Bug 清单来源
 
 ### 新增
 

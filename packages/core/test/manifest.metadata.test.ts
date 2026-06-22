@@ -80,7 +80,27 @@ describe("manifest metadata", () => {
       version: "123",
       language: "zh-chs",
       sqlite_path: "/common/destiny2_content/sqlite/zh-chs/world_sql_content.sqlite",
-      cached_at: "2026-06-18T00:00:00.000Z"
+      cached_at: "2026-06-18T00:00:00.000Z",
+      definitions: [
+        { initialized: false, component: "DestinyInventoryItemDefinition" },
+        { initialized: false, component: "DestinyPlugSetDefinition" },
+        { initialized: false, component: "DestinySandboxPerkDefinition" },
+        { initialized: false, component: "DestinyActivityDefinition" },
+        { initialized: false, component: "DestinyMilestoneDefinition" },
+        { initialized: false, component: "DestinyVendorDefinition" },
+        { initialized: false, component: "DestinyInventoryBucketDefinition" },
+        { initialized: false, component: "DestinyLoadoutNameDefinition" }
+      ],
+      missing_required_components: [
+        "DestinyInventoryItemDefinition",
+        "DestinyPlugSetDefinition",
+        "DestinySandboxPerkDefinition",
+        "DestinyActivityDefinition",
+        "DestinyMilestoneDefinition",
+        "DestinyVendorDefinition",
+        "DestinyInventoryBucketDefinition",
+        "DestinyLoadoutNameDefinition"
+      ]
     });
   });
 
@@ -103,7 +123,27 @@ describe("manifest metadata", () => {
       version: "123",
       language: "zh-chs",
       sqlite_path: "/common/destiny2_content/sqlite/zh-chs/world_sql_content.sqlite",
-      cached_at: "2026-06-18T01:02:03.000Z"
+      cached_at: "2026-06-18T01:02:03.000Z",
+      definitions: [
+        { initialized: false, component: "DestinyInventoryItemDefinition" },
+        { initialized: false, component: "DestinyPlugSetDefinition" },
+        { initialized: false, component: "DestinySandboxPerkDefinition" },
+        { initialized: false, component: "DestinyActivityDefinition" },
+        { initialized: false, component: "DestinyMilestoneDefinition" },
+        { initialized: false, component: "DestinyVendorDefinition" },
+        { initialized: false, component: "DestinyInventoryBucketDefinition" },
+        { initialized: false, component: "DestinyLoadoutNameDefinition" }
+      ],
+      missing_required_components: [
+        "DestinyInventoryItemDefinition",
+        "DestinyPlugSetDefinition",
+        "DestinySandboxPerkDefinition",
+        "DestinyActivityDefinition",
+        "DestinyMilestoneDefinition",
+        "DestinyVendorDefinition",
+        "DestinyInventoryBucketDefinition",
+        "DestinyLoadoutNameDefinition"
+      ]
     });
   });
 });

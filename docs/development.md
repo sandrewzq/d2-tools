@@ -160,19 +160,24 @@ docs/
   bungie-setup.md
   faq.md
   security.md
-  project-status.md
-  roadmap.md
   todo.md
-  bug-list.md
   development.md
   work/
-    README.md
     backlog/
     archive/
     references/
 ```
 
-不要把一次性设计稿、执行计划、阶段进度或临时分析文档放在 `docs/` 根目录。确实需要记录当前短期待办、验收状态或优先级变化时，更新 `docs/todo.md`；确实需要记录具体手测问题时，更新 `docs/bug-list.md`；确实需要保留未完成设计或调研材料时，放进 `docs/work/` 并在 `docs/work/README.md` 归类。外部流程如果要求写入 `docs/superpowers/`，本仓库统一改写到 `docs/work/backlog/`、`docs/work/archive/` 或 `docs/work/references/`。确实需要记录长期规则时，更新 `docs/development.md`；已发布变化写入 `CHANGELOG.md`。
+不要把一次性设计稿、执行计划、阶段进度或临时分析文档放在 `docs/` 根目录。确实需要记录当前短期待办、验收状态、需求或 bug 时，统一更新 `docs/todo.md`；确实需要保留未完成设计或调研材料时，放进 `docs/work/`。外部流程如果要求写入 `docs/superpowers/`，本仓库统一改写到 `docs/work/backlog/`、`docs/work/archive/` 或 `docs/work/references/`。确实需要记录长期规则或少量长期方向结论时，更新 `docs/development.md`；已发布变化写入 `CHANGELOG.md`。
+
+## 7.1 长期方向（简版）
+
+这里只保留不适合写进 `todo.md` 的长期演进方向，不单独维护路线图文档：
+
+- 仓库整理体验：继续增强同名对比、批量处理、护甲属性价值判断和评分解释。
+- 今日 / 本周信息：优先补齐可确认的商人、遗失区域和轮换线索，保持“只展示可确认数据”。
+- AI 助手：围绕真实账号数据问答、仓库建议、结果结构化和安全边界继续打磨。
+- 活动与桌面体验：逐步补齐基础复盘、安装更新、备份恢复和诊断导出体验。
 
 ## 8. 文档维护原则
 
@@ -180,19 +185,25 @@ docs/
 - 任何用户可见内容都必须使用中文，包括 thinking/analysis 面板中展示的推理摘要、工具调用前后的状态说明、阶段性解释和最终回答；不要把用户可见的 thinking 内容视为隐藏推理
 - 代码标识符、API 名称、文件路径、命令、包名和上游原文引用可保留原语言
 - 读取或编辑中文文档时使用 UTF-8，避免 PowerShell 或本地默认编码导致乱码
+- Windows PowerShell 查看中文文件时，先执行：
+  ```powershell
+  $OutputEncoding=[System.Text.Encoding]::UTF8
+  [Console]::OutputEncoding=[System.Text.Encoding]::UTF8
+  Get-Content -Encoding UTF8 path\to\file
+  ```
+- 不要把未指定 UTF-8 的 PowerShell 输出复制回源码或文档；中文文案改动优先使用 `apply_patch`，批量脚本必须显式指定 UTF-8。
+- `pnpm docs:check` 会同时执行文档结构检查和编码检查，拦截非法 UTF-8、典型 mojibake、Unicode replacement character 和连续问号造成的信息丢失。
 - README 只做入口，不塞太多细节
 - 同一件事只保留一个权威文档
 - 玩家文档优先讲“怎么做”
-- `project-status.md` 只写当前版本的高层能力状态
-- `roadmap.md` 只写长期方向，不写短期任务进度
-- `todo.md` 是唯一当前待办和短期进度来源
-- `bug-list.md` 只写具体可复现或待确认的用户/手测问题，不写泛泛功能规划
+- `todo.md` 是唯一当前待办、短期进度、需求和 bug 来源
+- 长期方向如确实需要保留，合并到 `docs/development.md`，不要再单独维护 `roadmap.md`
 - `work/backlog/` 保存未完成但暂不推进的设计和计划
 - `work/archive/` 保存已实现或仅作历史追溯的过程材料
 - `work/references/` 保存外部资料分析和数据源调研
 - 完成、取消或改变方向且影响当前短期待办、验收状态或优先级时，必须在同一次开发收尾时更新 `todo.md`
-- 修复或确认无效的 bug，必须在同一次开发收尾时更新或删除 `bug-list.md` 对应条目
-- `bug-list.md` 的 `Bug #数字` 必须全局唯一；需要按领域区分时，在标题中加领域前缀，不要复用编号
+- 修复、确认无效或转为长期需求的 bug，必须在同一次开发收尾时更新 `todo.md` 对应条目
+- `todo.md` 中的 `Bug #数字` 必须全局唯一；需要按领域区分时，在标题中加领域前缀，不要复用编号
 - 设计/计划文档默认不作为正式入口；需要长期保留的结论应合并进正式文档
-- 未完成或仍可能有参考价值的文档不要删除，先归类到 `docs/work/`
+- `docs/work/` 只保留仍对当前工作有直接帮助的材料，不再额外维护索引文档
 - 只有确认已合并到正式文档或明确无参考价值的材料，才可以删除

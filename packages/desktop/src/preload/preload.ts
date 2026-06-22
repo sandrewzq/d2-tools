@@ -6,7 +6,7 @@ import type { ActivityHistorySummary } from "@d2-tools/core/activities/history";
 import type { AiChatReplyResult, AiConnectionTestResult, ItemAiAdviceInput, ItemAiAdviceResult, VaultAiAdviceResult } from "@d2-tools/core/ai/chat";
 import type { VaultAnalysisResult } from "@d2-tools/core/analysis/vault";
 import type { DimWishlist } from "@d2-tools/core/analysis/wishlistImport";
-import type { VaultItemMatchInfo, WeaponRecommendation } from "@d2-tools/core/community-perks";
+import type { LocalCommunityRecommendationTable, VaultItemMatchInfo, WeaponRecommendation } from "@d2-tools/core/community-perks";
 import type { D2Config } from "@d2-tools/core/config/schema";
 import type { DailySummary } from "@d2-tools/core/daily/summary";
 import type { HealthStatus } from "@d2-tools/core/health";
@@ -130,6 +130,11 @@ contextBridge.exposeInMainWorld("d2", {
   getDimWishlist: () => ipcRenderer.invoke("wishlist:get") as Promise<DimWishlist | null>,
   saveDimWishlist: (wishlist: DimWishlist) => ipcRenderer.invoke("wishlist:save", wishlist) as Promise<DimWishlist>,
   clearDimWishlist: () => ipcRenderer.invoke("wishlist:clear") as Promise<null>,
+  getLocalCommunityRecommendations: () =>
+    ipcRenderer.invoke("community:local:get") as Promise<LocalCommunityRecommendationTable | null>,
+  saveLocalCommunityRecommendations: (table: LocalCommunityRecommendationTable) =>
+    ipcRenderer.invoke("community:local:save", table) as Promise<LocalCommunityRecommendationTable>,
+  clearLocalCommunityRecommendations: () => ipcRenderer.invoke("community:local:clear") as Promise<null>,
   getVaultTags: () => ipcRenderer.invoke("vault:tags:get") as Promise<VaultTags>,
   saveVaultTag: (input: SaveVaultTagInput) => ipcRenderer.invoke("vault:tag:save", input) as Promise<VaultTags>,
   saveVaultTagsBatch: (inputs: SaveVaultTagInput[]) =>

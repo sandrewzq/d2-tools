@@ -5,8 +5,10 @@ import { describe, expect, it } from "vitest";
 import type { DestinyManifestMetadata } from "../src/manifest/metadata.js";
 import {
   getDefinitionStatus,
+  hasRequiredDefinitionComponents,
   initializeDefinitionComponent,
   loadDefinitionComponent,
+  requiredDefinitionComponents,
   selectDefinitionComponentPath
 } from "../src/manifest/definitions.js";
 
@@ -135,6 +137,19 @@ describe("manifest definition components", () => {
     });
   });
 
+  it("defines all runtime-required definition components in one place", () => {
+    expect(requiredDefinitionComponents).toEqual([
+      "DestinyInventoryItemDefinition",
+      "DestinyPlugSetDefinition",
+      "DestinySandboxPerkDefinition",
+      "DestinyActivityDefinition",
+      "DestinyMilestoneDefinition",
+      "DestinyVendorDefinition",
+      "DestinyInventoryBucketDefinition",
+      "DestinyLoadoutNameDefinition"
+    ]);
+  });
+
   it("reuses parsed definition data from memory after the first load", async () => {
     const dataDir = mkdtempSync(join(tmpdir(), "d2-tools-definitions-"));
 
@@ -159,5 +174,24 @@ describe("manifest definition components", () => {
     const secondLoad = loadDefinitionComponent(dataDir, "DestinyInventoryItemDefinition");
 
     expect(firstLoad).toBe(secondLoad);
+  });
+
+  it("does not treat partial definition caches as fully initialized", async () => {
+    const dataDir = mkdtempSync(join(tmpdir(), "d2-tools-definitions-"));
+
+    await initializeDefinitionComponent({
+      dataDir,
+      language: "zh-chs",
+      metadata,
+      component: "DestinyInventoryItemDefinition",
+      fetchJson: async () => ({
+        "1": {
+          hash: 1,
+          displayProperties: { name: "只有物品定义" }
+        }
+      })
+    });
+
+    expect(hasRequiredDefinitionComponents(dataDir)).toBe(false);
   });
 });

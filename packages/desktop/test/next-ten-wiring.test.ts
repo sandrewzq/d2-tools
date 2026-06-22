@@ -13,6 +13,10 @@ describe("next ten feature wiring", () => {
     );
     const preload = readFileSync(join(desktopRoot, "src", "preload", "preload.ts"), "utf8");
     const ipc = readFileSync(join(desktopRoot, "src", "main", "ipc.ts"), "utf8");
+    const libraryIpc = readFileSync(join(desktopRoot, "src", "main", "ipc", "library.ts"), "utf8");
+    const actionsIpc = readFileSync(join(desktopRoot, "src", "main", "ipc", "actions.ts"), "utf8");
+    const diagnosticsIpc = readFileSync(join(desktopRoot, "src", "main", "ipc", "diagnostics.ts"), "utf8");
+    const loadoutIpc = readFileSync(join(desktopRoot, "src", "main", "ipc", "loadouts.ts"), "utf8");
 
     expect(apiClient).toContain("searchPerks(query: string)");
     expect(apiClient).toContain("getItemAliases()");
@@ -28,11 +32,15 @@ describe("next ten feature wiring", () => {
     expect(preload).toContain('ipcRenderer.invoke("actions:plan:item"');
     expect(preload).toContain('ipcRenderer.invoke("diagnostics:export"');
 
-    expect(ipc).toContain('ipcMain.handle("items:perks:search"');
-    expect(ipc).toContain('ipcMain.handle("aliases:get"');
-    expect(ipc).toContain('ipcMain.handle("library:history:get"');
-    expect(ipc).toContain('ipcMain.handle("loadouts:create"');
-    expect(ipc).toContain('ipcMain.handle("actions:plan:item"');
-    expect(ipc).toContain('ipcMain.handle("diagnostics:export"');
+    expect(ipc).toContain("registerLibraryIpcHandlers()");
+    expect(libraryIpc).toContain('ipcMain.handle("items:perks:search"');
+    expect(libraryIpc).toContain('ipcMain.handle("aliases:get"');
+    expect(libraryIpc).toContain('ipcMain.handle("library:history:get"');
+    expect(ipc).toContain("registerLoadoutIpcHandlers()");
+    expect(loadoutIpc).toContain('ipcMain.handle("loadouts:create"');
+    expect(ipc).toContain("registerActionIpcHandlers()");
+    expect(actionsIpc).toContain('ipcMain.handle("actions:plan:item"');
+    expect(ipc).toContain("registerDiagnosticsIpcHandlers()");
+    expect(diagnosticsIpc).toContain('ipcMain.handle("diagnostics:export"');
   });
 });

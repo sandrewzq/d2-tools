@@ -93,7 +93,7 @@ describe("AI settings panel helpers", () => {
       "utf8"
     );
     const preload = readFileSync(join(desktopRoot, "src", "preload", "preload.ts"), "utf8");
-    const ipc = readFileSync(join(desktopRoot, "src", "main", "ipc.ts"), "utf8");
+    const analysisIpc = readFileSync(join(desktopRoot, "src", "main", "ipc", "analysis.ts"), "utf8");
 
     expect(panel).toContain("保存并测试连接");
     expect(panel).toContain("OpenAI Responses API（推荐）");
@@ -103,7 +103,7 @@ describe("AI settings panel helpers", () => {
     expect(panel).toContain("api.testAiConnection()");
     expect(apiClient).toContain("testAiConnection(): Promise<AiConnectionTestResult>");
     expect(preload).toContain('ipcRenderer.invoke("ai:test")');
-    expect(ipc).toContain('ipcMain.handle("ai:test"');
+    expect(analysisIpc).toContain('ipcMain.handle("ai:test"');
   });
 
   it("mounts AI settings in the settings page and sends unconfigured users there", () => {
@@ -111,11 +111,24 @@ describe("AI settings panel helpers", () => {
       join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"),
       "utf8"
     );
+    const settingsPage = readFileSync(
+      join(desktopRoot, "src", "renderer", "features", "settings", "SettingsPage.tsx"),
+      "utf8"
+    );
+    const aiPage = readFileSync(
+      join(desktopRoot, "src", "renderer", "features", "ai", "AiPage.tsx"),
+      "utf8"
+    );
 
     expect(homePage).toContain('onConfigureAi={() => setActivePage("settings")}');
-    expect(homePage).toContain("activePage === \"settings\"");
+    expect(homePage).toContain("<SettingsPage");
+    expect(homePage).not.toContain("<AiSettingsPanel");
+    expect(homePage).not.toContain("查看或修改 Bungie 配置、写操作开关和本地日志。");
+    expect(settingsPage).toContain("export function SettingsPage");
+    expect(settingsPage).toContain("<AiSettingsPanel");
+    expect(settingsPage).toContain("查看或修改 Bungie 配置、写操作开关和本地日志。");
     expect(homePage).toContain("activePage === \"ai\"");
-    expect(homePage).toContain("!isAiConfigured");
-    expect(homePage).toContain('setActivePage("settings")');
+    expect(aiPage).toContain("!props.isConfigured");
+    expect(aiPage).toContain("props.onConfigureAi");
   });
 });

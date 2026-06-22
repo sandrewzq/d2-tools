@@ -7,6 +7,7 @@ export type DefinitionComponentName =
   | "DestinyPlugSetDefinition"
   | "DestinySandboxPerkDefinition"
   | "DestinyActivityDefinition"
+  | "DestinyMilestoneDefinition"
   | "DestinyVendorDefinition"
   | "DestinyInventoryBucketDefinition"
   | "DestinyLoadoutNameDefinition";
@@ -78,6 +79,16 @@ type DefinitionComponentCache = {
 
 const bungieStaticBaseUrl = "https://www.bungie.net";
 const definitionMemoryCache = new Map<string, DefinitionComponentCache>();
+export const requiredDefinitionComponents: DefinitionComponentName[] = [
+  "DestinyInventoryItemDefinition",
+  "DestinyPlugSetDefinition",
+  "DestinySandboxPerkDefinition",
+  "DestinyActivityDefinition",
+  "DestinyMilestoneDefinition",
+  "DestinyVendorDefinition",
+  "DestinyInventoryBucketDefinition",
+  "DestinyLoadoutNameDefinition"
+];
 
 export function selectDefinitionComponentPath(
   metadata: DestinyManifestMetadata,
@@ -151,6 +162,12 @@ export function getDefinitionStatus(
 ): DefinitionComponentStatus {
   const cache = loadDefinitionComponentCache(dataDir, component);
   return cache ? statusFromCache(cache) : { initialized: false };
+}
+
+export function hasRequiredDefinitionComponents(dataDir: string): boolean {
+  return requiredDefinitionComponents.every((component) =>
+    getDefinitionStatus(dataDir, component).initialized
+  );
 }
 
 function loadDefinitionComponentCache(

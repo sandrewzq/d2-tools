@@ -138,12 +138,18 @@ describe("library filters", () => {
 
   it("renders dedicated tabs and mode-specific filter copy in the library page", () => {
     const homePage = readFileSync("packages/desktop/src/renderer/pages/HomePage.tsx", "utf8");
+    const libraryPage = readFileSync("packages/desktop/src/renderer/features/library/LibraryPage.tsx", "utf8");
 
-    expect(homePage).toContain("libraryViewMode");
-    expect(homePage).toContain('value="equipment"');
-    expect(homePage).toContain('value="perks"');
-    expect(homePage).toContain("relatedGroup");
-    expect(homePage).toContain("libraryEquipmentFilter.frame");
-    expect(homePage).not.toContain("hasPerks");
+    expect(homePage).toContain("<LibraryPage");
+    expect(homePage).not.toContain("function renderSearchPanel");
+    expect(libraryPage).toContain("export function LibraryPage");
+    expect(libraryPage).toContain("libraryViewMode");
+    expect(libraryPage).toContain('value="equipment"');
+    expect(libraryPage).toContain('value="perks"');
+    expect(libraryPage).toContain("relatedGroup");
+    expect(libraryPage).toContain("libraryEquipmentFilter.frame");
+    expect(libraryPage).not.toContain("hasPerks");
+    expect(libraryPage).toContain("formatCommunityPerkPreview");
+    expect(libraryPage).toContain("libraryCommunityMatch.get(item.hash)?.available");
   });
 });

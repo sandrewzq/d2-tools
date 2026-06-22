@@ -1,6 +1,6 @@
 {
   "name": "@d2-tools/core",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "private": true,
   "type": "module",
   "main": "dist/index.js",
@@ -9,10 +9,6 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
-    },
-    "./analysis/scoring": {
-      "types": "./dist/analysis/scoring.d.ts",
-      "import": "./dist/analysis/scoring.js"
     },
     "./analysis/duplicates": {
       "types": "./dist/analysis/duplicates.d.ts",
@@ -169,6 +165,10 @@
     "./community-perks": {
       "types": "./dist/community-perks/index.d.ts",
       "import": "./dist/community-perks/index.js"
+    },
+    "./community-perks/localCommunityImport": {
+      "types": "./dist/community-perks/localCommunityImport.d.ts",
+      "import": "./dist/community-perks/localCommunityImport.js"
     }
   },
   "scripts": {

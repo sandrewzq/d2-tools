@@ -56,6 +56,106 @@ describe("daily live data mapping", () => {
     expect(liveData.weekly_report[0].subtitle).toContain("非完整掉落地图");
   });
 
+  it("reads nested public vendor saleItems and formats readable item details", () => {
+    const liveData = buildDailyLiveDataFromBungie({
+      publicVendors: {
+        vendors: {
+          data: {
+            "2190858386": { vendorHash: 2190858386 }
+          }
+        },
+        sales: {
+          data: {
+            "2190858386": {
+              saleItems: {
+                "14": { itemHash: 3883286571 }
+              }
+            }
+          }
+        }
+      },
+      definitions: {
+        vendors: {
+          "2190858386": { displayProperties: { name: "老九" } }
+        },
+        items: {
+          "3883286571": {
+            displayProperties: { name: "守誓者" },
+            itemTypeDisplayName: "臂铠",
+            inventory: { tierTypeName: "异域" }
+          }
+        }
+      }
+    });
+
+    expect(liveData.vendors).toHaveLength(1);
+    expect(liveData.vendors[0].description).toContain("守誓者（臂铠，异域）");
+    expect(liveData.vendors[0].description).not.toContain("库存名称暂不可读");
+  });
+
+  it("includes confirmed vendor sale costs when Bungie returns currency items", () => {
+    const liveData = buildDailyLiveDataFromBungie({
+      publicVendors: {
+        vendors: {
+          data: {
+            "2190858386": { vendorHash: 2190858386 }
+          }
+        },
+        sales: {
+          data: {
+            "2190858386": {
+              saleItems: {
+                "14": {
+                  itemHash: 3883286571,
+                  costs: [{ itemHash: 3702027555, quantity: 23 }]
+                }
+              }
+            }
+          }
+        }
+      },
+      definitions: {
+        vendors: {
+          "2190858386": { displayProperties: { name: "老九" } }
+        },
+        items: {
+          "3883286571": {
+            displayProperties: { name: "守誓者" },
+            itemTypeDisplayName: "臂铠",
+            inventory: { tierTypeName: "异域" }
+          },
+          "3702027555": {
+            displayProperties: { name: "奇异硬币" }
+          }
+        }
+      }
+    });
+
+    expect(liveData.vendors[0].description).toContain("守誓者（臂铠，异域；23 奇异硬币）");
+  });
+
+  it("uses milestone definitions when public milestone payload omits display names", () => {
+    const liveData = buildDailyLiveDataFromBungie({
+      milestones: {
+        "292102995": {
+          activities: [{ activityHash: 100 }]
+        }
+      },
+      definitions: {
+        milestones: {
+          "292102995": { displayProperties: { name: "国王的陨落", description: "国王万岁" } }
+        },
+        activities: {
+          "100": { displayProperties: { name: "国王的陨落: 标准" } }
+        }
+      }
+    });
+
+    expect(liveData.rotations.map((item) => item.title)).toContain("国王的陨落: 标准");
+    expect(liveData.weekly_report.map((item) => item.title)).toContain("Bungie 公共里程碑：国王的陨落");
+    expect(liveData.weekly_report[0].description).toBe("国王万岁");
+  });
+
   it("does not expose raw Bungie milestone or vendor hashes to players", () => {
     const liveData = buildDailyLiveDataFromBungie({
       milestones: {

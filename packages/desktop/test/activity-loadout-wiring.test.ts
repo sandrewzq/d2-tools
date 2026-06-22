@@ -11,14 +11,21 @@ describe("activity and loadout planning wiring", () => {
     const apiClient = readFileSync(join(desktopRoot, "src", "renderer", "api", "client.ts"), "utf8");
     const preload = readFileSync(join(desktopRoot, "src", "preload", "preload.ts"), "utf8");
     const ipc = readFileSync(join(desktopRoot, "src", "main", "ipc.ts"), "utf8");
+    const activitiesIpc = readFileSync(join(desktopRoot, "src", "main", "ipc", "activities.ts"), "utf8");
+    const loadoutIpc = readFileSync(join(desktopRoot, "src", "main", "ipc", "loadouts.ts"), "utf8");
+    const accountHook = readFileSync(join(desktopRoot, "src", "renderer", "features", "account", "useAccountWorkspace.ts"), "utf8");
+    const loadoutsPage = readFileSync(join(desktopRoot, "src", "renderer", "features", "loadouts", "LoadoutsPage.tsx"), "utf8");
 
     expect(apiClient).toContain("getActivitySummary");
     expect(apiClient).toContain("createLoadoutTemplateTransferPlan");
     expect(preload).toContain('ipcRenderer.invoke("activities:summary"');
     expect(preload).toContain('ipcRenderer.invoke("loadouts:transfer-plan"');
-    expect(ipc).toContain('ipcMain.handle("activities:summary"');
-    expect(ipc).toContain('ipcMain.handle("loadouts:transfer-plan"');
-    expect(homePage).toContain("最近活动");
-    expect(homePage).toContain("生成转移计划");
+    expect(ipc).toContain("registerActivitiesIpcHandlers()");
+    expect(activitiesIpc).toContain('ipcMain.handle("activities:summary"');
+    expect(ipc).toContain("registerLoadoutIpcHandlers()");
+    expect(loadoutIpc).toContain('ipcMain.handle("loadouts:transfer-plan"');
+    expect(homePage).toContain("activitySummary");
+    expect(accountHook).toContain("最近活动");
+    expect(loadoutsPage).toContain("生成转移计划");
   });
 });

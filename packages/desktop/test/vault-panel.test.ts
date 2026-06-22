@@ -11,9 +11,7 @@ import {
   countWishlistMatches,
   buildVaultSections,
   filterVaultItems,
-  type VaultScoreRangeFilter,
   getVaultItemKey,
-  scoreVaultItemForDisplay,
   selectDuplicateGroupItems,
   selectMarkedCleanupItems,
   selectVaultBatchItems,
@@ -103,7 +101,6 @@ describe("vault panel helpers", () => {
     const source = readFileSync("packages/desktop/src/renderer/components/VaultPanel.tsx", "utf8");
 
     expect(source).toContain("清空筛选");
-    expect(source).toContain("scoreRangeFilter");
     expect(source).toContain("frameFilters");
     expect(source).toContain("自然搜索名称、类型、perk 或备注");
     expect(source).not.toContain("tag:junk");
@@ -252,32 +249,66 @@ describe("vault panel helpers", () => {
       .toEqual(["Helmet A"]);
   });
 
-  it("filters vault items by score recommendation", () => {
-    const tags: VaultTags = {
-      items: {
-        a: { tag: "keep" },
-        c: { tag: "junk" }
+  it("filters and sorts armor by confirmed stat values", () => {
+    const armorItems: AccountItemSummary[] = [
+      {
+        ...items[3],
+        instance_id: "helmet-high-resilience",
+        name: "Helmet High Resilience",
+        armor_stats: {
+          mobility: 2,
+          resilience: 26,
+          recovery: 16,
+          discipline: 12,
+          intellect: 4,
+          strength: 8,
+          total: 68
+        }
+      },
+      {
+        ...items[3],
+        instance_id: "helmet-high-recovery",
+        name: "Helmet High Recovery",
+        armor_stats: {
+          mobility: 8,
+          resilience: 12,
+          recovery: 28,
+          discipline: 10,
+          intellect: 6,
+          strength: 4,
+          total: 68
+        }
+      },
+      {
+        ...items[3],
+        instance_id: "helmet-low",
+        name: "Helmet Low",
+        armor_stats: {
+          mobility: 4,
+          resilience: 10,
+          recovery: 8,
+          discipline: 6,
+          intellect: 6,
+          strength: 4,
+          total: 38
+        }
       }
-    };
+    ];
 
-    expect(filterVaultItems(items, { group: "all", query: "", score: "keep", tags }).map((item) => item.name))
-      .toEqual(["Riskrunner", "Beloved", "Thunderlord"]);
-    expect(filterVaultItems(items, { group: "all", query: "", score: "junk", tags }).map((item) => item.name))
-      .toEqual(["Vehicle A"]);
-  });
-
-  it("filters vault items by score range dropdown", () => {
-    const tags: VaultTags = {
-      items: {
-        a: { tag: "keep" },
-        c: { tag: "junk" }
-      }
-    };
-
-    expect(filterVaultItems(items, { group: "all", query: "", scoreRange: "80-100" as VaultScoreRangeFilter, tags }).map((item) => item.name))
-      .toEqual(["Riskrunner", "Thunderlord"]);
-    expect(filterVaultItems(items, { group: "all", query: "", scoreRange: "0-39" as VaultScoreRangeFilter, tags }).map((item) => item.name))
-      .toEqual(["Vehicle A"]);
+    expect(filterVaultItems(armorItems, {
+      group: "armor",
+      query: "",
+      armorStat: "resilience",
+      armorStatMin: 20
+    }).map((item) => item.name)).toEqual(["Helmet High Resilience"]);
+    expect(filterVaultItems(armorItems, {
+      group: "armor",
+      query: "韧性>=20"
+    }).map((item) => item.name)).toEqual(["Helmet High Resilience"]);
+    expect(sortVaultItems(armorItems, "armor-total").map((item) => item.name))
+      .toEqual(["Helmet High Recovery", "Helmet High Resilience", "Helmet Low"]);
+    expect(sortVaultItems(armorItems, "resilience").map((item) => item.name))
+      .toEqual(["Helmet High Resilience", "Helmet High Recovery", "Helmet Low"]);
   });
 
   it("filters vault items by lock state", () => {
@@ -301,10 +332,6 @@ describe("vault panel helpers", () => {
       .toEqual(["Riskrunner", "Beloved", "Thunderlord"]);
     expect(filterVaultItems(items, { group: "all", query: "locked:false", tags }).map((item) => item.name))
       .toEqual(["Helmet A"]);
-    expect(filterVaultItems(items, { group: "all", query: "type:weapon score>=75", tags }).map((item) => item.name))
-      .toEqual(["Riskrunner", "Beloved", "Thunderlord"]);
-    expect(filterVaultItems(items, { group: "all", query: "score<=34", tags }).map((item) => item.name))
-      .toEqual(["Vehicle A"]);
     expect(filterVaultItems(items, { group: "all", query: "tag:junk vehicle", tags }).map((item) => item.name))
       .toEqual(["Vehicle A"]);
   });
@@ -333,29 +360,15 @@ describe("vault panel helpers", () => {
     ]);
   });
 
-  it("sorts vault items by name, group, tier, score, and power", () => {
+  it("sorts vault items by name, group, tier, and power", () => {
     expect(sortVaultItems(items, "name").map((item) => item.name))
       .toEqual(["Beloved", "Helmet A", "Riskrunner", "Thunderlord", "Vehicle A"]);
     expect(sortVaultItems(items, "group").map((item) => item.name))
       .toEqual(["Beloved", "Riskrunner", "Thunderlord", "Helmet A", "Vehicle A"]);
     expect(sortVaultItems(items, "tier").map((item) => item.name))
       .toEqual(["Riskrunner", "Thunderlord", "Vehicle A", "Beloved", "Helmet A"]);
-    expect(sortVaultItems(items, "score", {
-      items: {
-        c: { tag: "junk" },
-        a: { tag: "keep" }
-      }
-    }).map((item) => item.name)).toEqual(["Riskrunner", "Thunderlord", "Beloved", "Helmet A", "Vehicle A"]);
     expect(sortVaultItems(items, "power").map((item) => item.name))
       .toEqual(["Helmet A", "Beloved", "Thunderlord", "Riskrunner", "Vehicle A"]);
-  });
-
-  it("builds display scoring data from the shared local scoring rules", () => {
-    const score = scoreVaultItemForDisplay(items[0], { items: { a: { tag: "keep" } } });
-
-    expect(score.grade).toBe("keep");
-    expect(score.label).toBe("建议保留");
-    expect(score.reasons).toContain("本地标记为保留");
   });
 
   it("selects batch candidates from visible vault items", () => {
@@ -363,7 +376,8 @@ describe("vault panel helpers", () => {
       items: {
         a: { tag: "keep" },
         b: { note: "keep one high-stat helmet for stasis" },
-        c: { tag: "junk" }
+        c: { tag: "junk" },
+        d: { tag: "review" }
       }
     };
 
@@ -372,9 +386,9 @@ describe("vault panel helpers", () => {
     expect(selectVaultBatchItems(items, "junk", tags).map((item) => item.name))
       .toEqual(["Vehicle A"]);
     expect(selectVaultBatchItems(items, "review", tags).map((item) => item.name))
-      .toEqual(["Helmet A"]);
+      .toEqual(["Beloved"]);
     expect(selectVaultBatchItems(items, "untagged", tags).map((item) => item.name))
-      .toEqual(["Beloved", "Thunderlord", "Helmet A"]);
+      .toEqual(["Thunderlord", "Helmet A"]);
     expect(selectVaultBatchItems(items, "noted", tags).map((item) => item.name))
       .toEqual(["Helmet A"]);
   });
@@ -392,7 +406,7 @@ describe("vault panel helpers", () => {
       .toEqual(["Helmet A"]);
   });
 
-  it("builds a readable cleanup checklist from scored items", () => {
+  it("builds a readable cleanup checklist from marked items", () => {
     const text = buildVaultCleanupText([items[4]], {
       items: {
         c: { tag: "junk", note: "clean duplicate vehicle" }
@@ -402,8 +416,6 @@ describe("vault panel helpers", () => {
     expect(text).toContain("d2-tools 仓库清理清单");
     expect(text).toContain("Vehicle A");
     expect(text).toContain("clean duplicate vehicle");
-    expect(text).toContain("可清理");
-    expect(text).toContain("本地标记为可清理");
   });
 
   it("builds in-game locator details for cleanup candidates with duplicate names", () => {
@@ -548,28 +560,88 @@ describe("vault panel helpers", () => {
     expect(source).toContain("wishlist-hit-badge");
     expect(source).toContain("DIM 愿望单");
     expect(source).toContain("wishlistSummaryCount");
+    expect(source).toContain("formatCommunityPerkPreview");
+    expect(source).toContain("sample_perks");
   });
 
   it("uses top-level vault content tabs so weapons and armor are split into easier views", () => {
     const source = readFileSync("packages/desktop/src/renderer/components/VaultPanel.tsx", "utf8");
+    const filters = readFileSync("packages/desktop/src/renderer/features/vault/vaultFilters.ts", "utf8");
 
-    expect(source).toContain("defaultVaultGroupTab");
-    expect(source).toContain('const defaultVaultGroupTab: VaultGroupFilter = "weapons"');
+    expect(filters).toContain("defaultVaultGroupTab");
+    expect(filters).toContain('export const defaultVaultGroupTab: VaultGroupFilter = "weapons"');
     expect(source).toContain("vault-content-tabs");
     expect(source).toContain("vault-content-tab");
     expect(source).toContain("aria-label=\"仓库内容标签\"");
     expect(source).toContain("setGroup(defaultVaultGroupTab)");
   });
+  it("keeps vault filtering and sorting helpers in the vault feature module", () => {
+    const source = readFileSync("packages/desktop/src/renderer/components/VaultPanel.tsx", "utf8");
+    const filters = readFileSync("packages/desktop/src/renderer/features/vault/vaultFilters.ts", "utf8");
+
+    expect(filters).toContain("export function filterVaultItems");
+    expect(filters).toContain("export function sortVaultItems");
+    expect(filters).toContain("export function buildVaultGroups");
+    expect(filters).toContain("export function buildVaultSections");
+    expect(source).toContain("../features/vault/vaultFilters");
+    expect(source).not.toContain("export function filterVaultItems(");
+    expect(source).not.toContain("export function sortVaultItems(");
+  });
+  it("keeps vault cleanup and duplicate planning helpers in the vault feature module", () => {
+    const source = readFileSync("packages/desktop/src/renderer/components/VaultPanel.tsx", "utf8");
+    const cleanup = readFileSync("packages/desktop/src/renderer/features/vault/vaultCleanup.ts", "utf8");
+
+    expect(cleanup).toContain("export function buildVaultCleanupText");
+    expect(cleanup).toContain("export function buildVaultCleanupLocatorText");
+    expect(cleanup).toContain("export function buildVaultDuplicateSummary");
+    expect(cleanup).toContain("export function buildDuplicateGroupBatchTagPlan");
+    expect(cleanup).toContain("export function selectDuplicateGroupItems");
+    expect(source).toContain("../features/vault/vaultCleanup");
+    expect(source).not.toContain("export function buildVaultCleanupText(");
+    expect(source).not.toContain("export function buildDuplicateGroupBatchTagPlan(");
+  });
   it("shows a bulk move entry for selected visible vault results", () => {
     const source = readFileSync("packages/desktop/src/renderer/components/VaultPanel.tsx", "utf8");
+    const hook = readFileSync("packages/desktop/src/renderer/features/vault/useVaultBatchActions.ts", "utf8");
 
-    expect(source).toContain("批量移动");
+    expect(source + hook).toContain("批量移动");
     expect(source).toContain("currentCharacterId");
     expect(source).toContain("runSelectedBulkMove");
     expect(source).toContain("全选当前结果");
     expect(source).toContain("追加当前结果");
     expect(source).toContain("移除当前结果");
     expect(source).toContain("buildVaultSelectionSummary");
+  });
+  it("keeps vault selection helpers in the vault feature module", () => {
+    const source = readFileSync("packages/desktop/src/renderer/components/VaultPanel.tsx", "utf8");
+    const selection = readFileSync("packages/desktop/src/renderer/features/vault/vaultSelection.ts", "utf8");
+
+    expect(selection).toContain("export function getVaultItemKey");
+    expect(selection).toContain("export function selectVaultBatchItems");
+    expect(selection).toContain("export function applyVisibleVaultSelection");
+    expect(selection).toContain("export function buildVaultSelectionSummary");
+    expect(source).toContain("../features/vault/vaultSelection");
+    expect(source).not.toContain("export function selectVaultBatchItems(");
+    expect(source).not.toContain("export function applyVisibleVaultSelection(");
+    expect(source).not.toContain("export function buildVaultSelectionSummary(");
+  });
+  it("keeps vault batch action state and write orchestration in the vault feature hook", () => {
+    const source = readFileSync("packages/desktop/src/renderer/components/VaultPanel.tsx", "utf8");
+    const hook = readFileSync("packages/desktop/src/renderer/features/vault/useVaultBatchActions.ts", "utf8");
+
+    expect(hook).toContain("export function useVaultBatchActions");
+    expect(hook).toContain("applyBatchTag");
+    expect(hook).toContain("runSelectedBulkMove");
+    expect(hook).toContain("copyCleanupList");
+    expect(hook).toContain("runCleanupAction");
+    expect(hook).toContain("applyDuplicateGroupTags");
+    expect(hook).toContain("mergeSelectedKeys");
+    expect(source).toContain("useVaultBatchActions");
+    expect(source).not.toContain("async function applyBatchTag");
+    expect(source).not.toContain("async function runSelectedBulkMove");
+    expect(source).not.toContain("async function copyCleanupList");
+    expect(source).not.toContain("async function runCleanupAction");
+    expect(source).not.toContain("async function applyDuplicateGroupTags");
   });
   it("shows local loadout highlights inside the vault list", () => {
     const source = readFileSync("packages/desktop/src/renderer/components/VaultPanel.tsx", "utf8");

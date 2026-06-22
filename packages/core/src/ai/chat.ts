@@ -1,5 +1,4 @@
 import { analyzeVault, type VaultAnalysisResult } from "../analysis/vault.js";
-import { scoreVaultItem, type ScorableVaultItem, type VaultItemScore } from "../analysis/scoring.js";
 import type { AccountItemSummary } from "../account/summary.js";
 import type { AccountSummary } from "../account/summary.js";
 import type { ActivityHistorySummary } from "../activities/history.js";
@@ -27,7 +26,7 @@ export type VaultAiAdviceResult = {
 
 export type ItemAiAdviceInput = {
   config: D2Config;
-  item: ScorableVaultItem & {
+  item: AccountItemSummary & {
     bucket_name?: string;
     item_type?: string;
     description?: string;
@@ -38,7 +37,6 @@ export type ItemAiAdviceInput = {
 };
 
 export type ItemAiAdviceResult = {
-  score: VaultItemScore;
   ai: {
     provider: string;
     model: string;
@@ -181,12 +179,10 @@ export async function generateVaultAiAdvice(input: VaultAiAdviceInput): Promise<
 }
 
 export async function generateItemAiAdvice(input: ItemAiAdviceInput): Promise<ItemAiAdviceResult> {
-  const score = scoreVaultItem(input.item, input.tags);
   const settings = normalizeAiConfig(input.config.ai);
 
   if (!settings.provider) {
     return {
-      score,
       ai: null,
       skipped_reason: "AI 未启用。"
     };
@@ -206,14 +202,14 @@ export async function generateItemAiAdvice(input: ItemAiAdviceInput): Promise<It
         role: "system",
         content: [
           "你是一个命运2单件装备分析助手。",
-          "只根据用户提供的装备信息、实际 roll、本地评分和本地标签给建议。",
+          "只根据用户提供的装备信息、实际 roll、本地标签给建议。",
           "不要编造未提供的 perk、来源或外部数据库结论。",
           "输出中文，固定分为：事实、分析、建议、操作提醒。"
         ].join("\n")
       },
       {
         role: "user",
-        content: buildItemPrompt(input.item, score)
+        content: buildItemPrompt(input.item)
       }
     ],
     temperature: 0.2,
@@ -221,7 +217,6 @@ export async function generateItemAiAdvice(input: ItemAiAdviceInput): Promise<It
   });
 
   return {
-    score,
     ai: {
       provider: settings.provider,
       model: settings.model,
@@ -676,17 +671,11 @@ function buildVaultPrompt(local: VaultAnalysisResult): string {
     facts: local.facts,
     local_analysis: local.analysis,
     local_suggestions: local.suggestions,
-    tagged_items: local.items,
-    score_summary: local.scoring.counts,
-    score_examples: {
-      keep: local.scoring.top_keep.slice(0, 5),
-      review: local.scoring.top_review.slice(0, 5),
-      junk: local.scoring.top_junk.slice(0, 5)
-    }
+    tagged_items: local.items
   }, null, 2);
 }
 
-function buildItemPrompt(item: ItemAiAdviceInput["item"], score: VaultItemScore): string {
+function buildItemPrompt(item: ItemAiAdviceInput["item"]): string {
   return JSON.stringify({
     item: {
       name: item.name,
@@ -700,8 +689,7 @@ function buildItemPrompt(item: ItemAiAdviceInput["item"], score: VaultItemScore)
       plugs: (item.socket_plugs ?? []).map((plug) => typeof plug === "object" && plug && "name" in plug
         ? (plug as { name?: string }).name
         : undefined).filter(Boolean)
-    },
-    local_score: score
+    }
   }, null, 2);
 }
 

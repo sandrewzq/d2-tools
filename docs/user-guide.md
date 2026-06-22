@@ -134,6 +134,50 @@ Manifest 可以重复更新，不会影响你的 Bungie 配置和本地标签。
 
 最终分解仍然需要你进入游戏手动完成。
 
+### 8.3 社区推荐数据
+
+装备详情和仓库匹配可以读取三类社区推荐来源：
+
+- DIM Wishlist
+- AI light.gg 分析
+- 本地社区推荐表
+
+本地社区推荐表需要你手动导入。d2-tools 不默认内置未授权的社区表格数据。
+
+JSON 格式示例：
+
+```json
+{
+  "title": "中文社区推荐",
+  "rules": [
+    {
+      "item_hash": 123,
+      "perk_hashes": [11, 22],
+      "mode": "pve",
+      "note": "清怪组合",
+      "source_label": "本地社区表"
+    }
+  ]
+}
+```
+
+CSV 格式示例：
+
+```csv
+title:中文社区推荐
+item_hash,perk_hashes,mode,note,source_label
+123,"11,22",pve,清怪组合,本地社区表
+456,33|44,pvp,对战组合,本地社区表
+```
+
+字段说明：
+
+- `item_hash`：武器 hash。
+- `perk_hashes`：推荐 perk hash 列表，JSON 用数组，CSV 可用逗号、竖线、分号或加号分隔。
+- `mode`：`pve`、`pvp` 或 `general`。
+- `note`：这组推荐的简短说明。
+- `source_label`：详情页显示的来源名称；不填时显示“本地社区表”。
+
 ## 9. 资料库页
 
 资料库页用于查资料，不直接读取你的仓库内容。

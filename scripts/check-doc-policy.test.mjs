@@ -12,7 +12,6 @@ function createDocsRoot() {
 
   const docs = {
     "todo.md": "# 当前待办\n",
-    "bug-list.md": "# Bug 清单\n",
     "development.md": "# 开发说明\n"
   };
 
@@ -20,45 +19,43 @@ function createDocsRoot() {
     writeFileSync(join(root, "docs", name), content, "utf8");
   }
 
-  writeFileSync(join(root, "docs", "work", "README.md"), "# 工作文档索引\n", "utf8");
+  writeFileSync(join(root, "package.json"), JSON.stringify({ version: "0.0.4" }, null, 2), "utf8");
+  writeFileSync(join(root, "README.md"), "# demo\n", "utf8");
+
   return root;
 }
 
 describe("collectDocPolicyErrors", () => {
-  it("rejects duplicate Bug numbers in docs/bug-list.md", () => {
+  it("rejects deleting docs/todo.md without replacement", () => {
     const root = createDocsRoot();
-    writeFileSync(
-      join(root, "docs", "bug-list.md"),
-      [
-        "# Bug 清单",
-        "",
-        "### Bug #10: 仓库页装备分类错误",
-        "### Bug #10: 社区推荐降级提示缺失"
-      ].join("\n"),
-      "utf8"
-    );
-
-    const errors = collectDocPolicyErrors(root, []);
-
-    expect(errors).toContain("Duplicate bug id in docs/bug-list.md: Bug #10");
+    const errors = collectDocPolicyErrors(root, [["D", "docs/todo.md"]]);
+    expect(errors).toContain("Protected document must not be deleted or moved without an explicit replacement: docs/todo.md");
   });
 
-  it("rejects docs/work/README.md entries that do not exist on disk", () => {
+  it("rejects unexpected docs root files such as roadmap.md", () => {
     const root = createDocsRoot();
-    writeFileSync(
-      join(root, "docs", "work", "README.md"),
-      [
-        "# 工作文档索引",
-        "",
-        "## Archive",
-        "",
-        "- `archive/missing.md`"
-      ].join("\n"),
-      "utf8"
-    );
+    writeFileSync(join(root, "docs", "roadmap.md"), "# 路线图\n", "utf8");
 
     const errors = collectDocPolicyErrors(root, []);
 
-    expect(errors).toContain("docs/work/README.md lists missing work document: archive/missing.md");
+    expect(errors).toContain("Unexpected docs root file: docs/roadmap.md. Move work material under docs/work/.");
+  });
+
+  it("accepts docs/work files without a README index", () => {
+    const root = createDocsRoot();
+    writeFileSync(join(root, "docs", "work", "references", "sample.md"), "# 参考\n", "utf8");
+
+    const errors = collectDocPolicyErrors(root, []);
+
+    expect(errors).toEqual([]);
+  });
+
+  it("rejects hardcoded current package version in README", () => {
+    const root = createDocsRoot();
+    writeFileSync(join(root, "README.md"), "当前公开测试版本：`0.0.4`\n", "utf8");
+
+    const errors = collectDocPolicyErrors(root, []);
+
+    expect(errors).toContain("README.md must not hardcode the current package version. Link to Releases or use a version-agnostic artifact pattern instead.");
   });
 });

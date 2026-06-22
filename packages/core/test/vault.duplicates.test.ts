@@ -15,8 +15,6 @@ describe("vault duplicate analysis", () => {
     expect(result.total_duplicate_items).toBe(2);
     expect(result.groups[0].name).toBe("不朽");
     expect(result.groups[0].items.map((entry) => entry.item_key)).toEqual(["a", "b"]);
-    expect(result.groups[0].items[0].recommendation).toBe("keep");
-    expect(result.groups[0].items[1].recommendation).toBe("junk");
     expect(result.groups[0].items[0].roll_text).toBe("测距仪 / 目标锁定");
   });
 
@@ -28,6 +26,46 @@ describe("vault duplicate analysis", () => {
 
     expect(result.total_duplicate_groups).toBe(1);
     expect(result.groups[0].group_key).toBe("name:风险管理者");
+  });
+
+  it("uses armor stat text for same-name armor comparison", () => {
+    const result = analyzeDuplicateItems([
+      item({
+        instance_id: "helmet-a",
+        hash: 30,
+        name: "铁骑头盔",
+        group_key: "armor",
+        armor_stats: {
+          mobility: 2,
+          resilience: 26,
+          recovery: 16,
+          discipline: 12,
+          intellect: 4,
+          strength: 8,
+          total: 68
+        }
+      }),
+      item({
+        instance_id: "helmet-b",
+        hash: 30,
+        name: "铁骑头盔",
+        group_key: "armor",
+        armor_stats: {
+          mobility: 8,
+          resilience: 12,
+          recovery: 28,
+          discipline: 10,
+          intellect: 6,
+          strength: 4,
+          total: 68
+        }
+      })
+    ], tags({}));
+
+    expect(result.groups[0].items.map((entry) => entry.roll_text)).toEqual([
+      "总值 68 / 韧性 26 / 恢复 16 / 纪律 12",
+      "总值 68 / 韧性 12 / 恢复 28 / 纪律 10"
+    ]);
   });
 });
 

@@ -11,7 +11,7 @@ export type PerkRef = {
 export type PerkCombo = {
   perks: PerkRef[];
   popularity?: number;
-  source: "dim_wishlist" | "ai_lightgg";
+  source: "dim_wishlist" | "ai_lightgg" | "local_community";
   mode: "pve" | "pvp" | "general";
   note?: string;
 };
@@ -21,6 +21,11 @@ export type WeaponRecommendation = {
   item_name: string;
   combos: PerkCombo[];
   matched_modes: Array<"pve" | "pvp" | "general">;
+  individual_perks?: PerkRef[];
+  sample_size?: number;
+  source_label?: string;
+  ai_analysis?: string;
+  source_warnings?: string[];
   disclaimer?: string;
 };
 
@@ -43,7 +48,10 @@ export interface CommunityPerkSource {
 
 export type VaultItemMatchInfo = {
   matched: number;
+  available: number;
   modes: Array<"pve" | "pvp" | "general">;
+  sample_perks?: PerkRef[];
+  source_label?: string;
 };
 
 export type VaultItemMatchInput = {

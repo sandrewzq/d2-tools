@@ -7,14 +7,14 @@ const desktopRoot = fileURLToPath(new URL("..", import.meta.url));
 
 describe("account postmaster and loadout UI", () => {
   it("shows read-only postmaster and in-game loadout sections on the account page", () => {
-    const homePage = readFileSync(
-      join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"),
+    const accountPage = readFileSync(
+      join(desktopRoot, "src", "renderer", "features", "account", "AccountPage.tsx"),
       "utf8"
     );
 
-    expect(homePage).toContain("selectedCharacter.postmaster_items");
-    expect(homePage).toContain("selectedCharacter.loadout_slots");
-    expect(homePage).toContain("邮政官");
-    expect(homePage).toContain("游戏内配装栏");
+    expect(accountPage).toContain("selectedCharacter.postmaster_items");
+    expect(accountPage).toContain("selectedCharacter.loadout_slots");
+    expect(accountPage).toContain("邮政官");
+    expect(accountPage).toContain("游戏内配装栏");
   });
 });

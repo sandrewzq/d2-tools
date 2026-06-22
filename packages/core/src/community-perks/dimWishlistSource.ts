@@ -53,10 +53,25 @@ export function createDimWishlistSource(data_dir: string): CommunityPerkSource {
         item_name: options.item_name ?? String(item_hash),
         combos,
         matched_modes: modes,
+        individual_perks: uniquePerks(combos),
+        sample_size: matchingRules.length,
+        source_label: "DIM Wishlist",
         disclaimer: wishlist.title ? `来自 ${wishlist.title}，仅反映愿望单作者的偏好。` : "来自本地导入的 DIM Wishlist，仅反映愿望单作者的偏好。"
       };
     }
   };
+}
+
+function uniquePerks(combos: PerkCombo[]): PerkRef[] {
+  const perks = new Map<number, PerkRef>();
+  for (const combo of combos) {
+    for (const perk of combo.perks) {
+      if (!perks.has(perk.hash)) {
+        perks.set(perk.hash, perk);
+      }
+    }
+  }
+  return [...perks.values()];
 }
 
 function buildPerkRefMap(

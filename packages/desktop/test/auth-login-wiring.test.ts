@@ -21,7 +21,10 @@ describe("desktop Bungie login wiring", () => {
       "utf8"
     );
     const preload = readFileSync(join(desktopRoot, "src", "preload", "preload.ts"), "utf8");
-    const ipc = readFileSync(join(desktopRoot, "src", "main", "ipc.ts"), "utf8");
+    const authIpc = readFileSync(join(desktopRoot, "src", "main", "ipc", "auth.ts"), "utf8");
+    const accountIpc = readFileSync(join(desktopRoot, "src", "main", "ipc", "account.ts"), "utf8");
+    const startupIpc = readFileSync(join(desktopRoot, "src", "main", "ipc", "startup.ts"), "utf8");
+    const authSession = readFileSync(join(desktopRoot, "src", "main", "ipc", "authSession.ts"), "utf8");
 
     expect(homePage).toContain("loginBungie()");
     expect(homePage).toContain("loadAccountSummary()");
@@ -32,11 +35,11 @@ describe("desktop Bungie login wiring", () => {
     expect(apiClient).toContain("getAccountSummary(): Promise");
     expect(preload).toContain('ipcRenderer.invoke("auth:login")');
     expect(preload).toContain('ipcRenderer.invoke("account:summary")');
-    expect(ipc).toContain('ipcMain.handle("auth:login"');
-    expect(ipc).toContain('ipcMain.handle("account:summary"');
-    expect(ipc).toContain('ipcMain.handle("startup:get", async');
-    expect(ipc).toContain("getStartupAuthStatus(config)");
-    expect(ipc).toContain("loadFreshOAuthToken");
-    expect(ipc).toContain("refreshBungieOAuthToken");
+    expect(authIpc).toContain('ipcMain.handle("auth:login"');
+    expect(accountIpc).toContain('ipcMain.handle("account:summary"');
+    expect(startupIpc).toContain('ipcMain.handle("startup:get", async');
+    expect(startupIpc).toContain("getStartupAuthStatus(config)");
+    expect(authSession).toContain("loadFreshOAuthToken");
+    expect(authSession).toContain("refreshBungieOAuthToken");
   });
 });

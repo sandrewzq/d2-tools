@@ -11,24 +11,25 @@ describe("cleanup mode wiring", () => {
       join(desktopRoot, "src", "renderer", "components", "VaultPanel.tsx"),
       "utf8"
     );
-    const homePage = readFileSync(
-      join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"),
-      "utf8"
-    );
+    const vaultBatchHook = readFileSync(join(desktopRoot, "src", "renderer", "features", "vault", "useVaultBatchActions.ts"), "utf8");
+    const vaultPage = readFileSync(join(desktopRoot, "src", "renderer", "features", "vault", "VaultPage.tsx"), "utf8");
+    const vaultWriteHook = readFileSync(join(desktopRoot, "src", "renderer", "features", "vault", "useVaultWriteActions.ts"), "utf8");
+    const homePage = readFileSync(join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"), "utf8");
 
     expect(vaultPanel).toContain("清理模式");
     expect(vaultPanel).toContain("不会分解装备");
     expect(vaultPanel).toContain("批量解锁");
     expect(vaultPanel).toContain("转移到角色背包");
     expect(vaultPanel).toContain("selectMarkedCleanupItems");
-    expect(vaultPanel).toContain("onBatchUnlock");
-    expect(vaultPanel).toContain("onBatchTransferToCharacter");
+    expect(vaultBatchHook).toContain("onBatchUnlock");
+    expect(vaultBatchHook).toContain("onBatchTransferToCharacter");
 
-    expect(homePage).toContain("runVaultCleanupWriteAction");
-    expect(homePage).toContain("handleVaultCleanupUnlock");
-    expect(homePage).toContain("handleVaultCleanupTransfer");
-    expect(homePage).toContain("api.setItemLockState");
-    expect(homePage).toContain("api.transferItem");
-    expect(homePage).toContain("writeActionsEnabled,");
+    expect(vaultWriteHook).toContain("runVaultCleanupWriteAction");
+    expect(vaultWriteHook).toContain("handleVaultCleanupUnlock");
+    expect(vaultWriteHook).toContain("handleVaultCleanupTransfer");
+    expect(vaultWriteHook).toContain("api.setItemLockState");
+    expect(vaultWriteHook).toContain("api.batchTransferItems");
+    expect(homePage).toContain("writeActionsEnabled={diagnostics.writeActionsEnabled}");
+    expect(vaultPage).toContain("writeActionsEnabled: props.writeActionsEnabled");
   });
 });

@@ -1,12 +1,71 @@
-import { mkdtempSync } from "node:fs";
+import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { saveDimWishlist } from "../src/analysis/wishlistStore.js";
+import { saveLocalCommunityRecommendations } from "../src/community-perks/localCommunityRecommendations.js";
+import { parseLocalCommunityRecommendations } from "../src/community-perks/localCommunityImport.js";
 import {
+  CommunityPerkRecommendationService,
+  createAiLightggSource,
   createDefaultCommunityPerkService,
   createDimWishlistSource
 } from "../src/community-perks/index.js";
+import { parseLightggResponse } from "../src/community-perks/aiLightggSource.js";
+import type { CommunityPerkSource, WeaponRecommendation } from "../src/community-perks/index.js";
+import type { DefinitionComponentData } from "../src/manifest/definitions.js";
+
+const originalFetch = globalThis.fetch;
+const itemDefinitions: DefinitionComponentData = {
+  "11": {
+    hash: 11,
+    displayProperties: {
+      name: "电流激荡",
+      description: "中文 perk"
+    }
+  },
+  "22": {
+    hash: 22,
+    displayProperties: {
+      name: "快速连发",
+      description: "中文 perk"
+    }
+  },
+  "123": {
+    hash: 123,
+    displayProperties: {
+      name: "测试武器",
+      description: "test weapon"
+    },
+    sockets: {
+      socketEntries: [
+        {
+          reusablePlugItems: [{ plugItemHash: 11 }, { plugItemHash: 22 }]
+        }
+      ]
+    }
+  }
+};
+const englishItemDefinitions: DefinitionComponentData = {
+  "11": {
+    hash: 11,
+    displayProperties: {
+      name: "Voltshot",
+      description: "english perk"
+    }
+  },
+  "22": {
+    hash: 22,
+    displayProperties: {
+      name: "Rapid Hit",
+      description: "english perk"
+    }
+  }
+};
+
+afterEach(() => {
+  globalThis.fetch = originalFetch;
+});
 
 describe("community perk recommendations", () => {
   it("returns recommendations from a local DIM wishlist", async () => {
@@ -33,6 +92,34 @@ describe("community perk recommendations", () => {
     expect(result?.combos[0].note).toBe("PVE clear");
     expect(result?.matched_modes).toContain("pve");
     expect(result?.matched_modes).toContain("pvp");
+    expect(result?.source_label).toBe("DIM Wishlist");
+    expect(result?.sample_size).toBe(2);
+    expect(result?.individual_perks?.map((perk) => perk.hash)).toEqual([11, 22, 33]);
+  });
+
+  it("returns recommendations from a local community table", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "d2-tools-community-"));
+    saveLocalCommunityRecommendations(dir, {
+      title: "中文社区表",
+      rules: [
+        {
+          item_hash: 123,
+          perk_hashes: [11, 22],
+          mode: "pve",
+          note: "手动导入的清怪组合",
+          source_label: "本地社区表"
+        }
+      ]
+    });
+
+    const service = createDefaultCommunityPerkService({ data: { data_dir: dir } });
+    const result = await service.getRecommendations(123, { item_name: "Test Weapon" });
+
+    expect(result?.source_label).toBe("本地社区表");
+    expect(result?.combos[0].source).toBe("local_community");
+    expect(result?.combos[0].note).toBe("手动导入的清怪组合");
+    expect(result?.individual_perks?.map((perk) => perk.hash)).toEqual([11, 22]);
+    expect(result?.disclaimer).toContain("中文社区表");
   });
 
   it("returns null when no wishlist exists", async () => {
@@ -72,6 +159,7 @@ describe("community perk recommendations", () => {
     ]);
 
     expect(matches.get(123)?.matched).toBe(2);
+    expect(matches.get(123)?.available).toBe(2);
     expect(matches.get(123)?.modes).toContain("pve");
     expect(matches.get(123)?.modes).toContain("pvp");
 
@@ -79,6 +167,55 @@ describe("community perk recommendations", () => {
       { hash: 123, socket_plugs: [{ hash: 11 }] }
     ]);
     expect(noMatch.get(123)?.matched).toBe(0);
+    expect(noMatch.get(123)?.available).toBe(2);
+  });
+
+  it("includes english perk previews for vault and library community matches", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "d2-tools-community-"));
+    saveDimWishlist(dir, {
+      title: "Test Picks",
+      rules: [
+        { item_hash: 123, perk_hashes: [11, 22], mode: "pve", note: "" }
+      ]
+    });
+
+    const service = createDefaultCommunityPerkService({ data: { data_dir: dir } });
+    const matches = await service.matchVaultItems(
+      [{ hash: 123, socket_plugs: [{ hash: 11 }, { hash: 22 }] }, { hash: 123 }],
+      { itemDefinitions, englishItemDefinitions }
+    );
+
+    expect(matches.get(123)?.sample_perks).toEqual([
+      expect.objectContaining({ hash: 11, name: "电流激荡", englishName: "Voltshot" }),
+      expect.objectContaining({ hash: 22, name: "快速连发", englishName: "Rapid Hit" })
+    ]);
+    expect(matches.get(123)?.source_label).toBe("DIM Wishlist");
+  });
+
+  it("validates offline weapon sample fixtures through local community matching", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "d2-tools-community-"));
+    const fixture = readFileSync(new URL("fixtures/local-community-samples.json", import.meta.url), "utf8");
+    const table = parseLocalCommunityRecommendations(fixture);
+    saveLocalCommunityRecommendations(dir, table);
+
+    expect(table.rules.length).toBeGreaterThanOrEqual(2);
+    expect(new Set(table.rules.map((rule) => rule.item_hash)).size).toBeGreaterThanOrEqual(2);
+
+    const service = createDefaultCommunityPerkService({ data: { data_dir: dir } });
+    const firstRule = table.rules[0];
+    const recommendation = await service.getRecommendations(firstRule.item_hash, { item_name: "Fixture Weapon" });
+
+    expect(recommendation?.source_label).toContain("本地社区表");
+    expect(recommendation?.combos[0].source).toBe("local_community");
+    expect(recommendation?.combos[0].perks.map((perk) => perk.hash)).toEqual(firstRule.perk_hashes);
+
+    const matches = await service.matchVaultItems(table.rules.map((rule) => ({
+      hash: rule.item_hash,
+      socket_plugs: rule.perk_hashes.map((hash) => ({ hash }))
+    })));
+    for (const rule of table.rules) {
+      expect(matches.get(rule.item_hash)?.matched).toBeGreaterThanOrEqual(1);
+    }
   });
 
   it("creates a dim wishlist source that reports availability", () => {
@@ -91,4 +228,125 @@ describe("community perk recommendations", () => {
     const source = createDimWishlistSource(dir);
     expect(source.isAvailable({ data: { data_dir: dir } })).toBe(true);
   });
+
+  it("keeps a visible fallback warning when light.gg fails and another source succeeds", async () => {
+    const failingLightgg = source("AI light.gg", async () => {
+      throw new Error("light.gg 查询失败");
+    });
+    const wishlist = source("DIM Wishlist", async () => recommendation({
+      source_label: "DIM Wishlist",
+      combos: [{ perks: [{ hash: 11, name: "Voltshot" }], source: "dim_wishlist", mode: "pve" }]
+    }));
+    const service = new CommunityPerkRecommendationService({}, [failingLightgg, wishlist]);
+
+    const result = await service.getRecommendationsWithAllSources(123, { item_name: "Test Weapon" });
+
+    expect(result?.combos).toHaveLength(1);
+    expect(result?.source_warnings).toContain("AI light.gg 查询失败，已显示 DIM Wishlist 数据。");
+  });
+
+  it("keeps raw ai analysis when light.gg does not return parseable JSON", () => {
+    const result = parseLightggResponse(
+      123,
+      "Test Weapon",
+      "https://www.light.gg/db/items/123/test-weapon/",
+      "这把枪 PvE 推荐爆破专家和伏特弹药，但页面没有给出稳定结构化数据。",
+      {}
+    );
+
+    expect(result?.combos).toEqual([]);
+    expect(result?.source_label).toBe("AI · light.gg");
+    expect(result?.ai_analysis).toContain("PvE 推荐爆破专家和伏特弹药");
+  });
+
+  it("asks AI light.gg to return perk hashes in the prompt", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "d2-tools-community-"));
+    let requestBody: {
+      input?: Array<{ content?: string }>;
+    } | undefined;
+    globalThis.fetch = async (_url, init) => {
+      requestBody = JSON.parse(String(init?.body));
+      return new Response(JSON.stringify({
+        output_text: JSON.stringify({
+          combos: [],
+          analysis: "页面没有足够稳定的结构化推荐。",
+          disclaimer: ""
+        })
+      }), {
+        status: 200,
+        headers: { "content-type": "application/json" }
+      });
+    };
+
+    const source = createAiLightggSource({
+      data: { data_dir: dir },
+      ai: {
+        provider: "openai_responses",
+        api_key: "test-key",
+        model: "gpt-test",
+        base_url: "https://example.test/v1",
+        enable_lightgg: true
+      }
+    });
+
+    await source.getRecommendations(123, { item_name: "Test Weapon" });
+
+    const query = requestBody?.input?.[0]?.content ?? "";
+    expect(query).toContain('"hash": 123456');
+    expect(query).toContain("perk hash");
+  });
+
+  it("stores the raw AI light.gg response in cache", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "d2-tools-community-"));
+    const rawResponse = JSON.stringify({
+      combos: [],
+      analysis: "保留这个原始响应，方便排查 light.gg 解析问题。",
+      disclaimer: ""
+    });
+    globalThis.fetch = async () => new Response(JSON.stringify({ output_text: rawResponse }), {
+      status: 200,
+      headers: { "content-type": "application/json" }
+    });
+
+    const source = createAiLightggSource({
+      data: { data_dir: dir },
+      ai: {
+        provider: "openai_responses",
+        api_key: "test-key",
+        model: "gpt-test",
+        base_url: "https://example.test/v1",
+        enable_lightgg: true
+      }
+    });
+
+    await source.getRecommendations(123, { item_name: "Test Weapon" });
+
+    const cacheEntry = JSON.parse(readFileSync(join(dir, "cache", "lightgg", "123.json"), "utf8")) as {
+      raw_response?: string;
+      recommendation?: WeaponRecommendation;
+    };
+    expect(cacheEntry.raw_response).toBe(rawResponse);
+    expect(cacheEntry.recommendation?.ai_analysis).toContain("保留这个原始响应");
+  });
 });
+
+function recommendation(overrides: Partial<WeaponRecommendation> = {}): WeaponRecommendation {
+  return {
+    item_hash: 123,
+    item_name: "Test Weapon",
+    combos: [],
+    matched_modes: [],
+    ...overrides
+  };
+}
+
+function source(
+  name: string,
+  getRecommendations: CommunityPerkSource["getRecommendations"]
+): CommunityPerkSource {
+  return {
+    name,
+    isAvailable: () => true,
+    getRecommendations
+  };
+}

@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-export type ShellPageKey = "home" | "account" | "vault" | "library" | "ai" | "settings";
+export type ShellPageKey = "home" | "account" | "vault" | "loadouts" | "library" | "ai" | "settings";
 
 export type ShellNavItem = {
   key: ShellPageKey;
@@ -11,6 +11,7 @@ export const navItems: ShellNavItem[] = [
   { key: "home", label: "首页" },
   { key: "account", label: "账号" },
   { key: "vault", label: "仓库" },
+  { key: "loadouts", label: "配装" },
   { key: "library", label: "资料库" },
   { key: "ai", label: "AI 助手" },
   { key: "settings", label: "设置" }

@@ -1,8 +1,5 @@
 import type { AccountItemSummary } from "../account/summary.js";
 import type { VaultTags } from "../vault/tags.js";
-import { scoreVaultItem, type VaultItemScore, type VaultScoreGrade } from "./scoring.js";
-
-export type DuplicateItemRecommendation = VaultScoreGrade;
 
 export type DuplicateItemEntry = {
   item_key: string;
@@ -11,8 +8,6 @@ export type DuplicateItemEntry = {
   instance_id?: string;
   locked?: boolean;
   tag?: string;
-  score: VaultItemScore;
-  recommendation: DuplicateItemRecommendation;
   roll_text: string;
 };
 
@@ -62,7 +57,6 @@ function buildGroup(groupKey: string, items: AccountItemSummary[], tags: VaultTa
   const entries = items
     .map((item) => {
       const key = itemKey(item);
-      const score = scoreVaultItem(item, tags);
       return {
         item_key: key,
         hash: item.hash,
@@ -70,12 +64,10 @@ function buildGroup(groupKey: string, items: AccountItemSummary[], tags: VaultTa
         instance_id: item.instance_id,
         locked: item.locked,
         tag: tags.items[key]?.tag,
-        score,
-        recommendation: recommendationFor(tags.items[key]?.tag, score.grade),
         roll_text: rollText(item)
       };
     })
-    .sort((left, right) => right.score.score - left.score.score || left.name.localeCompare(right.name, "zh-Hans-CN"));
+    .sort((left, right) => left.name.localeCompare(right.name, "zh-Hans-CN"));
 
   return {
     group_key: groupKey,
@@ -84,13 +76,6 @@ function buildGroup(groupKey: string, items: AccountItemSummary[], tags: VaultTa
     count: entries.length,
     items: entries
   };
-}
-
-function recommendationFor(tag: string | undefined, scoreGrade: VaultScoreGrade): DuplicateItemRecommendation {
-  if (tag === "keep" || tag === "review" || tag === "junk") {
-    return tag;
-  }
-  return scoreGrade;
 }
 
 function groupBy<T>(items: T[], keyFor: (item: T) => string): Map<string, T[]> {
@@ -111,6 +96,15 @@ function normalizeName(name: string): string {
 }
 
 function rollText(item: AccountItemSummary): string {
+  if (item.group_key === "armor" && item.armor_stats) {
+    return [
+      `总值 ${item.armor_stats.total}`,
+      `韧性 ${item.armor_stats.resilience}`,
+      `恢复 ${item.armor_stats.recovery}`,
+      `纪律 ${item.armor_stats.discipline}`
+    ].join(" / ");
+  }
+
   return item.socket_plugs
     .map((plug) => plug.name.trim())
     .filter(Boolean)

@@ -11,25 +11,30 @@ describe("item write actions wiring", () => {
       join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"),
       "utf8"
     );
+    const itemDetailModal = readFileSync(join(desktopRoot, "src", "renderer", "shared", "components", "ItemDetailModal.tsx"), "utf8");
+    const itemDetailHook = readFileSync(join(desktopRoot, "src", "renderer", "shared", "hooks", "useItemDetailWorkspace.ts"), "utf8");
+    const loadoutWriteHook = readFileSync(join(desktopRoot, "src", "renderer", "features", "loadouts", "useLoadoutWriteActions.ts"), "utf8");
+    const vaultWriteHook = readFileSync(join(desktopRoot, "src", "renderer", "features", "vault", "useVaultWriteActions.ts"), "utf8");
     const apiClient = readFileSync(
       join(desktopRoot, "src", "renderer", "api", "client.ts"),
       "utf8"
     );
     const preload = readFileSync(join(desktopRoot, "src", "preload", "preload.ts"), "utf8");
-    const ipc = readFileSync(join(desktopRoot, "src", "main", "ipc.ts"), "utf8");
+    const actionsIpc = readFileSync(join(desktopRoot, "src", "main", "ipc", "actions.ts"), "utf8");
 
     expect(homePage).toContain("writeActionsEnabled");
-    expect(homePage).toContain("runItemWriteAction");
-    expect(homePage).toContain("latestConfig = await api.getConfig()");
-    expect(homePage).toContain("latestConfig.features.write_actions_enabled");
-    expect(homePage).toContain("window.confirm");
-    expect(homePage).toContain("setItemLockState");
-    expect(homePage).toContain("transferItem");
-    expect(homePage).toContain("equipItem");
-    expect(homePage).toContain("pullFromPostmaster");
-    expect(homePage).toContain("equipLoadout");
-    expect(homePage).toContain("snapshotLoadout");
-    expect(homePage).toContain("loadActionLog");
+    expect(itemDetailHook).toContain("runItemWriteAction");
+    expect(itemDetailHook).toContain("latestConfig = await api.getConfig()");
+    expect(itemDetailHook).toContain("latestConfig.features.write_actions_enabled");
+    expect(itemDetailHook).toContain("window.confirm");
+    expect(itemDetailModal).toContain("setItemLockState");
+    expect(itemDetailModal).toContain("transferItem");
+    expect(itemDetailModal).toContain("equipItem");
+    expect(itemDetailModal).toContain("pullFromPostmaster");
+    expect(loadoutWriteHook).toContain("equipLoadout");
+    expect(loadoutWriteHook).toContain("snapshotLoadout");
+    expect(vaultWriteHook).toContain("api.setItemLockState");
+    expect(itemDetailHook).toContain("loadActionLog");
     expect(apiClient).toContain("setItemLockState(input: ItemLockActionInput)");
     expect(apiClient).toContain("transferItem(input: ItemTransferActionInput)");
     expect(apiClient).toContain("equipItem(input: ItemEquipActionInput)");
@@ -44,13 +49,13 @@ describe("item write actions wiring", () => {
     expect(preload).toContain('ipcRenderer.invoke("actions:loadout:equip"');
     expect(preload).toContain('ipcRenderer.invoke("actions:loadout:snapshot"');
     expect(preload).toContain('ipcRenderer.invoke("actions:log:get"');
-    expect(ipc).toContain('ipcMain.handle("actions:item:set-lock"');
-    expect(ipc).toContain('ipcMain.handle("actions:item:transfer"');
-    expect(ipc).toContain('ipcMain.handle("actions:item:equip"');
-    expect(ipc).toContain('ipcMain.handle("actions:item:pull-postmaster"');
-    expect(ipc).toContain('ipcMain.handle("actions:loadout:equip"');
-    expect(ipc).toContain('ipcMain.handle("actions:loadout:snapshot"');
-    expect(ipc).toContain("write_actions_enabled");
-    expect(ipc).toContain("appendActionLog");
+    expect(actionsIpc).toContain('ipcMain.handle("actions:item:set-lock"');
+    expect(actionsIpc).toContain('ipcMain.handle("actions:item:transfer"');
+    expect(actionsIpc).toContain('ipcMain.handle("actions:item:equip"');
+    expect(actionsIpc).toContain('ipcMain.handle("actions:item:pull-postmaster"');
+    expect(actionsIpc).toContain('ipcMain.handle("actions:loadout:equip"');
+    expect(actionsIpc).toContain('ipcMain.handle("actions:loadout:snapshot"');
+    expect(actionsIpc).toContain("write_actions_enabled");
+    expect(actionsIpc).toContain("appendActionLog");
   });
 });

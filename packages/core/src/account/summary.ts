@@ -2,6 +2,7 @@ import { fetchBungieJson } from "../bungie/client.js";
 import type { D2Config } from "../config/schema.js";
 import { ammoTypeKey, classifyBucket, type AmmoTypeKey, type EquipmentGroupKey } from "../items/classification.js";
 import { summarizeWeaponFrame, type WeaponFrameSummary } from "../items/weaponFrames.js";
+import type { ArmorStatKey } from "../loadouts/analysis.js";
 import type { DefinitionComponentData, DefinitionRecord } from "../manifest/definitions.js";
 import type { BungieOAuthToken } from "../oauth/login.js";
 
@@ -21,7 +22,12 @@ export type AccountItemSummary = {
   weapon_frame?: WeaponFrameSummary;
   power?: number;
   locked?: boolean;
+  armor_stats?: ArmorStatSummary;
   socket_plugs: AccountItemPlugSummary[];
+};
+
+export type ArmorStatSummary = Record<ArmorStatKey, number> & {
+  total: number;
 };
 
 export type AccountMaterialSummary = {
@@ -134,9 +140,12 @@ type DestinyProfileResponse = {
   profileInventory?: {
     data?: { items?: DestinyProfileItem[] };
   };
-  itemComponents?: {
+    itemComponents?: {
     instances?: {
       data?: Record<string, DestinyItemInstanceComponent>;
+    };
+    stats?: {
+      data?: Record<string, DestinyItemStatsComponent>;
     };
     sockets?: {
       data?: Record<string, DestinyItemSocketsComponent>;
@@ -163,6 +172,15 @@ type DestinyItemInstanceComponent = {
   primaryStat?: {
     value?: number;
   };
+};
+
+type DestinyItemStatsComponent = {
+  stats?: Record<string, DestinyItemStat>;
+};
+
+type DestinyItemStat = {
+  statHash?: number;
+  value?: number;
 };
 
 type DestinyItemSocketsComponent = {
@@ -192,6 +210,7 @@ const profileComponents = [
   205, // CharacterEquipment
   206, // CharacterLoadouts
   300, // ItemInstances
+  304, // ItemStats
   305 // ItemSockets
 ].join(",");
 
@@ -203,6 +222,15 @@ const equipmentGroupLabels: Record<EquipmentGroupKey, string> = {
 };
 
 const equipmentGroupOrder: EquipmentGroupKey[] = ["weapons", "armor", "equipment", "other"];
+
+const armorStatHashMap: Record<number, ArmorStatKey> = {
+  2996146975: "mobility",
+  392767087: "resilience",
+  1943323491: "recovery",
+  1735777505: "discipline",
+  144602215: "intellect",
+  4244567218: "strength"
+};
 
 export async function fetchAccountSummary(options: FetchAccountSummaryOptions): Promise<AccountSummary> {
   const accessToken = options.token.access_token;
@@ -358,12 +386,14 @@ function summarizeItem(
   const definition = definitions[String(item.itemHash)] as DefinitionRecord | undefined;
   const explicitBucketHash = item.bucketHash;
   const definitionBucketHash = definition?.inventory?.bucketTypeHash;
-  const resolvedExplicitBucket = explicitBucketHash
-    && (classifyBucket(explicitBucketHash) || bucketDefinitions[String(explicitBucketHash)]);
-  const bucketHash = resolvedExplicitBucket
+  const explicitBucketDefinition = explicitBucketHash
+    ? bucketDefinitions[String(explicitBucketHash)] as DefinitionRecord | undefined
+    : undefined;
+  const bucketHash = isPostmasterBucketDefinition(explicitBucketDefinition)
     ? explicitBucketHash
     : definitionBucketHash ?? explicitBucketHash;
   const bucket = classifyBucket(bucketHash);
+  const groupKey = bucket?.group ?? "other";
   const bucketDefinition = bucketHash ? bucketDefinitions[String(bucketHash)] as DefinitionRecord | undefined : undefined;
   const instanceId = item.itemInstanceId;
   const instance = instanceId ? components?.instances?.data?.[instanceId] : undefined;
@@ -377,17 +407,61 @@ function summarizeItem(
     tier: definition?.inventory?.tierTypeName,
     bucket_hash: bucketHash,
     bucket_name: bucket?.name ?? bucketDefinition?.displayProperties?.name?.trim(),
-    group_key: bucket?.group ?? "other",
+    group_key: groupKey,
     power: instance?.primaryStat?.value,
     locked: isLocked(item.state),
     socket_plugs: summarizeSocketPlugs(instanceId, components, definitions)
   };
+  const armorStats = groupKey === "armor" ? summarizeArmorStats(instanceId, components) : undefined;
+  if (armorStats) {
+    summary.armor_stats = armorStats;
+  }
   const weaponFrame = definition
     ? summarizeWeaponFrame(definition, definitions, { plugSetDefinitions })
     : undefined;
   if (weaponFrame) {
     summary.weapon_frame = weaponFrame;
   }
+
+  return summary;
+}
+
+function summarizeArmorStats(
+  instanceId: string | undefined,
+  components: DestinyProfileResponse["itemComponents"] | undefined
+): ArmorStatSummary | undefined {
+  if (!instanceId) {
+    return undefined;
+  }
+
+  const stats = components?.stats?.data?.[instanceId]?.stats;
+  if (!stats) {
+    return undefined;
+  }
+
+  const summary: ArmorStatSummary = {
+    mobility: 0,
+    resilience: 0,
+    recovery: 0,
+    discipline: 0,
+    intellect: 0,
+    strength: 0,
+    total: 0
+  };
+
+  for (const stat of Object.values(stats)) {
+    const key = armorStatHashMap[Number(stat.statHash)];
+    if (!key) {
+      continue;
+    }
+    summary[key] = stat.value ?? 0;
+  }
+  summary.total = summary.mobility
+    + summary.resilience
+    + summary.recovery
+    + summary.discipline
+    + summary.intellect
+    + summary.strength;
 
   return summary;
 }
@@ -436,6 +510,14 @@ function isPostmasterItem(item: AccountItemSummary, bucketDefinitions: Definitio
   }
 
   const bucketDefinition = bucketDefinitions[String(item.bucket_hash)] as DefinitionRecord | undefined;
+  const bucketName = bucketDefinition?.displayProperties?.name?.trim().toLowerCase() ?? "";
+  return bucketName.includes("postmaster")
+    || bucketName.includes("lost items")
+    || bucketName.includes("邮政")
+    || bucketName.includes("失物");
+}
+
+function isPostmasterBucketDefinition(bucketDefinition: DefinitionRecord | undefined): boolean {
   const bucketName = bucketDefinition?.displayProperties?.name?.trim().toLowerCase() ?? "";
   return bucketName.includes("postmaster")
     || bucketName.includes("lost items")

@@ -150,88 +150,93 @@ export function AiAnalysisPanel(props: {
         </div>
       </div>
 
-      <div className="ai-context-strip">
-        <span>仓库 {props.items.length} 件</span>
-        <span>角色 {props.account?.characters.length ?? 0} 个</span>
-        <span>材料 {props.account?.materials.item_count ?? 0} 种</span>
-        <span>{props.daily ? "今日信息已载入" : "今日信息未载入"}</span>
-      </div>
-
-      <div className="ai-quick-prompts">
-        {quickPrompts.map((prompt) => (
-          <button
-            type="button"
-            className="secondary-button"
-            key={prompt}
-            disabled={isSendingChat}
-            onClick={() => void sendChat(prompt)}
-          >
-            {prompt}
-          </button>
-        ))}
-      </div>
-
       {error ? <p className="error">{error}</p> : null}
-      {aiSkippedReason ? <p className="notice">{aiSkippedReason}</p> : null}
-
-      <div className="ai-chat-log" aria-live="polite">
-        {messages.length ? messages.map((message, index) => (
-          <article className={`ai-chat-message message-${message.role}`} key={`${message.role}-${index}`}>
-            <strong>{message.role === "user" ? "你" : "AI"}</strong>
-            <p>{message.text}</p>
-          </article>
-        )) : (
-          <p className="notice">可以直接问“哪些装备可以分解”“这周刷什么”“帮我整理 PVE 配装”。</p>
-        )}
-        {isSendingChat ? <p className="notice">AI 正在读取上下文并生成回答...</p> : null}
-      </div>
-
-      <form className="ai-chat-input" onSubmit={(event) => {
-        event.preventDefault();
-        void sendChat();
-      }}>
-        <textarea
-          value={question}
-          onChange={(event) => setQuestion(event.target.value)}
-          placeholder="输入你的问题，例如：帮我找出仓库里可以清理的同名装备"
-          rows={3}
-        />
-        <button type="submit" disabled={isSendingChat || !question.trim()}>
-          {isSendingChat ? "发送中..." : "发送"}
-        </button>
-      </form>
-
-      {result ? (
-        <div className="analysis-grid">
-          <AnalysisSection title="事实" lines={result.facts} />
-          <AnalysisSection title="分析" lines={result.analysis} />
-          <AnalysisSection title="建议" lines={result.suggestions} />
-          <section className="analysis-section">
-            <h3>本地评分</h3>
-            <div className="score-summary-row">
-              <span>建议保留 <strong>{result.scoring.counts.keep}</strong></span>
-              <span>建议复查 <strong>{result.scoring.counts.review}</strong></span>
-              <span>可清理 <strong>{result.scoring.counts.junk}</strong></span>
-            </div>
-            <ScoreExamples title="高分装备" items={result.scoring.top_keep} />
-            <ScoreExamples title="复查装备" items={result.scoring.top_review} />
-            <ScoreExamples title="清理候选" items={result.scoring.top_junk} />
-          </section>
-          {aiResult ? (
-            <section className="analysis-section ai-advice-section">
-              <h3>AI 深度建议</h3>
-              <p className="muted-copy">{aiResult.provider} / {aiResult.model}</p>
-              <AiSectionView sections={aiResult.sections} />
-            </section>
-          ) : null}
-          <section className="analysis-section">
-            <h3>标记清单</h3>
-            <TaggedItems title="保留" items={result.items.keep} />
-            <TaggedItems title="关注" items={result.items.review} />
-            <TaggedItems title="可清理" items={result.items.junk} />
-          </section>
-        </div>
+      {aiSkippedReason ? (
+        <section className="source-status-card source-status-warning ai-skipped-reason" aria-live="polite">
+          <span className="source-status-badge source-status-warning">AI 跳过</span>
+          <p>{aiSkippedReason}</p>
+        </section>
       ) : null}
+
+      <div className="ai-chat-workspace">
+        <div className="ai-chat-main">
+          <div className="ai-chat-log" aria-live="polite">
+            {messages.length ? messages.map((message, index) => (
+              <article className={`ai-chat-message message-${message.role}`} key={`${message.role}-${index}`}>
+                <strong>{message.role === "user" ? "你" : "AI"}</strong>
+                <p>{message.text}</p>
+              </article>
+            )) : (
+              <p className="notice">可以直接问“哪些装备可以分解”“这周刷什么”“帮我整理 PVE 配装”。</p>
+            )}
+            {isSendingChat ? <p className="notice">AI 正在读取上下文并生成回答...</p> : null}
+          </div>
+
+          <form className="ai-chat-input" onSubmit={(event) => {
+            event.preventDefault();
+            void sendChat();
+          }}>
+            <textarea
+              value={question}
+              onChange={(event) => setQuestion(event.target.value)}
+              placeholder="输入你的问题，例如：帮我找出仓库里可以清理的同名装备"
+              rows={3}
+            />
+            <button type="submit" disabled={isSendingChat || !question.trim()}>
+              {isSendingChat ? "发送中..." : "发送"}
+            </button>
+          </form>
+        </div>
+
+        <aside className="ai-chat-sidebar">
+          <div className="ai-context-strip">
+            <span>仓库 {props.items.length} 件</span>
+            <span>角色 {props.account?.characters.length ?? 0} 个</span>
+            <span>材料 {props.account?.materials.item_count ?? 0} 种</span>
+            <span>{props.daily ? "今日信息已载入" : "今日信息未载入"}</span>
+          </div>
+
+          <div className="ai-quick-prompts">
+            {quickPrompts.map((prompt) => (
+              <button
+                type="button"
+                className="secondary-button"
+                key={prompt}
+                disabled={isSendingChat}
+                onClick={() => void sendChat(prompt)}
+              >
+                {prompt}
+              </button>
+            ))}
+          </div>
+
+          {result ? (
+            <div className="analysis-grid">
+              <AnalysisSection title="事实" lines={result.facts} />
+              <AnalysisSection title="分析" lines={result.analysis} />
+              <AnalysisSection title="建议" lines={result.suggestions} />
+              {aiResult ? (
+                <section className="analysis-section ai-advice-section">
+                  <h3>AI 深度建议</h3>
+                  <p className="muted-copy">{aiResult.provider} / {aiResult.model}</p>
+                  <AiSectionView sections={aiResult.sections} />
+                </section>
+              ) : null}
+              <section className="analysis-section">
+                <h3>标记清单</h3>
+                <TaggedItems title="保留" items={result.items.keep} />
+                <TaggedItems title="关注" items={result.items.review} />
+                <TaggedItems title="可清理" items={result.items.junk} />
+              </section>
+            </div>
+          ) : (
+            <section className="analysis-section">
+              <h3>分析结果</h3>
+              <p>运行本地分析或 AI 深度建议后，这里会显示事实、建议和标记清单。</p>
+            </section>
+          )}
+        </aside>
+      </div>
     </section>
   );
 }
@@ -264,26 +269,6 @@ function AiSection(props: { title: string; items: string[] }) {
         {props.items.map((item) => <li key={item}>{item}</li>)}
       </ul>
     </section>
-  );
-}
-
-function ScoreExamples(props: { title: string; items: VaultAnalysisResult["scoring"]["top_keep"] }) {
-  if (!props.items.length) {
-    return null;
-  }
-
-  return (
-    <div className="analysis-tag-block">
-      <strong>{props.title}</strong>
-      <ul>
-        {props.items.slice(0, 4).map((item) => (
-          <li key={item.item_key}>
-            {item.name}
-            <span>{item.score} 分 / {item.reasons.slice(0, 2).join(" / ")}</span>
-          </li>
-        ))}
-      </ul>
-    </div>
   );
 }
 

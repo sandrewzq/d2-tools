@@ -24,12 +24,11 @@ describe("AI item analysis", () => {
     });
 
     expect(called).toBe(false);
-    expect(result.score.grade).toBe("keep");
     expect(result.ai).toBeNull();
     expect(result.skipped_reason).toBe("AI 未启用。");
   });
 
-  it("calls an OpenAI-compatible endpoint with item roll and local score", async () => {
+  it("calls an OpenAI-compatible endpoint with item roll", async () => {
     const requests: Array<{ url: string; init: RequestInit }> = [];
 
     const result = await generateItemAiAdvice({
@@ -54,7 +53,6 @@ describe("AI item analysis", () => {
     expect(body).toContain("Riskrunner");
     expect(body).toContain("Voltshot");
     expect(body).toContain("留给电猎清怪");
-    expect(body).toContain("local_score");
     expect(result.ai?.text).toBe("建议保留，适合电弧清怪。");
   });
 });

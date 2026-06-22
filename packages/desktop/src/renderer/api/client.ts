@@ -31,6 +31,9 @@ declare global {
       getDimWishlist(): Promise<DimWishlist | null>;
       saveDimWishlist(wishlist: DimWishlist): Promise<DimWishlist>;
       clearDimWishlist(): Promise<null>;
+      getLocalCommunityRecommendations(): Promise<LocalCommunityRecommendationTable | null>;
+      saveLocalCommunityRecommendations(table: LocalCommunityRecommendationTable): Promise<LocalCommunityRecommendationTable>;
+      clearLocalCommunityRecommendations(): Promise<null>;
       getVaultTags(): Promise<VaultTags>;
       saveVaultTag(input: SaveVaultTagInput): Promise<VaultTags>;
       saveVaultTagsBatch(inputs: SaveVaultTagInput[]): Promise<VaultTags>;
@@ -146,7 +149,14 @@ export type AccountItemSummary = {
   weapon_frame?: WeaponFrameSummary;
   power?: number;
   locked?: boolean;
+  armor_stats?: ArmorStatSummary;
   socket_plugs?: AccountItemPlugSummary[];
+};
+
+export type ArmorStatKey = "mobility" | "resilience" | "recovery" | "discipline" | "intellect" | "strength";
+
+export type ArmorStatSummary = Record<ArmorStatKey, number> & {
+  total: number;
 };
 
 export type AccountMaterialSummary = {
@@ -177,6 +187,21 @@ export type DimWishlistRule = {
 export type DimWishlist = {
   title: string;
   rules: DimWishlistRule[];
+};
+
+export type LocalCommunityMode = "pve" | "pvp" | "general";
+
+export type LocalCommunityRecommendationRule = {
+  item_hash: number;
+  perk_hashes: number[];
+  mode: LocalCommunityMode;
+  note: string;
+  source_label?: string;
+};
+
+export type LocalCommunityRecommendationTable = {
+  title: string;
+  rules: LocalCommunityRecommendationRule[];
 };
 
 export type VaultTagValue = "none" | "keep" | "review" | "junk";
@@ -218,7 +243,6 @@ export type VaultAnalysisResult = {
     review: VaultAnalysisItem[];
     junk: VaultAnalysisItem[];
   };
-  scoring: VaultScoreSummary;
 };
 
 export type VaultScoreGrade = "keep" | "review" | "junk";
@@ -230,6 +254,17 @@ export type VaultItemScore = {
   grade: VaultScoreGrade;
   reasons: string[];
   warnings: string[];
+  breakdown?: {
+    base: VaultScoreBreakdownEntry;
+    positive: VaultScoreBreakdownEntry[];
+    negative: VaultScoreBreakdownEntry[];
+    warnings: string[];
+  };
+};
+
+export type VaultScoreBreakdownEntry = {
+  label: string;
+  points: number;
 };
 
 export type VaultScoreSummary = {
@@ -259,7 +294,6 @@ export type ItemAiAdviceInput = {
 };
 
 export type ItemAiAdviceResult = {
-  score: VaultItemScore;
   ai: {
     provider: string;
     model: string;
@@ -457,6 +491,14 @@ export type ManifestStatus = {
   language?: string;
   sqlite_path?: string;
   cached_at?: string;
+  definitions?: Array<{
+    initialized: boolean;
+    component?: string;
+    language?: string;
+    cached_at?: string;
+    count?: number;
+  }>;
+  missing_required_components?: string[];
 };
 
 export type ItemSearchResult = {

@@ -39,29 +39,33 @@ function readGitNameStatus(root) {
   }
 }
 
-function collectIndexedWorkFiles(workReadme) {
-  const indexed = new Set();
-  const pattern = /`((?:archive|backlog|references)\/[^`]+\.md)`/g;
-  for (const match of workReadme.matchAll(pattern)) {
-    indexed.add(match[1]);
-  }
-  return indexed;
-}
-
 export function collectDocPolicyErrors(root, gitNameStatus = readGitNameStatus(root)) {
   const errors = [];
   const fail = (message) => errors.push(message);
 
   const requiredDocs = [
     "docs/todo.md",
-    "docs/bug-list.md",
-    "docs/development.md",
-    "docs/work/README.md"
+    "docs/development.md"
   ];
 
   for (const doc of requiredDocs) {
     if (!existsSync(join(root, doc))) {
       fail(`Required documentation file is missing: ${doc}`);
+    }
+  }
+
+  const packageJsonPath = join(root, "package.json");
+  const readmePath = join(root, "README.md");
+  if (existsSync(packageJsonPath) && existsSync(readmePath)) {
+    try {
+      const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf8"));
+      const version = typeof packageJson.version === "string" ? packageJson.version : "";
+      const readme = readFileSync(readmePath, "utf8");
+      if (version && readme.includes(version)) {
+        fail("README.md must not hardcode the current package version. Link to Releases or use a version-agnostic artifact pattern instead.");
+      }
+    } catch {
+      fail("Unable to parse package.json or README.md when checking README version policy.");
     }
   }
 
@@ -75,12 +79,9 @@ export function collectDocPolicyErrors(root, gitNameStatus = readGitNameStatus(r
     : [];
 
   const allowedDocsRoot = new Set([
-    "bug-list.md",
     "bungie-setup.md",
     "development.md",
     "faq.md",
-    "project-status.md",
-    "roadmap.md",
     "security.md",
     "todo.md",
     "user-guide.md"
@@ -105,38 +106,13 @@ export function collectDocPolicyErrors(root, gitNameStatus = readGitNameStatus(r
     }
   }
 
-  const workReadmePath = join(root, "docs", "work", "README.md");
-  const workReadme = existsSync(workReadmePath) ? readFileSync(workReadmePath, "utf8") : "";
   const workFiles = walk(workRoot)
     .map((file) => toRepoPath(relative(workRoot, file)))
-    .filter((file) => file !== "README.md" && file.endsWith(".md"));
-  const indexedWorkFiles = collectIndexedWorkFiles(workReadme);
+    .filter((file) => file.endsWith(".md"));
 
   for (const file of workFiles) {
     if (!/^(archive|backlog|references)\//.test(file)) {
       fail(`Work document is outside an allowed category: docs/work/${file}`);
-    }
-    if (!indexedWorkFiles.has(file)) {
-      fail(`docs/work/${file} is not listed in docs/work/README.md`);
-    }
-  }
-
-  for (const file of indexedWorkFiles) {
-    if (!workFiles.includes(file)) {
-      fail(`docs/work/README.md lists missing work document: ${file}`);
-    }
-  }
-
-  const bugListPath = join(root, "docs", "bug-list.md");
-  if (existsSync(bugListPath)) {
-    const bugList = readFileSync(bugListPath, "utf8");
-    const seenBugIds = new Set();
-    for (const match of bugList.matchAll(/^###\s+Bug\s+#(\d+):/gm)) {
-      const bugId = match[1];
-      if (seenBugIds.has(bugId)) {
-        fail(`Duplicate bug id in docs/bug-list.md: Bug #${bugId}`);
-      }
-      seenBugIds.add(bugId);
     }
   }
 
@@ -144,7 +120,7 @@ export function collectDocPolicyErrors(root, gitNameStatus = readGitNameStatus(r
     const status = parts[0];
     const paths = parts.slice(1);
     for (const path of paths) {
-      if ((status === "D" || status.startsWith("R")) && (path === "docs/todo.md" || path === "docs/bug-list.md")) {
+      if ((status === "D" || status.startsWith("R")) && path === "docs/todo.md") {
         fail(`Protected document must not be deleted or moved without an explicit replacement: ${path}`);
       }
     }

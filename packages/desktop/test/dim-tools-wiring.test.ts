@@ -7,20 +7,26 @@ const desktopRoot = fileURLToPath(new URL("..", import.meta.url));
 
 describe("DIM-style tools wiring", () => {
   it("surfaces actionable transfer queue and farming helpers in the GUI", () => {
-    const homePage = readFileSync(join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"), "utf8");
+    const transferQueue = readFileSync(join(desktopRoot, "..", "core", "src", "actions", "transferQueue.ts"), "utf8");
+    const farmingMode = readFileSync(join(desktopRoot, "..", "core", "src", "actions", "farmingMode.ts"), "utf8");
+    const actionPlan = readFileSync(join(desktopRoot, "..", "core", "src", "actions", "plan.ts"), "utf8");
+    const loadoutAnalysis = readFileSync(join(desktopRoot, "..", "core", "src", "loadouts", "analysis.ts"), "utf8");
+    const preload = readFileSync(join(desktopRoot, "src", "preload", "preload.ts"), "utf8");
+    const vaultPage = readFileSync(join(desktopRoot, "src", "renderer", "features", "vault", "VaultPage.tsx"), "utf8");
+    const vaultPanel = readFileSync(join(desktopRoot, "src", "renderer", "components", "VaultPanel.tsx"), "utf8");
+    const vaultWriteHook = readFileSync(join(desktopRoot, "src", "renderer", "features", "vault", "useVaultWriteActions.ts"), "utf8");
 
-    expect(homePage).toContain("createTransferQueue");
-    expect(homePage).toContain("createFarmingModePlan");
-    expect(homePage).toContain("createBatchTransferPlan");
-    expect(homePage).toContain("copyBatchTransferPlanText");
-    expect(homePage).toContain("runVaultCleanupWriteAction");
-    expect(homePage).toContain('transfer_to_vault: true');
-    expect(homePage).toContain("analyzeLoadoutTemplate");
-    expect(homePage).toContain("suggestArmorStatSets");
-    expect(homePage).toContain("parseDimWishlist");
-    expect(homePage).toContain("复制转移计划");
-    expect(homePage).toContain("执行转移");
-    expect(homePage).toContain("复制腾包计划");
-    expect(homePage).toContain("立即腾包");
+    expect(transferQueue).toContain("createTransferQueue");
+    expect(farmingMode).toContain("createFarmingModePlan");
+    expect(actionPlan).toContain("createBatchTransferPlan");
+    expect(preload).toContain("createBatchTransferPlan");
+    expect(vaultWriteHook).toContain("runVaultCleanupWriteAction");
+    expect(farmingMode).toContain("transfer_to_vault: true");
+    expect(loadoutAnalysis).toContain("analyzeLoadoutTemplate");
+    expect(loadoutAnalysis).toContain("suggestArmorStatSets");
+    expect(vaultPage).toContain("parseDimWishlist");
+    expect(vaultPanel).toContain("复制清理清单");
+    expect(vaultPanel).toContain("批量解锁");
+    expect(vaultPanel).toContain("转移到角色背包");
   });
 });

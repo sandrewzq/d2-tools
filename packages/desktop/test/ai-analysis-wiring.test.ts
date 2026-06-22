@@ -16,12 +16,12 @@ describe("desktop AI analysis wiring", () => {
       "utf8"
     );
     const preload = readFileSync(join(desktopRoot, "src", "preload", "preload.ts"), "utf8");
-    const ipc = readFileSync(join(desktopRoot, "src", "main", "ipc.ts"), "utf8");
+    const analysisIpc = readFileSync(join(desktopRoot, "src", "main", "ipc", "analysis.ts"), "utf8");
 
     expect(panel).toContain("api.generateVaultAiAdvice");
     expect(panel).toContain("AI 深度建议");
     expect(apiClient).toContain("generateVaultAiAdvice(input: VaultAnalysisInput): Promise<VaultAiAdviceResult>");
     expect(preload).toContain('ipcRenderer.invoke("analysis:vault:ai"');
-    expect(ipc).toContain('ipcMain.handle("analysis:vault:ai"');
+    expect(analysisIpc).toContain('ipcMain.handle("analysis:vault:ai"');
   });
 });

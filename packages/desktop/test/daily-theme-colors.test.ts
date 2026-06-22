@@ -38,7 +38,10 @@ describe("daily panel theme colors", () => {
     );
 
     expect(styles).toContain("box-sizing: border-box;");
-    expect(styles).toContain("calc(100vw - 220px)");
+    expect(styles).toMatch(/\.shell-content\s*{[\s\S]*?width:\s*100%;/);
+    expect(styles).toMatch(/\.shell-content\s*{[\s\S]*?max-width:\s*none;/);
+    expect(styles).toMatch(/\.shell-content\s*{[\s\S]*?min-width:\s*0;/);
+    expect(styles).toMatch(/@media \(max-width:\s*760px\)\s*{[\s\S]*?\.app-shell\s*{[\s\S]*?grid-template-columns:\s*1fr;/);
     expect(styles).toContain(".character-actions");
   });
 });

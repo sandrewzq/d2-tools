@@ -14,6 +14,7 @@ import type {
 type LightggCacheEntry = {
   cached_at: number;
   recommendation: WeaponRecommendation;
+  raw_response?: string;
 };
 
 type AiLightggConfig = {
@@ -32,24 +33,20 @@ export function createAiLightggSource(config: AiLightggConfig): CommunityPerkSou
     async getRecommendations(item_hash: number, options: SourceOptions): Promise<WeaponRecommendation | null> {
       if (!cacheDir) return null;
 
-      try {
-        const cached = readCache(cacheDir, item_hash);
-        if (cached) return cached;
+      const cached = readCache(cacheDir, item_hash);
+      if (cached) return cached;
 
-        const itemName = options.item_name ?? String(item_hash);
-        const url = `https://www.light.gg/db/items/${item_hash}/${slugify(itemName)}/`;
-        const query = buildLightggQuery(itemName, url);
+      const itemName = options.item_name ?? String(item_hash);
+      const url = `https://www.light.gg/db/items/${item_hash}/${slugify(itemName)}/`;
+      const query = buildLightggQuery(itemName, url);
 
-        const aiConfig = buildAiConfig(config);
-        const result = await callAiWithWebSearch({ config: aiConfig, query });
-        const recommendation = parseLightggResponse(item_hash, itemName, url, result.text, options);
-        if (!recommendation || recommendation.combos.length === 0) return null;
+      const aiConfig = buildAiConfig(config);
+      const result = await callAiWithWebSearch({ config: aiConfig, query });
+      const recommendation = parseLightggResponse(item_hash, itemName, url, result.text, options);
+      if (!recommendation || (recommendation.combos.length === 0 && !recommendation.ai_analysis)) return null;
 
-        writeCache(cacheDir, item_hash, recommendation);
-        return recommendation;
-      } catch {
-        return null;
-      }
+      writeCache(cacheDir, item_hash, recommendation, result.text);
+      return recommendation;
     }
   };
 }
@@ -95,7 +92,7 @@ function buildLightggQuery(item_name: string, url: string): string {
     '    {',
     '      "mode": "pve" | "pvp" | "general",',
     '      "perks": [',
-    '        {"name": "perk 中文名或英文名"}',
+    '        {"hash": 123456, "name": "perk 中文名或英文名"}',
     '      ],',
     '      "popularity": 85.5,',
     '      "note": "可选简短说明"',
@@ -107,12 +104,12 @@ function buildLightggQuery(item_name: string, url: string): string {
     "",
     "要求：",
     "1. 只返回一个合法 JSON 对象。",
-    "2. perks 只列出该武器实际可出的 trait 插槽 perk。",
+    "2. perks 只列出该武器实际可出的 trait 插槽 perk，并优先填写 perk hash（Bungie plug item hash）和名称。",
     "3. 如果无法访问页面或没有推荐数据，返回 { \"combos\": [], \"analysis\": \"\", \"disclaimer\": \"\" }"
   ].join("\n");
 }
 
-function parseLightggResponse(
+export function parseLightggResponse(
   item_hash: number,
   item_name: string,
   url: string,
@@ -120,7 +117,9 @@ function parseLightggResponse(
   options: SourceOptions
 ): WeaponRecommendation | null {
   const jsonText = extractJsonBlock(text);
-  if (!jsonText) return null;
+  if (!jsonText) {
+    return rawAiAnalysisRecommendation(item_hash, item_name, text, url);
+  }
 
   try {
     const parsed = JSON.parse(jsonText) as {
@@ -154,7 +153,11 @@ function parseLightggResponse(
       });
     }
 
-    if (combos.length === 0) return null;
+    if (combos.length === 0) {
+      return parsed.analysis
+        ? rawAiAnalysisRecommendation(item_hash, item_name, parsed.analysis, url, parsed.disclaimer)
+        : null;
+    }
 
     const modes = Array.from(new Set(combos.map((c) => c.mode)));
 
@@ -163,11 +166,37 @@ function parseLightggResponse(
       item_name,
       combos,
       matched_modes: modes,
+      individual_perks: uniquePerks(combos),
+      sample_size: combos.length,
+      source_label: "AI · light.gg",
+      ai_analysis: parsed.analysis?.trim() || undefined,
       disclaimer: parsed.disclaimer || `来自 light.gg 社区数据，由 AI 实时分析生成，仅供参考。原文：${url}`
     };
   } catch {
-    return null;
+    return rawAiAnalysisRecommendation(item_hash, item_name, text, url);
   }
+}
+
+function rawAiAnalysisRecommendation(
+  item_hash: number,
+  item_name: string,
+  text: string,
+  url: string,
+  disclaimer?: string
+): WeaponRecommendation | null {
+  const analysis = text.trim();
+  if (!analysis) return null;
+  return {
+    item_hash,
+    item_name,
+    combos: [],
+    matched_modes: [],
+    individual_perks: [],
+    sample_size: 0,
+    source_label: "AI · light.gg",
+    ai_analysis: analysis,
+    disclaimer: disclaimer || `light.gg 返回内容无法解析为结构化推荐，已保留 AI 原始分析。原文：${url}`
+  };
 }
 
 function extractJsonBlock(text: string): string | null {
@@ -210,6 +239,18 @@ function parsePerkRef(
     return { hash: matched.hash, name: matched.name, englishName: englishPlugMap.get(matched.hash)?.name, icon: matched.icon };
   }
   return { hash: perk.hash ?? 0, name: name ?? String(perk.hash ?? 0) };
+}
+
+function uniquePerks(combos: PerkCombo[]): PerkRef[] {
+  const perks = new Map<number, PerkRef>();
+  for (const combo of combos) {
+    for (const perk of combo.perks) {
+      if (!perks.has(perk.hash)) {
+        perks.set(perk.hash, perk);
+      }
+    }
+  }
+  return [...perks.values()];
 }
 
 function findPlugByName(name: string, plugMap: Map<number, ItemPlugSummary>): ItemPlugSummary | null {
@@ -262,11 +303,12 @@ function readCache(cacheDir: string, item_hash: number): WeaponRecommendation | 
   }
 }
 
-function writeCache(cacheDir: string, item_hash: number, recommendation: WeaponRecommendation): void {
+function writeCache(cacheDir: string, item_hash: number, recommendation: WeaponRecommendation, raw_response?: string): void {
   mkdirSync(cacheDir, { recursive: true });
   const entry: LightggCacheEntry = {
     cached_at: Date.now(),
-    recommendation
+    recommendation,
+    raw_response
   };
   writeFileSync(cachePath(cacheDir, item_hash), `${JSON.stringify(entry, null, 2)}\n`, "utf8");
 }

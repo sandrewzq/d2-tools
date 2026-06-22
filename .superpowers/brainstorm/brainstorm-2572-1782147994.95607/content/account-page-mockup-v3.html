@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>账号页草图</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0d131c;
+      --panel: #141c27;
+      --panel-soft: #182230;
+      --panel-strong: #1d2939;
+      --line: #2a3649;
+      --line-strong: #40526d;
+      --text: #edf3fb;
+      --muted: #9fb0c6;
+      --accent: #86d0ff;
+      --accent-soft: rgba(134, 208, 255, 0.14);
+      --ok: #8dd9a1;
+      --warn: #ffd37d;
+      --danger: #ff9f9f;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(134, 208, 255, 0.08), transparent 28%),
+        linear-gradient(180deg, #0b1017 0%, var(--bg) 100%);
+      color: var(--text);
+    }
+
+    .page {
+      max-width: 1520px;
+      margin: 0 auto;
+      padding: 24px;
+      display: grid;
+      gap: 18px;
+    }
+
+    .banner {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+      padding: 18px 20px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
+    }
+
+    .banner h1 {
+      margin: 0 0 8px;
+      font-size: 26px;
+    }
+
+    .banner p {
+      margin: 0;
+      color: var(--muted);
+      max-width: 860px;
+      font-size: 14px;
+    }
+
+    .banner-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 34px;
+      padding: 0 14px;
+      border-radius: 8px;
+      border: 1px solid var(--line-strong);
+      background: var(--panel-soft);
+      color: var(--text);
+      font-size: 13px;
+    }
+
+    .button.primary {
+      background: var(--accent-soft);
+      border-color: rgba(134, 208, 255, 0.4);
+      color: #dff4ff;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .tab {
+      min-width: 180px;
+      padding: 12px 14px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: var(--panel);
+    }
+
+    .tab.active {
+      border-color: rgba(134, 208, 255, 0.5);
+      background: linear-gradient(180deg, rgba(134,208,255,0.1), rgba(134,208,255,0.04));
+      box-shadow: inset 0 0 0 1px rgba(134, 208, 255, 0.18);
+    }
+
+    .tab strong,
+    .tab span {
+      display: block;
+    }
+
+    .tab strong {
+      margin-bottom: 4px;
+      font-size: 14px;
+    }
+
+    .tab span {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .workspace {
+      display: grid;
+      grid-template-columns: minmax(0, 2fr) 360px;
+      gap: 18px;
+      align-items: start;
+    }
+
+    .main-col,
+    .side-col {
+      display: grid;
+      gap: 18px;
+    }
+
+    .panel {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: var(--panel);
+      overflow: hidden;
+    }
+
+    .panel-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .panel-head h2,
+    .panel-head h3 {
+      margin: 0 0 4px;
+      font-size: 18px;
+    }
+
+    .panel-head p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .panel-tools {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .character-summary {
+      display: grid;
+      grid-template-columns: 108px minmax(0, 1fr);
+      gap: 16px;
+      padding: 16px;
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0));
+    }
+
+    .emblem {
+      height: 108px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #24364c, #101924);
+      border: 1px solid var(--line-strong);
+    }
+
+    .summary-meta {
+      display: grid;
+      gap: 10px;
+    }
+
+    .summary-meta h2 {
+      margin: 0;
+      font-size: 24px;
+    }
+
+    .meta-row,
+    .status-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      min-height: 28px;
+      padding: 0 10px;
+      border-radius: 999px;
+      border: 1px solid var(--line-strong);
+      background: var(--panel-soft);
+      color: var(--text);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .pill.info {
+      color: #d7f1ff;
+      border-color: rgba(134, 208, 255, 0.34);
+      background: rgba(134, 208, 255, 0.12);
+    }
+
+    .pill.ok {
+      color: #dff7e5;
+      border-color: rgba(141, 217, 161, 0.32);
+      background: rgba(141, 217, 161, 0.12);
+    }
+
+    .pill.warn {
+      color: #fff0cb;
+      border-color: rgba(255, 211, 125, 0.3);
+      background: rgba(255, 211, 125, 0.12);
+    }
+
+    .gear-layout {
+      display: grid;
+      grid-template-columns: 1.05fr 1fr;
+      gap: 16px;
+      padding: 16px;
+    }
+
+    .subpanel {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--panel-soft);
+      overflow: hidden;
+    }
+
+    .subpanel-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .subpanel-head h3 {
+      margin: 0;
+      font-size: 15px;
+    }
+
+    .subpanel-head span {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .equipment-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      padding: 14px;
+    }
+
+    .slot {
+      display: grid;
+      grid-template-columns: 42px minmax(0, 1fr);
+      gap: 10px;
+      align-items: center;
+      min-height: 58px;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: rgba(255,255,255,0.02);
+    }
+
+    .slot.featured {
+      border-color: rgba(134, 208, 255, 0.35);
+      background: rgba(134, 208, 255, 0.08);
+    }
+
+    .icon {
+      width: 42px;
+      height: 42px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, #2a4261, #17212f);
+      border: 1px solid var(--line-strong);
+    }
+
+    .slot strong,
+    .slot span {
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .slot strong {
+      font-size: 13px;
+      margin-bottom: 3px;
+    }
+
+    .slot span {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .inventory-groups {
+      display: grid;
+      gap: 12px;
+      padding: 14px;
+    }
+
+    .inventory-group {
+      display: grid;
+      gap: 8px;
+      padding-top: 10px;
+      border-top: 1px solid var(--line);
+    }
+
+    .inventory-group:first-child {
+      border-top: 0;
+      padding-top: 0;
+    }
+
+    .inventory-group-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .inventory-group-head strong {
+      font-size: 13px;
+    }
+
+    .inventory-group-head span {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .inventory-items {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .inventory-item {
+      display: grid;
+      grid-template-columns: 34px minmax(0, 1fr);
+      gap: 8px;
+      align-items: center;
+      min-height: 48px;
+      padding: 8px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255,255,255,0.02);
+    }
+
+    .mini-icon {
+      width: 34px;
+      height: 34px;
+      border-radius: 7px;
+      background: linear-gradient(135deg, #324967, #1a2432);
+      border: 1px solid var(--line-strong);
+    }
+
+    .inventory-item strong,
+    .inventory-item span {
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .inventory-item strong {
+      font-size: 12px;
+      margin-bottom: 2px;
+    }
+
+    .inventory-item span {
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .resource-stack {
+      display: grid;
+      gap: 14px;
+      padding: 14px;
+    }
+
+    .resource-list,
+    .currency-list,
+    .postmaster-list {
+      display: grid;
+      gap: 8px;
+    }
+
+    .resource-row,
+    .currency-row,
+    .postmaster-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      background: rgba(255,255,255,0.02);
+      font-size: 13px;
+    }
+
+    .resource-row span,
+    .currency-row span,
+    .postmaster-row span {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .resource-row strong,
+    .currency-row strong,
+    .postmaster-row strong {
+      font-size: 13px;
+    }
+
+    .alert-box {
+      padding: 12px 14px;
+      border: 1px solid rgba(255, 211, 125, 0.32);
+      border-radius: 10px;
+      background: rgba(255, 211, 125, 0.08);
+    }
+
+    .alert-box strong {
+      display: block;
+      margin-bottom: 4px;
+      font-size: 13px;
+      color: #fff2cf;
+    }
+
+    .alert-box span {
+      color: #e7d8af;
+      font-size: 12px;
+    }
+
+    .footnote {
+      padding: 12px 16px 16px;
+      color: var(--muted);
+      font-size: 12px;
+      border-top: 1px solid var(--line);
+    }
+
+    @media (max-width: 1200px) {
+      .workspace {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 900px) {
+      .gear-layout,
+      .inventory-items,
+      .equipment-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="banner">
+      <div>
+        <h1>账号页草图：单角色即时操作台</h1>
+        <p>这个版本按你说的来：账号页继续保留角色装备、背包、材料、货币、邮政官，因为这些都是副本和日常会顺手查看或使用的内容；但结构改成主工作区 + 资源侧栏，避免重新变成长信息流。</p>
+      </div>
+      <div class="banner-actions">
+        <div class="button primary">读取账号数据</div>
+        <div class="button">保存当前装备</div>
+        <div class="button">装备最高光等</div>
+      </div>
+    </section>
+
+    <section class="tabs">
+      <article class="tab active">
+        <strong>术士</strong>
+        <span>光等 2024 / 已装备 8 / 背包 42 / 邮政官 6</span>
+      </article>
+      <article class="tab">
+        <strong>猎人</strong>
+        <span>光等 2021 / 已装备 8 / 背包 31 / 邮政官 1</span>
+      </article>
+      <article class="tab">
+        <strong>泰坦</strong>
+        <span>光等 2018 / 已装备 8 / 背包 27 / 邮政官 0</span>
+      </article>
+    </section>
+
+    <section class="workspace">
+      <div class="main-col">
+        <article class="panel">
+          <div class="character-summary">
+            <div class="emblem"></div>
+            <div class="summary-meta">
+              <div>
+                <h2>术士</h2>
+                <div class="meta-row">
+                  <span class="pill info">当前方案命中 6 / 8</span>
+                  <span class="pill">副本中</span>
+                  <span class="pill ok">写操作已开启</span>
+                </div>
+              </div>
+              <div class="status-row">
+                <span class="pill">主武器栏 9 件</span>
+                <span class="pill">特殊武器栏 11 件</span>
+                <span class="pill">重武器栏 7 件</span>
+                <span class="pill">护甲 15 件</span>
+              </div>
+              <div class="panel-tools">
+                <span class="button">套用方案</span>
+                <span class="button">转移缺失件</span>
+                <span class="button">查看来源</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="gear-layout">
+            <section class="subpanel">
+              <div class="subpanel-head">
+                <h3>当前角色装备</h3>
+                <span>副本中最常点开的主区</span>
+              </div>
+              <div class="equipment-grid">
+                <div class="slot featured"><div class="icon"></div><div><strong>异域主武器</strong><span>当前已装备 / 推荐命中</span></div></div>
+                <div class="slot"><div class="icon"></div><div><strong>特殊武器</strong><span>当前已装备</span></div></div>
+                <div class="slot"><div class="icon"></div><div><strong>重武器</strong><span>当前已装备</span></div></div>
+                <div class="slot"><div class="icon"></div><div><strong>头盔</strong><span>属性 68 / 韧性 + 恢复</span></div></div>
+                <div class="slot"><div class="icon"></div><div><strong>手臂</strong><span>当前已装备</span></div></div>
+                <div class="slot"><div class="icon"></div><div><strong>胸甲</strong><span>当前已装备</span></div></div>
+                <div class="slot"><div class="icon"></div><div><strong>腿甲</strong><span>当前已装备</span></div></div>
+                <div class="slot"><div class="icon"></div><div><strong>职业物品</strong><span>当前已装备</span></div></div>
+              </div>
+            </section>
+
+            <section class="subpanel">
+              <div class="subpanel-head">
+                <h3>当前角色背包</h3>
+                <span>只看这一个角色，不掺仓库全局整理</span>
+              </div>
+              <div class="inventory-groups">
+                <div class="inventory-group">
+                  <div class="inventory-group-head">
+                    <strong>武器候选</strong>
+                    <span>15 件</span>
+                  </div>
+                  <div class="inventory-items">
+                    <div class="inventory-item"><div class="mini-icon"></div><div><strong>主武器 A</strong><span>清怪 / 命中当前方案</span></div></div>
+                    <div class="inventory-item"><div class="mini-icon"></div><div><strong>主武器 B</strong><span>Boss / 备用</span></div></div>
+                    <div class="inventory-item"><div class="mini-icon"></div><div><strong>特殊武器 A</strong><span>副本常用</span></div></div>
+                    <div class="inventory-item"><div class="mini-icon"></div><div><strong>重武器 A</strong><span>输出位</span></div></div>
+                  </div>
+                </div>
+
+                <div class="inventory-group">
+                  <div class="inventory-group-head">
+                    <strong>护甲与切换件</strong>
+                    <span>12 件</span>
+                  </div>
+                  <div class="inventory-items">
+                    <div class="inventory-item"><div class="mini-icon"></div><div><strong>头盔 B</strong><span>抗性副本用</span></div></div>
+                    <div class="inventory-item"><div class="mini-icon"></div><div><strong>胸甲 B</strong><span>高韧性</span></div></div>
+                    <div class="inventory-item"><div class="mini-icon"></div><div><strong>腿甲 B</strong><span>跑图用</span></div></div>
+                    <div class="inventory-item"><div class="mini-icon"></div><div><strong>职业物品 B</strong><span>技能流</span></div></div>
+                  </div>
+                </div>
+
+                <div class="inventory-group">
+                  <div class="inventory-group-head">
+                    <strong>消耗与任务物品</strong>
+                    <span>9 件</span>
+                  </div>
+                  <div class="inventory-items">
+                    <div class="inventory-item"><div class="mini-icon"></div><div><strong>副本旗帜</strong><span>日常常用</span></div></div>
+                    <div class="inventory-item"><div class="mini-icon"></div><div><strong>任务道具</strong><span>本周进度</span></div></div>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </div>
+
+          <div class="footnote">
+            这里故意只保留“当前角色”的高频操作，不把全局仓库整理、跨角色对比、配装优化都塞进来。那些更像 DIM 的 Inventory 工作台，应该放到仓库页。
+          </div>
+        </article>
+      </div>
+
+      <aside class="side-col">
+        <article class="panel">
+          <div class="panel-head">
+            <div>
+              <h3>材料与货币</h3>
+              <p>副本、日常和兑换时顺手查看</p>
+            </div>
+          </div>
+          <div class="resource-stack">
+            <div class="resource-list">
+              <div class="resource-row"><strong>微光</strong><span>251,740</span></div>
+              <div class="resource-row"><strong>奇异碎片</strong><span>9</span></div>
+              <div class="resource-row"><strong>强化棱镜</strong><span>37</span></div>
+              <div class="resource-row"><strong>高能碎片</strong><span>18</span></div>
+            </div>
+            <div class="currency-list">
+              <div class="currency-row"><strong>征服奖章</strong><span>240</span></div>
+              <div class="currency-row"><strong>先锋纹章</strong><span>98</span></div>
+              <div class="currency-row"><strong>试炼纹章</strong><span>43</span></div>
+            </div>
+          </div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-head">
+            <div>
+              <h3>邮政官</h3>
+              <p>优先提示快满或高价值掉落</p>
+            </div>
+            <span class="pill warn">6 / 21</span>
+          </div>
+          <div class="resource-stack">
+            <div class="alert-box">
+              <strong>有 2 件值得优先处理</strong>
+              <span>一件高光等重武器，一件高总值护甲。这里不展开成长列表，只给快速提醒和入口。</span>
+            </div>
+            <div class="postmaster-list">
+              <div class="postmaster-row"><strong>重武器掉落</strong><span>光等 +3</span></div>
+              <div class="postmaster-row"><strong>护甲掉落</strong><span>总值 67</span></div>
+              <div class="postmaster-row"><strong>材料包</strong><span>待领取</span></div>
+            </div>
+          </div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-head">
+            <div>
+              <h3>副本前检查</h3>
+              <p>只保留临门一脚会看的信息</p>
+            </div>
+          </div>
+          <div class="resource-stack">
+            <div class="resource-row"><strong>集合旗帜</strong><span>12</span></div>
+            <div class="resource-row"><strong>高能弹药合成</strong><span>充足</span></div>
+            <div class="resource-row"><strong>当前方案缺失件</strong><span>2 件</span></div>
+            <div class="resource-row"><strong>可直接补齐</strong><span>1 件</span></div>
+          </div>
+        </article>
+      </aside>
+    </section>
+  </main>
+</body>
+</html>

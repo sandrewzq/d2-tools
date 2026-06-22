@@ -1,8 +1,10 @@
 import { createAiLightggSource } from "./aiLightggSource.js";
 import { createDimWishlistSource } from "./dimWishlistSource.js";
+import { createLocalCommunitySource } from "./localCommunityRecommendations.js";
 import type {
   CommunityPerkSource,
   PerkCombo,
+  PerkRef,
   SourceOptions,
   VaultItemMatchInfo,
   VaultItemMatchInput,
@@ -37,7 +39,7 @@ export class CommunityPerkRecommendationService {
       }
       try {
         const result = await source.getRecommendations(item_hash, options);
-        if (result && result.combos.length > 0) {
+        if (result && isUsefulRecommendation(result)) {
           return result;
         }
       } catch {
@@ -57,9 +59,20 @@ export class CommunityPerkRecommendationService {
     const results = await Promise.allSettled(
       available.map((s) => s.getRecommendations(item_hash, options))
     );
+    const sourceWarnings = results.flatMap((result, index) => {
+      if (result.status === "fulfilled") return [];
+      const fallbackLabel = available.find((_, fallbackIndex) => {
+        const fallbackResult = results[fallbackIndex];
+        return fallbackIndex !== index
+          && fallbackResult.status === "fulfilled"
+          && fallbackResult.value
+          && isUsefulRecommendation(fallbackResult.value);
+      })?.name;
+      return [`${available[index].name} 查询失败${fallbackLabel ? `，已显示 ${fallbackLabel} 数据` : ""}。`];
+    });
     const valid = results
       .map((r) => (r.status === "fulfilled" ? r.value : null))
-      .filter((r): r is WeaponRecommendation => r !== null && r.combos.length > 0);
+      .filter((r): r is WeaponRecommendation => r !== null && isUsefulRecommendation(r));
     if (valid.length === 0) return null;
 
     const combos = valid.flatMap((r) => r.combos);
@@ -70,12 +83,18 @@ export class CommunityPerkRecommendationService {
       item_name: options.item_name ?? valid[0].item_name,
       combos,
       matched_modes: modes,
+      individual_perks: uniquePerks(valid),
+      sample_size: valid.reduce((sum, recommendation) => sum + (recommendation.sample_size ?? recommendation.combos.length), 0),
+      source_label: Array.from(new Set(valid.map((r) => r.source_label).filter(Boolean))).join(" / ") || undefined,
+      ai_analysis: valid.map((r) => r.ai_analysis).filter(Boolean).join("\n\n") || undefined,
+      source_warnings: sourceWarnings.length ? sourceWarnings : undefined,
       disclaimer: valid.map((r) => r.disclaimer).filter(Boolean).join(" | ")
     };
   }
 
   async matchVaultItems(
-    items: VaultItemMatchInput[]
+    items: VaultItemMatchInput[],
+    options: SourceOptions = {}
   ): Promise<Map<number, VaultItemMatchInfo>> {
     const uniqueHashes = Array.from(new Set(items.map((i) => i.hash)));
 
@@ -83,7 +102,7 @@ export class CommunityPerkRecommendationService {
     await Promise.all(
       uniqueHashes.map(async (hash) => {
         try {
-          hashResults.set(hash, await this.getRecommendations(hash, {}));
+          hashResults.set(hash, await this.getRecommendations(hash, options));
         } catch {
           hashResults.set(hash, null);
         }
@@ -94,7 +113,7 @@ export class CommunityPerkRecommendationService {
     for (const hash of uniqueHashes) {
       const rec = hashResults.get(hash);
       if (!rec) {
-        result.set(hash, { matched: 0, modes: [] });
+        result.set(hash, { matched: 0, available: 0, modes: [] });
         continue;
       }
 
@@ -115,11 +134,51 @@ export class CommunityPerkRecommendationService {
         }
       }
 
-      result.set(hash, { matched: matchedComboIndexes.size, modes: Array.from(matchedModes) });
+      result.set(hash, {
+        matched: matchedComboIndexes.size,
+        available: rec.combos.length,
+        modes: Array.from(matchedModes.size ? matchedModes : new Set(rec.matched_modes)),
+        sample_perks: previewPerks(rec),
+        source_label: rec.source_label
+      });
     }
 
     return result;
   }
+}
+
+function isUsefulRecommendation(recommendation: WeaponRecommendation): boolean {
+  return recommendation.combos.length > 0 || Boolean(recommendation.ai_analysis?.trim());
+}
+
+function uniquePerks(recommendations: WeaponRecommendation[]): PerkRef[] {
+  const perks = new Map<number, PerkRef>();
+  for (const recommendation of recommendations) {
+    for (const perk of recommendation.individual_perks ?? recommendation.combos.flatMap((combo) => combo.perks)) {
+      if (!perks.has(perk.hash)) {
+        perks.set(perk.hash, perk);
+      }
+    }
+  }
+  return [...perks.values()];
+}
+
+function previewPerks(recommendation: WeaponRecommendation): PerkRef[] | undefined {
+  const perks = recommendation.individual_perks ?? recommendation.combos.flatMap((combo) => combo.perks);
+  if (!perks.length) {
+    return undefined;
+  }
+
+  const deduped = new Map<number, PerkRef>();
+  for (const perk of perks) {
+    if (!deduped.has(perk.hash)) {
+      deduped.set(perk.hash, perk);
+    }
+    if (deduped.size >= 3) {
+      break;
+    }
+  }
+  return [...deduped.values()];
 }
 
 export function createDefaultCommunityPerkService(
@@ -128,6 +187,7 @@ export function createDefaultCommunityPerkService(
   const service = new CommunityPerkRecommendationService(config);
   const data_dir = config?.data?.data_dir;
   if (data_dir) {
+    service.addSource(createLocalCommunitySource(data_dir));
     service.addSource(createDimWishlistSource(data_dir));
   }
   return service;
@@ -140,6 +200,7 @@ export function createFullCommunityPerkService(
   const data_dir = config?.data?.data_dir;
 
   if (data_dir) {
+    service.addSource(createLocalCommunitySource(data_dir));
     service.addSource(createDimWishlistSource(data_dir));
   }
 

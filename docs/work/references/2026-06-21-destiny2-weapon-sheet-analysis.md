@@ -178,23 +178,23 @@
 |---|---|---|
 | perk 图例说明 | `packages/core/src/communityPerks/types.ts` | 可作为 `PerkCombo.note` 的参考文案 |
 | 武器-perk 组合 | `packages/core/src/communityPerks/communityPerkRecommendationService.ts` | 可作为 `CommunityPerkSource` 的输入数据 |
-| 按突袭分类 | `docs/work/archive/2026-06-21-community-perk-recommendations-design.md` 第 13 节 | 后续可扩展"按活动类型过滤" |
+| 按突袭分类 | `docs/todo.md` 中的“社区推荐数据可信度增强”与“活动复盘增强” | 后续可扩展“按活动类型过滤” |
 | PVE/PVP 标签 | `PerkCombo.mode: "pve" \| "pvp" \| "general"` | 表格天然带有 PVE/PVP 分区 |
 | 中文 perk 名 | `packages/core/src/items/perks.ts` / `perkSearch.ts` | 项目已有中英文 perk 映射能力 |
 
 ### 2.3 与项目状态的对照
 
-根据 `docs/project-status.md`：
+根据当前 `docs/todo.md`：
 
-- **部分支持**：DIM 愿望单已支持本地导入和基础命中提示，但"还不是完整社区 roll 生态"。
+- **部分支持**：DIM 愿望单已支持本地导入和基础命中提示，但当前重点仍是“社区推荐数据可信度增强”。
 - 该表格代表了一种"人工整理的中文社区 roll 推荐"，正好填补了"完整社区 roll 生态"的空白。
 
-根据 `docs/roadmap.md`：
+根据 `docs/development.md` 的长期方向：
 
 - **1. 仓库整理体验**："愿望单和本地评分协作增强"是该表格最直接的应用场景。
 - **3. AI 助手**："更细的仓库清理建议"可以结合该表格数据，给出"你的这把武器是否接近社区推荐"的提示。
 
-根据 `docs/work/archive/2026-06-21-remaining-tasks.md`：
+结合当前实现和 `docs/todo.md`：
 
 - 社区 Perk 推荐 Phase 1/2 已完成（武器详情弹窗、仓库命中提示、资料库入口）。
 - Phase 3 `AiLightggSource` 待实现。

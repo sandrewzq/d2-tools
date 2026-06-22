@@ -14,6 +14,10 @@ function toneForStatus(status: "ready" | "missing" | "skipped"): DiagnosticTone 
   return "neutral";
 }
 
+function sourceStatusTone(tone: DiagnosticTone): "ready" | "warning" | "neutral" {
+  return tone === "ok" ? "ready" : tone;
+}
+
 export function buildDiagnosticRows(options: {
   state: StartupState;
   dataDir?: string;
@@ -70,12 +74,15 @@ export function DiagnosticsPanel(props: {
         </button>
       </div>
       <div className="diagnostic-grid">
-        {props.rows.map((row) => (
-          <div className={`diagnostic-row diagnostic-${row.tone}`} key={row.label}>
-            <span>{row.label}</span>
-            <strong>{row.value}</strong>
-          </div>
-        ))}
+        {props.rows.map((row) => {
+          const sharedTone = sourceStatusTone(row.tone);
+          return (
+            <div className={`source-status-card source-status-${sharedTone} diagnostic-row diagnostic-${row.tone}`} key={row.label}>
+              <span className={`source-status-badge source-status-${sharedTone}`}>{row.label}</span>
+              <strong>{row.value}</strong>
+            </div>
+          );
+        })}
       </div>
     </section>
   );

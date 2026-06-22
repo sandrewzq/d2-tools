@@ -22,6 +22,16 @@ type PublicVendor = {
 
 type PublicSale = {
   itemHash?: number;
+  costs?: Array<{
+    itemHash?: number;
+    quantity?: number;
+  }>;
+};
+
+type PublicSaleCollection = Record<string, PublicSale>;
+
+type PublicVendorSales = Record<string, PublicSale | PublicSaleCollection | undefined> & {
+  saleItems?: PublicSaleCollection;
 };
 
 type PublicVendorsResponse = {
@@ -29,7 +39,7 @@ type PublicVendorsResponse = {
     data?: Record<string, PublicVendor>;
   };
   sales?: {
-    data?: Record<string, Record<string, PublicSale>>;
+    data?: Record<string, PublicVendorSales>;
   };
 };
 
@@ -38,6 +48,7 @@ export type BuildDailyLiveDataInput = {
   publicVendors?: PublicVendorsResponse;
   definitions?: {
     activities?: DefinitionComponentData | null;
+    milestones?: DefinitionComponentData | null;
     vendors?: DefinitionComponentData | null;
     items?: DefinitionComponentData | null;
   };
@@ -85,7 +96,10 @@ function mapMilestones(
   const weeklyReport: DailySummaryItem[] = [];
 
   for (const [hash, milestone] of Object.entries(milestones)) {
-    const milestoneName = readableName(milestone);
+    const milestoneDefinition = definitionRecord(definitions.milestones, Number(hash));
+    const milestoneName = readableName(milestone) ?? milestoneDefinition?.displayProperties?.name?.trim();
+    const milestoneDescription = milestone.displayProperties?.description
+      ?? milestoneDefinition?.displayProperties?.description;
     const activityNames = (milestone.activities ?? [])
       .map((activity) => definitionName(definitions.activities, activity.activityHash))
       .filter(Boolean) as string[];
@@ -103,9 +117,9 @@ function mapMilestones(
       for (const name of names.slice(0, 6)) {
         const prefix = isLostSector ? "遗失区域" : milestoneName ?? "活动轮换";
         const item = {
-          title: `${prefix}：${name}`,
+          title: formatMilestoneItemTitle(prefix, name),
           subtitle: "Bungie 公共里程碑",
-          description: milestone.displayProperties?.description,
+          description: milestoneDescription,
           source: "Bungie"
         };
         if (isLostSector) {
@@ -118,7 +132,7 @@ function mapMilestones(
       rotations.push({
         title: milestoneName,
         subtitle: "Bungie 公共里程碑",
-        description: milestone.displayProperties?.description,
+        description: milestoneDescription,
         source: "Bungie"
       });
     }
@@ -130,7 +144,7 @@ function mapMilestones(
       weeklyReport.push({
         title,
         subtitle: `非完整掉落地图；${names.slice(0, 3).join(" / ") || "Bungie 公共里程碑"}`,
-        description: milestone.displayProperties?.description,
+        description: milestoneDescription,
         source: "Bungie"
       });
     }
@@ -154,8 +168,8 @@ function mapPublicVendors(
     if (!vendorName) {
       return [];
     }
-    const saleNames = Object.values(sales[vendorKey] ?? {})
-      .map((sale) => definitionName(definitions.items, sale.itemHash))
+    const saleNames = collectPublicSales(sales[vendorKey])
+      .map((sale) => saleItemLabel(definitions.items, sale))
       .filter(Boolean) as string[];
 
     return [{
@@ -170,14 +184,87 @@ function mapPublicVendors(
   return uniqueByTitle(commonVendors.length ? commonVendors : mapped).slice(0, 10);
 }
 
+function collectPublicSales(vendorSales: PublicVendorSales | undefined): PublicSale[] {
+  if (!vendorSales) {
+    return [];
+  }
+
+  const saleItems = Object.values(vendorSales.saleItems ?? {});
+  const directSales = Object.entries(vendorSales).flatMap(([key, value]) => {
+    if (key === "saleItems" || value === undefined) {
+      return [];
+    }
+    if (isPublicSale(value)) {
+      return [value];
+    }
+    return Object.values(value).filter(isPublicSale);
+  });
+
+  return [...saleItems, ...directSales].filter(isPublicSale);
+}
+
+function isPublicSale(value: unknown): value is PublicSale {
+  return typeof value === "object"
+    && value !== null
+    && typeof (value as PublicSale).itemHash === "number";
+}
+
 function readableName(record: PublicMilestone): string | undefined {
   return record.displayProperties?.name?.trim() || undefined;
 }
 
 function definitionName(definitions: DefinitionComponentData | null | undefined, hash: number | undefined): string | undefined {
   if (hash === undefined) return undefined;
-  const record = definitions?.[String(hash)] as DefinitionRecord | undefined;
+  const record = definitionRecord(definitions, hash);
   return record?.displayProperties?.name?.trim() || undefined;
+}
+
+function formatMilestoneItemTitle(prefix: string, name: string): string {
+  if (name === prefix || name.startsWith(`${prefix}:`) || name.startsWith(`${prefix}：`)) {
+    return name;
+  }
+  return `${prefix}：${name}`;
+}
+
+function definitionRecord(definitions: DefinitionComponentData | null | undefined, hash: number | undefined): DefinitionRecord | undefined {
+  if (hash === undefined) return undefined;
+  return definitions?.[String(hash)] as DefinitionRecord | undefined;
+}
+
+function saleItemLabel(definitions: DefinitionComponentData | null | undefined, sale: PublicSale): string | undefined {
+  if (sale.itemHash === undefined) return undefined;
+  const record = definitionRecord(definitions, sale.itemHash);
+  const name = record?.displayProperties?.name?.trim();
+  if (!name) return undefined;
+
+  const itemDetails = [
+    record?.itemTypeDisplayName?.trim(),
+    record?.inventory?.tierTypeName?.trim()
+  ].filter(Boolean);
+  const costLabel = saleCostLabel(definitions, sale.costs);
+  const details = [
+    itemDetails.join("，"),
+    costLabel
+  ].filter(Boolean);
+
+  return details.length ? `${name}（${details.join("；")}）` : name;
+}
+
+function saleCostLabel(
+  definitions: DefinitionComponentData | null | undefined,
+  costs: PublicSale["costs"]
+): string | undefined {
+  const labels = (costs ?? [])
+    .map((cost) => {
+      const currencyName = definitionName(definitions, cost.itemHash);
+      if (!currencyName || cost.quantity === undefined) {
+        return undefined;
+      }
+      return `${cost.quantity} ${currencyName}`;
+    })
+    .filter(Boolean) as string[];
+
+  return labels.length ? labels.join(" + ") : undefined;
 }
 
 function containsLostSector(value: string): boolean {
