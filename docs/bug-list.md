@@ -1,6 +1,7 @@
 # Bug 清单
 
 > 记录于 2026-06-21，根据本地手动测试反馈整理。
+> 维护规则：只记录仍需处理的具体问题。修复、取消或转入 `docs/todo.md` 的条目，必须在同一次开发收尾时更新或删除。
 
 ## 高优先级
 
@@ -77,21 +78,21 @@
 - 用户期望：已拥有装备应先展示当前属性值，perk 池信息放在分隔区域
 - 引用: `packages/desktop/src/renderer/pages/HomePage.tsx` — 装备详情弹窗 / `packages/core/src/items/detail.ts`
 
-### Bug #10: 社区推荐——AI 查询失败时无降级提示
+### Bug #16: 社区推荐——AI 查询失败时无降级提示
 - 文件: `packages/core/src/communityPerks/communityPerkRecommendationService.ts` — `getRecommendations()`
 - 现象：AI light.gg 查询失败时静默降级到 DIM wishlist，用户感知不到 light.gg 查询失败过
 - 期望：UI 显示类似"light.gg 查询失败，显示 DIM 愿望单数据"的提示
 
-### Bug #11: 社区推荐——AI 返回无法解析时丢失原始分析文本
+### Bug #17: 社区推荐——AI 返回无法解析时丢失原始分析文本
 - 文件: `packages/core/src/communityPerks/aiLightggSource.ts` — `parseLightggResponse()`
 - 现象：AI 返回的 JSON 解析失败时直接返回 `null`，丢弃了 AI 的原始分析文本
 - 期望：无法解析结构化数据时保留 `ai_analysis` 原始文本供用户参考
 
-### Bug #12: 社区推荐——WeaponRecommendation 缺少设计文档定义的字段
+### Bug #18: 社区推荐——WeaponRecommendation 缺少设计文档定义的字段
 - 文件: `packages/core/src/communityPerks/types.ts` — `WeaponRecommendation`
 - 缺少字段：`individual_perks`、`sample_size`、`source_label`、`ai_analysis`
 
-### Bug #13: 社区推荐——仓库/资料库匹配时没有加载英文定义
+### Bug #19: 社区推荐——仓库/资料库匹配时没有加载英文定义
 - 文件: `packages/desktop/src/main/ipc.ts` — `community:vault:match`
 - 现象：仓库匹配只用 DIM wishlist，但未传入英文定义，命中提示中的 perk 名称无英文显示
 

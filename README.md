@@ -70,6 +70,8 @@ d2-tools.exe
 
 - [项目状态](docs/project-status.md)
 - [路线图](docs/roadmap.md)
+- [当前待办](docs/todo.md)
+- [Bug 清单](docs/bug-list.md)
 - [更新日志](CHANGELOG.md)
 
 开发者：

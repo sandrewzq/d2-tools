@@ -24,8 +24,8 @@
 ### 2.1 社区 Perk 推荐功能（高优先级，设计文档已完备）
 
 关联文档：
-- [2026-06-21-community-perk-recommendations-design.md](../specs/2026-06-21-community-perk-recommendations-design.md)
-- [2026-06-21-community-perk-recommendations-plan.md](../specs/2026-06-21-community-perk-recommendations-plan.md)
+- [2026-06-21-community-perk-recommendations-design.md](2026-06-21-community-perk-recommendations-design.md)
+- [2026-06-21-community-perk-recommendations-plan.md](2026-06-21-community-perk-recommendations-plan.md)
 
 当前完成度：
 - ✅ Phase 0：类型定义、`DimWishlistSource`、`CommunityPerkRecommendationService`、`matchVaultItems`、IPC 句柄、单元测试
@@ -119,7 +119,7 @@
 
 关联文档：
 - [2026-06-20-issue-1-v0.0.5.md](./2026-06-20-issue-1-v0.0.5.md)
-- [2026-06-20-issue-1-v0.0.5-design.md](../specs/2026-06-20-issue-1-v0.0.5-design.md)
+- [2026-06-20-issue-1-v0.0.5-design.md](2026-06-20-issue-1-v0.0.5-design.md)
 
 当前状态：尚未开始实施，文档中的复选框全部未勾选。
 
@@ -139,7 +139,7 @@
 
 关联文档：
 - [2026-06-20-release-notes-automation.md](./2026-06-20-release-notes-automation.md)
-- [2026-06-20-release-notes-automation-design.md](../specs/2026-06-20-release-notes-automation-design.md)
+- [2026-06-20-release-notes-automation-design.md](2026-06-20-release-notes-automation-design.md)
 
 当前状态：已完成。包含：
 - `scripts/extract-changelog.mjs` + 测试

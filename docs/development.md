@@ -150,7 +150,7 @@ packages/desktop/release/
 
 ## 7. 文档结构
 
-正式文档保留在：
+当前只保留这些文档入口：
 
 ```text
 README.md
@@ -162,15 +162,37 @@ docs/
   security.md
   project-status.md
   roadmap.md
+  todo.md
+  bug-list.md
   development.md
+  work/
+    README.md
+    backlog/
+    archive/
+    references/
 ```
 
-`docs/superpowers/` 保留给设计稿、执行计划等内部工作材料，不作为普通读者主入口。
+不要把一次性设计稿、执行计划、阶段进度或临时分析文档放在 `docs/` 根目录。确实需要记录当前短期待办、验收状态或优先级变化时，更新 `docs/todo.md`；确实需要记录具体手测问题时，更新 `docs/bug-list.md`；确实需要保留未完成设计或调研材料时，放进 `docs/work/` 并在 `docs/work/README.md` 归类。外部流程如果要求写入 `docs/superpowers/`，本仓库统一改写到 `docs/work/backlog/`、`docs/work/archive/` 或 `docs/work/references/`。确实需要记录长期规则时，更新 `docs/development.md`；已发布变化写入 `CHANGELOG.md`。
 
 ## 8. 文档维护原则
 
+- 对用户的回答、可见思路摘要、计划、状态更新和仓库文档默认使用中文
+- 任何用户可见内容都必须使用中文，包括 thinking/analysis 面板中展示的推理摘要、工具调用前后的状态说明、阶段性解释和最终回答；不要把用户可见的 thinking 内容视为隐藏推理
+- 代码标识符、API 名称、文件路径、命令、包名和上游原文引用可保留原语言
+- 读取或编辑中文文档时使用 UTF-8，避免 PowerShell 或本地默认编码导致乱码
 - README 只做入口，不塞太多细节
 - 同一件事只保留一个权威文档
 - 玩家文档优先讲“怎么做”
-- 项目状态和路线图分开维护
-- 历史材料归档，不抢正式入口
+- `project-status.md` 只写当前版本的高层能力状态
+- `roadmap.md` 只写长期方向，不写短期任务进度
+- `todo.md` 是唯一当前待办和短期进度来源
+- `bug-list.md` 只写具体可复现或待确认的用户/手测问题，不写泛泛功能规划
+- `work/backlog/` 保存未完成但暂不推进的设计和计划
+- `work/archive/` 保存已实现或仅作历史追溯的过程材料
+- `work/references/` 保存外部资料分析和数据源调研
+- 完成、取消或改变方向且影响当前短期待办、验收状态或优先级时，必须在同一次开发收尾时更新 `todo.md`
+- 修复或确认无效的 bug，必须在同一次开发收尾时更新或删除 `bug-list.md` 对应条目
+- `bug-list.md` 的 `Bug #数字` 必须全局唯一；需要按领域区分时，在标题中加领域前缀，不要复用编号
+- 设计/计划文档默认不作为正式入口；需要长期保留的结论应合并进正式文档
+- 未完成或仍可能有参考价值的文档不要删除，先归类到 `docs/work/`
+- 只有确认已合并到正式文档或明确无参考价值的材料，才可以删除

@@ -4,7 +4,7 @@
 > 关联资料：
 > - [腾讯表格：d2 武器 perk 推荐](https://docs.qq.com/sheet/DYkR5enNIdUt1VFhK?tab=000001)
 > - [小黑盒：命运2-凯旋丰碑-全种类武器推荐](https://www.xiaoheihe.cn/bbs/post_share?h_camp=link&redirect_data=...)
-> - 前期分析：[docs/2026-06-21-destiny2-weapon-sheet-analysis.md](../../2026-06-21-destiny2-weapon-sheet-analysis.md)
+> - 前期分析：[2026-06-21-destiny2-weapon-sheet-analysis.md](../references/2026-06-21-destiny2-weapon-sheet-analysis.md)
 
 ## 1. 目标
 
