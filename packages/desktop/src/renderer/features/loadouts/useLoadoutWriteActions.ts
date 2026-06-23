@@ -17,9 +17,9 @@ import {
 import { buildLoadoutActionFeedbackKey } from "../../utils/loadoutActionFeedback";
 import type { SelectedItemSource } from "../../shared/hooks/useItemDetail";
 import {
-  findBestTemplateSourceItem,
   getMissingLoadoutActionableCount
 } from "./loadoutViewModel";
+import { findBestTemplateSourceItem } from "../../shared/domain/loadouts/loadoutSources";
 
 type LoadoutLibraryBridge = {
   reloadTemplates: () => Promise<void>;

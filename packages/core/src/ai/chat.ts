@@ -68,8 +68,15 @@ export type AiChatReplyResult = {
 
 export type AiConnectionTestResult = {
   ok: true;
-  provider: string;
+  protocol: string;
   model: string;
+  message: string;
+};
+
+export type AiModelListResult = {
+  protocol: string;
+  models: string[];
+  source: "remote" | "fallback";
   message: string;
 };
 
@@ -95,13 +102,14 @@ type ChatResponse = {
   };
 };
 
-type AiProvider = "openai_responses" | "openai_chat" | "openai_compatible" | "anthropic";
+export type AiProtocol = "openai_responses" | "openai_chat_completions" | "anthropic_messages";
 
 type NormalizedAiConfig = {
-  provider: "" | AiProvider;
+  protocol: "" | AiProtocol;
   api_key: string;
   model: string;
   base_url: string;
+  force_lightgg: boolean;
 };
 
 type AiPromptMessage = {
@@ -117,11 +125,16 @@ export type AiAdviceSections = {
   raw: string;
 };
 
-const providerBaseUrls: Record<AiProvider, string> = {
+const protocolBaseUrls: Record<AiProtocol, string> = {
   openai_responses: "https://api.openai.com/v1",
-  openai_chat: "https://api.openai.com/v1",
-  openai_compatible: "",
-  anthropic: "https://api.anthropic.com"
+  openai_chat_completions: "https://api.openai.com/v1",
+  anthropic_messages: "https://api.anthropic.com"
+};
+
+const fallbackModels: Record<AiProtocol, string[]> = {
+  openai_responses: ["gpt-4.1", "gpt-4.1-mini", "gpt-4o", "gpt-4o-mini"],
+  openai_chat_completions: ["gpt-4.1", "gpt-4.1-mini", "gpt-4o", "gpt-4o-mini", "deepseek-chat"],
+  anthropic_messages: ["claude-sonnet-4-5", "claude-opus-4-1", "claude-3-5-haiku-latest"]
 };
 
 export async function generateVaultAiAdvice(input: VaultAiAdviceInput): Promise<VaultAiAdviceResult> {
@@ -131,7 +144,7 @@ export async function generateVaultAiAdvice(input: VaultAiAdviceInput): Promise<
   });
   const settings = normalizeAiConfig(input.config.ai);
 
-  if (!settings.provider) {
+  if (!settings.protocol) {
     return {
       local,
       ai: null,
@@ -170,7 +183,7 @@ export async function generateVaultAiAdvice(input: VaultAiAdviceInput): Promise<
   return {
     local,
     ai: {
-      provider: settings.provider,
+      provider: settings.protocol,
       model: settings.model,
       text,
       sections: extractAiSections(text)
@@ -181,7 +194,7 @@ export async function generateVaultAiAdvice(input: VaultAiAdviceInput): Promise<
 export async function generateItemAiAdvice(input: ItemAiAdviceInput): Promise<ItemAiAdviceResult> {
   const settings = normalizeAiConfig(input.config.ai);
 
-  if (!settings.provider) {
+  if (!settings.protocol) {
     return {
       ai: null,
       skipped_reason: "AI 未启用。"
@@ -218,7 +231,7 @@ export async function generateItemAiAdvice(input: ItemAiAdviceInput): Promise<It
 
   return {
     ai: {
-      provider: settings.provider,
+      provider: settings.protocol,
       model: settings.model,
       text,
       sections: extractAiSections(text)
@@ -284,8 +297,8 @@ export function buildAiChatContext(input: AiChatContextInput): string {
 export async function generateAiChatReply(input: AiChatReplyInput): Promise<AiChatReplyResult> {
   const settings = normalizeAiConfig(input.config.ai);
 
-  if (!settings.provider) {
-    throw new Error("请先启用 AI 提供方。");
+  if (!settings.protocol) {
+    throw new Error("请先选择 AI API 格式。");
   }
   if (!settings.api_key) {
     throw new Error("请先填写 AI API Key。");
@@ -323,7 +336,7 @@ export async function generateAiChatReply(input: AiChatReplyInput): Promise<AiCh
   });
 
   return {
-    provider: settings.provider,
+    provider: settings.protocol,
     model: settings.model,
     text
   };
@@ -369,6 +382,11 @@ export type AiWebSearchResult = {
   source?: string;
 };
 
+export function supportsAiWebSearch(config: D2Config["ai"]): boolean {
+  const settings = normalizeAiConfig(config);
+  return settings.protocol === "openai_responses";
+}
+
 export async function callAiWithWebSearch(input: {
   config: D2Config;
   query: string;
@@ -376,11 +394,11 @@ export async function callAiWithWebSearch(input: {
 }): Promise<AiWebSearchResult> {
   const settings = normalizeAiConfig(input.config.ai);
 
-  if (!settings.provider) {
-    throw new Error("请先启用 AI 提供方。");
+  if (!settings.protocol) {
+    throw new Error("请先选择 AI API 格式。");
   }
-  if (settings.provider !== "openai_responses") {
-    throw new Error("light.gg 实时分析需要 OpenAI Responses API 以使用网页搜索工具。");
+  if (!supportsAiWebSearch(input.config.ai) && !canForceLightgg(settings)) {
+    throw new Error("当前 AI 配置默认不支持 light.gg 实时分析；如目标服务额外兼容 Responses 能力，可在设置中强制开启后重试。");
   }
   if (!settings.api_key) {
     throw new Error("请先填写 AI API Key。");
@@ -445,8 +463,8 @@ export async function testAiConnection(input: {
 }): Promise<AiConnectionTestResult> {
   const settings = normalizeAiConfig(input.config.ai);
 
-  if (!settings.provider) {
-    throw new Error("请先启用 AI 提供方。");
+  if (!settings.protocol) {
+    throw new Error("请先选择 AI API 格式。");
   }
   if (!settings.api_key) {
     throw new Error("请先填写 AI API Key。");
@@ -473,55 +491,75 @@ export async function testAiConnection(input: {
 
   return {
     ok: true,
-    provider: settings.provider,
+    protocol: settings.protocol,
     model: settings.model,
     message: "AI 连接测试成功。"
   };
 }
 
-function normalizeAiConfig(config: D2Config["ai"]): NormalizedAiConfig {
-  const provider = config.provider.trim();
-  if (!provider || provider === "none") {
+export async function listAiModels(input: {
+  config: D2Config;
+  fetcher?: typeof fetch;
+}): Promise<AiModelListResult> {
+  const settings = normalizeAiConfig(input.config.ai);
+
+  if (!settings.protocol) {
+    throw new Error("请先选择 API 格式。");
+  }
+  if (!settings.api_key) {
+    throw new Error("请先填写 AI API Key。");
+  }
+
+  try {
+    const request = buildAiModelListRequest(settings);
+    const response = await (input.fetcher ?? fetch)(request.url, {
+      method: "GET",
+      headers: request.headers
+    });
+    const body = await readJson(response);
+    if (!response.ok) {
+      throw new Error(body.error?.message ?? response.statusText);
+    }
+
+    const models = extractModelIds(body);
+    if (!models.length) {
+      throw new Error("目标服务没有返回可识别的模型列表。");
+    }
+
     return {
-      provider: "",
+      protocol: settings.protocol,
+      models,
+      source: "remote",
+      message: "已读取目标服务返回的模型列表。"
+    };
+  } catch {
+    return {
+      protocol: settings.protocol,
+      models: fallbackModels[settings.protocol],
+      source: "fallback",
+      message: "远端模型列表读取失败，已回退到常见模型建议。仍然可以手动输入模型名称。"
+    };
+  }
+}
+
+function normalizeAiConfig(config: D2Config["ai"]): NormalizedAiConfig {
+  const protocol = normalizeAiProtocol(config);
+  if (!protocol) {
+    return {
+      protocol: "",
       api_key: "",
       model: "",
-      base_url: ""
-    };
-  }
-
-  if (provider === "openai") {
-    return {
-      provider: "openai_chat",
-      api_key: config.api_key.trim(),
-      model: config.model.trim(),
-      base_url: config.base_url.trim()
-    };
-  }
-
-  if (provider === "deepseek") {
-    return {
-      provider: "openai_compatible",
-      api_key: config.api_key.trim(),
-      model: config.model.trim(),
-      base_url: config.base_url.trim() || "https://api.deepseek.com"
-    };
-  }
-
-  if (provider === "custom") {
-    return {
-      provider: "openai_compatible",
-      api_key: config.api_key.trim(),
-      model: config.model.trim(),
-      base_url: config.base_url.trim()
+      base_url: "",
+      force_lightgg: false
     };
   }
 
   return {
-    provider: isAiProvider(provider) ? provider : "openai_compatible",
+    protocol,
     api_key: config.api_key.trim(),
     model: config.model.trim(),
-    base_url: config.base_url.trim()
+    base_url: normalizeLegacyBaseUrl(config.base_url, config.provider, protocol),
+    force_lightgg: config.force_lightgg ?? false
   };
 }
 
@@ -556,11 +594,11 @@ function buildAiRequest(settings: NormalizedAiConfig, messages: AiPromptMessage[
   headers: Record<string, string>;
   body: unknown;
 } {
-  if (!settings.provider) {
-    throw new Error("请先启用 AI 提供方。");
+  if (!settings.protocol) {
+    throw new Error("请先选择 AI API 格式。");
   }
 
-  if (settings.provider === "anthropic") {
+  if (settings.protocol === "anthropic_messages") {
     const system = messages.find((message) => message.role === "system")?.content ?? "";
     const userMessages = messages.filter((message) => message.role !== "system");
     return {
@@ -583,7 +621,7 @@ function buildAiRequest(settings: NormalizedAiConfig, messages: AiPromptMessage[
     };
   }
 
-  if (settings.provider === "openai_responses") {
+  if (settings.protocol === "openai_responses") {
     return {
       url: openAiResponsesEndpoint(settings.base_url),
       headers: openAiHeaders(settings.api_key),
@@ -599,7 +637,7 @@ function buildAiRequest(settings: NormalizedAiConfig, messages: AiPromptMessage[
   }
 
   return {
-    url: chatCompletionsEndpoint(settings.provider, settings.base_url),
+    url: chatCompletionsEndpoint(settings.base_url),
     headers: openAiHeaders(settings.api_key),
     body: {
       model: settings.model,
@@ -626,36 +664,64 @@ function extractAiText(body: ChatResponse): string {
   ).trim();
 }
 
-function isAiProvider(provider: string): provider is AiProvider {
-  return provider === "openai_responses"
-    || provider === "openai_chat"
-    || provider === "openai_compatible"
-    || provider === "anthropic";
+function normalizeAiProtocol(config: D2Config["ai"]): "" | AiProtocol {
+  const protocol = (config.protocol ?? "").trim();
+  if (isAiProtocol(protocol)) {
+    return protocol;
+  }
+
+  const provider = (config.provider ?? "").trim();
+  if (!provider || provider === "none") {
+    return "";
+  }
+  if (provider === "openai_responses") {
+    return "openai_responses";
+  }
+  if (provider === "anthropic") {
+    return "anthropic_messages";
+  }
+  if (provider === "openai_compatible") {
+    return inferLegacyCompatibleProtocol(config);
+  }
+  return "openai_chat_completions";
 }
 
 function openAiResponsesEndpoint(baseUrl: string): string {
-  const normalized = normalizeBaseUrl(baseUrl || providerBaseUrls.openai_responses);
+  const normalized = openAiRoot(baseUrl || protocolBaseUrls.openai_responses);
   return normalized.endsWith("/responses") ? normalized : `${normalized}/responses`;
 }
 
 function anthropicMessagesEndpoint(baseUrl: string): string {
-  const normalized = normalizeBaseUrl(baseUrl || providerBaseUrls.anthropic);
-  if (normalized.endsWith("/messages")) {
-    return normalized;
-  }
-  return normalized.endsWith("/v1") ? `${normalized}/messages` : `${normalized}/v1/messages`;
+  return `${anthropicRoot(baseUrl || protocolBaseUrls.anthropic_messages)}/messages`;
 }
 
-function chatCompletionsEndpoint(provider: Exclude<AiProvider, "anthropic" | "openai_responses">, baseUrl: string): string {
-  const selectedBaseUrl = baseUrl || providerBaseUrls[provider];
-  if (!selectedBaseUrl) {
-    throw new Error("请为 OpenAI 兼容接口填写接口地址。");
-  }
-
-  const normalized = normalizeBaseUrl(selectedBaseUrl);
+function chatCompletionsEndpoint(baseUrl: string): string {
+  const normalized = openAiRoot(baseUrl || protocolBaseUrls.openai_chat_completions);
   return normalized.endsWith("/chat/completions")
     ? normalized
     : `${normalized}/chat/completions`;
+}
+
+function openAiModelsEndpoint(baseUrl: string): string {
+  return `${openAiRoot(baseUrl || protocolBaseUrls.openai_chat_completions)}/models`;
+}
+
+function anthropicModelsEndpoint(baseUrl: string): string {
+  return `${anthropicRoot(baseUrl || protocolBaseUrls.anthropic_messages)}/models`;
+}
+
+function openAiRoot(baseUrl: string): string {
+  return normalizeBaseUrl(baseUrl)
+    .replace(/\/chat\/completions$/i, "")
+    .replace(/\/responses$/i, "")
+    .replace(/\/models$/i, "");
+}
+
+function anthropicRoot(baseUrl: string): string {
+  const normalized = normalizeBaseUrl(baseUrl)
+    .replace(/\/messages$/i, "")
+    .replace(/\/models$/i, "");
+  return normalized.endsWith("/v1") ? normalized : `${normalized}/v1`;
 }
 
 function normalizeBaseUrl(baseUrl: string): string {
@@ -664,6 +730,66 @@ function normalizeBaseUrl(baseUrl: string): string {
     throw new Error("请填写 AI 接口地址。");
   }
   return normalized;
+}
+
+function isAiProtocol(protocol: string): protocol is AiProtocol {
+  return protocol === "openai_responses"
+    || protocol === "openai_chat_completions"
+    || protocol === "anthropic_messages";
+}
+
+function inferLegacyCompatibleProtocol(config: D2Config["ai"]): AiProtocol {
+  const baseUrl = (config.base_url ?? "").trim().toLowerCase();
+  if (baseUrl.endsWith("/responses") || config.enable_lightgg || config.force_lightgg) {
+    return "openai_responses";
+  }
+  return "openai_chat_completions";
+}
+
+function normalizeLegacyBaseUrl(baseUrl: string, provider: string | undefined, protocol: AiProtocol): string {
+  const trimmed = baseUrl.trim();
+  if (trimmed) {
+    return trimmed;
+  }
+  if ((provider ?? "").trim() === "deepseek") {
+    return "https://api.deepseek.com";
+  }
+  return protocolBaseUrls[protocol];
+}
+
+function canForceLightgg(settings: NormalizedAiConfig): boolean {
+  return settings.force_lightgg && settings.protocol === "openai_chat_completions";
+}
+
+function buildAiModelListRequest(settings: NormalizedAiConfig): {
+  url: string;
+  headers: Record<string, string>;
+} {
+  if (settings.protocol === "anthropic_messages") {
+    return {
+      url: anthropicModelsEndpoint(settings.base_url),
+      headers: {
+        "x-api-key": settings.api_key,
+        "anthropic-version": "2023-06-01",
+        "Content-Type": "application/json"
+      }
+    };
+  }
+
+  return {
+    url: openAiModelsEndpoint(settings.base_url),
+    headers: openAiHeaders(settings.api_key)
+  };
+}
+
+function extractModelIds(body: ChatResponse & { data?: Array<{ id?: string; name?: string }>; models?: Array<{ id?: string; name?: string }> }): string[] {
+  const rawModels = [
+    ...(body.data ?? []),
+    ...(body.models ?? [])
+  ];
+  return Array.from(new Set(rawModels.map((item) => item.id ?? item.name ?? "").filter(Boolean))).sort((left, right) =>
+    left.localeCompare(right)
+  );
 }
 
 function buildVaultPrompt(local: VaultAnalysisResult): string {

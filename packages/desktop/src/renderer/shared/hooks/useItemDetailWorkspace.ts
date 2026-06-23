@@ -17,11 +17,11 @@ import {
   buildDuplicateGroupBatchTagPlan,
   buildVaultCleanupLocatorText,
   buildVaultDuplicateSummary
-} from "../../components/VaultPanel";
+} from "../domain/vault/vaultCleanup";
 import { buildItemChatGuideText, buildItemShareText } from "../../utils/itemShare";
 import {
   getAllKnownAccountItemsWithSource
-} from "../../features/loadouts/loadoutViewModel";
+} from "../domain/loadouts/loadoutSources";
 import {
   getItemKey,
   selectedItemToAccountItem,

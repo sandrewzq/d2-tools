@@ -225,6 +225,16 @@ describe("account summary", () => {
             },
             stats: {
               data: {
+                "instance-1": {
+                  stats: {
+                    "1240592695": { statHash: 1240592695, value: 54 },
+                    "155624089": { statHash: 155624089, value: 42 },
+                    "943549884": { statHash: 943549884, value: 61 },
+                    "4188031367": { statHash: 4188031367, value: 38 },
+                    "3871231066": { statHash: 3871231066, value: 33 },
+                    "4284893193": { statHash: 4284893193, value: 900 }
+                  }
+                },
                 "instance-2": {
                   stats: {
                     "2996146975": { statHash: 2996146975, value: 2 },
@@ -298,6 +308,14 @@ describe("account summary", () => {
       power: 1810,
       locked: true,
       ammo_type: "primary"
+    });
+    expect(summary.characters[0]?.equipped_items[0]?.weapon_stats).toEqual({
+      range: 54,
+      stability: 42,
+      handling: 61,
+      reload_speed: 38,
+      magazine: 33,
+      rounds_per_minute: 900
     });
     expect(summary.characters[0]?.equipped_items[0]?.weapon_frame).toEqual({
       key: "lightweight-frame",

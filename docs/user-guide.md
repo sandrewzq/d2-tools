@@ -205,10 +205,9 @@ AI 助手采用聊天框方式，而不是固定报告按钮。
 
 支持的模型接口：
 
-- OpenAI Responses API
+- OpenAI Responses
 - OpenAI Chat Completions
-- OpenAI 兼容接口
-- Anthropic Claude
+- Anthropic Messages
 
 如果没配置 AI，页面会提示你先去设置页完成配置。
 

@@ -128,4 +128,4 @@ jobs:
           files: |
             release-artifacts/d2-tools-win-x64-*.7z
           fail_on_unmatched_files: true
-          prerelease: true
+          prerelease: ${{ contains(github.ref_name, '-beta') || contains(github.ref_name, '-rc') }}

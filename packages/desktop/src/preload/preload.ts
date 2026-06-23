@@ -3,7 +3,14 @@ import type { AccountItemSummary, AccountSummary } from "@d2-tools/core/account/
 import type { ActionLogEntry } from "@d2-tools/core/actions/log";
 import type { BatchTransferPlan, ItemActionPlan, ItemActionPlanInput } from "@d2-tools/core/actions/plan";
 import type { ActivityHistorySummary } from "@d2-tools/core/activities/history";
-import type { AiChatReplyResult, AiConnectionTestResult, ItemAiAdviceInput, ItemAiAdviceResult, VaultAiAdviceResult } from "@d2-tools/core/ai/chat";
+import type {
+  AiChatReplyResult,
+  AiConnectionTestResult,
+  AiModelListResult,
+  ItemAiAdviceInput,
+  ItemAiAdviceResult,
+  VaultAiAdviceResult
+} from "@d2-tools/core/ai/chat";
 import type { VaultAnalysisResult } from "@d2-tools/core/analysis/vault";
 import type { DimWishlist } from "@d2-tools/core/analysis/wishlistImport";
 import type { LocalCommunityRecommendationTable, VaultItemMatchInfo, WeaponRecommendation } from "@d2-tools/core/community-perks";
@@ -97,6 +104,7 @@ contextBridge.exposeInMainWorld("d2", {
   getHealth: () => ipcRenderer.invoke("health:get") as Promise<HealthStatus>,
   getConfig: () => ipcRenderer.invoke("config:get") as Promise<D2Config>,
   saveConfig: (config: D2Config) => ipcRenderer.invoke("config:save", config) as Promise<D2Config>,
+  listAiModels: (config: D2Config) => ipcRenderer.invoke("ai:models", config) as Promise<AiModelListResult>,
   testAiConnection: () => ipcRenderer.invoke("ai:test") as Promise<AiConnectionTestResult>,
   loginBungie: () => ipcRenderer.invoke("auth:login") as Promise<AuthLoginResult>,
   getAccountSummary: () => ipcRenderer.invoke("account:summary") as Promise<AccountSummary>,

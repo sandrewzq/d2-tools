@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { callAiWithWebSearch } from "../ai/chat.js";
+import { callAiWithWebSearch, supportsAiWebSearch } from "../ai/chat.js";
 import { summarizeItemPerks, type ItemPlugSummary } from "../items/perks.js";
 import type { D2Config } from "../config/schema.js";
 import type {
@@ -19,17 +19,31 @@ type LightggCacheEntry = {
 
 type AiLightggConfig = {
   data?: { data_dir?: string };
-  ai?: { provider?: string; api_key?: string; model?: string; base_url?: string; enable_lightgg?: boolean };
+  ai?: {
+    protocol?: string;
+    provider?: string;
+    api_key?: string;
+    model?: string;
+    base_url?: string;
+    enable_lightgg?: boolean;
+    force_lightgg?: boolean;
+  };
 } | null | undefined;
 
 export function createAiLightggSource(config: AiLightggConfig): CommunityPerkSource {
   const data_dir = config?.data?.data_dir;
   const cacheDir = data_dir ? join(data_dir, "cache", "lightgg") : "";
   const ai = config?.ai;
+  const aiConfig = buildAiConfig(config);
 
   return {
     name: "AI light.gg",
-    isAvailable: () => Boolean(ai?.provider === "openai_responses" && ai?.api_key && ai?.model && ai?.enable_lightgg),
+    isAvailable: () => Boolean(
+      (supportsAiWebSearch(aiConfig.ai) || ai?.force_lightgg)
+      && ai?.api_key
+      && ai?.model
+      && ai?.enable_lightgg
+    ),
     async getRecommendations(item_hash: number, options: SourceOptions): Promise<WeaponRecommendation | null> {
       if (!cacheDir) return null;
 
@@ -40,7 +54,6 @@ export function createAiLightggSource(config: AiLightggConfig): CommunityPerkSou
       const url = `https://www.light.gg/db/items/${item_hash}/${slugify(itemName)}/`;
       const query = buildLightggQuery(itemName, url);
 
-      const aiConfig = buildAiConfig(config);
       const result = await callAiWithWebSearch({ config: aiConfig, query });
       const recommendation = parseLightggResponse(item_hash, itemName, url, result.text, options);
       if (!recommendation || (recommendation.combos.length === 0 && !recommendation.ai_analysis)) return null;
@@ -64,11 +77,13 @@ function buildAiConfig(config: AiLightggConfig): D2Config {
       manifest_language: "zh-chs"
     },
     ai: {
+      protocol: config?.ai?.protocol ?? "",
       provider: aiProvider(config),
       api_key: config?.ai?.api_key ?? "",
       model: config?.ai?.model ?? "",
       base_url: config?.ai?.base_url ?? "",
-      enable_lightgg: config?.ai?.enable_lightgg ?? false
+      enable_lightgg: config?.ai?.enable_lightgg ?? false,
+      force_lightgg: config?.ai?.force_lightgg ?? false
     },
     features: {
       write_actions_enabled: false
@@ -77,9 +92,7 @@ function buildAiConfig(config: AiLightggConfig): D2Config {
 }
 
 function aiProvider(config: AiLightggConfig): string {
-  const provider = config?.ai?.provider ?? "";
-  if (provider === "openai_responses") return "openai_responses";
-  return provider;
+  return config?.ai?.provider ?? "";
 }
 
 function buildLightggQuery(item_name: string, url: string): string {

@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import { readItemDetailSources } from "./source-readers";
 
 const desktopRoot = fileURLToPath(new URL("..", import.meta.url));
 
@@ -11,10 +12,7 @@ describe("item detail interaction performance", () => {
       join(desktopRoot, "src", "renderer", "shared", "hooks", "useItemDetail.ts"),
       "utf8"
     );
-    const itemDetailModal = readFileSync(
-      join(desktopRoot, "src", "renderer", "shared", "components", "ItemDetailModal.tsx"),
-      "utf8"
-    );
+    const itemDetailModal = readItemDetailSources(desktopRoot);
 
     const previewIndex = hook.indexOf("setSelectedItem(createSelectedItemPreview(item, source));");
     const detailIndex = hook.indexOf("await api.getItemDetail(item.hash);");

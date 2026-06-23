@@ -5,14 +5,16 @@ import { buildLoadoutItemStatus, summarizeLoadoutItemStatuses } from "../../util
 import { buildMissingLoadoutTransferPlan, describeMissingLoadoutBlockedReason } from "../../utils/loadoutTransfer";
 import {
   buildLoadoutCompareRows,
-  findBestTemplateSourceItem,
   formatLoadoutComparePerks,
-  getAllKnownAccountItemsWithSource,
   getMissingLoadoutActionableCount,
   isMatchingTemplateItem,
   isTemplateItemReady,
   isTemplateItemReadyFromPlan
 } from "./loadoutViewModel";
+import {
+  findBestTemplateSourceItem,
+  getAllKnownAccountItemsWithSource
+} from "../../shared/domain/loadouts/loadoutSources";
 
 export type LoadoutsPageProps = {
   accountSummary: AccountSummary | null;

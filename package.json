@@ -5,6 +5,7 @@
   "packageManager": "pnpm@9.15.0",
   "scripts": {
     "dev": "pnpm --filter @d2-tools/desktop dev",
+    "dev:desktop": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev-desktop.ps1",
     "dev:electron": "pnpm --filter @d2-tools/desktop dev:electron",
     "build": "pnpm -r build",
     "encoding:check": "node scripts/check-encoding.mjs",

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { defaultDataDirForPlatform, legacyDefaultDataDirForPlatform } from "../src/config/defaults.js";
 import { loadConfig, saveConfig } from "../src/config/store.js";
 
 describe("config store", () => {
@@ -21,6 +22,32 @@ describe("config store", () => {
         process.env.APPDATA = originalAppData;
       }
     }
+  });
+
+  it("resolves default data directories by platform without hard-coding APPDATA", () => {
+    expect(defaultDataDirForPlatform({
+      platform: "win32",
+      env: { APPDATA: "C:\\Users\\player\\AppData\\Roaming" },
+      homeDir: "C:\\Users\\player"
+    })).toBe(join("C:\\Users\\player\\AppData\\Roaming", "d2-tools"));
+
+    expect(defaultDataDirForPlatform({
+      platform: "darwin",
+      env: {},
+      homeDir: "/Users/player"
+    })).toBe(join("/Users/player", "Library", "Application Support", "d2-tools"));
+
+    expect(defaultDataDirForPlatform({
+      platform: "linux",
+      env: { XDG_DATA_HOME: "/home/player/.local-data" },
+      homeDir: "/home/player"
+    })).toBe(join("/home/player/.local-data", "d2-tools"));
+
+    expect(legacyDefaultDataDirForPlatform({
+      platform: "darwin",
+      env: {},
+      homeDir: "/Users/player"
+    })).toBe(join("/Users/player", "Library", "Application Support", "d2-service"));
   });
 
   it("migrates the old d2-service data directory into d2-tools", () => {

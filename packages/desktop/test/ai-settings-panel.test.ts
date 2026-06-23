@@ -2,85 +2,147 @@ import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { isAiSettingsConfigured, normalizeAiSettings } from "../src/renderer/utils/aiSettings";
+import {
+  getAiLightggSupportSettings,
+  isAiSettingsConfigured,
+  normalizeAiSettings
+} from "../src/renderer/utils/aiSettings";
+import { readRendererApiContracts } from "./source-readers";
 
 const desktopRoot = fileURLToPath(new URL("..", import.meta.url));
 
 describe("AI settings panel helpers", () => {
-  it("trims AI settings and keeps empty provider as disabled", () => {
+  it("trims AI settings and keeps empty protocol as disabled", () => {
     expect(normalizeAiSettings({
-      provider: " openai_responses ",
+      protocol: " openai_responses ",
+      provider: "",
       api_key: " key ",
       model: " gpt-4.1 ",
       base_url: " https://api.example.com/v1 ",
-      enable_lightgg: true
+      enable_lightgg: true,
+      force_lightgg: false
     })).toEqual({
-      provider: "openai_responses",
+      protocol: "openai_responses",
+      provider: "",
       api_key: "key",
       model: "gpt-4.1",
       base_url: "https://api.example.com/v1",
-      enable_lightgg: true
+      enable_lightgg: true,
+      force_lightgg: false
     });
-    expect(normalizeAiSettings({ provider: " none ", api_key: " key ", model: " model ", base_url: " url ", enable_lightgg: true }))
-      .toEqual({ provider: "", api_key: "", model: "", base_url: "", enable_lightgg: false });
+    expect(normalizeAiSettings({
+      protocol: " none ",
+      provider: "",
+      api_key: " key ",
+      model: " model ",
+      base_url: " url ",
+      enable_lightgg: true,
+      force_lightgg: true
+    })).toEqual({ protocol: "", provider: "", api_key: "", model: "", base_url: "", enable_lightgg: false, force_lightgg: false });
   });
 
-  it("normalizes legacy AI providers to the new provider modes", () => {
+  it("normalizes legacy AI providers to the new protocol modes", () => {
     expect(normalizeAiSettings({
+      protocol: "",
       provider: " openai ",
       api_key: " key ",
       model: " gpt-4.1 ",
       base_url: "",
-      enable_lightgg: false
-    }).provider).toBe("openai_chat");
+      enable_lightgg: false,
+      force_lightgg: false
+    }).protocol).toBe("openai_chat_completions");
 
     expect(normalizeAiSettings({
+      protocol: "",
       provider: " deepseek ",
       api_key: " key ",
       model: " deepseek-chat ",
       base_url: "",
-      enable_lightgg: false
+      enable_lightgg: false,
+      force_lightgg: false
     })).toEqual({
-      provider: "openai_compatible",
+      protocol: "openai_chat_completions",
+      provider: "",
       api_key: "key",
       model: "deepseek-chat",
       base_url: "https://api.deepseek.com",
-      enable_lightgg: false
+      enable_lightgg: false,
+      force_lightgg: false
     });
 
     expect(normalizeAiSettings({
+      protocol: "",
       provider: " custom ",
       api_key: " key ",
       model: " model ",
       base_url: " https://example.test/v1 ",
-      enable_lightgg: false
-    }).provider).toBe("openai_compatible");
+      enable_lightgg: false,
+      force_lightgg: false
+    }).protocol).toBe("openai_chat_completions");
   });
 
   it("detects whether AI is actually configured for the assistant page", () => {
     expect(isAiSettingsConfigured({
-      provider: " none ",
+      protocol: " none ",
+      provider: "",
       api_key: " key ",
       model: " model ",
       base_url: " https://example.test/v1 ",
-      enable_lightgg: false
+      enable_lightgg: false,
+      force_lightgg: false
     })).toBe(false);
 
     expect(isAiSettingsConfigured({
-      provider: " openai_responses ",
+      protocol: " openai_responses ",
+      provider: "",
       api_key: " key ",
       model: " gpt-4.1-mini ",
       base_url: "",
-      enable_lightgg: false
+      enable_lightgg: false,
+      force_lightgg: false
     })).toBe(true);
 
     expect(isAiSettingsConfigured({
-      provider: " anthropic ",
+      protocol: " anthropic_messages ",
+      provider: "",
       api_key: "",
       model: " claude-sonnet-4-5 ",
       base_url: "",
-      enable_lightgg: false
+      enable_lightgg: false,
+      force_lightgg: false
     })).toBe(false);
+  });
+
+  it("detects light.gg automatic support and force-enable eligibility by protocol", () => {
+    expect(getAiLightggSupportSettings({
+      protocol: "openai_responses",
+      provider: "",
+      api_key: "",
+      model: "",
+      base_url: "",
+      enable_lightgg: false,
+      force_lightgg: false
+    })).toMatchObject({ supported: true, canForce: false });
+
+    expect(getAiLightggSupportSettings({
+      protocol: "openai_chat_completions",
+      provider: "",
+      api_key: "",
+      model: "",
+      base_url: "",
+      enable_lightgg: false,
+      force_lightgg: false
+    })).toMatchObject({ supported: false, canForce: true });
+
+    expect(getAiLightggSupportSettings({
+      protocol: "anthropic_messages",
+      provider: "",
+      api_key: "",
+      model: "",
+      base_url: "",
+      enable_lightgg: false,
+      force_lightgg: false
+    })).toMatchObject({ supported: false, canForce: true });
   });
 
   it("wires the AI connection test button through preload and main IPC", () => {
@@ -88,21 +150,24 @@ describe("AI settings panel helpers", () => {
       join(desktopRoot, "src", "renderer", "components", "AiSettingsPanel.tsx"),
       "utf8"
     );
-    const apiClient = readFileSync(
-      join(desktopRoot, "src", "renderer", "api", "client.ts"),
-      "utf8"
-    );
+    const apiClient = readRendererApiContracts(desktopRoot);
     const preload = readFileSync(join(desktopRoot, "src", "preload", "preload.ts"), "utf8");
     const analysisIpc = readFileSync(join(desktopRoot, "src", "main", "ipc", "analysis.ts"), "utf8");
 
     expect(panel).toContain("保存并测试连接");
-    expect(panel).toContain("OpenAI Responses API（推荐）");
+    expect(panel).toContain("OpenAI Responses");
     expect(panel).toContain("OpenAI Chat Completions");
-    expect(panel).toContain("OpenAI 兼容接口");
-    expect(panel).toContain("Anthropic Claude");
+    expect(panel).toContain("Anthropic Messages");
+    expect(panel).not.toContain("OpenAI 兼容接口");
+    expect(panel).toContain("启用 light.gg 实时分析");
+    expect(panel).toContain("强制开启");
+    expect(panel).toContain("api.listAiModels");
     expect(panel).toContain("api.testAiConnection()");
+    expect(apiClient).toContain("listAiModels(config: D2Config): Promise<AiModelListResult>");
     expect(apiClient).toContain("testAiConnection(): Promise<AiConnectionTestResult>");
+    expect(preload).toContain('ipcRenderer.invoke("ai:models"');
     expect(preload).toContain('ipcRenderer.invoke("ai:test")');
+    expect(analysisIpc).toContain('ipcMain.handle("ai:models"');
     expect(analysisIpc).toContain('ipcMain.handle("ai:test"');
   });
 

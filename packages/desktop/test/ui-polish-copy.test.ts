@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import { readItemDetailSources } from "./source-readers";
 
 const desktopRoot = fileURLToPath(new URL("..", import.meta.url));
 
@@ -10,7 +11,7 @@ describe("new feature UI polish", () => {
     const accountPage = readFileSync(join(desktopRoot, "src", "renderer", "features", "account", "AccountPage.tsx"), "utf8");
     const libraryPage = readFileSync(join(desktopRoot, "src", "renderer", "features", "library", "LibraryPage.tsx"), "utf8");
     const settingsPage = readFileSync(join(desktopRoot, "src", "renderer", "features", "settings", "SettingsPage.tsx"), "utf8");
-    const itemDetailModal = readFileSync(join(desktopRoot, "src", "renderer", "shared", "components", "ItemDetailModal.tsx"), "utf8");
+    const itemDetailModal = readItemDetailSources(desktopRoot);
     const itemDetailHook = readFileSync(join(desktopRoot, "src", "renderer", "shared", "hooks", "useItemDetailWorkspace.ts"), "utf8");
 
     expect(libraryPage).toContain("未找到匹配结果");

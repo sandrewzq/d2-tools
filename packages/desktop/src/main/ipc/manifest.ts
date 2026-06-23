@@ -42,13 +42,15 @@ export function registerManifestIpcHandlers(): void {
           dataDir: config.data.data_dir,
           language: "en",
           metadata: cache.metadata,
-          component: "DestinyInventoryItemDefinition"
+          component: "DestinyInventoryItemDefinition",
+          writeDefaultCache: false
         }).catch(() => null),
         initializeDefinitionComponent({
           dataDir: config.data.data_dir,
           language: "en",
           metadata: cache.metadata,
-          component: "DestinyPlugSetDefinition"
+          component: "DestinyPlugSetDefinition",
+          writeDefaultCache: false
         }).catch(() => null)
       );
     }

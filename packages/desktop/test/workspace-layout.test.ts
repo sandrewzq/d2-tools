@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { readItemDetailSources } from "./source-readers";
 
 const desktopRoot = join(process.cwd(), "packages", "desktop");
 
@@ -23,7 +24,8 @@ describe("desktop workspace layout", () => {
     expect(homeDashboard).toContain('className="home-workbench"');
     expect(homeDashboard).toContain('className="home-primary-column"');
     expect(homeDashboard).toContain('className="home-side-column"');
-    expect(homeDashboard).toContain("<DailyPage");
+    expect(homeDashboard).toContain("<DailySummaryPanel");
+    expect(homeDashboard).not.toContain("../daily/DailyPage");
     expect(homePage).not.toContain("function renderDailyPanel");
     expect(dailyPage).toContain("export function DailyPage");
     expect(styles).toMatch(/\.home-workbench\s*{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1fr\)\s*minmax\(320px,\s*420px\);/);
@@ -105,7 +107,7 @@ describe("desktop workspace layout", () => {
   });
 
   it("uses shared source status styling for fallback and warning messages", () => {
-    const itemDetailModal = readFileSync(join(desktopRoot, "src", "renderer", "shared", "components", "ItemDetailModal.tsx"), "utf8");
+    const itemDetailModal = readItemDetailSources(desktopRoot);
     const aiPanel = readFileSync(join(desktopRoot, "src", "renderer", "components", "AiAnalysisPanel.tsx"), "utf8");
     const diagnosticsPanel = readFileSync(join(desktopRoot, "src", "renderer", "components", "DiagnosticsPanel.tsx"), "utf8");
     const styles = readFileSync(join(desktopRoot, "src", "renderer", "styles.css"), "utf8");

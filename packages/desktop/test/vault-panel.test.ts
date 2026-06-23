@@ -18,7 +18,7 @@ import {
   sortVaultItems
 } from "../src/renderer/components/VaultPanel";
 import type { AccountItemSummary, BatchItemActionResult, DimWishlist, VaultTags } from "../src/renderer/api/client";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 
 const items: AccountItemSummary[] = [
   {
@@ -97,17 +97,77 @@ const items: AccountItemSummary[] = [
 ];
 
 describe("vault panel helpers", () => {
-  it("uses dropdown filters instead of teaching English search syntax", () => {
+  it("keeps vault filter toolbar in the vault feature module", () => {
     const source = readFileSync("packages/desktop/src/renderer/components/VaultPanel.tsx", "utf8");
+    const toolbarPath = "packages/desktop/src/renderer/features/vault/VaultFilterToolbar.tsx";
 
-    expect(source).toContain("清空筛选");
-    expect(source).toContain("frameFilters");
-    expect(source).toContain("自然搜索名称、类型、perk 或备注");
+    expect(existsSync(toolbarPath)).toBe(true);
+    const toolbar = readFileSync(toolbarPath, "utf8");
+
+    expect(source).toContain("../features/vault/VaultFilterToolbar");
+    expect(source).not.toContain("className=\"vault-toolbar\"");
+    expect(toolbar).toContain("export function VaultFilterToolbar");
+    expect(toolbar).toContain("自然搜索名称、类型、perk 或备注");
+    expect(toolbar).toContain("仓库武器框架筛选");
+    expect(toolbar).toContain("清空筛选");
+    expect(toolbar).toContain("armorStatFilterLabels");
+    expect(toolbar).toContain("ammoFilterLabels");
+    expect(toolbar).toContain("tagLabels");
+    expect(toolbar).toContain("sortLabels");
     expect(source).not.toContain("tag:junk");
     expect(source).not.toContain("locked:false");
     expect(source).not.toContain("score&gt;=75");
-    expect(source).toContain("aria-busy");
-    expect(source).toContain("处理中");
+    expect(toolbar).toContain("aria-label");
+    expect(readFileSync("packages/desktop/src/renderer/features/vault/VaultOrganizePanel.tsx", "utf8")).toContain("处理中");
+  });
+
+  it("keeps vault organize and cleanup controls in the vault feature module", () => {
+    const source = readFileSync("packages/desktop/src/renderer/components/VaultPanel.tsx", "utf8");
+    const panelPath = "packages/desktop/src/renderer/features/vault/VaultOrganizePanel.tsx";
+
+    expect(existsSync(panelPath)).toBe(true);
+    const panel = readFileSync(panelPath, "utf8");
+
+    expect(source).toContain("../features/vault/VaultOrganizePanel");
+    expect(source).not.toContain("className=\"vault-organize-bar\"");
+    expect(source).not.toContain("className=\"vault-cleanup-panel\"");
+    expect(panel).toContain("export function VaultOrganizePanel");
+    expect(panel).toContain("仓库内容标签");
+    expect(panel).toContain("整理模式");
+    expect(panel).toContain("清理模式");
+    expect(panel).toContain("批量移动");
+    expect(panel).toContain("游戏内定位");
+  });
+
+  it("keeps duplicate group rendering in the vault feature module", () => {
+    const source = readFileSync("packages/desktop/src/renderer/components/VaultPanel.tsx", "utf8");
+    const duplicateGroupsPath = "packages/desktop/src/renderer/features/vault/VaultDuplicateGroups.tsx";
+
+    expect(existsSync(duplicateGroupsPath)).toBe(true);
+    const duplicateGroups = readFileSync(duplicateGroupsPath, "utf8");
+
+    expect(source).toContain("../features/vault/VaultDuplicateGroups");
+    expect(source).not.toContain("duplicate-group-list");
+    expect(source).not.toContain("duplicate-row-main");
+    expect(duplicateGroups).toContain("export function VaultDuplicateGroups");
+    expect(duplicateGroups).toContain("selectDuplicateGroupItems");
+    expect(duplicateGroups).toContain("duplicate-row-actions");
+    expect(duplicateGroups).toContain("保留这件，其余可清理");
+  });
+
+  it("keeps vault item section rendering in the vault feature module", () => {
+    const source = readFileSync("packages/desktop/src/renderer/components/VaultPanel.tsx", "utf8");
+    const itemSectionsPath = "packages/desktop/src/renderer/features/vault/VaultItemSections.tsx";
+
+    expect(existsSync(itemSectionsPath)).toBe(true);
+    const itemSections = readFileSync(itemSectionsPath, "utf8");
+
+    expect(source).toContain("../features/vault/VaultItemSections");
+    expect(source).not.toContain("vault-section-list");
+    expect(source).not.toContain("vault-slot-section");
+    expect(itemSections).toContain("export function VaultItemSections");
+    expect(itemSections).toContain("VaultListItem");
+    expect(itemSections).toContain("没有匹配的仓库物品");
   });
 
   it("filters vault items by group and text", () => {
@@ -542,37 +602,40 @@ describe("vault panel helpers", () => {
 
   it("renders duplicate group quick actions and richer meta in the vault UI", () => {
     const source = readFileSync("packages/desktop/src/renderer/components/VaultPanel.tsx", "utf8");
+    const duplicateGroups = readFileSync("packages/desktop/src/renderer/features/vault/VaultDuplicateGroups.tsx", "utf8");
+    const listItem = readFileSync("packages/desktop/src/renderer/features/vault/VaultListItem.tsx", "utf8");
 
     expect(source).toContain("onSaveTagBatch");
-    expect(source).toContain("selectDuplicateGroupItems");
-    expect(source).toContain("keep-best-review-rest");
-    expect(source).toContain("keep-best-junk-rest");
-    expect(source).toContain("clear-group-tags");
-    expect(source).toContain("duplicate-row-actions");
-    expect(source).toContain("duplicate-row-meta");
-    expect(source).toContain("保留这件，其余可清理");
-    expect(source).toContain("选择其余候选");
-    expect(source).toContain("已选候选");
-    expect(source).toContain("其余标记关注");
-    expect(source).toContain("其余标记可清理");
-    expect(source).toContain("清除本组标记");
-    expect(source).toContain("formatVaultItemMeta(item)");
-    expect(source).toContain("wishlist-hit-badge");
-    expect(source).toContain("DIM 愿望单");
+    expect(duplicateGroups).toContain("selectDuplicateGroupItems");
+    expect(duplicateGroups).toContain("keep-best-review-rest");
+    expect(duplicateGroups).toContain("keep-best-junk-rest");
+    expect(duplicateGroups).toContain("clear-group-tags");
+    expect(duplicateGroups).toContain("duplicate-row-actions");
+    expect(duplicateGroups).toContain("duplicate-row-meta");
+    expect(duplicateGroups).toContain("保留这件，其余可清理");
+    expect(duplicateGroups).toContain("选择其余候选");
+    expect(duplicateGroups).toContain("已选候选");
+    expect(duplicateGroups).toContain("其余标记关注");
+    expect(duplicateGroups).toContain("其余标记可清理");
+    expect(duplicateGroups).toContain("清除本组标记");
+    expect(duplicateGroups).toContain("formatVaultItemMeta(item)");
+    expect(listItem).toContain("wishlist-hit-badge");
+    expect(listItem).toContain("DIM 愿望单");
     expect(source).toContain("wishlistSummaryCount");
-    expect(source).toContain("formatCommunityPerkPreview");
-    expect(source).toContain("sample_perks");
+    expect(listItem).toContain("formatCommunityPerkPreview");
+    expect(listItem).toContain("sample_perks");
   });
 
   it("uses top-level vault content tabs so weapons and armor are split into easier views", () => {
     const source = readFileSync("packages/desktop/src/renderer/components/VaultPanel.tsx", "utf8");
+    const organizePanel = readFileSync("packages/desktop/src/renderer/features/vault/VaultOrganizePanel.tsx", "utf8");
     const filters = readFileSync("packages/desktop/src/renderer/features/vault/vaultFilters.ts", "utf8");
 
     expect(filters).toContain("defaultVaultGroupTab");
     expect(filters).toContain('export const defaultVaultGroupTab: VaultGroupFilter = "weapons"');
-    expect(source).toContain("vault-content-tabs");
-    expect(source).toContain("vault-content-tab");
-    expect(source).toContain("aria-label=\"仓库内容标签\"");
+    expect(organizePanel).toContain("vault-content-tabs");
+    expect(organizePanel).toContain("vault-content-tab");
+    expect(organizePanel).toContain("aria-label=\"仓库内容标签\"");
     expect(source).toContain("setGroup(defaultVaultGroupTab)");
   });
   it("keeps vault filtering and sorting helpers in the vault feature module", () => {
@@ -587,29 +650,32 @@ describe("vault panel helpers", () => {
     expect(source).not.toContain("export function filterVaultItems(");
     expect(source).not.toContain("export function sortVaultItems(");
   });
-  it("keeps vault cleanup and duplicate planning helpers in the vault feature module", () => {
+  it("keeps vault cleanup and duplicate planning helpers in shared domain", () => {
     const source = readFileSync("packages/desktop/src/renderer/components/VaultPanel.tsx", "utf8");
-    const cleanup = readFileSync("packages/desktop/src/renderer/features/vault/vaultCleanup.ts", "utf8");
+    const cleanup = readFileSync("packages/desktop/src/renderer/shared/domain/vault/vaultCleanup.ts", "utf8");
+    const featureBarrel = readFileSync("packages/desktop/src/renderer/features/vault/vaultCleanup.ts", "utf8");
 
     expect(cleanup).toContain("export function buildVaultCleanupText");
     expect(cleanup).toContain("export function buildVaultCleanupLocatorText");
     expect(cleanup).toContain("export function buildVaultDuplicateSummary");
     expect(cleanup).toContain("export function buildDuplicateGroupBatchTagPlan");
     expect(cleanup).toContain("export function selectDuplicateGroupItems");
-    expect(source).toContain("../features/vault/vaultCleanup");
+    expect(featureBarrel).toContain("../../shared/domain/vault/vaultCleanup");
+    expect(source).toContain("../shared/domain/vault/vaultCleanup");
     expect(source).not.toContain("export function buildVaultCleanupText(");
     expect(source).not.toContain("export function buildDuplicateGroupBatchTagPlan(");
   });
   it("shows a bulk move entry for selected visible vault results", () => {
     const source = readFileSync("packages/desktop/src/renderer/components/VaultPanel.tsx", "utf8");
     const hook = readFileSync("packages/desktop/src/renderer/features/vault/useVaultBatchActions.ts", "utf8");
+    const organizePanel = readFileSync("packages/desktop/src/renderer/features/vault/VaultOrganizePanel.tsx", "utf8");
 
-    expect(source + hook).toContain("批量移动");
+    expect(source + hook + organizePanel).toContain("批量移动");
     expect(source).toContain("currentCharacterId");
     expect(source).toContain("runSelectedBulkMove");
-    expect(source).toContain("全选当前结果");
-    expect(source).toContain("追加当前结果");
-    expect(source).toContain("移除当前结果");
+    expect(organizePanel).toContain("全选当前结果");
+    expect(organizePanel).toContain("追加当前结果");
+    expect(organizePanel).toContain("移除当前结果");
     expect(source).toContain("buildVaultSelectionSummary");
   });
   it("keeps vault selection helpers in the vault feature module", () => {
@@ -643,12 +709,28 @@ describe("vault panel helpers", () => {
     expect(source).not.toContain("async function runCleanupAction");
     expect(source).not.toContain("async function applyDuplicateGroupTags");
   });
+  it("keeps vault list item rendering in the vault feature module", () => {
+    const source = readFileSync("packages/desktop/src/renderer/components/VaultPanel.tsx", "utf8");
+    const listItemPath = "packages/desktop/src/renderer/features/vault/VaultListItem.tsx";
+    const itemSections = readFileSync("packages/desktop/src/renderer/features/vault/VaultItemSections.tsx", "utf8");
+
+    expect(existsSync(listItemPath)).toBe(true);
+    const listItem = readFileSync(listItemPath, "utf8");
+
+    expect(source).toContain("../features/vault/VaultItemSections");
+    expect(itemSections).toContain("./VaultListItem");
+    expect(source).not.toContain("function VaultListItem(");
+    expect(listItem).toContain("export function VaultListItem");
+    expect(listItem).toContain("formatVaultItemMeta");
+    expect(listItem).toContain("formatCommunityPerkPreview");
+  });
   it("shows local loadout highlights inside the vault list", () => {
     const source = readFileSync("packages/desktop/src/renderer/components/VaultPanel.tsx", "utf8");
+    const listItem = readFileSync("packages/desktop/src/renderer/features/vault/VaultListItem.tsx", "utf8");
 
     expect(source).toContain("highlightedItemKeys");
-    expect(source).toContain("isLoadoutMatch");
-    expect(source).toContain("loadout-template-badge");
-    expect(source).toContain("方案命中");
+    expect(listItem).toContain("isLoadoutMatch");
+    expect(listItem).toContain("loadout-template-badge");
+    expect(listItem).toContain("方案命中");
   });
 });

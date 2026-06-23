@@ -2,15 +2,13 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import { readItemDetailSources } from "./source-readers";
 
 const desktopRoot = fileURLToPath(new URL("..", import.meta.url));
 
 describe("wishlist detail UI", () => {
   it("renders DIM-style badges and same-name quick actions in the item detail modal", () => {
-    const itemDetailModal = readFileSync(
-      join(desktopRoot, "src", "renderer", "shared", "components", "ItemDetailModal.tsx"),
-      "utf8"
-    );
+    const itemDetailModal = readItemDetailSources(desktopRoot);
 
     expect(itemDetailModal).toContain("wishlist-detail-header");
     expect(itemDetailModal).toContain("wishlist-mode-badges");
@@ -34,10 +32,7 @@ describe("wishlist detail UI", () => {
   });
 
   it("renders community recommendation trust signals and queries all detail sources", () => {
-    const itemDetailModal = readFileSync(
-      join(desktopRoot, "src", "renderer", "shared", "components", "ItemDetailModal.tsx"),
-      "utf8"
-    );
+    const itemDetailModal = readItemDetailSources(desktopRoot);
     const communityIpc = readFileSync(join(desktopRoot, "src", "main", "ipc", "community.ts"), "utf8");
 
     expect(communityIpc).toContain("getRecommendationsWithAllSources");
@@ -52,22 +47,25 @@ describe("wishlist detail UI", () => {
       join(desktopRoot, "src", "renderer", "shared", "components", "ItemDetailModal.tsx"),
       "utf8"
     );
+    const itemDetailSources = readItemDetailSources(desktopRoot);
 
-    const armorIndex = itemDetailModal.indexOf('className="modal-perk-group armor-stat-panel"');
-    const actualRollIndex = itemDetailModal.indexOf("<h3>实际 Roll</h3>");
-    const perkPoolIndex = itemDetailModal.indexOf('className="modal-perks"');
-    const communityIndex = itemDetailModal.indexOf('className="community-recommendations-panel"');
-    const aiRawIndex = itemDetailModal.indexOf("community-ai-analysis");
-    const sameNameIndex = itemDetailModal.indexOf("<h3>同名对比</h3>");
-    const noteIndex = itemDetailModal.indexOf('className="item-note-panel"');
-    const actionIndex = itemDetailModal.indexOf('className="item-action-panel"');
+    const armorIndex = itemDetailModal.indexOf("<ItemDetailStats");
+    const actualRollIndex = itemDetailModal.indexOf("<ItemDetailPerks");
+    const communityIndex = itemDetailModal.indexOf("<ItemDetailCommunity");
+    const sameNameIndex = itemDetailModal.indexOf("<ItemDetailSameName");
+    const noteIndex = itemDetailModal.indexOf("<ItemNotePanel");
+    const actionIndex = itemDetailModal.indexOf("<ItemDetailActions");
 
+    expect(itemDetailSources).toContain('className="modal-perk-group armor-stat-panel"');
+    expect(itemDetailSources).toContain("<h3>实际 Roll</h3>");
+    expect(itemDetailSources).toContain('className="modal-perks"');
+    expect(itemDetailSources).toContain('className="community-recommendations-panel"');
+    expect(itemDetailSources).toContain("community-ai-analysis");
+    expect(itemDetailSources).toContain("<h3>同名对比</h3>");
     expect(armorIndex).toBeGreaterThanOrEqual(0);
     expect(actualRollIndex).toBeGreaterThan(armorIndex);
-    expect(perkPoolIndex).toBeGreaterThan(actualRollIndex);
-    expect(communityIndex).toBeGreaterThan(perkPoolIndex);
-    expect(aiRawIndex).toBeGreaterThan(communityIndex);
-    expect(sameNameIndex).toBeGreaterThan(aiRawIndex);
+    expect(communityIndex).toBeGreaterThan(actualRollIndex);
+    expect(sameNameIndex).toBeGreaterThan(communityIndex);
     expect(noteIndex).toBeGreaterThan(sameNameIndex);
     expect(actionIndex).toBeGreaterThan(noteIndex);
   });

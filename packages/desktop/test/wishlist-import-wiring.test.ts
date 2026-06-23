@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import { readRendererApiContracts } from "./source-readers";
 
 const desktopRoot = fileURLToPath(new URL("..", import.meta.url));
 
@@ -10,10 +11,11 @@ describe("wishlist import wiring", () => {
     const preload = readFileSync(join(desktopRoot, "src", "preload", "preload.ts"), "utf8");
     const ipc = readFileSync(join(desktopRoot, "src", "main", "ipc", "wishlist.ts"), "utf8");
     const ipcRegister = readFileSync(join(desktopRoot, "src", "main", "ipc.ts"), "utf8");
-    const client = readFileSync(join(desktopRoot, "src", "renderer", "api", "client.ts"), "utf8");
+    const client = readRendererApiContracts(desktopRoot);
     const homePage = readFileSync(join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"), "utf8");
     const vaultPage = readFileSync(join(desktopRoot, "src", "renderer", "features", "vault", "VaultPage.tsx"), "utf8");
     const vaultPanel = readFileSync(join(desktopRoot, "src", "renderer", "components", "VaultPanel.tsx"), "utf8");
+    const vaultListItem = readFileSync(join(desktopRoot, "src", "renderer", "features", "vault", "VaultListItem.tsx"), "utf8");
 
     expect(preload).toContain('ipcRenderer.invoke("wishlist:get")');
     expect(preload).toContain('ipcRenderer.invoke("wishlist:save"');
@@ -30,7 +32,7 @@ describe("wishlist import wiring", () => {
     expect(vaultPage).toContain("parseDimWishlist");
     expect(vaultPage).toContain("wishlistImportDraft");
     expect(vaultPage).toContain("导入 DIM 愿望单");
-    expect(vaultPanel).toContain("evaluateWishlistRoll");
+    expect(vaultListItem).toContain("evaluateWishlistRoll");
     expect(vaultPanel).toContain("props.wishlist");
   });
 
@@ -38,7 +40,7 @@ describe("wishlist import wiring", () => {
     const preload = readFileSync(join(desktopRoot, "src", "preload", "preload.ts"), "utf8");
     const ipc = readFileSync(join(desktopRoot, "src", "main", "ipc", "community.ts"), "utf8");
     const ipcRegister = readFileSync(join(desktopRoot, "src", "main", "ipc.ts"), "utf8");
-    const client = readFileSync(join(desktopRoot, "src", "renderer", "api", "client.ts"), "utf8");
+    const client = readRendererApiContracts(desktopRoot);
     const vaultPage = readFileSync(join(desktopRoot, "src", "renderer", "features", "vault", "VaultPage.tsx"), "utf8");
 
     expect(preload).toContain('ipcRenderer.invoke("community:local:get")');

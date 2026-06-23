@@ -60,17 +60,16 @@ AI 助手页只会在配置完整时正常工作。
 
 你需要检查：
 
-- 是否在设置页填了 AI 提供方
+- 是否在设置页选择了 AI API 格式
 - 是否填了 API Key
 - 是否填了模型名
-- 如果你用的是 OpenAI 兼容接口，`base_url` 是否正确
+- `base_url` 是否正确；根地址和完整接口地址都可以，但要和当前 API 格式匹配
 
 支持的方式包括：
 
-- OpenAI Responses API
+- OpenAI Responses
 - OpenAI Chat Completions
-- OpenAI 兼容接口
-- Anthropic Claude
+- Anthropic Messages
 
 未配置时，AI 页会提示你跳去设置页。
 

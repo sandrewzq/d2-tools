@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildAiChatContext, extractAiSections, generateAiChatReply, generateVaultAiAdvice } from "../src/ai/chat.js";
+import { buildAiChatContext, callAiWithWebSearch, extractAiSections, generateAiChatReply, generateVaultAiAdvice } from "../src/ai/chat.js";
 import type { AccountItemSummary } from "../src/account/summary.js";
 import type { D2Config } from "../src/config/schema.js";
 import type { VaultTags } from "../src/vault/tags.js";
@@ -145,10 +145,12 @@ describe("AI chat analysis", () => {
     const result = await generateAiChatReply({
       config: config({
         ai: {
-          provider: "openai_chat",
+          protocol: "openai_chat_completions",
           api_key: "test-key",
           model: "gpt-test",
-          base_url: ""
+          base_url: "",
+          enable_lightgg: false,
+          force_lightgg: false
         }
       }),
       question: "哪些装备可以清理？",
@@ -191,7 +193,7 @@ describe("AI chat analysis", () => {
     let called = false;
 
     const result = await generateVaultAiAdvice({
-      config: config({ ai: { provider: "", api_key: "", model: "", base_url: "" } }),
+      config: config({ ai: { protocol: "", api_key: "", model: "", base_url: "", enable_lightgg: false, force_lightgg: false } }),
       items,
       tags,
       fetcher: async () => {
@@ -212,10 +214,12 @@ describe("AI chat analysis", () => {
     const result = await generateVaultAiAdvice({
       config: config({
         ai: {
-          provider: "openai_responses",
+          protocol: "openai_responses",
           api_key: "test-key",
           model: "gpt-test",
-          base_url: ""
+          base_url: "",
+          enable_lightgg: false,
+          force_lightgg: false
         }
       }),
       items,
@@ -253,10 +257,12 @@ describe("AI chat analysis", () => {
     await expect(generateVaultAiAdvice({
       config: config({
         ai: {
-          provider: "openai_compatible",
+          protocol: "openai_chat_completions",
           api_key: "test-key",
           model: "local-model",
-          base_url: "http://127.0.0.1:11434/v1"
+          base_url: "http://127.0.0.1:11434/v1",
+          enable_lightgg: false,
+          force_lightgg: false
         }
       }),
       items,
@@ -268,6 +274,38 @@ describe("AI chat analysis", () => {
     })).rejects.toThrow("AI 接口调用失败：bad request");
   });
 
+  it("uses a responses-style web search request when Chat Completions is force-enabled for light.gg", async () => {
+    const requests: Array<{ url: string; init: RequestInit }> = [];
+
+    const result = await callAiWithWebSearch({
+      config: config({
+        ai: {
+          protocol: "openai_chat_completions",
+          api_key: "test-key",
+          model: "compatible-model",
+          base_url: "https://example.test/v1",
+          enable_lightgg: true,
+          force_lightgg: true
+        }
+      }),
+      query: "请分析 light.gg 社区推荐",
+      fetcher: async (url, init) => {
+        requests.push({ url: String(url), init: init ?? {} });
+        return jsonResponse({
+          output_text: "结构化分析结果"
+        });
+      }
+    });
+
+    expect(requests).toHaveLength(1);
+    expect(requests[0].url).toBe("https://example.test/v1/responses");
+    expect(JSON.parse(String(requests[0].init.body))).toMatchObject({
+      model: "compatible-model",
+      tools: [{ type: "web_search_preview" }]
+    });
+    expect(result.text).toBe("结构化分析结果");
+  });
+
   it("maps legacy DeepSeek settings to an OpenAI-compatible chat request", async () => {
     const requests: Array<{ url: string; init: RequestInit }> = [];
 
@@ -277,7 +315,9 @@ describe("AI chat analysis", () => {
           provider: "deepseek",
           api_key: "test-key",
           model: "deepseek-chat",
-          base_url: ""
+          base_url: "",
+          enable_lightgg: false,
+          force_lightgg: false
         }
       }),
       items,
@@ -291,7 +331,7 @@ describe("AI chat analysis", () => {
     });
 
     expect(requests[0].url).toBe("https://api.deepseek.com/chat/completions");
-    expect(result.ai?.provider).toBe("openai_compatible");
+    expect(result.ai?.provider).toBe("openai_chat_completions");
     expect(result.ai?.text).toBe("旧 DeepSeek 配置仍然可用。");
   });
 
@@ -301,10 +341,12 @@ describe("AI chat analysis", () => {
     const result = await generateVaultAiAdvice({
       config: config({
         ai: {
-          provider: "anthropic",
+          protocol: "anthropic_messages",
           api_key: "test-key",
           model: "claude-test",
-          base_url: ""
+          base_url: "",
+          enable_lightgg: false,
+          force_lightgg: false
         }
       }),
       items,
@@ -325,7 +367,7 @@ describe("AI chat analysis", () => {
     });
     expect(JSON.stringify(JSON.parse(String(requests[0].init.body)))).toContain("Riskrunner");
     expect(result.ai).toMatchObject({
-      provider: "anthropic",
+      provider: "anthropic_messages",
       model: "claude-test",
       text: "Claude 分析结果。"
     });
@@ -345,11 +387,17 @@ function config(overrides: Partial<D2Config>): D2Config {
       manifest_language: "zh-chs"
     },
     ai: {
+      protocol: "",
       provider: "",
       api_key: "",
       model: "",
       base_url: "",
+      enable_lightgg: false,
+      force_lightgg: false,
       ...overrides.ai
+    },
+    features: {
+      write_actions_enabled: false
     }
   };
 }

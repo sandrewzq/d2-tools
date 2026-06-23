@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import { readRendererApiContracts } from "./source-readers";
 
 const desktopRoot = fileURLToPath(new URL("..", import.meta.url));
 
@@ -11,10 +12,7 @@ describe("highest power batch wiring", () => {
       join(desktopRoot, "src", "renderer", "features", "loadouts", "useLoadoutWriteActions.ts"),
       "utf8"
     );
-    const apiClient = readFileSync(
-      join(desktopRoot, "src", "renderer", "api", "client.ts"),
-      "utf8"
-    );
+    const apiClient = readRendererApiContracts(desktopRoot);
     const preload = readFileSync(join(desktopRoot, "src", "preload", "preload.ts"), "utf8");
     const actionsIpc = readFileSync(join(desktopRoot, "src", "main", "ipc", "actions.ts"), "utf8");
 

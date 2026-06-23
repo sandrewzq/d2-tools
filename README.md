@@ -54,7 +54,7 @@ d2-tools.exe
 - 写操作：锁定、解锁、装备、仓库转移、一键装备最高光等
 - 资料库：按中文、英文、perk、别名搜索 Manifest 里的物品和 perk
 - 今日 / 本周：只展示 Bungie API 或本地资料库能确认的内容
-- AI 助手：支持 OpenAI Responses、OpenAI Chat Completions、OpenAI 兼容接口和 Anthropic Claude
+- AI 助手：支持 OpenAI Responses、OpenAI Chat Completions 和 Anthropic Messages 三种协议配置
 - 本地优先：配置、token、标签、备注和日志保存在本机
 
 ## 文档导航

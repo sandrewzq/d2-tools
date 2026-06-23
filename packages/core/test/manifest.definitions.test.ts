@@ -8,6 +8,7 @@ import {
   hasRequiredDefinitionComponents,
   initializeDefinitionComponent,
   loadDefinitionComponent,
+  loadDefinitionComponentByLanguage,
   requiredDefinitionComponents,
   selectDefinitionComponentPath
 } from "../src/manifest/definitions.js";
@@ -174,6 +175,43 @@ describe("manifest definition components", () => {
     const secondLoad = loadDefinitionComponent(dataDir, "DestinyInventoryItemDefinition");
 
     expect(firstLoad).toBe(secondLoad);
+  });
+
+  it("keeps the configured language as the default cache when downloading auxiliary English definitions", async () => {
+    const dataDir = mkdtempSync(join(tmpdir(), "d2-tools-definitions-"));
+
+    await initializeDefinitionComponent({
+      dataDir,
+      language: "zh-chs",
+      metadata,
+      component: "DestinyInventoryItemDefinition",
+      fetchJson: async () => ({
+        "1": {
+          hash: 1,
+          displayProperties: { name: "风险管理者" }
+        }
+      })
+    });
+    await initializeDefinitionComponent({
+      dataDir,
+      language: "en",
+      metadata,
+      component: "DestinyInventoryItemDefinition",
+      writeDefaultCache: false,
+      fetchJson: async () => ({
+        "1": {
+          hash: 1,
+          displayProperties: { name: "Riskrunner" }
+        }
+      })
+    });
+
+    expect(loadDefinitionComponent(dataDir, "DestinyInventoryItemDefinition")?.["1"]?.displayProperties?.name)
+      .toBe("风险管理者");
+    expect(loadDefinitionComponentByLanguage(dataDir, "DestinyInventoryItemDefinition", "zh-chs")?.["1"]?.displayProperties?.name)
+      .toBe("风险管理者");
+    expect(loadDefinitionComponentByLanguage(dataDir, "DestinyInventoryItemDefinition", "en")?.["1"]?.displayProperties?.name)
+      .toBe("Riskrunner");
   });
 
   it("does not treat partial definition caches as fully initialized", async () => {

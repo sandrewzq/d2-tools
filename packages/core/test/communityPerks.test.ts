@@ -328,6 +328,22 @@ describe("community perk recommendations", () => {
     expect(cacheEntry.raw_response).toBe(rawResponse);
     expect(cacheEntry.recommendation?.ai_analysis).toContain("保留这个原始响应");
   });
+
+  it("allows Chat Completions to expose light.gg after the user force-enables it", () => {
+    const source = createAiLightggSource({
+      data: { data_dir: mkdtempSync(join(tmpdir(), "d2-tools-community-")) },
+      ai: {
+        protocol: "openai_chat_completions",
+        api_key: "test-key",
+        model: "compatible-model",
+        base_url: "https://example.test/v1",
+        enable_lightgg: true,
+        force_lightgg: true
+      }
+    });
+
+    expect(source.isAvailable()).toBe(true);
+  });
 });
 
 function recommendation(overrides: Partial<WeaponRecommendation> = {}): WeaponRecommendation {

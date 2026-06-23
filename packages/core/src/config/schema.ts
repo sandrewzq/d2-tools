@@ -10,11 +10,13 @@ export type D2Config = {
     manifest_language: string;
   };
   ai: {
-    provider: string;
+    protocol?: string;
+    provider?: string;
     api_key: string;
     model: string;
     base_url: string;
     enable_lightgg: boolean;
+    force_lightgg?: boolean;
   };
   features: {
     write_actions_enabled: boolean;
@@ -29,10 +31,12 @@ export type ConfigEnv = Partial<Record<
   | "D2_DATA_DIR"
   | "D2_MANIFEST_LANGUAGE"
   | "AI_PROVIDER"
+  | "AI_PROTOCOL"
   | "AI_API_KEY"
   | "AI_MODEL"
   | "AI_BASE_URL"
   | "AI_ENABLE_LIGHTGG"
+  | "AI_FORCE_LIGHTGG"
   | "D2_WRITE_ACTIONS_ENABLED",
   string
 >>;

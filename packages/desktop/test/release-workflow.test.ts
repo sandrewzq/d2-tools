@@ -18,5 +18,8 @@ describe("release workflow", () => {
     expect(workflow).toContain("d2-tools-win-x64");
     expect(workflow).toContain("*.7z");
     expect(workflow).not.toContain("*.zip");
+    expect(workflow).toContain("contains(github.ref_name, '-beta')");
+    expect(workflow).toContain("contains(github.ref_name, '-rc')");
+    expect(workflow).not.toContain("prerelease: true");
   });
 });

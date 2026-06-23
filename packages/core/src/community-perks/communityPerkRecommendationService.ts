@@ -13,7 +13,15 @@ import type {
 
 type FullServiceConfig = {
   data?: { data_dir?: string };
-  ai?: { provider?: string; api_key?: string; model?: string; base_url?: string; enable_lightgg?: boolean };
+  ai?: {
+    protocol?: string;
+    provider?: string;
+    api_key?: string;
+    model?: string;
+    base_url?: string;
+    enable_lightgg?: boolean;
+    force_lightgg?: boolean;
+  };
 } | null | undefined;
 
 export class CommunityPerkRecommendationService {
@@ -205,7 +213,7 @@ export function createFullCommunityPerkService(
   }
 
   const ai = config?.ai;
-  if (ai?.provider && ai?.api_key && ai?.model) {
+  if ((ai?.protocol || ai?.provider) && ai?.api_key && ai?.model) {
     service.addSource(createAiLightggSource(config));
   }
 

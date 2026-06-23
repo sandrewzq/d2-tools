@@ -23,12 +23,27 @@ export type AccountItemSummary = {
   power?: number;
   locked?: boolean;
   armor_stats?: ArmorStatSummary;
+  weapon_stats?: WeaponStatSummary;
   socket_plugs: AccountItemPlugSummary[];
 };
 
 export type ArmorStatSummary = Record<ArmorStatKey, number> & {
   total: number;
 };
+
+export type WeaponStatKey =
+  | "impact"
+  | "range"
+  | "stability"
+  | "handling"
+  | "reload_speed"
+  | "magazine"
+  | "rounds_per_minute"
+  | "charge_time"
+  | "draw_time"
+  | "recoil_direction";
+
+export type WeaponStatSummary = Partial<Record<WeaponStatKey, number>>;
 
 export type AccountMaterialSummary = {
   hash: number;
@@ -232,6 +247,19 @@ const armorStatHashMap: Record<number, ArmorStatKey> = {
   4244567218: "strength"
 };
 
+const weaponStatHashMap: Record<number, WeaponStatKey> = {
+  4043523819: "impact",
+  1240592695: "range",
+  155624089: "stability",
+  943549884: "handling",
+  4188031367: "reload_speed",
+  3871231066: "magazine",
+  4284893193: "rounds_per_minute",
+  2961396640: "charge_time",
+  447667954: "draw_time",
+  2714457168: "recoil_direction"
+};
+
 export async function fetchAccountSummary(options: FetchAccountSummaryOptions): Promise<AccountSummary> {
   const accessToken = options.token.access_token;
   if (!accessToken) {
@@ -416,6 +444,10 @@ function summarizeItem(
   if (armorStats) {
     summary.armor_stats = armorStats;
   }
+  const weaponStats = groupKey === "weapons" ? summarizeWeaponStats(instanceId, components) : undefined;
+  if (weaponStats) {
+    summary.weapon_stats = weaponStats;
+  }
   const weaponFrame = definition
     ? summarizeWeaponFrame(definition, definitions, { plugSetDefinitions })
     : undefined;
@@ -424,6 +456,31 @@ function summarizeItem(
   }
 
   return summary;
+}
+
+function summarizeWeaponStats(
+  instanceId: string | undefined,
+  components: DestinyProfileResponse["itemComponents"] | undefined
+): WeaponStatSummary | undefined {
+  if (!instanceId) {
+    return undefined;
+  }
+
+  const stats = components?.stats?.data?.[instanceId]?.stats;
+  if (!stats) {
+    return undefined;
+  }
+
+  const summary: WeaponStatSummary = {};
+  for (const stat of Object.values(stats)) {
+    const key = weaponStatHashMap[Number(stat.statHash)];
+    if (!key || stat.value === undefined) {
+      continue;
+    }
+    summary[key] = stat.value;
+  }
+
+  return Object.keys(summary).length ? summary : undefined;
 }
 
 function summarizeArmorStats(

@@ -37,6 +37,29 @@ docs/        正式文档
   - 负责 GUI、Electron 主进程、preload、IPC 和前端交互
   - 不重复实现 core 里的规则
 
+### 2.2 Renderer feature 边界
+
+- `packages/desktop/src/renderer/pages/HomePage.tsx` 是桌面端菜单 composition root，只做菜单接线和跨 feature 状态组装。
+- `packages/desktop/src/renderer/features/<menu>/` 是菜单私有实现。feature 可以 import `shared/`、`components/`、`utils/` 和 `api/`，但不能 import 其他 feature。
+- `packages/desktop/src/renderer/shared/` 只能放跨菜单复用能力，不能反向 import `features/`。
+- 跨账号、仓库、资料库复用的装备详情、配装定位、状态卡片等能力应先进入 `shared/`，再由各 feature 引用。
+- `packages/desktop/src/renderer/api/types.ts` 是 renderer 侧平台无关 API 聚合入口，只组合 `AppApi` 并重导出分域契约；账号、仓库、资料库、配装、AI、写操作等 DTO 应放在 `api/*Api.ts` 或 `api/sharedTypes.ts`，后续 Mac / 移动端适配应优先复用这些类型边界。
+- `packages/desktop/src/renderer/api/client.ts` 只做 Electron renderer 运行时绑定：声明 `window.d2`、导出 `api`，并兼容性重导出 `types.ts` 里的类型。
+- `packages/desktop/src/renderer/shared/copy.ts` 保存当前中文优先的文案规则和通用 copy；目前只做中文，不提供语言切换 UI。
+- 默认数据目录由 `packages/core/src/config/defaults.ts` 的平台感知 helper 统一计算：Windows 使用 `%APPDATA%\d2-tools`，macOS 使用 `~/Library/Application Support/d2-tools`，Linux / 其他平台使用 `$XDG_DATA_HOME/d2-tools` 或 `~/.local/share/d2-tools`。
+- `packages/desktop/test/renderer-boundaries.test.ts` 会拦截 feature 互相 import 和 shared 反向依赖 feature。
+- `packages/desktop/test/renderer-api-boundaries.test.ts` 会拦截把大型 DTO 类型重新塞回 `api/client.ts` 或重新塞回一个巨型 `api/types.ts`。
+
+### 2.3 并行开发规则
+
+- 普通功能按菜单并行：账号页改 `features/account/`，仓库页改 `features/vault/`，资料库改 `features/library/`，配装改 `features/loadouts/`，AI 改 `features/ai/`，设置改 `features/settings/`，每日 / 每周改 `features/daily/`。
+- 跨菜单能力先抽到 `shared/`，再由各 feature 引用；不要让一个 feature 直接 import 另一个 feature。
+- 共享详情、配装来源、仓库清理等跨菜单逻辑应放到 `shared/components/`、`shared/hooks/` 或 `shared/domain/`。
+- Renderer API 按领域维护在 `api/*Api.ts`，`types.ts` 只聚合，`client.ts` 只绑定 Electron runtime。
+- 主进程 IPC 按领域维护在 `src/main/ipc/` 子模块，`ipc.ts` 只聚合。
+- 新增可见文案优先进入 copy 体系；当前只维护中文。
+- `HomePage.tsx`、`ItemDetailModal.tsx`、`useItemDetailWorkspace.ts`、`VaultPanel.tsx`、`api/types.ts`、`api/client.ts`、`ipc.ts` 等公共接线文件是并行开发高冲突区，修改前要确认是否真的需要，并说明影响范围。
+
 ## 3. 本地开发
 
 安装依赖：
@@ -45,13 +68,34 @@ docs/        正式文档
 npx pnpm@9.15.0 install
 ```
 
-启动前端开发环境：
+日常开发桌面端时，推荐用命令行启动：
+
+```powershell
+npx pnpm@9.15.0 dev:desktop
+```
+
+也可以直接运行底层 PowerShell 脚本：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev-desktop.ps1
+```
+
+这条链路会：
+
+1. 构建 `@d2-tools/core` 和 `@d2-tools/http`
+2. 编译 Electron 主进程和 preload
+3. 启动 Vite 前端开发服务器
+4. 打开 Electron 开发版桌面应用
+
+这不是打包流程，不会生成或解压 `release/win-unpacked`。渲染层改动支持热更新；主进程、preload、core 或 http 改动后，关闭桌面窗口再重新运行 `npx pnpm@9.15.0 dev:desktop` 即可重新编译启动。
+
+如果只想单独启动前端页面：
 
 ```powershell
 npx pnpm@9.15.0 dev
 ```
 
-如果你要配合 Electron 主进程调试：
+如果你已经手动启动了 Vite，并且只想单独启动 Electron 主进程：
 
 ```powershell
 npx pnpm@9.15.0 dev:electron
@@ -92,6 +136,8 @@ powershell -File scripts/local-package.ps1
 3. `vitest --run`
 4. `pnpm typecheck`
 5. `pnpm package:win`
+
+打包链路主要用于发布前或需要验证绿色包时；日常开发优先使用 `npx pnpm@9.15.0 dev:desktop`，不要为了看一次本地改动反复打包、解压。
 
 仅构建 Windows 绿色包（跳过测试和类型检查）：
 
@@ -137,8 +183,8 @@ packages/desktop/release/
 ### 6.2 注意事项
 
 - 如果 `CHANGELOG.md` 没有对应版本章节，CI 会失败，不会发布 Release
-- `v0.0.x` 版本会自动标记为 Pre-release
-- Release Assets 会同时包含 `d2-tools-win-x64-<version>.7z` 和 `latest.yml`
+- 只有 tag 名包含 `-beta` 或 `-rc` 时，GitHub Release 才会自动标记为 Pre-release，例如 `v0.0.6-beta.1`、`v1.0.0-rc.1`
+- Release Assets 当前包含 `d2-tools-win-x64-<version>.7z`
 
 ### 6.3 发布前检查
 

@@ -13,11 +13,13 @@ export function useDiagnosticsSettings(input: {
   const [diagnosticError, setDiagnosticError] = useState("");
   const [isRefreshingDiagnostics, setIsRefreshingDiagnostics] = useState(false);
   const [aiSettings, setAiSettings] = useState<D2Config["ai"]>({
+    protocol: "",
     provider: "",
     api_key: "",
     model: "",
     base_url: "",
-    enable_lightgg: false
+    enable_lightgg: false,
+    force_lightgg: false
   });
   const [writeActionsEnabled, setWriteActionsEnabled] = useState(false);
   const [settingsMessage, setSettingsMessage] = useState("");

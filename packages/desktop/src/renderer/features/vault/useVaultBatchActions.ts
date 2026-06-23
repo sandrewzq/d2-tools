@@ -12,7 +12,7 @@ import {
   buildVaultCleanupLocatorText,
   buildVaultCleanupText,
   type DuplicateGroupBatchTagMode
-} from "./vaultCleanup";
+} from "../../shared/domain/vault/vaultCleanup";
 import { selectVaultBatchItems } from "./vaultSelection";
 
 export type VaultCleanupActions = {

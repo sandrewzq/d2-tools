@@ -1,5 +1,5 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import type { DestinyManifestMetadata } from "./metadata.js";
 
 export type DefinitionComponentName =
@@ -64,6 +64,7 @@ export type InitializeDefinitionComponentOptions = {
   language: string;
   metadata: DestinyManifestMetadata;
   component: DefinitionComponentName;
+  writeDefaultCache?: boolean;
   fetchJson?: (url: string) => Promise<DefinitionComponentData>;
   now?: () => Date;
 };
@@ -114,29 +115,27 @@ export function selectDefinitionComponentPath(
 export async function initializeDefinitionComponent(
   options: InitializeDefinitionComponentOptions
 ): Promise<DefinitionComponentStatus> {
+  const language = normalizeDefinitionLanguage(options.language);
   const sourcePath = selectDefinitionComponentPath(
     options.metadata,
-    options.language,
+    language,
     options.component
   );
   const data = await (options.fetchJson ?? fetchDefinitionJson)(staticContentUrl(sourcePath));
   const cache: DefinitionComponentCache = {
     cached_at: (options.now ?? (() => new Date()))().toISOString(),
     component: options.component,
-    language: options.language,
+    language,
     source_path: sourcePath,
     count: Object.keys(data).length,
     data
   };
 
-  const cachePath = definitionCachePath(options.dataDir, options.component);
   mkdirSync(definitionDir(options.dataDir), { recursive: true });
-  writeFileSync(
-    cachePath,
-    `${JSON.stringify(cache, null, 2)}\n`,
-    "utf8"
-  );
-  definitionMemoryCache.set(cachePath, cache);
+  writeDefinitionCache(definitionCachePathForLanguage(options.dataDir, options.component, language), cache);
+  if (options.writeDefaultCache !== false) {
+    writeDefinitionCache(definitionCachePath(options.dataDir, options.component), cache);
+  }
 
   return statusFromCache(cache);
 }
@@ -214,6 +213,20 @@ function definitionCachePathForLanguage(
 ): string {
   const dir = language ? join(definitionDir(dataDir), language) : definitionDir(dataDir);
   return join(dir, `${component}.json`);
+}
+
+function normalizeDefinitionLanguage(language: string): string {
+  return language.trim().toLowerCase();
+}
+
+function writeDefinitionCache(path: string, cache: DefinitionComponentCache): void {
+  mkdirSync(dirname(path), { recursive: true });
+  writeFileSync(
+    path,
+    `${JSON.stringify(cache, null, 2)}\n`,
+    "utf8"
+  );
+  definitionMemoryCache.set(path, cache);
 }
 
 function staticContentUrl(path: string): string {

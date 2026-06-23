@@ -53,8 +53,8 @@ export function computeStartupState(input: {
         label: input.hasManifest ? "资料库已初始化" : "资料库未初始化"
       },
       ai: {
-        status: input.config.ai.provider.trim() ? "ready" : "skipped",
-        label: input.config.ai.provider.trim() ? "AI 已配置" : "AI 未配置"
+        status: (input.config.ai.protocol ?? input.config.ai.provider ?? "").trim() ? "ready" : "skipped",
+        label: (input.config.ai.protocol ?? input.config.ai.provider ?? "").trim() ? "AI 已配置" : "AI 未配置"
       }
     }
   };

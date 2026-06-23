@@ -11,6 +11,7 @@ import {
   type VaultAnalysisResult,
   type VaultTags
 } from "../api/client";
+import { protocolLabel } from "../utils/aiSettings";
 
 type AiChatMessage = {
   role: "user" | "assistant";
@@ -218,7 +219,7 @@ export function AiAnalysisPanel(props: {
               {aiResult ? (
                 <section className="analysis-section ai-advice-section">
                   <h3>AI 深度建议</h3>
-                  <p className="muted-copy">{aiResult.provider} / {aiResult.model}</p>
+                  <p className="muted-copy">{protocolLabel(aiResult.provider)} / {aiResult.model}</p>
                   <AiSectionView sections={aiResult.sections} />
                 </section>
               ) : null}

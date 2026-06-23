@@ -5,7 +5,7 @@ import {
 } from "../../components/DiagnosticsPanel";
 import { StatusOverview } from "../../components/StatusOverview";
 import type { ShellPageKey } from "../../components/ShellLayout";
-import { DailyPage } from "../daily/DailyPage";
+import { DailySummaryPanel } from "../../shared/components/DailySummaryPanel";
 
 export function HomeDashboard(props: {
   state: StartupState;
@@ -31,7 +31,7 @@ export function HomeDashboard(props: {
   return (
     <div className="home-workbench">
       <div className="home-primary-column">
-        <DailyPage
+        <DailySummaryPanel
           dailySummary={props.dailySummary}
           dailyMessage={props.dailyMessage}
           dailyError={props.dailyError}

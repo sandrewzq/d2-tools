@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import { readRendererApiContracts } from "./source-readers";
 
 const desktopRoot = fileURLToPath(new URL("..", import.meta.url));
 
@@ -16,10 +17,7 @@ describe("desktop Bungie login wiring", () => {
       join(desktopRoot, "src", "renderer", "pages", "WizardPage.tsx"),
       "utf8"
     );
-    const apiClient = readFileSync(
-      join(desktopRoot, "src", "renderer", "api", "client.ts"),
-      "utf8"
-    );
+    const apiClient = readRendererApiContracts(desktopRoot);
     const preload = readFileSync(join(desktopRoot, "src", "preload", "preload.ts"), "utf8");
     const authIpc = readFileSync(join(desktopRoot, "src", "main", "ipc", "auth.ts"), "utf8");
     const accountIpc = readFileSync(join(desktopRoot, "src", "main", "ipc", "account.ts"), "utf8");

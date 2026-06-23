@@ -11,15 +11,17 @@ describe("cleanup mode wiring", () => {
       join(desktopRoot, "src", "renderer", "components", "VaultPanel.tsx"),
       "utf8"
     );
+    const vaultOrganizePanel = readFileSync(join(desktopRoot, "src", "renderer", "features", "vault", "VaultOrganizePanel.tsx"), "utf8");
     const vaultBatchHook = readFileSync(join(desktopRoot, "src", "renderer", "features", "vault", "useVaultBatchActions.ts"), "utf8");
     const vaultPage = readFileSync(join(desktopRoot, "src", "renderer", "features", "vault", "VaultPage.tsx"), "utf8");
     const vaultWriteHook = readFileSync(join(desktopRoot, "src", "renderer", "features", "vault", "useVaultWriteActions.ts"), "utf8");
     const homePage = readFileSync(join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"), "utf8");
 
-    expect(vaultPanel).toContain("清理模式");
-    expect(vaultPanel).toContain("不会分解装备");
-    expect(vaultPanel).toContain("批量解锁");
-    expect(vaultPanel).toContain("转移到角色背包");
+    expect(vaultPanel).toContain("VaultOrganizePanel");
+    expect(vaultOrganizePanel).toContain("清理模式");
+    expect(vaultOrganizePanel).toContain("不会分解装备");
+    expect(vaultOrganizePanel).toContain("批量解锁");
+    expect(vaultOrganizePanel).toContain("转移到角色背包");
     expect(vaultPanel).toContain("selectMarkedCleanupItems");
     expect(vaultBatchHook).toContain("onBatchUnlock");
     expect(vaultBatchHook).toContain("onBatchTransferToCharacter");

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { testAiConnection } from "../src/ai/chat.js";
+import { listAiModels, testAiConnection } from "../src/ai/chat.js";
 import type { D2Config } from "../src/config/schema.js";
 
 describe("AI connection test", () => {
@@ -8,10 +8,12 @@ describe("AI connection test", () => {
 
     const result = await testAiConnection({
       config: config({
-        provider: "openai_responses",
+        protocol: "openai_responses",
         api_key: "key",
         model: "gpt-test",
-        base_url: ""
+        base_url: "",
+        enable_lightgg: false,
+        force_lightgg: false
       }),
       fetcher: async (url, init) => {
         requests.push({ url: String(url), body: String(init?.body), headers: init?.headers });
@@ -32,7 +34,7 @@ describe("AI connection test", () => {
     });
     expect(result).toEqual({
       ok: true,
-      provider: "openai_responses",
+      protocol: "openai_responses",
       model: "gpt-test",
       message: "AI 连接测试成功。"
     });
@@ -43,10 +45,12 @@ describe("AI connection test", () => {
 
     const result = await testAiConnection({
       config: config({
-        provider: "openai_chat",
+        protocol: "openai_chat_completions",
         api_key: "key",
         model: "gpt-test",
-        base_url: ""
+        base_url: "",
+        enable_lightgg: false,
+        force_lightgg: false
       }),
       fetcher: async (url, init) => {
         requests.push({ url: String(url), body: String(init?.body) });
@@ -62,7 +66,7 @@ describe("AI connection test", () => {
     });
     expect(result).toEqual({
       ok: true,
-      provider: "openai_chat",
+      protocol: "openai_chat_completions",
       model: "gpt-test",
       message: "AI 连接测试成功。"
     });
@@ -73,10 +77,12 @@ describe("AI connection test", () => {
 
     const result = await testAiConnection({
       config: config({
-        provider: "anthropic",
+        protocol: "anthropic_messages",
         api_key: "key",
         model: "claude-test",
-        base_url: ""
+        base_url: "",
+        enable_lightgg: false,
+        force_lightgg: false
       }),
       fetcher: async (url, init) => {
         requests.push({ url: String(url), body: String(init?.body), headers: init?.headers });
@@ -98,22 +104,59 @@ describe("AI connection test", () => {
     });
     expect(result).toEqual({
       ok: true,
-      provider: "anthropic",
+      protocol: "anthropic_messages",
       model: "claude-test",
       message: "AI 连接测试成功。"
+    });
+  });
+
+  it("lists remote models from a root or full chat-completions URL and keeps manual entry available", async () => {
+    const requests: Array<{ url: string; headers: HeadersInit | undefined }> = [];
+
+    const result = await listAiModels({
+      config: config({
+        protocol: "openai_chat_completions",
+        api_key: "key",
+        model: "",
+        base_url: "https://example.test/v1/chat/completions",
+        enable_lightgg: false,
+        force_lightgg: false
+      }),
+      fetcher: async (url, init) => {
+        requests.push({ url: String(url), headers: init?.headers });
+        return new Response(JSON.stringify({
+          data: [
+            { id: "gpt-4.1-mini" },
+            { id: "gpt-4.1" }
+          ]
+        }), { status: 200 });
+      }
+    });
+
+    expect(requests[0].url).toBe("https://example.test/v1/models");
+    expect(requests[0].headers).toMatchObject({
+      Authorization: "Bearer key"
+    });
+    expect(result).toEqual({
+      protocol: "openai_chat_completions",
+      models: ["gpt-4.1", "gpt-4.1-mini"],
+      source: "remote",
+      message: "已读取目标服务返回的模型列表。"
     });
   });
 
   it("requires AI to be enabled before testing", async () => {
     await expect(testAiConnection({
       config: config({
-        provider: "",
+        protocol: "",
         api_key: "",
         model: "",
-        base_url: ""
+        base_url: "",
+        enable_lightgg: false,
+        force_lightgg: false
       }),
       fetcher: async () => new Response("{}")
-    })).rejects.toThrow("请先启用 AI 提供方。");
+    })).rejects.toThrow("请先选择 AI API 格式。");
   });
 });
 
@@ -129,6 +172,9 @@ function config(ai: D2Config["ai"]): D2Config {
       data_dir: "",
       manifest_language: "zh-chs"
     },
-    ai
+    ai,
+    features: {
+      write_actions_enabled: false
+    }
   };
 }
