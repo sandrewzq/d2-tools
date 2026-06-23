@@ -36,12 +36,12 @@ describe("vault duplicate analysis", () => {
         name: "铁骑头盔",
         group_key: "armor",
         armor_stats: {
-          mobility: 2,
-          resilience: 26,
-          recovery: 16,
-          discipline: 12,
-          intellect: 4,
-          strength: 8,
+          health: 26,
+          melee: 8,
+          grenade: 12,
+          super: 4,
+          class: 16,
+          weapon: 2,
           total: 68
         }
       }),
@@ -51,20 +51,20 @@ describe("vault duplicate analysis", () => {
         name: "铁骑头盔",
         group_key: "armor",
         armor_stats: {
-          mobility: 8,
-          resilience: 12,
-          recovery: 28,
-          discipline: 10,
-          intellect: 6,
-          strength: 4,
+          health: 12,
+          melee: 4,
+          grenade: 10,
+          super: 6,
+          class: 28,
+          weapon: 8,
           total: 68
         }
       })
     ], tags({}));
 
     expect(result.groups[0].items.map((entry) => entry.roll_text)).toEqual([
-      "总值 68 / 韧性 26 / 恢复 16 / 纪律 12",
-      "总值 68 / 韧性 12 / 恢复 28 / 纪律 10"
+      "总值 68 / 生命值 26 / 职业 16 / 手雷 12",
+      "总值 68 / 生命值 12 / 职业 28 / 手雷 10"
     ]);
   });
 });

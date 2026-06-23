@@ -102,6 +102,9 @@ describe("desktop workspace layout", () => {
     expect(aiPanel).toContain('className="ai-chat-workspace"');
     expect(aiPanel).toContain('className="ai-chat-main"');
     expect(aiPanel).toContain('className="ai-chat-sidebar"');
+    expect(aiPanel).not.toContain("本地分析");
+    expect(aiPanel).not.toContain("AI 深度建议");
+    expect(aiPanel).not.toContain('className="analysis-grid"');
     expect(styles).toMatch(/\.ai-chat-log\s*{[\s\S]*?max-height:\s*min\(52vh,\s*560px\);/);
     expect(styles).toMatch(/\.ai-chat-input\s*{[\s\S]*?position:\s*sticky;/);
   });
@@ -124,8 +127,6 @@ describe("desktop workspace layout", () => {
     expect(itemDetailModal).toContain('className="source-status-badge source-status-neutral">AI 原始分析</span>');
     expect(itemDetailModal).toContain('className="source-status-card source-status-warning item-ai-skipped-reason"');
     expect(itemDetailModal).toContain('className="source-status-badge source-status-warning">AI 跳过</span>');
-    expect(aiPanel).toContain('className="source-status-card source-status-warning ai-skipped-reason"');
-    expect(aiPanel).toContain('className="source-status-badge source-status-warning">AI 跳过</span>');
     expect(diagnosticsPanel).toContain('source-status-card source-status-');
     expect(diagnosticsPanel).toContain('source-status-badge source-status-');
     expect(styles).toMatch(/\.source-status-list\s*{[\s\S]*?display:\s*grid;/);

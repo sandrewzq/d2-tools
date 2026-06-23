@@ -12,7 +12,14 @@ const expectedParts = [
   "ItemDetailCommunity.tsx",
   "ItemDetailSameName.tsx",
   "ItemDetailActions.tsx",
-  "ItemDetailAi.tsx"
+  "ItemDetailAi.tsx",
+  "ItemDetailTools.tsx"
+];
+
+const modalImports = [
+  "ItemDetailHeader.tsx",
+  "ItemDetailStats.tsx",
+  "ItemDetailTools.tsx"
 ];
 
 describe("item detail component structure", () => {
@@ -21,6 +28,9 @@ describe("item detail component structure", () => {
 
     for (const file of expectedParts) {
       expect(existsSync(`${itemDetailRoot}${file}`), file).toBe(true);
+    }
+
+    for (const file of modalImports) {
       expect(modalSource).toContain(`./item-detail/${file.replace(/\.tsx$/, "")}`);
     }
 

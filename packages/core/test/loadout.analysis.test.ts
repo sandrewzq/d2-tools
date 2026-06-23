@@ -38,14 +38,14 @@ describe("loadout analysis", () => {
 
   it("suggests simple armor stat combinations from confirmed stat values", () => {
     const suggestions = suggestArmorStatSets([
-      { item_key: "helm", name: "Helmet", bucket_name: "头盔", stats: { mobility: 2, resilience: 20, recovery: 10, discipline: 12, intellect: 4, strength: 8 } },
-      { item_key: "arms", name: "Arms", bucket_name: "臂铠", stats: { mobility: 4, resilience: 18, recovery: 12, discipline: 10, intellect: 8, strength: 6 } },
-      { item_key: "chest", name: "Chest", bucket_name: "胸甲", stats: { mobility: 6, resilience: 22, recovery: 8, discipline: 8, intellect: 6, strength: 10 } },
-      { item_key: "legs", name: "Legs", bucket_name: "腿甲", stats: { mobility: 8, resilience: 16, recovery: 14, discipline: 6, intellect: 10, strength: 4 } },
-      { item_key: "class", name: "Bond", bucket_name: "职业物品", stats: { mobility: 0, resilience: 0, recovery: 0, discipline: 0, intellect: 0, strength: 0 } }
-    ], { preferred_stats: ["resilience", "recovery"], limit: 1 });
+      { item_key: "helm", name: "Helmet", bucket_name: "头盔", stats: { health: 20, melee: 8, grenade: 12, super: 4, class: 10, weapon: 2 } },
+      { item_key: "arms", name: "Arms", bucket_name: "臂铠", stats: { health: 18, melee: 6, grenade: 10, super: 8, class: 12, weapon: 4 } },
+      { item_key: "chest", name: "Chest", bucket_name: "胸甲", stats: { health: 22, melee: 10, grenade: 8, super: 6, class: 8, weapon: 6 } },
+      { item_key: "legs", name: "Legs", bucket_name: "腿甲", stats: { health: 16, melee: 4, grenade: 6, super: 10, class: 14, weapon: 8 } },
+      { item_key: "class", name: "Bond", bucket_name: "职业物品", stats: { health: 0, melee: 0, grenade: 0, super: 0, class: 0, weapon: 0 } }
+    ], { preferred_stats: ["health", "class"], limit: 1 });
 
-    expect(suggestions[0].total_stats.resilience).toBe(76);
+    expect(suggestions[0].total_stats.health).toBe(76);
     expect(suggestions[0].score).toBe(120);
     expect(suggestions[0].items.map((item) => item.bucket_name)).toEqual(["头盔", "臂铠", "胸甲", "腿甲", "职业物品"]);
   });

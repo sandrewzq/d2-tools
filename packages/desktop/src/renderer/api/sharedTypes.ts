@@ -5,10 +5,18 @@ export type { VaultItemMatchInfo, WeaponRecommendation };
 export type EquipmentGroupKey = "weapons" | "armor" | "equipment" | "other";
 export type AmmoTypeKey = "primary" | "special" | "heavy";
 
-export type ArmorStatKey = "mobility" | "resilience" | "recovery" | "discipline" | "intellect" | "strength";
+export type ArmorStatKey = "health" | "melee" | "grenade" | "super" | "class" | "weapon";
 
 export type ArmorStatSummary = Record<ArmorStatKey, number> & {
   total: number;
+};
+
+export type ArmorEnergySummary = {
+  type_hash?: number;
+  type?: number;
+  capacity: number;
+  used: number;
+  unused: number;
 };
 
 export type WeaponStatKey =
@@ -47,6 +55,7 @@ export type AccountItemSummary = {
   power?: number;
   locked?: boolean;
   armor_stats?: ArmorStatSummary;
+  armor_energy?: ArmorEnergySummary;
   weapon_stats?: WeaponStatSummary;
   socket_plugs?: AccountItemPlugSummary[];
 };

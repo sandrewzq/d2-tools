@@ -23,12 +23,21 @@ export type AccountItemSummary = {
   power?: number;
   locked?: boolean;
   armor_stats?: ArmorStatSummary;
+  armor_energy?: ArmorEnergySummary;
   weapon_stats?: WeaponStatSummary;
   socket_plugs: AccountItemPlugSummary[];
 };
 
 export type ArmorStatSummary = Record<ArmorStatKey, number> & {
   total: number;
+};
+
+export type ArmorEnergySummary = {
+  type_hash?: number;
+  type?: number;
+  capacity: number;
+  used: number;
+  unused: number;
 };
 
 export type WeaponStatKey =
@@ -187,6 +196,13 @@ type DestinyItemInstanceComponent = {
   primaryStat?: {
     value?: number;
   };
+  energy?: {
+    energyTypeHash?: number;
+    energyType?: number;
+    energyCapacity?: number;
+    energyUsed?: number;
+    energyUnused?: number;
+  };
 };
 
 type DestinyItemStatsComponent = {
@@ -239,12 +255,12 @@ const equipmentGroupLabels: Record<EquipmentGroupKey, string> = {
 const equipmentGroupOrder: EquipmentGroupKey[] = ["weapons", "armor", "equipment", "other"];
 
 const armorStatHashMap: Record<number, ArmorStatKey> = {
-  2996146975: "mobility",
-  392767087: "resilience",
-  1943323491: "recovery",
-  1735777505: "discipline",
-  144602215: "intellect",
-  4244567218: "strength"
+  392767087: "health",
+  4244567218: "melee",
+  1735777505: "grenade",
+  144602215: "super",
+  1943323491: "class",
+  2996146975: "weapon"
 };
 
 const weaponStatHashMap: Record<number, WeaponStatKey> = {
@@ -444,6 +460,10 @@ function summarizeItem(
   if (armorStats) {
     summary.armor_stats = armorStats;
   }
+  const armorEnergy = groupKey === "armor" ? summarizeArmorEnergy(instance) : undefined;
+  if (armorEnergy) {
+    summary.armor_energy = armorEnergy;
+  }
   const weaponStats = groupKey === "weapons" ? summarizeWeaponStats(instanceId, components) : undefined;
   if (weaponStats) {
     summary.weapon_stats = weaponStats;
@@ -456,6 +476,29 @@ function summarizeItem(
   }
 
   return summary;
+}
+
+function summarizeArmorEnergy(instance: DestinyItemInstanceComponent | undefined): ArmorEnergySummary | undefined {
+  const energy = instance?.energy;
+  if (!energy) {
+    return undefined;
+  }
+
+  if (
+    typeof energy.energyCapacity !== "number"
+    || typeof energy.energyUsed !== "number"
+    || typeof energy.energyUnused !== "number"
+  ) {
+    return undefined;
+  }
+
+  return {
+    type_hash: energy.energyTypeHash,
+    type: energy.energyType,
+    capacity: energy.energyCapacity,
+    used: energy.energyUsed,
+    unused: energy.energyUnused
+  };
 }
 
 function summarizeWeaponStats(
@@ -497,12 +540,12 @@ function summarizeArmorStats(
   }
 
   const summary: ArmorStatSummary = {
-    mobility: 0,
-    resilience: 0,
-    recovery: 0,
-    discipline: 0,
-    intellect: 0,
-    strength: 0,
+    health: 0,
+    melee: 0,
+    grenade: 0,
+    super: 0,
+    class: 0,
+    weapon: 0,
     total: 0
   };
 
@@ -513,12 +556,12 @@ function summarizeArmorStats(
     }
     summary[key] = stat.value ?? 0;
   }
-  summary.total = summary.mobility
-    + summary.resilience
-    + summary.recovery
-    + summary.discipline
-    + summary.intellect
-    + summary.strength;
+  summary.total = summary.health
+    + summary.melee
+    + summary.grenade
+    + summary.super
+    + summary.class
+    + summary.weapon;
 
   return summary;
 }

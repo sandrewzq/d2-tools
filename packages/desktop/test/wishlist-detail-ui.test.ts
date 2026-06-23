@@ -43,30 +43,30 @@ describe("wishlist detail UI", () => {
   });
 
   it("keeps detail modal information before notes and write actions", () => {
-    const itemDetailModal = readFileSync(
-      join(desktopRoot, "src", "renderer", "shared", "components", "ItemDetailModal.tsx"),
+    const itemDetailTools = readFileSync(
+      join(desktopRoot, "src", "renderer", "shared", "components", "item-detail", "ItemDetailTools.tsx"),
       "utf8"
     );
     const itemDetailSources = readItemDetailSources(desktopRoot);
 
-    const armorIndex = itemDetailModal.indexOf("<ItemDetailStats");
-    const actualRollIndex = itemDetailModal.indexOf("<ItemDetailPerks");
-    const communityIndex = itemDetailModal.indexOf("<ItemDetailCommunity");
-    const sameNameIndex = itemDetailModal.indexOf("<ItemDetailSameName");
-    const noteIndex = itemDetailModal.indexOf("<ItemNotePanel");
-    const actionIndex = itemDetailModal.indexOf("<ItemDetailActions");
+    const overviewIndex = itemDetailTools.indexOf("<ItemDetailOverview");
+    const actualRollIndex = itemDetailTools.indexOf("<ItemDetailPerks");
+    const sameNameIndex = itemDetailTools.indexOf("<ItemDetailSameName");
+    const communityIndex = itemDetailTools.indexOf("<ItemDetailCommunity");
+    const noteIndex = itemDetailTools.indexOf("<ItemNotePanel");
+    const actionIndex = itemDetailTools.indexOf("<ItemDetailActions");
 
-    expect(itemDetailSources).toContain('className="modal-perk-group armor-stat-panel"');
+    expect(itemDetailSources).toContain('className="item-detail-game-stats armor-stat-panel"');
     expect(itemDetailSources).toContain("<h3>实际 Roll</h3>");
     expect(itemDetailSources).toContain('className="modal-perks"');
     expect(itemDetailSources).toContain('className="community-recommendations-panel"');
     expect(itemDetailSources).toContain("community-ai-analysis");
     expect(itemDetailSources).toContain("<h3>同名对比</h3>");
-    expect(armorIndex).toBeGreaterThanOrEqual(0);
-    expect(actualRollIndex).toBeGreaterThan(armorIndex);
-    expect(communityIndex).toBeGreaterThan(actualRollIndex);
-    expect(sameNameIndex).toBeGreaterThan(communityIndex);
-    expect(noteIndex).toBeGreaterThan(sameNameIndex);
+    expect(overviewIndex).toBeGreaterThanOrEqual(0);
+    expect(actualRollIndex).toBeGreaterThan(overviewIndex);
+    expect(sameNameIndex).toBeGreaterThan(actualRollIndex);
+    expect(communityIndex).toBeGreaterThan(sameNameIndex);
+    expect(noteIndex).toBeGreaterThan(communityIndex);
     expect(actionIndex).toBeGreaterThan(noteIndex);
   });
 

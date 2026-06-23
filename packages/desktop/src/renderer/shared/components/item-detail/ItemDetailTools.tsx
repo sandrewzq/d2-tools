@@ -1,0 +1,190 @@
+import type {
+  AccountSummary,
+  DimWishlist,
+  ItemActionPlanInput,
+  ItemActionResult,
+  ItemAiAdviceResult,
+  VaultTags,
+  VaultTagValue,
+  WeaponRecommendation
+} from "../../../api/client";
+import type {
+  SameNameItemSummary,
+  SelectedItemDetail,
+  SelectedItemSource
+} from "../../hooks/useItemDetail";
+import type { buildDuplicateGroupBatchTagPlan } from "../../domain/vault/vaultCleanup";
+import { getItemSourceStatusTone } from "./itemDetailFormatters";
+import { ItemDetailActions } from "./ItemDetailActions";
+import { ItemDetailAi } from "./ItemDetailAi";
+import { ItemDetailCommunity } from "./ItemDetailCommunity";
+import { ItemDetailPerks } from "./ItemDetailPerks";
+import { ItemDetailSameName } from "./ItemDetailSameName";
+
+export type ItemDetailToolsProps = {
+  accountSummary: AccountSummary | null;
+  aiSettingsEnableLightgg: boolean;
+  communityRecommendations: WeaponRecommendation | null;
+  importedWishlist: DimWishlist | null;
+  isCommunityRecommendationsLoading: boolean;
+  isGeneratingItemAi: boolean;
+  isRunningItemAction: boolean;
+  itemAiError: string;
+  itemAiResult: ItemAiAdviceResult | null;
+  itemNoteDraft: string;
+  itemNoteMessage: string;
+  itemShareMessage: string;
+  sameNameItems: SameNameItemSummary[];
+  selectedActionCharacterId: string;
+  selectedItem: SelectedItemDetail;
+  vaultTags: VaultTags;
+  onApplySameNameBatchTags: (
+    items: SameNameItemSummary[],
+    mode: Parameters<typeof buildDuplicateGroupBatchTagPlan>[1]
+  ) => void;
+  onApplySameNameCurrentKeepTags: (
+    items: SameNameItemSummary[],
+    currentItemKey: string,
+    mode: "keep-current-review-rest" | "keep-current-junk-rest"
+  ) => void;
+  onCopyItemActionPlanText: (input: ItemActionPlanInput) => void;
+  onCopySameNameLocator: (items: SameNameItemSummary[]) => void;
+  onCopySelectedItemChatGuide: () => void;
+  onCopySelectedItemSummary: () => void;
+  onCopyWishlistInsight: () => void;
+  onGenerateItemAiAdvice: () => void;
+  onOpenBestSameNameItem: (items: SameNameItemSummary[]) => void;
+  onOpenItemDetail: (item: SameNameItemSummary, source: SelectedItemSource) => void;
+  onRunItemWriteAction: (label: string, action: () => Promise<ItemActionResult>) => void;
+  onSaveSelectedItemNote: () => void;
+  onSaveSelectedItemTag: (tag: VaultTagValue) => void;
+  onSelectedActionCharacterIdChange: (id: string) => void;
+  onSetItemNoteDraft: (value: string) => void;
+};
+
+export function ItemDetailTools(props: ItemDetailToolsProps) {
+  const selectedItem = props.selectedItem;
+
+  return (
+    <section className="item-detail-tool-area" aria-label="装备详情工具区">
+      <div className="item-detail-tool-tabs" aria-hidden="true">
+        <span>概览</span>
+        <span>同名对比</span>
+        <span>社区推荐</span>
+        <span>操作</span>
+      </div>
+      <div className="item-detail-tool-grid">
+        <section className="item-detail-tool-section">
+          <h3>概览</h3>
+          <ItemDetailOverview selectedItem={selectedItem} />
+          <ItemDetailPerks selectedItem={selectedItem} />
+        </section>
+        <section className="item-detail-tool-section">
+          <ItemDetailSameName
+            sameNameItems={props.sameNameItems}
+            selectedItem={selectedItem}
+            vaultTags={props.vaultTags}
+            onApplySameNameBatchTags={props.onApplySameNameBatchTags}
+            onApplySameNameCurrentKeepTags={props.onApplySameNameCurrentKeepTags}
+            onOpenBestSameNameItem={props.onOpenBestSameNameItem}
+            onOpenItemDetail={props.onOpenItemDetail}
+          />
+        </section>
+        <section className="item-detail-tool-section">
+          <ItemDetailCommunity
+            aiSettingsEnableLightgg={props.aiSettingsEnableLightgg}
+            communityRecommendations={props.communityRecommendations}
+            importedWishlist={props.importedWishlist}
+            isCommunityRecommendationsLoading={props.isCommunityRecommendationsLoading}
+            sameNameItems={props.sameNameItems}
+            selectedItem={selectedItem}
+            vaultTags={props.vaultTags}
+            onApplySameNameCurrentKeepTags={props.onApplySameNameCurrentKeepTags}
+            onCopySameNameLocator={props.onCopySameNameLocator}
+            onCopyWishlistInsight={props.onCopyWishlistInsight}
+            onOpenBestSameNameItem={props.onOpenBestSameNameItem}
+            onSaveSelectedItemTag={props.onSaveSelectedItemTag}
+          />
+        </section>
+        <section className="item-detail-tool-section">
+          <h3>操作</h3>
+          <ItemNotePanel
+            itemNoteDraft={props.itemNoteDraft}
+            itemNoteMessage={props.itemNoteMessage}
+            onSaveSelectedItemNote={props.onSaveSelectedItemNote}
+            onSetItemNoteDraft={props.onSetItemNoteDraft}
+          />
+          <ItemDetailActions
+            accountSummary={props.accountSummary}
+            isRunningItemAction={props.isRunningItemAction}
+            selectedActionCharacterId={props.selectedActionCharacterId}
+            selectedItem={selectedItem}
+            onCopyItemActionPlanText={props.onCopyItemActionPlanText}
+            onRunItemWriteAction={props.onRunItemWriteAction}
+            onSelectedActionCharacterIdChange={props.onSelectedActionCharacterIdChange}
+          />
+          <ItemDetailAi
+            isGeneratingItemAi={props.isGeneratingItemAi}
+            itemAiError={props.itemAiError}
+            itemAiResult={props.itemAiResult}
+            itemShareMessage={props.itemShareMessage}
+            onCopySelectedItemChatGuide={props.onCopySelectedItemChatGuide}
+            onCopySelectedItemSummary={props.onCopySelectedItemSummary}
+            onGenerateItemAiAdvice={props.onGenerateItemAiAdvice}
+          />
+        </section>
+      </div>
+    </section>
+  );
+}
+
+function ItemDetailOverview(props: { selectedItem: SelectedItemDetail }) {
+  const selectedItem = props.selectedItem;
+  const sourceTone = getItemSourceStatusTone(selectedItem);
+
+  return (
+    <>
+      {selectedItem.is_detail_loading ? (
+        <section className="source-status-card source-status-pending item-detail-loading" aria-live="polite">
+          <span className="source-status-badge source-status-pending">详情加载</span>
+          <strong>正在打开详情...</strong>
+          <span>先显示基础信息，来源、perk 和详细说明会继续加载。</span>
+        </section>
+      ) : null}
+      {selectedItem.description ? <p className="item-detail-description">{selectedItem.description}</p> : null}
+      <section className={`source-status-card source-status-${sourceTone} daily-source ${selectedItem.is_detail_loading ? "item-detail-loading" : "source-ready"}`}>
+        <span className={`source-status-badge source-status-${sourceTone}`}>
+          {selectedItem.is_detail_loading ? "来源读取中" : "来源"}
+        </span>
+        <strong>{selectedItem.source.label}</strong>
+        <span>{selectedItem.source.description}</span>
+      </section>
+    </>
+  );
+}
+
+function ItemNotePanel(props: {
+  itemNoteDraft: string;
+  itemNoteMessage: string;
+  onSaveSelectedItemNote: () => void;
+  onSetItemNoteDraft: (value: string) => void;
+}) {
+  return (
+    <section className="item-note-panel">
+      <label htmlFor="item-note-draft">本地备注</label>
+      <textarea
+        id="item-note-draft"
+        value={props.itemNoteDraft}
+        onChange={(event) => props.onSetItemNoteDraft(event.target.value)}
+        placeholder="例如：留给电猎清杂 / 等队友复查 PVP 手感 / 同名已有更好 roll"
+        rows={3}
+      />
+      <div className="button-row">
+        <button type="button" className="secondary-button" onClick={props.onSaveSelectedItemNote}>
+          保存备注
+        </button>
+        {props.itemNoteMessage ? <span className="muted-copy">{props.itemNoteMessage}</span> : null}
+      </div>
+    </section>
+  );
+}

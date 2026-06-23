@@ -220,6 +220,16 @@ describe("account summary", () => {
               data: {
                 "instance-1": { primaryStat: { value: 1810 } },
                 "backpack-1": { primaryStat: { value: 1809 } },
+                "instance-2": {
+                  primaryStat: { value: 1810 },
+                  energy: {
+                    energyTypeHash: 123,
+                    energyType: 1,
+                    energyCapacity: 10,
+                    energyUsed: 6,
+                    energyUnused: 4
+                  }
+                },
                 "vault-2": { primaryStat: { value: 1805 } }
               }
             },
@@ -376,13 +386,20 @@ describe("account summary", () => {
       name: "Helmet A",
       group_key: "armor",
       armor_stats: {
-        mobility: 2,
-        resilience: 26,
-        recovery: 16,
-        discipline: 12,
-        intellect: 4,
-        strength: 8,
+        health: 26,
+        melee: 8,
+        grenade: 12,
+        super: 4,
+        class: 16,
+        weapon: 2,
         total: 68
+      },
+      armor_energy: {
+        type_hash: 123,
+        type: 1,
+        capacity: 10,
+        used: 6,
+        unused: 4
       }
     });
     expect(summary.vault.item_count).toBe(35);

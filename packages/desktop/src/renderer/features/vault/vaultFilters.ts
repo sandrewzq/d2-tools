@@ -20,6 +20,10 @@ export type VaultTagFilter = Exclude<VaultTagValue, "none"> | "all" | "untagged"
 export type VaultLockFilter = "all" | "locked" | "unlocked";
 export type VaultViewMode = "list" | "duplicates";
 
+export type VaultArmorStatRule = {
+  stat: ArmorStatKey | "";
+  min: string;
+};
 
 export type VaultFilter = {
   group: VaultGroupFilter;
@@ -28,8 +32,7 @@ export type VaultFilter = {
   lock?: VaultLockFilter;
   slot?: VaultSlotFilter;
   ammo?: VaultAmmoFilter;
-  armorStat?: VaultArmorStatFilter;
-  armorStatMin?: number;
+  armorStatRules?: VaultArmorStatRule[];
   frames?: string[];
   tags?: VaultTags;
   wishlist?: DimWishlist | null;
@@ -40,11 +43,6 @@ type ParsedVaultQuery = {
   tag?: VaultTagFilter;
   locked?: boolean;
   type?: VaultGroupFilter;
-  armorStat?: {
-    key: Exclude<VaultArmorStatFilter, "all">;
-    operator: ">=" | "<=" | ">" | "<" | "=";
-    value: number;
-  };
 };
 
 export type VaultGroupSummary = {
@@ -91,12 +89,12 @@ export const sortLabels: Record<VaultSortKey, string> = {
   tier: "按品质",
   power: "按光等",
   "armor-total": "按护甲总值",
-  mobility: "按敏捷",
-  resilience: "按韧性",
-  recovery: "按恢复",
-  discipline: "按纪律",
-  intellect: "按智慧",
-  strength: "按力量"
+  health: "按生命值",
+  melee: "按近战",
+  grenade: "按手雷",
+  super: "按超能",
+  class: "按职业",
+  weapon: "按武器"
 };
 export const lockFilterLabels: Record<VaultLockFilter, string> = {
   all: "全部锁定状态",
@@ -109,15 +107,13 @@ export const ammoFilterLabels: Record<VaultAmmoFilter, string> = {
   special: "特殊",
   heavy: "重弹"
 };
-export const armorStatFilterLabels: Record<VaultArmorStatFilter, string> = {
-  all: "全部护甲属性",
-  total: "总值",
-  mobility: "敏捷",
-  resilience: "韧性",
-  recovery: "恢复",
-  discipline: "纪律",
-  intellect: "智慧",
-  strength: "力量"
+export const armorStatLabels: Record<ArmorStatKey, string> = {
+  health: "生命值",
+  melee: "近战",
+  grenade: "手雷",
+  super: "超能",
+  class: "职业",
+  weapon: "武器"
 };
 export const groupSortOrder: Record<EquipmentGroupKey, number> = {
   weapons: 0,
@@ -143,8 +139,7 @@ export function filterVaultItems(items: AccountItemSummary[], filter: VaultFilte
     if (!matchesGroup) return false;
     if (!matchesTag(item, filter.tag ?? "all", filter.tags ?? { items: {} }, filter.wishlist)) return false;
     if (parsedQuery.tag && !matchesTag(item, parsedQuery.tag, filter.tags ?? { items: {} }, filter.wishlist)) return false;
-    if (!matchesArmorStatFilter(item, filter.armorStat ?? "all", filter.armorStatMin)) return false;
-    if (parsedQuery.armorStat && !matchesArmorStatExpression(item, parsedQuery.armorStat)) return false;
+    if (!matchesArmorStatRules(item, filter.armorStatRules ?? [])) return false;
     if (!matchesLock(item, filter.lock ?? "all")) return false;
     if (!matchesSlot(item, filter.slot ?? "all")) return false;
     if (!matchesAmmo(item, filter.ammo ?? "all")) return false;
@@ -195,18 +190,6 @@ export function parseVaultQuery(query: string): ParsedVaultQuery {
       const type = typeFilterFor(lower.slice("type:".length));
       if (type) {
         parsed.type = type;
-        continue;
-      }
-    }
-    const armorStatMatch = lower.match(/^([a-z\u4e00-\u9fa5]+)(>=|<=|>|<|=)(\d{1,3})$/);
-    if (armorStatMatch) {
-      const key = armorStatKeyFor(armorStatMatch[1]);
-      if (key) {
-        parsed.armorStat = {
-          key,
-          operator: armorStatMatch[2] as NonNullable<ParsedVaultQuery["armorStat"]>["operator"],
-          value: Number(armorStatMatch[3])
-        };
         continue;
       }
     }
@@ -326,35 +309,22 @@ function matchesTag(
   return itemTag === tag;
 }
 
-function matchesArmorStatFilter(
-  item: AccountItemSummary,
-  stat: VaultArmorStatFilter,
-  minValue: number | undefined
-): boolean {
-  if (stat === "all" || minValue === undefined || Number.isNaN(minValue)) {
+function matchesArmorStatRules(item: AccountItemSummary, rules: VaultArmorStatRule[]): boolean {
+  const activeRules = rules
+    .map((rule) => ({ stat: rule.stat, min: Number(rule.min) }))
+    .filter((rule): rule is { stat: ArmorStatKey; min: number } =>
+      isArmorStatKey(rule.stat) && !Number.isNaN(rule.min)
+    );
+
+  if (!activeRules.length) {
     return true;
   }
-
-  return armorStatValue(item, stat) >= minValue;
-}
-
-function matchesArmorStatExpression(
-  item: AccountItemSummary,
-  expression: NonNullable<ParsedVaultQuery["armorStat"]>
-): boolean {
-  const value = armorStatValue(item, expression.key);
-  switch (expression.operator) {
-    case ">=":
-      return value >= expression.value;
-    case "<=":
-      return value <= expression.value;
-    case ">":
-      return value > expression.value;
-    case "<":
-      return value < expression.value;
-    case "=":
-      return value === expression.value;
+  if (!item.armor_stats) {
+    return false;
   }
+
+  const stats = item.armor_stats;
+  return activeRules.every((rule) => stats[rule.stat] >= rule.min);
 }
 
 function armorStatValue(item: AccountItemSummary, key: Exclude<VaultArmorStatFilter, "all"> | VaultSortKey): number {
@@ -375,49 +345,12 @@ function isArmorStatSortKey(key: VaultSortKey): key is "armor-total" | ArmorStat
 }
 
 function isArmorStatKey(value: string): value is ArmorStatKey {
-  return value === "mobility"
-    || value === "resilience"
-    || value === "recovery"
-    || value === "discipline"
-    || value === "intellect"
-    || value === "strength";
-}
-
-function armorStatKeyFor(value: string): Exclude<VaultArmorStatFilter, "all"> | undefined {
-  switch (value.toLocaleLowerCase()) {
-    case "total":
-    case "stat":
-    case "stats":
-    case "总值":
-    case "总属性":
-      return "total";
-    case "mob":
-    case "mobility":
-    case "敏捷":
-      return "mobility";
-    case "res":
-    case "resilience":
-    case "韧性":
-      return "resilience";
-    case "rec":
-    case "recovery":
-    case "恢复":
-      return "recovery";
-    case "dis":
-    case "discipline":
-    case "纪律":
-      return "discipline";
-    case "int":
-    case "intellect":
-    case "智慧":
-      return "intellect";
-    case "str":
-    case "strength":
-    case "力量":
-      return "strength";
-    default:
-      return undefined;
-  }
+  return value === "health"
+    || value === "melee"
+    || value === "grenade"
+    || value === "super"
+    || value === "class"
+    || value === "weapon";
 }
 
 export function formatArmorStatsInline(item: AccountItemSummary): string | undefined {
@@ -427,9 +360,9 @@ export function formatArmorStatsInline(item: AccountItemSummary): string | undef
 
   return [
     `总值 ${item.armor_stats.total}`,
-    `韧性 ${item.armor_stats.resilience}`,
-    `恢复 ${item.armor_stats.recovery}`,
-    `纪律 ${item.armor_stats.discipline}`
+    `生命值 ${item.armor_stats.health}`,
+    `职业 ${item.armor_stats.class}`,
+    `手雷 ${item.armor_stats.grenade}`
   ].join(" / ");
 }
 

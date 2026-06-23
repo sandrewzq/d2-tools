@@ -16,6 +16,7 @@ export function AiSettingsPanel(props: {
   const [enableLightgg, setEnableLightgg] = useState(false);
   const [forceLightgg, setForceLightgg] = useState(false);
   const [modelOptions, setModelOptions] = useState<string[]>([]);
+  const [modelInputMode, setModelInputMode] = useState<"select" | "manual">("select");
   const [modelListMessage, setModelListMessage] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -87,12 +88,15 @@ export function AiSettingsPanel(props: {
       .then((result) => {
         if (cancelled) return;
         setModelOptions(result.models);
+        if (modelInputMode === "select" && model && !result.models.includes(model)) {
+          setModel("");
+        }
         setModelListMessage(result.message);
       })
-      .catch((loadError) => {
+      .catch(() => {
         if (cancelled) return;
         setModelOptions([]);
-        setModelListMessage(loadError instanceof Error ? loadError.message : "模型列表读取失败，但仍可手动输入。");
+        setModelListMessage("目标服务未返回模型列表，请手动填写模型 ID。");
       })
       .finally(() => {
         if (cancelled) return;
@@ -112,10 +116,13 @@ export function AiSettingsPanel(props: {
     try {
       const result = await api.listAiModels(buildDraftConfig(draftAiSettings));
       setModelOptions(result.models);
+      if (modelInputMode === "select" && model && !result.models.includes(model)) {
+        setModel("");
+      }
       setModelListMessage(result.message);
-    } catch (loadError) {
+    } catch {
       setModelOptions([]);
-      setModelListMessage(loadError instanceof Error ? loadError.message : "模型列表读取失败，但仍可手动输入。");
+      setModelListMessage("目标服务未返回模型列表，请手动填写模型 ID。");
     } finally {
       setIsLoadingModels(false);
     }
@@ -177,6 +184,17 @@ export function AiSettingsPanel(props: {
     }
   }
 
+  function switchToManualInput() {
+    setModelInputMode("manual");
+  }
+
+  function switchToSelectInput() {
+    setModelInputMode("select");
+    if (!modelOptions.includes(model)) {
+      setModel("");
+    }
+  }
+
   return (
     <section className="tool-panel">
       <div>
@@ -217,20 +235,35 @@ export function AiSettingsPanel(props: {
       <label>
         模型
         <div className="button-row">
-          <input
-            disabled={isLoading || isSaving || isTesting || disabled}
-            list="ai-model-options"
-            placeholder="优先读取目标服务模型列表，也可以直接手动输入"
-            value={model}
-            onChange={(event) => setModel(event.target.value)}
-          />
+          {modelInputMode === "select" ? (
+            <select
+              disabled={isLoading || isSaving || isTesting || disabled}
+              value={modelOptions.includes(model) ? model : ""}
+              onChange={(event) => setModel(event.target.value)}
+            >
+              <option value="">{modelOptions.length ? "请选择模型" : "先刷新模型列表"}</option>
+              {modelOptions.map((option) => <option key={option} value={option}>{option}</option>)}
+            </select>
+          ) : (
+            <input
+              disabled={isLoading || isSaving || isTesting || disabled}
+              placeholder="输入模型 ID，例如 gpt-5.4"
+              value={model}
+              onChange={(event) => setModel(event.target.value)}
+            />
+          )}
           <button type="button" disabled={isLoading || isSaving || isTesting || disabled || isLoadingModels || !draftAiSettings.api_key} onClick={() => void refreshModels()}>
             {isLoadingModels ? "刷新中..." : "刷新模型"}
           </button>
+          <button
+            type="button"
+            className="secondary-button"
+            disabled={isLoading || isSaving || isTesting || disabled}
+            onClick={modelInputMode === "select" ? switchToManualInput : switchToSelectInput}
+          >
+            {modelInputMode === "select" ? "手动输入模型 ID" : "改为下拉选择"}
+          </button>
         </div>
-        <datalist id="ai-model-options">
-          {modelOptions.map((option) => <option key={option} value={option} />)}
-        </datalist>
       </label>
       {modelListMessage ? <p className="muted-copy">{modelListMessage}</p> : null}
 

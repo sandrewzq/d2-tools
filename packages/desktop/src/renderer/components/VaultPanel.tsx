@@ -34,7 +34,7 @@ import {
   formatArmorStatsInline,
   sortVaultItems,
   type VaultAmmoFilter,
-  type VaultArmorStatFilter,
+  type VaultArmorStatRule,
   type VaultFilter,
   type VaultFrameFilter,
   type VaultFrameOption,
@@ -81,7 +81,7 @@ export {
 } from "../features/vault/vaultFilters";
 export type {
   VaultAmmoFilter,
-  VaultArmorStatFilter,
+  VaultArmorStatRule,
   VaultFilter,
   VaultFrameFilter,
   VaultFrameOption,
@@ -128,8 +128,7 @@ export function VaultPanel(props: {
   const [lockFilter, setLockFilter] = useState<VaultLockFilter>("all");
   const [slotFilter, setSlotFilter] = useState<VaultSlotFilter>("all");
   const [ammoFilter, setAmmoFilter] = useState<VaultAmmoFilter>("all");
-  const [armorStatFilter, setArmorStatFilter] = useState<VaultArmorStatFilter>("all");
-  const [armorStatMin, setArmorStatMin] = useState("");
+  const [armorStatRules, setArmorStatRules] = useState<VaultArmorStatRule[]>([]);
   const [frameFilters, setFrameFilters] = useState<VaultFrameFilter>([]);
   const [isOrganizing, setIsOrganizing] = useState(false);
   const [isCleanupMode, setIsCleanupMode] = useState(false);
@@ -141,7 +140,6 @@ export function VaultPanel(props: {
     || props.cleanupActions?.currentCharacterId
     || cleanupCharacters[0]?.character_id
     || "";
-  const armorStatMinValue = armorStatMin.trim() ? Number(armorStatMin) : undefined;
   const groups = useMemo(() => buildVaultGroups(props.items), [props.items]);
   const availableFrameFilters = useMemo(
     () => buildVaultFrameFilters(filterVaultItems(props.items, {
@@ -151,12 +149,11 @@ export function VaultPanel(props: {
       lock: lockFilter,
       slot: slotFilter,
       ammo: ammoFilter,
-      armorStat: armorStatFilter,
-      armorStatMin: armorStatMinValue,
+      armorStatRules,
       tags: props.tags,
       wishlist: props.wishlist
     })),
-    [ammoFilter, armorStatFilter, armorStatMinValue, group, lockFilter, props.items, props.tags, props.wishlist, slotFilter, tagFilter]
+    [ammoFilter, armorStatRules, group, lockFilter, props.items, props.tags, props.wishlist, slotFilter, tagFilter]
   );
   const slotFilters = useMemo(
     () => buildVaultSlotFilters(filterVaultItems(props.items, {
@@ -165,13 +162,12 @@ export function VaultPanel(props: {
       tag: tagFilter,
       lock: lockFilter,
       ammo: ammoFilter,
-      armorStat: armorStatFilter,
-      armorStatMin: armorStatMinValue,
+      armorStatRules,
       frames: frameFilters,
       tags: props.tags,
       wishlist: props.wishlist
     })),
-    [ammoFilter, armorStatFilter, armorStatMinValue, frameFilters, group, lockFilter, props.items, props.tags, props.wishlist, tagFilter]
+    [ammoFilter, armorStatRules, frameFilters, group, lockFilter, props.items, props.tags, props.wishlist, tagFilter]
   );
   const filteredItems = useMemo(
     () => sortVaultItems(
@@ -182,8 +178,7 @@ export function VaultPanel(props: {
         lock: lockFilter,
         slot: slotFilter,
         ammo: ammoFilter,
-        armorStat: armorStatFilter,
-        armorStatMin: armorStatMinValue,
+        armorStatRules,
         frames: frameFilters,
         tags: props.tags,
         wishlist: props.wishlist
@@ -191,7 +186,7 @@ export function VaultPanel(props: {
       sortKey,
       props.tags
     ),
-    [ammoFilter, armorStatFilter, armorStatMinValue, frameFilters, group, lockFilter, props.items, props.tags, props.wishlist, query, slotFilter, sortKey, tagFilter]
+    [ammoFilter, armorStatRules, frameFilters, group, lockFilter, props.items, props.tags, props.wishlist, query, slotFilter, sortKey, tagFilter]
   );
   const filteredSections = useMemo(
     () => buildVaultSections(filteredItems),
@@ -294,11 +289,22 @@ export function VaultPanel(props: {
     setLockFilter("all");
     setSlotFilter("all");
     setAmmoFilter("all");
-    setArmorStatFilter("all");
-    setArmorStatMin("");
+    setArmorStatRules([]);
     setFrameFilters([]);
     setActiveBatchAction("");
     setBatchMessage("");
+  }
+
+  function addArmorStatRule() {
+    setArmorStatRules((current) => [...current, { stat: "", min: "" }]);
+  }
+
+  function updateArmorStatRule(index: number, rule: VaultArmorStatRule) {
+    setArmorStatRules((current) => current.map((item, itemIndex) => itemIndex === index ? rule : item));
+  }
+
+  function removeArmorStatRule(index: number) {
+    setArmorStatRules((current) => current.filter((_, itemIndex) => itemIndex !== index));
   }
 
   function toggleFrameFilter(key: string) {
@@ -378,7 +384,7 @@ export function VaultPanel(props: {
       {duplicateSummary.total_duplicate_groups ? (
         <div className="vault-duplicate-summary">
           <strong>重复组 {duplicateSummary.total_duplicate_groups} 组</strong>
-          <span>共 {duplicateSummary.total_duplicate_items} 件同名或同 Hash 装备，可优先检查低分项。</span>
+          <span>共 {duplicateSummary.total_duplicate_items} 件同名或同 Hash 装备，可优先检查属性或 perk 差异。</span>
         </div>
       ) : null}
       {props.wishlist ? (
@@ -391,8 +397,7 @@ export function VaultPanel(props: {
         query={query}
         sortKey={sortKey}
         tagFilter={tagFilter}
-        armorStatFilter={armorStatFilter}
-        armorStatMin={armorStatMin}
+        armorStatRules={armorStatRules}
         lockFilter={lockFilter}
         slotFilter={slotFilter}
         ammoFilter={ammoFilter}
@@ -404,8 +409,10 @@ export function VaultPanel(props: {
         onQueryChange={setQuery}
         onSortKeyChange={setSortKey}
         onTagFilterChange={setTagFilter}
-        onArmorStatFilterChange={setArmorStatFilter}
-        onArmorStatMinChange={setArmorStatMin}
+        onAddArmorStatRule={addArmorStatRule}
+        onClearArmorStatRules={() => setArmorStatRules([])}
+        onRemoveArmorStatRule={removeArmorStatRule}
+        onUpdateArmorStatRule={updateArmorStatRule}
         onLockFilterChange={setLockFilter}
         onSlotFilterChange={setSlotFilter}
         onAmmoFilterChange={setAmmoFilter}

@@ -110,7 +110,7 @@ describe("vault panel helpers", () => {
     expect(toolbar).toContain("自然搜索名称、类型、perk 或备注");
     expect(toolbar).toContain("仓库武器框架筛选");
     expect(toolbar).toContain("清空筛选");
-    expect(toolbar).toContain("armorStatFilterLabels");
+    expect(toolbar).toContain("VaultArmorFilterPanel");
     expect(toolbar).toContain("ammoFilterLabels");
     expect(toolbar).toContain("tagLabels");
     expect(toolbar).toContain("sortLabels");
@@ -313,29 +313,29 @@ describe("vault panel helpers", () => {
     const armorItems: AccountItemSummary[] = [
       {
         ...items[3],
-        instance_id: "helmet-high-resilience",
-        name: "Helmet High Resilience",
+        instance_id: "helmet-high-health",
+        name: "Helmet High Health",
         armor_stats: {
-          mobility: 2,
-          resilience: 26,
-          recovery: 16,
-          discipline: 12,
-          intellect: 4,
-          strength: 8,
+          health: 26,
+          melee: 8,
+          grenade: 12,
+          super: 4,
+          class: 16,
+          weapon: 2,
           total: 68
         }
       },
       {
         ...items[3],
-        instance_id: "helmet-high-recovery",
-        name: "Helmet High Recovery",
+        instance_id: "helmet-high-class",
+        name: "Helmet High Class",
         armor_stats: {
-          mobility: 8,
-          resilience: 12,
-          recovery: 28,
-          discipline: 10,
-          intellect: 6,
-          strength: 4,
+          health: 12,
+          melee: 4,
+          grenade: 10,
+          super: 6,
+          class: 28,
+          weapon: 8,
           total: 68
         }
       },
@@ -344,12 +344,12 @@ describe("vault panel helpers", () => {
         instance_id: "helmet-low",
         name: "Helmet Low",
         armor_stats: {
-          mobility: 4,
-          resilience: 10,
-          recovery: 8,
-          discipline: 6,
-          intellect: 6,
-          strength: 4,
+          health: 10,
+          melee: 4,
+          grenade: 6,
+          super: 6,
+          class: 8,
+          weapon: 4,
           total: 38
         }
       }
@@ -358,17 +358,52 @@ describe("vault panel helpers", () => {
     expect(filterVaultItems(armorItems, {
       group: "armor",
       query: "",
-      armorStat: "resilience",
-      armorStatMin: 20
-    }).map((item) => item.name)).toEqual(["Helmet High Resilience"]);
+      armorStatRules: [{ stat: "health", min: "20" }]
+    }).map((item) => item.name)).toEqual(["Helmet High Health"]);
     expect(filterVaultItems(armorItems, {
       group: "armor",
-      query: "韧性>=20"
-    }).map((item) => item.name)).toEqual(["Helmet High Resilience"]);
+      query: "",
+      armorStatRules: [
+        { stat: "health", min: "20" },
+        { stat: "class", min: "15" },
+        { stat: "grenade", min: "" }
+      ]
+    }).map((item) => item.name)).toEqual(["Helmet High Health"]);
+    expect(filterVaultItems(armorItems, {
+      group: "armor",
+      query: "",
+      armorStatRules: [
+        { stat: "health", min: "20" },
+        { stat: "health", min: "30" }
+      ]
+    }).map((item) => item.name)).toEqual([]);
     expect(sortVaultItems(armorItems, "armor-total").map((item) => item.name))
-      .toEqual(["Helmet High Recovery", "Helmet High Resilience", "Helmet Low"]);
-    expect(sortVaultItems(armorItems, "resilience").map((item) => item.name))
-      .toEqual(["Helmet High Resilience", "Helmet High Recovery", "Helmet Low"]);
+      .toEqual(["Helmet High Class", "Helmet High Health", "Helmet Low"]);
+    expect(sortVaultItems(armorItems, "health").map((item) => item.name))
+      .toEqual(["Helmet High Health", "Helmet High Class", "Helmet Low"]);
+  });
+
+  it("renders free-form Armor 3.0 stat filters without old armor stat labels", () => {
+    const toolbar = readFileSync("packages/desktop/src/renderer/features/vault/VaultFilterToolbar.tsx", "utf8");
+    const armorPanel = readFileSync("packages/desktop/src/renderer/features/vault/VaultArmorFilterPanel.tsx", "utf8");
+    const filters = readFileSync("packages/desktop/src/renderer/features/vault/vaultFilters.ts", "utf8");
+
+    expect(toolbar).toContain("VaultArmorFilterPanel");
+    expect(armorPanel).toContain("护甲属性筛选");
+    expect(armorPanel).toContain("添加属性条件");
+    expect(armorPanel).toContain("清空护甲条件");
+    expect(filters).toContain("health: \"生命值\"");
+    expect(filters).toContain("melee: \"近战\"");
+    expect(filters).toContain("grenade: \"手雷\"");
+    expect(filters).toContain("super: \"超能\"");
+    expect(filters).toContain("class: \"职业\"");
+    expect(filters).toContain("weapon: \"武器\"");
+    expect(armorPanel + filters).not.toContain("敏捷");
+    expect(armorPanel + filters).not.toContain("韧性");
+    expect(armorPanel + filters).not.toContain("恢复");
+    expect(armorPanel + filters).not.toContain("纪律");
+    expect(armorPanel + filters).not.toContain("智慧");
+    expect(armorPanel + filters).not.toContain("力量");
   });
 
   it("filters vault items by lock state", () => {

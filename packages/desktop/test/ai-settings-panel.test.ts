@@ -145,6 +145,22 @@ describe("AI settings panel helpers", () => {
     })).toMatchObject({ supported: false, canForce: true });
   });
 
+  it("uses dropdown selection by default and keeps a manual model ID mode", () => {
+    const panel = readFileSync(
+      join(desktopRoot, "src", "renderer", "components", "AiSettingsPanel.tsx"),
+      "utf8"
+    );
+
+    expect(panel).toContain("刷新模型");
+    expect(panel).toContain("手动输入模型 ID");
+    expect(panel).toContain("改为下拉选择");
+    expect(panel).toContain("请选择模型");
+    expect(panel).toContain("先刷新模型列表");
+    expect(panel).toContain("目标服务未返回模型列表，请手动填写模型 ID。");
+    expect(panel).not.toContain("也可以直接手动输入");
+    expect(panel).not.toContain("仍可手动输入模型名称");
+  });
+
   it("wires the AI connection test button through preload and main IPC", () => {
     const panel = readFileSync(
       join(desktopRoot, "src", "renderer", "components", "AiSettingsPanel.tsx"),

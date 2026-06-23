@@ -147,9 +147,9 @@ function formatArmorStatsInline(item: AccountItemSummary): string | undefined {
 
   return [
     `总值 ${item.armor_stats.total}`,
-    `韧性 ${item.armor_stats.resilience}`,
-    `恢复 ${item.armor_stats.recovery}`,
-    `纪律 ${item.armor_stats.discipline}`
+    `生命值 ${item.armor_stats.health}`,
+    `职业 ${item.armor_stats.class}`,
+    `手雷 ${item.armor_stats.grenade}`
   ].join(" / ");
 }
 

@@ -6,12 +6,8 @@ import {
   type AccountSummary,
   type ActivityHistorySummary,
   type DailySummary,
-  type AiAdviceSections,
-  type VaultAiAdviceResult,
-  type VaultAnalysisResult,
   type VaultTags
 } from "../api/client";
-import { protocolLabel } from "../utils/aiSettings";
 
 type AiChatMessage = {
   role: "user" | "assistant";
@@ -34,61 +30,10 @@ export function AiAnalysisPanel(props: {
   onLoadAccount: () => void;
   isLoadingAccount: boolean;
 }) {
-  const [result, setResult] = useState<VaultAnalysisResult | null>(null);
-  const [aiResult, setAiResult] = useState<VaultAiAdviceResult["ai"] | null>(null);
-  const [aiSkippedReason, setAiSkippedReason] = useState("");
   const [messages, setMessages] = useState<AiChatMessage[]>([]);
   const [question, setQuestion] = useState("");
   const [error, setError] = useState("");
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [isGeneratingAi, setIsGeneratingAi] = useState(false);
   const [isSendingChat, setIsSendingChat] = useState(false);
-
-  async function analyze() {
-    setIsAnalyzing(true);
-    setError("");
-
-    try {
-      setAiResult(null);
-      setAiSkippedReason("");
-      setResult(await api.analyzeVault({
-        items: props.items,
-        tags: props.tags
-      }));
-    } catch (analysisError) {
-      setError(analysisError instanceof Error ? analysisError.message : "仓库分析失败");
-    } finally {
-      setIsAnalyzing(false);
-    }
-  }
-
-  async function generateAiAdvice() {
-    setIsGeneratingAi(true);
-    setError("");
-    setAiSkippedReason("");
-
-    try {
-      const advice = await api.generateVaultAiAdvice({
-        items: props.items,
-        tags: props.tags
-      });
-      setResult(advice.local);
-      setAiResult(advice.ai);
-      setAiSkippedReason(advice.skipped_reason ?? "");
-      const aiText = advice.ai?.text;
-      if (aiText) {
-        setMessages((current) => [
-          ...current,
-          { role: "user", text: "请基于当前仓库做一次深度分析。" },
-          { role: "assistant", text: aiText }
-        ]);
-      }
-    } catch (analysisError) {
-      setError(analysisError instanceof Error ? analysisError.message : "AI 深度分析失败");
-    } finally {
-      setIsGeneratingAi(false);
-    }
-  }
 
   async function sendChat(nextQuestion = question) {
     const trimmedQuestion = nextQuestion.trim();
@@ -141,23 +86,9 @@ export function AiAnalysisPanel(props: {
           <h2>AI 助手</h2>
           <p>像聊天一样提问。AI 会读取当前账号摘要，但不会读取或发送 token、client secret、API Key。</p>
         </div>
-        <div className="button-row">
-          <button type="button" disabled={isAnalyzing || isGeneratingAi || isSendingChat} onClick={() => void analyze()}>
-            {isAnalyzing ? "分析中..." : "本地分析"}
-          </button>
-          <button type="button" disabled={isAnalyzing || isGeneratingAi || isSendingChat} onClick={() => void generateAiAdvice()}>
-            {isGeneratingAi ? "生成中..." : "AI 深度建议"}
-          </button>
-        </div>
       </div>
 
       {error ? <p className="error">{error}</p> : null}
-      {aiSkippedReason ? (
-        <section className="source-status-card source-status-warning ai-skipped-reason" aria-live="polite">
-          <span className="source-status-badge source-status-warning">AI 跳过</span>
-          <p>{aiSkippedReason}</p>
-        </section>
-      ) : null}
 
       <div className="ai-chat-workspace">
         <div className="ai-chat-main">
@@ -210,96 +141,8 @@ export function AiAnalysisPanel(props: {
               </button>
             ))}
           </div>
-
-          {result ? (
-            <div className="analysis-grid">
-              <AnalysisSection title="事实" lines={result.facts} />
-              <AnalysisSection title="分析" lines={result.analysis} />
-              <AnalysisSection title="建议" lines={result.suggestions} />
-              {aiResult ? (
-                <section className="analysis-section ai-advice-section">
-                  <h3>AI 深度建议</h3>
-                  <p className="muted-copy">{protocolLabel(aiResult.provider)} / {aiResult.model}</p>
-                  <AiSectionView sections={aiResult.sections} />
-                </section>
-              ) : null}
-              <section className="analysis-section">
-                <h3>标记清单</h3>
-                <TaggedItems title="保留" items={result.items.keep} />
-                <TaggedItems title="关注" items={result.items.review} />
-                <TaggedItems title="可清理" items={result.items.junk} />
-              </section>
-            </div>
-          ) : (
-            <section className="analysis-section">
-              <h3>分析结果</h3>
-              <p>运行本地分析或 AI 深度建议后，这里会显示事实、建议和标记清单。</p>
-            </section>
-          )}
         </aside>
       </div>
     </section>
-  );
-}
-
-function AiSectionView(props: { sections: AiAdviceSections }) {
-  const hasSections = props.sections.facts.length
-    || props.sections.analysis.length
-    || props.sections.suggestions.length
-    || props.sections.action_reminders.length;
-  if (!hasSections) {
-    return <div className="ai-advice-text">{props.sections.raw}</div>;
-  }
-
-  return (
-    <div className="ai-section-grid">
-      <AiSection title="事实" items={props.sections.facts} />
-      <AiSection title="分析" items={props.sections.analysis} />
-      <AiSection title="建议" items={props.sections.suggestions} />
-      <AiSection title="操作提醒" items={props.sections.action_reminders} />
-    </div>
-  );
-}
-
-function AiSection(props: { title: string; items: string[] }) {
-  if (!props.items.length) return null;
-  return (
-    <section className="ai-section-card">
-      <h4>{props.title}</h4>
-      <ul>
-        {props.items.map((item) => <li key={item}>{item}</li>)}
-      </ul>
-    </section>
-  );
-}
-
-function AnalysisSection(props: { title: string; lines: string[] }) {
-  return (
-    <section className="analysis-section">
-      <h3>{props.title}</h3>
-      <ul>
-        {props.lines.map((line) => <li key={line}>{line}</li>)}
-      </ul>
-    </section>
-  );
-}
-
-function TaggedItems(props: { title: string; items: VaultAnalysisResult["items"]["keep"] }) {
-  return (
-    <div className="analysis-tag-block">
-      <strong>{props.title}</strong>
-      {props.items.length ? (
-        <ul>
-          {props.items.map((item) => (
-            <li key={item.item_key}>
-              {item.name}
-              {item.plugs.length ? <span>{item.plugs.join(" / ")}</span> : null}
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p>暂无</p>
-      )}
-    </div>
   );
 }

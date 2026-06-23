@@ -372,7 +372,7 @@ function pageSubtitle(page: ShellPageKey) {
     vault: "查看完整仓库列表、筛选、排序和实际 roll。",
     loadouts: "管理本地方案、补齐缺失装备并对比不同配装。",
     library: "搜索本地 Manifest 物品定义和 perk。",
-    ai: "基于仓库、实际 roll 和本地标记生成分析建议。",
+    ai: "基于当前账号与仓库数据生成 AI 建议，并支持直接对话提问。",
     settings: "管理 Bungie 配置和本地数据目录。"
   };
   return subtitles[page];

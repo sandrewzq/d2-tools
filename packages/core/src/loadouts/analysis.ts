@@ -7,7 +7,7 @@ export type LoadoutTemplateAnalysis = {
   warnings: string[];
 };
 
-export type ArmorStatKey = "mobility" | "resilience" | "recovery" | "discipline" | "intellect" | "strength";
+export type ArmorStatKey = "health" | "melee" | "grenade" | "super" | "class" | "weapon";
 
 export type ArmorStatItem = {
   item_key: string;
@@ -23,7 +23,7 @@ export type ArmorStatSuggestion = {
 };
 
 const armorBuckets = ["头盔", "臂铠", "胸甲", "腿甲", "职业物品"];
-const statKeys: ArmorStatKey[] = ["mobility", "resilience", "recovery", "discipline", "intellect", "strength"];
+const statKeys: ArmorStatKey[] = ["health", "melee", "grenade", "super", "class", "weapon"];
 
 export function analyzeLoadoutTemplate(
   template: LoadoutTemplate,
@@ -79,12 +79,12 @@ export function suggestArmorStatSets(
 
 function emptyStats(): Record<ArmorStatKey, number> {
   return {
-    mobility: 0,
-    resilience: 0,
-    recovery: 0,
-    discipline: 0,
-    intellect: 0,
-    strength: 0
+    health: 0,
+    melee: 0,
+    grenade: 0,
+    super: 0,
+    class: 0,
+    weapon: 0
   };
 }
 
