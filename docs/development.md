@@ -137,9 +137,9 @@ powershell -File scripts/local-package.ps1
 4. `pnpm typecheck`
 5. `pnpm package:win`
 
-打包链路主要用于发布前或需要验证绿色包时；日常开发优先使用 `npx pnpm@9.15.0 dev:desktop`，不要为了看一次本地改动反复打包、解压。
+打包链路主要用于发布前或需要验证 Windows NSIS 安装器时；日常开发优先使用 `npx pnpm@9.15.0 dev:desktop`，不要为了看一次本地改动反复打包安装。
 
-仅构建 Windows 绿色包（跳过测试和类型检查）：
+仅构建 Windows NSIS 安装器（跳过测试和类型检查）：
 
 ```powershell
 npx pnpm@9.15.0 package:win
@@ -154,11 +154,13 @@ packages/desktop/release/
 常见目录：
 
 - `win-unpacked/`
-- `d2-tools-win-x64-<version>.7z`
+- `d2-tools-setup-<version>.exe`
+- `latest.yml`
+- `d2-tools-setup-<version>.exe.blockmap`
 
 ## 6. 发布
 
-当前发布主路径是 GitHub Release 自动打包 Windows `.7z` 绿色包。
+当前发布主路径是 GitHub Release 自动打包 Windows NSIS 安装器，并上传自动更新元数据。
 
 ### 6.1 发版流程
 
@@ -184,7 +186,7 @@ packages/desktop/release/
 
 - 如果 `CHANGELOG.md` 没有对应版本章节，CI 会失败，不会发布 Release
 - 只有 tag 名包含 `-beta` 或 `-rc` 时，GitHub Release 才会自动标记为 Pre-release，例如 `v0.0.6-beta.1`、`v1.0.0-rc.1`
-- Release Assets 当前包含 `d2-tools-win-x64-<version>.7z`
+- Release Assets 当前包含 `d2-tools-setup-<version>.exe`、`latest.yml` 和安装器 blockmap
 
 ### 6.3 发布前检查
 

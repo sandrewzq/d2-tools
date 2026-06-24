@@ -4,9 +4,9 @@
 
 ## 1. 安装与启动
 
-1. 下载 Windows x64 绿色包。
-2. 解压到你想放的位置。
-3. 双击 `d2-tools.exe` 启动。
+1. 下载 Windows x64 安装器 `d2-tools-setup-<version>.exe`。
+2. 运行安装器，选择安装位置。
+3. 安装完成后启动 d2-tools。
 
 d2-tools 不需要你手动安装 Node.js、Python 或 Docker。
 
@@ -27,7 +27,7 @@ d2-tools 不需要你手动安装 Node.js、Python 或 Docker。
 - DIM 愿望单导入
 - 操作日志和诊断数据
 
-覆盖升级程序目录时，这些数据不会被自动删除。
+安装或更新程序时，这些数据不会被自动删除。
 
 如果你以前用的是旧项目名 `d2-service`，首次运行 d2-tools 时会自动把旧目录复制到新目录。程序不会自动删掉旧目录。
 

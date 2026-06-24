@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type {
   AccountItemSummary,
   DimWishlist,
@@ -32,7 +32,11 @@ import {
   defaultVaultGroupTab,
   filterVaultItems,
   formatArmorStatsInline,
+  ammoFilterLabels,
+  lockFilterLabels,
   sortVaultItems,
+  tagLabels,
+  vaultGroupLabels,
   type VaultAmmoFilter,
   type VaultArmorStatRule,
   type VaultFilter,
@@ -116,6 +120,7 @@ export function VaultPanel(props: {
   wishlist?: DimWishlist | null;
   openingItemKey?: string;
   communityMatch?: Map<number, VaultItemMatchInfo>;
+  onContextFactsChange?: (facts: string[]) => void;
   onOpenItem: (item: AccountItemSummary) => void;
   onSaveTag: (item: AccountItemSummary, tag: VaultTagValue) => void | Promise<void>;
   onSaveTagBatch: (inputs: SaveVaultTagInput[]) => void | Promise<void>;
@@ -256,6 +261,22 @@ export function VaultPanel(props: {
     () => buildVaultDuplicateSummary(props.items, props.tags),
     [props.items, props.tags]
   );
+  const contextFacts = useMemo(() => buildVaultContextFacts({
+    group,
+    query,
+    tagFilter,
+    lockFilter,
+    slotFilter,
+    ammoFilter,
+    frameFilters,
+    armorStatRules,
+    filteredCount: filteredItems.length,
+    totalCount: props.items.length
+  }), [ammoFilter, armorStatRules, filteredItems.length, frameFilters, group, lockFilter, props.items.length, query, slotFilter, tagFilter]);
+
+  useEffect(() => {
+    props.onContextFactsChange?.(contextFacts);
+  }, [contextFacts, props.onContextFactsChange]);
 
   function setBatchSelection(mode: VaultBatchSelectionMode) {
     setSelectedKeys(new Set(selectVaultBatchItems(filteredItems, mode, props.tags).map(getVaultItemKey)));
@@ -449,4 +470,32 @@ export function VaultPanel(props: {
       )}
     </section>
   );
+}
+
+function buildVaultContextFacts(input: {
+  group: VaultGroupFilter;
+  query: string;
+  tagFilter: VaultTagFilter;
+  lockFilter: VaultLockFilter;
+  slotFilter: VaultSlotFilter;
+  ammoFilter: VaultAmmoFilter;
+  frameFilters: VaultFrameFilter;
+  armorStatRules: VaultArmorStatRule[];
+  filteredCount: number;
+  totalCount: number;
+}): string[] {
+  const filters = [
+    vaultGroupLabels[input.group],
+    input.query.trim() ? `搜索：${input.query.trim()}` : "",
+    input.tagFilter !== "all" ? tagLabels[input.tagFilter] : "",
+    input.lockFilter !== "all" ? lockFilterLabels[input.lockFilter] : "",
+    input.slotFilter !== "all" ? `位置：${input.slotFilter}` : "",
+    input.ammoFilter !== "all" ? ammoFilterLabels[input.ammoFilter] : "",
+    input.frameFilters.length ? `框架：${input.frameFilters.length} 个` : "",
+    input.armorStatRules.length ? `护甲属性条件：${input.armorStatRules.length} 条` : ""
+  ].filter(Boolean);
+
+  return [
+    `仓库筛选：${filters.join(" / ") || "默认筛选"}，命中 ${input.filteredCount} / ${input.totalCount} 件。`
+  ];
 }

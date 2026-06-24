@@ -11,20 +11,21 @@
     "build": "pnpm clean && pnpm --filter @d2-tools/core build && pnpm --filter @d2-tools/http build && vite build && tsc -p tsconfig.main.json && node scripts/build-preload.cjs",
     "typecheck": "tsc -p tsconfig.main.json --noEmit && tsc -p tsconfig.renderer.json --noEmit",
     "test": "vitest --root ../.. --run",
-    "package:win": "pnpm build && electron-builder --config electron-builder.yml --win 7z"
+    "package:win": "pnpm build && electron-builder --config electron-builder.yml --win nsis --publish never"
   },
   "dependencies": {
     "@d2-tools/core": "workspace:*",
-    "@d2-tools/http": "workspace:*"
+    "@d2-tools/http": "workspace:*",
+    "electron-updater": "^6.3.9"
   },
   "devDependencies": {
+    "@types/react": "^19.0.1",
+    "@types/react-dom": "^19.0.2",
     "@vitejs/plugin-react": "^4.3.4",
     "electron": "^33.2.1",
     "electron-builder": "^25.1.8",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "@types/react": "^19.0.1",
-    "@types/react-dom": "^19.0.2",
     "vite": "^6.0.3"
   }
 }

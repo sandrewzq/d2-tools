@@ -1,4 +1,4 @@
-import type { ActionLogEntry } from "../../api/client";
+import type { ActionLogEntry, UpdateSnapshot } from "../../api/client";
 import { AiSettingsPanel } from "../../components/AiSettingsPanel";
 
 export type SettingsActionLogResultFilter = "all" | "success" | "failed";
@@ -9,12 +9,16 @@ export function SettingsPage(props: {
   error: string;
   diagnosticDataDir: string;
   writeActionsEnabled: boolean;
+  updateSnapshot: UpdateSnapshot | null;
   actionLog: ActionLogEntry[];
   actionLogResultFilter: SettingsActionLogResultFilter;
   actionLogTypeFilter: SettingsActionLogTypeFilter;
   onAiSettingsSaved: () => void;
   onOpenConfig: () => void;
   onWriteActionsEnabledChange: (enabled: boolean) => void;
+  onCheckForUpdates: () => void;
+  onDownloadUpdate: () => void;
+  onQuitAndInstallUpdate: () => void;
   onCopyDiagnosticsExport: () => void;
   onRefreshActionLog: () => void;
   onActionLogResultFilterChange: (filter: SettingsActionLogResultFilter) => void;
@@ -50,6 +54,47 @@ export function SettingsPage(props: {
             <strong>{props.writeActionsEnabled ? "已开启" : "已关闭"}</strong>
           </div>
         </div>
+        <section className="settings-subsection">
+          <div>
+            <h3>应用更新</h3>
+            <p>{formatUpdateStatusText(props.updateSnapshot)}</p>
+          </div>
+          <div className="diagnostic-grid update-status-grid">
+            <div className="diagnostic-row diagnostic-neutral">
+              <span>当前版本</span>
+              <strong>{props.updateSnapshot?.current_version ?? "未读取"}</strong>
+            </div>
+            <div className="diagnostic-row diagnostic-neutral">
+              <span>当前安装位置</span>
+              <strong>{props.updateSnapshot?.install_path ?? "未读取"}</strong>
+            </div>
+          </div>
+          <div className="update-actions">
+            <button
+              type="button"
+              className="secondary-button"
+              disabled={props.updateSnapshot?.status === "checking" || props.updateSnapshot?.status === "downloading"}
+              onClick={props.onCheckForUpdates}
+            >
+              检查更新
+            </button>
+            <button
+              type="button"
+              className="secondary-button"
+              disabled={props.updateSnapshot?.status !== "available"}
+              onClick={props.onDownloadUpdate}
+            >
+              下载更新
+            </button>
+            <button
+              type="button"
+              disabled={props.updateSnapshot?.status !== "downloaded"}
+              onClick={props.onQuitAndInstallUpdate}
+            >
+              重启并安装
+            </button>
+          </div>
+        </section>
         <section className="settings-subsection">
           <div>
             <h3>危险操作保护</h3>
@@ -136,6 +181,21 @@ export function SettingsPage(props: {
       </section>
     </>
   );
+}
+
+function formatUpdateStatusText(snapshot: UpdateSnapshot | null): string {
+  if (!snapshot) return "正在读取更新状态。";
+  if (snapshot.status === "checking") return "正在检查更新。";
+  if (snapshot.status === "available") return `发现新版本 ${snapshot.available_version ?? ""}。`;
+  if (snapshot.status === "not_available") return snapshot.error || "当前已是最新版本。";
+  if (snapshot.status === "downloading") {
+    return snapshot.progress_percent === undefined
+      ? "正在下载更新。"
+      : `正在下载更新：${snapshot.progress_percent}%`;
+  }
+  if (snapshot.status === "downloaded") return `更新 ${snapshot.downloaded_version ?? snapshot.available_version ?? ""} 已下载。`;
+  if (snapshot.status === "error") return snapshot.error || "更新检查失败。";
+  return "尚未检查更新。";
 }
 
 function formatActionLogTitle(entry: ActionLogEntry): string {

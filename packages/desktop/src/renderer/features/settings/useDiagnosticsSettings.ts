@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   api,
   type ActionLogEntry,
-  type D2Config
+  type D2Config,
+  type UpdateSnapshot
 } from "../../api/client";
 
 export function useDiagnosticsSettings(input: {
@@ -27,6 +28,29 @@ export function useDiagnosticsSettings(input: {
   const [actionLog, setActionLog] = useState<ActionLogEntry[]>([]);
   const [actionLogResultFilter, setActionLogResultFilter] = useState<"all" | "success" | "failed">("all");
   const [actionLogTypeFilter, setActionLogTypeFilter] = useState<ActionLogEntry["action"] | "all">("all");
+  const [updateSnapshot, setUpdateSnapshot] = useState<UpdateSnapshot | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    void api.getUpdateStatus()
+      .then((snapshot) => {
+        if (mounted) setUpdateSnapshot(snapshot);
+      })
+      .catch((error) => {
+        if (mounted) {
+          setSettingsError(error instanceof Error ? error.message : "更新状态读取失败");
+        }
+      });
+
+    const unsubscribe = api.onUpdateStatusChanged((snapshot) => {
+      setUpdateSnapshot(snapshot);
+    });
+
+    return () => {
+      mounted = false;
+      unsubscribe();
+    };
+  }, []);
 
   async function refreshDiagnostics() {
     setIsRefreshingDiagnostics(true);
@@ -107,19 +131,52 @@ export function useDiagnosticsSettings(input: {
     }
   }
 
+  async function checkForUpdates() {
+    setSettingsMessage("");
+    setSettingsError("");
+    try {
+      setUpdateSnapshot(await api.checkForUpdates());
+    } catch (error) {
+      setSettingsError(error instanceof Error ? error.message : "更新检查失败");
+    }
+  }
+
+  async function downloadUpdate() {
+    setSettingsMessage("");
+    setSettingsError("");
+    try {
+      setUpdateSnapshot(await api.downloadUpdate());
+    } catch (error) {
+      setSettingsError(error instanceof Error ? error.message : "更新下载失败");
+    }
+  }
+
+  async function quitAndInstallUpdate() {
+    setSettingsMessage("");
+    setSettingsError("");
+    try {
+      await api.quitAndInstallUpdate();
+    } catch (error) {
+      setSettingsError(error instanceof Error ? error.message : "重启安装失败");
+    }
+  }
+
   return {
     actionLog,
     actionLogResultFilter,
     actionLogTypeFilter,
     aiSettings,
+    checkForUpdates,
     copyActionDiagnostic,
     copyDiagnosticsExport,
     diagnosticDataDir,
     diagnosticError,
     diagnosticManifestVersion,
+    downloadUpdate,
     handleAiSettingsSaved,
     isRefreshingDiagnostics,
     loadActionLog,
+    quitAndInstallUpdate,
     refreshDiagnostics,
     saveWriteActionsEnabled,
     setActionLogResultFilter,
@@ -127,6 +184,7 @@ export function useDiagnosticsSettings(input: {
     setWriteActionsEnabled,
     settingsError,
     settingsMessage,
+    updateSnapshot,
     writeActionsEnabled
   };
 }

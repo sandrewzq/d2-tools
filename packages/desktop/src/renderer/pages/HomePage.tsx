@@ -1,14 +1,16 @@
 import { Suspense, useEffect, useState } from "react";
 import {
+  type AccountItemSummary,
   type AccountSummary,
+  type LoadoutTemplate,
   type StartupState
 } from "../api/client";
 import { isAiSettingsConfigured } from "../utils/aiSettings";
 import { buildDiagnosticRows } from "../components/DiagnosticsPanel";
-import { ShellLayout, type ShellPageKey } from "../components/ShellLayout";
+import { GlobalAssistantSidebar } from "../components/GlobalAssistantSidebar";
+import { ShellLayout, type ShellAssistantMode, type ShellPageKey } from "../components/ShellLayout";
 import { AccountPage } from "../features/account/AccountPage";
 import { useAccountWorkspace } from "../features/account/useAccountWorkspace";
-import { AiPage } from "../features/ai/AiPage";
 import { useDailySummary } from "../features/daily/useDailySummary";
 import { HomeDashboard } from "../features/home/HomeDashboard";
 import { LibraryPage } from "../features/library/LibraryPage";
@@ -18,6 +20,7 @@ import { useLoadoutActionFeedback } from "../features/loadouts/useLoadoutActionF
 import { useLoadoutTemplateActions } from "../features/loadouts/useLoadoutTemplateActions";
 import { useLoadoutTemplates } from "../features/loadouts/useLoadoutTemplates";
 import { useLoadoutWriteActions } from "../features/loadouts/useLoadoutWriteActions";
+import { buildAssistantPageContext } from "../shared/domain/assistant/assistantContext";
 import { buildLoadoutTemplateLookup } from "../shared/domain/loadouts/loadoutLookup";
 import { ItemDetailModal } from "../shared/components/ItemDetailModal";
 import { useItemDetailWorkspace } from "../shared/hooks/useItemDetailWorkspace";
@@ -34,7 +37,9 @@ export function HomePage(props: {
   onManifestInitialized: () => void;
 }) {
   const [activePage, setActivePage] = useState<ShellPageKey>("home");
+  const [assistantMode, setAssistantMode] = useState<ShellAssistantMode>(null);
   const [hasAutoLoadedAccount, setHasAutoLoadedAccount] = useState(false);
+  const [vaultFacts, setVaultFacts] = useState<string[]>([]);
   const daily = useDailySummary();
   const library = useLibraryWorkspace();
   const diagnostics = useDiagnosticsSettings({
@@ -126,6 +131,16 @@ export function HomePage(props: {
     void loadAccountSummary();
   }, [hasAutoLoadedAccount, props.state.nextStep]);
 
+  useEffect(() => {
+    if (props.state.nextStep !== "home") return;
+
+    const id = setInterval(() => {
+      void loadAccountSummary();
+    }, 10 * 60 * 1000);
+
+    return () => clearInterval(id);
+  }, [props.state.nextStep, loadAccountSummary]);
+
   const isAiConfigured = isAiSettingsConfigured(diagnostics.aiSettings);
 
   const activeLoadoutTemplate = loadoutLibrary.activeTemplate;
@@ -137,12 +152,55 @@ export function HomePage(props: {
     dataDir: diagnostics.diagnosticDataDir,
     manifestVersion: diagnostics.diagnosticManifestVersion
   });
+  const currentPageMeta = pageMeta(activePage);
+  const assistantPageContext = buildAssistantPageContext({
+    activePage,
+    account: accountSummary,
+    selectedCharacterId,
+    activeLoadoutName: activeLoadoutTemplate?.name,
+    libraryRecentNames: library.libraryHistory.recent.map((item) => item.name),
+    vaultFacts,
+    loadoutFacts: buildLoadoutContextFacts(activeLoadoutTemplate, accountSummary),
+    libraryFacts: buildLibraryContextFacts({
+      viewMode: library.libraryViewMode,
+      equipmentQuery: library.equipmentFilters.query,
+      perkQuery: library.perkFilters.query,
+      equipmentResultCount: library.items.length,
+      perkResultCount: library.perks.length,
+      equipmentSearchTouched: library.equipmentSearchTouched,
+      perkSearchTouched: library.perkSearchTouched
+    })
+  });
   return (
-    <ShellLayout activePage={activePage} onNavigate={setActivePage}>
+    <ShellLayout
+      activePage={activePage}
+      assistantMode={assistantMode}
+      onNavigate={setActivePage}
+      onAssistantModeChange={setAssistantMode}
+      assistantPanel={(
+        <GlobalAssistantSidebar
+          assistantMode={assistantMode}
+          activePage={activePage}
+          isConfigured={isAiConfigured}
+          account={accountSummary}
+          daily={daily.dailySummary}
+          activity={activitySummary}
+          pageContext={assistantPageContext}
+          tags={vaultTags}
+          isLoadingAccount={isLoadingAccount}
+          onLoadAccount={() => void loadAccountSummary()}
+          onConfigureAi={() => {
+            setActivePage("settings");
+            setAssistantMode(null);
+          }}
+          onClose={() => setAssistantMode(null)}
+        />
+      )}
+    >
       <header className="page-header">
         <div>
-          <h2>{pageTitle(activePage)}</h2>
-          <p>{pageSubtitle(activePage)}</p>
+          <h2>{currentPageMeta.title}</h2>
+          <p>{currentPageMeta.subtitle}</p>
         </div>
       </header>
 
@@ -269,6 +327,7 @@ export function HomePage(props: {
           openingItemKey={itemDetail.itemDetailLoadingKey}
           wishlist={importedWishlist}
           communityMatch={vaultCommunityMatch}
+          onContextFactsChange={setVaultFacts}
           onWishlistChanged={setImportedWishlist}
           onLoadAccount={() => void loadAccountSummary()}
           onSaveTagBatch={(inputs) => vaultWriteActions.saveVaultTagsBatch(inputs)}
@@ -278,30 +337,22 @@ export function HomePage(props: {
           onSaveTag={(item, tag) => vaultWriteActions.saveVaultTag(item, tag)}
         />
       ) : null}
-      {activePage === "ai" ? (
-        <AiPage
-          isConfigured={isAiConfigured}
-          account={accountSummary}
-          daily={daily.dailySummary}
-          activity={activitySummary}
-          tags={vaultTags}
-          isLoadingAccount={isLoadingAccount}
-          onLoadAccount={() => void loadAccountSummary()}
-          onConfigureAi={() => setActivePage("settings")}
-        />
-      ) : null}
       {activePage === "settings" ? (
         <SettingsPage
           message={diagnostics.settingsMessage}
           error={diagnostics.settingsError}
           diagnosticDataDir={diagnostics.diagnosticDataDir}
           writeActionsEnabled={diagnostics.writeActionsEnabled}
+          updateSnapshot={diagnostics.updateSnapshot}
           actionLog={diagnostics.actionLog}
           actionLogResultFilter={diagnostics.actionLogResultFilter}
           actionLogTypeFilter={diagnostics.actionLogTypeFilter}
           onAiSettingsSaved={diagnostics.handleAiSettingsSaved}
           onOpenConfig={props.onConfigure}
           onWriteActionsEnabledChange={(enabled) => void diagnostics.saveWriteActionsEnabled(enabled)}
+          onCheckForUpdates={() => void diagnostics.checkForUpdates()}
+          onDownloadUpdate={() => void diagnostics.downloadUpdate()}
+          onQuitAndInstallUpdate={() => void diagnostics.quitAndInstallUpdate()}
           onCopyDiagnosticsExport={() => void diagnostics.copyDiagnosticsExport()}
           onRefreshActionLog={() => void diagnostics.loadActionLog()}
           onActionLogResultFilterChange={diagnostics.setActionLogResultFilter}
@@ -352,28 +403,86 @@ export function HomePage(props: {
 
 }
 
-function pageTitle(page: ShellPageKey) {
-  const titles: Record<ShellPageKey, string> = {
-    home: "首页",
-    account: "账号",
-    vault: "仓库",
-    loadouts: "配装",
-    library: "资料库",
-    ai: "AI 助手",
-    settings: "设置"
+function pageMeta(page: ShellPageKey) {
+  const pages: Record<ShellPageKey, { title: string; subtitle: string }> = {
+    home: {
+      title: "首页",
+      subtitle: "检查当前状态，快速进入常用功能。"
+    },
+    account: {
+      title: "账号",
+      subtitle: "读取 Bungie 账号、角色装备、背包和材料数量。"
+    },
+    vault: {
+      title: "仓库",
+      subtitle: "查看完整仓库列表、筛选、排序和实际 roll。"
+    },
+    loadouts: {
+      title: "配装",
+      subtitle: "管理本地方案、补齐缺失装备并对比不同配装。"
+    },
+    library: {
+      title: "资料库",
+      subtitle: "搜索本地 Manifest 物品定义和 perk。"
+    },
+    settings: {
+      title: "设置",
+      subtitle: "管理 Bungie 配置和本地数据目录。"
+    }
   };
-  return titles[page];
+  return pages[page];
 }
 
-function pageSubtitle(page: ShellPageKey) {
-  const subtitles: Record<ShellPageKey, string> = {
-    home: "检查当前状态，快速进入常用功能。",
-    account: "读取 Bungie 账号、角色装备、背包和材料数量。",
-    vault: "查看完整仓库列表、筛选、排序和实际 roll。",
-    loadouts: "管理本地方案、补齐缺失装备并对比不同配装。",
-    library: "搜索本地 Manifest 物品定义和 perk。",
-    ai: "基于当前账号与仓库数据生成 AI 建议，并支持直接对话提问。",
-    settings: "管理 Bungie 配置和本地数据目录。"
-  };
-  return subtitles[page];
+function buildLoadoutContextFacts(template: LoadoutTemplate | null, account: AccountSummary | null): string[] {
+  if (!template) {
+    return ["当前没有选中的本地配装方案。"];
+  }
+  if (!account) {
+    return [`配装方案：${template.name}，共 ${template.items.length} 件装备；账号数据未读取，暂不能判断缺失。`];
+  }
+
+  const knownItems = collectKnownAccountItems(account);
+  const readyCount = template.items.filter((item) => knownItems.some((knownItem) =>
+    item.instance_id
+      ? knownItem.instance_id === item.instance_id
+      : knownItem.hash === item.hash
+  )).length;
+  const missingCount = Math.max(template.items.length - readyCount, 0);
+
+  return [
+    `配装缺失：${missingCount} 件，已找到 ${readyCount} / ${template.items.length} 件。`
+  ];
+}
+
+function buildLibraryContextFacts(input: {
+  viewMode: "equipment" | "perks";
+  equipmentQuery: string;
+  perkQuery: string;
+  equipmentResultCount: number;
+  perkResultCount: number;
+  equipmentSearchTouched: boolean;
+  perkSearchTouched: boolean;
+}): string[] {
+  const isPerkMode = input.viewMode === "perks";
+  const query = isPerkMode ? input.perkQuery : input.equipmentQuery;
+  const touched = isPerkMode ? input.perkSearchTouched : input.equipmentSearchTouched;
+  const count = isPerkMode ? input.perkResultCount : input.equipmentResultCount;
+  const modeLabel = isPerkMode ? "Perk" : "装备";
+
+  return [
+    touched
+      ? `资料库搜索：${modeLabel}${query.trim() ? ` / ${query.trim()}` : ""}，命中 ${count} 条。`
+      : `资料库搜索：当前在${modeLabel}模式，尚未执行搜索。`
+  ];
+}
+
+function collectKnownAccountItems(account: AccountSummary): AccountItemSummary[] {
+  return [
+    ...account.vault.items,
+    ...account.characters.flatMap((character) => [
+      ...character.equipped_items,
+      ...character.inventory_items,
+      ...character.postmaster_items
+    ])
+  ];
 }

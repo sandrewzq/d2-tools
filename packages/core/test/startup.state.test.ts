@@ -80,4 +80,46 @@ describe("startup state", () => {
     expect(state.cards.manifest.label).toBe("资料库已初始化");
     expect(state.cards.ai.label).toBe("AI 未配置");
   });
+
+  it("marks manifest as needing update when cached before the latest weekly reset", () => {
+    // 2026-06-22T15:00:00Z = Monday June 22 UTC, before Tuesday 17:00 reset
+    const state = computeStartupState({
+      config: config({ api_key: "api", client_id: "client", client_secret: "secret" }),
+      hasToken: true,
+      hasManifest: true,
+      manifestCachedAt: "2026-06-22T15:00:00.000Z",
+      now: new Date("2026-06-24T10:00:00.000Z") // Wednesday, after reset
+    });
+
+    expect(state.cards.manifest.needsUpdate).toBe(true);
+    expect(state.cards.manifest.lastUpdated).toBe("6月22日");
+    expect(state.cards.manifest.label).toBe("资料库上次更新于 6月22日，每周三凌晨 1:00 重置，建议更新");
+  });
+
+  it("does not mark manifest as needing update when cached after the latest weekly reset", () => {
+    // 2026-06-23T18:00:00Z = Tuesday UTC after 17:00 reset, Beijing time 6月24日 02:00
+    const state = computeStartupState({
+      config: config({ api_key: "api", client_id: "client", client_secret: "secret" }),
+      hasToken: true,
+      hasManifest: true,
+      manifestCachedAt: "2026-06-23T18:00:00.000Z",
+      now: new Date("2026-06-24T10:00:00.000Z")
+    });
+
+    expect(state.cards.manifest.needsUpdate).toBe(false);
+    expect(state.cards.manifest.lastUpdated).toBe("6月24日");
+    expect(state.cards.manifest.label).toBe("资料库已初始化，每周三凌晨 1:00 重置后可更新");
+  });
+
+  it("does not set needsUpdate when manifest is missing", () => {
+    const state = computeStartupState({
+      config: config({ api_key: "api", client_id: "client", client_secret: "secret" }),
+      hasToken: true,
+      hasManifest: false
+    });
+
+    expect(state.cards.manifest.needsUpdate).toBeUndefined();
+    expect(state.cards.manifest.lastUpdated).toBeUndefined();
+    expect(state.cards.manifest.label).toBe("资料库未初始化");
+  });
 });

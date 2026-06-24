@@ -27,6 +27,7 @@ import type { ManifestStatus } from "@d2-tools/core/manifest/cache";
 import type { AuthLoginResult } from "@d2-tools/core/oauth/login";
 import type { StartupState } from "@d2-tools/core/startup/startupState";
 import type { SaveVaultNoteInput, SaveVaultTagInput, VaultTags } from "@d2-tools/core/vault/tags";
+import type { UpdateSnapshot } from "../shared/updateTypes.js";
 
 type ItemLockActionInput = {
   membership_type: number;
@@ -181,6 +182,15 @@ contextBridge.exposeInMainWorld("d2", {
   getActivitySummary: (input: { membership_type: number; membership_id: string; character_ids: string[] }) =>
     ipcRenderer.invoke("activities:summary", input) as Promise<ActivityHistorySummary>,
   exportDiagnostics: () => ipcRenderer.invoke("diagnostics:export") as Promise<string>,
+  getUpdateStatus: () => ipcRenderer.invoke("updates:get-status") as Promise<UpdateSnapshot>,
+  checkForUpdates: () => ipcRenderer.invoke("updates:check") as Promise<UpdateSnapshot>,
+  downloadUpdate: () => ipcRenderer.invoke("updates:download") as Promise<UpdateSnapshot>,
+  quitAndInstallUpdate: () => ipcRenderer.invoke("updates:quit-and-install") as Promise<void>,
+  onUpdateStatusChanged: (callback: (snapshot: UpdateSnapshot) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, snapshot: UpdateSnapshot) => callback(snapshot);
+    ipcRenderer.on("updates:status", listener);
+    return () => ipcRenderer.removeListener("updates:status", listener);
+  },
   getCommunityPerkRecommendations: (item_hash: number, options?: { item_name?: string }) =>
     ipcRenderer.invoke("community:recommendations:get", item_hash, options) as Promise<WeaponRecommendation | null>,
   matchCommunityVaultItems: (items: Array<{ hash: number; socket_plugs?: Array<{ hash: number }> }>) =>

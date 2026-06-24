@@ -11,10 +11,20 @@ files:
   - "package.json"
 asar: true
 compression: maximum
+publish:
+  provider: github
+  owner: sandrewzq
+  repo: d2-tools
 win:
   signAndEditExecutable: false
   target:
-    - target: 7z
+    - target: nsis
       arch:
         - x64
-artifactName: "d2-tools-win-x64-${version}.${ext}"
+artifactName: "d2-tools-setup-${version}.${ext}"
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  shortcutName: "d2-tools"
+  uninstallDisplayName: "d2-tools"
+  include: build/installer.nsh

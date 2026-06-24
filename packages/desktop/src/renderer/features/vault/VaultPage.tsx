@@ -31,6 +31,7 @@ export function VaultPage(props: {
   openingItemKey: string;
   wishlist: DimWishlist | null;
   communityMatch: Map<number, VaultItemMatchInfo>;
+  onContextFactsChange?: (facts: string[]) => void;
   onWishlistChanged: (wishlist: DimWishlist | null) => void;
   onLoadAccount: () => void;
   onSaveTagBatch: (inputs: SaveVaultTagInput[]) => void | Promise<void>;
@@ -163,6 +164,7 @@ export function VaultPage(props: {
         }}
         wishlist={props.wishlist}
         communityMatch={props.communityMatch}
+        onContextFactsChange={props.onContextFactsChange}
         onOpenItem={props.onOpenItem}
         onSaveTag={props.onSaveTag}
       />

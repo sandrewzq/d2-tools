@@ -29,14 +29,21 @@ describe("desktop workspace layout", () => {
     expect(homePage).not.toContain("function renderDailyPanel");
     expect(dailyPage).toContain("export function DailyPage");
     expect(styles).toMatch(/\.home-workbench\s*{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1fr\)\s*minmax\(320px,\s*420px\);/);
+    expect(styles).toMatch(/\.assistant-open \.home-workbench\s*{[\s\S]*?grid-template-columns:\s*1fr;/);
+    expect(styles).toMatch(/\.assistant-open \.home-side-column\s*{[\s\S]*?position:\s*static;/);
   });
 
-  it("keeps the AI menu in an isolated feature entry", () => {
+  it("keeps AI in the global assistant sidebar instead of a main page", () => {
     const homePage = readFileSync(join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"), "utf8");
     const aiPage = readFileSync(join(desktopRoot, "src", "renderer", "features", "ai", "AiPage.tsx"), "utf8");
+    const assistantSidebar = readFileSync(join(desktopRoot, "src", "renderer", "components", "GlobalAssistantSidebar.tsx"), "utf8");
 
-    expect(homePage).toContain("<AiPage");
+    expect(homePage).toContain("<GlobalAssistantSidebar");
+    expect(homePage).not.toContain("<AiPage");
     expect(homePage).not.toContain("去设置配置 AI");
+    expect(assistantSidebar).toContain("<AiPage");
+    expect(assistantSidebar).toContain("任务助手");
+    expect(assistantSidebar).toContain("任务 / 攻略上下文");
     expect(aiPage).toContain("export function AiPage");
     expect(aiPage).toContain("AiAnalysisPanel");
     expect(aiPage).toContain("onConfigureAi");

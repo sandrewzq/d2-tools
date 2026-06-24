@@ -5,12 +5,14 @@ import type {
   VaultTags
 } from "../../api/client";
 import { AiAnalysisPanel } from "../../components/AiAnalysisPanel";
+import type { AssistantPageContext } from "../../shared/domain/assistant/assistantContext";
 
 export function AiPage(props: {
   isConfigured: boolean;
   account: AccountSummary | null;
   daily: DailySummary | null;
   activity: ActivityHistorySummary | null;
+  pageContext: AssistantPageContext;
   tags: VaultTags;
   isLoadingAccount: boolean;
   onLoadAccount: () => void;
@@ -35,6 +37,7 @@ export function AiPage(props: {
       account={props.account}
       daily={props.daily}
       activity={props.activity}
+      pageContext={props.pageContext}
       items={props.account?.vault.items ?? []}
       tags={props.tags}
       isLoadingAccount={props.isLoadingAccount}

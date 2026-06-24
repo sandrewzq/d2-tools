@@ -2,6 +2,7 @@ import { app, BrowserWindow } from "electron";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { registerIpcHandlers } from "./ipc.js";
+import { scheduleInitialUpdateCheck } from "./ipc/updates.js";
 
 const currentDir = fileURLToPath(new URL(".", import.meta.url));
 const isDevelopment = process.env.NODE_ENV === "development";
@@ -31,6 +32,7 @@ async function createWindow(): Promise<void> {
 app.whenReady().then(async () => {
   registerIpcHandlers();
   await createWindow();
+  scheduleInitialUpdateCheck();
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {

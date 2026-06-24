@@ -51,6 +51,14 @@ export type AiChatContextInput = {
   tags: VaultTags;
   daily: DailySummary | null;
   activity: ActivityHistorySummary | null;
+  pageContext?: AiChatPageContext | null;
+};
+
+export type AiChatPageContext = {
+  page_key: string;
+  page_label: string;
+  focus: string;
+  facts: string[];
 };
 
 export type AiChatReplyInput = {
@@ -246,6 +254,7 @@ export function buildAiChatContext(input: AiChatContextInput): string {
       note: "AI 只能建议，不能直接执行锁定、转移、装备或分解。所有写操作都必须由用户在 GUI 中确认。",
       credential_policy: "上下文只包含游戏数据摘要，不包含任何本地密钥、授权票据或应用密钥。"
     },
+    current_page: input.pageContext ?? null,
     account: account ? {
       account_name: account.account_name,
       destiny_membership_id: account.destiny_membership_id,

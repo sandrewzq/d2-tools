@@ -19,6 +19,7 @@ const domainApiFiles = [
   "loadoutApi.ts",
   "manifestApi.ts",
   "sharedTypes.ts",
+  "updateApi.ts",
   "vaultApi.ts"
 ];
 

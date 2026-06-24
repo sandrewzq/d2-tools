@@ -187,7 +187,7 @@ describe("AI settings panel helpers", () => {
     expect(analysisIpc).toContain('ipcMain.handle("ai:test"');
   });
 
-  it("mounts AI settings in the settings page and sends unconfigured users there", () => {
+  it("mounts AI settings in the settings page and sends unconfigured sidebar users there", () => {
     const homePage = readFileSync(
       join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"),
       "utf8"
@@ -200,15 +200,22 @@ describe("AI settings panel helpers", () => {
       join(desktopRoot, "src", "renderer", "features", "ai", "AiPage.tsx"),
       "utf8"
     );
+    const assistantSidebar = readFileSync(
+      join(desktopRoot, "src", "renderer", "components", "GlobalAssistantSidebar.tsx"),
+      "utf8"
+    );
 
-    expect(homePage).toContain('onConfigureAi={() => setActivePage("settings")}');
+    expect(homePage).toContain('setActivePage("settings")');
+    expect(homePage).toContain("setAssistantMode(null)");
     expect(homePage).toContain("<SettingsPage");
+    expect(homePage).toContain("<GlobalAssistantSidebar");
     expect(homePage).not.toContain("<AiSettingsPanel");
     expect(homePage).not.toContain("查看或修改 Bungie 配置、写操作开关和本地日志。");
     expect(settingsPage).toContain("export function SettingsPage");
     expect(settingsPage).toContain("<AiSettingsPanel");
     expect(settingsPage).toContain("查看或修改 Bungie 配置、写操作开关和本地日志。");
-    expect(homePage).toContain("activePage === \"ai\"");
+    expect(homePage).not.toContain("activePage === \"ai\"");
+    expect(assistantSidebar).toContain("<AiPage");
     expect(aiPage).toContain("!props.isConfigured");
     expect(aiPage).toContain("props.onConfigureAi");
   });

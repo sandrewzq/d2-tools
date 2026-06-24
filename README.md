@@ -2,7 +2,7 @@
 
 d2-tools 是一个面向 Windows 玩家、本地运行的 Destiny 2 中文桌面助手。它不是去复制某一个现成网站，而是把 DIM、命运之小日向 Bot、d2-skill、Light.gg、Today In Destiny、Raid Report、Destiny Tracker、D2Checkpoint 这些方向里适合日常使用的能力，整理成一个更适合普通玩家的图形界面。
 
-你不需要安装 Node.js、Python、Docker，也不需要部署服务端。下载绿色包、解压、双击 `d2-tools.exe` 就能用。
+你不需要安装 Node.js、Python、Docker，也不需要部署服务端。下载安装器并运行，按向导完成安装后就能用。
 
 ## 适合谁
 
@@ -15,17 +15,13 @@ d2-tools 是一个面向 Windows 玩家、本地运行的 Destiny 2 中文桌面
 
 当前公开测试版本和下载入口请查看 [GitHub Releases](https://github.com/sandrewzq/d2-tools/releases)。
 
-Windows x64 绿色包：
+Windows x64 安装器：
 
 ```text
-d2-tools-win-x64-<version>.7z
+d2-tools-setup-<version>.exe
 ```
 
-解压后直接打开：
-
-```text
-d2-tools.exe
-```
+安装器文件名带版本号，安装后的文件夹默认不带版本号。安装时可以选择安装位置；选择同一目录会覆盖更新，选择不同目录可以保留多个版本。
 
 程序的本地数据默认保存在：
 
@@ -33,13 +29,13 @@ d2-tools.exe
 %APPDATA%\d2-tools
 ```
 
-这里会保存你的本地配置、Bungie OAuth token、Manifest 缓存、仓库标签、备注和操作日志。覆盖升级程序目录时，这些数据不会被自动删除。
+这里会保存你的本地配置、Bungie OAuth token、Manifest 缓存、仓库标签、备注和操作日志。安装或更新程序时，这些数据不会被自动删除。
 
 如果你以前用过旧项目名 `d2-service`，首次运行新版本时会自动把旧数据目录复制到 `%APPDATA%\d2-tools`。程序不会删除旧目录，确认新版本正常后再决定是否手动清理。
 
 ## 三分钟快速开始
 
-1. 下载并解压绿色包。
+1. 下载安装器并运行。
 2. 按 [Bungie 配置指南](docs/bungie-setup.md) 创建你自己的 Bungie Application。
 3. 打开 d2-tools，在首次引导或设置页填写 `API Key`、`Client ID`、`Client Secret`。
 4. 点击“登录 Bungie”，在浏览器里完成授权。

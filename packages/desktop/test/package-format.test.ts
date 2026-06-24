@@ -15,14 +15,20 @@ describe("desktop package format", () => {
     expect(rootPackageJson.scripts.typecheck).toContain("pnpm -r typecheck");
   });
 
-  it("uses 7z as the Windows green package format for GitHub releases", () => {
+  it("uses NSIS as the Windows installer format for GitHub releases", () => {
     const electronBuilderConfig = readFileSync(join(repoRoot, "packages", "desktop", "electron-builder.yml"), "utf8");
     const desktopPackageJson = readFileSync(join(repoRoot, "packages", "desktop", "package.json"), "utf8");
 
-    expect(electronBuilderConfig).toContain("target: 7z");
+    expect(electronBuilderConfig).toContain("target: nsis");
+    expect(electronBuilderConfig).toContain('artifactName: "d2-tools-setup-${version}.${ext}"');
+    expect(electronBuilderConfig).toContain("allowToChangeInstallationDirectory: true");
+    expect(electronBuilderConfig).toContain('shortcutName: "d2-tools"');
+    expect(electronBuilderConfig).toContain("include: build/installer.nsh");
     expect(electronBuilderConfig).not.toContain("target: zip");
-    expect(desktopPackageJson).toContain("--win 7z");
+    expect(electronBuilderConfig).not.toContain("target: 7z");
+    expect(desktopPackageJson).toContain("--win nsis");
     expect(desktopPackageJson).not.toContain("--win zip");
+    expect(desktopPackageJson).not.toContain("--win 7z");
   });
 
   it("provides a PowerShell development launcher without packaging the app", () => {

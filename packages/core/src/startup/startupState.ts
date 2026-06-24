@@ -12,7 +12,7 @@ export type StartupState = {
   cards: {
     bungieConfig: { status: StatusValue; label: string };
     account: { status: StatusValue; label: string };
-    manifest: { status: StatusValue; label: string };
+    manifest: { status: StatusValue; label: string; needsUpdate?: boolean; lastUpdated?: string };
     ai: { status: StatusValue; label: string };
   };
 };
@@ -30,12 +30,18 @@ export function computeStartupState(input: {
   config: D2Config;
   hasToken: boolean;
   hasManifest: boolean;
+  manifestCachedAt?: string;
   auth?: StartupAuthStatus;
+  now?: Date;
 }): StartupState {
   const bungieReady = hasRequiredBungieConfig(input.config);
   const auth = input.auth ?? { status: input.hasToken ? "valid" : "missing" };
   const accountReady = auth.status === "valid";
   const accountLabel = getAccountLabel(auth);
+
+  const manifestStatus = input.hasManifest && input.manifestCachedAt
+    ? getManifestCardState(input.manifestCachedAt, input.now)
+    : { status: input.hasManifest ? "ready" as const : "missing" as const, label: input.hasManifest ? "资料库已初始化" : "资料库未初始化" };
 
   return {
     nextStep: !bungieReady ? "bungie-config" : !accountReady ? "login" : "home",
@@ -48,16 +54,60 @@ export function computeStartupState(input: {
         status: accountReady ? "ready" : "missing",
         label: accountLabel
       },
-      manifest: {
-        status: input.hasManifest ? "ready" : "missing",
-        label: input.hasManifest ? "资料库已初始化" : "资料库未初始化"
-      },
+      manifest: manifestStatus,
       ai: {
         status: (input.config.ai.protocol ?? input.config.ai.provider ?? "").trim() ? "ready" : "skipped",
         label: (input.config.ai.protocol ?? input.config.ai.provider ?? "").trim() ? "AI 已配置" : "AI 未配置"
       }
     }
   };
+}
+
+function getManifestCardState(
+  cachedAtISO: string,
+  now?: Date
+): { status: StartupState["cards"]["manifest"]["status"]; label: string; needsUpdate: boolean; lastUpdated: string } {
+  const lastUpdated = formatChineseDate(cachedAtISO);
+  const stale = manifestNeedsRefresh(cachedAtISO, now);
+
+  return {
+    status: "ready",
+    label: stale
+      ? `资料库上次更新于 ${lastUpdated}，每周三凌晨 1:00 重置，建议更新`
+      : "资料库已初始化，每周三凌晨 1:00 重置后可更新",
+    needsUpdate: stale,
+    lastUpdated
+  };
+}
+
+function getLastWeeklyReset(now: Date): Date {
+  const dayOfWeek = now.getUTCDay();
+  const reset = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 17, 0, 0));
+
+  let daysSinceReset: number;
+  if (dayOfWeek >= 2) {
+    daysSinceReset = dayOfWeek - 2;
+    if (daysSinceReset === 0 && now.getTime() < reset.getTime()) {
+      daysSinceReset = 7;
+    }
+  } else {
+    daysSinceReset = dayOfWeek + 5;
+  }
+
+  reset.setUTCDate(reset.getUTCDate() - daysSinceReset);
+  return reset;
+}
+
+export function manifestNeedsRefresh(cachedAtISO: string, now?: Date): boolean {
+  const cachedAt = new Date(cachedAtISO);
+  const lastReset = getLastWeeklyReset(now ?? new Date());
+  if (isNaN(cachedAt.getTime())) return false;
+  return cachedAt < lastReset;
+}
+
+function formatChineseDate(isoString: string): string {
+  const d = new Date(isoString);
+  return `${d.getMonth() + 1}月${d.getDate()}日`;
 }
 
 function getAccountLabel(auth: StartupAuthStatus): string {
