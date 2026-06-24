@@ -2,18 +2,15 @@
   "name": "d2-tools",
   "version": "0.0.6",
   "private": true,
+  "type": "module",
   "packageManager": "pnpm@9.15.0",
   "scripts": {
     "dev": "pnpm --filter @d2-tools/desktop dev",
-    "dev:desktop": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev-desktop.ps1",
-    "dev:electron": "pnpm --filter @d2-tools/desktop dev:electron",
     "build": "pnpm -r build",
     "encoding:check": "node scripts/check-encoding.mjs",
     "docs:check": "node scripts/check-doc-policy.mjs && pnpm encoding:check",
-    "test": "pnpm docs:check && pnpm build && vitest --run",
-    "typecheck": "pnpm --filter @d2-tools/core build && pnpm --filter @d2-tools/http build && pnpm -r typecheck",
-    "package:win": "pnpm --filter @d2-tools/desktop package:win",
-    "package:local": "pnpm build && vitest --run && pnpm typecheck && pnpm package:win",
+    "test": "pnpm docs:check && pnpm -r test",
+    "typecheck": "pnpm -r typecheck",
     "release:preview": "node scripts/preview-release-notes.mjs"
   },
   "devDependencies": {
