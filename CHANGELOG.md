@@ -49,8 +49,6 @@
 ### 文档
 
 - 文档结构重组：superpowers 目录迁移至 work/ 归档
-- `docs/todo.md` 设为唯一短期待办来源
-- `docs/bug-list.md` 设为唯一 Bug 清单来源
 
 ## 0.0.4 - 2026-06-20
 
@@ -64,7 +62,7 @@
 - 今日 / 本周摘要面板
 - 活动摘要和基础 Raid / Dungeon 统计
 - AI 聊天式助手，支持基于已载入账号数据做自定义分析
-- AI 配置支持 OpenAI Responses、OpenAI Chat Completions、OpenAI 兼容接口和 Anthropic Claude
+- AI 配置支持 OpenAI Responses、OpenAI Chat Completions 和 Anthropic Claude
 - 诊断导出、工具审计日志和写操作日志
 - GitHub Release 自动打包 Windows `.7z` 绿色包
 

@@ -8,6 +8,11 @@ out/
 .local-data/
 coverage/
 *.log
+
+# brainstorming / superpowers visual companion
+.superpowers/brainstorm/
+
+
 *.tsbuildinfo
 .trae/
 .idea/

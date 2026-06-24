@@ -109,7 +109,8 @@ describe("assistant page context and history", () => {
     expect(aiPanel).toContain("startNewSession");
     expect(aiPanel).toContain("switchSession");
     expect(aiPanel).toContain("新会话");
-    expect(aiPanel).toContain("切换");
+    expect(aiPanel).toContain("会话列表");
+    expect(aiPanel).toContain("恢复");
   });
 
   it("guards AI chat context against missing vault tags during startup", () => {

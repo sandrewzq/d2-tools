@@ -39,7 +39,6 @@ export function GlobalAssistantSidebar(props: {
   if (props.assistantMode === "ai") {
     return (
       <div className="global-assistant-sidebar">
-        <AssistantHeader title="AI 助手" subtitle="读取当前页面上下文，随时问装备、仓库、配装和日常信息。" onClose={props.onClose} />
         <AiPage
           isConfigured={props.isConfigured}
           account={props.account}
@@ -50,6 +49,7 @@ export function GlobalAssistantSidebar(props: {
           isLoadingAccount={props.isLoadingAccount}
           onLoadAccount={props.onLoadAccount}
           onConfigureAi={props.onConfigureAi}
+          onClose={props.onClose}
         />
       </div>
     );

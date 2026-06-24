@@ -36,6 +36,8 @@ export function AiAnalysisPanel(props: {
   items: AccountItemSummary[];
   tags: VaultTags;
   onLoadAccount: () => void;
+  onConfigureAi: () => void;
+  onClose: () => void;
   isLoadingAccount: boolean;
 }) {
   const [messages, setMessages] = useState<AiChatMessage[]>([]);
@@ -44,8 +46,18 @@ export function AiAnalysisPanel(props: {
   const [isSendingChat, setIsSendingChat] = useState(false);
   const [history, setHistory] = useState<AssistantHistoryEntry[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+  const [isSessionDrawerOpen, setIsSessionDrawerOpen] = useState(false);
+  const [isContextDrawerOpen, setIsContextDrawerOpen] = useState(false);
   const contextFacts = useMemo(() => props.pageContext.facts.slice(0, 4), [props.pageContext]);
   const safeTags = props.tags ?? { items: {} };
+  const activeSession = activeSessionId ? history.find((entry) => entry.id === activeSessionId) : undefined;
+  const sessionTitle = activeSession?.title ?? (messages.length ? "当前会话" : "新会话");
+  const contextChip = [
+    `当前页面：${props.pageContext.page_label}`,
+    `仓库 ${props.items.length} 件`,
+    props.account ? `角色 ${props.account.characters.length} 个` : "账号未读取",
+    props.daily ? "今日信息已载入" : "今日信息未载入"
+  ].join(" · ");
 
   useEffect(() => {
     setHistory(loadAssistantHistory());
@@ -81,6 +93,7 @@ export function AiAnalysisPanel(props: {
       });
     } catch (analysisError) {
       setError(analysisError instanceof Error ? analysisError.message : "AI 聊天失败");
+      setQuestion(trimmedQuestion);
     } finally {
       setIsSendingChat(false);
     }
@@ -105,6 +118,8 @@ export function AiAnalysisPanel(props: {
     setQuestion("");
     setError("");
     setActiveSessionId(null);
+    setIsSessionDrawerOpen(false);
+    setIsContextDrawerOpen(false);
   }
 
   function switchSession(entry: AssistantHistoryEntry) {
@@ -112,6 +127,7 @@ export function AiAnalysisPanel(props: {
     setQuestion("");
     setError("");
     setActiveSessionId(entry.id);
+    setIsSessionDrawerOpen(false);
   }
 
   function clearHistory() {
@@ -124,92 +140,109 @@ export function AiAnalysisPanel(props: {
 
   return (
     <section className="tool-panel ai-chat-panel">
-      <div className="section-heading">
+      <header className="ai-conversation-header">
         <div>
           <h2>AI 助手</h2>
-          <p>像聊天一样提问。AI 会读取当前账号摘要，但不会读取或发送 token、client secret、API Key。</p>
+          <p>{sessionTitle}</p>
         </div>
-        <button type="button" className="secondary-button" disabled={isSendingChat} onClick={startNewSession}>
-          新会话
-        </button>
-      </div>
-
-      {error ? <p className="error">{error}</p> : null}
-      {!props.items.length ? (
-        <div className="item-detail-inline-status">
-          <p>先读取账号数据，AI 才能结合角色、仓库、背包、标签、备注和今日信息分析。历史记录仍可查看和恢复。</p>
-          <button type="button" disabled={props.isLoadingAccount} onClick={props.onLoadAccount}>
-            {props.isLoadingAccount ? "读取中..." : "读取账号数据"}
+        <div className="ai-conversation-actions">
+          <button type="button" className="secondary-button" disabled={isSendingChat} onClick={startNewSession}>
+            新会话
+          </button>
+          <button
+            type="button"
+            className="secondary-button"
+            disabled={isSendingChat}
+            onClick={() => {
+              setIsSessionDrawerOpen((current) => !current);
+              setIsContextDrawerOpen(false);
+            }}
+          >
+            会话列表
+          </button>
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={() => {
+              setIsContextDrawerOpen((current) => !current);
+              setIsSessionDrawerOpen(false);
+            }}
+          >
+            上下文
+          </button>
+          <button type="button" className="secondary-button" onClick={props.onConfigureAi}>
+            设置
+          </button>
+          <button type="button" className="secondary-button" onClick={props.onClose}>
+            关闭
           </button>
         </div>
-      ) : null}
+      </header>
 
       <div className="ai-chat-workspace">
-        <div className="ai-chat-main">
-          <div className="ai-chat-log" aria-live="polite">
-            {messages.length ? messages.map((message, index) => (
-              <article className={`ai-chat-message message-${message.role}`} key={`${message.role}-${index}`}>
-                <strong>{message.role === "user" ? "你" : "AI"}</strong>
-                <p>{message.text}</p>
-              </article>
-            )) : (
-              <p className="notice">可以直接问“哪些装备可以分解”“这周刷什么”“帮我整理 PVE 配装”。</p>
-            )}
-            {isSendingChat ? <p className="notice">AI 正在读取上下文并生成回答...</p> : null}
-          </div>
+        <div className="ai-conversation-log" aria-live="polite">
+          {error ? <p className="error">{error}</p> : null}
+          {!props.items.length ? (
+            <div className="item-detail-inline-status">
+              <p>先读取账号数据，AI 才能结合角色、仓库、背包、标签、备注和今日信息分析。历史记录仍可查看和恢复。</p>
+              <button type="button" disabled={props.isLoadingAccount} onClick={props.onLoadAccount}>
+                {props.isLoadingAccount ? "读取中..." : "读取账号数据"}
+              </button>
+            </div>
+          ) : null}
 
-          <form className="ai-chat-input" onSubmit={(event) => {
-            event.preventDefault();
-            void sendChat();
-          }}>
-            <textarea
-              value={question}
-              onChange={(event) => setQuestion(event.target.value)}
-              placeholder="输入你的问题，例如：帮我找出仓库里可以清理的同名装备"
-              rows={3}
-            />
+          {messages.length ? messages.map((message, index) => (
+            <article className={`ai-chat-message message-${message.role}`} key={`${message.role}-${index}`}>
+              <strong>{message.role === "user" ? "你" : "AI"}</strong>
+              <p>{message.text}</p>
+            </article>
+          )) : (
+            <div className="ai-empty-state">
+              <strong>可以直接问当前页面里的问题</strong>
+              <p>例如装备清理、仓库筛选、配装缺口、今日优先级。上下文和历史都在顶部按钮里，不会挤占对话区。</p>
+              <div className="ai-quick-prompts">
+                {quickPrompts.map((prompt) => (
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    key={prompt}
+                    disabled={isSendingChat}
+                    onClick={() => void sendChat(prompt)}
+                  >
+                    {prompt}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          {isSendingChat ? <p className="notice">AI 正在读取上下文并生成回答...</p> : null}
+        </div>
+
+        <form className="ai-composer" onSubmit={(event) => {
+          event.preventDefault();
+          void sendChat();
+        }}>
+          <span className="ai-composer-context">{contextChip}</span>
+          <textarea
+            value={question}
+            onChange={(event) => setQuestion(event.target.value)}
+            placeholder="输入你的问题，例如：帮我找出仓库里可以清理的同名装备"
+            rows={3}
+          />
+          <div className="ai-composer-actions">
+            <button type="button" className="secondary-button" onClick={() => setIsContextDrawerOpen(true)}>
+              查看上下文
+            </button>
             <button type="submit" disabled={isSendingChat || !question.trim()}>
               {isSendingChat ? "发送中..." : "发送"}
             </button>
-          </form>
-        </div>
+          </div>
+        </form>
 
-        <aside className="ai-chat-sidebar">
-          <div className="ai-context-strip">
-            <span>当前页面：{props.pageContext.page_label}</span>
-            <span>仓库 {props.items.length} 件</span>
-            <span>角色 {props.account?.characters.length ?? 0} 个</span>
-            <span>材料 {props.account?.materials.item_count ?? 0} 种</span>
-            <span>{props.daily ? "今日信息已载入" : "今日信息未载入"}</span>
-          </div>
-          <div className="ai-page-context">
-            <strong>页面分析重点</strong>
-            <p>{props.pageContext.focus}</p>
-            {contextFacts.length ? (
-              <ul>
-                {contextFacts.map((fact) => (
-                  <li key={fact}>{fact}</li>
-                ))}
-              </ul>
-            ) : null}
-          </div>
-
-          <div className="ai-quick-prompts">
-            {quickPrompts.map((prompt) => (
-              <button
-                type="button"
-                className="secondary-button"
-                key={prompt}
-                disabled={isSendingChat}
-                onClick={() => void sendChat(prompt)}
-              >
-                {prompt}
-              </button>
-            ))}
-          </div>
-          <div className="ai-chat-history">
+        {isSessionDrawerOpen ? (
+          <section className="ai-chat-history ai-session-drawer" aria-label="会话列表">
             <div className="ai-history-heading">
-              <strong>会话历史</strong>
+              <strong>会话列表</strong>
               <button type="button" className="secondary-button" disabled={!history.length} onClick={clearHistory}>
                 清空历史
               </button>
@@ -219,17 +252,51 @@ export function AiAnalysisPanel(props: {
                 {history.map((entry) => (
                   <li key={entry.id}>
                     <span>{entry.page_label} · {entry.title}</span>
-                    <button type="button" className="secondary-button" disabled={isSendingChat || activeSessionId === entry.id} onClick={() => switchSession(entry)}>
-                      {activeSessionId === entry.id ? "当前" : "切换"}
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      disabled={isSendingChat || activeSessionId === entry.id}
+                      onClick={() => switchSession(entry)}
+                    >
+                      {activeSessionId === entry.id ? "当前" : "恢复"}
                     </button>
                   </li>
                 ))}
               </ul>
             ) : (
-              <p>本次会话还没有历史记录。</p>
+              <p>还没有历史记录。发送第一条消息后会自动创建会话。</p>
             )}
-          </div>
-        </aside>
+          </section>
+        ) : null}
+
+        {isContextDrawerOpen ? (
+          <section className="ai-context-drawer" aria-label="上下文">
+            <div className="ai-history-heading">
+              <strong>上下文</strong>
+              <button type="button" className="secondary-button" onClick={() => setIsContextDrawerOpen(false)}>
+                收起
+              </button>
+            </div>
+            <div className="ai-context-strip">
+              <span>当前页面：{props.pageContext.page_label}</span>
+              <span>仓库 {props.items.length} 件</span>
+              <span>角色 {props.account?.characters.length ?? 0} 个</span>
+              <span>材料 {props.account?.materials.item_count ?? 0} 种</span>
+              <span>{props.daily ? "今日信息已载入" : "今日信息未载入"}</span>
+            </div>
+            <div className="ai-page-context">
+              <strong>页面分析重点</strong>
+              <p>{props.pageContext.focus}</p>
+              {contextFacts.length ? (
+                <ul>
+                  {contextFacts.map((fact) => (
+                    <li key={fact}>{fact}</li>
+                  ))}
+                </ul>
+              ) : null}
+            </div>
+          </section>
+        ) : null}
       </div>
     </section>
   );

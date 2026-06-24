@@ -107,13 +107,16 @@ describe("desktop workspace layout", () => {
     const styles = readFileSync(join(desktopRoot, "src", "renderer", "styles.css"), "utf8");
 
     expect(aiPanel).toContain('className="ai-chat-workspace"');
-    expect(aiPanel).toContain('className="ai-chat-main"');
-    expect(aiPanel).toContain('className="ai-chat-sidebar"');
+    expect(aiPanel).toContain('className="ai-conversation-log"');
+    expect(aiPanel).toContain('className="ai-composer"');
+    expect(aiPanel).toContain('className="ai-chat-history ai-session-drawer"');
+    expect(aiPanel).toContain('className="ai-context-drawer"');
     expect(aiPanel).not.toContain("本地分析");
     expect(aiPanel).not.toContain("AI 深度建议");
     expect(aiPanel).not.toContain('className="analysis-grid"');
-    expect(styles).toMatch(/\.ai-chat-log\s*{[\s\S]*?max-height:\s*min\(52vh,\s*560px\);/);
-    expect(styles).toMatch(/\.ai-chat-input\s*{[\s\S]*?position:\s*sticky;/);
+    expect(styles).toMatch(/\.ai-conversation-log\s*{[\s\S]*?overflow:\s*auto;/);
+    expect(styles).toMatch(/\.ai-composer\s*{[\s\S]*?border-top:\s*1px solid #303848;/);
+    expect(styles).toMatch(/\.ai-session-drawer,\s*\n\.ai-context-drawer\s*{[\s\S]*?position:\s*absolute;/);
   });
 
   it("uses shared source status styling for fallback and warning messages", () => {

@@ -26,24 +26,37 @@ describe("global AI assistant sidebar wiring", () => {
     expect(homePage).not.toContain("pageTitle(activePage)");
   });
 
-  it("keeps assistant history and task context inside the global sidebar", () => {
+  it("keeps task context inside the global sidebar", () => {
     const assistantSidebar = readFileSync(
       join(desktopRoot, "src", "renderer", "components", "GlobalAssistantSidebar.tsx"),
-      "utf8"
-    );
-    const aiPanel = readFileSync(
-      join(desktopRoot, "src", "renderer", "components", "AiAnalysisPanel.tsx"),
       "utf8"
     );
 
     expect(assistantSidebar).toContain("任务 / 攻略上下文");
     expect(assistantSidebar).toContain("assistant-task-tree");
     expect(assistantSidebar).toContain("<AiPage");
+  });
+
+  it("uses a Codex-style AI chat workbench with drawers instead of a permanent side column", () => {
+    const aiPanel = readFileSync(
+      join(desktopRoot, "src", "renderer", "components", "AiAnalysisPanel.tsx"),
+      "utf8"
+    );
+
+    expect(aiPanel).toContain("isSessionDrawerOpen");
+    expect(aiPanel).toContain("isContextDrawerOpen");
+    expect(aiPanel).toContain("ai-conversation-header");
+    expect(aiPanel).toContain("ai-conversation-log");
+    expect(aiPanel).toContain("ai-composer");
+    expect(aiPanel).toContain("ai-session-drawer");
+    expect(aiPanel).toContain("ai-context-drawer");
     expect(aiPanel).toContain("ai-chat-history");
-    expect(aiPanel).toContain("历史记录");
+    expect(aiPanel).toContain("会话列表");
+    expect(aiPanel).toContain("上下文");
     expect(aiPanel).toContain("恢复");
     expect(aiPanel).toContain("清空历史");
     expect(aiPanel).toContain("历史记录仍可查看和恢复");
+    expect(aiPanel).not.toContain("ai-chat-sidebar");
     expect(aiPanel).not.toContain("if (!props.items.length)");
   });
 

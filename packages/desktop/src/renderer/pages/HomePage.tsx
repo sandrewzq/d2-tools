@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import {
   type AccountItemSummary,
   type AccountSummary,
@@ -123,6 +123,9 @@ export function HomePage(props: {
     void loadPersistedWishlist();
   }, []);
 
+  const loadAccountRef = useRef(loadAccountSummary);
+  loadAccountRef.current = loadAccountSummary;
+
   useEffect(() => {
     if (hasAutoLoadedAccount || props.state.nextStep !== "home") {
       return;
@@ -135,11 +138,11 @@ export function HomePage(props: {
     if (props.state.nextStep !== "home") return;
 
     const id = setInterval(() => {
-      void loadAccountSummary();
+      void loadAccountRef.current();
     }, 10 * 60 * 1000);
 
     return () => clearInterval(id);
-  }, [props.state.nextStep, loadAccountSummary]);
+  }, [props.state.nextStep]);
 
   const isAiConfigured = isAiSettingsConfigured(diagnostics.aiSettings);
 

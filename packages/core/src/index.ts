@@ -1,4 +1,5 @@
 export * from "./ai/chat.js";
+export * from "./analysis/scoring.js";
 export * from "./analysis/duplicates.js";
 export * from "./analysis/vault.js";
 export * from "./analysis/wishlist.js";
