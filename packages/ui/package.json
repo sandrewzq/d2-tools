@@ -6,9 +6,18 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
+    "prebuild": "pnpm --filter @d2-tools/core build",
     "build": "tsc -p tsconfig.json",
+    "pretypecheck": "pnpm --filter @d2-tools/core build",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest --run"
+  },
+  "dependencies": {
+    "@d2-tools/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0"
   },
   "peerDependencies": {
     "react": "^19.0.0",
