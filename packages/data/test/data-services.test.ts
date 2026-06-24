@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createMockPlatformServices } from "@d2-tools/platform";
+import { createMockPlatformServices } from "@d2-tools/platform/mock";
 import { createDataServices } from "../src/index";
 
 describe("data services", () => {
@@ -57,6 +57,45 @@ describe("data services", () => {
     const stored = await platform.files.readText("settings/app.json");
     expect(stored).not.toContain("secret-key");
     expect(stored).not.toContain("refresh-secret");
+  });
+
+  it("filters unexpected sensitive fields from stored settings json", async () => {
+    const platform = createMockPlatformServices();
+    await platform.files.writeText(
+      "settings/app.json",
+      JSON.stringify({
+        dataDir: "D:/data/d2-tools",
+        token: "root-token",
+        bungie: {
+          apiKeyConfigured: true,
+          apiKey: "bungie-api-key",
+          refreshToken: "bungie-refresh-token"
+        },
+        ai: {
+          providerConfigured: true,
+          providerId: "openai",
+          model: "gpt-5",
+          apiKey: "ai-api-key",
+          token: "ai-token"
+        }
+      })
+    );
+    const data = await createDataServices(platform);
+
+    const settings = await data.settings.getSettings();
+
+    expect(settings).toEqual({
+      dataDir: "D:/data/d2-tools",
+      bungie: { apiKeyConfigured: true },
+      ai: {
+        providerConfigured: true,
+        providerId: "openai",
+        model: "gpt-5"
+      }
+    });
+    expect(JSON.stringify(settings)).not.toContain("api-key");
+    expect(JSON.stringify(settings)).not.toContain("refresh-token");
+    expect(JSON.stringify(settings)).not.toContain("token");
   });
 
   it("refreshes manifest status in memory", async () => {

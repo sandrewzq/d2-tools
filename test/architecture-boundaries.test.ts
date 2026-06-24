@@ -13,14 +13,20 @@ const coreBoundaryRule: ForbiddenImportRule = {
 };
 
 const uiBoundaryRule: ForbiddenImportRule = {
+  packageNames: ["@d2-tools/platform"],
   packagePrefixes: ["@tauri-apps/", "apps/"],
-  paths: ["apps"]
+  paths: ["apps", "packages/platform"]
 };
 
 const dataBoundaryRule: ForbiddenImportRule = {
-  packageNames: ["@d2-tools/platform/desktop"],
+  packageNames: ["@d2-tools/platform/desktop", "@d2-tools/platform/mock"],
   packagePrefixes: ["@tauri-apps/", "apps/", "packages/platform/src/desktop"],
   paths: ["apps", "packages/platform/src/desktop.ts"]
+};
+
+const desktopAppBoundaryRule: ForbiddenImportRule = {
+  packageNames: ["@tauri-apps/api/core"],
+  paths: ["packages/platform/src/desktop.ts"]
 };
 
 type SourceFile = {
@@ -147,6 +153,55 @@ function expectNoForbiddenImports(scope: string, rule: ForbiddenImportRule, reas
   ).toEqual([]);
 }
 
+function expectNoForbiddenImportsOutside(
+  scope: string,
+  allowedScope: string,
+  rule: ForbiddenImportRule,
+  reason: string
+) {
+  const allowedFullPath = resolve(root, allowedScope);
+  const offenders = readSourceFiles(scope)
+    .filter((file) => !isPathInside(file.fullPath, allowedFullPath))
+    .flatMap((file) =>
+      extractImportSpecifiers(file.content)
+        .filter((specifier) => isForbiddenImport(file.fullPath, specifier, rule))
+        .map((specifier) => `${relative(root, file.fullPath)} imports "${specifier}": ${reason}`)
+    );
+
+  expect(offenders).toEqual([]);
+}
+
+function isPathInside(filePath: string, scopePath: string): boolean {
+  const pathFromScope = relative(scopePath, filePath);
+  return pathFromScope === "" || (!pathFromScope.startsWith("..") && !isAbsolute(pathFromScope));
+}
+
+function readJsonFile<T>(path: string): T {
+  return JSON.parse(readFileSync(join(root, path), "utf8")) as T;
+}
+
+function readTextFile(path: string): string {
+  return readFileSync(join(root, path), "utf8");
+}
+
+function readPackageJson(path: string): {
+  dependencies?: Record<string, string>;
+  devDependencies?: Record<string, string>;
+  peerDependencies?: Record<string, string>;
+  exports?: Record<string, unknown>;
+} {
+  return readJsonFile(path);
+}
+
+function readDependencyNames(packageJsonPath: string): string[] {
+  const packageJson = readPackageJson(packageJsonPath);
+  return [
+    ...Object.keys(packageJson.dependencies ?? {}),
+    ...Object.keys(packageJson.devDependencies ?? {}),
+    ...Object.keys(packageJson.peerDependencies ?? {})
+  ];
+}
+
 describe("architecture boundaries", () => {
   it("extracts static, re-export, side-effect, and dynamic import specifiers", () => {
     const specifiers = extractImportSpecifiers(`
@@ -187,8 +242,65 @@ describe("architecture boundaries", () => {
 
     expect(isForbiddenImport(filePath, "@d2-tools/platform", dataBoundaryRule)).toBe(false);
     expect(isForbiddenImport(filePath, "@d2-tools/platform/desktop", dataBoundaryRule)).toBe(true);
+    expect(isForbiddenImport(filePath, "@d2-tools/platform/mock", dataBoundaryRule)).toBe(true);
     expect(isForbiddenImport(filePath, "packages/platform/src/desktop", dataBoundaryRule)).toBe(true);
     expect(isForbiddenImport(filePath, "../../platform/src/desktop", dataBoundaryRule)).toBe(true);
+  });
+
+  it("platform root exports contracts only and exposes adapters through subpaths", () => {
+    const rootSpecifiers = extractImportSpecifiers(readTextFile("packages/platform/src/index.ts"));
+    const packageExports = readPackageJson("packages/platform/package.json").exports;
+
+    expect(rootSpecifiers).not.toContain("./desktop");
+    expect(rootSpecifiers).not.toContain("./mock");
+    expect(packageExports).toMatchObject({
+      ".": {
+        types: "./dist/index.d.ts",
+        import: "./dist/index.js"
+      },
+      "./desktop": {
+        types: "./dist/desktop.d.ts",
+        import: "./dist/desktop.js"
+      },
+      "./mock": {
+        types: "./dist/mock.d.ts",
+        import: "./dist/mock.js"
+      }
+    });
+  });
+
+  it("package dependencies keep ui and data on their intended platform boundary", () => {
+    expect(readDependencyNames("packages/ui/package.json")).not.toContain("@d2-tools/platform");
+    expect(readDependencyNames("packages/data/package.json")).toContain("@d2-tools/platform");
+    expect(readDependencyNames("packages/data/package.json")).not.toContain("@d2-tools/platform/desktop");
+    expect(readDependencyNames("packages/data/package.json")).not.toContain("@d2-tools/platform/mock");
+  });
+
+  it("release workflow no longer references the old Electron package paths", () => {
+    const releaseWorkflow = readTextFile(".github/workflows/release.yml");
+
+    expect(releaseWorkflow).not.toContain("packages/desktop");
+    expect(releaseWorkflow).not.toContain("packages/http");
+    expect(releaseWorkflow).not.toContain("electron-builder");
+    expect(releaseWorkflow).toContain("apps/desktop");
+  });
+
+  it("tauri configuration uses a CSP and does not grant unused shell open permissions", () => {
+    const tauriConfig = readJsonFile<{
+      app?: { security?: { csp?: string | null } };
+    }>("apps/desktop/src-tauri/tauri.conf.json");
+    const capabilities = readJsonFile<{ permissions?: string[] }>(
+      "apps/desktop/src-tauri/capabilities/default.json"
+    );
+    const cargoToml = readTextFile("apps/desktop/src-tauri/Cargo.toml");
+    const libRs = readTextFile("apps/desktop/src-tauri/src/lib.rs");
+
+    expect(tauriConfig.app?.security?.csp).toBeTypeOf("string");
+    expect(tauriConfig.app?.security?.csp).not.toBe("");
+    expect(tauriConfig.app?.security?.csp).not.toBeNull();
+    expect(capabilities.permissions ?? []).not.toContain("shell:allow-open");
+    expect(cargoToml).not.toContain("tauri-plugin-shell");
+    expect(libRs).not.toContain("tauri_plugin_shell");
   });
 
   it("core does not depend on platform, data, ui, or apps", () => {
@@ -212,6 +324,27 @@ describe("architecture boundaries", () => {
       "packages/data/src",
       dataBoundaryRule,
       "data must use platform contracts only"
+    );
+  });
+
+  it("desktop pages and components do not call Tauri invoke directly", () => {
+    expectNoForbiddenImportsOutside(
+      "apps/desktop/src",
+      "apps/desktop/src/platform",
+      desktopAppBoundaryRule,
+      "desktop app code must use the platform adapter; only apps/desktop/src/platform may assemble it"
+    );
+  });
+
+  it("desktop platform assembly is the only app source allowed to import the desktop adapter", () => {
+    expectNoForbiddenImportsOutside(
+      "apps/desktop/src",
+      "apps/desktop/src/platform",
+      {
+        packageNames: ["@d2-tools/platform/desktop"],
+        paths: ["packages/platform/src/desktop.ts"]
+      },
+      "desktop adapter imports must stay inside apps/desktop/src/platform"
     );
   });
 

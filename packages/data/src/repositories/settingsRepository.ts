@@ -19,7 +19,7 @@ export function createSettingsRepository(
 ): SettingsRepository {
   async function readStoredSettings(): Promise<AppSettings | null> {
     const raw = await platform.files.readText(SETTINGS_PATH);
-    return raw === null ? null : (JSON.parse(raw) as AppSettings);
+    return raw === null ? null : sanitizeSettings(JSON.parse(raw));
   }
 
   async function getSettings(): Promise<AppSettings> {
@@ -59,4 +59,32 @@ export function createSettingsRepository(
       return next;
     }
   };
+}
+
+function sanitizeSettings(value: unknown): AppSettings {
+  const input = isRecord(value) ? value : {};
+  const bungie = isRecord(input.bungie) ? input.bungie : {};
+  const ai = isRecord(input.ai) ? input.ai : {};
+
+  return {
+    dataDir: typeof input.dataDir === "string" ? input.dataDir : "",
+    bungie: {
+      apiKeyConfigured:
+        typeof bungie.apiKeyConfigured === "boolean"
+          ? bungie.apiKeyConfigured
+          : false
+    },
+    ai: {
+      providerConfigured:
+        typeof ai.providerConfigured === "boolean"
+          ? ai.providerConfigured
+          : false,
+      providerId: typeof ai.providerId === "string" ? ai.providerId : null,
+      model: typeof ai.model === "string" ? ai.model : null
+    }
+  };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

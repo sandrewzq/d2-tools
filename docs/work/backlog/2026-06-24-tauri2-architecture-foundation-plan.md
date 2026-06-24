@@ -8,7 +8,7 @@
 
 **Tech Stack:** Tauri 2、React、TypeScript、Vite、pnpm 9、Vitest、SQLite + 文件缓存、TanStack Query、Zustand。
 
-**Execution Status:** Task 1-10 已完成并通过 review；Task 11 用于文档和验证收口。当前代码层面已完成 workspace、包边界、Tauri 壳、platform contract、data repository、UI 薄切片和架构边界测试。仍保留两个明确缺口：本机缺 Rust/Cargo，未验证 Tauri Rust 编译、真实窗口启动和打包；`external.openExternal`、`updates.check/install` 只有 TypeScript adapter 调用，Rust 侧 `open_external`、`updates_check`、`updates_install` commands 尚未实现和注册。
+**Execution Status:** Task 1-10 已完成并通过 review；Task 11 用于文档和验证收口。当前代码层面已完成 workspace、包边界、Tauri 壳、platform contract、data repository、settings + Manifest status + AI conversation list foundation dashboard 薄切片和架构边界测试。授权状态、账号摘要、仓库基础列表、AI 基础聊天和 provider 请求仍是后续未完成切片。仍保留两个明确缺口：本机缺 Rust/Cargo，未验证 Tauri Rust 编译、真实窗口启动和打包；`external.openExternal`、`updates.check/install` 只有 TypeScript adapter 调用，Rust 侧 `open_external`、`updates_check`、`updates_install` commands 尚未实现和注册。
 
 ## Global Constraints
 
@@ -2299,8 +2299,8 @@ git commit -m "docs: document tauri foundation implementation"
 - Tauri 平台底座：Task 7、Task 8 覆盖。
 - 数据层底座：Task 5 覆盖。
 - UI 层和装配：Task 6、Task 9 覆盖。
-- OAuth 和安全：Task 4、Task 8 定义安全存储 contract 和最小 command；完整 OAuth 在后续薄功能任务继续扩展。
-- AI 边界：Task 3、Task 5、Task 6 覆盖 AI 会话和 provider 配置基础。
+- OAuth 和安全：Task 4、Task 8 定义安全存储 contract 和最小 command；完整 OAuth 与授权状态在后续薄功能任务继续扩展。
+- AI 边界：Task 3、Task 5、Task 6 覆盖 AI 会话列表和 provider 配置基础；AI 基础聊天和 provider 请求仍未实现。
 - 架构里程碑 M1-M4：Task 1-11 覆盖。
 
 ### Placeholder scan

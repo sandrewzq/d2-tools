@@ -9,7 +9,6 @@ pub fn run() {
     tauri::Builder::default()
         .manage(SecureStoreState(Mutex::new(HashMap::new())))
         .manage(LogState(Mutex::new(Vec::new())))
-        .plugin(tauri_plugin_shell::init())
         .invoke_handler(tauri::generate_handler![
             commands::app::app_get_info,
             commands::fs::fs_read_app_file,

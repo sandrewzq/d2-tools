@@ -1,137 +1,54 @@
 # 安全说明
 
-这份文档只讲 d2-tools 的安全边界和本地数据边界，不讲功能教程。
+这份文档描述当前 Tauri 2 架构底座的安全边界，不承诺旧 Electron 完整功能已经可用。
 
-## 1. 本地保存了什么
+## 1. 当前本地数据范围
 
-d2-tools 默认把本地数据保存到：
+当前底座只实现最小本地数据验证：
 
-```text
-%APPDATA%\d2-tools
-```
+- settings JSON
+- Manifest 状态 metadata
+- AI 会话列表基础数据
+- 最小日志和文件读写 command
 
-这里通常包括：
+真实 OAuth token、Bungie 账号快照、仓库完整数据、SQLite 缓存和自动更新状态仍属于后续切片。
 
-- Bungie 配置
-- OAuth token
-- Manifest 缓存
-- 仓库标签
-- 本地备注
-- DIM 愿望单导入
-- 操作日志
-- 诊断导出相关内容
+## 2. 敏感字段边界
 
-## 2. 不会内置什么
+settings repository 读写时只保留白名单字段：
 
-公开分发包不会内置：
+- `dataDir`
+- `bungie.apiKeyConfigured`
+- `ai.providerConfigured`
+- `ai.providerId`
+- `ai.model`
 
-- 任何人的 Bungie `API Key`
-- 任何人的 `Client ID`
-- 任何人的 `Client Secret`
-- 任何人的个人 token
+额外字段如 `apiKey`、`refreshToken`、`token` 不应从 settings JSON 透出，也不应写回普通 settings JSON。敏感凭据后续应走 platform secure store。
 
-每个玩家都需要使用自己的 Bungie Application。
+## 3. AI 边界
 
-## 3. AI 会读取什么
+当前没有真实 AI provider 请求，也没有基于账号或仓库数据的完整 AI 分析。已有 UI 只展示 AI 会话列表基础状态。
 
-如果你启用了 AI，模型请求里可能会包含：
+因此当前分支不应承诺：
 
-- 角色摘要
-- 背包和仓库摘要
-- 装备 roll、perk、标签、备注
-- 今日 / 本周摘要
-- 活动摘要
+- 已支持 OpenAI / Anthropic 请求
+- 已把账号数据发送给模型
+- 已完成 AI 聊天或自动分析
 
-也就是说，AI 分析依赖的是“当前已载入的结构化游戏数据”。
+## 4. Bungie 和写操作边界
 
-## 4. AI 不会读取什么
+当前没有 Bungie OAuth 登录闭环，也没有账号、仓库或写操作。锁定、解锁、转移、装备和一键最高光等能力都尚未迁回当前 Tauri 底座。
 
-AI 不会读取、也不会被 d2-tools 发送这些内容：
+## 5. Tauri 安全默认值
 
-- Bungie OAuth token
-- `Client Secret`
-- Bungie `API Key`
-- AI 提供方自己的 API Key
+当前 Tauri 配置使用显式 CSP，不使用 `csp: null`。当前 app 没有使用 shell open，因此不授予 `shell:allow-open`，也不加载 shell plugin。
 
-AI 只负责解释、归纳和建议，不直接接触这些敏感凭据。
+## 6. 仍需验证的安全缺口
 
-## 5. 写操作能做什么
+- Rust/Cargo 环境下的真实 Tauri 编译和启动
+- 真实安全存储方案
+- Manifest 下载、账号缓存和 SQLite 数据边界
+- `open_external`、`updates_check`、`updates_install` Rust commands
+- 正式安装器和自动更新链路
 
-当前写操作包括：
-
-- 锁定 / 解锁
-- 装备到角色
-- 从仓库取出到角色
-- 从角色移入仓库
-- 一键装备最高光等
-
-这些写操作默认关闭，需要：
-
-1. Bungie 授权具备对应 Scope
-2. 本地设置页显式开启
-3. 操作前确认
-
-## 6. 写操作不能做什么
-
-当前明确不做：
-
-- 直接分解装备
-- AI 自动执行写操作
-- 无确认的批量高风险操作
-
-这不是暂时没做，而是当前产品边界的一部分。
-
-## 7. 为什么不能直接分解装备
-
-因为分解是不可逆操作，风险太高。
-
-d2-tools 目前只负责：
-
-- 识别疑似可清理装备
-- 生成清理清单
-- 帮你解锁
-- 帮你转移到角色背包
-- 提供更易核对的游戏内定位信息
-
-最终分解仍需进游戏手动完成。
-
-## 8. 覆盖安装会不会删掉数据
-
-正常覆盖程序目录时，不会主动删除 `%APPDATA%\d2-tools` 里的本地数据。
-
-也就是说，这些内容一般都能保留：
-
-- Bungie 配置
-- token
-- Manifest 缓存
-- 标签和备注
-- AI 配置
-- 操作日志
-
-真正危险的情况通常是你手动删除了数据目录，或者把整个目录误清空。
-
-## 9. 从 d2-service 迁移过来安全吗
-
-首次运行 d2-tools 时，会把 `%APPDATA%\d2-service` 的旧数据复制到 `%APPDATA%\d2-tools`。
-
-这是复制，不是直接剪切或强制删除旧目录，所以迁移完成后你仍然可以自己核对。
-
-## 10. 诊断导出怎么处理敏感信息
-
-诊断导出会尽量自动脱敏，例如：
-
-- token
-- `Client Secret`
-- API Key 类字段
-
-但任何导出文件在发给别人前，你最好仍然自己再看一眼，不要把完整个人环境目录直接打包外发。
-
-## 11. 你应该怎么做
-
-如果你想把风险降到最低，建议：
-
-- 只在自己的电脑上保存配置
-- 不公开包含配置字段的截图
-- 不直接分享整个 `%APPDATA%\d2-tools` 目录
-- 只在确认需要时开启写操作
-- 把 AI 当分析助手，不把它当自动执行器
+这些缺口的当前状态以 [todo.md](todo.md) 为准。

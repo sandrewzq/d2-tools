@@ -1,4 +1,4 @@
-name: Release Windows Package
+name: Release Tauri Windows Package
 
 on:
   push:
@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   build-windows:
-    name: Build Windows installer
+    name: Build Tauri Windows bundle
     runs-on: windows-latest
 
     steps:
@@ -28,63 +28,52 @@ jobs:
           node-version: 22
           cache: pnpm
 
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Verify tag matches package versions
+      - name: Verify tag matches root package version
         shell: pwsh
         run: |
           $rootVersion = node -p "require('./package.json').version"
-          $desktopVersion = node -p "require('./packages/desktop/package.json').version"
-          $coreVersion = node -p "require('./packages/core/package.json').version"
-          $httpVersion = node -p "require('./packages/http/package.json').version"
           $tagName = "${{ github.ref_name }}"
-
-          if ($rootVersion -ne $desktopVersion -or $rootVersion -ne $coreVersion -or $rootVersion -ne $httpVersion) {
-            throw "Package versions must match. root=$rootVersion desktop=$desktopVersion core=$coreVersion http=$httpVersion"
-          }
 
           if ($tagName -ne "v$rootVersion") {
             throw "Release tag $tagName must match package version v$rootVersion"
           }
 
-      - name: Build
-        run: pnpm build
-
-      - name: Test
-        run: pnpm vitest --run
+      - name: Check docs
+        run: pnpm docs:check
 
       - name: Typecheck
-        run: pnpm -r typecheck
+        run: pnpm typecheck
 
-      - name: Build Windows NSIS installer
-        run: cd packages/desktop && pnpm exec electron-builder --config electron-builder.yml --win nsis --publish never
+      - name: Test
+        run: pnpm test
 
-      - name: Collect release asset
+      - name: Build Tauri Windows bundle
+        run: pnpm --filter @d2-tools/desktop package:desktop
+
+      - name: Collect release assets
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path release-artifacts | Out-Null
-          $installer = Get-ChildItem packages/desktop/release/d2-tools-setup-*.exe | Select-Object -First 1
-          $latest = Get-ChildItem packages/desktop/release/latest.yml | Select-Object -First 1
-          $blockmap = Get-ChildItem packages/desktop/release/*.blockmap | Select-Object -First 1
-          if (-not $installer) {
-            throw "Windows NSIS installer was not created"
+          $bundleDir = "apps/desktop/src-tauri/target/release/bundle/nsis"
+          $installers = Get-ChildItem $bundleDir -Filter "*.exe" -ErrorAction SilentlyContinue
+
+          if (-not $installers) {
+            throw "Tauri Windows installer was not created under $bundleDir"
           }
-          if (-not $latest) {
-            throw "latest.yml updater metadata was not created"
-          }
-          if (-not $blockmap) {
-            throw "Installer blockmap was not created"
-          }
-          Copy-Item $installer.FullName release-artifacts/
-          Copy-Item $latest.FullName release-artifacts/
-          Copy-Item $blockmap.FullName release-artifacts/
+
+          Copy-Item $installers.FullName release-artifacts/
           Get-ChildItem release-artifacts
 
       - name: Upload release artifact
         uses: actions/upload-artifact@v4
         with:
-          name: d2-tools-setup
+          name: d2-tools-tauri-windows
           path: release-artifacts/*
           if-no-files-found: error
 
@@ -117,24 +106,16 @@ jobs:
       - name: Download release artifact
         uses: actions/download-artifact@v4
         with:
-          name: d2-tools-setup
+          name: d2-tools-tauri-windows
           path: release-artifacts
 
       - name: Verify release artifact
         shell: pwsh
         run: |
           Get-ChildItem release-artifacts -Recurse
-          $installer = Get-ChildItem release-artifacts -Recurse -Filter 'd2-tools-setup-*.exe' | Select-Object -First 1
-          $latest = Get-ChildItem release-artifacts -Recurse -Filter 'latest.yml' | Select-Object -First 1
-          $blockmap = Get-ChildItem release-artifacts -Recurse -Filter '*.blockmap' | Select-Object -First 1
+          $installer = Get-ChildItem release-artifacts -Recurse -Filter "*.exe" | Select-Object -First 1
           if (-not $installer) {
-            throw "Downloaded release artifact does not contain d2-tools-setup-*.exe"
-          }
-          if (-not $latest) {
-            throw "Downloaded release artifact does not contain latest.yml"
-          }
-          if (-not $blockmap) {
-            throw "Downloaded release artifact does not contain *.blockmap"
+            throw "Downloaded release artifact does not contain a Tauri Windows installer"
           }
 
       - name: Create or update GitHub release
@@ -143,9 +124,6 @@ jobs:
           tag_name: ${{ github.ref_name }}
           name: d2-tools ${{ github.ref_name }}
           body_path: release-notes.md
-          files: |
-            release-artifacts/d2-tools-setup-*.exe
-            release-artifacts/latest.yml
-            release-artifacts/*.blockmap
+          files: release-artifacts/*.exe
           fail_on_unmatched_files: true
           prerelease: ${{ contains(github.ref_name, '-beta') || contains(github.ref_name, '-rc') }}

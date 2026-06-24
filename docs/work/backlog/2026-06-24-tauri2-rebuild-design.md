@@ -15,7 +15,7 @@
 - 跑通 Tauri 2 桌面壳、权限、插件、command、打包基础链路。
 - 建立前端不能直接调用 Tauri 的约束，统一经 `packages/platform`。
 - 建立本地数据访问约束，统一经 `packages/data`。
-- 用少量薄功能验证底座：设置、授权、Manifest 状态、账号摘要、仓库基础列表、AI 基础聊天。
+- 用少量薄功能验证底座。当前已落地薄切片是设置、Manifest 状态、AI 会话列表基础 dashboard；授权状态、账号摘要、仓库基础列表和 AI 基础聊天留到后续功能切片。
 
 第一阶段明确不做：
 
@@ -291,12 +291,16 @@ packages/ui/
   features/       AccountSummary、VaultList、ItemDetail、AiChat、SettingsForm 等业务展示组件
 ```
 
-第一阶段页面：
+第一阶段当前页面：
 
 - 设置页：数据目录、Bungie、AI provider、诊断入口。
+- 首页 / 概览页：settings summary、Manifest 状态、AI conversation list foundation dashboard。
+
+后续页面切片：
+
 - 登录 / 授权状态页。
-- 首页 / 概览页：账号摘要、Manifest 状态、基础健康状态。
-- 仓库页：基础列表。
+- 账号摘要。
+- 仓库基础列表。
 - AI 页或全局面板：基础聊天。
 
 `apps/desktop` 负责装配：
@@ -412,11 +416,16 @@ Web/PWA：
 内容：
 
 - 设置读写。
+- Manifest 状态 / 刷新基础状态。
+- AI 会话列表基础展示。
+- foundation dashboard 装配，证明 `apps/desktop -> ui -> data/platform -> core/Tauri/local storage` 链路成立。
+
+后续未完成切片：
+
 - Bungie 授权状态。
-- Manifest 状态 / 刷新。
 - 账号摘要。
 - 仓库基础列表。
-- AI 基础聊天。
+- AI 基础聊天和 provider 请求。
 - 打包安装和更新检查最小链路。
 
 验收：
@@ -445,8 +454,12 @@ Web/PWA：
 
 - 桌面端启动。
 - 设置保存。
-- 登录授权。
 - Manifest 状态刷新。
+- AI 会话列表基础展示。
+
+后续端到端验证：
+
+- 登录授权。
 - 账号摘要读取。
 - 仓库基础列表打开。
 - AI 助手发起一次聊天。

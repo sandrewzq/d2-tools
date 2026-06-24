@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { createMockPlatformServices } from "../src/index";
+import { createMockPlatformServices } from "../src/mock";
 
 describe("mock platform services", () => {
   it("stores secure values outside normal data repositories", async () => {

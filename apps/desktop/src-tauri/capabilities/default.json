@@ -3,5 +3,5 @@
   "identifier": "default",
   "description": "Default permissions for d2-tools desktop shell",
   "windows": ["main"],
-  "permissions": ["core:default", "shell:allow-open"]
+  "permissions": ["core:default"]
 }

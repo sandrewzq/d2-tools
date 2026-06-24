@@ -71,7 +71,7 @@
 
 **设计文档** `docs/work/backlog/2026-06-24-tauri2-rebuild-design.md`
 
-**当前状态** 架构底座已落地：workspace、包边界、Tauri 壳、platform contract、data repository、UI 薄切片和边界测试已通过。
+**当前状态** 架构底座已落地：workspace、包边界、Tauri 壳、platform contract、data repository、settings + Manifest status + AI conversation list foundation dashboard 薄切片和边界测试已通过。
 
 **已知缺口** 本机缺 Rust/Cargo，尚未验证 Tauri Rust 编译、真实窗口启动或打包；`external.openExternal` 和 `updates.check/install` 已有 TypeScript adapter，但 Rust 侧 `open_external`、`updates_check`、`updates_install` commands 尚未实现和注册。
 
@@ -80,9 +80,10 @@
 - 完成 Tauri 2 桌面壳、权限、插件、command、打包基础链路
 - 建立 `packages/platform` 平台能力契约，禁止 UI 直接调用 Tauri
 - 建立 `packages/data` local-first repository 层，第一阶段不做远程账号、PostgreSQL 或队列同步
-- 用薄功能验证底座：设置、授权、Manifest 状态、账号摘要、仓库基础列表、AI 基础聊天
+- 用当前薄功能验证底座：设置、Manifest 状态、AI 会话列表基础 dashboard
+- 授权状态、账号摘要、仓库基础列表和 AI 基础聊天属于后续未完成切片
 
-**验收** `ui -> data/platform -> core/Tauri/local storage` 链路已由薄切片和测试覆盖；包依赖边界已有测试约束；Rust/Cargo 环境补齐后仍需单独验收 Tauri 窗口启动、Rust 编译、打包和更新链路；不以追平旧版功能作为第一阶段完成标准。
+**验收** `ui -> data/platform -> core/Tauri/local storage` 链路已由 settings + Manifest status + AI conversation list foundation dashboard 和测试覆盖；包依赖边界已有测试约束；Rust/Cargo 环境补齐后仍需单独验收 Tauri 窗口启动、Rust 编译、打包和更新链路；不以追平旧版功能作为第一阶段完成标准。
 
 ---
 

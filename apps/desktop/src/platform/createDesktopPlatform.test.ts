@@ -4,7 +4,7 @@ const { createDesktopPlatformServices } = vi.hoisted(() => ({
   createDesktopPlatformServices: vi.fn(() => ({ marker: "desktop-platform" }))
 }));
 
-vi.mock("@d2-tools/platform", () => ({ createDesktopPlatformServices }));
+vi.mock("@d2-tools/platform/desktop", () => ({ createDesktopPlatformServices }));
 
 import { createDesktopPlatform } from "./createDesktopPlatform";
 
