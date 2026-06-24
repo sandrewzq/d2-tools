@@ -12,6 +12,8 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .invoke_handler(tauri::generate_handler![
             commands::app::app_get_info,
+            commands::fs::fs_read_app_file,
+            commands::fs::fs_write_app_file,
             commands::path::path_get_data_dir,
             commands::secure::secure_get,
             commands::secure::secure_set,

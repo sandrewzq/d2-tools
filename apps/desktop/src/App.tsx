@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import {
-  createDefaultSettings,
   type AiConversation,
   type AppSettings,
   type ManifestStatus
 } from "@d2-tools/core";
+import type { DataServices } from "@d2-tools/data";
 import type { PlatformServices } from "@d2-tools/platform";
 import {
   AiConversationList,
@@ -28,8 +28,26 @@ export function App({ platform = createDesktopPlatform() }: AppProps) {
   );
 }
 
+export interface FoundationDashboardData {
+  readonly settings: AppSettings;
+  readonly manifest: ManifestStatus;
+  readonly conversations: readonly AiConversation[];
+}
+
+export async function loadFoundationDashboardData(
+  data: DataServices
+): Promise<FoundationDashboardData> {
+  const [settings, manifest, conversations] = await Promise.all([
+    data.settings.getSettings(),
+    data.manifest.getStatus(),
+    data.ai.listConversations()
+  ]);
+
+  return { settings, manifest, conversations };
+}
+
 function FoundationDashboard() {
-  const { data, platform } = useAppServices();
+  const { data } = useAppServices();
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [manifest, setManifest] = useState<ManifestStatus | null>(null);
   const [conversations, setConversations] = useState<readonly AiConversation[]>(
@@ -43,22 +61,18 @@ function FoundationDashboard() {
 
     let active = true;
 
-    void Promise.all([
-      platform.paths.getDataDir().then((dataDir) => createDefaultSettings(dataDir)),
-      data.manifest.getStatus(),
-      data.ai.listConversations()
-    ]).then(([nextSettings, nextManifest, nextConversations]) => {
+    void loadFoundationDashboardData(data).then((nextData) => {
       if (active) {
-        setSettings(nextSettings);
-        setManifest(nextManifest);
-        setConversations(nextConversations);
+        setSettings(nextData.settings);
+        setManifest(nextData.manifest);
+        setConversations(nextData.conversations);
       }
     });
 
     return () => {
       active = false;
     };
-  }, [data, platform]);
+  }, [data]);
 
   return (
     <AppShell title="d2-tools">
