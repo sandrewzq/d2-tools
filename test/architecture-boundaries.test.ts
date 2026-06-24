@@ -25,7 +25,7 @@ const dataBoundaryRule: ForbiddenImportRule = {
 };
 
 const desktopAppBoundaryRule: ForbiddenImportRule = {
-  packageNames: ["@tauri-apps/api/core"],
+  packagePrefixes: ["@tauri-apps/"],
   paths: ["packages/platform/src/desktop.ts"]
 };
 
