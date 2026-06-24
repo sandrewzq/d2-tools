@@ -7,13 +7,13 @@
 
 | 检查项 | 状态 |
 |---|---|
-| `pnpm test`（101 文件 / 338 测试） | ✅ 通过 |
+| `pnpm test`（14 文件 / 34 测试） | ✅ 通过 |
 | `pnpm typecheck` | ✅ 通过 |
 | `pnpm docs:check` | ✅ 通过 |
 | 架构审查（2026-06-24） | 7.5/10，新增 Bug #17–#23 |
 | Bug #5 根因分析（2026-06-24） | 数据源错误，降为 P1，备选方案已记录 |
 
-> 构建提醒：Vite 提示 `DiagnosticsPanel.tsx` 和 `VaultPanel.tsx` 同时被静态和动态导入，不阻塞构建。npm 提示 `.npmrc` 中 Electron mirror 配置未来可能不被支持，不阻塞构建。`docs:check` 含 UTF-8 / 乱码守卫。
+> 验证提醒：当前本机缺 Rust/Cargo，Tauri Rust 编译、真实窗口启动和打包仍需补充环境后单独验证。`docs:check` 含 UTF-8 / 乱码守卫。
 
 ---
 
@@ -71,7 +71,9 @@
 
 **设计文档** `docs/work/backlog/2026-06-24-tauri2-rebuild-design.md`
 
-**当前状态** 实施计划已拆分到 `docs/work/backlog/2026-06-24-tauri2-architecture-foundation-plan.md`，Task 1（Workspace 和基础工具链）已完成；后续继续按 M1-M4 架构里程碑执行。
+**当前状态** 架构底座已落地：workspace、包边界、Tauri 壳、platform contract、data repository、UI 薄切片和边界测试已通过。
+
+**已知缺口** 本机缺 Rust/Cargo，尚未验证 Tauri Rust 编译、真实窗口启动或打包；`external.openExternal` 和 `updates.check/install` 已有 TypeScript adapter，但 Rust 侧 `open_external`、`updates_check`、`updates_install` commands 尚未实现和注册。
 
 **要做什么**
 - 建立 `apps/desktop` 和 `packages/core/data/platform/ui/shared` 的 monorepo 边界
@@ -80,7 +82,7 @@
 - 建立 `packages/data` local-first repository 层，第一阶段不做远程账号、PostgreSQL 或队列同步
 - 用薄功能验证底座：设置、授权、Manifest 状态、账号摘要、仓库基础列表、AI 基础聊天
 
-**验收** 空壳 Tauri 应用可启动；`ui -> data/platform -> core/Tauri/local storage` 链路成立；包依赖边界有测试约束；不以追平旧版功能作为第一阶段完成标准。
+**验收** `ui -> data/platform -> core/Tauri/local storage` 链路已由薄切片和测试覆盖；包依赖边界已有测试约束；Rust/Cargo 环境补齐后仍需单独验收 Tauri 窗口启动、Rust 编译、打包和更新链路；不以追平旧版功能作为第一阶段完成标准。
 
 ---
 
@@ -189,7 +191,7 @@
 
 > **目标** 从可运行程序逐步走向正式桌面软件体验。
 
-**当前状态** 安装器和自动更新第一阶段已按 NSIS 方案落地。
+**当前状态** 旧 Electron 安装器结论不再作为当前主线验收口径；Tauri 打包配置已有入口，但真实 Rust 编译、安装器和自动更新链路尚未验证。
 
 **要做什么** 用真实 GitHub Release 验证检查更新 → 下载 → 重启安装链路；确认覆盖安装目录占用提示；增加备份/恢复向导；评估托盘图标；梳理数据目录迁移和诊断导出说明。
 

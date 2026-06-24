@@ -502,3 +502,20 @@ packages/core/data/platform/ui/shared 清晰边界
 ```
 
 这条路线短期可见功能少，但能先把长期架构定稳，避免把旧桌面壳、IPC 和 renderer 习惯带进新主线。
+
+## 15. 当前落地状态
+
+截至 2026-06-24，Tauri 2 架构底座 Task 1-10 已完成并通过 review。当前仓库已建立：
+
+- `apps/desktop` Tauri 2 + React + TypeScript + Vite 桌面装配层。
+- `packages/core`、`packages/data`、`packages/platform`、`packages/ui`、`packages/shared` 包边界。
+- platform contract、mock adapter 和 Tauri desktop adapter。
+- 设置、Manifest、AI 会话的最小 data repository。
+- 设置摘要、Manifest 状态、AI 会话列表和应用壳等 UI 薄切片。
+- 架构边界测试，约束 `core/data/platform/ui/apps` 的依赖方向。
+
+当前仍需明确保留的缺口：
+
+- 本机缺 Rust/Cargo，尚未验证 Tauri Rust 编译、真实窗口启动或 Tauri 打包。
+- Rust 侧已注册 `app/path/secure/fs/log` 最小 commands，但 `open_external`、`updates_check`、`updates_install` commands 尚未实现和注册。
+- 第一阶段仍不包含完整 OAuth、真实安全存储、SQLite、Manifest 下载、账号刷新、仓库完整列表、AI provider 请求、自动更新安装、移动端、Web/PWA 或云同步。

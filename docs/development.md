@@ -1,64 +1,75 @@
 # 开发说明
 
-这份文档面向仓库维护者和贡献者，集中说明开发、测试、打包、发布和文档结构。
+这份文档面向仓库维护者和贡献者，说明当前 clean slate 的 Tauri 2 架构底座、开发命令、验证命令和文档维护规则。
 
-## 1. 技术栈
+## 1. 当前技术栈
 
-- Node.js 22
-- pnpm 9
-- TypeScript
-- Electron
-- React
-- Vitest
+- 运行环境：Node.js 22、pnpm 9
+- 桌面框架：Tauri 2
+- 前端：React + TypeScript + Vite
+- 测试：Vitest
+- 包结构：`apps/desktop`、`packages/core`、`packages/data`、`packages/platform`、`packages/ui`、`packages/shared`
+- 第一阶段不启用远程账号、PostgreSQL、队列同步或云同步
+
+当前分支是 Tauri 2 架构底座主线。旧 Electron 版本只作为业务需求参考，不作为技术结构参考。
 
 ## 2. 仓库结构
 
 ```text
+apps/
+  desktop/          Tauri 2 桌面应用装配层
+    src/            React 入口、App、providers、desktop adapter 装配
+    src-tauri/      Rust 壳、Tauri 配置、capabilities、平台 commands
+
 packages/
-  core/      核心能力：Bungie、Manifest、分析、配置、本地存储
-  http/      本地 HTTP / 工具接口层
-  desktop/   Electron 桌面应用
-docs/        正式文档
+  shared/           通用错误、Result、时间工具等无业务依赖能力
+  core/             纯业务模型和确定性领域逻辑
+  platform/         平台能力 contracts、mock adapter、desktop adapter
+  data/             local-first repository contracts 和最小本地数据服务
+  ui/               React primitives、layouts 和薄功能展示组件
+
+test/
+  architecture-boundaries.test.ts
+
+docs/
+  todo.md
+  development.md
+  work/
+    backlog/
+    archive/
+    references/
 ```
 
-### 2.1 核心边界
+### 2.1 架构边界
 
-- `packages/core`
-  - 负责 Bungie API 访问
-  - 负责 Manifest 读取和解析
-  - 负责本地配置、标签、愿望单、日志等存储
-  - 负责确定性分析逻辑
+- `apps/* -> ui -> core/shared`
+- `apps/* -> data -> core/shared`
+- `apps/* -> platform -> shared`
+- `data` 可以依赖 `platform` contracts，但不能依赖具体 Tauri adapter 或 `apps/*`
+- `platform` 不承载 Destiny 业务规则，不依赖 `data/core/ui/apps`
+- `core` 不依赖 `data/platform/ui/apps`
+- `ui` 不 import Tauri，不读写本地文件、SQLite 或安全存储
+- `shared` 不依赖任何业务包
 
-- `packages/http`
-  - 暴露本地 HTTP / 工具接口
-  - 复用 core，不单独维护业务真相
+`test/architecture-boundaries.test.ts` 会约束这些依赖方向，防止 UI 直接调用 Tauri、data 直接依赖 app 或 core 反向依赖平台层。
 
-- `packages/desktop`
-  - 负责 GUI、Electron 主进程、preload、IPC 和前端交互
-  - 不重复实现 core 里的规则
+### 2.2 第一阶段底座状态
 
-### 2.2 Renderer feature 边界
+当前已落地：
 
-- `packages/desktop/src/renderer/pages/HomePage.tsx` 是桌面端菜单 composition root，只做菜单接线和跨 feature 状态组装。
-- `packages/desktop/src/renderer/features/<menu>/` 是菜单私有实现。feature 可以 import `shared/`、`components/`、`utils/` 和 `api/`，但不能 import 其他 feature。
-- `packages/desktop/src/renderer/shared/` 只能放跨菜单复用能力，不能反向 import `features/`。
-- 跨账号、仓库、资料库复用的装备详情、配装定位、状态卡片等能力应先进入 `shared/`，再由各 feature 引用。
-- `packages/desktop/src/renderer/api/types.ts` 是 renderer 侧平台无关 API 聚合入口，只组合 `AppApi` 并重导出分域契约；账号、仓库、资料库、配装、AI、写操作等 DTO 应放在 `api/*Api.ts` 或 `api/sharedTypes.ts`，后续 Mac / 移动端适配应优先复用这些类型边界。
-- `packages/desktop/src/renderer/api/client.ts` 只做 Electron renderer 运行时绑定：声明 `window.d2`、导出 `api`，并兼容性重导出 `types.ts` 里的类型。
-- `packages/desktop/src/renderer/shared/copy.ts` 保存当前中文优先的文案规则和通用 copy；目前只做中文，不提供语言切换 UI。
-- 默认数据目录由 `packages/core/src/config/defaults.ts` 的平台感知 helper 统一计算：Windows 使用 `%APPDATA%\d2-tools`，macOS 使用 `~/Library/Application Support/d2-tools`，Linux / 其他平台使用 `$XDG_DATA_HOME/d2-tools` 或 `~/.local/share/d2-tools`。
-- `packages/desktop/test/renderer-boundaries.test.ts` 会拦截 feature 互相 import 和 shared 反向依赖 feature。
-- `packages/desktop/test/renderer-api-boundaries.test.ts` 会拦截把大型 DTO 类型重新塞回 `api/client.ts` 或重新塞回一个巨型 `api/types.ts`。
+- pnpm workspace 覆盖 `apps/*` 和 `packages/*`
+- `apps/desktop` Tauri 2 + Vite + React 桌面壳
+- `packages/platform` 平台能力 contract、mock adapter、desktop adapter
+- Rust commands：`app_get_info`、`path_get_data_dir`、`secure_get`、`secure_set`、`secure_delete`、`fs_read_app_file`、`fs_write_app_file`、`log_write`、`log_export`
+- `packages/data` 设置、Manifest、AI 会话的最小 repository
+- `packages/ui` 设置摘要、Manifest 状态、AI 会话列表和应用壳组件
+- 桌面首页薄切片验证 `apps/desktop -> ui -> data/platform -> core/Tauri/local storage` 的方向
 
-### 2.3 并行开发规则
+仍未闭环：
 
-- 普通功能按菜单并行：账号页改 `features/account/`，仓库页改 `features/vault/`，资料库改 `features/library/`，配装改 `features/loadouts/`，AI 改 `features/ai/`，设置改 `features/settings/`，每日 / 每周改 `features/daily/`。
-- 跨菜单能力先抽到 `shared/`，再由各 feature 引用；不要让一个 feature 直接 import 另一个 feature。
-- 共享详情、配装来源、仓库清理等跨菜单逻辑应放到 `shared/components/`、`shared/hooks/` 或 `shared/domain/`。
-- Renderer API 按领域维护在 `api/*Api.ts`，`types.ts` 只聚合，`client.ts` 只绑定 Electron runtime。
-- 主进程 IPC 按领域维护在 `src/main/ipc/` 子模块，`ipc.ts` 只聚合。
-- 新增可见文案优先进入 copy 体系；当前只维护中文。
-- `HomePage.tsx`、`ItemDetailModal.tsx`、`useItemDetailWorkspace.ts`、`VaultPanel.tsx`、`api/types.ts`、`api/client.ts`、`ipc.ts` 等公共接线文件是并行开发高冲突区，修改前要确认是否真的需要，并说明影响范围。
+- 本机缺 Rust/Cargo，尚未验证 Tauri Rust 编译、`tauri dev` 真实窗口启动或 Tauri 打包。
+- `packages/platform` 已定义 `external.openExternal` 和 `updates.check/install` adapter 调用，但 Rust 侧 `open_external`、`updates_check`、`updates_install` commands 尚未实现和注册。
+- OAuth、真实安全存储、SQLite、Manifest 下载、账号刷新、仓库完整列表、AI provider 请求和自动更新安装仍是后续功能切片，不属于本次底座收口完成项。
 
 ## 3. 本地开发
 
@@ -68,45 +79,32 @@ docs/        正式文档
 npx pnpm@9.15.0 install
 ```
 
-日常开发桌面端时，推荐用命令行启动：
-
-```powershell
-npx pnpm@9.15.0 dev:desktop
-```
-
-也可以直接运行底层 PowerShell 脚本：
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev-desktop.ps1
-```
-
-这条链路会：
-
-1. 构建 `@d2-tools/core` 和 `@d2-tools/http`
-2. 编译 Electron 主进程和 preload
-3. 启动 Vite 前端开发服务器
-4. 打开 Electron 开发版桌面应用
-
-这不是打包流程，不会生成或解压 `release/win-unpacked`。渲染层改动支持热更新；主进程、preload、core 或 http 改动后，关闭桌面窗口再重新运行 `npx pnpm@9.15.0 dev:desktop` 即可重新编译启动。
-
-如果只想单独启动前端页面：
+启动前端开发服务器：
 
 ```powershell
 npx pnpm@9.15.0 dev
 ```
 
-如果你已经手动启动了 Vite，并且只想单独启动 Electron 主进程：
+该命令等价于：
 
 ```powershell
-npx pnpm@9.15.0 dev:electron
+npx pnpm@9.15.0 --filter @d2-tools/desktop dev
 ```
+
+尝试启动 Tauri 桌面窗口：
+
+```powershell
+npx pnpm@9.15.0 --filter @d2-tools/desktop dev:desktop
+```
+
+注意：`dev:desktop` 需要本机安装 Rust/Cargo 和 Tauri 所需系统依赖。当前收口验证没有覆盖真实 Tauri 窗口启动。
 
 ## 4. 测试与检查
 
-全量测试：
+文档和编码检查：
 
 ```powershell
-npx pnpm@9.15.0 test
+npx pnpm@9.15.0 docs:check
 ```
 
 类型检查：
@@ -115,90 +113,47 @@ npx pnpm@9.15.0 test
 npx pnpm@9.15.0 typecheck
 ```
 
-如果你只想跑桌面端某个定向测试，也可以直接用：
+全量测试：
 
 ```powershell
-npx pnpm@9.15.0 vitest --run packages/desktop/src/vault-panel.test.ts
+npx pnpm@9.15.0 test
 ```
 
-## 5. 打包
-
-一键本地打包（安装依赖 + 测试 + 类型检查 + 打包，完成后自动打开产物目录）：
+定向运行架构边界测试：
 
 ```powershell
-powershell -File scripts/local-package.ps1
+npx pnpm@9.15.0 vitest --run test/architecture-boundaries.test.ts
 ```
 
-该脚本内部执行：
-
-1. `pnpm install`
-2. `pnpm build`
-3. `vitest --run`
-4. `pnpm typecheck`
-5. `pnpm package:win`
-
-打包链路主要用于发布前或需要验证 Windows NSIS 安装器时；日常开发优先使用 `npx pnpm@9.15.0 dev:desktop`，不要为了看一次本地改动反复打包安装。
-
-仅构建 Windows NSIS 安装器（跳过测试和类型检查）：
+提交前检查尾随空格：
 
 ```powershell
-npx pnpm@9.15.0 package:win
+git diff --check
 ```
 
-当前产物一般会落在：
+## 5. 构建和打包
 
-```text
-packages/desktop/release/
+前端构建：
+
+```powershell
+npx pnpm@9.15.0 --filter @d2-tools/desktop build
 ```
 
-常见目录：
+Tauri 打包入口：
 
-- `win-unpacked/`
-- `d2-tools-setup-<version>.exe`
-- `latest.yml`
-- `d2-tools-setup-<version>.exe.blockmap`
+```powershell
+npx pnpm@9.15.0 --filter @d2-tools/desktop package:desktop
+```
 
-## 6. 发布
+注意：Tauri 打包需要 Rust/Cargo。当前本机尚未验证 Rust 编译和安装包产物，不能把第一阶段底座理解为发布体验已完整闭环。
 
-当前发布主路径是 GitHub Release 自动打包 Windows NSIS 安装器，并上传自动更新元数据。
+## 6. 发布状态
 
-### 6.1 发版流程
-
-1. 更新所有 `package.json` 版本号（root、core、desktop、http 保持一致）
-2. 更新 `CHANGELOG.md`，新增 `## x.y.z - YYYY-MM-DD` 章节
-3. 本地预览 Release Body：
-   ```powershell
-   npx pnpm@9.15.0 release:preview --version x.y.z
-   ```
-4. 提交改动：
-   ```powershell
-   git add .
-   git commit -m "release: prepare vX.Y.Z"
-   ```
-5. 打 tag 并推送：
-   ```powershell
-   git tag vX.Y.Z
-   git push origin vX.Y.Z
-   ```
-6. CI 自动构建、校验 CHANGELOG、生成 Release Body 并发布 GitHub Release
-
-### 6.2 注意事项
-
-- 如果 `CHANGELOG.md` 没有对应版本章节，CI 会失败，不会发布 Release
-- 只有 tag 名包含 `-beta` 或 `-rc` 时，GitHub Release 才会自动标记为 Pre-release，例如 `v0.0.6-beta.1`、`v1.0.0-rc.1`
-- Release Assets 当前包含 `d2-tools-setup-<version>.exe`、`latest.yml` 和安装器 blockmap
-
-### 6.3 发布前检查
-
-1. `test` 通过
-2. `typecheck` 通过
-3. `pnpm release:preview --version x.y.z` 输出符合预期
-4. README 和核心文档没有明显失真
-5. 版本号和 tag 一致
+当前仓库只完成 Tauri 2 架构底座和薄功能验证。正式发布、自动更新、真实 GitHub Release 下载重启安装、安装器验收、备份恢复和诊断导出仍属于后续桌面发布体验任务。
 
 ## 7. 文档结构
 
-当前只保留这些文档入口：
+当前只保留这些正式入口：
 
 ```text
 README.md
@@ -218,16 +173,18 @@ docs/
 
 不要把一次性设计稿、执行计划、阶段进度或临时分析文档放在 `docs/` 根目录。确实需要记录当前短期待办、验收状态、需求或 bug 时，统一更新 `docs/todo.md`；确实需要保留未完成设计或调研材料时，放进 `docs/work/`。外部流程如果要求写入 `docs/superpowers/`，本仓库统一改写到 `docs/work/backlog/`、`docs/work/archive/` 或 `docs/work/references/`。确实需要记录长期规则或少量长期方向结论时，更新 `docs/development.md`；已发布变化写入 `CHANGELOG.md`。
 
-## 7.1 长期方向（简版）
+## 8. 长期方向
 
 这里只保留不适合写进 `todo.md` 的长期演进方向，不单独维护路线图文档：
 
+- 桌面功能恢复：在新架构上按垂直切片恢复首页、账号、仓库、装备详情、AI 助手、诊断和更新体验。
 - 仓库整理体验：继续增强同名对比、批量处理、护甲属性价值判断和评分解释。
 - 今日 / 本周信息：优先补齐可确认的商人、遗失区域和轮换线索，保持“只展示可确认数据”。
 - AI 助手：围绕真实账号数据问答、仓库建议、结果结构化和安全边界继续打磨。
 - 活动与桌面体验：逐步补齐基础复盘、安装更新、备份恢复和诊断导出体验。
+- 多端和云同步：只在桌面底座稳定后再评估 Capacitor、Web/PWA、API 服务、远程账号和云同步。
 
-## 8. 文档维护原则
+## 9. 文档维护原则
 
 - 对用户的回答、可见思路摘要、计划、状态更新和仓库文档默认使用中文
 - 任何用户可见内容都必须使用中文，包括 thinking/analysis 面板中展示的推理摘要、工具调用前后的状态说明、阶段性解释和最终回答；不要把用户可见的 thinking 内容视为隐藏推理
