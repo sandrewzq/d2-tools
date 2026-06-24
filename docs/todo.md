@@ -71,6 +71,8 @@
 
 **设计文档** `docs/work/backlog/2026-06-24-tauri2-rebuild-design.md`
 
+**当前状态** 实施计划已拆分到 `docs/work/backlog/2026-06-24-tauri2-architecture-foundation-plan.md`，后续按 M1-M4 架构里程碑执行。
+
 **要做什么**
 - 建立 `apps/desktop` 和 `packages/core/data/platform/ui/shared` 的 monorepo 边界
 - 完成 Tauri 2 桌面壳、权限、插件、command、打包基础链路
