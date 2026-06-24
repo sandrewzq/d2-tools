@@ -72,7 +72,11 @@ importers:
         specifier: workspace:*
         version: link:../platform
 
-  packages/platform: {}
+  packages/platform:
+    dependencies:
+      '@tauri-apps/api':
+        specifier: ^2.0.0
+        version: 2.11.1
 
   packages/shared: {}
 
