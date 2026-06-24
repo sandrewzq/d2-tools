@@ -1,6 +1,6 @@
 [package]
 name = "d2-tools"
-version = "0.0.0"
+version = "0.0.6"
 description = "d2-tools desktop"
 edition = "2021"
 
@@ -13,5 +13,7 @@ tauri-build = { version = "2", features = [] }
 
 [dependencies]
 tauri = { version = "2", features = [] }
+tauri-plugin-opener = "2"
+tauri-plugin-updater = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

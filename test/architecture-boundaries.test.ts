@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import { dirname, extname, isAbsolute, join, relative, resolve } from "node:path";
 import ts from "typescript";
 import { describe, expect, it } from "vitest";
@@ -285,9 +285,56 @@ describe("architecture boundaries", () => {
     expect(releaseWorkflow).toContain("apps/desktop");
   });
 
+  it("local package script uses the Tauri desktop package path", () => {
+    const localPackageScript = readTextFile("scripts/local-package.ps1");
+
+    expect(localPackageScript).not.toContain("packages/desktop");
+    expect(localPackageScript).not.toContain("package:win");
+    expect(localPackageScript).toContain("@d2-tools/desktop package:desktop");
+    expect(localPackageScript).toContain("apps/desktop/src-tauri/target/release/bundle/nsis");
+  });
+
+  it("local desktop dev script uses the Tauri dev entrypoint", () => {
+    const devDesktopScript = readTextFile("scripts/dev-desktop.ps1");
+
+    expect(devDesktopScript).not.toContain("packages\\desktop");
+    expect(devDesktopScript).not.toContain("@d2-tools/http");
+    expect(devDesktopScript).not.toContain("dev:electron");
+    expect(devDesktopScript).toContain("@d2-tools/desktop");
+    expect(devDesktopScript).toContain("dev:desktop");
+  });
+
+  it("desktop Vite dev server does not watch Rust build artifacts", () => {
+    const viteConfig = readTextFile("apps/desktop/vite.config.ts");
+
+    expect(viteConfig).toContain("src-tauri/target");
+  });
+
+  it("desktop validation scripts build workspace dependencies before reading dist exports", () => {
+    const desktopPackage = readJsonFile<{
+      scripts?: Record<string, string>;
+    }>("apps/desktop/package.json");
+    const scripts = desktopPackage.scripts ?? {};
+
+    const dependencyBuildScript = scripts["build:deps"];
+
+    expect(dependencyBuildScript, "build:deps must exist").toBeTypeOf("string");
+    expect(dependencyBuildScript).toContain("@d2-tools/platform build");
+    expect(dependencyBuildScript).toContain("@d2-tools/ui build");
+    expect(dependencyBuildScript).toContain("@d2-tools/data build");
+
+    for (const scriptName of ["pretypecheck", "pretest", "prebuild"]) {
+      const script = scripts[scriptName];
+
+      expect(script, `${scriptName} must exist`).toBeTypeOf("string");
+      expect(script).toBe("pnpm build:deps");
+    }
+  });
+
   it("tauri configuration uses a CSP and does not grant unused shell open permissions", () => {
     const tauriConfig = readJsonFile<{
       app?: { security?: { csp?: string | null } };
+      plugins?: { updater?: { endpoints?: string[]; pubkey?: string } };
     }>("apps/desktop/src-tauri/tauri.conf.json");
     const capabilities = readJsonFile<{ permissions?: string[] }>(
       "apps/desktop/src-tauri/capabilities/default.json"
@@ -298,6 +345,8 @@ describe("architecture boundaries", () => {
     expect(tauriConfig.app?.security?.csp).toBeTypeOf("string");
     expect(tauriConfig.app?.security?.csp).not.toBe("");
     expect(tauriConfig.app?.security?.csp).not.toBeNull();
+    expect(tauriConfig.plugins?.updater?.endpoints).toEqual([]);
+    expect(tauriConfig.plugins?.updater?.pubkey).toBe("");
     expect(capabilities.permissions ?? []).not.toContain("shell:allow-open");
     expect(cargoToml).not.toContain("tauri-plugin-shell");
     expect(libRs).not.toContain("tauri_plugin_shell");
@@ -350,5 +399,12 @@ describe("architecture boundaries", () => {
 
   it("desktop app exists", () => {
     expect(existsSync(join(root, "apps/desktop/src-tauri/tauri.conf.json"))).toBe(true);
+  });
+
+  it("tauri Windows resources include the required icon", () => {
+    const iconPath = join(root, "apps/desktop/src-tauri/icons/icon.ico");
+
+    expect(existsSync(iconPath)).toBe(true);
+    expect(statSync(iconPath).size).toBeGreaterThan(0);
   });
 });

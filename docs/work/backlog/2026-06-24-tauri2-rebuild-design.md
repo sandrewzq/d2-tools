@@ -529,6 +529,6 @@ packages/core/data/platform/ui/shared 清晰边界
 
 当前仍需明确保留的缺口：
 
-- 本机缺 Rust/Cargo，尚未验证 Tauri Rust 编译、真实窗口启动或 Tauri 打包。
-- Rust 侧已注册 `app/path/secure/fs/log` 最小 commands，但 `open_external`、`updates_check`、`updates_install` commands 尚未实现和注册。
+- Tauri Rust 编译、真实窗口启动和本地 NSIS 打包已验证。
+- Rust 侧已注册 `app/path/secure/fs/log/open_external/updates_check/updates_install` 最小 commands；真实 updater 检查、下载、安装和重启仍需用两个不同版本安装包验收。
 - 第一阶段仍不包含完整 OAuth、真实安全存储、SQLite、Manifest 下载、账号刷新、仓库完整列表、AI provider 请求、自动更新安装、移动端、Web/PWA 或云同步。

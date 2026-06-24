@@ -32,19 +32,25 @@ npx pnpm@9.15.0 dev
 npx pnpm@9.15.0 --filter @d2-tools/desktop dev:desktop
 ```
 
-`dev:desktop` 需要 Rust/Cargo。当前本机尚未完成 Rust 编译、真实窗口启动和打包验证。
+也可以使用脚本入口：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev-desktop.ps1
+```
+
+`dev:desktop` 需要 Rust/Cargo、MSVC / Windows SDK 和 WebView2。当前本机已验证 Tauri dev 窗口可启动，前端改动通过 Vite HMR 刷新；Rust command、Tauri config 和 Cargo 依赖改动需要重启 `dev:desktop`。
 
 ## 3. 当前不要期待的功能
 
 当前分支暂未提供：
 
-- 可下载给普通玩家使用的正式安装器
+- 已发布给普通玩家使用的正式 GitHub Release 安装器
 - Bungie OAuth 登录闭环
 - 账号摘要、角色详情、仓库列表和装备详情
 - 锁定、解锁、转移、装备等 Bungie 写操作
 - Manifest 下载和完整资料库搜索
 - AI provider 请求、真实聊天和账号数据分析
-- 自动更新检查、下载和安装
+- 真实自动更新下载、安装、重启和旧版到新版验收
 
 这些能力会按 `docs/todo.md` 的短期待办继续拆成后续切片。
 

@@ -1,12 +1,16 @@
 {
   "name": "@d2-tools/desktop",
-  "version": "0.0.0",
+  "version": "0.0.6",
   "private": true,
   "type": "module",
   "scripts": {
+    "build:deps": "pnpm --filter @d2-tools/platform build && pnpm --filter @d2-tools/ui build && pnpm --filter @d2-tools/data build",
+    "prebuild": "pnpm build:deps",
     "dev": "vite --host 127.0.0.1",
     "build": "tsc -p tsconfig.json && vite build",
+    "pretypecheck": "pnpm build:deps",
     "typecheck": "tsc -p tsconfig.json --noEmit",
+    "pretest": "pnpm build:deps",
     "test": "vitest --run",
     "tauri": "tauri",
     "dev:desktop": "tauri dev",

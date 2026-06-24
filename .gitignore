@@ -8,6 +8,8 @@ out/
 .local-data/
 coverage/
 *.log
+target/
+apps/desktop/src-tauri/gen/
 
 # brainstorming / superpowers visual companion
 .superpowers/brainstorm/

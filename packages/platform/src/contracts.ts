@@ -32,8 +32,14 @@ export interface PlatformExternalService {
   openExternal(url: string): Promise<void>;
 }
 
+export interface PlatformUpdateCheckResult {
+  readonly available: boolean;
+  readonly version: string | null;
+  readonly notes: string | null;
+}
+
 export interface PlatformUpdateService {
-  check(): Promise<{ available: boolean; version: string | null }>;
+  check(): Promise<PlatformUpdateCheckResult>;
   install(): Promise<void>;
 }
 

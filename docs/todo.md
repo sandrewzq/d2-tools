@@ -7,13 +7,17 @@
 
 | 检查项 | 状态 |
 |---|---|
-| `pnpm test`（14 文件 / 34 测试） | ✅ 通过 |
+| `pnpm test`（21 文件 / 75 测试） | ✅ 通过 |
 | `pnpm typecheck` | ✅ 通过 |
 | `pnpm docs:check` | ✅ 通过 |
+| Tauri 环境探针 | ✅ 通过 |
+| `cargo check` | ✅ 通过 |
+| `dev:desktop` 真实窗口启动 | ✅ 通过 |
+| `package:desktop` 本地 NSIS 打包 | ✅ 通过 |
 | 架构审查（2026-06-24） | 7.5/10，新增 Bug #17–#23 |
 | Bug #5 根因分析（2026-06-24） | 数据源错误，降为 P1，备选方案已记录 |
 
-> 验证提醒：当前本机缺 Rust/Cargo，Tauri Rust 编译、真实窗口启动和打包仍需补充环境后单独验证。`docs:check` 含 UTF-8 / 乱码守卫。
+> 验证提醒：本机已验证 Rust/Cargo、MSVC / Windows SDK、WebView2、`cargo check`、`dev:desktop` 启动和 `package:desktop` NSIS 打包。GitHub Release 产物、旧版到新版自动更新、无更新 / 网络失败 / 签名失败 / 下载失败表现仍需后续真实验收。`docs:check` 含 UTF-8 / 乱码守卫。
 
 ---
 
@@ -65,15 +69,36 @@
 
 > 会议需求重组分析见 `docs/work/backlog/2026-06-23-meeting-product-requirements-analysis.md`。
 
+### P0 · Windows Release 与自动更新闭环
+
+> **目标** 优先跑通 Windows-only GitHub Release + Tauri 2 Updater，让应用具备可发布、可安装、可自动更新的主链路。
+
+**设计文档** `docs/work/backlog/2026-06-24-windows-release-auto-update-design.md`
+
+**当前状态** 正在实施。已补 Rust updater / opener plugin 接入、`open_external`、`updates_check`、`updates_install` commands、platform 更新结果契约、底座首页手动检查 / 安装更新 / 打开发布页入口、安装失败和等待重启状态、版本一致性校验脚本、CI updater 配置注入脚本、Tauri dev 脚本、Tauri 环境探针、Release 发布总体验证脚本、Release 资产校验脚本、updater metadata 校验脚本和 GitHub Release workflow 改造；本机已验证 `cargo check`、真实 Tauri dev 窗口启动和 `package:desktop` 生成 NSIS 安装器；尚未验证 GitHub Release 产物或旧版到新版的真实自动更新。
+
+**要做什么**
+- 用开发态改动验证一次 Vite HMR 热更新表现
+- 用 tag `vX.Y.Z` 验证 GitHub Release workflow 能上传 Windows 安装器和 updater 元数据
+- 配置 GitHub Secrets：`TAURI_SIGNING_PRIVATE_KEY`、`TAURI_SIGNING_PRIVATE_KEY_PASSWORD`、`TAURI_UPDATER_PUBLIC_KEY`
+- 用旧版安装包到新版安装包验证检查更新、下载、安装并重启
+- 记录无更新、网络失败、签名失败和下载失败的真实错误表现
+
+**验收** tag `vX.Y.Z` 能产出 Windows Release；旧版安装后能检查到新版、下载、安装并重启；无更新、网络失败、签名失败和下载失败有可读错误；开发态 React/TypeScript/CSS 改动可通过 Vite HMR 刷新。
+
+---
+
 ### P0 · Tauri 2 架构底座重构
 
 > **目标** 当前主线切换为 clean slate 的 Tauri 2 架构底座重构。旧 Electron 版本只作为业务需求参考，不作为技术结构参考。
 
 **设计文档** `docs/work/backlog/2026-06-24-tauri2-rebuild-design.md`
 
+**提效方案** `docs/work/backlog/2026-06-24-post-foundation-development-acceleration-design.md`
+
 **当前状态** 架构底座已落地：workspace、包边界、Tauri 壳、platform contract、data repository、settings + Manifest status + AI conversation list foundation dashboard 薄切片和边界测试已通过。
 
-**已知缺口** 本机缺 Rust/Cargo，尚未验证 Tauri Rust 编译、真实窗口启动或打包；`external.openExternal` 和 `updates.check/install` 已有 TypeScript adapter，但 Rust 侧 `open_external`、`updates_check`、`updates_install` commands 尚未实现和注册。
+**已知缺口** Tauri Rust 编译、真实窗口启动和本地 NSIS 打包已通过；`external.openExternal`、`updates.check/install`、Rust `open_external`、`updates_check`、`updates_install` 已接入，真实 updater 检查、下载、安装和重启仍需用两个不同版本安装包验收。
 
 **要做什么**
 - 建立 `apps/desktop` 和 `packages/core/data/platform/ui/shared` 的 monorepo 边界
@@ -83,7 +108,9 @@
 - 用当前薄功能验证底座：设置、Manifest 状态、AI 会话列表基础 dashboard
 - 授权状态、账号摘要、仓库基础列表和 AI 基础聊天属于后续未完成切片
 
-**验收** `ui -> data/platform -> core/Tauri/local storage` 链路已由 settings + Manifest status + AI conversation list foundation dashboard 和测试覆盖；包依赖边界已有测试约束；Rust/Cargo 环境补齐后仍需单独验收 Tauri 窗口启动、Rust 编译、打包和更新链路；不以追平旧版功能作为第一阶段完成标准。
+**验收** `ui -> data/platform -> core/Tauri/local storage` 链路已由 settings + Manifest status + AI conversation list foundation dashboard 和测试覆盖；包依赖边界已有测试约束；Tauri 窗口启动、Rust 编译和本地 NSIS 打包已验证；更新链路仍需真实发布和旧版升级验收；不以追平旧版功能作为第一阶段完成标准。
+
+**后续开发方式** 采用批次制并行：普通功能切片可在同一工作区严格文件边界并行；package / lockfile、Rust、Tauri capability、release、security、storage migration 等高风险切片使用独立 worktree；agent 默认不提交，提交必须等待用户明确命令；批次收尾由 controller 统一跑 `docs:check`、`typecheck`、`test` 和 `git diff --check`。
 
 ---
 
@@ -192,7 +219,7 @@
 
 > **目标** 从可运行程序逐步走向正式桌面软件体验。
 
-**当前状态** 旧 Electron 安装器结论不再作为当前主线验收口径；Tauri 打包配置已有入口，但真实 Rust 编译、安装器和自动更新链路尚未验证。
+**当前状态** 旧 Electron 安装器结论不再作为当前主线验收口径；Tauri Rust 编译、真实窗口启动和本地 NSIS 安装器已验证，但 GitHub Release 产物和自动更新链路尚未验收。
 
 **要做什么** 用真实 GitHub Release 验证检查更新 → 下载 → 重启安装链路；确认覆盖安装目录占用提示；增加备份/恢复向导；评估托盘图标；梳理数据目录迁移和诊断导出说明。
 

@@ -60,15 +60,16 @@ docs/
 - pnpm workspace 覆盖 `apps/*` 和 `packages/*`
 - `apps/desktop` Tauri 2 + Vite + React 桌面壳
 - `packages/platform` 平台能力 contract、mock adapter、desktop adapter
-- Rust commands：`app_get_info`、`path_get_data_dir`、`secure_get`、`secure_set`、`secure_delete`、`fs_read_app_file`、`fs_write_app_file`、`log_write`、`log_export`
+- Rust commands：`app_get_info`、`path_get_data_dir`、`secure_get`、`secure_set`、`secure_delete`、`fs_read_app_file`、`fs_write_app_file`、`log_write`、`log_export`、`open_external`、`updates_check`、`updates_install`
 - `packages/data` 设置、Manifest、AI 会话的最小 repository
-- `packages/ui` 设置摘要、Manifest 状态、AI 会话列表和应用壳组件
+- `packages/ui` 设置摘要、Manifest 状态、自动更新状态、AI 会话列表和应用壳组件
 - 桌面首页薄切片验证 `apps/desktop -> ui -> data/platform -> core/Tauri/local storage` 的方向
 
 仍未闭环：
 
-- 本机缺 Rust/Cargo，尚未验证 Tauri Rust 编译、`tauri dev` 真实窗口启动或 Tauri 打包。
-- `packages/platform` 已定义 `external.openExternal` 和 `updates.check/install` adapter 调用，但 Rust 侧 `open_external`、`updates_check`、`updates_install` commands 尚未实现和注册。
+- 本机已验证 Tauri 环境探针、`cargo check`、`tauri dev` 真实窗口启动和 `tauri build` 生成 Windows NSIS 安装器。
+- `open_external`、`updates_check`、`updates_install` 已有 Rust command 和 TypeScript adapter，但 updater 真实检查、下载、安装和重启仍需用两个不同版本安装包验证。
+- 当前底座首页已有手动检查更新、安装更新和打开 GitHub 发布页入口，能展示发现新版本、安装中、安装失败和等待重启状态；UI 通过 `packages/platform` 调用 updater，不直接依赖 Tauri API。
 - OAuth、真实安全存储、SQLite、Manifest 下载、账号刷新、仓库完整列表、AI provider 请求和自动更新安装仍是后续功能切片，不属于本次底座收口完成项。
 
 ## 3. 本地开发
@@ -97,7 +98,25 @@ npx pnpm@9.15.0 --filter @d2-tools/desktop dev
 npx pnpm@9.15.0 --filter @d2-tools/desktop dev:desktop
 ```
 
-注意：`dev:desktop` 需要本机安装 Rust/Cargo 和 Tauri 所需系统依赖。当前收口验证没有覆盖真实 Tauri 窗口启动。
+也可以使用脚本入口，脚本会先构建 workspace 依赖，再启动 Tauri dev：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev-desktop.ps1
+```
+
+环境补齐后，可以先运行轻量探针确认 WebView2、Rust/Cargo 和 MSVC / Windows SDK 是否齐全：
+
+```powershell
+npx pnpm@9.15.0 tauri:env
+```
+
+注意：`dev:desktop` 需要本机安装 Rust/Cargo、MSVC / Windows SDK、WebView2 和 Tauri 所需系统依赖。当前本机已验证可以启动真实 Tauri 窗口。
+
+开发态热更新口径：
+
+- 前端开发使用 Vite HMR。`dev:desktop` 打开后，React / TypeScript / CSS 改动应在 Tauri 窗口内自动刷新或局部热替换。
+- Rust command、Tauri config、capability 和 Cargo 依赖改动需要重启 `dev:desktop`。
+- 开发态 HMR 不等于生产环境无重启热替换；生产更新仍通过 Tauri updater 下载、安装并重启。
 
 ## 4. 测试与检查
 
@@ -145,11 +164,58 @@ Tauri 打包入口：
 npx pnpm@9.15.0 --filter @d2-tools/desktop package:desktop
 ```
 
-注意：Tauri 打包需要 Rust/Cargo。当前本机尚未验证 Rust 编译和安装包产物，不能把第一阶段底座理解为发布体验已完整闭环。
+本地完整打包脚本：
+
+```powershell
+powershell -File scripts/local-package.ps1
+```
+
+注意：Tauri 打包需要 Rust/Cargo 和 Windows 构建工具链。当前本机已验证 `package:desktop` 可以生成 NSIS 安装器，但不能把第一阶段底座理解为发布体验已完整闭环；GitHub Release 产物和自动更新仍需真实验收。
 
 ## 6. 发布状态
 
-当前仓库只完成 Tauri 2 架构底座和薄功能验证。正式发布、自动更新、真实 GitHub Release 下载重启安装、安装器验收、备份恢复和诊断导出仍属于后续桌面发布体验任务。
+当前优先补齐 Windows-only GitHub Release 与 Tauri updater 自动更新闭环。
+
+发布入口：
+
+```powershell
+git tag v0.0.6
+git push origin v0.0.6
+```
+
+发布 workflow：`.github/workflows/release.yml`
+
+发布前必须满足：
+
+- `package.json`、`apps/desktop/package.json`、`apps/desktop/src-tauri/Cargo.toml`、`apps/desktop/src-tauri/tauri.conf.json` 版本一致。
+- `CHANGELOG.md` 存在对应版本小节。
+- GitHub Secrets 配置：
+  - `TAURI_SIGNING_PRIVATE_KEY`
+  - `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`
+  - `TAURI_UPDATER_PUBLIC_KEY`
+
+本地静态发布检查：
+
+```powershell
+npx pnpm@9.15.0 release:check
+```
+
+发布后先跑总体验证，确认 GitHub Release 同时有 NSIS 安装器、`latest.json`，且 `latest.json` 的 Windows x64 updater 元数据可用：
+
+```powershell
+npx pnpm@9.15.0 release:verify -- v0.0.6
+```
+
+如需分开排查资产清单和本地下载的 `latest.json`，可以运行：
+
+```powershell
+npx pnpm@9.15.0 release:verify-assets -- v0.0.6
+npx pnpm@9.15.0 release:verify-updater -- latest.json
+```
+
+发布 workflow 会在 CI 中临时写入 updater endpoint 和 public key，生成 Windows NSIS 安装器、签名更新产物和 `latest.json`，并上传到同一个 GitHub Release。
+
+注意：自动更新真实链路仍需用两个不同版本安装包验证：先安装旧版，再发布新版，旧版应用内检查更新、下载、安装并重启。备份恢复、诊断导出、商业代码签名、多平台发布、灰度和回滚仍属于后续桌面发布体验任务。
 
 ## 7. 文档结构
 

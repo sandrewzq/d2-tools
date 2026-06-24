@@ -4,7 +4,7 @@
 
 ## 现在可以下载安装使用吗
 
-还不应按正式玩家软件使用。当前分支只有 Tauri 架构底座和薄切片，正式安装器、真实发布体验和自动更新链路仍未验收。
+还不应按正式玩家软件使用。当前分支已有本地 NSIS 安装器打包验证，但 GitHub Release 产物、旧版到新版自动更新和发布体验仍未验收。
 
 ## 为什么没有 Bungie 登录
 
@@ -24,11 +24,11 @@ Bungie OAuth 登录闭环还没有迁回当前 Tauri 底座。现阶段只保留
 
 ## Tauri 能打包吗
 
-仓库已有 Tauri 打包入口和 release workflow 口径，但当前本机缺 Rust/Cargo，尚未验证 Rust 编译、真实窗口启动和打包产物。不能把它理解为发布体验已闭环。
+能。本机已验证 `cargo check`、`dev:desktop` 启动和 `package:desktop` 生成 Windows NSIS 安装器。还不能把它理解为发布体验已闭环，因为 GitHub Release 产物和旧版到新版自动更新仍未真实验收。
 
 ## external 和 updates commands 实现了吗
 
-还没有。TypeScript contract 中保留了 `external.openExternal` 和 `updates.check/install` 能力边界，但 Rust 侧 `open_external`、`updates_check`、`updates_install` commands 尚未实现和注册。
+已接入最小链路。TypeScript contract 中有 `external.openExternal` 和 `updates.check/install`，Rust 侧已有 `open_external`、`updates_check`、`updates_install` commands。真实 updater 检查、下载、安装和重启仍需用两个不同版本的安装包验收。
 
 ## 当前应该如何验证
 

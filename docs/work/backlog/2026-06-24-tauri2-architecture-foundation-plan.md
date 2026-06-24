@@ -8,7 +8,7 @@
 
 **Tech Stack:** Tauri 2、React、TypeScript、Vite、pnpm 9、Vitest、SQLite + 文件缓存、TanStack Query、Zustand。
 
-**Execution Status:** Task 1-10 已完成并通过 review；Task 11 用于文档和验证收口。当前代码层面已完成 workspace、包边界、Tauri 壳、platform contract、data repository、settings + Manifest status + AI conversation list foundation dashboard 薄切片和架构边界测试。授权状态、账号摘要、仓库基础列表、AI 基础聊天和 provider 请求仍是后续未完成切片。仍保留两个明确缺口：本机缺 Rust/Cargo，未验证 Tauri Rust 编译、真实窗口启动和打包；`external.openExternal`、`updates.check/install` 只有 TypeScript adapter 调用，Rust 侧 `open_external`、`updates_check`、`updates_install` commands 尚未实现和注册。
+**Execution Status:** Task 1-10 已完成并通过 review；Task 11 用于文档和验证收口。当前代码层面已完成 workspace、包边界、Tauri 壳、platform contract、data repository、settings + Manifest status + AI conversation list foundation dashboard 薄切片和架构边界测试。授权状态、账号摘要、仓库基础列表、AI 基础聊天和 provider 请求仍是后续未完成切片。后续已补齐 Rust/Cargo 环境，并验证 Tauri Rust 编译、真实窗口启动、本地 NSIS 打包以及 `open_external`、`updates_check`、`updates_install` Rust commands 接入；真实 GitHub Release 和旧版到新版自动更新仍未验收。
 
 ## Global Constraints
 

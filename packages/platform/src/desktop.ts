@@ -1,6 +1,10 @@
 import { invoke } from "@tauri-apps/api/core";
 
-import type { AppInfo, PlatformServices } from "./contracts";
+import type {
+  AppInfo,
+  PlatformServices,
+  PlatformUpdateCheckResult
+} from "./contracts";
 
 export function createDesktopPlatformServices(): PlatformServices {
   return {
@@ -28,8 +32,7 @@ export function createDesktopPlatformServices(): PlatformServices {
       openExternal: (url) => invoke<void>("open_external", { url })
     },
     updates: {
-      check: () =>
-        invoke<{ available: boolean; version: string | null }>("updates_check"),
+      check: () => invoke<PlatformUpdateCheckResult>("updates_check"),
       install: () => invoke<void>("updates_install")
     }
   };

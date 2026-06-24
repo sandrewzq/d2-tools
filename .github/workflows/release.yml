@@ -9,8 +9,8 @@ permissions:
   contents: write
 
 jobs:
-  build-windows:
-    name: Build Tauri Windows bundle
+  release-windows:
+    name: Build and publish Windows release
     runs-on: windows-latest
 
     steps:
@@ -34,15 +34,28 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Verify tag matches root package version
+      - name: Verify release versions
+        run: node scripts/verify-release-version.mjs ${{ github.ref_name }}
+
+      - name: Validate changelog section
         shell: pwsh
         run: |
-          $rootVersion = node -p "require('./package.json').version"
-          $tagName = "${{ github.ref_name }}"
+          $version = "${{ github.ref_name }}".Substring(1)
+          node scripts/extract-changelog.mjs --version $version
 
-          if ($tagName -ne "v$rootVersion") {
-            throw "Release tag $tagName must match package version v$rootVersion"
-          }
+      - name: Generate release notes
+        id: release_notes
+        shell: pwsh
+        run: |
+          $version = "${{ github.ref_name }}".Substring(1)
+          node scripts/generate-release-notes.mjs --version $version --output release-notes.md
+
+          "body<<__D2_RELEASE_NOTES__" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          Get-Content release-notes.md -Raw | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "__D2_RELEASE_NOTES__" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+
+      - name: Check release metadata
+        run: pnpm release:check
 
       - name: Check docs
         run: pnpm docs:check
@@ -53,77 +66,27 @@ jobs:
       - name: Test
         run: pnpm test
 
-      - name: Build Tauri Windows bundle
-        run: pnpm --filter @d2-tools/desktop package:desktop
+      - name: Prepare Tauri updater config
+        run: node scripts/prepare-tauri-release-config.mjs
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          TAURI_UPDATER_PUBLIC_KEY: ${{ secrets.TAURI_UPDATER_PUBLIC_KEY }}
 
-      - name: Collect release assets
-        shell: pwsh
-        run: |
-          New-Item -ItemType Directory -Force -Path release-artifacts | Out-Null
-          $bundleDir = "apps/desktop/src-tauri/target/release/bundle/nsis"
-          $installers = Get-ChildItem $bundleDir -Filter "*.exe" -ErrorAction SilentlyContinue
-
-          if (-not $installers) {
-            throw "Tauri Windows installer was not created under $bundleDir"
-          }
-
-          Copy-Item $installers.FullName release-artifacts/
-          Get-ChildItem release-artifacts
-
-      - name: Upload release artifact
-        uses: actions/upload-artifact@v4
+      - name: Build and publish Tauri release
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
-          name: d2-tools-tauri-windows
-          path: release-artifacts/*
-          if-no-files-found: error
-
-  publish-github:
-    name: Publish GitHub Release
-    runs-on: ubuntu-latest
-    needs: build-windows
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-
-      - name: Validate changelog section
-        shell: pwsh
-        run: |
-          $version = "${{ github.ref_name }}".Substring(1)
-          node scripts/extract-changelog.mjs --version $version
-
-      - name: Generate release notes
-        shell: pwsh
-        run: |
-          $version = "${{ github.ref_name }}".Substring(1)
-          node scripts/generate-release-notes.mjs --version $version --output release-notes.md
-
-      - name: Download release artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: d2-tools-tauri-windows
-          path: release-artifacts
-
-      - name: Verify release artifact
-        shell: pwsh
-        run: |
-          Get-ChildItem release-artifacts -Recurse
-          $installer = Get-ChildItem release-artifacts -Recurse -Filter "*.exe" | Select-Object -First 1
-          if (-not $installer) {
-            throw "Downloaded release artifact does not contain a Tauri Windows installer"
-          }
-
-      - name: Create or update GitHub release
-        uses: softprops/action-gh-release@v3
-        with:
-          tag_name: ${{ github.ref_name }}
-          name: d2-tools ${{ github.ref_name }}
-          body_path: release-notes.md
-          files: release-artifacts/*.exe
-          fail_on_unmatched_files: true
+          projectPath: apps/desktop
+          tagName: ${{ github.ref_name }}
+          releaseName: d2-tools ${{ github.ref_name }}
+          releaseBody: ${{ steps.release_notes.outputs.body }}
+          releaseDraft: false
           prerelease: ${{ contains(github.ref_name, '-beta') || contains(github.ref_name, '-rc') }}
+          includeUpdaterJson: true
+          updaterJsonPreferNsis: true
+          args: --bundles nsis

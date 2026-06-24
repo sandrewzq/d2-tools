@@ -35,4 +35,30 @@ describe("mock platform services", () => {
     });
     await expect(platform.paths.getDataDir()).resolves.toBe("D:/data/d2-tools");
   });
+
+  it("returns a complete no-update result", async () => {
+    const platform = createMockPlatformServices();
+
+    await expect(platform.updates.check()).resolves.toEqual({
+      available: false,
+      version: null,
+      notes: null
+    });
+  });
+
+  it("can seed update check results for local UI testing", async () => {
+    const platform = createMockPlatformServices({
+      updateCheckResult: {
+        available: true,
+        version: "0.0.7",
+        notes: "模拟更新"
+      }
+    });
+
+    await expect(platform.updates.check()).resolves.toEqual({
+      available: true,
+      version: "0.0.7",
+      notes: "模拟更新"
+    });
+  });
 });

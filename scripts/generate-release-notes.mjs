@@ -8,15 +8,14 @@ const rootDir = path.resolve(__dirname, '..');
 
 const FOOTER = `---
 
-Windows x64 绿色包，7z 格式。
+Windows x64 NSIS 安装器。
 
 使用方式：
-1. 下载 d2-tools-win-x64-*.7z。
-2. 用 7-Zip、Bandizip、WinRAR 等工具解压到任意目录。
-3. 双击 d2-tools.exe。
+1. 下载 GitHub Release 中的 Windows .exe 安装器。
+2. 运行安装器完成安装或覆盖升级。
+3. 已安装旧版可在应用内手动检查自动更新。
 
-覆盖升级不会删除 %APPDATA%\\d2-tools 里的本地配置、token 和缓存。
-从旧版 d2-service 升级时，首次启动会复制 %APPDATA%\\d2-service 到 %APPDATA%\\d2-tools。`;
+自动更新使用 Tauri updater 和同一 Release 中的 \`latest.json\`。覆盖升级不应删除应用数据目录中的本地配置、token 和缓存。`;
 
 export function buildReleaseNotes(changelogSection) {
   return `${changelogSection}\n\n${FOOTER}`;

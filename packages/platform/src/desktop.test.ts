@@ -27,7 +27,11 @@ describe("desktop platform services", () => {
       .mockResolvedValueOnce(undefined)
       .mockResolvedValueOnce("info:boot")
       .mockResolvedValueOnce(undefined)
-      .mockResolvedValueOnce({ available: false, version: null })
+      .mockResolvedValueOnce({
+        available: true,
+        version: "0.0.7",
+        notes: "Release notes"
+      })
       .mockResolvedValueOnce(undefined);
 
     await platform.app.getInfo();
@@ -40,8 +44,14 @@ describe("desktop platform services", () => {
     await platform.logs.write("info", "boot");
     await platform.logs.export();
     await platform.external.openExternal("https://example.test");
-    await platform.updates.check();
+    const update = await platform.updates.check();
     await platform.updates.install();
+
+    expect(update).toEqual({
+      available: true,
+      version: "0.0.7",
+      notes: "Release notes"
+    });
 
     expect(invoke.mock.calls).toEqual([
       ["app_get_info"],

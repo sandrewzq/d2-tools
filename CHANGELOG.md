@@ -2,25 +2,33 @@
 
 这个项目使用面向玩家的更新日志。这里优先记录”玩家能感知到什么变化”，而不是逐条展开内部实现细节。
 
-## 0.0.6 - 2026-06-23
+## 0.0.6 - 2026-06-24
 
 ### 新增
 
-- 新增护甲属性筛选面板，支持按 Mobility/Resilience/Recovery/Discipline/Intellect/Strength 筛选
-- 装备详情新增工具操作区（ItemDetailTools）
+- 切换到 clean slate 的 Tauri 2 桌面底座
+- 新增 Windows NSIS 安装器发布链路
+- 新增 Tauri updater 自动更新最小链路：检查更新、安装更新和重启
+- 底座首页新增手动检查更新和安装更新入口
+- 新增发布前版本一致性校验和 updater 配置注入脚本
 
 ### 改进
 
-- AI 配置协议重构，支持多平台 API 格式
-- 装备详情面板 UI 重构为游戏风格布局
-- 仓库筛选工具栏优化，筛选逻辑简化
-- AI 分析面板和 AI 设置面板交互优化
-- 样式系统大幅扩展
+- root package、desktop package、Cargo 和 Tauri config 版本保持一致
+- GitHub Release 说明改为 Windows NSIS 安装器和 Tauri updater 口径
+- desktop 验证脚本会先构建 workspace 依赖，避免读取过期 dist
+- Vite dev server 忽略 Rust `src-tauri/target` 构建产物，避免 Windows 下文件监听被 Cargo 锁定
 
 ### 修复
 
-- 修复 release workflow action 版本问题
-- 修复 CI 中 latest.yml 依赖问题
+- 修复 release notes 仍描述旧 7z 绿色包的问题
+- 修复 Tauri invoke 字符串错误在更新 UI 中丢失具体错误文案的问题
+- 修复本地 `dev:desktop` 因缺少 updater 基础配置导致启动时 panic 的问题
+
+### 已知限制
+
+- 当前版本是 Tauri 架构底座预览，不包含旧 Electron 版完整账号、仓库、装备详情和 AI 聊天功能
+- GitHub Release 产物和旧版到新版自动更新仍未完成真实验收
 
 ## 0.0.5 - 2026-06-22
 

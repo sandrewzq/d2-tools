@@ -1,8 +1,13 @@
-import type { AppInfo, PlatformServices } from "./contracts";
+import type {
+  AppInfo,
+  PlatformServices,
+  PlatformUpdateCheckResult
+} from "./contracts";
 
 export interface MockPlatformSeed {
   readonly dataDir?: string;
   readonly appInfo?: Partial<AppInfo>;
+  readonly updateCheckResult?: PlatformUpdateCheckResult;
 }
 
 export function createMockPlatformServices(
@@ -62,7 +67,9 @@ export function createMockPlatformServices(
     },
     updates: {
       async check() {
-        return { available: false, version: null };
+        return (
+          seed.updateCheckResult ?? { available: false, version: null, notes: null }
+        );
       },
       async install() {
         logs.push("updates:install");

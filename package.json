@@ -9,9 +9,14 @@
     "build": "pnpm -r build",
     "encoding:check": "node scripts/check-encoding.mjs",
     "docs:check": "node scripts/check-doc-policy.mjs && pnpm encoding:check",
-    "test": "pnpm docs:check && pnpm vitest --run test/architecture-boundaries.test.ts && pnpm -r test",
+    "test": "pnpm docs:check && pnpm vitest --run test/architecture-boundaries.test.ts test/release-assets.test.ts test/release-config.test.ts test/release-notes.test.ts test/release-publication.test.ts test/release-readiness.test.ts test/tauri-environment.test.ts test/updater-metadata.test.ts && pnpm -r test",
     "typecheck": "pnpm -r typecheck",
-    "release:preview": "node scripts/preview-release-notes.mjs"
+    "release:preview": "node scripts/preview-release-notes.mjs",
+    "release:check": "node scripts/check-release-readiness.mjs",
+    "release:verify": "node scripts/verify-release-publication.mjs",
+    "release:verify-assets": "node scripts/verify-release-assets.mjs",
+    "release:verify-updater": "node scripts/verify-updater-metadata.mjs",
+    "tauri:env": "node scripts/check-tauri-environment.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
