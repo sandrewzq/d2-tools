@@ -65,6 +65,23 @@
 
 > 会议需求重组分析见 `docs/work/backlog/2026-06-23-meeting-product-requirements-analysis.md`。
 
+### P0 · Tauri 2 架构底座重构
+
+> **目标** 当前主线切换为 clean slate 的 Tauri 2 架构底座重构。旧 Electron 版本只作为业务需求参考，不作为技术结构参考。
+
+**设计文档** `docs/work/backlog/2026-06-24-tauri2-rebuild-design.md`
+
+**要做什么**
+- 建立 `apps/desktop` 和 `packages/core/data/platform/ui/shared` 的 monorepo 边界
+- 完成 Tauri 2 桌面壳、权限、插件、command、打包基础链路
+- 建立 `packages/platform` 平台能力契约，禁止 UI 直接调用 Tauri
+- 建立 `packages/data` local-first repository 层，第一阶段不做远程账号、PostgreSQL 或队列同步
+- 用薄功能验证底座：设置、授权、Manifest 状态、账号摘要、仓库基础列表、AI 基础聊天
+
+**验收** 空壳 Tauri 应用可启动；`ui -> data/platform -> core/Tauri/local storage` 链路成立；包依赖边界有测试约束；不以追平旧版功能作为第一阶段完成标准。
+
+---
+
 ### P0 · 首页日常信息与奖励进度工作台
 
 > **目标** 首页不再承载任务助手或 AI 对话，专注展示玩家每天想确认的进度、轮换和奖励。
