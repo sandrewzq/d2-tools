@@ -9,12 +9,13 @@
     "build": "pnpm -r build",
     "encoding:check": "node scripts/check-encoding.mjs",
     "docs:check": "node scripts/check-doc-policy.mjs && pnpm encoding:check",
-    "test": "pnpm docs:check && pnpm -r test",
+    "test": "pnpm docs:check && pnpm vitest --run test/architecture-boundaries.test.ts && pnpm -r test",
     "typecheck": "pnpm -r typecheck",
     "release:preview": "node scripts/preview-release-notes.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
+    "glob": "^13.0.6",
     "typescript": "^5.7.2",
     "vitest": "^2.1.8"
   }
