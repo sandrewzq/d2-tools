@@ -22,7 +22,14 @@ importers:
 
   packages/core: {}
 
-  packages/data: {}
+  packages/data:
+    dependencies:
+      '@d2-tools/core':
+        specifier: workspace:*
+        version: link:../core
+      '@d2-tools/platform':
+        specifier: workspace:*
+        version: link:../platform
 
   packages/platform: {}
 
