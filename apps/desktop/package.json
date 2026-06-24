@@ -3,12 +3,30 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
   "scripts": {
-    "dev": "node -e \"console.log('Tauri desktop dev scaffold pending Task 2')\"",
-    "build": "tsc -p tsconfig.json",
+    "dev": "vite --host 127.0.0.1",
+    "build": "tsc -p tsconfig.json && vite build",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest --run"
+    "test": "vitest --run",
+    "tauri": "tauri",
+    "dev:desktop": "tauri dev",
+    "package:desktop": "tauri build"
+  },
+  "dependencies": {
+    "@d2-tools/core": "workspace:*",
+    "@d2-tools/data": "workspace:*",
+    "@d2-tools/platform": "workspace:*",
+    "@d2-tools/ui": "workspace:*",
+    "@tauri-apps/api": "^2.0.0",
+    "@tauri-apps/plugin-shell": "^2.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^4.3.4",
+    "vite": "^6.0.3"
   }
 }

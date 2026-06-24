@@ -1,0 +1,14 @@
+:root {
+  color: #202124;
+  background: #f6f7f9;
+  font-family: Inter, "Segoe UI", sans-serif;
+}
+
+body {
+  margin: 0;
+}
+
+main {
+  min-height: 100vh;
+  padding: 24px;
+}
