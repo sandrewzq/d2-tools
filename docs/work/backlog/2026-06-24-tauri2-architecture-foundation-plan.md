@@ -12,6 +12,8 @@
 
 - 仓库文档、计划、状态更新和用户可见说明使用中文。
 - 不沿用旧 Electron 技术结构；旧版本只作为业务需求参考。
+- 当前目录 `D:\sandrew\d2-tools` 是 `tauri2-rebuild` worktree；旧 Electron 版本已在 `D:\sandrew\d2-service` 保留，当前分支允许删除旧 Electron 文件并彻底重构。
+- 第一项实现任务必须先清理旧 `packages/desktop`、`packages/http` 和旧 `packages/core` 内容，再建立新 workspace。
 - 第一阶段不做移动端实际功能、不做 Web/PWA 实际功能。
 - 第一阶段不接 API 服务、PostgreSQL、云同步、远程账号或队列同步。
 - UI 层禁止直接调用 Tauri `invoke` 或插件 API。
@@ -61,6 +63,9 @@
 ### Task 1: Workspace 和基础工具链
 
 **Files:**
+- Delete: `packages/desktop/`
+- Delete: `packages/http/`
+- Delete: `packages/core/`
 - Modify: `pnpm-workspace.yaml`
 - Modify: `package.json`
 - Create: `tsconfig.base.json`
@@ -78,7 +83,30 @@
 - Produces: root commands `build`、`typecheck`、`test`、`docs:check`
 - Consumes: pnpm 9.15.0、TypeScript、Vitest
 
-- [ ] **Step 1: 更新 workspace 范围**
+- [ ] **Step 1: 清理旧 Electron 结构**
+
+Run:
+
+```powershell
+$targets = @("packages/desktop", "packages/http", "packages/core")
+foreach ($target in $targets) {
+  $resolved = Resolve-Path -LiteralPath $target -ErrorAction SilentlyContinue
+  if ($null -ne $resolved) {
+    if (-not $resolved.Path.StartsWith((Resolve-Path .).Path)) {
+      throw "Refusing to remove path outside workspace: $($resolved.Path)"
+    }
+    Remove-Item -LiteralPath $resolved.Path -Recurse -Force
+  }
+}
+```
+
+Expected:
+
+```text
+旧 Electron renderer/main/preload、旧 http 包和旧 core 包已从当前分支删除。
+```
+
+- [ ] **Step 2: 更新 workspace 范围**
 
 把 `pnpm-workspace.yaml` 改成：
 
@@ -88,7 +116,7 @@ packages:
   - "packages/*"
 ```
 
-- [ ] **Step 2: 增加根 TypeScript 基础配置**
+- [ ] **Step 3: 增加根 TypeScript 基础配置**
 
 创建 `tsconfig.base.json`：
 
@@ -111,7 +139,7 @@ packages:
 }
 ```
 
-- [ ] **Step 3: 建立每个包的最小 package.json**
+- [ ] **Step 4: 建立每个包的最小 package.json**
 
 每个 package 使用这个模式，按包名替换 `name`：
 
@@ -142,7 +170,7 @@ packages:
 }
 ```
 
-- [ ] **Step 4: 建立每个包的 tsconfig.json**
+- [ ] **Step 5: 建立每个包的 tsconfig.json**
 
 每个 package 使用：
 
@@ -172,7 +200,7 @@ packages:
 }
 ```
 
-- [ ] **Step 5: 更新根脚本**
+- [ ] **Step 6: 更新根脚本**
 
 确认 root `package.json` 至少包含：
 
@@ -188,7 +216,7 @@ packages:
 }
 ```
 
-- [ ] **Step 6: 运行工具链验证**
+- [ ] **Step 7: 运行工具链验证**
 
 Run:
 
@@ -204,7 +232,7 @@ Expected:
 所有 workspace 包完成 build/typecheck，没有 TypeScript 编译错误。
 ```
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 8: Commit**
 
 ```powershell
 git add pnpm-workspace.yaml package.json tsconfig.base.json vitest.config.ts apps packages
