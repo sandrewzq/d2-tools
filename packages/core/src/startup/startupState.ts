@@ -107,7 +107,14 @@ export function manifestNeedsRefresh(cachedAtISO: string, now?: Date): boolean {
 
 function formatChineseDate(isoString: string): string {
   const d = new Date(isoString);
-  return `${d.getMonth() + 1}月${d.getDate()}日`;
+  const parts = new Intl.DateTimeFormat("zh-CN", {
+    timeZone: "Asia/Shanghai",
+    month: "numeric",
+    day: "numeric"
+  }).formatToParts(d);
+  const month = parts.find((part) => part.type === "month")?.value ?? `${d.getUTCMonth() + 1}`;
+  const day = parts.find((part) => part.type === "day")?.value ?? `${d.getUTCDate()}`;
+  return `${month}月${day}日`;
 }
 
 function getAccountLabel(auth: StartupAuthStatus): string {
