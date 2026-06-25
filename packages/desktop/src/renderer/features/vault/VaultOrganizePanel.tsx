@@ -96,6 +96,9 @@ export function VaultOrganizePanel(props: {
             <button type="button" className="secondary-button" onClick={() => props.onVisibleSelectionChange("remove")}>移除当前结果</button>
             <button type="button" onClick={() => props.onBatchSelectionChange("junk")}>选择可清理</button>
             <button type="button" onClick={() => props.onBatchSelectionChange("review")}>选择复查</button>
+            <button type="button" onClick={() => props.onBatchSelectionChange("farm")}>选择待刷</button>
+            <button type="button" onClick={() => props.onBatchSelectionChange("loadout")}>选择配装用</button>
+            <button type="button" onClick={() => props.onBatchSelectionChange("target")}>选择目标命中</button>
             <button type="button" onClick={() => props.onBatchSelectionChange("untagged")}>选择未标记</button>
             <button type="button" onClick={() => props.onBatchSelectionChange("noted")}>选择有备注</button>
             <button type="button" className="secondary-button" onClick={props.onClearSelection}>清空</button>
@@ -110,6 +113,12 @@ export function VaultOrganizePanel(props: {
           </button>
           <button type="button" aria-busy={props.isBatchSaving} disabled={!props.selectedItemCount || props.isBatchSaving} onClick={() => void props.onApplyBatchTag("junk")}>
             {props.isBatchSaving && props.activeBatchAction === "批量可清理" ? "处理中..." : "批量可清理"}
+          </button>
+          <button type="button" aria-busy={props.isBatchSaving} disabled={!props.selectedItemCount || props.isBatchSaving} onClick={() => void props.onApplyBatchTag("farm")}>
+            {props.isBatchSaving && props.activeBatchAction === "批量待刷" ? "处理中..." : "批量待刷"}
+          </button>
+          <button type="button" aria-busy={props.isBatchSaving} disabled={!props.selectedItemCount || props.isBatchSaving} onClick={() => void props.onApplyBatchTag("loadout")}>
+            {props.isBatchSaving && props.activeBatchAction === "批量配装用" ? "处理中..." : "批量配装用"}
           </button>
           <button type="button" aria-busy={props.isBatchSaving} disabled={!props.selectedItemCount || props.isBatchSaving} onClick={() => void props.onApplyBatchTag("none")}>
             {props.isBatchSaving && props.activeBatchAction === "批量清除" ? "处理中..." : "批量清除"}

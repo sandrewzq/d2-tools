@@ -16,6 +16,7 @@ export type SelectedItemDetail = ItemDefinitionDetail & {
   locked?: boolean;
   socket_plugs?: AccountItemPlugSummary[];
   armor_stats?: AccountItemSummary["armor_stats"];
+  armor_stat_breakdown?: AccountItemSummary["armor_stat_breakdown"];
   armor_energy?: AccountItemSummary["armor_energy"];
   weapon_stats?: AccountItemSummary["weapon_stats"];
   group_key?: AccountItemSummary["group_key"];
@@ -141,6 +142,7 @@ export function selectedItemToAccountItem(item: SelectedItemDetail): AccountItem
     power: item.power,
     locked: item.locked,
     armor_stats: item.armor_stats,
+    armor_stat_breakdown: item.armor_stat_breakdown,
     armor_energy: item.armor_energy,
     weapon_stats: item.weapon_stats,
     socket_plugs: item.socket_plugs ?? []
@@ -165,6 +167,7 @@ export function createSelectedItemPreview(
     power: "power" in item ? item.power : undefined,
     locked: "locked" in item ? item.locked : undefined,
     armor_stats: "armor_stats" in item ? item.armor_stats : undefined,
+    armor_stat_breakdown: "armor_stat_breakdown" in item ? item.armor_stat_breakdown : undefined,
     armor_energy: "armor_energy" in item ? item.armor_energy : undefined,
     weapon_stats: "weapon_stats" in item ? item.weapon_stats : undefined,
     socket_plugs: "socket_plugs" in item ? item.socket_plugs : undefined,

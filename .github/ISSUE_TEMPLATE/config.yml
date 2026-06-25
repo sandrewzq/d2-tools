@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 使用问题与常见排查
+    url: https://github.com/sandrewzq/d2-tools/blob/main/SUPPORT.md
+    about: 提问前先看支持文档、FAQ 和 Bungie 配置指南。
+  - name: 安全问题反馈
+    url: https://github.com/sandrewzq/d2-tools/blob/main/SECURITY.md
+    about: 涉及 token、Client Secret、数据泄露或高风险写操作的问题请先看安全策略。

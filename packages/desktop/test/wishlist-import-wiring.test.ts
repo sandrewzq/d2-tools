@@ -13,6 +13,7 @@ describe("wishlist import wiring", () => {
     const ipcRegister = readFileSync(join(desktopRoot, "src", "main", "ipc.ts"), "utf8");
     const client = readRendererApiContracts(desktopRoot);
     const homePage = readFileSync(join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"), "utf8");
+    const accountHook = readFileSync(join(desktopRoot, "src", "renderer", "features", "account", "useAccountWorkspace.ts"), "utf8");
     const vaultPage = readFileSync(join(desktopRoot, "src", "renderer", "features", "vault", "VaultPage.tsx"), "utf8");
     const vaultPanel = readFileSync(join(desktopRoot, "src", "renderer", "components", "VaultPanel.tsx"), "utf8");
     const vaultListItem = readFileSync(join(desktopRoot, "src", "renderer", "features", "vault", "VaultListItem.tsx"), "utf8");
@@ -27,7 +28,8 @@ describe("wishlist import wiring", () => {
     expect(client).toContain("getDimWishlist");
     expect(client).toContain("saveDimWishlist");
     expect(client).toContain("clearDimWishlist");
-    expect(homePage).toContain("loadPersistedWishlist");
+    expect(accountHook).toContain("wishlist");
+    expect(accountHook).toContain("loadAccountWorkspace(services)");
     expect(homePage).toContain("importedWishlist");
     expect(vaultPage).toContain("parseDimWishlist");
     expect(vaultPage).toContain("wishlistImportDraft");

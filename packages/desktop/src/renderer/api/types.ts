@@ -9,6 +9,7 @@ import type { DiagnosticsApi } from "./diagnosticsApi";
 import type { LibraryApi } from "./libraryApi";
 import type { LoadoutApi } from "./loadoutApi";
 import type { ManifestApi } from "./manifestApi";
+import type { TargetApi } from "./targetApi";
 import type { UpdateApi } from "./updateApi";
 import type { VaultApi } from "./vaultApi";
 
@@ -24,6 +25,7 @@ export type * from "./libraryApi";
 export type * from "./loadoutApi";
 export type * from "./manifestApi";
 export type * from "./sharedTypes";
+export type * from "./targetApi";
 export type * from "./updateApi";
 export type * from "./vaultApi";
 
@@ -34,6 +36,7 @@ export type AppApi =
   & LibraryApi
   & LoadoutApi
   & CommunityApi
+  & TargetApi
   & VaultApi
   & AiApi
   & ActionsApi

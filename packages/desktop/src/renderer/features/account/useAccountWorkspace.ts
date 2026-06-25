@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { loadAccountWorkspace, loadAccountDerivedWorkspace } from "@d2-tools/app";
 import {
   api,
   type AccountSummary,
@@ -6,8 +7,10 @@ import {
   type DimWishlist,
   type StartupState,
   type VaultItemMatchInfo,
+  type LocalTargetRules,
   type VaultTags
 } from "../../api/client";
+import { services } from "../../api/services";
 
 type DiagnosticsBridge = {
   refreshDiagnostics: () => Promise<void>;
@@ -27,6 +30,11 @@ export function useAccountWorkspace(input: {
   const [isInitializingManifest, setIsInitializingManifest] = useState(false);
   const [accountSummary, setAccountSummary] = useState<AccountSummary | null>(null);
   const [vaultTags, setVaultTags] = useState<VaultTags>({ items: {} });
+  const [localTargetRules, setLocalTargetRules] = useState<LocalTargetRules>({
+    action_policy: "notify_only",
+    armor: [],
+    weapons: []
+  });
   const [accountError, setAccountError] = useState("");
   const [isLoadingAccount, setIsLoadingAccount] = useState(false);
   const [selectedCharacterId, setSelectedCharacterId] = useState("");
@@ -36,14 +44,6 @@ export function useAccountWorkspace(input: {
   const [importedWishlist, setImportedWishlist] = useState<DimWishlist | null>(null);
   const [vaultCommunityMatch, setVaultCommunityMatch] = useState<Map<number, VaultItemMatchInfo>>(new Map());
   const [isVaultCommunityMatchLoading, setIsVaultCommunityMatchLoading] = useState(false);
-
-  async function loadPersistedWishlist() {
-    try {
-      setImportedWishlist(await api.getDimWishlist());
-    } catch {
-      setImportedWishlist(null);
-    }
-  }
 
   async function loginBungie() {
     setIsLoggingIn(true);
@@ -84,17 +84,31 @@ export function useAccountWorkspace(input: {
     setAccountError("");
 
     try {
-      const [summary, tags] = await Promise.all([api.getAccountSummary(), api.getVaultTags()]);
+      const workspace = await loadAccountWorkspace(services);
+      if (workspace.status !== "success") {
+        throw new Error(workspace.error?.message ?? "账号数据读取失败");
+      }
+      const { account: summary, tags, targetRules, wishlist } = workspace.data;
       setAccountSummary(summary);
       setVaultTags(tags);
+      setLocalTargetRules(targetRules);
+      setImportedWishlist(wishlist);
       setSelectedCharacterId((current) => {
         if (current && summary.characters.some((character) => character.character_id === current)) {
           return current;
         }
         return summary.characters[0]?.character_id ?? "";
       });
-      void loadActivitySummary(summary);
-      void loadVaultCommunityMatch(summary);
+      const derived = await loadAccountDerivedWorkspace(services, summary);
+      if (derived.status === "success") {
+        setActivitySummary(derived.data.activitySummary);
+        setVaultCommunityMatch(derived.data.vaultCommunityMatch);
+        setActivityMessage(derived.data.activitySummary ? "最近活动已更新" : "");
+      } else {
+        setActivitySummary(null);
+        setVaultCommunityMatch(new Map());
+        setActivityError(derived.error?.message ?? "最近活动读取失败");
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : "账号数据读取失败";
       setAccountError(input.state.nextStep === "home"
@@ -106,56 +120,22 @@ export function useAccountWorkspace(input: {
     }
   }
 
-  async function loadVaultCommunityMatch(summary: AccountSummary) {
-    setIsVaultCommunityMatchLoading(true);
-    try {
-      const allItems = [
-        ...summary.characters.flatMap((character) => [
-          ...character.equipped_items,
-          ...character.inventory_items,
-          ...character.postmaster_items
-        ]),
-        ...summary.vault.items
-      ];
-      const inputs = allItems.map((item) => ({
-        hash: item.hash,
-        socket_plugs: item.socket_plugs?.map((plug) => ({ hash: plug.hash }))
-      }));
-      const result = await api.matchCommunityVaultItems(inputs);
-      const map = new Map<number, VaultItemMatchInfo>();
-      for (const item of result) {
-        map.set(item.hash, {
-          matched: item.matched,
-          available: item.available,
-          modes: item.modes,
-          sample_perks: item.sample_perks,
-          source_label: item.source_label
-        });
-      }
-      setVaultCommunityMatch(map);
-    } catch (error) {
-      console.warn("社区推荐匹配失败：", error);
-    } finally {
-      setIsVaultCommunityMatchLoading(false);
-    }
-  }
-
   async function loadActivitySummary(summary = accountSummary) {
     if (!summary) return;
 
     setActivityError("");
     setActivityMessage("");
-    try {
-      setActivitySummary(await api.getActivitySummary({
-        membership_type: summary.membership_type,
-        membership_id: summary.destiny_membership_id,
-        character_ids: summary.characters.map((character) => character.character_id)
-      }));
-      setActivityMessage("最近活动已更新");
-    } catch (error) {
-      setActivitySummary(null);
-      setActivityError(error instanceof Error ? error.message : "最近活动读取失败");
+    const derived = await loadAccountDerivedWorkspace(services, summary);
+    if (derived.status === "success") {
+      setActivitySummary(derived.data.activitySummary);
+      setVaultCommunityMatch(derived.data.vaultCommunityMatch);
+      setActivityMessage(derived.data.activitySummary ? "最近活动已更新" : "");
+      return;
     }
+
+    setActivitySummary(null);
+    setVaultCommunityMatch(new Map());
+    setActivityError(derived.error?.message ?? "最近活动读取失败");
   }
 
   return {
@@ -169,6 +149,8 @@ export function useAccountWorkspace(input: {
     setAccountSummary,
     vaultTags,
     setVaultTags,
+    localTargetRules,
+    setLocalTargetRules,
     accountError,
     setAccountError,
     isLoadingAccount,
@@ -181,7 +163,6 @@ export function useAccountWorkspace(input: {
     setImportedWishlist,
     vaultCommunityMatch,
     isVaultCommunityMatchLoading,
-    loadPersistedWishlist,
     loginBungie,
     initializeManifest,
     loadAccountSummary,

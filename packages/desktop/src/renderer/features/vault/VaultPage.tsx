@@ -1,19 +1,21 @@
 import { lazy, useState } from "react";
 import { parseDimWishlist } from "@d2-tools/core/analysis/wishlistImport";
 import { parseLocalCommunityRecommendations } from "@d2-tools/core/community-perks/localCommunityImport";
+import type { LoadoutTemplateLookup } from "../../shared/domain/loadouts/loadoutLookup";
 import type {
   AccountItemSummary,
   AccountSummary,
   BatchItemActionResult,
   DimWishlist,
+  LocalTargetRules,
   LocalCommunityRecommendationTable,
   SaveVaultTagInput,
   VaultItemMatchInfo,
   VaultTags,
   VaultTagValue
 } from "../../api/client";
-import { api } from "../../api/client";
-import type { LoadoutTemplateLookup } from "../../shared/domain/loadouts/loadoutLookup";
+import { services } from "../../api/services";
+import { VaultTargetRulesPanel } from "./VaultTargetRulesPanel";
 
 const VaultPanel = lazy(() =>
   import("../../components/VaultPanel").then((m) => ({ default: m.VaultPanel }))
@@ -30,9 +32,11 @@ export function VaultPage(props: {
   tags: VaultTags;
   openingItemKey: string;
   wishlist: DimWishlist | null;
+  localTargetRules: LocalTargetRules;
   communityMatch: Map<number, VaultItemMatchInfo>;
   onContextFactsChange?: (facts: string[]) => void;
   onWishlistChanged: (wishlist: DimWishlist | null) => void;
+  onLocalTargetRulesChanged: (rules: LocalTargetRules) => void;
   onLoadAccount: () => void;
   onSaveTagBatch: (inputs: SaveVaultTagInput[]) => void | Promise<void>;
   onBatchUnlock: (items: AccountItemSummary[], targetCharacterId: string) => Promise<string>;
@@ -83,7 +87,7 @@ export function VaultPage(props: {
     }
 
     try {
-      const saved = await api.saveDimWishlist(wishlist);
+      const saved = await services.localData.saveDimWishlist(wishlist);
       props.onWishlistChanged(saved);
       setWishlistImportMessage(`已导入 ${saved.rules.length} 条 DIM 愿望单规则：${saved.title}`);
     } catch (error) {
@@ -93,7 +97,7 @@ export function VaultPage(props: {
 
   async function clearImportedWishlist() {
     try {
-      await api.clearDimWishlist();
+      await services.localData.clearDimWishlist();
       props.onWishlistChanged(null);
       setWishlistImportMessage("已清空 DIM 愿望单。");
     } catch (error) {
@@ -127,7 +131,7 @@ export function VaultPage(props: {
     }
 
     try {
-      const saved = await api.saveLocalCommunityRecommendations(table);
+      const saved = await services.localData.saveLocalCommunityRecommendations(table);
       setLocalCommunityTable(saved);
       setLocalCommunityImportMessage(`已导入 ${saved.rules.length} 条本地社区推荐：${saved.title}`);
     } catch (error) {
@@ -137,7 +141,7 @@ export function VaultPage(props: {
 
   async function clearLocalCommunityDraft() {
     try {
-      await api.clearLocalCommunityRecommendations();
+      await services.localData.clearLocalCommunityRecommendations();
       setLocalCommunityTable(null);
       setLocalCommunityImportMessage("已清空本地社区推荐表。");
     } catch (error) {
@@ -163,10 +167,16 @@ export function VaultPage(props: {
           onBatchTransferToCharacter: props.onBatchTransferToCharacter
         }}
         wishlist={props.wishlist}
+        localTargetRules={props.localTargetRules}
         communityMatch={props.communityMatch}
         onContextFactsChange={props.onContextFactsChange}
         onOpenItem={props.onOpenItem}
         onSaveTag={props.onSaveTag}
+      />
+      <VaultTargetRulesPanel
+        items={props.account.vault.items}
+        rules={props.localTargetRules}
+        onRulesChanged={props.onLocalTargetRulesChanged}
       />
       <section className="vault-preview wishlist-import-panel">
         <div className="section-heading compact-heading">

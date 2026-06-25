@@ -134,6 +134,9 @@ function createBaseSnapshot(status: UpdateSnapshot["status"]): UpdateSnapshot {
 function setUpdateSnapshot(snapshot: UpdateSnapshot): UpdateSnapshot {
   updateSnapshot = snapshot;
   for (const window of BrowserWindow.getAllWindows()) {
+    if (window.isDestroyed()) {
+      continue;
+    }
     window.webContents.send(updateChannel, updateSnapshot);
   }
   return updateSnapshot;

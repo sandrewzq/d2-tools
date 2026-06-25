@@ -70,6 +70,24 @@ export function clearAssistantHistory(storage = getDefaultStorage()): AssistantH
   return [];
 }
 
+export function removeAssistantHistoryEntry(
+  storage: AssistantStorageLike | undefined,
+  id: string
+): AssistantHistoryEntry[] {
+  if (!storage) return [];
+  const next = loadAssistantHistory(storage).filter((entry) => entry.id !== id);
+  try {
+    if (next.length) {
+      storage.setItem(historyStorageKey, JSON.stringify(next));
+    } else {
+      storage.removeItem(historyStorageKey);
+    }
+  } catch {
+    return next;
+  }
+  return next;
+}
+
 function normalizeHistoryEntry(entry: Partial<AssistantHistoryEntry> | null | undefined): AssistantHistoryEntry | null {
   if (!entry?.id || !entry.title || !Array.isArray(entry.messages)) {
     return null;

@@ -1,11 +1,11 @@
 import { Suspense, useEffect, useRef, useState } from "react";
 import {
-  type AccountItemSummary,
   type AccountSummary,
   type LoadoutTemplate,
   type StartupState
 } from "../api/client";
 import { isAiSettingsConfigured } from "../utils/aiSettings";
+import { collectAccountItems } from "../utils/accountItems";
 import { buildDiagnosticRows } from "../components/DiagnosticsPanel";
 import { GlobalAssistantSidebar } from "../components/GlobalAssistantSidebar";
 import { ShellLayout, type ShellAssistantMode, type ShellPageKey } from "../components/ShellLayout";
@@ -63,11 +63,12 @@ export function HomePage(props: {
     activitySummary,
     importedWishlist,
     setImportedWishlist,
+    localTargetRules,
+    setLocalTargetRules,
     vaultCommunityMatch,
     loginBungie,
     initializeManifest,
     loadAccountSummary,
-    loadPersistedWishlist
   } = useAccountWorkspace({
     state: props.state,
     diagnostics,
@@ -88,6 +89,7 @@ export function HomePage(props: {
     vaultTags,
     setVaultTags,
     importedWishlist,
+    localTargetRules,
     diagnostics,
     setAccountError,
     setIsRunningItemAction,
@@ -120,7 +122,6 @@ export function HomePage(props: {
     void diagnostics.refreshDiagnostics();
     void daily.loadDailySummary();
     void library.loadLibraryHistory();
-    void loadPersistedWishlist();
   }, []);
 
   const loadAccountRef = useRef(loadAccountSummary);
@@ -329,9 +330,11 @@ export function HomePage(props: {
           tags={vaultTags}
           openingItemKey={itemDetail.itemDetailLoadingKey}
           wishlist={importedWishlist}
+          localTargetRules={localTargetRules}
           communityMatch={vaultCommunityMatch}
           onContextFactsChange={setVaultFacts}
           onWishlistChanged={setImportedWishlist}
+          onLocalTargetRulesChanged={setLocalTargetRules}
           onLoadAccount={() => void loadAccountSummary()}
           onSaveTagBatch={(inputs) => vaultWriteActions.saveVaultTagsBatch(inputs)}
           onBatchUnlock={vaultWriteActions.handleVaultCleanupUnlock}
@@ -371,6 +374,7 @@ export function HomePage(props: {
           aiSettingsEnableLightgg={diagnostics.aiSettings.enable_lightgg}
           communityRecommendations={itemDetail.communityRecommendations}
           importedWishlist={importedWishlist}
+          localTargetRules={localTargetRules}
           isCommunityRecommendationsLoading={itemDetail.isCommunityRecommendationsLoading}
           isGeneratingItemAi={itemDetail.isGeneratingItemAi}
           isRunningItemAction={isRunningItemAction}
@@ -444,7 +448,7 @@ function buildLoadoutContextFacts(template: LoadoutTemplate | null, account: Acc
     return [`配装方案：${template.name}，共 ${template.items.length} 件装备；账号数据未读取，暂不能判断缺失。`];
   }
 
-  const knownItems = collectKnownAccountItems(account);
+  const knownItems = collectAccountItems(account);
   const readyCount = template.items.filter((item) => knownItems.some((knownItem) =>
     item.instance_id
       ? knownItem.instance_id === item.instance_id
@@ -476,16 +480,5 @@ function buildLibraryContextFacts(input: {
     touched
       ? `资料库搜索：${modeLabel}${query.trim() ? ` / ${query.trim()}` : ""}，命中 ${count} 条。`
       : `资料库搜索：当前在${modeLabel}模式，尚未执行搜索。`
-  ];
-}
-
-function collectKnownAccountItems(account: AccountSummary): AccountItemSummary[] {
-  return [
-    ...account.vault.items,
-    ...account.characters.flatMap((character) => [
-      ...character.equipped_items,
-      ...character.inventory_items,
-      ...character.postmaster_items
-    ])
   ];
 }

@@ -11,7 +11,9 @@ import type {
   ItemAiAdviceResult,
   VaultAiAdviceResult
 } from "@d2-tools/core/ai/chat";
+import type { AiSettings } from "@d2-tools/core/ai/settings";
 import type { VaultAnalysisResult } from "@d2-tools/core/analysis/vault";
+import type { LocalTargetRules } from "@d2-tools/core/analysis/targets";
 import type { DimWishlist } from "@d2-tools/core/analysis/wishlistImport";
 import type { LocalCommunityRecommendationTable, VaultItemMatchInfo, WeaponRecommendation } from "@d2-tools/core/community-perks";
 import type { D2Config } from "@d2-tools/core/config/schema";
@@ -105,7 +107,7 @@ contextBridge.exposeInMainWorld("d2", {
   getHealth: () => ipcRenderer.invoke("health:get") as Promise<HealthStatus>,
   getConfig: () => ipcRenderer.invoke("config:get") as Promise<D2Config>,
   saveConfig: (config: D2Config) => ipcRenderer.invoke("config:save", config) as Promise<D2Config>,
-  listAiModels: (config: D2Config) => ipcRenderer.invoke("ai:models", config) as Promise<AiModelListResult>,
+  listAiModels: (ai: AiSettings) => ipcRenderer.invoke("ai:models", ai) as Promise<AiModelListResult>,
   testAiConnection: () => ipcRenderer.invoke("ai:test") as Promise<AiConnectionTestResult>,
   loginBungie: () => ipcRenderer.invoke("auth:login") as Promise<AuthLoginResult>,
   getAccountSummary: () => ipcRenderer.invoke("account:summary") as Promise<AccountSummary>,
@@ -139,6 +141,10 @@ contextBridge.exposeInMainWorld("d2", {
   getDimWishlist: () => ipcRenderer.invoke("wishlist:get") as Promise<DimWishlist | null>,
   saveDimWishlist: (wishlist: DimWishlist) => ipcRenderer.invoke("wishlist:save", wishlist) as Promise<DimWishlist>,
   clearDimWishlist: () => ipcRenderer.invoke("wishlist:clear") as Promise<null>,
+  getLocalTargetRules: () => ipcRenderer.invoke("targets:get") as Promise<LocalTargetRules>,
+  saveLocalTargetRules: (rules: LocalTargetRules) =>
+    ipcRenderer.invoke("targets:save", rules) as Promise<LocalTargetRules>,
+  clearLocalTargetRules: () => ipcRenderer.invoke("targets:clear") as Promise<LocalTargetRules>,
   getLocalCommunityRecommendations: () =>
     ipcRenderer.invoke("community:local:get") as Promise<LocalCommunityRecommendationTable | null>,
   saveLocalCommunityRecommendations: (table: LocalCommunityRecommendationTable) =>

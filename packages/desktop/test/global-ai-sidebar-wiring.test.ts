@@ -52,7 +52,7 @@ describe("global AI assistant sidebar wiring", () => {
     expect(aiPanel).toContain("ai-context-drawer");
     expect(aiPanel).toContain("ai-chat-history");
     expect(aiPanel).toContain("会话列表");
-    expect(aiPanel).toContain("上下文");
+    expect(aiPanel).toContain("删除");
     expect(aiPanel).toContain("恢复");
     expect(aiPanel).toContain("清空历史");
     expect(aiPanel).toContain("历史记录仍可查看和恢复");

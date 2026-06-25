@@ -17,7 +17,7 @@ import {
   selectVaultBatchItems,
   sortVaultItems
 } from "../src/renderer/components/VaultPanel";
-import type { AccountItemSummary, BatchItemActionResult, DimWishlist, VaultTags } from "../src/renderer/api/client";
+import type { AccountItemSummary, BatchItemActionResult, DimWishlist, LocalTargetRules, VaultTags } from "../src/renderer/api/client";
 import { existsSync, readFileSync } from "node:fs";
 
 const items: AccountItemSummary[] = [
@@ -205,6 +205,25 @@ describe("vault panel helpers", () => {
       .toEqual(["Vehicle A"]);
   });
 
+  it("supports farming and loadout-use local tags across vault filtering and batch selection", () => {
+    const tags: VaultTags = {
+      items: {
+        a: { tag: "farm" },
+        b: { tag: "loadout" },
+        c: { tag: "junk" }
+      }
+    };
+
+    expect(filterVaultItems(items, { group: "all", query: "", tag: "farm", tags }).map((item) => item.name))
+      .toEqual(["Riskrunner"]);
+    expect(filterVaultItems(items, { group: "all", query: "", tag: "loadout", tags }).map((item) => item.name))
+      .toEqual(["Helmet A"]);
+    expect(selectVaultBatchItems(items, "farm", tags).map((item) => item.name))
+      .toEqual(["Riskrunner"]);
+    expect(selectVaultBatchItems(items, "loadout", tags).map((item) => item.name))
+      .toEqual(["Helmet A"]);
+  });
+
   it("summarizes visible and hidden selections for the vault batch toolbar", () => {
     const summary = buildVaultSelectionSummary({
       selectedTotalCount: 5,
@@ -383,6 +402,96 @@ describe("vault panel helpers", () => {
       .toEqual(["Helmet High Health", "Helmet High Class", "Helmet Low"]);
   });
 
+  it("filters vault armor by saved local target rules", () => {
+    const armorItems: AccountItemSummary[] = [
+      {
+        ...items[3],
+        instance_id: "helmet-target",
+        name: "Helmet Target",
+        armor_stats: {
+          health: 24,
+          melee: 8,
+          grenade: 12,
+          super: 6,
+          class: 22,
+          weapon: 4,
+          total: 76
+        }
+      },
+      {
+        ...items[3],
+        instance_id: "helmet-miss",
+        name: "Helmet Miss",
+        armor_stats: {
+          health: 18,
+          melee: 8,
+          grenade: 12,
+          super: 6,
+          class: 22,
+          weapon: 4,
+          total: 70
+        }
+      }
+    ];
+    const targetRules: LocalTargetRules = {
+      action_policy: "notify_only",
+      armor: [
+        {
+          id: "health-class",
+          name: "生命职业",
+          conditions: [
+            { stat: "health", min: 20 },
+            { stat: "class", min: 20 }
+          ]
+        }
+      ],
+      weapons: []
+    };
+
+    expect(filterVaultItems(armorItems, {
+      group: "armor",
+      query: "",
+      tag: "target",
+      localTargetRules: targetRules
+    }).map((item) => item.name)).toEqual(["Helmet Target"]);
+    expect(filterVaultItems(armorItems, {
+      group: "armor",
+      query: "tag:target",
+      localTargetRules: targetRules
+    }).map((item) => item.name)).toEqual(["Helmet Target"]);
+  });
+
+  it("filters vault weapons by saved local perk target rules", () => {
+    const targetRules: LocalTargetRules = {
+      action_policy: "notify_only",
+      armor: [],
+      weapons: [
+        {
+          id: "riskrunner-clear",
+          name: "Riskrunner 清怪",
+          item_hash: 1,
+          item_name: "Riskrunner",
+          conditions: [
+            { perk_hash: 11, perk_name: "Threat Detector" },
+            { perk_hash: 22, perk_name: "Voltshot" }
+          ]
+        }
+      ]
+    };
+
+    expect(filterVaultItems(items, {
+      group: "weapons",
+      query: "",
+      tag: "target",
+      localTargetRules: targetRules
+    }).map((item) => item.name)).toEqual(["Riskrunner"]);
+    expect(filterVaultItems(items, {
+      group: "weapons",
+      query: "tag:target",
+      localTargetRules: targetRules
+    }).map((item) => item.name)).toEqual(["Riskrunner"]);
+  });
+
   it("renders free-form Armor 3.0 stat filters without old armor stat labels", () => {
     const toolbar = readFileSync("packages/desktop/src/renderer/features/vault/VaultFilterToolbar.tsx", "utf8");
     const armorPanel = readFileSync("packages/desktop/src/renderer/features/vault/VaultArmorFilterPanel.tsx", "utf8");
@@ -486,6 +595,51 @@ describe("vault panel helpers", () => {
       .toEqual(["Thunderlord", "Helmet A"]);
     expect(selectVaultBatchItems(items, "noted", tags).map((item) => item.name))
       .toEqual(["Helmet A"]);
+  });
+
+  it("selects local target matches for batch tagging", () => {
+    const targetRules: LocalTargetRules = {
+      action_policy: "notify_only",
+      armor: [
+        {
+          id: "high-health",
+          name: "生命值 20+",
+          conditions: [{ stat: "health", min: 20 }]
+        }
+      ],
+      weapons: [
+        {
+          id: "riskrunner-perk",
+          name: "Riskrunner 目标 perk",
+          item_hash: 1,
+          item_name: "Riskrunner",
+          conditions: [{ perk_hash: 11, perk_name: "目标 perk" }]
+        }
+      ]
+    };
+    const targetItems: AccountItemSummary[] = [
+      {
+        ...items[0],
+        socket_plugs: [{ hash: 11, name: "目标 perk" }]
+      },
+      items[1],
+      {
+        ...items[3],
+        armor_stats: {
+          total: 55,
+          health: 22,
+          melee: 5,
+          grenade: 8,
+          super: 7,
+          class: 6,
+          weapon: 7
+        }
+      },
+      items[4]
+    ];
+
+    expect(selectVaultBatchItems(targetItems, "target", { items: {} }, targetRules).map((item) => item.name))
+      .toEqual(["Riskrunner", "Helmet A"]);
   });
 
   it("selects manually marked cleanup items instead of score suggestions", () => {
@@ -654,6 +808,9 @@ describe("vault panel helpers", () => {
     expect(duplicateGroups).toContain("其余标记可清理");
     expect(duplicateGroups).toContain("清除本组标记");
     expect(duplicateGroups).toContain("formatVaultItemMeta(item)");
+    expect(duplicateGroups).toContain("evaluateLocalTargets");
+    expect(duplicateGroups).toContain("本地目标");
+    expect(source).toContain("localTargetRules={props.localTargetRules}");
     expect(listItem).toContain("wishlist-hit-badge");
     expect(listItem).toContain("DIM 愿望单");
     expect(source).toContain("wishlistSummaryCount");
@@ -758,6 +915,51 @@ describe("vault panel helpers", () => {
     expect(listItem).toContain("export function VaultListItem");
     expect(listItem).toContain("formatVaultItemMeta");
     expect(listItem).toContain("formatCommunityPerkPreview");
+  });
+  it("renders vault items as card-grid equipment tiles", () => {
+    const itemSections = readFileSync("packages/desktop/src/renderer/features/vault/VaultItemSections.tsx", "utf8");
+    const listItem = readFileSync("packages/desktop/src/renderer/features/vault/VaultListItem.tsx", "utf8");
+    const styles = readFileSync("packages/desktop/src/renderer/styles.css", "utf8");
+
+    expect(itemSections).toContain("vault-card-grid");
+    expect(itemSections).not.toContain("className=\"vault-list\"");
+    expect(listItem).toContain("vault-item-card");
+    expect(listItem).toContain("vault-card-visual");
+    expect(listItem).toContain("vault-card-body");
+    expect(listItem).toContain("vault-card-meta");
+    expect(listItem).toContain("vault-card-signals");
+    expect(listItem).toContain("vault-card-actions");
+    expect(styles).toContain(".vault-card-grid");
+    expect(styles).toContain(".vault-item-card");
+    expect(styles).toContain(".vault-card-actions");
+  });
+  it("renders extended local tag actions for farming and loadout use", () => {
+    const coreTags = readFileSync("packages/core/src/vault/tags.ts", "utf8");
+    const apiTypes = readFileSync("packages/desktop/src/renderer/api/vaultApi.ts", "utf8");
+    const filters = readFileSync("packages/desktop/src/renderer/features/vault/vaultFilters.ts", "utf8");
+    const listItem = readFileSync("packages/desktop/src/renderer/features/vault/VaultListItem.tsx", "utf8");
+    const organizePanel = readFileSync("packages/desktop/src/renderer/features/vault/VaultOrganizePanel.tsx", "utf8");
+    const selection = readFileSync("packages/desktop/src/renderer/features/vault/vaultSelection.ts", "utf8");
+    const styles = readFileSync("packages/desktop/src/renderer/styles.css", "utf8");
+
+    expect(coreTags).toContain('"farm"');
+    expect(coreTags).toContain('"loadout"');
+    expect(apiTypes).toContain('"farm"');
+    expect(apiTypes).toContain('"loadout"');
+    expect(filters).toContain('farm: "待刷"');
+    expect(filters).toContain('loadout: "配装用"');
+    expect(filters).toContain('value === "farm"');
+    expect(filters).toContain('value === "loadout"');
+    expect(selection).toContain('"farm"');
+    expect(selection).toContain('"loadout"');
+    expect(listItem).toContain('onSaveTag(props.item, "farm")');
+    expect(listItem).toContain('onSaveTag(props.item, "loadout")');
+    expect(organizePanel).toContain('onBatchSelectionChange("farm")');
+    expect(organizePanel).toContain('onBatchSelectionChange("loadout")');
+    expect(organizePanel).toContain('onApplyBatchTag("farm")');
+    expect(organizePanel).toContain('onApplyBatchTag("loadout")');
+    expect(styles).toContain(".vault-tag-current.tag-farm");
+    expect(styles).toContain(".vault-tag-current.tag-loadout");
   });
   it("shows local loadout highlights inside the vault list", () => {
     const source = readFileSync("packages/desktop/src/renderer/components/VaultPanel.tsx", "utf8");

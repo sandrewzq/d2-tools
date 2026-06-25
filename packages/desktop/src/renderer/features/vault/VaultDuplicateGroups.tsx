@@ -2,8 +2,10 @@ import type {
   DuplicateAnalysisResult,
   DuplicateItemGroup
 } from "@d2-tools/core/analysis/duplicates";
+import { evaluateLocalTargets } from "@d2-tools/core/analysis/targets";
 import type {
   AccountItemSummary,
+  LocalTargetRules,
   VaultTags
 } from "../../api/client";
 import { formatVaultItemMeta } from "./VaultListItem";
@@ -17,6 +19,7 @@ export function VaultDuplicateGroups(props: {
   duplicateSummary: DuplicateAnalysisResult;
   items: AccountItemSummary[];
   tags: VaultTags;
+  localTargetRules?: LocalTargetRules | null;
   selectedKeys: Set<string>;
   openingItemKey?: string;
   isBatchSaving: boolean;
@@ -101,6 +104,9 @@ export function VaultDuplicateGroups(props: {
               const item = props.items.find((candidate) => getVaultItemKey(candidate) === entry.item_key);
               const itemMeta = item ? formatVaultItemMeta(item) : "未找到实例信息";
               const note = item ? props.tags.items[getVaultItemKey(item)]?.note : undefined;
+              const localTarget = item
+                ? evaluateLocalTargets({ ...item, socket_plugs: item.socket_plugs ?? [] }, props.localTargetRules ?? undefined)
+                : { matched: false, labels: [] };
               const isSelected = props.selectedKeys.has(entry.item_key);
               const duplicateTone = entry.tag === "keep" || entry.tag === "review" || entry.tag === "junk"
                 ? entry.tag
@@ -123,6 +129,7 @@ export function VaultDuplicateGroups(props: {
                     <span>{entry.roll_text || "暂无实际 roll"}</span>
                     <small className="duplicate-row-meta">{itemMeta}</small>
                     <small>{entry.locked ? "已锁定" : "未锁定"} / {entry.tag ?? "未标记"}{isSelected ? " / 已选候选" : ""}</small>
+                    {localTarget.matched ? <small className="duplicate-row-note">本地目标：{localTarget.labels.join(" / ")}</small> : null}
                     {note ? <small className="duplicate-row-note">备注：{note}</small> : null}
                   </button>
                   <div className="duplicate-row-actions">

@@ -15,7 +15,9 @@
 
 ```text
 packages/
-  core/      核心能力：Bungie、Manifest、分析、配置、本地存储
+  core/      领域模型、业务规则、分析逻辑、schema、纯函数
+  services/  跨端服务接口和平台 adapter
+  app/       跨端前端查询层、状态模型、页面 workspace 编排
   http/      本地 HTTP / 工具接口层
   desktop/   Electron 桌面应用
 docs/        正式文档
@@ -24,18 +26,26 @@ docs/        正式文档
 ### 2.1 核心边界
 
 - `packages/core`
-  - 负责 Bungie API 访问
-  - 负责 Manifest 读取和解析
-  - 负责本地配置、标签、愿望单、日志等存储
-  - 负责确定性分析逻辑
+  - 负责领域模型、schema 和跨端类型
+  - 负责确定性分析、评分、愿望单、目标规则等纯业务规则
+  - 负责 Bungie / Manifest 数据到领域模型的转换逻辑
+
+- `packages/services`
+  - 负责 Profile / Manifest / LocalData / AI 等服务接口
+  - 负责桌面、本地、Web、移动端或远端 API 的 adapter
+  - 负责把网络、存储、鉴权等平台能力收口到服务边界
+
+- `packages/app`
+  - 负责跨端前端查询层、状态模型和页面 workspace 编排
+  - 复用 services，不直接依赖 Electron、Node runtime 或桌面 UI
 
 - `packages/http`
   - 暴露本地 HTTP / 工具接口
-  - 复用 core，不单独维护业务真相
+  - 复用 core / services，不单独维护业务真相
 
 - `packages/desktop`
   - 负责 GUI、Electron 主进程、preload、IPC 和前端交互
-  - 不重复实现 core 里的规则
+  - 负责桌面端导航、布局、窗口级交互、安装更新等系统能力
 
 ### 2.2 Renderer feature 边界
 
@@ -49,6 +59,7 @@ docs/        正式文档
 - 默认数据目录由 `packages/core/src/config/defaults.ts` 的平台感知 helper 统一计算：Windows 使用 `%APPDATA%\d2-tools`，macOS 使用 `~/Library/Application Support/d2-tools`，Linux / 其他平台使用 `$XDG_DATA_HOME/d2-tools` 或 `~/.local/share/d2-tools`。
 - `packages/desktop/test/renderer-boundaries.test.ts` 会拦截 feature 互相 import 和 shared 反向依赖 feature。
 - `packages/desktop/test/renderer-api-boundaries.test.ts` 会拦截把大型 DTO 类型重新塞回 `api/client.ts` 或重新塞回一个巨型 `api/types.ts`。
+- 源码目录下的 `packages/*/src/**/*.js` 和 `packages/*/src/**/*.d.ts` 默认视为构建或迁移过程产生的衍生文件，不作为正式源码提交目标；常规开发应以 `.ts` / `.tsx` 为准，构建产物优先落到 `dist/`。
 
 ### 2.3 并行开发规则
 
@@ -114,6 +125,14 @@ npx pnpm@9.15.0 test
 ```powershell
 npx pnpm@9.15.0 typecheck
 ```
+
+GitHub Actions 中的最小 CI 会在 Windows runner 上执行：
+
+1. `pnpm install --frozen-lockfile`
+2. `pnpm test`
+3. `pnpm typecheck`
+
+也就是说，任何会影响依赖锁文件、测试结果、类型边界或文档检查脚本的改动，都会在 PR / push 阶段被拦截。
 
 如果你只想跑桌面端某个定向测试，也可以直接用：
 
@@ -222,6 +241,7 @@ docs/
 
 这里只保留不适合写进 `todo.md` 的长期演进方向，不单独维护路线图文档：
 
+- 多端架构：按 `core -> services -> app -> 端 UI` 收口业务、服务和前端查询层，桌面端先落地，Web 和移动端后续复用同一套边界。
 - 仓库整理体验：继续增强同名对比、批量处理、护甲属性价值判断和评分解释。
 - 今日 / 本周信息：优先补齐可确认的商人、遗失区域和轮换线索，保持“只展示可确认数据”。
 - AI 助手：围绕真实账号数据问答、仓库建议、结果结构化和安全边界继续打磨。
@@ -255,3 +275,4 @@ docs/
 - 设计/计划文档默认不作为正式入口；需要长期保留的结论应合并进正式文档
 - `docs/work/` 只保留仍对当前工作有直接帮助的材料，不再额外维护索引文档
 - 只有确认已合并到正式文档或明确无参考价值的材料，才可以删除
+- 本地临时日志、调试输出、pid / port / token 等运行态文件统一写到 `.local-data/tmp/`；不要把 `tmp-*`、`.tmp-*`、`*.err.log` 直接写到仓库根目录

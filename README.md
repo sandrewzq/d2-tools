@@ -1,19 +1,20 @@
 # d2-tools
 
-d2-tools 是一个面向 Windows 玩家、本地运行的 Destiny 2 中文桌面助手。它不是去复制某一个现成网站，而是把 DIM、命运之小日向 Bot、d2-skill、Light.gg、Today In Destiny、Raid Report、Destiny Tracker、D2Checkpoint 这些方向里适合日常使用的能力，整理成一个更适合普通玩家的图形界面。
+d2-tools 是一个给普通玩家使用的、面向 Windows 的 Destiny 2 中文桌面工具。
 
-你不需要安装 Node.js、Python、Docker，也不需要部署服务端。下载安装器并运行，按向导完成安装后就能用。
+它把账号查看、仓库整理、资料库搜索、今日 / 本周信息和 AI 辅助整合到一个本地运行的桌面客户端里，尽量减少你在多个网站、网页工具和零散信息源之间来回切换的成本。
 
-## 适合谁
-
-- 想用中文界面查看 Destiny 2 账号、仓库、装备和材料的玩家
-- 想整理仓库、标记可清理装备、做同名 roll 对比的玩家
-- 想用 AI 基于自己账号数据做分析，但不想把工具做成命令行的玩家
-- 愿意自己创建 Bungie Application 并填写到本机配置里的玩家
+- 中文界面，优先面向普通玩家而不是开发者
+- Windows 本地运行，不需要自己部署服务
+- 账号、仓库、资料库、今日 / 本周、AI 一体化
+- 配置、OAuth token、标签和本地数据保存在本机
+- 基于 Bungie 官方授权流程，不走第三方账号中转
 
 ## 下载与运行
 
 当前公开测试版本和下载入口请查看 [GitHub Releases](https://github.com/sandrewzq/d2-tools/releases)。
+
+系统要求：Windows x64；首次使用需要按 [Bungie 配置指南](docs/bungie-setup.md) 创建并填写自己的 Bungie Application。
 
 Windows x64 安装器：
 
@@ -21,7 +22,7 @@ Windows x64 安装器：
 d2-tools-setup-<version>.exe
 ```
 
-安装器文件名带版本号，安装后的文件夹默认不带版本号。安装时可以选择安装位置；选择同一目录会覆盖更新，选择不同目录可以保留多个版本。
+你不需要安装 Node.js、Python、Docker，也不需要手动部署服务。下载安装器并运行，按向导完成安装后即可开始使用。
 
 程序的本地数据默认保存在：
 
@@ -32,6 +33,13 @@ d2-tools-setup-<version>.exe
 这里会保存你的本地配置、Bungie OAuth token、Manifest 缓存、仓库标签、备注和操作日志。安装或更新程序时，这些数据不会被自动删除。
 
 如果你以前用过旧项目名 `d2-service`，首次运行新版本时会自动把旧数据目录复制到 `%APPDATA%\d2-tools`。程序不会删除旧目录，确认新版本正常后再决定是否手动清理。
+
+## 适合谁
+
+- 想用中文界面查看 Destiny 2 账号、仓库、装备和材料的玩家
+- 想整理仓库、标记可清理装备、做同名 roll 对比的玩家
+- 想在一个工具里同时处理账号、资料库、今日 / 本周和 AI 分析的玩家
+- 愿意自己创建 Bungie Application 并填写到本机配置里的玩家
 
 ## 三分钟快速开始
 
@@ -61,6 +69,9 @@ d2-tools-setup-<version>.exe
 - [Bungie 配置指南](docs/bungie-setup.md)
 - [常见问题](docs/faq.md)
 - [安全说明](docs/security.md)
+- [支持与反馈](SUPPORT.md)
+
+如果你遇到使用问题，建议先看 FAQ、Bungie 配置指南和支持文档；如果涉及敏感信息、凭据或安全边界，请改看 [安全策略](SECURITY.md)。
 
 项目状态：
 
@@ -70,6 +81,8 @@ d2-tools-setup-<version>.exe
 开发者：
 
 - [开发说明](docs/development.md)
+- [贡献指南](CONTRIBUTING.md)
+- [安全策略](SECURITY.md)
 
 ## 安全边界
 
@@ -258,3 +271,18 @@ npx pnpm@9.15.0 package:win   # 仅打包
 ```
 
 更多开发和发布细节见 [开发说明](docs/development.md)。
+
+## License
+
+本项目基于 [MIT License](LICENSE) 开源。
+
+## Star History
+
+<a href="https://www.star-history.com/?repos=sandrewzq%2Fd2-tools&type=date&legend=top-left">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=sandrewzq/d2-tools&type=date&theme=dark&legend=top-left" />
+    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=sandrewzq/d2-tools&type=date&legend=top-left" />
+    <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=sandrewzq/d2-tools&type=date&legend=top-left" />
+  </picture>
+</a>
+

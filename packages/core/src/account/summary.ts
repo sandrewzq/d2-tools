@@ -7,6 +7,7 @@ import type { DefinitionComponentData, DefinitionRecord } from "../manifest/defi
 import type { BungieOAuthToken } from "../oauth/login.js";
 
 export type { AmmoTypeKey, EquipmentGroupKey } from "../items/classification.js";
+export type { WeaponFrameSummary } from "../items/weaponFrames.js";
 
 export type AccountItemSummary = {
   hash: number;
@@ -23,6 +24,7 @@ export type AccountItemSummary = {
   power?: number;
   locked?: boolean;
   armor_stats?: ArmorStatSummary;
+  armor_stat_breakdown?: ArmorStatBreakdownSummary;
   armor_energy?: ArmorEnergySummary;
   weapon_stats?: WeaponStatSummary;
   socket_plugs: AccountItemPlugSummary[];
@@ -30,6 +32,16 @@ export type AccountItemSummary = {
 
 export type ArmorStatSummary = Record<ArmorStatKey, number> & {
   total: number;
+};
+
+export type ArmorStatBreakdownEntry = {
+  base: number;
+  mod: number;
+  final: number;
+};
+
+export type ArmorStatBreakdownSummary = Record<ArmorStatKey, ArmorStatBreakdownEntry> & {
+  total: ArmorStatBreakdownEntry;
 };
 
 export type ArmorEnergySummary = {
@@ -263,6 +275,8 @@ const armorStatHashMap: Record<number, ArmorStatKey> = {
   2996146975: "weapon"
 };
 
+const armorStatKeys: ArmorStatKey[] = ["health", "melee", "grenade", "super", "class", "weapon"];
+
 const weaponStatHashMap: Record<number, WeaponStatKey> = {
   4043523819: "impact",
   1240592695: "range",
@@ -459,6 +473,12 @@ function summarizeItem(
   const armorStats = groupKey === "armor" ? summarizeArmorStats(instanceId, components) : undefined;
   if (armorStats) {
     summary.armor_stats = armorStats;
+    summary.armor_stat_breakdown = summarizeArmorStatBreakdown(
+      armorStats,
+      instanceId,
+      components,
+      definitions
+    );
   }
   const armorEnergy = groupKey === "armor" ? summarizeArmorEnergy(instance) : undefined;
   if (armorEnergy) {
@@ -562,6 +582,70 @@ function summarizeArmorStats(
     + summary.super
     + summary.class
     + summary.weapon;
+
+  return summary;
+}
+
+function summarizeArmorStatBreakdown(
+  armorStats: ArmorStatSummary,
+  instanceId: string | undefined,
+  components: DestinyProfileResponse["itemComponents"] | undefined,
+  definitions: DefinitionComponentData
+): ArmorStatBreakdownSummary {
+  const mods = summarizeArmorStatMods(instanceId, components, definitions);
+  const summary = {} as ArmorStatBreakdownSummary;
+
+  for (const key of armorStatKeys) {
+    const finalValue = armorStats[key] ?? 0;
+    const modValue = mods[key] ?? 0;
+    summary[key] = {
+      base: finalValue - modValue,
+      mod: modValue,
+      final: finalValue
+    };
+  }
+
+  const finalTotal = armorStats.total;
+  const modTotal = armorStatKeys.reduce((total, key) => total + summary[key].mod, 0);
+  summary.total = {
+    base: finalTotal - modTotal,
+    mod: modTotal,
+    final: finalTotal
+  };
+
+  return summary;
+}
+
+function summarizeArmorStatMods(
+  instanceId: string | undefined,
+  components: DestinyProfileResponse["itemComponents"] | undefined,
+  definitions: DefinitionComponentData
+): Record<ArmorStatKey, number> {
+  const summary = Object.fromEntries(armorStatKeys.map((key) => [key, 0])) as Record<ArmorStatKey, number>;
+  if (!instanceId) {
+    return summary;
+  }
+
+  const sockets = components?.sockets?.data?.[instanceId]?.sockets ?? [];
+  for (const socket of sockets) {
+    if (socket.isVisible === false || !socket.plugHash) {
+      continue;
+    }
+
+    const definition = definitions[String(socket.plugHash)] as DefinitionRecord | undefined;
+    for (const stat of definition?.investmentStats ?? []) {
+      if (stat.isConditionallyActive) {
+        continue;
+      }
+
+      const key = armorStatHashMap[Number(stat.statTypeHash)];
+      if (!key || typeof stat.value !== "number") {
+        continue;
+      }
+
+      summary[key] += stat.value;
+    }
+  }
 
   return summary;
 }

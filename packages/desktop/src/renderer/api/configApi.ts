@@ -2,7 +2,7 @@ export type ConfigApi = {
   getHealth(): Promise<{ ok: true; service: string; version: string; timestamp: string }>;
   getConfig(): Promise<D2Config>;
   saveConfig(config: D2Config): Promise<D2Config>;
-  listAiModels(config: D2Config): Promise<AiModelListResult>;
+  listAiModels(ai: AiSettings): Promise<AiModelListResult>;
   testAiConnection(): Promise<AiConnectionTestResult>;
 };
 
@@ -30,6 +30,8 @@ export type D2Config = {
     write_actions_enabled: boolean;
   };
 };
+
+export type AiSettings = D2Config["ai"];
 
 export type AiModelListResult = {
   protocol: string;

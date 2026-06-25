@@ -5,6 +5,7 @@ import {
   addAssistantHistoryEntry,
   clearAssistantHistory,
   loadAssistantHistory,
+  removeAssistantHistoryEntry,
   saveAssistantSession,
   type AssistantStorageLike
 } from "../src/renderer/utils/assistantHistory";
@@ -73,33 +74,27 @@ describe("assistant page context and history", () => {
     expect(storage.getItem("d2-tools.ai.chat-history")).toContain("新问题");
   });
 
-  it("updates an existing assistant session instead of creating parallel duplicate sessions", () => {
+  it("removes a single assistant history entry without affecting the others", () => {
     const storage = createMemoryStorage();
     clearAssistantHistory(storage);
 
     saveAssistantSession(storage, {
-      id: "session-1",
-      title: "第一轮问题",
+      id: "first",
+      title: "第一个会话",
       page_label: "首页",
-      messages: [{ role: "user", text: "第一轮问题" }]
+      messages: [{ role: "user", text: "第一个问题" }]
     });
     saveAssistantSession(storage, {
-      id: "session-1",
-      title: "第一轮问题",
+      id: "second",
+      title: "第二个会话",
       page_label: "仓库",
-      messages: [
-        { role: "user", text: "第一轮问题" },
-        { role: "assistant", text: "第一轮回答" },
-        { role: "user", text: "第二轮问题" }
-      ]
+      messages: [{ role: "user", text: "第二个问题" }]
     });
 
-    const history = loadAssistantHistory(storage);
+    const nextHistory = removeAssistantHistoryEntry(storage, "first");
 
-    expect(history).toHaveLength(1);
-    expect(history[0]?.id).toBe("session-1");
-    expect(history[0]?.page_label).toBe("仓库");
-    expect(history[0]?.messages.map((message) => message.text)).toContain("第二轮问题");
+    expect(nextHistory.map((entry) => entry.id)).toEqual(["second"]);
+    expect(loadAssistantHistory(storage).map((entry) => entry.id)).toEqual(["second"]);
   });
 
   it("shows explicit session controls in the AI panel", () => {
@@ -108,6 +103,7 @@ describe("assistant page context and history", () => {
     expect(aiPanel).toContain("activeSessionId");
     expect(aiPanel).toContain("startNewSession");
     expect(aiPanel).toContain("switchSession");
+    expect(aiPanel).toContain("删除");
     expect(aiPanel).toContain("新会话");
     expect(aiPanel).toContain("会话列表");
     expect(aiPanel).toContain("恢复");
@@ -117,7 +113,8 @@ describe("assistant page context and history", () => {
     const aiPanel = readSource("src/renderer/components/AiAnalysisPanel.tsx");
 
     expect(aiPanel).toContain("const safeTags = props.tags ?? { items: {} }");
-    expect(aiPanel).toContain("tags: safeTags as never");
+    expect(aiPanel).toContain("tags: safeTags");
+    expect(aiPanel).not.toContain(" as never");
   });
 });
 

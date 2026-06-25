@@ -19,6 +19,7 @@ const domainApiFiles = [
   "loadoutApi.ts",
   "manifestApi.ts",
   "sharedTypes.ts",
+  "targetApi.ts",
   "updateApi.ts",
   "vaultApi.ts"
 ];
@@ -31,11 +32,15 @@ describe("renderer API boundary", () => {
     const typesSource = readFileSync(typesPath, "utf8");
     const accountApiSource = readFileSync(accountApiPath, "utf8");
     const dailyApiSource = readFileSync(dailyApiPath, "utf8");
+    const sharedTypesSource = readFileSync(`${apiRoot}sharedTypes.ts`, "utf8");
 
     expect(typesSource).toContain("export type AppApi");
     expect(countExportType(typesSource, "AppApi")).toBe(1);
     expect(countExportType(accountApiSource, "AccountSummary")).toBe(1);
     expect(countExportType(dailyApiSource, "DailySummary")).toBe(1);
+    expect(sharedTypesSource).toContain("@d2-tools/core/account/summary");
+    expect(sharedTypesSource).not.toContain("export type AccountItemSummary =");
+    expect(sharedTypesSource).not.toContain("socket_plugs?:");
 
     expect(clientSource).toContain("import type { AppApi } from \"./types\"");
     expect(clientSource).toContain("export const api");

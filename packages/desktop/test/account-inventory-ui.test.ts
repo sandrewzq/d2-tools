@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 const desktopRoot = fileURLToPath(new URL("..", import.meta.url));
 
 describe("account inventory UI", () => {
-  it("uses DIM-style character tabs and separates equipped items from inventory", () => {
+  it("uses DIM-style character tabs and splits equipped items from carried inventory in the main workbench", () => {
     const homePage = readFileSync(join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"), "utf8");
     const accountPage = readFileSync(
       join(desktopRoot, "src", "renderer", "features", "account", "AccountPage.tsx"),
@@ -23,19 +23,22 @@ describe("account inventory UI", () => {
     expect(accountPage).toContain("selectedCharacterId");
     expect(accountPage).toContain("character-tabs");
     expect(accountPage).toContain("character-tab");
-    expect(accountPage).toContain("getCharacterCombinedItems");
     expect(accountPage).toContain("当前角色装备");
+    expect(accountPage).toContain("当前角色背包");
     expect(accountPage).toContain("account-primary-workbench");
     expect(accountPage).toContain("account-secondary-workbench");
+    expect(accountPage).toContain("account-character-summary");
+    expect(accountPage).toContain("account-equipped-panel");
+    expect(accountPage).toContain("account-inventory-panel");
+    expect(accountPage).toContain("groupAccountItemsBySlot(selectedCharacter.equipped_items)");
+    expect(accountPage).toContain("groupAccountItemsBySlot(selectedCharacter.inventory_items)");
     expect(accountPage).toContain("account-slot-category");
     expect(accountPage).toContain("account-slot-group");
-    expect(accountPage).toContain('renderAccountSlotSourceCluster("已装备"');
-    expect(accountPage).toContain('renderAccountSlotSourceCluster("背包"');
-    expect(accountPage).toContain('isAccountItemFromSource(item, "equipped")');
-    expect(accountPage).toContain('isAccountItemFromSource(item, "inventory")');
-    expect(accountPage).toContain("account-slot-source-cluster");
+    expect(accountPage).not.toContain("account-slot-source-cluster");
+    expect(accountPage).not.toContain('renderAccountSlotSourceCluster("已装备"');
+    expect(accountPage).not.toContain('renderAccountSlotSourceCluster("背包"');
     expect(accountPage).toContain('"equipment-item"');
-    expect(accountPage).toContain('isEquipped ? "equipped" : "inventory"');
+    expect(accountPage).toContain('source === "equipped" ? "equipped" : "inventory"');
     expect(accountPage).toContain("装备最高光等");
     expect(loadoutWriteHook).toContain("createHighestPowerEquipPlan");
     expect(accountPage).toContain("source_character_id: selectedCharacter.character_id");
@@ -83,6 +86,21 @@ describe("account inventory UI", () => {
     expect(homePage).toContain('props.state.nextStep !== "home"');
     expect(homePage).toContain("void loadAccountSummary()");
     expect(accountHook).toContain("登录可能已失效，请重新登录 Bungie");
+  });
+
+  it("loads account workspace through the shared app and services layers", () => {
+    const accountHook = readFileSync(
+      join(desktopRoot, "src", "renderer", "features", "account", "useAccountWorkspace.ts"),
+      "utf8"
+    );
+
+    expect(accountHook).toContain('import { loadAccountWorkspace, loadAccountDerivedWorkspace } from "@d2-tools/app"');
+    expect(accountHook).toContain('import { services } from "../../api/services"');
+    expect(accountHook).toContain("loadAccountWorkspace(services)");
+    expect(accountHook).toContain("loadAccountDerivedWorkspace(services, summary)");
+    expect(accountHook).not.toContain("api.getAccountSummary(), api.getVaultTags()");
+    expect(accountHook).not.toContain("api.getActivitySummary({");
+    expect(accountHook).not.toContain("api.matchCommunityVaultItems(");
   });
 
   it("shows profile materials instead of a misleading vault preview", () => {

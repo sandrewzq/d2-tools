@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import type {
   AccountItemSummary,
   DimWishlist,
+  LocalTargetRules,
   SaveVaultTagInput,
   VaultItemMatchInfo,
   VaultTags,
@@ -29,6 +30,7 @@ import {
   buildVaultGroups,
   buildVaultSections,
   buildVaultSlotFilters,
+  countLocalTargetMatches,
   defaultVaultGroupTab,
   filterVaultItems,
   formatArmorStatsInline,
@@ -77,6 +79,7 @@ export {
   buildVaultGroups,
   buildVaultSections,
   buildVaultSlotFilters,
+  countLocalTargetMatches,
   defaultVaultGroupTab,
   filterVaultItems,
   formatArmorStatsInline,
@@ -118,6 +121,7 @@ export function VaultPanel(props: {
   highlightedLabel?: string;
   tags: VaultTags;
   wishlist?: DimWishlist | null;
+  localTargetRules?: LocalTargetRules | null;
   openingItemKey?: string;
   communityMatch?: Map<number, VaultItemMatchInfo>;
   onContextFactsChange?: (facts: string[]) => void;
@@ -156,9 +160,10 @@ export function VaultPanel(props: {
       ammo: ammoFilter,
       armorStatRules,
       tags: props.tags,
-      wishlist: props.wishlist
+      wishlist: props.wishlist,
+      localTargetRules: props.localTargetRules
     })),
-    [ammoFilter, armorStatRules, group, lockFilter, props.items, props.tags, props.wishlist, slotFilter, tagFilter]
+    [ammoFilter, armorStatRules, group, lockFilter, props.items, props.localTargetRules, props.tags, props.wishlist, slotFilter, tagFilter]
   );
   const slotFilters = useMemo(
     () => buildVaultSlotFilters(filterVaultItems(props.items, {
@@ -170,9 +175,10 @@ export function VaultPanel(props: {
       armorStatRules,
       frames: frameFilters,
       tags: props.tags,
-      wishlist: props.wishlist
+      wishlist: props.wishlist,
+      localTargetRules: props.localTargetRules
     })),
-    [ammoFilter, armorStatRules, frameFilters, group, lockFilter, props.items, props.tags, props.wishlist, tagFilter]
+    [ammoFilter, armorStatRules, frameFilters, group, lockFilter, props.items, props.localTargetRules, props.tags, props.wishlist, tagFilter]
   );
   const filteredItems = useMemo(
     () => sortVaultItems(
@@ -186,12 +192,13 @@ export function VaultPanel(props: {
         armorStatRules,
         frames: frameFilters,
         tags: props.tags,
-        wishlist: props.wishlist
+        wishlist: props.wishlist,
+        localTargetRules: props.localTargetRules
       }),
       sortKey,
       props.tags
     ),
-    [ammoFilter, armorStatRules, frameFilters, group, lockFilter, props.items, props.tags, props.wishlist, query, slotFilter, sortKey, tagFilter]
+    [ammoFilter, armorStatRules, frameFilters, group, lockFilter, props.items, props.localTargetRules, props.tags, props.wishlist, query, slotFilter, sortKey, tagFilter]
   );
   const filteredSections = useMemo(
     () => buildVaultSections(filteredItems),
@@ -215,6 +222,10 @@ export function VaultPanel(props: {
   const wishlistSummaryCount = useMemo(
     () => countWishlistMatches(props.items, props.wishlist),
     [props.items, props.wishlist]
+  );
+  const targetSummaryCount = useMemo(
+    () => countLocalTargetMatches(props.items, props.localTargetRules),
+    [props.items, props.localTargetRules]
   );
   const loadoutMatchCount = useMemo(
     () => props.highlightedItemKeys
@@ -279,7 +290,7 @@ export function VaultPanel(props: {
   }, [contextFacts, props.onContextFactsChange]);
 
   function setBatchSelection(mode: VaultBatchSelectionMode) {
-    setSelectedKeys(new Set(selectVaultBatchItems(filteredItems, mode, props.tags).map(getVaultItemKey)));
+    setSelectedKeys(new Set(selectVaultBatchItems(filteredItems, mode, props.tags, props.localTargetRules).map(getVaultItemKey)));
     setBatchMessage("");
   }
 
@@ -317,7 +328,7 @@ export function VaultPanel(props: {
   }
 
   function addArmorStatRule() {
-    setArmorStatRules((current) => [...current, { stat: "", min: "" }]);
+    setArmorStatRules((current) => [...current, { stat: "", min: 0 }]);
   }
 
   function updateArmorStatRule(index: number, rule: VaultArmorStatRule) {
@@ -414,6 +425,12 @@ export function VaultPanel(props: {
           <span>当前仓库里命中你已导入 DIM 规则的装备数量，可直接用“DIM 愿望单”筛选查看。</span>
         </div>
       ) : null}
+      {props.localTargetRules?.armor.length || props.localTargetRules?.weapons?.length ? (
+        <div className="vault-duplicate-summary">
+          <strong>本地目标命中 {targetSummaryCount} 件</strong>
+          <span>按你保存的护甲属性最低值或武器 perk 规则匹配，可直接用“目标命中”筛选查看。</span>
+        </div>
+      ) : null}
       <VaultFilterToolbar
         query={query}
         sortKey={sortKey}
@@ -446,6 +463,7 @@ export function VaultPanel(props: {
           duplicateSummary={duplicateSummary}
           items={props.items}
           tags={props.tags}
+          localTargetRules={props.localTargetRules}
           selectedKeys={selectedKeys}
           openingItemKey={props.openingItemKey}
           isBatchSaving={isBatchSaving}
@@ -459,6 +477,7 @@ export function VaultPanel(props: {
           highlightedItemKeys={props.highlightedItemKeys}
           tags={props.tags}
           wishlist={props.wishlist}
+          localTargetRules={props.localTargetRules}
           communityMatch={props.communityMatch}
           isOrganizing={isOrganizing}
           selectedKeys={selectedKeys}

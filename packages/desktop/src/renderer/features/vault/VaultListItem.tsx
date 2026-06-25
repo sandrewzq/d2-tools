@@ -1,7 +1,9 @@
 import { evaluateWishlistRoll } from "@d2-tools/core/analysis/wishlist";
+import { evaluateLocalTargets } from "@d2-tools/core/analysis/targets";
 import type {
   AccountItemSummary,
   DimWishlist,
+  LocalTargetRules,
   VaultItemMatchInfo,
   VaultTags,
   VaultTagValue
@@ -23,6 +25,7 @@ export function VaultListItem(props: {
   highlightedItemKeys?: LoadoutTemplateLookup | null;
   tags: VaultTags;
   wishlist?: DimWishlist | null;
+  localTargetRules?: LocalTargetRules | null;
   communityMatch?: VaultItemMatchInfo;
   isOrganizing: boolean;
   isSelected: boolean;
@@ -33,6 +36,7 @@ export function VaultListItem(props: {
 }) {
   const note = props.tags.items[getVaultItemKey(props.item)]?.note;
   const wishlist = evaluateWishlistRoll(normalizeCoreItem(props.item), props.wishlist ?? undefined);
+  const localTarget = evaluateLocalTargets(normalizeCoreItem(props.item), props.localTargetRules ?? undefined);
   const communityMatch = props.communityMatch;
   const isPending = getVaultItemKey(props.item) === props.openingItemKey;
   const isLoadoutMatch = matchesLoadoutTemplateItem(props.item, props.highlightedItemKeys);
@@ -40,9 +44,16 @@ export function VaultListItem(props: {
   const tagLabel = tagLabelForItem(props.item, props.tags);
 
   return (
-    <article className="vault-list-item">
+    <article
+      className={[
+        "vault-item-card",
+        props.isSelected ? "selected" : "",
+        isPending ? "pending" : "",
+        isLoadoutMatch ? "loadout-highlight" : ""
+      ].filter(Boolean).join(" ")}
+    >
       {props.isOrganizing ? (
-        <label className="vault-select-row">
+        <label className="vault-card-select">
           <input
             checked={props.isSelected}
             type="checkbox"
@@ -53,52 +64,60 @@ export function VaultListItem(props: {
       ) : null}
       <button
         type="button"
-        className={[
-          "vault-list-main",
-          isPending ? "pending" : "",
-          isLoadoutMatch ? "loadout-highlight" : ""
-        ].filter(Boolean).join(" ")}
+        className="vault-card-main"
         aria-busy={isPending}
         onClick={() => props.onOpenItem(props.item)}
       >
-        {props.item.icon ? <img alt="" src={props.item.icon} /> : <div className="item-icon-placeholder" />}
-        <div>
+        <div className="vault-card-visual">
+          {props.item.icon ? <img alt="" src={props.item.icon} /> : <div className="item-icon-placeholder" />}
+        </div>
+        <div className="vault-card-body">
           <div className="vault-title-row">
             <strong>{props.item.name}</strong>
             <span className={`vault-score-badge score-${tagValue}`}>{tagLabel}</span>
           </div>
-          {isLoadoutMatch ? <small className="loadout-template-badge">方案命中</small> : null}
-          <span>{formatVaultItemMeta(props.item)}</span>
-          {wishlist.matched ? (
-            <small className="wishlist-hit">
-              <span className="wishlist-hit-badge">DIM 愿望单</span>
-              <span>{formatWishlistHint(wishlist.labels)}</span>
-            </small>
-          ) : null}
-          {communityMatch && communityMatch.matched > 0 ? (
-            <small className="community-match">
-              <span className="community-match-badge">社区推荐</span>
-              <span>命中 {communityMatch.matched} 个组合{communityMatch.modes.length ? ` · ${communityMatch.modes.map(formatCommunityMode).join(" / ")}` : ""}</span>
-            </small>
-          ) : null}
+          <span className="vault-card-meta">{formatVaultItemMeta(props.item)}</span>
+          <div className="vault-card-signals">
+            {isLoadoutMatch ? <small className="loadout-template-badge">方案命中</small> : null}
+            {wishlist.matched ? (
+              <small className="wishlist-hit">
+                <span className="wishlist-hit-badge">DIM 愿望单</span>
+                <span>{formatWishlistHint(wishlist.labels)}</span>
+              </small>
+            ) : null}
+            {localTarget.matched ? (
+              <small className="target-hit">
+                <span className="target-hit-badge">本地目标</span>
+                <span>{localTarget.labels.join(" / ")}</span>
+              </small>
+            ) : null}
+            {communityMatch && communityMatch.matched > 0 ? (
+              <small className="community-match">
+                <span className="community-match-badge">社区推荐</span>
+                <span>命中 {communityMatch.matched} 个组合{communityMatch.modes.length ? ` · ${communityMatch.modes.map(formatCommunityMode).join(" / ")}` : ""}</span>
+              </small>
+            ) : null}
+          </div>
           {communityMatch && communityMatch.matched > 0 && formatCommunityPerkPreview(communityMatch.sample_perks) ? (
             <small className="community-match">
               {formatCommunityPerkPreview(communityMatch.sample_perks)}
             </small>
           ) : null}
           {props.item.socket_plugs?.length ? (
-            <small>{props.item.socket_plugs.slice(0, 4).map((plug) => plug.name).join(" / ")}</small>
+            <small className="vault-card-roll">{props.item.socket_plugs.slice(0, 4).map((plug) => plug.name).join(" / ")}</small>
           ) : null}
           {note ? <small className="vault-note-snippet">备注：{note}</small> : null}
         </div>
       </button>
-      <div className="vault-tag-row" aria-label={`${props.item.name} 本地标记`}>
+      <div className="vault-card-actions" aria-label={`${props.item.name} 本地标记`}>
         <span className={`vault-tag-current tag-${tagValueForItem(props.item, props.tags)}`}>
           {tagLabelForItem(props.item, props.tags)}
         </span>
         <div className="vault-tag-actions">
           <button type="button" onClick={() => props.onSaveTag(props.item, "keep")}>保留</button>
           <button type="button" onClick={() => props.onSaveTag(props.item, "review")}>关注</button>
+          <button type="button" onClick={() => props.onSaveTag(props.item, "farm")}>待刷</button>
+          <button type="button" onClick={() => props.onSaveTag(props.item, "loadout")}>配装用</button>
           <button type="button" onClick={() => props.onSaveTag(props.item, "junk")}>可清理</button>
           <button type="button" onClick={() => props.onSaveTag(props.item, "none")}>清除</button>
         </div>

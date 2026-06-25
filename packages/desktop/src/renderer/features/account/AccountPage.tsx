@@ -10,10 +10,6 @@ import {
 import { groupAccountItemsBySlot, type AccountSlotCategory } from "../../utils/accountSlots";
 
 type AccountItemSource = "equipped" | "inventory";
-type AccountItemWithSource = AccountItemSummary & { source_kind?: AccountItemSource };
-type AccountSlotCategoryWithSource = Omit<AccountSlotCategory, "groups"> & {
-  groups: Array<Omit<AccountSlotCategory["groups"][number], "items"> & { items: AccountItemWithSource[] }>;
-};
 export function AccountPage(props: {
   accountSummary: AccountSummary | null;
   selectedCharacterId: string;
@@ -98,7 +94,7 @@ export function AccountPage(props: {
           </div>
 
           <div className="account-primary-workbench">
-            <article className="character-card character-card-focused">
+            <article className="character-card character-card-focused account-character-summary">
               <div className="character-title">
                 {selectedCharacter.emblem_url ? <img alt="" src={selectedCharacter.emblem_url} /> : null}
                 <div>
@@ -136,23 +132,44 @@ export function AccountPage(props: {
                   </div>
                 ) : null}
               </div>
+            </article>
+
+            <section className="character-card account-equipped-panel">
               <div className="equipment-section-heading">
                 <h4>当前角色装备</h4>
                 <span>
-                  {selectedCharacter.equipped_items.length + selectedCharacter.inventory_items.length} 件
+                  {selectedCharacter.equipped_items.length} 件
                   {props.activeLoadoutTemplate ? ` / 方案命中 ${selectedCharacterLoadoutMatchCount}` : ""}
                 </span>
               </div>
               <AccountSlotCategories
-                categories={groupAccountItemsBySlot(getCharacterCombinedItems(selectedCharacter)) as AccountSlotCategoryWithSource[]}
+                categories={groupAccountItemsBySlot(selectedCharacter.equipped_items)}
                 highlightedTemplate={props.activeLoadoutLookup}
                 openingItemKey={props.itemDetailLoadingKey}
+                source="equipped"
                 onOpenItem={(item) => props.onOpenItem(item, {
                   source_character_id: selectedCharacter.character_id,
-                  source_kind: isAccountItemFromSource(item, "equipped") ? "equipped" : "inventory"
+                  source_kind: "equipped"
                 })}
               />
-            </article>
+            </section>
+
+            <section className="character-card account-inventory-panel">
+              <div className="equipment-section-heading">
+                <h4>当前角色背包</h4>
+                <span>{selectedCharacter.inventory_items.length} 件</span>
+              </div>
+              <AccountSlotCategories
+                categories={groupAccountItemsBySlot(selectedCharacter.inventory_items)}
+                highlightedTemplate={props.activeLoadoutLookup}
+                openingItemKey={props.itemDetailLoadingKey}
+                source="inventory"
+                onOpenItem={(item) => props.onOpenItem(item, {
+                  source_character_id: selectedCharacter.character_id,
+                  source_kind: "inventory"
+                })}
+              />
+            </section>
           </div>
 
           <div className="account-secondary-workbench">
@@ -271,10 +288,11 @@ export function AccountPage(props: {
 }
 
 function AccountSlotCategories(props: {
-  categories: AccountSlotCategoryWithSource[];
+  categories: AccountSlotCategory[];
   highlightedTemplate?: LoadoutTemplateLookup | null;
   openingItemKey: string;
-  onOpenItem: (item: AccountItemWithSource) => void;
+  source: AccountItemSource;
+  onOpenItem: (item: AccountItemSummary) => void;
 }) {
   return (
     <div className="account-slot-categories">
@@ -291,10 +309,7 @@ function AccountSlotCategories(props: {
                   <strong>{group.label}</strong>
                   <span>{group.items.length} 件</span>
                 </div>
-                <div className="account-slot-source-cluster">
-                  {renderAccountSlotSourceCluster("已装备", group.items.filter((item) => isAccountItemFromSource(item, "equipped")), props)}
-                  {renderAccountSlotSourceCluster("背包", group.items.filter((item) => isAccountItemFromSource(item, "inventory")), props)}
-                </div>
+                {renderAccountItemGrid(group.items, props.source, props)}
               </div>
             ))}
           </div>
@@ -304,67 +319,55 @@ function AccountSlotCategories(props: {
   );
 }
 
-function renderAccountSlotSourceCluster(
-  label: "已装备" | "背包",
-  items: AccountItemWithSource[],
+function renderAccountItemGrid(
+  items: AccountItemSummary[],
+  source: AccountItemSource,
   props: {
     highlightedTemplate?: LoadoutTemplateLookup | null;
     openingItemKey: string;
-    onOpenItem: (item: AccountItemWithSource) => void;
+    onOpenItem: (item: AccountItemSummary) => void;
   }
 ) {
-  const isEquipped = label === "已装备";
+  if (!items.length) {
+    return <p className="muted-copy">暂无</p>;
+  }
 
   return (
-    <div className="account-slot-source">
-      <div className="account-slot-source-heading">
-        <span className={isEquipped ? "account-slot-source-badge equipped" : "account-slot-source-badge inventory"}>{label}</span>
-        <small>{items.length} 件</small>
-      </div>
-      {items.length ? (
-        <div className="equipment-grid">
-          {items.map((item) => {
-            const isPending = getItemKey(item) === props.openingItemKey;
-            const isLoadoutMatch = matchesLoadoutTemplateItem(item, props.highlightedTemplate);
-            return (
-              <button
-                type="button"
-                className={[
-                  "equipment-item",
-                  isEquipped ? "equipped" : "inventory",
-                  isPending ? "pending" : "",
-                  isLoadoutMatch ? "loadout-highlight" : ""
-                ].filter(Boolean).join(" ")}
-                key={`${label}-${item.hash}-${item.instance_id ?? item.name}`}
-                aria-busy={isPending}
-                onClick={() => props.onOpenItem(item)}
-              >
-                {item.icon ? <img alt="" src={item.icon} /> : <div className="item-icon-placeholder" />}
-                <div>
-                  <strong>{item.name}</strong>
-                  {isLoadoutMatch ? <small className="loadout-template-badge">方案命中</small> : null}
-                  <span>{formatAccountItemMeta(item)}</span>
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      ) : (
-        <p className="muted-copy">暂无</p>
-      )}
+    <div className="equipment-grid">
+      {items.map((item) => {
+        const isPending = getItemKey(item) === props.openingItemKey;
+        const isLoadoutMatch = matchesLoadoutTemplateItem(item, props.highlightedTemplate);
+        return (
+          <button
+            type="button"
+            className={[
+              "equipment-item",
+              source === "equipped" ? "equipped" : "inventory",
+              isPending ? "pending" : "",
+              isLoadoutMatch ? "loadout-highlight" : ""
+            ].filter(Boolean).join(" ")}
+            key={`${source}-${item.hash}-${item.instance_id ?? item.name}`}
+            aria-busy={isPending}
+            onClick={() => props.onOpenItem(item)}
+          >
+            {item.icon ? <img alt="" src={item.icon} /> : <div className="item-icon-placeholder" />}
+            <div>
+              <strong>{item.name}</strong>
+              {isLoadoutMatch ? <small className="loadout-template-badge">方案命中</small> : null}
+              <span>{formatAccountItemMeta(item)}</span>
+            </div>
+          </button>
+        );
+      })}
     </div>
   );
 }
 
-function getCharacterCombinedItems(character: AccountSummary["characters"][number]): AccountItemWithSource[] {
+function getCharacterCombinedItems(character: AccountSummary["characters"][number]): AccountItemSummary[] {
   return [
-    ...character.equipped_items.map((item) => ({ ...item, source_kind: "equipped" as const })),
-    ...character.inventory_items.map((item) => ({ ...item, source_kind: "inventory" as const }))
+    ...character.equipped_items,
+    ...character.inventory_items
   ];
-}
-
-function isAccountItemFromSource(item: AccountItemWithSource, source: AccountItemSource): boolean {
-  return item.source_kind === source;
 }
 
 function getItemKey(item: AccountItemSummary): string {

@@ -168,5 +168,7 @@ function formatVaultItemMeta(item: AccountItemSummary): string {
 const tagLabelsForCleanup = {
   keep: "保留",
   review: "关注",
-  junk: "可清理"
+  junk: "可清理",
+  farm: "待刷",
+  loadout: "配装用"
 } as const;

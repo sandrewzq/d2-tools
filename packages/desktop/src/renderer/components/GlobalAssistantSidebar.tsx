@@ -6,6 +6,7 @@ import type {
   DailySummary,
   VaultTags
 } from "../api/client";
+import { collectAccountItems } from "../utils/accountItems";
 import { AiPage } from "../features/ai/AiPage";
 import type { AssistantPageContext } from "../shared/domain/assistant/assistantContext";
 import { buildAssistantTaskContext } from "../shared/domain/assistant/assistantTaskContext";
@@ -159,18 +160,6 @@ function TaskAssistantPanel(props: {
       </p>
     </section>
   );
-}
-
-function collectAccountItems(account: AccountSummary | null): AccountItemSummary[] {
-  if (!account) return [];
-  return [
-    ...account.vault.items,
-    ...account.characters.flatMap((character) => [
-      ...character.equipped_items,
-      ...character.inventory_items,
-      ...character.postmaster_items
-    ])
-  ];
 }
 
 function AssistantHeader(props: {

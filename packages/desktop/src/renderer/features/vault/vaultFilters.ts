@@ -1,3 +1,4 @@
+import { evaluateLocalTargets, summarizeLocalTargetMatches } from "@d2-tools/core/analysis/targets";
 import { evaluateWishlistRoll } from "@d2-tools/core/analysis/wishlist";
 import type {
   AccountItemSummary,
@@ -5,6 +6,7 @@ import type {
   ArmorStatKey,
   DimWishlist,
   EquipmentGroupKey,
+  LocalTargetRules,
   VaultTags,
   VaultTagValue
 } from "../../api/client";
@@ -16,13 +18,13 @@ export type VaultSlotFilter = string | "all";
 export type VaultAmmoFilter = AmmoTypeKey | "all";
 export type VaultArmorStatFilter = ArmorStatKey | "total" | "all";
 export type VaultSortKey = "name" | "group" | "tier" | "power" | "armor-total" | ArmorStatKey;
-export type VaultTagFilter = Exclude<VaultTagValue, "none"> | "all" | "untagged" | "noted" | "wishlist";
+export type VaultTagFilter = Exclude<VaultTagValue, "none"> | "all" | "untagged" | "noted" | "wishlist" | "target";
 export type VaultLockFilter = "all" | "locked" | "unlocked";
 export type VaultViewMode = "list" | "duplicates";
 
 export type VaultArmorStatRule = {
   stat: ArmorStatKey | "";
-  min: string;
+  min: number;
 };
 
 export type VaultFilter = {
@@ -36,6 +38,7 @@ export type VaultFilter = {
   frames?: string[];
   tags?: VaultTags;
   wishlist?: DimWishlist | null;
+  localTargetRules?: LocalTargetRules | null;
 };
 
 type ParsedVaultQuery = {
@@ -79,9 +82,12 @@ export const tagLabels: Record<VaultTagFilter, string> = {
   keep: "保留",
   review: "关注",
   junk: "可清理",
+  farm: "待刷",
+  loadout: "配装用",
   untagged: "未标记",
   noted: "有备注",
-  wishlist: "DIM 愿望单"
+  wishlist: "DIM 愿望单",
+  target: "目标命中"
 };
 export const sortLabels: Record<VaultSortKey, string> = {
   name: "按名称",
@@ -137,8 +143,8 @@ export function filterVaultItems(items: AccountItemSummary[], filter: VaultFilte
     const entry = (filter.tags ?? { items: {} }).items[getVaultItemKey(item)];
     const matchesGroup = filter.group === "all" || item.group_key === filter.group;
     if (!matchesGroup) return false;
-    if (!matchesTag(item, filter.tag ?? "all", filter.tags ?? { items: {} }, filter.wishlist)) return false;
-    if (parsedQuery.tag && !matchesTag(item, parsedQuery.tag, filter.tags ?? { items: {} }, filter.wishlist)) return false;
+    if (!matchesTag(item, filter.tag ?? "all", filter.tags ?? { items: {} }, filter.wishlist, filter.localTargetRules)) return false;
+    if (parsedQuery.tag && !matchesTag(item, parsedQuery.tag, filter.tags ?? { items: {} }, filter.wishlist, filter.localTargetRules)) return false;
     if (!matchesArmorStatRules(item, filter.armorStatRules ?? [])) return false;
     if (!matchesLock(item, filter.lock ?? "all")) return false;
     if (!matchesSlot(item, filter.slot ?? "all")) return false;
@@ -289,7 +295,8 @@ function matchesTag(
   item: AccountItemSummary,
   tag: VaultTagFilter,
   tags: VaultTags,
-  wishlist?: DimWishlist | null
+  wishlist?: DimWishlist | null,
+  localTargetRules?: LocalTargetRules | null
 ): boolean {
   if (tag === "all") {
     return true;
@@ -298,6 +305,9 @@ function matchesTag(
   const itemTag = tags.items[getVaultItemKey(item)]?.tag;
   if (tag === "wishlist") {
     return evaluateWishlistRoll(normalizeCoreItem(item), wishlist ?? undefined).matched;
+  }
+  if (tag === "target") {
+    return evaluateLocalTargets(normalizeCoreItem(item), localTargetRules ?? undefined).matched;
   }
   if (tag === "untagged") {
     return !itemTag;
@@ -311,9 +321,12 @@ function matchesTag(
 
 function matchesArmorStatRules(item: AccountItemSummary, rules: VaultArmorStatRule[]): boolean {
   const activeRules = rules
-    .map((rule) => ({ stat: rule.stat, min: Number(rule.min) }))
+    .map((rule) => ({
+      stat: rule.stat,
+      min: Number(rule.min)
+    }))
     .filter((rule): rule is { stat: ArmorStatKey; min: number } =>
-      isArmorStatKey(rule.stat) && !Number.isNaN(rule.min)
+      isArmorStatKey(rule.stat) && Number.isFinite(rule.min)
     );
 
   if (!activeRules.length) {
@@ -368,7 +381,12 @@ export function formatArmorStatsInline(item: AccountItemSummary): string | undef
 
 function isVaultTagFilter(value: string): value is VaultTagFilter {
   return value === "all" || value === "keep" || value === "review" || value === "junk"
-    || value === "untagged" || value === "noted" || value === "wishlist";
+    || value === "farm" || value === "loadout"
+    || value === "untagged" || value === "noted" || value === "wishlist" || value === "target";
+}
+
+export function countLocalTargetMatches(items: AccountItemSummary[], rules?: LocalTargetRules | null): number {
+  return summarizeLocalTargetMatches(items.map(normalizeCoreItem), rules ?? undefined).matched_count;
 }
 
 function typeFilterFor(value: string): VaultGroupFilter | undefined {

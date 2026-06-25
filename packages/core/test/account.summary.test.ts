@@ -89,6 +89,19 @@ const itemDefinitions: DefinitionComponentData = {
     itemTypeDisplayName: "Intrinsic",
     inventory: { tierTypeName: "Legendary" }
   },
+  "4004": {
+    hash: 4004,
+    displayProperties: {
+      name: "生命值模组",
+      icon: "/common/destiny2_content/icons/health-mod.png",
+      description: "提高生命值。"
+    },
+    itemTypeDisplayName: "Armor Mod",
+    inventory: { tierTypeName: "Legendary" },
+    investmentStats: [
+      { statTypeHash: 392767087, value: 10 }
+    ]
+  },
   "5001": {
     hash: 5001,
     displayProperties: {
@@ -275,6 +288,11 @@ describe("account summary", () => {
                     { plugHash: 4002, isVisible: true },
                     { plugHash: 9999, isVisible: false }
                   ]
+                },
+                "instance-2": {
+                  sockets: [
+                    { plugHash: 4004, isVisible: true }
+                  ]
                 }
               }
             }
@@ -393,6 +411,15 @@ describe("account summary", () => {
         class: 16,
         weapon: 2,
         total: 68
+      },
+      armor_stat_breakdown: {
+        health: { base: 16, mod: 10, final: 26 },
+        melee: { base: 8, mod: 0, final: 8 },
+        grenade: { base: 12, mod: 0, final: 12 },
+        super: { base: 4, mod: 0, final: 4 },
+        class: { base: 16, mod: 0, final: 16 },
+        weapon: { base: 2, mod: 0, final: 2 },
+        total: { base: 58, mod: 10, final: 68 }
       },
       armor_energy: {
         type_hash: 123,

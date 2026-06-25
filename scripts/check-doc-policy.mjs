@@ -39,6 +39,12 @@ function readGitNameStatus(root) {
   }
 }
 
+function isAllowedTempPath(repoPath) {
+  return repoPath.startsWith(".local-data/tmp/")
+    || repoPath === ".local-data/tmp"
+    || repoPath === ".local-data/tmp/";
+}
+
 export function collectDocPolicyErrors(root, gitNameStatus = readGitNameStatus(root)) {
   const errors = [];
   const fail = (message) => errors.push(message);
@@ -74,9 +80,19 @@ export function collectDocPolicyErrors(root, gitNameStatus = readGitNameStatus(r
   }
 
   const docsRoot = join(root, "docs");
+  const repoRootFiles = existsSync(root)
+    ? readdirSync(root, { withFileTypes: true }).filter((entry) => entry.isFile()).map((entry) => entry.name)
+    : [];
   const docsRootFiles = existsSync(docsRoot)
     ? readdirSync(docsRoot, { withFileTypes: true }).filter((entry) => entry.isFile()).map((entry) => entry.name)
     : [];
+
+  const tempRootPattern = /^(?:tmp-|\.tmp-).+\.(?:log|err\.log)$/;
+  for (const file of repoRootFiles) {
+    if (tempRootPattern.test(file)) {
+      fail(`Unexpected temp/debug file in repository root: ${file}. Move temp output under .local-data/tmp/.`);
+    }
+  }
 
   const allowedDocsRoot = new Set([
     "bungie-setup.md",

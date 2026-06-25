@@ -27,6 +27,8 @@ export type VaultAnalysisResult = {
   };
 };
 
+type LocalAnalysisTag = "keep" | "review" | "junk" | "farm" | "loadout";
+
 const groupLabels: Record<EquipmentGroupKey, string> = {
   weapons: "武器",
   armor: "护甲",
@@ -41,14 +43,19 @@ export function analyzeVault(input: VaultAnalysisInput): VaultAnalysisResult {
   const keep = taggedItems(input, "keep");
   const review = taggedItems(input, "review");
   const junk = taggedItems(input, "junk");
-  const taggedCount = keep.length + review.length + junk.length;
+  const keepCount = countTaggedItems(input, "keep");
+  const reviewCount = countTaggedItems(input, "review");
+  const junkCount = countTaggedItems(input, "junk");
+  const farmCount = countTaggedItems(input, "farm");
+  const loadoutCount = countTaggedItems(input, "loadout");
+  const taggedCount = keepCount + reviewCount + junkCount + farmCount + loadoutCount;
   const untaggedCount = input.items.length - taggedCount;
   const rollCount = input.items.filter((item) => item.socket_plugs?.length).length;
 
   return {
     facts: [
       `仓库共 ${input.items.length} 件物品，其中${formatGroupCounts(groupCounts)}。`,
-      `本地标记：保留 ${keep.length} 件、关注 ${review.length} 件、可清理 ${junk.length} 件、未标记 ${untaggedCount} 件。`,
+      `本地标记：保留 ${keepCount} 件、关注 ${reviewCount} 件、可清理 ${junkCount} 件、待刷 ${farmCount} 件、配装用 ${loadoutCount} 件、未标记 ${untaggedCount} 件。`,
       `已读取实际 roll 的物品 ${rollCount} 件。`
     ],
     analysis: buildAnalysis({ keep, review, junk, untaggedCount }),
@@ -77,7 +84,11 @@ function formatGroupCounts(counts: Record<EquipmentGroupKey, number>): string {
   return groupOrder.map((key) => `${groupLabels[key]} ${counts[key]} 件`).join("、");
 }
 
-function taggedItems(input: VaultAnalysisInput, tag: "keep" | "review" | "junk"): VaultAnalysisItem[] {
+function countTaggedItems(input: VaultAnalysisInput, tag: LocalAnalysisTag): number {
+  return input.items.filter((item) => input.tags.items[itemKey(item)]?.tag === tag).length;
+}
+
+function taggedItems(input: VaultAnalysisInput, tag: LocalAnalysisTag): VaultAnalysisItem[] {
   return input.items
     .filter((item) => input.tags.items[itemKey(item)]?.tag === tag)
     .slice(0, 12)

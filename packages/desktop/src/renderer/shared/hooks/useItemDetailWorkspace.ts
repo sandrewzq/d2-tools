@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { evaluateLocalTargets } from "@d2-tools/core/analysis/targets";
 import { evaluateWishlistRoll } from "@d2-tools/core/analysis/wishlist";
 import {
   api,
@@ -9,10 +10,12 @@ import {
   type ItemActionResult,
   type ItemAiAdviceResult,
   type LibraryHistory,
+  type LocalTargetRules,
   type VaultTags,
   type VaultTagValue,
   type WeaponRecommendation
 } from "../../api/client";
+import { services } from "../../api/services";
 import {
   buildDuplicateGroupBatchTagPlan,
   buildVaultCleanupLocatorText,
@@ -40,6 +43,7 @@ export function useItemDetailWorkspace(input: {
   vaultTags: VaultTags;
   setVaultTags: (tags: VaultTags) => void;
   importedWishlist: DimWishlist | null;
+  localTargetRules: LocalTargetRules;
   diagnostics: DiagnosticsBridge;
   setAccountError: (message: string) => void;
   setIsRunningItemAction: (isRunning: boolean) => void;
@@ -122,7 +126,8 @@ export function useItemDetailWorkspace(input: {
           power: selectedItem.power,
           locked: selectedItem.locked,
           armor_stats: selectedItem.armor_stats,
-          socket_plugs: selectedItem.socket_plugs,
+          armor_stat_breakdown: selectedItem.armor_stat_breakdown,
+          socket_plugs: selectedItem.socket_plugs ?? [],
           description: selectedItem.description,
           note: selectedItem.item_key ? input.vaultTags.items[selectedItem.item_key]?.note : undefined
         },
@@ -182,7 +187,7 @@ export function useItemDetailWorkspace(input: {
     setItemShareMessage("");
 
     try {
-      const tags = await api.saveVaultNote({
+      const tags = await services.localData.saveVaultNote({
         item_key: selectedItem.item_key,
         note: itemNoteDraft
       });
@@ -207,7 +212,7 @@ export function useItemDetailWorkspace(input: {
     setItemShareMessage("");
 
     try {
-      const tags = await api.saveVaultTag({
+      const tags = await services.localData.saveVaultTag({
         item_key: selectedItem.item_key,
         tag
       });
@@ -227,19 +232,21 @@ export function useItemDetailWorkspace(input: {
       ...accountItem,
       socket_plugs: accountItem.socket_plugs ?? []
     }, input.importedWishlist ?? undefined);
-    if (!wishlist.matched) return;
+    const localTarget = evaluateLocalTargets(accountItem, input.localTargetRules);
+    if (!wishlist.matched && !localTarget.matched) return;
 
     const localTag = input.vaultTags.items[selectedItem.item_key]?.tag ?? "none";
     const text = [
-      `${selectedItem.name} / DIM 愿望单命中`,
-      `标签：${wishlist.labels.join(" / ")}`,
+      `${selectedItem.name} / 目标命中`,
+      wishlist.matched ? `DIM 标签：${wishlist.labels.join(" / ")}` : "",
+      localTarget.matched ? `本地目标：${localTarget.labels.join(" / ")}` : "",
       `本地标记：${formatVaultTagLabel(localTag)}`,
       "",
       "命中原因",
-      ...wishlist.reasons.map((reason, index) => `${index + 1}. ${reason}`),
+      ...[...wishlist.reasons, ...localTarget.reasons].map((reason, index) => `${index + 1}. ${reason}`),
       "",
-      `说明：${wishlist.disclaimer}`
-    ].join("\n");
+      `说明：${localTarget.matched ? localTarget.disclaimer : wishlist.disclaimer}`
+    ].filter(Boolean).join("\n");
 
     try {
       await navigator.clipboard.writeText(text);
@@ -296,7 +303,7 @@ export function useItemDetailWorkspace(input: {
 
   async function saveVaultTagsBatch(inputs: Array<{ item_key: string; tag: VaultTagValue }>) {
     try {
-      input.setVaultTags(await api.saveVaultTagsBatch(inputs));
+      input.setVaultTags(await services.localData.saveVaultTagsBatch(inputs));
     } catch (error) {
       input.setAccountError(error instanceof Error ? error.message : "批量标记保存失败");
       throw error;
@@ -455,6 +462,8 @@ export function useItemDetailWorkspace(input: {
 function formatVaultTagLabel(tag: VaultTagValue): string {
   if (tag === "keep") return "保留";
   if (tag === "review") return "关注";
+  if (tag === "farm") return "待刷";
+  if (tag === "loadout") return "配装用";
   if (tag === "junk") return "可清理";
   return "未标记";
 }

@@ -178,13 +178,27 @@ describe("AI settings panel helpers", () => {
     expect(panel).toContain("启用 light.gg 实时分析");
     expect(panel).toContain("强制开启");
     expect(panel).toContain("api.listAiModels");
+    expect(panel).not.toContain("buildDraftConfig");
     expect(panel).toContain("api.testAiConnection()");
-    expect(apiClient).toContain("listAiModels(config: D2Config): Promise<AiModelListResult>");
+    expect(apiClient).toContain("listAiModels(ai: AiSettings): Promise<AiModelListResult>");
     expect(apiClient).toContain("testAiConnection(): Promise<AiConnectionTestResult>");
     expect(preload).toContain('ipcRenderer.invoke("ai:models"');
     expect(preload).toContain('ipcRenderer.invoke("ai:test")');
     expect(analysisIpc).toContain('ipcMain.handle("ai:models"');
+    expect(analysisIpc).toContain("listAiModels({ ai })");
     expect(analysisIpc).toContain('ipcMain.handle("ai:test"');
+  });
+
+  it("reuses core AI settings normalization instead of duplicating protocol rules in the renderer", () => {
+    const aiSettings = readFileSync(
+      join(desktopRoot, "src", "renderer", "utils", "aiSettings.ts"),
+      "utf8"
+    );
+
+    expect(aiSettings).toContain("@d2-tools/core/ai/settings");
+    expect(aiSettings).not.toContain("function normalizeAiProtocol");
+    expect(aiSettings).not.toContain("function inferLegacyCompatibleProtocol");
+    expect(aiSettings).not.toContain("function normalizeLegacyBaseUrl");
   });
 
   it("mounts AI settings in the settings page and sends unconfigured sidebar users there", () => {

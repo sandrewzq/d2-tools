@@ -1,17 +1,19 @@
 import { useEffect, useMemo, useState } from "react";
 import { buildAiChatContext } from "@d2-tools/core/ai/chat";
+import { sendAssistantMessage } from "@d2-tools/app";
 import {
-  api,
   type AccountItemSummary,
   type AccountSummary,
   type ActivityHistorySummary,
   type DailySummary,
   type VaultTags
 } from "../api/client";
+import { services } from "../api/services";
 import type { AssistantPageContext } from "../shared/domain/assistant/assistantContext";
 import {
   clearAssistantHistory,
   loadAssistantHistory,
+  removeAssistantHistoryEntry,
   saveAssistantSession,
   type AssistantHistoryEntry
 } from "../utils/assistantHistory";
@@ -75,16 +77,23 @@ export function AiAnalysisPanel(props: {
 
     try {
       const context = buildAiChatContext({
-        account: props.account as never,
-        tags: safeTags as never,
-        daily: props.daily as never,
-        activity: props.activity as never,
+        account: props.account,
+        tags: safeTags,
+        daily: props.daily,
+        activity: props.activity,
         pageContext: props.pageContext
       });
-      const reply = await api.sendAiChat({
+      const chatState = await sendAssistantMessage(services, {
         question: trimmedQuestion,
         context
       });
+      if (chatState.status === "error") {
+        throw new Error(chatState.error.message);
+      }
+      if (chatState.status !== "success") {
+        throw new Error("AI 聊天失败");
+      }
+      const reply = chatState.data.reply;
       const assistantMessage: AiChatMessage = { role: "assistant", text: reply.text };
       setMessages((current) => {
         const nextMessages = [...current, assistantMessage];
@@ -136,6 +145,13 @@ export function AiAnalysisPanel(props: {
     setQuestion("");
     setError("");
     setActiveSessionId(null);
+  }
+
+  function deleteSession(entryId: string) {
+    if (entryId === activeSessionId) {
+      return;
+    }
+    setHistory(removeAssistantHistoryEntry(window.localStorage, entryId));
   }
 
   return (
@@ -252,14 +268,24 @@ export function AiAnalysisPanel(props: {
                 {history.map((entry) => (
                   <li key={entry.id}>
                     <span>{entry.page_label} · {entry.title}</span>
-                    <button
-                      type="button"
-                      className="secondary-button"
-                      disabled={isSendingChat || activeSessionId === entry.id}
-                      onClick={() => switchSession(entry)}
-                    >
-                      {activeSessionId === entry.id ? "当前" : "恢复"}
-                    </button>
+                    <div className="button-row">
+                      <button
+                        type="button"
+                        className="secondary-button"
+                        disabled={isSendingChat || activeSessionId === entry.id}
+                        onClick={() => switchSession(entry)}
+                      >
+                        {activeSessionId === entry.id ? "当前" : "恢复"}
+                      </button>
+                      <button
+                        type="button"
+                        className="secondary-button"
+                        disabled={isSendingChat || activeSessionId === entry.id}
+                        onClick={() => deleteSession(entry.id)}
+                      >
+                        删除
+                      </button>
+                    </div>
                   </li>
                 ))}
               </ul>

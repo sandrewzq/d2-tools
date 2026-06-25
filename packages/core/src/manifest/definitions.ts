@@ -31,6 +31,11 @@ export type DefinitionRecord = {
   sourceData?: {
     sourceString?: string;
   };
+  investmentStats?: Array<{
+    statTypeHash?: number;
+    value?: number;
+    isConditionallyActive?: boolean;
+  }>;
   reusablePlugItems?: Array<{
     plugItemHash?: number;
   }>;

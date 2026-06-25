@@ -7,6 +7,7 @@ import {
   testAiConnection,
   type ItemAiAdviceInput
 } from "@d2-tools/core/ai/chat";
+import type { AiSettings } from "@d2-tools/core/ai/settings";
 import type { AccountItemSummary } from "@d2-tools/core/account/summary";
 import { analyzeVault } from "@d2-tools/core/analysis/vault";
 import type { D2Config } from "@d2-tools/core/config/schema";
@@ -14,8 +15,8 @@ import { loadConfig } from "@d2-tools/core/config/store";
 import type { VaultTags } from "@d2-tools/core/vault/tags";
 
 export function registerAnalysisIpcHandlers(): void {
-  ipcMain.handle("ai:models", (_event, config: D2Config) => {
-    return listAiModels({ config });
+  ipcMain.handle("ai:models", (_event, ai: AiSettings) => {
+    return listAiModels({ ai });
   });
 
   ipcMain.handle("ai:test", () => {

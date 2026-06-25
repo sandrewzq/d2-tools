@@ -1,6 +1,6 @@
 {
   "name": "@d2-tools/core",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "private": true,
   "type": "module",
   "main": "dist/index.js",
@@ -18,9 +18,17 @@
       "types": "./dist/analysis/wishlist.d.ts",
       "import": "./dist/analysis/wishlist.js"
     },
+    "./analysis/targets": {
+      "types": "./dist/analysis/targets.d.ts",
+      "import": "./dist/analysis/targets.js"
+    },
     "./ai/chat": {
       "types": "./dist/ai/chat.d.ts",
       "import": "./dist/ai/chat.js"
+    },
+    "./ai/settings": {
+      "types": "./dist/ai/settings.d.ts",
+      "import": "./dist/ai/settings.js"
     },
     "./actions/plan": {
       "types": "./dist/actions/plan.d.ts",
@@ -45,6 +53,10 @@
     "./items/perkSearch": {
       "types": "./dist/items/perkSearch.d.ts",
       "import": "./dist/items/perkSearch.js"
+    },
+    "./items/perks": {
+      "types": "./dist/items/perks.d.ts",
+      "import": "./dist/items/perks.js"
     },
     "./items/source": {
       "types": "./dist/items/source.d.ts",
@@ -97,6 +109,10 @@
     "./analysis/wishlistStore": {
       "types": "./dist/analysis/wishlistStore.d.ts",
       "import": "./dist/analysis/wishlistStore.js"
+    },
+    "./analysis/targetRulesStore": {
+      "types": "./dist/analysis/targetRulesStore.d.ts",
+      "import": "./dist/analysis/targetRulesStore.js"
     },
     "./actions/log": {
       "types": "./dist/actions/log.d.ts",

@@ -5,6 +5,12 @@ import type { ActivityHistorySummary } from "../activities/history.js";
 import type { D2Config } from "../config/schema.js";
 import type { DailySummary } from "../daily/summary.js";
 import type { VaultTags } from "../vault/tags.js";
+import {
+  aiProtocolBaseUrls,
+  normalizeAiSettings,
+  type AiProtocol,
+  type NormalizedAiSettings
+} from "./settings.js";
 
 export type VaultAiAdviceInput = {
   config: D2Config;
@@ -110,16 +116,6 @@ type ChatResponse = {
   };
 };
 
-export type AiProtocol = "openai_responses" | "openai_chat_completions" | "anthropic_messages";
-
-type NormalizedAiConfig = {
-  protocol: "" | AiProtocol;
-  api_key: string;
-  model: string;
-  base_url: string;
-  force_lightgg: boolean;
-};
-
 type AiPromptMessage = {
   role: "system" | "user";
   content: string;
@@ -133,12 +129,6 @@ export type AiAdviceSections = {
   raw: string;
 };
 
-const protocolBaseUrls: Record<AiProtocol, string> = {
-  openai_responses: "https://api.openai.com/v1",
-  openai_chat_completions: "https://api.openai.com/v1",
-  anthropic_messages: "https://api.anthropic.com"
-};
-
 const fallbackModels: Record<AiProtocol, string[]> = {
   openai_responses: ["gpt-4.1", "gpt-4.1-mini", "gpt-4o", "gpt-4o-mini"],
   openai_chat_completions: ["gpt-4.1", "gpt-4.1-mini", "gpt-4o", "gpt-4o-mini", "deepseek-chat"],
@@ -150,7 +140,7 @@ export async function generateVaultAiAdvice(input: VaultAiAdviceInput): Promise<
     items: input.items,
     tags: input.tags
   });
-  const settings = normalizeAiConfig(input.config.ai);
+  const settings = normalizeAiSettings(input.config.ai);
 
   if (!settings.protocol) {
     return {
@@ -200,7 +190,7 @@ export async function generateVaultAiAdvice(input: VaultAiAdviceInput): Promise<
 }
 
 export async function generateItemAiAdvice(input: ItemAiAdviceInput): Promise<ItemAiAdviceResult> {
-  const settings = normalizeAiConfig(input.config.ai);
+  const settings = normalizeAiSettings(input.config.ai);
 
   if (!settings.protocol) {
     return {
@@ -304,7 +294,7 @@ export function buildAiChatContext(input: AiChatContextInput): string {
 }
 
 export async function generateAiChatReply(input: AiChatReplyInput): Promise<AiChatReplyResult> {
-  const settings = normalizeAiConfig(input.config.ai);
+  const settings = normalizeAiSettings(input.config.ai);
 
   if (!settings.protocol) {
     throw new Error("请先选择 AI API 格式。");
@@ -392,7 +382,7 @@ export type AiWebSearchResult = {
 };
 
 export function supportsAiWebSearch(config: D2Config["ai"]): boolean {
-  const settings = normalizeAiConfig(config);
+  const settings = normalizeAiSettings(config);
   return settings.protocol === "openai_responses";
 }
 
@@ -401,7 +391,7 @@ export async function callAiWithWebSearch(input: {
   query: string;
   fetcher?: typeof fetch;
 }): Promise<AiWebSearchResult> {
-  const settings = normalizeAiConfig(input.config.ai);
+  const settings = normalizeAiSettings(input.config.ai);
 
   if (!settings.protocol) {
     throw new Error("请先选择 AI API 格式。");
@@ -436,7 +426,7 @@ export async function callAiWithWebSearch(input: {
   return { text };
 }
 
-function buildAiWebSearchRequest(settings: NormalizedAiConfig, query: string): {
+function buildAiWebSearchRequest(settings: NormalizedAiSettings, query: string): {
   url: string;
   headers: Record<string, string>;
   body: unknown;
@@ -470,7 +460,7 @@ export async function testAiConnection(input: {
   config: D2Config;
   fetcher?: typeof fetch;
 }): Promise<AiConnectionTestResult> {
-  const settings = normalizeAiConfig(input.config.ai);
+  const settings = normalizeAiSettings(input.config.ai);
 
   if (!settings.protocol) {
     throw new Error("请先选择 AI API 格式。");
@@ -507,10 +497,10 @@ export async function testAiConnection(input: {
 }
 
 export async function listAiModels(input: {
-  config: D2Config;
+  ai: D2Config["ai"];
   fetcher?: typeof fetch;
 }): Promise<AiModelListResult> {
-  const settings = normalizeAiConfig(input.config.ai);
+  const settings = normalizeAiSettings(input.ai);
 
   if (!settings.protocol) {
     throw new Error("请先选择 API 格式。");
@@ -551,29 +541,8 @@ export async function listAiModels(input: {
   }
 }
 
-function normalizeAiConfig(config: D2Config["ai"]): NormalizedAiConfig {
-  const protocol = normalizeAiProtocol(config);
-  if (!protocol) {
-    return {
-      protocol: "",
-      api_key: "",
-      model: "",
-      base_url: "",
-      force_lightgg: false
-    };
-  }
-
-  return {
-    protocol,
-    api_key: config.api_key.trim(),
-    model: config.model.trim(),
-    base_url: normalizeLegacyBaseUrl(config.base_url, config.provider, protocol),
-    force_lightgg: config.force_lightgg ?? false
-  };
-}
-
 async function callAiText(input: {
-  settings: NormalizedAiConfig;
+  settings: NormalizedAiSettings;
   messages: AiPromptMessage[];
   temperature: number;
   fetcher?: typeof fetch;
@@ -598,7 +567,7 @@ async function callAiText(input: {
   return text;
 }
 
-function buildAiRequest(settings: NormalizedAiConfig, messages: AiPromptMessage[], temperature: number): {
+function buildAiRequest(settings: NormalizedAiSettings, messages: AiPromptMessage[], temperature: number): {
   url: string;
   headers: Record<string, string>;
   body: unknown;
@@ -673,50 +642,28 @@ function extractAiText(body: ChatResponse): string {
   ).trim();
 }
 
-function normalizeAiProtocol(config: D2Config["ai"]): "" | AiProtocol {
-  const protocol = (config.protocol ?? "").trim();
-  if (isAiProtocol(protocol)) {
-    return protocol;
-  }
-
-  const provider = (config.provider ?? "").trim();
-  if (!provider || provider === "none") {
-    return "";
-  }
-  if (provider === "openai_responses") {
-    return "openai_responses";
-  }
-  if (provider === "anthropic") {
-    return "anthropic_messages";
-  }
-  if (provider === "openai_compatible") {
-    return inferLegacyCompatibleProtocol(config);
-  }
-  return "openai_chat_completions";
-}
-
 function openAiResponsesEndpoint(baseUrl: string): string {
-  const normalized = openAiRoot(baseUrl || protocolBaseUrls.openai_responses);
+  const normalized = openAiRoot(baseUrl || aiProtocolBaseUrls.openai_responses);
   return normalized.endsWith("/responses") ? normalized : `${normalized}/responses`;
 }
 
 function anthropicMessagesEndpoint(baseUrl: string): string {
-  return `${anthropicRoot(baseUrl || protocolBaseUrls.anthropic_messages)}/messages`;
+  return `${anthropicRoot(baseUrl || aiProtocolBaseUrls.anthropic_messages)}/messages`;
 }
 
 function chatCompletionsEndpoint(baseUrl: string): string {
-  const normalized = openAiRoot(baseUrl || protocolBaseUrls.openai_chat_completions);
+  const normalized = openAiRoot(baseUrl || aiProtocolBaseUrls.openai_chat_completions);
   return normalized.endsWith("/chat/completions")
     ? normalized
     : `${normalized}/chat/completions`;
 }
 
 function openAiModelsEndpoint(baseUrl: string): string {
-  return `${openAiRoot(baseUrl || protocolBaseUrls.openai_chat_completions)}/models`;
+  return `${openAiRoot(baseUrl || aiProtocolBaseUrls.openai_chat_completions)}/models`;
 }
 
 function anthropicModelsEndpoint(baseUrl: string): string {
-  return `${anthropicRoot(baseUrl || protocolBaseUrls.anthropic_messages)}/models`;
+  return `${anthropicRoot(baseUrl || aiProtocolBaseUrls.anthropic_messages)}/models`;
 }
 
 function openAiRoot(baseUrl: string): string {
@@ -741,36 +688,11 @@ function normalizeBaseUrl(baseUrl: string): string {
   return normalized;
 }
 
-function isAiProtocol(protocol: string): protocol is AiProtocol {
-  return protocol === "openai_responses"
-    || protocol === "openai_chat_completions"
-    || protocol === "anthropic_messages";
-}
-
-function inferLegacyCompatibleProtocol(config: D2Config["ai"]): AiProtocol {
-  const baseUrl = (config.base_url ?? "").trim().toLowerCase();
-  if (baseUrl.endsWith("/responses") || config.enable_lightgg || config.force_lightgg) {
-    return "openai_responses";
-  }
-  return "openai_chat_completions";
-}
-
-function normalizeLegacyBaseUrl(baseUrl: string, provider: string | undefined, protocol: AiProtocol): string {
-  const trimmed = baseUrl.trim();
-  if (trimmed) {
-    return trimmed;
-  }
-  if ((provider ?? "").trim() === "deepseek") {
-    return "https://api.deepseek.com";
-  }
-  return protocolBaseUrls[protocol];
-}
-
-function canForceLightgg(settings: NormalizedAiConfig): boolean {
+function canForceLightgg(settings: NormalizedAiSettings): boolean {
   return settings.force_lightgg && settings.protocol === "openai_chat_completions";
 }
 
-function buildAiModelListRequest(settings: NormalizedAiConfig): {
+function buildAiModelListRequest(settings: NormalizedAiSettings): {
   url: string;
   headers: Record<string, string>;
 } {

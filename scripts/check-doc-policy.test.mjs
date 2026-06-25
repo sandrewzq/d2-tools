@@ -50,6 +50,25 @@ describe("collectDocPolicyErrors", () => {
     expect(errors).toEqual([]);
   });
 
+  it("rejects stray temp logs in the repository root", () => {
+    const root = createDocsRoot();
+    writeFileSync(join(root, ".tmp-vite-ai-sidebar.err.log"), "boom\n", "utf8");
+
+    const errors = collectDocPolicyErrors(root, []);
+
+    expect(errors).toContain("Unexpected temp/debug file in repository root: .tmp-vite-ai-sidebar.err.log. Move temp output under .local-data/tmp/.");
+  });
+
+  it("allows temp logs under .local-data/tmp", () => {
+    const root = createDocsRoot();
+    mkdirSync(join(root, ".local-data", "tmp"), { recursive: true });
+    writeFileSync(join(root, ".local-data", "tmp", "vite.log"), "ok\n", "utf8");
+
+    const errors = collectDocPolicyErrors(root, []);
+
+    expect(errors).toEqual([]);
+  });
+
   it("rejects hardcoded current package version in README", () => {
     const root = createDocsRoot();
     writeFileSync(join(root, "README.md"), "当前公开测试版本：`0.0.4`\n", "utf8");

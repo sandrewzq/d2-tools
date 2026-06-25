@@ -13,6 +13,7 @@ import { registerLibraryIpcHandlers } from "./ipc/library.js";
 import { registerLoadoutIpcHandlers } from "./ipc/loadouts.js";
 import { registerManifestIpcHandlers } from "./ipc/manifest.js";
 import { registerStartupIpcHandlers } from "./ipc/startup.js";
+import { registerTargetRulesIpcHandlers } from "./ipc/targets.js";
 import { registerUpdateIpcHandlers } from "./ipc/updates.js";
 import { registerVaultIpcHandlers } from "./ipc/vault.js";
 import { registerWishlistIpcHandlers } from "./ipc/wishlist.js";
@@ -26,6 +27,7 @@ export function registerIpcHandlers(): void {
   registerManifestIpcHandlers();
   registerLibraryIpcHandlers();
   registerWishlistIpcHandlers();
+  registerTargetRulesIpcHandlers();
   registerCommunityIpcHandlers();
   registerVaultIpcHandlers();
   registerAnalysisIpcHandlers();

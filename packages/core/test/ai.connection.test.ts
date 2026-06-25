@@ -114,14 +114,14 @@ describe("AI connection test", () => {
     const requests: Array<{ url: string; headers: HeadersInit | undefined }> = [];
 
     const result = await listAiModels({
-      config: config({
+      ai: {
         protocol: "openai_chat_completions",
         api_key: "key",
         model: "",
         base_url: "https://example.test/v1/chat/completions",
         enable_lightgg: false,
         force_lightgg: false
-      }),
+      },
       fetcher: async (url, init) => {
         requests.push({ url: String(url), headers: init?.headers });
         return new Response(JSON.stringify({

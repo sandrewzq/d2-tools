@@ -31,6 +31,32 @@ describe("wishlist detail UI", () => {
     expect(itemDetailModal).toContain("\u90ae\u653f\u5b98 ");
   });
 
+  it("shows a target match summary before detailed community recommendations", () => {
+    const itemDetailTools = readFileSync(
+      join(desktopRoot, "src", "renderer", "shared", "components", "item-detail", "ItemDetailTools.tsx"),
+      "utf8"
+    );
+    const itemDetailSources = readItemDetailSources(desktopRoot);
+
+    const overviewIndex = itemDetailTools.indexOf("<ItemDetailOverview");
+    const targetIndex = itemDetailTools.indexOf("<ItemDetailTargetMatch");
+    const actualRollIndex = itemDetailTools.indexOf("<ItemDetailPerks");
+    const communityIndex = itemDetailTools.indexOf("<ItemDetailCommunity");
+
+    expect(itemDetailSources).toContain("target-match-panel");
+    expect(itemDetailSources).toContain("目标命中");
+    expect(itemDetailSources).toContain("DIM 愿望单命中");
+    expect(itemDetailSources).toContain("未命中已导入 DIM 愿望单");
+    expect(itemDetailSources).toContain("evaluateWishlistRoll");
+    expect(itemDetailSources).toContain("selectedItemToAccountItem");
+    expect(itemDetailSources).toContain("onCopyWishlistInsight");
+    expect(itemDetailSources).toContain('onSaveSelectedItemTag("farm")');
+    expect(itemDetailSources).toContain('onSaveSelectedItemTag("loadout")');
+    expect(targetIndex).toBeGreaterThan(overviewIndex);
+    expect(actualRollIndex).toBeGreaterThan(targetIndex);
+    expect(communityIndex).toBeGreaterThan(actualRollIndex);
+  });
+
   it("renders community recommendation trust signals and queries all detail sources", () => {
     const itemDetailModal = readItemDetailSources(desktopRoot);
     const communityIpc = readFileSync(join(desktopRoot, "src", "main", "ipc", "community.ts"), "utf8");

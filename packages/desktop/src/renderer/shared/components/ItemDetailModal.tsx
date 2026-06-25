@@ -4,6 +4,7 @@ import type {
   ItemActionPlanInput,
   ItemActionResult,
   ItemAiAdviceResult,
+  LocalTargetRules,
   VaultTags,
   VaultTagValue,
   WeaponRecommendation
@@ -19,6 +20,7 @@ export type ItemDetailModalProps = {
   aiSettingsEnableLightgg: boolean;
   communityRecommendations: WeaponRecommendation | null;
   importedWishlist: DimWishlist | null;
+  localTargetRules: LocalTargetRules;
   isCommunityRecommendationsLoading: boolean;
   isGeneratingItemAi: boolean;
   isRunningItemAction: boolean;
@@ -78,6 +80,7 @@ export function ItemDetailModal(props: ItemDetailModalProps) {
           aiSettingsEnableLightgg={props.aiSettingsEnableLightgg}
           communityRecommendations={props.communityRecommendations}
           importedWishlist={props.importedWishlist}
+          localTargetRules={props.localTargetRules}
           isCommunityRecommendationsLoading={props.isCommunityRecommendationsLoading}
           isGeneratingItemAi={props.isGeneratingItemAi}
           isRunningItemAction={props.isRunningItemAction}

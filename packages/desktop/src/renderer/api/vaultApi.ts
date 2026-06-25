@@ -38,7 +38,7 @@ export type LocalCommunityRecommendationTable = {
   rules: LocalCommunityRecommendationRule[];
 };
 
-export type VaultTagValue = "none" | "keep" | "review" | "junk";
+export type VaultTagValue = "none" | "keep" | "review" | "junk" | "farm" | "loadout";
 
 export type VaultTags = {
   items: Record<string, { tag?: Exclude<VaultTagValue, "none">; note?: string }>;

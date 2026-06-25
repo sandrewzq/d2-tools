@@ -8,6 +8,7 @@ import {
   type VaultTags,
   type VaultTagValue
 } from "../../api/client";
+import { services } from "../../api/services";
 
 type DiagnosticsBridge = {
   setWriteActionsEnabled: (enabled: boolean) => void;
@@ -26,7 +27,7 @@ export function useVaultWriteActions(input: {
   async function saveVaultTag(item: AccountItemSummary, tag: VaultTagValue) {
     const itemKey = item.instance_id ?? `hash:${item.hash}`;
     try {
-      input.setVaultTags(await api.saveVaultTag({
+      input.setVaultTags(await services.localData.saveVaultTag({
         item_key: itemKey,
         tag
       }));
@@ -37,7 +38,7 @@ export function useVaultWriteActions(input: {
 
   async function saveVaultTagsBatch(inputs: Array<{ item_key: string; tag: VaultTagValue }>) {
     try {
-      input.setVaultTags(await api.saveVaultTagsBatch(inputs));
+      input.setVaultTags(await services.localData.saveVaultTagsBatch(inputs));
     } catch (error) {
       input.setAccountError(error instanceof Error ? error.message : "批量标记保存失败");
       throw error;

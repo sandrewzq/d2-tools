@@ -38,6 +38,7 @@ describe("desktop installer and update wiring", () => {
     expect(updatesIpc).toContain("updates:quit-and-install");
     expect(updatesIpc).toContain("app.isPackaged");
     expect(updatesIpc).toContain("getPath(\"exe\")");
+    expect(updatesIpc).toContain("window.isDestroyed()");
     expect(preload).toContain("getUpdateStatus");
     expect(preload).toContain("onUpdateStatusChanged");
     expect(preload).toContain("checkForUpdates");
@@ -53,6 +54,8 @@ describe("desktop installer and update wiring", () => {
   it("mounts application update controls in the settings page", () => {
     const settingsPage = readFileSync(join(desktopRoot, "src", "renderer", "features", "settings", "SettingsPage.tsx"), "utf8");
     const settingsHook = readFileSync(join(desktopRoot, "src", "renderer", "features", "settings", "useDiagnosticsSettings.ts"), "utf8");
+    const updateFlow = readFileSync(join(desktopRoot, "src", "renderer", "features", "settings", "useUpdateFlow.ts"), "utf8");
+    const diagnosticsModel = readFileSync(join(desktopRoot, "src", "renderer", "features", "settings", "diagnosticsModel.ts"), "utf8");
     const homePage = readFileSync(join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"), "utf8");
 
     expect(settingsPage).toContain("应用更新");
@@ -61,11 +64,16 @@ describe("desktop installer and update wiring", () => {
     expect(settingsPage).toContain("检查更新");
     expect(settingsPage).toContain("下载更新");
     expect(settingsPage).toContain("重启并安装");
-    expect(settingsHook).toContain("api.getUpdateStatus()");
-    expect(settingsHook).toContain("api.onUpdateStatusChanged");
-    expect(settingsHook).toContain("api.checkForUpdates()");
-    expect(settingsHook).toContain("api.downloadUpdate()");
-    expect(settingsHook).toContain("api.quitAndInstallUpdate()");
+    expect(settingsHook).toContain("useUpdateFlow");
+    expect(settingsHook).toContain("createDiagnosticsSettingsModel");
+    expect(updateFlow).toContain("api.getUpdateStatus()");
+    expect(updateFlow).toContain("api.onUpdateStatusChanged");
+    expect(updateFlow).toContain("api.checkForUpdates()");
+    expect(updateFlow).toContain("api.downloadUpdate()");
+    expect(updateFlow).toContain("api.quitAndInstallUpdate()");
+    expect(diagnosticsModel).toContain("api.getConfig()");
+    expect(diagnosticsModel).toContain("api.getManifestStatus()");
+    expect(diagnosticsModel).toContain("api.getActionLog()");
     expect(homePage).toContain("updateSnapshot={diagnostics.updateSnapshot}");
   });
 

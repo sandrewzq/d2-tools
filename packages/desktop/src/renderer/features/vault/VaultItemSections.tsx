@@ -1,6 +1,7 @@
 import type {
   AccountItemSummary,
   DimWishlist,
+  LocalTargetRules,
   VaultItemMatchInfo,
   VaultTags,
   VaultTagValue
@@ -15,6 +16,7 @@ export function VaultItemSections(props: {
   highlightedItemKeys?: LoadoutTemplateLookup | null;
   tags: VaultTags;
   wishlist?: DimWishlist | null;
+  localTargetRules?: LocalTargetRules | null;
   communityMatch?: Map<number, VaultItemMatchInfo>;
   isOrganizing: boolean;
   selectedKeys: Set<string>;
@@ -35,7 +37,7 @@ export function VaultItemSections(props: {
             <h3>{section.label}</h3>
             <span>{section.count} 件</span>
           </div>
-          <div className="vault-list">
+          <div className="vault-card-grid">
             {section.items.map((item) => (
               <VaultListItem
                 item={item}
@@ -43,6 +45,7 @@ export function VaultItemSections(props: {
                 highlightedItemKeys={props.highlightedItemKeys}
                 tags={props.tags}
                 wishlist={props.wishlist}
+                localTargetRules={props.localTargetRules}
                 communityMatch={props.communityMatch?.get(item.hash)}
                 isOrganizing={props.isOrganizing}
                 isSelected={props.selectedKeys.has(getVaultItemKey(item))}

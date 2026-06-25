@@ -2,6 +2,28 @@
 
 这个项目使用面向玩家的更新日志。这里优先记录”玩家能感知到什么变化”，而不是逐条展开内部实现细节。
 
+## 0.0.7 - 2026-06-25
+
+### 新增
+
+- 遗失区域改为 Manifest 静态数据 + 每日轮换推算，不再依赖公共里程碑 API（修复 Bug #5）
+- 新增 Manifest perk 库查询，武器目标规则支持从全量沙盒 perk 库选择
+- 新增活动复盘增强：按 8 种类型分组（突袭/地牢/打击/PvP/智谋/赛季/遗失区域/其他）、完成率统计、连续完成计数
+- 新增多端架构基础包（`packages/app`、`packages/services`），第一阶段骨架落地
+- 新增 UI 样式规范 v1 文档
+
+### 改进
+
+- 商人售卖解析增强：五大关键商人（老九/枪匠/艾达/圣人/拉乎尔）各自角色标签和出现时间说明
+- 仓库类型系统修复：`VaultArmorStatRule.min` 改为 number 类型
+- `collectAccountItems` 去重提取为共享工具函数
+- Renderer 层 API/组件/features 重构
+- 样式系统继续扩展
+
+### 文档
+
+- 新增 `.editorconfig`、`.gitattributes`、`CONTRIBUTING.md`、`LICENSE`、`SECURITY.md`、`SUPPORT.md`
+
 ## 0.0.6 - 2026-06-23
 
 ### 新增

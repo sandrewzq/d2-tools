@@ -1,6 +1,7 @@
 import { fetchBungieJson } from "../bungie/client.js";
 import type { D2Config } from "../config/schema.js";
 import type { DefinitionComponentData, DefinitionRecord } from "../manifest/definitions.js";
+import { buildLostSectorData } from "./lostSectors.js";
 import type { DailyLiveData, DailySummaryItem } from "./summary.js";
 
 type PublicMilestone = {
@@ -79,12 +80,23 @@ export async function fetchDailyLiveData(options: FetchDailyLiveDataOptions): Pr
 
 export function buildDailyLiveDataFromBungie(input: BuildDailyLiveDataInput): Required<DailyLiveData> {
   const milestoneItems = mapMilestones(input.milestones ?? {}, input.definitions ?? {});
+  const lostSectorItems = milestoneItems.lost_sector.length > 0
+    ? milestoneItems.lost_sector
+    : buildLostSectorFallback(input.definitions);
   return {
     rotations: milestoneItems.rotations,
     vendors: mapPublicVendors(input.publicVendors, input.definitions ?? {}),
-    lost_sector: milestoneItems.lost_sector,
+    lost_sector: lostSectorItems,
     weekly_report: milestoneItems.weekly_report
   };
+}
+
+function buildLostSectorFallback(
+  definitions: BuildDailyLiveDataInput["definitions"]
+): DailySummaryItem[] {
+  if (!definitions?.activities) return [];
+  const { items } = buildLostSectorData(definitions.activities);
+  return items;
 }
 
 function mapMilestones(
@@ -164,7 +176,8 @@ function mapPublicVendors(
   const vendors = publicVendors?.vendors?.data ?? {};
   const sales = publicVendors?.sales?.data ?? {};
   const mapped = Object.entries(vendors).flatMap(([vendorKey, vendor]) => {
-    const vendorName = definitionName(definitions.vendors, vendor.vendorHash ?? Number(vendorKey));
+    const vendorHash = vendor.vendorHash ?? Number(vendorKey);
+    const vendorName = definitionName(definitions.vendors, vendorHash);
     if (!vendorName) {
       return [];
     }
@@ -172,16 +185,60 @@ function mapPublicVendors(
       .map((sale) => saleItemLabel(definitions.items, sale))
       .filter(Boolean) as string[];
 
-    return [{
-      title: vendorName,
-      subtitle: "公共商人库存",
-      description: saleNames.slice(0, 8).join(" / ") || "库存名称暂不可读",
-      source: "Bungie"
-    }];
+    return [buildVendorItem(vendorHash, vendorName, saleNames)];
   });
 
-  const commonVendors = mapped.filter((item) => isCommonVendor(item.title));
-  return uniqueByTitle(commonVendors.length ? commonVendors : mapped).slice(0, 10);
+  const keyVendors = mapped.filter((item) => isKeyVendor(item.title));
+  return uniqueByTitle(keyVendors.length ? keyVendors : mapped).slice(0, 10);
+}
+
+function buildVendorItem(
+  vendorHash: number,
+  name: string,
+  saleNames: string[]
+): DailySummaryItem {
+  const vendorLabel = vendorRoleLabel(name, vendorHash);
+  const salePreview = saleNames.slice(0, 8).join(" / ") || "库存名称暂不可读";
+
+  return {
+    title: name,
+    subtitle: vendorLabel,
+    description: salePreview,
+    source: "Bungie 公共商人"
+  };
+}
+
+/** Known vendor hashes for key daily/weekly vendors. */
+const KEY_VENDOR_HASHES: Record<number, string> = {
+  2190858386: "老九",        // Xur
+  672118013: "枪匠",         // Banshee-44
+  3500617033: "艾达-1",     // Ada-1
+  3902439767: "圣人-14",    // Saint-14
+  2255782930: "拉乎尔大师", // Master Rahool
+};
+
+function vendorRoleLabel(name: string, vendorHash: number): string {
+  if (vendorHash === 2190858386) return "异域商人 · 周五至周二出现";
+  if (vendorHash === 672118013) return "枪匠 · 每日模组刷新";
+  if (vendorHash === 3500617033) return "护甲合成 · 每日模组刷新";
+  if (vendorHash === 3902439767) return "试炼商人 · 周末出现";
+  if (vendorHash === 2255782930) return "密码学家 · 记忆水晶兑换";
+  return "公共商人库存";
+}
+
+function isKeyVendor(name: string): boolean {
+  const lower = name.toLocaleLowerCase();
+  return name.includes("老九")
+    || lower.includes("xur")
+    || lower.includes("xûr")
+    || name.includes("枪匠")
+    || lower.includes("banshee")
+    || lower.includes("ada")
+    || name.includes("艾达")
+    || name.includes("圣人")
+    || lower.includes("saint")
+    || name.includes("拉乎尔")
+    || lower.includes("rahool");
 }
 
 function collectPublicSales(vendorSales: PublicVendorSales | undefined): PublicSale[] {
@@ -270,21 +327,6 @@ function saleCostLabel(
 function containsLostSector(value: string): boolean {
   const lower = value.toLocaleLowerCase();
   return value.includes("遗失区域") || lower.includes("lost sector");
-}
-
-function isCommonVendor(name: string): boolean {
-  const lower = name.toLocaleLowerCase();
-  return name.includes("老九")
-    || lower.includes("xur")
-    || lower.includes("xûr")
-    || name.includes("枪匠")
-    || lower.includes("banshee")
-    || lower.includes("ada")
-    || name.includes("艾达")
-    || name.includes("圣人")
-    || lower.includes("saint")
-    || name.includes("拉乎尔")
-    || lower.includes("rahool");
 }
 
 function uniqueByTitle(items: DailySummaryItem[]): DailySummaryItem[] {

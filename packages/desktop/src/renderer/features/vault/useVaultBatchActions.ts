@@ -36,6 +36,23 @@ export function buildVaultBulkMoveResultMessage(
   return `已转移到${targetLabel}：成功 ${result.success_count} 件，失败 ${result.failed_count} 件。可到设置 -> 操作日志查看失败详情。`;
 }
 
+function batchTagCopy(tag: VaultTagValue): { action: string; loading: string } {
+  switch (tag) {
+    case "review":
+      return { action: "批量关注", loading: "正在批量标记为关注..." };
+    case "junk":
+      return { action: "批量可清理", loading: "正在批量标记为可清理..." };
+    case "farm":
+      return { action: "批量待刷", loading: "正在批量标记为待刷..." };
+    case "loadout":
+      return { action: "批量配装用", loading: "正在批量标记为配装用..." };
+    case "none":
+    case "keep":
+    default:
+      return { action: tag === "keep" ? "批量保留" : "批量清除", loading: tag === "keep" ? "正在批量标记为保留..." : "正在批量清除本地标记..." };
+  }
+}
+
 export function useVaultBatchActions(input: {
   selectedItems: AccountItemSummary[];
   cleanupActionItems: AccountItemSummary[];
@@ -74,9 +91,10 @@ export function useVaultBatchActions(input: {
   }
 
   async function applyBatchTag(tag: VaultTagValue) {
+    const copy = batchTagCopy(tag);
     setIsBatchSaving(true);
-    setActiveBatchAction(tag === "review" ? "批量关注" : tag === "junk" ? "批量可清理" : "批量清除");
-    setBatchMessage(tag === "review" ? "正在批量标记为关注..." : tag === "junk" ? "正在批量标记为可清理..." : "正在批量清除本地标记...");
+    setActiveBatchAction(copy.action);
+    setBatchMessage(copy.loading);
 
     try {
       for (const item of input.selectedItems) {

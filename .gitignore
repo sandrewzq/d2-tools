@@ -9,6 +9,13 @@ out/
 coverage/
 *.log
 
+# generated source-adjacent build artifacts
+packages/*/src/**/*.js
+packages/*/src/**/*.d.ts
+
+# local runtime / temp outputs
+.local-data/
+
 # brainstorming / superpowers visual companion
 .superpowers/brainstorm/
 

@@ -1,10 +1,12 @@
+import { evaluateLocalTargets } from "@d2-tools/core/analysis/targets";
 import type {
   AccountItemSummary,
+  LocalTargetRules,
   VaultTags,
   VaultTagValue
 } from "../../api/client";
 
-export type VaultBatchSelectionMode = "visible" | "junk" | "review" | "untagged" | "noted";
+export type VaultBatchSelectionMode = "visible" | "junk" | "review" | "farm" | "loadout" | "untagged" | "noted" | "target";
 export type VaultVisibleSelectionMode = "replace" | "append" | "remove";
 
 export function getVaultItemKey(item: AccountItemSummary): string {
@@ -14,10 +16,17 @@ export function getVaultItemKey(item: AccountItemSummary): string {
 export function selectVaultBatchItems(
   items: AccountItemSummary[],
   mode: VaultBatchSelectionMode,
-  tags: VaultTags
+  tags: VaultTags,
+  localTargetRules?: LocalTargetRules | null
 ): AccountItemSummary[] {
   if (mode === "visible") {
     return items;
+  }
+  if (mode === "target") {
+    return items.filter((item) => evaluateLocalTargets({
+      ...item,
+      socket_plugs: item.socket_plugs ?? []
+    }, localTargetRules ?? undefined).matched);
   }
   if (mode === "untagged") {
     return items.filter((item) => !tags.items[getVaultItemKey(item)]?.tag);

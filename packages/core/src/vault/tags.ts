@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 
-export type VaultTagValue = "none" | "keep" | "review" | "junk";
+export type VaultTagValue = "none" | "keep" | "review" | "junk" | "farm" | "loadout";
 
 export type VaultTagEntry = {
   tag?: Exclude<VaultTagValue, "none">;

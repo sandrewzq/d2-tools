@@ -1,9 +1,12 @@
+import { evaluateWishlistRoll } from "@d2-tools/core/analysis/wishlist";
+import { evaluateLocalTargets } from "@d2-tools/core/analysis/targets";
 import type {
   AccountSummary,
   DimWishlist,
   ItemActionPlanInput,
   ItemActionResult,
   ItemAiAdviceResult,
+  LocalTargetRules,
   VaultTags,
   VaultTagValue,
   WeaponRecommendation
@@ -13,8 +16,13 @@ import type {
   SelectedItemDetail,
   SelectedItemSource
 } from "../../hooks/useItemDetail";
+import { selectedItemToAccountItem } from "../../hooks/useItemDetail";
 import type { buildDuplicateGroupBatchTagPlan } from "../../domain/vault/vaultCleanup";
-import { getItemSourceStatusTone } from "./itemDetailFormatters";
+import {
+  formatVaultTagLabel,
+  formatWishlistModeLabels,
+  getItemSourceStatusTone
+} from "./itemDetailFormatters";
 import { ItemDetailActions } from "./ItemDetailActions";
 import { ItemDetailAi } from "./ItemDetailAi";
 import { ItemDetailCommunity } from "./ItemDetailCommunity";
@@ -26,6 +34,7 @@ export type ItemDetailToolsProps = {
   aiSettingsEnableLightgg: boolean;
   communityRecommendations: WeaponRecommendation | null;
   importedWishlist: DimWishlist | null;
+  localTargetRules: LocalTargetRules;
   isCommunityRecommendationsLoading: boolean;
   isGeneratingItemAi: boolean;
   isRunningItemAction: boolean;
@@ -77,6 +86,14 @@ export function ItemDetailTools(props: ItemDetailToolsProps) {
         <section className="item-detail-tool-section">
           <h3>概览</h3>
           <ItemDetailOverview selectedItem={selectedItem} />
+          <ItemDetailTargetMatch
+            importedWishlist={props.importedWishlist}
+            localTargetRules={props.localTargetRules}
+            selectedItem={selectedItem}
+            vaultTags={props.vaultTags}
+            onCopyWishlistInsight={props.onCopyWishlistInsight}
+            onSaveSelectedItemTag={props.onSaveSelectedItemTag}
+          />
           <ItemDetailPerks selectedItem={selectedItem} />
         </section>
         <section className="item-detail-tool-section">
@@ -108,6 +125,11 @@ export function ItemDetailTools(props: ItemDetailToolsProps) {
         </section>
         <section className="item-detail-tool-section">
           <h3>操作</h3>
+          <ItemLocalTagPanel
+            selectedItem={selectedItem}
+            vaultTags={props.vaultTags}
+            onSaveSelectedItemTag={props.onSaveSelectedItemTag}
+          />
           <ItemNotePanel
             itemNoteDraft={props.itemNoteDraft}
             itemNoteMessage={props.itemNoteMessage}
@@ -160,6 +182,96 @@ function ItemDetailOverview(props: { selectedItem: SelectedItemDetail }) {
         <span>{selectedItem.source.description}</span>
       </section>
     </>
+  );
+}
+
+function ItemDetailTargetMatch(props: {
+  importedWishlist: DimWishlist | null;
+  localTargetRules: LocalTargetRules;
+  selectedItem: SelectedItemDetail;
+  vaultTags: VaultTags;
+  onCopyWishlistInsight: () => void;
+  onSaveSelectedItemTag: (tag: VaultTagValue) => void;
+}) {
+  const accountItem = selectedItemToAccountItem(props.selectedItem);
+  if (!accountItem) {
+    return null;
+  }
+
+  const wishlist = evaluateWishlistRoll({
+    ...accountItem,
+    socket_plugs: accountItem.socket_plugs ?? []
+  }, props.importedWishlist ?? undefined);
+  const localTarget = evaluateLocalTargets(accountItem, props.localTargetRules);
+  const hasImportedWishlist = Boolean(props.importedWishlist?.rules.length);
+
+  if (!wishlist.matched && !localTarget.matched && !hasImportedWishlist) {
+    return null;
+  }
+
+  const modeLabels = formatWishlistModeLabels(wishlist.labels);
+  const tag = props.vaultTags.items[props.selectedItem.item_key]?.tag ?? "none";
+  const matched = wishlist.matched || localTarget.matched;
+
+  return (
+    <section className={`target-match-panel ${matched ? "matched" : "empty"}`}>
+      <div className="target-match-header">
+        <span className="source-status-badge source-status-ready">目标命中</span>
+        <strong>{matched
+          ? localTarget.matched ? "本地目标命中" : wishlist.labels.includes("DIM Wishlist") ? "DIM 愿望单命中" : "疑似好 roll"
+          : "未命中已导入 DIM 愿望单"}</strong>
+      </div>
+      <div className="target-match-meta">
+        <span>本地标记：{formatVaultTagLabel(tag)}</span>
+        {wishlist.matched ? <span>{modeLabels.length ? modeLabels.join(" / ") : wishlist.labels.join(" / ")}</span> : null}
+        {localTarget.matched ? <span>{localTarget.labels.join(" / ")}</span> : null}
+      </div>
+      {matched ? (
+        <ul>
+          {localTarget.reasons.map((reason) => <li key={reason}>{reason}</li>)}
+          {wishlist.reasons.map((reason) => <li key={reason}>{reason}</li>)}
+        </ul>
+      ) : (
+        <p>当前装备没有命中已导入的 DIM 愿望单规则，可继续用同名对比或社区推荐复查。</p>
+      )}
+      <div className="button-row">
+        {matched ? (
+          <button type="button" className="secondary-button" onClick={props.onCopyWishlistInsight}>
+            复制命中结论
+          </button>
+        ) : null}
+        <button type="button" className="secondary-button" onClick={() => props.onSaveSelectedItemTag("farm")}>标记待刷</button>
+        <button type="button" className="secondary-button" onClick={() => props.onSaveSelectedItemTag("loadout")}>标记配装用</button>
+      </div>
+      <small>{localTarget.matched ? localTarget.disclaimer : wishlist.disclaimer}</small>
+    </section>
+  );
+}
+
+function ItemLocalTagPanel(props: {
+  selectedItem: SelectedItemDetail;
+  vaultTags: VaultTags;
+  onSaveSelectedItemTag: (tag: VaultTagValue) => void;
+}) {
+  const currentTag = props.vaultTags.items[props.selectedItem.item_key]?.tag ?? "none";
+
+  return (
+    <section className="item-local-tag-panel">
+      <div className="item-local-tag-header">
+        <span>本地标记</span>
+        <strong className={`vault-tag-current tag-${currentTag}`}>
+          {formatVaultTagLabel(currentTag)}
+        </strong>
+      </div>
+      <div className="button-row">
+        <button type="button" className="secondary-button" onClick={() => props.onSaveSelectedItemTag("keep")}>保留</button>
+        <button type="button" className="secondary-button" onClick={() => props.onSaveSelectedItemTag("review")}>关注</button>
+        <button type="button" className="secondary-button" onClick={() => props.onSaveSelectedItemTag("farm")}>待刷</button>
+        <button type="button" className="secondary-button" onClick={() => props.onSaveSelectedItemTag("loadout")}>配装用</button>
+        <button type="button" className="secondary-button" onClick={() => props.onSaveSelectedItemTag("junk")}>可清理</button>
+        <button type="button" className="secondary-button" onClick={() => props.onSaveSelectedItemTag("none")}>清除</button>
+      </div>
+    </section>
   );
 }
 

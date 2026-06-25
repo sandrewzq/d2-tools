@@ -16,7 +16,7 @@ describe("desktop AI analysis wiring", () => {
     const preload = readFileSync(join(desktopRoot, "src", "preload", "preload.ts"), "utf8");
     const analysisIpc = readFileSync(join(desktopRoot, "src", "main", "ipc", "analysis.ts"), "utf8");
 
-    expect(panel).toContain("api.sendAiChat");
+    expect(panel).toContain("sendAssistantMessage(services");
     expect(panel).toContain("可以直接问");
     expect(panel).not.toContain("AI 深度建议");
     expect(panel).not.toContain("api.generateVaultAiAdvice");

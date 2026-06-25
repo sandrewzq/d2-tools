@@ -8,13 +8,22 @@ describe("armor stats UI wiring", () => {
     const itemDetailHook = readFileSync("packages/desktop/src/renderer/shared/hooks/useItemDetail.ts", "utf8");
     const sharedTypes = readFileSync("packages/desktop/src/renderer/api/sharedTypes.ts", "utf8");
 
-    expect(sharedTypes).toContain("export type ArmorEnergySummary");
+    expect(sharedTypes).toContain("ArmorEnergySummary");
+    expect(sharedTypes).toContain("ArmorStatBreakdownSummary");
+    expect(sharedTypes).toContain("@d2-tools/core/account/summary");
     expect(itemDetailHook).toContain("armor_stats?: AccountItemSummary[\"armor_stats\"]");
+    expect(itemDetailHook).toContain("armor_stat_breakdown?: AccountItemSummary[\"armor_stat_breakdown\"]");
     expect(itemDetailHook).toContain("armor_energy?: AccountItemSummary[\"armor_energy\"]");
     expect(itemDetailHook).toContain("armor_stats: item.armor_stats");
+    expect(itemDetailHook).toContain("armor_stat_breakdown: item.armor_stat_breakdown");
     expect(itemDetailHook).toContain("armor_energy: item.armor_energy");
     expect(itemDetailModal).toContain("当前属性");
     expect(itemDetailModal).toContain("formatArmorStatsSummary(selectedItem)");
+    expect(itemDetailModal).toContain("基础");
+    expect(itemDetailModal).toContain("模组");
+    expect(itemDetailModal).toContain("最终");
+    expect(itemDetailModal).toContain("item-detail-stat-breakdown");
+    expect(itemDetailModal).toContain("selectedItem.armor_stat_breakdown");
     expect(itemDetailModal).toContain("formatArmorStatsSummary(item)");
     expect(itemDetailModal).toContain("formatArmorEnergySummary(selectedItem.armor_energy)");
     expect(itemDetailModal).toContain("生命值");
@@ -50,7 +59,8 @@ describe("armor stats UI wiring", () => {
     const itemDetailHook = readFileSync("packages/desktop/src/renderer/shared/hooks/useItemDetail.ts", "utf8");
     const sharedTypes = readFileSync("packages/desktop/src/renderer/api/sharedTypes.ts", "utf8");
 
-    expect(sharedTypes).toContain("export type WeaponStatSummary");
+    expect(sharedTypes).toContain("WeaponStatSummary");
+    expect(sharedTypes).toContain("@d2-tools/core/account/summary");
     expect(itemDetailHook).toContain("weapon_stats?: AccountItemSummary[\"weapon_stats\"]");
     expect(itemDetailHook).toContain("weapon_stats: item.weapon_stats");
     expect(itemDetailModal).toContain("武器属性");

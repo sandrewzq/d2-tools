@@ -55,7 +55,7 @@ export function VaultArmorFilterPanel(props: {
                   value={rule.min}
                   onChange={(event) => props.onUpdateRule(index, {
                     ...rule,
-                    min: event.target.value
+                    min: event.target.valueAsNumber || 0
                   })}
                   placeholder="20"
                 />

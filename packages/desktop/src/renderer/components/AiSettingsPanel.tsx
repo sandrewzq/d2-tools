@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { api, type D2Config } from "../api/client";
+import { api } from "../api/client";
 import {
   getAiLightggSupportSettings,
   normalizeAiSettings,
@@ -84,7 +84,7 @@ export function AiSettingsPanel(props: {
     setIsLoadingModels(true);
     setModelListMessage("");
 
-    void api.listAiModels(buildDraftConfig(draftAiSettings))
+    void api.listAiModels(draftAiSettings)
       .then((result) => {
         if (cancelled) return;
         setModelOptions(result.models);
@@ -114,7 +114,7 @@ export function AiSettingsPanel(props: {
     setModelListMessage("");
 
     try {
-      const result = await api.listAiModels(buildDraftConfig(draftAiSettings));
+      const result = await api.listAiModels(draftAiSettings);
       setModelOptions(result.models);
       if (modelInputMode === "select" && model && !result.models.includes(model)) {
         setModel("");
@@ -318,23 +318,4 @@ export function AiSettingsPanel(props: {
       {message ? <p className="notice">{message}</p> : null}
     </section>
   );
-}
-
-function buildDraftConfig(ai: D2Config["ai"]): D2Config {
-  return {
-    bungie: {
-      api_key: "",
-      client_id: "",
-      client_secret: "",
-      redirect_uri: "https://127.0.0.1:28780/oauth/callback"
-    },
-    data: {
-      data_dir: "",
-      manifest_language: "zh-chs"
-    },
-    ai,
-    features: {
-      write_actions_enabled: false
-    }
-  };
 }
