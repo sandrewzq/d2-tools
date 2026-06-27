@@ -1,75 +1,64 @@
-import { useState } from "react";
-import {
-  type ActionLogEntry,
-  type D2Config
-} from "../../api/client";
+import type { ActionLogEntry } from "../../api/client";
 import {
   copyActionDiagnostic,
+  copyDataBackupGuide,
   copyDiagnosticsExport,
   createDiagnosticsSettingsModel,
   loadActionLog
 } from "./diagnosticsModel";
+import {
+  useActionLogState,
+  useAiWriteSettingsState,
+  useDiagnosticsStatusState
+} from "./useDiagnosticsSettingsState";
 import { useUpdateFlow } from "./useUpdateFlow";
 
 export function useDiagnosticsSettings(input: {
   onConfigChanged: () => void;
 }) {
-  const [diagnosticDataDir, setDiagnosticDataDir] = useState("");
-  const [diagnosticManifestVersion, setDiagnosticManifestVersion] = useState<string | undefined>();
-  const [diagnosticError, setDiagnosticError] = useState("");
-  const [isRefreshingDiagnostics, setIsRefreshingDiagnostics] = useState(false);
-  const [aiSettings, setAiSettings] = useState<D2Config["ai"]>({
-    protocol: "",
-    provider: "",
-    api_key: "",
-    model: "",
-    base_url: "",
-    enable_lightgg: false,
-    force_lightgg: false
-  });
-  const [writeActionsEnabled, setWriteActionsEnabled] = useState(false);
-  const [actionLog, setActionLog] = useState<ActionLogEntry[]>([]);
-  const [actionLogResultFilter, setActionLogResultFilter] = useState<"all" | "success" | "failed">("all");
-  const [actionLogTypeFilter, setActionLogTypeFilter] = useState<ActionLogEntry["action"] | "all">("all");
+  const diagnosticsStatus = useDiagnosticsStatusState();
+  const aiWriteSettings = useAiWriteSettingsState();
+  const actionLogState = useActionLogState();
   const updateFlow = useUpdateFlow();
 
   const settingsModel = createDiagnosticsSettingsModel({
     onConfigChanged: input.onConfigChanged,
-    setDiagnosticDataDir,
-    setDiagnosticManifestVersion,
-    setDiagnosticError,
-    setIsRefreshingDiagnostics,
-    setAiSettings,
-    setWriteActionsEnabled,
-    setActionLog,
+    setDiagnosticDataDir: diagnosticsStatus.setDiagnosticDataDir,
+    setDiagnosticManifestVersion: diagnosticsStatus.setDiagnosticManifestVersion,
+    setDiagnosticError: diagnosticsStatus.setDiagnosticError,
+    setIsRefreshingDiagnostics: diagnosticsStatus.setIsRefreshingDiagnostics,
+    setAiSettings: aiWriteSettings.setAiSettings,
+    setWriteActionsEnabled: aiWriteSettings.setWriteActionsEnabled,
+    setActionLog: actionLogState.setActionLog,
     setSettingsMessage: updateFlow.setSettingsMessage,
     setSettingsError: updateFlow.setSettingsError
   });
 
   return {
-    actionLog,
-    actionLogResultFilter,
-    actionLogTypeFilter,
-    aiSettings,
+    actionLog: actionLogState.actionLog,
+    actionLogResultFilter: actionLogState.actionLogResultFilter,
+    actionLogTypeFilter: actionLogState.actionLogTypeFilter,
+    aiSettings: aiWriteSettings.aiSettings,
     checkForUpdates: updateFlow.checkForUpdates,
     copyActionDiagnostic: (entry: ActionLogEntry) => copyActionDiagnostic(entry, updateFlow.setSettingsMessage, updateFlow.setSettingsError),
+    copyDataBackupGuide: () => copyDataBackupGuide(diagnosticsStatus.diagnosticDataDir, updateFlow.setSettingsMessage, updateFlow.setSettingsError),
     copyDiagnosticsExport: () => copyDiagnosticsExport(updateFlow.setSettingsMessage, updateFlow.setSettingsError),
-    diagnosticDataDir,
-    diagnosticError,
-    diagnosticManifestVersion,
+    diagnosticDataDir: diagnosticsStatus.diagnosticDataDir,
+    diagnosticError: diagnosticsStatus.diagnosticError,
+    diagnosticManifestVersion: diagnosticsStatus.diagnosticManifestVersion,
     downloadUpdate: updateFlow.downloadUpdate,
     handleAiSettingsSaved: settingsModel.handleAiSettingsSaved,
-    isRefreshingDiagnostics,
-    loadActionLog: () => loadActionLog(setActionLog, updateFlow.setSettingsError),
+    isRefreshingDiagnostics: diagnosticsStatus.isRefreshingDiagnostics,
+    loadActionLog: () => loadActionLog(actionLogState.setActionLog, updateFlow.setSettingsError),
     quitAndInstallUpdate: updateFlow.quitAndInstallUpdate,
     refreshDiagnostics: settingsModel.refreshDiagnostics,
     saveWriteActionsEnabled: settingsModel.saveWriteActionsEnabled,
-    setActionLogResultFilter,
-    setActionLogTypeFilter,
-    setWriteActionsEnabled,
+    setActionLogResultFilter: actionLogState.setActionLogResultFilter,
+    setActionLogTypeFilter: actionLogState.setActionLogTypeFilter,
+    setWriteActionsEnabled: aiWriteSettings.setWriteActionsEnabled,
     settingsError: updateFlow.settingsError,
     settingsMessage: updateFlow.settingsMessage,
     updateSnapshot: updateFlow.updateSnapshot,
-    writeActionsEnabled
+    writeActionsEnabled: aiWriteSettings.writeActionsEnabled
   };
 }

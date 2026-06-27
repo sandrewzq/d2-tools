@@ -71,6 +71,16 @@ docs/        正式文档
 - 新增可见文案优先进入 copy 体系；当前只维护中文。
 - `HomePage.tsx`、`ItemDetailModal.tsx`、`useItemDetailWorkspace.ts`、`VaultPanel.tsx`、`api/types.ts`、`api/client.ts`、`ipc.ts` 等公共接线文件是并行开发高冲突区，修改前要确认是否真的需要，并说明影响范围。
 
+### 2.4 Renderer UI 样式系统
+
+- 桌面端 UI 按“页面底层 / 主面板 / 子块或列表项”三层组织；页面必须有主工作区，辅助信息和低频信息下沉。
+- 全局样式 token 定义在 `packages/desktop/src/renderer/styles.css` 的 `:root`：间距使用 `--space-8/12/16/24/32`，圆角使用 `--radius-control/panel/pill`，颜色使用 `--surface-*`、`--border-*`、`--text-*` 和 `--status-*`。
+- 新增状态文案统一使用 `status-message status-neutral|pending|ready|warning|error`，不要再在 TSX 中新增 `notice` 或 `error` 类。
+- 新增列表、筛选和对象卡片优先复用 `ui-list-row`、`ui-filter-toolbar`、`ui-item-card`、`ui-badge`；设置页或工具区子块优先复用 `panel-subsection`。
+- `tool-panel` 是主面板层；不要把普通说明块做成嵌套大卡片。装备详情顶部可以保留游戏内视觉语义，但底部工具区继续使用桌面工具样式。
+- `packages/desktop/test/ui-style-system.test.ts` 负责锁定 token、共享样式类、设置页布局和状态语言，防止回到逐页零散修补。
+- 已完成的 v1 样式规范归档在 `docs/work/archive/ui-style-guide-v1.md`，后续开发以本节和测试为准。
+
 ## 3. 本地开发
 
 安装依赖：
@@ -183,7 +193,7 @@ packages/desktop/release/
 
 ### 6.1 发版流程
 
-1. 更新所有 `package.json` 版本号（root、core、desktop、http 保持一致）
+1. 更新所有 `package.json` 版本号（root、core、app、services、desktop、http 保持一致）
 2. 更新 `CHANGELOG.md`，新增 `## x.y.z - YYYY-MM-DD` 章节
 3. 本地预览 Release Body：
    ```powershell
@@ -204,7 +214,8 @@ packages/desktop/release/
 ### 6.2 注意事项
 
 - 如果 `CHANGELOG.md` 没有对应版本章节，CI 会失败，不会发布 Release
-- 只有 tag 名包含 `-beta` 或 `-rc` 时，GitHub Release 才会自动标记为 Pre-release，例如 `v0.0.6-beta.1`、`v1.0.0-rc.1`
+- 只有 tag 名包含 `-beta` 或 `-rc` 时，GitHub Release 才会自动标记为 Pre-release，例如 `v0.0.8-beta.1`、`v1.0.0-rc.1`
+- Release workflow 接受两类 tag：正式版 `vX.Y.Z`，或与当前包版本一致的预发布 tag（例如 `vX.Y.Z-beta.1`、`vX.Y.Z-rc.1`）
 - Release Assets 当前包含 `d2-tools-setup-<version>.exe`、`latest.yml` 和安装器 blockmap
 
 ### 6.3 发布前检查
@@ -214,6 +225,18 @@ packages/desktop/release/
 3. `pnpm release:preview --version x.y.z` 输出符合预期
 4. README 和核心文档没有明显失真
 5. 版本号和 tag 一致
+
+### 6.4 备份与恢复
+
+桌面端当前使用本地数据目录保存配置、Manifest 缓存、愿望单、本地标签、目标规则和操作日志。发布安装器、覆盖安装、迁移电脑或排查数据问题时，按下面的规则处理：
+
+1. 备份前先关闭 d2-tools。
+2. 关闭 d2-tools 后复制整个数据目录。Windows 默认目录来自 `%APPDATA%\d2-tools`，实际路径以设置页“本地数据目录”为准。
+3. 恢复或迁移时，先在目标电脑安装并首次启动 d2-tools，让程序创建数据目录。
+4. 关闭 d2-tools，再用备份目录覆盖目标电脑的数据目录。
+5. 重新启动后检查 Bungie 配置、Manifest、愿望单、本地标签、目标规则和操作日志。
+
+设置页提供“复制备份/迁移说明”和“复制脱敏诊断”。诊断导出不包含 token、client secret 或 API Key，可用于排查更新、配置、Manifest 和写操作问题。
 
 ## 7. 文档结构
 

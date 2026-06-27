@@ -26,19 +26,9 @@ import {
   type VaultVisibleSelectionMode
 } from "../features/vault/vaultSelection";
 import {
-  buildVaultFrameFilters,
-  buildVaultGroups,
-  buildVaultSections,
-  buildVaultSlotFilters,
-  countLocalTargetMatches,
+  createVaultListWorkspace,
+  countWishlistMatches,
   defaultVaultGroupTab,
-  filterVaultItems,
-  formatArmorStatsInline,
-  ammoFilterLabels,
-  lockFilterLabels,
-  sortVaultItems,
-  tagLabels,
-  vaultGroupLabels,
   type VaultAmmoFilter,
   type VaultArmorStatRule,
   type VaultFilter,
@@ -55,8 +45,7 @@ import {
   type VaultViewMode
 } from "../features/vault/vaultFilters";
 import {
-  buildVaultDuplicateSummary,
-  countWishlistMatches
+  buildVaultDuplicateSummary
 } from "../shared/domain/vault/vaultCleanup";
 import {
   useVaultBatchActions,
@@ -106,14 +95,16 @@ export {
   buildDuplicateGroupBatchTagPlan,
   buildVaultCleanupLocatorText,
   buildVaultCleanupText,
+  buildVaultBulkMoveResultMessage,
   buildVaultDuplicateSummary,
-  countWishlistMatches,
   selectDuplicateGroupItems
 } from "../shared/domain/vault/vaultCleanup";
+export {
+  countWishlistMatches
+} from "../features/vault/vaultFilters";
 export type {
   DuplicateGroupBatchTagMode
 } from "../shared/domain/vault/vaultCleanup";
-export { buildVaultBulkMoveResultMessage } from "../features/vault/useVaultBatchActions";
 
 export function VaultPanel(props: {
   items: AccountItemSummary[];
@@ -149,40 +140,10 @@ export function VaultPanel(props: {
     || props.cleanupActions?.currentCharacterId
     || cleanupCharacters[0]?.character_id
     || "";
-  const groups = useMemo(() => buildVaultGroups(props.items), [props.items]);
-  const availableFrameFilters = useMemo(
-    () => buildVaultFrameFilters(filterVaultItems(props.items, {
-      group,
-      query: "",
-      tag: tagFilter,
-      lock: lockFilter,
-      slot: slotFilter,
-      ammo: ammoFilter,
-      armorStatRules,
-      tags: props.tags,
-      wishlist: props.wishlist,
-      localTargetRules: props.localTargetRules
-    })),
-    [ammoFilter, armorStatRules, group, lockFilter, props.items, props.localTargetRules, props.tags, props.wishlist, slotFilter, tagFilter]
-  );
-  const slotFilters = useMemo(
-    () => buildVaultSlotFilters(filterVaultItems(props.items, {
-      group,
-      query: "",
-      tag: tagFilter,
-      lock: lockFilter,
-      ammo: ammoFilter,
-      armorStatRules,
-      frames: frameFilters,
-      tags: props.tags,
-      wishlist: props.wishlist,
-      localTargetRules: props.localTargetRules
-    })),
-    [ammoFilter, armorStatRules, frameFilters, group, lockFilter, props.items, props.localTargetRules, props.tags, props.wishlist, tagFilter]
-  );
-  const filteredItems = useMemo(
-    () => sortVaultItems(
-      filterVaultItems(props.items, {
+  const listWorkspace = useMemo(
+    () => createVaultListWorkspace({
+      items: props.items,
+      filter: {
         group,
         query,
         tag: tagFilter,
@@ -190,20 +151,20 @@ export function VaultPanel(props: {
         slot: slotFilter,
         ammo: ammoFilter,
         armorStatRules,
-        frames: frameFilters,
-        tags: props.tags,
-        wishlist: props.wishlist,
-        localTargetRules: props.localTargetRules
-      }),
+        frames: frameFilters
+      },
       sortKey,
-      props.tags
-    ),
+      tags: props.tags,
+      wishlist: props.wishlist,
+      localTargetRules: props.localTargetRules
+    }),
     [ammoFilter, armorStatRules, frameFilters, group, lockFilter, props.items, props.localTargetRules, props.tags, props.wishlist, query, slotFilter, sortKey, tagFilter]
   );
-  const filteredSections = useMemo(
-    () => buildVaultSections(filteredItems),
-    [filteredItems]
-  );
+  const groups = listWorkspace.groups;
+  const availableFrameFilters = listWorkspace.availableFrameFilters;
+  const slotFilters = listWorkspace.slotFilters;
+  const filteredItems = listWorkspace.filteredItems;
+  const filteredSections = listWorkspace.sections;
   const selectedItems = useMemo(
     () => filteredItems.filter((item) => selectedKeys.has(getVaultItemKey(item))),
     [filteredItems, selectedKeys]
@@ -219,14 +180,8 @@ export function VaultPanel(props: {
     () => selectMarkedCleanupItems(props.items, props.tags),
     [props.items, props.tags]
   );
-  const wishlistSummaryCount = useMemo(
-    () => countWishlistMatches(props.items, props.wishlist),
-    [props.items, props.wishlist]
-  );
-  const targetSummaryCount = useMemo(
-    () => countLocalTargetMatches(props.items, props.localTargetRules),
-    [props.items, props.localTargetRules]
-  );
+  const wishlistSummaryCount = listWorkspace.wishlistMatchCount;
+  const targetSummaryCount = listWorkspace.localTargetMatchCount;
   const loadoutMatchCount = useMemo(
     () => props.highlightedItemKeys
       ? filteredItems.filter((item) => matchesLoadoutTemplateItem(item, props.highlightedItemKeys)).length
@@ -272,22 +227,9 @@ export function VaultPanel(props: {
     () => buildVaultDuplicateSummary(props.items, props.tags),
     [props.items, props.tags]
   );
-  const contextFacts = useMemo(() => buildVaultContextFacts({
-    group,
-    query,
-    tagFilter,
-    lockFilter,
-    slotFilter,
-    ammoFilter,
-    frameFilters,
-    armorStatRules,
-    filteredCount: filteredItems.length,
-    totalCount: props.items.length
-  }), [ammoFilter, armorStatRules, filteredItems.length, frameFilters, group, lockFilter, props.items.length, query, slotFilter, tagFilter]);
-
   useEffect(() => {
-    props.onContextFactsChange?.(contextFacts);
-  }, [contextFacts, props.onContextFactsChange]);
+    props.onContextFactsChange?.(listWorkspace.contextFacts);
+  }, [listWorkspace.contextFacts, props.onContextFactsChange]);
 
   function setBatchSelection(mode: VaultBatchSelectionMode) {
     setSelectedKeys(new Set(selectVaultBatchItems(filteredItems, mode, props.tags, props.localTargetRules).map(getVaultItemKey)));
@@ -365,7 +307,7 @@ export function VaultPanel(props: {
   }
 
   return (
-    <section className="tool-panel">
+    <section className="tool-panel vault-dashboard-panel">
       <div className="section-heading">
         <div>
           <h2>仓库</h2>
@@ -376,7 +318,7 @@ export function VaultPanel(props: {
         </div>
       </div>
       {props.highlightedItemKeys ? (
-        <p className="notice">
+        <p className="status-message status-ready">
           {props.highlightedLabel ? `${props.highlightedLabel} / ` : ""}
           方案命中 {loadoutMatchCount} 件
         </p>
@@ -412,7 +354,7 @@ export function VaultPanel(props: {
         onRunSelectedBulkMove={runSelectedBulkMove}
         onRunCleanupAction={runCleanupAction}
       />
-      {batchMessage ? <p className="notice">{batchMessage}</p> : null}
+      {batchMessage ? <p className={batchMessage.includes("失败") ? "status-message status-error" : "status-message status-ready"}>{batchMessage}</p> : null}
       {duplicateSummary.total_duplicate_groups ? (
         <div className="vault-duplicate-summary">
           <strong>重复组 {duplicateSummary.total_duplicate_groups} 组</strong>
@@ -489,32 +431,4 @@ export function VaultPanel(props: {
       )}
     </section>
   );
-}
-
-function buildVaultContextFacts(input: {
-  group: VaultGroupFilter;
-  query: string;
-  tagFilter: VaultTagFilter;
-  lockFilter: VaultLockFilter;
-  slotFilter: VaultSlotFilter;
-  ammoFilter: VaultAmmoFilter;
-  frameFilters: VaultFrameFilter;
-  armorStatRules: VaultArmorStatRule[];
-  filteredCount: number;
-  totalCount: number;
-}): string[] {
-  const filters = [
-    vaultGroupLabels[input.group],
-    input.query.trim() ? `搜索：${input.query.trim()}` : "",
-    input.tagFilter !== "all" ? tagLabels[input.tagFilter] : "",
-    input.lockFilter !== "all" ? lockFilterLabels[input.lockFilter] : "",
-    input.slotFilter !== "all" ? `位置：${input.slotFilter}` : "",
-    input.ammoFilter !== "all" ? ammoFilterLabels[input.ammoFilter] : "",
-    input.frameFilters.length ? `框架：${input.frameFilters.length} 个` : "",
-    input.armorStatRules.length ? `护甲属性条件：${input.armorStatRules.length} 条` : ""
-  ].filter(Boolean);
-
-  return [
-    `仓库筛选：${filters.join(" / ") || "默认筛选"}，命中 ${input.filteredCount} / ${input.totalCount} 件。`
-  ];
 }

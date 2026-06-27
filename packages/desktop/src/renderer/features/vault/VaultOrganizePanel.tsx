@@ -177,7 +177,7 @@ export function VaultOrganizePanel(props: {
               </select>
             </label>
           ) : (
-            <p className="notice">请先读取账号角色数据。</p>
+            <p className="status-message status-neutral">请先读取账号角色数据。</p>
           )}
           <div className="vault-cleanup-actions">
             <span>本次处理 {props.cleanupActionItems.length} 件</span>
@@ -202,7 +202,7 @@ export function VaultOrganizePanel(props: {
             </button>
           </div>
           {!props.cleanupActions?.writeActionsEnabled ? (
-            <p className="notice">写操作未开启。需要到设置页开启后，才能批量解锁或转移装备。</p>
+            <p className="status-message status-warning">写操作未开启。需要到设置页开启后，才能批量解锁或转移装备。</p>
           ) : null}
           <p className="muted-copy">提示：游戏里看不到 d2-tools 的本地标记；转移到角色背包后，可以按这份清单在游戏里逐件分解。</p>
           {props.cleanupActionItems.length ? (

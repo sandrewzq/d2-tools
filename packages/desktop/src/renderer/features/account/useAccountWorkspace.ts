@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { loadAccountWorkspace, loadAccountDerivedWorkspace } from "@d2-tools/app";
+import { loadFullAccountWorkspace, loadAccountDerivedWorkspace } from "@d2-tools/app";
 import {
   api,
   type AccountSummary,
@@ -84,11 +84,18 @@ export function useAccountWorkspace(input: {
     setAccountError("");
 
     try {
-      const workspace = await loadAccountWorkspace(services);
+      const workspace = await loadFullAccountWorkspace(services);
       if (workspace.status !== "success") {
         throw new Error(workspace.error?.message ?? "账号数据读取失败");
       }
-      const { account: summary, tags, targetRules, wishlist } = workspace.data;
+      const {
+        account: summary,
+        tags,
+        targetRules,
+        wishlist,
+        activitySummary: derivedActivitySummary,
+        vaultCommunityMatch: derivedVaultCommunityMatch
+      } = workspace.data;
       setAccountSummary(summary);
       setVaultTags(tags);
       setLocalTargetRules(targetRules);
@@ -99,16 +106,9 @@ export function useAccountWorkspace(input: {
         }
         return summary.characters[0]?.character_id ?? "";
       });
-      const derived = await loadAccountDerivedWorkspace(services, summary);
-      if (derived.status === "success") {
-        setActivitySummary(derived.data.activitySummary);
-        setVaultCommunityMatch(derived.data.vaultCommunityMatch);
-        setActivityMessage(derived.data.activitySummary ? "最近活动已更新" : "");
-      } else {
-        setActivitySummary(null);
-        setVaultCommunityMatch(new Map());
-        setActivityError(derived.error?.message ?? "最近活动读取失败");
-      }
+      setActivitySummary(derivedActivitySummary);
+      setVaultCommunityMatch(derivedVaultCommunityMatch);
+      setActivityMessage(derivedActivitySummary ? "最近活动已更新" : "");
     } catch (error) {
       const message = error instanceof Error ? error.message : "账号数据读取失败";
       setAccountError(input.state.nextStep === "home"

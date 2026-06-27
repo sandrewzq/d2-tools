@@ -99,6 +99,6 @@ P2：
 ## 与当前文档的关系
 
 - `docs/todo.md`：唯一当前待办入口，已按本分析重组当前需求。
-- `docs/work/backlog/2026-06-23-armor-stat-filter-design.md`：增强愿望单中“护甲属性最低值条件”的前置能力。
-- `docs/work/backlog/2026-06-23-item-detail-game-style-ui-design.md`：装备详情游戏内风格 UI 的已确认设计。
-- `docs/work/backlog/2026-06-22-account-page-layout-design.md`：账号页布局重构的早期设计，可作为角色一级入口的参考。
+- `docs/work/archive/2026-06-23-armor-stat-filter-design.md`：增强愿望单中“护甲属性最低值条件”的前置能力。
+- `docs/work/archive/2026-06-23-item-detail-game-style-ui-design.md`：装备详情游戏内风格 UI 的已确认设计。
+- `docs/work/archive/2026-06-22-account-page-layout-design.md`：账号页布局重构的早期设计，可作为角色一级入口的参考。

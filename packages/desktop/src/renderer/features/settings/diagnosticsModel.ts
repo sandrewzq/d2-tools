@@ -4,6 +4,28 @@ export type DiagnosticsBridge = {
   refreshDiagnostics: () => Promise<void>;
 };
 
+export function createDiagnosticsSettingsState() {
+  return {
+    diagnosticDataDir: "",
+    diagnosticManifestVersion: undefined as string | undefined,
+    diagnosticError: "",
+    isRefreshingDiagnostics: false,
+    aiSettings: {
+      protocol: "",
+      provider: "",
+      api_key: "",
+      model: "",
+      base_url: "",
+      enable_lightgg: false,
+      force_lightgg: false
+    } as D2Config["ai"],
+    writeActionsEnabled: false,
+    actionLog: [] as ActionLogEntry[],
+    actionLogResultFilter: "all" as "all" | "success" | "failed",
+    actionLogTypeFilter: "all" as ActionLogEntry["action"] | "all"
+  };
+}
+
 export function createDiagnosticsSettingsModel(input: {
   onConfigChanged: () => void;
   setDiagnosticDataDir: (value: string) => void;
@@ -91,6 +113,44 @@ export async function copyDiagnosticsExport(setSettingsMessage: (value: string) 
   } catch (error) {
     setSettingsError(error instanceof Error ? error.message : "诊断导出失败");
   }
+}
+
+export async function copyDataBackupGuide(
+  dataDir: string,
+  setSettingsMessage: (value: string) => void,
+  setSettingsError: (value: string) => void
+) {
+  setSettingsMessage("");
+  setSettingsError("");
+  try {
+    await navigator.clipboard.writeText(buildDataBackupGuide(dataDir));
+    setSettingsMessage("已复制备份/迁移说明");
+  } catch {
+    setSettingsError("复制失败，请检查系统剪贴板权限");
+  }
+}
+
+export function buildDataBackupGuide(dataDir: string): string {
+  const normalizedDataDir = dataDir || "当前未读取到数据目录，请先刷新诊断状态";
+  return [
+    "d2-tools 数据备份与迁移",
+    "",
+    `数据目录：${normalizedDataDir}`,
+    "",
+    "备份：",
+    "1. 关闭 d2-tools 后复制整个数据目录。",
+    "2. 把复制出来的目录保存到安全位置，例如外置硬盘、网盘或版本归档目录。",
+    "3. 备份后再安装新版或迁移电脑。",
+    "",
+    "恢复 / 迁移：",
+    "1. 在目标电脑安装并首次启动 d2-tools，让程序创建数据目录。",
+    "2. 关闭 d2-tools。",
+    "3. 用备份目录覆盖目标电脑的数据目录。",
+    "4. 重新启动 d2-tools，检查 Bungie 配置、Manifest、愿望单、本地标签、目标规则和操作日志。",
+    "",
+    "诊断：",
+    "设置页的脱敏诊断导出不包含 token、client secret 或 API Key，排查问题时可一并复制。"
+  ].join("\n");
 }
 
 export async function copyActionDiagnostic(entry: ActionLogEntry, setSettingsMessage: (value: string) => void, setSettingsError: (value: string) => void) {

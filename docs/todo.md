@@ -1,13 +1,13 @@
 # 当前待办
 
-> 更新时间：2026-06-25
+> 更新时间：2026-06-27
 > 这是唯一当前待办文档。已完成、取消或确认无效的条目直接删除。
 
 ## 健康度
 
 | 检查项 | 状态 |
 |---|---|
-| `pnpm test`（105 文件 / 362 测试） | ✅ 通过 |
+| `pnpm test`（125 文件 / 424 测试） | ✅ 通过 |
 | `pnpm typecheck` | ✅ 通过 |
 | `pnpm docs:check` | ✅ 通过 |
 | 架构审查（2026-06-24） | 7.5/10，新增 Bug #17–#23 |
@@ -24,8 +24,6 @@
 | # | 优先级 | 标题 | 要点 |
 |---|---|---|---|
 | 16 | P1 | 社区推荐降级提示未正确显示 | light.gg 失败后降级提示不出现。社区推荐整体待重做，届时一并解决 |
-| 19 | P1 | HomePage 上帝组件 | 承载 40+ 状态/方法，props drilling 到 6 个子页面，建议引入页面级 Context |
-| 20 | P1 | useDiagnosticsSettings 职责混叠 | 诊断 / 设置 / 更新 / 日志 4 领域合并返回 20+ 字段，应拆为独立 hook |
 
 ### 已修复
 
@@ -39,6 +37,8 @@
 | 18 | as never 绕过跨层类型检查 — sharedTypes 改为 re-export core 类型 | 2026-06-24 |
 | 21 | AI 协议归一化逻辑重复 — 统一沉淀到 core AI settings 模块 | 2026-06-24 |
 | 23 | updates.ts 全窗口广播无防护 — 增加 isDestroyed() 防护 | 2026-06-24 |
+| 20 | useDiagnosticsSettings 职责混叠 — 拆出诊断状态、AI/写操作设置状态、操作日志状态 hook，保留外部兼容 facade | 2026-06-26 |
+| 19 | HomePage 上帝组件 — dashboard、派生状态、菜单路由、装备详情弹窗和写操作组合已拆出，保留为桌面端页面 composition root | 2026-06-26 |
 | 12 | 装备详情属性展示 — GUI 验收通过 | 2026-06-23 |
 | 22 | 10 分钟定时同步 timer 依赖不稳定 — 改用 useRef | 2026-06-24 |
 
@@ -58,20 +58,20 @@
 
 ## 当前需求
 
-> 会议需求重组分析见 `docs/work/backlog/2026-06-23-meeting-product-requirements-analysis.md`。
+> 会议需求重组分析见 `docs/work/archive/2026-06-23-meeting-product-requirements-analysis.md`。
 
 ### P0 · 多端支持架构重构
 
 > **目标** 当前桌面端继续交付，同时把业务规则、服务访问和前端查询层重构成桌面 / Web / 移动端可复用的边界。
 
-**当前状态** 第一阶段骨架已开始落地：新增 `packages/services` 承接 Profile / Manifest / LocalData / AI 服务契约和桌面 bridge adapter；新增 `packages/app` 承接跨端 `QueryState`、账号 workspace、仓库 workspace、AI 助手消息入口；新增边界测试拦截 app / services 反向依赖 desktop、Electron 或 UI 包。AI 助手发送消息、账号读取、仓库标签读取和本地目标规则初始化已接入 `desktop UI -> app -> services -> window.d2 / IPC`。设计入口见 `docs/work/backlog/multi-platform-architecture-design.md`。
+**当前状态** 第一、第二和第三阶段轻量验收已完成：新增 `packages/services` 承接 Profile / Manifest / LocalData / AI 服务契约、桌面 bridge adapter 和测试型内存 adapter；新增 `packages/app` 承接跨端 `QueryState`、账号 workspace、账号页 view model、仓库 workspace、AI 助手消息入口、仓库列表主链、仓库批量选择准备、仓库清理 / 重复组 / 批量写操作前文案、配装模板命中 lookup、配装来源定位、配装对比 view model、配装缺失件计划和写操作前文案；新增边界测试拦截 app / services 反向依赖 desktop、Electron 或 UI 包。AI 助手发送消息、账号读取、仓库标签读取、本地目标规则初始化，以及仓库列表 / 筛选 / 分组 / 标签命中 / 愿望单命中 / 本地目标命中摘要，已接入 `desktop UI -> app -> services -> window.d2 / IPC`。账号页角色 tab、选中角色、摘要文案、装备 meta / key、已装备 / 背包 slot 分组、当前角色配装命中计数、材料行、邮政官预览和游戏内配装栏行已下沉到 app；配装模板命中 lookup、缺失件转移计划和 blocked reason 文案已迁到 app；最高光等装备计划、执行计划、确认文案和执行反馈文案已迁到 app，desktop 保留兼容出口。`createMemoryServices()` 已覆盖 Profile、LocalData、Manifest 和 AI 四类服务形态，可驱动账号、仓库和 AI app workspace 脱离 desktop bridge 运行。历史设计见 `docs/work/archive/multi-platform-architecture-design.md`。
 
 **要做什么**
-- 逐步把账号、仓库、AI 的页面数据编排从 desktop renderer 下沉到 `packages/app`
-- 逐步把本地存储、Manifest、Bungie 访问、AI 请求等平台能力收口到 `packages/services`
-- 为 `core`、`services`、`app` 补边界测试，阻止新增跨层依赖
+- 后续新增 app workspace 时同步补测试型 services adapter 覆盖，避免新业务重新绑定 desktop bridge
+- 继续把新增本地存储、Manifest、Bungie 访问、AI 请求等平台能力优先收口到 `packages/services`
+- 继续补 `core`、`services`、`app` 边界测试，阻止新增跨层依赖
 
-**验收** 桌面端现有功能不回退；`packages/app` 和 `packages/services` 可独立构建；跨端共享层不依赖 desktop、Electron 或桌面 UI；至少一条真实页面链路完成迁移并持续扩大覆盖面。
+**验收** 三个阶段已满足：桌面端现有功能不回退；`packages/app` 和 `packages/services` 可独立构建；跨端共享层不依赖 desktop、Electron 或桌面 UI；AI、账号读取、仓库主链已有真实页面链路完成迁移；账号 / 仓库 / 配装主要 view model、写操作前计划、候选选择和反馈文案已迁到 app，desktop 保留 UI 状态、confirm、clipboard 和 IPC/API 执行；测试型内存 adapter 已证明 app workspace 可脱离 `window.d2` / desktop bridge 运行。后续转为持续防回退。
 
 ---
 
@@ -104,16 +104,32 @@
 
 ---
 
+### P1 · 全局视觉升级 v2
+
+> **目标** 在 `ui-style-guide-v1.md` 的基础样式系统之上，按 C1 · 克制增强方向做用户第一眼能感知的全局视觉升级。
+
+**当前状态** 已完成 C1 方向第一轮全局视觉骨架，并按卡顿反馈做了性能回调：全局 surface / border / text / accent token 已重设；Shell 左侧导航、主内容区、右侧 AI 侧栏形成更清楚的层级；按钮、输入框、select、textarea、focus、status-message、badge、tool-panel、toolbar、list-row、item-card 已统一到更明显的桌面工具视觉；首页、账号、仓库、设置和 AI 的主要容器与高频对象已接入新层级；仓库卡片、装备行和高密度列表已去掉动画化大阴影和位移，保留低成本的边框、底色和选中条反馈；账号页装备 / 背包对照面板、配装页游戏内配装槽和设置页备份迁移区已接入同一套面板样式。历史设计见 `docs/work/archive/global-visual-upgrade-v2-design.md`。
+
+**要做什么**
+- 按 C1 方向重设全局 surface / border / text / status token，让页面底层、主面板、交互层更有区分
+- 强化 Shell 左侧导航、页面标题区、主内容区和右侧 AI 侧栏的视觉骨架
+- 统一按钮、输入框、select、textarea、badge、status-message、tool-panel、toolbar、list-row、item-card 的真实视觉表现
+- 覆盖首页、账号、仓库、设置、AI 的主要容器和高频对象，确保第一眼能看出变化
+- 继续在真实 Electron 桌面壳里做 1366px / 1920px / 窄屏视觉验收，重点检查文字挤压、按钮溢出、层级过重和过亮
+
+**验收** 打开应用能明显看出视觉升级；首页、账号、仓库、设置、AI 属于同一套系统；主操作、选中态、hover、焦点态可感知但不过度发光；高密度信息仍可扫描。
+
+---
+
 ### P1 · 账号与仓库页面 UI / UX 重构
 
 > **目标** 账号页和仓库页从"能展示数据"升级为接近游戏内和 DIM 使用节奏的工作区。
 
-**当前状态** 账号页第一阶段已收口为单角色即时操作台：角色一级 tab 已保留，主工作区已拆成"当前角色装备"和"当前角色背包"两个独立面板；材料、游戏内配装栏和邮政官下沉到低频区。仓库页第一版已转向平铺装备卡片，保留筛选、批量选择、标签操作、愿望单 / 社区 / 配装命中展示。自定义标签第一版已扩展到保留、关注、待刷、配装用、可清理，支持卡片直接标记、筛选、整理模式批量处理，并已在装备详情页提供本地标记入口。装备详情已展示护甲基础属性、模组加成和最终值，并在概览区增加目标命中摘要，直接提示 DIM 愿望单命中、本地护甲目标命中或未命中。套装 / T1-T5 调研仍待推进。
+**当前状态** 账号页已收口为单角色即时操作台：角色一级 tab 已保留，主工作区已改为"当前角色装备与背包"同槽位对照面板，同类武器 / 同部位护甲优先左右对照；材料与邮政官下沉到低频区；游戏内配装栏已从账号页移出，统一放到配装菜单集中处理。仓库页第一版已转向平铺装备卡片，保留筛选、批量选择、标签操作、愿望单 / 社区 / 配装命中展示。自定义标签第一版已扩展到保留、关注、待刷、配装用、可清理，支持卡片直接标记、筛选、整理模式批量处理，并已在装备详情页提供本地标记入口。装备详情已展示护甲基础属性、模组加成和最终值，并在概览区增加目标命中摘要，直接提示 DIM 愿望单命中、本地护甲目标命中或未命中，并补充命中来源、写入安全说明和同名对比复查路径。套装 / T1-T5 调研仍待推进。
 
 **要做什么**
-- 账号页：继续优化当前角色装备与当前角色背包的同类型对齐展示，同类武器 / 同部位护甲优先并排对照；无法和当前角色装备形成可读对齐的条目，拆到独立 block 展示
-- 账号页：移除游戏内配装栏展示，统一挪到配装菜单，不再在账号页占据空间
-- 账号页：补充货币、材料、邮政官
+- 账号页：继续做真实账号视觉验收，重点检查同槽位对照行在 1366px / 1920px / 窄屏下是否拥挤
+- 账号页：继续补充真实账号下货币、材料、邮政官的覆盖范围
 - 仓库页：继续打磨平铺卡片式布局的真实账号视觉验收；后续评估多标签、标签管理器和愿望单目标规则联动
 - 装备详情：继续做真实账号视觉验收，后续打磨目标命中说明和同名对比联动
 - 调研套装筛选和 T1-T5 分层规则的数据来源
@@ -161,7 +177,7 @@
 
 > **目标** 装备详情弹窗顶部按游戏内装备详情结构展示，下方接 DIM 式工具区。
 
-**当前状态** 第一版已实现：顶部游戏内风格卡片 + `ItemDetailTools` 工具区。护甲能量已接入 Bungie 真实实例数据，护甲属性已拆分显示基础值、模组加成和最终值；详情概览区已增加目标命中摘要，复用已导入 DIM 愿望单判断。代码验证已通过，待真实账号 GUI 验收。设计文档见 `docs/work/backlog/2026-06-23-item-detail-game-style-ui-design.md`。
+**当前状态** 第一版已实现：顶部游戏内风格卡片 + `ItemDetailTools` 工具区。护甲能量已接入 Bungie 真实实例数据，护甲属性已拆分显示基础值、模组加成和最终值；详情概览区已增加目标命中摘要，复用已导入 DIM 愿望单判断，并补充命中来源、不会自动收藏 / 加标签 / 改动装备的安全说明，以及同名对比复查路径。代码验证已通过，待真实账号 GUI 验收。历史设计见 `docs/work/archive/2026-06-23-item-detail-game-style-ui-design.md`。
 
 **后续** 继续打磨自定义目标命中说明、同名对比和目标规则联动。
 
@@ -185,9 +201,9 @@
 
 > **目标** 从可运行程序逐步走向正式桌面软件体验。
 
-**当前状态** 安装器和自动更新第一阶段已按 NSIS 方案落地。
+**当前状态** 安装器和自动更新第一阶段已按 NSIS 方案落地；安装目录占用提示已有 NSIS 守卫；设置页已提供应用更新、脱敏诊断导出、数据备份与迁移说明复制入口；`docs/development.md` 已记录关闭应用后复制整个数据目录的备份 / 恢复流程。
 
-**要做什么** 用真实 GitHub Release 验证检查更新 → 下载 → 重启安装链路；确认覆盖安装目录占用提示；增加备份/恢复向导；评估托盘图标；梳理数据目录迁移和诊断导出说明。
+**要做什么** 用真实 GitHub Release 验证检查更新 → 下载 → 重启安装链路；评估托盘图标是否值得进入首版；后续如需要更完整的一键向导，再把当前复制说明升级为实际备份 / 恢复操作流。
 
 **预期** 用户即使不懂开发，也能安心安装、升级、迁移和排查问题。
 

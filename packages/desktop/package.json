@@ -1,7 +1,17 @@
 {
   "name": "@d2-tools/desktop",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "private": true,
+  "description": "Windows desktop app for d2-tools, a Chinese Destiny 2 companion.",
+  "author": "zhangqi",
+  "homepage": "https://github.com/sandrewzq/d2-tools",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sandrewzq/d2-tools.git"
+  },
+  "bugs": {
+    "url": "https://github.com/sandrewzq/d2-tools/issues"
+  },
   "type": "module",
   "main": "dist/main/main.js",
   "scripts": {

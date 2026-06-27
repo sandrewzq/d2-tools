@@ -3,11 +3,37 @@ import type { ActivityHistorySummary } from "@d2-tools/core/activities/history";
 import type { VaultItemMatchInfo } from "@d2-tools/core/community-perks";
 import type { D2Services } from "@d2-tools/services";
 import { runQuery, type QueryState } from "../queryState.js";
+import { loadAccountWorkspace, type AccountWorkspace } from "./account.js";
 
 export type AccountDerivedWorkspace = {
   activitySummary: ActivityHistorySummary | null;
   vaultCommunityMatch: Map<number, VaultItemMatchInfo>;
 };
+
+export type FullAccountWorkspace = AccountWorkspace & AccountDerivedWorkspace;
+
+export async function loadFullAccountWorkspace(
+  services: Pick<D2Services, "profile" | "localData">
+): Promise<QueryState<FullAccountWorkspace>> {
+  const base = await loadAccountWorkspace(services);
+  if (base.status !== "success") {
+    return base as QueryState<FullAccountWorkspace>;
+  }
+
+  const derived = await loadAccountDerivedWorkspace(services, base.data.account);
+  if (derived.status !== "success") {
+    return derived as QueryState<FullAccountWorkspace>;
+  }
+
+  return {
+    status: "success",
+    data: {
+      ...base.data,
+      ...derived.data
+    },
+    error: null
+  };
+}
 
 export async function loadAccountDerivedWorkspace(
   services: Pick<D2Services, "profile">,

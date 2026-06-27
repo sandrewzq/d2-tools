@@ -46,7 +46,7 @@ export function VaultFilterToolbar(props: {
 }) {
   return (
     <>
-      <div className="vault-toolbar">
+      <div className="ui-filter-toolbar vault-toolbar">
         <input
           value={props.query}
           onChange={(event) => props.onQueryChange(event.target.value)}

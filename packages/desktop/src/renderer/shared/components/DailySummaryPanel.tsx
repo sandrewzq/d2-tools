@@ -24,7 +24,7 @@ export function DailySummaryPanel(props: {
   } = props;
 
   return (
-    <section className="tool-panel">
+    <section className="tool-panel home-dashboard-panel">
       <div className="section-heading">
         <div>
           <h2>今日 / 本周</h2>
@@ -42,8 +42,8 @@ export function DailySummaryPanel(props: {
           </button>
         </div>
       </div>
-      {dailyError ? <p className="error">{dailyError}</p> : null}
-      {dailyMessage ? <p className="notice">{dailyMessage}</p> : null}
+      {dailyError ? <p className="status-message status-error">{dailyError}</p> : null}
+      {dailyMessage ? <p className="status-message status-ready">{dailyMessage}</p> : null}
       {dailySummary ? (
         <>
           <div className="daily-reset-grid">

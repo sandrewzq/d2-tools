@@ -495,7 +495,7 @@ describe("vault panel helpers", () => {
   it("renders free-form Armor 3.0 stat filters without old armor stat labels", () => {
     const toolbar = readFileSync("packages/desktop/src/renderer/features/vault/VaultFilterToolbar.tsx", "utf8");
     const armorPanel = readFileSync("packages/desktop/src/renderer/features/vault/VaultArmorFilterPanel.tsx", "utf8");
-    const filters = readFileSync("packages/desktop/src/renderer/features/vault/vaultFilters.ts", "utf8");
+    const filters = readFileSync("packages/app/src/workspaces/vaultList.ts", "utf8");
 
     expect(toolbar).toContain("VaultArmorFilterPanel");
     expect(armorPanel).toContain("护甲属性筛选");
@@ -821,7 +821,7 @@ describe("vault panel helpers", () => {
   it("uses top-level vault content tabs so weapons and armor are split into easier views", () => {
     const source = readFileSync("packages/desktop/src/renderer/components/VaultPanel.tsx", "utf8");
     const organizePanel = readFileSync("packages/desktop/src/renderer/features/vault/VaultOrganizePanel.tsx", "utf8");
-    const filters = readFileSync("packages/desktop/src/renderer/features/vault/vaultFilters.ts", "utf8");
+    const filters = readFileSync("packages/app/src/workspaces/vaultList.ts", "utf8");
 
     expect(filters).toContain("defaultVaultGroupTab");
     expect(filters).toContain('export const defaultVaultGroupTab: VaultGroupFilter = "weapons"');
@@ -830,32 +830,38 @@ describe("vault panel helpers", () => {
     expect(organizePanel).toContain("aria-label=\"仓库内容标签\"");
     expect(source).toContain("setGroup(defaultVaultGroupTab)");
   });
-  it("keeps vault filtering and sorting helpers in the vault feature module", () => {
+  it("keeps vault filtering and sorting helpers in the app workspace with a desktop compatibility barrel", () => {
     const source = readFileSync("packages/desktop/src/renderer/components/VaultPanel.tsx", "utf8");
-    const filters = readFileSync("packages/desktop/src/renderer/features/vault/vaultFilters.ts", "utf8");
+    const filters = readFileSync("packages/app/src/workspaces/vaultList.ts", "utf8");
+    const featureBarrel = readFileSync("packages/desktop/src/renderer/features/vault/vaultFilters.ts", "utf8");
 
     expect(filters).toContain("export function filterVaultItems");
     expect(filters).toContain("export function sortVaultItems");
     expect(filters).toContain("export function buildVaultGroups");
     expect(filters).toContain("export function buildVaultSections");
+    expect(filters).toContain("export function createVaultListWorkspace");
+    expect(featureBarrel).toContain('from "@d2-tools/app"');
+    expect(source).toContain("createVaultListWorkspace");
     expect(source).toContain("../features/vault/vaultFilters");
     expect(source).not.toContain("export function filterVaultItems(");
     expect(source).not.toContain("export function sortVaultItems(");
   });
-  it("keeps vault cleanup and duplicate planning helpers in shared domain", () => {
+  it("keeps vault cleanup and duplicate planning helpers in the app workspace with desktop compatibility barrels", () => {
     const source = readFileSync("packages/desktop/src/renderer/components/VaultPanel.tsx", "utf8");
     const cleanup = readFileSync("packages/desktop/src/renderer/shared/domain/vault/vaultCleanup.ts", "utf8");
+    const appCleanup = readFileSync("packages/app/src/workspaces/vaultActions.ts", "utf8");
     const featureBarrel = readFileSync("packages/desktop/src/renderer/features/vault/vaultCleanup.ts", "utf8");
 
-    expect(cleanup).toContain("export function buildVaultCleanupText");
-    expect(cleanup).toContain("export function buildVaultCleanupLocatorText");
-    expect(cleanup).toContain("export function buildVaultDuplicateSummary");
-    expect(cleanup).toContain("export function buildDuplicateGroupBatchTagPlan");
-    expect(cleanup).toContain("export function selectDuplicateGroupItems");
+    expect(appCleanup).toContain("export function buildVaultCleanupText");
+    expect(appCleanup).toContain("export function buildVaultCleanupLocatorText");
+    expect(appCleanup).toContain("export function buildVaultDuplicateSummary");
+    expect(appCleanup).toContain("export function buildDuplicateGroupBatchTagPlan");
+    expect(appCleanup).toContain("export function selectDuplicateGroupItems");
+    expect(cleanup).toContain('from "@d2-tools/app"');
     expect(featureBarrel).toContain("../../shared/domain/vault/vaultCleanup");
     expect(source).toContain("../shared/domain/vault/vaultCleanup");
-    expect(source).not.toContain("export function buildVaultCleanupText(");
-    expect(source).not.toContain("export function buildDuplicateGroupBatchTagPlan(");
+    expect(cleanup).not.toContain("export function buildVaultCleanupText(");
+    expect(cleanup).not.toContain("export function buildDuplicateGroupBatchTagPlan(");
   });
   it("shows a bulk move entry for selected visible vault results", () => {
     const source = readFileSync("packages/desktop/src/renderer/components/VaultPanel.tsx", "utf8");
@@ -870,14 +876,16 @@ describe("vault panel helpers", () => {
     expect(organizePanel).toContain("移除当前结果");
     expect(source).toContain("buildVaultSelectionSummary");
   });
-  it("keeps vault selection helpers in the vault feature module", () => {
+  it("keeps vault selection helpers in the app workspace with a desktop compatibility barrel", () => {
     const source = readFileSync("packages/desktop/src/renderer/components/VaultPanel.tsx", "utf8");
     const selection = readFileSync("packages/desktop/src/renderer/features/vault/vaultSelection.ts", "utf8");
+    const appSelection = readFileSync("packages/app/src/workspaces/vaultSelection.ts", "utf8");
 
-    expect(selection).toContain("export function getVaultItemKey");
-    expect(selection).toContain("export function selectVaultBatchItems");
-    expect(selection).toContain("export function applyVisibleVaultSelection");
-    expect(selection).toContain("export function buildVaultSelectionSummary");
+    expect(appSelection).toContain("export function getVaultSelectionItemKey");
+    expect(appSelection).toContain("export function selectVaultBatchItems");
+    expect(appSelection).toContain("export function applyVisibleVaultSelection");
+    expect(appSelection).toContain("export function buildVaultSelectionSummary");
+    expect(selection).toContain('from "@d2-tools/app"');
     expect(source).toContain("../features/vault/vaultSelection");
     expect(source).not.toContain("export function selectVaultBatchItems(");
     expect(source).not.toContain("export function applyVisibleVaultSelection(");
@@ -936,7 +944,7 @@ describe("vault panel helpers", () => {
   it("renders extended local tag actions for farming and loadout use", () => {
     const coreTags = readFileSync("packages/core/src/vault/tags.ts", "utf8");
     const apiTypes = readFileSync("packages/desktop/src/renderer/api/vaultApi.ts", "utf8");
-    const filters = readFileSync("packages/desktop/src/renderer/features/vault/vaultFilters.ts", "utf8");
+    const filters = readFileSync("packages/app/src/workspaces/vaultList.ts", "utf8");
     const listItem = readFileSync("packages/desktop/src/renderer/features/vault/VaultListItem.tsx", "utf8");
     const organizePanel = readFileSync("packages/desktop/src/renderer/features/vault/VaultOrganizePanel.tsx", "utf8");
     const selection = readFileSync("packages/desktop/src/renderer/features/vault/vaultSelection.ts", "utf8");
@@ -950,8 +958,9 @@ describe("vault panel helpers", () => {
     expect(filters).toContain('loadout: "配装用"');
     expect(filters).toContain('value === "farm"');
     expect(filters).toContain('value === "loadout"');
-    expect(selection).toContain('"farm"');
-    expect(selection).toContain('"loadout"');
+    expect(selection).toContain('from "@d2-tools/app"');
+    expect(readFileSync("packages/app/src/workspaces/vaultSelection.ts", "utf8")).toContain('"farm"');
+    expect(readFileSync("packages/app/src/workspaces/vaultSelection.ts", "utf8")).toContain('"loadout"');
     expect(listItem).toContain('onSaveTag(props.item, "farm")');
     expect(listItem).toContain('onSaveTag(props.item, "loadout")');
     expect(organizePanel).toContain('onBatchSelectionChange("farm")');

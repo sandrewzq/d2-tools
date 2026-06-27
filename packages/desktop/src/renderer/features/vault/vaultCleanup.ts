@@ -7,6 +7,6 @@ export {
   buildVaultCleanupLocatorText,
   buildVaultCleanupText,
   buildVaultDuplicateSummary,
-  countWishlistMatches,
   selectDuplicateGroupItems
 } from "../../shared/domain/vault/vaultCleanup";
+export { countWishlistMatches } from "./vaultFilters";

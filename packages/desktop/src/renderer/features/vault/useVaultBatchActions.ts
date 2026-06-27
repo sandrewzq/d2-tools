@@ -8,9 +8,20 @@ import type {
   VaultTagValue
 } from "../../api/client";
 import {
+  buildDuplicateGroupBatchActionCopy,
   buildDuplicateGroupBatchTagPlan,
-  buildVaultCleanupLocatorText,
-  buildVaultCleanupText,
+  buildVaultBatchTagCopy,
+  buildVaultBatchTagResultMessage,
+  buildVaultBulkMoveResultMessage,
+  buildVaultCandidateSelectionMessage,
+  buildVaultCleanupActionLabel,
+  buildVaultCleanupActionProgressMessage,
+  buildVaultCleanupClipboardText,
+  buildVaultCleanupClipboardUnavailableMessage,
+  buildVaultCleanupCopiedMessage,
+  buildVaultCleanupNoTargetMessage,
+  buildVaultSelectedBulkMoveNoSelectionMessage,
+  buildVaultSelectedBulkMovePrepareMessage,
   type DuplicateGroupBatchTagMode
 } from "../../shared/domain/vault/vaultCleanup";
 import { selectVaultBatchItems } from "./vaultSelection";
@@ -23,35 +34,6 @@ export type VaultCleanupActions = {
   onBatchUnlock: (items: AccountItemSummary[], targetCharacterId: string) => Promise<string>;
   onBatchTransferToCharacter: (items: AccountItemSummary[], targetCharacterId: string) => Promise<BatchItemActionResult>;
 };
-
-export function buildVaultBulkMoveResultMessage(
-  targetCharacterLabel: string,
-  result: BatchItemActionResult
-): string {
-  const targetLabel = targetCharacterLabel || "目标角色";
-  if (!result.failed_count) {
-    return `已转移到${targetLabel}：共 ${result.success_count} 件。`;
-  }
-
-  return `已转移到${targetLabel}：成功 ${result.success_count} 件，失败 ${result.failed_count} 件。可到设置 -> 操作日志查看失败详情。`;
-}
-
-function batchTagCopy(tag: VaultTagValue): { action: string; loading: string } {
-  switch (tag) {
-    case "review":
-      return { action: "批量关注", loading: "正在批量标记为关注..." };
-    case "junk":
-      return { action: "批量可清理", loading: "正在批量标记为可清理..." };
-    case "farm":
-      return { action: "批量待刷", loading: "正在批量标记为待刷..." };
-    case "loadout":
-      return { action: "批量配装用", loading: "正在批量标记为配装用..." };
-    case "none":
-    case "keep":
-    default:
-      return { action: tag === "keep" ? "批量保留" : "批量清除", loading: tag === "keep" ? "正在批量标记为保留..." : "正在批量清除本地标记..." };
-  }
-}
 
 export function useVaultBatchActions(input: {
   selectedItems: AccountItemSummary[];
@@ -74,7 +56,7 @@ export function useVaultBatchActions(input: {
 
   function mergeSelectedKeys(keys: string[]) {
     if (!keys.length) {
-      setBatchMessage("这一组没有可加入的候选。");
+      setBatchMessage(buildVaultCandidateSelectionMessage({ addedCount: 0, totalCount: 0 }));
       return;
     }
 
@@ -83,7 +65,10 @@ export function useVaultBatchActions(input: {
       for (const key of keys) {
         next.add(key);
       }
-      setBatchMessage(`已加入 ${keys.length} 件候选，当前共 ${next.size} 件。`);
+      setBatchMessage(buildVaultCandidateSelectionMessage({
+        addedCount: keys.length,
+        totalCount: next.size
+      }));
       return next;
     });
     input.setIsOrganizing(true);
@@ -91,7 +76,7 @@ export function useVaultBatchActions(input: {
   }
 
   async function applyBatchTag(tag: VaultTagValue) {
-    const copy = batchTagCopy(tag);
+    const copy = buildVaultBatchTagCopy(tag);
     setIsBatchSaving(true);
     setActiveBatchAction(copy.action);
     setBatchMessage(copy.loading);
@@ -100,7 +85,7 @@ export function useVaultBatchActions(input: {
       for (const item of input.selectedItems) {
         await input.onSaveTag(item, tag);
       }
-      setBatchMessage(`已处理 ${input.selectedItems.length} 件装备。`);
+      setBatchMessage(buildVaultBatchTagResultMessage(input.selectedItems.length));
       input.setSelectedKeys(new Set());
     } catch (error) {
       setBatchMessage(error instanceof Error ? error.message : "批量标记失败");
@@ -113,17 +98,17 @@ export function useVaultBatchActions(input: {
   async function runSelectedBulkMove() {
     if (!input.cleanupActions) return;
     if (!input.selectedItems.length) {
-      setBatchMessage("请先选择要移动的装备。");
+      setBatchMessage(buildVaultSelectedBulkMoveNoSelectionMessage());
       return;
     }
     if (!input.cleanupTargetCharacterId) {
-      setBatchMessage("请先选择目标角色。");
+      setBatchMessage(buildVaultCleanupNoTargetMessage());
       return;
     }
 
     setIsBatchSaving(true);
     setActiveBatchAction("批量移动");
-    setBatchMessage(`正在准备移动 ${input.selectedItems.length} 件装备...`);
+    setBatchMessage(buildVaultSelectedBulkMovePrepareMessage(input.selectedItems.length));
 
     try {
       const result = await input.cleanupActions.onBatchTransferToCharacter(input.selectedItems, input.cleanupTargetCharacterId);
@@ -143,25 +128,24 @@ export function useVaultBatchActions(input: {
       : input.selectedItems.length
       ? input.selectedItems
       : selectVaultBatchItems(input.filteredItems, "junk", input.tags);
-    const text = buildVaultCleanupText(cleanupItems, input.tags);
     try {
-      await navigator.clipboard.writeText(`${text}\n\n${buildVaultCleanupLocatorText(cleanupItems, input.tags)}`);
-      setBatchMessage(`已复制 ${cleanupItems.length} 件装备的清理清单。`);
+      await navigator.clipboard.writeText(buildVaultCleanupClipboardText(cleanupItems, input.tags));
+      setBatchMessage(buildVaultCleanupCopiedMessage(cleanupItems.length));
     } catch {
-      setBatchMessage("剪贴板不可用，请稍后重试。");
+      setBatchMessage(buildVaultCleanupClipboardUnavailableMessage());
     }
   }
 
   async function runCleanupAction(action: "unlock" | "transfer") {
     if (!input.cleanupActions) return;
     if (!input.cleanupTargetCharacterId) {
-      setBatchMessage("请先选择目标角色。");
+      setBatchMessage(buildVaultCleanupNoTargetMessage());
       return;
     }
 
     setIsBatchSaving(true);
-    setActiveBatchAction(action === "unlock" ? "批量解锁" : "转移到角色背包");
-    setBatchMessage(action === "unlock" ? "正在批量解锁..." : "正在转移到角色背包...");
+    setActiveBatchAction(buildVaultCleanupActionLabel(action));
+    setBatchMessage(buildVaultCleanupActionProgressMessage(action));
 
     try {
       const message = action === "unlock"
@@ -185,29 +169,13 @@ export function useVaultBatchActions(input: {
     keepItemKey = group.items[0]?.item_key ?? ""
   ) {
     setIsBatchSaving(true);
-    setActiveBatchAction(
-      mode === "keep-best-review-rest"
-        ? "重复组标记为关注"
-        : mode === "keep-best-junk-rest"
-          ? "重复组标记为可清理"
-          : "清除重复组标记"
-    );
-    setBatchMessage(
-      mode === "keep-best-review-rest"
-        ? `正在处理 ${group.name}，保留选中件，其余标记为关注...`
-        : mode === "keep-best-junk-rest"
-          ? `正在处理 ${group.name}，保留选中件，其余标记为可清理...`
-          : `正在清除 ${group.name} 这组装备的本地标记...`
-    );
+    const copy = buildDuplicateGroupBatchActionCopy(group.name, mode);
+    setActiveBatchAction(copy.action);
+    setBatchMessage(copy.loading);
 
     try {
       await input.onSaveTagBatch(buildDuplicateGroupBatchTagPlan(group, mode, keepItemKey));
-      const message = mode === "keep-best-review-rest"
-        ? `已处理 ${group.name}，保留选中件，其余标记为关注`
-        : mode === "keep-best-junk-rest"
-          ? `已处理 ${group.name}，保留选中件，其余标记为可清理`
-          : `已清除 ${group.name} 这组装备的本地标记`;
-      setBatchMessage(message);
+      setBatchMessage(copy.success);
     } catch (error) {
       setBatchMessage(error instanceof Error ? error.message : "重复组批量标记失败");
     } finally {

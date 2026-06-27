@@ -314,8 +314,8 @@ export function AiSettingsPanel(props: {
           {isClearingCache ? "清除中..." : "清除 light.gg 缓存"}
         </button>
       </div>
-      {error ? <p className="error">{error}</p> : null}
-      {message ? <p className="notice">{message}</p> : null}
+      {error ? <p className="status-message status-error">{error}</p> : null}
+      {message ? <p className="status-message status-ready">{message}</p> : null}
     </section>
   );
 }

@@ -224,8 +224,8 @@ export function LibraryPage(props: {
         </button>
       </div>
       <p className="muted-copy">别名会保存在本机，只影响你自己的搜索。</p>
-      {props.aliasMessage ? <p className="notice">{props.aliasMessage}</p> : null}
-      {props.searchError ? <p className="error">{props.searchError}</p> : null}
+      {props.aliasMessage ? <p className="status-message status-ready">{props.aliasMessage}</p> : null}
+      {props.searchError ? <p className="status-message status-error">{props.searchError}</p> : null}
       <div className="daily-source-grid">
         <div className="daily-source source-ready">
           <strong>最近查看</strong>
@@ -308,7 +308,7 @@ export function LibraryPage(props: {
         ))}
       </div>
       {searchTouched && !props.isSearching && !props.searchError && !hitCount ? (
-        <p className="notice">未找到匹配结果。可以换中文名、英文名，或者先保存一个常用别名再搜。</p>
+        <p className="status-message status-neutral">未找到匹配结果。可以换中文名、英文名，或者先保存一个常用别名再搜。</p>
       ) : null}
     </section>
   );

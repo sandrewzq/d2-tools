@@ -33,8 +33,8 @@ export function ItemDetailAi(props: ItemDetailAiProps) {
           </button>
         </div>
       </div>
-      {props.itemShareMessage ? <p className="notice">{props.itemShareMessage}</p> : null}
-      {props.itemAiError ? <p className="error">{props.itemAiError}</p> : null}
+      {props.itemShareMessage ? <p className="status-message status-ready">{props.itemShareMessage}</p> : null}
+      {props.itemAiError ? <p className="status-message status-error">{props.itemAiError}</p> : null}
       {props.itemAiResult?.skipped_reason ? (
         <section className="source-status-card source-status-warning item-ai-skipped-reason" aria-live="polite">
           <span className="source-status-badge source-status-warning">AI 跳过</span>

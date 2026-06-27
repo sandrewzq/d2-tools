@@ -12,14 +12,20 @@ describe("highest power batch wiring", () => {
       join(desktopRoot, "src", "renderer", "features", "loadouts", "useLoadoutWriteActions.ts"),
       "utf8"
     );
+    const highestPowerCompat = readFileSync(
+      join(desktopRoot, "src", "renderer", "utils", "highestPower.ts"),
+      "utf8"
+    );
     const apiClient = readRendererApiContracts(desktopRoot);
     const preload = readFileSync(join(desktopRoot, "src", "preload", "preload.ts"), "utf8");
     const actionsIpc = readFileSync(join(desktopRoot, "src", "main", "ipc", "actions.ts"), "utf8");
 
     expect(loadoutWriteHook).toContain("api.batchTransferItems(");
     expect(loadoutWriteHook).toContain("api.batchEquipItems(");
-    expect(loadoutWriteHook).toContain("正在从仓库取出");
-    expect(loadoutWriteHook).toContain("正在装备最高光等");
+    expect(loadoutWriteHook).toContain("buildHighestPowerTransferProgressMessage");
+    expect(loadoutWriteHook).toContain("buildHighestPowerEquipProgressMessage");
+    expect(highestPowerCompat).toContain("buildHighestPowerTransferProgressMessage");
+    expect(highestPowerCompat).toContain("buildHighestPowerEquipProgressMessage");
     expect(apiClient).toContain("batchTransferItems(");
     expect(apiClient).toContain("batchEquipItems(");
     expect(preload).toContain('ipcRenderer.invoke("actions:items:batch-transfer"');

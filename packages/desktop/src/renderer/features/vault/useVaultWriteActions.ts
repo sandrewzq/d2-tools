@@ -9,6 +9,16 @@ import {
   type VaultTagValue
 } from "../../api/client";
 import { services } from "../../api/services";
+import {
+  buildVaultBatchTransferConfirmText,
+  buildVaultBatchTransferProgressMessage,
+  buildVaultCleanupActionLabel,
+  buildVaultCleanupNoTargetMessage,
+  buildVaultCleanupWriteConfirmText,
+  buildVaultCleanupWriteResultMessage,
+  getVaultActionItemKey,
+  selectVaultActionableItems
+} from "../../shared/domain/vault/vaultCleanup";
 
 type DiagnosticsBridge = {
   setWriteActionsEnabled: (enabled: boolean) => void;
@@ -25,10 +35,9 @@ export function useVaultWriteActions(input: {
   loadAccountSummary: () => Promise<void>;
 }) {
   async function saveVaultTag(item: AccountItemSummary, tag: VaultTagValue) {
-    const itemKey = item.instance_id ?? `hash:${item.hash}`;
     try {
       input.setVaultTags(await services.localData.saveVaultTag({
-        item_key: itemKey,
+        item_key: getVaultActionItemKey(item),
         tag
       }));
     } catch (error) {
@@ -68,14 +77,14 @@ export function useVaultWriteActions(input: {
       return "d2-tools 本地写操作开关未开启。请到左侧“设置”页开启后再执行。";
     }
     if (!targetCharacterId) {
-      return "请先选择目标角色。";
+      return buildVaultCleanupNoTargetMessage();
     }
 
-    const actionableItems = items.filter((item) => item.instance_id && filterItem(item));
+    const actionableItems = selectVaultActionableItems(items, filterItem);
     if (!actionableItems.length) {
       return "没有可执行的装备。可能已经全部解锁，或缺少实例 ID。";
     }
-    if (!window.confirm(`确认要${label} ${actionableItems.length} 件可清理装备吗？这个操作不会分解装备。`)) {
+    if (!window.confirm(buildVaultCleanupWriteConfirmText(label, actionableItems.length))) {
       return "已取消操作。";
     }
 
@@ -98,14 +107,12 @@ export function useVaultWriteActions(input: {
       input.setIsRunningItemAction(false);
     }
 
-    return failedCount
-      ? `${label}完成 ${successCount} 件，失败 ${failedCount} 件。可以在设置页查看操作日志。`
-      : `${label}完成 ${successCount} 件。`;
+    return buildVaultCleanupWriteResultMessage({ label, successCount, failedCount });
   }
 
   async function handleVaultCleanupUnlock(items: AccountItemSummary[], targetCharacterId: string): Promise<string> {
     return runVaultCleanupWriteAction(
-      "批量解锁",
+      buildVaultCleanupActionLabel("unlock"),
       items,
       targetCharacterId,
       (item) => api.setItemLockState({
@@ -140,19 +147,19 @@ export function useVaultWriteActions(input: {
       throw new Error("d2-tools 本地写操作开关未开启。请到左侧“设置”页开启后再执行。");
     }
     if (!targetCharacterId) {
-      throw new Error("请先选择目标角色。");
+      throw new Error(buildVaultCleanupNoTargetMessage());
     }
 
-    const actionableItems = items.filter((item) => item.instance_id);
+    const actionableItems = selectVaultActionableItems(items);
     if (!actionableItems.length) {
       throw new Error("没有可执行的装备。可能缺少实例 ID。");
     }
-    if (!window.confirm(`确认要批量转移 ${actionableItems.length} 件仓库装备到目标角色吗？`)) {
+    if (!window.confirm(buildVaultBatchTransferConfirmText(actionableItems.length))) {
       throw new Error("已取消操作。");
     }
 
     input.setIsRunningItemAction(true);
-    input.setItemActionMessage(`正在批量转移 ${actionableItems.length} 件装备...`);
+    input.setItemActionMessage(buildVaultBatchTransferProgressMessage(actionableItems.length));
 
     try {
       const result = await api.batchTransferItems({

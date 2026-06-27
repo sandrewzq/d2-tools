@@ -8,17 +8,46 @@ import {
   type LoadoutTemplate
 } from "../../api/client";
 import {
+  buildHighestPowerAlreadyOptimalMessage,
+  buildHighestPowerConfirmText,
+  buildHighestPowerEquipProgressMessage,
+  buildHighestPowerResultMessage,
+  buildHighestPowerTransferProgressMessage,
   createHighestPowerEquipPlan,
   createHighestPowerExecutionPlan
 } from "../../utils/highestPower";
 import {
   buildMissingLoadoutTransferPlan
 } from "../../utils/loadoutTransfer";
+import {
+  buildCharacterLoadoutTemplateName,
+  buildLoadoutItemActionFailureMessage,
+  buildLoadoutSlotActionConfirmText,
+  buildLoadoutSlotActionLabel,
+  buildLoadoutSlotActionProgressMessage,
+  buildLoadoutTemplateDeletedMessage,
+  buildLoadoutTemplateRenamedMessage,
+  buildMissingLoadoutConfirmText,
+  buildMissingLoadoutNoActionMessage,
+  buildMissingLoadoutPrepareMessage,
+  buildMissingLoadoutResultMessage,
+  buildMissingLoadoutStepProgressMessage,
+  buildSaveCharacterLoadoutSuccessMessage,
+  buildSingleLoadoutEquipConfirmText,
+  buildSingleLoadoutEquipMissingSourceMessage,
+  buildSingleLoadoutEquipProgressMessage,
+  buildSingleLoadoutEquipWrongLocationMessage,
+  buildSingleLoadoutTransferConfirmText,
+  buildSingleLoadoutTransferCancelledMessage,
+  buildSingleLoadoutTransferNoActionMessage,
+  buildSingleLoadoutTransferNoTargetMessage,
+  buildSingleLoadoutTransferResultMessage,
+  buildSingleLoadoutTransferStartMessage,
+  buildSingleLoadoutTransferStepProgressMessage,
+  getMissingLoadoutActionableCount
+} from "../../utils/loadoutActions";
 import { buildLoadoutActionFeedbackKey } from "../../utils/loadoutActionFeedback";
 import type { SelectedItemSource } from "../../shared/hooks/useItemDetail";
-import {
-  getMissingLoadoutActionableCount
-} from "./loadoutViewModel";
 import { findBestTemplateSourceItem } from "../../shared/domain/loadouts/loadoutSources";
 
 type LoadoutLibraryBridge = {
@@ -66,13 +95,13 @@ export function useLoadoutWriteActions(input: {
     input.setLoadoutMessage("");
     try {
       const template = await api.createLoadoutTemplate({
-        name: `${character.class_name} 光等 ${character.light ?? "-"}`,
+        name: buildCharacterLoadoutTemplateName(character),
         character_id: character.character_id,
         class_name: character.class_name,
         equipped_items: character.equipped_items
       });
       await input.loadoutLibrary.reloadTemplates();
-      input.setLoadoutMessage(`已保存本地配装模板：${template.name}`);
+      input.setLoadoutMessage(buildSaveCharacterLoadoutSuccessMessage(template.name));
     } catch (error) {
       input.setLoadoutMessage(error instanceof Error ? error.message : "配装模板保存失败");
     }
@@ -91,25 +120,18 @@ export function useLoadoutWriteActions(input: {
     input.setItemActionMessage("");
 
     if (!plan.executable_items.length) {
-      input.setLoadoutMessage(`${character.class_name} 当前已经是最高光等组合。`);
+      input.setLoadoutMessage(buildHighestPowerAlreadyOptimalMessage(character.class_name));
       return;
     }
 
     const latestConfig = await ensureWriteActionsEnabled(input.setLoadoutMessage);
     if (!latestConfig) return;
 
-    const executionSummary = [plan.summary, executionPlan.summary]
-      .filter(Boolean)
-      .join("\n");
-    const actionPreview = plan.executable_items
-      .map((entry) => `${entry.slot_label}：${entry.item.name} / 光等 ${entry.item.power ?? "-"} / ${formatHighestPowerSource(entry.source)}`)
-      .join("\n");
-    if (!window.confirm([
-      `确认给 ${character.class_name} 装备最高光等组合？`,
-      executionSummary,
-      actionPreview,
-      "说明：仓库里的装备会先取出到该角色，再执行装备。不会分解装备。"
-    ].join("\n"))) {
+    if (!window.confirm(buildHighestPowerConfirmText({
+      characterClassName: character.class_name,
+      plan,
+      executionPlan
+    }))) {
       input.setLoadoutMessage("已取消装备最高光等。");
       return;
     }
@@ -121,7 +143,7 @@ export function useLoadoutWriteActions(input: {
       let equipResult = { success_count: 0, failed_count: 0 };
 
       if (executionPlan.transfer_items.length) {
-        input.setItemActionMessage(`正在从仓库取出 ${executionPlan.transfer_items.length} 件最高光等装备...`);
+        input.setItemActionMessage(buildHighestPowerTransferProgressMessage(executionPlan.transfer_items.length));
         transferResult = await api.batchTransferItems({
           membership_type: input.accountSummary.membership_type,
           character_id: character.character_id,
@@ -137,7 +159,7 @@ export function useLoadoutWriteActions(input: {
       }
 
       if (executionPlan.equip_items.length) {
-        input.setItemActionMessage(`正在装备最高光等 ${executionPlan.equip_items.length} 件装备...`);
+        input.setItemActionMessage(buildHighestPowerEquipProgressMessage(executionPlan.equip_items.length));
         equipResult = await api.batchEquipItems({
           membership_type: input.accountSummary.membership_type,
           character_id: character.character_id,
@@ -151,9 +173,14 @@ export function useLoadoutWriteActions(input: {
       }
 
       const failedSteps = transferResult.failed_count + equipResult.failed_count;
-      input.setLoadoutMessage(failedSteps
-        ? `最高光等执行完成：转移成功 ${transferResult.success_count}/${executionPlan.transfer_items.length}，装备成功 ${equipResult.success_count}/${executionPlan.equip_items.length}，失败步骤 ${failedSteps}。可在设置页查看操作日志。`
-        : `已给 ${character.class_name} 装备 ${equipResult.success_count} 件最高光等装备。`);
+      input.setLoadoutMessage(buildHighestPowerResultMessage({
+        characterClassName: character.class_name,
+        transferSuccessCount: transferResult.success_count,
+        transferTotalCount: executionPlan.transfer_items.length,
+        equipSuccessCount: equipResult.success_count,
+        equipTotalCount: executionPlan.equip_items.length,
+        failedCount: failedSteps
+      }));
       input.setItemActionMessage("正在刷新账号数据...");
       void Promise.all([input.loadAccountSummary(), input.diagnostics.loadActionLog()]).finally(() => {
         input.setItemActionMessage("");
@@ -170,17 +197,17 @@ export function useLoadoutWriteActions(input: {
     run: () => Promise<ItemActionResult>
   ) {
     input.setLoadoutMessage("");
-    input.setItemActionMessage(`${label}执行中...`);
+    input.setItemActionMessage(buildLoadoutSlotActionProgressMessage(label));
 
     const latestConfig = await ensureWriteActionsEnabled(input.setLoadoutMessage);
     if (!latestConfig) return;
 
-    if (!window.confirm([
-      `确认要${label}吗？`,
-      `角色：${character.class_name}`,
-      `配装栏：${slot.name || `槽位 ${slot.index + 1}`}`,
-      "说明：这会直接调用 Bungie 的游戏内配装栏接口，并写入本地操作日志。"
-    ].join("\n"))) {
+    if (!window.confirm(buildLoadoutSlotActionConfirmText({
+      label,
+      characterClassName: character.class_name,
+      slotName: slot.name,
+      slotIndex: slot.index
+    }))) {
       return;
     }
 
@@ -204,7 +231,7 @@ export function useLoadoutWriteActions(input: {
     await runLoadoutWriteAction(
       character,
       slot,
-      `应用游戏内配装栏「${slot.name}」`,
+      buildLoadoutSlotActionLabel("equip", slot),
       () => api.equipLoadout({
         membership_type: input.accountSummary?.membership_type ?? 0,
         character_id: character.character_id,
@@ -221,7 +248,7 @@ export function useLoadoutWriteActions(input: {
     await runLoadoutWriteAction(
       character,
       slot,
-      `用当前装备覆盖游戏内配装栏「${slot.name}」`,
+      buildLoadoutSlotActionLabel("snapshot", slot),
       () => api.snapshotLoadout({
         membership_type: input.accountSummary?.membership_type ?? 0,
         character_id: character.character_id,
@@ -234,7 +261,7 @@ export function useLoadoutWriteActions(input: {
   async function deleteLoadoutTemplate(id: string) {
     try {
       await input.loadoutLibrary.deleteTemplate(id);
-      input.setLoadoutMessage("已删除本地配装模板。");
+      input.setLoadoutMessage(buildLoadoutTemplateDeletedMessage());
     } catch (error) {
       input.setLoadoutMessage(error instanceof Error ? error.message : "删除配装模板失败");
     }
@@ -244,7 +271,7 @@ export function useLoadoutWriteActions(input: {
     input.setLoadoutMessage("");
     try {
       const renamed = await input.loadoutLibrary.renameTemplate(template);
-      input.setLoadoutMessage(`已重命名本地方案：${renamed.name}`);
+      input.setLoadoutMessage(buildLoadoutTemplateRenamedMessage(renamed.name));
     } catch (error) {
       input.setLoadoutMessage(error instanceof Error ? error.message : "本地方案重命名失败");
     }
@@ -272,45 +299,26 @@ export function useLoadoutWriteActions(input: {
       missingItems: template.items,
       accountSummary: input.accountSummary
     });
-    const actionableItemCount = new Set(
-      transferPlan.steps
-        .filter((step) => step.phase !== "equip-swap")
-        .flatMap((step) => step.items.map((item) => item.item_id))
-    ).size;
+    const actionableItemCount = getMissingLoadoutActionableCount(transferPlan);
     if (!actionableItemCount) {
-      input.setLoadoutMessage(transferPlan.blocked.length > 0
-        ? `当前没有可自动转移的缺失件，还有 ${transferPlan.blocked.length} 件需要手动处理。`
-        : "当前方案装备已全部就位。");
+      input.setLoadoutMessage(buildMissingLoadoutNoActionMessage(transferPlan));
       return;
     }
 
     const latestConfig = await ensureWriteActionsEnabled(input.setLoadoutMessage);
     if (!latestConfig) return;
 
-    if (!window.confirm([
-      `确认给 ${targetCharacter.class_name} 补齐 ${actionableItemCount} 件缺失装备？`,
-      transferPlan.steps.some((step) => step.phase === "equip-swap")
-        ? "其中一部分会先在来源角色身上装备替代装备，再把目标装备转出。"
-        : null,
-      transferPlan.steps.some((step) => step.phase === "pull-postmaster")
-        ? "其中一部分会先从邮政官取回，再继续后续转移。"
-        : null,
-      transferPlan.steps.some((step) => step.phase === "to-vault")
-        ? "其中一部分会先从其他角色背包移回仓库，再转到当前角色。"
-        : "这次可以直接从仓库补齐到当前角色。",
-      transferPlan.steps.some((step) => step.phase === "equip-target")
-        ? "补齐完成后，会自动把这些方案装备穿到目标角色身上。"
-        : null,
-      transferPlan.blocked.length > 0
-        ? `还有 ${transferPlan.blocked.length} 件暂时不会自动转移，例如其他角色已装备或仍在邮政官。`
-        : null
-    ].filter(Boolean).join("\n"))) {
+    if (!window.confirm(buildMissingLoadoutConfirmText({
+      targetCharacterClassName: targetCharacter.class_name,
+      actionableItemCount,
+      transferPlan
+    }))) {
       input.setLoadoutMessage("已取消缺失件转移。");
       return;
     }
 
     input.setIsRunningItemAction(true);
-    input.setItemActionMessage(`正在准备 ${actionableItemCount} 件缺失装备...`);
+    input.setItemActionMessage(buildMissingLoadoutPrepareMessage(actionableItemCount));
 
     try {
       let targetTransferCount = 0;
@@ -318,7 +326,7 @@ export function useLoadoutWriteActions(input: {
       let prepStepCount = 0;
       for (const step of transferPlan.steps) {
         if (step.phase === "equip-swap") {
-          input.setItemActionMessage(`正在在来源角色身上装备 ${step.items.length} 件替代装备...`);
+          input.setItemActionMessage(buildMissingLoadoutStepProgressMessage(step, targetCharacter.class_name));
           const equipResult = await api.batchEquipItems({
             membership_type: input.accountSummary.membership_type,
             character_id: step.character_id,
@@ -337,7 +345,7 @@ export function useLoadoutWriteActions(input: {
           continue;
         }
         if (step.phase === "pull-postmaster") {
-          input.setItemActionMessage(`正在从邮政官取回 ${step.items.length} 件装备...`);
+          input.setItemActionMessage(buildMissingLoadoutStepProgressMessage(step, targetCharacter.class_name));
           for (const item of step.items) {
             await api.pullFromPostmaster({
               membership_type: input.accountSummary.membership_type,
@@ -351,7 +359,7 @@ export function useLoadoutWriteActions(input: {
           continue;
         }
         if (step.phase === "equip-target") {
-          input.setItemActionMessage(`正在给 ${targetCharacter.class_name} 自动装备 ${step.items.length} 件方案装备...`);
+          input.setItemActionMessage(buildMissingLoadoutStepProgressMessage(step, targetCharacter.class_name));
           const equipResult = await api.batchEquipItems({
             membership_type: input.accountSummary.membership_type,
             character_id: step.character_id,
@@ -369,11 +377,7 @@ export function useLoadoutWriteActions(input: {
           }
           continue;
         }
-        input.setItemActionMessage(
-          step.phase === "to-vault"
-            ? `正在从来源角色移回 ${step.items.length} 件装备到仓库...`
-            : `正在转入 ${step.items.length} 件装备到 ${targetCharacter.class_name}...`
-        );
+        input.setItemActionMessage(buildMissingLoadoutStepProgressMessage(step, targetCharacter.class_name));
 
         const result = await api.batchTransferItems({
           membership_type: input.accountSummary.membership_type,
@@ -398,17 +402,12 @@ export function useLoadoutWriteActions(input: {
         }
       }
       await Promise.all([input.loadAccountSummary(), input.diagnostics.loadActionLog()]);
-      const finishedParts = [
-        targetTransferCount > 0 ? `转入 ${targetTransferCount} 件` : null,
-        autoEquipCount > 0 ? `自动装备 ${autoEquipCount} 件` : null,
-        prepStepCount > 0 ? `前置处理 ${prepStepCount} 步` : null,
-        transferPlan.blocked.length > 0 ? `仍有 ${transferPlan.blocked.length} 件需手动处理` : null
-      ].filter(Boolean);
-      input.setLoadoutMessage(
-        finishedParts.length
-          ? `方案补齐完成：${finishedParts.join("，")}。`
-          : "方案补齐完成。"
-      );
+      input.setLoadoutMessage(buildMissingLoadoutResultMessage({
+        targetTransferCount,
+        autoEquipCount,
+        prepStepCount,
+        blockedCount: transferPlan.blocked.length
+      }));
     } catch (error) {
       input.setLoadoutMessage(error instanceof Error ? error.message : "缺失件转移失败");
     } finally {
@@ -430,7 +429,7 @@ export function useLoadoutWriteActions(input: {
     const targetCharacter = input.accountSummary.characters.find((character) => character.character_id === template.character_id)
       ?? input.accountSummary.characters[0];
     if (!targetCharacter) {
-      input.setLoadoutMessage("没有可用角色，无法补齐这件装备。");
+      input.setLoadoutMessage(buildSingleLoadoutTransferNoTargetMessage());
       return;
     }
 
@@ -441,9 +440,10 @@ export function useLoadoutWriteActions(input: {
     });
     const actionableItemCount = getMissingLoadoutActionableCount(transferPlan);
     if (!actionableItemCount) {
-      input.setLoadoutMessage(transferPlan.blocked.length > 0
-        ? `这件装备当前无法自动补齐：${item.name}。`
-        : `这件装备已经就位：${item.name}。`);
+      input.setLoadoutMessage(buildSingleLoadoutTransferNoActionMessage({
+        itemName: item.name,
+        transferPlan
+      }));
       return;
     }
 
@@ -453,15 +453,15 @@ export function useLoadoutWriteActions(input: {
       return;
     }
 
-    if (!window.confirm(`确认只补齐「${item.name}」吗？`)) {
-      input.setLoadoutMessage("已取消单件补齐。");
+    if (!window.confirm(buildSingleLoadoutTransferConfirmText(item.name))) {
+      input.setLoadoutMessage(buildSingleLoadoutTransferCancelledMessage());
       return;
     }
 
     input.setIsRunningItemAction(true);
     input.loadoutActionFeedback.setSingleActionFeedback(feedbackKey, "pending");
-    input.setItemActionMessage(`正在补齐 ${item.name}...`);
-    input.setLoadoutMessage(`正在补齐 ${item.name}...`);
+    input.setItemActionMessage(buildSingleLoadoutTransferStartMessage(item.name));
+    input.setLoadoutMessage(buildSingleLoadoutTransferStartMessage(item.name));
     let actionSucceeded = false;
 
     try {
@@ -470,7 +470,11 @@ export function useLoadoutWriteActions(input: {
       let prepStepCount = 0;
       for (const step of transferPlan.steps) {
         if (step.phase === "equip-swap") {
-          const stepMessage = `正在为来源角色换下 ${item.name}...`;
+          const stepMessage = buildSingleLoadoutTransferStepProgressMessage({
+            step,
+            itemName: item.name,
+            targetCharacterClassName: targetCharacter.class_name
+          });
           input.setItemActionMessage(stepMessage);
           input.setLoadoutMessage(stepMessage);
           const equipResult = await api.batchEquipItems({
@@ -492,7 +496,11 @@ export function useLoadoutWriteActions(input: {
         }
 
         if (step.phase === "pull-postmaster") {
-          const stepMessage = `正在从邮政官取回 ${item.name}...`;
+          const stepMessage = buildSingleLoadoutTransferStepProgressMessage({
+            step,
+            itemName: item.name,
+            targetCharacterClassName: targetCharacter.class_name
+          });
           input.setItemActionMessage(stepMessage);
           input.setLoadoutMessage(stepMessage);
           for (const entry of step.items) {
@@ -509,7 +517,11 @@ export function useLoadoutWriteActions(input: {
         }
 
         if (step.phase === "equip-target") {
-          const stepMessage = `正在给 ${targetCharacter.class_name} 装备 ${item.name}...`;
+          const stepMessage = buildSingleLoadoutTransferStepProgressMessage({
+            step,
+            itemName: item.name,
+            targetCharacterClassName: targetCharacter.class_name
+          });
           input.setItemActionMessage(stepMessage);
           input.setLoadoutMessage(stepMessage);
           const equipResult = await api.batchEquipItems({
@@ -530,9 +542,11 @@ export function useLoadoutWriteActions(input: {
           continue;
         }
 
-        const stepMessage = step.phase === "to-vault"
-          ? `正在把 ${item.name} 转回仓库...`
-          : `正在把 ${item.name} 转入 ${targetCharacter.class_name}...`;
+        const stepMessage = buildSingleLoadoutTransferStepProgressMessage({
+          step,
+          itemName: item.name,
+          targetCharacterClassName: targetCharacter.class_name
+        });
         input.setItemActionMessage(stepMessage);
         input.setLoadoutMessage(stepMessage);
 
@@ -561,20 +575,16 @@ export function useLoadoutWriteActions(input: {
       }
 
       await Promise.all([input.loadAccountSummary(), input.diagnostics.loadActionLog()]);
-      const finishedParts = [
-        targetTransferCount > 0 ? `转入 ${targetTransferCount} 件` : null,
-        autoEquipCount > 0 ? `自动装备 ${autoEquipCount} 件` : null,
-        prepStepCount > 0 ? `前置处理 ${prepStepCount} 步` : null
-      ].filter(Boolean);
-      input.setLoadoutMessage(
-        finishedParts.length
-          ? `单件补齐完成：${item.name}，${finishedParts.join("，")}。`
-          : `单件补齐完成：${item.name}。`
-      );
+      input.setLoadoutMessage(buildSingleLoadoutTransferResultMessage({
+        itemName: item.name,
+        targetTransferCount,
+        autoEquipCount,
+        prepStepCount
+      }));
       actionSucceeded = true;
       input.loadoutActionFeedback.setSingleActionFeedback(feedbackKey, "success");
     } catch (error) {
-      input.setLoadoutMessage(error instanceof Error ? error.message : `单件补齐失败：${item.name}`);
+      input.setLoadoutMessage(error instanceof Error ? error.message : buildLoadoutItemActionFailureMessage("transfer", item.name));
     } finally {
       input.setIsRunningItemAction(false);
       input.setItemActionMessage("");
@@ -596,11 +606,11 @@ export function useLoadoutWriteActions(input: {
 
     const sourceItem = findBestTemplateSourceItem(item, input.accountSummary, template.character_id);
     if (!sourceItem?.instance_id) {
-      input.setLoadoutMessage(`找不到可直接装备的物品实例：${item.name}。`);
+      input.setLoadoutMessage(buildSingleLoadoutEquipMissingSourceMessage(item.name));
       return;
     }
     if (sourceItem.source_kind !== "inventory" || sourceItem.source_character_id !== template.character_id) {
-      input.setLoadoutMessage(`「${item.name}」当前不在目标角色背包，请先用“只补这一件”。`);
+      input.setLoadoutMessage(buildSingleLoadoutEquipWrongLocationMessage(item.name));
       return;
     }
 
@@ -610,15 +620,15 @@ export function useLoadoutWriteActions(input: {
       return;
     }
 
-    if (!window.confirm(`确认只装备「${item.name}」吗？`)) {
+    if (!window.confirm(buildSingleLoadoutEquipConfirmText(item.name))) {
       input.setLoadoutMessage("已取消单件装备。");
       return;
     }
 
     input.setIsRunningItemAction(true);
     input.loadoutActionFeedback.setSingleActionFeedback(feedbackKey, "pending");
-    input.setItemActionMessage(`正在装备 ${item.name}...`);
-    input.setLoadoutMessage(`正在装备 ${item.name}...`);
+    input.setItemActionMessage(buildSingleLoadoutEquipProgressMessage(item.name));
+    input.setLoadoutMessage(buildSingleLoadoutEquipProgressMessage(item.name));
     let actionSucceeded = false;
 
     try {
@@ -633,7 +643,7 @@ export function useLoadoutWriteActions(input: {
       actionSucceeded = true;
       input.loadoutActionFeedback.setSingleActionFeedback(feedbackKey, "success");
     } catch (error) {
-      input.setLoadoutMessage(error instanceof Error ? error.message : `单件装备失败：${item.name}`);
+      input.setLoadoutMessage(error instanceof Error ? error.message : buildLoadoutItemActionFailureMessage("equip", item.name));
     } finally {
       input.setIsRunningItemAction(false);
       input.setItemActionMessage("");
@@ -672,10 +682,4 @@ export function useLoadoutWriteActions(input: {
     equipSingleLoadoutItem,
     openTemplateSourceItem
   };
-}
-
-function formatHighestPowerSource(source: "equipped" | "inventory" | "vault"): string {
-  if (source === "equipped") return "已装备";
-  if (source === "inventory") return "角色背包";
-  return "仓库";
 }

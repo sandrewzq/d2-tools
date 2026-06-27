@@ -39,13 +39,14 @@ jobs:
           $coreVersion = node -p "require('./packages/core/package.json').version"
           $httpVersion = node -p "require('./packages/http/package.json').version"
           $tagName = "${{ github.ref_name }}"
+          $versionPattern = '^v' + [regex]::Escape($rootVersion) + '(-(beta|rc)\.\d+)?$'
 
           if ($rootVersion -ne $desktopVersion -or $rootVersion -ne $coreVersion -or $rootVersion -ne $httpVersion) {
             throw "Package versions must match. root=$rootVersion desktop=$desktopVersion core=$coreVersion http=$httpVersion"
           }
 
-          if ($tagName -ne "v$rootVersion") {
-            throw "Release tag $tagName must match package version v$rootVersion"
+          if ($tagName -notmatch $versionPattern) {
+            throw "Release tag $tagName must match v$rootVersion or a prerelease tag like v$rootVersion-beta.1 / v$rootVersion-rc.1"
           }
 
       - name: Build

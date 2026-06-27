@@ -75,12 +75,12 @@ export function ItemDetailTools(props: ItemDetailToolsProps) {
   const selectedItem = props.selectedItem;
 
   return (
-    <section className="item-detail-tool-area" aria-label="装备详情工具区">
+    <section className="item-detail-tool-area item-tool-panel" aria-label="装备详情工具区">
       <div className="item-detail-tool-tabs" aria-hidden="true">
-        <span>概览</span>
-        <span>同名对比</span>
-        <span>社区推荐</span>
-        <span>操作</span>
+        <span className="ui-badge status-neutral">概览</span>
+        <span className="ui-badge status-neutral">同名对比</span>
+        <span className="ui-badge status-neutral">社区推荐</span>
+        <span className="ui-badge status-neutral">操作</span>
       </div>
       <div className="item-detail-tool-grid">
         <section className="item-detail-tool-section">
@@ -212,6 +212,11 @@ function ItemDetailTargetMatch(props: {
   const modeLabels = formatWishlistModeLabels(wishlist.labels);
   const tag = props.vaultTags.items[props.selectedItem.item_key]?.tag ?? "none";
   const matched = wishlist.matched || localTarget.matched;
+  const matchSources = formatTargetMatchSources({
+    wishlistMatched: wishlist.matched,
+    localTargetMatched: localTarget.matched,
+    hasImportedWishlist
+  });
 
   return (
     <section className={`target-match-panel ${matched ? "matched" : "empty"}`}>
@@ -222,6 +227,7 @@ function ItemDetailTargetMatch(props: {
           : "未命中已导入 DIM 愿望单"}</strong>
       </div>
       <div className="target-match-meta">
+        <span>命中来源：{matchSources.join(" / ")}</span>
         <span>本地标记：{formatVaultTagLabel(tag)}</span>
         {wishlist.matched ? <span>{modeLabels.length ? modeLabels.join(" / ") : wishlist.labels.join(" / ")}</span> : null}
         {localTarget.matched ? <span>{localTarget.labels.join(" / ")}</span> : null}
@@ -232,7 +238,7 @@ function ItemDetailTargetMatch(props: {
           {wishlist.reasons.map((reason) => <li key={reason}>{reason}</li>)}
         </ul>
       ) : (
-        <p>当前装备没有命中已导入的 DIM 愿望单规则，可继续用同名对比或社区推荐复查。</p>
+        <p>当前装备没有命中已导入的 DIM 愿望单规则。同名对比可继续复查同名装备，也可以结合社区推荐复查。</p>
       )}
       <div className="button-row">
         {matched ? (
@@ -244,8 +250,24 @@ function ItemDetailTargetMatch(props: {
         <button type="button" className="secondary-button" onClick={() => props.onSaveSelectedItemTag("loadout")}>标记配装用</button>
       </div>
       <small>{localTarget.matched ? localTarget.disclaimer : wishlist.disclaimer}</small>
+      <small>命中后不会自动收藏、加标签或改动装备；你需要手动选择标记或写操作。</small>
     </section>
   );
+}
+
+function formatTargetMatchSources(input: {
+  wishlistMatched: boolean;
+  localTargetMatched: boolean;
+  hasImportedWishlist: boolean;
+}): string[] {
+  const sources = [];
+  if (input.localTargetMatched) {
+    sources.push("本地目标规则");
+  }
+  if (input.wishlistMatched || input.hasImportedWishlist) {
+    sources.push("DIM 愿望单");
+  }
+  return sources.length ? sources : ["未命中"];
 }
 
 function ItemLocalTagPanel(props: {

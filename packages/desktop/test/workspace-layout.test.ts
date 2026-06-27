@@ -15,11 +15,14 @@ describe("desktop workspace layout", () => {
 
   it("renders the home page as a workbench instead of a single long stream", () => {
     const homePage = readFileSync(join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"), "utf8");
+    const homeRoutes = readFileSync(join(desktopRoot, "src", "renderer", "pages", "HomePageRoutes.tsx"), "utf8");
     const homeDashboard = readFileSync(join(desktopRoot, "src", "renderer", "features", "home", "HomeDashboard.tsx"), "utf8");
     const styles = readFileSync(join(desktopRoot, "src", "renderer", "styles.css"), "utf8");
     const dailyPage = readFileSync(join(desktopRoot, "src", "renderer", "features", "daily", "DailyPage.tsx"), "utf8");
 
-    expect(homePage).toContain("<HomeDashboard");
+    expect(homePage).toContain("<HomePageRoutes");
+    expect(homePage).not.toContain("<HomeDashboard");
+    expect(homeRoutes).toContain("<HomeDashboard");
     expect(homePage).not.toContain('className="home-workbench"');
     expect(homeDashboard).toContain('className="home-workbench"');
     expect(homeDashboard).toContain('className="home-primary-column"');
@@ -51,9 +54,12 @@ describe("desktop workspace layout", () => {
 
   it("keeps the vault menu in an isolated feature entry", () => {
     const homePage = readFileSync(join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"), "utf8");
+    const homeRoutes = readFileSync(join(desktopRoot, "src", "renderer", "pages", "HomePageRoutes.tsx"), "utf8");
     const vaultPage = readFileSync(join(desktopRoot, "src", "renderer", "features", "vault", "VaultPage.tsx"), "utf8");
 
-    expect(homePage).toContain("<VaultPage");
+    expect(homePage).toContain("<HomePageRoutes");
+    expect(homePage).not.toContain("<VaultPage");
+    expect(homeRoutes).toContain("<VaultPage");
     expect(homePage).not.toContain("function renderVaultPanel");
     expect(vaultPage).toContain("export function VaultPage");
     expect(vaultPage).toContain("<VaultPanel");
@@ -67,6 +73,7 @@ describe("desktop workspace layout", () => {
     const settingsHook = readFileSync(join(desktopRoot, "src", "renderer", "features", "settings", "useDiagnosticsSettings.ts"), "utf8");
     const accountHook = readFileSync(join(desktopRoot, "src", "renderer", "features", "account", "useAccountWorkspace.ts"), "utf8");
     const loadoutWriteHook = readFileSync(join(desktopRoot, "src", "renderer", "features", "loadouts", "useLoadoutWriteActions.ts"), "utf8");
+    const homeWriteHook = readFileSync(join(desktopRoot, "src", "renderer", "pages", "useHomePageWriteActions.ts"), "utf8");
     const itemDetailHook = readFileSync(join(desktopRoot, "src", "renderer", "shared", "hooks", "useItemDetailWorkspace.ts"), "utf8");
     const vaultWriteHook = readFileSync(join(desktopRoot, "src", "renderer", "features", "vault", "useVaultWriteActions.ts"), "utf8");
 
@@ -74,14 +81,21 @@ describe("desktop workspace layout", () => {
     expect(homePage).toContain("useLibraryWorkspace");
     expect(homePage).toContain("useDiagnosticsSettings");
     expect(homePage).toContain("useAccountWorkspace");
-    expect(homePage).toContain("useLoadoutWriteActions");
-    expect(homePage).toContain("useItemDetailWorkspace");
-    expect(homePage).toContain("useVaultWriteActions");
+    expect(homePage).toContain("useHomePageWriteActions");
+    expect(homePage).not.toContain("useLoadoutWriteActions");
+    expect(homePage).not.toContain("useLoadoutTemplateActions");
+    expect(homePage).not.toContain("useItemDetailWorkspace");
+    expect(homePage).not.toContain("useVaultWriteActions");
     expect(dailyHook).toContain("export function useDailySummary");
     expect(libraryHook).toContain("export function useLibraryWorkspace");
     expect(settingsHook).toContain("export function useDiagnosticsSettings");
     expect(accountHook).toContain("export function useAccountWorkspace");
     expect(loadoutWriteHook).toContain("export function useLoadoutWriteActions");
+    expect(homeWriteHook).toContain("export function useHomePageWriteActions");
+    expect(homeWriteHook).toContain("useLoadoutWriteActions");
+    expect(homeWriteHook).toContain("useLoadoutTemplateActions");
+    expect(homeWriteHook).toContain("useItemDetailWorkspace");
+    expect(homeWriteHook).toContain("useVaultWriteActions");
     expect(itemDetailHook).toContain("export function useItemDetailWorkspace");
     expect(vaultWriteHook).toContain("export function useVaultWriteActions");
     expect(homePage).not.toContain("async function loadDailySummary");
@@ -102,21 +116,18 @@ describe("desktop workspace layout", () => {
     expect(homePage).not.toContain('activePage !== "home" ? (');
   });
 
-  it("keeps AI conversations inside a bounded desktop chat workspace", () => {
-    const aiPanel = readFileSync(join(desktopRoot, "src", "renderer", "components", "AiAnalysisPanel.tsx"), "utf8");
-    const styles = readFileSync(join(desktopRoot, "src", "renderer", "styles.css"), "utf8");
+  it("keeps vault page composition thin and moved into the app workspace", () => {
+    const vaultPage = readFileSync(join(desktopRoot, "src", "renderer", "features", "vault", "VaultPage.tsx"), "utf8");
+    const appIndex = readFileSync(join(process.cwd(), "packages", "app", "src", "index.ts"), "utf8");
+    const vaultWorkspace = readFileSync(join(process.cwd(), "packages", "app", "src", "workspaces", "vaultPage.ts"), "utf8");
 
-    expect(aiPanel).toContain('className="ai-chat-workspace"');
-    expect(aiPanel).toContain('className="ai-conversation-log"');
-    expect(aiPanel).toContain('className="ai-composer"');
-    expect(aiPanel).toContain('className="ai-chat-history ai-session-drawer"');
-    expect(aiPanel).toContain('className="ai-context-drawer"');
-    expect(aiPanel).not.toContain("本地分析");
-    expect(aiPanel).not.toContain("AI 深度建议");
-    expect(aiPanel).not.toContain('className="analysis-grid"');
-    expect(styles).toMatch(/\.ai-conversation-log\s*{[\s\S]*?overflow:\s*auto;/);
-    expect(styles).toMatch(/\.ai-composer\s*{[\s\S]*?border-top:\s*1px solid #303848;/);
-    expect(styles).toMatch(/\.ai-session-drawer,\s*\n\.ai-context-drawer\s*{[\s\S]*?position:\s*absolute;/);
+    expect(vaultPage).toContain("createVaultPageWorkspace");
+    expect(vaultPage).toContain("workspace.vaultItems");
+    expect(vaultPage).toContain("workspace.currentCharacterId");
+    expect(vaultPage).toContain("workspace.currentCharacterLabel");
+    expect(vaultPage).not.toContain("currentCharacterId = props.selectedCharacterId || props.account.characters[0]?.character_id");
+    expect(vaultWorkspace).toContain("createVaultPageWorkspace");
+    expect(appIndex).toContain("createVaultPageWorkspace");
   });
 
   it("uses shared source status styling for fallback and warning messages", () => {

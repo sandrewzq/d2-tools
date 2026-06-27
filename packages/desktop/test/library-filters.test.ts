@@ -138,9 +138,12 @@ describe("library filters", () => {
 
   it("renders dedicated tabs and mode-specific filter copy in the library page", () => {
     const homePage = readFileSync("packages/desktop/src/renderer/pages/HomePage.tsx", "utf8");
+    const homeRoutes = readFileSync("packages/desktop/src/renderer/pages/HomePageRoutes.tsx", "utf8");
     const libraryPage = readFileSync("packages/desktop/src/renderer/features/library/LibraryPage.tsx", "utf8");
 
-    expect(homePage).toContain("<LibraryPage");
+    expect(homePage).toContain("<HomePageRoutes");
+    expect(homePage).not.toContain("<LibraryPage");
+    expect(homeRoutes).toContain("<LibraryPage");
     expect(homePage).not.toContain("function renderSearchPanel");
     expect(libraryPage).toContain("export function LibraryPage");
     expect(libraryPage).toContain("libraryViewMode");

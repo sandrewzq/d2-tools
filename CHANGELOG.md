@@ -2,6 +2,20 @@
 
 这个项目使用面向玩家的更新日志。这里优先记录”玩家能感知到什么变化”，而不是逐条展开内部实现细节。
 
+## 0.0.8 - 2026-06-25
+
+### 修复
+
+- 修复桌面端开发环境黑屏问题：账号 workspace hook 恢复正确的 React 状态导入，窗口启动后可正常渲染页面
+- 补齐 app/services 桌面桥接实现，恢复活动摘要与社区命中能力在新分层下的类型对齐
+- 修复仓库页本地导入草稿状态与 loadout lookup 类型接线，避免重构收尾阶段的渲染/类型回退
+
+### 工程
+
+- 新增最小 GitHub Actions CI，自动执行安装、测试和类型检查
+- 新增 `.editorconfig`、`.gitattributes` 和源码衍生产物忽略规则，减少换行与误提交噪音
+- 补齐开源仓库外围文件：`CONTRIBUTING.md`、`LICENSE`、`SECURITY.md`、`SUPPORT.md` 与 Issue 模板
+
 ## 0.0.7 - 2026-06-25
 
 ### 新增
@@ -86,7 +100,7 @@
 - AI 聊天式助手，支持基于已载入账号数据做自定义分析
 - AI 配置支持 OpenAI Responses、OpenAI Chat Completions 和 Anthropic Claude
 - 诊断导出、工具审计日志和写操作日志
-- GitHub Release 自动打包 Windows `.7z` 绿色包
+- GitHub Release 自动打包 Windows NSIS 安装器并上传自动更新元数据（`latest.yml` / `.blockmap`）
 
 ### 改进
 
@@ -110,7 +124,7 @@
 - 初步公开测试版本
 - 账号、仓库、资料库、AI 助手和设置页基础可用
 - 仓库标签、备注、单件装备详情和基础 AI 分析
-- GitHub Release 自动打包 Windows `.7z`
+- GitHub Release 自动打包 Windows NSIS 安装器
 
 ### 修复
 
@@ -121,7 +135,7 @@
 
 ### 新增
 
-- Windows 绿色包发布流程
+- Windows NSIS 安装器发布流程
 - Bungie OAuth、Manifest 初始化和基础资料库搜索
 
 ## 0.0.1 - 2026-06-18

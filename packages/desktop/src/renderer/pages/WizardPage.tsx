@@ -121,8 +121,8 @@ export function WizardPage(props: {
           </button>
         ) : null}
       </div>
-      {error ? <p className="error">{error}</p> : null}
-      {message ? <p className="notice">{message}</p> : null}
+      {error ? <p className="status-message status-error">{error}</p> : null}
+      {message ? <p className="status-message status-ready">{message}</p> : null}
     </main>
   );
 }

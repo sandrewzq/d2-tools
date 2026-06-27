@@ -26,7 +26,7 @@ export function VaultItemSections(props: {
   onToggleSelected: (item: AccountItemSummary) => void;
 }) {
   if (!props.sections.length) {
-    return <p className="notice">没有匹配的仓库物品。</p>;
+    return <p className="status-message status-neutral">没有匹配的仓库物品。</p>;
   }
 
   return (

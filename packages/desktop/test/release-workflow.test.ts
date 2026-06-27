@@ -23,6 +23,8 @@ describe("release workflow", () => {
     expect(workflow).not.toContain("*.zip");
     expect(workflow).toContain("contains(github.ref_name, '-beta')");
     expect(workflow).toContain("contains(github.ref_name, '-rc')");
+    expect(workflow).toContain("v$rootVersion-beta.1 / v$rootVersion-rc.1");
+    expect(workflow).not.toContain('if ($tagName -ne "v$rootVersion")');
     expect(workflow).not.toContain("prerelease: true");
   });
 });

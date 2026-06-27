@@ -1,3 +1,4 @@
+import { createVaultPageWorkspace } from "@d2-tools/app";
 import { lazy, useState } from "react";
 import { parseDimWishlist } from "@d2-tools/core/analysis/wishlistImport";
 import { parseLocalCommunityRecommendations } from "@d2-tools/core/community-perks/localCommunityImport";
@@ -52,7 +53,7 @@ export function VaultPage(props: {
 
   if (!props.account) {
     return (
-      <section className="tool-panel placeholder-panel">
+      <section className="tool-panel vault-dashboard-panel placeholder-panel">
         <div className="section-heading">
           <div>
             <h2>仓库</h2>
@@ -62,15 +63,21 @@ export function VaultPage(props: {
             {props.isLoadingAccount ? "读取中..." : "读取账号数据"}
           </button>
         </div>
-        {props.accountError ? <p className="error">{props.accountError}</p> : null}
+        {props.accountError ? <p className="status-message status-error">{props.accountError}</p> : null}
       </section>
     );
   }
 
-  const currentCharacterId = props.selectedCharacterId || props.account.characters[0]?.character_id;
-  const currentCharacterLabel = props.account.characters.find((character) =>
-    character.character_id === currentCharacterId
-  )?.class_name;
+  const workspace = createVaultPageWorkspace({
+    account: props.account,
+    selectedCharacterId: props.selectedCharacterId,
+    activeLoadoutLookup: props.activeLoadoutLookup,
+    activeLoadoutName: props.activeLoadoutName,
+    tags: props.tags,
+    targetRules: props.localTargetRules,
+    wishlist: props.wishlist,
+    communityMatch: props.communityMatch
+  });
 
   function importWishlistDraft() {
     const wishlist = parseDimWishlist(wishlistImportDraft);
@@ -152,33 +159,33 @@ export function VaultPage(props: {
   return (
     <>
       <VaultPanel
-        items={props.account.vault.items}
-        highlightedItemKeys={props.activeLoadoutLookup}
-        highlightedLabel={props.activeLoadoutName}
-        tags={props.tags}
+        items={workspace.vaultItems}
+        highlightedItemKeys={workspace.activeLoadoutLookup}
+        highlightedLabel={workspace.activeLoadoutName}
+        tags={workspace.tags}
         openingItemKey={props.openingItemKey}
         onSaveTagBatch={props.onSaveTagBatch}
         cleanupActions={{
           characters: props.account.characters,
-          currentCharacterId,
-          currentCharacterLabel,
+          currentCharacterId: workspace.currentCharacterId,
+          currentCharacterLabel: workspace.currentCharacterLabel,
           writeActionsEnabled: props.writeActionsEnabled,
           onBatchUnlock: props.onBatchUnlock,
           onBatchTransferToCharacter: props.onBatchTransferToCharacter
         }}
-        wishlist={props.wishlist}
-        localTargetRules={props.localTargetRules}
-        communityMatch={props.communityMatch}
+        wishlist={workspace.wishlist}
+        localTargetRules={workspace.targetRules}
+        communityMatch={workspace.communityMatch}
         onContextFactsChange={props.onContextFactsChange}
         onOpenItem={props.onOpenItem}
         onSaveTag={props.onSaveTag}
       />
       <VaultTargetRulesPanel
-        items={props.account.vault.items}
+        items={workspace.vaultItems}
         rules={props.localTargetRules}
         onRulesChanged={props.onLocalTargetRulesChanged}
       />
-      <section className="vault-preview wishlist-import-panel">
+      <section className="vault-dashboard-panel vault-preview wishlist-import-panel">
         <div className="section-heading compact-heading">
           <div>
             <h3>推荐数据导入</h3>
@@ -213,7 +220,7 @@ export function VaultPage(props: {
           <button type="button" className="secondary-button" disabled={!props.wishlist} onClick={() => void clearImportedWishlist()}>
             清空愿望单
           </button>
-          {wishlistImportMessage ? <span className="muted-copy">{wishlistImportMessage}</span> : null}
+          {wishlistImportMessage ? <span className={formatImportStatusClass(wishlistImportMessage)}>{wishlistImportMessage}</span> : null}
         </div>
         <label htmlFor="local-community-import">导入本地社区推荐表</label>
         <p className="muted-copy">
@@ -243,9 +250,15 @@ export function VaultPage(props: {
           <button type="button" className="secondary-button" disabled={!localCommunityTable} onClick={() => void clearLocalCommunityDraft()}>
             清空推荐表
           </button>
-          {localCommunityImportMessage ? <span className="muted-copy">{localCommunityImportMessage}</span> : null}
+          {localCommunityImportMessage ? <span className={formatImportStatusClass(localCommunityImportMessage)}>{localCommunityImportMessage}</span> : null}
         </div>
       </section>
     </>
   );
+}
+
+function formatImportStatusClass(message: string): string {
+  return message.includes("失败") || message.includes("没有识别")
+    ? "status-message status-error"
+    : "status-message status-ready";
 }

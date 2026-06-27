@@ -1,0 +1,154 @@
+import { describe, expect, it } from "vitest";
+import type { AccountItemSummary, CharacterSummary } from "@d2-tools/core/account/summary";
+import {
+  buildHighestPowerAlreadyOptimalMessage,
+  buildHighestPowerConfirmText,
+  buildHighestPowerEquipProgressMessage,
+  buildHighestPowerResultMessage,
+  buildHighestPowerTransferProgressMessage,
+  createHighestPowerEquipPlan,
+  createHighestPowerExecutionPlan,
+  formatHighestPowerSource
+} from "../src/workspaces/highestPower";
+
+describe("highest power workspace", () => {
+  it("selects the highest power item per power slot from equipped, inventory, and vault", () => {
+    const character: CharacterSummary = {
+      character_id: "char-1",
+      class_name: "术士",
+      light: 1800,
+      equipped_items: [
+        item("equipped-kinetic", "Old Kinetic", "动能武器", 1800),
+        item("equipped-helmet", "Old Helmet", "头盔", 1801)
+      ],
+      equipment_groups: [],
+      inventory_items: [
+        item("inventory-kinetic", "Better Kinetic", "动能武器", 1810),
+        item("inventory-energy", "Best Energy", "能量武器", 1805)
+      ],
+      inventory_groups: [],
+      postmaster_items: [],
+      loadout_slots: []
+    };
+    const vaultItems = [
+      item("vault-helmet", "Best Helmet", "头盔", 1812),
+      item("vault-ship", "Pretty Ship", "飞船", 1900),
+      item("vault-missing-power", "No Power", "威能武器", undefined)
+    ];
+
+    const plan = createHighestPowerEquipPlan({ character, vaultItems });
+
+    expect(plan.items.map((entry) => [entry.slot_label, entry.item.name, entry.source])).toEqual([
+      ["动能武器", "Better Kinetic", "inventory"],
+      ["能量武器", "Best Energy", "inventory"],
+      ["头盔", "Best Helmet", "vault"]
+    ]);
+    expect(plan.items.filter((entry) => entry.needs_transfer).map((entry) => entry.item.name)).toEqual(["Best Helmet"]);
+    expect(plan.items.filter((entry) => entry.needs_equip).map((entry) => entry.item.name)).toEqual([
+      "Better Kinetic",
+      "Best Energy",
+      "Best Helmet"
+    ]);
+    expect(plan.summary).toContain("准备装备 3 件最高光等装备");
+    expect(plan.summary).not.toContain("Pretty Ship");
+  });
+
+  it("splits highest-power actions into transfer and equip phases", () => {
+    const character: CharacterSummary = {
+      character_id: "char-1",
+      class_name: "术士",
+      equipped_items: [item("equipped-kinetic", "Old Kinetic", "动能武器", 1800)],
+      equipment_groups: [],
+      inventory_items: [item("inventory-energy", "Best Energy", "能量武器", 1810)],
+      inventory_groups: [],
+      postmaster_items: [],
+      loadout_slots: []
+    };
+
+    const highestPowerPlan = createHighestPowerEquipPlan({
+      character,
+      vaultItems: [item("vault-helmet", "Best Helmet", "头盔", 1815)]
+    });
+
+    const executionPlan = createHighestPowerExecutionPlan(highestPowerPlan);
+
+    expect(executionPlan.transfer_items.map((entry) => entry.item.name)).toEqual(["Best Helmet"]);
+    expect(executionPlan.equip_items.map((entry) => entry.item.name)).toEqual([
+      "Best Energy",
+      "Best Helmet"
+    ]);
+    expect(executionPlan.summary).toContain("先转移 1 件");
+    expect(executionPlan.summary).toContain("再装备 2 件");
+  });
+
+  it("builds the confirm copy for highest-power write actions", () => {
+    const character: CharacterSummary = {
+      character_id: "char-1",
+      class_name: "术士",
+      equipped_items: [item("equipped-kinetic", "Old Kinetic", "动能武器", 1800)],
+      equipment_groups: [],
+      inventory_items: [item("inventory-kinetic", "Better Kinetic", "动能武器", 1810)],
+      inventory_groups: [],
+      postmaster_items: [],
+      loadout_slots: []
+    };
+    const plan = createHighestPowerEquipPlan({
+      character,
+      vaultItems: [item("vault-helmet", "Best Helmet", "头盔", 1815)]
+    });
+    const executionPlan = createHighestPowerExecutionPlan(plan);
+
+    expect(formatHighestPowerSource("inventory")).toBe("角色背包");
+    expect(formatHighestPowerSource("vault")).toBe("仓库");
+    expect(buildHighestPowerConfirmText({
+      characterClassName: character.class_name,
+      plan,
+      executionPlan
+    })).toBe([
+      "确认给 术士 装备最高光等组合？",
+      "准备装备 2 件最高光等装备，涉及 2 个位置。",
+      "先转移 1 件，再装备 2 件。",
+      "动能武器：Better Kinetic / 光等 1810 / 角色背包",
+      "头盔：Best Helmet / 光等 1815 / 仓库",
+      "说明：仓库里的装备会先取出到该角色，再执行装备。不会分解装备。"
+    ].join("\n"));
+  });
+
+  it("builds progress and result messages for highest-power write actions", () => {
+    expect(buildHighestPowerAlreadyOptimalMessage("术士")).toBe("术士 当前已经是最高光等组合。");
+    expect(buildHighestPowerTransferProgressMessage(2)).toBe("正在从仓库取出 2 件最高光等装备...");
+    expect(buildHighestPowerEquipProgressMessage(3)).toBe("正在装备最高光等 3 件装备...");
+    expect(buildHighestPowerResultMessage({
+      characterClassName: "术士",
+      transferSuccessCount: 0,
+      transferTotalCount: 0,
+      equipSuccessCount: 3,
+      equipTotalCount: 3,
+      failedCount: 0
+    })).toBe("已给 术士 装备 3 件最高光等装备。");
+    expect(buildHighestPowerResultMessage({
+      characterClassName: "术士",
+      transferSuccessCount: 1,
+      transferTotalCount: 2,
+      equipSuccessCount: 2,
+      equipTotalCount: 3,
+      failedCount: 2
+    })).toBe("最高光等执行完成：转移成功 1/2，装备成功 2/3，失败步骤 2。可在设置页查看操作日志。");
+  });
+});
+
+function item(
+  instanceId: string,
+  name: string,
+  bucketName: string,
+  power: number | undefined
+): AccountItemSummary {
+  return {
+    hash: instanceId.length,
+    instance_id: instanceId,
+    name,
+    bucket_name: bucketName,
+    group_key: bucketName.includes("武器") ? "weapons" : bucketName === "飞船" ? "equipment" : "armor",
+    power
+  };
+}

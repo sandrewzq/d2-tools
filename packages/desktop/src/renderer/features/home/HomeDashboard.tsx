@@ -56,8 +56,8 @@ export function HomeDashboard(props: {
           isRefreshing={props.isRefreshingDiagnostics}
           onRefresh={props.onRefreshDiagnostics}
         />
-        {props.diagnosticError ? <p className="error">{props.diagnosticError}</p> : null}
-        <section className="tool-panel">
+        {props.diagnosticError ? <p className="status-message status-error">{props.diagnosticError}</p> : null}
+        <section className="tool-panel home-dashboard-panel">
           <div className="section-heading">
             <div>
               <h2>常用入口</h2>

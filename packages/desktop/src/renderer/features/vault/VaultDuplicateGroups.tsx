@@ -32,7 +32,7 @@ export function VaultDuplicateGroups(props: {
   ) => void | Promise<void>;
 }) {
   if (!props.duplicateSummary.groups.length) {
-    return <p className="notice">当前仓库没有发现同名重复装备。</p>;
+    return <p className="status-message status-neutral">当前仓库没有发现同名重复装备。</p>;
   }
 
   return (

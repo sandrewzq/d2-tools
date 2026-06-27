@@ -197,7 +197,7 @@ export function AiAnalysisPanel(props: {
 
       <div className="ai-chat-workspace">
         <div className="ai-conversation-log" aria-live="polite">
-          {error ? <p className="error">{error}</p> : null}
+          {error ? <p className="status-message status-error">{error}</p> : null}
           {!props.items.length ? (
             <div className="item-detail-inline-status">
               <p>先读取账号数据，AI 才能结合角色、仓库、背包、标签、备注和今日信息分析。历史记录仍可查看和恢复。</p>
@@ -231,7 +231,7 @@ export function AiAnalysisPanel(props: {
               </div>
             </div>
           )}
-          {isSendingChat ? <p className="notice">AI 正在读取上下文并生成回答...</p> : null}
+          {isSendingChat ? <p className="status-message status-pending">AI 正在读取上下文并生成回答...</p> : null}
         </div>
 
         <form className="ai-composer" onSubmit={(event) => {

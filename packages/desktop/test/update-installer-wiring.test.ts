@@ -57,6 +57,7 @@ describe("desktop installer and update wiring", () => {
     const updateFlow = readFileSync(join(desktopRoot, "src", "renderer", "features", "settings", "useUpdateFlow.ts"), "utf8");
     const diagnosticsModel = readFileSync(join(desktopRoot, "src", "renderer", "features", "settings", "diagnosticsModel.ts"), "utf8");
     const homePage = readFileSync(join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"), "utf8");
+    const homeRoutes = readFileSync(join(desktopRoot, "src", "renderer", "pages", "HomePageRoutes.tsx"), "utf8");
 
     expect(settingsPage).toContain("应用更新");
     expect(settingsPage).toContain("当前版本");
@@ -74,7 +75,28 @@ describe("desktop installer and update wiring", () => {
     expect(diagnosticsModel).toContain("api.getConfig()");
     expect(diagnosticsModel).toContain("api.getManifestStatus()");
     expect(diagnosticsModel).toContain("api.getActionLog()");
-    expect(homePage).toContain("updateSnapshot={diagnostics.updateSnapshot}");
+    expect(homePage).toContain("updateSnapshot: diagnostics.updateSnapshot");
+    expect(homeRoutes).toContain("<SettingsPage {...props.settings}");
+  });
+
+  it("adds a backup and migration guide to the settings release experience", () => {
+    const settingsPage = readFileSync(join(desktopRoot, "src", "renderer", "features", "settings", "SettingsPage.tsx"), "utf8");
+    const settingsHook = readFileSync(join(desktopRoot, "src", "renderer", "features", "settings", "useDiagnosticsSettings.ts"), "utf8");
+    const diagnosticsModel = readFileSync(join(desktopRoot, "src", "renderer", "features", "settings", "diagnosticsModel.ts"), "utf8");
+    const homePage = readFileSync(join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"), "utf8");
+    const development = readFileSync(join(repoRoot, "docs", "development.md"), "utf8");
+
+    expect(settingsPage).toContain("settings-backup");
+    expect(settingsPage).toContain("数据备份与迁移");
+    expect(settingsPage).toContain("复制备份/迁移说明");
+    expect(settingsPage).toContain("onCopyDataBackupGuide");
+    expect(settingsHook).toContain("copyDataBackupGuide");
+    expect(diagnosticsModel).toContain("buildDataBackupGuide");
+    expect(diagnosticsModel).toContain("关闭 d2-tools 后复制整个数据目录");
+    expect(homePage).toContain("onCopyDataBackupGuide: () => void diagnostics.copyDataBackupGuide()");
+    expect(development).toContain("备份与恢复");
+    expect(development).toContain("关闭 d2-tools 后复制整个数据目录");
+    expect(development).toContain("诊断导出不包含 token、client secret 或 API Key");
   });
 
   it("updates public docs away from green packages", () => {

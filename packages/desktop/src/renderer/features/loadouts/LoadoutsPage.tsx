@@ -49,6 +49,14 @@ export type LoadoutsPageProps = {
     template: LoadoutTemplate,
     item: LoadoutTemplate["items"][number]
   ) => void;
+  onEquipSavedLoadout: (
+    character: AccountSummary["characters"][number],
+    slot: AccountSummary["characters"][number]["loadout_slots"][number]
+  ) => void;
+  onSnapshotCurrentLoadout: (
+    character: AccountSummary["characters"][number],
+    slot: AccountSummary["characters"][number]["loadout_slots"][number]
+  ) => void;
   onOpenTemplateSourceItem: (
     item: LoadoutTemplate["items"][number],
     templateCharacterId?: string
@@ -108,10 +116,51 @@ export function LoadoutsPage(props: LoadoutsPageProps) {
       <div className="section-heading">
         <div>
           <h2>本地方案库</h2>
-          <p>按方案查看角色装备快照，补齐缺失装备，并和其他本地方案对比。</p>
+          <p>集中管理本地方案、游戏内配装栏、缺失件补齐和方案对比。</p>
         </div>
       </div>
-      {props.message ? <p className={props.message.includes("失败") ? "error" : "notice"}>{props.message}</p> : null}
+      {props.message ? <p className={props.message.includes("失败") ? "status-message status-error" : "status-message status-ready"}>{props.message}</p> : null}
+      <section className="daily-source source-ready in-game-loadout-slots">
+        <strong>游戏内配装栏</strong>
+        <span>读取 Bungie 游戏内已保存的配装槽，执行写操作前仍会再次确认。</span>
+        {props.accountSummary ? (
+          props.accountSummary.characters.some((character) => character.loadout_slots.length) ? (
+            <div className="action-log-list">
+              {props.accountSummary.characters.map((character) => (
+                character.loadout_slots.map((slot) => (
+                  <div className="ui-list-row action-log-row log-ok" key={`${character.character_id}-loadout-${slot.index}`}>
+                    <strong>{slot.name || `配装栏 ${slot.index + 1}`}</strong>
+                    <span>{character.class_name} / 槽位 {slot.index + 1} / {slot.item_count} 件装备</span>
+                    <small>{formatInGameLoadoutSlotPreview(slot)}</small>
+                    <div className="button-row compact">
+                      <button
+                        type="button"
+                        className="secondary-button"
+                        disabled={props.isRunningItemAction}
+                        onClick={() => props.onEquipSavedLoadout(character, slot)}
+                      >
+                        应用到角色
+                      </button>
+                      <button
+                        type="button"
+                        className="secondary-button"
+                        disabled={props.isRunningItemAction}
+                        onClick={() => props.onSnapshotCurrentLoadout(character, slot)}
+                      >
+                        用当前装备覆盖
+                      </button>
+                    </div>
+                  </div>
+                ))
+              ))}
+            </div>
+          ) : (
+            <p className="status-message status-neutral">当前账号还没有读取到游戏内配装栏。</p>
+          )
+        ) : (
+          <p className="status-message status-neutral">读取账号数据后，这里会显示每个角色的游戏内配装槽。</p>
+        )}
+      </section>
       {selectedTemplate ? (
         <div className="loadouts-workbench">
           <section className="daily-source source-ready loadout-template-list">
@@ -175,7 +224,7 @@ export function LoadoutsPage(props: LoadoutsPageProps) {
               </button>
             </div>
             {missingCount > 0 ? (
-              <p className="notice">
+              <p className="status-message status-pending">
                 当前有 {missingCount} 件方案装备还没在目标角色就位，可用“转移缺失件”自动补齐并穿戴。
               </p>
             ) : null}
@@ -190,7 +239,7 @@ export function LoadoutsPage(props: LoadoutsPageProps) {
               </div>
             ) : null}
             {transferPlan?.blocked.length ? (
-              <p className="notice">
+              <p className="status-message status-warning">
                 有 {transferPlan.blocked.length} 件当前无法自动补齐，下面会显示原因和处理建议。
               </p>
             ) : null}
@@ -276,6 +325,12 @@ export function LoadoutsPage(props: LoadoutsPageProps) {
       )}
     </section>
   );
+}
+
+function formatInGameLoadoutSlotPreview(
+  slot: AccountSummary["characters"][number]["loadout_slots"][number]
+): string {
+  return slot.items.slice(0, 4).map((item) => item.name).join(" / ") || "当前槽位为空";
 }
 
 function LoadoutItemRow(props: {

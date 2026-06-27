@@ -60,6 +60,19 @@ describe("global AI assistant sidebar wiring", () => {
     expect(aiPanel).not.toContain("if (!props.items.length)");
   });
 
+  it("keeps the assistant header title readable when the sidebar is narrow", () => {
+    const styles = readFileSync(
+      join(desktopRoot, "src", "renderer", "styles.css"),
+      "utf8"
+    );
+
+    const headerBlock = styles.match(/\.ai-conversation-header\s*{[^}]*}/)?.[0] ?? "";
+    const actionsBlock = styles.match(/\.ai-conversation-actions,\s*[\r\n\s]*\.ai-composer-actions\s*{[^}]*}/)?.[0] ?? "";
+
+    expect(headerBlock).toContain("grid-template-columns: 1fr;");
+    expect(actionsBlock).toContain("justify-content: flex-start;");
+  });
+
   it("keeps the unconfigured AI fallback visible inside the global sidebar", () => {
     const styles = readFileSync(
       join(desktopRoot, "src", "renderer", "styles.css"),

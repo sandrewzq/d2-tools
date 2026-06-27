@@ -218,10 +218,16 @@ describe("AI settings panel helpers", () => {
       join(desktopRoot, "src", "renderer", "components", "GlobalAssistantSidebar.tsx"),
       "utf8"
     );
+    const homeRoutes = readFileSync(
+      join(desktopRoot, "src", "renderer", "pages", "HomePageRoutes.tsx"),
+      "utf8"
+    );
 
     expect(homePage).toContain('setActivePage("settings")');
     expect(homePage).toContain("setAssistantMode(null)");
-    expect(homePage).toContain("<SettingsPage");
+    expect(homePage).toContain("<HomePageRoutes");
+    expect(homePage).not.toContain("<SettingsPage");
+    expect(homeRoutes).toContain("<SettingsPage");
     expect(homePage).toContain("<GlobalAssistantSidebar");
     expect(homePage).not.toContain("<AiSettingsPanel");
     expect(homePage).not.toContain("查看或修改 Bungie 配置、写操作开关和本地日志。");

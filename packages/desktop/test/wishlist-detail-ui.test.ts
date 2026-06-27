@@ -57,6 +57,16 @@ describe("wishlist detail UI", () => {
     expect(communityIndex).toBeGreaterThan(actualRollIndex);
   });
 
+  it("explains target match source, write-safety and same-name review path", () => {
+    const itemDetailSources = readItemDetailSources(desktopRoot);
+
+    expect(itemDetailSources).toContain("命中来源");
+    expect(itemDetailSources).toContain("本地目标规则");
+    expect(itemDetailSources).toContain("DIM 愿望单");
+    expect(itemDetailSources).toContain("不会自动收藏、加标签或改动装备");
+    expect(itemDetailSources).toContain("同名对比可继续复查同名装备");
+  });
+
   it("renders community recommendation trust signals and queries all detail sources", () => {
     const itemDetailModal = readItemDetailSources(desktopRoot);
     const communityIpc = readFileSync(join(desktopRoot, "src", "main", "ipc", "community.ts"), "utf8");
@@ -96,9 +106,17 @@ describe("wishlist detail UI", () => {
     expect(actionIndex).toBeGreaterThan(noteIndex);
   });
 
-  it("keeps detail modal rendering and loading state out of HomePage", () => {
+  it("keeps detail modal rendering and loading state behind the page-level detail wrapper", () => {
     const homePage = readFileSync(
       join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"),
+      "utf8"
+    );
+    const homePageItemDetailModal = readFileSync(
+      join(desktopRoot, "src", "renderer", "pages", "HomePageItemDetailModal.tsx"),
+      "utf8"
+    );
+    const homeWriteHook = readFileSync(
+      join(desktopRoot, "src", "renderer", "pages", "useHomePageWriteActions.ts"),
       "utf8"
     );
     const hook = readFileSync(
@@ -106,8 +124,11 @@ describe("wishlist detail UI", () => {
       "utf8"
     );
 
-    expect(homePage).toContain("<ItemDetailModal");
-    expect(homePage).toContain("useItemDetail");
+    expect(homePage).toContain("<HomePageItemDetailModal");
+    expect(homePage).not.toContain("<ItemDetailModal");
+    expect(homePageItemDetailModal).toContain("<ItemDetailModal");
+    expect(homePageItemDetailModal).toContain("itemDetail.selectedItem ? (");
+    expect(homeWriteHook).toContain("useItemDetailWorkspace");
     expect(homePage).not.toContain("function renderItemModal()");
     expect(homePage).not.toContain("itemDetailCacheRef");
     expect(homePage).not.toContain("itemDetailRequestKeyRef");

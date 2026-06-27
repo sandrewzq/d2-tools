@@ -8,12 +8,16 @@ const rootDir = path.resolve(__dirname, '..');
 
 const FOOTER = `---
 
-Windows x64 绿色包，7z 格式。
+Windows x64 安装器（NSIS）。
 
 使用方式：
-1. 下载 d2-tools-win-x64-*.7z。
-2. 用 7-Zip、Bandizip、WinRAR 等工具解压到任意目录。
-3. 双击 d2-tools.exe。
+1. 下载 d2-tools-setup-<version>.exe。
+2. 双击安装器，按向导选择安装位置并完成安装。
+3. 从开始菜单或安装目录启动 d2-tools。
+
+自动更新相关发布资产：
+- latest.yml
+- d2-tools-setup-<version>.exe.blockmap
 
 覆盖升级不会删除 %APPDATA%\\d2-tools 里的本地配置、token 和缓存。
 从旧版 d2-service 升级时，首次启动会复制 %APPDATA%\\d2-service 到 %APPDATA%\\d2-tools。`;

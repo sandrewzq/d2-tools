@@ -58,7 +58,7 @@ describe("loadout library UI", () => {
 
   it("shows where each saved loadout item is currently located", () => {
     const loadoutsPage = readFileSync(join(desktopRoot, "src", "renderer", "features", "loadouts", "LoadoutsPage.tsx"), "utf8");
-    const viewModel = readFileSync(join(desktopRoot, "src", "renderer", "features", "loadouts", "loadoutViewModel.ts"), "utf8");
+    const viewModel = readFileSync(join(desktopRoot, "..", "app", "src", "workspaces", "loadoutViewModel.ts"), "utf8");
 
     expect(loadoutsPage).toContain("status.location_label");
     expect(viewModel).toContain("findBestTemplateSourceItem");
@@ -93,12 +93,15 @@ describe("loadout library UI", () => {
 
   it("shows inline pending and success feedback for single-item loadout actions", () => {
     const homePage = readFileSync(join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"), "utf8");
+    const homeWriteHook = readFileSync(join(desktopRoot, "src", "renderer", "pages", "useHomePageWriteActions.ts"), "utf8");
     const loadoutsPage = readFileSync(join(desktopRoot, "src", "renderer", "features", "loadouts", "LoadoutsPage.tsx"), "utf8");
     const feedbackHook = readFileSync(join(desktopRoot, "src", "renderer", "features", "loadouts", "useLoadoutActionFeedback.ts"), "utf8");
     const styles = readFileSync(join(desktopRoot, "src", "renderer", "styles.css"), "utf8");
     const helper = readFileSync(join(desktopRoot, "src", "renderer", "utils", "loadoutActionFeedback.ts"), "utf8");
 
-    expect(homePage).toContain("useLoadoutActionFeedback()");
+    expect(homePage).toContain("useHomePageWriteActions");
+    expect(homePage).not.toContain("useLoadoutActionFeedback()");
+    expect(homeWriteHook).toContain("useLoadoutActionFeedback()");
     expect(homePage).not.toContain("setLoadoutActionFeedback");
     expect(feedbackHook).toContain("export function useLoadoutActionFeedback");
     expect(feedbackHook).toContain("LOADOUT_ACTION_FEEDBACK_TIMEOUT_MS");
@@ -114,10 +117,13 @@ describe("loadout library UI", () => {
   it("mounts loadouts as its own navigation page instead of hiding the library inside HomePage", () => {
     const shellLayout = readFileSync(join(desktopRoot, "src", "renderer", "components", "ShellLayout.tsx"), "utf8");
     const homePage = readFileSync(join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"), "utf8");
+    const homeRoutes = readFileSync(join(desktopRoot, "src", "renderer", "pages", "HomePageRoutes.tsx"), "utf8");
 
     expect(shellLayout).toContain('"loadouts"');
     expect(shellLayout).toContain('label: "配装"');
-    expect(homePage).toContain("<LoadoutsPage");
+    expect(homePage).toContain("<HomePageRoutes");
+    expect(homePage).not.toContain("<LoadoutsPage");
+    expect(homeRoutes).toContain("<LoadoutsPage");
     expect(homePage).not.toContain("loadout-compare-grid");
     expect(homePage).not.toContain("loadout-status-summary");
   });
@@ -141,15 +147,35 @@ describe("loadout library UI", () => {
   it("keeps low-risk local loadout template actions inside the loadouts feature hook", () => {
     const hook = readFileSync(join(desktopRoot, "src", "renderer", "features", "loadouts", "useLoadoutTemplateActions.ts"), "utf8");
     const homePage = readFileSync(join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"), "utf8");
+    const homeWriteHook = readFileSync(join(desktopRoot, "src", "renderer", "pages", "useHomePageWriteActions.ts"), "utf8");
 
     expect(hook).toContain("export function useLoadoutTemplateActions");
     expect(hook).toContain("createTemplateTransferPlan");
     expect(hook).toContain("copyMissingLoadoutItems");
     expect(hook).toContain("api.createLoadoutTemplateTransferPlan");
     expect(hook).toContain("buildMissingLoadoutItemsText");
-    expect(homePage).toContain("useLoadoutTemplateActions");
+    expect(homePage).toContain("useHomePageWriteActions");
+    expect(homePage).not.toContain("useLoadoutTemplateActions");
+    expect(homeWriteHook).toContain("useLoadoutTemplateActions");
     expect(homePage).not.toContain("async function createTemplateTransferPlan");
     expect(homePage).not.toContain("async function copyMissingLoadoutItems");
     expect(homePage).not.toContain("buildMissingLoadoutItemsText");
+  });
+
+  it("centralizes in-game loadout slot operations inside the loadouts page", () => {
+    const accountPage = readFileSync(join(desktopRoot, "src", "renderer", "features", "account", "AccountPage.tsx"), "utf8");
+    const homePage = readFileSync(join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"), "utf8");
+    const loadoutsPage = readFileSync(join(desktopRoot, "src", "renderer", "features", "loadouts", "LoadoutsPage.tsx"), "utf8");
+
+    expect(accountPage).not.toContain("onEquipSavedLoadout");
+    expect(accountPage).not.toContain("onSnapshotCurrentLoadout");
+    expect(accountPage).not.toContain("accountWorkspace.loadoutSlotRows");
+    expect(loadoutsPage).toContain("游戏内配装栏");
+    expect(loadoutsPage).toContain("accountSummary.characters");
+    expect(loadoutsPage).toContain("character.loadout_slots");
+    expect(loadoutsPage).toContain("onEquipSavedLoadout");
+    expect(loadoutsPage).toContain("onSnapshotCurrentLoadout");
+    expect(homePage).toContain("onEquipSavedLoadout: (character, slot)");
+    expect(homePage).toContain("onSnapshotCurrentLoadout: (character, slot)");
   });
 });

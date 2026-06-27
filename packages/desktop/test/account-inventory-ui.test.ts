@@ -8,6 +8,7 @@ const desktopRoot = fileURLToPath(new URL("..", import.meta.url));
 describe("account inventory UI", () => {
   it("uses DIM-style character tabs and splits equipped items from carried inventory in the main workbench", () => {
     const homePage = readFileSync(join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"), "utf8");
+    const homeRoutes = readFileSync(join(desktopRoot, "src", "renderer", "pages", "HomePageRoutes.tsx"), "utf8");
     const accountPage = readFileSync(
       join(desktopRoot, "src", "renderer", "features", "account", "AccountPage.tsx"),
       "utf8"
@@ -17,7 +18,9 @@ describe("account inventory UI", () => {
       "utf8"
     );
 
-    expect(homePage).toContain("<AccountPage");
+    expect(homePage).toContain("<HomePageRoutes");
+    expect(homePage).not.toContain("<AccountPage");
+    expect(homeRoutes).toContain("<AccountPage");
     expect(homePage).not.toContain("function renderAccountPanel");
     expect(accountPage).toContain("export function AccountPage");
     expect(accountPage).toContain("selectedCharacterId");
@@ -26,14 +29,18 @@ describe("account inventory UI", () => {
     expect(accountPage).toContain("当前角色装备");
     expect(accountPage).toContain("当前角色背包");
     expect(accountPage).toContain("account-primary-workbench");
+    expect(accountPage).toContain("account-slot-comparison");
+    expect(accountPage).toContain("account-slot-comparison-row");
+    expect(accountPage).toContain("accountWorkspace.slotComparisonRows");
     expect(accountPage).toContain("account-secondary-workbench");
     expect(accountPage).toContain("account-character-summary");
     expect(accountPage).toContain("account-equipped-panel");
     expect(accountPage).toContain("account-inventory-panel");
-    expect(accountPage).toContain("groupAccountItemsBySlot(selectedCharacter.equipped_items)");
-    expect(accountPage).toContain("groupAccountItemsBySlot(selectedCharacter.inventory_items)");
-    expect(accountPage).toContain("account-slot-category");
-    expect(accountPage).toContain("account-slot-group");
+    expect(accountPage).not.toContain("accountWorkspace.equippedSlotCategories");
+    expect(accountPage).not.toContain("accountWorkspace.inventorySlotCategories");
+    expect(accountPage).toContain("account-slot-comparison-column");
+    expect(accountPage).toContain("onOpenEquippedItem");
+    expect(accountPage).toContain("onOpenInventoryItem");
     expect(accountPage).not.toContain("account-slot-source-cluster");
     expect(accountPage).not.toContain('renderAccountSlotSourceCluster("已装备"');
     expect(accountPage).not.toContain('renderAccountSlotSourceCluster("背包"');
@@ -45,8 +52,8 @@ describe("account inventory UI", () => {
   });
 
   it("highlights items that belong to the selected local loadout template", () => {
-    const homePage = readFileSync(
-      join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"),
+    const homeDerivedHook = readFileSync(
+      join(desktopRoot, "src", "renderer", "features", "home", "useHomePageDerivedState.ts"),
       "utf8"
     );
     const accountPage = readFileSync(
@@ -54,7 +61,7 @@ describe("account inventory UI", () => {
       "utf8"
     );
 
-    expect(homePage).toContain("buildLoadoutTemplateLookup");
+    expect(homeDerivedHook).toContain("buildLoadoutTemplateLookup");
     expect(accountPage).toContain("matchesLoadoutTemplateItem");
     expect(accountPage).toContain("loadout-template-badge");
     expect(accountPage).toContain("loadout-highlight");
@@ -94,9 +101,9 @@ describe("account inventory UI", () => {
       "utf8"
     );
 
-    expect(accountHook).toContain('import { loadAccountWorkspace, loadAccountDerivedWorkspace } from "@d2-tools/app"');
+    expect(accountHook).toContain('import { loadFullAccountWorkspace, loadAccountDerivedWorkspace } from "@d2-tools/app"');
     expect(accountHook).toContain('import { services } from "../../api/services"');
-    expect(accountHook).toContain("loadAccountWorkspace(services)");
+    expect(accountHook).toContain("loadFullAccountWorkspace(services)");
     expect(accountHook).toContain("loadAccountDerivedWorkspace(services, summary)");
     expect(accountHook).not.toContain("api.getAccountSummary(), api.getVaultTags()");
     expect(accountHook).not.toContain("api.getActivitySummary({");
@@ -114,8 +121,8 @@ describe("account inventory UI", () => {
     );
 
     expect(accountPage).toContain("材料与消耗品");
-    expect(accountPage).toContain("accountSummary.materials.items");
-    expect(accountPage).toContain("material.quantity");
+    expect(accountPage).toContain("accountWorkspace.materialRows");
+    expect(accountPage).toContain("row.material.quantity");
     expect(homePage).not.toContain("materials.items.slice(0, 40)");
     expect(homePage).not.toContain("仓库预览");
   });

@@ -16,6 +16,7 @@ describe("cleanup mode wiring", () => {
     const vaultPage = readFileSync(join(desktopRoot, "src", "renderer", "features", "vault", "VaultPage.tsx"), "utf8");
     const vaultWriteHook = readFileSync(join(desktopRoot, "src", "renderer", "features", "vault", "useVaultWriteActions.ts"), "utf8");
     const homePage = readFileSync(join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"), "utf8");
+    const homeRoutes = readFileSync(join(desktopRoot, "src", "renderer", "pages", "HomePageRoutes.tsx"), "utf8");
 
     expect(vaultPanel).toContain("VaultOrganizePanel");
     expect(vaultOrganizePanel).toContain("清理模式");
@@ -31,7 +32,8 @@ describe("cleanup mode wiring", () => {
     expect(vaultWriteHook).toContain("handleVaultCleanupTransfer");
     expect(vaultWriteHook).toContain("api.setItemLockState");
     expect(vaultWriteHook).toContain("api.batchTransferItems");
-    expect(homePage).toContain("writeActionsEnabled={diagnostics.writeActionsEnabled}");
+    expect(homePage).toContain("writeActionsEnabled: diagnostics.writeActionsEnabled");
+    expect(homeRoutes).toContain("<VaultPage {...props.vault}");
     expect(vaultPage).toContain("writeActionsEnabled: props.writeActionsEnabled");
   });
 });

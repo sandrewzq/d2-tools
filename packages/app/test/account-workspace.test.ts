@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { loadAccountWorkspace } from "../src/workspaces/account";
-import { loadAccountDerivedWorkspace } from "../src/workspaces/accountDerived";
+import { loadAccountDerivedWorkspace, loadFullAccountWorkspace } from "../src/workspaces/accountDerived";
 
 describe("account workspace", () => {
   it("loads account summary together with vault tags, target rules and wishlist", async () => {
@@ -85,11 +85,29 @@ describe("account workspace", () => {
     expect(result.data.wishlist?.title).toBe("Test Wishlist");
   });
 
-  it("loads derived account activity summary and community matches through services", async () => {
-    const result = await loadAccountDerivedWorkspace({
+  it("loads full account workspace including derived activity and community matches in one app-layer call", async () => {
+    const result = await loadFullAccountWorkspace({
       profile: {
         async getAccountSummary() {
-          throw new Error("not used");
+          return {
+            account_name: "tester",
+            destiny_membership_id: "123",
+            membership_type: 1,
+            characters: [
+              {
+                character_id: "char-1",
+                class_name: "猎人",
+                equipped_items: [],
+                equipment_groups: [],
+                inventory_items: [],
+                inventory_groups: [],
+                postmaster_items: [],
+                loadout_slots: []
+              }
+            ],
+            vault: { item_count: 1, items: [{ hash: 123, name: "Test Gun", item_type: "Gun", tier: "Legendary", group_key: "weapons", bucket_name: "能量武器" }], sample_items: [] },
+            materials: { item_count: 0, items: [] }
+          };
         },
         async getActivitySummary() {
           return {
@@ -110,25 +128,55 @@ describe("account workspace", () => {
             }
           ];
         }
-      }
-    }, {
-      account_name: "tester",
-      destiny_membership_id: "123",
-      membership_type: 1,
-      characters: [
-        {
-          character_id: "char-1",
-          class_name: "猎人",
-          equipped_items: [],
-          equipment_groups: [],
-          inventory_items: [],
-          inventory_groups: [],
-          postmaster_items: [],
-          loadout_slots: []
+      },
+      localData: {
+        async getVaultTags() {
+          return { items: { sample: { tag: "keep" } } };
+        },
+        async getLocalTargetRules() {
+          return {
+            action_policy: "notify_only",
+            armor: [],
+            weapons: []
+          };
+        },
+        async getDimWishlist() {
+          return {
+            title: "Test Wishlist",
+            rules: []
+          };
+        },
+        async getLocalCommunityRecommendations() {
+          return null;
+        },
+        async saveDimWishlist() {
+          throw new Error("not used");
+        },
+        async clearDimWishlist() {
+          throw new Error("not used");
+        },
+        async saveLocalCommunityRecommendations() {
+          throw new Error("not used");
+        },
+        async clearLocalCommunityRecommendations() {
+          throw new Error("not used");
+        },
+        async saveVaultTag() {
+          throw new Error("not used");
+        },
+        async saveVaultTagsBatch() {
+          throw new Error("not used");
+        },
+        async saveVaultNote() {
+          throw new Error("not used");
+        },
+        async saveLocalTargetRules() {
+          throw new Error("not used");
+        },
+        async clearLocalTargetRules() {
+          throw new Error("not used");
         }
-      ],
-      vault: { item_count: 1, items: [{ hash: 123, name: "Test Gun", item_type: "Gun", tier: "Legendary", group_key: "weapons", bucket_name: "能量武器" }], sample_items: [] },
-      materials: { item_count: 0, items: [] }
+      }
     });
 
     expect(result.status).toBe("success");
@@ -136,6 +184,10 @@ describe("account workspace", () => {
       throw new Error("unexpected failure");
     }
 
+    expect(result.data.account.account_name).toBe("tester");
+    expect(result.data.tags.items.sample?.tag).toBe("keep");
+    expect(result.data.targetRules.action_policy).toBe("notify_only");
+    expect(result.data.wishlist?.title).toBe("Test Wishlist");
     expect(result.data.activitySummary?.recent.total).toBe(1);
     expect(result.data.vaultCommunityMatch.get(123)?.matched).toBe(1);
     expect(result.data.vaultCommunityMatch.get(123)?.source_label).toBe("本地社区表");
