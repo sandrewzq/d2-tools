@@ -20,6 +20,7 @@ export function HomePageItemDetailModal(props: {
       accountSummary={props.accountSummary}
       aiSettingsEnableLightgg={props.aiSettingsEnableLightgg}
       communityRecommendations={itemDetail.communityRecommendations}
+      communityRecommendationError={itemDetail.communityRecommendationError}
       importedWishlist={props.importedWishlist}
       localTargetRules={props.localTargetRules}
       isCommunityRecommendationsLoading={itemDetail.isCommunityRecommendationsLoading}

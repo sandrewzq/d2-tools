@@ -1,3 +1,4 @@
+import { useEffect, useMemo, useState } from "react";
 import type {
   DuplicateAnalysisResult,
   DuplicateItemGroup
@@ -15,6 +16,9 @@ import {
 } from "../../shared/domain/vault/vaultCleanup";
 import { getVaultItemKey } from "./vaultSelection";
 
+export const INITIAL_DUPLICATE_GROUP_RENDER_LIMIT = 40;
+const DUPLICATE_GROUP_RENDER_INCREMENT = 40;
+
 export function VaultDuplicateGroups(props: {
   duplicateSummary: DuplicateAnalysisResult;
   items: AccountItemSummary[];
@@ -31,13 +35,38 @@ export function VaultDuplicateGroups(props: {
     keepItemKey?: string
   ) => void | Promise<void>;
 }) {
-  if (!props.duplicateSummary.groups.length) {
+  const groups = props.duplicateSummary.groups;
+  const [visibleGroupLimit, setVisibleGroupLimit] = useState(INITIAL_DUPLICATE_GROUP_RENDER_LIMIT);
+  useEffect(() => {
+    setVisibleGroupLimit(INITIAL_DUPLICATE_GROUP_RENDER_LIMIT);
+  }, [groups]);
+  const itemByKey = useMemo(
+    () => new Map(props.items.map((item) => [getVaultItemKey(item), item])),
+    [props.items]
+  );
+  const renderedGroups = groups.slice(0, visibleGroupLimit);
+
+  if (!groups.length) {
     return <p className="status-message status-neutral">当前仓库没有发现同名重复装备。</p>;
   }
 
   return (
     <div className="duplicate-group-list">
-      {props.duplicateSummary.groups.map((group) => {
+      {groups.length > INITIAL_DUPLICATE_GROUP_RENDER_LIMIT ? (
+        <div className="vault-render-limit-message">
+          <span>先显示 {Math.min(visibleGroupLimit, groups.length)} / {groups.length} 组，减少同名对比切换和批量标记时的界面延迟。</span>
+          {visibleGroupLimit < groups.length ? (
+            <button
+              className="secondary-button"
+              type="button"
+              onClick={() => setVisibleGroupLimit((current) => current + DUPLICATE_GROUP_RENDER_INCREMENT)}
+            >
+              加载更多
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+      {renderedGroups.map((group) => {
         const selectedGroupCount = group.items.filter((entry) => props.selectedKeys.has(entry.item_key)).length;
         const junkCandidateKeys = selectDuplicateGroupItems(group, "junk");
         const restCandidateKeys = selectDuplicateGroupItems(group, "rest");
@@ -53,7 +82,7 @@ export function VaultDuplicateGroups(props: {
                 aria-busy={props.isBatchSaving}
                 disabled={props.isBatchSaving}
                 onClick={() => {
-                  const topItem = props.items.find((candidate) => getVaultItemKey(candidate) === group.items[0]?.item_key);
+                  const topItem = group.items[0] ? itemByKey.get(group.items[0].item_key) : undefined;
                   if (topItem) props.onOpenItem(topItem);
                 }}
               >
@@ -101,7 +130,7 @@ export function VaultDuplicateGroups(props: {
               </button>
             </div>
             {group.items.map((entry) => {
-              const item = props.items.find((candidate) => getVaultItemKey(candidate) === entry.item_key);
+              const item = itemByKey.get(entry.item_key);
               const itemMeta = item ? formatVaultItemMeta(item) : "未找到实例信息";
               const note = item ? props.tags.items[getVaultItemKey(item)]?.note : undefined;
               const localTarget = item

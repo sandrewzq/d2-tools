@@ -69,9 +69,23 @@ describe("wishlist detail UI", () => {
 
   it("renders community recommendation trust signals and queries all detail sources", () => {
     const itemDetailModal = readItemDetailSources(desktopRoot);
+    const homePageItemDetailModal = readFileSync(
+      join(desktopRoot, "src", "renderer", "pages", "HomePageItemDetailModal.tsx"),
+      "utf8"
+    );
+    const itemDetailWorkspace = readFileSync(
+      join(desktopRoot, "src", "renderer", "shared", "hooks", "useItemDetailWorkspace.ts"),
+      "utf8"
+    );
     const communityIpc = readFileSync(join(desktopRoot, "src", "main", "ipc", "community.ts"), "utf8");
 
     expect(communityIpc).toContain("getRecommendationsWithAllSources");
+    expect(itemDetailWorkspace).toContain("communityRecommendationError");
+    expect(itemDetailWorkspace).toContain("社区推荐读取失败");
+    expect(homePageItemDetailModal).toContain("communityRecommendationError={itemDetail.communityRecommendationError}");
+    expect(itemDetailModal).toContain("communityRecommendationError");
+    expect(itemDetailModal).toContain("社区推荐降级");
+    expect(itemDetailModal).toContain("已保留 DIM 愿望单和本地目标判断");
     expect(itemDetailModal).toContain("source_warnings");
     expect(itemDetailModal).toContain("ai_analysis");
     expect(itemDetailModal).toContain("source-status-list source-status-warning");

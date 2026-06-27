@@ -33,6 +33,7 @@ export type ItemDetailToolsProps = {
   accountSummary: AccountSummary | null;
   aiSettingsEnableLightgg: boolean;
   communityRecommendations: WeaponRecommendation | null;
+  communityRecommendationError: string;
   importedWishlist: DimWishlist | null;
   localTargetRules: LocalTargetRules;
   isCommunityRecommendationsLoading: boolean;
@@ -83,7 +84,7 @@ export function ItemDetailTools(props: ItemDetailToolsProps) {
         <span className="ui-badge status-neutral">操作</span>
       </div>
       <div className="item-detail-tool-grid">
-        <section className="item-detail-tool-section">
+        <section className="item-detail-tool-section item-detail-tool-overview">
           <h3>概览</h3>
           <ItemDetailOverview selectedItem={selectedItem} />
           <ItemDetailTargetMatch
@@ -96,7 +97,7 @@ export function ItemDetailTools(props: ItemDetailToolsProps) {
           />
           <ItemDetailPerks selectedItem={selectedItem} />
         </section>
-        <section className="item-detail-tool-section">
+        <section className="item-detail-tool-section item-detail-tool-compare">
           <ItemDetailSameName
             sameNameItems={props.sameNameItems}
             selectedItem={selectedItem}
@@ -107,10 +108,11 @@ export function ItemDetailTools(props: ItemDetailToolsProps) {
             onOpenItemDetail={props.onOpenItemDetail}
           />
         </section>
-        <section className="item-detail-tool-section">
+        <section className="item-detail-tool-section item-detail-tool-community">
           <ItemDetailCommunity
             aiSettingsEnableLightgg={props.aiSettingsEnableLightgg}
             communityRecommendations={props.communityRecommendations}
+            communityRecommendationError={props.communityRecommendationError}
             importedWishlist={props.importedWishlist}
             isCommunityRecommendationsLoading={props.isCommunityRecommendationsLoading}
             sameNameItems={props.sameNameItems}
@@ -123,7 +125,7 @@ export function ItemDetailTools(props: ItemDetailToolsProps) {
             onSaveSelectedItemTag={props.onSaveSelectedItemTag}
           />
         </section>
-        <section className="item-detail-tool-section">
+        <section className="item-detail-tool-section item-detail-tool-actions">
           <h3>操作</h3>
           <ItemLocalTagPanel
             selectedItem={selectedItem}

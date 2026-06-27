@@ -941,6 +941,26 @@ describe("vault panel helpers", () => {
     expect(styles).toContain(".vault-item-card");
     expect(styles).toContain(".vault-card-actions");
   });
+  it("limits initial vault card rendering and lets users load more results", () => {
+    const source = readFileSync("packages/desktop/src/renderer/components/VaultPanel.tsx", "utf8");
+    const itemSections = readFileSync("packages/desktop/src/renderer/features/vault/VaultItemSections.tsx", "utf8");
+    const listItem = readFileSync("packages/desktop/src/renderer/features/vault/VaultListItem.tsx", "utf8");
+    const duplicateGroups = readFileSync("packages/desktop/src/renderer/features/vault/VaultDuplicateGroups.tsx", "utf8");
+
+    expect(source).toContain("useCallback");
+    expect(source).toContain("const toggleSelected = useCallback");
+    expect(itemSections).toContain("INITIAL_VAULT_RENDER_LIMIT");
+    expect(itemSections).toContain("visibleItemLimit");
+    expect(itemSections).toContain("renderedSections");
+    expect(itemSections).toContain("加载更多");
+    expect(itemSections).toContain("先显示");
+    expect(listItem).toContain("memo(");
+    expect(duplicateGroups).toContain("INITIAL_DUPLICATE_GROUP_RENDER_LIMIT");
+    expect(duplicateGroups).toContain("visibleGroupLimit");
+    expect(duplicateGroups).toContain("renderedGroups");
+    expect(duplicateGroups).toContain("itemByKey");
+    expect(duplicateGroups).toContain("加载更多");
+  });
   it("renders extended local tag actions for farming and loadout use", () => {
     const coreTags = readFileSync("packages/core/src/vault/tags.ts", "utf8");
     const apiTypes = readFileSync("packages/desktop/src/renderer/api/vaultApi.ts", "utf8");

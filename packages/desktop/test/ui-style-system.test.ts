@@ -74,6 +74,9 @@ describe("UI style system", () => {
     const sharedHover = readCssRule(styles, ".ui-item-card:hover,\n.vault-item-card:hover");
     const vaultListHover = readCssRule(styles, ".vault-list-item:hover");
     const equipmentHover = readCssRule(styles, ".equipment-item:hover,\n.vault-item:hover");
+    const denseItemOverride = readCssRule(styles, ".vault-dashboard-panel .vault-item-card,\n.vault-dashboard-panel .vault-list-item,\n.vault-dashboard-panel .equipment-item,\n.vault-dashboard-panel .vault-item");
+    const denseButtonOverride = readCssRule(styles, ".vault-dashboard-panel button,\n.vault-dashboard-panel .secondary-button,\n.vault-card-actions button,\n.vault-tag-actions button,\n.vault-organize-bar button,\n.vault-batch-panel button,\n.vault-content-tab");
+    const selectedVaultItemCard = readCssRule(styles, ".vault-item-card.selected");
 
     expect(vaultItemCard).not.toContain("box-shadow 120ms");
     expect(vaultListItem).not.toContain("box-shadow 120ms");
@@ -81,6 +84,13 @@ describe("UI style system", () => {
     expect(sharedHover).not.toContain("transform:");
     expect(vaultListHover).not.toContain("transform:");
     expect(equipmentHover).not.toContain("box-shadow:");
+    expect(denseItemOverride).toContain("transition: none");
+    expect(denseItemOverride).toContain("box-shadow: none");
+    expect(denseItemOverride).toContain("filter: none");
+    expect(denseButtonOverride).toContain("transition: none");
+    expect(denseButtonOverride).toContain("box-shadow: none");
+    expect(denseButtonOverride).toContain("filter: none");
+    expect(selectedVaultItemCard).not.toContain("box-shadow:");
     expect(styles).toContain("--shadow-panel: 0 8px 20px");
   });
 

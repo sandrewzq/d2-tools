@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type {
   AccountItemSummary,
   DimWishlist,
@@ -241,7 +241,7 @@ export function VaultPanel(props: {
     setBatchMessage("");
   }
 
-  function toggleSelected(item: AccountItemSummary) {
+  const toggleSelected = useCallback((item: AccountItemSummary) => {
     const itemKey = getVaultItemKey(item);
     setSelectedKeys((current) => {
       const next = new Set(current);
@@ -253,7 +253,7 @@ export function VaultPanel(props: {
       return next;
     });
     setBatchMessage("");
-  }
+  }, [setBatchMessage]);
 
   function clearFilters() {
     setQuery("");

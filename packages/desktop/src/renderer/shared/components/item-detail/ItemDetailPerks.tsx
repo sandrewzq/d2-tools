@@ -6,9 +6,9 @@ export function ItemDetailPerks(props: { selectedItem: SelectedItemDetail }) {
   return (
     <>
       {selectedItem.socket_plugs?.length ? (
-        <section className="modal-perk-group">
+        <section className="modal-perk-group item-detail-roll-section">
           <h3>实际 Roll</h3>
-          <div className="modal-plug-grid">
+          <div className="item-detail-roll-grid">
             {selectedItem.socket_plugs.map((plug) => (
               <div className="modal-plug" key={plug.hash}>
                 {plug.icon ? <img alt="" src={plug.icon} /> : null}
@@ -24,8 +24,11 @@ export function ItemDetailPerks(props: { selectedItem: SelectedItemDetail }) {
       {selectedItem.perks?.length ? (
         <div className="modal-perks">
           {selectedItem.perks.map((group) => (
-            <section className="modal-perk-group" key={group.socket_index}>
-              <h3>插槽 {group.socket_index + 1}</h3>
+            <details className="item-detail-socket-group" key={group.socket_index}>
+              <summary className="item-detail-socket-summary">
+                <span>插槽 {group.socket_index + 1}</span>
+                <strong>{group.plugs.length} 个候选</strong>
+              </summary>
               <div className="modal-plug-grid">
                 {group.plugs.map((plug) => (
                   <div className="modal-plug" key={plug.hash}>
@@ -37,7 +40,7 @@ export function ItemDetailPerks(props: { selectedItem: SelectedItemDetail }) {
                   </div>
                 ))}
               </div>
-            </section>
+            </details>
           ))}
         </div>
       ) : selectedItem.is_detail_loading ? (

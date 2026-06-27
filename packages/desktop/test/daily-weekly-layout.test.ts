@@ -13,6 +13,7 @@ describe("daily and weekly layout", () => {
     expect(dailyPage).toContain("export function DailyPage");
     expect(dailyPage).toContain("<DailySummaryPanel");
     expect(dailyPanel).toContain("daily-board");
+    expect(dailyPanel).toContain("daily-reward-progress");
     expect(dailyPanel).toContain("renderDailySourceCard");
     expect(dailyPanel).toContain("isLoading");
     expect(dailyPanel).toContain("daily-brief-count");
@@ -24,13 +25,15 @@ describe("daily and weekly layout", () => {
     expect(dailyPanel).toContain("daily-source-count");
     expect(dailyPanel).toContain("daily-source-status");
     expect(dailyPanel).toContain('className="source-status-card source-status-pending daily-panel-status"');
-    expect(dailyPanel).toContain('className="source-status-badge source-status-pending">今日 / 本周</span>');
+    expect(dailyPanel).toContain('className="source-status-badge source-status-pending">今日必看</span>');
     expect(dailyPanel).toContain('className="source-status-card source-status-pending daily-source source-pending"');
     expect(dailyPanel).toContain('className="source-status-badge source-status-pending">轮换细节</span>');
     expect(dailyPanel).toContain("onCopyWeeklyFocus");
     expect(dailyPanel).toContain("buildWeeklyDigestSections");
     expect(dailyPanel).toContain("formatDailySourceStatus");
-    expect(dailyPanel).toContain("\u4eca\u65e5 / \u672c\u5468");
+    expect(dailyPanel).toContain("\u4eca\u65e5\u5fc5\u770b");
+    expect(dailyPanel).toContain("\u5956\u52b1\u8fdb\u5ea6");
+    expect(dailyPanel).toContain("\u6765\u6e90\u72b6\u6001");
     expect(dailyPanel).toContain("\u590d\u5236\u65e5\u62a5");
     expect(dailyPanel).toContain("\u590d\u5236\u672c\u5468\u91cd\u70b9");
     expect(dailyPanel).toContain("\u4eca\u65e5\u884c\u52a8");

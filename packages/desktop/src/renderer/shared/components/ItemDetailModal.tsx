@@ -19,6 +19,7 @@ export type ItemDetailModalProps = {
   accountSummary: AccountSummary | null;
   aiSettingsEnableLightgg: boolean;
   communityRecommendations: WeaponRecommendation | null;
+  communityRecommendationError: string;
   importedWishlist: DimWishlist | null;
   localTargetRules: LocalTargetRules;
   isCommunityRecommendationsLoading: boolean;
@@ -79,6 +80,7 @@ export function ItemDetailModal(props: ItemDetailModalProps) {
           accountSummary={props.accountSummary}
           aiSettingsEnableLightgg={props.aiSettingsEnableLightgg}
           communityRecommendations={props.communityRecommendations}
+          communityRecommendationError={props.communityRecommendationError}
           importedWishlist={props.importedWishlist}
           localTargetRules={props.localTargetRules}
           isCommunityRecommendationsLoading={props.isCommunityRecommendationsLoading}

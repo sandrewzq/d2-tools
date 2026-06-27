@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { evaluateWishlistRoll } from "@d2-tools/core/analysis/wishlist";
 import { evaluateLocalTargets } from "@d2-tools/core/analysis/targets";
 import type {
@@ -125,6 +126,8 @@ export function VaultListItem(props: {
     </article>
   );
 }
+
+export const MemoizedVaultListItem = memo(VaultListItem);
 
 function formatWishlistHint(labels: string[]): string {
   const detailLabels = labels.filter((label) => label !== "DIM Wishlist");

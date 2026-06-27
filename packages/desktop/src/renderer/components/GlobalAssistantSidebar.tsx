@@ -156,7 +156,7 @@ function TaskAssistantPanel(props: {
         ))}
       </div>
       <p className="assistant-task-note">
-        这棵树只整理你粘贴的任务和攻略，不会猜测外部数据；AI 问答节点可基于同一页面上下文继续问缺口和刷取建议。
+        这棵树只整理你粘贴的任务和攻略，不会猜测外部数据；可保存方案草稿和 AI 问答节点可基于同一页面上下文继续问缺口和刷取建议。
       </p>
     </section>
   );

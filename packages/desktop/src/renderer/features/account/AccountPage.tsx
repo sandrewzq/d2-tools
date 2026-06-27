@@ -1,6 +1,7 @@
 import type {
   AccountItemSummary,
   AccountSummary,
+  ActivityHistorySummary,
   LoadoutTemplate
 } from "../../api/client";
 import {
@@ -23,12 +24,16 @@ export function AccountPage(props: {
   itemDetailError: string;
   itemDetailLoadingKey: string;
   writeActionsEnabled: boolean;
+  activitySummary: ActivityHistorySummary | null;
+  activityMessage: string;
+  activityError: string;
   loadoutMessage: string;
   itemActionMessage: string;
   isRunningItemAction: boolean;
   activeLoadoutLookup: LoadoutTemplateLookup | null;
   activeLoadoutTemplate: LoadoutTemplate | null;
   onLoadAccount: () => void;
+  onRefreshActivity: () => void;
   onSelectCharacter: (characterId: string) => void;
   onSaveCharacterLoadout: (character: AccountSummary["characters"][number]) => void;
   onEquipHighestPowerItems: (character: AccountSummary["characters"][number]) => void;
@@ -42,6 +47,7 @@ export function AccountPage(props: {
   ) => void;
 }) {
   const { accountSummary } = props;
+  const activitySummary = props.activitySummary;
   const accountWorkspace = createAccountPageWorkspace({
     account: accountSummary,
     selectedCharacterId: props.selectedCharacterId,
@@ -64,32 +70,40 @@ export function AccountPage(props: {
       {props.accountError ? <p className="status-message status-error">{props.accountError}</p> : null}
       {props.itemDetailError ? <p className="status-message status-error">{props.itemDetailError}</p> : null}
       {accountSummary && selectedCharacter ? (
-        <div className="account-summary">
-          <div className="account-profile-strip">
-            <div>
-              <h3>{accountSummary.account_name}</h3>
-              <p>{accountWorkspace.accountProfileLine}</p>
-              <p>{accountWorkspace.accountInventoryLine}</p>
+        <div className="account-page-shell">
+          <nav className="account-page-nav" aria-label="账号目录">
+            <a href="#account-profile">账号概览</a>
+            <a href="#account-loadout">角色装备</a>
+            <a href="#account-activity">活动复盘</a>
+            <a href="#account-materials">材料消耗</a>
+            <a href="#account-postmaster">邮政官</a>
+          </nav>
+          <div className="account-summary account-page-main">
+            <div id="account-profile" className="account-profile-strip">
+              <div>
+                <h3>{accountSummary.account_name}</h3>
+                <p>{accountWorkspace.accountProfileLine}</p>
+                <p>{accountWorkspace.accountInventoryLine}</p>
+              </div>
+              <div className="character-tabs" role="tablist" aria-label="角色切换">
+                {accountWorkspace.characterTabs.map((tab) => (
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={tab.isSelected}
+                    className={tab.isSelected ? "character-tab active" : "character-tab"}
+                    key={tab.key}
+                    onClick={() => props.onSelectCharacter(tab.character.character_id)}
+                  >
+                    {tab.emblemUrl ? <img alt="" src={tab.emblemUrl} /> : null}
+                    <span>{tab.className}</span>
+                    <strong>{tab.lightLabel}</strong>
+                  </button>
+                ))}
+              </div>
             </div>
-            <div className="character-tabs" role="tablist" aria-label="角色切换">
-              {accountWorkspace.characterTabs.map((tab) => (
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={tab.isSelected}
-                  className={tab.isSelected ? "character-tab active" : "character-tab"}
-                  key={tab.key}
-                  onClick={() => props.onSelectCharacter(tab.character.character_id)}
-                >
-                  {tab.emblemUrl ? <img alt="" src={tab.emblemUrl} /> : null}
-                  <span>{tab.className}</span>
-                  <strong>{tab.lightLabel}</strong>
-                </button>
-              ))}
-            </div>
-          </div>
 
-          <div className="account-primary-workbench">
+          <div id="account-loadout" className="account-primary-workbench">
             <article className="character-card character-card-focused account-character-summary">
               <div className="character-title">
                 {selectedCharacter.emblem_url ? <img alt="" src={selectedCharacter.emblem_url} /> : null}
@@ -153,7 +167,70 @@ export function AccountPage(props: {
           </div>
 
           <div className="account-secondary-workbench">
-            <section className="vault-preview">
+            <section id="account-activity" className="vault-preview account-activity-review">
+              <div className="section-heading compact-heading">
+                <div>
+                  <h3>活动复盘</h3>
+                  <p>按最近记录快速回看 PVE / PVP 完成情况和突袭、地牢尝试。</p>
+                </div>
+                <button type="button" className="secondary-button" onClick={props.onRefreshActivity}>
+                  刷新活动
+                </button>
+              </div>
+              {props.activityError ? <p className="status-message status-error">{props.activityError}</p> : null}
+              {props.activityMessage ? <p className="status-message status-ready">{props.activityMessage}</p> : null}
+              {activitySummary ? (
+                <div className="activity-review-grid">
+                  <div className="source-status-card source-status-neutral">
+                    <span className="source-status-badge source-status-neutral">最近活动</span>
+                    <strong>{activitySummary.recent.total} 场</strong>
+                    <span>
+                      PVE {activitySummary.recent.pve.completed}/{activitySummary.recent.pve.total}
+                      {" / "}
+                      PVP {activitySummary.recent.pvp.completed}/{activitySummary.recent.pvp.total}
+                    </span>
+                    {activitySummary.recent.latest_period ? <small>最近一场：{formatActivityPeriod(activitySummary.recent.latest_period)}</small> : null}
+                  </div>
+                  <div className="activity-review-list">
+                    <strong>突袭 / 地牢</strong>
+                    {activitySummary.raids.entries.length ? (
+                      <ul>
+                        {activitySummary.raids.entries.slice(0, 4).map((entry) => (
+                          <li key={`${entry.activity_type}-${entry.activity_name}`}>
+                            <span>{entry.activity_type === "raid" ? "突袭" : "地牢"} · {entry.activity_name}</span>
+                            <small>
+                              完成 {entry.completions}/{entry.attempts}
+                              {entry.last_completed_at ? ` · ${formatActivityPeriod(entry.last_completed_at)}` : ""}
+                            </small>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="muted-copy">最近没有读取到突袭或地牢记录。</p>
+                    )}
+                  </div>
+                  <div className="activity-review-list">
+                    <strong>最近 10 场</strong>
+                    {activitySummary.recent_items.length ? (
+                      <ul>
+                        {activitySummary.recent_items.slice(0, 10).map((item) => (
+                          <li key={`${item.period}-${item.activity_name}`}>
+                            <span>{formatActivityMode(item.mode)} · {item.activity_name}</span>
+                            <small>{item.completed ? "已完成" : "未完成"} · {formatActivityPeriod(item.period)}</small>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="muted-copy">暂无最近活动记录。</p>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <p className="status-message status-neutral">读取账号后会显示最近活动复盘。</p>
+              )}
+            </section>
+
+            <section id="account-materials" className="vault-preview">
               <div className="section-heading compact-heading">
                 <div>
                   <h3>材料与消耗品</h3>
@@ -178,7 +255,7 @@ export function AccountPage(props: {
               )}
             </section>
 
-            <section className="vault-preview">
+            <section id="account-postmaster" className="vault-preview">
               <div className="section-heading compact-heading">
                 <div>
                   <h3>邮政官</h3>
@@ -219,10 +296,28 @@ export function AccountPage(props: {
               )}
             </section>
           </div>
+          </div>
         </div>
       ) : null}
     </section>
   );
+}
+
+function formatActivityMode(mode: ActivityHistorySummary["recent_items"][number]["mode"]): string {
+  if (mode === "pve") return "PVE";
+  if (mode === "pvp") return "PVP";
+  return "其他";
+}
+
+function formatActivityPeriod(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString("zh-CN", {
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit"
+  });
 }
 
 function AccountSlotComparison(props: {

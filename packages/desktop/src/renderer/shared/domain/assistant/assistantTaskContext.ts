@@ -22,6 +22,7 @@ export type AssistantTaskContext = {
   rawText: string;
   steps: AssistantTaskStep[];
   linkedItems: AssistantTaskLinkedItem[];
+  loadoutDraftItems: string[];
   aiQuestions: string[];
   treeGroups: AssistantTaskTreeGroup[];
 };
@@ -52,17 +53,20 @@ export function buildAssistantTaskContext(input: {
   const itemNodes = linkedItems.length
     ? linkedItems.map((item) => `${item.name}${item.item_type ? ` / ${item.item_type}` : ""}`)
     : ["暂未从账号装备中匹配到攻略提到的物品。"];
+  const loadoutDraftItems = buildLoadoutDraftItems(steps, linkedItems);
 
   return {
     title,
     rawText: input.text,
     steps,
     linkedItems,
+    loadoutDraftItems,
     aiQuestions,
     treeGroups: [
       { title: "任务文本", items: taskItems },
       { title: "攻略步骤", items: stepItems },
       { title: "关联装备", items: itemNodes },
+      { title: "可保存方案草稿", items: loadoutDraftItems },
       { title: "AI 问答", items: [...aiQuestions, ...input.pageContextFacts.slice(0, 3)] }
     ]
   };
@@ -104,6 +108,40 @@ function findLinkedItems(text: string, accountItems: AccountItemSummary[]): Assi
   }
 
   return linked.slice(0, 12);
+}
+
+function buildLoadoutDraftItems(
+  steps: AssistantTaskStep[],
+  linkedItems: AssistantTaskLinkedItem[]
+): string[] {
+  const items = ["可保存方案草稿：先把已拥有装备和待确认要求整理成草稿，后续可回填到配装。"];
+
+  for (const item of linkedItems.slice(0, 8)) {
+    items.push(`已关联装备：${item.name}${item.item_type ? ` / ${item.item_type}` : ""}`);
+  }
+
+  const requirements = steps
+    .map((step) => extractLoadoutRequirement(step.text))
+    .filter((requirement): requirement is string => Boolean(requirement));
+  for (const requirement of requirements.slice(0, 6)) {
+    items.push(`待确认要求：${requirement}`);
+  }
+
+  if (items.length === 1) {
+    items.push("暂无可保存条目：粘贴含装备、属性、模组或子职业要求的攻略后会生成。");
+  }
+
+  return items;
+}
+
+function extractLoadoutRequirement(text: string): string | null {
+  const directMatch = text.match(/(堆[^，。；;,.]*)/);
+  if (directMatch?.[1]) {
+    return directMatch[1].trim();
+  }
+
+  const keywordMatch = text.match(/((?:属性|模组|星象|碎片|异域|武器|抗性|纪律|恢复)[^，。；;,.]*)/);
+  return keywordMatch?.[1]?.trim() ?? null;
 }
 
 function groupLabel(group: AccountItemSummary["group_key"]): string {

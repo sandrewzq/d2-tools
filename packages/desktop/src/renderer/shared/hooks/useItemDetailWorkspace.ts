@@ -52,6 +52,7 @@ export function useItemDetailWorkspace(input: {
   onRecentHistoryChanged: (history: LibraryHistory) => void;
 }) {
   const [communityRecommendations, setCommunityRecommendations] = useState<WeaponRecommendation | null>(null);
+  const [communityRecommendationError, setCommunityRecommendationError] = useState("");
   const [isCommunityRecommendationsLoading, setIsCommunityRecommendationsLoading] = useState(false);
   const [itemAiResult, setItemAiResult] = useState<ItemAiAdviceResult | null>(null);
   const [itemAiError, setItemAiError] = useState("");
@@ -80,6 +81,7 @@ export function useItemDetailWorkspace(input: {
         ?? "";
       setSelectedActionCharacterId(defaultCharacterId);
       setCommunityRecommendations(null);
+      setCommunityRecommendationError("");
       setIsCommunityRecommendationsLoading(true);
       void api.getCommunityPerkRecommendations(item.hash, { item_name: item.name })
         .then((result) => {
@@ -87,7 +89,9 @@ export function useItemDetailWorkspace(input: {
           setCommunityRecommendations(result);
         })
         .catch((error) => {
+          if (!isCurrent()) return;
           console.warn("社区推荐加载失败：", error);
+          setCommunityRecommendationError("社区推荐读取失败，已保留 DIM 愿望单和本地目标判断。");
         })
         .finally(() => {
           if (!isCurrent()) return;
@@ -202,6 +206,7 @@ export function useItemDetailWorkspace(input: {
   function closeSelectedItemDetail() {
     closeItemDetailCore();
     setCommunityRecommendations(null);
+    setCommunityRecommendationError("");
     setIsCommunityRecommendationsLoading(false);
   }
 
@@ -433,6 +438,7 @@ export function useItemDetailWorkspace(input: {
     itemDetailLoadingKey,
     itemDetailError,
     communityRecommendations,
+    communityRecommendationError,
     isCommunityRecommendationsLoading,
     itemAiResult,
     itemAiError,

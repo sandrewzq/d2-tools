@@ -16,6 +16,7 @@ import { sortSameNameItems } from "./ItemDetailSameName";
 export type ItemDetailCommunityProps = {
   aiSettingsEnableLightgg: boolean;
   communityRecommendations: WeaponRecommendation | null;
+  communityRecommendationError: string;
   importedWishlist: DimWishlist | null;
   isCommunityRecommendationsLoading: boolean;
   sameNameItems: SameNameItemSummary[];
@@ -97,13 +98,14 @@ export function ItemDetailCommunity(props: ItemDetailCommunityProps) {
       <RecommendationPanel
         aiSettingsEnableLightgg={props.aiSettingsEnableLightgg}
         communityRecommendations={props.communityRecommendations}
+        communityRecommendationError={props.communityRecommendationError}
         isCommunityRecommendationsLoading={props.isCommunityRecommendationsLoading}
       />
     </>
   );
 }
 
-function RecommendationPanel(props: Pick<ItemDetailCommunityProps, "aiSettingsEnableLightgg" | "communityRecommendations" | "isCommunityRecommendationsLoading">) {
+function RecommendationPanel(props: Pick<ItemDetailCommunityProps, "aiSettingsEnableLightgg" | "communityRecommendations" | "communityRecommendationError" | "isCommunityRecommendationsLoading">) {
   if (props.communityRecommendations) {
     return (
       <section className="community-recommendations-panel">
@@ -161,6 +163,18 @@ function RecommendationPanel(props: Pick<ItemDetailCommunityProps, "aiSettingsEn
       <section className="source-status-card source-status-pending community-recommendations-panel loading">
         <span className="source-status-badge source-status-pending">社区推荐</span>
         <p>正在读取社区推荐...</p>
+      </section>
+    );
+  }
+
+  if (props.communityRecommendationError) {
+    return (
+      <section className="source-status-card source-status-warning community-recommendations-panel empty">
+        <span className="source-status-badge source-status-warning">社区推荐降级</span>
+        <h3>社区推荐降级</h3>
+        <p>{props.communityRecommendationError}</p>
+        <small>已保留 DIM 愿望单和本地目标判断。</small>
+        <small>light.gg 或社区推荐服务暂不可用时，仍可继续查看 DIM 愿望单、本地目标命中和同名对比。</small>
       </section>
     );
   }

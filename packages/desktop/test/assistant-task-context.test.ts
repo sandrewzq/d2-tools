@@ -27,7 +27,11 @@ describe("assistant task context", () => {
     ]);
     expect(context.linkedItems.map((item) => item.name)).toEqual(["金枪头", "Funnelweb"]);
     expect(context.aiQuestions).toContain("根据当前账号数据，哪些攻略要求已经满足？");
-    expect(context.treeGroups.map((group) => group.title)).toEqual(["任务文本", "攻略步骤", "关联装备", "AI 问答"]);
+    expect(context.loadoutDraftItems).toContain("已关联装备：金枪头 / 头盔");
+    expect(context.loadoutDraftItems).toContain("已关联装备：Funnelweb / 微型冲锋枪");
+    expect(context.loadoutDraftItems).toContain("待确认要求：堆纪律到 100");
+    expect(context.treeGroups.map((group) => group.title)).toEqual(["任务文本", "攻略步骤", "关联装备", "可保存方案草稿", "AI 问答"]);
+    expect(context.treeGroups.at(3)?.items.join(" / ")).toContain("可保存方案草稿");
     expect(context.treeGroups.at(-1)?.items.join(" / ")).toContain("当前角色：猎人");
   });
 
@@ -52,6 +56,7 @@ describe("assistant task context", () => {
     expect(sidebar).toContain("粘贴任务文本或攻略");
     expect(sidebar).toContain("攻略步骤");
     expect(sidebar).toContain("关联装备");
+    expect(sidebar).toContain("可保存方案草稿");
     expect(sidebar).toContain("AI 问答");
   });
 });

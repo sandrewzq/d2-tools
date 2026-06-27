@@ -27,8 +27,8 @@ export function DailySummaryPanel(props: {
     <section className="tool-panel home-dashboard-panel">
       <div className="section-heading">
         <div>
-          <h2>今日 / 本周</h2>
-          <p>只展示可确认的真实数据；未接入或不可确认的内容不会猜测。</p>
+          <h2>今日必看</h2>
+          <p>首屏聚合今日行动、奖励进度和来源状态；未接入或不可确认的内容不会猜测。</p>
         </div>
         <div className="button-row">
           <button type="button" className="secondary-button" disabled={isLoading} onClick={onRefresh}>
@@ -54,6 +54,18 @@ export function DailySummaryPanel(props: {
             <div>
               <strong>{dailySummary.weekly_reset.label}</strong>
               <span>{dailySummary.weekly_reset.time_remaining_label}</span>
+            </div>
+          </div>
+          <div className="daily-reward-progress">
+            <div>
+              <span className="source-status-badge source-status-ready">奖励进度</span>
+              <strong>{dailySummary.checklist.length} 条今日行动</strong>
+              <small>优先处理光等奖励、商人和可确认轮换。</small>
+            </div>
+            <div>
+              <span className="source-status-badge source-status-neutral">来源状态</span>
+              <strong>{dailySummary.recommendations.length} 条本周重点</strong>
+              <small>下方标明 Bungie API、本地资料库或暂未接入状态。</small>
             </div>
           </div>
           <div className="daily-board">
@@ -111,7 +123,7 @@ export function DailySummaryPanel(props: {
         </>
       ) : (
         <section className="source-status-card source-status-pending daily-panel-status" aria-live="polite">
-          <span className="source-status-badge source-status-pending">今日 / 本周</span>
+          <span className="source-status-badge source-status-pending">今日必看</span>
           <p>今日面板读取中。</p>
         </section>
       )}

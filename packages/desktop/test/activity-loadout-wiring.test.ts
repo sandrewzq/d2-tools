@@ -14,6 +14,7 @@ describe("activity and loadout planning wiring", () => {
     const ipc = readFileSync(join(desktopRoot, "src", "main", "ipc.ts"), "utf8");
     const activitiesIpc = readFileSync(join(desktopRoot, "src", "main", "ipc", "activities.ts"), "utf8");
     const loadoutIpc = readFileSync(join(desktopRoot, "src", "main", "ipc", "loadouts.ts"), "utf8");
+    const accountPage = readFileSync(join(desktopRoot, "src", "renderer", "features", "account", "AccountPage.tsx"), "utf8");
     const accountHook = readFileSync(join(desktopRoot, "src", "renderer", "features", "account", "useAccountWorkspace.ts"), "utf8");
     const loadoutsPage = readFileSync(join(desktopRoot, "src", "renderer", "features", "loadouts", "LoadoutsPage.tsx"), "utf8");
 
@@ -26,6 +27,13 @@ describe("activity and loadout planning wiring", () => {
     expect(ipc).toContain("registerLoadoutIpcHandlers()");
     expect(loadoutIpc).toContain('ipcMain.handle("loadouts:transfer-plan"');
     expect(homePage).toContain("activitySummary");
+    expect(homePage).toContain("activityMessage");
+    expect(homePage).toContain("activityError");
+    expect(homePage).toContain("onRefreshActivity: () => void loadActivitySummary()");
+    expect(accountPage).toContain("活动复盘");
+    expect(accountPage).toContain("activitySummary.recent");
+    expect(accountPage).toContain("activitySummary.raids.entries");
+    expect(accountPage).toContain("activitySummary.recent_items");
     expect(accountHook).toContain("最近活动");
     expect(loadoutsPage).toContain("生成转移计划");
   });

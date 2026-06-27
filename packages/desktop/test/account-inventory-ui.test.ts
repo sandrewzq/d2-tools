@@ -126,4 +126,29 @@ describe("account inventory UI", () => {
     expect(homePage).not.toContain("materials.items.slice(0, 40)");
     expect(homePage).not.toContain("仓库预览");
   });
+
+  it("adds an account page directory for long account workbench sections", () => {
+    const accountPage = readFileSync(
+      join(desktopRoot, "src", "renderer", "features", "account", "AccountPage.tsx"),
+      "utf8"
+    );
+    const styles = readFileSync(join(desktopRoot, "src", "renderer", "styles.css"), "utf8");
+
+    expect(accountPage).toContain('className="account-page-shell"');
+    expect(accountPage).toContain('className="account-page-nav"');
+    expect(accountPage).toContain('aria-label="账号目录"');
+    expect(accountPage).toContain('href="#account-profile"');
+    expect(accountPage).toContain('href="#account-loadout"');
+    expect(accountPage).toContain('href="#account-activity"');
+    expect(accountPage).toContain('href="#account-materials"');
+    expect(accountPage).toContain('href="#account-postmaster"');
+    expect(accountPage).toContain('id="account-profile"');
+    expect(accountPage).toContain('id="account-loadout"');
+    expect(accountPage).toContain('id="account-activity"');
+    expect(accountPage).toContain('id="account-materials"');
+    expect(accountPage).toContain('id="account-postmaster"');
+    expect(accountPage).toContain("账号概览");
+    expect(styles).toContain(".account-page-nav");
+    expect(styles).toContain(".account-page-main");
+  });
 });

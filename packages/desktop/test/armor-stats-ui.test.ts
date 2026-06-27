@@ -2,6 +2,14 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { readItemDetailSources } from "./source-readers";
 
+function readCssRule(styles: string, selector: string): string {
+  const start = styles.indexOf(`${selector} {`);
+  expect(start).toBeGreaterThanOrEqual(0);
+  const end = styles.indexOf("}", start);
+  expect(end).toBeGreaterThan(start);
+  return styles.slice(start, end + 1);
+}
+
 describe("armor stats UI wiring", () => {
   it("shows owned armor stats in item detail and same-name comparison", () => {
     const itemDetailModal = readItemDetailSources("packages/desktop");
@@ -52,6 +60,38 @@ describe("armor stats UI wiring", () => {
     expect(itemDetailModal).toContain("同名对比");
     expect(itemDetailModal).toContain("社区推荐");
     expect(itemDetailModal).toContain("操作");
+  });
+
+  it("uses a wide two-column detail workbench instead of a narrow vertical modal", () => {
+    const styles = readFileSync("packages/desktop/src/renderer/styles.css", "utf8");
+    const itemModal = readCssRule(styles, ".item-modal");
+    const gameCard = readCssRule(styles, ".item-detail-game-card");
+    const toolGrid = readCssRule(styles, ".item-detail-tool-grid");
+    const narrowMediaStart = styles.indexOf("@media (max-width: 760px)");
+    const narrowMedia = styles.slice(narrowMediaStart);
+
+    expect(itemModal).toContain("width: min(1180px, calc(100vw - 96px))");
+    expect(itemModal).toContain("max-height: min(88vh, 980px)");
+    expect(gameCard).toContain("grid-template-columns: minmax(320px, 0.85fr) minmax(420px, 1.15fr)");
+    expect(gameCard).toContain("align-items: start");
+    expect(toolGrid).toContain("grid-template-columns: minmax(360px, 0.95fr) minmax(420px, 1.05fr)");
+    expect(narrowMedia).toContain(".item-detail-game-card");
+    expect(narrowMedia).toContain(".item-detail-tool-grid");
+    expect(narrowMedia).toContain("grid-template-columns: 1fr");
+  });
+
+  it("keeps weapon detail focused on the actual roll and folds long socket option lists", () => {
+    const itemDetailModal = readItemDetailSources("packages/desktop");
+    const styles = readFileSync("packages/desktop/src/renderer/styles.css", "utf8");
+    const rollGrid = readCssRule(styles, ".item-detail-roll-grid");
+    const socketSummary = readCssRule(styles, ".item-detail-socket-summary");
+
+    expect(itemDetailModal).toContain("item-detail-roll-grid");
+    expect(itemDetailModal).toContain("<details className=\"item-detail-socket-group\"");
+    expect(itemDetailModal).toContain("插槽 {group.socket_index + 1}");
+    expect(itemDetailModal).toContain("候选");
+    expect(rollGrid).toContain("grid-template-columns: repeat(auto-fit, minmax(180px, 1fr))");
+    expect(socketSummary).toContain("cursor: pointer");
   });
 
   it("shows owned weapon stats in item detail", () => {
