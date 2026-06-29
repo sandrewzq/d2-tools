@@ -2,8 +2,10 @@ import type {
   AccountItemSummary,
   AccountSummary,
   ActivityHistorySummary,
-  LoadoutTemplate
+  LoadoutTemplate,
+  StartupState
 } from "../../api/client";
+import { useState } from "react";
 import {
   createAccountPageWorkspace,
   formatAccountItemMeta,
@@ -16,8 +18,11 @@ import {
 } from "../../shared/domain/loadouts/loadoutLookup";
 
 type AccountItemSource = "equipped" | "inventory";
+const ACCOUNT_SLOT_PREVIEW_LIMIT = 8;
+
 export function AccountPage(props: {
   accountSummary: AccountSummary | null;
+  startupState: StartupState;
   selectedCharacterId: string;
   isLoadingAccount: boolean;
   accountError: string;
@@ -32,6 +37,8 @@ export function AccountPage(props: {
   isRunningItemAction: boolean;
   activeLoadoutLookup: LoadoutTemplateLookup | null;
   activeLoadoutTemplate: LoadoutTemplate | null;
+  onConfigureBungie: () => void;
+  onLoginBungie: () => void;
   onLoadAccount: () => void;
   onRefreshActivity: () => void;
   onSelectCharacter: (characterId: string) => void;
@@ -48,6 +55,7 @@ export function AccountPage(props: {
 }) {
   const { accountSummary } = props;
   const activitySummary = props.activitySummary;
+  const activityReview = activitySummary ? activitySummary.review : null;
   const accountWorkspace = createAccountPageWorkspace({
     account: accountSummary,
     selectedCharacterId: props.selectedCharacterId,
@@ -55,6 +63,9 @@ export function AccountPage(props: {
     isLoadoutMatch: (item) => matchesLoadoutTemplateItem(item, props.activeLoadoutLookup)
   });
   const selectedCharacter = accountWorkspace.selectedCharacter;
+  const isBungieConfigured = props.startupState.cards.bungieConfig.status === "ready";
+  const isAccountLoggedIn = props.startupState.cards.account.status === "ready";
+  const canLoadAccount = isBungieConfigured && isAccountLoggedIn;
 
   return (
     <section className="tool-panel account-dashboard-panel account-page">
@@ -63,12 +74,40 @@ export function AccountPage(props: {
           <h2>账号摘要</h2>
           <p>读取当前 Bungie 账号、角色装备、背包、材料和邮政官。</p>
         </div>
-        <button type="button" disabled={props.isLoadingAccount} onClick={props.onLoadAccount}>
+        <button type="button" disabled={props.isLoadingAccount || !canLoadAccount} onClick={props.onLoadAccount}>
           {props.isLoadingAccount ? "读取中..." : "读取账号数据"}
         </button>
       </div>
       {props.accountError ? <p className="status-message status-error">{props.accountError}</p> : null}
       {props.itemDetailError ? <p className="status-message status-error">{props.itemDetailError}</p> : null}
+      {!accountSummary ? (
+        <div className="account-empty-state">
+          <p className="status-message status-warning">未连接 Bungie</p>
+          <h3>{isBungieConfigured ? "账号还没有登录" : "还没有配置 Bungie 应用"}</h3>
+          <p>
+            不配置也可以继续使用本地设置、资料库搜索、愿望单、标签和目标规则。
+            账号、角色、仓库、装备和活动记录需要先完成 Bungie 配置与登录。
+          </p>
+          <div className="button-row">
+            {!isBungieConfigured ? (
+              <button type="button" onClick={props.onConfigureBungie}>
+                去设置 Bungie
+              </button>
+            ) : null}
+            <button
+              type="button"
+              className={isBungieConfigured ? "" : "secondary-button"}
+              disabled={!isBungieConfigured || props.isLoadingAccount}
+              onClick={props.onLoginBungie}
+            >
+              登录 Bungie
+            </button>
+          </div>
+          {isBungieConfigured && !isAccountLoggedIn ? (
+            <p className="status-message status-neutral">{props.startupState.cards.account.label}</p>
+          ) : null}
+        </div>
+      ) : null}
       {accountSummary && selectedCharacter ? (
         <div className="account-page-shell">
           <nav className="account-page-nav" aria-label="账号目录">
@@ -95,7 +134,7 @@ export function AccountPage(props: {
                     key={tab.key}
                     onClick={() => props.onSelectCharacter(tab.character.character_id)}
                   >
-                    {tab.emblemUrl ? <img alt="" src={tab.emblemUrl} /> : null}
+                    {tab.emblemUrl ? <img alt="" loading="lazy" src={tab.emblemUrl} /> : null}
                     <span>{tab.className}</span>
                     <strong>{tab.lightLabel}</strong>
                   </button>
@@ -106,7 +145,7 @@ export function AccountPage(props: {
           <div id="account-loadout" className="account-primary-workbench">
             <article className="character-card character-card-focused account-character-summary">
               <div className="character-title">
-                {selectedCharacter.emblem_url ? <img alt="" src={selectedCharacter.emblem_url} /> : null}
+                {selectedCharacter.emblem_url ? <img alt="" loading="lazy" src={selectedCharacter.emblem_url} /> : null}
                 <div>
                   <h3>{selectedCharacter.class_name}</h3>
                   <p>{accountWorkspace.selectedCharacterSummary}</p>
@@ -189,6 +228,9 @@ export function AccountPage(props: {
                       {" / "}
                       PVP {activitySummary.recent.pvp.completed}/{activitySummary.recent.pvp.total}
                     </span>
+                    {activityReview ? (
+                      <small>完成率 {activityReview.completion_rate}% / 连续完成 {activityReview.completions_in_a_row} 场</small>
+                    ) : null}
                     {activitySummary.recent.latest_period ? <small>最近一场：{formatActivityPeriod(activitySummary.recent.latest_period)}</small> : null}
                   </div>
                   <div className="activity-review-list">
@@ -213,12 +255,23 @@ export function AccountPage(props: {
                     <strong>最近 10 场</strong>
                     {activitySummary.recent_items.length ? (
                       <ul>
-                        {activitySummary.recent_items.slice(0, 10).map((item) => (
+                        {activitySummary.recent_items.slice(0, 10).map((item, index) => {
+                          const reviewEntry = activityReview?.recent_10[index];
+                          return (
                           <li key={`${item.period}-${item.activity_name}`}>
                             <span>{formatActivityMode(item.mode)} · {item.activity_name}</span>
-                            <small>{item.completed ? "已完成" : "未完成"} · {formatActivityPeriod(item.period)}</small>
+                            <small>
+                              {(reviewEntry?.status_label ?? (item.completed ? "已完成" : "未完成"))}
+                              {" · "}
+                              {formatActivityPeriod(item.period)}
+                              {reviewEntry?.duration_label ? ` · ${reviewEntry.duration_label}` : ""}
+                            </small>
+                            {reviewEntry?.key_stats.length ? (
+                              <small>关键统计：{reviewEntry.key_stats.slice(0, 3).join(" / ")}</small>
+                            ) : null}
                           </li>
-                        ))}
+                          );
+                        })}
                       </ul>
                     ) : (
                       <p className="muted-copy">暂无最近活动记录。</p>
@@ -281,7 +334,7 @@ export function AccountPage(props: {
                           is_postmaster_item: true
                         })}
                       >
-                        {entry.item.icon ? <img alt="" src={entry.item.icon} /> : <div className="item-icon-placeholder" />}
+                        {entry.item.icon ? <img alt="" loading="lazy" src={entry.item.icon} /> : <div className="item-icon-placeholder" />}
                         <div>
                           <strong>{entry.item.name}</strong>
                           {entry.isLoadoutMatch ? <small className="loadout-template-badge">方案命中</small> : null}
@@ -327,6 +380,24 @@ function AccountSlotComparison(props: {
   onOpenEquippedItem: (item: AccountItemSummary) => void;
   onOpenInventoryItem: (item: AccountItemSummary) => void;
 }) {
+  const [expandedSlots, setExpandedSlots] = useState<Set<string>>(new Set());
+
+  function expandedKey(rowKey: string, source: AccountItemSource): string {
+    return `${rowKey}:${source}`;
+  }
+
+  function isExpanded(rowKey: string, source: AccountItemSource): boolean {
+    return expandedSlots.has(expandedKey(rowKey, source));
+  }
+
+  function expandSlot(rowKey: string, source: AccountItemSource): void {
+    setExpandedSlots((current) => {
+      const next = new Set(current);
+      next.add(expandedKey(rowKey, source));
+      return next;
+    });
+  }
+
   return (
     <div className="account-slot-comparison-list">
       {props.rows.map((row) => (
@@ -341,6 +412,7 @@ function AccountSlotComparison(props: {
               {renderAccountItemGrid(row.equippedItems, "equipped", {
                 highlightedTemplate: props.highlightedTemplate,
                 openingItemKey: props.openingItemKey,
+                isExpanded: true,
                 onOpenItem: props.onOpenEquippedItem
               })}
             </section>
@@ -349,6 +421,8 @@ function AccountSlotComparison(props: {
               {renderAccountItemGrid(row.inventoryItems, "inventory", {
                 highlightedTemplate: props.highlightedTemplate,
                 openingItemKey: props.openingItemKey,
+                isExpanded: isExpanded(row.key, "inventory"),
+                onExpand: () => expandSlot(row.key, "inventory"),
                 onOpenItem: props.onOpenInventoryItem
               })}
             </section>
@@ -365,6 +439,8 @@ function renderAccountItemGrid(
   props: {
     highlightedTemplate?: LoadoutTemplateLookup | null;
     openingItemKey: string;
+    isExpanded: boolean;
+    onExpand?: () => void;
     onOpenItem: (item: AccountItemSummary) => void;
   }
 ) {
@@ -372,9 +448,13 @@ function renderAccountItemGrid(
     return <p className="muted-copy">暂无</p>;
   }
 
+  const shouldLimitItems = source === "inventory" && !props.isExpanded && items.length > ACCOUNT_SLOT_PREVIEW_LIMIT;
+  const visibleItems = shouldLimitItems ? items.slice(0, ACCOUNT_SLOT_PREVIEW_LIMIT) : items;
+  const hiddenItemCount = items.length - visibleItems.length;
+
   return (
     <div className="equipment-grid">
-      {items.map((item) => {
+      {visibleItems.map((item, index) => {
         const isPending = getAccountPageItemKey(item) === props.openingItemKey;
         const isLoadoutMatch = matchesLoadoutTemplateItem(item, props.highlightedTemplate);
         return (
@@ -386,11 +466,11 @@ function renderAccountItemGrid(
               isPending ? "pending" : "",
               isLoadoutMatch ? "loadout-highlight" : ""
             ].filter(Boolean).join(" ")}
-            key={`${source}-${item.hash}-${item.instance_id ?? item.name}`}
+            key={`${source}-${item.hash}-${item.instance_id ?? item.name}-${index}`}
             aria-busy={isPending}
             onClick={() => props.onOpenItem(item)}
           >
-            {item.icon ? <img alt="" src={item.icon} /> : <div className="item-icon-placeholder" />}
+            {item.icon ? <img alt="" loading="lazy" src={item.icon} /> : <div className="item-icon-placeholder" />}
             <div>
               <strong>{item.name}</strong>
               {isLoadoutMatch ? <small className="loadout-template-badge">方案命中</small> : null}
@@ -399,6 +479,14 @@ function renderAccountItemGrid(
           </button>
         );
       })}
+      {hiddenItemCount > 0 ? (
+        <button type="button" className="equipment-item inventory account-show-more-item" onClick={props.onExpand}>
+          <div>
+            <strong>显示全部 {items.length} 件</strong>
+            <span>还有 {hiddenItemCount} 件未渲染，点击后展开此槽位。</span>
+          </div>
+        </button>
+      ) : null}
     </div>
   );
 }

@@ -4,6 +4,10 @@ import type { ActionLogEntry } from "@d2-tools/core/actions/log";
 import type { BatchTransferPlan, ItemActionPlan, ItemActionPlanInput } from "@d2-tools/core/actions/plan";
 import type { ActivityHistorySummary } from "@d2-tools/core/activities/history";
 import type {
+  BuildGuideMatchResult,
+  BuildGuideRequirement
+} from "@d2-tools/core/assistant/guideSchema";
+import type {
   AiChatReplyResult,
   AiConnectionTestResult,
   AiModelListResult,
@@ -21,6 +25,7 @@ import type { DailySummary } from "@d2-tools/core/daily/summary";
 import type { HealthStatus } from "@d2-tools/core/health";
 import type { ItemAliases, ItemAliasEntry } from "@d2-tools/core/items/aliases";
 import type { ItemDefinitionDetail } from "@d2-tools/core/items/detail";
+import type { LiveItemAvailability } from "@d2-tools/core/items/liveAvailability";
 import type { PerkSearchResult } from "@d2-tools/core/items/perkSearch";
 import type { ItemSearchResult } from "@d2-tools/core/items/search";
 import type { LibraryHistory, LibraryHistoryItem } from "@d2-tools/core/library/history";
@@ -29,6 +34,7 @@ import type { ManifestStatus } from "@d2-tools/core/manifest/cache";
 import type { AuthLoginResult } from "@d2-tools/core/oauth/login";
 import type { StartupState } from "@d2-tools/core/startup/startupState";
 import type { SaveVaultNoteInput, SaveVaultTagInput, VaultTags } from "@d2-tools/core/vault/tags";
+import type { BackgroundTaskSnapshot } from "../shared/backgroundTasks.js";
 import type { UpdateSnapshot } from "../shared/updateTypes.js";
 
 type ItemLockActionInput = {
@@ -113,10 +119,18 @@ contextBridge.exposeInMainWorld("d2", {
   getAccountSummary: () => ipcRenderer.invoke("account:summary") as Promise<AccountSummary>,
   getItemDetail: (hash: number) => ipcRenderer.invoke("items:detail", hash) as Promise<ItemDefinitionDetail>,
   getStartupState: () => ipcRenderer.invoke("startup:get") as Promise<StartupState>,
+  getBackgroundTasks: () => ipcRenderer.invoke("background-tasks:list") as Promise<BackgroundTaskSnapshot[]>,
+  onBackgroundTasksChanged: (callback: (tasks: BackgroundTaskSnapshot[]) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, tasks: BackgroundTaskSnapshot[]) => callback(tasks);
+    ipcRenderer.on("background-tasks:changed", listener);
+    return () => ipcRenderer.removeListener("background-tasks:changed", listener);
+  },
   getManifestStatus: () => ipcRenderer.invoke("manifest:status") as Promise<ManifestStatus>,
   initializeManifest: () => ipcRenderer.invoke("manifest:initialize") as Promise<ManifestStatus>,
   searchItems: (query: string) => ipcRenderer.invoke("items:search", query) as Promise<ItemSearchResult[]>,
   searchPerks: (query: string) => ipcRenderer.invoke("items:perks:search", query) as Promise<PerkSearchResult[]>,
+  getLiveItemAvailability: (itemHashes: number[]) =>
+    ipcRenderer.invoke("items:live-availability", itemHashes) as Promise<LiveItemAvailability>,
   getItemAliases: () => ipcRenderer.invoke("aliases:get") as Promise<ItemAliases>,
   saveItemAlias: (input: ItemAliasEntry) => ipcRenderer.invoke("aliases:save", input) as Promise<ItemAliases>,
   getLibraryHistory: () => ipcRenderer.invoke("library:history:get") as Promise<LibraryHistory>,
@@ -163,6 +177,12 @@ contextBridge.exposeInMainWorld("d2", {
     ipcRenderer.invoke("analysis:item:ai", input) as Promise<ItemAiAdviceResult>,
   sendAiChat: (input: { question: string; context: string }) =>
     ipcRenderer.invoke("analysis:chat:ai", input) as Promise<AiChatReplyResult>,
+  parseBuildGuide: (input: { rawText: string; aiText?: string }) =>
+    ipcRenderer.invoke("assistant:guide:parse", input),
+  matchBuildGuide: (input: { requirement: BuildGuideRequirement; characterId?: string }) =>
+    ipcRenderer.invoke("assistant:guide:match", input),
+  createGuideLoadoutDraft: (input: { match: BuildGuideMatchResult; characterId: string; fallbackName: string }) =>
+    ipcRenderer.invoke("assistant:guide:draft", input),
   setItemLockState: (input: ItemLockActionInput) =>
     ipcRenderer.invoke("actions:item:set-lock", input) as Promise<ItemActionResult>,
   equipItem: (input: ItemEquipActionInput) =>
@@ -192,6 +212,7 @@ contextBridge.exposeInMainWorld("d2", {
   checkForUpdates: () => ipcRenderer.invoke("updates:check") as Promise<UpdateSnapshot>,
   downloadUpdate: () => ipcRenderer.invoke("updates:download") as Promise<UpdateSnapshot>,
   quitAndInstallUpdate: () => ipcRenderer.invoke("updates:quit-and-install") as Promise<void>,
+  openUpdateDownloadPage: () => ipcRenderer.invoke("updates:open-download-page") as Promise<void>,
   onUpdateStatusChanged: (callback: (snapshot: UpdateSnapshot) => void) => {
     const listener = (_event: Electron.IpcRendererEvent, snapshot: UpdateSnapshot) => callback(snapshot);
     ipcRenderer.on("updates:status", listener);

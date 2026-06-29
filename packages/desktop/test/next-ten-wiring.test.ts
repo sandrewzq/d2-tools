@@ -17,6 +17,7 @@ describe("next ten feature wiring", () => {
     const loadoutIpc = readFileSync(join(desktopRoot, "src", "main", "ipc", "loadouts.ts"), "utf8");
 
     expect(apiClient).toContain("searchPerks(query: string)");
+    expect(apiClient).toContain("getLiveItemAvailability");
     expect(apiClient).toContain("getItemAliases()");
     expect(apiClient).toContain("getLibraryHistory()");
     expect(apiClient).toContain("createLoadoutTemplate");
@@ -24,6 +25,7 @@ describe("next ten feature wiring", () => {
     expect(apiClient).toContain("exportDiagnostics()");
 
     expect(preload).toContain('ipcRenderer.invoke("items:perks:search"');
+    expect(preload).toContain('ipcRenderer.invoke("items:live-availability"');
     expect(preload).toContain('ipcRenderer.invoke("aliases:get"');
     expect(preload).toContain('ipcRenderer.invoke("library:history:get"');
     expect(preload).toContain('ipcRenderer.invoke("loadouts:create"');
@@ -32,6 +34,7 @@ describe("next ten feature wiring", () => {
 
     expect(ipc).toContain("registerLibraryIpcHandlers()");
     expect(libraryIpc).toContain('ipcMain.handle("items:perks:search"');
+    expect(libraryIpc).toContain('ipcMain.handle("items:live-availability"');
     expect(libraryIpc).toContain('ipcMain.handle("aliases:get"');
     expect(libraryIpc).toContain('ipcMain.handle("library:history:get"');
     expect(ipc).toContain("registerLoadoutIpcHandlers()");

@@ -79,7 +79,18 @@ docs/        正式文档
 - 新增列表、筛选和对象卡片优先复用 `ui-list-row`、`ui-filter-toolbar`、`ui-item-card`、`ui-badge`；设置页或工具区子块优先复用 `panel-subsection`。
 - `tool-panel` 是主面板层；不要把普通说明块做成嵌套大卡片。装备详情顶部可以保留游戏内视觉语义，但底部工具区继续使用桌面工具样式。
 - `packages/desktop/test/ui-style-system.test.ts` 负责锁定 token、共享样式类、设置页布局和状态语言，防止回到逐页零散修补。
-- 已完成的 v1 样式规范归档在 `docs/work/archive/ui-style-guide-v1.md`，后续开发以本节和测试为准。
+- 后续 UI 开发以本节和 `packages/desktop/test/ui-style-system.test.ts` 为准，不再维护单独的历史样式规范文档。
+
+### 2.5 桌面外壳、更新和后台任务
+
+- 桌面外壳必须稳定展示应用版本、资料库状态和后台任务状态；用户不进入设置页，也应能看到应用更新、资料库过期和后台任务运行状态。
+- 应用更新由主进程 `updates` IPC 和后台任务中心持有生命周期；renderer 只发起检查、下载、安装确认和订阅状态。
+- 应用更新检查失败后进入后台重试，重试策略允许最后一个有限间隔持续复用；不要在网络失败后只提示一次就停止。
+- 资料库版本检查由主进程 `manifest` IPC 和后台任务中心持有生命周期；每次启动应用会检查最新 Bungie Manifest。
+- 本地 Manifest 未初始化、必要 definition component 缺失或版本落后时，必须提示并允许后台更新；未初始化或组件缺失时，资料库依赖功能应阻断搜索或详情入口。
+- 切换菜单、卸载页面或重新进入页面不得中断资料库更新、应用更新下载等长任务；页面只订阅 `useBackgroundTasks` 和 `useManifestStatus` 等共享状态。
+- 设置页负责详细管理入口：应用更新、资料库状态、后台任务、AI、写操作、备份迁移、诊断导出和操作日志。
+- 新增长任务优先进入 `packages/desktop/src/shared/backgroundTasks.ts`、`packages/desktop/src/main/backgroundTasks.ts` 和对应领域 IPC，不要把长任务生命周期藏在 renderer feature hook 中。
 
 ## 3. 本地开发
 
@@ -254,11 +265,10 @@ docs/
   development.md
   work/
     backlog/
-    archive/
     references/
 ```
 
-不要把一次性设计稿、执行计划、阶段进度或临时分析文档放在 `docs/` 根目录。确实需要记录当前短期待办、验收状态、需求或 bug 时，统一更新 `docs/todo.md`；确实需要保留未完成设计或调研材料时，放进 `docs/work/`。外部流程如果要求写入 `docs/superpowers/`，本仓库统一改写到 `docs/work/backlog/`、`docs/work/archive/` 或 `docs/work/references/`。确实需要记录长期规则或少量长期方向结论时，更新 `docs/development.md`；已发布变化写入 `CHANGELOG.md`。
+不要把一次性设计稿、执行计划、阶段进度或临时分析文档放在 `docs/` 根目录。确实需要记录当前短期待办、验收状态、需求或 bug 时，统一更新 `docs/todo.md`；确实需要保留未完成设计或调研材料时，放进 `docs/work/backlog/` 或 `docs/work/references/`。外部流程如果要求写入 `docs/superpowers/`，本仓库统一改写到 `docs/work/backlog/` 或 `docs/work/references/`。确实需要记录长期规则或少量长期方向结论时，更新 `docs/development.md`；已发布变化写入 `CHANGELOG.md`。
 
 ## 7.1 长期方向（简版）
 
@@ -290,12 +300,11 @@ docs/
 - `todo.md` 是唯一当前待办、短期进度、需求和 bug 来源
 - 长期方向如确实需要保留，合并到 `docs/development.md`，不要再单独维护 `roadmap.md`
 - `work/backlog/` 保存未完成但暂不推进的设计和计划
-- `work/archive/` 保存已实现或仅作历史追溯的过程材料
 - `work/references/` 保存外部资料分析和数据源调研
 - 完成、取消或改变方向且影响当前短期待办、验收状态或优先级时，必须在同一次开发收尾时更新 `todo.md`
 - 修复、确认无效或转为长期需求的 bug，必须在同一次开发收尾时更新 `todo.md` 对应条目
 - `todo.md` 中的 `Bug #数字` 必须全局唯一；需要按领域区分时，在标题中加领域前缀，不要复用编号
 - 设计/计划文档默认不作为正式入口；需要长期保留的结论应合并进正式文档
 - `docs/work/` 只保留仍对当前工作有直接帮助的材料，不再额外维护索引文档
-- 只有确认已合并到正式文档或明确无参考价值的材料，才可以删除
+- 已完成或仅作历史追溯的过程材料直接删除，不再放入 archive 目录
 - 本地临时日志、调试输出、pid / port / token 等运行态文件统一写到 `.local-data/tmp/`；不要把 `tmp-*`、`.tmp-*`、`*.err.log` 直接写到仓库根目录

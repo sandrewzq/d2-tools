@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { loadFullAccountWorkspace, loadAccountDerivedWorkspace } from "@d2-tools/app";
+import { loadAccountWorkspace, loadAccountDerivedWorkspace } from "@d2-tools/app";
 import {
   api,
   type AccountSummary,
@@ -11,6 +11,7 @@ import {
   type VaultTags
 } from "../../api/client";
 import { services } from "../../api/services";
+import { formatBungieLoginError } from "./loginErrors";
 
 type DiagnosticsBridge = {
   refreshDiagnostics: () => Promise<void>;
@@ -56,7 +57,7 @@ export function useAccountWorkspace(input: {
       input.onLoginComplete();
       await input.diagnostics.refreshDiagnostics();
     } catch (error) {
-      setLoginError(error instanceof Error ? error.message : "Bungie 登录失败");
+      setLoginError(formatBungieLoginError(error));
     } finally {
       setIsLoggingIn(false);
     }
@@ -84,7 +85,7 @@ export function useAccountWorkspace(input: {
     setAccountError("");
 
     try {
-      const workspace = await loadFullAccountWorkspace(services);
+      const workspace = await loadAccountWorkspace(services);
       if (workspace.status !== "success") {
         throw new Error(workspace.error?.message ?? "账号数据读取失败");
       }
@@ -92,9 +93,7 @@ export function useAccountWorkspace(input: {
         account: summary,
         tags,
         targetRules,
-        wishlist,
-        activitySummary: derivedActivitySummary,
-        vaultCommunityMatch: derivedVaultCommunityMatch
+        wishlist
       } = workspace.data;
       setAccountSummary(summary);
       setVaultTags(tags);
@@ -106,14 +105,13 @@ export function useAccountWorkspace(input: {
         }
         return summary.characters[0]?.character_id ?? "";
       });
-      setActivitySummary(derivedActivitySummary);
-      setVaultCommunityMatch(derivedVaultCommunityMatch);
-      setActivityMessage(derivedActivitySummary ? "最近活动已更新" : "");
+      setActivitySummary(null);
+      setVaultCommunityMatch(new Map());
+      setActivityMessage("账号已读取，最近活动和社区匹配会继续在后台更新");
+      void loadActivitySummary(summary);
     } catch (error) {
       const message = error instanceof Error ? error.message : "账号数据读取失败";
-      setAccountError(input.state.nextStep === "home"
-        ? `登录可能已失效，请重新登录 Bungie。${message}`
-        : message);
+      setAccountError(getAccountLoadErrorMessage(input.state, message));
       setAccountSummary(null);
     } finally {
       setIsLoadingAccount(false);
@@ -125,16 +123,19 @@ export function useAccountWorkspace(input: {
 
     setActivityError("");
     setActivityMessage("");
+    setIsVaultCommunityMatchLoading(true);
     const derived = await loadAccountDerivedWorkspace(services, summary);
     if (derived.status === "success") {
       setActivitySummary(derived.data.activitySummary);
       setVaultCommunityMatch(derived.data.vaultCommunityMatch);
+      setIsVaultCommunityMatchLoading(false);
       setActivityMessage(derived.data.activitySummary ? "最近活动已更新" : "");
       return;
     }
 
     setActivitySummary(null);
     setVaultCommunityMatch(new Map());
+    setIsVaultCommunityMatchLoading(false);
     setActivityError(derived.error?.message ?? "最近活动读取失败");
   }
 
@@ -168,4 +169,16 @@ export function useAccountWorkspace(input: {
     loadAccountSummary,
     loadActivitySummary
   };
+}
+
+function getAccountLoadErrorMessage(state: StartupState, message: string): string {
+  if (state.cards.bungieConfig.status !== "ready") {
+    return `未连接 Bungie：请先在设置里填写 Bungie API Key、Client ID 和 Client Secret。${message}`;
+  }
+
+  if (state.cards.account.status !== "ready") {
+    return `账号还没有登录：请先完成 Bungie 登录。${message}`;
+  }
+
+  return `登录可能已失效，请重新登录 Bungie。${message}`;
 }

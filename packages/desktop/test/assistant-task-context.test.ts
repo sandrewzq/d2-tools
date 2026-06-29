@@ -33,6 +33,7 @@ describe("assistant task context", () => {
     expect(context.treeGroups.map((group) => group.title)).toEqual(["任务文本", "攻略步骤", "关联装备", "可保存方案草稿", "AI 问答"]);
     expect(context.treeGroups.at(3)?.items.join(" / ")).toContain("可保存方案草稿");
     expect(context.treeGroups.at(-1)?.items.join(" / ")).toContain("当前角色：猎人");
+    expect(JSON.stringify(context)).not.toContain("\uFFFD");
   });
 
   it("adds vault filters, loadout gaps and library searches to assistant page context", () => {
@@ -51,12 +52,14 @@ describe("assistant task context", () => {
 
   it("renders editable task assistant controls in the global sidebar", () => {
     const sidebar = readFileSync("packages/desktop/src/renderer/components/GlobalAssistantSidebar.tsx", "utf8");
+    const taskContext = readFileSync("packages/desktop/src/renderer/shared/domain/assistant/assistantTaskContext.ts", "utf8");
+    const taskAssistantSources = `${sidebar}\n${taskContext}`;
 
     expect(sidebar).toContain("taskContextDraft");
     expect(sidebar).toContain("粘贴任务文本或攻略");
-    expect(sidebar).toContain("攻略步骤");
-    expect(sidebar).toContain("关联装备");
-    expect(sidebar).toContain("可保存方案草稿");
-    expect(sidebar).toContain("AI 问答");
+    expect(taskAssistantSources).toContain("攻略步骤");
+    expect(taskAssistantSources).toContain("关联装备");
+    expect(taskAssistantSources).toContain("可保存方案草稿");
+    expect(taskAssistantSources).toContain("AI 问答");
   });
 });

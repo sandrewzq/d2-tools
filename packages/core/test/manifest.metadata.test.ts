@@ -4,11 +4,12 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import type { D2Config } from "../src/config/schema.js";
 import {
+  checkManifestVersion,
   getManifestStatus,
   initializeManifestMetadata,
   loadManifestMetadataCache,
   saveManifestMetadataCache
-} from "../src/manifest/cache.js";
+} from "../src/manifest/cache.ts";
 import {
   selectManifestLanguagePath,
   type DestinyManifestMetadata
@@ -145,5 +146,34 @@ describe("manifest metadata", () => {
         "DestinyLoadoutNameDefinition"
       ]
     });
+  });
+
+  it("checks latest manifest version without replacing the local cache", async () => {
+    const dataDir = mkdtempSync(join(tmpdir(), "d2-tools-manifest-"));
+    saveManifestMetadataCache({
+      dataDir,
+      language: "zh-chs",
+      metadata: manifest,
+      cachedAt: "2026-06-18T00:00:00.000Z"
+    });
+
+    const latestManifest: DestinyManifestMetadata = {
+      ...manifest,
+      version: "124"
+    };
+    const status = await checkManifestVersion({
+      config: config(dataDir),
+      fetchMetadata: async () => latestManifest,
+      now: () => new Date("2026-06-29T01:02:03.000Z")
+    });
+
+    expect(status).toMatchObject({
+      initialized: true,
+      version: "123",
+      latest_version: "124",
+      needs_update: true,
+      checked_at: "2026-06-29T01:02:03.000Z"
+    });
+    expect(loadManifestMetadataCache(dataDir)?.metadata.version).toBe("123");
   });
 });

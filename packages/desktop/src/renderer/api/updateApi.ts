@@ -11,5 +11,6 @@ export type UpdateApi = {
   checkForUpdates(): Promise<UpdateSnapshot>;
   downloadUpdate(): Promise<UpdateSnapshot>;
   quitAndInstallUpdate(): Promise<void>;
+  openUpdateDownloadPage(): Promise<void>;
   onUpdateStatusChanged(callback: (snapshot: UpdateSnapshot) => void): () => void;
 };

@@ -5,6 +5,7 @@ import type { LocalTargetRules } from "@d2-tools/core/analysis/targets";
 import type { LocalCommunityRecommendationTable } from "@d2-tools/core/community-perks";
 import type { VaultItemMatchInfo, WeaponRecommendation } from "./sharedTypes.js";
 import type { VaultTags, SaveVaultNoteInput, SaveVaultTagInput } from "@d2-tools/core/vault/tags";
+import type { D2SkillService } from "./d2SkillService.js";
 import type { AiChatReplyResult, AiChatRequest } from "./types.js";
 
 export type ProfileService = {
@@ -47,5 +48,6 @@ export type D2Services = {
   profile: ProfileService;
   manifest: ManifestService;
   localData: LocalDataService;
+  d2Skill: D2SkillService;
   ai: AiService;
 };

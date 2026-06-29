@@ -1,5 +1,5 @@
 import type { DefinitionComponentData } from "../manifest/definitions.js";
-import type { BungieActivityHistoryEntry } from "./history.js";
+import type { BungieActivityHistoryEntry, BungieActivityStat } from "./history.js";
 
 /**
  * Activity review enhancement — better grouping, timeline, and quick-review views.
@@ -16,7 +16,9 @@ export type ActivityTimelineEntry = {
   activity_name: string;
   type: ActivityTypeBucket;
   completed: boolean;
+  status_label: string;
   duration_label?: string;
+  key_stats: string[];
 };
 
 export type ActivityTypeGroup = {
@@ -90,11 +92,15 @@ function toTimelineEntry(
   activity: BungieActivityHistoryEntry,
   definitions: DefinitionComponentData
 ): ActivityTimelineEntry {
+  const completed = isCompleted(activity);
   return {
     period: activity.period,
     activity_name: activityName(activity, definitions),
     type: classifyActivityBucket(activity),
-    completed: isCompleted(activity),
+    completed,
+    status_label: completed ? "已完成" : "未完成",
+    duration_label: activityDurationLabel(activity),
+    key_stats: activityKeyStats(activity),
   };
 }
 
@@ -122,6 +128,41 @@ function activityName(
 
 function isCompleted(activity: BungieActivityHistoryEntry): boolean {
   return Number(activity.values?.completed?.basic?.value ?? 0) > 0;
+}
+
+function activityDurationLabel(activity: BungieActivityHistoryEntry): string | undefined {
+  const stat = activity.values?.activityDurationSeconds?.basic;
+  if (stat?.displayValue) {
+    return stat.displayValue;
+  }
+  const seconds = Number(stat?.value);
+  if (!Number.isFinite(seconds) || seconds <= 0) {
+    return undefined;
+  }
+  const minutes = Math.floor(seconds / 60);
+  const rest = Math.floor(seconds % 60);
+  return minutes > 0 ? `${minutes}m ${rest}s` : `${rest}s`;
+}
+
+function activityKeyStats(activity: BungieActivityHistoryEntry): string[] {
+  return [
+    formatActivityStat("击杀", activity.values?.kills),
+    formatActivityStat("死亡", activity.values?.deaths),
+    formatActivityStat("助攻", activity.values?.assists),
+    formatActivityStat("效率", activity.values?.efficiency),
+  ].filter(Boolean) as string[];
+}
+
+function formatActivityStat(
+  label: string,
+  stat: BungieActivityStat | undefined
+): string | undefined {
+  const basic = stat?.basic;
+  const value = basic?.displayValue ?? basic?.value;
+  if (value === undefined || value === null || value === "") {
+    return undefined;
+  }
+  return `${label} ${value}`;
 }
 
 function groupByType(entries: ActivityTimelineEntry[]): ActivityTypeGroup[] {

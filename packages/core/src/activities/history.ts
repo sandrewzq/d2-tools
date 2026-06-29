@@ -1,8 +1,16 @@
 import { fetchBungieJson } from "../bungie/client.js";
 import type { D2Config } from "../config/schema.js";
 import type { DefinitionComponentData } from "../manifest/definitions.js";
+import { buildActivityReview, type ActivityReview } from "./review.js";
 import { summarizeRaidAndDungeonActivities, type RaidDungeonActivityInput, type RaidDungeonSummary } from "./raidSummary.js";
 import { summarizeRecentActivities, type RecentActivityInput, type RecentActivitySummary } from "./recent.js";
+
+export type BungieActivityStat = {
+  basic?: {
+    value?: number;
+    displayValue?: string;
+  };
+};
 
 export type BungieActivityHistoryEntry = {
   period: string;
@@ -12,12 +20,13 @@ export type BungieActivityHistoryEntry = {
     mode?: number;
     modes?: number[];
   };
-  values?: {
-    completed?: {
-      basic?: {
-        value?: number;
-      };
-    };
+  values?: Record<string, BungieActivityStat | undefined> & {
+    completed?: BungieActivityStat;
+    activityDurationSeconds?: BungieActivityStat;
+    kills?: BungieActivityStat;
+    deaths?: BungieActivityStat;
+    assists?: BungieActivityStat;
+    efficiency?: BungieActivityStat;
   };
 };
 
@@ -28,6 +37,7 @@ export type CharacterActivityHistoryResponse = {
 export type ActivityHistorySummary = {
   recent: RecentActivitySummary;
   raids: RaidDungeonSummary;
+  review: ActivityReview;
   recent_items: Array<{
     activity_name: string;
     mode: "pve" | "pvp" | "other";
@@ -74,6 +84,7 @@ export function summarizeActivityHistory(
   return {
     recent: summarizeRecentActivities(recentInputs),
     raids: summarizeRaidAndDungeonActivities(raidInputs),
+    review: buildActivityReview(activities, activityDefinitions),
     recent_items: activities.slice(0, 12).map((activity) => ({
       activity_name: activityName(activity, activityDefinitions),
       mode: classifyActivityMode(activity),

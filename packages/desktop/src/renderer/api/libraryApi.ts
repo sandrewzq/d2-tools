@@ -3,6 +3,7 @@ import type {
   EquipmentGroupKey,
   ItemPerkGroup,
   ItemSourceSummary,
+  LiveItemAvailability,
   WeaponFrameSummary
 } from "./sharedTypes";
 
@@ -10,6 +11,7 @@ export type LibraryApi = {
   getItemDetail(hash: number): Promise<ItemDefinitionDetail>;
   searchItems(query: string): Promise<ItemSearchResult[]>;
   searchPerks(query: string): Promise<PerkSearchResult[]>;
+  getLiveItemAvailability(itemHashes: number[]): Promise<LiveItemAvailability>;
   getItemAliases(): Promise<ItemAliases>;
   saveItemAlias(input: ItemAliasEntry): Promise<ItemAliases>;
   getLibraryHistory(): Promise<LibraryHistory>;

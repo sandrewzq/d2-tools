@@ -33,13 +33,17 @@ describe("local target rules wiring", () => {
     expect(homePage).toContain("localTargetRules");
     expect(homePage).not.toContain("loadPersistedTargetRules");
     expect(homePage).not.toContain("api.getLocalTargetRules()");
-    expect(accountHook).toContain("loadFullAccountWorkspace(services)");
+    expect(accountHook).toContain("loadAccountWorkspace(services)");
     expect(accountHook).toContain("targetRules");
     expect(vaultPage).toContain("VaultTargetRulesPanel");
     expect(targetPanel).toContain("本地目标规则");
     expect(targetPanel).toContain("武器 perk 目标");
     expect(targetPanel).toContain("selectedWeaponHash");
     expect(targetPanel).toContain("availableWeaponTargets");
+    expect(targetPanel).toContain("api.searchPerks");
+    expect(targetPanel).toContain("perkSearchResults");
+    expect(targetPanel).toContain("从资料库搜索 perk");
+    expect(targetPanel).toContain("添加到目标");
     expect(targetPanel).toContain("添加属性条件");
     expect(targetPanel).toContain("添加 perk 条件");
     expect(targetPanel).toContain("最低值");

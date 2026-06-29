@@ -12,6 +12,8 @@ import {
   useDiagnosticsStatusState
 } from "./useDiagnosticsSettingsState";
 import { useUpdateFlow } from "./useUpdateFlow";
+import { useBackgroundTasks } from "../../shared/hooks/useBackgroundTasks";
+import { useManifestStatus } from "../../shared/hooks/useManifestStatus";
 
 export function useDiagnosticsSettings(input: {
   onConfigChanged: () => void;
@@ -20,6 +22,8 @@ export function useDiagnosticsSettings(input: {
   const aiWriteSettings = useAiWriteSettingsState();
   const actionLogState = useActionLogState();
   const updateFlow = useUpdateFlow();
+  const backgroundTaskState = useBackgroundTasks();
+  const manifestStatusState = useManifestStatus();
 
   const settingsModel = createDiagnosticsSettingsModel({
     onConfigChanged: input.onConfigChanged,
@@ -39,18 +43,28 @@ export function useDiagnosticsSettings(input: {
     actionLogResultFilter: actionLogState.actionLogResultFilter,
     actionLogTypeFilter: actionLogState.actionLogTypeFilter,
     aiSettings: aiWriteSettings.aiSettings,
+    activeBackgroundTasks: backgroundTaskState.activeBackgroundTasks,
+    backgroundTasks: backgroundTaskState.backgroundTasks,
     checkForUpdates: updateFlow.checkForUpdates,
     copyActionDiagnostic: (entry: ActionLogEntry) => copyActionDiagnostic(entry, updateFlow.setSettingsMessage, updateFlow.setSettingsError),
     copyDataBackupGuide: () => copyDataBackupGuide(diagnosticsStatus.diagnosticDataDir, updateFlow.setSettingsMessage, updateFlow.setSettingsError),
     copyDiagnosticsExport: () => copyDiagnosticsExport(updateFlow.setSettingsMessage, updateFlow.setSettingsError),
+    copyUpdateDiagnostic: updateFlow.copyUpdateDiagnostic,
     diagnosticDataDir: diagnosticsStatus.diagnosticDataDir,
     diagnosticError: diagnosticsStatus.diagnosticError,
     diagnosticManifestVersion: diagnosticsStatus.diagnosticManifestVersion,
     downloadUpdate: updateFlow.downloadUpdate,
     handleAiSettingsSaved: settingsModel.handleAiSettingsSaved,
     isRefreshingDiagnostics: diagnosticsStatus.isRefreshingDiagnostics,
+    initializeManifest: manifestStatusState.initializeManifest,
+    isInitializingManifest: manifestStatusState.isInitializingManifest,
+    isLoadingManifestStatus: manifestStatusState.isLoadingManifestStatus,
     loadActionLog: () => loadActionLog(actionLogState.setActionLog, updateFlow.setSettingsError),
+    manifestStatus: manifestStatusState.manifestStatus,
+    manifestStatusError: manifestStatusState.manifestStatusError,
+    openUpdateDownloadPage: updateFlow.openUpdateDownloadPage,
     quitAndInstallUpdate: updateFlow.quitAndInstallUpdate,
+    refreshManifestStatus: manifestStatusState.refreshManifestStatus,
     refreshDiagnostics: settingsModel.refreshDiagnostics,
     saveWriteActionsEnabled: settingsModel.saveWriteActionsEnabled,
     setActionLogResultFilter: actionLogState.setActionLogResultFilter,
@@ -58,6 +72,7 @@ export function useDiagnosticsSettings(input: {
     setWriteActionsEnabled: aiWriteSettings.setWriteActionsEnabled,
     settingsError: updateFlow.settingsError,
     settingsMessage: updateFlow.settingsMessage,
+    latestBackgroundTask: backgroundTaskState.latestBackgroundTask,
     updateSnapshot: updateFlow.updateSnapshot,
     writeActionsEnabled: aiWriteSettings.writeActionsEnabled
   };

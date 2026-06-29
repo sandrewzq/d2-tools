@@ -177,7 +177,7 @@ function mapPublicVendors(
   const sales = publicVendors?.sales?.data ?? {};
   const mapped = Object.entries(vendors).flatMap(([vendorKey, vendor]) => {
     const vendorHash = vendor.vendorHash ?? Number(vendorKey);
-    const vendorName = definitionName(definitions.vendors, vendorHash);
+    const vendorName = definitionName(definitions.vendors, vendorHash) ?? KEY_VENDOR_HASHES[vendorHash];
     if (!vendorName) {
       return [];
     }
@@ -189,7 +189,9 @@ function mapPublicVendors(
   });
 
   const keyVendors = mapped.filter((item) => isKeyVendor(item.title));
-  return uniqueByTitle(keyVendors.length ? keyVendors : mapped).slice(0, 10);
+  return uniqueByTitle(keyVendors.length ? keyVendors : mapped)
+    .sort((left, right) => vendorSortRank(left.title) - vendorSortRank(right.title))
+    .slice(0, 10);
 }
 
 function buildVendorItem(
@@ -216,6 +218,19 @@ const KEY_VENDOR_HASHES: Record<number, string> = {
   3902439767: "圣人-14",    // Saint-14
   2255782930: "拉乎尔大师", // Master Rahool
 };
+
+const KEY_VENDOR_ORDER = [
+  "老九",
+  "枪匠",
+  "艾达-1",
+  "圣人-14",
+  "拉乎尔大师"
+];
+
+function vendorSortRank(name: string): number {
+  const index = KEY_VENDOR_ORDER.findIndex((label) => name.includes(label) || label.includes(name));
+  return index >= 0 ? index : KEY_VENDOR_ORDER.length;
+}
 
 function vendorRoleLabel(name: string, vendorHash: number): string {
   if (vendorHash === 2190858386) return "异域商人 · 周五至周二出现";

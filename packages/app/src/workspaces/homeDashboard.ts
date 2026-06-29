@@ -11,10 +11,13 @@ export type HomeDashboardWorkspace = {
   state: StartupState;
   diagnosticRows: HomeDashboardDiagnosticRow[];
   diagnosticError: string;
+  accountError: string;
+  hasAccountData: boolean;
   dailySummary: DailySummary | null;
   dailyMessage: string;
   dailyError: string;
   isLoggingIn: boolean;
+  isLoadingAccount: boolean;
   isInitializingManifest: boolean;
   isRefreshingDiagnostics: boolean;
   isLoadingDaily: boolean;
@@ -23,6 +26,7 @@ export type HomeDashboardWorkspace = {
 export type HomeDashboardActions = {
   onConfigure: () => void;
   onLogin: () => void;
+  onLoadAccount: () => void;
   onInitializeManifest: () => void;
   onConfigureAi: () => void;
   onRefreshDiagnostics: () => void;

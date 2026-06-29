@@ -74,5 +74,8 @@ describe("Bungie activity history", () => {
         last_completed_at: "2026-06-19T00:00:00.000Z"
       }
     ]);
+    expect(summary.review.total_activities).toBe(3);
+    expect(summary.review.recent_10[0].activity_name).toBe("救赎花园");
+    expect(summary.review.recent_10[0].status_label).toBe("已完成");
   });
 });

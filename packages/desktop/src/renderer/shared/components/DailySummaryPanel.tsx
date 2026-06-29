@@ -68,6 +68,7 @@ export function DailySummaryPanel(props: {
               <small>下方标明 Bungie API、本地资料库或暂未接入状态。</small>
             </div>
           </div>
+          {renderDailySourceMatrix(dailySummary)}
           <div className="daily-board">
             <section className="daily-column">
               <div className="daily-brief">
@@ -127,6 +128,69 @@ export function DailySummaryPanel(props: {
           <p>今日面板读取中。</p>
         </section>
       )}
+    </section>
+  );
+}
+
+type DailySourceMatrixItem = {
+  key: string;
+  label: string;
+  status: DailySummary["sources"]["rotations"]["status"];
+  detail: string;
+  count?: number;
+};
+
+function renderDailySourceMatrix(dailySummary: DailySummary) {
+  const matrixItems: DailySourceMatrixItem[] = [
+    {
+      key: "milestones",
+      label: "Bungie 公共里程碑",
+      status: dailySummary.sources.rotations.status,
+      detail: "今日轮换 / 本周活动线索",
+      count: dailySummary.sources.rotations.items?.length ?? 0
+    },
+    {
+      key: "vendors",
+      label: "Bungie 公共商人",
+      status: dailySummary.sources.vendors.status,
+      detail: "关键商人库存和费用",
+      count: dailySummary.sources.vendors.items?.length ?? 0
+    },
+    {
+      key: "manifest",
+      label: "本地 Manifest",
+      status: dailySummary.sources.lost_sector.status,
+      detail: "遗失区域 fallback / 名称解析",
+      count: dailySummary.sources.lost_sector.items?.length ?? 0
+    },
+    {
+      key: "pending-weekly",
+      label: "待接入",
+      status: "pending",
+      detail: "夜幕 / 试炼 / 双倍奖励 / 图片化周报"
+    }
+  ];
+
+  return (
+    <section className="daily-source-matrix source-status-card source-status-neutral" aria-label="数据源矩阵">
+      <div className="daily-source-heading">
+        <strong>数据源矩阵</strong>
+        <span className="source-status-badge source-status-neutral">只展示可确认来源</span>
+      </div>
+      <div className="daily-source-matrix-grid">
+        {matrixItems.map((item) => (
+          <div className={"daily-source-matrix-item source-status-" + item.status} key={item.key}>
+            <div>
+              <strong>{item.label}</strong>
+              <span>{item.detail}</span>
+            </div>
+            <div className="daily-source-meta">
+              <span className={"source-status-badge source-status-" + item.status}>{formatDailySourceStatus(item.status)}</span>
+              {typeof item.count === "number" ? <span className="daily-source-count">{item.count} 条</span> : null}
+            </div>
+          </div>
+        ))}
+      </div>
     </section>
   );
 }

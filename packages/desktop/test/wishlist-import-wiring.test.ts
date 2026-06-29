@@ -29,7 +29,7 @@ describe("wishlist import wiring", () => {
     expect(client).toContain("saveDimWishlist");
     expect(client).toContain("clearDimWishlist");
     expect(accountHook).toContain("wishlist");
-    expect(accountHook).toContain("loadFullAccountWorkspace(services)");
+    expect(accountHook).toContain("loadAccountWorkspace(services)");
     expect(homePage).toContain("importedWishlist");
     expect(vaultPage).toContain("parseDimWishlist");
     expect(vaultPage).toContain("wishlistImportDraft");

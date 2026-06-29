@@ -31,7 +31,8 @@ describe("desktop workspace layout", () => {
     expect(homeDashboard).not.toContain("../daily/DailyPage");
     expect(homePage).not.toContain("function renderDailyPanel");
     expect(dailyPage).toContain("export function DailyPage");
-    expect(styles).toMatch(/\.home-workbench\s*{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1fr\)\s*minmax\(320px,\s*420px\);/);
+    expect(styles).toMatch(/\.home-workbench\s*{[\s\S]*?grid-template-columns:\s*minmax\(640px,\s*1fr\)\s*minmax\(280px,\s*360px\);/);
+    expect(styles).toMatch(/@media \(max-width:\s*1180px\)\s*{[\s\S]*?\.home-workbench\s*{[\s\S]*?grid-template-columns:\s*1fr;/);
     expect(styles).toMatch(/\.assistant-open \.home-workbench\s*{[\s\S]*?grid-template-columns:\s*1fr;/);
     expect(styles).toMatch(/\.assistant-open \.home-side-column\s*{[\s\S]*?position:\s*static;/);
   });
@@ -114,6 +115,25 @@ describe("desktop workspace layout", () => {
 
     expect(overviewMatches).toHaveLength(1);
     expect(homePage).not.toContain('activePage !== "home" ? (');
+  });
+
+  it("keeps home status cards compact and surfaces account read failures", () => {
+    const homePage = readFileSync(join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"), "utf8");
+    const homeDashboard = readFileSync(join(desktopRoot, "src", "renderer", "features", "home", "HomeDashboard.tsx"), "utf8");
+    const statusOverview = readFileSync(join(desktopRoot, "src", "renderer", "components", "StatusOverview.tsx"), "utf8");
+    const statusCard = readFileSync(join(desktopRoot, "src", "renderer", "components", "StatusCard.tsx"), "utf8");
+    const styles = readFileSync(join(desktopRoot, "src", "renderer", "styles.css"), "utf8");
+
+    expect(homePage).toContain("accountError");
+    expect(homePage).toContain("hasAccountData: Boolean(accountSummary)");
+    expect(homeDashboard).toContain("accountError");
+    expect(homeDashboard).toContain("hasAccountData");
+    expect(statusOverview).toContain("accountError");
+    expect(statusOverview).toContain("账号数据读取失败");
+    expect(statusOverview).toContain("重试读取");
+    expect(statusCard).toContain("status-card-action");
+    expect(styles).toMatch(/\.status-card\s*{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1fr\);/);
+    expect(styles).toMatch(/\.status-card-action\s*{[\s\S]*?justify-self:\s*start;/);
   });
 
   it("keeps vault page composition thin and moved into the app workspace", () => {

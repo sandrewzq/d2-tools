@@ -1,0 +1,178 @@
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { describe, expect, it } from "vitest";
+
+const desktopRoot = fileURLToPath(new URL("..", import.meta.url));
+const repoRoot = fileURLToPath(new URL("../../..", import.meta.url));
+
+describe("product shell background task wiring", () => {
+  it("keeps todo as a numbered task directory", () => {
+    const todo = readFileSync(join(repoRoot, "docs", "todo.md"), "utf8");
+
+    expect(todo).toContain("| 编号 | 优先级 | 状态 | 任务 | Backlog | 下一步 |");
+    expect(todo).toContain("| T1 |");
+    expect(todo).toContain("| T2 |");
+    expect(todo).toContain("产品级桌面外壳、更新与后台任务");
+    expect(todo).toContain("架构维护与边界防回退");
+  });
+
+  it("exposes background task IPC through preload and renderer API contracts", () => {
+    const ipcRegister = readFileSync(join(desktopRoot, "src", "main", "ipc.ts"), "utf8");
+    const preload = readFileSync(join(desktopRoot, "src", "preload", "preload.ts"), "utf8");
+    const apiTypes = readFileSync(join(desktopRoot, "src", "renderer", "api", "types.ts"), "utf8");
+
+    expect(ipcRegister).toContain("registerBackgroundTaskIpcHandlers()");
+    expect(preload).toContain("getBackgroundTasks");
+    expect(preload).toContain("onBackgroundTasksChanged");
+    expect(apiTypes).toContain("BackgroundTaskApi");
+    expect(apiTypes).toContain("export type * from \"./backgroundTaskApi\"");
+  });
+
+  it("subscribes to background tasks at the product shell and renders global task status", () => {
+    const homePage = readFileSync(join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"), "utf8");
+    const shellLayout = readFileSync(join(desktopRoot, "src", "renderer", "components", "ShellLayout.tsx"), "utf8");
+    const settingsPage = readFileSync(join(desktopRoot, "src", "renderer", "features", "settings", "SettingsPage.tsx"), "utf8");
+    const diagnosticsHook = readFileSync(join(desktopRoot, "src", "renderer", "features", "settings", "useDiagnosticsSettings.ts"), "utf8");
+    const backgroundHook = readFileSync(join(desktopRoot, "src", "renderer", "shared", "hooks", "useBackgroundTasks.ts"), "utf8");
+
+    expect(backgroundHook).toContain("api.getBackgroundTasks()");
+    expect(backgroundHook).toContain("api.onBackgroundTasksChanged");
+    expect(diagnosticsHook).toContain("useBackgroundTasks");
+    expect(homePage).toContain("global-background-task-banner");
+    expect(homePage).toContain("shellStatus={");
+    expect(shellLayout).toContain("global-shell-status");
+    expect(homePage).toContain("应用版本");
+    expect(homePage).toContain("资料库");
+    expect(homePage).toContain("后台任务");
+    expect(homePage).toContain("backgroundTasks: diagnostics.backgroundTasks");
+    expect(settingsPage).toContain("后台任务");
+    expect(settingsPage).toContain("settings-background-tasks");
+    expect(settingsPage).toContain("formatBackgroundTaskStatus");
+    expect(settingsPage).toContain("formatBackgroundTaskTime");
+  });
+
+  it("moves application update and manifest work onto application-level tasks", () => {
+    const main = readFileSync(join(desktopRoot, "src", "main", "main.ts"), "utf8");
+    const updatesIpc = readFileSync(join(desktopRoot, "src", "main", "ipc", "updates.ts"), "utf8");
+    const manifestIpc = readFileSync(join(desktopRoot, "src", "main", "ipc", "manifest.ts"), "utf8");
+
+    expect(main).toContain("scheduleInitialManifestVersionCheck()");
+    expect(updatesIpc).toContain("startBackgroundTask");
+    expect(updatesIpc).toContain("app-update-check");
+    expect(updatesIpc).toContain("UPDATE_RETRY_DELAYS_MS");
+    expect(updatesIpc).toContain("getUpdateRetryDelaysMs");
+    expect(updatesIpc).toContain("Number.POSITIVE_INFINITY");
+    expect(manifestIpc).toContain("startBackgroundTask");
+    expect(manifestIpc).toContain("manifest-update");
+    expect(manifestIpc).toContain("manifest-version-check");
+    expect(manifestIpc).toContain("checkManifestVersion");
+    expect(manifestIpc).toContain("scheduleInitialManifestVersionCheck");
+  });
+
+  it("runs account refresh as an application-level background task and defers derived analysis", () => {
+    const accountIpc = readFileSync(join(desktopRoot, "src", "main", "ipc", "account.ts"), "utf8");
+    const activitiesIpc = readFileSync(join(desktopRoot, "src", "main", "ipc", "activities.ts"), "utf8");
+    const communityIpc = readFileSync(join(desktopRoot, "src", "main", "ipc", "community.ts"), "utf8");
+    const accountHook = readFileSync(
+      join(desktopRoot, "src", "renderer", "features", "account", "useAccountWorkspace.ts"),
+      "utf8"
+    );
+
+    expect(accountIpc).toContain("startBackgroundTask");
+    expect(accountIpc).toContain("account-sync");
+    expect(accountIpc).toContain("accountSummaryPromise");
+    expect(activitiesIpc).toContain("startBackgroundTask");
+    expect(activitiesIpc).toContain("account-activity");
+    expect(activitiesIpc).not.toContain('type: "account-sync"');
+    expect(communityIpc).toContain("startBackgroundTask");
+    expect(communityIpc).toContain("community-analysis");
+    expect(accountHook).toContain("loadAccountWorkspace(services)");
+    expect(accountHook).toContain("void loadActivitySummary(summary)");
+    expect(accountHook).not.toContain("loadFullAccountWorkspace");
+  });
+
+  it("summarizes multiple running tasks in the global banner instead of hiding the count", () => {
+    const homePage = readFileSync(join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"), "utf8");
+
+    expect(homePage).toContain("activeBackgroundTaskCount");
+    expect(homePage).toContain("formatVisibleBackgroundTaskTitle");
+    expect(homePage).toContain("个运行中");
+  });
+
+  it("automatically upgrades stale or incomplete manifest data in the background", () => {
+    const manifestIpc = readFileSync(join(desktopRoot, "src", "main", "ipc", "manifest.ts"), "utf8");
+    const manifestApi = readFileSync(join(desktopRoot, "src", "renderer", "api", "manifestApi.ts"), "utf8");
+    const libraryHook = readFileSync(
+      join(desktopRoot, "src", "renderer", "features", "library", "useLibraryWorkspace.ts"),
+      "utf8"
+    );
+    const libraryPage = readFileSync(
+      join(desktopRoot, "src", "renderer", "features", "library", "LibraryPage.tsx"),
+      "utf8"
+    );
+    const homePage = readFileSync(join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"), "utf8");
+
+    expect(manifestIpc).toContain("shouldAutoUpdateManifest");
+    expect(manifestIpc).toContain("lastManifestVersionStatus");
+    expect(manifestIpc).toContain("mergeManifestVersionStatus");
+    expect(manifestIpc).toContain("status.needs_update");
+    expect(manifestIpc).toContain("status.missing_required_components");
+    expect(manifestIpc).toContain("initializeManifestWithBackgroundTask()");
+    expect(manifestApi).toContain("latest_version?: string");
+    expect(manifestApi).toContain("needs_update?: boolean");
+    expect(manifestApi).toContain("checked_at?: string");
+    expect(libraryHook).toContain("manifestStatus");
+    expect(libraryHook).toContain("useManifestStatus");
+    expect(libraryPage).toContain("library-manifest-alert");
+    expect(libraryPage).toContain("isManifestBlocked");
+    expect(libraryPage).toContain("disabled={props.isSearching || isManifestBlocked}");
+    expect(libraryPage).toContain("资料库更新完成前暂不可搜索");
+    expect(libraryPage).toContain("资料库不是最新版本");
+    expect(libraryPage).toContain("缺少必要资料库组件");
+    expect(libraryPage).toContain("后台更新资料库");
+    expect(homePage).toContain("manifestStatus: library.manifestStatus");
+    expect(homePage).toContain("onRefreshManifestStatus: () => void library.refreshManifestStatus()");
+    expect(homePage).toContain("onInitializeManifest: () => void library.initializeManifest()");
+  });
+
+  it("shares manifest status UI state across library and settings pages", () => {
+    const sharedHookPath = join(
+      desktopRoot,
+      "src",
+      "renderer",
+      "shared",
+      "hooks",
+      "useManifestStatus.ts"
+    );
+    const settingsHook = readFileSync(
+      join(desktopRoot, "src", "renderer", "features", "settings", "useDiagnosticsSettings.ts"),
+      "utf8"
+    );
+    const libraryHook = readFileSync(
+      join(desktopRoot, "src", "renderer", "features", "library", "useLibraryWorkspace.ts"),
+      "utf8"
+    );
+    const settingsPage = readFileSync(
+      join(desktopRoot, "src", "renderer", "features", "settings", "SettingsPage.tsx"),
+      "utf8"
+    );
+    const homePage = readFileSync(join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"), "utf8");
+
+    expect(existsSync(sharedHookPath)).toBe(true);
+    const sharedHook = readFileSync(sharedHookPath, "utf8");
+    expect(sharedHook).toContain("api.getManifestStatus()");
+    expect(sharedHook).toContain("api.initializeManifest()");
+    expect(libraryHook).toContain("useManifestStatus");
+    expect(settingsHook).toContain("useManifestStatus");
+    expect(settingsPage).toContain("settings-manifest-panel");
+    expect(settingsPage).toContain("资料库状态");
+    expect(settingsPage).toContain("本地 Manifest");
+    expect(settingsPage).toContain("最新 Manifest");
+    expect(settingsPage).toContain("资料库日期");
+    expect(settingsPage).toContain("必要组件");
+    expect(homePage).toContain("manifestStatus: diagnostics.manifestStatus");
+    expect(homePage).toContain("onRefreshManifestStatus: () => void diagnostics.refreshManifestStatus()");
+    expect(homePage).toContain("onInitializeManifest: () => void diagnostics.initializeManifest()");
+  });
+});

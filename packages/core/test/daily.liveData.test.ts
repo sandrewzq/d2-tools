@@ -134,6 +134,25 @@ describe("daily live data mapping", () => {
     expect(liveData.vendors[0].description).toContain("守誓者（臂铠，异域；23 奇异硬币）");
   });
 
+  it("uses known key vendor labels when vendor definitions are missing", () => {
+    const liveData = buildDailyLiveDataFromBungie({
+      publicVendors: {
+        vendors: {
+          data: {
+            "2190858386": { vendorHash: 2190858386 },
+            "672118013": { vendorHash: 672118013 }
+          }
+        },
+        sales: { data: {} }
+      },
+      definitions: {}
+    });
+
+    expect(liveData.vendors.map((item) => item.title)).toEqual(["老九", "枪匠"]);
+    expect(liveData.vendors[0].subtitle).toBe("异域商人 · 周五至周二出现");
+    expect(liveData.vendors[1].subtitle).toBe("枪匠 · 每日模组刷新");
+  });
+
   it("uses milestone definitions when public milestone payload omits display names", () => {
     const liveData = buildDailyLiveDataFromBungie({
       milestones: {
@@ -181,7 +200,7 @@ describe("daily live data mapping", () => {
     expect(text).not.toContain("里程碑 540415767");
     expect(text).not.toContain("商人 2190858386");
     expect(liveData.rotations).toEqual([]);
-    expect(liveData.vendors).toEqual([]);
+    expect(liveData.vendors.map((item) => item.title)).toEqual(["老九"]);
     expect(liveData.weekly_report).toEqual([]);
   });
 });

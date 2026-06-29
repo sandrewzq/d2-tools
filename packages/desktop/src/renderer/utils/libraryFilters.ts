@@ -8,6 +8,10 @@ import type {
 export type LibraryViewMode = "equipment" | "perks";
 export type LibraryEquipmentGroupFilter = EquipmentGroupKey | "all";
 export type LibraryRelatedItemsFilter = "all" | "yes" | "no";
+export type LibrarySourceStatusFilter = ItemSearchResult["source"]["status"] | "all";
+export type LibraryPerkPoolFilter = "all" | "yes" | "no";
+export type LibraryDropAccessKey = "available" | "rotation" | "archived" | "unknown";
+export type LibraryDropAccessFilter = LibraryDropAccessKey | "all";
 
 export type LibraryEquipmentFilter = {
   query: string;
@@ -16,6 +20,10 @@ export type LibraryEquipmentFilter = {
   bucket: string;
   ammo: AmmoTypeKey | "all";
   frame: string[];
+  sourceStatus: LibrarySourceStatusFilter;
+  perkPool: LibraryPerkPoolFilter;
+  dropAccess: LibraryDropAccessFilter;
+  perkQuery: string;
 };
 
 export type LibraryPerkFilter = {
@@ -37,6 +45,13 @@ export type LibraryEquipmentFilterOptions = {
   frames: LibraryFilterOption[];
 };
 
+export type LibraryDropQueryGroup = {
+  key: LibraryDropAccessKey;
+  label: string;
+  description: string;
+  items: ItemSearchResult[];
+};
+
 const groupLabels: Record<LibraryEquipmentGroupFilter, string> = {
   all: "全部分类",
   weapons: "武器",
@@ -49,7 +64,7 @@ const groupOrder: LibraryEquipmentGroupFilter[] = ["all", "weapons", "armor", "e
 
 const ammoLabels: Record<AmmoTypeKey, string> = {
   primary: "主弹",
-  special: "特弹",
+  special: "特殊",
   heavy: "重弹"
 };
 
@@ -61,7 +76,11 @@ export const defaultLibraryEquipmentFilter: LibraryEquipmentFilter = {
   tier: "all",
   bucket: "all",
   ammo: "all",
-  frame: []
+  frame: [],
+  sourceStatus: "all",
+  perkPool: "all",
+  dropAccess: "all",
+  perkQuery: ""
 };
 
 export const defaultLibraryPerkFilter: LibraryPerkFilter = {
@@ -75,6 +94,10 @@ export function filterLibraryEquipmentItems(
   filter: LibraryEquipmentFilter
 ): ItemSearchResult[] {
   const query = filter.query.trim().toLocaleLowerCase();
+  const sourceStatus = filter.sourceStatus ?? "all";
+  const perkPool = filter.perkPool ?? "all";
+  const dropAccess = filter.dropAccess ?? "all";
+  const perkTokens = splitQueryTokens(filter.perkQuery ?? "");
 
   return items.filter((item) => {
     if (filter.group !== "all" && item.group_key !== filter.group) return false;
@@ -82,6 +105,11 @@ export function filterLibraryEquipmentItems(
     if (filter.bucket !== "all" && item.bucket_name !== filter.bucket) return false;
     if (filter.ammo !== "all" && item.ammo_type !== filter.ammo) return false;
     if (filter.frame.length && !filter.frame.includes(item.weapon_frame?.key ?? "")) return false;
+    if (sourceStatus !== "all" && item.source.status !== sourceStatus) return false;
+    if (perkPool === "yes" && !hasDisplayablePerkPool(item)) return false;
+    if (perkPool === "no" && hasDisplayablePerkPool(item)) return false;
+    if (dropAccess !== "all" && classifyLibraryDropAccess(item) !== dropAccess) return false;
+    if (perkTokens.length && !matchesPerkQuery(item, perkTokens)) return false;
     if (!query) return true;
 
     return [
@@ -91,11 +119,44 @@ export function filterLibraryEquipmentItems(
       item.tier,
       item.bucket_name,
       item.weapon_frame?.name,
+      item.source.description,
       ...(item.perks ?? []).flatMap((group) => group.plugs.map((plug) => plug.name))
     ]
       .filter(Boolean)
       .some((value) => value?.toLocaleLowerCase().includes(query));
   });
+}
+
+export function classifyLibraryDropAccess(item: ItemSearchResult): LibraryDropAccessKey {
+  if (item.source.status !== "ready") {
+    return "unknown";
+  }
+
+  const sourceText = item.source.description.toLocaleLowerCase();
+  if (matchesAnyKeyword(sourceText, archivedSourceKeywords)) {
+    return "archived";
+  }
+  if (matchesAnyKeyword(sourceText, rotationSourceKeywords)) {
+    return "rotation";
+  }
+  return "available";
+}
+
+export function groupLibraryDropQueryItems(items: ItemSearchResult[]): LibraryDropQueryGroup[] {
+  const groupMap: Record<LibraryDropAccessKey, ItemSearchResult[]> = {
+    available: [],
+    rotation: [],
+    archived: [],
+    unknown: []
+  };
+
+  for (const item of items) {
+    groupMap[classifyLibraryDropAccess(item)].push(item);
+  }
+
+  return dropAccessGroups
+    .map((group) => ({ ...group, items: groupMap[group.key] }))
+    .filter((group) => group.items.length);
 }
 
 export function filterLibraryPerks(perks: PerkSearchResult[], filter: LibraryPerkFilter): PerkSearchResult[] {
@@ -184,4 +245,82 @@ function uniqueInOrder(values: Array<string | undefined>): string[] {
   }
 
   return result;
+}
+
+const rotationSourceKeywords = [
+  "rotation",
+  "rotator",
+  "iron banner",
+  "trials",
+  "nightfall",
+  "grandmaster",
+  "weekly",
+  "轮换",
+  "每周",
+  "铁旗",
+  "试炼",
+  "夜幕",
+  "宗师",
+  "活动期间"
+];
+
+const archivedSourceKeywords = [
+  "no longer",
+  "unavailable",
+  "legacy",
+  "archive",
+  "sunset",
+  "已下架",
+  "不再",
+  "不可获取",
+  "纪念碑",
+  "传承"
+];
+
+const dropAccessGroups: Array<Omit<LibraryDropQueryGroup, "items">> = [
+  {
+    key: "available",
+    label: "来源可确认",
+    description: "来源字段可确认，但不等同于当前在线可刷；实时活动或商人轮换接入前只作为刷取线索。"
+  },
+  {
+    key: "rotation",
+    label: "等轮换",
+    description: "来源说明包含铁旗、试炼、夜幕、每周或轮换类线索，需要结合当前轮换复查。"
+  },
+  {
+    key: "archived",
+    label: "已下架或待确认",
+    description: "来源说明显示不可获取、传承或下架状态。"
+  },
+  {
+    key: "unknown",
+    label: "来源待补",
+    description: "本地 Manifest 暂未提供可确认来源。"
+  }
+];
+
+function hasDisplayablePerkPool(item: ItemSearchResult): boolean {
+  return item.perks?.some((group) => group.plugs.length) ?? false;
+}
+
+function matchesPerkQuery(item: ItemSearchResult, perkTokens: string[]): boolean {
+  const perkNames = (item.perks ?? [])
+    .flatMap((group) => group.plugs)
+    .map((plug) => plug.name.toLocaleLowerCase())
+    .join(" ");
+
+  return perkTokens.every((token) => perkNames.includes(token));
+}
+
+function splitQueryTokens(query: string): string[] {
+  return query
+    .trim()
+    .toLocaleLowerCase()
+    .split(/\s+/)
+    .filter(Boolean);
+}
+
+function matchesAnyKeyword(value: string, keywords: string[]): boolean {
+  return keywords.some((keyword) => value.includes(keyword));
 }

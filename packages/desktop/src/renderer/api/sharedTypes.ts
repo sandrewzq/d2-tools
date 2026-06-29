@@ -14,7 +14,15 @@ export type {
 } from "@d2-tools/core/account/summary";
 export type { ArmorStatKey } from "@d2-tools/core/loadouts/analysis";
 export type { ItemPerkGroup, ItemPlugSummary } from "@d2-tools/core/items/perks";
+export type { LiveItemAvailability } from "@d2-tools/core/items/liveAvailability";
 export type { ItemSourceSummary } from "@d2-tools/core/items/source";
+export type {
+  BuildGuideLoadoutDraft,
+  BuildGuideMatchResult,
+  BuildGuideParseResult,
+  BuildGuideRequirement,
+  BuildGuideTaskState
+} from "@d2-tools/core/assistant/guideSchema";
 export type { VaultItemMatchInfo, WeaponRecommendation };
 
 export type AiAdviceSections = {

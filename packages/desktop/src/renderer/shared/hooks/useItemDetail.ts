@@ -49,6 +49,8 @@ type ItemOpenContext = {
   isCurrent: () => boolean;
 };
 
+const ITEM_DETAIL_CACHE_LIMIT = 80;
+
 export function useItemDetail(options: {
   onOpenStart?: (context: ItemOpenContext) => void;
   onRecentHistoryChanged?: (history: LibraryHistory) => void;
@@ -81,7 +83,9 @@ export function useItemDetail(options: {
         // Recent-item history is a convenience feature; item detail should still open if it cannot be saved.
       });
 
-    const cachedDetail = itemDetailCacheRef.current.get(item.hash);
+    const cachedDetail = itemDetailCacheRef.current.get(item.hash)
+      ? touchItemDetailCache(itemDetailCacheRef.current, item.hash)
+      : null;
     if (cachedDetail) {
       setSelectedItem((current) => {
         if (!current || current.item_key !== itemKey) {
@@ -96,6 +100,7 @@ export function useItemDetail(options: {
     try {
       const detail = await api.getItemDetail(item.hash);
       itemDetailCacheRef.current.set(item.hash, detail);
+      evictOldestItemDetailCacheEntry(itemDetailCacheRef);
       if (itemDetailRequestKeyRef.current !== itemKey) {
         return;
       }
@@ -126,6 +131,28 @@ export function useItemDetail(options: {
     openItemDetail,
     closeSelectedItemDetail
   };
+}
+
+function touchItemDetailCache(
+  cache: Map<number, ItemDefinitionDetail>,
+  hash: number
+): ItemDefinitionDetail | null {
+  const detail = cache.get(hash);
+  if (!detail) return null;
+
+  cache.delete(hash);
+  cache.set(hash, detail);
+  return detail;
+}
+
+function evictOldestItemDetailCacheEntry(
+  itemDetailCacheRef: { current: Map<number, ItemDefinitionDetail> }
+): void {
+  while (itemDetailCacheRef.current.size > ITEM_DETAIL_CACHE_LIMIT) {
+    const oldestKey = itemDetailCacheRef.current.keys().next().value;
+    if (oldestKey === undefined) return;
+    itemDetailCacheRef.current.delete(oldestKey);
+  }
 }
 
 export function selectedItemToAccountItem(item: SelectedItemDetail): AccountItemSummary | null {

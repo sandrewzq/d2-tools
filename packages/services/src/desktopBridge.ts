@@ -7,6 +7,7 @@ import type { VaultItemMatchInfo, WeaponRecommendation } from "@d2-tools/core/co
 import type { VaultTags, SaveVaultNoteInput, SaveVaultTagInput } from "@d2-tools/core/vault/tags";
 import type { AiChatReplyResult, AiChatRequest } from "./types.js";
 import type { D2Services } from "./contracts.js";
+import { createD2SkillService } from "./d2SkillService.js";
 
 export type DesktopBridgeApi = {
   getAccountSummary(): Promise<AccountSummary>;
@@ -29,16 +30,12 @@ export type DesktopBridgeApi = {
 };
 
 export function createDesktopBridgeServices(api: DesktopBridgeApi): D2Services {
-  return {
-    profile: {
+  const profile: D2Services["profile"] = {
       getAccountSummary: () => api.getAccountSummary(),
       getActivitySummary: (input) => api.getActivitySummary(input),
       matchCommunityVaultItems: (items) => api.matchCommunityVaultItems(items)
-    },
-    manifest: {
-      getDefinition: async () => null
-    },
-    localData: {
+    };
+  const localData: D2Services["localData"] = {
       getDimWishlist: () => api.getDimWishlist(),
       saveDimWishlist: (wishlist) => api.saveDimWishlist(wishlist),
       clearDimWishlist: () => api.clearDimWishlist(),
@@ -52,7 +49,15 @@ export function createDesktopBridgeServices(api: DesktopBridgeApi): D2Services {
       getLocalTargetRules: () => api.getLocalTargetRules(),
       saveLocalTargetRules: (rules) => api.saveLocalTargetRules(rules),
       clearLocalTargetRules: () => api.clearLocalTargetRules()
+    };
+
+  return {
+    profile,
+    manifest: {
+      getDefinition: async () => null
     },
+    localData,
+    d2Skill: createD2SkillService({ profile, localData }),
     ai: {
       sendChat: (input) => api.sendAiChat(input)
     }

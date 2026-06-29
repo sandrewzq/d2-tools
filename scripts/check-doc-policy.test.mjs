@@ -1,12 +1,11 @@
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { collectDocPolicyErrors } from "./check-doc-policy.mjs";
 
 function createDocsRoot() {
   const root = mkdtempSync(join(tmpdir(), "d2-doc-policy-"));
-  mkdirSync(join(root, "docs", "work", "archive"), { recursive: true });
   mkdirSync(join(root, "docs", "work", "backlog"), { recursive: true });
   mkdirSync(join(root, "docs", "work", "references"), { recursive: true });
 
@@ -48,6 +47,17 @@ describe("collectDocPolicyErrors", () => {
     const errors = collectDocPolicyErrors(root, []);
 
     expect(errors).toEqual([]);
+  });
+
+  it("rejects archive work documents", () => {
+    const root = createDocsRoot();
+    mkdirSync(join(root, "docs", "work", "archive"), { recursive: true });
+    writeFileSync(join(root, "docs", "work", "archive", "old.md"), "# old\n", "utf8");
+
+    const errors = collectDocPolicyErrors(root, []);
+
+    expect(errors).toContain("Unexpected docs/work directory: docs/work/archive. Use backlog or references.");
+    expect(errors).toContain("Work document is outside an allowed category: docs/work/archive/old.md");
   });
 
   it("rejects stray temp logs in the repository root", () => {

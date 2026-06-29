@@ -1,30 +1,13 @@
+import { homePageFocus, homePageLabels, type HomePageKey } from "@d2-tools/app";
 import type { AccountSummary } from "../../../api/client";
 
-export type AssistantPageKey = "home" | "account" | "vault" | "loadouts" | "library" | "settings";
+export type AssistantPageKey = HomePageKey;
 
 export type AssistantPageContext = {
   page_key: AssistantPageKey;
   page_label: string;
   focus: string;
   facts: string[];
-};
-
-const pageLabels: Record<AssistantPageKey, string> = {
-  home: "首页",
-  account: "账号",
-  vault: "仓库",
-  loadouts: "配装",
-  library: "资料库",
-  settings: "设置"
-};
-
-const pageFocus: Record<AssistantPageKey, string> = {
-  home: "当前正在查看首页，应优先分析今日状态、奖励进度、数据缺口和下一步入口。",
-  account: "当前正在查看账号页，应优先分析当前角色、背包装备、邮政官、材料和账号状态。",
-  vault: "当前正在查看仓库页，应优先分析仓库筛选、标签、同名装备、保留和清理问题。",
-  loadouts: "当前正在查看配装页，应优先分析当前配装方案、缺失装备、转移计划和替代方案。",
-  library: "当前正在查看资料库页，应优先分析物品定义、perk、最近查看和收藏资料。",
-  settings: "当前正在查看设置页，应优先分析配置状态、AI 设置、写操作开关、更新和诊断信息。"
 };
 
 export function buildAssistantPageContext(input: {
@@ -56,8 +39,8 @@ export function buildAssistantPageContext(input: {
 
   return {
     page_key: input.activePage,
-    page_label: pageLabels[input.activePage],
-    focus: pageFocus[input.activePage],
+    page_label: homePageLabels[input.activePage],
+    focus: homePageFocus[input.activePage],
     facts
   };
 }

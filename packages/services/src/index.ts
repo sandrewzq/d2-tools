@@ -1,4 +1,9 @@
 export type {
+  D2SkillService,
+  D2SkillGuideContext
+} from "./d2SkillService.js";
+export { collectBuildGuideAccountItems, createD2SkillService } from "./d2SkillService.js";
+export type {
   AiService,
   D2Services,
   LocalDataService,

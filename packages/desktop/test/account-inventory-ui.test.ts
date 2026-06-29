@@ -78,7 +78,7 @@ describe("account inventory UI", () => {
     expect(accountPage).toContain("方案命中");
   });
 
-  it("auto-loads account data when startup says login is ready", () => {
+  it("auto-loads account data only when Bungie config and account login are ready", () => {
     const homePage = readFileSync(
       join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"),
       "utf8"
@@ -90,9 +90,35 @@ describe("account inventory UI", () => {
     );
 
     expect(homePage).toContain("hasAutoLoadedAccount");
-    expect(homePage).toContain('props.state.nextStep !== "home"');
+    expect(homePage).toContain("canRefreshAccount");
+    expect(homePage).toContain('props.state.cards.bungieConfig.status === "ready"');
+    expect(homePage).toContain('props.state.cards.account.status === "ready"');
     expect(homePage).toContain("void loadAccountSummary()");
     expect(accountHook).toContain("登录可能已失效，请重新登录 Bungie");
+  });
+
+  it("shows a clear disconnected account state before Bungie is configured", () => {
+    const accountPage = readFileSync(
+      join(desktopRoot, "src", "renderer", "features", "account", "AccountPage.tsx"),
+      "utf8"
+    );
+    const homePage = readFileSync(
+      join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"),
+      "utf8"
+    );
+    const accountHook = readFileSync(
+      join(desktopRoot, "src", "renderer", "features", "account", "useAccountWorkspace.ts"),
+      "utf8"
+    );
+
+    expect(accountPage).toContain("未连接 Bungie");
+    expect(accountPage).toContain("onConfigureBungie");
+    expect(accountPage).toContain("去设置 Bungie");
+    expect(accountPage).toContain("onLoginBungie");
+    expect(accountPage).toContain("登录 Bungie");
+    expect(homePage).toContain("onConfigureBungie: props.onConfigure");
+    expect(homePage).toContain("onLoginBungie: () => void loginBungie()");
+    expect(accountHook).toContain("请先在设置里填写 Bungie API Key、Client ID 和 Client Secret");
   });
 
   it("loads account workspace through the shared app and services layers", () => {
@@ -101,10 +127,11 @@ describe("account inventory UI", () => {
       "utf8"
     );
 
-    expect(accountHook).toContain('import { loadFullAccountWorkspace, loadAccountDerivedWorkspace } from "@d2-tools/app"');
+    expect(accountHook).toContain('import { loadAccountWorkspace, loadAccountDerivedWorkspace } from "@d2-tools/app"');
     expect(accountHook).toContain('import { services } from "../../api/services"');
-    expect(accountHook).toContain("loadFullAccountWorkspace(services)");
+    expect(accountHook).toContain("loadAccountWorkspace(services)");
     expect(accountHook).toContain("loadAccountDerivedWorkspace(services, summary)");
+    expect(accountHook).not.toContain("loadFullAccountWorkspace");
     expect(accountHook).not.toContain("api.getAccountSummary(), api.getVaultTags()");
     expect(accountHook).not.toContain("api.getActivitySummary({");
     expect(accountHook).not.toContain("api.matchCommunityVaultItems(");
@@ -150,5 +177,18 @@ describe("account inventory UI", () => {
     expect(accountPage).toContain("账号概览");
     expect(styles).toContain(".account-page-nav");
     expect(styles).toContain(".account-page-main");
+  });
+
+  it("keeps account item rendering bounded and lazy-loads item icons", () => {
+    const accountPage = readFileSync(
+      join(desktopRoot, "src", "renderer", "features", "account", "AccountPage.tsx"),
+      "utf8"
+    );
+
+    expect(accountPage).toContain("ACCOUNT_SLOT_PREVIEW_LIMIT");
+    expect(accountPage).toContain("items.slice(0, ACCOUNT_SLOT_PREVIEW_LIMIT)");
+    expect(accountPage).toContain("hiddenItemCount");
+    expect(accountPage).toContain("显示全部");
+    expect(accountPage).toContain('loading="lazy"');
   });
 });

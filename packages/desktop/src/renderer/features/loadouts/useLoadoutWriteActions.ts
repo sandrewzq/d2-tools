@@ -3,6 +3,7 @@ import {
   api,
   type AccountItemSummary,
   type AccountSummary,
+  type BuildGuideLoadoutDraft,
   type D2Config,
   type ItemActionResult,
   type LoadoutTemplate
@@ -104,6 +105,30 @@ export function useLoadoutWriteActions(input: {
       input.setLoadoutMessage(buildSaveCharacterLoadoutSuccessMessage(template.name));
     } catch (error) {
       input.setLoadoutMessage(error instanceof Error ? error.message : "配装模板保存失败");
+    }
+  }
+
+  async function saveGuideDraft(draft: BuildGuideLoadoutDraft) {
+    input.setLoadoutMessage("");
+    try {
+      const template = await api.createLoadoutTemplate({
+        name: draft.name,
+        character_id: draft.character_id,
+        class_name: draft.class_name ?? "未知职业",
+        equipped_items: draft.items.map((item) => ({
+          hash: item.hash,
+          instance_id: item.instance_id,
+          name: item.name,
+          bucket_name: item.bucket_name,
+          item_type: item.item_type,
+          group_key: "other",
+          socket_plugs: []
+        }))
+      });
+      await input.loadoutLibrary.reloadTemplates();
+      input.setLoadoutMessage(`已保存小日向草稿：${template.name}`);
+    } catch (error) {
+      input.setLoadoutMessage(error instanceof Error ? error.message : "小日向草稿保存失败");
     }
   }
 
@@ -672,6 +697,7 @@ export function useLoadoutWriteActions(input: {
 
   return {
     saveCharacterLoadout,
+    saveGuideDraft,
     equipHighestPowerItems,
     equipSavedLoadout,
     snapshotCurrentLoadout,

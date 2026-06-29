@@ -203,7 +203,13 @@ export {
   selectDuplicateGroupItems,
   selectVaultActionableItems
 } from "./workspaces/vaultActions.js";
-export type { HomePageDerivedState, HomePageKey, AssistantPageContext } from "./workspaces/homePage.js";
+export type { HomePageKey } from "./workspaces/pageMetadata.js";
+export { homePageFocus, homePageLabels, homePageMetaMap } from "./workspaces/pageMetadata.js";
+export type { HomePageDerivedState, AssistantPageContext } from "./workspaces/homePage.js";
 export { createHomePageDerivedState, resolvePageMeta, buildLoadoutContextFacts, buildLibraryContextFacts } from "./workspaces/homePage.js";
 export type { AssistantWorkspace, AssistantWorkspaceInput } from "./workspaces/assistant.js";
 export { sendAssistantMessage } from "./workspaces/assistant.js";
+export type { D2SkillWorkspace } from "./workspaces/d2Skill.js";
+export { loadD2SkillWorkspace, matchD2SkillBuildGuide } from "./workspaces/d2Skill.js";
+export type { KohinataBuildGuideTaskInput } from "./workspaces/kohinataBot.js";
+export { createKohinataBuildGuideTask } from "./workspaces/kohinataBot.js";

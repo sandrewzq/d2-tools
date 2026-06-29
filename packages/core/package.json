@@ -30,6 +30,22 @@
       "types": "./dist/ai/settings.d.ts",
       "import": "./dist/ai/settings.js"
     },
+    "./assistant/guideSchema": {
+      "types": "./dist/assistant/guideSchema.d.ts",
+      "import": "./dist/assistant/guideSchema.js"
+    },
+    "./assistant/guideParsing": {
+      "types": "./dist/assistant/guideParsing.d.ts",
+      "import": "./dist/assistant/guideParsing.js"
+    },
+    "./assistant/guideMatching": {
+      "types": "./dist/assistant/guideMatching.d.ts",
+      "import": "./dist/assistant/guideMatching.js"
+    },
+    "./assistant/loadoutDraft": {
+      "types": "./dist/assistant/loadoutDraft.d.ts",
+      "import": "./dist/assistant/loadoutDraft.js"
+    },
     "./actions/plan": {
       "types": "./dist/actions/plan.d.ts",
       "import": "./dist/actions/plan.js"
@@ -62,6 +78,10 @@
       "types": "./dist/items/source.d.ts",
       "import": "./dist/items/source.js"
     },
+    "./items/liveAvailability": {
+      "types": "./dist/items/liveAvailability.d.ts",
+      "import": "./dist/items/liveAvailability.js"
+    },
     "./library/history": {
       "types": "./dist/library/history.d.ts",
       "import": "./dist/library/history.js"
@@ -89,6 +109,10 @@
     "./activities/raidSummary": {
       "types": "./dist/activities/raidSummary.d.ts",
       "import": "./dist/activities/raidSummary.js"
+    },
+    "./activities/review": {
+      "types": "./dist/activities/review.d.ts",
+      "import": "./dist/activities/review.js"
     },
     "./diagnostics/export": {
       "types": "./dist/diagnostics/export.d.ts",

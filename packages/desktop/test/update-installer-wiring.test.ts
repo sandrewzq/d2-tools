@@ -38,20 +38,24 @@ describe("desktop installer and update wiring", () => {
     expect(updatesIpc).toContain("updates:quit-and-install");
     expect(updatesIpc).toContain("app.isPackaged");
     expect(updatesIpc).toContain("getPath(\"exe\")");
+    expect(updatesIpc).toContain("getApplicationVersion()");
+    expect(updatesIpc).not.toContain("current_version: app.getVersion()");
     expect(updatesIpc).toContain("window.isDestroyed()");
     expect(preload).toContain("getUpdateStatus");
     expect(preload).toContain("onUpdateStatusChanged");
     expect(preload).toContain("checkForUpdates");
     expect(preload).toContain("downloadUpdate");
     expect(preload).toContain("quitAndInstallUpdate");
+    expect(preload).toContain("openUpdateDownloadPage");
     expect(updateApi).toContain("export type UpdateStatus");
     expect(updateApi).toContain("install_path: string");
     expect(updateApi).toContain("export type UpdateApi");
+    expect(updateApi).toContain("openUpdateDownloadPage(): Promise");
     expect(apiTypes).toContain("UpdateApi");
     expect(apiTypes).toContain("export type * from \"./updateApi\"");
   });
 
-  it("mounts application update controls in the settings page", () => {
+  it("mounts product-grade application update controls in the settings page", () => {
     const settingsPage = readFileSync(join(desktopRoot, "src", "renderer", "features", "settings", "SettingsPage.tsx"), "utf8");
     const settingsHook = readFileSync(join(desktopRoot, "src", "renderer", "features", "settings", "useDiagnosticsSettings.ts"), "utf8");
     const updateFlow = readFileSync(join(desktopRoot, "src", "renderer", "features", "settings", "useUpdateFlow.ts"), "utf8");
@@ -60,11 +64,19 @@ describe("desktop installer and update wiring", () => {
     const homeRoutes = readFileSync(join(desktopRoot, "src", "renderer", "pages", "HomePageRoutes.tsx"), "utf8");
 
     expect(settingsPage).toContain("应用更新");
+    expect(settingsPage).toContain("settings-update-panel");
+    expect(settingsPage).toContain("settings-update-hero");
+    expect(settingsPage).toContain("update-status-pill");
+    expect(settingsPage).toContain("update-progress-bar");
     expect(settingsPage).toContain("当前版本");
-    expect(settingsPage).toContain("当前安装位置");
+    expect(settingsPage).toContain("更新来源");
+    expect(settingsPage).toContain("上次检查");
     expect(settingsPage).toContain("检查更新");
     expect(settingsPage).toContain("下载更新");
     expect(settingsPage).toContain("重启并安装");
+    expect(settingsPage).toContain("打开下载页");
+    expect(settingsPage).toContain("复制更新诊断");
+    expect(settingsPage).toContain("GitHub 连接失败");
     expect(settingsHook).toContain("useUpdateFlow");
     expect(settingsHook).toContain("createDiagnosticsSettingsModel");
     expect(updateFlow).toContain("api.getUpdateStatus()");
@@ -72,11 +84,43 @@ describe("desktop installer and update wiring", () => {
     expect(updateFlow).toContain("api.checkForUpdates()");
     expect(updateFlow).toContain("api.downloadUpdate()");
     expect(updateFlow).toContain("api.quitAndInstallUpdate()");
+    expect(updateFlow).toContain("api.openUpdateDownloadPage()");
+    expect(updateFlow).toContain("copyUpdateDiagnostic");
     expect(diagnosticsModel).toContain("api.getConfig()");
     expect(diagnosticsModel).toContain("api.getManifestStatus()");
     expect(diagnosticsModel).toContain("api.getActionLog()");
     expect(homePage).toContain("updateSnapshot: diagnostics.updateSnapshot");
+    expect(homePage).toContain("global-update-banner");
+    expect(homePage).toContain("updateSnapshot.status === \"available\"");
+    expect(homePage).toContain("updateSnapshot.status === \"downloaded\"");
+    expect(homePage).toContain("onOpenUpdateDownloadPage: () => void diagnostics.openUpdateDownloadPage()");
+    expect(homePage).toContain("onCopyUpdateDiagnostic: () => void diagnostics.copyUpdateDiagnostic()");
     expect(homeRoutes).toContain("<SettingsPage {...props.settings}");
+  });
+
+  it("adds resilient update metadata, manual fallback and optional mirror source", () => {
+    const updatesIpc = readFileSync(join(desktopRoot, "src", "main", "ipc", "updates.ts"), "utf8");
+    const updateTypes = readFileSync(join(desktopRoot, "src", "shared", "updateTypes.ts"), "utf8");
+
+    expect(updateTypes).toContain("release_page_url: string");
+    expect(updateTypes).toContain("update_source_label: string");
+    expect(updateTypes).toContain("last_checked_at?: string");
+    expect(updateTypes).toContain("user_message?: string");
+    expect(updateTypes).toContain("technical_error?: string");
+    expect(updatesIpc).toContain("D2_TOOLS_UPDATE_FEED_URL");
+    expect(updatesIpc).toContain("autoUpdater.setFeedURL");
+    expect(updatesIpc).toContain('ipcMain.handle("updates:open-download-page"');
+    expect(updatesIpc).toContain("shell.openExternal");
+    expect(updatesIpc).toContain("GitHub 连接失败");
+    expect(updatesIpc).toContain("net::ERR_CONNECTION_CLOSED");
+  });
+
+  it("hides the default Electron menu and aligns the native window with the app shell", () => {
+    const main = readFileSync(join(desktopRoot, "src", "main", "main.ts"), "utf8");
+
+    expect(main).toContain("Menu.setApplicationMenu(null)");
+    expect(main).toContain("autoHideMenuBar: true");
+    expect(main).toContain('backgroundColor: "#0d1118"');
   });
 
   it("adds a backup and migration guide to the settings release experience", () => {

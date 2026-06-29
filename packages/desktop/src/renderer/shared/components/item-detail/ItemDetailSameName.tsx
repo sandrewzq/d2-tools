@@ -10,6 +10,7 @@ import {
   type SelectedItemSource
 } from "../../hooks/useItemDetail";
 import { formatAccountItemMeta, formatArmorStatsSummary } from "./itemDetailFormatters";
+import { formatVaultTagLabel } from "./itemDetailFormatters";
 
 export type ItemDetailSameNameProps = {
   sameNameItems: SameNameItemSummary[];
@@ -39,6 +40,11 @@ export function ItemDetailSameName(props: ItemDetailSameNameProps) {
   return (
     <section className="modal-perk-group">
       <h3>同名对比</h3>
+      <div className="same-roll-summary" aria-label="同名装备摘要">
+        <span className="same-roll-chip">同名共 {props.sameNameItems.length} 件</span>
+        <span className="same-roll-chip">当前装备优先展示</span>
+        <span className="same-roll-chip">标记：{formatVaultTagLabel(props.vaultTags.items[props.selectedItem.item_key]?.tag ?? "none")}</span>
+      </div>
       {sameNameDuplicateGroup ? (
         <div className="button-row">
           <button type="button" className="secondary-button" onClick={() => props.onOpenBestSameNameItem(sortedSameNameItems)}>
@@ -64,6 +70,7 @@ export function ItemDetailSameName(props: ItemDetailSameNameProps) {
       <div className="same-roll-list">
         {sortedSameNameItems.map((item) => {
           const isCurrent = getItemKey(item) === props.selectedItem.item_key;
+          const tag = props.vaultTags.items[getItemKey(item)]?.tag ?? "none";
           return (
             <button
               type="button"
@@ -75,10 +82,14 @@ export function ItemDetailSameName(props: ItemDetailSameNameProps) {
                 is_postmaster_item: item.is_postmaster_item
               })}
             >
-              <strong>{item.name}</strong>
+              <div className="same-roll-row-heading">
+                <strong>{item.name}</strong>
+                <span className="same-roll-chip">{isCurrent ? "当前装备" : "同名装备"}</span>
+                <span className="same-roll-chip">标记：{formatVaultTagLabel(tag)}</span>
+              </div>
               <span>{formatArmorStatsSummary(item) ?? (item.socket_plugs?.slice(0, 5).map((plug) => plug.name).join(" / ") || "暂无实际 roll")}</span>
               <small>{formatAccountItemMeta(item)}</small>
-              <small>{item.locked ? "已锁定" : "未锁定"} / {props.vaultTags.items[getItemKey(item)]?.tag ?? "未标记"}</small>
+              <small>{item.locked ? "已锁定" : "未锁定"} / 标记：{formatVaultTagLabel(tag)}</small>
             </button>
           );
         })}

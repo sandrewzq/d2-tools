@@ -76,7 +76,7 @@ export function collectDocPolicyErrors(root, gitNameStatus = readGitNameStatus(r
   }
 
   if (existsSync(join(root, "docs", "superpowers"))) {
-    fail("docs/superpowers/ must not be recreated. Use docs/work/backlog, docs/work/archive, or docs/work/references.");
+    fail("docs/superpowers/ must not be recreated. Use docs/work/backlog or docs/work/references.");
   }
 
   const docsRoot = join(root, "docs");
@@ -113,11 +113,11 @@ export function collectDocPolicyErrors(root, gitNameStatus = readGitNameStatus(r
   }
 
   const workRoot = join(root, "docs", "work");
-  const allowedWorkDirs = new Set(["archive", "backlog", "references"]);
+  const allowedWorkDirs = new Set(["backlog", "references"]);
   if (existsSync(workRoot)) {
     for (const entry of readdirSync(workRoot, { withFileTypes: true })) {
       if (entry.isDirectory() && !allowedWorkDirs.has(entry.name)) {
-        fail(`Unexpected docs/work directory: docs/work/${entry.name}. Use archive, backlog, or references.`);
+        fail(`Unexpected docs/work directory: docs/work/${entry.name}. Use backlog or references.`);
       }
     }
   }
@@ -127,7 +127,7 @@ export function collectDocPolicyErrors(root, gitNameStatus = readGitNameStatus(r
     .filter((file) => file.endsWith(".md"));
 
   for (const file of workFiles) {
-    if (!/^(archive|backlog|references)\//.test(file)) {
+    if (!/^(backlog|references)\//.test(file)) {
       fail(`Work document is outside an allowed category: docs/work/${file}`);
     }
   }

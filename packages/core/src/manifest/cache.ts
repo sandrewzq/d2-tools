@@ -23,6 +23,9 @@ export type ManifestMetadataCache = {
 export type ManifestStatus = {
   initialized: boolean;
   version?: string;
+  latest_version?: string;
+  needs_update?: boolean;
+  checked_at?: string;
   language?: string;
   sqlite_path?: string;
   cached_at?: string;
@@ -35,6 +38,8 @@ export type InitializeManifestMetadataOptions = {
   fetchMetadata?: (apiKey: string) => Promise<DestinyManifestMetadata>;
   now?: () => Date;
 };
+
+export type CheckManifestVersionOptions = InitializeManifestMetadataOptions;
 
 export function manifestDir(dataDir: string): string {
   return join(dataDir, "manifest");
@@ -105,6 +110,21 @@ export async function initializeManifestMetadata(
     sqlite_path: cache.sqlite_path,
     cached_at: cache.cached_at,
     ...definitionStatusSummary(options.config.data.data_dir)
+  };
+}
+
+export async function checkManifestVersion(
+  options: CheckManifestVersionOptions
+): Promise<ManifestStatus> {
+  const current = getManifestStatus(options.config.data.data_dir);
+  const latest = await (options.fetchMetadata ?? fetchManifestMetadata)(options.config.bungie.api_key);
+  const checkedAt = (options.now ?? (() => new Date()))().toISOString();
+
+  return {
+    ...current,
+    latest_version: latest.version,
+    needs_update: current.version !== latest.version,
+    checked_at: checkedAt
   };
 }
 

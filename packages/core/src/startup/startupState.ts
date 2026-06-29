@@ -44,7 +44,7 @@ export function computeStartupState(input: {
     : { status: input.hasManifest ? "ready" as const : "missing" as const, label: input.hasManifest ? "资料库已初始化" : "资料库未初始化" };
 
   return {
-    nextStep: !bungieReady ? "bungie-config" : !accountReady ? "login" : "home",
+    nextStep: !bungieReady ? "home" : !accountReady ? "login" : "home",
     cards: {
       bungieConfig: {
         status: bungieReady ? "ready" : "missing",

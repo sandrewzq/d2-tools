@@ -38,6 +38,13 @@ describe("daily and weekly layout", () => {
     expect(dailyPanel).toContain("\u590d\u5236\u672c\u5468\u91cd\u70b9");
     expect(dailyPanel).toContain("\u4eca\u65e5\u884c\u52a8");
     expect(dailyPanel).toContain("\u672c\u5468\u5468\u62a5");
+    expect(dailyPanel).toContain("daily-source-matrix");
+    expect(dailyPanel).toContain("数据源矩阵");
+    expect(dailyPanel).toContain("Bungie 公共里程碑");
+    expect(dailyPanel).toContain("Bungie 公共商人");
+    expect(dailyPanel).toContain("本地 Manifest");
+    expect(dailyPanel).toContain("待接入");
+    expect(dailyPanel).toContain("夜幕 / 试炼 / 双倍奖励");
     expect(dailyPanel).not.toContain("????");
   });
 });

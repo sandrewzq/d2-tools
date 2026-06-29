@@ -10,16 +10,20 @@ import { DailySummaryPanel } from "../../shared/components/DailySummaryPanel";
 export function HomeDashboard(props: {
   state: StartupState;
   isLoggingIn: boolean;
+  isLoadingAccount: boolean;
   isInitializingManifest: boolean;
   isRefreshingDiagnostics: boolean;
   diagnosticRows: DiagnosticRow[];
   diagnosticError: string;
+  accountError: string;
+  hasAccountData: boolean;
   dailySummary: DailySummary | null;
   dailyMessage: string;
   dailyError: string;
   isLoadingDaily: boolean;
   onConfigure: () => void;
   onLogin: () => void;
+  onLoadAccount: () => void;
   onInitializeManifest: () => void;
   onConfigureAi: () => void;
   onRefreshDiagnostics: () => void;
@@ -45,9 +49,13 @@ export function HomeDashboard(props: {
         <StatusOverview
           state={props.state}
           isLoggingIn={props.isLoggingIn}
+          isLoadingAccount={props.isLoadingAccount}
+          accountError={props.accountError}
+          hasAccountData={props.hasAccountData}
           isInitializingManifest={props.isInitializingManifest}
           onConfigure={props.onConfigure}
           onLogin={props.onLogin}
+          onLoadAccount={props.onLoadAccount}
           onInitializeManifest={props.onInitializeManifest}
           onConfigureAi={props.onConfigureAi}
         />
@@ -57,19 +65,6 @@ export function HomeDashboard(props: {
           onRefresh={props.onRefreshDiagnostics}
         />
         {props.diagnosticError ? <p className="status-message status-error">{props.diagnosticError}</p> : null}
-        <section className="tool-panel home-dashboard-panel">
-          <div className="section-heading">
-            <div>
-              <h2>常用入口</h2>
-              <p>先完成状态诊断，再进入账号、资料库或设置页。</p>
-            </div>
-          </div>
-          <div className="quick-actions">
-            <button type="button" onClick={() => props.onNavigate("account")}>查看账号</button>
-            <button type="button" onClick={() => props.onNavigate("library")}>搜索资料库</button>
-            <button type="button" className="secondary-button" onClick={() => props.onNavigate("settings")}>打开设置</button>
-          </div>
-        </section>
       </aside>
     </div>
   );

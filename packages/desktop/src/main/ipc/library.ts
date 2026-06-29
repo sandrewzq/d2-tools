@@ -6,6 +6,7 @@ import {
   type ItemAliasEntry
 } from "@d2-tools/core/items/aliases";
 import { getItemDefinitionDetail } from "@d2-tools/core/items/detail";
+import { fetchLiveItemAvailability } from "@d2-tools/core/items/liveAvailability";
 import { searchPerkDefinitions } from "@d2-tools/core/items/perkSearch";
 import { searchItemDefinitions } from "@d2-tools/core/items/search";
 import {
@@ -16,6 +17,7 @@ import {
   type LibraryHistoryItem
 } from "@d2-tools/core/library/history";
 import { loadDefinitionComponent } from "@d2-tools/core/manifest/definitions";
+import { loadFreshOAuthToken } from "./authSession.js";
 
 export function registerLibraryIpcHandlers(): void {
   ipcMain.handle("items:search", (_event, query: string) => {
@@ -59,6 +61,23 @@ export function registerLibraryIpcHandlers(): void {
       limit: 20,
       itemDefinitions: itemDefinitions ?? undefined,
       aliases: loadItemAliases(config.data.data_dir)
+    });
+  });
+
+  ipcMain.handle("items:live-availability", async (_event, itemHashes: number[]) => {
+    const config = loadConfig();
+    const token = await loadFreshOAuthToken(config).catch(() => null);
+
+    return fetchLiveItemAvailability({
+      config,
+      token,
+      itemHashes: Array.isArray(itemHashes) ? itemHashes : [],
+      definitions: {
+        activities: loadDefinitionComponent(config.data.data_dir, "DestinyActivityDefinition"),
+        milestones: loadDefinitionComponent(config.data.data_dir, "DestinyMilestoneDefinition"),
+        vendors: loadDefinitionComponent(config.data.data_dir, "DestinyVendorDefinition"),
+        items: loadDefinitionComponent(config.data.data_dir, "DestinyInventoryItemDefinition")
+      }
     });
   });
 

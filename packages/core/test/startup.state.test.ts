@@ -28,9 +28,13 @@ function config(overrides: Partial<D2Config["bungie"]> = {}): D2Config {
 }
 
 describe("startup state", () => {
-  it("requires Bungie config when credentials are missing", () => {
-    expect(computeStartupState({ config: config(), hasToken: false, hasManifest: false }).nextStep)
-      .toBe("bungie-config");
+  it("allows home when Bungie config is missing so first launch is not blocked", () => {
+    const state = computeStartupState({ config: config(), hasToken: false, hasManifest: false });
+
+    expect(state.nextStep).toBe("home");
+    expect(state.cards.bungieConfig.status).toBe("missing");
+    expect(state.cards.bungieConfig.label).toBe("需要填写 Bungie 配置");
+    expect(state.cards.account.status).toBe("missing");
   });
 
   it("requires login when Bungie config exists but token is absent", () => {

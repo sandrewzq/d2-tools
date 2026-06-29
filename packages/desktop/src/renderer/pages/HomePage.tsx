@@ -1,8 +1,8 @@
 import { createHomeDashboardWorkspace, createHomeDashboardActions } from "@d2-tools/app";
 import { useEffect, useRef, useState } from "react";
-import type { StartupState } from "../api/client";
+import type { ManifestStatus, StartupState, UpdateSnapshot } from "../api/client";
 import { GlobalAssistantSidebar } from "../components/GlobalAssistantSidebar";
-import { ShellLayout, type ShellAssistantMode, type ShellPageKey } from "../components/ShellLayout";
+import { ShellLayout, type ShellAssistantMode, type ShellPageKey, type ShellStatusItem } from "../components/ShellLayout";
 import { useAccountWorkspace } from "../features/account/useAccountWorkspace";
 import { useDailySummary } from "../features/daily/useDailySummary";
 import { useHomePageDerivedState } from "../features/home/useHomePageDerivedState";
@@ -92,24 +92,26 @@ export function HomePage(props: {
 
   const loadAccountRef = useRef(loadAccountSummary);
   loadAccountRef.current = loadAccountSummary;
+  const canRefreshAccount = props.state.cards.bungieConfig.status === "ready"
+    && props.state.cards.account.status === "ready";
 
   useEffect(() => {
-    if (hasAutoLoadedAccount || props.state.nextStep !== "home") {
+    if (hasAutoLoadedAccount || !canRefreshAccount) {
       return;
     }
     setHasAutoLoadedAccount(true);
     void loadAccountSummary();
-  }, [hasAutoLoadedAccount, props.state.nextStep]);
+  }, [canRefreshAccount, hasAutoLoadedAccount]);
 
   useEffect(() => {
-    if (props.state.nextStep !== "home") return;
+    if (!canRefreshAccount) return;
 
     const id = setInterval(() => {
       void loadAccountRef.current();
     }, 10 * 60 * 1000);
 
     return () => clearInterval(id);
-  }, [props.state.nextStep]);
+  }, [canRefreshAccount]);
 
   const activeLoadoutTemplate = loadoutLibrary.activeTemplate;
   const homeDerivedState = useHomePageDerivedState({
@@ -127,6 +129,18 @@ export function HomePage(props: {
   const currentPageMeta = homeDerivedState.currentPageMeta;
   const assistantPageContext = homeDerivedState.assistantPageContext;
   const isAiConfigured = homeDerivedState.isAiConfigured;
+  const updateSnapshot = diagnostics.updateSnapshot;
+  const visibleBackgroundTask = diagnostics.activeBackgroundTasks[0] ?? null;
+  const activeBackgroundTaskCount = diagnostics.activeBackgroundTasks.length;
+  const shouldShowUpdateBanner = updateSnapshot?.status === "available"
+    || updateSnapshot?.status === "downloading"
+    || updateSnapshot?.status === "downloaded"
+    || updateSnapshot?.status === "error";
+  const shellStatus = buildShellStatus({
+    updateSnapshot,
+    manifestStatus: diagnostics.manifestStatus,
+    activeTaskCount: activeBackgroundTaskCount
+  });
 
   const homeWorkspace = createHomeDashboardWorkspace({
     state: props.state,
@@ -135,15 +149,19 @@ export function HomePage(props: {
     isRefreshingDiagnostics: diagnostics.isRefreshingDiagnostics,
     diagnosticRows,
     diagnosticError: diagnostics.diagnosticError,
+    accountError,
+    hasAccountData: Boolean(accountSummary),
     dailySummary: daily.dailySummary,
     dailyMessage: daily.dailyMessage,
     dailyError: daily.dailyError,
+    isLoadingAccount,
     isLoadingDaily: daily.isLoadingDaily
   });
 
   const homeActions = createHomeDashboardActions({
     onConfigure: props.onConfigure,
     onLogin: () => void loginBungie(),
+    onLoadAccount: () => void loadAccountSummary(),
     onInitializeManifest: () => void initializeManifest(),
     onConfigureAi: () => setActivePage("settings"),
     onRefreshDiagnostics: () => void diagnostics.refreshDiagnostics(),
@@ -159,6 +177,7 @@ export function HomePage(props: {
       assistantMode={assistantMode}
       onNavigate={setActivePage}
       onAssistantModeChange={setAssistantMode}
+      shellStatus={shellStatus}
       assistantPanel={(
         <GlobalAssistantSidebar
           assistantMode={assistantMode}
@@ -175,6 +194,7 @@ export function HomePage(props: {
             setActivePage("settings");
             setAssistantMode(null);
           }}
+          onSaveGuideDraft={(draft) => void loadoutWriteActions.saveGuideDraft(draft)}
           onClose={() => setAssistantMode(null)}
         />
       )}
@@ -190,12 +210,52 @@ export function HomePage(props: {
       {loginError ? <p className="status-message status-error">{loginError}</p> : null}
       {manifestMessage ? <p className="status-message status-ready">{manifestMessage}</p> : null}
       {manifestError ? <p className="status-message status-error">{manifestError}</p> : null}
+      {shouldShowUpdateBanner && updateSnapshot ? (
+        <section className={`global-update-banner update-${updateSnapshot.status}`}>
+          <div>
+            <strong>{updateSnapshot.status === "downloaded" ? "更新已准备好" : "应用更新"}</strong>
+            <span>{updateSnapshot.user_message ?? updateSnapshot.error ?? "有新的更新状态。"}</span>
+          </div>
+          <div className="global-update-actions">
+            {updateSnapshot.status === "available" ? (
+              <button type="button" onClick={() => void diagnostics.downloadUpdate()}>下载更新</button>
+            ) : null}
+            {updateSnapshot.status === "downloaded" ? (
+              <button type="button" onClick={() => void diagnostics.quitAndInstallUpdate()}>重启并安装</button>
+            ) : null}
+            {updateSnapshot.status === "error" ? (
+              <button type="button" className="secondary-button" onClick={() => void diagnostics.openUpdateDownloadPage()}>
+                打开下载页
+              </button>
+            ) : null}
+            <button type="button" className="secondary-button" onClick={() => setActivePage("settings")}>
+              查看更新
+            </button>
+          </div>
+        </section>
+      ) : null}
+      {visibleBackgroundTask ? (
+        <section className={`global-background-task-banner task-${visibleBackgroundTask.status}`}>
+          <div>
+            <strong>{formatVisibleBackgroundTaskTitle(visibleBackgroundTask.title, activeBackgroundTaskCount)}</strong>
+            <span>
+              {visibleBackgroundTask.next_retry_at
+                ? `等待后台重试：${new Date(visibleBackgroundTask.next_retry_at).toLocaleString("zh-CN")}`
+                : visibleBackgroundTask.message ?? "任务正在后台运行，切换菜单不会中断。"}
+            </span>
+          </div>
+          <button type="button" className="secondary-button" onClick={() => setActivePage("settings")}>
+            查看任务
+          </button>
+        </section>
+      ) : null}
 
       <HomePageRoutes
         activePage={activePage}
         home={{ ...homeWorkspace, ...homeActions }}
         account={{
           accountSummary,
+          startupState: props.state,
           selectedCharacterId,
           isLoadingAccount,
           accountError,
@@ -210,6 +270,8 @@ export function HomePage(props: {
           isRunningItemAction,
           activeLoadoutLookup,
           activeLoadoutTemplate,
+          onConfigureBungie: props.onConfigure,
+          onLoginBungie: () => void loginBungie(),
           onLoadAccount: () => void loadAccountSummary(),
           onRefreshActivity: () => void loadActivitySummary(),
           onSelectCharacter: setSelectedCharacterId,
@@ -258,12 +320,21 @@ export function HomePage(props: {
           aliasMessage: library.aliasMessage,
           libraryHistory: library.libraryHistory,
           libraryCommunityMatch: library.libraryCommunityMatch,
+          liveAvailability: library.liveAvailability,
+          liveAvailabilityError: library.liveAvailabilityError,
+          isLoadingLiveAvailability: library.isLoadingLiveAvailability,
+          manifestStatus: library.manifestStatus,
+          manifestStatusError: library.manifestStatusError,
+          isLoadingManifestStatus: library.isLoadingManifestStatus,
+          isInitializingManifest: library.isInitializingManifest,
           itemDetailLoadingKey: itemDetail.itemDetailLoadingKey,
           onViewModeChange: library.setLibraryViewMode,
           onEquipmentFiltersChange: (patch) => library.setEquipmentFilters((current) => ({ ...current, ...patch })),
           onPerkFiltersChange: (patch) => library.setPerkFilters((current) => ({ ...current, ...patch })),
           onSearch: () => void library.searchItems(),
           onClearFilters: library.clearLibraryFilters,
+          onRefreshManifestStatus: () => void library.refreshManifestStatus(),
+          onInitializeManifest: () => void library.initializeManifest(),
           onAliasDraftChange: library.setAliasDraft,
           onAliasTargetDraftChange: library.setAliasTargetDraft,
           onAliasKindChange: library.setAliasKind,
@@ -301,6 +372,11 @@ export function HomePage(props: {
           diagnosticDataDir: diagnostics.diagnosticDataDir,
           writeActionsEnabled: diagnostics.writeActionsEnabled,
           updateSnapshot: diagnostics.updateSnapshot,
+          manifestStatus: diagnostics.manifestStatus,
+          manifestStatusError: diagnostics.manifestStatusError,
+          isLoadingManifestStatus: diagnostics.isLoadingManifestStatus,
+          isInitializingManifest: diagnostics.isInitializingManifest,
+          backgroundTasks: diagnostics.backgroundTasks,
           actionLog: diagnostics.actionLog,
           actionLogResultFilter: diagnostics.actionLogResultFilter,
           actionLogTypeFilter: diagnostics.actionLogTypeFilter,
@@ -310,6 +386,10 @@ export function HomePage(props: {
           onCheckForUpdates: () => void diagnostics.checkForUpdates(),
           onDownloadUpdate: () => void diagnostics.downloadUpdate(),
           onQuitAndInstallUpdate: () => void diagnostics.quitAndInstallUpdate(),
+          onOpenUpdateDownloadPage: () => void diagnostics.openUpdateDownloadPage(),
+          onCopyUpdateDiagnostic: () => void diagnostics.copyUpdateDiagnostic(),
+          onRefreshManifestStatus: () => void diagnostics.refreshManifestStatus(),
+          onInitializeManifest: () => void diagnostics.initializeManifest(),
           onCopyDataBackupGuide: () => void diagnostics.copyDataBackupGuide(),
           onCopyDiagnosticsExport: () => void diagnostics.copyDiagnosticsExport(),
           onRefreshActionLog: () => void diagnostics.loadActionLog(),
@@ -330,4 +410,73 @@ export function HomePage(props: {
       />
     </ShellLayout>
   );
+}
+
+function formatVisibleBackgroundTaskTitle(title: string, activeBackgroundTaskCount: number): string {
+  if (activeBackgroundTaskCount > 1) {
+    return `后台任务：${activeBackgroundTaskCount} 个运行中 · ${title}`;
+  }
+
+  return `后台任务：${title}`;
+}
+
+function buildShellStatus(input: {
+  updateSnapshot: UpdateSnapshot | null;
+  manifestStatus: ManifestStatus | null;
+  activeTaskCount: number;
+}): ShellStatusItem[] {
+  return [
+    {
+      label: "应用版本",
+      value: formatAppUpdateStatus(input.updateSnapshot),
+      tone: getUpdateStatusTone(input.updateSnapshot)
+    },
+    {
+      label: "资料库",
+      value: formatManifestShellStatus(input.manifestStatus),
+      tone: getManifestStatusTone(input.manifestStatus)
+    },
+    {
+      label: "后台任务",
+      value: input.activeTaskCount ? `${input.activeTaskCount} 个运行中` : "空闲",
+      tone: input.activeTaskCount ? "warning" : "neutral"
+    }
+  ];
+}
+
+function formatAppUpdateStatus(snapshot: UpdateSnapshot | null): string {
+  if (!snapshot) return "读取中";
+  if (snapshot.status === "available") return `可更新 ${snapshot.available_version ?? ""}`.trim();
+  if (snapshot.status === "downloaded") return "待重启";
+  if (snapshot.status === "downloading") return `${snapshot.progress_percent ?? 0}%`;
+  if (snapshot.status === "error") return "检查失败";
+  return snapshot.current_version;
+}
+
+function getUpdateStatusTone(snapshot: UpdateSnapshot | null): ShellStatusItem["tone"] {
+  if (!snapshot) return "neutral";
+  if (snapshot.status === "available" || snapshot.status === "downloaded") return "ready";
+  if (snapshot.status === "downloading" || snapshot.status === "checking") return "warning";
+  if (snapshot.status === "error") return "error";
+  return "neutral";
+}
+
+function formatManifestShellStatus(status: ManifestStatus | null): string {
+  if (!status) return "读取中";
+  if (!status.initialized) return "未初始化";
+  if (status.missing_required_components?.length) return "组件缺失";
+  if (status.needs_update) return "需要更新";
+  if (status.cached_at) {
+    const date = new Date(status.cached_at);
+    if (!Number.isNaN(date.getTime())) {
+      return date.toLocaleDateString("zh-CN", { month: "2-digit", day: "2-digit" });
+    }
+  }
+  return status.version ?? "可用";
+}
+
+function getManifestStatusTone(status: ManifestStatus | null): ShellStatusItem["tone"] {
+  if (!status) return "neutral";
+  if (!status.initialized || status.missing_required_components?.length || status.needs_update) return "warning";
+  return "ready";
 }

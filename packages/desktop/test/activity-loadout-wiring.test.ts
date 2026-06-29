@@ -32,6 +32,10 @@ describe("activity and loadout planning wiring", () => {
     expect(homePage).toContain("onRefreshActivity: () => void loadActivitySummary()");
     expect(accountPage).toContain("活动复盘");
     expect(accountPage).toContain("activitySummary.recent");
+    expect(accountPage).toContain("activitySummary.review");
+    expect(accountPage).toContain("完成率");
+    expect(accountPage).toContain("连续完成");
+    expect(accountPage).toContain("关键统计");
     expect(accountPage).toContain("activitySummary.raids.entries");
     expect(accountPage).toContain("activitySummary.recent_items");
     expect(accountHook).toContain("最近活动");

@@ -67,6 +67,19 @@ describe("wishlist detail UI", () => {
     expect(itemDetailSources).toContain("同名对比可继续复查同名装备");
   });
 
+  it("keeps same-name comparison rows scannable with current item and tag chips", () => {
+    const itemDetailSources = readItemDetailSources(desktopRoot);
+    const styles = readFileSync(join(desktopRoot, "src", "renderer", "styles.css"), "utf8");
+
+    expect(itemDetailSources).toContain("same-roll-summary");
+    expect(itemDetailSources).toContain("same-roll-chip");
+    expect(itemDetailSources).toContain("当前装备");
+    expect(itemDetailSources).toContain("同名共");
+    expect(itemDetailSources).toContain("标记：");
+    expect(styles).toContain(".same-roll-summary");
+    expect(styles).toContain(".same-roll-chip");
+  });
+
   it("renders community recommendation trust signals and queries all detail sources", () => {
     const itemDetailModal = readItemDetailSources(desktopRoot);
     const homePageItemDetailModal = readFileSync(

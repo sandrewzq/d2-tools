@@ -2,6 +2,8 @@ import type { AccountApi } from "./accountApi";
 import type { ActionsApi } from "./actionsApi";
 import type { ActivityApi } from "./activityApi";
 import type { AiApi } from "./aiApi";
+import type { AssistantApi } from "./assistantApi";
+import type { BackgroundTaskApi } from "./backgroundTaskApi";
 import type { CommunityApi } from "./communityApi";
 import type { ConfigApi } from "./configApi";
 import type { DailyApi } from "./dailyApi";
@@ -17,6 +19,8 @@ export type * from "./accountApi";
 export type * from "./actionsApi";
 export type * from "./activityApi";
 export type * from "./aiApi";
+export type * from "./assistantApi";
+export type * from "./backgroundTaskApi";
 export type * from "./communityApi";
 export type * from "./configApi";
 export type * from "./dailyApi";
@@ -39,6 +43,8 @@ export type AppApi =
   & TargetApi
   & VaultApi
   & AiApi
+  & AssistantApi
+  & BackgroundTaskApi
   & ActionsApi
   & DailyApi
   & ActivityApi

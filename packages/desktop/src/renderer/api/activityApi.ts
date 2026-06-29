@@ -1,3 +1,5 @@
+import type { ActivityReview } from "@d2-tools/core/activities/review";
+
 export type ActivityApi = {
   getActivitySummary(input: ActivitySummaryInput): Promise<ActivityHistorySummary>;
 };
@@ -25,6 +27,7 @@ export type ActivityHistorySummary = {
       last_completed_at?: string;
     }>;
   };
+  review: ActivityReview;
   recent_items: Array<{
     activity_name: string;
     mode: "pve" | "pvp" | "other";

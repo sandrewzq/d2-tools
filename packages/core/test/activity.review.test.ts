@@ -60,6 +60,26 @@ describe("activity review", () => {
     expect(raidGroup?.completion_rate).toBe(50);
   });
 
+  it("adds readable status, duration and key stats to timeline entries", () => {
+    const review = buildActivityReview([
+      makeActivity({
+        values: {
+          completed: { basic: { value: 1 } },
+          activityDurationSeconds: { basic: { value: 725, displayValue: "12m 5s" } },
+          kills: { basic: { value: 42 } },
+          deaths: { basic: { value: 3 } },
+          assists: { basic: { value: 11 } },
+        },
+      })
+    ], defs);
+
+    expect(review.recent_10[0]).toMatchObject({
+      status_label: "已完成",
+      duration_label: "12m 5s",
+      key_stats: ["击杀 42", "死亡 3", "助攻 11"]
+    });
+  });
+
   it("counts completions in a row from most recent", () => {
     const activities = [
       makeActivity({ period: "2026-06-25T12:00:00Z", values: { completed: { basic: { value: 1 } } } }),

@@ -16,7 +16,13 @@ export function StatusCard(props: StatusCardProps) {
         <p>{props.label}</p>
       </div>
       {props.action ? (
-        <button type="button" aria-busy={props.busy ?? false} disabled={props.disabled} onClick={props.onAction}>
+        <button
+          className="status-card-action"
+          type="button"
+          aria-busy={props.busy ?? false}
+          disabled={props.disabled}
+          onClick={props.onAction}
+        >
           {props.action}
         </button>
       ) : null}

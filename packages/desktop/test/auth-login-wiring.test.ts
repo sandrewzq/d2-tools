@@ -17,6 +17,7 @@ describe("desktop Bungie login wiring", () => {
       join(desktopRoot, "src", "renderer", "pages", "WizardPage.tsx"),
       "utf8"
     );
+    const statusOverview = readFileSync(join(desktopRoot, "src", "renderer", "components", "StatusOverview.tsx"), "utf8");
     const apiClient = readRendererApiContracts(desktopRoot);
     const preload = readFileSync(join(desktopRoot, "src", "preload", "preload.ts"), "utf8");
     const authIpc = readFileSync(join(desktopRoot, "src", "main", "ipc", "auth.ts"), "utf8");
@@ -28,6 +29,14 @@ describe("desktop Bungie login wiring", () => {
     expect(homePage).toContain("loadAccountSummary()");
     expect(homePage).toContain("props.onConfigure");
     expect(app).toContain("setIsConfiguring(true)");
+    expect(app).toContain("if (isConfiguring)");
+    expect(app).not.toContain('state.nextStep === "bungie-config"');
+    expect(statusOverview).toContain('props.state.cards.bungieConfig.status !== "ready"');
+    expect(statusOverview).toContain("先配置 Bungie");
+    expect(statusOverview).toContain("accountActionHandler");
+    expect(statusOverview).toContain("props.onLoadAccount");
+    expect(statusOverview).toContain("读取账号");
+    expect(statusOverview).toContain("重试读取");
     expect(wizardPage).toContain("api.getConfig()");
     expect(apiClient).toContain("loginBungie(): Promise");
     expect(apiClient).toContain("getAccountSummary(): Promise");
@@ -39,5 +48,17 @@ describe("desktop Bungie login wiring", () => {
     expect(startupIpc).toContain("getStartupAuthStatus(config)");
     expect(authSession).toContain("loadFreshOAuthToken");
     expect(authSession).toContain("refreshBungieOAuthToken");
+  });
+
+  it("keeps Bungie login single-flight and translates callback port conflicts", () => {
+    const authIpc = readFileSync(join(desktopRoot, "src", "main", "ipc", "auth.ts"), "utf8");
+
+    expect(authIpc).toContain("authLoginPromise");
+    expect(authIpc).toContain("runBungieLogin");
+    expect(authIpc).toContain("normalizeAuthLoginStartupError");
+    expect(authIpc).toContain("EADDRINUSE");
+    expect(authIpc).toContain("Bungie 登录回调端口");
+    expect(authIpc).toContain("已被占用");
+    expect(authIpc).not.toContain("async () => {\n    const config = loadConfig()");
   });
 });

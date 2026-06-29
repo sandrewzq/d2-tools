@@ -22,6 +22,9 @@ export type StatusCardState = {
 export type ManifestStatus = {
   initialized: boolean;
   version?: string;
+  latest_version?: string;
+  needs_update?: boolean;
+  checked_at?: string;
   language?: string;
   sqlite_path?: string;
   cached_at?: string;

@@ -4,7 +4,9 @@ import { registerAccountIpcHandlers } from "./ipc/account.js";
 import { registerActionIpcHandlers } from "./ipc/actions.js";
 import { registerActivitiesIpcHandlers } from "./ipc/activities.js";
 import { registerAnalysisIpcHandlers } from "./ipc/analysis.js";
+import { registerAssistantIpcHandlers } from "./ipc/assistant.js";
 import { registerAuthIpcHandlers } from "./ipc/auth.js";
+import { registerBackgroundTaskIpcHandlers } from "./ipc/backgroundTasks.js";
 import { registerCommunityIpcHandlers } from "./ipc/community.js";
 import { registerConfigIpcHandlers } from "./ipc/config.js";
 import { registerDailyIpcHandlers } from "./ipc/daily.js";
@@ -21,6 +23,7 @@ import { registerWishlistIpcHandlers } from "./ipc/wishlist.js";
 export function registerIpcHandlers(): void {
   ipcMain.handle("health:get", () => getHealth());
   registerConfigIpcHandlers();
+  registerBackgroundTaskIpcHandlers();
   registerAuthIpcHandlers();
   registerStartupIpcHandlers();
   registerAccountIpcHandlers();
@@ -31,6 +34,7 @@ export function registerIpcHandlers(): void {
   registerCommunityIpcHandlers();
   registerVaultIpcHandlers();
   registerAnalysisIpcHandlers();
+  registerAssistantIpcHandlers();
   registerActionIpcHandlers();
   registerDailyIpcHandlers();
   registerActivitiesIpcHandlers();

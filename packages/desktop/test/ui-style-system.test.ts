@@ -44,7 +44,15 @@ describe("UI style system", () => {
 
   it("locks the C1 global visual upgrade into shell, controls and shared surfaces", () => {
     const styles = readFileSync(join(desktopRoot, "src", "renderer", "styles.css"), "utf8");
+    const shellLayout = readFileSync(
+      join(desktopRoot, "src", "renderer", "components", "ShellLayout.tsx"),
+      "utf8"
+    );
 
+    expect(shellLayout).toContain("shell-titlebar");
+    expect(shellLayout).toContain("shell-workspace");
+    expect(shellLayout).toContain("shell-current-page");
+    expect(shellLayout).toContain("shell-status-strip");
     expect(styles).toContain("--surface-sidebar:");
     expect(styles).toContain("--surface-elevated:");
     expect(styles).toContain("--surface-toolbar:");
@@ -54,8 +62,9 @@ describe("UI style system", () => {
     expect(styles).toContain("--shadow-focus:");
 
     expect(styles).toMatch(/\.app-shell\s*{[\s\S]*?background:\s*var\(--surface-page\);/);
-    expect(styles).toMatch(/\.shell-sidebar\s*{[\s\S]*?background:\s*linear-gradient\(/);
-    expect(styles).toMatch(/\.shell-content\s*{[\s\S]*?background:\s*radial-gradient\(/);
+    expect(styles).toMatch(/\.shell-titlebar\s*{[\s\S]*?height:\s*44px;/);
+    expect(styles).toMatch(/\.shell-sidebar\s*{[\s\S]*?width:\s*88px;/);
+    expect(styles).toMatch(/\.shell-content\s*{[\s\S]*?background:\s*var\(--surface-page\);/);
     expect(styles).toMatch(/\.global-assistant-panel\s*{[\s\S]*?background:\s*var\(--surface-sidebar\);/);
     expect(styles).toMatch(/\.shell-nav button\.active,[\s\S]*?\.global-assistant-rail button\.active\s*{[\s\S]*?box-shadow:\s*inset 3px 0 0 var\(--accent-primary\)/);
 
@@ -64,6 +73,52 @@ describe("UI style system", () => {
     expect(styles).toMatch(/\.ui-filter-toolbar\s*{[\s\S]*?background:\s*var\(--surface-toolbar\);/);
     expect(styles).toMatch(/\.ui-item-card:hover,[\s\S]*?\.vault-item-card:hover\s*{[\s\S]*?background:\s*var\(--surface-elevated\);/);
     expect(styles).toMatch(/\.home-dashboard-panel,[\s\S]*?\.account-dashboard-panel,[\s\S]*?\.vault-dashboard-panel,[\s\S]*?\.item-tool-panel\s*{[\s\S]*?background:\s*var\(--surface-elevated\);/);
+  });
+
+  it("polishes desktop shell details from the latest visual review", () => {
+    const styles = readFileSync(join(desktopRoot, "src", "renderer", "styles.css"), "utf8");
+    const mainProcess = readFileSync(join(desktopRoot, "src", "main", "main.ts"), "utf8");
+    const homeDashboard = readFileSync(join(desktopRoot, "src", "renderer", "features", "home", "HomeDashboard.tsx"), "utf8");
+    const aiPanel = readFileSync(join(desktopRoot, "src", "renderer", "components", "AiAnalysisPanel.tsx"), "utf8");
+
+    expect(mainProcess).toContain('titleBarStyle: "hidden"');
+    expect(mainProcess).toContain("titleBarOverlay");
+    expect(styles).toMatch(/\.shell-titlebar\s*{[\s\S]*?-webkit-app-region:\s*drag;/);
+    expect(styles).toMatch(/\.shell-titlebar button,[\s\S]*?\.global-shell-status-item\s*{[\s\S]*?-webkit-app-region:\s*no-drag;/);
+
+    expect(homeDashboard).not.toContain("常用入口");
+    expect(homeDashboard).not.toContain("quick-actions");
+    expect(styles).toMatch(/\.daily-source-matrix-grid\s*{[\s\S]*?grid-template-columns:\s*repeat\(4,\s*minmax\(0,\s*1fr\)\);/);
+    expect(styles).toMatch(/@media \(max-width:\s*1280px\)\s*{[\s\S]*?\.daily-source-matrix-grid\s*{[\s\S]*?grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\);/);
+    expect(styles).toMatch(/\.daily-source-matrix-item\s*{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1fr\);/);
+    expect(styles).toMatch(/\.source-status-badge\s*{[\s\S]*?white-space:\s*nowrap;/);
+
+    expect(styles).toMatch(/\.global-assistant-sidebar\s*{[\s\S]*?height:\s*100%;/);
+    expect(styles).not.toMatch(/\.global-assistant-sidebar\s*{[\s\S]*?height:\s*100vh;/);
+    expect(aiPanel).toContain("ai-history-session-row");
+    expect(styles).toMatch(/\.ai-history-session-row\s*{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1fr\);/);
+    expect(styles).toMatch(/\.ai-chat-history \.button-row\s*{[\s\S]*?justify-content:\s*flex-start;/);
+
+    expect(styles).toMatch(/\.account-page-shell\s*{[\s\S]*?grid-template-columns:\s*160px\s*minmax\(0,\s*1fr\);/);
+    expect(styles).toMatch(/\.vault-tag-current\.tag-none\s*{[\s\S]*?opacity:\s*0\.62;/);
+  });
+
+  it("keeps shell scrolling scoped to workspace panes with fixed titlebar", () => {
+    const styles = readFileSync(join(desktopRoot, "src", "renderer", "styles.css"), "utf8");
+
+    expect(styles).toMatch(/body\s*{[\s\S]*?overflow:\s*hidden;/);
+    expect(styles).toMatch(/\.app-shell\s*{[\s\S]*?height:\s*100vh;/);
+    expect(styles).toMatch(/\.app-shell\s*{[\s\S]*?overflow:\s*hidden;/);
+    expect(styles).toMatch(/\.shell-titlebar\s*{[\s\S]*?position:\s*sticky;/);
+    expect(styles).toMatch(/\.shell-titlebar\s*{[\s\S]*?top:\s*0;/);
+    expect(styles).toMatch(/\.shell-workspace\s*{[\s\S]*?height:\s*calc\(100vh - 44px\);/);
+    expect(styles).toMatch(/\.shell-workspace\s*{[\s\S]*?overflow:\s*hidden;/);
+    expect(styles).toMatch(/\.shell-content\s*{[\s\S]*?overflow-y:\s*auto;/);
+    expect(styles).toMatch(/\.shell-content\s*{[\s\S]*?scrollbar-gutter:\s*stable;/);
+    expect(styles).toMatch(/\.global-assistant-panel\s*{[\s\S]*?position:\s*relative;/);
+    expect(styles).toMatch(/\.global-assistant-panel\s*{[\s\S]*?height:\s*100%;/);
+    expect(styles).toMatch(/\.shell-scroll-area,[\s\S]*?\.ai-context-drawer\s*{[\s\S]*?scrollbar-width:\s*thin;/);
+    expect(styles).toMatch(/\.shell-scroll-area::-webkit-scrollbar-thumb,[\s\S]*?\.ai-context-drawer::-webkit-scrollbar-thumb\s*{[\s\S]*?border-radius:\s*999px;/);
   });
 
   it("keeps dense item surfaces responsive by avoiding animated shadows and movement", () => {
@@ -137,7 +192,6 @@ describe("UI style system", () => {
     expect(settingsPage).toContain("ui-list-row diagnostic-row");
     expect(settingsPage).toContain("ui-list-row action-log-row");
 
-    expect(homeDashboard).toContain("home-dashboard-panel");
     expect(homeDashboard).toContain("status-message status-error");
     expect(dailyPanel).toContain("home-dashboard-panel");
     expect(dailyPanel).toContain("status-message status-error");

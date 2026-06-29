@@ -58,6 +58,27 @@ export function useUpdateFlow() {
     }
   }
 
+  async function openUpdateDownloadPage() {
+    setSettingsMessage("");
+    setSettingsError("");
+    try {
+      await api.openUpdateDownloadPage();
+    } catch (error) {
+      setSettingsError(error instanceof Error ? error.message : "打开下载页失败");
+    }
+  }
+
+  async function copyUpdateDiagnostic() {
+    setSettingsMessage("");
+    setSettingsError("");
+    try {
+      await navigator.clipboard.writeText(buildUpdateDiagnosticText(updateSnapshot));
+      setSettingsMessage("更新诊断已复制。");
+    } catch (error) {
+      setSettingsError(error instanceof Error ? error.message : "复制更新诊断失败");
+    }
+  }
+
   return {
     updateSnapshot,
     settingsMessage,
@@ -66,6 +87,28 @@ export function useUpdateFlow() {
     setSettingsError,
     checkForUpdates,
     downloadUpdate,
-    quitAndInstallUpdate
+    quitAndInstallUpdate,
+    openUpdateDownloadPage,
+    copyUpdateDiagnostic
   };
+}
+
+function buildUpdateDiagnosticText(snapshot: UpdateSnapshot | null): string {
+  if (!snapshot) {
+    return "d2-tools 更新诊断：尚未读取更新状态。";
+  }
+
+  return [
+    "d2-tools 更新诊断",
+    `状态：${snapshot.status}`,
+    `当前版本：${snapshot.current_version}`,
+    `可用版本：${snapshot.available_version ?? "-"}`,
+    `已下载版本：${snapshot.downloaded_version ?? "-"}`,
+    `更新来源：${snapshot.update_source_label}`,
+    `发布页：${snapshot.release_page_url}`,
+    `上次检查：${snapshot.last_checked_at ?? "-"}`,
+    `用户提示：${snapshot.user_message ?? snapshot.error ?? "-"}`,
+    `技术错误：${snapshot.technical_error ?? snapshot.error ?? "-"}`,
+    `安装位置：${snapshot.install_path}`
+  ].join("\n");
 }

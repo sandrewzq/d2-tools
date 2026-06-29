@@ -4,17 +4,41 @@ import { StatusCard } from "./StatusCard";
 export function StatusOverview(props: {
   state: StartupState;
   isLoggingIn: boolean;
+  isLoadingAccount: boolean;
+  accountError: string;
+  hasAccountData: boolean;
   isInitializingManifest: boolean;
   onConfigure: () => void;
   onLogin: () => void;
+  onLoadAccount: () => void;
   onInitializeManifest: () => void;
   onConfigureAi: () => void;
 }) {
+  const needsBungieConfig = props.state.cards.bungieConfig.status !== "ready";
+  const accountCard = getAccountStatusCard({
+    state: props.state,
+    accountError: props.accountError,
+    hasAccountData: props.hasAccountData,
+    isLoadingAccount: props.isLoadingAccount
+  });
   const accountAction = props.isLoggingIn
     ? "等待授权..."
-    : props.state.cards.account.status === "ready"
-      ? "重新登录"
+    : needsBungieConfig
+      ? "先配置 Bungie"
+      : props.accountError
+      ? "重试读取"
+      : props.isLoadingAccount
+      ? "读取中..."
+      : props.hasAccountData
+      ? "刷新账号"
+      : props.state.cards.account.status === "ready"
+      ? "读取账号"
       : "登录 Bungie";
+  const accountActionHandler = needsBungieConfig
+    ? props.onConfigure
+    : props.accountError || props.hasAccountData || props.state.cards.account.status === "ready"
+    ? props.onLoadAccount
+    : props.onLogin;
   const manifestAction = props.isInitializingManifest
     ? "初始化中..."
     : props.state.cards.manifest.status === "ready"
@@ -31,11 +55,11 @@ export function StatusOverview(props: {
       />
       <StatusCard
         title="账号登录"
-        {...props.state.cards.account}
+        {...accountCard}
         action={accountAction}
-        busy={props.isLoggingIn}
-        disabled={props.isLoggingIn}
-        onAction={props.onLogin}
+        busy={props.isLoggingIn || props.isLoadingAccount}
+        disabled={props.isLoggingIn || props.isLoadingAccount}
+        onAction={accountActionHandler}
       />
       <StatusCard
         title="资料库"
@@ -48,4 +72,41 @@ export function StatusOverview(props: {
       <StatusCard title="AI" {...props.state.cards.ai} action="配置 AI" onAction={props.onConfigureAi} />
     </section>
   );
+}
+
+function getAccountStatusCard(input: {
+  state: StartupState;
+  accountError: string;
+  hasAccountData: boolean;
+  isLoadingAccount: boolean;
+}): StartupState["cards"]["account"] {
+  if (input.isLoadingAccount) {
+    return {
+      status: "skipped",
+      label: "正在读取账号数据"
+    };
+  }
+
+  if (input.accountError) {
+    return {
+      status: "missing",
+      label: `账号数据读取失败：${input.accountError}`
+    };
+  }
+
+  if (input.hasAccountData) {
+    return {
+      status: "ready",
+      label: "账号数据已读取"
+    };
+  }
+
+  if (input.state.cards.account.status === "ready") {
+    return {
+      status: "skipped",
+      label: "账号凭据已存在，尚未读取账号数据"
+    };
+  }
+
+  return input.state.cards.account;
 }

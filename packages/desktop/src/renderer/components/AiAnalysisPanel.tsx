@@ -266,7 +266,7 @@ export function AiAnalysisPanel(props: {
             {history.length ? (
               <ul>
                 {history.map((entry) => (
-                  <li key={entry.id}>
+                  <li className="ai-history-session-row" key={entry.id}>
                     <span>{entry.page_label} · {entry.title}</span>
                     <div className="button-row">
                       <button

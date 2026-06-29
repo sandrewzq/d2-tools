@@ -5,6 +5,7 @@ import type { DimWishlist } from "@d2-tools/core/analysis/wishlistImport";
 import type { LocalCommunityRecommendationTable, VaultItemMatchInfo } from "@d2-tools/core/community-perks";
 import type { SaveVaultNoteInput, SaveVaultTagInput, VaultTags } from "@d2-tools/core/vault/tags";
 import type { D2Services } from "./contracts.js";
+import { createD2SkillService } from "./d2SkillService.js";
 import type { AiChatReplyResult, AiChatRequest } from "./types.js";
 
 export type MemoryServicesSeed = {
@@ -31,6 +32,14 @@ export function createMemoryServices(seed: MemoryServicesSeed): D2Services {
   const activitySummary = seed.activitySummary ?? {
     recent: { total: 0, pve: { total: 0, completed: 0 }, pvp: { total: 0, completed: 0 }, other: { total: 0, completed: 0 } },
     raids: { entries: [] },
+    review: {
+      total_activities: 0,
+      completed_count: 0,
+      completion_rate: 0,
+      groups: [],
+      recent_10: [],
+      completions_in_a_row: 0
+    },
     recent_items: []
   };
   const communityMatches = seed.communityMatches ?? [];
@@ -41,78 +50,82 @@ export function createMemoryServices(seed: MemoryServicesSeed): D2Services {
   };
   const manifestDefinitions = seed.manifestDefinitions ?? {};
 
-  return {
-    profile: {
-      async getAccountSummary() {
-        return seed.account;
-      },
-      async getActivitySummary() {
-        return activitySummary;
-      },
-      async matchCommunityVaultItems(items) {
-        const requestedHashes = new Set(items.map((item) => item.hash));
-        return communityMatches.filter((item) => requestedHashes.has(item.hash));
-      }
+  const profile: D2Services["profile"] = {
+    async getAccountSummary() {
+      return seed.account;
     },
+    async getActivitySummary() {
+      return activitySummary;
+    },
+    async matchCommunityVaultItems(items) {
+      const requestedHashes = new Set(items.map((item) => item.hash));
+      return communityMatches.filter((item) => requestedHashes.has(item.hash));
+    }
+  };
+  const localData: D2Services["localData"] = {
+    async getDimWishlist() {
+      return wishlist;
+    },
+    async saveDimWishlist(nextWishlist) {
+      wishlist = nextWishlist;
+      return wishlist;
+    },
+    async clearDimWishlist() {
+      wishlist = null;
+      return null;
+    },
+    async getLocalCommunityRecommendations() {
+      return communityRecommendations;
+    },
+    async saveLocalCommunityRecommendations(table) {
+      communityRecommendations = table;
+      return communityRecommendations;
+    },
+    async clearLocalCommunityRecommendations() {
+      communityRecommendations = null;
+      return null;
+    },
+    async getVaultTags() {
+      return vaultTags;
+    },
+    async saveVaultTag(input) {
+      vaultTags = applyVaultTag(vaultTags, input);
+      return vaultTags;
+    },
+    async saveVaultTagsBatch(inputs) {
+      vaultTags = inputs.reduce((current, input) => applyVaultTag(current, input), vaultTags);
+      return vaultTags;
+    },
+    async saveVaultNote(input) {
+      vaultTags = applyVaultNote(vaultTags, input);
+      return vaultTags;
+    },
+    async getLocalTargetRules() {
+      return localTargetRules;
+    },
+    async saveLocalTargetRules(rules) {
+      localTargetRules = rules;
+      return localTargetRules;
+    },
+    async clearLocalTargetRules() {
+      localTargetRules = {
+        action_policy: "notify_only",
+        armor: [],
+        weapons: []
+      };
+      return localTargetRules;
+    }
+  };
+
+  return {
+    profile,
     manifest: {
       async getDefinition<TDefinition = unknown>(tableName: string, hash: number): Promise<TDefinition | null> {
         return (manifestDefinitions[tableName]?.[hash] ?? null) as TDefinition | null;
       }
     },
-    localData: {
-      async getDimWishlist() {
-        return wishlist;
-      },
-      async saveDimWishlist(nextWishlist) {
-        wishlist = nextWishlist;
-        return wishlist;
-      },
-      async clearDimWishlist() {
-        wishlist = null;
-        return null;
-      },
-      async getLocalCommunityRecommendations() {
-        return communityRecommendations;
-      },
-      async saveLocalCommunityRecommendations(table) {
-        communityRecommendations = table;
-        return communityRecommendations;
-      },
-      async clearLocalCommunityRecommendations() {
-        communityRecommendations = null;
-        return null;
-      },
-      async getVaultTags() {
-        return vaultTags;
-      },
-      async saveVaultTag(input) {
-        vaultTags = applyVaultTag(vaultTags, input);
-        return vaultTags;
-      },
-      async saveVaultTagsBatch(inputs) {
-        vaultTags = inputs.reduce((current, input) => applyVaultTag(current, input), vaultTags);
-        return vaultTags;
-      },
-      async saveVaultNote(input) {
-        vaultTags = applyVaultNote(vaultTags, input);
-        return vaultTags;
-      },
-      async getLocalTargetRules() {
-        return localTargetRules;
-      },
-      async saveLocalTargetRules(rules) {
-        localTargetRules = rules;
-        return localTargetRules;
-      },
-      async clearLocalTargetRules() {
-        localTargetRules = {
-          action_policy: "notify_only",
-          armor: [],
-          weapons: []
-        };
-        return localTargetRules;
-      }
-    },
+    localData,
+    d2Skill: createD2SkillService({ profile, localData }),
     ai: {
       async sendChat(input) {
         return typeof aiReply === "function" ? aiReply(input) : aiReply;

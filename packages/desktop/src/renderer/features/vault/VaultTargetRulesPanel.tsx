@@ -1,10 +1,12 @@
 import { useMemo, useState } from "react";
-import type {
-  AccountItemSummary,
-  ArmorStatKey,
-  LocalArmorTargetCondition,
-  LocalTargetRules,
-  LocalWeaponTargetCondition
+import {
+  api,
+  type PerkSearchResult,
+  type AccountItemSummary,
+  type ArmorStatKey,
+  type LocalArmorTargetCondition,
+  type LocalTargetRules,
+  type LocalWeaponTargetCondition
 } from "../../api/client";
 import { services } from "../../api/services";
 import { armorStatLabels } from "./vaultFilters";
@@ -16,6 +18,7 @@ type DraftCondition = {
 
 type DraftWeaponCondition = {
   perkHash: string;
+  perkName?: string;
 };
 
 type AvailableWeaponTarget = {
@@ -34,6 +37,10 @@ export function VaultTargetRulesPanel(props: {
   const [weaponName, setWeaponName] = useState("");
   const [selectedWeaponHash, setSelectedWeaponHash] = useState("");
   const [weaponConditions, setWeaponConditions] = useState<DraftWeaponCondition[]>([{ perkHash: "" }]);
+  const [perkSearchQuery, setPerkSearchQuery] = useState("");
+  const [perkSearchResults, setPerkSearchResults] = useState<PerkSearchResult[]>([]);
+  const [perkSearchMessage, setPerkSearchMessage] = useState("");
+  const [isSearchingPerks, setIsSearchingPerks] = useState(false);
   const [message, setMessage] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const availableWeaponTargets = useMemo(
@@ -162,6 +169,40 @@ export function VaultTargetRulesPanel(props: {
 
   function removeWeaponCondition(index: number) {
     setWeaponConditions((current) => current.filter((_, itemIndex) => itemIndex !== index));
+  }
+
+  async function searchManifestPerks() {
+    const query = perkSearchQuery.trim();
+    if (!query) {
+      setPerkSearchResults([]);
+      setPerkSearchMessage("请输入 perk 名称或描述关键词。");
+      return;
+    }
+
+    setIsSearchingPerks(true);
+    setPerkSearchMessage("");
+    try {
+      const results = await api.searchPerks(query);
+      setPerkSearchResults(results);
+      setPerkSearchMessage(results.length ? `找到 ${results.length} 个 perk。` : "没有找到可读 perk。");
+    } catch (error) {
+      setPerkSearchResults([]);
+      setPerkSearchMessage(error instanceof Error ? error.message : "资料库 perk 搜索失败");
+    } finally {
+      setIsSearchingPerks(false);
+    }
+  }
+
+  function addManifestPerkCondition(perk: PerkSearchResult) {
+    setWeaponConditions((current) => {
+      const nextCondition = { perkHash: String(perk.hash), perkName: perk.name };
+      const emptyIndex = current.findIndex((condition) => !condition.perkHash);
+      if (emptyIndex >= 0) {
+        return current.map((condition, index) => index === emptyIndex ? nextCondition : condition);
+      }
+      return [...current, nextCondition];
+    });
+    setMessage(`已把 ${perk.name} 添加到武器目标。`);
   }
 
   return (
@@ -300,6 +341,41 @@ export function VaultTargetRulesPanel(props: {
             placeholder="例如：PVE 清怪手炮"
           />
         </label>
+        <div className="target-perk-search">
+          <label className="compact-field">
+            从资料库搜索 perk
+            <input
+              value={perkSearchQuery}
+              onChange={(event) => setPerkSearchQuery(event.target.value)}
+              placeholder="例如：爆破专家 / 狂乱 / voltshot"
+            />
+          </label>
+          <button
+            type="button"
+            className="secondary-button"
+            disabled={isSearchingPerks}
+            onClick={() => void searchManifestPerks()}
+          >
+            {isSearchingPerks ? "搜索中..." : "搜索 perk"}
+          </button>
+        </div>
+        {perkSearchMessage ? <p className="muted-copy">{perkSearchMessage}</p> : null}
+        {perkSearchResults.length ? (
+          <div className="target-perk-search-results">
+            {perkSearchResults.slice(0, 8).map((perk) => (
+              <button
+                type="button"
+                className="target-perk-result"
+                key={perk.hash}
+                onClick={() => addManifestPerkCondition(perk)}
+              >
+                <strong>{perk.name}</strong>
+                {perk.description ? <span>{perk.description}</span> : null}
+                <small>添加到目标</small>
+              </button>
+            ))}
+          </div>
+        ) : null}
         <div className="vault-armor-rule-list">
           {weaponConditions.map((condition, index) => (
             <div className="vault-armor-rule" key={index}>
@@ -314,6 +390,9 @@ export function VaultTargetRulesPanel(props: {
                   {(selectedWeapon?.perks ?? []).map((perk) => (
                     <option key={perk.hash} value={perk.hash}>{perk.name}</option>
                   ))}
+                  {condition.perkHash && condition.perkName && !selectedWeapon?.perks.some((perk) => String(perk.hash) === condition.perkHash) ? (
+                    <option value={condition.perkHash}>{condition.perkName}</option>
+                  ) : null}
                 </select>
               </label>
               <button type="button" className="secondary-button" disabled={weaponConditions.length === 1} onClick={() => removeWeaponCondition(index)}>
@@ -362,9 +441,22 @@ function parseWeaponDraftConditions(
   weapon: AvailableWeaponTarget | undefined
 ): LocalWeaponTargetCondition[] {
   const perks = new Map((weapon?.perks ?? []).map((perk) => [String(perk.hash), perk]));
+  const seen = new Set<number>();
   return conditions
-    .map((condition) => perks.get(condition.perkHash))
+    .map((condition) => {
+      const ownedPerk = perks.get(condition.perkHash);
+      if (ownedPerk) return ownedPerk;
+      const hash = Number(condition.perkHash);
+      const name = condition.perkName?.trim();
+      if (!Number.isFinite(hash) || !name) return undefined;
+      return { hash, name };
+    })
     .filter((perk): perk is { hash: number; name: string } => Boolean(perk))
+    .filter((perk) => {
+      if (seen.has(perk.hash)) return false;
+      seen.add(perk.hash);
+      return true;
+    })
     .map((perk) => ({
       perk_hash: perk.hash,
       perk_name: perk.name

@@ -3,9 +3,11 @@ import {
   api,
   type ItemSearchResult,
   type LibraryHistory,
+  type LiveItemAvailability,
   type PerkSearchResult,
   type VaultItemMatchInfo
 } from "../../api/client";
+import { useManifestStatus } from "../../shared/hooks/useManifestStatus";
 import {
   defaultLibraryEquipmentFilter,
   defaultLibraryPerkFilter,
@@ -30,6 +32,10 @@ export function useLibraryWorkspace() {
   const [searchError, setSearchError] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const [libraryCommunityMatch, setLibraryCommunityMatch] = useState<Map<number, VaultItemMatchInfo>>(new Map());
+  const [liveAvailability, setLiveAvailability] = useState<LiveItemAvailability | null>(null);
+  const [liveAvailabilityError, setLiveAvailabilityError] = useState("");
+  const [isLoadingLiveAvailability, setIsLoadingLiveAvailability] = useState(false);
+  const manifestStatusState = useManifestStatus();
 
   useEffect(() => {
     if (libraryViewMode !== "equipment" || !items.length) {
@@ -55,6 +61,40 @@ export function useLibraryWorkspace() {
       .catch((error) => {
         console.warn("资料库社区推荐匹配失败：", error);
       });
+  }, [libraryViewMode, items]);
+
+  useEffect(() => {
+    if (libraryViewMode !== "equipment" || !items.length) {
+      setLiveAvailability(null);
+      setLiveAvailabilityError("");
+      setIsLoadingLiveAvailability(false);
+      return;
+    }
+
+    let cancelled = false;
+    const uniqueHashes = [...new Set(items.map((item) => item.hash))];
+    setIsLoadingLiveAvailability(true);
+    setLiveAvailabilityError("");
+
+    api.getLiveItemAvailability(uniqueHashes)
+      .then((result) => {
+        if (cancelled) return;
+        setLiveAvailability(result);
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        setLiveAvailability(null);
+        setLiveAvailabilityError(error instanceof Error ? error.message : "实时状态查询失败");
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setIsLoadingLiveAvailability(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [libraryViewMode, items]);
 
   async function loadLibraryHistory() {
@@ -132,6 +172,8 @@ export function useLibraryWorkspace() {
     if (libraryViewMode === "equipment") {
       setEquipmentFilters(defaultLibraryEquipmentFilter);
       setItems([]);
+      setLiveAvailability(null);
+      setLiveAvailabilityError("");
       setEquipmentSearchTouched(false);
     } else {
       setPerkFilters(defaultLibraryPerkFilter);
@@ -149,16 +191,25 @@ export function useLibraryWorkspace() {
     clearLibraryFilters,
     equipmentFilters,
     equipmentSearchTouched,
+    isLoadingLiveAvailability,
+    isLoadingManifestStatus: manifestStatusState.isLoadingManifestStatus,
+    isInitializingManifest: manifestStatusState.isInitializingManifest,
     isSearching,
     items,
     libraryCommunityMatch,
     libraryHistory,
     libraryViewMode,
+    liveAvailability,
+    liveAvailabilityError,
     loadLibraryHistory,
+    initializeManifest: manifestStatusState.initializeManifest,
+    manifestStatus: manifestStatusState.manifestStatus,
+    manifestStatusError: manifestStatusState.manifestStatusError,
     perkFilters,
     perkSearchTouched,
     perks,
     removeFavorite,
+    refreshManifestStatus: manifestStatusState.refreshManifestStatus,
     saveAlias,
     searchError,
     searchItems,
