@@ -20,6 +20,7 @@ export function createDiagnosticsSettingsState() {
       force_lightgg: false
     } as D2Config["ai"],
     writeActionsEnabled: false,
+    colorMode: "light" as D2Config["features"]["color_mode"],
     actionLog: [] as ActionLogEntry[],
     actionLogResultFilter: "all" as "all" | "success" | "failed",
     actionLogTypeFilter: "all" as ActionLogEntry["action"] | "all"
@@ -34,6 +35,7 @@ export function createDiagnosticsSettingsModel(input: {
   setIsRefreshingDiagnostics: (value: boolean) => void;
   setAiSettings: (value: D2Config["ai"]) => void;
   setWriteActionsEnabled: (value: boolean) => void;
+  setColorMode: (value: D2Config["features"]["color_mode"]) => void;
   setActionLog: (value: ActionLogEntry[]) => void;
   setSettingsMessage: (value: string) => void;
   setSettingsError: (value: string) => void;
@@ -52,6 +54,7 @@ export function createDiagnosticsSettingsModel(input: {
       input.setDiagnosticManifestVersion(manifest.version);
       input.setAiSettings(config.ai);
       input.setWriteActionsEnabled(config.features.write_actions_enabled);
+      input.setColorMode(config.features.color_mode);
       input.setActionLog(log);
     } catch (error) {
       input.setDiagnosticError(error instanceof Error ? error.message : "状态诊断失败");
@@ -89,10 +92,33 @@ export function createDiagnosticsSettingsModel(input: {
     }
   }
 
+  async function saveColorMode(mode: D2Config["features"]["color_mode"]) {
+    input.setSettingsError("");
+    input.setColorMode(mode);
+
+    try {
+      const config = await api.getConfig();
+      const nextConfig: D2Config = {
+        ...config,
+        features: {
+          ...config.features,
+          color_mode: mode
+        }
+      };
+      const saved = await api.saveConfig(nextConfig);
+      input.setColorMode(saved.features.color_mode);
+      input.onConfigChanged();
+    } catch (error) {
+      input.setSettingsError(error instanceof Error ? error.message : "颜色模式保存失败");
+      void refreshDiagnostics();
+    }
+  }
+
   return {
     refreshDiagnostics,
     handleAiSettingsSaved,
-    saveWriteActionsEnabled
+    saveWriteActionsEnabled,
+    saveColorMode
   };
 }
 

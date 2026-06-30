@@ -24,9 +24,9 @@ describe("daily and weekly layout", () => {
     expect(dailyPanel).toContain("weekly-focus-section");
     expect(dailyPanel).toContain("daily-source-count");
     expect(dailyPanel).toContain("daily-source-status");
-    expect(dailyPanel).toContain('className="source-status-card source-status-pending daily-panel-status"');
+    expect(dailyPanel).toContain('className="app-source-card source-status-card source-status-pending daily-panel-status"');
     expect(dailyPanel).toContain('className="source-status-badge source-status-pending">今日必看</span>');
-    expect(dailyPanel).toContain('className="source-status-card source-status-pending daily-source source-pending"');
+    expect(dailyPanel).toContain('className="app-source-card source-status-card source-status-pending daily-source source-pending"');
     expect(dailyPanel).toContain('className="source-status-badge source-status-pending">轮换细节</span>');
     expect(dailyPanel).toContain("onCopyWeeklyFocus");
     expect(dailyPanel).toContain("buildWeeklyDigestSections");

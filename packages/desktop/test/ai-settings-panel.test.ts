@@ -230,10 +230,10 @@ describe("AI settings panel helpers", () => {
     expect(homeRoutes).toContain("<SettingsPage");
     expect(homePage).toContain("<GlobalAssistantSidebar");
     expect(homePage).not.toContain("<AiSettingsPanel");
-    expect(homePage).not.toContain("查看或修改 Bungie 配置、写操作开关和本地日志。");
+    expect(homePage).not.toContain("查看或修改 Bungie 配置、AI、写操作开关、本地日志、更新和备份迁移。");
     expect(settingsPage).toContain("export function SettingsPage");
     expect(settingsPage).toContain("<AiSettingsPanel");
-    expect(settingsPage).toContain("查看或修改 Bungie 配置、写操作开关和本地日志。");
+    expect(settingsPage).toContain("查看或修改 Bungie 配置、AI、写操作开关、本地日志、更新和备份迁移。");
     expect(homePage).not.toContain("activePage === \"ai\"");
     expect(assistantSidebar).toContain("<AiPage");
     expect(aiPage).toContain("!props.isConfigured");

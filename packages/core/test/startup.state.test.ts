@@ -22,7 +22,8 @@ function config(overrides: Partial<D2Config["bungie"]> = {}): D2Config {
       base_url: ""
     },
     features: {
-      write_actions_enabled: false
+      write_actions_enabled: false,
+      color_mode: "light"
     }
   };
 }
@@ -83,6 +84,19 @@ describe("startup state", () => {
     expect(state.cards.account.label).toBe("Bungie 账号已登录");
     expect(state.cards.manifest.label).toBe("资料库已初始化");
     expect(state.cards.ai.label).toBe("AI 未配置");
+  });
+
+  it("carries the saved color mode into the desktop startup state", () => {
+    const savedConfig = config({ api_key: "api", client_id: "client", client_secret: "secret" });
+    savedConfig.features.color_mode = "dark";
+
+    const state = computeStartupState({
+      config: savedConfig,
+      hasToken: true,
+      hasManifest: true
+    });
+
+    expect(state.colorMode).toBe("dark");
   });
 
   it("marks manifest as needing update when cached before the latest weekly reset", () => {

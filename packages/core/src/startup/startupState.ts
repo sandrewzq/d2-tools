@@ -9,6 +9,7 @@ export type StartupAuthStatus = {
 
 export type StartupState = {
   nextStep: StartupStep;
+  colorMode: D2Config["features"]["color_mode"];
   cards: {
     bungieConfig: { status: StatusValue; label: string };
     account: { status: StatusValue; label: string };
@@ -45,6 +46,7 @@ export function computeStartupState(input: {
 
   return {
     nextStep: !bungieReady ? "home" : !accountReady ? "login" : "home",
+    colorMode: input.config.features.color_mode,
     cards: {
       bungieConfig: {
         status: bungieReady ? "ready" : "missing",

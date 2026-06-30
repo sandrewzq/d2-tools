@@ -6,6 +6,7 @@ export type ManifestApi = {
 
 export type StartupState = {
   nextStep: "bungie-config" | "login" | "home";
+  colorMode: "light" | "dark";
   cards: {
     bungieConfig: StatusCardState;
     account: StatusCardState;
@@ -17,6 +18,8 @@ export type StartupState = {
 export type StatusCardState = {
   status: "ready" | "missing" | "skipped";
   label: string;
+  needsUpdate?: boolean;
+  lastUpdated?: string;
 };
 
 export type ManifestStatus = {

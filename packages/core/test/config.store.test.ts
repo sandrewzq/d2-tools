@@ -93,6 +93,7 @@ describe("config store", () => {
     expect(config.bungie.redirect_uri).toBe("https://127.0.0.1:28780/oauth/callback");
     expect(config.data.manifest_language).toBe("zh-chs");
     expect(config.features.write_actions_enabled).toBe(false);
+    expect(config.features.color_mode).toBe("light");
   });
 
   it("persists GUI-provided Bungie credentials without logging them", () => {
@@ -117,7 +118,8 @@ describe("config store", () => {
           base_url: ""
         },
         features: {
-          write_actions_enabled: true
+          write_actions_enabled: true,
+          color_mode: "dark"
         }
       },
       { dataDir: dir }
@@ -129,6 +131,7 @@ describe("config store", () => {
     const loaded = loadConfig({ dataDir: dir, env: {} });
     expect(loaded.bungie.client_secret).toBe("secret");
     expect(loaded.features.write_actions_enabled).toBe(true);
+    expect(loaded.features.color_mode).toBe("dark");
   });
 
   it("lets env override config values", () => {
@@ -152,7 +155,8 @@ describe("config store", () => {
           base_url: ""
         },
         features: {
-          write_actions_enabled: false
+          write_actions_enabled: false,
+          color_mode: "light"
         }
       },
       { dataDir: dir }
@@ -188,6 +192,7 @@ describe("config store", () => {
     expect(loaded.ai.model).toBe("");
     expect(loaded.ai.base_url).toBe("");
     expect(loaded.features.write_actions_enabled).toBe(false);
+    expect(loaded.features.color_mode).toBe("light");
   });
 
   it("migrates the old local HTTP redirect URI to HTTPS", () => {

@@ -24,17 +24,17 @@ describe("desktop workspace layout", () => {
     expect(homePage).not.toContain("<HomeDashboard");
     expect(homeRoutes).toContain("<HomeDashboard");
     expect(homePage).not.toContain('className="home-workbench"');
-    expect(homeDashboard).toContain('className="home-workbench"');
-    expect(homeDashboard).toContain('className="home-primary-column"');
-    expect(homeDashboard).toContain('className="home-side-column"');
+    expect(homeDashboard).toContain('className="app-page home-app-page');
+    expect(homeDashboard).toContain('className="app-overview-grid"');
+    expect(homeDashboard).toContain('className="app-panel app-hero-panel"');
+    expect(homeDashboard).toContain('className="app-panel app-panel-body app-side-stack"');
     expect(homeDashboard).toContain("<DailySummaryPanel");
     expect(homeDashboard).not.toContain("../daily/DailyPage");
     expect(homePage).not.toContain("function renderDailyPanel");
     expect(dailyPage).toContain("export function DailyPage");
-    expect(styles).toMatch(/\.home-workbench\s*{[\s\S]*?grid-template-columns:\s*minmax\(640px,\s*1fr\)\s*minmax\(280px,\s*360px\);/);
-    expect(styles).toMatch(/@media \(max-width:\s*1180px\)\s*{[\s\S]*?\.home-workbench\s*{[\s\S]*?grid-template-columns:\s*1fr;/);
-    expect(styles).toMatch(/\.assistant-open \.home-workbench\s*{[\s\S]*?grid-template-columns:\s*1fr;/);
-    expect(styles).toMatch(/\.assistant-open \.home-side-column\s*{[\s\S]*?position:\s*static;/);
+    expect(styles).toMatch(/\.app-overview-grid\s*{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1\.3fr\)\s*minmax\(280px,\s*0\.7fr\);/);
+    expect(styles).toMatch(/\.app-hero-panel\s*{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1fr\)\s*320px;/);
+    expect(styles).toMatch(/@media \(max-width:\s*1180px\)\s*{[\s\S]*?\.app-overview-grid,[\s\S]*?\.app-hero-panel,[\s\S]*?\.app-settings-grid\s*{[\s\S]*?grid-template-columns:\s*1fr;/);
   });
 
   it("keeps AI in the global assistant sidebar instead of a main page", () => {
@@ -111,9 +111,11 @@ describe("desktop workspace layout", () => {
   it("keeps global setup cards on the home sidebar instead of repeating them on every page", () => {
     const homePage = readFileSync(join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"), "utf8");
     const homeDashboard = readFileSync(join(desktopRoot, "src", "renderer", "features", "home", "HomeDashboard.tsx"), "utf8");
-    const overviewMatches = homeDashboard.match(/<StatusOverview/g) ?? [];
 
-    expect(overviewMatches).toHaveLength(1);
+    expect(homeDashboard).toContain("app-status-list");
+    expect(homeDashboard).toContain("renderControlStatusRow");
+    expect(homeDashboard).not.toContain("<StatusOverview");
+    expect(homeDashboard).not.toContain("<DiagnosticsPanel");
     expect(homePage).not.toContain('activePage !== "home" ? (');
   });
 
@@ -155,6 +157,10 @@ describe("desktop workspace layout", () => {
     const aiPanel = readFileSync(join(desktopRoot, "src", "renderer", "components", "AiAnalysisPanel.tsx"), "utf8");
     const diagnosticsPanel = readFileSync(join(desktopRoot, "src", "renderer", "components", "DiagnosticsPanel.tsx"), "utf8");
     const styles = readFileSync(join(desktopRoot, "src", "renderer", "styles.css"), "utf8");
+    const finalBlock = styles.slice(
+      styles.indexOf("/* Desktop UI design system v2 final overrides */"),
+      styles.indexOf("/* End desktop UI design system v2 final overrides */")
+    );
 
     expect(itemDetailModal).toContain('className="source-status-list source-status-warning"');
     expect(itemDetailModal).toContain('source-status-card source-status-');
@@ -171,20 +177,22 @@ describe("desktop workspace layout", () => {
     expect(diagnosticsPanel).toContain('source-status-card source-status-');
     expect(diagnosticsPanel).toContain('source-status-badge source-status-');
     expect(styles).toMatch(/\.source-status-list\s*{[\s\S]*?display:\s*grid;/);
-    expect(styles).toMatch(/\.source-status-card\s*{[\s\S]*?border:\s*1px solid #303848;/);
     expect(styles).toMatch(/\.source-status-badge\s*{[\s\S]*?border-radius:\s*999px;/);
-    expect(styles).toMatch(/\.source-status-ready\s*{[\s\S]*?border-color:\s*#2f8f63;/);
-    expect(styles).toMatch(/\.source-status-warning\s*{[\s\S]*?border-color:\s*#66502a;/);
-    expect(styles).toMatch(/\.source-status-neutral\s*{[\s\S]*?border-color:\s*#3f5572;/);
+    expect(finalBlock).toContain(".source-status-card");
+    expect(finalBlock).toContain(".source-status-ready");
+    expect(finalBlock).toContain(".source-status-warning");
+    expect(finalBlock).toContain(".source-status-neutral");
+    expect(finalBlock).toContain("border-color: var(--status-ready)");
+    expect(finalBlock).toContain("border-color: var(--status-warning)");
+    expect(finalBlock).toContain("border-color: var(--border-control)");
   });
 
   it("collapses workbench and chat columns on narrow screens", () => {
     const styles = readFileSync(join(desktopRoot, "src", "renderer", "styles.css"), "utf8");
 
     expect(styles).toMatch(
-      /@media \(max-width:\s*760px\)\s*{[\s\S]*?\.home-workbench,\s*[\r\n\s]*\.ai-chat-workspace\s*{[\s\S]*?grid-template-columns:\s*1fr;/,
+      /@media \(max-width:\s*760px\)\s*{[\s\S]*?\.app-page-head,[\s\S]*?\.app-info-strip,[\s\S]*?\.app-status-row,[\s\S]*?\.app-setting-row,[\s\S]*?\.app-health-grid,[\s\S]*?\.app-metric-grid\s*{[\s\S]*?grid-template-columns:\s*1fr;/,
     );
-    expect(styles).toMatch(/@media \(max-width:\s*760px\)\s*{[\s\S]*?\.home-side-column\s*{[\s\S]*?position:\s*static;/);
     expect(styles).toMatch(/@media \(max-width:\s*760px\)\s*{[\s\S]*?\.ai-chat-input\s*{[\s\S]*?grid-template-columns:\s*1fr;/);
   });
 });

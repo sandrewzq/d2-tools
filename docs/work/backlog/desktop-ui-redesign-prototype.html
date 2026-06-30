@@ -1,0 +1,1880 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>d2-tools 桌面 UI 原型</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --page: #eef3f8;
+      --titlebar: #f8fafc;
+      --nav: #f7f9fc;
+      --panel: #ffffff;
+      --panel-soft: #f5f8fb;
+      --panel-raised: #ffffff;
+      --field: #f7fafd;
+      --field-strong: #edf3f8;
+      --line: #cfd9e6;
+      --line-strong: #aebed0;
+      --text: #182230;
+      --text-2: #334155;
+      --muted: #64748b;
+      --subtle: #7a8ba0;
+      --accent: #256fa8;
+      --accent-2: #155f96;
+      --accent-soft: #e7f1fb;
+      --good: #177245;
+      --good-soft: #e6f5ed;
+      --warn: #a86612;
+      --warn-soft: #fff3d8;
+      --danger: #ba4337;
+      --danger-soft: #fdebea;
+      --shadow: 0 14px 36px rgb(31 45 61 / 0.10);
+      --shadow-soft: 0 8px 22px rgb(31 45 61 / 0.08);
+      --radius: 10px;
+      --radius-sm: 8px;
+      --rail: 88px;
+      --top: 48px;
+    }
+
+    [data-theme="dark"] {
+      color-scheme: dark;
+      --page: #0f141b;
+      --titlebar: #121820;
+      --nav: #111720;
+      --panel: #171e28;
+      --panel-soft: #121922;
+      --panel-raised: #1b2430;
+      --field: #111821;
+      --field-strong: #1d2734;
+      --line: #2d3a4b;
+      --line-strong: #4a5c72;
+      --text: #eef4fb;
+      --text-2: #d2dce9;
+      --muted: #9aa9bc;
+      --subtle: #8290a3;
+      --accent: #76c4fb;
+      --accent-2: #9bd5ff;
+      --accent-soft: #183149;
+      --good: #62c78f;
+      --good-soft: #163326;
+      --warn: #e4b85f;
+      --warn-soft: #352817;
+      --danger: #ef8d7e;
+      --danger-soft: #3b1f20;
+      --shadow: 0 18px 42px rgb(0 0 0 / 0.28);
+      --shadow-soft: 0 10px 24px rgb(0 0 0 / 0.22);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      font-family: "Segoe UI", "Microsoft YaHei UI", system-ui, sans-serif;
+      background: var(--page);
+      color: var(--text);
+      font-size: 14px;
+    }
+
+    button,
+    input,
+    textarea {
+      font: inherit;
+    }
+
+    button {
+      min-height: 34px;
+      padding: 0 12px;
+      border: 1px solid var(--line-strong);
+      border-radius: var(--radius-sm);
+      background: var(--field);
+      color: var(--text-2);
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    button:hover,
+    button.active {
+      border-color: color-mix(in srgb, var(--accent) 52%, var(--line));
+      background: var(--accent-soft);
+      color: var(--accent-2);
+    }
+
+    .app {
+      display: grid;
+      grid-template-rows: var(--top) minmax(0, 1fr);
+      height: 100vh;
+      overflow: hidden;
+      background: var(--page);
+    }
+
+    .titlebar {
+      display: grid;
+      grid-template-columns: 200px minmax(0, 1fr) auto 138px;
+      align-items: center;
+      height: var(--top);
+      border-bottom: 1px solid var(--line);
+      background: var(--titlebar);
+    }
+
+    .brand {
+      display: grid;
+      grid-template-columns: 30px minmax(0, 1fr);
+      gap: 8px;
+      align-items: center;
+      padding: 0 12px;
+    }
+
+    .mark {
+      display: grid;
+      place-items: center;
+      width: 30px;
+      height: 30px;
+      border: 1px solid color-mix(in srgb, var(--accent) 42%, var(--line));
+      border-radius: 7px;
+      background: var(--accent-soft);
+      color: var(--accent-2);
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .brand strong,
+    .brand span {
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      line-height: 1.15;
+    }
+
+    .brand strong {
+      color: var(--text);
+      font-size: 13px;
+    }
+
+    .brand span {
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .global-status {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      min-width: 0;
+      overflow: hidden;
+      white-space: nowrap;
+    }
+
+    .status-pill {
+      display: inline-flex;
+      gap: 6px;
+      align-items: center;
+      min-width: 0;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .status-pill::before {
+      content: "";
+      width: 7px;
+      height: 7px;
+      flex: 0 0 auto;
+      border-radius: 50%;
+      background: var(--good);
+    }
+
+    .status-pill.busy::before {
+      background: var(--warn);
+    }
+
+    .status-pill strong {
+      overflow: hidden;
+      color: var(--text);
+      text-overflow: ellipsis;
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      padding-right: 10px;
+    }
+
+    .icon-btn {
+      display: grid;
+      place-items: center;
+      width: 34px;
+      min-height: 34px;
+      padding: 0;
+      border-color: transparent;
+      background: transparent;
+      color: var(--muted);
+    }
+
+    .icon-btn.primary {
+      border-color: color-mix(in srgb, var(--accent) 44%, var(--line));
+      background: var(--accent-soft);
+      color: var(--accent-2);
+    }
+
+    .win-controls {
+      display: grid;
+      grid-template-columns: repeat(3, 46px);
+      align-self: stretch;
+      border-left: 1px solid var(--line);
+    }
+
+    .win-controls span {
+      display: grid;
+      place-items: center;
+      color: var(--text-2);
+      font-size: 13px;
+    }
+
+    .workspace {
+      display: grid;
+      grid-template-columns: var(--rail) minmax(0, 1fr);
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    .workspace.ai-open {
+      grid-template-columns: var(--rail) minmax(0, 1fr) minmax(360px, 420px);
+    }
+
+    .nav {
+      display: grid;
+      align-content: start;
+      gap: 8px;
+      padding: 16px 8px;
+      border-right: 1px solid var(--line);
+      background: var(--nav);
+    }
+
+    .nav button {
+      width: 100%;
+      min-height: 42px;
+      padding: 0;
+      border-color: transparent;
+      background: transparent;
+      color: var(--text-2);
+    }
+
+    .nav button.active {
+      border-color: color-mix(in srgb, var(--accent) 42%, var(--line));
+      background: var(--accent-soft);
+      color: var(--accent-2);
+      box-shadow: var(--shadow-soft);
+    }
+
+    .main {
+      min-width: 0;
+      overflow-y: auto;
+      padding: 24px 28px 42px;
+      scrollbar-gutter: stable;
+    }
+
+    .main::-webkit-scrollbar,
+    .ai-pane::-webkit-scrollbar,
+    .ai-log::-webkit-scrollbar {
+      width: 10px;
+    }
+
+    .main::-webkit-scrollbar-track,
+    .ai-pane::-webkit-scrollbar-track,
+    .ai-log::-webkit-scrollbar-track {
+      background: color-mix(in srgb, var(--page) 78%, var(--line));
+    }
+
+    .main::-webkit-scrollbar-thumb,
+    .ai-pane::-webkit-scrollbar-thumb,
+    .ai-log::-webkit-scrollbar-thumb {
+      border: 2px solid color-mix(in srgb, var(--page) 78%, var(--line));
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--muted) 58%, transparent);
+    }
+
+    .page {
+      display: none;
+      max-width: 980px;
+      margin: 0 auto;
+    }
+
+    .page.active {
+      display: grid;
+      gap: 18px;
+    }
+
+    .page-head {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 16px;
+      align-items: end;
+    }
+
+    .page-head h1 {
+      margin: 0;
+      color: var(--text);
+      font-size: 28px;
+      letter-spacing: 0;
+      line-height: 1.15;
+    }
+
+    .page-head p {
+      margin: 6px 0 0;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .quick-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: flex-end;
+    }
+
+    .panel {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--panel);
+      box-shadow: var(--shadow-soft);
+    }
+
+    .panel-body {
+      padding: 16px;
+    }
+
+    .section-title {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .section-title h2,
+    .section-title h3 {
+      margin: 0;
+      color: var(--text);
+      font-size: 18px;
+    }
+
+    .section-title span,
+    .meta {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .overview-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.3fr) minmax(260px, 0.7fr);
+      gap: 16px;
+      align-items: start;
+    }
+
+    .hero-panel {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 320px;
+      gap: 18px;
+      align-items: start;
+      padding: 18px;
+    }
+
+    .hero-panel h2 {
+      margin: 0 0 8px;
+      color: var(--text);
+      font-size: 24px;
+    }
+
+    .hero-panel p {
+      margin: 0;
+      max-width: 560px;
+      color: var(--text-2);
+      line-height: 1.7;
+    }
+
+    .health-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .metric {
+      display: grid;
+      gap: 6px;
+      min-height: 78px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      background: var(--panel-soft);
+    }
+
+    .metric span {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .metric strong {
+      color: var(--text);
+      font-size: 16px;
+    }
+
+    .metric.good {
+      border-color: color-mix(in srgb, var(--good) 44%, var(--line));
+      background: var(--good-soft);
+    }
+
+    .metric.warn {
+      border-color: color-mix(in srgb, var(--warn) 48%, var(--line));
+      background: var(--warn-soft);
+    }
+
+    .side-stack {
+      display: grid;
+      gap: 10px;
+    }
+
+    .status-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 10px;
+      align-items: center;
+      padding: 12px;
+      border: 1px solid color-mix(in srgb, var(--good) 34%, var(--line));
+      border-radius: var(--radius-sm);
+      background: var(--good-soft);
+    }
+
+    .status-row strong,
+    .status-row span {
+      display: block;
+    }
+
+    .status-row strong {
+      color: var(--text);
+    }
+
+    .status-row span {
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .info-strip {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: center;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      background: var(--panel-soft);
+    }
+
+    .info-strip h3 {
+      margin: 0;
+      color: var(--text);
+      font-size: 16px;
+    }
+
+    .info-strip p {
+      margin: 4px 0 0;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .daily-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(260px, 0.78fr);
+      gap: 14px;
+    }
+
+    .list-card {
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      background: var(--panel);
+    }
+
+    .list-card h3 {
+      margin: 0 0 10px;
+      color: var(--text);
+      font-size: 16px;
+    }
+
+    .list-card ol,
+    .list-card ul {
+      display: grid;
+      gap: 8px;
+      margin: 0;
+      padding-left: 20px;
+      color: var(--text-2);
+      line-height: 1.55;
+    }
+
+    .source-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .source-card {
+      display: grid;
+      gap: 8px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      background: var(--panel-soft);
+    }
+
+    .source-card strong {
+      color: var(--text);
+      font-size: 14px;
+    }
+
+    .source-card p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+
+    .badge {
+      display: inline-flex;
+      justify-self: start;
+      padding: 3px 8px;
+      border: 1px solid color-mix(in srgb, var(--good) 52%, var(--line));
+      border-radius: 999px;
+      background: var(--good-soft);
+      color: var(--good);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .badge.warn {
+      border-color: color-mix(in srgb, var(--warn) 52%, var(--line));
+      background: var(--warn-soft);
+      color: var(--warn);
+    }
+
+    .account-layout {
+      display: grid;
+      grid-template-columns: 168px minmax(0, 1fr);
+      gap: 18px;
+      align-items: start;
+    }
+
+    .account-nav {
+      position: sticky;
+      top: 0;
+      display: grid;
+      gap: 6px;
+      padding: 12px;
+    }
+
+    .account-nav button {
+      justify-content: start;
+      width: 100%;
+      border-color: transparent;
+      background: transparent;
+      color: var(--text-2);
+      text-align: left;
+    }
+
+    .account-nav button.active {
+      border-color: color-mix(in srgb, var(--accent) 42%, var(--line));
+      background: var(--accent-soft);
+      color: var(--accent-2);
+    }
+
+    .character-bar {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 10px;
+      align-items: center;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .character-bar h2 {
+      margin: 0;
+      color: var(--text);
+      font-size: 18px;
+    }
+
+    .slot-list {
+      display: grid;
+      gap: 12px;
+      padding: 14px;
+    }
+
+    .slot-section {
+      display: grid;
+      gap: 10px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      background: var(--panel-soft);
+    }
+
+    .slot-head {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .slot-head strong {
+      color: var(--text);
+      font-size: 14px;
+    }
+
+    .slot-head span {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .slot-columns {
+      display: grid;
+      grid-template-columns: minmax(190px, 0.7fr) minmax(0, 1fr);
+      gap: 10px;
+    }
+
+    .item-row {
+      display: grid;
+      grid-template-columns: 42px minmax(0, 1fr);
+      gap: 10px;
+      align-items: center;
+      min-height: 58px;
+      padding: 8px;
+      border: 1px solid var(--line-strong);
+      border-radius: var(--radius-sm);
+      background: var(--field);
+    }
+
+    .item-row.equipped {
+      border-color: color-mix(in srgb, var(--good) 46%, var(--line));
+      background: var(--good-soft);
+    }
+
+    .item-row img {
+      width: 42px;
+      height: 42px;
+      border-radius: 6px;
+      object-fit: cover;
+      background: var(--field-strong);
+    }
+
+    .item-row strong,
+    .item-row span {
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .item-row strong {
+      color: var(--text);
+      font-size: 14px;
+    }
+
+    .item-row span {
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .backpack-list {
+      display: grid;
+      gap: 8px;
+    }
+
+    .tab-strip {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding: 12px;
+      border-bottom: 1px solid var(--line);
+      background: var(--panel);
+    }
+
+    .filter-toolbar {
+      display: grid;
+      grid-template-columns: minmax(220px, 1fr) auto;
+      gap: 10px;
+      align-items: center;
+      padding: 12px;
+      border-bottom: 1px solid var(--line);
+      background: var(--panel-soft);
+    }
+
+    .filter-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .field {
+      min-height: 36px;
+      padding: 0 12px;
+      border: 1px solid var(--line-strong);
+      border-radius: var(--radius-sm);
+      background: var(--field);
+      color: var(--text);
+    }
+
+    .vault-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(250px, 0.42fr);
+      gap: 16px;
+      align-items: start;
+    }
+
+    .item-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      padding: 12px;
+    }
+
+    .vault-card {
+      display: grid;
+      gap: 10px;
+      min-width: 0;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      background: var(--panel);
+    }
+
+    .vault-card.selected {
+      border-color: color-mix(in srgb, var(--accent) 48%, var(--line));
+      background: var(--accent-soft);
+    }
+
+    .vault-card-head {
+      display: grid;
+      grid-template-columns: 46px minmax(0, 1fr) auto;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .vault-card-head img {
+      width: 46px;
+      height: 46px;
+      border-radius: 7px;
+      object-fit: cover;
+      background: var(--field-strong);
+    }
+
+    .vault-card-head strong,
+    .vault-card-head span {
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .vault-card-head strong {
+      color: var(--text);
+      font-size: 15px;
+    }
+
+    .vault-card-head span {
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .perk-line {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .perk-line span {
+      padding: 3px 8px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: var(--field);
+      color: var(--text-2);
+      font-size: 12px;
+    }
+
+    .side-note {
+      display: grid;
+      gap: 10px;
+      padding: 14px;
+    }
+
+    .side-note h3 {
+      margin: 0;
+      color: var(--text);
+      font-size: 16px;
+    }
+
+    .side-note p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.55;
+    }
+
+    .library-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 0.62fr) minmax(0, 1fr);
+      gap: 16px;
+      align-items: start;
+    }
+
+    .search-stack {
+      display: grid;
+      gap: 10px;
+      padding: 14px;
+    }
+
+    .search-stack input {
+      width: 100%;
+      min-height: 38px;
+      padding: 0 12px;
+      border: 1px solid var(--line-strong);
+      border-radius: var(--radius-sm);
+      background: var(--field);
+      color: var(--text);
+    }
+
+    .reference-list {
+      display: grid;
+      gap: 10px;
+      padding: 12px;
+    }
+
+    .reference-card {
+      display: grid;
+      grid-template-columns: 52px minmax(0, 1fr);
+      gap: 12px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      background: var(--panel);
+    }
+
+    .reference-card img {
+      width: 52px;
+      height: 52px;
+      border-radius: 7px;
+      object-fit: cover;
+      background: var(--field-strong);
+    }
+
+    .reference-card h3,
+    .reference-card p {
+      margin: 0;
+    }
+
+    .reference-card h3 {
+      color: var(--text);
+      font-size: 15px;
+    }
+
+    .reference-card p {
+      margin-top: 4px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .settings-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(280px, 0.5fr);
+      gap: 16px;
+      align-items: start;
+    }
+
+    .setting-group {
+      display: grid;
+      gap: 10px;
+      padding: 14px;
+    }
+
+    .setting-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 10px;
+      align-items: center;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      background: var(--panel-soft);
+    }
+
+    .setting-row strong,
+    .setting-row span {
+      display: block;
+    }
+
+    .setting-row strong {
+      color: var(--text);
+    }
+
+    .setting-row span {
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .log-list {
+      display: grid;
+      gap: 8px;
+      padding: 14px;
+    }
+
+    .log-row {
+      padding: 10px 12px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      background: var(--field);
+    }
+
+    .log-row strong {
+      display: block;
+      color: var(--text);
+      font-size: 13px;
+    }
+
+    .log-row span {
+      display: block;
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .loadout-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(280px, 0.48fr);
+      gap: 16px;
+      align-items: start;
+    }
+
+    .loadout-template {
+      display: grid;
+      gap: 12px;
+      padding: 14px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .loadout-template:last-child {
+      border-bottom: 0;
+    }
+
+    .loadout-template-head {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 10px;
+      align-items: start;
+    }
+
+    .loadout-template h3,
+    .loadout-template p {
+      margin: 0;
+    }
+
+    .loadout-template h3 {
+      color: var(--text);
+      font-size: 16px;
+    }
+
+    .loadout-template p {
+      margin-top: 5px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .loadout-slots {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .loadout-slot {
+      display: grid;
+      gap: 6px;
+      min-height: 84px;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      background: var(--panel-soft);
+    }
+
+    .loadout-slot.missing {
+      border-color: color-mix(in srgb, var(--warn) 48%, var(--line));
+      background: var(--warn-soft);
+    }
+
+    .loadout-slot strong {
+      color: var(--text);
+      font-size: 13px;
+    }
+
+    .loadout-slot span {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    .build-summary {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .stat-tile {
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      background: var(--field);
+    }
+
+    .stat-tile strong,
+    .stat-tile span {
+      display: block;
+    }
+
+    .stat-tile strong {
+      color: var(--text);
+      font-size: 18px;
+    }
+
+    .stat-tile span {
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .modal-preview {
+      position: fixed;
+      inset: 0;
+      z-index: 20;
+      display: none;
+      place-items: center;
+      padding: 28px;
+      background: rgb(0 0 0 / 0.42);
+    }
+
+    .modal-preview.open {
+      display: grid;
+    }
+
+    .detail-modal {
+      display: grid;
+      width: min(1040px, calc(100vw - 80px));
+      max-height: min(86vh, 860px);
+      overflow: hidden;
+      border: 1px solid var(--line-strong);
+      border-radius: 12px;
+      background: var(--panel);
+      box-shadow: 0 24px 72px rgb(0 0 0 / 0.42);
+    }
+
+    .game-detail {
+      display: grid;
+      grid-template-columns: minmax(260px, 0.8fr) minmax(0, 1fr);
+      gap: 14px;
+      padding: 14px;
+      background: #070a0f;
+      color: #f3ecd8;
+    }
+
+    .game-title {
+      display: grid;
+      grid-template-columns: 58px minmax(0, 1fr);
+      gap: 12px;
+      align-items: center;
+      padding: 12px;
+      background: #604878;
+    }
+
+    .game-title img {
+      width: 58px;
+      height: 58px;
+      object-fit: cover;
+      background: #242936;
+    }
+
+    .game-title h2,
+    .game-title span {
+      display: block;
+      margin: 0;
+    }
+
+    .game-title h2 {
+      color: #fff7df;
+      font-size: 21px;
+      line-height: 1.15;
+    }
+
+    .game-title span {
+      margin-top: 4px;
+      color: rgb(255 255 255 / 0.78);
+      font-size: 13px;
+    }
+
+    .game-stats {
+      display: grid;
+      gap: 8px;
+      padding: 4px 0;
+    }
+
+    .game-stat {
+      display: grid;
+      grid-template-columns: 72px 44px minmax(0, 1fr);
+      gap: 10px;
+      align-items: center;
+      color: #f3ecd8;
+      font-size: 12px;
+    }
+
+    .game-bar {
+      height: 8px;
+      overflow: hidden;
+      background: #343941;
+    }
+
+    .game-bar i {
+      display: block;
+      height: 100%;
+      background: #d8d4c4;
+    }
+
+    .detail-tools {
+      display: grid;
+      grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+      gap: 14px;
+      min-height: 0;
+      overflow-y: auto;
+      padding: 14px;
+      background: var(--panel);
+    }
+
+    .detail-tools .panel {
+      box-shadow: none;
+    }
+
+    .modal-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: flex-end;
+      padding: 12px 14px;
+      border-top: 1px solid var(--line);
+      background: var(--panel-soft);
+    }
+
+    .ai-pane {
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr) auto;
+      min-width: 0;
+      overflow: hidden;
+      border-left: 1px solid var(--line);
+      background: color-mix(in srgb, var(--panel) 86%, var(--page));
+    }
+
+    .ai-head {
+      display: grid;
+      gap: 10px;
+      padding: 18px;
+      border-bottom: 1px solid var(--line);
+      background: var(--panel);
+    }
+
+    .ai-head h2 {
+      margin: 0;
+      color: var(--text);
+      font-size: 18px;
+    }
+
+    .ai-head p {
+      margin: 3px 0 0;
+      color: var(--muted);
+    }
+
+    .ai-tools {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .ai-log {
+      display: grid;
+      align-content: start;
+      gap: 12px;
+      min-height: 0;
+      overflow-y: auto;
+      padding: 16px 18px;
+    }
+
+    .message {
+      display: grid;
+      gap: 6px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      background: var(--panel);
+      color: var(--text-2);
+      line-height: 1.55;
+    }
+
+    .message.user {
+      border-color: color-mix(in srgb, var(--accent) 44%, var(--line));
+      background: var(--accent-soft);
+    }
+
+    .message strong {
+      color: var(--text);
+    }
+
+    .ai-composer {
+      display: grid;
+      gap: 10px;
+      padding: 14px 18px 16px;
+      border-top: 1px solid var(--line);
+      background: var(--panel);
+    }
+
+    .context-pill {
+      padding: 8px 10px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: var(--field);
+      color: var(--text-2);
+      font-size: 12px;
+    }
+
+    textarea {
+      resize: none;
+      width: 100%;
+      min-height: 86px;
+      padding: 10px;
+      border: 1px solid var(--line-strong);
+      border-radius: var(--radius-sm);
+      background: var(--field);
+      color: var(--text);
+      line-height: 1.5;
+    }
+
+    .placeholder-page {
+      min-height: 420px;
+      display: grid;
+      place-items: center;
+      border: 1px dashed var(--line-strong);
+      border-radius: var(--radius);
+      color: var(--muted);
+      background: var(--panel);
+    }
+
+    @media (max-width: 1180px) {
+      .workspace.ai-open {
+        grid-template-columns: var(--rail) minmax(0, 1fr);
+      }
+
+      .ai-pane {
+        display: none;
+      }
+
+      .overview-grid,
+      .hero-panel,
+      .daily-layout,
+      .account-layout,
+      .slot-columns,
+      .vault-layout,
+      .library-layout,
+      .settings-grid,
+      .loadout-layout,
+      .detail-tools,
+      .game-detail,
+      .filter-toolbar {
+        grid-template-columns: 1fr;
+      }
+
+      .item-grid,
+      .loadout-slots,
+      .build-summary {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body data-theme="light">
+  <div class="app">
+    <header class="titlebar">
+      <div class="brand">
+        <div class="mark">D2</div>
+        <div>
+          <strong>d2-tools</strong>
+          <span>Destiny 2 本地助手</span>
+        </div>
+      </div>
+      <div class="global-status">
+        <span class="status-pill"><span>账号状态</span><strong>Big Brother is watching</strong></span>
+        <span class="status-pill"><span>应用版本</span><strong>0.0.8</strong></span>
+        <span class="status-pill"><span>资料库</span><strong>06/30</strong></span>
+        <span class="status-pill busy"><span>后台任务</span><strong>空闲</strong></span>
+      </div>
+      <div class="toolbar">
+        <button class="icon-btn" title="更新资料库">↧</button>
+        <button class="icon-btn" id="themeToggle" title="明暗色切换">☾</button>
+        <button class="icon-btn" title="GitHub">◐</button>
+        <button class="icon-btn" title="设置">⚙</button>
+        <button class="icon-btn primary" id="aiToggle" title="AI 助手">AI</button>
+      </div>
+      <div class="win-controls" aria-label="窗口控制">
+        <span>－</span><span>□</span><span>×</span>
+      </div>
+    </header>
+
+    <div class="workspace ai-open" id="workspace">
+      <aside class="nav">
+        <button class="active" data-page="home">首页</button>
+        <button data-page="account">账号</button>
+        <button data-page="vault">仓库</button>
+        <button data-page="loadouts">配装</button>
+        <button data-page="library">资料库</button>
+        <button data-page="settings">设置</button>
+      </aside>
+
+      <main class="main">
+        <section class="page active" id="page-home">
+          <div class="page-head">
+            <div>
+              <h1>首页</h1>
+              <p>先看全局健康度，再进入今天需要处理的内容。</p>
+            </div>
+            <div class="quick-actions">
+              <button>读取账号</button>
+              <button>更新资料库</button>
+              <button>检查状态</button>
+            </div>
+          </div>
+
+          <div class="overview-grid">
+            <section class="panel hero-panel">
+              <div>
+                <h2>当前桌面状态</h2>
+                <p>首页只保留影响当前判断的入口：账号、资料库、后台任务和下一步建议。页面不再出现弱对比标签，也不再用浅字撑信息层级。</p>
+              </div>
+              <div class="health-grid">
+                <div class="metric good"><span>账号读取</span><strong>已读取</strong><span>角色与仓库可用</span></div>
+                <div class="metric good"><span>资料库版本</span><strong>6月30日</strong><span>可用于搜索</span></div>
+                <div class="metric"><span>诊断状态</span><strong>6 项</strong><span>未发现阻断项</span></div>
+              </div>
+            </section>
+
+            <aside class="panel panel-body side-stack">
+              <div class="section-title">
+                <h2>状态与设置</h2>
+                <span>只放高频入口</span>
+              </div>
+              <div class="status-row"><div><strong>Bungie 已配置</strong><span>授权和 API 配置正常</span></div><button>设置</button></div>
+              <div class="status-row"><div><strong>账号 已读取</strong><span>当前账号已登录</span></div><button>刷新</button></div>
+              <div class="status-row"><div><strong>资料库 可用</strong><span>版本 06/30</span></div><button>更新</button></div>
+            </aside>
+          </div>
+
+          <section class="panel panel-body">
+            <div class="info-strip">
+              <div>
+                <h3>下一步建议</h3>
+                <p>先同步账号，确认角色、仓库和材料数量；再检查今天轮换、商人库存和可确认来源。</p>
+              </div>
+              <div class="quick-actions"><button>查看账号</button><button>查出处</button></div>
+            </div>
+          </section>
+
+          <section class="panel panel-body">
+            <div class="section-title">
+              <div>
+                <h2>今日必看</h2>
+                <span>只展示可确认数据，不可确认内容降级显示</span>
+              </div>
+              <div class="quick-actions"><button>刷新</button><button>复制日报</button></div>
+            </div>
+            <div class="daily-layout">
+              <article class="list-card">
+                <h3>今日行动</h3>
+                <ol>
+                  <li>同步账号，确认角色、仓库和材料数量。</li>
+                  <li>查看今日轮换、遗失区域和商人库存。</li>
+                  <li>检查仓库可清理装备和疑似好 roll。</li>
+                  <li>查看本地配装模板是否仍在角色身上。</li>
+                  <li>同步账号后查看最近活动和 Raid / Dungeon 摘要。</li>
+                </ol>
+              </article>
+              <article class="list-card">
+                <h3>本周周报</h3>
+                <ul>
+                  <li>今日面板只展示可读真实数据；看不到名字的 Bungie hash 会被隐藏。</li>
+                  <li>如果商人、遗失区域为空，先用仓库整理和资料库搜索继续测试。</li>
+                </ul>
+              </article>
+            </div>
+          </section>
+
+          <section class="panel panel-body">
+            <div class="section-title">
+              <h2>数据源矩阵</h2>
+              <span>来源状态清晰可见</span>
+            </div>
+            <div class="source-grid">
+              <div class="source-card"><strong>Bungie 公共里程碑</strong><p>今日轮换 / 本周活动线索</p><span class="badge">已接入</span></div>
+              <div class="source-card"><strong>Bungie 公共商人</strong><p>关键商人库存和费用</p><span class="badge">已接入</span></div>
+              <div class="source-card"><strong>本地 Manifest</strong><p>名称、图标、perk 和来源解析</p><span class="badge">已接入</span></div>
+              <div class="source-card"><strong>待接入</strong><p>夜幕、试炼、双倍奖励</p><span class="badge warn">待接入</span></div>
+            </div>
+          </section>
+        </section>
+
+        <section class="page" id="page-account">
+          <div class="page-head">
+            <div>
+              <h1>账号</h1>
+              <p>账号页先看角色装备和背包候选，低频摘要收到底部。</p>
+            </div>
+            <div class="quick-actions"><button>刷新账号</button><button>同步活动</button></div>
+          </div>
+
+          <div class="account-layout">
+            <aside class="panel account-nav">
+              <button class="active">账号概览</button>
+              <button>角色装备</button>
+              <button>活动复盘</button>
+              <button>材料消耗</button>
+              <button>邮政官</button>
+            </aside>
+            <section class="panel">
+              <div class="character-bar">
+                <div>
+                  <h2>当前角色装备与背包</h2>
+                  <span class="meta">装备 16 件 / 背包 99 件</span>
+                </div>
+                <button>切换角色</button>
+              </div>
+              <div class="slot-list">
+                <article class="slot-section">
+                  <div class="slot-head"><strong>动能武器</strong><span>装备 1 / 背包 5</span></div>
+                  <div class="slot-columns">
+                    <div class="item-row equipped">
+                      <img src="https://www.bungie.net/common/destiny2_content/icons/94494acccfb25f03d9585f529dfdd661.jpg" alt="" />
+                      <div><strong>不胜即亡</strong><span>动能武器 / 传说 / 光等 363</span></div>
+                    </div>
+                    <div class="backpack-list">
+                      <div class="item-row"><img src="https://www.bungie.net/common/destiny2_content/icons/488bcb19b1306e79ca1e3c05882d6134.jpg" alt="" /><div><strong>改装B-7手枪</strong><span>动能武器 / 传说 / 光等 361</span></div></div>
+                      <div class="item-row"><img src="https://www.bungie.net/common/destiny2_content/icons/f8e78d7f079da27d01145e14721b49ab.jpg" alt="" /><div><strong>忠侍左轮</strong><span>动能武器 / 传说 / 光等 331</span></div></div>
+                      <div class="item-row"><img src="https://www.bungie.net/common/destiny2_content/icons/ba08ce560d5b2c17800d2b9ecb09f067.jpg" alt="" /><div><strong>无名午夜</strong><span>动能武器 / 传说 / 光等 338</span></div></div>
+                    </div>
+                  </div>
+                </article>
+
+                <article class="slot-section">
+                  <div class="slot-head"><strong>能量武器</strong><span>装备 1 / 背包 3</span></div>
+                  <div class="slot-columns">
+                    <div class="item-row equipped"><img src="https://www.bungie.net/common/destiny2_content/icons/10f63964a3ff4d465afcd4598ae0f297.jpg" alt="" /><div><strong>无礼言论</strong><span>能量武器 / 传说 / 光等 352</span></div></div>
+                    <div class="backpack-list">
+                      <div class="item-row"><img src="https://www.bungie.net/common/destiny2_content/icons/ca42589af40464431900e92ad85347f1.jpg" alt="" /><div><strong>召集反曲弓</strong><span>能量武器 / 传说 / 光等 337</span></div></div>
+                      <div class="item-row"><img src="https://www.bungie.net/common/destiny2_content/icons/ca42589af40464431900e92ad85347f1.jpg" alt="" /><div><strong>召集反曲弓</strong><span>能量武器 / 传说 / 光等 339</span></div></div>
+                    </div>
+                  </div>
+                </article>
+
+                <article class="slot-section">
+                  <div class="slot-head"><strong>威能武器</strong><span>装备 1 / 背包 2</span></div>
+                  <div class="slot-columns">
+                    <div class="item-row equipped"><img src="https://www.bungie.net/common/destiny2_content/icons/8748a7685719f9f3523d2d22f19348f2.jpg" alt="" /><div><strong>注视焦点</strong><span>威能武器 / 传说 / 光等 324</span></div></div>
+                    <div class="backpack-list">
+                      <div class="item-row"><img src="https://www.bungie.net/common/destiny2_content/icons/8748a7685719f9f3523d2d22f19348f2.jpg" alt="" /><div><strong>爆炸边界</strong><span>威能武器 / 传说 / 光等 334</span></div></div>
+                    </div>
+                  </div>
+                </article>
+              </div>
+            </section>
+          </div>
+        </section>
+
+        <section class="page" id="page-vault">
+          <div class="page-head">
+            <div>
+              <h1>仓库</h1>
+              <p>筛选列表、清理工作台、同名对比和目标规则拆成一级工作流，筛选条件始终在顶部。</p>
+            </div>
+            <div class="quick-actions"><button>刷新仓库</button><button>导出清单</button></div>
+          </div>
+
+          <div class="vault-layout">
+            <section class="panel">
+              <div class="tab-strip">
+                <button class="active">筛选列表</button>
+                <button>清理工作台</button>
+                <button>同名对比</button>
+                <button>目标规则</button>
+                <button>推荐数据</button>
+              </div>
+              <div class="filter-toolbar">
+                <input class="field" value="搜索武器、perk、来源或标签" aria-label="仓库搜索" />
+                <div class="filter-row">
+                  <button class="active">武器</button>
+                  <button>护甲</button>
+                  <button>全部</button>
+                </div>
+              </div>
+              <div class="filter-toolbar">
+                <div class="filter-row">
+                  <button class="active">Perk / 推荐</button>
+                  <button>框架</button>
+                  <button>弹药</button>
+                  <button>来源</button>
+                  <button>标签</button>
+                </div>
+                <span class="meta">搜索时不限制数量；默认显示 200 件</span>
+              </div>
+              <div class="item-grid">
+                <article class="vault-card selected">
+                  <div class="vault-card-head">
+                    <img src="https://www.bungie.net/common/destiny2_content/icons/94494acccfb25f03d9585f529dfdd661.jpg" alt="" />
+                    <div><strong>不胜即亡</strong><span>动能武器 / 传说 / 光等 363</span></div>
+                    <span class="badge">保留</span>
+                  </div>
+                  <div class="perk-line"><span>爆破专家</span><span>斩首武器</span><span>DIM wishlist</span></div>
+                  <div class="quick-actions"><button class="detail-open">查看详情</button><button>加入配装</button></div>
+                </article>
+                <article class="vault-card">
+                  <div class="vault-card-head">
+                    <img src="https://www.bungie.net/common/destiny2_content/icons/f8e78d7f079da27d01145e14721b49ab.jpg" alt="" />
+                    <div><strong>忠侍左轮</strong><span>动能武器 / 传说 / 光等 331</span></div>
+                    <span class="badge warn">待确认</span>
+                  </div>
+                  <div class="perk-line"><span>换弹大师</span><span>狂暴</span><span>同名 4 件</span></div>
+                </article>
+                <article class="vault-card">
+                  <div class="vault-card-head">
+                    <img src="https://www.bungie.net/common/destiny2_content/icons/ba08ce560d5b2c17800d2b9ecb09f067.jpg" alt="" />
+                    <div><strong>无名午夜</strong><span>斥候步枪 / 传说 / 光等 338</span></div>
+                    <span class="badge warn">重复</span>
+                  </div>
+                  <div class="perk-line"><span>快速命中</span><span>爆炸弹头</span><span>同名 6 件</span></div>
+                </article>
+                <article class="vault-card">
+                  <div class="vault-card-head">
+                    <img src="https://www.bungie.net/common/destiny2_content/icons/ca42589af40464431900e92ad85347f1.jpg" alt="" />
+                    <div><strong>召集反曲弓</strong><span>能量武器 / 传说 / 光等 337</span></div>
+                    <span class="badge">收藏</span>
+                  </div>
+                  <div class="perk-line"><span>弓手节奏</span><span>爆炸箭头</span><span>本地目标</span></div>
+                </article>
+              </div>
+            </section>
+
+            <aside class="panel side-note">
+              <h3>清理摘要</h3>
+              <p>仓库 764 件，重复组 64 组。当前筛选命中 42 件，其中 11 件可进入待清理候选。</p>
+              <div class="metric warn"><span>高重复</span><strong>18 件</strong><span>优先进入同名对比</span></div>
+              <div class="metric good"><span>明确保留</span><strong>27 件</strong><span>来自收藏、DIM 或目标规则</span></div>
+              <button>生成清理清单</button>
+            </aside>
+          </div>
+        </section>
+        <section class="page" id="page-loadouts">
+          <div class="page-head">
+            <div>
+              <h1>配装</h1>
+              <p>配装页保持工具属性：展示模板状态、缺失装备、候选替换和风险，不做大面积说明卡片。</p>
+            </div>
+            <div class="quick-actions"><button>导入模板</button><button>检查缺失</button></div>
+          </div>
+
+          <div class="loadout-layout">
+            <section class="panel">
+              <div class="tab-strip">
+                <button class="active">本地模板</button>
+                <button>缺失装备</button>
+                <button>候选替换</button>
+                <button>执行记录</button>
+              </div>
+              <article class="loadout-template">
+                <div class="loadout-template-head">
+                  <div>
+                    <h3>术士 · 日常清怪</h3>
+                    <p>目标：高恢复、高纪律，保留清怪武器和生存模组。模板不直接执行转移，只给出缺失和候选。</p>
+                  </div>
+                  <span class="badge warn">缺 2 件</span>
+                </div>
+                <div class="build-summary">
+                  <div class="stat-tile"><strong>100</strong><span>恢复</span></div>
+                  <div class="stat-tile"><strong>90</strong><span>纪律</span></div>
+                  <div class="stat-tile"><strong>70</strong><span>韧性</span></div>
+                </div>
+                <div class="loadout-slots">
+                  <div class="loadout-slot"><strong>动能武器</strong><span>不胜即亡 · 已在角色身上</span></div>
+                  <div class="loadout-slot missing"><strong>能量武器</strong><span>召集反曲弓 · 在仓库，需转移</span></div>
+                  <div class="loadout-slot"><strong>威能武器</strong><span>注视焦点 · 已匹配</span></div>
+                  <div class="loadout-slot"><strong>头盔</strong><span>恢复 / 纪律优先 · 已匹配</span></div>
+                  <div class="loadout-slot missing"><strong>臂铠</strong><span>目标 roll 未找到，推荐候选 3 件</span></div>
+                  <div class="loadout-slot"><strong>胸甲</strong><span>已匹配，模组需确认</span></div>
+                </div>
+                <div class="quick-actions"><button>查看候选</button><button>生成转移清单</button></div>
+              </article>
+
+              <article class="loadout-template">
+                <div class="loadout-template-head">
+                  <div>
+                    <h3>猎人 · Boss 输出</h3>
+                    <p>目标：武器组合和弹药经济优先，护甲属性只做最低阈值检查。</p>
+                  </div>
+                  <span class="badge">可准备</span>
+                </div>
+                <div class="loadout-slots">
+                  <div class="loadout-slot"><strong>动能武器</strong><span>可用候选 2 件</span></div>
+                  <div class="loadout-slot"><strong>能量武器</strong><span>已匹配</span></div>
+                  <div class="loadout-slot"><strong>威能武器</strong><span>线性融合 · 已匹配</span></div>
+                </div>
+              </article>
+            </section>
+
+            <aside class="panel side-note">
+              <h3>配装风险</h3>
+              <p>这里不做完整 DIM 级拖拽和护甲优化器，只做当前模板能否落地的判断。执行前仍需要二次确认。</p>
+              <div class="metric warn"><span>缺失装备</span><strong>2 件</strong><span>需要候选替换或从仓库转移</span></div>
+              <div class="metric good"><span>可直接准备</span><strong>1 套</strong><span>全部装备已匹配</span></div>
+              <button>查看安全说明</button>
+            </aside>
+          </div>
+        </section>
+        <section class="page" id="page-library">
+          <div class="page-head">
+            <div>
+              <h1>资料库</h1>
+              <p>默认做出处查询和来源判断，资料库日期、可用性和更新入口必须首屏可见。</p>
+            </div>
+            <div class="quick-actions"><button>检查版本</button><button>更新资料库</button></div>
+          </div>
+
+          <div class="library-layout">
+            <section class="panel">
+              <div class="search-stack">
+                <div class="section-title">
+                  <h2>出处查询</h2>
+                  <span>资料库日期 2026-06-30</span>
+                </div>
+                <input value="输入武器、perk、来源或活动名称" aria-label="资料库搜索" />
+                <div class="filter-row">
+                  <button class="active">全部来源</button>
+                  <button>可确认</button>
+                  <button>等轮换</button>
+                  <button>待补</button>
+                </div>
+              </div>
+              <div class="source-grid panel-body">
+                <div class="source-card"><strong>Bungie 公共数据</strong><p>可解析活动、商人和来源线索。</p><span class="badge">可用</span></div>
+                <div class="source-card"><strong>本地 Manifest</strong><p>名称、图标、perk 和收藏品来源。</p><span class="badge">可用</span></div>
+                <div class="source-card"><strong>社区证据</strong><p>只使用用户导入或授权来源。</p><span class="badge warn">待导入</span></div>
+                <div class="source-card"><strong>未知来源</strong><p>不确定时明确标记，不伪装成结论。</p><span class="badge warn">降级</span></div>
+              </div>
+            </section>
+
+            <section class="panel">
+              <div class="section-title panel-body">
+                <h2>搜索结果</h2>
+                <span>4 条来源线索</span>
+              </div>
+              <div class="reference-list">
+                <article class="reference-card">
+                  <img src="https://www.bungie.net/common/destiny2_content/icons/94494acccfb25f03d9585f529dfdd661.jpg" alt="" />
+                  <div>
+                    <h3>不胜即亡</h3>
+                    <p>来源：国王的陨落 / 标准。当前来源可确认，可结合账号掉落记录判断是否已拥有。</p>
+                    <span class="badge">来源可确认</span>
+                  </div>
+                </article>
+                <article class="reference-card">
+                  <img src="https://www.bungie.net/common/destiny2_content/icons/ba08ce560d5b2c17800d2b9ecb09f067.jpg" alt="" />
+                  <div>
+                    <h3>无名午夜</h3>
+                    <p>来源：遗失区域或历史活动线索待确认。界面不隐藏不确定性。</p>
+                    <span class="badge warn">等轮换</span>
+                  </div>
+                </article>
+                <article class="reference-card">
+                  <img src="https://www.bungie.net/common/destiny2_content/icons/f8e78d7f079da27d01145e14721b49ab.jpg" alt="" />
+                  <div>
+                    <h3>忠侍左轮</h3>
+                    <p>可在仓库中命中 3 件同名装备，建议回到仓库做同名对比。</p>
+                    <span class="badge">账号命中</span>
+                  </div>
+                </article>
+              </div>
+            </section>
+          </div>
+        </section>
+        <section class="page" id="page-settings">
+          <div class="page-head">
+            <div>
+              <h1>设置</h1>
+              <p>设置页只承载配置、更新、诊断和安全操作；不再把低频历史放到首页。</p>
+            </div>
+            <div class="quick-actions"><button>复制诊断</button><button>打开数据目录</button></div>
+          </div>
+
+          <div class="settings-grid">
+            <section class="panel setting-group">
+              <div class="section-title">
+                <h2>关键配置</h2>
+                <span>影响应用可用性</span>
+              </div>
+              <div class="setting-row"><div><strong>Bungie API</strong><span>Client ID、回调地址和授权状态已配置。</span></div><button>编辑</button></div>
+              <div class="setting-row"><div><strong>AI 助手</strong><span>当前 provider 已配置，可读取页面上下文。</span></div><button>设置</button></div>
+              <div class="setting-row"><div><strong>写操作保护</strong><span>转移、锁定、删除等操作需要二次确认。</span></div><button>查看</button></div>
+            </section>
+
+            <aside class="panel setting-group">
+              <div class="section-title">
+                <h2>更新状态</h2>
+                <span>自动后台重试</span>
+              </div>
+              <div class="metric good"><span>应用版本</span><strong>0.0.8</strong><span>已是最新或等待检查</span></div>
+              <div class="metric good"><span>资料库日期</span><strong>2026-06-30</strong><span>可用于搜索和详情判断</span></div>
+              <button>立即检查更新</button>
+            </aside>
+
+            <section class="panel">
+              <div class="section-title panel-body">
+                <h2>诊断与操作日志</h2>
+                <span>默认展示最近关键事件</span>
+              </div>
+              <div class="log-list">
+                <div class="log-row"><strong>资料库检查完成</strong><span>Manifest 可用，版本 2026-06-30。</span></div>
+                <div class="log-row"><strong>账号读取完成</strong><span>角色 2 个，仓库 764 件。</span></div>
+                <div class="log-row"><strong>AI 上下文刷新</strong><span>当前页面：首页，已同步仓库和今日信息摘要。</span></div>
+              </div>
+            </section>
+          </div>
+        </section>
+      </main>
+
+      <aside class="ai-pane" id="aiPane">
+        <div class="ai-head">
+          <div>
+            <h2>AI 助手</h2>
+            <p>和当前页面同步，但不压低主内容可读性。</p>
+          </div>
+          <div class="ai-tools">
+            <button>新会话</button>
+            <button>会话列表</button>
+            <button>上下文</button>
+            <button>设置</button>
+          </div>
+        </div>
+        <div class="ai-log">
+          <div class="message user"><strong>你</strong><span>我现在最应该清理哪些装备？</span></div>
+          <div class="message"><strong>AI</strong><span>我会基于当前账号、仓库数量和同名重复情况给出优先级。高重复、低价值、没有收藏标记的同名装备会优先进入清理候选。</span></div>
+          <div class="message"><strong>AI</strong><span>先看仓库中大量重复的动能武器，再检查护甲六维是否低于常用阈值。所有转移和删除操作仍需要你在界面确认。</span></div>
+          <div class="message"><strong>AI</strong><span>这块原型重点是正常阅读对比：AI 文本不再用过浅 disabled 色，消息边框、背景和正文对比固定。</span></div>
+        </div>
+        <div class="ai-composer">
+          <div class="context-pill">当前页面：首页 · 仓库 764 件 · 角色 2 个 · 今日信息已载入</div>
+          <textarea placeholder="输入你的问题，例如：帮我找出仓库里可以清理的同名装备"></textarea>
+          <div class="quick-actions"><button>查看上下文</button><button>发送</button></div>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <div class="modal-preview" id="detailModal" aria-label="装备详情预览">
+    <section class="detail-modal">
+      <div class="game-detail">
+        <div class="game-title">
+          <img src="https://www.bungie.net/common/destiny2_content/icons/94494acccfb25f03d9585f529dfdd661.jpg" alt="" />
+          <div>
+            <h2>不胜即亡</h2>
+            <span>动能武器 / 传说 / 光等 363</span>
+          </div>
+        </div>
+        <div class="game-stats">
+          <div class="game-stat"><span>冲击</span><strong>68</strong><div class="game-bar"><i style="width: 68%"></i></div></div>
+          <div class="game-stat"><span>射程</span><strong>74</strong><div class="game-bar"><i style="width: 74%"></i></div></div>
+          <div class="game-stat"><span>稳定</span><strong>52</strong><div class="game-bar"><i style="width: 52%"></i></div></div>
+          <div class="game-stat"><span>操控</span><strong>61</strong><div class="game-bar"><i style="width: 61%"></i></div></div>
+        </div>
+      </div>
+      <div class="detail-tools">
+        <section class="panel panel-body">
+          <div class="section-title">
+            <h2>本地判断</h2>
+            <span>桌面工具区</span>
+          </div>
+          <div class="source-card"><strong>推荐结论</strong><p>保留。命中 DIM wishlist，且当前仓库中同类 roll 数量不多。</p><span class="badge">保留</span></div>
+          <div class="source-card"><strong>来源</strong><p>国王的陨落 / 标准。来源可确认，资料库版本 2026-06-30。</p><span class="badge">来源可确认</span></div>
+        </section>
+        <section class="panel panel-body">
+          <div class="section-title">
+            <h2>Perk 与同名对比</h2>
+            <span>候选 3 件</span>
+          </div>
+          <div class="perk-line"><span>爆破专家</span><span>斩首武器</span><span>战术弹匣</span><span>箭头制退器</span></div>
+          <div class="log-list">
+            <div class="log-row"><strong>同名候选 1</strong><span>当前装备，评分最高。</span></div>
+            <div class="log-row"><strong>同名候选 2</strong><span>低光等，perk 重复，建议标记为待清理。</span></div>
+            <div class="log-row"><strong>同名候选 3</strong><span>来源一致，但没有命中本地目标。</span></div>
+          </div>
+        </section>
+      </div>
+      <div class="modal-actions">
+        <button>加入配装</button>
+        <button>标记保留</button>
+        <button id="detailClose">关闭</button>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    const body = document.body;
+    const themeToggle = document.getElementById("themeToggle");
+    const aiToggle = document.getElementById("aiToggle");
+    const workspace = document.getElementById("workspace");
+    const detailModal = document.getElementById("detailModal");
+    const detailClose = document.getElementById("detailClose");
+
+    themeToggle.addEventListener("click", () => {
+      const next = body.dataset.theme === "dark" ? "light" : "dark";
+      body.dataset.theme = next;
+      themeToggle.textContent = next === "dark" ? "☀" : "☾";
+    });
+
+    aiToggle.addEventListener("click", () => {
+      workspace.classList.toggle("ai-open");
+      aiToggle.classList.toggle("primary", workspace.classList.contains("ai-open"));
+    });
+
+    document.querySelectorAll(".nav button").forEach((button) => {
+      button.addEventListener("click", () => {
+        document.querySelectorAll(".nav button").forEach((item) => item.classList.remove("active"));
+        document.querySelectorAll(".page").forEach((page) => page.classList.remove("active"));
+        button.classList.add("active");
+        document.getElementById(`page-${button.dataset.page}`).classList.add("active");
+      });
+    });
+
+    document.querySelectorAll(".detail-open").forEach((button) => {
+      button.addEventListener("click", () => detailModal.classList.add("open"));
+    });
+
+    detailClose.addEventListener("click", () => detailModal.classList.remove("open"));
+    detailModal.addEventListener("click", (event) => {
+      if (event.target === detailModal) detailModal.classList.remove("open");
+    });
+  </script>
+</body>
+</html>

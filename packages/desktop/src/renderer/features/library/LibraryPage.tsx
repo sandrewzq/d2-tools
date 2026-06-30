@@ -82,10 +82,17 @@ export function LibraryPage(props: {
   const manifestAlert = buildManifestAlert(props.manifestStatus, props.manifestStatusError, props.isLoadingManifestStatus);
 
   return (
-    <section className="tool-panel">
-      <div>
+    <section className="tool-panel library-reference-page library-product-layout">
+      <div className="library-reference-hero">
+        <div>
         <h2>资料库搜索</h2>
-        <p>按装备和 Perk 分开检索，筛选只基于当前本地 Manifest 里已经确认的字段。</p>
+          <p>默认按出处查询装备，筛选只基于当前本地 Manifest 里已经确认的字段。</p>
+        </div>
+        <div className="library-reference-status">
+          <span>资料库日期</span>
+          <strong>{formatManifestDataDate(props.manifestStatus)}</strong>
+          <small>{props.manifestStatus?.needs_update ? "不是最新版本" : "用于来源、Perk 和详情判断"}</small>
+        </div>
       </div>
       {manifestAlert ? (
         <section className={`library-manifest-alert status-message ${manifestAlert.className}`}>
@@ -107,14 +114,14 @@ export function LibraryPage(props: {
           </div>
         </section>
       ) : null}
-      <div className="segmented-control">
+      <div className="library-acquisition-tabs segmented-control">
         <button
           type="button"
           value="equipment"
           className={props.libraryViewMode === "equipment" ? "active" : ""}
           onClick={() => props.onViewModeChange("equipment")}
         >
-          装备
+          出处查询
         </button>
         <button
           type="button"
@@ -125,6 +132,15 @@ export function LibraryPage(props: {
           Perk
         </button>
       </div>
+      {props.libraryViewMode === "equipment" ? (
+        <section className="library-acquisition-summary">
+          <div>
+            <span>获取优先级</span>
+            <strong>来源可确认 / 等轮换 / 已下架或待确认 / 来源待补</strong>
+          </div>
+          <p>不猜来源；只有 Manifest、实时商人或公共活动线索能确认时才提升优先级。</p>
+        </section>
+      ) : null}
       <div className="library-filter-grid">
         {props.libraryViewMode === "equipment" ? (
           <>
@@ -285,7 +301,7 @@ export function LibraryPage(props: {
               <strong>{liveStats.characterVendor + liveStats.publicVendor + liveStats.publicActivity}</strong>
             </div>
           </div>
-          <div className="drop-query-grid live-availability-summary">
+          <div className="drop-query-grid live-availability-summary library-source-matrix">
             <div className="drop-query-stat">
               <span>查询范围</span>
               <strong>{formatLiveScope(props.liveAvailability, props.isLoadingLiveAvailability)}</strong>
@@ -389,7 +405,7 @@ export function LibraryPage(props: {
         </div>
       </div>
       {props.libraryViewMode === "equipment" ? (
-        <div className="drop-query-groups">
+        <div className="drop-query-groups library-source-groups">
           {dropQueryGroups.map((group) => (
             <section className={"drop-query-group drop-access-" + group.key} key={group.key}>
               <div className="drop-query-group-heading">
@@ -495,6 +511,22 @@ function buildManifestAlert(
   return null;
 }
 
+function formatManifestDataDate(status: ManifestStatus | null): string {
+  if (!status) return "检查中";
+  const dateText = status.cached_at ?? status.checked_at;
+  if (dateText) {
+    const date = new Date(dateText);
+    if (!Number.isNaN(date.getTime())) {
+      return date.toLocaleDateString("zh-CN", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit"
+      });
+    }
+  }
+  return status.version ?? "未初始化";
+}
+
 function renderEquipmentResult(
   item: ItemSearchResult,
   libraryCommunityMatch: Map<number, VaultItemMatchInfo>,
@@ -511,7 +543,7 @@ function renderEquipmentResult(
   const liveEntry = liveAvailability?.items[String(item.hash)];
 
   return (
-    <article className="item-result library-weapon-card" key={item.hash}>
+    <article className="item-result library-weapon-card library-reference-card" key={item.hash}>
       {item.icon ? <img alt="" src={item.icon} /> : null}
       <div>
         <div className="library-weapon-card-heading">

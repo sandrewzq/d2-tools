@@ -228,7 +228,7 @@ function writeDefinitionCache(path: string, cache: DefinitionComponentCache): vo
   mkdirSync(dirname(path), { recursive: true });
   writeFileSync(
     path,
-    `${JSON.stringify(cache, null, 2)}\n`,
+    `${JSON.stringify(cache)}\n`,
     "utf8"
   );
   definitionMemoryCache.set(path, cache);

@@ -1,6 +1,6 @@
 {
   "name": "@d2-tools/core",
-  "version": "0.0.8",
+  "version": "0.0.9",
   "private": true,
   "type": "module",
   "main": "dist/index.js",
@@ -117,6 +117,10 @@
     "./diagnostics/export": {
       "types": "./dist/diagnostics/export.d.ts",
       "import": "./dist/diagnostics/export.js"
+    },
+    "./evidence/itemDecision": {
+      "types": "./dist/evidence/itemDecision.d.ts",
+      "import": "./dist/evidence/itemDecision.js"
     },
     "./tools/audit": {
       "types": "./dist/tools/audit.d.ts",

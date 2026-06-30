@@ -12,8 +12,8 @@ import { MemoizedVaultListItem as VaultListItem } from "./VaultListItem";
 import type { VaultSection } from "./vaultFilters";
 import { getVaultItemKey } from "./vaultSelection";
 
-export const INITIAL_VAULT_RENDER_LIMIT = 120;
-const VAULT_RENDER_INCREMENT = 120;
+export const INITIAL_VAULT_RENDER_LIMIT = 200;
+const VAULT_RENDER_INCREMENT = 200;
 
 export function VaultItemSections(props: {
   sections: VaultSection[];
@@ -23,6 +23,7 @@ export function VaultItemSections(props: {
   localTargetRules?: LocalTargetRules | null;
   communityMatch?: Map<number, VaultItemMatchInfo>;
   isOrganizing: boolean;
+  isSearchActive: boolean;
   selectedKeys: Set<string>;
   openingItemKey?: string;
   onOpenItem: (item: AccountItemSummary) => void;
@@ -37,8 +38,9 @@ export function VaultItemSections(props: {
   useEffect(() => {
     setVisibleItemLimit(INITIAL_VAULT_RENDER_LIMIT);
   }, [props.sections]);
+  const effectiveVisibleItemLimit = props.isSearchActive ? totalItemCount : visibleItemLimit;
   const renderedSections = useMemo(() => {
-    let remaining = visibleItemLimit;
+    let remaining = effectiveVisibleItemLimit;
     return props.sections.flatMap((section) => {
       if (remaining <= 0) {
         return [];
@@ -47,8 +49,8 @@ export function VaultItemSections(props: {
       remaining -= items.length;
       return items.length ? [{ ...section, items }] : [];
     });
-  }, [props.sections, visibleItemLimit]);
-  const renderedItemCount = Math.min(visibleItemLimit, totalItemCount);
+  }, [props.sections, effectiveVisibleItemLimit]);
+  const renderedItemCount = Math.min(effectiveVisibleItemLimit, totalItemCount);
 
   if (!props.sections.length) {
     return <p className="status-message status-neutral">没有匹配的仓库物品。</p>;
@@ -56,7 +58,7 @@ export function VaultItemSections(props: {
 
   return (
     <div className="vault-section-list">
-      {totalItemCount > INITIAL_VAULT_RENDER_LIMIT ? (
+      {!props.isSearchActive && totalItemCount > INITIAL_VAULT_RENDER_LIMIT ? (
         <div className="vault-render-limit-message">
           <span>先显示 {renderedItemCount} / {totalItemCount} 件，减少筛选和标记时的界面延迟。</span>
           {renderedItemCount < totalItemCount ? (

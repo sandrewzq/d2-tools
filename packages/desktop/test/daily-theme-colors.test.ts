@@ -6,29 +6,40 @@ import { describe, expect, it } from "vitest";
 const desktopRoot = fileURLToPath(new URL("..", import.meta.url));
 
 describe("daily panel theme colors", () => {
-  it("keeps daily and weekly cards aligned with the dark app theme", () => {
+  it("keeps daily and weekly cards aligned with semantic theme tokens", () => {
     const styles = readFileSync(
       join(desktopRoot, "src", "renderer", "styles.css"),
       "utf8"
+    );
+    const finalBlock = styles.slice(
+      styles.indexOf("/* Desktop UI design system v2 final overrides */"),
+      styles.indexOf("/* End desktop UI design system v2 final overrides */")
     );
 
     expect(styles).toMatch(/\.daily-board\s*{[\s\S]*?display: grid;/);
-    expect(styles).toMatch(/\.daily-reset-grid > div,[\s\S]*?\.daily-source\s*{[\s\S]*?background: #181d27;/);
-    expect(styles).toMatch(/\.daily-reset-grid strong,[\s\S]*?\.daily-source strong\s*{[\s\S]*?color: #f3f6fc;/);
-    expect(styles).toContain(".daily-source.source-pending strong");
-    expect(styles).toContain("background: #211d12;");
+    expect(finalBlock).toContain(".daily-reset-grid > div");
+    expect(finalBlock).toContain(".daily-source");
+    expect(finalBlock).toContain(".daily-source.source-pending");
+    expect(finalBlock).toContain("background: var(--item-bg)");
+    expect(finalBlock).toContain("background: var(--status-warning-bg)");
+    expect(finalBlock).toContain("color: var(--text-title)");
   });
 
-  it("does not apply light-card colors to modal and vault comparison panels", () => {
+  it("keeps modal and vault comparison panels on shared item tokens", () => {
     const styles = readFileSync(
       join(desktopRoot, "src", "renderer", "styles.css"),
       "utf8"
     );
+    const finalBlock = styles.slice(
+      styles.indexOf("/* Desktop UI design system v2 final overrides */"),
+      styles.indexOf("/* End desktop UI design system v2 final overrides */")
+    );
 
-    expect(styles).not.toMatch(/\.daily-source,[\s\S]*?\.same-roll-row[\s\S]*?background: #ffffff;/);
-    expect(styles).not.toMatch(/\.daily-source,[\s\S]*?\.duplicate-group[\s\S]*?background: #ffffff;/);
-    expect(styles).toMatch(/\.same-roll-row\s*{[\s\S]*?background: #141924;/);
-    expect(styles).toMatch(/\.duplicate-group\s*{[\s\S]*?background: #181d27;/);
+    expect(finalBlock).toContain(".same-roll-row");
+    expect(finalBlock).toContain(".duplicate-group");
+    expect(finalBlock).toContain(".item-modal .daily-source");
+    expect(finalBlock).toContain("background: var(--item-bg)");
+    expect(finalBlock).toContain("color: var(--text-body)");
   });
 
   it("constrains shell content so desktop pages do not create horizontal overflow", () => {

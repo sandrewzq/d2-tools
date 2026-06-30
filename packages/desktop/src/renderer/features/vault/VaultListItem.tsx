@@ -1,6 +1,10 @@
 import { memo } from "react";
 import { evaluateWishlistRoll } from "@d2-tools/core/analysis/wishlist";
 import { evaluateLocalTargets } from "@d2-tools/core/analysis/targets";
+import {
+  buildItemDecision,
+  summarizeItemDecision
+} from "@d2-tools/core/evidence/itemDecision";
 import type {
   AccountItemSummary,
   DimWishlist,
@@ -43,6 +47,15 @@ export function VaultListItem(props: {
   const isLoadoutMatch = matchesLoadoutTemplateItem(props.item, props.highlightedItemKeys);
   const tagValue = tagValueForItem(props.item, props.tags);
   const tagLabel = tagLabelForItem(props.item, props.tags);
+  const decision = buildItemDecision({
+    itemKey: getVaultItemKey(props.item),
+    itemName: props.item.name,
+    locked: props.item.locked,
+    localTag: tagValue,
+    wishlistMatched: wishlist.matched,
+    localTargetMatched: localTarget.matched,
+    communityMatched: Boolean(communityMatch && communityMatch.matched > 0)
+  });
 
   return (
     <article
@@ -77,6 +90,9 @@ export function VaultListItem(props: {
             <strong>{props.item.name}</strong>
             <span className={`vault-score-badge score-${tagValue}`}>{tagLabel}</span>
           </div>
+          <small className={`decision-badge decision-${decision.decision}`}>
+            {summarizeItemDecision(decision)}
+          </small>
           <span className="vault-card-meta">{formatVaultItemMeta(props.item)}</span>
           <div className="vault-card-signals">
             {isLoadoutMatch ? <small className="loadout-template-badge">方案命中</small> : null}
@@ -119,7 +135,7 @@ export function VaultListItem(props: {
           <button type="button" onClick={() => props.onSaveTag(props.item, "review")}>关注</button>
           <button type="button" onClick={() => props.onSaveTag(props.item, "farm")}>待刷</button>
           <button type="button" onClick={() => props.onSaveTag(props.item, "loadout")}>配装用</button>
-          <button type="button" onClick={() => props.onSaveTag(props.item, "junk")}>可清理</button>
+          <button type="button" disabled={decision.protected} onClick={() => props.onSaveTag(props.item, "junk")}>可清理</button>
           <button type="button" onClick={() => props.onSaveTag(props.item, "none")}>清除</button>
         </div>
       </div>

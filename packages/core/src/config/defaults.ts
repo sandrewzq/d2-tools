@@ -66,7 +66,8 @@ export function defaultConfig(dataDir = defaultDataDir()): D2Config {
       force_lightgg: false
     },
     features: {
-      write_actions_enabled: false
+      write_actions_enabled: false,
+      color_mode: "light"
     }
   };
 }

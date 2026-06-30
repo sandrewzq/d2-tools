@@ -64,11 +64,13 @@ describe("desktop installer and update wiring", () => {
     const homeRoutes = readFileSync(join(desktopRoot, "src", "renderer", "pages", "HomePageRoutes.tsx"), "utf8");
 
     expect(settingsPage).toContain("应用更新");
-    expect(settingsPage).toContain("settings-update-panel");
-    expect(settingsPage).toContain("settings-update-hero");
-    expect(settingsPage).toContain("update-status-pill");
+    expect(settingsPage).toContain('id="settings-updates"');
+    expect(settingsPage).toContain("app-panel app-setting-group update-");
+    expect(settingsPage).toContain("app-section-title");
+    expect(settingsPage).toContain("app-chip status-");
     expect(settingsPage).toContain("update-progress-bar");
-    expect(settingsPage).toContain("当前版本");
+    expect(settingsPage).toContain("应用版本");
+    expect(settingsPage).toContain("当前安装版本");
     expect(settingsPage).toContain("更新来源");
     expect(settingsPage).toContain("上次检查");
     expect(settingsPage).toContain("检查更新");
@@ -120,7 +122,8 @@ describe("desktop installer and update wiring", () => {
 
     expect(main).toContain("Menu.setApplicationMenu(null)");
     expect(main).toContain("autoHideMenuBar: true");
-    expect(main).toContain('backgroundColor: "#0d1118"');
+    expect(main).toContain('titleBarOverlay: createTitleBarOverlayOptions("light")');
+    expect(main).toContain('backgroundColor: getWindowBackgroundColor("light")');
   });
 
   it("adds a backup and migration guide to the settings release experience", () => {

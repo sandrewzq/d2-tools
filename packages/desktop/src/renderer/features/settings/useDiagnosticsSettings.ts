@@ -9,6 +9,7 @@ import {
 import {
   useActionLogState,
   useAiWriteSettingsState,
+  useColorModeState,
   useDiagnosticsStatusState
 } from "./useDiagnosticsSettingsState";
 import { useUpdateFlow } from "./useUpdateFlow";
@@ -17,6 +18,7 @@ import { useManifestStatus } from "../../shared/hooks/useManifestStatus";
 
 export function useDiagnosticsSettings(input: {
   onConfigChanged: () => void;
+  initialColorMode?: "light" | "dark";
 }) {
   const diagnosticsStatus = useDiagnosticsStatusState();
   const aiWriteSettings = useAiWriteSettingsState();
@@ -24,6 +26,7 @@ export function useDiagnosticsSettings(input: {
   const updateFlow = useUpdateFlow();
   const backgroundTaskState = useBackgroundTasks();
   const manifestStatusState = useManifestStatus();
+  const colorModeState = useColorModeState(input.initialColorMode);
 
   const settingsModel = createDiagnosticsSettingsModel({
     onConfigChanged: input.onConfigChanged,
@@ -33,6 +36,7 @@ export function useDiagnosticsSettings(input: {
     setIsRefreshingDiagnostics: diagnosticsStatus.setIsRefreshingDiagnostics,
     setAiSettings: aiWriteSettings.setAiSettings,
     setWriteActionsEnabled: aiWriteSettings.setWriteActionsEnabled,
+    setColorMode: colorModeState.setColorMode,
     setActionLog: actionLogState.setActionLog,
     setSettingsMessage: updateFlow.setSettingsMessage,
     setSettingsError: updateFlow.setSettingsError
@@ -55,6 +59,7 @@ export function useDiagnosticsSettings(input: {
     diagnosticManifestVersion: diagnosticsStatus.diagnosticManifestVersion,
     downloadUpdate: updateFlow.downloadUpdate,
     handleAiSettingsSaved: settingsModel.handleAiSettingsSaved,
+    colorMode: colorModeState.colorMode,
     isRefreshingDiagnostics: diagnosticsStatus.isRefreshingDiagnostics,
     initializeManifest: manifestStatusState.initializeManifest,
     isInitializingManifest: manifestStatusState.isInitializingManifest,
@@ -67,6 +72,7 @@ export function useDiagnosticsSettings(input: {
     refreshManifestStatus: manifestStatusState.refreshManifestStatus,
     refreshDiagnostics: settingsModel.refreshDiagnostics,
     saveWriteActionsEnabled: settingsModel.saveWriteActionsEnabled,
+    toggleColorMode: () => settingsModel.saveColorMode(colorModeState.colorMode === "light" ? "dark" : "light"),
     setActionLogResultFilter: actionLogState.setActionLogResultFilter,
     setActionLogTypeFilter: actionLogState.setActionLogTypeFilter,
     setWriteActionsEnabled: aiWriteSettings.setWriteActionsEnabled,

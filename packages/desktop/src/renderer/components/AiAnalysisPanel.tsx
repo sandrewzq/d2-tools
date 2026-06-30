@@ -161,6 +161,11 @@ export function AiAnalysisPanel(props: {
           <h2>AI 助手</h2>
           <p>{sessionTitle}</p>
         </div>
+        <button type="button" className="secondary-button ai-drawer-close" onClick={props.onClose}>
+          关闭
+        </button>
+      </header>
+      <div className="ai-conversation-toolbar" aria-label="AI 助手工具">
         <div className="ai-conversation-actions">
           <button type="button" className="secondary-button" disabled={isSendingChat} onClick={startNewSession}>
             新会话
@@ -189,11 +194,8 @@ export function AiAnalysisPanel(props: {
           <button type="button" className="secondary-button" onClick={props.onConfigureAi}>
             设置
           </button>
-          <button type="button" className="secondary-button" onClick={props.onClose}>
-            关闭
-          </button>
         </div>
-      </header>
+      </div>
 
       <div className="ai-chat-workspace">
         <div className="ai-conversation-log" aria-live="polite">

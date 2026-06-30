@@ -31,7 +31,7 @@ describe("Bungie activity history", () => {
         bungie: { api_key: "api", client_id: "", client_secret: "", redirect_uri: "" },
         data: { data_dir: "", manifest_language: "zh-chs" },
         ai: { provider: "", api_key: "", model: "", base_url: "" },
-        features: { write_actions_enabled: false }
+        features: { write_actions_enabled: false, color_mode: "light" }
       },
       membershipType: 3,
       membershipId: "membership-1",

@@ -177,6 +177,10 @@ describe("account inventory UI", () => {
     expect(accountPage).toContain("账号概览");
     expect(styles).toContain(".account-page-nav");
     expect(styles).toContain(".account-page-main");
+    expect(styles).toMatch(/\.account-secondary-workbench\s*{[\s\S]*?grid-template-columns:\s*1fr;/);
+    expect(styles).toMatch(/\.activity-review-grid\s*{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*0\.8fr\)\s*repeat\(2,\s*minmax\(0,\s*1fr\)\);/);
+    expect(styles).toMatch(/\.activity-review-list\s*{[\s\S]*?min-width:\s*0;/);
+    expect(styles).toMatch(/\.material-grid\s*{[\s\S]*?minmax\(180px,\s*1fr\)/);
   });
 
   it("keeps account item rendering bounded and lazy-loads item icons", () => {

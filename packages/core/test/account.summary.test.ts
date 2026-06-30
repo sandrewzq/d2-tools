@@ -22,7 +22,8 @@ function config(): D2Config {
       base_url: ""
     },
     features: {
-      write_actions_enabled: false
+      write_actions_enabled: false,
+      color_mode: "light"
     }
   };
 }

@@ -397,7 +397,8 @@ function config(overrides: Partial<D2Config>): D2Config {
       ...overrides.ai
     },
     features: {
-      write_actions_enabled: false
+      write_actions_enabled: false,
+      color_mode: "light"
     }
   };
 }

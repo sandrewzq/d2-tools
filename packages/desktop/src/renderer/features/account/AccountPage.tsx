@@ -142,6 +142,7 @@ export function AccountPage(props: {
               </div>
             </div>
 
+          <div className="account-a2-layout">
           <div id="account-loadout" className="account-primary-workbench">
             <article className="character-card character-card-focused account-character-summary">
               <div className="character-title">
@@ -205,7 +206,21 @@ export function AccountPage(props: {
             </section>
           </div>
 
-          <div className="account-secondary-workbench">
+          <div className="account-secondary-workbench account-side-summary">
+            <section className="account-side-summary-grid" aria-label="账号侧栏摘要">
+              <div>
+                <span>最近活动</span>
+                <strong>{activitySummary ? `${activitySummary.recent.total} 场` : "待读取"}</strong>
+              </div>
+              <div>
+                <span>材料</span>
+                <strong>{accountWorkspace.materialRows.length} 项</strong>
+              </div>
+              <div>
+                <span>邮政官</span>
+                <strong>{accountWorkspace.postmasterPreviewItems.length} 件</strong>
+              </div>
+            </section>
             <section id="account-activity" className="vault-preview account-activity-review">
               <div className="section-heading compact-heading">
                 <div>
@@ -350,6 +365,7 @@ export function AccountPage(props: {
             </section>
           </div>
           </div>
+          </div>
         </div>
       ) : null}
     </section>
@@ -416,8 +432,8 @@ function AccountSlotComparison(props: {
                 onOpenItem: props.onOpenEquippedItem
               })}
             </section>
-            <section className="account-slot-comparison-column account-inventory-panel">
-              <h5>当前角色背包</h5>
+            <section className="account-slot-comparison-column account-inventory-panel account-slot-backpack-preview">
+              <h5>当前角色背包 / 背包候选</h5>
               {renderAccountItemGrid(row.inventoryItems, "inventory", {
                 highlightedTemplate: props.highlightedTemplate,
                 openingItemKey: props.openingItemKey,

@@ -11,16 +11,13 @@ import {
 } from "./vaultSelection";
 import type {
   VaultGroupFilter,
-  VaultGroupSummary,
-  VaultViewMode
+  VaultGroupSummary
 } from "./vaultFilters";
 import type { VaultCleanupActions } from "./useVaultBatchActions";
 
 export function VaultOrganizePanel(props: {
   groups: VaultGroupSummary[];
   group: VaultGroupFilter;
-  viewMode: VaultViewMode;
-  duplicateGroupCount: number;
   isOrganizing: boolean;
   isCleanupMode: boolean;
   filteredItemCount: number;
@@ -35,7 +32,6 @@ export function VaultOrganizePanel(props: {
   cleanupActionItems: AccountItemSummary[];
   tags: VaultTags;
   onGroupChange: (value: VaultGroupFilter) => void;
-  onViewModeChange: (value: VaultViewMode) => void;
   onToggleOrganizing: () => void;
   onToggleCleanupMode: () => void;
   onVisibleSelectionChange: (mode: VaultVisibleSelectionMode) => void;
@@ -65,14 +61,6 @@ export function VaultOrganizePanel(props: {
         ))}
       </div>
       <div className="vault-organize-bar">
-        <button
-          type="button"
-          className={props.viewMode === "duplicates" ? "secondary-button active" : "secondary-button"}
-          aria-busy={false}
-          onClick={() => props.onViewModeChange(props.viewMode === "duplicates" ? "list" : "duplicates")}
-        >
-          同名对比 {props.duplicateGroupCount}
-        </button>
         <button
           type="button"
           className={props.isOrganizing ? "secondary-button" : ""}

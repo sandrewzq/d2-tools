@@ -21,7 +21,8 @@ const domainApiFiles = [
   "sharedTypes.ts",
   "targetApi.ts",
   "updateApi.ts",
-  "vaultApi.ts"
+  "vaultApi.ts",
+  "windowApi.ts"
 ];
 
 describe("renderer API boundary", () => {

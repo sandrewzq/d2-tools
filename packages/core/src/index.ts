@@ -23,6 +23,7 @@ export * from "./config/store.js";
 export * from "./daily/summary.js";
 export * from "./daily/liveData.js";
 export * from "./diagnostics/export.js";
+export * from "./evidence/itemDecision.js";
 export * from "./health/index.js";
 export * from "./items/perks.js";
 export * from "./items/aliases.js";

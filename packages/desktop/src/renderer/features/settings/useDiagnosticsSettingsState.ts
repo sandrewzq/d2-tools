@@ -36,6 +36,18 @@ export function useAiWriteSettingsState() {
   };
 }
 
+export function useColorModeState(initialColorMode?: D2Config["features"]["color_mode"]) {
+  const initialState = createDiagnosticsSettingsState();
+  const [colorMode, setColorMode] = useState<D2Config["features"]["color_mode"]>(
+    initialColorMode ?? initialState.colorMode
+  );
+
+  return {
+    colorMode,
+    setColorMode
+  };
+}
+
 export function useActionLogState() {
   const initialState = createDiagnosticsSettingsState();
   const [actionLog, setActionLog] = useState<ActionLogEntry[]>(initialState.actionLog);

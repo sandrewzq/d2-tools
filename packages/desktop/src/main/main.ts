@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { registerIpcHandlers } from "./ipc.js";
 import { scheduleInitialManifestVersionCheck } from "./ipc/manifest.js";
 import { scheduleInitialUpdateCheck } from "./ipc/updates.js";
+import { createTitleBarOverlayOptions, getWindowBackgroundColor } from "./ipc/window.js";
 
 const currentDir = fileURLToPath(new URL(".", import.meta.url));
 const isDevelopment = process.env.NODE_ENV === "development";
@@ -17,12 +18,8 @@ async function createWindow(): Promise<void> {
     title: "d2-tools",
     autoHideMenuBar: true,
     titleBarStyle: "hidden",
-    titleBarOverlay: {
-      color: "#10151d",
-      symbolColor: "#d7deea",
-      height: 44
-    },
-    backgroundColor: "#0d1118",
+    titleBarOverlay: createTitleBarOverlayOptions("light"),
+    backgroundColor: getWindowBackgroundColor("light"),
     webPreferences: {
       preload: join(currentDir, "../preload/preload.cjs"),
       contextIsolation: true,

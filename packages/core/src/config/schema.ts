@@ -20,6 +20,7 @@ export type D2Config = {
   };
   features: {
     write_actions_enabled: boolean;
+    color_mode: "light" | "dark";
   };
 };
 

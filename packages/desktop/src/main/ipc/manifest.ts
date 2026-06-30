@@ -1,18 +1,12 @@
 import { ipcMain } from "electron";
 import { loadConfig } from "@d2-tools/core/config/store";
 import {
-  initializeDefinitionComponent,
-  requiredDefinitionComponents,
-  type DefinitionComponentStatus
-} from "@d2-tools/core/manifest/definitions";
-import {
   checkManifestVersion,
   getManifestStatus,
-  initializeManifestMetadata,
-  loadManifestMetadataCache,
   type ManifestStatus
 } from "@d2-tools/core/manifest/cache";
 import { startBackgroundTask } from "../backgroundTasks.js";
+import { runHeavyTaskInWorker } from "../workers/heavyTaskRunner.js";
 
 const MANIFEST_RETRY_DELAYS_MS = [30_000, 120_000, 300_000, 900_000];
 let manifestUpdatePromise: Promise<ReturnType<typeof getManifestStatus>> | null = null;
@@ -112,48 +106,11 @@ function initializeManifestWithBackgroundTask(): Promise<ReturnType<typeof getMa
 
 async function runManifestUpdate(): Promise<ReturnType<typeof getManifestStatus>> {
   const config = loadConfig();
-  const status = await initializeManifestMetadata({ config });
+  const status = await runHeavyTaskInWorker<ManifestStatus>({ task: "manifest-update" });
   lastManifestVersionStatus = {
     latest_version: status.version,
     needs_update: false,
     checked_at: new Date().toISOString()
   };
-  const cache = loadManifestMetadataCache(config.data.data_dir);
-  if (!cache) {
-    throw new Error("Manifest metadata cache was not created");
-  }
-
-  const primaryLanguage = cache.language;
-  const primaryTasks = requiredDefinitionComponents.map((component) =>
-    initializeDefinitionComponent({
-      dataDir: config.data.data_dir,
-      language: primaryLanguage,
-      metadata: cache.metadata,
-      component
-    })
-  );
-
-  const englishTasks: Promise<DefinitionComponentStatus | null>[] = [];
-  if (primaryLanguage.toLowerCase() !== "en") {
-    englishTasks.push(
-      initializeDefinitionComponent({
-        dataDir: config.data.data_dir,
-        language: "en",
-        metadata: cache.metadata,
-        component: "DestinyInventoryItemDefinition",
-        writeDefaultCache: false
-      }).catch(() => null),
-      initializeDefinitionComponent({
-        dataDir: config.data.data_dir,
-        language: "en",
-        metadata: cache.metadata,
-        component: "DestinyPlugSetDefinition",
-        writeDefaultCache: false
-      }).catch(() => null)
-    );
-  }
-
-  await Promise.all([...primaryTasks, ...englishTasks]);
-
-  return status;
+  return mergeManifestVersionStatus(getManifestStatus(config.data.data_dir));
 }

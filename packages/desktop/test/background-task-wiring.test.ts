@@ -45,6 +45,7 @@ describe("product shell background task wiring", () => {
     expect(homePage).toContain("应用版本");
     expect(homePage).toContain("资料库");
     expect(homePage).toContain("后台任务");
+    expect(homePage).toContain('snapshot.status === "not_available" || snapshot.status === "idle"');
     expect(homePage).toContain("backgroundTasks: diagnostics.backgroundTasks");
     expect(settingsPage).toContain("后台任务");
     expect(settingsPage).toContain("settings-background-tasks");
@@ -68,6 +69,9 @@ describe("product shell background task wiring", () => {
     expect(manifestIpc).toContain("manifest-version-check");
     expect(manifestIpc).toContain("checkManifestVersion");
     expect(manifestIpc).toContain("scheduleInitialManifestVersionCheck");
+    expect(manifestIpc).toContain("runHeavyTaskInWorker");
+    expect(manifestIpc).toContain('task: "manifest-update"');
+    expect(manifestIpc).toContain("return mergeManifestVersionStatus(getManifestStatus");
   });
 
   it("runs account refresh as an application-level background task and defers derived analysis", () => {
@@ -82,6 +86,8 @@ describe("product shell background task wiring", () => {
     expect(accountIpc).toContain("startBackgroundTask");
     expect(accountIpc).toContain("account-sync");
     expect(accountIpc).toContain("accountSummaryPromise");
+    expect(accountIpc).toContain("runHeavyTaskInWorker");
+    expect(accountIpc).toContain('task: "account-summary"');
     expect(activitiesIpc).toContain("startBackgroundTask");
     expect(activitiesIpc).toContain("account-activity");
     expect(activitiesIpc).not.toContain('type: "account-sync"');
@@ -165,7 +171,8 @@ describe("product shell background task wiring", () => {
     expect(sharedHook).toContain("api.initializeManifest()");
     expect(libraryHook).toContain("useManifestStatus");
     expect(settingsHook).toContain("useManifestStatus");
-    expect(settingsPage).toContain("settings-manifest-panel");
+    expect(settingsPage).toContain('id="settings-manifest"');
+    expect(settingsPage).toContain("app-panel app-setting-group app-settings-wide manifest-");
     expect(settingsPage).toContain("资料库状态");
     expect(settingsPage).toContain("本地 Manifest");
     expect(settingsPage).toContain("最新 Manifest");

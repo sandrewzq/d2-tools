@@ -22,6 +22,7 @@ export function applyEnvOverrides(config: D2Config, env: ConfigEnv): D2Config {
       force_lightgg: parseBooleanEnv(env.AI_FORCE_LIGHTGG, config.ai.force_lightgg ?? false)
     },
     features: {
+      color_mode: config.features.color_mode,
       write_actions_enabled: parseBooleanEnv(
         env.D2_WRITE_ACTIONS_ENABLED,
         config.features.write_actions_enabled

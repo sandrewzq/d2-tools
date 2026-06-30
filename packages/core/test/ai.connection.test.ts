@@ -174,7 +174,8 @@ function config(ai: D2Config["ai"]): D2Config {
     },
     ai,
     features: {
-      write_actions_enabled: false
+      write_actions_enabled: false,
+      color_mode: "light"
     }
   };
 }

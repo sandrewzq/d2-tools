@@ -1,6 +1,6 @@
 import { createHomeDashboardWorkspace, createHomeDashboardActions } from "@d2-tools/app";
 import { useEffect, useRef, useState } from "react";
-import type { ManifestStatus, StartupState, UpdateSnapshot } from "../api/client";
+import type { AccountSummary, ManifestStatus, StartupState, UpdateSnapshot } from "../api/client";
 import { GlobalAssistantSidebar } from "../components/GlobalAssistantSidebar";
 import { ShellLayout, type ShellAssistantMode, type ShellPageKey, type ShellStatusItem } from "../components/ShellLayout";
 import { useAccountWorkspace } from "../features/account/useAccountWorkspace";
@@ -27,7 +27,8 @@ export function HomePage(props: {
   const daily = useDailySummary();
   const library = useLibraryWorkspace();
   const diagnostics = useDiagnosticsSettings({
-    onConfigChanged: props.onConfigChanged
+    onConfigChanged: props.onConfigChanged,
+    initialColorMode: props.state.colorMode
   });
   const {
     loginMessage,
@@ -139,7 +140,11 @@ export function HomePage(props: {
   const shellStatus = buildShellStatus({
     updateSnapshot,
     manifestStatus: diagnostics.manifestStatus,
-    activeTaskCount: activeBackgroundTaskCount
+    activeTaskCount: activeBackgroundTaskCount,
+    accountSummary,
+    isLoadingAccount,
+    accountError,
+    canRefreshAccount
   });
 
   const homeWorkspace = createHomeDashboardWorkspace({
@@ -176,7 +181,11 @@ export function HomePage(props: {
       activePage={activePage}
       assistantMode={assistantMode}
       onNavigate={setActivePage}
+      onInitializeManifest={() => void diagnostics.initializeManifest()}
       onAssistantModeChange={setAssistantMode}
+      onColorModeToggle={() => void diagnostics.toggleColorMode()}
+      isInitializingManifest={diagnostics.isInitializingManifest}
+      colorMode={diagnostics.colorMode}
       shellStatus={shellStatus}
       assistantPanel={(
         <GlobalAssistantSidebar
@@ -424,8 +433,17 @@ function buildShellStatus(input: {
   updateSnapshot: UpdateSnapshot | null;
   manifestStatus: ManifestStatus | null;
   activeTaskCount: number;
+  accountSummary: AccountSummary | null;
+  isLoadingAccount: boolean;
+  accountError: string;
+  canRefreshAccount: boolean;
 }): ShellStatusItem[] {
   return [
+    {
+      label: "账号状态",
+      value: formatAccountShellStatus(input.accountSummary, input.isLoadingAccount, input.accountError, input.canRefreshAccount),
+      tone: getAccountStatusTone(input.accountSummary, input.isLoadingAccount, input.accountError, input.canRefreshAccount)
+    },
     {
       label: "应用版本",
       value: formatAppUpdateStatus(input.updateSnapshot),
@@ -444,6 +462,30 @@ function buildShellStatus(input: {
   ];
 }
 
+function formatAccountShellStatus(
+  accountSummary: AccountSummary | null,
+  isLoadingAccount: boolean,
+  accountError: string,
+  canRefreshAccount: boolean
+): string {
+  if (isLoadingAccount) return "读取中";
+  if (accountError) return "读取失败";
+  if (accountSummary?.account_name) return accountSummary.account_name;
+  return canRefreshAccount ? "可读取" : "未登录";
+}
+
+function getAccountStatusTone(
+  accountSummary: AccountSummary | null,
+  isLoadingAccount: boolean,
+  accountError: string,
+  canRefreshAccount: boolean
+): ShellStatusItem["tone"] {
+  if (accountError) return "error";
+  if (isLoadingAccount) return "warning";
+  if (accountSummary) return "ready";
+  return canRefreshAccount ? "warning" : "neutral";
+}
+
 function formatAppUpdateStatus(snapshot: UpdateSnapshot | null): string {
   if (!snapshot) return "读取中";
   if (snapshot.status === "available") return `可更新 ${snapshot.available_version ?? ""}`.trim();
@@ -455,7 +497,8 @@ function formatAppUpdateStatus(snapshot: UpdateSnapshot | null): string {
 
 function getUpdateStatusTone(snapshot: UpdateSnapshot | null): ShellStatusItem["tone"] {
   if (!snapshot) return "neutral";
-  if (snapshot.status === "available" || snapshot.status === "downloaded") return "ready";
+  if (snapshot.status === "not_available" || snapshot.status === "idle") return "ready";
+  if (snapshot.status === "available" || snapshot.status === "downloaded") return "warning";
   if (snapshot.status === "downloading" || snapshot.status === "checking") return "warning";
   if (snapshot.status === "error") return "error";
   return "neutral";

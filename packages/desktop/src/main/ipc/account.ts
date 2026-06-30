@@ -1,10 +1,7 @@
 import { ipcMain } from "electron";
-import { fetchAccountSummary } from "@d2-tools/core/account/summary";
 import type { AccountSummary } from "@d2-tools/core/account/summary";
-import { loadConfig } from "@d2-tools/core/config/store";
-import { loadDefinitionComponent } from "@d2-tools/core/manifest/definitions";
 import { startBackgroundTask } from "../backgroundTasks.js";
-import { loadFreshOAuthToken } from "./authSession.js";
+import { runHeavyTaskInWorker } from "../workers/heavyTaskRunner.js";
 
 let accountSummaryPromise: Promise<AccountSummary> | null = null;
 
@@ -34,35 +31,5 @@ function loadAccountSummaryWithDeduplication(): Promise<AccountSummary> {
 }
 
 async function fetchDesktopAccountSummary(): Promise<AccountSummary> {
-  const config = loadConfig();
-  const token = await loadFreshOAuthToken(config);
-
-  const itemDefinitions = loadDefinitionComponent(
-    config.data.data_dir,
-    "DestinyInventoryItemDefinition"
-  );
-  const bucketDefinitions = loadDefinitionComponent(
-    config.data.data_dir,
-    "DestinyInventoryBucketDefinition"
-  );
-  const plugSetDefinitions = loadDefinitionComponent(
-    config.data.data_dir,
-    "DestinyPlugSetDefinition"
-  );
-  const loadoutNameDefinitions = loadDefinitionComponent(
-    config.data.data_dir,
-    "DestinyLoadoutNameDefinition"
-  );
-  if (!itemDefinitions) {
-    throw new Error("请先初始化资料库");
-  }
-
-  return fetchAccountSummary({
-    config,
-    token,
-    itemDefinitions,
-    bucketDefinitions: bucketDefinitions ?? undefined,
-    plugSetDefinitions: plugSetDefinitions ?? undefined,
-    loadoutNameDefinitions: loadoutNameDefinitions ?? undefined
-  });
+  return runHeavyTaskInWorker<AccountSummary>({ task: "account-summary" });
 }

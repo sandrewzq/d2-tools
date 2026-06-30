@@ -15,7 +15,13 @@ function readRendererTsxFiles(dir: string): Array<{ path: string; content: strin
 }
 
 function readCssRule(styles: string, selector: string): string {
-  const start = styles.indexOf(`${selector} {`);
+  const needle = selector.includes("\n") ? `${selector} {` : `\n${selector} {`;
+  let start = styles.indexOf(needle);
+  if (start >= 0 && !selector.includes("\n")) {
+    start += 1;
+  } else if (start < 0 && styles.startsWith(`${selector} {`)) {
+    start = 0;
+  }
   expect(start).toBeGreaterThanOrEqual(0);
   const end = styles.indexOf("}", start);
   expect(end).toBeGreaterThan(start);
@@ -40,6 +46,115 @@ describe("UI style system", () => {
     expect(styles).toContain("--text-title:");
     expect(styles).toContain("--text-body:");
     expect(styles).toContain("--text-muted:");
+    expect(styles).toContain("--scrollbar-track:");
+    expect(styles).toContain("--scrollbar-thumb:");
+    expect(styles).toContain("--scrollbar-thumb-hover:");
+    expect(styles).toContain("--field-bg:");
+    expect(styles).toContain("--field-bg-hover:");
+    expect(styles).toContain("--chip-bg:");
+    expect(styles).toContain("--chip-border:");
+    expect(styles).toContain("--item-bg:");
+    expect(styles).toContain("--item-bg-hover:");
+    expect(styles).toContain("--drawer-surface:");
+    expect(styles).toContain("--drawer-border:");
+    expect(styles).toContain("--drawer-message-user-bg:");
+    expect(styles).toContain("--drawer-message-assistant-bg:");
+    expect(styles).toContain("--game-surface:");
+    expect(styles).toContain("--game-text:");
+  });
+
+  it("unifies button and selected-state tokens so active surfaces stay readable", () => {
+    const styles = readFileSync(join(desktopRoot, "src", "renderer", "styles.css"), "utf8");
+    const buttonRule = readCssRule(styles, "button");
+    const primaryButtonRule = readCssRule(styles, ".primary-button");
+    const secondaryButtonRule = readCssRule(styles, ".secondary-button");
+    const selectedVaultItemCard = readCssRule(styles, ".vault-item-card.selected");
+
+    expect(styles).toContain("--action-primary-bg:");
+    expect(styles).toContain("--action-primary-bg-hover:");
+    expect(styles).toContain("--action-secondary-bg:");
+    expect(styles).toContain("--action-secondary-bg-hover:");
+    expect(styles).toContain("--state-selected-bg:");
+    expect(styles).toContain("--state-selected-border:");
+    expect(styles).toContain("--text-on-accent:");
+    expect(styles).not.toContain("--state-selected-rail:");
+    expect(styles).not.toContain("inset 3px 0 0");
+    expect(styles).not.toContain("border-left: 3px");
+
+    expect(buttonRule).toContain("color: var(--text-body)");
+    expect(buttonRule).toContain("background: var(--action-secondary-bg)");
+    expect(buttonRule).not.toContain("#93d5ff");
+    expect(primaryButtonRule).toContain("color: var(--text-on-accent)");
+    expect(primaryButtonRule).toContain("background: var(--action-primary-bg)");
+    expect(secondaryButtonRule).toContain("background: var(--action-secondary-bg)");
+
+    expect(styles).toMatch(/\.shell-nav button\.active,[\s\S]*?\.global-assistant-rail button\.active\s*{[\s\S]*?background:\s*var\(--state-selected-bg\);/);
+    expect(styles).toMatch(/\.settings-nav a:hover,[\s\S]*?\.account-page-nav a:focus-visible\s*{[\s\S]*?background:\s*var\(--state-selected-bg\);/);
+    expect(styles).toMatch(/\.character-tab\.active\s*{[\s\S]*?background:\s*var\(--state-selected-bg\);/);
+    expect(styles).toMatch(/\.vault-workflow-tab:hover,[\s\S]*?\.vault-workflow-tab\.active\s*{[\s\S]*?background:\s*var\(--state-selected-bg\);/);
+    expect(styles).toMatch(/\.segmented-control button\.active\s*{[\s\S]*?color:\s*var\(--text-title\);[\s\S]*?background:\s*var\(--state-selected-bg\);/);
+    expect(selectedVaultItemCard).toContain("background: var(--state-selected-bg)");
+    expect(selectedVaultItemCard).toContain("border-color: var(--state-selected-border)");
+  });
+
+  it("keeps legacy page surfaces readable in light color mode", () => {
+    const styles = readFileSync(join(desktopRoot, "src", "renderer", "styles.css"), "utf8");
+
+    const requiredLightSelectors = [
+      ".app-shell[data-color-mode=\"light\"] .home-overview-hero",
+      ".app-shell[data-color-mode=\"light\"] .daily-reset-grid > div",
+      ".app-shell[data-color-mode=\"light\"] .daily-source",
+      ".app-shell[data-color-mode=\"light\"] .source-status-card",
+      ".app-shell[data-color-mode=\"light\"] .drop-query-panel",
+      ".app-shell[data-color-mode=\"light\"] .diagnostic-row",
+      ".app-shell[data-color-mode=\"light\"] .action-log-row",
+      ".app-shell[data-color-mode=\"light\"] .equipment-item strong",
+      ".app-shell[data-color-mode=\"light\"] .equipment-item span",
+      ".app-shell[data-color-mode=\"light\"] .weapon-filter-panel",
+      ".app-shell[data-color-mode=\"light\"] .armor-filter-panel",
+      ".app-shell[data-color-mode=\"light\"] .vault-card-select",
+      ".app-shell[data-color-mode=\"light\"] .loadout-compare-row"
+    ];
+
+    for (const selector of requiredLightSelectors) {
+      expect(styles).toContain(selector);
+    }
+
+    const lightModeBlock = styles.slice(
+      styles.indexOf("/* Light mode legacy surface compatibility */"),
+      styles.indexOf("/* End light mode legacy surface compatibility */")
+    );
+    expect(lightModeBlock).toContain("background: var(--surface-panel)");
+    expect(lightModeBlock).toContain("color: var(--text-title)");
+    expect(lightModeBlock).toContain("color: var(--text-muted)");
+    expect(lightModeBlock).not.toContain("#f3f6fc");
+    expect(lightModeBlock).not.toContain("#181d27");
+    expect(lightModeBlock).not.toContain("#141924");
+  });
+
+  it("keeps light-mode controls and success states readable with semantic tokens", () => {
+    const styles = readFileSync(join(desktopRoot, "src", "renderer", "styles.css"), "utf8");
+    const selectRule = readCssRule(styles, "select");
+    const selectHoverRule = readCssRule(styles, "select:hover");
+    const compactFieldRule = readCssRule(styles, ".compact-field");
+    const switchRowRule = readCssRule(styles, ".switch-row");
+    const statusReadyRule = readCssRule(styles, ".status-message.status-ready");
+    const badgeReadyRule = readCssRule(styles, ".ui-badge.status-ready");
+
+    expect(selectRule).toContain("border-color: var(--field-border)");
+    expect(selectRule).toContain("background-color: var(--field-bg)");
+    expect(selectRule).toContain("color: var(--text-title)");
+    expect(selectHoverRule).toContain("background-color: var(--field-bg-hover)");
+    expect(selectHoverRule).not.toContain("#151d28");
+    expect(compactFieldRule).toContain("color: var(--text-body)");
+    expect(switchRowRule).toContain("color: var(--text-body)");
+    expect(switchRowRule).toContain("accent-color: var(--accent-primary)");
+    expect(statusReadyRule).toContain("color: var(--status-ready)");
+    expect(statusReadyRule).toContain("background: var(--status-ready-bg)");
+    expect(statusReadyRule).not.toContain("#b8f3c7");
+    expect(badgeReadyRule).toContain("color: var(--status-ready)");
+    expect(badgeReadyRule).toContain("background: var(--status-ready-bg)");
+    expect(badgeReadyRule).not.toContain("#b8f3c7");
   });
 
   it("locks the C1 global visual upgrade into shell, controls and shared surfaces", () => {
@@ -48,11 +163,18 @@ describe("UI style system", () => {
       join(desktopRoot, "src", "renderer", "components", "ShellLayout.tsx"),
       "utf8"
     );
+    const shellNavActiveRule = readCssRule(
+      styles,
+      ".shell-nav button.active,\n.global-assistant-rail button.active"
+    );
 
     expect(shellLayout).toContain("shell-titlebar");
     expect(shellLayout).toContain("shell-workspace");
-    expect(shellLayout).toContain("shell-current-page");
     expect(shellLayout).toContain("shell-status-strip");
+    expect(shellLayout).toContain("shell-status-group");
+    expect(shellLayout).toContain("shell-tool-button");
+    expect(shellLayout).toContain("shell-window-controls");
+    expect(shellLayout).not.toContain("shell-current-page");
     expect(styles).toContain("--surface-sidebar:");
     expect(styles).toContain("--surface-elevated:");
     expect(styles).toContain("--surface-toolbar:");
@@ -62,11 +184,12 @@ describe("UI style system", () => {
     expect(styles).toContain("--shadow-focus:");
 
     expect(styles).toMatch(/\.app-shell\s*{[\s\S]*?background:\s*var\(--surface-page\);/);
-    expect(styles).toMatch(/\.shell-titlebar\s*{[\s\S]*?height:\s*44px;/);
+    expect(styles).toMatch(/\.shell-titlebar\s*{[\s\S]*?height:\s*48px;/);
     expect(styles).toMatch(/\.shell-sidebar\s*{[\s\S]*?width:\s*88px;/);
     expect(styles).toMatch(/\.shell-content\s*{[\s\S]*?background:\s*var\(--surface-page\);/);
-    expect(styles).toMatch(/\.global-assistant-panel\s*{[\s\S]*?background:\s*var\(--surface-sidebar\);/);
-    expect(styles).toMatch(/\.shell-nav button\.active,[\s\S]*?\.global-assistant-rail button\.active\s*{[\s\S]*?box-shadow:\s*inset 3px 0 0 var\(--accent-primary\)/);
+    expect(styles).toMatch(/\.global-assistant-panel\s*{[\s\S]*?background:\s*var\(--drawer-surface\);/);
+    expect(shellNavActiveRule).toContain("background: var(--state-selected-bg)");
+    expect(shellNavActiveRule).not.toContain("inset 3px 0 0");
 
     expect(styles).toMatch(/button:focus-visible,[\s\S]*?input:focus-visible,[\s\S]*?select:focus-visible,[\s\S]*?textarea:focus-visible\s*{[\s\S]*?box-shadow:\s*var\(--shadow-focus\);/);
     expect(styles).toMatch(/\.tool-panel\s*{[\s\S]*?box-shadow:\s*var\(--shadow-panel\);/);
@@ -84,7 +207,7 @@ describe("UI style system", () => {
     expect(mainProcess).toContain('titleBarStyle: "hidden"');
     expect(mainProcess).toContain("titleBarOverlay");
     expect(styles).toMatch(/\.shell-titlebar\s*{[\s\S]*?-webkit-app-region:\s*drag;/);
-    expect(styles).toMatch(/\.shell-titlebar button,[\s\S]*?\.global-shell-status-item\s*{[\s\S]*?-webkit-app-region:\s*no-drag;/);
+    expect(styles).toMatch(/\.shell-titlebar button,[\s\S]*?\.shell-status-group\s*{[\s\S]*?-webkit-app-region:\s*no-drag;/);
 
     expect(homeDashboard).not.toContain("常用入口");
     expect(homeDashboard).not.toContain("quick-actions");
@@ -105,13 +228,26 @@ describe("UI style system", () => {
 
   it("keeps shell scrolling scoped to workspace panes with fixed titlebar", () => {
     const styles = readFileSync(join(desktopRoot, "src", "renderer", "styles.css"), "utf8");
+    const shellScrollbarRule = readCssRule(
+      styles,
+      ".shell-scroll-area,\n.shell-content,\n.ai-conversation-log,\n.ai-session-drawer,\n.ai-context-drawer"
+    );
+    const shellScrollbarTrackRule = readCssRule(
+      styles,
+      ".shell-scroll-area::-webkit-scrollbar-track,\n.shell-content::-webkit-scrollbar-track,\n.ai-conversation-log::-webkit-scrollbar-track,\n.ai-session-drawer::-webkit-scrollbar-track,\n.ai-context-drawer::-webkit-scrollbar-track"
+    );
+    const shellScrollbarThumbRule = readCssRule(
+      styles,
+      ".shell-scroll-area::-webkit-scrollbar-thumb,\n.shell-content::-webkit-scrollbar-thumb,\n.ai-conversation-log::-webkit-scrollbar-thumb,\n.ai-session-drawer::-webkit-scrollbar-thumb,\n.ai-context-drawer::-webkit-scrollbar-thumb"
+    );
+    const itemModalRule = readCssRule(styles, ".item-modal");
 
     expect(styles).toMatch(/body\s*{[\s\S]*?overflow:\s*hidden;/);
     expect(styles).toMatch(/\.app-shell\s*{[\s\S]*?height:\s*100vh;/);
     expect(styles).toMatch(/\.app-shell\s*{[\s\S]*?overflow:\s*hidden;/);
     expect(styles).toMatch(/\.shell-titlebar\s*{[\s\S]*?position:\s*sticky;/);
     expect(styles).toMatch(/\.shell-titlebar\s*{[\s\S]*?top:\s*0;/);
-    expect(styles).toMatch(/\.shell-workspace\s*{[\s\S]*?height:\s*calc\(100vh - 44px\);/);
+    expect(styles).toMatch(/\.shell-workspace\s*{[\s\S]*?height:\s*calc\(100vh - 48px\);/);
     expect(styles).toMatch(/\.shell-workspace\s*{[\s\S]*?overflow:\s*hidden;/);
     expect(styles).toMatch(/\.shell-content\s*{[\s\S]*?overflow-y:\s*auto;/);
     expect(styles).toMatch(/\.shell-content\s*{[\s\S]*?scrollbar-gutter:\s*stable;/);
@@ -119,6 +255,190 @@ describe("UI style system", () => {
     expect(styles).toMatch(/\.global-assistant-panel\s*{[\s\S]*?height:\s*100%;/);
     expect(styles).toMatch(/\.shell-scroll-area,[\s\S]*?\.ai-context-drawer\s*{[\s\S]*?scrollbar-width:\s*thin;/);
     expect(styles).toMatch(/\.shell-scroll-area::-webkit-scrollbar-thumb,[\s\S]*?\.ai-context-drawer::-webkit-scrollbar-thumb\s*{[\s\S]*?border-radius:\s*999px;/);
+    expect(shellScrollbarRule).toContain("scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track)");
+    expect(shellScrollbarTrackRule).toContain("background: var(--scrollbar-track)");
+    expect(shellScrollbarThumbRule).toContain("border: 2px solid var(--scrollbar-track)");
+    expect(shellScrollbarThumbRule).toContain("background: var(--scrollbar-thumb)");
+    expect(itemModalRule).toContain("scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track)");
+    expect(styles).not.toContain("scrollbar-color: #40536c #0f141c");
+  });
+
+  it("keeps the AI drawer and main workspace as separate scroll panes", () => {
+    const styles = readFileSync(join(desktopRoot, "src", "renderer", "styles.css"), "utf8");
+    const shellLayout = readFileSync(
+      join(desktopRoot, "src", "renderer", "components", "ShellLayout.tsx"),
+      "utf8"
+    );
+    const assistantWorkspaceRule = readCssRule(styles, ".app-shell.assistant-open .shell-workspace");
+    const shellContentRule = readCssRule(styles, ".shell-content");
+    const assistantPanelRule = readCssRule(styles, ".global-assistant-panel");
+    const assistantSidebarRule = readCssRule(styles, ".global-assistant-sidebar");
+    const assistantDrawerRule = readCssRule(styles, ".global-assistant-drawer");
+
+    expect(shellLayout).toContain('<aside className="global-assistant-panel global-assistant-drawer"');
+    expect(shellLayout).not.toContain("global-assistant-backdrop");
+    expect(assistantWorkspaceRule).toContain("grid-template-columns: 88px minmax(0, 1fr) minmax(360px, 420px)");
+    expect(shellContentRule).toContain("overflow-y: auto");
+    expect(shellContentRule).toContain("scrollbar-gutter: stable");
+    expect(assistantPanelRule).toContain("position: relative");
+    expect(assistantPanelRule).toContain("overflow: hidden");
+    expect(assistantPanelRule).toContain("background: var(--drawer-surface)");
+    expect(assistantSidebarRule).toContain("overflow-y: auto");
+    expect(styles).not.toContain(".global-assistant-backdrop");
+    expect(assistantDrawerRule).not.toContain("position: fixed");
+  });
+
+  it("finishes T9 color migration for high-risk light-mode surfaces", () => {
+    const styles = readFileSync(join(desktopRoot, "src", "renderer", "styles.css"), "utf8");
+    const finalBlockStart = styles.indexOf("/* Desktop UI design system v2 final overrides */");
+    const finalBlockEnd = styles.indexOf("/* End desktop UI design system v2 final overrides */");
+    expect(finalBlockStart).toBeGreaterThanOrEqual(0);
+    expect(finalBlockEnd).toBeGreaterThan(finalBlockStart);
+    const finalBlock = styles.slice(finalBlockStart, finalBlockEnd);
+
+    const requiredSelectors = [
+      ".daily-action-list",
+      ".weekly-focus-list",
+      ".daily-source-items b",
+      ".equipment-section-heading h4",
+      ".equipment-section-heading span",
+      ".account-slot-category-heading h4",
+      ".account-slot-category-heading span",
+      ".account-slot-heading span",
+      ".account-slot-heading strong",
+      ".account-slot-source-heading small",
+      ".account-slot-source-badge.equipped",
+      ".account-slot-source-badge.inventory",
+      ".vault-slot-heading h3",
+      ".vault-slot-heading span",
+      ".vault-card-body strong",
+      ".vault-card-body span",
+      ".vault-card-meta",
+      ".vault-card-roll",
+      ".vault-list-item strong",
+      ".vault-list-item span",
+      ".vault-list-item small",
+      ".vault-score-badge",
+      ".decision-badge",
+      ".vault-card-signals .wishlist-hit span",
+      ".vault-card-actions button",
+      ".vault-tag-current",
+      ".vault-tag-actions button",
+      ".weapon-filter-heading strong",
+      ".weapon-filter-heading span",
+      ".vault-render-limit-message",
+      ".material-item strong",
+      ".material-item span",
+      ".section-heading h2",
+      ".section-heading h3",
+      ".section-heading p",
+      ".library-reference-card",
+      ".item-result",
+      ".perk-chip",
+      ".source-status-card",
+      ".source-status-badge",
+      ".daily-source-status.status-ready",
+      ".daily-source-status.status-pending",
+      ".daily-brief",
+      ".daily-brief strong",
+      ".daily-source-count",
+      ".loadout-status-chip",
+      ".loadout-compare-row",
+      ".loadout-compare-side",
+      ".target-match-panel",
+      ".target-rule-row",
+      ".community-recommendations-panel",
+      ".community-recommendations-panel.source-status-pending.loading",
+      ".community-recommendations-panel.source-status-neutral.empty",
+      ".community-source-badge",
+      ".source-status-list",
+      ".source-status-badge.source-status-warning",
+      ".community-combo",
+      ".community-perk",
+      ".duplicate-row",
+      ".same-roll-row",
+      ".assistant-task-editor",
+      ".assistant-context-card span",
+      ".assistant-task-tree li",
+      ".ai-chat-history li span",
+      ".config-help",
+      ".status-card",
+      ".diagnostics-panel",
+      ".diagnostic-row",
+      ".analysis-section",
+      ".score-summary-row span",
+      ".action-log-row strong",
+      ".action-log-row span",
+      ".compact-field",
+      ".ai-empty-state strong",
+      ".ai-composer-context",
+      ".vault-content-tab strong",
+      ".vault-content-tab span",
+      ".vault-batch-panel span",
+      ".vault-cleanup-panel p",
+      ".vault-cleanup-locator b",
+      ".vault-cleanup-locator small",
+      ".vault-armor-filter-heading p",
+      ".vault-item span",
+      ".vault-score-badge.score-keep",
+      ".vault-tag-current.tag-keep",
+      ".equipment-item.equipped:hover",
+      ".equipment-item.inventory",
+      ".compact-items span",
+      ".library-community-match",
+      ".inline-action.is-pending",
+      ".inline-action.is-success",
+      ".item-modal",
+      ".modal-close",
+      ".item-detail-tool-area",
+      ".item-detail-tool-tabs span",
+      ".item-detail-description",
+      ".item-local-tag-header > span",
+      ".item-detail-loading",
+      ".same-roll-chip",
+      ".item-detail-socket-summary",
+      ".modal-plug p"
+    ];
+
+    for (const selector of requiredSelectors) {
+      expect(finalBlock).toContain(selector);
+    }
+
+    expect(finalBlock).toContain("color: var(--text-title)");
+    expect(finalBlock).toContain("color: var(--text-body)");
+    expect(finalBlock).toContain("color: var(--text-muted)");
+    expect(finalBlock).toContain("background: var(--item-bg)");
+    expect(finalBlock).toContain("background: var(--chip-bg)");
+    expect(finalBlock).toContain("background: var(--field-bg)");
+    expect(finalBlock).toContain("background: var(--surface-toolbar)");
+    expect(finalBlock).toContain("color: var(--chip-text)");
+    expect(finalBlock).not.toContain("#f3f6fc");
+    expect(finalBlock).not.toContain("#8bd3ff");
+    expect(finalBlock).not.toContain("#9da9bc");
+    expect(finalBlock).not.toContain("#cbd6e8");
+    expect(finalBlock).not.toContain("#ddd9ff");
+    expect(finalBlock).not.toContain("#181d27");
+    expect(finalBlock).not.toContain("#141924");
+    expect(finalBlock).not.toContain("#090b0f");
+  });
+
+  it("syncs the native titlebar overlay with the selected color mode", () => {
+    const mainProcess = readFileSync(join(desktopRoot, "src", "main", "main.ts"), "utf8");
+    const ipcRegister = readFileSync(join(desktopRoot, "src", "main", "ipc.ts"), "utf8");
+    const preload = readFileSync(join(desktopRoot, "src", "preload", "preload.ts"), "utf8");
+    const apiTypes = readFileSync(join(desktopRoot, "src", "renderer", "api", "types.ts"), "utf8");
+    const shellLayout = readFileSync(join(desktopRoot, "src", "renderer", "components", "ShellLayout.tsx"), "utf8");
+
+    expect(mainProcess).toContain("createTitleBarOverlayOptions");
+    expect(mainProcess).toContain('titleBarOverlay: createTitleBarOverlayOptions("light")');
+    expect(mainProcess).not.toContain('color: "#10151d"');
+    expect(mainProcess).not.toContain('backgroundColor: "#0d1118"');
+    expect(ipcRegister).toContain("registerWindowIpcHandlers()");
+    expect(preload).toContain("setWindowColorMode");
+    expect(preload).toContain('ipcRenderer.invoke("window:set-color-mode"');
+    expect(apiTypes).toContain("WindowApi");
+    expect(apiTypes).toContain("export type * from \"./windowApi\"");
+    expect(shellLayout).toContain("window.d2?.setWindowColorMode?.(props.colorMode)");
   });
 
   it("keeps dense item surfaces responsive by avoiding animated shadows and movement", () => {
@@ -153,14 +473,14 @@ describe("UI style system", () => {
     const settingsPage = readFileSync(join(desktopRoot, "src", "renderer", "features", "settings", "SettingsPage.tsx"), "utf8");
     const styles = readFileSync(join(desktopRoot, "src", "renderer", "styles.css"), "utf8");
 
-    expect(settingsPage).toContain('className="settings-page"');
-    expect(settingsPage).toContain('className="settings-nav"');
-    expect(settingsPage).toContain('className="settings-main"');
+    expect(settingsPage).toContain('className="app-page settings-app-page"');
+    expect(settingsPage).toContain("app-page-head");
+    expect(settingsPage).toContain("app-settings-grid");
     expect(settingsPage).toContain('className="status-message status-ready"');
     expect(settingsPage).toContain('className="status-message status-error"');
-    expect(styles).toContain(".settings-page");
-    expect(styles).toContain(".settings-nav");
-    expect(styles).toContain(".settings-main");
+    expect(styles).toContain(".settings-app-page");
+    expect(styles).toContain(".app-page-head");
+    expect(styles).toContain(".app-settings-grid");
     expect(styles).toContain(".status-message");
     expect(styles).toContain(".status-message.status-ready");
     expect(styles).toContain(".status-message.status-error");
@@ -188,9 +508,9 @@ describe("UI style system", () => {
     expect(styles).toContain(".vault-dashboard-panel");
     expect(styles).toContain(".item-tool-panel");
 
-    expect(settingsPage).toContain("panel-subsection settings-subsection");
-    expect(settingsPage).toContain("ui-list-row diagnostic-row");
-    expect(settingsPage).toContain("ui-list-row action-log-row");
+    expect(settingsPage).toContain("app-panel app-setting-group");
+    expect(settingsPage).toContain("app-setting-row");
+    expect(settingsPage).toContain("app-log-row");
 
     expect(homeDashboard).toContain("status-message status-error");
     expect(dailyPanel).toContain("home-dashboard-panel");

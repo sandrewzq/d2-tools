@@ -44,212 +44,45 @@ export function SettingsPage(props: {
   const manifestUi = getManifestUi(props.manifestStatus, props.manifestStatusError, props.isLoadingManifestStatus);
 
   return (
-    <section className="settings-page">
-      <nav className="settings-nav" aria-label="设置分类">
-        <a href="#settings-ai">AI 配置</a>
-        <a href="#settings-core">基础配置</a>
-        <a href="#settings-updates">应用更新</a>
-        <a href="#settings-manifest">资料库状态</a>
-        <a href="#settings-backup">备份迁移</a>
-        <a href="#settings-write-actions">写操作</a>
-        <a href="#settings-diagnostics">诊断导出</a>
-        <a href="#settings-action-log">操作日志</a>
-      </nav>
-      <div className="settings-main">
-        <section id="settings-ai" className="settings-ai-section">
-          <AiSettingsPanel onSaved={props.onAiSettingsSaved} />
-        </section>
-        <section id="settings-core" className="tool-panel">
-          <div className="section-heading">
+    <section className="app-page settings-app-page">
+      <div className="app-page-head">
+        <div>
+          <h1>设置中心</h1>
+          <p>查看或修改 Bungie 配置、AI、写操作开关、本地日志、更新和备份迁移。</p>
+        </div>
+        <div className="button-row">
+          <button type="button" className="secondary-button" onClick={props.onCopyDiagnosticsExport}>
+            复制诊断
+          </button>
+          <button type="button" onClick={props.onOpenConfig}>
+            打开配置
+          </button>
+        </div>
+      </div>
+      {props.message ? <p className="status-message status-ready">{props.message}</p> : null}
+      {props.error ? <p className="status-message status-error">{props.error}</p> : null}
+
+      <div className="app-settings-grid">
+        <section id="settings-core" className="app-panel app-setting-group">
+          <div className="app-section-title">
             <div>
-              <h2>设置</h2>
-              <p>查看或修改 Bungie 配置、写操作开关和本地日志。</p>
-            </div>
-            <button type="button" onClick={props.onOpenConfig}>打开配置</button>
-          </div>
-          {props.message ? <p className="status-message status-ready">{props.message}</p> : null}
-          {props.error ? <p className="status-message status-error">{props.error}</p> : null}
-          <div className="diagnostic-grid">
-            <div className="ui-list-row diagnostic-row diagnostic-neutral">
-              <span>本地数据目录</span>
-              <strong>{props.diagnosticDataDir || "未读取到配置目录"}</strong>
-            </div>
-            <div className={props.writeActionsEnabled ? "ui-list-row diagnostic-row diagnostic-ready" : "ui-list-row diagnostic-row diagnostic-neutral"}>
-              <span>装备写操作</span>
-              <strong>{props.writeActionsEnabled ? "已开启" : "已关闭"}</strong>
+              <h2>关键配置</h2>
+              <span>影响应用可用性</span>
             </div>
           </div>
-          <section id="settings-updates" className={`settings-update-panel update-${updateUi.tone}`}>
-            <div className="settings-update-hero">
-              <div>
-                <span className="section-kicker">桌面发布</span>
-                <h3>应用更新</h3>
-                <p>{updateUi.summary}</p>
-              </div>
-              <span className={`update-status-pill update-status-${updateUi.tone}`}>
-                {updateUi.statusLabel}
-              </span>
-            </div>
-            {props.updateSnapshot?.status === "downloading" ? (
-              <div
-                className="update-progress-bar"
-                role="progressbar"
-                aria-valuemin={0}
-                aria-valuemax={100}
-                aria-valuenow={props.updateSnapshot.progress_percent ?? 0}
-              >
-                <span style={{ width: `${props.updateSnapshot.progress_percent ?? 8}%` }} />
-              </div>
-            ) : null}
-            <div className="settings-update-grid">
-              <div className="ui-list-row diagnostic-row diagnostic-neutral">
-                <span>当前版本</span>
-                <strong>{props.updateSnapshot?.current_version ?? "未读取"}</strong>
-              </div>
-              <div className="ui-list-row diagnostic-row diagnostic-neutral">
-                <span>可用版本</span>
-                <strong>{props.updateSnapshot?.available_version ?? props.updateSnapshot?.downloaded_version ?? "未发现"}</strong>
-              </div>
-              <div className="ui-list-row diagnostic-row diagnostic-neutral">
-                <span>更新来源</span>
-                <strong>{props.updateSnapshot?.update_source_label ?? "GitHub Releases"}</strong>
-              </div>
-              <div className="ui-list-row diagnostic-row diagnostic-neutral">
-                <span>上次检查</span>
-                <strong>{formatUpdateCheckedAt(props.updateSnapshot?.last_checked_at)}</strong>
-              </div>
-            </div>
-            <div className="update-actions">
-              <button
-                type="button"
-                className="secondary-button"
-                disabled={props.updateSnapshot?.status === "checking" || props.updateSnapshot?.status === "downloading"}
-                onClick={props.onCheckForUpdates}
-              >
-                检查更新
-              </button>
-              <button
-                type="button"
-                disabled={props.updateSnapshot?.status !== "available"}
-                onClick={props.onDownloadUpdate}
-              >
-                下载更新
-              </button>
-              <button
-                type="button"
-                disabled={props.updateSnapshot?.status !== "downloaded"}
-                onClick={props.onQuitAndInstallUpdate}
-              >
-                重启并安装
-              </button>
-              <button
-                type="button"
-                className="secondary-button"
-                onClick={props.onOpenUpdateDownloadPage}
-              >
-                打开下载页
-              </button>
-              <button
-                type="button"
-                className="secondary-button"
-                onClick={props.onCopyUpdateDiagnostic}
-              >
-                复制更新诊断
-              </button>
-            </div>
-            {props.updateSnapshot?.status === "error" ? (
-              <p className="status-message status-warning">
-                GitHub 连接失败时，可以先重试；如果网络仍不稳定，打开下载页手动安装最新版本。需要镜像源时，可设置 D2_TOOLS_UPDATE_FEED_URL 后重启应用。
-              </p>
-            ) : null}
-          </section>
-          <section id="settings-manifest" className={`settings-manifest-panel panel-subsection manifest-${manifestUi.tone}`}>
-            <div className="settings-update-hero">
-              <div>
-                <span className="section-kicker">Destiny 2 数据</span>
-                <h3>资料库状态</h3>
-                <p>{manifestUi.summary}</p>
-              </div>
-              <span className={`update-status-pill update-status-${manifestUi.tone}`}>
-                {manifestUi.statusLabel}
-              </span>
-            </div>
-            <div className="settings-update-grid">
-              <div className="ui-list-row diagnostic-row diagnostic-neutral">
-                <span>本地 Manifest</span>
-                <strong>{props.manifestStatus?.version ?? "未初始化"}</strong>
-              </div>
-              <div className="ui-list-row diagnostic-row diagnostic-neutral">
-                <span>最新 Manifest</span>
-                <strong>{props.manifestStatus?.latest_version ?? "等待检查"}</strong>
-              </div>
-              <div className="ui-list-row diagnostic-row diagnostic-neutral">
-                <span>资料库日期</span>
-                <strong>{formatManifestDate(props.manifestStatus?.cached_at)}</strong>
-              </div>
-              <div className="ui-list-row diagnostic-row diagnostic-neutral">
-                <span>资料库语言</span>
-                <strong>{props.manifestStatus?.language ?? "-"}</strong>
-              </div>
-              <div className="ui-list-row diagnostic-row diagnostic-neutral">
-                <span>必要组件</span>
-                <strong>{formatManifestComponents(props.manifestStatus)}</strong>
-              </div>
-              <div className="ui-list-row diagnostic-row diagnostic-neutral">
-                <span>上次检查</span>
-                <strong>{formatManifestDate(props.manifestStatus?.checked_at)}</strong>
-              </div>
-            </div>
-            <div className="update-actions">
-              <button
-                type="button"
-                className="secondary-button"
-                disabled={props.isLoadingManifestStatus}
-                onClick={props.onRefreshManifestStatus}
-              >
-                重新检查资料库
-              </button>
-              <button
-                type="button"
-                disabled={props.isInitializingManifest}
-                onClick={props.onInitializeManifest}
-              >
-                {props.isInitializingManifest ? "更新中..." : "后台更新资料库"}
-              </button>
-            </div>
-          </section>
-          <section id="settings-background-tasks" className="panel-subsection settings-subsection">
+          <div className="app-setting-row">
             <div>
-              <h3>后台任务</h3>
-              <p>应用更新、资料库更新和长时间任务会在后台继续运行，切换菜单不会中断。</p>
+              <strong>本地数据目录</strong>
+              <span>{props.diagnosticDataDir || "未读取到配置目录"}</span>
             </div>
-            {props.backgroundTasks.length ? (
-              <div className="background-task-list">
-                {props.backgroundTasks.slice(0, 6).map((task) => (
-                  <div className={`ui-list-row diagnostic-row diagnostic-${backgroundTaskTone(task)}`} key={task.task_id}>
-                    <span>{formatBackgroundTaskStatus(task.status)}</span>
-                    <strong>{task.title}</strong>
-                    <small>
-                      {task.next_retry_at
-                        ? `下次重试：${formatBackgroundTaskTime(task.next_retry_at)}`
-                        : task.finished_at
-                          ? `完成时间：${formatBackgroundTaskTime(task.finished_at)}`
-                          : task.message ?? "后台任务状态已记录。"}
-                    </small>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="status-message status-neutral">当前没有后台任务。</p>
-            )}
-          </section>
-          <section id="settings-write-actions" className="panel-subsection settings-subsection">
+            <button type="button" className="secondary-button" onClick={props.onOpenConfig}>
+              打开
+            </button>
+          </div>
+          <div className={`app-setting-row status-${props.writeActionsEnabled ? "ready" : "neutral"}`}>
             <div>
-              <h3>危险操作保护</h3>
-              <p>
-                开启后才能锁定、解锁、装备、移入或取出仓库。需要在 Bungie App 勾选
-                MoveEquipDestinyItems 权限并重新登录。
-              </p>
+              <strong>装备写操作</strong>
+              <span>{props.writeActionsEnabled ? "已开启，允许锁定、装备和转移。" : "已关闭，写操作会被阻断。"}</span>
             </div>
             <label className="switch-row">
               <input
@@ -257,95 +90,239 @@ export function SettingsPage(props: {
                 type="checkbox"
                 onChange={(event) => props.onWriteActionsEnabledChange(event.target.checked)}
               />
-              允许单件装备写操作
+              允许
             </label>
-          </section>
-          <section id="settings-backup" className="panel-subsection settings-subsection">
+          </div>
+          <div id="settings-backup" className="app-setting-row">
             <div>
-              <h3>数据备份与迁移</h3>
-              <p>备份、换电脑或覆盖安装前，先关闭 d2-tools，再复制整个本地数据目录。</p>
+              <strong>数据备份与迁移</strong>
+              <span>覆盖安装或换电脑前，先关闭 d2-tools，再复制整个本地数据目录。</span>
             </div>
-            <div className="diagnostic-grid">
-              <div className="ui-list-row diagnostic-row diagnostic-neutral">
-                <span>需要备份的目录</span>
-                <strong>{props.diagnosticDataDir || "未读取到配置目录"}</strong>
-              </div>
-            </div>
-            <div className="button-row">
-              <button type="button" className="secondary-button" onClick={props.onCopyDataBackupGuide}>
-                复制备份/迁移说明
-              </button>
-              <button type="button" className="secondary-button" onClick={props.onCopyDiagnosticsExport}>
-                复制脱敏诊断
-              </button>
-            </div>
-          </section>
-          <section id="settings-diagnostics" className="panel-subsection settings-subsection">
+            <button type="button" className="secondary-button" onClick={props.onCopyDataBackupGuide}>
+              复制备份/迁移说明
+            </button>
+          </div>
+        </section>
+
+        <aside id="settings-updates" className={`app-panel app-setting-group update-${updateUi.tone}`}>
+          <div className="app-section-title">
             <div>
-              <h3>脱敏诊断导出</h3>
-              <p>复制版本、配置状态、Manifest 状态和最近错误，不包含 token、client secret 或 API Key。</p>
+              <h2>更新状态</h2>
+              <span>自动后台重试</span>
             </div>
+            <span className={`app-chip status-${updateUi.tone}`}>{updateUi.statusLabel}</span>
+          </div>
+          <p className="app-muted">{updateUi.summary}</p>
+          {props.updateSnapshot?.status === "downloading" ? (
+            <div
+              className="update-progress-bar"
+              role="progressbar"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={props.updateSnapshot.progress_percent ?? 0}
+            >
+              <span style={{ width: `${props.updateSnapshot.progress_percent ?? 8}%` }} />
+            </div>
+          ) : null}
+          <div className="app-metric-grid">
+            <div className="app-metric status-neutral">
+              <span>应用版本</span>
+              <strong>{props.updateSnapshot?.current_version ?? "未读取"}</strong>
+              <span>当前安装版本</span>
+            </div>
+            <div className="app-metric status-neutral">
+              <span>可用版本</span>
+              <strong>{props.updateSnapshot?.available_version ?? props.updateSnapshot?.downloaded_version ?? "未发现"}</strong>
+              <span>GitHub Releases</span>
+            </div>
+            <div className="app-metric status-neutral">
+              <span>更新来源</span>
+              <strong>{props.updateSnapshot?.update_source_label ?? "GitHub Releases"}</strong>
+              <span>可配置镜像源</span>
+            </div>
+            <div className="app-metric status-neutral">
+              <span>上次检查</span>
+              <strong>{formatUpdateCheckedAt(props.updateSnapshot?.last_checked_at)}</strong>
+              <span>失败会后台重试</span>
+            </div>
+          </div>
+          <div className="button-row">
+            <button
+              type="button"
+              className="secondary-button"
+              disabled={props.updateSnapshot?.status === "checking" || props.updateSnapshot?.status === "downloading"}
+              onClick={props.onCheckForUpdates}
+            >
+              检查更新
+            </button>
+            <button type="button" disabled={props.updateSnapshot?.status !== "available"} onClick={props.onDownloadUpdate}>
+              下载更新
+            </button>
+            <button type="button" disabled={props.updateSnapshot?.status !== "downloaded"} onClick={props.onQuitAndInstallUpdate}>
+              重启并安装
+            </button>
+            <button type="button" className="secondary-button" onClick={props.onOpenUpdateDownloadPage}>
+              打开下载页
+            </button>
+            <button type="button" className="secondary-button" onClick={props.onCopyUpdateDiagnostic}>
+              复制更新诊断
+            </button>
+          </div>
+          {props.updateSnapshot?.status === "error" ? (
+            <p className="status-message status-warning">
+              GitHub 连接失败时，可以先重试；如果网络仍不稳定，打开下载页手动安装最新版本。需要镜像源时，可设置 D2_TOOLS_UPDATE_FEED_URL 后重启应用。
+            </p>
+          ) : null}
+        </aside>
+
+        <section id="settings-manifest" className={`app-panel app-setting-group app-settings-wide manifest-${manifestUi.tone}`}>
+          <div className="app-section-title">
+            <div>
+              <h2>资料库状态</h2>
+              <span>{manifestUi.summary}</span>
+            </div>
+            <span className={`app-chip status-${manifestUi.tone}`}>{manifestUi.statusLabel}</span>
+          </div>
+          <div className="app-metric-grid">
+            <div className="app-metric status-neutral">
+              <span>本地 Manifest</span>
+              <strong>{props.manifestStatus?.version ?? "未初始化"}</strong>
+              <span>当前缓存版本</span>
+            </div>
+            <div className="app-metric status-neutral">
+              <span>最新 Manifest</span>
+              <strong>{props.manifestStatus?.latest_version ?? "等待检查"}</strong>
+              <span>启动后自动检查</span>
+            </div>
+            <div className="app-metric status-neutral">
+              <span>资料库日期</span>
+              <strong>{formatManifestDate(props.manifestStatus?.cached_at)}</strong>
+              <span>{props.manifestStatus?.language ?? "语言未读取"}</span>
+            </div>
+            <div className="app-metric status-neutral">
+              <span>必要组件</span>
+              <strong>{formatManifestComponents(props.manifestStatus)}</strong>
+              <span>缺失时阻断依赖功能</span>
+            </div>
+          </div>
+          <div className="button-row">
+            <button type="button" className="secondary-button" disabled={props.isLoadingManifestStatus} onClick={props.onRefreshManifestStatus}>
+              重新检查资料库
+            </button>
+            <button type="button" disabled={props.isInitializingManifest} onClick={props.onInitializeManifest}>
+              {props.isInitializingManifest ? "更新中..." : "后台更新资料库"}
+            </button>
+          </div>
+        </section>
+
+        <section id="settings-ai" className="app-panel app-setting-group app-settings-wide settings-ai-section">
+          <div className="app-section-title">
+            <div>
+              <h2>AI 配置</h2>
+              <span>AI 只读取当前页面上下文和本地摘要。</span>
+            </div>
+          </div>
+          <AiSettingsPanel onSaved={props.onAiSettingsSaved} />
+        </section>
+
+        <section id="settings-background-tasks" className="app-panel app-setting-group app-settings-wide">
+          <div className="app-section-title">
+            <div>
+              <h2>后台任务</h2>
+              <span>应用更新、资料库更新和长时间任务会在后台继续运行。</span>
+            </div>
+          </div>
+          {props.backgroundTasks.length ? (
+            <div className="app-log-list">
+              {props.backgroundTasks.slice(0, 6).map((task) => (
+                <div className={`app-log-row status-${backgroundTaskTone(task)}`} key={task.task_id}>
+                  <strong>{task.title}</strong>
+                  <span>{formatBackgroundTaskStatus(task.status)}</span>
+                  <small>
+                    {task.next_retry_at
+                      ? `下次重试：${formatBackgroundTaskTime(task.next_retry_at)}`
+                      : task.finished_at
+                        ? `完成时间：${formatBackgroundTaskTime(task.finished_at)}`
+                        : task.message ?? "后台任务状态已记录。"}
+                  </small>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="status-message status-neutral">当前没有后台任务。</p>
+          )}
+        </section>
+
+        <section id="settings-diagnostics" className="app-panel app-setting-group">
+          <div className="app-section-title">
+            <div>
+              <h2>诊断导出</h2>
+              <span>复制版本、配置状态、Manifest 状态和最近错误。</span>
+            </div>
+          </div>
+          <div className="button-row">
             <button type="button" className="secondary-button" onClick={props.onCopyDiagnosticsExport}>
               复制脱敏诊断
             </button>
-          </section>
-          <section id="settings-action-log" className="panel-subsection settings-subsection">
-            <div className="section-heading compact-heading">
-              <div>
-                <h3>最近操作</h3>
-                <p>只记录本机操作结果，不上报。</p>
-              </div>
-              <button type="button" className="secondary-button" onClick={props.onRefreshActionLog}>
-                刷新日志
-              </button>
+          </div>
+        </section>
+
+        <section id="settings-action-log" className="app-panel app-setting-group">
+          <div className="app-section-title">
+            <div>
+              <h2>操作日志</h2>
+              <span>只记录本机操作结果，不上报。</span>
             </div>
-            <div className="action-log-filters">
-              <label className="compact-field">
-                结果
-                <select
-                  value={props.actionLogResultFilter}
-                  onChange={(event) => props.onActionLogResultFilterChange(event.target.value as SettingsActionLogResultFilter)}
-                >
-                  <option value="all">全部</option>
-                  <option value="success">成功</option>
-                  <option value="failed">失败</option>
-                </select>
-              </label>
-              <label className="compact-field">
-                类型
-                <select
-                  value={props.actionLogTypeFilter}
-                  onChange={(event) => props.onActionLogTypeFilterChange(event.target.value as SettingsActionLogTypeFilter)}
-                >
-                  <option value="all">全部</option>
-                  <option value="set-lock">锁定状态</option>
-                  <option value="equip">装备</option>
-                  <option value="transfer">仓库转移</option>
-                  <option value="postmaster-pull">邮政官取回</option>
-                  <option value="loadout-equip">应用游戏内配装栏</option>
-                  <option value="loadout-snapshot">覆盖游戏内配装栏</option>
-                </select>
-              </label>
+            <button type="button" className="secondary-button" onClick={props.onRefreshActionLog}>
+              刷新日志
+            </button>
+          </div>
+          <div className="action-log-filters">
+            <label className="compact-field">
+              结果
+              <select
+                value={props.actionLogResultFilter}
+                onChange={(event) => props.onActionLogResultFilterChange(event.target.value as SettingsActionLogResultFilter)}
+              >
+                <option value="all">全部</option>
+                <option value="success">成功</option>
+                <option value="failed">失败</option>
+              </select>
+            </label>
+            <label className="compact-field">
+              类型
+              <select
+                value={props.actionLogTypeFilter}
+                onChange={(event) => props.onActionLogTypeFilterChange(event.target.value as SettingsActionLogTypeFilter)}
+              >
+                <option value="all">全部</option>
+                <option value="set-lock">锁定状态</option>
+                <option value="equip">装备</option>
+                <option value="transfer">仓库转移</option>
+                <option value="postmaster-pull">邮政官取回</option>
+                <option value="loadout-equip">应用游戏内配装栏</option>
+                <option value="loadout-snapshot">覆盖游戏内配装栏</option>
+              </select>
+            </label>
+          </div>
+          {props.actionLog.length ? (
+            <div className="app-log-list">
+              {visibleActionLog.map((entry) => (
+                <div className={`app-log-row ${entry.ok ? "status-ready" : "status-error"}`} key={entry.id}>
+                  <strong>{formatActionLogTitle(entry)}</strong>
+                  <span>{new Date(entry.created_at).toLocaleString("zh-CN")}</span>
+                  <small>{entry.message ?? "-"}</small>
+                  {!entry.ok ? (
+                    <button type="button" className="inline-action" onClick={() => props.onCopyActionDiagnostic(entry)}>
+                      复制诊断
+                    </button>
+                  ) : null}
+                </div>
+              ))}
             </div>
-            {props.actionLog.length ? (
-              <div className="action-log-list">
-                {visibleActionLog.map((entry) => (
-                  <div className={`ui-list-row action-log-row ${entry.ok ? "log-ok" : "log-fail"}`} key={entry.id}>
-                    <span>{new Date(entry.created_at).toLocaleString("zh-CN")}</span>
-                    <strong>{formatActionLogTitle(entry)}</strong>
-                    <small>{entry.message ?? "-"}</small>
-                    {!entry.ok ? (
-                      <button type="button" className="inline-action" onClick={() => props.onCopyActionDiagnostic(entry)}>
-                        复制诊断
-                      </button>
-                    ) : null}
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="status-message status-neutral">还没有写操作记录。</p>
-            )}
-          </section>
+          ) : (
+            <p className="status-message status-neutral">还没有写操作记录。</p>
+          )}
         </section>
       </div>
     </section>

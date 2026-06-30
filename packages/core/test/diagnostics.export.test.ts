@@ -14,7 +14,7 @@ describe("diagnostics export", () => {
         },
         data: { data_dir: "C:/Users/dell/AppData/Roaming/d2-tools", manifest_language: "zh-chs" },
         ai: { provider: "openai", api_key: "ai-secret", model: "gpt-test", base_url: "https://api.example.com" },
-        features: { write_actions_enabled: true }
+        features: { write_actions_enabled: true, color_mode: "dark" }
       },
       manifest: { initialized: true, version: "123", language: "zh-chs" },
       action_log: [{ id: "1", created_at: "now", action: "equip", ok: false, message: "scope denied" }],

@@ -24,11 +24,11 @@ export function DailySummaryPanel(props: {
   } = props;
 
   return (
-    <section className="tool-panel home-dashboard-panel">
-      <div className="section-heading">
+    <section className="app-panel app-panel-body home-dashboard-panel">
+      <div className="app-section-title">
         <div>
           <h2>今日必看</h2>
-          <p>首屏聚合今日行动、奖励进度和来源状态；未接入或不可确认的内容不会猜测。</p>
+          <span>只展示可确认数据，不可确认内容降级显示</span>
         </div>
         <div className="button-row">
           <button type="button" className="secondary-button" disabled={isLoading} onClick={onRefresh}>
@@ -57,12 +57,12 @@ export function DailySummaryPanel(props: {
             </div>
           </div>
           <div className="daily-reward-progress">
-            <div>
+            <div className="app-metric status-ready">
               <span className="source-status-badge source-status-ready">奖励进度</span>
               <strong>{dailySummary.checklist.length} 条今日行动</strong>
               <small>优先处理光等奖励、商人和可确认轮换。</small>
             </div>
-            <div>
+            <div className="app-metric status-neutral">
               <span className="source-status-badge source-status-neutral">来源状态</span>
               <strong>{dailySummary.recommendations.length} 条本周重点</strong>
               <small>下方标明 Bungie API、本地资料库或暂未接入状态。</small>
@@ -71,7 +71,7 @@ export function DailySummaryPanel(props: {
           {renderDailySourceMatrix(dailySummary)}
           <div className="daily-board">
             <section className="daily-column">
-              <div className="daily-brief">
+              <div className="app-list-card daily-brief">
                 <div className="daily-brief-heading">
                   <strong>今日行动</strong>
                   <div className="daily-brief-meta">
@@ -90,7 +90,7 @@ export function DailySummaryPanel(props: {
               {renderDailySourceCard(dailySummary.sources.vendors)}
             </section>
             <section className="daily-column">
-              <div className="daily-brief weekly-brief">
+              <div className="app-list-card daily-brief weekly-brief">
                 <div className="daily-brief-heading">
                   <strong>本周周报</strong>
                   <span className="daily-brief-count">{dailySummary.recommendations.length} 条</span>
@@ -114,7 +114,7 @@ export function DailySummaryPanel(props: {
                 </div>
               </div>
               {renderDailySourceCard(dailySummary.sources.weekly_report)}
-              <div className="source-status-card source-status-pending daily-source source-pending">
+              <div className="app-source-card source-status-card source-status-pending daily-source source-pending">
                 <span className="source-status-badge source-status-pending">轮换细节</span>
                 <strong>掉落地图 / 轮换细节</strong>
                 <span>只展示 Bungie API 或本地资料库能确认的内容；未接入时保持为空，不猜测。</span>
@@ -123,7 +123,7 @@ export function DailySummaryPanel(props: {
           </div>
         </>
       ) : (
-        <section className="source-status-card source-status-pending daily-panel-status" aria-live="polite">
+        <section className="app-source-card source-status-card source-status-pending daily-panel-status" aria-live="polite">
           <span className="source-status-badge source-status-pending">今日必看</span>
           <p>今日面板读取中。</p>
         </section>
@@ -172,7 +172,7 @@ function renderDailySourceMatrix(dailySummary: DailySummary) {
   ];
 
   return (
-    <section className="daily-source-matrix source-status-card source-status-neutral" aria-label="数据源矩阵">
+    <section className="app-source-card daily-source-matrix source-status-card source-status-neutral" aria-label="数据源矩阵">
       <div className="daily-source-heading">
         <strong>数据源矩阵</strong>
         <span className="source-status-badge source-status-neutral">只展示可确认来源</span>
@@ -197,7 +197,7 @@ function renderDailySourceMatrix(dailySummary: DailySummary) {
 
 function renderDailySourceCard(source: DailySummary["sources"][keyof DailySummary["sources"]]) {
   return (
-    <div className={"source-status-card source-status-" + source.status + " daily-source source-" + source.status} key={source.label}>
+      <div className={"app-source-card source-status-card source-status-" + source.status + " daily-source source-" + source.status} key={source.label}>
       <div className="daily-source-heading">
         <strong>{source.label}</strong>
         <div className="daily-source-meta">

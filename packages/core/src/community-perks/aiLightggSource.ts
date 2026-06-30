@@ -86,7 +86,8 @@ function buildAiConfig(config: AiLightggConfig): D2Config {
       force_lightgg: config?.ai?.force_lightgg ?? false
     },
     features: {
-      write_actions_enabled: false
+      write_actions_enabled: false,
+      color_mode: "light"
     }
   };
 }

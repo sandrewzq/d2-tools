@@ -949,7 +949,10 @@ describe("vault panel helpers", () => {
 
     expect(source).toContain("useCallback");
     expect(source).toContain("const toggleSelected = useCallback");
-    expect(itemSections).toContain("INITIAL_VAULT_RENDER_LIMIT");
+    expect(itemSections).toContain("INITIAL_VAULT_RENDER_LIMIT = 200");
+    expect(itemSections).toContain("VAULT_RENDER_INCREMENT = 200");
+    expect(itemSections).toContain("isSearchActive");
+    expect(itemSections).toContain("props.isSearchActive ? totalItemCount : visibleItemLimit");
     expect(itemSections).toContain("visibleItemLimit");
     expect(itemSections).toContain("renderedSections");
     expect(itemSections).toContain("加载更多");
@@ -960,6 +963,15 @@ describe("vault panel helpers", () => {
     expect(duplicateGroups).toContain("renderedGroups");
     expect(duplicateGroups).toContain("itemByKey");
     expect(duplicateGroups).toContain("加载更多");
+  });
+  it("keeps cleanup workbench focused and removes the nested duplicate compare switch", () => {
+    const vaultPanel = readFileSync("packages/desktop/src/renderer/components/VaultPanel.tsx", "utf8");
+    const organizePanel = readFileSync("packages/desktop/src/renderer/features/vault/VaultOrganizePanel.tsx", "utf8");
+
+    expect(vaultPanel).toContain('{ key: "duplicates", label: "同名对比"');
+    expect(organizePanel).not.toContain("同名对比 {props.duplicateGroupCount}");
+    expect(organizePanel).not.toContain("onViewModeChange");
+    expect(organizePanel).not.toContain("duplicateGroupCount");
   });
   it("renders extended local tag actions for farming and loadout use", () => {
     const coreTags = readFileSync("packages/core/src/vault/tags.ts", "utf8");

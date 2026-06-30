@@ -146,7 +146,8 @@ function config(): D2Config {
       manifest_language: "zh-chs"
     },
     features: {
-      write_actions_enabled: false
+      write_actions_enabled: false,
+      color_mode: "light"
     }
   };
 }

@@ -112,7 +112,7 @@ export function LoadoutsPage(props: LoadoutsPageProps) {
   const visibleCompareRows = props.showDiffOnly ? compareRows.filter((row) => row.changed) : compareRows;
 
   return (
-    <section className="tool-panel loadouts-page">
+    <section className="tool-panel loadouts-page loadout-product-layout">
       <div className="section-heading">
         <div>
           <h2>本地方案库</h2>
@@ -120,6 +120,19 @@ export function LoadoutsPage(props: LoadoutsPageProps) {
         </div>
       </div>
       {props.message ? <p className={props.message.includes("失败") ? "status-message status-error" : "status-message status-ready"}>{props.message}</p> : null}
+      <section className="product-card loadout-risk-panel">
+        <div className="section-heading compact-heading">
+          <div>
+            <h3>配装风险</h3>
+            <p>只展示模板可达性、缺失装备和候选补齐状态，执行前仍需要确认写操作。</p>
+          </div>
+        </div>
+        <div className="loadout-risk-grid">
+          <span>缺失装备 {missingCount} 件</span>
+          <span>可直接准备 {readyCount} 件</span>
+          <span>可执行补齐 {actionableCount} 件</span>
+        </div>
+      </section>
       <section className="daily-source source-ready in-game-loadout-slots">
         <strong>游戏内配装栏</strong>
         <span>读取 Bungie 游戏内已保存的配装槽，执行写操作前仍会再次确认。</span>
