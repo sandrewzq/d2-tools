@@ -296,7 +296,7 @@ const dropAccessGroups: Array<Omit<LibraryDropQueryGroup, "items">> = [
   {
     key: "unknown",
     label: "来源待补",
-    description: "本地 Manifest 暂未提供可确认来源。"
+    description: "资料库暂未提供可确认来源。"
   }
 ];
 

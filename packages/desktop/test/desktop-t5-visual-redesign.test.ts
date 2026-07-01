@@ -29,12 +29,11 @@ describe("desktop T5 visual redesign", () => {
     expect(shell).toContain("shell-account-status");
     expect(shell).toContain("shell-toolstrip");
     expect(shell).toContain("shell-tool-button");
-    expect(shell).toContain("shell-tool-badge");
     expect(shell).toContain("shell-tool-ai");
     expect(shell).toContain("shell-tool-github");
     expect(shell).toContain('{ key: "settings", label: "设置" }');
-    expect(shell).toContain("onInitializeManifest");
-    expect(shell).toContain("aria-label=\"后台更新资料库\"");
+    expect(shell).not.toContain("onInitializeManifest");
+    expect(shell).not.toContain("aria-label=\"后台更新资料库\"");
     expect(shell).toContain("global-assistant-drawer");
     expect(shell).toContain("aria-label=\"打开 AI 助手抽屉\"");
     expect(shell).not.toContain("title=\"本地数据\"");
@@ -55,10 +54,9 @@ describe("desktop T5 visual redesign", () => {
     expect(styles).toContain(".shell-status-dot");
     expect(styles).toContain(".shell-toolstrip");
     expect(styles).toContain(".shell-tool-button");
-    expect(styles).toContain(".shell-tool-badge");
     expect(styles).toContain(".shell-tool-github");
     expect(styles).toContain(".shell-tool-ai.active");
-    expect(styles).toContain("grid-template-columns: repeat(3, 46px);");
+    expect(styles).toContain("grid-template-columns: repeat(4, 46px);");
     expect(styles).toContain(".global-assistant-drawer");
     expect(styles).not.toContain(".global-assistant-backdrop");
     expect(shell).not.toContain("global-assistant-backdrop");
@@ -73,10 +71,11 @@ describe("desktop T5 visual redesign", () => {
     const styles = readRendererFile("styles.css");
 
     expect(homeDashboard).toContain("app-page home-app-page");
-    expect(homeDashboard).toContain("home-readiness-grid");
-    expect(homeDashboard).toContain("今日轮换");
-    expect(homeDashboard).toContain("本周轮换");
-    expect(homeDashboard).toContain("仄的金装");
+    expect(homeDashboard).toContain("home-data-strip");
+    expect(homeDashboard).toContain("本周奖励与轮换");
+    expect(homeDashboard).toContain("home-weekly-dashboard");
+    expect(homeDashboard).toContain("今天可确认");
+    expect(homeDashboard).toContain("待确认数据");
     expect(homeDashboard).toContain("运行诊断");
     expect(homeDashboard).not.toContain("当前桌面状态");
     expect(homeDashboard).not.toContain("状态与设置");
@@ -87,10 +86,10 @@ describe("desktop T5 visual redesign", () => {
     expect(homeDashboard).not.toContain("<DiagnosticsPanel");
     expect(homeDashboard).not.toContain("小日向菜单");
     expect(homeDashboard).not.toContain("任务入口");
-    expect(styles).toContain(".home-readiness-grid");
-    expect(styles).toContain(".home-rotation-grid");
-    expect(styles).toContain(".home-weekly-grid");
-    expect(styles).toMatch(/\.home-readiness-grid\s*{[\s\S]*?grid-template-columns:\s*repeat\(5,\s*minmax\(0,\s*1fr\)\);/);
+    expect(styles).toContain(".home-data-strip");
+    expect(styles).toContain(".home-weekly-dashboard");
+    expect(styles).toContain(".home-reward-list");
+    expect(styles).toMatch(/\.home-weekly-dashboard\s*{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1\.45fr\) minmax\(320px,\s*0\.85fr\);/);
   });
 
   it("uses the account A2 layout with visible backpack previews and a narrow secondary summary", () => {
@@ -153,7 +152,8 @@ describe("desktop T5 visual redesign", () => {
     expect(libraryPage).toContain("library-reference-page");
     expect(libraryPage).toContain("出处查询");
     expect(libraryPage).toContain("获取优先级");
-    expect(libraryPage).toContain("资料库日期");
+    expect(libraryPage).toContain("资料库版本");
+    expect(libraryPage).not.toContain("资料库日期");
     expect(libraryPage).toContain("library-acquisition-tabs");
     expect(libraryPage).toContain("library-source-groups");
     expect(libraryPage).toContain("library-reference-card");

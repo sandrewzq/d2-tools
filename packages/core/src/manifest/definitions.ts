@@ -168,6 +168,12 @@ export function getDefinitionStatus(
   return cache ? statusFromCache(cache) : { initialized: false };
 }
 
+export function hasRequiredDefinitionCacheFiles(dataDir: string): boolean {
+  return requiredDefinitionComponents.every((component) =>
+    existsSync(definitionCachePath(dataDir, component))
+  );
+}
+
 export function hasRequiredDefinitionComponents(dataDir: string): boolean {
   return requiredDefinitionComponents.every((component) =>
     getDefinitionStatus(dataDir, component).initialized

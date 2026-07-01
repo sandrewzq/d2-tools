@@ -12,6 +12,7 @@ function readRendererFile(path: string): string {
 describe("desktop product redesign wiring", () => {
   it("lands the approved prototype structure into the real desktop pages", () => {
     const homeDashboard = readRendererFile("features/home/HomeDashboard.tsx");
+    const homePage = readRendererFile("pages/HomePage.tsx");
     const vaultPanel = readRendererFile("components/VaultPanel.tsx");
     const loadoutsPage = readRendererFile("features/loadouts/LoadoutsPage.tsx");
     const libraryPage = readRendererFile("features/library/LibraryPage.tsx");
@@ -19,11 +20,15 @@ describe("desktop product redesign wiring", () => {
     const styles = readRendererFile("styles.css");
 
     expect(homeDashboard).toContain("app-page home-app-page");
-    expect(homeDashboard).toContain("app-page-head");
-    expect(homeDashboard).toContain("home-readiness-grid");
-    expect(homeDashboard).toContain("home-rotation-grid");
-    expect(homeDashboard).toContain("home-weekly-grid");
-    expect(homeDashboard).toContain("仄的金装");
+    expect(homeDashboard).not.toContain("app-page-head");
+    expect(homePage).toContain('className="page-header"');
+    expect(homePage).toContain("刷新今日信息");
+    expect(homePage).not.toContain("复制本周重点");
+    expect(homeDashboard).toContain("home-data-strip");
+    expect(homeDashboard).toContain("home-weekly-dashboard");
+    expect(homeDashboard).toContain("本周奖励与轮换");
+    expect(homeDashboard).toContain("home-weekly-rewards");
+    expect(homeDashboard).toContain("home-weekly-intel");
     expect(homeDashboard).not.toContain("product-overview-grid");
     expect(homeDashboard).not.toContain("home-risk-grid product-card");
     expect(homeDashboard).not.toContain("ui-badge status-ready\">总览");
@@ -42,19 +47,30 @@ describe("desktop product redesign wiring", () => {
     expect(libraryPage).toContain("library-source-matrix");
 
     expect(settingsPage).toContain("app-page settings-app-page");
-    expect(settingsPage).toContain("app-page-head");
+    expect(settingsPage).not.toContain("app-page-head");
     expect(settingsPage).toContain("app-settings-grid");
     expect(settingsPage).toContain("app-setting-row");
     expect(settingsPage).toContain("app-metric");
-    expect(settingsPage).toContain("<h1>设置中心</h1>");
-    expect(settingsPage).not.toContain("<h1>设置</h1>");
+    expect(settingsPage).toContain("应用更新");
+    expect(settingsPage).toContain("getBackgroundTaskUi");
+    expect(settingsPage).not.toContain("settings-background-tasks");
+    expect(settingsPage).not.toContain("<h1>设置中心</h1>");
     expect(settingsPage).not.toContain("settings-product-grid");
-    expect(settingsPage).toContain("关键配置");
-    expect(settingsPage).toContain("更新状态");
+    expect(settingsPage).toContain("app-settings-shell");
+    expect(settingsPage).toContain("settings-menu");
+    expect(settingsPage).toContain("资料库");
+    expect(settingsPage).not.toContain("本地 Manifest");
+    expect(settingsPage).not.toContain("最新 Manifest");
+    expect(settingsPage).not.toContain("必要组件");
+    expect(settingsPage).toContain("设置总览");
+    expect(settingsPage).toContain("资料库");
 
     expect(styles).toContain(".app-page-head");
     expect(styles).toContain(".app-panel");
     expect(styles).toContain(".app-metric");
+    expect(styles).toContain(".home-data-strip");
+    expect(styles).toContain(".home-weekly-dashboard");
+    expect(styles).toContain(".home-reward-list");
     expect(styles).toContain(".app-setting-row");
     expect(styles).toContain(".decision-badge");
     expect(styles).toContain(".vault-product-layout");

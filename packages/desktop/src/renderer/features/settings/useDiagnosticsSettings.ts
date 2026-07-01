@@ -1,4 +1,4 @@
-import type { ActionLogEntry } from "../../api/client";
+import { api, type ActionLogEntry } from "../../api/client";
 import {
   copyActionDiagnostic,
   copyDataBackupGuide,
@@ -54,6 +54,9 @@ export function useDiagnosticsSettings(input: {
     copyDataBackupGuide: () => copyDataBackupGuide(diagnosticsStatus.diagnosticDataDir, updateFlow.setSettingsMessage, updateFlow.setSettingsError),
     copyDiagnosticsExport: () => copyDiagnosticsExport(updateFlow.setSettingsMessage, updateFlow.setSettingsError),
     copyUpdateDiagnostic: updateFlow.copyUpdateDiagnostic,
+    exportConfig: () => runConfigBackupAction(api.exportConfig, updateFlow.setSettingsMessage, updateFlow.setSettingsError),
+    importConfig: () => runConfigBackupAction(api.importConfig, updateFlow.setSettingsMessage, updateFlow.setSettingsError),
+    clearCache: () => runConfigBackupAction(api.clearCache, updateFlow.setSettingsMessage, updateFlow.setSettingsError),
     diagnosticDataDir: diagnosticsStatus.diagnosticDataDir,
     diagnosticError: diagnosticsStatus.diagnosticError,
     diagnosticManifestVersion: diagnosticsStatus.diagnosticManifestVersion,
@@ -82,4 +85,20 @@ export function useDiagnosticsSettings(input: {
     updateSnapshot: updateFlow.updateSnapshot,
     writeActionsEnabled: aiWriteSettings.writeActionsEnabled
   };
+}
+
+async function runConfigBackupAction(
+  action: () => Promise<{ ok: true; message: string; path?: string }>,
+  setSettingsMessage: (message: string) => void,
+  setSettingsError: (message: string) => void
+): Promise<void> {
+  setSettingsMessage("");
+  setSettingsError("");
+
+  try {
+    const result = await action();
+    setSettingsMessage(result.message);
+  } catch (error) {
+    setSettingsError(error instanceof Error ? error.message : "配置操作失败");
+  }
 }

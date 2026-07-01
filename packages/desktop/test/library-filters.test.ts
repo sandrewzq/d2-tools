@@ -234,7 +234,7 @@ describe("library filters", () => {
     expect(libraryPage).toContain("Perk AND 条件");
     expect(libraryPage).toContain("drop-query-groups");
     expect(libraryPage).toContain("来源可确认");
-    expect(libraryPage).toContain("基于当前本地 Manifest");
+    expect(libraryPage).toContain("基于当前资料库");
     expect(libraryPage).toContain("不等同于当前在线可刷");
     expect(libraryPage).toContain("刷取判断");
     expect(libraryPage).toContain("实时状态");

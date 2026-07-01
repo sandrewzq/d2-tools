@@ -119,10 +119,10 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev-desktop.ps1
 
 1. 构建 `@d2-tools/core` 和 `@d2-tools/http`
 2. 编译 Electron 主进程和 preload
-3. 启动 Vite 前端开发服务器
+3. 启动 Vite 前端开发服务器，固定使用 `http://127.0.0.1:53217`
 4. 打开 Electron 开发版桌面应用
 
-这不是打包流程，不会生成或解压 `release/win-unpacked`。渲染层改动支持热更新；主进程、preload、core 或 http 改动后，关闭桌面窗口再重新运行 `npx pnpm@9.15.0 dev:desktop` 即可重新编译启动。
+这不是打包流程，不会生成或解压 `release/win-unpacked`。渲染层改动支持热更新；主进程、preload、core 或 http 改动后，关闭桌面窗口再重新运行 `npx pnpm@9.15.0 dev:desktop` 即可重新编译启动。开发端口启用 strict port；如果 `53217` 被占用，启动会直接失败并提示释放端口，不会自动跳到别的端口导致 Electron 打开错误页面。发布版不依赖这个端口；打包后的 Electron 会直接加载安装包内的 `dist/renderer/index.html`。
 
 如果只想单独启动前端页面：
 

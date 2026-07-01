@@ -6,11 +6,17 @@ const WizardPage = lazy(() => import("./pages/WizardPage").then((m) => ({ defaul
 
 export function App() {
   const [state, setState] = useState<StartupState | null>(null);
+  const [startupError, setStartupError] = useState("");
   const [isConfiguring, setIsConfiguring] = useState(false);
 
   async function refresh() {
-    const nextState = await api.getStartupState();
-    setState(nextState);
+    try {
+      setStartupError("");
+      const nextState = await api.getStartupState();
+      setState(nextState);
+    } catch (error) {
+      setStartupError(error instanceof Error ? error.message : "启动状态读取失败");
+    }
   }
 
   async function finishConfiguring() {
@@ -21,6 +27,17 @@ export function App() {
   useEffect(() => {
     void refresh();
   }, []);
+
+  if (!state && startupError) {
+    return (
+      <main className="page">
+        <p className="status-message status-error">启动状态读取失败：{startupError}</p>
+        <button type="button" className="primary-button" onClick={() => void refresh()}>
+          重试启动检查
+        </button>
+      </main>
+    );
+  }
 
   if (!state) return <main className="page">正在启动 d2-tools...</main>;
 

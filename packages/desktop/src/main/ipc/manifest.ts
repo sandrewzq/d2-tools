@@ -9,6 +9,7 @@ import { startBackgroundTask } from "../backgroundTasks.js";
 import { runHeavyTaskInWorker } from "../workers/heavyTaskRunner.js";
 
 const MANIFEST_RETRY_DELAYS_MS = [30_000, 120_000, 300_000, 900_000];
+const isVisualCapture = Boolean(process.env.D2_VISUAL_CAPTURE_DIR);
 let manifestUpdatePromise: Promise<ReturnType<typeof getManifestStatus>> | null = null;
 let hasScheduledInitialManifestVersionCheck = false;
 let lastManifestVersionStatus: Pick<ManifestStatus, "latest_version" | "needs_update" | "checked_at"> | null = null;
@@ -16,7 +17,9 @@ let lastManifestVersionStatus: Pick<ManifestStatus, "latest_version" | "needs_up
 export function registerManifestIpcHandlers(): void {
   ipcMain.handle("manifest:status", () => {
     const config = loadConfig();
-    runManifestVersionCheckTask();
+    if (!isVisualCapture) {
+      runManifestVersionCheckTask();
+    }
     return mergeManifestVersionStatus(getManifestStatus(config.data.data_dir));
   });
 

@@ -2,8 +2,18 @@ export type ConfigApi = {
   getHealth(): Promise<{ ok: true; service: string; version: string; timestamp: string }>;
   getConfig(): Promise<D2Config>;
   saveConfig(config: D2Config): Promise<D2Config>;
+  openDataDir(): Promise<void>;
+  exportConfig(): Promise<ConfigBackupResult>;
+  importConfig(): Promise<ConfigBackupResult>;
+  clearCache(): Promise<ConfigBackupResult>;
   listAiModels(ai: AiSettings): Promise<AiModelListResult>;
   testAiConnection(): Promise<AiConnectionTestResult>;
+};
+
+export type ConfigBackupResult = {
+  ok: true;
+  message: string;
+  path?: string;
 };
 
 export type D2Config = {

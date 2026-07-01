@@ -1,12 +1,12 @@
 export type HomePageKey = "home" | "account" | "vault" | "loadouts" | "library" | "settings";
 
 export const homePageMetaMap: Record<HomePageKey, { title: string; subtitle: string }> = {
-  home: { title: "首页", subtitle: "检查当前状态，快速进入常用功能。" },
+  home: { title: "今日工作台", subtitle: "先看官方可确认的今日 / 本周内容，再处理商人、账号和仓库提醒。" },
   account: { title: "账号", subtitle: "读取 Bungie 账号、角色装备、背包和材料数量。" },
   vault: { title: "仓库", subtitle: "查看完整仓库列表、筛选、排序和实际 roll。" },
   loadouts: { title: "配装", subtitle: "管理本地方案、补齐缺失装备并对比不同配装。" },
   library: { title: "资料库", subtitle: "搜索本地 Manifest 物品定义和 perk。" },
-  settings: { title: "设置", subtitle: "管理 Bungie 配置和本地数据目录。" }
+  settings: { title: "设置", subtitle: "集中管理配置、更新、诊断和安全操作。" }
 };
 
 export const homePageLabels: Record<HomePageKey, string> = {

@@ -474,12 +474,16 @@ describe("UI style system", () => {
     const styles = readFileSync(join(desktopRoot, "src", "renderer", "styles.css"), "utf8");
 
     expect(settingsPage).toContain('className="app-page settings-app-page"');
-    expect(settingsPage).toContain("app-page-head");
+    expect(settingsPage).not.toContain("app-page-head");
+    expect(settingsPage).toContain("app-settings-shell");
+    expect(settingsPage).toContain("settings-menu");
     expect(settingsPage).toContain("app-settings-grid");
+    expect(settingsPage).toContain("settings-diagnostics-toolbar");
     expect(settingsPage).toContain('className="status-message status-ready"');
     expect(settingsPage).toContain('className="status-message status-error"');
     expect(styles).toContain(".settings-app-page");
     expect(styles).toContain(".app-page-head");
+    expect(styles).toContain(".app-settings-shell");
     expect(styles).toContain(".app-settings-grid");
     expect(styles).toContain(".status-message");
     expect(styles).toContain(".status-message.status-ready");

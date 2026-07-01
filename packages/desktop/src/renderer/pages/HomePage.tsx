@@ -1,6 +1,6 @@
 import { createHomeDashboardWorkspace, createHomeDashboardActions } from "@d2-tools/app";
 import { useEffect, useRef, useState } from "react";
-import type { AccountSummary, ManifestStatus, StartupState, UpdateSnapshot } from "../api/client";
+import { api, type AccountSummary, type ManifestStatus, type StartupState, type UpdateSnapshot } from "../api/client";
 import { GlobalAssistantSidebar } from "../components/GlobalAssistantSidebar";
 import { ShellLayout, type ShellAssistantMode, type ShellPageKey, type ShellStatusItem } from "../components/ShellLayout";
 import { useAccountWorkspace } from "../features/account/useAccountWorkspace";
@@ -20,15 +20,21 @@ export function HomePage(props: {
   onLoginComplete: () => void;
   onManifestInitialized: () => void;
 }) {
-  const [activePage, setActivePage] = useState<ShellPageKey>("home");
+  const visualEnv = (import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env;
+  const visualInitialPage = visualEnv?.VITE_D2_VISUAL_PAGE;
+  const visualColorMode = isColorMode(visualEnv?.VITE_D2_VISUAL_THEME) ? visualEnv?.VITE_D2_VISUAL_THEME : undefined;
+  const initialPage: ShellPageKey = isShellPageKey(visualInitialPage) ? visualInitialPage : "home";
+  const [activePage, setActivePage] = useState<ShellPageKey>(initialPage);
   const [assistantMode, setAssistantMode] = useState<ShellAssistantMode>(null);
   const [hasAutoLoadedAccount, setHasAutoLoadedAccount] = useState(false);
+  const [lastAccountLoadedAt, setLastAccountLoadedAt] = useState<Date | null>(null);
   const [vaultFacts, setVaultFacts] = useState<string[]>([]);
+  const isVisualCapture = visualEnv?.VITE_D2_VISUAL_CAPTURE === "1";
   const daily = useDailySummary();
   const library = useLibraryWorkspace();
   const diagnostics = useDiagnosticsSettings({
     onConfigChanged: props.onConfigChanged,
-    initialColorMode: props.state.colorMode
+    initialColorMode: visualColorMode ?? props.state.colorMode
   });
   const {
     loginMessage,
@@ -86,10 +92,13 @@ export function HomePage(props: {
   const vaultWriteActions = writeActions.vaultWriteActions;
 
   useEffect(() => {
+    if (isVisualCapture) {
+      return;
+    }
     void diagnostics.refreshDiagnostics();
     void daily.loadDailySummary();
     void library.loadLibraryHistory();
-  }, []);
+  }, [isVisualCapture]);
 
   const loadAccountRef = useRef(loadAccountSummary);
   loadAccountRef.current = loadAccountSummary;
@@ -113,6 +122,12 @@ export function HomePage(props: {
 
     return () => clearInterval(id);
   }, [canRefreshAccount]);
+
+  useEffect(() => {
+    if (accountSummary) {
+      setLastAccountLoadedAt(new Date());
+    }
+  }, [accountSummary]);
 
   const activeLoadoutTemplate = loadoutLibrary.activeTemplate;
   const homeDerivedState = useHomePageDerivedState({
@@ -138,13 +153,16 @@ export function HomePage(props: {
     || updateSnapshot?.status === "downloaded"
     || updateSnapshot?.status === "error";
   const shellStatus = buildShellStatus({
-    updateSnapshot,
     manifestStatus: diagnostics.manifestStatus,
     activeTaskCount: activeBackgroundTaskCount,
     accountSummary,
+    lastAccountLoadedAt,
     isLoadingAccount,
     accountError,
-    canRefreshAccount
+    canRefreshAccount,
+    isBungieConfigured: props.state.cards.bungieConfig.status === "ready",
+    isAiConfigured,
+    updateSnapshot
   });
 
   const homeWorkspace = createHomeDashboardWorkspace({
@@ -181,10 +199,8 @@ export function HomePage(props: {
       activePage={activePage}
       assistantMode={assistantMode}
       onNavigate={setActivePage}
-      onInitializeManifest={() => void diagnostics.initializeManifest()}
       onAssistantModeChange={setAssistantMode}
       onColorModeToggle={() => void diagnostics.toggleColorMode()}
-      isInitializingManifest={diagnostics.isInitializingManifest}
       colorMode={diagnostics.colorMode}
       shellStatus={shellStatus}
       assistantPanel={(
@@ -213,6 +229,13 @@ export function HomePage(props: {
           <h2>{currentPageMeta.title}</h2>
           <p>{currentPageMeta.subtitle}</p>
         </div>
+        {activePage === "home" ? (
+          <div className="button-row">
+            <button type="button" className="secondary-button" disabled={daily.isLoadingDaily} onClick={() => void daily.loadDailySummary()}>
+              {daily.isLoadingDaily ? "刷新中..." : "刷新今日信息"}
+            </button>
+          </div>
+        ) : null}
       </header>
 
       {loginMessage ? <p className="status-message status-ready">{loginMessage}</p> : null}
@@ -385,12 +408,19 @@ export function HomePage(props: {
           manifestStatusError: diagnostics.manifestStatusError,
           isLoadingManifestStatus: diagnostics.isLoadingManifestStatus,
           isInitializingManifest: diagnostics.isInitializingManifest,
+          accountSummary,
+          accountError,
+          isLoadingAccount,
+          lastAccountLoadedAt,
+          isAiConfigured,
+          onRefreshAccount: () => void loadAccountSummary(),
+          onReauthorizeAccount: () => void loginBungie(),
           backgroundTasks: diagnostics.backgroundTasks,
           actionLog: diagnostics.actionLog,
           actionLogResultFilter: diagnostics.actionLogResultFilter,
           actionLogTypeFilter: diagnostics.actionLogTypeFilter,
           onAiSettingsSaved: diagnostics.handleAiSettingsSaved,
-          onOpenConfig: props.onConfigure,
+          onOpenDataDir: () => void api.openDataDir(),
           onWriteActionsEnabledChange: (enabled) => void diagnostics.saveWriteActionsEnabled(enabled),
           onCheckForUpdates: () => void diagnostics.checkForUpdates(),
           onDownloadUpdate: () => void diagnostics.downloadUpdate(),
@@ -399,8 +429,13 @@ export function HomePage(props: {
           onCopyUpdateDiagnostic: () => void diagnostics.copyUpdateDiagnostic(),
           onRefreshManifestStatus: () => void diagnostics.refreshManifestStatus(),
           onInitializeManifest: () => void diagnostics.initializeManifest(),
+          onRepairManifest: () => void diagnostics.initializeManifest(),
+          onExportConfig: () => void diagnostics.exportConfig(),
+          onImportConfig: () => void diagnostics.importConfig(),
+          onClearCache: () => void diagnostics.clearCache(),
           onCopyDataBackupGuide: () => void diagnostics.copyDataBackupGuide(),
           onCopyDiagnosticsExport: () => void diagnostics.copyDiagnosticsExport(),
+          onRefreshDiagnostics: () => void diagnostics.refreshDiagnostics(),
           onRefreshActionLog: () => void diagnostics.loadActionLog(),
           onActionLogResultFilterChange: diagnostics.setActionLogResultFilter,
           onActionLogTypeFilterChange: diagnostics.setActionLogTypeFilter,
@@ -430,24 +465,27 @@ function formatVisibleBackgroundTaskTitle(title: string, activeBackgroundTaskCou
 }
 
 function buildShellStatus(input: {
-  updateSnapshot: UpdateSnapshot | null;
   manifestStatus: ManifestStatus | null;
   activeTaskCount: number;
   accountSummary: AccountSummary | null;
+  lastAccountLoadedAt: Date | null;
   isLoadingAccount: boolean;
   accountError: string;
   canRefreshAccount: boolean;
+  isBungieConfigured: boolean;
+  isAiConfigured: boolean;
+  updateSnapshot: UpdateSnapshot | null;
 }): ShellStatusItem[] {
   return [
     {
-      label: "账号状态",
-      value: formatAccountShellStatus(input.accountSummary, input.isLoadingAccount, input.accountError, input.canRefreshAccount),
-      tone: getAccountStatusTone(input.accountSummary, input.isLoadingAccount, input.accountError, input.canRefreshAccount)
+      label: "Bungie",
+      value: input.isBungieConfigured ? "已配置" : "未配置",
+      tone: input.isBungieConfigured ? "ready" : "warning"
     },
     {
-      label: "应用版本",
-      value: formatAppUpdateStatus(input.updateSnapshot),
-      tone: getUpdateStatusTone(input.updateSnapshot)
+      label: "账号",
+      value: formatAccountShellStatus(input.accountSummary, input.lastAccountLoadedAt, input.isLoadingAccount, input.accountError, input.canRefreshAccount),
+      tone: getAccountStatusTone(input.accountSummary, input.isLoadingAccount, input.accountError, input.canRefreshAccount)
     },
     {
       label: "资料库",
@@ -455,22 +493,33 @@ function buildShellStatus(input: {
       tone: getManifestStatusTone(input.manifestStatus)
     },
     {
+      label: "AI",
+      value: input.isAiConfigured ? "已配置" : "未配置",
+      tone: input.isAiConfigured ? "ready" : "warning"
+    },
+    {
       label: "后台任务",
       value: input.activeTaskCount ? `${input.activeTaskCount} 个运行中` : "空闲",
       tone: input.activeTaskCount ? "warning" : "neutral"
+    },
+    {
+      label: "应用版本",
+      value: formatUpdateShellStatus(input.updateSnapshot),
+      tone: getUpdateStatusTone(input.updateSnapshot)
     }
   ];
 }
 
 function formatAccountShellStatus(
   accountSummary: AccountSummary | null,
+  lastAccountLoadedAt: Date | null,
   isLoadingAccount: boolean,
   accountError: string,
   canRefreshAccount: boolean
 ): string {
   if (isLoadingAccount) return "读取中";
   if (accountError) return "读取失败";
-  if (accountSummary?.account_name) return accountSummary.account_name;
+  if (accountSummary) return formatTime(lastAccountLoadedAt) ?? "已读取";
   return canRefreshAccount ? "可读取" : "未登录";
 }
 
@@ -486,40 +535,59 @@ function getAccountStatusTone(
   return canRefreshAccount ? "warning" : "neutral";
 }
 
-function formatAppUpdateStatus(snapshot: UpdateSnapshot | null): string {
-  if (!snapshot) return "读取中";
-  if (snapshot.status === "available") return `可更新 ${snapshot.available_version ?? ""}`.trim();
-  if (snapshot.status === "downloaded") return "待重启";
-  if (snapshot.status === "downloading") return `${snapshot.progress_percent ?? 0}%`;
-  if (snapshot.status === "error") return "检查失败";
-  return snapshot.current_version;
-}
-
-function getUpdateStatusTone(snapshot: UpdateSnapshot | null): ShellStatusItem["tone"] {
-  if (!snapshot) return "neutral";
-  if (snapshot.status === "not_available" || snapshot.status === "idle") return "ready";
-  if (snapshot.status === "available" || snapshot.status === "downloaded") return "warning";
-  if (snapshot.status === "downloading" || snapshot.status === "checking") return "warning";
-  if (snapshot.status === "error") return "error";
-  return "neutral";
-}
-
 function formatManifestShellStatus(status: ManifestStatus | null): string {
   if (!status) return "读取中";
-  if (!status.initialized) return "未初始化";
-  if (status.missing_required_components?.length) return "组件缺失";
-  if (status.needs_update) return "需要更新";
-  if (status.cached_at) {
-    const date = new Date(status.cached_at);
-    if (!Number.isNaN(date.getTime())) {
-      return date.toLocaleDateString("zh-CN", { month: "2-digit", day: "2-digit" });
-    }
-  }
-  return status.version ?? "可用";
+  if (!status.initialized) return "未准备";
+  if (status.missing_required_components?.length) return "需修复";
+  if (status.needs_update) return "可更新";
+  return formatLibraryVersion(status.version) ?? "可用";
+}
+
+function formatUpdateShellStatus(snapshot: UpdateSnapshot | null): string {
+  const version = snapshot?.current_version ?? "未读取";
+  if (!snapshot) return version;
+  if (snapshot.status === "available") return `${version} 有新版`;
+  if (snapshot.status === "downloaded") return `${version} 待安装`;
+  if (snapshot.status === "downloading") return `${version} 下载中`;
+  if (snapshot.status === "error") return `${version} 检查失败`;
+  return `${version} 最新`;
+}
+
+function isShellPageKey(value: string | undefined): value is ShellPageKey {
+  return value === "home" || value === "account" || value === "vault" || value === "loadouts" || value === "library" || value === "settings";
+}
+
+function isColorMode(value: string | undefined): value is "light" | "dark" {
+  return value === "light" || value === "dark";
+}
+
+function formatLibraryVersion(version?: string): string | undefined {
+  if (!version) return undefined;
+  const match = version.match(/(?:^|\.)(\d{2})\.(\d{2})\.(\d{2})(?:\.|-)/);
+  if (!match) return undefined;
+  const yearNumber = Number(match[1]);
+  const fullYear = yearNumber < 80 ? 2000 + yearNumber : 1900 + yearNumber;
+  return `${fullYear}/${match[2]}/${match[3]}`;
+}
+
+function formatTime(date: Date | null): string | undefined {
+  if (!date) return undefined;
+  return new Intl.DateTimeFormat("zh-CN", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false
+  }).format(date);
 }
 
 function getManifestStatusTone(status: ManifestStatus | null): ShellStatusItem["tone"] {
   if (!status) return "neutral";
   if (!status.initialized || status.missing_required_components?.length || status.needs_update) return "warning";
+  return "ready";
+}
+
+function getUpdateStatusTone(snapshot: UpdateSnapshot | null): ShellStatusItem["tone"] {
+  if (!snapshot) return "neutral";
+  if (snapshot.status === "error") return "error";
+  if (snapshot.status === "available" || snapshot.status === "downloaded" || snapshot.status === "downloading") return "warning";
   return "ready";
 }

@@ -141,7 +141,8 @@ describe("global AI assistant sidebar wiring", () => {
     expect(shellLayout).toContain("切换为暗色");
     expect(shellLayout).toContain("切换为亮色");
     expect(homePage).toContain("colorMode={diagnostics.colorMode}");
-    expect(homePage).toContain("initialColorMode: props.state.colorMode");
+    expect(homePage).toContain("initialColorMode: visualColorMode ?? props.state.colorMode");
+    expect(homePage).toContain("VITE_D2_VISUAL_THEME");
     expect(homePage).toContain("onColorModeToggle={() => void diagnostics.toggleColorMode()}");
     expect(diagnosticsHook).toContain('initialColorMode?: "light" | "dark"');
     expect(diagnosticsHook).toContain("useColorModeState(input.initialColorMode)");

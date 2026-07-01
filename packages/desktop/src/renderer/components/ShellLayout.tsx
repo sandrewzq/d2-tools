@@ -27,18 +27,14 @@ export function ShellLayout(props: {
   activePage: ShellPageKey;
   assistantMode: ShellAssistantMode;
   onNavigate: (page: ShellPageKey) => void;
-  onInitializeManifest: () => void;
   onAssistantModeChange: (mode: ShellAssistantMode) => void;
   onColorModeToggle: () => void;
-  isInitializingManifest: boolean;
   colorMode: "light" | "dark";
   assistantPanel: ReactNode;
   shellStatus: ShellStatusItem[];
   children: ReactNode;
 }) {
   const shellClassName = props.assistantMode ? "app-shell assistant-open" : "app-shell";
-  const manifestStatus = props.shellStatus.find((item) => item.label.includes("资料库"));
-  const hasManifestUpdateSignal = manifestStatus?.tone === "warning" || manifestStatus?.tone === "error";
 
   function toggleAssistant(mode: Exclude<ShellAssistantMode, null>) {
     props.onAssistantModeChange(props.assistantMode === mode ? null : mode);
@@ -78,17 +74,6 @@ export function ShellLayout(props: {
           ))}
         </div>
         <div className="shell-toolstrip" aria-label="全局工具">
-          <button
-            className="shell-tool-button shell-tool-update"
-            type="button"
-            title="后台更新资料库"
-            aria-label="后台更新资料库"
-            disabled={props.isInitializingManifest}
-            onClick={props.onInitializeManifest}
-          >
-            ↧
-            {hasManifestUpdateSignal ? <span className="shell-tool-badge" /> : null}
-          </button>
           <button
             className={props.colorMode === "dark" ? "shell-tool-button shell-tool-theme active" : "shell-tool-button shell-tool-theme"}
             type="button"

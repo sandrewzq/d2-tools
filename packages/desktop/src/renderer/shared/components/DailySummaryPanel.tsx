@@ -158,7 +158,7 @@ function renderDailySourceMatrix(dailySummary: DailySummary) {
     },
     {
       key: "manifest",
-      label: "本地 Manifest",
+      label: "资料库",
       status: dailySummary.sources.lost_sector.status,
       detail: "遗失区域 fallback / 名称解析",
       count: dailySummary.sources.lost_sector.items?.length ?? 0

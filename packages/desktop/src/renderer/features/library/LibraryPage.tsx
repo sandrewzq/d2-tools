@@ -86,10 +86,10 @@ export function LibraryPage(props: {
       <div className="library-reference-hero">
         <div>
         <h2>资料库搜索</h2>
-          <p>默认按出处查询装备，筛选只基于当前本地 Manifest 里已经确认的字段。</p>
+          <p>默认按出处查询装备，筛选只基于当前资料库里已经确认的字段。</p>
         </div>
         <div className="library-reference-status">
-          <span>资料库日期</span>
+          <span>资料库版本</span>
           <strong>{formatManifestDataDate(props.manifestStatus)}</strong>
           <small>{props.manifestStatus?.needs_update ? "不是最新版本" : "用于来源、Perk 和详情判断"}</small>
         </div>
@@ -138,7 +138,7 @@ export function LibraryPage(props: {
             <span>获取优先级</span>
             <strong>来源可确认 / 等轮换 / 已下架或待确认 / 来源待补</strong>
           </div>
-          <p>不猜来源；只有 Manifest、实时商人或公共活动线索能确认时才提升优先级。</p>
+          <p>不猜来源；只有资料库、实时商人或公共活动线索能确认时才提升优先级。</p>
         </section>
       ) : null}
       <div className="library-filter-grid">
@@ -281,7 +281,7 @@ export function LibraryPage(props: {
               <span className="source-status-badge source-status-neutral">掉落查询</span>
               <strong>按可确认来源和 Perk 池筛掉无效结果</strong>
             </div>
-            <small>基于当前本地 Manifest；没有实时活动或商人证据时，不等同于当前在线可刷。</small>
+            <small>基于当前资料库；没有实时活动或商人证据时，不等同于当前在线可刷。</small>
           </div>
           <div className="drop-query-grid">
             <div className="drop-query-stat">
@@ -447,7 +447,7 @@ export function LibraryPage(props: {
                     <p><strong>可能出现于：</strong>{perk.related_items.map((item) => item.name).join(" / ")}</p>
                   </>
                 ) : (
-                  <p>本地 Manifest 里还没有查到关联装备。</p>
+                  <p>资料库里还没有查到关联装备。</p>
                 )}
                 <button type="button" className="inline-action" onClick={() => props.onAddFavorite(perk)}>
                   收藏
@@ -490,7 +490,7 @@ function buildManifestAlert(
   if (!status.initialized) {
     return {
       title: "资料库尚未初始化",
-      message: "账号页、搜索和详情需要本地 Manifest。可以现在启动后台更新，完成后再继续查询。",
+      message: "账号页、搜索和详情需要资料库。可以现在启动后台更新，完成后再继续查询。",
       className: "status-warning"
     };
   }
@@ -513,18 +513,16 @@ function buildManifestAlert(
 
 function formatManifestDataDate(status: ManifestStatus | null): string {
   if (!status) return "检查中";
-  const dateText = status.cached_at ?? status.checked_at;
-  if (dateText) {
-    const date = new Date(dateText);
-    if (!Number.isNaN(date.getTime())) {
-      return date.toLocaleDateString("zh-CN", {
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit"
-      });
-    }
-  }
-  return status.version ?? "未初始化";
+  return formatLibraryVersion(status.version) ?? "可用";
+}
+
+function formatLibraryVersion(version?: string): string | undefined {
+  if (!version) return undefined;
+  const match = version.match(/(?:^|\.)(\d{2})\.(\d{2})\.(\d{2})(?:\.|-)/);
+  if (!match) return undefined;
+  const yearNumber = Number(match[1]);
+  const fullYear = yearNumber < 80 ? 2000 + yearNumber : 1900 + yearNumber;
+  return `${fullYear}/${match[2]}/${match[3]}`;
 }
 
 function renderEquipmentResult(
@@ -593,7 +591,7 @@ function renderEquipmentResult(
             </div>
           </div>
         ) : (
-          <p className="muted-copy">本地 Manifest 暂未提供可展示的 Perk 池。</p>
+          <p className="muted-copy">资料库暂未提供可展示的 Perk 池。</p>
         )}
         {(communityMatch?.available ?? 0) > 0 ? (
           <small className="library-community-match">

@@ -42,15 +42,17 @@ describe("product shell background task wiring", () => {
     expect(homePage).toContain("global-background-task-banner");
     expect(homePage).toContain("shellStatus={");
     expect(shellLayout).toContain("global-shell-status");
-    expect(homePage).toContain("应用版本");
+    expect(homePage).toContain('label: "应用版本"');
+    expect(homePage).toContain('label: "Bungie"');
+    expect(homePage).toContain('label: "AI"');
     expect(homePage).toContain("资料库");
     expect(homePage).toContain("后台任务");
-    expect(homePage).toContain('snapshot.status === "not_available" || snapshot.status === "idle"');
     expect(homePage).toContain("backgroundTasks: diagnostics.backgroundTasks");
     expect(settingsPage).toContain("后台任务");
-    expect(settingsPage).toContain("settings-background-tasks");
-    expect(settingsPage).toContain("formatBackgroundTaskStatus");
-    expect(settingsPage).toContain("formatBackgroundTaskTime");
+    expect(settingsPage).toContain("getBackgroundTaskUi");
+    expect(settingsPage).not.toContain("settings-background-tasks");
+    expect(settingsPage).not.toContain("formatBackgroundTaskStatus");
+    expect(settingsPage).not.toContain("formatBackgroundTaskTime");
   });
 
   it("moves application update and manifest work onto application-level tasks", () => {
@@ -173,11 +175,13 @@ describe("product shell background task wiring", () => {
     expect(settingsHook).toContain("useManifestStatus");
     expect(settingsPage).toContain('id="settings-manifest"');
     expect(settingsPage).toContain("app-panel app-setting-group app-settings-wide manifest-");
-    expect(settingsPage).toContain("资料库状态");
-    expect(settingsPage).toContain("本地 Manifest");
-    expect(settingsPage).toContain("最新 Manifest");
+    expect(settingsPage).toContain("<h2>资料库</h2>");
+    expect(settingsPage).toContain("当前版本");
+    expect(settingsPage).toContain("最新版本");
     expect(settingsPage).toContain("资料库日期");
-    expect(settingsPage).toContain("必要组件");
+    expect(settingsPage).toContain("资料完整性");
+    expect(settingsPage).toContain("getBackgroundTaskUi");
+    expect(settingsPage).not.toContain("settings-background-tasks");
     expect(homePage).toContain("manifestStatus: diagnostics.manifestStatus");
     expect(homePage).toContain("onRefreshManifestStatus: () => void diagnostics.refreshManifestStatus()");
     expect(homePage).toContain("onInitializeManifest: () => void diagnostics.initializeManifest()");

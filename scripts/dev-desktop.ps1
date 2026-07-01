@@ -7,6 +7,9 @@ $ErrorActionPreference = "Stop"
 $rootDir = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 $desktopDir = Join-Path $rootDir "packages\desktop"
 $npx = "npx.cmd"
+$rendererPort = 53217
+$rendererUrl = "http://127.0.0.1:${rendererPort}"
+$previousRendererUrl = $env:D2_RENDERER_URL
 $viteProcess = $null
 
 function Invoke-Checked {
@@ -54,24 +57,25 @@ function Stop-ProcessTree {
 
 function Wait-RendererServer {
   param(
-    [System.Diagnostics.Process] $Process
+    [System.Diagnostics.Process] $Process,
+    [string] $RendererUrl
   )
 
-  Write-Host "Waiting for renderer dev server..." -ForegroundColor Cyan
+  Write-Host "Waiting for renderer dev server at $RendererUrl..." -ForegroundColor Cyan
   for ($attempt = 1; $attempt -le 60; $attempt++) {
     if ($Process.HasExited) {
       throw "Renderer dev server exited. Check the Vite output above."
     }
 
     try {
-      Invoke-WebRequest -Uri "http://127.0.0.1:5173" -UseBasicParsing -TimeoutSec 2 | Out-Null
+      Invoke-WebRequest -Uri $RendererUrl -UseBasicParsing -TimeoutSec 2 | Out-Null
       return
     } catch {
       Start-Sleep -Seconds 1
     }
   }
 
-  throw "Renderer dev server timed out. Check whether port 5173 is already in use."
+  throw "Renderer dev server timed out. Check whether port $rendererPort is already in use."
 }
 
 Push-Location $rootDir
@@ -99,12 +103,18 @@ try {
 
   Write-Host ""
   Write-Host "=== 3/3 Start development desktop app ===" -ForegroundColor Cyan
-  $viteProcess = Start-Process -FilePath $npx -ArgumentList @("pnpm@9.15.0", "--filter", "@d2-tools/desktop", "dev") -WorkingDirectory $rootDir -NoNewWindow -PassThru
-  Wait-RendererServer -Process $viteProcess
+  $viteProcess = Start-Process -FilePath $npx -ArgumentList @("pnpm@9.15.0", "--filter", "@d2-tools/desktop", "exec", "vite", "--host", "127.0.0.1", "--port", "$rendererPort", "--strictPort") -WorkingDirectory $rootDir -NoNewWindow -PassThru
+  Wait-RendererServer -Process $viteProcess -RendererUrl $rendererUrl
 
-  Write-Host "Renderer is ready. Opening Electron. Close the desktop window to stop the dev server." -ForegroundColor Green
+  Write-Host "Renderer is ready at $rendererUrl. Opening Electron. Close the desktop window to stop the dev server." -ForegroundColor Green
+  $env:D2_RENDERER_URL = $rendererUrl
   Invoke-Checked $npx @("pnpm@9.15.0", "--filter", "@d2-tools/desktop", "dev:electron")
 } finally {
+  if ($null -eq $previousRendererUrl) {
+    Remove-Item Env:\D2_RENDERER_URL -ErrorAction SilentlyContinue
+  } else {
+    $env:D2_RENDERER_URL = $previousRendererUrl
+  }
   Stop-ProcessTree -Process $viteProcess
   Pop-Location
 }

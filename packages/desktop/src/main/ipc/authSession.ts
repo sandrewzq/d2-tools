@@ -1,6 +1,5 @@
 import type { D2Config } from "@d2-tools/core/config/schema";
 import {
-  hasOAuthToken,
   loadOAuthToken,
   refreshBungieOAuthToken,
   saveOAuthToken
@@ -39,21 +38,27 @@ export async function loadFreshOAuthToken(config: D2Config): Promise<FreshOAuthT
 }
 
 export async function getStartupAuthStatus(config: D2Config): Promise<StartupAuthStatus> {
-  if (!hasRequiredBungieConfig(config) || !hasOAuthToken(config.data.data_dir)) {
+  const token = loadOAuthToken(config.data.data_dir);
+  if (!hasRequiredBungieConfig(config) || !token) {
     return { status: "missing" };
   }
 
-  try {
-    await loadFreshOAuthToken(config);
+  if (token.access_token && (!isOAuthAccessTokenExpired(token) || token.refresh_token)) {
     return { status: "valid" };
-  } catch (error) {
+  }
+
+  if (token.refresh_token) {
+    return { status: "valid" };
+  }
+
+  if (isOAuthAccessTokenExpired(token)) {
     return {
       status: "invalid",
-      message: error instanceof Error
-        ? error.message
-        : "Bungie 登录已失效，请重新登录"
+      message: "Bungie 登录已过期，请重新登录"
     };
   }
+
+  return { status: "valid" };
 }
 
 function isOAuthAccessTokenExpired(token: FreshOAuthToken): boolean {

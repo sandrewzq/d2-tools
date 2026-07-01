@@ -46,8 +46,21 @@ describe("desktop Bungie login wiring", () => {
     expect(accountIpc).toContain('ipcMain.handle("account:summary"');
     expect(startupIpc).toContain('ipcMain.handle("startup:get", async');
     expect(startupIpc).toContain("getStartupAuthStatus(config)");
+    expect(startupIpc).toContain("hasRequiredDefinitionCacheFiles");
+    expect(startupIpc).toContain("loadManifestMetadataCache");
+    expect(startupIpc).not.toContain("hasRequiredDefinitionComponents");
+    expect(startupIpc).not.toContain("getManifestStatus");
     expect(authSession).toContain("loadFreshOAuthToken");
     expect(authSession).toContain("refreshBungieOAuthToken");
+  });
+
+  it("shows a recoverable startup error instead of staying on the splash text forever", () => {
+    const app = readFileSync(join(desktopRoot, "src", "renderer", "App.tsx"), "utf8");
+
+    expect(app).toContain("startupError");
+    expect(app).toContain("启动状态读取失败");
+    expect(app).toContain("重试启动检查");
+    expect(app).toContain("catch");
   });
 
   it("keeps Bungie login single-flight and translates callback port conflicts", () => {

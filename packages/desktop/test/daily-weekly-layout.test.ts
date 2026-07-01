@@ -42,7 +42,7 @@ describe("daily and weekly layout", () => {
     expect(dailyPanel).toContain("数据源矩阵");
     expect(dailyPanel).toContain("Bungie 公共里程碑");
     expect(dailyPanel).toContain("Bungie 公共商人");
-    expect(dailyPanel).toContain("本地 Manifest");
+    expect(dailyPanel).toContain("本地资料库");
     expect(dailyPanel).toContain("待接入");
     expect(dailyPanel).toContain("夜幕 / 试炼 / 双倍奖励");
     expect(dailyPanel).not.toContain("????");

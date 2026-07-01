@@ -1,4 +1,4 @@
-import { mkdtempSync } from "node:fs";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -12,6 +12,7 @@ import {
   requiredDefinitionComponents,
   selectDefinitionComponentPath
 } from "../src/manifest/definitions.js";
+import { hasRequiredDefinitionCacheFiles } from "../src/manifest/definitions.ts";
 
 const metadata: DestinyManifestMetadata = {
   version: "123",
@@ -231,5 +232,29 @@ describe("manifest definition components", () => {
     });
 
     expect(hasRequiredDefinitionComponents(dataDir)).toBe(false);
+  });
+
+  it("checks required definition cache files without parsing full component data", () => {
+    const dataDir = mkdtempSync(join(tmpdir(), "d2-tools-definitions-"));
+    const definitionDir = join(dataDir, "manifest", "definitions");
+    mkdirSync(definitionDir, { recursive: true });
+
+    for (const component of requiredDefinitionComponents) {
+      writeFileSync(join(definitionDir, `${component}.json`), "{not-valid-json", "utf8");
+    }
+
+    expect(hasRequiredDefinitionCacheFiles(dataDir)).toBe(true);
+  });
+
+  it("reports missing required definition cache files in the lightweight startup check", () => {
+    const dataDir = mkdtempSync(join(tmpdir(), "d2-tools-definitions-"));
+    const definitionDir = join(dataDir, "manifest", "definitions");
+    mkdirSync(definitionDir, { recursive: true });
+
+    for (const component of requiredDefinitionComponents.slice(0, -1)) {
+      writeFileSync(join(definitionDir, `${component}.json`), "{not-valid-json", "utf8");
+    }
+
+    expect(hasRequiredDefinitionCacheFiles(dataDir)).toBe(false);
   });
 });
