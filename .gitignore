@@ -24,3 +24,4 @@ packages/*/src/**/*.d.ts
 .trae/
 .idea/
 .worktrees/
+skills-lock.json
