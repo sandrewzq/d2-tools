@@ -98,7 +98,7 @@ export function ShellLayout(props: {
           >
             {props.colorMode === "light" ? "☾" : "☀"}
           </button>
-          <button className="shell-tool-button shell-tool-github" type="button" title="GitHub" aria-label="GitHub" onClick={() => window.open("https://github.com/sandrewzq/d2-tools", "_blank", "noopener,noreferrer")}>
+          <button className="shell-tool-button shell-tool-github" type="button" title="GitHub" aria-label="GitHub" onClick={() => { window.d2.openExternal("https://github.com/sandrewzq/d2-tools").catch(() => {}); }}>
             <svg aria-hidden="true" viewBox="0 0 16 16">
               <path d="M8 0.4a7.7 7.7 0 0 0-2.4 15c0.4 0.1 0.5-0.2 0.5-0.4v-1.5c-2.1 0.5-2.6-0.9-2.6-0.9-0.3-0.8-0.8-1-0.8-1-0.7-0.5 0.1-0.5 0.1-0.5 0.8 0.1 1.2 0.8 1.2 0.8 0.7 1.2 1.8 0.9 2.2 0.7 0.1-0.5 0.3-0.9 0.5-1.1-1.7-0.2-3.5-0.8-3.5-3.8 0-0.8 0.3-1.5 0.8-2.1-0.1-0.2-0.3-1 0.1-2 0 0 0.7-0.2 2.2 0.8A7.4 7.4 0 0 1 8 4c0.7 0 1.3 0.1 1.9 0.3 1.5-1 2.2-0.8 2.2-0.8 0.4 1 0.2 1.8 0.1 2 0.5 0.6 0.8 1.3 0.8 2.1 0 2.9-1.8 3.6-3.5 3.8 0.3 0.2 0.5 0.7 0.5 1.4V15c0 0.2 0.1 0.5 0.5 0.4A7.7 7.7 0 0 0 8 0.4Z" />
             </svg>

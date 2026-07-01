@@ -1,4 +1,4 @@
-import { BrowserWindow, ipcMain } from "electron";
+import { BrowserWindow, ipcMain, shell } from "electron";
 
 export type WindowColorMode = "light" | "dark";
 
@@ -33,5 +33,11 @@ export function registerWindowIpcHandlers(): void {
     const window = BrowserWindow.fromWebContents(event.sender);
     if (!window || window.isDestroyed()) return;
     applyWindowColorMode(window, colorMode);
+  });
+
+  ipcMain.handle("shell:open-external", (_event, url: string) => {
+    const parsed = new URL(url);
+    if (parsed.protocol !== "https:" && parsed.protocol !== "http:") return;
+    return shell.openExternal(url);
   });
 }

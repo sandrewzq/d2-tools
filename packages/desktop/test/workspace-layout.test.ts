@@ -25,16 +25,17 @@ describe("desktop workspace layout", () => {
     expect(homeRoutes).toContain("<HomeDashboard");
     expect(homePage).not.toContain('className="home-workbench"');
     expect(homeDashboard).toContain('className="app-page home-app-page');
-    expect(homeDashboard).toContain('className="app-overview-grid"');
-    expect(homeDashboard).toContain('className="app-panel app-hero-panel"');
-    expect(homeDashboard).toContain('className="app-panel app-panel-body app-side-stack"');
-    expect(homeDashboard).toContain("<DailySummaryPanel");
+    expect(homeDashboard).toContain('className="home-readiness-grid"');
+    expect(homeDashboard).toContain('className="home-rotation-grid"');
+    expect(homeDashboard).toContain('className="home-weekly-grid"');
+    expect(homeDashboard).toContain("仄的金装");
+    expect(homeDashboard).not.toContain("<DailySummaryPanel");
     expect(homeDashboard).not.toContain("../daily/DailyPage");
     expect(homePage).not.toContain("function renderDailyPanel");
     expect(dailyPage).toContain("export function DailyPage");
-    expect(styles).toMatch(/\.app-overview-grid\s*{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1\.3fr\)\s*minmax\(280px,\s*0\.7fr\);/);
-    expect(styles).toMatch(/\.app-hero-panel\s*{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1fr\)\s*320px;/);
-    expect(styles).toMatch(/@media \(max-width:\s*1180px\)\s*{[\s\S]*?\.app-overview-grid,[\s\S]*?\.app-hero-panel,[\s\S]*?\.app-settings-grid\s*{[\s\S]*?grid-template-columns:\s*1fr;/);
+    expect(styles).toMatch(/\.home-readiness-grid\s*{[\s\S]*?grid-template-columns:\s*repeat\(5,\s*minmax\(0,\s*1fr\)\);/);
+    expect(styles).toMatch(/\.home-weekly-grid\s*{[\s\S]*?grid-template-columns:\s*repeat\(4,\s*minmax\(0,\s*1fr\)\);/);
+    expect(styles).toMatch(/@media \(max-width:\s*1180px\)\s*{[\s\S]*?\.home-readiness-grid,[\s\S]*?\.home-rotation-grid,[\s\S]*?\.home-weekly-grid,[\s\S]*?\.app-settings-grid\s*{[\s\S]*?grid-template-columns:\s*1fr;/);
   });
 
   it("keeps AI in the global assistant sidebar instead of a main page", () => {
@@ -112,8 +113,9 @@ describe("desktop workspace layout", () => {
     const homePage = readFileSync(join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"), "utf8");
     const homeDashboard = readFileSync(join(desktopRoot, "src", "renderer", "features", "home", "HomeDashboard.tsx"), "utf8");
 
-    expect(homeDashboard).toContain("app-status-list");
-    expect(homeDashboard).toContain("renderControlStatusRow");
+    expect(homeDashboard).toContain("home-readiness-grid");
+    expect(homeDashboard).toContain("Bungie App 已配置");
+    expect(homeDashboard).toContain("健康检查正常");
     expect(homeDashboard).not.toContain("<StatusOverview");
     expect(homeDashboard).not.toContain("<DiagnosticsPanel");
     expect(homePage).not.toContain('activePage !== "home" ? (');
@@ -191,7 +193,7 @@ describe("desktop workspace layout", () => {
     const styles = readFileSync(join(desktopRoot, "src", "renderer", "styles.css"), "utf8");
 
     expect(styles).toMatch(
-      /@media \(max-width:\s*760px\)\s*{[\s\S]*?\.app-page-head,[\s\S]*?\.app-info-strip,[\s\S]*?\.app-status-row,[\s\S]*?\.app-setting-row,[\s\S]*?\.app-health-grid,[\s\S]*?\.app-metric-grid\s*{[\s\S]*?grid-template-columns:\s*1fr;/,
+      /@media \(max-width:\s*760px\)\s*{[\s\S]*?\.app-page-head,[\s\S]*?\.app-info-strip,[\s\S]*?\.app-status-row,[\s\S]*?\.app-setting-row,[\s\S]*?\.app-health-grid,[\s\S]*?\.app-metric-grid,[\s\S]*?\.home-readiness-grid,[\s\S]*?\.home-rotation-grid,[\s\S]*?\.home-weekly-grid\s*{[\s\S]*?grid-template-columns:\s*1fr;/,
     );
     expect(styles).toMatch(/@media \(max-width:\s*760px\)\s*{[\s\S]*?\.ai-chat-input\s*{[\s\S]*?grid-template-columns:\s*1fr;/);
   });

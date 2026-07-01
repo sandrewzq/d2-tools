@@ -121,6 +121,8 @@ contextBridge.exposeInMainWorld("d2", {
   getStartupState: () => ipcRenderer.invoke("startup:get") as Promise<StartupState>,
   setWindowColorMode: (colorMode: "light" | "dark") =>
     ipcRenderer.invoke("window:set-color-mode", colorMode) as Promise<void>,
+  openExternal: (url: string) =>
+    ipcRenderer.invoke("shell:open-external", url) as Promise<void>,
   getBackgroundTasks: () => ipcRenderer.invoke("background-tasks:list") as Promise<BackgroundTaskSnapshot[]>,
   onBackgroundTasksChanged: (callback: (tasks: BackgroundTaskSnapshot[]) => void) => {
     const listener = (_event: Electron.IpcRendererEvent, tasks: BackgroundTaskSnapshot[]) => callback(tasks);

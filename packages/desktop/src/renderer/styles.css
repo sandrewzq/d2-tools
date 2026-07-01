@@ -3731,6 +3731,37 @@ h2 {
   gap: 10px;
 }
 
+.home-readiness-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.home-rotation-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.home-weekly-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.home-readiness-card {
+  min-height: 100px;
+}
+
+.home-rotation-card {
+  align-content: start;
+  min-height: 112px;
+}
+
+.home-rotation-card .app-chip {
+  justify-self: start;
+}
+
 .app-metric {
   display: grid;
   gap: 6px;
@@ -3930,6 +3961,9 @@ h2 {
 @media (max-width: 1180px) {
   .app-overview-grid,
   .app-hero-panel,
+  .home-readiness-grid,
+  .home-rotation-grid,
+  .home-weekly-grid,
   .app-settings-grid {
     grid-template-columns: 1fr;
   }
@@ -3945,7 +3979,10 @@ h2 {
   .app-status-row,
   .app-setting-row,
   .app-health-grid,
-  .app-metric-grid {
+  .app-metric-grid,
+  .home-readiness-grid,
+  .home-rotation-grid,
+  .home-weekly-grid {
     grid-template-columns: 1fr;
   }
 

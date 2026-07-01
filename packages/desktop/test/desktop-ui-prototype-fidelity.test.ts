@@ -29,7 +29,9 @@ describe("desktop UI prototype fidelity", () => {
       expect(source).not.toContain("settings-product-grid");
     }
 
-    expect(homeDashboard).toContain("app-overview-grid");
+    expect(homeDashboard).toContain("home-readiness-grid");
+    expect(homeDashboard).toContain("home-rotation-grid");
+    expect(homeDashboard).toContain("home-weekly-grid");
     expect(homeDashboard).toContain("app-status-row");
     expect(homeDashboard).not.toContain("home-overview-hero");
     expect(homeDashboard).not.toContain("home-risk-grid");
@@ -42,15 +44,15 @@ describe("desktop UI prototype fidelity", () => {
 
   it("locks wide desktop grids so text cannot collapse into vertical columns", () => {
     const styles = readRendererFile("styles.css");
-    const overviewGrid = readCssRule(styles, ".app-overview-grid");
-    const heroPanel = readCssRule(styles, ".app-hero-panel");
-    const healthGrid = readCssRule(styles, ".app-health-grid");
+    const readinessGrid = readCssRule(styles, ".home-readiness-grid");
+    const rotationGrid = readCssRule(styles, ".home-rotation-grid");
+    const weeklyGrid = readCssRule(styles, ".home-weekly-grid");
     const settingsGrid = readCssRule(styles, ".app-settings-grid");
     const settingRow = readCssRule(styles, ".app-setting-row");
 
-    expect(overviewGrid).toContain("grid-template-columns: minmax(0, 1.3fr) minmax(280px, 0.7fr)");
-    expect(heroPanel).toContain("grid-template-columns: minmax(0, 1fr) 320px");
-    expect(healthGrid).toContain("grid-template-columns: repeat(3, minmax(0, 1fr))");
+    expect(readinessGrid).toContain("grid-template-columns: repeat(5, minmax(0, 1fr))");
+    expect(rotationGrid).toContain("grid-template-columns: repeat(3, minmax(0, 1fr))");
+    expect(weeklyGrid).toContain("grid-template-columns: repeat(4, minmax(0, 1fr))");
     expect(settingsGrid).toContain("grid-template-columns: minmax(0, 1fr) minmax(280px, 0.5fr)");
     expect(settingRow).toContain("grid-template-columns: minmax(0, 1fr) auto");
     expect(styles).not.toContain(".settings-product-grid .settings-update-grid");

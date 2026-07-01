@@ -20,13 +20,15 @@ describe("desktop product redesign wiring", () => {
 
     expect(homeDashboard).toContain("app-page home-app-page");
     expect(homeDashboard).toContain("app-page-head");
-    expect(homeDashboard).toContain("app-overview-grid");
-    expect(homeDashboard).toContain("app-hero-panel");
-    expect(homeDashboard).toContain("app-health-grid");
-    expect(homeDashboard).toContain("app-info-strip");
+    expect(homeDashboard).toContain("home-readiness-grid");
+    expect(homeDashboard).toContain("home-rotation-grid");
+    expect(homeDashboard).toContain("home-weekly-grid");
+    expect(homeDashboard).toContain("仄的金装");
     expect(homeDashboard).not.toContain("product-overview-grid");
     expect(homeDashboard).not.toContain("home-risk-grid product-card");
     expect(homeDashboard).not.toContain("ui-badge status-ready\">总览");
+    expect(homeDashboard).not.toContain("读取账号");
+    expect(homeDashboard).not.toContain("商人库存");
 
     expect(vaultPanel).toContain("vault-product-layout");
     expect(vaultPanel).toContain("vault-decision-summary");

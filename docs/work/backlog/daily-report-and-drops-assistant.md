@@ -1,7 +1,7 @@
 # 小日向日报、商人与掉落查询
 
 > 状态：Backlog
-> 更新时间：2026-06-29
+> 更新时间：2026-07-01
 
 ## 目标
 
@@ -48,6 +48,133 @@
 - 夜幕、试炼、双倍奖励没有可靠来源时硬展示。
 - 商人 API 失败时显示过期数据但不提示时间。
 - 把 AI 总结当作数据源。
+
+## 商人轮换官方口径
+
+Bungie 没有提供一份人工维护的“全部商人清单 + 自然语言轮换规则”页面。实现商人库存和轮换时，必须以官方数据结构为准：
+
+- `DestinyVendorDefinition`：来自 Destiny Manifest，用于读取 vendor `hash`、`displayProperties.name`、`vendorIdentifier`、`enabled`、`visible`、`itemList`、`resetIntervalMinutes`、`resetOffsetMinutes`。
+- `Destiny2.GetVendors`：来自 Bungie live API，用于读取某个角色当前实际可见、可交互、拥有动态库存的 vendor，以及当前 `sales`、购买状态、刷新时间。
+- `DestinyVendorSaleItemComponent.overrideNextRefreshDate`：如果单个售卖项有自己的下一次刷新 / 重新判定时间，以该字段作为商品级提示。
+
+官方 `DestinyVendorDefinition` 文档说明：`resetIntervalMinutes` / `resetOffsetMinutes` 用于刷新计算，但 Bungie 服务端会计算并在 live data 返回下一次刷新时间；客户端不要把 Manifest 偏移硬算成事实文案。`unlockRanges` 只能在 Bungie 能预测 vendor 可见范围时提供，官方说明该字段经常不可用，不能作为主判断。
+
+实现规则：
+
+1. 商人“当前是否出现 / 当前卖什么”只以 live `Destiny2.GetVendors` 和角色授权后的 Character Vendors 返回为事实。
+2. Manifest 中 `enabled == true && visible == true && itemList.length > 0` 的 vendor 可作为候选清单，但不等同于当前在线可用。
+3. `resetIntervalMinutes` 只用于分类展示，不用于本地承诺具体刷新时间。
+4. 有 live `nextRefreshDate` 或售卖项 `overrideNextRefreshDate` 时，优先展示 live 时间。
+5. 没有 live 时间时，只展示“日刷新 / 周刷新 / 无 Manifest 周期”等保守标签，不写“某日某时必定刷新”。
+6. Xûr、Saint-14、Iron Banner、活动商人等可有中文说明，但当前可用性仍必须以 live API 命中为准。
+
+轮换分类：
+
+```ts
+type VendorRotationRule =
+  | { kind: "daily"; interval_minutes: 1440; offset_minutes: number }
+  | { kind: "weekly"; interval_minutes: 10080; offset_minutes: number }
+  | { kind: "three_hour"; interval_minutes: 180; offset_minutes: number }
+  | { kind: "five_minute"; interval_minutes: 5; offset_minutes: number }
+  | { kind: "no_manifest_cycle"; interval_minutes: 0; offset_minutes: number };
+```
+
+当前 Manifest 版本 `244164.26.06.16.2053-2-bnet.65465` 下，按 `enabled == true && visible == true && itemList.length > 0` 抽取的候选 vendor 统计：
+
+- 每日刷新：10 个。
+- 每周刷新：178 个。
+- 3 小时刷新：1 个。
+- 5 分钟刷新：1 个。
+- 无 Manifest 刷新周期：27 个。
+
+### 每日刷新候选 vendor
+
+| hash | name | vendorIdentifier | offset |
+|---:|---|---|---:|
+| 672118013 | Banshee-44 | `GUNSMITH` | 420 |
+| 1857431946 | Cayde-6 | `SCHISM_EXOTIC` | -540 |
+| 4254652401 | Exo Stranger | `EUROPA_STRANGER` | -540 |
+| 2384113223 | Fynch | `THRONEWORLD_FACTION` | -540 |
+| 1660659508 | Ghost | `SCHISM_FACTION` | -540 |
+| 4290765743 | Ikora Rey | `MARS_IKORA` | -540 |
+| 3352059696 | Micah's Conduit | `SCHISM_TROPHY_HALL` | -540 |
+| 1021220385 | Nimbus | `NEOMUNA_FACTION` | -540 |
+| 1413212512 | The Pouka Pond | `NEOMUNA_STRAND` | -540 |
+| 2531198101 | Variks the Loyal | `EUROPA_FACTION` | -540 |
+
+### 高频刷新候选 vendor
+
+| hash | name | vendorIdentifier | interval | offset |
+|---:|---|---|---:|---:|
+| 1976548992 | Ikora Rey | `WARLOCK_VANGUARD` | 180 | 32640 |
+| 3033500747 | Solstice Forge | `TOWER_EVA_SOLSTICE_FORGE` | 5 | 0 |
+
+### 无 Manifest 刷新周期候选 vendor
+
+这些 vendor 的 `resetIntervalMinutes` 为 `0`，实现上只能标记为 `no_manifest_cycle`，由 live API / 活动状态 / 解锁状态决定，不做本地周期推断。
+
+| hash | name | vendorIdentifier |
+|---:|---|---|
+| 1990023985 | Ada-1 | `TOWER_SHOOTING_RANGE_ADA` |
+| 1474045886 | Altar of Relativity | `KEPLER_CENOTE` |
+| 2345012294 | Arena Ops Attunement | `ARENA_ATTUNEMENT` |
+| 2734167 | Attunement | `SCHISM_FACTION_ATTUNEMENT` |
+| 714148153 | Attunement | `KEPLER_CENOTE_ATTUNEMENT` |
+| 4288512789 | Attunement | `SHARED_ATTUNEMENT` |
+| 1066703997 | Crucible Ops Attunement | `CRUCIBLE_ATTUNEMENT` |
+| 3339357685 | Distortions Attunement | `SPOTLIGHTS_ATTUNEMENT` |
+| 1670274555 | Evidence Board | `MARS_EVIDENCE_BOARD` |
+| 1137601706 | Fireteam Ops Attunement | `FIRETEAM_ATTUNEMENT` |
+| 760362358 | Gambit Ops Attunement | `GAMBIT_ATTUNEMENT` |
+| 811102249 | Garden of Salvation Raid | `FARM_CLANS_SUBSCREEN_1` |
+| 2472648659 | Iron Banner Attunement | `IRON_BANNER_ATTUNEMENT` |
+| 811102248 | Last Wish Raid | `FARM_CLANS_SUBSCREEN_0` |
+| 537912098 | More Strange Offers | `TOWER_NINE_OFFERS` |
+| 3923922331 | Onslaught Attunement | `ONSLAUGHT_ATTUNEMENT` |
+| 2266106659 | Pinnacle Ops Attunement | `PINNACLE_ATTUNEMENT` |
+| 1664326810 | Quinn Laghari | `NEOMUNA_ARCHIVIST` |
+| 3642056527 | Relic Conduit | `CRAFTING_RELIC_CONDUIT` |
+| 3705882217 | Sabotage | `EUROPA_FACTION_SABOTAGE` |
+| 4035770216 | Solo Ops Attunement | `SOLO_ATTUNEMENT` |
+| 3751514131 | Strange Gear Offers | `TOWER_NINE_GEAR` |
+| 561095104 | Tenet of Bravery | `TOWER_MOT_TENET_BRAVERY` |
+| 3538522383 | Tenet of Death | `TOWER_MOT_TENET_DEATH` |
+| 1459475265 | Tenet of Devotion | `TOWER_MOT_TENET_DEVOTION` |
+| 665961858 | Tenet of Sacrifice | `TOWER_MOT_TENET_SACRIFICE` |
+| 3136842345 | Trials of Osiris Attunement | `TRIALS_ATTUNEMENT` |
+| 895295461 | Valus Saladin | `IRON_BANNER` |
+| 3611756231 | World Attunement | `WORLD_ATTUNEMENT` |
+
+### 每周刷新候选 vendor
+
+每周刷新候选 vendor 数量较多，包含传统 NPC、聚焦页、纪念碑、子职业购买页、赛季档案和奖励页。实现时不要手写完整静态表；应从 Manifest 动态抽取并按 `resetIntervalMinutes == 10080` 分类。产品重点展示可配置白名单可以另设，但必须标注为“展示优先级”，不能当作官方总数。
+
+常用每周刷新 vendor / vendor 页面包括：
+
+| hash | name | vendorIdentifier | offset |
+|---:|---|---|---:|
+| 350061650 | Ada-1 | `TOWER_ADA` | 1860 |
+| 69482069 | Commander Zavala | `TITAN_VANGUARD` | 1860 |
+| 3603221665 | Lord Shaxx | `CRUCIBLE` | 1860 |
+| 2255782930 | Master Rahool | `CRYPTARCH` | 2820 |
+| 765357505 | Saint-14 | `TOWER_SAINT_14` | 1860 |
+| 3361454721 | Tess Everis | `EVERVERSE` | 1860 |
+| 248695599 | The Drifter | `GAMBIT` | 1860 |
+| 895295461 | Valus Saladin | `IRON_BANNER` | -1860 |
+| 2190858386 | Xûr | `TOWER_NINE` | -12060 |
+| 3442679730 | Xûr | `30TH_ANNIVERSARY_XUR` | 1860 |
+| 3347378076 | Suraya Hawthorne | `FARM_CLANS` | 1860 |
+| 296729347 | Special Deliveries | `TOWER_OFFERS` | 1860 |
+| 4230408743 | Monument to Lost Lights | `TOWER_EXOTIC_ARCHIVE` | 1860 |
+| 2572415929 | Monument to Seasons Past | `TOWER_SEASONAL_ARCHIVE` | 1860 |
+
+完整实现必须动态覆盖所有 `10080` 候选 vendor，不只覆盖上表。
+
+官方参考：
+
+- [Bungie.Net API — Destiny2.GetVendors](https://bungie-net.github.io/multi/operation_get_Destiny2-GetVendors.html)
+- [Bungie.Net API — Destiny.Definitions.DestinyVendorDefinition](https://bungie-net.github.io/multi/schema_Destiny-Definitions-DestinyVendorDefinition.html)
+- [Bungie.Net API — Destiny.Entities.Vendors.DestinyVendorSaleItemComponent](https://bungie-net.github.io/multi/schema_Destiny-Entities-Vendors-DestinyVendorSaleItemComponent.html)
 
 ## 功能范围
 

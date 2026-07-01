@@ -73,27 +73,24 @@ describe("desktop T5 visual redesign", () => {
     const styles = readRendererFile("styles.css");
 
     expect(homeDashboard).toContain("app-page home-app-page");
-    expect(homeDashboard).toContain("app-overview-grid");
-    expect(homeDashboard).toContain("app-hero-panel");
-    expect(homeDashboard).toContain("app-info-strip");
-    expect(homeDashboard).toContain("app-side-stack");
-    expect(homeDashboard).toContain("app-status-list");
-    expect(homeDashboard).toContain("app-diagnostic-summary");
-    expect(homeDashboard).toContain("状态与设置");
-    expect(homeDashboard).toContain("账号读取");
-    expect(homeDashboard).toContain("资料库版本");
+    expect(homeDashboard).toContain("home-readiness-grid");
+    expect(homeDashboard).toContain("今日轮换");
+    expect(homeDashboard).toContain("本周轮换");
+    expect(homeDashboard).toContain("仄的金装");
+    expect(homeDashboard).toContain("运行诊断");
+    expect(homeDashboard).not.toContain("当前桌面状态");
+    expect(homeDashboard).not.toContain("状态与设置");
+    expect(homeDashboard).not.toContain("下一步建议");
+    expect(homeDashboard).not.toContain("读取账号");
+    expect(homeDashboard).not.toContain("商人库存");
     expect(homeDashboard).not.toContain("<StatusOverview");
     expect(homeDashboard).not.toContain("<DiagnosticsPanel");
     expect(homeDashboard).not.toContain("小日向菜单");
     expect(homeDashboard).not.toContain("任务入口");
-    expect(styles).toContain(".app-overview-grid");
-    expect(styles).toContain(".app-hero-panel");
-    expect(styles).toContain(".app-info-strip");
-    expect(styles).toContain(".app-side-stack");
-    expect(styles).toContain(".app-status-list");
-    expect(styles).toContain(".app-status-row");
-    expect(styles).toContain(".app-diagnostic-summary");
-    expect(styles).toMatch(/\.app-overview-grid\s*{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1\.3fr\)\s*minmax\(280px,\s*0\.7fr\);/);
+    expect(styles).toContain(".home-readiness-grid");
+    expect(styles).toContain(".home-rotation-grid");
+    expect(styles).toContain(".home-weekly-grid");
+    expect(styles).toMatch(/\.home-readiness-grid\s*{[\s\S]*?grid-template-columns:\s*repeat\(5,\s*minmax\(0,\s*1fr\)\);/);
   });
 
   it("uses the account A2 layout with visible backpack previews and a narrow secondary summary", () => {
