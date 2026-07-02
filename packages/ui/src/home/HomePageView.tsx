@@ -116,18 +116,24 @@ export type HomePageViewProps = {
   onCopyWeeklyFocus?: () => void;
 };
 
-const fallbackState: HomeStartupState = {
-  cards: {
-    manifest: {
-      label: "可用",
-      status: "ready",
-      lastUpdated: "6月17日",
-      needsUpdate: false
-    }
-  }
-};
-
 const noop = () => undefined;
+
+function homeText(copy: HomeCopy, key: string): string {
+  return copy.inline[key] ?? key;
+}
+
+function buildFallbackState(copy: HomeCopy): HomeStartupState {
+  return {
+    cards: {
+      manifest: {
+        label: homeText(copy, "可用"),
+        status: "ready",
+        lastUpdated: homeText(copy, "6月17日"),
+        needsUpdate: false
+      }
+    }
+  };
+}
 
 export function HomePageView(props: HomePageViewProps) {
   if (!props.state && props.children) {
@@ -138,9 +144,11 @@ export function HomePageView(props: HomePageViewProps) {
     );
   }
 
+  const interfaceLocale = props.interfaceLocale ?? "zh-CN";
+  const copy = getLocaleCopy(interfaceLocale).home;
   const viewProps = {
-    interfaceLocale: props.interfaceLocale ?? "zh-CN",
-    state: props.state ?? fallbackState,
+    interfaceLocale,
+    state: props.state ?? buildFallbackState(copy),
     isLoggingIn: props.isLoggingIn ?? false,
     isLoadingAccount: props.isLoadingAccount ?? false,
     isInitializingManifest: props.isInitializingManifest ?? false,
@@ -156,8 +164,6 @@ export function HomePageView(props: HomePageViewProps) {
     onRefreshDiagnostics: props.onRefreshDiagnostics ?? noop,
     onCopyDailySummary: props.onCopyDailySummary ?? noop
   };
-  const copy = getLocaleCopy(viewProps.interfaceLocale).home;
-
   const dataPoints = buildHomeDataPoints(viewProps, copy);
   const rewardGroups = buildHomeRewardGroups(viewProps.dailySummary, copy);
   const weeklyIntel = buildWeeklyIntelSections(viewProps.dailySummary, copy);
@@ -356,7 +362,7 @@ function buildHomeDataPoints(props: {
     {
       key: "manifest",
       label: copy.labels.manifest,
-      value: props.isInitializingManifest ? "更新中" : manifest.lastUpdated ?? manifest.label,
+      value: props.isInitializingManifest ? homeText(copy, "更新中") : manifest.lastUpdated ?? manifest.label,
       detail: manifest.status === "ready" && !manifest.needsUpdate ? copy.fallback.manifestReady : copy.fallback.manifestNeedsAttention,
       tone: manifest.status === "ready" && !manifest.needsUpdate ? "ready" : "warning"
     },
@@ -378,10 +384,10 @@ function buildHomeRewardGroups(dailySummary: HomeDailySummary | null, copy: Home
       title: copy.rewardGroups.powerTitle,
       meta: copy.fallback.weeklyFixedMeta,
       items: [
-        { label: "智谋", detail: "完成每周挑战后降噪", tone: "warning" },
-        { label: "日落任务", detail: weeklyReportReady ? "本周周报已有线索" : "武器和难度待确认", tone: weeklyReportReady ? "ready" : "warning" },
-        { label: "熔炉竞技场", detail: "检查每周挑战和声望奖励", tone: "warning" },
-        { label: "突袭", detail: "优先看轮换突袭和巅峰奖励", tone: weeklyReportReady ? "ready" : "warning" }
+        { label: homeText(copy, "智谋"), detail: homeText(copy, "完成每周挑战后降噪"), tone: "warning" },
+        { label: homeText(copy, "日落任务"), detail: weeklyReportReady ? homeText(copy, "本周周报已有线索") : homeText(copy, "武器和难度待确认"), tone: weeklyReportReady ? "ready" : "warning" },
+        { label: homeText(copy, "熔炉竞技场"), detail: homeText(copy, "检查每周挑战和声望奖励"), tone: "warning" },
+        { label: homeText(copy, "突袭"), detail: homeText(copy, "优先看轮换突袭和巅峰奖励"), tone: weeklyReportReady ? "ready" : "warning" }
       ]
     },
     {
@@ -389,12 +395,12 @@ function buildHomeRewardGroups(dailySummary: HomeDailySummary | null, copy: Home
       title: copy.rewardGroups.otherTitle,
       meta: copy.fallback.otherRewardMeta,
       items: [
-        { label: "永恒沙漠", detail: "轮换奖励待确认", tone: "neutral" },
-        { label: "克洛塔的末日", detail: "突袭轮换关注", tone: "neutral" },
-        { label: "玻璃拱顶", detail: "旧突袭轮换关注", tone: "neutral" },
-        { label: "宿命边缘", detail: "地牢 / 赛季奖励关注", tone: "neutral" },
-        { label: "传承：终焉之形", detail: "DLC 周常关注", tone: "neutral" },
-        { label: "苍白之心寻路者", detail: "完成后从首页降噪", tone: "neutral" }
+        { label: homeText(copy, "永恒沙漠"), detail: homeText(copy, "轮换奖励待确认"), tone: "neutral" },
+        { label: homeText(copy, "克洛塔的末日"), detail: homeText(copy, "突袭轮换关注"), tone: "neutral" },
+        { label: homeText(copy, "玻璃拱顶"), detail: homeText(copy, "旧突袭轮换关注"), tone: "neutral" },
+        { label: homeText(copy, "宿命边缘"), detail: homeText(copy, "地牢 / 赛季奖励关注"), tone: "neutral" },
+        { label: homeText(copy, "传承：终焉之形"), detail: homeText(copy, "DLC 周常关注"), tone: "neutral" },
+        { label: homeText(copy, "苍白之心寻路者"), detail: homeText(copy, "完成后从首页降噪"), tone: "neutral" }
       ]
     }
   ];
@@ -456,14 +462,14 @@ function buildTodayConfirmationCards(dailySummary: HomeDailySummary | null, copy
       tone: "ready",
       badge: copy.labels.confirmed
     },
-    sourceSummaryCard("lost-sector", "遗失区域", dailySummary.sources.lost_sector, copy),
+    sourceSummaryCard("lost-sector", homeText(copy, "遗失区域"), dailySummary.sources.lost_sector, copy),
     sourceSummaryCard("rotations", copy.intel.activityIntel, dailySummary.sources.rotations, copy),
     {
       key: "today-actions",
       title: copy.fallback.todayActionTitle,
       message: dailySummary.checklist[0] ?? copy.fallback.todayQuiet,
       tone: dailySummary.checklist.length ? "ready" : "neutral",
-      badge: `${dailySummary.checklist.length} 条`
+      badge: `${dailySummary.checklist.length} ${homeText(copy, "条")}`
     }
   ];
 }

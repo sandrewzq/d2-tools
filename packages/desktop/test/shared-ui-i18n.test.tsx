@@ -96,6 +96,7 @@ describe("shared UI i18n", () => {
     expect(html).toContain("Pending data");
     expect(html).not.toContain("本周奖励与轮换");
     expect(html).not.toContain("今天可确认");
+    expect(html).not.toMatch(/[\u4e00-\u9fff]/);
   });
 
   it("renders shared account and settings page copy from English locale", () => {

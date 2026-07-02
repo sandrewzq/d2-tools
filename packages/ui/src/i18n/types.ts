@@ -41,6 +41,7 @@ export type LocaleCopy = {
 };
 
 export type HomeCopy = {
+  inline: Record<string, string>;
   dataStripAriaLabel: string;
   sections: {
     weeklyRewards: { title: string; subtitle: string; badge: string };

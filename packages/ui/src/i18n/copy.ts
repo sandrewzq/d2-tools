@@ -29,6 +29,7 @@ export const localeCopy: Record<InterfaceLocale, LocaleCopy> = {
       }
     },
     home: {
+      inline: {},
       dataStripAriaLabel: "首页数据状态",
       sections: {
         weeklyRewards: {
@@ -252,6 +253,34 @@ export const localeCopy: Record<InterfaceLocale, LocaleCopy> = {
       }
     },
     home: {
+      inline: {
+        "可用": "Available",
+        "6月17日": "Jun 17",
+        "更新中": "Updating",
+        "智谋": "Gambit",
+        "完成每周挑战后降噪": "Quiet after weekly challenge completion",
+        "日落任务": "Nightfall",
+        "本周周报已有线索": "Weekly report has signals",
+        "武器和难度待确认": "Weapon and difficulty pending confirmation",
+        "熔炉竞技场": "Crucible",
+        "检查每周挑战和声望奖励": "Check weekly challenge and reputation rewards",
+        "突袭": "Raid",
+        "优先看轮换突袭和巅峰奖励": "Prioritize rotating raid and pinnacle rewards",
+        "永恒沙漠": "Eternity",
+        "轮换奖励待确认": "Rotation rewards pending confirmation",
+        "克洛塔的末日": "Crota's End",
+        "突袭轮换关注": "Raid rotation watch",
+        "玻璃拱顶": "Vault of Glass",
+        "旧突袭轮换关注": "Legacy raid rotation watch",
+        "宿命边缘": "Edge of Fate",
+        "地牢 / 赛季奖励关注": "Dungeon / seasonal rewards watch",
+        "传承：终焉之形": "Legacy: The Final Shape",
+        "DLC 周常关注": "DLC weekly watch",
+        "苍白之心寻路者": "Pale Heart Pathfinder",
+        "完成后从首页降噪": "Quiet after completion",
+        "遗失区域": "Lost Sector",
+        "条": "items"
+      },
       dataStripAriaLabel: "Home data status",
       sections: {
         weeklyRewards: {
