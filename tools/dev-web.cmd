@@ -28,6 +28,9 @@ if not errorlevel 1 (
   exit /b 0
 )
 
+echo Browser will open automatically when %DEV_URL% is ready.
+start "" /min powershell -NoProfile -WindowStyle Hidden -Command "$port=%DEV_PORT%; $url='%DEV_URL%'; for ($i=0; $i -lt 120; $i++) { if (Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue) { Start-Process $url; exit 0 }; Start-Sleep -Milliseconds 500 }; exit 1"
+
 call npx pnpm@9.15.0 dev:web
 if errorlevel 1 (
   echo.
@@ -47,5 +50,6 @@ echo   - Runs from the repository root.
 echo   - Opens http://127.0.0.1:53171 if it is already listening.
 echo   - Calls npx pnpm@9.15.0 dev:web.
 echo   - Starts the web platform dev server.
+echo   - Opens the browser automatically when the dev server becomes ready.
 echo   - Keep this command window open while using the web app.
 exit /b 0

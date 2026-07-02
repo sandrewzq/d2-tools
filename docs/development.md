@@ -52,6 +52,7 @@ docs/        正式文档
   - 负责可交互 React 原型，使用 mock 数据和 mock adapter
   - 只组合 `packages/ui`，不维护第二套页面结构
   - 允许维护原型专用状态切换面板，例如未登录、资料库过期、后台任务运行和正常状态
+  - 首页、账号、仓库、配装、资料库和设置等主菜单必须挂共享 View 或明确的 mock 工作台，不允许回退到通用“后续接入”占位页
 
 - `packages/web`
   - 负责 Web 平台壳、浏览器启动、Web 登录态和 HTTP/API adapter
@@ -96,6 +97,7 @@ docs/        正式文档
 
 1. 视觉、布局、组件结构、状态样式、通用交互和跨端文案默认进入 `packages/ui`。
 2. `packages/prototype` 只组合 `packages/ui`，并提供 mock 数据、状态切换和演示入口；它不是第二套页面实现。
+   - 主菜单页面必须覆盖到共享 View；如果某页尚未接真实数据，Prototype 也要提供可交互 mock，而不是显示 generic placeholder。
 3. Web 和 Desktop 只负责平台 adapter。Web 处理浏览器登录态、HTTP/API、部署配置；Desktop 处理 Electron IPC、本地文件、窗口、更新和打包。
 4. 如果先在 prototype 中探索 UI，确认后必须迁入 `packages/ui`，再让 Prototype / Web / Desktop 共同消费。
 5. `ProductShellHost` 是产品外壳统一入口；Prototype / Web / Desktop 都应挂同一个 Host。不得重新引入 Desktop 或 Web 专用 shell wrapper 来复制页面结构。

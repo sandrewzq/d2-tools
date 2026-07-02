@@ -21,7 +21,7 @@ function DefaultAccountPrototype(props: { interfaceLocale?: InterfaceLocale }) {
         <div>
           <span className="app-chip status-ready">{accountText(copy, "账号已读取")}</span>
           <h2>{accountText(copy, "账号工作台")}</h2>
-          <p>{accountText(copy, "角色、装备、背包和后续账号切换能力收口在同一个页面。")}</p>
+          <p>{accountText(copy, "角色、装备、背包和账号操作收口在同一个页面。")}</p>
         </div>
         <div className="account-actions">
           <button className="secondary-button" type="button">{accountText(copy, "刷新账号")}</button>
@@ -53,7 +53,7 @@ function DefaultAccountPrototype(props: { interfaceLocale?: InterfaceLocale }) {
                 <span className="reward-icon" />
                 <div>
                   <strong>{accountText(copy, slot)}</strong>
-                  <span>{index < 3 ? accountText(copy, "武器详情接入后展示 perk") : accountText(copy, "属性和模组摘要")}</span>
+                  <span>{index < 3 ? accountText(copy, "武器 Perk 摘要") : accountText(copy, "属性和模组摘要")}</span>
                 </div>
               </article>
             ))}
@@ -71,23 +71,23 @@ function DefaultAccountPrototype(props: { interfaceLocale?: InterfaceLocale }) {
             <div className="home-account-row" data-tone="ready">
               <div>
                 <strong>{accountText(copy, "授权状态")}</strong>
-                <span>{accountText(copy, "Bungie 账号已读取，后续支持切换账号。")}</span>
+                <span>{accountText(copy, "模拟账号已读取，更新时间 14:18。")}</span>
               </div>
               <span className="app-chip status-ready">{accountText(copy, "正常")}</span>
             </div>
             <div className="home-account-row" data-tone="warning">
               <div>
                 <strong>{accountText(copy, "仓库容量")}</strong>
-                <span>{accountText(copy, "接入真实统计后提示溢出和清理入口。")}</span>
+                <span>{accountText(copy, "仓库 496 / 600，接近上限时从仓库页继续清理。")}</span>
               </div>
-              <span className="app-chip status-warning">{accountText(copy, "待统计")}</span>
+              <span className="app-chip status-warning">{accountText(copy, "496 / 600")}</span>
             </div>
             <div className="home-account-row" data-tone="neutral">
               <div>
                 <strong>{accountText(copy, "最近活动")}</strong>
-                <span>{accountText(copy, "PGCR 接入后展示近期复盘。")}</span>
+                <span>{accountText(copy, "最近 10 场已读取，突袭 / 地牢复盘可从账号页继续查看。")}</span>
               </div>
-              <span className="app-chip">{accountText(copy, "待接入")}</span>
+              <span className="app-chip">{accountText(copy, "最近 10 场已读取")}</span>
             </div>
           </div>
         </aside>

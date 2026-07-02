@@ -80,6 +80,75 @@ describe("cross-platform UI completion boundary", () => {
     expect(scenarios).toContain("manifest-missing-components");
   });
 
+  it("renders every primary prototype route with shared UI instead of generic placeholders", () => {
+    const prototypeMain = read("packages/prototype/src/main.tsx");
+    const uiStyles = read("packages/ui/src/styles.css");
+
+    expect(prototypeMain).toContain("VaultPageView");
+    expect(prototypeMain).toContain("LoadoutsPageContentView");
+    expect(prototypeMain).toContain("LibraryPageContentView");
+    expect(prototypeMain).toContain('activePage === "vault"');
+    expect(prototypeMain).toContain('activePage === "loadouts"');
+    expect(prototypeMain).toContain('activePage === "library"');
+    expect(prototypeMain).toContain("interfaceLocale={preferences.interfaceLocale}");
+    expect(prototypeMain).not.toContain("这个页面会在后续阶段接入共享 View。");
+    expect(prototypeMain).not.toContain('activePage !== "home" && activePage !== "account" && activePage !== "settings"');
+
+    expect(uiStyles).toContain(".vault-product-layout");
+    expect(uiStyles).toContain(".loadout-product-layout");
+    expect(uiStyles).toContain(".library-product-layout");
+    expect(uiStyles).toContain(".item-result");
+  });
+
+  it("keeps the prototype settings fallback menu interactive", () => {
+    const settingsFallback = read("packages/ui/src/settings/SettingsPageView.tsx");
+
+    expect(settingsFallback).toContain("useState");
+    expect(settingsFallback).toContain("activeSection");
+    expect(settingsFallback).toContain("setActiveSection");
+    expect(settingsFallback).toContain("onClick={() => setActiveSection");
+    expect(settingsFallback).toContain('activeSection === "overview"');
+    expect(settingsFallback).toContain('activeSection === "account"');
+    expect(settingsFallback).toContain('activeSection === "backup"');
+  });
+
+  it("replaces the prototype AI drawer placeholder with an interactive mock assistant", () => {
+    const prototypeMain = read("packages/prototype/src/main.tsx");
+    const prototypeStyles = read("packages/prototype/src/styles.css");
+
+    expect(prototypeMain).toContain("PrototypeAssistantPanel");
+    expect(prototypeMain).toContain("assistant-context-card");
+    expect(prototypeMain).toContain("assistant-quick-prompts");
+    expect(prototypeMain).toContain("assistant-chat-input");
+    expect(prototypeMain).toContain("onSubmit={handleSend}");
+    expect(prototypeMain).not.toContain("这是 prototype 的 mock 抽屉");
+    expect(prototypeMain).not.toContain("后续接入真实页面上下文");
+
+    expect(prototypeStyles).toContain(".prototype-assistant-panel");
+    expect(prototypeStyles).toContain(".assistant-context-card");
+    expect(prototypeStyles).toContain(".assistant-chat-message");
+  });
+
+  it("keeps the account fallback prototype free of unfinished placeholder copy", () => {
+    const accountFallback = read("packages/ui/src/account/AccountPageView.tsx");
+
+    expect(accountFallback).not.toMatch(/后续|待接入|待统计|接入真实/);
+    expect(accountFallback).toContain("模拟账号已读取");
+    expect(accountFallback).toContain("仓库 496 / 600");
+    expect(accountFallback).toContain("最近 10 场已读取");
+  });
+
+  it("keeps the prototype home fallback account cards concrete instead of future placeholders", () => {
+    const copy = read("packages/ui/src/i18n/copy.ts");
+
+    expect(copy).toContain('weeklyFixedMeta: "本周固定关注位');
+    expect(copy).toContain('vaultReady: "仓库 496 / 600');
+    expect(copy).toContain('vaultReadyBadge: "496 / 600"');
+    expect(copy).not.toContain('weeklyFixedMeta: "账号进度待接入前');
+    expect(copy).not.toContain('vaultReady: "仓库数量和溢出提醒后续接真实统计。');
+    expect(copy).not.toContain('vaultReadyBadge: "待统计"');
+  });
+
   it("closes Bug #26 after restoring release and packaging script Chinese text", () => {
     const todo = read("docs/todo.md");
     const releaseNotes = read("scripts/generate-release-notes.mjs");
