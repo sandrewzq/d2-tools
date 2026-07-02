@@ -77,7 +77,7 @@ describe("desktop product redesign wiring", () => {
     expect(settingsPage).not.toContain("本地 Manifest");
     expect(settingsPage).not.toContain("最新 Manifest");
     expect(settingsPage).not.toContain("必要组件");
-    expect(settingsPage).toContain("设置总览");
+    expect(settingsPage).toContain("copy.overview.title");
     expect(settingsPage).toContain("资料库");
 
     expect(styles).toContain(".app-page-head");

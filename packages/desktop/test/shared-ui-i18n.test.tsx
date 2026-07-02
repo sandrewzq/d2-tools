@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import {
   AppShell,
+  AccountPageView,
   AccountPageContentView,
   defaultProductPreferences,
   getEffectiveBungieLocale,
@@ -11,6 +12,7 @@ import {
   HomePageView,
   LibraryPageContentView,
   LoadoutsPageContentView,
+  SettingsPageView,
   SettingsPageContentView,
   type ProductPreferences
 } from "../../ui/src/index";
@@ -79,6 +81,44 @@ describe("shared UI i18n", () => {
     expect(html).toContain("Switch to Chinese");
     expect(html).toContain("EN");
     expect(html).not.toContain(">首页<");
+  });
+
+  it("renders prototype fallback views from English locale copy", () => {
+    const accountHtml = renderToStaticMarkup(<AccountPageView interfaceLocale="en-US" />);
+    const settingsHtml = renderToStaticMarkup(<SettingsPageView interfaceLocale="en-US" />);
+
+    expect(accountHtml).toContain("Account workbench");
+    expect(accountHtml).toContain("Refresh account");
+    expect(accountHtml).not.toMatch(/[\u4e00-\u9fff]/);
+
+    expect(settingsHtml).toContain("Settings");
+    expect(settingsHtml).toContain("Refresh account");
+    expect(settingsHtml).toContain("Backup migration");
+    expect(settingsHtml).not.toMatch(/[\u4e00-\u9fff]/);
+  });
+
+  it("renders AppShell assistant drawer and account status without Chinese shell internals", () => {
+    const html = renderToStaticMarkup(
+      <AppShell
+        activePage="home"
+        assistantMode="ai"
+        colorMode="light"
+        interfaceLocale="en-US"
+        shellStatus={[{ label: "Account", value: "Ready", tone: "ready", key: "account" }]}
+        assistantPanel={<p>AI</p>}
+        platformActions={{ openExternal: () => undefined }}
+        onNavigate={() => {}}
+        onAssistantModeChange={() => {}}
+        onColorModeToggle={() => {}}
+        onInterfaceLocaleToggle={() => {}}
+      >
+        <section>Home content</section>
+      </AppShell>
+    );
+
+    expect(html).toContain("shell-account-status");
+    expect(html).toContain('aria-label="AI assistant drawer"');
+    expect(html).not.toMatch(/[\u4e00-\u9fff]/);
   });
 
   it("renders shared home view static labels from interface locale copy", () => {

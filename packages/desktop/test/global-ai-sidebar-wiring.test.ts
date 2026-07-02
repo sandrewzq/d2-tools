@@ -23,9 +23,11 @@ describe("global AI assistant sidebar wiring", () => {
     expect(shellLayout).toContain("shell-tool-ai");
     expect(shellLayout).toContain("global-assistant-drawer");
     expect(shellLayout).not.toContain("global-assistant-rail");
-    expect(shellLayout).toContain("AI 助手");
     expect(shellLayout).toContain("copy.tools.openAiAssistant");
+    expect(shellLayout).toContain("copy.tools.aiAssistant");
+    expect(shellLayout).toContain("copy.assistantPanelAriaLabel");
     expect(shellCopy).toContain("打开 AI 助手抽屉");
+    expect(shellCopy).toContain("AI 助手");
     expect(shellCopy).toContain('settings: "设置"');
     expect(shellLayout).not.toContain("brand-block");
     expect(shellLayout).not.toContain("工作区");

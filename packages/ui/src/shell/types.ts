@@ -10,6 +10,7 @@ export type ShellNavItem = {
 };
 
 export type ShellStatusItem = {
+  key?: "bungie" | "account" | "library" | "ai" | "background" | "app-version";
   label: string;
   value: string;
   tone?: "neutral" | "ready" | "warning" | "error";

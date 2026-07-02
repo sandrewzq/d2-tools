@@ -15,6 +15,7 @@ export type ShellCopy = {
   statusAriaLabel: string;
   toolstripAriaLabel: string;
   navigationAriaLabel: string;
+  assistantPanelAriaLabel: string;
   windowControlsAriaLabel: string;
   navigation: Record<ShellPageKey, string>;
   tools: {

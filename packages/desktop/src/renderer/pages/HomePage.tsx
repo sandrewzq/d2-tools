@@ -518,31 +518,37 @@ function buildShellStatus(input: {
 }): ShellStatusItem[] {
   return [
     {
+      key: "bungie",
       label: "Bungie",
       value: input.isBungieConfigured ? "已配置" : "未配置",
       tone: input.isBungieConfigured ? "ready" : "warning"
     },
     {
+      key: "account",
       label: "账号",
       value: formatAccountShellStatus(input.accountSummary, input.lastAccountLoadedAt, input.isLoadingAccount, input.accountError, input.canRefreshAccount),
       tone: getAccountStatusTone(input.accountSummary, input.isLoadingAccount, input.accountError, input.canRefreshAccount)
     },
     {
+      key: "library",
       label: "资料库",
       value: formatManifestShellStatus(input.manifestStatus),
       tone: getManifestStatusTone(input.manifestStatus)
     },
     {
+      key: "ai",
       label: "AI",
       value: input.isAiConfigured ? "已配置" : "未配置",
       tone: input.isAiConfigured ? "ready" : "warning"
     },
     {
+      key: "background",
       label: "后台任务",
       value: input.activeTaskCount ? `${input.activeTaskCount} 个运行中` : "空闲",
       tone: input.activeTaskCount ? "warning" : "neutral"
     },
     {
+      key: "app-version",
       label: "应用版本",
       value: formatUpdateShellStatus(input.updateSnapshot),
       tone: getUpdateStatusTone(input.updateSnapshot)

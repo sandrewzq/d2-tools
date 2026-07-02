@@ -87,10 +87,10 @@ function PrototypeApp() {
             </>
           ) : null}
           {activePage === "account" ? (
-            <AccountPageView />
+            <AccountPageView interfaceLocale={preferences.interfaceLocale} />
           ) : null}
           {activePage === "settings" ? (
-            <SettingsPageView />
+            <SettingsPageView interfaceLocale={preferences.interfaceLocale} />
           ) : null}
           {activePage !== "home" && activePage !== "account" && activePage !== "settings" ? (
             <section className="prototype-panel">

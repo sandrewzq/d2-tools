@@ -188,7 +188,7 @@ export function SettingsPageContentView(props: SettingsPageContentViewProps) {
   }
 
   return (
-    <SettingsPageView>
+    <SettingsPageView interfaceLocale={props.interfaceLocale}>
       {props.message ? <p className="status-message status-ready">{props.message}</p> : null}
       {props.error ? <p className="status-message status-error">{props.error}</p> : null}
 

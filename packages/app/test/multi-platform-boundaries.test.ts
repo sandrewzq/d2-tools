@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 const repoRoot = fileURLToPath(new URL("../../..", import.meta.url));
 const appRoot = join(repoRoot, "packages", "app", "src");
 const servicesRoot = join(repoRoot, "packages", "services", "src");
+const uiRoot = join(repoRoot, "packages", "ui", "src");
 
 describe("multi-platform package boundaries", () => {
   it("keeps app package independent from desktop and platform runtime modules", () => {
@@ -27,6 +28,20 @@ describe("multi-platform package boundaries", () => {
       "../desktop",
       "../../desktop"
     ])).toEqual([]);
+  });
+
+  it("keeps shared UI independent from desktop runtime and localized label logic", () => {
+    expect(findForbiddenImports(uiRoot, [
+      "@d2-tools/desktop",
+      "electron",
+      "node:",
+      "../desktop",
+      "../../desktop"
+    ])).toEqual([]);
+
+    const appShell = readFileSync(join(uiRoot, "shell", "AppShell.tsx"), "utf8");
+    expect(appShell).not.toContain('includes("账号")');
+    expect(appShell).not.toContain("AI 助手抽屉");
   });
 });
 

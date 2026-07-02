@@ -35,12 +35,12 @@ export type WebShellAdapter = {
 
 export const fallbackHomeSnapshot: WebHomeSnapshot = {
   shellStatus: [
-    { label: "Bungie", value: "Web 待接入", tone: "neutral" },
-    { label: "账号", value: "未登录", tone: "warning" },
-    { label: "资料库", value: "待同步", tone: "neutral" },
-    { label: "AI", value: "未配置", tone: "warning" },
-    { label: "后台任务", value: "Web", tone: "neutral" },
-    { label: "应用版本", value: "0.0.10", tone: "ready" }
+    { key: "bungie", label: "Bungie", value: "Web 待接入", tone: "neutral" },
+    { key: "account", label: "账号", value: "未登录", tone: "warning" },
+    { key: "library", label: "资料库", value: "待同步", tone: "neutral" },
+    { key: "ai", label: "AI", value: "未配置", tone: "warning" },
+    { key: "background", label: "后台任务", value: "Web", tone: "neutral" },
+    { key: "app-version", label: "应用版本", value: "0.0.10", tone: "ready" }
   ],
   homeState: {
     cards: {

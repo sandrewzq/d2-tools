@@ -30,7 +30,7 @@
 | T1 | P1 | 🟡 待推进 | 小日向与 d2-skill 产品级能力 | [总纲](work/backlog/kohinata-d2-skill-product-architecture.md) / [攻略证据工作台](work/backlog/kohinata-guide-evidence-workbench.md) | 先做攻略解析、账号命中、perk 证据和配装草稿 |
 | T2 | P1 | 🟡 待推进 | 仓库推荐与清理工作台 | [仓库推荐与清理工作台](work/backlog/vault-recommendation-and-cleanup-workbench.md) | 统一 DIM wishlist、本地目标、同名对比和清理清单；推荐数据只支持用户导入，不默认内置未授权社区数据 |
 | T3 | P1 | 🟡 待推进 | 小日向日报、商人与掉落查询 | [日报、商人与掉落查询](work/backlog/daily-report-and-drops-assistant.md) | 只展示可确认数据，先补商人、活动和掉落来源状态 |
-| T4 | P1 | 🟡 待推进 | 跨端 UI 壳、可交互原型与桌面视觉收口 | [跨端 UI 壳收口](work/backlog/cross-platform-ui-shell-refactor.md) / [桌面视觉与详情打磨](work/backlog/desktop-ui-account-detail-polish.md) | UI 抽壳成果已提交；配装页和装备详情纯 ViewModel 已下沉到 `packages/app`；`api/client.ts` 使用方已拆为运行时 `api` 与类型入口；Web 已补 snapshot provider / HTTP fallback；账号页、设置页、资料库页和配装页常驻文案已进入 i18n。后续继续推进移动端壳和其他页面文案收口 |
+| T4 | P1 | 🟡 待推进 | 跨端 UI 壳、可交互原型与桌面视觉收口 | [跨端 UI 壳收口](work/backlog/cross-platform-ui-shell-refactor.md) / [桌面视觉与详情打磨](work/backlog/desktop-ui-account-detail-polish.md) | UI 抽壳成果已提交；配装页和装备详情纯 ViewModel 已下沉到 `packages/app`；`api/client.ts` 使用方已拆为运行时 `api` 与类型入口；Web 已补 snapshot provider / HTTP fallback；账号页、设置页、资料库页和配装页常驻文案已进入 i18n；Prototype fallback 和顶部状态条已补稳定 `interfaceLocale` / `ShellStatusItem.key` 边界。后续继续推进移动端壳和其他页面文案收口 |
 | T5 | P3 | 🟡 待推进 | 活动复盘增强 | [活动复盘增强](work/backlog/activity-review-enhancement.md) | 后续接 PGCR、完成时间推算和副本级趋势 |
 | T6 | P4 | 🟡 待推进 | 桌面发布、更新与迁移体验 | [桌面发布体验](work/backlog/desktop-release-experience.md) | 继续验证真实 GitHub Release、更新提示、备份迁移和诊断体验 |
 

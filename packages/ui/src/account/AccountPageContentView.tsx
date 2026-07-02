@@ -59,7 +59,7 @@ export function AccountPageContentView(props: AccountPageContentViewProps) {
   const canLoadAccount = props.canLoadAccount;
 
   return (
-    <AccountPageView>
+    <AccountPageView interfaceLocale={props.interfaceLocale}>
       <div className="section-heading">
         <div>
           <h2>{copy.title}</h2>

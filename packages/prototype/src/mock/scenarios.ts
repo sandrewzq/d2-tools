@@ -83,12 +83,12 @@ const readyHomeState: HomeStartupState = {
 };
 
 const baseShellStatus: ShellStatusItem[] = [
-  { label: "Bungie", value: "已配置", tone: "ready" },
-  { label: "账号", value: "14:18", tone: "ready" },
-  { label: "资料库", value: "2026/06/16 最新", tone: "ready" },
-  { label: "AI", value: "未配置", tone: "warning" },
-  { label: "后台任务", value: "空闲", tone: "neutral" },
-  { label: "应用版本", value: "0.0.10 最新", tone: "ready" }
+  { key: "bungie", label: "Bungie", value: "已配置", tone: "ready" },
+  { key: "account", label: "账号", value: "14:18", tone: "ready" },
+  { key: "library", label: "资料库", value: "2026/06/16 最新", tone: "ready" },
+  { key: "ai", label: "AI", value: "未配置", tone: "warning" },
+  { key: "background", label: "后台任务", value: "空闲", tone: "neutral" },
+  { key: "app-version", label: "应用版本", value: "0.0.10 最新", tone: "ready" }
 ];
 
 export const prototypeScenarios: Record<PrototypeScenarioKey, PrototypeScenario> = {
@@ -110,7 +110,7 @@ export const prototypeScenarios: Record<PrototypeScenarioKey, PrototypeScenario>
     key: "account-missing",
     label: "账号未登录",
     description: "用于确认账号提醒和顶部账号状态。",
-    shellStatus: baseShellStatus.map((item) => item.label === "账号" ? { ...item, value: "未登录", tone: "warning" } : item),
+    shellStatus: baseShellStatus.map((item) => item.key === "account" ? { ...item, value: "未登录", tone: "warning" } : item),
     homeState: readyHomeState,
     homeDailySummary: readyDailySummary,
     hasAccountData: false,
@@ -124,7 +124,7 @@ export const prototypeScenarios: Record<PrototypeScenarioKey, PrototypeScenario>
     key: "manifest-stale",
     label: "资料库过期",
     description: "用于确认资料库提示只在顶部和设置中处理。",
-    shellStatus: baseShellStatus.map((item) => item.label === "资料库" ? { ...item, value: "有新版", tone: "warning" } : item),
+    shellStatus: baseShellStatus.map((item) => item.key === "library" ? { ...item, value: "有新版", tone: "warning" } : item),
     homeState: {
       cards: {
         manifest: {
@@ -147,7 +147,7 @@ export const prototypeScenarios: Record<PrototypeScenarioKey, PrototypeScenario>
     key: "background-running",
     label: "后台任务运行",
     description: "用于确认后台任务和刷新中状态不会挤占首页。",
-    shellStatus: baseShellStatus.map((item) => item.label === "后台任务" ? { ...item, value: "2 个运行中", tone: "warning" } : item),
+    shellStatus: baseShellStatus.map((item) => item.key === "background" ? { ...item, value: "2 个运行中", tone: "warning" } : item),
     homeState: readyHomeState,
     homeDailySummary: null,
     hasAccountData: true,
@@ -161,7 +161,7 @@ export const prototypeScenarios: Record<PrototypeScenarioKey, PrototypeScenario>
     key: "update-available",
     label: "应用有新版",
     description: "用于确认应用版本在顶部提示新版，不占用首页大卡片。",
-    shellStatus: baseShellStatus.map((item) => item.label === "应用版本" ? { ...item, value: "0.0.10 有新版", tone: "warning" } : item),
+    shellStatus: baseShellStatus.map((item) => item.key === "app-version" ? { ...item, value: "0.0.10 有新版", tone: "warning" } : item),
     homeState: readyHomeState,
     homeDailySummary: readyDailySummary,
     hasAccountData: true,
@@ -175,7 +175,7 @@ export const prototypeScenarios: Record<PrototypeScenarioKey, PrototypeScenario>
     key: "ai-unconfigured",
     label: "AI 未配置",
     description: "用于确认 AI 状态只保留在顶部和设置入口。",
-    shellStatus: baseShellStatus.map((item) => item.label === "AI" ? { ...item, value: "未配置", tone: "warning" } : item),
+    shellStatus: baseShellStatus.map((item) => item.key === "ai" ? { ...item, value: "未配置", tone: "warning" } : item),
     homeState: readyHomeState,
     homeDailySummary: readyDailySummary,
     hasAccountData: true,
@@ -189,7 +189,7 @@ export const prototypeScenarios: Record<PrototypeScenarioKey, PrototypeScenario>
     key: "account-error",
     label: "账号读取失败",
     description: "用于确认账号异常会进入首页账号提醒和顶部状态。",
-    shellStatus: baseShellStatus.map((item) => item.label === "账号" ? { ...item, value: "读取失败", tone: "error" } : item),
+    shellStatus: baseShellStatus.map((item) => item.key === "account" ? { ...item, value: "读取失败", tone: "error" } : item),
     homeState: readyHomeState,
     homeDailySummary: readyDailySummary,
     hasAccountData: false,
@@ -203,7 +203,7 @@ export const prototypeScenarios: Record<PrototypeScenarioKey, PrototypeScenario>
     key: "manifest-missing-components",
     label: "资料库缺组件",
     description: "用于确认必要组件缺失时以资料库异常状态展示。",
-    shellStatus: baseShellStatus.map((item) => item.label === "资料库" ? { ...item, value: "需修复", tone: "warning" } : item),
+    shellStatus: baseShellStatus.map((item) => item.key === "library" ? { ...item, value: "需修复", tone: "warning" } : item),
     homeState: {
       cards: {
         manifest: {

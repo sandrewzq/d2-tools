@@ -38,7 +38,7 @@ export function AppShell(props: AppShellProps) {
             <span
               className={[
                 "shell-status-group",
-                item.label.includes("账号") ? "shell-account-status" : "",
+                item.key === "account" ? "shell-account-status" : "",
                 `status-${item.tone ?? "neutral"}`
               ].filter(Boolean).join(" ")}
               key={item.label}
@@ -112,7 +112,7 @@ export function AppShell(props: AppShellProps) {
         </aside>
         <section className="shell-content">{props.children}</section>
         {props.assistantMode ? (
-          <aside className="global-assistant-panel global-assistant-drawer" aria-label="AI 助手抽屉">
+          <aside className="global-assistant-panel global-assistant-drawer" aria-label={copy.assistantPanelAriaLabel}>
             {props.assistantPanel}
           </aside>
         ) : null}
