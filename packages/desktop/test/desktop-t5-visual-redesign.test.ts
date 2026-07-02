@@ -24,7 +24,8 @@ function readCssRule(styles: string, selector: string): string {
 
 describe("desktop T5 visual redesign", () => {
   it("renders a desktop shell with top global status, right-side tools and an AI drawer", () => {
-    const shell = `${readUiFile("shell/AppShell.tsx")}\n${readUiFile("shell/navigation.ts")}\n${readUiFile("i18n/copy.ts")}`;
+    const shell = `${readUiFile("shell/AppShell.tsx")}\n${readUiFile("shell/navigation.ts")}`;
+    const shellCopy = readUiFile("i18n/copy.ts");
     const styles = readRendererFile("styles.css");
 
     expect(shell).toContain("shell-topbar");
@@ -36,11 +37,12 @@ describe("desktop T5 visual redesign", () => {
     expect(shell).toContain("shell-tool-button");
     expect(shell).toContain("shell-tool-ai");
     expect(shell).toContain("shell-tool-github");
-    expect(shell).toContain('settings: "设置"');
+    expect(shellCopy).toContain('settings: "设置"');
     expect(shell).not.toContain("onInitializeManifest");
     expect(shell).not.toContain("aria-label=\"后台更新资料库\"");
     expect(shell).toContain("global-assistant-drawer");
-    expect(shell).toContain("打开 AI 助手抽屉");
+    expect(shell).toContain("copy.tools.openAiAssistant");
+    expect(shellCopy).toContain("打开 AI 助手抽屉");
     expect(shell).not.toContain("title=\"本地数据\"");
     expect(shell).not.toContain("title=\"操作历史\"");
     expect(shell).not.toContain("title=\"工具\"");
@@ -49,7 +51,8 @@ describe("desktop T5 visual redesign", () => {
     expect(shell).not.toContain("任务助手");
     expect(shell).not.toContain("brand-block");
     expect(shell).not.toContain("工作区");
-    expect(shell).toContain("窗口控制");
+    expect(shell).toContain("copy.windowControlsAriaLabel");
+    expect(shellCopy).toContain("窗口控制");
     expect(shell).toContain("shell-window-controls");
     expect(shell).not.toContain("shell-current-page");
     expect(styles).toContain(".shell-topbar");
@@ -73,15 +76,20 @@ describe("desktop T5 visual redesign", () => {
 
   it("keeps home as a product overview instead of a navigation or task launcher page", () => {
     const homeDashboard = readUiFile("home/HomePageView.tsx");
+    const homeCopy = readUiFile("i18n/copy.ts");
     const styles = readRendererFile("styles.css");
 
     expect(homeDashboard).toContain("app-page home-app-page");
     expect(homeDashboard).toContain("home-data-strip");
-    expect(homeDashboard).toContain("本周奖励与轮换");
+    expect(homeDashboard).toContain("copy.sections.weeklyRewards.title");
     expect(homeDashboard).toContain("home-weekly-dashboard");
-    expect(homeDashboard).toContain("今天可确认");
-    expect(homeDashboard).toContain("待确认数据");
-    expect(homeDashboard).toContain("运行诊断");
+    expect(homeDashboard).toContain("copy.sections.today.title");
+    expect(homeDashboard).toContain("copy.sections.pending.title");
+    expect(homeDashboard).toContain("copy.actions.runDiagnostics");
+    expect(homeCopy).toContain("本周奖励与轮换");
+    expect(homeCopy).toContain("今天可确认");
+    expect(homeCopy).toContain("待确认数据");
+    expect(homeCopy).toContain("运行诊断");
     expect(homeDashboard).not.toContain("当前桌面状态");
     expect(homeDashboard).not.toContain("状态与设置");
     expect(homeDashboard).not.toContain("下一步建议");
@@ -98,7 +106,7 @@ describe("desktop T5 visual redesign", () => {
   });
 
   it("uses the account A2 layout with visible backpack previews and a narrow secondary summary", () => {
-    const accountPage = readRendererFile("features/account/AccountPage.tsx");
+    const accountPage = `${readUiFile("account/AccountPageContentView.tsx")}\n${readRendererFile("features/account/AccountPage.tsx")}`;
     const styles = readRendererFile("styles.css");
 
     expect(accountPage).toContain("account-a2-layout");
@@ -151,15 +159,18 @@ describe("desktop T5 visual redesign", () => {
   });
 
   it("makes the library default workflow an acquisition-source query with manifest freshness visible", () => {
-    const libraryPage = readRendererFile("features/library/LibraryPage.tsx");
+    const libraryPage = `${readUiFile("library/LibraryPageContentView.tsx")}\n${readRendererFile("features/library/LibraryPage.tsx")}`;
+    const libraryView = readUiFile("library/LibraryPageView.tsx");
+    const uiCopy = readUiFile("i18n/copy.ts");
     const styles = readRendererFile("styles.css");
 
-    expect(libraryPage).toContain("library-reference-page");
-    expect(libraryPage).toContain("出处查询");
+    expect(libraryPage).toContain("LibraryPageView");
+    expect(libraryView).toContain("library-reference-page");
+    expect(uiCopy).toContain("出处查询");
     expect(libraryPage).toContain("获取优先级");
-    expect(libraryPage).toContain("资料库版本");
+    expect(uiCopy).toContain("资料库版本");
     expect(libraryPage).not.toContain("资料库日期");
-    expect(libraryPage).toContain("library-acquisition-tabs");
+    expect(libraryView).toContain("library-acquisition-tabs");
     expect(libraryPage).toContain("library-source-groups");
     expect(libraryPage).toContain("library-reference-card");
     expect(libraryPage).toContain("formatManifestDataDate");

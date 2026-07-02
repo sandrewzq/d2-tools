@@ -14,13 +14,17 @@ describe("loadout library UI", () => {
     const ipc = readFileSync(join(desktopRoot, "src", "main", "ipc", "loadouts.ts"), "utf8");
     const ipcRegister = readFileSync(join(desktopRoot, "src", "main", "ipc.ts"), "utf8");
     const loadoutsPage = readFileSync(join(desktopRoot, "src", "renderer", "features", "loadouts", "LoadoutsPage.tsx"), "utf8");
+    const loadoutsContent = readFileSync(join(uiRoot, "src", "loadouts", "LoadoutsPageContentView.tsx"), "utf8");
+    const uiCopy = readFileSync(join(uiRoot, "src", "i18n", "copy.ts"), "utf8");
 
     expect(apiClient).toContain("renameLoadoutTemplate");
     expect(preload).toContain('ipcRenderer.invoke("loadouts:rename"');
     expect(ipc).toContain('ipcMain.handle("loadouts:rename"');
     expect(ipcRegister).toContain("registerLoadoutIpcHandlers()");
     expect(loadoutsPage).toContain("onRenameTemplate");
-    expect(loadoutsPage).toContain("本地方案库");
+    expect(loadoutsPage).toContain("LoadoutsPageContentView");
+    expect(loadoutsContent).toContain("LoadoutsPageView");
+    expect(uiCopy).toContain("本地方案库");
   });
 
   it("includes a lightweight compare view for saved loadouts", () => {
@@ -34,12 +38,14 @@ describe("loadout library UI", () => {
 
   it("renders compare rows as side-by-side item, frame, and perk details", () => {
     const loadoutsPage = readFileSync(join(desktopRoot, "src", "renderer", "features", "loadouts", "LoadoutsPage.tsx"), "utf8");
+    const loadoutsContent = readFileSync(join(uiRoot, "src", "loadouts", "LoadoutsPageContentView.tsx"), "utf8");
     const viewModel = readFileSync(join(desktopRoot, "src", "renderer", "features", "loadouts", "loadoutViewModel.ts"), "utf8");
     const styles = readFileSync(join(desktopRoot, "src", "renderer", "styles.css"), "utf8");
 
-    expect(loadoutsPage).toContain("loadout-compare-grid");
-    expect(loadoutsPage).toContain("loadout-compare-row");
-    expect(loadoutsPage).toContain("loadout-compare-side");
+    expect(loadoutsContent).toContain("loadout-compare-grid");
+    expect(loadoutsContent).toContain("loadout-compare-row");
+    expect(loadoutsContent).toContain("loadout-compare-side");
+    expect(loadoutsPage).toContain("buildLoadoutCompareRows");
     expect(viewModel).toContain("formatLoadoutComparePerks");
     expect(styles).toContain(".loadout-compare-grid");
     expect(styles).toContain(".loadout-compare-side");
@@ -47,10 +53,11 @@ describe("loadout library UI", () => {
 
   it("shows richer status labels for each saved loadout item", () => {
     const loadoutsPage = readFileSync(join(desktopRoot, "src", "renderer", "features", "loadouts", "LoadoutsPage.tsx"), "utf8");
+    const loadoutsContent = readFileSync(join(uiRoot, "src", "loadouts", "LoadoutsPageContentView.tsx"), "utf8");
     const helper = readFileSync(join(desktopRoot, "src", "renderer", "utils", "loadoutItemStatus.ts"), "utf8");
 
     expect(loadoutsPage).toContain("buildLoadoutItemStatus");
-    expect(loadoutsPage).toContain("loadout-status-badge");
+    expect(loadoutsContent).toContain("loadout-status-badge");
     expect(helper).toContain('key: "current-inventory"');
     expect(helper).toContain('key: "vault"');
     expect(helper).toContain('key: "other-character-inventory"');
@@ -58,10 +65,10 @@ describe("loadout library UI", () => {
   });
 
   it("shows where each saved loadout item is currently located", () => {
-    const loadoutsPage = readFileSync(join(desktopRoot, "src", "renderer", "features", "loadouts", "LoadoutsPage.tsx"), "utf8");
+    const loadoutsContent = readFileSync(join(uiRoot, "src", "loadouts", "LoadoutsPageContentView.tsx"), "utf8");
     const viewModel = readFileSync(join(desktopRoot, "..", "app", "src", "workspaces", "loadoutViewModel.ts"), "utf8");
 
-    expect(loadoutsPage).toContain("status.location_label");
+    expect(loadoutsContent).toContain("status.location_label");
     expect(viewModel).toContain("findBestTemplateSourceItem");
   });
 
@@ -83,11 +90,12 @@ describe("loadout library UI", () => {
 
   it("adds a compact status summary for local loadout review", () => {
     const loadoutsPage = readFileSync(join(desktopRoot, "src", "renderer", "features", "loadouts", "LoadoutsPage.tsx"), "utf8");
+    const loadoutsContent = readFileSync(join(uiRoot, "src", "loadouts", "LoadoutsPageContentView.tsx"), "utf8");
     const styles = readFileSync(join(desktopRoot, "src", "renderer", "styles.css"), "utf8");
 
     expect(loadoutsPage).toContain("summarizeLoadoutItemStatuses");
-    expect(loadoutsPage).toContain("loadout-status-summary");
-    expect(loadoutsPage).toContain("loadout-status-chip");
+    expect(loadoutsContent).toContain("loadout-status-summary");
+    expect(loadoutsContent).toContain("loadout-status-chip");
     expect(styles).toContain(".loadout-status-summary");
     expect(styles).toContain(".loadout-status-chip");
   });
@@ -95,7 +103,7 @@ describe("loadout library UI", () => {
   it("shows inline pending and success feedback for single-item loadout actions", () => {
     const homePage = readFileSync(join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"), "utf8");
     const homeWriteHook = readFileSync(join(desktopRoot, "src", "renderer", "pages", "useHomePageWriteActions.ts"), "utf8");
-    const loadoutsPage = readFileSync(join(desktopRoot, "src", "renderer", "features", "loadouts", "LoadoutsPage.tsx"), "utf8");
+    const loadoutsContent = readFileSync(join(uiRoot, "src", "loadouts", "LoadoutsPageContentView.tsx"), "utf8");
     const feedbackHook = readFileSync(join(desktopRoot, "src", "renderer", "features", "loadouts", "useLoadoutActionFeedback.ts"), "utf8");
     const styles = readFileSync(join(desktopRoot, "src", "renderer", "styles.css"), "utf8");
     const helper = readFileSync(join(desktopRoot, "src", "renderer", "utils", "loadoutActionFeedback.ts"), "utf8");
@@ -108,7 +116,7 @@ describe("loadout library UI", () => {
     expect(feedbackHook).toContain("LOADOUT_ACTION_FEEDBACK_TIMEOUT_MS");
     expect(feedbackHook).toContain("setSingleActionFeedback");
     expect(feedbackHook).toContain("window.clearTimeout");
-    expect(loadoutsPage).toContain("getLoadoutActionButtonLabel");
+    expect(loadoutsContent).toContain("getLoadoutActionButtonLabel");
     expect(helper).toContain("已补齐");
     expect(helper).toContain("已装备");
     expect(styles).toContain(".inline-action.is-pending");
@@ -169,13 +177,14 @@ describe("loadout library UI", () => {
     const accountPage = readFileSync(join(desktopRoot, "src", "renderer", "features", "account", "AccountPage.tsx"), "utf8");
     const homePage = readFileSync(join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"), "utf8");
     const loadoutsPage = readFileSync(join(desktopRoot, "src", "renderer", "features", "loadouts", "LoadoutsPage.tsx"), "utf8");
+    const loadoutsContent = readFileSync(join(uiRoot, "src", "loadouts", "LoadoutsPageContentView.tsx"), "utf8");
 
     expect(accountPage).not.toContain("onEquipSavedLoadout");
     expect(accountPage).not.toContain("onSnapshotCurrentLoadout");
     expect(accountPage).not.toContain("accountWorkspace.loadoutSlotRows");
-    expect(loadoutsPage).toContain("游戏内配装栏");
-    expect(loadoutsPage).toContain("accountSummary.characters");
-    expect(loadoutsPage).toContain("character.loadout_slots");
+    expect(loadoutsContent).toContain("游戏内配装栏");
+    expect(loadoutsContent).toContain("accountSummary.characters");
+    expect(loadoutsContent).toContain("character.loadout_slots");
     expect(loadoutsPage).toContain("onEquipSavedLoadout");
     expect(loadoutsPage).toContain("onSnapshotCurrentLoadout");
     expect(homePage).toContain("onEquipSavedLoadout: (character, slot)");

@@ -5,12 +5,22 @@ import { describe, expect, it } from "vitest";
 import { readItemDetailSources } from "./source-readers";
 
 const desktopRoot = fileURLToPath(new URL("..", import.meta.url));
+const uiRoot = fileURLToPath(new URL("../../ui", import.meta.url));
 
 describe("new feature UI polish", () => {
   it("keeps new GUI features understandable for non-technical players", () => {
-    const accountPage = readFileSync(join(desktopRoot, "src", "renderer", "features", "account", "AccountPage.tsx"), "utf8");
-    const libraryPage = readFileSync(join(desktopRoot, "src", "renderer", "features", "library", "LibraryPage.tsx"), "utf8");
-    const settingsPage = readFileSync(join(desktopRoot, "src", "renderer", "features", "settings", "SettingsPage.tsx"), "utf8");
+    const accountPage = [
+      readFileSync(join(uiRoot, "src", "account", "AccountPageContentView.tsx"), "utf8"),
+      readFileSync(join(desktopRoot, "src", "renderer", "features", "account", "AccountPage.tsx"), "utf8")
+    ].join("\n");
+    const libraryPage = [
+      readFileSync(join(uiRoot, "src", "library", "LibraryPageContentView.tsx"), "utf8"),
+      readFileSync(join(desktopRoot, "src", "renderer", "features", "library", "LibraryPage.tsx"), "utf8")
+    ].join("\n");
+    const settingsPage = [
+      readFileSync(join(uiRoot, "src", "settings", "SettingsPageContentView.tsx"), "utf8"),
+      readFileSync(join(desktopRoot, "src", "renderer", "features", "settings", "SettingsPage.tsx"), "utf8")
+    ].join("\n");
     const itemDetailModal = readItemDetailSources(desktopRoot);
     const itemDetailHook = readFileSync(join(desktopRoot, "src", "renderer", "shared", "hooks", "useItemDetailWorkspace.ts"), "utf8");
 

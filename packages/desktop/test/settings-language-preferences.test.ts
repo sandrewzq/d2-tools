@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 const repoRoot = process.cwd();
 const desktopRoot = join(repoRoot, "packages", "desktop");
 const coreRoot = join(repoRoot, "packages", "core");
+const uiRoot = join(repoRoot, "packages", "ui");
 
 function read(path: string): string {
   return readFileSync(path, "utf8");
@@ -27,7 +28,10 @@ describe("settings language preferences", () => {
   });
 
   it("renders language controls in settings and wires shell locale from saved preferences", () => {
-    const settingsPage = read(join(desktopRoot, "src", "renderer", "features", "settings", "SettingsPage.tsx"));
+    const settingsPage = [
+      read(join(uiRoot, "src", "settings", "SettingsPageContentView.tsx")),
+      read(join(desktopRoot, "src", "renderer", "features", "settings", "SettingsPage.tsx"))
+    ].join("\n");
     const diagnosticsHook = read(join(desktopRoot, "src", "renderer", "features", "settings", "useDiagnosticsSettings.ts"));
     const homePage = read(join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"));
 

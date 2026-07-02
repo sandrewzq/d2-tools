@@ -4,15 +4,20 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 const desktopRoot = fileURLToPath(new URL("..", import.meta.url));
+const uiRoot = fileURLToPath(new URL("../../ui", import.meta.url));
+
+function readAccountPage(): string {
+  return [
+    readFileSync(join(uiRoot, "src", "account", "AccountPageContentView.tsx"), "utf8"),
+    readFileSync(join(desktopRoot, "src", "renderer", "features", "account", "AccountPage.tsx"), "utf8")
+  ].join("\n");
+}
 
 describe("account inventory UI", () => {
   it("uses DIM-style character tabs and splits equipped items from carried inventory in the main workbench", () => {
     const homePage = readFileSync(join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"), "utf8");
     const homeRoutes = readFileSync(join(desktopRoot, "src", "renderer", "pages", "HomePageRoutes.tsx"), "utf8");
-    const accountPage = readFileSync(
-      join(desktopRoot, "src", "renderer", "features", "account", "AccountPage.tsx"),
-      "utf8"
-    );
+    const accountPage = readAccountPage();
     const loadoutWriteHook = readFileSync(
       join(desktopRoot, "src", "renderer", "features", "loadouts", "useLoadoutWriteActions.ts"),
       "utf8"
@@ -56,10 +61,7 @@ describe("account inventory UI", () => {
       join(desktopRoot, "src", "renderer", "features", "home", "useHomePageDerivedState.ts"),
       "utf8"
     );
-    const accountPage = readFileSync(
-      join(desktopRoot, "src", "renderer", "features", "account", "AccountPage.tsx"),
-      "utf8"
-    );
+    const accountPage = readAccountPage();
 
     expect(homeDerivedHook).toContain("buildLoadoutTemplateLookup");
     expect(accountPage).toContain("matchesLoadoutTemplateItem");
@@ -69,10 +71,7 @@ describe("account inventory UI", () => {
   });
 
   it("shows how many current character items match the active local loadout", () => {
-    const accountPage = readFileSync(
-      join(desktopRoot, "src", "renderer", "features", "account", "AccountPage.tsx"),
-      "utf8"
-    );
+    const accountPage = readAccountPage();
 
     expect(accountPage).toContain("selectedCharacterLoadoutMatchCount");
     expect(accountPage).toContain("方案命中");
@@ -98,10 +97,7 @@ describe("account inventory UI", () => {
   });
 
   it("shows a clear disconnected account state before Bungie is configured", () => {
-    const accountPage = readFileSync(
-      join(desktopRoot, "src", "renderer", "features", "account", "AccountPage.tsx"),
-      "utf8"
-    );
+    const accountPage = readAccountPage();
     const homePage = readFileSync(
       join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"),
       "utf8"
@@ -142,10 +138,7 @@ describe("account inventory UI", () => {
       join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"),
       "utf8"
     );
-    const accountPage = readFileSync(
-      join(desktopRoot, "src", "renderer", "features", "account", "AccountPage.tsx"),
-      "utf8"
-    );
+    const accountPage = readAccountPage();
 
     expect(accountPage).toContain("材料与消耗品");
     expect(accountPage).toContain("accountWorkspace.materialRows");
@@ -155,10 +148,7 @@ describe("account inventory UI", () => {
   });
 
   it("adds an account page directory for long account workbench sections", () => {
-    const accountPage = readFileSync(
-      join(desktopRoot, "src", "renderer", "features", "account", "AccountPage.tsx"),
-      "utf8"
-    );
+    const accountPage = readAccountPage();
     const styles = readFileSync(join(desktopRoot, "src", "renderer", "styles.css"), "utf8");
 
     expect(accountPage).toContain('className="account-page-shell"');
@@ -184,10 +174,7 @@ describe("account inventory UI", () => {
   });
 
   it("keeps account item rendering bounded and lazy-loads item icons", () => {
-    const accountPage = readFileSync(
-      join(desktopRoot, "src", "renderer", "features", "account", "AccountPage.tsx"),
-      "utf8"
-    );
+    const accountPage = readAccountPage();
 
     expect(accountPage).toContain("ACCOUNT_SLOT_PREVIEW_LIMIT");
     expect(accountPage).toContain("items.slice(0, ACCOUNT_SLOT_PREVIEW_LIMIT)");

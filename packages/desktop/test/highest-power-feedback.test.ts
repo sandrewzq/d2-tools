@@ -4,13 +4,14 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 const desktopRoot = fileURLToPath(new URL("..", import.meta.url));
+const uiRoot = fileURLToPath(new URL("../../ui", import.meta.url));
 
 describe("highest power button feedback", () => {
   it("renders highest-power action feedback next to the button area", () => {
-    const accountPage = readFileSync(
-      join(desktopRoot, "src", "renderer", "features", "account", "AccountPage.tsx"),
-      "utf8"
-    );
+    const accountPage = [
+      readFileSync(join(uiRoot, "src", "account", "AccountPageContentView.tsx"), "utf8"),
+      readFileSync(join(desktopRoot, "src", "renderer", "features", "account", "AccountPage.tsx"), "utf8")
+    ].join("\n");
     const styles = readFileSync(
       join(desktopRoot, "src", "renderer", "styles.css"),
       "utf8"
@@ -22,7 +23,7 @@ describe("highest power button feedback", () => {
 
     expect(buttonIndex).toBeGreaterThanOrEqual(0);
     expect(feedbackIndex).toBeGreaterThan(buttonIndex);
-    expect(feedbackIndex - buttonIndex).toBeLessThan(800);
+    expect(feedbackIndex - buttonIndex).toBeLessThan(1200);
     expect(accountPage).toContain('aria-describedby="highest-power-feedback"');
     expect(accountPage).toContain('id="highest-power-feedback"');
     expect(accountPage).toContain('role="status"');

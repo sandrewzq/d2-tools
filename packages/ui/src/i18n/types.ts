@@ -33,6 +33,9 @@ export type ShellCopy = {
 export type LocaleCopy = {
   shell: ShellCopy;
   home: HomeCopy;
+  vault: VaultCopy;
+  loadouts: LoadoutsCopy;
+  library: LibraryCopy;
 };
 
 export type HomeCopy = {
@@ -128,5 +131,36 @@ export type HomeCopy = {
     diagnosticWarning: (count: number) => string;
     diagnosticReady: string;
     diagnosticWarningBadge: string;
+  };
+};
+
+export type VaultCopy = {
+  title: string;
+  subtitle: string;
+  emptyTitle: string;
+  emptySubtitle: string;
+  loading: string;
+  loadAccount: string;
+};
+
+export type LoadoutsCopy = {
+  title: string;
+  subtitle: string;
+  riskTitle: string;
+  riskSubtitle: string;
+  missingItems: string;
+  readyItems: string;
+  actionableItems: string;
+};
+
+export type LibraryCopy = {
+  title: string;
+  subtitle: string;
+  versionLabel: string;
+  freshLabel: string;
+  staleLabel: string;
+  tabs: {
+    equipment: string;
+    perks: string;
   };
 };

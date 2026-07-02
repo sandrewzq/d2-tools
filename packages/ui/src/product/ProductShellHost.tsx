@@ -82,7 +82,7 @@ export function ProductShellHost(props: ProductShellHostProps) {
       onColorModeToggle={toggleColorMode}
       onInterfaceLocaleToggle={toggleInterfaceLocale}
     >
-      {props.renderPage(activePage)}
+      {props.renderPage(activePage, preferences)}
     </AppShell>
   );
 }

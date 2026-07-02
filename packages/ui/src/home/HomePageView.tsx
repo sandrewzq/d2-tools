@@ -233,7 +233,7 @@ export function HomePageView(props: HomePageViewProps) {
                         <strong>{row.label}</strong>
                         <span>{row.detail}</span>
                       </div>
-                      <span className={toneClass(row.tone, "app-chip")}>{formatToneLabel(row.tone)}</span>
+                      <span className={toneClass(row.tone, "app-chip")}>{formatToneLabel(row.tone, copy)}</span>
                     </div>
                   ))}
                 </div>
@@ -335,48 +335,48 @@ function buildHomeDataPoints(props: {
   accountError: string;
   isInitializingManifest: boolean;
   isLoadingDaily: boolean;
-}): HomeDataPoint[] {
+}, copy: HomeCopy): HomeDataPoint[] {
   const manifest = props.state.cards.manifest;
 
   return [
     {
       key: "daily-reset",
-      label: "每日重置",
-      value: props.dailySummary ? props.dailySummary.daily_reset.time_remaining_label : props.isLoadingDaily ? "读取中" : "待刷新",
-      detail: props.dailySummary?.daily_reset.label ?? "等待今日信息刷新",
+      label: copy.labels.dailyReset,
+      value: props.dailySummary ? props.dailySummary.daily_reset.time_remaining_label : props.isLoadingDaily ? copy.actions.diagnosing : copy.fallback.dailyPending,
+      detail: props.dailySummary?.daily_reset.label ?? copy.fallback.dailyWaiting,
       tone: props.dailySummary ? "ready" : "neutral"
     },
     {
       key: "weekly-reset",
-      label: "每周重置",
-      value: props.dailySummary ? props.dailySummary.weekly_reset.time_remaining_label : "待确认",
-      detail: props.dailySummary?.weekly_reset.label ?? "每周三 01:00 重置",
+      label: copy.labels.weeklyReset,
+      value: props.dailySummary ? props.dailySummary.weekly_reset.time_remaining_label : copy.fallback.weeklyPending,
+      detail: props.dailySummary?.weekly_reset.label ?? copy.fallback.weeklyResetDetail,
       tone: props.dailySummary ? "ready" : "neutral"
     },
     {
       key: "manifest",
-      label: "资料库",
+      label: copy.labels.manifest,
       value: props.isInitializingManifest ? "更新中" : manifest.lastUpdated ?? manifest.label,
-      detail: manifest.status === "ready" && !manifest.needsUpdate ? "名称、图标和来源可解析" : "异常时可去顶部状态或设置处理",
+      detail: manifest.status === "ready" && !manifest.needsUpdate ? copy.fallback.manifestReady : copy.fallback.manifestNeedsAttention,
       tone: manifest.status === "ready" && !manifest.needsUpdate ? "ready" : "warning"
     },
     {
       key: "account",
-      label: "账号数据",
-      value: props.accountError ? "读取失败" : props.hasAccountData ? "已读取" : "待同步",
-      detail: props.accountError || (props.hasAccountData ? "用于账号提醒和后续奖励进度" : "不阻塞公共轮换查看"),
+      label: copy.labels.accountData,
+      value: props.accountError ? copy.fallback.accountFailed : props.hasAccountData ? copy.fallback.accountReady : copy.fallback.accountPending,
+      detail: props.accountError || (props.hasAccountData ? copy.account.readyTitle : copy.account.pendingMessage),
       tone: props.accountError ? "error" : props.hasAccountData ? "ready" : "neutral"
     }
   ];
 }
 
-function buildHomeRewardGroups(dailySummary: HomeDailySummary | null): HomeRewardGroup[] {
+function buildHomeRewardGroups(dailySummary: HomeDailySummary | null, copy: HomeCopy): HomeRewardGroup[] {
   const weeklyReportReady = dailySummary?.sources.weekly_report.status === "ready";
   return [
     {
       key: "power",
-      title: "+3 光等奖励",
-      meta: "账号进度待接入前，先给出本周固定关注位",
+      title: copy.rewardGroups.powerTitle,
+      meta: copy.fallback.weeklyFixedMeta,
       items: [
         { label: "智谋", detail: "完成每周挑战后降噪", tone: "warning" },
         { label: "日落任务", detail: weeklyReportReady ? "本周周报已有线索" : "武器和难度待确认", tone: weeklyReportReady ? "ready" : "warning" },
@@ -386,8 +386,8 @@ function buildHomeRewardGroups(dailySummary: HomeDailySummary | null): HomeRewar
     },
     {
       key: "other",
-      title: "其他奖励",
-      meta: "公共轮换、DLC 周常和寻路者合并查看",
+      title: copy.rewardGroups.otherTitle,
+      meta: copy.fallback.otherRewardMeta,
       items: [
         { label: "永恒沙漠", detail: "轮换奖励待确认", tone: "neutral" },
         { label: "克洛塔的末日", detail: "突袭轮换关注", tone: "neutral" },
@@ -400,34 +400,34 @@ function buildHomeRewardGroups(dailySummary: HomeDailySummary | null): HomeRewar
   ];
 }
 
-function buildWeeklyIntelSections(dailySummary: HomeDailySummary | null): HomeIntelSection[] {
+function buildWeeklyIntelSections(dailySummary: HomeDailySummary | null, copy: HomeCopy): HomeIntelSection[] {
   return [
     {
       key: "public-rotation",
-      title: "本周公共轮换",
+      title: copy.intel.publicRotation,
       rows: [
-        sourceIntelRow("突袭与地牢", dailySummary?.sources.weekly_report),
-        sourceIntelRow("活动线索", dailySummary?.sources.rotations),
+        sourceIntelRow(copy.intel.raidDungeon, dailySummary?.sources.weekly_report, copy),
+        sourceIntelRow(copy.intel.activityIntel, dailySummary?.sources.rotations, copy),
         {
-          label: "双倍奖励",
-          detail: "Bungie 公共接口未稳定确认前不猜测",
+          label: copy.intel.doubleRewards,
+          detail: copy.intel.doubleRewardsDetail,
           tone: "warning"
         }
       ]
     },
     {
       key: "weekend-window",
-      title: "周末窗口",
+      title: copy.intel.weekendWindow,
       rows: [
-        sourceIntelRow("仄 / Xur", dailySummary?.sources.vendors),
+        sourceIntelRow(copy.intel.xur, dailySummary?.sources.vendors, copy),
         {
-          label: "试炼地图",
-          detail: "周末开启后再展示地图与奖励",
+          label: copy.intel.trialsMap,
+          detail: copy.intel.trialsMapDetail,
           tone: "warning"
         },
         {
-          label: "周末清单",
-          detail: "等商人和试炼数据齐后再复制给 AI 或日报",
+          label: copy.intel.weekendChecklist,
+          detail: copy.intel.weekendChecklistDetail,
           tone: "neutral"
         }
       ]
@@ -435,15 +435,15 @@ function buildWeeklyIntelSections(dailySummary: HomeDailySummary | null): HomeIn
   ];
 }
 
-function buildTodayConfirmationCards(dailySummary: HomeDailySummary | null): HomeSummaryCard[] {
+function buildTodayConfirmationCards(dailySummary: HomeDailySummary | null, copy: HomeCopy): HomeSummaryCard[] {
   if (!dailySummary) {
     return [
       {
         key: "daily-loading",
-        title: "今日信息读取中",
-        message: "正在读取可确认轮换数据。",
+        title: copy.fallback.todayLoadingTitle,
+        message: copy.fallback.todayLoadingMessage,
         tone: "neutral",
-        badge: "读取中"
+        badge: copy.actions.diagnosing
       }
     ];
   }
@@ -451,24 +451,24 @@ function buildTodayConfirmationCards(dailySummary: HomeDailySummary | null): Hom
   return [
     {
       key: "daily-reset",
-      title: "每日重置已更新",
+      title: copy.labels.dailyReset,
       message: dailySummary.daily_reset.time_remaining_label,
       tone: "ready",
-      badge: "已确认"
+      badge: copy.labels.confirmed
     },
-    sourceSummaryCard("lost-sector", "遗失区域", dailySummary.sources.lost_sector),
-    sourceSummaryCard("rotations", "活动线索", dailySummary.sources.rotations),
+    sourceSummaryCard("lost-sector", "遗失区域", dailySummary.sources.lost_sector, copy),
+    sourceSummaryCard("rotations", copy.intel.activityIntel, dailySummary.sources.rotations, copy),
     {
       key: "today-actions",
-      title: "今日动作",
-      message: dailySummary.checklist[0] ?? "没有可确认行动时保持安静。",
+      title: copy.fallback.todayActionTitle,
+      message: dailySummary.checklist[0] ?? copy.fallback.todayQuiet,
       tone: dailySummary.checklist.length ? "ready" : "neutral",
       badge: `${dailySummary.checklist.length} 条`
     }
   ];
 }
 
-function buildVendorHighlights(dailySummary: HomeDailySummary | null): HomeSummaryCard[] {
+function buildVendorHighlights(dailySummary: HomeDailySummary | null, copy: HomeCopy): HomeSummaryCard[] {
   const vendorSource = dailySummary?.sources.vendors;
   const vendorItems = vendorSource?.items ?? [];
 
@@ -476,23 +476,23 @@ function buildVendorHighlights(dailySummary: HomeDailySummary | null): HomeSumma
     {
       key: "xur",
       title: "Xur",
-      message: vendorItems[0] ? describeDailyItem(vendorItems[0]) : "周末出现后展示异域装备摘要。",
+      message: vendorItems[0] ? describeDailyItem(vendorItems[0]) : copy.vendors.xurDetail,
       tone: vendorItems[0] ? "ready" : "warning",
-      badge: vendorItems[0] ? "可查看" : "待周末"
+      badge: vendorItems[0] ? copy.labels.confirmed : copy.vendors.weekendBadge
     },
     {
       key: "banshee",
       title: "Banshee-44",
-      message: vendorItems[1] ? describeDailyItem(vendorItems[1]) : "武器清单接入前只提示关注。",
+      message: vendorItems[1] ? describeDailyItem(vendorItems[1]) : copy.vendors.bansheeDetail,
       tone: vendorItems[1] ? "ready" : "neutral",
-      badge: vendorItems[1] ? "已确认" : "待接入"
+      badge: vendorItems[1] ? copy.labels.confirmed : copy.vendors.waitingBadge
     },
     {
       key: "ada",
       title: "Ada-1",
-      message: vendorItems[2] ? describeDailyItem(vendorItems[2]) : "护甲模组和幻化相关后续接入。",
+      message: vendorItems[2] ? describeDailyItem(vendorItems[2]) : copy.vendors.adaDetail,
       tone: vendorItems[2] ? "ready" : "neutral",
-      badge: vendorItems[2] ? "已确认" : "待接入"
+      badge: vendorItems[2] ? copy.labels.confirmed : copy.vendors.waitingBadge
     }
   ];
 }
@@ -503,29 +503,29 @@ function buildAccountRows(props: {
   isLoadingAccount: boolean;
   isLoggingIn: boolean;
   diagnosticRows: HomeDiagnosticRow[];
-}): HomeSummaryCard[] {
+}, copy: HomeCopy): HomeSummaryCard[] {
   const warnings = props.diagnosticRows.filter((row) => row.tone === "warning");
   return [
     {
       key: "account-status",
-      title: props.accountError ? "账号数据异常" : props.hasAccountData ? "账号已就绪" : "账号待同步",
-      message: props.accountError || (props.isLoadingAccount || props.isLoggingIn ? "正在同步账号状态。" : "后续账号切换和里程碑进度会从这里收口。"),
+      title: props.accountError ? copy.account.failedTitle : props.hasAccountData ? copy.account.readyTitle : copy.account.pendingTitle,
+      message: props.accountError || (props.isLoadingAccount || props.isLoggingIn ? copy.account.syncing : copy.account.pendingMessage),
       tone: props.accountError ? "error" : props.hasAccountData ? "ready" : "neutral",
-      badge: props.accountError ? "需处理" : props.hasAccountData ? "正常" : "待同步"
+      badge: props.accountError ? copy.account.failedBadge : props.hasAccountData ? copy.account.readyBadge : copy.account.pendingBadge
     },
     {
       key: "vault",
-      title: "仓库容量",
-      message: props.hasAccountData ? "仓库数量和溢出提醒后续接真实统计。" : "账号未同步时不展示容量判断。",
+      title: copy.account.vaultTitle,
+      message: props.hasAccountData ? copy.account.vaultReady : copy.account.vaultMissing,
       tone: props.hasAccountData ? "neutral" : "warning",
-      badge: props.hasAccountData ? "待统计" : "缺账号"
+      badge: props.hasAccountData ? copy.account.vaultReadyBadge : copy.account.vaultMissingBadge
     },
     {
       key: "diagnostic",
-      title: warnings.length ? "健康检查有提醒" : "健康检查正常",
-      message: warnings.length ? `${warnings.length} 项需要处理。` : "无账号、资料库或后台阻断项。",
+      title: warnings.length ? copy.account.diagnosticWarningTitle : copy.account.diagnosticReadyTitle,
+      message: warnings.length ? copy.account.diagnosticWarning(warnings.length) : copy.account.diagnosticReady,
       tone: warnings.length ? "warning" : "ready",
-      badge: warnings.length ? "有提醒" : "正常"
+      badge: warnings.length ? copy.account.diagnosticWarningBadge : copy.account.readyBadge
     }
   ];
 }
@@ -534,7 +534,7 @@ function buildPendingRows(props: {
   diagnosticError: string;
   dailySummary: HomeDailySummary | null;
   state: HomeStartupState;
-}): HomeSummaryCard[] {
+}, copy: HomeCopy): HomeSummaryCard[] {
   const manifest = props.state.cards.manifest;
   const weeklyReady = props.dailySummary?.sources.weekly_report.status === "ready";
   const vendorReady = props.dailySummary?.sources.vendors.status === "ready";
@@ -542,40 +542,40 @@ function buildPendingRows(props: {
   return [
     {
       key: "trials",
-      title: "试炼地图 / 奖励",
-      message: "周末开启前不展示猜测数据。",
+      title: `${copy.intel.trialsMap} / ${copy.sections.weeklyRewards.title}`,
+      message: copy.fallback.noGuessBeforeWeekend,
       tone: "warning",
-      badge: "待确认"
+      badge: copy.labels.pending
     },
     {
       key: "nightfall",
-      title: "夜幕武器",
-      message: weeklyReady ? "周报已有线索，仍需武器字段确认。" : "等待可靠来源接入。",
+      title: "Nightfall",
+      message: weeklyReady ? copy.sections.weeklyRewards.subtitle : copy.fallback.nightfallWaiting,
       tone: weeklyReady ? "neutral" : "warning",
-      badge: weeklyReady ? "有线索" : "待接入"
+      badge: weeklyReady ? copy.labels.focus : copy.vendors.waitingBadge
     },
     {
       key: "vendors",
-      title: "商人完整清单",
-      message: vendorReady ? "已能显示重点摘要，完整清单留在后续专页。" : "等待公共商人数据。",
+      title: copy.sections.vendors.title,
+      message: vendorReady ? copy.sections.vendors.subtitle : copy.fallback.vendorsWaiting,
       tone: vendorReady ? "ready" : "neutral",
-      badge: vendorReady ? "摘要可用" : "待接入"
+      badge: vendorReady ? copy.labels.confirmed : copy.vendors.waitingBadge
     },
     {
       key: "health",
-      title: props.diagnosticError ? "诊断读取失败" : "资料库健康",
-      message: props.diagnosticError || (manifest.status === "ready" ? "资料库可用于名称和图标解析。" : manifest.label),
+      title: props.diagnosticError ? copy.fallback.healthFailed : copy.labels.manifest,
+      message: props.diagnosticError || (manifest.status === "ready" ? copy.fallback.healthReady : manifest.label),
       tone: props.diagnosticError ? "error" : manifest.status === "ready" ? "ready" : "warning",
-      badge: props.diagnosticError ? "失败" : manifest.status === "ready" ? "正常" : "待处理"
+      badge: props.diagnosticError ? copy.labels.error : manifest.status === "ready" ? copy.account.readyBadge : copy.account.failedBadge
     }
   ];
 }
 
-function sourceIntelRow(label: string, source?: HomeDailySource): HomeIntelSection["rows"][number] {
+function sourceIntelRow(label: string, source: HomeDailySource | undefined, copy: HomeCopy): HomeIntelSection["rows"][number] {
   if (!source) {
     return {
       label,
-      detail: "等待今日信息刷新。",
+      detail: copy.fallback.waitingRefresh,
       tone: "neutral"
     };
   }
@@ -588,14 +588,14 @@ function sourceIntelRow(label: string, source?: HomeDailySource): HomeIntelSecti
   };
 }
 
-function sourceSummaryCard(key: string, fallbackTitle: string, source: HomeDailySource): HomeSummaryCard {
+function sourceSummaryCard(key: string, fallbackTitle: string, source: HomeDailySource, copy: HomeCopy): HomeSummaryCard {
   const firstItem = source.items?.[0];
   return {
     key,
     title: firstItem?.title ?? fallbackTitle,
     message: firstItem ? describeDailyItem(firstItem) : source.message,
     tone: source.status === "ready" ? "ready" : "warning",
-    badge: source.status === "ready" ? "已确认" : "待确认"
+    badge: source.status === "ready" ? copy.labels.confirmed : copy.labels.pending
   };
 }
 
@@ -603,17 +603,17 @@ function describeDailyItem(item: HomeDailyItem): string {
   return [item.subtitle, item.description, item.source].filter(Boolean).join("，") || item.title;
 }
 
-function formatToneLabel(tone: HomeTone): string {
+function formatToneLabel(tone: HomeTone, copy: HomeCopy): string {
   if (tone === "ready") {
-    return "已确认";
+    return copy.labels.confirmed;
   }
   if (tone === "warning") {
-    return "待确认";
+    return copy.labels.pending;
   }
   if (tone === "error") {
-    return "异常";
+    return copy.labels.error;
   }
-  return "关注";
+  return copy.labels.focus;
 }
 
 function toneClass(tone: HomeTone, baseClassName: string): string {

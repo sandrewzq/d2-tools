@@ -471,7 +471,10 @@ describe("UI style system", () => {
   });
 
   it("starts settings page migration with a two-column desktop tool layout", () => {
-    const settingsPage = readFileSync(join(desktopRoot, "src", "renderer", "features", "settings", "SettingsPage.tsx"), "utf8");
+    const settingsPage = [
+      readFileSync(join(uiRoot, "src", "settings", "SettingsPageContentView.tsx"), "utf8"),
+      readFileSync(join(desktopRoot, "src", "renderer", "features", "settings", "SettingsPage.tsx"), "utf8")
+    ].join("\n");
     const settingsPageView = readFileSync(join(uiRoot, "src", "settings", "SettingsPageView.tsx"), "utf8");
     const styles = readFileSync(join(desktopRoot, "src", "renderer", "styles.css"), "utf8");
 
@@ -494,11 +497,15 @@ describe("UI style system", () => {
 
   it("finishes the next UI refactor slices with shared panel, status, list, badge and filter styles", () => {
     const styles = readFileSync(join(desktopRoot, "src", "renderer", "styles.css"), "utf8");
-    const settingsPage = readFileSync(join(desktopRoot, "src", "renderer", "features", "settings", "SettingsPage.tsx"), "utf8");
+    const settingsPage = [
+      readFileSync(join(uiRoot, "src", "settings", "SettingsPageContentView.tsx"), "utf8"),
+      readFileSync(join(desktopRoot, "src", "renderer", "features", "settings", "SettingsPage.tsx"), "utf8")
+    ].join("\n");
     const homeDashboard = readFileSync(join(uiRoot, "src", "home", "HomePageView.tsx"), "utf8");
     const dailyPanel = readFileSync(join(desktopRoot, "src", "renderer", "shared", "components", "DailySummaryPanel.tsx"), "utf8");
     const accountPage = [
       readFileSync(join(uiRoot, "src", "account", "AccountPageView.tsx"), "utf8"),
+      readFileSync(join(uiRoot, "src", "account", "AccountPageContentView.tsx"), "utf8"),
       readFileSync(join(desktopRoot, "src", "renderer", "features", "account", "AccountPage.tsx"), "utf8")
     ].join("\n");
     const vaultPage = readFileSync(join(desktopRoot, "src", "renderer", "features", "vault", "VaultPage.tsx"), "utf8");

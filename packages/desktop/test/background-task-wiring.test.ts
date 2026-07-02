@@ -14,8 +14,8 @@ describe("product shell background task wiring", () => {
     expect(todo).toContain("| 编号 | 优先级 | 状态 | 任务 | Backlog | 下一步 |");
     expect(todo).toContain("| T1 |");
     expect(todo).toContain("| T2 |");
-    expect(todo).toContain("产品级桌面外壳、更新与后台任务");
-    expect(todo).toContain("架构维护与边界防回退");
+    expect(todo).toContain("跨端 UI 壳、可交互原型与桌面视觉收口");
+    expect(todo).toContain("仓库推荐与清理工作台");
   });
 
   it("exposes background task IPC through preload and renderer API contracts", () => {
@@ -33,7 +33,10 @@ describe("product shell background task wiring", () => {
   it("subscribes to background tasks at the product shell and renders global task status", () => {
     const homePage = readFileSync(join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"), "utf8");
     const shellLayout = readFileSync(join(uiRoot, "src", "shell", "AppShell.tsx"), "utf8");
-    const settingsPage = readFileSync(join(desktopRoot, "src", "renderer", "features", "settings", "SettingsPage.tsx"), "utf8");
+    const settingsPage = [
+      readFileSync(join(uiRoot, "src", "settings", "SettingsPageContentView.tsx"), "utf8"),
+      readFileSync(join(desktopRoot, "src", "renderer", "features", "settings", "SettingsPage.tsx"), "utf8")
+    ].join("\n");
     const diagnosticsHook = readFileSync(join(desktopRoot, "src", "renderer", "features", "settings", "useDiagnosticsSettings.ts"), "utf8");
     const backgroundHook = readFileSync(join(desktopRoot, "src", "renderer", "shared", "hooks", "useBackgroundTasks.ts"), "utf8");
 
@@ -116,10 +119,10 @@ describe("product shell background task wiring", () => {
       join(desktopRoot, "src", "renderer", "features", "library", "useLibraryWorkspace.ts"),
       "utf8"
     );
-    const libraryPage = readFileSync(
-      join(desktopRoot, "src", "renderer", "features", "library", "LibraryPage.tsx"),
-      "utf8"
-    );
+    const libraryPage = [
+      readFileSync(join(uiRoot, "src", "library", "LibraryPageContentView.tsx"), "utf8"),
+      readFileSync(join(desktopRoot, "src", "renderer", "features", "library", "LibraryPage.tsx"), "utf8")
+    ].join("\n");
     const homePage = readFileSync(join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"), "utf8");
 
     expect(manifestIpc).toContain("shouldAutoUpdateManifest");
@@ -162,10 +165,10 @@ describe("product shell background task wiring", () => {
       join(desktopRoot, "src", "renderer", "features", "library", "useLibraryWorkspace.ts"),
       "utf8"
     );
-    const settingsPage = readFileSync(
-      join(desktopRoot, "src", "renderer", "features", "settings", "SettingsPage.tsx"),
-      "utf8"
-    );
+    const settingsPage = [
+      readFileSync(join(uiRoot, "src", "settings", "SettingsPageContentView.tsx"), "utf8"),
+      readFileSync(join(desktopRoot, "src", "renderer", "features", "settings", "SettingsPage.tsx"), "utf8")
+    ].join("\n");
     const homePage = readFileSync(join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"), "utf8");
 
     expect(existsSync(sharedHookPath)).toBe(true);

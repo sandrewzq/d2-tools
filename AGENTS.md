@@ -45,10 +45,10 @@
 - `README.md` 只保留使用入口和正式文档导航，不承载阶段性进度或独立路线图。
 - 如需保留少量长期方向结论，合并到 `docs/development.md`，不要再单独维护 `docs/roadmap.md`。
 - `docs/work/backlog/` 保存未完成但暂不推进的设计或计划。
-- `docs/work/archive/` 保存已完成或仅作历史追溯的过程材料。
 - `docs/work/references/` 保存外部资料分析、数据源调研和作为实现依据的视觉基准。
+- 不设 `docs/work/archive/`。已完成且仍有效的结论合并进正式文档；只剩历史追溯价值或已过时的过程材料直接删除，需要追溯时使用 git 历史。
 - 不要把日期命名、设计、计划、进度或分析文档直接放在 `docs/` 根目录。
-- 不要重建 `docs/superpowers/`；如果外部流程要求写入该目录，统一改写到 `docs/work/backlog/`、`docs/work/archive/` 或 `docs/work/references/`。
+- 不要重建 `docs/superpowers/`；如果外部流程要求写入该目录，统一改写到 `docs/work/backlog/` 或 `docs/work/references/`。
 - `docs/work/` 不是正式入口目录；只保留仍对当前工作有直接参考价值的材料，历史已完成或已失效的内容可以删除。
 - 删除任何文档前，必须确认它已经合并进正式文档，或明确没有剩余参考价值。
 - 任务完成、取消或方向变化且影响当前短期待办、验收状态或优先级时，必须在同一次改动里更新 `docs/todo.md`。
@@ -58,7 +58,11 @@
 
 ## 验证规则
 
-- 文档改动后运行 `pnpm docs:check`。
+- 日常开发优先按改动范围选择最小验证，不要默认运行发布级重链路。
+- 文档改动运行 `pnpm check`；如果改了文档检查脚本或编码检查脚本，再运行 `pnpm test:docs`。
 - `pnpm docs:check` 同时检查文档结构和全仓文本编码；如果发现疑似 mojibake、Unicode replacement character 或连续问号造成的信息丢失，先修复乱码再继续开发。
-- 声称全仓检查通过前运行 `pnpm test`。
-- 如果只是文档改动且全量测试成本过高，至少运行 `pnpm docs:check` 和 `git diff --check`，并明确说明没有运行全量测试。
+- 改 `packages/ui`、`packages/prototype` 或 `packages/web` 时，至少运行 `pnpm typecheck:ui` 和相关定向 vitest；影响首页或设置页视觉时追加 `visual:home` 或 `visual:settings`。
+- 改 Desktop 主进程、preload、renderer adapter 或 IPC 接线时，至少运行 `pnpm typecheck:desktop` 和相关 `packages/desktop/test/*.test.*`。
+- 普通功能改动优先运行相关定向测试；需要一轮中等门禁时运行 `pnpm verify`。
+- 只有在发布、提交 release、声称全仓检查通过、或用户明确要求全量验证前，才运行发布级 `pnpm test` 和 `pnpm typecheck`。
+- 如果没有运行全量测试，最终回答必须明确说明已运行哪些定向验证，以及没有运行全量 `pnpm test` / `pnpm typecheck`。

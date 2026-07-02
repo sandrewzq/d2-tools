@@ -18,6 +18,7 @@ describe("desktop workspace layout", () => {
     const homePage = readFileSync(join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"), "utf8");
     const homeRoutes = readFileSync(join(desktopRoot, "src", "renderer", "pages", "HomePageRoutes.tsx"), "utf8");
     const homeDashboard = readFileSync(join(uiRoot, "src", "home", "HomePageView.tsx"), "utf8");
+    const homeCopy = readFileSync(join(uiRoot, "src", "i18n", "copy.ts"), "utf8");
     const styles = readFileSync(join(desktopRoot, "src", "renderer", "styles.css"), "utf8");
     const dailyPage = readFileSync(join(desktopRoot, "src", "renderer", "features", "daily", "DailyPage.tsx"), "utf8");
 
@@ -30,8 +31,10 @@ describe("desktop workspace layout", () => {
     expect(homeDashboard).toContain('className="home-weekly-dashboard"');
     expect(homeDashboard).toContain('className="home-main-grid"');
     expect(homeDashboard).toContain('className="home-secondary-grid"');
-    expect(homeDashboard).toContain("本周奖励与轮换");
-    expect(homeDashboard).toContain("商人重点");
+    expect(homeDashboard).toContain("copy.sections.weeklyRewards.title");
+    expect(homeDashboard).toContain("copy.sections.vendors.title");
+    expect(homeCopy).toContain("本周奖励与轮换");
+    expect(homeCopy).toContain("商人重点");
     expect(homeDashboard).not.toContain("<DailySummaryPanel");
     expect(homeDashboard).not.toContain("../daily/DailyPage");
     expect(homePage).not.toContain("function renderDailyPanel");
@@ -61,6 +64,8 @@ describe("desktop workspace layout", () => {
     const homePage = readFileSync(join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"), "utf8");
     const homeRoutes = readFileSync(join(desktopRoot, "src", "renderer", "pages", "HomePageRoutes.tsx"), "utf8");
     const vaultPage = readFileSync(join(desktopRoot, "src", "renderer", "features", "vault", "VaultPage.tsx"), "utf8");
+    const vaultView = readFileSync(join(uiRoot, "src", "vault", "VaultPageView.tsx"), "utf8");
+    const uiCopy = readFileSync(join(uiRoot, "src", "i18n", "copy.ts"), "utf8");
 
     expect(homePage).toContain("<HomePageRoutes");
     expect(homePage).not.toContain("<VaultPage");
@@ -68,7 +73,9 @@ describe("desktop workspace layout", () => {
     expect(homePage).not.toContain("function renderVaultPanel");
     expect(vaultPage).toContain("export function VaultPage");
     expect(vaultPage).toContain("<VaultPanel");
-    expect(vaultPage).toContain("先读取账号数据，然后查看完整仓库列表。");
+    expect(vaultPage).toContain("<VaultPageView");
+    expect(vaultView).toContain("copy.emptySubtitle");
+    expect(uiCopy).toContain("先读取账号数据，然后查看完整仓库列表。");
   });
 
   it("keeps page data orchestration in feature hooks instead of growing HomePage", () => {
@@ -115,10 +122,13 @@ describe("desktop workspace layout", () => {
   it("keeps setup details out of persistent home cards unless they are actionable", () => {
     const homePage = readFileSync(join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"), "utf8");
     const homeDashboard = readFileSync(join(uiRoot, "src", "home", "HomePageView.tsx"), "utf8");
+    const homeCopy = readFileSync(join(uiRoot, "src", "i18n", "copy.ts"), "utf8");
 
     expect(homeDashboard).toContain("home-data-strip");
-    expect(homeDashboard).toContain("待确认数据");
-    expect(homeDashboard).toContain("健康检查正常");
+    expect(homeDashboard).toContain("copy.sections.pending.title");
+    expect(homeDashboard).toContain("copy.account.diagnosticReadyTitle");
+    expect(homeCopy).toContain("待确认数据");
+    expect(homeCopy).toContain("健康检查正常");
     expect(homeDashboard).not.toContain("Bungie App 已配置");
     expect(homeDashboard).not.toContain("AI 未配置");
     expect(homeDashboard).not.toContain("home-readiness-grid");

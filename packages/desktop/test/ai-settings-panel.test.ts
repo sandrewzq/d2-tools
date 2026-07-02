@@ -10,6 +10,7 @@ import {
 import { readRendererApiContracts } from "./source-readers";
 
 const desktopRoot = fileURLToPath(new URL("..", import.meta.url));
+const uiRoot = fileURLToPath(new URL("../../ui", import.meta.url));
 
 describe("AI settings panel helpers", () => {
   it("trims AI settings and keeps empty protocol as disabled", () => {
@@ -206,10 +207,10 @@ describe("AI settings panel helpers", () => {
       join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"),
       "utf8"
     );
-    const settingsPage = readFileSync(
-      join(desktopRoot, "src", "renderer", "features", "settings", "SettingsPage.tsx"),
-      "utf8"
-    );
+    const settingsPage = [
+      readFileSync(join(uiRoot, "src", "settings", "SettingsPageContentView.tsx"), "utf8"),
+      readFileSync(join(desktopRoot, "src", "renderer", "features", "settings", "SettingsPage.tsx"), "utf8")
+    ].join("\n");
     const aiPage = readFileSync(
       join(desktopRoot, "src", "renderer", "features", "ai", "AiPage.tsx"),
       "utf8"

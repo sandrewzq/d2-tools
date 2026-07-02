@@ -1,35 +1,34 @@
-# 桌面视觉、账号、仓库与装备详情打磨
+# 跨端视觉与装备详情打磨
 
 > 状态：Backlog
-> 更新时间：2026-06-29
+> 更新时间：2026-07-02
 
 ## 目标
 
-保持当前 C1 视觉方向，用真实 Electron 桌面壳和真实账号继续验收首页、账号、仓库、配装、资料库、设置、AI 侧栏和装备详情。重点解决视觉变化不明显、页面层级过重、点击延迟、详情弹框过窄、账号页信息不完整、仓库整理体验不连贯等问题。
+在跨端 UI 壳迁移之后，继续用真实 Desktop、Prototype 和 Web 验收首页、账号、仓库、配装、资料库、设置、AI 抽屉和装备详情。重点解决页面层级过重、按钮反馈慢、详情弹框过窄、真实账号信息缺口、仓库整理体验不连贯等问题。
 
-这份 backlog 独立承接桌面 UI 和日常工作区打磨，不依赖其他 backlog 文档即可执行。
+这份 backlog 只保留仍需要继续打磨的体验问题；已经沉淀成通用规则的内容以 `docs/development.md` 和 `packages/ui` 设计系统为准。
 
 ## 产品原则
 
-1. 真实桌面优先：视觉和交互以 Electron 壳内实际体验为准，不只看静态组件。
-2. 信息密度适中：工具型桌面应用要可扫读、可重复操作，避免营销页式大卡片。
-3. 三层视觉结构：页面底层、主面板、子块 / 列表项，不做大卡片套大卡片。
-4. 点击反馈要快：用户点击按钮后必须立刻有反馈，异步请求再显示加载或状态。
-5. 详情弹框要像工作区：武器和装备详情不能窄长到只剩纵向滚动。
+1. 真实消费者优先：Prototype 用来验证状态组合，Desktop / Web 用来验证真实 adapter 和真实数据。
+2. 共享 UI 优先：视觉、布局、组件结构和可见文案默认进入 `packages/ui`。
+3. 平台壳只接能力：Desktop 处理 IPC、本地文件、窗口、更新和写操作；Web 处理浏览器与 HTTP/API。
+4. 信息密度适中：工具型桌面应用要可扫读、可重复操作，避免营销页式大卡片。
+5. 点击反馈要快：用户点击按钮后必须立刻有反馈，异步请求再显示加载或状态。
+6. 详情弹框要像工作区：武器和装备详情不能窄长到只剩纵向滚动。
 
-## 范围
+## 验收范围
 
-### 全局视觉与真实账号验收
-
-必须检查：
+需要持续检查：
 
 - 首页。
 - 账号页。
 - 仓库页。
 - 配装页。
-- 资料库。
+- 资料库页。
 - 设置页。
-- AI 侧栏。
+- AI 抽屉。
 - 装备详情弹框。
 
 窗口尺寸：
@@ -40,13 +39,14 @@
 
 重点问题：
 
-- 文字挤压。
-- 按钮溢出。
-- 层级过重。
-- 对比过亮或过暗。
+- 文案挤压或按钮溢出。
+- 页面卡片层级过重。
 - 滚动链路过长。
-- 点击后 1 秒才有反馈的延迟感。
-- 详情弹框窄长。
+- 点击后没有即时反馈。
+- 真实账号下材料、邮政官、活动和仓库状态缺数据或空态不清楚。
+- 装备详情窄长，perk、属性、来源解释和操作入口难扫读。
+
+## 重点方向
 
 ### 账号页
 
@@ -73,18 +73,6 @@
 
 ### 装备详情
 
-继续打磨：
-
-- 武器详情宽度、分栏、perk 展示和工具区。
-- 装备详情属性条、能量、模组、同名对比。
-- 自定义目标命中说明。
-- DIM wishlist、本地目标、社区推荐和同名对比的统一解释。
-- 1366px / 1920px 下标题、属性条、能量和工具入口。
-
-## UI 方向
-
-### 详情弹框
-
 详情弹框推荐改成宽工作区：
 
 - 左侧：游戏内风格身份区，展示图标、名称、类型、能量、属性或武器基础信息。
@@ -95,58 +83,45 @@
 
 ### 点击反馈
 
-所有按钮应满足：
+高频按钮应满足：
 
 - 点击后立即进入 pending 状态。
 - 异步请求期间按钮禁用或显示加载。
 - 请求失败显示中文错误。
 - 不因等待网络请求导致用户以为没点上。
 
-### 视觉一致性
-
-新增样式优先复用：
-
-- `tool-panel`
-- `panel-subsection`
-- `ui-list-row`
-- `ui-filter-toolbar`
-- `ui-item-card`
-- `ui-badge`
-- `status-message status-neutral|pending|ready|warning|error`
-
-不要新增零散的 `notice`、`error` 或页面私有大卡片样式。
-
 ## 代码边界
 
-建议落点：
+默认落点：
 
-- 账号页：`packages/desktop/src/renderer/features/account/`
-- 仓库页：`packages/desktop/src/renderer/features/vault/`
-- 资料库：`packages/desktop/src/renderer/features/library/`
-- 设置页：`packages/desktop/src/renderer/features/settings/`
-- 装备详情：`packages/desktop/src/renderer/shared/components/item-detail/`
-- 详情数据：`packages/desktop/src/renderer/shared/hooks/useItemDetailWorkspace.ts`
-- 全局样式：`packages/desktop/src/renderer/styles.css`
+- 共享展示结构、布局、样式和文案：`packages/ui`
+- Prototype mock 状态和演示控制：`packages/prototype`
+- Web HTTP/API、浏览器外链和 fallback 数据：`packages/web`
+- Desktop IPC、本地数据、写操作、窗口和更新接线：`packages/desktop`
+
+Desktop feature 中仍未迁出的业务交互按领域维护：
+
+- 账号页真实数据接线：`packages/desktop/src/renderer/features/account/`
+- 仓库页真实数据接线：`packages/desktop/src/renderer/features/vault/`
+- 资料库真实数据接线：`packages/desktop/src/renderer/features/library/`
+- 设置页平台能力接线：`packages/desktop/src/renderer/features/settings/`
+- 详情跨菜单能力：`packages/desktop/src/renderer/shared/components/item-detail/` 和 `shared/hooks/`
 
 边界要求：
 
 - feature 之间不能直接 import。
-- 跨菜单复用先进入 `shared/`。
-- 尽量避免改 `HomePage.tsx`、`VaultPanel.tsx`、`ItemDetailModal.tsx` 等高冲突接线文件；确需修改时保持改动聚焦。
+- 跨菜单复用先进入 `shared/` 或 `packages/ui`。
+- 避免在 Desktop feature 里重新维护一套已经迁入 `packages/ui` 的页面结构。
+- 尽量避免改 `HomePage.tsx`、`ItemDetailModal.tsx`、`useItemDetailWorkspace.ts` 等高冲突接线文件；确需修改时保持改动聚焦。
 
 ## 开发切片
 
-### 切片 1：真实桌面验收与问题清单
+### 切片 1：真实消费者验收与问题清单
 
 产出：
 
-- 1366px、1920px、窄屏下的关键页面问题清单。
-- 明确哪些是视觉问题、交互延迟、布局拥挤或数据缺失。
-
-验收：
-
-- 每个问题能定位到页面和文件范围。
-- 问题能按 P1 / P2 排序。
+- Prototype / Web / Desktop 在 1366px、1920px、窄屏下的问题清单。
+- 明确哪些是视觉问题、交互延迟、布局拥挤、adapter 缺口或数据缺失。
 
 ### 切片 2：点击反馈和延迟感治理
 
@@ -156,11 +131,6 @@
 - 长请求保留 UI 反馈。
 - 减少不必要的同步阻塞和重复重算。
 
-验收：
-
-- 用户点击后立即看到状态变化。
-- 请求失败时保留页面可操作性。
-
 ### 切片 3：装备详情宽工作区
 
 产出：
@@ -169,22 +139,12 @@
 - 工具区来源解释统一。
 - 1366px 下不再出现过窄长弹框。
 
-验收：
-
-- 武器详情能快速看到 perk、推荐来源和同名对比。
-- 装备详情能快速看到属性、能量、目标命中和风险。
-
-### 切片 4：账号页补齐
+### 切片 4：账号页真实数据补齐
 
 产出：
 
 - 真实账号下货币、材料、邮政官覆盖更完整。
 - 同槽位对照行响应式优化。
-
-验收：
-
-- 账号页在 1366px 下不拥挤。
-- 货币、材料、邮政官缺数据时有明确空态。
 
 ### 切片 5：仓库页体验收敛
 
@@ -193,11 +153,6 @@
 - 平铺卡片、多标签、标签管理器继续打磨。
 - 愿望单目标规则联动更清晰。
 - 与清理清单 backlog 保持同一解释模型。
-
-验收：
-
-- 仓库页可按标签、目标命中、DIM wishlist 和清理状态筛选。
-- 标签管理不会打断当前筛选上下文。
 
 ## 测试要求
 
@@ -226,4 +181,3 @@ npx pnpm@9.15.0 docs:check
 3. 武器详情和装备详情不再窄长难用。
 4. 账号页真实账号信息覆盖更完整。
 5. 仓库页能支撑日常筛选、标签和目标规则联动。
-

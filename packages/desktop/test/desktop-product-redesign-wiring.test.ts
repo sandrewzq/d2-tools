@@ -17,11 +17,16 @@ function readUiFile(path: string): string {
 describe("desktop product redesign wiring", () => {
   it("lands the approved prototype structure into the real desktop pages", () => {
     const homeDashboard = readUiFile("home/HomePageView.tsx");
+    const homeCopy = readUiFile("i18n/copy.ts");
     const homePage = readRendererFile("pages/HomePage.tsx");
     const vaultPanel = readRendererFile("components/VaultPanel.tsx");
     const loadoutsPage = readRendererFile("features/loadouts/LoadoutsPage.tsx");
+    const loadoutsView = readUiFile("loadouts/LoadoutsPageView.tsx");
+    const loadoutsContent = readUiFile("loadouts/LoadoutsPageContentView.tsx");
     const libraryPage = readRendererFile("features/library/LibraryPage.tsx");
-    const settingsPage = `${readUiFile("settings/SettingsPageView.tsx")}\n${readRendererFile("features/settings/SettingsPage.tsx")}`;
+    const libraryView = readUiFile("library/LibraryPageView.tsx");
+    const libraryContent = readUiFile("library/LibraryPageContentView.tsx");
+    const settingsPage = `${readUiFile("settings/SettingsPageView.tsx")}\n${readUiFile("settings/SettingsPageContentView.tsx")}\n${readRendererFile("features/settings/SettingsPage.tsx")}`;
     const styles = readRendererFile("styles.css");
 
     expect(homeDashboard).toContain("app-page home-app-page");
@@ -31,7 +36,8 @@ describe("desktop product redesign wiring", () => {
     expect(homePage).not.toContain("复制本周重点");
     expect(homeDashboard).toContain("home-data-strip");
     expect(homeDashboard).toContain("home-weekly-dashboard");
-    expect(homeDashboard).toContain("本周奖励与轮换");
+    expect(homeDashboard).toContain("copy.sections.weeklyRewards.title");
+    expect(homeCopy).toContain("本周奖励与轮换");
     expect(homeDashboard).toContain("home-weekly-rewards");
     expect(homeDashboard).toContain("home-weekly-intel");
     expect(homeDashboard).not.toContain("product-overview-grid");
@@ -44,12 +50,16 @@ describe("desktop product redesign wiring", () => {
     expect(vaultPanel).toContain("vault-decision-summary");
     expect(vaultPanel).toContain("ItemDecision");
 
-    expect(loadoutsPage).toContain("loadout-product-layout");
-    expect(loadoutsPage).toContain("配装风险");
-    expect(loadoutsPage).toContain("缺失装备");
+    expect(loadoutsPage).toContain("LoadoutsPageContentView");
+    expect(loadoutsContent).toContain("LoadoutsPageView");
+    expect(loadoutsView).toContain("loadout-product-layout");
+    expect(loadoutsView).toContain("copy.riskTitle");
+    expect(loadoutsView).toContain("copy.missingItems");
 
-    expect(libraryPage).toContain("library-product-layout");
-    expect(libraryPage).toContain("library-source-matrix");
+    expect(libraryPage).toContain("LibraryPageContentView");
+    expect(libraryContent).toContain("LibraryPageView");
+    expect(libraryView).toContain("library-product-layout");
+    expect(libraryContent).toContain("library-source-matrix");
 
     expect(settingsPage).toContain("app-page settings-app-page");
     expect(settingsPage).not.toContain("app-page-head");

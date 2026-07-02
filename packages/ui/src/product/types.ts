@@ -15,5 +15,5 @@ export type ProductShellHostProps = {
   shellStatus: ShellStatusItem[];
   assistantPanel: ReactNode;
   platformActions: PlatformActions;
-  renderPage: (page: ShellPageKey) => ReactNode;
+  renderPage: (page: ShellPageKey, preferences: ProductPreferences) => ReactNode;
 };

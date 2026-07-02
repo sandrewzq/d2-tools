@@ -11,9 +11,9 @@ describe("global AI assistant sidebar wiring", () => {
   it("moves AI assistant out of the main page navigation into a right-side drawer", () => {
     const shellLayout = [
       readFileSync(join(uiRoot, "src", "shell", "AppShell.tsx"), "utf8"),
-      readFileSync(join(uiRoot, "src", "shell", "navigation.ts"), "utf8"),
-      readFileSync(join(uiRoot, "src", "i18n", "copy.ts"), "utf8")
+      readFileSync(join(uiRoot, "src", "shell", "navigation.ts"), "utf8")
     ].join("\n");
+    const shellCopy = readFileSync(join(uiRoot, "src", "i18n", "copy.ts"), "utf8");
     const homePage = readFileSync(
       join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"),
       "utf8"
@@ -24,8 +24,9 @@ describe("global AI assistant sidebar wiring", () => {
     expect(shellLayout).toContain("global-assistant-drawer");
     expect(shellLayout).not.toContain("global-assistant-rail");
     expect(shellLayout).toContain("AI 助手");
-    expect(shellLayout).toContain("打开 AI 助手抽屉");
-    expect(shellLayout).toContain('settings: "设置"');
+    expect(shellLayout).toContain("copy.tools.openAiAssistant");
+    expect(shellCopy).toContain("打开 AI 助手抽屉");
+    expect(shellCopy).toContain('settings: "设置"');
     expect(shellLayout).not.toContain("brand-block");
     expect(shellLayout).not.toContain("工作区");
     expect(shellLayout).not.toContain("任务助手");

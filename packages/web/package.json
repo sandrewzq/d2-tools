@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite --host 127.0.0.1 --port 53219 --strictPort",
+    "dev": "vite --host 127.0.0.1 --port 53171 --strictPort",
     "build": "vite build",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },

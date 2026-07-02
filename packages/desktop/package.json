@@ -15,7 +15,7 @@
   "type": "module",
   "main": "dist/main/main.js",
   "scripts": {
-    "dev": "vite --host 127.0.0.1 --port 53217 --strictPort",
+    "dev": "vite --host 127.0.0.1 --port 53172 --strictPort",
     "dev:electron": "set NODE_ENV=development&& electron dist/main/main.js",
     "clean": "node -e \"var fs=require('node:fs');var g=require('node:path').join(__dirname,'tsconfig.');try{fs.rmSync(g+'main.tsbuildinfo',{force:true})}catch(e){}try{fs.rmSync(g+'renderer.tsbuildinfo',{force:true})}catch(e){}fs.rmSync('dist',{recursive:true,force:true})\"",
     "build": "pnpm clean && pnpm --filter @d2-tools/core build && pnpm --filter @d2-tools/http build && vite build && tsc -p tsconfig.main.json && node scripts/build-preload.cjs",

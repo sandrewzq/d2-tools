@@ -118,7 +118,7 @@ function isPortAvailable(port) {
   });
 }
 
-async function findAvailablePort(startPort = 53217) {
+async function findAvailablePort(startPort = 53172) {
   for (let port = startPort; port < startPort + 20; port += 1) {
     if (await isPortAvailable(port)) {
       return port;
@@ -217,7 +217,7 @@ function prepareVisualConfig() {
 
 async function captureReference() {
   const chrome = findChrome();
-  const port = await findAvailablePort(53218);
+  const port = await findAvailablePort(53170);
   const prototypeUrl = `http://127.0.0.1:${port}`;
   const vite = start(pnpm, ["--filter", "@d2-tools/prototype", "exec", "vite", "--host", "127.0.0.1", "--port", String(port), "--strictPort"], {
     stdio: "pipe",
@@ -260,7 +260,7 @@ async function buildElectronOutputs() {
 }
 
 async function captureApp() {
-  const port = await findAvailablePort(53217);
+  const port = await findAvailablePort(53172);
   const rendererUrl = `http://127.0.0.1:${port}`;
   const vite = start(pnpm, ["--filter", "@d2-tools/desktop", "exec", "vite", "--host", "127.0.0.1", "--port", String(port), "--strictPort"], {
     stdio: "pipe",

@@ -13,7 +13,7 @@ const visualCaptureDir = process.env.D2_VISUAL_CAPTURE_DIR;
 const visualCaptureViewport = process.env.D2_VISUAL_CAPTURE_VIEWPORT ?? "1365x900";
 const visualCaptureFile = process.env.D2_VISUAL_CAPTURE_FILE;
 const visualCapturePage = process.env.D2_VISUAL_CAPTURE_PAGE ?? "home";
-const rendererUrl = process.env.D2_RENDERER_URL ?? "http://127.0.0.1:53217";
+const rendererUrl = process.env.D2_RENDERER_URL ?? "http://127.0.0.1:53172";
 const rendererFile = join(currentDir, "../renderer/index.html");
 const isVisualCapture = Boolean(visualCaptureDir);
 

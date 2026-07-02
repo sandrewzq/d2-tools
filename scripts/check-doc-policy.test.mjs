@@ -56,7 +56,7 @@ describe("collectDocPolicyErrors", () => {
 
     const errors = collectDocPolicyErrors(root, []);
 
-    expect(errors).toContain("Unexpected docs/work directory: docs/work/archive. Use backlog or references.");
+    expect(errors).toContain("Unexpected docs/work directory: docs/work/archive. Use backlog or references; archive is intentionally not used.");
     expect(errors).toContain("Work document is outside an allowed category: docs/work/archive/old.md");
   });
 

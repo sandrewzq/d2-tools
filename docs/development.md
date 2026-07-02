@@ -50,10 +50,12 @@ docs/        正式文档
 - `packages/prototype`
   - 负责可交互 React 原型，使用 mock 数据和 mock adapter
   - 只组合 `packages/ui`，不维护第二套页面结构
+  - 允许维护原型专用状态切换面板，例如未登录、资料库过期、后台任务运行和正常状态
 
 - `packages/web`
   - 负责 Web 平台壳、浏览器启动、Web 登录态和 HTTP/API adapter
   - 与 Prototype / Desktop 挂同一个产品 UI Host，不复制页面实现；后续移动 App 也按同一壳模式接入
+  - 首页数据通过 Web adapter 边界读取，当前约定为 `/api/home-snapshot`，无服务时回退到共享 fallback snapshot
 
 - `packages/http`
   - 暴露本地 HTTP / 工具接口
@@ -101,7 +103,9 @@ docs/        正式文档
 常见改动归属：
 
 - 首页、设置页、账号页的布局和样式：`packages/ui`
+- 设置页、账号页、资料库页和配装页的内部复杂块已迁入 `packages/ui`；Desktop feature 只保留真实数据 adapter、写操作 callback 和少量派生 ViewModel 接线。
 - 原型里的“未登录 / 资料库过期 / 后台任务运行 / 更新可用”等状态切换：`packages/prototype`
+- Web 的真实数据读取、HTTP fallback 和浏览器外链打开：`packages/web/src/webAdapter.ts`
 - 真实账号读取、资料库检查、导入导出、窗口颜色和应用更新：`packages/desktop` 或对应 service / adapter
 - Web 登录态、浏览器存储和 HTTP adapter：`packages/web`
 - 跨端状态模型、页面 workspace 和 ViewModel：`packages/app`
@@ -154,10 +158,10 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev-desktop.ps1
 
 1. 构建 `@d2-tools/core` 和 `@d2-tools/http`
 2. 编译 Electron 主进程和 preload
-3. 启动 Vite 前端开发服务器，固定使用 `http://127.0.0.1:53217`
+3. 启动 Vite 前端开发服务器，固定使用 `http://127.0.0.1:53172`
 4. 打开 Electron 开发版桌面应用
 
-这不是打包流程，不会生成或解压 `release/win-unpacked`。渲染层改动支持热更新；主进程、preload、core 或 http 改动后，关闭桌面窗口再重新运行 `npx pnpm@9.15.0 dev:desktop` 即可重新编译启动。开发端口启用 strict port；如果 `53217` 被占用，启动会直接失败并提示释放端口，不会自动跳到别的端口导致 Electron 打开错误页面。发布版不依赖这个端口；打包后的 Electron 会直接加载安装包内的 `dist/renderer/index.html`。
+这不是打包流程，不会生成或解压 `release/win-unpacked`。渲染层改动支持热更新；主进程、preload、core 或 http 改动后，关闭桌面窗口再重新运行 `npx pnpm@9.15.0 dev:desktop` 即可重新编译启动。开发端口启用 strict port；如果 `53172` 被占用，启动会直接失败并提示释放端口，不会自动跳到别的端口导致 Electron 打开错误页面。发布版不依赖这个端口；打包后的 Electron 会直接加载安装包内的 `dist/renderer/index.html`。
 
 如果只想单独启动前端页面：
 
@@ -171,7 +175,7 @@ npx pnpm@9.15.0 dev
 npx pnpm@9.15.0 dev:prototype
 ```
 
-Prototype 使用 `packages/ui` 共享壳、产品 Host、页面 View 和 mock adapter，默认端口为 `http://127.0.0.1:53218`。视觉密集页面先在 Prototype 中验证，再接入 Desktop 或 Web。
+Prototype 使用 `packages/ui` 共享壳、产品 Host、页面 View 和 mock adapter，默认端口为 `http://127.0.0.1:53170`。视觉密集页面先在 Prototype 中验证，再接入 Desktop 或 Web。Web 默认端口为 `http://127.0.0.1:53171`。
 
 正式 Web 入口使用：
 
@@ -187,9 +191,69 @@ Web 是浏览器平台壳，不是第二套原型。日常验证真实产品页�
 npx pnpm@9.15.0 dev:electron
 ```
 
+### 3.1 维护者脚本
+
+`tools/` 保存可提交、可跨设备复用的维护者脚本，不是普通玩家入口，也不保存 token、Cookie、浏览器 profile、缓存数据库或用户本地数据。详细清单见 [开发者工具说明](../tools/README.md)。
+
+常用脚本：
+
+- `tools/dev-prototype.cmd`：启动或打开 Prototype，本地端口 `53170`。
+- `tools/dev-web.cmd`：启动或打开 Web，本地端口 `53171`。
+- `tools/dev-desktop.cmd`：启动或打开 Desktop 开发版，本地端口 `53172`。
+- `tools/dev-status.cmd`：只读查看 Prototype / Web / Desktop 开发端口占用情况。
+- `tools/git-commit-and-push.cmd`：全量提交并 push，不创建 release tag。
+- `tools/git-auto-release.cmd`：自动 patch +1 版本、生成 changelog、提交、push 并创建 release tag。
+
+命名规则：本地开发启动脚本使用 `dev-` 前缀，Git / Release 辅助脚本使用 `git-` 前缀，后续批量维护脚本优先使用 `maintenance-` 前缀。
+
 ## 4. 测试与检查
 
-全量测试：
+日常开发优先按改动范围跑快路径，不要每次都跑发布级全量链路。
+
+基础检查：
+
+```powershell
+npx pnpm@9.15.0 check
+```
+
+这会运行 `docs:check` 和 `git diff --check`，适合文档、脚本说明和小范围整理。改了文档检查或编码检查脚本时，追加：
+
+```powershell
+npx pnpm@9.15.0 test:docs
+```
+
+开发态测试：
+
+```powershell
+npx pnpm@9.15.0 test:fast
+npx pnpm@9.15.0 test:desktop
+```
+
+`test:fast` 直接运行 Vitest，不预先全仓 build；`test:desktop` 只跑桌面端测试。普通功能改动优先跑相关定向测试，例如：
+
+```powershell
+npx pnpm@9.15.0 vitest --run packages/desktop/test/package-format.test.ts
+```
+
+跨端 UI 快速类型检查：
+
+```powershell
+npx pnpm@9.15.0 typecheck:ui
+```
+
+它覆盖 `packages/ui`、`packages/prototype` 和 `packages/web`。改 Desktop 主进程、preload、renderer adapter 或 IPC 接线时，使用：
+
+```powershell
+npx pnpm@9.15.0 typecheck:desktop
+```
+
+提交前如果需要一轮中等门禁：
+
+```powershell
+npx pnpm@9.15.0 verify
+```
+
+发布级全量测试：
 
 ```powershell
 npx pnpm@9.15.0 test
@@ -200,6 +264,8 @@ npx pnpm@9.15.0 test
 ```powershell
 npx pnpm@9.15.0 typecheck
 ```
+
+`test` 会先跑 `docs:check`，再全仓 build，最后全量 Vitest；`typecheck` 会先 build `core` 和 `http`，再全仓类型检查。它们更适合发布、release、CI 或声称“全仓通过”前使用，不作为每次 vibecoding 小改动的默认动作。
 
 GitHub Actions 中的最小 CI 会在 Windows runner 上执行：
 
@@ -324,6 +390,8 @@ docs/
 
 不要把一次性设计稿、执行计划、阶段进度或临时分析文档放在 `docs/` 根目录。确实需要记录当前短期待办、验收状态、需求或 bug 时，统一更新 `docs/todo.md`；确实需要保留未完成设计或调研材料时，放进 `docs/work/backlog/` 或 `docs/work/references/`。已经作为实现依据的视觉基准原型放在 `docs/work/references/`。外部流程如果要求写入 `docs/superpowers/`，本仓库统一改写到 `docs/work/backlog/` 或 `docs/work/references/`。确实需要记录长期规则或少量长期方向结论时，更新 `docs/development.md`；已发布变化写入 `CHANGELOG.md`。
 
+本仓库不设 `docs/work/archive/`。已完成且仍有效的规则、架构边界或长期结论应合并进正式文档；只剩历史追溯价值或已经过时的过程材料直接删除，需要追溯时使用 git 历史。
+
 ## 7.1 长期方向（简版）
 
 这里只保留不适合写进 `todo.md` 的长期演进方向，不单独维护路线图文档：
@@ -356,6 +424,7 @@ docs/
 - 长期方向如确实需要保留，合并到 `docs/development.md`，不要再单独维护 `roadmap.md`
 - `work/backlog/` 保存未完成但暂不推进的设计和计划
 - `work/references/` 保存外部资料分析、数据源调研和作为实现依据的视觉基准
+- 不设 `work/archive/`；已完成且仍有效的内容合并进正式文档，过时或仅剩过程价值的材料直接删除
 - 完成、取消或改变方向且影响当前短期待办、验收状态或优先级时，必须在同一次开发收尾时更新 `todo.md`
 - 修复、确认无效或转为长期需求的 bug，必须在同一次开发收尾时更新 `todo.md` 对应条目
 - `todo.md` 中的 `Bug #数字` 必须全局唯一；需要按领域区分时，在标题中加领域前缀，不要复用编号

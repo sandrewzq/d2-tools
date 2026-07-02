@@ -1,4 +1,5 @@
 import { createVaultPageWorkspace } from "@d2-tools/app";
+import { VaultPageView } from "@d2-tools/ui";
 import { lazy, useState } from "react";
 import { parseDimWishlist } from "@d2-tools/core/analysis/wishlistImport";
 import { parseLocalCommunityRecommendations } from "@d2-tools/core/community-perks/localCommunityImport";
@@ -53,18 +54,12 @@ export function VaultPage(props: {
 
   if (!props.account) {
     return (
-      <section className="tool-panel vault-dashboard-panel placeholder-panel">
-        <div className="section-heading">
-          <div>
-            <h2>仓库</h2>
-            <p>先读取账号数据，然后查看完整仓库列表。</p>
-          </div>
-          <button type="button" disabled={props.isLoadingAccount} onClick={props.onLoadAccount}>
-            {props.isLoadingAccount ? "读取中..." : "读取账号数据"}
-          </button>
-        </div>
-        {props.accountError ? <p className="status-message status-error">{props.accountError}</p> : null}
-      </section>
+      <VaultPageView
+        accountReady={false}
+        accountError={props.accountError}
+        isLoadingAccount={props.isLoadingAccount}
+        onLoadAccount={props.onLoadAccount}
+      />
     );
   }
 
@@ -157,7 +152,7 @@ export function VaultPage(props: {
   }
 
   return (
-    <>
+    <VaultPageView accountReady>
       <VaultPanel
         items={workspace.vaultItems}
         highlightedItemKeys={workspace.activeLoadoutLookup}
@@ -253,7 +248,7 @@ export function VaultPage(props: {
           {localCommunityImportMessage ? <span className={formatImportStatusClass(localCommunityImportMessage)}>{localCommunityImportMessage}</span> : null}
         </div>
       </section>
-    </>
+    </VaultPageView>
   );
 }
 

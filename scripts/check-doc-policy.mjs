@@ -117,7 +117,7 @@ export function collectDocPolicyErrors(root, gitNameStatus = readGitNameStatus(r
   if (existsSync(workRoot)) {
     for (const entry of readdirSync(workRoot, { withFileTypes: true })) {
       if (entry.isDirectory() && !allowedWorkDirs.has(entry.name)) {
-        fail(`Unexpected docs/work directory: docs/work/${entry.name}. Use backlog or references.`);
+        fail(`Unexpected docs/work directory: docs/work/${entry.name}. Use backlog or references; archive is intentionally not used.`);
       }
     }
   }

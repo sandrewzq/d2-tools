@@ -313,7 +313,11 @@ export function HomePage(props: {
 
       <HomePageRoutes
         activePage={activePage}
-        home={{ ...homeWorkspace, ...homeActions }}
+        home={{
+          ...homeWorkspace,
+          ...homeActions,
+          interfaceLocale: diagnostics.languagePreferences.interfaceLocale
+        }}
         account={{
           accountSummary,
           startupState: props.state,

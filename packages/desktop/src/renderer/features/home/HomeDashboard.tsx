@@ -3,6 +3,7 @@ import type { DailySummary, StartupState } from "../../api/client";
 import { type DiagnosticRow } from "../../components/DiagnosticsPanel";
 
 export function HomeDashboard(props: {
+  interfaceLocale?: "zh-CN" | "en-US";
   state: StartupState;
   isLoggingIn: boolean;
   isLoadingAccount: boolean;

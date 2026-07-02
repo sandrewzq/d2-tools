@@ -25,7 +25,8 @@ function readCssRule(styles: string, selector: string): string {
 describe("desktop UI prototype fidelity", () => {
   it("uses the approved prototype primitives instead of patch classes on home and settings", () => {
     const homeDashboard = readUiFile("home/HomePageView.tsx");
-    const settingsPage = readRendererFile("features/settings/SettingsPage.tsx");
+    const homeCopy = readUiFile("i18n/copy.ts");
+    const settingsPage = `${readUiFile("settings/SettingsPageContentView.tsx")}\n${readRendererFile("features/settings/SettingsPage.tsx")}`;
     const dailyPanel = readRendererFile("shared/components/DailySummaryPanel.tsx");
     const overviewSection = settingsPage.slice(
       settingsPage.indexOf('id="settings-overview"'),
@@ -45,7 +46,8 @@ describe("desktop UI prototype fidelity", () => {
 
     expect(homeDashboard).toContain("home-data-strip");
     expect(homeDashboard).toContain("home-weekly-dashboard");
-    expect(homeDashboard).toContain("本周奖励与轮换");
+    expect(homeDashboard).toContain("copy.sections.weeklyRewards.title");
+    expect(homeCopy).toContain("本周奖励与轮换");
     expect(homeDashboard).toContain("home-weekly-rewards");
     expect(homeDashboard).toContain("home-weekly-intel");
     expect(homeDashboard).toContain("home-main-grid");

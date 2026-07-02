@@ -50,7 +50,7 @@ export const localeCopy: Record<InterfaceLocale, LocaleCopy> = {
         },
         pending: {
           title: "待确认数据",
-          subtitle: "缺数据时保留低噪声提醒，不挤占主工作区"
+          subtitle: "缺数据时保留低噪声提醒，不挤占主面板"
         }
       },
       actions: {
@@ -137,6 +137,34 @@ export const localeCopy: Record<InterfaceLocale, LocaleCopy> = {
         diagnosticWarning: (count) => `${count} 项需要处理。`,
         diagnosticReady: "无账号、资料库或后台阻断项。",
         diagnosticWarningBadge: "有提醒"
+      }
+    },
+    vault: {
+      title: "仓库",
+      subtitle: "查看完整仓库列表、清理候选、同名对比和推荐命中。",
+      emptyTitle: "仓库",
+      emptySubtitle: "先读取账号数据，然后查看完整仓库列表。",
+      loading: "读取中...",
+      loadAccount: "读取账号数据"
+    },
+    loadouts: {
+      title: "本地方案库",
+      subtitle: "集中管理本地方案、游戏内配装栏、缺失件补齐和方案对比。",
+      riskTitle: "配装风险",
+      riskSubtitle: "只展示模板可达性、缺失装备和候选补齐状态，执行前仍需要确认写操作。",
+      missingItems: "缺失装备",
+      readyItems: "可直接准备",
+      actionableItems: "可执行补齐"
+    },
+    library: {
+      title: "资料库搜索",
+      subtitle: "默认按出处查询装备，筛选只基于当前资料库里已经确认的字段。",
+      versionLabel: "资料库版本",
+      freshLabel: "用于来源、Perk 和详情判断",
+      staleLabel: "不是最新版本",
+      tabs: {
+        equipment: "出处查询",
+        perks: "Perk"
       }
     }
   },
@@ -276,6 +304,34 @@ export const localeCopy: Record<InterfaceLocale, LocaleCopy> = {
         diagnosticWarning: (count) => `${count} items need attention.`,
         diagnosticReady: "No account, manifest, or background blockers.",
         diagnosticWarningBadge: "Alerts"
+      }
+    },
+    vault: {
+      title: "Vault",
+      subtitle: "Review the full vault, cleanup candidates, duplicate comparisons, and recommendation hits.",
+      emptyTitle: "Vault",
+      emptySubtitle: "Read account data first, then review the full vault list.",
+      loading: "Reading...",
+      loadAccount: "Read account data"
+    },
+    loadouts: {
+      title: "Loadouts",
+      subtitle: "Manage local templates, in-game loadout slots, missing items, and comparisons.",
+      riskTitle: "Loadout risk",
+      riskSubtitle: "Show template reachability, missing items, and candidate recovery before any write action.",
+      missingItems: "Missing items",
+      readyItems: "Ready items",
+      actionableItems: "Actionable items"
+    },
+    library: {
+      title: "Library",
+      subtitle: "Default to acquisition-source lookup using only verified fields in the current manifest.",
+      versionLabel: "Manifest version",
+      freshLabel: "Used for source, perk, and detail decisions",
+      staleLabel: "Not the latest version",
+      tabs: {
+        equipment: "Source lookup",
+        perks: "Perks"
       }
     }
   }

@@ -26,8 +26,8 @@ describe("visual prototype harness", () => {
     expect(script).toContain("D2_VISUAL_CAPTURE_PAGE");
     expect(script).toContain("D2_VISUAL_CAPTURE_DIR");
     expect(script).toContain("D2_VISUAL_CAPTURE_VIEWPORT");
-    expect(script).toContain("findAvailablePort(53218)");
-    expect(script).toContain("findAvailablePort(53217)");
+    expect(script).toContain("findAvailablePort(53170)");
+    expect(script).toContain("findAvailablePort(53172)");
     expect(script).toContain("reference-dark-1365x900.png");
     expect(script).toContain("app-dark-1365x900.png");
     expect(script).toContain("compare-dark-1365x900.png");
@@ -79,7 +79,7 @@ describe("visual prototype harness", () => {
   });
 
   it("keeps settings diagnostics aligned with the prototype shell", () => {
-    const settingsPage = read("packages/desktop/src/renderer/features/settings/SettingsPage.tsx");
+    const settingsPage = `${read("packages/ui/src/settings/SettingsPageContentView.tsx")}\n${read("packages/desktop/src/renderer/features/settings/SettingsPage.tsx")}`;
     const styles = read("packages/desktop/src/renderer/styles.css");
     const diagnosticsSection = settingsPage.slice(
       settingsPage.indexOf('id="settings-diagnostics"'),

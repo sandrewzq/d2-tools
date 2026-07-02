@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import { readRendererApiContracts } from "./source-readers";
 
 const desktopRoot = fileURLToPath(new URL("..", import.meta.url));
+const uiRoot = fileURLToPath(new URL("../../ui", import.meta.url));
 
 describe("activity and loadout planning wiring", () => {
   it("wires activity summary and loadout transfer plans through the desktop API", () => {
@@ -14,9 +15,15 @@ describe("activity and loadout planning wiring", () => {
     const ipc = readFileSync(join(desktopRoot, "src", "main", "ipc.ts"), "utf8");
     const activitiesIpc = readFileSync(join(desktopRoot, "src", "main", "ipc", "activities.ts"), "utf8");
     const loadoutIpc = readFileSync(join(desktopRoot, "src", "main", "ipc", "loadouts.ts"), "utf8");
-    const accountPage = readFileSync(join(desktopRoot, "src", "renderer", "features", "account", "AccountPage.tsx"), "utf8");
+    const accountPage = [
+      readFileSync(join(uiRoot, "src", "account", "AccountPageContentView.tsx"), "utf8"),
+      readFileSync(join(desktopRoot, "src", "renderer", "features", "account", "AccountPage.tsx"), "utf8")
+    ].join("\n");
     const accountHook = readFileSync(join(desktopRoot, "src", "renderer", "features", "account", "useAccountWorkspace.ts"), "utf8");
-    const loadoutsPage = readFileSync(join(desktopRoot, "src", "renderer", "features", "loadouts", "LoadoutsPage.tsx"), "utf8");
+    const loadoutsPage = [
+      readFileSync(join(uiRoot, "src", "loadouts", "LoadoutsPageContentView.tsx"), "utf8"),
+      readFileSync(join(desktopRoot, "src", "renderer", "features", "loadouts", "LoadoutsPage.tsx"), "utf8")
+    ].join("\n");
 
     expect(apiClient).toContain("getActivitySummary");
     expect(apiClient).toContain("createLoadoutTemplateTransferPlan");

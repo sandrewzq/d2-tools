@@ -55,16 +55,16 @@ describe("desktop package format", () => {
     expect(script).toContain("dist\\main\\main.js");
     expect(script).toContain('"node.exe"');
     expect(script).toContain('"scripts/build-preload.cjs"');
-    expect(script).toContain("$rendererPort = 53217");
+    expect(script).toContain("$rendererPort = 53172");
     expect(script).toContain("$rendererUrl = \"http://127.0.0.1:${rendererPort}\"");
     expect(script).toContain("D2_RENDERER_URL");
     expect(script).toContain('"pnpm@9.15.0", "--filter", "@d2-tools/desktop", "exec", "vite"');
     expect(script).toContain('"--port", "$rendererPort", "--strictPort"');
     expect(script).toContain('"pnpm@9.15.0", "--filter", "@d2-tools/desktop", "dev:electron"');
     expect(script).not.toContain("http://127.0.0.1:5173");
-    expect(desktopPackageJson.scripts.dev).toContain("--port 53217");
+    expect(desktopPackageJson.scripts.dev).toContain("--port 53172");
     expect(desktopPackageJson.scripts.dev).toContain("--strictPort");
-    expect(mainProcess).toContain('process.env.D2_RENDERER_URL ?? "http://127.0.0.1:53217"');
+    expect(mainProcess).toContain('process.env.D2_RENDERER_URL ?? "http://127.0.0.1:53172"');
     expect(mainProcess).toContain('const rendererFile = join(currentDir, "../renderer/index.html")');
     expect(mainProcess).toContain("await window.loadURL(rendererUrl)");
     expect(mainProcess).toContain("await window.loadFile(rendererFile)");
@@ -76,7 +76,7 @@ describe("desktop package format", () => {
     expect(script).toContain("$LASTEXITCODE");
     expect(script).not.toContain("package:win");
     expect(developmentDoc).toContain("scripts/dev-desktop.ps1");
-    expect(developmentDoc).toContain("http://127.0.0.1:53217");
+    expect(developmentDoc).toContain("http://127.0.0.1:53172");
     expect(developmentDoc).toContain("发布前");
   });
 

@@ -1,61 +1,37 @@
 # 当前待办
 
 > 更新时间：2026-07-02
-> 这是唯一当前待办目录。这里只保留状态、优先级和 backlog 入口；完整需求、切片、验收标准放在 `docs/work/backlog/`。
+> 这是唯一当前待办目录。这里只保留当前健康度、未完成任务、近期关键 bug 和 backlog 入口；完整需求、切片、验收标准放在 `docs/work/backlog/`。
 
 ## 健康度
 
 | 检查项 | 状态 | 备注 |
 |---|---|---|
-| `pnpm test` | ✅ 通过 | 本次跨端 UI 壳与语言偏好重构后全量验证通过：152 个测试文件 / 520 条测试 |
+| `pnpm test` | ✅ 通过 | 本次跨端 UI 迁移后全量验证通过：154 个测试文件 / 531 条测试 |
 | `pnpm typecheck` | ✅ 通过 | 本次全仓类型检查通过 |
-| `pnpm docs:check` | ✅ 通过 | 本次文档结构与编码检查通过 |
+| `pnpm docs:check` | ✅ 通过 | 本轮文档结构与编码检查通过 |
 
 > 构建提醒：Vite 提示 `DiagnosticsPanel.tsx` 和 `VaultPanel.tsx` 同时被静态和动态导入，不阻塞构建。npm 提示 `.npmrc` 中 Electron mirror 配置未来可能不被支持，不阻塞构建。
 
-## Bug
+## 近期关键 Bug
 
 | 状态 | 标题 | 备注 |
 |---|---|---|
-| ✅ 已修复 | Bug #1 桌面框架：账号读取未进入后台任务 | 账号基础读取、最近活动和社区匹配已接入后台任务；账号首屏改为轻量 workspace，派生分析延后刷新 |
-| ✅ 已修复 | Bug #2 桌面框架：开发环境应用版本显示 Electron 版本 | 更新状态的当前版本改为读取桌面包版本，开发环境不再显示 Electron 版本号 |
-| ✅ 已修复 | Bug #3 桌面框架：外壳布局仍像网页侧栏 | 外壳改为桌面标题栏、紧凑导航 rail 和顶部状态条 |
-| ✅ 已修复 | Bug #4 首页：账号状态只显示登录凭据，不显示账号读取失败 | 首页状态卡已合并账号读取错误、读取中和已读取状态，失败时显示重试读取 |
-| ✅ 已修复 | Bug #5 首页：新外壳下工作台两列和状态卡样式混乱 | 首页工作台收窄右侧状态列，1180px 以下回落单列；状态卡按钮改为紧凑操作 |
-| ✅ 已修复 | Bug #6 桌面框架：Bungie 登录端口占用时异常原样暴露并可重复触发 | 登录 IPC 已增加单飞保护；回调端口占用时显示中文处理建议；账号页会清洗 Electron IPC 包装错误 |
-| ✅ 已修复 | Bug #7 桌面框架：资料库更新和账号读取并行时后台任务显示不足且账号页卡顿 | 最近活动任务已拆成独立后台类型；全局后台任务 banner 会提示多个运行中任务；资料库更新和账号读取已迁到 worker，避免大 JSON 写盘、读取和解析阻塞 Electron 主线程；账号页背包槽位改为首屏限量渲染并 lazy-load 图标 |
-| ✅ 已修复 | Bug #8 桌面视觉：首页、AI 侧栏、账号目录和仓库标签细节不够成熟 | 已隐藏 Windows 原生标题栏；删除首页无效常用入口；数据源矩阵固定响应式列；状态卡操作收紧；AI 会话列表、账号目录和未标记标签完成低干扰打磨 |
-| ✅ 已修复 | Bug #9 桌面外壳：页面全局滚动导致标题栏不固定且滚动条跑到最右侧 | 外壳改为固定视口；主工作区和 AI 侧栏各自内部滚动；滚动条改为暗色细条；select 下拉控件统一成桌面暗色样式 |
-| ✅ 已修复 | Bug #10 桌面视觉：AI 抽屉、首页、账号页和仓库筛选回归 | AI 抽屉遮罩不再继承按钮蓝底；首页右侧状态列收窄；账号 A2 右侧摘要改为窄列；装备和仓库选中态改为低干扰暗色；仓库筛选顶部按武器、装备和全部分开显示条件 |
-| ✅ 已修复 | Bug #11 桌面视觉：AI 侧栏、首页右侧、账号页和仓库武器筛选仍不协调 | 左侧导航删除“工作区”标签并恢复设置菜单；AI 抽屉改为紧凑标题和横向工具条；首页右侧状态与设置合并为一个面板；账号页恢复单主列并将摘要下沉；仓库武器筛选框架条件改为紧凑区域 |
-| ✅ 已修复 | Bug #12 桌面视觉：账号下半区、仓库清理和首页状态面板仍有体验问题 | 账号页活动复盘、材料和邮政官改为纵向工作区；仓库默认渲染 200 件，搜索结果不截断；清理工作台删除内部同名对比入口；仓库选中态改为深色高对比；首页状态与设置重做为核心状态和诊断摘要 |
-| ✅ 已修复 | Bug #13 桌面视觉：按钮、Tab 和选中态颜色语义混乱 | 新增 action / selected 语义 token；默认按钮降级为深色次级按钮；只有 `.primary-button` 使用亮蓝主按钮；全局 active / selected 去掉蓝色左侧竖线，仅保留深色背景、边框和轻微阴影；顶部工具按钮、账号目录、角色 Tab、仓库工作流、筛选 chip 和仓库卡片选中态统一为深色高对比状态 |
-| ✅ 已修复 | Bug #14 桌面视觉：明暗色切换不持久 | 默认亮色；顶部按钮可切换亮色和暗色；颜色模式写入用户数据目录的 `config.json`，重启和覆盖更新后保留；启动状态会携带保存模式，避免暗色用户打开时先回到亮色 |
-| ✅ 已修复 | Bug #15 桌面视觉：亮色模式页面局部区域仍是暗色且浅字不可读 | 补齐亮色模式遗留兼容层，覆盖首页、账号装备、仓库筛选与卡片、配装比较、资料库来源查询、设置诊断和操作日志等旧暗色硬编码区域；新增样式系统回归测试防止浅底浅字回退 |
-| ✅ 已修复 | Bug #16 桌面视觉：亮色模式标题栏控制区和滚动条仍为暗色 | Electron 原生标题栏 overlay 默认改为亮色，并在颜色模式切换时通过窗口 IPC 同步；全局滚动区和装备详情弹框滚动条改为主题 token，亮色模式不再显示暗色轨道和滑块 |
-| ✅ 已修复 | Bug #17 桌面视觉：亮色可读性和 AI 抽屉滚动隔离仍未系统收口 | 已完成桌面 UI 设计系统 v2 收口：补齐 field / chip / item / drawer / game token，AI 抽屉改为 workspace 内独立滚动 pane，首页、账号、仓库、资料库、设置、AI 和详情高风险旧样式迁移到语义 token；详见 [桌面 UI 设计系统 v2](work/backlog/desktop-ui-design-system-v2.md) |
-| ✅ 已修复 | Bug #18 桌面视觉：首页和设置页与 HTML 原型差距过大 | 首页、设置页和日报共享块已迁移到 `app-*` 原型 primitives；设置页保留应用更新、资料库、AI、备份迁移、后台任务和诊断入口；新增原型一致性测试防止回退到旧网格、旧硬编码颜色和补丁类 |
-| ✅ 已修复 | Bug #19 桌面视觉：亮色模式下仍有旧暗色 token 残留 | 已完成全局 token 审计，账号、仓库、资料库、日报、AI、设置诊断、状态徽章、select、switch、详情工具区和高 specificity 状态组合统一回到语义 token；旧测试不再断言暗色硬编码，样式系统测试已锁定这些高风险 selector |
-| ✅ 已修复 | Bug #20 首页：首屏状态重复且完整商人库存占用首页 | 首页改为准备状态、今日轮换和本周轮换；移除首页读取账号入口和完整商人库存，只保留仄的金装摘要；运行诊断保留在健康检查卡 |
-| ✅ 已修复 | Bug #21 首页：设置状态常驻挤占本周关注信息 | 首页按原型改为数据状态条、本周奖励与轮换、今天可确认、商人重点、账号提醒和待确认数据；Bungie、AI、资料库等配置细节不再作为首页常驻大卡片，只在异常或顶部状态中处理；亮色全局 token 对齐新版原型 |
 | ✅ 已修复 | Bug #22 桌面启动：每次打开停留在启动页数秒 | 启动状态改为只读取轻量 Manifest metadata 和定义缓存文件存在性，不再解析 199MB 级 Bungie 定义 JSON；启动鉴权不再刷新 token；启动状态读取失败时显示可重试错误 |
-| ✅ 已修复 | Bug #23 首页视觉：原型还原缺少真实应用对比尺子 | 新增 `visual:home` 链路，自动截取 HTML 原型和真实 Electron 首页并输出 computed style report；首页移除内部重复标题，顶部操作归 shell header；原型 token 映射到明暗色模式，首页状态块改用 `data-tone` 避免全局 `status-*` 覆盖污染 |
-| ✅ 已修复 | Bug #24 设置页视觉：真实应用未按 HTML 原型分区 | 顶部状态条改为账号、Bungie、资料库、后台任务和 AI；设置总览补齐 6 个状态块；装备写操作移回账号设置；备份迁移补导入和清理行；诊断页移除应用版本与后台任务大统计；AI/Bungie 表单控件恢复暗色 token |
-| ✅ 已修复 | Bug #25 桌面启动：5173 端口冲突时 Electron 打开其他应用 | 开发版渲染端口统一改为 `53217`，启动脚本使用 Vite strict port，并把同一个 `D2_RENDERER_URL` 注入 Electron；端口被占用时直接失败提示，不再自动跳端口后打开错误页面；发布版继续加载安装包内 `dist/renderer/index.html`，不依赖本地端口 |
+| ✅ 已修复 | Bug #25 桌面启动：5173 端口冲突时 Electron 打开其他应用 | 开发端口统一规范为 Prototype `53170`、Web `53171`、Desktop renderer `53172`；桌面启动脚本使用 Vite strict port，并把同一个 `D2_RENDERER_URL` 注入 Electron；发布版继续加载安装包内 `dist/renderer/index.html`，不依赖本地端口 |
+| ✅ 已修复 | Bug #26 脚本：发布和本地打包脚本中文说明存在乱码 | `scripts/generate-release-notes.mjs` 的 Release footer 和 `scripts/local-package.ps1` 的中文注释/输出已恢复为 UTF-8 中文；`pnpm docs:check` 会继续拦截 mojibake 和编码回退 |
+| ✅ 已修复 | Bug #27 测试：设置页共享 UI 迁移后视觉 harness 断言未同步 | 设置页、资料库和配装相关测试已改为检查 `packages/ui` 的 `*ContentView.tsx`，Desktop feature 只检查 adapter 接线 |
 
 ## 当前任务目录
 
 | 编号 | 优先级 | 状态 | 任务 | Backlog | 下一步 |
 |---|---|---|---|---|---|
 | T1 | P1 | 🟡 待推进 | 小日向与 d2-skill 产品级能力 | [总纲](work/backlog/kohinata-d2-skill-product-architecture.md) / [攻略证据工作台](work/backlog/kohinata-guide-evidence-workbench.md) | 先做攻略解析、账号命中、perk 证据和配装草稿 |
-| T2 | P1 | ✅ 已完成 | 产品级桌面外壳、更新与后台任务 | 已合并到 [开发说明](development.md) | 已完成后台任务中心、应用更新、资料库版本检查、自动更新、全局状态入口、设置页状态和资料库搜索阻断 |
-| T3 | P1 | 🟡 待推进 | 仓库推荐与清理工作台 | [仓库推荐与清理工作台](work/backlog/vault-recommendation-and-cleanup-workbench.md) | 统一 DIM wishlist、本地目标、同名对比和清理清单；推荐数据只支持用户导入，不默认内置未授权社区数据 |
-| T4 | P1 | 🟡 待推进 | 小日向日报、商人与掉落查询 | [日报、商人与掉落查询](work/backlog/daily-report-and-drops-assistant.md) | 只展示可确认数据，先补商人、活动和掉落来源状态 |
-| T5 | P1 | 🟡 待推进 | 跨端 UI 壳、可交互原型与桌面视觉收口 | [跨端 UI 壳重构](work/backlog/cross-platform-ui-shell-refactor.md) / [实施计划](work/backlog/cross-platform-ui-shell-refactor-plan.md) / [首页与全局外壳 v4](work/backlog/desktop-home-global-shell-v4.md) / [账号页 A2](work/backlog/desktop-account-page-a2-layout.md) / [仓库页 Tab v2](work/backlog/desktop-vault-tabs-v2-layout.md) / [资料库页 v1](work/backlog/desktop-library-reference-v1-layout.md) / [桌面视觉与详情打磨](work/backlog/desktop-ui-account-detail-polish.md) | 已建立 `packages/ui`、`packages/prototype` 和 `packages/web`；共享 `ProductShellHost`、shell i18n copy、界面 / 资料库语言模型和 Desktop 偏好持久化已落地；Prototype/Web/Desktop 均已挂 Host，旧 Desktop `ShellLayout` wrapper 已退役；跨端 UI / Prototype 工作流已固化到 `AGENTS.md` 和 `docs/development.md`；后续继续把页面内部子组件和页面文案迁入 `packages/ui` / i18n copy |
-| T6 | P2 | ✅ 已完成 | 架构维护与边界防回退 | 已合并到 [开发说明](development.md) | 已完成 page metadata 共享、详情缓存上限、Manifest 状态共享 hook、services adapter 去重和边界测试 |
-| T7 | P3 | 🟡 待推进 | 活动复盘增强 | [活动复盘增强](work/backlog/activity-review-enhancement.md) | 后续接 PGCR、完成时间推算和副本级趋势 |
-| T8 | P4 | 🟡 待推进 | 桌面发布、更新与迁移体验 | [桌面发布体验](work/backlog/desktop-release-experience.md) | 发布、安装、迁移继续保留；应用更新状态迁入产品级外壳任务 |
-| T9 | P1 | ✅ 已完成 | 桌面 UI 设计系统 v2 与 AI 抽屉滚动隔离 | [桌面 UI 设计系统 v2](work/backlog/desktop-ui-design-system-v2.md) | 已完成 token 收口、AI 抽屉独立滚动 pane、高风险旧页面样式迁移和防回退测试 |
+| T2 | P1 | 🟡 待推进 | 仓库推荐与清理工作台 | [仓库推荐与清理工作台](work/backlog/vault-recommendation-and-cleanup-workbench.md) | 统一 DIM wishlist、本地目标、同名对比和清理清单；推荐数据只支持用户导入，不默认内置未授权社区数据 |
+| T3 | P1 | 🟡 待推进 | 小日向日报、商人与掉落查询 | [日报、商人与掉落查询](work/backlog/daily-report-and-drops-assistant.md) | 只展示可确认数据，先补商人、活动和掉落来源状态 |
+| T4 | P1 | 🟡 待推进 | 跨端 UI 壳、可交互原型与桌面视觉收口 | [跨端 UI 壳收口](work/backlog/cross-platform-ui-shell-refactor.md) / [桌面视觉与详情打磨](work/backlog/desktop-ui-account-detail-polish.md) | 设置页、账号页、资料库页和配装页内部复杂块已迁入 `packages/ui`，Desktop feature 保留真实数据 adapter / 写操作接线；后续继续补 Web 真实数据 provider、移动端壳和剩余 i18n 文案 |
+| T5 | P3 | 🟡 待推进 | 活动复盘增强 | [活动复盘增强](work/backlog/activity-review-enhancement.md) | 后续接 PGCR、完成时间推算和副本级趋势 |
+| T6 | P4 | 🟡 待推进 | 桌面发布、更新与迁移体验 | [桌面发布体验](work/backlog/desktop-release-experience.md) | 继续验证真实 GitHub Release、更新提示、备份迁移和诊断体验 |
 
 ## 暂不优先
 

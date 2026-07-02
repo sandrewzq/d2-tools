@@ -1,284 +1,125 @@
-# 跨端 UI 壳与可交互原型重构
+# 跨端 UI 壳与可交互原型收口
 
 > 状态：实施中
-> 目标：把当前桌面 renderer 中的平台无关 UI、视觉壳和页面组件抽成可被 Prototype / Web / Desktop / 后续 App 共同使用的产品 UI 层，保留“先做可交互原型，再接真实项目”的工作流。
+> 当前目标：让 Prototype / Web / Desktop 继续共享同一个 `ProductShellHost` 和 `packages/ui` 页面结构，平台壳只提供 adapter、端能力和真实数据接线。
 
-## 背景
+## 当前事实
 
-当前桌面端已经形成一套较完整的视觉语言：顶部状态条、左侧导航、主内容区、AI 抽屉、首页奖励工作台、账号装备工作区和设置分区。为了减少视觉返工，仓库里同时维护了一个 HTML 原型作为参考。
+已完成的方向不再作为待办重复追踪：
 
-这个方式已经暴露出明显问题：
+- 已建立 `packages/ui`、`packages/prototype` 和 `packages/web`。
+- Prototype / Web / Desktop 均已挂共享 `ProductShellHost`。
+- 旧 Desktop 专用 shell wrapper 已退役，Desktop 只保留 Electron 平台能力 adapter。
+- 界面语言和 Bungie 资料库语言已分开建模，Desktop 偏好持久化已接入。
+- 首页、设置页、账号页、资料库页、配装页和部分仓库页面结构已迁入 `packages/ui`。
+- Prototype 已成为当前活跃原型入口，旧静态 HTML 不再作为活跃实现入口。
 
-- HTML 原型和真实 React 应用是两套结构，确认后的设计还需要手工还原。
-- 单个 HTML 文件越来越大，样式、结构和 mock 数据混在一起，局部修改成本变高。
-- 桌面 renderer 中的 `ShellLayout`、页面路由、数据加载、Electron API 调用和具体页面组件耦合在一起，不适合直接复用到 Web。
-- 用户期望继续保留“先原型，再项目”的开发方式，但原型需要变成真实可交互 React 原型，而不是一次性静态稿。
+后续文档和开发不再回到“Phase 1/2/3/4/5”历史计划；当前只追踪剩余收口工作。
 
-## 最终形态
-
-```text
-packages/
-  app/          跨端业务 ViewModel / workspace，继续保持平台无关
-  ui/           共享 React UI 壳、页面组件、设计系统和可交互控件
-  prototype/    可交互原型入口，使用 mock 数据和状态面板
-  product/      产品 UI Host，组合共享 UI、跨端状态、语言和平台 adapter
-  web/          Web 壳，接 HTTP/API adapter
-  desktop/      Electron 壳，接 IPC、本地文件、窗口和系统能力 adapter
-  mobile/       后续移动 App 壳，接原生导航、存储、深链登录和权限 adapter
-```
+## 长期边界
 
 ### `packages/ui`
 
-`packages/ui` 是视觉和交互的主实现。它不直接 import `desktop`、不访问 `window.d2`、不读写本地文件、不知道 Electron IPC。
+`packages/ui` 是产品 UI 和跨端页面结构的主实现：
 
-职责：
-
-- 提供跨端 `AppShell`：顶部状态、导航 rail、主内容区、AI 抽屉插槽和主题切换入口。
-- 提供页面组件：`HomePageView`、`AccountPageView`、`SettingsPageView` 等。
-- 提供共享组件：状态条、按钮、面板、列表项、状态徽章、设置分区、奖励卡、角色 tab。
-- 提供样式 token 和 CSS primitives。
-- 只接收 props、回调和 ViewModel，不负责真实数据获取。
+- 提供 `ProductShellHost`、shell、页面视图、共享组件、设计系统 token 和 i18n copy。
+- 页面组件只接收 ViewModel、props 和 callback，不直接访问 Electron、浏览器部署、Node 文件系统或 `window.d2`。
+- 可见文案优先进入 `packages/ui/src/i18n/` 或对应领域 copy。
 
 ### `packages/prototype`
 
-`packages/prototype` 是以后主要修改原型的地方。它是一个 Vite React 应用，不接真实接口。
+Prototype 用于 mock 状态、可交互原型和视觉验证：
 
-职责：
-
-- 使用 `packages/ui` 渲染完整可交互原型。
-- 提供 mock 数据：账号已读取 / 未登录 / 资料库过期 / 后台任务运行 / 应用有新版 / 奖励已完成等状态。
-- 提供原型控制面板，用来切换页面、主题和数据状态。
-- 提供语言和资料库语言 mock，用来验证中英文切换、跟随界面语言和状态文案长度。
-- 给用户和开发者快速验证布局、交互、文案和状态组合。
-
-开发流程：
-
-```text
-先在 packages/prototype 改可交互原型
-→ 用户确认视觉和交互
-→ 稳定组件沉淀到 packages/ui
-→ packages/web / packages/desktop 接入真实数据 adapter
-→ 截图脚本对比 prototype 与真实端
-```
+- 只组合 `packages/ui` 和 mock adapter。
+- 可维护原型状态切换面板，例如未登录、资料库过期、后台任务运行、AI 未配置和应用有新版。
+- 不长期维护第二套真实页面结构。
 
 ### `packages/web`
 
-`packages/web` 是 Web 壳，不承担原型职责，也不成为另一套页面实现。
+Web 是浏览器平台壳：
 
-职责：
-
-- 挂载产品 UI Host。
-- 使用 HTTP/API adapter 获取真实数据。
-- 处理 Web 登录态、部署配置、Web 路由、浏览器存储和浏览器环境能力。
-- 不包含 Electron IPC、本地数据目录或桌面更新逻辑。
+- 挂载共享 `ProductShellHost`。
+- 通过 Web adapter、HTTP/API 或浏览器能力读取真实数据。
+- 不复制 Prototype mock 页面，也不引入 Electron IPC、本地数据目录或桌面更新逻辑。
 
 ### `packages/desktop`
 
-`packages/desktop` 继续负责 Electron 壳和平台能力，不再承载主要产品 UI 结构。
+Desktop 是 Electron 平台壳：
 
-职责：
+- 负责主进程、preload、IPC、本地目录、窗口颜色、OAuth、应用更新、后台任务和打包发布。
+- Renderer feature 保留真实数据 adapter、写操作接线和暂未迁出的业务交互。
+- 新 UI 结构默认进入 `packages/ui`，Desktop 只把真实状态和 callback 接进去。
 
-- 提供 Electron adapter：IPC、OAuth 回调、本地目录、文件导入导出、更新、后台任务、窗口颜色。
-- 把 adapter 返回的数据转换为 `packages/ui` 所需 ViewModel。
-- 保留桌面启动、preload、main process 和打包发布能力。
+## 当前剩余工作
 
-### 产品 UI Host
+### 1. 页面内部复杂块继续迁入 `packages/ui`
 
-产品 UI Host 是 Web / Desktop / 后续 App 共同挂载的 React 组合层。它不直接知道 Electron、浏览器部署或移动原生能力，只依赖平台 adapter。
+优先处理仍在 Desktop feature 中维护但具有跨端复用价值的页面内部块：
 
-职责：
+- 仓库页：筛选列表、清理工作台、同名对比、目标规则、推荐数据入口。
+- 账号页：真实账号装备区、材料 / 邮政官 / 活动复盘中仍可复用的展示块。
+- 资料库页：出处查询、Perk 查询、掉落状态、收藏 / 历史 / 别名入口。
+- 配装页：列表、详情、草稿和写操作确认的展示层。
 
-- 持有当前页面、主题、语言、AI 抽屉等产品级 UI 状态。
-- 把 `packages/app` 的 workspace / ViewModel 和 `packages/ui` 的展示组件组合起来。
-- 接收平台 adapter：打开外链、持久化偏好、读取账号、检查资料库、导入导出、清理缓存、应用更新等。
-- 对 Prototype 提供 mock adapter，对 Web 提供 HTTP/browser adapter，对 Desktop 提供 Electron IPC adapter。
-- 保证同一个页面在 Web / Desktop / 后续 App 中只存在一份产品 UI 实现。
+原则：业务读取、写操作和平台能力留在 Desktop / Web adapter；展示结构和可复用文案迁到 `packages/ui`。
 
-Host 不负责：
+### 2. Adapter 边界继续收口
 
-- Electron 窗口、preload、IPC 注册和自动更新主进程逻辑。
-- Web 部署、OAuth 回调服务、远端 API 实现。
-- 移动原生导航、权限、深链和系统存储。
+当前重点不是新增一套页面，而是让各端 adapter 更清楚：
 
-## 语言切换
+- Prototype adapter 只提供 mock 数据和 mock action。
+- Web adapter 优先接 `/api/home-snapshot`、`/api/pages/:page/snapshot` 等 HTTP 边界；无服务时允许 fallback snapshot。
+- Desktop adapter 继续接 Electron IPC、本地文件、窗口、更新和后台任务。
+- 跨端 DTO 放到 `packages/app`、`packages/services`、`packages/ui` 的类型边界，不把大型 DTO 塞回 Desktop renderer API 聚合文件。
 
-语言分成两层，避免把界面语言和 Bungie 资料库语言绑死：
+### 3. i18n 和 copy 收口
 
-- 界面语言：`zh-CN` / `en-US`，控制菜单、按钮、设置、状态、提示、诊断和空状态文案。
-- Bungie 资料库语言：`zh-chs` / `en`，控制装备名、perk、活动名等 Bungie 数据。
+剩余中文文案应逐步收进共享 copy：
 
-默认策略：
+- shell、首页、设置页、账号页、仓库页、资料库页和配装页的产品文案优先进入 `packages/ui/src/i18n/`。
+- 旧 Desktop feature 中暂留的中文可以保留，但新增文案不要继续分散。
+- 不在组件中新增 `locale === ... ? ... : ...` 的临时判断。
 
-- 新用户界面语言默认 `zh-CN`。
-- 资料库语言默认跟随界面语言；用户可以在设置里改为独立选择。
-- 顶部工具区提供紧凑切换入口：`中 / EN`。
-- 设置页提供完整选项：界面语言、资料库语言、是否跟随界面语言。
+### 4. 测试断言同步到新边界
 
-实现规则：
+旧测试如果仍检查 Desktop feature 内部具体结构，应迁到新边界：
 
-- `packages/ui` 不直接写 `locale === "zh" ? ... : ...` 这种分散判断。
-- 可见文案通过 copy key / dictionary 渲染。
-- 平台壳只负责持久化偏好：Desktop 写入本地 `config.json`，Web 使用浏览器存储或后续用户设置 API，移动端使用原生存储。
-- Bungie 资料库语言变化只影响后续资料库读取和展示，不强制立即破坏当前页面状态。
+- `packages/ui` 测页面结构、状态文案、copy key、组件 props。
+- Prototype 测 mock 状态切换和 Host 组合。
+- Web 测 adapter fallback 和浏览器能力。
+- Desktop 测 Electron adapter 接线、IPC callback、写操作边界和真实数据传参。
 
-## Adapter 边界
+已迁出的页面不再要求 Desktop feature 文件包含旧 CSS class 或旧 JSX 结构。
 
-共享 UI 和产品 Host 通过平台能力接口接入外部能力，接口由 `packages/app`、产品 Host 或 `packages/ui` 定义，平台端实现。
+### 5. 视觉验证继续以 React Prototype 为准
 
-初始接口建议：
+视觉对比优先使用：
 
-```ts
-export type PlatformActions = {
-  openExternal: (url: string) => Promise<void> | void;
-  setColorMode?: (mode: "light" | "dark") => Promise<void> | void;
-  persistPreferences?: (preferences: ProductPreferences) => Promise<void> | void;
-};
+- `packages/prototype` 作为 reference。
+- Desktop / Web 作为真实消费者。
+- `visual:home`、`visual:settings` 或后续页面视觉脚本作为回归入口。
 
-export type ShellStatusItem = {
-  label: string;
-  value: string;
-  tone?: "neutral" | "ready" | "warning" | "error";
-};
+旧 HTML 只可作为历史参考，不作为新的活跃实现入口。
 
-export type ProductPreferences = {
-  interfaceLocale: "zh-CN" | "en-US";
-  bungieLocale: "zh-chs" | "en";
-  followInterfaceLocaleForBungie: boolean;
-  colorMode: "light" | "dark";
-};
+## 测试要求
+
+改 `packages/ui` 后，至少验证：
+
+```powershell
+npx pnpm@9.15.0 --filter @d2-tools/ui typecheck
+npx pnpm@9.15.0 --filter @d2-tools/prototype typecheck
+npx pnpm@9.15.0 --filter @d2-tools/web typecheck
+npx pnpm@9.15.0 docs:check
 ```
 
-Desktop adapter：
+影响 Desktop adapter 或真实页面接线时，补跑相关 Desktop vitest。影响首页或设置页视觉时，继续跑对应视觉脚本。
 
-- `openExternal` 调用 `window.d2.openExternal`
-- `setColorMode` 调用 `window.d2.setWindowColorMode`
+## 完成标准
 
-Prototype adapter：
+这条 backlog 完成时应满足：
 
-- `openExternal` 使用 `window.open`
-- `setColorMode` 只更新 DOM / React state
-
-Web adapter：
-
-- `openExternal` 使用普通浏览器跳转或新窗口
-- 不提供窗口颜色 API
-
-## 迁移阶段
-
-### Phase 1：建立共享 UI 包和原型入口
-
-目标：让 `packages/prototype` 可以跑起来，并复用从 desktop 抽出的 shell 基础组件。
-
-范围：
-
-- 新增 `packages/ui`
-- 新增 `packages/prototype`
-- 将 `ShellLayout` 抽为平台无关 `AppShell`
-- 将 shell 类型、导航项、状态项移动到 `packages/ui`
-- Prototype 使用 mock shell status 和首页占位内容跑通
-- 新增 `pnpm dev:prototype`
-
-验收：
-
-- `pnpm --filter @d2-tools/ui typecheck` 通过
-- `pnpm --filter @d2-tools/prototype typecheck` 通过
-- `pnpm dev:prototype` 可打开可交互 shell
-- Desktop 仍可编译，shell 外观不回退
-
-### Phase 2：首页迁移到共享 UI
-
-目标：把首页视觉和主要交互从 desktop 迁到 `packages/ui`，prototype 和 desktop 共用同一套首页视图。
-
-范围：
-
-- 抽 `HomePageView`
-- 抽首页 mock 数据
-- Desktop 保留数据读取和 action wiring，只传 ViewModel / callbacks
-- Prototype 支持切换首页状态：正常、资料库过期、账号未读、奖励已完成
-- 更新视觉截图脚本，从 HTML reference 逐步转向 prototype reference
-
-验收：
-
-- Prototype 首页可交互
-- Desktop 首页仍可用
-- 视觉脚本可截图 prototype 和 desktop
-
-### Phase 3：账号页与设置页迁移
-
-目标：把当前返工最多的账号页和设置页纳入共享 UI。
-
-范围：
-
-- 抽 `AccountPageView`
-- 抽 `SettingsPageView`
-- Account prototype 支持角色切换、装备/背包状态和未登录状态
-- Settings prototype 支持应用更新、资料库、AI、账号、备份迁移和诊断状态
-- Desktop 平台能力通过 adapter 回调接入
-
-验收：
-
-- Prototype 可验证账号页和设置页状态
-- Desktop 账号和设置功能不丢失
-- 相关 renderer 测试更新为 `ui` 组件结构断言
-
-### Phase 4：正式 Web 入口
-
-目标：新增正式 Web app，复用 `packages/ui`，接 HTTP/API adapter。
-
-范围：
-
-- 新增 `packages/web`
-- 接入 `packages/app` workspace
-- 接入 HTTP 服务或远端 API
-- 保留 Web 与 Prototype 不同入口：Prototype 用 mock，Web 用真实 adapter
-
-验收：
-
-- `pnpm --filter @d2-tools/web build` 通过
-- Web 首页可以使用真实或本地服务数据渲染
-- Desktop 不依赖 Web 构建产物
-
-### Phase 5：退役 HTML 原型
-
-目标：旧静态 HTML 不再作为活跃开发入口，视觉截图脚本默认使用 `packages/prototype`。
-
-范围：
-
-- 视觉截图脚本使用 `packages/prototype`
-- 测试从 HTML 字符串断言迁移到 React / screenshot / component boundary
-- README 更新为新的原型入口说明
-
-验收：
-
-- 没有脚本依赖旧 HTML 原型
-- 新原型工作流写入 `docs/development.md`
-- 旧 HTML 已删除，`docs/work/references/desktop-ui/README.md` 指向 React prototype
-
-## 测试策略
-
-- `packages/ui`：组件结构、状态渲染、平台 action 注入测试。
-- `packages/prototype`：mock 状态切换和 shell navigation 测试。
-- `packages/desktop`：adapter wiring、Electron API 调用边界、真实页面传参测试。
-- 视觉验证：prototype screenshot 与 desktop screenshot 对比。
-- 文档验证：`pnpm docs:check`。
-
-## 风险和处理
-
-- 风险：一次迁移所有页面会长时间不可运行。
-  - 处理：每个 phase 都保持 Prototype 和 Desktop 至少一个页面可运行。
-- 风险：Desktop 特有能力泄漏进 `packages/ui`。
-  - 处理：`packages/ui` 不允许 import `packages/desktop`，后续增加边界测试。
-- 风险：Prototype 变成第二套实现。
-  - 处理：Prototype 只能组合 `packages/ui` 和 mock 数据，不单独维护页面结构。
-- 风险：样式继续分裂。
-  - 处理：样式 token 先从 `packages/desktop/src/renderer/styles.css` 提取到 `packages/ui/src/styles.css`，Desktop 和 Prototype 都引用同一份。
-
-## 当前决策
-
-- 选择完整 C 方案：Web 壳成为主实现，Desktop 作为 Electron 平台入口。
-- 保留“先原型，再项目”的工作流。
-- 原型升级为可交互 React prototype，不再继续扩大单 HTML 文件。
-- 已建立 `packages/ui`、`packages/prototype` 和 `packages/web`。
-- Web、Prototype 和 Desktop 均已挂共享 `ProductShellHost`；旧 Desktop `ShellLayout` wrapper 已删除，Desktop 只保留 Electron 平台能力 adapter。
-- 继续推进方向调整为“产品 UI Host + 平台壳”：Web / Desktop / 后续 App 都挂同一个产品 Host，壳只提供平台 adapter。
-- 新增中英文切换：界面语言和 Bungie 资料库语言分开建模，默认资料库语言跟随界面语言。
+1. Prototype / Web / Desktop 页面结构稳定共享 `ProductShellHost` 和 `packages/ui`。
+2. Desktop feature 只保留真实数据、写操作和平台能力接线，不再复制产品页面结构。
+3. Web 有清楚的真实数据 provider / fallback provider 边界。
+4. 新增页面文案默认进入共享 copy。
+5. 旧测试不再依赖已迁出的 Desktop JSX / CSS 细节。
