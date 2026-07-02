@@ -7,7 +7,7 @@
 
 | 检查项 | 状态 | 备注 |
 |---|---|---|
-| `pnpm test` | ✅ 通过 | 本次跨端 UI 抽壳收口后全量验证通过：157 个测试文件 / 539 条测试 |
+| `pnpm test` | ✅ 通过 | 本轮 CI 断言同步后全量验证通过：157 个测试文件 / 541 条测试 |
 | `pnpm typecheck` | ✅ 通过 | 本次全仓类型检查通过 |
 | `pnpm docs:check` | ✅ 通过 | 本轮文档结构与编码检查通过 |
 
@@ -21,6 +21,7 @@
 | ✅ 已修复 | Bug #25 桌面启动：5173 端口冲突时 Electron 打开其他应用 | 开发端口统一规范为 Prototype `53170`、Web `53171`、Desktop renderer `53172`；桌面启动脚本使用 Vite strict port，并把同一个 `D2_RENDERER_URL` 注入 Electron；发布版继续加载安装包内 `dist/renderer/index.html`，不依赖本地端口 |
 | ✅ 已修复 | Bug #26 脚本：发布和本地打包脚本中文说明存在乱码 | `scripts/generate-release-notes.mjs` 的 Release footer 和 `scripts/local-package.ps1` 的中文注释/输出已恢复为 UTF-8 中文；`pnpm docs:check` 会继续拦截 mojibake 和编码回退 |
 | ✅ 已修复 | Bug #27 测试：设置页共享 UI 迁移后视觉 harness 断言未同步 | 设置页、资料库和配装相关测试已改为检查 `packages/ui` 的 `*ContentView.tsx`，Desktop feature 只检查 adapter 接线 |
+| ✅ 已修复 | Bug #28 CI：i18n 收口后桌面源码断言未同步 | 账号页目录和设置页资料库状态断言已改为检查 `accountText` / `settingsText` i18n 调用，避免要求组件退回中文硬编码 |
 
 ## 当前任务目录
 

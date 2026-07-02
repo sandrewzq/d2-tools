@@ -179,11 +179,11 @@ describe("product shell background task wiring", () => {
     expect(settingsHook).toContain("useManifestStatus");
     expect(settingsPage).toContain('id="settings-manifest"');
     expect(settingsPage).toContain("app-panel app-setting-group app-settings-wide manifest-");
-    expect(settingsPage).toContain("<h2>资料库</h2>");
-    expect(settingsPage).toContain("当前版本");
-    expect(settingsPage).toContain("最新版本");
-    expect(settingsPage).toContain("资料库日期");
-    expect(settingsPage).toContain("资料完整性");
+    expect(settingsPage).toContain('settingsText(copy, "资料库")');
+    expect(settingsPage).toContain('settingsText(copy, "当前版本")');
+    expect(settingsPage).toContain('settingsText(copy, "最新版本")');
+    expect(settingsPage).toContain('settingsText(copy, "资料库日期")');
+    expect(settingsPage).toContain('settingsText(copy, "资料完整性")');
     expect(settingsPage).toContain("getBackgroundTaskUi");
     expect(settingsPage).not.toContain("settings-background-tasks");
     expect(homePage).toContain("manifestStatus: diagnostics.manifestStatus");

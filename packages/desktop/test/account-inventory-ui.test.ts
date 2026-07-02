@@ -154,7 +154,7 @@ describe("account inventory UI", () => {
 
     expect(accountPage).toContain('className="account-page-shell"');
     expect(accountPage).toContain('className="account-page-nav"');
-    expect(accountPage).toContain('aria-label="账号目录"');
+    expect(accountPage).toContain('aria-label={accountText(copy, "账号目录")}');
     expect(accountPage).toContain('href="#account-profile"');
     expect(accountPage).toContain('href="#account-loadout"');
     expect(accountPage).toContain('href="#account-activity"');
@@ -165,7 +165,7 @@ describe("account inventory UI", () => {
     expect(accountPage).toContain('id="account-activity"');
     expect(accountPage).toContain('id="account-materials"');
     expect(accountPage).toContain('id="account-postmaster"');
-    expect(accountPage).toContain("账号概览");
+    expect(accountPage).toContain("copy.nav.overview");
     expect(styles).toContain(".account-page-nav");
     expect(styles).toContain(".account-page-main");
     expect(styles).toMatch(/\.account-secondary-workbench\s*{[\s\S]*?grid-template-columns:\s*1fr;/);
