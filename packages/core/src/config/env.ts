@@ -23,6 +23,11 @@ export function applyEnvOverrides(config: D2Config, env: ConfigEnv): D2Config {
     },
     features: {
       color_mode: config.features.color_mode,
+      interface_locale: parseInterfaceLocaleEnv(env.D2_INTERFACE_LOCALE, config.features.interface_locale),
+      manifest_language_follows_interface: parseBooleanEnv(
+        env.D2_MANIFEST_LANGUAGE_FOLLOWS_INTERFACE,
+        config.features.manifest_language_follows_interface
+      ),
       write_actions_enabled: parseBooleanEnv(
         env.D2_WRITE_ACTIONS_ENABLED,
         config.features.write_actions_enabled
@@ -37,4 +42,12 @@ function parseBooleanEnv(value: string | undefined, fallback: boolean): boolean 
   }
 
   return ["1", "true", "yes", "on"].includes(value.trim().toLocaleLowerCase());
+}
+
+function parseInterfaceLocaleEnv(value: string | undefined, fallback: D2Config["features"]["interface_locale"]): D2Config["features"]["interface_locale"] {
+  if (value === "zh-CN" || value === "en-US") {
+    return value;
+  }
+
+  return fallback;
 }

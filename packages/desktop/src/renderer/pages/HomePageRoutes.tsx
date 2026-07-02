@@ -1,3 +1,4 @@
+import type { ShellPageKey } from "@d2-tools/ui";
 import { Suspense, type ComponentProps } from "react";
 import { AccountPage } from "../features/account/AccountPage";
 import { HomeDashboard } from "../features/home/HomeDashboard";
@@ -5,7 +6,6 @@ import { LibraryPage } from "../features/library/LibraryPage";
 import { LoadoutsPage } from "../features/loadouts/LoadoutsPage";
 import { SettingsPage } from "../features/settings/SettingsPage";
 import { VaultPage } from "../features/vault/VaultPage";
-import type { ShellPageKey } from "../components/ShellLayout";
 
 export function HomePageRoutes(props: {
   activePage: ShellPageKey;

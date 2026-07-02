@@ -4,6 +4,12 @@ export type DiagnosticsBridge = {
   refreshDiagnostics: () => Promise<void>;
 };
 
+export type LanguagePreferences = {
+  interfaceLocale: D2Config["features"]["interface_locale"];
+  bungieLocale: "zh-chs" | "en";
+  followInterfaceLocaleForBungie: boolean;
+};
+
 export function createDiagnosticsSettingsState() {
   return {
     diagnosticDataDir: "",
@@ -21,6 +27,11 @@ export function createDiagnosticsSettingsState() {
     } as D2Config["ai"],
     writeActionsEnabled: false,
     colorMode: "light" as D2Config["features"]["color_mode"],
+    languagePreferences: {
+      interfaceLocale: "zh-CN",
+      bungieLocale: "zh-chs",
+      followInterfaceLocaleForBungie: true
+    } as LanguagePreferences,
     actionLog: [] as ActionLogEntry[],
     actionLogResultFilter: "all" as "all" | "success" | "failed",
     actionLogTypeFilter: "all" as ActionLogEntry["action"] | "all"
@@ -36,6 +47,7 @@ export function createDiagnosticsSettingsModel(input: {
   setAiSettings: (value: D2Config["ai"]) => void;
   setWriteActionsEnabled: (value: boolean) => void;
   setColorMode: (value: D2Config["features"]["color_mode"]) => void;
+  setLanguagePreferences: (value: LanguagePreferences) => void;
   setActionLog: (value: ActionLogEntry[]) => void;
   setSettingsMessage: (value: string) => void;
   setSettingsError: (value: string) => void;
@@ -55,6 +67,7 @@ export function createDiagnosticsSettingsModel(input: {
       input.setAiSettings(config.ai);
       input.setWriteActionsEnabled(config.features.write_actions_enabled);
       input.setColorMode(config.features.color_mode);
+      input.setLanguagePreferences(languagePreferencesFromConfig(config));
       input.setActionLog(log);
     } catch (error) {
       input.setDiagnosticError(error instanceof Error ? error.message : "状态诊断失败");
@@ -114,11 +127,50 @@ export function createDiagnosticsSettingsModel(input: {
     }
   }
 
+  async function saveLanguagePreferences(preferences: LanguagePreferences) {
+    input.setSettingsMessage("");
+    input.setSettingsError("");
+    input.setLanguagePreferences(preferences);
+
+    try {
+      const config = await api.getConfig();
+      const nextConfig: D2Config = {
+        ...config,
+        data: {
+          ...config.data,
+          manifest_language: preferences.bungieLocale
+        },
+        features: {
+          ...config.features,
+          interface_locale: preferences.interfaceLocale,
+          manifest_language_follows_interface: preferences.followInterfaceLocaleForBungie
+        }
+      };
+      const saved = await api.saveConfig(nextConfig);
+      input.setLanguagePreferences(languagePreferencesFromConfig(saved));
+      input.setSettingsMessage("语言设置已保存。资料库语言会在后续资料库读取和更新时生效。");
+      input.onConfigChanged();
+    } catch (error) {
+      input.setSettingsError(error instanceof Error ? error.message : "语言设置保存失败");
+      void refreshDiagnostics();
+    }
+  }
+
   return {
     refreshDiagnostics,
     handleAiSettingsSaved,
     saveWriteActionsEnabled,
-    saveColorMode
+    saveColorMode,
+    saveLanguagePreferences
+  };
+}
+
+export function languagePreferencesFromConfig(config: D2Config): LanguagePreferences {
+  const interfaceLocale = config.features.interface_locale === "en-US" ? "en-US" : "zh-CN";
+  return {
+    interfaceLocale,
+    bungieLocale: config.data.manifest_language === "en" ? "en" : "zh-chs",
+    followInterfaceLocaleForBungie: config.features.manifest_language_follows_interface
   };
 }
 

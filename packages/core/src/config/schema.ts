@@ -21,6 +21,8 @@ export type D2Config = {
   features: {
     write_actions_enabled: boolean;
     color_mode: "light" | "dark";
+    interface_locale: "zh-CN" | "en-US";
+    manifest_language_follows_interface: boolean;
   };
 };
 
@@ -31,6 +33,8 @@ export type ConfigEnv = Partial<Record<
   | "BUNGIE_REDIRECT_URI"
   | "D2_DATA_DIR"
   | "D2_MANIFEST_LANGUAGE"
+  | "D2_INTERFACE_LOCALE"
+  | "D2_MANIFEST_LANGUAGE_FOLLOWS_INTERFACE"
   | "AI_PROVIDER"
   | "AI_PROTOCOL"
   | "AI_API_KEY"

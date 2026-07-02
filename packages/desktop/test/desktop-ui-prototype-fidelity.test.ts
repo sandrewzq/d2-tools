@@ -4,9 +4,14 @@ import { describe, expect, it } from "vitest";
 
 const desktopRoot = join(process.cwd(), "packages", "desktop");
 const rendererRoot = join(desktopRoot, "src", "renderer");
+const uiRoot = join(process.cwd(), "packages", "ui");
 
 function readRendererFile(path: string): string {
   return readFileSync(join(rendererRoot, path), "utf8");
+}
+
+function readUiFile(path: string): string {
+  return readFileSync(join(uiRoot, "src", path), "utf8");
 }
 
 function readCssRule(styles: string, selector: string): string {
@@ -19,7 +24,7 @@ function readCssRule(styles: string, selector: string): string {
 
 describe("desktop UI prototype fidelity", () => {
   it("uses the approved prototype primitives instead of patch classes on home and settings", () => {
-    const homeDashboard = readRendererFile("features/home/HomeDashboard.tsx");
+    const homeDashboard = readUiFile("home/HomePageView.tsx");
     const settingsPage = readRendererFile("features/settings/SettingsPage.tsx");
     const dailyPanel = readRendererFile("shared/components/DailySummaryPanel.tsx");
     const overviewSection = settingsPage.slice(

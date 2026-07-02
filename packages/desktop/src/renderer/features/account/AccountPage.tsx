@@ -1,3 +1,4 @@
+import { AccountPageView } from "@d2-tools/ui";
 import type {
   AccountItemSummary,
   AccountSummary,
@@ -68,7 +69,7 @@ export function AccountPage(props: {
   const canLoadAccount = isBungieConfigured && isAccountLoggedIn;
 
   return (
-    <section className="tool-panel account-dashboard-panel account-page">
+    <AccountPageView>
       <div className="section-heading">
         <div>
           <h2>账号摘要</h2>
@@ -368,7 +369,7 @@ export function AccountPage(props: {
           </div>
         </div>
       ) : null}
-    </section>
+    </AccountPageView>
   );
 }
 

@@ -15,7 +15,7 @@ import { AiPage } from "../features/ai/AiPage";
 import type { AssistantPageContext } from "../shared/domain/assistant/assistantContext";
 import { buildAssistantTaskContext } from "../shared/domain/assistant/assistantTaskContext";
 import { formatKohinataTaskGroups } from "../shared/domain/assistant/kohinataViewModel";
-import type { ShellAssistantMode, ShellPageKey } from "./ShellLayout";
+import type { ShellAssistantMode, ShellPageKey } from "@d2-tools/ui";
 
 const taskContextStorageKey = "d2-tools.assistant.task-context";
 

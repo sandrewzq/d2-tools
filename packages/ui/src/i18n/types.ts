@@ -1,0 +1,132 @@
+import type { ShellPageKey } from "../shell/types.js";
+
+export type InterfaceLocale = "zh-CN" | "en-US";
+export type BungieManifestLocale = "zh-chs" | "en";
+
+export type ProductPreferences = {
+  interfaceLocale: InterfaceLocale;
+  bungieLocale: BungieManifestLocale;
+  followInterfaceLocaleForBungie: boolean;
+  colorMode: "light" | "dark";
+};
+
+export type ShellCopy = {
+  brandSubtitle: string;
+  statusAriaLabel: string;
+  toolstripAriaLabel: string;
+  navigationAriaLabel: string;
+  windowControlsAriaLabel: string;
+  navigation: Record<ShellPageKey, string>;
+  tools: {
+    switchToDark: string;
+    switchToLight: string;
+    switchToChinese: string;
+    switchToEnglish: string;
+    github: string;
+    settings: string;
+    openAiAssistant: string;
+    aiAssistant: string;
+    languageBadge: string;
+  };
+};
+
+export type LocaleCopy = {
+  shell: ShellCopy;
+  home: HomeCopy;
+};
+
+export type HomeCopy = {
+  dataStripAriaLabel: string;
+  sections: {
+    weeklyRewards: { title: string; subtitle: string; badge: string };
+    today: { title: string; subtitle: string };
+    vendors: { title: string; subtitle: string };
+    account: { title: string; subtitle: string };
+    pending: { title: string; subtitle: string };
+  };
+  actions: {
+    copyDaily: string;
+    runDiagnostics: string;
+    diagnosing: string;
+  };
+  labels: {
+    dailyReset: string;
+    weeklyReset: string;
+    manifest: string;
+    accountData: string;
+    priority: string;
+    focusCount: string;
+    confirmed: string;
+    pending: string;
+    error: string;
+    focus: string;
+  };
+  fallback: {
+    dailyPending: string;
+    dailyWaiting: string;
+    weeklyPending: string;
+    weeklyResetDetail: string;
+    manifestReady: string;
+    manifestNeedsAttention: string;
+    accountFailed: string;
+    accountReady: string;
+    accountPending: string;
+    weeklyFixedMeta: string;
+    otherRewardMeta: string;
+    waitingRefresh: string;
+    todayLoadingTitle: string;
+    todayLoadingMessage: string;
+    todayActionTitle: string;
+    todayQuiet: string;
+    noGuessBeforeWeekend: string;
+    nightfallWaiting: string;
+    vendorsWaiting: string;
+    healthFailed: string;
+    healthReady: string;
+  };
+  rewardGroups: {
+    powerTitle: string;
+    otherTitle: string;
+    powerPriority: string;
+  };
+  intel: {
+    publicRotation: string;
+    weekendWindow: string;
+    raidDungeon: string;
+    activityIntel: string;
+    doubleRewards: string;
+    doubleRewardsDetail: string;
+    xur: string;
+    trialsMap: string;
+    trialsMapDetail: string;
+    weekendChecklist: string;
+    weekendChecklistDetail: string;
+  };
+  vendors: {
+    xurDetail: string;
+    bansheeDetail: string;
+    adaDetail: string;
+    weekendBadge: string;
+    waitingBadge: string;
+  };
+  account: {
+    failedTitle: string;
+    readyTitle: string;
+    pendingTitle: string;
+    syncing: string;
+    pendingMessage: string;
+    failedBadge: string;
+    readyBadge: string;
+    pendingBadge: string;
+    vaultTitle: string;
+    vaultReady: string;
+    vaultMissing: string;
+    vaultReadyBadge: string;
+    vaultMissingBadge: string;
+    diagnosticWarningTitle: string;
+    diagnosticReadyTitle: string;
+    diagnosticWarning: (count: number) => string;
+    diagnosticReady: string;
+    diagnosticWarningBadge: string;
+  };
+};

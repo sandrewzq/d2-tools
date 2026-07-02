@@ -19,6 +19,16 @@
 - 新增用户可见文案时，优先沉淀到 `shared/copy.ts` 或对应领域 copy 文件；当前默认中文，不做语言切换 UI。
 - 多人或多 agent 并行时，尽量避免同时修改 `HomePage.tsx`、`ItemDetailModal.tsx`、`useItemDetailWorkspace.ts`、`VaultPanel.tsx`、`api/types.ts`、`api/client.ts`、`ipc.ts` 等公共接线文件；确需修改时先说明影响范围。
 
+## 跨端 UI / Prototype 工作流
+
+- UI 需求默认改 `packages/ui`，包括页面布局、组件结构、颜色、间距、状态样式、通用交互和跨端文案；不要只在 Desktop 或 Web 里重做一份页面。
+- `packages/prototype` 只放 mock 数据、原型状态开关、演示入口和少量原型专用控制面板；不得在 prototype 中长期维护第二套真实页面结构。
+- 如果为了探索先在 `packages/prototype` 写了临时 UI，用户确认后必须在同一次收口中迁入 `packages/ui`，再让 Prototype / Web / Desktop 共同消费；不能声称“应用已改好”但只改了 prototype。
+- `packages/web` 和 `packages/desktop` 是平台壳：只处理 Web / Electron 特有 adapter、登录态、IPC、本地文件、窗口、更新、端口和打包能力；页面实现应通过 `ProductShellHost` 和 `packages/ui` 共享。
+- 新增或调整产品级外壳时，Prototype / Web / Desktop 都应继续挂同一个 `ProductShellHost`。不得重新引入 Desktop 专用 shell wrapper，除非先更新本文件和 `docs/development.md` 说明新的边界。
+- 改 `packages/ui` 后，至少验证相关共享 UI 测试和消费者类型检查；影响首页或设置页视觉时，还要运行 `visual:home` 或 `visual:settings`。
+- 原型对比应优先使用 React prototype 和视觉脚本；旧 HTML 只能作为历史参考，不得作为新的活跃实现入口。
+
 ## 语言规则
 
 - 对用户的回答、可见思路摘要、计划、状态更新和仓库文档使用中文。
@@ -36,7 +46,7 @@
 - 如需保留少量长期方向结论，合并到 `docs/development.md`，不要再单独维护 `docs/roadmap.md`。
 - `docs/work/backlog/` 保存未完成但暂不推进的设计或计划。
 - `docs/work/archive/` 保存已完成或仅作历史追溯的过程材料。
-- `docs/work/references/` 保存外部资料分析和数据源调研。
+- `docs/work/references/` 保存外部资料分析、数据源调研和作为实现依据的视觉基准。
 - 不要把日期命名、设计、计划、进度或分析文档直接放在 `docs/` 根目录。
 - 不要重建 `docs/superpowers/`；如果外部流程要求写入该目录，统一改写到 `docs/work/backlog/`、`docs/work/archive/` 或 `docs/work/references/`。
 - `docs/work/` 不是正式入口目录；只保留仍对当前工作有直接参考价值的材料，历史已完成或已失效的内容可以删除。

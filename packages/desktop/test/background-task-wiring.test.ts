@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 
 const desktopRoot = fileURLToPath(new URL("..", import.meta.url));
 const repoRoot = fileURLToPath(new URL("../../..", import.meta.url));
+const uiRoot = join(repoRoot, "packages", "ui");
 
 describe("product shell background task wiring", () => {
   it("keeps todo as a numbered task directory", () => {
@@ -31,7 +32,7 @@ describe("product shell background task wiring", () => {
 
   it("subscribes to background tasks at the product shell and renders global task status", () => {
     const homePage = readFileSync(join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"), "utf8");
-    const shellLayout = readFileSync(join(desktopRoot, "src", "renderer", "components", "ShellLayout.tsx"), "utf8");
+    const shellLayout = readFileSync(join(uiRoot, "src", "shell", "AppShell.tsx"), "utf8");
     const settingsPage = readFileSync(join(desktopRoot, "src", "renderer", "features", "settings", "SettingsPage.tsx"), "utf8");
     const diagnosticsHook = readFileSync(join(desktopRoot, "src", "renderer", "features", "settings", "useDiagnosticsSettings.ts"), "utf8");
     const backgroundHook = readFileSync(join(desktopRoot, "src", "renderer", "shared", "hooks", "useBackgroundTasks.ts"), "utf8");

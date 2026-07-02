@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { readItemDetailSources } from "./source-readers";
 
 const desktopRoot = join(process.cwd(), "packages", "desktop");
+const uiRoot = join(process.cwd(), "packages", "ui");
 
 describe("desktop workspace layout", () => {
   it("uses a wide shell content area for desktop workspaces", () => {
@@ -16,7 +17,7 @@ describe("desktop workspace layout", () => {
   it("renders the home page as a workbench instead of a single long stream", () => {
     const homePage = readFileSync(join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"), "utf8");
     const homeRoutes = readFileSync(join(desktopRoot, "src", "renderer", "pages", "HomePageRoutes.tsx"), "utf8");
-    const homeDashboard = readFileSync(join(desktopRoot, "src", "renderer", "features", "home", "HomeDashboard.tsx"), "utf8");
+    const homeDashboard = readFileSync(join(uiRoot, "src", "home", "HomePageView.tsx"), "utf8");
     const styles = readFileSync(join(desktopRoot, "src", "renderer", "styles.css"), "utf8");
     const dailyPage = readFileSync(join(desktopRoot, "src", "renderer", "features", "daily", "DailyPage.tsx"), "utf8");
 
@@ -113,7 +114,7 @@ describe("desktop workspace layout", () => {
 
   it("keeps setup details out of persistent home cards unless they are actionable", () => {
     const homePage = readFileSync(join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"), "utf8");
-    const homeDashboard = readFileSync(join(desktopRoot, "src", "renderer", "features", "home", "HomeDashboard.tsx"), "utf8");
+    const homeDashboard = readFileSync(join(uiRoot, "src", "home", "HomePageView.tsx"), "utf8");
 
     expect(homeDashboard).toContain("home-data-strip");
     expect(homeDashboard).toContain("待确认数据");

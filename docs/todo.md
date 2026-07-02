@@ -1,15 +1,15 @@
 # 当前待办
 
-> 更新时间：2026-07-01
+> 更新时间：2026-07-02
 > 这是唯一当前待办目录。这里只保留状态、优先级和 backlog 入口；完整需求、切片、验收标准放在 `docs/work/backlog/`。
 
 ## 健康度
 
 | 检查项 | 状态 | 备注 |
 |---|---|---|
-| `pnpm test` | ❌ 未通过 | 本次全量验证中 2 个测试文件 / 2 条旧断言失败，集中在资料库页和日报页仍期待“本地 Manifest”旧文案；设置页相关回归、构建和视觉截图已通过 |
-| `pnpm typecheck` | ✅ 通过 | 本次全量验证通过 |
-| `pnpm docs:check` | ✅ 通过 | 本次文档检查通过 |
+| `pnpm test` | ✅ 通过 | 本次跨端 UI 壳与语言偏好重构后全量验证通过：152 个测试文件 / 520 条测试 |
+| `pnpm typecheck` | ✅ 通过 | 本次全仓类型检查通过 |
+| `pnpm docs:check` | ✅ 通过 | 本次文档结构与编码检查通过 |
 
 > 构建提醒：Vite 提示 `DiagnosticsPanel.tsx` 和 `VaultPanel.tsx` 同时被静态和动态导入，不阻塞构建。npm 提示 `.npmrc` 中 Electron mirror 配置未来可能不被支持，不阻塞构建。
 
@@ -51,7 +51,7 @@
 | T2 | P1 | ✅ 已完成 | 产品级桌面外壳、更新与后台任务 | 已合并到 [开发说明](development.md) | 已完成后台任务中心、应用更新、资料库版本检查、自动更新、全局状态入口、设置页状态和资料库搜索阻断 |
 | T3 | P1 | 🟡 待推进 | 仓库推荐与清理工作台 | [仓库推荐与清理工作台](work/backlog/vault-recommendation-and-cleanup-workbench.md) | 统一 DIM wishlist、本地目标、同名对比和清理清单；推荐数据只支持用户导入，不默认内置未授权社区数据 |
 | T4 | P1 | 🟡 待推进 | 小日向日报、商人与掉落查询 | [日报、商人与掉落查询](work/backlog/daily-report-and-drops-assistant.md) | 只展示可确认数据，先补商人、活动和掉落来源状态 |
-| T5 | P1 | ✅ 已完成 | 桌面视觉、账号、仓库、资料库与装备详情打磨 | [首页与全局外壳 v4](work/backlog/desktop-home-global-shell-v4.md) / [账号页 A2](work/backlog/desktop-account-page-a2-layout.md) / [仓库页 Tab v2](work/backlog/desktop-vault-tabs-v2-layout.md) / [资料库页 v1](work/backlog/desktop-library-reference-v1-layout.md) / [桌面视觉与详情打磨](work/backlog/desktop-ui-account-detail-polish.md) | 已完成全局顶部状态与 AI 抽屉、首页总览、账号 A2 背包候选、仓库工作流 Tab、资料库出处查询；配装页本轮未改 |
+| T5 | P1 | 🟡 待推进 | 跨端 UI 壳、可交互原型与桌面视觉收口 | [跨端 UI 壳重构](work/backlog/cross-platform-ui-shell-refactor.md) / [实施计划](work/backlog/cross-platform-ui-shell-refactor-plan.md) / [首页与全局外壳 v4](work/backlog/desktop-home-global-shell-v4.md) / [账号页 A2](work/backlog/desktop-account-page-a2-layout.md) / [仓库页 Tab v2](work/backlog/desktop-vault-tabs-v2-layout.md) / [资料库页 v1](work/backlog/desktop-library-reference-v1-layout.md) / [桌面视觉与详情打磨](work/backlog/desktop-ui-account-detail-polish.md) | 已建立 `packages/ui`、`packages/prototype` 和 `packages/web`；共享 `ProductShellHost`、shell i18n copy、界面 / 资料库语言模型和 Desktop 偏好持久化已落地；Prototype/Web/Desktop 均已挂 Host，旧 Desktop `ShellLayout` wrapper 已退役；跨端 UI / Prototype 工作流已固化到 `AGENTS.md` 和 `docs/development.md`；后续继续把页面内部子组件和页面文案迁入 `packages/ui` / i18n copy |
 | T6 | P2 | ✅ 已完成 | 架构维护与边界防回退 | 已合并到 [开发说明](development.md) | 已完成 page metadata 共享、详情缓存上限、Manifest 状态共享 hook、services adapter 去重和边界测试 |
 | T7 | P3 | 🟡 待推进 | 活动复盘增强 | [活动复盘增强](work/backlog/activity-review-enhancement.md) | 后续接 PGCR、完成时间推算和副本级趋势 |
 | T8 | P4 | 🟡 待推进 | 桌面发布、更新与迁移体验 | [桌面发布体验](work/backlog/desktop-release-experience.md) | 发布、安装、迁移继续保留；应用更新状态迁入产品级外壳任务 |

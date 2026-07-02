@@ -18,8 +18,11 @@ packages/
   core/      领域模型、业务规则、分析逻辑、schema、纯函数
   services/  跨端服务接口和平台 adapter
   app/       跨端前端查询层、状态模型、页面 workspace 编排
+  ui/        共享 React UI、产品 Host、设计系统和 i18n copy
+  prototype/ 可交互 React 原型，使用 mock adapter
+  web/       Web 平台壳，后续接 HTTP/API adapter
   http/      本地 HTTP / 工具接口层
-  desktop/   Electron 桌面应用
+  desktop/   Electron 桌面壳
 docs/        正式文档
 ```
 
@@ -39,13 +42,26 @@ docs/        正式文档
   - 负责跨端前端查询层、状态模型和页面 workspace 编排
   - 复用 services，不直接依赖 Electron、Node runtime 或桌面 UI
 
+- `packages/ui`
+  - 负责共享 React UI、产品级 UI Host、设计系统 token 和 i18n copy
+  - 不直接依赖 Electron、Web 部署、移动原生能力或 `window.d2`
+  - 页面组件只接收 ViewModel、props 和 callback，真实数据由平台 adapter 提供
+
+- `packages/prototype`
+  - 负责可交互 React 原型，使用 mock 数据和 mock adapter
+  - 只组合 `packages/ui`，不维护第二套页面结构
+
+- `packages/web`
+  - 负责 Web 平台壳、浏览器启动、Web 登录态和 HTTP/API adapter
+  - 与 Prototype / Desktop 挂同一个产品 UI Host，不复制页面实现；后续移动 App 也按同一壳模式接入
+
 - `packages/http`
   - 暴露本地 HTTP / 工具接口
   - 复用 core / services，不单独维护业务真相
 
 - `packages/desktop`
-  - 负责 GUI、Electron 主进程、preload、IPC 和前端交互
-  - 负责桌面端导航、布局、窗口级交互、安装更新等系统能力
+  - 负责 Electron 主进程、preload、IPC、窗口、本地文件和安装更新等系统能力
+  - Renderer 中仍未迁出的页面逻辑继续按 feature 边界维护，平台无关 UI 逐步迁入 `packages/ui`
 
 ### 2.2 Renderer feature 边界
 
@@ -55,7 +71,7 @@ docs/        正式文档
 - 跨账号、仓库、资料库复用的装备详情、配装定位、状态卡片等能力应先进入 `shared/`，再由各 feature 引用。
 - `packages/desktop/src/renderer/api/types.ts` 是 renderer 侧平台无关 API 聚合入口，只组合 `AppApi` 并重导出分域契约；账号、仓库、资料库、配装、AI、写操作等 DTO 应放在 `api/*Api.ts` 或 `api/sharedTypes.ts`，后续 Mac / 移动端适配应优先复用这些类型边界。
 - `packages/desktop/src/renderer/api/client.ts` 只做 Electron renderer 运行时绑定：声明 `window.d2`、导出 `api`，并兼容性重导出 `types.ts` 里的类型。
-- `packages/desktop/src/renderer/shared/copy.ts` 保存当前中文优先的文案规则和通用 copy；目前只做中文，不提供语言切换 UI。
+- 新增用户可见文案优先进入 `packages/ui/src/i18n/` 或对应领域 copy；界面语言使用 `zh-CN` / `en-US`，Bungie 资料库语言使用 `zh-chs` / `en`，不要在组件里分散写 `locale === ... ? ... : ...`。
 - 默认数据目录由 `packages/core/src/config/defaults.ts` 的平台感知 helper 统一计算：Windows 使用 `%APPDATA%\d2-tools`，macOS 使用 `~/Library/Application Support/d2-tools`，Linux / 其他平台使用 `$XDG_DATA_HOME/d2-tools` 或 `~/.local/share/d2-tools`。
 - `packages/desktop/test/renderer-boundaries.test.ts` 会拦截 feature 互相 import 和 shared 反向依赖 feature。
 - `packages/desktop/test/renderer-api-boundaries.test.ts` 会拦截把大型 DTO 类型重新塞回 `api/client.ts` 或重新塞回一个巨型 `api/types.ts`。
@@ -68,10 +84,29 @@ docs/        正式文档
 - 共享详情、配装来源、仓库清理等跨菜单逻辑应放到 `shared/components/`、`shared/hooks/` 或 `shared/domain/`。
 - Renderer API 按领域维护在 `api/*Api.ts`，`types.ts` 只聚合，`client.ts` 只绑定 Electron runtime。
 - 主进程 IPC 按领域维护在 `src/main/ipc/` 子模块，`ipc.ts` 只聚合。
-- 新增可见文案优先进入 copy 体系；当前只维护中文。
+- 新增可见文案优先进入 copy 体系；跨端 UI 文案优先进入 `packages/ui/src/i18n/`，设置页和旧 renderer feature 迁移前可保留局部中文，但不得新增分散的语言判断。
 - `HomePage.tsx`、`ItemDetailModal.tsx`、`useItemDetailWorkspace.ts`、`VaultPanel.tsx`、`api/types.ts`、`api/client.ts`、`ipc.ts` 等公共接线文件是并行开发高冲突区，修改前要确认是否真的需要，并说明影响范围。
 
-### 2.4 Renderer UI 样式系统
+### 2.4 跨端 UI 与原型开发流程
+
+后续 UI 开发按“共享 UI 优先，平台壳只接能力”的方式推进：
+
+1. 视觉、布局、组件结构、状态样式、通用交互和跨端文案默认进入 `packages/ui`。
+2. `packages/prototype` 只组合 `packages/ui`，并提供 mock 数据、状态切换和演示入口；它不是第二套页面实现。
+3. Web 和 Desktop 只负责平台 adapter。Web 处理浏览器登录态、HTTP/API、部署配置；Desktop 处理 Electron IPC、本地文件、窗口、更新和打包。
+4. 如果先在 prototype 中探索 UI，确认后必须迁入 `packages/ui`，再让 Prototype / Web / Desktop 共同消费。
+5. `ProductShellHost` 是产品外壳统一入口；Prototype / Web / Desktop 都应挂同一个 Host。不得重新引入 Desktop 或 Web 专用 shell wrapper 来复制页面结构。
+6. 改 `packages/ui` 后，至少运行相关共享 UI 测试和消费者类型检查；影响首页或设置页视觉时运行 `visual:home` 或 `visual:settings`。
+
+常见改动归属：
+
+- 首页、设置页、账号页的布局和样式：`packages/ui`
+- 原型里的“未登录 / 资料库过期 / 后台任务运行 / 更新可用”等状态切换：`packages/prototype`
+- 真实账号读取、资料库检查、导入导出、窗口颜色和应用更新：`packages/desktop` 或对应 service / adapter
+- Web 登录态、浏览器存储和 HTTP adapter：`packages/web`
+- 跨端状态模型、页面 workspace 和 ViewModel：`packages/app`
+
+### 2.5 Renderer UI 样式系统
 
 - 桌面端 UI 按“页面底层 / 主面板 / 子块或列表项”三层组织；页面必须有主工作区，辅助信息和低频信息下沉。
 - 全局样式 token 定义在 `packages/desktop/src/renderer/styles.css` 的 `:root`：间距使用 `--space-8/12/16/24/32`，圆角使用 `--radius-control/panel/pill`，颜色使用 `--surface-*`、`--border-*`、`--text-*` 和 `--status-*`。
@@ -84,7 +119,7 @@ docs/        正式文档
 - `packages/desktop/test/ui-style-system.test.ts` 负责锁定 token、共享样式类、设置页布局和状态语言，防止回到逐页零散修补。
 - 后续 UI 开发以本节和 `packages/desktop/test/ui-style-system.test.ts` 为准，不再维护单独的历史样式规范文档。
 
-### 2.5 桌面外壳、更新和后台任务
+### 2.6 桌面外壳、更新和后台任务
 
 - 桌面外壳必须稳定展示应用版本、资料库状态和后台任务状态；用户不进入设置页，也应能看到应用更新、资料库过期和后台任务运行状态。
 - 应用更新由主进程 `updates` IPC 和后台任务中心持有生命周期；renderer 只发起检查、下载、安装确认和订阅状态。
@@ -129,6 +164,22 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev-desktop.ps1
 ```powershell
 npx pnpm@9.15.0 dev
 ```
+
+如果要先做可交互原型，使用 React prototype：
+
+```powershell
+npx pnpm@9.15.0 dev:prototype
+```
+
+Prototype 使用 `packages/ui` 共享壳、产品 Host、页面 View 和 mock adapter，默认端口为 `http://127.0.0.1:53218`。视觉密集页面先在 Prototype 中验证，再接入 Desktop 或 Web。
+
+正式 Web 入口使用：
+
+```powershell
+npx pnpm@9.15.0 dev:web
+```
+
+Web 是浏览器平台壳，不是第二套原型。日常验证真实产品页面时优先看 Web / Desktop 挂载的同一套产品 Host；原型只用于 mock 状态和视觉方案确认。
 
 如果你已经手动启动了 Vite，并且只想单独启动 Electron 主进程：
 
@@ -271,13 +322,14 @@ docs/
     references/
 ```
 
-不要把一次性设计稿、执行计划、阶段进度或临时分析文档放在 `docs/` 根目录。确实需要记录当前短期待办、验收状态、需求或 bug 时，统一更新 `docs/todo.md`；确实需要保留未完成设计或调研材料时，放进 `docs/work/backlog/` 或 `docs/work/references/`。外部流程如果要求写入 `docs/superpowers/`，本仓库统一改写到 `docs/work/backlog/` 或 `docs/work/references/`。确实需要记录长期规则或少量长期方向结论时，更新 `docs/development.md`；已发布变化写入 `CHANGELOG.md`。
+不要把一次性设计稿、执行计划、阶段进度或临时分析文档放在 `docs/` 根目录。确实需要记录当前短期待办、验收状态、需求或 bug 时，统一更新 `docs/todo.md`；确实需要保留未完成设计或调研材料时，放进 `docs/work/backlog/` 或 `docs/work/references/`。已经作为实现依据的视觉基准原型放在 `docs/work/references/`。外部流程如果要求写入 `docs/superpowers/`，本仓库统一改写到 `docs/work/backlog/` 或 `docs/work/references/`。确实需要记录长期规则或少量长期方向结论时，更新 `docs/development.md`；已发布变化写入 `CHANGELOG.md`。
 
 ## 7.1 长期方向（简版）
 
 这里只保留不适合写进 `todo.md` 的长期演进方向，不单独维护路线图文档：
 
-- 多端架构：按 `core -> services -> app -> 端 UI` 收口业务、服务和前端查询层，桌面端先落地，Web 和移动端后续复用同一套边界。
+- 多端架构：按 `core -> services -> app -> ui/product host -> 平台壳` 收口业务、服务、前端查询层、产品 UI 和端能力。Desktop、Web 和后续移动 App 都只提供平台 adapter，页面实现共享。
+- 国际化：界面语言和 Bungie 资料库语言分开建模；默认资料库语言跟随界面语言，用户后续可在设置中独立调整。
 - 仓库整理体验：继续增强同名对比、批量处理、护甲属性价值判断和评分解释。
 - 今日 / 本周信息：优先补齐可确认的商人、遗失区域和轮换线索，保持“只展示可确认数据”。
 - AI 助手：围绕真实账号数据问答、仓库建议、结果结构化和安全边界继续打磨。
@@ -303,7 +355,7 @@ docs/
 - `todo.md` 是唯一当前待办、短期进度、需求和 bug 来源
 - 长期方向如确实需要保留，合并到 `docs/development.md`，不要再单独维护 `roadmap.md`
 - `work/backlog/` 保存未完成但暂不推进的设计和计划
-- `work/references/` 保存外部资料分析和数据源调研
+- `work/references/` 保存外部资料分析、数据源调研和作为实现依据的视觉基准
 - 完成、取消或改变方向且影响当前短期待办、验收状态或优先级时，必须在同一次开发收尾时更新 `todo.md`
 - 修复、确认无效或转为长期需求的 bug，必须在同一次开发收尾时更新 `todo.md` 对应条目
 - `todo.md` 中的 `Bug #数字` 必须全局唯一；需要按领域区分时，在标题中加领域前缀，不要复用编号

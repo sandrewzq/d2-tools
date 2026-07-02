@@ -7,6 +7,11 @@ export type ManifestApi = {
 export type StartupState = {
   nextStep: "bungie-config" | "login" | "home";
   colorMode: "light" | "dark";
+  languagePreferences: {
+    interfaceLocale: "zh-CN" | "en-US";
+    bungieLocale: string;
+    followInterfaceLocaleForBungie: boolean;
+  };
   cards: {
     bungieConfig: StatusCardState;
     account: StatusCardState;

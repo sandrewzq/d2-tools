@@ -10,6 +10,11 @@ export type StartupAuthStatus = {
 export type StartupState = {
   nextStep: StartupStep;
   colorMode: D2Config["features"]["color_mode"];
+  languagePreferences: {
+    interfaceLocale: D2Config["features"]["interface_locale"];
+    bungieLocale: string;
+    followInterfaceLocaleForBungie: boolean;
+  };
   cards: {
     bungieConfig: { status: StatusValue; label: string };
     account: { status: StatusValue; label: string };
@@ -47,6 +52,11 @@ export function computeStartupState(input: {
   return {
     nextStep: !bungieReady ? "home" : !accountReady ? "login" : "home",
     colorMode: input.config.features.color_mode,
+    languagePreferences: {
+      interfaceLocale: input.config.features.interface_locale,
+      bungieLocale: input.config.data.manifest_language,
+      followInterfaceLocaleForBungie: input.config.features.manifest_language_follows_interface
+    },
     cards: {
       bungieConfig: {
         status: bungieReady ? "ready" : "missing",

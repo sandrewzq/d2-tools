@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import { readRendererApiContracts } from "./source-readers";
 
 const desktopRoot = fileURLToPath(new URL("..", import.meta.url));
+const uiRoot = join(desktopRoot, "..", "ui");
 
 describe("loadout library UI", () => {
   it("wires rename support and a richer local loadout library section", () => {
@@ -115,12 +116,14 @@ describe("loadout library UI", () => {
   });
 
   it("mounts loadouts as its own navigation page instead of hiding the library inside HomePage", () => {
-    const shellLayout = readFileSync(join(desktopRoot, "src", "renderer", "components", "ShellLayout.tsx"), "utf8");
+    const shellNavigation = readFileSync(join(uiRoot, "src", "shell", "navigation.ts"), "utf8");
+    const shellCopy = readFileSync(join(uiRoot, "src", "i18n", "copy.ts"), "utf8");
     const homePage = readFileSync(join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"), "utf8");
     const homeRoutes = readFileSync(join(desktopRoot, "src", "renderer", "pages", "HomePageRoutes.tsx"), "utf8");
 
-    expect(shellLayout).toContain('"loadouts"');
-    expect(shellLayout).toContain('label: "配装"');
+    expect(shellNavigation).toContain('"loadouts"');
+    expect(shellCopy).toContain('loadouts: "配装"');
+    expect(shellCopy).toContain('loadouts: "Loadouts"');
     expect(homePage).toContain("<HomePageRoutes");
     expect(homePage).not.toContain("<LoadoutsPage");
     expect(homeRoutes).toContain("<LoadoutsPage");

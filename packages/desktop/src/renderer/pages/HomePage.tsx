@@ -1,8 +1,8 @@
 import { createHomeDashboardWorkspace, createHomeDashboardActions } from "@d2-tools/app";
-import { useEffect, useRef, useState } from "react";
+import { ProductShellHost, type ProductPreferences, type ShellAssistantMode, type ShellPageKey, type ShellStatusItem } from "@d2-tools/ui";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { api, type AccountSummary, type ManifestStatus, type StartupState, type UpdateSnapshot } from "../api/client";
 import { GlobalAssistantSidebar } from "../components/GlobalAssistantSidebar";
-import { ShellLayout, type ShellAssistantMode, type ShellPageKey, type ShellStatusItem } from "../components/ShellLayout";
 import { useAccountWorkspace } from "../features/account/useAccountWorkspace";
 import { useDailySummary } from "../features/daily/useDailySummary";
 import { useHomePageDerivedState } from "../features/home/useHomePageDerivedState";
@@ -34,8 +34,13 @@ export function HomePage(props: {
   const library = useLibraryWorkspace();
   const diagnostics = useDiagnosticsSettings({
     onConfigChanged: props.onConfigChanged,
-    initialColorMode: visualColorMode ?? props.state.colorMode
+    initialColorMode: visualColorMode ?? props.state.colorMode,
+    initialLanguagePreferences: props.state.languagePreferences
   });
+  const desktopPlatformActions = useMemo(() => ({
+    openExternal: (url: string) => window.d2.openExternal(url),
+    setColorMode: (mode: "light" | "dark") => window.d2?.setWindowColorMode?.(mode)
+  }), []);
   const {
     loginMessage,
     loginError,
@@ -193,16 +198,39 @@ export function HomePage(props: {
     onCopyDailySummary: () => void daily.copyDailySummary(),
     onCopyWeeklyFocus: () => void daily.copyWeeklyFocus()
   });
+  const productPreferences: ProductPreferences = {
+    ...diagnostics.languagePreferences,
+    colorMode: diagnostics.colorMode
+  };
+
+  function handleProductPreferencesChange(preferences: ProductPreferences) {
+    if (preferences.colorMode !== diagnostics.colorMode) {
+      void diagnostics.toggleColorMode();
+    }
+
+    if (
+      preferences.interfaceLocale !== diagnostics.languagePreferences.interfaceLocale
+      || preferences.bungieLocale !== diagnostics.languagePreferences.bungieLocale
+      || preferences.followInterfaceLocaleForBungie !== diagnostics.languagePreferences.followInterfaceLocaleForBungie
+    ) {
+      void diagnostics.saveLanguagePreferences({
+        interfaceLocale: preferences.interfaceLocale,
+        bungieLocale: preferences.bungieLocale,
+        followInterfaceLocaleForBungie: preferences.followInterfaceLocaleForBungie
+      });
+    }
+  }
 
   return (
-    <ShellLayout
+    <ProductShellHost
       activePage={activePage}
       assistantMode={assistantMode}
-      onNavigate={setActivePage}
+      preferences={productPreferences}
+      onPageChange={setActivePage}
       onAssistantModeChange={setAssistantMode}
-      onColorModeToggle={() => void diagnostics.toggleColorMode()}
-      colorMode={diagnostics.colorMode}
+      onPreferencesChange={handleProductPreferencesChange}
       shellStatus={shellStatus}
+      platformActions={desktopPlatformActions}
       assistantPanel={(
         <GlobalAssistantSidebar
           assistantMode={assistantMode}
@@ -223,7 +251,8 @@ export function HomePage(props: {
           onClose={() => setAssistantMode(null)}
         />
       )}
-    >
+      renderPage={() => (
+        <>
       <header className="page-header">
         <div>
           <h2>{currentPageMeta.title}</h2>
@@ -439,7 +468,9 @@ export function HomePage(props: {
           onRefreshActionLog: () => void diagnostics.loadActionLog(),
           onActionLogResultFilterChange: diagnostics.setActionLogResultFilter,
           onActionLogTypeFilterChange: diagnostics.setActionLogTypeFilter,
-          onCopyActionDiagnostic: (entry) => void diagnostics.copyActionDiagnostic(entry)
+          onCopyActionDiagnostic: (entry) => void diagnostics.copyActionDiagnostic(entry),
+          languagePreferences: diagnostics.languagePreferences,
+          onLanguagePreferencesChange: (preferences) => void diagnostics.saveLanguagePreferences(preferences)
         }}
       />
 
@@ -452,7 +483,9 @@ export function HomePage(props: {
         localTargetRules={localTargetRules}
         vaultTags={vaultTags}
       />
-    </ShellLayout>
+        </>
+      )}
+    />
   );
 }
 

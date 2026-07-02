@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 const desktopRoot = fileURLToPath(new URL("..", import.meta.url));
+const uiRoot = join(desktopRoot, "..", "ui");
 
 function readRendererTsxFiles(dir: string): Array<{ path: string; content: string }> {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
@@ -160,7 +161,7 @@ describe("UI style system", () => {
   it("locks the C1 global visual upgrade into shell, controls and shared surfaces", () => {
     const styles = readFileSync(join(desktopRoot, "src", "renderer", "styles.css"), "utf8");
     const shellLayout = readFileSync(
-      join(desktopRoot, "src", "renderer", "components", "ShellLayout.tsx"),
+      join(uiRoot, "src", "shell", "AppShell.tsx"),
       "utf8"
     );
     const shellNavActiveRule = readCssRule(
@@ -266,7 +267,7 @@ describe("UI style system", () => {
   it("keeps the AI drawer and main workspace as separate scroll panes", () => {
     const styles = readFileSync(join(desktopRoot, "src", "renderer", "styles.css"), "utf8");
     const shellLayout = readFileSync(
-      join(desktopRoot, "src", "renderer", "components", "ShellLayout.tsx"),
+      join(uiRoot, "src", "shell", "AppShell.tsx"),
       "utf8"
     );
     const assistantWorkspaceRule = readCssRule(styles, ".app-shell.assistant-open .shell-workspace");
@@ -427,7 +428,7 @@ describe("UI style system", () => {
     const ipcRegister = readFileSync(join(desktopRoot, "src", "main", "ipc.ts"), "utf8");
     const preload = readFileSync(join(desktopRoot, "src", "preload", "preload.ts"), "utf8");
     const apiTypes = readFileSync(join(desktopRoot, "src", "renderer", "api", "types.ts"), "utf8");
-    const shellLayout = readFileSync(join(desktopRoot, "src", "renderer", "components", "ShellLayout.tsx"), "utf8");
+    const homePage = readFileSync(join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"), "utf8");
 
     expect(mainProcess).toContain("createTitleBarOverlayOptions");
     expect(mainProcess).toContain('titleBarOverlay: createTitleBarOverlayOptions("light")');
@@ -438,7 +439,7 @@ describe("UI style system", () => {
     expect(preload).toContain('ipcRenderer.invoke("window:set-color-mode"');
     expect(apiTypes).toContain("WindowApi");
     expect(apiTypes).toContain("export type * from \"./windowApi\"");
-    expect(shellLayout).toContain("window.d2?.setWindowColorMode?.(props.colorMode)");
+    expect(homePage).toContain("setColorMode: (mode: \"light\" | \"dark\") => window.d2?.setWindowColorMode?.(mode)");
   });
 
   it("keeps dense item surfaces responsive by avoiding animated shadows and movement", () => {
@@ -471,9 +472,10 @@ describe("UI style system", () => {
 
   it("starts settings page migration with a two-column desktop tool layout", () => {
     const settingsPage = readFileSync(join(desktopRoot, "src", "renderer", "features", "settings", "SettingsPage.tsx"), "utf8");
+    const settingsPageView = readFileSync(join(uiRoot, "src", "settings", "SettingsPageView.tsx"), "utf8");
     const styles = readFileSync(join(desktopRoot, "src", "renderer", "styles.css"), "utf8");
 
-    expect(settingsPage).toContain('className="app-page settings-app-page"');
+    expect(settingsPageView).toContain('className="app-page settings-app-page"');
     expect(settingsPage).not.toContain("app-page-head");
     expect(settingsPage).toContain("app-settings-shell");
     expect(settingsPage).toContain("settings-menu");
@@ -493,9 +495,12 @@ describe("UI style system", () => {
   it("finishes the next UI refactor slices with shared panel, status, list, badge and filter styles", () => {
     const styles = readFileSync(join(desktopRoot, "src", "renderer", "styles.css"), "utf8");
     const settingsPage = readFileSync(join(desktopRoot, "src", "renderer", "features", "settings", "SettingsPage.tsx"), "utf8");
-    const homeDashboard = readFileSync(join(desktopRoot, "src", "renderer", "features", "home", "HomeDashboard.tsx"), "utf8");
+    const homeDashboard = readFileSync(join(uiRoot, "src", "home", "HomePageView.tsx"), "utf8");
     const dailyPanel = readFileSync(join(desktopRoot, "src", "renderer", "shared", "components", "DailySummaryPanel.tsx"), "utf8");
-    const accountPage = readFileSync(join(desktopRoot, "src", "renderer", "features", "account", "AccountPage.tsx"), "utf8");
+    const accountPage = [
+      readFileSync(join(uiRoot, "src", "account", "AccountPageView.tsx"), "utf8"),
+      readFileSync(join(desktopRoot, "src", "renderer", "features", "account", "AccountPage.tsx"), "utf8")
+    ].join("\n");
     const vaultPage = readFileSync(join(desktopRoot, "src", "renderer", "features", "vault", "VaultPage.tsx"), "utf8");
     const vaultPanel = readFileSync(join(desktopRoot, "src", "renderer", "components", "VaultPanel.tsx"), "utf8");
     const vaultToolbar = readFileSync(join(desktopRoot, "src", "renderer", "features", "vault", "VaultFilterToolbar.tsx"), "utf8");

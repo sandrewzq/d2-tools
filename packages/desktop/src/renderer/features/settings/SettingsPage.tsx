@@ -1,14 +1,17 @@
+import { SettingsPageView } from "@d2-tools/ui";
 import { useEffect, useState } from "react";
 import { api, type AccountSummary, type ActionLogEntry, type BackgroundTaskSnapshot, type ManifestStatus, type UpdateSnapshot } from "../../api/client";
 import { AiSettingsPanel } from "../../components/AiSettingsPanel";
+import type { LanguagePreferences } from "./diagnosticsModel";
 
 export type SettingsActionLogResultFilter = "all" | "success" | "failed";
 export type SettingsActionLogTypeFilter = ActionLogEntry["action"] | "all";
 
-type SettingsSectionKey = "overview" | "account" | "library" | "bungie" | "ai" | "backup" | "diagnostics";
+type SettingsSectionKey = "overview" | "language" | "account" | "library" | "bungie" | "ai" | "backup" | "diagnostics";
 
 const settingsMenu: Array<{ key: SettingsSectionKey; label: string; hint: string }> = [
   { key: "overview", label: "总览", hint: "状态、常用操作" },
+  { key: "language", label: "语言", hint: "界面、资料库" },
   { key: "account", label: "账号", hint: "授权、读取、切换预留" },
   { key: "library", label: "资料库", hint: "版本、检查、修复" },
   { key: "bungie", label: "Bungie", hint: "接口配置" },
@@ -59,6 +62,8 @@ export function SettingsPage(props: {
   onActionLogResultFilterChange: (filter: SettingsActionLogResultFilter) => void;
   onActionLogTypeFilterChange: (filter: SettingsActionLogTypeFilter) => void;
   onCopyActionDiagnostic: (entry: ActionLogEntry) => void;
+  languagePreferences: LanguagePreferences;
+  onLanguagePreferencesChange: (preferences: LanguagePreferences) => void;
 }) {
   const initialSection = ((import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env?.VITE_D2_VISUAL_SETTINGS_SECTION ?? "overview") as SettingsSectionKey;
   const [activeSection, setActiveSection] = useState<SettingsSectionKey>(settingsMenu.some((item) => item.key === initialSection) ? initialSection : "overview");
@@ -143,7 +148,7 @@ export function SettingsPage(props: {
   }
 
   return (
-    <section className="app-page settings-app-page">
+    <SettingsPageView>
       {props.message ? <p className="status-message status-ready">{props.message}</p> : null}
       {props.error ? <p className="status-message status-error">{props.error}</p> : null}
 
@@ -270,6 +275,80 @@ export function SettingsPage(props: {
                   <span>检查账号、资料库、后台任务和本地数据目录。</span>
                 </div>
                 <button type="button" className="secondary-button" onClick={() => setActiveSection("diagnostics")}>查看诊断</button>
+              </div>
+            </section>
+          </section>
+
+          <section className={activeSection === "language" ? "settings-detail active" : "settings-detail"} id="settings-language">
+            <section className="app-panel app-setting-group">
+              <div className="app-section-title">
+                <div>
+                  <h2>语言</h2>
+                  <span>界面语言和 Bungie 资料库语言分开设置。</span>
+                </div>
+                <span className="app-chip status-neutral">{props.languagePreferences.interfaceLocale === "zh-CN" ? "中文" : "English"}</span>
+              </div>
+              <div className="app-setting-row">
+                <div>
+                  <strong>界面语言</strong>
+                  <span>控制菜单、按钮、设置、状态、诊断和空状态文案。</span>
+                </div>
+                <select
+                  value={props.languagePreferences.interfaceLocale}
+                  onChange={(event) => {
+                    const interfaceLocale = event.target.value as LanguagePreferences["interfaceLocale"];
+                    props.onLanguagePreferencesChange({
+                      ...props.languagePreferences,
+                      interfaceLocale,
+                      bungieLocale: props.languagePreferences.followInterfaceLocaleForBungie
+                        ? interfaceLocaleToBungieLocale(interfaceLocale)
+                        : props.languagePreferences.bungieLocale
+                    });
+                  }}
+                >
+                  <option value="zh-CN">中文</option>
+                  <option value="en-US">English</option>
+                </select>
+              </div>
+              <div className="app-setting-row">
+                <div>
+                  <strong>资料库语言</strong>
+                  <span>控制装备名、perk、活动名等 Bungie Manifest 数据；变更后在后续资料库读取或更新时生效。</span>
+                </div>
+                <select
+                  disabled={props.languagePreferences.followInterfaceLocaleForBungie}
+                  value={props.languagePreferences.bungieLocale}
+                  onChange={(event) => props.onLanguagePreferencesChange({
+                    ...props.languagePreferences,
+                    bungieLocale: event.target.value as LanguagePreferences["bungieLocale"]
+                  })}
+                >
+                  <option value="zh-chs">简体中文</option>
+                  <option value="en">English</option>
+                </select>
+              </div>
+              <div className="app-setting-row">
+                <div>
+                  <strong>跟随界面语言</strong>
+                  <span>开启后，切换界面语言会同步切换资料库语言。</span>
+                </div>
+                <label className="switch-row">
+                  <input
+                    checked={props.languagePreferences.followInterfaceLocaleForBungie}
+                    type="checkbox"
+                    onChange={(event) => {
+                      const follow = event.target.checked;
+                      props.onLanguagePreferencesChange({
+                        ...props.languagePreferences,
+                        followInterfaceLocaleForBungie: follow,
+                        bungieLocale: follow
+                          ? interfaceLocaleToBungieLocale(props.languagePreferences.interfaceLocale)
+                          : props.languagePreferences.bungieLocale
+                      });
+                    }}
+                  />
+                  跟随
+                </label>
               </div>
             </section>
           </section>
@@ -545,7 +624,7 @@ export function SettingsPage(props: {
           </section>
         </div>
       </div>
-    </section>
+    </SettingsPageView>
   );
 }
 
@@ -797,4 +876,8 @@ function filteredActionLog(
     if (action !== "all" && entry.action !== action) return false;
     return true;
   });
+}
+
+function interfaceLocaleToBungieLocale(locale: LanguagePreferences["interfaceLocale"]): LanguagePreferences["bungieLocale"] {
+  return locale === "en-US" ? "en" : "zh-chs";
 }

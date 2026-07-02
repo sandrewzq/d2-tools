@@ -4,19 +4,24 @@ import { describe, expect, it } from "vitest";
 
 const desktopRoot = join(process.cwd(), "packages", "desktop");
 const rendererRoot = join(desktopRoot, "src", "renderer");
+const uiRoot = join(process.cwd(), "packages", "ui");
 
 function readRendererFile(path: string): string {
   return readFileSync(join(rendererRoot, path), "utf8");
 }
 
+function readUiFile(path: string): string {
+  return readFileSync(join(uiRoot, "src", path), "utf8");
+}
+
 describe("desktop product redesign wiring", () => {
   it("lands the approved prototype structure into the real desktop pages", () => {
-    const homeDashboard = readRendererFile("features/home/HomeDashboard.tsx");
+    const homeDashboard = readUiFile("home/HomePageView.tsx");
     const homePage = readRendererFile("pages/HomePage.tsx");
     const vaultPanel = readRendererFile("components/VaultPanel.tsx");
     const loadoutsPage = readRendererFile("features/loadouts/LoadoutsPage.tsx");
     const libraryPage = readRendererFile("features/library/LibraryPage.tsx");
-    const settingsPage = readRendererFile("features/settings/SettingsPage.tsx");
+    const settingsPage = `${readUiFile("settings/SettingsPageView.tsx")}\n${readRendererFile("features/settings/SettingsPage.tsx")}`;
     const styles = readRendererFile("styles.css");
 
     expect(homeDashboard).toContain("app-page home-app-page");

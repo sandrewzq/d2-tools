@@ -10,7 +10,8 @@ import {
   useActionLogState,
   useAiWriteSettingsState,
   useColorModeState,
-  useDiagnosticsStatusState
+  useDiagnosticsStatusState,
+  useLanguagePreferencesState
 } from "./useDiagnosticsSettingsState";
 import { useUpdateFlow } from "./useUpdateFlow";
 import { useBackgroundTasks } from "../../shared/hooks/useBackgroundTasks";
@@ -19,6 +20,11 @@ import { useManifestStatus } from "../../shared/hooks/useManifestStatus";
 export function useDiagnosticsSettings(input: {
   onConfigChanged: () => void;
   initialColorMode?: "light" | "dark";
+  initialLanguagePreferences?: {
+    interfaceLocale: "zh-CN" | "en-US";
+    bungieLocale: string;
+    followInterfaceLocaleForBungie: boolean;
+  };
 }) {
   const diagnosticsStatus = useDiagnosticsStatusState();
   const aiWriteSettings = useAiWriteSettingsState();
@@ -27,6 +33,7 @@ export function useDiagnosticsSettings(input: {
   const backgroundTaskState = useBackgroundTasks();
   const manifestStatusState = useManifestStatus();
   const colorModeState = useColorModeState(input.initialColorMode);
+  const languagePreferencesState = useLanguagePreferencesState(normalizeInitialLanguagePreferences(input.initialLanguagePreferences));
 
   const settingsModel = createDiagnosticsSettingsModel({
     onConfigChanged: input.onConfigChanged,
@@ -37,6 +44,7 @@ export function useDiagnosticsSettings(input: {
     setAiSettings: aiWriteSettings.setAiSettings,
     setWriteActionsEnabled: aiWriteSettings.setWriteActionsEnabled,
     setColorMode: colorModeState.setColorMode,
+    setLanguagePreferences: languagePreferencesState.setLanguagePreferences,
     setActionLog: actionLogState.setActionLog,
     setSettingsMessage: updateFlow.setSettingsMessage,
     setSettingsError: updateFlow.setSettingsError
@@ -63,6 +71,7 @@ export function useDiagnosticsSettings(input: {
     downloadUpdate: updateFlow.downloadUpdate,
     handleAiSettingsSaved: settingsModel.handleAiSettingsSaved,
     colorMode: colorModeState.colorMode,
+    languagePreferences: languagePreferencesState.languagePreferences,
     isRefreshingDiagnostics: diagnosticsStatus.isRefreshingDiagnostics,
     initializeManifest: manifestStatusState.initializeManifest,
     isInitializingManifest: manifestStatusState.isInitializingManifest,
@@ -75,7 +84,19 @@ export function useDiagnosticsSettings(input: {
     refreshManifestStatus: manifestStatusState.refreshManifestStatus,
     refreshDiagnostics: settingsModel.refreshDiagnostics,
     saveWriteActionsEnabled: settingsModel.saveWriteActionsEnabled,
+    saveLanguagePreferences: settingsModel.saveLanguagePreferences,
     toggleColorMode: () => settingsModel.saveColorMode(colorModeState.colorMode === "light" ? "dark" : "light"),
+    toggleInterfaceLocale: () => {
+      const interfaceLocale = languagePreferencesState.languagePreferences.interfaceLocale === "zh-CN" ? "en-US" : "zh-CN";
+      const bungieLocale = languagePreferencesState.languagePreferences.followInterfaceLocaleForBungie
+        ? interfaceLocaleToBungieLocale(interfaceLocale)
+        : languagePreferencesState.languagePreferences.bungieLocale;
+      return settingsModel.saveLanguagePreferences({
+        ...languagePreferencesState.languagePreferences,
+        interfaceLocale,
+        bungieLocale
+      });
+    },
     setActionLogResultFilter: actionLogState.setActionLogResultFilter,
     setActionLogTypeFilter: actionLogState.setActionLogTypeFilter,
     setWriteActionsEnabled: aiWriteSettings.setWriteActionsEnabled,
@@ -85,6 +106,23 @@ export function useDiagnosticsSettings(input: {
     updateSnapshot: updateFlow.updateSnapshot,
     writeActionsEnabled: aiWriteSettings.writeActionsEnabled
   };
+}
+
+function normalizeInitialLanguagePreferences(input: {
+  interfaceLocale: "zh-CN" | "en-US";
+  bungieLocale: string;
+  followInterfaceLocaleForBungie: boolean;
+} | undefined) {
+  if (!input) return undefined;
+  return {
+    interfaceLocale: input.interfaceLocale,
+    bungieLocale: input.bungieLocale === "en" ? "en" as const : "zh-chs" as const,
+    followInterfaceLocaleForBungie: input.followInterfaceLocaleForBungie
+  };
+}
+
+function interfaceLocaleToBungieLocale(locale: "zh-CN" | "en-US"): "zh-chs" | "en" {
+  return locale === "en-US" ? "en" : "zh-chs";
 }
 
 async function runConfigBackupAction(

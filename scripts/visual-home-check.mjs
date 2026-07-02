@@ -2,7 +2,7 @@ import { spawn } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
 import { dirname, join, resolve } from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { fileURLToPath } from "node:url";
 
 const repoRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const isWindows = process.platform === "win32";
@@ -30,12 +30,10 @@ const [width, height] = viewport.split("x").map((part) => Number.parseInt(part, 
 const theme = process.env.D2_VISUAL_THEME ?? defaultTheme;
 const outputDir = resolve(process.env.D2_VISUAL_OUTPUT_DIR ?? join(repoRoot, ".local-data", "tmp", "visual", page));
 const dataDir = join(outputDir, "data");
-const referenceHtml = join(outputDir, `reference-${theme}-${viewport}.html`);
 const referencePng = join(outputDir, `reference-${theme}-${viewport}.png`);
 const appPng = join(outputDir, `app-${theme}-${viewport}.png`);
 const comparePng = join(outputDir, `compare-${theme}-${viewport}.png`);
 const reportPath = join(outputDir, "report.json");
-const prototypePath = join(repoRoot, "docs", "work", "backlog", "desktop-ui-redesign-prototype.html");
 const requiredDefinitionComponents = [
   "DestinyInventoryItemDefinition",
   "DestinyPlugSetDefinition",
@@ -145,27 +143,6 @@ function findChrome() {
   return found;
 }
 
-function prepareReferenceHtml() {
-  let html = readFileSync(prototypePath, "utf8")
-    .replace('<body data-theme="light">', `<body data-theme="${theme}">`)
-    .replace('<div class="workspace ai-open" id="workspace">', '<div class="workspace" id="workspace">');
-  if (page === "settings") {
-    html = html
-      .replace('<button class="active" data-page="home">首页</button>', '<button data-page="home">首页</button>')
-      .replace('<button data-page="settings">设置</button>', '<button class="active" data-page="settings">设置</button>')
-      .replace('<section class="page active" id="page-home">', '<section class="page" id="page-home">')
-      .replace('<section class="page" id="page-settings">', '<section class="page active" id="page-settings">');
-    if (settingsSection !== "overview") {
-      html = html
-        .replace('class="active" data-settings="overview"', 'data-settings="overview"')
-        .replace(`data-settings="${settingsSection}"`, `class="active" data-settings="${settingsSection}"`)
-        .replace('class="settings-detail active" id="settings-overview"', 'class="settings-detail" id="settings-overview"')
-        .replace(`class="settings-detail" id="settings-${settingsSection}"`, `class="settings-detail active" id="settings-${settingsSection}"`);
-    }
-  }
-  writeFileSync(referenceHtml, html, "utf8");
-}
-
 function prepareVisualConfig() {
   mkdirSync(dataDir, { recursive: true });
   const config = {
@@ -240,16 +217,38 @@ function prepareVisualConfig() {
 
 async function captureReference() {
   const chrome = findChrome();
-  console.log(`${logPrefix} capture prototype reference`);
-  await run(chrome, [
-    "--headless=new",
-    "--disable-gpu",
-    "--hide-scrollbars",
-    `--window-size=${width},${height}`,
-    "--virtual-time-budget=3000",
-    `--screenshot=${referencePng}`,
-    pathToFileURL(referenceHtml).href
-  ], { stdio: "ignore" });
+  const port = await findAvailablePort(53218);
+  const prototypeUrl = `http://127.0.0.1:${port}`;
+  const vite = start(pnpm, ["--filter", "@d2-tools/prototype", "exec", "vite", "--host", "127.0.0.1", "--port", String(port), "--strictPort"], {
+    stdio: "pipe",
+    label: `start prototype on ${prototypeUrl}`,
+    env: {
+      VITE_D2_VISUAL_PAGE: page,
+      VITE_D2_VISUAL_SETTINGS_SECTION: settingsSection,
+      VITE_D2_VISUAL_THEME: theme
+    }
+  });
+  try {
+    await waitForUrl(prototypeUrl);
+    console.log(`${logPrefix} capture React prototype reference`);
+    await run(chrome, [
+      "--headless=new",
+      "--disable-gpu",
+      "--hide-scrollbars",
+      `--window-size=${width},${height}`,
+      "--virtual-time-budget=3000",
+      `--screenshot=${referencePng}`,
+      prototypeUrl
+    ], { stdio: "ignore" });
+  } finally {
+    if (!vite.killed) {
+      if (isWindows) {
+        spawn("taskkill.exe", ["/PID", String(vite.pid), "/T", "/F"], { stdio: "ignore", windowsHide: true });
+      } else {
+        vite.kill("SIGTERM");
+      }
+    }
+  }
 }
 
 async function buildElectronOutputs() {
@@ -323,7 +322,6 @@ async function main() {
   }
   rmSync(outputDir, { recursive: true, force: true });
   mkdirSync(dirname(reportPath), { recursive: true });
-  prepareReferenceHtml();
   prepareVisualConfig();
   await captureReference();
   await buildElectronOutputs();

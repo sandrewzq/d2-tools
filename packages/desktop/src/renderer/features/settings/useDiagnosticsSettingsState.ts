@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { ActionLogEntry, D2Config } from "../../api/client";
-import { createDiagnosticsSettingsState } from "./diagnosticsModel";
+import { createDiagnosticsSettingsState, type LanguagePreferences } from "./diagnosticsModel";
 
 export function useDiagnosticsStatusState() {
   const initialState = createDiagnosticsSettingsState();
@@ -45,6 +45,18 @@ export function useColorModeState(initialColorMode?: D2Config["features"]["color
   return {
     colorMode,
     setColorMode
+  };
+}
+
+export function useLanguagePreferencesState(initialLanguagePreferences?: LanguagePreferences) {
+  const initialState = createDiagnosticsSettingsState();
+  const [languagePreferences, setLanguagePreferences] = useState<LanguagePreferences>(
+    initialLanguagePreferences ?? initialState.languagePreferences
+  );
+
+  return {
+    languagePreferences,
+    setLanguagePreferences
   };
 }
 

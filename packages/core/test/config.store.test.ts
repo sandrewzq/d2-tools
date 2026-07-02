@@ -94,6 +94,8 @@ describe("config store", () => {
     expect(config.data.manifest_language).toBe("zh-chs");
     expect(config.features.write_actions_enabled).toBe(false);
     expect(config.features.color_mode).toBe("light");
+    expect(config.features.interface_locale).toBe("zh-CN");
+    expect(config.features.manifest_language_follows_interface).toBe(true);
   });
 
   it("persists GUI-provided Bungie credentials without logging them", () => {
@@ -119,7 +121,9 @@ describe("config store", () => {
         },
         features: {
           write_actions_enabled: true,
-          color_mode: "dark"
+          color_mode: "dark",
+          interface_locale: "en-US",
+          manifest_language_follows_interface: false
         }
       },
       { dataDir: dir }
@@ -132,6 +136,8 @@ describe("config store", () => {
     expect(loaded.bungie.client_secret).toBe("secret");
     expect(loaded.features.write_actions_enabled).toBe(true);
     expect(loaded.features.color_mode).toBe("dark");
+    expect(loaded.features.interface_locale).toBe("en-US");
+    expect(loaded.features.manifest_language_follows_interface).toBe(false);
   });
 
   it("lets env override config values", () => {
@@ -193,6 +199,8 @@ describe("config store", () => {
     expect(loaded.ai.base_url).toBe("");
     expect(loaded.features.write_actions_enabled).toBe(false);
     expect(loaded.features.color_mode).toBe("light");
+    expect(loaded.features.interface_locale).toBe("zh-CN");
+    expect(loaded.features.manifest_language_follows_interface).toBe(true);
   });
 
   it("migrates the old local HTTP redirect URI to HTTPS", () => {

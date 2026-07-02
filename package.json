@@ -17,6 +17,8 @@
     "dev": "pnpm --filter @d2-tools/desktop dev",
     "dev:desktop": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev-desktop.ps1",
     "dev:electron": "pnpm --filter @d2-tools/desktop dev:electron",
+    "dev:prototype": "pnpm --filter @d2-tools/prototype dev",
+    "dev:web": "pnpm --filter @d2-tools/web dev",
     "visual:home": "node scripts/visual-home-check.mjs",
     "visual:settings": "node scripts/visual-home-check.mjs --page settings",
     "build": "pnpm -r build",

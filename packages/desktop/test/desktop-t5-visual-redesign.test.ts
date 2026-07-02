@@ -4,9 +4,14 @@ import { describe, expect, it } from "vitest";
 
 const desktopRoot = join(process.cwd(), "packages", "desktop");
 const rendererRoot = join(desktopRoot, "src", "renderer");
+const uiRoot = join(process.cwd(), "packages", "ui");
 
 function readRendererFile(path: string): string {
   return readFileSync(join(rendererRoot, path), "utf8");
+}
+
+function readUiFile(path: string): string {
+  return readFileSync(join(uiRoot, "src", path), "utf8");
 }
 
 function readCssRule(styles: string, selector: string): string {
@@ -19,7 +24,7 @@ function readCssRule(styles: string, selector: string): string {
 
 describe("desktop T5 visual redesign", () => {
   it("renders a desktop shell with top global status, right-side tools and an AI drawer", () => {
-    const shell = readRendererFile("components/ShellLayout.tsx");
+    const shell = `${readUiFile("shell/AppShell.tsx")}\n${readUiFile("shell/navigation.ts")}\n${readUiFile("i18n/copy.ts")}`;
     const styles = readRendererFile("styles.css");
 
     expect(shell).toContain("shell-topbar");
@@ -31,11 +36,11 @@ describe("desktop T5 visual redesign", () => {
     expect(shell).toContain("shell-tool-button");
     expect(shell).toContain("shell-tool-ai");
     expect(shell).toContain("shell-tool-github");
-    expect(shell).toContain('{ key: "settings", label: "设置" }');
+    expect(shell).toContain('settings: "设置"');
     expect(shell).not.toContain("onInitializeManifest");
     expect(shell).not.toContain("aria-label=\"后台更新资料库\"");
     expect(shell).toContain("global-assistant-drawer");
-    expect(shell).toContain("aria-label=\"打开 AI 助手抽屉\"");
+    expect(shell).toContain("打开 AI 助手抽屉");
     expect(shell).not.toContain("title=\"本地数据\"");
     expect(shell).not.toContain("title=\"操作历史\"");
     expect(shell).not.toContain("title=\"工具\"");
@@ -67,7 +72,7 @@ describe("desktop T5 visual redesign", () => {
   });
 
   it("keeps home as a product overview instead of a navigation or task launcher page", () => {
-    const homeDashboard = readRendererFile("features/home/HomeDashboard.tsx");
+    const homeDashboard = readUiFile("home/HomePageView.tsx");
     const styles = readRendererFile("styles.css");
 
     expect(homeDashboard).toContain("app-page home-app-page");

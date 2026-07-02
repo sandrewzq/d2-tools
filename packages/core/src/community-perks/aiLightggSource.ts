@@ -87,7 +87,9 @@ function buildAiConfig(config: AiLightggConfig): D2Config {
     },
     features: {
       write_actions_enabled: false,
-      color_mode: "light"
+      color_mode: "light",
+      interface_locale: "zh-CN",
+      manifest_language_follows_interface: true
     }
   };
 }

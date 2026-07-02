@@ -28,6 +28,7 @@
     "@d2-tools/core": "workspace:*",
     "@d2-tools/http": "workspace:*",
     "@d2-tools/services": "workspace:*",
+    "@d2-tools/ui": "workspace:*",
     "electron-updater": "^6.3.9"
   },
   "devDependencies": {

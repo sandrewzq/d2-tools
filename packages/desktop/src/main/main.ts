@@ -37,7 +37,8 @@ async function createWindow(): Promise<void> {
     webPreferences: {
       preload: join(currentDir, "../preload/preload.cjs"),
       contextIsolation: true,
-      nodeIntegration: false
+      nodeIntegration: false,
+      backgroundThrottling: !isVisualCapture
     }
   });
 
@@ -105,6 +106,14 @@ async function captureVisualSnapshot(window: BrowserWindow): Promise<void> {
         setTimeout(poll, 100);
       };
       poll();
+    })
+  `);
+
+  await window.webContents.executeJavaScript(`
+    new Promise((resolve) => {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => setTimeout(resolve, 250));
+      });
     })
   `);
 

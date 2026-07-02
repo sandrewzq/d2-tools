@@ -4,13 +4,16 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 const desktopRoot = fileURLToPath(new URL("..", import.meta.url));
+const repoRoot = fileURLToPath(new URL("../../..", import.meta.url));
+const uiRoot = join(repoRoot, "packages", "ui");
 
 describe("global AI assistant sidebar wiring", () => {
   it("moves AI assistant out of the main page navigation into a right-side drawer", () => {
-    const shellLayout = readFileSync(
-      join(desktopRoot, "src", "renderer", "components", "ShellLayout.tsx"),
-      "utf8"
-    );
+    const shellLayout = [
+      readFileSync(join(uiRoot, "src", "shell", "AppShell.tsx"), "utf8"),
+      readFileSync(join(uiRoot, "src", "shell", "navigation.ts"), "utf8"),
+      readFileSync(join(uiRoot, "src", "i18n", "copy.ts"), "utf8")
+    ].join("\n");
     const homePage = readFileSync(
       join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"),
       "utf8"
@@ -22,7 +25,7 @@ describe("global AI assistant sidebar wiring", () => {
     expect(shellLayout).not.toContain("global-assistant-rail");
     expect(shellLayout).toContain("AI 助手");
     expect(shellLayout).toContain("打开 AI 助手抽屉");
-    expect(shellLayout).toContain('{ key: "settings", label: "设置" }');
+    expect(shellLayout).toContain('settings: "设置"');
     expect(shellLayout).not.toContain("brand-block");
     expect(shellLayout).not.toContain("工作区");
     expect(shellLayout).not.toContain("任务助手");
@@ -99,10 +102,11 @@ describe("global AI assistant sidebar wiring", () => {
   });
 
   it("wires a persistent light and dark color mode toggle into the desktop shell", () => {
-    const shellLayout = readFileSync(
-      join(desktopRoot, "src", "renderer", "components", "ShellLayout.tsx"),
-      "utf8"
-    );
+    const shellLayout = [
+      readFileSync(join(uiRoot, "src", "shell", "AppShell.tsx"), "utf8"),
+      readFileSync(join(uiRoot, "src", "product", "ProductShellHost.tsx"), "utf8"),
+      readFileSync(join(uiRoot, "src", "i18n", "copy.ts"), "utf8")
+    ].join("\n");
     const homePage = readFileSync(
       join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"),
       "utf8"
@@ -140,10 +144,11 @@ describe("global AI assistant sidebar wiring", () => {
     expect(shellLayout).toContain("shell-tool-theme");
     expect(shellLayout).toContain("切换为暗色");
     expect(shellLayout).toContain("切换为亮色");
-    expect(homePage).toContain("colorMode={diagnostics.colorMode}");
+    expect(homePage).toContain("preferences={productPreferences}");
+    expect(homePage).toContain("setColorMode: (mode: \"light\" | \"dark\") => window.d2?.setWindowColorMode?.(mode)");
     expect(homePage).toContain("initialColorMode: visualColorMode ?? props.state.colorMode");
     expect(homePage).toContain("VITE_D2_VISUAL_THEME");
-    expect(homePage).toContain("onColorModeToggle={() => void diagnostics.toggleColorMode()}");
+    expect(homePage).toContain("handleProductPreferencesChange");
     expect(diagnosticsHook).toContain('initialColorMode?: "light" | "dark"');
     expect(diagnosticsHook).toContain("useColorModeState(input.initialColorMode)");
     expect(diagnosticsStateHook).toContain("export function useColorModeState");
