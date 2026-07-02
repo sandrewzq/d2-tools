@@ -146,6 +146,7 @@ export type VaultCopy = {
 };
 
 export type LoadoutsCopy = {
+  inline: Record<string, string>;
   title: string;
   subtitle: string;
   riskTitle: string;
@@ -156,6 +157,7 @@ export type LoadoutsCopy = {
 };
 
 export type LibraryCopy = {
+  inline: Record<string, string>;
   title: string;
   subtitle: string;
   versionLabel: string;

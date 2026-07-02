@@ -13,6 +13,7 @@ export type LoadoutsPageViewProps = {
 
 export function LoadoutsPageView(props: LoadoutsPageViewProps) {
   const copy = getLocaleCopy(props.interfaceLocale ?? "zh-CN").loadouts;
+  const unit = copy.inline["件"] ?? "件";
 
   return (
     <section className="tool-panel loadouts-page loadout-product-layout">
@@ -22,7 +23,7 @@ export function LoadoutsPageView(props: LoadoutsPageViewProps) {
           <p>{copy.subtitle}</p>
         </div>
       </div>
-      {props.message ? <p className={props.message.includes("失败") ? "status-message status-error" : "status-message status-ready"}>{props.message}</p> : null}
+      {props.message ? <p className={props.message.includes(copy.inline["失败"] ?? "失败") ? "status-message status-error" : "status-message status-ready"}>{props.message}</p> : null}
       <section className="product-card loadout-risk-panel">
         <div className="section-heading compact-heading">
           <div>
@@ -31,9 +32,9 @@ export function LoadoutsPageView(props: LoadoutsPageViewProps) {
           </div>
         </div>
         <div className="loadout-risk-grid">
-          <span>{copy.missingItems} {props.missingCount} 件</span>
-          <span>{copy.readyItems} {props.readyCount} 件</span>
-          <span>{copy.actionableItems} {props.actionableCount} 件</span>
+          <span>{copy.missingItems} {props.missingCount} {unit}</span>
+          <span>{copy.readyItems} {props.readyCount} {unit}</span>
+          <span>{copy.actionableItems} {props.actionableCount} {unit}</span>
         </div>
       </section>
       {props.children}

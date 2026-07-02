@@ -9,6 +9,8 @@ import {
   getLocaleCopy,
   getLocalizedNavItems,
   HomePageView,
+  LibraryPageContentView,
+  LoadoutsPageContentView,
   SettingsPageContentView,
   type ProductPreferences
 } from "../../ui/src/index";
@@ -203,5 +205,128 @@ describe("shared UI i18n", () => {
     expect(settingsHtml).not.toContain("常用操作");
     expect(settingsHtml).not.toContain("检查更新");
     expect(settingsHtml).not.toMatch(/[\u4e00-\u9fff]/);
+  });
+
+  it("renders shared library and loadouts page copy from English locale", () => {
+    const libraryHtml = renderToStaticMarkup(
+      <LibraryPageContentView
+        interfaceLocale="en-US"
+        libraryViewMode="equipment"
+        items={[]}
+        perks={[]}
+        equipmentFilters={{
+          query: "",
+          group: "all",
+          tier: "all",
+          bucket: "all",
+          ammo: "all",
+          frame: [],
+          sourceStatus: "all",
+          perkPool: "all",
+          dropAccess: "all",
+          perkQuery: ""
+        }}
+        perkFilters={{ query: "", relatedGroup: "all", hasRelatedItems: "all" }}
+        equipmentSearchTouched={false}
+        perkSearchTouched={false}
+        isSearching={false}
+        searchError=""
+        aliasDraft=""
+        aliasTargetDraft=""
+        aliasKind="item"
+        aliasMessage=""
+        libraryHistory={{ recent: [], favorites: [] }}
+        libraryCommunityMatch={new Map()}
+        liveAvailability={null}
+        liveAvailabilityError=""
+        isLoadingLiveAvailability={false}
+        manifestStatus={null}
+        manifestStatusError=""
+        isLoadingManifestStatus={false}
+        isInitializingManifest={false}
+        itemDetailLoadingKey=""
+        onViewModeChange={() => undefined}
+        onEquipmentFiltersChange={() => undefined}
+        onPerkFiltersChange={() => undefined}
+        onSearch={() => undefined}
+        onClearFilters={() => undefined}
+        onRefreshManifestStatus={() => undefined}
+        onInitializeManifest={() => undefined}
+        onAliasDraftChange={() => undefined}
+        onAliasTargetDraftChange={() => undefined}
+        onAliasKindChange={() => undefined}
+        onSaveAlias={() => undefined}
+        onOpenItemDetail={() => undefined}
+        onAddFavorite={() => undefined}
+        onRemoveFavorite={() => undefined}
+      />
+    );
+
+    const selectedLoadoutTemplate = {
+      id: "template-1",
+      name: "Test build",
+      class_name: "Hunter",
+      created_at: "2026-07-02T00:00:00.000Z",
+      updated_at: "2026-07-02T00:00:00.000Z",
+      items: [
+        {
+          hash: 1,
+          name: "Test item",
+          bucket_name: "Kinetic",
+          weapon_frame_name: "Adaptive",
+          perk_names: ["Trait"]
+        }
+      ]
+    };
+
+    const loadoutsHtml = renderToStaticMarkup(
+      <LoadoutsPageContentView
+        interfaceLocale="en-US"
+        accountSummary={null}
+        templates={[selectedLoadoutTemplate]}
+        selectedTemplate={selectedLoadoutTemplate}
+        compareTemplate={null}
+        selectedAnalysis={null}
+        transferPlan={null}
+        statusSummary={[]}
+        visibleCompareRows={[]}
+        missingCount={0}
+        readyCount={0}
+        actionableCount={0}
+        compareTemplateId=""
+        renameDraft=""
+        showDiffOnly={false}
+        message=""
+        isRunningItemAction={false}
+        actionFeedback={{}}
+        getItemStatus={() => ({ key: "missing", badge_tone: "neutral", badge_label: "Missing", location_label: "" })}
+        getBlockedDetails={() => null}
+        getSourceItem={() => null}
+        getActionFeedbackKey={() => ""}
+        formatComparePerks={(perks) => perks.join(" / ")}
+        onSelectTemplate={() => undefined}
+        onSelectCompareTemplate={() => undefined}
+        onRenameDraftChange={() => undefined}
+        onShowDiffOnlyChange={() => undefined}
+        onRenameTemplate={() => undefined}
+        onDeleteTemplate={() => undefined}
+        onCreateTransferPlan={() => undefined}
+        onCopyMissingItems={() => undefined}
+        onExecuteMissingTransfer={() => undefined}
+        onExecuteSingleItemTransfer={() => undefined}
+        onEquipSingleItem={() => undefined}
+        onEquipSavedLoadout={() => undefined}
+        onSnapshotCurrentLoadout={() => undefined}
+        onOpenTemplateSourceItem={() => undefined}
+      />
+    );
+
+    expect(libraryHtml).toContain("Library");
+    expect(libraryHtml).toContain("Source lookup");
+    expect(libraryHtml).not.toMatch(/[\u4e00-\u9fff]/);
+
+    expect(loadoutsHtml).toContain("Loadouts");
+    expect(loadoutsHtml).toContain("Loadout risk");
+    expect(loadoutsHtml).not.toMatch(/[\u4e00-\u9fff]/);
   });
 });

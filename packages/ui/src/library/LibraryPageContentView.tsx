@@ -11,6 +11,8 @@ import {
   type LibraryPerkFilter,
   type LibraryViewMode
 } from "./libraryFilters.js";
+import { getLocaleCopy } from "../i18n/copy.js";
+import type { InterfaceLocale, LibraryCopy } from "../i18n/types.js";
 
 type ItemSearchResult = import("./libraryFilters.js").ItemSearchResult & {
   icon?: string;
@@ -50,7 +52,12 @@ type VaultItemMatchInfo = {
 
 type LiveEntry = LiveItemAvailability["items"][string];
 
+function libraryText(copy: LibraryCopy, key: string): string {
+  return copy.inline[key] ?? key;
+}
+
 export function LibraryPageContentView(props: {
+  interfaceLocale?: InterfaceLocale;
   libraryViewMode: LibraryViewMode;
   items: ItemSearchResult[];
   perks: PerkSearchResult[];
@@ -89,6 +96,7 @@ export function LibraryPageContentView(props: {
   onAddFavorite: (item: ItemSearchResult | PerkSearchResult) => void;
   onRemoveFavorite: (hash: number) => void;
 }) {
+  const copy = getLocaleCopy(props.interfaceLocale ?? "zh-CN").library;
   const libraryEquipmentFilter = props.equipmentFilters;
   const equipmentFilterOptions = buildLibraryEquipmentFilterOptions(props.items);
   const perkGroupOptions = buildLibraryPerkGroupOptions(props.perks);
@@ -108,7 +116,7 @@ export function LibraryPageContentView(props: {
   const isManifestBlocked = Boolean(
     props.manifestStatus && (!props.manifestStatus.initialized || props.manifestStatus.missing_required_components?.length)
   );
-  const manifestAlert = buildManifestAlert(props.manifestStatus, props.manifestStatusError, props.isLoadingManifestStatus);
+  const manifestAlert = buildManifestAlert(props.manifestStatus, props.manifestStatusError, props.isLoadingManifestStatus, copy);
 
   const manifestAlertElement = manifestAlert ? (
         <section className={`library-manifest-alert status-message ${manifestAlert.className}`}>
@@ -118,14 +126,14 @@ export function LibraryPageContentView(props: {
           </div>
           <div className="library-manifest-actions">
             <button type="button" className="secondary-button" onClick={props.onRefreshManifestStatus}>
-              重新检查
+              {libraryText(copy, "重新检查")}
             </button>
             <button
               type="button"
               disabled={props.isInitializingManifest}
               onClick={props.onInitializeManifest}
             >
-              {props.isInitializingManifest ? "更新中..." : "后台更新资料库"}
+              {props.isInitializingManifest ? libraryText(copy, "更新中...") : libraryText(copy, "后台更新资料库")}
             </button>
           </div>
         </section>
@@ -133,7 +141,8 @@ export function LibraryPageContentView(props: {
 
   return (
     <LibraryPageView
-      manifestVersionLabel={formatManifestDataDate(props.manifestStatus)}
+      interfaceLocale={props.interfaceLocale}
+      manifestVersionLabel={formatManifestDataDate(props.manifestStatus, copy)}
       manifestNeedsUpdate={props.manifestStatus?.needs_update}
       viewMode={props.libraryViewMode}
       onViewModeChange={props.onViewModeChange}
@@ -142,64 +151,64 @@ export function LibraryPageContentView(props: {
       {props.libraryViewMode === "equipment" ? (
         <section className="library-acquisition-summary">
           <div>
-            <span>获取优先级</span>
-            <strong>来源可确认 / 等轮换 / 已下架或待确认 / 来源待补</strong>
+            <span>{libraryText(copy, "获取优先级")}</span>
+            <strong>{libraryText(copy, "来源可确认 / 等轮换 / 已下架或待确认 / 来源待补")}</strong>
           </div>
-          <p>不猜来源；只有资料库、实时商人或公共活动线索能确认时才提升优先级。</p>
+          <p>{libraryText(copy, "不猜来源；只有资料库、实时商人或公共活动线索能确认时才提升优先级。")}</p>
         </section>
       ) : null}
       <div className="library-filter-grid">
         {props.libraryViewMode === "equipment" ? (
           <>
             <label className="compact-field">
-              分类
+              {libraryText(copy, "分类")}
               <select
                 value={libraryEquipmentFilter.group}
                 onChange={(event) => props.onEquipmentFiltersChange({ group: event.target.value as LibraryEquipmentFilter["group"] })}
               >
                 {equipmentFilterOptions.groups.map((option) => (
-                  <option key={option.value} value={option.value}>{option.label}</option>
+                  <option key={option.value} value={option.value}>{libraryText(copy, option.label)}</option>
                 ))}
               </select>
             </label>
             <label className="compact-field">
-              稀有度
+              {libraryText(copy, "稀有度")}
               <select
                 value={libraryEquipmentFilter.tier}
                 onChange={(event) => props.onEquipmentFiltersChange({ tier: event.target.value })}
               >
                 {equipmentFilterOptions.tiers.map((option) => (
-                  <option key={option.value} value={option.value}>{option.label}</option>
+                  <option key={option.value} value={option.value}>{libraryText(copy, option.label)}</option>
                 ))}
               </select>
             </label>
             <label className="compact-field">
-              位置
+              {libraryText(copy, "位置")}
               <select
                 value={libraryEquipmentFilter.bucket}
                 onChange={(event) => props.onEquipmentFiltersChange({ bucket: event.target.value })}
               >
                 {equipmentFilterOptions.buckets.map((option) => (
-                  <option key={option.value} value={option.value}>{option.label}</option>
+                  <option key={option.value} value={option.value}>{libraryText(copy, option.label)}</option>
                 ))}
               </select>
             </label>
             {libraryEquipmentFilter.group === "weapons" ? (
               <>
                 <label className="compact-field">
-                  弹药
+                  {libraryText(copy, "弹药")}
                   <select
                     value={libraryEquipmentFilter.ammo}
                     onChange={(event) => props.onEquipmentFiltersChange({ ammo: event.target.value as LibraryEquipmentFilter["ammo"] })}
                   >
                     {equipmentFilterOptions.ammo.map((option) => (
-                      <option key={option.value} value={option.value}>{option.label}</option>
+                      <option key={option.value} value={option.value}>{libraryText(copy, option.label)}</option>
                     ))}
                   </select>
                 </label>
                 <div className="compact-field">
-                  <span>框架</span>
-                  <div className="segmented-control" aria-label="资料库武器框架筛选">
+                  <span>{libraryText(copy, "框架")}</span>
+                  <div className="segmented-control" aria-label={libraryText(copy, "资料库武器框架筛选")}>
                     {equipmentFilterOptions.frames.map((option) => (
                       option.value === "all" ? (
                         <button
@@ -208,7 +217,7 @@ export function LibraryPageContentView(props: {
                           className={!libraryEquipmentFilter.frame.length ? "active" : ""}
                           onClick={() => props.onEquipmentFiltersChange({ frame: [] })}
                         >
-                          {option.label}
+                          {libraryText(copy, option.label)}
                         </button>
                       ) : (
                         <button
@@ -221,7 +230,7 @@ export function LibraryPageContentView(props: {
                               : [...libraryEquipmentFilter.frame, option.value]
                           })}
                         >
-                          {option.label}
+                          {libraryText(copy, option.label)}
                         </button>
                       )
                     ))}
@@ -233,25 +242,25 @@ export function LibraryPageContentView(props: {
         ) : (
           <>
             <label className="compact-field">
-              关联分类
+              {libraryText(copy, "关联分类")}
               <select
                 value={props.perkFilters.relatedGroup}
                 onChange={(event) => props.onPerkFiltersChange({ relatedGroup: event.target.value as LibraryPerkFilter["relatedGroup"] })}
               >
                 {perkGroupOptions.map((option) => (
-                  <option key={option.value} value={option.value}>{option.label}</option>
+                  <option key={option.value} value={option.value}>{libraryText(copy, option.label)}</option>
                 ))}
               </select>
             </label>
             <label className="compact-field">
-              关联装备
+              {libraryText(copy, "关联装备")}
               <select
                 value={props.perkFilters.hasRelatedItems}
                 onChange={(event) => props.onPerkFiltersChange({ hasRelatedItems: event.target.value as LibraryPerkFilter["hasRelatedItems"] })}
               >
-                <option value="all">全部</option>
-                <option value="yes">有</option>
-                <option value="no">无</option>
+                <option value="all">{libraryText(copy, "全部")}</option>
+                <option value="yes">{libraryText(copy, "有")}</option>
+                <option value="no">{libraryText(copy, "无")}</option>
               </select>
             </label>
           </>
@@ -268,61 +277,61 @@ export function LibraryPageContentView(props: {
               props.onPerkFiltersChange({ query: event.target.value });
             }
           }}
-          placeholder={props.libraryViewMode === "perks" ? "输入 Perk 名称或别名，例如 ff" : "输入装备名称，例如 Riskrunner"}
+          placeholder={props.libraryViewMode === "perks" ? libraryText(copy, "输入 Perk 名称或别名，例如 ff") : libraryText(copy, "输入装备名称，例如 Riskrunner")}
         />
         <button type="button" disabled={props.isSearching || isManifestBlocked} onClick={props.onSearch}>
-          {props.isSearching ? "搜索中..." : "搜索"}
+          {props.isSearching ? libraryText(copy, "搜索中...") : libraryText(copy, "搜索")}
         </button>
         <button type="button" className="secondary-button" onClick={props.onClearFilters}>
-          清空筛选
+          {libraryText(copy, "清空筛选")}
         </button>
       </div>
       {isManifestBlocked ? (
-        <p className="status-message status-warning">资料库更新完成前暂不可搜索。请先使用上方按钮启动后台更新。</p>
+        <p className="status-message status-warning">{libraryText(copy, "资料库更新完成前暂不可搜索。请先使用上方按钮启动后台更新。")}</p>
       ) : null}
-      <p className="muted-copy">命中 {hitCount} 条。不补猜来源、分类或关联项，缺字段就按缺字段显示。</p>
+      <p className="muted-copy">{libraryText(copy, "命中")} {hitCount} {libraryText(copy, "条。不补猜来源、分类或关联项，缺字段就按缺字段显示。")}</p>
       {props.libraryViewMode === "equipment" ? (
-        <section className="drop-query-panel source-status-card source-status-neutral" aria-label="掉落查询">
+        <section className="drop-query-panel source-status-card source-status-neutral" aria-label={libraryText(copy, "掉落查询")}>
           <div className="drop-query-heading">
             <div>
-              <span className="source-status-badge source-status-neutral">掉落查询</span>
-              <strong>按可确认来源和 Perk 池筛掉无效结果</strong>
+              <span className="source-status-badge source-status-neutral">{libraryText(copy, "掉落查询")}</span>
+              <strong>{libraryText(copy, "按可确认来源和 Perk 池筛掉无效结果")}</strong>
             </div>
-            <small>基于当前资料库；没有实时活动或商人证据时，不等同于当前在线可刷。</small>
+            <small>{libraryText(copy, "基于当前资料库；没有实时活动或商人证据时，不等同于当前在线可刷。")}</small>
           </div>
           <div className="drop-query-grid">
             <div className="drop-query-stat">
-              <span>当前命中</span>
+              <span>{libraryText(copy, "当前命中")}</span>
               <strong>{dropQueryStats.total}</strong>
             </div>
             <div className="drop-query-stat">
-              <span>可确认来源</span>
+              <span>{libraryText(copy, "可确认来源")}</span>
               <strong>{dropQueryStats.sourced}</strong>
             </div>
             <div className="drop-query-stat">
-              <span>Perk 池</span>
+              <span>{libraryText(copy, "Perk 池")}</span>
               <strong>{dropQueryStats.perkPools}</strong>
             </div>
             <div className="drop-query-stat">
-              <span>实时状态</span>
+              <span>{libraryText(copy, "实时状态")}</span>
               <strong>{liveStats.characterVendor + liveStats.publicVendor + liveStats.publicActivity}</strong>
             </div>
           </div>
           <div className="drop-query-grid live-availability-summary library-source-matrix">
             <div className="drop-query-stat">
-              <span>查询范围</span>
-              <strong>{formatLiveScope(props.liveAvailability, props.isLoadingLiveAvailability)}</strong>
+              <span>{libraryText(copy, "查询范围")}</span>
+              <strong>{formatLiveScope(props.liveAvailability, props.isLoadingLiveAvailability, copy)}</strong>
             </div>
             <div className="drop-query-stat">
-              <span>当前角色商人售卖</span>
+              <span>{libraryText(copy, "当前角色商人售卖")}</span>
               <strong>{liveStats.characterVendor}</strong>
             </div>
             <div className="drop-query-stat">
-              <span>当前公开商人售卖</span>
+              <span>{libraryText(copy, "当前公开商人售卖")}</span>
               <strong>{liveStats.publicVendor}</strong>
             </div>
             <div className="drop-query-stat">
-              <span>公共活动线索</span>
+              <span>{libraryText(copy, "公共活动线索")}</span>
               <strong>{liveStats.publicActivity}</strong>
             </div>
           </div>
@@ -331,62 +340,62 @@ export function LibraryPageContentView(props: {
           ) : null}
           <div className="drop-query-advanced">
             <label className="compact-field">
-              来源状态筛选
+              {libraryText(copy, "来源状态筛选")}
               <select
                 value={libraryEquipmentFilter.sourceStatus}
                 onChange={(event) => props.onEquipmentFiltersChange({
                   sourceStatus: event.target.value as LibraryEquipmentFilter["sourceStatus"]
                 })}
               >
-                <option value="all">全部来源状态</option>
-                <option value="ready">可确认来源</option>
-                <option value="missing">来源待补</option>
+                <option value="all">{libraryText(copy, "全部来源状态")}</option>
+                <option value="ready">{libraryText(copy, "可确认来源")}</option>
+                <option value="missing">{libraryText(copy, "来源待补")}</option>
               </select>
             </label>
             <label className="compact-field">
-              来源线索
+              {libraryText(copy, "来源线索")}
               <select
                 value={libraryEquipmentFilter.dropAccess}
                 onChange={(event) => props.onEquipmentFiltersChange({
                   dropAccess: event.target.value as LibraryEquipmentFilter["dropAccess"]
                 })}
               >
-                <option value="all">全部来源线索</option>
-                <option value="available">来源可确认</option>
-                <option value="rotation">等轮换</option>
-                <option value="archived">已下架或待确认</option>
-                <option value="unknown">来源待补</option>
+                <option value="all">{libraryText(copy, "全部来源线索")}</option>
+                <option value="available">{libraryText(copy, "来源可确认")}</option>
+                <option value="rotation">{libraryText(copy, "等轮换")}</option>
+                <option value="archived">{libraryText(copy, "已下架或待确认")}</option>
+                <option value="unknown">{libraryText(copy, "来源待补")}</option>
               </select>
             </label>
             <label className="compact-field">
-              Perk 池
+              {libraryText(copy, "Perk 池")}
               <select
                 value={libraryEquipmentFilter.perkPool}
                 onChange={(event) => props.onEquipmentFiltersChange({
                   perkPool: event.target.value as LibraryEquipmentFilter["perkPool"]
                 })}
               >
-                <option value="all">全部 Perk 池状态</option>
-                <option value="yes">只看有 Perk 池</option>
-                <option value="no">只看无 Perk 池</option>
+                <option value="all">{libraryText(copy, "全部 Perk 池状态")}</option>
+                <option value="yes">{libraryText(copy, "只看有 Perk 池")}</option>
+                <option value="no">{libraryText(copy, "只看无 Perk 池")}</option>
               </select>
             </label>
             <label className="compact-field">
-              Perk AND 条件
+              {libraryText(copy, "Perk AND 条件")}
               <input
                 value={libraryEquipmentFilter.perkQuery}
                 onChange={(event) => props.onEquipmentFiltersChange({ perkQuery: event.target.value })}
-                placeholder="例如 kinetic tremors"
+                placeholder={libraryText(copy, "例如 kinetic tremors")}
               />
             </label>
           </div>
         </section>
       ) : null}
       <div className="alias-editor">
-        <input value={props.aliasDraft} onChange={(event) => props.onAliasDraftChange(event.target.value)} placeholder="别名，例如 ff" />
-        <input value={props.aliasTargetDraft} onChange={(event) => props.onAliasTargetDraftChange(event.target.value)} placeholder="实际名称，例如 喂食狂热" />
+        <input value={props.aliasDraft} onChange={(event) => props.onAliasDraftChange(event.target.value)} placeholder={libraryText(copy, "别名，例如 ff")} />
+        <input value={props.aliasTargetDraft} onChange={(event) => props.onAliasTargetDraftChange(event.target.value)} placeholder={libraryText(copy, "实际名称，例如 喂食狂热")} />
         <select value={props.aliasKind} onChange={(event) => props.onAliasKindChange(event.target.value as "item" | "perk")}>
-          <option value="item">装备</option>
+          <option value="item">{libraryText(copy, "装备")}</option>
           <option value="perk">Perk</option>
         </select>
         <button
@@ -395,20 +404,20 @@ export function LibraryPageContentView(props: {
           disabled={!props.aliasDraft.trim() || !props.aliasTargetDraft.trim()}
           onClick={props.onSaveAlias}
         >
-          保存别名
+          {libraryText(copy, "保存别名")}
         </button>
       </div>
-      <p className="muted-copy">别名会保存在本机，只影响你自己的搜索。</p>
+      <p className="muted-copy">{libraryText(copy, "别名会保存在本机，只影响你自己的搜索。")}</p>
       {props.aliasMessage ? <p className="status-message status-ready">{props.aliasMessage}</p> : null}
       {props.searchError ? <p className="status-message status-error">{props.searchError}</p> : null}
       <div className="daily-source-grid">
         <div className="daily-source source-ready">
-          <strong>最近查看</strong>
-          <span>{props.libraryHistory.recent.slice(0, 5).map((item) => item.name).join(" / ") || "暂无"}</span>
+          <strong>{libraryText(copy, "最近查看")}</strong>
+          <span>{props.libraryHistory.recent.slice(0, 5).map((item) => item.name).join(" / ") || libraryText(copy, "暂无")}</span>
         </div>
         <div className="daily-source source-ready">
-          <strong>收藏</strong>
-          <span>{props.libraryHistory.favorites.slice(0, 5).map((item) => item.name).join(" / ") || "暂无"}</span>
+          <strong>{libraryText(copy, "收藏")}</strong>
+          <span>{props.libraryHistory.favorites.slice(0, 5).map((item) => item.name).join(" / ") || libraryText(copy, "暂无")}</span>
         </div>
       </div>
       {props.libraryViewMode === "equipment" ? (
@@ -420,7 +429,7 @@ export function LibraryPageContentView(props: {
                   <strong>{group.label}</strong>
                   <span>{group.description}</span>
                 </div>
-                <span className={"ui-badge " + getDropAccessBadgeClass(group.key)}>{group.items.length} 件</span>
+                <span className={"ui-badge " + getDropAccessBadgeClass(group.key)}>{group.items.length} {libraryText(copy, "件")}</span>
               </div>
               <div className="item-results">
                 {group.items.map((item) => renderEquipmentResult(
@@ -431,7 +440,8 @@ export function LibraryPageContentView(props: {
                   props.libraryHistory,
                   props.onOpenItemDetail,
                   props.onAddFavorite,
-                  props.onRemoveFavorite
+                  props.onRemoveFavorite,
+                  copy
                 ))}
               </div>
             </section>
@@ -448,16 +458,16 @@ export function LibraryPageContentView(props: {
                 {perk.related_items?.length ? (
                   <>
                     <p>
-                      <strong>关联分类：</strong>
-                      {[...new Set(perk.related_items.map((item) => formatLibraryGroupLabel(item.group_key)).filter(Boolean))].join(" / ")}
+                      <strong>{libraryText(copy, "关联分类：")}</strong>
+                      {[...new Set(perk.related_items.map((item) => formatLibraryGroupLabel(item.group_key, copy)).filter(Boolean))].join(" / ")}
                     </p>
-                    <p><strong>可能出现于：</strong>{perk.related_items.map((item) => item.name).join(" / ")}</p>
+                    <p><strong>{libraryText(copy, "可能出现于：")}</strong>{perk.related_items.map((item) => item.name).join(" / ")}</p>
                   </>
                 ) : (
-                  <p>资料库里还没有查到关联装备。</p>
+                  <p>{libraryText(copy, "资料库里还没有查到关联装备。")}</p>
                 )}
                 <button type="button" className="inline-action" onClick={() => props.onAddFavorite(perk)}>
-                  收藏
+                  {libraryText(copy, "收藏")}
                 </button>
               </div>
             </article>
@@ -465,7 +475,7 @@ export function LibraryPageContentView(props: {
         </div>
       )}
       {searchTouched && !props.isSearching && !props.searchError && !hitCount ? (
-        <p className="status-message status-neutral">未找到匹配结果。可以换中文名、英文名，或者先保存一个常用别名再搜。</p>
+        <p className="status-message status-neutral">{libraryText(copy, "未找到匹配结果。可以换中文名、英文名，或者先保存一个常用别名再搜。")}</p>
       ) : null}
     </LibraryPageView>
   );
@@ -474,19 +484,20 @@ export function LibraryPageContentView(props: {
 function buildManifestAlert(
   status: ManifestStatus | null,
   error: string,
-  isLoading: boolean
+  isLoading: boolean,
+  copy: LibraryCopy
 ): { title: string; message: string; className: string } | null {
   if (error) {
     return {
-      title: "资料库状态读取失败",
+      title: libraryText(copy, "资料库状态读取失败"),
       message: error,
       className: "status-error"
     };
   }
   if (isLoading && !status) {
     return {
-      title: "正在检查资料库版本",
-      message: "资料库版本检查会在后台运行，切换菜单不会中断。",
+      title: libraryText(copy, "正在检查资料库版本"),
+      message: libraryText(copy, "资料库版本检查会在后台运行，切换菜单不会中断。"),
       className: "status-pending"
     };
   }
@@ -496,31 +507,31 @@ function buildManifestAlert(
   const missingComponents = status.missing_required_components ?? [];
   if (!status.initialized) {
     return {
-      title: "资料库尚未初始化",
-      message: "账号页、搜索和详情需要资料库。可以现在启动后台更新，完成后再继续查询。",
+      title: libraryText(copy, "资料库尚未初始化"),
+      message: libraryText(copy, "账号页、搜索和详情需要资料库。可以现在启动后台更新，完成后再继续查询。"),
       className: "status-warning"
     };
   }
   if (missingComponents.length) {
     return {
-      title: "缺少必要资料库组件",
-      message: `缺少 ${missingComponents.length} 个组件，搜索和详情可能不完整；建议立即后台更新资料库。`,
+      title: libraryText(copy, "缺少必要资料库组件"),
+      message: `${libraryText(copy, "缺少")} ${missingComponents.length} ${libraryText(copy, "个组件，搜索和详情可能不完整；建议立即后台更新资料库。")}`,
       className: "status-warning"
     };
   }
   if (status.needs_update) {
     return {
-      title: "资料库不是最新版本",
-      message: `当前 ${status.version ?? "未知版本"}，最新 ${status.latest_version ?? "未知版本"}；旧资料库可能导致来源、Perk 或详情判断错误。`,
+      title: libraryText(copy, "资料库不是最新版本"),
+      message: `${libraryText(copy, "当前")} ${status.version ?? libraryText(copy, "未知版本")}，${libraryText(copy, "最新")} ${status.latest_version ?? libraryText(copy, "未知版本")}${libraryText(copy, "；旧资料库可能导致来源、Perk 或详情判断错误。")}`,
       className: "status-warning"
     };
   }
   return null;
 }
 
-function formatManifestDataDate(status: ManifestStatus | null): string {
-  if (!status) return "检查中";
-  return formatLibraryVersion(status.version) ?? "可用";
+function formatManifestDataDate(status: ManifestStatus | null, copy: LibraryCopy): string {
+  if (!status) return libraryText(copy, "检查中");
+  return formatLibraryVersion(status.version) ?? libraryText(copy, "可用");
 }
 
 function formatLibraryVersion(version?: string): string | undefined {
@@ -540,7 +551,8 @@ function renderEquipmentResult(
   libraryHistory: LibraryHistory,
   onOpenItemDetail: (item: ItemSearchResult) => void,
   onAddFavorite: (item: ItemSearchResult | PerkSearchResult) => void,
-  onRemoveFavorite: (hash: number) => void
+  onRemoveFavorite: (hash: number) => void,
+  copy: LibraryCopy
 ) {
   const sourceStatus = item.source.status;
   const dropAccess = classifyLibraryDropAccess(item);
@@ -556,37 +568,37 @@ function renderEquipmentResult(
             <h3>{item.name}</h3>
             <p>{[item.tier, item.item_type, item.bucket_name].filter(Boolean).join(" / ")}</p>
           </div>
-          <span className={"ui-badge " + getDropAccessBadgeClass(dropAccess)}>{formatDropAccessLabel(dropAccess)}</span>
+          <span className={"ui-badge " + getDropAccessBadgeClass(dropAccess)}>{formatDropAccessLabel(dropAccess, copy)}</span>
         </div>
         <p>{item.description}</p>
         <div className="item-source-panel">
           <div className="item-source-heading">
-            <strong>实时状态</strong>
+            <strong>{libraryText(copy, "实时状态")}</strong>
             <span className={"source-status-badge " + getLiveStatusClass(liveEntry)}>
-              {liveEntry?.label ?? "等待实时查询"}
+              {liveEntry?.label ?? libraryText(copy, "等待实时查询")}
             </span>
           </div>
-          <span>{liveEntry?.description ?? "正在结合 Bungie 当前公开数据和登录角色商人数据复查。"}</span>
+          <span>{liveEntry?.description ?? libraryText(copy, "正在结合 Bungie 当前公开数据和登录角色商人数据复查。")}</span>
           {liveEntry?.sources.length ? (
-            <small>{liveEntry.sources.map(formatLiveSource).join(" / ")}</small>
+            <small>{liveEntry.sources.map((source) => formatLiveSource(source, copy)).join(" / ")}</small>
           ) : null}
         </div>
         <div className="item-source-panel">
           <div className="item-source-heading">
-            <strong>掉落来源</strong>
+            <strong>{libraryText(copy, "掉落来源")}</strong>
             <span className={"source-status-badge " + getLibrarySourceStatusClass(sourceStatus)}>
-              来源状态：{formatLibrarySourceStatus(sourceStatus)}
+              {libraryText(copy, "来源状态：")}{formatLibrarySourceStatus(sourceStatus, copy)}
             </span>
           </div>
           <span>{item.source.description}</span>
         </div>
         <div className="item-source-panel">
-          <strong>刷取判断</strong>
-          <span>{formatDropActionHint(dropAccess, communityMatch, liveEntry)}</span>
+          <strong>{libraryText(copy, "刷取判断")}</strong>
+          <span>{formatDropActionHint(dropAccess, communityMatch, liveEntry, copy)}</span>
         </div>
         {item.perks?.length ? (
           <div className="library-perk-pool">
-            <strong>Perk 池</strong>
+            <strong>{libraryText(copy, "Perk 池")}</strong>
             <div className="perk-groups">
               {item.perks.slice(0, 6).map((group) => (
                 <div className="perk-group" key={group.socket_index}>
@@ -598,11 +610,11 @@ function renderEquipmentResult(
             </div>
           </div>
         ) : (
-          <p className="muted-copy">资料库暂未提供可展示的 Perk 池。</p>
+          <p className="muted-copy">{libraryText(copy, "资料库暂未提供可展示的 Perk 池。")}</p>
         )}
         {(communityMatch?.available ?? 0) > 0 ? (
           <small className="library-community-match">
-            {`社区推荐 ${communityMatch?.available} 个组合${
+            {`${libraryText(copy, "社区推荐")} ${communityMatch?.available} ${libraryText(copy, "个组合")}${
               formatCommunityPerkPreview(communityMatch?.sample_perks)
                 ? ` · ${formatCommunityPerkPreview(communityMatch?.sample_perks)}`
                 : ""
@@ -615,14 +627,14 @@ function renderEquipmentResult(
           aria-busy={getItemKey(item) === itemDetailLoadingKey}
           onClick={() => onOpenItemDetail(item)}
         >
-          查看详情
+          {libraryText(copy, "查看详情")}
         </button>
         <button type="button" className="inline-action" onClick={() => onAddFavorite(item)}>
-          收藏
+          {libraryText(copy, "收藏")}
         </button>
         {libraryHistory.favorites.some((favorite) => favorite.hash === item.hash) ? (
           <button type="button" className="inline-action" onClick={() => onRemoveFavorite(item.hash)}>
-            取消收藏
+            {libraryText(copy, "取消收藏")}
           </button>
         ) : null}
       </div>
@@ -650,15 +662,15 @@ function buildLiveAvailabilityStats(liveAvailability: LiveItemAvailability | nul
   };
 }
 
-function formatLiveScope(liveAvailability: LiveItemAvailability | null, isLoading: boolean): string {
-  if (isLoading) return "查询中";
-  if (!liveAvailability) return "未查询";
-  return liveAvailability.account_scope === "character" ? "公共 + 角色" : "公共";
+function formatLiveScope(liveAvailability: LiveItemAvailability | null, isLoading: boolean, copy: LibraryCopy): string {
+  if (isLoading) return libraryText(copy, "查询中");
+  if (!liveAvailability) return libraryText(copy, "未查询");
+  return liveAvailability.account_scope === "character" ? libraryText(copy, "公共 + 角色") : libraryText(copy, "公共");
 }
 
-function formatLiveSource(source: LiveEntry["sources"][number]): string {
+function formatLiveSource(source: LiveEntry["sources"][number], copy: LibraryCopy): string {
   if (source.kind === "character_vendor") {
-    return source.character_id ? `${source.label}（角色 ${source.character_id}）` : source.label;
+    return source.character_id ? `${source.label}（${libraryText(copy, "角色")} ${source.character_id}）` : source.label;
   }
   return source.label;
 }
@@ -675,17 +687,18 @@ function formatCommunityPerkPreview(perks: VaultItemMatchInfo["sample_perks"]): 
 }
 
 function formatLibraryGroupLabel(
-  group: ItemSearchResult["group_key"] | NonNullable<PerkSearchResult["related_items"]>[number]["group_key"]
+  group: ItemSearchResult["group_key"] | NonNullable<PerkSearchResult["related_items"]>[number]["group_key"],
+  copy: LibraryCopy
 ) {
-  if (group === "weapons") return "武器";
-  if (group === "armor") return "护甲";
-  if (group === "equipment") return "装备";
-  if (group === "other") return "其他";
+  if (group === "weapons") return libraryText(copy, "武器");
+  if (group === "armor") return libraryText(copy, "护甲");
+  if (group === "equipment") return libraryText(copy, "装备");
+  if (group === "other") return libraryText(copy, "其他");
   return "";
 }
 
-function formatLibrarySourceStatus(status: ItemSearchResult["source"]["status"]): string {
-  return status === "ready" ? "可确认" : "待补充";
+function formatLibrarySourceStatus(status: ItemSearchResult["source"]["status"], copy: LibraryCopy): string {
+  return status === "ready" ? libraryText(copy, "可确认") : libraryText(copy, "待补充");
 }
 
 function getLibrarySourceStatusClass(status: ItemSearchResult["source"]["status"]): string {
@@ -699,42 +712,43 @@ function getLiveStatusClass(entry: LiveEntry | undefined): string {
   return "source-status-neutral";
 }
 
-function formatDropAccessLabel(access: LibraryDropAccessKey): string {
-  if (access === "available") return "来源可确认";
-  if (access === "rotation") return "等轮换";
-  if (access === "archived") return "已下架或待确认";
-  return "来源待补";
+function formatDropAccessLabel(access: LibraryDropAccessKey, copy: LibraryCopy): string {
+  if (access === "available") return libraryText(copy, "来源可确认");
+  if (access === "rotation") return libraryText(copy, "等轮换");
+  if (access === "archived") return libraryText(copy, "已下架或待确认");
+  return libraryText(copy, "来源待补");
 }
 
 function formatDropActionHint(
   access: LibraryDropAccessKey,
   communityMatch: VaultItemMatchInfo | undefined,
-  liveEntry: LiveEntry | undefined
+  liveEntry: LiveEntry | undefined,
+  copy: LibraryCopy
 ): string {
   if (liveEntry?.status === "character_vendor") {
-    return "优先复查：当前登录角色商人库存已命中，可以进游戏确认购买资格和价格。";
+    return libraryText(copy, "优先复查：当前登录角色商人库存已命中，可以进游戏确认购买资格和价格。");
   }
   if (liveEntry?.status === "public_vendor") {
-    return "优先复查：当前公开商人库存已命中，可以进游戏确认购买资格和价格。";
+    return libraryText(copy, "优先复查：当前公开商人库存已命中，可以进游戏确认购买资格和价格。");
   }
   if (liveEntry?.status === "public_activity") {
-    return "当前公共活动有直接奖励线索，但仍需要进游戏确认活动入口和掉落规则。";
+    return libraryText(copy, "当前公共活动有直接奖励线索，但仍需要进游戏确认活动入口和掉落规则。");
   }
 
   const hasCommunityRolls = (communityMatch?.available ?? 0) > 0;
 
   if (access === "available") {
     return hasCommunityRolls
-      ? "优先复查：来源字段可确认，且已有社区推荐组合；仍需以当前游戏内入口为准。"
-      : "来源字段可确认；建议先核对当前游戏内入口，再决定是否刷取。";
+      ? libraryText(copy, "优先复查：来源字段可确认，且已有社区推荐组合；仍需以当前游戏内入口为准。")
+      : libraryText(copy, "来源字段可确认；建议先核对当前游戏内入口，再决定是否刷取。");
   }
   if (access === "rotation") {
-    return "等待轮换：来源字段提示周期活动或周常内容，先关注本周轮换再投入时间。";
+    return libraryText(copy, "等待轮换：来源字段提示周期活动或周常内容，先关注本周轮换再投入时间。");
   }
   if (access === "archived") {
-    return "谨慎投入：来源线索显示下架、传承或不可获取，除非游戏内有新入口恢复。";
+    return libraryText(copy, "谨慎投入：来源线索显示下架、传承或不可获取，除非游戏内有新入口恢复。");
   }
-  return "先补来源：当前 Manifest 没有足够来源信息，不把它列为可刷目标。";
+  return libraryText(copy, "先补来源：当前 Manifest 没有足够来源信息，不把它列为可刷目标。");
 }
 
 function getDropAccessBadgeClass(access: LibraryDropAccessKey): string {
