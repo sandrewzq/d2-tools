@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { buildDiagnosticRows } from "../src/renderer/components/DiagnosticsPanel";
 import { navItems } from "../../ui/src/shell/navigation";
-import type { StartupState } from "../src/renderer/api/client";
+import type { StartupState } from "../src/renderer/api/types";
 
 function startupState(): StartupState {
   return {

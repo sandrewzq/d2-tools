@@ -1,4 +1,4 @@
-import type { DailySummary } from "../../api/client";
+import type { DailySummary } from "../../api/types";
 import { DailySummaryPanel } from "../../shared/components/DailySummaryPanel";
 
 export function DailyPage(props: {

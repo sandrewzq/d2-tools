@@ -1,4 +1,4 @@
-import type { AccountItemPlugSummary, VaultItemScore, VaultTagValue } from "../api/client";
+import type { AccountItemPlugSummary, VaultItemScore, VaultTagValue } from "../api/types";
 
 export type ShareableItem = {
   name: string;

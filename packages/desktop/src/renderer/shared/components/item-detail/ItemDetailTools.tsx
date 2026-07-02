@@ -10,13 +10,13 @@ import type {
   VaultTags,
   VaultTagValue,
   WeaponRecommendation
-} from "../../../api/client";
+} from "../../../api/types";
 import type {
   SameNameItemSummary,
   SelectedItemDetail,
   SelectedItemSource
 } from "../../hooks/useItemDetail";
-import { selectedItemToAccountItem } from "../../hooks/useItemDetail";
+import { selectedItemToAccountItem } from "@d2-tools/app";
 import type { buildDuplicateGroupBatchTagPlan } from "../../domain/vault/vaultCleanup";
 import {
   formatVaultTagLabel,

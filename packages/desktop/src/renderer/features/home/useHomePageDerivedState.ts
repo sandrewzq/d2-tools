@@ -1,9 +1,6 @@
-import {
-  createHomePageDerivedState,
-  type HomePageKey
-} from "@d2-tools/app";
+import { createHomePageDerivedState, type HomePageKey } from "@d2-tools/app";
 import type { ShellPageKey } from "@d2-tools/ui";
-import type { AccountSummary, D2Config, LoadoutTemplate, StartupState } from "../../api/client";
+import type { AccountSummary, D2Config, LoadoutTemplate, StartupState } from "../../api/types";
 import { buildDiagnosticRows } from "../../components/DiagnosticsPanel";
 import { buildLoadoutTemplateLookup } from "../../shared/domain/loadouts/loadoutLookup";
 import { isAiSettingsConfigured } from "../../utils/aiSettings";

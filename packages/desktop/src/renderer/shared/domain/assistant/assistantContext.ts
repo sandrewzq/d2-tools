@@ -1,5 +1,5 @@
 import { homePageFocus, homePageLabels, type HomePageKey } from "@d2-tools/app";
-import type { AccountSummary } from "../../../api/client";
+import type { AccountSummary } from "../../../api/types";
 
 export type AssistantPageKey = HomePageKey;
 

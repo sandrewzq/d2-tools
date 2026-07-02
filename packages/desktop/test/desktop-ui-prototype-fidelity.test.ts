@@ -26,7 +26,7 @@ describe("desktop UI prototype fidelity", () => {
   it("uses the approved prototype primitives instead of patch classes on home and settings", () => {
     const homeDashboard = readUiFile("home/HomePageView.tsx");
     const homeCopy = readUiFile("i18n/copy.ts");
-    const settingsPage = `${readUiFile("settings/SettingsPageContentView.tsx")}\n${readRendererFile("features/settings/SettingsPage.tsx")}`;
+    const settingsPage = `${readUiFile("settings/SettingsPageContentView.tsx")}\n${readUiFile("i18n/copy.ts")}\n${readRendererFile("features/settings/SettingsPage.tsx")}`;
     const dailyPanel = readRendererFile("shared/components/DailySummaryPanel.tsx");
     const overviewSection = settingsPage.slice(
       settingsPage.indexOf('id="settings-overview"'),
@@ -83,7 +83,7 @@ describe("desktop UI prototype fidelity", () => {
     expect(settingsPage).not.toContain("onOpenConfig");
     expect(settingsPage).toContain("onOpenDataDir");
     expect(settingsPage).toContain("app-settings-grid");
-    expect(settingsGrid).toContain("<span>后台任务</span>");
+    expect(settingsGrid).toContain("copy.labels.backgroundTasks");
     expect(overviewMetricCount).toBe(6);
     expect(settingsPage).not.toContain("本地 Manifest");
     expect(settingsPage).not.toContain("最新 Manifest");

@@ -1,16 +1,19 @@
 import {
   SettingsPageContentView,
+  type InterfaceLocale,
   type SettingsActionLogResultFilter,
   type SettingsActionLogTypeFilter,
   type SettingsBungieConfigInput
 } from "@d2-tools/ui";
-import { api, type AccountSummary, type ActionLogEntry, type BackgroundTaskSnapshot, type ManifestStatus, type UpdateSnapshot } from "../../api/client";
+import { api } from "../../api/client";
+import type { AccountSummary, ActionLogEntry, BackgroundTaskSnapshot, ManifestStatus, UpdateSnapshot } from "../../api/types";
 import { AiSettingsPanel } from "../../components/AiSettingsPanel";
 import type { LanguagePreferences } from "./diagnosticsModel";
 
 export type { SettingsActionLogResultFilter, SettingsActionLogTypeFilter };
 
 export function SettingsPage(props: {
+  interfaceLocale?: InterfaceLocale;
   message: string;
   error: string;
   diagnosticDataDir: string;

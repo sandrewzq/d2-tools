@@ -6,7 +6,7 @@ import type {
   SaveVaultTagInput,
   VaultTags,
   VaultTagValue
-} from "../../api/client";
+} from "../../api/types";
 import {
   buildDuplicateGroupBatchActionCopy,
   buildDuplicateGroupBatchTagPlan,

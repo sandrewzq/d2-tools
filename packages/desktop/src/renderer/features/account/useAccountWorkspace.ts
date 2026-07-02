@@ -1,15 +1,8 @@
 import { useState } from "react";
 import { loadAccountWorkspace, loadAccountDerivedWorkspace } from "@d2-tools/app";
 import {
-  api,
-  type AccountSummary,
-  type ActivityHistorySummary,
-  type DimWishlist,
-  type StartupState,
-  type VaultItemMatchInfo,
-  type LocalTargetRules,
-  type VaultTags
-} from "../../api/client";
+  api } from "../../api/client";
+import type { AccountSummary, ActivityHistorySummary, DimWishlist, StartupState, VaultItemMatchInfo, LocalTargetRules, VaultTags } from "../../api/types";
 import { services } from "../../api/services";
 import { formatBungieLoginError } from "./loginErrors";
 

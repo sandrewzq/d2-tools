@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { ActionLogEntry, D2Config } from "../../api/client";
+import type { ActionLogEntry, D2Config } from "../../api/types";
 import { createDiagnosticsSettingsState, type LanguagePreferences } from "./diagnosticsModel";
 
 export function useDiagnosticsStatusState() {

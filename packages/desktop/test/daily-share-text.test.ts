@@ -1,11 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
-  buildDailyShareText,
-  buildWeeklyDigestSections,
-  buildWeeklyFocusText,
-  formatDailySourceStatus
+  buildDailyShareText, buildWeeklyDigestSections, buildWeeklyFocusText, formatDailySourceStatus
 } from "../src/renderer/utils/dailyShare";
-import type { DailySummary } from "../src/renderer/api/client";
+import type { DailySummary } from "../src/renderer/api/types";
 
 describe("daily share text", () => {
   it("formats reset status and pending data sources for chat sharing", () => {

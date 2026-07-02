@@ -1,20 +1,15 @@
 import { useMemo, useState } from "react";
-import { evaluateLocalTargets } from "@d2-tools/core/analysis/targets";
-import { evaluateWishlistRoll } from "@d2-tools/core/analysis/wishlist";
 import {
-  api,
-  type AccountItemSummary,
-  type AccountSummary,
-  type D2Config,
-  type DimWishlist,
-  type ItemActionResult,
-  type ItemAiAdviceResult,
-  type LibraryHistory,
-  type LocalTargetRules,
-  type VaultTags,
-  type VaultTagValue,
-  type WeaponRecommendation
-} from "../../api/client";
+  api } from "../../api/client";
+import type { AccountItemSummary, AccountSummary, D2Config, DimWishlist, ItemActionResult, ItemAiAdviceResult, LibraryHistory, LocalTargetRules, VaultTags, VaultTagValue, WeaponRecommendation } from "../../api/types";
+import {
+  buildWishlistInsightText,
+  collectSelectedSameNameItems,
+  getItemKey,
+  selectBestSameNameItem,
+  selectedItemToAccountItem,
+  type SameNameItemSummary
+} from "@d2-tools/app";
 import { services } from "../../api/services";
 import {
   buildDuplicateGroupBatchTagPlan,
@@ -23,13 +18,7 @@ import {
 } from "../domain/vault/vaultCleanup";
 import { buildItemChatGuideText, buildItemShareText } from "../../utils/itemShare";
 import {
-  getAllKnownAccountItemsWithSource
-} from "../domain/loadouts/loadoutSources";
-import {
-  getItemKey,
-  selectedItemToAccountItem,
-  useItemDetail,
-  type SameNameItemSummary
+  useItemDetail
 } from "./useItemDetail";
 
 type DiagnosticsBridge = {
@@ -101,13 +90,9 @@ export function useItemDetailWorkspace(input: {
     onRecentHistoryChanged: input.onRecentHistoryChanged
   });
 
-  const selectedAsAccountItem = selectedItem ? selectedItemToAccountItem(selectedItem) : null;
   const selectedSameNameItems: SameNameItemSummary[] = useMemo(() => (
-    selectedAsAccountItem && input.accountSummary
-      ? getAllKnownAccountItemsWithSource(input.accountSummary)
-        .filter((item) => item.name.trim() === selectedAsAccountItem.name.trim())
-      : []
-  ), [input.accountSummary, selectedAsAccountItem]);
+    collectSelectedSameNameItems(input.accountSummary, selectedItem)
+  ), [input.accountSummary, selectedItem]);
 
   async function generateItemAiAdvice() {
     if (!selectedItem?.group_key) return;
@@ -230,28 +215,13 @@ export function useItemDetailWorkspace(input: {
 
   async function copyWishlistInsight() {
     if (!selectedItem) return;
-    const accountItem = selectedItemToAccountItem(selectedItem);
-    if (!accountItem) return;
-
-    const wishlist = evaluateWishlistRoll({
-      ...accountItem,
-      socket_plugs: accountItem.socket_plugs ?? []
-    }, input.importedWishlist ?? undefined);
-    const localTarget = evaluateLocalTargets(accountItem, input.localTargetRules);
-    if (!wishlist.matched && !localTarget.matched) return;
-
-    const localTag = input.vaultTags.items[selectedItem.item_key]?.tag ?? "none";
-    const text = [
-      `${selectedItem.name} / 目标命中`,
-      wishlist.matched ? `DIM 标签：${wishlist.labels.join(" / ")}` : "",
-      localTarget.matched ? `本地目标：${localTarget.labels.join(" / ")}` : "",
-      `本地标记：${formatVaultTagLabel(localTag)}`,
-      "",
-      "命中原因",
-      ...[...wishlist.reasons, ...localTarget.reasons].map((reason, index) => `${index + 1}. ${reason}`),
-      "",
-      `说明：${localTarget.matched ? localTarget.disclaimer : wishlist.disclaimer}`
-    ].filter(Boolean).join("\n");
+    const text = buildWishlistInsightText({
+      selectedItem,
+      vaultTags: input.vaultTags,
+      importedWishlist: input.importedWishlist,
+      localTargetRules: input.localTargetRules
+    });
+    if (!text) return;
 
     try {
       await navigator.clipboard.writeText(text);
@@ -369,9 +339,7 @@ export function useItemDetailWorkspace(input: {
   }
 
   function openBestSameNameItem(items: SameNameItemSummary[]) {
-    const bestItem = [...items].sort((left, right) =>
-      Number(Boolean(right.locked)) - Number(Boolean(left.locked))
-    )[0];
+    const bestItem = selectBestSameNameItem(items);
     if (!bestItem) return;
 
     void openItemDetail(bestItem, {
@@ -463,13 +431,4 @@ export function useItemDetailWorkspace(input: {
     openBestSameNameItem,
     runItemWriteAction
   };
-}
-
-function formatVaultTagLabel(tag: VaultTagValue): string {
-  if (tag === "keep") return "保留";
-  if (tag === "review") return "关注";
-  if (tag === "farm") return "待刷";
-  if (tag === "loadout") return "配装用";
-  if (tag === "junk") return "可清理";
-  return "未标记";
 }

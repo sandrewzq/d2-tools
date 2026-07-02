@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import type { ItemSearchResult, PerkSearchResult } from "../src/renderer/api/client";
+import type { ItemSearchResult, PerkSearchResult } from "../src/renderer/api/types";
 import {
   buildLibraryEquipmentFilterOptions,
   classifyLibraryDropAccess,

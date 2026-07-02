@@ -1,4 +1,4 @@
-import type { StartupState } from "../api/client";
+import type { StartupState } from "../api/types";
 import { StatusCard } from "./StatusCard";
 
 export function StatusOverview(props: {

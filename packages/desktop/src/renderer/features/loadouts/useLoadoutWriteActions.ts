@@ -1,13 +1,13 @@
 import type { analyzeLoadoutTemplate } from "@d2-tools/core/loadouts/analysis";
+import { api } from "../../api/client";
 import {
-  api,
   type AccountItemSummary,
   type AccountSummary,
   type BuildGuideLoadoutDraft,
   type D2Config,
   type ItemActionResult,
   type LoadoutTemplate
-} from "../../api/client";
+} from "../../api/types";
 import {
   buildHighestPowerAlreadyOptimalMessage,
   buildHighestPowerConfirmText,

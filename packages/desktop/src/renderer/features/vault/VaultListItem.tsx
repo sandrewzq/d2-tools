@@ -2,8 +2,7 @@ import { memo } from "react";
 import { evaluateWishlistRoll } from "@d2-tools/core/analysis/wishlist";
 import { evaluateLocalTargets } from "@d2-tools/core/analysis/targets";
 import {
-  buildItemDecision,
-  summarizeItemDecision
+  buildItemDecision, summarizeItemDecision
 } from "@d2-tools/core/evidence/itemDecision";
 import type {
   AccountItemSummary,
@@ -12,7 +11,7 @@ import type {
   VaultItemMatchInfo,
   VaultTags,
   VaultTagValue
-} from "../../api/client";
+} from "../../api/types";
 import {
   matchesLoadoutTemplateItem,
   type LoadoutTemplateLookup

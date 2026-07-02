@@ -1,4 +1,4 @@
-import type { StartupState } from "../api/client";
+import type { StartupState } from "../api/types";
 
 export type DiagnosticTone = "ok" | "warning" | "neutral";
 

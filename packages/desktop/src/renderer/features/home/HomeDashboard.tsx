@@ -1,5 +1,5 @@
 import { HomePageView, type ShellPageKey } from "@d2-tools/ui";
-import type { DailySummary, StartupState } from "../../api/client";
+import type { DailySummary, StartupState } from "../../api/types";
 import { type DiagnosticRow } from "../../components/DiagnosticsPanel";
 
 export function HomeDashboard(props: {

@@ -1,5 +1,10 @@
 import type { ShellPageKey } from "@d2-tools/ui";
-import { fallbackHomeSnapshot, type WebHomeSnapshot, type WebPageSnapshot } from "./webAdapter";
+import {
+  createWebSnapshotProvider,
+  type WebHomeSnapshot,
+  type WebPageSnapshot,
+  type WebSnapshotSource
+} from "./webAdapter";
 
 export type WebApiSnapshotProvider = {
   loadHomeSnapshot?: () => Promise<WebHomeSnapshot>;
@@ -14,11 +19,15 @@ const pageKeys: ShellPageKey[] = ["home", "account", "vault", "loadouts", "libra
 const pageSnapshotPrefix = "/api/pages/";
 
 export function createWebApiRouter(provider: WebApiSnapshotProvider = {}): WebApiRouter {
+  const snapshotProvider = createWebSnapshotProvider({
+    source: toSnapshotSource(provider)
+  });
+
   return {
     async handle(request) {
       const url = new URL(request.url);
       if (url.pathname === "/api/home-snapshot") {
-        const snapshot = provider.loadHomeSnapshot ? await provider.loadHomeSnapshot() : fallbackHomeSnapshot;
+        const snapshot = await snapshotProvider.loadHomeSnapshot();
         return json(snapshot);
       }
 
@@ -30,12 +39,21 @@ export function createWebApiRouter(provider: WebApiSnapshotProvider = {}): WebAp
         if (!pageKeys.includes(page)) {
           return json({ error: "Unknown page" }, 404);
         }
-        const snapshot = provider.loadPageSnapshot ? await provider.loadPageSnapshot(page) : null;
+        const snapshot = await snapshotProvider.loadPageSnapshot(page);
         return json(snapshot ?? { page, payload: null });
       }
 
       return null;
     }
+  };
+}
+
+function toSnapshotSource(provider: WebApiSnapshotProvider): WebSnapshotSource | undefined {
+  if (!provider.loadHomeSnapshot && !provider.loadPageSnapshot) return undefined;
+
+  return {
+    getHomeSnapshot: async () => provider.loadHomeSnapshot ? provider.loadHomeSnapshot() : null,
+    getPageSnapshot: async (page) => provider.loadPageSnapshot ? provider.loadPageSnapshot(page) : null
   };
 }
 

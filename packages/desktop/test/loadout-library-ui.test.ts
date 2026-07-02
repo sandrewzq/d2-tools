@@ -6,6 +6,7 @@ import { readRendererApiContracts } from "./source-readers";
 
 const desktopRoot = fileURLToPath(new URL("..", import.meta.url));
 const uiRoot = join(desktopRoot, "..", "ui");
+const appRoot = join(desktopRoot, "..", "app");
 
 describe("loadout library UI", () => {
   it("wires rename support and a richer local loadout library section", () => {
@@ -37,26 +38,25 @@ describe("loadout library UI", () => {
   });
 
   it("renders compare rows as side-by-side item, frame, and perk details", () => {
-    const loadoutsPage = readFileSync(join(desktopRoot, "src", "renderer", "features", "loadouts", "LoadoutsPage.tsx"), "utf8");
     const loadoutsContent = readFileSync(join(uiRoot, "src", "loadouts", "LoadoutsPageContentView.tsx"), "utf8");
-    const viewModel = readFileSync(join(desktopRoot, "src", "renderer", "features", "loadouts", "loadoutViewModel.ts"), "utf8");
+    const loadoutsWorkspace = readFileSync(join(appRoot, "src", "workspaces", "loadoutsPage.ts"), "utf8");
+    const viewModel = readFileSync(join(appRoot, "src", "workspaces", "loadoutViewModel.ts"), "utf8");
     const styles = readFileSync(join(desktopRoot, "src", "renderer", "styles.css"), "utf8");
 
     expect(loadoutsContent).toContain("loadout-compare-grid");
     expect(loadoutsContent).toContain("loadout-compare-row");
     expect(loadoutsContent).toContain("loadout-compare-side");
-    expect(loadoutsPage).toContain("buildLoadoutCompareRows");
+    expect(loadoutsWorkspace).toContain("buildLoadoutCompareRows");
     expect(viewModel).toContain("formatLoadoutComparePerks");
     expect(styles).toContain(".loadout-compare-grid");
     expect(styles).toContain(".loadout-compare-side");
   });
 
   it("shows richer status labels for each saved loadout item", () => {
-    const loadoutsPage = readFileSync(join(desktopRoot, "src", "renderer", "features", "loadouts", "LoadoutsPage.tsx"), "utf8");
     const loadoutsContent = readFileSync(join(uiRoot, "src", "loadouts", "LoadoutsPageContentView.tsx"), "utf8");
-    const helper = readFileSync(join(desktopRoot, "src", "renderer", "utils", "loadoutItemStatus.ts"), "utf8");
+    const helper = readFileSync(join(appRoot, "src", "workspaces", "loadoutItemStatus.ts"), "utf8");
 
-    expect(loadoutsPage).toContain("buildLoadoutItemStatus");
+    expect(helper).toContain("buildLoadoutItemStatus");
     expect(loadoutsContent).toContain("loadout-status-badge");
     expect(helper).toContain('key: "current-inventory"');
     expect(helper).toContain('key: "vault"');
@@ -75,13 +75,14 @@ describe("loadout library UI", () => {
   it("adds actionable controls for missing loadout items", () => {
     const loadoutsPage = readFileSync(join(desktopRoot, "src", "renderer", "features", "loadouts", "LoadoutsPage.tsx"), "utf8");
     const loadoutWriteHook = readFileSync(join(desktopRoot, "src", "renderer", "features", "loadouts", "useLoadoutWriteActions.ts"), "utf8");
-    const viewModel = readFileSync(join(desktopRoot, "src", "renderer", "features", "loadouts", "loadoutViewModel.ts"), "utf8");
+    const loadoutsWorkspace = readFileSync(join(appRoot, "src", "workspaces", "loadoutsPage.ts"), "utf8");
+    const viewModel = readFileSync(join(appRoot, "src", "workspaces", "loadoutViewModel.ts"), "utf8");
     const helper = readFileSync(join(desktopRoot, "src", "renderer", "utils", "loadoutActionFeedback.ts"), "utf8");
 
     expect(loadoutsPage).toContain("onCopyMissingItems");
     expect(viewModel).toContain("buildMissingLoadoutItemsText");
     expect(loadoutWriteHook).toContain("buildMissingLoadoutTransferPlan");
-    expect(loadoutsPage).toContain("describeMissingLoadoutBlockedReason");
+    expect(loadoutsWorkspace).toContain("describeMissingLoadoutBlockedReason");
     expect(loadoutWriteHook).toContain("executeSingleLoadoutItemTransfer");
     expect(loadoutWriteHook).toContain("equipSingleLoadoutItem");
     expect(helper).toContain("只补这一件");
@@ -89,11 +90,11 @@ describe("loadout library UI", () => {
   });
 
   it("adds a compact status summary for local loadout review", () => {
-    const loadoutsPage = readFileSync(join(desktopRoot, "src", "renderer", "features", "loadouts", "LoadoutsPage.tsx"), "utf8");
     const loadoutsContent = readFileSync(join(uiRoot, "src", "loadouts", "LoadoutsPageContentView.tsx"), "utf8");
+    const loadoutsWorkspace = readFileSync(join(appRoot, "src", "workspaces", "loadoutsPage.ts"), "utf8");
     const styles = readFileSync(join(desktopRoot, "src", "renderer", "styles.css"), "utf8");
 
-    expect(loadoutsPage).toContain("summarizeLoadoutItemStatuses");
+    expect(loadoutsWorkspace).toContain("summarizeLoadoutItemStatuses");
     expect(loadoutsContent).toContain("loadout-status-summary");
     expect(loadoutsContent).toContain("loadout-status-chip");
     expect(styles).toContain(".loadout-status-summary");

@@ -1,45 +1,29 @@
 import { useRef, useState } from "react";
 import {
-  api,
-  type AccountItemPlugSummary,
-  type AccountItemSummary,
-  type ItemDefinitionDetail,
-  type ItemSearchResult,
-  type ItemSourceSummary,
-  type LibraryHistory
-} from "../../api/client";
+  api } from "../../api/client";
+import type { AccountItemSummary, ItemDefinitionDetail, ItemSearchResult, LibraryHistory } from "../../api/types";
+import {
+  createSelectedItemPreview,
+  getItemKey,
+  mergeSelectedItemDetail,
+  selectedItemToAccountItem,
+  type SameNameItemSummary,
+  type SelectedItemDetail,
+  type SelectedItemSource,
+  type SelectedItemSourceKind
+} from "@d2-tools/app";
 
-export type SelectedItemDetail = ItemDefinitionDetail & {
-  item_key: string;
-  instance_id?: string;
-  power?: number;
-  locked?: boolean;
-  socket_plugs?: AccountItemPlugSummary[];
-  armor_stats?: AccountItemSummary["armor_stats"];
-  armor_stat_breakdown?: AccountItemSummary["armor_stat_breakdown"];
-  armor_energy?: AccountItemSummary["armor_energy"];
-  weapon_stats?: AccountItemSummary["weapon_stats"];
-  group_key?: AccountItemSummary["group_key"];
-  bucket_name?: string;
-  source_character_id?: string;
-  source_kind?: SelectedItemSourceKind;
-  is_vault_item?: boolean;
-  is_postmaster_item?: boolean;
-  is_detail_loading?: boolean;
+export {
+  createSelectedItemPreview,
+  getItemKey,
+  mergeSelectedItemDetail,
+  selectedItemToAccountItem
 };
-
-export type SelectedItemSourceKind = "equipped" | "inventory" | "vault" | "postmaster";
-
-export type SelectedItemSource = {
-  source_character_id?: string;
-  source_kind?: SelectedItemSourceKind;
-  is_vault_item?: boolean;
-  is_postmaster_item?: boolean;
-};
-
-export type SameNameItemSummary = AccountItemSummary & SelectedItemSource & {
-  source_kind: SelectedItemSourceKind;
-  source_label?: string;
+export type {
+  SameNameItemSummary,
+  SelectedItemDetail,
+  SelectedItemSource,
+  SelectedItemSourceKind
 };
 
 type ItemOpenContext = {
@@ -153,78 +137,4 @@ function evictOldestItemDetailCacheEntry(
     if (oldestKey === undefined) return;
     itemDetailCacheRef.current.delete(oldestKey);
   }
-}
-
-export function selectedItemToAccountItem(item: SelectedItemDetail): AccountItemSummary | null {
-  if (!item.group_key) return null;
-  return {
-    hash: item.hash,
-    instance_id: item.instance_id,
-    name: item.name,
-    icon: item.icon,
-    item_type: item.item_type,
-    tier: item.tier,
-    bucket_name: item.bucket_name,
-    group_key: item.group_key,
-    power: item.power,
-    locked: item.locked,
-    armor_stats: item.armor_stats,
-    armor_stat_breakdown: item.armor_stat_breakdown,
-    armor_energy: item.armor_energy,
-    weapon_stats: item.weapon_stats,
-    socket_plugs: item.socket_plugs ?? []
-  };
-}
-
-export function createSelectedItemPreview(
-  item: AccountItemSummary | ItemSearchResult,
-  source: SelectedItemSource
-): SelectedItemDetail {
-  return {
-    hash: item.hash,
-    name: item.name,
-    description: "description" in item ? item.description : "",
-    icon: item.icon,
-    item_type: item.item_type,
-    tier: item.tier,
-    source: "source" in item ? item.source : itemDetailLoadingSource,
-    perks: "perks" in item ? item.perks : undefined,
-    item_key: getItemKey(item),
-    instance_id: "instance_id" in item ? item.instance_id : undefined,
-    power: "power" in item ? item.power : undefined,
-    locked: "locked" in item ? item.locked : undefined,
-    armor_stats: "armor_stats" in item ? item.armor_stats : undefined,
-    armor_stat_breakdown: "armor_stat_breakdown" in item ? item.armor_stat_breakdown : undefined,
-    armor_energy: "armor_energy" in item ? item.armor_energy : undefined,
-    weapon_stats: "weapon_stats" in item ? item.weapon_stats : undefined,
-    socket_plugs: "socket_plugs" in item ? item.socket_plugs : undefined,
-    group_key: "group_key" in item ? item.group_key : undefined,
-    bucket_name: "bucket_name" in item ? item.bucket_name : undefined,
-    source_character_id: source.source_character_id,
-    source_kind: source.source_kind,
-    is_vault_item: source.is_vault_item,
-    is_postmaster_item: source.is_postmaster_item,
-    is_detail_loading: true
-  };
-}
-
-export function mergeSelectedItemDetail(
-  current: SelectedItemDetail,
-  detail: ItemDefinitionDetail
-): SelectedItemDetail {
-  return {
-    ...current,
-    ...detail,
-    is_detail_loading: false
-  };
-}
-
-const itemDetailLoadingSource: ItemSourceSummary = {
-  status: "missing",
-  label: "详情",
-  description: "正在读取来源、perk 和物品说明..."
-};
-
-export function getItemKey(item: AccountItemSummary | ItemSearchResult): string {
-  return "instance_id" in item && item.instance_id ? item.instance_id : `hash:${item.hash}`;
 }

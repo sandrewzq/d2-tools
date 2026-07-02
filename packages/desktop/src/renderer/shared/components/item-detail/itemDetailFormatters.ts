@@ -1,4 +1,4 @@
-import type { VaultTagValue } from "../../../api/client";
+import type { VaultTagValue } from "../../../api/types";
 import type { SameNameItemSummary, SelectedItemDetail } from "../../hooks/useItemDetail";
 
 export function formatCommunityMode(mode: "pve" | "pvp" | "general"): string {

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { api, type LoadoutTemplate } from "../../api/client";
+import { api } from "../../api/client";
+import type { LoadoutTemplate } from "../../api/types";
 
 export function useLoadoutTemplates() {
   const [templates, setTemplates] = useState<LoadoutTemplate[]>([]);

@@ -1,5 +1,6 @@
 import type { analyzeLoadoutTemplate } from "@d2-tools/core/loadouts/analysis";
-import { api, type AccountSummary, type LoadoutTemplate } from "../../api/client";
+import { api } from "../../api/client";
+import type { AccountSummary, LoadoutTemplate } from "../../api/types";
 import {
   buildLoadoutCopyMissingNoAccountMessage,
   buildLoadoutTemplateTransferClipboardText,

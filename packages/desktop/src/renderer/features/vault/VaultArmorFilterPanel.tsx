@@ -1,4 +1,4 @@
-import type { ArmorStatKey } from "../../api/client";
+import type { ArmorStatKey } from "../../api/types";
 import {
   armorStatLabels,
   type VaultArmorStatRule

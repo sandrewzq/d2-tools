@@ -1,13 +1,5 @@
-import {
-  api,
-  type AccountItemSummary,
-  type AccountSummary,
-  type BatchItemActionResult,
-  type D2Config,
-  type ItemActionResult,
-  type VaultTags,
-  type VaultTagValue
-} from "../../api/client";
+import { api } from "../../api/client";
+import type { AccountItemSummary, AccountSummary, BatchItemActionResult, D2Config, ItemActionResult, VaultTags, VaultTagValue } from "../../api/types";
 import { services } from "../../api/services";
 import {
   buildVaultBatchTransferConfirmText,

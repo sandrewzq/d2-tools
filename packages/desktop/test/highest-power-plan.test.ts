@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createHighestPowerEquipPlan } from "../src/renderer/utils/highestPower";
-import type { AccountItemSummary, CharacterSummary } from "../src/renderer/api/client";
+import type { AccountItemSummary, CharacterSummary } from "../src/renderer/api/types";
 
 describe("highest power equip plan", () => {
   it("selects the highest power item per power slot from equipped, inventory, and vault", () => {

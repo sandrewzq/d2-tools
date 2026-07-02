@@ -1,9 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
-  buildLoadoutTemplateLookup,
-  matchesLoadoutTemplateItem
+  buildLoadoutTemplateLookup, matchesLoadoutTemplateItem
 } from "../src/renderer/shared/domain/loadouts/loadoutLookup";
-import type { LoadoutTemplate } from "../src/renderer/api/client";
+import type { LoadoutTemplate } from "../src/renderer/api/types";
 
 const template: LoadoutTemplate = {
   id: "template-1",

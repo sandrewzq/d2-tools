@@ -1,20 +1,15 @@
 import { LoadoutsPageContentView, type LoadoutActionFeedbackState } from "@d2-tools/ui";
 import { analyzeLoadoutTemplate } from "@d2-tools/core/loadouts/analysis";
-import type { AccountSummary, LoadoutTemplate } from "../../api/client";
+import type { AccountSummary, LoadoutTemplate } from "../../api/types";
 import { buildLoadoutActionFeedbackKey } from "../../utils/loadoutActionFeedback";
-import { buildLoadoutItemStatus, summarizeLoadoutItemStatuses } from "../../utils/loadoutItemStatus";
-import { buildMissingLoadoutTransferPlan, describeMissingLoadoutBlockedReason } from "../../utils/loadoutTransfer";
 import {
-  buildLoadoutCompareRows,
+  createLoadoutsPageWorkspace,
   formatLoadoutComparePerks,
-  getMissingLoadoutActionableCount,
-  isMatchingTemplateItem,
-  isTemplateItemReady,
-  isTemplateItemReadyFromPlan
-} from "./loadoutViewModel";
+  getLoadoutItemBlockedDetails,
+  getLoadoutItemStatus
+} from "@d2-tools/app";
 import {
-  findBestTemplateSourceItem,
-  getAllKnownAccountItemsWithSource
+  findBestTemplateSourceItem
 } from "../../shared/domain/loadouts/loadoutSources";
 
 export type LoadoutsPageProps = {
@@ -65,95 +60,39 @@ export type LoadoutsPageProps = {
 };
 
 export function LoadoutsPage(props: LoadoutsPageProps) {
-  const selectedTemplate = props.templates.find((template) => template.id === props.selectedTemplateId)
-    ?? props.templates[0]
-    ?? null;
-  const compareTemplate = props.templates.find((template) => template.id === props.compareTemplateId)
-    ?? null;
-  const availableItems = props.accountSummary
-    ? normalizeAccountItemsForCore(getAllKnownAccountItemsWithSource(props.accountSummary))
-    : [];
-  const selectedAnalysis = selectedTemplate
-    ? analyzeLoadoutTemplate(selectedTemplate, availableItems)
-    : null;
-  const transferPlan = selectedTemplate && props.accountSummary
-    ? buildMissingLoadoutTransferPlan({
-      template: selectedTemplate,
-      missingItems: selectedTemplate.items,
-      accountSummary: props.accountSummary
-    })
-    : null;
-  const actionableCount = transferPlan ? getMissingLoadoutActionableCount(transferPlan) : 0;
-  const readyCount = selectedTemplate && transferPlan
-    ? Math.max(selectedTemplate.items.length - actionableCount - transferPlan.blocked.length, 0)
-    : selectedAnalysis?.equipped.length ?? 0;
-  const missingCount = selectedTemplate && transferPlan
-    ? actionableCount + transferPlan.blocked.length
-    : selectedAnalysis?.missing.length ?? 0;
-  const statuses = selectedTemplate
-    ? selectedTemplate.items.map((item) => {
-      const isReady = transferPlan
-        ? isTemplateItemReadyFromPlan(item, transferPlan)
-        : isTemplateItemReady(item, selectedAnalysis);
-      const sourceItem = !isReady
-        ? findBestTemplateSourceItem(item, props.accountSummary, selectedTemplate.character_id)
-        : null;
-      return buildLoadoutItemStatus({
-        isReady,
-        sourceItem,
-        targetCharacterId: selectedTemplate.character_id,
-        accountSummary: props.accountSummary
-      });
-    })
-    : [];
-  const statusSummary = summarizeLoadoutItemStatuses(statuses);
-  const compareRows = selectedTemplate && compareTemplate
-    ? buildLoadoutCompareRows(selectedTemplate, compareTemplate)
-    : [];
-  const visibleCompareRows = props.showDiffOnly ? compareRows.filter((row) => row.changed) : compareRows;
+  const workspace = createLoadoutsPageWorkspace({
+    accountSummary: props.accountSummary,
+    templates: props.templates,
+    selectedTemplateId: props.selectedTemplateId,
+    compareTemplateId: props.compareTemplateId,
+    showDiffOnly: props.showDiffOnly
+  });
 
   return (
     <LoadoutsPageContentView
       {...props}
-      selectedTemplate={selectedTemplate}
-      compareTemplate={compareTemplate}
-      selectedAnalysis={selectedAnalysis}
-      transferPlan={transferPlan}
-      statusSummary={statusSummary}
-      visibleCompareRows={visibleCompareRows}
-      missingCount={missingCount}
-      readyCount={readyCount}
-      actionableCount={actionableCount}
+      selectedTemplate={workspace.selectedTemplate}
+      compareTemplate={workspace.compareTemplate}
+      selectedAnalysis={workspace.selectedAnalysis}
+      transferPlan={workspace.transferPlan}
+      statusSummary={workspace.statusSummary}
+      visibleCompareRows={workspace.visibleCompareRows}
+      missingCount={workspace.missingCount}
+      readyCount={workspace.readyCount}
+      actionableCount={workspace.actionableCount}
       getItemStatus={(item, template, analysis, plan, summary) => {
-        const isReady = plan
-          ? isTemplateItemReadyFromPlan(item, plan)
-          : isTemplateItemReady(item, analysis);
-        const sourceItem = !isReady
-          ? findBestTemplateSourceItem(item, summary, template.character_id)
-          : null;
-        return buildLoadoutItemStatus({
-          isReady,
-          sourceItem,
-          targetCharacterId: template.character_id,
+        return getLoadoutItemStatus({
+          item,
+          template,
+          selectedAnalysis: analysis,
+          transferPlan: plan,
           accountSummary: summary
         });
       }}
-      getBlockedDetails={(item, plan) => {
-        const blockedEntry = plan?.blocked.find((entry: any) => isMatchingTemplateItem(item, entry.item)) ?? null;
-        return blockedEntry ? describeMissingLoadoutBlockedReason(blockedEntry.reason) : null;
-      }}
+      getBlockedDetails={getLoadoutItemBlockedDetails}
       getSourceItem={(item, summary, templateCharacterId) => findBestTemplateSourceItem(item, summary, templateCharacterId)}
       getActionFeedbackKey={buildLoadoutActionFeedbackKey}
       formatComparePerks={formatLoadoutComparePerks}
     />
   );
-}
-
-function normalizeAccountItemsForCore(
-  items: AccountSummary["vault"]["items"]
-): Array<AccountSummary["vault"]["items"][number] & { socket_plugs: NonNullable<AccountSummary["vault"]["items"][number]["socket_plugs"]> }> {
-  return items.map((item) => ({
-    ...item,
-    socket_plugs: item.socket_plugs ?? []
-  }));
 }

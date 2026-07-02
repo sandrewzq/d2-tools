@@ -1,9 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
-  createHighestPowerEquipPlan,
-  createHighestPowerExecutionPlan
+  createHighestPowerEquipPlan, createHighestPowerExecutionPlan
 } from "../src/renderer/utils/highestPower";
-import type { AccountItemSummary, CharacterSummary } from "../src/renderer/api/client";
+import type { AccountItemSummary, CharacterSummary } from "../src/renderer/api/types";
 
 describe("highest power execution plan", () => {
   it("splits highest-power actions into transfer and equip phases", () => {

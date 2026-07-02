@@ -79,7 +79,8 @@ if "%DRY_RUN%"=="1" (
     for /f "delims=" %%U in ('git rev-parse --abbrev-ref --symbolic-full-name @{u} 2^>nul') do echo [dry-run] Upstream: %%U
     echo [dry-run] Would run: git push
   )
-  echo [dry-run] Would run: npx pnpm@9.15.0 docs:check
+  echo [dry-run] Would run: npx pnpm@9.15.0 check
+  echo [dry-run] Would run: npx pnpm@9.15.0 test:docs
   echo [dry-run] Would run: npx pnpm@9.15.0 release:preview --version "%NEXT_VERSION%"
   echo [dry-run] Would run: git add -A
   echo [dry-run] Would run: git commit -m "%COMMIT_MESSAGE%"
@@ -98,10 +99,18 @@ if errorlevel 1 (
 )
 
 echo.
-echo Running documentation checks...
-call npx pnpm@9.15.0 docs:check
+echo Running fast checks...
+call npx pnpm@9.15.0 check
 if errorlevel 1 (
-  echo docs:check failed.
+  echo check failed.
+  exit /b 1
+)
+
+echo.
+echo Running documentation policy tests...
+call npx pnpm@9.15.0 test:docs
+if errorlevel 1 (
+  echo test:docs failed.
   exit /b 1
 )
 
@@ -179,7 +188,7 @@ echo Behavior:
 echo   - Automatically bumps patch version, for example 0.0.10 -^> 0.0.11.
 echo   - Updates root and packages/* package.json versions.
 echo   - Inserts a new CHANGELOG.md section for the generated version.
-echo   - Runs docs:check and release:preview for the generated version.
+echo   - Runs check, test:docs and release:preview for the generated version.
 echo   - Stages all changes, commits, pushes the current branch, creates tag vX.Y.Z, and pushes the tag.
 echo   - The pushed tag triggers the GitHub Release workflow.
 exit /b 0

@@ -1,23 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
-  applyVisibleVaultSelection,
-  buildDuplicateGroupBatchTagPlan,
-  buildVaultBulkMoveResultMessage,
-  buildVaultCleanupLocatorText,
-  buildVaultCleanupText,
-  buildVaultDuplicateSummary,
-  buildVaultGroups,
-  buildVaultSelectionSummary,
-  countWishlistMatches,
-  buildVaultSections,
-  filterVaultItems,
-  getVaultItemKey,
-  selectDuplicateGroupItems,
-  selectMarkedCleanupItems,
-  selectVaultBatchItems,
-  sortVaultItems
+  applyVisibleVaultSelection, buildDuplicateGroupBatchTagPlan, buildVaultBulkMoveResultMessage, buildVaultCleanupLocatorText, buildVaultCleanupText, buildVaultDuplicateSummary, buildVaultGroups, buildVaultSelectionSummary, countWishlistMatches, buildVaultSections, filterVaultItems, getVaultItemKey, selectDuplicateGroupItems, selectMarkedCleanupItems, selectVaultBatchItems, sortVaultItems
 } from "../src/renderer/components/VaultPanel";
-import type { AccountItemSummary, BatchItemActionResult, DimWishlist, LocalTargetRules, VaultTags } from "../src/renderer/api/client";
+import type { AccountItemSummary, BatchItemActionResult, DimWishlist, LocalTargetRules, VaultTags } from "../src/renderer/api/types";
 import { existsSync, readFileSync } from "node:fs";
 
 const items: AccountItemSummary[] = [

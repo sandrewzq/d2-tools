@@ -2,7 +2,7 @@ import type {
   AccountSummary,
   ItemActionPlanInput,
   ItemActionResult
-} from "../../../api/client";
+} from "../../../api/types";
 import { api } from "../../../api/client";
 import { resolveItemTransferCharacterId } from "../../../utils/itemActions";
 import type { SelectedItemDetail } from "../../hooks/useItemDetail";

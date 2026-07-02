@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { AccountSummary } from "../src/renderer/api/client";
+import type { AccountSummary } from "../src/renderer/api/types";
 import {
   buildLoadoutItemStatus,
   summarizeLoadoutItemStatuses,

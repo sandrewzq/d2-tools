@@ -8,7 +8,7 @@ import type {
   BuildGuideTaskState,
   DailySummary,
   VaultTags
-} from "../api/client";
+} from "../api/types";
 import { api } from "../api/client";
 import { collectAccountItems } from "../utils/accountItems";
 import { AiPage } from "../features/ai/AiPage";

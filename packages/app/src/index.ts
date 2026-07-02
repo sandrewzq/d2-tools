@@ -123,6 +123,17 @@ export {
   isTemplateItemReady,
   isTemplateItemReadyFromPlan
 } from "./workspaces/loadoutViewModel.js";
+export type { LoadoutItemStatus, LoadoutStatusSourceItem } from "./workspaces/loadoutItemStatus.js";
+export {
+  buildLoadoutItemStatus,
+  summarizeLoadoutItemStatuses
+} from "./workspaces/loadoutItemStatus.js";
+export type { LoadoutsPageWorkspace } from "./workspaces/loadoutsPage.js";
+export {
+  createLoadoutsPageWorkspace,
+  getLoadoutItemBlockedDetails,
+  getLoadoutItemStatus
+} from "./workspaces/loadoutsPage.js";
 export type { LoadoutActionResultCounts } from "./workspaces/loadoutActions.js";
 export {
   buildCharacterLoadoutTemplateName,
@@ -163,6 +174,25 @@ export type {
   HighestPowerExecutionPlan,
   HighestPowerItemSource
 } from "./workspaces/highestPower.js";
+export type {
+  ItemDefinitionDetailLike,
+  ItemSearchResultLike,
+  SameNameItemSummary,
+  SelectedItemDetail,
+  SelectedItemSource,
+  SelectedItemSourceKind
+} from "./workspaces/itemDetail.js";
+export {
+  buildWishlistInsightText,
+  collectSelectedSameNameItems,
+  createSelectedItemPreview,
+  formatVaultTagLabel as formatItemDetailVaultTagLabel,
+  getItemKey,
+  mergeSelectedItemDetail,
+  selectBestSameNameItem,
+  selectedItemToAccountItem,
+  sortSameNameItems
+} from "./workspaces/itemDetail.js";
 export {
   buildHighestPowerAlreadyOptimalMessage,
   buildHighestPowerConfirmText,

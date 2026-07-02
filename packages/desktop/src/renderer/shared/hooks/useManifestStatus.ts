@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { api, type ManifestStatus } from "../../api/client";
+import { api } from "../../api/client";
+import type { ManifestStatus } from "../../api/types";
 
 export function useManifestStatus() {
   const [manifestStatus, setManifestStatus] = useState<ManifestStatus | null>(null);

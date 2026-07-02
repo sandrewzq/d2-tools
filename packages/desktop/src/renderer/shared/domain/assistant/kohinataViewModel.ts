@@ -1,4 +1,4 @@
-import type { BuildGuideTaskState } from "../../../api/client";
+import type { BuildGuideTaskState } from "../../../api/types";
 
 export type KohinataTaskGroup = {
   title: string;

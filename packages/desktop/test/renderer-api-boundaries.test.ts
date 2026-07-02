@@ -1,8 +1,11 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 const apiRoot = fileURLToPath(new URL("../src/renderer/api/", import.meta.url));
+const rendererRoot = fileURLToPath(new URL("../src/renderer/", import.meta.url));
+const testRoot = fileURLToPath(new URL("../test/", import.meta.url));
 const clientPath = `${apiRoot}client.ts`;
 const typesPath = `${apiRoot}types.ts`;
 const accountApiPath = `${apiRoot}accountApi.ts`;
@@ -68,8 +71,36 @@ describe("renderer API boundary", () => {
     expect(typesSource).not.toContain("export type DailySummary =");
     expect(typesSource.split(/\r?\n/).length).toBeLessThanOrEqual(80);
   });
+
+  it("keeps api/client as a runtime-only renderer import", () => {
+    const offenders = [...listSourceFiles(rendererRoot), ...listSourceFiles(testRoot)]
+      .map((file) => {
+        const source = readFileSync(file, "utf8");
+        const importStatements = source.match(/import\s+[\s\S]*?from\s+["'][^"']+["'];?/g) ?? [];
+        const hasTypeClientImport = importStatements.some((statement) =>
+          /^import\s+type\b/.test(statement) && /from\s+["'][^"']*api\/client["']/.test(statement)
+        );
+        const hasMixedClientTypeImport = importStatements.some((statement) =>
+          /^import\s+\{/.test(statement)
+          && /\btype\s+\w+/.test(statement)
+          && /from\s+["'][^"']*api\/client["']/.test(statement)
+        );
+        return hasTypeClientImport || hasMixedClientTypeImport ? relative(fileURLToPath(new URL("..", import.meta.url)), file) : null;
+      })
+      .filter(Boolean);
+
+    expect(offenders).toEqual([]);
+  });
 });
 
 function countExportType(source: string, name: string): number {
   return [...source.matchAll(new RegExp(`export type ${name}\\b`, "g"))].length;
+}
+
+function listSourceFiles(root: string): string[] {
+  return readdirSync(root, { withFileTypes: true }).flatMap((entry) => {
+    const fullPath = join(root, entry.name);
+    if (entry.isDirectory()) return listSourceFiles(fullPath);
+    return /\.(ts|tsx)$/.test(entry.name) ? [fullPath] : [];
+  });
 }

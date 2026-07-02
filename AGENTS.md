@@ -5,12 +5,37 @@
 ## 开始修改前
 
 - 先阅读本文件，再检查 `docs/todo.md` 和 `docs/development.md`。
+- 弱模型或上下文不足时，先运行 `tools\git-preflight.cmd` 判断改动范围、建议验证命令和高冲突文件，再按下方“快速执行矩阵”行动。
 - 不要删除用户已有工作或无关改动。
 - 修改应小而聚焦，遵循当前 package 边界。
+
+## 快速执行矩阵
+
+后续 agent 默认按这个矩阵行动；拿不准时先只读检查，不要扩大改动范围。
+
+| 改动类型 | 优先修改位置 | 必跑验证 | 避免事项 |
+|---|---|---|---|
+| 文档、待办、README | `README.md`、`docs/`、`AGENTS.md` | `pnpm verify:docs` | 不重建 archive / superpowers 目录；不把阶段计划塞进 README |
+| 维护者脚本、Git 辅助 | `tools/*.cmd`、必要时 `scripts/` | `pnpm verify:docs`，并运行脚本 `--help` 或只读模式 | 不提交 token、Cookie、profile、缓存库；不把用户本地数据放进仓库 |
+| 跨端 UI / 原型 / Web | `packages/ui` 优先，`packages/prototype` 和 `packages/web` 只做壳或 mock | `pnpm verify:ui`；首页或设置页视觉改动追加 `pnpm visual:home` / `pnpm visual:settings` | 不在 prototype 长期维护第二套真实页面；不只改 Desktop 复制 UI |
+| Desktop 接线、IPC、preload | `packages/desktop/src/main/ipc/*`、`api/*Api.ts`、对应 feature | `pnpm verify:desktop`；复杂改动再跑相关定向测试 | 尽量不碰 `api/client.ts`、`api/types.ts`、`ipc.ts` 等高冲突聚合文件 |
+| 领域、服务、workspace | `packages/core`、`packages/services`、`packages/app` | 相关 `vitest --run packages/<pkg>/test/<name>.test.ts`，必要时 `pnpm test:fast` | 不跨层直接依赖平台能力；不要把业务真相写进平台壳 |
+| 发布、版本、CHANGELOG | `CHANGELOG.md`、各 package 版本、release 脚本 | `pnpm verify:release`，发布前按需追加 `pnpm test` / `pnpm typecheck` | 不手写不一致版本号；不在未确认 tag 时推 release |
+
+小参数模型工作约束：
+
+- 先确认自己要改的文件属于上表哪一行；一次只处理一类改动。
+- 优先使用已有脚本别名，不自行拼复杂命令。
+- 发现无关脏文件时只记录，不回退、不格式化、不顺手修。
+- 需要跨越两个以上 package 或触碰高冲突文件时，先说明影响范围再动手。
+- 最终回答必须写清楚运行过哪些验证；没跑全量 `pnpm test` / `pnpm typecheck` 时直接说明。
 
 ## 并行开发边界
 
 - 普通功能开发优先只改对应 `packages/desktop/src/renderer/features/<menu>/` 目录，避免一个菜单的改动影响其他菜单。
+- 单个菜单私有目录改动默认不要求 worktree；例如一个 agent 只改 `features/account/`，另一个只改 `features/vault/`，且都不碰共享层时，可以在当前工作区轻量并行。
+- worktree 是隔离复杂并行现场的工具，不是所有任务的默认要求。触碰 `packages/ui`、`packages/app`、`packages/desktop/src/renderer/shared/`、renderer API、主进程 IPC、release / 版本号 / CHANGELOG，或当前工作区已有多条无关脏改动时，才优先考虑 worktree 或暂停其他 agent。
+- 多 agent 共用同一工作区时，提交前必须先运行 `tools\git-preflight.cmd`；如果输出多条 lane 或高冲突文件，不要使用全量 `git add -A` 提交脚本，除非确认这些改动都属于本次提交。
 - 跨菜单复用能力必须先进入 `packages/desktop/src/renderer/shared/`，不要让 feature 之间直接 import。
 - `shared/` 不能 import `features/`，也不能通过 `components/VaultPanel.tsx` 等菜单桥接文件间接依赖 feature。
 - 新增 renderer API 契约时放到对应 `packages/desktop/src/renderer/api/*Api.ts`；跨领域 DTO 放到 `sharedTypes.ts`；不要把大型 DTO 塞回 `api/types.ts` 或 `api/client.ts`。
@@ -59,10 +84,11 @@
 ## 验证规则
 
 - 日常开发优先按改动范围选择最小验证，不要默认运行发布级重链路。
-- 文档改动运行 `pnpm check`；如果改了文档检查脚本或编码检查脚本，再运行 `pnpm test:docs`。
+- 文档、待办、README 或工具说明改动运行 `pnpm verify:docs`。
 - `pnpm docs:check` 同时检查文档结构和全仓文本编码；如果发现疑似 mojibake、Unicode replacement character 或连续问号造成的信息丢失，先修复乱码再继续开发。
-- 改 `packages/ui`、`packages/prototype` 或 `packages/web` 时，至少运行 `pnpm typecheck:ui` 和相关定向 vitest；影响首页或设置页视觉时追加 `visual:home` 或 `visual:settings`。
-- 改 Desktop 主进程、preload、renderer adapter 或 IPC 接线时，至少运行 `pnpm typecheck:desktop` 和相关 `packages/desktop/test/*.test.*`。
+- 改 `packages/ui`、`packages/prototype` 或 `packages/web` 时，至少运行 `pnpm verify:ui`；影响首页或设置页视觉时追加 `pnpm visual:home` 或 `pnpm visual:settings`。
+- 改 Desktop 主进程、preload、renderer adapter 或 IPC 接线时，至少运行 `pnpm verify:desktop`；如果触到底层依赖再追加 `pnpm typecheck:desktop`。
+- 改 release、CHANGELOG、版本号或发布脚本时，至少运行 `pnpm verify:release`。
 - 普通功能改动优先运行相关定向测试；需要一轮中等门禁时运行 `pnpm verify`。
 - 只有在发布、提交 release、声称全仓检查通过、或用户明确要求全量验证前，才运行发布级 `pnpm test` 和 `pnpm typecheck`。
 - 如果没有运行全量测试，最终回答必须明确说明已运行哪些定向验证，以及没有运行全量 `pnpm test` / `pnpm typecheck`。

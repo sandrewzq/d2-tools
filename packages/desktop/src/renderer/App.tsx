@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useState } from "react";
-import { api, type StartupState } from "./api/client";
+import { api } from "./api/client";
+import type { StartupState } from "./api/types";
 
 const HomePage = lazy(() => import("./pages/HomePage").then((m) => ({ default: m.HomePage })));
 const WizardPage = lazy(() => import("./pages/WizardPage").then((m) => ({ default: m.WizardPage })));

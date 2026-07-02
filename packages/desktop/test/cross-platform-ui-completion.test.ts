@@ -46,17 +46,25 @@ describe("cross-platform UI completion boundary", () => {
     expect(types).toContain("vault: VaultCopy");
     expect(types).toContain("loadouts: LoadoutsCopy");
     expect(types).toContain("library: LibraryCopy");
+    expect(types).toContain("account: AccountCopy");
+    expect(types).toContain("settings: SettingsCopy");
     expect(copy).toContain("Vault");
     expect(copy).toContain("Loadouts");
     expect(copy).toContain("Library");
+    expect(copy).toContain("Account");
+    expect(copy).toContain("Settings");
     expect(copy).toContain("仓库");
     expect(copy).toContain("本地方案库");
     expect(copy).toContain("资料库搜索");
+    expect(copy).toContain("账号摘要");
+    expect(copy).toContain("设置总览");
   });
 
   it("adds web adapter endpoints beyond the home fallback snapshot", () => {
     const adapter = read("packages/web/src/webAdapter.ts");
 
+    expect(adapter).toContain("createWebSnapshotProvider");
+    expect(adapter).toContain("WebSnapshotSource");
     expect(adapter).toContain("loadPageSnapshot");
     expect(adapter).toContain("/api/pages/");
     expect(adapter).toContain("WebPageSnapshot");

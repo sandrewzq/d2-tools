@@ -11,7 +11,7 @@ import type {
   VaultItemMatchInfo,
   VaultTags,
   VaultTagValue
-} from "../api/client";
+} from "../api/types";
 import {
   matchesLoadoutTemplateItem,
   type LoadoutTemplateLookup

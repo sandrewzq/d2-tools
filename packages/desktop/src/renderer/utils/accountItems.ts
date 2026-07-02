@@ -1,4 +1,4 @@
-import type { AccountItemSummary, AccountSummary } from "../api/client";
+import type { AccountItemSummary, AccountSummary } from "../api/types";
 
 /**
  * Collect all items from an account: vault + every character's

@@ -6,7 +6,7 @@ import type {
   ManifestStatus,
   PerkSearchResult,
   VaultItemMatchInfo
-} from "../../api/client";
+} from "../../api/types";
 import type {
   LibraryEquipmentFilter,
   LibraryPerkFilter,

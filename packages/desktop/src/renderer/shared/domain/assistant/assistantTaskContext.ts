@@ -1,4 +1,4 @@
-import type { AccountItemSummary } from "../../../api/client";
+import type { AccountItemSummary } from "../../../api/types";
 
 export type AssistantTaskStep = {
   id: string;

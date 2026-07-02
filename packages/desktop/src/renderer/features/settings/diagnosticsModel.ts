@@ -1,4 +1,5 @@
-import { api, type ActionLogEntry, type D2Config } from "../../api/client";
+import { api } from "../../api/client";
+import type { ActionLogEntry, D2Config } from "../../api/types";
 
 export type DiagnosticsBridge = {
   refreshDiagnostics: () => Promise<void>;

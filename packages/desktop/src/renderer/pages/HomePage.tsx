@@ -1,7 +1,8 @@
 import { createHomeDashboardWorkspace, createHomeDashboardActions } from "@d2-tools/app";
-import { ProductShellHost, type ProductPreferences, type ShellAssistantMode, type ShellPageKey, type ShellStatusItem } from "@d2-tools/ui";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { api, type AccountSummary, type ManifestStatus, type StartupState, type UpdateSnapshot } from "../api/client";
+import { api } from "../api/client";
+import { ProductShellHost, type ProductPreferences, type ShellAssistantMode, type ShellPageKey, type ShellStatusItem } from "@d2-tools/ui";
+import type { AccountSummary, ManifestStatus, StartupState, UpdateSnapshot } from "../api/types";
 import { GlobalAssistantSidebar } from "../components/GlobalAssistantSidebar";
 import { useAccountWorkspace } from "../features/account/useAccountWorkspace";
 import { useDailySummary } from "../features/daily/useDailySummary";
@@ -319,6 +320,7 @@ export function HomePage(props: {
           interfaceLocale: diagnostics.languagePreferences.interfaceLocale
         }}
         account={{
+          interfaceLocale: diagnostics.languagePreferences.interfaceLocale,
           accountSummary,
           startupState: props.state,
           selectedCharacterId,
@@ -432,6 +434,7 @@ export function HomePage(props: {
           onSaveTag: (item, tag) => vaultWriteActions.saveVaultTag(item, tag)
         }}
         settings={{
+          interfaceLocale: diagnostics.languagePreferences.interfaceLocale,
           message: diagnostics.settingsMessage,
           error: diagnostics.settingsError,
           diagnosticDataDir: diagnostics.diagnosticDataDir,

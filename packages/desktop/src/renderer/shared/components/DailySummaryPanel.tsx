@@ -1,4 +1,4 @@
-import type { DailySummary } from "../../api/client";
+import type { DailySummary } from "../../api/types";
 import {
   buildWeeklyDigestSections,
   formatDailySourceStatus

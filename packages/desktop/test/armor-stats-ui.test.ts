@@ -14,17 +14,19 @@ describe("armor stats UI wiring", () => {
   it("shows owned armor stats in item detail and same-name comparison", () => {
     const itemDetailModal = readItemDetailSources("packages/desktop");
     const itemDetailHook = readFileSync("packages/desktop/src/renderer/shared/hooks/useItemDetail.ts", "utf8");
+    const appItemDetail = readFileSync("packages/app/src/workspaces/itemDetail.ts", "utf8");
     const sharedTypes = readFileSync("packages/desktop/src/renderer/api/sharedTypes.ts", "utf8");
 
     expect(sharedTypes).toContain("ArmorEnergySummary");
     expect(sharedTypes).toContain("ArmorStatBreakdownSummary");
     expect(sharedTypes).toContain("@d2-tools/core/account/summary");
-    expect(itemDetailHook).toContain("armor_stats?: AccountItemSummary[\"armor_stats\"]");
-    expect(itemDetailHook).toContain("armor_stat_breakdown?: AccountItemSummary[\"armor_stat_breakdown\"]");
-    expect(itemDetailHook).toContain("armor_energy?: AccountItemSummary[\"armor_energy\"]");
-    expect(itemDetailHook).toContain("armor_stats: item.armor_stats");
-    expect(itemDetailHook).toContain("armor_stat_breakdown: item.armor_stat_breakdown");
-    expect(itemDetailHook).toContain("armor_energy: item.armor_energy");
+    expect(itemDetailHook).toContain("createSelectedItemPreview");
+    expect(appItemDetail).toContain("armor_stats?: AccountItemSummary[\"armor_stats\"]");
+    expect(appItemDetail).toContain("armor_stat_breakdown?: AccountItemSummary[\"armor_stat_breakdown\"]");
+    expect(appItemDetail).toContain("armor_energy?: AccountItemSummary[\"armor_energy\"]");
+    expect(appItemDetail).toContain("armor_stats: item.armor_stats");
+    expect(appItemDetail).toContain("armor_stat_breakdown: item.armor_stat_breakdown");
+    expect(appItemDetail).toContain("armor_energy: item.armor_energy");
     expect(itemDetailModal).toContain("当前属性");
     expect(itemDetailModal).toContain("formatArmorStatsSummary(selectedItem)");
     expect(itemDetailModal).toContain("基础");
@@ -97,12 +99,14 @@ describe("armor stats UI wiring", () => {
   it("shows owned weapon stats in item detail", () => {
     const itemDetailModal = readItemDetailSources("packages/desktop");
     const itemDetailHook = readFileSync("packages/desktop/src/renderer/shared/hooks/useItemDetail.ts", "utf8");
+    const appItemDetail = readFileSync("packages/app/src/workspaces/itemDetail.ts", "utf8");
     const sharedTypes = readFileSync("packages/desktop/src/renderer/api/sharedTypes.ts", "utf8");
 
     expect(sharedTypes).toContain("WeaponStatSummary");
     expect(sharedTypes).toContain("@d2-tools/core/account/summary");
-    expect(itemDetailHook).toContain("weapon_stats?: AccountItemSummary[\"weapon_stats\"]");
-    expect(itemDetailHook).toContain("weapon_stats: item.weapon_stats");
+    expect(itemDetailHook).toContain("createSelectedItemPreview");
+    expect(appItemDetail).toContain("weapon_stats?: AccountItemSummary[\"weapon_stats\"]");
+    expect(appItemDetail).toContain("weapon_stats: item.weapon_stats");
     expect(itemDetailModal).toContain("武器属性");
     expect(itemDetailModal).toContain("射程");
     expect(itemDetailModal).toContain("稳定性");

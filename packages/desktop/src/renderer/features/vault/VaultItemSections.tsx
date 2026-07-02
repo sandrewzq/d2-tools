@@ -6,7 +6,7 @@ import type {
   VaultItemMatchInfo,
   VaultTags,
   VaultTagValue
-} from "../../api/client";
+} from "../../api/types";
 import type { LoadoutTemplateLookup } from "../../shared/domain/loadouts/loadoutLookup";
 import { MemoizedVaultListItem as VaultListItem } from "./VaultListItem";
 import type { VaultSection } from "./vaultFilters";

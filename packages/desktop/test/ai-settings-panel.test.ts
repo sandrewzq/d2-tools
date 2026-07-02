@@ -209,6 +209,7 @@ describe("AI settings panel helpers", () => {
     );
     const settingsPage = [
       readFileSync(join(uiRoot, "src", "settings", "SettingsPageContentView.tsx"), "utf8"),
+      readFileSync(join(uiRoot, "src", "i18n", "copy.ts"), "utf8"),
       readFileSync(join(desktopRoot, "src", "renderer", "features", "settings", "SettingsPage.tsx"), "utf8")
     ].join("\n");
     const aiPage = readFileSync(

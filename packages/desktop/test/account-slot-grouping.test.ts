@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { groupAccountItemsBySlot } from "../src/renderer/utils/accountSlots";
-import type { AccountItemSummary } from "../src/renderer/api/client";
+import type { AccountItemSummary } from "../src/renderer/api/types";
 
 describe("account slot grouping", () => {
   it("groups account equipment by Destiny/DIM-style inventory slots", () => {

@@ -6,7 +6,7 @@ import type {
   LoadoutTemplate,
   LocalTargetRules,
   VaultTags
-} from "../api/client";
+} from "../api/types";
 import { useLoadoutActionFeedback } from "../features/loadouts/useLoadoutActionFeedback";
 import { useLoadoutTemplateActions } from "../features/loadouts/useLoadoutTemplateActions";
 import { useLoadoutWriteActions } from "../features/loadouts/useLoadoutWriteActions";

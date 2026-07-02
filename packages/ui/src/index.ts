@@ -12,7 +12,15 @@ export {
   getEffectiveBungieLocale,
   getNextInterfaceLocale
 } from "./i18n/preferences.js";
-export type { BungieManifestLocale, InterfaceLocale, LocaleCopy, ProductPreferences, ShellCopy } from "./i18n/types.js";
+export type {
+  AccountCopy,
+  BungieManifestLocale,
+  InterfaceLocale,
+  LocaleCopy,
+  ProductPreferences,
+  SettingsCopy,
+  ShellCopy
+} from "./i18n/types.js";
 export { LibraryPageView } from "./library/LibraryPageView.js";
 export type { LibraryPageViewMode } from "./library/LibraryPageView.js";
 export { LibraryPageContentView } from "./library/LibraryPageContentView.js";

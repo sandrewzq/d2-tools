@@ -1,11 +1,11 @@
-import { AccountPageContentView } from "@d2-tools/ui";
+import { AccountPageContentView, type InterfaceLocale } from "@d2-tools/ui";
 import type {
   AccountItemSummary,
   AccountSummary,
   ActivityHistorySummary,
   LoadoutTemplate,
   StartupState
-} from "../../api/client";
+} from "../../api/types";
 import {
   createAccountPageWorkspace,
   formatAccountItemMeta,
@@ -19,6 +19,7 @@ import {
 type AccountItemSource = "equipped" | "inventory";
 
 export function AccountPage(props: {
+  interfaceLocale?: InterfaceLocale;
   accountSummary: AccountSummary | null;
   startupState: StartupState;
   selectedCharacterId: string;

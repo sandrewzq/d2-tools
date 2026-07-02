@@ -8,7 +8,7 @@ import type {
   VaultTags,
   VaultTagValue,
   WeaponRecommendation
-} from "../../api/client";
+} from "../../api/types";
 import type { SameNameItemSummary, SelectedItemDetail, SelectedItemSource } from "../hooks/useItemDetail";
 import type { buildDuplicateGroupBatchTagPlan } from "../domain/vault/vaultCleanup";
 import { ItemDetailHeader } from "./item-detail/ItemDetailHeader";

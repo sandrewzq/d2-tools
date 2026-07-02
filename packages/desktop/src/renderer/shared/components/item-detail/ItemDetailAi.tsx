@@ -1,4 +1,4 @@
-import type { ItemAiAdviceResult } from "../../../api/client";
+import type { ItemAiAdviceResult } from "../../../api/types";
 import { protocolLabel } from "../../../utils/aiSettings";
 
 export type ItemDetailAiProps = {

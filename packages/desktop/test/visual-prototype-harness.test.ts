@@ -79,7 +79,7 @@ describe("visual prototype harness", () => {
   });
 
   it("keeps settings diagnostics aligned with the prototype shell", () => {
-    const settingsPage = `${read("packages/ui/src/settings/SettingsPageContentView.tsx")}\n${read("packages/desktop/src/renderer/features/settings/SettingsPage.tsx")}`;
+    const settingsPage = `${read("packages/ui/src/settings/SettingsPageContentView.tsx")}\n${read("packages/ui/src/i18n/copy.ts")}\n${read("packages/desktop/src/renderer/features/settings/SettingsPage.tsx")}`;
     const styles = read("packages/desktop/src/renderer/styles.css");
     const diagnosticsSection = settingsPage.slice(
       settingsPage.indexOf('id="settings-diagnostics"'),

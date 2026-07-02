@@ -1,14 +1,15 @@
-import type { VaultTags } from "../../../api/client";
+import type { VaultTags } from "../../../api/types";
 import {
   buildVaultDuplicateSummary,
   type buildDuplicateGroupBatchTagPlan
 } from "../../domain/vault/vaultCleanup";
 import {
   getItemKey,
+  sortSameNameItems,
   type SameNameItemSummary,
   type SelectedItemDetail,
   type SelectedItemSource
-} from "../../hooks/useItemDetail";
+} from "@d2-tools/app";
 import { formatAccountItemMeta, formatArmorStatsSummary } from "./itemDetailFormatters";
 import { formatVaultTagLabel } from "./itemDetailFormatters";
 
@@ -96,17 +97,4 @@ export function ItemDetailSameName(props: ItemDetailSameNameProps) {
       </div>
     </section>
   );
-}
-
-export function sortSameNameItems(items: SameNameItemSummary[], currentItemKey: string): SameNameItemSummary[] {
-  return [...items].sort((left, right) => {
-    const leftKey = getItemKey(left);
-    const rightKey = getItemKey(right);
-
-    if (leftKey === currentItemKey && rightKey !== currentItemKey) return -1;
-    if (rightKey === currentItemKey && leftKey !== currentItemKey) return 1;
-
-    return Number(Boolean(right.locked)) - Number(Boolean(left.locked))
-      || left.name.localeCompare(right.name, "zh-Hans-CN");
-  });
 }

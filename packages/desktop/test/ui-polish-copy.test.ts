@@ -11,6 +11,7 @@ describe("new feature UI polish", () => {
   it("keeps new GUI features understandable for non-technical players", () => {
     const accountPage = [
       readFileSync(join(uiRoot, "src", "account", "AccountPageContentView.tsx"), "utf8"),
+      readFileSync(join(uiRoot, "src", "i18n", "copy.ts"), "utf8"),
       readFileSync(join(desktopRoot, "src", "renderer", "features", "account", "AccountPage.tsx"), "utf8")
     ].join("\n");
     const libraryPage = [

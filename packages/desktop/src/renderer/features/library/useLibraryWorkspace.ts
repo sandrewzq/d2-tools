@@ -1,12 +1,7 @@
 import { useEffect, useState } from "react";
 import {
-  api,
-  type ItemSearchResult,
-  type LibraryHistory,
-  type LiveItemAvailability,
-  type PerkSearchResult,
-  type VaultItemMatchInfo
-} from "../../api/client";
+  api } from "../../api/client";
+import type { ItemSearchResult, LibraryHistory, LiveItemAvailability, PerkSearchResult, VaultItemMatchInfo } from "../../api/types";
 import { useManifestStatus } from "../../shared/hooks/useManifestStatus";
 import {
   defaultLibraryEquipmentFilter,

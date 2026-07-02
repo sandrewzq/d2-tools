@@ -1,13 +1,7 @@
 import { useMemo, useState } from "react";
 import {
-  api,
-  type PerkSearchResult,
-  type AccountItemSummary,
-  type ArmorStatKey,
-  type LocalArmorTargetCondition,
-  type LocalTargetRules,
-  type LocalWeaponTargetCondition
-} from "../../api/client";
+  api } from "../../api/client";
+import type { PerkSearchResult, AccountItemSummary, ArmorStatKey, LocalArmorTargetCondition, LocalTargetRules, LocalWeaponTargetCondition } from "../../api/types";
 import { services } from "../../api/services";
 import { armorStatLabels } from "./vaultFilters";
 

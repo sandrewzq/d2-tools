@@ -3,7 +3,7 @@ import type {
   ActivityHistorySummary,
   DailySummary,
   VaultTags
-} from "../../api/client";
+} from "../../api/types";
 import { AiAnalysisPanel } from "../../components/AiAnalysisPanel";
 import type { AssistantPageContext } from "../../shared/domain/assistant/assistantContext";
 

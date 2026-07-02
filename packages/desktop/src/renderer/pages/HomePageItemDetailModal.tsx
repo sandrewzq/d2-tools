@@ -1,4 +1,4 @@
-import type { AccountSummary, DimWishlist, LocalTargetRules, VaultTags } from "../api/client";
+import type { AccountSummary, DimWishlist, LocalTargetRules, VaultTags } from "../api/types";
 import { ItemDetailModal } from "../shared/components/ItemDetailModal";
 import type { useItemDetailWorkspace } from "../shared/hooks/useItemDetailWorkspace";
 

@@ -3,7 +3,7 @@ import type {
   EquipmentGroupKey,
   ItemSearchResult,
   PerkSearchResult
-} from "../api/client";
+} from "../api/types";
 
 export type LibraryViewMode = "equipment" | "perks";
 export type LibraryEquipmentGroupFilter = EquipmentGroupKey | "all";

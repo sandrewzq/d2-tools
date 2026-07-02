@@ -1,4 +1,4 @@
-import type { DailySourceStatus, DailySummary } from "../api/client";
+import type { DailySourceStatus, DailySummary } from "../api/types";
 
 export type WeeklyDigestSection = {
   key: "priority" | "optional" | "watch";

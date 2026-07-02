@@ -1,13 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { buildAiChatContext } from "@d2-tools/core/ai/chat";
 import { sendAssistantMessage } from "@d2-tools/app";
-import {
-  type AccountItemSummary,
-  type AccountSummary,
-  type ActivityHistorySummary,
-  type DailySummary,
-  type VaultTags
-} from "../api/client";
+import type { AccountItemSummary, AccountSummary, ActivityHistorySummary, DailySummary, VaultTags } from "../api/types";
 import { services } from "../api/services";
 import type { AssistantPageContext } from "../shared/domain/assistant/assistantContext";
 import {

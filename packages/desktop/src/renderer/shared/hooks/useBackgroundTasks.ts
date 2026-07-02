@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { api, type BackgroundTaskSnapshot } from "../../api/client";
+import { api } from "../../api/client";
+import type { BackgroundTaskSnapshot } from "../../api/types";
 
 export function useBackgroundTasks() {
   const [backgroundTasks, setBackgroundTasks] = useState<BackgroundTaskSnapshot[]>([]);

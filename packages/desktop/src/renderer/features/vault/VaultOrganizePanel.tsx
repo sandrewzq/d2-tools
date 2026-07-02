@@ -2,7 +2,7 @@ import type {
   AccountItemSummary,
   VaultTags,
   VaultTagValue
-} from "../../api/client";
+} from "../../api/types";
 import { formatVaultItemMeta } from "./VaultListItem";
 import {
   type VaultBatchSelectionMode,

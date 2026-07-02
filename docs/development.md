@@ -41,6 +41,7 @@ docs/        正式文档
 - `packages/app`
   - 负责跨端前端查询层、状态模型和页面 workspace 编排
   - 复用 services，不直接依赖 Electron、Node runtime 或桌面 UI
+  - 首页、账号页、仓库页、配装页和装备详情等平台无关 ViewModel / workspace 优先沉到这里，Desktop / Web 只传入真实数据和写操作 callback
 
 - `packages/ui`
   - 负责共享 React UI、产品级 UI Host、设计系统 token 和 i18n copy
@@ -55,7 +56,7 @@ docs/        正式文档
 - `packages/web`
   - 负责 Web 平台壳、浏览器启动、Web 登录态和 HTTP/API adapter
   - 与 Prototype / Desktop 挂同一个产品 UI Host，不复制页面实现；后续移动 App 也按同一壳模式接入
-  - 首页数据通过 Web adapter 边界读取，当前约定为 `/api/home-snapshot`，无服务时回退到共享 fallback snapshot
+  - 首页和页面数据通过 Web snapshot provider / adapter 边界读取，当前约定为 `/api/home-snapshot` 和 `/api/pages/:page/snapshot`，无服务时回退到共享 fallback snapshot
 
 - `packages/http`
   - 暴露本地 HTTP / 工具接口
@@ -72,11 +73,11 @@ docs/        正式文档
 - `packages/desktop/src/renderer/shared/` 只能放跨菜单复用能力，不能反向 import `features/`。
 - 跨账号、仓库、资料库复用的装备详情、配装定位、状态卡片等能力应先进入 `shared/`，再由各 feature 引用。
 - `packages/desktop/src/renderer/api/types.ts` 是 renderer 侧平台无关 API 聚合入口，只组合 `AppApi` 并重导出分域契约；账号、仓库、资料库、配装、AI、写操作等 DTO 应放在 `api/*Api.ts` 或 `api/sharedTypes.ts`，后续 Mac / 移动端适配应优先复用这些类型边界。
-- `packages/desktop/src/renderer/api/client.ts` 只做 Electron renderer 运行时绑定：声明 `window.d2`、导出 `api`，并兼容性重导出 `types.ts` 里的类型。
+- `packages/desktop/src/renderer/api/client.ts` 只做 Electron renderer 运行时绑定：声明 `window.d2`、导出 `api`，并兼容性重导出 `types.ts` 里的类型；renderer / test 使用方不得从这里导类型，类型应从 `api/types.ts` 或分域 API 文件导入。
 - 新增用户可见文案优先进入 `packages/ui/src/i18n/` 或对应领域 copy；界面语言使用 `zh-CN` / `en-US`，Bungie 资料库语言使用 `zh-chs` / `en`，不要在组件里分散写 `locale === ... ? ... : ...`。
 - 默认数据目录由 `packages/core/src/config/defaults.ts` 的平台感知 helper 统一计算：Windows 使用 `%APPDATA%\d2-tools`，macOS 使用 `~/Library/Application Support/d2-tools`，Linux / 其他平台使用 `$XDG_DATA_HOME/d2-tools` 或 `~/.local/share/d2-tools`。
 - `packages/desktop/test/renderer-boundaries.test.ts` 会拦截 feature 互相 import 和 shared 反向依赖 feature。
-- `packages/desktop/test/renderer-api-boundaries.test.ts` 会拦截把大型 DTO 类型重新塞回 `api/client.ts` 或重新塞回一个巨型 `api/types.ts`。
+- `packages/desktop/test/renderer-api-boundaries.test.ts` 会拦截把大型 DTO 类型重新塞回 `api/client.ts`、renderer / test 从 `api/client.ts` 导类型，或重新塞回一个巨型 `api/types.ts`。
 - 源码目录下的 `packages/*/src/**/*.js` 和 `packages/*/src/**/*.d.ts` 默认视为构建或迁移过程产生的衍生文件，不作为正式源码提交目标；常规开发应以 `.ts` / `.tsx` 为准，构建产物优先落到 `dist/`。
 
 ### 2.3 并行开发规则
@@ -103,12 +104,12 @@ docs/        正式文档
 常见改动归属：
 
 - 首页、设置页、账号页的布局和样式：`packages/ui`
-- 设置页、账号页、资料库页和配装页的内部复杂块已迁入 `packages/ui`；Desktop feature 只保留真实数据 adapter、写操作 callback 和少量派生 ViewModel 接线。
+- 设置页、账号页、资料库页和配装页的内部复杂块已迁入 `packages/ui`；账号页和设置页主入口文案已进入 `packages/ui/src/i18n/`；Desktop feature 只保留真实数据 adapter、写操作 callback 和少量派生 ViewModel 接线。
 - 原型里的“未登录 / 资料库过期 / 后台任务运行 / 更新可用”等状态切换：`packages/prototype`
-- Web 的真实数据读取、HTTP fallback 和浏览器外链打开：`packages/web/src/webAdapter.ts`
+- Web 的真实数据读取、snapshot provider、HTTP fallback 和浏览器外链打开：`packages/web/src/webAdapter.ts`
 - 真实账号读取、资料库检查、导入导出、窗口颜色和应用更新：`packages/desktop` 或对应 service / adapter
 - Web 登录态、浏览器存储和 HTTP adapter：`packages/web`
-- 跨端状态模型、页面 workspace 和 ViewModel：`packages/app`
+- 跨端状态模型、页面 workspace 和 ViewModel：`packages/app`，其中配装页状态汇总 / 迁移计划 / 比较行和装备详情同名对比 / 选中项合并等纯逻辑不应留在 Desktop renderer
 
 ### 2.5 Renderer UI 样式系统
 
@@ -201,6 +202,7 @@ npx pnpm@9.15.0 dev:electron
 - `tools/dev-web.cmd`：启动或打开 Web，本地端口 `53171`。
 - `tools/dev-desktop.cmd`：启动或打开 Desktop 开发版，本地端口 `53172`。
 - `tools/dev-status.cmd`：只读查看 Prototype / Web / Desktop 开发端口占用情况。
+- `tools/git-preflight.cmd`：只读按文档、工具、跨端 UI、Desktop、core/services/app/http 分组查看 Git 改动，识别菜单 lane / 共享层风险 / 多 lane 混改，并提示建议验证命令、高冲突文件和并行安全建议。
 - `tools/git-commit-and-push.cmd`：全量提交并 push，不创建 release tag。
 - `tools/git-auto-release.cmd`：自动 patch +1 版本、生成 changelog、提交、push 并创建 release tag。
 
@@ -209,6 +211,15 @@ npx pnpm@9.15.0 dev:electron
 ## 4. 测试与检查
 
 日常开发优先按改动范围跑快路径，不要每次都跑发布级全量链路。
+
+给 agent 的固定入口：
+
+1. 开工前先运行 `tools\git-preflight.cmd`，确认当前脏文件属于哪个菜单或共享 lane、建议跑哪个验证命令、是否触碰高冲突文件，以及是否需要 worktree 隔离。
+2. 文档或工具说明改动运行 `npx pnpm@9.15.0 verify:docs`。
+3. 跨端 UI、Prototype 或 Web 改动运行 `npx pnpm@9.15.0 verify:ui`；首页或设置页视觉改动追加 `visual:home` 或 `visual:settings`。
+4. Desktop 接线、IPC、preload 或 renderer adapter 改动运行 `npx pnpm@9.15.0 verify:desktop`。
+5. Release / CHANGELOG / 版本脚本改动运行 `npx pnpm@9.15.0 verify:release`，发布前再按需要跑全量 `test` 和 `typecheck`。
+6. 如果只改某个领域测试覆盖明确的业务模块，优先跑对应 `vitest --run packages/<pkg>/test/<name>.test.ts`；准备提交或范围变大时再跑 `verify`。
 
 基础检查：
 
@@ -226,10 +237,13 @@ npx pnpm@9.15.0 test:docs
 
 ```powershell
 npx pnpm@9.15.0 test:fast
+npx pnpm@9.15.0 test:ui
 npx pnpm@9.15.0 test:desktop
+npx pnpm@9.15.0 test:desktop-wiring
+npx pnpm@9.15.0 test:release
 ```
 
-`test:fast` 直接运行 Vitest，不预先全仓 build；`test:desktop` 只跑桌面端测试。普通功能改动优先跑相关定向测试，例如：
+`test:fast` 直接运行 Vitest，不预先全仓 build；`test:ui` 跑共享 UI / 跨端页面收口相关测试；`test:desktop` 跑桌面端测试；`test:desktop-wiring` 只跑桌面接线、边界和打包格式相关快测；`test:release` 只跑 release 规则、changelog 提取和安装包格式相关快测。测试集合由 `scripts/run-test-set.mjs` 维护，避免 Windows shell 通配差异导致漏跑。普通功能改动优先跑相关定向测试，例如：
 
 ```powershell
 npx pnpm@9.15.0 vitest --run packages/desktop/test/package-format.test.ts
@@ -244,13 +258,20 @@ npx pnpm@9.15.0 typecheck:ui
 它覆盖 `packages/ui`、`packages/prototype` 和 `packages/web`。改 Desktop 主进程、preload、renderer adapter 或 IPC 接线时，使用：
 
 ```powershell
+npx pnpm@9.15.0 typecheck:desktop-fast
 npx pnpm@9.15.0 typecheck:desktop
 ```
+
+`typecheck:desktop-fast` 只跑 Desktop 自身类型检查，适合日常接线快验；`typecheck:desktop` 会先 build `core` 和 `http`，适合碰到底层依赖或准备发布前使用。
 
 提交前如果需要一轮中等门禁：
 
 ```powershell
 npx pnpm@9.15.0 verify
+npx pnpm@9.15.0 verify:docs
+npx pnpm@9.15.0 verify:ui
+npx pnpm@9.15.0 verify:desktop
+npx pnpm@9.15.0 verify:release
 ```
 
 发布级全量测试：

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { api, type UpdateSnapshot } from "../../api/client";
+import { api } from "../../api/client";
+import type { UpdateSnapshot } from "../../api/types";
 
 export function useUpdateFlow() {
   const [updateSnapshot, setUpdateSnapshot] = useState<UpdateSnapshot | null>(null);

@@ -1,6 +1,6 @@
 import { loadVaultLocalData, type VaultLocalDataState } from "@d2-tools/app";
 import { services } from "../../api/services";
-import type { DimWishlist, LocalTargetRules, VaultTags } from "../../api/client";
+import type { DimWishlist, LocalTargetRules, VaultTags } from "../../api/types";
 
 export type VaultPageLocalData = {
   wishlist: DimWishlist | null;

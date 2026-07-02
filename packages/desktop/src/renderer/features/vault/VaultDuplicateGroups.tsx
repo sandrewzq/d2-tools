@@ -1,14 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import type {
-  DuplicateAnalysisResult,
-  DuplicateItemGroup
+  DuplicateAnalysisResult, DuplicateItemGroup
 } from "@d2-tools/core/analysis/duplicates";
 import { evaluateLocalTargets } from "@d2-tools/core/analysis/targets";
 import type {
   AccountItemSummary,
   LocalTargetRules,
   VaultTags
-} from "../../api/client";
+} from "../../api/types";
 import { formatVaultItemMeta } from "./VaultListItem";
 import {
   selectDuplicateGroupItems,

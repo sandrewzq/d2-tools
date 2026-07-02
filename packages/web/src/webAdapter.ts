@@ -17,6 +17,16 @@ export type WebPageSnapshot = {
   updatedAt?: string;
 };
 
+export type WebSnapshotSource = {
+  getHomeSnapshot: () => Promise<WebHomeSnapshot | null>;
+  getPageSnapshot: (page: ShellPageKey) => Promise<WebPageSnapshot | null>;
+};
+
+export type WebSnapshotProvider = {
+  loadHomeSnapshot: () => Promise<WebHomeSnapshot>;
+  loadPageSnapshot: (page: ShellPageKey) => Promise<WebPageSnapshot | null>;
+};
+
 export type WebShellAdapter = {
   loadHomeSnapshot: () => Promise<WebHomeSnapshot>;
   loadPageSnapshot: (page: ShellPageKey) => Promise<WebPageSnapshot | null>;
@@ -76,6 +86,34 @@ export const fallbackHomeSnapshot: WebHomeSnapshot = {
     checklist: ["Web 入口先复用共享首页壳，后续接 HTTP/API adapter。"]
   }
 };
+
+export function createWebSnapshotProvider(input: {
+  source?: WebSnapshotSource;
+  fallback?: WebHomeSnapshot;
+} = {}): WebSnapshotProvider {
+  const fallback = input.fallback ?? fallbackHomeSnapshot;
+
+  return {
+    async loadHomeSnapshot() {
+      if (!input.source) return fallback;
+
+      try {
+        return await input.source.getHomeSnapshot() ?? fallback;
+      } catch {
+        return fallback;
+      }
+    },
+    async loadPageSnapshot(page) {
+      if (!input.source) return null;
+
+      try {
+        return await input.source.getPageSnapshot(page);
+      } catch {
+        return null;
+      }
+    }
+  };
+}
 
 export function createWebShellAdapter(input: {
   fetchHomeSnapshot?: () => Promise<WebHomeSnapshot>;

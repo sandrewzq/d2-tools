@@ -1,17 +1,17 @@
 import { evaluateWishlistRoll } from "@d2-tools/core/analysis/wishlist";
-import type { DimWishlist, VaultTags, VaultTagValue, WeaponRecommendation } from "../../../api/client";
+import type { DimWishlist, VaultTags, VaultTagValue, WeaponRecommendation } from "../../../api/types";
 import { buildSameNameSourceStats } from "../../../utils/sameName";
 import {
   selectedItemToAccountItem,
+  sortSameNameItems,
   type SameNameItemSummary,
   type SelectedItemDetail
-} from "../../hooks/useItemDetail";
+} from "@d2-tools/app";
 import {
   formatCommunityMode,
   formatVaultTagLabel,
   formatWishlistModeLabels
 } from "./itemDetailFormatters";
-import { sortSameNameItems } from "./ItemDetailSameName";
 
 export type ItemDetailCommunityProps = {
   aiSettingsEnableLightgg: boolean;

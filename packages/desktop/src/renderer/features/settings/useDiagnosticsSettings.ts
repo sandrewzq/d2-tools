@@ -1,4 +1,5 @@
-import { api, type ActionLogEntry } from "../../api/client";
+import { api } from "../../api/client";
+import type { ActionLogEntry } from "../../api/types";
 import {
   copyActionDiagnostic,
   copyDataBackupGuide,
