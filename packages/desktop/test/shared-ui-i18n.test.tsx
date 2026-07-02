@@ -3,11 +3,13 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import {
   AppShell,
+  AccountPageContentView,
   defaultProductPreferences,
   getEffectiveBungieLocale,
   getLocaleCopy,
   getLocalizedNavItems,
   HomePageView,
+  SettingsPageContentView,
   type ProductPreferences
 } from "../../ui/src/index";
 
@@ -92,5 +94,114 @@ describe("shared UI i18n", () => {
     expect(html).toContain("Pending data");
     expect(html).not.toContain("本周奖励与轮换");
     expect(html).not.toContain("今天可确认");
+  });
+
+  it("renders shared account and settings page copy from English locale", () => {
+    const accountHtml = renderToStaticMarkup(
+      <AccountPageContentView
+        interfaceLocale="en-US"
+        accountSummary={null}
+        startupState={{ cards: { account: { label: "Not signed in" } } }}
+        accountWorkspace={{}}
+        selectedCharacter={null}
+        selectedCharacterId=""
+        isBungieConfigured={false}
+        isAccountLoggedIn={false}
+        canLoadAccount={false}
+        isLoadingAccount={false}
+        accountError=""
+        itemDetailError=""
+        itemDetailLoadingKey=""
+        writeActionsEnabled={false}
+        activitySummary={null}
+        activityMessage=""
+        activityError=""
+        loadoutMessage=""
+        itemActionMessage=""
+        isRunningItemAction={false}
+        activeLoadoutLookup={null}
+        activeLoadoutTemplate={null}
+        onConfigureBungie={() => undefined}
+        onLoginBungie={() => undefined}
+        onLoadAccount={() => undefined}
+        onRefreshActivity={() => undefined}
+        onSelectCharacter={() => undefined}
+        onSaveCharacterLoadout={() => undefined}
+        onEquipHighestPowerItems={() => undefined}
+        onOpenItem={() => undefined}
+        isLoadoutMatch={() => false}
+        getAccountPageItemKey={() => ""}
+        formatAccountItemMeta={() => ""}
+      />
+    );
+
+    const settingsHtml = renderToStaticMarkup(
+      <SettingsPageContentView
+        interfaceLocale="en-US"
+        initialSection="overview"
+        message=""
+        error=""
+        diagnosticDataDir=""
+        writeActionsEnabled={false}
+        updateSnapshot={null}
+        manifestStatus={null}
+        manifestStatusError=""
+        isLoadingManifestStatus={false}
+        isInitializingManifest={false}
+        accountSummary={null}
+        accountError=""
+        isLoadingAccount={false}
+        lastAccountLoadedAt={null}
+        isAiConfigured={false}
+        onRefreshAccount={() => undefined}
+        onReauthorizeAccount={() => undefined}
+        backgroundTasks={[]}
+        actionLog={[]}
+        actionLogResultFilter="all"
+        actionLogTypeFilter="all"
+        aiSettingsPanel={<p>AI</p>}
+        onOpenDataDir={() => undefined}
+        onWriteActionsEnabledChange={() => undefined}
+        onCheckForUpdates={() => undefined}
+        onDownloadUpdate={() => undefined}
+        onQuitAndInstallUpdate={() => undefined}
+        onOpenUpdateDownloadPage={() => undefined}
+        onCopyUpdateDiagnostic={() => undefined}
+        onRefreshManifestStatus={() => undefined}
+        onInitializeManifest={() => undefined}
+        onRepairManifest={() => undefined}
+        onExportConfig={() => undefined}
+        onImportConfig={() => undefined}
+        onClearCache={() => undefined}
+        onCopyDataBackupGuide={() => undefined}
+        onCopyDiagnosticsExport={() => undefined}
+        onRefreshDiagnostics={() => undefined}
+        onRefreshActionLog={() => undefined}
+        onActionLogResultFilterChange={() => undefined}
+        onActionLogTypeFilterChange={() => undefined}
+        onCopyActionDiagnostic={() => undefined}
+        languagePreferences={{
+          interfaceLocale: "en-US",
+          bungieLocale: "en",
+          followInterfaceLocaleForBungie: true
+        }}
+        onLanguagePreferencesChange={() => undefined}
+        onLoadBungieConfig={async () => ({ bungie: { api_key: "", client_id: "", client_secret: "", redirect_uri: "" } })}
+        onSaveBungieConfig={async () => undefined}
+      />
+    );
+
+    expect(accountHtml).toContain("Account");
+    expect(accountHtml).toContain("Configure Bungie");
+    expect(accountHtml).not.toContain("账号摘要");
+    expect(accountHtml).not.toContain("未连接 Bungie");
+    expect(accountHtml).not.toMatch(/[\u4e00-\u9fff]/);
+
+    expect(settingsHtml).toContain("Settings");
+    expect(settingsHtml).toContain("Common actions");
+    expect(settingsHtml).not.toContain("设置总览");
+    expect(settingsHtml).not.toContain("常用操作");
+    expect(settingsHtml).not.toContain("检查更新");
+    expect(settingsHtml).not.toMatch(/[\u4e00-\u9fff]/);
   });
 });

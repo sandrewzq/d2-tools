@@ -36,6 +36,8 @@ export type LocaleCopy = {
   vault: VaultCopy;
   loadouts: LoadoutsCopy;
   library: LibraryCopy;
+  account: AccountCopy;
+  settings: SettingsCopy;
 };
 
 export type HomeCopy = {
@@ -162,5 +164,61 @@ export type LibraryCopy = {
   tabs: {
     equipment: string;
     perks: string;
+  };
+};
+
+export type AccountCopy = {
+  inline: Record<string, string>;
+  title: string;
+  subtitle: string;
+  loadAccount: string;
+  loadingAccount: string;
+  disconnectedBadge: string;
+  loginMissingTitle: string;
+  configMissingTitle: string;
+  emptyBody: string;
+  configureBungie: string;
+  loginBungie: string;
+  nav: {
+    overview: string;
+    loadout: string;
+    activity: string;
+    materials: string;
+    postmaster: string;
+  };
+  actions: {
+    saveCurrentLoadout: string;
+    equipHighestPower: string;
+    running: string;
+  };
+};
+
+export type SettingsCopy = {
+  inline: Record<string, string>;
+  menuAriaLabel: string;
+  menu: {
+    overview: { label: string; hint: string };
+    language: { label: string; hint: string };
+    account: { label: string; hint: string };
+    library: { label: string; hint: string };
+    bungie: { label: string; hint: string };
+    ai: { label: string; hint: string };
+    backup: { label: string; hint: string };
+    diagnostics: { label: string; hint: string };
+  };
+  overview: {
+    title: string;
+    subtitle: string;
+    badge: string;
+    commonActionsTitle: string;
+    commonActionsSubtitle: string;
+  };
+  labels: {
+    account: string;
+    library: string;
+    bungie: string;
+    ai: string;
+    appVersion: string;
+    backgroundTasks: string;
   };
 };

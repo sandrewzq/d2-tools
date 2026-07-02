@@ -1,6 +1,8 @@
 ﻿import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { SettingsPageView } from "./SettingsPageView.js";
+import { getLocaleCopy } from "../i18n/copy.js";
+import type { InterfaceLocale, SettingsCopy } from "../i18n/types.js";
 
 type AccountSummary = any;
 type ActionLogEntry = any;
@@ -36,6 +38,7 @@ export type SettingsBungieConfig = {
 export type SettingsBungieConfigInput = SettingsBungieConfig["bungie"];
 
 export type SettingsPageContentViewProps = {
+  interfaceLocale?: InterfaceLocale;
   initialSection?: SettingsSectionKey;
   message: string;
   error: string;
@@ -86,18 +89,27 @@ export type SettingsPageContentViewProps = {
 
 type SettingsSectionKey = "overview" | "language" | "account" | "library" | "bungie" | "ai" | "backup" | "diagnostics";
 
-const settingsMenu: Array<{ key: SettingsSectionKey; label: string; hint: string }> = [
-  { key: "overview", label: "总览", hint: "状态、常用操作" },
-  { key: "language", label: "语言", hint: "界面、资料库" },
-  { key: "account", label: "账号", hint: "授权、读取、切换预留" },
-  { key: "library", label: "资料库", hint: "版本、检查、修复" },
-  { key: "bungie", label: "Bungie", hint: "接口配置" },
-  { key: "ai", label: "AI 助手", hint: "模型、上下文、安全边界" },
-  { key: "backup", label: "备份迁移", hint: "数据目录、导入导出" },
-  { key: "diagnostics", label: "诊断日志", hint: "运行检查和事件记录" }
-];
+function getSettingsMenu(copy: SettingsCopy): Array<{ key: SettingsSectionKey; label: string; hint: string }> {
+  return [
+    { key: "overview", ...copy.menu.overview },
+    { key: "language", ...copy.menu.language },
+    { key: "account", ...copy.menu.account },
+    { key: "library", ...copy.menu.library },
+    { key: "bungie", ...copy.menu.bungie },
+    { key: "ai", ...copy.menu.ai },
+    { key: "backup", ...copy.menu.backup },
+    { key: "diagnostics", ...copy.menu.diagnostics }
+  ];
+}
+
+function settingsText(copy: SettingsCopy, key: string): string {
+  return copy.inline[key] ?? key;
+}
 
 export function SettingsPageContentView(props: SettingsPageContentViewProps) {
+  const copy = getLocaleCopy(props.interfaceLocale ?? "zh-CN").settings;
+  const interfaceLocale = props.interfaceLocale ?? "zh-CN";
+  const settingsMenu = getSettingsMenu(copy);
   const initialSection = props.initialSection ?? "overview";
   const [activeSection, setActiveSection] = useState<SettingsSectionKey>(settingsMenu.some((item) => item.key === initialSection) ? initialSection : "overview");
   const [bungieApiKey, setBungieApiKey] = useState("");
@@ -113,10 +125,10 @@ export function SettingsPageContentView(props: SettingsPageContentViewProps) {
     props.actionLogResultFilter,
     props.actionLogTypeFilter
   ).slice(0, 8);
-  const updateUi = getUpdateUi(props.updateSnapshot);
+  const updateUi = getUpdateUi(props.updateSnapshot, copy);
   const updateProgress = formatUpdateProgress(props.updateSnapshot);
-  const libraryUi = getLibraryUi(props.manifestStatus, props.manifestStatusError, props.isLoadingManifestStatus);
-  const accountUi = getAccountUi(props.accountSummary, props.accountError, props.isLoadingAccount);
+  const libraryUi = getLibraryUi(props.manifestStatus, props.manifestStatusError, props.isLoadingManifestStatus, copy);
+  const accountUi = getAccountUi(props.accountSummary, props.accountError, props.isLoadingAccount, copy);
   const libraryVersion = formatLibraryVersion(props.manifestStatus?.version);
   const bungieUi = getBungieUi({
     isLoading: isLoadingBungieConfig,
@@ -124,9 +136,9 @@ export function SettingsPageContentView(props: SettingsPageContentViewProps) {
     clientId: bungieClientId,
     clientSecret: bungieClientSecret,
     redirectUri: bungieRedirectUri
-  });
-  const aiUi = getAiUi(props.isAiConfigured);
-  const backgroundTaskUi = getBackgroundTaskUi(props.backgroundTasks);
+  }, copy);
+  const aiUi = getAiUi(props.isAiConfigured, copy);
+  const backgroundTaskUi = getBackgroundTaskUi(props.backgroundTasks, copy);
 
   useEffect(() => {
     let cancelled = false;
@@ -142,7 +154,7 @@ export function SettingsPageContentView(props: SettingsPageContentViewProps) {
         setBungieRedirectUri(config.bungie.redirect_uri);
       } catch (error) {
         if (cancelled) return;
-        setBungieError(error instanceof Error ? error.message : "Bungie 配置读取失败");
+        setBungieError(error instanceof Error ? error.message : settingsText(copy, "Bungie 配置读取失败"));
       } finally {
         if (!cancelled) setIsLoadingBungieConfig(false);
       }
@@ -167,9 +179,9 @@ export function SettingsPageContentView(props: SettingsPageContentViewProps) {
         client_secret: bungieClientSecret.trim(),
         redirect_uri: bungieRedirectUri.trim() || "https://127.0.0.1:28780/oauth/callback"
       });
-      setBungieMessage("Bungie 配置已保存。");
+      setBungieMessage(settingsText(copy, "Bungie 配置已保存。"));
     } catch (error) {
-      setBungieError(error instanceof Error ? error.message : "Bungie 配置保存失败");
+      setBungieError(error instanceof Error ? error.message : settingsText(copy, "Bungie 配置保存失败"));
     } finally {
       setIsSavingBungieConfig(false);
     }
@@ -181,7 +193,7 @@ export function SettingsPageContentView(props: SettingsPageContentViewProps) {
       {props.error ? <p className="status-message status-error">{props.error}</p> : null}
 
       <div className="app-settings-shell">
-        <aside className="app-panel settings-menu" aria-label="设置菜单">
+        <aside className="app-panel settings-menu" aria-label={copy.menuAriaLabel}>
           {settingsMenu.map((item) => (
             <button
               className={activeSection === item.key ? "active" : ""}
@@ -200,39 +212,39 @@ export function SettingsPageContentView(props: SettingsPageContentViewProps) {
             <section className="app-panel app-setting-group">
               <div className="app-section-title">
                 <div>
-                  <h2>设置总览</h2>
-                  <span>只展示会影响今天使用的状态</span>
+                  <h2>{copy.overview.title}</h2>
+                  <span>{copy.overview.subtitle}</span>
                 </div>
-                <span className="app-chip status-neutral">核心状态</span>
+                <span className="app-chip status-neutral">{copy.overview.badge}</span>
               </div>
               <div className="app-settings-grid">
                 <div className={`app-metric status-${accountUi.tone}`}>
-                  <span>账号</span>
+                  <span>{copy.labels.account}</span>
                   <strong>{accountUi.statusLabel}</strong>
                   <span>{accountUi.summary}</span>
                 </div>
                 <div className={`app-metric status-${libraryUi.tone}`}>
-                  <span>资料库</span>
+                  <span>{copy.labels.library}</span>
                   <strong>{libraryVersion ?? libraryUi.statusLabel}</strong>
                   <span>{libraryUi.summary}</span>
                 </div>
                 <div className={`app-metric status-${bungieUi.tone}`}>
-                  <span>Bungie</span>
+                  <span>{copy.labels.bungie}</span>
                   <strong>{bungieUi.statusLabel}</strong>
                   <span>{bungieUi.summary}</span>
                 </div>
                 <div className={`app-metric status-${aiUi.tone}`}>
-                  <span>AI 助手</span>
+                  <span>{copy.labels.ai}</span>
                   <strong>{aiUi.statusLabel}</strong>
                   <span>{aiUi.summary}</span>
                 </div>
                 <div className={`app-metric status-${updateUi.tone}`}>
-                  <span>应用版本</span>
-                  <strong>{props.updateSnapshot?.current_version ?? "未读取"}</strong>
+                  <span>{copy.labels.appVersion}</span>
+                  <strong>{props.updateSnapshot?.current_version ?? settingsText(copy, "未读取")}</strong>
                   <span>{updateUi.statusLabel}</span>
                 </div>
                 <div className={`app-metric status-${backgroundTaskUi.tone}`}>
-                  <span>后台任务</span>
+                  <span>{copy.labels.backgroundTasks}</span>
                   <strong>{backgroundTaskUi.statusLabel}</strong>
                   <span>{backgroundTaskUi.summary}</span>
                 </div>
@@ -242,67 +254,67 @@ export function SettingsPageContentView(props: SettingsPageContentViewProps) {
             <section className={`app-panel app-setting-group update-${updateUi.tone}`} id="settings-updates">
               <div className="app-section-title">
                 <div>
-                  <h2>应用更新</h2>
+                  <h2>{settingsText(copy, "应用更新")}</h2>
                   <span>{updateUi.summary}</span>
                 </div>
                 <span className={`app-chip status-${updateUi.tone}`}>{updateUi.statusLabel}</span>
               </div>
               <div className="app-metric-grid">
                 <div className="app-metric status-neutral">
-                  <span>应用版本</span>
-                  <strong>{props.updateSnapshot?.current_version ?? "未读取"}</strong>
-                  <span>当前安装版本</span>
+                  <span>{settingsText(copy, "应用版本")}</span>
+                  <strong>{props.updateSnapshot?.current_version ?? settingsText(copy, "未读取")}</strong>
+                  <span>{settingsText(copy, "当前安装版本")}</span>
                 </div>
                 <div className="app-metric status-neutral">
-                  <span>更新来源</span>
+                  <span>{settingsText(copy, "更新来源")}</span>
                   <strong>{props.updateSnapshot?.update_source_label ?? "GitHub Release"}</strong>
-                  <span>GitHub 连接失败时可打开下载页手动处理</span>
+                  <span>{settingsText(copy, "GitHub 连接失败时可打开下载页手动处理")}</span>
                 </div>
                 <div className="app-metric status-neutral">
-                  <span>上次检查</span>
-                  <strong>{formatUpdateCheckedAt(props.updateSnapshot?.last_checked_at)}</strong>
-                  <span>应用更新检查时间</span>
+                  <span>{settingsText(copy, "上次检查")}</span>
+                  <strong>{formatUpdateCheckedAt(props.updateSnapshot?.last_checked_at, interfaceLocale, copy)}</strong>
+                  <span>{settingsText(copy, "应用更新检查时间")}</span>
                 </div>
               </div>
               {updateProgress > 0 ? (
-                <div className="update-progress-bar" aria-label="更新下载进度">
+                <div className="update-progress-bar" aria-label={settingsText(copy, "更新下载进度")}>
                   <span style={{ width: `${updateProgress}%` }} />
                 </div>
               ) : null}
               <div className="button-row settings-update-actions">
-                <button type="button" className="secondary-button" disabled={props.updateSnapshot?.status === "checking"} onClick={props.onCheckForUpdates}>检查更新</button>
-                <button type="button" className="secondary-button" disabled={props.updateSnapshot?.status !== "available"} onClick={props.onDownloadUpdate}>下载更新</button>
-                <button type="button" disabled={props.updateSnapshot?.status !== "downloaded"} onClick={props.onQuitAndInstallUpdate}>重启并安装</button>
-                <button type="button" className="secondary-button" onClick={props.onOpenUpdateDownloadPage}>打开下载页</button>
-                <button type="button" className="secondary-button" onClick={props.onCopyUpdateDiagnostic}>复制更新诊断</button>
+                <button type="button" className="secondary-button" disabled={props.updateSnapshot?.status === "checking"} onClick={props.onCheckForUpdates}>{settingsText(copy, "检查更新")}</button>
+                <button type="button" className="secondary-button" disabled={props.updateSnapshot?.status !== "available"} onClick={props.onDownloadUpdate}>{settingsText(copy, "下载更新")}</button>
+                <button type="button" disabled={props.updateSnapshot?.status !== "downloaded"} onClick={props.onQuitAndInstallUpdate}>{settingsText(copy, "重启并安装")}</button>
+                <button type="button" className="secondary-button" onClick={props.onOpenUpdateDownloadPage}>{settingsText(copy, "打开下载页")}</button>
+                <button type="button" className="secondary-button" onClick={props.onCopyUpdateDiagnostic}>{settingsText(copy, "复制更新诊断")}</button>
               </div>
             </section>
 
             <section className="app-panel app-setting-group">
               <div className="app-section-title">
-                <h2>常用操作</h2>
-                <span>不会触发危险写操作</span>
+                <h2>{copy.overview.commonActionsTitle}</h2>
+                <span>{copy.overview.commonActionsSubtitle}</span>
               </div>
               <div className="app-setting-row">
                 <div>
-                  <strong>管理账号</strong>
-                  <span>查看当前账号、刷新读取状态，并为后续切换账号预留入口。</span>
+                  <strong>{settingsText(copy, "管理账号")}</strong>
+                  <span>{settingsText(copy, "查看当前账号、刷新读取状态，并为后续切换账号预留入口。")}</span>
                 </div>
-                <button type="button" className="secondary-button" onClick={props.onRefreshAccount}>刷新账号</button>
+                <button type="button" className="secondary-button" onClick={props.onRefreshAccount}>{settingsText(copy, "刷新账号")}</button>
               </div>
               <div className="app-setting-row">
                 <div>
-                  <strong>检查资料库更新</strong>
-                  <span>手动检查不受“每天自动检查一次”限制。</span>
+                  <strong>{settingsText(copy, "检查资料库更新")}</strong>
+                  <span>{settingsText(copy, "手动检查不受“每天自动检查一次”限制。")}</span>
                 </div>
-                <button type="button" className="secondary-button" disabled={props.isLoadingManifestStatus} onClick={props.onRefreshManifestStatus}>检查更新</button>
+                <button type="button" className="secondary-button" disabled={props.isLoadingManifestStatus} onClick={props.onRefreshManifestStatus}>{settingsText(copy, "检查更新")}</button>
               </div>
               <div className="app-setting-row">
                 <div>
-                  <strong>运行诊断</strong>
-                  <span>检查账号、资料库、后台任务和本地数据目录。</span>
+                  <strong>{settingsText(copy, "运行诊断")}</strong>
+                  <span>{settingsText(copy, "检查账号、资料库、后台任务和本地数据目录。")}</span>
                 </div>
-                <button type="button" className="secondary-button" onClick={() => setActiveSection("diagnostics")}>查看诊断</button>
+                <button type="button" className="secondary-button" onClick={() => setActiveSection("diagnostics")}>{settingsText(copy, "查看诊断")}</button>
               </div>
             </section>
           </section>
@@ -311,15 +323,15 @@ export function SettingsPageContentView(props: SettingsPageContentViewProps) {
             <section className="app-panel app-setting-group">
               <div className="app-section-title">
                 <div>
-                  <h2>语言</h2>
-                  <span>界面语言和 Bungie 资料库语言分开设置。</span>
+                  <h2>{settingsText(copy, "语言")}</h2>
+                  <span>{settingsText(copy, "界面语言和 Bungie 资料库语言分开设置。")}</span>
                 </div>
-                <span className="app-chip status-neutral">{props.languagePreferences.interfaceLocale === "zh-CN" ? "中文" : "English"}</span>
+                <span className="app-chip status-neutral">{props.languagePreferences.interfaceLocale === "zh-CN" ? settingsText(copy, "中文") : "English"}</span>
               </div>
               <div className="app-setting-row">
                 <div>
-                  <strong>界面语言</strong>
-                  <span>控制菜单、按钮、设置、状态、诊断和空状态文案。</span>
+                  <strong>{settingsText(copy, "界面语言")}</strong>
+                  <span>{settingsText(copy, "控制菜单、按钮、设置、状态、诊断和空状态文案。")}</span>
                 </div>
                 <select
                   value={props.languagePreferences.interfaceLocale}
@@ -334,14 +346,14 @@ export function SettingsPageContentView(props: SettingsPageContentViewProps) {
                     });
                   }}
                 >
-                  <option value="zh-CN">中文</option>
+                  <option value="zh-CN">{settingsText(copy, "中文")}</option>
                   <option value="en-US">English</option>
                 </select>
               </div>
               <div className="app-setting-row">
                 <div>
-                  <strong>资料库语言</strong>
-                  <span>控制装备名、perk、活动名等 Bungie Manifest 数据；变更后在后续资料库读取或更新时生效。</span>
+                  <strong>{settingsText(copy, "资料库语言")}</strong>
+                  <span>{settingsText(copy, "控制装备名、perk、活动名等 Bungie Manifest 数据；变更后在后续资料库读取或更新时生效。")}</span>
                 </div>
                 <select
                   disabled={props.languagePreferences.followInterfaceLocaleForBungie}
@@ -351,14 +363,14 @@ export function SettingsPageContentView(props: SettingsPageContentViewProps) {
                     bungieLocale: event.target.value as SettingsLanguagePreferences["bungieLocale"]
                   })}
                 >
-                  <option value="zh-chs">简体中文</option>
+                  <option value="zh-chs">{settingsText(copy, "简体中文")}</option>
                   <option value="en">English</option>
                 </select>
               </div>
               <div className="app-setting-row">
                 <div>
-                  <strong>跟随界面语言</strong>
-                  <span>开启后，切换界面语言会同步切换资料库语言。</span>
+                  <strong>{settingsText(copy, "跟随界面语言")}</strong>
+                  <span>{settingsText(copy, "开启后，切换界面语言会同步切换资料库语言。")}</span>
                 </div>
                 <label className="switch-row">
                   <input
@@ -375,7 +387,7 @@ export function SettingsPageContentView(props: SettingsPageContentViewProps) {
                       });
                     }}
                   />
-                  跟随
+                  {settingsText(copy, "跟随")}
                 </label>
               </div>
             </section>
@@ -385,53 +397,53 @@ export function SettingsPageContentView(props: SettingsPageContentViewProps) {
             <section className="app-panel app-setting-group">
               <div className="app-section-title">
                 <div>
-                  <h2>账号</h2>
-                  <span>当前账号、授权状态和后续切换账号入口。</span>
+                  <h2>{settingsText(copy, "账号")}</h2>
+                  <span>{settingsText(copy, "当前账号、授权状态和后续切换账号入口。")}</span>
                 </div>
                 <span className={`app-chip status-${accountUi.tone}`}>{accountUi.statusLabel}</span>
               </div>
               <div className="app-metric-grid">
                 <div className={`app-metric status-${accountUi.tone}`}>
-                  <span>当前账号</span>
-                  <strong>{props.accountSummary?.account_name ?? "未登录"}</strong>
-                  <span>{props.accountSummary ? "Bungie 账号已授权" : "登录后可读取账号"}</span>
+                  <span>{settingsText(copy, "当前账号")}</span>
+                  <strong>{props.accountSummary?.account_name ?? settingsText(copy, "未登录")}</strong>
+                  <span>{props.accountSummary ? settingsText(copy, "Bungie 账号已授权") : settingsText(copy, "登录后可读取账号")}</span>
                 </div>
                 <div className={`app-metric status-${accountUi.tone}`}>
-                  <span>账号读取</span>
+                  <span>{settingsText(copy, "账号读取")}</span>
                   <strong>{accountUi.statusLabel}</strong>
                   <span>{accountUi.summary}</span>
                 </div>
                 <div className="app-metric status-neutral">
-                  <span>上次更新</span>
-                  <strong>{formatAccountLoadedAt(props.lastAccountLoadedAt, props.accountSummary)}</strong>
-                  <span>成功刷新账号资料的时间</span>
+                  <span>{settingsText(copy, "上次更新")}</span>
+                  <strong>{formatAccountLoadedAt(props.lastAccountLoadedAt, props.accountSummary, interfaceLocale, copy)}</strong>
+                  <span>{settingsText(copy, "成功刷新账号资料的时间")}</span>
                 </div>
                 <div className="app-metric status-neutral">
-                  <span>更新规则</span>
-                  <strong>启动自动读取一次</strong>
-                  <span>手动刷新、重新授权和切换账号不受限制</span>
+                  <span>{settingsText(copy, "更新规则")}</span>
+                  <strong>{settingsText(copy, "启动自动读取一次")}</strong>
+                  <span>{settingsText(copy, "手动刷新、重新授权和切换账号不受限制")}</span>
                 </div>
               </div>
               <div className="library-version-table">
-                <div className="version-row"><span>当前账号</span><strong>{props.accountSummary?.account_name ?? "未登录"}</strong></div>
-                <div className="version-row"><span>当前版本</span><strong>{formatAccountSnapshot(props.accountSummary)}</strong></div>
-                <div className="version-row"><span>最新版本</span><strong>{props.accountSummary ? "已是当前读取结果" : "等待读取账号"}</strong></div>
-                <div className="version-row"><span>上次检查</span><strong>{formatAccountLoadedAt(props.lastAccountLoadedAt, props.accountSummary)}</strong></div>
-                <div className="version-row"><span>打开应用时</span><strong>自动读取一次当前账号，避免每次进页面都重复加载</strong></div>
-                <div className="version-row"><span>需要重新读取时</span><strong>首次登录、重新授权、切换账号或本地记录不可用时会重新读取；失败时保留上次成功结果</strong></div>
-                <div className="version-row"><span>手动操作</span><strong>刷新账号、重新授权、管理账号和未来切换账号始终立即执行</strong></div>
-                <div className="version-row"><span>默认账号</span><strong>当前账号；切换账号功能上线后可修改</strong></div>
+                <div className="version-row"><span>{settingsText(copy, "当前账号")}</span><strong>{props.accountSummary?.account_name ?? settingsText(copy, "未登录")}</strong></div>
+                <div className="version-row"><span>{settingsText(copy, "当前版本")}</span><strong>{formatAccountSnapshot(props.accountSummary, copy)}</strong></div>
+                <div className="version-row"><span>{settingsText(copy, "最新版本")}</span><strong>{props.accountSummary ? settingsText(copy, "已是当前读取结果") : settingsText(copy, "等待读取账号")}</strong></div>
+                <div className="version-row"><span>{settingsText(copy, "上次检查")}</span><strong>{formatAccountLoadedAt(props.lastAccountLoadedAt, props.accountSummary, interfaceLocale, copy)}</strong></div>
+                <div className="version-row"><span>{settingsText(copy, "打开应用时")}</span><strong>{settingsText(copy, "自动读取一次当前账号，避免每次进页面都重复加载")}</strong></div>
+                <div className="version-row"><span>{settingsText(copy, "需要重新读取时")}</span><strong>{settingsText(copy, "首次登录、重新授权、切换账号或本地记录不可用时会重新读取；失败时保留上次成功结果")}</strong></div>
+                <div className="version-row"><span>{settingsText(copy, "手动操作")}</span><strong>{settingsText(copy, "刷新账号、重新授权、管理账号和未来切换账号始终立即执行")}</strong></div>
+                <div className="version-row"><span>{settingsText(copy, "默认账号")}</span><strong>{settingsText(copy, "当前账号；切换账号功能上线后可修改")}</strong></div>
               </div>
               <div className={`app-setting-row status-${props.writeActionsEnabled ? "ready" : "neutral"}`}>
-                <div><strong>装备写操作</strong><span>{props.writeActionsEnabled ? "已开启，允许锁定、装备和转移。" : "已关闭，写操作会被阻断。"}</span></div>
+                <div><strong>{settingsText(copy, "装备写操作")}</strong><span>{props.writeActionsEnabled ? settingsText(copy, "已开启，允许锁定、装备和转移。") : settingsText(copy, "已关闭，写操作会被阻断。")}</span></div>
                 <label className="switch-row">
                   <input checked={props.writeActionsEnabled} type="checkbox" onChange={(event) => props.onWriteActionsEnabledChange(event.target.checked)} />
-                  允许
+                  {settingsText(copy, "允许")}
                 </label>
               </div>
               <div className="button-row">
-                <button type="button" onClick={props.onRefreshAccount} disabled={props.isLoadingAccount}>刷新账号</button>
-                <button type="button" className="secondary-button" onClick={props.onReauthorizeAccount}>重新授权</button>
+                <button type="button" onClick={props.onRefreshAccount} disabled={props.isLoadingAccount}>{settingsText(copy, "刷新账号")}</button>
+                <button type="button" className="secondary-button" onClick={props.onReauthorizeAccount}>{settingsText(copy, "重新授权")}</button>
               </div>
             </section>
           </section>
@@ -440,48 +452,48 @@ export function SettingsPageContentView(props: SettingsPageContentViewProps) {
             <section className={`app-panel app-setting-group app-settings-wide manifest-${libraryUi.tone} library-${libraryUi.tone}`} id="settings-manifest">
               <div className="app-section-title">
                 <div>
-                  <h2>资料库</h2>
-                  <span>装备、perk、活动和商人数据。</span>
+                  <h2>{settingsText(copy, "资料库")}</h2>
+                  <span>{settingsText(copy, "装备、perk、活动和商人数据。")}</span>
                 </div>
                 <span className={`app-chip status-${libraryUi.tone}`}>{libraryUi.statusLabel}</span>
               </div>
               <div className="app-metric-grid">
                 <div className={`app-metric status-${libraryUi.tone}`}>
-                  <span>资料库日期</span>
-                  <strong>{libraryVersion ?? "未读取"}</strong>
-                  <span>从完整版本号解析，顶部状态栏显示</span>
+                  <span>{settingsText(copy, "资料库日期")}</span>
+                  <strong>{libraryVersion ?? settingsText(copy, "未读取")}</strong>
+                  <span>{settingsText(copy, "从完整版本号解析，顶部状态栏显示")}</span>
                 </div>
                 <div className={`app-metric status-${props.manifestStatus?.missing_required_components?.length ? "warning" : "ready"}`}>
-                  <span>资料完整性</span>
-                  <strong>{formatLibraryIntegrity(props.manifestStatus)}</strong>
-                  <span>用于搜索和详情判断</span>
+                  <span>{settingsText(copy, "资料完整性")}</span>
+                  <strong>{formatLibraryIntegrity(props.manifestStatus, copy)}</strong>
+                  <span>{settingsText(copy, "用于搜索和详情判断")}</span>
                 </div>
                 <div className="app-metric status-neutral">
-                  <span>上次更新</span>
-                  <strong>{formatDateTime(props.manifestStatus?.cached_at)}</strong>
-                  <span>成功重建资料库的时间</span>
+                  <span>{settingsText(copy, "上次更新")}</span>
+                  <strong>{formatDateTime(props.manifestStatus?.cached_at, interfaceLocale, copy)}</strong>
+                  <span>{settingsText(copy, "成功重建资料库的时间")}</span>
                 </div>
                 <div className="app-metric status-neutral">
-                  <span>更新规则</span>
-                  <strong>每天自动检查一次</strong>
-                  <span>手动检查、立即更新和修复不受限制</span>
+                  <span>{settingsText(copy, "更新规则")}</span>
+                  <strong>{settingsText(copy, "每天自动检查一次")}</strong>
+                  <span>{settingsText(copy, "手动检查、立即更新和修复不受限制")}</span>
                 </div>
               </div>
               <div className="library-version-table">
-                <div className="version-row"><span>资料库版本</span><strong>{libraryVersion ?? "未读取"}</strong></div>
-                <div className="version-row"><span>当前版本</span><strong>{props.manifestStatus?.version ?? "未初始化"}</strong></div>
-                <div className="version-row"><span>最新版本</span><strong>{props.manifestStatus?.latest_version ?? "等待检查"}</strong></div>
-                <div className="version-row"><span>上次检查</span><strong>{formatDateTime(props.manifestStatus?.checked_at)}</strong></div>
-                <div className="version-row"><span>自动检查</span><strong>启动后或打开资料库状态时触发；同一本地日期只自动检查一次</strong></div>
-                <div className="version-row"><span>自动更新</span><strong>未初始化、不完整或发现新版时后台更新；失败时保留旧资料库</strong></div>
-                <div className="version-row"><span>手动操作</span><strong>检查更新、立即更新、修复资料库始终立即执行</strong></div>
+                <div className="version-row"><span>{settingsText(copy, "资料库版本")}</span><strong>{libraryVersion ?? settingsText(copy, "未读取")}</strong></div>
+                <div className="version-row"><span>{settingsText(copy, "当前版本")}</span><strong>{props.manifestStatus?.version ?? settingsText(copy, "未初始化")}</strong></div>
+                <div className="version-row"><span>{settingsText(copy, "最新版本")}</span><strong>{props.manifestStatus?.latest_version ?? settingsText(copy, "等待检查")}</strong></div>
+                <div className="version-row"><span>{settingsText(copy, "上次检查")}</span><strong>{formatDateTime(props.manifestStatus?.checked_at, interfaceLocale, copy)}</strong></div>
+                <div className="version-row"><span>{settingsText(copy, "自动检查")}</span><strong>{settingsText(copy, "启动后或打开资料库状态时触发；同一本地日期只自动检查一次")}</strong></div>
+                <div className="version-row"><span>{settingsText(copy, "自动更新")}</span><strong>{settingsText(copy, "未初始化、不完整或发现新版时后台更新；失败时保留旧资料库")}</strong></div>
+                <div className="version-row"><span>{settingsText(copy, "手动操作")}</span><strong>{settingsText(copy, "检查更新、立即更新、修复资料库始终立即执行")}</strong></div>
               </div>
               <div className="button-row">
-                <button type="button" className="secondary-button" disabled={props.isLoadingManifestStatus} onClick={props.onRefreshManifestStatus}>检查更新</button>
+                <button type="button" className="secondary-button" disabled={props.isLoadingManifestStatus} onClick={props.onRefreshManifestStatus}>{settingsText(copy, "检查更新")}</button>
                 <button type="button" disabled={props.isInitializingManifest} onClick={props.onInitializeManifest}>
-                  {props.isInitializingManifest ? "更新中..." : "立即更新"}
+                  {props.isInitializingManifest ? settingsText(copy, "更新中...") : settingsText(copy, "立即更新")}
                 </button>
-                <button type="button" className="secondary-button" disabled={props.isInitializingManifest} onClick={props.onRepairManifest}>修复资料库</button>
+                <button type="button" className="secondary-button" disabled={props.isInitializingManifest} onClick={props.onRepairManifest}>{settingsText(copy, "修复资料库")}</button>
               </div>
             </section>
           </section>
@@ -489,19 +501,19 @@ export function SettingsPageContentView(props: SettingsPageContentViewProps) {
           <section className={activeSection === "bungie" ? "settings-detail active" : "settings-detail"} id="settings-bungie">
             <section className="app-panel app-setting-group">
               <div className="app-section-title">
-                <h2>Bungie 接口配置</h2>
-                <span>应用级接口，不等同于当前账号</span>
+                <h2>{settingsText(copy, "Bungie 接口配置")}</h2>
+                <span>{settingsText(copy, "应用级接口，不等同于当前账号")}</span>
               </div>
-              <section className="config-help-card" aria-label="Bungie 配置填写说明">
-                <h3>不知道填哪个？</h3>
-                <p>在 Bungie 应用页面里这样对应：</p>
+              <section className="config-help-card" aria-label={settingsText(copy, "Bungie 配置填写说明")}>
+                <h3>{settingsText(copy, "不知道填哪个？")}</h3>
+                <p>{settingsText(copy, "在 Bungie 应用页面里这样对应：")}</p>
                 <dl className="config-map">
-                  <div><dt>应用程序介面金钥</dt><dd>Bungie API Key</dd></div>
-                  <div><dt>开放授权 client_id</dt><dd>Bungie Client ID</dd></div>
-                  <div><dt>开放授权 client_secret</dt><dd>Bungie Client Secret</dd></div>
+                  <div><dt>{settingsText(copy, "应用程序介面金钥")}</dt><dd>Bungie API Key</dd></div>
+                  <div><dt>{settingsText(copy, "开放授权 client_id")}</dt><dd>Bungie Client ID</dd></div>
+                  <div><dt>{settingsText(copy, "开放授权 client_secret")}</dt><dd>Bungie Client Secret</dd></div>
                 </dl>
                 <p>
-                  不要填写“开放授权之授权 URI”，那是 Bungie 自动生成的授权地址。本工具回调地址固定是：
+                  {settingsText(copy, "不要填写“开放授权之授权 URI”，那是 Bungie 自动生成的授权地址。本工具回调地址固定是：")}
                   <code>https://127.0.0.1:28780/oauth/callback</code>
                 </p>
               </section>
@@ -510,7 +522,7 @@ export function SettingsPageContentView(props: SettingsPageContentViewProps) {
                   Bungie API Key
                   <input
                     disabled={isLoadingBungieConfig || isSavingBungieConfig}
-                    placeholder="复制 Bungie 页面里的“应用程序介面金钥”"
+                    placeholder={settingsText(copy, "复制 Bungie 页面里的“应用程序介面金钥”")}
                     value={bungieApiKey}
                     onChange={(event) => setBungieApiKey(event.target.value)}
                   />
@@ -519,7 +531,7 @@ export function SettingsPageContentView(props: SettingsPageContentViewProps) {
                   Bungie Client ID
                   <input
                     disabled={isLoadingBungieConfig || isSavingBungieConfig}
-                    placeholder="复制 Bungie 页面里的“开放授权 client_id”"
+                    placeholder={settingsText(copy, "复制 Bungie 页面里的“开放授权 client_id”")}
                     value={bungieClientId}
                     onChange={(event) => setBungieClientId(event.target.value)}
                   />
@@ -528,26 +540,26 @@ export function SettingsPageContentView(props: SettingsPageContentViewProps) {
                   Bungie Client Secret
                   <input
                     disabled={isLoadingBungieConfig || isSavingBungieConfig}
-                    placeholder="复制 Bungie 页面里的“开放授权 client_secret”"
+                    placeholder={settingsText(copy, "复制 Bungie 页面里的“开放授权 client_secret”")}
                     type="password"
                     value={bungieClientSecret}
                     onChange={(event) => setBungieClientSecret(event.target.value)}
                   />
                 </label>
                 <label className="config-field">
-                  回调地址
+                  {settingsText(copy, "回调地址")}
                   <input disabled value={bungieRedirectUri} onChange={(event) => setBungieRedirectUri(event.target.value)} />
                 </label>
                 <label className="config-field">
-                  数据目录
-                  <input disabled value={props.diagnosticDataDir || "未读取到配置目录"} />
+                  {settingsText(copy, "数据目录")}
+                  <input disabled value={props.diagnosticDataDir || settingsText(copy, "未读取到配置目录")} />
                 </label>
               </div>
               <div className="button-row">
                 <button type="button" disabled={isLoadingBungieConfig || isSavingBungieConfig} onClick={() => void saveBungieConfig()}>
-                  {isSavingBungieConfig ? "保存中..." : "保存配置"}
+                  {isSavingBungieConfig ? settingsText(copy, "保存中...") : settingsText(copy, "保存配置")}
                 </button>
-                <button type="button" className="secondary-button" onClick={props.onOpenDataDir}>打开数据目录</button>
+                <button type="button" className="secondary-button" onClick={props.onOpenDataDir}>{settingsText(copy, "打开数据目录")}</button>
               </div>
               {bungieError ? <p className="status-message status-error">{bungieError}</p> : null}
               {bungieMessage ? <p className="status-message status-ready">{bungieMessage}</p> : null}
@@ -557,8 +569,8 @@ export function SettingsPageContentView(props: SettingsPageContentViewProps) {
           <section className={activeSection === "ai" ? "settings-detail active" : "settings-detail"} id="settings-ai">
             <section className="app-panel app-setting-group settings-ai-section">
               <div className="app-section-title">
-                <h2>AI 助手</h2>
-                <span>可选能力，不阻断本地功能</span>
+                <h2>{settingsText(copy, "AI 助手")}</h2>
+                <span>{settingsText(copy, "可选能力，不阻断本地功能")}</span>
               </div>
               {props.aiSettingsPanel}
             </section>
@@ -567,28 +579,28 @@ export function SettingsPageContentView(props: SettingsPageContentViewProps) {
           <section className={activeSection === "backup" ? "settings-detail active" : "settings-detail"} id="settings-backup">
             <section className="app-panel app-setting-group">
               <div className="app-section-title">
-                <h2>数据备份与迁移</h2>
-                <span>低频但需要可发现</span>
+                <h2>{settingsText(copy, "数据备份与迁移")}</h2>
+                <span>{settingsText(copy, "低频但需要可发现")}</span>
               </div>
               <div className="app-setting-row">
-                <div><strong>数据目录</strong><span>{props.diagnosticDataDir || "未读取到配置目录"}</span></div>
-                <button type="button" className="secondary-button" onClick={props.onOpenDataDir}>打开</button>
+                <div><strong>{settingsText(copy, "数据目录")}</strong><span>{props.diagnosticDataDir || settingsText(copy, "未读取到配置目录")}</span></div>
+                <button type="button" className="secondary-button" onClick={props.onOpenDataDir}>{settingsText(copy, "打开")}</button>
               </div>
               <div className="app-setting-row">
-                <div><strong>导出配置</strong><span>导出不包含账号令牌的本地偏好设置。</span></div>
-                <button type="button" className="secondary-button" onClick={props.onExportConfig}>导出</button>
+                <div><strong>{settingsText(copy, "导出配置")}</strong><span>{settingsText(copy, "导出不包含账号令牌的本地偏好设置。")}</span></div>
+                <button type="button" className="secondary-button" onClick={props.onExportConfig}>{settingsText(copy, "导出")}</button>
               </div>
               <div className="app-setting-row">
-                <div><strong>导入配置</strong><span>迁移电脑时先关闭应用，再用备份覆盖数据目录。</span></div>
-                <button type="button" className="secondary-button" onClick={props.onImportConfig}>导入</button>
+                <div><strong>{settingsText(copy, "导入配置")}</strong><span>{settingsText(copy, "迁移电脑时先关闭应用，再用备份覆盖数据目录。")}</span></div>
+                <button type="button" className="secondary-button" onClick={props.onImportConfig}>{settingsText(copy, "导入")}</button>
               </div>
               <div className="app-setting-row">
-                <div><strong>清理缓存</strong><span>清理临时缓存，不删除账号授权、设置和本地标记。</span></div>
-                <button type="button" className="secondary-button" onClick={props.onClearCache}>清理</button>
+                <div><strong>{settingsText(copy, "清理缓存")}</strong><span>{settingsText(copy, "清理临时缓存，不删除账号授权、设置和本地标记。")}</span></div>
+                <button type="button" className="secondary-button" onClick={props.onClearCache}>{settingsText(copy, "清理")}</button>
               </div>
               <div className="app-setting-row">
-                <div><strong>迁移说明</strong><span>覆盖安装或换电脑前，先关闭 d2-tools，再复制整个本地数据目录。</span></div>
-                <button type="button" className="secondary-button" onClick={props.onCopyDataBackupGuide}>复制备份/迁移说明</button>
+                <div><strong>{settingsText(copy, "迁移说明")}</strong><span>{settingsText(copy, "覆盖安装或换电脑前，先关闭 d2-tools，再复制整个本地数据目录。")}</span></div>
+                <button type="button" className="secondary-button" onClick={props.onCopyDataBackupGuide}>{settingsText(copy, "复制备份/迁移说明")}</button>
               </div>
             </section>
           </section>
@@ -597,40 +609,40 @@ export function SettingsPageContentView(props: SettingsPageContentViewProps) {
             <section className="app-panel app-setting-group">
               <div className="app-section-title">
                 <div>
-                  <h2>诊断与操作日志</h2>
-                  <span>默认展示最近关键事件</span>
+                  <h2>{settingsText(copy, "诊断与操作日志")}</h2>
+                  <span>{settingsText(copy, "默认展示最近关键事件")}</span>
                 </div>
                 <div className="button-row">
-                  <button type="button" className="secondary-button" onClick={props.onRefreshDiagnostics}>运行诊断</button>
-                  <button type="button" className="secondary-button" onClick={props.onRefreshActionLog}>刷新日志</button>
+                  <button type="button" className="secondary-button" onClick={props.onRefreshDiagnostics}>{settingsText(copy, "运行诊断")}</button>
+                  <button type="button" className="secondary-button" onClick={props.onRefreshActionLog}>{settingsText(copy, "刷新日志")}</button>
                 </div>
               </div>
               <div className="app-setting-row">
                 <div>
-                  <strong>诊断摘要</strong>
-                  <span>检查账号、资料库、后台任务和本地数据目录；异常信息可复制为脱敏诊断。</span>
+                  <strong>{settingsText(copy, "诊断摘要")}</strong>
+                  <span>{settingsText(copy, "检查账号、资料库、后台任务和本地数据目录；异常信息可复制为脱敏诊断。")}</span>
                 </div>
-                <button type="button" className="secondary-button" onClick={props.onCopyDiagnosticsExport}>复制脱敏诊断</button>
+                <button type="button" className="secondary-button" onClick={props.onCopyDiagnosticsExport}>{settingsText(copy, "复制脱敏诊断")}</button>
               </div>
               <div className="settings-diagnostics-toolbar">
                 <label className="compact-field">
-                  结果
+                  {settingsText(copy, "结果")}
                   <select value={props.actionLogResultFilter} onChange={(event) => props.onActionLogResultFilterChange(event.target.value as SettingsActionLogResultFilter)}>
-                    <option value="all">全部</option>
-                    <option value="success">成功</option>
-                    <option value="failed">失败</option>
+                    <option value="all">{settingsText(copy, "全部")}</option>
+                    <option value="success">{settingsText(copy, "成功")}</option>
+                    <option value="failed">{settingsText(copy, "失败")}</option>
                   </select>
                 </label>
                 <label className="compact-field">
-                  类型
+                  {settingsText(copy, "类型")}
                   <select value={props.actionLogTypeFilter} onChange={(event) => props.onActionLogTypeFilterChange(event.target.value as SettingsActionLogTypeFilter)}>
-                    <option value="all">全部</option>
-                    <option value="set-lock">锁定状态</option>
-                    <option value="equip">装备</option>
-                    <option value="transfer">仓库转移</option>
-                    <option value="postmaster-pull">邮政官取回</option>
-                    <option value="loadout-equip">应用游戏内配装栏</option>
-                    <option value="loadout-snapshot">覆盖游戏内配装栏</option>
+                    <option value="all">{settingsText(copy, "全部")}</option>
+                    <option value="set-lock">{settingsText(copy, "锁定状态")}</option>
+                    <option value="equip">{settingsText(copy, "装备")}</option>
+                    <option value="transfer">{settingsText(copy, "仓库转移")}</option>
+                    <option value="postmaster-pull">{settingsText(copy, "邮政官取回")}</option>
+                    <option value="loadout-equip">{settingsText(copy, "应用游戏内配装栏")}</option>
+                    <option value="loadout-snapshot">{settingsText(copy, "覆盖游戏内配装栏")}</option>
                   </select>
                 </label>
               </div>
@@ -639,15 +651,15 @@ export function SettingsPageContentView(props: SettingsPageContentViewProps) {
                   {visibleActionLog.map((entry) => (
                     <div className={`app-log-row settings-log-row ${entry.ok ? "is-success" : "is-failed"}`} key={entry.id}>
                       <div>
-                        <strong>{formatActionLogTitle(entry)}</strong>
-                        <span>{new Date(entry.created_at).toLocaleString("zh-CN")}</span>
+                        <strong>{formatActionLogTitle(entry, copy)}</strong>
+                        <span>{new Date(entry.created_at).toLocaleString(interfaceLocale)}</span>
                       </div>
                       <small>{entry.message ?? "-"}</small>
-                      {!entry.ok ? <button type="button" className="inline-action" onClick={() => props.onCopyActionDiagnostic(entry)}>复制诊断</button> : null}
+                      {!entry.ok ? <button type="button" className="inline-action" onClick={() => props.onCopyActionDiagnostic(entry)}>{settingsText(copy, "复制诊断")}</button> : null}
                     </div>
                   ))}
                 </div>
-              ) : <p className="status-message status-neutral">还没有写操作记录。</p>}
+              ) : <p className="status-message status-neutral">{settingsText(copy, "还没有写操作记录。")}</p>}
             </section>
           </section>
         </div>
@@ -659,18 +671,19 @@ export function SettingsPageContentView(props: SettingsPageContentViewProps) {
 function getAccountUi(
   accountSummary: AccountSummary | null,
   error: string,
-  isLoading: boolean
+  isLoading: boolean,
+  copy: SettingsCopy
 ): { statusLabel: string; summary: string; tone: "neutral" | "ready" | "warning" | "error" } {
-  if (error) return { statusLabel: "读取失败", summary: error, tone: "error" };
-  if (isLoading) return { statusLabel: "读取中", summary: "正在读取账号和仓库。", tone: "warning" };
+  if (error) return { statusLabel: settingsText(copy, "读取失败"), summary: error, tone: "error" };
+  if (isLoading) return { statusLabel: settingsText(copy, "读取中"), summary: settingsText(copy, "正在读取账号和仓库。"), tone: "warning" };
   if (accountSummary) {
     return {
-      statusLabel: "已读取",
-      summary: `角色 ${accountSummary.characters.length} 个，仓库 ${accountSummary.vault.item_count} 件`,
+      statusLabel: settingsText(copy, "已读取"),
+      summary: `${settingsText(copy, "角色")} ${accountSummary.characters.length} ${settingsText(copy, "个")}，${settingsText(copy, "仓库")} ${accountSummary.vault.item_count} ${settingsText(copy, "件")}`,
       tone: "ready"
     };
   }
-  return { statusLabel: "未登录", summary: "登录后可读取角色和仓库。", tone: "neutral" };
+  return { statusLabel: settingsText(copy, "未登录"), summary: settingsText(copy, "登录后可读取角色和仓库。"), tone: "neutral" };
 }
 
 function getBungieUi(input: {
@@ -679,9 +692,9 @@ function getBungieUi(input: {
   clientId: string;
   clientSecret: string;
   redirectUri: string;
-}): { statusLabel: string; summary: string; tone: "neutral" | "ready" | "warning" } {
+}, copy: SettingsCopy): { statusLabel: string; summary: string; tone: "neutral" | "ready" | "warning" } {
   if (input.isLoading) {
-    return { statusLabel: "读取中", summary: "正在读取本地 Bungie 应用配置。", tone: "neutral" };
+    return { statusLabel: settingsText(copy, "读取中"), summary: settingsText(copy, "正在读取本地 Bungie 应用配置。"), tone: "neutral" };
   }
 
   const isConfigured = Boolean(
@@ -691,27 +704,27 @@ function getBungieUi(input: {
       && input.redirectUri.trim()
   );
   if (isConfigured) {
-    return { statusLabel: "已配置", summary: "接口配置与回调地址可用", tone: "ready" };
+    return { statusLabel: settingsText(copy, "已配置"), summary: settingsText(copy, "接口配置与回调地址可用"), tone: "ready" };
   }
 
-  return { statusLabel: "未配置", summary: "需要填写 Bungie API Key、Client ID 和 Secret。", tone: "warning" };
+  return { statusLabel: settingsText(copy, "未配置"), summary: settingsText(copy, "需要填写 Bungie API Key、Client ID 和 Secret。"), tone: "warning" };
 }
 
-function getAiUi(isConfigured: boolean): { statusLabel: string; summary: string; tone: "ready" | "warning" } {
+function getAiUi(isConfigured: boolean, copy: SettingsCopy): { statusLabel: string; summary: string; tone: "ready" | "warning" } {
   if (isConfigured) {
-    return { statusLabel: "已配置", summary: "可用于装备分析、perk 解读和仓库建议。", tone: "ready" };
+    return { statusLabel: settingsText(copy, "已配置"), summary: settingsText(copy, "可用于装备分析、perk 解读和仓库建议。"), tone: "ready" };
   }
 
-  return { statusLabel: "未配置", summary: "不影响本地账号和资料库功能", tone: "warning" };
+  return { statusLabel: settingsText(copy, "未配置"), summary: settingsText(copy, "不影响本地账号和资料库功能"), tone: "warning" };
 }
 
-function getBackgroundTaskUi(tasks: BackgroundTaskSnapshot[]): { statusLabel: string; summary: string; tone: "neutral" | "warning" | "error" } {
+function getBackgroundTaskUi(tasks: BackgroundTaskSnapshot[], copy: SettingsCopy): { statusLabel: string; summary: string; tone: "neutral" | "warning" | "error" } {
   const activeTasks = tasks.filter((task) => task.status === "queued" || task.status === "running" || task.status === "retrying");
   const blockedOrFailed = tasks.find((task) => task.status === "blocked" || task.status === "failed");
 
   if (blockedOrFailed) {
     return {
-      statusLabel: "需关注",
+      statusLabel: settingsText(copy, "需关注"),
       summary: blockedOrFailed.title,
       tone: "error"
     };
@@ -719,113 +732,114 @@ function getBackgroundTaskUi(tasks: BackgroundTaskSnapshot[]): { statusLabel: st
 
   if (activeTasks.length) {
     return {
-      statusLabel: `${activeTasks.length} 个运行中`,
-      summary: activeTasks[0]?.title ?? "后台任务运行中",
+      statusLabel: `${activeTasks.length} ${settingsText(copy, "个运行中")}`,
+      summary: activeTasks[0]?.title ?? settingsText(copy, "后台任务运行中"),
       tone: "warning"
     };
   }
 
-  return { statusLabel: "空闲", summary: "没有正在运行或阻断的任务。", tone: "neutral" };
+  return { statusLabel: settingsText(copy, "空闲"), summary: settingsText(copy, "没有正在运行或阻断的任务。"), tone: "neutral" };
 }
 
-function formatAccountSnapshot(accountSummary: AccountSummary | null): string {
-  if (!accountSummary) return "未读取账号";
-  return `账号快照 · 角色 ${accountSummary.characters.length} · 仓库 ${accountSummary.vault.item_count}`;
+function formatAccountSnapshot(accountSummary: AccountSummary | null, copy: SettingsCopy): string {
+  if (!accountSummary) return settingsText(copy, "未读取账号");
+  return `${settingsText(copy, "账号快照")} · ${settingsText(copy, "角色")} ${accountSummary.characters.length} · ${settingsText(copy, "仓库")} ${accountSummary.vault.item_count}`;
 }
 
-function formatAccountLoadedAt(loadedAt: Date | null, accountSummary: AccountSummary | null): string {
-  if (!accountSummary) return "未读取";
-  if (!loadedAt) return "本次启动已读取";
-  return new Intl.DateTimeFormat("zh-CN", {
+function formatAccountLoadedAt(loadedAt: Date | null, accountSummary: AccountSummary | null, locale: InterfaceLocale, copy: SettingsCopy): string {
+  if (!accountSummary) return settingsText(copy, "未读取");
+  if (!loadedAt) return settingsText(copy, "本次启动已读取");
+  return new Intl.DateTimeFormat(locale, {
     hour: "2-digit",
     minute: "2-digit",
     hour12: false
   }).format(loadedAt);
 }
 
-function getUpdateUi(snapshot: UpdateSnapshot | null): { statusLabel: string; summary: string; tone: "neutral" | "ready" | "warning" | "error" } {
+function getUpdateUi(snapshot: UpdateSnapshot | null, copy: SettingsCopy): { statusLabel: string; summary: string; tone: "neutral" | "ready" | "warning" | "error" } {
   if (!snapshot) {
-    return { statusLabel: "读取中", summary: "正在读取更新状态。", tone: "neutral" };
+    return { statusLabel: settingsText(copy, "读取中"), summary: settingsText(copy, "正在读取更新状态。"), tone: "neutral" };
   }
 
   if (snapshot.status === "checking") {
-    return { statusLabel: "检查中", summary: "正在连接更新服务。", tone: "neutral" };
+    return { statusLabel: settingsText(copy, "检查中"), summary: settingsText(copy, "正在连接更新服务。"), tone: "neutral" };
   }
 
   if (snapshot.status === "available") {
     return {
-      statusLabel: "发现新版本",
-      summary: `发现新版本 ${snapshot.available_version ?? ""}，可先下载，下载完成后再重启安装。`,
+      statusLabel: settingsText(copy, "发现新版本"),
+      summary: `${settingsText(copy, "发现新版本")} ${snapshot.available_version ?? ""}${settingsText(copy, "可先下载，下载完成后再重启安装。")}`,
       tone: "ready"
     };
   }
 
   if (snapshot.status === "not_available") {
     return {
-      statusLabel: "已是最新",
-      summary: snapshot.user_message ?? snapshot.error ?? "当前已是最新版本。",
+      statusLabel: settingsText(copy, "已是最新"),
+      summary: snapshot.user_message ?? snapshot.error ?? settingsText(copy, "当前已是最新版本。"),
       tone: "neutral"
     };
   }
 
   if (snapshot.status === "downloading") {
     return {
-      statusLabel: "下载中",
+      statusLabel: settingsText(copy, "下载中"),
       summary: snapshot.progress_percent === undefined
-        ? "正在下载更新。"
-        : `正在下载更新：${snapshot.progress_percent}%`,
+        ? settingsText(copy, "正在下载更新。")
+        : `${settingsText(copy, "正在下载更新：")}${snapshot.progress_percent}%`,
       tone: "warning"
     };
   }
 
   if (snapshot.status === "downloaded") {
     return {
-      statusLabel: "等待重启",
-      summary: snapshot.user_message ?? `更新 ${snapshot.downloaded_version ?? snapshot.available_version ?? ""} 已下载。`,
+      statusLabel: settingsText(copy, "等待重启"),
+      summary: snapshot.user_message ?? `${settingsText(copy, "更新")} ${snapshot.downloaded_version ?? snapshot.available_version ?? ""} ${settingsText(copy, "已下载。")}`,
       tone: "ready"
     };
   }
 
   if (snapshot.status === "error") {
     return {
-      statusLabel: "更新受阻",
-      summary: snapshot.user_message ?? snapshot.error ?? "更新检查失败。",
+      statusLabel: settingsText(copy, "更新受阻"),
+      summary: snapshot.user_message ?? snapshot.error ?? settingsText(copy, "更新检查失败。"),
       tone: "error"
     };
   }
 
-  return { statusLabel: "未检查", summary: "尚未检查更新。", tone: "neutral" };
+  return { statusLabel: settingsText(copy, "未检查"), summary: settingsText(copy, "尚未检查更新。"), tone: "neutral" };
 }
 
 function getLibraryUi(
   status: ManifestStatus | null,
   error: string,
-  isLoading: boolean
+  isLoading: boolean,
+  copy: SettingsCopy
 ): { statusLabel: string; summary: string; tone: "neutral" | "ready" | "warning" | "error" } {
   if (error) {
-    return { statusLabel: "检查失败", summary: status?.initialized ? "未能检查新版；本地资料库仍可继续使用。" : error, tone: status?.initialized ? "warning" : "error" };
+    return { statusLabel: settingsText(copy, "检查失败"), summary: status?.initialized ? settingsText(copy, "未能检查新版；本地资料库仍可继续使用。") : error, tone: status?.initialized ? "warning" : "error" };
   }
   if (isLoading && !status) {
-    return { statusLabel: "检查中", summary: "正在检查资料库是否有新版。", tone: "neutral" };
+    return { statusLabel: settingsText(copy, "检查中"), summary: settingsText(copy, "正在检查资料库是否有新版。"), tone: "neutral" };
   }
   if (!status || !status.initialized) {
-    return { statusLabel: "未准备", summary: "资料库尚未准备，部分搜索和解析功能不可用。", tone: "warning" };
+    return { statusLabel: settingsText(copy, "未准备"), summary: settingsText(copy, "资料库尚未准备，部分搜索和解析功能不可用。"), tone: "warning" };
   }
   if (status.missing_required_components?.length) {
     return {
-      statusLabel: "需修复",
-      summary: `资料库内容不完整，缺失 ${status.missing_required_components.length} 项。`,
+      statusLabel: settingsText(copy, "需修复"),
+      summary: `${settingsText(copy, "资料库内容不完整，缺失")} ${status.missing_required_components.length} ${settingsText(copy, "项。")}`,
       tone: "warning"
     };
   }
   if (status.needs_update) {
     return {
-      statusLabel: "可更新",
-      summary: "发现新版资料库，将在后台更新。",
+      statusLabel: settingsText(copy, "可更新"),
+      summary: settingsText(copy, "发现新版资料库，将在后台更新。"),
       tone: "warning"
     };
   }
-  return { statusLabel: "可用", summary: "装备、perk、活动和商人数据可用。", tone: "ready" };
+  return { statusLabel: settingsText(copy, "可用"), summary: settingsText(copy, "装备、perk、活动和商人数据可用。"), tone: "ready" };
 }
 
 function formatLibraryVersion(version?: string): string | undefined {
@@ -837,18 +851,18 @@ function formatLibraryVersion(version?: string): string | undefined {
   return `${fullYear}/${match[2]}/${match[3]}`;
 }
 
-function formatLibraryIntegrity(status: ManifestStatus | null): string {
-  if (!status?.initialized) return "未准备";
+function formatLibraryIntegrity(status: ManifestStatus | null, copy: SettingsCopy): string {
+  if (!status?.initialized) return settingsText(copy, "未准备");
   const missingCount = status.missing_required_components?.length ?? 0;
-  if (missingCount > 0) return `缺失 ${missingCount} 项，需修复`;
-  return "完整";
+  if (missingCount > 0) return `${settingsText(copy, "缺失")} ${missingCount} ${settingsText(copy, "项，需修复")}`;
+  return settingsText(copy, "完整");
 }
 
-function formatDateTime(value?: string): string {
-  if (!value) return "未读取";
+function formatDateTime(value: string | undefined, locale: InterfaceLocale, copy: SettingsCopy): string {
+  if (!value) return settingsText(copy, "未读取");
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleString("zh-CN", {
+  return date.toLocaleString(locale, {
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
@@ -857,11 +871,11 @@ function formatDateTime(value?: string): string {
   });
 }
 
-function formatUpdateCheckedAt(value?: string): string {
-  if (!value) return "未检查";
+function formatUpdateCheckedAt(value: string | undefined, locale: InterfaceLocale, copy: SettingsCopy): string {
+  if (!value) return settingsText(copy, "未检查");
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleString("zh-CN", {
+  return date.toLocaleString(locale, {
     month: "2-digit",
     day: "2-digit",
     hour: "2-digit",
@@ -876,18 +890,18 @@ function formatUpdateProgress(snapshot: UpdateSnapshot | null): number {
   return 0;
 }
 
-function formatActionLogTitle(entry: ActionLogEntry): string {
+function formatActionLogTitle(entry: ActionLogEntry, copy: SettingsCopy): string {
   const actionLabels: Record<ActionLogEntry["action"], string> = {
-    "set-lock": "锁定状态",
-    equip: "装备",
-    transfer: "仓库转移",
-    "postmaster-pull": "邮政官取回",
-    "loadout-equip": "应用游戏内配装栏",
-    "loadout-snapshot": "覆盖游戏内配装栏"
+    "set-lock": settingsText(copy, "锁定状态"),
+    equip: settingsText(copy, "装备"),
+    transfer: settingsText(copy, "仓库转移"),
+    "postmaster-pull": settingsText(copy, "邮政官取回"),
+    "loadout-equip": settingsText(copy, "应用游戏内配装栏"),
+    "loadout-snapshot": settingsText(copy, "覆盖游戏内配装栏")
   };
 
   return [
-    entry.ok ? "成功" : "失败",
+    entry.ok ? settingsText(copy, "成功") : settingsText(copy, "失败"),
     actionLabels[entry.action],
     entry.item_name
   ].filter(Boolean).join(" / ");
