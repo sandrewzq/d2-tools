@@ -13,7 +13,7 @@ describe("highest power button feedback", () => {
       readFileSync(join(desktopRoot, "src", "renderer", "features", "account", "AccountPage.tsx"), "utf8")
     ].join("\n");
     const styles = readFileSync(
-      join(desktopRoot, "src", "renderer", "styles.css"),
+      join(desktopRoot, "..", "ui", "src", "styles.css"),
       "utf8"
     );
 

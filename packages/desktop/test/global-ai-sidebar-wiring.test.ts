@@ -54,28 +54,34 @@ describe("global AI assistant sidebar wiring", () => {
       join(desktopRoot, "src", "renderer", "components", "AiAnalysisPanel.tsx"),
       "utf8"
     );
+    const uiAssistant = readFileSync(
+      join(uiRoot, "src", "assistant", "AiAssistantPanelView.tsx"),
+      "utf8"
+    );
+    const combined = `${aiPanel}\n${uiAssistant}`;
 
     expect(aiPanel).toContain("isSessionDrawerOpen");
     expect(aiPanel).toContain("isContextDrawerOpen");
-    expect(aiPanel).toContain("ai-conversation-header");
-    expect(aiPanel).toContain("ai-conversation-toolbar");
-    expect(aiPanel).toContain("ai-conversation-log");
-    expect(aiPanel).toContain("ai-composer");
-    expect(aiPanel).toContain("ai-session-drawer");
-    expect(aiPanel).toContain("ai-context-drawer");
-    expect(aiPanel).toContain("ai-chat-history");
-    expect(aiPanel).toContain("会话列表");
-    expect(aiPanel).toContain("删除");
-    expect(aiPanel).toContain("恢复");
-    expect(aiPanel).toContain("清空历史");
-    expect(aiPanel).toContain("历史记录仍可查看和恢复");
-    expect(aiPanel).not.toContain("ai-chat-sidebar");
+    expect(aiPanel).toContain("<AiAssistantPanelView");
+    expect(combined).toContain("ai-conversation-header");
+    expect(combined).toContain("ai-conversation-toolbar");
+    expect(combined).toContain("ai-conversation-log");
+    expect(combined).toContain("ai-composer");
+    expect(combined).toContain("ai-session-drawer");
+    expect(combined).toContain("ai-context-drawer");
+    expect(combined).toContain("ai-chat-history");
+    expect(combined).toContain("会话列表");
+    expect(combined).toContain("删除");
+    expect(combined).toContain("恢复");
+    expect(combined).toContain("清空历史");
+    expect(combined).toContain("历史记录仍可查看和恢复");
+    expect(combined).not.toContain("ai-chat-sidebar");
     expect(aiPanel).not.toContain("if (!props.items.length)");
   });
 
   it("keeps the assistant header title readable when the sidebar is narrow", () => {
     const styles = readFileSync(
-      join(desktopRoot, "src", "renderer", "styles.css"),
+      join(desktopRoot, "..", "ui", "src", "styles.css"),
       "utf8"
     );
 
@@ -91,15 +97,20 @@ describe("global AI assistant sidebar wiring", () => {
 
   it("keeps the unconfigured AI fallback visible inside the global sidebar", () => {
     const styles = readFileSync(
-      join(desktopRoot, "src", "renderer", "styles.css"),
+      join(desktopRoot, "..", "ui", "src", "styles.css"),
       "utf8"
     );
     const aiPage = readFileSync(
       join(desktopRoot, "src", "renderer", "features", "ai", "AiPage.tsx"),
       "utf8"
     );
+    const uiAssistant = readFileSync(
+      join(uiRoot, "src", "assistant", "AiAssistantPanelView.tsx"),
+      "utf8"
+    );
 
-    expect(aiPage).toContain("去设置配置 AI");
+    expect(uiAssistant).toContain("去设置配置 AI");
+    expect(aiPage).toContain("AiAssistantPanelView");
     expect(styles).toContain(".global-assistant-sidebar .ai-chat-panel > .section-heading");
     expect(styles).not.toContain(".global-assistant-sidebar .section-heading {\n  display: none;");
   });
@@ -135,7 +146,7 @@ describe("global AI assistant sidebar wiring", () => {
       "utf8"
     );
     const styles = readFileSync(
-      join(desktopRoot, "src", "renderer", "styles.css"),
+      join(desktopRoot, "..", "ui", "src", "styles.css"),
       "utf8"
     );
 

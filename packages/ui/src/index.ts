@@ -2,6 +2,13 @@ export const uiPackageName = "@d2-tools/ui";
 export { AccountPageView } from "./account/AccountPageView.js";
 export { AccountPageContentView } from "./account/AccountPageContentView.js";
 export type { AccountPageContentViewProps } from "./account/AccountPageContentView.js";
+export { AiAssistantPanelView } from "./assistant/AiAssistantPanelView.js";
+export type {
+  AiAssistantContextView,
+  AiAssistantHistoryEntryView,
+  AiAssistantMessageView,
+  AiAssistantPanelViewProps
+} from "./assistant/AiAssistantPanelView.js";
 export { AppShell } from "./shell/AppShell.js";
 export { HomePageView } from "./home/HomePageView.js";
 export type { HomeDailySummary, HomeStartupState } from "./home/HomePageView.js";

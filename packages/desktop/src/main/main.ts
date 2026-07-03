@@ -86,8 +86,13 @@ function parseVisualViewport(value: string): [number, number] {
 async function captureVisualSnapshot(window: BrowserWindow): Promise<void> {
   if (!visualCaptureDir) return;
 
-  const waitSelector = visualCapturePage === "settings" ? ".settings-app-page" : ".home-app-page";
-  const waitText = visualCapturePage === "settings" ? "" : "刷新中...";
+  const waitSelectorByPage: Record<string, string> = {
+    home: ".home-app-page",
+    loadouts: ".loadout-product-layout",
+    settings: ".settings-app-page"
+  };
+  const waitSelector = waitSelectorByPage[visualCapturePage] ?? ".home-app-page";
+  const waitText = visualCapturePage === "home" ? "刷新中..." : "";
 
   await window.webContents.executeJavaScript(`
     new Promise((resolve, reject) => {
@@ -137,6 +142,13 @@ async function captureVisualSnapshot(window: BrowserWindow): Promise<void> {
         ".home-reward-item",
         ".home-intel-row",
         ".home-main-grid",
+        ".loadout-product-layout",
+        ".in-game-loadout-slots",
+        ".loadout-template-list",
+        ".loadout-template-detail",
+        ".loadouts-workbench",
+        ".loadout-status-chip",
+        ".loadout-item",
         ".settings-app-page",
         ".app-settings-shell",
         ".settings-menu",
@@ -181,6 +193,7 @@ async function captureVisualSnapshot(window: BrowserWindow): Promise<void> {
           devicePixelRatio: window.devicePixelRatio
         },
         page: ${JSON.stringify(visualCapturePage)},
+        colorMode: document.querySelector(".app-shell")?.getAttribute("data-color-mode") ?? "unknown",
         homeTitleCount: Array.from(document.querySelectorAll("h1, h2")).filter((item) => {
           const text = item.textContent?.trim();
           return text === "首页" || text === "今日工作台";

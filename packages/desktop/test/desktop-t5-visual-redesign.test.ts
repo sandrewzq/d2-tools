@@ -26,7 +26,7 @@ describe("desktop T5 visual redesign", () => {
   it("renders a desktop shell with top global status, right-side tools and an AI drawer", () => {
     const shell = `${readUiFile("shell/AppShell.tsx")}\n${readUiFile("shell/navigation.ts")}`;
     const shellCopy = readUiFile("i18n/copy.ts");
-    const styles = readRendererFile("styles.css");
+    const styles = readUiFile("styles.css");
 
     expect(shell).toContain("shell-topbar");
     expect(shell).toContain("shell-global-status");
@@ -77,7 +77,7 @@ describe("desktop T5 visual redesign", () => {
   it("keeps home as a product overview instead of a navigation or task launcher page", () => {
     const homeDashboard = readUiFile("home/HomePageView.tsx");
     const homeCopy = readUiFile("i18n/copy.ts");
-    const styles = readRendererFile("styles.css");
+    const styles = readUiFile("styles.css");
 
     expect(homeDashboard).toContain("app-page home-app-page");
     expect(homeDashboard).toContain("home-data-strip");
@@ -107,7 +107,7 @@ describe("desktop T5 visual redesign", () => {
 
   it("uses the account A2 layout with visible backpack previews and a narrow secondary summary", () => {
     const accountPage = `${readUiFile("account/AccountPageContentView.tsx")}\n${readRendererFile("features/account/AccountPage.tsx")}`;
-    const styles = readRendererFile("styles.css");
+    const styles = readUiFile("styles.css");
 
     expect(accountPage).toContain("account-a2-layout");
     expect(accountPage).toContain("account-slot-backpack-preview");
@@ -128,7 +128,7 @@ describe("desktop T5 visual redesign", () => {
     const vaultPanel = readRendererFile("components/VaultPanel.tsx");
     const toolbar = readRendererFile("features/vault/VaultFilterToolbar.tsx");
     const armorPanel = readRendererFile("features/vault/VaultArmorFilterPanel.tsx");
-    const styles = readRendererFile("styles.css");
+    const styles = readUiFile("styles.css");
 
     expect(vaultPanel).toContain("VaultWorkspaceTab");
     expect(vaultPanel).toContain("筛选列表");
@@ -162,7 +162,7 @@ describe("desktop T5 visual redesign", () => {
     const libraryPage = `${readUiFile("library/LibraryPageContentView.tsx")}\n${readRendererFile("features/library/LibraryPage.tsx")}`;
     const libraryView = readUiFile("library/LibraryPageView.tsx");
     const uiCopy = readUiFile("i18n/copy.ts");
-    const styles = readRendererFile("styles.css");
+    const styles = readUiFile("styles.css");
 
     expect(libraryPage).toContain("LibraryPageView");
     expect(libraryView).toContain("library-reference-page");

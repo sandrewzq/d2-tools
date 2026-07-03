@@ -99,14 +99,20 @@ describe("assistant page context and history", () => {
 
   it("shows explicit session controls in the AI panel", () => {
     const aiPanel = readSource("src/renderer/components/AiAnalysisPanel.tsx");
+    const assistantView = readUiSource("src/assistant/AiAssistantPanelView.tsx");
 
+    expect(aiPanel).toContain("AiAssistantPanelView");
     expect(aiPanel).toContain("activeSessionId");
     expect(aiPanel).toContain("startNewSession");
     expect(aiPanel).toContain("switchSession");
-    expect(aiPanel).toContain("删除");
-    expect(aiPanel).toContain("新会话");
-    expect(aiPanel).toContain("会话列表");
-    expect(aiPanel).toContain("恢复");
+    expect(aiPanel).toContain("deleteSession");
+    expect(aiPanel).toContain("onStartNewSession={startNewSession}");
+    expect(aiPanel).toContain("onSwitchSession={switchSession}");
+    expect(aiPanel).toContain("onDeleteSession={deleteSession}");
+    expect(assistantView).toContain("删除");
+    expect(assistantView).toContain("新会话");
+    expect(assistantView).toContain("会话列表");
+    expect(assistantView).toContain("恢复");
   });
 
   it("guards AI chat context against missing vault tags during startup", () => {
@@ -133,4 +139,8 @@ function createMemoryStorage(): AssistantStorageLike {
 
 function readSource(path: string): string {
   return readFileSync(`packages/desktop/${path}`, "utf8");
+}
+
+function readUiSource(path: string): string {
+  return readFileSync(`packages/ui/${path}`, "utf8");
 }

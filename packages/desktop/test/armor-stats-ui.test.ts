@@ -65,7 +65,7 @@ describe("armor stats UI wiring", () => {
   });
 
   it("uses a wide two-column detail workbench instead of a narrow vertical modal", () => {
-    const styles = readFileSync("packages/desktop/src/renderer/styles.css", "utf8");
+    const styles = readFileSync("packages/ui/src/styles.css", "utf8");
     const itemModal = readCssRule(styles, ".item-modal");
     const gameCard = readCssRule(styles, ".item-detail-game-card");
     const toolGrid = readCssRule(styles, ".item-detail-tool-grid");
@@ -84,7 +84,7 @@ describe("armor stats UI wiring", () => {
 
   it("keeps weapon detail focused on the actual roll and folds long socket option lists", () => {
     const itemDetailModal = readItemDetailSources("packages/desktop");
-    const styles = readFileSync("packages/desktop/src/renderer/styles.css", "utf8");
+    const styles = readFileSync("packages/ui/src/styles.css", "utf8");
     const rollGrid = readCssRule(styles, ".item-detail-roll-grid");
     const socketSummary = readCssRule(styles, ".item-detail-socket-summary");
 

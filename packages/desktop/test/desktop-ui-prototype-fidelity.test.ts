@@ -96,7 +96,7 @@ describe("desktop UI prototype fidelity", () => {
   });
 
   it("locks wide desktop grids so text cannot collapse into vertical columns", () => {
-    const styles = readRendererFile("styles.css");
+    const styles = readUiFile("styles.css");
     const dataStrip = readCssRule(styles, ".home-data-strip");
     const weeklyDashboard = readCssRule(styles, ".home-weekly-dashboard");
     const rewardList = readCssRule(styles, ".home-reward-list");
@@ -114,7 +114,7 @@ describe("desktop UI prototype fidelity", () => {
   });
 
   it("keeps core prototype surfaces tokenized in light and dark modes", () => {
-    const styles = readRendererFile("styles.css");
+    const styles = readUiFile("styles.css");
     const lightMode = readCssRule(styles, ".app-shell[data-color-mode=\"light\"]");
     const primitiveStart = styles.indexOf("/* Prototype fidelity primitives */");
     const primitiveEnd = styles.indexOf("/* End prototype fidelity primitives */");

@@ -23,6 +23,7 @@ const defaultAppPngName = "app-dark-1365x900.png";
 const defaultComparePngName = "compare-dark-1365x900.png";
 const expectedSelectorsByPage = {
   home: [".home-data-point", ".home-weekly-dashboard"],
+  loadouts: [".loadout-product-layout", ".in-game-loadout-slots", ".loadout-template-detail"],
   settings: [".settings-app-page", ".app-settings-shell", ".settings-menu"]
 };
 const viewport = process.env.D2_VISUAL_CAPTURE_VIEWPORT ?? defaultViewport;
@@ -280,6 +281,7 @@ async function captureApp() {
         NODE_ENV: "development",
         D2_RENDERER_URL: rendererUrl,
         D2_DATA_DIR: dataDir,
+        D2_COLOR_MODE: theme,
         D2_VISUAL_CAPTURE_DIR: outputDir,
         D2_VISUAL_CAPTURE_PAGE: page,
         D2_VISUAL_CAPTURE_VIEWPORT: viewport,
@@ -299,6 +301,7 @@ async function captureApp() {
 
 function writeComparePlaceholder() {
   const report = JSON.parse(readFileSync(reportPath, "utf8"));
+  assertVisualReportColorMode(report);
   report.reference = referencePng;
   report.app = appPng;
   report.compare = comparePng;
@@ -310,6 +313,12 @@ function writeComparePlaceholder() {
   writeFileSync(reportPath, JSON.stringify(report, null, 2), "utf8");
   if (!existsSync(comparePng)) {
     writeFileSync(comparePng, readFileSync(appPng));
+  }
+}
+
+function assertVisualReportColorMode(report) {
+  if (report.colorMode !== theme) {
+    throw new Error(`Visual ${page} color mode mismatch: expected ${theme}, got ${report.colorMode ?? "unknown"}`);
   }
 }
 

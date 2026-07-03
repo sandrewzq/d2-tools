@@ -36,26 +36,24 @@ export function GlobalAssistantSidebar(props: {
 }) {
   if (props.assistantMode === "ai") {
     return (
-      <div className="global-assistant-sidebar">
-        <AiPage
-          isConfigured={props.isConfigured}
-          account={props.account}
-          daily={props.daily}
-          activity={props.activity}
-          pageContext={props.pageContext}
-          tags={props.tags}
-          isLoadingAccount={props.isLoadingAccount}
-          onLoadAccount={props.onLoadAccount}
-          onConfigureAi={props.onConfigureAi}
-          onClose={props.onClose}
-        />
-      </div>
+      <AiPage
+        isConfigured={props.isConfigured}
+        account={props.account}
+        daily={props.daily}
+        activity={props.activity}
+        pageContext={props.pageContext}
+        tags={props.tags}
+        isLoadingAccount={props.isLoadingAccount}
+        onLoadAccount={props.onLoadAccount}
+        onConfigureAi={props.onConfigureAi}
+        onClose={props.onClose}
+      />
     );
   }
 
   if (props.assistantMode === "tasks") {
     return (
-      <div className="global-assistant-sidebar">
+      <>
         <AssistantHeader title="小日向" subtitle="解析攻略、对照账号、生成配装草稿。" onClose={props.onClose} />
         <TaskAssistantPanel
           activePage={props.activePage}
@@ -63,7 +61,7 @@ export function GlobalAssistantSidebar(props: {
           pageContext={props.pageContext}
           onSaveGuideDraft={props.onSaveGuideDraft}
         />
-      </div>
+      </>
     );
   }
 

@@ -150,7 +150,7 @@ describe("account inventory UI", () => {
 
   it("adds an account page directory for long account workbench sections", () => {
     const accountPage = readAccountPage();
-    const styles = readFileSync(join(desktopRoot, "src", "renderer", "styles.css"), "utf8");
+    const styles = readFileSync(join(desktopRoot, "..", "ui", "src", "styles.css"), "utf8");
 
     expect(accountPage).toContain('className="account-page-shell"');
     expect(accountPage).toContain('className="account-page-nav"');

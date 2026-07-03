@@ -113,7 +113,9 @@ export function AppShell(props: AppShellProps) {
         <section className="shell-content">{props.children}</section>
         {props.assistantMode ? (
           <aside className="global-assistant-panel global-assistant-drawer" aria-label={copy.assistantPanelAriaLabel}>
-            {props.assistantPanel}
+            <div className="global-assistant-sidebar">
+              {props.assistantPanel}
+            </div>
           </aside>
         ) : null}
       </div>

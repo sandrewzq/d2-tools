@@ -4,6 +4,7 @@ import type {
   DailySummary,
   VaultTags
 } from "../../api/types";
+import { AiAssistantPanelView } from "@d2-tools/ui";
 import { AiAnalysisPanel } from "../../components/AiAnalysisPanel";
 import type { AssistantPageContext } from "../../shared/domain/assistant/assistantContext";
 
@@ -21,20 +22,44 @@ export function AiPage(props: {
 }) {
   if (!props.isConfigured) {
     return (
-      <section className="tool-panel placeholder-panel">
-        <div className="section-heading">
-          <div>
-            <h2>AI 助手</h2>
-            <p>还没有配置 AI。先到设置页填写提供商、模型和 API Key，再回来聊天分析。</p>
-          </div>
-          <div className="button-row">
-            <button type="button" onClick={props.onConfigureAi}>去设置配置 AI</button>
-            {props.onClose ? (
-              <button type="button" className="secondary-button" onClick={props.onClose}>关闭</button>
-            ) : null}
-          </div>
-        </div>
-      </section>
+      <AiAssistantPanelView
+        isConfigured={false}
+        sessionTitle="新会话"
+        messages={[]}
+        question=""
+        isSending={false}
+        isLoadingAccount={props.isLoadingAccount}
+        hasAccountItems={false}
+        history={[]}
+        activeSessionId={null}
+        isSessionDrawerOpen={false}
+        isContextDrawerOpen={false}
+        contextChip="AI 未配置"
+        context={{
+          pageLabel: props.pageContext.page_label,
+          focus: props.pageContext.focus,
+          facts: props.pageContext.facts.slice(0, 4),
+          itemCount: 0,
+          characterCount: props.account?.characters.length ?? 0,
+          materialCount: props.account?.materials.item_count ?? 0,
+          dailyLoaded: Boolean(props.daily)
+        }}
+        quickPrompts={[]}
+        onQuestionChange={() => undefined}
+        onSubmit={() => undefined}
+        onQuickPrompt={() => undefined}
+        onLoadAccount={props.onLoadAccount}
+        onConfigureAi={props.onConfigureAi}
+        onClose={props.onClose ?? (() => undefined)}
+        onStartNewSession={() => undefined}
+        onToggleSessionDrawer={() => undefined}
+        onToggleContextDrawer={() => undefined}
+        onOpenContextDrawer={() => undefined}
+        onCloseContextDrawer={() => undefined}
+        onClearHistory={() => undefined}
+        onSwitchSession={() => undefined}
+        onDeleteSession={() => undefined}
+      />
     );
   }
 

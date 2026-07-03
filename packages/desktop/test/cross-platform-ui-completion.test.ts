@@ -112,21 +112,33 @@ describe("cross-platform UI completion boundary", () => {
     expect(settingsFallback).toContain('activeSection === "backup"');
   });
 
-  it("replaces the prototype AI drawer placeholder with an interactive mock assistant", () => {
+  it("reuses the shared AI assistant drawer in prototype and web instead of local placeholders", () => {
     const prototypeMain = read("packages/prototype/src/main.tsx");
+    const webMain = read("packages/web/src/main.tsx");
+    const uiIndex = read("packages/ui/src/index.ts");
+    const uiAssistant = read("packages/ui/src/assistant/AiAssistantPanelView.tsx");
+    const uiStyles = read("packages/ui/src/styles.css");
     const prototypeStyles = read("packages/prototype/src/styles.css");
 
-    expect(prototypeMain).toContain("PrototypeAssistantPanel");
-    expect(prototypeMain).toContain("assistant-context-card");
-    expect(prototypeMain).toContain("assistant-quick-prompts");
-    expect(prototypeMain).toContain("assistant-chat-input");
-    expect(prototypeMain).toContain("onSubmit={handleSend}");
+    expect(uiIndex).toContain("AiAssistantPanelView");
+    expect(uiAssistant).toContain("export function AiAssistantPanelView");
+    expect(uiAssistant).toContain("AI 助手");
+    expect(uiAssistant).toContain("ai-conversation-header");
+    expect(uiAssistant).toContain("ai-composer");
+
+    expect(prototypeMain).toContain("AiAssistantPanelView");
+    expect(prototypeMain).not.toContain("PrototypeAssistantPanel");
+    expect(prototypeMain).not.toContain("<h2>小日向</h2>");
     expect(prototypeMain).not.toContain("这是 prototype 的 mock 抽屉");
     expect(prototypeMain).not.toContain("后续接入真实页面上下文");
 
-    expect(prototypeStyles).toContain(".prototype-assistant-panel");
-    expect(prototypeStyles).toContain(".assistant-context-card");
-    expect(prototypeStyles).toContain(".assistant-chat-message");
+    expect(webMain).toContain("AiAssistantPanelView");
+    expect(webMain).not.toContain("Web AI 助手入口待接入");
+
+    expect(uiStyles).toContain(".ai-chat-panel");
+    expect(uiStyles).toContain(".ai-conversation-header");
+    expect(uiStyles).toContain(".ai-context-drawer");
+    expect(prototypeStyles).not.toContain(".prototype-assistant-panel");
   });
 
   it("keeps the account fallback prototype free of unfinished placeholder copy", () => {

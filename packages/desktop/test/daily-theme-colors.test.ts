@@ -8,12 +8,12 @@ const desktopRoot = fileURLToPath(new URL("..", import.meta.url));
 describe("daily panel theme colors", () => {
   it("keeps daily and weekly cards aligned with semantic theme tokens", () => {
     const styles = readFileSync(
-      join(desktopRoot, "src", "renderer", "styles.css"),
+      join(desktopRoot, "..", "ui", "src", "styles.css"),
       "utf8"
     );
     const finalBlock = styles.slice(
-      styles.indexOf("/* Desktop UI design system v2 final overrides */"),
-      styles.indexOf("/* End desktop UI design system v2 final overrides */")
+      styles.indexOf("/* Canonical product token surface rules. Shared by Prototype, Web and Desktop. */"),
+      styles.indexOf("/* End canonical product token surface rules */")
     );
 
     expect(styles).toMatch(/\.daily-board\s*{[\s\S]*?display: grid;/);
@@ -27,12 +27,12 @@ describe("daily panel theme colors", () => {
 
   it("keeps modal and vault comparison panels on shared item tokens", () => {
     const styles = readFileSync(
-      join(desktopRoot, "src", "renderer", "styles.css"),
+      join(desktopRoot, "..", "ui", "src", "styles.css"),
       "utf8"
     );
     const finalBlock = styles.slice(
-      styles.indexOf("/* Desktop UI design system v2 final overrides */"),
-      styles.indexOf("/* End desktop UI design system v2 final overrides */")
+      styles.indexOf("/* Canonical product token surface rules. Shared by Prototype, Web and Desktop. */"),
+      styles.indexOf("/* End canonical product token surface rules */")
     );
 
     expect(finalBlock).toContain(".same-roll-row");
@@ -44,7 +44,7 @@ describe("daily panel theme colors", () => {
 
   it("constrains shell content so desktop pages do not create horizontal overflow", () => {
     const styles = readFileSync(
-      join(desktopRoot, "src", "renderer", "styles.css"),
+      join(desktopRoot, "..", "ui", "src", "styles.css"),
       "utf8"
     );
 

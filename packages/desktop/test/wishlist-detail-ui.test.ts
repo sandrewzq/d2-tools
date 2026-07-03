@@ -69,7 +69,7 @@ describe("wishlist detail UI", () => {
 
   it("keeps same-name comparison rows scannable with current item and tag chips", () => {
     const itemDetailSources = readItemDetailSources(desktopRoot);
-    const styles = readFileSync(join(desktopRoot, "src", "renderer", "styles.css"), "utf8");
+    const styles = readFileSync(join(desktopRoot, "..", "ui", "src", "styles.css"), "utf8");
 
     expect(itemDetailSources).toContain("same-roll-summary");
     expect(itemDetailSources).toContain("same-roll-chip");

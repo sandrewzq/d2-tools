@@ -15,6 +15,14 @@ function readRendererTsxFiles(dir: string): Array<{ path: string; content: strin
   });
 }
 
+function readProductStyles(): string {
+  return readFileSync(join(uiRoot, "src", "styles.css"), "utf8");
+}
+
+function readDesktopPlatformStyles(): string {
+  return readFileSync(join(desktopRoot, "src", "renderer", "styles.css"), "utf8");
+}
+
 function readCssRule(styles: string, selector: string): string {
   const needle = selector.includes("\n") ? `${selector} {` : `\n${selector} {`;
   let start = styles.indexOf(needle);
@@ -31,7 +39,7 @@ function readCssRule(styles: string, selector: string): string {
 
 describe("UI style system", () => {
   it("defines shared visual tokens before page-level polish", () => {
-    const styles = readFileSync(join(desktopRoot, "src", "renderer", "styles.css"), "utf8");
+    const styles = readProductStyles();
 
     expect(styles).toContain("--space-8: 8px");
     expect(styles).toContain("--space-12: 12px");
@@ -64,12 +72,33 @@ describe("UI style system", () => {
     expect(styles).toContain("--game-text:");
   });
 
+  it("keeps Desktop renderer CSS platform-only while product styles live in packages/ui", () => {
+    const desktopEntry = readFileSync(join(desktopRoot, "src", "renderer", "main.tsx"), "utf8");
+    const desktopStyles = readDesktopPlatformStyles();
+    const productStyles = readProductStyles();
+
+    expect(desktopEntry).toContain('import "@d2-tools/ui/styles.css"');
+    expect(desktopStyles).toContain("Electron-only platform adjustments");
+    expect(desktopStyles).not.toContain(".shell-titlebar");
+    expect(desktopStyles).not.toContain(".home-app-page");
+    expect(desktopStyles).not.toContain(".settings-app-page");
+    expect(desktopStyles).not.toContain("--surface-page:");
+    expect(productStyles).toContain(".shell-titlebar");
+    expect(productStyles).toContain(".home-app-page");
+    expect(productStyles).toContain(".settings-app-page");
+    expect(productStyles).toContain("Canonical product token surface rules");
+  });
+
   it("unifies button and selected-state tokens so active surfaces stay readable", () => {
-    const styles = readFileSync(join(desktopRoot, "src", "renderer", "styles.css"), "utf8");
+    const styles = readProductStyles();
+    const sharedStyles = readFileSync(join(uiRoot, "src", "styles.css"), "utf8");
     const buttonRule = readCssRule(styles, "button");
     const primaryButtonRule = readCssRule(styles, ".primary-button");
     const secondaryButtonRule = readCssRule(styles, ".secondary-button");
     const selectedVaultItemCard = readCssRule(styles, ".vault-item-card.selected");
+    const sharedAppMarkRule = readCssRule(sharedStyles, ".shell-app-mark");
+    const sharedNavActiveRule = readCssRule(sharedStyles, ".shell-nav button.active,\n.global-assistant-rail button.active");
+    const sharedToolActiveRule = readCssRule(sharedStyles, ".shell-tool-button:hover,\n.shell-tool-button.active");
 
     expect(styles).toContain("--action-primary-bg:");
     expect(styles).toContain("--action-primary-bg-hover:");
@@ -96,45 +125,70 @@ describe("UI style system", () => {
     expect(styles).toMatch(/\.segmented-control button\.active\s*{[\s\S]*?color:\s*var\(--text-title\);[\s\S]*?background:\s*var\(--state-selected-bg\);/);
     expect(selectedVaultItemCard).toContain("background: var(--state-selected-bg)");
     expect(selectedVaultItemCard).toContain("border-color: var(--state-selected-border)");
+
+    expect(sharedAppMarkRule).toContain("border: 1px solid var(--state-selected-border)");
+    expect(sharedAppMarkRule).toContain("color: var(--accent-primary-strong)");
+    expect(sharedAppMarkRule).toContain("background: var(--state-selected-bg)");
+    expect(sharedNavActiveRule).toContain("border-color: var(--state-selected-border)");
+    expect(sharedNavActiveRule).toContain("color: var(--accent-primary-strong)");
+    expect(sharedNavActiveRule).toContain("background: var(--state-selected-bg)");
+    expect(sharedToolActiveRule).toContain("border-color: var(--state-selected-border)");
+    expect(sharedToolActiveRule).toContain("color: var(--accent-primary-strong)");
+    expect(sharedToolActiveRule).toContain("background: var(--state-selected-bg)");
+    expect(sharedAppMarkRule).not.toContain("#07518c");
+    expect(sharedNavActiveRule).not.toContain("#e6f1fb");
+    expect(sharedToolActiveRule).not.toContain("#e6f1fb");
   });
 
-  it("keeps legacy page surfaces readable in light color mode", () => {
-    const styles = readFileSync(join(desktopRoot, "src", "renderer", "styles.css"), "utf8");
+  it("keeps migrated product surfaces readable through canonical semantic tokens", () => {
+    const styles = readProductStyles();
 
-    const requiredLightSelectors = [
-      ".app-shell[data-color-mode=\"light\"] .home-overview-hero",
-      ".app-shell[data-color-mode=\"light\"] .daily-reset-grid > div",
-      ".app-shell[data-color-mode=\"light\"] .daily-source",
-      ".app-shell[data-color-mode=\"light\"] .source-status-card",
-      ".app-shell[data-color-mode=\"light\"] .drop-query-panel",
-      ".app-shell[data-color-mode=\"light\"] .diagnostic-row",
-      ".app-shell[data-color-mode=\"light\"] .action-log-row",
-      ".app-shell[data-color-mode=\"light\"] .equipment-item strong",
-      ".app-shell[data-color-mode=\"light\"] .equipment-item span",
-      ".app-shell[data-color-mode=\"light\"] .weapon-filter-panel",
-      ".app-shell[data-color-mode=\"light\"] .armor-filter-panel",
-      ".app-shell[data-color-mode=\"light\"] .vault-card-select",
-      ".app-shell[data-color-mode=\"light\"] .loadout-compare-row"
+    const requiredSelectors = [
+      ".home-overview-hero",
+      ".daily-reset-grid > div",
+      ".daily-source",
+      ".source-status-card",
+      ".drop-query-panel",
+      ".diagnostic-row",
+      ".action-log-row",
+      ".equipment-item strong",
+      ".equipment-item span",
+      ".weapon-filter-panel",
+      ".armor-filter-panel",
+      ".vault-card-select",
+      ".loadout-compare-row"
     ];
 
-    for (const selector of requiredLightSelectors) {
+    for (const selector of requiredSelectors) {
       expect(styles).toContain(selector);
     }
 
-    const lightModeBlock = styles.slice(
-      styles.indexOf("/* Light mode legacy surface compatibility */"),
-      styles.indexOf("/* End light mode legacy surface compatibility */")
+    const canonicalBlock = styles.slice(
+      styles.indexOf("/* Canonical product token surface rules. Shared by Prototype, Web and Desktop. */"),
+      styles.indexOf("/* End canonical product token surface rules */")
     );
-    expect(lightModeBlock).toContain("background: var(--surface-panel)");
-    expect(lightModeBlock).toContain("color: var(--text-title)");
-    expect(lightModeBlock).toContain("color: var(--text-muted)");
-    expect(lightModeBlock).not.toContain("#f3f6fc");
-    expect(lightModeBlock).not.toContain("#181d27");
-    expect(lightModeBlock).not.toContain("#141924");
+    expect(canonicalBlock).toContain("background: var(--surface-panel)");
+    expect(canonicalBlock).toContain("color: var(--text-title)");
+    expect(canonicalBlock).toContain("color: var(--text-muted)");
+    expect(canonicalBlock).not.toContain("#f3f6fc");
+    expect(canonicalBlock).not.toContain("#181d27");
+    expect(canonicalBlock).not.toContain("#141924");
+    expect(styles).not.toContain("Light mode legacy surface compatibility");
+    expect(styles).not.toContain(".app-shell[data-color-mode=\"light\"] .daily-source");
+  });
+
+  it("blocks direct light background declarations outside semantic tokens", () => {
+    const styles = readProductStyles();
+    const offenders = styles
+      .split(/\r?\n/)
+      .map((line, index) => ({ line: index + 1, text: line.trim() }))
+      .filter((entry) => /background(?:-color)?:\s*(?:#fff(?:fff)?|#f8fafc|rgb\(255|rgb\(255 255|white)\b/i.test(entry.text));
+
+    expect(offenders).toEqual([]);
   });
 
   it("keeps light-mode controls and success states readable with semantic tokens", () => {
-    const styles = readFileSync(join(desktopRoot, "src", "renderer", "styles.css"), "utf8");
+    const styles = readProductStyles();
     const selectRule = readCssRule(styles, "select");
     const selectHoverRule = readCssRule(styles, "select:hover");
     const compactFieldRule = readCssRule(styles, ".compact-field");
@@ -159,7 +213,7 @@ describe("UI style system", () => {
   });
 
   it("locks the C1 global visual upgrade into shell, controls and shared surfaces", () => {
-    const styles = readFileSync(join(desktopRoot, "src", "renderer", "styles.css"), "utf8");
+    const styles = readProductStyles();
     const shellLayout = readFileSync(
       join(uiRoot, "src", "shell", "AppShell.tsx"),
       "utf8"
@@ -200,10 +254,11 @@ describe("UI style system", () => {
   });
 
   it("polishes desktop shell details from the latest visual review", () => {
-    const styles = readFileSync(join(desktopRoot, "src", "renderer", "styles.css"), "utf8");
+    const styles = readProductStyles();
     const mainProcess = readFileSync(join(desktopRoot, "src", "main", "main.ts"), "utf8");
     const homeDashboard = readFileSync(join(desktopRoot, "src", "renderer", "features", "home", "HomeDashboard.tsx"), "utf8");
     const aiPanel = readFileSync(join(desktopRoot, "src", "renderer", "components", "AiAnalysisPanel.tsx"), "utf8");
+    const aiAssistantView = readFileSync(join(uiRoot, "src", "assistant", "AiAssistantPanelView.tsx"), "utf8");
 
     expect(mainProcess).toContain('titleBarStyle: "hidden"');
     expect(mainProcess).toContain("titleBarOverlay");
@@ -219,7 +274,8 @@ describe("UI style system", () => {
 
     expect(styles).toMatch(/\.global-assistant-sidebar\s*{[\s\S]*?height:\s*100%;/);
     expect(styles).not.toMatch(/\.global-assistant-sidebar\s*{[\s\S]*?height:\s*100vh;/);
-    expect(aiPanel).toContain("ai-history-session-row");
+    expect(aiPanel).toContain("AiAssistantPanelView");
+    expect(aiAssistantView).toContain("ai-history-session-row");
     expect(styles).toMatch(/\.ai-history-session-row\s*{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1fr\);/);
     expect(styles).toMatch(/\.ai-chat-history \.button-row\s*{[\s\S]*?justify-content:\s*flex-start;/);
 
@@ -228,7 +284,7 @@ describe("UI style system", () => {
   });
 
   it("keeps shell scrolling scoped to workspace panes with fixed titlebar", () => {
-    const styles = readFileSync(join(desktopRoot, "src", "renderer", "styles.css"), "utf8");
+    const styles = readProductStyles();
     const shellScrollbarRule = readCssRule(
       styles,
       ".shell-scroll-area,\n.shell-content,\n.ai-conversation-log,\n.ai-session-drawer,\n.ai-context-drawer"
@@ -265,7 +321,7 @@ describe("UI style system", () => {
   });
 
   it("keeps the AI drawer and main workspace as separate scroll panes", () => {
-    const styles = readFileSync(join(desktopRoot, "src", "renderer", "styles.css"), "utf8");
+    const styles = readProductStyles();
     const shellLayout = readFileSync(
       join(uiRoot, "src", "shell", "AppShell.tsx"),
       "utf8"
@@ -275,6 +331,8 @@ describe("UI style system", () => {
     const assistantPanelRule = readCssRule(styles, ".global-assistant-panel");
     const assistantSidebarRule = readCssRule(styles, ".global-assistant-sidebar");
     const assistantDrawerRule = readCssRule(styles, ".global-assistant-drawer");
+    const darkModeRule = readCssRule(styles, ".app-shell[data-color-mode=\"dark\"]");
+    const assistantMessageRule = readCssRule(styles, ".ai-chat-message");
 
     expect(shellLayout).toContain('<aside className="global-assistant-panel global-assistant-drawer"');
     expect(shellLayout).not.toContain("global-assistant-backdrop");
@@ -285,14 +343,20 @@ describe("UI style system", () => {
     expect(assistantPanelRule).toContain("overflow: hidden");
     expect(assistantPanelRule).toContain("background: var(--drawer-surface)");
     expect(assistantSidebarRule).toContain("overflow-y: auto");
+    expect(assistantSidebarRule).toContain("background: var(--drawer-surface)");
+    expect(assistantDrawerRule).toContain("background: var(--drawer-surface)");
+    expect(darkModeRule).toContain("--drawer-surface: #111720");
+    expect(darkModeRule).toContain("--drawer-header-bg: #121821");
+    expect(darkModeRule).toContain("--drawer-message-assistant-bg: #171d26");
+    expect(assistantMessageRule).toContain("background: var(--drawer-message-assistant-bg)");
     expect(styles).not.toContain(".global-assistant-backdrop");
     expect(assistantDrawerRule).not.toContain("position: fixed");
   });
 
-  it("finishes T9 color migration for high-risk light-mode surfaces", () => {
-    const styles = readFileSync(join(desktopRoot, "src", "renderer", "styles.css"), "utf8");
-    const finalBlockStart = styles.indexOf("/* Desktop UI design system v2 final overrides */");
-    const finalBlockEnd = styles.indexOf("/* End desktop UI design system v2 final overrides */");
+  it("keeps high-risk product surfaces on shared semantic tokens", () => {
+    const styles = readProductStyles();
+    const finalBlockStart = styles.indexOf("/* Canonical product token surface rules. Shared by Prototype, Web and Desktop. */");
+    const finalBlockEnd = styles.indexOf("/* End canonical product token surface rules */");
     expect(finalBlockStart).toBeGreaterThanOrEqual(0);
     expect(finalBlockEnd).toBeGreaterThan(finalBlockStart);
     const finalBlock = styles.slice(finalBlockStart, finalBlockEnd);
@@ -443,7 +507,7 @@ describe("UI style system", () => {
   });
 
   it("keeps dense item surfaces responsive by avoiding animated shadows and movement", () => {
-    const styles = readFileSync(join(desktopRoot, "src", "renderer", "styles.css"), "utf8");
+    const styles = readProductStyles();
     const vaultItemCard = readCssRule(styles, ".vault-item-card");
     const vaultListItem = readCssRule(styles, ".vault-list-item");
     const equipmentItem = readCssRule(styles, ".equipment-item");
@@ -476,7 +540,7 @@ describe("UI style system", () => {
       readFileSync(join(desktopRoot, "src", "renderer", "features", "settings", "SettingsPage.tsx"), "utf8")
     ].join("\n");
     const settingsPageView = readFileSync(join(uiRoot, "src", "settings", "SettingsPageView.tsx"), "utf8");
-    const styles = readFileSync(join(desktopRoot, "src", "renderer", "styles.css"), "utf8");
+    const styles = readProductStyles();
 
     expect(settingsPageView).toContain('className="app-page settings-app-page"');
     expect(settingsPage).not.toContain("app-page-head");
@@ -496,7 +560,7 @@ describe("UI style system", () => {
   });
 
   it("finishes the next UI refactor slices with shared panel, status, list, badge and filter styles", () => {
-    const styles = readFileSync(join(desktopRoot, "src", "renderer", "styles.css"), "utf8");
+    const styles = readProductStyles();
     const settingsPage = [
       readFileSync(join(uiRoot, "src", "settings", "SettingsPageContentView.tsx"), "utf8"),
       readFileSync(join(desktopRoot, "src", "renderer", "features", "settings", "SettingsPage.tsx"), "utf8")

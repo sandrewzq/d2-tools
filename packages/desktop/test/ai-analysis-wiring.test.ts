@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import { readRendererApiContracts } from "./source-readers";
 
 const desktopRoot = fileURLToPath(new URL("..", import.meta.url));
+const repoRoot = fileURLToPath(new URL("../../..", import.meta.url));
 
 describe("desktop AI analysis wiring", () => {
   it("keeps direct chat prompts and context without the deep-advice button flow", () => {
@@ -15,9 +16,14 @@ describe("desktop AI analysis wiring", () => {
     const apiClient = readRendererApiContracts(desktopRoot);
     const preload = readFileSync(join(desktopRoot, "src", "preload", "preload.ts"), "utf8");
     const analysisIpc = readFileSync(join(desktopRoot, "src", "main", "ipc", "analysis.ts"), "utf8");
+    const uiAssistant = readFileSync(
+      join(repoRoot, "packages", "ui", "src", "assistant", "AiAssistantPanelView.tsx"),
+      "utf8"
+    );
 
     expect(panel).toContain("sendAssistantMessage(services");
-    expect(panel).toContain("可以直接问");
+    expect(panel).toContain("AiAssistantPanelView");
+    expect(uiAssistant).toContain("可以直接问");
     expect(panel).not.toContain("AI 深度建议");
     expect(panel).not.toContain("api.generateVaultAiAdvice");
     expect(panel).not.toContain("请基于当前仓库做一次深度分析。");

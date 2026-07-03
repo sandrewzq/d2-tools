@@ -1,17 +1,21 @@
 import { createRoot } from "react-dom/client";
-import { useMemo, useState, type FormEvent } from "react";
+import { useMemo, useState } from "react";
 import {
   AccountPageView,
+  AiAssistantPanelView,
   defaultProductPreferences,
   HomePageView,
   LibraryPageContentView,
   LoadoutsPageContentView,
   ProductShellHost,
-  SettingsPageView,
+  SettingsPageContentView,
   VaultPageView,
   type LibraryEquipmentFilter,
   type LibraryPerkFilter,
   type LibraryViewMode,
+  type AiAssistantContextView,
+  type AiAssistantMessageView,
+  type ShellAssistantMode,
   type ShellPageKey,
   type ShellStatusItem,
 } from "@d2-tools/ui";
@@ -30,7 +34,11 @@ function PrototypeApp() {
   const initialScenario = isPrototypeScenarioKey(env.VITE_D2_VISUAL_SCENARIO)
     ? env.VITE_D2_VISUAL_SCENARIO
     : defaultPrototypeScenarioKey;
+  const initialSettingsSection = isSettingsSectionKey(env.VITE_D2_VISUAL_SETTINGS_SECTION)
+    ? env.VITE_D2_VISUAL_SETTINGS_SECTION
+    : "overview";
   const [activePage, setActivePage] = useState<ShellPageKey>(initialPage);
+  const [assistantMode, setAssistantMode] = useState<ShellAssistantMode>(null);
   const [scenarioKey, setScenarioKey] = useState<PrototypeScenarioKey>(initialScenario);
   const [selectedTemplateId, setSelectedTemplateId] = useState(prototypeLoadoutTemplates[0]?.id ?? "");
   const [compareTemplateId, setCompareTemplateId] = useState(prototypeLoadoutTemplates[1]?.id ?? "");
@@ -42,6 +50,15 @@ function PrototypeApp() {
   const [aliasDraft, setAliasDraft] = useState("ff");
   const [aliasTargetDraft, setAliasTargetDraft] = useState("喂食狂热");
   const [aliasKind, setAliasKind] = useState<"item" | "perk">("perk");
+  const [assistantQuestion, setAssistantQuestion] = useState("");
+  const [assistantMessages, setAssistantMessages] = useState<AiAssistantMessageView[]>(() => [
+    {
+      role: "assistant",
+      text: "我已经读取当前页面上下文，可以按今日重点、仓库清理、配装缺口或资料库来源给出 mock 建议。"
+    }
+  ]);
+  const [isAssistantSessionDrawerOpen, setIsAssistantSessionDrawerOpen] = useState(false);
+  const [isAssistantContextDrawerOpen, setIsAssistantContextDrawerOpen] = useState(false);
   const scenario = prototypeScenarios[scenarioKey];
   const selectedTemplate = prototypeLoadoutTemplates.find((template) => template.id === selectedTemplateId)
     ?? prototypeLoadoutTemplates[0]
@@ -56,21 +73,86 @@ function PrototypeApp() {
       document.documentElement.dataset.colorMode = mode;
     }
   }), []);
+  const assistantContext = useMemo(
+    () => getPrototypeAssistantContext(activePage, scenario.label, scenario.shellStatus),
+    [activePage, scenario.label, scenario.shellStatus]
+  );
+  const assistantContextChip = [
+    `当前页面：${assistantContext.pageLabel}`,
+    `仓库 ${assistantContext.itemCount} 件`,
+    `角色 ${assistantContext.characterCount} 个`,
+    assistantContext.dailyLoaded ? "今日信息已载入" : "今日信息未载入"
+  ].join(" · ");
+
+  function appendPrototypeAssistantReply(prompt: string) {
+    const trimmedPrompt = prompt.trim();
+    if (!trimmedPrompt) return;
+
+    setAssistantMessages((current) => [
+      ...current,
+      { role: "user", text: trimmedPrompt },
+      {
+        role: "assistant",
+        text: getPrototypeAssistantReply(trimmedPrompt, activePage)
+      }
+    ]);
+    setAssistantQuestion("");
+  }
 
   return (
     <ProductShellHost
       activePage={activePage}
       onPageChange={setActivePage}
+      assistantMode={assistantMode}
+      onAssistantModeChange={setAssistantMode}
       initialPreferences={{
         ...defaultProductPreferences,
         colorMode: initialTheme
       }}
       shellStatus={scenario.shellStatus}
       assistantPanel={(
-        <PrototypeAssistantPanel
-          activePage={activePage}
-          scenarioLabel={scenario.label}
-          shellStatus={scenario.shellStatus}
+        <AiAssistantPanelView
+          isConfigured={scenarioKey !== "ai-unconfigured"}
+          sessionTitle="Prototype mock 会话"
+          messages={assistantMessages}
+          question={assistantQuestion}
+          isSending={false}
+          isLoadingAccount={false}
+          hasAccountItems={scenario.hasAccountData}
+          history={[]}
+          activeSessionId={null}
+          isSessionDrawerOpen={isAssistantSessionDrawerOpen}
+          isContextDrawerOpen={isAssistantContextDrawerOpen}
+          contextChip={assistantContextChip}
+          context={assistantContext}
+          quickPrompts={prototypeAssistantPrompts}
+          onQuestionChange={setAssistantQuestion}
+          onSubmit={() => appendPrototypeAssistantReply(assistantQuestion)}
+          onQuickPrompt={appendPrototypeAssistantReply}
+          onLoadAccount={() => undefined}
+          onConfigureAi={() => {
+            setActivePage("settings");
+          }}
+          onClose={() => setAssistantMode(null)}
+          onStartNewSession={() => {
+            setAssistantMessages([]);
+            setAssistantQuestion("");
+            setIsAssistantSessionDrawerOpen(false);
+            setIsAssistantContextDrawerOpen(false);
+          }}
+          onToggleSessionDrawer={() => {
+            setIsAssistantSessionDrawerOpen((current) => !current);
+            setIsAssistantContextDrawerOpen(false);
+          }}
+          onToggleContextDrawer={() => {
+            setIsAssistantContextDrawerOpen((current) => !current);
+            setIsAssistantSessionDrawerOpen(false);
+          }}
+          onOpenContextDrawer={() => setIsAssistantContextDrawerOpen(true)}
+          onCloseContextDrawer={() => setIsAssistantContextDrawerOpen(false)}
+          onClearHistory={() => undefined}
+          onSwitchSession={() => undefined}
+          onDeleteSession={() => undefined}
         />
       )}
       platformActions={platformActions}
@@ -256,7 +338,59 @@ function PrototypeApp() {
             />
           ) : null}
           {activePage === "settings" ? (
-            <SettingsPageView interfaceLocale={preferences.interfaceLocale} />
+            <SettingsPageContentView
+              interfaceLocale={preferences.interfaceLocale}
+              initialSection={initialSettingsSection}
+              message=""
+              error=""
+              diagnosticDataDir="D:\\Users\\Prototype\\AppData\\Roaming\\d2-tools"
+              writeActionsEnabled
+              updateSnapshot={prototypeUpdateSnapshot}
+              manifestStatus={prototypeManifestStatus}
+              manifestStatusError=""
+              isLoadingManifestStatus={false}
+              isInitializingManifest={false}
+              accountSummary={prototypeAccountSummary}
+              accountError={scenario.accountError}
+              isLoadingAccount={false}
+              lastAccountLoadedAt={new Date("2026-07-03T14:18:00+08:00")}
+              isAiConfigured={scenarioKey !== "ai-unconfigured"}
+              backgroundTasks={prototypeBackgroundTasks}
+              actionLog={prototypeActionLog}
+              actionLogResultFilter="all"
+              actionLogTypeFilter="all"
+              aiSettingsPanel={<PrototypeAiSettingsPanel />}
+              onRefreshAccount={() => undefined}
+              onReauthorizeAccount={() => undefined}
+              onOpenDataDir={() => undefined}
+              onWriteActionsEnabledChange={() => undefined}
+              onCheckForUpdates={() => undefined}
+              onDownloadUpdate={() => undefined}
+              onQuitAndInstallUpdate={() => undefined}
+              onOpenUpdateDownloadPage={() => undefined}
+              onCopyUpdateDiagnostic={() => undefined}
+              onRefreshManifestStatus={() => undefined}
+              onInitializeManifest={() => undefined}
+              onRepairManifest={() => undefined}
+              onExportConfig={() => undefined}
+              onImportConfig={() => undefined}
+              onClearCache={() => undefined}
+              onCopyDataBackupGuide={() => undefined}
+              onCopyDiagnosticsExport={() => undefined}
+              onRefreshDiagnostics={() => undefined}
+              onRefreshActionLog={() => undefined}
+              onActionLogResultFilterChange={() => undefined}
+              onActionLogTypeFilterChange={() => undefined}
+              onCopyActionDiagnostic={() => undefined}
+              languagePreferences={{
+                interfaceLocale: preferences.interfaceLocale,
+                bungieLocale: preferences.bungieLocale,
+                followInterfaceLocaleForBungie: preferences.followInterfaceLocaleForBungie
+              }}
+              onLanguagePreferencesChange={() => undefined}
+              onLoadBungieConfig={async () => prototypeBungieConfig}
+              onSaveBungieConfig={async () => undefined}
+            />
           ) : null}
         </>
       )}
@@ -265,125 +399,6 @@ function PrototypeApp() {
 }
 
 createRoot(document.getElementById("root")!).render(<PrototypeApp />);
-
-type PrototypeAssistantMessage = {
-  id: string;
-  role: "user" | "assistant";
-  title: string;
-  body: string;
-  bullets?: string[];
-};
-
-type PrototypeAssistantPanelProps = {
-  activePage: ShellPageKey;
-  scenarioLabel: string;
-  shellStatus: ShellStatusItem[];
-};
-
-function PrototypeAssistantPanel(props: PrototypeAssistantPanelProps) {
-  const [draft, setDraft] = useState("");
-  const [messages, setMessages] = useState<PrototypeAssistantMessage[]>(() => [
-    {
-      id: "assistant-initial",
-      role: "assistant",
-      title: "小日向",
-      body: "我已经读取当前 Prototype 上下文，可以按今日重点、仓库清理、配装缺口或资料库来源给出 mock 建议。",
-      bullets: ["优先处理顶部黄色或红色状态", "首页只放每日 / 每周和账号相关高频信息", "低频设置只在异常时提示"]
-    }
-  ]);
-  const contextRows = getPrototypeAssistantContextRows(props.activePage, props.scenarioLabel, props.shellStatus);
-
-  function appendMockConversation(prompt: string) {
-    const trimmedPrompt = prompt.trim();
-    if (!trimmedPrompt) return;
-
-    setMessages((current) => [
-      ...current,
-      {
-        id: `user-${current.length + 1}`,
-        role: "user",
-        title: "你",
-        body: trimmedPrompt
-      },
-      {
-        id: `assistant-${current.length + 2}`,
-        role: "assistant",
-        title: "小日向",
-        body: getPrototypeAssistantReply(trimmedPrompt, props.activePage),
-        bullets: getPrototypeAssistantBullets(props.activePage)
-      }
-    ]);
-    setDraft("");
-  }
-
-  function handleSend(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    appendMockConversation(draft);
-  }
-
-  return (
-    <section className="prototype-assistant-panel" aria-label="Prototype AI assistant mock">
-      <header className="prototype-assistant-header">
-        <div>
-          <span className="prototype-assistant-eyebrow">Prototype / Mock</span>
-          <h2>小日向</h2>
-          <p>围绕当前页面和顶部状态生成可视化建议，作为真实 AI 抽屉的交互基准。</p>
-        </div>
-        <span className="prototype-assistant-badge">AI</span>
-      </header>
-
-      <section className="assistant-context-card" aria-label="当前上下文">
-        <div className="assistant-section-title">
-          <span>当前上下文</span>
-          <strong>{getPrototypePageLabel(props.activePage)}</strong>
-        </div>
-        <dl>
-          {contextRows.map((row) => (
-            <div key={row.label}>
-              <dt>{row.label}</dt>
-              <dd>{row.value}</dd>
-            </div>
-          ))}
-        </dl>
-      </section>
-
-      <div className="assistant-quick-prompts" aria-label="快捷问题">
-        {prototypeAssistantPrompts.map((prompt) => (
-          <button key={prompt} type="button" onClick={() => appendMockConversation(prompt)}>
-            {prompt}
-          </button>
-        ))}
-      </div>
-
-      <div className="assistant-chat-log" aria-label="mock 对话记录">
-        {messages.map((message) => (
-          <article className={`assistant-chat-message message-${message.role}`} key={message.id}>
-            <strong>{message.title}</strong>
-            <p>{message.body}</p>
-            {message.bullets?.length ? (
-              <ul>
-                {message.bullets.map((bullet) => <li key={bullet}>{bullet}</li>)}
-              </ul>
-            ) : null}
-          </article>
-        ))}
-      </div>
-
-      <form className="assistant-chat-input" onSubmit={handleSend}>
-        <label>
-          <span>输入问题</span>
-          <textarea
-            value={draft}
-            rows={3}
-            onChange={(event) => setDraft(event.target.value)}
-            placeholder="例如：今天先刷什么，或者这套配装缺什么？"
-          />
-        </label>
-        <button type="submit" disabled={!draft.trim()}>发送</button>
-      </form>
-    </section>
-  );
-}
 
 function isShellPageKey(value: string | undefined): value is ShellPageKey {
   return value === "home"
@@ -403,6 +418,41 @@ function isPrototypeScenarioKey(value: string | undefined): value is PrototypeSc
     || value === "ai-unconfigured"
     || value === "account-error"
     || value === "manifest-missing-components";
+}
+
+function isSettingsSectionKey(value: string | undefined): value is "overview" | "language" | "account" | "library" | "bungie" | "ai" | "backup" | "diagnostics" {
+  return value === "overview"
+    || value === "language"
+    || value === "account"
+    || value === "library"
+    || value === "bungie"
+    || value === "ai"
+    || value === "backup"
+    || value === "diagnostics";
+}
+
+function PrototypeAiSettingsPanel() {
+  return (
+    <div className="app-setting-group">
+      <div className="app-setting-row">
+        <div>
+          <strong>AI Provider</strong>
+          <span>Prototype mock：用于验证共享设置页的 AI 配置块。</span>
+        </div>
+        <select defaultValue="openai">
+          <option value="openai">OpenAI Compatible</option>
+          <option value="none">未配置</option>
+        </select>
+      </div>
+      <div className="app-setting-row">
+        <div>
+          <strong>模型</strong>
+          <span>后续由真实设置页保存到本地配置。</span>
+        </div>
+        <input defaultValue="gpt-4.1-mini" />
+      </div>
+    </div>
+  );
 }
 
 const prototypeAssistantPrompts = [
@@ -425,39 +475,61 @@ function getPrototypePageLabel(page: ShellPageKey) {
   return labels[page];
 }
 
-function getPrototypeAssistantContextRows(
+function getPrototypeAssistantContext(
   activePage: ShellPageKey,
   scenarioLabel: string,
   shellStatus: ShellStatusItem[]
-) {
+): AiAssistantContextView {
   const statusValue = (key: NonNullable<ShellStatusItem["key"]>) => {
     const item = shellStatus.find((status) => status.key === key);
     return item ? `${item.label}：${item.value}` : "未提供";
   };
 
-  return [
-    { label: "页面", value: getPrototypePageLabel(activePage) },
-    { label: "状态方案", value: scenarioLabel },
-    { label: "账号", value: statusValue("account") },
-    { label: "资料库", value: statusValue("library") },
-    { label: "后台", value: statusValue("background") }
-  ];
+  return {
+    pageLabel: getPrototypePageLabel(activePage),
+    focus: getPrototypeAssistantFocus(activePage),
+    facts: [
+      `状态方案：${scenarioLabel}`,
+      statusValue("account"),
+      statusValue("library"),
+      statusValue("background")
+    ],
+    itemCount: 496,
+    characterCount: 2,
+    materialCount: 28,
+    dailyLoaded: true
+  };
+}
+
+function getPrototypeAssistantFocus(page: ShellPageKey) {
+  const focus: Record<ShellPageKey, string> = {
+    home: "先看官方可确认的今日 / 本周内容，再处理账号、资料库、应用版本和后台任务状态。",
+    account: "检查角色、仓库和最近活动是否已读取，后续账号切换也应从这里进入。",
+    vault: "从重复同名、目标命中、配装占用和清理候选中找出下一步整理动作。",
+    loadouts: "确认配装缺口、转移计划和可直接应用的装备，避免把状态藏在页面底部。",
+    library: "核对资料库版本、Perk 池、来源状态和公开商人线索。",
+    settings: "只处理低频配置、重新授权、资料库更新、备份迁移和诊断导出。"
+  };
+
+  return focus[page];
 }
 
 function getPrototypeAssistantReply(prompt: string, page: ShellPageKey) {
+  const bullets = getPrototypeAssistantBullets(page);
+  const suffix = bullets.length ? `\n\n下一步：${bullets.join("；")}。` : "";
   if (prompt.includes("仓库")) {
-    return "先从重复同名和无目标命中的装备开始，保留 DIM 命中、配装占用和当前商人可替代项需要复查的装备。";
+    return `先从重复同名和无目标命中的装备开始，保留 DIM 命中、配装占用和当前商人可替代项需要复查的装备。${suffix}`;
   }
   if (prompt.includes("配装")) {
-    return "这套 mock 配装有两件需要处理：一件在仓库待取，一件在当前角色背包，真实实现应拆成补齐和应用两个动作。";
+    return `这套 mock 配装有两件需要处理：一件在仓库待取，一件在当前角色背包，真实实现应拆成补齐和应用两个动作。${suffix}`;
   }
   if (prompt.includes("资料库") || prompt.includes("来源")) {
-    return "资料库页应优先展示来源状态、Perk 池命中和公开商人线索；版本过期时只提示更新，不把配置细节常驻在首页。";
+    return `资料库页应优先展示来源状态、Perk 池命中和公开商人线索；版本过期时只提示更新，不把配置细节常驻在首页。${suffix}`;
   }
   if (page === "home") {
-    return "首页建议先看今日 / 本周官方可确认内容，再处理账号、资料库、应用版本这类顶部状态异常。";
+    return `首页建议先看今日 / 本周官方可确认内容，再处理账号、资料库、应用版本这类顶部状态异常。${suffix}`;
   }
-  return "我会按当前页面上下文给出下一步：先处理高风险状态，再看能直接行动的按钮，最后检查低频设置。";
+  return `我会按当前页面上下文给出下一步：先处理高风险状态，再看能直接行动的按钮，最后检查低频设置。${suffix}`;
 }
 
 function getPrototypeAssistantBullets(page: ShellPageKey) {
@@ -702,7 +774,60 @@ const prototypeManifestStatus = {
   version: "DestinyInventoryItemDefinition.26.06.16.0000",
   latest_version: "DestinyInventoryItemDefinition.26.06.16.0000",
   needs_update: false,
+  cached_at: "2026-06-16T17:00:00.000Z",
+  checked_at: "2026-07-03T14:18:00+08:00",
   missing_required_components: []
+};
+
+const prototypeUpdateSnapshot = {
+  status: "not_available",
+  current_version: "0.0.10",
+  available_version: null,
+  downloaded_version: null,
+  progress_percent: undefined,
+  last_checked_at: "2026-07-03T14:18:00+08:00",
+  update_source_label: "GitHub Release",
+  user_message: "当前已是最新版本。",
+  error: ""
+};
+
+const prototypeBackgroundTasks = [
+  {
+    id: "manifest-check",
+    title: "资料库检查",
+    status: "succeeded",
+    message: "Prototype mock：资料库已是最新。",
+    created_at: "2026-07-03T14:10:00+08:00",
+    updated_at: "2026-07-03T14:18:00+08:00"
+  }
+];
+
+const prototypeActionLog = [
+  {
+    id: "action-1",
+    created_at: "2026-07-03T14:12:00+08:00",
+    action: "transfer",
+    item_name: "精准手炮",
+    ok: true,
+    message: "Prototype mock：已生成仓库转移计划。"
+  },
+  {
+    id: "action-2",
+    created_at: "2026-07-03T14:13:00+08:00",
+    action: "loadout-equip",
+    item_name: "宗师夜幕安全位",
+    ok: false,
+    message: "Prototype mock：缺少仓库待取装备。"
+  }
+];
+
+const prototypeBungieConfig = {
+  bungie: {
+    api_key: "prototype-api-key",
+    client_id: "prototype-client-id",
+    client_secret: "prototype-client-secret",
+    redirect_uri: "https://127.0.0.1:28780/oauth/callback"
+  }
 };
 
 const prototypeVaultItems = [

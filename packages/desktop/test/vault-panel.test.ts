@@ -912,7 +912,7 @@ describe("vault panel helpers", () => {
   it("renders vault items as card-grid equipment tiles", () => {
     const itemSections = readFileSync("packages/desktop/src/renderer/features/vault/VaultItemSections.tsx", "utf8");
     const listItem = readFileSync("packages/desktop/src/renderer/features/vault/VaultListItem.tsx", "utf8");
-    const styles = readFileSync("packages/desktop/src/renderer/styles.css", "utf8");
+    const styles = readFileSync("packages/ui/src/styles.css", "utf8");
 
     expect(itemSections).toContain("vault-card-grid");
     expect(itemSections).not.toContain("className=\"vault-list\"");
@@ -965,7 +965,7 @@ describe("vault panel helpers", () => {
     const listItem = readFileSync("packages/desktop/src/renderer/features/vault/VaultListItem.tsx", "utf8");
     const organizePanel = readFileSync("packages/desktop/src/renderer/features/vault/VaultOrganizePanel.tsx", "utf8");
     const selection = readFileSync("packages/desktop/src/renderer/features/vault/vaultSelection.ts", "utf8");
-    const styles = readFileSync("packages/desktop/src/renderer/styles.css", "utf8");
+    const styles = readFileSync("packages/ui/src/styles.css", "utf8");
 
     expect(coreTags).toContain('"farm"');
     expect(coreTags).toContain('"loadout"');

@@ -20,6 +20,9 @@
     "dev:prototype": "pnpm --filter @d2-tools/prototype dev",
     "dev:web": "pnpm --filter @d2-tools/web dev",
     "visual:home": "node scripts/visual-home-check.mjs",
+    "visual:ai": "node scripts/visual-ai-check.mjs",
+    "visual:all": "node scripts/visual-all-check.mjs",
+    "visual:loadouts": "node scripts/visual-home-check.mjs --page loadouts",
     "visual:settings": "node scripts/visual-home-check.mjs --page settings",
     "build": "pnpm -r build",
     "check": "pnpm docs:check && git diff --check",
@@ -47,6 +50,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
+    "playwright": "^1.61.1",
     "typescript": "^5.7.2",
     "vitest": "^2.1.8"
   }

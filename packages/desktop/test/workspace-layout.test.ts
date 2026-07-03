@@ -8,7 +8,7 @@ const uiRoot = join(process.cwd(), "packages", "ui");
 
 describe("desktop workspace layout", () => {
   it("uses a wide shell content area for desktop workspaces", () => {
-    const styles = readFileSync(join(desktopRoot, "src", "renderer", "styles.css"), "utf8");
+    const styles = readFileSync(join(desktopRoot, "..", "ui", "src", "styles.css"), "utf8");
 
     expect(styles).toMatch(/\.shell-content\s*{[\s\S]*?width:\s*100%;/);
     expect(styles).toMatch(/\.shell-content\s*{[\s\S]*?max-width:\s*none;/);
@@ -19,7 +19,7 @@ describe("desktop workspace layout", () => {
     const homeRoutes = readFileSync(join(desktopRoot, "src", "renderer", "pages", "HomePageRoutes.tsx"), "utf8");
     const homeDashboard = readFileSync(join(uiRoot, "src", "home", "HomePageView.tsx"), "utf8");
     const homeCopy = readFileSync(join(uiRoot, "src", "i18n", "copy.ts"), "utf8");
-    const styles = readFileSync(join(desktopRoot, "src", "renderer", "styles.css"), "utf8");
+    const styles = readFileSync(join(desktopRoot, "..", "ui", "src", "styles.css"), "utf8");
     const dailyPage = readFileSync(join(desktopRoot, "src", "renderer", "features", "daily", "DailyPage.tsx"), "utf8");
 
     expect(homePage).toContain("<HomePageRoutes");
@@ -142,7 +142,7 @@ describe("desktop workspace layout", () => {
     const homeDashboard = readFileSync(join(desktopRoot, "src", "renderer", "features", "home", "HomeDashboard.tsx"), "utf8");
     const statusOverview = readFileSync(join(desktopRoot, "src", "renderer", "components", "StatusOverview.tsx"), "utf8");
     const statusCard = readFileSync(join(desktopRoot, "src", "renderer", "components", "StatusCard.tsx"), "utf8");
-    const styles = readFileSync(join(desktopRoot, "src", "renderer", "styles.css"), "utf8");
+    const styles = readFileSync(join(desktopRoot, "..", "ui", "src", "styles.css"), "utf8");
 
     expect(homePage).toContain("accountError");
     expect(homePage).toContain("hasAccountData: Boolean(accountSummary)");
@@ -174,10 +174,10 @@ describe("desktop workspace layout", () => {
     const itemDetailModal = readItemDetailSources(desktopRoot);
     const aiPanel = readFileSync(join(desktopRoot, "src", "renderer", "components", "AiAnalysisPanel.tsx"), "utf8");
     const diagnosticsPanel = readFileSync(join(desktopRoot, "src", "renderer", "components", "DiagnosticsPanel.tsx"), "utf8");
-    const styles = readFileSync(join(desktopRoot, "src", "renderer", "styles.css"), "utf8");
+    const styles = readFileSync(join(desktopRoot, "..", "ui", "src", "styles.css"), "utf8");
     const finalBlock = styles.slice(
-      styles.indexOf("/* Desktop UI design system v2 final overrides */"),
-      styles.indexOf("/* End desktop UI design system v2 final overrides */")
+      styles.indexOf("/* Canonical product token surface rules. Shared by Prototype, Web and Desktop. */"),
+      styles.indexOf("/* End canonical product token surface rules */")
     );
 
     expect(itemDetailModal).toContain('className="source-status-list source-status-warning"');
@@ -206,7 +206,7 @@ describe("desktop workspace layout", () => {
   });
 
   it("collapses workbench and chat columns on narrow screens", () => {
-    const styles = readFileSync(join(desktopRoot, "src", "renderer", "styles.css"), "utf8");
+    const styles = readFileSync(join(desktopRoot, "..", "ui", "src", "styles.css"), "utf8");
 
     expect(styles).toMatch(
       /@media \(max-width:\s*760px\)\s*{[\s\S]*?\.app-page-head,[\s\S]*?\.app-info-strip,[\s\S]*?\.app-status-row,[\s\S]*?\.app-setting-row,[\s\S]*?\.app-health-grid,[\s\S]*?\.app-metric-grid,[\s\S]*?\.home-card-grid\s*{[\s\S]*?grid-template-columns:\s*1fr;/,

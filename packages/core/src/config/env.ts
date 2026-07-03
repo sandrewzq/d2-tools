@@ -22,7 +22,7 @@ export function applyEnvOverrides(config: D2Config, env: ConfigEnv): D2Config {
       force_lightgg: parseBooleanEnv(env.AI_FORCE_LIGHTGG, config.ai.force_lightgg ?? false)
     },
     features: {
-      color_mode: config.features.color_mode,
+      color_mode: parseColorModeEnv(env.D2_COLOR_MODE, config.features.color_mode),
       interface_locale: parseInterfaceLocaleEnv(env.D2_INTERFACE_LOCALE, config.features.interface_locale),
       manifest_language_follows_interface: parseBooleanEnv(
         env.D2_MANIFEST_LANGUAGE_FOLLOWS_INTERFACE,
@@ -34,6 +34,14 @@ export function applyEnvOverrides(config: D2Config, env: ConfigEnv): D2Config {
       )
     }
   };
+}
+
+function parseColorModeEnv(value: string | undefined, fallback: D2Config["features"]["color_mode"]): D2Config["features"]["color_mode"] {
+  if (value === "light" || value === "dark") {
+    return value;
+  }
+
+  return fallback;
 }
 
 function parseBooleanEnv(value: string | undefined, fallback: boolean): boolean {

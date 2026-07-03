@@ -27,7 +27,7 @@ describe("desktop product redesign wiring", () => {
     const libraryView = readUiFile("library/LibraryPageView.tsx");
     const libraryContent = readUiFile("library/LibraryPageContentView.tsx");
     const settingsPage = `${readUiFile("settings/SettingsPageView.tsx")}\n${readUiFile("settings/SettingsPageContentView.tsx")}\n${readRendererFile("features/settings/SettingsPage.tsx")}`;
-    const styles = readRendererFile("styles.css");
+    const styles = readUiFile("styles.css");
 
     expect(homeDashboard).toContain("app-page home-app-page");
     expect(homeDashboard).not.toContain("app-page-head");

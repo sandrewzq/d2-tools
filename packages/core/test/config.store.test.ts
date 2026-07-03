@@ -172,12 +172,14 @@ describe("config store", () => {
       dataDir: dir,
       env: {
         BUNGIE_API_KEY: "from-env",
-        D2_MANIFEST_LANGUAGE: "en"
+        D2_MANIFEST_LANGUAGE: "en",
+        D2_COLOR_MODE: "dark"
       }
     });
 
     expect(loaded.bungie.api_key).toBe("from-env");
     expect(loaded.data.manifest_language).toBe("en");
+    expect(loaded.features.color_mode).toBe("dark");
   });
 
   it("keeps defaults for missing fields in a partial config file", () => {

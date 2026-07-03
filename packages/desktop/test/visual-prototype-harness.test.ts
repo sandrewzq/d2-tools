@@ -3,10 +3,13 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const repoRoot = process.cwd();
-const desktopRoot = join(repoRoot, "packages", "desktop");
 
 function read(path: string): string {
   return readFileSync(join(repoRoot, path), "utf8");
+}
+
+function readProductStyles(): string {
+  return read("packages/ui/src/styles.css");
 }
 
 describe("visual prototype harness", () => {
@@ -16,6 +19,7 @@ describe("visual prototype harness", () => {
 
     expect(packageJson).toContain('"visual:home"');
     expect(packageJson).toContain('"visual:settings"');
+    expect(packageJson).toContain('"visual:loadouts"');
     expect(packageJson).toContain('"dev:prototype"');
     expect(script).toContain('@d2-tools/prototype');
     expect(script).toContain("capture React prototype reference");
@@ -26,6 +30,7 @@ describe("visual prototype harness", () => {
     expect(script).toContain("D2_VISUAL_CAPTURE_PAGE");
     expect(script).toContain("D2_VISUAL_CAPTURE_DIR");
     expect(script).toContain("D2_VISUAL_CAPTURE_VIEWPORT");
+    expect(script).toContain("D2_COLOR_MODE");
     expect(script).toContain("findAvailablePort(53170)");
     expect(script).toContain("findAvailablePort(53172)");
     expect(script).toContain("reference-dark-1365x900.png");
@@ -36,6 +41,73 @@ describe("visual prototype harness", () => {
     expect(script).toContain("home-weekly-dashboard");
     expect(script).toContain("settings-app-page");
     expect(script).toContain("app-settings-shell");
+    expect(script).toContain("loadout-product-layout");
+    expect(script).toContain("in-game-loadout-slots");
+  });
+
+  it("provides an interactive AI drawer visual check for prototype, web and desktop", () => {
+    const script = read("scripts/visual-ai-check.mjs");
+    const packageJson = read("package.json");
+
+    expect(packageJson).toContain('"visual:ai"');
+    expect(packageJson).toContain('"playwright"');
+    expect(script).toContain("@d2-tools/prototype");
+    expect(script).toContain("@d2-tools/web");
+    expect(script).toContain("@d2-tools/desktop");
+    expect(script).toContain("_electron");
+    expect(script).toContain("D2_RENDERER_URL");
+    expect(script).toContain("D2_COLOR_MODE");
+    expect(script).toContain("shell-tool-ai");
+    expect(script).toContain("data-color-mode");
+    expect(script).toContain("shell-tool-theme");
+    expect(script).toContain("AI 助手");
+    expect(script).toContain("PrototypeAssistantPanel");
+    expect(script).toContain("Web AI 助手入口待接入");
+    expect(script).toContain("小日向");
+    expect(script).toContain("prototype-ai-dark-1365x900.png");
+    expect(script).toContain("web-ai-dark-1365x900.png");
+    expect(script).toContain("desktop-ai-dark-1365x900.png");
+    expect(script).toContain("report.json");
+    expect(script).toContain("drawerStyles");
+    expect(script).toContain("assertDarkDrawerStyles");
+    expect(script).toContain("global-assistant-panel background");
+  });
+
+  it("provides a full visual matrix scanner across shells, pages, themes and settings sections", () => {
+    const script = read("scripts/visual-all-check.mjs");
+    const packageJson = read("package.json");
+
+    expect(packageJson).toContain('"visual:all"');
+    expect(script).toContain("@d2-tools/prototype");
+    expect(script).toContain("@d2-tools/web");
+    expect(script).toContain("@d2-tools/desktop");
+    expect(script).toContain("_electron");
+    expect(script).toContain('const pages = ["home", "account", "vault", "loadouts", "library", "settings"]');
+    expect(script).toContain('const settingsSections = ["overview", "language", "account", "library", "bungie", "ai", "backup", "diagnostics"]');
+    expect(script).toContain('const themes = ["light", "dark"]');
+    expect(script).toContain("scanVisibleElementStyles");
+    expect(script).toContain("assertNoLargeLightBackgrounds");
+    expect(script).toContain("assertReadableTextContrast");
+    expect(script).toContain("allowedLightBackgroundSelectors");
+    expect(script).toContain("computedStyles");
+    expect(script).toContain("fullPage: true");
+    expect(script).toContain("report.json");
+  });
+
+  it("fails visual checks instead of forcing the DOM when the requested color mode is not active", () => {
+    const aiScript = read("scripts/visual-ai-check.mjs");
+    const homeScript = read("scripts/visual-home-check.mjs");
+    const mainProcess = read("packages/desktop/src/main/main.ts");
+    const webEntry = read("packages/web/src/main.tsx");
+
+    expect(aiScript).toContain("color mode mismatch");
+    expect(aiScript).not.toContain("setAttribute(\"data-color-mode\"");
+    expect(homeScript).toContain("assertVisualReportColorMode");
+    expect(homeScript).toContain("colorMode");
+    expect(mainProcess).toContain("colorMode:");
+    expect(mainProcess).toContain("document.querySelector(\".app-shell\")?.getAttribute(\"data-color-mode\")");
+    expect(webEntry).toContain("VITE_D2_VISUAL_THEME");
+    expect(webEntry).toContain("colorMode: initialTheme");
   });
 
   it("lets Electron capture the real app with computed styles for visual review", () => {
@@ -59,10 +131,10 @@ describe("visual prototype harness", () => {
   it("keeps home prototype classes isolated from global status overrides", () => {
     const homeDashboard = read("packages/desktop/src/renderer/features/home/HomeDashboard.tsx");
     const homePageView = read("packages/ui/src/home/HomePageView.tsx");
-    const styles = read("packages/desktop/src/renderer/styles.css");
-    const finalOverrideBlock = styles.slice(
-      styles.indexOf("/* Desktop UI design system v2 final overrides */"),
-      styles.indexOf("/* End desktop UI design system v2 final overrides */")
+    const styles = readProductStyles();
+    const canonicalBlock = styles.slice(
+      styles.indexOf("/* Canonical product token surface rules. Shared by Prototype, Web and Desktop. */"),
+      styles.indexOf("/* End canonical product token surface rules */")
     );
 
     expect(homeDashboard).toContain("<HomePageView {...props} />");
@@ -74,13 +146,13 @@ describe("visual prototype harness", () => {
     expect(homePageView).not.toContain("status-${card.tone}");
     expect(homePageView).toContain("data-tone={point.tone}");
     expect(homePageView).toContain("data-tone={item.tone}");
-    expect(finalOverrideBlock).not.toContain(".status-ready {");
-    expect(finalOverrideBlock).not.toContain(".status-warning {");
+    expect(canonicalBlock).not.toContain(".status-ready {");
+    expect(canonicalBlock).not.toContain(".status-warning {");
   });
 
   it("keeps settings diagnostics aligned with the prototype shell", () => {
     const settingsPage = `${read("packages/ui/src/settings/SettingsPageContentView.tsx")}\n${read("packages/ui/src/i18n/copy.ts")}\n${read("packages/desktop/src/renderer/features/settings/SettingsPage.tsx")}`;
-    const styles = read("packages/desktop/src/renderer/styles.css");
+    const styles = readProductStyles();
     const diagnosticsSection = settingsPage.slice(
       settingsPage.indexOf('id="settings-diagnostics"'),
       settingsPage.indexOf("</section>\n        </div>", settingsPage.indexOf('id="settings-diagnostics"'))
@@ -135,7 +207,7 @@ describe("visual prototype harness", () => {
     expect(prototypeEntry).toContain("ProductShellHost");
     expect(prototypeEntry).toContain("HomePageView");
     expect(prototypeEntry).toContain("AccountPageView");
-    expect(prototypeEntry).toContain("SettingsPageView");
+    expect(prototypeEntry).toContain("SettingsPageContentView");
     expect(prototypeEntry).toContain("prototype-controls");
     expect(prototypeEntry).toContain("PrototypeScenarioKey");
     expect(prototypeScenarios).toContain("ready");
@@ -197,7 +269,7 @@ describe("visual prototype harness", () => {
   it("keeps the desktop shell status bar aligned with the prototype", () => {
     const homePage = read("packages/desktop/src/renderer/pages/HomePage.tsx");
     const appShell = read("packages/ui/src/shell/AppShell.tsx");
-    const styles = read("packages/desktop/src/renderer/styles.css");
+    const styles = readProductStyles();
     const shellStatusBuilder = homePage.slice(
       homePage.indexOf("function buildShellStatus"),
       homePage.indexOf("function formatAccountShellStatus")
@@ -248,7 +320,7 @@ describe("visual prototype harness", () => {
   });
 
   it("maps prototype tokens into both light and dark desktop modes", () => {
-    const styles = readFileSync(join(desktopRoot, "src", "renderer", "styles.css"), "utf8");
+    const styles = readProductStyles();
 
     expect(styles).toContain("--prototype-page:");
     expect(styles).toContain("--prototype-panel:");
@@ -261,5 +333,22 @@ describe("visual prototype harness", () => {
     expect(styles).toMatch(/\.app-shell\[data-color-mode="dark"\]\s*{[\s\S]*?--surface-subtle:\s*#1b222c;/);
     expect(styles).toMatch(/\.home-data-strip\s*{[\s\S]*?background:\s*var\(--prototype-panel\);/);
     expect(styles).toMatch(/\.home-data-point\s*{[\s\S]*?background:\s*transparent;/);
+  });
+
+  it("keeps product styles in packages/ui instead of the Desktop renderer stylesheet", () => {
+    const desktopEntry = read("packages/desktop/src/renderer/main.tsx");
+    const desktopStyles = read("packages/desktop/src/renderer/styles.css");
+    const productStyles = readProductStyles();
+
+    expect(desktopEntry).toContain('import "@d2-tools/ui/styles.css"');
+    expect(desktopStyles).toContain("Electron-only platform adjustments");
+    expect(desktopStyles).not.toContain(".shell-titlebar");
+    expect(desktopStyles).not.toContain(".home-app-page");
+    expect(desktopStyles).not.toContain(".settings-app-page");
+    expect(productStyles).toContain(".shell-titlebar");
+    expect(productStyles).toContain(".home-app-page");
+    expect(productStyles).toContain(".settings-app-page");
+    expect(productStyles).not.toContain("Light mode legacy surface compatibility");
+    expect(productStyles).not.toContain("Desktop UI design system v2 final overrides");
   });
 });

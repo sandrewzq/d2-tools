@@ -31,7 +31,7 @@ describe("item note wiring", () => {
   it("renders local item tag controls directly in the detail modal", () => {
     const itemDetailHook = readFileSync(join(desktopRoot, "src", "renderer", "shared", "hooks", "useItemDetailWorkspace.ts"), "utf8");
     const itemDetailModal = readItemDetailSources(desktopRoot);
-    const styles = readFileSync(join(desktopRoot, "src", "renderer", "styles.css"), "utf8");
+    const styles = readFileSync(join(desktopRoot, "..", "ui", "src", "styles.css"), "utf8");
 
     expect(itemDetailHook).toContain("saveSelectedItemTag");
     expect(itemDetailModal).toContain("<ItemLocalTagPanel");

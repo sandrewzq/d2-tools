@@ -41,7 +41,7 @@ describe("loadout library UI", () => {
     const loadoutsContent = readFileSync(join(uiRoot, "src", "loadouts", "LoadoutsPageContentView.tsx"), "utf8");
     const loadoutsWorkspace = readFileSync(join(appRoot, "src", "workspaces", "loadoutsPage.ts"), "utf8");
     const viewModel = readFileSync(join(appRoot, "src", "workspaces", "loadoutViewModel.ts"), "utf8");
-    const styles = readFileSync(join(desktopRoot, "src", "renderer", "styles.css"), "utf8");
+    const styles = readFileSync(join(desktopRoot, "..", "ui", "src", "styles.css"), "utf8");
 
     expect(loadoutsContent).toContain("loadout-compare-grid");
     expect(loadoutsContent).toContain("loadout-compare-row");
@@ -92,7 +92,7 @@ describe("loadout library UI", () => {
   it("adds a compact status summary for local loadout review", () => {
     const loadoutsContent = readFileSync(join(uiRoot, "src", "loadouts", "LoadoutsPageContentView.tsx"), "utf8");
     const loadoutsWorkspace = readFileSync(join(appRoot, "src", "workspaces", "loadoutsPage.ts"), "utf8");
-    const styles = readFileSync(join(desktopRoot, "src", "renderer", "styles.css"), "utf8");
+    const styles = readFileSync(join(desktopRoot, "..", "ui", "src", "styles.css"), "utf8");
 
     expect(loadoutsWorkspace).toContain("summarizeLoadoutItemStatuses");
     expect(loadoutsContent).toContain("loadout-status-summary");
@@ -106,7 +106,7 @@ describe("loadout library UI", () => {
     const homeWriteHook = readFileSync(join(desktopRoot, "src", "renderer", "pages", "useHomePageWriteActions.ts"), "utf8");
     const loadoutsContent = readFileSync(join(uiRoot, "src", "loadouts", "LoadoutsPageContentView.tsx"), "utf8");
     const feedbackHook = readFileSync(join(desktopRoot, "src", "renderer", "features", "loadouts", "useLoadoutActionFeedback.ts"), "utf8");
-    const styles = readFileSync(join(desktopRoot, "src", "renderer", "styles.css"), "utf8");
+    const styles = readFileSync(join(desktopRoot, "..", "ui", "src", "styles.css"), "utf8");
     const helper = readFileSync(join(desktopRoot, "src", "renderer", "utils", "loadoutActionFeedback.ts"), "utf8");
 
     expect(homePage).toContain("useHomePageWriteActions");
@@ -191,4 +191,30 @@ describe("loadout library UI", () => {
     expect(homePage).toContain("onEquipSavedLoadout: (character, slot)");
     expect(homePage).toContain("onSnapshotCurrentLoadout: (character, slot)");
   });
+
+  it("keeps prototype loadout surfaces on dark-mode semantic tokens", () => {
+    const styles = readFileSync(join(uiRoot, "src", "styles.css"), "utf8");
+    const loadoutSurfaceRule = readCssRule(styles, ".in-game-loadout-slots,\n.loadout-template-list,\n.loadout-template-detail,\n.daily-source.source-ready");
+    const actionLogOkRule = readCssRule(styles, ".action-log-row.log-ok");
+
+    expect(loadoutSurfaceRule).toContain("background: var(--surface-panel)");
+    expect(loadoutSurfaceRule).toContain("color: var(--text-body)");
+    expect(actionLogOkRule).toContain("background: var(--status-ready-bg)");
+    expect(loadoutSurfaceRule).not.toContain("#ffffff");
+    expect(loadoutSurfaceRule).not.toContain("#f8fafc");
+  });
 });
+
+function readCssRule(styles: string, selector: string): string {
+  const needle = selector.includes("\n") ? `${selector} {` : `\n${selector} {`;
+  let start = styles.indexOf(needle);
+  if (start >= 0 && !selector.includes("\n")) {
+    start += 1;
+  } else if (start < 0 && styles.startsWith(`${selector} {`)) {
+    start = 0;
+  }
+  expect(start).toBeGreaterThanOrEqual(0);
+  const end = styles.indexOf("}", start);
+  expect(end).toBeGreaterThan(start);
+  return styles.slice(start, end + 1);
+}

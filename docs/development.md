@@ -47,6 +47,7 @@ docs/        正式文档
   - 负责共享 React UI、产品级 UI Host、设计系统 token 和 i18n copy
   - 不直接依赖 Electron、Web 部署、移动原生能力或 `window.d2`
   - 页面组件只接收 ViewModel、props 和 callback，真实数据由平台 adapter 提供
+  - `src/styles.css` 是 Prototype、Web、Desktop 共用的唯一产品级样式入口；颜色、间距、页面布局、暗色模式和通用状态样式不得再落到平台壳私有 CSS
 
 - `packages/prototype`
   - 负责可交互 React 原型，使用 mock 数据和 mock adapter
@@ -66,6 +67,7 @@ docs/        正式文档
 - `packages/desktop`
   - 负责 Electron 主进程、preload、IPC、窗口、本地文件和安装更新等系统能力
   - Renderer 中仍未迁出的页面逻辑继续按 feature 边界维护，平台无关 UI 逐步迁入 `packages/ui`
+  - Renderer 入口必须导入 `@d2-tools/ui/styles.css`；`packages/desktop/src/renderer/styles.css` 只允许保留 Electron 平台级调整，不承载产品页面样式
 
 ### 2.2 Renderer feature 边界
 
@@ -102,7 +104,9 @@ docs/        正式文档
 4. 如果先在 prototype 中探索 UI，确认后必须迁入 `packages/ui`，再让 Prototype / Web / Desktop 共同消费。
 5. `ProductShellHost` 是产品外壳统一入口；Prototype / Web / Desktop 都应挂同一个 Host。不得重新引入 Desktop 或 Web 专用 shell wrapper 来复制页面结构。
 6. 顶部状态条等跨端状态对象必须使用稳定 key 做样式和逻辑判断，例如 `account`、`library`、`app-version`；本地化后的 `label` 只用于显示，不能参与逻辑判断。
-7. 改 `packages/ui` 后，至少运行相关共享 UI 测试和消费者类型检查；影响首页或设置页视觉时运行 `visual:home` 或 `visual:settings`。
+7. 全局 AI 抽屉等产品级辅助面板也属于共享 UI：`assistantPanel` 不允许各端长期自建标题、对话结构或占位页面，必须复用 `packages/ui` 的 AI Assistant View；Desktop / Prototype / Web 只提供真实服务 adapter 或 mock 数据。
+8. 改 `packages/ui` 后，至少运行相关共享 UI 测试和消费者类型检查；影响首页或设置页视觉时运行 `visual:home` 或 `visual:settings`；影响全局 AI 抽屉时运行 `visual:ai`，它会实际点击 Prototype / Web / Desktop 顶部 AI 并检查共享抽屉标题、旧占位文案和截图。跨页面、主题 token、暗色模式或共享样式大改后运行 `visual:all`，它会遍历 Prototype / Web / Desktop、明暗主题、主菜单和设置分区，并对 `.app-shell` 可见 DOM 做 computed style 扫描。
+9. 产品样式不得再复制到 Desktop 私有样式文件；需要新增 class、token、暗色规则或页面布局时，直接修改 `packages/ui/src/styles.css`。Desktop 私有 CSS 只能放窗口、拖拽区或 Electron 特有平台差异。
 
 常见改动归属：
 
@@ -117,14 +121,14 @@ docs/        正式文档
 ### 2.5 Renderer UI 样式系统
 
 - 桌面端 UI 按“页面底层 / 主面板 / 子块或列表项”三层组织；页面必须有主工作区，辅助信息和低频信息下沉。
-- 全局样式 token 定义在 `packages/desktop/src/renderer/styles.css` 的 `:root`：间距使用 `--space-8/12/16/24/32`，圆角使用 `--radius-control/panel/pill`，颜色使用 `--surface-*`、`--border-*`、`--text-*` 和 `--status-*`。
-- 桌面 UI 设计系统 v2 继续补齐 `--field-*`、`--chip-*`、`--item-*`、`--drawer-*` 和 `--game-*` token：普通桌面 UI 必须使用 field / chip / item / drawer 语义色，`--game-*` 只用于装备详情顶部等明确游戏视觉区域。
+- 全局样式 token 定义在 `packages/ui/src/styles.css` 的 `:root` 和 `.app-shell[data-color-mode]`：间距使用 `--space-8/12/16/24/32`，圆角使用 `--radius-control/panel/pill`，颜色使用 `--surface-*`、`--border-*`、`--text-*` 和 `--status-*`。
+- 共享 UI 设计系统继续补齐 `--field-*`、`--chip-*`、`--item-*`、`--drawer-*` 和 `--game-*` token：普通产品 UI 必须使用 field / chip / item / drawer 语义色，`--game-*` 只用于装备详情顶部等明确游戏视觉区域。
 - AI 抽屉是桌面外壳的独立 pane：`.shell-content` 和 `.global-assistant-panel` 各自滚动，抽屉不得再用 fixed 遮罩覆盖主工作区。
 - 明暗色模式由 `config.json` 的 `features.color_mode` 持久化，默认 `light`；桌面启动状态必须携带保存的颜色模式，避免应用重启或覆盖更新后回到默认外观。
 - 新增状态文案统一使用 `status-message status-neutral|pending|ready|warning|error`，不要再在 TSX 中新增 `notice` 或 `error` 类。
 - 新增列表、筛选和对象卡片优先复用 `ui-list-row`、`ui-filter-toolbar`、`ui-item-card`、`ui-badge`；设置页或工具区子块优先复用 `panel-subsection`。
 - `tool-panel` 是主面板层；不要把普通说明块做成嵌套大卡片。装备详情顶部可以保留游戏内视觉语义，但底部工具区继续使用桌面工具样式。
-- `packages/desktop/test/ui-style-system.test.ts` 负责锁定 token、共享样式类、设置页布局和状态语言，防止回到逐页零散修补。
+- `packages/desktop/test/ui-style-system.test.ts` 负责锁定 token、共享样式类、设置页布局、状态语言和 Desktop CSS 平台边界，防止产品样式回流到 Desktop 私有 CSS。
 - 后续 UI 开发以本节和 `packages/desktop/test/ui-style-system.test.ts` 为准，不再维护单独的历史样式规范文档。
 
 ### 2.6 桌面外壳、更新和后台任务
@@ -219,7 +223,7 @@ npx pnpm@9.15.0 dev:electron
 
 1. 开工前先运行 `tools\git-preflight.cmd`，确认当前脏文件属于哪个菜单或共享 lane、建议跑哪个验证命令、是否触碰高冲突文件，以及是否需要 worktree 隔离。
 2. 文档或工具说明改动运行 `npx pnpm@9.15.0 verify:docs`。
-3. 跨端 UI、Prototype 或 Web 改动运行 `npx pnpm@9.15.0 verify:ui`；首页或设置页视觉改动追加 `visual:home` 或 `visual:settings`。
+3. 跨端 UI、Prototype 或 Web 改动运行 `npx pnpm@9.15.0 verify:ui`；首页或设置页视觉改动追加 `visual:home` 或 `visual:settings`，全局 AI 抽屉改动追加 `visual:ai`。如果改动影响共享 CSS token、暗色模式、页面壳或多个菜单，追加 `visual:all`。
 4. Desktop 接线、IPC、preload 或 renderer adapter 改动运行 `npx pnpm@9.15.0 verify:desktop`。
 5. Release / CHANGELOG / 版本脚本改动运行 `npx pnpm@9.15.0 verify:release`，发布前再按需要跑全量 `test` 和 `typecheck`。
 6. 如果只改某个领域测试覆盖明确的业务模块，优先跑对应 `vitest --run packages/<pkg>/test/<name>.test.ts`；准备提交或范围变大时再跑 `verify`。
