@@ -32,7 +32,8 @@ describe("desktop product redesign wiring", () => {
 
     expect(homeDashboard).toContain("app-page home-app-page");
     expect(homeDashboard).not.toContain("app-page-head");
-    expect(homePage).toContain('className="page-header"');
+    expect(homePage).toContain("pageHeader={{");
+    expect(homePage).not.toContain('className="page-header"');
     expect(homePage).toContain("刷新今日信息");
     expect(homePage).not.toContain("复制本周重点");
     expect(homeDashboard).toContain("home-data-strip");
@@ -83,6 +84,7 @@ describe("desktop product redesign wiring", () => {
     expect(settingsPage).toContain("资料库");
 
     expect(styles).toContain(".app-page-head");
+    expect(styles).toContain(".product-page-header");
     expect(styles).toContain(".app-panel");
     expect(styles).toContain(".app-metric");
     expect(styles).toContain(".home-data-strip");

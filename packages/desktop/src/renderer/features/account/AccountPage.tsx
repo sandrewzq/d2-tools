@@ -69,6 +69,7 @@ export function AccountPage(props: {
       isBungieConfigured={isBungieConfigured}
       isAccountLoggedIn={isAccountLoggedIn}
       canLoadAccount={isBungieConfigured && isAccountLoggedIn}
+      showInternalHeading={false}
       isLoadoutMatch={matchesLoadoutTemplateItem}
       getAccountPageItemKey={getAccountPageItemKey}
       formatAccountItemMeta={formatAccountItemMeta}

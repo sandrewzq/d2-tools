@@ -52,5 +52,5 @@ export function LibraryPage(props: {
   onAddFavorite: (item: ItemSearchResult | PerkSearchResult) => void;
   onRemoveFavorite: (hash: number) => void;
 }) {
-  return <LibraryPageContentView {...props} />;
+  return <LibraryPageContentView {...props} showInternalHeading={false} />;
 }

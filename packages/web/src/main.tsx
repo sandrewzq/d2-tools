@@ -23,6 +23,7 @@ import {
   createVaultPageWorkspace,
   formatAccountItemMeta,
   getAccountPageItemKey,
+  homePageMetaMap,
   matchesLoadoutTemplateItem
 } from "@d2-tools/app";
 import "@d2-tools/ui/styles.css";
@@ -142,6 +143,7 @@ function WebApp() {
       assistantMode={assistantMode}
       onAssistantModeChange={setAssistantMode}
       shellStatus={snapshot.shellStatus}
+      pageHeader={getWebPageHeader}
       assistantPanel={(
         <AiAssistantPanelView
           isConfigured
@@ -194,24 +196,15 @@ function WebApp() {
       renderPage={(activePage, preferences) => (
         <>
           {activePage === "home" ? (
-            <>
-              <header className="page-header">
-                <div>
-                  <h2>今日工作台</h2>
-                  <p>先看官方可确认的今日 / 本周内容，再处理商人、账号和仓库提醒。</p>
-                </div>
-                <button type="button" className="secondary-button">刷新今日信息</button>
-              </header>
-              <HomePageView
-                interfaceLocale={preferences.interfaceLocale}
-                state={snapshot.homeState}
-                accountError=""
-                diagnosticRows={[{ tone: "warning" }]}
-                dailySummary={snapshot.homeDailySummary}
-                onCopyDailySummary={() => undefined}
-                onRefreshDiagnostics={() => undefined}
-              />
-            </>
+            <HomePageView
+              interfaceLocale={preferences.interfaceLocale}
+              state={snapshot.homeState}
+              accountError=""
+              diagnosticRows={[{ tone: "warning" }]}
+              dailySummary={snapshot.homeDailySummary}
+              onCopyDailySummary={() => undefined}
+              onRefreshDiagnostics={() => undefined}
+            />
           ) : null}
           {activePage === "account" ? (
             <AccountPageContentView
@@ -226,6 +219,7 @@ function WebApp() {
               canLoadAccount
               isLoadingAccount={false}
               accountError=""
+              showInternalHeading={false}
               itemDetailError=""
               itemDetailLoadingKey=""
               writeActionsEnabled={false}
@@ -257,6 +251,7 @@ function WebApp() {
               highlightedLabel={vaultWorkspace.activeLoadoutName}
               tags={vaultWorkspace.tags}
               openingItemKey=""
+              showInternalHeading={false}
               wishlist={vaultWorkspace.wishlist}
               localTargetRules={vaultWorkspace.targetRules}
               communityMatch={vaultWorkspace.communityMatch}
@@ -292,6 +287,7 @@ function WebApp() {
               renameDraft={renameDraft}
               showDiffOnly={showDiffOnly}
               message="Web mock：共享配装页已接入，真实 provider 后续替换数据源。"
+              showInternalHeading={false}
               isRunningItemAction={false}
               actionFeedback={{}}
               getItemStatus={getWebLoadoutItemStatus}
@@ -345,6 +341,7 @@ function WebApp() {
               isLoadingManifestStatus={false}
               isInitializingManifest={false}
               itemDetailLoadingKey=""
+              showInternalHeading={false}
               onViewModeChange={setLibraryViewMode}
               onEquipmentFiltersChange={(patch) => setEquipmentFilters((current) => ({ ...current, ...patch }))}
               onPerkFiltersChange={(patch) => setPerkFilters((current) => ({ ...current, ...patch }))}
@@ -426,6 +423,18 @@ function WebApp() {
 }
 
 createRoot(document.getElementById("root")!).render(<WebApp />);
+
+function getWebPageHeader(page: ShellPageKey) {
+  const meta = homePageMetaMap[page];
+
+  return {
+    title: meta.title,
+    subtitle: meta.subtitle,
+    actions: page === "home" ? (
+      <button type="button" className="secondary-button">刷新今日信息</button>
+    ) : null
+  };
+}
 
 function WebAiSettingsPanel() {
   return (

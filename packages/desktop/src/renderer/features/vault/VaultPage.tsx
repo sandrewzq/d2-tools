@@ -72,6 +72,7 @@ export function VaultPage(props: {
         highlightedLabel={workspace.activeLoadoutName}
         tags={workspace.tags}
         openingItemKey={props.openingItemKey}
+        showInternalHeading={false}
         onSaveTagBatch={props.onSaveTagBatch}
         cleanupActions={{
           characters: props.account.characters,

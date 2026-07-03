@@ -81,6 +81,7 @@ export function LibraryPageContentView(props: {
   isLoadingManifestStatus: boolean;
   isInitializingManifest: boolean;
   itemDetailLoadingKey: string;
+  showInternalHeading?: boolean;
   onViewModeChange: (mode: LibraryViewMode) => void;
   onEquipmentFiltersChange: (patch: Partial<LibraryEquipmentFilter>) => void;
   onPerkFiltersChange: (patch: Partial<LibraryPerkFilter>) => void;
@@ -145,6 +146,7 @@ export function LibraryPageContentView(props: {
       manifestVersionLabel={formatManifestDataDate(props.manifestStatus, copy)}
       manifestNeedsUpdate={props.manifestStatus?.needs_update}
       viewMode={props.libraryViewMode}
+      showInternalHeading={props.showInternalHeading}
       onViewModeChange={props.onViewModeChange}
       manifestAlert={manifestAlertElement}
     >

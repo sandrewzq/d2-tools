@@ -9,6 +9,7 @@ export type LibraryPageViewProps = {
   manifestVersionLabel: string;
   manifestNeedsUpdate?: boolean;
   viewMode: LibraryPageViewMode;
+  showInternalHeading?: boolean;
   onViewModeChange: (mode: LibraryPageViewMode) => void;
   manifestAlert?: ReactNode;
   children?: ReactNode;
@@ -19,10 +20,14 @@ export function LibraryPageView(props: LibraryPageViewProps) {
 
   return (
     <section className="tool-panel library-reference-page library-product-layout">
-      <div className="library-reference-hero">
+      <div className={(props.showInternalHeading ?? true) ? "library-reference-hero" : "library-reference-hero library-reference-hero-compact"}>
         <div>
-          <h2>{copy.title}</h2>
-          <p>{copy.subtitle}</p>
+          {(props.showInternalHeading ?? true) ? (
+            <>
+              <h2>{copy.title}</h2>
+              <p>{copy.subtitle}</p>
+            </>
+          ) : null}
         </div>
         <div className="library-reference-status">
           <span>{copy.versionLabel}</span>

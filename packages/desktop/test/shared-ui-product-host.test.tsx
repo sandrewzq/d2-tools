@@ -17,6 +17,11 @@ describe("shared UI ProductShellHost", () => {
         shellStatus={[{ label: "Bungie", value: "Ready", tone: "ready" }]}
         assistantPanel={<p>Assistant slot</p>}
         platformActions={{ openExternal: () => undefined }}
+        pageHeader={{
+          title: "Settings",
+          subtitle: "Manage local configuration.",
+          actions: <button type="button">Check</button>
+        }}
         renderPage={(page) => <section>route:{page}</section>}
       />
     );
@@ -24,6 +29,9 @@ describe("shared UI ProductShellHost", () => {
     expect(html).toContain("app-shell");
     expect(html).toContain("data-color-mode=\"dark\"");
     expect(html).toContain("Settings");
+    expect(html).toContain("Manage local configuration.");
+    expect(html).toContain("Check");
+    expect(html).toContain("product-page-header");
     expect(html).toContain("EN");
     expect(html).toContain("route:settings");
   });

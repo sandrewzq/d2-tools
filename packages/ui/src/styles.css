@@ -445,6 +445,11 @@
   align-items: end;
 }
 
+.library-reference-hero-compact {
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: end;
+}
+
 .library-reference-hero h2,
 .library-reference-hero p,
 .library-reference-status span,
@@ -2398,9 +2403,17 @@ textarea {
   align-items: center;
 }
 
+.product-page-header {
+  min-width: 0;
+}
+
 .page-header .button-row {
   justify-content: flex-end;
   flex-wrap: nowrap;
+}
+
+.product-page-header-actions {
+  min-width: max-content;
 }
 
 .home-workbench {
@@ -5164,6 +5177,10 @@ h2 {
   color: #dce4f4;
   background: #202838;
   font-weight: 600;
+}
+
+.vault-count-inline {
+  justify-self: end;
 }
 
 .vault-content-tabs {

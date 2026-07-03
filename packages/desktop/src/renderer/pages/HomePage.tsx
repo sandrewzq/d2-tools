@@ -237,6 +237,15 @@ export function HomePage(props: {
       onPreferencesChange={handleProductPreferencesChange}
       shellStatus={shellStatus}
       platformActions={desktopPlatformActions}
+      pageHeader={{
+        title: currentPageMeta.title,
+        subtitle: currentPageMeta.subtitle,
+        actions: activePage === "home" ? (
+          <button type="button" className="secondary-button" disabled={daily.isLoadingDaily} onClick={() => void daily.loadDailySummary()}>
+            {daily.isLoadingDaily ? "刷新中..." : "刷新今日信息"}
+          </button>
+        ) : null
+      }}
       assistantPanel={(
         <GlobalAssistantSidebar
           assistantMode={assistantMode}
@@ -259,20 +268,6 @@ export function HomePage(props: {
       )}
       renderPage={() => (
         <>
-      <header className="page-header">
-        <div>
-          <h2>{currentPageMeta.title}</h2>
-          <p>{currentPageMeta.subtitle}</p>
-        </div>
-        {activePage === "home" ? (
-          <div className="button-row">
-            <button type="button" className="secondary-button" disabled={daily.isLoadingDaily} onClick={() => void daily.loadDailySummary()}>
-              {daily.isLoadingDaily ? "刷新中..." : "刷新今日信息"}
-            </button>
-          </div>
-        ) : null}
-      </header>
-
       {loginMessage ? <p className="status-message status-ready">{loginMessage}</p> : null}
       {loginError ? <p className="status-message status-error">{loginError}</p> : null}
       {manifestMessage ? <p className="status-message status-ready">{manifestMessage}</p> : null}

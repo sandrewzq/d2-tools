@@ -19,6 +19,9 @@ export function ProductShellHost(props: ProductShellHostProps) {
   const activePage = props.activePage ?? uncontrolledActivePage;
   const assistantMode = props.assistantMode ?? uncontrolledAssistantMode;
   const preferences = props.preferences ?? uncontrolledPreferences;
+  const pageHeader = typeof props.pageHeader === "function"
+    ? props.pageHeader(activePage, preferences)
+    : props.pageHeader;
 
   function changePage(page: ShellPageKey) {
     if (props.activePage === undefined) {
@@ -82,6 +85,19 @@ export function ProductShellHost(props: ProductShellHostProps) {
       onColorModeToggle={toggleColorMode}
       onInterfaceLocaleToggle={toggleInterfaceLocale}
     >
+      {pageHeader ? (
+        <header className="page-header product-page-header">
+          <div>
+            <h2>{pageHeader.title}</h2>
+            <p>{pageHeader.subtitle}</p>
+          </div>
+          {pageHeader.actions ? (
+            <div className="button-row product-page-header-actions">
+              {pageHeader.actions}
+            </div>
+          ) : null}
+        </header>
+      ) : null}
       {props.renderPage(activePage, preferences)}
     </AppShell>
   );

@@ -8,6 +8,7 @@ export type LoadoutsPageViewProps = {
   missingCount: number;
   readyCount: number;
   actionableCount: number;
+  showInternalHeading?: boolean;
   children?: ReactNode;
 };
 
@@ -17,12 +18,14 @@ export function LoadoutsPageView(props: LoadoutsPageViewProps) {
 
   return (
     <section className="tool-panel loadouts-page loadout-product-layout">
-      <div className="section-heading">
-        <div>
-          <h2>{copy.title}</h2>
-          <p>{copy.subtitle}</p>
+      {(props.showInternalHeading ?? true) ? (
+        <div className="section-heading">
+          <div>
+            <h2>{copy.title}</h2>
+            <p>{copy.subtitle}</p>
+          </div>
         </div>
-      </div>
+      ) : null}
       {props.message ? <p className={props.message.includes(copy.inline["失败"] ?? "失败") ? "status-message status-error" : "status-message status-ready"}>{props.message}</p> : null}
       <section className="product-card loadout-risk-panel">
         <div className="section-heading compact-heading">

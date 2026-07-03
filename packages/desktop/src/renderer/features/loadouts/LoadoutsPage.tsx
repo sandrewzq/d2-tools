@@ -80,6 +80,7 @@ export function LoadoutsPage(props: LoadoutsPageProps) {
       missingCount={workspace.missingCount}
       readyCount={workspace.readyCount}
       actionableCount={workspace.actionableCount}
+      showInternalHeading={false}
       getItemStatus={(item, template, analysis, plan, summary) => {
         return getLoadoutItemStatus({
           item,

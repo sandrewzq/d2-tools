@@ -20,6 +20,7 @@ export type LoadoutsPageContentViewProps = {
   renameDraft: string;
   showDiffOnly: boolean;
   message: string;
+  showInternalHeading?: boolean;
   isRunningItemAction: boolean;
   actionFeedback: Record<string, LoadoutActionFeedbackState>;
   getItemStatus: (item: any, template: any, selectedAnalysis: any, transferPlan: any, accountSummary: any | null) => any;
@@ -59,6 +60,7 @@ export function LoadoutsPageContentView(props: LoadoutsPageContentViewProps) {
       missingCount={props.missingCount}
       readyCount={props.readyCount}
       actionableCount={props.actionableCount}
+      showInternalHeading={props.showInternalHeading}
     >
       <section className="daily-source source-ready in-game-loadout-slots">
         <strong>{loadoutsText(copy, "游戏内配装栏")}</strong>

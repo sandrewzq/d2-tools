@@ -123,14 +123,29 @@ describe("cross-platform UI completion boundary", () => {
     expect(prototypeMain).toContain('activePage === "loadouts"');
     expect(prototypeMain).toContain('activePage === "library"');
     expect(prototypeMain).toContain("interfaceLocale={preferences.interfaceLocale}");
+    expect(prototypeMain).toContain("pageHeader={getPrototypePageHeader");
+    expect(prototypeMain).not.toContain('className="page-header"');
     expect(prototypeMain).not.toContain("vault-prototype-summary");
     expect(prototypeMain).not.toContain("这个页面会在后续阶段接入共享 View。");
     expect(prototypeMain).not.toContain('activePage !== "home" && activePage !== "account" && activePage !== "settings"');
 
+    expect(uiStyles).toContain(".product-page-header");
     expect(uiStyles).toContain(".vault-product-layout");
     expect(uiStyles).toContain(".loadout-product-layout");
     expect(uiStyles).toContain(".library-product-layout");
     expect(uiStyles).toContain(".item-result");
+  });
+
+  it("keeps prototype mock data dense enough to compare with desktop pages", () => {
+    const prototypeMain = read("packages/prototype/src/main.tsx");
+
+    expect(prototypeMain).toContain("emblem_url");
+    expect((prototypeMain.match(/prototypeAccountItem\(/g) ?? []).length).toBeGreaterThanOrEqual(24);
+    expect(prototypeMain).toMatch(/item_count:\s*764/);
+    expect(prototypeMain).toMatch(/materials:\s*\{\s*item_count:\s*28/);
+    expect(prototypeMain).toContain("postmaster_items: [");
+    expect(prototypeMain).toContain("prototypeLibraryItems: any[] = [");
+    expect((prototypeMain.match(/source:\s*\{ status: "ready"/g) ?? []).length).toBeGreaterThanOrEqual(5);
   });
 
   it("keeps the prototype settings fallback menu interactive", () => {
@@ -184,8 +199,9 @@ describe("cross-platform UI completion boundary", () => {
     expect(webMain).toContain("SettingsPageContentView");
     expect(webMain).toContain('activePage === "account"');
     expect(webMain).toContain('activePage === "vault"');
+    expect(webMain).toContain("pageHeader={getWebPageHeader");
     expect(webMain).not.toContain("当前 Web 入口仅接首页");
-    expect(webMain).not.toMatch(/renderPage=\{\(activePage, preferences\) => \(\s*<>\s*<header className="page-header">/);
+    expect(webMain).not.toContain('className="page-header"');
   });
 
   it("keeps the account fallback prototype free of unfinished placeholder copy", () => {

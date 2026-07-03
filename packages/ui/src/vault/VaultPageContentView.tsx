@@ -74,6 +74,7 @@ export function VaultPageContentView(props: {
   localTargetRules?: LocalTargetRules | null;
   openingItemKey?: string;
   communityMatch?: Map<number, VaultItemMatchInfo>;
+  showInternalHeading?: boolean;
   recommendationImportActions?: VaultRecommendationImportActions;
   targetRulesActions?: VaultTargetRulesActions;
   onContextFactsChange?: (facts: string[]) => void;
@@ -301,15 +302,21 @@ export function VaultPageContentView(props: {
 
   return (
     <section className="tool-panel vault-dashboard-panel vault-product-layout">
-      <div className="section-heading">
-        <div>
-          <h2>仓库</h2>
-          <p>查看完整仓库列表，支持按名称、类型、品质和分组筛选。</p>
+      {(props.showInternalHeading ?? true) ? (
+        <div className="section-heading">
+          <div>
+            <h2>仓库</h2>
+            <p>查看完整仓库列表，支持按名称、类型、品质和分组筛选。</p>
+          </div>
+          <div className="vault-count">
+            {filteredItems.length} / {props.items.length}
+          </div>
         </div>
-        <div className="vault-count">
+      ) : (
+        <div className="vault-count vault-count-inline">
           {filteredItems.length} / {props.items.length}
         </div>
-      </div>
+      )}
       {props.highlightedItemKeys ? (
         <p className="status-message status-ready">
           {props.highlightedLabel ? `${props.highlightedLabel} / ` : ""}
