@@ -23,5 +23,6 @@ packages/*/src/**/*.d.ts
 *.tsbuildinfo
 .trae/
 .idea/
+.claude/
 .worktrees/
 skills-lock.json

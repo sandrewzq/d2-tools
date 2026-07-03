@@ -29,6 +29,7 @@
 | ✅ 已修复 | Bug #33 跨端视觉：单页截图无法覆盖所有暗色漏白 | 新增 `visual:all`，遍历 Prototype / Web / Desktop、明暗主题、主菜单和设置分区，对 `.app-shell` 可见 DOM 做 computed style 扫描、浅色大背景拦截和基础文字对比度检查；同时补齐 dark 派生 token，并用样式测试禁止新增直接浅色 background |
 | ✅ 已修复 | Bug #34 Desktop 启动：右上角原生窗口按钮白块割裂 | 移除 Electron 原生 `titleBarOverlay`，窗口控制按钮改为 `packages/ui` 共享 `AppShell` 自绘，Desktop 只通过 IPC 注入最小化、最大化/还原和关闭动作 |
 | ✅ 已修复 | Bug #35 Prototype：首页内容区混入原型场景控制 | Prototype 场景切换从页面内容区移到右下角可收起调试面板，首页默认只展示共享产品内容，避免原型与 Desktop/Web 对比时误判多出状态块 |
+| ✅ 已修复 | Bug #36 Prototype：调试面板亮色模式下拉菜单文字过浅 | Prototype 调试面板改回 `.app-shell` 主题作用域内渲染，浮层仍 fixed 不占页面布局；同时补齐标题、按钮、select 和 option 的语义色，避免亮色模式使用错误前景色 |
 
 ## 当前任务目录
 

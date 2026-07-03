@@ -12,6 +12,14 @@ function readProductStyles(): string {
   return read("packages/ui/src/styles.css");
 }
 
+function readCssRule(styles: string, selector: string): string {
+  const start = styles.lastIndexOf(`${selector} {`);
+  expect(start).toBeGreaterThanOrEqual(0);
+  const end = styles.indexOf("}", start);
+  expect(end).toBeGreaterThan(start);
+  return styles.slice(start + 1, end + 1);
+}
+
 describe("visual prototype harness", () => {
   it("provides a repeatable home prototype comparison script", () => {
     const script = read("scripts/visual-home-check.mjs");
@@ -201,8 +209,13 @@ describe("visual prototype harness", () => {
 
   it("uses the React prototype as the active visual reference", () => {
     const prototypeEntry = read("packages/prototype/src/main.tsx");
+    const prototypeStyles = read("packages/prototype/src/styles.css");
     const prototypeScenarios = read("packages/prototype/src/mock/scenarios.ts");
     const uiEntry = read("packages/ui/src/index.ts");
+    const panelRule = readCssRule(prototypeStyles, ".prototype-debug-panel");
+    const headingRule = readCssRule(prototypeStyles, ".prototype-debug-heading strong");
+    const selectRule = readCssRule(prototypeStyles, ".prototype-debug select");
+    const optionRule = readCssRule(prototypeStyles, ".prototype-debug option");
 
     expect(prototypeEntry).toContain("ProductShellHost");
     expect(prototypeEntry).toContain("HomePageView");
@@ -211,6 +224,7 @@ describe("visual prototype harness", () => {
     expect(prototypeEntry).toContain("prototype-debug-toggle");
     expect(prototypeEntry).toContain("prototype-debug-panel");
     expect(prototypeEntry).not.toContain("prototype-controls");
+    expect(prototypeEntry).not.toContain("</ProductShellHost>\n      <div className=\"prototype-debug\"");
     expect(prototypeEntry).toContain("PrototypeScenarioKey");
     expect(prototypeScenarios).toContain("ready");
     expect(prototypeScenarios).toContain("account-missing");
@@ -219,6 +233,13 @@ describe("visual prototype harness", () => {
     expect(prototypeEntry).toContain("VITE_D2_VISUAL_PAGE");
     expect(prototypeEntry).toContain("VITE_D2_VISUAL_THEME");
     expect(prototypeEntry).toContain("VITE_D2_VISUAL_SCENARIO");
+    expect(panelRule).toContain("color: var(--text-body)");
+    expect(headingRule).toContain("color: var(--text-title)");
+    expect(selectRule).toContain("color: var(--text-title)");
+    expect(selectRule).toContain("background: var(--field-bg)");
+    expect(selectRule).toContain("color-scheme: light dark");
+    expect(optionRule).toContain("color: var(--text-title)");
+    expect(optionRule).toContain("background: var(--surface-panel)");
     expect(uiEntry).toContain("AppShell");
     expect(uiEntry).toContain("ProductShellHost");
     expect(uiEntry).toContain("HomePageView");

@@ -383,38 +383,38 @@ function PrototypeApp() {
               onSaveBungieConfig={async () => undefined}
             />
           ) : null}
+          <div className="prototype-debug">
+            {isPrototypeDebugOpen ? (
+              <section className="prototype-debug-panel" aria-label="Prototype scenario controls">
+                <div className="prototype-debug-heading">
+                  <strong>Prototype</strong>
+                  <button type="button" onClick={() => setIsPrototypeDebugOpen(false)} aria-label="收起 Prototype 调试">
+                    ×
+                  </button>
+                </div>
+                <label>
+                  <span>场景</span>
+                  <select value={scenarioKey} onChange={(event) => setScenarioKey(event.target.value as PrototypeScenarioKey)}>
+                    {Object.values(prototypeScenarios).map((item) => (
+                      <option key={item.key} value={item.key}>{item.label}</option>
+                    ))}
+                  </select>
+                </label>
+                <small>{scenario.description}</small>
+              </section>
+            ) : null}
+            <button
+              type="button"
+              className="prototype-debug-toggle"
+              aria-expanded={isPrototypeDebugOpen}
+              onClick={() => setIsPrototypeDebugOpen((current) => !current)}
+            >
+              Prototype
+            </button>
+          </div>
           </>
         )}
       />
-      <div className="prototype-debug">
-        {isPrototypeDebugOpen ? (
-          <section className="prototype-debug-panel" aria-label="Prototype scenario controls">
-            <div className="prototype-debug-heading">
-              <strong>Prototype</strong>
-              <button type="button" onClick={() => setIsPrototypeDebugOpen(false)} aria-label="收起 Prototype 调试">
-                ×
-              </button>
-            </div>
-            <label>
-              <span>场景</span>
-              <select value={scenarioKey} onChange={(event) => setScenarioKey(event.target.value as PrototypeScenarioKey)}>
-                {Object.values(prototypeScenarios).map((item) => (
-                  <option key={item.key} value={item.key}>{item.label}</option>
-                ))}
-              </select>
-            </label>
-            <small>{scenario.description}</small>
-          </section>
-        ) : null}
-        <button
-          type="button"
-          className="prototype-debug-toggle"
-          aria-expanded={isPrototypeDebugOpen}
-          onClick={() => setIsPrototypeDebugOpen((current) => !current)}
-        >
-          Prototype
-        </button>
-      </div>
     </>
   );
 }

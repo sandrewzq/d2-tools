@@ -32,6 +32,7 @@
   padding: 12px;
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-panel);
+  color: var(--text-body);
   background: var(--surface-panel);
   box-shadow: var(--shadow-panel);
 }
@@ -49,6 +50,11 @@
   min-height: 28px;
   padding: 0;
   border-radius: var(--radius-control);
+  color: var(--text-title);
+}
+
+.prototype-debug-heading strong {
+  color: var(--text-title);
 }
 
 .prototype-debug label {
@@ -64,7 +70,13 @@
   border: 1px solid var(--border-control);
   border-radius: var(--radius-control);
   background: var(--field-bg);
-  color: var(--text-body);
+  color: var(--text-title);
+  color-scheme: light dark;
+}
+
+.prototype-debug option {
+  color: var(--text-title);
+  background: var(--surface-panel);
 }
 
 .prototype-debug small {
