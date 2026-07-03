@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+﻿import { describe, expect, it } from "vitest";
 import {
   applyVisibleVaultSelection, buildDuplicateGroupBatchTagPlan, buildVaultBulkMoveResultMessage, buildVaultCleanupLocatorText, buildVaultCleanupText, buildVaultDuplicateSummary, buildVaultGroups, buildVaultSelectionSummary, countWishlistMatches, buildVaultSections, filterVaultItems, getVaultItemKey, selectDuplicateGroupItems, selectMarkedCleanupItems, selectVaultBatchItems, sortVaultItems
 } from "../src/renderer/components/VaultPanel";
@@ -83,13 +83,13 @@ const items: AccountItemSummary[] = [
 
 describe("vault panel helpers", () => {
   it("keeps vault filter toolbar in the vault feature module", () => {
-    const source = readFileSync("packages/desktop/src/renderer/components/VaultPanel.tsx", "utf8");
-    const toolbarPath = "packages/desktop/src/renderer/features/vault/VaultFilterToolbar.tsx";
+    const source = readFileSync("packages/ui/src/vault/VaultPageContentView.tsx", "utf8");
+    const toolbarPath = "packages/ui/src/vault/VaultFilterToolbar.tsx";
 
     expect(existsSync(toolbarPath)).toBe(true);
     const toolbar = readFileSync(toolbarPath, "utf8");
 
-    expect(source).toContain("../features/vault/VaultFilterToolbar");
+    expect(source).toContain("./VaultFilterToolbar");
     expect(source).not.toContain("className=\"vault-toolbar\"");
     expect(toolbar).toContain("export function VaultFilterToolbar");
     expect(toolbar).toContain("自然搜索名称、类型、perk 或备注");
@@ -103,17 +103,17 @@ describe("vault panel helpers", () => {
     expect(source).not.toContain("locked:false");
     expect(source).not.toContain("score&gt;=75");
     expect(toolbar).toContain("aria-label");
-    expect(readFileSync("packages/desktop/src/renderer/features/vault/VaultOrganizePanel.tsx", "utf8")).toContain("处理中");
+    expect(readFileSync("packages/ui/src/vault/VaultOrganizePanel.tsx", "utf8")).toContain("处理中");
   });
 
   it("keeps vault organize and cleanup controls in the vault feature module", () => {
-    const source = readFileSync("packages/desktop/src/renderer/components/VaultPanel.tsx", "utf8");
-    const panelPath = "packages/desktop/src/renderer/features/vault/VaultOrganizePanel.tsx";
+    const source = readFileSync("packages/ui/src/vault/VaultPageContentView.tsx", "utf8");
+    const panelPath = "packages/ui/src/vault/VaultOrganizePanel.tsx";
 
     expect(existsSync(panelPath)).toBe(true);
     const panel = readFileSync(panelPath, "utf8");
 
-    expect(source).toContain("../features/vault/VaultOrganizePanel");
+    expect(source).toContain("./VaultOrganizePanel");
     expect(source).not.toContain("className=\"vault-organize-bar\"");
     expect(source).not.toContain("className=\"vault-cleanup-panel\"");
     expect(panel).toContain("export function VaultOrganizePanel");
@@ -121,17 +121,17 @@ describe("vault panel helpers", () => {
     expect(panel).toContain("整理模式");
     expect(panel).toContain("清理模式");
     expect(panel).toContain("批量移动");
-    expect(panel).toContain("游戏内定位");
+    expect(panel).toContain("复制清理清单");
   });
 
   it("keeps duplicate group rendering in the vault feature module", () => {
-    const source = readFileSync("packages/desktop/src/renderer/components/VaultPanel.tsx", "utf8");
-    const duplicateGroupsPath = "packages/desktop/src/renderer/features/vault/VaultDuplicateGroups.tsx";
+    const source = readFileSync("packages/ui/src/vault/VaultPageContentView.tsx", "utf8");
+    const duplicateGroupsPath = "packages/ui/src/vault/VaultDuplicateGroups.tsx";
 
     expect(existsSync(duplicateGroupsPath)).toBe(true);
     const duplicateGroups = readFileSync(duplicateGroupsPath, "utf8");
 
-    expect(source).toContain("../features/vault/VaultDuplicateGroups");
+    expect(source).toContain("./VaultDuplicateGroups");
     expect(source).not.toContain("duplicate-group-list");
     expect(source).not.toContain("duplicate-row-main");
     expect(duplicateGroups).toContain("export function VaultDuplicateGroups");
@@ -141,13 +141,13 @@ describe("vault panel helpers", () => {
   });
 
   it("keeps vault item section rendering in the vault feature module", () => {
-    const source = readFileSync("packages/desktop/src/renderer/components/VaultPanel.tsx", "utf8");
-    const itemSectionsPath = "packages/desktop/src/renderer/features/vault/VaultItemSections.tsx";
+    const source = readFileSync("packages/ui/src/vault/VaultPageContentView.tsx", "utf8");
+    const itemSectionsPath = "packages/ui/src/vault/VaultItemSections.tsx";
 
     expect(existsSync(itemSectionsPath)).toBe(true);
     const itemSections = readFileSync(itemSectionsPath, "utf8");
 
-    expect(source).toContain("../features/vault/VaultItemSections");
+    expect(source).toContain("./VaultItemSections");
     expect(source).not.toContain("vault-section-list");
     expect(source).not.toContain("vault-slot-section");
     expect(itemSections).toContain("export function VaultItemSections");
@@ -478,8 +478,8 @@ describe("vault panel helpers", () => {
   });
 
   it("renders free-form Armor 3.0 stat filters without old armor stat labels", () => {
-    const toolbar = readFileSync("packages/desktop/src/renderer/features/vault/VaultFilterToolbar.tsx", "utf8");
-    const armorPanel = readFileSync("packages/desktop/src/renderer/features/vault/VaultArmorFilterPanel.tsx", "utf8");
+    const toolbar = readFileSync("packages/ui/src/vault/VaultFilterToolbar.tsx", "utf8");
+    const armorPanel = readFileSync("packages/ui/src/vault/VaultArmorFilterPanel.tsx", "utf8");
     const filters = readFileSync("packages/app/src/workspaces/vaultList.ts", "utf8");
 
     expect(toolbar).toContain("VaultArmorFilterPanel");
@@ -775,9 +775,9 @@ describe("vault panel helpers", () => {
   });
 
   it("renders duplicate group quick actions and richer meta in the vault UI", () => {
-    const source = readFileSync("packages/desktop/src/renderer/components/VaultPanel.tsx", "utf8");
-    const duplicateGroups = readFileSync("packages/desktop/src/renderer/features/vault/VaultDuplicateGroups.tsx", "utf8");
-    const listItem = readFileSync("packages/desktop/src/renderer/features/vault/VaultListItem.tsx", "utf8");
+    const source = readFileSync("packages/ui/src/vault/VaultPageContentView.tsx", "utf8");
+    const duplicateGroups = readFileSync("packages/ui/src/vault/VaultDuplicateGroups.tsx", "utf8");
+    const listItem = readFileSync("packages/ui/src/vault/VaultListItem.tsx", "utf8");
 
     expect(source).toContain("onSaveTagBatch");
     expect(duplicateGroups).toContain("selectDuplicateGroupItems");
@@ -804,8 +804,8 @@ describe("vault panel helpers", () => {
   });
 
   it("uses top-level vault content tabs so weapons and armor are split into easier views", () => {
-    const source = readFileSync("packages/desktop/src/renderer/components/VaultPanel.tsx", "utf8");
-    const organizePanel = readFileSync("packages/desktop/src/renderer/features/vault/VaultOrganizePanel.tsx", "utf8");
+    const source = readFileSync("packages/ui/src/vault/VaultPageContentView.tsx", "utf8");
+    const organizePanel = readFileSync("packages/ui/src/vault/VaultOrganizePanel.tsx", "utf8");
     const filters = readFileSync("packages/app/src/workspaces/vaultList.ts", "utf8");
 
     expect(filters).toContain("defaultVaultGroupTab");
@@ -816,7 +816,7 @@ describe("vault panel helpers", () => {
     expect(source).toContain("setGroup(defaultVaultGroupTab)");
   });
   it("keeps vault filtering and sorting helpers in the app workspace with a desktop compatibility barrel", () => {
-    const source = readFileSync("packages/desktop/src/renderer/components/VaultPanel.tsx", "utf8");
+    const source = readFileSync("packages/ui/src/vault/VaultPageContentView.tsx", "utf8");
     const filters = readFileSync("packages/app/src/workspaces/vaultList.ts", "utf8");
     const featureBarrel = readFileSync("packages/desktop/src/renderer/features/vault/vaultFilters.ts", "utf8");
 
@@ -827,12 +827,12 @@ describe("vault panel helpers", () => {
     expect(filters).toContain("export function createVaultListWorkspace");
     expect(featureBarrel).toContain('from "@d2-tools/app"');
     expect(source).toContain("createVaultListWorkspace");
-    expect(source).toContain("../features/vault/vaultFilters");
+    expect(source).toContain('from "@d2-tools/app"');
     expect(source).not.toContain("export function filterVaultItems(");
     expect(source).not.toContain("export function sortVaultItems(");
   });
   it("keeps vault cleanup and duplicate planning helpers in the app workspace with desktop compatibility barrels", () => {
-    const source = readFileSync("packages/desktop/src/renderer/components/VaultPanel.tsx", "utf8");
+    const source = readFileSync("packages/ui/src/vault/VaultPageContentView.tsx", "utf8");
     const cleanup = readFileSync("packages/desktop/src/renderer/shared/domain/vault/vaultCleanup.ts", "utf8");
     const appCleanup = readFileSync("packages/app/src/workspaces/vaultActions.ts", "utf8");
     const featureBarrel = readFileSync("packages/desktop/src/renderer/features/vault/vaultCleanup.ts", "utf8");
@@ -844,14 +844,14 @@ describe("vault panel helpers", () => {
     expect(appCleanup).toContain("export function selectDuplicateGroupItems");
     expect(cleanup).toContain('from "@d2-tools/app"');
     expect(featureBarrel).toContain("../../shared/domain/vault/vaultCleanup");
-    expect(source).toContain("../shared/domain/vault/vaultCleanup");
+    expect(source).toContain('from "@d2-tools/app"');
     expect(cleanup).not.toContain("export function buildVaultCleanupText(");
     expect(cleanup).not.toContain("export function buildDuplicateGroupBatchTagPlan(");
   });
   it("shows a bulk move entry for selected visible vault results", () => {
-    const source = readFileSync("packages/desktop/src/renderer/components/VaultPanel.tsx", "utf8");
-    const hook = readFileSync("packages/desktop/src/renderer/features/vault/useVaultBatchActions.ts", "utf8");
-    const organizePanel = readFileSync("packages/desktop/src/renderer/features/vault/VaultOrganizePanel.tsx", "utf8");
+    const source = readFileSync("packages/ui/src/vault/VaultPageContentView.tsx", "utf8");
+    const hook = readFileSync("packages/ui/src/vault/useVaultBatchActions.ts", "utf8");
+    const organizePanel = readFileSync("packages/ui/src/vault/VaultOrganizePanel.tsx", "utf8");
 
     expect(source + hook + organizePanel).toContain("批量移动");
     expect(source).toContain("currentCharacterId");
@@ -862,7 +862,7 @@ describe("vault panel helpers", () => {
     expect(source).toContain("buildVaultSelectionSummary");
   });
   it("keeps vault selection helpers in the app workspace with a desktop compatibility barrel", () => {
-    const source = readFileSync("packages/desktop/src/renderer/components/VaultPanel.tsx", "utf8");
+    const source = readFileSync("packages/ui/src/vault/VaultPageContentView.tsx", "utf8");
     const selection = readFileSync("packages/desktop/src/renderer/features/vault/vaultSelection.ts", "utf8");
     const appSelection = readFileSync("packages/app/src/workspaces/vaultSelection.ts", "utf8");
 
@@ -871,14 +871,14 @@ describe("vault panel helpers", () => {
     expect(appSelection).toContain("export function applyVisibleVaultSelection");
     expect(appSelection).toContain("export function buildVaultSelectionSummary");
     expect(selection).toContain('from "@d2-tools/app"');
-    expect(source).toContain("../features/vault/vaultSelection");
+    expect(source).toContain('from "@d2-tools/app"');
     expect(source).not.toContain("export function selectVaultBatchItems(");
     expect(source).not.toContain("export function applyVisibleVaultSelection(");
     expect(source).not.toContain("export function buildVaultSelectionSummary(");
   });
   it("keeps vault batch action state and write orchestration in the vault feature hook", () => {
-    const source = readFileSync("packages/desktop/src/renderer/components/VaultPanel.tsx", "utf8");
-    const hook = readFileSync("packages/desktop/src/renderer/features/vault/useVaultBatchActions.ts", "utf8");
+    const source = readFileSync("packages/ui/src/vault/VaultPageContentView.tsx", "utf8");
+    const hook = readFileSync("packages/ui/src/vault/useVaultBatchActions.ts", "utf8");
 
     expect(hook).toContain("export function useVaultBatchActions");
     expect(hook).toContain("applyBatchTag");
@@ -895,14 +895,14 @@ describe("vault panel helpers", () => {
     expect(source).not.toContain("async function applyDuplicateGroupTags");
   });
   it("keeps vault list item rendering in the vault feature module", () => {
-    const source = readFileSync("packages/desktop/src/renderer/components/VaultPanel.tsx", "utf8");
-    const listItemPath = "packages/desktop/src/renderer/features/vault/VaultListItem.tsx";
-    const itemSections = readFileSync("packages/desktop/src/renderer/features/vault/VaultItemSections.tsx", "utf8");
+    const source = readFileSync("packages/ui/src/vault/VaultPageContentView.tsx", "utf8");
+    const listItemPath = "packages/ui/src/vault/VaultListItem.tsx";
+    const itemSections = readFileSync("packages/ui/src/vault/VaultItemSections.tsx", "utf8");
 
     expect(existsSync(listItemPath)).toBe(true);
     const listItem = readFileSync(listItemPath, "utf8");
 
-    expect(source).toContain("../features/vault/VaultItemSections");
+    expect(source).toContain("./VaultItemSections");
     expect(itemSections).toContain("./VaultListItem");
     expect(source).not.toContain("function VaultListItem(");
     expect(listItem).toContain("export function VaultListItem");
@@ -910,8 +910,8 @@ describe("vault panel helpers", () => {
     expect(listItem).toContain("formatCommunityPerkPreview");
   });
   it("renders vault items as card-grid equipment tiles", () => {
-    const itemSections = readFileSync("packages/desktop/src/renderer/features/vault/VaultItemSections.tsx", "utf8");
-    const listItem = readFileSync("packages/desktop/src/renderer/features/vault/VaultListItem.tsx", "utf8");
+    const itemSections = readFileSync("packages/ui/src/vault/VaultItemSections.tsx", "utf8");
+    const listItem = readFileSync("packages/ui/src/vault/VaultListItem.tsx", "utf8");
     const styles = readFileSync("packages/ui/src/styles.css", "utf8");
 
     expect(itemSections).toContain("vault-card-grid");
@@ -927,10 +927,10 @@ describe("vault panel helpers", () => {
     expect(styles).toContain(".vault-card-actions");
   });
   it("limits initial vault card rendering and lets users load more results", () => {
-    const source = readFileSync("packages/desktop/src/renderer/components/VaultPanel.tsx", "utf8");
-    const itemSections = readFileSync("packages/desktop/src/renderer/features/vault/VaultItemSections.tsx", "utf8");
-    const listItem = readFileSync("packages/desktop/src/renderer/features/vault/VaultListItem.tsx", "utf8");
-    const duplicateGroups = readFileSync("packages/desktop/src/renderer/features/vault/VaultDuplicateGroups.tsx", "utf8");
+    const source = readFileSync("packages/ui/src/vault/VaultPageContentView.tsx", "utf8");
+    const itemSections = readFileSync("packages/ui/src/vault/VaultItemSections.tsx", "utf8");
+    const listItem = readFileSync("packages/ui/src/vault/VaultListItem.tsx", "utf8");
+    const duplicateGroups = readFileSync("packages/ui/src/vault/VaultDuplicateGroups.tsx", "utf8");
 
     expect(source).toContain("useCallback");
     expect(source).toContain("const toggleSelected = useCallback");
@@ -950,8 +950,8 @@ describe("vault panel helpers", () => {
     expect(duplicateGroups).toContain("加载更多");
   });
   it("keeps cleanup workbench focused and removes the nested duplicate compare switch", () => {
-    const vaultPanel = readFileSync("packages/desktop/src/renderer/components/VaultPanel.tsx", "utf8");
-    const organizePanel = readFileSync("packages/desktop/src/renderer/features/vault/VaultOrganizePanel.tsx", "utf8");
+    const vaultPanel = readFileSync("packages/ui/src/vault/VaultPageContentView.tsx", "utf8");
+    const organizePanel = readFileSync("packages/ui/src/vault/VaultOrganizePanel.tsx", "utf8");
 
     expect(vaultPanel).toContain('{ key: "duplicates", label: "同名对比"');
     expect(organizePanel).not.toContain("同名对比 {props.duplicateGroupCount}");
@@ -962,8 +962,8 @@ describe("vault panel helpers", () => {
     const coreTags = readFileSync("packages/core/src/vault/tags.ts", "utf8");
     const apiTypes = readFileSync("packages/desktop/src/renderer/api/vaultApi.ts", "utf8");
     const filters = readFileSync("packages/app/src/workspaces/vaultList.ts", "utf8");
-    const listItem = readFileSync("packages/desktop/src/renderer/features/vault/VaultListItem.tsx", "utf8");
-    const organizePanel = readFileSync("packages/desktop/src/renderer/features/vault/VaultOrganizePanel.tsx", "utf8");
+    const listItem = readFileSync("packages/ui/src/vault/VaultListItem.tsx", "utf8");
+    const organizePanel = readFileSync("packages/ui/src/vault/VaultOrganizePanel.tsx", "utf8");
     const selection = readFileSync("packages/desktop/src/renderer/features/vault/vaultSelection.ts", "utf8");
     const styles = readFileSync("packages/ui/src/styles.css", "utf8");
 
@@ -988,8 +988,8 @@ describe("vault panel helpers", () => {
     expect(styles).toContain(".vault-tag-current.tag-loadout");
   });
   it("shows local loadout highlights inside the vault list", () => {
-    const source = readFileSync("packages/desktop/src/renderer/components/VaultPanel.tsx", "utf8");
-    const listItem = readFileSync("packages/desktop/src/renderer/features/vault/VaultListItem.tsx", "utf8");
+    const source = readFileSync("packages/ui/src/vault/VaultPageContentView.tsx", "utf8");
+    const listItem = readFileSync("packages/ui/src/vault/VaultListItem.tsx", "utf8");
 
     expect(source).toContain("highlightedItemKeys");
     expect(listItem).toContain("isLoadoutMatch");

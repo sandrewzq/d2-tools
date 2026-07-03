@@ -1,0 +1,100 @@
+import { useEffect, useMemo, useState } from "react";
+import type { AccountItemSummary } from "@d2-tools/core/account/summary";
+import type { DimWishlist } from "@d2-tools/core/analysis/wishlistImport";
+import type { LocalTargetRules } from "@d2-tools/core/analysis/targets";
+import type { VaultItemMatchInfo } from "@d2-tools/core/community-perks";
+import type { VaultTags, VaultTagValue } from "@d2-tools/core/vault/tags";
+import type { LoadoutTemplateLookup, VaultSection } from "@d2-tools/app";
+import { MemoizedVaultListItem as VaultListItem } from "./VaultListItem.js";
+import { getVaultItemKey } from "@d2-tools/app";
+
+export const INITIAL_VAULT_RENDER_LIMIT = 200;
+const VAULT_RENDER_INCREMENT = 200;
+
+export function VaultItemSections(props: {
+  sections: VaultSection[];
+  highlightedItemKeys?: LoadoutTemplateLookup | null;
+  tags: VaultTags;
+  wishlist?: DimWishlist | null;
+  localTargetRules?: LocalTargetRules | null;
+  communityMatch?: Map<number, VaultItemMatchInfo>;
+  isOrganizing: boolean;
+  isSearchActive: boolean;
+  selectedKeys: Set<string>;
+  openingItemKey?: string;
+  onOpenItem: (item: AccountItemSummary) => void;
+  onSaveTag: (item: AccountItemSummary, tag: VaultTagValue) => void | Promise<void>;
+  onToggleSelected: (item: AccountItemSummary) => void;
+}) {
+  const totalItemCount = useMemo(
+    () => props.sections.reduce((total, section) => total + section.items.length, 0),
+    [props.sections]
+  );
+  const [visibleItemLimit, setVisibleItemLimit] = useState(INITIAL_VAULT_RENDER_LIMIT);
+  useEffect(() => {
+    setVisibleItemLimit(INITIAL_VAULT_RENDER_LIMIT);
+  }, [props.sections]);
+  const effectiveVisibleItemLimit = props.isSearchActive ? totalItemCount : visibleItemLimit;
+  const renderedSections = useMemo(() => {
+    let remaining = effectiveVisibleItemLimit;
+    return props.sections.flatMap((section) => {
+      if (remaining <= 0) {
+        return [];
+      }
+      const items = section.items.slice(0, remaining);
+      remaining -= items.length;
+      return items.length ? [{ ...section, items }] : [];
+    });
+  }, [props.sections, effectiveVisibleItemLimit]);
+  const renderedItemCount = Math.min(effectiveVisibleItemLimit, totalItemCount);
+
+  if (!props.sections.length) {
+    return <p className="status-message status-neutral">没有匹配的仓库物品。</p>;
+  }
+
+  return (
+    <div className="vault-section-list">
+      {!props.isSearchActive && totalItemCount > INITIAL_VAULT_RENDER_LIMIT ? (
+        <div className="vault-render-limit-message">
+          <span>先显示 {renderedItemCount} / {totalItemCount} 件，减少筛选和标记时的界面延迟。</span>
+          {renderedItemCount < totalItemCount ? (
+            <button
+              className="secondary-button"
+              type="button"
+              onClick={() => setVisibleItemLimit((current) => current + VAULT_RENDER_INCREMENT)}
+            >
+              加载更多
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+      {renderedSections.map((section) => (
+        <section className="vault-slot-section" key={section.key}>
+          <div className="vault-slot-heading">
+            <h3>{section.label}</h3>
+            <span>{section.count} 件</span>
+          </div>
+          <div className="vault-card-grid">
+            {section.items.map((item) => (
+              <VaultListItem
+                item={item}
+                key={`${item.hash}-${item.instance_id ?? ""}`}
+                highlightedItemKeys={props.highlightedItemKeys}
+                tags={props.tags}
+                wishlist={props.wishlist}
+                localTargetRules={props.localTargetRules}
+                communityMatch={props.communityMatch?.get(item.hash)}
+                isOrganizing={props.isOrganizing}
+                isSelected={props.selectedKeys.has(getVaultItemKey(item))}
+                openingItemKey={props.openingItemKey}
+                onOpenItem={props.onOpenItem}
+                onSaveTag={props.onSaveTag}
+                onToggleSelected={props.onToggleSelected}
+              />
+            ))}
+          </div>
+        </section>
+      ))}
+    </div>
+  );
+}

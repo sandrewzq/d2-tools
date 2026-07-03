@@ -90,6 +90,9 @@ importers:
 
   packages/prototype:
     dependencies:
+      '@d2-tools/app':
+        specifier: workspace:*
+        version: link:../app
       '@d2-tools/ui':
         specifier: workspace:*
         version: link:../ui
@@ -121,6 +124,12 @@ importers:
 
   packages/ui:
     dependencies:
+      '@d2-tools/app':
+        specifier: workspace:*
+        version: link:../app
+      '@d2-tools/core':
+        specifier: workspace:*
+        version: link:../core
       react:
         specifier: ^19.0.0
         version: 19.2.7

@@ -29,7 +29,7 @@ describe("local data services wiring", () => {
 
   it("routes local data writes through the shared services adapter", () => {
     const page = readDesktop("src/renderer/features/vault/VaultPage.tsx");
-    const targetPanel = readDesktop("src/renderer/features/vault/VaultTargetRulesPanel.tsx");
+    const targetPanel = readRepo("packages/ui/src/vault/VaultTargetRulesPanel.tsx");
     const writeActions = readDesktop("src/renderer/features/vault/useVaultWriteActions.ts");
     const itemDetail = readDesktop("src/renderer/shared/hooks/useItemDetailWorkspace.ts");
     const servicesClient = readDesktop("src/renderer/api/services.ts");
@@ -38,8 +38,10 @@ describe("local data services wiring", () => {
     expect(page).toContain("services.localData.clearDimWishlist");
     expect(page).toContain("services.localData.saveLocalCommunityRecommendations");
     expect(page).toContain("services.localData.clearLocalCommunityRecommendations");
-    expect(targetPanel).toContain("services.localData.saveLocalTargetRules");
-    expect(targetPanel).toContain("services.localData.clearLocalTargetRules");
+    expect(page).toContain("services.localData.saveLocalTargetRules");
+    expect(page).toContain("services.localData.clearLocalTargetRules");
+    expect(targetPanel).toContain("onSaveRules");
+    expect(targetPanel).toContain("onClearRules");
     expect(writeActions).toContain("services.localData.saveVaultTag");
     expect(writeActions).toContain("services.localData.saveVaultTagsBatch");
     expect(itemDetail).toContain("services.localData.saveVaultNote");

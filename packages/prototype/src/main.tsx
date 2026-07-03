@@ -1,7 +1,7 @@
 import { createRoot } from "react-dom/client";
 import { useMemo, useState } from "react";
 import {
-  AccountPageView,
+  AccountPageContentView,
   AiAssistantPanelView,
   defaultProductPreferences,
   HomePageView,
@@ -9,7 +9,7 @@ import {
   LoadoutsPageContentView,
   ProductShellHost,
   SettingsPageContentView,
-  VaultPageView,
+  VaultPageContentView,
   type LibraryEquipmentFilter,
   type LibraryPerkFilter,
   type LibraryViewMode,
@@ -19,10 +19,19 @@ import {
   type ShellPageKey,
   type ShellStatusItem,
 } from "@d2-tools/ui";
+import {
+  buildLoadoutTemplateLookup,
+  createAccountPageWorkspace,
+  createVaultPageWorkspace,
+  formatAccountItemMeta,
+  getAccountPageItemKey,
+  matchesLoadoutTemplateItem
+} from "@d2-tools/app";
 import "@d2-tools/ui/styles.css";
 import {
   defaultPrototypeScenarioKey,
   prototypeScenarios,
+  type PrototypeScenario,
   type PrototypeScenarioKey
 } from "./mock/scenarios";
 import "./styles.css";
@@ -42,6 +51,7 @@ function PrototypeApp() {
   const [scenarioKey, setScenarioKey] = useState<PrototypeScenarioKey>(initialScenario);
   const [selectedTemplateId, setSelectedTemplateId] = useState(prototypeLoadoutTemplates[0]?.id ?? "");
   const [compareTemplateId, setCompareTemplateId] = useState(prototypeLoadoutTemplates[1]?.id ?? "");
+  const [selectedAccountCharacterId, setSelectedAccountCharacterId] = useState(prototypeAccountSummary.characters[0]?.character_id ?? "");
   const [renameDraft, setRenameDraft] = useState(prototypeLoadoutTemplates[0]?.name ?? "");
   const [showDiffOnly, setShowDiffOnly] = useState(false);
   const [libraryViewMode, setLibraryViewMode] = useState<LibraryViewMode>("equipment");
@@ -66,6 +76,31 @@ function PrototypeApp() {
     ?? null;
   const compareTemplate = prototypeLoadoutTemplates.find((template) => template.id === compareTemplateId)
     ?? null;
+  const activeLoadoutLookup = selectedTemplate ? buildLoadoutTemplateLookup(selectedTemplate) : null;
+  const accountSummary = scenario.hasAccountData ? prototypeAccountSummary : null;
+  const isBungieConfigured = scenarioKey !== "account-missing";
+  const accountWorkspace = useMemo(
+    () => createAccountPageWorkspace({
+      account: accountSummary,
+      selectedCharacterId: selectedAccountCharacterId,
+      openingItemKey: "",
+      isLoadoutMatch: (item) => matchesLoadoutTemplateItem(item, activeLoadoutLookup)
+    }),
+    [accountSummary, activeLoadoutLookup, selectedAccountCharacterId]
+  );
+  const vaultWorkspace = useMemo(
+    () => createVaultPageWorkspace({
+      account: prototypeAccountSummary,
+      selectedCharacterId: selectedAccountCharacterId,
+      activeLoadoutLookup,
+      activeLoadoutName: selectedTemplate?.name,
+      tags: prototypeVaultTags,
+      targetRules: prototypeLocalTargetRules,
+      wishlist: prototypeWishlist,
+      communityMatch: prototypeVaultCommunityMatch
+    }),
+    [activeLoadoutLookup, selectedAccountCharacterId, selectedTemplate?.name]
+  );
   const platformActions = useMemo(() => ({
     openExternal: (url: string) => {
       window.open(url, "_blank", "noopener,noreferrer");
@@ -185,58 +220,65 @@ function PrototypeApp() {
             </>
           ) : null}
           {activePage === "account" ? (
-            <AccountPageView interfaceLocale={preferences.interfaceLocale} />
+            <AccountPageContentView
+              interfaceLocale={preferences.interfaceLocale}
+              accountSummary={accountSummary}
+              startupState={prototypeStartupStateForScenario(scenario)}
+              accountWorkspace={accountWorkspace}
+              selectedCharacter={accountWorkspace.selectedCharacter}
+              selectedCharacterId={selectedAccountCharacterId}
+              isBungieConfigured
+              isAccountLoggedIn={scenario.hasAccountData}
+              canLoadAccount={scenario.hasAccountData}
+              isLoadingAccount={false}
+              accountError={scenario.accountError}
+              itemDetailError=""
+              itemDetailLoadingKey=""
+              writeActionsEnabled={false}
+              activitySummary={prototypeActivitySummary}
+              activityMessage=""
+              activityError=""
+              loadoutMessage=""
+              itemActionMessage=""
+              isRunningItemAction={false}
+              activeLoadoutLookup={activeLoadoutLookup}
+              activeLoadoutTemplate={selectedTemplate}
+              onConfigureBungie={() => setActivePage("settings")}
+              onLoginBungie={() => undefined}
+              onLoadAccount={() => undefined}
+              onRefreshActivity={() => undefined}
+              onSelectCharacter={setSelectedAccountCharacterId}
+              onSaveCharacterLoadout={() => undefined}
+              onEquipHighestPowerItems={() => undefined}
+              onOpenItem={() => undefined}
+              isLoadoutMatch={matchesLoadoutTemplateItem}
+              getAccountPageItemKey={getAccountPageItemKey}
+              formatAccountItemMeta={formatAccountItemMeta}
+            />
           ) : null}
           {activePage === "vault" ? (
-            <VaultPageView
-              interfaceLocale={preferences.interfaceLocale}
-              accountReady={scenario.hasAccountData}
-              accountError={scenario.accountError}
-              onLoadAccount={() => undefined}
-            >
-              <section className="vault-dashboard-panel vault-prototype-summary">
-                <div className="section-heading">
-                  <div>
-                    <h2>仓库整理工作台</h2>
-                    <p>按同名重复、社区推荐、本地目标和当前配装影响来决定保留、观察或清理。</p>
-                  </div>
-                  <button type="button" className="secondary-button">刷新账号</button>
-                </div>
-                <div className="vault-decision-summary">
-                  <span><strong>496</strong>仓库总数</span>
-                  <span><strong>37</strong>推荐复查</span>
-                  <span><strong>12</strong>可清理候选</span>
-                  <span><strong>8</strong>配装占用</span>
-                </div>
-                <div className="vault-toolbar">
-                  <div className="segmented-control" aria-label="仓库视图">
-                    <button type="button" className="active">全部</button>
-                    <button type="button">武器</button>
-                    <button type="button">护甲</button>
-                    <button type="button">清理候选</button>
-                  </div>
-                  <input aria-label="仓库搜索" placeholder="搜索装备、框架或 Perk" defaultValue="脉冲" />
-                </div>
-                <div className="vault-card-grid">
-                  {prototypeVaultItems.map((item) => (
-                    <article className="vault-item-card" key={item.name}>
-                      <div className="vault-card-visual">{item.short}</div>
-                      <div className="vault-card-body">
-                        <div className="vault-title-row">
-                          <strong>{item.name}</strong>
-                          <span className={`vault-score-badge score-${item.tone}`}>{item.score}</span>
-                        </div>
-                        <span>{item.bucket} / {item.frame}</span>
-                        <small>{item.perks}</small>
-                        <div className="vault-card-signals">
-                          {item.signals.map((signal) => <span key={signal}>{signal}</span>)}
-                        </div>
-                      </div>
-                    </article>
-                  ))}
-                </div>
-              </section>
-            </VaultPageView>
+            <VaultPageContentView
+              items={vaultWorkspace.vaultItems}
+              highlightedItemKeys={vaultWorkspace.activeLoadoutLookup}
+              highlightedLabel={vaultWorkspace.activeLoadoutName}
+              tags={vaultWorkspace.tags}
+              openingItemKey=""
+              wishlist={vaultWorkspace.wishlist}
+              localTargetRules={vaultWorkspace.targetRules}
+              communityMatch={vaultWorkspace.communityMatch}
+              cleanupActions={{
+                characters: prototypeAccountSummary.characters,
+                currentCharacterId: vaultWorkspace.currentCharacterId,
+                currentCharacterLabel: vaultWorkspace.currentCharacterLabel,
+                writeActionsEnabled: false,
+                onBatchUnlock: async () => "Prototype：写操作未开启。",
+                onBatchTransferToCharacter: async () => prototypeBatchResult
+              }}
+              onContextFactsChange={() => undefined}
+              onOpenItem={() => undefined}
+              onSaveTag={() => undefined}
+              onSaveTagBatch={() => undefined}
+            />
           ) : null}
           {activePage === "loadouts" ? (
             <LoadoutsPageContentView
@@ -619,7 +661,20 @@ const prototypeAccountSummary: any = {
     item_count: 496,
     items: [
       prototypeAccountItem("handcannon-vault", 1002, "精准手炮", "能量武器", "精确框架", "仓库"),
-      prototypeAccountItem("sword-vault", 1006, "连锁反应刀剑", "威能武器", "旋风框架", "仓库")
+      prototypeAccountItem("sword-vault", 1006, "连锁反应刀剑", "威能武器", "旋风框架", "仓库"),
+      prototypeAccountItem("scout-vault", 1007, "旧赛季斥候", "动能武器", "适配框架", "仓库"),
+      {
+        ...prototypeAccountItem("helmet-vault", 1010, "高纪律头盔", "头盔", "护甲", "仓库"),
+        group_key: "armor",
+        item_type: "头盔",
+        armor_stats: { total: 66, health: 18, melee: 4, grenade: 22, super: 10, class: 6, weapon: 6 }
+      },
+      {
+        ...prototypeAccountItem("class-vault", 1011, "职业物品目标件", "职业物品", "护甲", "仓库"),
+        group_key: "armor",
+        item_type: "职业物品",
+        armor_stats: { total: 0, health: 0, melee: 0, grenade: 0, super: 0, class: 0, weapon: 0 }
+      }
     ],
     sample_items: []
   },
@@ -810,6 +865,112 @@ const prototypeUpdateSnapshot = {
   update_source_label: "GitHub Release",
   user_message: "当前已是最新版本。",
   error: ""
+};
+
+function prototypeStartupStateForScenario(scenario: PrototypeScenario): any {
+  return {
+    cards: {
+      bungieConfig: {
+        status: scenario.key === "account-missing" ? "missing" : "ready",
+        label: scenario.key === "account-missing" ? "需要配置 Bungie" : "Bungie 已配置"
+      },
+      account: {
+        status: scenario.hasAccountData ? "ready" : "missing",
+        label: scenario.hasAccountData ? "账号已读取" : "需要登录 Bungie 账号"
+      }
+    }
+  };
+}
+
+const prototypeActivitySummary: any = {
+  recent: {
+    total: 10,
+    pve: { total: 7, completed: 6 },
+    pvp: { total: 3, completed: 2 },
+    latest_period: "2026-07-03T13:42:00+08:00"
+  },
+  review: {
+    completion_rate: 80,
+    completions_in_a_row: 3,
+    recent_10: [
+      { status_label: "已完成", duration_label: "12分 08秒", key_stats: ["击杀 82", "死亡 1"] },
+      { status_label: "已完成", duration_label: "10分 31秒", key_stats: ["击杀 64", "助攻 21"] }
+    ]
+  },
+  raids: {
+    entries: [
+      {
+        activity_type: "raid",
+        activity_name: "克洛塔的末日",
+        completions: 1,
+        attempts: 2,
+        last_completed_at: "2026-07-02T22:15:00+08:00"
+      },
+      {
+        activity_type: "dungeon",
+        activity_name: "战争领主的废墟",
+        completions: 2,
+        attempts: 2,
+        last_completed_at: "2026-07-01T21:05:00+08:00"
+      }
+    ]
+  },
+  recent_items: [
+    { period: "2026-07-03T13:42:00+08:00", mode: "pve", activity_name: "日落打击", completed: true },
+    { period: "2026-07-03T12:18:00+08:00", mode: "pvp", activity_name: "控制", completed: true }
+  ]
+};
+
+const prototypeVaultTags = {
+  items: {
+    "handcannon-vault": { tag: "review", note: "同名 2 件，优先看 perk 差异。" },
+    "sword-vault": { tag: "loadout", note: "突袭输出位可用。" },
+    "scout-vault": { tag: "junk", note: "传承来源，无目标命中。" },
+    "helmet-vault": { tag: "keep", note: "纪律目标命中。" }
+  }
+} as const;
+
+const prototypeLocalTargetRules = {
+  action_policy: "notify_only" as const,
+  armor: [
+    {
+      id: "prototype-armor-discipline",
+      name: "高纪律护甲",
+      conditions: [{ stat: "grenade" as const, min: 20 }]
+    }
+  ],
+  weapons: [
+    {
+      id: "prototype-weapon-handcannon",
+      name: "PVE 手炮",
+      item_hash: 1002,
+      item_name: "精准手炮",
+      conditions: [{ perk_hash: 2004, perk_name: "爆炸载荷" }]
+    }
+  ]
+};
+
+const prototypeWishlist = {
+  title: "Prototype DIM Wishlist",
+  rules: [
+    {
+      item_hash: 1002,
+      perk_hashes: [2003, 2004],
+      mode: "pve" as const,
+      note: "PVE 推荐"
+    }
+  ]
+};
+
+const prototypeVaultCommunityMatch = new Map<number, any>([
+  [1002, { matched: 2, modes: ["pve"], sample_perks: [{ name: "丰盈满溢" }, { name: "爆炸载荷" }] }],
+  [1006, { matched: 1, modes: ["pve"], sample_perks: [{ name: "连锁反应" }] }]
+]);
+
+const prototypeBatchResult = {
+  success_count: 0,
+  failed_count: 0,
+  results: []
 };
 
 const prototypeBackgroundTasks = [

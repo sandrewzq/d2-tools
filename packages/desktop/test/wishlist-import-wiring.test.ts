@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import { readRendererApiContracts } from "./source-readers";
 
 const desktopRoot = fileURLToPath(new URL("..", import.meta.url));
+const uiRoot = join(desktopRoot, "..", "ui", "src");
 
 describe("wishlist import wiring", () => {
   it("wires persisted DIM wishlist APIs through desktop and renderer layers", () => {
@@ -15,8 +16,9 @@ describe("wishlist import wiring", () => {
     const homePage = readFileSync(join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"), "utf8");
     const accountHook = readFileSync(join(desktopRoot, "src", "renderer", "features", "account", "useAccountWorkspace.ts"), "utf8");
     const vaultPage = readFileSync(join(desktopRoot, "src", "renderer", "features", "vault", "VaultPage.tsx"), "utf8");
-    const vaultPanel = readFileSync(join(desktopRoot, "src", "renderer", "components", "VaultPanel.tsx"), "utf8");
-    const vaultListItem = readFileSync(join(desktopRoot, "src", "renderer", "features", "vault", "VaultListItem.tsx"), "utf8");
+    const vaultContent = readFileSync(join(uiRoot, "vault", "VaultPageContentView.tsx"), "utf8");
+    const recommendationPanel = readFileSync(join(uiRoot, "vault", "VaultRecommendationImportPanel.tsx"), "utf8");
+    const vaultListItem = readFileSync(join(uiRoot, "vault", "VaultListItem.tsx"), "utf8");
 
     expect(preload).toContain('ipcRenderer.invoke("wishlist:get")');
     expect(preload).toContain('ipcRenderer.invoke("wishlist:save"');
@@ -31,11 +33,13 @@ describe("wishlist import wiring", () => {
     expect(accountHook).toContain("wishlist");
     expect(accountHook).toContain("loadAccountWorkspace(services)");
     expect(homePage).toContain("importedWishlist");
-    expect(vaultPage).toContain("parseDimWishlist");
-    expect(vaultPage).toContain("wishlistImportDraft");
-    expect(vaultPage).toContain("导入 DIM 愿望单");
+    expect(vaultPage).toContain("services.localData.saveDimWishlist");
+    expect(vaultPage).toContain("recommendationImportActions");
+    expect(recommendationPanel).toContain("parseDimWishlist");
+    expect(recommendationPanel).toContain("wishlistImportDraft");
+    expect(recommendationPanel).toContain("导入 DIM 愿望单");
     expect(vaultListItem).toContain("evaluateWishlistRoll");
-    expect(vaultPanel).toContain("props.wishlist");
+    expect(vaultContent).toContain("props.wishlist");
   });
 
   it("wires local community recommendation table APIs through desktop and renderer layers", () => {
@@ -44,6 +48,7 @@ describe("wishlist import wiring", () => {
     const ipcRegister = readFileSync(join(desktopRoot, "src", "main", "ipc.ts"), "utf8");
     const client = readRendererApiContracts(desktopRoot);
     const vaultPage = readFileSync(join(desktopRoot, "src", "renderer", "features", "vault", "VaultPage.tsx"), "utf8");
+    const recommendationPanel = readFileSync(join(uiRoot, "vault", "VaultRecommendationImportPanel.tsx"), "utf8");
 
     expect(preload).toContain('ipcRenderer.invoke("community:local:get")');
     expect(preload).toContain('ipcRenderer.invoke("community:local:save"');
@@ -55,8 +60,9 @@ describe("wishlist import wiring", () => {
     expect(client).toContain("getLocalCommunityRecommendations");
     expect(client).toContain("saveLocalCommunityRecommendations");
     expect(client).toContain("clearLocalCommunityRecommendations");
-    expect(vaultPage).toContain("parseLocalCommunityRecommendations");
-    expect(vaultPage).toContain("localCommunityImportDraft");
-    expect(vaultPage).toContain("导入本地社区推荐表");
+    expect(vaultPage).toContain("services.localData.saveLocalCommunityRecommendations");
+    expect(recommendationPanel).toContain("parseLocalCommunityRecommendations");
+    expect(recommendationPanel).toContain("localCommunityImportDraft");
+    expect(recommendationPanel).toContain("导入本地社区推荐表");
   });
 });

@@ -133,9 +133,9 @@ describe("desktop T5 visual redesign", () => {
   });
 
   it("splits vault workflows into first-class tabs while keeping weapon and armor filters separate", () => {
-    const vaultPanel = readRendererFile("components/VaultPanel.tsx");
-    const toolbar = readRendererFile("features/vault/VaultFilterToolbar.tsx");
-    const armorPanel = readRendererFile("features/vault/VaultArmorFilterPanel.tsx");
+    const vaultPanel = readUiFile("vault/VaultPageContentView.tsx");
+    const toolbar = readUiFile("vault/VaultFilterToolbar.tsx");
+    const armorPanel = readUiFile("vault/VaultArmorFilterPanel.tsx");
     const styles = readUiFile("styles.css");
 
     expect(vaultPanel).toContain("VaultWorkspaceTab");

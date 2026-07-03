@@ -20,6 +20,7 @@ describe("desktop product redesign wiring", () => {
     const homeCopy = readUiFile("i18n/copy.ts");
     const homePage = readRendererFile("pages/HomePage.tsx");
     const vaultPanel = readRendererFile("components/VaultPanel.tsx");
+    const vaultContent = readUiFile("vault/VaultPageContentView.tsx");
     const loadoutsPage = readRendererFile("features/loadouts/LoadoutsPage.tsx");
     const loadoutsView = readUiFile("loadouts/LoadoutsPageView.tsx");
     const loadoutsContent = readUiFile("loadouts/LoadoutsPageContentView.tsx");
@@ -46,9 +47,10 @@ describe("desktop product redesign wiring", () => {
     expect(homeDashboard).not.toContain("读取账号");
     expect(homeDashboard).not.toContain("商人库存");
 
-    expect(vaultPanel).toContain("vault-product-layout");
-    expect(vaultPanel).toContain("vault-decision-summary");
-    expect(vaultPanel).toContain("ItemDecision");
+    expect(vaultPanel).toContain("VaultPageContentView as VaultPanel");
+    expect(vaultContent).toContain("vault-product-layout");
+    expect(vaultContent).toContain("vault-decision-summary");
+    expect(vaultContent).toContain("ItemDecision");
 
     expect(loadoutsPage).toContain("LoadoutsPageContentView");
     expect(loadoutsContent).toContain("LoadoutsPageView");
@@ -96,7 +98,7 @@ describe("desktop product redesign wiring", () => {
   });
 
   it("shows item decision evidence on vault cards and keeps cleanup protected by evidence", () => {
-    const vaultListItem = readRendererFile("features/vault/VaultListItem.tsx");
+    const vaultListItem = readUiFile("vault/VaultListItem.tsx");
 
     expect(vaultListItem).toContain("buildItemDecision");
     expect(vaultListItem).toContain("decision-badge");

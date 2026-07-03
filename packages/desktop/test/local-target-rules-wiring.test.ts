@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import { readItemDetailSources, readRendererApiContracts } from "./source-readers";
 
 const desktopRoot = fileURLToPath(new URL("..", import.meta.url));
+const uiRoot = join(desktopRoot, "..", "ui", "src");
 
 describe("local target rules wiring", () => {
   it("wires persisted local target rules through desktop and renderer layers", () => {
@@ -18,7 +19,8 @@ describe("local target rules wiring", () => {
       "utf8"
     );
     const vaultPage = readFileSync(join(desktopRoot, "src", "renderer", "features", "vault", "VaultPage.tsx"), "utf8");
-    const targetPanel = readFileSync(join(desktopRoot, "src", "renderer", "features", "vault", "VaultTargetRulesPanel.tsx"), "utf8");
+    const vaultContent = readFileSync(join(uiRoot, "vault", "VaultPageContentView.tsx"), "utf8");
+    const targetPanel = readFileSync(join(uiRoot, "vault", "VaultTargetRulesPanel.tsx"), "utf8");
 
     expect(preload).toContain('ipcRenderer.invoke("targets:get")');
     expect(preload).toContain('ipcRenderer.invoke("targets:save"');
@@ -35,12 +37,14 @@ describe("local target rules wiring", () => {
     expect(homePage).not.toContain("api.getLocalTargetRules()");
     expect(accountHook).toContain("loadAccountWorkspace(services)");
     expect(accountHook).toContain("targetRules");
-    expect(vaultPage).toContain("VaultTargetRulesPanel");
+    expect(vaultContent).toContain("VaultTargetRulesPanel");
+    expect(vaultPage).toContain("targetRulesActions");
+    expect(vaultPage).toContain("api.searchPerks");
     expect(targetPanel).toContain("本地目标规则");
     expect(targetPanel).toContain("武器 perk 目标");
     expect(targetPanel).toContain("selectedWeaponHash");
     expect(targetPanel).toContain("availableWeaponTargets");
-    expect(targetPanel).toContain("api.searchPerks");
+    expect(targetPanel).toContain("onSearchPerks");
     expect(targetPanel).toContain("perkSearchResults");
     expect(targetPanel).toContain("从资料库搜索 perk");
     expect(targetPanel).toContain("添加到目标");
@@ -53,16 +57,18 @@ describe("local target rules wiring", () => {
 
   it("surfaces local target matches in vault cards, filters and item detail", () => {
     const vaultPanel = readFileSync(join(desktopRoot, "src", "renderer", "components", "VaultPanel.tsx"), "utf8");
+    const vaultContent = readFileSync(join(uiRoot, "vault", "VaultPageContentView.tsx"), "utf8");
     const vaultListWorkspace = readFileSync(join(desktopRoot, "..", "app", "src", "workspaces", "vaultList.ts"), "utf8");
     const vaultFiltersBarrel = readFileSync(join(desktopRoot, "src", "renderer", "features", "vault", "vaultFilters.ts"), "utf8");
-    const vaultListItem = readFileSync(join(desktopRoot, "src", "renderer", "features", "vault", "VaultListItem.tsx"), "utf8");
+    const vaultListItem = readFileSync(join(uiRoot, "vault", "VaultListItem.tsx"), "utf8");
     const itemDetailSources = readItemDetailSources(desktopRoot);
 
-    expect(vaultPanel).toContain("targetSummaryCount");
+    expect(vaultPanel).toContain("VaultPageContentView as VaultPanel");
+    expect(vaultContent).toContain("targetSummaryCount");
     expect(vaultListWorkspace).toContain("evaluateLocalTargets");
     expect(vaultListWorkspace).toContain('target: "目标命中"');
     expect(vaultFiltersBarrel).toContain('from "@d2-tools/app"');
-    expect(vaultPanel).toContain("createVaultListWorkspace");
+    expect(vaultContent).toContain("createVaultListWorkspace");
     expect(vaultListItem).toContain("target-hit-badge");
     expect(vaultListItem).toContain("本地目标");
     expect(itemDetailSources).toContain("本地目标命中");

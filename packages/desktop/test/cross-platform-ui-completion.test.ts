@@ -12,25 +12,54 @@ describe("cross-platform UI completion boundary", () => {
   it("moves vault, loadouts and library page shells into packages/ui", () => {
     const uiIndex = read("packages/ui/src/index.ts");
     const vaultView = read("packages/ui/src/vault/VaultPageView.tsx");
+    const vaultContent = read("packages/ui/src/vault/VaultPageContentView.tsx");
+    const desktopVaultUiShims = [
+      read("packages/desktop/src/renderer/features/vault/VaultArmorFilterPanel.tsx"),
+      read("packages/desktop/src/renderer/features/vault/VaultDuplicateGroups.tsx"),
+      read("packages/desktop/src/renderer/features/vault/VaultFilterToolbar.tsx"),
+      read("packages/desktop/src/renderer/features/vault/VaultItemSections.tsx"),
+      read("packages/desktop/src/renderer/features/vault/VaultListItem.tsx"),
+      read("packages/desktop/src/renderer/features/vault/VaultOrganizePanel.tsx"),
+      read("packages/desktop/src/renderer/features/vault/VaultRecommendationImportPanel.tsx"),
+      read("packages/desktop/src/renderer/features/vault/VaultTargetRulesPanel.tsx"),
+      read("packages/desktop/src/renderer/features/vault/useVaultBatchActions.ts")
+    ].join("\n");
     const loadoutsView = read("packages/ui/src/loadouts/LoadoutsPageView.tsx");
     const libraryView = read("packages/ui/src/library/LibraryPageView.tsx");
     const loadoutsContent = read("packages/ui/src/loadouts/LoadoutsPageContentView.tsx");
     const libraryContent = read("packages/ui/src/library/LibraryPageContentView.tsx");
     const vaultPage = read("packages/desktop/src/renderer/features/vault/VaultPage.tsx");
+    const desktopVaultPanel = read("packages/desktop/src/renderer/components/VaultPanel.tsx");
     const loadoutsPage = read("packages/desktop/src/renderer/features/loadouts/LoadoutsPage.tsx");
     const libraryPage = read("packages/desktop/src/renderer/features/library/LibraryPage.tsx");
 
     expect(uiIndex).toContain("VaultPageView");
+    expect(uiIndex).toContain("VaultPageContentView");
     expect(uiIndex).toContain("LoadoutsPageView");
     expect(uiIndex).toContain("LibraryPageView");
 
     expect(vaultView).toContain("export function VaultPageView");
+    expect(vaultContent).toContain("export function VaultPageContentView");
+    expect(vaultContent).toContain("vault-workflow-tabs");
+    expect(vaultContent).toContain("VaultFilterToolbar");
+    expect(vaultContent).toContain("VaultDuplicateGroups");
+    expect(vaultContent).toContain("VaultRecommendationImportPanel");
+    expect(vaultContent).toContain("VaultTargetRulesPanel");
     expect(loadoutsView).toContain("export function LoadoutsPageView");
     expect(libraryView).toContain("export function LibraryPageView");
     expect(loadoutsContent).toContain("<LoadoutsPageView");
     expect(libraryContent).toContain("<LibraryPageView");
 
     expect(vaultPage).toContain("<VaultPageView");
+    expect(vaultPage).toContain("<VaultPageContentView");
+    expect(vaultPage).not.toContain("VaultPanel");
+    expect(desktopVaultPanel).not.toContain("export function VaultPanel");
+    expect(desktopVaultUiShims).toContain("@d2-tools/ui");
+    expect(desktopVaultUiShims).not.toContain("export function Vault");
+    expect(desktopVaultUiShims).not.toContain("createVaultListWorkspace");
+    expect(desktopVaultUiShims).not.toContain("useState");
+    expect(vaultPage).not.toContain("导入 DIM 愿望单");
+    expect(vaultPage).not.toContain("本地目标规则");
     expect(loadoutsPage).toContain("<LoadoutsPageContentView");
     expect(libraryPage).toContain("<LibraryPageContentView");
 
@@ -84,13 +113,17 @@ describe("cross-platform UI completion boundary", () => {
     const prototypeMain = read("packages/prototype/src/main.tsx");
     const uiStyles = read("packages/ui/src/styles.css");
 
-    expect(prototypeMain).toContain("VaultPageView");
+    expect(prototypeMain).toContain("AccountPageContentView");
+    expect(prototypeMain).toContain("createAccountPageWorkspace");
+    expect(prototypeMain).not.toContain("<AccountPageView interfaceLocale={preferences.interfaceLocale} />");
+    expect(prototypeMain).toContain("VaultPageContentView");
     expect(prototypeMain).toContain("LoadoutsPageContentView");
     expect(prototypeMain).toContain("LibraryPageContentView");
     expect(prototypeMain).toContain('activePage === "vault"');
     expect(prototypeMain).toContain('activePage === "loadouts"');
     expect(prototypeMain).toContain('activePage === "library"');
     expect(prototypeMain).toContain("interfaceLocale={preferences.interfaceLocale}");
+    expect(prototypeMain).not.toContain("vault-prototype-summary");
     expect(prototypeMain).not.toContain("这个页面会在后续阶段接入共享 View。");
     expect(prototypeMain).not.toContain('activePage !== "home" && activePage !== "account" && activePage !== "settings"');
 
@@ -139,6 +172,20 @@ describe("cross-platform UI completion boundary", () => {
     expect(uiStyles).toContain(".ai-conversation-header");
     expect(uiStyles).toContain(".ai-context-drawer");
     expect(prototypeStyles).not.toContain(".prototype-assistant-panel");
+  });
+
+  it("renders web primary routes through shared page views instead of the home page fallback", () => {
+    const webMain = read("packages/web/src/main.tsx");
+
+    expect(webMain).toContain("AccountPageContentView");
+    expect(webMain).toContain("VaultPageContentView");
+    expect(webMain).toContain("LoadoutsPageContentView");
+    expect(webMain).toContain("LibraryPageContentView");
+    expect(webMain).toContain("SettingsPageContentView");
+    expect(webMain).toContain('activePage === "account"');
+    expect(webMain).toContain('activePage === "vault"');
+    expect(webMain).not.toContain("当前 Web 入口仅接首页");
+    expect(webMain).not.toMatch(/renderPage=\{\(activePage, preferences\) => \(\s*<>\s*<header className="page-header">/);
   });
 
   it("keeps the account fallback prototype free of unfinished placeholder copy", () => {

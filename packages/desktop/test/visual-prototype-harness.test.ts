@@ -219,7 +219,8 @@ describe("visual prototype harness", () => {
 
     expect(prototypeEntry).toContain("ProductShellHost");
     expect(prototypeEntry).toContain("HomePageView");
-    expect(prototypeEntry).toContain("AccountPageView");
+    expect(prototypeEntry).toContain("AccountPageContentView");
+    expect(prototypeEntry).toContain("VaultPageContentView");
     expect(prototypeEntry).toContain("SettingsPageContentView");
     expect(prototypeEntry).toContain("prototype-debug-toggle");
     expect(prototypeEntry).toContain("prototype-debug-panel");
