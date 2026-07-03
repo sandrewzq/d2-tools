@@ -56,6 +56,7 @@ import {
 } from "./useVaultBatchActions.js";
 
 type VaultWorkspaceTab = "filters" | "cleanup" | "duplicates" | "targets" | "recommendations";
+type VaultQuickFilter = "cleanup" | "wishlist" | "targets" | "untagged" | "locked";
 
 const vaultWorkspaceTabs: Array<{ key: VaultWorkspaceTab; label: string; description: string }> = [
   { key: "filters", label: "筛选列表", description: "按类型、perk、标签和属性快速定位装备" },
@@ -63,6 +64,14 @@ const vaultWorkspaceTabs: Array<{ key: VaultWorkspaceTab; label: string; descrip
   { key: "duplicates", label: "同名对比", description: "比较同名或同 Hash 装备的 roll 差异" },
   { key: "targets", label: "目标规则", description: "查看本地目标命中的武器和护甲" },
   { key: "recommendations", label: "推荐数据", description: "查看 DIM 愿望单和社区推荐命中" }
+];
+
+const vaultQuickFilters: Array<{ key: VaultQuickFilter; label: string }> = [
+  { key: "cleanup", label: "可清理候选" },
+  { key: "wishlist", label: "DIM 命中" },
+  { key: "targets", label: "本地目标" },
+  { key: "untagged", label: "未标记" },
+  { key: "locked", label: "已锁定" }
 ];
 
 export function VaultPageContentView(props: {
@@ -300,13 +309,41 @@ export function VaultPageContentView(props: {
     }
   }
 
+  function applyVaultQuickFilter(filter: VaultQuickFilter) {
+    setBatchMessage("");
+    if (filter === "cleanup") {
+      setTagFilter("junk");
+      switchVaultTab("filters");
+      return;
+    }
+    if (filter === "wishlist") {
+      setTagFilter("wishlist");
+      switchVaultTab("filters");
+      return;
+    }
+    if (filter === "targets") {
+      setTagFilter("target");
+      switchVaultTab("filters");
+      return;
+    }
+    if (filter === "untagged") {
+      setTagFilter("untagged");
+      switchVaultTab("filters");
+      return;
+    }
+    if (filter === "locked") {
+      setLockFilter("locked");
+      switchVaultTab("filters");
+    }
+  }
+
   return (
     <section className="tool-panel vault-dashboard-panel vault-product-layout">
       {(props.showInternalHeading ?? true) ? (
         <div className="section-heading">
           <div>
             <h2>仓库</h2>
-            <p>查看完整仓库列表，支持按名称、类型、品质和分组筛选。</p>
+            <p>先筛出候选，再用 DIM、目标规则、同名对比和本地标记判断保留或清理。</p>
           </div>
           <div className="vault-count">
             {filteredItems.length} / {props.items.length}
@@ -323,148 +360,170 @@ export function VaultPageContentView(props: {
           方案命中 {loadoutMatchCount} 件
         </p>
       ) : null}
-      <div className="vault-decision-summary product-card" aria-label="仓库整理决策摘要">
-        <strong>整理决策</strong>
-        <span>必留 {decisionSummary.keep} 件</span>
-        <span>复查 {decisionSummary.review} 件</span>
-        <span>可清理候选 {decisionSummary.cleanup_candidate} 件</span>
-        <span>未知 {decisionSummary.unknown} 件</span>
-      </div>
-      <div className="vault-workflow-tabs" role="tablist" aria-label="仓库工作流">
-        {vaultWorkspaceTabs.map((tab) => (
-          <button
-            type="button"
-            role="tab"
-            key={tab.key}
-            className={activeVaultTab === tab.key ? "vault-workflow-tab active" : "vault-workflow-tab"}
-            aria-selected={activeVaultTab === tab.key}
-            onClick={() => switchVaultTab(tab.key)}
-          >
-            <strong>{tab.label}</strong>
-            <span>{tab.description}</span>
-          </button>
-        ))}
-      </div>
-      {batchMessage ? <p className={batchMessage.includes("失败") ? "status-message status-error" : "status-message status-ready"}>{batchMessage}</p> : null}
-      {activeVaultTab === "filters" ? (
-        <>
-          {renderVaultSummaryCards({
+      <div className="vault-workbench-layout">
+        <div className="vault-workbench-main">
+          <div className="vault-workbench-header">
+            <div className="vault-workflow-tabs" role="tablist" aria-label="仓库工作台">
+              {vaultWorkspaceTabs.map((tab) => (
+                <button
+                  type="button"
+                  role="tab"
+                  key={tab.key}
+                  className={activeVaultTab === tab.key ? "vault-workflow-tab active" : "vault-workflow-tab"}
+                  aria-selected={activeVaultTab === tab.key}
+                  onClick={() => switchVaultTab(tab.key)}
+                >
+                  <strong>{tab.label}</strong>
+                  <span>{tab.description}</span>
+                </button>
+              ))}
+            </div>
+            <div className="vault-quick-filters" aria-label="仓库快速筛选">
+              <span>快速筛选</span>
+              {vaultQuickFilters.map((filter) => (
+                <button
+                  type="button"
+                  key={filter.key}
+                  className="vault-quick-filter-chip"
+                  onClick={() => applyVaultQuickFilter(filter.key)}
+                >
+                  {filter.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          {batchMessage ? <p className={batchMessage.includes("失败") ? "status-message status-error" : "status-message status-ready"}>{batchMessage}</p> : null}
+          {activeVaultTab === "filters" ? (
+            <>
+              <VaultFilterToolbar
+                query={query}
+                sortKey={sortKey}
+                tagFilter={tagFilter}
+                armorStatRules={armorStatRules}
+                lockFilter={lockFilter}
+                slotFilter={slotFilter}
+                ammoFilter={ammoFilter}
+                frameFilters={frameFilters}
+                group={group}
+                groups={groups}
+                slotFilters={slotFilters}
+                availableFrameFilters={availableFrameFilters}
+                onQueryChange={setQuery}
+                onSortKeyChange={setSortKey}
+                onTagFilterChange={setTagFilter}
+                onAddArmorStatRule={addArmorStatRule}
+                onClearArmorStatRules={() => setArmorStatRules([])}
+                onRemoveArmorStatRule={removeArmorStatRule}
+                onUpdateArmorStatRule={updateArmorStatRule}
+                onLockFilterChange={setLockFilter}
+                onSlotFilterChange={setSlotFilter}
+                onAmmoFilterChange={setAmmoFilter}
+                onGroupChange={switchVaultFilterMode}
+                onToggleFrameFilter={toggleFrameFilter}
+                onClearFilters={clearFilters}
+              />
+              {renderVaultItems()}
+            </>
+          ) : null}
+          {activeVaultTab === "cleanup" ? (
+            <>
+              <VaultOrganizePanel
+                groups={groups}
+                group={group}
+                isOrganizing={isOrganizing}
+                isCleanupMode={isCleanupMode}
+                filteredItemCount={filteredItems.length}
+                selectedItemCount={selectedItems.length}
+                selectionSummary={selectionSummary}
+                activeBatchAction={activeBatchAction}
+                isBatchSaving={isBatchSaving}
+                cleanupActions={props.cleanupActions}
+                cleanupCharacters={cleanupCharacters}
+                cleanupTargetCharacterId={cleanupTargetCharacterId}
+                markedCleanupItemCount={markedCleanupItems.length}
+                cleanupActionItems={cleanupActionItems}
+                tags={props.tags}
+                onGroupChange={setGroup}
+                onToggleOrganizing={toggleOrganizingMode}
+                onToggleCleanupMode={toggleCleanupMode}
+                onVisibleSelectionChange={updateVisibleSelection}
+                onBatchSelectionChange={setBatchSelection}
+                onClearSelection={() => setSelectedKeys(new Set())}
+                onCleanupTargetCharacterChange={setCleanupCharacterId}
+                onApplyBatchTag={applyBatchTag}
+                onCopyCleanupList={copyCleanupList}
+                onRunSelectedBulkMove={runSelectedBulkMove}
+                onRunCleanupAction={runCleanupAction}
+              />
+              {renderVaultItems()}
+            </>
+          ) : null}
+          {activeVaultTab === "duplicates" ? (
+            <>
+              <div className="vault-duplicate-summary">
+                <strong>重复组 {duplicateSummary.total_duplicate_groups} 组</strong>
+                <span>共 {duplicateSummary.total_duplicate_items} 件同名或同 Hash 装备，可优先检查属性或 perk 差异。</span>
+              </div>
+              <VaultDuplicateGroups
+                duplicateSummary={duplicateSummary}
+                items={props.items}
+                tags={props.tags}
+                localTargetRules={props.localTargetRules}
+                selectedKeys={selectedKeys}
+                openingItemKey={props.openingItemKey}
+                isBatchSaving={isBatchSaving}
+                onOpenItem={props.onOpenItem}
+                onMergeSelectedKeys={mergeSelectedKeys}
+                onApplyDuplicateGroupTags={applyDuplicateGroupTags}
+              />
+            </>
+          ) : null}
+          {activeVaultTab === "targets" ? (
+            <>
+              <div className="vault-duplicate-summary">
+                <strong>本地目标命中 {targetSummaryCount} 件</strong>
+                <span>按你保存的护甲属性最低值或武器 perk 规则匹配；可回到筛选列表用“目标命中”进一步缩小范围。</span>
+              </div>
+              <VaultTargetRulesPanel
+                items={props.items}
+                rules={props.localTargetRules ?? { action_policy: "notify_only", armor: [], weapons: [] }}
+                actions={props.targetRulesActions}
+              />
+              {renderVaultItems()}
+            </>
+          ) : null}
+          {activeVaultTab === "recommendations" ? (
+            <>
+              <div className="vault-duplicate-summary">
+                <strong>DIM 愿望单命中 {wishlistSummaryCount} 件</strong>
+                <span>{props.wishlist ? "当前只使用你导入的 DIM 规则和账号匹配结果。" : "还没有导入 DIM 愿望单；不会默认内置未授权社区数据。"}</span>
+              </div>
+              <VaultRecommendationImportPanel
+                wishlist={props.wishlist}
+                actions={props.recommendationImportActions}
+              />
+              {renderVaultItems()}
+            </>
+          ) : null}
+        </div>
+        <aside className="vault-side-summary" aria-label="仓库当前整理摘要">
+          {renderVaultSideSummary({
+            activeTab: activeVaultTab,
+            decisionSummary,
             duplicateSummary,
+            filteredCount: filteredItems.length,
+            totalCount: props.items.length,
+            markedCleanupCount: markedCleanupItems.length,
             wishlist: props.wishlist,
             wishlistSummaryCount,
             localTargetRules: props.localTargetRules,
-            targetSummaryCount
+            targetSummaryCount,
+            onCleanupClick: () => applyVaultQuickFilter("cleanup"),
+            onDuplicatesClick: () => switchVaultTab("duplicates"),
+            onCopyCleanupList: copyCleanupList
           })}
-          <VaultFilterToolbar
-            query={query}
-            sortKey={sortKey}
-            tagFilter={tagFilter}
-            armorStatRules={armorStatRules}
-            lockFilter={lockFilter}
-            slotFilter={slotFilter}
-            ammoFilter={ammoFilter}
-            frameFilters={frameFilters}
-            group={group}
-            groups={groups}
-            slotFilters={slotFilters}
-            availableFrameFilters={availableFrameFilters}
-            onQueryChange={setQuery}
-            onSortKeyChange={setSortKey}
-            onTagFilterChange={setTagFilter}
-            onAddArmorStatRule={addArmorStatRule}
-            onClearArmorStatRules={() => setArmorStatRules([])}
-            onRemoveArmorStatRule={removeArmorStatRule}
-            onUpdateArmorStatRule={updateArmorStatRule}
-            onLockFilterChange={setLockFilter}
-            onSlotFilterChange={setSlotFilter}
-            onAmmoFilterChange={setAmmoFilter}
-            onGroupChange={switchVaultFilterMode}
-            onToggleFrameFilter={toggleFrameFilter}
-            onClearFilters={clearFilters}
-          />
-          {renderVaultItems()}
-        </>
-      ) : null}
-      {activeVaultTab === "cleanup" ? (
-        <>
-          <VaultOrganizePanel
-            groups={groups}
-            group={group}
-            isOrganizing={isOrganizing}
-            isCleanupMode={isCleanupMode}
-            filteredItemCount={filteredItems.length}
-            selectedItemCount={selectedItems.length}
-            selectionSummary={selectionSummary}
-            activeBatchAction={activeBatchAction}
-            isBatchSaving={isBatchSaving}
-            cleanupActions={props.cleanupActions}
-            cleanupCharacters={cleanupCharacters}
-            cleanupTargetCharacterId={cleanupTargetCharacterId}
-            markedCleanupItemCount={markedCleanupItems.length}
-            cleanupActionItems={cleanupActionItems}
-            tags={props.tags}
-            onGroupChange={setGroup}
-            onToggleOrganizing={toggleOrganizingMode}
-            onToggleCleanupMode={toggleCleanupMode}
-            onVisibleSelectionChange={updateVisibleSelection}
-            onBatchSelectionChange={setBatchSelection}
-            onClearSelection={() => setSelectedKeys(new Set())}
-            onCleanupTargetCharacterChange={setCleanupCharacterId}
-            onApplyBatchTag={applyBatchTag}
-            onCopyCleanupList={copyCleanupList}
-            onRunSelectedBulkMove={runSelectedBulkMove}
-            onRunCleanupAction={runCleanupAction}
-          />
-          {renderVaultItems()}
-        </>
-      ) : null}
-      {activeVaultTab === "duplicates" ? (
-        <>
-          <div className="vault-duplicate-summary">
-            <strong>重复组 {duplicateSummary.total_duplicate_groups} 组</strong>
-            <span>共 {duplicateSummary.total_duplicate_items} 件同名或同 Hash 装备，可优先检查属性或 perk 差异。</span>
-          </div>
-          <VaultDuplicateGroups
-            duplicateSummary={duplicateSummary}
-            items={props.items}
-            tags={props.tags}
-            localTargetRules={props.localTargetRules}
-            selectedKeys={selectedKeys}
-            openingItemKey={props.openingItemKey}
-            isBatchSaving={isBatchSaving}
-            onOpenItem={props.onOpenItem}
-            onMergeSelectedKeys={mergeSelectedKeys}
-            onApplyDuplicateGroupTags={applyDuplicateGroupTags}
-          />
-        </>
-      ) : null}
-      {activeVaultTab === "targets" ? (
-        <>
-          <div className="vault-duplicate-summary">
-            <strong>本地目标命中 {targetSummaryCount} 件</strong>
-            <span>按你保存的护甲属性最低值或武器 perk 规则匹配；可回到筛选列表用“目标命中”进一步缩小范围。</span>
-          </div>
-          <VaultTargetRulesPanel
-            items={props.items}
-            rules={props.localTargetRules ?? { action_policy: "notify_only", armor: [], weapons: [] }}
-            actions={props.targetRulesActions}
-          />
-          {renderVaultItems()}
-        </>
-      ) : null}
-      {activeVaultTab === "recommendations" ? (
-        <>
-          <div className="vault-duplicate-summary">
-            <strong>DIM 愿望单命中 {wishlistSummaryCount} 件</strong>
-            <span>{props.wishlist ? "当前只使用你导入的 DIM 规则和账号匹配结果。" : "还没有导入 DIM 愿望单；不会默认内置未授权社区数据。"}</span>
-          </div>
-          <VaultRecommendationImportPanel
-            wishlist={props.wishlist}
-            actions={props.recommendationImportActions}
-          />
-          {renderVaultItems()}
-        </>
-      ) : null}
+        </aside>
+      </div>
     </section>
   );
 
@@ -514,33 +573,60 @@ function buildVaultDecisionSummary(
   );
 }
 
-function renderVaultSummaryCards(input: {
+function renderVaultSideSummary(input: {
+  activeTab: VaultWorkspaceTab;
+  decisionSummary: Record<ItemDecision["decision"], number>;
   duplicateSummary: ReturnType<typeof buildVaultDuplicateSummary>;
+  filteredCount: number;
+  totalCount: number;
+  markedCleanupCount: number;
   wishlist?: DimWishlist | null;
   wishlistSummaryCount: number;
   localTargetRules?: LocalTargetRules | null;
   targetSummaryCount: number;
+  onCleanupClick: () => void;
+  onDuplicatesClick: () => void;
+  onCopyCleanupList: () => void | Promise<void>;
 }) {
+  const activeTabLabel = vaultWorkspaceTabs.find((tab) => tab.key === input.activeTab)?.label ?? "筛选列表";
+  const hasLocalTargets = Boolean(input.localTargetRules?.armor.length || input.localTargetRules?.weapons?.length);
+
   return (
-    <>
-      {input.duplicateSummary.total_duplicate_groups ? (
-        <div className="vault-duplicate-summary">
-          <strong>重复组 {input.duplicateSummary.total_duplicate_groups} 组</strong>
-          <span>共 {input.duplicateSummary.total_duplicate_items} 件同名或同 Hash 装备，可优先检查属性或 perk 差异。</span>
+    <div className="vault-side-summary-inner">
+      <div className="vault-side-heading">
+        <span>当前任务</span>
+        <strong>{activeTabLabel}</strong>
+        <small>当前筛选命中 {input.filteredCount} / {input.totalCount} 件</small>
+      </div>
+      <div className="vault-decision-summary" aria-label="仓库整理决策摘要">
+        <strong>整理决策</strong>
+        <span data-decision="keep">必留 {input.decisionSummary.keep} 件</span>
+        <span data-decision="review">复查 {input.decisionSummary.review} 件</span>
+        <span data-decision="cleanup">可清理候选 {input.decisionSummary.cleanup_candidate} 件</span>
+        <span data-decision="unknown">未知 {input.decisionSummary.unknown} 件</span>
+      </div>
+      <div className="vault-side-signal-list">
+        <div className="vault-side-signal">
+          <span>同名重复</span>
+          <strong>{input.duplicateSummary.total_duplicate_groups} 组</strong>
+          <small>{input.duplicateSummary.total_duplicate_items} 件需要对比 roll、属性或来源。</small>
         </div>
-      ) : null}
-      {input.wishlist ? (
-        <div className="vault-duplicate-summary">
-          <strong>DIM 愿望单命中 {input.wishlistSummaryCount} 件</strong>
-          <span>当前仓库里命中你已导入 DIM 规则的装备数量，可直接用“DIM 愿望单”筛选查看。</span>
+        <div className="vault-side-signal">
+          <span>DIM 命中</span>
+          <strong>{input.wishlist ? `${input.wishlistSummaryCount} 件` : "未导入"}</strong>
+          <small>{input.wishlist ? "只使用你导入的 DIM 规则。" : "导入后可按愿望单命中筛选。"}</small>
         </div>
-      ) : null}
-      {input.localTargetRules?.armor.length || input.localTargetRules?.weapons?.length ? (
-        <div className="vault-duplicate-summary">
-          <strong>本地目标命中 {input.targetSummaryCount} 件</strong>
-          <span>按你保存的护甲属性最低值或武器 perk 规则匹配，可直接用“目标命中”筛选查看。</span>
+        <div className="vault-side-signal">
+          <span>本地目标</span>
+          <strong>{hasLocalTargets ? `${input.targetSummaryCount} 件` : "未配置"}</strong>
+          <small>{hasLocalTargets ? "来自你保存的护甲阈值或武器规则。" : "可在目标规则中保存个人筛选条件。"}</small>
         </div>
-      ) : null}
-    </>
+      </div>
+      <div className="vault-side-actions">
+        <button type="button" onClick={input.onCleanupClick}>查看可清理候选</button>
+        <button type="button" className="secondary-button" onClick={input.onDuplicatesClick}>进入同名对比</button>
+        <button type="button" className="secondary-button" disabled={!input.markedCleanupCount} onClick={input.onCopyCleanupList}>复制清理清单</button>
+      </div>
+    </div>
   );
 }

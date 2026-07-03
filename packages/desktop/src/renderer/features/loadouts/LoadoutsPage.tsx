@@ -71,6 +71,7 @@ export function LoadoutsPage(props: LoadoutsPageProps) {
   return (
     <LoadoutsPageContentView
       {...props}
+      loadoutEntries={workspace.loadoutEntries}
       selectedTemplate={workspace.selectedTemplate}
       compareTemplate={workspace.compareTemplate}
       selectedAnalysis={workspace.selectedAnalysis}

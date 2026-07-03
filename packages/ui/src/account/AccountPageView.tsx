@@ -50,7 +50,7 @@ function DefaultAccountPrototype(props: { interfaceLocale?: InterfaceLocale }) {
           <div className="account-equipment-grid">
             {slots.map((slot, index) => (
               <article className="account-equipment-card" key={slot}>
-                <span className="reward-icon" />
+                <span className="account-equipment-icon" aria-hidden="true" />
                 <div>
                   <strong>{accountText(copy, slot)}</strong>
                   <span>{index < 3 ? accountText(copy, "武器 Perk 摘要") : accountText(copy, "属性和模组摘要")}</span>

@@ -10,6 +10,7 @@ import {
   ProductShellHost,
   SettingsPageContentView,
   VaultPageContentView,
+  VendorsPageContentView,
   type LibraryEquipmentFilter,
   type LibraryPerkFilter,
   type LibraryViewMode,
@@ -22,9 +23,15 @@ import {
 import {
   buildLoadoutTemplateLookup,
   createAccountPageWorkspace,
+  createLoadoutsPageWorkspace,
   createVaultPageWorkspace,
+  createVendorsPageWorkspace,
+  findBestTemplateSourceItem,
   formatAccountItemMeta,
+  formatLoadoutComparePerks,
   getAccountPageItemKey,
+  getLoadoutItemBlockedDetails,
+  getLoadoutItemStatus,
   homePageMetaMap,
   matchesLoadoutTemplateItem
 } from "@d2-tools/app";
@@ -102,6 +109,17 @@ function PrototypeApp() {
     }),
     [activeLoadoutLookup, selectedAccountCharacterId, selectedTemplate?.name]
   );
+  const loadoutsWorkspace = useMemo(
+    () => createLoadoutsPageWorkspace({
+      accountSummary,
+      templates: prototypeLoadoutTemplates,
+      selectedTemplateId,
+      compareTemplateId,
+      showDiffOnly
+    }),
+    [accountSummary, compareTemplateId, selectedTemplateId, showDiffOnly]
+  );
+  const prototypeVendorsWorkspace = useMemo(() => createVendorsPageWorkspace(null), []);
   const platformActions = useMemo(() => ({
     openExternal: (url: string) => {
       window.open(url, "_blank", "noopener,noreferrer");
@@ -278,17 +296,18 @@ function PrototypeApp() {
           {activePage === "loadouts" ? (
             <LoadoutsPageContentView
               interfaceLocale={preferences.interfaceLocale}
-              accountSummary={prototypeAccountSummary}
+              accountSummary={accountSummary}
               templates={prototypeLoadoutTemplates}
-              selectedTemplate={selectedTemplate}
-              compareTemplate={compareTemplate}
-              selectedAnalysis={prototypeSelectedAnalysis}
-              transferPlan={prototypeTransferPlan}
-              statusSummary={prototypeLoadoutStatusSummary}
-              visibleCompareRows={prototypeCompareRows}
-              missingCount={2}
-              readyCount={3}
-              actionableCount={2}
+              loadoutEntries={loadoutsWorkspace.loadoutEntries}
+              selectedTemplate={loadoutsWorkspace.selectedTemplate}
+              compareTemplate={loadoutsWorkspace.compareTemplate}
+              selectedAnalysis={loadoutsWorkspace.selectedAnalysis}
+              transferPlan={loadoutsWorkspace.transferPlan}
+              statusSummary={loadoutsWorkspace.statusSummary}
+              visibleCompareRows={loadoutsWorkspace.visibleCompareRows}
+              missingCount={loadoutsWorkspace.missingCount}
+              readyCount={loadoutsWorkspace.readyCount}
+              actionableCount={loadoutsWorkspace.actionableCount}
               compareTemplateId={compareTemplateId}
               renameDraft={renameDraft}
               showDiffOnly={showDiffOnly}
@@ -296,11 +315,17 @@ function PrototypeApp() {
               showInternalHeading={false}
               isRunningItemAction={false}
               actionFeedback={{}}
-              getItemStatus={getPrototypeLoadoutItemStatus}
-              getBlockedDetails={() => null}
-              getSourceItem={getPrototypeSourceItem}
+              getItemStatus={(item, template, analysis, plan, summary) => getLoadoutItemStatus({
+                item,
+                template,
+                selectedAnalysis: analysis,
+                transferPlan: plan,
+                accountSummary: summary
+              })}
+              getBlockedDetails={getLoadoutItemBlockedDetails}
+              getSourceItem={(item, summary, templateCharacterId) => findBestTemplateSourceItem(item, summary, templateCharacterId)}
               getActionFeedbackKey={(templateId, item, action) => `${templateId}:${item.instance_id ?? item.hash}:${action}`}
-              formatComparePerks={(perks) => perks.length ? perks.join(" / ") : "无"}
+              formatComparePerks={formatLoadoutComparePerks}
               onSelectTemplate={(id) => {
                 setSelectedTemplateId(id);
                 const template = prototypeLoadoutTemplates.find((item) => item.id === id);
@@ -365,6 +390,17 @@ function PrototypeApp() {
               onOpenItemDetail={() => undefined}
               onAddFavorite={() => undefined}
               onRemoveFavorite={() => undefined}
+            />
+          ) : null}
+          {activePage === "vendors" ? (
+            <VendorsPageContentView
+              interfaceLocale={preferences.interfaceLocale}
+              vendors={prototypeVendorsWorkspace.vendors}
+              updatedLabel={prototypeVendorsWorkspace.updatedLabel}
+              sourceLabel={prototypeVendorsWorkspace.sourceLabel}
+              nextResetLabel={prototypeVendorsWorkspace.nextResetLabel}
+              recommendationCount={prototypeVendorsWorkspace.recommendationCount}
+              showInternalHeading={false}
             />
           ) : null}
           {activePage === "settings" ? (
@@ -466,6 +502,7 @@ function isShellPageKey(value: string | undefined): value is ShellPageKey {
     || value === "vault"
     || value === "loadouts"
     || value === "library"
+    || value === "vendors"
     || value === "settings";
 }
 
@@ -541,6 +578,7 @@ function getPrototypePageLabel(page: ShellPageKey) {
     vault: "仓库整理",
     loadouts: "配装方案",
     library: "资料库搜索",
+    vendors: "商人库存",
     settings: "设置中心"
   };
 
@@ -580,6 +618,7 @@ function getPrototypeAssistantFocus(page: ShellPageKey) {
     vault: "从重复同名、目标命中、配装占用和清理候选中找出下一步整理动作。",
     loadouts: "确认配装缺口、转移计划和可直接应用的装备，避免把状态藏在页面底部。",
     library: "核对资料库版本、Perk 池、来源状态和公开商人线索。",
+    vendors: "只展示可确认的商人、轮换和掉落线索，未确认内容保留复查状态。",
     settings: "只处理低频配置、重新授权、资料库更新、备份迁移和诊断导出。"
   };
 
@@ -613,6 +652,9 @@ function getPrototypeAssistantBullets(page: ShellPageKey) {
   }
   if (page === "library") {
     return ["优先看来源可确认项", "Perk 搜索支持别名", "版本过期时先更新资料库"];
+  }
+  if (page === "vendors") {
+    return ["先看推荐关注项", "费用和拥有状态只做可确认展示", "未接真实库存时保留 mock 标记"];
   }
   if (page === "settings") {
     return ["账号、资料库、AI 和备份都保留操作按钮", "顶部只展示状态，不堆大卡片", "异常时给出明确修复入口"];
@@ -765,37 +807,6 @@ const prototypeLoadoutTemplates: any[] = [
       { hash: 1005, instance_id: "fusion-warlock", name: "适配融合步枪", bucket_name: "能量武器", weapon_frame_name: "适配框架", perk_names: ["自填", "控制爆破"] },
       { hash: 1006, instance_id: "sword-vault", name: "连锁反应刀剑", bucket_name: "威能武器", weapon_frame_name: "旋风框架", perk_names: ["无情打击", "连锁反应"] }
     ]
-  }
-];
-
-const prototypeSelectedAnalysis = {
-  equipped: [prototypeLoadoutTemplates[0].items[0], prototypeLoadoutTemplates[0].items[3]],
-  missing: [prototypeLoadoutTemplates[0].items[1], prototypeLoadoutTemplates[0].items[2]]
-};
-
-const prototypeTransferPlan = {
-  steps: [],
-  blocked: []
-};
-
-const prototypeLoadoutStatusSummary = [
-  { key: "equipped", label: "已装备", count: 2 },
-  { key: "vault", label: "仓库", count: 1 },
-  { key: "current-inventory", label: "背包待穿", count: 1 }
-];
-
-const prototypeCompareRows = [
-  {
-    slot: "能量武器",
-    changed: true,
-    left: { name: "精准手炮", frame: "精确框架", perks: ["丰盈满溢", "爆炸载荷"] },
-    right: { name: "适配融合步枪", frame: "适配框架", perks: ["自填", "控制爆破"] }
-  },
-  {
-    slot: "威能武器",
-    changed: true,
-    left: { name: "边缘迁移火箭筒", frame: "自适应框架", perks: ["追踪模块", "诱导推销"] },
-    right: { name: "连锁反应刀剑", frame: "旋风框架", perks: ["无情打击", "连锁反应"] }
   }
 ];
 
@@ -1169,39 +1180,4 @@ function prototypeEmblem(label: string, bg: string, fg: string) {
 
 function prototypeItemIcon(label: string, bg: string) {
   return `data:image/svg+xml;utf8,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="8" fill="${bg}"/><rect x="10" y="10" width="44" height="44" rx="6" fill="rgba(255,255,255,.14)" stroke="rgba(255,255,255,.45)"/><text x="32" y="40" text-anchor="middle" font-size="24" font-family="Arial, sans-serif" font-weight="700" fill="#fff">${label}</text></svg>`)}`;
-}
-
-function getPrototypeLoadoutItemStatus(item: any) {
-  if (item.instance_id === "pulse-equipped" || item.instance_id === "rocket-equipped") {
-    return {
-      key: "equipped",
-      badge_label: "已装备",
-      badge_tone: "ready",
-      location_label: "当前角色已装备"
-    };
-  }
-  if (item.instance_id === "shotgun-inventory") {
-    return {
-      key: "current-inventory",
-      badge_label: "背包待穿",
-      badge_tone: "info",
-      location_label: "当前角色背包",
-      guidance_label: "已在当前角色背包",
-      guidance_hint: "直接应用配装即可穿上。"
-    };
-  }
-  return {
-    key: "vault",
-    badge_label: "仓库待取",
-    badge_tone: "info",
-    location_label: "仓库",
-    guidance_label: "可自动补齐",
-    guidance_hint: "执行补齐时会从仓库转入目标角色。"
-  };
-}
-
-function getPrototypeSourceItem(item: any) {
-  return item.instance_id
-    ? { instance_id: item.instance_id, source_kind: item.instance_id.includes("vault") ? "vault" : "inventory", source_character_id: "hunter-1" }
-    : null;
 }

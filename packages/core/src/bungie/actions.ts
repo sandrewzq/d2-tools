@@ -107,6 +107,9 @@ export async function snapshotLoadout(options: BungieLoadoutActionOptions): Prom
   await postBungieJson<unknown>(
     "/Destiny2/Actions/Loadouts/SnapshotLoadout/",
     {
+      colorHash: null,
+      iconHash: null,
+      nameHash: null,
       characterId: options.characterId,
       membershipType: options.membershipType,
       loadoutIndex: options.loadoutIndex

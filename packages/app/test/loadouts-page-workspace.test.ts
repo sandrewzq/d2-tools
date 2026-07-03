@@ -39,6 +39,46 @@ describe("loadouts page workspace", () => {
     });
   });
 
+  it("combines local templates and in-game slots into one loadout entry list", () => {
+    const summary = accountSummary();
+    summary.characters[0].loadout_slots = [
+      {
+        index: 0,
+        name: "Raid slot",
+        item_count: 10,
+        items: [
+          { instance_id: "target-equipped", name: "Kinetic Ready", bucket_name: "Kinetic Weapons" }
+        ]
+      }
+    ];
+
+    const workspace = createLoadoutsPageWorkspace({
+      accountSummary: summary,
+      templates: [targetTemplate()],
+      selectedTemplateId: "target",
+      compareTemplateId: "",
+      showDiffOnly: false
+    });
+
+    expect(workspace.loadoutEntries.map((entry) => entry.id)).toEqual([
+      "local-template-target",
+      "in-game-char-target-0"
+    ]);
+    expect(workspace.loadoutEntries[0]).toMatchObject({
+      source: "local-template",
+      title: "Grandmaster",
+      subtitle: "Titan / 2 件装备",
+      statusLabel: "待补齐 1 件"
+    });
+    expect(workspace.loadoutEntries[1]).toMatchObject({
+      source: "in-game",
+      title: "Raid slot",
+      subtitle: "Titan / 槽位 1 / 10 件装备",
+      statusLabel: "可应用"
+    });
+    expect(workspace.loadoutEntries[1].preview).toBe("Kinetic Ready");
+  });
+
   it("exposes row helpers for UI without requiring Desktop feature imports", () => {
     const template = targetTemplate();
     const summary = accountSummary();

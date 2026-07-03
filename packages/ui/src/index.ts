@@ -26,6 +26,7 @@ export type {
   LocaleCopy,
   ProductPreferences,
   SettingsCopy,
+  VendorsCopy,
   ShellCopy
 } from "./i18n/types.js";
 export { LibraryPageView } from "./library/LibraryPageView.js";
@@ -53,6 +54,14 @@ export type {
   SettingsLanguagePreferences,
   SettingsPageContentViewProps
 } from "./settings/SettingsPageContentView.js";
+export { VendorsPageView } from "./vendors/VendorsPageView.js";
+export type { VendorsPageViewProps } from "./vendors/VendorsPageView.js";
+export { VendorsPageContentView } from "./vendors/VendorsPageContentView.js";
+export type {
+  VendorInventoryGroupView,
+  VendorInventoryItemView,
+  VendorsPageContentViewProps
+} from "./vendors/VendorsPageContentView.js";
 export { VaultPageView } from "./vault/VaultPageView.js";
 export { VaultPageContentView } from "./vault/VaultPageContentView.js";
 export { VaultArmorFilterPanel } from "./vault/VaultArmorFilterPanel.js";

@@ -1,4 +1,4 @@
-import { createHomeDashboardWorkspace, createHomeDashboardActions } from "@d2-tools/app";
+import { createHomeDashboardWorkspace, createHomeDashboardActions, createVendorsPageWorkspace } from "@d2-tools/app";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api/client";
 import { ProductShellHost, type ProductPreferences, type ShellAssistantMode, type ShellPageKey, type ShellStatusItem } from "@d2-tools/ui";
@@ -191,6 +191,7 @@ export function HomePage(props: {
     isLoadingAccount,
     isLoadingDaily: daily.isLoadingDaily
   });
+  const vendorsWorkspace = createVendorsPageWorkspace(daily.dailySummary);
 
   const homeActions = createHomeDashboardActions({
     onConfigure: props.onConfigure,
@@ -240,9 +241,9 @@ export function HomePage(props: {
       pageHeader={{
         title: currentPageMeta.title,
         subtitle: currentPageMeta.subtitle,
-        actions: activePage === "home" ? (
+        actions: activePage === "home" || activePage === "vendors" ? (
           <button type="button" className="secondary-button" disabled={daily.isLoadingDaily} onClick={() => void daily.loadDailySummary()}>
-            {daily.isLoadingDaily ? "刷新中..." : "刷新今日信息"}
+            {daily.isLoadingDaily ? "刷新中..." : activePage === "vendors" ? "刷新商人数据" : "刷新今日信息"}
           </button>
         ) : null
       }}
@@ -409,6 +410,10 @@ export function HomePage(props: {
           onOpenItemDetail: (item) => void itemDetail.openItemDetail(item),
           onAddFavorite: (item) => void library.addSelectedItemToFavorites(item),
           onRemoveFavorite: (hash) => void library.removeFavorite(hash)
+        }}
+        vendors={{
+          ...vendorsWorkspace,
+          interfaceLocale: diagnostics.languagePreferences.interfaceLocale
         }}
         vault={{
           account: accountSummary,
@@ -600,7 +605,7 @@ function formatUpdateShellStatus(snapshot: UpdateSnapshot | null): string {
 }
 
 function isShellPageKey(value: string | undefined): value is ShellPageKey {
-  return value === "home" || value === "account" || value === "vault" || value === "loadouts" || value === "library" || value === "settings";
+  return value === "home" || value === "account" || value === "vault" || value === "loadouts" || value === "library" || value === "vendors" || value === "settings";
 }
 
 function isColorMode(value: string | undefined): value is "light" | "dark" {

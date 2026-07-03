@@ -202,6 +202,9 @@ describe("Bungie item actions", () => {
 
     expect(request?.url).toBe("https://example.test/Platform/Destiny2/Actions/Loadouts/SnapshotLoadout/");
     expect(await request?.json()).toEqual({
+      colorHash: null,
+      iconHash: null,
+      nameHash: null,
       characterId: "character-1",
       membershipType: 3,
       loadoutIndex: 2

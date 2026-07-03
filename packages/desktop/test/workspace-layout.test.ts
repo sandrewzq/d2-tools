@@ -27,20 +27,23 @@ describe("desktop workspace layout", () => {
     expect(homeRoutes).toContain("<HomeDashboard");
     expect(homePage).not.toContain('className="home-workbench"');
     expect(homeDashboard).toContain('className="app-page home-app-page');
-    expect(homeDashboard).toContain('className="home-data-strip"');
+    expect(homeDashboard).not.toContain('className="home-data-strip"');
+    expect(homeDashboard).toContain('className="home-briefing-grid"');
+    expect(homeDashboard).toContain('className="app-panel app-panel-body home-daily-panel"');
+    expect(homeDashboard).toContain('className="app-panel app-panel-body home-weekly-panel"');
     expect(homeDashboard).toContain('className="home-weekly-dashboard"');
-    expect(homeDashboard).toContain('className="home-main-grid"');
-    expect(homeDashboard).toContain('className="home-secondary-grid"');
-    expect(homeDashboard).toContain("copy.sections.weeklyRewards.title");
-    expect(homeDashboard).toContain("copy.sections.vendors.title");
+    expect(homeDashboard).not.toContain('className="home-main-grid"');
+    expect(homeDashboard).not.toContain('className="home-secondary-grid"');
+    expect(homeDashboard).toContain('homeText(copy, "本日更新")');
+    expect(homeDashboard).toContain('homeText(copy, "本周更新")');
+    expect(homeDashboard).not.toContain("copy.sections.vendors.title");
     expect(homeCopy).toContain("本周奖励与轮换");
-    expect(homeCopy).toContain("商人重点");
     expect(homeDashboard).not.toContain("<DailySummaryPanel");
     expect(homeDashboard).not.toContain("../daily/DailyPage");
     expect(homePage).not.toContain("function renderDailyPanel");
     expect(dailyPage).toContain("export function DailyPage");
-    expect(styles).toMatch(/\.home-data-strip\s*{[\s\S]*?grid-template-columns:\s*repeat\(4,\s*minmax\(0,\s*1fr\)\);/);
-    expect(styles).toMatch(/\.home-weekly-dashboard\s*{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1\.45fr\) minmax\(320px,\s*0\.85fr\);/);
+    expect(styles).toMatch(/\.home-briefing-grid\s*{[\s\S]*?grid-template-columns:\s*minmax\(288px,\s*0\.58fr\) minmax\(0,\s*1\.72fr\);/);
+    expect(styles).toMatch(/\.home-weekly-dashboard\s*{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1\.35fr\) minmax\(260px,\s*0\.75fr\);/);
     expect(styles).toMatch(/@media \(max-width:\s*1180px\)\s*{[\s\S]*?\.home-weekly-dashboard,[\s\S]*?\.home-main-grid,[\s\S]*?\.home-secondary-grid,[\s\S]*?\.app-settings-grid\s*{[\s\S]*?grid-template-columns:\s*1fr;/);
   });
 
@@ -60,10 +63,20 @@ describe("desktop workspace layout", () => {
     expect(aiPage).toContain("onConfigureAi");
   });
 
+  it("collapses the home briefing when the AI assistant narrows the workspace", () => {
+    const styles = readFileSync(join(desktopRoot, "..", "ui", "src", "styles.css"), "utf8");
+
+    expect(styles).toMatch(/\.assistant-open \.home-briefing-grid\s*{[\s\S]*?grid-template-columns:\s*1fr;/);
+    expect(styles).toMatch(/\.assistant-open \.home-weekly-dashboard\s*{[\s\S]*?grid-template-columns:\s*1fr;/);
+    expect(styles).toMatch(/\.assistant-open \.home-reward-heading\s*{[\s\S]*?align-items:\s*flex-start;/);
+    expect(styles).toMatch(/\.assistant-open \.home-weekly-panel \.home-reward-list\s*{[\s\S]*?grid-template-columns:\s*repeat\(auto-fit,\s*minmax\(180px,\s*1fr\)\);/);
+  });
+
   it("keeps the vault menu in an isolated feature entry", () => {
     const homePage = readFileSync(join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"), "utf8");
     const homeRoutes = readFileSync(join(desktopRoot, "src", "renderer", "pages", "HomePageRoutes.tsx"), "utf8");
     const vaultPage = readFileSync(join(desktopRoot, "src", "renderer", "features", "vault", "VaultPage.tsx"), "utf8");
+    const vaultPanel = readFileSync(join(desktopRoot, "src", "renderer", "components", "VaultPanel.tsx"), "utf8");
     const vaultView = readFileSync(join(uiRoot, "src", "vault", "VaultPageView.tsx"), "utf8");
     const uiCopy = readFileSync(join(uiRoot, "src", "i18n", "copy.ts"), "utf8");
 
@@ -72,7 +85,8 @@ describe("desktop workspace layout", () => {
     expect(homeRoutes).toContain("<VaultPage");
     expect(homePage).not.toContain("function renderVaultPanel");
     expect(vaultPage).toContain("export function VaultPage");
-    expect(vaultPage).toContain("<VaultPanel");
+    expect(vaultPage).toContain("<VaultPageContentView");
+    expect(vaultPanel).toContain("VaultPageContentView as VaultPanel");
     expect(vaultPage).toContain("<VaultPageView");
     expect(vaultView).toContain("copy.emptySubtitle");
     expect(uiCopy).toContain("先读取账号数据，然后查看完整仓库列表。");
@@ -124,10 +138,10 @@ describe("desktop workspace layout", () => {
     const homeDashboard = readFileSync(join(uiRoot, "src", "home", "HomePageView.tsx"), "utf8");
     const homeCopy = readFileSync(join(uiRoot, "src", "i18n", "copy.ts"), "utf8");
 
-    expect(homeDashboard).toContain("home-data-strip");
-    expect(homeDashboard).toContain("copy.sections.pending.title");
+    expect(homeDashboard).not.toContain("home-data-strip");
+    expect(homeDashboard).toContain("home-briefing-grid");
+    expect(homeDashboard).not.toContain("copy.sections.pending.title");
     expect(homeDashboard).toContain("copy.account.diagnosticReadyTitle");
-    expect(homeCopy).toContain("待确认数据");
     expect(homeCopy).toContain("健康检查正常");
     expect(homeDashboard).not.toContain("Bungie App 已配置");
     expect(homeDashboard).not.toContain("AI 未配置");
@@ -211,7 +225,7 @@ describe("desktop workspace layout", () => {
     expect(styles).toMatch(
       /@media \(max-width:\s*760px\)\s*{[\s\S]*?\.app-page-head,[\s\S]*?\.app-info-strip,[\s\S]*?\.app-status-row,[\s\S]*?\.app-setting-row,[\s\S]*?\.app-health-grid,[\s\S]*?\.app-metric-grid,[\s\S]*?\.home-card-grid\s*{[\s\S]*?grid-template-columns:\s*1fr;/,
     );
-    expect(styles).toMatch(/@media \(max-width:\s*760px\)\s*{[\s\S]*?\.home-data-strip\s*{[\s\S]*?grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\);/);
+    expect(styles).not.toContain(".home-data-strip");
     expect(styles).toMatch(/@media \(max-width:\s*760px\)\s*{[\s\S]*?\.ai-chat-input\s*{[\s\S]*?grid-template-columns:\s*1fr;/);
   });
 });

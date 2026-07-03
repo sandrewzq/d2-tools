@@ -26,6 +26,7 @@ import {
 import { getMissingLoadoutActionableCount } from "./loadoutActions.js";
 
 export type LoadoutsPageWorkspace = {
+  loadoutEntries: LoadoutEntry[];
   selectedTemplate: LoadoutTemplate | null;
   compareTemplate: LoadoutTemplate | null;
   selectedAnalysis: LoadoutTemplateAnalysis | null;
@@ -35,6 +36,19 @@ export type LoadoutsPageWorkspace = {
   missingCount: number;
   readyCount: number;
   actionableCount: number;
+};
+
+export type LoadoutEntry = {
+  id: string;
+  source: "local-template" | "in-game";
+  title: string;
+  subtitle: string;
+  statusLabel: string;
+  statusTone: "neutral" | "ready" | "warning";
+  preview: string;
+  templateId?: string;
+  characterId?: string;
+  slotIndex?: number;
 };
 
 export function createLoadoutsPageWorkspace(input: {
@@ -83,6 +97,12 @@ export function createLoadoutsPageWorkspace(input: {
     : [];
 
   return {
+    loadoutEntries: buildLoadoutEntries({
+      accountSummary: input.accountSummary,
+      templates: input.templates,
+      selectedTemplate,
+      selectedTemplateMissingCount: missingCount
+    }),
     selectedTemplate,
     compareTemplate,
     selectedAnalysis,
@@ -93,6 +113,58 @@ export function createLoadoutsPageWorkspace(input: {
     readyCount,
     actionableCount
   };
+}
+
+function buildLoadoutEntries(input: {
+  accountSummary: AccountSummary | null;
+  templates: LoadoutTemplate[];
+  selectedTemplate: LoadoutTemplate | null;
+  selectedTemplateMissingCount: number;
+}): LoadoutEntry[] {
+  const localEntries = input.templates.map((template): LoadoutEntry => {
+    const isSelectedTemplate = input.selectedTemplate?.id === template.id;
+    const updatedAt = template.updated_at ?? template.created_at;
+    const statusLabel = isSelectedTemplate
+      ? input.selectedTemplateMissingCount > 0
+        ? `待补齐 ${input.selectedTemplateMissingCount} 件`
+        : "可执行"
+      : "未检查";
+
+    return {
+      id: `local-template-${template.id}`,
+      source: "local-template",
+      title: template.name,
+      subtitle: `${template.class_name} / ${template.items.length} 件装备`,
+      statusLabel,
+      statusTone: statusLabel.startsWith("待补齐") ? "warning" : "ready",
+      preview: updatedAt ? `更新于 ${updatedAt}` : "本地方案",
+      templateId: template.id
+    };
+  });
+
+  const inGameEntries = input.accountSummary
+    ? input.accountSummary.characters.flatMap((character) => (
+      character.loadout_slots.map((slot): LoadoutEntry => ({
+        id: `in-game-${character.character_id}-${slot.index}`,
+        source: "in-game",
+        title: slot.name || `配装栏 ${slot.index + 1}`,
+        subtitle: `${character.class_name} / 槽位 ${slot.index + 1} / ${slot.item_count} 件装备`,
+        statusLabel: "可应用",
+        statusTone: "neutral",
+        preview: formatInGameLoadoutSlotPreview(slot.items),
+        characterId: character.character_id,
+        slotIndex: slot.index
+      }))
+    ))
+    : [];
+
+  return [...localEntries, ...inGameEntries];
+}
+
+function formatInGameLoadoutSlotPreview(
+  items: AccountSummary["characters"][number]["loadout_slots"][number]["items"]
+): string {
+  return items.slice(0, 4).map((item) => item.name).join(" / ") || "当前槽位为空";
 }
 
 export function getLoadoutItemStatus(input: {

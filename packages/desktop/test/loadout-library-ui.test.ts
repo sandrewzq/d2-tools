@@ -183,7 +183,8 @@ describe("loadout library UI", () => {
     expect(accountPage).not.toContain("onEquipSavedLoadout");
     expect(accountPage).not.toContain("onSnapshotCurrentLoadout");
     expect(accountPage).not.toContain("accountWorkspace.loadoutSlotRows");
-    expect(loadoutsContent).toContain("游戏内配装栏");
+    expect(loadoutsContent).toContain("游戏内");
+    expect(loadoutsContent).toContain("loadoutEntries");
     expect(loadoutsContent).toContain("accountSummary.characters");
     expect(loadoutsContent).toContain("character.loadout_slots");
     expect(loadoutsPage).toContain("onEquipSavedLoadout");
@@ -192,9 +193,22 @@ describe("loadout library UI", () => {
     expect(homePage).toContain("onSnapshotCurrentLoadout: (character, slot)");
   });
 
+  it("presents local templates and in-game slots as one loadout workbench", () => {
+    const loadoutsContent = readFileSync(join(uiRoot, "src", "loadouts", "LoadoutsPageContentView.tsx"), "utf8");
+    const styles = readFileSync(join(uiRoot, "src", "styles.css"), "utf8");
+
+    expect(loadoutsContent).toContain("loadout-workbench-shell");
+    expect(loadoutsContent).toContain("loadout-entry-list");
+    expect(loadoutsContent).toContain("loadout-entry-source-filter");
+    expect(loadoutsContent).toContain("props.loadoutEntries");
+    expect(loadoutsContent).not.toContain("in-game-loadout-slots");
+    expect(styles).toContain(".loadout-workbench-shell");
+    expect(styles).toContain(".loadout-entry-list");
+  });
+
   it("keeps prototype loadout surfaces on dark-mode semantic tokens", () => {
     const styles = readFileSync(join(uiRoot, "src", "styles.css"), "utf8");
-    const loadoutSurfaceRule = readCssRule(styles, ".in-game-loadout-slots,\n.loadout-template-list,\n.loadout-template-detail,\n.daily-source.source-ready");
+    const loadoutSurfaceRule = readCssRule(styles, ".loadout-entry-list,\n.loadout-template-detail,\n.daily-source.source-ready");
     const actionLogOkRule = readCssRule(styles, ".action-log-row.log-ok");
 
     expect(loadoutSurfaceRule).toContain("background: var(--surface-panel)");
@@ -202,6 +216,34 @@ describe("loadout library UI", () => {
     expect(actionLogOkRule).toContain("background: var(--status-ready-bg)");
     expect(loadoutSurfaceRule).not.toContain("#ffffff");
     expect(loadoutSurfaceRule).not.toContain("#f8fafc");
+  });
+
+  it("keeps the unified loadout workbench compact and scannable", () => {
+    const styles = readFileSync(join(uiRoot, "src", "styles.css"), "utf8");
+    const workbenchRule = readCssRule(styles, ".loadout-workbench-shell");
+    const entryListRule = readCssRule(styles, ".loadout-entry-list");
+    const entryFilterRule = readCssRule(styles, ".loadout-entry-source-filter");
+    const entryActionListRule = readCssRule(styles, ".loadout-entry-list .action-log-list");
+    const entryRowRule = readCssRule(styles, ".action-log-row.loadout-entry-row");
+    const statusSummaryRule = readCssRule(styles, ".loadout-template-detail .loadout-status-summary");
+    const actionsRule = readCssRule(styles, ".loadout-template-actions");
+    const itemActionsRule = readCssRule(styles, ".loadout-item .button-row.compact");
+    const emptyDetailRule = readCssRule(styles, ".source-status-card.loadout-template-detail");
+    const baseWorkbenchRuleIndex = styles.indexOf("\n.loadout-workbench-shell {");
+    const responsiveWorkbenchRuleIndex = styles.lastIndexOf("\n  .loadout-workbench-shell {");
+
+    expect(workbenchRule).toContain("minmax(300px, 360px)");
+    expect(responsiveWorkbenchRuleIndex).toBeGreaterThan(baseWorkbenchRuleIndex);
+    expect(styles.slice(responsiveWorkbenchRuleIndex, responsiveWorkbenchRuleIndex + 160)).toContain("minmax(0, 1fr)");
+    expect(entryListRule).not.toContain("position: sticky");
+    expect(entryFilterRule).toContain("margin-top: 8px");
+    expect(entryActionListRule).toContain("margin-top: 10px");
+    expect(entryRowRule).toContain("grid-template-columns: minmax(0, 1fr) auto");
+    expect(entryRowRule).toContain("padding: 9px 10px");
+    expect(statusSummaryRule).toContain("margin-bottom: 10px");
+    expect(actionsRule).toContain("gap: 8px");
+    expect(itemActionsRule).toContain("grid-column: 1 / -1");
+    expect(emptyDetailRule).toContain("padding: var(--space-16)");
   });
 });
 

@@ -10,6 +10,7 @@ import {
   ProductShellHost,
   SettingsPageContentView,
   VaultPageContentView,
+  VendorsPageContentView,
   type LibraryEquipmentFilter,
   type LibraryPerkFilter,
   type LibraryViewMode,
@@ -21,6 +22,7 @@ import {
   buildLoadoutTemplateLookup,
   createAccountPageWorkspace,
   createVaultPageWorkspace,
+  createVendorsPageWorkspace,
   formatAccountItemMeta,
   getAccountPageItemKey,
   homePageMetaMap,
@@ -95,6 +97,7 @@ function WebApp() {
     }),
     [activeLoadoutLookup, selectedAccountCharacterId, selectedTemplate?.name]
   );
+  const webVendorsWorkspace = useMemo(() => createVendorsPageWorkspace(null), []);
   const assistantContext = useMemo(() => ({
     pageLabel: "首页工作台",
     focus: "先看官方可确认的今日 / 本周内容，再处理账号、资料库、应用版本和后台任务状态。",
@@ -359,6 +362,17 @@ function WebApp() {
               onOpenItemDetail={() => undefined}
               onAddFavorite={() => undefined}
               onRemoveFavorite={() => undefined}
+            />
+          ) : null}
+          {activePage === "vendors" ? (
+            <VendorsPageContentView
+              interfaceLocale={preferences.interfaceLocale}
+              vendors={webVendorsWorkspace.vendors}
+              updatedLabel={webVendorsWorkspace.updatedLabel}
+              sourceLabel={webVendorsWorkspace.sourceLabel}
+              nextResetLabel={webVendorsWorkspace.nextResetLabel}
+              recommendationCount={webVendorsWorkspace.recommendationCount}
+              showInternalHeading={false}
             />
           ) : null}
           {activePage === "settings" ? (

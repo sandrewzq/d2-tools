@@ -128,7 +128,7 @@ export {
   buildLoadoutItemStatus,
   summarizeLoadoutItemStatuses
 } from "./workspaces/loadoutItemStatus.js";
-export type { LoadoutsPageWorkspace } from "./workspaces/loadoutsPage.js";
+export type { LoadoutEntry, LoadoutsPageWorkspace } from "./workspaces/loadoutsPage.js";
 export {
   createLoadoutsPageWorkspace,
   getLoadoutItemBlockedDetails,
@@ -237,6 +237,14 @@ export type { HomePageKey } from "./workspaces/pageMetadata.js";
 export { homePageFocus, homePageLabels, homePageMetaMap } from "./workspaces/pageMetadata.js";
 export type { HomePageDerivedState, AssistantPageContext } from "./workspaces/homePage.js";
 export { createHomePageDerivedState, resolvePageMeta, buildLoadoutContextFacts, buildLibraryContextFacts } from "./workspaces/homePage.js";
+export type {
+  VendorInventoryGroupWorkspace,
+  VendorInventoryItemWorkspace,
+  VendorInventoryStatus,
+  VendorInventoryTone,
+  VendorsPageWorkspace
+} from "./workspaces/vendorsPage.js";
+export { createVendorsPageWorkspace } from "./workspaces/vendorsPage.js";
 export type { AssistantWorkspace, AssistantWorkspaceInput } from "./workspaces/assistant.js";
 export { sendAssistantMessage } from "./workspaces/assistant.js";
 export type { D2SkillWorkspace } from "./workspaces/d2Skill.js";

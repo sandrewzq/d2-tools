@@ -15,6 +15,18 @@ describe("desktop package format", () => {
     expect(rootPackageJson.scripts.typecheck).toContain("pnpm -r typecheck");
   });
 
+  it("exposes vibe verification scripts for menu-level agent loops", () => {
+    const rootPackageJson = JSON.parse(readFileSync(join(repoRoot, "package.json"), "utf8")) as {
+      scripts: Record<string, string>;
+    };
+
+    expect(rootPackageJson.scripts["verify:vibe:ui"]).toBe("pnpm test:ui");
+    expect(rootPackageJson.scripts["verify:vibe:desktop:account"]).toBe("pnpm test:desktop:account");
+    expect(rootPackageJson.scripts["verify:vibe:desktop:ai"]).toBe("pnpm test:desktop:ai");
+    expect(rootPackageJson.scripts["verify:vibe:desktop:loadouts"]).toBe("pnpm test:desktop:loadouts");
+    expect(rootPackageJson.scripts["verify:vibe:desktop:vault"]).toBe("pnpm test:desktop:vault");
+  });
+
   it("uses NSIS as the Windows installer format for GitHub releases", () => {
     const electronBuilderConfig = readFileSync(join(repoRoot, "packages", "desktop", "electron-builder.yml"), "utf8");
     const desktopPackageJson = readFileSync(join(repoRoot, "packages", "desktop", "package.json"), "utf8");

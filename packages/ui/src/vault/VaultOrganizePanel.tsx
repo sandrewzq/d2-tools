@@ -64,15 +64,7 @@ export function VaultOrganizePanel(props: {
           aria-busy={false}
           onClick={props.onToggleOrganizing}
         >
-          {props.isOrganizing ? "退出整理" : "整理模式"}
-        </button>
-        <button
-          type="button"
-          className={props.isCleanupMode ? "secondary-button active" : "secondary-button"}
-          aria-busy={false}
-          onClick={props.onToggleCleanupMode}
-        >
-          {props.isCleanupMode ? "退出清理" : "清理模式"}
+          {props.isOrganizing ? "退出选择" : "选择候选"}
         </button>
         {props.isOrganizing ? (
           <>

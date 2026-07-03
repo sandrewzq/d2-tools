@@ -134,6 +134,56 @@ describe("daily live data mapping", () => {
     expect(liveData.vendors[0].description).toContain("守誓者（臂铠，异域；23 奇异硬币）");
   });
 
+  it("keeps public vendor sale item icons for home and vendor UI", () => {
+    const liveData = buildDailyLiveDataFromBungie({
+      publicVendors: {
+        vendors: {
+          data: {
+            "2190858386": { vendorHash: 2190858386 }
+          }
+        },
+        sales: {
+          data: {
+            "2190858386": {
+              saleItems: {
+                "14": {
+                  itemHash: 3883286571,
+                  costs: [{ itemHash: 3702027555, quantity: 23 }]
+                }
+              }
+            }
+          }
+        }
+      },
+      definitions: {
+        vendors: {
+          "2190858386": { displayProperties: { name: "老九" } }
+        },
+        items: {
+          "3883286571": {
+            displayProperties: {
+              name: "守誓者",
+              icon: "/common/destiny2_content/icons/oathkeeper.jpg"
+            },
+            itemTypeDisplayName: "臂铠",
+            inventory: { tierTypeName: "异域" }
+          },
+          "3702027555": {
+            displayProperties: { name: "奇异硬币" }
+          }
+        }
+      }
+    });
+
+    expect(liveData.vendors[0].items?.[0]).toMatchObject({
+      title: "守誓者",
+      subtitle: "臂铠，异域",
+      description: "23 奇异硬币",
+      iconUrl: "/common/destiny2_content/icons/oathkeeper.jpg",
+      source: "Bungie 公共商人"
+    });
+  });
+
   it("uses known key vendor labels when vendor definitions are missing", () => {
     const liveData = buildDailyLiveDataFromBungie({
       publicVendors: {

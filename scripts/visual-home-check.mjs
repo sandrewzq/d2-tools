@@ -22,8 +22,8 @@ const defaultReferencePngName = "reference-dark-1365x900.png";
 const defaultAppPngName = "app-dark-1365x900.png";
 const defaultComparePngName = "compare-dark-1365x900.png";
 const expectedSelectorsByPage = {
-  home: [".home-data-point", ".home-weekly-dashboard"],
-  loadouts: [".loadout-product-layout", ".in-game-loadout-slots", ".loadout-template-detail"],
+  home: [".home-briefing-grid", ".home-daily-panel", ".home-weekly-dashboard"],
+  loadouts: [".loadout-product-layout", ".loadout-workbench-shell", ".loadout-template-detail"],
   settings: [".settings-app-page", ".app-settings-shell", ".settings-menu"]
 };
 const viewport = process.env.D2_VISUAL_CAPTURE_VIEWPORT ?? defaultViewport;

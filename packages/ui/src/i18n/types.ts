@@ -42,6 +42,7 @@ export type LocaleCopy = {
   vault: VaultCopy;
   loadouts: LoadoutsCopy;
   library: LibraryCopy;
+  vendors: VendorsCopy;
   account: AccountCopy;
   settings: SettingsCopy;
 };
@@ -173,6 +174,29 @@ export type LibraryCopy = {
   tabs: {
     equipment: string;
     perks: string;
+  };
+};
+
+export type VendorsCopy = {
+  inline: Record<string, string>;
+  title: string;
+  subtitle: string;
+  inventoryTitle: string;
+  inventorySubtitle: string;
+  updatedLabel: string;
+  resetLabel: string;
+  sourceLabel: string;
+  recommendationsLabel: string;
+  verifiedInventory: string;
+  emptyTitle: string;
+  emptyBody: string;
+  labels: {
+    items: string;
+    cost: string;
+    evidence: string;
+    owned: string;
+    recommended: string;
+    unknown: string;
   };
 };
 

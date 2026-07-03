@@ -9,6 +9,7 @@ describe("shared UI shell model", () => {
       { key: "vault", label: "仓库" },
       { key: "loadouts", label: "配装" },
       { key: "library", label: "资料库" },
+      { key: "vendors", label: "商人" },
       { key: "settings", label: "设置" }
     ]);
   });

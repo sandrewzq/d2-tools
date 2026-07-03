@@ -1,3 +1,4 @@
+import { useMemo, useState } from "react";
 import { LoadoutsPageView } from "./LoadoutsPageView.js";
 import { getLoadoutActionButtonLabel, type LoadoutActionFeedbackState } from "./loadoutActionFeedback.js";
 import { getLocaleCopy } from "../i18n/copy.js";
@@ -7,6 +8,7 @@ export type LoadoutsPageContentViewProps = {
   interfaceLocale?: InterfaceLocale;
   accountSummary: any | null;
   templates: any[];
+  loadoutEntries?: LoadoutEntry[];
   selectedTemplate: any | null;
   compareTemplate: any | null;
   selectedAnalysis: any | null;
@@ -44,6 +46,21 @@ export type LoadoutsPageContentViewProps = {
   onOpenTemplateSourceItem: (item: any, templateCharacterId?: string) => void;
 };
 
+export type LoadoutEntry = {
+  id: string;
+  source: "local-template" | "in-game";
+  title: string;
+  subtitle: string;
+  statusLabel: string;
+  statusTone: "neutral" | "ready" | "warning";
+  preview: string;
+  templateId?: string;
+  characterId?: string;
+  slotIndex?: number;
+};
+
+type LoadoutEntrySourceFilter = "all" | LoadoutEntry["source"];
+
 function loadoutsText(copy: LoadoutsCopy, key: string): string {
   return copy.inline[key] ?? key;
 }
@@ -52,6 +69,14 @@ export function LoadoutsPageContentView(props: LoadoutsPageContentViewProps) {
   const copy = getLocaleCopy(props.interfaceLocale ?? "zh-CN").loadouts;
   const selectedTemplate = props.selectedTemplate;
   const compareTemplate = props.compareTemplate;
+  const [entrySourceFilter, setEntrySourceFilter] = useState<LoadoutEntrySourceFilter>("all");
+  const loadoutEntries = useMemo(
+    () => props.loadoutEntries ?? buildFallbackLoadoutEntries(props, copy),
+    [copy, props.accountSummary, props.loadoutEntries, props.missingCount, props.selectedTemplate, props.templates]
+  );
+  const visibleLoadoutEntries = entrySourceFilter === "all"
+    ? loadoutEntries
+    : loadoutEntries.filter((entry) => entry.source === entrySourceFilter);
 
   return (
     <LoadoutsPageView
@@ -62,60 +87,49 @@ export function LoadoutsPageContentView(props: LoadoutsPageContentViewProps) {
       actionableCount={props.actionableCount}
       showInternalHeading={props.showInternalHeading}
     >
-      <section className="daily-source source-ready in-game-loadout-slots">
-        <strong>{loadoutsText(copy, "游戏内配装栏")}</strong>
-        <span>{loadoutsText(copy, "读取 Bungie 游戏内已保存的配装槽，执行写操作前仍会再次确认。")}</span>
-        {props.accountSummary ? (
-          props.accountSummary.characters.some((character: any) => character.loadout_slots.length) ? (
-            <div className="action-log-list">
-              {props.accountSummary.characters.map((character: any) => (
-                character.loadout_slots.map((slot: any) => (
-                  <div className="ui-list-row action-log-row log-ok" key={`${character.character_id}-loadout-${slot.index}`}>
-                    <strong>{slot.name || `${loadoutsText(copy, "配装栏")} ${slot.index + 1}`}</strong>
-                    <span>{character.class_name} / {loadoutsText(copy, "槽位")} {slot.index + 1} / {slot.item_count} {loadoutsText(copy, "件装备")}</span>
-                    <small>{formatInGameLoadoutSlotPreview(slot, copy)}</small>
-                    <div className="button-row compact">
-                      <button type="button" className="secondary-button" disabled={props.isRunningItemAction} onClick={() => props.onEquipSavedLoadout(character, slot)}>
-                        {loadoutsText(copy, "应用到角色")}
-                      </button>
-                      <button type="button" className="secondary-button" disabled={props.isRunningItemAction} onClick={() => props.onSnapshotCurrentLoadout(character, slot)}>
-                        {loadoutsText(copy, "用当前装备覆盖")}
-                      </button>
-                    </div>
-                  </div>
-                ))
-              ))}
-            </div>
-          ) : (
-            <p className="status-message status-neutral">{loadoutsText(copy, "当前账号还没有读取到游戏内配装栏。")}</p>
-          )
-        ) : (
-          <p className="status-message status-neutral">{loadoutsText(copy, "读取账号数据后，这里会显示每个角色的游戏内配装槽。")}</p>
-        )}
-      </section>
-      {selectedTemplate ? (
-        <div className="loadouts-workbench">
-          <section className="daily-source source-ready loadout-template-list">
-            <strong>{loadoutsText(copy, "方案列表")}</strong>
-            <span>{props.templates.length} {loadoutsText(copy, "个本地方案")}</span>
-            <div className="action-log-list">
-              {props.templates.slice(0, 12).map((template: any) => (
-                <button
-                  type="button"
-                  key={template.id}
-                  className={selectedTemplate.id === template.id ? "action-log-row log-ok" : "action-log-row"}
-                  onClick={() => {
-                    props.onSelectTemplate(template.id);
-                    props.onRenameDraftChange(template.name);
-                  }}
-                >
-                  <strong>{template.name}</strong>
-                  <span>{template.class_name} / {template.items.length} {loadoutsText(copy, "件装备")}</span>
-                  <small>{new Date(template.updated_at ?? template.created_at).toLocaleString(props.interfaceLocale ?? "zh-CN")}</small>
-                </button>
-              ))}
-            </div>
-          </section>
+      <div className="loadout-workbench-shell">
+        <section className="daily-source source-ready loadout-entry-list">
+          <div className="loadout-entry-list-head">
+            <strong>{loadoutsText(copy, "配装工作台")}</strong>
+            <span>{loadoutEntries.length} {loadoutsText(copy, "个配装对象")}</span>
+          </div>
+          <div className="loadout-entry-source-filter" role="tablist" aria-label={loadoutsText(copy, "配装来源")}>
+            {(["all", "local-template", "in-game"] as const).map((source) => (
+              <button
+                type="button"
+                key={source}
+                className={entrySourceFilter === source ? "active-filter" : ""}
+                aria-selected={entrySourceFilter === source}
+                onClick={() => setEntrySourceFilter(source)}
+              >
+                {getLoadoutEntryFilterLabel(source, copy)}
+              </button>
+            ))}
+          </div>
+          <div className="action-log-list">
+            {visibleLoadoutEntries.length ? visibleLoadoutEntries.map((entry) => (
+              <LoadoutEntryRow
+                key={entry.id}
+                copy={copy}
+                entry={entry}
+                accountSummary={props.accountSummary}
+                interfaceLocale={props.interfaceLocale}
+                isSelected={entry.templateId ? selectedTemplate?.id === entry.templateId : false}
+                isRunningItemAction={props.isRunningItemAction}
+                onEquipSavedLoadout={props.onEquipSavedLoadout}
+                onSelectTemplate={(templateId) => {
+                  const template = props.templates.find((item: any) => item.id === templateId);
+                  props.onSelectTemplate(templateId);
+                  if (template) props.onRenameDraftChange(template.name);
+                }}
+                onSnapshotCurrentLoadout={props.onSnapshotCurrentLoadout}
+              />
+            )) : (
+              <p className="status-message status-neutral">{loadoutsText(copy, "没有匹配的配装对象。")}</p>
+            )}
+          </div>
+        </section>
+        {selectedTemplate ? (
           <section className="daily-source source-ready loadout-template-detail">
             <strong>{loadoutsText(copy, "方案详情")}</strong>
             <span>
@@ -129,7 +143,7 @@ export function LoadoutsPageContentView(props: LoadoutsPageContentViewProps) {
                 <input value={props.renameDraft} onChange={(event) => props.onRenameDraftChange(event.target.value)} placeholder={loadoutsText(copy, "输入方案名称")} />
               </label>
             </div>
-            <div className="button-row">
+            <div className="button-row loadout-template-actions">
               <button type="button" className="secondary-button" onClick={() => props.onRenameTemplate(selectedTemplate)}>{loadoutsText(copy, "重命名")}</button>
               <button type="button" className="secondary-button" onClick={() => props.onCreateTransferPlan(selectedTemplate)}>{loadoutsText(copy, "生成转移计划")}</button>
               <button type="button" className="secondary-button" onClick={() => props.onCopyMissingItems(selectedTemplate, props.selectedAnalysis)}>{loadoutsText(copy, "复制缺失清单")}</button>
@@ -139,7 +153,7 @@ export function LoadoutsPageContentView(props: LoadoutsPageContentViewProps) {
               <button type="button" className="secondary-button" onClick={() => props.onDeleteTemplate(selectedTemplate.id)}>{loadoutsText(copy, "删除")}</button>
             </div>
             {props.missingCount > 0 ? (
-              <p className="status-message status-pending">{loadoutsText(copy, "当前有")} {props.missingCount} {loadoutsText(copy, "件方案装备还没在目标角色就位，可用“转移缺失件”自动补齐并穿戴。")}</p>
+              <p className="status-message status-pending loadout-detail-callout">{loadoutsText(copy, "当前有")} {props.missingCount} {loadoutsText(copy, "件方案装备还没在目标角色就位，可用“转移缺失件”自动补齐并穿戴。")}</p>
             ) : null}
             {props.statusSummary.length ? (
               <div className="loadout-status-summary">
@@ -152,7 +166,7 @@ export function LoadoutsPageContentView(props: LoadoutsPageContentViewProps) {
               </div>
             ) : null}
             {props.transferPlan?.blocked.length ? (
-              <p className="status-message status-warning">{loadoutsText(copy, "有")} {props.transferPlan.blocked.length} {loadoutsText(copy, "件当前无法自动补齐，下面会显示原因和处理建议。")}</p>
+              <p className="status-message status-warning loadout-detail-callout">{loadoutsText(copy, "有")} {props.transferPlan.blocked.length} {loadoutsText(copy, "件当前无法自动补齐，下面会显示原因和处理建议。")}</p>
             ) : null}
             <ul className="daily-source-items">
               {selectedTemplate.items.slice(0, 10).map((item: any, index: number) => (
@@ -222,16 +236,143 @@ export function LoadoutsPageContentView(props: LoadoutsPageContentViewProps) {
               </div>
             ) : null}
           </section>
-        </div>
-      ) : (
-        <section className="source-status-card source-status-neutral">
-          <span className="source-status-badge source-status-neutral">{loadoutsText(copy, "本地方案")}</span>
-          <h3>{loadoutsText(copy, "还没有保存本地方案")}</h3>
-          <p>{loadoutsText(copy, "先到账号页选择角色，把当前装备保存为模板。保存后这里会集中处理补齐、对比和清单复制。")}</p>
-        </section>
-      )}
+        ) : (
+          <section className="source-status-card source-status-neutral loadout-template-detail">
+            <span className="source-status-badge source-status-neutral">{loadoutsText(copy, "本地方案")}</span>
+            <h3>{loadoutsText(copy, "还没有保存本地方案")}</h3>
+            <p>{loadoutsText(copy, "先到账号页选择角色，把当前装备保存为模板。保存后这里会集中处理补齐、对比和清单复制。")}</p>
+          </section>
+        )}
+      </div>
     </LoadoutsPageView>
   );
+}
+
+function LoadoutEntryRow(props: {
+  copy: LoadoutsCopy;
+  entry: LoadoutEntry;
+  accountSummary: any | null;
+  interfaceLocale?: InterfaceLocale;
+  isSelected: boolean;
+  isRunningItemAction: boolean;
+  onSelectTemplate: (id: string) => void;
+  onEquipSavedLoadout: (character: any, slot: any) => void;
+  onSnapshotCurrentLoadout: (character: any, slot: any) => void;
+}) {
+  const sourceLabel = props.entry.source === "in-game"
+    ? loadoutsText(props.copy, "游戏内")
+    : loadoutsText(props.copy, "本地模板");
+
+  if (props.entry.source === "local-template" && props.entry.templateId) {
+    return (
+      <button
+        type="button"
+        className={`action-log-row loadout-entry-row ${props.isSelected ? "log-ok is-selected" : ""}`.trim()}
+        onClick={() => props.onSelectTemplate(props.entry.templateId ?? "")}
+      >
+        <span className={`loadout-entry-source-badge source-${props.entry.source}`}>{sourceLabel}</span>
+        <strong>{props.entry.title}</strong>
+        <span>{localizeLoadoutEntryText(props.entry.subtitle, props.copy)}</span>
+        <small>{formatLoadoutEntryPreview(props.entry.preview, props.copy, props.interfaceLocale)}</small>
+        <span className={`loadout-entry-status status-${props.entry.statusTone}`}>{localizeLoadoutEntryText(props.entry.statusLabel, props.copy)}</span>
+      </button>
+    );
+  }
+
+  const character = props.accountSummary?.characters.find((item: any) => item.character_id === props.entry.characterId);
+  const slot = character?.loadout_slots.find((item: any) => item.index === props.entry.slotIndex);
+
+  return (
+    <div className="action-log-row loadout-entry-row">
+      <span className={`loadout-entry-source-badge source-${props.entry.source}`}>{sourceLabel}</span>
+      <strong>{props.entry.title}</strong>
+      <span>{localizeLoadoutEntryText(props.entry.subtitle, props.copy)}</span>
+      <small>{localizeLoadoutEntryText(props.entry.preview, props.copy)}</small>
+      <span className={`loadout-entry-status status-${props.entry.statusTone}`}>{localizeLoadoutEntryText(props.entry.statusLabel, props.copy)}</span>
+      {character && slot ? (
+        <div className="button-row compact">
+          <button type="button" className="secondary-button" disabled={props.isRunningItemAction} onClick={() => props.onEquipSavedLoadout(character, slot)}>
+            {loadoutsText(props.copy, "应用到角色")}
+          </button>
+          <button type="button" className="secondary-button" disabled={props.isRunningItemAction} onClick={() => props.onSnapshotCurrentLoadout(character, slot)}>
+            {loadoutsText(props.copy, "用当前装备覆盖")}
+          </button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function buildFallbackLoadoutEntries(
+  props: LoadoutsPageContentViewProps,
+  copy: LoadoutsCopy
+): LoadoutEntry[] {
+  const localEntries = props.templates.map((template: any): LoadoutEntry => {
+    const isSelected = props.selectedTemplate?.id === template.id;
+      const statusLabel = isSelected
+        ? props.missingCount > 0
+          ? `${loadoutsText(copy, "待补齐")} ${props.missingCount} ${loadoutsText(copy, "件")}`
+          : loadoutsText(copy, "可执行")
+      : loadoutsText(copy, "未检查");
+
+    return {
+      id: `local-template-${template.id}`,
+      source: "local-template",
+      title: template.name,
+      subtitle: `${template.class_name} / ${template.items.length} ${loadoutsText(copy, "件装备")}`,
+      statusLabel,
+      statusTone: statusLabel.includes(loadoutsText(copy, "待补齐")) ? "warning" : "ready",
+      preview: `${loadoutsText(copy, "更新于")} ${new Date(template.updated_at ?? template.created_at).toLocaleString()}`,
+      templateId: template.id
+    };
+  });
+
+  const inGameEntries = props.accountSummary
+    ? props.accountSummary.characters.flatMap((character: any) => (
+      character.loadout_slots.map((slot: any): LoadoutEntry => ({
+        id: `in-game-${character.character_id}-${slot.index}`,
+        source: "in-game",
+        title: slot.name || `${loadoutsText(copy, "配装栏")} ${slot.index + 1}`,
+        subtitle: `${character.class_name} / ${loadoutsText(copy, "槽位")} ${slot.index + 1} / ${slot.item_count} ${loadoutsText(copy, "件装备")}`,
+        statusLabel: loadoutsText(copy, "可应用"),
+        statusTone: "neutral",
+        preview: formatInGameLoadoutSlotPreview(slot, copy),
+        characterId: character.character_id,
+        slotIndex: slot.index
+      }))
+    ))
+    : [];
+
+  return [...localEntries, ...inGameEntries];
+}
+
+function getLoadoutEntryFilterLabel(source: LoadoutEntrySourceFilter, copy: LoadoutsCopy): string {
+  if (source === "all") return loadoutsText(copy, "全部");
+  if (source === "in-game") return loadoutsText(copy, "游戏内");
+  return loadoutsText(copy, "本地模板");
+}
+
+function formatLoadoutEntryPreview(preview: string, copy: LoadoutsCopy, locale?: InterfaceLocale): string {
+  if (!preview.startsWith("更新于 ")) return localizeLoadoutEntryText(preview, copy);
+  const dateText = preview.slice("更新于 ".length);
+  const timestamp = Date.parse(dateText);
+  if (Number.isNaN(timestamp)) return localizeLoadoutEntryText(preview, copy);
+  return `${loadoutsText(copy, "更新于")} ${new Date(timestamp).toLocaleString(locale ?? "zh-CN")}`;
+}
+
+function localizeLoadoutEntryText(value: string, copy: LoadoutsCopy): string {
+  return value
+    .replace("本地模板", loadoutsText(copy, "本地模板"))
+    .replace("游戏内", loadoutsText(copy, "游戏内"))
+    .replace("件装备", loadoutsText(copy, "件装备"))
+    .replace(/(\d+) 件/g, `$1 ${loadoutsText(copy, "件")}`)
+    .replace("槽位", loadoutsText(copy, "槽位"))
+    .replace("待补齐", loadoutsText(copy, "待补齐"))
+    .replace("可执行", loadoutsText(copy, "可执行"))
+    .replace("未检查", loadoutsText(copy, "未检查"))
+    .replace("可应用", loadoutsText(copy, "可应用"))
+    .replace("更新于", loadoutsText(copy, "更新于"))
+    .replace("当前槽位为空", loadoutsText(copy, "当前槽位为空"));
 }
 
 function formatInGameLoadoutSlotPreview(slot: any, copy: LoadoutsCopy): string {

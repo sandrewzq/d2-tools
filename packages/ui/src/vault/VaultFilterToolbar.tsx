@@ -141,12 +141,12 @@ export function VaultFilterToolbar(props: {
               {props.availableFrameFilters.length ? (
                 <div className="compact-field vault-frame-filter">
                   <span>框架</span>
-                  <div className="segmented-control" aria-label="仓库武器框架筛选">
+                  <div className="vault-frame-chip-grid" aria-label="仓库武器框架筛选">
                     {props.availableFrameFilters.map((item) => (
                       <button
                         type="button"
                         key={item.key}
-                        className={props.frameFilters.includes(item.key) ? "active" : ""}
+                        className={props.frameFilters.includes(item.key) ? "vault-frame-chip active" : "vault-frame-chip"}
                         onClick={() => props.onToggleFrameFilter(item.key)}
                       >
                         {item.label} <span>{item.count}</span>

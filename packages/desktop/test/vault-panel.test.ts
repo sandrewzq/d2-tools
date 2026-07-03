@@ -94,6 +94,8 @@ describe("vault panel helpers", () => {
     expect(toolbar).toContain("export function VaultFilterToolbar");
     expect(toolbar).toContain("自然搜索名称、类型、perk 或备注");
     expect(toolbar).toContain("仓库武器框架筛选");
+    expect(toolbar).toContain("vault-frame-chip-grid");
+    expect(toolbar).not.toContain('className="segmented-control" aria-label="仓库武器框架筛选"');
     expect(toolbar).toContain("清空筛选");
     expect(toolbar).toContain("VaultArmorFilterPanel");
     expect(toolbar).toContain("ammoFilterLabels");
@@ -104,6 +106,32 @@ describe("vault panel helpers", () => {
     expect(source).not.toContain("score&gt;=75");
     expect(toolbar).toContain("aria-label");
     expect(readFileSync("packages/ui/src/vault/VaultOrganizePanel.tsx", "utf8")).toContain("处理中");
+  });
+
+  it("renders weapon frame filters as an expanded chip grid instead of a dropdown-like scroller", () => {
+    const toolbar = readFileSync("packages/ui/src/vault/VaultFilterToolbar.tsx", "utf8");
+    const styles = readFileSync("packages/ui/src/styles.css", "utf8");
+
+    expect(toolbar).toContain("vault-frame-chip-grid");
+    expect(toolbar).toContain("vault-frame-chip");
+    expect(styles).toContain(".vault-frame-chip-grid");
+    expect(styles).toContain(".vault-frame-chip");
+    expect(styles).not.toMatch(/\.vault-frame-filter \.segmented-control\s*\{[\s\S]*overflow: auto;/);
+    expect(styles).not.toMatch(/\.vault-frame-filter \.segmented-control\s*\{[\s\S]*max-height:/);
+    expect(styles).toMatch(/\.weapon-filter-lane\s*\{[\s\S]*grid-template-columns: minmax\(190px, 210px\) minmax\(0, 1fr\);/);
+    expect(styles).toMatch(/\.weapon-filter-lane > \.compact-field\s*\{[\s\S]*white-space: nowrap;/);
+    expect(styles).toMatch(/\.vault-frame-chip-grid\s*\{[\s\S]*display: flex;[\s\S]*flex-wrap: wrap;/);
+    expect(styles).toMatch(/\.vault-frame-chip\s*\{[\s\S]*min-width: 112px;[\s\S]*min-height: 34px;/);
+  });
+
+  it("keeps the vault workbench usable when the assistant drawer narrows the workspace", () => {
+    const styles = readFileSync("packages/ui/src/styles.css", "utf8");
+
+    expect(styles).toMatch(/\.assistant-open \.vault-workbench-layout\s*\{[\s\S]*?grid-template-columns: 1fr;/);
+    expect(styles).toMatch(/\.assistant-open \.vault-workbench-layout\s*\{[\s\S]*?grid-template-areas:\s*"vault-summary"\s*"vault-main";/);
+    expect(styles).toMatch(/\.assistant-open \.vault-side-summary\s*\{[\s\S]*?position: static;/);
+    expect(styles).toMatch(/\.assistant-open \.vault-filter-common-row\s*\{[\s\S]*?grid-template-columns: repeat\(auto-fit, minmax\(180px, 1fr\)\);/);
+    expect(styles).toMatch(/\.assistant-open \.vault-card-grid\s*\{[\s\S]*?grid-template-columns: repeat\(auto-fit, minmax\(220px, 1fr\)\);/);
   });
 
   it("keeps vault organize and cleanup controls in the vault feature module", () => {
@@ -118,8 +146,10 @@ describe("vault panel helpers", () => {
     expect(source).not.toContain("className=\"vault-cleanup-panel\"");
     expect(panel).toContain("export function VaultOrganizePanel");
     expect(panel).toContain("仓库内容标签");
-    expect(panel).toContain("整理模式");
-    expect(panel).toContain("清理模式");
+    expect(panel).toContain("选择候选");
+    expect(panel).toContain("退出选择");
+    expect(panel).not.toContain("清理模式");
+    expect(panel).not.toContain("退出清理");
     expect(panel).toContain("批量移动");
     expect(panel).toContain("复制清理清单");
   });
@@ -814,6 +844,26 @@ describe("vault panel helpers", () => {
     expect(organizePanel).toContain("vault-content-tab");
     expect(organizePanel).toContain("aria-label=\"仓库内容标签\"");
     expect(source).toContain("setGroup(defaultVaultGroupTab)");
+  });
+  it("separates vault workbench navigation from quick filter chips", () => {
+    const source = readFileSync("packages/ui/src/vault/VaultPageContentView.tsx", "utf8");
+    const styles = readFileSync("packages/ui/src/styles.css", "utf8");
+
+    expect(source).toContain("vault-workbench-header");
+    expect(source).toContain("vaultQuickFilters");
+    expect(source).toContain("vault-quick-filters");
+    expect(source).not.toContain("vault-task-presets");
+    expect(source).not.toContain('label: "同名重复"');
+    expect(styles).toContain(".vault-workbench-header");
+    expect(styles).toContain(".vault-quick-filters");
+    expect(styles).not.toContain(".vault-task-presets");
+    expect(styles).toMatch(/\.vault-workflow-tabs\s*\{[\s\S]*display: flex;[\s\S]*flex-wrap: wrap;/);
+    expect(styles).toMatch(/\.vault-workflow-tab\s*\{[\s\S]*flex: 0 0 auto;[\s\S]*min-height: 34px;[\s\S]*padding: 7px 12px;/);
+    expect(styles).toMatch(/\.vault-workflow-tab span\s*\{[\s\S]*display: none;/);
+    expect(styles).toMatch(/\.vault-quick-filter-chip\s*\{[\s\S]*min-height: 28px;[\s\S]*padding: 5px 9px;/);
+    expect(styles).toMatch(/\.vault-content-tabs\s*\{[\s\S]*display: flex;[\s\S]*flex-wrap: wrap;/);
+    expect(styles).toMatch(/\.vault-content-tab\s*\{[\s\S]*flex: 0 0 112px;[\s\S]*min-height: 42px;[\s\S]*padding: 7px 10px;/);
+    expect(styles).toMatch(/\.vault-content-tab strong\s*\{[\s\S]*font-size: 12px;/);
   });
   it("keeps vault filtering and sorting helpers in the app workspace with a desktop compatibility barrel", () => {
     const source = readFileSync("packages/ui/src/vault/VaultPageContentView.tsx", "utf8");

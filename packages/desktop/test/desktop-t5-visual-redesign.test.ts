@@ -88,16 +88,18 @@ describe("desktop T5 visual redesign", () => {
     const styles = readUiFile("styles.css");
 
     expect(homeDashboard).toContain("app-page home-app-page");
-    expect(homeDashboard).toContain("home-data-strip");
-    expect(homeDashboard).toContain("copy.sections.weeklyRewards.title");
+    expect(homeDashboard).not.toContain("home-data-strip");
+    expect(homeDashboard).toContain("home-briefing-grid");
+    expect(homeDashboard).toContain("home-daily-panel");
+    expect(homeDashboard).toContain("home-weekly-panel");
+    expect(homeDashboard).toContain('homeText(copy, "本日更新")');
+    expect(homeDashboard).toContain('homeText(copy, "本周更新")');
     expect(homeDashboard).toContain("home-weekly-dashboard");
-    expect(homeDashboard).toContain("copy.sections.today.title");
-    expect(homeDashboard).toContain("copy.sections.pending.title");
-    expect(homeDashboard).toContain("copy.actions.runDiagnostics");
+    expect(homeDashboard).not.toContain("copy.sections.today.title");
+    expect(homeDashboard).not.toContain("copy.sections.pending.title");
+    expect(homeDashboard).not.toContain("copy.actions.runDiagnostics");
     expect(homeCopy).toContain("本周奖励与轮换");
-    expect(homeCopy).toContain("今天可确认");
-    expect(homeCopy).toContain("待确认数据");
-    expect(homeCopy).toContain("运行诊断");
+    expect(homeDashboard).toContain("copy.account.diagnosticReadyTitle");
     expect(homeDashboard).not.toContain("当前桌面状态");
     expect(homeDashboard).not.toContain("状态与设置");
     expect(homeDashboard).not.toContain("下一步建议");
@@ -107,10 +109,14 @@ describe("desktop T5 visual redesign", () => {
     expect(homeDashboard).not.toContain("<DiagnosticsPanel");
     expect(homeDashboard).not.toContain("小日向菜单");
     expect(homeDashboard).not.toContain("任务入口");
-    expect(styles).toContain(".home-data-strip");
+    expect(styles).not.toContain(".home-data-strip");
+    expect(styles).toContain(".home-briefing-grid");
+    expect(styles).toContain(".home-daily-panel");
+    expect(styles).toContain(".home-weekly-panel");
     expect(styles).toContain(".home-weekly-dashboard");
     expect(styles).toContain(".home-reward-list");
-    expect(styles).toMatch(/\.home-weekly-dashboard\s*{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1\.45fr\) minmax\(320px,\s*0\.85fr\);/);
+    expect(styles).toMatch(/\.home-briefing-grid\s*{[\s\S]*?grid-template-columns:\s*minmax\(288px,\s*0\.58fr\) minmax\(0,\s*1\.72fr\);/);
+    expect(styles).toMatch(/\.home-weekly-dashboard\s*{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1\.35fr\) minmax\(260px,\s*0\.75fr\);/);
   });
 
   it("uses the account A2 layout with visible backpack previews and a narrow secondary summary", () => {
@@ -175,10 +181,14 @@ describe("desktop T5 visual redesign", () => {
     expect(libraryPage).toContain("LibraryPageView");
     expect(libraryView).toContain("library-reference-page");
     expect(uiCopy).toContain("出处查询");
-    expect(libraryPage).toContain("获取优先级");
+    expect(libraryPage).toContain("library-search-command");
+    expect(libraryPage).toContain("library-main-filter-row");
+    expect(libraryPage).toContain("library-advanced-disclosure");
+    expect(libraryPage).toContain("library-source-guide-details");
+    expect(libraryPage).not.toContain("获取优先级");
     expect(uiCopy).toContain("资料库版本");
     expect(libraryPage).not.toContain("资料库日期");
-    expect(libraryView).toContain("library-acquisition-tabs");
+    expect(libraryPage).toContain("library-acquisition-tabs");
     expect(libraryPage).toContain("library-source-groups");
     expect(libraryPage).toContain("library-reference-card");
     expect(libraryPage).toContain("formatManifestDataDate");
@@ -187,7 +197,10 @@ describe("desktop T5 visual redesign", () => {
     expect(libraryPage).toContain("已下架或待确认");
     expect(libraryPage).toContain("来源待补");
     expect(styles).toContain(".library-reference-page");
+    expect(styles).toContain(".library-reference-page.tool-panel");
     expect(styles).toContain(".library-acquisition-tabs");
+    expect(styles).toContain(".library-search-command");
+    expect(styles).toContain(".library-main-filter-row");
     expect(styles).toContain(".library-source-groups");
     expect(styles).toContain(".library-reference-card");
   });

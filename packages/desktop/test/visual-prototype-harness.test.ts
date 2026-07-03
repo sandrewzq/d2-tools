@@ -45,12 +45,13 @@ describe("visual prototype harness", () => {
     expect(script).toContain("app-dark-1365x900.png");
     expect(script).toContain("compare-dark-1365x900.png");
     expect(script).toContain("report.json");
-    expect(script).toContain("home-data-point");
+    expect(script).toContain("home-briefing-grid");
+    expect(script).toContain("home-daily-panel");
     expect(script).toContain("home-weekly-dashboard");
     expect(script).toContain("settings-app-page");
     expect(script).toContain("app-settings-shell");
     expect(script).toContain("loadout-product-layout");
-    expect(script).toContain("in-game-loadout-slots");
+    expect(script).toContain("loadout-workbench-shell");
   });
 
   it("provides an interactive AI drawer visual check for prototype, web and desktop", () => {
@@ -90,7 +91,7 @@ describe("visual prototype harness", () => {
     expect(script).toContain("@d2-tools/web");
     expect(script).toContain("@d2-tools/desktop");
     expect(script).toContain("_electron");
-    expect(script).toContain('const pages = ["home", "account", "vault", "loadouts", "library", "settings"]');
+    expect(script).toContain('const pages = ["home", "account", "vault", "loadouts", "library", "vendors", "settings"]');
     expect(script).toContain('const settingsSections = ["overview", "language", "account", "library", "bungie", "ai", "backup", "diagnostics"]');
     expect(script).toContain('const themes = ["light", "dark"]');
     expect(script).toContain("scanVisibleElementStyles");
@@ -128,7 +129,9 @@ describe("visual prototype harness", () => {
     expect(mainProcess).toContain(".home-app-page");
     expect(mainProcess).toContain(".settings-app-page");
     expect(mainProcess).toContain("settingsTitleCount");
-    expect(mainProcess).toContain("home-data-point");
+    expect(mainProcess).toContain("home-briefing-grid");
+    expect(mainProcess).toContain("home-daily-panel");
+    expect(mainProcess).toContain("home-weekly-panel");
     expect(mainProcess).toContain("home-weekly-dashboard");
     expect(mainProcess).toContain("computedStyles");
     expect(mainProcess).toContain("app.quit()");
@@ -152,7 +155,7 @@ describe("visual prototype harness", () => {
     expect(homePageView).not.toContain("status-${item.tone}");
     expect(homePageView).not.toContain("status-${row.tone}");
     expect(homePageView).not.toContain("status-${card.tone}");
-    expect(homePageView).toContain("data-tone={point.tone}");
+    expect(homePageView).not.toContain("data-tone={point.tone}");
     expect(homePageView).toContain("data-tone={item.tone}");
     expect(canonicalBlock).not.toContain(".status-ready {");
     expect(canonicalBlock).not.toContain(".status-warning {");
@@ -355,8 +358,10 @@ describe("visual prototype harness", () => {
     expect(styles).toMatch(/\.app-shell\[data-color-mode="dark"\]\s*{[\s\S]*?--surface-page:\s*#0e1218;/);
     expect(styles).toMatch(/\.app-shell\[data-color-mode="dark"\]\s*{[\s\S]*?--surface-panel:\s*#171d26;/);
     expect(styles).toMatch(/\.app-shell\[data-color-mode="dark"\]\s*{[\s\S]*?--surface-subtle:\s*#1b222c;/);
-    expect(styles).toMatch(/\.home-data-strip\s*{[\s\S]*?background:\s*var\(--prototype-panel\);/);
-    expect(styles).toMatch(/\.home-data-point\s*{[\s\S]*?background:\s*transparent;/);
+    expect(styles).toMatch(/\.home-briefing-grid\s*{[\s\S]*?grid-template-columns:\s*minmax\(288px,\s*0\.58fr\) minmax\(0,\s*1\.72fr\);/);
+    expect(styles).toMatch(/\.home-weekly-dashboard\s*{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1\.35fr\) minmax\(260px,\s*0\.75fr\);/);
+    expect(styles).not.toContain(".home-data-strip");
+    expect(styles).not.toContain(".home-data-point");
   });
 
   it("keeps product styles in packages/ui instead of the Desktop renderer stylesheet", () => {

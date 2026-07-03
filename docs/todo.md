@@ -32,6 +32,10 @@
 | ✅ 已修复 | Bug #36 Prototype：调试面板亮色模式下拉菜单文字过浅 | Prototype 调试面板改回 `.app-shell` 主题作用域内渲染，浮层仍 fixed 不占页面布局；同时补齐标题、按钮、select 和 option 的语义色，避免亮色模式使用错误前景色 |
 | ✅ 已修复 | Bug #37 跨端 UI：Prototype 账号和仓库页仍与 Desktop 分叉 | Prototype 账号页已改用共享 `AccountPageContentView` 和 mock workspace；仓库完整 UI 已迁入 `packages/ui/src/vault/`，包括筛选、列表、整理、同名对比、目标规则和推荐数据导入，Prototype / Web / Desktop 共用同一仓库内容页 |
 | ✅ 已修复 | Bug #38 Web：非首页菜单仍渲染首页 fallback | Web 已按菜单接入账号、仓库、配装、资料库和设置共享内容页，并补 mock 数据；测试禁止 Web 非首页继续渲染 `HomePageView` fallback |
+| ✅ 已修复 | Bug #39 配装页：Prototype 与 Desktop 因游戏内槽位置顶造成观感分叉 | 配装页 workspace 新增统一 `loadoutEntries`，把本地模板和 Bungie 游戏内配装栏合并到同一个配装工作台列表；共享 UI 不再渲染独立置顶的游戏内配装栏大区，Prototype / Desktop 继续共用同一内容页 |
+| ✅ 已修复 | Bug #40 配装页：工作台筛选、卡片和详情提示在窄屏重叠 | 配装工作台的响应式覆盖已移到基础规则之后，小屏下左右面板改为单列；筛选、按钮和状态 chip 允许弹性换行，并补配装 UI 回归断言和多视口矩形扫描 |
+| ✅ 已修复 | Bug #42 配装页：覆盖游戏内配装栏返回 Bungie 1622 | `SnapshotLoadout` 改按 Bungie update 请求体发送 `colorHash`、`iconHash`、`nameHash` 的 nullable 字段，避免覆盖当前装备时被判定为 invalid request |
+| ✅ 已修复 | Bug #41 跨端 UI：打开 AI 抽屉后账号页内容挤压重叠 | 账号页在 `.assistant-open` 状态下主动切换为紧凑单列布局，目录、角色标题、装备/背包比较和侧栏摘要不再等窄屏媒体查询才换行；补账号页抽屉回归断言和 Prototype 账号页 + AI 抽屉矩形检查 |
 
 ## 当前任务目录
 
@@ -39,7 +43,7 @@
 |---|---|---|---|---|---|
 | T1 | P1 | 🟡 待推进 | 小日向与 d2-skill 产品级能力 | [总纲](work/backlog/kohinata-d2-skill-product-architecture.md) / [攻略证据工作台](work/backlog/kohinata-guide-evidence-workbench.md) | 先做攻略解析、账号命中、perk 证据和配装草稿 |
 | T2 | P1 | 🟡 待推进 | 仓库推荐与清理工作台 | [仓库推荐与清理工作台](work/backlog/vault-recommendation-and-cleanup-workbench.md) | 统一 DIM wishlist、本地目标、同名对比和清理清单；推荐数据只支持用户导入，不默认内置未授权社区数据 |
-| T3 | P1 | 🟡 待推进 | 小日向日报、商人与掉落查询 | [日报、商人与掉落查询](work/backlog/daily-report-and-drops-assistant.md) | 只展示可确认数据，先补商人、活动和掉落来源状态 |
+| T3 | P1 | 🟡 待推进 | 小日向日报、商人与掉落查询 | [日报、商人与掉落查询](work/backlog/daily-report-and-drops-assistant.md) | 商人页已接共享 UI、Desktop 入口、公共商人刷新、9 商人目录兜底和 Bungie 图标路径修复；下一步继续补活动、掉落来源状态和更完整的购买判断 |
 | T4 | P1 | 🟡 待推进 | 跨端 UI 壳、可交互原型与桌面视觉收口 | [跨端 UI 壳收口](work/backlog/cross-platform-ui-shell-refactor.md) / [桌面视觉与详情打磨](work/backlog/desktop-ui-account-detail-polish.md) | 当前主菜单页面状态：Prototype / Web / Desktop 都挂同一个 `ProductShellHost` 和 `@d2-tools/ui/styles.css`；首页、账号、仓库、配装、资料库、设置均已接共享 UI 内容页或共享 View，Prototype / Web 只提供 mock 数据和 noop callback，Desktop 只提供真实 adapter；仓库完整 UI 已从 Desktop 私有组件迁入 `packages/ui`，目标规则和推荐数据导入也在共享内容页内，Desktop 旧路径仅保留兼容 re-export；全局 AI 抽屉已收口为共享 `AiAssistantPanelView`；产品样式已收口到 `packages/ui/src/styles.css`；视觉脚本已覆盖 Prototype / Web / Desktop、明暗主题、主菜单和设置分区。后续继续推进移动端壳、剩余领域文案 i18n、真实 Web provider 和更严格截图差异阈值 |
 | T5 | P3 | 🟡 待推进 | 活动复盘增强 | [活动复盘增强](work/backlog/activity-review-enhancement.md) | 后续接 PGCR、完成时间推算和副本级趋势 |
 | T6 | P4 | 🟡 待推进 | 桌面发布、更新与迁移体验 | [桌面发布体验](work/backlog/desktop-release-experience.md) | 继续验证真实 GitHub Release、更新提示、备份迁移和诊断体验 |

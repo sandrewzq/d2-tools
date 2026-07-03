@@ -11,6 +11,7 @@ const exactSets = {
     "packages/desktop/test/shared-ui-page-views.test.tsx",
     "packages/desktop/test/shared-ui-product-host.test.tsx",
     "packages/desktop/test/shared-ui-shell-model.test.ts",
+    "packages/desktop/test/vendors-page-ui.test.tsx",
     "packages/desktop/test/cross-platform-ui-completion.test.ts",
     "packages/desktop/test/cross-platform-ui-packages.test.ts",
     "packages/desktop/test/cross-platform-ui-page-internals.test.ts",

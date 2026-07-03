@@ -6,6 +6,7 @@ import { LibraryPage } from "../features/library/LibraryPage";
 import { LoadoutsPage } from "../features/loadouts/LoadoutsPage";
 import { SettingsPage } from "../features/settings/SettingsPage";
 import { VaultPage } from "../features/vault/VaultPage";
+import { VendorsPage } from "../features/vendors/VendorsPage";
 
 export function HomePageRoutes(props: {
   activePage: ShellPageKey;
@@ -13,6 +14,7 @@ export function HomePageRoutes(props: {
   account: ComponentProps<typeof AccountPage>;
   loadouts: ComponentProps<typeof LoadoutsPage>;
   library: ComponentProps<typeof LibraryPage>;
+  vendors: ComponentProps<typeof VendorsPage>;
   vault: ComponentProps<typeof VaultPage>;
   settings: ComponentProps<typeof SettingsPage>;
 }) {
@@ -22,6 +24,7 @@ export function HomePageRoutes(props: {
       {props.activePage === "account" ? <AccountPage {...props.account} /> : null}
       {props.activePage === "loadouts" ? <LoadoutsPage {...props.loadouts} /> : null}
       {props.activePage === "library" ? <LibraryPage {...props.library} /> : null}
+      {props.activePage === "vendors" ? <VendorsPage {...props.vendors} /> : null}
       {props.activePage === "vault" ? <VaultPage {...props.vault} /> : null}
       {props.activePage === "settings" ? <SettingsPage {...props.settings} /> : null}
     </Suspense>

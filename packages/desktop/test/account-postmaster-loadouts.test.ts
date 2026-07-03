@@ -21,7 +21,9 @@ describe("account postmaster and loadout UI", () => {
     expect(accountPage).toContain("邮政官");
     expect(accountPage).not.toContain("accountWorkspace.loadoutSlotRows");
     expect(accountPage).not.toContain("游戏内配装栏");
-    expect(loadoutsPage).toContain("游戏内配装栏");
+    expect(loadoutsPage).toContain("配装工作台");
+    expect(loadoutsPage).toContain("loadout-entry-source-filter");
+    expect(loadoutsPage).toContain("游戏内");
     expect(loadoutsPage).toContain("onEquipSavedLoadout");
     expect(loadoutsPage).toContain("onSnapshotCurrentLoadout");
   });

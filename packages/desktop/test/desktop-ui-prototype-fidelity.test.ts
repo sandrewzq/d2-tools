@@ -44,13 +44,16 @@ describe("desktop UI prototype fidelity", () => {
       expect(source).not.toContain("settings-product-grid");
     }
 
-    expect(homeDashboard).toContain("home-data-strip");
+    expect(homeDashboard).not.toContain("home-data-strip");
+    expect(homeDashboard).toContain("home-briefing-grid");
+    expect(homeDashboard).toContain("home-daily-panel");
+    expect(homeDashboard).toContain("home-weekly-panel");
     expect(homeDashboard).toContain("home-weekly-dashboard");
-    expect(homeDashboard).toContain("copy.sections.weeklyRewards.title");
+    expect(homeDashboard).toContain('homeText(copy, "本周更新")');
     expect(homeCopy).toContain("本周奖励与轮换");
     expect(homeDashboard).toContain("home-weekly-rewards");
     expect(homeDashboard).toContain("home-weekly-intel");
-    expect(homeDashboard).toContain("home-main-grid");
+    expect(homeDashboard).not.toContain("home-main-grid");
     expect(homeDashboard).not.toContain("home-overview-hero");
     expect(homeDashboard).not.toContain("home-risk-grid");
     expect(homeDashboard).not.toContain("home-readiness-grid");
@@ -97,15 +100,15 @@ describe("desktop UI prototype fidelity", () => {
 
   it("locks wide desktop grids so text cannot collapse into vertical columns", () => {
     const styles = readUiFile("styles.css");
-    const dataStrip = readCssRule(styles, ".home-data-strip");
+    const briefingGrid = readCssRule(styles, ".home-briefing-grid");
     const weeklyDashboard = readCssRule(styles, ".home-weekly-dashboard");
     const rewardList = readCssRule(styles, ".home-reward-list");
     const settingsGrid = readCssRule(styles, ".app-settings-grid");
     const settingsShell = readCssRule(styles, ".app-settings-shell");
     const settingRow = readCssRule(styles, ".app-setting-row");
 
-    expect(dataStrip).toContain("grid-template-columns: repeat(4, minmax(0, 1fr))");
-    expect(weeklyDashboard).toContain("grid-template-columns: minmax(0, 1.45fr) minmax(320px, 0.85fr)");
+    expect(briefingGrid).toContain("grid-template-columns: minmax(288px, 0.58fr) minmax(0, 1.72fr)");
+    expect(weeklyDashboard).toContain("grid-template-columns: minmax(0, 1.35fr) minmax(260px, 0.75fr)");
     expect(rewardList).toContain("grid-template-columns: repeat(auto-fit, minmax(165px, 1fr))");
     expect(settingsGrid).toContain("grid-template-columns: repeat(2, minmax(0, 1fr))");
     expect(settingsShell).toContain("grid-template-columns: 220px minmax(0, 1fr)");

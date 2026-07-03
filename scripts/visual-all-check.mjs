@@ -8,7 +8,7 @@ import { _electron as electron, chromium } from "playwright";
 const repoRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const isWindows = process.platform === "win32";
 const pnpm = isWindows ? "pnpm.cmd" : "pnpm";
-const pages = ["home", "account", "vault", "loadouts", "library", "settings"];
+const pages = ["home", "account", "vault", "loadouts", "library", "vendors", "settings"];
 const settingsSections = ["overview", "language", "account", "library", "bungie", "ai", "backup", "diagnostics"];
 const themes = ["light", "dark"];
 const viewport = process.env.D2_VISUAL_CAPTURE_VIEWPORT ?? "1365x900";
@@ -30,6 +30,7 @@ const pageLabels = {
   vault: "仓库",
   loadouts: "配装",
   library: "资料库",
+  vendors: "商人",
   settings: "设置"
 };
 const settingsSectionLabels = {

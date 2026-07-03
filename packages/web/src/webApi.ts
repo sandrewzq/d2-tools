@@ -15,7 +15,7 @@ export type WebApiRouter = {
   handle: (request: Request) => Promise<Response | null>;
 };
 
-const pageKeys: ShellPageKey[] = ["home", "account", "vault", "loadouts", "library", "settings"];
+const pageKeys: ShellPageKey[] = ["home", "account", "vault", "loadouts", "library", "vendors", "settings"];
 const pageSnapshotPrefix = "/api/pages/";
 
 export function createWebApiRouter(provider: WebApiSnapshotProvider = {}): WebApiRouter {

@@ -22,7 +22,10 @@ describe("cleanup mode wiring", () => {
 
     expect(vaultPanel).toContain("VaultPageContentView as VaultPanel");
     expect(vaultContent).toContain("VaultOrganizePanel");
-    expect(vaultOrganizePanel).toContain("清理模式");
+    expect(vaultOrganizePanel).toContain("清理准备");
+    expect(vaultOrganizePanel).toContain("选择候选");
+    expect(vaultOrganizePanel).not.toContain("清理模式");
+    expect(vaultOrganizePanel).not.toContain("退出清理");
     expect(vaultOrganizePanel).toContain("不会分解装备");
     expect(vaultOrganizePanel).toContain("批量解锁");
     expect(vaultOrganizePanel).toContain("转移到角色背包");

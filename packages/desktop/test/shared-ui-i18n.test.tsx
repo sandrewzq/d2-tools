@@ -14,6 +14,7 @@ import {
   LoadoutsPageContentView,
   SettingsPageView,
   SettingsPageContentView,
+  VendorsPageContentView,
   type ProductPreferences
 } from "../../ui/src/index";
 
@@ -33,6 +34,7 @@ describe("shared UI i18n", () => {
       "仓库",
       "配装",
       "资料库",
+      "商人",
       "设置"
     ]);
     expect(getLocalizedNavItems("en-US").map((item) => item.label)).toEqual([
@@ -41,6 +43,7 @@ describe("shared UI i18n", () => {
       "Vault",
       "Loadouts",
       "Library",
+      "Vendors",
       "Settings"
     ]);
   });
@@ -131,9 +134,10 @@ describe("shared UI i18n", () => {
       />
     );
 
-    expect(html).toContain("Weekly rewards and rotations");
-    expect(html).toContain("Today to verify");
-    expect(html).toContain("Pending data");
+    expect(html).toContain("Weekly update");
+    expect(html).toContain("Daily update");
+    expect(html).toContain("Account alerts");
+    expect(html).toContain("Weekly public rotation");
     expect(html).not.toContain("本周奖励与轮换");
     expect(html).not.toContain("今天可确认");
     expect(html).not.toMatch(/[\u4e00-\u9fff]/);
@@ -248,7 +252,7 @@ describe("shared UI i18n", () => {
     expect(settingsHtml).not.toMatch(/[\u4e00-\u9fff]/);
   });
 
-  it("renders shared library and loadouts page copy from English locale", () => {
+  it("renders shared library, vendors and loadouts page copy from English locale", () => {
     const libraryHtml = renderToStaticMarkup(
       <LibraryPageContentView
         interfaceLocale="en-US"
@@ -362,9 +366,21 @@ describe("shared UI i18n", () => {
       />
     );
 
+    const vendorsHtml = renderToStaticMarkup(
+      <VendorsPageContentView
+        interfaceLocale="en-US"
+        vendors={[]}
+        showInternalHeading
+      />
+    );
+
     expect(libraryHtml).toContain("Library");
     expect(libraryHtml).toContain("Source lookup");
     expect(libraryHtml).not.toMatch(/[\u4e00-\u9fff]/);
+
+    expect(vendorsHtml).toContain("Vendors");
+    expect(vendorsHtml).toContain("Verified inventory");
+    expect(vendorsHtml).not.toMatch(/[\u4e00-\u9fff]/);
 
     expect(loadoutsHtml).toContain("Loadouts");
     expect(loadoutsHtml).toContain("Loadout risk");

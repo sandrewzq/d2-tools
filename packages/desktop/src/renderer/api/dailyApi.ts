@@ -16,6 +16,10 @@ export type DailySummaryItem = {
   subtitle?: string;
   description?: string;
   source?: string;
+  iconUrl?: string;
+  icon?: string;
+  iconLabel?: string;
+  items?: DailySummaryItem[];
 };
 
 export type DailySummary = {

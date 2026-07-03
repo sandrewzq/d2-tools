@@ -181,11 +181,11 @@ function mapPublicVendors(
     if (!vendorName) {
       return [];
     }
-    const saleNames = collectPublicSales(sales[vendorKey])
-      .map((sale) => saleItemLabel(definitions.items, sale))
-      .filter(Boolean) as string[];
+    const saleItems = collectPublicSales(sales[vendorKey])
+      .map((sale) => saleItemSummaryItem(definitions.items, sale))
+      .filter(Boolean) as DailySummaryItem[];
 
-    return [buildVendorItem(vendorHash, vendorName, saleNames)];
+    return [buildVendorItem(vendorHash, vendorName, saleItems)];
   });
 
   const keyVendors = mapped.filter((item) => isKeyVendor(item.title));
@@ -197,16 +197,20 @@ function mapPublicVendors(
 function buildVendorItem(
   vendorHash: number,
   name: string,
-  saleNames: string[]
+  saleItems: DailySummaryItem[]
 ): DailySummaryItem {
   const vendorLabel = vendorRoleLabel(name, vendorHash);
-  const salePreview = saleNames.slice(0, 8).join(" / ") || "库存名称暂不可读";
+  const salePreview = saleItems
+    .map((item) => saleItemLabelFromSummary(item))
+    .slice(0, 8)
+    .join(" / ") || "库存名称暂不可读";
 
   return {
     title: name,
     subtitle: vendorLabel,
     description: salePreview,
-    source: "Bungie 公共商人"
+    source: "Bungie 公共商人",
+    items: saleItems.slice(0, 12)
   };
 }
 
@@ -303,7 +307,7 @@ function definitionRecord(definitions: DefinitionComponentData | null | undefine
   return definitions?.[String(hash)] as DefinitionRecord | undefined;
 }
 
-function saleItemLabel(definitions: DefinitionComponentData | null | undefined, sale: PublicSale): string | undefined {
+function saleItemSummaryItem(definitions: DefinitionComponentData | null | undefined, sale: PublicSale): DailySummaryItem | undefined {
   if (sale.itemHash === undefined) return undefined;
   const record = definitionRecord(definitions, sale.itemHash);
   const name = record?.displayProperties?.name?.trim();
@@ -319,7 +323,22 @@ function saleItemLabel(definitions: DefinitionComponentData | null | undefined, 
     costLabel
   ].filter(Boolean);
 
-  return details.length ? `${name}（${details.join("；")}）` : name;
+  return {
+    title: name,
+    subtitle: itemDetails.join("，") || undefined,
+    description: costLabel,
+    source: "Bungie 公共商人",
+    iconUrl: record?.displayProperties?.icon?.trim() || undefined
+  };
+}
+
+function saleItemLabelFromSummary(item: DailySummaryItem): string {
+  const details = [
+    item.subtitle,
+    item.description
+  ].filter(Boolean);
+
+  return details.length ? `${item.title}（${details.join("；")}）` : item.title;
 }
 
 function saleCostLabel(

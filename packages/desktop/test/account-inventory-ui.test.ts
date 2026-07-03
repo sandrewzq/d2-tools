@@ -174,6 +174,16 @@ describe("account inventory UI", () => {
     expect(styles).toMatch(/\.material-grid\s*{[\s\S]*?minmax\(180px,\s*1fr\)/);
   });
 
+  it("collapses account workbench columns when the AI drawer is open", () => {
+    const styles = readFileSync(join(desktopRoot, "..", "ui", "src", "styles.css"), "utf8");
+
+    expect(styles).toMatch(/\.assistant-open \.account-page-shell\s*{[\s\S]*?grid-template-columns:\s*1fr;/);
+    expect(styles).toMatch(/\.assistant-open \.account-page-nav\s*{[\s\S]*?position:\s*static;[\s\S]*?display:\s*flex;[\s\S]*?flex-wrap:\s*wrap;/);
+    expect(styles).toMatch(/\.assistant-open \.account-profile-strip,[\s\S]*?\.assistant-open \.account-primary-workbench,[\s\S]*?\.assistant-open \.account-slot-comparison-columns,[\s\S]*?\.assistant-open \.account-secondary-workbench\s*{[\s\S]*?grid-template-columns:\s*1fr;/);
+    expect(styles).toMatch(/\.assistant-open \.character-title\s*{[\s\S]*?grid-template-columns:\s*48px minmax\(0,\s*1fr\);/);
+    expect(styles).toMatch(/\.assistant-open \.character-actions\s*{[\s\S]*?grid-column:\s*1 \/ -1;[\s\S]*?justify-content:\s*flex-start;/);
+  });
+
   it("keeps account item rendering bounded and lazy-loads item icons", () => {
     const accountPage = readAccountPage();
 

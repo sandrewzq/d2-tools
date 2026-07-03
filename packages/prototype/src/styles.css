@@ -83,3 +83,23 @@
   color: var(--text-muted);
   line-height: 1.5;
 }
+
+@media (max-width: 760px) {
+  .prototype-debug {
+    right: 10px;
+    bottom: 10px;
+  }
+
+  .prototype-debug-toggle {
+    width: 34px;
+    padding: 0;
+    overflow: hidden;
+    font-size: 0;
+  }
+
+  .prototype-debug-toggle::before {
+    content: "P";
+    font-size: 13px;
+    font-weight: 800;
+  }
+}

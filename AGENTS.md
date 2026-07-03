@@ -22,6 +22,14 @@
 | 领域、服务、workspace | `packages/core`、`packages/services`、`packages/app` | 相关 `vitest --run packages/<pkg>/test/<name>.test.ts`，必要时 `pnpm test:fast` | 不跨层直接依赖平台能力；不要把业务真相写进平台壳 |
 | 发布、版本、CHANGELOG | `CHANGELOG.md`、各 package 版本、release 脚本 | `pnpm verify:release`，发布前按需追加 `pnpm test` / `pnpm typecheck` | 不手写不一致版本号；不在未确认 tag 时推 release |
 
+Vibecoding 快路径：
+
+- 单 agent 编码循环优先跑 `verify:vibe:*`，只验证当前菜单或共享 UI 的测试集合，不默认跑类型检查、视觉检查或全量测试。
+- 菜单私有循环优先使用 `pnpm verify:vibe:desktop:account`、`pnpm verify:vibe:desktop:ai`、`pnpm verify:vibe:desktop:loadouts`、`pnpm verify:vibe:desktop:vault`。
+- 跨端 UI / Prototype / Web 的中途循环优先使用 `pnpm verify:vibe:ui`；文档或工具测试中途循环可用 `pnpm verify:vibe:docs`。
+- 交接、提交、合并或声称门禁通过前，再按上表升级到 `verify:*`；视觉脚本默认由收口 agent 或最终检查运行。
+- 测试断言优先检查稳定行为、结构、导出、role / label 或 ViewModel 输出；避免把中文文案、源码 import 顺序、整段 HTML 或 CSS 片段作为普通功能断言。
+
 小参数模型工作约束：
 
 - 先确认自己要改的文件属于上表哪一行；一次只处理一类改动。
@@ -85,6 +93,7 @@
 ## 验证规则
 
 - 日常开发优先按改动范围选择最小验证，不要默认运行发布级重链路。
+- Vibecoding 中途循环优先运行 `verify:vibe:*`；收口、交接或提交前再升级到对应 `verify:*`。
 - 文档、待办、README 或工具说明改动运行 `pnpm verify:docs`。
 - `pnpm docs:check` 同时检查文档结构和全仓文本编码；如果发现疑似 mojibake、Unicode replacement character 或连续问号造成的信息丢失，先修复乱码再继续开发。
 - 改 `packages/ui`、`packages/prototype` 或 `packages/web` 时，至少运行 `pnpm verify:ui`；影响首页或设置页视觉时追加 `pnpm visual:home` 或 `pnpm visual:settings`。

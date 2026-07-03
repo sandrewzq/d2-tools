@@ -4,6 +4,13 @@ import process from "node:process";
 const args = process.argv.slice(2);
 
 const desktopMenuVerifyCommands = {
+  account: "npx pnpm@9.15.0 verify:vibe:desktop:account",
+  ai: "npx pnpm@9.15.0 verify:vibe:desktop:ai",
+  loadouts: "npx pnpm@9.15.0 verify:vibe:desktop:loadouts",
+  vault: "npx pnpm@9.15.0 verify:vibe:desktop:vault",
+};
+
+const desktopMenuGateCommands = {
   account: "npx pnpm@9.15.0 verify:desktop:account",
   ai: "npx pnpm@9.15.0 verify:desktop:ai",
   loadouts: "npx pnpm@9.15.0 verify:desktop:loadouts",
@@ -117,15 +124,15 @@ if (menuLanes.length > 0) {
     const menuName = lane.name.replace("desktop-menu: ", "");
     const verifyCommand = desktopMenuVerifyCommands[menuName];
     if (verifyCommand) {
-      console.log(`- desktop menu ${menuName}: ${verifyCommand}`);
+      console.log(`- desktop menu ${menuName}: ${verifyCommand} (run vibe verification first; escalate to ${desktopMenuGateCommands[menuName]} before handoff or commit)`);
     } else {
-      console.log(`- desktop menu ${menuName}: run targeted vitest for changed menu; use npx pnpm@9.15.0 verify:desktop when shared or wiring files are touched`);
+      console.log(`- desktop menu ${menuName}: run targeted vitest for changed menu; run vibe verification first; escalate to npx pnpm@9.15.0 verify:desktop when shared or wiring files are touched`);
     }
   }
   hasRecommendation = true;
 }
 if (groups.docs.length > 0) {
-  console.log("- docs/tools: npx pnpm@9.15.0 verify:docs");
+  console.log("- docs/tools: npx pnpm@9.15.0 verify:vibe:docs first; before handoff or commit use npx pnpm@9.15.0 verify:docs");
   hasRecommendation = true;
 }
 if (groups.release.length > 0) {
@@ -133,11 +140,11 @@ if (groups.release.length > 0) {
   hasRecommendation = true;
 }
 if (groups.ui.length > 0) {
-  console.log("- ui/prototype/web: npx pnpm@9.15.0 verify:ui");
+  console.log("- ui/prototype/web: npx pnpm@9.15.0 verify:vibe:ui first; before handoff or commit use npx pnpm@9.15.0 verify:ui");
   hasRecommendation = true;
 }
 if (groups.desktop.length > 0 && (sharedRiskLanes.length > 0 || menuLanes.length === 0)) {
-  console.log("- desktop wiring/shared: npx pnpm@9.15.0 verify:desktop");
+  console.log("- desktop wiring/shared: npx pnpm@9.15.0 verify:vibe:desktop first; before handoff or commit use npx pnpm@9.15.0 verify:desktop");
   hasRecommendation = true;
 }
 if (groups.domain.length > 0) {

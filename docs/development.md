@@ -220,6 +220,24 @@ npx pnpm@9.15.0 dev:electron
 
 日常开发优先按改动范围跑快路径，不要每次都跑发布级全量链路。
 
+### 4.0 Vibecoding 快路径
+
+单 agent 做菜单或共享 UI 时，默认先跑 `verify:vibe:*`，只拿当前循环需要的反馈；交接、提交、合并或声称门禁通过前，再升级到对应 `verify:*`。
+
+```powershell
+npx pnpm@9.15.0 verify:vibe:docs
+npx pnpm@9.15.0 verify:vibe:ui
+npx pnpm@9.15.0 verify:vibe:desktop
+npx pnpm@9.15.0 verify:vibe:desktop:account
+npx pnpm@9.15.0 verify:vibe:desktop:ai
+npx pnpm@9.15.0 verify:vibe:desktop:loadouts
+npx pnpm@9.15.0 verify:vibe:desktop:vault
+```
+
+这些命令不替代收口门禁：`verify:vibe:*` 用来缩短 coding 循环，`verify:*` 用来交接和提交前兜底。视觉脚本默认放到收口阶段运行；只有当前改动直接影响视觉主题、页面壳或截图目标时，才在单 agent 循环里提前运行。
+
+测试断言优先检查稳定契约，例如组件可渲染、导出存在、role / label、关键 class 结构和 ViewModel 输出。不要把普通功能测试写成源码中文、import 顺序、整段 HTML 或大段 CSS 的字符串匹配；这类检查只用于边界规则或迁移保护。
+
 给 agent 的固定入口：
 
 1. 开工前先运行 `tools\git-preflight.cmd`，确认当前脏文件属于哪个菜单或共享 lane、建议跑哪个验证命令、是否触碰高冲突文件，以及是否需要 worktree 隔离。
@@ -279,6 +297,8 @@ npx pnpm@9.15.0 typecheck:desktop
 提交前如果需要一轮中等门禁：
 
 ```powershell
+npx pnpm@9.15.0 verify:vibe:ui
+npx pnpm@9.15.0 verify:vibe:desktop:loadouts
 npx pnpm@9.15.0 verify
 npx pnpm@9.15.0 verify:docs
 npx pnpm@9.15.0 verify:ui

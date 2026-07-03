@@ -26,17 +26,22 @@ describe("cross-platform UI completion boundary", () => {
     ].join("\n");
     const loadoutsView = read("packages/ui/src/loadouts/LoadoutsPageView.tsx");
     const libraryView = read("packages/ui/src/library/LibraryPageView.tsx");
+    const vendorsView = read("packages/ui/src/vendors/VendorsPageView.tsx");
     const loadoutsContent = read("packages/ui/src/loadouts/LoadoutsPageContentView.tsx");
     const libraryContent = read("packages/ui/src/library/LibraryPageContentView.tsx");
+    const vendorsContent = read("packages/ui/src/vendors/VendorsPageContentView.tsx");
     const vaultPage = read("packages/desktop/src/renderer/features/vault/VaultPage.tsx");
     const desktopVaultPanel = read("packages/desktop/src/renderer/components/VaultPanel.tsx");
     const loadoutsPage = read("packages/desktop/src/renderer/features/loadouts/LoadoutsPage.tsx");
     const libraryPage = read("packages/desktop/src/renderer/features/library/LibraryPage.tsx");
+    const vendorsPage = read("packages/desktop/src/renderer/features/vendors/VendorsPage.tsx");
 
     expect(uiIndex).toContain("VaultPageView");
     expect(uiIndex).toContain("VaultPageContentView");
     expect(uiIndex).toContain("LoadoutsPageView");
     expect(uiIndex).toContain("LibraryPageView");
+    expect(uiIndex).toContain("VendorsPageView");
+    expect(uiIndex).toContain("VendorsPageContentView");
 
     expect(vaultView).toContain("export function VaultPageView");
     expect(vaultContent).toContain("export function VaultPageContentView");
@@ -47,8 +52,10 @@ describe("cross-platform UI completion boundary", () => {
     expect(vaultContent).toContain("VaultTargetRulesPanel");
     expect(loadoutsView).toContain("export function LoadoutsPageView");
     expect(libraryView).toContain("export function LibraryPageView");
+    expect(vendorsView).toContain("export function VendorsPageView");
     expect(loadoutsContent).toContain("<LoadoutsPageView");
     expect(libraryContent).toContain("<LibraryPageView");
+    expect(vendorsContent).toContain("<VendorsPageView");
 
     expect(vaultPage).toContain("<VaultPageView");
     expect(vaultPage).toContain("<VaultPageContentView");
@@ -62,6 +69,7 @@ describe("cross-platform UI completion boundary", () => {
     expect(vaultPage).not.toContain("本地目标规则");
     expect(loadoutsPage).toContain("<LoadoutsPageContentView");
     expect(libraryPage).toContain("<LibraryPageContentView");
+    expect(vendorsPage).toContain("<VendorsPageContentView");
 
     expect(vaultPage).not.toContain("placeholder-panel");
     expect(loadoutsPage).not.toContain('className="tool-panel loadouts-page loadout-product-layout"');
@@ -75,16 +83,19 @@ describe("cross-platform UI completion boundary", () => {
     expect(types).toContain("vault: VaultCopy");
     expect(types).toContain("loadouts: LoadoutsCopy");
     expect(types).toContain("library: LibraryCopy");
+    expect(types).toContain("vendors: VendorsCopy");
     expect(types).toContain("account: AccountCopy");
     expect(types).toContain("settings: SettingsCopy");
     expect(copy).toContain("Vault");
     expect(copy).toContain("Loadouts");
     expect(copy).toContain("Library");
+    expect(copy).toContain("Vendors");
     expect(copy).toContain("Account");
     expect(copy).toContain("Settings");
     expect(copy).toContain("仓库");
     expect(copy).toContain("本地方案库");
     expect(copy).toContain("资料库搜索");
+    expect(copy).toContain("商人库存");
     expect(copy).toContain("账号摘要");
     expect(copy).toContain("设置总览");
   });
@@ -119,9 +130,13 @@ describe("cross-platform UI completion boundary", () => {
     expect(prototypeMain).toContain("VaultPageContentView");
     expect(prototypeMain).toContain("LoadoutsPageContentView");
     expect(prototypeMain).toContain("LibraryPageContentView");
+    expect(prototypeMain).toContain("VendorsPageContentView");
+    expect(prototypeMain).toContain("createVendorsPageWorkspace");
+    expect(prototypeMain).toContain("prototypeVendorsWorkspace");
     expect(prototypeMain).toContain('activePage === "vault"');
     expect(prototypeMain).toContain('activePage === "loadouts"');
     expect(prototypeMain).toContain('activePage === "library"');
+    expect(prototypeMain).toContain('activePage === "vendors"');
     expect(prototypeMain).toContain("interfaceLocale={preferences.interfaceLocale}");
     expect(prototypeMain).toContain("pageHeader={getPrototypePageHeader");
     expect(prototypeMain).not.toContain('className="page-header"');
@@ -133,6 +148,8 @@ describe("cross-platform UI completion boundary", () => {
     expect(uiStyles).toContain(".vault-product-layout");
     expect(uiStyles).toContain(".loadout-product-layout");
     expect(uiStyles).toContain(".library-product-layout");
+    expect(uiStyles).toContain(".vendors-product-layout");
+    expect(uiStyles).toContain(".vendor-inventory-grid");
     expect(uiStyles).toContain(".item-result");
   });
 
@@ -196,9 +213,13 @@ describe("cross-platform UI completion boundary", () => {
     expect(webMain).toContain("VaultPageContentView");
     expect(webMain).toContain("LoadoutsPageContentView");
     expect(webMain).toContain("LibraryPageContentView");
+    expect(webMain).toContain("VendorsPageContentView");
+    expect(webMain).toContain("createVendorsPageWorkspace");
+    expect(webMain).toContain("webVendorsWorkspace");
     expect(webMain).toContain("SettingsPageContentView");
     expect(webMain).toContain('activePage === "account"');
     expect(webMain).toContain('activePage === "vault"');
+    expect(webMain).toContain('activePage === "vendors"');
     expect(webMain).toContain("pageHeader={getWebPageHeader");
     expect(webMain).not.toContain("当前 Web 入口仅接首页");
     expect(webMain).not.toContain('className="page-header"');

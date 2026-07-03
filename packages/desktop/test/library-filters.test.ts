@@ -210,8 +210,10 @@ describe("library filters", () => {
     expect(libraryPage).toContain("LibraryPageContentView");
     expect(libraryContent).toContain("LibraryPageView");
     expect(libraryPage).toContain("libraryViewMode");
-    expect(libraryView).toContain('value="equipment"');
-    expect(libraryView).toContain('value="perks"');
+    expect(libraryContent).toContain('value="equipment"');
+    expect(libraryContent).toContain('value="perks"');
+    expect(libraryContent).toContain("library-search-command");
+    expect(libraryContent).toContain("library-main-filter-row");
     expect(libraryContent).toContain("relatedGroup");
     expect(libraryContent).toContain("libraryEquipmentFilter.frame");
     expect(libraryContent).not.toContain("hasPerks");
@@ -238,8 +240,8 @@ describe("library filters", () => {
     expect(libraryContent).toContain("Perk AND 条件");
     expect(libraryContent).toContain("drop-query-groups");
     expect(libraryContent).toContain("来源可确认");
-    expect(libraryContent).toContain("基于当前资料库");
-    expect(libraryContent).toContain("不等同于当前在线可刷");
+    expect(libraryContent).toContain("实时商人与公共活动优先");
+    expect(libraryContent).toContain("没有证据时明确标记为待补");
     expect(libraryContent).toContain("刷取判断");
     expect(libraryContent).toContain("实时状态");
     expect(libraryContent).toContain("liveAvailability");
