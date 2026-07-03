@@ -19,6 +19,7 @@ const exactSets = {
   ],
   release: [
     "scripts/extract-changelog.test.mjs",
+    "scripts/git-auto-release.test.mjs",
     "packages/desktop/test/release-workflow.test.ts",
     "packages/desktop/test/package-format.test.ts",
   ],

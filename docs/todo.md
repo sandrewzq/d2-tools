@@ -7,7 +7,7 @@
 
 | 检查项 | 状态 | 备注 |
 |---|---|---|
-| `pnpm test` | ✅ 通过 | 本轮 CI 断言同步后全量验证通过：157 个测试文件 / 541 条测试 |
+| `pnpm test` | ✅ 通过 | 本轮 Release v0.0.11 断言同步后全量验证通过：162 个测试文件 / 575 条测试 |
 | `pnpm typecheck` | ✅ 通过 | 本次全仓类型检查通过 |
 | `pnpm docs:check` | ✅ 通过 | 本轮文档结构与编码检查通过 |
 
@@ -36,6 +36,9 @@
 | ✅ 已修复 | Bug #40 配装页：工作台筛选、卡片和详情提示在窄屏重叠 | 配装工作台的响应式覆盖已移到基础规则之后，小屏下左右面板改为单列；筛选、按钮和状态 chip 允许弹性换行，并补配装 UI 回归断言和多视口矩形扫描 |
 | ✅ 已修复 | Bug #42 配装页：覆盖游戏内配装栏返回 Bungie 1622 | `SnapshotLoadout` 改按 Bungie update 请求体发送 `colorHash`、`iconHash`、`nameHash` 的 nullable 字段，避免覆盖当前装备时被判定为 invalid request |
 | ✅ 已修复 | Bug #41 跨端 UI：打开 AI 抽屉后账号页内容挤压重叠 | 账号页在 `.assistant-open` 状态下主动切换为紧凑单列布局，目录、角色标题、装备/背包比较和侧栏摘要不再等窄屏媒体查询才换行；补账号页抽屉回归断言和 Prototype 账号页 + AI 抽屉矩形检查 |
+| ✅ 已修复 | Bug #43 Release v0.0.11：测试断言未同步导致发布失败 | `Release Windows Package` 在 Test 步骤被导航和仓库样式断言拦截；导航期望已纳入“商人”，仓库样式测试改为检查 `packages/ui/src/vault/` 共享 View 和 Desktop adapter 接线 |
+| ✅ 已修复 | Bug #44 Release 脚本：失败重发时错误升 patch 版本 | `tools/git-auto-release.cmd` 先检查当前版本 GitHub Release；当前版本 Release 缺失时复用当前版本并更新同名 tag 重跑发布，只有当前版本已发布成功时才自动升到下一个 patch 版本 |
+| ✅ 已修复 | Bug #45 Release 脚本：`git diff --check` 打开 pager 卡住 | `tools/git-auto-release.cmd` 启动时禁用 Git pager，发布检查输出不再停在 `(END)` 等待手动按 `q` |
 
 ## 当前任务目录
 

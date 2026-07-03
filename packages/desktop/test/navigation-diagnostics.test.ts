@@ -17,7 +17,7 @@ function startupState(): StartupState {
 
 describe("desktop shell navigation and diagnostics", () => {
   it("defines the first public navigation entries", () => {
-    expect(navItems.map((item) => item.label)).toEqual(["首页", "账号", "仓库", "配装", "资料库", "设置"]);
+    expect(navItems.map((item) => item.label)).toEqual(["首页", "账号", "仓库", "配装", "资料库", "商人", "设置"]);
   });
 
   it("builds readable diagnostic rows from startup state and local paths", () => {

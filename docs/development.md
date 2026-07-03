@@ -212,7 +212,7 @@ npx pnpm@9.15.0 dev:electron
 - `tools/dev-status.cmd`：只读查看 Prototype / Web / Desktop 开发端口占用情况。
 - `tools/git-preflight.cmd`：只读按文档、工具、跨端 UI、Desktop、core/services/app/http 分组查看 Git 改动，识别菜单 lane / 共享层风险 / 多 lane 混改，并提示建议验证命令、高冲突文件和并行安全建议。
 - `tools/git-commit-and-push.cmd`：全量提交并 push，不创建 release tag。
-- `tools/git-auto-release.cmd`：自动 patch +1 版本、生成 changelog、提交、push 并创建 release tag。
+- `tools/git-auto-release.cmd`：先检查当前版本 GitHub Release 是否存在；失败或缺失时复用当前版本并更新同名 tag 重跑发布，已成功时才自动 patch +1 版本、生成 changelog、提交、push 并创建新 release tag。
 
 命名规则：本地开发启动脚本使用 `dev-` 前缀，Git / Release 辅助脚本使用 `git-` 前缀，后续批量维护脚本优先使用 `maintenance-` 前缀。
 

@@ -595,10 +595,16 @@ describe("UI style system", () => {
       readFileSync(join(uiRoot, "src", "account", "AccountPageContentView.tsx"), "utf8"),
       readFileSync(join(desktopRoot, "src", "renderer", "features", "account", "AccountPage.tsx"), "utf8")
     ].join("\n");
-    const vaultPage = readFileSync(join(desktopRoot, "src", "renderer", "features", "vault", "VaultPage.tsx"), "utf8");
-    const vaultPanel = readFileSync(join(desktopRoot, "src", "renderer", "components", "VaultPanel.tsx"), "utf8");
-    const vaultToolbar = readFileSync(join(desktopRoot, "src", "renderer", "features", "vault", "VaultFilterToolbar.tsx"), "utf8");
-    const vaultSections = readFileSync(join(desktopRoot, "src", "renderer", "features", "vault", "VaultItemSections.tsx"), "utf8");
+    const vaultPageAdapter = readFileSync(join(desktopRoot, "src", "renderer", "features", "vault", "VaultPage.tsx"), "utf8");
+    const vaultCompatPanel = readFileSync(join(desktopRoot, "src", "renderer", "components", "VaultPanel.tsx"), "utf8");
+    const vaultToolbarAdapter = readFileSync(join(desktopRoot, "src", "renderer", "features", "vault", "VaultFilterToolbar.tsx"), "utf8");
+    const vaultSectionsAdapter = readFileSync(join(desktopRoot, "src", "renderer", "features", "vault", "VaultItemSections.tsx"), "utf8");
+    const vaultPage = [
+      readFileSync(join(uiRoot, "src", "vault", "VaultPageView.tsx"), "utf8"),
+      readFileSync(join(uiRoot, "src", "vault", "VaultPageContentView.tsx"), "utf8")
+    ].join("\n");
+    const vaultToolbar = readFileSync(join(uiRoot, "src", "vault", "VaultFilterToolbar.tsx"), "utf8");
+    const vaultSections = readFileSync(join(uiRoot, "src", "vault", "VaultItemSections.tsx"), "utf8");
     const itemDetailTools = readFileSync(join(desktopRoot, "src", "renderer", "shared", "components", "item-detail", "ItemDetailTools.tsx"), "utf8");
 
     expect(styles).toContain(".panel-subsection");
@@ -627,8 +633,12 @@ describe("UI style system", () => {
 
     expect(vaultPage).toContain("vault-dashboard-panel");
     expect(vaultPage).toContain("status-message status-error");
-    expect(vaultPanel).toContain("vault-dashboard-panel");
-    expect(vaultPanel).toContain("status-message status-ready");
+    expect(vaultPage).toContain("status-message status-ready");
+    expect(vaultPageAdapter).toContain("VaultPageContentView");
+    expect(vaultPageAdapter).toContain("VaultPageView");
+    expect(vaultCompatPanel).toContain("VaultPageContentView as VaultPanel");
+    expect(vaultToolbarAdapter).toContain("VaultFilterToolbar");
+    expect(vaultSectionsAdapter).toContain("VaultItemSections");
     expect(vaultSections).toContain("status-message status-neutral");
 
     expect(vaultToolbar).toContain("ui-filter-toolbar vault-toolbar");
