@@ -17,6 +17,11 @@ export type ShellCopy = {
   navigationAriaLabel: string;
   assistantPanelAriaLabel: string;
   windowControlsAriaLabel: string;
+  windowControls: {
+    minimize: string;
+    toggleMaximize: string;
+    close: string;
+  };
   navigation: Record<ShellPageKey, string>;
   tools: {
     switchToDark: string;

@@ -1,31 +1,73 @@
-.prototype-controls {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin: 0 0 12px;
-  padding: 10px 12px;
-  border: 1px solid var(--border-subtle);
-  border-radius: 12px;
-  background: var(--surface-panel);
+.prototype-debug {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 50;
+  display: grid;
+  justify-items: end;
+  gap: 8px;
   color: var(--text-body);
+  pointer-events: none;
 }
 
-.prototype-controls label {
-  display: inline-flex;
+.prototype-debug-toggle,
+.prototype-debug-panel {
+  pointer-events: auto;
+}
+
+.prototype-debug-toggle {
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-pill);
+  color: var(--text-title);
+  background: var(--surface-elevated);
+  box-shadow: var(--shadow-panel);
+}
+
+.prototype-debug-panel {
+  display: grid;
+  width: min(320px, calc(100vw - 36px));
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-panel);
+  background: var(--surface-panel);
+  box-shadow: var(--shadow-panel);
+}
+
+.prototype-debug-heading {
+  display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.prototype-debug-heading button {
+  width: 28px;
+  height: 28px;
+  min-height: 28px;
+  padding: 0;
+  border-radius: var(--radius-control);
+}
+
+.prototype-debug label {
+  display: grid;
+  gap: 6px;
   font-size: 12px;
   font-weight: 700;
 }
 
-.prototype-controls select {
-  min-height: 30px;
+.prototype-debug select {
+  width: 100%;
+  min-height: 32px;
   border: 1px solid var(--border-control);
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   background: var(--field-bg);
   color: var(--text-body);
 }
 
-.prototype-controls small {
+.prototype-debug small {
   color: var(--text-muted);
+  line-height: 1.5;
 }

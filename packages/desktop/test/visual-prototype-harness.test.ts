@@ -208,7 +208,9 @@ describe("visual prototype harness", () => {
     expect(prototypeEntry).toContain("HomePageView");
     expect(prototypeEntry).toContain("AccountPageView");
     expect(prototypeEntry).toContain("SettingsPageContentView");
-    expect(prototypeEntry).toContain("prototype-controls");
+    expect(prototypeEntry).toContain("prototype-debug-toggle");
+    expect(prototypeEntry).toContain("prototype-debug-panel");
+    expect(prototypeEntry).not.toContain("prototype-controls");
     expect(prototypeEntry).toContain("PrototypeScenarioKey");
     expect(prototypeScenarios).toContain("ready");
     expect(prototypeScenarios).toContain("account-missing");

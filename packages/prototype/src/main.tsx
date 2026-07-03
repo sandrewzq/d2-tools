@@ -51,6 +51,7 @@ function PrototypeApp() {
   const [aliasTargetDraft, setAliasTargetDraft] = useState("喂食狂热");
   const [aliasKind, setAliasKind] = useState<"item" | "perk">("perk");
   const [assistantQuestion, setAssistantQuestion] = useState("");
+  const [isPrototypeDebugOpen, setIsPrototypeDebugOpen] = useState(false);
   const [assistantMessages, setAssistantMessages] = useState<AiAssistantMessageView[]>(() => [
     {
       role: "assistant",
@@ -100,75 +101,65 @@ function PrototypeApp() {
   }
 
   return (
-    <ProductShellHost
-      activePage={activePage}
-      onPageChange={setActivePage}
-      assistantMode={assistantMode}
-      onAssistantModeChange={setAssistantMode}
-      initialPreferences={{
-        ...defaultProductPreferences,
-        colorMode: initialTheme
-      }}
-      shellStatus={scenario.shellStatus}
-      assistantPanel={(
-        <AiAssistantPanelView
-          isConfigured={scenarioKey !== "ai-unconfigured"}
-          sessionTitle="Prototype mock 会话"
-          messages={assistantMessages}
-          question={assistantQuestion}
-          isSending={false}
-          isLoadingAccount={false}
-          hasAccountItems={scenario.hasAccountData}
-          history={[]}
-          activeSessionId={null}
-          isSessionDrawerOpen={isAssistantSessionDrawerOpen}
-          isContextDrawerOpen={isAssistantContextDrawerOpen}
-          contextChip={assistantContextChip}
-          context={assistantContext}
-          quickPrompts={prototypeAssistantPrompts}
-          onQuestionChange={setAssistantQuestion}
-          onSubmit={() => appendPrototypeAssistantReply(assistantQuestion)}
-          onQuickPrompt={appendPrototypeAssistantReply}
-          onLoadAccount={() => undefined}
-          onConfigureAi={() => {
-            setActivePage("settings");
-          }}
-          onClose={() => setAssistantMode(null)}
-          onStartNewSession={() => {
-            setAssistantMessages([]);
-            setAssistantQuestion("");
-            setIsAssistantSessionDrawerOpen(false);
-            setIsAssistantContextDrawerOpen(false);
-          }}
-          onToggleSessionDrawer={() => {
-            setIsAssistantSessionDrawerOpen((current) => !current);
-            setIsAssistantContextDrawerOpen(false);
-          }}
-          onToggleContextDrawer={() => {
-            setIsAssistantContextDrawerOpen((current) => !current);
-            setIsAssistantSessionDrawerOpen(false);
-          }}
-          onOpenContextDrawer={() => setIsAssistantContextDrawerOpen(true)}
-          onCloseContextDrawer={() => setIsAssistantContextDrawerOpen(false)}
-          onClearHistory={() => undefined}
-          onSwitchSession={() => undefined}
-          onDeleteSession={() => undefined}
-        />
-      )}
-      platformActions={platformActions}
-      renderPage={(activePage, preferences) => (
-        <>
-          <div className="prototype-controls" aria-label="Prototype scenario controls">
-            <label>
-              <span>状态</span>
-              <select value={scenarioKey} onChange={(event) => setScenarioKey(event.target.value as PrototypeScenarioKey)}>
-                {Object.values(prototypeScenarios).map((item) => (
-                  <option key={item.key} value={item.key}>{item.label}</option>
-                ))}
-              </select>
-            </label>
-            <small>{scenario.description}</small>
-          </div>
+    <>
+      <ProductShellHost
+        activePage={activePage}
+        onPageChange={setActivePage}
+        assistantMode={assistantMode}
+        onAssistantModeChange={setAssistantMode}
+        initialPreferences={{
+          ...defaultProductPreferences,
+          colorMode: initialTheme
+        }}
+        shellStatus={scenario.shellStatus}
+        assistantPanel={(
+          <AiAssistantPanelView
+            isConfigured={scenarioKey !== "ai-unconfigured"}
+            sessionTitle="Prototype mock 会话"
+            messages={assistantMessages}
+            question={assistantQuestion}
+            isSending={false}
+            isLoadingAccount={false}
+            hasAccountItems={scenario.hasAccountData}
+            history={[]}
+            activeSessionId={null}
+            isSessionDrawerOpen={isAssistantSessionDrawerOpen}
+            isContextDrawerOpen={isAssistantContextDrawerOpen}
+            contextChip={assistantContextChip}
+            context={assistantContext}
+            quickPrompts={prototypeAssistantPrompts}
+            onQuestionChange={setAssistantQuestion}
+            onSubmit={() => appendPrototypeAssistantReply(assistantQuestion)}
+            onQuickPrompt={appendPrototypeAssistantReply}
+            onLoadAccount={() => undefined}
+            onConfigureAi={() => {
+              setActivePage("settings");
+            }}
+            onClose={() => setAssistantMode(null)}
+            onStartNewSession={() => {
+              setAssistantMessages([]);
+              setAssistantQuestion("");
+              setIsAssistantSessionDrawerOpen(false);
+              setIsAssistantContextDrawerOpen(false);
+            }}
+            onToggleSessionDrawer={() => {
+              setIsAssistantSessionDrawerOpen((current) => !current);
+              setIsAssistantContextDrawerOpen(false);
+            }}
+            onToggleContextDrawer={() => {
+              setIsAssistantContextDrawerOpen((current) => !current);
+              setIsAssistantSessionDrawerOpen(false);
+            }}
+            onOpenContextDrawer={() => setIsAssistantContextDrawerOpen(true)}
+            onCloseContextDrawer={() => setIsAssistantContextDrawerOpen(false)}
+            onClearHistory={() => undefined}
+            onSwitchSession={() => undefined}
+            onDeleteSession={() => undefined}
+          />
+        )}
+        platformActions={platformActions}
+        renderPage={(activePage, preferences) => (
+          <>
           {activePage === "home" ? (
             <>
               <header className="page-header">
@@ -392,9 +383,39 @@ function PrototypeApp() {
               onSaveBungieConfig={async () => undefined}
             />
           ) : null}
-        </>
-      )}
-    />
+          </>
+        )}
+      />
+      <div className="prototype-debug">
+        {isPrototypeDebugOpen ? (
+          <section className="prototype-debug-panel" aria-label="Prototype scenario controls">
+            <div className="prototype-debug-heading">
+              <strong>Prototype</strong>
+              <button type="button" onClick={() => setIsPrototypeDebugOpen(false)} aria-label="收起 Prototype 调试">
+                ×
+              </button>
+            </div>
+            <label>
+              <span>场景</span>
+              <select value={scenarioKey} onChange={(event) => setScenarioKey(event.target.value as PrototypeScenarioKey)}>
+                {Object.values(prototypeScenarios).map((item) => (
+                  <option key={item.key} value={item.key}>{item.label}</option>
+                ))}
+              </select>
+            </label>
+            <small>{scenario.description}</small>
+          </section>
+        ) : null}
+        <button
+          type="button"
+          className="prototype-debug-toggle"
+          aria-expanded={isPrototypeDebugOpen}
+          onClick={() => setIsPrototypeDebugOpen((current) => !current)}
+        >
+          Prototype
+        </button>
+      </div>
+    </>
   );
 }
 

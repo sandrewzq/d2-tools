@@ -9,6 +9,11 @@ export const localeCopy: Record<InterfaceLocale, LocaleCopy> = {
       navigationAriaLabel: "主导航",
       assistantPanelAriaLabel: "AI 助手抽屉",
       windowControlsAriaLabel: "窗口控制",
+      windowControls: {
+        minimize: "最小化",
+        toggleMaximize: "最大化或还原",
+        close: "关闭窗口"
+      },
       navigation: {
         home: "首页",
         account: "账号",
@@ -234,6 +239,11 @@ export const localeCopy: Record<InterfaceLocale, LocaleCopy> = {
       navigationAriaLabel: "Primary navigation",
       assistantPanelAriaLabel: "AI assistant drawer",
       windowControlsAriaLabel: "Window controls",
+      windowControls: {
+        minimize: "Minimize",
+        toggleMaximize: "Maximize or restore",
+        close: "Close window"
+      },
       navigation: {
         home: "Home",
         account: "Account",

@@ -40,7 +40,12 @@ export function HomePage(props: {
   });
   const desktopPlatformActions = useMemo(() => ({
     openExternal: (url: string) => window.d2.openExternal(url),
-    setColorMode: (mode: "light" | "dark") => window.d2?.setWindowColorMode?.(mode)
+    setColorMode: (mode: "light" | "dark") => window.d2?.setWindowColorMode?.(mode),
+    windowControls: {
+      minimize: () => window.d2.minimizeWindow(),
+      toggleMaximize: () => window.d2.toggleMaximizeWindow(),
+      close: () => window.d2.closeWindow()
+    }
   }), []);
   const {
     loginMessage,

@@ -27,6 +27,8 @@
 | ✅ 已修复 | Bug #31 Prototype：AI 抽屉暗色模式露出浅色背景 | `AppShell` 统一持有 `global-assistant-sidebar` 包装层，Desktop 不再自建抽屉内层；暗色 drawer token、消息气泡和视觉脚本 computed background 校验已补齐，防止 Prototype / Web / Desktop 抽屉背景再次分叉 |
 | ✅ 已修复 | Bug #32 Prototype：配装页暗色模式露出浅色面板 | 配装页复用的 `daily-source.source-ready`、配装模板和操作日志样式已收口到共享语义 token；新增 `visual:loadouts` 覆盖 Prototype 与 Desktop 暗色配装页，防止共享 UI 再出现白底面板 |
 | ✅ 已修复 | Bug #33 跨端视觉：单页截图无法覆盖所有暗色漏白 | 新增 `visual:all`，遍历 Prototype / Web / Desktop、明暗主题、主菜单和设置分区，对 `.app-shell` 可见 DOM 做 computed style 扫描、浅色大背景拦截和基础文字对比度检查；同时补齐 dark 派生 token，并用样式测试禁止新增直接浅色 background |
+| ✅ 已修复 | Bug #34 Desktop 启动：右上角原生窗口按钮白块割裂 | 移除 Electron 原生 `titleBarOverlay`，窗口控制按钮改为 `packages/ui` 共享 `AppShell` 自绘，Desktop 只通过 IPC 注入最小化、最大化/还原和关闭动作 |
+| ✅ 已修复 | Bug #35 Prototype：首页内容区混入原型场景控制 | Prototype 场景切换从页面内容区移到右下角可收起调试面板，首页默认只展示共享产品内容，避免原型与 Desktop/Web 对比时误判多出状态块 |
 
 ## 当前任务目录
 

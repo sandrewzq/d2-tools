@@ -54,6 +54,12 @@ describe("desktop T5 visual redesign", () => {
     expect(shell).toContain("copy.windowControlsAriaLabel");
     expect(shellCopy).toContain("窗口控制");
     expect(shell).toContain("shell-window-controls");
+    expect(shell).toContain("shell-window-control-button window-minimize");
+    expect(shell).toContain("shell-window-control-button window-toggle-maximize");
+    expect(shell).toContain("shell-window-control-button window-close");
+    expect(shellCopy).toContain("最小化");
+    expect(shellCopy).toContain("最大化或还原");
+    expect(shellCopy).toContain("关闭窗口");
     expect(shell).not.toContain("shell-current-page");
     expect(styles).toContain(".shell-topbar");
     expect(styles).toMatch(/\.shell-topbar\s*{[\s\S]*?grid-template-columns:\s*220px minmax\(0,\s*1fr\) auto 138px;/);
@@ -64,7 +70,9 @@ describe("desktop T5 visual redesign", () => {
     expect(styles).toContain(".shell-tool-button");
     expect(styles).toContain(".shell-tool-github");
     expect(styles).toContain(".shell-tool-ai.active");
-    expect(styles).toContain("grid-template-columns: repeat(4, 46px);");
+    expect(styles).toContain("grid-template-columns: repeat(3, 46px);");
+    expect(styles).toContain(".shell-window-control-button");
+    expect(styles).toContain(".shell-window-control-button.window-close:hover");
     expect(styles).toContain(".global-assistant-drawer");
     expect(styles).not.toContain(".global-assistant-backdrop");
     expect(shell).not.toContain("global-assistant-backdrop");

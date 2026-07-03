@@ -126,8 +126,9 @@ describe("desktop installer and update wiring", () => {
 
     expect(main).toContain("Menu.setApplicationMenu(null)");
     expect(main).toContain("autoHideMenuBar: true");
-    expect(main).toContain('titleBarOverlay: createTitleBarOverlayOptions("light")');
-    expect(main).toContain('backgroundColor: getWindowBackgroundColor("light")');
+    expect(main).toContain('titleBarStyle: "hidden"');
+    expect(main).not.toContain("titleBarOverlay");
+    expect(main).toContain("backgroundColor: getWindowBackgroundColor(");
   });
 
   it("adds a backup and migration guide to the settings release experience", () => {

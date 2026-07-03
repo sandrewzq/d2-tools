@@ -125,6 +125,9 @@ contextBridge.exposeInMainWorld("d2", {
   getStartupState: () => ipcRenderer.invoke("startup:get") as Promise<StartupState>,
   setWindowColorMode: (colorMode: "light" | "dark") =>
     ipcRenderer.invoke("window:set-color-mode", colorMode) as Promise<void>,
+  minimizeWindow: () => ipcRenderer.invoke("window:minimize") as Promise<void>,
+  toggleMaximizeWindow: () => ipcRenderer.invoke("window:toggle-maximize") as Promise<void>,
+  closeWindow: () => ipcRenderer.invoke("window:close") as Promise<void>,
   openExternal: (url: string) =>
     ipcRenderer.invoke("shell:open-external", url) as Promise<void>,
   getBackgroundTasks: () => ipcRenderer.invoke("background-tasks:list") as Promise<BackgroundTaskSnapshot[]>,

@@ -105,8 +105,9 @@ docs/        正式文档
 5. `ProductShellHost` 是产品外壳统一入口；Prototype / Web / Desktop 都应挂同一个 Host。不得重新引入 Desktop 或 Web 专用 shell wrapper 来复制页面结构。
 6. 顶部状态条等跨端状态对象必须使用稳定 key 做样式和逻辑判断，例如 `account`、`library`、`app-version`；本地化后的 `label` 只用于显示，不能参与逻辑判断。
 7. 全局 AI 抽屉等产品级辅助面板也属于共享 UI：`assistantPanel` 不允许各端长期自建标题、对话结构或占位页面，必须复用 `packages/ui` 的 AI Assistant View；Desktop / Prototype / Web 只提供真实服务 adapter 或 mock 数据。
-8. 改 `packages/ui` 后，至少运行相关共享 UI 测试和消费者类型检查；影响首页或设置页视觉时运行 `visual:home` 或 `visual:settings`；影响全局 AI 抽屉时运行 `visual:ai`，它会实际点击 Prototype / Web / Desktop 顶部 AI 并检查共享抽屉标题、旧占位文案和截图。跨页面、主题 token、暗色模式或共享样式大改后运行 `visual:all`，它会遍历 Prototype / Web / Desktop、明暗主题、主菜单和设置分区，并对 `.app-shell` 可见 DOM 做 computed style 扫描。
-9. 产品样式不得再复制到 Desktop 私有样式文件；需要新增 class、token、暗色规则或页面布局时，直接修改 `packages/ui/src/styles.css`。Desktop 私有 CSS 只能放窗口、拖拽区或 Electron 特有平台差异。
+8. 窗口控制按钮由 `packages/ui` 的共享 `AppShell` 自绘，Desktop 只通过 `platformActions.windowControls` 注入最小化、最大化/还原和关闭动作；不要重新启用 Electron 原生 `titleBarOverlay`。
+9. 改 `packages/ui` 后，至少运行相关共享 UI 测试和消费者类型检查；影响首页或设置页视觉时运行 `visual:home` 或 `visual:settings`；影响全局 AI 抽屉时运行 `visual:ai`，它会实际点击 Prototype / Web / Desktop 顶部 AI 并检查共享抽屉标题、旧占位文案和截图。跨页面、主题 token、暗色模式或共享样式大改后运行 `visual:all`，它会遍历 Prototype / Web / Desktop、明暗主题、主菜单和设置分区，并对 `.app-shell` 可见 DOM 做 computed style 扫描。
+10. 产品样式不得再复制到 Desktop 私有样式文件；需要新增 class、token、暗色规则或页面布局时，直接修改 `packages/ui/src/styles.css`。Desktop 私有 CSS 只能放窗口、拖拽区或 Electron 特有平台差异。
 
 常见改动归属：
 
@@ -246,11 +247,15 @@ npx pnpm@9.15.0 test:docs
 npx pnpm@9.15.0 test:fast
 npx pnpm@9.15.0 test:ui
 npx pnpm@9.15.0 test:desktop
+npx pnpm@9.15.0 test:desktop:account
+npx pnpm@9.15.0 test:desktop:ai
+npx pnpm@9.15.0 test:desktop:loadouts
+npx pnpm@9.15.0 test:desktop:vault
 npx pnpm@9.15.0 test:desktop-wiring
 npx pnpm@9.15.0 test:release
 ```
 
-`test:fast` 直接运行 Vitest，不预先全仓 build；`test:ui` 跑共享 UI / 跨端页面收口相关测试；`test:desktop` 跑桌面端测试；`test:desktop-wiring` 只跑桌面接线、边界和打包格式相关快测；`test:release` 只跑 release 规则、changelog 提取和安装包格式相关快测。测试集合由 `scripts/run-test-set.mjs` 维护，避免 Windows shell 通配差异导致漏跑。普通功能改动优先跑相关定向测试，例如：
+`test:fast` 直接运行 Vitest，不预先全仓 build；`test:ui` 跑共享 UI / 跨端页面收口相关测试；`test:desktop` 跑桌面端测试；`test:desktop:account`、`test:desktop:ai`、`test:desktop:loadouts`、`test:desktop:vault` 是菜单私有快测；`test:desktop-wiring` 只跑桌面接线、边界和打包格式相关快测；`test:release` 只跑 release 规则、changelog 提取和安装包格式相关快测。测试集合由 `scripts/run-test-set.mjs` 维护，避免 Windows shell 通配差异导致漏跑。普通功能改动优先跑相关定向测试，例如：
 
 ```powershell
 npx pnpm@9.15.0 vitest --run packages/desktop/test/package-format.test.ts
@@ -278,6 +283,10 @@ npx pnpm@9.15.0 verify
 npx pnpm@9.15.0 verify:docs
 npx pnpm@9.15.0 verify:ui
 npx pnpm@9.15.0 verify:desktop
+npx pnpm@9.15.0 verify:desktop:account
+npx pnpm@9.15.0 verify:desktop:ai
+npx pnpm@9.15.0 verify:desktop:loadouts
+npx pnpm@9.15.0 verify:desktop:vault
 npx pnpm@9.15.0 verify:release
 ```
 

@@ -34,13 +34,33 @@ const dynamicSets = {
       "packages/desktop/test/package-format.test.ts",
     ],
   },
+  "desktop-account": {
+    root: "packages/desktop/test",
+    includes: ["account"],
+    extra: [],
+  },
+  "desktop-ai": {
+    root: "packages/desktop/test",
+    includes: ["ai-", "-ai-", "assistant", "kohinata"],
+    extra: [],
+  },
+  "desktop-loadouts": {
+    root: "packages/desktop/test",
+    includes: ["loadout"],
+    extra: [],
+  },
+  "desktop-vault": {
+    root: "packages/desktop/test",
+    includes: ["vault", "wishlist", "cleanup", "dim", "target-rules"],
+    extra: [],
+  },
 };
 
 const setName = process.argv[2];
 const passthroughArgs = process.argv.slice(3);
 
 if (!setName || setName === "--help" || setName === "/?") {
-  console.log("Usage: node scripts/run-test-set.mjs <ui|desktop-wiring|release> [vitest args]");
+  console.log("Usage: node scripts/run-test-set.mjs <ui|desktop-ai|desktop-vault|desktop-loadouts|desktop-account|desktop-wiring|release> [vitest args]");
   process.exit(setName ? 0 : 1);
 }
 
@@ -84,10 +104,21 @@ function resolveSet(name) {
   }
 
   const discovered = walk(dynamicSet.root)
-    .filter((file) => dynamicSet.suffixes.some((suffix) => file.endsWith(suffix)))
+    .filter((file) => matchesDynamicSet(file, dynamicSet))
     .sort();
 
   return assertExistingFiles([...discovered, ...dynamicSet.extra]);
+}
+
+function matchesDynamicSet(file, dynamicSet) {
+  const normalizedFile = toPosixPath(file).toLowerCase();
+  if (dynamicSet.suffixes?.some((suffix) => normalizedFile.endsWith(suffix.toLowerCase()))) {
+    return true;
+  }
+  if (dynamicSet.includes?.some((part) => normalizedFile.includes(part.toLowerCase()))) {
+    return true;
+  }
+  return false;
 }
 
 function walk(relativeDir) {

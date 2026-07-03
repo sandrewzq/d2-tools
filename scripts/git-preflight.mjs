@@ -3,6 +3,13 @@ import process from "node:process";
 
 const args = process.argv.slice(2);
 
+const desktopMenuVerifyCommands = {
+  account: "npx pnpm@9.15.0 verify:desktop:account",
+  ai: "npx pnpm@9.15.0 verify:desktop:ai",
+  loadouts: "npx pnpm@9.15.0 verify:desktop:loadouts",
+  vault: "npx pnpm@9.15.0 verify:desktop:vault",
+};
+
 if (args.includes("--help") || args.includes("/?")) {
   console.log(`Usage:
   tools\\git-preflight.cmd
@@ -106,7 +113,15 @@ console.log();
 console.log("[recommended verify]");
 let hasRecommendation = false;
 if (menuLanes.length > 0) {
-  console.log("- desktop menu lane: run targeted vitest for changed menu; use npx pnpm@9.15.0 verify:desktop when shared or wiring files are touched");
+  for (const lane of menuLanes) {
+    const menuName = lane.name.replace("desktop-menu: ", "");
+    const verifyCommand = desktopMenuVerifyCommands[menuName];
+    if (verifyCommand) {
+      console.log(`- desktop menu ${menuName}: ${verifyCommand}`);
+    } else {
+      console.log(`- desktop menu ${menuName}: run targeted vitest for changed menu; use npx pnpm@9.15.0 verify:desktop when shared or wiring files are touched`);
+    }
+  }
   hasRecommendation = true;
 }
 if (groups.docs.length > 0) {

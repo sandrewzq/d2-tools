@@ -92,7 +92,39 @@ export function AppShell(props: AppShellProps) {
             AI
           </button>
         </div>
-        <div className="shell-window-controls" aria-label={copy.windowControlsAriaLabel} />
+        <div className="shell-window-controls" aria-label={copy.windowControlsAriaLabel}>
+          {props.platformActions.windowControls ? (
+            <>
+              <button
+                className="shell-window-control-button window-minimize"
+                type="button"
+                title={copy.windowControls.minimize}
+                aria-label={copy.windowControls.minimize}
+                onClick={() => void props.platformActions.windowControls?.minimize()}
+              >
+                <span aria-hidden="true" className="window-control-icon">-</span>
+              </button>
+              <button
+                className="shell-window-control-button window-toggle-maximize"
+                type="button"
+                title={copy.windowControls.toggleMaximize}
+                aria-label={copy.windowControls.toggleMaximize}
+                onClick={() => void props.platformActions.windowControls?.toggleMaximize()}
+              >
+                <span aria-hidden="true" className="window-control-icon">□</span>
+              </button>
+              <button
+                className="shell-window-control-button window-close"
+                type="button"
+                title={copy.windowControls.close}
+                aria-label={copy.windowControls.close}
+                onClick={() => void props.platformActions.windowControls?.close()}
+              >
+                <span aria-hidden="true" className="window-control-icon">×</span>
+              </button>
+            </>
+          ) : null}
+        </div>
       </header>
       <div className="shell-workspace">
         <aside className="shell-sidebar" aria-label={copy.navigationAriaLabel}>

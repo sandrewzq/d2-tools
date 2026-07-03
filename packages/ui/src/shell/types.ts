@@ -20,6 +20,11 @@ export type PlatformActions = {
   openExternal: (url: string) => Promise<void> | void;
   setColorMode?: (mode: "light" | "dark") => Promise<void> | void;
   persistPreferences?: (preferences: ProductPreferences) => Promise<void> | void;
+  windowControls?: {
+    minimize: () => Promise<void> | void;
+    toggleMaximize: () => Promise<void> | void;
+    close: () => Promise<void> | void;
+  };
 };
 
 export type AppShellLayoutProps = {

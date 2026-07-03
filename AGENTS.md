@@ -34,6 +34,7 @@
 
 - 普通功能开发优先只改对应 `packages/desktop/src/renderer/features/<menu>/` 目录，避免一个菜单的改动影响其他菜单。
 - 单个菜单私有目录改动默认不要求 worktree；例如一个 agent 只改 `features/account/`，另一个只改 `features/vault/`，且都不碰共享层时，可以在当前工作区轻量并行。
+- 菜单私有快路径：只改 `features/account/`、`features/ai/`、`features/loadouts/` 或 `features/vault/` 时，优先运行对应 `pnpm verify:desktop:account`、`pnpm verify:desktop:ai`、`pnpm verify:desktop:loadouts`、`pnpm verify:desktop:vault`；碰到 `shared/`、`packages/ui`、`packages/app`、API 或 IPC 后再升级到 `pnpm verify:desktop` / `pnpm verify:ui`。
 - worktree 是隔离复杂并行现场的工具，不是所有任务的默认要求。触碰 `packages/ui`、`packages/app`、`packages/desktop/src/renderer/shared/`、renderer API、主进程 IPC、release / 版本号 / CHANGELOG，或当前工作区已有多条无关脏改动时，才优先考虑 worktree 或暂停其他 agent。
 - 多 agent 共用同一工作区时，提交前必须先运行 `tools\git-preflight.cmd`；如果输出多条 lane 或高冲突文件，不要使用全量 `git add -A` 提交脚本，除非确认这些改动都属于本次提交。
 - 跨菜单复用能力必须先进入 `packages/desktop/src/renderer/shared/`，不要让 feature 之间直接 import。

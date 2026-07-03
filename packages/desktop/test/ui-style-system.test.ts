@@ -261,7 +261,7 @@ describe("UI style system", () => {
     const aiAssistantView = readFileSync(join(uiRoot, "src", "assistant", "AiAssistantPanelView.tsx"), "utf8");
 
     expect(mainProcess).toContain('titleBarStyle: "hidden"');
-    expect(mainProcess).toContain("titleBarOverlay");
+    expect(mainProcess).not.toContain("titleBarOverlay");
     expect(styles).toMatch(/\.shell-titlebar\s*{[\s\S]*?-webkit-app-region:\s*drag;/);
     expect(styles).toMatch(/\.shell-titlebar button,[\s\S]*?\.shell-status-group\s*{[\s\S]*?-webkit-app-region:\s*no-drag;/);
 
@@ -487,23 +487,46 @@ describe("UI style system", () => {
     expect(finalBlock).not.toContain("#090b0f");
   });
 
-  it("syncs the native titlebar overlay with the selected color mode", () => {
+  it("uses shared self-drawn window controls instead of the native titlebar overlay", () => {
     const mainProcess = readFileSync(join(desktopRoot, "src", "main", "main.ts"), "utf8");
     const ipcRegister = readFileSync(join(desktopRoot, "src", "main", "ipc.ts"), "utf8");
+    const windowIpc = readFileSync(join(desktopRoot, "src", "main", "ipc", "window.ts"), "utf8");
     const preload = readFileSync(join(desktopRoot, "src", "preload", "preload.ts"), "utf8");
+    const windowApi = readFileSync(join(desktopRoot, "src", "renderer", "api", "windowApi.ts"), "utf8");
     const apiTypes = readFileSync(join(desktopRoot, "src", "renderer", "api", "types.ts"), "utf8");
     const homePage = readFileSync(join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"), "utf8");
+    const shellLayout = readFileSync(join(uiRoot, "src", "shell", "AppShell.tsx"), "utf8");
 
-    expect(mainProcess).toContain("createTitleBarOverlayOptions");
-    expect(mainProcess).toContain('titleBarOverlay: createTitleBarOverlayOptions("light")');
+    expect(mainProcess).not.toContain("createTitleBarOverlayOptions");
+    expect(mainProcess).not.toContain("titleBarOverlay");
     expect(mainProcess).not.toContain('color: "#10151d"');
     expect(mainProcess).not.toContain('backgroundColor: "#0d1118"');
     expect(ipcRegister).toContain("registerWindowIpcHandlers()");
+    expect(windowIpc).not.toContain("setTitleBarOverlay");
+    expect(windowIpc).toContain('ipcMain.handle("window:minimize"');
+    expect(windowIpc).toContain('ipcMain.handle("window:toggle-maximize"');
+    expect(windowIpc).toContain('ipcMain.handle("window:close"');
     expect(preload).toContain("setWindowColorMode");
     expect(preload).toContain('ipcRenderer.invoke("window:set-color-mode"');
+    expect(preload).toContain("minimizeWindow");
+    expect(preload).toContain('ipcRenderer.invoke("window:minimize"');
+    expect(preload).toContain("toggleMaximizeWindow");
+    expect(preload).toContain('ipcRenderer.invoke("window:toggle-maximize"');
+    expect(preload).toContain("closeWindow");
+    expect(preload).toContain('ipcRenderer.invoke("window:close"');
+    expect(windowApi).toContain("minimizeWindow(): Promise<void>");
+    expect(windowApi).toContain("toggleMaximizeWindow(): Promise<void>");
+    expect(windowApi).toContain("closeWindow(): Promise<void>");
     expect(apiTypes).toContain("WindowApi");
     expect(apiTypes).toContain("export type * from \"./windowApi\"");
     expect(homePage).toContain("setColorMode: (mode: \"light\" | \"dark\") => window.d2?.setWindowColorMode?.(mode)");
+    expect(homePage).toContain("windowControls");
+    expect(homePage).toContain("minimize: () => window.d2.minimizeWindow()");
+    expect(homePage).toContain("toggleMaximize: () => window.d2.toggleMaximizeWindow()");
+    expect(homePage).toContain("close: () => window.d2.closeWindow()");
+    expect(shellLayout).toContain("shell-window-control-button window-minimize");
+    expect(shellLayout).toContain("shell-window-control-button window-toggle-maximize");
+    expect(shellLayout).toContain("shell-window-control-button window-close");
   });
 
   it("keeps dense item surfaces responsive by avoiding animated shadows and movement", () => {
