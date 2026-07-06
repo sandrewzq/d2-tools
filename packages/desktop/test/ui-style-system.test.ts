@@ -250,7 +250,8 @@ describe("UI style system", () => {
     expect(styles).toMatch(/\.tool-panel\s*{[\s\S]*?box-shadow:\s*var\(--shadow-panel\);/);
     expect(styles).toMatch(/\.ui-filter-toolbar\s*{[\s\S]*?background:\s*var\(--surface-toolbar\);/);
     expect(styles).toMatch(/\.ui-item-card:hover,[\s\S]*?\.vault-item-card:hover\s*{[\s\S]*?background:\s*var\(--surface-elevated\);/);
-    expect(styles).toMatch(/\.home-dashboard-panel,[\s\S]*?\.account-dashboard-panel,[\s\S]*?\.vault-dashboard-panel,[\s\S]*?\.item-tool-panel\s*{[\s\S]*?background:\s*var\(--surface-elevated\);/);
+    expect(styles).toMatch(/\.home-dashboard-panel,[\s\S]*?\.vault-dashboard-panel,[\s\S]*?\.item-tool-panel\s*{[\s\S]*?background:\s*var\(--surface-elevated\);/);
+    expect(styles).toMatch(/\.account-product-layout,[\s\S]*?\.vault-product-layout,[\s\S]*?\.loadout-product-layout,[\s\S]*?\.library-product-layout,[\s\S]*?\.vendors-product-layout\s*{[\s\S]*?gap:\s*var\(--space-16\);/);
   });
 
   it("polishes desktop shell details from the latest visual review", () => {
@@ -613,7 +614,7 @@ describe("UI style system", () => {
     expect(styles).toContain(".ui-filter-toolbar");
     expect(styles).toContain(".ui-item-card");
     expect(styles).toContain(".home-dashboard-panel");
-    expect(styles).toContain(".account-dashboard-panel");
+    expect(styles).toContain(".account-product-layout");
     expect(styles).toContain(".vault-dashboard-panel");
     expect(styles).toContain(".item-tool-panel");
 
@@ -626,12 +627,13 @@ describe("UI style system", () => {
     expect(dailyPanel).toContain("status-message status-error");
     expect(dailyPanel).toContain("status-message status-ready");
 
-    expect(accountPage).toContain("account-dashboard-panel");
+    expect(accountPage).toContain("account-product-layout");
+    expect(accountPage).not.toContain("account-dashboard-panel");
     expect(accountPage).toContain("status-message status-error");
     expect(accountPage).toContain("status-message status-warning");
     expect(accountPage).toContain("status-message status-ready");
 
-    expect(vaultPage).toContain("vault-dashboard-panel");
+    expect(vaultPage).toContain("vault-product-layout");
     expect(vaultPage).toContain("status-message status-error");
     expect(vaultPage).toContain("status-message status-ready");
     expect(vaultPageAdapter).toContain("VaultPageContentView");

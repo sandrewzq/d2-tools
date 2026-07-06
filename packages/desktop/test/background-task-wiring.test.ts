@@ -30,7 +30,7 @@ describe("product shell background task wiring", () => {
     expect(apiTypes).toContain("export type * from \"./backgroundTaskApi\"");
   });
 
-  it("subscribes to background tasks at the product shell and renders global task status", () => {
+  it("subscribes to background tasks at the product shell and renders the non-intrusive task dock", () => {
     const homePage = readFileSync(join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"), "utf8");
     const shellLayout = readFileSync(join(uiRoot, "src", "shell", "AppShell.tsx"), "utf8");
     const settingsPage = [
@@ -43,14 +43,19 @@ describe("product shell background task wiring", () => {
     expect(backgroundHook).toContain("api.getBackgroundTasks()");
     expect(backgroundHook).toContain("api.onBackgroundTasksChanged");
     expect(diagnosticsHook).toContain("useBackgroundTasks");
-    expect(homePage).toContain("global-background-task-banner");
+    expect(homePage).not.toContain("global-background-task-banner");
     expect(homePage).toContain("shellStatus={");
+    expect(homePage).toContain("backgroundTasks={diagnostics.backgroundTasks}");
+    expect(homePage).toContain("onOpenBackgroundTasks={() => setActivePage(\"settings\")}");
     expect(shellLayout).toContain("global-shell-status");
+    expect(shellLayout).toContain("background-task-dock");
+    expect(shellLayout).toContain("visibleShellStatus");
+    expect(shellLayout).toContain('item.key !== "background"');
     expect(homePage).toContain('label: "应用版本"');
     expect(homePage).toContain('label: "Bungie"');
     expect(homePage).toContain('label: "AI"');
     expect(homePage).toContain("资料库");
-    expect(homePage).toContain("后台任务");
+    expect(homePage).not.toContain('label: "后台任务"');
     expect(homePage).toContain("backgroundTasks: diagnostics.backgroundTasks");
     expect(settingsPage).toContain("后台任务");
     expect(settingsPage).toContain("getBackgroundTaskUi");
@@ -104,12 +109,14 @@ describe("product shell background task wiring", () => {
     expect(accountHook).not.toContain("loadFullAccountWorkspace");
   });
 
-  it("summarizes multiple running tasks in the global banner instead of hiding the count", () => {
+  it("passes background tasks to the shared floating dock instead of rendering a page banner", () => {
     const homePage = readFileSync(join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"), "utf8");
+    const shellLayout = readFileSync(join(uiRoot, "src", "shell", "AppShell.tsx"), "utf8");
 
-    expect(homePage).toContain("activeBackgroundTaskCount");
-    expect(homePage).toContain("formatVisibleBackgroundTaskTitle");
-    expect(homePage).toContain("个运行中");
+    expect(homePage).not.toContain("visibleBackgroundTask");
+    expect(homePage).not.toContain("activeBackgroundTaskCount");
+    expect(homePage).not.toContain("formatVisibleBackgroundTaskTitle");
+    expect(shellLayout).toContain("copy.backgroundTasks.itemCount");
   });
 
   it("automatically upgrades stale or incomplete manifest data in the background", () => {

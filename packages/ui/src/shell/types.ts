@@ -16,6 +16,19 @@ export type ShellStatusItem = {
   tone?: "neutral" | "ready" | "warning" | "error";
 };
 
+export type ShellBackgroundTaskItem = {
+  id?: string;
+  task_id?: string;
+  title: string;
+  status: "idle" | "queued" | "running" | "retrying" | "success" | "succeeded" | "failed" | "blocked";
+  message?: string;
+  error?: string;
+  progress_percent?: number;
+  created_at?: string;
+  updated_at?: string;
+  next_retry_at?: string;
+};
+
 export type PlatformActions = {
   openExternal: (url: string) => Promise<void> | void;
   setColorMode?: (mode: "light" | "dark") => Promise<void> | void;
@@ -38,5 +51,7 @@ export type AppShellLayoutProps = {
   interfaceLocale?: InterfaceLocale;
   assistantPanel: ReactNode;
   shellStatus: ShellStatusItem[];
+  backgroundTasks?: ShellBackgroundTaskItem[];
+  onOpenBackgroundTasks?: () => void;
   children: ReactNode;
 };

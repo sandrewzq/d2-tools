@@ -1,12 +1,13 @@
 import type { ReactNode } from "react";
 import { getLocaleCopy } from "../i18n/copy.js";
 import type { AccountCopy, InterfaceLocale } from "../i18n/types.js";
+import { ProductWorkspacePage } from "../workspace/ProductWorkspace.js";
 
 export function AccountPageView(props: { interfaceLocale?: InterfaceLocale; children?: ReactNode }) {
   return (
-    <section className="tool-panel account-dashboard-panel account-page">
+    <ProductWorkspacePage className="account-page account-product-layout">
       {props.children ?? <DefaultAccountPrototype interfaceLocale={props.interfaceLocale} />}
-    </section>
+    </ProductWorkspacePage>
   );
 }
 

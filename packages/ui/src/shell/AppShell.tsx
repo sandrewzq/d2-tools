@@ -1,19 +1,24 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { getLocaleCopy } from "../i18n/copy.js";
+import type { ShellCopy } from "../i18n/types.js";
 import { getLocalizedNavItems } from "./navigation.js";
-import type { AppShellLayoutProps, PlatformActions, ShellAssistantMode } from "./types.js";
+import type { AppShellLayoutProps, PlatformActions, ShellAssistantMode, ShellBackgroundTaskItem } from "./types.js";
 
 export type AppShellProps = AppShellLayoutProps & {
   platformActions: PlatformActions;
 };
 
 export function AppShell(props: AppShellProps) {
+  const [isBackgroundTaskDockOpen, setIsBackgroundTaskDockOpen] = useState(false);
   const shellClassName = props.assistantMode ? "app-shell assistant-open" : "app-shell";
   const interfaceLocale = props.interfaceLocale ?? "zh-CN";
   const copy = getLocaleCopy(interfaceLocale).shell;
   const navItems = getLocalizedNavItems(interfaceLocale);
   const themeToggleLabel = props.colorMode === "light" ? copy.tools.switchToDark : copy.tools.switchToLight;
   const languageToggleLabel = interfaceLocale === "zh-CN" ? copy.tools.switchToEnglish : copy.tools.switchToChinese;
+  const visibleShellStatus = props.shellStatus.filter((item) => item.key !== "background");
+  const backgroundTasks = props.backgroundTasks ?? [];
+  const taskDockState = getBackgroundTaskDockState(backgroundTasks, copy);
 
   function toggleAssistant(mode: Exclude<ShellAssistantMode, null>) {
     props.onAssistantModeChange(props.assistantMode === mode ? null : mode);
@@ -34,7 +39,7 @@ export function AppShell(props: AppShellProps) {
           </div>
         </div>
         <div className="shell-status-strip shell-global-status global-shell-status" aria-label={copy.statusAriaLabel}>
-          {props.shellStatus.map((item) => (
+          {visibleShellStatus.map((item) => (
             <span
               className={[
                 "shell-status-group",
@@ -151,6 +156,134 @@ export function AppShell(props: AppShellProps) {
           </aside>
         ) : null}
       </div>
+      {taskDockState ? (
+        <section className={`background-task-dock task-${taskDockState.tone}`} aria-label={copy.backgroundTasks.ariaLabel}>
+          <button
+            type="button"
+            className="background-task-dock-button"
+            aria-expanded={isBackgroundTaskDockOpen}
+            onClick={() => setIsBackgroundTaskDockOpen((current) => !current)}
+          >
+            <span className="background-task-pulse" aria-hidden="true" />
+            <span>{taskDockState.summary}</span>
+            <strong>{taskDockState.primaryTitle}</strong>
+          </button>
+          <div className="background-task-popover" data-open={isBackgroundTaskDockOpen} aria-hidden={!isBackgroundTaskDockOpen}>
+            <div className="background-task-popover-header">
+              <strong>{copy.backgroundTasks.title}</strong>
+              <span>{taskDockState.helper}</span>
+            </div>
+            <div className="background-task-dock-list">
+              {taskDockState.tasks.map((task) => (
+                <div className={`background-task-dock-row task-${getBackgroundTaskTone(task)}`} key={getBackgroundTaskKey(task)}>
+                  <div>
+                    <strong>{task.title}</strong>
+                    <span>{formatBackgroundTaskStatus(task, copy)}</span>
+                  </div>
+                  {getBackgroundTaskMessage(task) ? <p>{getBackgroundTaskMessage(task)}</p> : null}
+                </div>
+              ))}
+            </div>
+            {props.onOpenBackgroundTasks ? (
+              <button type="button" className="secondary-button background-task-open-all" onClick={props.onOpenBackgroundTasks}>
+                {copy.backgroundTasks.openAll}
+              </button>
+            ) : null}
+          </div>
+        </section>
+      ) : null}
     </main>
   );
+}
+
+function getBackgroundTaskDockState(tasks: ShellBackgroundTaskItem[], copy: ShellCopy): {
+  tone: "active" | "warning" | "error";
+  summary: string;
+  primaryTitle: string;
+  helper: string;
+  tasks: ShellBackgroundTaskItem[];
+} | null {
+  const importantTasks = tasks.filter((task) => isBackgroundTaskActive(task) || isBackgroundTaskFailed(task));
+
+  if (!importantTasks.length) {
+    return null;
+  }
+
+  const orderedTasks = [
+    ...importantTasks,
+    ...tasks.filter((task) => !importantTasks.includes(task))
+  ].slice(0, 5);
+  const primaryTask = importantTasks[0];
+  const failedCount = importantTasks.filter(isBackgroundTaskFailed).length;
+  const activeCount = importantTasks.filter(isBackgroundTaskActive).length;
+  const tone = failedCount ? "error" : importantTasks.some((task) => task.status === "retrying") ? "warning" : "active";
+  const count = importantTasks.length;
+
+  return {
+    tone,
+    summary: copy.backgroundTasks.itemCount(count),
+    primaryTitle: primaryTask?.title ?? copy.backgroundTasks.fallbackTitle,
+    helper: failedCount
+      ? copy.backgroundTasks.failedSummary(failedCount)
+      : activeCount
+        ? copy.backgroundTasks.activeSummary(activeCount)
+        : copy.backgroundTasks.recentSummary,
+    tasks: orderedTasks
+  };
+}
+
+function isBackgroundTaskActive(task: ShellBackgroundTaskItem): boolean {
+  return task.status === "queued" || task.status === "running" || task.status === "retrying";
+}
+
+function isBackgroundTaskFailed(task: ShellBackgroundTaskItem): boolean {
+  return task.status === "failed" || task.status === "blocked";
+}
+
+function getBackgroundTaskTone(task: ShellBackgroundTaskItem): "active" | "warning" | "ready" | "error" | "neutral" {
+  if (task.status === "failed" || task.status === "blocked") return "error";
+  if (task.status === "retrying") return "warning";
+  if (task.status === "success" || task.status === "succeeded") return "ready";
+  if (task.status === "running" || task.status === "queued") return "active";
+  return "neutral";
+}
+
+function getBackgroundTaskKey(task: ShellBackgroundTaskItem): string {
+  return task.task_id ?? task.id ?? `${task.title}:${task.updated_at ?? task.status}`;
+}
+
+function getBackgroundTaskMessage(task: ShellBackgroundTaskItem): string {
+  return task.error ?? task.message ?? "";
+}
+
+function formatBackgroundTaskStatus(task: ShellBackgroundTaskItem, copy: ShellCopy): string {
+  if (task.status === "queued") return copy.backgroundTasks.status.queued;
+  if (task.status === "running") return formatProgressLabel(task.progress_percent, copy) ?? copy.backgroundTasks.status.running;
+  if (task.status === "retrying") {
+    return task.next_retry_at
+      ? copy.backgroundTasks.status.retryingAt(formatTaskTime(task.next_retry_at))
+      : copy.backgroundTasks.status.retrying;
+  }
+  if (task.status === "failed") return copy.backgroundTasks.status.failed;
+  if (task.status === "blocked") return copy.backgroundTasks.status.blocked;
+  if (task.status === "success" || task.status === "succeeded") return copy.backgroundTasks.status.success;
+  return copy.backgroundTasks.status.idle;
+}
+
+function formatProgressLabel(progress: number | undefined, copy: ShellCopy): string | null {
+  if (progress === undefined) return null;
+  return copy.backgroundTasks.status.runningProgress(Math.round(progress));
+}
+
+function formatTaskTime(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return new Intl.DateTimeFormat("zh-CN", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false
+  }).format(date);
 }

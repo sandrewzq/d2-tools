@@ -54,6 +54,13 @@ import {
   useVaultBatchActions,
   type VaultCleanupActions
 } from "./useVaultBatchActions.js";
+import {
+  ProductWorkspaceCommandBar,
+  ProductWorkspaceContentStack,
+  ProductWorkspacePage,
+  ProductWorkspaceSideRail,
+  ProductWorkspaceSplit
+} from "../workspace/ProductWorkspace.js";
 
 type VaultWorkspaceTab = "filters" | "cleanup" | "duplicates" | "targets" | "recommendations";
 type VaultQuickFilter = "cleanup" | "wishlist" | "targets" | "untagged" | "locked";
@@ -338,7 +345,7 @@ export function VaultPageContentView(props: {
   }
 
   return (
-    <section className="tool-panel vault-dashboard-panel vault-product-layout">
+    <ProductWorkspacePage className="vault-product-layout">
       {(props.showInternalHeading ?? true) ? (
         <div className="section-heading">
           <div>
@@ -360,9 +367,9 @@ export function VaultPageContentView(props: {
           方案命中 {loadoutMatchCount} 件
         </p>
       ) : null}
-      <div className="vault-workbench-layout">
-        <div className="vault-workbench-main">
-          <div className="vault-workbench-header">
+      <ProductWorkspaceSplit className="vault-workbench-layout">
+        <ProductWorkspaceContentStack className="vault-workbench-main">
+          <ProductWorkspaceCommandBar className="vault-workbench-header">
             <div className="vault-workflow-tabs" role="tablist" aria-label="仓库工作台">
               {vaultWorkspaceTabs.map((tab) => (
                 <button
@@ -391,7 +398,7 @@ export function VaultPageContentView(props: {
                 </button>
               ))}
             </div>
-          </div>
+          </ProductWorkspaceCommandBar>
           {batchMessage ? <p className={batchMessage.includes("失败") ? "status-message status-error" : "status-message status-ready"}>{batchMessage}</p> : null}
           {activeVaultTab === "filters" ? (
             <>
@@ -505,8 +512,8 @@ export function VaultPageContentView(props: {
               {renderVaultItems()}
             </>
           ) : null}
-        </div>
-        <aside className="vault-side-summary" aria-label="仓库当前整理摘要">
+        </ProductWorkspaceContentStack>
+        <ProductWorkspaceSideRail className="vault-side-summary" ariaLabel="仓库当前整理摘要">
           {renderVaultSideSummary({
             activeTab: activeVaultTab,
             decisionSummary,
@@ -522,9 +529,9 @@ export function VaultPageContentView(props: {
             onDuplicatesClick: () => switchVaultTab("duplicates"),
             onCopyCleanupList: copyCleanupList
           })}
-        </aside>
-      </div>
-    </section>
+        </ProductWorkspaceSideRail>
+      </ProductWorkspaceSplit>
+    </ProductWorkspacePage>
   );
 
   function renderVaultItems() {

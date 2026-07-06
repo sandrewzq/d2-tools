@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { getLocaleCopy } from "../i18n/copy.js";
 import type { InterfaceLocale } from "../i18n/types.js";
+import { ProductWorkspacePage, ProductWorkspacePanel } from "../workspace/ProductWorkspace.js";
 
 export type LoadoutsPageViewProps = {
   interfaceLocale?: InterfaceLocale;
@@ -17,7 +18,7 @@ export function LoadoutsPageView(props: LoadoutsPageViewProps) {
   const unit = copy.inline["件"] ?? "件";
 
   return (
-    <section className="tool-panel loadouts-page loadout-product-layout">
+    <ProductWorkspacePage className="loadouts-page loadout-product-layout">
       {(props.showInternalHeading ?? true) ? (
         <div className="section-heading">
           <div>
@@ -27,7 +28,7 @@ export function LoadoutsPageView(props: LoadoutsPageViewProps) {
         </div>
       ) : null}
       {props.message ? <p className={props.message.includes(copy.inline["失败"] ?? "失败") ? "status-message status-error" : "status-message status-ready"}>{props.message}</p> : null}
-      <section className="product-card loadout-risk-panel">
+      <ProductWorkspacePanel className="product-card loadout-risk-panel">
         <div className="section-heading compact-heading">
           <div>
             <h3>{copy.riskTitle}</h3>
@@ -39,8 +40,8 @@ export function LoadoutsPageView(props: LoadoutsPageViewProps) {
           <span>{copy.readyItems} {props.readyCount} {unit}</span>
           <span>{copy.actionableItems} {props.actionableCount} {unit}</span>
         </div>
-      </section>
+      </ProductWorkspacePanel>
       {props.children}
-    </section>
+    </ProductWorkspacePage>
   );
 }

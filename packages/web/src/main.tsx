@@ -16,6 +16,7 @@ import {
   type LibraryViewMode,
   type AiAssistantMessageView,
   type ShellAssistantMode,
+  type ShellBackgroundTaskItem,
   type ShellPageKey
 } from "@d2-tools/ui";
 import {
@@ -100,7 +101,7 @@ function WebApp() {
   const webVendorsWorkspace = useMemo(() => createVendorsPageWorkspace(null), []);
   const assistantContext = useMemo(() => ({
     pageLabel: "首页工作台",
-    focus: "先看官方可确认的今日 / 本周内容，再处理账号、资料库、应用版本和后台任务状态。",
+    focus: "先看官方可确认的今日 / 本周内容，再处理账号、资料库和应用版本状态。",
     facts: snapshot.shellStatus.map((item) => `${item.label}：${item.value}`),
     itemCount: 496,
     characterCount: hasAccountData ? 2 : 0,
@@ -146,6 +147,8 @@ function WebApp() {
       assistantMode={assistantMode}
       onAssistantModeChange={setAssistantMode}
       shellStatus={snapshot.shellStatus}
+      backgroundTasks={webBackgroundTasks}
+      onOpenBackgroundTasks={() => setActivePage("settings")}
       pageHeader={getWebPageHeader}
       assistantPanel={(
         <AiAssistantPanelView
@@ -632,7 +635,7 @@ const webLocalTargetRules = { action_policy: "notify_only" as const, armor: [], 
 const webWishlist = { title: "Web DIM Wishlist", rules: [{ item_hash: 3002, perk_hashes: [4001], mode: "pve" as const, note: "Web 推荐" }] };
 const webVaultCommunityMatch = new Map<number, any>([[3002, { matched: 1, modes: ["pve"], sample_perks: [{ name: "爆炸载荷" }] }]]);
 const webBatchResult = { success_count: 0, failed_count: 0, results: [] };
-const webBackgroundTasks = [{ id: "web-task", title: "Web snapshot", status: "succeeded", message: "Web mock 已载入。", created_at: "2026-07-03T14:18:00+08:00", updated_at: "2026-07-03T14:18:00+08:00" }];
+const webBackgroundTasks: ShellBackgroundTaskItem[] = [{ id: "web-task", title: "Web snapshot", status: "succeeded", message: "Web mock 已载入。", created_at: "2026-07-03T14:18:00+08:00", updated_at: "2026-07-03T14:18:00+08:00" }];
 const webActionLog = [{ id: "web-action", created_at: "2026-07-03T14:18:00+08:00", action: "mock", item_name: "Web mock", ok: true, message: "共享设置页操作日志 mock。" }];
 const webBungieConfig = { bungie: { api_key: "web-api-key", client_id: "web-client-id", client_secret: "web-client-secret", redirect_uri: "https://127.0.0.1:28780/oauth/callback" } };
 

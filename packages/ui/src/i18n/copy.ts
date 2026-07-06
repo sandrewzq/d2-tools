@@ -14,6 +14,27 @@ export const localeCopy: Record<InterfaceLocale, LocaleCopy> = {
         toggleMaximize: "最大化或还原",
         close: "关闭窗口"
       },
+      backgroundTasks: {
+        ariaLabel: "后台任务",
+        title: "后台任务",
+        itemCount: (count) => `${count} 个后台任务`,
+        activeSummary: (count) => `${count} 个正在后台执行`,
+        failedSummary: (count) => `${count} 个需要处理`,
+        recentSummary: "最近后台任务",
+        openAll: "查看全部",
+        fallbackTitle: "后台任务",
+        status: {
+          idle: "空闲",
+          queued: "排队中",
+          running: "运行中",
+          runningProgress: (progress) => `运行中 · ${progress}%`,
+          retrying: "等待重试",
+          retryingAt: (time) => `等待重试 · ${time}`,
+          success: "已完成",
+          failed: "失败",
+          blocked: "已阻断"
+        }
+      },
       navigation: {
         home: "首页",
         account: "账号",
@@ -273,6 +294,27 @@ export const localeCopy: Record<InterfaceLocale, LocaleCopy> = {
         minimize: "Minimize",
         toggleMaximize: "Maximize or restore",
         close: "Close window"
+      },
+      backgroundTasks: {
+        ariaLabel: "Background tasks",
+        title: "Background tasks",
+        itemCount: (count) => `${count} background task${count === 1 ? "" : "s"}`,
+        activeSummary: (count) => `${count} running in the background`,
+        failedSummary: (count) => `${count} needs attention`,
+        recentSummary: "Recent background tasks",
+        openAll: "View all",
+        fallbackTitle: "Background task",
+        status: {
+          idle: "Idle",
+          queued: "Queued",
+          running: "Running",
+          runningProgress: (progress) => `Running · ${progress}%`,
+          retrying: "Waiting to retry",
+          retryingAt: (time) => `Retrying · ${time}`,
+          success: "Completed",
+          failed: "Failed",
+          blocked: "Blocked"
+        }
       },
       navigation: {
         home: "Home",
@@ -614,6 +656,10 @@ export const localeCopy: Record<InterfaceLocale, LocaleCopy> = {
         "关联分类：": "Related categories: ",
         "可能出现于：": "May appear on: ",
         "资料库里还没有查到关联装备。": "No related items were found in the manifest.",
+        "输入装备名或 Perk 名后开始搜索。": "Enter an item or perk name to start searching.",
+        "结果区会展示来源、实时状态、掉落判断和 Perk 池。": "Results will show sources, live status, drop judgment, and perk pools.",
+        "未找到匹配结果。": "No matches found.",
+        "可以换中文名、英文名，或者先保存一个常用别名再搜。": "Try another Chinese or English name, or save a common alias first.",
         "未找到匹配结果。可以换中文名、英文名，或者先保存一个常用别名再搜。": "No matches found. Try another name, English name, or save a common alias first.",
         "资料库状态读取失败": "Failed to read manifest status",
         "正在检查资料库版本": "Checking manifest version",

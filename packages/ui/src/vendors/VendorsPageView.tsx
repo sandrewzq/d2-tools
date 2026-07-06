@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { getLocaleCopy } from "../i18n/copy.js";
 import type { InterfaceLocale } from "../i18n/types.js";
+import { ProductWorkspaceCommandBar, ProductWorkspacePage } from "../workspace/ProductWorkspace.js";
 
 export type VendorsPageViewProps = {
   interfaceLocale?: InterfaceLocale;
@@ -17,7 +18,7 @@ export function VendorsPageView(props: VendorsPageViewProps) {
   const copy = getLocaleCopy(props.interfaceLocale ?? "zh-CN").vendors;
 
   return (
-    <section className="tool-panel vendors-page vendors-product-layout">
+    <ProductWorkspacePage className="vendors-page vendors-product-layout">
       {(props.showInternalHeading ?? true) ? (
         <div className="section-heading">
           <div>
@@ -27,7 +28,7 @@ export function VendorsPageView(props: VendorsPageViewProps) {
         </div>
       ) : null}
 
-      <div className="vendor-summary-strip" aria-label={copy.title}>
+      <ProductWorkspaceCommandBar className="vendor-summary-strip" ariaLabel={copy.title}>
         <div>
           <span>{copy.updatedLabel}</span>
           <strong>{props.updatedLabel}</strong>
@@ -48,9 +49,9 @@ export function VendorsPageView(props: VendorsPageViewProps) {
           <span>{copy.verifiedInventory}</span>
           <strong>{props.verifiedItemCount}</strong>
         </div>
-      </div>
+      </ProductWorkspaceCommandBar>
 
       {props.children}
-    </section>
+    </ProductWorkspacePage>
   );
 }

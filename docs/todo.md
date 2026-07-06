@@ -1,6 +1,6 @@
 # 当前待办
 
-> 更新时间：2026-07-03
+> 更新时间：2026-07-05
 > 这是唯一当前待办目录。这里只保留当前健康度、未完成任务、近期关键 bug 和 backlog 入口；完整需求、切片、验收标准放在 `docs/work/backlog/`。
 
 ## 健康度
@@ -47,7 +47,7 @@
 | T1 | P1 | 🟡 待推进 | 小日向与 d2-skill 产品级能力 | [总纲](work/backlog/kohinata-d2-skill-product-architecture.md) / [攻略证据工作台](work/backlog/kohinata-guide-evidence-workbench.md) | 先做攻略解析、账号命中、perk 证据和配装草稿 |
 | T2 | P1 | 🟡 待推进 | 仓库推荐与清理工作台 | [仓库推荐与清理工作台](work/backlog/vault-recommendation-and-cleanup-workbench.md) | 统一 DIM wishlist、本地目标、同名对比和清理清单；推荐数据只支持用户导入，不默认内置未授权社区数据 |
 | T3 | P1 | 🟡 待推进 | 小日向日报、商人与掉落查询 | [日报、商人与掉落查询](work/backlog/daily-report-and-drops-assistant.md) | 商人页已接共享 UI、Desktop 入口、公共商人刷新、9 商人目录兜底和 Bungie 图标路径修复；下一步继续补活动、掉落来源状态和更完整的购买判断 |
-| T4 | P1 | 🟡 待推进 | 跨端 UI 壳、可交互原型与桌面视觉收口 | [跨端 UI 壳收口](work/backlog/cross-platform-ui-shell-refactor.md) / [桌面视觉与详情打磨](work/backlog/desktop-ui-account-detail-polish.md) | 当前主菜单页面状态：Prototype / Web / Desktop 都挂同一个 `ProductShellHost` 和 `@d2-tools/ui/styles.css`；首页、账号、仓库、配装、资料库、设置均已接共享 UI 内容页或共享 View，Prototype / Web 只提供 mock 数据和 noop callback，Desktop 只提供真实 adapter；仓库完整 UI 已从 Desktop 私有组件迁入 `packages/ui`，目标规则和推荐数据导入也在共享内容页内，Desktop 旧路径仅保留兼容 re-export；全局 AI 抽屉已收口为共享 `AiAssistantPanelView`；产品样式已收口到 `packages/ui/src/styles.css`；视觉脚本已覆盖 Prototype / Web / Desktop、明暗主题、主菜单和设置分区。后续继续推进移动端壳、剩余领域文案 i18n、真实 Web provider 和更严格截图差异阈值 |
+| T4 | P1 | 🟡 待推进 | 跨端 UI 壳、可交互原型与桌面视觉收口 | [跨端 UI 壳收口](work/backlog/cross-platform-ui-shell-refactor.md) / [桌面视觉与详情打磨](work/backlog/desktop-ui-account-detail-polish.md) | 当前主菜单页面状态：Prototype / Web / Desktop 都挂同一个 `ProductShellHost` 和 `@d2-tools/ui/styles.css`；首页、账号、仓库、配装、资料库、商人、设置均已接共享 UI 内容页或共享 View，Prototype / Web 只提供 mock 数据和 noop callback，Desktop 只提供真实 adapter；仓库完整 UI 已从 Desktop 私有组件迁入 `packages/ui`，目标规则和推荐数据导入也在共享内容页内，Desktop 旧路径仅保留兼容 re-export；全局 AI 抽屉已收口为共享 `AiAssistantPanelView`；后台任务状态已从顶部状态条和首页横幅移入共享右下角任务 Dock，设置页保留完整详情；产品样式已收口到 `packages/ui/src/styles.css`，主菜单统一通过 `ProductWorkspace*` 组件生成共享工作区骨架，账号、仓库、配装、资料库和商人入口不再把 `tool-panel` 作为页面根；视觉脚本已覆盖 Prototype / Web / Desktop、明暗主题、主菜单和设置分区。后续继续推进移动端壳、剩余领域文案 i18n、真实 Web provider 和更严格截图差异阈值 |
 | T5 | P3 | 🟡 待推进 | 活动复盘增强 | [活动复盘增强](work/backlog/activity-review-enhancement.md) | 后续接 PGCR、完成时间推算和副本级趋势 |
 | T6 | P4 | 🟡 待推进 | 桌面发布、更新与迁移体验 | [桌面发布体验](work/backlog/desktop-release-experience.md) | 继续验证真实 GitHub Release、更新提示、备份迁移和诊断体验 |
 

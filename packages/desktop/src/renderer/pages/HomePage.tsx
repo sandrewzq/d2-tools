@@ -157,15 +157,12 @@ export function HomePage(props: {
   const assistantPageContext = homeDerivedState.assistantPageContext;
   const isAiConfigured = homeDerivedState.isAiConfigured;
   const updateSnapshot = diagnostics.updateSnapshot;
-  const visibleBackgroundTask = diagnostics.activeBackgroundTasks[0] ?? null;
-  const activeBackgroundTaskCount = diagnostics.activeBackgroundTasks.length;
   const shouldShowUpdateBanner = updateSnapshot?.status === "available"
     || updateSnapshot?.status === "downloading"
     || updateSnapshot?.status === "downloaded"
     || updateSnapshot?.status === "error";
   const shellStatus = buildShellStatus({
     manifestStatus: diagnostics.manifestStatus,
-    activeTaskCount: activeBackgroundTaskCount,
     accountSummary,
     lastAccountLoadedAt,
     isLoadingAccount,
@@ -237,6 +234,8 @@ export function HomePage(props: {
       onAssistantModeChange={setAssistantMode}
       onPreferencesChange={handleProductPreferencesChange}
       shellStatus={shellStatus}
+      backgroundTasks={diagnostics.backgroundTasks}
+      onOpenBackgroundTasks={() => setActivePage("settings")}
       platformActions={desktopPlatformActions}
       pageHeader={{
         title: currentPageMeta.title,
@@ -297,22 +296,6 @@ export function HomePage(props: {
           </div>
         </section>
       ) : null}
-      {visibleBackgroundTask ? (
-        <section className={`global-background-task-banner task-${visibleBackgroundTask.status}`}>
-          <div>
-            <strong>{formatVisibleBackgroundTaskTitle(visibleBackgroundTask.title, activeBackgroundTaskCount)}</strong>
-            <span>
-              {visibleBackgroundTask.next_retry_at
-                ? `等待后台重试：${new Date(visibleBackgroundTask.next_retry_at).toLocaleString("zh-CN")}`
-                : visibleBackgroundTask.message ?? "任务正在后台运行，切换菜单不会中断。"}
-            </span>
-          </div>
-          <button type="button" className="secondary-button" onClick={() => setActivePage("settings")}>
-            查看任务
-          </button>
-        </section>
-      ) : null}
-
       <HomePageRoutes
         activePage={activePage}
         home={{
@@ -501,17 +484,8 @@ export function HomePage(props: {
   );
 }
 
-function formatVisibleBackgroundTaskTitle(title: string, activeBackgroundTaskCount: number): string {
-  if (activeBackgroundTaskCount > 1) {
-    return `后台任务：${activeBackgroundTaskCount} 个运行中 · ${title}`;
-  }
-
-  return `后台任务：${title}`;
-}
-
 function buildShellStatus(input: {
   manifestStatus: ManifestStatus | null;
-  activeTaskCount: number;
   accountSummary: AccountSummary | null;
   lastAccountLoadedAt: Date | null;
   isLoadingAccount: boolean;
@@ -545,12 +519,6 @@ function buildShellStatus(input: {
       label: "AI",
       value: input.isAiConfigured ? "已配置" : "未配置",
       tone: input.isAiConfigured ? "ready" : "warning"
-    },
-    {
-      key: "background",
-      label: "后台任务",
-      value: input.activeTaskCount ? `${input.activeTaskCount} 个运行中` : "空闲",
-      tone: input.activeTaskCount ? "warning" : "neutral"
     },
     {
       key: "app-version",

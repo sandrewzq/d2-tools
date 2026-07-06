@@ -3,6 +3,11 @@ import { useEffect, useState } from "react";
 import { SettingsPageView } from "./SettingsPageView.js";
 import { getLocaleCopy } from "../i18n/copy.js";
 import type { InterfaceLocale, SettingsCopy } from "../i18n/types.js";
+import {
+  ProductWorkspaceContentStack,
+  ProductWorkspaceSideRail,
+  ProductWorkspaceSplit
+} from "../workspace/ProductWorkspace.js";
 
 type AccountSummary = any;
 type ActionLogEntry = any;
@@ -192,8 +197,8 @@ export function SettingsPageContentView(props: SettingsPageContentViewProps) {
       {props.message ? <p className="status-message status-ready">{props.message}</p> : null}
       {props.error ? <p className="status-message status-error">{props.error}</p> : null}
 
-      <div className="app-settings-shell">
-        <aside className="app-panel settings-menu" aria-label={copy.menuAriaLabel}>
+      <ProductWorkspaceSplit className="app-settings-shell">
+        <ProductWorkspaceSideRail className="app-panel settings-menu" ariaLabel={copy.menuAriaLabel}>
           {settingsMenu.map((item) => (
             <button
               className={activeSection === item.key ? "active" : ""}
@@ -205,9 +210,9 @@ export function SettingsPageContentView(props: SettingsPageContentViewProps) {
               <span>{item.hint}</span>
             </button>
           ))}
-        </aside>
+        </ProductWorkspaceSideRail>
 
-        <div className="settings-content">
+        <ProductWorkspaceContentStack className="settings-content">
           <section className={activeSection === "overview" ? "settings-detail active" : "settings-detail"} id="settings-overview">
             <section className="app-panel app-setting-group">
               <div className="app-section-title">
@@ -662,8 +667,8 @@ export function SettingsPageContentView(props: SettingsPageContentViewProps) {
               ) : <p className="status-message status-neutral">{settingsText(copy, "还没有写操作记录。")}</p>}
             </section>
           </section>
-        </div>
-      </div>
+        </ProductWorkspaceContentStack>
+      </ProductWorkspaceSplit>
     </SettingsPageView>
   );
 }

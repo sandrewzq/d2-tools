@@ -2,12 +2,18 @@ import type { ReactNode } from "react";
 import { useState } from "react";
 import { getLocaleCopy } from "../i18n/copy.js";
 import type { InterfaceLocale, SettingsCopy } from "../i18n/types.js";
+import {
+  ProductWorkspaceContentStack,
+  ProductWorkspacePage,
+  ProductWorkspaceSideRail,
+  ProductWorkspaceSplit
+} from "../workspace/ProductWorkspace.js";
 
 export function SettingsPageView(props: { interfaceLocale?: InterfaceLocale; children?: ReactNode }) {
   return (
-    <section className="app-page settings-app-page">
+    <ProductWorkspacePage className="app-page settings-app-page">
       {props.children ?? <DefaultSettingsPrototype interfaceLocale={props.interfaceLocale} />}
-    </section>
+    </ProductWorkspacePage>
   );
 }
 
@@ -25,8 +31,8 @@ function DefaultSettingsPrototype(props: { interfaceLocale?: InterfaceLocale }) 
   ];
 
   return (
-    <div className="app-settings-shell">
-      <nav className="app-panel settings-menu" aria-label={copy.menuAriaLabel}>
+    <ProductWorkspaceSplit className="app-settings-shell">
+      <ProductWorkspaceSideRail element="nav" className="app-panel settings-menu" ariaLabel={copy.menuAriaLabel}>
         {menu.map((item) => (
           <button
             className={activeSection === item.key ? "active" : ""}
@@ -38,9 +44,9 @@ function DefaultSettingsPrototype(props: { interfaceLocale?: InterfaceLocale }) 
             <span>{item.detail}</span>
           </button>
         ))}
-      </nav>
+      </ProductWorkspaceSideRail>
 
-      <div className="settings-content">
+      <ProductWorkspaceContentStack className="settings-content">
         <section className={activeSection === "overview" ? "settings-detail active" : "settings-detail"}>
           <section className="app-panel app-hero-panel">
             <div>
@@ -317,8 +323,8 @@ function DefaultSettingsPrototype(props: { interfaceLocale?: InterfaceLocale }) 
             <p className="status-message status-neutral">{settingsText(copy, "还没有写操作记录。")}</p>
           </section>
         </section>
-      </div>
-    </div>
+      </ProductWorkspaceContentStack>
+    </ProductWorkspaceSplit>
   );
 }
 

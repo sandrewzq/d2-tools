@@ -8,6 +8,13 @@ function readUi(path: string): string {
   return readFileSync(join(uiRoot, "src", path), "utf8");
 }
 
+function readCssRule(styles: string, selector: string): string {
+  const start = styles.indexOf(`${selector} {`);
+  if (start < 0) return "";
+  const end = styles.indexOf("\n}", start);
+  return end >= 0 ? styles.slice(start, end + 2) : "";
+}
+
 describe("library prototype redesign", () => {
   it("uses a search-first library workbench with secondary controls lowered", () => {
     const content = readUi("library/LibraryPageContentView.tsx");
@@ -15,6 +22,8 @@ describe("library prototype redesign", () => {
     const styles = readUi("styles.css");
 
     expect(view).toContain("library-workbench-layout");
+    expect(view).toContain("showInternalHeading ? (");
+    expect(view).not.toContain("library-reference-hero-compact");
     expect(view).not.toContain("library-reference-status");
     expect(view).not.toContain("library-version-chip");
     expect(content).toContain("library-query-panel");
@@ -30,8 +39,11 @@ describe("library prototype redesign", () => {
     expect(styles).toContain(".library-workbench-layout");
     expect(styles).toContain(".library-query-panel");
     expect(styles).toContain(".library-search-command");
+    expect(readCssRule(styles, ".library-search-command")).toContain("padding: var(--space-12);");
+    expect(readCssRule(styles, ".library-search-command")).not.toContain("padding: 0 0");
     expect(styles).toContain(".library-quick-filters");
-    expect(styles).toContain(".library-reference-page.tool-panel");
+    expect(styles).not.toContain(".library-reference-page.tool-panel");
+    expect(styles).not.toContain(".library-reference-hero-compact");
     expect(styles).toContain("box-shadow: none;");
     expect(styles).toContain(".library-main-filter-row");
     expect(styles).toContain(".library-advanced-disclosure");

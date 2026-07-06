@@ -1,6 +1,10 @@
 import type { ReactNode } from "react";
 import { getLocaleCopy } from "../i18n/copy.js";
 import type { InterfaceLocale } from "../i18n/types.js";
+import {
+  ProductWorkspacePage,
+  ProductWorkspaceSplit
+} from "../workspace/ProductWorkspace.js";
 
 export type LibraryPageViewMode = "equipment" | "perks";
 
@@ -17,23 +21,22 @@ export type LibraryPageViewProps = {
 
 export function LibraryPageView(props: LibraryPageViewProps) {
   const copy = getLocaleCopy(props.interfaceLocale ?? "zh-CN").library;
+  const showInternalHeading = props.showInternalHeading ?? true;
 
   return (
-    <section className="tool-panel library-reference-page library-product-layout">
-      <div className={(props.showInternalHeading ?? true) ? "library-reference-hero" : "library-reference-hero library-reference-hero-compact"}>
-        <div>
-          {(props.showInternalHeading ?? true) ? (
-            <>
-              <h2>{copy.title}</h2>
-              <p>{copy.subtitle}</p>
-            </>
-          ) : null}
+    <ProductWorkspacePage className="library-reference-page library-product-layout">
+      {showInternalHeading ? (
+        <div className="library-reference-hero">
+          <div>
+            <h2>{copy.title}</h2>
+            <p>{copy.subtitle}</p>
+          </div>
         </div>
-      </div>
+      ) : null}
       {props.manifestAlert}
-      <div className="library-workbench-layout">
+      <ProductWorkspaceSplit className="library-workbench-layout">
         {props.children}
-      </div>
-    </section>
+      </ProductWorkspaceSplit>
+    </ProductWorkspacePage>
   );
 }

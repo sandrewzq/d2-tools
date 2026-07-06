@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import type { ProductPreferences } from "../i18n/types.js";
-import type { PlatformActions, ShellAssistantMode, ShellPageKey, ShellStatusItem } from "../shell/types.js";
+import type { PlatformActions, ShellAssistantMode, ShellBackgroundTaskItem, ShellPageKey, ShellStatusItem } from "../shell/types.js";
 
 export type ProductPageHeader = {
   title: string;
@@ -19,6 +19,8 @@ export type ProductShellHostProps = {
   onAssistantModeChange?: (mode: ShellAssistantMode) => void;
   onPreferencesChange?: (preferences: ProductPreferences) => void;
   shellStatus: ShellStatusItem[];
+  backgroundTasks?: ShellBackgroundTaskItem[];
+  onOpenBackgroundTasks?: () => void;
   assistantPanel: ReactNode;
   platformActions: PlatformActions;
   pageHeader?: ProductPageHeader | ((page: ShellPageKey, preferences: ProductPreferences) => ProductPageHeader | null);

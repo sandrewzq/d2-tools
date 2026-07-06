@@ -78,6 +78,8 @@ export function ProductShellHost(props: ProductShellHostProps) {
       colorMode={preferences.colorMode}
       interfaceLocale={preferences.interfaceLocale}
       shellStatus={props.shellStatus}
+      backgroundTasks={props.backgroundTasks}
+      onOpenBackgroundTasks={props.onOpenBackgroundTasks}
       assistantPanel={props.assistantPanel}
       platformActions={props.platformActions}
       onNavigate={changePage}
@@ -86,7 +88,7 @@ export function ProductShellHost(props: ProductShellHostProps) {
       onInterfaceLocaleToggle={toggleInterfaceLocale}
     >
       {pageHeader ? (
-        <header className="page-header product-page-header">
+        <header className="page-header product-page-header product-workspace-header">
           <div>
             <h2>{pageHeader.title}</h2>
             <p>{pageHeader.subtitle}</p>

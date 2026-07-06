@@ -269,12 +269,14 @@ describe("visual prototype harness", () => {
     const productHost = read("packages/ui/src/product/ProductShellHost.tsx");
     const desktopHomePage = read("packages/desktop/src/renderer/pages/HomePage.tsx");
 
-    expect(appShell).toContain("props.shellStatus.map");
+    expect(appShell).toContain("visibleShellStatus.map");
+    expect(appShell).toContain("background-task-dock");
     expect(appShell).toContain("props.platformActions.openExternal");
     expect(appShell).toContain("props.platformActions.setColorMode");
     expect(appShell).not.toContain("window.d2");
     expect(productHost).toContain("<AppShell");
     expect(productHost).toContain("onNavigate={changePage}");
+    expect(productHost).toContain("backgroundTasks={props.backgroundTasks}");
     expect(desktopHomePage).toContain("ProductShellHost");
     expect(desktopHomePage).toContain("window.d2.openExternal");
     expect(desktopHomePage).toContain("window.d2?.setWindowColorMode");
@@ -283,10 +285,10 @@ describe("visual prototype harness", () => {
   });
 
   it("retires the static HTML prototype from the active visual harness", () => {
-    const readme = read("docs/work/references/desktop-ui/README.md");
+    const readme = read("docs/work/references/README.md");
     const script = read("scripts/visual-home-check.mjs");
 
-    expect(readme).toContain("React prototype");
+    expect(readme).toContain("活跃可交互原型");
     expect(readme).toContain("packages/prototype");
     expect(readme).not.toContain("desktop-ui-redesign-prototype.html");
     expect(script).not.toContain("referenceHtml");
@@ -306,13 +308,12 @@ describe("visual prototype harness", () => {
     expect(shellStatusBuilder).toContain('label: "账号"');
     expect(shellStatusBuilder).toContain('label: "资料库"');
     expect(shellStatusBuilder).toContain('label: "AI"');
-    expect(shellStatusBuilder).toContain('label: "后台任务"');
+    expect(shellStatusBuilder).not.toContain('label: "后台任务"');
     expect(shellStatusBuilder).toContain('label: "应用版本"');
     expect(shellStatusBuilder.indexOf('label: "Bungie"')).toBeLessThan(shellStatusBuilder.indexOf('label: "账号"'));
     expect(shellStatusBuilder.indexOf('label: "账号"')).toBeLessThan(shellStatusBuilder.indexOf('label: "资料库"'));
     expect(shellStatusBuilder.indexOf('label: "资料库"')).toBeLessThan(shellStatusBuilder.indexOf('label: "AI"'));
-    expect(shellStatusBuilder.indexOf('label: "AI"')).toBeLessThan(shellStatusBuilder.indexOf('label: "后台任务"'));
-    expect(shellStatusBuilder.indexOf('label: "后台任务"')).toBeLessThan(shellStatusBuilder.indexOf('label: "应用版本"'));
+    expect(shellStatusBuilder.indexOf('label: "AI"')).toBeLessThan(shellStatusBuilder.indexOf('label: "应用版本"'));
     expect(shellStatusBuilder).toContain("formatUpdateShellStatus");
     expect(shellStatusBuilder).toContain("updateSnapshot");
     expect(appShell).not.toContain("shell-tool-update");

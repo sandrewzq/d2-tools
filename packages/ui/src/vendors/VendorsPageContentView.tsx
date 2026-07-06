@@ -1,6 +1,13 @@
 import { useState } from "react";
 import { getLocaleCopy } from "../i18n/copy.js";
 import type { InterfaceLocale } from "../i18n/types.js";
+import {
+  ProductWorkspaceCommandBar,
+  ProductWorkspaceContentStack,
+  ProductWorkspaceEmptyState,
+  ProductWorkspaceSideRail,
+  ProductWorkspaceSplit
+} from "../workspace/ProductWorkspace.js";
 import { VendorsPageView } from "./VendorsPageView.js";
 
 export type VendorInventoryItemView = {
@@ -73,8 +80,8 @@ export function VendorsPageContentView(props: VendorsPageContentViewProps) {
       showInternalHeading={props.showInternalHeading}
     >
       {selectedVendor ? (
-        <div className="vendor-workbench-layout">
-          <aside className="vendor-rail" aria-label={copy.inline["商人列表"] ?? "Vendor list"}>
+        <ProductWorkspaceSplit className="vendor-workbench-layout">
+          <ProductWorkspaceSideRail className="vendor-rail" ariaLabel={copy.inline["商人列表"] ?? "Vendor list"}>
             <div className="vendor-rail-head">
               <strong>{copy.inline["商人"] ?? "Vendors"}</strong>
               <span>{vendors.length} {copy.inline["个来源"] ?? "sources"}</span>
@@ -99,9 +106,9 @@ export function VendorsPageContentView(props: VendorsPageContentViewProps) {
                 ))}
               </section>
             ))}
-          </aside>
+          </ProductWorkspaceSideRail>
 
-          <section className="vendor-detail-panel">
+          <ProductWorkspaceContentStack element="section" className="vendor-detail-panel product-workspace-panel">
             <div className="vendor-detail-head">
               <VendorAvatar vendor={selectedVendor} large />
               <div>
@@ -139,14 +146,14 @@ export function VendorsPageContentView(props: VendorsPageContentViewProps) {
                 ))}
               </div>
             ) : (
-              <div className="vendor-empty-state">
+              <ProductWorkspaceEmptyState className="vendor-empty-state">
                 <strong>{copy.emptyTitle}</strong>
                 <span>{selectedVendor.statusLabel ?? copy.emptyBody}</span>
-              </div>
+              </ProductWorkspaceEmptyState>
             )}
-          </section>
+          </ProductWorkspaceContentStack>
 
-          <section className="vendor-evidence-panel">
+          <ProductWorkspaceCommandBar element="section" className="vendor-evidence-panel">
             <div className="vendor-evidence-grid">
               <div>
                 <strong>{copy.labels.evidence}</strong>
@@ -165,13 +172,13 @@ export function VendorsPageContentView(props: VendorsPageContentViewProps) {
                 <span>{updatedLabel}</span>
               </div>
             </div>
-          </section>
-        </div>
+          </ProductWorkspaceCommandBar>
+        </ProductWorkspaceSplit>
       ) : (
-        <div className="vendor-empty-state">
+        <ProductWorkspaceEmptyState className="vendor-empty-state">
           <strong>{copy.emptyTitle}</strong>
           <span>{copy.emptyBody}</span>
-        </div>
+        </ProductWorkspaceEmptyState>
       )}
     </VendorsPageView>
   );

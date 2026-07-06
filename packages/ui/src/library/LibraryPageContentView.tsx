@@ -13,6 +13,12 @@ import {
 } from "./libraryFilters.js";
 import { getLocaleCopy } from "../i18n/copy.js";
 import type { InterfaceLocale, LibraryCopy } from "../i18n/types.js";
+import {
+  ProductWorkspaceCommandBar,
+  ProductWorkspaceContentStack,
+  ProductWorkspaceEmptyState,
+  ProductWorkspaceSideRail
+} from "../workspace/ProductWorkspace.js";
 
 type ItemSearchResult = import("./libraryFilters.js").ItemSearchResult & {
   icon?: string;
@@ -150,8 +156,8 @@ export function LibraryPageContentView(props: {
       onViewModeChange={props.onViewModeChange}
       manifestAlert={manifestAlertElement}
     >
-      <section className="library-query-panel" aria-label={libraryText(copy, "出处查询")}>
-        <div className="library-search-command">
+      <ProductWorkspaceSideRail element="section" className="library-query-panel" ariaLabel={libraryText(copy, "出处查询")}>
+        <ProductWorkspaceCommandBar className="library-search-command">
           <div className="library-search-command-head">
             <div className="library-acquisition-tabs segmented-control">
               <button
@@ -197,7 +203,7 @@ export function LibraryPageContentView(props: {
               {libraryText(copy, "清空")}
             </button>
           </div>
-        </div>
+        </ProductWorkspaceCommandBar>
         {isManifestBlocked ? (
           <p className="status-message status-warning">{libraryText(copy, "资料库更新完成前暂不可搜索。请先使用上方按钮启动后台更新。")}</p>
         ) : null}
@@ -472,8 +478,8 @@ export function LibraryPageContentView(props: {
             </div>
           </details>
         </div>
-      </section>
-      <section className="library-results-panel" aria-label={libraryText(copy, "搜索结果")}>
+      </ProductWorkspaceSideRail>
+      <ProductWorkspaceContentStack element="section" className="library-results-panel product-workspace-panel" ariaLabel={libraryText(copy, "搜索结果")}>
         <div className="library-results-heading">
           <h3>{libraryText(copy, "搜索结果")}</h3>
           <span>{hitCount} {libraryText(copy, props.libraryViewMode === "equipment" ? "条来源线索" : "条 Perk 线索")}</span>
@@ -534,10 +540,19 @@ export function LibraryPageContentView(props: {
             ))}
           </div>
         )}
-        {searchTouched && !props.isSearching && !props.searchError && !hitCount ? (
-          <p className="status-message status-neutral">{libraryText(copy, "未找到匹配结果。可以换中文名、英文名，或者先保存一个常用别名再搜。")}</p>
+        {!searchTouched && !props.isSearching && !props.searchError ? (
+          <ProductWorkspaceEmptyState>
+            <strong>{libraryText(copy, "输入装备名或 Perk 名后开始搜索。")}</strong>
+            <span>{libraryText(copy, "结果区会展示来源、实时状态、掉落判断和 Perk 池。")}</span>
+          </ProductWorkspaceEmptyState>
         ) : null}
-      </section>
+        {searchTouched && !props.isSearching && !props.searchError && !hitCount ? (
+          <ProductWorkspaceEmptyState>
+            <strong>{libraryText(copy, "未找到匹配结果。")}</strong>
+            <span>{libraryText(copy, "可以换中文名、英文名，或者先保存一个常用别名再搜。")}</span>
+          </ProductWorkspaceEmptyState>
+        ) : null}
+      </ProductWorkspaceContentStack>
     </LibraryPageView>
   );
 }

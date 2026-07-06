@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { getLocaleCopy } from "../i18n/copy.js";
 import type { InterfaceLocale, HomeCopy } from "../i18n/types.js";
 import type { ShellPageKey } from "../shell/types.js";
+import { ProductWorkspacePage } from "../workspace/ProductWorkspace.js";
 
 export type HomeTone = "neutral" | "ready" | "warning" | "error";
 
@@ -161,9 +162,9 @@ function buildFallbackState(copy: HomeCopy): HomeStartupState {
 export function HomePageView(props: HomePageViewProps) {
   if (!props.state && props.children) {
     return (
-      <div className="app-page home-app-page product-home-page">
+      <ProductWorkspacePage element="div" className="app-page home-app-page product-home-page">
         {props.children}
-      </div>
+      </ProductWorkspacePage>
     );
   }
 
@@ -194,7 +195,7 @@ export function HomePageView(props: HomePageViewProps) {
   const accountRows = buildAccountRows(viewProps, copy);
 
   return (
-    <div className="app-page home-app-page product-home-page">
+    <ProductWorkspacePage element="div" className="app-page home-app-page product-home-page">
       {viewProps.dailyError ? <p className="status-message status-error">{viewProps.dailyError}</p> : null}
       {viewProps.dailyMessage ? <p className="status-message status-ready">{viewProps.dailyMessage}</p> : null}
 
@@ -297,7 +298,7 @@ export function HomePageView(props: HomePageViewProps) {
           </div>
         </section>
       </div>
-    </div>
+    </ProductWorkspacePage>
   );
 }
 

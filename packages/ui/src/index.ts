@@ -43,6 +43,15 @@ export { LoadoutsPageContentView } from "./loadouts/LoadoutsPageContentView.js";
 export type { LoadoutActionFeedbackState } from "./loadouts/loadoutActionFeedback.js";
 export { ProductShellHost } from "./product/ProductShellHost.js";
 export type { ProductShellHostProps } from "./product/types.js";
+export {
+  ProductWorkspaceCommandBar,
+  ProductWorkspaceContentStack,
+  ProductWorkspaceEmptyState,
+  ProductWorkspacePage,
+  ProductWorkspacePanel,
+  ProductWorkspaceSideRail,
+  ProductWorkspaceSplit
+} from "./workspace/ProductWorkspace.js";
 export { getLocalizedNavItems, navItems } from "./shell/navigation.js";
 export { SettingsPageView } from "./settings/SettingsPageView.js";
 export { SettingsPageContentView } from "./settings/SettingsPageContentView.js";
@@ -80,6 +89,7 @@ export type {
   AppShellLayoutProps,
   PlatformActions,
   ShellAssistantMode,
+  ShellBackgroundTaskItem,
   ShellNavItem,
   ShellPageKey,
   ShellStatusItem

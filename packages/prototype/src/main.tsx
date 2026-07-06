@@ -17,6 +17,7 @@ import {
   type AiAssistantContextView,
   type AiAssistantMessageView,
   type ShellAssistantMode,
+  type ShellBackgroundTaskItem,
   type ShellPageKey,
   type ShellStatusItem,
 } from "@d2-tools/ui";
@@ -86,6 +87,7 @@ function PrototypeApp() {
     ?? null;
   const activeLoadoutLookup = selectedTemplate ? buildLoadoutTemplateLookup(selectedTemplate) : null;
   const accountSummary = scenario.hasAccountData ? prototypeAccountSummary : null;
+  const backgroundTasks = getPrototypeBackgroundTasks(scenarioKey);
   const isBungieConfigured = scenarioKey !== "account-missing";
   const accountWorkspace = useMemo(
     () => createAccountPageWorkspace({
@@ -166,6 +168,8 @@ function PrototypeApp() {
           colorMode: initialTheme
         }}
         shellStatus={scenario.shellStatus}
+        backgroundTasks={backgroundTasks}
+        onOpenBackgroundTasks={() => setActivePage("settings")}
         pageHeader={getPrototypePageHeader}
         assistantPanel={(
           <AiAssistantPanelView
@@ -421,7 +425,7 @@ function PrototypeApp() {
               isLoadingAccount={false}
               lastAccountLoadedAt={new Date("2026-07-03T14:18:00+08:00")}
               isAiConfigured={scenarioKey !== "ai-unconfigured"}
-              backgroundTasks={prototypeBackgroundTasks}
+              backgroundTasks={backgroundTasks}
               actionLog={prototypeActionLog}
               actionLogResultFilter="all"
               actionLogTypeFilter="all"
@@ -601,8 +605,7 @@ function getPrototypeAssistantContext(
     facts: [
       `状态方案：${scenarioLabel}`,
       statusValue("account"),
-      statusValue("library"),
-      statusValue("background")
+      statusValue("library")
     ],
     itemCount: 496,
     characterCount: 2,
@@ -613,7 +616,7 @@ function getPrototypeAssistantContext(
 
 function getPrototypeAssistantFocus(page: ShellPageKey) {
   const focus: Record<ShellPageKey, string> = {
-    home: "先看官方可确认的今日 / 本周内容，再处理账号、资料库、应用版本和后台任务状态。",
+    home: "先看官方可确认的今日 / 本周内容，再处理账号、资料库和应用版本状态。",
     account: "检查角色、仓库和最近活动是否已读取，后续账号切换也应从这里进入。",
     vault: "从重复同名、目标命中、配装占用和清理候选中找出下一步整理动作。",
     loadouts: "确认配装缺口、转移计划和可直接应用的装备，避免把状态藏在页面底部。",
@@ -1072,7 +1075,33 @@ const prototypeBatchResult = {
   results: []
 };
 
-const prototypeBackgroundTasks = [
+function getPrototypeBackgroundTasks(scenarioKey: PrototypeScenarioKey): ShellBackgroundTaskItem[] {
+  if (scenarioKey === "background-running") {
+    return [
+      {
+        id: "prototype-account-sync",
+        title: "读取账号数据",
+        status: "running",
+        message: "正在同步角色、仓库和最近活动。",
+        progress_percent: 48,
+        updated_at: "2026-07-03T14:18:00+08:00"
+      },
+      {
+        id: "prototype-manifest-check",
+        title: "资料库版本检查",
+        status: "retrying",
+        message: "网络暂时不可用，稍后自动重试。",
+        next_retry_at: "2026-07-03T14:22:00+08:00",
+        updated_at: "2026-07-03T14:18:00+08:00"
+      },
+      ...prototypeBackgroundTasks
+    ];
+  }
+
+  return prototypeBackgroundTasks;
+}
+
+const prototypeBackgroundTasks: ShellBackgroundTaskItem[] = [
   {
     id: "manifest-check",
     title: "资料库检查",

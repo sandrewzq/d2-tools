@@ -197,7 +197,8 @@ describe("desktop T5 visual redesign", () => {
     expect(libraryPage).toContain("已下架或待确认");
     expect(libraryPage).toContain("来源待补");
     expect(styles).toContain(".library-reference-page");
-    expect(styles).toContain(".library-reference-page.tool-panel");
+    expect(styles).not.toContain(".library-reference-page.tool-panel");
+    expect(styles).not.toContain(".library-reference-hero-compact");
     expect(styles).toContain(".library-acquisition-tabs");
     expect(styles).toContain(".library-search-command");
     expect(styles).toContain(".library-main-filter-row");

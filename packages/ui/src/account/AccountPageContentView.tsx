@@ -2,6 +2,11 @@
 import { AccountPageView } from "./AccountPageView.js";
 import { getLocaleCopy } from "../i18n/copy.js";
 import type { AccountCopy, InterfaceLocale } from "../i18n/types.js";
+import {
+  ProductWorkspaceContentStack,
+  ProductWorkspaceSideRail,
+  ProductWorkspaceSplit
+} from "../workspace/ProductWorkspace.js";
 
 type AnyAccountItemSummary = any;
 type AnyAccountSummary = any;
@@ -101,15 +106,15 @@ export function AccountPageContentView(props: AccountPageContentViewProps) {
         </div>
       ) : null}
       {accountSummary && selectedCharacter ? (
-        <div className="account-page-shell">
-          <nav className="account-page-nav" aria-label={accountText(copy, "账号目录")}>
+        <ProductWorkspaceSplit className="account-page-shell">
+          <ProductWorkspaceSideRail element="nav" className="account-page-nav" ariaLabel={accountText(copy, "账号目录")}>
             <a href="#account-profile">{copy.nav.overview}</a>
             <a href="#account-loadout">{copy.nav.loadout}</a>
             <a href="#account-activity">{copy.nav.activity}</a>
             <a href="#account-materials">{copy.nav.materials}</a>
             <a href="#account-postmaster">{copy.nav.postmaster}</a>
-          </nav>
-          <div className="account-summary account-page-main">
+          </ProductWorkspaceSideRail>
+          <ProductWorkspaceContentStack className="account-summary account-page-main">
             <div id="account-profile" className="account-profile-strip">
               <div>
                 <h3>{accountSummary.account_name}</h3>
@@ -361,8 +366,8 @@ export function AccountPageContentView(props: AccountPageContentViewProps) {
             </section>
           </div>
           </div>
-          </div>
-        </div>
+          </ProductWorkspaceContentStack>
+        </ProductWorkspaceSplit>
       ) : null}
     </AccountPageView>
   );

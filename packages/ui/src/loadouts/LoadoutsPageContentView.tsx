@@ -3,6 +3,12 @@ import { LoadoutsPageView } from "./LoadoutsPageView.js";
 import { getLoadoutActionButtonLabel, type LoadoutActionFeedbackState } from "./loadoutActionFeedback.js";
 import { getLocaleCopy } from "../i18n/copy.js";
 import type { InterfaceLocale, LoadoutsCopy } from "../i18n/types.js";
+import {
+  ProductWorkspaceContentStack,
+  ProductWorkspaceEmptyState,
+  ProductWorkspaceSideRail,
+  ProductWorkspaceSplit
+} from "../workspace/ProductWorkspace.js";
 
 export type LoadoutsPageContentViewProps = {
   interfaceLocale?: InterfaceLocale;
@@ -87,8 +93,8 @@ export function LoadoutsPageContentView(props: LoadoutsPageContentViewProps) {
       actionableCount={props.actionableCount}
       showInternalHeading={props.showInternalHeading}
     >
-      <div className="loadout-workbench-shell">
-        <section className="daily-source source-ready loadout-entry-list">
+      <ProductWorkspaceSplit className="loadout-workbench-shell">
+        <ProductWorkspaceSideRail element="section" className="daily-source source-ready loadout-entry-list">
           <div className="loadout-entry-list-head">
             <strong>{loadoutsText(copy, "配装工作台")}</strong>
             <span>{loadoutEntries.length} {loadoutsText(copy, "个配装对象")}</span>
@@ -128,9 +134,9 @@ export function LoadoutsPageContentView(props: LoadoutsPageContentViewProps) {
               <p className="status-message status-neutral">{loadoutsText(copy, "没有匹配的配装对象。")}</p>
             )}
           </div>
-        </section>
+        </ProductWorkspaceSideRail>
         {selectedTemplate ? (
-          <section className="daily-source source-ready loadout-template-detail">
+          <ProductWorkspaceContentStack element="section" className="daily-source source-ready loadout-template-detail product-workspace-panel">
             <strong>{loadoutsText(copy, "方案详情")}</strong>
             <span>
               {props.selectedAnalysis
@@ -235,15 +241,15 @@ export function LoadoutsPageContentView(props: LoadoutsPageContentViewProps) {
                 )}
               </div>
             ) : null}
-          </section>
+          </ProductWorkspaceContentStack>
         ) : (
-          <section className="source-status-card source-status-neutral loadout-template-detail">
+          <ProductWorkspaceEmptyState element="section" className="source-status-card source-status-neutral loadout-template-detail product-workspace-panel">
             <span className="source-status-badge source-status-neutral">{loadoutsText(copy, "本地方案")}</span>
             <h3>{loadoutsText(copy, "还没有保存本地方案")}</h3>
             <p>{loadoutsText(copy, "先到账号页选择角色，把当前装备保存为模板。保存后这里会集中处理补齐、对比和清单复制。")}</p>
-          </section>
+          </ProductWorkspaceEmptyState>
         )}
-      </div>
+      </ProductWorkspaceSplit>
     </LoadoutsPageView>
   );
 }

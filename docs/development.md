@@ -128,13 +128,18 @@ docs/        正式文档
 - 明暗色模式由 `config.json` 的 `features.color_mode` 持久化，默认 `light`；桌面启动状态必须携带保存的颜色模式，避免应用重启或覆盖更新后回到默认外观。
 - 新增状态文案统一使用 `status-message status-neutral|pending|ready|warning|error`，不要再在 TSX 中新增 `notice` 或 `error` 类。
 - 新增列表、筛选和对象卡片优先复用 `ui-list-row`、`ui-filter-toolbar`、`ui-item-card`、`ui-badge`；设置页或工具区子块优先复用 `panel-subsection`。
-- `tool-panel` 是主面板层；不要把普通说明块做成嵌套大卡片。装备详情顶部可以保留游戏内视觉语义，但底部工具区继续使用桌面工具样式。
+- 主菜单页面统一使用 `ProductWorkspacePage`、`ProductWorkspacePanel`、`ProductWorkspaceCommandBar`、`ProductWorkspaceSplit`、`ProductWorkspaceSideRail`、`ProductWorkspaceContentStack` 和 `ProductWorkspaceEmptyState` 生成 `product-workspace-*` 共享工作区骨架；不要为某个菜单单独发明顶层间距、页面标题、左右分栏或空状态高度规则。
+- 菜单允许有私有样式，但只能作用在菜单内容层：信息架构、领域组件、列表密度、装备卡、筛选控件、库存图标、perk 池、配装条目等可以使用 `.account-*`、`.vault-*`、`.library-*`、`.loadout-*`、`.vendor-*`、`.home-*` 自定义。页面根、顶部标题、主分栏、首层面板、首层工具栏、滚动容器、暗色背景和主 surface chrome 归共享工作区骨架所有。
+- 菜单私有 class 和 `ProductWorkspace*` 叠加使用时，不得重新定义共享 chrome 属性，包括 `padding`、`border`、`border-radius`、`background`、`box-shadow` 和页面级 `gap`。如果首块区域需要不同密度，优先调整内部子元素；确实需要新的骨架能力时，先扩展 `ProductWorkspace*` 或 token，而不是在菜单 class 里覆盖。
+- 私有样式必须使用共享 token 表达颜色、间距、圆角和状态；不要新增硬编码浅色背景、菜单专属暗色兼容块，或只在某一端生效的视觉修补。Prototype / Web / Desktop 的差异只能来自数据、平台 adapter 或 mock 状态，不能来自不同页面 CSS。
+- `tool-panel` 是主面板层，不能挂到主菜单页面根上；不要把普通说明块做成嵌套大卡片。装备详情顶部可以保留游戏内视觉语义，但底部工具区继续使用桌面工具样式。
 - `packages/desktop/test/ui-style-system.test.ts` 负责锁定 token、共享样式类、设置页布局、状态语言和 Desktop CSS 平台边界，防止产品样式回流到 Desktop 私有 CSS。
+- `packages/desktop/test/workspace-layout.test.ts` 负责锁定主菜单工作区骨架和菜单私有样式权限，防止页面 class 覆盖 `ProductWorkspace*` 的首层间距、面板 chrome 和工具栏 chrome。
 - 后续 UI 开发以本节和 `packages/desktop/test/ui-style-system.test.ts` 为准，不再维护单独的历史样式规范文档。
 
 ### 2.6 桌面外壳、更新和后台任务
 
-- 桌面外壳必须稳定展示应用版本、资料库状态和后台任务状态；用户不进入设置页，也应能看到应用更新、资料库过期和后台任务运行状态。
+- 桌面外壳必须稳定展示应用版本和资料库状态；后台任务不进入顶部状态条，也不在每个页面渲染大横幅，只通过共享右下角任务 Dock 在运行、重试或失败时轻量提示，设置页保留完整任务详情。
 - 应用更新由主进程 `updates` IPC 和后台任务中心持有生命周期；renderer 只发起检查、下载、安装确认和订阅状态。
 - 应用更新检查失败后进入后台重试，重试策略允许最后一个有限间隔持续复用；不要在网络失败后只提示一次就停止。
 - 资料库版本检查由主进程 `manifest` IPC 和后台任务中心持有生命周期；每次启动应用会检查最新 Bungie Manifest。

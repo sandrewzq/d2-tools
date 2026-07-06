@@ -22,6 +22,27 @@ export type ShellCopy = {
     toggleMaximize: string;
     close: string;
   };
+  backgroundTasks: {
+    ariaLabel: string;
+    title: string;
+    itemCount: (count: number) => string;
+    activeSummary: (count: number) => string;
+    failedSummary: (count: number) => string;
+    recentSummary: string;
+    openAll: string;
+    fallbackTitle: string;
+    status: {
+      idle: string;
+      queued: string;
+      running: string;
+      runningProgress: (progress: number) => string;
+      retrying: string;
+      retryingAt: (time: string) => string;
+      success: string;
+      failed: string;
+      blocked: string;
+    };
+  };
   navigation: Record<ShellPageKey, string>;
   tools: {
     switchToDark: string;
