@@ -63,6 +63,27 @@ Vibecoding 快路径：
 - 改 `packages/ui` 后，至少验证相关共享 UI 测试和消费者类型检查；影响首页或设置页视觉时，还要运行 `visual:home` 或 `visual:settings`。
 - 原型对比应优先使用 React prototype 和视觉脚本；旧 HTML 只能作为历史参考，不得作为新的活跃实现入口。
 
+### 多 agent 菜单 UI 默认边界
+
+这些规则是仓库默认工作流，不需要用户每次在 prompt 里重复。任何 agent 接到“改某个菜单 UI / 原型 / 页面”的任务时，必须先按这里判断改动范围。
+
+- 菜单 agent 默认只改菜单内容层，不改共享 workspace chrome，不改 `.product-*` / `.shell-*` / token / Desktop 私有 CSS。
+- 默认菜单范围：
+  - 首页：`packages/ui/src/home/` + `.home-*`
+  - 账号：`packages/ui/src/account/` + `.account-*`
+  - 仓库：`packages/ui/src/vault/` + `.vault-*`
+  - 配装：`packages/ui/src/loadouts/` + `.loadout-*`
+  - 资料库：`packages/ui/src/library/` + `.library-*`
+  - 商人：`packages/ui/src/vendors/` + `.vendor-*`
+  - 设置：`packages/ui/src/settings/` + `.settings-*`
+- 菜单 agent 可以改对应菜单目录下的 `*ContentView.tsx`、菜单专属组件、菜单专属 copy、菜单专属 ViewModel props，以及 `packages/ui/src/styles.css` 中对应菜单前缀的内容层规则。
+- Prototype / Web / Desktop 只允许为该菜单接 adapter、mock 数据或真实数据回调；不得在平台壳复制页面结构。
+- 遇到共享问题时，菜单 agent 不得私自改全局规则；必须先说明“需要共享改动”，由共享 / 集成 agent 修改 `ProductWorkspace`、token、全局样式或 shell。
+- 需要升级为共享改动的情况包括：两个以上菜单需要同一种布局或组件；需要改页面标题区、页面级分栏、首层侧栏、首层 panel chrome、顶部状态条、AI 抽屉、后台任务 Dock；需要改 `ProductShellHost.tsx`、`ProductWorkspace.tsx`、`AppShell.tsx`、无菜单前缀的 CSS 规则或 token。
+- 多 agent 并行时，首页菜单尽量最后集成；首页依赖账号、资料库、仓库、商人和配装摘要，其他菜单未稳定前不要让首页 agent 私自固化跨菜单数据结构。
+- 每个菜单完成后至少运行 `npx pnpm@9.15.0 verify:ui`；碰 Desktop adapter / IPC / 真实数据接线再运行 `npx pnpm@9.15.0 verify:desktop`。
+- 全部菜单合并后由集成 agent 运行 `npx pnpm@9.15.0 visual:all`，并检查跨菜单页面顶部、首层面板、工具栏、侧栏和内容密度是否统一。
+
 ## 语言规则
 
 - 对用户的回答、可见思路摘要、计划、状态更新和仓库文档使用中文。

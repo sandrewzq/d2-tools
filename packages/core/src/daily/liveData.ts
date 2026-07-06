@@ -1,6 +1,7 @@
 import { fetchBungieJson } from "../bungie/client.js";
 import type { D2Config } from "../config/schema.js";
 import type { DefinitionComponentData, DefinitionRecord } from "../manifest/definitions.js";
+import type { BungieOAuthToken } from "../oauth/login.js";
 import { buildLostSectorData } from "./lostSectors.js";
 import type { DailyLiveData, DailySummaryItem } from "./summary.js";
 
@@ -44,9 +45,30 @@ type PublicVendorsResponse = {
   };
 };
 
+type CharacterVendorResponse = PublicVendorsResponse & {
+  characterId: string;
+};
+
+type UserMembershipData = {
+  destinyMemberships?: DestinyMembership[];
+  primaryMembershipId?: string;
+};
+
+type DestinyMembership = {
+  membershipId: string;
+  membershipType: number;
+};
+
+type CharacterProfileResponse = {
+  characters?: {
+    data?: Record<string, { characterId?: string }>;
+  };
+};
+
 export type BuildDailyLiveDataInput = {
   milestones?: Record<string, PublicMilestone>;
   publicVendors?: PublicVendorsResponse;
+  characterVendors?: CharacterVendorResponse[];
   definitions?: {
     activities?: DefinitionComponentData | null;
     milestones?: DefinitionComponentData | null;
@@ -57,23 +79,32 @@ export type BuildDailyLiveDataInput = {
 
 export type FetchDailyLiveDataOptions = {
   config: D2Config;
+  token?: BungieOAuthToken | null;
   definitions?: BuildDailyLiveDataInput["definitions"];
-  fetchJson?: <T>(path: string) => Promise<T>;
+  fetchJson?: <T>(path: string, accessToken?: string) => Promise<T>;
 };
 
 export async function fetchDailyLiveData(options: FetchDailyLiveDataOptions): Promise<DailyLiveData> {
-  const fetchJson = options.fetchJson ?? ((path) => fetchBungieJson(path, {
-    apiKey: options.config.bungie.api_key
+  const fetchJson = options.fetchJson ?? ((path, accessToken) => fetchBungieJson(path, {
+    apiKey: options.config.bungie.api_key,
+    accessToken
   }));
 
   const [milestonesResult, vendorsResult] = await Promise.allSettled([
     fetchJson<Record<string, PublicMilestone>>("/Destiny2/Milestones/"),
     fetchJson<PublicVendorsResponse>("/Destiny2/Vendors/?components=400,402")
   ]);
+  const characterVendors = options.token?.access_token
+    ? await fetchCharacterVendorResponses({
+      accessToken: options.token.access_token,
+      fetchJson
+    }).catch(() => [])
+    : [];
 
   return buildDailyLiveDataFromBungie({
     milestones: milestonesResult.status === "fulfilled" ? milestonesResult.value : undefined,
     publicVendors: vendorsResult.status === "fulfilled" ? vendorsResult.value : undefined,
+    characterVendors,
     definitions: options.definitions
   });
 }
@@ -85,10 +116,50 @@ export function buildDailyLiveDataFromBungie(input: BuildDailyLiveDataInput): Re
     : buildLostSectorFallback(input.definitions);
   return {
     rotations: milestoneItems.rotations,
-    vendors: mapPublicVendors(input.publicVendors, input.definitions ?? {}),
+    vendors: mapVendors(input.publicVendors, input.characterVendors ?? [], input.definitions ?? {}),
     lost_sector: lostSectorItems,
     weekly_report: milestoneItems.weekly_report
   };
+}
+
+async function fetchCharacterVendorResponses(input: {
+  accessToken: string;
+  fetchJson: <T>(path: string, accessToken?: string) => Promise<T>;
+}): Promise<CharacterVendorResponse[]> {
+  const memberships = await input.fetchJson<UserMembershipData>(
+    "/User/GetMembershipsForCurrentUser/",
+    input.accessToken
+  );
+  const membership = selectDestinyMembership(memberships);
+  const profile = await input.fetchJson<CharacterProfileResponse>(
+    `/Destiny2/${membership.membershipType}/Profile/${membership.membershipId}/?components=200`,
+    input.accessToken
+  );
+  const characterIds = Object.values(profile.characters?.data ?? {})
+    .map((character) => character.characterId)
+    .filter((characterId): characterId is string => Boolean(characterId));
+  const results = await Promise.allSettled(characterIds.map(async (characterId) => {
+    const response = await input.fetchJson<PublicVendorsResponse>(
+      `/Destiny2/${membership.membershipType}/Profile/${membership.membershipId}/Character/${characterId}/Vendors/?components=400,402`,
+      input.accessToken
+    );
+    return { ...response, characterId };
+  }));
+
+  return results
+    .filter((result): result is PromiseFulfilledResult<CharacterVendorResponse> => result.status === "fulfilled")
+    .map((result) => result.value);
+}
+
+function selectDestinyMembership(data: UserMembershipData): DestinyMembership {
+  const memberships = data.destinyMemberships ?? [];
+  const selected = memberships.find((membership) => membership.membershipId === data.primaryMembershipId)
+    ?? memberships[0];
+  if (!selected) {
+    throw new Error("当前 Bungie 账号没有 Destiny 档案");
+  }
+
+  return selected;
 }
 
 function buildLostSectorFallback(
@@ -169,35 +240,50 @@ function mapMilestones(
   };
 }
 
-function mapPublicVendors(
+function mapVendors(
   publicVendors: PublicVendorsResponse | undefined,
+  characterVendors: CharacterVendorResponse[],
   definitions: NonNullable<BuildDailyLiveDataInput["definitions"]>
 ): DailySummaryItem[] {
-  const vendors = publicVendors?.vendors?.data ?? {};
-  const sales = publicVendors?.sales?.data ?? {};
-  const mapped = Object.entries(vendors).flatMap(([vendorKey, vendor]) => {
-    const vendorHash = vendor.vendorHash ?? Number(vendorKey);
-    const vendorName = definitionName(definitions.vendors, vendorHash) ?? KEY_VENDOR_HASHES[vendorHash];
-    if (!vendorName) {
-      return [];
-    }
-    const saleItems = collectPublicSales(sales[vendorKey])
-      .map((sale) => saleItemSummaryItem(definitions.items, sale))
-      .filter(Boolean) as DailySummaryItem[];
-
-    return [buildVendorItem(vendorHash, vendorName, saleItems)];
-  });
-
+  const publicItems = mapVendorResponse(publicVendors, definitions, "Bungie 公共商人");
+  const characterItems = characterVendors.flatMap((response) =>
+    mapVendorResponse(response, definitions, "Bungie 登录角色商人")
+  );
+  const mapped = [...publicItems, ...characterItems];
   const keyVendors = mapped.filter((item) => isKeyVendor(item.title));
   return uniqueByTitle(keyVendors.length ? keyVendors : mapped)
     .sort((left, right) => vendorSortRank(left.title) - vendorSortRank(right.title))
     .slice(0, 10);
 }
 
+function mapVendorResponse(
+  response: PublicVendorsResponse | undefined,
+  definitions: NonNullable<BuildDailyLiveDataInput["definitions"]>,
+  sourceLabel: "Bungie 公共商人" | "Bungie 登录角色商人"
+): DailySummaryItem[] {
+  const vendors = response?.vendors?.data ?? {};
+  const sales = response?.sales?.data ?? {};
+  const mapped = Object.entries(vendors).flatMap(([vendorKey, vendor]) => {
+    const vendorHash = vendor.vendorHash ?? Number(vendorKey);
+    const vendorName = canonicalVendorName(vendorHash, definitionName(definitions.vendors, vendorHash));
+    if (!vendorName) {
+      return [];
+    }
+    const saleItems = collectPublicSales(sales[vendorKey])
+      .map((sale) => saleItemSummaryItem(definitions.items, sale, sourceLabel))
+      .filter(Boolean) as DailySummaryItem[];
+
+    return [buildVendorItem(vendorHash, vendorName, saleItems, sourceLabel)];
+  });
+
+  return mapped;
+}
+
 function buildVendorItem(
   vendorHash: number,
   name: string,
-  saleItems: DailySummaryItem[]
+  saleItems: DailySummaryItem[],
+  sourceLabel: "Bungie 公共商人" | "Bungie 登录角色商人"
 ): DailySummaryItem {
   const vendorLabel = vendorRoleLabel(name, vendorHash);
   const salePreview = saleItems
@@ -209,7 +295,7 @@ function buildVendorItem(
     title: name,
     subtitle: vendorLabel,
     description: salePreview,
-    source: "Bungie 公共商人",
+    source: sourceLabel,
     items: saleItems.slice(0, 12)
   };
 }
@@ -243,6 +329,21 @@ function vendorRoleLabel(name: string, vendorHash: number): string {
   if (vendorHash === 3902439767) return "试炼商人 · 周末出现";
   if (vendorHash === 2255782930) return "密码学家 · 记忆水晶兑换";
   return "公共商人库存";
+}
+
+function canonicalVendorName(vendorHash: number, name: string | undefined): string | undefined {
+  return KEY_VENDOR_HASHES[vendorHash] ?? canonicalVendorNameFromText(name);
+}
+
+function canonicalVendorNameFromText(name: string | undefined): string | undefined {
+  if (!name) return undefined;
+  const lower = name.toLocaleLowerCase();
+  if (name.includes("老九") || name.includes("仄") || lower.includes("xur") || lower.includes("xûr")) return "老九";
+  if (name.includes("枪匠") || lower.includes("banshee")) return "枪匠";
+  if (name.includes("艾达") || lower.includes("ada")) return "艾达-1";
+  if (name.includes("圣人") || lower.includes("saint")) return "圣人-14";
+  if (name.includes("拉乎尔") || lower.includes("rahool")) return "拉乎尔大师";
+  return name.trim() || undefined;
 }
 
 function isKeyVendor(name: string): boolean {
@@ -307,7 +408,11 @@ function definitionRecord(definitions: DefinitionComponentData | null | undefine
   return definitions?.[String(hash)] as DefinitionRecord | undefined;
 }
 
-function saleItemSummaryItem(definitions: DefinitionComponentData | null | undefined, sale: PublicSale): DailySummaryItem | undefined {
+function saleItemSummaryItem(
+  definitions: DefinitionComponentData | null | undefined,
+  sale: PublicSale,
+  sourceLabel = "Bungie 公共商人"
+): DailySummaryItem | undefined {
   if (sale.itemHash === undefined) return undefined;
   const record = definitionRecord(definitions, sale.itemHash);
   const name = record?.displayProperties?.name?.trim();
@@ -327,7 +432,7 @@ function saleItemSummaryItem(definitions: DefinitionComponentData | null | undef
     title: name,
     subtitle: itemDetails.join("，") || undefined,
     description: costLabel,
-    source: "Bungie 公共商人",
+    source: sourceLabel,
     iconUrl: record?.displayProperties?.icon?.trim() || undefined
   };
 }

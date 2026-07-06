@@ -166,7 +166,7 @@ function createLocalVendorDirectory(resetLabel: string): VendorInventoryGroupWor
     }),
     createDirectoryVendor({
       id: "banshee",
-      name: "Banshee-44",
+      name: "枪匠（Banshee-44）",
       description: "每日武器和枪匠声望；后续接入武器 perk 复查。",
       badge: "每日",
       category: "重点",
@@ -179,7 +179,7 @@ function createLocalVendorDirectory(resetLabel: string): VendorInventoryGroupWor
     }),
     createDirectoryVendor({
       id: "ada",
-      name: "Ada-1",
+      name: "艾达-1（Ada-1）",
       description: "护甲合成和外观相关入口。",
       badge: "常驻",
       category: "重点",
@@ -192,7 +192,7 @@ function createLocalVendorDirectory(resetLabel: string): VendorInventoryGroupWor
     }),
     createDirectoryVendor({
       id: "saint",
-      name: "Saint-14",
+      name: "圣人-14（Saint-14）",
       description: "试炼声望、周末奖励和聚焦入口。",
       badge: "周末",
       category: "塔楼",

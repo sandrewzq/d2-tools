@@ -65,9 +65,9 @@ describe("vendors page workspace", () => {
     expect(workspace.verifiedItemCount).toBe(3);
     expect(workspace.vendors.map((vendor) => vendor.name)).toEqual([
       "仄（Xur）",
-      "Banshee-44",
-      "Ada-1",
-      "Saint-14",
+      "枪匠（Banshee-44）",
+      "艾达-1（Ada-1）",
+      "圣人-14（Saint-14）",
       "萨瓦拉",
       "沙克斯领主",
       "浪客",
@@ -99,12 +99,12 @@ describe("vendors page workspace", () => {
       }
     ]);
     expect(workspace.vendors[1]).toMatchObject({
-      name: "Banshee-44",
+      name: "枪匠（Banshee-44）",
       source: "Bungie 公共商人",
       statusLabel: "已确认"
     });
     expect(workspace.vendors[2]).toMatchObject({
-      name: "Ada-1",
+      name: "艾达-1（Ada-1）",
       source: "本地商人目录",
       statusLabel: "等待实时库存"
     });
@@ -116,9 +116,9 @@ describe("vendors page workspace", () => {
 
     expect(workspace.vendors.map((vendor) => vendor.name)).toEqual([
       "仄（Xur）",
-      "Banshee-44",
-      "Ada-1",
-      "Saint-14",
+      "枪匠（Banshee-44）",
+      "艾达-1（Ada-1）",
+      "圣人-14（Saint-14）",
       "萨瓦拉",
       "沙克斯领主",
       "浪客",

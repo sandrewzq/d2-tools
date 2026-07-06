@@ -13,6 +13,7 @@
 3. 菜单内容层可以有领域差异，但不能重写页面骨架、首层面板、首层工具栏和暗色背景。
 4. `tool-panel`、`product-card`、`app-panel` 等旧类继续保留合理用途，但不能再参与主菜单页面骨架。
 5. 参考 HTML 只作为设计约束和视觉基准，不能把说明性内容迁入真实 UI。
+6. Desktop renderer 的产品入口不再做所有菜单的事实总控；每个菜单应由独立 Provider 组装自己的 workspace props，首页也只是平级菜单。
 
 ## 非目标
 
@@ -97,6 +98,99 @@
 - “HTML 还原完成”：必须同时包含结构、CSS 布局属性和关键交互位置的验收；只检查组件存在或页面可见不算还原完成。
 
 如果后续没有重新运行视觉脚本，或用户指出截图观感问题，不得继续回复“UI 完成”。
+
+### F. Desktop 菜单 Provider 解耦计划
+
+当前 UI 骨架和共享样式已基本收口，但 Desktop renderer 的 composition root 仍然偏胖。`packages/desktop/src/renderer/pages/HomePage.tsx` 同时初始化账号、资料库、配装、仓库、商人、首页、AI、写操作和全局状态，再把所有菜单 props 一次性传给 `HomePageRoutes`。这会让首页看起来像其他菜单的上级聚合器，也会让多 agent 分菜单开发时边界不清。
+
+目标不是让首页管理其他菜单，而是让首页、账号、仓库、配装、资料库、商人、设置都成为 `ProductShellHost` 下的平级菜单：
+
+```text
+DesktopProductShell
+  负责 shell、路由、顶部状态、AI 抽屉、全局偏好、全局提示
+
+HomeMenuProvider
+AccountMenuProvider
+VaultMenuProvider
+LoadoutsMenuProvider
+LibraryMenuProvider
+VendorsMenuProvider
+SettingsMenuProvider
+  各自组装自己的菜单 props
+  不 import 其他菜单内部 hook
+```
+
+首页菜单的规则：
+
+- 首页可以展示跨领域摘要，但不能 import 其他菜单的内部 hook、组件或私有 ViewModel。
+- 首页需要的提醒、状态和摘要应来自首页自己的 workspace props，或后续从 `packages/app` / `packages/services` 暴露的轻量 summary。
+- 首页不是账号、仓库、商人、配装或资料库的父级；其他菜单也不应依赖首页。
+
+建议实施阶段：
+
+1. **边界测试先行**
+   - 新增或扩展 `packages/desktop/test/desktop-menu-provider-boundaries.test.ts`。
+   - 断言 `features/home/` 不得 import `features/account|vault|vendors|loadouts|library`。
+   - 断言 `HomePage.tsx` 不得直接 import `useAccountWorkspace`、`useLibraryWorkspace`、`useLoadoutTemplates` 等菜单 workspace hooks。
+   - 断言菜单 Provider 只能 import 自己菜单目录、`shared/`、`api/`、`@d2-tools/app`、`@d2-tools/ui` 和明确的平台 adapter。
+   - 断言 `useHomePageWriteActions.ts` 不再作为首页写操作命名存在，产品级写操作应改名为 `useDesktopProductWriteActions.ts` 或同等语义。
+
+2. **拆出产品级 Shell 状态**
+   - 从 `HomePage.tsx` 中先拆出 `useDesktopProductShell.ts` 或等价模块。
+   - 只保留真正全局的状态：`activePage`、`assistantMode`、界面语言、颜色模式、顶部状态条、后台任务、更新横幅、AI 抽屉、`platformActions`。
+   - 不在本阶段移动菜单业务逻辑，避免一次改动过大。
+
+3. **新增菜单 Provider 目录**
+   - 新建 `packages/desktop/src/renderer/pages/providers/`。
+   - 逐步新增：
+     - `HomeMenuProvider.tsx`
+     - `AccountMenuProvider.tsx`
+     - `VaultMenuProvider.tsx`
+     - `LoadoutsMenuProvider.tsx`
+     - `LibraryMenuProvider.tsx`
+     - `VendorsMenuProvider.tsx`
+     - `SettingsMenuProvider.tsx`
+   - 每个 Provider 只返回对应菜单页面组件，例如 `HomeMenuProvider` 返回 `HomeDashboard`，`VaultMenuProvider` 返回 `VaultPage`。
+
+4. **按低风险顺序迁移菜单**
+   - 先迁移 `VendorsMenuProvider`：主要依赖 daily summary，风险低。
+   - 再迁移 `LibraryMenuProvider`：已有 `useLibraryWorkspace`。
+   - 再迁移 `AccountMenuProvider`：已有 `useAccountWorkspace`。
+   - 再迁移 `LoadoutsMenuProvider`：依赖模板和写操作，复杂度中等。
+   - 再迁移 `VaultMenuProvider`：依赖账号、标签、推荐、详情和写操作，最后处理。
+   - 最后迁移 `HomeMenuProvider`：只保留首页自己的 `createHomeDashboardWorkspace`、daily / weekly 数据和首页 actions。
+
+5. **重命名产品级写操作**
+   - 将 `packages/desktop/src/renderer/pages/useHomePageWriteActions.ts` 重命名为 `useDesktopProductWriteActions.ts`。
+   - 该 hook 属于 Desktop 产品壳或写操作 composition，不属于首页菜单。
+   - 如果某些写操作只服务单个菜单，优先下沉到对应菜单 Provider，而不是继续放在产品级 hook 里。
+
+6. **瘦身 `HomePage.tsx`**
+   - 最终 `HomePage.tsx` 只负责挂载 `ProductShellHost`、提供 shell 状态和路由。
+   - `HomePageRoutes` 应渲染各菜单 Provider，而不是接收一个由 `HomePage.tsx` 预先组装好的巨大 props 对象。
+   - `HomePage.tsx` 不再直接 import 菜单 workspace hooks。
+
+7. **验证**
+   - 每迁移一个 Provider，运行：
+     ```powershell
+     npx pnpm@9.15.0 verify:desktop
+     npx pnpm@9.15.0 verify:ui
+     ```
+   - 最终收口运行：
+     ```powershell
+     npx pnpm@9.15.0 verify:ui
+     npx pnpm@9.15.0 verify:desktop
+     npx pnpm@9.15.0 visual:home
+     npx pnpm@9.15.0 visual:all
+     npx pnpm@9.15.0 verify:docs
+     ```
+
+风险和执行建议：
+
+- 这是中等偏大的 Desktop renderer 架构重构，会碰 `HomePage.tsx`、`HomePageRoutes.tsx`、写操作 hook、多个菜单 provider 和相关测试。
+- 不建议和多个菜单 UI agent 同时改同一工作区；执行前先提交当前 UI 收口成果，或使用 worktree 隔离。
+- 建议由一个集成 agent 串行推进，按菜单逐个迁移；不要多个 agent 同时拆 provider。
+- 每个阶段都必须先补边界测试，再移动实现，避免只靠人工约定维持解耦。
 
 ## 执行前置条件
 

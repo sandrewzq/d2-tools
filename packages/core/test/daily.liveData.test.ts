@@ -203,6 +203,94 @@ describe("daily live data mapping", () => {
     expect(liveData.vendors[1].subtitle).toBe("枪匠 · 每日模组刷新");
   });
 
+  it("merges authenticated character vendors into daily vendor summaries", () => {
+    const liveData = buildDailyLiveDataFromBungie({
+      publicVendors: {
+        vendors: {
+          data: {
+            "2190858386": { vendorHash: 2190858386 }
+          }
+        },
+        sales: {
+          data: {
+            "2190858386": {
+              saleItems: {
+                "14": { itemHash: 3883286571 }
+              }
+            }
+          }
+        }
+      },
+      characterVendors: [
+        {
+          characterId: "character-1",
+          vendors: {
+            data: {
+              "672118013": { vendorHash: 672118013 },
+              "3500617033": { vendorHash: 3500617033 }
+            }
+          },
+          sales: {
+            data: {
+              "672118013": {
+                saleItems: {
+                  "weapon": { itemHash: 400, costs: [{ itemHash: 3159615086, quantity: 7000 }] }
+                }
+              },
+              "3500617033": {
+                saleItems: {
+                  "synth": { itemHash: 401 }
+                }
+              }
+            }
+          }
+        }
+      ],
+      definitions: {
+        vendors: {
+          "2190858386": { displayProperties: { name: "Xûr" } },
+          "672118013": { displayProperties: { name: "Banshee-44" } },
+          "3500617033": { displayProperties: { name: "Ada-1" } }
+        },
+        items: {
+          "3883286571": {
+            displayProperties: { name: "守誓者" },
+            itemTypeDisplayName: "臂铠",
+            inventory: { tierTypeName: "异域" }
+          },
+          "400": {
+            displayProperties: { name: "高射速自动步枪" },
+            itemTypeDisplayName: "自动步枪",
+            inventory: { tierTypeName: "传说" }
+          },
+          "401": {
+            displayProperties: { name: "护甲合成赏金" },
+            itemTypeDisplayName: "赏金"
+          },
+          "3159615086": {
+            displayProperties: { name: "微光" }
+          }
+        }
+      }
+    });
+
+    expect(liveData.vendors.map((item) => item.title)).toEqual(["老九", "枪匠", "艾达-1"]);
+    expect(liveData.vendors[1]).toMatchObject({
+      subtitle: "枪匠 · 每日模组刷新",
+      source: "Bungie 登录角色商人"
+    });
+    expect(liveData.vendors[1].items?.[0]).toMatchObject({
+      title: "高射速自动步枪",
+      subtitle: "自动步枪，传说",
+      description: "7000 微光",
+      source: "Bungie 登录角色商人"
+    });
+    expect(liveData.vendors[2]).toMatchObject({
+      title: "艾达-1",
+      source: "Bungie 登录角色商人"
+    });
+  });
+
   it("uses milestone definitions when public milestone payload omits display names", () => {
     const liveData = buildDailyLiveDataFromBungie({
       milestones: {

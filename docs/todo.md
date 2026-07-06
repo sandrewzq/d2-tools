@@ -41,6 +41,7 @@
 | ✅ 已修复 | Bug #45 Release 脚本：`git diff --check` 打开 pager 卡住 | `tools/git-auto-release.cmd` 启动时禁用 Git pager，发布检查输出不再停在 `(END)` 等待手动按 `q` |
 | ✅ 已修复 | Bug #46 跨端 UI：首页泄漏参考说明文案 | 参考 HTML 的规范说明块改为 `d2-reference-only` 边界和 `data-reference-only="true"` 双标记；真实首页移除说明条，`workspace-layout.test.ts` 会抽取标记块文案并拦截其进入 `packages/ui` |
 | ✅ 已修复 | Bug #47 仓库页：容量数字和方案命中提示占据顶部导致布局混乱 | 仓库页不再把筛选结果当容量显示；仓库已读取数量来自 `account.vault.item_count`，筛选命中和方案命中改为命令栏小型状态 chip；AI 抽屉打开时优先展示筛选工作台，摘要下沉 |
+| ✅ 已修复 | Bug #48 商人页：商人名称中英混杂且塔楼商人未接真实库存 | 本地商人目录改为中文优先名称；日报商人数据在公共商人基础上追加登录角色商人接口，Banshee / Ada 等角色商人库存可进入商人页，未登录或接口失败时继续显示等待实时库存 |
 
 ## 当前任务目录
 
@@ -48,8 +49,8 @@
 |---|---|---|---|---|---|
 | T1 | P1 | 🟡 待推进 | 小日向与 d2-skill 产品级能力 | [总纲](work/backlog/kohinata-d2-skill-product-architecture.md) / [攻略证据工作台](work/backlog/kohinata-guide-evidence-workbench.md) | 先做攻略解析、账号命中、perk 证据和配装草稿 |
 | T2 | P1 | 🟡 待推进 | 仓库推荐与清理工作台 | [仓库推荐与清理工作台](work/backlog/vault-recommendation-and-cleanup-workbench.md) | 统一 DIM wishlist、本地目标、同名对比和清理清单；推荐数据只支持用户导入，不默认内置未授权社区数据 |
-| T3 | P1 | 🟡 待推进 | 小日向日报、商人与掉落查询 | [日报、商人与掉落查询](work/backlog/daily-report-and-drops-assistant.md) | 商人页已接共享 UI、Desktop 入口、公共商人刷新、9 商人目录兜底和 Bungie 图标路径修复；下一步继续补活动、掉落来源状态和更完整的购买判断 |
-| T4 | P1 | 🟡 进行中 | 跨端 UI 壳、可交互原型与桌面视觉收口 | [工作区骨架与样式收口](work/backlog/cross-platform-workspace-style-hardening.md) / [桌面视觉与详情打磨](work/backlog/desktop-ui-account-detail-polish.md) | 工作区骨架结构已收口：`ProductShellHost` 统一持有页面骨架，首页、仓库、配装、资料库、商人、账号和设置真实入口改为纯内容层，平台入口不再依赖 `showInternalHeading={false}`。首层 panel / side rail chrome、仓库卡片抗压、配装详情 panel 化和视觉脚本卡住问题已修复；`verify:ui`、`verify:desktop`、`verify:docs`、`visual:home`、`visual:settings`、`visual:loadouts`、`visual:ai`、`visual:all` 已通过。下一步由用户人工复核 Prototype / Desktop 真实观感；如仍不统一，继续优先改 `packages/ui`。 |
+| T3 | P1 | 🟡 待推进 | 小日向日报、商人与掉落查询 | [日报、商人与掉落查询](work/backlog/daily-report-and-drops-assistant.md) | 商人页已接共享 UI、Desktop 入口、公共商人刷新、9 商人目录兜底、Bungie 图标路径修复和登录角色商人库存；下一步继续补活动、掉落来源状态和更完整的购买判断 |
+| T4 | P1 | 🟡 进行中 | 跨端 UI 壳、可交互原型与桌面视觉收口 | [工作区骨架与样式收口](work/backlog/cross-platform-workspace-style-hardening.md) / [桌面视觉与详情打磨](work/backlog/desktop-ui-account-detail-polish.md) | 工作区骨架和共享视觉已收口：`ProductShellHost` 统一持有页面骨架，主菜单真实入口改为纯内容层，首层 panel / side rail chrome、仓库卡片抗压、配装详情 panel 化、header actions 两列布局和视觉脚本卡住问题已修复；`verify:ui`、`verify:desktop`、`verify:docs`、`visual:home`、`visual:settings`、`visual:loadouts`、`visual:ai`、`visual:all` 已通过。下一步按同一 backlog 推进 Desktop 菜单 Provider 解耦，让首页、账号、仓库、配装、资料库、商人和设置都成为平级菜单 Provider。 |
 | T5 | P3 | 🟡 待推进 | 活动复盘增强 | [活动复盘增强](work/backlog/activity-review-enhancement.md) | 后续接 PGCR、完成时间推算和副本级趋势 |
 | T6 | P4 | 🟡 待推进 | 桌面发布、更新与迁移体验 | [桌面发布体验](work/backlog/desktop-release-experience.md) | 继续验证真实 GitHub Release、更新提示、备份迁移和诊断体验 |
 
