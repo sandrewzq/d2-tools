@@ -102,7 +102,7 @@ docs/        正式文档
    - 主菜单页面必须覆盖到共享 View；如果某页尚未接真实数据，Prototype 也要提供可交互 mock，而不是显示 generic placeholder。
 3. Web 和 Desktop 只负责平台 adapter。Web 处理浏览器登录态、HTTP/API、部署配置；Desktop 处理 Electron IPC、本地文件、窗口、更新和打包。
 4. 如果先在 prototype 中探索 UI，确认后必须迁入 `packages/ui`，再让 Prototype / Web / Desktop 共同消费。
-5. `ProductShellHost` 是产品外壳统一入口；Prototype / Web / Desktop 都应挂同一个 Host。不得重新引入 Desktop 或 Web 专用 shell wrapper 来复制页面结构。
+5. `ProductShellHost` 是产品外壳统一入口；Prototype / Web / Desktop 都应挂同一个 Host。不得重新引入 Desktop 或 Web 专用 shell wrapper 来复制页面结构。主菜单真实入口的页面根、页面标题和页面级 gap 归 `ProductShellHost` 统一管理，页面内容组件只返回内容层。
 6. 顶部状态条等跨端状态对象必须使用稳定 key 做样式和逻辑判断，例如 `account`、`library`、`app-version`；本地化后的 `label` 只用于显示，不能参与逻辑判断。
 7. 全局 AI 抽屉等产品级辅助面板也属于共享 UI：`assistantPanel` 不允许各端长期自建标题、对话结构或占位页面，必须复用 `packages/ui` 的 AI Assistant View；Desktop / Prototype / Web 只提供真实服务 adapter 或 mock 数据。
 8. 窗口控制按钮由 `packages/ui` 的共享 `AppShell` 自绘，Desktop 只通过 `platformActions.windowControls` 注入最小化、最大化/还原和关闭动作；不要重新启用 Electron 原生 `titleBarOverlay`。
@@ -128,14 +128,15 @@ docs/        正式文档
 - 明暗色模式由 `config.json` 的 `features.color_mode` 持久化，默认 `light`；桌面启动状态必须携带保存的颜色模式，避免应用重启或覆盖更新后回到默认外观。
 - 新增状态文案统一使用 `status-message status-neutral|pending|ready|warning|error`，不要再在 TSX 中新增 `notice` 或 `error` 类。
 - 新增列表、筛选和对象卡片优先复用 `ui-list-row`、`ui-filter-toolbar`、`ui-item-card`、`ui-badge`；设置页或工具区子块优先复用 `panel-subsection`。
-- 主菜单页面统一使用 `ProductWorkspacePage`、`ProductWorkspacePanel`、`ProductWorkspaceCommandBar`、`ProductWorkspaceSplit`、`ProductWorkspaceSideRail`、`ProductWorkspaceContentStack` 和 `ProductWorkspaceEmptyState` 生成 `product-workspace-*` 共享工作区骨架；不要为某个菜单单独发明顶层间距、页面标题、左右分栏或空状态高度规则。
+- 主菜单页面统一使用 `ProductWorkspacePage`、`ProductWorkspaceHeader`、`ProductWorkspacePanel`、`ProductWorkspaceCommandBar`、`ProductWorkspaceSplit`、`ProductWorkspaceSideRail`、`ProductWorkspaceContentStack` 和 `ProductWorkspaceEmptyState` 生成 `product-workspace-*` 共享工作区骨架；不要为某个菜单单独发明顶层间距、页面标题、左右分栏或空状态高度规则。`ProductWorkspacePage` 和 `ProductWorkspaceHeader` 只能由 `ProductShellHost` 或明确的 standalone fallback 使用，主菜单真实挂载的 `*ContentView.tsx` 不得 import、渲染或间接委托到它们。
 - 菜单允许有私有样式，但只能作用在菜单内容层：信息架构、领域组件、列表密度、装备卡、筛选控件、库存图标、perk 池、配装条目等可以使用 `.account-*`、`.vault-*`、`.library-*`、`.loadout-*`、`.vendor-*`、`.home-*` 自定义。页面根、顶部标题、主分栏、首层面板、首层工具栏、滚动容器、暗色背景和主 surface chrome 归共享工作区骨架所有。
 - 菜单私有 class 和 `ProductWorkspace*` 叠加使用时，不得重新定义共享 chrome 属性，包括 `padding`、`border`、`border-radius`、`background`、`box-shadow` 和页面级 `gap`。如果首块区域需要不同密度，优先调整内部子元素；确实需要新的骨架能力时，先扩展 `ProductWorkspace*` 或 token，而不是在菜单 class 里覆盖。
 - 私有样式必须使用共享 token 表达颜色、间距、圆角和状态；不要新增硬编码浅色背景、菜单专属暗色兼容块，或只在某一端生效的视觉修补。Prototype / Web / Desktop 的差异只能来自数据、平台 adapter 或 mock 状态，不能来自不同页面 CSS。
-- `tool-panel` 是主面板层，不能挂到主菜单页面根上；不要把普通说明块做成嵌套大卡片。装备详情顶部可以保留游戏内视觉语义，但底部工具区继续使用桌面工具样式。
+- `app-panel`、`product-card` 和 `tool-panel` 可以保留，但不能参与主菜单页面骨架：`app-panel` 只作为 legacy 内部块或逐步迁移对象，`product-card` 只用于面板内部的重复对象卡片，`tool-panel` 只用于 AI、诊断、设置工具和日志区。它们不得和 `ProductWorkspacePanel` 叠加，也不得作为主菜单首层面板、页面根或首层工具栏 chrome。
 - `packages/desktop/test/ui-style-system.test.ts` 负责锁定 token、共享样式类、设置页布局、状态语言和 Desktop CSS 平台边界，防止产品样式回流到 Desktop 私有 CSS。
 - `packages/desktop/test/workspace-layout.test.ts` 负责锁定主菜单工作区骨架和菜单私有样式权限，防止页面 class 覆盖 `ProductWorkspace*` 的首层间距、面板 chrome 和工具栏 chrome。
 - 后续 UI 开发以本节和 `packages/desktop/test/ui-style-system.test.ts` 为准，不再维护单独的历史样式规范文档。
+- `docs/work/references/` 里的静态 HTML 可以保留规范说明、边界解释和对比标注，但这些内容必须同时使用 `<!-- d2-reference-only:start ... -->` / `<!-- d2-reference-only:end -->` 包住，并在对应 HTML 元素上标记 `data-reference-only="true"`；标记块只用于设计评审和规则表达，不得迁入 `packages/ui`、`packages/prototype`、`packages/web` 或 Desktop 真实页面。`packages/desktop/test/workspace-layout.test.ts` 会抽取这些标记块的文案，拦截说明内容进入共享产品 UI。
 
 ### 2.6 桌面外壳、更新和后台任务
 
@@ -189,7 +190,7 @@ npx pnpm@9.15.0 dev
 npx pnpm@9.15.0 dev:prototype
 ```
 
-Prototype 使用 `packages/ui` 共享壳、产品 Host、页面 View 和 mock adapter，默认端口为 `http://127.0.0.1:53170`。视觉密集页面先在 Prototype 中验证，再接入 Desktop 或 Web。Web 默认端口为 `http://127.0.0.1:53171`。
+Prototype 使用 `packages/ui` 共享壳、产品 Host、页面 View 和 mock adapter，默认端口为 `http://127.0.0.1:53170`。视觉密集页面先在 Prototype 中验证，再接入 Desktop 或 Web。Web 默认端口为 `http://127.0.0.1:53171`。通过 `tools/dev-prototype.cmd`、`tools/dev-web.cmd` 或 `tools/dev-desktop.cmd` 启动时，脚本会先清理对应固定端口上的残留监听进程，再重新启动当前 dev 服务。
 
 正式 Web 入口使用：
 
@@ -211,9 +212,9 @@ npx pnpm@9.15.0 dev:electron
 
 常用脚本：
 
-- `tools/dev-prototype.cmd`：启动或打开 Prototype，本地端口 `53170`。
-- `tools/dev-web.cmd`：启动或打开 Web，本地端口 `53171`。
-- `tools/dev-desktop.cmd`：启动或打开 Desktop 开发版，本地端口 `53172`。
+- `tools/dev-prototype.cmd`：清理 `53170` 残留监听进程后启动 Prototype。
+- `tools/dev-web.cmd`：清理 `53171` 残留监听进程后启动 Web。
+- `tools/dev-desktop.cmd`：清理 `53172` 残留监听进程后启动 Desktop 开发版。
 - `tools/dev-status.cmd`：只读查看 Prototype / Web / Desktop 开发端口占用情况。
 - `tools/git-preflight.cmd`：只读按文档、工具、跨端 UI、Desktop、core/services/app/http 分组查看 Git 改动，识别菜单 lane / 共享层风险 / 多 lane 混改，并提示建议验证命令、高冲突文件和并行安全建议。
 - `tools/git-commit-and-push.cmd`：全量提交并 push，不创建 release tag。

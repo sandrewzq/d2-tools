@@ -5,6 +5,7 @@ import { readItemDetailSources } from "./source-readers";
 
 const desktopRoot = join(process.cwd(), "packages", "desktop");
 const uiRoot = join(process.cwd(), "packages", "ui");
+const referenceRoot = join(process.cwd(), "docs", "work", "references");
 
 function readUiStyles(): string {
   return readFileSync(join(uiRoot, "src", "styles.css"), "utf8");
@@ -16,6 +17,23 @@ function readCssRule(styles: string, selector: string): string {
   const end = styles.indexOf("}", start);
   expect(end).toBeGreaterThan(start);
   return styles.slice(start, end + 1);
+}
+
+function getReferenceOnlyTexts(): string[] {
+  const html = readFileSync(join(referenceRoot, "d2-unified-workspace-layout-v0.html"), "utf8");
+  const markedBlocks = [...html.matchAll(/<!--\s*d2-reference-only:start\b[^>]*-->([\s\S]*?)<!--\s*d2-reference-only:end\s*-->/gi)].map(
+    (match) => match[1]
+  );
+
+  expect(markedBlocks.length).toBeGreaterThan(0);
+  for (const block of markedBlocks) {
+    expect(block).toContain('data-reference-only="true"');
+  }
+
+  return markedBlocks
+    .flatMap((block) => [...block.matchAll(/<(?:strong|span|p|h[1-6])\b[^>]*>([\s\S]*?)<\/(?:strong|span|p|h[1-6])>/gi)])
+    .map((match) => match[1].replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim())
+    .filter((text) => text.length > 0);
 }
 
 describe("desktop workspace layout", () => {
@@ -146,6 +164,25 @@ describe("desktop workspace layout", () => {
     expect(readCssRule(styles, ".product-command-bar")).toMatch(/background:\s*var\(--surface-toolbar\);/);
   });
 
+  it("keeps reference-only guidance out of shared product UI", () => {
+    const referenceOnlyTexts = getReferenceOnlyTexts();
+    const uiSources = [
+      readFileSync(join(uiRoot, "src", "home", "HomePageView.tsx"), "utf8"),
+      readFileSync(join(uiRoot, "src", "i18n", "copy.ts"), "utf8"),
+      readFileSync(join(uiRoot, "src", "styles.css"), "utf8")
+    ].join("\n");
+
+    expect(referenceOnlyTexts).toEqual(
+      expect.arrayContaining(["骨架层统一", "内容层私有", "禁止覆盖 chrome"])
+    );
+
+    for (const text of referenceOnlyTexts) {
+      expect(uiSources).not.toContain(text);
+    }
+
+    expect(uiSources).not.toContain("home-standard-bar");
+  });
+
   it("renders the home page as a workbench instead of a single long stream", () => {
     const homePage = readFileSync(join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"), "utf8");
     const homeRoutes = readFileSync(join(desktopRoot, "src", "renderer", "pages", "HomePageRoutes.tsx"), "utf8");
@@ -159,6 +196,7 @@ describe("desktop workspace layout", () => {
     expect(homeRoutes).toContain("<HomeDashboard");
     expect(homePage).not.toContain('className="home-workbench"');
     expect(homeDashboard).toContain("ProductWorkspacePage");
+    expect(homeDashboard).toContain("ProductWorkspacePanel");
     expect(homeDashboard).toContain('className="app-page home-app-page');
     expect(homeDashboard).not.toContain('className="home-data-strip"');
     expect(homeDashboard).toContain('className="home-briefing-grid"');

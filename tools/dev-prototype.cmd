@@ -20,12 +20,11 @@ echo.
 set "DEV_PORT=53170"
 set "DEV_URL=http://127.0.0.1:%DEV_PORT%"
 
-powershell -NoProfile -Command "if (Get-NetTCPConnection -LocalPort %DEV_PORT% -State Listen -ErrorAction SilentlyContinue) { exit 0 } else { exit 1 }"
-if not errorlevel 1 (
-  echo Prototype dev server is already listening at %DEV_URL%.
-  echo Opening existing server without starting another process.
-  start "" "%DEV_URL%"
-  exit /b 0
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop'; $port=%DEV_PORT%; $listeners=Get-NetTCPConnection -LocalPort %DEV_PORT% -State Listen -ErrorAction SilentlyContinue; if (-not $listeners) { exit 0 }; $processIds=$listeners | Select-Object -ExpandProperty OwningProcess -Unique; foreach ($processId in $processIds) { $process=Get-Process -Id $processId -ErrorAction SilentlyContinue; if ($process) { Write-Host ('Stopping stale process on port {0}: PID {1} {2}' -f $port, $processId, $process.ProcessName); Stop-Process -Id $processId -Force } }; Start-Sleep -Milliseconds 500; if (Get-NetTCPConnection -LocalPort %DEV_PORT% -State Listen -ErrorAction SilentlyContinue) { Write-Error ('Port {0} is still in use after cleanup.' -f $port); exit 1 }; exit 0"
+if errorlevel 1 (
+  echo Stale process cleanup failed for %DEV_URL%.
+  pause
+  exit /b 1
 )
 
 echo Browser will open automatically when %DEV_URL% is ready.
@@ -47,7 +46,7 @@ echo   tools\%SCRIPT_NAME%
 echo.
 echo Behavior:
 echo   - Runs from the repository root.
-echo   - Opens http://127.0.0.1:53170 if it is already listening.
+echo   - Stops any stale process listening on http://127.0.0.1:53170 before starting.
 echo   - Calls npx pnpm@9.15.0 dev:prototype.
 echo   - Starts the React prototype dev server.
 echo   - Opens the browser automatically when the dev server becomes ready.

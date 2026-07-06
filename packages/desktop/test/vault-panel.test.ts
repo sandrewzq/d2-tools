@@ -128,7 +128,7 @@ describe("vault panel helpers", () => {
     const styles = readFileSync("packages/ui/src/styles.css", "utf8");
 
     expect(styles).toMatch(/\.assistant-open \.vault-workbench-layout\s*\{[\s\S]*?grid-template-columns: 1fr;/);
-    expect(styles).toMatch(/\.assistant-open \.vault-workbench-layout\s*\{[\s\S]*?grid-template-areas:\s*"vault-summary"\s*"vault-main";/);
+    expect(styles).toMatch(/\.assistant-open \.vault-workbench-layout\s*\{[\s\S]*?grid-template-areas:\s*"vault-main"\s*"vault-summary";/);
     expect(styles).toMatch(/\.assistant-open \.vault-side-summary\s*\{[\s\S]*?position: static;/);
     expect(styles).toMatch(/\.assistant-open \.vault-filter-common-row\s*\{[\s\S]*?grid-template-columns: repeat\(auto-fit, minmax\(180px, 1fr\)\);/);
     expect(styles).toMatch(/\.assistant-open \.vault-card-grid\s*\{[\s\S]*?grid-template-columns: repeat\(auto-fit, minmax\(220px, 1fr\)\);/);
@@ -1045,5 +1045,29 @@ describe("vault panel helpers", () => {
     expect(listItem).toContain("isLoadoutMatch");
     expect(listItem).toContain("loadout-template-badge");
     expect(listItem).toContain("方案命中");
+  });
+  it("separates vault inventory count from filtered result count", () => {
+    const source = readFileSync("packages/ui/src/vault/VaultPageContentView.tsx", "utf8");
+    const workspace = readFileSync("packages/app/src/workspaces/vaultPage.ts", "utf8");
+    const desktopPage = readFileSync("packages/desktop/src/renderer/features/vault/VaultPage.tsx", "utf8");
+
+    expect(workspace).toContain("vaultItemCount");
+    expect(desktopPage).toContain("vaultItemCount={workspace.vaultItemCount}");
+    expect(source).toContain("vaultItemCount?: number");
+    expect(source).toContain("仓库已读取");
+    expect(source).toContain("当前筛选");
+    expect(source).not.toContain("{filteredItems.length} / {props.items.length}");
+  });
+  it("keeps loadout match status as a compact workbench chip", () => {
+    const source = readFileSync("packages/ui/src/vault/VaultPageContentView.tsx", "utf8");
+
+    expect(source).toContain("vault-loadout-match-chip");
+    expect(source).not.toContain('<p className="status-message status-ready">');
+    expect(source).not.toContain("方案命中 {loadoutMatchCount} 件");
+  });
+  it("keeps the filter workbench before the summary when the AI drawer is open", () => {
+    const styles = readFileSync("packages/ui/src/styles.css", "utf8");
+
+    expect(styles).toMatch(/\.assistant-open \.vault-workbench-layout\s*{[\s\S]*grid-template-areas:\s*"vault-main"\s*"vault-summary";/);
   });
 });

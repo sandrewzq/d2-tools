@@ -3957,8 +3957,8 @@ h2 {
 .assistant-open .vault-workbench-layout {
   grid-template-columns: 1fr;
   grid-template-areas:
-    "vault-summary"
-    "vault-main";
+    "vault-main"
+    "vault-summary";
 }
 
 .assistant-open .vault-side-summary {
@@ -6479,6 +6479,49 @@ h2 {
 
 .vault-workflow-tab span {
   display: none;
+}
+
+.vault-command-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  min-width: 0;
+}
+
+.vault-inventory-pill,
+.vault-filter-result-pill,
+.vault-loadout-match-chip {
+  display: inline-flex;
+  gap: 6px;
+  align-items: baseline;
+  min-height: 28px;
+  padding: 5px 10px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-pill);
+  background: var(--surface-subtle);
+  color: var(--text-body);
+  font-size: 12px;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.vault-inventory-pill span,
+.vault-filter-result-pill span,
+.vault-loadout-match-chip span {
+  color: var(--text-muted);
+}
+
+.vault-inventory-pill strong,
+.vault-filter-result-pill strong,
+.vault-loadout-match-chip strong {
+  color: var(--text-title);
+  font-size: 12px;
+}
+
+.vault-loadout-match-chip {
+  border-color: color-mix(in srgb, var(--state-selected-border) 54%, var(--border-subtle));
+  background: color-mix(in srgb, var(--state-selected-bg) 72%, var(--surface-subtle));
 }
 
 .vault-quick-filters {

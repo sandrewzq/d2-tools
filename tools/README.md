@@ -22,9 +22,9 @@ tools/
 
 ## 当前工具
 
-- `tools/dev-desktop.cmd`：启动本地 desktop 开发版，内部调用 `npx pnpm@9.15.0 dev:desktop`。
-- `tools/dev-prototype.cmd`：启动本地 prototype 开发版，内部调用 `npx pnpm@9.15.0 dev:prototype`。
-- `tools/dev-web.cmd`：启动本地 web 开发版，内部调用 `npx pnpm@9.15.0 dev:web`。
+- `tools/dev-desktop.cmd`：启动本地 desktop 开发版；启动前会清理占用 `53172` 的残留监听进程，随后调用 `npx pnpm@9.15.0 dev:desktop`。
+- `tools/dev-prototype.cmd`：启动本地 prototype 开发版；启动前会清理占用 `53170` 的残留监听进程，随后调用 `npx pnpm@9.15.0 dev:prototype`。
+- `tools/dev-web.cmd`：启动本地 web 开发版；启动前会清理占用 `53171` 的残留监听进程，随后调用 `npx pnpm@9.15.0 dev:web`。
 - `tools/dev-status.cmd`：只读查看 desktop/prototype/web 开发端口是否已被占用，不启动或结束任何进程。
 - `tools/git-preflight.cmd`：只读按文档、工具、跨端 UI、Desktop、core/services/app/http 分组查看 Git 改动，识别菜单 lane / 共享层风险 / 多 lane 混改，并提示建议验证命令、高冲突文件和并行安全建议；后续 agent 开工前优先运行它。
 - `tools/git-commit-and-push.cmd`：全量 `git add -A`；有变更就提交，没有变更就跳过；随后 push 当前分支；不创建 release tag。

@@ -83,6 +83,7 @@ const vaultQuickFilters: Array<{ key: VaultQuickFilter; label: string }> = [
 
 export function VaultPageContentView(props: {
   items: AccountItemSummary[];
+  vaultItemCount?: number;
   highlightedItemKeys?: LoadoutTemplateLookup | null;
   highlightedLabel?: string;
   tags: VaultTags;
@@ -143,6 +144,8 @@ export function VaultPageContentView(props: {
   const slotFilters = listWorkspace.slotFilters;
   const filteredItems = listWorkspace.filteredItems;
   const filteredSections = listWorkspace.sections;
+  const vaultItemCount = props.vaultItemCount ?? props.items.length;
+  const filterableItemCount = props.items.length;
   const selectedItems = useMemo(
     () => filteredItems.filter((item) => selectedKeys.has(getVaultItemKey(item))),
     [filteredItems, selectedKeys]
@@ -352,20 +355,7 @@ export function VaultPageContentView(props: {
             <h2>仓库</h2>
             <p>先筛出候选，再用 DIM、目标规则、同名对比和本地标记判断保留或清理。</p>
           </div>
-          <div className="vault-count">
-            {filteredItems.length} / {props.items.length}
-          </div>
         </div>
-      ) : (
-        <div className="vault-count vault-count-inline">
-          {filteredItems.length} / {props.items.length}
-        </div>
-      )}
-      {props.highlightedItemKeys ? (
-        <p className="status-message status-ready">
-          {props.highlightedLabel ? `${props.highlightedLabel} / ` : ""}
-          方案命中 {loadoutMatchCount} 件
-        </p>
       ) : null}
       <ProductWorkspaceSplit className="vault-workbench-layout">
         <ProductWorkspaceContentStack className="vault-workbench-main">
@@ -384,6 +374,22 @@ export function VaultPageContentView(props: {
                   <span>{tab.description}</span>
                 </button>
               ))}
+            </div>
+            <div className="vault-command-status" aria-label="仓库数据摘要">
+              <span className="vault-inventory-pill">
+                <span>仓库已读取</span>
+                <strong>{vaultItemCount} 件</strong>
+              </span>
+              <span className="vault-filter-result-pill">
+                <span>当前筛选</span>
+                <strong>{filteredItems.length} / {filterableItemCount} 件</strong>
+              </span>
+              {props.highlightedItemKeys ? (
+                <span className="vault-loadout-match-chip">
+                  <span>{props.highlightedLabel ? `${props.highlightedLabel} / ` : ""}方案命中</span>
+                  <strong>{loadoutMatchCount} 件</strong>
+                </span>
+              ) : null}
             </div>
             <div className="vault-quick-filters" aria-label="仓库快速筛选">
               <span>快速筛选</span>

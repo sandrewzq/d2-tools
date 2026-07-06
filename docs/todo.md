@@ -1,6 +1,6 @@
 # 当前待办
 
-> 更新时间：2026-07-05
+> 更新时间：2026-07-06
 > 这是唯一当前待办目录。这里只保留当前健康度、未完成任务、近期关键 bug 和 backlog 入口；完整需求、切片、验收标准放在 `docs/work/backlog/`。
 
 ## 健康度
@@ -39,6 +39,8 @@
 | ✅ 已修复 | Bug #43 Release v0.0.11：测试断言未同步导致发布失败 | `Release Windows Package` 在 Test 步骤被导航和仓库样式断言拦截；导航期望已纳入“商人”，仓库样式测试改为检查 `packages/ui/src/vault/` 共享 View 和 Desktop adapter 接线 |
 | ✅ 已修复 | Bug #44 Release 脚本：失败重发时错误升 patch 版本 | `tools/git-auto-release.cmd` 先检查当前版本 GitHub Release；当前版本 Release 缺失时复用当前版本并更新同名 tag 重跑发布，只有当前版本已发布成功时才自动升到下一个 patch 版本 |
 | ✅ 已修复 | Bug #45 Release 脚本：`git diff --check` 打开 pager 卡住 | `tools/git-auto-release.cmd` 启动时禁用 Git pager，发布检查输出不再停在 `(END)` 等待手动按 `q` |
+| ✅ 已修复 | Bug #46 跨端 UI：首页泄漏参考说明文案 | 参考 HTML 的规范说明块改为 `d2-reference-only` 边界和 `data-reference-only="true"` 双标记；真实首页移除说明条，`workspace-layout.test.ts` 会抽取标记块文案并拦截其进入 `packages/ui` |
+| ✅ 已修复 | Bug #47 仓库页：容量数字和方案命中提示占据顶部导致布局混乱 | 仓库页不再把筛选结果当容量显示；仓库已读取数量来自 `account.vault.item_count`，筛选命中和方案命中改为命令栏小型状态 chip；AI 抽屉打开时优先展示筛选工作台，摘要下沉 |
 
 ## 当前任务目录
 
@@ -47,7 +49,7 @@
 | T1 | P1 | 🟡 待推进 | 小日向与 d2-skill 产品级能力 | [总纲](work/backlog/kohinata-d2-skill-product-architecture.md) / [攻略证据工作台](work/backlog/kohinata-guide-evidence-workbench.md) | 先做攻略解析、账号命中、perk 证据和配装草稿 |
 | T2 | P1 | 🟡 待推进 | 仓库推荐与清理工作台 | [仓库推荐与清理工作台](work/backlog/vault-recommendation-and-cleanup-workbench.md) | 统一 DIM wishlist、本地目标、同名对比和清理清单；推荐数据只支持用户导入，不默认内置未授权社区数据 |
 | T3 | P1 | 🟡 待推进 | 小日向日报、商人与掉落查询 | [日报、商人与掉落查询](work/backlog/daily-report-and-drops-assistant.md) | 商人页已接共享 UI、Desktop 入口、公共商人刷新、9 商人目录兜底和 Bungie 图标路径修复；下一步继续补活动、掉落来源状态和更完整的购买判断 |
-| T4 | P1 | 🟡 待推进 | 跨端 UI 壳、可交互原型与桌面视觉收口 | [跨端 UI 壳收口](work/backlog/cross-platform-ui-shell-refactor.md) / [桌面视觉与详情打磨](work/backlog/desktop-ui-account-detail-polish.md) | 当前主菜单页面状态：Prototype / Web / Desktop 都挂同一个 `ProductShellHost` 和 `@d2-tools/ui/styles.css`；首页、账号、仓库、配装、资料库、商人、设置均已接共享 UI 内容页或共享 View，Prototype / Web 只提供 mock 数据和 noop callback，Desktop 只提供真实 adapter；仓库完整 UI 已从 Desktop 私有组件迁入 `packages/ui`，目标规则和推荐数据导入也在共享内容页内，Desktop 旧路径仅保留兼容 re-export；全局 AI 抽屉已收口为共享 `AiAssistantPanelView`；后台任务状态已从顶部状态条和首页横幅移入共享右下角任务 Dock，设置页保留完整详情；产品样式已收口到 `packages/ui/src/styles.css`，主菜单统一通过 `ProductWorkspace*` 组件生成共享工作区骨架，账号、仓库、配装、资料库和商人入口不再把 `tool-panel` 作为页面根；视觉脚本已覆盖 Prototype / Web / Desktop、明暗主题、主菜单和设置分区。后续继续推进移动端壳、剩余领域文案 i18n、真实 Web provider 和更严格截图差异阈值 |
+| T4 | P1 | 🟡 待推进 | 跨端 UI 壳、可交互原型与桌面视觉收口 | [工作区骨架与样式收口](work/backlog/cross-platform-workspace-style-hardening.md) / [桌面视觉与详情打磨](work/backlog/desktop-ui-account-detail-polish.md) | 当前主菜单页面仍有页面容器、页面内容和首层面板 chrome 边界未完全收口的问题：部分 `ContentView` 仍包或间接包 `ProductWorkspacePage`，平台入口仍通过 `showInternalHeading={false}` 隐藏过渡标题，`app-panel` / `product-card` / `tool-panel` 与 `ProductWorkspace*` 仍有首层语义混用。下一步先按专项计划补测试红线，再让 `ProductShellHost` 成为唯一页面骨架所有者，随后把首页、仓库、配装、资料库、商人、账号和设置收口为纯内容层并跑 `visual:all`。 |
 | T5 | P3 | 🟡 待推进 | 活动复盘增强 | [活动复盘增强](work/backlog/activity-review-enhancement.md) | 后续接 PGCR、完成时间推算和副本级趋势 |
 | T6 | P4 | 🟡 待推进 | 桌面发布、更新与迁移体验 | [桌面发布体验](work/backlog/desktop-release-experience.md) | 继续验证真实 GitHub Release、更新提示、备份迁移和诊断体验 |
 

@@ -68,6 +68,7 @@ export function VaultPage(props: {
     <VaultPageView accountReady>
       <VaultPageContentView
         items={workspace.vaultItems}
+        vaultItemCount={workspace.vaultItemCount}
         highlightedItemKeys={workspace.activeLoadoutLookup}
         highlightedLabel={workspace.activeLoadoutName}
         tags={workspace.tags}

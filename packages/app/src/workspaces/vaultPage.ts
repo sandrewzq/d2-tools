@@ -9,6 +9,7 @@ import { loadFullAccountWorkspace } from "./accountDerived.js";
 
 export type VaultPageWorkspace = {
   vaultItems: AccountItemSummary[];
+  vaultItemCount: number;
   currentCharacterId: string;
   currentCharacterLabel: string;
   activeLoadoutLookup: {
@@ -36,6 +37,7 @@ export async function loadVaultPageWorkspace(
 
     return {
       vaultItems: account.vault.items,
+      vaultItemCount: account.vault.item_count,
       currentCharacterId: account.characters[0]?.character_id ?? "",
       currentCharacterLabel: account.characters[0]?.class_name ?? "",
       activeLoadoutLookup: null,
@@ -50,7 +52,7 @@ export async function loadVaultPageWorkspace(
 export function createVaultPageWorkspace(input: {
   account: {
     characters: Array<{ character_id: string; class_name: string }>;
-    vault: { items: AccountItemSummary[] };
+    vault: { item_count?: number; items: AccountItemSummary[] };
   };
   selectedCharacterId: string;
   activeLoadoutLookup: VaultPageWorkspace["activeLoadoutLookup"];
@@ -67,6 +69,7 @@ export function createVaultPageWorkspace(input: {
 
   return {
     vaultItems: input.account.vault.items,
+    vaultItemCount: input.account.vault.item_count ?? input.account.vault.items.length,
     currentCharacterId,
     currentCharacterLabel,
     activeLoadoutLookup: input.activeLoadoutLookup,

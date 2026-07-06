@@ -243,30 +243,37 @@
     .page {
       display: none;
       min-width: 0;
-      padding: 28px;
+      padding: 24px 28px;
       overflow: auto;
     }
 
     .page.active {
       display: grid;
-      gap: 16px;
-      align-content: start;
     }
 
-    .page-header {
+    .product-workspace-page {
+      gap: 10px;
+      align-content: start;
+      width: 100%;
+      color: var(--text-body);
+    }
+
+    .product-workspace-header {
       display: grid;
       grid-template-columns: minmax(0, 1fr) auto;
       gap: 16px;
       align-items: end;
+      min-height: 42px;
+      padding: 2px 0 0;
     }
 
-    .page-header h1 {
+    .product-workspace-header h1 {
       color: var(--text-title);
       font-size: 28px;
       line-height: 1.14;
     }
 
-    .page-header p {
+    .product-workspace-header p {
       max-width: 900px;
       margin-top: 8px;
       color: var(--text-muted);
@@ -293,8 +300,8 @@
       grid-template-columns: repeat(4, minmax(0, 1fr));
     }
 
-    .panel,
-    .toolbar,
+    .product-workspace-panel,
+    .product-command-bar,
     .row,
     .note {
       border: 1px solid var(--border);
@@ -302,19 +309,20 @@
       background: var(--surface);
     }
 
-    .panel {
+    .product-workspace-panel {
       display: grid;
       gap: 12px;
       padding: 16px;
+      box-shadow: 0 14px 30px rgb(46 62 80 / 0.06);
     }
 
-    .toolbar {
+    .product-command-bar {
       display: grid;
       grid-template-columns: auto minmax(0, 1fr) auto;
       gap: 12px;
       align-items: center;
       padding: 12px;
-      background: var(--surface);
+      background: var(--surface-soft);
     }
 
     .section-head {
@@ -407,10 +415,17 @@
         conic-gradient(from 30deg, #284456, #8a7442, #52606d, #284456);
     }
 
-    .split {
+    .product-split-workspace {
+      --workspace-side-width: 280px;
       display: grid;
-      grid-template-columns: 280px minmax(0, 1fr);
-      gap: 12px;
+      grid-template-columns: var(--workspace-side-width) minmax(0, 1fr);
+      gap: 16px;
+      align-items: start;
+      min-width: 0;
+    }
+
+    .product-side-rail {
+      min-width: 0;
     }
 
     .home-layout {
@@ -420,9 +435,7 @@
     }
 
     .setting-layout {
-      display: grid;
-      grid-template-columns: 230px minmax(0, 1fr);
-      gap: 12px;
+      --workspace-side-width: 230px;
     }
 
     .chip-row,
@@ -452,6 +465,57 @@
     .note {
       padding: 12px;
       background: var(--surface-soft);
+    }
+
+    .standard-bar {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .standard-bar > div {
+      display: grid;
+      gap: 4px;
+      min-width: 0;
+    }
+
+    .standard-bar strong {
+      color: var(--text-title);
+      font-size: 13px;
+    }
+
+    .standard-bar span {
+      color: var(--text-muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .task-dock {
+      position: fixed;
+      right: 22px;
+      bottom: 22px;
+      display: grid;
+      gap: 8px;
+      width: 320px;
+      pointer-events: none;
+    }
+
+    .task-dock button {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      gap: 8px;
+      align-items: center;
+      min-height: 38px;
+      border-radius: var(--radius-pill);
+      background: color-mix(in srgb, var(--surface) 92%, transparent);
+      box-shadow: 0 14px 30px rgb(46 62 80 / 0.12);
+      pointer-events: auto;
+    }
+
+    .task-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: var(--ready);
+      box-shadow: 0 0 0 5px var(--ready-bg);
     }
 
     input,
@@ -508,8 +572,8 @@
       </aside>
 
       <main>
-        <section class="page active" data-tab="home">
-          <div class="page-header">
+        <section class="page product-workspace-page active" data-tab="home">
+          <div class="product-workspace-header">
             <div>
               <h1>首页：今日工作台</h1>
               <p>首页只放玩家打开应用后马上要看的内容。今日信息放左侧，本周奖励和仄放右侧；账号、资料库、后台任务这类系统细节只在异常时出现。</p>
@@ -517,8 +581,30 @@
             <button type="button">刷新今日信息</button>
           </div>
 
+          <!-- d2-reference-only:start style-guidance -->
+          <div
+            class="product-command-bar standard-bar"
+            aria-label="共享样式权限"
+            data-reference-only="true"
+            data-reference-kind="style-guidance"
+          >
+            <div>
+              <strong>骨架层统一</strong>
+              <span>页面、标题、首层工具栏、分栏和主面板由 ProductWorkspace 控制。</span>
+            </div>
+            <div>
+              <strong>内容层私有</strong>
+              <span>菜单可以自定义装备卡、筛选、库存、perk 池和列表密度。</span>
+            </div>
+            <div>
+              <strong>禁止覆盖 chrome</strong>
+              <span>菜单 class 不重写 padding、border、radius、background、shadow。</span>
+            </div>
+          </div>
+          <!-- d2-reference-only:end -->
+
           <div class="home-layout">
-            <section class="panel">
+            <section class="product-workspace-panel">
               <div class="section-head">
                 <h2>本日更新</h2>
                 <p>每日重置、遗失区域、活动线索和账号待办。</p>
@@ -540,7 +626,7 @@
               </article>
             </section>
 
-            <section class="panel">
+            <section class="product-workspace-panel">
               <div class="section-head">
                 <h2>本周更新</h2>
                 <span class="badge warning">本周还有 9 项奖励值得刷</span>
@@ -563,8 +649,8 @@
           </div>
         </section>
 
-        <section class="page" data-tab="account">
-          <div class="page-header">
+        <section class="page product-workspace-page" data-tab="account">
+          <div class="product-workspace-header">
             <div>
               <h1>账号：角色和装备状态</h1>
               <p>账号页用来确认当前账号、角色装备、背包和材料状态。刷新账号、重新授权和后续切换账号都应该在这里完成。</p>
@@ -576,19 +662,19 @@
           </div>
 
           <div class="grid-3">
-            <article class="panel">
+            <article class="product-workspace-panel">
               <div class="section-head"><h2>账号状态</h2><span class="badge ready">21:21 更新</span></div>
               <div class="row"><div class="art"></div><div><strong>当前账号</strong><span>显示 Bungie 名称、会员 ID 和读取时间。</span></div><span class="badge ready">正常</span></div>
               <div class="row"><div class="art vendor"></div><div><strong>授权状态</strong><span>过期或读取失败时给出重新授权入口。</span></div><button type="button">处理</button></div>
             </article>
 
-            <article class="panel">
+            <article class="product-workspace-panel">
               <div class="section-head"><h2>角色概览</h2><span class="badge">3 个角色</span></div>
               <div class="row"><div class="art armor"></div><div><strong>术士</strong><span>光等、职业、当前装备和背包空间。</span></div><span class="badge ready">已读取</span></div>
               <div class="row"><div class="art armor"></div><div><strong>猎人</strong><span>异常只在该角色行内提示。</span></div><span class="badge warning">复查</span></div>
             </article>
 
-            <article class="panel">
+            <article class="product-workspace-panel">
               <div class="section-head"><h2>账号提醒</h2><span class="badge warning">只放待办</span></div>
               <article class="card warning"><strong>仓库接近上限</strong><p>引导跳转仓库页，不在账号页展开清理工具。</p></article>
               <article class="card"><strong>材料和货币</strong><p>只展示关键资源摘要，完整明细放详情区。</p></article>
@@ -605,8 +691,8 @@
           </div>
         </section>
 
-        <section class="page" data-tab="vault">
-          <div class="page-header">
+        <section class="page product-workspace-page" data-tab="vault">
+          <div class="product-workspace-header">
             <div>
               <h1>仓库：筛选、对比和清理</h1>
               <p>仓库页是高密度工具页。左侧负责筛选和目标规则，右侧负责装备列表、详情、同名对比和清理建议。</p>
@@ -614,7 +700,7 @@
             <button type="button">导入推荐数据</button>
           </div>
 
-          <div class="toolbar">
+          <div class="product-command-bar">
             <div class="chip-row">
               <span class="chip active">全部</span>
               <span class="chip">武器</span>
@@ -625,15 +711,15 @@
             <button type="button">搜索</button>
           </div>
 
-          <div class="split">
-            <aside class="panel">
+          <div class="product-split-workspace">
+            <aside class="product-side-rail product-workspace-panel">
               <div class="section-head"><h2>筛选</h2><span class="badge">侧栏</span></div>
               <article class="card"><strong>武器类型</strong><p>动能、能量、威能、异域、传说。</p></article>
               <article class="card"><strong>本地标签</strong><p>保留、复查、材料、配装使用中。</p></article>
               <article class="card warning"><strong>清理候选</strong><p>只提供建议，不自动删除。</p></article>
             </aside>
 
-            <section class="panel">
+            <section class="product-workspace-panel">
               <div class="section-head"><h2>装备列表</h2><span class="badge warning">同名 3 件</span></div>
               <div class="row"><div class="art"></div><div><strong>不胜即亡</strong><span>愿望单命中 / 动能武器 / 当前已装备。</span></div><span class="badge ready">保留</span></div>
               <div class="row"><div class="art"></div><div><strong>玫瑰</strong><span>同名对比中，显示推荐 perk 和来源。</span></div><button type="button">详情</button></div>
@@ -651,8 +737,8 @@
           </div>
         </section>
 
-        <section class="page" data-tab="loadouts">
-          <div class="page-header">
+        <section class="page product-workspace-page" data-tab="loadouts">
+          <div class="product-workspace-header">
             <div>
               <h1>配装：工作台和迁移计划</h1>
               <p>配装页展示本地模板、游戏内配装、装备差异、迁移计划和执行日志。重点是让玩家知道哪套能直接用，哪套需要补装备。</p>
@@ -661,14 +747,14 @@
           </div>
 
           <div class="grid-2">
-            <section class="panel">
+            <section class="product-workspace-panel">
               <div class="section-head"><h2>配装工作台</h2><span class="badge ready">可执行</span></div>
               <div class="row"><div class="art armor"></div><div><strong>虚空术士清怪</strong><span>本地模板 / 已匹配 7 件装备。</span></div><button type="button">查看</button></div>
               <div class="row"><div class="art armor"></div><div><strong>日落生存</strong><span>游戏内配装 / 缺少 1 件护甲。</span></div><span class="badge warning">待补</span></div>
               <div class="row"><div class="art armor"></div><div><strong>试炼压制</strong><span>模板可覆盖到 Bungie 配装栏。</span></div><button type="button">迁移</button></div>
             </section>
 
-            <section class="panel">
+            <section class="product-workspace-panel">
               <div class="section-head"><h2>迁移计划</h2><span class="badge warning">先预览</span></div>
               <article class="card"><strong>装备差异</strong><p>展示当前装备、目标装备、缺失项和替代建议。</p></article>
               <article class="card"><strong>写操作确认</strong><p>覆盖游戏内配装前必须清楚展示目标栏位和变更内容。</p></article>
@@ -686,8 +772,8 @@
           </div>
         </section>
 
-        <section class="page" data-tab="library">
-          <div class="page-header">
+        <section class="page product-workspace-page" data-tab="library">
+          <div class="product-workspace-header">
             <div>
               <h1>资料库：搜索、来源和版本状态</h1>
               <p>资料库页用于查装备、perk、来源和 Manifest 状态。版本检查和更新提示要清楚，但不能让页面看起来像设置页。</p>
@@ -695,7 +781,7 @@
             <button type="button">检查资料库版本</button>
           </div>
 
-          <div class="toolbar">
+          <div class="product-command-bar">
             <div class="chip-row">
               <span class="chip active">装备</span>
               <span class="chip">Perk</span>
@@ -705,15 +791,15 @@
             <button type="button">搜索</button>
           </div>
 
-          <div class="split">
-            <aside class="panel">
+          <div class="product-split-workspace">
+            <aside class="product-side-rail product-workspace-panel">
               <div class="section-head"><h2>查询条件</h2><span class="badge ready">资料库最新</span></div>
               <article class="card"><strong>语言</strong><p>界面语言和 Bungie 资料库语言可分开建模。</p></article>
               <article class="card"><strong>来源状态</strong><p>可确认来源、来源待补、活动轮换。</p></article>
               <article class="card warning"><strong>版本提醒</strong><p>只有过期或缺组件时才显示强提示。</p></article>
             </aside>
 
-            <section class="panel">
+            <section class="product-workspace-panel">
               <div class="section-head"><h2>查询结果</h2><span class="badge">12 条结果</span></div>
               <div class="row"><div class="art"></div><div><strong>Riskrunner</strong><span>异域冲锋枪 / 来源已确认 / 可查看 perk 池。</span></div><button type="button">详情</button></div>
               <div class="row"><div class="art vendor"></div><div><strong>萤火虫</strong><span>Perk / 关联装备 12 件 / 需要资料库索引。</span></div><span class="badge ready">已索引</span></div>
@@ -731,8 +817,8 @@
           </div>
         </section>
 
-        <section class="page" data-tab="vendors">
-          <div class="page-header">
+        <section class="page product-workspace-page" data-tab="vendors">
+          <div class="product-workspace-header">
             <div>
               <h1>商人：周商人和库存判断</h1>
               <p>商人页展示公共商人、仄 / Xur、库存、已拥有状态和推荐判断。首页只露出仄的摘要，完整商人信息放在这里。</p>
@@ -741,7 +827,7 @@
           </div>
 
           <div class="grid-2">
-            <section class="panel">
+            <section class="product-workspace-panel">
               <div class="section-head"><h2>周商人：仄 / Xur</h2><span class="badge warning">周末窗口</span></div>
               <div class="grid-3">
                 <article class="card ready"><div class="art"></div><strong>厄狼板</strong><p>载具 / 已拥有 / 可忽略。</p></article>
@@ -750,7 +836,7 @@
               </div>
             </section>
 
-            <section class="panel">
+            <section class="product-workspace-panel">
               <div class="section-head"><h2>公共商人</h2><span class="badge">按目录分组</span></div>
               <div class="row"><div class="art vendor"></div><div><strong>Bungie 公共里程碑</strong><span>国王的陨落、日落、试炼等公共轮换。</span></div><span class="badge ready">已确认</span></div>
               <div class="row"><div class="art vendor"></div><div><strong>双倍奖励</strong><span>没有确定前不猜测，只显示待确认。</span></div><span class="badge warning">待确认</span></div>
@@ -768,8 +854,8 @@
           </div>
         </section>
 
-        <section class="page" data-tab="settings">
-          <div class="page-header">
+        <section class="page product-workspace-page" data-tab="settings">
+          <div class="product-workspace-header">
             <div>
               <h1>设置：账号、资料库、AI、后台和版本</h1>
               <p>设置页负责低频能力和系统状态：账号授权、资料库更新、AI 配置、后台任务、备份迁移、应用版本和诊断导出。</p>
@@ -777,8 +863,8 @@
             <button type="button">复制诊断信息</button>
           </div>
 
-          <div class="setting-layout">
-            <aside class="panel">
+          <div class="product-split-workspace settings-layout">
+            <aside class="product-side-rail product-workspace-panel">
               <button type="button">账号</button>
               <button type="button">资料库</button>
               <button type="button">AI</button>
@@ -787,7 +873,7 @@
               <button type="button">应用版本</button>
             </aside>
 
-            <section class="panel">
+            <section class="product-workspace-panel">
               <div class="section-head"><h2>设置详情</h2><span class="badge ready">集中管理</span></div>
               <div class="row"><div class="art vendor"></div><div><strong>账号</strong><span>刷新账号、重新授权、未来切换账号。</span></div><button type="button">重新授权</button></div>
               <div class="row"><div class="art"></div><div><strong>资料库</strong><span>版本检查、后台更新、组件缺失修复。</span></div><button type="button">检查版本</button></div>
@@ -806,6 +892,14 @@
           </div>
         </section>
       </main>
+    </div>
+
+    <div class="task-dock" aria-label="后台任务轻提示">
+      <button type="button">
+        <span class="task-dot" aria-hidden="true"></span>
+        <strong>后台任务空闲</strong>
+        <span>详情进设置</span>
+      </button>
     </div>
   </div>
 

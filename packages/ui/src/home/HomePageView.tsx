@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { getLocaleCopy } from "../i18n/copy.js";
 import type { InterfaceLocale, HomeCopy } from "../i18n/types.js";
 import type { ShellPageKey } from "../shell/types.js";
-import { ProductWorkspacePage } from "../workspace/ProductWorkspace.js";
+import { ProductWorkspacePage, ProductWorkspacePanel } from "../workspace/ProductWorkspace.js";
 
 export type HomeTone = "neutral" | "ready" | "warning" | "error";
 
@@ -200,7 +200,7 @@ export function HomePageView(props: HomePageViewProps) {
       {viewProps.dailyMessage ? <p className="status-message status-ready">{viewProps.dailyMessage}</p> : null}
 
       <div className="home-briefing-grid">
-        <section className="app-panel app-panel-body home-daily-panel">
+        <ProductWorkspacePanel className="app-panel app-panel-body home-daily-panel">
           <div className="app-section-title">
             <div>
               <h2>{homeText(copy, "本日更新")}</h2>
@@ -232,9 +232,9 @@ export function HomePageView(props: HomePageViewProps) {
               ))}
             </div>
           </section>
-        </section>
+        </ProductWorkspacePanel>
 
-        <section className="app-panel app-panel-body home-weekly-panel">
+        <ProductWorkspacePanel className="app-panel app-panel-body home-weekly-panel">
           <div className="app-section-title">
             <div>
               <h2>{homeText(copy, "本周更新")}</h2>
@@ -296,7 +296,7 @@ export function HomePageView(props: HomePageViewProps) {
               ))}
             </aside>
           </div>
-        </section>
+        </ProductWorkspacePanel>
       </div>
     </ProductWorkspacePage>
   );

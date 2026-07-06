@@ -275,6 +275,7 @@ function PrototypeApp() {
           {activePage === "vault" ? (
             <VaultPageContentView
               items={vaultWorkspace.vaultItems}
+              vaultItemCount={vaultWorkspace.vaultItemCount}
               highlightedItemKeys={vaultWorkspace.activeLoadoutLookup}
               highlightedLabel={vaultWorkspace.activeLoadoutName}
               tags={vaultWorkspace.tags}

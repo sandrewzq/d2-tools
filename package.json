@@ -29,7 +29,7 @@
     "encoding:check": "node scripts/check-encoding.mjs",
     "docs:check": "node scripts/check-doc-policy.mjs && pnpm encoding:check",
     "test:fast": "vitest --run",
-    "test:docs": "vitest --run scripts/check-doc-policy.test.mjs scripts/check-encoding.test.mjs",
+    "test:docs": "vitest --run scripts/check-doc-policy.test.mjs scripts/check-encoding.test.mjs scripts/dev-tools.test.mjs",
     "test:ui": "node scripts/run-test-set.mjs ui",
     "test:desktop": "vitest --run packages/desktop/test",
     "test:desktop:account": "node scripts/run-test-set.mjs desktop-account",
