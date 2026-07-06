@@ -30,7 +30,7 @@ d2-tools-setup-<version>.exe
 %APPDATA%\d2-tools
 ```
 
-这里会保存你的本地配置、Bungie OAuth token、Manifest 缓存、仓库标签、备注和操作日志。安装或更新程序时，这些数据不会被自动删除。
+这里会保存你的本地配置、Bungie OAuth token、资料库缓存、仓库标签、备注和操作日志。安装或更新程序时，这些数据不会被自动删除。
 
 如果你以前用过旧项目名 `d2-service`，首次运行新版本时会自动把旧数据目录复制到 `%APPDATA%\d2-tools`。程序不会删除旧目录，确认新版本正常后再决定是否手动清理。
 
@@ -47,7 +47,7 @@ d2-tools-setup-<version>.exe
 2. 按 [Bungie 配置指南](docs/bungie-setup.md) 创建你自己的 Bungie Application。
 3. 打开 d2-tools，在首次引导或设置页填写 `API Key`、`Client ID`、`Client Secret`。
 4. 点击“登录 Bungie”，在浏览器里完成授权。
-5. 点击“初始化资料库”，下载 Destiny Manifest。
+5. 点击“初始化资料库”，下载 Destiny 2 资料库。
 6. 回到软件开始查看账号、仓库、资料库、今日 / 本周和 AI 助手。
 
 ## 核心功能
@@ -56,7 +56,7 @@ d2-tools-setup-<version>.exe
 - 仓库：按武器、护甲、装备、位置、子弹、评分、锁定状态和本地标签筛选
 - DIM 风格整理：同名装备对比、重复组建议、批量候选选择、清理清单、游戏内定位提示
 - 写操作：锁定、解锁、装备、仓库转移、一键装备最高光等
-- 资料库：按中文、英文、perk、别名搜索 Manifest 里的物品和 perk
+- 资料库：按中文、英文、perk、别名搜索装备、perk 和来源信息
 - 今日 / 本周：只展示 Bungie API 或本地资料库能确认的内容
 - AI 助手：支持 OpenAI Responses、OpenAI Chat Completions 和 Anthropic Messages 三种协议配置
 - 本地优先：配置、token、标签、备注和日志保存在本机

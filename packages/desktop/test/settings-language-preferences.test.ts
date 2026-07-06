@@ -34,6 +34,7 @@ describe("settings language preferences", () => {
     ].join("\n");
     const diagnosticsHook = read(join(desktopRoot, "src", "renderer", "features", "settings", "useDiagnosticsSettings.ts"));
     const homePage = read(join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"));
+    const productShell = read(join(desktopRoot, "src", "renderer", "pages", "useDesktopProductShell.tsx"));
 
     expect(settingsPage).toContain('type SettingsSectionKey = "overview" | "language"');
     expect(settingsPage).toContain('id="settings-language"');
@@ -43,9 +44,9 @@ describe("settings language preferences", () => {
     expect(settingsPage).toContain("onLanguagePreferencesChange");
     expect(diagnosticsHook).toContain("languagePreferences");
     expect(diagnosticsHook).toContain("saveLanguagePreferences");
-    expect(homePage).toContain("const productPreferences: ProductPreferences");
-    expect(homePage).toContain("preferences={productPreferences}");
-    expect(homePage).toContain("handleProductPreferencesChange");
-    expect(homePage).toContain("diagnostics.saveLanguagePreferences");
+    expect(productShell).toContain("const productPreferences: ProductPreferences");
+    expect(homePage).toContain("preferences={shell.productPreferences}");
+    expect(productShell).toContain("handleProductPreferencesChange");
+    expect(productShell).toContain("diagnostics.saveLanguagePreferences");
   });
 });

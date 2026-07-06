@@ -84,7 +84,7 @@ export function ItemDetailCommunity(props: ItemDetailCommunityProps) {
             <button type="button" className="secondary-button" onClick={props.onCopyWishlistInsight}>复制命中结论</button>
             {props.sameNameItems.length > 1 ? (
               <>
-                <button type="button" className="secondary-button" onClick={() => props.onOpenBestSameNameItem(sortedSameNameItems)}>打开最佳同名</button>
+                <button type="button" className="secondary-button" onClick={() => props.onOpenBestSameNameItem(sortedSameNameItems)}>打开推荐同名</button>
                 <button type="button" className="secondary-button" onClick={() => props.onCopySameNameLocator(props.sameNameItems)}>复制同名定位</button>
                 <button type="button" className="secondary-button" onClick={() => props.onApplySameNameCurrentKeepTags(props.sameNameItems, props.selectedItem.item_key, "keep-current-review-rest")}>当前保留，其余关注</button>
                 <button type="button" className="secondary-button" onClick={() => props.onApplySameNameCurrentKeepTags(props.sameNameItems, props.selectedItem.item_key, "keep-current-junk-rest")}>当前保留，其余可清理</button>

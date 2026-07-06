@@ -9,6 +9,10 @@ const desktopRoot = fileURLToPath(new URL("..", import.meta.url));
 describe("wishlist detail UI", () => {
   it("renders DIM-style badges and same-name quick actions in the item detail modal", () => {
     const itemDetailModal = readItemDetailSources(desktopRoot);
+    const itemDetailHook = readFileSync(
+      join(desktopRoot, "src", "renderer", "shared", "hooks", "useItemDetailWorkspace.ts"),
+      "utf8"
+    );
 
     expect(itemDetailModal).toContain("wishlist-detail-header");
     expect(itemDetailModal).toContain("wishlist-mode-badges");
@@ -24,6 +28,11 @@ describe("wishlist detail UI", () => {
     expect(itemDetailModal).toContain("buildSameNameSourceStats");
     expect(itemDetailModal).toContain("onOpenBestSameNameItem");
     expect(itemDetailModal).toContain("onApplySameNameCurrentKeepTags");
+    expect(itemDetailModal).toContain("打开推荐同名");
+    expect(itemDetailModal).not.toContain("打开最高分");
+    expect(itemDetailModal).not.toContain("打开最佳同名");
+    expect(itemDetailHook).toContain("已将推荐项保留");
+    expect(itemDetailHook).not.toContain("已将最高分保留");
     expect(itemDetailModal).toContain("\u540c\u540d\u5171 ");
     expect(itemDetailModal).toContain("\u5df2\u88c5\u5907 ");
     expect(itemDetailModal).toContain("\u80cc\u5305 ");
@@ -142,8 +151,8 @@ describe("wishlist detail UI", () => {
       join(desktopRoot, "src", "renderer", "pages", "HomePageItemDetailModal.tsx"),
       "utf8"
     );
-    const homeWriteHook = readFileSync(
-      join(desktopRoot, "src", "renderer", "pages", "useHomePageWriteActions.ts"),
+    const productWriteHook = readFileSync(
+      join(desktopRoot, "src", "renderer", "pages", "useDesktopProductWriteActions.ts"),
       "utf8"
     );
     const hook = readFileSync(
@@ -155,7 +164,7 @@ describe("wishlist detail UI", () => {
     expect(homePage).not.toContain("<ItemDetailModal");
     expect(homePageItemDetailModal).toContain("<ItemDetailModal");
     expect(homePageItemDetailModal).toContain("itemDetail.selectedItem ? (");
-    expect(homeWriteHook).toContain("useItemDetailWorkspace");
+    expect(productWriteHook).toContain("useItemDetailWorkspace");
     expect(homePage).not.toContain("function renderItemModal()");
     expect(homePage).not.toContain("itemDetailCacheRef");
     expect(homePage).not.toContain("itemDetailRequestKeyRef");

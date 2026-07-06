@@ -1,6 +1,7 @@
 import { fetchBungieJson } from "../bungie/client.js";
 import type { D2Config } from "../config/schema.js";
 import type { DefinitionComponentData } from "../manifest/definitions.js";
+import { activityModeValues, isPveActivityMode, isPvpActivityMode } from "./modes.js";
 import { buildActivityReview, type ActivityReview } from "./review.js";
 import { summarizeRaidAndDungeonActivities, type RaidDungeonActivityInput, type RaidDungeonSummary } from "./raidSummary.js";
 import { summarizeRecentActivities, type RecentActivityInput, type RecentActivitySummary } from "./recent.js";
@@ -17,6 +18,7 @@ export type BungieActivityHistoryEntry = {
   activityDetails?: {
     referenceId?: number;
     directorActivityHash?: number;
+    instanceId?: string;
     mode?: number;
     modes?: number[];
   };
@@ -52,13 +54,19 @@ export async function fetchCharacterActivityHistory(options: {
   membershipId: string;
   characterId: string;
   count?: number;
+  mode?: number;
   accessToken?: string;
   baseUrl?: string;
   fetchImpl?: typeof fetch;
 }): Promise<CharacterActivityHistoryResponse> {
   const count = options.count ?? 20;
+  const query = new URLSearchParams({ count: String(count) });
+  if (options.mode !== undefined) {
+    query.set("mode", String(options.mode));
+  }
+
   return fetchBungieJson<CharacterActivityHistoryResponse>(
-    `/Destiny2/${options.membershipType}/Account/${options.membershipId}/Character/${options.characterId}/Stats/Activities/?count=${count}`,
+    `/Destiny2/${options.membershipType}/Account/${options.membershipId}/Character/${options.characterId}/Stats/Activities/?${query.toString()}`,
     {
       apiKey: options.config.bungie.api_key,
       accessToken: options.accessToken,
@@ -72,20 +80,21 @@ export function summarizeActivityHistory(
   activities: BungieActivityHistoryEntry[],
   activityDefinitions: DefinitionComponentData = {}
 ): ActivityHistorySummary {
-  const recentInputs: RecentActivityInput[] = activities.map((activity) => ({
+  const sortedActivities = sortActivitiesByPeriod(activities);
+  const recentInputs: RecentActivityInput[] = sortedActivities.map((activity) => ({
     mode: classifyActivityMode(activity),
     completed: isCompleted(activity),
     period: activity.period
   }));
-  const raidInputs: RaidDungeonActivityInput[] = activities
+  const raidInputs: RaidDungeonActivityInput[] = sortedActivities
     .map((activity) => toRaidDungeonInput(activity, activityDefinitions))
     .filter((activity): activity is RaidDungeonActivityInput => Boolean(activity));
 
   return {
     recent: summarizeRecentActivities(recentInputs),
     raids: summarizeRaidAndDungeonActivities(raidInputs),
-    review: buildActivityReview(activities, activityDefinitions),
-    recent_items: activities.slice(0, 12).map((activity) => ({
+    review: buildActivityReview(sortedActivities, activityDefinitions),
+    recent_items: sortedActivities.slice(0, 12).map((activity) => ({
       activity_name: activityName(activity, activityDefinitions),
       mode: classifyActivityMode(activity),
       completed: isCompleted(activity),
@@ -112,18 +121,18 @@ function toRaidDungeonInput(
 }
 
 function classifyActivityMode(activity: BungieActivityHistoryEntry): "pve" | "pvp" | "other" {
-  const modes = activity.activityDetails?.modes ?? [];
-  if (modes.includes(5)) {
+  const modes = activityModeValues(activity);
+  if (modes.some(isPvpActivityMode)) {
     return "pvp";
   }
-  if (modes.includes(7) || modes.includes(4) || modes.includes(82)) {
+  if (modes.some(isPveActivityMode)) {
     return "pve";
   }
   return "other";
 }
 
 function classifyRaidDungeon(activity: BungieActivityHistoryEntry): "raid" | "dungeon" | null {
-  const modes = activity.activityDetails?.modes ?? [];
+  const modes = activityModeValues(activity);
   if (modes.includes(4)) {
     return "raid";
   }
@@ -144,4 +153,8 @@ function activityName(
   const referenceId = activity.activityDetails?.referenceId ?? activity.activityDetails?.directorActivityHash;
   const definition = referenceId ? activityDefinitions[String(referenceId)] : undefined;
   return definition?.displayProperties?.name?.trim() || `Activity ${referenceId ?? "Unknown"}`;
+}
+
+function sortActivitiesByPeriod(activities: BungieActivityHistoryEntry[]): BungieActivityHistoryEntry[] {
+  return [...activities].sort((left, right) => right.period.localeCompare(left.period));
 }

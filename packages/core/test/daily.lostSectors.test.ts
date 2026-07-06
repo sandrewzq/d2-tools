@@ -31,7 +31,7 @@ describe("lost sectors from manifest", () => {
     };
 
     const result = buildLostSectorData(defs, new Date("2026-06-25T18:00:00Z"));
-    expect(result.items).toHaveLength(1);
+    expect(result.items).toHaveLength(2);
     expect(result.items[0].title).toContain("遗失区域");
     expect(result.source).toBe("manifest-rotation");
   });
@@ -76,23 +76,35 @@ describe("lost sectors from manifest", () => {
     expect(result.message).toContain("未找到");
   });
 
-  it("rotates lost sectors deterministically by date", () => {
+  it("returns up to nine active world lost sectors instead of a single N-of-1 pick", () => {
     const defs: DefinitionComponentData = {
       ...makeActivityDef(1, "Sector A"),
       ...makeActivityDef(2, "Sector B"),
       ...makeActivityDef(3, "Sector C"),
+      ...makeActivityDef(4, "Sector D"),
+      ...makeActivityDef(5, "Sector E"),
+      ...makeActivityDef(6, "Sector F"),
+      ...makeActivityDef(7, "Sector G"),
+      ...makeActivityDef(8, "Sector H"),
+      ...makeActivityDef(9, "Sector I"),
+      ...makeActivityDef(10, "Sector J"),
     };
 
-    const day1 = buildLostSectorData(defs, new Date("2026-06-25T18:00:00Z"));
-    const day2 = buildLostSectorData(defs, new Date("2026-06-26T18:00:00Z"));
-    const day1Again = buildLostSectorData(defs, new Date("2026-06-25T18:00:00Z"));
+    const result = buildLostSectorData(defs, new Date("2026-07-06T18:00:00Z"));
 
-    // Same date returns same sector
-    expect(day1.items[0].title).toBe(day1Again.items[0].title);
-    // Different dates may differ (3-sector pool means some adjacent days share)
-    // After 3 days, should wrap around
-    const day4 = buildLostSectorData(defs, new Date("2026-06-28T18:00:00Z"));
-    expect(day1.items[0].title).toBe(day4.items[0].title);
+    expect(result.items).toHaveLength(9);
+    expect(result.items.map((item) => item.title)).toEqual([
+      "遗失区域：Sector A",
+      "遗失区域：Sector B",
+      "遗失区域：Sector C",
+      "遗失区域：Sector D",
+      "遗失区域：Sector E",
+      "遗失区域：Sector F",
+      "遗失区域：Sector G",
+      "遗失区域：Sector H",
+      "遗失区域：Sector I"
+    ]);
+    expect(result.message).toContain("今日展示 9 个");
   });
 
   it("includes daily rotation info in subtitle", () => {
@@ -102,7 +114,7 @@ describe("lost sectors from manifest", () => {
 
     const result = buildLostSectorData(defs, new Date("2026-06-25T18:00:00Z"));
     expect(result.items[0].subtitle).toContain("1840");
-    expect(result.items[0].subtitle).toContain("1 选 1");
-    expect(result.items[0].source).toBe("Manifest 轮换推算");
+    expect(result.items[0].subtitle).toContain("世界遗失区域");
+    expect(result.items[0].source).toBe("Manifest 世界遗失区域");
   });
 });

@@ -8,8 +8,8 @@ const desktopRoot = fileURLToPath(new URL("..", import.meta.url));
 
 describe("desktop Bungie login wiring", () => {
   it("wires the account card through preload to the main auth handler", () => {
-    const homePage = readFileSync(
-      join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"),
+    const productShell = readFileSync(
+      join(desktopRoot, "src", "renderer", "pages", "useDesktopProductShell.tsx"),
       "utf8"
     );
     const app = readFileSync(join(desktopRoot, "src", "renderer", "App.tsx"), "utf8");
@@ -25,9 +25,9 @@ describe("desktop Bungie login wiring", () => {
     const startupIpc = readFileSync(join(desktopRoot, "src", "main", "ipc", "startup.ts"), "utf8");
     const authSession = readFileSync(join(desktopRoot, "src", "main", "ipc", "authSession.ts"), "utf8");
 
-    expect(homePage).toContain("loginBungie()");
-    expect(homePage).toContain("loadAccountSummary()");
-    expect(homePage).toContain("props.onConfigure");
+    expect(productShell).toContain("loginBungie()");
+    expect(productShell).toContain("loadAccountSummary()");
+    expect(productShell).toContain("props.onConfigure");
     expect(app).toContain("setIsConfiguring(true)");
     expect(app).toContain("if (isConfiguring)");
     expect(app).not.toContain('state.nextStep === "bungie-config"');

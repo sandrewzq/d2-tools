@@ -25,7 +25,7 @@ type LoadoutLibraryBridge = {
   deleteTemplate: (id: string) => Promise<LoadoutTemplate[]>;
 };
 
-export function useHomePageWriteActions(input: {
+export function useDesktopProductWriteActions(input: {
   accountSummary: AccountSummary | null;
   diagnostics: DiagnosticsBridge;
   importedWishlist: DimWishlist | null;

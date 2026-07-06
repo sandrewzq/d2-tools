@@ -48,6 +48,7 @@ export type CharacterEquipmentGroup = {
 export type CharacterLoadoutSlotSummary = {
   index: number;
   name: string;
+  name_hash?: number;
   icon_hash?: number;
   color_hash?: number;
   item_count: number;

@@ -198,17 +198,19 @@ describe("library filters", () => {
   it("renders dedicated tabs and mode-specific filter copy in the library page", () => {
     const homePage = readFileSync("packages/desktop/src/renderer/pages/HomePage.tsx", "utf8");
     const homeRoutes = readFileSync("packages/desktop/src/renderer/pages/HomePageRoutes.tsx", "utf8");
+    const libraryProvider = readFileSync("packages/desktop/src/renderer/pages/providers/LibraryMenuProvider.tsx", "utf8");
     const libraryPage = readFileSync("packages/desktop/src/renderer/features/library/LibraryPage.tsx", "utf8");
     const libraryView = readFileSync("packages/ui/src/library/LibraryPageView.tsx", "utf8");
     const libraryContent = readFileSync("packages/ui/src/library/LibraryPageContentView.tsx", "utf8");
 
     expect(homePage).toContain("<HomePageRoutes");
     expect(homePage).not.toContain("<LibraryPage");
-    expect(homeRoutes).toContain("<LibraryPage");
+    expect(homeRoutes).toContain("<LibraryMenuProvider");
+    expect(libraryProvider).toContain("<LibraryPage");
     expect(homePage).not.toContain("function renderSearchPanel");
     expect(libraryPage).toContain("export function LibraryPage");
     expect(libraryPage).toContain("LibraryPageContentView");
-    expect(libraryContent).toContain("LibraryPageView");
+    expect(libraryContent).toContain("ProductWorkspaceSplit");
     expect(libraryPage).toContain("libraryViewMode");
     expect(libraryContent).toContain('value="equipment"');
     expect(libraryContent).toContain('value="perks"');
@@ -250,5 +252,17 @@ describe("library filters", () => {
     expect(libraryContent).toContain("等轮换");
     expect(libraryContent).toContain("已下架或待确认");
     expect(libraryContent).toContain("library-weapon-card");
+  });
+
+  it("passes plug set definitions into perk search related item lookup", () => {
+    const libraryIpc = readFileSync("packages/desktop/src/main/ipc/library.ts", "utf8");
+    const perkHandler = libraryIpc.slice(
+      libraryIpc.indexOf('ipcMain.handle("items:perks:search"'),
+      libraryIpc.indexOf('ipcMain.handle("items:live-availability"')
+    );
+
+    expect(perkHandler).toContain("DestinyPlugSetDefinition");
+    expect(perkHandler).toContain("plugSetDefinitions");
+    expect(perkHandler).toContain("plugSetDefinitions: plugSetDefinitions ?? undefined");
   });
 });

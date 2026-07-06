@@ -52,6 +52,10 @@ export function registerLibraryIpcHandlers(): void {
       config.data.data_dir,
       "DestinyInventoryItemDefinition"
     );
+    const plugSetDefinitions = loadDefinitionComponent(
+      config.data.data_dir,
+      "DestinyPlugSetDefinition"
+    );
 
     if (!perkDefinitions) {
       throw new Error("请先初始化资料库");
@@ -60,6 +64,7 @@ export function registerLibraryIpcHandlers(): void {
     return searchPerkDefinitions(perkDefinitions, query, {
       limit: 20,
       itemDefinitions: itemDefinitions ?? undefined,
+      plugSetDefinitions: plugSetDefinitions ?? undefined,
       aliases: loadItemAliases(config.data.data_dir)
     });
   });

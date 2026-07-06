@@ -13,7 +13,7 @@ describe("local target rules wiring", () => {
     const ipc = readFileSync(join(desktopRoot, "src", "main", "ipc", "targets.ts"), "utf8");
     const ipcRegister = readFileSync(join(desktopRoot, "src", "main", "ipc.ts"), "utf8");
     const apiContracts = readRendererApiContracts(desktopRoot);
-    const homePage = readFileSync(join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"), "utf8");
+    const productShell = readFileSync(join(desktopRoot, "src", "renderer", "pages", "useDesktopProductShell.tsx"), "utf8");
     const accountHook = readFileSync(
       join(desktopRoot, "src", "renderer", "features", "account", "useAccountWorkspace.ts"),
       "utf8"
@@ -32,9 +32,9 @@ describe("local target rules wiring", () => {
     expect(apiContracts).toContain("getLocalTargetRules");
     expect(apiContracts).toContain("saveLocalTargetRules");
     expect(apiContracts).toContain("clearLocalTargetRules");
-    expect(homePage).toContain("localTargetRules");
-    expect(homePage).not.toContain("loadPersistedTargetRules");
-    expect(homePage).not.toContain("api.getLocalTargetRules()");
+    expect(productShell).toContain("localTargetRules");
+    expect(productShell).not.toContain("loadPersistedTargetRules");
+    expect(productShell).not.toContain("api.getLocalTargetRules()");
     expect(accountHook).toContain("loadAccountWorkspace(services)");
     expect(accountHook).toContain("targetRules");
     expect(vaultContent).toContain("VaultTargetRulesPanel");

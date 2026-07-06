@@ -11,6 +11,7 @@ export * from "./actions/transferQueue.js";
 export * from "./actions/farmingMode.js";
 export * from "./activities/history.js";
 export * from "./activities/recent.js";
+export * from "./activities/modes.js";
 export * from "./activities/raidSummary.js";
 export * from "./items/detail.js";
 export * from "./account/summary.js";

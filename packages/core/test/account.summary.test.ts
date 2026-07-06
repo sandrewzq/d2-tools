@@ -386,6 +386,7 @@ describe("account summary", () => {
       {
         index: 0,
         name: "日落速刷",
+        name_hash: 9001,
         icon_hash: 777,
         color_hash: 888,
         item_count: 2,

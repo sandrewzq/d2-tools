@@ -33,6 +33,9 @@ export type BungieLoadoutActionOptions = {
   membershipType: number;
   characterId: string;
   loadoutIndex: number;
+  nameHash?: number;
+  iconHash?: number;
+  colorHash?: number;
   baseUrl?: string;
   fetchImpl?: typeof fetch;
 };
@@ -107,9 +110,9 @@ export async function snapshotLoadout(options: BungieLoadoutActionOptions): Prom
   await postBungieJson<unknown>(
     "/Destiny2/Actions/Loadouts/SnapshotLoadout/",
     {
-      colorHash: null,
-      iconHash: null,
-      nameHash: null,
+      colorHash: options.colorHash ?? null,
+      iconHash: options.iconHash ?? null,
+      nameHash: options.nameHash ?? null,
       characterId: options.characterId,
       membershipType: options.membershipType,
       loadoutIndex: options.loadoutIndex

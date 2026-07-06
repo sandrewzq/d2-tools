@@ -1,5 +1,6 @@
 import type { DefinitionComponentData } from "../manifest/definitions.js";
 import type { BungieActivityHistoryEntry, BungieActivityStat } from "./history.js";
+import { activityModeValues } from "./modes.js";
 
 /**
  * Activity review enhancement — better grouping, timeline, and quick-review views.
@@ -43,14 +44,47 @@ export type ActivityReview = {
 /** Bungie activity mode → our bucket mapping. */
 const MODE_BUCKET_MAP: Record<number, ActivityTypeBucket> = {
   4: "raid",       // Raid
+  64: "dungeon",   // Dungeon
   82: "dungeon",   // Dungeon
+  3: "strike",     // Strike
+  16: "strike",    // Nightfall
+  17: "strike",    // Heroic Nightfall
   18: "strike",    // Strike (Nightfall)
   46: "strike",    // Strike (Normal)
   5: "crucible",   // PvP
+  10: "crucible",  // Control
+  12: "crucible",  // Clash
+  19: "crucible",  // Iron Banner
+  25: "crucible",  // Mayhem
+  31: "crucible",  // Supremacy
+  37: "crucible",  // Survival
+  38: "crucible",  // Countdown
+  39: "crucible",  // Trials of the Nine
+  43: "crucible",  // Iron Banner Control
+  48: "crucible",  // Rumble
+  65: "crucible",  // Team Scorched
+  71: "crucible",  // Clash Quickplay
+  72: "crucible",  // Clash Competitive
+  73: "crucible",  // Control Quickplay
+  74: "crucible",  // Control Competitive
+  80: "crucible",  // Elimination
+  81: "crucible",  // Momentum
+  84: "crucible",  // Trials of Osiris
+  88: "crucible",  // Rift
+  89: "crucible",  // Zone Control
+  90: "crucible",  // Iron Banner Rift
+  91: "crucible",  // Iron Banner Zone Control
+  92: "crucible",  // Relic
   63: "gambit",    // Gambit
-  73: "seasonal",  // Seasonal
-  84: "seasonal",  // Seasonal (Onslaught)
-  74: "lost_sector", // Lost Sector (activity mode)
+  75: "gambit",    // Gambit Prime
+  76: "seasonal",  // Reckoning
+  77: "seasonal",  // Menagerie
+  78: "seasonal",  // Vex Offensive
+  79: "seasonal",  // Nightmare Hunt
+  83: "seasonal",  // Sundial
+  85: "seasonal",  // Dares
+  86: "seasonal",  // Offensive
+  87: "lost_sector", // Lost Sector
 };
 
 const BUCKET_LABELS: Record<ActivityTypeBucket, string> = {
@@ -105,7 +139,7 @@ function toTimelineEntry(
 }
 
 function classifyActivityBucket(activity: BungieActivityHistoryEntry): ActivityTypeBucket {
-  const modes = activity.activityDetails?.modes ?? [];
+  const modes = activityModeValues(activity);
   for (const mode of modes) {
     const bucket = MODE_BUCKET_MAP[mode];
     if (bucket) return bucket;

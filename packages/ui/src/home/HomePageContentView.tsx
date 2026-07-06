@@ -109,6 +109,8 @@ type HomeSummaryCard = {
   message: string;
   tone: HomeTone;
   badge: string;
+  items?: HomeDailyItem[];
+  overflowLabel?: string;
 };
 
 export type HomePageViewProps = {
@@ -183,6 +185,8 @@ export function HomePageContentView(props: HomePageViewProps) {
   const xurSpotlight = buildXurSpotlight(viewProps.dailySummary?.sources.vendors, copy);
   const todayCards = buildTodayConfirmationCards(viewProps.dailySummary, copy);
   const accountRows = buildAccountRows(viewProps, copy);
+  const dailyResetStatus = formatResetStatus(viewProps.dailySummary?.daily_reset, copy.labels.dailyReset, homeText(copy, "每日重置、遗失区域、活动线索和账号待办"));
+  const weeklyResetStatus = formatWeeklyResetStatus(viewProps.dailySummary, copy);
 
   return (
     <>
@@ -194,7 +198,7 @@ export function HomePageContentView(props: HomePageViewProps) {
           <div className="app-section-title">
             <div>
               <h2>{homeText(copy, "本日更新")}</h2>
-              <span>{homeText(copy, "每日重置、遗失区域、活动线索和账号待办")}</span>
+              <span>{dailyResetStatus}</span>
             </div>
             <button type="button" className="secondary-button" disabled={!viewProps.dailySummary} onClick={viewProps.onCopyDailySummary}>
               {copy.actions.copyDaily}
@@ -228,7 +232,7 @@ export function HomePageContentView(props: HomePageViewProps) {
           <div className="app-section-title">
             <div>
               <h2>{homeText(copy, "本周更新")}</h2>
-              <span>{homeText(copy, "强力、巅峰、轮换活动和周末窗口")}</span>
+              <span>{weeklyResetStatus}</span>
             </div>
             <span className={toneClass("warning", "app-chip")}>{copy.sections.weeklyRewards.badge}</span>
           </div>
@@ -544,16 +548,40 @@ function buildTodayConfirmationCards(dailySummary: HomeDailySummary | null, copy
   }
 
   return [
-    {
-      key: "daily-reset",
-      title: copy.labels.dailyReset,
-      message: dailySummary.daily_reset.time_remaining_label,
-      tone: "ready",
-      badge: copy.labels.confirmed
-    },
-    sourceSummaryCard("lost-sector", homeText(copy, "遗失区域"), dailySummary.sources.lost_sector, copy),
+    ...sourceSummaryCards("lost-sector", homeText(copy, "遗失区域"), dailySummary.sources.lost_sector, copy),
     sourceSummaryCard("rotations", copy.intel.activityIntel, dailySummary.sources.rotations, copy)
   ];
+}
+
+function formatWeeklyResetStatus(dailySummary: HomeDailySummary | null, copy: HomeCopy): string {
+  return formatResetStatus(dailySummary?.weekly_reset, copy.labels.weeklyReset, homeText(copy, "强力、巅峰、轮换活动和周末窗口"));
+}
+
+function formatResetStatus(
+  reset: { label: string; time_remaining_label: string } | undefined,
+  label: string,
+  fallback: string
+): string {
+  if (!reset) {
+    return fallback;
+  }
+
+  const remaining = compactResetCountdown(reset.time_remaining_label, label);
+  if (remaining) {
+    return `${label} · ${remaining}`;
+  }
+  return reset.label || label;
+}
+
+function compactResetCountdown(value: string, label: string): string {
+  return value
+    .trim()
+    .replace(new RegExp(`^距离${escapeRegExp(label)}还有\\s*`, "i"), "")
+    .replace(/^距离(?:每日|每周)重置还有\s*/i, "");
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function buildAccountRows(props: {
@@ -610,6 +638,35 @@ function sourceSummaryCard(key: string, fallbackTitle: string, source: HomeDaily
   };
 }
 
+function sourceSummaryCards(keyPrefix: string, fallbackTitle: string, source: HomeDailySource, copy: HomeCopy): HomeSummaryCard[] {
+  const items = source.items ?? [];
+  if (!items.length) {
+    return [sourceSummaryCard(keyPrefix, fallbackTitle, source, copy)];
+  }
+
+  if (keyPrefix === "lost-sector" && items.length > 1) {
+    const visibleItems = items.slice(0, 3);
+    const hiddenCount = Math.max(0, items.length - visibleItems.length);
+    return [{
+      key: keyPrefix,
+      title: homeText(copy, "今日世界遗失区域"),
+      message: `${items.length} 个区域 · 每个目的地每日 1 个`,
+      tone: source.status === "ready" ? "ready" : "warning",
+      badge: source.status === "ready" ? copy.labels.confirmed : copy.labels.pending,
+      items: visibleItems,
+      overflowLabel: hiddenCount > 0 ? `另有 ${hiddenCount} 个区域` : undefined
+    }];
+  }
+
+  return items.map((item, index) => ({
+    key: `${keyPrefix}-${index}`,
+    title: item.title || fallbackTitle,
+    message: describeDailyItem(item),
+    tone: source.status === "ready" ? "ready" : "warning",
+    badge: source.status === "ready" ? copy.labels.confirmed : copy.labels.pending
+  }));
+}
+
 function describeDailyItem(item: HomeDailyItem): string {
   return [item.subtitle, item.description, item.source].filter(Boolean).join("，") || item.title;
 }
@@ -636,6 +693,14 @@ function renderHomeSummaryCard(card: HomeSummaryCard) {
     <article className="app-metric home-summary-card" data-tone={card.tone} key={card.key}>
       <strong>{card.title}</strong>
       <span>{card.message}</span>
+      {card.items?.length ? (
+        <div className="home-summary-list">
+          {card.items.map((item) => (
+            <span key={item.title}>{item.title}</span>
+          ))}
+          {card.overflowLabel ? <small>{card.overflowLabel}</small> : null}
+        </div>
+      ) : null}
       <span className={toneClass(card.tone, "app-chip")}>{card.badge}</span>
     </article>
   );

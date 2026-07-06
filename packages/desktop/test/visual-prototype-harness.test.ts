@@ -122,6 +122,7 @@ describe("visual prototype harness", () => {
   it("lets Electron capture the real app with computed styles for visual review", () => {
     const mainProcess = read("packages/desktop/src/main/main.ts");
     const homePage = read("packages/desktop/src/renderer/pages/HomePage.tsx");
+    const productShell = read("packages/desktop/src/renderer/pages/useDesktopProductShell.tsx");
 
     expect(mainProcess).toContain("D2_VISUAL_CAPTURE_DIR");
     expect(mainProcess).toContain("D2_VISUAL_CAPTURE_PAGE");
@@ -139,8 +140,9 @@ describe("visual prototype harness", () => {
     expect(mainProcess).toContain("home-weekly-dashboard");
     expect(mainProcess).toContain("computedStyles");
     expect(mainProcess).toContain("app.quit()");
-    expect(homePage).toContain("VITE_D2_VISUAL_PAGE");
-    expect(homePage).toContain("isShellPageKey");
+    expect(homePage).toContain("ProductShellHost");
+    expect(productShell).toContain("VITE_D2_VISUAL_PAGE");
+    expect(productShell).toContain("isShellPageKey");
   });
 
   it("keeps home prototype classes isolated from global status overrides", () => {
@@ -273,6 +275,7 @@ describe("visual prototype harness", () => {
     const appShell = read("packages/ui/src/shell/AppShell.tsx");
     const productHost = read("packages/ui/src/product/ProductShellHost.tsx");
     const desktopHomePage = read("packages/desktop/src/renderer/pages/HomePage.tsx");
+    const productShell = read("packages/desktop/src/renderer/pages/useDesktopProductShell.tsx");
 
     expect(appShell).toContain("visibleShellStatus.map");
     expect(appShell).toContain("background-task-dock");
@@ -283,30 +286,31 @@ describe("visual prototype harness", () => {
     expect(productHost).toContain("onNavigate={changePage}");
     expect(productHost).toContain("backgroundTasks={props.backgroundTasks}");
     expect(desktopHomePage).toContain("ProductShellHost");
-    expect(desktopHomePage).toContain("window.d2.openExternal");
-    expect(desktopHomePage).toContain("window.d2?.setWindowColorMode");
+    expect(productShell).toContain("window.d2.openExternal");
+    expect(productShell).toContain("window.d2?.setWindowColorMode");
     expect(desktopHomePage).not.toContain("<ShellLayout");
     expect(existsSync(join(repoRoot, "packages", "desktop", "src", "renderer", "components", "ShellLayout.tsx"))).toBe(false);
   });
 
   it("retires the static HTML prototype from the active visual harness", () => {
-    const readme = read("docs/work/references/README.md");
+    const developmentGuide = read("docs/development.md");
     const script = read("scripts/visual-home-check.mjs");
 
-    expect(readme).toContain("活跃可交互原型");
-    expect(readme).toContain("packages/prototype");
-    expect(readme).not.toContain("desktop-ui-redesign-prototype.html");
+    expect(developmentGuide).toContain("React prototype");
+    expect(developmentGuide).toContain("packages/prototype");
+    expect(developmentGuide).toContain("静态 HTML 可以保留规范说明");
+    expect(developmentGuide).toContain("不得迁入 `packages/ui`");
     expect(script).not.toContain("referenceHtml");
     expect(script).not.toContain("prepareReferenceHtml");
   });
 
   it("keeps the desktop shell status bar aligned with the prototype", () => {
-    const homePage = read("packages/desktop/src/renderer/pages/HomePage.tsx");
+    const productShell = read("packages/desktop/src/renderer/pages/useDesktopProductShell.tsx");
     const appShell = read("packages/ui/src/shell/AppShell.tsx");
     const styles = readProductStyles();
-    const shellStatusBuilder = homePage.slice(
-      homePage.indexOf("function buildShellStatus"),
-      homePage.indexOf("function formatAccountShellStatus")
+    const shellStatusBuilder = productShell.slice(
+      productShell.indexOf("function buildShellStatus"),
+      productShell.indexOf("function formatAccountShellStatus")
     );
 
     expect(shellStatusBuilder).toContain('label: "Bungie"');
@@ -333,7 +337,7 @@ describe("visual prototype harness", () => {
     const preload = read("packages/desktop/src/preload/preload.ts");
     const configIpc = read("packages/desktop/src/main/ipc/config.ts");
     const settingsHook = read("packages/desktop/src/renderer/features/settings/useDiagnosticsSettings.ts");
-    const homePage = read("packages/desktop/src/renderer/pages/HomePage.tsx");
+    const productShell = read("packages/desktop/src/renderer/pages/useDesktopProductShell.tsx");
 
     expect(configApi).toContain("exportConfig(): Promise<ConfigBackupResult>");
     expect(configApi).toContain("importConfig(): Promise<ConfigBackupResult>");
@@ -347,9 +351,9 @@ describe("visual prototype harness", () => {
     expect(settingsHook).toContain("exportConfig");
     expect(settingsHook).toContain("importConfig");
     expect(settingsHook).toContain("clearCache");
-    expect(homePage).toContain("onExportConfig: () => void diagnostics.exportConfig()");
-    expect(homePage).toContain("onImportConfig: () => void diagnostics.importConfig()");
-    expect(homePage).toContain("onClearCache: () => void diagnostics.clearCache()");
+    expect(productShell).toContain("onExportConfig: () => void diagnostics.exportConfig()");
+    expect(productShell).toContain("onImportConfig: () => void diagnostics.importConfig()");
+    expect(productShell).toContain("onClearCache: () => void diagnostics.clearCache()");
   });
 
   it("maps prototype tokens into both light and dark desktop modes", () => {

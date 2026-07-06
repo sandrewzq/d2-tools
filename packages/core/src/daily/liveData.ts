@@ -190,43 +190,56 @@ function mapMilestones(
       .map((quest) => definitionName(definitions.items, quest.questItemHash))
       .filter(Boolean) as string[];
     const names = [...activityNames, ...questNames];
-    const isLostSector = containsLostSector([milestoneName, ...names].filter(Boolean).join(" "));
+    const displayedNames = names.slice(0, 6);
+    const milestoneIsLostSector = containsLostSector(milestoneName ?? "");
+    const hasExplicitLostSectorName = displayedNames.some(containsLostSector);
+    const nonLostSectorNames: string[] = [];
 
     if (!milestoneName && !names.length) {
       continue;
     }
 
-    if (names.length) {
-      for (const name of names.slice(0, 6)) {
-        const prefix = isLostSector ? "遗失区域" : milestoneName ?? "活动轮换";
+    if (displayedNames.length) {
+      for (const name of displayedNames) {
+        const itemIsLostSector = containsLostSector(name) || (milestoneIsLostSector && !hasExplicitLostSectorName);
+        const prefix = itemIsLostSector ? "遗失区域" : milestoneName ?? "活动轮换";
         const item = {
           title: formatMilestoneItemTitle(prefix, name),
           subtitle: "Bungie 公共里程碑",
           description: milestoneDescription,
           source: "Bungie"
         };
-        if (isLostSector) {
+        if (itemIsLostSector) {
           lostSector.push(item);
         } else {
+          nonLostSectorNames.push(name);
           rotations.push(item);
         }
       }
-    } else if (!isLostSector && milestoneName) {
-      rotations.push({
+    } else if (milestoneName) {
+      const item = {
         title: milestoneName,
         subtitle: "Bungie 公共里程碑",
         description: milestoneDescription,
         source: "Bungie"
-      });
+      };
+      if (milestoneIsLostSector) {
+        lostSector.push(item);
+      } else {
+        rotations.push(item);
+      }
     }
 
-    if (!isLostSector && (milestoneName || names.length)) {
+    const shouldIncludeWeeklyReport = displayedNames.length
+      ? nonLostSectorNames.length > 0
+      : Boolean(milestoneName && !milestoneIsLostSector);
+    if (shouldIncludeWeeklyReport) {
       const title = milestoneName
         ? `Bungie 公共里程碑：${milestoneName}`
-        : `Bungie 公共活动：${names[0]}`;
+        : `Bungie 公共活动：${nonLostSectorNames[0]}`;
       weeklyReport.push({
         title,
-        subtitle: `非完整掉落地图；${names.slice(0, 3).join(" / ") || "Bungie 公共里程碑"}`,
+        subtitle: `非完整掉落地图；${nonLostSectorNames.slice(0, 3).join(" / ") || "Bungie 公共里程碑"}`,
         description: milestoneDescription,
         source: "Bungie"
       });
@@ -250,10 +263,9 @@ function mapVendors(
     mapVendorResponse(response, definitions, "Bungie 登录角色商人")
   );
   const mapped = [...publicItems, ...characterItems];
-  const keyVendors = mapped.filter((item) => isKeyVendor(item.title));
-  return uniqueByTitle(keyVendors.length ? keyVendors : mapped)
-    .sort((left, right) => vendorSortRank(left.title) - vendorSortRank(right.title))
-    .slice(0, 10);
+  return uniqueByVendorIdentity(mapped)
+    .sort((left, right) => vendorSortRank(left) - vendorSortRank(right))
+    .slice(0, 20);
 }
 
 function mapVendorResponse(
@@ -265,15 +277,13 @@ function mapVendorResponse(
   const sales = response?.sales?.data ?? {};
   const mapped = Object.entries(vendors).flatMap(([vendorKey, vendor]) => {
     const vendorHash = vendor.vendorHash ?? Number(vendorKey);
-    const vendorName = canonicalVendorName(vendorHash, definitionName(definitions.vendors, vendorHash));
-    if (!vendorName) {
-      return [];
-    }
+    const vendorName = definitionName(definitions.vendors, vendorHash) ?? "等待资料库解析的商人";
+    const vendorIconUrl = definitionIcon(definitions.vendors, vendorHash);
     const saleItems = collectPublicSales(sales[vendorKey])
       .map((sale) => saleItemSummaryItem(definitions.items, sale, sourceLabel))
       .filter(Boolean) as DailySummaryItem[];
 
-    return [buildVendorItem(vendorHash, vendorName, saleItems, sourceLabel)];
+    return [buildVendorItem(vendorHash, vendorName, vendorIconUrl, saleItems, sourceLabel)];
   });
 
   return mapped;
@@ -282,83 +292,45 @@ function mapVendorResponse(
 function buildVendorItem(
   vendorHash: number,
   name: string,
+  iconUrl: string | undefined,
   saleItems: DailySummaryItem[],
   sourceLabel: "Bungie 公共商人" | "Bungie 登录角色商人"
 ): DailySummaryItem {
-  const vendorLabel = vendorRoleLabel(name, vendorHash);
+  const vendorLabel = vendorRoleLabel(vendorHash);
   const salePreview = saleItems
     .map((item) => saleItemLabelFromSummary(item))
     .slice(0, 8)
     .join(" / ") || "库存名称暂不可读";
 
-  return {
+  const item: DailySummaryItem = {
     title: name,
     subtitle: vendorLabel,
     description: salePreview,
     source: sourceLabel,
+    vendorHash,
+    iconUrl,
     items: saleItems.slice(0, 12)
   };
+  return item;
 }
 
-/** Known vendor hashes for key daily/weekly vendors. */
-const KEY_VENDOR_HASHES: Record<number, string> = {
-  2190858386: "老九",        // Xur
-  672118013: "枪匠",         // Banshee-44
-  3500617033: "艾达-1",     // Ada-1
-  3902439767: "圣人-14",    // Saint-14
-  2255782930: "拉乎尔大师", // Master Rahool
-};
-
 const KEY_VENDOR_ORDER = [
-  "老九",
-  "枪匠",
-  "艾达-1",
-  "圣人-14",
-  "拉乎尔大师"
+  2190858386,
+  672118013,
+  3500617033,
+  3902439767,
+  2255782930
 ];
 
-function vendorSortRank(name: string): number {
-  const index = KEY_VENDOR_ORDER.findIndex((label) => name.includes(label) || label.includes(name));
+function vendorSortRank(item: DailySummaryItem): number {
+  const index = KEY_VENDOR_ORDER.findIndex((hash) => hash === item.vendorHash);
   return index >= 0 ? index : KEY_VENDOR_ORDER.length;
 }
 
-function vendorRoleLabel(name: string, vendorHash: number): string {
-  if (vendorHash === 2190858386) return "异域商人 · 周五至周二出现";
-  if (vendorHash === 672118013) return "枪匠 · 每日模组刷新";
-  if (vendorHash === 3500617033) return "护甲合成 · 每日模组刷新";
-  if (vendorHash === 3902439767) return "试炼商人 · 周末出现";
-  if (vendorHash === 2255782930) return "密码学家 · 记忆水晶兑换";
+function vendorRoleLabel(vendorHash: number): string {
+  if (vendorHash === 2190858386) return "周末商人库存";
+  if (KEY_VENDOR_ORDER.includes(vendorHash)) return "登录角色或公共商人库存";
   return "公共商人库存";
-}
-
-function canonicalVendorName(vendorHash: number, name: string | undefined): string | undefined {
-  return KEY_VENDOR_HASHES[vendorHash] ?? canonicalVendorNameFromText(name);
-}
-
-function canonicalVendorNameFromText(name: string | undefined): string | undefined {
-  if (!name) return undefined;
-  const lower = name.toLocaleLowerCase();
-  if (name.includes("老九") || name.includes("仄") || lower.includes("xur") || lower.includes("xûr")) return "老九";
-  if (name.includes("枪匠") || lower.includes("banshee")) return "枪匠";
-  if (name.includes("艾达") || lower.includes("ada")) return "艾达-1";
-  if (name.includes("圣人") || lower.includes("saint")) return "圣人-14";
-  if (name.includes("拉乎尔") || lower.includes("rahool")) return "拉乎尔大师";
-  return name.trim() || undefined;
-}
-
-function isKeyVendor(name: string): boolean {
-  const lower = name.toLocaleLowerCase();
-  return name.includes("老九")
-    || lower.includes("xur")
-    || lower.includes("xûr")
-    || name.includes("枪匠")
-    || lower.includes("banshee")
-    || lower.includes("ada")
-    || name.includes("艾达")
-    || name.includes("圣人")
-    || lower.includes("saint")
-    || name.includes("拉乎尔")
-    || lower.includes("rahool");
 }
 
 function collectPublicSales(vendorSales: PublicVendorSales | undefined): PublicSale[] {
@@ -396,6 +368,12 @@ function definitionName(definitions: DefinitionComponentData | null | undefined,
   return record?.displayProperties?.name?.trim() || undefined;
 }
 
+function definitionIcon(definitions: DefinitionComponentData | null | undefined, hash: number | undefined): string | undefined {
+  if (hash === undefined) return undefined;
+  const record = definitionRecord(definitions, hash);
+  return record?.displayProperties?.icon?.trim() || undefined;
+}
+
 function formatMilestoneItemTitle(prefix: string, name: string): string {
   if (name === prefix || name.startsWith(`${prefix}:`) || name.startsWith(`${prefix}：`)) {
     return name;
@@ -422,18 +400,19 @@ function saleItemSummaryItem(
     record?.itemTypeDisplayName?.trim(),
     record?.inventory?.tierTypeName?.trim()
   ].filter(Boolean);
-  const costLabel = saleCostLabel(definitions, sale.costs);
+  const cost = saleCostSummary(definitions, sale.costs);
   const details = [
     itemDetails.join("，"),
-    costLabel
+    cost?.label
   ].filter(Boolean);
 
   return {
     title: name,
     subtitle: itemDetails.join("，") || undefined,
-    description: costLabel,
+    description: cost?.label,
     source: sourceLabel,
-    iconUrl: record?.displayProperties?.icon?.trim() || undefined
+    iconUrl: record?.displayProperties?.icon?.trim() || undefined,
+    costIconUrl: cost?.iconUrl
   };
 }
 
@@ -446,10 +425,10 @@ function saleItemLabelFromSummary(item: DailySummaryItem): string {
   return details.length ? `${item.title}（${details.join("；")}）` : item.title;
 }
 
-function saleCostLabel(
+function saleCostSummary(
   definitions: DefinitionComponentData | null | undefined,
   costs: PublicSale["costs"]
-): string | undefined {
+): { label: string; iconUrl?: string } | undefined {
   const labels = (costs ?? [])
     .map((cost) => {
       const currencyName = definitionName(definitions, cost.itemHash);
@@ -460,7 +439,16 @@ function saleCostLabel(
     })
     .filter(Boolean) as string[];
 
-  return labels.length ? labels.join(" + ") : undefined;
+  if (!labels.length) return undefined;
+
+  const firstCostWithIcon = (costs ?? [])
+    .map((cost) => definitionRecord(definitions, cost.itemHash))
+    .find((record) => record?.displayProperties?.icon?.trim());
+
+  return {
+    label: labels.join(" + "),
+    iconUrl: firstCostWithIcon?.displayProperties?.icon?.trim()
+  };
 }
 
 function containsLostSector(value: string): boolean {
@@ -473,6 +461,16 @@ function uniqueByTitle(items: DailySummaryItem[]): DailySummaryItem[] {
   return items.filter((item) => {
     if (seen.has(item.title)) return false;
     seen.add(item.title);
+    return true;
+  });
+}
+
+function uniqueByVendorIdentity(items: DailySummaryItem[]): DailySummaryItem[] {
+  const seen = new Set<string>();
+  return items.filter((item) => {
+    const key = item.vendorHash !== undefined ? `vendor:${item.vendorHash}` : `title:${item.title}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
     return true;
   });
 }

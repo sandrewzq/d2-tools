@@ -196,15 +196,18 @@ describe("Bungie item actions", () => {
       membershipType: 3,
       characterId: "character-1",
       loadoutIndex: 2,
+      nameHash: 9001,
+      iconHash: 777,
+      colorHash: 888,
       baseUrl: "https://example.test/Platform",
       fetchImpl
     });
 
     expect(request?.url).toBe("https://example.test/Platform/Destiny2/Actions/Loadouts/SnapshotLoadout/");
     expect(await request?.json()).toEqual({
-      colorHash: null,
-      iconHash: null,
-      nameHash: null,
+      colorHash: 888,
+      iconHash: 777,
+      nameHash: 9001,
       characterId: "character-1",
       membershipType: 3,
       loadoutIndex: 2

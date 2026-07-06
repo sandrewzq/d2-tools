@@ -14,10 +14,21 @@ function readAccountPage(): string {
   ].join("\n");
 }
 
+function readAccountContentView(): string {
+  return readFileSync(join(uiRoot, "src", "account", "AccountPageContentView.tsx"), "utf8");
+}
+
+function readCssRule(styles: string, selector: string): string {
+  const escapedSelector = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const match = new RegExp(`${escapedSelector}\\s*\\{(?<body>[\\s\\S]*?)\\}`).exec(styles);
+  return match?.groups?.body ?? "";
+}
+
 describe("account inventory UI", () => {
   it("uses DIM-style character tabs and splits equipped items from carried inventory in the main workbench", () => {
     const homePage = readFileSync(join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"), "utf8");
     const homeRoutes = readFileSync(join(desktopRoot, "src", "renderer", "pages", "HomePageRoutes.tsx"), "utf8");
+    const accountMenuProvider = readFileSync(join(desktopRoot, "src", "renderer", "pages", "providers", "AccountMenuProvider.tsx"), "utf8");
     const accountPage = readAccountPage();
     const loadoutWriteHook = readFileSync(
       join(desktopRoot, "src", "renderer", "features", "loadouts", "useLoadoutWriteActions.ts"),
@@ -26,7 +37,8 @@ describe("account inventory UI", () => {
 
     expect(homePage).toContain("<HomePageRoutes");
     expect(homePage).not.toContain("<AccountPage");
-    expect(homeRoutes).toContain("<AccountPage");
+    expect(homeRoutes).toContain("<AccountMenuProvider");
+    expect(accountMenuProvider).toContain("<AccountPage");
     expect(homePage).not.toContain("function renderAccountPanel");
     expect(accountPage).toContain("export function AccountPage");
     expect(accountPage).toContain("selectedCharacterId");
@@ -79,8 +91,8 @@ describe("account inventory UI", () => {
   });
 
   it("auto-loads account data only when Bungie config and account login are ready", () => {
-    const homePage = readFileSync(
-      join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"),
+    const productShell = readFileSync(
+      join(desktopRoot, "src", "renderer", "pages", "useDesktopProductShell.tsx"),
       "utf8"
     );
 
@@ -89,18 +101,18 @@ describe("account inventory UI", () => {
       "utf8"
     );
 
-    expect(homePage).toContain("hasAutoLoadedAccount");
-    expect(homePage).toContain("canRefreshAccount");
-    expect(homePage).toContain('props.state.cards.bungieConfig.status === "ready"');
-    expect(homePage).toContain('props.state.cards.account.status === "ready"');
-    expect(homePage).toContain("void loadAccountSummary()");
+    expect(productShell).toContain("hasAutoLoadedAccount");
+    expect(productShell).toContain("canRefreshAccount");
+    expect(productShell).toContain('props.state.cards.bungieConfig.status === "ready"');
+    expect(productShell).toContain('props.state.cards.account.status === "ready"');
+    expect(productShell).toContain("void loadAccountSummary()");
     expect(accountHook).toContain("登录可能已失效，请重新登录 Bungie");
   });
 
   it("shows a clear disconnected account state before Bungie is configured", () => {
     const accountPage = readAccountPage();
-    const homePage = readFileSync(
-      join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"),
+    const productShell = readFileSync(
+      join(desktopRoot, "src", "renderer", "pages", "useDesktopProductShell.tsx"),
       "utf8"
     );
     const accountHook = readFileSync(
@@ -113,9 +125,32 @@ describe("account inventory UI", () => {
     expect(accountPage).toContain("去设置 Bungie");
     expect(accountPage).toContain("onLoginBungie");
     expect(accountPage).toContain("登录 Bungie");
-    expect(homePage).toContain("onConfigureBungie: props.onConfigure");
-    expect(homePage).toContain("onLoginBungie: () => void loginBungie()");
+    expect(productShell).toContain("onConfigureBungie: props.onConfigure");
+    expect(productShell).toContain("onLoginBungie: () => void loginBungie()");
     expect(accountHook).toContain("请先在设置里填写 Bungie API Key、Client ID 和 Client Secret");
+  });
+
+  it("keeps account refresh and reauthorization actions on the logged-in account page", () => {
+    const accountContentView = readAccountContentView();
+
+    expect(accountContentView).toContain('className="account-page-actions"');
+    expect(accountContentView).toContain('onClick={props.onLoadAccount}');
+    expect(accountContentView).toContain('onClick={props.onLoginBungie}');
+    expect(accountContentView).toContain('accountText(copy, "刷新账号")');
+    expect(accountContentView).toContain('accountText(copy, "重新授权")');
+  });
+
+  it("keeps account slot comparison columns inside visible panels", () => {
+    const styles = readFileSync(join(uiRoot, "src", "styles.css"), "utf8");
+    const slotColumn = readCssRule(styles, ".account-slot-comparison-column");
+    const backpackPreview = readCssRule(styles, ".account-slot-backpack-preview");
+
+    expect(slotColumn).toContain("padding: 10px;");
+    expect(slotColumn).toContain("border: 1px solid var(--border-subtle);");
+    expect(slotColumn).toContain("border-radius: var(--radius-control);");
+    expect(slotColumn).toContain("background: var(--surface-panel);");
+    expect(backpackPreview).toContain("border-color: var(--state-selected-border);");
+    expect(backpackPreview).toContain("background: var(--state-selected-bg);");
   });
 
   it("loads account workspace through the shared app and services layers", () => {
@@ -154,7 +189,7 @@ describe("account inventory UI", () => {
 
     expect(accountPage).toContain('className="account-page-shell"');
     expect(accountPage).toContain('className="account-page-nav"');
-    expect(accountPage).toContain('aria-label={accountText(copy, "账号目录")}');
+    expect(accountPage).toContain('ariaLabel={accountText(copy, "账号目录")}');
     expect(accountPage).toContain('href="#account-profile"');
     expect(accountPage).toContain('href="#account-loadout"');
     expect(accountPage).toContain('href="#account-activity"');
@@ -169,9 +204,28 @@ describe("account inventory UI", () => {
     expect(styles).toContain(".account-page-nav");
     expect(styles).toContain(".account-page-main");
     expect(styles).toMatch(/\.account-secondary-workbench\s*{[\s\S]*?grid-template-columns:\s*1fr;/);
-    expect(styles).toMatch(/\.activity-review-grid\s*{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*0\.8fr\)\s*repeat\(2,\s*minmax\(0,\s*1fr\)\);/);
     expect(styles).toMatch(/\.activity-review-list\s*{[\s\S]*?min-width:\s*0;/);
     expect(styles).toMatch(/\.material-grid\s*{[\s\S]*?minmax\(180px,\s*1fr\)/);
+  });
+
+  it("keeps recent account activities wide instead of squeezing them into a side rail", () => {
+    const accountPage = readAccountContentView();
+    const styles = readFileSync(join(uiRoot, "src", "styles.css"), "utf8");
+
+    expect(accountPage).toContain('className="activity-review-list activity-review-list-wide"');
+    expect(styles).toMatch(/\.activity-review-grid\s*{[\s\S]*?grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\);/);
+    expect(styles).toMatch(/\.activity-review-list-wide\s*{[\s\S]*?grid-column:\s*1 \/ -1;/);
+    expect(styles).toMatch(/\.activity-review-list-wide ul\s*{[\s\S]*?grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\);/);
+  });
+
+  it("keeps the activity summary card readable instead of inheriting cramped status-card flow", () => {
+    const accountPage = readAccountContentView();
+    const styles = readFileSync(join(uiRoot, "src", "styles.css"), "utf8");
+
+    expect(accountPage).toContain("activity-review-summary-card");
+    expect(styles).toMatch(/\.activity-review-summary-card\s*{[\s\S]*?display:\s*grid;[\s\S]*?gap:\s*6px;/);
+    expect(styles).toMatch(/\.activity-review-summary-card \.activity-review-stat-line\s*{[\s\S]*?display:\s*flex;[\s\S]*?flex-wrap:\s*wrap;/);
+    expect(styles).toMatch(/\.activity-review-summary-card strong\s*{[\s\S]*?font-size:\s*20px;/);
   });
 
   it("collapses account workbench columns when the AI drawer is open", () => {
@@ -179,7 +233,7 @@ describe("account inventory UI", () => {
 
     expect(styles).toMatch(/\.assistant-open \.account-page-shell\s*{[\s\S]*?grid-template-columns:\s*1fr;/);
     expect(styles).toMatch(/\.assistant-open \.account-page-nav\s*{[\s\S]*?position:\s*static;[\s\S]*?display:\s*flex;[\s\S]*?flex-wrap:\s*wrap;/);
-    expect(styles).toMatch(/\.assistant-open \.account-profile-strip,[\s\S]*?\.assistant-open \.account-primary-workbench,[\s\S]*?\.assistant-open \.account-slot-comparison-columns,[\s\S]*?\.assistant-open \.account-secondary-workbench\s*{[\s\S]*?grid-template-columns:\s*1fr;/);
+    expect(styles).toMatch(/\.assistant-open \.account-profile-strip,[\s\S]*?\.assistant-open \.account-primary-workbench,[\s\S]*?\.assistant-open \.account-slot-comparison-columns,[\s\S]*?\.assistant-open \.account-secondary-workbench,[\s\S]*?\{[\s\S]*?grid-template-columns:\s*1fr;/);
     expect(styles).toMatch(/\.assistant-open \.character-title\s*{[\s\S]*?grid-template-columns:\s*48px minmax\(0,\s*1fr\);/);
     expect(styles).toMatch(/\.assistant-open \.character-actions\s*{[\s\S]*?grid-column:\s*1 \/ -1;[\s\S]*?justify-content:\s*flex-start;/);
   });

@@ -2,6 +2,15 @@
 
 这个项目使用面向玩家的更新日志。这里优先记录”玩家能感知到什么变化”，而不是逐条展开内部实现细节。
 
+## 0.0.12 - 2026-07-06
+
+### 工程
+
+- chore: sync local changes
+- chore: sync local changes
+- chore: sync local changes
+- chore: sync local changes
+
 ## 0.0.11 - 2026-07-03
 
 ### 工程

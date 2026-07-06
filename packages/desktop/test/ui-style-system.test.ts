@@ -495,7 +495,7 @@ describe("UI style system", () => {
     const preload = readFileSync(join(desktopRoot, "src", "preload", "preload.ts"), "utf8");
     const windowApi = readFileSync(join(desktopRoot, "src", "renderer", "api", "windowApi.ts"), "utf8");
     const apiTypes = readFileSync(join(desktopRoot, "src", "renderer", "api", "types.ts"), "utf8");
-    const homePage = readFileSync(join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"), "utf8");
+    const productShell = readFileSync(join(desktopRoot, "src", "renderer", "pages", "useDesktopProductShell.tsx"), "utf8");
     const shellLayout = readFileSync(join(uiRoot, "src", "shell", "AppShell.tsx"), "utf8");
 
     expect(mainProcess).not.toContain("createTitleBarOverlayOptions");
@@ -520,11 +520,11 @@ describe("UI style system", () => {
     expect(windowApi).toContain("closeWindow(): Promise<void>");
     expect(apiTypes).toContain("WindowApi");
     expect(apiTypes).toContain("export type * from \"./windowApi\"");
-    expect(homePage).toContain("setColorMode: (mode: \"light\" | \"dark\") => window.d2?.setWindowColorMode?.(mode)");
-    expect(homePage).toContain("windowControls");
-    expect(homePage).toContain("minimize: () => window.d2.minimizeWindow()");
-    expect(homePage).toContain("toggleMaximize: () => window.d2.toggleMaximizeWindow()");
-    expect(homePage).toContain("close: () => window.d2.closeWindow()");
+    expect(productShell).toContain("setColorMode: (mode: \"light\" | \"dark\") => window.d2?.setWindowColorMode?.(mode)");
+    expect(productShell).toContain("windowControls");
+    expect(productShell).toContain("minimize: () => window.d2.minimizeWindow()");
+    expect(productShell).toContain("toggleMaximize: () => window.d2.toggleMaximizeWindow()");
+    expect(productShell).toContain("close: () => window.d2.closeWindow()");
     expect(shellLayout).toContain("shell-window-control-button window-minimize");
     expect(shellLayout).toContain("shell-window-control-button window-toggle-maximize");
     expect(shellLayout).toContain("shell-window-control-button window-close");

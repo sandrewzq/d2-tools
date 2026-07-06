@@ -29,6 +29,7 @@ const LOST_SECTOR_ACTIVITY_TYPE_HASH = 2724706103;
 
 /** Known lost sector name keywords in English and Chinese. */
 const LOST_SECTOR_NAME_MARKERS = ["lost sector", "遗失区域"];
+const WORLD_LOST_SECTOR_DAILY_LIMIT = 9;
 
 /**
  * Extract lost sector activities from Manifest.
@@ -67,36 +68,11 @@ export function findLostSectorActivities(
 }
 
 /**
- * Calculate which lost sector(s) are active today based on daily rotation.
- *
- * The rotation uses a fixed daily index: floor(days since epoch / 1) % poolSize.
- * This is intentionally simple — Destiny 2's actual rotation follows a seasonal
- * pool, but the daily index gives a correct daily result when the pool is stable.
- */
-export function getTodaysLostSectorIndex(
-  poolSize: number,
-  now: Date = new Date()
-): number {
-  if (poolSize <= 0) return -1;
-  const dailyResetHourUtc = 17;
-  const today = new Date(Date.UTC(
-    now.getUTCFullYear(),
-    now.getUTCMonth(),
-    now.getUTCDate(),
-    dailyResetHourUtc,
-    0,
-    0,
-    0
-  ));
-  // Use days since epoch as the rotation seed
-  const epochDays = Math.floor(today.getTime() / (24 * 60 * 60 * 1000));
-  return epochDays % poolSize;
-}
-
-/**
  * Build the full lost_sector source data for DailyLiveData.
  *
- * Returns the daily active lost sector + context about the manifest pool.
+ * Returns a readable world lost sector list. Official daily availability should
+ * come from Bungie character activities when available; Manifest fallback keeps
+ * the homepage useful without pretending the old data model is a single sector.
  */
 export function buildLostSectorData(
   activityDefinitions: DefinitionComponentData,
@@ -112,30 +88,19 @@ export function buildLostSectorData(
     };
   }
 
-  const index = getTodaysLostSectorIndex(all.length, now);
-  const today = all[index];
-
-  if (!today) {
-    return {
-      items: [],
-      source: "manifest-rotation",
-      message: `遗失区域轮换计算出错：共 ${all.length} 个，今日索引 ${index} 无效。`,
-    };
-  }
-
-  const item: DailySummaryItem = {
-    title: `遗失区域：${today.name}`,
-    subtitle: today.lightLevel
-      ? `推荐光等 ${today.lightLevel} · 每日轮换 (${all.length} 选 1)`
-      : `每日轮换 (${all.length} 选 1)`,
-    description: today.description,
-    source: "Manifest 轮换推算",
-  };
+  const dailyWorldSectors = all.slice(0, WORLD_LOST_SECTOR_DAILY_LIMIT);
 
   return {
-    items: [item],
+    items: dailyWorldSectors.map((sector) => ({
+      title: `遗失区域：${sector.name}`,
+      subtitle: sector.lightLevel
+        ? `推荐光等 ${sector.lightLevel} · 世界遗失区域`
+        : "世界遗失区域",
+      description: sector.description,
+      source: "Manifest 世界遗失区域",
+    })),
     source: "manifest-rotation",
-    message: `从 Manifest 共 ${all.length} 个遗失区域中推算今日轮换。`,
+    message: `从 Manifest 共 ${all.length} 个遗失区域中读取，今日展示 ${dailyWorldSectors.length} 个世界遗失区域。`,
   };
 }
 

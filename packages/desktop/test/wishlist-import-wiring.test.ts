@@ -13,7 +13,7 @@ describe("wishlist import wiring", () => {
     const ipc = readFileSync(join(desktopRoot, "src", "main", "ipc", "wishlist.ts"), "utf8");
     const ipcRegister = readFileSync(join(desktopRoot, "src", "main", "ipc.ts"), "utf8");
     const client = readRendererApiContracts(desktopRoot);
-    const homePage = readFileSync(join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"), "utf8");
+    const productShell = readFileSync(join(desktopRoot, "src", "renderer", "pages", "useDesktopProductShell.tsx"), "utf8");
     const accountHook = readFileSync(join(desktopRoot, "src", "renderer", "features", "account", "useAccountWorkspace.ts"), "utf8");
     const vaultPage = readFileSync(join(desktopRoot, "src", "renderer", "features", "vault", "VaultPage.tsx"), "utf8");
     const vaultContent = readFileSync(join(uiRoot, "vault", "VaultPageContentView.tsx"), "utf8");
@@ -32,7 +32,7 @@ describe("wishlist import wiring", () => {
     expect(client).toContain("clearDimWishlist");
     expect(accountHook).toContain("wishlist");
     expect(accountHook).toContain("loadAccountWorkspace(services)");
-    expect(homePage).toContain("importedWishlist");
+    expect(productShell).toContain("importedWishlist");
     expect(vaultPage).toContain("services.localData.saveDimWishlist");
     expect(vaultPage).toContain("recommendationImportActions");
     expect(recommendationPanel).toContain("parseDimWishlist");

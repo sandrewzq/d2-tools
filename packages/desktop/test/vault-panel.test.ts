@@ -121,7 +121,7 @@ describe("vault panel helpers", () => {
     expect(styles).toMatch(/\.weapon-filter-lane\s*\{[\s\S]*grid-template-columns: minmax\(190px, 210px\) minmax\(0, 1fr\);/);
     expect(styles).toMatch(/\.weapon-filter-lane > \.compact-field\s*\{[\s\S]*white-space: nowrap;/);
     expect(styles).toMatch(/\.vault-frame-chip-grid\s*\{[\s\S]*display: flex;[\s\S]*flex-wrap: wrap;/);
-    expect(styles).toMatch(/\.vault-frame-chip\s*\{[\s\S]*min-width: 112px;[\s\S]*min-height: 34px;/);
+    expect(styles).toMatch(/\.vault-frame-chip\s*\{[\s\S]*min-width: 104px;[\s\S]*min-height: 32px;/);
   });
 
   it("keeps the vault workbench usable when the assistant drawer narrows the workspace", () => {
@@ -816,6 +816,8 @@ describe("vault panel helpers", () => {
     expect(duplicateGroups).toContain("clear-group-tags");
     expect(duplicateGroups).toContain("duplicate-row-actions");
     expect(duplicateGroups).toContain("duplicate-row-meta");
+    expect(duplicateGroups).toContain("打开推荐项");
+    expect(duplicateGroups).not.toContain("打开最高分");
     expect(duplicateGroups).toContain("保留这件，其余可清理");
     expect(duplicateGroups).toContain("选择其余候选");
     expect(duplicateGroups).toContain("已选候选");
@@ -845,22 +847,25 @@ describe("vault panel helpers", () => {
     expect(organizePanel).toContain("aria-label=\"仓库内容标签\"");
     expect(source).toContain("setGroup(defaultVaultGroupTab)");
   });
-  it("separates vault workbench navigation from quick filter chips", () => {
+  it("keeps vault filtering in the main filter toolbar instead of duplicate quick chips", () => {
     const source = readFileSync("packages/ui/src/vault/VaultPageContentView.tsx", "utf8");
     const styles = readFileSync("packages/ui/src/styles.css", "utf8");
 
     expect(source).toContain("vault-workbench-header");
-    expect(source).toContain("vaultQuickFilters");
-    expect(source).toContain("vault-quick-filters");
+    expect(source).toContain("showCleanupCandidates");
+    expect(source).toContain('setTagFilter("junk")');
+    expect(source).not.toContain("vaultQuickFilters");
+    expect(source).not.toContain("vault-quick-filters");
+    expect(source).not.toContain("快速筛选");
     expect(source).not.toContain("vault-task-presets");
     expect(source).not.toContain('label: "同名重复"');
     expect(styles).toContain(".vault-workbench-header");
-    expect(styles).toContain(".vault-quick-filters");
+    expect(styles).not.toContain(".vault-quick-filters");
+    expect(styles).not.toContain(".vault-quick-filter-chip");
     expect(styles).not.toContain(".vault-task-presets");
     expect(styles).toMatch(/\.vault-workflow-tabs\s*\{[\s\S]*display: flex;[\s\S]*flex-wrap: wrap;/);
     expect(styles).toMatch(/\.vault-workflow-tab\s*\{[\s\S]*flex: 0 0 auto;[\s\S]*min-height: 34px;[\s\S]*padding: 7px 12px;/);
     expect(styles).toMatch(/\.vault-workflow-tab span\s*\{[\s\S]*display: none;/);
-    expect(styles).toMatch(/\.vault-quick-filter-chip\s*\{[\s\S]*min-height: 28px;[\s\S]*padding: 5px 9px;/);
     expect(styles).toMatch(/\.vault-content-tabs\s*\{[\s\S]*display: flex;[\s\S]*flex-wrap: wrap;/);
     expect(styles).toMatch(/\.vault-content-tab\s*\{[\s\S]*flex: 0 0 112px;[\s\S]*min-height: 42px;[\s\S]*padding: 7px 10px;/);
     expect(styles).toMatch(/\.vault-content-tab strong\s*\{[\s\S]*font-size: 12px;/);
@@ -974,6 +979,8 @@ describe("vault panel helpers", () => {
     expect(listItem).toContain("vault-card-actions");
     expect(styles).toContain(".vault-card-grid");
     expect(styles).toContain(".vault-item-card");
+    expect(styles).toMatch(/\.vault-card-main\s*\{[\s\S]*border: 0;[\s\S]*box-shadow: none;/);
+    expect(styles).toMatch(/\.vault-card-main:not\(:disabled\):hover,\s*\.vault-card-main:not\(:disabled\):active\s*\{[\s\S]*background: transparent;[\s\S]*box-shadow: none;/);
     expect(styles).toContain(".vault-card-actions");
   });
   it("limits initial vault card rendering and lets users load more results", () => {
@@ -1007,6 +1014,18 @@ describe("vault panel helpers", () => {
     expect(organizePanel).not.toContain("同名对比 {props.duplicateGroupCount}");
     expect(organizePanel).not.toContain("onViewModeChange");
     expect(organizePanel).not.toContain("duplicateGroupCount");
+  });
+  it("keeps local target rules out of the primary vault tabs", () => {
+    const vaultPanel = readFileSync("packages/ui/src/vault/VaultPageContentView.tsx", "utf8");
+
+    expect(vaultPanel).not.toContain('"targets" |');
+    expect(vaultPanel).not.toContain('{ key: "targets"');
+    expect(vaultPanel).not.toContain('activeVaultTab === "targets"');
+    expect(vaultPanel).toContain("showTargetMatches");
+    expect(vaultPanel).toContain('setTagFilter("target")');
+    expect(vaultPanel).toContain("VaultTargetRulesPanel");
+    expect(vaultPanel).toContain("hasLocalTargets ? (");
+    expect(vaultPanel).not.toContain("未配置");
   });
   it("renders extended local tag actions for farming and loadout use", () => {
     const coreTags = readFileSync("packages/core/src/vault/tags.ts", "utf8");

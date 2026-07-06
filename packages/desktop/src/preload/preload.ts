@@ -82,6 +82,9 @@ type LoadoutSnapshotActionInput = {
   character_id: string;
   loadout_index: number;
   loadout_name?: string;
+  loadout_name_hash?: number;
+  loadout_icon_hash?: number;
+  loadout_color_hash?: number;
 };
 
 type ItemActionResult = {

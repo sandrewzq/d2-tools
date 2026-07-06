@@ -5,9 +5,11 @@ export type DailySummaryItem = {
   subtitle?: string;
   description?: string;
   source?: string;
+  vendorHash?: number;
   iconUrl?: string;
   icon?: string;
   iconLabel?: string;
+  costIconUrl?: string;
   items?: DailySummaryItem[];
 };
 
@@ -72,7 +74,7 @@ export function buildDailySummary(
     },
     sources: {
       rotations: sourceFromItems("今日轮换", liveData.rotations, "暂时没有可读的今日轮换名称，只显示重置时间。"),
-      vendors: sourceFromItems("商人库存", liveData.vendors, "商人接口没有返回可读名称，暂不展示 hash。"),
+      vendors: sourceFromItems("商人库存", liveData.vendors, "商人接口没有返回可读名称，暂不展示 hash。", 20),
       lost_sector: sourceFromItems("遗失区域", liveData.lost_sector, "今日遗失区域暂不可读，不展示猜测数据。"),
       weekly_report: sourceFromItems("本周活动线索", liveData.weekly_report, "本周活动线索暂不可读，不展示猜测数据。")
     },
@@ -90,10 +92,15 @@ export function buildDailySummary(
   };
 }
 
-function sourceFromItems(label: string, items: DailySummaryItem[] | undefined, pendingMessage: string): DailySummarySource {
+function sourceFromItems(
+  label: string,
+  items: DailySummaryItem[] | undefined,
+  pendingMessage: string,
+  limit = 4
+): DailySummarySource {
   const normalizedItems = (items ?? [])
     .filter((item) => item.title.trim())
-    .slice(0, 4);
+    .slice(0, limit);
   if (!normalizedItems.length) {
     return pendingSource(label, pendingMessage);
   }

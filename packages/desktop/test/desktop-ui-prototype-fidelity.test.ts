@@ -24,7 +24,7 @@ function readCssRule(styles: string, selector: string): string {
 
 describe("desktop UI prototype fidelity", () => {
   it("uses the approved prototype primitives instead of patch classes on home and settings", () => {
-    const homeDashboard = readUiFile("home/HomePageView.tsx");
+    const homeDashboard = readUiFile("home/HomePageContentView.tsx");
     const homeCopy = readUiFile("i18n/copy.ts");
     const settingsPage = `${readUiFile("settings/SettingsPageContentView.tsx")}\n${readUiFile("i18n/copy.ts")}\n${readRendererFile("features/settings/SettingsPage.tsx")}`;
     const dailyPanel = readRendererFile("shared/components/DailySummaryPanel.tsx");
@@ -38,7 +38,14 @@ describe("desktop UI prototype fidelity", () => {
     );
     const overviewMetricCount = (settingsGrid.match(/className=\{?`?app-metric/g) ?? []).length;
 
-    for (const source of [homeDashboard, settingsPage, dailyPanel]) {
+    expect(homeDashboard).toContain("ProductWorkspacePanel");
+    expect(homeDashboard).not.toContain("app-panel");
+
+    expect(settingsPage).toContain("ProductWorkspaceSplit");
+    expect(settingsPage).toContain("panel-subsection");
+    expect(settingsPage).not.toContain("app-panel");
+
+    for (const source of [dailyPanel]) {
       expect(source).toContain("app-panel");
       expect(source).not.toContain("product-overview-grid");
       expect(source).not.toContain("settings-product-grid");

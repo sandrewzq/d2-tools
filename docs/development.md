@@ -213,6 +213,12 @@ tools\git-preflight.cmd
 - 应用更新检查失败后进入后台重试，重试策略允许最后一个有限间隔持续复用；不要在网络失败后只提示一次就停止。
 - 资料库版本检查由主进程 `manifest` IPC 和后台任务中心持有生命周期；每次启动应用会检查最新 Bungie Manifest。
 - 本地 Manifest 未初始化、必要 definition component 缺失或版本落后时，必须提示并允许后台更新；未初始化或组件缺失时，资料库依赖功能应阻断搜索或详情入口。
+- 面向用户的普通 UI 统一使用“资料库”命名，不展示 `Manifest`、`本地 Manifest`、`最新 Manifest`、`必要组件`、`资料包` 等开发者概念；内部 API、类型和诊断技术字段可以继续保留 Manifest 命名。
+- 顶部状态栏只展示短状态：资料库日期版本、可用、可更新、未准备、需修复、读取中或检查失败等；完整 Bungie Manifest 版本号只放在设置页或诊断导出。
+- 资料库日期版本从 Bungie 原始版本号中的 `YY.MM.DD` 片段解析为 `YYYY/MM/DD`；解析失败时普通 UI 显示“资料库 可用”，不要把长版本号泄漏到顶部。
+- 设置页“资料库”区域负责展示完整状态：资料库版本、当前版本、最新版本、上次更新、上次检查、更新方式和资料完整性；按钮使用“检查更新”“立即更新”“修复资料库”等用户可理解文案。
+- 自动资料库检查应按本地日期做每日节流；本地资料库未初始化、资料库不完整、手动检查、立即更新和修复资料库不受每日节流限制。
+- 检查失败但本地资料库可用时，继续允许依赖资料库的功能使用旧数据；更新失败时保留旧资料库，不把旧数据删除或标记为不可用。
 - 切换菜单、卸载页面或重新进入页面不得中断资料库更新、应用更新下载等长任务；页面只订阅 `useBackgroundTasks` 和 `useManifestStatus` 等共享状态。
 - 设置页负责详细管理入口：应用更新、资料库状态、后台任务、AI、写操作、备份迁移、诊断导出和操作日志。
 - 新增长任务优先进入 `packages/desktop/src/shared/backgroundTasks.ts`、`packages/desktop/src/main/backgroundTasks.ts` 和对应领域 IPC，不要把长任务生命周期藏在 renderer feature hook 中。
@@ -522,6 +528,15 @@ docs/
 不要把一次性设计稿、执行计划、阶段进度或临时分析文档放在 `docs/` 根目录。确实需要记录当前短期待办、验收状态、需求或 bug 时，统一更新 `docs/todo.md`；确实需要保留未完成设计或调研材料时，放进 `docs/work/backlog/` 或 `docs/work/references/`。已经作为实现依据的视觉基准原型放在 `docs/work/references/`。外部流程如果要求写入 `docs/superpowers/`，本仓库统一改写到 `docs/work/backlog/` 或 `docs/work/references/`。确实需要记录长期规则或少量长期方向结论时，更新 `docs/development.md`；已发布变化写入 `CHANGELOG.md`。
 
 本仓库不设 `docs/work/archive/`。已完成且仍有效的规则、架构边界或长期结论应合并进正式文档；只剩历史追溯价值或已经过时的过程材料直接删除，需要追溯时使用 git 历史。
+
+`docs/work/` 不维护 README 索引，也不为每次讨论新建平行计划。当前任务入口只看 `docs/todo.md`，长期开发规则只看 `docs/development.md`；`docs/work/backlog/` 中只保留仍未完成或暂不推进的计划，`docs/work/references/` 中只保留仍能作为实现依据的外部资料、数据源调研或视觉基准。
+
+当前仍有效的 reference 文件：
+
+- `docs/work/references/d2-unified-workspace-layout-v0.html`：跨端页面视觉和布局参考基准。
+- `docs/work/references/destiny-tool-reference.md`：竞品能力和信息组织参考。
+- `docs/work/references/desktop-framework-comparison.md`：桌面技术方案对比参考。
+- `docs/work/references/2026-06-21-destiny2-weapon-sheet-analysis.md`：社区武器表和数据分析参考。
 
 ## 7.1 长期方向（简版）
 

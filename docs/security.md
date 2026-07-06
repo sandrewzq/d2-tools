@@ -14,7 +14,7 @@ d2-tools 默认把本地数据保存到：
 
 - Bungie 配置
 - OAuth token
-- Manifest 缓存
+- 资料库缓存
 - 仓库标签
 - 本地备注
 - DIM 愿望单导入
@@ -103,7 +103,7 @@ d2-tools 目前只负责：
 
 - Bungie 配置
 - token
-- Manifest 缓存
+- 资料库缓存
 - 标签和备注
 - AI 配置
 - 操作日志

@@ -83,11 +83,14 @@ describe("desktop T5 visual redesign", () => {
   });
 
   it("keeps home as a product overview instead of a navigation or task launcher page", () => {
-    const homeDashboard = readUiFile("home/HomePageView.tsx");
+    const homeDashboard = readUiFile("home/HomePageContentView.tsx");
+    const homeView = readUiFile("home/HomePageView.tsx");
     const homeCopy = readUiFile("i18n/copy.ts");
     const styles = readUiFile("styles.css");
 
-    expect(homeDashboard).toContain("app-page home-app-page");
+    expect(homeView).toContain("ProductWorkspacePage");
+    expect(homeDashboard).toContain("export function HomePageContentView");
+    expect(homeDashboard).not.toContain("app-page home-app-page");
     expect(homeDashboard).not.toContain("home-data-strip");
     expect(homeDashboard).toContain("home-briefing-grid");
     expect(homeDashboard).toContain("home-daily-panel");
@@ -135,7 +138,9 @@ describe("desktop T5 visual redesign", () => {
     expect(styles).toMatch(/\.account-a2-layout\s*{[\s\S]*?grid-template-columns:\s*1fr;/);
     expect(styles).toMatch(/\.account-secondary-workbench\s*{[\s\S]*?grid-template-columns:\s*1fr;/);
     expect(styles).toMatch(/\.account-side-summary-grid\s*{[\s\S]*?grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\);/);
-    expect(styles).toMatch(/\.activity-review-grid\s*{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*0\.8fr\)\s*repeat\(2,\s*minmax\(0,\s*1fr\)\);/);
+    expect(accountPage).toContain("activity-review-list-wide");
+    expect(styles).toMatch(/\.activity-review-grid\s*{[\s\S]*?grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\);/);
+    expect(styles).toMatch(/\.activity-review-list-wide\s*{[\s\S]*?grid-column:\s*1 \/ -1;/);
   });
 
   it("splits vault workflows into first-class tabs while keeping weapon and armor filters separate", () => {
@@ -178,7 +183,7 @@ describe("desktop T5 visual redesign", () => {
     const uiCopy = readUiFile("i18n/copy.ts");
     const styles = readUiFile("styles.css");
 
-    expect(libraryPage).toContain("LibraryPageView");
+    expect(libraryPage).toContain("LibraryPageContentView");
     expect(libraryView).toContain("library-reference-page");
     expect(uiCopy).toContain("出处查询");
     expect(libraryPage).toContain("library-search-command");

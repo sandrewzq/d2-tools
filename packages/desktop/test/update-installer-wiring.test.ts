@@ -64,7 +64,7 @@ describe("desktop installer and update wiring", () => {
     const settingsHook = readFileSync(join(desktopRoot, "src", "renderer", "features", "settings", "useDiagnosticsSettings.ts"), "utf8");
     const updateFlow = readFileSync(join(desktopRoot, "src", "renderer", "features", "settings", "useUpdateFlow.ts"), "utf8");
     const diagnosticsModel = readFileSync(join(desktopRoot, "src", "renderer", "features", "settings", "diagnosticsModel.ts"), "utf8");
-    const homePage = readFileSync(join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"), "utf8");
+    const productShell = readFileSync(join(desktopRoot, "src", "renderer", "pages", "useDesktopProductShell.tsx"), "utf8");
     const homeRoutes = readFileSync(join(desktopRoot, "src", "renderer", "pages", "HomePageRoutes.tsx"), "utf8");
 
     expect(settingsPage).toContain("应用更新");
@@ -95,13 +95,13 @@ describe("desktop installer and update wiring", () => {
     expect(diagnosticsModel).toContain("api.getConfig()");
     expect(diagnosticsModel).toContain("api.getManifestStatus()");
     expect(diagnosticsModel).toContain("api.getActionLog()");
-    expect(homePage).toContain("updateSnapshot: diagnostics.updateSnapshot");
-    expect(homePage).toContain("global-update-banner");
-    expect(homePage).toContain("updateSnapshot.status === \"available\"");
-    expect(homePage).toContain("updateSnapshot.status === \"downloaded\"");
-    expect(homePage).toContain("onOpenUpdateDownloadPage: () => void diagnostics.openUpdateDownloadPage()");
-    expect(homePage).toContain("onCopyUpdateDiagnostic: () => void diagnostics.copyUpdateDiagnostic()");
-    expect(homeRoutes).toContain("<SettingsPage {...props.settings}");
+    expect(productShell).toContain("updateSnapshot: diagnostics.updateSnapshot");
+    expect(productShell).toContain("global-update-banner");
+    expect(productShell).toContain("updateSnapshot.status === \"available\"");
+    expect(productShell).toContain("updateSnapshot.status === \"downloaded\"");
+    expect(productShell).toContain("onOpenUpdateDownloadPage: () => void diagnostics.openUpdateDownloadPage()");
+    expect(productShell).toContain("onCopyUpdateDiagnostic: () => void diagnostics.copyUpdateDiagnostic()");
+    expect(homeRoutes).toContain("<SettingsMenuProvider");
   });
 
   it("adds resilient update metadata, manual fallback and optional mirror source", () => {
@@ -138,7 +138,7 @@ describe("desktop installer and update wiring", () => {
     ].join("\n");
     const settingsHook = readFileSync(join(desktopRoot, "src", "renderer", "features", "settings", "useDiagnosticsSettings.ts"), "utf8");
     const diagnosticsModel = readFileSync(join(desktopRoot, "src", "renderer", "features", "settings", "diagnosticsModel.ts"), "utf8");
-    const homePage = readFileSync(join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"), "utf8");
+    const productShell = readFileSync(join(desktopRoot, "src", "renderer", "pages", "useDesktopProductShell.tsx"), "utf8");
     const development = readFileSync(join(repoRoot, "docs", "development.md"), "utf8");
 
     expect(settingsPage).toContain("settings-backup");
@@ -148,7 +148,7 @@ describe("desktop installer and update wiring", () => {
     expect(settingsHook).toContain("copyDataBackupGuide");
     expect(diagnosticsModel).toContain("buildDataBackupGuide");
     expect(diagnosticsModel).toContain("关闭 d2-tools 后复制整个数据目录");
-    expect(homePage).toContain("onCopyDataBackupGuide: () => void diagnostics.copyDataBackupGuide()");
+    expect(productShell).toContain("onCopyDataBackupGuide: () => void diagnostics.copyDataBackupGuide()");
     expect(development).toContain("备份与恢复");
     expect(development).toContain("关闭 d2-tools 后复制整个数据目录");
     expect(development).toContain("诊断导出不包含 token、client secret 或 API Key");

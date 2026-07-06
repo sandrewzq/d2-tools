@@ -49,7 +49,7 @@ export function ItemDetailSameName(props: ItemDetailSameNameProps) {
       {sameNameDuplicateGroup ? (
         <div className="button-row">
           <button type="button" className="secondary-button" onClick={() => props.onOpenBestSameNameItem(sortedSameNameItems)}>
-            打开最高分
+            打开推荐同名
           </button>
           <button type="button" className="secondary-button" onClick={() => props.onApplySameNameCurrentKeepTags(props.sameNameItems, props.selectedItem.item_key, "keep-current-review-rest")}>
             保留当前，其余关注

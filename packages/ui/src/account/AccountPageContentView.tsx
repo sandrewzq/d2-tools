@@ -106,21 +106,36 @@ export function AccountPageContentView(props: AccountPageContentViewProps) {
                 <p>{accountWorkspace.accountProfileLine}</p>
                 <p>{accountWorkspace.accountInventoryLine}</p>
               </div>
-              <div className="character-tabs" role="tablist" aria-label={accountText(copy, "角色切换")}>
-                {accountWorkspace.characterTabs.map((tab: any) => (
+              <div className="account-profile-controls">
+                <div className="account-page-actions">
                   <button
                     type="button"
-                    role="tab"
-                    aria-selected={tab.isSelected}
-                    className={tab.isSelected ? "character-tab active" : "character-tab"}
-                    key={tab.key}
-                    onClick={() => props.onSelectCharacter(tab.character.character_id)}
+                    className="secondary-button"
+                    disabled={props.isLoadingAccount}
+                    onClick={props.onLoadAccount}
                   >
-                    {tab.emblemUrl ? <img alt="" loading="lazy" src={tab.emblemUrl} /> : null}
-                    <span>{tab.className}</span>
-                    <strong>{tab.lightLabel}</strong>
+                    {accountText(copy, "刷新账号")}
                   </button>
-                ))}
+                  <button type="button" className="secondary-button" onClick={props.onLoginBungie}>
+                    {accountText(copy, "重新授权")}
+                  </button>
+                </div>
+                <div className="character-tabs" role="tablist" aria-label={accountText(copy, "角色切换")}>
+                  {accountWorkspace.characterTabs.map((tab: any) => (
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={tab.isSelected}
+                      className={tab.isSelected ? "character-tab active" : "character-tab"}
+                      key={tab.key}
+                      onClick={() => props.onSelectCharacter(tab.character.character_id)}
+                    >
+                      {tab.emblemUrl ? <img alt="" loading="lazy" src={tab.emblemUrl} /> : null}
+                      <span>{tab.className}</span>
+                      <strong>{tab.lightLabel}</strong>
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
 
@@ -221,13 +236,12 @@ export function AccountPageContentView(props: AccountPageContentViewProps) {
               {props.activityMessage ? <p className="status-message status-ready">{props.activityMessage}</p> : null}
               {activitySummary ? (
                 <div className="activity-review-grid">
-                  <div className="source-status-card source-status-neutral">
+                  <div className="source-status-card source-status-neutral activity-review-summary-card">
                     <span className="source-status-badge source-status-neutral">{accountText(copy, "最近活动")}</span>
                     <strong>{activitySummary.recent.total} {accountText(copy, "场")}</strong>
-                    <span>
-                      PVE {activitySummary.recent.pve.completed}/{activitySummary.recent.pve.total}
-                      {" / "}
-                      PVP {activitySummary.recent.pvp.completed}/{activitySummary.recent.pvp.total}
+                    <span className="activity-review-stat-line">
+                      <span>PVE {activitySummary.recent.pve.completed}/{activitySummary.recent.pve.total}</span>
+                      <span>PVP {activitySummary.recent.pvp.completed}/{activitySummary.recent.pvp.total}</span>
                     </span>
                     {activityReview ? (
                       <small>{accountText(copy, "完成率")} {activityReview.completion_rate}% / {accountText(copy, "连续完成")} {activityReview.completions_in_a_row} {accountText(copy, "场")}</small>
@@ -252,7 +266,7 @@ export function AccountPageContentView(props: AccountPageContentViewProps) {
                       <p className="muted-copy">{accountText(copy, "最近没有读取到突袭或地牢记录。")}</p>
                     )}
                   </div>
-                  <div className="activity-review-list">
+                  <div className="activity-review-list activity-review-list-wide">
                     <strong>{accountText(copy, "最近 10 场")}</strong>
                     {activitySummary.recent_items.length ? (
                       <ul>

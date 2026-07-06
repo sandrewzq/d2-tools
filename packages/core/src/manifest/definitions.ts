@@ -36,6 +36,11 @@ export type DefinitionRecord = {
     value?: number;
     isConditionallyActive?: boolean;
   }>;
+  perks?: Array<{
+    requirementDisplayString?: string;
+    perkHash?: number;
+    perkVisibility?: number;
+  }>;
   reusablePlugItems?: Array<{
     plugItemHash?: number;
   }>;

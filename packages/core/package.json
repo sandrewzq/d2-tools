@@ -1,6 +1,6 @@
 {
   "name": "@d2-tools/core",
-  "version": "0.0.11",
+  "version": "0.0.12",
   "private": true,
   "type": "module",
   "main": "dist/index.js",
@@ -105,6 +105,10 @@
     "./activities/recent": {
       "types": "./dist/activities/recent.d.ts",
       "import": "./dist/activities/recent.js"
+    },
+    "./activities/modes": {
+      "types": "./dist/activities/modes.d.ts",
+      "import": "./dist/activities/modes.js"
     },
     "./activities/raidSummary": {
       "types": "./dist/activities/raidSummary.d.ts",

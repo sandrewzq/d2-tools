@@ -78,6 +78,15 @@ export function LoadoutsPageContentView(props: LoadoutsPageContentViewProps) {
     () => props.loadoutEntries ?? buildFallbackLoadoutEntries(props, copy),
     [copy, props.accountSummary, props.loadoutEntries, props.missingCount, props.selectedTemplate, props.templates]
   );
+  const [selectedLoadoutEntryId, setSelectedLoadoutEntryId] = useState("");
+  const defaultSelectedLoadoutEntryId = selectedTemplate
+    ? `local-template-${selectedTemplate.id}`
+    : loadoutEntries[0]?.id ?? "";
+  const selectedLoadoutEntry = loadoutEntries.find((entry) => entry.id === (selectedLoadoutEntryId || defaultSelectedLoadoutEntryId))
+    ?? loadoutEntries.find((entry) => entry.id === defaultSelectedLoadoutEntryId)
+    ?? loadoutEntries[0]
+    ?? null;
+  const selectedInGameLoadoutSlot = getSelectedInGameLoadoutSlot(props.accountSummary, selectedLoadoutEntry);
   const visibleLoadoutEntries = entrySourceFilter === "all"
     ? loadoutEntries
     : loadoutEntries.filter((entry) => entry.source === entrySourceFilter);
@@ -125,11 +134,13 @@ export function LoadoutsPageContentView(props: LoadoutsPageContentViewProps) {
                 entry={entry}
                 accountSummary={props.accountSummary}
                 interfaceLocale={props.interfaceLocale}
-                isSelected={entry.templateId ? selectedTemplate?.id === entry.templateId : false}
+                isSelected={selectedLoadoutEntry?.id === entry.id}
                 isRunningItemAction={props.isRunningItemAction}
                 onEquipSavedLoadout={props.onEquipSavedLoadout}
+                onSelectEntry={(entryId) => setSelectedLoadoutEntryId(entryId)}
                 onSelectTemplate={(templateId) => {
                   const template = props.templates.find((item: any) => item.id === templateId);
+                  setSelectedLoadoutEntryId(`local-template-${templateId}`);
                   props.onSelectTemplate(templateId);
                   if (template) props.onRenameDraftChange(template.name);
                 }}
@@ -140,7 +151,16 @@ export function LoadoutsPageContentView(props: LoadoutsPageContentViewProps) {
             )}
           </div>
         </ProductWorkspaceSideRail>
-        {selectedTemplate ? (
+        {selectedInGameLoadoutSlot ? (
+          <InGameLoadoutSlotDetail
+            copy={copy}
+            character={selectedInGameLoadoutSlot.character}
+            slot={selectedInGameLoadoutSlot.slot}
+            isRunningItemAction={props.isRunningItemAction}
+            onEquipSavedLoadout={props.onEquipSavedLoadout}
+            onSnapshotCurrentLoadout={props.onSnapshotCurrentLoadout}
+          />
+        ) : selectedTemplate ? (
           <ProductWorkspacePanel element="section" className="loadout-template-detail">
             <strong>{loadoutsText(copy, "方案详情")}</strong>
             <span>
@@ -266,6 +286,7 @@ function LoadoutEntryRow(props: {
   interfaceLocale?: InterfaceLocale;
   isSelected: boolean;
   isRunningItemAction: boolean;
+  onSelectEntry: (id: string) => void;
   onSelectTemplate: (id: string) => void;
   onEquipSavedLoadout: (character: any, slot: any) => void;
   onSnapshotCurrentLoadout: (character: any, slot: any) => void;
@@ -294,7 +315,18 @@ function LoadoutEntryRow(props: {
   const slot = character?.loadout_slots.find((item: any) => item.index === props.entry.slotIndex);
 
   return (
-    <div className="action-log-row loadout-entry-row">
+    <div
+      className={`action-log-row loadout-entry-row ${props.isSelected ? "log-ok is-selected" : ""}`.trim()}
+      role="button"
+      tabIndex={0}
+      onClick={() => props.onSelectEntry(props.entry.id)}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          props.onSelectEntry(props.entry.id);
+        }
+      }}
+    >
       <span className={`loadout-entry-source-badge source-${props.entry.source}`}>{sourceLabel}</span>
       <strong>{props.entry.title}</strong>
       <span>{localizeLoadoutEntryText(props.entry.subtitle, props.copy)}</span>
@@ -302,15 +334,78 @@ function LoadoutEntryRow(props: {
       <span className={`loadout-entry-status status-${props.entry.statusTone}`}>{localizeLoadoutEntryText(props.entry.statusLabel, props.copy)}</span>
       {character && slot ? (
         <div className="button-row compact">
-          <button type="button" className="secondary-button" disabled={props.isRunningItemAction} onClick={() => props.onEquipSavedLoadout(character, slot)}>
+          <button type="button" className="secondary-button" disabled={props.isRunningItemAction} onClick={(event) => {
+            event.stopPropagation();
+            props.onEquipSavedLoadout(character, slot);
+          }}>
             {loadoutsText(props.copy, "应用到角色")}
           </button>
-          <button type="button" className="secondary-button" disabled={props.isRunningItemAction} onClick={() => props.onSnapshotCurrentLoadout(character, slot)}>
+          <button type="button" className="secondary-button" disabled={props.isRunningItemAction} onClick={(event) => {
+            event.stopPropagation();
+            props.onSnapshotCurrentLoadout(character, slot);
+          }}>
             {loadoutsText(props.copy, "用当前装备覆盖")}
           </button>
         </div>
       ) : null}
     </div>
+  );
+}
+
+function getSelectedInGameLoadoutSlot(accountSummary: any | null, entry: LoadoutEntry | null) {
+  if (!accountSummary || entry?.source !== "in-game") {
+    return null;
+  }
+  const character = accountSummary.characters.find((item: any) => item.character_id === entry.characterId);
+  const slot = character?.loadout_slots.find((item: any) => item.index === entry.slotIndex);
+  return character && slot ? { character, slot } : null;
+}
+
+function InGameLoadoutSlotDetail(props: {
+  copy: LoadoutsCopy;
+  character: any;
+  slot: any;
+  isRunningItemAction: boolean;
+  onEquipSavedLoadout: (character: any, slot: any) => void;
+  onSnapshotCurrentLoadout: (character: any, slot: any) => void;
+}) {
+  return (
+    <ProductWorkspacePanel element="section" className="loadout-template-detail loadout-in-game-detail">
+      <strong>{loadoutsText(props.copy, "游戏内配装详情")}</strong>
+      <span>
+        {props.character.class_name} / {loadoutsText(props.copy, "槽位")} {props.slot.index + 1} / {props.slot.item_count} {loadoutsText(props.copy, "件装备")}
+      </span>
+      <div className="field-grid">
+        <label>
+          <span>{loadoutsText(props.copy, "配装名称")}</span>
+          <input value={props.slot.name || `${loadoutsText(props.copy, "配装栏")} ${props.slot.index + 1}`} readOnly />
+        </label>
+      </div>
+      <div className="button-row loadout-template-actions">
+        <button type="button" className="secondary-button" disabled={props.isRunningItemAction} onClick={() => props.onEquipSavedLoadout(props.character, props.slot)}>
+          {loadoutsText(props.copy, "应用到角色")}
+        </button>
+        <button type="button" className="secondary-button" disabled={props.isRunningItemAction} onClick={() => props.onSnapshotCurrentLoadout(props.character, props.slot)}>
+          {loadoutsText(props.copy, "用当前装备覆盖")}
+        </button>
+      </div>
+      <p className="status-message status-neutral loadout-detail-callout">
+        {loadoutsText(props.copy, "这是 Bungie 游戏内配装栏，当前只能应用到角色或用当前装备覆盖；重命名和删除请在游戏内完成。")}
+      </p>
+      {props.slot.items.length ? (
+        <ul className="daily-source-items">
+          {props.slot.items.map((item: any, index: number) => (
+            <li className="loadout-item status-neutral" key={`${props.character.character_id}-${props.slot.index}-${item.instance_id ?? index}`}>
+              <b>{item.name}</b>
+              <span className="loadout-status-badge neutral">{item.bucket_name || loadoutsText(props.copy, "未知槽位")}</span>
+              <small>{item.instance_id ? `${loadoutsText(props.copy, "物品")} ${item.instance_id}` : loadoutsText(props.copy, "暂无物品实例 ID")}</small>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="status-message status-neutral">{loadoutsText(props.copy, "当前槽位为空")}</p>
+      )}
+    </ProductWorkspacePanel>
   );
 }
 

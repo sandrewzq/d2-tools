@@ -8,16 +8,18 @@ export type VendorInventoryItemWorkspace = {
   name: string;
   itemType: string;
   summary: string;
-  cost: string;
+  cost?: string;
   iconLabel: string;
   iconUrl?: string;
   costIconLabel?: string;
+  costIconUrl?: string;
   tone: VendorInventoryTone;
   status: VendorInventoryStatus;
 };
 
 export type VendorInventoryGroupWorkspace = {
   id: string;
+  vendorHash?: number;
   name: string;
   description: string;
   badge: string;
@@ -25,6 +27,7 @@ export type VendorInventoryGroupWorkspace = {
   resetLabel: string;
   category?: string;
   iconLabel?: string;
+  iconUrl?: string;
   statusLabel?: string;
   featured?: boolean;
   items: VendorInventoryItemWorkspace[];
@@ -57,8 +60,7 @@ export function createVendorsPageWorkspace(dailySummary: DailySummary | null): V
   const vendorItems = vendorSource.items ?? [];
   const liveVendors = vendorItems
     .filter((item) => item.title.trim())
-    .map((item, index) => mapDailyVendorItem(item, dailySummary, index))
-    .filter((vendor) => vendor.items.length > 0);
+    .map((item, index) => mapDailyVendorItem(item, dailySummary, index));
   const vendors = mergeLiveVendorsWithDirectory(liveVendors, dailySummary.daily_reset.time_remaining_label);
   const verifiedItemCount = liveVendors.reduce((count, vendor) => count + vendor.items.length, 0);
 
@@ -93,7 +95,7 @@ function mergeLiveVendorsWithDirectory(
       ...directoryVendor,
       ...liveVendor,
       id: directoryVendor.id,
-      name: directoryVendor.name,
+      name: liveVendor.name,
       category: directoryVendor.category,
       iconLabel: directoryVendor.iconLabel,
       featured: directoryVendor.featured ?? liveVendor.featured
@@ -109,25 +111,27 @@ function mapDailyVendorItem(item: DailySummaryItem, dailySummary: DailySummary, 
   const source = item.source?.trim() || publicVendorSourceLabel;
 
   return {
-    id: `vendor-${slugify(vendorName) || index}`,
+    id: item.vendorHash !== undefined ? `vendor-${item.vendorHash}` : `vendor-${slugify(vendorName) || index}`,
+    vendorHash: item.vendorHash,
     name: vendorName,
     description: item.subtitle?.trim() || "可确认商人库存",
     badge: "已确认",
     source,
     resetLabel: dailySummary.daily_reset.time_remaining_label,
-    category: isFeaturedVendor(vendorName) ? "重点" : "实时",
+    category: isFeaturedVendor(vendorName, item.vendorHash) ? "重点" : "实时",
     iconLabel: getIconLabel(vendorName),
+    iconUrl: normalizeBungieIconUrl(item.iconUrl ?? item.icon),
     statusLabel: "已确认",
-    featured: isFeaturedVendor(vendorName),
+    featured: isFeaturedVendor(vendorName, item.vendorHash),
     items: item.items?.length
-      ? item.items.slice(0, 12).map((saleItem, saleIndex) => mapDailySaleItem(saleItem, vendorName, saleIndex))
-      : parseInventoryDescription(item.description ?? "", vendorName)
+      ? item.items.slice(0, 12).map((saleItem, saleIndex) => mapDailySaleItem(saleItem, vendorName, saleIndex, item.vendorHash))
+      : parseInventoryDescription(item.description ?? "", vendorName, item.items !== undefined)
   };
 }
 
-function mapDailySaleItem(item: DailySummaryItem, vendorName: string, index: number): VendorInventoryItemWorkspace {
+function mapDailySaleItem(item: DailySummaryItem, vendorName: string, index: number, vendorHash?: number): VendorInventoryItemWorkspace {
   const itemType = item.subtitle?.trim() || inferItemType(item.title);
-  const cost = item.description?.trim() || "费用待确认";
+  const cost = item.description?.trim() || undefined;
   const tone = getInventoryTone(`${item.title} ${itemType}`);
   return {
     id: `${slugify(vendorName)}-${slugify(item.title) || index}`,
@@ -137,9 +141,10 @@ function mapDailySaleItem(item: DailySummaryItem, vendorName: string, index: num
     cost,
     iconLabel: item.iconLabel?.trim() || getIconLabel(item.title),
     iconUrl: normalizeBungieIconUrl(item.iconUrl ?? item.icon),
-    costIconLabel: cost.includes("奇异硬币") ? "◈" : "◇",
+    costIconLabel: cost?.includes("奇异硬币") ? "◈" : "◇",
+    costIconUrl: normalizeBungieIconUrl(item.costIconUrl),
     tone,
-    status: isFeaturedVendor(vendorName) && tone === "exotic" ? "recommended" : "unknown"
+    status: isFeaturedVendor(vendorName, vendorHash) && tone === "exotic" ? "recommended" : "unknown"
   };
 }
 
@@ -151,139 +156,119 @@ function createLocalVendorDirectory(resetLabel: string): VendorInventoryGroupWor
   return [
     createDirectoryVendor({
       id: "xur",
-      name: "仄（Xur）",
+      vendorHash: 2190858386,
+      name: "周末异域商人",
       description: "周末异域商人；实时库存接入后展示本周售卖和价格。",
       badge: "周末",
       category: "重点",
       iconLabel: "Xû",
       featured: true,
       resetLabel,
-      items: [
-        createDirectoryItem("xur-exotic", "周末异域库存", "异域与传说库存", "等待 Bungie 公共商人数据后显示具体装备。", "异", "exotic"),
-        createDirectoryItem("xur-armor", "职业异域护甲", "异域护甲", "后续按职业展示属性卷和拥有状态。", "甲", "armor"),
-        createDirectoryItem("xur-legendary", "传说武器轮换", "传说武器", "接入后复查 perk 组合和值得购买的武器。", "武", "weapon")
-      ]
+      items: []
     }),
     createDirectoryVendor({
       id: "banshee",
-      name: "枪匠（Banshee-44）",
-      description: "每日武器和枪匠声望；后续接入武器 perk 复查。",
+      vendorHash: 672118013,
+      name: "每日武器商人",
+      description: "每日武器库存和声望；后续接入武器 perk 复查。",
       badge: "每日",
       category: "重点",
       iconLabel: "B4",
       resetLabel,
-      items: [
-        createDirectoryItem("banshee-weapons", "枪匠武器库存", "武器库存", "等待可确认武器、费用和 perk 线索。", "枪", "weapon"),
-        createDirectoryItem("banshee-rank", "枪匠声望奖励", "声望奖励", "用于后续展示声望轨道和重置状态。", "徽", "material")
-      ]
+      items: []
     }),
     createDirectoryVendor({
       id: "ada",
-      name: "艾达-1（Ada-1）",
+      vendorHash: 3500617033,
+      name: "护甲合成商人",
       description: "护甲合成和外观相关入口。",
       badge: "常驻",
       category: "重点",
       iconLabel: "A1",
       resetLabel,
-      items: [
-        createDirectoryItem("ada-synthesis", "护甲合成入口", "功能库存", "用于保留幻化和护甲合成相关入口。", "织", "material"),
-        createDirectoryItem("ada-bounty", "合成赏金", "赏金库存", "后续展示赏金状态和兑换需求。", "赏", "material")
-      ]
+      items: []
     }),
     createDirectoryVendor({
       id: "saint",
-      name: "圣人-14（Saint-14）",
+      vendorHash: 3902439767,
+      name: "试炼商人",
       description: "试炼声望、周末奖励和聚焦入口。",
       badge: "周末",
-      category: "塔楼",
+      category: "周末",
       iconLabel: "S14",
       resetLabel,
-      items: [
-        createDirectoryItem("saint-trials", "试炼聚焦入口", "聚焦奖励", "周末开启后再确认地图、奖励和购买资格。", "试", "weapon"),
-        createDirectoryItem("saint-rank", "试炼声望轨道", "声望奖励", "展示周末奖励和重置提示。", "14", "material")
-      ]
+      items: []
     }),
     createDirectoryVendor({
       id: "zavala",
-      name: "萨瓦拉",
+      name: "先锋商人",
       description: "先锋声望、聚焦和周常奖励。",
       badge: "周更",
-      category: "塔楼",
+      category: "常驻",
       iconLabel: "ZV",
       resetLabel,
-      items: [
-        createDirectoryItem("zavala-vanguard", "先锋聚焦入口", "聚焦奖励", "等待先锋奖励和聚焦数据。", "先", "weapon"),
-        createDirectoryItem("zavala-rank", "先锋声望轨道", "声望奖励", "展示声望重置和周常奖励入口。", "徽", "material")
-      ]
+      items: []
     }),
     createDirectoryVendor({
       id: "shaxx",
-      name: "沙克斯领主",
+      name: "熔炉商人",
       description: "熔炉竞技场声望和聚焦奖励。",
       badge: "周更",
-      category: "塔楼",
+      category: "常驻",
       iconLabel: "SX",
       resetLabel,
-      items: [
-        createDirectoryItem("shaxx-crucible", "熔炉聚焦入口", "聚焦奖励", "等待熔炉奖励和聚焦数据。", "炉", "weapon"),
-        createDirectoryItem("shaxx-armor", "熔炉护甲入口", "活动护甲", "用于后续展示护甲库存和费用。", "甲", "armor")
-      ]
+      items: []
     }),
     createDirectoryVendor({
       id: "drifter",
-      name: "浪客",
+      name: "智谋商人",
       description: "智谋声望、聚焦和周常奖励。",
       badge: "周更",
-      category: "塔楼",
+      category: "常驻",
       iconLabel: "Dr",
       resetLabel,
-      items: [
-        createDirectoryItem("drifter-gambit", "智谋聚焦入口", "聚焦奖励", "等待智谋奖励和聚焦数据。", "智", "weapon"),
-        createDirectoryItem("drifter-rank", "恶名声望轨道", "声望奖励", "保留声望重置和周常奖励位置。", "恶", "material")
-      ]
+      items: []
     }),
     createDirectoryVendor({
       id: "rahool",
-      name: "拉乎尔",
+      vendorHash: 2255782930,
+      name: "记忆水晶商人",
       description: "记忆水晶解码和材料兑换。",
       badge: "常驻",
-      category: "塔楼",
+      category: "常驻",
       iconLabel: "Rh",
       resetLabel,
-      items: [
-        createDirectoryItem("rahool-decode", "记忆水晶解码", "解码服务", "后续展示解码、聚焦和材料兑换状态。", "晶", "exotic"),
-        createDirectoryItem("rahool-material", "材料兑换", "兑换库存", "非装备类库存会和武器、护甲分开标记。", "材", "material")
-      ]
+      items: []
     }),
     createDirectoryVendor({
       id: "tess",
-      name: "苔丝",
+      name: "外观商人",
       description: "永恒之诗外观和光尘轮换。",
       badge: "周更",
       category: "特殊 / 活动",
       iconLabel: "EV",
       resetLabel,
-      items: [
-        createDirectoryItem("tess-eververse", "永恒之诗轮换", "外观库存", "外观类库存只作入口提示，不作为战力推荐。", "饰", "material"),
-        createDirectoryItem("tess-bright-dust", "光尘轮换", "外观库存", "后续展示光尘价格和本周外观。", "尘", "material")
-      ]
+      items: []
     })
   ];
 }
 
 function createDirectoryVendor(input: {
   id: string;
+  vendorHash?: number;
   name: string;
   description: string;
   badge: string;
   category: string;
   iconLabel: string;
+  iconUrl?: string;
   resetLabel: string;
   featured?: boolean;
   items: VendorInventoryItemWorkspace[];
 }): VendorInventoryGroupWorkspace {
   return {
     id: input.id,
+    vendorHash: input.vendorHash,
     name: input.name,
     description: input.description,
     badge: input.badge,
@@ -291,34 +276,22 @@ function createDirectoryVendor(input: {
     resetLabel: input.resetLabel,
     category: input.category,
     iconLabel: input.iconLabel,
+    iconUrl: input.iconUrl,
     statusLabel: "等待实时库存",
     featured: input.featured,
     items: input.items
   };
 }
 
-function createDirectoryItem(
-  id: string,
-  name: string,
-  itemType: string,
-  summary: string,
-  iconLabel: string,
-  tone: VendorInventoryTone
-): VendorInventoryItemWorkspace {
-  return {
-    id,
-    name,
-    itemType,
-    summary,
-    cost: "待确认",
-    iconLabel,
-    costIconLabel: "◇",
-    tone,
-    status: "unknown"
-  };
-}
+function parseInventoryDescription(
+  description: string,
+  vendorName: string,
+  hasStructuredItems = false
+): VendorInventoryItemWorkspace[] {
+  if (hasStructuredItems || isUnreadableInventoryDescription(description)) {
+    return [];
+  }
 
-function parseInventoryDescription(description: string, vendorName: string): VendorInventoryItemWorkspace[] {
   return description
     .split(/\s+\/\s+/)
     .map((entry) => entry.trim())
@@ -326,12 +299,17 @@ function parseInventoryDescription(description: string, vendorName: string): Ven
     .map((entry, index) => parseInventoryEntry(entry, vendorName, index));
 }
 
+function isUnreadableInventoryDescription(description: string): boolean {
+  const normalized = description.trim();
+  return normalized === "" || normalized === "库存名称暂不可读";
+}
+
 function parseInventoryEntry(entry: string, vendorName: string, index: number): VendorInventoryItemWorkspace {
   const match = entry.match(/^(.+?)（(.+?)）$/);
   const name = (match?.[1] ?? entry).trim();
   const detail = (match?.[2] ?? "").trim();
   const detailParts = detail.split(/[；;]/).map((part) => part.trim()).filter(Boolean);
-  const cost = detailParts.length > 1 ? detailParts.at(-1) ?? "待确认" : "待确认";
+  const cost = detailParts.length > 1 ? detailParts.at(-1) : undefined;
   const itemType = detailParts.length > 1 ? detailParts.slice(0, -1).join("，") : detail || "库存物品";
   const tone = getInventoryTone(`${name} ${itemType}`);
 
@@ -366,11 +344,15 @@ function getIconLabel(name: string): string {
   return chars.slice(0, Math.min(chars.length, 2)).join("") || "商";
 }
 
-function isFeaturedVendor(name: string): boolean {
+function isFeaturedVendor(name: string, vendorHash?: number): boolean {
+  if (vendorHash === 2190858386) return true;
   return /老九|仄|Xur/i.test(name);
 }
 
 function isSameVendor(left: VendorInventoryGroupWorkspace, right: VendorInventoryGroupWorkspace): boolean {
+  if (left.vendorHash !== undefined && right.vendorHash !== undefined) {
+    return left.vendorHash === right.vendorHash;
+  }
   const leftKey = vendorMatchKey(`${left.id} ${left.name} ${left.description}`);
   const rightKey = vendorMatchKey(`${right.id} ${right.name} ${right.description}`);
   return leftKey !== "" && leftKey === rightKey;

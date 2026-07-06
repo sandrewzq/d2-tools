@@ -101,7 +101,17 @@
 
 ### F. Desktop 菜单 Provider 解耦计划
 
-当前 UI 骨架和共享样式已基本收口，但 Desktop renderer 的 composition root 仍然偏胖。`packages/desktop/src/renderer/pages/HomePage.tsx` 同时初始化账号、资料库、配装、仓库、商人、首页、AI、写操作和全局状态，再把所有菜单 props 一次性传给 `HomePageRoutes`。这会让首页看起来像其他菜单的上级聚合器，也会让多 agent 分菜单开发时边界不清。
+本节状态：已落地。当前实现为：
+
+- `packages/desktop/src/renderer/pages/HomePage.tsx` 只负责挂载 `ProductShellHost`、`DesktopMenuProvider`、`HomePageRoutes` 和全局装备详情弹窗。
+- 产品级状态、顶部状态、AI 抽屉、后台任务、更新横幅、全局写操作和各菜单 props 组装已迁到 `useDesktopProductShell.tsx`。
+- 菜单渲染入口已迁到 `packages/desktop/src/renderer/pages/providers/*MenuProvider.tsx`，`HomePageRoutes.tsx` 只根据 `activePage` 选择对应 Provider。
+- 产品级写操作 hook 已从 `useHomePageWriteActions.ts` 改名为 `useDesktopProductWriteActions.ts`，避免把跨菜单写操作继续命名为首页能力。
+- `packages/desktop/test/desktop-menu-provider-boundaries.test.ts` 已新增边界：禁止 `features/home/` import 其他菜单 feature，禁止 `HomePage.tsx` 直接 import 菜单 workspace hooks，禁止恢复旧 HomePage 写操作命名，并要求路由通过菜单 Provider 渲染。
+
+后续如果继续下沉菜单 ViewModel，应在 `packages/app` 或对应菜单 Provider 内推进；不要把这些逻辑重新塞回 `HomePage.tsx`。
+
+改造前，Desktop renderer 的 composition root 仍然偏胖。`packages/desktop/src/renderer/pages/HomePage.tsx` 同时初始化账号、资料库、配装、仓库、商人、首页、AI、写操作和全局状态，再把所有菜单 props 一次性传给 `HomePageRoutes`。这会让首页看起来像其他菜单的上级聚合器，也会让多 agent 分菜单开发时边界不清。本轮已经按上面的落地状态拆出 Provider 和产品壳 hook；本段保留为问题背景。
 
 目标不是让首页管理其他菜单，而是让首页、账号、仓库、配装、资料库、商人、设置都成为 `ProductShellHost` 下的平级菜单：
 
@@ -126,7 +136,7 @@ SettingsMenuProvider
 - 首页需要的提醒、状态和摘要应来自首页自己的 workspace props，或后续从 `packages/app` / `packages/services` 暴露的轻量 summary。
 - 首页不是账号、仓库、商人、配装或资料库的父级；其他菜单也不应依赖首页。
 
-建议实施阶段：
+已执行的实施阶段：
 
 1. **边界测试先行**
    - 新增或扩展 `packages/desktop/test/desktop-menu-provider-boundaries.test.ts`。

@@ -9,7 +9,7 @@ const uiRoot = fileURLToPath(new URL("../../ui", import.meta.url));
 
 describe("activity and loadout planning wiring", () => {
   it("wires activity summary and loadout transfer plans through the desktop API", () => {
-    const homePage = readFileSync(join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"), "utf8");
+    const productShell = readFileSync(join(desktopRoot, "src", "renderer", "pages", "useDesktopProductShell.tsx"), "utf8");
     const apiClient = readRendererApiContracts(desktopRoot);
     const preload = readFileSync(join(desktopRoot, "src", "preload", "preload.ts"), "utf8");
     const ipc = readFileSync(join(desktopRoot, "src", "main", "ipc.ts"), "utf8");
@@ -31,12 +31,14 @@ describe("activity and loadout planning wiring", () => {
     expect(preload).toContain('ipcRenderer.invoke("loadouts:transfer-plan"');
     expect(ipc).toContain("registerActivitiesIpcHandlers()");
     expect(activitiesIpc).toContain('ipcMain.handle("activities:summary"');
+    expect(activitiesIpc).toContain("ACTIVITY_HISTORY_SUMMARY_MODES");
+    expect(activitiesIpc).toContain("mode,");
     expect(ipc).toContain("registerLoadoutIpcHandlers()");
     expect(loadoutIpc).toContain('ipcMain.handle("loadouts:transfer-plan"');
-    expect(homePage).toContain("activitySummary");
-    expect(homePage).toContain("activityMessage");
-    expect(homePage).toContain("activityError");
-    expect(homePage).toContain("onRefreshActivity: () => void loadActivitySummary()");
+    expect(productShell).toContain("activitySummary");
+    expect(productShell).toContain("activityMessage");
+    expect(productShell).toContain("activityError");
+    expect(productShell).toContain("onRefreshActivity: () => void loadActivitySummary()");
     expect(accountPage).toContain("活动复盘");
     expect(accountPage).toContain("activitySummary.recent");
     expect(accountPage).toContain("activitySummary.review");

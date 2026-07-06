@@ -17,7 +17,7 @@ describe("cleanup mode wiring", () => {
     const vaultBatchHook = readFileSync(join(uiRoot, "vault", "useVaultBatchActions.ts"), "utf8");
     const vaultPage = readFileSync(join(desktopRoot, "src", "renderer", "features", "vault", "VaultPage.tsx"), "utf8");
     const vaultWriteHook = readFileSync(join(desktopRoot, "src", "renderer", "features", "vault", "useVaultWriteActions.ts"), "utf8");
-    const homePage = readFileSync(join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"), "utf8");
+    const productShell = readFileSync(join(desktopRoot, "src", "renderer", "pages", "useDesktopProductShell.tsx"), "utf8");
     const homeRoutes = readFileSync(join(desktopRoot, "src", "renderer", "pages", "HomePageRoutes.tsx"), "utf8");
 
     expect(vaultPanel).toContain("VaultPageContentView as VaultPanel");
@@ -38,8 +38,8 @@ describe("cleanup mode wiring", () => {
     expect(vaultWriteHook).toContain("handleVaultCleanupTransfer");
     expect(vaultWriteHook).toContain("api.setItemLockState");
     expect(vaultWriteHook).toContain("api.batchTransferItems");
-    expect(homePage).toContain("writeActionsEnabled: diagnostics.writeActionsEnabled");
-    expect(homeRoutes).toContain("<VaultPage {...props.vault}");
+    expect(productShell).toContain("writeActionsEnabled: diagnostics.writeActionsEnabled");
+    expect(homeRoutes).toContain("<VaultMenuProvider");
     expect(vaultPage).toContain("writeActionsEnabled: props.writeActionsEnabled");
   });
 });

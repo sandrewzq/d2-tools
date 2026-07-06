@@ -299,9 +299,9 @@ export function useItemDetailWorkspace(input: {
       await saveVaultTagsBatch(buildDuplicateGroupBatchTagPlan(group, mode));
       setItemNoteMessage(
         mode === "keep-best-review-rest"
-          ? "已将最高分保留，其余标记为关注。"
+          ? "已将推荐项保留，其余标记为关注。"
           : mode === "keep-best-junk-rest"
-            ? "已将最高分保留，其余标记为可清理。"
+            ? "已将推荐项保留，其余标记为可清理。"
             : "已清除这组同名装备的本地标记。"
       );
     } catch (error) {

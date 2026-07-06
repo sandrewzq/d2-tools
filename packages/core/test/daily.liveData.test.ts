@@ -134,7 +134,7 @@ describe("daily live data mapping", () => {
     expect(liveData.vendors[0].description).toContain("守誓者（臂铠，异域；23 奇异硬币）");
   });
 
-  it("keeps public vendor sale item icons for home and vendor UI", () => {
+  it("keeps public vendor, sale item, and currency icons for home and vendor UI", () => {
     const liveData = buildDailyLiveDataFromBungie({
       publicVendors: {
         vendors: {
@@ -157,7 +157,12 @@ describe("daily live data mapping", () => {
       },
       definitions: {
         vendors: {
-          "2190858386": { displayProperties: { name: "老九" } }
+          "2190858386": {
+            displayProperties: {
+              name: "老九",
+              icon: "/common/destiny2_content/icons/xur.jpg"
+            }
+          }
         },
         items: {
           "3883286571": {
@@ -169,22 +174,29 @@ describe("daily live data mapping", () => {
             inventory: { tierTypeName: "异域" }
           },
           "3702027555": {
-            displayProperties: { name: "奇异硬币" }
+            displayProperties: {
+              name: "奇异硬币",
+              icon: "/common/destiny2_content/icons/strange-coin.jpg"
+            }
           }
         }
       }
     });
 
+    expect(liveData.vendors[0]).toMatchObject({
+      iconUrl: "/common/destiny2_content/icons/xur.jpg"
+    });
     expect(liveData.vendors[0].items?.[0]).toMatchObject({
       title: "守誓者",
       subtitle: "臂铠，异域",
       description: "23 奇异硬币",
       iconUrl: "/common/destiny2_content/icons/oathkeeper.jpg",
+      costIconUrl: "/common/destiny2_content/icons/strange-coin.jpg",
       source: "Bungie 公共商人"
     });
   });
 
-  it("uses known key vendor labels when vendor definitions are missing", () => {
+  it("uses neutral placeholders when vendor definitions are missing", () => {
     const liveData = buildDailyLiveDataFromBungie({
       publicVendors: {
         vendors: {
@@ -198,9 +210,39 @@ describe("daily live data mapping", () => {
       definitions: {}
     });
 
-    expect(liveData.vendors.map((item) => item.title)).toEqual(["老九", "枪匠"]);
-    expect(liveData.vendors[0].subtitle).toBe("异域商人 · 周五至周二出现");
-    expect(liveData.vendors[1].subtitle).toBe("枪匠 · 每日模组刷新");
+    expect(liveData.vendors.map((item) => item.title)).toEqual([
+      "等待资料库解析的商人",
+      "等待资料库解析的商人"
+    ]);
+    expect(liveData.vendors[0].subtitle).toBe("周末商人库存");
+    expect(liveData.vendors[1].subtitle).toBe("登录角色或公共商人库存");
+    expect(JSON.stringify(liveData.vendors)).not.toContain("老九");
+    expect(JSON.stringify(liveData.vendors)).not.toContain("枪匠");
+    expect(liveData.vendors.map((item) => item.description).join(" ")).not.toContain("2190858386");
+    expect(liveData.vendors.map((item) => item.description).join(" ")).not.toContain("672118013");
+  });
+
+  it("uses vendor definition names exactly instead of canonical translations", () => {
+    const liveData = buildDailyLiveDataFromBungie({
+      publicVendors: {
+        vendors: {
+          data: {
+            "672118013": { vendorHash: 672118013 }
+          }
+        },
+        sales: { data: {} }
+      },
+      definitions: {
+        vendors: {
+          "672118013": { displayProperties: { name: "资料库枪匠名" } }
+        }
+      }
+    });
+
+    expect(liveData.vendors[0]).toMatchObject({
+      title: "资料库枪匠名",
+      vendorHash: 672118013
+    });
   });
 
   it("merges authenticated character vendors into daily vendor summaries", () => {
@@ -248,9 +290,9 @@ describe("daily live data mapping", () => {
       ],
       definitions: {
         vendors: {
-          "2190858386": { displayProperties: { name: "Xûr" } },
-          "672118013": { displayProperties: { name: "Banshee-44" } },
-          "3500617033": { displayProperties: { name: "Ada-1" } }
+          "2190858386": { displayProperties: { name: "资料库周末商人" } },
+          "672118013": { displayProperties: { name: "资料库武器商人" } },
+          "3500617033": { displayProperties: { name: "资料库护甲商人" } }
         },
         items: {
           "3883286571": {
@@ -274,9 +316,9 @@ describe("daily live data mapping", () => {
       }
     });
 
-    expect(liveData.vendors.map((item) => item.title)).toEqual(["老九", "枪匠", "艾达-1"]);
+    expect(liveData.vendors.map((item) => item.title)).toEqual(["资料库周末商人", "资料库武器商人", "资料库护甲商人"]);
     expect(liveData.vendors[1]).toMatchObject({
-      subtitle: "枪匠 · 每日模组刷新",
+      subtitle: "登录角色或公共商人库存",
       source: "Bungie 登录角色商人"
     });
     expect(liveData.vendors[1].items?.[0]).toMatchObject({
@@ -286,9 +328,52 @@ describe("daily live data mapping", () => {
       source: "Bungie 登录角色商人"
     });
     expect(liveData.vendors[2]).toMatchObject({
-      title: "艾达-1",
+      title: "资料库护甲商人",
       source: "Bungie 登录角色商人"
     });
+  });
+
+  it("keeps non-key vendors when key vendors are present", () => {
+    const liveData = buildDailyLiveDataFromBungie({
+      publicVendors: {
+        vendors: {
+          data: {
+            "2190858386": { vendorHash: 2190858386 },
+            "123456": { vendorHash: 123456 }
+          }
+        },
+        sales: {
+          data: {
+            "2190858386": {
+              saleItems: {
+                "xur-item": { itemHash: 400 }
+              }
+            },
+            "123456": {
+              saleItems: {
+                "vendor-item": { itemHash: 401 }
+              }
+            }
+          }
+        }
+      },
+      definitions: {
+        vendors: {
+          "2190858386": { displayProperties: { name: "资料库周末商人" } },
+          "123456": { displayProperties: { name: "资料库非关键商人" } }
+        },
+        items: {
+          "400": { displayProperties: { name: "异域库存" } },
+          "401": { displayProperties: { name: "普通库存" } }
+        }
+      }
+    });
+
+    expect(liveData.vendors.map((item) => item.title)).toEqual([
+      "资料库周末商人",
+      "资料库非关键商人"
+    ]);
+    expect(liveData.vendors[1].items?.[0]?.title).toBe("普通库存");
   });
 
   it("uses milestone definitions when public milestone payload omits display names", () => {
@@ -313,6 +398,33 @@ describe("daily live data mapping", () => {
     expect(liveData.weekly_report[0].description).toBe("国王万岁");
   });
 
+  it("classifies lost sector activities per activity instead of contaminating the whole milestone", () => {
+    const liveData = buildDailyLiveDataFromBungie({
+      milestones: {
+        "777": {
+          displayProperties: { name: "每日活动" },
+          activities: [
+            { activityHash: 200 },
+            { activityHash: 100 }
+          ]
+        }
+      },
+      definitions: {
+        activities: {
+          "100": { displayProperties: { name: "国王的陨落：标准" } },
+          "200": { displayProperties: { name: "传说遗失区域：英灵日遗失区域" } }
+        }
+      }
+    });
+
+    expect(liveData.lost_sector.map((item) => item.title)).toEqual([
+      "遗失区域：传说遗失区域：英灵日遗失区域"
+    ]);
+    expect(liveData.rotations.map((item) => item.title)).toContain("每日活动：国王的陨落：标准");
+    expect(liveData.lost_sector.map((item) => item.title).join(" ")).not.toContain("国王的陨落");
+    expect(liveData.weekly_report.map((item) => item.title)).toContain("Bungie 公共里程碑：每日活动");
+  });
+
   it("does not expose raw Bungie milestone or vendor hashes to players", () => {
     const liveData = buildDailyLiveDataFromBungie({
       milestones: {
@@ -332,13 +444,18 @@ describe("daily live data mapping", () => {
       definitions: {}
     });
 
-    const text = JSON.stringify(liveData);
+    const playerVisibleText = [
+      ...liveData.rotations,
+      ...liveData.vendors,
+      ...liveData.weekly_report
+    ].flatMap((item) => [item.title, item.subtitle, item.description]).join(" ");
 
-    expect(text).not.toContain("里程碑 292102995");
-    expect(text).not.toContain("里程碑 540415767");
-    expect(text).not.toContain("商人 2190858386");
+    expect(playerVisibleText).not.toContain("里程碑 292102995");
+    expect(playerVisibleText).not.toContain("里程碑 540415767");
+    expect(playerVisibleText).not.toContain("商人 2190858386");
+    expect(playerVisibleText).not.toContain("老九");
     expect(liveData.rotations).toEqual([]);
-    expect(liveData.vendors.map((item) => item.title)).toEqual(["老九"]);
+    expect(liveData.vendors.map((item) => item.title)).toEqual(["等待资料库解析的商人"]);
     expect(liveData.weekly_report).toEqual([]);
   });
 });

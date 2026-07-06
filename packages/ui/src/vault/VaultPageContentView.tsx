@@ -61,23 +61,13 @@ import {
   ProductWorkspaceSplit
 } from "../workspace/ProductWorkspace.js";
 
-type VaultWorkspaceTab = "filters" | "cleanup" | "duplicates" | "targets" | "recommendations";
-type VaultQuickFilter = "cleanup" | "wishlist" | "targets" | "untagged" | "locked";
+type VaultWorkspaceTab = "filters" | "cleanup" | "duplicates" | "recommendations";
 
 const vaultWorkspaceTabs: Array<{ key: VaultWorkspaceTab; label: string; description: string }> = [
   { key: "filters", label: "筛选列表", description: "按类型、perk、标签和属性快速定位装备" },
   { key: "cleanup", label: "清理工作台", description: "处理已标记可清理装备和批量移动" },
   { key: "duplicates", label: "同名对比", description: "比较同名或同 Hash 装备的 roll 差异" },
-  { key: "targets", label: "目标规则", description: "查看本地目标命中的武器和护甲" },
   { key: "recommendations", label: "推荐数据", description: "查看 DIM 愿望单和社区推荐命中" }
-];
-
-const vaultQuickFilters: Array<{ key: VaultQuickFilter; label: string }> = [
-  { key: "cleanup", label: "可清理候选" },
-  { key: "wishlist", label: "DIM 命中" },
-  { key: "targets", label: "本地目标" },
-  { key: "untagged", label: "未标记" },
-  { key: "locked", label: "已锁定" }
 ];
 
 export function VaultPageContentView(props: {
@@ -161,6 +151,7 @@ export function VaultPageContentView(props: {
   );
   const wishlistSummaryCount = listWorkspace.wishlistMatchCount;
   const targetSummaryCount = listWorkspace.localTargetMatchCount;
+  const hasLocalTargets = Boolean(props.localTargetRules?.armor.length || props.localTargetRules?.weapons?.length);
   const loadoutMatchCount = useMemo(
     () => props.highlightedItemKeys
       ? filteredItems.filter((item) => matchesLoadoutTemplateItem(item, props.highlightedItemKeys)).length
@@ -317,32 +308,16 @@ export function VaultPageContentView(props: {
     }
   }
 
-  function applyVaultQuickFilter(filter: VaultQuickFilter) {
+  function showCleanupCandidates() {
     setBatchMessage("");
-    if (filter === "cleanup") {
-      setTagFilter("junk");
-      switchVaultTab("filters");
-      return;
-    }
-    if (filter === "wishlist") {
-      setTagFilter("wishlist");
-      switchVaultTab("filters");
-      return;
-    }
-    if (filter === "targets") {
-      setTagFilter("target");
-      switchVaultTab("filters");
-      return;
-    }
-    if (filter === "untagged") {
-      setTagFilter("untagged");
-      switchVaultTab("filters");
-      return;
-    }
-    if (filter === "locked") {
-      setLockFilter("locked");
-      switchVaultTab("filters");
-    }
+    setTagFilter("junk");
+    switchVaultTab("filters");
+  }
+
+  function showTargetMatches() {
+    setBatchMessage("");
+    setTagFilter("target");
+    switchVaultTab("filters");
   }
 
   return (
@@ -379,19 +354,6 @@ export function VaultPageContentView(props: {
                   <strong>{loadoutMatchCount} 件</strong>
                 </span>
               ) : null}
-            </div>
-            <div className="vault-quick-filters" aria-label="仓库快速筛选">
-              <span>快速筛选</span>
-              {vaultQuickFilters.map((filter) => (
-                <button
-                  type="button"
-                  key={filter.key}
-                  className="vault-quick-filter-chip"
-                  onClick={() => applyVaultQuickFilter(filter.key)}
-                >
-                  {filter.label}
-                </button>
-              ))}
             </div>
           </ProductWorkspaceCommandBar>
           {batchMessage ? <p className={batchMessage.includes("失败") ? "status-message status-error" : "status-message status-ready"}>{batchMessage}</p> : null}
@@ -480,20 +442,6 @@ export function VaultPageContentView(props: {
               />
             </>
           ) : null}
-          {activeVaultTab === "targets" ? (
-            <>
-              <div className="vault-duplicate-summary">
-                <strong>本地目标命中 {targetSummaryCount} 件</strong>
-                <span>按你保存的护甲属性最低值或武器 perk 规则匹配；可回到筛选列表用“目标命中”进一步缩小范围。</span>
-              </div>
-              <VaultTargetRulesPanel
-                items={props.items}
-                rules={props.localTargetRules ?? { action_policy: "notify_only", armor: [], weapons: [] }}
-                actions={props.targetRulesActions}
-              />
-              {renderVaultItems()}
-            </>
-          ) : null}
           {activeVaultTab === "recommendations" ? (
             <>
               <div className="vault-duplicate-summary">
@@ -503,6 +451,20 @@ export function VaultPageContentView(props: {
               <VaultRecommendationImportPanel
                 wishlist={props.wishlist}
                 actions={props.recommendationImportActions}
+              />
+              <div className="vault-duplicate-summary">
+                <strong>本地目标（高级）{hasLocalTargets ? ` · 命中 ${targetSummaryCount} 件` : ""}</strong>
+                <span>{hasLocalTargets ? "可按已保存目标查看命中装备；普通整理优先用装备卡片上的本地标记。" : "普通整理优先用装备卡片上的本地标记；需要自动匹配时再保存目标规则。"}</span>
+                {hasLocalTargets ? (
+                  <button type="button" className="secondary-button" onClick={showTargetMatches}>
+                    查看命中装备
+                  </button>
+                ) : null}
+              </div>
+              <VaultTargetRulesPanel
+                items={props.items}
+                rules={props.localTargetRules ?? { action_policy: "notify_only", armor: [], weapons: [] }}
+                actions={props.targetRulesActions}
               />
               {renderVaultItems()}
             </>
@@ -520,7 +482,8 @@ export function VaultPageContentView(props: {
             wishlistSummaryCount,
             localTargetRules: props.localTargetRules,
             targetSummaryCount,
-            onCleanupClick: () => applyVaultQuickFilter("cleanup"),
+            onCleanupClick: showCleanupCandidates,
+            onTargetClick: showTargetMatches,
             onDuplicatesClick: () => switchVaultTab("duplicates"),
             onCopyCleanupList: copyCleanupList
           })}
@@ -586,6 +549,7 @@ function renderVaultSideSummary(input: {
   localTargetRules?: LocalTargetRules | null;
   targetSummaryCount: number;
   onCleanupClick: () => void;
+  onTargetClick: () => void;
   onDuplicatesClick: () => void;
   onCopyCleanupList: () => void | Promise<void>;
 }) {
@@ -617,11 +581,13 @@ function renderVaultSideSummary(input: {
           <strong>{input.wishlist ? `${input.wishlistSummaryCount} 件` : "未导入"}</strong>
           <small>{input.wishlist ? "只使用你导入的 DIM 规则。" : "导入后可按愿望单命中筛选。"}</small>
         </div>
-        <div className="vault-side-signal">
-          <span>本地目标</span>
-          <strong>{hasLocalTargets ? `${input.targetSummaryCount} 件` : "未配置"}</strong>
-          <small>{hasLocalTargets ? "来自你保存的护甲阈值或武器规则。" : "可在目标规则中保存个人筛选条件。"}</small>
-        </div>
+        {hasLocalTargets ? (
+          <button type="button" className="vault-side-signal" onClick={input.onTargetClick}>
+            <span>本地目标命中</span>
+            <strong>{input.targetSummaryCount} 件</strong>
+            <small>来自你保存的护甲阈值或武器规则。</small>
+          </button>
+        ) : null}
       </div>
       <div className="vault-side-actions">
         <button type="button" onClick={input.onCleanupClick}>查看可清理候选</button>

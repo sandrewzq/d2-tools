@@ -19,6 +19,7 @@ export type PerkSearchResult = {
 export type PerkSearchOptions = {
   limit?: number;
   itemDefinitions?: DefinitionComponentData;
+  plugSetDefinitions?: DefinitionComponentData;
   aliases?: ItemAliases;
 };
 
@@ -57,7 +58,11 @@ export function searchPerkDefinitions(
       icon: normalizeBungieAssetUrl(definition.displayProperties?.icon)
     };
     const relatedItems = options.itemDefinitions
-      ? findRelatedItems(Number(definition.hash), options.itemDefinitions)
+      ? findRelatedItems(
+        buildRelatedPlugHashes(Number(definition.hash), options.itemDefinitions),
+        options.itemDefinitions,
+        options.plugSetDefinitions
+      )
       : [];
     if (relatedItems.length) {
       result.related_items = relatedItems;
@@ -72,11 +77,15 @@ export function searchPerkDefinitions(
   return results;
 }
 
-function findRelatedItems(perkHash: number, itemDefinitions: DefinitionComponentData): PerkRelatedItem[] {
+function findRelatedItems(
+  perkHashes: Set<number>,
+  itemDefinitions: DefinitionComponentData,
+  plugSetDefinitions: DefinitionComponentData | undefined
+): PerkRelatedItem[] {
   const matches: PerkRelatedItem[] = [];
   for (const definition of Object.values(itemDefinitions)) {
     const name = definition.displayProperties?.name?.trim();
-    if (!name || !definitionContainsPlug(definition, perkHash)) {
+    if (!name || !definitionContainsPlug(definition, perkHashes, plugSetDefinitions)) {
       continue;
     }
 
@@ -94,13 +103,55 @@ function findRelatedItems(perkHash: number, itemDefinitions: DefinitionComponent
   return matches;
 }
 
-function definitionContainsPlug(definition: DefinitionRecord, perkHash: number): boolean {
+function definitionContainsPlug(
+  definition: DefinitionRecord,
+  perkHashes: Set<number>,
+  plugSetDefinitions: DefinitionComponentData | undefined
+): boolean {
   return (definition.sockets?.socketEntries ?? []).some((entry) => {
-    if (entry.singleInitialItemHash === perkHash) {
+    if (typeof entry.singleInitialItemHash === "number" && perkHashes.has(entry.singleInitialItemHash)) {
       return true;
     }
-    return (entry.reusablePlugItems ?? []).some((plug) => plug.plugItemHash === perkHash);
+    if ((entry.reusablePlugItems ?? []).some((plug) => typeof plug.plugItemHash === "number" && perkHashes.has(plug.plugItemHash))) {
+      return true;
+    }
+
+    return [
+      entry.reusablePlugSetHash,
+      entry.randomizedPlugSetHash
+    ].some((plugSetHash) => plugSetContainsPlug(plugSetDefinitions, plugSetHash, perkHashes));
   });
+}
+
+function plugSetContainsPlug(
+  plugSetDefinitions: DefinitionComponentData | undefined,
+  plugSetHash: number | undefined,
+  perkHashes: Set<number>
+): boolean {
+  if (!plugSetDefinitions || typeof plugSetHash !== "number") {
+    return false;
+  }
+
+  return (plugSetDefinitions[String(plugSetHash)]?.reusablePlugItems ?? [])
+    .some((plug) => typeof plug.plugItemHash === "number" && perkHashes.has(plug.plugItemHash));
+}
+
+function buildRelatedPlugHashes(
+  sandboxPerkHash: number,
+  itemDefinitions: DefinitionComponentData
+): Set<number> {
+  const hashes = new Set<number>([sandboxPerkHash]);
+  for (const definition of Object.values(itemDefinitions)) {
+    const plugHash = Number(definition.hash);
+    if (!Number.isFinite(plugHash)) {
+      continue;
+    }
+
+    if ((definition.perks ?? []).some((perk) => perk.perkHash === sandboxPerkHash)) {
+      hashes.add(plugHash);
+    }
+  }
+  return hashes;
 }
 
 function normalizeBungieAssetUrl(path: string | undefined): string | undefined {

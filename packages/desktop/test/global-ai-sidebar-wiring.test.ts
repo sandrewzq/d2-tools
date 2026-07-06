@@ -14,8 +14,8 @@ describe("global AI assistant sidebar wiring", () => {
       readFileSync(join(uiRoot, "src", "shell", "navigation.ts"), "utf8")
     ].join("\n");
     const shellCopy = readFileSync(join(uiRoot, "src", "i18n", "copy.ts"), "utf8");
-    const homePage = readFileSync(
-      join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"),
+    const productShell = readFileSync(
+      join(desktopRoot, "src", "renderer", "pages", "useDesktopProductShell.tsx"),
       "utf8"
     );
 
@@ -33,9 +33,9 @@ describe("global AI assistant sidebar wiring", () => {
     expect(shellLayout).not.toContain("工作区");
     expect(shellLayout).not.toContain("任务助手");
     expect(shellLayout).not.toContain('{ key: "ai", label: "AI 助手" }');
-    expect(homePage).toContain("<GlobalAssistantSidebar");
-    expect(homePage).not.toContain('activePage === "ai"');
-    expect(homePage).not.toContain("pageTitle(activePage)");
+    expect(productShell).toContain("<GlobalAssistantSidebar");
+    expect(productShell).not.toContain('activePage === "ai"');
+    expect(productShell).not.toContain("pageTitle(activePage)");
   });
 
   it("keeps task context inside the global sidebar", () => {
@@ -121,8 +121,8 @@ describe("global AI assistant sidebar wiring", () => {
       readFileSync(join(uiRoot, "src", "product", "ProductShellHost.tsx"), "utf8"),
       readFileSync(join(uiRoot, "src", "i18n", "copy.ts"), "utf8")
     ].join("\n");
-    const homePage = readFileSync(
-      join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"),
+    const productShell = readFileSync(
+      join(desktopRoot, "src", "renderer", "pages", "useDesktopProductShell.tsx"),
       "utf8"
     );
     const diagnosticsHook = readFileSync(
@@ -158,11 +158,11 @@ describe("global AI assistant sidebar wiring", () => {
     expect(shellLayout).toContain("shell-tool-theme");
     expect(shellLayout).toContain("切换为暗色");
     expect(shellLayout).toContain("切换为亮色");
-    expect(homePage).toContain("preferences={productPreferences}");
-    expect(homePage).toContain("setColorMode: (mode: \"light\" | \"dark\") => window.d2?.setWindowColorMode?.(mode)");
-    expect(homePage).toContain("initialColorMode: visualColorMode ?? props.state.colorMode");
-    expect(homePage).toContain("VITE_D2_VISUAL_THEME");
-    expect(homePage).toContain("handleProductPreferencesChange");
+    expect(productShell).toContain("const productPreferences: ProductPreferences");
+    expect(productShell).toContain("setColorMode: (mode: \"light\" | \"dark\") => window.d2?.setWindowColorMode?.(mode)");
+    expect(productShell).toContain("initialColorMode: visualColorMode ?? props.state.colorMode");
+    expect(productShell).toContain("VITE_D2_VISUAL_THEME");
+    expect(productShell).toContain("handleProductPreferencesChange");
     expect(diagnosticsHook).toContain('initialColorMode?: "light" | "dark"');
     expect(diagnosticsHook).toContain("useColorModeState(input.initialColorMode)");
     expect(diagnosticsStateHook).toContain("export function useColorModeState");

@@ -24,7 +24,8 @@ describe("loadout library UI", () => {
     expect(ipcRegister).toContain("registerLoadoutIpcHandlers()");
     expect(loadoutsPage).toContain("onRenameTemplate");
     expect(loadoutsPage).toContain("LoadoutsPageContentView");
-    expect(loadoutsContent).toContain("LoadoutsPageView");
+    expect(loadoutsContent).not.toContain("LoadoutsPageView");
+    expect(loadoutsContent).toContain("loadout-workbench-shell");
     expect(uiCopy).toContain("本地方案库");
   });
 
@@ -102,17 +103,17 @@ describe("loadout library UI", () => {
   });
 
   it("shows inline pending and success feedback for single-item loadout actions", () => {
-    const homePage = readFileSync(join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"), "utf8");
-    const homeWriteHook = readFileSync(join(desktopRoot, "src", "renderer", "pages", "useHomePageWriteActions.ts"), "utf8");
+    const productShell = readFileSync(join(desktopRoot, "src", "renderer", "pages", "useDesktopProductShell.tsx"), "utf8");
+    const productWriteHook = readFileSync(join(desktopRoot, "src", "renderer", "pages", "useDesktopProductWriteActions.ts"), "utf8");
     const loadoutsContent = readFileSync(join(uiRoot, "src", "loadouts", "LoadoutsPageContentView.tsx"), "utf8");
     const feedbackHook = readFileSync(join(desktopRoot, "src", "renderer", "features", "loadouts", "useLoadoutActionFeedback.ts"), "utf8");
     const styles = readFileSync(join(desktopRoot, "..", "ui", "src", "styles.css"), "utf8");
     const helper = readFileSync(join(desktopRoot, "src", "renderer", "utils", "loadoutActionFeedback.ts"), "utf8");
 
-    expect(homePage).toContain("useHomePageWriteActions");
-    expect(homePage).not.toContain("useLoadoutActionFeedback()");
-    expect(homeWriteHook).toContain("useLoadoutActionFeedback()");
-    expect(homePage).not.toContain("setLoadoutActionFeedback");
+    expect(productShell).toContain("useDesktopProductWriteActions");
+    expect(productShell).not.toContain("useLoadoutActionFeedback()");
+    expect(productWriteHook).toContain("useLoadoutActionFeedback()");
+    expect(productShell).not.toContain("setLoadoutActionFeedback");
     expect(feedbackHook).toContain("export function useLoadoutActionFeedback");
     expect(feedbackHook).toContain("LOADOUT_ACTION_FEEDBACK_TIMEOUT_MS");
     expect(feedbackHook).toContain("setSingleActionFeedback");
@@ -135,14 +136,14 @@ describe("loadout library UI", () => {
     expect(shellCopy).toContain('loadouts: "Loadouts"');
     expect(homePage).toContain("<HomePageRoutes");
     expect(homePage).not.toContain("<LoadoutsPage");
-    expect(homeRoutes).toContain("<LoadoutsPage");
+    expect(homeRoutes).toContain("<LoadoutsMenuProvider");
     expect(homePage).not.toContain("loadout-compare-grid");
     expect(homePage).not.toContain("loadout-status-summary");
   });
 
   it("keeps local loadout template state inside the loadouts feature hook", () => {
     const hook = readFileSync(join(desktopRoot, "src", "renderer", "features", "loadouts", "useLoadoutTemplates.ts"), "utf8");
-    const homePage = readFileSync(join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"), "utf8");
+    const productShell = readFileSync(join(desktopRoot, "src", "renderer", "pages", "useDesktopProductShell.tsx"), "utf8");
 
     expect(hook).toContain("export function useLoadoutTemplates");
     expect(hook).toContain("api.listLoadoutTemplates");
@@ -150,33 +151,33 @@ describe("loadout library UI", () => {
     expect(hook).toContain("api.deleteLoadoutTemplate");
     expect(hook).toContain("selectTemplate");
     expect(hook).toContain("activeTemplate");
-    expect(homePage).toContain("useLoadoutTemplates()");
-    expect(homePage).not.toContain("useState<LoadoutTemplate[]>([])");
-    expect(homePage).not.toContain("async function loadLoadoutTemplates()");
-    expect(homePage).not.toContain("function applyLoadoutTemplates(");
+    expect(productShell).toContain("useLoadoutTemplates()");
+    expect(productShell).not.toContain("useState<LoadoutTemplate[]>([])");
+    expect(productShell).not.toContain("async function loadLoadoutTemplates()");
+    expect(productShell).not.toContain("function applyLoadoutTemplates(");
   });
 
   it("keeps low-risk local loadout template actions inside the loadouts feature hook", () => {
     const hook = readFileSync(join(desktopRoot, "src", "renderer", "features", "loadouts", "useLoadoutTemplateActions.ts"), "utf8");
-    const homePage = readFileSync(join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"), "utf8");
-    const homeWriteHook = readFileSync(join(desktopRoot, "src", "renderer", "pages", "useHomePageWriteActions.ts"), "utf8");
+    const productShell = readFileSync(join(desktopRoot, "src", "renderer", "pages", "useDesktopProductShell.tsx"), "utf8");
+    const productWriteHook = readFileSync(join(desktopRoot, "src", "renderer", "pages", "useDesktopProductWriteActions.ts"), "utf8");
 
     expect(hook).toContain("export function useLoadoutTemplateActions");
     expect(hook).toContain("createTemplateTransferPlan");
     expect(hook).toContain("copyMissingLoadoutItems");
     expect(hook).toContain("api.createLoadoutTemplateTransferPlan");
     expect(hook).toContain("buildMissingLoadoutItemsText");
-    expect(homePage).toContain("useHomePageWriteActions");
-    expect(homePage).not.toContain("useLoadoutTemplateActions");
-    expect(homeWriteHook).toContain("useLoadoutTemplateActions");
-    expect(homePage).not.toContain("async function createTemplateTransferPlan");
-    expect(homePage).not.toContain("async function copyMissingLoadoutItems");
-    expect(homePage).not.toContain("buildMissingLoadoutItemsText");
+    expect(productShell).toContain("useDesktopProductWriteActions");
+    expect(productShell).not.toContain("useLoadoutTemplateActions");
+    expect(productWriteHook).toContain("useLoadoutTemplateActions");
+    expect(productShell).not.toContain("async function createTemplateTransferPlan");
+    expect(productShell).not.toContain("async function copyMissingLoadoutItems");
+    expect(productShell).not.toContain("buildMissingLoadoutItemsText");
   });
 
   it("centralizes in-game loadout slot operations inside the loadouts page", () => {
     const accountPage = readFileSync(join(desktopRoot, "src", "renderer", "features", "account", "AccountPage.tsx"), "utf8");
-    const homePage = readFileSync(join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"), "utf8");
+    const productShell = readFileSync(join(desktopRoot, "src", "renderer", "pages", "useDesktopProductShell.tsx"), "utf8");
     const loadoutsPage = readFileSync(join(desktopRoot, "src", "renderer", "features", "loadouts", "LoadoutsPage.tsx"), "utf8");
     const loadoutsContent = readFileSync(join(uiRoot, "src", "loadouts", "LoadoutsPageContentView.tsx"), "utf8");
 
@@ -189,8 +190,8 @@ describe("loadout library UI", () => {
     expect(loadoutsContent).toContain("character.loadout_slots");
     expect(loadoutsPage).toContain("onEquipSavedLoadout");
     expect(loadoutsPage).toContain("onSnapshotCurrentLoadout");
-    expect(homePage).toContain("onEquipSavedLoadout: (character, slot)");
-    expect(homePage).toContain("onSnapshotCurrentLoadout: (character, slot)");
+    expect(productShell).toContain("onEquipSavedLoadout: (character, slot)");
+    expect(productShell).toContain("onSnapshotCurrentLoadout: (character, slot)");
   });
 
   it("presents local templates and in-game slots as one loadout workbench", () => {
@@ -204,6 +205,16 @@ describe("loadout library UI", () => {
     expect(loadoutsContent).not.toContain("in-game-loadout-slots");
     expect(styles).toContain(".loadout-workbench-shell");
     expect(styles).toContain(".loadout-entry-list");
+  });
+
+  it("lets in-game loadout slots open their own detail panel", () => {
+    const loadoutsContent = readFileSync(join(uiRoot, "src", "loadouts", "LoadoutsPageContentView.tsx"), "utf8");
+
+    expect(loadoutsContent).toContain("selectedLoadoutEntryId");
+    expect(loadoutsContent).toContain("onSelectEntry");
+    expect(loadoutsContent).toContain("loadout-in-game-detail");
+    expect(loadoutsContent).toContain("getSelectedInGameLoadoutSlot");
+    expect(loadoutsContent).toContain("InGameLoadoutSlotDetail");
   });
 
   it("keeps prototype loadout surfaces on dark-mode semantic tokens", () => {

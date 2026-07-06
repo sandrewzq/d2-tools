@@ -22,7 +22,7 @@ d2-tools 不需要你手动安装 Node.js、Python 或 Docker。
 
 - Bungie 配置
 - OAuth token
-- Manifest 缓存
+- 资料库缓存
 - 仓库标签和备注
 - DIM 愿望单导入
 - 操作日志和诊断数据
@@ -55,14 +55,14 @@ d2-tools 不需要你手动安装 Node.js、Python 或 Docker。
 
 登录完成后，点击“初始化资料库”。
 
-这一步会下载 Destiny Manifest，用于：
+这一步会下载 Destiny 2 资料库，用于：
 
 - 中文装备名搜索
 - perk 搜索
 - 来源摘要
 - 资料库页查询
 
-Manifest 可以重复更新，不会影响你的 Bungie 配置和本地标签。
+资料库可以重复更新，不会影响你的 Bungie 配置和本地标签。
 
 ## 6. 首页：今日 / 本周
 

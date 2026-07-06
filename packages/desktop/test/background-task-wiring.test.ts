@@ -32,6 +32,7 @@ describe("product shell background task wiring", () => {
 
   it("subscribes to background tasks at the product shell and renders the non-intrusive task dock", () => {
     const homePage = readFileSync(join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"), "utf8");
+    const productShell = readFileSync(join(desktopRoot, "src", "renderer", "pages", "useDesktopProductShell.tsx"), "utf8");
     const shellLayout = readFileSync(join(uiRoot, "src", "shell", "AppShell.tsx"), "utf8");
     const settingsPage = [
       readFileSync(join(uiRoot, "src", "settings", "SettingsPageContentView.tsx"), "utf8"),
@@ -45,18 +46,18 @@ describe("product shell background task wiring", () => {
     expect(diagnosticsHook).toContain("useBackgroundTasks");
     expect(homePage).not.toContain("global-background-task-banner");
     expect(homePage).toContain("shellStatus={");
-    expect(homePage).toContain("backgroundTasks={diagnostics.backgroundTasks}");
-    expect(homePage).toContain("onOpenBackgroundTasks={() => setActivePage(\"settings\")}");
+    expect(homePage).toContain("backgroundTasks={shell.backgroundTasks}");
+    expect(homePage).toContain("onOpenBackgroundTasks={() => shell.handlePageChange(\"settings\")}");
     expect(shellLayout).toContain("global-shell-status");
     expect(shellLayout).toContain("background-task-dock");
     expect(shellLayout).toContain("visibleShellStatus");
     expect(shellLayout).toContain('item.key !== "background"');
-    expect(homePage).toContain('label: "应用版本"');
-    expect(homePage).toContain('label: "Bungie"');
-    expect(homePage).toContain('label: "AI"');
-    expect(homePage).toContain("资料库");
-    expect(homePage).not.toContain('label: "后台任务"');
-    expect(homePage).toContain("backgroundTasks: diagnostics.backgroundTasks");
+    expect(productShell).toContain('label: "应用版本"');
+    expect(productShell).toContain('label: "Bungie"');
+    expect(productShell).toContain('label: "AI"');
+    expect(productShell).toContain("资料库");
+    expect(productShell).not.toContain('label: "后台任务"');
+    expect(productShell).toContain("backgroundTasks: diagnostics.backgroundTasks");
     expect(settingsPage).toContain("后台任务");
     expect(settingsPage).toContain("getBackgroundTaskUi");
     expect(settingsPage).not.toContain("settings-background-tasks");
@@ -110,12 +111,12 @@ describe("product shell background task wiring", () => {
   });
 
   it("passes background tasks to the shared floating dock instead of rendering a page banner", () => {
-    const homePage = readFileSync(join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"), "utf8");
+    const productShell = readFileSync(join(desktopRoot, "src", "renderer", "pages", "useDesktopProductShell.tsx"), "utf8");
     const shellLayout = readFileSync(join(uiRoot, "src", "shell", "AppShell.tsx"), "utf8");
 
-    expect(homePage).not.toContain("visibleBackgroundTask");
-    expect(homePage).not.toContain("activeBackgroundTaskCount");
-    expect(homePage).not.toContain("formatVisibleBackgroundTaskTitle");
+    expect(productShell).not.toContain("visibleBackgroundTask");
+    expect(productShell).not.toContain("activeBackgroundTaskCount");
+    expect(productShell).not.toContain("formatVisibleBackgroundTaskTitle");
     expect(shellLayout).toContain("copy.backgroundTasks.itemCount");
   });
 
@@ -130,7 +131,7 @@ describe("product shell background task wiring", () => {
       readFileSync(join(uiRoot, "src", "library", "LibraryPageContentView.tsx"), "utf8"),
       readFileSync(join(desktopRoot, "src", "renderer", "features", "library", "LibraryPage.tsx"), "utf8")
     ].join("\n");
-    const homePage = readFileSync(join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"), "utf8");
+    const productShell = readFileSync(join(desktopRoot, "src", "renderer", "pages", "useDesktopProductShell.tsx"), "utf8");
 
     expect(manifestIpc).toContain("shouldAutoUpdateManifest");
     expect(manifestIpc).toContain("lastManifestVersionStatus");
@@ -150,9 +151,9 @@ describe("product shell background task wiring", () => {
     expect(libraryPage).toContain("资料库不是最新版本");
     expect(libraryPage).toContain("缺少必要资料库组件");
     expect(libraryPage).toContain("后台更新资料库");
-    expect(homePage).toContain("manifestStatus: library.manifestStatus");
-    expect(homePage).toContain("onRefreshManifestStatus: () => void library.refreshManifestStatus()");
-    expect(homePage).toContain("onInitializeManifest: () => void library.initializeManifest()");
+    expect(productShell).toContain("manifestStatus: library.manifestStatus");
+    expect(productShell).toContain("onRefreshManifestStatus: () => void library.refreshManifestStatus()");
+    expect(productShell).toContain("onInitializeManifest: () => void library.initializeManifest()");
   });
 
   it("shares manifest status UI state across library and settings pages", () => {
@@ -176,7 +177,7 @@ describe("product shell background task wiring", () => {
       readFileSync(join(uiRoot, "src", "settings", "SettingsPageContentView.tsx"), "utf8"),
       readFileSync(join(desktopRoot, "src", "renderer", "features", "settings", "SettingsPage.tsx"), "utf8")
     ].join("\n");
-    const homePage = readFileSync(join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"), "utf8");
+    const productShell = readFileSync(join(desktopRoot, "src", "renderer", "pages", "useDesktopProductShell.tsx"), "utf8");
 
     expect(existsSync(sharedHookPath)).toBe(true);
     const sharedHook = readFileSync(sharedHookPath, "utf8");
@@ -193,8 +194,8 @@ describe("product shell background task wiring", () => {
     expect(settingsPage).toContain('settingsText(copy, "资料完整性")');
     expect(settingsPage).toContain("getBackgroundTaskUi");
     expect(settingsPage).not.toContain("settings-background-tasks");
-    expect(homePage).toContain("manifestStatus: diagnostics.manifestStatus");
-    expect(homePage).toContain("onRefreshManifestStatus: () => void diagnostics.refreshManifestStatus()");
-    expect(homePage).toContain("onInitializeManifest: () => void diagnostics.initializeManifest()");
+    expect(productShell).toContain("manifestStatus: diagnostics.manifestStatus");
+    expect(productShell).toContain("onRefreshManifestStatus: () => void diagnostics.refreshManifestStatus()");
+    expect(productShell).toContain("onInitializeManifest: () => void diagnostics.initializeManifest()");
   });
 });

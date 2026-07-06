@@ -19,6 +19,7 @@ describe("desktop product redesign wiring", () => {
     const homeDashboard = readUiFile("home/HomePageContentView.tsx");
     const homeCopy = readUiFile("i18n/copy.ts");
     const homePage = readRendererFile("pages/HomePage.tsx");
+    const productShell = readRendererFile("pages/useDesktopProductShell.tsx");
     const vaultPanel = readRendererFile("components/VaultPanel.tsx");
     const vaultContent = readUiFile("vault/VaultPageContentView.tsx");
     const loadoutsPage = readRendererFile("features/loadouts/LoadoutsPage.tsx");
@@ -34,12 +35,12 @@ describe("desktop product redesign wiring", () => {
     expect(homeDashboard).not.toContain("app-page home-app-page");
     expect(homeDashboard).not.toContain("ProductWorkspacePage");
     expect(homeDashboard).not.toContain("app-page-head");
-    expect(homePage).toContain("pageHeader={{");
+    expect(homePage).toContain("pageHeader={shell.pageHeader}");
     expect(homePage).not.toContain('className="page-header"');
-    expect(homePage).toContain("刷新今日信息");
-    expect(homePage).toContain('activePage === "home" || activePage === "vendors"');
-    expect(homePage).toContain('activePage === "vendors" ? "刷新商人数据" : "刷新今日信息"');
-    expect(homePage).not.toContain("复制本周重点");
+    expect(productShell).toContain("刷新今日信息");
+    expect(productShell).toContain('activePage === "home" || activePage === "vendors"');
+    expect(productShell).toContain('activePage === "vendors" ? "刷新商人数据" : "刷新今日信息"');
+    expect(productShell).not.toContain("复制本周重点");
     expect(homeDashboard).not.toContain("home-data-strip");
     expect(homeDashboard).toContain("home-briefing-grid");
     expect(homeDashboard).toContain("home-weekly-panel");
@@ -71,7 +72,7 @@ describe("desktop product redesign wiring", () => {
     expect(vaultContent).not.toContain("ProductWorkspacePage");
     expect(vaultContent).toContain("vault-decision-summary");
     expect(vaultContent).toContain("vault-workbench-header");
-    expect(vaultContent).toContain("vault-quick-filters");
+    expect(vaultContent).not.toContain("vault-quick-filters");
     expect(vaultContent).not.toContain("vault-task-presets");
     expect(vaultContent).toContain("vault-workbench-layout");
     expect(vaultContent).toContain("vault-side-summary");
@@ -130,7 +131,7 @@ describe("desktop product redesign wiring", () => {
     expect(styles).toContain(".decision-badge");
     expect(styles).toContain(".vault-product-layout");
     expect(styles).toContain(".vault-workbench-header");
-    expect(styles).toContain(".vault-quick-filters");
+    expect(styles).not.toContain(".vault-quick-filters");
     expect(styles).not.toContain(".vault-task-presets");
     expect(styles).toContain(".vault-workbench-layout");
     expect(styles).toContain(".vault-side-summary");

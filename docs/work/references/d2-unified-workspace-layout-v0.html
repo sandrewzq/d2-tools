@@ -394,6 +394,31 @@
       border-color: color-mix(in srgb, var(--warning) 42%, var(--border));
     }
 
+    .home-lost-sector-list {
+      display: grid;
+      gap: 6px;
+      margin-top: 2px;
+    }
+
+    .home-lost-sector-list span,
+    .home-lost-sector-list small {
+      display: block;
+      color: var(--text-muted);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .home-lost-sector-list span {
+      padding: 6px 8px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-control);
+      background: var(--surface-soft);
+    }
+
+    .home-lost-sector-list small {
+      color: var(--text-body);
+    }
+
     .art {
       width: 48px;
       height: 48px;
@@ -606,18 +631,21 @@
           <div class="home-layout">
             <section class="product-workspace-panel">
               <div class="section-head">
-                <h2>本日更新</h2>
-                <p>每日重置、遗失区域、活动线索和账号待办。</p>
+                <div>
+                  <h2>本日更新</h2>
+                  <p>每日重置 · 14小时 22分</p>
+                </div>
               </div>
               <article class="card ready">
                 <span class="badge ready">已确认</span>
-                <strong>每日重置</strong>
-                <p>显示距离重置还有多久，以及今天最需要处理的活动。</p>
-              </article>
-              <article class="card ready">
-                <span class="badge ready">已确认</span>
-                <strong>遗失区域</strong>
-                <p>只展示当前可确认的区域、推荐光等和奖励类型。</p>
+                <strong>今日世界遗失区域</strong>
+                <p>9 个区域 · 每个目的地每日 1 个</p>
+                <div class="home-lost-sector-list">
+                  <span>遗失区域：英灵日遗失区域</span>
+                  <span>遗失区域：星光密室</span>
+                  <span>遗失区域：清道夫洞穴</span>
+                  <small>另有 6 个区域，进入日报或资料库查看完整列表。</small>
+                </div>
               </article>
               <article class="card warning">
                 <span class="badge warning">条件出现</span>
@@ -628,7 +656,10 @@
 
             <section class="product-workspace-panel">
               <div class="section-head">
-                <h2>本周更新</h2>
+                <div>
+                  <h2>本周更新</h2>
+                  <p>每周重置 · 5天 14小时</p>
+                </div>
                 <span class="badge warning">本周还有 9 项奖励值得刷</span>
               </div>
               <div class="grid-3">

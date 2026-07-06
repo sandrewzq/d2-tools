@@ -83,7 +83,7 @@ export function VaultDuplicateGroups(props: {
                   if (topItem) props.onOpenItem(topItem);
                 }}
               >
-                打开最高分
+                打开推荐项
               </button>
               <button
                 type="button"

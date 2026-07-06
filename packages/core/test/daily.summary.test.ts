@@ -60,4 +60,34 @@ describe("daily summary", () => {
     expect(summary.checklist).toContain("查看今日轮换、遗失区域和商人库存。");
     expect(summary.checklist).toContain("检查仓库可清理装备和疑似好 roll。");
   });
+
+  it("keeps a fuller vendor source list while still limiting other daily sources", () => {
+    const summary = buildDailySummary(new Date("2026-07-06T10:30:00.000Z"), {
+      rotations: Array.from({ length: 6 }, (_, index) => ({
+        title: `轮换 ${index + 1}`
+      })),
+      vendors: Array.from({ length: 9 }, (_, index) => ({
+        title: `商人 ${index + 1}`
+      }))
+    });
+
+    expect(summary.sources.rotations.items?.map((item) => item.title)).toEqual([
+      "轮换 1",
+      "轮换 2",
+      "轮换 3",
+      "轮换 4"
+    ]);
+    expect(summary.sources.vendors.items?.map((item) => item.title)).toEqual([
+      "商人 1",
+      "商人 2",
+      "商人 3",
+      "商人 4",
+      "商人 5",
+      "商人 6",
+      "商人 7",
+      "商人 8",
+      "商人 9"
+    ]);
+    expect(summary.sources.vendors.message).toBe("已找到 9 条可读信息。");
+  });
 });

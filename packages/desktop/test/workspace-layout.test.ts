@@ -302,7 +302,7 @@ describe("desktop workspace layout", () => {
 
     expect(homePage).toContain("<HomePageRoutes");
     expect(homePage).not.toContain("<HomeDashboard");
-    expect(homeRoutes).toContain("<HomeDashboard");
+    expect(homeRoutes).toContain("<HomeMenuProvider");
     expect(homePage).not.toContain('className="home-workbench"');
     expect(homeDashboard).toContain("ProductWorkspacePanel");
     expect(homeDashboard).not.toContain("ProductWorkspacePage");
@@ -329,10 +329,11 @@ describe("desktop workspace layout", () => {
 
   it("keeps AI in the global assistant sidebar instead of a main page", () => {
     const homePage = readFileSync(join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"), "utf8");
+    const productShell = readFileSync(join(desktopRoot, "src", "renderer", "pages", "useDesktopProductShell.tsx"), "utf8");
     const aiPage = readFileSync(join(desktopRoot, "src", "renderer", "features", "ai", "AiPage.tsx"), "utf8");
     const assistantSidebar = readFileSync(join(desktopRoot, "src", "renderer", "components", "GlobalAssistantSidebar.tsx"), "utf8");
 
-    expect(homePage).toContain("<GlobalAssistantSidebar");
+    expect(productShell).toContain("<GlobalAssistantSidebar");
     expect(homePage).not.toContain("<AiPage");
     expect(homePage).not.toContain("去设置配置 AI");
     expect(assistantSidebar).toContain("<AiPage");
@@ -362,7 +363,7 @@ describe("desktop workspace layout", () => {
 
     expect(homePage).toContain("<HomePageRoutes");
     expect(homePage).not.toContain("<VaultPage");
-    expect(homeRoutes).toContain("<VaultPage");
+    expect(homeRoutes).toContain("<VaultMenuProvider");
     expect(homePage).not.toContain("function renderVaultPanel");
     expect(vaultPage).toContain("export function VaultPage");
     expect(vaultPage).toContain("<VaultPageContentView");
@@ -374,20 +375,27 @@ describe("desktop workspace layout", () => {
 
   it("keeps page data orchestration in feature hooks instead of growing HomePage", () => {
     const homePage = readFileSync(join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"), "utf8");
+    const productShell = readFileSync(join(desktopRoot, "src", "renderer", "pages", "useDesktopProductShell.tsx"), "utf8");
     const dailyHook = readFileSync(join(desktopRoot, "src", "renderer", "features", "daily", "useDailySummary.ts"), "utf8");
     const libraryHook = readFileSync(join(desktopRoot, "src", "renderer", "features", "library", "useLibraryWorkspace.ts"), "utf8");
     const settingsHook = readFileSync(join(desktopRoot, "src", "renderer", "features", "settings", "useDiagnosticsSettings.ts"), "utf8");
     const accountHook = readFileSync(join(desktopRoot, "src", "renderer", "features", "account", "useAccountWorkspace.ts"), "utf8");
     const loadoutWriteHook = readFileSync(join(desktopRoot, "src", "renderer", "features", "loadouts", "useLoadoutWriteActions.ts"), "utf8");
-    const homeWriteHook = readFileSync(join(desktopRoot, "src", "renderer", "pages", "useHomePageWriteActions.ts"), "utf8");
+    const productWriteHook = readFileSync(join(desktopRoot, "src", "renderer", "pages", "useDesktopProductWriteActions.ts"), "utf8");
     const itemDetailHook = readFileSync(join(desktopRoot, "src", "renderer", "shared", "hooks", "useItemDetailWorkspace.ts"), "utf8");
     const vaultWriteHook = readFileSync(join(desktopRoot, "src", "renderer", "features", "vault", "useVaultWriteActions.ts"), "utf8");
 
-    expect(homePage).toContain("useDailySummary");
-    expect(homePage).toContain("useLibraryWorkspace");
-    expect(homePage).toContain("useDiagnosticsSettings");
-    expect(homePage).toContain("useAccountWorkspace");
-    expect(homePage).toContain("useHomePageWriteActions");
+    expect(homePage).toContain("useDesktopProductShell");
+    expect(homePage).not.toContain("useDailySummary");
+    expect(homePage).not.toContain("useLibraryWorkspace");
+    expect(homePage).not.toContain("useDiagnosticsSettings");
+    expect(homePage).not.toContain("useAccountWorkspace");
+    expect(homePage).not.toContain("useHomePageWriteActions");
+    expect(productShell).toContain("useDailySummary");
+    expect(productShell).toContain("useLibraryWorkspace");
+    expect(productShell).toContain("useDiagnosticsSettings");
+    expect(productShell).toContain("useAccountWorkspace");
+    expect(productShell).toContain("useDesktopProductWriteActions");
     expect(homePage).not.toContain("useLoadoutWriteActions");
     expect(homePage).not.toContain("useLoadoutTemplateActions");
     expect(homePage).not.toContain("useItemDetailWorkspace");
@@ -397,11 +405,11 @@ describe("desktop workspace layout", () => {
     expect(settingsHook).toContain("export function useDiagnosticsSettings");
     expect(accountHook).toContain("export function useAccountWorkspace");
     expect(loadoutWriteHook).toContain("export function useLoadoutWriteActions");
-    expect(homeWriteHook).toContain("export function useHomePageWriteActions");
-    expect(homeWriteHook).toContain("useLoadoutWriteActions");
-    expect(homeWriteHook).toContain("useLoadoutTemplateActions");
-    expect(homeWriteHook).toContain("useItemDetailWorkspace");
-    expect(homeWriteHook).toContain("useVaultWriteActions");
+    expect(productWriteHook).toContain("export function useDesktopProductWriteActions");
+    expect(productWriteHook).toContain("useLoadoutWriteActions");
+    expect(productWriteHook).toContain("useLoadoutTemplateActions");
+    expect(productWriteHook).toContain("useItemDetailWorkspace");
+    expect(productWriteHook).toContain("useVaultWriteActions");
     expect(itemDetailHook).toContain("export function useItemDetailWorkspace");
     expect(vaultWriteHook).toContain("export function useVaultWriteActions");
     expect(homePage).not.toContain("async function loadDailySummary");
@@ -432,14 +440,14 @@ describe("desktop workspace layout", () => {
   });
 
   it("keeps home status cards compact and surfaces account read failures", () => {
-    const homePage = readFileSync(join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"), "utf8");
+    const productShell = readFileSync(join(desktopRoot, "src", "renderer", "pages", "useDesktopProductShell.tsx"), "utf8");
     const homeDashboard = readFileSync(join(desktopRoot, "src", "renderer", "features", "home", "HomeDashboard.tsx"), "utf8");
     const statusOverview = readFileSync(join(desktopRoot, "src", "renderer", "components", "StatusOverview.tsx"), "utf8");
     const statusCard = readFileSync(join(desktopRoot, "src", "renderer", "components", "StatusCard.tsx"), "utf8");
     const styles = readFileSync(join(desktopRoot, "..", "ui", "src", "styles.css"), "utf8");
 
-    expect(homePage).toContain("accountError");
-    expect(homePage).toContain("hasAccountData: Boolean(accountSummary)");
+    expect(productShell).toContain("accountError");
+    expect(productShell).toContain("hasAccountData: Boolean(accountSummary)");
     expect(homeDashboard).toContain("accountError");
     expect(homeDashboard).toContain("hasAccountData");
     expect(statusOverview).toContain("accountError");

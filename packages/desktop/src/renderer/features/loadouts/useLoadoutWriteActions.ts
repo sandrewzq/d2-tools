@@ -278,7 +278,10 @@ export function useLoadoutWriteActions(input: {
         membership_type: input.accountSummary?.membership_type ?? 0,
         character_id: character.character_id,
         loadout_index: slot.index,
-        loadout_name: slot.name
+        loadout_name: slot.name,
+        loadout_name_hash: slot.name_hash,
+        loadout_icon_hash: slot.icon_hash,
+        loadout_color_hash: slot.color_hash
       })
     );
   }

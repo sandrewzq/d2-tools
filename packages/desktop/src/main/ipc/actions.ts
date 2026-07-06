@@ -79,6 +79,9 @@ type LoadoutSnapshotActionInput = {
   character_id: string;
   loadout_index: number;
   loadout_name?: string;
+  loadout_name_hash?: number;
+  loadout_icon_hash?: number;
+  loadout_color_hash?: number;
 };
 
 export function registerActionIpcHandlers(): void {
@@ -235,7 +238,10 @@ export function registerActionIpcHandlers(): void {
           token,
           membershipType: input.membership_type,
           characterId: input.character_id,
-          loadoutIndex: input.loadout_index
+          loadoutIndex: input.loadout_index,
+          nameHash: input.loadout_name_hash,
+          iconHash: input.loadout_icon_hash,
+          colorHash: input.loadout_color_hash
         });
       }
     });

@@ -207,6 +207,10 @@ describe("AI settings panel helpers", () => {
       join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"),
       "utf8"
     );
+    const productShell = readFileSync(
+      join(desktopRoot, "src", "renderer", "pages", "useDesktopProductShell.tsx"),
+      "utf8"
+    );
     const settingsPage = [
       readFileSync(join(uiRoot, "src", "settings", "SettingsPageContentView.tsx"), "utf8"),
       readFileSync(join(uiRoot, "src", "i18n", "copy.ts"), "utf8"),
@@ -224,13 +228,18 @@ describe("AI settings panel helpers", () => {
       join(desktopRoot, "src", "renderer", "pages", "HomePageRoutes.tsx"),
       "utf8"
     );
+    const settingsMenuProvider = readFileSync(
+      join(desktopRoot, "src", "renderer", "pages", "providers", "SettingsMenuProvider.tsx"),
+      "utf8"
+    );
 
-    expect(homePage).toContain('setActivePage("settings")');
-    expect(homePage).toContain("setAssistantMode(null)");
+    expect(productShell).toContain('setActivePage("settings")');
+    expect(productShell).toContain("setAssistantMode(null)");
     expect(homePage).toContain("<HomePageRoutes");
     expect(homePage).not.toContain("<SettingsPage");
-    expect(homeRoutes).toContain("<SettingsPage");
-    expect(homePage).toContain("<GlobalAssistantSidebar");
+    expect(homeRoutes).toContain("<SettingsMenuProvider");
+    expect(settingsMenuProvider).toContain("<SettingsPage");
+    expect(productShell).toContain("<GlobalAssistantSidebar");
     expect(homePage).not.toContain("<AiSettingsPanel");
     expect(homePage).not.toContain("查看或修改 Bungie 配置、AI、写操作开关、本地日志、更新和备份迁移。");
     expect(settingsPage).toContain("export function SettingsPage");
@@ -239,7 +248,7 @@ describe("AI settings panel helpers", () => {
     expect(settingsPage).toContain("模型、上下文、安全边界");
     expect(settingsPage).toContain("<AiSettingsPanel");
     expect(settingsPage).not.toContain("查看或修改 Bungie 配置、AI、写操作开关、本地日志、更新和备份迁移。");
-    expect(homePage).not.toContain("activePage === \"ai\"");
+    expect(productShell).not.toContain("activePage === \"ai\"");
     expect(assistantSidebar).toContain("<AiPage");
     expect(aiPage).toContain("!props.isConfigured");
     expect(aiPage).toContain("props.onConfigureAi");

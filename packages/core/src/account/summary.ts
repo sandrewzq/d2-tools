@@ -110,6 +110,7 @@ export type CharacterLoadoutSlotItemSummary = {
 export type CharacterLoadoutSlotSummary = {
   index: number;
   name: string;
+  name_hash?: number;
   icon_hash?: number;
   color_hash?: number;
   item_count: number;
@@ -664,8 +665,9 @@ function summarizeCharacterLoadouts(
   return loadouts.map((loadout, index) => ({
     index,
     name: resolveLoadoutName(loadout.nameHash, index, loadoutNameDefinitions),
-    icon_hash: loadout.iconHash,
-    color_hash: loadout.colorHash,
+    ...(typeof loadout.nameHash === "number" ? { name_hash: loadout.nameHash } : {}),
+    ...(typeof loadout.iconHash === "number" ? { icon_hash: loadout.iconHash } : {}),
+    ...(typeof loadout.colorHash === "number" ? { color_hash: loadout.colorHash } : {}),
     item_count: loadout.items?.length ?? 0,
     items: (loadout.items ?? []).map((item) => {
       const matched = item.itemInstanceId ? itemsByInstanceId.get(item.itemInstanceId) : undefined;

@@ -22,17 +22,20 @@ describe("vendors page workspace", () => {
           message: "已找到 2 条可读信息。",
           items: [
             {
-              title: "老九",
-              subtitle: "异域商人 · 周五至周二出现",
+              title: "资料库周末商人",
+              subtitle: "周末商人库存",
               description: "守誓者（臂铠，异域；23 奇异硬币） / 精准手炮（手炮，传说；微光）",
               source: "Bungie 公共商人",
+              vendorHash: 2190858386,
+              iconUrl: "/common/destiny2_content/icons/xur.jpg",
               items: [
                 {
                   title: "守誓者",
                   subtitle: "臂铠，异域",
                   description: "23 奇异硬币",
                   source: "Bungie 公共商人",
-                  iconUrl: "/common/destiny2_content/icons/oathkeeper.jpg"
+                  iconUrl: "/common/destiny2_content/icons/oathkeeper.jpg",
+                  costIconUrl: "/common/destiny2_content/icons/strange-coin.jpg"
                 },
                 {
                   title: "精准手炮",
@@ -44,10 +47,11 @@ describe("vendors page workspace", () => {
               ]
             },
             {
-              title: "枪匠",
-              subtitle: "枪匠 · 每日模组刷新",
+              title: "资料库武器商人",
+              subtitle: "登录角色或公共商人库存",
               description: "高射速自动步枪（自动步枪，传说；微光）",
-              source: "Bungie 公共商人"
+              source: "Bungie 公共商人",
+              vendorHash: 672118013
             }
           ]
         },
@@ -64,21 +68,22 @@ describe("vendors page workspace", () => {
     expect(workspace.vendors).toHaveLength(9);
     expect(workspace.verifiedItemCount).toBe(3);
     expect(workspace.vendors.map((vendor) => vendor.name)).toEqual([
-      "仄（Xur）",
-      "枪匠（Banshee-44）",
-      "艾达-1（Ada-1）",
-      "圣人-14（Saint-14）",
-      "萨瓦拉",
-      "沙克斯领主",
-      "浪客",
-      "拉乎尔",
-      "苔丝"
+      "资料库周末商人",
+      "资料库武器商人",
+      "护甲合成商人",
+      "试炼商人",
+      "先锋商人",
+      "熔炉商人",
+      "智谋商人",
+      "记忆水晶商人",
+      "外观商人"
     ]);
     expect(workspace.vendors[0]).toMatchObject({
-      name: "仄（Xur）",
-      description: "异域商人 · 周五至周二出现",
+      name: "资料库周末商人",
+      description: "周末商人库存",
       badge: "已确认",
-      source: "Bungie 公共商人"
+      source: "Bungie 公共商人",
+      iconUrl: "https://www.bungie.net/common/destiny2_content/icons/xur.jpg"
     });
     expect(workspace.vendors[0]?.items).toMatchObject([
       {
@@ -86,6 +91,7 @@ describe("vendors page workspace", () => {
         itemType: "臂铠，异域",
         cost: "23 奇异硬币",
         iconUrl: "https://www.bungie.net/common/destiny2_content/icons/oathkeeper.jpg",
+        costIconUrl: "https://www.bungie.net/common/destiny2_content/icons/strange-coin.jpg",
         tone: "exotic",
         status: "recommended"
       },
@@ -99,12 +105,12 @@ describe("vendors page workspace", () => {
       }
     ]);
     expect(workspace.vendors[1]).toMatchObject({
-      name: "枪匠（Banshee-44）",
+      name: "资料库武器商人",
       source: "Bungie 公共商人",
       statusLabel: "已确认"
     });
     expect(workspace.vendors[2]).toMatchObject({
-      name: "艾达-1（Ada-1）",
+      name: "护甲合成商人",
       source: "本地商人目录",
       statusLabel: "等待实时库存"
     });
@@ -115,15 +121,15 @@ describe("vendors page workspace", () => {
     const workspace = createVendorsPageWorkspace(null);
 
     expect(workspace.vendors.map((vendor) => vendor.name)).toEqual([
-      "仄（Xur）",
-      "枪匠（Banshee-44）",
-      "艾达-1（Ada-1）",
-      "圣人-14（Saint-14）",
-      "萨瓦拉",
-      "沙克斯领主",
-      "浪客",
-      "拉乎尔",
-      "苔丝"
+      "周末异域商人",
+      "每日武器商人",
+      "护甲合成商人",
+      "试炼商人",
+      "先锋商人",
+      "熔炉商人",
+      "智谋商人",
+      "记忆水晶商人",
+      "外观商人"
     ]);
     expect(workspace.sourceLabel).toBe("等待 Bungie 公共商人");
     expect(workspace.verifiedItemCount).toBe(0);
@@ -131,17 +137,70 @@ describe("vendors page workspace", () => {
       category: "重点",
       source: "本地商人目录",
       statusLabel: "等待实时库存",
+      items: [],
       featured: true
     });
-    expect(workspace.vendors[0]?.items[0]).toMatchObject({
-      name: "周末异域库存",
-      status: "unknown",
-      cost: "待确认"
-    });
     expect(workspace.vendors.at(-1)).toMatchObject({
-      name: "苔丝",
+      name: "外观商人",
       category: "特殊 / 活动"
     });
+    expect(JSON.stringify(workspace.vendors)).not.toContain("待确认");
+    expect(JSON.stringify(workspace.vendors)).not.toContain("费用待确认");
+    expect(JSON.stringify(workspace.vendors)).not.toContain("Banshee");
+    expect(JSON.stringify(workspace.vendors)).not.toContain("Ada-1");
+    expect(JSON.stringify(workspace.vendors)).not.toContain("Saint-14");
+    expect(JSON.stringify(workspace.vendors)).not.toContain("塔楼");
     expect(workspace.recommendationCount).toBe(0);
+  });
+
+  it("keeps live vendors even when Bungie returns no readable sale items yet", () => {
+    const workspace = createVendorsPageWorkspace({
+      date_label: "2026-07-06",
+      daily_reset: {
+        label: "每日重置：2026-07-07 01:00 Asia/Shanghai",
+        next_reset_iso: "2026-07-06T17:00:00.000Z",
+        time_remaining_label: "距离每日重置还有 5 小时 00 分钟"
+      },
+      weekly_reset: {
+        label: "每周重置：2026-07-08 01:00 Asia/Shanghai",
+        next_reset_iso: "2026-07-07T17:00:00.000Z",
+        time_remaining_label: "距离每周重置还有 29 小时 00 分钟"
+      },
+      sources: {
+        vendors: {
+          status: "ready",
+          label: "商人库存",
+          message: "已找到 1 条可读信息。",
+          items: [
+            {
+              title: "资料库护甲合成商人",
+              subtitle: "登录角色或公共商人库存",
+              description: "库存名称暂不可读",
+              source: "Bungie 登录角色商人",
+              vendorHash: 3500617033,
+              iconUrl: "/common/destiny2_content/icons/ada.jpg",
+              items: []
+            }
+          ]
+        },
+        rotations: { status: "pending", label: "今日轮换", message: "" },
+        lost_sector: { status: "pending", label: "遗失区域", message: "" },
+        weekly_report: { status: "pending", label: "本周活动线索", message: "" }
+      },
+      checklist: [],
+      recommendations: []
+    });
+
+    expect(workspace.vendors[2]).toMatchObject({
+      id: "ada",
+      vendorHash: 3500617033,
+      name: "资料库护甲合成商人",
+      source: "Bungie 登录角色商人",
+      statusLabel: "已确认",
+      iconUrl: "https://www.bungie.net/common/destiny2_content/icons/ada.jpg",
+      items: []
+    });
+    expect(workspace.sourceLabel).toBe("Bungie 登录角色商人");
+    expect(workspace.verifiedItemCount).toBe(0);
   });
 });
