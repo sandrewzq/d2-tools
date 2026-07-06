@@ -185,7 +185,7 @@ describe("product shell background task wiring", () => {
     expect(libraryHook).toContain("useManifestStatus");
     expect(settingsHook).toContain("useManifestStatus");
     expect(settingsPage).toContain('id="settings-manifest"');
-    expect(settingsPage).toContain("app-panel app-setting-group app-settings-wide manifest-");
+    expect(settingsPage).toContain("panel-subsection app-setting-group app-settings-wide manifest-");
     expect(settingsPage).toContain('settingsText(copy, "资料库")');
     expect(settingsPage).toContain('settingsText(copy, "当前版本")');
     expect(settingsPage).toContain('settingsText(copy, "最新版本")');

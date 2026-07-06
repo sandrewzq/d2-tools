@@ -370,20 +370,19 @@ describe("shared UI i18n", () => {
       <VendorsPageContentView
         interfaceLocale="en-US"
         vendors={[]}
-        showInternalHeading
       />
     );
 
-    expect(libraryHtml).toContain("Library");
     expect(libraryHtml).toContain("Source lookup");
+    expect(libraryHtml).toContain("Search results");
     expect(libraryHtml).not.toMatch(/[\u4e00-\u9fff]/);
 
-    expect(vendorsHtml).toContain("Vendors");
-    expect(vendorsHtml).toContain("Verified inventory");
+    expect(vendorsHtml).toContain("No vendor inventory");
+    expect(vendorsHtml).toContain("verified inventory samples");
     expect(vendorsHtml).not.toMatch(/[\u4e00-\u9fff]/);
 
-    expect(loadoutsHtml).toContain("Loadouts");
     expect(loadoutsHtml).toContain("Loadout risk");
+    expect(loadoutsHtml).toContain("Loadout workbench");
     expect(loadoutsHtml).not.toMatch(/[\u4e00-\u9fff]/);
   });
 });

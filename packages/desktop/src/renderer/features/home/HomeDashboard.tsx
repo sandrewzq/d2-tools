@@ -1,4 +1,4 @@
-import { HomePageView, type ShellPageKey } from "@d2-tools/ui";
+import { HomePageContentView, type ShellPageKey } from "@d2-tools/ui";
 import type { DailySummary, StartupState } from "../../api/types";
 import { type DiagnosticRow } from "../../components/DiagnosticsPanel";
 
@@ -28,5 +28,5 @@ export function HomeDashboard(props: {
   onCopyDailySummary: () => void;
   onCopyWeeklyFocus: () => void;
 }) {
-  return <HomePageView {...props} />;
+  return <HomePageContentView {...props} />;
 }

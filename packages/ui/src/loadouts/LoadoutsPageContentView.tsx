@@ -1,11 +1,10 @@
 import { useMemo, useState } from "react";
-import { LoadoutsPageView } from "./LoadoutsPageView.js";
 import { getLoadoutActionButtonLabel, type LoadoutActionFeedbackState } from "./loadoutActionFeedback.js";
 import { getLocaleCopy } from "../i18n/copy.js";
 import type { InterfaceLocale, LoadoutsCopy } from "../i18n/types.js";
 import {
-  ProductWorkspaceContentStack,
   ProductWorkspaceEmptyState,
+  ProductWorkspacePanel,
   ProductWorkspaceSideRail,
   ProductWorkspaceSplit
 } from "../workspace/ProductWorkspace.js";
@@ -28,7 +27,6 @@ export type LoadoutsPageContentViewProps = {
   renameDraft: string;
   showDiffOnly: boolean;
   message: string;
-  showInternalHeading?: boolean;
   isRunningItemAction: boolean;
   actionFeedback: Record<string, LoadoutActionFeedbackState>;
   getItemStatus: (item: any, template: any, selectedAnalysis: any, transferPlan: any, accountSummary: any | null) => any;
@@ -85,16 +83,23 @@ export function LoadoutsPageContentView(props: LoadoutsPageContentViewProps) {
     : loadoutEntries.filter((entry) => entry.source === entrySourceFilter);
 
   return (
-    <LoadoutsPageView
-      interfaceLocale={props.interfaceLocale}
-      message={props.message}
-      missingCount={props.missingCount}
-      readyCount={props.readyCount}
-      actionableCount={props.actionableCount}
-      showInternalHeading={props.showInternalHeading}
-    >
+    <>
+      {props.message ? <p className={props.message.includes(copy.inline["失败"] ?? "失败") ? "status-message status-error" : "status-message status-ready"}>{props.message}</p> : null}
+      <ProductWorkspacePanel className="loadout-risk-panel">
+        <div className="section-heading compact-heading">
+          <div>
+            <h3>{copy.riskTitle}</h3>
+            <p>{copy.riskSubtitle}</p>
+          </div>
+        </div>
+        <div className="loadout-risk-grid">
+          <span>{copy.missingItems} {props.missingCount} {loadoutsText(copy, "件")}</span>
+          <span>{copy.readyItems} {props.readyCount} {loadoutsText(copy, "件")}</span>
+          <span>{copy.actionableItems} {props.actionableCount} {loadoutsText(copy, "件")}</span>
+        </div>
+      </ProductWorkspacePanel>
       <ProductWorkspaceSplit className="loadout-workbench-shell">
-        <ProductWorkspaceSideRail element="section" className="daily-source source-ready loadout-entry-list">
+        <ProductWorkspaceSideRail element="section" className="loadout-entry-list">
           <div className="loadout-entry-list-head">
             <strong>{loadoutsText(copy, "配装工作台")}</strong>
             <span>{loadoutEntries.length} {loadoutsText(copy, "个配装对象")}</span>
@@ -136,7 +141,7 @@ export function LoadoutsPageContentView(props: LoadoutsPageContentViewProps) {
           </div>
         </ProductWorkspaceSideRail>
         {selectedTemplate ? (
-          <ProductWorkspaceContentStack element="section" className="daily-source source-ready loadout-template-detail product-workspace-panel">
+          <ProductWorkspacePanel element="section" className="loadout-template-detail">
             <strong>{loadoutsText(copy, "方案详情")}</strong>
             <span>
               {props.selectedAnalysis
@@ -241,16 +246,16 @@ export function LoadoutsPageContentView(props: LoadoutsPageContentViewProps) {
                 )}
               </div>
             ) : null}
-          </ProductWorkspaceContentStack>
+          </ProductWorkspacePanel>
         ) : (
-          <ProductWorkspaceEmptyState element="section" className="source-status-card source-status-neutral loadout-template-detail product-workspace-panel">
+          <ProductWorkspaceEmptyState element="section" className="loadout-template-detail">
             <span className="source-status-badge source-status-neutral">{loadoutsText(copy, "本地方案")}</span>
             <h3>{loadoutsText(copy, "还没有保存本地方案")}</h3>
             <p>{loadoutsText(copy, "先到账号页选择角色，把当前装备保存为模板。保存后这里会集中处理补齐、对比和清单复制。")}</p>
           </ProductWorkspaceEmptyState>
         )}
       </ProductWorkspaceSplit>
-    </LoadoutsPageView>
+    </>
   );
 }
 

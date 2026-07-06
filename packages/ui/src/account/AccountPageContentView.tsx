@@ -1,5 +1,4 @@
 ﻿import { useState } from "react";
-import { AccountPageView } from "./AccountPageView.js";
 import { getLocaleCopy } from "../i18n/copy.js";
 import type { AccountCopy, InterfaceLocale } from "../i18n/types.js";
 import {
@@ -34,7 +33,6 @@ export type AccountPageContentViewProps = {
   itemDetailLoadingKey: string;
   writeActionsEnabled: boolean;
   activitySummary: AnyActivityHistorySummary | null;
-  showInternalHeading?: boolean;
   activityMessage: string;
   activityError: string;
   loadoutMessage: string;
@@ -62,22 +60,9 @@ export function AccountPageContentView(props: AccountPageContentViewProps) {
   const activityReview = activitySummary ? activitySummary.review : null;
   const isBungieConfigured = props.isBungieConfigured;
   const isAccountLoggedIn = props.isAccountLoggedIn;
-  const canLoadAccount = props.canLoadAccount;
-  const showInternalHeading = props.showInternalHeading ?? true;
 
   return (
-    <AccountPageView interfaceLocale={props.interfaceLocale}>
-      {showInternalHeading ? (
-        <div className="section-heading">
-          <div>
-            <h2>{copy.title}</h2>
-            <p>{copy.subtitle}</p>
-          </div>
-          <button type="button" disabled={props.isLoadingAccount || !canLoadAccount} onClick={props.onLoadAccount}>
-            {props.isLoadingAccount ? copy.loadingAccount : copy.loadAccount}
-          </button>
-        </div>
-      ) : null}
+    <>
       {props.accountError ? <p className="status-message status-error">{props.accountError}</p> : null}
       {props.itemDetailError ? <p className="status-message status-error">{props.itemDetailError}</p> : null}
       {!accountSummary ? (
@@ -369,7 +354,7 @@ export function AccountPageContentView(props: AccountPageContentViewProps) {
           </ProductWorkspaceContentStack>
         </ProductWorkspaceSplit>
       ) : null}
-    </AccountPageView>
+    </>
   );
 }
 

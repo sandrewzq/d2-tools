@@ -4,7 +4,7 @@ import {
   AccountPageContentView,
   AiAssistantPanelView,
   defaultProductPreferences,
-  HomePageView,
+  HomePageContentView,
   LibraryPageContentView,
   LoadoutsPageContentView,
   ProductShellHost,
@@ -202,7 +202,7 @@ function WebApp() {
       renderPage={(activePage, preferences) => (
         <>
           {activePage === "home" ? (
-            <HomePageView
+            <HomePageContentView
               interfaceLocale={preferences.interfaceLocale}
               state={snapshot.homeState}
               accountError=""
@@ -225,7 +225,6 @@ function WebApp() {
               canLoadAccount
               isLoadingAccount={false}
               accountError=""
-              showInternalHeading={false}
               itemDetailError=""
               itemDetailLoadingKey=""
               writeActionsEnabled={false}
@@ -258,7 +257,6 @@ function WebApp() {
               highlightedLabel={vaultWorkspace.activeLoadoutName}
               tags={vaultWorkspace.tags}
               openingItemKey=""
-              showInternalHeading={false}
               wishlist={vaultWorkspace.wishlist}
               localTargetRules={vaultWorkspace.targetRules}
               communityMatch={vaultWorkspace.communityMatch}
@@ -294,7 +292,6 @@ function WebApp() {
               renameDraft={renameDraft}
               showDiffOnly={showDiffOnly}
               message="Web mock：共享配装页已接入，真实 provider 后续替换数据源。"
-              showInternalHeading={false}
               isRunningItemAction={false}
               actionFeedback={{}}
               getItemStatus={getWebLoadoutItemStatus}
@@ -348,7 +345,6 @@ function WebApp() {
               isLoadingManifestStatus={false}
               isInitializingManifest={false}
               itemDetailLoadingKey=""
-              showInternalHeading={false}
               onViewModeChange={setLibraryViewMode}
               onEquipmentFiltersChange={(patch) => setEquipmentFilters((current) => ({ ...current, ...patch }))}
               onPerkFiltersChange={(patch) => setPerkFilters((current) => ({ ...current, ...patch }))}
@@ -376,7 +372,6 @@ function WebApp() {
               sourceLabel={webVendorsWorkspace.sourceLabel}
               nextResetLabel={webVendorsWorkspace.nextResetLabel}
               recommendationCount={webVendorsWorkspace.recommendationCount}
-              showInternalHeading={false}
             />
           ) : null}
           {activePage === "settings" ? (

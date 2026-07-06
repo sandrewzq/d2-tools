@@ -28,7 +28,7 @@ export function LoadoutsPageView(props: LoadoutsPageViewProps) {
         </div>
       ) : null}
       {props.message ? <p className={props.message.includes(copy.inline["失败"] ?? "失败") ? "status-message status-error" : "status-message status-ready"}>{props.message}</p> : null}
-      <ProductWorkspacePanel className="product-card loadout-risk-panel">
+      <ProductWorkspacePanel className="loadout-risk-panel">
         <div className="section-heading compact-heading">
           <div>
             <h3>{copy.riskTitle}</h3>

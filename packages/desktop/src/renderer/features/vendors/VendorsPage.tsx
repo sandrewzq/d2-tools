@@ -14,7 +14,6 @@ export function VendorsPage(props: VendorsPageWorkspace & {
       nextResetLabel={props.nextResetLabel}
       recommendationCount={props.recommendationCount}
       verifiedItemCount={props.verifiedItemCount}
-      showInternalHeading={false}
     />
   );
 }

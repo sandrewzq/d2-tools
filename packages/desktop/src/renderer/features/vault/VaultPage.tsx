@@ -1,5 +1,5 @@
 import { createVaultPageWorkspace } from "@d2-tools/app";
-import { VaultPageContentView, VaultPageView } from "@d2-tools/ui";
+import { ProductWorkspaceEmptyState, VaultPageContentView } from "@d2-tools/ui";
 import { useState } from "react";
 import type { LoadoutTemplateLookup } from "../../shared/domain/loadouts/loadoutLookup";
 import type {
@@ -44,12 +44,13 @@ export function VaultPage(props: {
 
   if (!props.account) {
     return (
-      <VaultPageView
-        accountReady={false}
-        accountError={props.accountError}
-        isLoadingAccount={props.isLoadingAccount}
-        onLoadAccount={props.onLoadAccount}
-      />
+      <ProductWorkspaceEmptyState>
+        <strong>{props.accountError ? "仓库读取失败" : props.isLoadingAccount ? "正在读取账号" : "还没有账号数据"}</strong>
+        <span>{props.accountError || "先读取账号数据，然后查看完整仓库列表。"}</span>
+        <button type="button" disabled={props.isLoadingAccount} onClick={props.onLoadAccount}>
+          {props.isLoadingAccount ? "读取中..." : "刷新账号"}
+        </button>
+      </ProductWorkspaceEmptyState>
     );
   }
 
@@ -65,15 +66,13 @@ export function VaultPage(props: {
   });
 
   return (
-    <VaultPageView accountReady>
-      <VaultPageContentView
+    <VaultPageContentView
         items={workspace.vaultItems}
         vaultItemCount={workspace.vaultItemCount}
         highlightedItemKeys={workspace.activeLoadoutLookup}
         highlightedLabel={workspace.activeLoadoutName}
         tags={workspace.tags}
         openingItemKey={props.openingItemKey}
-        showInternalHeading={false}
         onSaveTagBatch={props.onSaveTagBatch}
         cleanupActions={{
           characters: props.account.characters,
@@ -123,7 +122,6 @@ export function VaultPage(props: {
         onContextFactsChange={props.onContextFactsChange}
         onOpenItem={props.onOpenItem}
         onSaveTag={props.onSaveTag}
-      />
-    </VaultPageView>
+    />
   );
 }

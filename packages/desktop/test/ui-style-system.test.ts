@@ -559,25 +559,28 @@ describe("UI style system", () => {
   });
 
   it("starts settings page migration with a two-column desktop tool layout", () => {
-    const settingsPage = [
-      readFileSync(join(uiRoot, "src", "settings", "SettingsPageContentView.tsx"), "utf8"),
+    const settingsContent = readFileSync(join(uiRoot, "src", "settings", "SettingsPageContentView.tsx"), "utf8");
+    const settingsRuntime = [
+      settingsContent,
       readFileSync(join(desktopRoot, "src", "renderer", "features", "settings", "SettingsPage.tsx"), "utf8")
     ].join("\n");
     const settingsPageView = readFileSync(join(uiRoot, "src", "settings", "SettingsPageView.tsx"), "utf8");
     const styles = readProductStyles();
 
-    expect(settingsPageView).toContain('className="app-page settings-app-page"');
-    expect(settingsPage).not.toContain("app-page-head");
-    expect(settingsPage).toContain("app-settings-shell");
-    expect(settingsPage).toContain("settings-menu");
-    expect(settingsPage).toContain("app-settings-grid");
-    expect(settingsPage).toContain("settings-diagnostics-toolbar");
-    expect(settingsPage).toContain('className="status-message status-ready"');
-    expect(settingsPage).toContain('className="status-message status-error"');
-    expect(styles).toContain(".settings-app-page");
-    expect(styles).toContain(".app-page-head");
+    expect(settingsPageView).toContain("ProductWorkspacePage");
+    expect(settingsContent).not.toContain("SettingsPageView");
+    expect(settingsRuntime).not.toContain("app-page-head");
+    expect(settingsRuntime).toContain("app-settings-shell");
+    expect(settingsRuntime).toContain("settings-menu");
+    expect(settingsRuntime).toContain("app-settings-grid");
+    expect(settingsRuntime).toContain("settings-diagnostics-toolbar");
+    expect(settingsRuntime).toContain('className="status-message status-ready"');
+    expect(settingsRuntime).toContain('className="status-message status-error"');
+    expect(settingsRuntime).not.toContain('className="app-panel settings-menu"');
+    expect(settingsRuntime).toContain("panel-subsection");
     expect(styles).toContain(".app-settings-shell");
     expect(styles).toContain(".app-settings-grid");
+    expect(styles).toContain(".panel-subsection");
     expect(styles).toContain(".status-message");
     expect(styles).toContain(".status-message.status-ready");
     expect(styles).toContain(".status-message.status-error");
@@ -589,7 +592,7 @@ describe("UI style system", () => {
       readFileSync(join(uiRoot, "src", "settings", "SettingsPageContentView.tsx"), "utf8"),
       readFileSync(join(desktopRoot, "src", "renderer", "features", "settings", "SettingsPage.tsx"), "utf8")
     ].join("\n");
-    const homeDashboard = readFileSync(join(uiRoot, "src", "home", "HomePageView.tsx"), "utf8");
+    const homeDashboard = readFileSync(join(uiRoot, "src", "home", "HomePageContentView.tsx"), "utf8");
     const dailyPanel = readFileSync(join(desktopRoot, "src", "renderer", "shared", "components", "DailySummaryPanel.tsx"), "utf8");
     const accountPage = [
       readFileSync(join(uiRoot, "src", "account", "AccountPageView.tsx"), "utf8"),
@@ -618,7 +621,8 @@ describe("UI style system", () => {
     expect(styles).toContain(".vault-dashboard-panel");
     expect(styles).toContain(".item-tool-panel");
 
-    expect(settingsPage).toContain("app-panel app-setting-group");
+    expect(settingsPage).not.toContain("app-panel app-setting-group");
+    expect(settingsPage).toContain("panel-subsection");
     expect(settingsPage).toContain("app-setting-row");
     expect(settingsPage).toContain("app-log-row");
 
@@ -637,7 +641,7 @@ describe("UI style system", () => {
     expect(vaultPage).toContain("status-message status-error");
     expect(vaultPage).toContain("status-message status-ready");
     expect(vaultPageAdapter).toContain("VaultPageContentView");
-    expect(vaultPageAdapter).toContain("VaultPageView");
+    expect(vaultPageAdapter).not.toContain("VaultPageView");
     expect(vaultCompatPanel).toContain("VaultPageContentView as VaultPanel");
     expect(vaultToolbarAdapter).toContain("VaultFilterToolbar");
     expect(vaultSectionsAdapter).toContain("VaultItemSections");
@@ -647,6 +651,21 @@ describe("UI style system", () => {
     expect(vaultToolbar).toContain("ui-filter-toolbar");
     expect(itemDetailTools).toContain("item-tool-panel");
     expect(itemDetailTools).toContain("ui-badge");
+  });
+
+  it("keeps tool-panel out of primary workspace content roots", () => {
+    const uiFiles = readRendererTsxFiles(join(uiRoot, "src"));
+    const desktopFiles = readRendererTsxFiles(join(desktopRoot, "src", "renderer"));
+    const allowedFragments = [
+      "assistant\\AiAssistantPanelView.tsx",
+      "components\\AiSettingsPanel.tsx"
+    ];
+    const offenders = [...uiFiles, ...desktopFiles]
+      .filter((file) => /(?:^|["'`\s])tool-panel(?:["'`\s]|$)/.test(file.content))
+      .filter((file) => !allowedFragments.some((fragment) => file.path.endsWith(fragment)))
+      .map((file) => file.path);
+
+    expect(offenders).toEqual([]);
   });
 
   it("uses the shared status message language instead of legacy notice and error classes", () => {

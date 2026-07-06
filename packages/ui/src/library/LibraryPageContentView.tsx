@@ -1,4 +1,3 @@
-import { LibraryPageView } from "./LibraryPageView.js";
 import {
   buildLibraryEquipmentFilterOptions,
   buildLibraryPerkGroupOptions,
@@ -17,7 +16,8 @@ import {
   ProductWorkspaceCommandBar,
   ProductWorkspaceContentStack,
   ProductWorkspaceEmptyState,
-  ProductWorkspaceSideRail
+  ProductWorkspaceSideRail,
+  ProductWorkspaceSplit
 } from "../workspace/ProductWorkspace.js";
 
 type ItemSearchResult = import("./libraryFilters.js").ItemSearchResult & {
@@ -87,7 +87,6 @@ export function LibraryPageContentView(props: {
   isLoadingManifestStatus: boolean;
   isInitializingManifest: boolean;
   itemDetailLoadingKey: string;
-  showInternalHeading?: boolean;
   onViewModeChange: (mode: LibraryViewMode) => void;
   onEquipmentFiltersChange: (patch: Partial<LibraryEquipmentFilter>) => void;
   onPerkFiltersChange: (patch: Partial<LibraryPerkFilter>) => void;
@@ -147,15 +146,9 @@ export function LibraryPageContentView(props: {
   ) : null;
 
   return (
-    <LibraryPageView
-      interfaceLocale={props.interfaceLocale}
-      manifestVersionLabel={formatManifestDataDate(props.manifestStatus, copy)}
-      manifestNeedsUpdate={props.manifestStatus?.needs_update}
-      viewMode={props.libraryViewMode}
-      showInternalHeading={props.showInternalHeading}
-      onViewModeChange={props.onViewModeChange}
-      manifestAlert={manifestAlertElement}
-    >
+    <>
+      {manifestAlertElement}
+      <ProductWorkspaceSplit className="library-workbench-layout">
       <ProductWorkspaceSideRail element="section" className="library-query-panel" ariaLabel={libraryText(copy, "出处查询")}>
         <ProductWorkspaceCommandBar className="library-search-command">
           <div className="library-search-command-head">
@@ -479,7 +472,7 @@ export function LibraryPageContentView(props: {
           </details>
         </div>
       </ProductWorkspaceSideRail>
-      <ProductWorkspaceContentStack element="section" className="library-results-panel product-workspace-panel" ariaLabel={libraryText(copy, "搜索结果")}>
+      <ProductWorkspaceContentStack element="section" className="library-results-panel" ariaLabel={libraryText(copy, "搜索结果")}>
         <div className="library-results-heading">
           <h3>{libraryText(copy, "搜索结果")}</h3>
           <span>{hitCount} {libraryText(copy, props.libraryViewMode === "equipment" ? "条来源线索" : "条 Perk 线索")}</span>
@@ -553,7 +546,8 @@ export function LibraryPageContentView(props: {
           </ProductWorkspaceEmptyState>
         ) : null}
       </ProductWorkspaceContentStack>
-    </LibraryPageView>
+      </ProductWorkspaceSplit>
+    </>
   );
 }
 

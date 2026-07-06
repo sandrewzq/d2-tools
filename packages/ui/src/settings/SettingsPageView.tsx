@@ -32,7 +32,7 @@ function DefaultSettingsPrototype(props: { interfaceLocale?: InterfaceLocale }) 
 
   return (
     <ProductWorkspaceSplit className="app-settings-shell">
-      <ProductWorkspaceSideRail element="nav" className="app-panel settings-menu" ariaLabel={copy.menuAriaLabel}>
+      <ProductWorkspaceSideRail element="nav" className="settings-menu" ariaLabel={copy.menuAriaLabel}>
         {menu.map((item) => (
           <button
             className={activeSection === item.key ? "active" : ""}

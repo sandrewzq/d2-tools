@@ -1,6 +1,6 @@
 # 跨端工作区骨架与样式系统彻底收口计划
 
-> 状态：待实施
+> 状态：进行中（结构收口与代码边界已落地，真实 UI 视觉样式收口未完成）
 > 关联任务：`docs/todo.md` T4 跨端 UI 壳、可交互原型与桌面视觉收口
 > 参考基准：`docs/work/references/d2-unified-workspace-layout-v0.html`
 
@@ -37,7 +37,66 @@
 - Prototype 已成为当前活跃原型入口。
 - 静态 HTML 不作为新的活跃实现入口；仍作为视觉和规则参考基准。
 
-当前尚未完成的是页面骨架所有权、首层面板 chrome、旧样式类边界和测试红线的彻底收口。
+本轮已完成页面骨架所有权、主菜单 ContentView 纯内容层、`showInternalHeading` 平台入口清理、设置页首层旧面板类收口，以及对应结构 / 样式红线测试同步。本轮继续完成了首层 workspace chrome 基础收口、仓库卡片抗压、配装详情首层 panel 化，以及视觉脚本卡住问题修复。
+
+当前自动门禁已经覆盖：`verify:ui`、`verify:desktop`、`verify:docs`、`visual:home`、`visual:settings`、`visual:loadouts`、`visual:ai` 和 `visual:all`。这些结果说明结构、类型、接线、文档和自动视觉扫描通过；后续仍建议由用户打开 Prototype / Desktop 做一次人工审美复核，避免自动脚本无法表达的密度和观感问题。
+
+## 当前执行状态（2026-07-06）
+
+本节是当前执行状态，不是历史问题复述。后续 agent 接手时必须从这里继续，不得只看旧阶段计划判断还有哪些未完成。
+
+### A. 本轮已完成
+
+- `.product-workspace-panel` 已统一 `padding`、`border`、`border-radius`、`background` 和 `box-shadow`。
+- `.product-side-rail` 已统一首层侧栏 chrome；`.product-content-stack` 保持为纯 stack，不承担 panel chrome。
+- `LoadoutsPageContentView` 的方案详情区已从 `ProductWorkspaceContentStack` 改为 `ProductWorkspacePanel`，避免首层详情区域看起来缺面板。
+- 仓库卡片已补 `.vault-title-row`、`.vault-card-body .decision-badge` 和 `.vault-card-actions` 的窄宽度抗压规则。
+- `visual:home` 卡住根因已修复：Desktop 截图等待旧 `.home-app-page`，但真实首页已改为内容层 `.home-briefing-grid`；脚本已补超时和进程树清理。
+- `visual:home`、`visual:settings`、`visual:loadouts`、`visual:ai` 和 `visual:all` 已在本轮通过，`visual:all` 扫描 70 个状态。
+
+### B. 仍需人工复核
+
+- 自动视觉扫描不能完全判断审美质量。用户仍应打开 Prototype / Desktop 检查首页、仓库、配装、资料库、商人、设置的密度、留白、层级和实际观感。
+- 如果人工复核发现某页“不统一”，优先改 `packages/ui/src/styles.css` 和共享 ContentView；不要回到 Desktop 私有 CSS 或旧 HTML。
+- 新增 UI 需求继续先改共享 UI / Prototype，再由 Web 和 Desktop 共同消费。
+
+### C. Header actions 两列布局遗漏
+
+本轮人工复核发现首页刷新按钮在真实 UI 中掉到标题下方，而参考 HTML 中按钮位于标题区右侧。根因是计划只写了 `ProductWorkspaceHeader` 负责标题、副标题和页面级 action，但没有把参考 HTML 的两列布局转成硬性验收标准。
+
+必须补齐以下规则：
+
+1. `.product-workspace-header` 是标题区唯一骨架，必须使用 `display: grid`。
+2. 桌面宽度下标题区必须使用 `grid-template-columns: minmax(0, 1fr) auto`，左侧放标题和副标题，右侧放页面级 actions。
+3. `.product-page-header-actions` 必须右对齐，且默认不掉到标题下方。
+4. 窄屏或空间不足时才允许 action 换行；换行规则必须由共享 workspace CSS 控制，不能由某个菜单私有 class 控制。
+5. `workspace-layout.test.ts` 必须锁住 header grid、actions 右对齐和 `ProductWorkspaceHeader` 结构，避免再次只验证“组件存在”而漏掉布局。
+
+### D. `styles.css` 历史规则仍需整理
+
+`packages/ui/src/styles.css` 中仍存在多轮重构留下的重复或过时规则：
+
+- `.app-page`、`.home-app-page`、`.settings-app-page`、`.vault-product-layout`、`.loadout-product-layout`、`.library-product-layout` 等旧类仍保留，部分用于 standalone fallback，部分已不应影响真实主菜单。
+- 首页、仓库、配装、资料库、商人、设置的私有样式散落在不同位置，后写规则覆盖前写规则，容易造成“改一处又被后面覆盖”。
+- `ProductWorkspace*` 基础规则与菜单私有规则的先后顺序需要重新整理，避免私有规则偷偷覆盖首层 chrome。
+
+下一步：
+
+1. 在 `styles.css` 中建立清晰顺序：token -> workspace primitives -> shared content primitives -> page private content styles -> responsive overrides。
+2. 给 legacy 类加注释和测试白名单，明确哪些只能用于 fallback。
+3. 删除或收窄已不被真实入口使用的页面级布局规则。
+
+### E. 验收口径
+
+后续汇报必须使用以下口径：
+
+- “结构收口完成”：只表示 `ContentView` / `ProductShellHost` / 平台入口边界正确，并且相关结构测试通过。
+- “常规验证通过”：只表示 `verify:ui`、`verify:desktop`、`verify:docs` 通过。
+- “自动视觉门禁通过”：表示 `visual:home`、`visual:settings`、`visual:ai`、`visual:all` 等脚本报告通过。
+- “视觉收口完成”：必须说明依据是自动视觉脚本、人工截图确认，还是两者都有；不能只用 `verify:*` 代替视觉结论。
+- “HTML 还原完成”：必须同时包含结构、CSS 布局属性和关键交互位置的验收；只检查组件存在或页面可见不算还原完成。
+
+如果后续没有重新运行视觉脚本，或用户指出截图观感问题，不得继续回复“UI 完成”。
 
 ## 执行前置条件
 

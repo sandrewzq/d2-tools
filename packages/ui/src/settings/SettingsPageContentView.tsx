@@ -1,6 +1,5 @@
 ﻿import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
-import { SettingsPageView } from "./SettingsPageView.js";
 import { getLocaleCopy } from "../i18n/copy.js";
 import type { InterfaceLocale, SettingsCopy } from "../i18n/types.js";
 import {
@@ -193,12 +192,12 @@ export function SettingsPageContentView(props: SettingsPageContentViewProps) {
   }
 
   return (
-    <SettingsPageView interfaceLocale={props.interfaceLocale}>
+    <>
       {props.message ? <p className="status-message status-ready">{props.message}</p> : null}
       {props.error ? <p className="status-message status-error">{props.error}</p> : null}
 
       <ProductWorkspaceSplit className="app-settings-shell">
-        <ProductWorkspaceSideRail className="app-panel settings-menu" ariaLabel={copy.menuAriaLabel}>
+        <ProductWorkspaceSideRail className="settings-menu" ariaLabel={copy.menuAriaLabel}>
           {settingsMenu.map((item) => (
             <button
               className={activeSection === item.key ? "active" : ""}
@@ -214,7 +213,7 @@ export function SettingsPageContentView(props: SettingsPageContentViewProps) {
 
         <ProductWorkspaceContentStack className="settings-content">
           <section className={activeSection === "overview" ? "settings-detail active" : "settings-detail"} id="settings-overview">
-            <section className="app-panel app-setting-group">
+            <section className="panel-subsection app-setting-group">
               <div className="app-section-title">
                 <div>
                   <h2>{copy.overview.title}</h2>
@@ -256,7 +255,7 @@ export function SettingsPageContentView(props: SettingsPageContentViewProps) {
               </div>
             </section>
 
-            <section className={`app-panel app-setting-group update-${updateUi.tone}`} id="settings-updates">
+            <section className={`panel-subsection app-setting-group update-${updateUi.tone}`} id="settings-updates">
               <div className="app-section-title">
                 <div>
                   <h2>{settingsText(copy, "应用更新")}</h2>
@@ -295,7 +294,7 @@ export function SettingsPageContentView(props: SettingsPageContentViewProps) {
               </div>
             </section>
 
-            <section className="app-panel app-setting-group">
+            <section className="panel-subsection app-setting-group">
               <div className="app-section-title">
                 <h2>{copy.overview.commonActionsTitle}</h2>
                 <span>{copy.overview.commonActionsSubtitle}</span>
@@ -325,7 +324,7 @@ export function SettingsPageContentView(props: SettingsPageContentViewProps) {
           </section>
 
           <section className={activeSection === "language" ? "settings-detail active" : "settings-detail"} id="settings-language">
-            <section className="app-panel app-setting-group">
+            <section className="panel-subsection app-setting-group">
               <div className="app-section-title">
                 <div>
                   <h2>{settingsText(copy, "语言")}</h2>
@@ -399,7 +398,7 @@ export function SettingsPageContentView(props: SettingsPageContentViewProps) {
           </section>
 
           <section className={activeSection === "account" ? "settings-detail active" : "settings-detail"} id="settings-account">
-            <section className="app-panel app-setting-group">
+            <section className="panel-subsection app-setting-group">
               <div className="app-section-title">
                 <div>
                   <h2>{settingsText(copy, "账号")}</h2>
@@ -454,7 +453,7 @@ export function SettingsPageContentView(props: SettingsPageContentViewProps) {
           </section>
 
           <section className={activeSection === "library" ? "settings-detail active" : "settings-detail"} id="settings-library">
-            <section className={`app-panel app-setting-group app-settings-wide manifest-${libraryUi.tone} library-${libraryUi.tone}`} id="settings-manifest">
+            <section className={`panel-subsection app-setting-group app-settings-wide manifest-${libraryUi.tone} library-${libraryUi.tone}`} id="settings-manifest">
               <div className="app-section-title">
                 <div>
                   <h2>{settingsText(copy, "资料库")}</h2>
@@ -504,7 +503,7 @@ export function SettingsPageContentView(props: SettingsPageContentViewProps) {
           </section>
 
           <section className={activeSection === "bungie" ? "settings-detail active" : "settings-detail"} id="settings-bungie">
-            <section className="app-panel app-setting-group">
+            <section className="panel-subsection app-setting-group">
               <div className="app-section-title">
                 <h2>{settingsText(copy, "Bungie 接口配置")}</h2>
                 <span>{settingsText(copy, "应用级接口，不等同于当前账号")}</span>
@@ -572,7 +571,7 @@ export function SettingsPageContentView(props: SettingsPageContentViewProps) {
           </section>
 
           <section className={activeSection === "ai" ? "settings-detail active" : "settings-detail"} id="settings-ai">
-            <section className="app-panel app-setting-group settings-ai-section">
+            <section className="panel-subsection app-setting-group settings-ai-section">
               <div className="app-section-title">
                 <h2>{settingsText(copy, "AI 助手")}</h2>
                 <span>{settingsText(copy, "可选能力，不阻断本地功能")}</span>
@@ -582,7 +581,7 @@ export function SettingsPageContentView(props: SettingsPageContentViewProps) {
           </section>
 
           <section className={activeSection === "backup" ? "settings-detail active" : "settings-detail"} id="settings-backup">
-            <section className="app-panel app-setting-group">
+            <section className="panel-subsection app-setting-group">
               <div className="app-section-title">
                 <h2>{settingsText(copy, "数据备份与迁移")}</h2>
                 <span>{settingsText(copy, "低频但需要可发现")}</span>
@@ -611,7 +610,7 @@ export function SettingsPageContentView(props: SettingsPageContentViewProps) {
           </section>
 
           <section className={activeSection === "diagnostics" ? "settings-detail active" : "settings-detail"} id="settings-diagnostics">
-            <section className="app-panel app-setting-group">
+            <section className="panel-subsection app-setting-group">
               <div className="app-section-title">
                 <div>
                   <h2>{settingsText(copy, "诊断与操作日志")}</h2>
@@ -669,7 +668,7 @@ export function SettingsPageContentView(props: SettingsPageContentViewProps) {
           </section>
         </ProductWorkspaceContentStack>
       </ProductWorkspaceSplit>
-    </SettingsPageView>
+    </>
   );
 }
 

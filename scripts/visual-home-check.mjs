@@ -23,8 +23,8 @@ const defaultAppPngName = "app-dark-1365x900.png";
 const defaultComparePngName = "compare-dark-1365x900.png";
 const expectedSelectorsByPage = {
   home: [".home-briefing-grid", ".home-daily-panel", ".home-weekly-dashboard"],
-  loadouts: [".loadout-product-layout", ".loadout-workbench-shell", ".loadout-template-detail"],
-  settings: [".settings-app-page", ".app-settings-shell", ".settings-menu"]
+  loadouts: [".loadout-workbench-shell", ".loadout-template-detail"],
+  settings: [".app-settings-shell", ".settings-menu"]
 };
 const viewport = process.env.D2_VISUAL_CAPTURE_VIEWPORT ?? defaultViewport;
 const [width, height] = viewport.split("x").map((part) => Number.parseInt(part, 10));
@@ -59,8 +59,26 @@ function run(command, args, options = {}) {
       windowsHide: true
     });
 
-    child.on("error", reject);
+    let settled = false;
+    const timeout = options.timeoutMs
+      ? setTimeout(() => {
+          if (settled) return;
+          settled = true;
+          stopProcessTree(child);
+          reject(new Error(`${options.label ?? command} timed out after ${options.timeoutMs}ms`));
+        }, options.timeoutMs)
+      : null;
+
+    child.on("error", (error) => {
+      if (settled) return;
+      settled = true;
+      if (timeout) clearTimeout(timeout);
+      reject(error);
+    });
     child.on("exit", (code) => {
+      if (settled) return;
+      settled = true;
+      if (timeout) clearTimeout(timeout);
       if (code === 0) {
         resolveRun();
       } else {
@@ -92,6 +110,15 @@ function normalizeSpawn(command, args) {
     return { command: "cmd.exe", args: ["/d", "/s", "/c", command, ...args] };
   }
   return { command, args };
+}
+
+function stopProcessTree(child) {
+  if (!child || child.killed) return;
+  if (isWindows) {
+    spawn("taskkill.exe", ["/PID", String(child.pid), "/T", "/F"], { stdio: "ignore", windowsHide: true });
+  } else {
+    child.kill("SIGTERM");
+  }
 }
 
 async function waitForUrl(url, timeoutMs = 30_000) {
@@ -242,13 +269,7 @@ async function captureReference() {
       prototypeUrl
     ], { stdio: "ignore" });
   } finally {
-    if (!vite.killed) {
-      if (isWindows) {
-        spawn("taskkill.exe", ["/PID", String(vite.pid), "/T", "/F"], { stdio: "ignore", windowsHide: true });
-      } else {
-        vite.kill("SIGTERM");
-      }
-    }
+    stopProcessTree(vite);
   }
 }
 
@@ -277,6 +298,7 @@ async function captureApp() {
     await waitForUrl(rendererUrl);
     await run(pnpm, ["--filter", "@d2-tools/desktop", "exec", "electron", "dist/main/main.js"], {
       label: "capture electron app",
+      timeoutMs: 90_000,
       env: {
         NODE_ENV: "development",
         D2_RENDERER_URL: rendererUrl,
@@ -289,13 +311,7 @@ async function captureApp() {
       }
     });
   } finally {
-    if (!vite.killed) {
-      if (isWindows) {
-        spawn("taskkill.exe", ["/PID", String(vite.pid), "/T", "/F"], { stdio: "ignore", windowsHide: true });
-      } else {
-        vite.kill("SIGTERM");
-      }
-    }
+    stopProcessTree(vite);
   }
 }
 

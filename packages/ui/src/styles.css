@@ -2781,6 +2781,8 @@ textarea {
 }
 
 .product-page-header-actions {
+  justify-content: flex-end;
+  flex-wrap: nowrap;
   min-width: max-content;
 }
 
@@ -3884,6 +3886,11 @@ h2 {
   line-height: 1.35;
 }
 
+.vault-card-body .decision-badge {
+  justify-self: start;
+  max-width: 100%;
+}
+
 .decision-keep {
   border-color: rgb(86 181 124 / 0.58);
   color: var(--status-ready);
@@ -4088,6 +4095,9 @@ h2 {
 }
 
 .product-workspace-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-16);
   min-height: 42px;
   padding: 2px 0 0;
   align-items: end;
@@ -4110,6 +4120,7 @@ h2 {
 
 .product-workspace-panel {
   min-width: 0;
+  padding: var(--space-16);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-panel);
   background: var(--surface-panel);
@@ -4157,6 +4168,11 @@ h2 {
 
 .product-side-rail {
   min-width: 0;
+  padding: var(--space-16);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-panel);
+  background: var(--surface-panel);
+  box-shadow: var(--shadow-panel);
 }
 
 .product-content-stack {
@@ -7228,9 +7244,9 @@ h2 {
 
 .vault-card-actions {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: 8px;
-  align-items: center;
+  align-items: stretch;
   padding-top: 8px;
   border-top: 1px solid var(--border-subtle);
 }

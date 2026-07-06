@@ -48,10 +48,10 @@ describe("visual prototype harness", () => {
     expect(script).toContain("home-briefing-grid");
     expect(script).toContain("home-daily-panel");
     expect(script).toContain("home-weekly-dashboard");
-    expect(script).toContain("settings-app-page");
     expect(script).toContain("app-settings-shell");
-    expect(script).toContain("loadout-product-layout");
+    expect(script).toContain("app-settings-shell");
     expect(script).toContain("loadout-workbench-shell");
+    expect(script).toContain("timeoutMs");
   });
 
   it("provides an interactive AI drawer visual check for prototype, web and desktop", () => {
@@ -126,8 +126,12 @@ describe("visual prototype harness", () => {
     expect(mainProcess).toContain("D2_VISUAL_CAPTURE_DIR");
     expect(mainProcess).toContain("D2_VISUAL_CAPTURE_PAGE");
     expect(mainProcess).toContain("captureVisualSnapshot");
-    expect(mainProcess).toContain(".home-app-page");
-    expect(mainProcess).toContain(".settings-app-page");
+    expect(mainProcess).toContain('home: ".home-briefing-grid"');
+    expect(mainProcess).toContain('loadouts: ".loadout-workbench-shell"');
+    expect(mainProcess).toContain('settings: ".app-settings-shell"');
+    expect(mainProcess).not.toContain('home: ".home-app-page"');
+    expect(mainProcess).not.toContain('loadouts: ".loadout-product-layout"');
+    expect(mainProcess).not.toContain('settings: ".settings-app-page"');
     expect(mainProcess).toContain("settingsTitleCount");
     expect(mainProcess).toContain("home-briefing-grid");
     expect(mainProcess).toContain("home-daily-panel");
@@ -141,14 +145,14 @@ describe("visual prototype harness", () => {
 
   it("keeps home prototype classes isolated from global status overrides", () => {
     const homeDashboard = read("packages/desktop/src/renderer/features/home/HomeDashboard.tsx");
-    const homePageView = read("packages/ui/src/home/HomePageView.tsx");
+    const homePageView = read("packages/ui/src/home/HomePageContentView.tsx");
     const styles = readProductStyles();
     const canonicalBlock = styles.slice(
       styles.indexOf("/* Canonical product token surface rules. Shared by Prototype, Web and Desktop. */"),
       styles.indexOf("/* End canonical product token surface rules */")
     );
 
-    expect(homeDashboard).toContain("<HomePageView {...props} />");
+    expect(homeDashboard).toContain("<HomePageContentView {...props} />");
     expect(homeDashboard).not.toContain("home-data-strip");
     expect(homePageView).not.toContain("app-page-head");
     expect(homePageView).not.toContain("status-${point.tone}");
@@ -221,7 +225,7 @@ describe("visual prototype harness", () => {
     const optionRule = readCssRule(prototypeStyles, ".prototype-debug option");
 
     expect(prototypeEntry).toContain("ProductShellHost");
-    expect(prototypeEntry).toContain("HomePageView");
+    expect(prototypeEntry).toContain("HomePageContentView");
     expect(prototypeEntry).toContain("AccountPageContentView");
     expect(prototypeEntry).toContain("VaultPageContentView");
     expect(prototypeEntry).toContain("SettingsPageContentView");
@@ -246,6 +250,7 @@ describe("visual prototype harness", () => {
     expect(optionRule).toContain("background: var(--surface-panel)");
     expect(uiEntry).toContain("AppShell");
     expect(uiEntry).toContain("ProductShellHost");
+    expect(uiEntry).toContain("HomePageContentView");
     expect(uiEntry).toContain("HomePageView");
     expect(uiEntry).toContain("AccountPageView");
     expect(uiEntry).toContain("SettingsPageView");

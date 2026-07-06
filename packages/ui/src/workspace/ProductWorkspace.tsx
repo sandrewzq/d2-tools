@@ -1,6 +1,6 @@
 import { createElement, type ReactNode } from "react";
 
-type WorkspaceElement = "div" | "section" | "main" | "aside" | "nav";
+type WorkspaceElement = "div" | "section" | "main" | "aside" | "nav" | "header";
 
 type WorkspaceProps = {
   children?: ReactNode;
@@ -35,6 +35,26 @@ export function ProductWorkspacePage(props: WorkspaceProps) {
     props.element ?? "section",
     classNames("product-workspace-page", props.className),
     props
+  );
+}
+
+export function ProductWorkspaceHeader(props: WorkspaceProps & { actions?: ReactNode }) {
+  return renderWorkspaceElement(
+    props.element ?? "header",
+    classNames("product-workspace-header", props.className),
+    {
+      ...props,
+      children: (
+        <>
+          <div>{props.children}</div>
+          {props.actions ? (
+            <div className="button-row product-page-header-actions">
+              {props.actions}
+            </div>
+          ) : null}
+        </>
+      )
+    }
   );
 }
 

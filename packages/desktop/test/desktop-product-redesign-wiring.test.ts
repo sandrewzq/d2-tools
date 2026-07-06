@@ -16,7 +16,7 @@ function readUiFile(path: string): string {
 
 describe("desktop product redesign wiring", () => {
   it("lands the approved prototype structure into the real desktop pages", () => {
-    const homeDashboard = readUiFile("home/HomePageView.tsx");
+    const homeDashboard = readUiFile("home/HomePageContentView.tsx");
     const homeCopy = readUiFile("i18n/copy.ts");
     const homePage = readRendererFile("pages/HomePage.tsx");
     const vaultPanel = readRendererFile("components/VaultPanel.tsx");
@@ -30,7 +30,9 @@ describe("desktop product redesign wiring", () => {
     const settingsPage = `${readUiFile("settings/SettingsPageView.tsx")}\n${readUiFile("settings/SettingsPageContentView.tsx")}\n${readRendererFile("features/settings/SettingsPage.tsx")}`;
     const styles = readUiFile("styles.css");
 
-    expect(homeDashboard).toContain("app-page home-app-page");
+    expect(homeDashboard).toContain("export function HomePageContentView");
+    expect(homeDashboard).not.toContain("app-page home-app-page");
+    expect(homeDashboard).not.toContain("ProductWorkspacePage");
     expect(homeDashboard).not.toContain("app-page-head");
     expect(homePage).toContain("pageHeader={{");
     expect(homePage).not.toContain('className="page-header"');
@@ -64,7 +66,9 @@ describe("desktop product redesign wiring", () => {
     expect(homeDashboard).not.toContain("商人库存");
 
     expect(vaultPanel).toContain("VaultPageContentView as VaultPanel");
-    expect(vaultContent).toContain("vault-product-layout");
+    expect(vaultContent).toContain("export function VaultPageContentView");
+    expect(vaultContent).not.toContain("vault-product-layout");
+    expect(vaultContent).not.toContain("ProductWorkspacePage");
     expect(vaultContent).toContain("vault-decision-summary");
     expect(vaultContent).toContain("vault-workbench-header");
     expect(vaultContent).toContain("vault-quick-filters");
@@ -76,13 +80,17 @@ describe("desktop product redesign wiring", () => {
     expect(vaultContent).toContain("ItemDecision");
 
     expect(loadoutsPage).toContain("LoadoutsPageContentView");
-    expect(loadoutsContent).toContain("LoadoutsPageView");
+    expect(loadoutsContent).toContain("export function LoadoutsPageContentView");
+    expect(loadoutsContent).not.toContain("LoadoutsPageView");
+    expect(loadoutsContent).not.toContain("ProductWorkspacePage");
     expect(loadoutsView).toContain("loadout-product-layout");
     expect(loadoutsView).toContain("copy.riskTitle");
     expect(loadoutsView).toContain("copy.missingItems");
 
     expect(libraryPage).toContain("LibraryPageContentView");
-    expect(libraryContent).toContain("LibraryPageView");
+    expect(libraryContent).toContain("export function LibraryPageContentView");
+    expect(libraryContent).not.toContain("LibraryPageView");
+    expect(libraryContent).not.toContain("ProductWorkspacePage");
     expect(libraryView).toContain("library-product-layout");
     expect(libraryContent).toContain("library-source-matrix");
 

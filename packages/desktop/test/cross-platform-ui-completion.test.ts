@@ -53,12 +53,18 @@ describe("cross-platform UI completion boundary", () => {
     expect(loadoutsView).toContain("export function LoadoutsPageView");
     expect(libraryView).toContain("export function LibraryPageView");
     expect(vendorsView).toContain("export function VendorsPageView");
-    expect(loadoutsContent).toContain("<LoadoutsPageView");
-    expect(libraryContent).toContain("<LibraryPageView");
-    expect(vendorsContent).toContain("<VendorsPageView");
+    expect(loadoutsContent).toContain("export function LoadoutsPageContentView");
+    expect(libraryContent).toContain("export function LibraryPageContentView");
+    expect(vendorsContent).toContain("export function VendorsPageContentView");
+    expect(loadoutsContent).not.toContain("<LoadoutsPageView");
+    expect(libraryContent).not.toContain("<LibraryPageView");
+    expect(vendorsContent).not.toContain("<VendorsPageView");
+    expect(loadoutsContent).not.toContain("ProductWorkspacePage");
+    expect(libraryContent).not.toContain("ProductWorkspacePage");
+    expect(vendorsContent).not.toContain("ProductWorkspacePage");
 
-    expect(vaultPage).toContain("<VaultPageView");
     expect(vaultPage).toContain("<VaultPageContentView");
+    expect(vaultPage).not.toContain("<VaultPageView");
     expect(vaultPage).not.toContain("VaultPanel");
     expect(desktopVaultPanel).not.toContain("export function VaultPanel");
     expect(desktopVaultUiShims).toContain("@d2-tools/ui");

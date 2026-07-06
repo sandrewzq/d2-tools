@@ -69,7 +69,7 @@ describe("desktop installer and update wiring", () => {
 
     expect(settingsPage).toContain("应用更新");
     expect(settingsPage).toContain('id="settings-updates"');
-    expect(settingsPage).toContain("app-panel app-setting-group update-");
+    expect(settingsPage).toContain("panel-subsection app-setting-group update-");
     expect(settingsPage).toContain("app-section-title");
     expect(settingsPage).toContain("app-chip status-");
     expect(settingsPage).toContain("update-progress-bar");

@@ -57,7 +57,6 @@ import {
 import {
   ProductWorkspaceCommandBar,
   ProductWorkspaceContentStack,
-  ProductWorkspacePage,
   ProductWorkspaceSideRail,
   ProductWorkspaceSplit
 } from "../workspace/ProductWorkspace.js";
@@ -91,7 +90,6 @@ export function VaultPageContentView(props: {
   localTargetRules?: LocalTargetRules | null;
   openingItemKey?: string;
   communityMatch?: Map<number, VaultItemMatchInfo>;
-  showInternalHeading?: boolean;
   recommendationImportActions?: VaultRecommendationImportActions;
   targetRulesActions?: VaultTargetRulesActions;
   onContextFactsChange?: (facts: string[]) => void;
@@ -348,16 +346,7 @@ export function VaultPageContentView(props: {
   }
 
   return (
-    <ProductWorkspacePage className="vault-product-layout">
-      {(props.showInternalHeading ?? true) ? (
-        <div className="section-heading">
-          <div>
-            <h2>仓库</h2>
-            <p>先筛出候选，再用 DIM、目标规则、同名对比和本地标记判断保留或清理。</p>
-          </div>
-        </div>
-      ) : null}
-      <ProductWorkspaceSplit className="vault-workbench-layout">
+    <ProductWorkspaceSplit className="vault-workbench-layout">
         <ProductWorkspaceContentStack className="vault-workbench-main">
           <ProductWorkspaceCommandBar className="vault-workbench-header">
             <div className="vault-workflow-tabs" role="tablist" aria-label="仓库工作台">
@@ -536,8 +525,7 @@ export function VaultPageContentView(props: {
             onCopyCleanupList: copyCleanupList
           })}
         </ProductWorkspaceSideRail>
-      </ProductWorkspaceSplit>
-    </ProductWorkspacePage>
+    </ProductWorkspaceSplit>
   );
 
   function renderVaultItems() {

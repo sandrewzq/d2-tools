@@ -7,6 +7,7 @@ import {
 import type { ProductPreferences } from "../i18n/types.js";
 import { AppShell } from "../shell/AppShell.js";
 import type { ShellAssistantMode, ShellPageKey } from "../shell/types.js";
+import { ProductWorkspaceHeader, ProductWorkspacePage } from "../workspace/ProductWorkspace.js";
 import type { ProductShellHostProps } from "./types.js";
 
 export function ProductShellHost(props: ProductShellHostProps) {
@@ -87,20 +88,15 @@ export function ProductShellHost(props: ProductShellHostProps) {
       onColorModeToggle={toggleColorMode}
       onInterfaceLocaleToggle={toggleInterfaceLocale}
     >
-      {pageHeader ? (
-        <header className="page-header product-page-header product-workspace-header">
-          <div>
+      <ProductWorkspacePage element="section" className="product-shell-page">
+        {pageHeader ? (
+          <ProductWorkspaceHeader actions={pageHeader.actions}>
             <h2>{pageHeader.title}</h2>
             <p>{pageHeader.subtitle}</p>
-          </div>
-          {pageHeader.actions ? (
-            <div className="button-row product-page-header-actions">
-              {pageHeader.actions}
-            </div>
-          ) : null}
-        </header>
-      ) : null}
-      {props.renderPage(activePage, preferences)}
+          </ProductWorkspaceHeader>
+        ) : null}
+        {props.renderPage(activePage, preferences)}
+      </ProductWorkspacePage>
     </AppShell>
   );
 }

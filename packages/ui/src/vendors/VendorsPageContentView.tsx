@@ -8,7 +8,6 @@ import {
   ProductWorkspaceSideRail,
   ProductWorkspaceSplit
 } from "../workspace/ProductWorkspace.js";
-import { VendorsPageView } from "./VendorsPageView.js";
 
 export type VendorInventoryItemView = {
   id: string;
@@ -46,7 +45,6 @@ export type VendorsPageContentViewProps = {
   nextResetLabel?: string;
   recommendationCount?: number;
   verifiedItemCount?: number;
-  showInternalHeading?: boolean;
 };
 
 export function VendorsPageContentView(props: VendorsPageContentViewProps) {
@@ -70,15 +68,7 @@ export function VendorsPageContentView(props: VendorsPageContentViewProps) {
   const vendorCategories = groupVendorsByCategory(vendors);
 
   return (
-    <VendorsPageView
-      interfaceLocale={locale}
-      updatedLabel={updatedLabel}
-      sourceLabel={sourceLabel}
-      nextResetLabel={nextResetLabel}
-      verifiedItemCount={verifiedItemCount}
-      recommendationCount={recommendationCount}
-      showInternalHeading={props.showInternalHeading}
-    >
+    <>
       {selectedVendor ? (
         <ProductWorkspaceSplit className="vendor-workbench-layout">
           <ProductWorkspaceSideRail className="vendor-rail" ariaLabel={copy.inline["商人列表"] ?? "Vendor list"}>
@@ -108,7 +98,7 @@ export function VendorsPageContentView(props: VendorsPageContentViewProps) {
             ))}
           </ProductWorkspaceSideRail>
 
-          <ProductWorkspaceContentStack element="section" className="vendor-detail-panel product-workspace-panel">
+          <ProductWorkspaceContentStack element="section" className="vendor-detail-panel">
             <div className="vendor-detail-head">
               <VendorAvatar vendor={selectedVendor} large />
               <div>
@@ -180,7 +170,7 @@ export function VendorsPageContentView(props: VendorsPageContentViewProps) {
           <span>{copy.emptyBody}</span>
         </ProductWorkspaceEmptyState>
       )}
-    </VendorsPageView>
+    </>
   );
 }
 

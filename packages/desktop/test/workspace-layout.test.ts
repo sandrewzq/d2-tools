@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { readItemDetailSources } from "./source-readers";
@@ -17,6 +17,27 @@ function readCssRule(styles: string, selector: string): string {
   const end = styles.indexOf("}", start);
   expect(end).toBeGreaterThan(start);
   return styles.slice(start, end + 1);
+}
+
+function readUiSource(relativePath: string): string {
+  return readFileSync(join(uiRoot, "src", ...relativePath.split("/")), "utf8");
+}
+
+function readDesktopRendererSource(relativePath: string): string {
+  return readFileSync(join(desktopRoot, "src", "renderer", ...relativePath.split("/")), "utf8");
+}
+
+function readPlatformSource(root: string, relativePath: string): string {
+  return readFileSync(join(root, ...relativePath.split("/")), "utf8");
+}
+
+function readFilesRecursive(root: string, predicate: (path: string) => boolean): Array<{ path: string; content: string }> {
+  return readdirSync(root, { withFileTypes: true }).flatMap((entry) => {
+    const fullPath = join(root, entry.name);
+    if (entry.isDirectory()) return readFilesRecursive(fullPath, predicate);
+    if (!entry.isFile() || !predicate(fullPath)) return [];
+    return [{ path: fullPath, content: readFileSync(fullPath, "utf8") }];
+  });
 }
 
 function getReferenceOnlyTexts(): string[] {
@@ -46,22 +67,15 @@ describe("desktop workspace layout", () => {
 
   it("uses one compact product workspace frame across all primary menus", () => {
     const styles = readFileSync(join(uiRoot, "src", "styles.css"), "utf8");
-    const productHost = readFileSync(join(uiRoot, "src", "product", "ProductShellHost.tsx"), "utf8");
-    const pageSources = [
-      readFileSync(join(uiRoot, "src", "home", "HomePageView.tsx"), "utf8"),
-      readFileSync(join(uiRoot, "src", "account", "AccountPageView.tsx"), "utf8"),
-      readFileSync(join(uiRoot, "src", "vault", "VaultPageView.tsx"), "utf8"),
-      readFileSync(join(uiRoot, "src", "loadouts", "LoadoutsPageView.tsx"), "utf8"),
-      readFileSync(join(uiRoot, "src", "library", "LibraryPageView.tsx"), "utf8"),
-      readFileSync(join(uiRoot, "src", "vendors", "VendorsPageView.tsx"), "utf8"),
-      readFileSync(join(uiRoot, "src", "settings", "SettingsPageView.tsx"), "utf8")
-    ];
+    const productHost = readUiSource("product/ProductShellHost.tsx");
     const contentSources = [
-      readFileSync(join(uiRoot, "src", "vault", "VaultPageContentView.tsx"), "utf8"),
-      readFileSync(join(uiRoot, "src", "loadouts", "LoadoutsPageContentView.tsx"), "utf8"),
-      readFileSync(join(uiRoot, "src", "library", "LibraryPageContentView.tsx"), "utf8"),
-      readFileSync(join(uiRoot, "src", "vendors", "VendorsPageContentView.tsx"), "utf8"),
-      readFileSync(join(uiRoot, "src", "settings", "SettingsPageContentView.tsx"), "utf8")
+      readUiSource("home/HomePageContentView.tsx"),
+      readUiSource("account/AccountPageContentView.tsx"),
+      readUiSource("vault/VaultPageContentView.tsx"),
+      readUiSource("loadouts/LoadoutsPageContentView.tsx"),
+      readUiSource("library/LibraryPageContentView.tsx"),
+      readUiSource("vendors/VendorsPageContentView.tsx"),
+      readUiSource("settings/SettingsPageContentView.tsx")
     ].join("\n");
 
     for (const selector of [
@@ -76,39 +90,56 @@ describe("desktop workspace layout", () => {
       expect(styles).toContain(selector);
     }
 
-    expect(productHost).toContain("page-header product-page-header product-workspace-header");
+    expect(productHost).toContain("ProductWorkspacePage");
+    expect(productHost).toContain("ProductWorkspaceHeader");
+    expect(productHost).not.toContain("page-header product-page-header product-workspace-header");
     expect(styles).toMatch(/\.product-workspace-header\s*{[\s\S]*?min-height:\s*42px;/);
     expect(styles).toMatch(/\.product-workspace-page\s*{[\s\S]*?gap:\s*10px;/);
     expect(styles).toMatch(/\.product-workspace-panel\s*{[\s\S]*?border-radius:\s*var\(--radius-panel\);/);
+    expect(styles).toMatch(/\.product-workspace-panel\s*{[\s\S]*?padding:\s*var\(--space-16\);/);
+    expect(styles).toMatch(/\.product-side-rail\s*{[\s\S]*?padding:\s*var\(--space-16\);/);
+    expect(styles).toMatch(/\.product-side-rail\s*{[\s\S]*?background:\s*var\(--surface-panel\);/);
+    expect(styles).toMatch(/\.product-side-rail\s*{[\s\S]*?box-shadow:\s*var\(--shadow-panel\);/);
     expect(styles).toMatch(/\.product-split-workspace\s*{[\s\S]*?grid-template-columns:\s*var\(--workspace-side-width,\s*240px\)\s*minmax\(0,\s*1fr\);/);
 
-    for (const source of pageSources) {
-      expect(source).toMatch(/ProductWorkspacePage|product-workspace-page/);
-    }
-
+    expect(contentSources).not.toContain("ProductWorkspacePage");
+    expect(contentSources).not.toMatch(/from\s+["']\.\/[A-Za-z]+PageView\.js["']/);
+    expect(contentSources).not.toContain("showInternalHeading");
     expect(contentSources).toMatch(/ProductWorkspaceCommandBar|product-command-bar/);
     expect(contentSources).toMatch(/ProductWorkspaceSplit|product-split-workspace/);
     expect(contentSources).toMatch(/ProductWorkspaceSideRail|product-side-rail/);
     expect(contentSources).toMatch(/ProductWorkspaceContentStack|product-content-stack/);
   });
 
+  it("keeps page header actions aligned to the right of the title on desktop", () => {
+    const styles = readUiStyles();
+    const workspaceComponents = readUiSource("workspace/ProductWorkspace.tsx");
+    const headerRule = readCssRule(styles, ".product-workspace-header");
+    const actionsRule = readCssRule(styles, ".product-page-header-actions");
+
+    expect(workspaceComponents).toContain('classNames("product-workspace-header"');
+    expect(workspaceComponents).toContain('className="button-row product-page-header-actions"');
+    expect(headerRule).toContain("display: grid");
+    expect(headerRule).toContain("grid-template-columns: minmax(0, 1fr) auto");
+    expect(headerRule).toContain("gap: var(--space-16)");
+    expect(actionsRule).toContain("justify-content: flex-end");
+    expect(actionsRule).toContain("flex-wrap: nowrap");
+  });
+
   it("moves workspace layout ownership into shared ProductWorkspace components", () => {
-    const uiIndex = readFileSync(join(uiRoot, "src", "index.ts"), "utf8");
-    const workspaceComponents = readFileSync(join(uiRoot, "src", "workspace", "ProductWorkspace.tsx"), "utf8");
-    const libraryView = readFileSync(join(uiRoot, "src", "library", "LibraryPageView.tsx"), "utf8");
-    const libraryContent = readFileSync(join(uiRoot, "src", "library", "LibraryPageContentView.tsx"), "utf8");
-    const accountContent = readFileSync(join(uiRoot, "src", "account", "AccountPageContentView.tsx"), "utf8");
-    const settingsContent = readFileSync(join(uiRoot, "src", "settings", "SettingsPageContentView.tsx"), "utf8");
-    const vaultView = readFileSync(join(uiRoot, "src", "vault", "VaultPageView.tsx"), "utf8");
-    const vaultContent = readFileSync(join(uiRoot, "src", "vault", "VaultPageContentView.tsx"), "utf8");
-    const loadoutsView = readFileSync(join(uiRoot, "src", "loadouts", "LoadoutsPageView.tsx"), "utf8");
-    const loadoutsContent = readFileSync(join(uiRoot, "src", "loadouts", "LoadoutsPageContentView.tsx"), "utf8");
-    const vendorsView = readFileSync(join(uiRoot, "src", "vendors", "VendorsPageView.tsx"), "utf8");
-    const vendorsContent = readFileSync(join(uiRoot, "src", "vendors", "VendorsPageContentView.tsx"), "utf8");
+    const uiIndex = readUiSource("index.ts");
+    const workspaceComponents = readUiSource("workspace/ProductWorkspace.tsx");
+    const libraryContent = readUiSource("library/LibraryPageContentView.tsx");
+    const accountContent = readUiSource("account/AccountPageContentView.tsx");
+    const settingsContent = readUiSource("settings/SettingsPageContentView.tsx");
+    const vaultContent = readUiSource("vault/VaultPageContentView.tsx");
+    const loadoutsContent = readUiSource("loadouts/LoadoutsPageContentView.tsx");
+    const vendorsContent = readUiSource("vendors/VendorsPageContentView.tsx");
     const styles = readFileSync(join(uiRoot, "src", "styles.css"), "utf8");
 
     for (const exportName of [
       "ProductWorkspacePage",
+      "ProductWorkspaceHeader",
       "ProductWorkspacePanel",
       "ProductWorkspaceCommandBar",
       "ProductWorkspaceSplit",
@@ -120,26 +151,89 @@ describe("desktop workspace layout", () => {
       expect(uiIndex).toContain(exportName);
     }
 
-    expect(libraryView).toContain("ProductWorkspacePage");
-    expect(libraryView).toContain("ProductWorkspaceSplit");
+    expect(libraryContent).not.toContain("LibraryPageView");
+    expect(libraryContent).toContain("ProductWorkspaceSplit");
     expect(libraryContent).toContain("ProductWorkspaceSideRail");
     expect(libraryContent).toContain("ProductWorkspaceContentStack");
     expect(libraryContent).toContain("ProductWorkspaceEmptyState");
     expect(accountContent).toContain("ProductWorkspaceSplit");
     expect(settingsContent).toContain("ProductWorkspaceSplit");
-    expect(vaultView).toContain("ProductWorkspacePage");
+    expect(vaultContent).not.toContain("ProductWorkspacePage");
     expect(vaultContent).toContain("ProductWorkspaceCommandBar");
     expect(vaultContent).toContain("ProductWorkspaceSideRail");
-    expect(loadoutsView).toContain("ProductWorkspacePage");
+    expect(loadoutsContent).not.toContain("LoadoutsPageView");
+    expect(loadoutsContent).toContain("ProductWorkspaceSplit");
     expect(loadoutsContent).toContain("ProductWorkspaceSideRail");
+    expect(loadoutsContent).toContain('<ProductWorkspacePanel element="section" className="loadout-template-detail">');
     expect(loadoutsContent).toContain("ProductWorkspaceEmptyState");
-    expect(vendorsView).toContain("ProductWorkspaceCommandBar");
+    expect(vendorsContent).not.toContain("VendorsPageView");
     expect(vendorsContent).toContain("ProductWorkspaceSplit");
     expect(vendorsContent).toContain("ProductWorkspaceContentStack");
 
     expect(styles).toMatch(/\.product-workspace-empty\s*{[\s\S]*?min-height:\s*220px;/);
-    expect(styles).toMatch(/\.library-results-panel\.product-workspace-panel\s*{[\s\S]*?min-height:\s*min\(620px,\s*calc\(100vh - 190px\)\);/);
     expect(styles).toMatch(/\.product-workspace-page\s*{[\s\S]*?gap:\s*10px;/);
+  });
+
+  it("keeps real Prototype, Web and Desktop page mounts on content views", () => {
+    const platformEntries = [
+      readPlatformSource(join(process.cwd(), "packages", "prototype", "src"), "main.tsx"),
+      readPlatformSource(join(process.cwd(), "packages", "web", "src"), "main.tsx"),
+      readDesktopRendererSource("pages/HomePageRoutes.tsx"),
+      readDesktopRendererSource("features/home/HomeDashboard.tsx"),
+      readDesktopRendererSource("features/account/AccountPage.tsx"),
+      readDesktopRendererSource("features/vault/VaultPage.tsx"),
+      readDesktopRendererSource("features/loadouts/LoadoutsPage.tsx"),
+      readDesktopRendererSource("features/library/LibraryPage.tsx"),
+      readDesktopRendererSource("features/vendors/VendorsPage.tsx"),
+      readDesktopRendererSource("features/settings/SettingsPage.tsx")
+    ].join("\n");
+
+    expect(platformEntries).toContain("HomePageContentView");
+    expect(platformEntries).toContain("AccountPageContentView");
+    expect(platformEntries).toContain("VaultPageContentView");
+    expect(platformEntries).toContain("LoadoutsPageContentView");
+    expect(platformEntries).toContain("LibraryPageContentView");
+    expect(platformEntries).toContain("VendorsPageContentView");
+    expect(platformEntries).toContain("SettingsPageContentView");
+    expect(platformEntries).not.toContain("showInternalHeading={false}");
+    expect(platformEntries).not.toMatch(/<VaultPageView[\s>]/);
+    expect(platformEntries).not.toMatch(/<LoadoutsPageView[\s>]/);
+    expect(platformEntries).not.toMatch(/<LibraryPageView[\s>]/);
+    expect(platformEntries).not.toMatch(/<VendorsPageView[\s>]/);
+  });
+
+  it("keeps workspace chrome classes owned by ProductWorkspace components", () => {
+    const uiFiles = readFilesRecursive(join(uiRoot, "src"), (path) => /\.(tsx|ts)$/.test(path));
+    const workspaceComponentNames = [
+      "ProductWorkspacePanel",
+      "ProductWorkspaceContentStack",
+      "ProductWorkspaceSideRail",
+      "ProductWorkspaceEmptyState",
+      "ProductWorkspaceSplit"
+    ];
+    const forbiddenClassFragments = [
+      "product-workspace-panel",
+      "product-side-rail",
+      "product-content-stack",
+      "app-panel",
+      "product-card",
+      "tool-panel"
+    ];
+    const offenders = uiFiles.flatMap((file) => {
+      const matches: string[] = [];
+      for (const componentName of workspaceComponentNames) {
+        const pattern = new RegExp("<" + componentName + "[^>]*className=(?:\"([^\"]*)\"|\\{`([^`]*)`\\})", "g");
+        for (const match of file.content.matchAll(pattern)) {
+          const className = match[1] ?? match[2] ?? "";
+          if (forbiddenClassFragments.some((fragment) => className.includes(fragment))) {
+            matches.push(`${file.path}: ${componentName} className="${className}"`);
+          }
+        }
+      }
+      return matches;
+    });
+
+    expect(offenders).toEqual([]);
   });
 
   it("keeps menu-specific classes from overriding shared workspace chrome", () => {
@@ -164,10 +258,25 @@ describe("desktop workspace layout", () => {
     expect(readCssRule(styles, ".product-command-bar")).toMatch(/background:\s*var\(--surface-toolbar\);/);
   });
 
+  it("keeps vault item card headers resilient when cards are narrow", () => {
+    const styles = readUiStyles();
+    const vaultListItem = readUiSource("vault/VaultListItem.tsx");
+    const titleRowRule = readCssRule(styles, ".vault-title-row");
+    const decisionBadgeRule = readCssRule(styles, ".vault-card-body .decision-badge");
+    const actionsRule = readCssRule(styles, ".vault-card-actions");
+
+    expect(vaultListItem).toContain('className="vault-title-row"');
+    expect(titleRowRule).toContain("grid-template-columns: minmax(0, 1fr) auto");
+    expect(titleRowRule).toContain("align-items: start");
+    expect(decisionBadgeRule).toContain("justify-self: start");
+    expect(decisionBadgeRule).toContain("max-width: 100%");
+    expect(actionsRule).toContain("grid-template-columns: minmax(0, 1fr)");
+  });
+
   it("keeps reference-only guidance out of shared product UI", () => {
     const referenceOnlyTexts = getReferenceOnlyTexts();
     const uiSources = [
-      readFileSync(join(uiRoot, "src", "home", "HomePageView.tsx"), "utf8"),
+      readFileSync(join(uiRoot, "src", "home", "HomePageContentView.tsx"), "utf8"),
       readFileSync(join(uiRoot, "src", "i18n", "copy.ts"), "utf8"),
       readFileSync(join(uiRoot, "src", "styles.css"), "utf8")
     ].join("\n");
@@ -186,7 +295,7 @@ describe("desktop workspace layout", () => {
   it("renders the home page as a workbench instead of a single long stream", () => {
     const homePage = readFileSync(join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"), "utf8");
     const homeRoutes = readFileSync(join(desktopRoot, "src", "renderer", "pages", "HomePageRoutes.tsx"), "utf8");
-    const homeDashboard = readFileSync(join(uiRoot, "src", "home", "HomePageView.tsx"), "utf8");
+    const homeDashboard = readFileSync(join(uiRoot, "src", "home", "HomePageContentView.tsx"), "utf8");
     const homeCopy = readFileSync(join(uiRoot, "src", "i18n", "copy.ts"), "utf8");
     const styles = readFileSync(join(desktopRoot, "..", "ui", "src", "styles.css"), "utf8");
     const dailyPage = readFileSync(join(desktopRoot, "src", "renderer", "features", "daily", "DailyPage.tsx"), "utf8");
@@ -195,13 +304,13 @@ describe("desktop workspace layout", () => {
     expect(homePage).not.toContain("<HomeDashboard");
     expect(homeRoutes).toContain("<HomeDashboard");
     expect(homePage).not.toContain('className="home-workbench"');
-    expect(homeDashboard).toContain("ProductWorkspacePage");
     expect(homeDashboard).toContain("ProductWorkspacePanel");
-    expect(homeDashboard).toContain('className="app-page home-app-page');
+    expect(homeDashboard).not.toContain("ProductWorkspacePage");
+    expect(homeDashboard).not.toContain('className="app-page home-app-page');
     expect(homeDashboard).not.toContain('className="home-data-strip"');
     expect(homeDashboard).toContain('className="home-briefing-grid"');
-    expect(homeDashboard).toContain('className="app-panel app-panel-body home-daily-panel"');
-    expect(homeDashboard).toContain('className="app-panel app-panel-body home-weekly-panel"');
+    expect(homeDashboard).toContain('className="home-daily-panel"');
+    expect(homeDashboard).toContain('className="home-weekly-panel"');
     expect(homeDashboard).toContain('className="home-weekly-dashboard"');
     expect(homeDashboard).not.toContain('className="home-main-grid"');
     expect(homeDashboard).not.toContain('className="home-secondary-grid"');
@@ -258,7 +367,7 @@ describe("desktop workspace layout", () => {
     expect(vaultPage).toContain("export function VaultPage");
     expect(vaultPage).toContain("<VaultPageContentView");
     expect(vaultPanel).toContain("VaultPageContentView as VaultPanel");
-    expect(vaultPage).toContain("<VaultPageView");
+    expect(vaultPage).not.toContain("<VaultPageView");
     expect(vaultView).toContain("copy.emptySubtitle");
     expect(uiCopy).toContain("先读取账号数据，然后查看完整仓库列表。");
   });
@@ -306,7 +415,7 @@ describe("desktop workspace layout", () => {
 
   it("keeps setup details out of persistent home cards unless they are actionable", () => {
     const homePage = readFileSync(join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"), "utf8");
-    const homeDashboard = readFileSync(join(uiRoot, "src", "home", "HomePageView.tsx"), "utf8");
+    const homeDashboard = readFileSync(join(uiRoot, "src", "home", "HomePageContentView.tsx"), "utf8");
     const homeCopy = readFileSync(join(uiRoot, "src", "i18n", "copy.ts"), "utf8");
 
     expect(homeDashboard).not.toContain("home-data-strip");

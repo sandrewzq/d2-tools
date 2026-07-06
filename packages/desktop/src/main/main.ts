@@ -86,11 +86,11 @@ async function captureVisualSnapshot(window: BrowserWindow): Promise<void> {
   if (!visualCaptureDir) return;
 
   const waitSelectorByPage: Record<string, string> = {
-    home: ".home-app-page",
-    loadouts: ".loadout-product-layout",
-    settings: ".settings-app-page"
+    home: ".home-briefing-grid",
+    loadouts: ".loadout-workbench-shell",
+    settings: ".app-settings-shell"
   };
-  const waitSelector = waitSelectorByPage[visualCapturePage] ?? ".home-app-page";
+  const waitSelector = waitSelectorByPage[visualCapturePage] ?? ".home-briefing-grid";
   const waitText = visualCapturePage === "home" ? "刷新中..." : "";
 
   await window.webContents.executeJavaScript(`
@@ -134,7 +134,6 @@ async function captureVisualSnapshot(window: BrowserWindow): Promise<void> {
         ".shell-sidebar",
         ".shell-content",
         ".page-header",
-        ".home-app-page",
         ".home-briefing-grid",
         ".home-daily-panel",
         ".home-weekly-panel",
@@ -142,14 +141,12 @@ async function captureVisualSnapshot(window: BrowserWindow): Promise<void> {
         ".home-reward-item",
         ".home-intel-row",
         ".home-main-grid",
-        ".loadout-product-layout",
         ".loadout-workbench-shell",
         ".loadout-entry-list",
         ".loadout-template-detail",
         ".loadout-entry-row",
         ".loadout-status-chip",
         ".loadout-item",
-        ".settings-app-page",
         ".app-settings-shell",
         ".settings-menu",
         ".settings-detail.active",

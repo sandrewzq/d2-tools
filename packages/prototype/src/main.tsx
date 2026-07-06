@@ -4,7 +4,7 @@ import {
   AccountPageContentView,
   AiAssistantPanelView,
   defaultProductPreferences,
-  HomePageView,
+  HomePageContentView,
   LibraryPageContentView,
   LoadoutsPageContentView,
   ProductShellHost,
@@ -220,7 +220,7 @@ function PrototypeApp() {
         renderPage={(activePage, preferences) => (
           <>
           {activePage === "home" ? (
-            <HomePageView
+            <HomePageContentView
               interfaceLocale={preferences.interfaceLocale}
               state={scenario.homeState}
               diagnosticRows={scenario.diagnosticRows}
@@ -247,7 +247,6 @@ function PrototypeApp() {
               canLoadAccount={scenario.hasAccountData}
               isLoadingAccount={false}
               accountError={scenario.accountError}
-              showInternalHeading={false}
               itemDetailError=""
               itemDetailLoadingKey=""
               writeActionsEnabled={false}
@@ -280,7 +279,6 @@ function PrototypeApp() {
               highlightedLabel={vaultWorkspace.activeLoadoutName}
               tags={vaultWorkspace.tags}
               openingItemKey=""
-              showInternalHeading={false}
               wishlist={vaultWorkspace.wishlist}
               localTargetRules={vaultWorkspace.targetRules}
               communityMatch={vaultWorkspace.communityMatch}
@@ -317,7 +315,6 @@ function PrototypeApp() {
               renameDraft={renameDraft}
               showDiffOnly={showDiffOnly}
               message="Prototype：已接入共享配装页 View，写操作为 mock。"
-              showInternalHeading={false}
               isRunningItemAction={false}
               actionFeedback={{}}
               getItemStatus={(item, template, analysis, plan, summary) => getLoadoutItemStatus({
@@ -377,7 +374,6 @@ function PrototypeApp() {
               isLoadingManifestStatus={false}
               isInitializingManifest={false}
               itemDetailLoadingKey=""
-              showInternalHeading={false}
               onViewModeChange={setLibraryViewMode}
               onEquipmentFiltersChange={(patch) => setEquipmentFilters((current) => ({ ...current, ...patch }))}
               onPerkFiltersChange={(patch) => setPerkFilters((current) => ({ ...current, ...patch }))}
@@ -405,7 +401,6 @@ function PrototypeApp() {
               sourceLabel={prototypeVendorsWorkspace.sourceLabel}
               nextResetLabel={prototypeVendorsWorkspace.nextResetLabel}
               recommendationCount={prototypeVendorsWorkspace.recommendationCount}
-              showInternalHeading={false}
             />
           ) : null}
           {activePage === "settings" ? (

@@ -119,6 +119,74 @@ docs/        正式文档
 - Web 登录态、浏览器存储和 HTTP adapter：`packages/web`
 - 跨端状态模型、页面 workspace 和 ViewModel：`packages/app`，其中配装页状态汇总 / 迁移计划 / 比较行和装备详情同名对比 / 选中项合并等纯逻辑不应留在 Desktop renderer
 
+### 2.4.1 多 agent 菜单 UI 并行规则
+
+当多个 agent 同时推进不同菜单时，默认按“菜单内容层并行、共享骨架串行”的规则执行。用户不需要额外指定这些边界；agent 开工前必须先按本节判断自己的改动范围。
+
+推荐分工：
+
+| 菜单 | 默认修改范围 | 可改内容 |
+|---|---|---|
+| 首页 | `packages/ui/src/home/`、必要时 `home-*` 内容样式 | 今日 / 本周信息架构、首页内容卡片、周商人摘要、首页内部列表密度 |
+| 账号 | `packages/ui/src/account/`、必要时 `account-*` 内容样式 | 角色、装备、背包、账号操作、账号页内部布局 |
+| 仓库 | `packages/ui/src/vault/`、必要时 `vault-*` 内容样式 | 筛选、装备卡、标签、同名对比、清理工作台、仓库内部工具栏 |
+| 配装 | `packages/ui/src/loadouts/`、必要时 `loadout-*` 内容样式 | 配装列表、方案详情、迁移计划、比较行、执行状态 |
+| 资料库 | `packages/ui/src/library/`、必要时 `library-*` 内容样式 | 搜索、结果列表、来源矩阵、版本状态页内展示 |
+| 商人 | `packages/ui/src/vendors/`、必要时 `vendor-*` 内容样式 | 商人目录、库存卡、推荐判断、商人详情 |
+| 设置 | `packages/ui/src/settings/`、必要时 `settings-*` 内容样式 | 设置分区、表单、诊断、备份迁移、低频工具区 |
+
+菜单 agent 可以改：
+
+- 对应菜单目录下的 `*ContentView.tsx`、菜单专属组件、菜单专属 copy 和菜单专属 ViewModel props。
+- `packages/ui/src/styles.css` 中对应菜单前缀的内容层规则，例如 `.vault-*`、`.loadout-*`、`.library-*`。
+- Prototype / Web / Desktop 的 adapter 或 mock 数据，仅限把该菜单需要的数据接入共享 View。
+
+菜单 agent 不得改：
+
+- `ProductShellHost`、`ProductWorkspacePage`、`ProductWorkspaceHeader`、`ProductWorkspacePanel`、`ProductWorkspaceSplit`、`ProductWorkspaceSideRail`、`ProductWorkspaceCommandBar` 的结构或 chrome，除非本次任务明确是共享骨架改造。
+- `.product-workspace-*`、`.product-side-rail`、`.product-command-bar`、`.shell-*`、全局 token、暗色模式 token、页面级 gap、页面背景、首层面板 `padding / border / radius / background / shadow`。
+- Desktop 私有 CSS 中的产品样式。`packages/desktop/src/renderer/styles.css` 只允许保留 Electron 平台调整。
+- `app-panel`、`product-card`、`tool-panel` 作为主菜单首层页面壳或叠加到 `ProductWorkspacePanel` 上。
+- 其他菜单目录下的实现，除非先把复用能力抽到共享层。
+
+需要升级为共享改动的情况：
+
+1. 两个以上菜单都需要同一种布局、按钮、卡片、空态、状态条或工具栏。
+2. 需要修改页面标题区、页面级左右分栏、首层侧栏、首层 panel chrome、顶部状态条、AI 抽屉或后台任务 Dock。
+3. 需要改 `packages/ui/src/styles.css` 中无菜单前缀的规则。
+4. 需要动 `ProductShellHost.tsx`、`ProductWorkspace.tsx`、`AppShell.tsx`、`styles.css` token 区或跨端入口。
+
+升级为共享改动时，agent 必须先说明影响范围，并补测试红线。不能把共享骨架问题伪装成某个菜单的私有样式补丁。
+
+每个菜单 agent 收尾至少运行：
+
+```powershell
+npx pnpm@9.15.0 verify:ui
+```
+
+如果碰到 Desktop adapter、IPC、真实数据接线或 renderer feature，再追加：
+
+```powershell
+npx pnpm@9.15.0 verify:desktop
+```
+
+如果影响首页、设置、AI 抽屉、暗色模式、全局 token 或共享 workspace chrome，再追加对应视觉脚本：
+
+```powershell
+npx pnpm@9.15.0 visual:home
+npx pnpm@9.15.0 visual:settings
+npx pnpm@9.15.0 visual:ai
+npx pnpm@9.15.0 visual:all
+```
+
+提交或交接前，如果工作区已有多个菜单或共享层改动，必须先运行：
+
+```powershell
+tools\git-preflight.cmd
+```
+
+如果 preflight 显示多条 lane，agent 不得使用全量提交脚本或 `git add -A`，除非明确确认这些改动都属于同一交付范围。
+
 ### 2.5 Renderer UI 样式系统
 
 - 桌面端 UI 按“页面底层 / 主面板 / 子块或列表项”三层组织；页面必须有主工作区，辅助信息和低频信息下沉。
