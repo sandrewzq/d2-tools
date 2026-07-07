@@ -57,7 +57,7 @@ describe("desktop menu provider boundaries", () => {
       "useLibraryWorkspace",
       "useLoadoutTemplates",
       "createHomeDashboardWorkspace",
-      "createVendorsPageWorkspace"
+      "selectVendorsPageModel"
     ]) {
       expect(homePageSource).not.toContain(forbidden);
     }

@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { createVendorsPageWorkspace } from "../src/workspaces/vendorsPage";
+import { selectVendorsPageModel } from "../src/workspaces/vendorsPage";
 
 describe("vendors page workspace", () => {
   it("maps verified daily vendor summaries into vendor inventory groups", () => {
-    const workspace = createVendorsPageWorkspace({
+    const workspace = selectVendorsPageModel({
       date_label: "2026-07-03",
       daily_reset: {
         label: "每日重置：2026-07-04 01:00 Asia/Shanghai",
@@ -154,7 +154,7 @@ describe("vendors page workspace", () => {
   });
 
   it("shows a local vendor directory when daily vendor data is pending", () => {
-    const workspace = createVendorsPageWorkspace(null);
+    const workspace = selectVendorsPageModel(null);
 
     expect(workspace.vendors.map((vendor) => vendor.name)).toEqual([
       "周末异域商人",
@@ -214,7 +214,7 @@ describe("vendors page workspace", () => {
   });
 
   it("keeps live vendors even when Bungie returns no readable sale items yet", () => {
-    const workspace = createVendorsPageWorkspace({
+    const workspace = selectVendorsPageModel({
       date_label: "2026-07-06",
       daily_reset: {
         label: "每日重置：2026-07-07 01:00 Asia/Shanghai",

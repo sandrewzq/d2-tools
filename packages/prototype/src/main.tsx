@@ -25,7 +25,7 @@ import {
   buildLoadoutTemplateLookup,
   createLoadoutsPageWorkspace,
   createVaultPageWorkspace,
-  createVendorsPageWorkspace,
+  selectVendorsPageModel,
   homePageMetaMap,
   matchesLoadoutTemplateItem,
   selectAccountPageModel,
@@ -136,7 +136,7 @@ function PrototypeApp() {
     }),
     [accountSummary, compareTemplateId, selectedLoadoutEntryId, selectedTemplateId, showDiffOnly]
   );
-  const prototypeVendorsWorkspace = useMemo(() => createVendorsPageWorkspace(null), []);
+  const prototypeVendorsWorkspace = useMemo(() => selectVendorsPageModel(null), []);
   const platformActions = useMemo(() => ({
     openExternal: (url: string) => {
       window.open(url, "_blank", "noopener,noreferrer");

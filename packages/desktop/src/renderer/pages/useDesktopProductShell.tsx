@@ -1,4 +1,4 @@
-import { createHomeDashboardActions, createHomeDashboardWorkspace, createVendorsPageWorkspace } from "@d2-tools/app";
+import { createHomeDashboardActions, createHomeDashboardWorkspace, selectVendorsPageModel } from "@d2-tools/app";
 import {
   type ProductPreferences,
   type ShellAssistantMode,
@@ -192,7 +192,7 @@ export function useDesktopProductShell(props: {
     isLoadingAccount,
     isLoadingDaily: daily.isLoadingDaily
   });
-  const vendorsWorkspace = createVendorsPageWorkspace(daily.dailySummary);
+  const vendorsWorkspace = selectVendorsPageModel(daily.dailySummary);
 
   const homeActions = createHomeDashboardActions({
     onConfigure: props.onConfigure,

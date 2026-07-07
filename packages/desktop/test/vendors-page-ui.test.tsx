@@ -4,20 +4,30 @@ import { join } from "node:path";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { VendorsPageContentView } from "../../ui/src/index";
+import { selectVendorsPageModel } from "../../app/src/workspaces/vendorsPage";
 
 describe("vendors page UI", () => {
   it("keeps the content view boundary at model and actions", () => {
     const source = readFileSync(join(process.cwd(), "packages/ui/src/vendors/VendorsPageContentView.tsx"), "utf8");
 
-    expect(source).toContain("model?: VendorsPageModelView");
-    expect(source).toContain("actions?: VendorsPageActions");
+    expect(source).toContain("model: VendorsPageModelView");
+    expect(source).toContain("actions: VendorsPageActions");
+    expect(source).not.toContain("model?: VendorsPageModelView");
+    expect(source).not.toContain("actions?: VendorsPageActions");
     expect(source).not.toContain("vendors?: VendorInventoryGroupView[]");
     expect(source).not.toContain("railSections?: VendorRailSectionView[]");
     expect(source).not.toContain("updatedLabel?: string");
+    expect(source).not.toContain("getDefaultVendorWorkspace");
   });
 
   it("renders a DIM-like vendor rail, item icons, and non-empty evidence details", () => {
-    const html = renderToStaticMarkup(<VendorsPageContentView interfaceLocale="zh-CN" showInternalHeading />);
+    const html = renderToStaticMarkup(
+      <VendorsPageContentView
+        interfaceLocale="zh-CN"
+        model={selectVendorsPageModel(createVendorDailySummary())}
+        actions={{}}
+      />
+    );
 
     expect(html).toContain("vendor-workbench-layout");
     expect(html).toContain("vendor-rail");
@@ -46,7 +56,13 @@ describe("vendors page UI", () => {
   });
 
   it("groups vendors by player task instead of raw live source", () => {
-    const html = renderToStaticMarkup(<VendorsPageContentView interfaceLocale="zh-CN" showInternalHeading />);
+    const html = renderToStaticMarkup(
+      <VendorsPageContentView
+        interfaceLocale="zh-CN"
+        model={selectVendorsPageModel(null)}
+        actions={{}}
+      />
+    );
 
     expect(html).toContain("重点库存");
     expect(html).toContain("仪式声望");
@@ -241,7 +257,6 @@ describe("vendors page UI", () => {
           verifiedItemCount: 1
         }}
         actions={{}}
-        showInternalHeading
       />
     );
 
@@ -336,3 +351,51 @@ describe("vendors page UI", () => {
     expect(html).not.toContain("费用待确认");
   });
 });
+
+function createVendorDailySummary(): Parameters<typeof selectVendorsPageModel>[0] {
+  return {
+    date_label: "2026-07-07",
+    daily_reset: {
+      label: "每日重置：2026-07-08 01:00 Asia/Shanghai",
+      next_reset_iso: "2026-07-07T17:00:00.000Z",
+      time_remaining_label: "距离每日重置还有 7 小时 30 分钟"
+    },
+    weekly_reset: {
+      label: "每周重置：2026-07-08 01:00 Asia/Shanghai",
+      next_reset_iso: "2026-07-07T17:00:00.000Z",
+      time_remaining_label: "距离每周重置还有 7 小时 30 分钟"
+    },
+    sources: {
+      vendors: {
+        status: "ready",
+        label: "商人库存",
+        message: "已读取公共商人库存。",
+        items: [
+          {
+            title: "周末异域商人",
+            subtitle: "周末商人库存",
+            description: "守誓者（臂铠，异域；23 奇异硬币）",
+            source: "公共商人证据",
+            vendorHash: 2190858386,
+            iconUrl: "/common/destiny2_content/icons/xur.jpg",
+            items: [
+              {
+                title: "守誓者",
+                subtitle: "臂铠，异域",
+                description: "23 奇异硬币",
+                source: "公共商人证据",
+                iconUrl: "/common/destiny2_content/icons/oathkeeper.jpg",
+                costIconUrl: "/common/destiny2_content/icons/strange-coin.jpg"
+              }
+            ]
+          }
+        ]
+      },
+      rotations: { status: "pending", label: "今日轮换", message: "" },
+      lost_sector: { status: "pending", label: "遗失区域", message: "" },
+      weekly_report: { status: "pending", label: "本周活动线索", message: "" }
+    },
+    checklist: [],
+    recommendations: []
+  };
+}

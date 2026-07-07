@@ -29,6 +29,9 @@ Vibecoding 快路径：
 - 跨端 UI / Prototype / Web 的中途循环优先使用 `pnpm verify:vibe:ui`；文档或工具测试中途循环可用 `pnpm verify:vibe:docs`。
 - 交接、提交、合并或声称门禁通过前，再按上表升级到 `verify:*`；视觉脚本默认由收口 agent 或最终检查运行。
 - 测试断言优先检查稳定行为、结构、导出、role / label 或 ViewModel 输出；避免把中文文案、源码 import 顺序、整段 HTML 或 CSS 片段作为普通功能断言。
+- 用户只需要描述业务目标，例如“开发商人菜单内的功能”“优化商人菜单的交互”。agent 必须自行识别菜单、改动类型和默认修改范围，不要求用户提供 Red / Green / Tidy 模板或精确文件清单。
+- agent 生成计划时必须把菜单开发循环拆成短任务：`Red: <菜单>边界测试`、`Green: <菜单>最小实现`、`Tidy: <菜单>整理`、`Verify: <菜单>验证`。不要使用“补失败测试锁定 xxx model + actions 边界”这类同时包含测试、实现、整理和验证的混合任务名。
+- Red 阶段只允许写或调整能失败的测试，不改实现文件，不运行 `git diff --check`，不清 BOM、空白或无关 diff；Green 阶段只做让该测试通过的最小实现，不做顺手重构；Tidy 阶段才处理编码、空白、`git diff --check` 和机械整理；Verify 阶段只运行当前切片需要的定向验证。
 
 小参数模型工作约束：
 

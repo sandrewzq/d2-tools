@@ -75,15 +75,15 @@ export type VendorsPageActions = {
 
 export type VendorsPageContentViewProps = {
   interfaceLocale?: InterfaceLocale;
-  model?: VendorsPageModelView;
-  actions?: VendorsPageActions;
+  model: VendorsPageModelView;
+  actions: VendorsPageActions;
 };
 
 export function VendorsPageContentView(props: VendorsPageContentViewProps) {
   const locale = props.interfaceLocale ?? "zh-CN";
   const copy = getLocaleCopy(locale).vendors;
-  const model = props.model ?? getDefaultVendorWorkspace(locale);
-  const actions = props.actions ?? {};
+  const model = props.model;
+  const actions = props.actions;
   const vendors = model.vendors;
   const railSections = model.railSections;
   const verifiedItemCount = model.verifiedItemCount;
@@ -285,45 +285,6 @@ function getVendorDetailToolbar(
   };
 }
 
-function getDefaultVendorWorkspace(locale: InterfaceLocale): {
-  vendors: VendorInventoryGroupView[];
-  railSections: VendorRailSectionView[];
-  defaultVendorId: string | null;
-  updatedLabel: string;
-  sourceLabel: string;
-  nextResetLabel: string;
-  recommendationCount: number;
-  verifiedItemCount: number;
-} {
-  const vendors = getDefaultVendorInventory(locale);
-  const sections = [
-    { id: "featured", title: "重点库存", vendorIds: ["xur", "banshee", "rahool"] },
-    { id: "ritual", title: "仪式声望", vendorIds: ["zavala", "shaxx", "drifter"] },
-    { id: "weekend", title: "周末活动", vendorIds: ["saint"] },
-    { id: "cosmetic", title: "外观 / 服务", vendorIds: ["ada", "tess"] },
-    { id: "other", title: "其他商人", vendorIds: [] }
-  ];
-  const vendorsById = new Map(vendors.map((vendor) => [vendor.id, vendor]));
-  const railSections = sections.map((section) => ({
-    id: section.id,
-    title: section.title,
-    vendors: section.vendorIds.map((id) => vendorsById.get(id)).filter((vendor): vendor is VendorInventoryGroupView => Boolean(vendor))
-  }));
-  return {
-    vendors,
-    railSections,
-    defaultVendorId: vendors.find((vendor) => vendor.featured)?.id ?? vendors[0]?.id ?? null,
-    updatedLabel: locale === "en-US" ? "Prototype mock" : "Prototype mock",
-    sourceLabel: locale === "en-US" ? "Bungie / Manifest / imported recommendations" : "Bungie / Manifest / 用户导入推荐",
-    nextResetLabel: locale === "en-US" ? "Daily or weekend reset" : "每日或周末重置",
-    recommendationCount: vendors.reduce(
-      (count, vendor) => count + vendor.items.filter((item) => item.status === "recommended").length,
-      0
-    ),
-    verifiedItemCount: vendors.reduce((count, vendor) => count + vendor.items.length, 0)
-  };
-}
-
 function createVendorIconUrl(vendor: VendorInventoryGroupView): string {
   const label = vendor.iconLabel ?? vendor.name.slice(0, 2);
   const svg = `
@@ -386,132 +347,4 @@ function escapeSvgText(value: string): string {
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;");
-}
-
-function getDefaultVendorInventory(locale: InterfaceLocale): VendorInventoryGroupView[] {
-  if (locale === "en-US") {
-    return [
-      {
-        id: "xur",
-        name: "Weekend exotic vendor",
-        description: "Weekend exotic and legendary inventory, clearly separated from unverified guesses.",
-        badge: "Weekend",
-        source: "Public vendor evidence",
-        resetLabel: "Weekend",
-        category: "Featured",
-        iconLabel: "Xû",
-        statusLabel: "Verified",
-        featured: true,
-        items: [
-          { id: "xur-weapon", name: "Exotic pulse rifle", itemType: "Exotic weapon", summary: "Watch item for collection gaps.", cost: "1 Exotic Cipher", iconLabel: "EX", costIconLabel: "◎", tone: "exotic", status: "recommended" },
-          { id: "xur-helmet", name: "Hunter helmet roll", itemType: "Exotic armor", summary: "Stat roll needs in-game verification.", cost: "23 Strange Coins", iconLabel: "HE", costIconLabel: "◈", tone: "armor", status: "unknown" },
-          { id: "xur-weapon-legendary", name: "Precision hand cannon", itemType: "Legendary weapon", summary: "Overflow / Explosive Payload sample.", cost: "Glimmer", iconLabel: "HC", costIconLabel: "◇", tone: "weapon", status: "owned" },
-          { id: "xur-warlock", name: "Warlock chest roll", itemType: "Exotic armor", summary: "Discipline-focused sample, verify total stats in game.", cost: "23 Strange Coins", iconLabel: "CH", costIconLabel: "◈", tone: "armor", status: "recommended" }
-        ]
-      },
-      {
-        id: "banshee",
-        name: "Daily weapon vendor",
-        description: "Daily weapon inventory and perk review targets.",
-        badge: "Daily",
-        source: "Vendor sample",
-        resetLabel: "Daily",
-        category: "Featured",
-        iconLabel: "B4",
-        statusLabel: "Verified",
-        items: [
-          { id: "banshee-auto", name: "Rapid-fire auto rifle", itemType: "Legendary weapon", summary: "Subsistence / Target Lock sample.", cost: "Glimmer", iconLabel: "AR", costIconLabel: "◇", tone: "weapon", status: "recommended" },
-          { id: "banshee-scout", name: "Legacy scout rifle", itemType: "Legendary weapon", summary: "Low priority unless a target rule matches.", cost: "Glimmer", iconLabel: "SR", costIconLabel: "◇", tone: "weapon", status: "unknown" },
-          { id: "banshee-fusion", name: "Adaptive fusion rifle", itemType: "Legendary weapon", summary: "Review perk columns before keeping.", cost: "Glimmer", iconLabel: "FR", costIconLabel: "◇", tone: "weapon", status: "unknown" }
-        ]
-      },
-      { id: "ada", name: "Armor synthesis vendor", description: "Armor synthesis and cosmetic related stock.", badge: "Weekly", source: "Vendor sample", resetLabel: "Weekly", category: "Featured", iconLabel: "AS", statusLabel: "Verified", items: [{ id: "ada-mod", name: "Armor synthesis bounty", itemType: "Utility", summary: "Keep visible but low priority.", cost: "Glimmer", iconLabel: "AD", costIconLabel: "◇", tone: "material", status: "owned" }] },
-      { id: "saint", name: "Trials vendor", description: "Trials reputation and weekend rewards.", badge: "Weekend", source: "Trials vendor sample", resetLabel: "Weekend", category: "Weekend", iconLabel: "TR", statusLabel: "Prototype sample", items: [
-        { id: "saint-engram", name: "Trials engram focus", itemType: "Focused reward", summary: "Weekend focus entry, confirm rank and map in game.", cost: "Engram + Glimmer", iconLabel: "TR", costIconLabel: "◇", tone: "weapon", status: "recommended" },
-        { id: "saint-rank", name: "Reputation track reward", itemType: "Rank reward", summary: "Shown as a UI sample until live vendor payload is connected.", cost: "Trials rank", iconLabel: "14", costIconLabel: "◎", tone: "material", status: "unknown" }
-      ] },
-      { id: "zavala", name: "Vanguard vendor", description: "Vanguard rewards and reputation.", badge: "Weekly", source: "Vanguard vendor sample", resetLabel: "Weekly", category: "Ritual", iconLabel: "VG", statusLabel: "Prototype sample", items: [
-        { id: "zavala-engram", name: "Vanguard weapon focus", itemType: "Focused reward", summary: "Daily-use reward lane for strike and Nightfall players.", cost: "Vanguard engram", iconLabel: "VG", costIconLabel: "◇", tone: "weapon", status: "recommended" },
-        { id: "zavala-rank", name: "Commander reward track", itemType: "Rank reward", summary: "Rank reset and playlist reward placeholder.", cost: "Vanguard rank", iconLabel: "ZV", costIconLabel: "◎", tone: "material", status: "owned" }
-      ] },
-      { id: "shaxx", name: "Crucible vendor", description: "Crucible rewards and focused engrams.", badge: "Weekly", source: "Crucible vendor sample", resetLabel: "Weekly", category: "Ritual", iconLabel: "CR", statusLabel: "Prototype sample", items: [
-        { id: "shaxx-engram", name: "Crucible weapon focus", itemType: "Focused reward", summary: "PvP reward focus lane with perk review priority.", cost: "Crucible engram", iconLabel: "CR", costIconLabel: "◇", tone: "weapon", status: "recommended" },
-        { id: "shaxx-armor", name: "Crucible armor sample", itemType: "Playlist armor", summary: "Armor slot placeholder for density and cost display.", cost: "Glimmer", iconLabel: "AR", costIconLabel: "◈", tone: "armor", status: "unknown" }
-      ] },
-      { id: "drifter", name: "Gambit vendor", description: "Gambit reputation, focusing, and weekly rewards.", badge: "Weekly", source: "Gambit vendor sample", resetLabel: "Weekly", category: "Ritual", iconLabel: "GB", statusLabel: "Prototype sample", items: [
-        { id: "drifter-focus", name: "Gambit weapon focus", itemType: "Focused reward", summary: "Focused engram sample for Gambit reward review.", cost: "Gambit engram", iconLabel: "GB", costIconLabel: "◇", tone: "weapon", status: "unknown" },
-        { id: "drifter-rank", name: "Infamy rank reward", itemType: "Rank reward", summary: "Rank lane placeholder with reset window visible.", cost: "Infamy rank", iconLabel: "IF", costIconLabel: "◎", tone: "material", status: "owned" }
-      ] },
-      { id: "rahool", name: "Engram vendor", description: "Engram decoding and material exchange.", badge: "Always on", source: "Cryptarch vendor sample", resetLabel: "Always on", category: "Ritual", iconLabel: "EG", statusLabel: "Prototype sample", items: [
-        { id: "rahool-decode", name: "Exotic engram decoding", itemType: "Decoding service", summary: "Keep decoding cost and eligibility visible in the vendor layout.", cost: "Engram", iconLabel: "EX", costIconLabel: "◎", tone: "exotic", status: "recommended" },
-        { id: "rahool-material", name: "Material exchange", itemType: "Exchange", summary: "Material row sample for non-weapon vendor inventory.", cost: "Legendary Shards", iconLabel: "MX", costIconLabel: "◇", tone: "material", status: "unknown" }
-      ] },
-      { id: "tess", name: "Appearance vendor", description: "Cosmetics and Bright Dust rotation.", badge: "Weekly", source: "Appearance vendor sample", resetLabel: "Weekly", category: "Events", iconLabel: "AP", statusLabel: "Prototype sample", items: [
-        { id: "tess-bright-dust", name: "Bright Dust cosmetic", itemType: "Cosmetic", summary: "Weekly cosmetic rotation sample, separated from gameplay rewards.", cost: "Bright Dust", iconLabel: "BD", costIconLabel: "◇", tone: "material", status: "unknown" },
-        { id: "tess-ornament", name: "Featured ornament", itemType: "Ornament", summary: "Visual item sample for non-power vendor stock.", cost: "Silver", iconLabel: "OR", costIconLabel: "◇", tone: "armor", status: "owned" }
-      ] }
-    ];
-  }
-
-  return [
-    {
-      id: "xur",
-      name: "周末异域商人",
-      description: "异域与传说库存，和未确认猜测分开展示。",
-      badge: "周末",
-      source: "公共商人证据",
-      resetLabel: "周末",
-      category: "重点",
-      iconLabel: "Xû",
-      statusLabel: "已确认",
-      featured: true,
-      items: [
-        { id: "xur-weapon", name: "异域脉冲步枪", itemType: "异域武器", summary: "用于检查收藏缺口和本周重点。", cost: "1 异域密码", iconLabel: "异", costIconLabel: "◎", tone: "exotic", status: "recommended" },
-        { id: "xur-helmet", name: "猎人头盔属性卷", itemType: "异域护甲", summary: "属性需要进游戏或真实接口确认。", cost: "23 奇异硬币", iconLabel: "盔", costIconLabel: "◈", tone: "armor", status: "unknown" },
-        { id: "xur-weapon-legendary", name: "精准手炮", itemType: "传说武器", summary: "丰盈满溢 / 爆炸载荷样本。", cost: "微光", iconLabel: "手", costIconLabel: "◇", tone: "weapon", status: "owned" },
-        { id: "xur-warlock", name: "术士胸甲属性卷", itemType: "异域护甲", summary: "高纪律样本，进游戏确认总属性。", cost: "23 奇异硬币", iconLabel: "胸", costIconLabel: "◈", tone: "armor", status: "recommended" }
-      ]
-    },
-    {
-      id: "banshee",
-      name: "每日武器商人",
-      description: "每日武器库存与关键 perk 复查目标。",
-      badge: "日更",
-      source: "资料库商人样本",
-      resetLabel: "每日",
-      category: "重点",
-      iconLabel: "B4",
-      statusLabel: "已确认",
-      items: [
-        { id: "banshee-auto", name: "高射速自动步枪", itemType: "传说武器", summary: "维持生计 / 目标锁定样本。", cost: "微光", iconLabel: "自", costIconLabel: "◇", tone: "weapon", status: "recommended" },
-        { id: "banshee-scout", name: "旧赛季斥候", itemType: "传说武器", summary: "没有目标规则命中时保持低优先级。", cost: "微光", iconLabel: "侦", costIconLabel: "◇", tone: "weapon", status: "unknown" },
-        { id: "banshee-fusion", name: "适配融合步枪", itemType: "传说武器", summary: "看 perk 后决定是否保留。", cost: "微光", iconLabel: "融", costIconLabel: "◇", tone: "weapon", status: "unknown" }
-      ]
-    },
-    { id: "ada", name: "护甲合成商人", description: "护甲合成与外观相关库存。", badge: "周更", source: "商人样本", resetLabel: "每周", category: "重点", iconLabel: "合", statusLabel: "已确认", items: [{ id: "ada-mod", name: "护甲合成赏金", itemType: "功能库存", summary: "保留入口，但不挤占首页。", cost: "微光", iconLabel: "织", costIconLabel: "◇", tone: "material", status: "owned" }] },
-    { id: "saint", name: "试炼商人", description: "试炼声望、周末奖励和聚焦入口。", badge: "周末", source: "试炼商人样本", resetLabel: "周末", category: "周末", iconLabel: "试", statusLabel: "原型样本", items: [
-      { id: "saint-engram", name: "试炼记忆水晶聚焦", itemType: "聚焦奖励", summary: "周末优先查看，地图和购买资格仍以游戏内为准。", cost: "试炼记忆水晶 + 微光", iconLabel: "试", costIconLabel: "◇", tone: "weapon", status: "recommended" },
-      { id: "saint-rank", name: "试炼声望轨道", itemType: "声望奖励", summary: "用于展示周末奖励入口和重置状态。", cost: "试炼声望", iconLabel: "14", costIconLabel: "◎", tone: "material", status: "unknown" }
-    ] },
-    { id: "zavala", name: "先锋商人", description: "先锋声望、聚焦和周常奖励。", badge: "周更", source: "先锋商人样本", resetLabel: "每周", category: "常驻", iconLabel: "先", statusLabel: "原型样本", items: [
-      { id: "zavala-engram", name: "先锋武器聚焦", itemType: "聚焦奖励", summary: "给日常打击和日落玩家保留的复查入口。", cost: "先锋记忆水晶", iconLabel: "先", costIconLabel: "◇", tone: "weapon", status: "recommended" },
-      { id: "zavala-rank", name: "指挥官声望轨道", itemType: "声望奖励", summary: "展示声望重置、周常和聚焦入口的密度。", cost: "先锋声望", iconLabel: "徽", costIconLabel: "◎", tone: "material", status: "owned" }
-    ] },
-    { id: "shaxx", name: "熔炉商人", description: "熔炉竞技场声望和聚焦奖励。", badge: "周更", source: "熔炉商人样本", resetLabel: "每周", category: "常驻", iconLabel: "炉", statusLabel: "原型样本", items: [
-      { id: "shaxx-engram", name: "熔炉武器聚焦", itemType: "聚焦奖励", summary: "PVP 奖励入口，命中目标 perk 时提升优先级。", cost: "熔炉记忆水晶", iconLabel: "炉", costIconLabel: "◇", tone: "weapon", status: "recommended" },
-      { id: "shaxx-armor", name: "熔炉护甲样本", itemType: "活动护甲", summary: "用于检查非武器库存的图标和价格展示。", cost: "微光", iconLabel: "甲", costIconLabel: "◈", tone: "armor", status: "unknown" }
-    ] },
-    { id: "drifter", name: "智谋商人", description: "智谋声望、聚焦和周常奖励。", badge: "周更", source: "智谋商人样本", resetLabel: "每周", category: "常驻", iconLabel: "智", statusLabel: "原型样本", items: [
-      { id: "drifter-focus", name: "智谋武器聚焦", itemType: "聚焦奖励", summary: "智谋记忆水晶聚焦入口，低频但需要可发现。", cost: "智谋记忆水晶", iconLabel: "智", costIconLabel: "◇", tone: "weapon", status: "unknown" },
-      { id: "drifter-rank", name: "恶名声望轨道", itemType: "声望奖励", summary: "保留声望重置和周常奖励位置。", cost: "恶名声望", iconLabel: "恶", costIconLabel: "◎", tone: "material", status: "owned" }
-    ] },
-    { id: "rahool", name: "记忆水晶商人", description: "记忆水晶解码和材料兑换。", badge: "常驻", source: "记忆水晶商人样本", resetLabel: "常驻", category: "常驻", iconLabel: "晶", statusLabel: "原型样本", items: [
-      { id: "rahool-decode", name: "异域记忆水晶解码", itemType: "解码服务", summary: "常驻入口，展示资格、费用和可确认状态。", cost: "记忆水晶", iconLabel: "异", costIconLabel: "◎", tone: "exotic", status: "recommended" },
-      { id: "rahool-material", name: "材料兑换", itemType: "兑换库存", summary: "非装备类库存样本，避免商人页只像武器列表。", cost: "传说碎片", iconLabel: "材", costIconLabel: "◇", tone: "material", status: "unknown" }
-    ] },
-    { id: "tess", name: "外观商人", description: "外观和光尘轮换。", badge: "周更", source: "外观商人样本", resetLabel: "每周", category: "特殊 / 活动", iconLabel: "外", statusLabel: "原型样本", items: [
-      { id: "tess-bright-dust", name: "光尘外观轮换", itemType: "外观库存", summary: "和战力奖励分开展示，只保留价格与轮换信号。", cost: "光尘", iconLabel: "尘", costIconLabel: "◇", tone: "material", status: "unknown" },
-      { id: "tess-ornament", name: "本周精选皮肤", itemType: "装饰品", summary: "用于验证外观类商人的视觉密度。", cost: "银币", iconLabel: "饰", costIconLabel: "◇", tone: "armor", status: "owned" }
-    ] }
-  ];
 }

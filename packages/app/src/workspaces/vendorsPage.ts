@@ -68,10 +68,10 @@ export type VendorsPageWorkspace = VendorsPageModel;
 
 const publicVendorSourceLabel = "Bungie 公共商人";
 
-export function createVendorsPageWorkspace(dailySummary: DailySummary | null): VendorsPageWorkspace {
+export function selectVendorsPageModel(dailySummary: DailySummary | null): VendorsPageModel {
   const vendorSource = dailySummary?.sources.vendors;
   if (!dailySummary || vendorSource?.status !== "ready") {
-    return buildVendorsPageWorkspace({
+    return buildVendorsPageModel({
       vendors: createLocalVendorDirectory(dailySummary?.daily_reset.time_remaining_label ?? "等待每日重置时间"),
       updatedLabel: dailySummary?.date_label ? `更新：${dailySummary.date_label}` : "等待商人数据",
       sourceLabel: "等待 Bungie 公共商人",
@@ -88,7 +88,7 @@ export function createVendorsPageWorkspace(dailySummary: DailySummary | null): V
   const vendors = mergeLiveVendorsWithDirectory(liveVendors, dailySummary.daily_reset.time_remaining_label);
   const verifiedItemCount = liveVendors.reduce((count, vendor) => count + vendor.items.length, 0);
 
-  return buildVendorsPageWorkspace({
+  return buildVendorsPageModel({
     vendors,
     updatedLabel: dailySummary?.date_label ? `更新：${dailySummary.date_label}` : "等待商人数据",
     sourceLabel: liveVendors[0]?.source ?? publicVendorSourceLabel,
@@ -101,14 +101,14 @@ export function createVendorsPageWorkspace(dailySummary: DailySummary | null): V
   });
 }
 
-function buildVendorsPageWorkspace(input: {
+function buildVendorsPageModel(input: {
   vendors: VendorInventoryGroupWorkspace[];
   updatedLabel: string;
   sourceLabel: string;
   nextResetLabel: string;
   recommendationCount: number;
   verifiedItemCount: number;
-}): VendorsPageWorkspace {
+}): VendorsPageModel {
   const vendors = input.vendors.map(enrichVendorViewModel);
   return {
     ...input,

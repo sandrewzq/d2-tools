@@ -23,7 +23,7 @@ import {
   buildLoadoutTemplateLookup,
   createLoadoutsPageWorkspace,
   createVaultPageWorkspace,
-  createVendorsPageWorkspace,
+  selectVendorsPageModel,
   homePageMetaMap,
   matchesLoadoutTemplateItem,
   selectAccountPageModel,
@@ -115,7 +115,7 @@ function WebApp() {
     }),
     [activeLoadoutLookup, selectedAccountCharacterId, selectedTemplate?.name]
   );
-  const webVendorsWorkspace = useMemo(() => createVendorsPageWorkspace(null), []);
+  const webVendorsWorkspace = useMemo(() => selectVendorsPageModel(null), []);
   const loadoutsWorkspace = useMemo(
     () => createLoadoutsPageWorkspace({
       accountSummary: webAccountSummary,

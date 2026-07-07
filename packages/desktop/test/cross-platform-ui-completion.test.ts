@@ -77,7 +77,7 @@ describe("cross-platform UI completion boundary", () => {
     expect(libraryPage).toContain("<LibraryPageContentView");
     expect(vendorsPage).toContain("<VendorsPageContentView");
     expect(vendorsPage).toContain("model={props.model}");
-    expect(vendorsPage).toContain("actions={props.actions ?? {}}");
+    expect(vendorsPage).toContain("actions={props.actions}");
 
     expect(vaultPage).not.toContain("placeholder-panel");
     expect(loadoutsPage).not.toContain('className="tool-panel loadouts-page loadout-product-layout"');
@@ -139,7 +139,8 @@ describe("cross-platform UI completion boundary", () => {
     expect(prototypeMain).toContain("LoadoutsPageContentView");
     expect(prototypeMain).toContain("LibraryPageContentView");
     expect(prototypeMain).toContain("VendorsPageContentView");
-    expect(prototypeMain).toContain("createVendorsPageWorkspace");
+    expect(prototypeMain).toContain("selectVendorsPageModel");
+    expect(prototypeMain).not.toContain("createVendorsPageWorkspace");
     expect(prototypeMain).toContain("prototypeVendorsWorkspace");
     expect(prototypeMain).toContain("model={prototypeVendorsWorkspace}");
     expect(prototypeMain).toContain("actions={{}}");
@@ -224,7 +225,8 @@ describe("cross-platform UI completion boundary", () => {
     expect(webMain).toContain("LoadoutsPageContentView");
     expect(webMain).toContain("LibraryPageContentView");
     expect(webMain).toContain("VendorsPageContentView");
-    expect(webMain).toContain("createVendorsPageWorkspace");
+    expect(webMain).toContain("selectVendorsPageModel");
+    expect(webMain).not.toContain("createVendorsPageWorkspace");
     expect(webMain).toContain("webVendorsWorkspace");
     expect(webMain).toContain("model={webVendorsWorkspace}");
     expect(webMain).toContain("SettingsPageContentView");

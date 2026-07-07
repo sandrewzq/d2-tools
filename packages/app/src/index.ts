@@ -317,7 +317,7 @@ export type {
   VendorsPageModel,
   VendorsPageWorkspace
 } from "./workspaces/vendorsPage.js";
-export { createVendorsPageWorkspace } from "./workspaces/vendorsPage.js";
+export { selectVendorsPageModel } from "./workspaces/vendorsPage.js";
 export type { AssistantWorkspace, AssistantWorkspaceInput } from "./workspaces/assistant.js";
 export { sendAssistantMessage } from "./workspaces/assistant.js";
 export type { D2SkillWorkspace } from "./workspaces/d2Skill.js";

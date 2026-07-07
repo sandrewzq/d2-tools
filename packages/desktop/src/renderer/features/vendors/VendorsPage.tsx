@@ -5,14 +5,14 @@ import type { VendorsPageWorkspace } from "@d2-tools/app";
 
 export function VendorsPage(props: {
   model: VendorsPageWorkspace;
-  actions?: VendorsPageActions;
+  actions: VendorsPageActions;
   interfaceLocale?: InterfaceLocale;
 }) {
   return (
     <VendorsPageContentView
       interfaceLocale={props.interfaceLocale}
       model={props.model}
-      actions={props.actions ?? {}}
+      actions={props.actions}
     />
   );
 }
