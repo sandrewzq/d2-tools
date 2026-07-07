@@ -10,11 +10,11 @@ import {
   type SourceOptions,
   type VaultItemMatchInput
 } from "@d2-tools/core/community-perks";
-import { loadConfig } from "@d2-tools/core/config/store";
+import { loadConfig } from "@d2-tools/services/config/store";
 import {
   loadDefinitionComponent,
   loadDefinitionComponentByLanguage
-} from "@d2-tools/core/manifest/definitions";
+} from "@d2-tools/services/manifest/definitions";
 import { startBackgroundTask } from "../backgroundTasks.js";
 
 export function registerCommunityIpcHandlers(): void {

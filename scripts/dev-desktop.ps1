@@ -83,6 +83,7 @@ try {
   Write-Host "=== 1/3 Build workspace packages ===" -ForegroundColor Cyan
   Invoke-Checked $npx @("pnpm@9.15.0", "--filter", "@d2-tools/core", "build")
   Invoke-Checked $npx @("pnpm@9.15.0", "--filter", "@d2-tools/http", "build")
+  Invoke-Checked $npx @("pnpm@9.15.0", "--filter", "@d2-tools/services", "build")
 
   Write-Host ""
   Write-Host "=== 2/3 Build Electron main process and preload ===" -ForegroundColor Cyan

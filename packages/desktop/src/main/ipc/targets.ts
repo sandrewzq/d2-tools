@@ -6,7 +6,7 @@ import {
   saveLocalTargetRules
 } from "@d2-tools/core/analysis/targetRulesStore";
 import { emptyLocalTargetRules } from "@d2-tools/core/analysis/targets";
-import { loadConfig } from "@d2-tools/core/config/store";
+import { loadConfig } from "@d2-tools/services/config/store";
 
 export function registerTargetRulesIpcHandlers(): void {
   ipcMain.handle("targets:get", () => {

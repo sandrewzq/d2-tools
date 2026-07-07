@@ -1,5 +1,5 @@
 import { ipcMain } from "electron";
-import { loadConfig } from "@d2-tools/core/config/store";
+import { loadConfig } from "@d2-tools/services/config/store";
 import {
   loadItemAliases,
   saveItemAlias,
@@ -16,7 +16,7 @@ import {
   removeFavoriteItem,
   type LibraryHistoryItem
 } from "@d2-tools/core/library/history";
-import { loadDefinitionComponent } from "@d2-tools/core/manifest/definitions";
+import { loadDefinitionComponent } from "@d2-tools/services/manifest/definitions";
 import { loadFreshOAuthToken } from "./authSession.js";
 
 export function registerLibraryIpcHandlers(): void {

@@ -1,18 +1,18 @@
 import { parentPort, workerData } from "node:worker_threads";
 import { fetchAccountSummary, type AccountSummary } from "@d2-tools/core/account/summary";
-import { loadConfig } from "@d2-tools/core/config/store";
+import { loadConfig } from "@d2-tools/services/config/store";
 import {
   initializeDefinitionComponent,
   loadDefinitionComponent,
   requiredDefinitionComponents,
   type DefinitionComponentStatus
-} from "@d2-tools/core/manifest/definitions";
+} from "@d2-tools/services/manifest/definitions";
 import {
   getManifestStatus,
   initializeManifestMetadata,
   loadManifestMetadataCache,
   type ManifestStatus
-} from "@d2-tools/core/manifest/cache";
+} from "@d2-tools/services/manifest/cache";
 import { loadFreshOAuthToken } from "../ipc/authSession.js";
 import type { HeavyTaskInput } from "./heavyTaskRunner.js";
 

@@ -1,10 +1,10 @@
 import { ipcMain } from "electron";
-import { loadConfig } from "@d2-tools/core/config/store";
+import { loadConfig } from "@d2-tools/services/config/store";
 import {
   checkManifestVersion,
   getManifestStatus,
   type ManifestStatus
-} from "@d2-tools/core/manifest/cache";
+} from "@d2-tools/services/manifest/cache";
 import { startBackgroundTask } from "../backgroundTasks.js";
 import { runHeavyTaskInWorker } from "../workers/heavyTaskRunner.js";
 

@@ -1,5 +1,5 @@
 import { ipcMain } from "electron";
-import { loadConfig } from "@d2-tools/core/config/store";
+import { loadConfig } from "@d2-tools/services/config/store";
 import {
   loadVaultTags,
   saveVaultNote,

@@ -5,8 +5,8 @@ import {
   summarizeActivityHistory
 } from "@d2-tools/core/activities/history";
 import { ACTIVITY_HISTORY_SUMMARY_MODES } from "@d2-tools/core/activities/modes";
-import { loadConfig } from "@d2-tools/core/config/store";
-import { loadDefinitionComponent } from "@d2-tools/core/manifest/definitions";
+import { loadConfig } from "@d2-tools/services/config/store";
+import { loadDefinitionComponent } from "@d2-tools/services/manifest/definitions";
 import { startBackgroundTask } from "../backgroundTasks.js";
 import { loadFreshOAuthToken } from "./authSession.js";
 

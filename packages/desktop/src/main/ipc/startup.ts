@@ -1,7 +1,7 @@
 import { ipcMain } from "electron";
-import { loadConfig } from "@d2-tools/core/config/store";
-import { loadManifestMetadataCache } from "@d2-tools/core/manifest/cache";
-import { hasRequiredDefinitionCacheFiles } from "@d2-tools/core/manifest/definitions";
+import { loadConfig } from "@d2-tools/services/config/store";
+import { loadManifestMetadataCache } from "@d2-tools/services/manifest/cache";
+import { hasRequiredDefinitionCacheFiles } from "@d2-tools/services/manifest/definitions";
 import { computeStartupState } from "@d2-tools/core/startup/startupState";
 import { getStartupAuthStatus } from "./authSession.js";
 

@@ -19,7 +19,7 @@ import {
   transferItem as bungieTransferItem
 } from "@d2-tools/core/bungie/actions";
 import type { D2Config } from "@d2-tools/core/config/schema";
-import { loadConfig } from "@d2-tools/core/config/store";
+import { loadConfig } from "@d2-tools/services/config/store";
 import { loadFreshOAuthToken, type FreshOAuthToken } from "./authSession.js";
 
 type ItemLockActionInput = {

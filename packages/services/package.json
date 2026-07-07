@@ -9,6 +9,30 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./config/store": {
+      "types": "./dist/config/store.d.ts",
+      "import": "./dist/config/store.js"
+    },
+    "./manifest/cache": {
+      "types": "./dist/manifest/cache.d.ts",
+      "import": "./dist/manifest/cache.js"
+    },
+    "./manifest/definitions": {
+      "types": "./dist/manifest/definitions.d.ts",
+      "import": "./dist/manifest/definitions.js"
+    },
+    "./oauth/callbackServer": {
+      "types": "./dist/oauth/callbackServer.d.ts",
+      "import": "./dist/oauth/callbackServer.js"
+    },
+    "./oauth/client": {
+      "types": "./dist/oauth/client.d.ts",
+      "import": "./dist/oauth/client.js"
+    },
+    "./oauth/tokenStore": {
+      "types": "./dist/oauth/tokenStore.d.ts",
+      "import": "./dist/oauth/tokenStore.js"
     }
   },
   "scripts": {
@@ -17,7 +41,8 @@
     "test": "vitest --root ../.. --run"
   },
   "dependencies": {
-    "@d2-tools/core": "workspace:*"
+    "@d2-tools/core": "workspace:*",
+    "selfsigned": "^5.5.0"
   },
   "sideEffects": false
 }

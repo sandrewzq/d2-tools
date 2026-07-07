@@ -1,9 +1,9 @@
 import type { D2Config } from "@d2-tools/core/config/schema";
+import { refreshBungieOAuthToken } from "@d2-tools/services/oauth/client";
 import {
   loadOAuthToken,
-  refreshBungieOAuthToken,
   saveOAuthToken
-} from "@d2-tools/core/oauth/login";
+} from "@d2-tools/services/oauth/tokenStore";
 import {
   hasRequiredBungieConfig,
   type StartupAuthStatus

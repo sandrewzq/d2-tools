@@ -1,12 +1,12 @@
 import { ipcMain, shell } from "electron";
 import { randomBytes } from "node:crypto";
-import { loadConfig } from "@d2-tools/core/config/store";
-import { startOAuthCallbackServer } from "@d2-tools/core/oauth/callbackServer";
+import { loadConfig } from "@d2-tools/services/config/store";
+import { startOAuthCallbackServer } from "@d2-tools/services/oauth/callbackServer";
 import {
-  buildBungieAuthorizationUrl,
-  exchangeBungieOAuthCode,
-  saveOAuthToken
+  buildBungieAuthorizationUrl
 } from "@d2-tools/core/oauth/login";
+import { exchangeBungieOAuthCode } from "@d2-tools/services/oauth/client";
+import { saveOAuthToken } from "@d2-tools/services/oauth/tokenStore";
 
 type AuthLoginResult = {
   ok: true;

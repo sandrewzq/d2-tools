@@ -752,4 +752,4 @@ npx pnpm@9.15.0 verify:docs
 - `docs/development.md`：长期规则。本文实施完成后，如果发现规则需要固化，合并到该文件。
 - `docs/todo.md`：当前短期待办入口。T4 只引用本文，不展开阶段细节。
 - `docs/work/backlog/desktop-ui-account-detail-polish.md`：骨架收口后的视觉和真实体验打磨，包含装备详情、点击反馈、账号真实数据和仓库体验细节，不和本文合并。
-- `docs/work/references/d2-unified-workspace-layout-v0.html`：静态视觉参考和约束样板，不是活跃实现入口。说明性内容必须继续使用 `d2-reference-only` 标记。
+- `docs/work/references/d2-unified-workspace-layout-v0.html`：冻结的静态视觉参考和约束样板，不是活跃原型、实现入口或菜单 UI 修改源。日常菜单 UI 改动直接进入 `packages/ui` 和 app ViewModel；只有全局工作区骨架、首层 chrome、reference-only 标记或视觉基准本身变化时才同步更新。说明性内容必须继续使用 `d2-reference-only` 标记。

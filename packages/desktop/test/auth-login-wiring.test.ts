@@ -52,6 +52,9 @@ describe("desktop Bungie login wiring", () => {
     expect(startupIpc).not.toContain("getManifestStatus");
     expect(authSession).toContain("loadFreshOAuthToken");
     expect(authSession).toContain("refreshBungieOAuthToken");
+    expect(authSession).toContain('@d2-tools/services/oauth/client');
+    expect(authSession).toContain('@d2-tools/services/oauth/tokenStore');
+    expect(authSession).not.toContain('@d2-tools/core/oauth/login');
   });
 
   it("shows a recoverable startup error instead of staying on the splash text forever", () => {
@@ -68,6 +71,10 @@ describe("desktop Bungie login wiring", () => {
 
     expect(authIpc).toContain("authLoginPromise");
     expect(authIpc).toContain("runBungieLogin");
+    expect(authIpc).toContain('@d2-tools/services/oauth/callbackServer');
+    expect(authIpc).toContain('@d2-tools/services/oauth/client');
+    expect(authIpc).toContain('@d2-tools/services/oauth/tokenStore');
+    expect(authIpc).not.toContain('@d2-tools/core/oauth/callbackServer');
     expect(authIpc).toContain("normalizeAuthLoginStartupError");
     expect(authIpc).toContain("EADDRINUSE");
     expect(authIpc).toContain("Bungie 登录回调端口");

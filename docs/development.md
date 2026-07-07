@@ -32,11 +32,13 @@ docs/        正式文档
   - 负责领域模型、schema 和跨端类型
   - 负责确定性分析、评分、愿望单、目标规则等纯业务规则
   - 负责 Bungie / Manifest 数据到领域模型的转换逻辑
+  - 保留 `config/defaults`、`config/env`、`manifest/metadata`、`manifest/definitions` 等纯 helper；不承接本地文件、HTTP、OAuth callback server 或 Manifest cache 读写 adapter
 
 - `packages/services`
   - 负责 Profile / Manifest / LocalData / AI 等服务接口
   - 负责桌面、本地、Web、移动端或远端 API 的 adapter
   - 负责把网络、存储、鉴权等平台能力收口到服务边界
+  - OAuth callback server、OAuth token store / HTTP client、config store、Manifest metadata cache 和 definition component cache 的运行时实现统一放在这里；Desktop 主进程和 worker 通过 services subpath 调用，不从 core 直接取运行环境 adapter
 
 - `packages/app`
   - 负责跨端前端查询层、状态模型和页面 workspace 编排
@@ -204,7 +206,8 @@ tools\git-preflight.cmd
 - `packages/desktop/test/ui-style-system.test.ts` 负责锁定 token、共享样式类、设置页布局、状态语言和 Desktop CSS 平台边界，防止产品样式回流到 Desktop 私有 CSS。
 - `packages/desktop/test/workspace-layout.test.ts` 负责锁定主菜单工作区骨架和菜单私有样式权限，防止页面 class 覆盖 `ProductWorkspace*` 的首层间距、面板 chrome 和工具栏 chrome。
 - 后续 UI 开发以本节和 `packages/desktop/test/ui-style-system.test.ts` 为准，不再维护单独的历史样式规范文档。
-- `docs/work/references/` 里的静态 HTML 可以保留规范说明、边界解释和对比标注，但这些内容必须同时使用 `<!-- d2-reference-only:start ... -->` / `<!-- d2-reference-only:end -->` 包住，并在对应 HTML 元素上标记 `data-reference-only="true"`；标记块只用于设计评审和规则表达，不得迁入 `packages/ui`、`packages/prototype`、`packages/web` 或 Desktop 真实页面。`packages/desktop/test/workspace-layout.test.ts` 会抽取这些标记块的文案，拦截说明内容进入共享产品 UI。
+- `docs/work/references/` 里的静态 HTML 只能作为冻结视觉基准、规则样板和对比标注，不是活跃原型、开发入口或 UI 修改源。菜单 UI、样式和交互改动必须直接进入 `packages/ui`、Prototype/Web/Desktop 共享壳或对应 app ViewModel；不得要求 agent “先改 HTML 再照抄实现”。只有调整全局工作区骨架、首层 chrome 或 reference-only 规则时，才同步更新静态 HTML。
+- 静态 HTML 中的规范说明、边界解释和对比标注必须同时使用 `<!-- d2-reference-only:start ... -->` / `<!-- d2-reference-only:end -->` 包住，并在对应 HTML 元素上标记 `data-reference-only="true"`；标记块只用于设计评审和规则表达，不得迁入 `packages/ui`、`packages/prototype`、`packages/web` 或 Desktop 真实页面。`packages/desktop/test/workspace-layout.test.ts` 会抽取这些标记块的文案，拦截说明内容进入共享产品 UI。
 
 ### 2.6 桌面外壳、更新和后台任务
 
@@ -245,12 +248,12 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev-desktop.ps1
 
 这条链路会：
 
-1. 构建 `@d2-tools/core` 和 `@d2-tools/http`
+1. 构建 `@d2-tools/core`、`@d2-tools/http` 和 `@d2-tools/services`
 2. 编译 Electron 主进程和 preload
 3. 启动 Vite 前端开发服务器，固定使用 `http://127.0.0.1:53172`
 4. 打开 Electron 开发版桌面应用
 
-这不是打包流程，不会生成或解压 `release/win-unpacked`。渲染层改动支持热更新；主进程、preload、core 或 http 改动后，关闭桌面窗口再重新运行 `npx pnpm@9.15.0 dev:desktop` 即可重新编译启动。开发端口启用 strict port；如果 `53172` 被占用，启动会直接失败并提示释放端口，不会自动跳到别的端口导致 Electron 打开错误页面。发布版不依赖这个端口；打包后的 Electron 会直接加载安装包内的 `dist/renderer/index.html`。
+这不是打包流程，不会生成或解压 `release/win-unpacked`。渲染层改动支持热更新；主进程、preload、core、http 或 services 改动后，关闭桌面窗口再重新运行 `npx pnpm@9.15.0 dev:desktop` 即可重新编译启动。开发端口启用 strict port；如果 `53172` 被占用，启动会直接失败并提示释放端口，不会自动跳到别的端口导致 Electron 打开错误页面。发布版不依赖这个端口；打包后的 Electron 会直接加载安装包内的 `dist/renderer/index.html`。
 
 如果只想单独启动前端页面：
 
@@ -381,7 +384,7 @@ npx pnpm@9.15.0 typecheck:desktop-fast
 npx pnpm@9.15.0 typecheck:desktop
 ```
 
-`typecheck:desktop-fast` 只跑 Desktop 自身类型检查，适合日常接线快验；`typecheck:desktop` 会先 build `core` 和 `http`，适合碰到底层依赖或准备发布前使用。
+`typecheck:desktop-fast` 会先 build `services` 再跑 Desktop 自身类型检查，适合日常接线快验；`typecheck:desktop` 会先 build `core`、`http` 和 `services`，适合碰到底层依赖或准备发布前使用。
 
 提交前如果需要一轮中等门禁：
 
@@ -411,7 +414,7 @@ npx pnpm@9.15.0 test
 npx pnpm@9.15.0 typecheck
 ```
 
-`test` 会先跑 `docs:check`，再全仓 build，最后全量 Vitest；`typecheck` 会先 build `core` 和 `http`，再全仓类型检查。它们更适合发布、release、CI 或声称“全仓通过”前使用，不作为每次 vibecoding 小改动的默认动作。
+`test` 会先跑 `docs:check`，再全仓 build，最后全量 Vitest；`typecheck` 会先 build `core`、`http` 和 `services`，再全仓类型检查。它们更适合发布、release、CI 或声称“全仓通过”前使用，不作为每次 vibecoding 小改动的默认动作。
 
 GitHub Actions 中的最小 CI 会在 Windows runner 上执行：
 
@@ -542,7 +545,7 @@ docs/
 
 当前仍有效的 reference 文件：
 
-- `docs/work/references/d2-unified-workspace-layout-v0.html`：跨端页面视觉和布局参考基准。
+- `docs/work/references/d2-unified-workspace-layout-v0.html`：冻结的跨端工作区视觉基准和规则样板，不是活跃原型或 UI 开发入口。日常菜单 UI 改动不要先改它；只有全局工作区骨架、首层 chrome、reference-only 标记或视觉基准本身变化时才同步更新。
 - `docs/work/references/destiny-tool-reference.md`：竞品能力和信息组织参考。
 - `docs/work/references/desktop-framework-comparison.md`：桌面技术方案对比参考。
 - `docs/work/references/2026-06-21-destiny2-weapon-sheet-analysis.md`：社区武器表和数据分析参考。

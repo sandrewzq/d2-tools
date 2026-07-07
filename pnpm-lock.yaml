@@ -30,11 +30,7 @@ importers:
         specifier: workspace:*
         version: link:../services
 
-  packages/core:
-    dependencies:
-      selfsigned:
-        specifier: ^5.5.0
-        version: 5.5.0
+  packages/core: {}
 
   packages/desktop:
     dependencies:
@@ -121,6 +117,9 @@ importers:
       '@d2-tools/core':
         specifier: workspace:*
         version: link:../core
+      selfsigned:
+        specifier: ^5.5.0
+        version: 5.5.0
 
   packages/ui:
     dependencies:

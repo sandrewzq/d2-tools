@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { D2Config } from "@d2-tools/core/config/schema";
-import { saveOAuthToken } from "@d2-tools/core/oauth/login";
+import { saveOAuthToken } from "@d2-tools/services/oauth/tokenStore";
 import { getStartupAuthStatus } from "../src/main/ipc/authSession";
 
 function config(dataDir: string): D2Config {

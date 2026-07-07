@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node
 import { basename, join, resolve } from "node:path";
 import { dialog, ipcMain, shell } from "electron";
 import type { D2Config } from "@d2-tools/core/config/schema";
-import { loadConfig, saveConfig } from "@d2-tools/core/config/store";
+import { loadConfig, saveConfig } from "@d2-tools/services/config/store";
 
 type ConfigBackupResult = {
   ok: true;

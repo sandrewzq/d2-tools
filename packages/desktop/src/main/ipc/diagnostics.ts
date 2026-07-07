@@ -1,8 +1,8 @@
 import { ipcMain } from "electron";
 import { loadActionLog } from "@d2-tools/core/actions/log";
-import { loadConfig } from "@d2-tools/core/config/store";
+import { loadConfig } from "@d2-tools/services/config/store";
 import { buildDiagnosticsExport } from "@d2-tools/core/diagnostics/export";
-import { getManifestStatus } from "@d2-tools/core/manifest/cache";
+import { getManifestStatus } from "@d2-tools/services/manifest/cache";
 import { loadToolAuditLog } from "@d2-tools/core/tools/audit";
 
 export function registerDiagnosticsIpcHandlers(): void {

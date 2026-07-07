@@ -5,8 +5,8 @@ import { createBuildGuideLoadoutDraft } from "@d2-tools/core/assistant/loadoutDr
 import type { AccountSummary } from "@d2-tools/core/account/summary";
 import type { BuildGuideMatchResult, BuildGuideRequirement } from "@d2-tools/core/assistant/guideSchema";
 import { fetchAccountSummary } from "@d2-tools/core/account/summary";
-import { loadConfig } from "@d2-tools/core/config/store";
-import { loadDefinitionComponent } from "@d2-tools/core/manifest/definitions";
+import { loadConfig } from "@d2-tools/services/config/store";
+import { loadDefinitionComponent } from "@d2-tools/services/manifest/definitions";
 import { loadFreshOAuthToken } from "./authSession.js";
 
 export function registerAssistantIpcHandlers(): void {

@@ -9,7 +9,7 @@ import {
   type LoadoutTemplate
 } from "@d2-tools/core/loadouts/templates";
 import { createLoadoutTemplateTransferPlan } from "@d2-tools/core/loadouts/plan";
-import { loadConfig } from "@d2-tools/core/config/store";
+import { loadConfig } from "@d2-tools/services/config/store";
 
 export function registerLoadoutIpcHandlers(): void {
   ipcMain.handle("loadouts:list", () => {

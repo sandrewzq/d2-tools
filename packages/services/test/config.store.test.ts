@@ -2,10 +2,10 @@ import { describe, expect, it } from "vitest";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { defaultDataDirForPlatform, legacyDefaultDataDirForPlatform } from "../src/config/defaults.js";
-import { loadConfig, saveConfig } from "../src/config/store.js";
+import { defaultDataDirForPlatform, legacyDefaultDataDirForPlatform } from "@d2-tools/core/config/defaults";
+import { loadConfig, saveConfig } from "../src/config/store";
 
-describe("config store", () => {
+describe("config store service adapter", () => {
   it("uses d2-tools as the default data directory", () => {
     const originalAppData = process.env.APPDATA;
     const appData = mkdtempSync(join(tmpdir(), "d2-tools-appdata-"));
@@ -162,7 +162,9 @@ describe("config store", () => {
         },
         features: {
           write_actions_enabled: false,
-          color_mode: "light"
+          color_mode: "light",
+          interface_locale: "zh-CN",
+          manifest_language_follows_interface: true
         }
       },
       { dataDir: dir }

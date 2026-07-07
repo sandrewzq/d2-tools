@@ -1,8 +1,8 @@
 import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { applyEnvOverrides } from "./env.js";
-import { defaultConfig, defaultDataDir, legacyDefaultDataDir } from "./defaults.js";
-import type { ConfigEnv, D2Config } from "./schema.js";
+import { applyEnvOverrides } from "@d2-tools/core/config/env";
+import { defaultConfig, defaultDataDir, legacyDefaultDataDir } from "@d2-tools/core/config/defaults";
+import type { ConfigEnv, D2Config } from "@d2-tools/core/config/schema";
 
 export type ConfigStoreOptions = {
   dataDir?: string;

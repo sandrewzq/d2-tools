@@ -11,8 +11,10 @@ describe("desktop package format", () => {
       scripts: Record<string, string>;
     };
 
+    expect(rootPackageJson.scripts["typecheck:desktop-fast"]).toContain("pnpm --filter @d2-tools/services build");
     expect(rootPackageJson.scripts.typecheck).toContain("pnpm --filter @d2-tools/core build");
     expect(rootPackageJson.scripts.typecheck).toContain("pnpm -r typecheck");
+    expect(rootPackageJson.scripts.typecheck).toContain("pnpm --filter @d2-tools/services build");
   });
 
   it("exposes vibe verification scripts for menu-level agent loops", () => {
@@ -25,6 +27,176 @@ describe("desktop package format", () => {
     expect(rootPackageJson.scripts["verify:vibe:desktop:ai"]).toBe("pnpm test:desktop:ai");
     expect(rootPackageJson.scripts["verify:vibe:desktop:loadouts"]).toBe("pnpm test:desktop:loadouts");
     expect(rootPackageJson.scripts["verify:vibe:desktop:vault"]).toBe("pnpm test:desktop:vault");
+  });
+
+  it("keeps OAuth local adapters in services instead of core", () => {
+    const corePackageJson = JSON.parse(readFileSync(join(repoRoot, "packages", "core", "package.json"), "utf8")) as {
+      dependencies?: Record<string, string>;
+      exports: Record<string, unknown>;
+    };
+    const servicesPackageJson = JSON.parse(readFileSync(join(repoRoot, "packages", "services", "package.json"), "utf8")) as {
+      dependencies?: Record<string, string>;
+      exports: Record<string, unknown>;
+    };
+    const coreOAuthLogin = readFileSync(join(repoRoot, "packages", "core", "src", "oauth", "login.ts"), "utf8");
+
+    expect(corePackageJson.exports["./oauth/callbackServer"]).toBeUndefined();
+    expect(corePackageJson.exports["./oauth/tokenStore"]).toBeUndefined();
+    expect(corePackageJson.dependencies?.selfsigned).toBeUndefined();
+    expect(servicesPackageJson.exports["./oauth/callbackServer"]).toEqual({
+      types: "./dist/oauth/callbackServer.d.ts",
+      import: "./dist/oauth/callbackServer.js"
+    });
+    expect(servicesPackageJson.exports["./oauth/client"]).toEqual({
+      types: "./dist/oauth/client.d.ts",
+      import: "./dist/oauth/client.js"
+    });
+    expect(servicesPackageJson.exports["./oauth/tokenStore"]).toEqual({
+      types: "./dist/oauth/tokenStore.d.ts",
+      import: "./dist/oauth/tokenStore.js"
+    });
+    expect(servicesPackageJson.dependencies?.selfsigned).toBe("^5.5.0");
+    expect(coreOAuthLogin).not.toContain("node:fs");
+    expect(coreOAuthLogin).not.toContain("readFileSync");
+    expect(coreOAuthLogin).not.toContain("writeFileSync");
+    expect(coreOAuthLogin).not.toContain("saveOAuthToken");
+    expect(coreOAuthLogin).not.toContain("loadOAuthToken");
+    expect(coreOAuthLogin).not.toContain("hasOAuthToken");
+    expect(coreOAuthLogin).not.toContain("fetchImpl");
+    expect(coreOAuthLogin).not.toContain("exchangeBungieOAuthCode");
+    expect(coreOAuthLogin).not.toContain("refreshBungieOAuthToken");
+    expect(coreOAuthLogin).not.toContain("platform/app/oauth/token");
+  });
+
+  it("keeps config store local adapters in services instead of core", () => {
+    const corePackageJson = JSON.parse(readFileSync(join(repoRoot, "packages", "core", "package.json"), "utf8")) as {
+      exports: Record<string, unknown>;
+    };
+    const servicesPackageJson = JSON.parse(readFileSync(join(repoRoot, "packages", "services", "package.json"), "utf8")) as {
+      exports: Record<string, unknown>;
+    };
+    const coreIndex = readFileSync(join(repoRoot, "packages", "core", "src", "index.ts"), "utf8");
+
+    expect(corePackageJson.exports["./config/defaults"]).toEqual({
+      types: "./dist/config/defaults.d.ts",
+      import: "./dist/config/defaults.js"
+    });
+    expect(corePackageJson.exports["./config/env"]).toEqual({
+      types: "./dist/config/env.d.ts",
+      import: "./dist/config/env.js"
+    });
+    expect(corePackageJson.exports["./config/store"]).toBeUndefined();
+    expect(servicesPackageJson.exports["./config/store"]).toEqual({
+      types: "./dist/config/store.d.ts",
+      import: "./dist/config/store.js"
+    });
+    expect(existsSync(join(repoRoot, "packages", "core", "src", "config", "store.ts"))).toBe(false);
+    expect(coreIndex).not.toContain("./config/store.js");
+  });
+
+  it("wires desktop runtime config loading through services", () => {
+    const desktopRuntimeFiles = [
+      "src/main/ipc/actions.ts",
+      "src/main/ipc/activities.ts",
+      "src/main/ipc/analysis.ts",
+      "src/main/ipc/assistant.ts",
+      "src/main/ipc/auth.ts",
+      "src/main/ipc/authSession.ts",
+      "src/main/ipc/community.ts",
+      "src/main/ipc/config.ts",
+      "src/main/ipc/daily.ts",
+      "src/main/ipc/diagnostics.ts",
+      "src/main/ipc/library.ts",
+      "src/main/ipc/loadouts.ts",
+      "src/main/ipc/manifest.ts",
+      "src/main/ipc/startup.ts",
+      "src/main/ipc/targets.ts",
+      "src/main/ipc/vault.ts",
+      "src/main/ipc/wishlist.ts",
+      "src/main/workers/heavyTaskWorker.ts"
+    ];
+    const configStoreConsumerFiles = desktopRuntimeFiles.filter((relativePath) => relativePath !== "src/main/ipc/authSession.ts");
+
+    for (const relativePath of desktopRuntimeFiles) {
+      const source = readFileSync(join(repoRoot, "packages", "desktop", relativePath), "utf8");
+      expect(source, relativePath).not.toContain("@d2-tools/core/config/store");
+    }
+
+    for (const relativePath of configStoreConsumerFiles) {
+      const source = readFileSync(join(repoRoot, "packages", "desktop", relativePath), "utf8");
+      expect(source, relativePath).toContain("@d2-tools/services/config/store");
+    }
+  });
+
+  it("keeps Manifest cache adapters in services instead of core", () => {
+    const corePackageJson = JSON.parse(readFileSync(join(repoRoot, "packages", "core", "package.json"), "utf8")) as {
+      exports: Record<string, unknown>;
+    };
+    const servicesPackageJson = JSON.parse(readFileSync(join(repoRoot, "packages", "services", "package.json"), "utf8")) as {
+      exports: Record<string, unknown>;
+    };
+    const coreManifestDefinitions = readFileSync(
+      join(repoRoot, "packages", "core", "src", "manifest", "definitions.ts"),
+      "utf8"
+    );
+    const coreManifestCache = readFileSync(join(repoRoot, "packages", "core", "src", "manifest", "cache.ts"), "utf8");
+
+    expect(corePackageJson.exports["./manifest/definitions"]).toEqual({
+      types: "./dist/manifest/definitions.d.ts",
+      import: "./dist/manifest/definitions.js"
+    });
+    expect(corePackageJson.exports["./manifest/cache"]).toEqual({
+      types: "./dist/manifest/cache.d.ts",
+      import: "./dist/manifest/cache.js"
+    });
+    expect(servicesPackageJson.exports["./manifest/definitions"]).toEqual({
+      types: "./dist/manifest/definitions.d.ts",
+      import: "./dist/manifest/definitions.js"
+    });
+    expect(servicesPackageJson.exports["./manifest/cache"]).toEqual({
+      types: "./dist/manifest/cache.d.ts",
+      import: "./dist/manifest/cache.js"
+    });
+    for (const source of [coreManifestDefinitions, coreManifestCache]) {
+      expect(source).not.toContain("node:fs");
+      expect(source).not.toContain("existsSync");
+      expect(source).not.toContain("mkdirSync");
+      expect(source).not.toContain("readFileSync");
+      expect(source).not.toContain("writeFileSync");
+      expect(source).not.toContain("fetchBungieJson");
+    }
+    expect(coreManifestDefinitions).not.toContain("initializeDefinitionComponent");
+    expect(coreManifestDefinitions).not.toContain("loadDefinitionComponent");
+    expect(coreManifestDefinitions).not.toContain("loadDefinitionComponentByLanguage");
+    expect(coreManifestDefinitions).not.toContain("getDefinitionStatus");
+    expect(coreManifestDefinitions).not.toContain("hasRequiredDefinitionCacheFiles");
+    expect(coreManifestDefinitions).not.toContain("hasRequiredDefinitionComponents");
+    expect(coreManifestCache).not.toContain("loadManifestMetadataCache");
+    expect(coreManifestCache).not.toContain("saveManifestMetadataCache");
+    expect(coreManifestCache).not.toContain("getManifestStatus");
+    expect(coreManifestCache).not.toContain("initializeManifestMetadata");
+    expect(coreManifestCache).not.toContain("checkManifestVersion");
+  });
+
+  it("wires desktop Manifest runtime adapters through services", () => {
+    const manifestAdapterConsumers = [
+      "src/main/ipc/activities.ts",
+      "src/main/ipc/assistant.ts",
+      "src/main/ipc/community.ts",
+      "src/main/ipc/daily.ts",
+      "src/main/ipc/diagnostics.ts",
+      "src/main/ipc/library.ts",
+      "src/main/ipc/manifest.ts",
+      "src/main/ipc/startup.ts",
+      "src/main/workers/heavyTaskWorker.ts"
+    ];
+
+    for (const relativePath of manifestAdapterConsumers) {
+      const source = readFileSync(join(repoRoot, "packages", "desktop", relativePath), "utf8");
+      expect(source, relativePath).not.toContain("@d2-tools/core/manifest/cache");
+      expect(source, relativePath).not.toContain("@d2-tools/core/manifest/definitions");
+      expect(source, relativePath).toMatch(/@d2-tools\/services\/manifest\/(cache|definitions)/);
+    }
   });
 
   it("uses NSIS as the Windows installer format for GitHub releases", () => {
@@ -55,6 +227,7 @@ describe("desktop package format", () => {
     const mainProcess = readFileSync(join(repoRoot, "packages", "desktop", "src", "main", "main.ts"), "utf8");
     const developmentDoc = readFileSync(join(repoRoot, "docs", "development.md"), "utf8");
 
+    expect(desktopPackageJson.scripts.build).toContain("pnpm --filter @d2-tools/services build");
     expect(rootPackageJson.scripts["dev:desktop"]).toBe(
       "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev-desktop.ps1"
     );
@@ -62,6 +235,7 @@ describe("desktop package format", () => {
     expect(existsSync(scriptPath)).toBe(true);
     expect(script).toContain('"pnpm@9.15.0", "--filter", "@d2-tools/core", "build"');
     expect(script).toContain('"pnpm@9.15.0", "--filter", "@d2-tools/http", "build"');
+    expect(script).toContain('"pnpm@9.15.0", "--filter", "@d2-tools/services", "build"');
     expect(script).toContain('"pnpm@9.15.0", "exec", "tsc", "-p", "tsconfig.main.json"');
     expect(script).toContain("tsconfig.main.tsbuildinfo");
     expect(script).toContain("dist\\main\\main.js");

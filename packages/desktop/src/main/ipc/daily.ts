@@ -1,8 +1,8 @@
 import { ipcMain } from "electron";
-import { loadConfig } from "@d2-tools/core/config/store";
+import { loadConfig } from "@d2-tools/services/config/store";
 import { fetchDailyLiveData } from "@d2-tools/core/daily/liveData";
 import { buildDailySummary } from "@d2-tools/core/daily/summary";
-import { loadDefinitionComponent } from "@d2-tools/core/manifest/definitions";
+import { loadDefinitionComponent } from "@d2-tools/services/manifest/definitions";
 import { loadFreshOAuthToken } from "./authSession.js";
 
 export function registerDailyIpcHandlers(): void {

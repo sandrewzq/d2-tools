@@ -162,9 +162,13 @@
       "types": "./dist/config/schema.d.ts",
       "import": "./dist/config/schema.js"
     },
-    "./config/store": {
-      "types": "./dist/config/store.d.ts",
-      "import": "./dist/config/store.js"
+    "./config/defaults": {
+      "types": "./dist/config/defaults.d.ts",
+      "import": "./dist/config/defaults.js"
+    },
+    "./config/env": {
+      "types": "./dist/config/env.d.ts",
+      "import": "./dist/config/env.js"
     },
     "./daily/summary": {
       "types": "./dist/daily/summary.d.ts",
@@ -190,13 +194,13 @@
       "types": "./dist/manifest/cache.d.ts",
       "import": "./dist/manifest/cache.js"
     },
+    "./manifest/metadata": {
+      "types": "./dist/manifest/metadata.d.ts",
+      "import": "./dist/manifest/metadata.js"
+    },
     "./manifest/definitions": {
       "types": "./dist/manifest/definitions.d.ts",
       "import": "./dist/manifest/definitions.js"
-    },
-    "./oauth/callbackServer": {
-      "types": "./dist/oauth/callbackServer.d.ts",
-      "import": "./dist/oauth/callbackServer.js"
     },
     "./oauth/login": {
       "types": "./dist/oauth/login.d.ts",
@@ -224,8 +228,6 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest --root ../.. --run"
   },
-  "dependencies": {
-    "selfsigned": "^5.5.0"
-  },
+  "dependencies": {},
   "sideEffects": false
 }
