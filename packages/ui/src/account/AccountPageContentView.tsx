@@ -1,4 +1,10 @@
-﻿import { useState } from "react";
+import { useState } from "react";
+import type {
+  AccountItemView,
+  AccountOpenItemPayload,
+  AccountPageViewModel,
+  AccountSlotComparisonViewRow
+} from "@d2-tools/app";
 import { getLocaleCopy } from "../i18n/copy.js";
 import type { AccountCopy, InterfaceLocale } from "../i18n/types.js";
 import {
@@ -7,128 +13,103 @@ import {
   ProductWorkspaceSplit
 } from "../workspace/ProductWorkspace.js";
 
-type AnyAccountItemSummary = any;
-type AnyAccountSummary = any;
-type AnyActivityHistorySummary = any;
-type AnyLoadoutTemplate = any;
-type AnyAccountPageWorkspace = any;
-type AnyAccountSlotComparisonRow = any;
-
 type AccountItemSource = "equipped" | "inventory";
 const ACCOUNT_SLOT_PREVIEW_LIMIT = 8;
 
+export type AccountPageActions = {
+  configureBungie: () => void;
+  loginBungie: () => void;
+  refreshAccount: () => void;
+  refreshActivity: () => void;
+  selectCharacter: (characterId: string) => void;
+  saveCurrentLoadout: (characterId: string) => void;
+  equipHighestPower: (characterId: string) => void;
+  openItem: (payload: AccountOpenItemPayload) => void;
+};
+
 export type AccountPageContentViewProps = {
   interfaceLocale?: InterfaceLocale;
-  accountSummary: AnyAccountSummary | null;
-  startupState: any;
-  accountWorkspace: AnyAccountPageWorkspace;
-  selectedCharacter: any;
-  selectedCharacterId: string;
-  isBungieConfigured: boolean;
-  isAccountLoggedIn: boolean;
-  canLoadAccount: boolean;
-  isLoadingAccount: boolean;
-  accountError: string;
-  itemDetailError: string;
-  itemDetailLoadingKey: string;
-  writeActionsEnabled: boolean;
-  activitySummary: AnyActivityHistorySummary | null;
-  activityMessage: string;
-  activityError: string;
-  loadoutMessage: string;
-  itemActionMessage: string;
-  isRunningItemAction: boolean;
-  activeLoadoutLookup: unknown | null;
-  activeLoadoutTemplate: AnyLoadoutTemplate | null;
-  onConfigureBungie: () => void;
-  onLoginBungie: () => void;
-  onLoadAccount: () => void;
-  onRefreshActivity: () => void;
-  onSelectCharacter: (characterId: string) => void;
-  onSaveCharacterLoadout: (character: any) => void;
-  onEquipHighestPowerItems: (character: any) => void;
-  onOpenItem: (item: AnyAccountItemSummary, options: { source_character_id: string; source_kind?: AccountItemSource; is_postmaster_item?: boolean }) => void;
-  isLoadoutMatch: (item: AnyAccountItemSummary, highlightedTemplate?: any | null) => boolean;
-  getAccountPageItemKey: (item: AnyAccountItemSummary) => string;
-  formatAccountItemMeta: (item: AnyAccountItemSummary) => string;
+  viewModel: AccountPageViewModel;
+  actions: AccountPageActions;
 };
 
 export function AccountPageContentView(props: AccountPageContentViewProps) {
-  const { accountSummary, accountWorkspace, selectedCharacter } = props;
   const copy = getLocaleCopy(props.interfaceLocale ?? "zh-CN").account;
-  const activitySummary = props.activitySummary;
+  const { actions, viewModel } = props;
+  const selectedCharacter = viewModel.selectedCharacter;
+  const profile = viewModel.profile;
+  const activitySummary = viewModel.activity.summary;
   const activityReview = activitySummary ? activitySummary.review : null;
-  const isBungieConfigured = props.isBungieConfigured;
-  const isAccountLoggedIn = props.isAccountLoggedIn;
+  const writeWarning = viewModel.feedback.writeActionsEnabled
+    ? ""
+    : accountText(copy, "d2-tools 本地写操作开关未开启，请先到设置页开启。");
 
   return (
     <>
-      {props.accountError ? <p className="status-message status-error">{props.accountError}</p> : null}
-      {props.itemDetailError ? <p className="status-message status-error">{props.itemDetailError}</p> : null}
-      {!accountSummary ? (
+      {viewModel.feedback.accountError ? <p className="status-message status-error">{viewModel.feedback.accountError}</p> : null}
+      {viewModel.feedback.itemDetailError ? <p className="status-message status-error">{viewModel.feedback.itemDetailError}</p> : null}
+      {!viewModel.connection.hasAccount ? (
         <div className="account-empty-state">
           <p className="status-message status-warning">{copy.disconnectedBadge}</p>
-          <h3>{isBungieConfigured ? copy.loginMissingTitle : copy.configMissingTitle}</h3>
+          <h3>{viewModel.connection.isBungieConfigured ? copy.loginMissingTitle : copy.configMissingTitle}</h3>
           <p>{copy.emptyBody}</p>
           <div className="button-row">
-            {!isBungieConfigured ? (
-              <button type="button" onClick={props.onConfigureBungie}>
+            {!viewModel.connection.isBungieConfigured ? (
+              <button type="button" onClick={actions.configureBungie}>
                 {copy.configureBungie}
               </button>
             ) : null}
             <button
               type="button"
-              className={isBungieConfigured ? "" : "secondary-button"}
-              disabled={!isBungieConfigured || props.isLoadingAccount}
-              onClick={props.onLoginBungie}
+              className={viewModel.connection.isBungieConfigured ? "" : "secondary-button"}
+              disabled={!viewModel.connection.isBungieConfigured || viewModel.connection.isLoadingAccount}
+              onClick={actions.loginBungie}
             >
               {copy.loginBungie}
             </button>
           </div>
-          {isBungieConfigured && !isAccountLoggedIn ? (
-            <p className="status-message status-neutral">{props.startupState.cards.account.label}</p>
+          {viewModel.connection.isBungieConfigured && !viewModel.connection.isAccountLoggedIn && viewModel.connection.accountStatusLabel ? (
+            <p className="status-message status-neutral">{viewModel.connection.accountStatusLabel}</p>
           ) : null}
         </div>
       ) : null}
-      {accountSummary && selectedCharacter ? (
+      {profile && selectedCharacter ? (
         <ProductWorkspaceSplit className="account-page-shell">
           <ProductWorkspaceSideRail element="nav" className="account-page-nav" ariaLabel={accountText(copy, "账号目录")}>
-            <a href="#account-profile">{copy.nav.overview}</a>
-            <a href="#account-loadout">{copy.nav.loadout}</a>
-            <a href="#account-activity">{copy.nav.activity}</a>
-            <a href="#account-materials">{copy.nav.materials}</a>
-            <a href="#account-postmaster">{copy.nav.postmaster}</a>
+            {viewModel.navigation.map((item) => (
+              <a href={item.href} key={item.key}>{copy.nav[item.labelKey]}</a>
+            ))}
           </ProductWorkspaceSideRail>
           <ProductWorkspaceContentStack className="account-summary account-page-main">
             <div id="account-profile" className="account-profile-strip">
               <div>
-                <h3>{accountSummary.account_name}</h3>
-                <p>{accountWorkspace.accountProfileLine}</p>
-                <p>{accountWorkspace.accountInventoryLine}</p>
+                <h3>{profile.accountName}</h3>
+                <p>{profile.profileLine}</p>
+                <p>{profile.inventoryLine}</p>
               </div>
               <div className="account-profile-controls">
                 <div className="account-page-actions">
                   <button
                     type="button"
                     className="secondary-button"
-                    disabled={props.isLoadingAccount}
-                    onClick={props.onLoadAccount}
+                    disabled={viewModel.connection.isLoadingAccount}
+                    onClick={actions.refreshAccount}
                   >
                     {accountText(copy, "刷新账号")}
                   </button>
-                  <button type="button" className="secondary-button" onClick={props.onLoginBungie}>
+                  <button type="button" className="secondary-button" onClick={actions.loginBungie}>
                     {accountText(copy, "重新授权")}
                   </button>
                 </div>
                 <div className="character-tabs" role="tablist" aria-label={accountText(copy, "角色切换")}>
-                  {accountWorkspace.characterTabs.map((tab: any) => (
+                  {viewModel.characterTabs.map((tab) => (
                     <button
                       type="button"
                       role="tab"
                       aria-selected={tab.isSelected}
                       className={tab.isSelected ? "character-tab active" : "character-tab"}
                       key={tab.key}
-                      onClick={() => props.onSelectCharacter(tab.character.character_id)}
+                      onClick={() => actions.selectCharacter(tab.key)}
                     >
                       {tab.emblemUrl ? <img alt="" loading="lazy" src={tab.emblemUrl} /> : null}
                       <span>{tab.className}</span>
@@ -143,37 +124,37 @@ export function AccountPageContentView(props: AccountPageContentViewProps) {
           <div id="account-loadout" className="account-primary-workbench">
             <article className="character-card character-card-focused account-character-summary">
               <div className="character-title">
-                {selectedCharacter.emblem_url ? <img alt="" loading="lazy" src={selectedCharacter.emblem_url} /> : null}
+                {selectedCharacter.emblemUrl ? <img alt="" loading="lazy" src={selectedCharacter.emblemUrl} /> : null}
                 <div>
-                  <h3>{selectedCharacter.class_name}</h3>
-                  <p>{accountWorkspace.selectedCharacterSummary}</p>
+                  <h3>{selectedCharacter.className}</h3>
+                  <p>{selectedCharacter.summary}</p>
                 </div>
                 <div className="character-actions">
-                  <button type="button" className="inline-action" onClick={() => props.onSaveCharacterLoadout(selectedCharacter)}>
+                  <button type="button" className="inline-action" onClick={() => actions.saveCurrentLoadout(selectedCharacter.characterId)}>
                     {copy.actions.saveCurrentLoadout}
                   </button>
                   <button
                     type="button"
                     className="inline-action"
-                    disabled={props.isRunningItemAction}
+                    disabled={viewModel.loadout.isRunningItemAction}
                     aria-describedby="highest-power-feedback"
-                    onClick={() => props.onEquipHighestPowerItems(selectedCharacter)}
+                    onClick={() => actions.equipHighestPower(selectedCharacter.characterId)}
                   >
-                    {props.isRunningItemAction ? copy.actions.running : copy.actions.equipHighestPower}
+                    {viewModel.loadout.isRunningItemAction ? copy.actions.running : copy.actions.equipHighestPower}
                   </button>
                 </div>
-                {(!props.writeActionsEnabled || props.loadoutMessage || props.itemActionMessage) ? (
+                {(writeWarning || viewModel.feedback.loadoutMessage || viewModel.feedback.itemActionMessage) ? (
                   <div
                     id="highest-power-feedback"
                     className="character-action-feedback"
                     role="status"
                     aria-live="polite"
                   >
-                    {!props.writeActionsEnabled ? (
-                      <p className="status-message status-warning">{accountText(copy, "d2-tools 本地写操作开关未开启，请先到设置页开启。")}</p>
+                    {writeWarning ? (
+                      <p className="status-message status-warning">{writeWarning}</p>
                     ) : null}
-                    {props.loadoutMessage ? <p className="status-message status-ready">{props.loadoutMessage}</p> : null}
-                    {props.itemActionMessage ? <p className={props.itemActionMessage.includes("失败") ? "status-message status-error" : "status-message status-ready"}>{props.itemActionMessage}</p> : null}
+                    {viewModel.feedback.loadoutMessage ? <p className="status-message status-ready">{viewModel.feedback.loadoutMessage}</p> : null}
+                    {viewModel.feedback.itemActionMessage ? <p className={viewModel.feedback.itemActionMessage.includes("失败") ? "status-message status-error" : "status-message status-ready"}>{viewModel.feedback.itemActionMessage}</p> : null}
                   </div>
                 ) : null}
               </div>
@@ -183,25 +164,13 @@ export function AccountPageContentView(props: AccountPageContentViewProps) {
               <div className="equipment-section-heading">
                 <h4>{accountText(copy, "当前角色装备与背包")}</h4>
                 <span>
-                  {accountText(copy, "装备")} {selectedCharacter.equipped_items.length} {accountText(copy, "件")} / {accountText(copy, "背包")} {selectedCharacter.inventory_items.length} {accountText(copy, "件")}
-                  {props.activeLoadoutTemplate ? ` / ${accountText(copy, "方案命中")} ${accountWorkspace.selectedCharacterLoadoutMatchCount}` : ""}
+                  {accountText(copy, "装备")} {viewModel.loadout.equippedCount} {accountText(copy, "件")} / {accountText(copy, "背包")} {viewModel.loadout.inventoryCount} {accountText(copy, "件")}
+                  {viewModel.loadout.activeTemplateName ? ` / ${accountText(copy, "方案命中")} ${viewModel.loadout.selectedCharacterLoadoutMatchCount}` : ""}
                 </span>
               </div>
               <AccountSlotComparison
-                isLoadoutMatch={props.isLoadoutMatch}
-                getAccountPageItemKey={props.getAccountPageItemKey}
-                formatAccountItemMeta={props.formatAccountItemMeta}
-                rows={accountWorkspace.slotComparisonRows}
-                highlightedTemplate={props.activeLoadoutLookup}
-                openingItemKey={props.itemDetailLoadingKey}
-                onOpenEquippedItem={(item) => props.onOpenItem(item, {
-                    source_character_id: selectedCharacter.character_id,
-                    source_kind: "equipped"
-                  })}
-                onOpenInventoryItem={(item) => props.onOpenItem(item, {
-                    source_character_id: selectedCharacter.character_id,
-                    source_kind: "inventory"
-                  })}
+                rows={viewModel.loadout.slotComparisonRows}
+                onOpenItem={actions.openItem}
                 copy={copy}
               />
             </section>
@@ -215,11 +184,11 @@ export function AccountPageContentView(props: AccountPageContentViewProps) {
               </div>
               <div>
                 <span>{accountText(copy, "材料")}</span>
-                <strong>{accountWorkspace.materialRows.length} {accountText(copy, "项")}</strong>
+                <strong>{viewModel.materials.rows.length} {accountText(copy, "项")}</strong>
               </div>
               <div>
                 <span>{accountText(copy, "邮政官")}</span>
-                <strong>{accountWorkspace.postmasterPreviewItems.length} {accountText(copy, "件")}</strong>
+                <strong>{viewModel.postmaster.items.length} {accountText(copy, "件")}</strong>
               </div>
             </section>
             <section id="account-activity" className="vault-preview account-activity-review">
@@ -228,12 +197,12 @@ export function AccountPageContentView(props: AccountPageContentViewProps) {
                   <h3>{accountText(copy, "活动复盘")}</h3>
                   <p>{accountText(copy, "按最近记录快速回看 PVE / PVP 完成情况和突袭、地牢尝试。")}</p>
                 </div>
-                <button type="button" className="secondary-button" onClick={props.onRefreshActivity}>
+                <button type="button" className="secondary-button" onClick={actions.refreshActivity}>
                   {accountText(copy, "刷新活动")}
                 </button>
               </div>
-              {props.activityError ? <p className="status-message status-error">{props.activityError}</p> : null}
-              {props.activityMessage ? <p className="status-message status-ready">{props.activityMessage}</p> : null}
+              {viewModel.activity.error ? <p className="status-message status-error">{viewModel.activity.error}</p> : null}
+              {viewModel.activity.message ? <p className="status-message status-ready">{viewModel.activity.message}</p> : null}
               {activitySummary ? (
                 <div className="activity-review-grid">
                   <div className="source-status-card source-status-neutral activity-review-summary-card">
@@ -252,7 +221,7 @@ export function AccountPageContentView(props: AccountPageContentViewProps) {
                     <strong>{accountText(copy, "突袭 / 地牢")}</strong>
                     {activitySummary.raids.entries.length ? (
                       <ul>
-                        {activitySummary.raids.entries.slice(0, 4).map((entry: any) => (
+                        {activitySummary.raids.entries.slice(0, 4).map((entry) => (
                           <li key={`${entry.activity_type}-${entry.activity_name}`}>
                             <span>{entry.activity_type === "raid" ? accountText(copy, "突袭") : accountText(copy, "地牢")} · {entry.activity_name}</span>
                             <small>
@@ -270,7 +239,7 @@ export function AccountPageContentView(props: AccountPageContentViewProps) {
                     <strong>{accountText(copy, "最近 10 场")}</strong>
                     {activitySummary.recent_items.length ? (
                       <ul>
-                        {activitySummary.recent_items.slice(0, 10).map((item: any, index: number) => {
+                        {activitySummary.recent_items.slice(0, 10).map((item, index) => {
                           const reviewEntry = activityReview?.recent_10[index];
                           return (
                           <li key={`${item.period}-${item.activity_name}`}>
@@ -305,9 +274,9 @@ export function AccountPageContentView(props: AccountPageContentViewProps) {
                   <p>{accountText(copy, "副本、日常和商人交互常用资源，按账号维度读取。")}</p>
                 </div>
               </div>
-              {accountWorkspace.materialRows.length ? (
+              {viewModel.materials.rows.length ? (
                 <div className="material-grid">
-                  {accountWorkspace.materialRows.map((row: any) => (
+                  {viewModel.materials.rows.map((row) => (
                     <div className="material-item" key={row.key}>
                       {row.material.icon ? <img alt="" src={row.material.icon} /> : <div className="item-icon-placeholder" />}
                       <div>
@@ -330,34 +299,12 @@ export function AccountPageContentView(props: AccountPageContentViewProps) {
                   <p>{accountText(copy, "只读显示角色邮政官里的待领取物品，先帮助你发现堆积。")}</p>
                 </div>
               </div>
-              {accountWorkspace.postmasterPreviewItems.length ? (
+              {viewModel.postmaster.items.length ? (
                 <div className="equipment-grid">
-                  {accountWorkspace.postmasterPreviewItems.map((entry: any) => {
-                    return (
-                      <button
-                        type="button"
-                        className={[
-                          "equipment-item",
-                          "inventory",
-                          entry.isPending ? "pending" : "",
-                          entry.isLoadoutMatch ? "loadout-highlight" : ""
-                        ].filter(Boolean).join(" ")}
-                        key={entry.key}
-                        aria-busy={entry.isPending}
-                        onClick={() => props.onOpenItem(entry.item, {
-                          source_character_id: selectedCharacter.character_id,
-                          is_postmaster_item: true
-                        })}
-                      >
-                        {entry.item.icon ? <img alt="" loading="lazy" src={entry.item.icon} /> : <div className="item-icon-placeholder" />}
-                        <div>
-                          <strong>{entry.item.name}</strong>
-                          {entry.isLoadoutMatch ? <small className="loadout-template-badge">{accountText(copy, "方案命中")}</small> : null}
-                          <span>{entry.meta}</span>
-                        </div>
-                      </button>
-                    );
-                  })}
+                  {viewModel.postmaster.items.map((entry) => renderAccountItemButton(entry, "inventory", {
+                    onOpenItem: actions.openItem,
+                    copy
+                  }))}
                 </div>
               ) : (
                 <p className="status-message status-neutral">{accountText(copy, "当前角色邮政官为空。")}</p>
@@ -376,7 +323,9 @@ function accountText(copy: AccountCopy, key: string): string {
   return copy.inline[key] ?? key;
 }
 
-function formatActivityMode(mode: AnyActivityHistorySummary["recent_items"][number]["mode"], copy: AccountCopy): string {
+type ActivityRecentItemMode = NonNullable<AccountPageViewModel["activity"]["summary"]>["recent_items"][number]["mode"];
+
+function formatActivityMode(mode: ActivityRecentItemMode, copy: AccountCopy): string {
   if (mode === "pve") return "PVE";
   if (mode === "pvp") return "PVP";
   return accountText(copy, "其他");
@@ -394,14 +343,8 @@ function formatActivityPeriod(value: string, locale: InterfaceLocale = "zh-CN"):
 }
 
 function AccountSlotComparison(props: {
-  isLoadoutMatch: (item: AnyAccountItemSummary, highlightedTemplate?: any | null) => boolean;
-  getAccountPageItemKey: (item: AnyAccountItemSummary) => string;
-  formatAccountItemMeta: (item: AnyAccountItemSummary) => string;
-  rows: AnyAccountSlotComparisonRow[];
-  highlightedTemplate?: unknown | null;
-  openingItemKey: string;
-  onOpenEquippedItem: (item: AnyAccountItemSummary) => void;
-  onOpenInventoryItem: (item: AnyAccountItemSummary) => void;
+  rows: AccountSlotComparisonViewRow[];
+  onOpenItem: (payload: AccountOpenItemPayload) => void;
   copy: AccountCopy;
 }) {
   const [expandedSlots, setExpandedSlots] = useState<Set<string>>(new Set());
@@ -424,7 +367,7 @@ function AccountSlotComparison(props: {
 
   return (
     <div className="account-slot-comparison-list">
-      {props.rows.map((row: any) => (
+      {props.rows.map((row) => (
         <article className="account-slot-comparison-row" key={row.key}>
           <div className="account-slot-heading">
             <strong>{row.label}</strong>
@@ -434,27 +377,17 @@ function AccountSlotComparison(props: {
             <section className="account-slot-comparison-column account-equipped-panel">
               <h5>{accountText(props.copy, "当前角色装备")}</h5>
               {renderAccountItemGrid(row.equippedItems, "equipped", {
-                isLoadoutMatch: props.isLoadoutMatch,
-                getAccountPageItemKey: props.getAccountPageItemKey,
-                formatAccountItemMeta: props.formatAccountItemMeta,
-                highlightedTemplate: props.highlightedTemplate,
-                openingItemKey: props.openingItemKey,
                 isExpanded: true,
-                onOpenItem: props.onOpenEquippedItem,
+                onOpenItem: props.onOpenItem,
                 copy: props.copy
               })}
             </section>
             <section className="account-slot-comparison-column account-inventory-panel account-slot-backpack-preview">
               <h5>{accountText(props.copy, "当前角色背包 / 背包候选")}</h5>
               {renderAccountItemGrid(row.inventoryItems, "inventory", {
-                isLoadoutMatch: props.isLoadoutMatch,
-                getAccountPageItemKey: props.getAccountPageItemKey,
-                formatAccountItemMeta: props.formatAccountItemMeta,
-                highlightedTemplate: props.highlightedTemplate,
-                openingItemKey: props.openingItemKey,
                 isExpanded: isExpanded(row.key, "inventory"),
                 onExpand: () => expandSlot(row.key, "inventory"),
-                onOpenItem: props.onOpenInventoryItem,
+                onOpenItem: props.onOpenItem,
                 copy: props.copy
               })}
             </section>
@@ -466,17 +399,12 @@ function AccountSlotComparison(props: {
 }
 
 function renderAccountItemGrid(
-  items: AnyAccountItemSummary[],
+  items: AccountItemView[],
   source: AccountItemSource,
   props: {
-    highlightedTemplate?: unknown | null;
-    openingItemKey: string;
-    isLoadoutMatch: (item: AnyAccountItemSummary, highlightedTemplate?: any | null) => boolean;
-    getAccountPageItemKey: (item: AnyAccountItemSummary) => string;
-    formatAccountItemMeta: (item: AnyAccountItemSummary) => string;
     isExpanded: boolean;
     onExpand?: () => void;
-    onOpenItem: (item: AnyAccountItemSummary) => void;
+    onOpenItem: (payload: AccountOpenItemPayload) => void;
     copy: AccountCopy;
   }
 ) {
@@ -490,31 +418,10 @@ function renderAccountItemGrid(
 
   return (
     <div className="equipment-grid">
-      {visibleItems.map((item: any, index: number) => {
-        const isPending = props.getAccountPageItemKey(item) === props.openingItemKey;
-        const isLoadoutMatch = props.isLoadoutMatch(item, props.highlightedTemplate);
-        return (
-          <button
-            type="button"
-            className={[
-              "equipment-item",
-              source === "equipped" ? "equipped" : "inventory",
-              isPending ? "pending" : "",
-              isLoadoutMatch ? "loadout-highlight" : ""
-            ].filter(Boolean).join(" ")}
-            key={`${source}-${item.hash}-${item.instance_id ?? item.name}-${index}`}
-            aria-busy={isPending}
-            onClick={() => props.onOpenItem(item)}
-          >
-            {item.icon ? <img alt="" loading="lazy" src={item.icon} /> : <div className="item-icon-placeholder" />}
-            <div>
-              <strong>{item.name}</strong>
-              {isLoadoutMatch ? <small className="loadout-template-badge">{accountText(props.copy, "方案命中")}</small> : null}
-              <span>{props.formatAccountItemMeta(item)}</span>
-            </div>
-          </button>
-        );
-      })}
+      {visibleItems.map((item) => renderAccountItemButton(item, source, {
+        onOpenItem: props.onOpenItem,
+        copy: props.copy
+      }))}
       {hiddenItemCount > 0 ? (
         <button type="button" className="equipment-item inventory account-show-more-item" onClick={props.onExpand}>
           <div>
@@ -524,5 +431,36 @@ function renderAccountItemGrid(
         </button>
       ) : null}
     </div>
+  );
+}
+
+function renderAccountItemButton(
+  item: AccountItemView,
+  source: AccountItemSource,
+  props: {
+    onOpenItem: (payload: AccountOpenItemPayload) => void;
+    copy: AccountCopy;
+  }
+) {
+  return (
+    <button
+      type="button"
+      className={[
+        "equipment-item",
+        source === "equipped" ? "equipped" : "inventory",
+        item.isPending ? "pending" : "",
+        item.isLoadoutMatch ? "loadout-highlight" : ""
+      ].filter(Boolean).join(" ")}
+      key={item.key}
+      aria-busy={item.isPending}
+      onClick={() => props.onOpenItem(item.openPayload)}
+    >
+      {item.icon ? <img alt="" loading="lazy" src={item.icon} /> : <div className="item-icon-placeholder" />}
+      <div>
+        <strong>{item.name}</strong>
+        {item.isLoadoutMatch ? <small className="loadout-template-badge">{accountText(props.copy, "方案命中")}</small> : null}
+        <span>{item.meta}</span>
+      </div>
+    </button>
   );
 }

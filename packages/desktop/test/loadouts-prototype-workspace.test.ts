@@ -14,11 +14,12 @@ describe("prototype loadouts workspace wiring", () => {
 
     expect(prototypeMain).toContain("createLoadoutsPageWorkspace");
     expect(prototypeMain).toContain("const loadoutsWorkspace = useMemo");
-    expect(prototypeMain).toContain("selectedTemplate={loadoutsWorkspace.selectedTemplate}");
-    expect(prototypeMain).toContain("missingCount={loadoutsWorkspace.missingCount}");
-    expect(prototypeMain).toContain("getLoadoutItemStatus");
-    expect(prototypeMain).toContain("getLoadoutItemBlockedDetails");
-    expect(prototypeMain).toContain("findBestTemplateSourceItem");
+    expect(prototypeMain).toContain("selectedEntryId: selectedLoadoutEntryId");
+    expect(prototypeMain).toContain("model={loadoutsWorkspace.model}");
+    expect(prototypeMain).toContain("actions={{");
+    expect(prototypeMain).not.toContain("getLoadoutItemStatus");
+    expect(prototypeMain).not.toContain("getLoadoutItemBlockedDetails");
+    expect(prototypeMain).not.toContain("findBestTemplateSourceItem");
 
     expect(prototypeMain).not.toContain("prototypeSelectedAnalysis");
     expect(prototypeMain).not.toContain("prototypeTransferPlan");

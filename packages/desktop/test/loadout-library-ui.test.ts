@@ -180,14 +180,16 @@ describe("loadout library UI", () => {
     const productShell = readFileSync(join(desktopRoot, "src", "renderer", "pages", "useDesktopProductShell.tsx"), "utf8");
     const loadoutsPage = readFileSync(join(desktopRoot, "src", "renderer", "features", "loadouts", "LoadoutsPage.tsx"), "utf8");
     const loadoutsContent = readFileSync(join(uiRoot, "src", "loadouts", "LoadoutsPageContentView.tsx"), "utf8");
+    const loadoutsWorkspace = readFileSync(join(appRoot, "src", "workspaces", "loadoutsPage.ts"), "utf8");
 
     expect(accountPage).not.toContain("onEquipSavedLoadout");
     expect(accountPage).not.toContain("onSnapshotCurrentLoadout");
     expect(accountPage).not.toContain("accountWorkspace.loadoutSlotRows");
     expect(loadoutsContent).toContain("游戏内");
-    expect(loadoutsContent).toContain("loadoutEntries");
-    expect(loadoutsContent).toContain("accountSummary.characters");
-    expect(loadoutsContent).toContain("character.loadout_slots");
+    expect(loadoutsWorkspace).toContain("selectInGameLoadoutDetail");
+    expect(loadoutsWorkspace).toContain("character.loadout_slots");
+    expect(loadoutsContent).not.toContain("accountSummary.characters");
+    expect(loadoutsContent).not.toContain("character.loadout_slots.map");
     expect(loadoutsPage).toContain("onEquipSavedLoadout");
     expect(loadoutsPage).toContain("onSnapshotCurrentLoadout");
     expect(productShell).toContain("onEquipSavedLoadout: (character, slot)");
@@ -201,19 +203,23 @@ describe("loadout library UI", () => {
     expect(loadoutsContent).toContain("loadout-workbench-shell");
     expect(loadoutsContent).toContain("loadout-entry-list");
     expect(loadoutsContent).toContain("loadout-entry-source-filter");
-    expect(loadoutsContent).toContain("props.loadoutEntries");
+    expect(loadoutsContent).toContain("props.model.entries");
+    expect(loadoutsContent).not.toContain("buildFallbackLoadoutEntries");
     expect(loadoutsContent).not.toContain("in-game-loadout-slots");
     expect(styles).toContain(".loadout-workbench-shell");
     expect(styles).toContain(".loadout-entry-list");
   });
 
-  it("lets in-game loadout slots open their own detail panel", () => {
+  it("lets app-modeled in-game loadout slots open their own detail panel", () => {
     const loadoutsContent = readFileSync(join(uiRoot, "src", "loadouts", "LoadoutsPageContentView.tsx"), "utf8");
 
-    expect(loadoutsContent).toContain("selectedLoadoutEntryId");
-    expect(loadoutsContent).toContain("onSelectEntry");
+    expect(loadoutsContent).toContain("model: LoadoutsPageModel");
+    expect(loadoutsContent).toContain("actions: LoadoutsPageActions");
+    expect(loadoutsContent).toContain('selectedDetail.kind === "in-game-slot"');
+    expect(loadoutsContent).toContain("actions.selectEntry");
     expect(loadoutsContent).toContain("loadout-in-game-detail");
-    expect(loadoutsContent).toContain("getSelectedInGameLoadoutSlot");
+    expect(loadoutsContent).not.toContain("selectedLoadoutEntryId");
+    expect(loadoutsContent).not.toContain("getSelectedInGameLoadoutSlot");
     expect(loadoutsContent).toContain("InGameLoadoutSlotDetail");
   });
 

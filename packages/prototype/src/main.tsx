@@ -23,18 +23,13 @@ import {
 } from "@d2-tools/ui";
 import {
   buildLoadoutTemplateLookup,
-  createAccountPageWorkspace,
   createLoadoutsPageWorkspace,
   createVaultPageWorkspace,
   createVendorsPageWorkspace,
-  findBestTemplateSourceItem,
-  formatAccountItemMeta,
-  formatLoadoutComparePerks,
-  getAccountPageItemKey,
-  getLoadoutItemBlockedDetails,
-  getLoadoutItemStatus,
   homePageMetaMap,
-  matchesLoadoutTemplateItem
+  matchesLoadoutTemplateItem,
+  selectAccountPageModel,
+  selectLibraryPageModel
 } from "@d2-tools/app";
 import "@d2-tools/ui/styles.css";
 import {
@@ -59,6 +54,7 @@ function PrototypeApp() {
   const [assistantMode, setAssistantMode] = useState<ShellAssistantMode>(null);
   const [scenarioKey, setScenarioKey] = useState<PrototypeScenarioKey>(initialScenario);
   const [selectedTemplateId, setSelectedTemplateId] = useState(prototypeLoadoutTemplates[0]?.id ?? "");
+  const [selectedLoadoutEntryId, setSelectedLoadoutEntryId] = useState("");
   const [compareTemplateId, setCompareTemplateId] = useState(prototypeLoadoutTemplates[1]?.id ?? "");
   const [selectedAccountCharacterId, setSelectedAccountCharacterId] = useState(prototypeAccountSummary.characters[0]?.character_id ?? "");
   const [renameDraft, setRenameDraft] = useState(prototypeLoadoutTemplates[0]?.name ?? "");
@@ -89,14 +85,32 @@ function PrototypeApp() {
   const accountSummary = scenario.hasAccountData ? prototypeAccountSummary : null;
   const backgroundTasks = getPrototypeBackgroundTasks(scenarioKey);
   const isBungieConfigured = scenarioKey !== "account-missing";
-  const accountWorkspace = useMemo(
-    () => createAccountPageWorkspace({
-      account: accountSummary,
-      selectedCharacterId: selectedAccountCharacterId,
-      openingItemKey: "",
-      isLoadoutMatch: (item) => matchesLoadoutTemplateItem(item, activeLoadoutLookup)
+  const accountViewModel = useMemo(
+    () => selectAccountPageModel({
+      cache: {
+        accountSummary,
+        activitySummary: prototypeActivitySummary
+      },
+      pageState: {
+        selectedCharacterId: selectedAccountCharacterId,
+        openingItemKey: "",
+        isLoadoutMatch: (item) => matchesLoadoutTemplateItem(item, activeLoadoutLookup),
+        isBungieConfigured,
+        isAccountLoggedIn: scenario.hasAccountData,
+        isLoadingAccount: false,
+        writeActionsEnabled: false,
+        accountStatusLabel: prototypeStartupStateForScenario(scenario).cards.account.label,
+        accountError: scenario.accountError,
+        itemDetailError: "",
+        activityMessage: "",
+        activityError: "",
+        loadoutMessage: "",
+        itemActionMessage: "",
+        isRunningItemAction: false,
+        activeLoadoutTemplateName: selectedTemplate?.name
+      }
     }),
-    [accountSummary, activeLoadoutLookup, selectedAccountCharacterId]
+    [accountSummary, activeLoadoutLookup, isBungieConfigured, scenario, selectedAccountCharacterId, selectedTemplate?.name]
   );
   const vaultWorkspace = useMemo(
     () => createVaultPageWorkspace({
@@ -116,10 +130,11 @@ function PrototypeApp() {
       accountSummary,
       templates: prototypeLoadoutTemplates,
       selectedTemplateId,
+      selectedEntryId: selectedLoadoutEntryId,
       compareTemplateId,
       showDiffOnly
     }),
-    [accountSummary, compareTemplateId, selectedTemplateId, showDiffOnly]
+    [accountSummary, compareTemplateId, selectedLoadoutEntryId, selectedTemplateId, showDiffOnly]
   );
   const prototypeVendorsWorkspace = useMemo(() => createVendorsPageWorkspace(null), []);
   const platformActions = useMemo(() => ({
@@ -237,38 +252,17 @@ function PrototypeApp() {
           {activePage === "account" ? (
             <AccountPageContentView
               interfaceLocale={preferences.interfaceLocale}
-              accountSummary={accountSummary}
-              startupState={prototypeStartupStateForScenario(scenario)}
-              accountWorkspace={accountWorkspace}
-              selectedCharacter={accountWorkspace.selectedCharacter}
-              selectedCharacterId={selectedAccountCharacterId}
-              isBungieConfigured
-              isAccountLoggedIn={scenario.hasAccountData}
-              canLoadAccount={scenario.hasAccountData}
-              isLoadingAccount={false}
-              accountError={scenario.accountError}
-              itemDetailError=""
-              itemDetailLoadingKey=""
-              writeActionsEnabled={false}
-              activitySummary={prototypeActivitySummary}
-              activityMessage=""
-              activityError=""
-              loadoutMessage=""
-              itemActionMessage=""
-              isRunningItemAction={false}
-              activeLoadoutLookup={activeLoadoutLookup}
-              activeLoadoutTemplate={selectedTemplate}
-              onConfigureBungie={() => setActivePage("settings")}
-              onLoginBungie={() => undefined}
-              onLoadAccount={() => undefined}
-              onRefreshActivity={() => undefined}
-              onSelectCharacter={setSelectedAccountCharacterId}
-              onSaveCharacterLoadout={() => undefined}
-              onEquipHighestPowerItems={() => undefined}
-              onOpenItem={() => undefined}
-              isLoadoutMatch={matchesLoadoutTemplateItem}
-              getAccountPageItemKey={getAccountPageItemKey}
-              formatAccountItemMeta={formatAccountItemMeta}
+              viewModel={accountViewModel}
+              actions={{
+                configureBungie: () => setActivePage("settings"),
+                loginBungie: () => undefined,
+                refreshAccount: () => undefined,
+                refreshActivity: () => undefined,
+                selectCharacter: setSelectedAccountCharacterId,
+                saveCurrentLoadout: () => undefined,
+                equipHighestPower: () => undefined,
+                openItem: () => undefined
+              }}
             />
           ) : null}
           {activePage === "vault" ? (
@@ -299,108 +293,92 @@ function PrototypeApp() {
           {activePage === "loadouts" ? (
             <LoadoutsPageContentView
               interfaceLocale={preferences.interfaceLocale}
-              accountSummary={accountSummary}
-              templates={prototypeLoadoutTemplates}
-              loadoutEntries={loadoutsWorkspace.loadoutEntries}
-              selectedTemplate={loadoutsWorkspace.selectedTemplate}
-              compareTemplate={loadoutsWorkspace.compareTemplate}
-              selectedAnalysis={loadoutsWorkspace.selectedAnalysis}
-              transferPlan={loadoutsWorkspace.transferPlan}
-              statusSummary={loadoutsWorkspace.statusSummary}
-              visibleCompareRows={loadoutsWorkspace.visibleCompareRows}
-              missingCount={loadoutsWorkspace.missingCount}
-              readyCount={loadoutsWorkspace.readyCount}
-              actionableCount={loadoutsWorkspace.actionableCount}
+              model={loadoutsWorkspace.model}
+              actions={{
+                selectEntry: setSelectedLoadoutEntryId,
+                selectTemplate: (id) => {
+                  setSelectedLoadoutEntryId(`local-template-${id}`);
+                  setSelectedTemplateId(id);
+                  const template = prototypeLoadoutTemplates.find((item) => item.id === id);
+                  if (template) setRenameDraft(template.name);
+                },
+                selectCompareTemplate: setCompareTemplateId,
+                renameDraftChange: setRenameDraft,
+                showDiffOnlyChange: setShowDiffOnly,
+                renameTemplate: () => undefined,
+                deleteTemplate: () => undefined,
+                createTransferPlan: () => undefined,
+                copyMissingItems: () => undefined,
+                executeMissingTransfer: () => undefined,
+                executeSingleItemTransfer: () => undefined,
+                equipSingleItem: () => undefined,
+                equipSavedLoadout: () => undefined,
+                snapshotCurrentLoadout: () => undefined,
+                openTemplateSourceItem: () => undefined
+              }}
               compareTemplateId={compareTemplateId}
               renameDraft={renameDraft}
               showDiffOnly={showDiffOnly}
               message="Prototype：已接入共享配装页 View，写操作为 mock。"
               isRunningItemAction={false}
               actionFeedback={{}}
-              getItemStatus={(item, template, analysis, plan, summary) => getLoadoutItemStatus({
-                item,
-                template,
-                selectedAnalysis: analysis,
-                transferPlan: plan,
-                accountSummary: summary
-              })}
-              getBlockedDetails={getLoadoutItemBlockedDetails}
-              getSourceItem={(item, summary, templateCharacterId) => findBestTemplateSourceItem(item, summary, templateCharacterId)}
-              getActionFeedbackKey={(templateId, item, action) => `${templateId}:${item.instance_id ?? item.hash}:${action}`}
-              formatComparePerks={formatLoadoutComparePerks}
-              onSelectTemplate={(id) => {
-                setSelectedTemplateId(id);
-                const template = prototypeLoadoutTemplates.find((item) => item.id === id);
-                if (template) setRenameDraft(template.name);
-              }}
-              onSelectCompareTemplate={setCompareTemplateId}
-              onRenameDraftChange={setRenameDraft}
-              onShowDiffOnlyChange={setShowDiffOnly}
-              onRenameTemplate={() => undefined}
-              onDeleteTemplate={() => undefined}
-              onCreateTransferPlan={() => undefined}
-              onCopyMissingItems={() => undefined}
-              onExecuteMissingTransfer={() => undefined}
-              onExecuteSingleItemTransfer={() => undefined}
-              onEquipSingleItem={() => undefined}
-              onEquipSavedLoadout={() => undefined}
-              onSnapshotCurrentLoadout={() => undefined}
-              onOpenTemplateSourceItem={() => undefined}
             />
           ) : null}
           {activePage === "library" ? (
             <LibraryPageContentView
               interfaceLocale={preferences.interfaceLocale}
-              libraryViewMode={libraryViewMode}
-              items={prototypeLibraryItems}
-              perks={prototypeLibraryPerks}
-              equipmentFilters={equipmentFilters}
-              perkFilters={perkFilters}
-              equipmentSearchTouched
-              perkSearchTouched
-              isSearching={false}
-              searchError=""
-              aliasDraft={aliasDraft}
-              aliasTargetDraft={aliasTargetDraft}
-              aliasKind={aliasKind}
-              aliasMessage="Prototype：别名保存为 mock 状态。"
-              libraryHistory={prototypeLibraryHistory}
-              libraryCommunityMatch={prototypeLibraryCommunityMatch}
-              liveAvailability={prototypeLiveAvailability}
-              liveAvailabilityError=""
-              isLoadingLiveAvailability={false}
-              manifestStatus={prototypeManifestStatus}
-              manifestStatusError=""
-              isLoadingManifestStatus={false}
-              isInitializingManifest={false}
-              itemDetailLoadingKey=""
-              onViewModeChange={setLibraryViewMode}
-              onEquipmentFiltersChange={(patch) => setEquipmentFilters((current) => ({ ...current, ...patch }))}
-              onPerkFiltersChange={(patch) => setPerkFilters((current) => ({ ...current, ...patch }))}
-              onSearch={() => undefined}
-              onClearFilters={() => {
-                setEquipmentFilters(prototypeEquipmentFilters);
-                setPerkFilters(prototypePerkFilters);
+              model={selectLibraryPageModel({
+                items: prototypeLibraryItems,
+                perks: prototypeLibraryPerks,
+                libraryHistory: prototypeLibraryHistory,
+                libraryCommunityMatch: prototypeLibraryCommunityMatch,
+                liveAvailability: prototypeLiveAvailability,
+                liveAvailabilityError: "",
+                manifestStatus: prototypeManifestStatus,
+                manifestStatusError: ""
+              }, {
+                libraryViewMode,
+                equipmentFilters,
+                perkFilters,
+                equipmentSearchTouched: true,
+                perkSearchTouched: true,
+                isSearching: false,
+                searchError: "",
+                aliasDraft,
+                aliasTargetDraft,
+                aliasKind,
+                aliasMessage: "Prototype：别名保存为 mock 状态。",
+                isLoadingLiveAvailability: false,
+                isLoadingManifestStatus: false,
+                isInitializingManifest: false,
+                itemDetailLoadingKey: ""
+              })}
+              actions={{
+                onViewModeChange: setLibraryViewMode,
+                onEquipmentFiltersChange: (patch) => setEquipmentFilters((current) => ({ ...current, ...patch })),
+                onPerkFiltersChange: (patch) => setPerkFilters((current) => ({ ...current, ...patch })),
+                onSearch: () => undefined,
+                onClearFilters: () => {
+                  setEquipmentFilters(prototypeEquipmentFilters);
+                  setPerkFilters(prototypePerkFilters);
+                },
+                onRefreshManifestStatus: () => undefined,
+                onInitializeManifest: () => undefined,
+                onAliasDraftChange: setAliasDraft,
+                onAliasTargetDraftChange: setAliasTargetDraft,
+                onAliasKindChange: setAliasKind,
+                onSaveAlias: () => undefined,
+                onOpenItemDetail: () => undefined,
+                onAddFavorite: () => undefined,
+                onRemoveFavorite: () => undefined
               }}
-              onRefreshManifestStatus={() => undefined}
-              onInitializeManifest={() => undefined}
-              onAliasDraftChange={setAliasDraft}
-              onAliasTargetDraftChange={setAliasTargetDraft}
-              onAliasKindChange={setAliasKind}
-              onSaveAlias={() => undefined}
-              onOpenItemDetail={() => undefined}
-              onAddFavorite={() => undefined}
-              onRemoveFavorite={() => undefined}
             />
           ) : null}
           {activePage === "vendors" ? (
             <VendorsPageContentView
               interfaceLocale={preferences.interfaceLocale}
-              vendors={prototypeVendorsWorkspace.vendors}
-              updatedLabel={prototypeVendorsWorkspace.updatedLabel}
-              sourceLabel={prototypeVendorsWorkspace.sourceLabel}
-              nextResetLabel={prototypeVendorsWorkspace.nextResetLabel}
-              recommendationCount={prototypeVendorsWorkspace.recommendationCount}
+              model={prototypeVendorsWorkspace}
+              actions={{}}
             />
           ) : null}
           {activePage === "settings" ? (

@@ -146,7 +146,8 @@ describe("product shell background task wiring", () => {
     expect(libraryHook).toContain("useManifestStatus");
     expect(libraryPage).toContain("library-manifest-alert");
     expect(libraryPage).toContain("isManifestBlocked");
-    expect(libraryPage).toContain("disabled={props.isSearching || isManifestBlocked}");
+    expect(libraryPage).toContain("disabled={model.status.isSearching || isManifestBlocked}");
+    expect(libraryPage).toContain("model.queryPanel.isManifestBlocked");
     expect(libraryPage).toContain("资料库更新完成前暂不可搜索");
     expect(libraryPage).toContain("资料库不是最新版本");
     expect(libraryPage).toContain("缺少必要资料库组件");

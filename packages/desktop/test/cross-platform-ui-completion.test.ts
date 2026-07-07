@@ -76,6 +76,8 @@ describe("cross-platform UI completion boundary", () => {
     expect(loadoutsPage).toContain("<LoadoutsPageContentView");
     expect(libraryPage).toContain("<LibraryPageContentView");
     expect(vendorsPage).toContain("<VendorsPageContentView");
+    expect(vendorsPage).toContain("model={props.model}");
+    expect(vendorsPage).toContain("actions={props.actions ?? {}}");
 
     expect(vaultPage).not.toContain("placeholder-panel");
     expect(loadoutsPage).not.toContain('className="tool-panel loadouts-page loadout-product-layout"');
@@ -131,7 +133,7 @@ describe("cross-platform UI completion boundary", () => {
     const uiStyles = read("packages/ui/src/styles.css");
 
     expect(prototypeMain).toContain("AccountPageContentView");
-    expect(prototypeMain).toContain("createAccountPageWorkspace");
+    expect(prototypeMain).toContain("selectAccountPageModel");
     expect(prototypeMain).not.toContain("<AccountPageView interfaceLocale={preferences.interfaceLocale} />");
     expect(prototypeMain).toContain("VaultPageContentView");
     expect(prototypeMain).toContain("LoadoutsPageContentView");
@@ -139,6 +141,8 @@ describe("cross-platform UI completion boundary", () => {
     expect(prototypeMain).toContain("VendorsPageContentView");
     expect(prototypeMain).toContain("createVendorsPageWorkspace");
     expect(prototypeMain).toContain("prototypeVendorsWorkspace");
+    expect(prototypeMain).toContain("model={prototypeVendorsWorkspace}");
+    expect(prototypeMain).toContain("actions={{}}");
     expect(prototypeMain).toContain('activePage === "vault"');
     expect(prototypeMain).toContain('activePage === "loadouts"');
     expect(prototypeMain).toContain('activePage === "library"');
@@ -222,6 +226,7 @@ describe("cross-platform UI completion boundary", () => {
     expect(webMain).toContain("VendorsPageContentView");
     expect(webMain).toContain("createVendorsPageWorkspace");
     expect(webMain).toContain("webVendorsWorkspace");
+    expect(webMain).toContain("model={webVendorsWorkspace}");
     expect(webMain).toContain("SettingsPageContentView");
     expect(webMain).toContain('activePage === "account"');
     expect(webMain).toContain('activePage === "vault"');

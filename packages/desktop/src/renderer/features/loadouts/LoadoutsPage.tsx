@@ -1,16 +1,10 @@
-import { LoadoutsPageContentView, type LoadoutActionFeedbackState } from "@d2-tools/ui";
+import { useState } from "react";
+import { LoadoutsPageContentView, type LoadoutActionFeedbackState, type LoadoutsPageActions } from "@d2-tools/ui";
 import { analyzeLoadoutTemplate } from "@d2-tools/core/loadouts/analysis";
 import type { AccountSummary, LoadoutTemplate } from "../../api/types";
-import { buildLoadoutActionFeedbackKey } from "../../utils/loadoutActionFeedback";
 import {
-  createLoadoutsPageWorkspace,
-  formatLoadoutComparePerks,
-  getLoadoutItemBlockedDetails,
-  getLoadoutItemStatus
+  createLoadoutsPageWorkspace
 } from "@d2-tools/app";
-import {
-  findBestTemplateSourceItem
-} from "../../shared/domain/loadouts/loadoutSources";
 
 export type LoadoutsPageProps = {
   accountSummary: AccountSummary | null;
@@ -60,40 +54,46 @@ export type LoadoutsPageProps = {
 };
 
 export function LoadoutsPage(props: LoadoutsPageProps) {
+  const [selectedEntryId, setSelectedEntryId] = useState("");
   const workspace = createLoadoutsPageWorkspace({
     accountSummary: props.accountSummary,
     templates: props.templates,
     selectedTemplateId: props.selectedTemplateId,
+    selectedEntryId,
     compareTemplateId: props.compareTemplateId,
     showDiffOnly: props.showDiffOnly
   });
+  const actions: LoadoutsPageActions = {
+    selectEntry: setSelectedEntryId,
+    selectTemplate: (id) => {
+      setSelectedEntryId(`local-template-${id}`);
+      props.onSelectTemplate(id);
+    },
+    selectCompareTemplate: props.onSelectCompareTemplate,
+    renameDraftChange: props.onRenameDraftChange,
+    showDiffOnlyChange: props.onShowDiffOnlyChange,
+    renameTemplate: props.onRenameTemplate,
+    deleteTemplate: props.onDeleteTemplate,
+    createTransferPlan: props.onCreateTransferPlan,
+    copyMissingItems: props.onCopyMissingItems,
+    executeMissingTransfer: props.onExecuteMissingTransfer,
+    executeSingleItemTransfer: props.onExecuteSingleItemTransfer,
+    equipSingleItem: props.onEquipSingleItem,
+    equipSavedLoadout: props.onEquipSavedLoadout,
+    snapshotCurrentLoadout: props.onSnapshotCurrentLoadout,
+    openTemplateSourceItem: props.onOpenTemplateSourceItem
+  };
 
   return (
     <LoadoutsPageContentView
-      {...props}
-      loadoutEntries={workspace.loadoutEntries}
-      selectedTemplate={workspace.selectedTemplate}
-      compareTemplate={workspace.compareTemplate}
-      selectedAnalysis={workspace.selectedAnalysis}
-      transferPlan={workspace.transferPlan}
-      statusSummary={workspace.statusSummary}
-      visibleCompareRows={workspace.visibleCompareRows}
-      missingCount={workspace.missingCount}
-      readyCount={workspace.readyCount}
-      actionableCount={workspace.actionableCount}
-      getItemStatus={(item, template, analysis, plan, summary) => {
-        return getLoadoutItemStatus({
-          item,
-          template,
-          selectedAnalysis: analysis,
-          transferPlan: plan,
-          accountSummary: summary
-        });
-      }}
-      getBlockedDetails={getLoadoutItemBlockedDetails}
-      getSourceItem={(item, summary, templateCharacterId) => findBestTemplateSourceItem(item, summary, templateCharacterId)}
-      getActionFeedbackKey={buildLoadoutActionFeedbackKey}
-      formatComparePerks={formatLoadoutComparePerks}
+      model={workspace.model}
+      actions={actions}
+      compareTemplateId={props.compareTemplateId}
+      renameDraft={props.renameDraft}
+      showDiffOnly={props.showDiffOnly}
+      message={props.message}
+      isRunningItemAction={props.isRunningItemAction}
+      actionFeedback={props.actionFeedback}
     />
   );
 }

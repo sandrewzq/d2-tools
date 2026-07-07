@@ -7,9 +7,8 @@ import type {
   StartupState
 } from "../../api/types";
 import {
-  createAccountPageWorkspace,
-  formatAccountItemMeta,
-  getAccountPageItemKey
+  selectAccountPageModel,
+  type AccountOpenItemPayload
 } from "@d2-tools/app";
 import {
   matchesLoadoutTemplateItem,
@@ -52,26 +51,65 @@ export function AccountPage(props: {
     }
   ) => void;
 }) {
-  const accountWorkspace = createAccountPageWorkspace({
-    account: props.accountSummary,
-    selectedCharacterId: props.selectedCharacterId,
-    openingItemKey: props.itemDetailLoadingKey,
-    isLoadoutMatch: (item) => matchesLoadoutTemplateItem(item, props.activeLoadoutLookup)
-  });
   const isBungieConfigured = props.startupState.cards.bungieConfig.status === "ready";
   const isAccountLoggedIn = props.startupState.cards.account.status === "ready";
+  const viewModel = selectAccountPageModel({
+    cache: {
+      accountSummary: props.accountSummary,
+      activitySummary: props.activitySummary
+    },
+    pageState: {
+      selectedCharacterId: props.selectedCharacterId,
+      openingItemKey: props.itemDetailLoadingKey,
+      isLoadoutMatch: (item) => matchesLoadoutTemplateItem(item, props.activeLoadoutLookup),
+      isBungieConfigured,
+      isAccountLoggedIn,
+      isLoadingAccount: props.isLoadingAccount,
+      writeActionsEnabled: props.writeActionsEnabled,
+      accountStatusLabel: props.startupState.cards.account.label,
+      accountError: props.accountError,
+      itemDetailError: props.itemDetailError,
+      activityMessage: props.activityMessage,
+      activityError: props.activityError,
+      loadoutMessage: props.loadoutMessage,
+      itemActionMessage: props.itemActionMessage,
+      isRunningItemAction: props.isRunningItemAction,
+      activeLoadoutTemplateName: props.activeLoadoutTemplate?.name
+    }
+  });
+
+  function findCharacter(characterId: string): AccountSummary["characters"][number] | null {
+    return props.accountSummary?.characters.find((character) => character.character_id === characterId) ?? null;
+  }
+
+  function openItem(payload: AccountOpenItemPayload): void {
+    props.onOpenItem(payload.item, {
+      source_character_id: payload.source_character_id,
+      source_kind: payload.source_kind,
+      is_postmaster_item: payload.is_postmaster_item
+    });
+  }
 
   return (
     <AccountPageContentView
-      {...props}
-      accountWorkspace={accountWorkspace}
-      selectedCharacter={accountWorkspace.selectedCharacter}
-      isBungieConfigured={isBungieConfigured}
-      isAccountLoggedIn={isAccountLoggedIn}
-      canLoadAccount={isBungieConfigured && isAccountLoggedIn}
-      isLoadoutMatch={matchesLoadoutTemplateItem}
-      getAccountPageItemKey={getAccountPageItemKey}
-      formatAccountItemMeta={formatAccountItemMeta}
+      interfaceLocale={props.interfaceLocale}
+      viewModel={viewModel}
+      actions={{
+        configureBungie: props.onConfigureBungie,
+        loginBungie: props.onLoginBungie,
+        refreshAccount: props.onLoadAccount,
+        refreshActivity: props.onRefreshActivity,
+        selectCharacter: props.onSelectCharacter,
+        saveCurrentLoadout: (characterId) => {
+          const character = findCharacter(characterId);
+          if (character) props.onSaveCharacterLoadout(character);
+        },
+        equipHighestPower: (characterId) => {
+          const character = findCharacter(characterId);
+          if (character) props.onEquipHighestPowerItems(character);
+        },
+        openItem
+      }}
     />
   );
 }

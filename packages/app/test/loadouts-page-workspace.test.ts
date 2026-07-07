@@ -79,6 +79,78 @@ describe("loadouts page workspace", () => {
     expect(workspace.loadoutEntries[1].preview).toBe("Kinetic Ready");
   });
 
+  it("models the selected local template detail for shared loadouts UI", () => {
+    const workspace = createLoadoutsPageWorkspace({
+      accountSummary: accountSummary(),
+      templates: [targetTemplate(), compareTemplate()],
+      selectedTemplateId: "target",
+      selectedEntryId: "local-template-target",
+      compareTemplateId: "compare",
+      showDiffOnly: true
+    });
+
+    expect(workspace.model.selectedEntryId).toBe("local-template-target");
+    expect(workspace.model.riskSummary).toEqual({
+      missingCount: 1,
+      readyCount: 1,
+      actionableCount: 1
+    });
+    expect(workspace.model.compare.visibleRows).toHaveLength(1);
+    expect(workspace.model.selectedDetail.kind).toBe("local-template");
+    if (workspace.model.selectedDetail.kind !== "local-template") {
+      throw new Error("expected local template detail");
+    }
+    expect(workspace.model.selectedDetail.template.id).toBe("target");
+    expect(workspace.model.selectedDetail.analysis?.equipped.map((item) => item.instance_id)).toEqual([
+      "target-equipped",
+      "vault-energy"
+    ]);
+    expect(workspace.model.selectedDetail.transferPlan?.steps.map((step) => step.phase)).toEqual([
+      "to-character",
+      "equip-target"
+    ]);
+    expect(workspace.model.selectedDetail.itemRows.map((row) => row.status.key)).toEqual(["equipped", "vault"]);
+  });
+
+  it("models the selected in-game loadout detail for shared loadouts UI", () => {
+    const summary = accountSummary();
+    summary.characters[0].loadout_slots = [
+      {
+        index: 0,
+        name: "Raid slot",
+        item_count: 10,
+        items: [
+          { instance_id: "target-equipped", name: "Kinetic Ready", bucket_name: "Kinetic Weapons" }
+        ]
+      }
+    ];
+
+    const workspace = createLoadoutsPageWorkspace({
+      accountSummary: summary,
+      templates: [targetTemplate()],
+      selectedTemplateId: "target",
+      selectedEntryId: "in-game-char-target-0",
+      compareTemplateId: "",
+      showDiffOnly: false
+    });
+
+    expect(workspace.model.selectedEntryId).toBe("in-game-char-target-0");
+    expect(workspace.model.entries.map((entry) => entry.id)).toEqual([
+      "local-template-target",
+      "in-game-char-target-0"
+    ]);
+    expect(workspace.model.selectedDetail.kind).toBe("in-game-slot");
+    if (workspace.model.selectedDetail.kind !== "in-game-slot") {
+      throw new Error("expected in-game slot detail");
+    }
+    expect(workspace.model.selectedDetail.characterId).toBe("char-target");
+    expect(workspace.model.selectedDetail.characterName).toBe("Titan");
+    expect(workspace.model.selectedDetail.slot.name).toBe("Raid slot");
+    expect(workspace.model.selectedDetail.items).toEqual([
+      { instance_id: "target-equipped", name: "Kinetic Ready", bucket_name: "Kinetic Weapons" }
+    ]);
+  });
+
   it("exposes row helpers for UI without requiring Desktop feature imports", () => {
     const template = targetTemplate();
     const summary = accountSummary();

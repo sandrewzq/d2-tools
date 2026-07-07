@@ -5,7 +5,8 @@ import {
   formatAccountItemMeta,
   getAccountPageItemKey,
   getCharacterCombinedItems,
-  groupAccountItemsBySlot
+  groupAccountItemsBySlot,
+  selectAccountPageModel
 } from "../src/workspaces/accountPage";
 
 function item(input: Partial<AccountItemSummary> & Pick<AccountItemSummary, "hash" | "name" | "group_key" | "item_type" | "tier">): AccountItemSummary {
@@ -165,6 +166,71 @@ describe("account page workspace", () => {
       subtitle: "槽位 1 / 8 件装备",
       preview: "已装备手炮 / 背包胸甲"
     }]);
+  });
+
+  it("builds a stable account page view model for shared UI adapters", () => {
+    const viewModel = selectAccountPageModel({
+      cache: {
+        accountSummary: account,
+        activitySummary: null
+      },
+      pageState: {
+        selectedCharacterId: "char-1",
+        openingItemKey: "inventory-1",
+        isBungieConfigured: true,
+        isAccountLoggedIn: true,
+        isLoadingAccount: false,
+        writeActionsEnabled: false,
+        accountError: "",
+        itemDetailError: "",
+        activityMessage: "",
+        activityError: "",
+        loadoutMessage: "",
+        itemActionMessage: "",
+        isRunningItemAction: false,
+        activeLoadoutTemplateName: "虚空测试",
+        isLoadoutMatch: (entry) => entry.instance_id === "equipped-1"
+      }
+    });
+
+    expect(viewModel.connection).toMatchObject({
+      hasAccount: true,
+      isBungieConfigured: true,
+      isAccountLoggedIn: true,
+      canLoadAccount: true,
+      isLoadingAccount: false
+    });
+    expect(viewModel.profile).toMatchObject({
+      accountName: "tester",
+      profileLine: "Membership 1 / membership-1",
+      inventoryLine: "仓库装备：2 / 材料与消耗品：1"
+    });
+    expect(viewModel.navigation.map((item) => item.href)).toEqual([
+      "#account-profile",
+      "#account-loadout",
+      "#account-activity",
+      "#account-materials",
+      "#account-postmaster"
+    ]);
+    expect(viewModel.selectedCharacter?.characterId).toBe("char-1");
+    expect(viewModel.loadout.slotComparisonRows[0]?.equippedItems[0]?.openPayload).toMatchObject({
+      source_character_id: "char-1",
+      source_kind: "equipped",
+      item: equipped
+    });
+    expect(viewModel.loadout.slotComparisonRows[1]?.inventoryItems[0]).toMatchObject({
+      key: "inventory-1",
+      isPending: true,
+      meta: "胸甲 / Legendary / 总值 68 / 生命值 20 / 职业 16 / 手雷 14"
+    });
+    expect(viewModel.activity.summary).toBeNull();
+    expect(viewModel.activity.message).toBe("");
+    expect(viewModel.materials.rows[0]?.meta).toBe("Legendary / 材料");
+    expect(viewModel.postmaster.items[0]?.openPayload).toMatchObject({
+      source_character_id: "char-1",
+      is_postmaster_item: true,
+      item: postmaster
+    });
   });
 
   it("falls back to the first character when selected id is missing", () => {

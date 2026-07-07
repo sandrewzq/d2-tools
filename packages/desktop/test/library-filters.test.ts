@@ -202,6 +202,7 @@ describe("library filters", () => {
     const libraryPage = readFileSync("packages/desktop/src/renderer/features/library/LibraryPage.tsx", "utf8");
     const libraryView = readFileSync("packages/ui/src/library/LibraryPageView.tsx", "utf8");
     const libraryContent = readFileSync("packages/ui/src/library/LibraryPageContentView.tsx", "utf8");
+    const libraryWorkspace = readFileSync("packages/app/src/workspaces/libraryPage.ts", "utf8");
 
     expect(homePage).toContain("<HomePageRoutes");
     expect(homePage).not.toContain("<LibraryPage");
@@ -209,9 +210,13 @@ describe("library filters", () => {
     expect(libraryProvider).toContain("<LibraryPage");
     expect(homePage).not.toContain("function renderSearchPanel");
     expect(libraryPage).toContain("export function LibraryPage");
+    expect(libraryPage).toContain("selectLibraryPageModel");
     expect(libraryPage).toContain("LibraryPageContentView");
+    expect(libraryPage).toContain("cache: LibraryPageCache");
+    expect(libraryPage).toContain("state: LibraryPageState");
+    expect(libraryPage).toContain("actions: LibraryPageActions");
     expect(libraryContent).toContain("ProductWorkspaceSplit");
-    expect(libraryPage).toContain("libraryViewMode");
+    expect(libraryContent).toContain("model.queryPanel.viewMode");
     expect(libraryContent).toContain('value="equipment"');
     expect(libraryContent).toContain('value="perks"');
     expect(libraryContent).toContain("library-search-command");
@@ -220,7 +225,8 @@ describe("library filters", () => {
     expect(libraryContent).toContain("libraryEquipmentFilter.frame");
     expect(libraryContent).not.toContain("hasPerks");
     expect(libraryContent).toContain("formatCommunityPerkPreview");
-    expect(libraryContent).toContain("const communityMatch = libraryCommunityMatch.get(item.hash)");
+    expect(libraryWorkspace).toContain("communityMatch: input.communityMatch.get(item.hash)");
+    expect(libraryContent).toContain("const communityMatch = row.communityMatch");
     expect(libraryContent).toContain("communityMatch?.available");
   });
 

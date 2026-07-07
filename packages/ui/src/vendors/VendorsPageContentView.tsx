@@ -34,39 +34,70 @@ export type VendorInventoryGroupView = {
   iconLabel?: string;
   iconUrl?: string;
   statusLabel?: string;
+  taskCategory?: string;
+  displayStatusLabel?: string;
+  inventoryState?: "loaded" | "empty" | "not_read" | "unavailable";
+  inventoryStateLabel?: string;
+  railStatusLabel?: string;
+  detailToolbar?: VendorDetailToolbarView;
   featured?: boolean;
   items: VendorInventoryItemView[];
 };
 
+export type VendorRailSectionView = {
+  id: string;
+  title: string;
+  vendors: VendorInventoryGroupView[];
+};
+
+export type VendorDetailToolbarView = {
+  taskCategory: string;
+  inventoryStateLabel: string;
+  statusLabel: string;
+  itemCountLabel: string;
+};
+
+export type VendorsPageModelView = {
+  vendors: VendorInventoryGroupView[];
+  railSections: VendorRailSectionView[];
+  defaultVendorId?: string | null;
+  updatedLabel: string;
+  sourceLabel: string;
+  nextResetLabel: string;
+  recommendationCount: number;
+  verifiedItemCount: number;
+};
+
+export type VendorsPageActions = {
+  selectVendor?: (vendorId: string) => void;
+  refreshVendors?: () => void;
+};
+
 export type VendorsPageContentViewProps = {
   interfaceLocale?: InterfaceLocale;
-  vendors?: VendorInventoryGroupView[];
-  updatedLabel?: string;
-  sourceLabel?: string;
-  nextResetLabel?: string;
-  recommendationCount?: number;
-  verifiedItemCount?: number;
+  model?: VendorsPageModelView;
+  actions?: VendorsPageActions;
 };
 
 export function VendorsPageContentView(props: VendorsPageContentViewProps) {
   const locale = props.interfaceLocale ?? "zh-CN";
   const copy = getLocaleCopy(locale).vendors;
-  const vendors = props.vendors ?? getDefaultVendorInventory(locale);
-  const verifiedItemCount = props.verifiedItemCount ?? vendors.reduce((count, vendor) => count + vendor.items.length, 0);
-  const recommendationCount = props.recommendationCount ?? vendors.reduce(
-    (count, vendor) => count + vendor.items.filter((item) => item.status === "recommended").length,
-    0
-  );
-  const initialVendorId = vendors.find((vendor) => vendor.featured)?.id ?? vendors[0]?.id ?? "";
+  const model = props.model ?? getDefaultVendorWorkspace(locale);
+  const actions = props.actions ?? {};
+  const vendors = model.vendors;
+  const railSections = model.railSections;
+  const verifiedItemCount = model.verifiedItemCount;
+  const recommendationCount = model.recommendationCount;
+  const initialVendorId = model.defaultVendorId ?? vendors.find((vendor) => vendor.featured)?.id ?? vendors[0]?.id ?? "";
   const [selectedVendorId, setSelectedVendorId] = useState(initialVendorId);
   const selectedVendor = vendors.find((vendor) => vendor.id === selectedVendorId)
     ?? vendors.find((vendor) => vendor.featured)
     ?? vendors[0]
     ?? null;
-  const updatedLabel = props.updatedLabel ?? copy.inline["Prototype mock"] ?? "Prototype mock";
-  const sourceLabel = props.sourceLabel ?? copy.inline["Bungie / Manifest / 用户导入推荐"] ?? "Bungie / Manifest / imported recommendations";
-  const nextResetLabel = props.nextResetLabel ?? copy.inline["每日或周末重置"] ?? "Daily or weekend reset";
-  const vendorCategories = groupVendorsByTask(vendors);
+  const updatedLabel = model.updatedLabel;
+  const sourceLabel = model.sourceLabel;
+  const selectedVendorStatusLabel = selectedVendor ? getVendorDisplayStatusLabel(selectedVendor) : "";
+  const selectedVendorToolbar = selectedVendor ? getVendorDetailToolbar(selectedVendor, copy) : null;
 
   return (
     <>
@@ -77,10 +108,10 @@ export function VendorsPageContentView(props: VendorsPageContentViewProps) {
               <strong>{copy.inline["商人"] ?? "Vendors"}</strong>
               <span>{vendors.length} {copy.inline["个来源"] ?? "sources"}</span>
             </div>
-            {vendorCategories.map((category) => (
-              <section className="vendor-rail-group" key={category.name}>
+            {railSections.map((category) => (
+              <section className="vendor-rail-group" key={category.id}>
                 <span className="vendor-rail-category">
-                  <strong>{category.name}</strong>
+                  <strong>{category.title}</strong>
                   <small>{category.vendors.length}</small>
                 </span>
                 {category.vendors.map((vendor) => (
@@ -89,12 +120,15 @@ export function VendorsPageContentView(props: VendorsPageContentViewProps) {
                     className={vendor.id === selectedVendor.id ? "vendor-rail-item is-active" : "vendor-rail-item"}
                     key={vendor.id}
                     aria-pressed={vendor.id === selectedVendor.id}
-                    onClick={() => setSelectedVendorId(vendor.id)}
+                    onClick={() => {
+                      setSelectedVendorId(vendor.id);
+                      actions.selectVendor?.(vendor.id);
+                    }}
                   >
                     <VendorAvatar vendor={vendor} />
                     <span>
                       <strong>{vendor.name}</strong>
-                      <small>{formatVendorRailStatus(vendor, copy)}</small>
+                      <small>{vendor.railStatusLabel ?? formatVendorRailStatus(vendor, copy)}</small>
                     </span>
                   </button>
                 ))}
@@ -108,8 +142,8 @@ export function VendorsPageContentView(props: VendorsPageContentViewProps) {
               <div>
                 <div className="vendor-detail-title-row">
                   <h3>{selectedVendor.name}</h3>
-                  <span className={selectedVendor.items.length ? "app-chip status-ready" : "app-chip status-neutral"}>
-                    {formatVendorStatusLabel(selectedVendor)}
+                  <span className={selectedVendor.inventoryState === "loaded" || selectedVendor.items.length ? "app-chip status-ready" : "app-chip status-neutral"}>
+                    {selectedVendorStatusLabel}
                   </span>
                 </div>
                 <p>{selectedVendor.description}</p>
@@ -121,9 +155,9 @@ export function VendorsPageContentView(props: VendorsPageContentViewProps) {
               </div>
             </div>
             <div className="vendor-detail-toolbar" aria-label="商人库存状态">
-              <span>{getVendorTaskCategory(selectedVendor)}</span>
-              <span>{selectedVendor.items.length ? "库存已读取" : "未读取库存"}</span>
-              <span>{nextResetLabel}</span>
+              <span>{selectedVendorToolbar?.taskCategory}</span>
+              <span>{selectedVendorToolbar?.inventoryStateLabel}</span>
+              <span>{selectedVendorToolbar?.itemCountLabel}</span>
             </div>
 
             {selectedVendor.items.length ? (
@@ -151,7 +185,7 @@ export function VendorsPageContentView(props: VendorsPageContentViewProps) {
             ) : (
               <ProductWorkspaceEmptyState className="vendor-empty-state vendor-empty-card">
                 <strong>{copy.emptyTitle}</strong>
-                <span>{formatVendorStatusLabel(selectedVendor) || copy.emptyBody}</span>
+                <span>{selectedVendorStatusLabel || copy.emptyBody}</span>
               </ProductWorkspaceEmptyState>
             )}
           </ProductWorkspaceContentStack>
@@ -164,7 +198,7 @@ export function VendorsPageContentView(props: VendorsPageContentViewProps) {
               </div>
               <div>
                 <strong>{copy.sourceLabel}</strong>
-                <span>{formatVendorStatusLabel(selectedVendor) || sourceLabel}</span>
+                <span>{selectedVendorStatusLabel || sourceLabel}</span>
               </div>
               <div>
                 <strong>{copy.verifiedInventory}</strong>
@@ -232,42 +266,62 @@ function formatVendorStatus(status: VendorInventoryItemView["status"], copy: Ret
 }
 
 function formatVendorRailStatus(vendor: VendorInventoryGroupView, copy: ReturnType<typeof getLocaleCopy>["vendors"]): string {
-  return `${formatVendorStatusLabel(vendor)} · ${vendor.items.length} ${copy.labels.items}`;
+  return `${getVendorDisplayStatusLabel(vendor)} · ${vendor.items.length} ${copy.labels.items}`;
 }
 
-function formatVendorStatusLabel(vendor: VendorInventoryGroupView): string {
-  if (!vendor.items.length && vendor.statusLabel === "等待实时库存") return "未读取";
-  return vendor.statusLabel ?? vendor.badge;
+function getVendorDisplayStatusLabel(vendor: VendorInventoryGroupView): string {
+  return vendor.displayStatusLabel ?? vendor.statusLabel ?? vendor.badge;
 }
 
-const vendorTaskOrder = ["重点库存", "仪式声望", "周末活动", "外观 / 服务", "其他商人"];
-
-function groupVendorsByTask(vendors: VendorInventoryGroupView[]): Array<{ name: string; vendors: VendorInventoryGroupView[] }> {
-  const groups = new Map<string, VendorInventoryGroupView[]>();
-  for (const vendor of vendors) {
-    const category = getVendorTaskCategory(vendor);
-    groups.set(category, [...(groups.get(category) ?? []), vendor]);
-  }
-  return Array.from(groups.entries())
-    .sort(([left], [right]) => vendorTaskOrder.indexOf(left) - vendorTaskOrder.indexOf(right))
-    .map(([name, groupVendors]) => ({ name, vendors: groupVendors }));
+function getVendorDetailToolbar(
+  vendor: VendorInventoryGroupView,
+  copy: ReturnType<typeof getLocaleCopy>["vendors"]
+): VendorDetailToolbarView {
+  return vendor.detailToolbar ?? {
+    taskCategory: vendor.taskCategory ?? "其他商人",
+    inventoryStateLabel: vendor.inventoryStateLabel ?? (vendor.items.length ? "库存已读取" : "未读取库存"),
+    statusLabel: getVendorDisplayStatusLabel(vendor),
+    itemCountLabel: `${vendor.items.length} ${copy.labels.items}`
+  };
 }
 
-function getVendorTaskCategory(vendor: VendorInventoryGroupView): string {
-  const value = `${vendor.id} ${vendor.name} ${vendor.description} ${vendor.category ?? ""}`.toLocaleLowerCase();
-  if (/xur|仄|周末异域|daily weapon|banshee|班西|武器商人|rahool|拉乎尔|记忆水晶|engram vendor/.test(value)) {
-    return "重点库存";
-  }
-  if (/zavala|先锋|vanguard|shaxx|熔炉|crucible|drifter|浪客|智谋|gambit/.test(value)) {
-    return "仪式声望";
-  }
-  if (/saint|试炼|trials|周末活动/.test(value)) {
-    return "周末活动";
-  }
-  if (/ada|护甲合成|armor synthesis|tess|外观|appearance|eververse|永恒之诗/.test(value)) {
-    return "外观 / 服务";
-  }
-  return "其他商人";
+function getDefaultVendorWorkspace(locale: InterfaceLocale): {
+  vendors: VendorInventoryGroupView[];
+  railSections: VendorRailSectionView[];
+  defaultVendorId: string | null;
+  updatedLabel: string;
+  sourceLabel: string;
+  nextResetLabel: string;
+  recommendationCount: number;
+  verifiedItemCount: number;
+} {
+  const vendors = getDefaultVendorInventory(locale);
+  const sections = [
+    { id: "featured", title: "重点库存", vendorIds: ["xur", "banshee", "rahool"] },
+    { id: "ritual", title: "仪式声望", vendorIds: ["zavala", "shaxx", "drifter"] },
+    { id: "weekend", title: "周末活动", vendorIds: ["saint"] },
+    { id: "cosmetic", title: "外观 / 服务", vendorIds: ["ada", "tess"] },
+    { id: "other", title: "其他商人", vendorIds: [] }
+  ];
+  const vendorsById = new Map(vendors.map((vendor) => [vendor.id, vendor]));
+  const railSections = sections.map((section) => ({
+    id: section.id,
+    title: section.title,
+    vendors: section.vendorIds.map((id) => vendorsById.get(id)).filter((vendor): vendor is VendorInventoryGroupView => Boolean(vendor))
+  }));
+  return {
+    vendors,
+    railSections,
+    defaultVendorId: vendors.find((vendor) => vendor.featured)?.id ?? vendors[0]?.id ?? null,
+    updatedLabel: locale === "en-US" ? "Prototype mock" : "Prototype mock",
+    sourceLabel: locale === "en-US" ? "Bungie / Manifest / imported recommendations" : "Bungie / Manifest / 用户导入推荐",
+    nextResetLabel: locale === "en-US" ? "Daily or weekend reset" : "每日或周末重置",
+    recommendationCount: vendors.reduce(
+      (count, vendor) => count + vendor.items.filter((item) => item.status === "recommended").length,
+      0
+    ),
+    verifiedItemCount: vendors.reduce((count, vendor) => count + vendor.items.length, 0)
+  };
 }
 
 function createVendorIconUrl(vendor: VendorInventoryGroupView): string {

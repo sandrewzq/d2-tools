@@ -66,6 +66,21 @@ describe("vendors page workspace", () => {
     expect(workspace.sourceLabel).toBe("Bungie 公共商人");
     expect(workspace.nextResetLabel).toBe("距离每日重置还有 7 小时 30 分钟");
     expect(workspace.vendors).toHaveLength(9);
+    expect(workspace.defaultVendorId).toBe("xur");
+    expect(workspace.railSections.map((section) => section.title)).toEqual([
+      "重点库存",
+      "仪式声望",
+      "周末活动",
+      "外观 / 服务",
+      "其他商人"
+    ]);
+    expect(workspace.railSections.map((section) => section.vendors.map((vendor) => vendor.id))).toEqual([
+      ["xur", "banshee", "rahool"],
+      ["zavala", "shaxx", "drifter"],
+      ["saint"],
+      ["ada", "tess"],
+      []
+    ]);
     expect(workspace.verifiedItemCount).toBe(3);
     expect(workspace.vendors.map((vendor) => vendor.name)).toEqual([
       "资料库周末商人",
@@ -83,7 +98,18 @@ describe("vendors page workspace", () => {
       description: "周末商人库存",
       badge: "已确认",
       source: "Bungie 公共商人",
-      iconUrl: "https://www.bungie.net/common/destiny2_content/icons/xur.jpg"
+      iconUrl: "https://www.bungie.net/common/destiny2_content/icons/xur.jpg",
+      taskCategory: "重点库存",
+      displayStatusLabel: "已确认",
+      inventoryState: "loaded",
+      inventoryStateLabel: "库存已读取",
+      railStatusLabel: "已确认 · 2 件物品",
+      detailToolbar: {
+        taskCategory: "重点库存",
+        inventoryStateLabel: "库存已读取",
+        statusLabel: "已确认",
+        itemCountLabel: "2 件物品"
+      }
     });
     expect(workspace.vendors[0]?.items).toMatchObject([
       {
@@ -112,7 +138,17 @@ describe("vendors page workspace", () => {
     expect(workspace.vendors[2]).toMatchObject({
       name: "护甲合成商人",
       source: "本地商人目录",
-      statusLabel: "等待实时库存"
+      statusLabel: "等待库存读取",
+      displayStatusLabel: "未读取",
+      inventoryState: "not_read",
+      inventoryStateLabel: "未读取库存",
+      railStatusLabel: "未读取 · 0 件物品",
+      detailToolbar: {
+        taskCategory: "外观 / 服务",
+        inventoryStateLabel: "未读取库存",
+        statusLabel: "未读取",
+        itemCountLabel: "0 件物品"
+      }
     });
     expect(workspace.recommendationCount).toBe(1);
   });
@@ -131,12 +167,34 @@ describe("vendors page workspace", () => {
       "记忆水晶商人",
       "外观商人"
     ]);
+    expect(workspace.defaultVendorId).toBe("xur");
+    expect(workspace.railSections.map((section) => section.title)).toEqual([
+      "重点库存",
+      "仪式声望",
+      "周末活动",
+      "外观 / 服务",
+      "其他商人"
+    ]);
+    expect(workspace.railSections.flatMap((section) => section.vendors).map((vendor) => vendor.id)).toEqual([
+      "xur",
+      "banshee",
+      "rahool",
+      "zavala",
+      "shaxx",
+      "drifter",
+      "saint",
+      "ada",
+      "tess"
+    ]);
     expect(workspace.sourceLabel).toBe("等待 Bungie 公共商人");
     expect(workspace.verifiedItemCount).toBe(0);
     expect(workspace.vendors[0]).toMatchObject({
       category: "重点",
       source: "本地商人目录",
-      statusLabel: "等待实时库存",
+      statusLabel: "等待库存读取",
+      displayStatusLabel: "未读取",
+      inventoryState: "not_read",
+      inventoryStateLabel: "未读取库存",
       items: [],
       featured: true
     });
@@ -146,6 +204,8 @@ describe("vendors page workspace", () => {
     });
     expect(JSON.stringify(workspace.vendors)).not.toContain("待确认");
     expect(JSON.stringify(workspace.vendors)).not.toContain("费用待确认");
+    expect(JSON.stringify(workspace.vendors)).not.toContain("等待实时库存");
+    expect(JSON.stringify(workspace.vendors)).not.toContain("实时库存");
     expect(JSON.stringify(workspace.vendors)).not.toContain("Banshee");
     expect(JSON.stringify(workspace.vendors)).not.toContain("Ada-1");
     expect(JSON.stringify(workspace.vendors)).not.toContain("Saint-14");
@@ -197,6 +257,10 @@ describe("vendors page workspace", () => {
       name: "资料库护甲合成商人",
       source: "Bungie 登录角色商人",
       statusLabel: "已确认",
+      displayStatusLabel: "暂无可读库存",
+      inventoryState: "empty",
+      inventoryStateLabel: "暂无可读库存",
+      railStatusLabel: "暂无可读库存 · 0 件物品",
       iconUrl: "https://www.bungie.net/common/destiny2_content/icons/ada.jpg",
       items: []
     });

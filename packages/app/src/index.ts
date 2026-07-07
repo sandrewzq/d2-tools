@@ -6,13 +6,29 @@ export type { AccountDerivedWorkspace, FullAccountWorkspace } from "./workspaces
 export { loadAccountDerivedWorkspace, loadFullAccountWorkspace } from "./workspaces/accountDerived.js";
 export type {
   AccountCharacterTab,
+  AccountActivitySectionView,
+  AccountCharacterTabView,
+  AccountConnectionView,
+  AccountFeedbackView,
+  AccountItemView,
+  AccountLoadoutSectionView,
   AccountLoadoutSlotRow,
   AccountMaterialRow,
+  AccountMaterialsSectionView,
+  AccountOpenItemPayload,
+  AccountPageModelInput,
   AccountPageWorkspace,
+  AccountPageNavItem,
+  AccountPageState,
+  AccountPageViewModel,
+  AccountPostmasterSectionView,
   AccountPostmasterPreviewItem,
+  AccountProfileView,
+  SharedDomainCache,
   AccountSlotCategory,
   AccountSlotCategoryKey,
   AccountSlotComparisonRow,
+  AccountSlotComparisonViewRow,
   AccountSlotGroup
 } from "./workspaces/accountPage.js";
 export {
@@ -28,7 +44,8 @@ export {
   getAccountPageItemKey,
   getAccountSlotLabel,
   getCharacterCombinedItems,
-  groupAccountItemsBySlot
+  groupAccountItemsBySlot,
+  selectAccountPageModel
 } from "./workspaces/accountPage.js";
 export type { VaultWorkspace } from "./workspaces/vault.js";
 export { loadVaultWorkspace } from "./workspaces/vault.js";
@@ -128,7 +145,17 @@ export {
   buildLoadoutItemStatus,
   summarizeLoadoutItemStatuses
 } from "./workspaces/loadoutItemStatus.js";
-export type { LoadoutEntry, LoadoutsPageWorkspace } from "./workspaces/loadoutsPage.js";
+export type {
+  InGameLoadoutItemView,
+  LoadoutCompareView,
+  LoadoutEntry,
+  LoadoutEntryView,
+  LoadoutRiskSummaryView,
+  LoadoutsPageModel,
+  LoadoutsPageWorkspace,
+  LoadoutsSelectedDetailView,
+  LoadoutTemplateItemRowView
+} from "./workspaces/loadoutsPage.js";
 export {
   createLoadoutsPageWorkspace,
   getLoadoutItemBlockedDetails,
@@ -238,10 +265,56 @@ export { homePageFocus, homePageLabels, homePageMetaMap } from "./workspaces/pag
 export type { HomePageDerivedState, AssistantPageContext } from "./workspaces/homePage.js";
 export { createHomePageDerivedState, resolvePageMeta, buildLoadoutContextFacts, buildLibraryContextFacts } from "./workspaces/homePage.js";
 export type {
+  AmmoTypeKey,
+  EquipmentGroupKey,
+  ItemSearchResult,
+  LibraryDropAccessFilter,
+  LibraryDropAccessKey,
+  LibraryDropQueryGroup,
+  LibraryEquipmentFilter,
+  LibraryEquipmentFilterOptions,
+  LibraryEquipmentGroupFilter,
+  LibraryEquipmentResultGroupView,
+  LibraryEquipmentResultView,
+  LibraryFilterOption,
+  LibraryHistory,
+  LibraryManifestAlertModel,
+  LibraryPageCache,
+  LibraryPageModel,
+  LibraryPageState,
+  LibraryPerkFilter,
+  LibraryPerkPoolFilter,
+  LibraryPerkResultView,
+  LibraryRelatedItemsFilter,
+  LibrarySourceStatusFilter,
+  LibraryViewMode,
+  LiveItemAvailability,
+  LiveItemAvailabilityEntry,
+  ManifestStatus,
+  PerkSearchResult,
+  VaultItemMatchInfo
+} from "./workspaces/libraryPage.js";
+export {
+  buildLibraryEquipmentFilterOptions,
+  buildLibraryPerkGroupOptions,
+  classifyLibraryDropAccess,
+  defaultLibraryEquipmentFilter,
+  defaultLibraryPerkFilter,
+  filterLibraryEquipmentItems,
+  filterLibraryPerks,
+  formatLibraryVersion,
+  groupLibraryDropQueryItems,
+  selectLibraryPageModel
+} from "./workspaces/libraryPage.js";
+export type {
+  VendorDetailToolbarWorkspace,
   VendorInventoryGroupWorkspace,
   VendorInventoryItemWorkspace,
+  VendorInventoryState,
   VendorInventoryStatus,
   VendorInventoryTone,
+  VendorRailSectionWorkspace,
+  VendorsPageModel,
   VendorsPageWorkspace
 } from "./workspaces/vendorsPage.js";
 export { createVendorsPageWorkspace } from "./workspaces/vendorsPage.js";

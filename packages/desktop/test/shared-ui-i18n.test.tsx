@@ -17,6 +17,11 @@ import {
   VendorsPageContentView,
   type ProductPreferences
 } from "../../ui/src/index";
+import {
+  defaultLibraryEquipmentFilter,
+  defaultLibraryPerkFilter,
+  selectLibraryPageModel
+} from "../../app/src/workspaces/libraryPage";
 
 describe("shared UI i18n", () => {
   it("keeps shell copy keys complete across supported interface locales", () => {
@@ -147,38 +152,57 @@ describe("shared UI i18n", () => {
     const accountHtml = renderToStaticMarkup(
       <AccountPageContentView
         interfaceLocale="en-US"
-        accountSummary={null}
-        startupState={{ cards: { account: { label: "Not signed in" } } }}
-        accountWorkspace={{}}
-        selectedCharacter={null}
-        selectedCharacterId=""
-        isBungieConfigured={false}
-        isAccountLoggedIn={false}
-        canLoadAccount={false}
-        isLoadingAccount={false}
-        accountError=""
-        itemDetailError=""
-        itemDetailLoadingKey=""
-        writeActionsEnabled={false}
-        activitySummary={null}
-        activityMessage=""
-        activityError=""
-        loadoutMessage=""
-        itemActionMessage=""
-        isRunningItemAction={false}
-        activeLoadoutLookup={null}
-        activeLoadoutTemplate={null}
-        onConfigureBungie={() => undefined}
-        onLoginBungie={() => undefined}
-        onLoadAccount={() => undefined}
-        onRefreshActivity={() => undefined}
-        onSelectCharacter={() => undefined}
-        onSaveCharacterLoadout={() => undefined}
-        onEquipHighestPowerItems={() => undefined}
-        onOpenItem={() => undefined}
-        isLoadoutMatch={() => false}
-        getAccountPageItemKey={() => ""}
-        formatAccountItemMeta={() => ""}
+        viewModel={{
+          connection: {
+            hasAccount: false,
+            isBungieConfigured: false,
+            isAccountLoggedIn: false,
+            canLoadAccount: false,
+            isLoadingAccount: false,
+            accountStatusLabel: "Not signed in"
+          },
+          feedback: {
+            accountError: "",
+            itemDetailError: "",
+            loadoutMessage: "",
+            itemActionMessage: "",
+            activityMessage: "",
+            activityError: "",
+            writeActionsEnabled: false
+          },
+          profile: null,
+          navigation: [],
+          characterTabs: [],
+          selectedCharacter: null,
+          loadout: {
+            equippedCount: 0,
+            inventoryCount: 0,
+            selectedCharacterLoadoutMatchCount: 0,
+            isRunningItemAction: false,
+            slotComparisonRows: []
+          },
+          activity: {
+            summary: null,
+            message: "",
+            error: ""
+          },
+          materials: {
+            rows: []
+          },
+          postmaster: {
+            items: []
+          }
+        }}
+        actions={{
+          configureBungie: () => undefined,
+          loginBungie: () => undefined,
+          refreshAccount: () => undefined,
+          refreshActivity: () => undefined,
+          selectCharacter: () => undefined,
+          saveCurrentLoadout: () => undefined,
+          equipHighestPower: () => undefined,
+          openItem: () => undefined
+        }}
       />
     );
 
@@ -256,54 +280,48 @@ describe("shared UI i18n", () => {
     const libraryHtml = renderToStaticMarkup(
       <LibraryPageContentView
         interfaceLocale="en-US"
-        libraryViewMode="equipment"
-        items={[]}
-        perks={[]}
-        equipmentFilters={{
-          query: "",
-          group: "all",
-          tier: "all",
-          bucket: "all",
-          ammo: "all",
-          frame: [],
-          sourceStatus: "all",
-          perkPool: "all",
-          dropAccess: "all",
-          perkQuery: ""
+        model={selectLibraryPageModel({
+          items: [],
+          perks: [],
+          libraryHistory: { recent: [], favorites: [] },
+          libraryCommunityMatch: new Map(),
+          liveAvailability: null,
+          liveAvailabilityError: "",
+          manifestStatus: null,
+          manifestStatusError: ""
+        }, {
+          libraryViewMode: "equipment",
+          equipmentFilters: defaultLibraryEquipmentFilter,
+          perkFilters: defaultLibraryPerkFilter,
+          equipmentSearchTouched: false,
+          perkSearchTouched: false,
+          isSearching: false,
+          searchError: "",
+          aliasDraft: "",
+          aliasTargetDraft: "",
+          aliasKind: "item",
+          aliasMessage: "",
+          isLoadingLiveAvailability: false,
+          isLoadingManifestStatus: false,
+          isInitializingManifest: false,
+          itemDetailLoadingKey: ""
+        })}
+        actions={{
+          onViewModeChange: () => undefined,
+          onEquipmentFiltersChange: () => undefined,
+          onPerkFiltersChange: () => undefined,
+          onSearch: () => undefined,
+          onClearFilters: () => undefined,
+          onRefreshManifestStatus: () => undefined,
+          onInitializeManifest: () => undefined,
+          onAliasDraftChange: () => undefined,
+          onAliasTargetDraftChange: () => undefined,
+          onAliasKindChange: () => undefined,
+          onSaveAlias: () => undefined,
+          onOpenItemDetail: () => undefined,
+          onAddFavorite: () => undefined,
+          onRemoveFavorite: () => undefined
         }}
-        perkFilters={{ query: "", relatedGroup: "all", hasRelatedItems: "all" }}
-        equipmentSearchTouched={false}
-        perkSearchTouched={false}
-        isSearching={false}
-        searchError=""
-        aliasDraft=""
-        aliasTargetDraft=""
-        aliasKind="item"
-        aliasMessage=""
-        libraryHistory={{ recent: [], favorites: [] }}
-        libraryCommunityMatch={new Map()}
-        liveAvailability={null}
-        liveAvailabilityError=""
-        isLoadingLiveAvailability={false}
-        manifestStatus={null}
-        manifestStatusError=""
-        isLoadingManifestStatus={false}
-        isInitializingManifest={false}
-        itemDetailLoadingKey=""
-        onViewModeChange={() => undefined}
-        onEquipmentFiltersChange={() => undefined}
-        onPerkFiltersChange={() => undefined}
-        onSearch={() => undefined}
-        onClearFilters={() => undefined}
-        onRefreshManifestStatus={() => undefined}
-        onInitializeManifest={() => undefined}
-        onAliasDraftChange={() => undefined}
-        onAliasTargetDraftChange={() => undefined}
-        onAliasKindChange={() => undefined}
-        onSaveAlias={() => undefined}
-        onOpenItemDetail={() => undefined}
-        onAddFavorite={() => undefined}
-        onRemoveFavorite={() => undefined}
       />
     );
 
@@ -327,49 +345,95 @@ describe("shared UI i18n", () => {
     const loadoutsHtml = renderToStaticMarkup(
       <LoadoutsPageContentView
         interfaceLocale="en-US"
-        accountSummary={null}
-        templates={[selectedLoadoutTemplate]}
-        selectedTemplate={selectedLoadoutTemplate}
-        compareTemplate={null}
-        selectedAnalysis={null}
-        transferPlan={null}
-        statusSummary={[]}
-        visibleCompareRows={[]}
-        missingCount={0}
-        readyCount={0}
-        actionableCount={0}
+        model={{
+          entries: [
+            {
+              id: "local-template-test-build",
+              source: "local-template",
+              title: "Test build",
+              subtitle: "Hunter / 1 item",
+              statusLabel: "Ready",
+              statusTone: "ready",
+              preview: "Local template",
+              templateId: "test-build"
+            }
+          ],
+          selectedEntryId: "local-template-test-build",
+          selectedDetail: {
+            kind: "local-template",
+            template: selectedLoadoutTemplate,
+            analysis: null,
+            transferPlan: null,
+            statusSummary: [],
+            itemRows: [
+              {
+                item: selectedLoadoutTemplate.items[0],
+                status: {
+                  key: "not-found",
+                  badge_tone: "blocked",
+                  badge_label: "Missing",
+                  summary_key: "not-found",
+                  summary_label: "Missing",
+                  location_label: ""
+                },
+                blockedDetails: null,
+                sourceItem: null,
+                transferFeedbackKey: "test-build:hash:1:transfer",
+                equipFeedbackKey: "test-build:hash:1:equip"
+              }
+            ]
+          },
+          riskSummary: {
+            missingCount: 0,
+            readyCount: 0,
+            actionableCount: 0
+          },
+          compare: {
+            compareTemplate: null,
+            options: [],
+            visibleRows: []
+          }
+        }}
+        actions={{
+          selectEntry: () => undefined,
+          selectTemplate: () => undefined,
+          selectCompareTemplate: () => undefined,
+          renameDraftChange: () => undefined,
+          showDiffOnlyChange: () => undefined,
+          renameTemplate: () => undefined,
+          deleteTemplate: () => undefined,
+          createTransferPlan: () => undefined,
+          copyMissingItems: () => undefined,
+          executeMissingTransfer: () => undefined,
+          executeSingleItemTransfer: () => undefined,
+          equipSingleItem: () => undefined,
+          equipSavedLoadout: () => undefined,
+          snapshotCurrentLoadout: () => undefined,
+          openTemplateSourceItem: () => undefined
+        }}
         compareTemplateId=""
         renameDraft=""
         showDiffOnly={false}
         message=""
         isRunningItemAction={false}
         actionFeedback={{}}
-        getItemStatus={() => ({ key: "missing", badge_tone: "neutral", badge_label: "Missing", location_label: "" })}
-        getBlockedDetails={() => null}
-        getSourceItem={() => null}
-        getActionFeedbackKey={() => ""}
-        formatComparePerks={(perks) => perks.join(" / ")}
-        onSelectTemplate={() => undefined}
-        onSelectCompareTemplate={() => undefined}
-        onRenameDraftChange={() => undefined}
-        onShowDiffOnlyChange={() => undefined}
-        onRenameTemplate={() => undefined}
-        onDeleteTemplate={() => undefined}
-        onCreateTransferPlan={() => undefined}
-        onCopyMissingItems={() => undefined}
-        onExecuteMissingTransfer={() => undefined}
-        onExecuteSingleItemTransfer={() => undefined}
-        onEquipSingleItem={() => undefined}
-        onEquipSavedLoadout={() => undefined}
-        onSnapshotCurrentLoadout={() => undefined}
-        onOpenTemplateSourceItem={() => undefined}
       />
     );
 
     const vendorsHtml = renderToStaticMarkup(
       <VendorsPageContentView
         interfaceLocale="en-US"
-        vendors={[]}
+        model={{
+          vendors: [],
+          railSections: [],
+          defaultVendorId: null,
+          updatedLabel: "Prototype mock",
+          sourceLabel: "Bungie / Manifest / imported recommendations",
+          nextResetLabel: "Daily or weekend reset",
+          recommendationCount: 0,
+          verifiedItemCount: 0
+        }}
+        actions={{}}
       />
     );
 

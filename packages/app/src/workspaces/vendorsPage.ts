@@ -2,6 +2,7 @@ import type { DailySummary, DailySummaryItem } from "@d2-tools/core/daily/summar
 
 export type VendorInventoryTone = "exotic" | "weapon" | "armor" | "material";
 export type VendorInventoryStatus = "owned" | "recommended" | "unknown";
+export type VendorInventoryState = "loaded" | "empty" | "not_read" | "unavailable";
 
 export type VendorInventoryItemWorkspace = {
   id: string;
@@ -29,12 +30,33 @@ export type VendorInventoryGroupWorkspace = {
   iconLabel?: string;
   iconUrl?: string;
   statusLabel?: string;
+  taskCategory?: string;
+  displayStatusLabel?: string;
+  inventoryState?: VendorInventoryState;
+  inventoryStateLabel?: string;
+  railStatusLabel?: string;
+  detailToolbar?: VendorDetailToolbarWorkspace;
   featured?: boolean;
   items: VendorInventoryItemWorkspace[];
 };
 
-export type VendorsPageWorkspace = {
+export type VendorRailSectionWorkspace = {
+  id: "featured" | "ritual" | "weekend" | "cosmetic" | "other";
+  title: string;
   vendors: VendorInventoryGroupWorkspace[];
+};
+
+export type VendorDetailToolbarWorkspace = {
+  taskCategory: string;
+  inventoryStateLabel: string;
+  statusLabel: string;
+  itemCountLabel: string;
+};
+
+export type VendorsPageModel = {
+  vendors: VendorInventoryGroupWorkspace[];
+  railSections: VendorRailSectionWorkspace[];
+  defaultVendorId: string | null;
   updatedLabel: string;
   sourceLabel: string;
   nextResetLabel: string;
@@ -42,19 +64,21 @@ export type VendorsPageWorkspace = {
   verifiedItemCount: number;
 };
 
+export type VendorsPageWorkspace = VendorsPageModel;
+
 const publicVendorSourceLabel = "Bungie 公共商人";
 
 export function createVendorsPageWorkspace(dailySummary: DailySummary | null): VendorsPageWorkspace {
   const vendorSource = dailySummary?.sources.vendors;
   if (!dailySummary || vendorSource?.status !== "ready") {
-    return {
+    return buildVendorsPageWorkspace({
       vendors: createLocalVendorDirectory(dailySummary?.daily_reset.time_remaining_label ?? "等待每日重置时间"),
       updatedLabel: dailySummary?.date_label ? `更新：${dailySummary.date_label}` : "等待商人数据",
       sourceLabel: "等待 Bungie 公共商人",
       nextResetLabel: dailySummary?.daily_reset.time_remaining_label ?? "等待每日重置时间",
       recommendationCount: 0,
       verifiedItemCount: 0
-    };
+    });
   }
 
   const vendorItems = vendorSource.items ?? [];
@@ -64,7 +88,7 @@ export function createVendorsPageWorkspace(dailySummary: DailySummary | null): V
   const vendors = mergeLiveVendorsWithDirectory(liveVendors, dailySummary.daily_reset.time_remaining_label);
   const verifiedItemCount = liveVendors.reduce((count, vendor) => count + vendor.items.length, 0);
 
-  return {
+  return buildVendorsPageWorkspace({
     vendors,
     updatedLabel: dailySummary?.date_label ? `更新：${dailySummary.date_label}` : "等待商人数据",
     sourceLabel: liveVendors[0]?.source ?? publicVendorSourceLabel,
@@ -74,6 +98,23 @@ export function createVendorsPageWorkspace(dailySummary: DailySummary | null): V
       0
     ),
     verifiedItemCount
+  });
+}
+
+function buildVendorsPageWorkspace(input: {
+  vendors: VendorInventoryGroupWorkspace[];
+  updatedLabel: string;
+  sourceLabel: string;
+  nextResetLabel: string;
+  recommendationCount: number;
+  verifiedItemCount: number;
+}): VendorsPageWorkspace {
+  const vendors = input.vendors.map(enrichVendorViewModel);
+  return {
+    ...input,
+    vendors,
+    railSections: createVendorRailSections(vendors),
+    defaultVendorId: vendors.find((vendor) => vendor.featured)?.id ?? vendors[0]?.id ?? null
   };
 }
 
@@ -118,7 +159,7 @@ function mapDailyVendorItem(item: DailySummaryItem, dailySummary: DailySummary, 
     badge: "已确认",
     source,
     resetLabel: dailySummary.daily_reset.time_remaining_label,
-    category: isFeaturedVendor(vendorName, item.vendorHash) ? "重点" : "实时",
+    category: isFeaturedVendor(vendorName, item.vendorHash) ? "重点" : "已确认",
     iconLabel: getIconLabel(vendorName),
     iconUrl: normalizeBungieIconUrl(item.iconUrl ?? item.icon),
     statusLabel: "已确认",
@@ -158,7 +199,7 @@ function createLocalVendorDirectory(resetLabel: string): VendorInventoryGroupWor
       id: "xur",
       vendorHash: 2190858386,
       name: "周末异域商人",
-      description: "周末异域商人；实时库存接入后展示本周售卖和价格。",
+      description: "周末异域商人；库存读取后展示本周售卖和价格。",
       badge: "周末",
       category: "重点",
       iconLabel: "Xû",
@@ -277,10 +318,83 @@ function createDirectoryVendor(input: {
     category: input.category,
     iconLabel: input.iconLabel,
     iconUrl: input.iconUrl,
-    statusLabel: "等待实时库存",
+    statusLabel: "等待库存读取",
     featured: input.featured,
     items: input.items
   };
+}
+
+const vendorRailSectionOrder: Array<Pick<VendorRailSectionWorkspace, "id" | "title">> = [
+  { id: "featured", title: "重点库存" },
+  { id: "ritual", title: "仪式声望" },
+  { id: "weekend", title: "周末活动" },
+  { id: "cosmetic", title: "外观 / 服务" },
+  { id: "other", title: "其他商人" }
+];
+
+function createVendorRailSections(vendors: VendorInventoryGroupWorkspace[]): VendorRailSectionWorkspace[] {
+  return vendorRailSectionOrder.map((section) => ({
+    ...section,
+    vendors: vendors.filter((vendor) => vendor.taskCategory === section.title)
+  }));
+}
+
+function enrichVendorViewModel(vendor: VendorInventoryGroupWorkspace): VendorInventoryGroupWorkspace {
+  const taskCategory = getVendorTaskCategory(vendor);
+  const inventoryState = getVendorInventoryState(vendor);
+  const displayStatusLabel = getVendorDisplayStatusLabel(vendor, inventoryState);
+  const inventoryStateLabel = getVendorInventoryStateLabel(inventoryState);
+  const itemCountLabel = `${vendor.items.length} 件物品`;
+  return {
+    ...vendor,
+    taskCategory,
+    displayStatusLabel,
+    inventoryState,
+    inventoryStateLabel,
+    railStatusLabel: `${displayStatusLabel} · ${itemCountLabel}`,
+    detailToolbar: {
+      taskCategory,
+      inventoryStateLabel,
+      statusLabel: displayStatusLabel,
+      itemCountLabel
+    }
+  };
+}
+
+function getVendorInventoryState(vendor: VendorInventoryGroupWorkspace): VendorInventoryState {
+  if (vendor.items.length > 0) return "loaded";
+  if (vendor.source === "本地商人目录") return "not_read";
+  if (vendor.statusLabel === "已确认") return "empty";
+  return "unavailable";
+}
+
+function getVendorDisplayStatusLabel(vendor: VendorInventoryGroupWorkspace, inventoryState: VendorInventoryState): string {
+  if (inventoryState === "not_read") return "未读取";
+  if (inventoryState === "empty") return "暂无可读库存";
+  if (inventoryState === "unavailable") return "无法确认";
+  return vendor.statusLabel ?? vendor.badge;
+}
+
+function getVendorInventoryStateLabel(inventoryState: VendorInventoryState): string {
+  if (inventoryState === "loaded") return "库存已读取";
+  if (inventoryState === "empty") return "暂无可读库存";
+  if (inventoryState === "not_read") return "未读取库存";
+  return "无法确认库存";
+}
+
+function getVendorTaskCategory(vendor: VendorInventoryGroupWorkspace): string {
+  const key = vendorMatchKey(`${vendor.id} ${vendor.name} ${vendor.description}`);
+  if (key === "xur" || key === "banshee" || key === "rahool") return "重点库存";
+  if (key === "zavala" || key === "shaxx" || key === "drifter") return "仪式声望";
+  if (key === "saint") return "周末活动";
+  if (key === "ada" || key === "tess") return "外观 / 服务";
+
+  const value = `${vendor.id} ${vendor.name} ${vendor.description} ${vendor.category ?? ""}`.toLocaleLowerCase();
+  if (/xur|仄|周末异域|banshee|班西|武器商人|rahool|拉乎尔|记忆水晶/.test(value)) return "重点库存";
+  if (/zavala|先锋|vanguard|shaxx|熔炉|crucible|drifter|浪客|智谋|gambit/.test(value)) return "仪式声望";
+  if (/saint|试炼|trials|周末活动/.test(value)) return "周末活动";
+  if (/ada|护甲合成|tess|外观|appearance|eververse|永恒之诗/.test(value)) return "外观 / 服务";
+  return "其他商人";
 }
 
 function parseInventoryDescription(

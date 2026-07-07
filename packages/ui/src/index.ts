@@ -33,6 +33,7 @@ export type {
 export { LibraryPageView } from "./library/LibraryPageView.js";
 export type { LibraryPageViewMode } from "./library/LibraryPageView.js";
 export { LibraryPageContentView } from "./library/LibraryPageContentView.js";
+export type { LibraryPageActions, LibraryPageContentViewProps } from "./library/LibraryPageContentView.js";
 export type {
   LibraryDropAccessKey,
   LibraryEquipmentFilter,
@@ -41,6 +42,7 @@ export type {
 } from "./library/libraryFilters.js";
 export { LoadoutsPageView } from "./loadouts/LoadoutsPageView.js";
 export { LoadoutsPageContentView } from "./loadouts/LoadoutsPageContentView.js";
+export type { LoadoutsPageActions } from "./loadouts/LoadoutsPageContentView.js";
 export type { LoadoutActionFeedbackState } from "./loadouts/loadoutActionFeedback.js";
 export { ProductShellHost } from "./product/ProductShellHost.js";
 export type { ProductShellHostProps } from "./product/types.js";
@@ -69,9 +71,13 @@ export { VendorsPageView } from "./vendors/VendorsPageView.js";
 export type { VendorsPageViewProps } from "./vendors/VendorsPageView.js";
 export { VendorsPageContentView } from "./vendors/VendorsPageContentView.js";
 export type {
+  VendorDetailToolbarView,
   VendorInventoryGroupView,
   VendorInventoryItemView,
-  VendorsPageContentViewProps
+  VendorRailSectionView,
+  VendorsPageActions,
+  VendorsPageContentViewProps,
+  VendorsPageModelView
 } from "./vendors/VendorsPageContentView.js";
 export { VaultPageView } from "./vault/VaultPageView.js";
 export { VaultPageContentView } from "./vault/VaultPageContentView.js";

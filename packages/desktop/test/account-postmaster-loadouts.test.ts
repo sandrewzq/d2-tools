@@ -17,7 +17,7 @@ describe("account postmaster and loadout UI", () => {
       readFileSync(join(desktopRoot, "src", "renderer", "features", "loadouts", "LoadoutsPage.tsx"), "utf8")
     ].join("\n");
 
-    expect(accountPage).toContain("accountWorkspace.postmasterPreviewItems");
+    expect(accountPage).toContain("viewModel.postmaster.items");
     expect(accountPage).toContain("邮政官");
     expect(accountPage).not.toContain("accountWorkspace.loadoutSlotRows");
     expect(accountPage).not.toContain("游戏内配装栏");

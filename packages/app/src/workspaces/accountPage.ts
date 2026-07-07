@@ -1,4 +1,142 @@
 import type { AccountItemSummary, AccountMaterialSummary, AccountSummary } from "@d2-tools/core/account/summary";
+import type { ActivityHistorySummary } from "@d2-tools/core/activities/history";
+
+export type AccountOpenItemPayload = {
+  item: AccountItemSummary;
+  source_character_id: string;
+  source_kind?: "equipped" | "inventory";
+  is_postmaster_item?: boolean;
+};
+
+export type AccountItemView = {
+  key: string;
+  name: string;
+  icon?: string;
+  meta: string;
+  isPending: boolean;
+  isLoadoutMatch: boolean;
+  openPayload: AccountOpenItemPayload;
+};
+
+export type AccountCharacterTabView = {
+  key: string;
+  className: string;
+  lightLabel: string;
+  emblemUrl?: string;
+  isSelected: boolean;
+};
+
+export type AccountSlotComparisonViewRow = {
+  key: string;
+  label: string;
+  category: AccountSlotCategoryKey;
+  equippedItems: AccountItemView[];
+  inventoryItems: AccountItemView[];
+};
+
+export type AccountConnectionView = {
+  hasAccount: boolean;
+  isBungieConfigured: boolean;
+  isAccountLoggedIn: boolean;
+  canLoadAccount: boolean;
+  isLoadingAccount: boolean;
+  accountStatusLabel?: string;
+};
+
+export type AccountFeedbackView = {
+  accountError: string;
+  itemDetailError: string;
+  loadoutMessage: string;
+  itemActionMessage: string;
+  activityMessage: string;
+  activityError: string;
+  writeActionsEnabled: boolean;
+};
+
+export type AccountProfileView = {
+  accountName: string;
+  profileLine: string;
+  inventoryLine: string;
+};
+
+export type AccountPageNavItem = {
+  key: "profile" | "loadout" | "activity" | "materials" | "postmaster";
+  href: string;
+  labelKey: "overview" | "loadout" | "activity" | "materials" | "postmaster";
+};
+
+export type AccountCharacterDetailView = {
+  characterId: string;
+  className: string;
+  lightLabel: string;
+  emblemUrl?: string;
+  summary: string;
+};
+
+export type AccountLoadoutSectionView = {
+  equippedCount: number;
+  inventoryCount: number;
+  activeTemplateName?: string;
+  selectedCharacterLoadoutMatchCount: number;
+  isRunningItemAction: boolean;
+  slotComparisonRows: AccountSlotComparisonViewRow[];
+};
+
+export type AccountActivitySectionView = {
+  summary: ActivityHistorySummary | null;
+  message: string;
+  error: string;
+};
+
+export type AccountMaterialsSectionView = {
+  rows: AccountMaterialRow[];
+};
+
+export type AccountPostmasterSectionView = {
+  items: AccountItemView[];
+};
+
+export type AccountPageViewModel = {
+  connection: AccountConnectionView;
+  feedback: AccountFeedbackView;
+  profile: AccountProfileView | null;
+  navigation: AccountPageNavItem[];
+  characterTabs: AccountCharacterTabView[];
+  selectedCharacter: AccountCharacterDetailView | null;
+  loadout: AccountLoadoutSectionView;
+  activity: AccountActivitySectionView;
+  materials: AccountMaterialsSectionView;
+  postmaster: AccountPostmasterSectionView;
+};
+
+export type SharedDomainCache = {
+  accountSummary: AccountSummary | null;
+  activitySummary: ActivityHistorySummary | null;
+};
+
+export type AccountPageState = {
+  selectedCharacterId: string;
+  openingItemKey?: string;
+  isLoadoutMatch?: (item: AccountItemSummary) => boolean;
+  isBungieConfigured: boolean;
+  isAccountLoggedIn: boolean;
+  isLoadingAccount: boolean;
+  writeActionsEnabled: boolean;
+  accountStatusLabel?: string;
+  accountError: string;
+  itemDetailError: string;
+  activityMessage: string;
+  activityError: string;
+  loadoutMessage: string;
+  itemActionMessage: string;
+  isRunningItemAction: boolean;
+  activeLoadoutTemplateName?: string;
+};
+
+export type AccountPageModelInput = {
+  cache: SharedDomainCache;
+  pageState: AccountPageState;
+};
 
 export type AccountPageWorkspace = {
   accountProfileLine: string;
@@ -147,6 +285,144 @@ export function createAccountPageWorkspace(input: {
     selectedCharacterSummary: selectedCharacter
       ? `光等 ${selectedCharacter.light ?? "-"} / 已装备 ${selectedCharacter.equipped_items.length} 件 / 背包 ${selectedCharacter.inventory_items.length} 件`
       : ""
+  };
+}
+
+export function selectAccountPageModel(input: AccountPageModelInput): AccountPageViewModel {
+  const { cache, pageState } = input;
+  const workspace = createAccountPageWorkspace({
+    account: cache.accountSummary,
+    selectedCharacterId: pageState.selectedCharacterId,
+    openingItemKey: pageState.openingItemKey,
+    isLoadoutMatch: pageState.isLoadoutMatch
+  });
+  const selectedCharacter = workspace.selectedCharacter;
+  const selectedCharacterId = selectedCharacter?.character_id ?? "";
+  const openingItemKey = pageState.openingItemKey ?? "";
+  const isLoadoutMatch = pageState.isLoadoutMatch ?? (() => false);
+
+  return {
+    connection: {
+      hasAccount: Boolean(cache.accountSummary),
+      isBungieConfigured: pageState.isBungieConfigured,
+      isAccountLoggedIn: pageState.isAccountLoggedIn,
+      canLoadAccount: pageState.isBungieConfigured && pageState.isAccountLoggedIn,
+      isLoadingAccount: pageState.isLoadingAccount,
+      accountStatusLabel: pageState.accountStatusLabel
+    },
+    feedback: {
+      accountError: pageState.accountError,
+      itemDetailError: pageState.itemDetailError,
+      loadoutMessage: pageState.loadoutMessage,
+      itemActionMessage: pageState.itemActionMessage,
+      activityMessage: pageState.activityMessage,
+      activityError: pageState.activityError,
+      writeActionsEnabled: pageState.writeActionsEnabled
+    },
+    profile: cache.accountSummary
+      ? {
+        accountName: cache.accountSummary.account_name,
+        profileLine: workspace.accountProfileLine,
+        inventoryLine: workspace.accountInventoryLine
+      }
+      : null,
+    navigation: accountPageNavigation(),
+    characterTabs: workspace.characterTabs.map((tab) => ({
+      key: tab.key,
+      className: tab.className,
+      lightLabel: tab.lightLabel,
+      emblemUrl: tab.emblemUrl,
+      isSelected: tab.isSelected
+    })),
+    selectedCharacter: selectedCharacter
+      ? {
+        characterId: selectedCharacter.character_id,
+        className: selectedCharacter.class_name,
+        lightLabel: `光等 ${selectedCharacter.light ?? "-"}`,
+        emblemUrl: selectedCharacter.emblem_url,
+        summary: workspace.selectedCharacterSummary
+      }
+      : null,
+    loadout: {
+      equippedCount: selectedCharacter?.equipped_items.length ?? 0,
+      inventoryCount: selectedCharacter?.inventory_items.length ?? 0,
+      activeTemplateName: pageState.activeLoadoutTemplateName,
+      selectedCharacterLoadoutMatchCount: workspace.selectedCharacterLoadoutMatchCount,
+      isRunningItemAction: pageState.isRunningItemAction,
+      slotComparisonRows: workspace.slotComparisonRows.map((row) => ({
+        key: row.key,
+        label: row.label,
+        category: row.category,
+        equippedItems: row.equippedItems.map((item) => toAccountItemView({
+          item,
+          sourceCharacterId: selectedCharacterId,
+          sourceKind: "equipped",
+          openingItemKey,
+          isLoadoutMatch
+        })),
+        inventoryItems: row.inventoryItems.map((item) => toAccountItemView({
+          item,
+          sourceCharacterId: selectedCharacterId,
+          sourceKind: "inventory",
+          openingItemKey,
+          isLoadoutMatch
+        }))
+      }))
+    },
+    activity: {
+      summary: cache.activitySummary,
+      message: pageState.activityMessage,
+      error: pageState.activityError
+    },
+    materials: {
+      rows: workspace.materialRows
+    },
+    postmaster: {
+      items: selectedCharacter
+        ? selectedCharacter.postmaster_items.slice(0, 12).map((item) => toAccountItemView({
+          item,
+          sourceCharacterId: selectedCharacter.character_id,
+          openingItemKey,
+          isLoadoutMatch,
+          isPostmasterItem: true
+        }))
+        : []
+    }
+  };
+}
+
+function accountPageNavigation(): AccountPageNavItem[] {
+  return [
+    { key: "profile", href: "#account-profile", labelKey: "overview" },
+    { key: "loadout", href: "#account-loadout", labelKey: "loadout" },
+    { key: "activity", href: "#account-activity", labelKey: "activity" },
+    { key: "materials", href: "#account-materials", labelKey: "materials" },
+    { key: "postmaster", href: "#account-postmaster", labelKey: "postmaster" }
+  ];
+}
+
+function toAccountItemView(input: {
+  item: AccountItemSummary;
+  sourceCharacterId: string;
+  sourceKind?: "equipped" | "inventory";
+  openingItemKey: string;
+  isLoadoutMatch: (item: AccountItemSummary) => boolean;
+  isPostmasterItem?: boolean;
+}): AccountItemView {
+  const key = getAccountPageItemKey(input.item);
+  return {
+    key,
+    name: input.item.name,
+    icon: input.item.icon,
+    meta: formatAccountItemMeta(input.item),
+    isPending: key === input.openingItemKey,
+    isLoadoutMatch: input.isLoadoutMatch(input.item),
+    openPayload: {
+      item: input.item,
+      source_character_id: input.sourceCharacterId,
+      source_kind: input.sourceKind,
+      is_postmaster_item: input.isPostmasterItem
+    }
   };
 }
 

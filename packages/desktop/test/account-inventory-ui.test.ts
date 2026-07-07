@@ -49,7 +49,7 @@ describe("account inventory UI", () => {
     expect(accountPage).toContain("account-primary-workbench");
     expect(accountPage).toContain("account-slot-comparison");
     expect(accountPage).toContain("account-slot-comparison-row");
-    expect(accountPage).toContain("accountWorkspace.slotComparisonRows");
+    expect(accountPage).toContain("viewModel.loadout.slotComparisonRows");
     expect(accountPage).toContain("account-secondary-workbench");
     expect(accountPage).toContain("account-character-summary");
     expect(accountPage).toContain("account-equipped-panel");
@@ -57,8 +57,8 @@ describe("account inventory UI", () => {
     expect(accountPage).not.toContain("accountWorkspace.equippedSlotCategories");
     expect(accountPage).not.toContain("accountWorkspace.inventorySlotCategories");
     expect(accountPage).toContain("account-slot-comparison-column");
-    expect(accountPage).toContain("onOpenEquippedItem");
-    expect(accountPage).toContain("onOpenInventoryItem");
+    expect(accountPage).toContain("openPayload");
+    expect(accountPage).toContain("source_kind");
     expect(accountPage).not.toContain("account-slot-source-cluster");
     expect(accountPage).not.toContain('renderAccountSlotSourceCluster("已装备"');
     expect(accountPage).not.toContain('renderAccountSlotSourceCluster("背包"');
@@ -66,7 +66,7 @@ describe("account inventory UI", () => {
     expect(accountPage).toContain('source === "equipped" ? "equipped" : "inventory"');
     expect(accountPage).toContain("装备最高光等");
     expect(loadoutWriteHook).toContain("createHighestPowerEquipPlan");
-    expect(accountPage).toContain("source_character_id: selectedCharacter.character_id");
+    expect(accountPage).toContain("source_character_id: payload.source_character_id");
   });
 
   it("highlights items that belong to the selected local loadout template", () => {
@@ -80,7 +80,7 @@ describe("account inventory UI", () => {
     expect(accountPage).toContain("matchesLoadoutTemplateItem");
     expect(accountPage).toContain("loadout-template-badge");
     expect(accountPage).toContain("loadout-highlight");
-    expect(accountPage).toContain("highlightedTemplate");
+    expect(accountPage).toContain("activeLoadoutTemplateName");
   });
 
   it("shows how many current character items match the active local loadout", () => {
@@ -134,8 +134,8 @@ describe("account inventory UI", () => {
     const accountContentView = readAccountContentView();
 
     expect(accountContentView).toContain('className="account-page-actions"');
-    expect(accountContentView).toContain('onClick={props.onLoadAccount}');
-    expect(accountContentView).toContain('onClick={props.onLoginBungie}');
+    expect(accountContentView).toContain("onClick={actions.refreshAccount}");
+    expect(accountContentView).toContain("onClick={actions.loginBungie}");
     expect(accountContentView).toContain('accountText(copy, "刷新账号")');
     expect(accountContentView).toContain('accountText(copy, "重新授权")');
   });
@@ -177,7 +177,7 @@ describe("account inventory UI", () => {
     const accountPage = readAccountPage();
 
     expect(accountPage).toContain("材料与消耗品");
-    expect(accountPage).toContain("accountWorkspace.materialRows");
+    expect(accountPage).toContain("viewModel.materials.rows");
     expect(accountPage).toContain("row.material.quantity");
     expect(homePage).not.toContain("materials.items.slice(0, 40)");
     expect(homePage).not.toContain("仓库预览");
@@ -190,17 +190,14 @@ describe("account inventory UI", () => {
     expect(accountPage).toContain('className="account-page-shell"');
     expect(accountPage).toContain('className="account-page-nav"');
     expect(accountPage).toContain('ariaLabel={accountText(copy, "账号目录")}');
-    expect(accountPage).toContain('href="#account-profile"');
-    expect(accountPage).toContain('href="#account-loadout"');
-    expect(accountPage).toContain('href="#account-activity"');
-    expect(accountPage).toContain('href="#account-materials"');
-    expect(accountPage).toContain('href="#account-postmaster"');
+    expect(accountPage).toContain("href={item.href}");
+    expect(accountPage).toContain("key={item.key}");
+    expect(accountPage).toContain("copy.nav[item.labelKey]");
     expect(accountPage).toContain('id="account-profile"');
     expect(accountPage).toContain('id="account-loadout"');
     expect(accountPage).toContain('id="account-activity"');
     expect(accountPage).toContain('id="account-materials"');
     expect(accountPage).toContain('id="account-postmaster"');
-    expect(accountPage).toContain("copy.nav.overview");
     expect(styles).toContain(".account-page-nav");
     expect(styles).toContain(".account-page-main");
     expect(styles).toMatch(/\.account-secondary-workbench\s*{[\s\S]*?grid-template-columns:\s*1fr;/);
@@ -226,6 +223,26 @@ describe("account inventory UI", () => {
     expect(styles).toMatch(/\.activity-review-summary-card\s*{[\s\S]*?display:\s*grid;[\s\S]*?gap:\s*6px;/);
     expect(styles).toMatch(/\.activity-review-summary-card \.activity-review-stat-line\s*{[\s\S]*?display:\s*flex;[\s\S]*?flex-wrap:\s*wrap;/);
     expect(styles).toMatch(/\.activity-review-summary-card strong\s*{[\s\S]*?font-size:\s*20px;/);
+  });
+
+  it("routes the account page through a stable view model instead of wide UI props", () => {
+    const accountContentView = readAccountContentView();
+    const desktopAccountPage = readFileSync(
+      join(desktopRoot, "src", "renderer", "features", "account", "AccountPage.tsx"),
+      "utf8"
+    );
+    const prototypeMain = readFileSync(join(desktopRoot, "..", "prototype", "src", "main.tsx"), "utf8");
+    const webMain = readFileSync(join(desktopRoot, "..", "web", "src", "main.tsx"), "utf8");
+
+    expect(accountContentView).toContain("viewModel: AccountPageViewModel");
+    expect(accountContentView).toContain("actions: AccountPageActions");
+    expect(accountContentView).not.toContain("type AnyAccount");
+    expect(accountContentView).not.toContain("startupState:");
+    expect(accountContentView).not.toContain("accountWorkspace:");
+    expect(accountContentView).not.toContain("selectedCharacter:");
+    expect(desktopAccountPage).toContain("selectAccountPageModel");
+    expect(prototypeMain).toContain("selectAccountPageModel");
+    expect(webMain).toContain("selectAccountPageModel");
   });
 
   it("collapses account workbench columns when the AI drawer is open", () => {
