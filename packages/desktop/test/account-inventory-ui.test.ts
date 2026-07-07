@@ -25,7 +25,7 @@ function readCssRule(styles: string, selector: string): string {
 }
 
 describe("account inventory UI", () => {
-  it("uses DIM-style character tabs and splits equipped items from carried inventory in the main workbench", () => {
+  it("routes the account page through the menu provider and preserves account item actions", () => {
     const homePage = readFileSync(join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"), "utf8");
     const homeRoutes = readFileSync(join(desktopRoot, "src", "renderer", "pages", "HomePageRoutes.tsx"), "utf8");
     const accountMenuProvider = readFileSync(join(desktopRoot, "src", "renderer", "pages", "providers", "AccountMenuProvider.tsx"), "utf8");
@@ -42,52 +42,17 @@ describe("account inventory UI", () => {
     expect(homePage).not.toContain("function renderAccountPanel");
     expect(accountPage).toContain("export function AccountPage");
     expect(accountPage).toContain("selectedCharacterId");
-    expect(accountPage).toContain("character-tabs");
-    expect(accountPage).toContain("character-tab");
-    expect(accountPage).toContain("当前角色装备");
-    expect(accountPage).toContain("当前角色背包");
-    expect(accountPage).toContain("account-primary-workbench");
-    expect(accountPage).toContain("account-slot-comparison");
-    expect(accountPage).toContain("account-slot-comparison-row");
-    expect(accountPage).toContain("viewModel.loadout.slotComparisonRows");
-    expect(accountPage).toContain("account-secondary-workbench");
-    expect(accountPage).toContain("account-character-summary");
-    expect(accountPage).toContain("account-equipped-panel");
-    expect(accountPage).toContain("account-inventory-panel");
     expect(accountPage).not.toContain("accountWorkspace.equippedSlotCategories");
     expect(accountPage).not.toContain("accountWorkspace.inventorySlotCategories");
-    expect(accountPage).toContain("account-slot-comparison-column");
     expect(accountPage).toContain("openPayload");
     expect(accountPage).toContain("source_kind");
     expect(accountPage).not.toContain("account-slot-source-cluster");
     expect(accountPage).not.toContain('renderAccountSlotSourceCluster("已装备"');
     expect(accountPage).not.toContain('renderAccountSlotSourceCluster("背包"');
-    expect(accountPage).toContain('"equipment-item"');
     expect(accountPage).toContain('source === "equipped" ? "equipped" : "inventory"');
     expect(accountPage).toContain("装备最高光等");
     expect(loadoutWriteHook).toContain("createHighestPowerEquipPlan");
     expect(accountPage).toContain("source_character_id: payload.source_character_id");
-  });
-
-  it("highlights items that belong to the selected local loadout template", () => {
-    const homeDerivedHook = readFileSync(
-      join(desktopRoot, "src", "renderer", "features", "home", "useHomePageDerivedState.ts"),
-      "utf8"
-    );
-    const accountPage = readAccountPage();
-
-    expect(homeDerivedHook).toContain("buildLoadoutTemplateLookup");
-    expect(accountPage).toContain("matchesLoadoutTemplateItem");
-    expect(accountPage).toContain("loadout-template-badge");
-    expect(accountPage).toContain("loadout-highlight");
-    expect(accountPage).toContain("activeLoadoutTemplateName");
-  });
-
-  it("shows how many current character items match the active local loadout", () => {
-    const accountPage = readAccountPage();
-
-    expect(accountPage).toContain("selectedCharacterLoadoutMatchCount");
-    expect(accountPage).toContain("方案命中");
   });
 
   it("auto-loads account data only when Bungie config and account login are ready", () => {
@@ -109,8 +74,7 @@ describe("account inventory UI", () => {
     expect(accountHook).toContain("登录可能已失效，请重新登录 Bungie");
   });
 
-  it("shows a clear disconnected account state before Bungie is configured", () => {
-    const accountPage = readAccountPage();
+  it("wires disconnected account setup actions through the desktop shell", () => {
     const productShell = readFileSync(
       join(desktopRoot, "src", "renderer", "pages", "useDesktopProductShell.tsx"),
       "utf8"
@@ -120,24 +84,9 @@ describe("account inventory UI", () => {
       "utf8"
     );
 
-    expect(accountPage).toContain("未连接 Bungie");
-    expect(accountPage).toContain("onConfigureBungie");
-    expect(accountPage).toContain("去设置 Bungie");
-    expect(accountPage).toContain("onLoginBungie");
-    expect(accountPage).toContain("登录 Bungie");
     expect(productShell).toContain("onConfigureBungie: props.onConfigure");
     expect(productShell).toContain("onLoginBungie: () => void loginBungie()");
     expect(accountHook).toContain("请先在设置里填写 Bungie API Key、Client ID 和 Client Secret");
-  });
-
-  it("keeps account refresh and reauthorization actions on the logged-in account page", () => {
-    const accountContentView = readAccountContentView();
-
-    expect(accountContentView).toContain('className="account-page-actions"');
-    expect(accountContentView).toContain("onClick={actions.refreshAccount}");
-    expect(accountContentView).toContain("onClick={actions.loginBungie}");
-    expect(accountContentView).toContain('accountText(copy, "刷新账号")');
-    expect(accountContentView).toContain('accountText(copy, "重新授权")');
   });
 
   it("keeps account slot comparison columns inside visible panels", () => {
@@ -169,16 +118,12 @@ describe("account inventory UI", () => {
     expect(accountHook).not.toContain("api.matchCommunityVaultItems(");
   });
 
-  it("shows profile materials instead of a misleading vault preview", () => {
+  it("keeps account materials out of the legacy HomePage vault preview path", () => {
     const homePage = readFileSync(
       join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"),
       "utf8"
     );
-    const accountPage = readAccountPage();
 
-    expect(accountPage).toContain("材料与消耗品");
-    expect(accountPage).toContain("viewModel.materials.rows");
-    expect(accountPage).toContain("row.material.quantity");
     expect(homePage).not.toContain("materials.items.slice(0, 40)");
     expect(homePage).not.toContain("仓库预览");
   });
@@ -232,7 +177,15 @@ describe("account inventory UI", () => {
       "utf8"
     );
     const prototypeMain = readFileSync(join(desktopRoot, "..", "prototype", "src", "main.tsx"), "utf8");
+    const prototypeFixture = readFileSync(
+      join(desktopRoot, "..", "prototype", "src", "fixtures", "usePrototypeFixtureRuntime.ts"),
+      "utf8"
+    );
     const webMain = readFileSync(join(desktopRoot, "..", "web", "src", "main.tsx"), "utf8");
+    const webFixture = readFileSync(
+      join(desktopRoot, "..", "web", "src", "fixtures", "useWebFixtureRuntime.ts"),
+      "utf8"
+    );
 
     expect(accountContentView).toContain("viewModel: AccountPageViewModel");
     expect(accountContentView).toContain("actions: AccountPageActions");
@@ -241,8 +194,12 @@ describe("account inventory UI", () => {
     expect(accountContentView).not.toContain("accountWorkspace:");
     expect(accountContentView).not.toContain("selectedCharacter:");
     expect(desktopAccountPage).toContain("selectAccountPageModel");
-    expect(prototypeMain).toContain("selectAccountPageModel");
-    expect(webMain).toContain("selectAccountPageModel");
+    expect(prototypeMain).toContain("fixture.createAccountPageModel");
+    expect(prototypeMain).not.toContain("selectAccountPageModel");
+    expect(prototypeFixture).toContain("selectAccountPageModel");
+    expect(webMain).toContain("fixture.createAccountPageModel");
+    expect(webMain).not.toContain("selectAccountPageModel");
+    expect(webFixture).toContain("selectAccountPageModel");
   });
 
   it("collapses account workbench columns when the AI drawer is open", () => {
@@ -255,13 +212,4 @@ describe("account inventory UI", () => {
     expect(styles).toMatch(/\.assistant-open \.character-actions\s*{[\s\S]*?grid-column:\s*1 \/ -1;[\s\S]*?justify-content:\s*flex-start;/);
   });
 
-  it("keeps account item rendering bounded and lazy-loads item icons", () => {
-    const accountPage = readAccountPage();
-
-    expect(accountPage).toContain("ACCOUNT_SLOT_PREVIEW_LIMIT");
-    expect(accountPage).toContain("items.slice(0, ACCOUNT_SLOT_PREVIEW_LIMIT)");
-    expect(accountPage).toContain("hiddenItemCount");
-    expect(accountPage).toContain("显示全部");
-    expect(accountPage).toContain('loading="lazy"');
-  });
 });

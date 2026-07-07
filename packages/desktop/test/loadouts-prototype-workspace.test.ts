@@ -11,8 +11,11 @@ function read(path: string): string {
 describe("prototype loadouts workspace wiring", () => {
   it("uses the shared loadouts page model selector instead of hand-written derived state", () => {
     const prototypeMain = read("packages/prototype/src/main.tsx");
+    const prototypeFixture = read("packages/prototype/src/fixtures/usePrototypeFixtureRuntime.ts");
 
-    expect(prototypeMain).toContain("selectLoadoutsPageModel");
+    expect(prototypeMain).toContain("fixture.createLoadoutsPageModel");
+    expect(prototypeMain).not.toContain("selectLoadoutsPageModel");
+    expect(prototypeFixture).toContain("selectLoadoutsPageModel");
     expect(prototypeMain).toContain("const loadoutsModel = useMemo");
     expect(prototypeMain).toContain("selectedEntryId: selectedLoadoutEntryId");
     expect(prototypeMain).toContain("model={loadoutsModel}");

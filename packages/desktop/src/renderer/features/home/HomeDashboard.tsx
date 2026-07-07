@@ -1,23 +1,8 @@
 import { HomePageContentView, type ShellPageKey } from "@d2-tools/ui";
-import { selectHomePageModel } from "@d2-tools/app";
-import type { DailySummary, StartupState } from "../../api/types";
-import { type DiagnosticRow } from "../../components/DiagnosticsPanel";
+import { selectHomePageModel, type HomePageModelInput } from "@d2-tools/app";
 
-export function HomeDashboard(props: {
+export function HomeDashboard(props: HomePageModelInput & {
   interfaceLocale?: "zh-CN" | "en-US";
-  state: StartupState;
-  isLoggingIn: boolean;
-  isLoadingAccount: boolean;
-  isInitializingManifest: boolean;
-  isRefreshingDiagnostics: boolean;
-  diagnosticRows: DiagnosticRow[];
-  diagnosticError: string;
-  accountError: string;
-  hasAccountData: boolean;
-  dailySummary: DailySummary | null;
-  dailyMessage: string;
-  dailyError: string;
-  isLoadingDaily: boolean;
   onConfigure: () => void;
   onLogin: () => void;
   onLoadAccount: () => void;

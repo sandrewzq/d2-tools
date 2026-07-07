@@ -1,8 +1,11 @@
 import type { AccountSummary } from "@d2-tools/core/account/summary";
-import type { DailySummary } from "@d2-tools/core/daily/summary";
 import type { LoadoutTemplate } from "@d2-tools/core/loadouts/templates";
-import type { StartupState } from "@d2-tools/core/startup/startupState";
-import type { HomeDashboardDiagnosticRow, HomeDashboardWorkspace } from "./homeDashboard.js";
+import type {
+  HomeDashboardDailySummary,
+  HomeDashboardDiagnosticRow,
+  HomeDashboardStartupState,
+  HomeDashboardWorkspace
+} from "./homeDashboard.js";
 import {
   homePageFocus,
   homePageLabels,
@@ -20,12 +23,12 @@ export type AssistantPageContext = {
 export type HomePageModel = HomeDashboardWorkspace;
 
 export type HomePageModelInput = {
-  state: StartupState;
+  state: HomeDashboardStartupState;
   diagnosticRows?: HomeDashboardDiagnosticRow[];
   diagnosticError?: string;
   accountError?: string;
   hasAccountData?: boolean;
-  dailySummary?: DailySummary | null;
+  dailySummary?: HomeDashboardDailySummary | null;
   dailyMessage?: string;
   dailyError?: string;
   isLoggingIn?: boolean;

@@ -1,19 +1,67 @@
-import type { DailySummary } from "@d2-tools/core/daily/summary";
-import type { StartupState } from "@d2-tools/core/startup/startupState";
-
 export type HomeDashboardDiagnosticRow = {
-  label: string;
-  value: string;
-  tone: "ok" | "warning" | "neutral";
+  label?: string;
+  value?: string;
+  tone?: string;
+};
+
+export type HomeDashboardDailyItem = {
+  title: string;
+  subtitle?: string;
+  description?: string;
+  source?: string;
+  iconUrl?: string;
+  icon?: string;
+  iconLabel?: string;
+  items?: HomeDashboardDailyItem[];
+};
+
+export type HomeDashboardDailySource = {
+  status: "neutral" | "ready" | "warning" | "error" | "pending";
+  label?: string;
+  message: string;
+  items?: HomeDashboardDailyItem[];
+};
+
+export type HomeDashboardDailySummary = {
+  date_label?: string;
+  daily_reset: {
+    label: string;
+    next_reset_iso?: string;
+    time_remaining_label: string;
+  };
+  weekly_reset: {
+    label: string;
+    next_reset_iso?: string;
+    time_remaining_label: string;
+  };
+  sources: {
+    rotations: HomeDashboardDailySource;
+    vendors: HomeDashboardDailySource;
+    lost_sector: HomeDashboardDailySource;
+    weekly_report: HomeDashboardDailySource;
+  };
+  checklist: string[];
+  recommendations?: string[];
+};
+
+export type HomeDashboardStartupState = {
+  cards: {
+    manifest: {
+      label: string;
+      status: string;
+      lastUpdated?: string;
+      needsUpdate?: boolean;
+    };
+  };
 };
 
 export type HomeDashboardWorkspace = {
-  state: StartupState;
+  state: HomeDashboardStartupState;
   diagnosticRows: HomeDashboardDiagnosticRow[];
   diagnosticError: string;
   accountError: string;
   hasAccountData: boolean;
-  dailySummary: DailySummary | null;
+  dailySummary: HomeDashboardDailySummary | null;
   dailyMessage: string;
   dailyError: string;
   isLoggingIn: boolean;

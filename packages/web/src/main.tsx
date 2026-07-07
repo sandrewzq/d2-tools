@@ -14,19 +14,11 @@ import {
   type LibraryEquipmentFilter,
   type LibraryPerkFilter,
   type LibraryViewMode,
-  type AiAssistantMessageView,
   type ShellAssistantMode,
   type ShellPageKey
 } from "@d2-tools/ui";
 import {
-  buildLoadoutTemplateLookup,
-  selectLoadoutsPageModel,
-  selectVaultPageModel,
-  selectVendorsPageModel,
   homePageMetaMap,
-  matchesLoadoutTemplateItem,
-  selectAccountPageModel,
-  selectLibraryPageModel
 } from "@d2-tools/app";
 import "@d2-tools/ui/styles.css";
 import {
@@ -57,86 +49,41 @@ function WebApp() {
   const [aliasTargetDraft, setAliasTargetDraft] = useState("喂食狂热");
   const [aliasKind, setAliasKind] = useState<"item" | "perk">("perk");
   const [assistantQuestion, setAssistantQuestion] = useState("");
-  const [assistantMessages, setAssistantMessages] = useState<AiAssistantMessageView[]>(() => [
-    {
-      role: "assistant",
-      text: "Web 入口已接入共享 AI 助手界面。当前使用首页 snapshot 作为上下文，后续由 Web provider 提供真实账号和 AI 服务。"
-    }
-  ]);
+  const [assistantMessages, setAssistantMessages] = useState(() => fixture.assistantInitialMessages);
   const [isAssistantSessionDrawerOpen, setIsAssistantSessionDrawerOpen] = useState(false);
   const [isAssistantContextDrawerOpen, setIsAssistantContextDrawerOpen] = useState(false);
   const platformActions = useMemo(() => ({
     openExternal: adapter.openExternal
   }), [adapter]);
   const hasAccountData = snapshot.shellStatus.some((item) => item.key === "account" && item.tone === "ready");
-  const isBungieConfigured = true;
-  const isAccountLoggedIn = true;
-  const isAiConfigured = true;
-  const selectedTemplate = fixture.loadoutTemplates.find((template) => template.id === selectedTemplateId)
-    ?? fixture.loadoutTemplates[0]
-    ?? null;
-  const activeLoadoutLookup = selectedTemplate ? buildLoadoutTemplateLookup(selectedTemplate) : null;
   const accountViewModel = useMemo(
-    () => selectAccountPageModel({
-      cache: {
-        accountSummary: fixture.accountSummary,
-        activitySummary: fixture.activitySummary
-      },
-      pageState: {
-        selectedCharacterId: selectedAccountCharacterId,
-        openingItemKey: "",
-        isLoadoutMatch: (item) => matchesLoadoutTemplateItem(item, activeLoadoutLookup),
-        isBungieConfigured,
-        isAccountLoggedIn,
-        isLoadingAccount: false,
-        writeActionsEnabled: false,
-        accountStatusLabel: "账号已读取",
-        accountError: "",
-        itemDetailError: "",
-        activityMessage: "",
-        activityError: "",
-        loadoutMessage: "",
-        itemActionMessage: "",
-        isRunningItemAction: false,
-        activeLoadoutTemplateName: selectedTemplate?.name
-      }
+    () => fixture.createAccountPageModel({
+      selectedCharacterId: selectedAccountCharacterId,
+      selectedTemplateId
     }),
-    [activeLoadoutLookup, isBungieConfigured, isAccountLoggedIn, selectedAccountCharacterId, selectedTemplate?.name]
+    [fixture, selectedAccountCharacterId, selectedTemplateId]
   );
   const vaultModel = useMemo(
-    () => selectVaultPageModel({
-      account: fixture.accountSummary,
+    () => fixture.createVaultPageModel({
       selectedCharacterId: selectedAccountCharacterId,
-      activeLoadoutLookup,
-      activeLoadoutName: selectedTemplate?.name,
-      tags: fixture.vaultTags,
-      targetRules: fixture.localTargetRules,
-      wishlist: fixture.wishlist,
-      communityMatch: fixture.vaultCommunityMatch
+      selectedTemplateId
     }),
-    [activeLoadoutLookup, selectedAccountCharacterId, selectedTemplate?.name]
+    [fixture, selectedAccountCharacterId, selectedTemplateId]
   );
-  const webVendorsWorkspace = useMemo(() => selectVendorsPageModel(null), []);
   const loadoutsModel = useMemo(
-    () => selectLoadoutsPageModel({
-      accountSummary: fixture.accountSummary,
-      templates: fixture.loadoutTemplates,
+    () => fixture.createLoadoutsPageModel({
       selectedTemplateId,
       selectedEntryId: selectedLoadoutEntryId,
       compareTemplateId,
       showDiffOnly
     }),
-    [compareTemplateId, selectedLoadoutEntryId, selectedTemplateId, showDiffOnly]
+    [fixture, compareTemplateId, selectedLoadoutEntryId, selectedTemplateId, showDiffOnly]
   );
-  const assistantContext = useMemo(() => ({
-    pageLabel: "首页工作台",
-    focus: "先看官方可确认的今日 / 本周内容，再处理账号、资料库和应用版本状态。",
-    facts: snapshot.shellStatus.map((item) => `${item.label}：${item.value}`),
-    itemCount: 496,
-    characterCount: hasAccountData ? 2 : 0,
-    materialCount: 28,
-    dailyLoaded: true
-  }), [hasAccountData, snapshot.shellStatus]);
+  const assistantContext = useMemo(
+    () => fixture.createAssistantContext(snapshot),
+    [fixture, snapshot]
+  );
+  const assistantContextChip = fixture.createAssistantContextChip(assistantContext);
 
   function appendAssistantReply(prompt: string) {
     const trimmedPrompt = prompt.trim();
@@ -147,7 +94,7 @@ function WebApp() {
       { role: "user", text: trimmedPrompt },
       {
         role: "assistant",
-        text: "这是 Web adapter 的 mock 回复：当前页面使用共享 AI 助手 View，真实回答会在 Web provider 接入账号和 AI 服务后替换。"
+        text: fixture.createAssistantReply()
       }
     ]);
     setAssistantQuestion("");
@@ -192,14 +139,9 @@ function WebApp() {
           activeSessionId={null}
           isSessionDrawerOpen={isAssistantSessionDrawerOpen}
           isContextDrawerOpen={isAssistantContextDrawerOpen}
-          contextChip={[
-            `当前页面：${assistantContext.pageLabel}`,
-            `仓库 ${assistantContext.itemCount} 件`,
-            `角色 ${assistantContext.characterCount} 个`,
-            assistantContext.dailyLoaded ? "今日信息已载入" : "今日信息未载入"
-          ].join(" · ")}
+          contextChip={assistantContextChip}
           context={assistantContext}
-          quickPrompts={["今天先刷什么", "仓库清理建议", "资料库状态怎么处理", "首页哪些状态需要优先看"]}
+          quickPrompts={fixture.assistantQuickPrompts}
           onQuestionChange={setAssistantQuestion}
           onSubmit={() => appendAssistantReply(assistantQuestion)}
           onQuickPrompt={appendAssistantReply}
@@ -233,10 +175,7 @@ function WebApp() {
           {activePage === "home" ? (
             <HomePageContentView
               interfaceLocale={preferences.interfaceLocale}
-              state={snapshot.homeState}
-              accountError=""
-              diagnosticRows={[{ tone: "warning" }]}
-              dailySummary={snapshot.homeDailySummary}
+              {...fixture.createHomePageModel(snapshot)}
               onCopyDailySummary={() => undefined}
               onRefreshDiagnostics={() => undefined}
             />
@@ -291,7 +230,7 @@ function WebApp() {
                 selectTemplate: (id) => {
                   setSelectedLoadoutEntryId(`local-template-${id}`);
                   setSelectedTemplateId(id);
-                  const template = fixture.loadoutTemplates.find((item) => item.id === id);
+                  const template = fixture.findLoadoutTemplate(id);
                   if (template) setRenameDraft(template.name);
                 },
                 selectCompareTemplate: setCompareTemplateId,
@@ -319,31 +258,13 @@ function WebApp() {
           {activePage === "library" ? (
             <LibraryPageContentView
               interfaceLocale={preferences.interfaceLocale}
-              model={selectLibraryPageModel({
-                items: fixture.libraryItems,
-                perks: fixture.libraryPerks,
-                libraryHistory: fixture.libraryHistory,
-                libraryCommunityMatch: fixture.libraryCommunityMatch,
-                liveAvailability: fixture.liveAvailability,
-                liveAvailabilityError: "",
-                manifestStatus: fixture.manifestStatus,
-                manifestStatusError: ""
-              }, {
+              model={fixture.createLibraryPageModel({
                 libraryViewMode,
                 equipmentFilters,
                 perkFilters,
-                equipmentSearchTouched: true,
-                perkSearchTouched: true,
-                isSearching: false,
-                searchError: "",
                 aliasDraft,
                 aliasTargetDraft,
-                aliasKind,
-                aliasMessage: "Web mock：别名保存待接 provider。",
-                isLoadingLiveAvailability: false,
-                isLoadingManifestStatus: false,
-                isInitializingManifest: false,
-                itemDetailLoadingKey: ""
+                aliasKind
               })}
               actions={{
                 onViewModeChange: setLibraryViewMode,
@@ -369,32 +290,18 @@ function WebApp() {
           {activePage === "vendors" ? (
             <VendorsPageContentView
               interfaceLocale={preferences.interfaceLocale}
-              model={webVendorsWorkspace}
+              model={fixture.vendorsModel}
               actions={{}}
             />
           ) : null}
           {activePage === "settings" ? (
             <SettingsPageContentView
-              interfaceLocale={preferences.interfaceLocale}
-              initialSection="overview"
-              message=""
-              error=""
-              diagnosticDataDir="Web mock storage"
-              writeActionsEnabled={false}
-              updateSnapshot={fixture.updateSnapshot}
-              manifestStatus={fixture.manifestStatus}
-              manifestStatusError=""
-              isLoadingManifestStatus={false}
-              isInitializingManifest={false}
-              accountSummary={fixture.accountSummary}
-              accountError=""
-              isLoadingAccount={false}
-              lastAccountLoadedAt={new Date("2026-07-03T14:18:00+08:00")}
-              isAiConfigured
-              backgroundTasks={fixture.backgroundTasks}
-              actionLog={fixture.actionLog}
-              actionLogResultFilter="all"
-              actionLogTypeFilter="all"
+              {...fixture.createSettingsPageModel({
+                interfaceLocale: preferences.interfaceLocale,
+                initialSection: "overview",
+                bungieLocale: preferences.bungieLocale,
+                followInterfaceLocaleForBungie: preferences.followInterfaceLocaleForBungie
+              })}
               aiSettingsPanel={<WebAiSettingsPanel />}
               onRefreshAccount={() => undefined}
               onReauthorizeAccount={() => undefined}
@@ -418,11 +325,6 @@ function WebApp() {
               onActionLogResultFilterChange={() => undefined}
               onActionLogTypeFilterChange={() => undefined}
               onCopyActionDiagnostic={() => undefined}
-              languagePreferences={{
-                interfaceLocale: preferences.interfaceLocale,
-                bungieLocale: preferences.bungieLocale,
-                followInterfaceLocaleForBungie: preferences.followInterfaceLocaleForBungie
-              }}
               onLanguagePreferencesChange={() => undefined}
               onLoadBungieConfig={async () => fixture.bungieConfig}
               onSaveBungieConfig={async () => undefined}

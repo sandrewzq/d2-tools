@@ -1,8 +1,24 @@
+import { useMemo } from "react";
+import {
+  buildLoadoutTemplateLookup,
+  matchesLoadoutTemplateItem,
+  selectAccountPageModel,
+  selectHomePageModel,
+  selectLibraryPageModel,
+  selectLoadoutsPageModel,
+  selectSettingsPageModel,
+  selectVaultPageModel,
+  selectVendorsPageModel,
+  type SettingsSectionKey
+} from "@d2-tools/app";
 import type {
+  AiAssistantContextView,
+  AiAssistantMessageView,
   LibraryEquipmentFilter,
   LibraryPerkFilter,
   ShellBackgroundTaskItem
 } from "@d2-tools/ui";
+import type { WebHomeSnapshot } from "../webAdapter";
 export const webAccountSummary: any = {
   account_name: "Web Guardian",
   destiny_membership_id: "4611686018429100000",
@@ -193,8 +209,208 @@ export function getWebSourceItem(item: any) {
   return item.instance_id ? { instance_id: item.instance_id, source_kind: item.instance_id.includes("vault") ? "vault" : "inventory", source_character_id: "web-hunter" } : null;
 }
 
-export function useWebFixtureRuntime() {
+function findWebLoadoutTemplate(templateId: string) {
+  return webLoadoutTemplates.find((template) => template.id === templateId)
+    ?? webLoadoutTemplates[0]
+    ?? null;
+}
+
+function createWebActiveLoadout(templateId: string) {
+  const selectedTemplate = findWebLoadoutTemplate(templateId);
+  const activeLoadoutLookup = selectedTemplate ? buildLoadoutTemplateLookup(selectedTemplate) : null;
+
+  return { selectedTemplate, activeLoadoutLookup };
+}
+
+export function createWebHomePageModel(snapshot: WebHomeSnapshot) {
+  return selectHomePageModel({
+    state: snapshot.homeState,
+    accountError: "",
+    diagnosticRows: [{ tone: "warning" }],
+    dailySummary: snapshot.homeDailySummary
+  });
+}
+
+export function createWebAccountPageModel(input: {
+  selectedCharacterId: string;
+  selectedTemplateId: string;
+}) {
+  const { selectedTemplate, activeLoadoutLookup } = createWebActiveLoadout(input.selectedTemplateId);
+
+  return selectAccountPageModel({
+    cache: {
+      accountSummary: webAccountSummary,
+      activitySummary: webActivitySummary
+    },
+    pageState: {
+      selectedCharacterId: input.selectedCharacterId,
+      openingItemKey: "",
+      isLoadoutMatch: (item) => matchesLoadoutTemplateItem(item, activeLoadoutLookup),
+      isBungieConfigured: true,
+      isAccountLoggedIn: true,
+      isLoadingAccount: false,
+      writeActionsEnabled: false,
+      accountStatusLabel: "账号已读取",
+      accountError: "",
+      itemDetailError: "",
+      activityMessage: "",
+      activityError: "",
+      loadoutMessage: "",
+      itemActionMessage: "",
+      isRunningItemAction: false,
+      activeLoadoutTemplateName: selectedTemplate?.name
+    }
+  });
+}
+
+export function createWebVaultPageModel(input: {
+  selectedCharacterId: string;
+  selectedTemplateId: string;
+}) {
+  const { selectedTemplate, activeLoadoutLookup } = createWebActiveLoadout(input.selectedTemplateId);
+
+  return selectVaultPageModel({
+    account: webAccountSummary,
+    selectedCharacterId: input.selectedCharacterId,
+    activeLoadoutLookup,
+    activeLoadoutName: selectedTemplate?.name,
+    tags: webVaultTags,
+    targetRules: webLocalTargetRules,
+    wishlist: webWishlist,
+    communityMatch: webVaultCommunityMatch
+  });
+}
+
+export function createWebLoadoutsPageModel(input: {
+  selectedTemplateId: string;
+  selectedEntryId: string;
+  compareTemplateId: string;
+  showDiffOnly: boolean;
+}) {
+  return selectLoadoutsPageModel({
+    accountSummary: webAccountSummary,
+    templates: webLoadoutTemplates,
+    selectedTemplateId: input.selectedTemplateId,
+    selectedEntryId: input.selectedEntryId,
+    compareTemplateId: input.compareTemplateId,
+    showDiffOnly: input.showDiffOnly
+  });
+}
+
+export function createWebLibraryPageModel(input: {
+  libraryViewMode: "equipment" | "perks";
+  equipmentFilters: LibraryEquipmentFilter;
+  perkFilters: LibraryPerkFilter;
+  aliasDraft: string;
+  aliasTargetDraft: string;
+  aliasKind: "item" | "perk";
+}) {
+  return selectLibraryPageModel({
+    items: webLibraryItems,
+    perks: webLibraryPerks,
+    libraryHistory: webLibraryHistory,
+    libraryCommunityMatch: webLibraryCommunityMatch,
+    liveAvailability: webLiveAvailability,
+    liveAvailabilityError: "",
+    manifestStatus: webManifestStatus,
+    manifestStatusError: ""
+  }, {
+    libraryViewMode: input.libraryViewMode,
+    equipmentFilters: input.equipmentFilters,
+    perkFilters: input.perkFilters,
+    equipmentSearchTouched: true,
+    perkSearchTouched: true,
+    isSearching: false,
+    searchError: "",
+    aliasDraft: input.aliasDraft,
+    aliasTargetDraft: input.aliasTargetDraft,
+    aliasKind: input.aliasKind,
+    aliasMessage: "Web mock：别名保存待接 provider。",
+    isLoadingLiveAvailability: false,
+    isLoadingManifestStatus: false,
+    isInitializingManifest: false,
+    itemDetailLoadingKey: ""
+  });
+}
+
+export function createWebSettingsPageModel(input: {
+  interfaceLocale: "zh-CN" | "en-US";
+  bungieLocale: "zh-chs" | "en";
+  followInterfaceLocaleForBungie: boolean;
+  initialSection?: SettingsSectionKey;
+}) {
+  return selectSettingsPageModel({
+    interfaceLocale: input.interfaceLocale,
+    initialSection: input.initialSection ?? "overview",
+    message: "",
+    error: "",
+    diagnosticDataDir: "Web mock storage",
+    writeActionsEnabled: false,
+    updateSnapshot: webUpdateSnapshot,
+    manifestStatus: webManifestStatus,
+    manifestStatusError: "",
+    isLoadingManifestStatus: false,
+    isInitializingManifest: false,
+    accountSummary: webAccountSummary,
+    accountError: "",
+    isLoadingAccount: false,
+    lastAccountLoadedAt: new Date("2026-07-03T14:18:00+08:00"),
+    isAiConfigured: true,
+    backgroundTasks: webBackgroundTasks,
+    actionLog: webActionLog,
+    actionLogResultFilter: "all",
+    actionLogTypeFilter: "all",
+    languagePreferences: {
+      interfaceLocale: input.interfaceLocale,
+      bungieLocale: input.bungieLocale,
+      followInterfaceLocaleForBungie: input.followInterfaceLocaleForBungie
+    }
+  });
+}
+
+export const webAssistantInitialMessages: AiAssistantMessageView[] = [
+  {
+    role: "assistant",
+    text: "Web 入口已接入共享 AI 助手界面。当前使用首页 snapshot 作为上下文，后续由 Web provider 提供真实账号和 AI 服务。"
+  }
+];
+
+export const webAssistantQuickPrompts = [
+  "今天先刷什么",
+  "仓库清理建议",
+  "资料库状态怎么处理",
+  "首页哪些状态需要优先看"
+];
+
+export function createWebAssistantContext(snapshot: WebHomeSnapshot): AiAssistantContextView {
+  const hasAccountData = snapshot.shellStatus.some((item) => item.key === "account" && item.tone === "ready");
+
   return {
+    pageLabel: "首页工作台",
+    focus: "先看官方可确认的今日 / 本周内容，再处理账号、资料库和应用版本状态。",
+    facts: snapshot.shellStatus.map((item) => `${item.label}：${item.value}`),
+    itemCount: 496,
+    characterCount: hasAccountData ? 2 : 0,
+    materialCount: 28,
+    dailyLoaded: true
+  };
+}
+
+export function createWebAssistantContextChip(context: AiAssistantContextView) {
+  return [
+    `当前页面：${context.pageLabel}`,
+    `仓库 ${context.itemCount} 件`,
+    `角色 ${context.characterCount} 个`,
+    context.dailyLoaded ? "今日信息已载入" : "今日信息未载入"
+  ].join(" · ");
+}
+
+export function createWebAssistantReply() {
+  return "这是 Web adapter 的 mock 回复：当前页面使用共享 AI 助手 View，真实回答会在 Web provider 接入账号和 AI 服务后替换。";
+}
+
+export function useWebFixtureRuntime() {
+  return useMemo(() => ({
     accountSummary: webAccountSummary,
     activitySummary: webActivitySummary,
     loadoutTemplates: webLoadoutTemplates,
@@ -214,6 +430,19 @@ export function useWebFixtureRuntime() {
     batchResult: webBatchResult,
     backgroundTasks: webBackgroundTasks,
     actionLog: webActionLog,
-    bungieConfig: webBungieConfig
-  };
+    bungieConfig: webBungieConfig,
+    vendorsModel: selectVendorsPageModel(null),
+    assistantInitialMessages: webAssistantInitialMessages,
+    assistantQuickPrompts: webAssistantQuickPrompts,
+    findLoadoutTemplate: findWebLoadoutTemplate,
+    createHomePageModel: createWebHomePageModel,
+    createAccountPageModel: createWebAccountPageModel,
+    createVaultPageModel: createWebVaultPageModel,
+    createLoadoutsPageModel: createWebLoadoutsPageModel,
+    createLibraryPageModel: createWebLibraryPageModel,
+    createSettingsPageModel: createWebSettingsPageModel,
+    createAssistantContext: createWebAssistantContext,
+    createAssistantContextChip: createWebAssistantContextChip,
+    createAssistantReply: createWebAssistantReply
+  }), []);
 }

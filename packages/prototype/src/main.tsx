@@ -14,21 +14,11 @@ import {
   type LibraryEquipmentFilter,
   type LibraryPerkFilter,
   type LibraryViewMode,
-  type AiAssistantContextView,
-  type AiAssistantMessageView,
   type ShellAssistantMode,
   type ShellPageKey,
-  type ShellStatusItem,
 } from "@d2-tools/ui";
 import {
-  buildLoadoutTemplateLookup,
-  selectLoadoutsPageModel,
-  selectVaultPageModel,
-  selectVendorsPageModel,
   homePageMetaMap,
-  matchesLoadoutTemplateItem,
-  selectAccountPageModel,
-  selectLibraryPageModel
 } from "@d2-tools/app";
 import "@d2-tools/ui/styles.css";
 import {
@@ -67,76 +57,36 @@ function PrototypeApp() {
   const [aliasKind, setAliasKind] = useState<"item" | "perk">("perk");
   const [assistantQuestion, setAssistantQuestion] = useState("");
   const [isPrototypeDebugOpen, setIsPrototypeDebugOpen] = useState(false);
-  const [assistantMessages, setAssistantMessages] = useState<AiAssistantMessageView[]>(() => [
-    {
-      role: "assistant",
-      text: "我已经读取当前页面上下文，可以按今日重点、仓库清理、配装缺口或资料库来源给出 mock 建议。"
-    }
-  ]);
+  const [assistantMessages, setAssistantMessages] = useState(() => fixture.assistantInitialMessages);
   const [isAssistantSessionDrawerOpen, setIsAssistantSessionDrawerOpen] = useState(false);
   const [isAssistantContextDrawerOpen, setIsAssistantContextDrawerOpen] = useState(false);
   const scenario = prototypeScenarios[scenarioKey];
-  const selectedTemplate = fixture.loadoutTemplates.find((template) => template.id === selectedTemplateId)
-    ?? fixture.loadoutTemplates[0]
-    ?? null;
-  const compareTemplate = fixture.loadoutTemplates.find((template) => template.id === compareTemplateId)
-    ?? null;
-  const activeLoadoutLookup = selectedTemplate ? buildLoadoutTemplateLookup(selectedTemplate) : null;
-  const accountSummary = scenario.hasAccountData ? fixture.accountSummary : null;
   const backgroundTasks = fixture.getBackgroundTasks(scenarioKey);
-  const isBungieConfigured = scenarioKey !== "account-missing";
   const accountViewModel = useMemo(
-    () => selectAccountPageModel({
-      cache: {
-        accountSummary,
-        activitySummary: fixture.activitySummary
-      },
-      pageState: {
-        selectedCharacterId: selectedAccountCharacterId,
-        openingItemKey: "",
-        isLoadoutMatch: (item) => matchesLoadoutTemplateItem(item, activeLoadoutLookup),
-        isBungieConfigured,
-        isAccountLoggedIn: scenario.hasAccountData,
-        isLoadingAccount: false,
-        writeActionsEnabled: false,
-        accountStatusLabel: fixture.startupStateForScenario(scenario).cards.account.label,
-        accountError: scenario.accountError,
-        itemDetailError: "",
-        activityMessage: "",
-        activityError: "",
-        loadoutMessage: "",
-        itemActionMessage: "",
-        isRunningItemAction: false,
-        activeLoadoutTemplateName: selectedTemplate?.name
-      }
+    () => fixture.createAccountPageModel({
+      scenario,
+      selectedCharacterId: selectedAccountCharacterId,
+      selectedTemplateId
     }),
-    [accountSummary, activeLoadoutLookup, isBungieConfigured, scenario, selectedAccountCharacterId, selectedTemplate?.name]
+    [fixture, scenario, selectedAccountCharacterId, selectedTemplateId]
   );
   const vaultModel = useMemo(
-    () => selectVaultPageModel({
-      account: fixture.accountSummary,
+    () => fixture.createVaultPageModel({
       selectedCharacterId: selectedAccountCharacterId,
-      activeLoadoutLookup,
-      activeLoadoutName: selectedTemplate?.name,
-      tags: fixture.vaultTags,
-      targetRules: fixture.localTargetRules,
-      wishlist: fixture.wishlist,
-      communityMatch: fixture.vaultCommunityMatch
+      selectedTemplateId
     }),
-    [activeLoadoutLookup, selectedAccountCharacterId, selectedTemplate?.name]
+    [fixture, selectedAccountCharacterId, selectedTemplateId]
   );
   const loadoutsModel = useMemo(
-    () => selectLoadoutsPageModel({
-      accountSummary,
-      templates: fixture.loadoutTemplates,
+    () => fixture.createLoadoutsPageModel({
+      scenario,
       selectedTemplateId,
       selectedEntryId: selectedLoadoutEntryId,
       compareTemplateId,
       showDiffOnly
     }),
-    [accountSummary, compareTemplateId, selectedLoadoutEntryId, selectedTemplateId, showDiffOnly]
+    [fixture, scenario, compareTemplateId, selectedLoadoutEntryId, selectedTemplateId, showDiffOnly]
   );
-  const prototypeVendorsWorkspace = useMemo(() => selectVendorsPageModel(null), []);
   const platformActions = useMemo(() => ({
     openExternal: (url: string) => {
       window.open(url, "_blank", "noopener,noreferrer");
@@ -146,15 +96,10 @@ function PrototypeApp() {
     }
   }), []);
   const assistantContext = useMemo(
-    () => getPrototypeAssistantContext(activePage, scenario.label, scenario.shellStatus),
-    [activePage, scenario.label, scenario.shellStatus]
+    () => fixture.createAssistantContext(activePage, scenario.label, scenario.shellStatus),
+    [fixture, activePage, scenario.label, scenario.shellStatus]
   );
-  const assistantContextChip = [
-    `当前页面：${assistantContext.pageLabel}`,
-    `仓库 ${assistantContext.itemCount} 件`,
-    `角色 ${assistantContext.characterCount} 个`,
-    assistantContext.dailyLoaded ? "今日信息已载入" : "今日信息未载入"
-  ].join(" · ");
+  const assistantContextChip = fixture.createAssistantContextChip(assistantContext);
 
   function appendPrototypeAssistantReply(prompt: string) {
     const trimmedPrompt = prompt.trim();
@@ -165,7 +110,7 @@ function PrototypeApp() {
       { role: "user", text: trimmedPrompt },
       {
         role: "assistant",
-        text: getPrototypeAssistantReply(trimmedPrompt, activePage)
+        text: fixture.createAssistantReply(trimmedPrompt, activePage)
       }
     ]);
     setAssistantQuestion("");
@@ -201,7 +146,7 @@ function PrototypeApp() {
             isContextDrawerOpen={isAssistantContextDrawerOpen}
             contextChip={assistantContextChip}
             context={assistantContext}
-            quickPrompts={prototypeAssistantPrompts}
+            quickPrompts={fixture.assistantQuickPrompts}
             onQuestionChange={setAssistantQuestion}
             onSubmit={() => appendPrototypeAssistantReply(assistantQuestion)}
             onQuickPrompt={appendPrototypeAssistantReply}
@@ -237,14 +182,7 @@ function PrototypeApp() {
           {activePage === "home" ? (
             <HomePageContentView
               interfaceLocale={preferences.interfaceLocale}
-              state={scenario.homeState}
-              diagnosticRows={scenario.diagnosticRows}
-              accountError={scenario.accountError}
-              hasAccountData={scenario.hasAccountData}
-              dailySummary={scenario.homeDailySummary}
-              isInitializingManifest={scenario.isInitializingManifest}
-              isLoadingDaily={scenario.isLoadingDaily}
-              isRefreshingDiagnostics={scenario.isRefreshingDiagnostics}
+              {...fixture.createHomePageModel(scenario)}
               onCopyDailySummary={() => undefined}
               onRefreshDiagnostics={() => undefined}
             />
@@ -299,7 +237,7 @@ function PrototypeApp() {
                 selectTemplate: (id) => {
                   setSelectedLoadoutEntryId(`local-template-${id}`);
                   setSelectedTemplateId(id);
-                  const template = fixture.loadoutTemplates.find((item) => item.id === id);
+                  const template = fixture.findLoadoutTemplate(id);
                   if (template) setRenameDraft(template.name);
                 },
                 selectCompareTemplate: setCompareTemplateId,
@@ -327,31 +265,13 @@ function PrototypeApp() {
           {activePage === "library" ? (
             <LibraryPageContentView
               interfaceLocale={preferences.interfaceLocale}
-              model={selectLibraryPageModel({
-                items: fixture.libraryItems,
-                perks: fixture.libraryPerks,
-                libraryHistory: fixture.libraryHistory,
-                libraryCommunityMatch: fixture.libraryCommunityMatch,
-                liveAvailability: fixture.liveAvailability,
-                liveAvailabilityError: "",
-                manifestStatus: fixture.manifestStatus,
-                manifestStatusError: ""
-              }, {
+              model={fixture.createLibraryPageModel({
                 libraryViewMode,
                 equipmentFilters,
                 perkFilters,
-                equipmentSearchTouched: true,
-                perkSearchTouched: true,
-                isSearching: false,
-                searchError: "",
                 aliasDraft,
                 aliasTargetDraft,
-                aliasKind,
-                aliasMessage: "Prototype：别名保存为 mock 状态。",
-                isLoadingLiveAvailability: false,
-                isLoadingManifestStatus: false,
-                isInitializingManifest: false,
-                itemDetailLoadingKey: ""
+                aliasKind
               })}
               actions={{
                 onViewModeChange: setLibraryViewMode,
@@ -377,32 +297,20 @@ function PrototypeApp() {
           {activePage === "vendors" ? (
             <VendorsPageContentView
               interfaceLocale={preferences.interfaceLocale}
-              model={prototypeVendorsWorkspace}
+              model={fixture.vendorsModel}
               actions={{}}
             />
           ) : null}
           {activePage === "settings" ? (
             <SettingsPageContentView
-              interfaceLocale={preferences.interfaceLocale}
-              initialSection={initialSettingsSection}
-              message=""
-              error=""
-              diagnosticDataDir="D:\\Users\\Prototype\\AppData\\Roaming\\d2-tools"
-              writeActionsEnabled
-              updateSnapshot={fixture.updateSnapshot}
-              manifestStatus={fixture.manifestStatus}
-              manifestStatusError=""
-              isLoadingManifestStatus={false}
-              isInitializingManifest={false}
-              accountSummary={fixture.accountSummary}
-              accountError={scenario.accountError}
-              isLoadingAccount={false}
-              lastAccountLoadedAt={new Date("2026-07-03T14:18:00+08:00")}
-              isAiConfigured={scenarioKey !== "ai-unconfigured"}
-              backgroundTasks={backgroundTasks}
-              actionLog={fixture.actionLog}
-              actionLogResultFilter="all"
-              actionLogTypeFilter="all"
+              {...fixture.createSettingsPageModel({
+                interfaceLocale: preferences.interfaceLocale,
+                initialSection: initialSettingsSection,
+                scenario,
+                backgroundTasks,
+                bungieLocale: preferences.bungieLocale,
+                followInterfaceLocaleForBungie: preferences.followInterfaceLocaleForBungie
+              })}
               aiSettingsPanel={<PrototypeAiSettingsPanel />}
               onRefreshAccount={() => undefined}
               onReauthorizeAccount={() => undefined}
@@ -426,11 +334,6 @@ function PrototypeApp() {
               onActionLogResultFilterChange={() => undefined}
               onActionLogTypeFilterChange={() => undefined}
               onCopyActionDiagnostic={() => undefined}
-              languagePreferences={{
-                interfaceLocale: preferences.interfaceLocale,
-                bungieLocale: preferences.bungieLocale,
-                followInterfaceLocaleForBungie: preferences.followInterfaceLocaleForBungie
-              }}
               onLanguagePreferencesChange={() => undefined}
               onLoadBungieConfig={async () => fixture.bungieConfig}
               onSaveBungieConfig={async () => undefined}
@@ -530,13 +433,6 @@ function PrototypeAiSettingsPanel() {
   );
 }
 
-const prototypeAssistantPrompts = [
-  "今天先刷什么",
-  "仓库清理建议",
-  "这套配装缺什么",
-  "资料库来源怎么确认"
-];
-
 function getPrototypePageHeader(page: ShellPageKey) {
   const meta = homePageMetaMap[page];
 
@@ -547,94 +443,4 @@ function getPrototypePageHeader(page: ShellPageKey) {
       <button type="button" className="secondary-button">刷新今日信息</button>
     ) : null
   };
-}
-
-function getPrototypePageLabel(page: ShellPageKey) {
-  const labels: Record<ShellPageKey, string> = {
-    home: "首页工作台",
-    account: "账号摘要",
-    vault: "仓库整理",
-    loadouts: "配装方案",
-    library: "资料库搜索",
-    vendors: "商人库存",
-    settings: "设置中心"
-  };
-
-  return labels[page];
-}
-
-function getPrototypeAssistantContext(
-  activePage: ShellPageKey,
-  scenarioLabel: string,
-  shellStatus: ShellStatusItem[]
-): AiAssistantContextView {
-  const statusValue = (key: NonNullable<ShellStatusItem["key"]>) => {
-    const item = shellStatus.find((status) => status.key === key);
-    return item ? `${item.label}：${item.value}` : "未提供";
-  };
-
-  return {
-    pageLabel: getPrototypePageLabel(activePage),
-    focus: getPrototypeAssistantFocus(activePage),
-    facts: [
-      `状态方案：${scenarioLabel}`,
-      statusValue("account"),
-      statusValue("library")
-    ],
-    itemCount: 496,
-    characterCount: 2,
-    materialCount: 28,
-    dailyLoaded: true
-  };
-}
-
-function getPrototypeAssistantFocus(page: ShellPageKey) {
-  const focus: Record<ShellPageKey, string> = {
-    home: "先看官方可确认的今日 / 本周内容，再处理账号、资料库和应用版本状态。",
-    account: "检查角色、仓库和最近活动是否已读取，后续账号切换也应从这里进入。",
-    vault: "从重复同名、目标命中、配装占用和清理候选中找出下一步整理动作。",
-    loadouts: "确认配装缺口、转移计划和可直接应用的装备，避免把状态藏在页面底部。",
-    library: "核对资料库版本、Perk 池、来源状态和公开商人线索。",
-    vendors: "只展示可确认的商人、轮换和掉落线索，未确认内容保留复查状态。",
-    settings: "只处理低频配置、重新授权、资料库更新、备份迁移和诊断导出。"
-  };
-
-  return focus[page];
-}
-
-function getPrototypeAssistantReply(prompt: string, page: ShellPageKey) {
-  const bullets = getPrototypeAssistantBullets(page);
-  const suffix = bullets.length ? `\n\n下一步：${bullets.join("；")}。` : "";
-  if (prompt.includes("仓库")) {
-    return `先从重复同名和无目标命中的装备开始，保留 DIM 命中、配装占用和当前商人可替代项需要复查的装备。${suffix}`;
-  }
-  if (prompt.includes("配装")) {
-    return `这套 mock 配装有两件需要处理：一件在仓库待取，一件在当前角色背包，真实实现应拆成补齐和应用两个动作。${suffix}`;
-  }
-  if (prompt.includes("资料库") || prompt.includes("来源")) {
-    return `资料库页应优先展示来源状态、Perk 池命中和公开商人线索；版本过期时只提示更新，不把配置细节常驻在首页。${suffix}`;
-  }
-  if (page === "home") {
-    return `首页建议先看今日 / 本周官方可确认内容，再处理账号、资料库、应用版本这类顶部状态异常。${suffix}`;
-  }
-  return `我会按当前页面上下文给出下一步：先处理高风险状态，再看能直接行动的按钮，最后检查低频设置。${suffix}`;
-}
-
-function getPrototypeAssistantBullets(page: ShellPageKey) {
-  if (page === "vault") {
-    return ["复查同名重复和清理候选", "保留配装占用与目标命中装备", "清理动作先做确认队列"];
-  }
-  if (page === "loadouts") {
-    return ["先补仓库待取装备", "再应用已在背包的装备", "缺失项复制为检查清单"];
-  }
-  if (page === "library") {
-    return ["优先看来源可确认项", "Perk 搜索支持别名", "版本过期时先更新资料库"];
-  }
-  if (page === "vendors") {
-    return ["先看推荐关注项", "费用和拥有状态只做可确认展示", "未接真实库存时保留 mock 标记"];
-  }
-  if (page === "settings") {
-    return ["账号、资料库、AI 和备份都保留操作按钮", "顶部只展示状态，不堆大卡片", "异常时给出明确修复入口"];
-  }
-  return ["今日重点放在首页", "账号和资料库状态在顶部可见", "AI 抽屉负责解释原因和下一步"];
 }

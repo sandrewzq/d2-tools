@@ -1,7 +1,24 @@
+import { useMemo } from "react";
+import {
+  buildLoadoutTemplateLookup,
+  matchesLoadoutTemplateItem,
+  selectAccountPageModel,
+  selectHomePageModel,
+  selectLibraryPageModel,
+  selectLoadoutsPageModel,
+  selectSettingsPageModel,
+  selectVaultPageModel,
+  selectVendorsPageModel,
+  type SettingsSectionKey
+} from "@d2-tools/app";
 import type {
+  AiAssistantContextView,
+  AiAssistantMessageView,
   LibraryEquipmentFilter,
   LibraryPerkFilter,
-  ShellBackgroundTaskItem
+  ShellBackgroundTaskItem,
+  ShellPageKey,
+  ShellStatusItem
 } from "@d2-tools/ui";
 import type { PrototypeScenario, PrototypeScenarioKey } from "../mock/scenarios";
 export const prototypeAccountSummary: any = {
@@ -550,8 +567,290 @@ export function prototypeItemIcon(label: string, bg: string) {
   return `data:image/svg+xml;utf8,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="8" fill="${bg}"/><rect x="10" y="10" width="44" height="44" rx="6" fill="rgba(255,255,255,.14)" stroke="rgba(255,255,255,.45)"/><text x="32" y="40" text-anchor="middle" font-size="24" font-family="Arial, sans-serif" font-weight="700" fill="#fff">${label}</text></svg>`)}`;
 }
 
-export function usePrototypeFixtureRuntime() {
+function findPrototypeLoadoutTemplate(templateId: string) {
+  return prototypeLoadoutTemplates.find((template) => template.id === templateId)
+    ?? prototypeLoadoutTemplates[0]
+    ?? null;
+}
+
+function createPrototypeActiveLoadout(templateId: string) {
+  const selectedTemplate = findPrototypeLoadoutTemplate(templateId);
+  const activeLoadoutLookup = selectedTemplate ? buildLoadoutTemplateLookup(selectedTemplate) : null;
+
+  return { selectedTemplate, activeLoadoutLookup };
+}
+
+export function createPrototypeHomePageModel(scenario: PrototypeScenario) {
+  return selectHomePageModel({
+    state: scenario.homeState,
+    diagnosticRows: scenario.diagnosticRows,
+    accountError: scenario.accountError,
+    hasAccountData: scenario.hasAccountData,
+    dailySummary: scenario.homeDailySummary,
+    isInitializingManifest: scenario.isInitializingManifest,
+    isLoadingDaily: scenario.isLoadingDaily,
+    isRefreshingDiagnostics: scenario.isRefreshingDiagnostics
+  });
+}
+
+export function createPrototypeAccountPageModel(input: {
+  scenario: PrototypeScenario;
+  selectedCharacterId: string;
+  selectedTemplateId: string;
+}) {
+  const { selectedTemplate, activeLoadoutLookup } = createPrototypeActiveLoadout(input.selectedTemplateId);
+  const accountSummary = input.scenario.hasAccountData ? prototypeAccountSummary : null;
+  const isBungieConfigured = input.scenario.key !== "account-missing";
+
+  return selectAccountPageModel({
+    cache: {
+      accountSummary,
+      activitySummary: prototypeActivitySummary
+    },
+    pageState: {
+      selectedCharacterId: input.selectedCharacterId,
+      openingItemKey: "",
+      isLoadoutMatch: (item) => matchesLoadoutTemplateItem(item, activeLoadoutLookup),
+      isBungieConfigured,
+      isAccountLoggedIn: input.scenario.hasAccountData,
+      isLoadingAccount: false,
+      writeActionsEnabled: false,
+      accountStatusLabel: prototypeStartupStateForScenario(input.scenario).cards.account.label,
+      accountError: input.scenario.accountError,
+      itemDetailError: "",
+      activityMessage: "",
+      activityError: "",
+      loadoutMessage: "",
+      itemActionMessage: "",
+      isRunningItemAction: false,
+      activeLoadoutTemplateName: selectedTemplate?.name
+    }
+  });
+}
+
+export function createPrototypeVaultPageModel(input: {
+  selectedCharacterId: string;
+  selectedTemplateId: string;
+}) {
+  const { selectedTemplate, activeLoadoutLookup } = createPrototypeActiveLoadout(input.selectedTemplateId);
+
+  return selectVaultPageModel({
+    account: prototypeAccountSummary,
+    selectedCharacterId: input.selectedCharacterId,
+    activeLoadoutLookup,
+    activeLoadoutName: selectedTemplate?.name,
+    tags: prototypeVaultTags,
+    targetRules: prototypeLocalTargetRules,
+    wishlist: prototypeWishlist,
+    communityMatch: prototypeVaultCommunityMatch
+  });
+}
+
+export function createPrototypeLoadoutsPageModel(input: {
+  scenario: PrototypeScenario;
+  selectedTemplateId: string;
+  selectedEntryId: string;
+  compareTemplateId: string;
+  showDiffOnly: boolean;
+}) {
+  return selectLoadoutsPageModel({
+    accountSummary: input.scenario.hasAccountData ? prototypeAccountSummary : null,
+    templates: prototypeLoadoutTemplates,
+    selectedTemplateId: input.selectedTemplateId,
+    selectedEntryId: input.selectedEntryId,
+    compareTemplateId: input.compareTemplateId,
+    showDiffOnly: input.showDiffOnly
+  });
+}
+
+export function createPrototypeLibraryPageModel(input: {
+  libraryViewMode: "equipment" | "perks";
+  equipmentFilters: LibraryEquipmentFilter;
+  perkFilters: LibraryPerkFilter;
+  aliasDraft: string;
+  aliasTargetDraft: string;
+  aliasKind: "item" | "perk";
+}) {
+  return selectLibraryPageModel({
+    items: prototypeLibraryItems,
+    perks: prototypeLibraryPerks,
+    libraryHistory: prototypeLibraryHistory,
+    libraryCommunityMatch: prototypeLibraryCommunityMatch,
+    liveAvailability: prototypeLiveAvailability,
+    liveAvailabilityError: "",
+    manifestStatus: prototypeManifestStatus,
+    manifestStatusError: ""
+  }, {
+    libraryViewMode: input.libraryViewMode,
+    equipmentFilters: input.equipmentFilters,
+    perkFilters: input.perkFilters,
+    equipmentSearchTouched: true,
+    perkSearchTouched: true,
+    isSearching: false,
+    searchError: "",
+    aliasDraft: input.aliasDraft,
+    aliasTargetDraft: input.aliasTargetDraft,
+    aliasKind: input.aliasKind,
+    aliasMessage: "Prototype：别名保存为 mock 状态。",
+    isLoadingLiveAvailability: false,
+    isLoadingManifestStatus: false,
+    isInitializingManifest: false,
+    itemDetailLoadingKey: ""
+  });
+}
+
+export function createPrototypeSettingsPageModel(input: {
+  interfaceLocale: "zh-CN" | "en-US";
+  bungieLocale: "zh-chs" | "en";
+  followInterfaceLocaleForBungie: boolean;
+  initialSection: SettingsSectionKey;
+  scenario: PrototypeScenario;
+  backgroundTasks: ShellBackgroundTaskItem[];
+}) {
+  return selectSettingsPageModel({
+    interfaceLocale: input.interfaceLocale,
+    initialSection: input.initialSection,
+    message: "",
+    error: "",
+    diagnosticDataDir: "D:\\Users\\Prototype\\AppData\\Roaming\\d2-tools",
+    writeActionsEnabled: true,
+    updateSnapshot: prototypeUpdateSnapshot,
+    manifestStatus: prototypeManifestStatus,
+    manifestStatusError: "",
+    isLoadingManifestStatus: false,
+    isInitializingManifest: false,
+    accountSummary: prototypeAccountSummary,
+    accountError: input.scenario.accountError,
+    isLoadingAccount: false,
+    lastAccountLoadedAt: new Date("2026-07-03T14:18:00+08:00"),
+    isAiConfigured: input.scenario.key !== "ai-unconfigured",
+    backgroundTasks: input.backgroundTasks,
+    actionLog: prototypeActionLog,
+    actionLogResultFilter: "all",
+    actionLogTypeFilter: "all",
+    languagePreferences: {
+      interfaceLocale: input.interfaceLocale,
+      bungieLocale: input.bungieLocale,
+      followInterfaceLocaleForBungie: input.followInterfaceLocaleForBungie
+    }
+  });
+}
+
+export const prototypeAssistantInitialMessages: AiAssistantMessageView[] = [
+  {
+    role: "assistant",
+    text: "我已经读取当前页面上下文，可以按今日重点、仓库清理、配装缺口或资料库来源给出 mock 建议。"
+  }
+];
+
+export const prototypeAssistantQuickPrompts = [
+  "今天先刷什么",
+  "仓库清理建议",
+  "这套配装缺什么",
+  "资料库来源怎么确认"
+];
+
+export function createPrototypeAssistantContext(
+  activePage: ShellPageKey,
+  scenarioLabel: string,
+  shellStatus: ShellStatusItem[]
+): AiAssistantContextView {
+  const statusValue = (key: NonNullable<ShellStatusItem["key"]>) => {
+    const item = shellStatus.find((status) => status.key === key);
+    return item ? `${item.label}：${item.value}` : "未提供";
+  };
+
   return {
+    pageLabel: getPrototypePageLabel(activePage),
+    focus: getPrototypeAssistantFocus(activePage),
+    facts: [
+      `状态方案：${scenarioLabel}`,
+      statusValue("account"),
+      statusValue("library")
+    ],
+    itemCount: 496,
+    characterCount: 2,
+    materialCount: 28,
+    dailyLoaded: true
+  };
+}
+
+export function createPrototypeAssistantContextChip(context: AiAssistantContextView) {
+  return [
+    `当前页面：${context.pageLabel}`,
+    `仓库 ${context.itemCount} 件`,
+    `角色 ${context.characterCount} 个`,
+    context.dailyLoaded ? "今日信息已载入" : "今日信息未载入"
+  ].join(" · ");
+}
+
+export function createPrototypeAssistantReply(prompt: string, page: ShellPageKey) {
+  const bullets = getPrototypeAssistantBullets(page);
+  const suffix = bullets.length ? `\n\n下一步：${bullets.join("；")}。` : "";
+  if (prompt.includes("仓库")) {
+    return `先从重复同名和无目标命中的装备开始，保留 DIM 命中、配装占用和当前商人可替代项需要复查的装备。${suffix}`;
+  }
+  if (prompt.includes("配装")) {
+    return `这套 mock 配装有两件需要处理：一件在仓库待取，一件在当前角色背包，真实实现应拆成补齐和应用两个动作。${suffix}`;
+  }
+  if (prompt.includes("资料库") || prompt.includes("来源")) {
+    return `资料库页应优先展示来源状态、Perk 池命中和公开商人线索；版本过期时只提示更新，不把配置细节常驻在首页。${suffix}`;
+  }
+  if (page === "home") {
+    return `首页建议先看今日 / 本周官方可确认内容，再处理账号、资料库、应用版本这类顶部状态异常。${suffix}`;
+  }
+  return `我会按当前页面上下文给出下一步：先处理高风险状态，再看能直接行动的按钮，最后检查低频设置。${suffix}`;
+}
+
+function getPrototypePageLabel(page: ShellPageKey) {
+  const labels: Record<ShellPageKey, string> = {
+    home: "首页工作台",
+    account: "账号摘要",
+    vault: "仓库整理",
+    loadouts: "配装方案",
+    library: "资料库搜索",
+    vendors: "商人库存",
+    settings: "设置中心"
+  };
+
+  return labels[page];
+}
+
+function getPrototypeAssistantFocus(page: ShellPageKey) {
+  const focus: Record<ShellPageKey, string> = {
+    home: "先看官方可确认的今日 / 本周内容，再处理账号、资料库和应用版本状态。",
+    account: "检查角色、仓库和最近活动是否已读取，后续账号切换也应从这里进入。",
+    vault: "从重复同名、目标命中、配装占用和清理候选中找出下一步整理动作。",
+    loadouts: "确认配装缺口、转移计划和可直接应用的装备，避免把状态藏在页面底部。",
+    library: "核对资料库版本、Perk 池、来源状态和公开商人线索。",
+    vendors: "只展示可确认的商人、轮换和掉落线索，未确认内容保留复查状态。",
+    settings: "只处理低频配置、重新授权、资料库更新、备份迁移和诊断导出。"
+  };
+
+  return focus[page];
+}
+
+function getPrototypeAssistantBullets(page: ShellPageKey) {
+  if (page === "vault") {
+    return ["复查同名重复和清理候选", "保留配装占用与目标命中装备", "清理动作先做确认队列"];
+  }
+  if (page === "loadouts") {
+    return ["先补仓库待取装备", "再应用已在背包的装备", "缺失项复制为检查清单"];
+  }
+  if (page === "library") {
+    return ["优先看来源可确认项", "Perk 搜索支持别名", "版本过期时先更新资料库"];
+  }
+  if (page === "vendors") {
+    return ["先看推荐关注项", "费用和拥有状态只做可确认展示", "未接真实库存时保留 mock 标记"];
+  }
+  if (page === "settings") {
+    return ["账号、资料库、AI 和备份都保留操作按钮", "顶部只展示状态，不堆大卡片", "异常时给出明确修复入口"];
+  }
+  return ["今日重点放在首页", "账号和资料库状态在顶部可见", "AI 抽屉负责解释原因和下一步"];
+}
+
+export function usePrototypeFixtureRuntime() {
+  return useMemo(() => ({
     accountSummary: prototypeAccountSummary,
     loadoutTemplates: prototypeLoadoutTemplates,
     equipmentFilters: prototypeEquipmentFilters,
@@ -573,6 +872,19 @@ export function usePrototypeFixtureRuntime() {
     getBackgroundTasks: getPrototypeBackgroundTasks,
     actionLog: prototypeActionLog,
     bungieConfig: prototypeBungieConfig,
-    vaultItems: prototypeVaultItems
-  };
+    vaultItems: prototypeVaultItems,
+    vendorsModel: selectVendorsPageModel(null),
+    assistantInitialMessages: prototypeAssistantInitialMessages,
+    assistantQuickPrompts: prototypeAssistantQuickPrompts,
+    findLoadoutTemplate: findPrototypeLoadoutTemplate,
+    createHomePageModel: createPrototypeHomePageModel,
+    createAccountPageModel: createPrototypeAccountPageModel,
+    createVaultPageModel: createPrototypeVaultPageModel,
+    createLoadoutsPageModel: createPrototypeLoadoutsPageModel,
+    createLibraryPageModel: createPrototypeLibraryPageModel,
+    createSettingsPageModel: createPrototypeSettingsPageModel,
+    createAssistantContext: createPrototypeAssistantContext,
+    createAssistantContextChip: createPrototypeAssistantContextChip,
+    createAssistantReply: createPrototypeAssistantReply
+  }), []);
 }

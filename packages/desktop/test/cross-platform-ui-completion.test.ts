@@ -130,19 +130,31 @@ describe("cross-platform UI completion boundary", () => {
 
   it("renders every primary prototype route with shared UI instead of generic placeholders", () => {
     const prototypeMain = read("packages/prototype/src/main.tsx");
+    const prototypeFixture = read("packages/prototype/src/fixtures/usePrototypeFixtureRuntime.ts");
     const uiStyles = read("packages/ui/src/styles.css");
 
     expect(prototypeMain).toContain("AccountPageContentView");
-    expect(prototypeMain).toContain("selectAccountPageModel");
+    expect(prototypeMain).toContain("fixture.createAccountPageModel");
+    expect(prototypeMain).toContain("fixture.createHomePageModel");
+    expect(prototypeMain).toContain("fixture.createSettingsPageModel");
+    expect(prototypeMain).not.toContain("selectAccountPageModel");
+    expect(prototypeMain).not.toContain("selectHomePageModel");
+    expect(prototypeMain).not.toContain("selectSettingsPageModel");
+    expect(prototypeFixture).toContain("selectAccountPageModel");
+    expect(prototypeFixture).toContain("selectHomePageModel");
+    expect(prototypeFixture).toContain("selectSettingsPageModel");
     expect(prototypeMain).not.toContain("<AccountPageView interfaceLocale={preferences.interfaceLocale} />");
     expect(prototypeMain).toContain("VaultPageContentView");
     expect(prototypeMain).toContain("LoadoutsPageContentView");
     expect(prototypeMain).toContain("LibraryPageContentView");
     expect(prototypeMain).toContain("VendorsPageContentView");
-    expect(prototypeMain).toContain("selectVendorsPageModel");
+    expect(prototypeMain).toContain("model={fixture.vendorsModel}");
+    expect(prototypeMain).not.toContain("selectVendorsPageModel");
+    expect(prototypeFixture).toContain("selectVendorsPageModel");
     expect(prototypeMain).not.toContain("createVendorsPageWorkspace");
-    expect(prototypeMain).toContain("prototypeVendorsWorkspace");
-    expect(prototypeMain).toContain("model={prototypeVendorsWorkspace}");
+    expect(prototypeMain).not.toContain("prototypeVendorsWorkspace");
+    expect(prototypeMain).toContain("{...fixture.createHomePageModel(");
+    expect(prototypeMain).toContain("{...fixture.createSettingsPageModel(");
     expect(prototypeMain).toContain("actions={{}}");
     expect(prototypeMain).toContain('activePage === "vault"');
     expect(prototypeMain).toContain('activePage === "loadouts"');
@@ -219,16 +231,29 @@ describe("cross-platform UI completion boundary", () => {
 
   it("renders web primary routes through shared page views instead of the home page fallback", () => {
     const webMain = read("packages/web/src/main.tsx");
+    const webFixture = read("packages/web/src/fixtures/useWebFixtureRuntime.ts");
 
     expect(webMain).toContain("AccountPageContentView");
+    expect(webMain).toContain("fixture.createAccountPageModel");
+    expect(webMain).toContain("fixture.createHomePageModel");
+    expect(webMain).toContain("fixture.createSettingsPageModel");
+    expect(webMain).not.toContain("selectAccountPageModel");
+    expect(webMain).not.toContain("selectHomePageModel");
+    expect(webMain).not.toContain("selectSettingsPageModel");
+    expect(webFixture).toContain("selectAccountPageModel");
+    expect(webFixture).toContain("selectHomePageModel");
+    expect(webFixture).toContain("selectSettingsPageModel");
     expect(webMain).toContain("VaultPageContentView");
     expect(webMain).toContain("LoadoutsPageContentView");
     expect(webMain).toContain("LibraryPageContentView");
     expect(webMain).toContain("VendorsPageContentView");
-    expect(webMain).toContain("selectVendorsPageModel");
+    expect(webMain).toContain("model={fixture.vendorsModel}");
+    expect(webMain).not.toContain("selectVendorsPageModel");
+    expect(webFixture).toContain("selectVendorsPageModel");
     expect(webMain).not.toContain("createVendorsPageWorkspace");
-    expect(webMain).toContain("webVendorsWorkspace");
-    expect(webMain).toContain("model={webVendorsWorkspace}");
+    expect(webMain).not.toContain("webVendorsWorkspace");
+    expect(webMain).toContain("{...fixture.createHomePageModel(");
+    expect(webMain).toContain("{...fixture.createSettingsPageModel(");
     expect(webMain).toContain("SettingsPageContentView");
     expect(webMain).toContain('activePage === "account"');
     expect(webMain).toContain('activePage === "vault"');

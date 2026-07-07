@@ -2,17 +2,26 @@ import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import {
+  AccountPageContentView,
   AccountPageView,
   HomePageContentView,
   HomePageView,
+  LibraryPageContentView,
   LibraryPageView,
   LoadoutsPageContentView,
   LoadoutsPageView,
   SettingsPageView,
   VendorsPageView
 } from "../../ui/src/index";
+import { selectAccountPageModel } from "../../app/src/workspaces/accountPage";
+import {
+  defaultLibraryEquipmentFilter,
+  defaultLibraryPerkFilter,
+  selectLibraryPageModel
+} from "../../app/src/workspaces/libraryPage";
 import { selectLoadoutsPageModel } from "../../app/src/workspaces/loadoutsPage";
 import type { AccountItemSummary, AccountSummary } from "@d2-tools/core/account/summary";
+import type { ItemSearchResult } from "@d2-tools/app";
 import type { LoadoutTemplate } from "@d2-tools/core/loadouts/templates";
 
 describe("shared UI page views", () => {
@@ -143,6 +152,64 @@ describe("shared UI page views", () => {
     expect(dailyPanel).toContain("另有 6 个区域");
   });
 
+  it("renders library acquisition source groups from the page model contract", () => {
+    const html = renderToStaticMarkup(
+      <LibraryPageContentView
+        interfaceLocale="zh-CN"
+        model={selectLibraryPageModel({
+          items: [
+            libraryItem(700, "可刷武器", "先锋打击掉落。"),
+            libraryItem(701, "轮换武器", "每周夜幕轮换奖励。"),
+            libraryItem(702, "传承武器", "该来源已下架，暂不可获取。"),
+            {
+              ...libraryItem(703, "缺来源武器", ""),
+              source: {
+                status: "missing",
+                label: "来源待补",
+                description: ""
+              }
+            }
+          ],
+          perks: [],
+          libraryHistory: { recent: [], favorites: [] },
+          libraryCommunityMatch: new Map(),
+          liveAvailability: null,
+          liveAvailabilityError: "",
+          manifestStatus: { initialized: true, version: "2026.07.07.0000" },
+          manifestStatusError: ""
+        }, {
+          libraryViewMode: "equipment",
+          equipmentFilters: defaultLibraryEquipmentFilter,
+          perkFilters: defaultLibraryPerkFilter,
+          equipmentSearchTouched: true,
+          perkSearchTouched: false,
+          isSearching: false,
+          searchError: "",
+          aliasDraft: "",
+          aliasTargetDraft: "",
+          aliasKind: "item",
+          aliasMessage: "",
+          isLoadingLiveAvailability: false,
+          isLoadingManifestStatus: false,
+          isInitializingManifest: false,
+          itemDetailLoadingKey: ""
+        })}
+        actions={libraryActions()}
+      />
+    );
+
+    expect(html).toContain("library-source-groups");
+    expect(html).toContain("library-reference-card");
+    expect(html).toContain("来源可确认");
+    expect(html).toContain("等轮换");
+    expect(html).toContain("已下架或待确认");
+    expect(html).toContain("来源待补");
+    expect(html).toContain("可刷武器");
+    expect(html).toContain("轮换武器");
+    expect(html).toContain("传承武器");
+    expect(html).toContain("缺来源武器");
+  });
+
   it("renders the loadouts workbench from the page model contract instead of source-string assertions", () => {
     const html = renderToStaticMarkup(
       <LoadoutsPageContentView
@@ -208,7 +275,282 @@ describe("shared UI page views", () => {
     expect(html).toContain("Perk：快速命中");
     expect(html).toContain("Perk：丰盈满溢");
   });
+
+  it("renders logged-in account refresh and reauthorization actions from the page model contract", () => {
+    const html = renderToStaticMarkup(
+      <AccountPageContentView
+        interfaceLocale="zh-CN"
+        viewModel={selectAccountPageModel({
+          cache: {
+            accountSummary: accountPageSummary(),
+            activitySummary: null
+          },
+          pageState: {
+            selectedCharacterId: "account-char-1",
+            isBungieConfigured: true,
+            isAccountLoggedIn: true,
+            isLoadingAccount: false,
+            writeActionsEnabled: true,
+            accountError: "",
+            itemDetailError: "",
+            activityMessage: "",
+            activityError: "",
+            loadoutMessage: "",
+            itemActionMessage: "",
+            isRunningItemAction: false
+          }
+        })}
+        actions={accountActions()}
+      />
+    );
+
+    expect(html).toContain("account-page-actions");
+    expect(html).toContain("刷新账号");
+    expect(html).toContain("重新授权");
+    expect(html).toContain("Guardian");
+    expect(html).toContain("猎人");
+  });
+
+  it("renders account equipment, inventory, loadout hits, and materials from the page model contract", () => {
+    const html = renderToStaticMarkup(
+      <AccountPageContentView
+        interfaceLocale="zh-CN"
+        viewModel={selectAccountPageModel({
+          cache: {
+            accountSummary: accountPageSummary(),
+            activitySummary: null
+          },
+          pageState: {
+            selectedCharacterId: "account-char-1",
+            isBungieConfigured: true,
+            isAccountLoggedIn: true,
+            isLoadingAccount: false,
+            writeActionsEnabled: true,
+            accountError: "",
+            itemDetailError: "",
+            activityMessage: "",
+            activityError: "",
+            loadoutMessage: "",
+            itemActionMessage: "",
+            isRunningItemAction: false,
+            activeLoadoutTemplateName: "日落配装",
+            isLoadoutMatch: (item) => item.instance_id === "account-equipped"
+          }
+        })}
+        actions={accountActions()}
+      />
+    );
+
+    expect(html).toContain("account-primary-workbench");
+    expect(html).toContain("account-slot-comparison-row");
+    expect(html).toContain("account-secondary-workbench");
+    expect(html).toContain("account-character-summary");
+    expect(html).toContain("account-equipped-panel");
+    expect(html).toContain("account-inventory-panel");
+    expect(html).toContain("equipment-item");
+    expect(html).toContain("loadout-highlight");
+    expect(html).toContain("loadout-template-badge");
+    expect(html).toContain("当前角色装备");
+    expect(html).toContain("当前角色背包");
+    expect(html).toContain("已装备手炮");
+    expect(html).toContain("背包胸甲");
+    expect(html).toContain("方案命中");
+    expect(html).toContain("材料与消耗品");
+    expect(html).toContain("强化核心");
+    expect(html).toContain(">27<");
+  });
+
+  it("renders bounded account backpack previews from the page model contract", () => {
+    const html = renderToStaticMarkup(
+      <AccountPageContentView
+        interfaceLocale="zh-CN"
+        viewModel={selectAccountPageModel({
+          cache: {
+            accountSummary: accountPageSummaryWithBackpackOverflow(),
+            activitySummary: null
+          },
+          pageState: {
+            selectedCharacterId: "account-char-1",
+            isBungieConfigured: true,
+            isAccountLoggedIn: true,
+            isLoadingAccount: false,
+            writeActionsEnabled: true,
+            accountError: "",
+            itemDetailError: "",
+            activityMessage: "",
+            activityError: "",
+            loadoutMessage: "",
+            itemActionMessage: "",
+            isRunningItemAction: false
+          }
+        })}
+        actions={accountActions()}
+      />
+    );
+
+    expect(html).toContain("当前角色背包 / 背包候选");
+    expect(html).toContain("背包候选 01");
+    expect(html).toContain("背包候选 08");
+    expect(html).not.toContain("背包候选 09");
+    expect(html).toContain("显示全部 10 件");
+    expect(html).toContain("还有 2 件未渲染");
+    expect(html).toContain('loading="lazy"');
+    expect(html).toContain("/icons/backpack-01.png");
+  });
+
+  it("renders disconnected account setup actions from the page model contract", () => {
+    const html = renderToStaticMarkup(
+      <AccountPageContentView
+        interfaceLocale="zh-CN"
+        viewModel={selectAccountPageModel({
+          cache: {
+            accountSummary: null,
+            activitySummary: null
+          },
+          pageState: {
+            selectedCharacterId: "",
+            isBungieConfigured: false,
+            isAccountLoggedIn: false,
+            isLoadingAccount: false,
+            writeActionsEnabled: false,
+            accountError: "",
+            itemDetailError: "",
+            activityMessage: "",
+            activityError: "",
+            loadoutMessage: "",
+            itemActionMessage: "",
+            isRunningItemAction: false
+          }
+        })}
+        actions={accountActions()}
+      />
+    );
+
+    expect(html).toContain("account-empty-state");
+    expect(html).toContain("未连接 Bungie");
+    expect(html).toContain("去设置 Bungie");
+    expect(html).toContain("登录 Bungie");
+  });
 });
+
+function libraryActions() {
+  return {
+    onViewModeChange: () => undefined,
+    onEquipmentFiltersChange: () => undefined,
+    onPerkFiltersChange: () => undefined,
+    onSearch: () => undefined,
+    onClearFilters: () => undefined,
+    onRefreshManifestStatus: () => undefined,
+    onInitializeManifest: () => undefined,
+    onAliasDraftChange: () => undefined,
+    onAliasTargetDraftChange: () => undefined,
+    onAliasKindChange: () => undefined,
+    onSaveAlias: () => undefined,
+    onOpenItemDetail: () => undefined,
+    onAddFavorite: () => undefined,
+    onRemoveFavorite: () => undefined
+  };
+}
+
+function libraryItem(hash: number, name: string, sourceDescription: string): ItemSearchResult {
+  return {
+    hash,
+    name,
+    description: `${name} 描述`,
+    item_type: "自动步枪",
+    tier: "传说",
+    group_key: "weapons",
+    bucket_name: "动能武器",
+    source: {
+      status: "ready",
+      label: "来源可确认",
+      description: sourceDescription
+    },
+    perks: [
+      {
+        socket_index: 0,
+        plugs: [
+          {
+            hash: hash + 1000,
+            name: "测试 Perk",
+            description: "测试 Perk 描述"
+          }
+        ]
+      }
+    ]
+  };
+}
+
+function accountActions() {
+  return {
+    configureBungie: () => undefined,
+    loginBungie: () => undefined,
+    refreshAccount: () => undefined,
+    refreshActivity: () => undefined,
+    selectCharacter: () => undefined,
+    saveCurrentLoadout: () => undefined,
+    equipHighestPower: () => undefined,
+    openItem: () => undefined
+  };
+}
+
+function accountPageSummary(): AccountSummary {
+  return {
+    account_name: "Guardian",
+    destiny_membership_id: "account-membership",
+    membership_type: 3,
+    characters: [
+      {
+        character_id: "account-char-1",
+        class_name: "猎人",
+        light: 2015,
+        equipped_items: [loadoutsItem("account-equipped", 300, "已装备手炮", "能量武器")],
+        equipment_groups: [],
+        inventory_items: [loadoutsItem("account-inventory", 301, "背包胸甲", "胸甲")],
+        inventory_groups: [],
+        postmaster_items: [],
+        loadout_slots: [],
+        activities: []
+      }
+    ],
+    vault: {
+      item_count: 2,
+      items: [],
+      sample_items: []
+    },
+    materials: {
+      item_count: 1,
+      items: [
+        {
+          hash: 400,
+          name: "强化核心",
+          item_type: "消耗品",
+          tier: "传说",
+          quantity: 27
+        }
+      ]
+    }
+  };
+}
+
+function accountPageSummaryWithBackpackOverflow(): AccountSummary {
+  const summary = accountPageSummary();
+  return {
+    ...summary,
+    characters: summary.characters.map((character) => character.character_id === "account-char-1"
+      ? {
+          ...character,
+          inventory_items: Array.from({ length: 10 }, (_, index) => loadoutsItem(
+            `account-inventory-${index + 1}`,
+            500 + index,
+            `背包候选 ${String(index + 1).padStart(2, "0")}`,
+            "能量武器",
+            { icon: `/icons/backpack-${String(index + 1).padStart(2, "0")}.png` }
+          ))
+        }
+      : character)
+  };
+}
 
 function loadoutsActions() {
   return {
@@ -316,12 +658,14 @@ function loadoutsItem(
   instanceId: string,
   hash: number,
   name: string,
-  bucketName: string
+  bucketName: string,
+  options: { icon?: string } = {}
 ): AccountItemSummary {
   return {
     hash,
     instance_id: instanceId,
     name,
+    icon: options.icon,
     bucket_name: bucketName,
     group_key: "weapons",
     socket_plugs: []
