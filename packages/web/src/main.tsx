@@ -16,13 +16,12 @@ import {
   type LibraryViewMode,
   type AiAssistantMessageView,
   type ShellAssistantMode,
-  type ShellBackgroundTaskItem,
   type ShellPageKey
 } from "@d2-tools/ui";
 import {
   buildLoadoutTemplateLookup,
-  createLoadoutsPageWorkspace,
-  createVaultPageWorkspace,
+  selectLoadoutsPageModel,
+  selectVaultPageModel,
   selectVendorsPageModel,
   homePageMetaMap,
   matchesLoadoutTemplateItem,
@@ -35,23 +34,25 @@ import {
   fallbackHomeSnapshot,
   type WebHomeSnapshot
 } from "./webAdapter";
+import { useWebFixtureRuntime } from "./fixtures/useWebFixtureRuntime";
 
 function WebApp() {
+  const fixture = useWebFixtureRuntime();
   const env = ((import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env) ?? {};
   const initialTheme = env.VITE_D2_VISUAL_THEME === "dark" ? "dark" : "light";
   const adapter = useMemo(() => createWebShellAdapter(), []);
   const [snapshot, setSnapshot] = useState<WebHomeSnapshot>(fallbackHomeSnapshot);
   const [assistantMode, setAssistantMode] = useState<ShellAssistantMode>(null);
   const [activePage, setActivePage] = useState<ShellPageKey>("home");
-  const [selectedAccountCharacterId, setSelectedAccountCharacterId] = useState(webAccountSummary.characters[0]?.character_id ?? "");
-  const [selectedTemplateId, setSelectedTemplateId] = useState(webLoadoutTemplates[0]?.id ?? "");
+  const [selectedAccountCharacterId, setSelectedAccountCharacterId] = useState(fixture.accountSummary.characters[0]?.character_id ?? "");
+  const [selectedTemplateId, setSelectedTemplateId] = useState(fixture.loadoutTemplates[0]?.id ?? "");
   const [selectedLoadoutEntryId, setSelectedLoadoutEntryId] = useState("");
-  const [compareTemplateId, setCompareTemplateId] = useState(webLoadoutTemplates[1]?.id ?? "");
-  const [renameDraft, setRenameDraft] = useState(webLoadoutTemplates[0]?.name ?? "");
+  const [compareTemplateId, setCompareTemplateId] = useState(fixture.loadoutTemplates[1]?.id ?? "");
+  const [renameDraft, setRenameDraft] = useState(fixture.loadoutTemplates[0]?.name ?? "");
   const [showDiffOnly, setShowDiffOnly] = useState(false);
   const [libraryViewMode, setLibraryViewMode] = useState<LibraryViewMode>("equipment");
-  const [equipmentFilters, setEquipmentFilters] = useState<LibraryEquipmentFilter>(webEquipmentFilters);
-  const [perkFilters, setPerkFilters] = useState<LibraryPerkFilter>(webPerkFilters);
+  const [equipmentFilters, setEquipmentFilters] = useState<LibraryEquipmentFilter>(fixture.equipmentFilters);
+  const [perkFilters, setPerkFilters] = useState<LibraryPerkFilter>(fixture.perkFilters);
   const [aliasDraft, setAliasDraft] = useState("ff");
   const [aliasTargetDraft, setAliasTargetDraft] = useState("喂食狂热");
   const [aliasKind, setAliasKind] = useState<"item" | "perk">("perk");
@@ -71,15 +72,15 @@ function WebApp() {
   const isBungieConfigured = true;
   const isAccountLoggedIn = true;
   const isAiConfigured = true;
-  const selectedTemplate = webLoadoutTemplates.find((template) => template.id === selectedTemplateId)
-    ?? webLoadoutTemplates[0]
+  const selectedTemplate = fixture.loadoutTemplates.find((template) => template.id === selectedTemplateId)
+    ?? fixture.loadoutTemplates[0]
     ?? null;
   const activeLoadoutLookup = selectedTemplate ? buildLoadoutTemplateLookup(selectedTemplate) : null;
   const accountViewModel = useMemo(
     () => selectAccountPageModel({
       cache: {
-        accountSummary: webAccountSummary,
-        activitySummary: webActivitySummary
+        accountSummary: fixture.accountSummary,
+        activitySummary: fixture.activitySummary
       },
       pageState: {
         selectedCharacterId: selectedAccountCharacterId,
@@ -102,24 +103,24 @@ function WebApp() {
     }),
     [activeLoadoutLookup, isBungieConfigured, isAccountLoggedIn, selectedAccountCharacterId, selectedTemplate?.name]
   );
-  const vaultWorkspace = useMemo(
-    () => createVaultPageWorkspace({
-      account: webAccountSummary,
+  const vaultModel = useMemo(
+    () => selectVaultPageModel({
+      account: fixture.accountSummary,
       selectedCharacterId: selectedAccountCharacterId,
       activeLoadoutLookup,
       activeLoadoutName: selectedTemplate?.name,
-      tags: webVaultTags,
-      targetRules: webLocalTargetRules,
-      wishlist: webWishlist,
-      communityMatch: webVaultCommunityMatch
+      tags: fixture.vaultTags,
+      targetRules: fixture.localTargetRules,
+      wishlist: fixture.wishlist,
+      communityMatch: fixture.vaultCommunityMatch
     }),
     [activeLoadoutLookup, selectedAccountCharacterId, selectedTemplate?.name]
   );
   const webVendorsWorkspace = useMemo(() => selectVendorsPageModel(null), []);
-  const loadoutsWorkspace = useMemo(
-    () => createLoadoutsPageWorkspace({
-      accountSummary: webAccountSummary,
-      templates: webLoadoutTemplates,
+  const loadoutsModel = useMemo(
+    () => selectLoadoutsPageModel({
+      accountSummary: fixture.accountSummary,
+      templates: fixture.loadoutTemplates,
       selectedTemplateId,
       selectedEntryId: selectedLoadoutEntryId,
       compareTemplateId,
@@ -175,7 +176,7 @@ function WebApp() {
       assistantMode={assistantMode}
       onAssistantModeChange={setAssistantMode}
       shellStatus={snapshot.shellStatus}
-      backgroundTasks={webBackgroundTasks}
+      backgroundTasks={fixture.backgroundTasks}
       onOpenBackgroundTasks={() => setActivePage("settings")}
       pageHeader={getWebPageHeader}
       assistantPanel={(
@@ -258,22 +259,22 @@ function WebApp() {
           ) : null}
           {activePage === "vault" ? (
             <VaultPageContentView
-              items={vaultWorkspace.vaultItems}
-              vaultItemCount={vaultWorkspace.vaultItemCount}
-              highlightedItemKeys={vaultWorkspace.activeLoadoutLookup}
-              highlightedLabel={vaultWorkspace.activeLoadoutName}
-              tags={vaultWorkspace.tags}
+              items={vaultModel.vaultItems}
+              vaultItemCount={vaultModel.vaultItemCount}
+              highlightedItemKeys={vaultModel.activeLoadoutLookup}
+              highlightedLabel={vaultModel.activeLoadoutName}
+              tags={vaultModel.tags}
               openingItemKey=""
-              wishlist={vaultWorkspace.wishlist}
-              localTargetRules={vaultWorkspace.targetRules}
-              communityMatch={vaultWorkspace.communityMatch}
+              wishlist={vaultModel.wishlist}
+              localTargetRules={vaultModel.targetRules}
+              communityMatch={vaultModel.communityMatch}
               cleanupActions={{
-                characters: webAccountSummary.characters,
-                currentCharacterId: vaultWorkspace.currentCharacterId,
-                currentCharacterLabel: vaultWorkspace.currentCharacterLabel,
+                characters: fixture.accountSummary.characters,
+                currentCharacterId: vaultModel.currentCharacterId,
+                currentCharacterLabel: vaultModel.currentCharacterLabel,
                 writeActionsEnabled: false,
                 onBatchUnlock: async () => "Web mock：写操作未开启。",
-                onBatchTransferToCharacter: async () => webBatchResult
+                onBatchTransferToCharacter: async () => fixture.batchResult
               }}
               onContextFactsChange={() => undefined}
               onOpenItem={() => undefined}
@@ -284,13 +285,13 @@ function WebApp() {
           {activePage === "loadouts" ? (
             <LoadoutsPageContentView
               interfaceLocale={preferences.interfaceLocale}
-              model={loadoutsWorkspace.model}
+              model={loadoutsModel}
               actions={{
                 selectEntry: setSelectedLoadoutEntryId,
                 selectTemplate: (id) => {
                   setSelectedLoadoutEntryId(`local-template-${id}`);
                   setSelectedTemplateId(id);
-                  const template = webLoadoutTemplates.find((item) => item.id === id);
+                  const template = fixture.loadoutTemplates.find((item) => item.id === id);
                   if (template) setRenameDraft(template.name);
                 },
                 selectCompareTemplate: setCompareTemplateId,
@@ -319,13 +320,13 @@ function WebApp() {
             <LibraryPageContentView
               interfaceLocale={preferences.interfaceLocale}
               model={selectLibraryPageModel({
-                items: webLibraryItems,
-                perks: webLibraryPerks,
-                libraryHistory: webLibraryHistory,
-                libraryCommunityMatch: webLibraryCommunityMatch,
-                liveAvailability: webLiveAvailability,
+                items: fixture.libraryItems,
+                perks: fixture.libraryPerks,
+                libraryHistory: fixture.libraryHistory,
+                libraryCommunityMatch: fixture.libraryCommunityMatch,
+                liveAvailability: fixture.liveAvailability,
                 liveAvailabilityError: "",
-                manifestStatus: webManifestStatus,
+                manifestStatus: fixture.manifestStatus,
                 manifestStatusError: ""
               }, {
                 libraryViewMode,
@@ -350,8 +351,8 @@ function WebApp() {
                 onPerkFiltersChange: (patch) => setPerkFilters((current) => ({ ...current, ...patch })),
                 onSearch: () => undefined,
                 onClearFilters: () => {
-                  setEquipmentFilters(webEquipmentFilters);
-                  setPerkFilters(webPerkFilters);
+                  setEquipmentFilters(fixture.equipmentFilters);
+                  setPerkFilters(fixture.perkFilters);
                 },
                 onRefreshManifestStatus: () => undefined,
                 onInitializeManifest: () => undefined,
@@ -380,18 +381,18 @@ function WebApp() {
               error=""
               diagnosticDataDir="Web mock storage"
               writeActionsEnabled={false}
-              updateSnapshot={webUpdateSnapshot}
-              manifestStatus={webManifestStatus}
+              updateSnapshot={fixture.updateSnapshot}
+              manifestStatus={fixture.manifestStatus}
               manifestStatusError=""
               isLoadingManifestStatus={false}
               isInitializingManifest={false}
-              accountSummary={webAccountSummary}
+              accountSummary={fixture.accountSummary}
               accountError=""
               isLoadingAccount={false}
               lastAccountLoadedAt={new Date("2026-07-03T14:18:00+08:00")}
               isAiConfigured
-              backgroundTasks={webBackgroundTasks}
-              actionLog={webActionLog}
+              backgroundTasks={fixture.backgroundTasks}
+              actionLog={fixture.actionLog}
               actionLogResultFilter="all"
               actionLogTypeFilter="all"
               aiSettingsPanel={<WebAiSettingsPanel />}
@@ -423,7 +424,7 @@ function WebApp() {
                 followInterfaceLocaleForBungie: preferences.followInterfaceLocaleForBungie
               }}
               onLanguagePreferencesChange={() => undefined}
-              onLoadBungieConfig={async () => webBungieConfig}
+              onLoadBungieConfig={async () => fixture.bungieConfig}
               onSaveBungieConfig={async () => undefined}
             />
           ) : null}
@@ -461,194 +462,4 @@ function WebAiSettingsPanel() {
       </div>
     </div>
   );
-}
-
-const webAccountSummary: any = {
-  account_name: "Web Guardian",
-  destiny_membership_id: "4611686018429100000",
-  membership_type: 3,
-  characters: [
-    {
-      character_id: "web-hunter",
-      class_name: "猎人",
-      light: 2022,
-      equipped_items: [
-        webAccountItem("web-pulse-equipped", 3001, "快速命中脉冲", "动能武器", "轻质框架", "已装备"),
-        webAccountItem("web-rocket-equipped", 3004, "边缘迁移火箭筒", "威能武器", "自适应框架", "已装备")
-      ],
-      equipment_groups: [],
-      inventory_items: [
-        webAccountItem("web-shotgun-inventory", 3003, "终局霰弹枪", "能量武器", "精确框架", "背包")
-      ],
-      inventory_groups: [],
-      postmaster_items: [],
-      loadout_slots: []
-    },
-    {
-      character_id: "web-warlock",
-      class_name: "术士",
-      light: 2018,
-      equipped_items: [],
-      equipment_groups: [],
-      inventory_items: [webAccountItem("web-fusion-warlock", 3005, "适配融合步枪", "能量武器", "适配框架", "术士背包")],
-      inventory_groups: [],
-      postmaster_items: [],
-      loadout_slots: []
-    }
-  ],
-  vault: {
-    item_count: 485,
-    items: [
-      webAccountItem("web-handcannon-vault", 3002, "精准手炮", "能量武器", "精确框架", "仓库"),
-      webAccountItem("web-sword-vault", 3006, "连锁反应刀剑", "威能武器", "旋风框架", "仓库"),
-      webAccountItem("web-scout-vault", 3007, "旧赛季斥候", "动能武器", "适配框架", "仓库")
-    ],
-    sample_items: []
-  },
-  materials: { item_count: 0, items: [] }
-};
-
-const webActivitySummary: any = {
-  recent: { total: 10, pve: { total: 7, completed: 6 }, pvp: { total: 3, completed: 2 }, latest_period: "2026-07-03T14:18:00+08:00" },
-  review: { completion_rate: 80, completions_in_a_row: 3, recent_10: [] },
-  raids: { entries: [] },
-  recent_items: []
-};
-
-const webLoadoutTemplates: any[] = [
-  {
-    id: "web-nightfall",
-    name: "Web 夜幕模板",
-    character_id: "web-hunter",
-    class_name: "猎人",
-    created_at: "2026-07-01T10:00:00.000Z",
-    updated_at: "2026-07-03T14:18:00.000Z",
-    items: [
-      { hash: 3001, instance_id: "web-pulse-equipped", name: "快速命中脉冲", bucket_name: "动能武器", weapon_frame_name: "轻质框架", perk_names: ["快速命中", "动能震颤"] },
-      { hash: 3002, instance_id: "web-handcannon-vault", name: "精准手炮", bucket_name: "能量武器", weapon_frame_name: "精确框架", perk_names: ["丰盈满溢", "爆炸载荷"] }
-    ]
-  },
-  {
-    id: "web-raid",
-    name: "Web 突袭模板",
-    character_id: "web-warlock",
-    class_name: "术士",
-    created_at: "2026-07-01T10:00:00.000Z",
-    updated_at: "2026-07-03T14:18:00.000Z",
-    items: [
-      { hash: 3005, instance_id: "web-fusion-warlock", name: "适配融合步枪", bucket_name: "能量武器", weapon_frame_name: "适配框架", perk_names: ["自填", "控制爆破"] }
-    ]
-  }
-];
-
-const webSelectedAnalysis = { equipped: [webLoadoutTemplates[0].items[0]], missing: [webLoadoutTemplates[0].items[1]] };
-const webTransferPlan = { steps: [], blocked: [] };
-const webLoadoutStatusSummary = [
-  { key: "equipped", label: "已装备", count: 1 },
-  { key: "vault", label: "仓库", count: 1 }
-];
-const webCompareRows = [
-  {
-    slot: "能量武器",
-    changed: true,
-    left: { name: "精准手炮", frame: "精确框架", perks: ["丰盈满溢", "爆炸载荷"] },
-    right: { name: "适配融合步枪", frame: "适配框架", perks: ["自填", "控制爆破"] }
-  }
-];
-
-const webEquipmentFilters: LibraryEquipmentFilter = {
-  query: "",
-  group: "all",
-  tier: "all",
-  bucket: "all",
-  ammo: "all",
-  frame: [],
-  sourceStatus: "all",
-  perkPool: "all",
-  dropAccess: "all",
-  perkQuery: ""
-};
-
-const webPerkFilters: LibraryPerkFilter = {
-  query: "",
-  relatedGroup: "all",
-  hasRelatedItems: "all"
-};
-
-const webLibraryItems: any[] = [
-  {
-    hash: 3001,
-    name: "快速命中脉冲",
-    description: "Web mock 装备。",
-    item_type: "脉冲步枪",
-    tier: "传说",
-    group_key: "weapons",
-    bucket_name: "动能武器",
-    ammo_type: "primary",
-    weapon_frame: { key: "lightweight", name: "轻质框架" },
-    source: { status: "ready", label: "来源可确认", description: "Web provider 后续接真实来源。" },
-    perks: []
-  }
-];
-const webLibraryPerks: any[] = [{ hash: 4001, name: "动能震颤", description: "连续命中目标后产生动能冲击波。", related_items: [] }];
-const webLibraryHistory = { recent: [{ hash: 3001, name: "快速命中脉冲" }], favorites: [] };
-const webLibraryCommunityMatch = new Map<number, any>([[3001, { available: 1, sample_perks: [{ name: "快速命中" }] }]]);
-const webLiveAvailability = { account_scope: "character" as const, items: {} };
-
-const webManifestStatus = {
-  initialized: true,
-  version: "DestinyInventoryItemDefinition.26.06.16.0000",
-  latest_version: "DestinyInventoryItemDefinition.26.06.16.0000",
-  needs_update: false,
-  cached_at: "2026-06-16T17:00:00.000Z",
-  checked_at: "2026-07-03T14:18:00+08:00",
-  missing_required_components: []
-};
-
-const webUpdateSnapshot = {
-  status: "not_available",
-  current_version: "0.0.10",
-  available_version: null,
-  downloaded_version: null,
-  progress_percent: undefined,
-  last_checked_at: "2026-07-03T14:18:00+08:00",
-  update_source_label: "GitHub Release",
-  user_message: "当前已是最新版本。",
-  error: ""
-};
-
-const webVaultTags = { items: { "web-handcannon-vault": { tag: "review", note: "Web mock 同名复查。" }, "web-scout-vault": { tag: "junk" } } } as const;
-const webLocalTargetRules = { action_policy: "notify_only" as const, armor: [], weapons: [] };
-const webWishlist = { title: "Web DIM Wishlist", rules: [{ item_hash: 3002, perk_hashes: [4001], mode: "pve" as const, note: "Web 推荐" }] };
-const webVaultCommunityMatch = new Map<number, any>([[3002, { matched: 1, modes: ["pve"], sample_perks: [{ name: "爆炸载荷" }] }]]);
-const webBatchResult = { success_count: 0, failed_count: 0, results: [] };
-const webBackgroundTasks: ShellBackgroundTaskItem[] = [{ id: "web-task", title: "Web snapshot", status: "succeeded", message: "Web mock 已载入。", created_at: "2026-07-03T14:18:00+08:00", updated_at: "2026-07-03T14:18:00+08:00" }];
-const webActionLog = [{ id: "web-action", created_at: "2026-07-03T14:18:00+08:00", action: "mock", item_name: "Web mock", ok: true, message: "共享设置页操作日志 mock。" }];
-const webBungieConfig = { bungie: { api_key: "web-api-key", client_id: "web-client-id", client_secret: "web-client-secret", redirect_uri: "https://127.0.0.1:28780/oauth/callback" } };
-
-function webAccountItem(instanceId: string, hash: number, name: string, bucketName: string, frameName: string, location: string) {
-  return {
-    hash,
-    instance_id: instanceId,
-    name,
-    item_type: bucketName.includes("武器") ? "武器" : "装备",
-    tier: "传说",
-    bucket_name: bucketName,
-    group_key: bucketName.includes("武器") ? "weapons" : "armor",
-    weapon_frame: { key: frameName, name: frameName },
-    socket_plugs: [{ hash: 4001, name: "快速命中" }, { hash: 4002, name: "爆炸载荷" }],
-    source_kind: location === "仓库" ? "vault" : location.includes("背包") ? "inventory" : "equipped",
-    source_character_id: location === "术士背包" ? "web-warlock" : "web-hunter"
-  };
-}
-
-function getWebLoadoutItemStatus(item: any) {
-  if (item.instance_id === "web-pulse-equipped") {
-    return { key: "equipped", badge_label: "已装备", badge_tone: "ready", location_label: "当前角色已装备" };
-  }
-  return { key: "vault", badge_label: "仓库待取", badge_tone: "info", location_label: "仓库", guidance_label: "可自动补齐", guidance_hint: "Web mock 暂不执行写操作。" };
-}
-
-function getWebSourceItem(item: any) {
-  return item.instance_id ? { instance_id: item.instance_id, source_kind: item.instance_id.includes("vault") ? "vault" : "inventory", source_character_id: "web-hunter" } : null;
 }

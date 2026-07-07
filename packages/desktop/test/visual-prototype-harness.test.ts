@@ -154,7 +154,9 @@ describe("visual prototype harness", () => {
       styles.indexOf("/* End canonical product token surface rules */")
     );
 
-    expect(homeDashboard).toContain("<HomePageContentView {...props} />");
+    expect(homeDashboard).toContain("selectHomePageModel");
+    expect(homeDashboard).toContain("<HomePageContentView");
+    expect(homeDashboard).toContain("{...model}");
     expect(homeDashboard).not.toContain("home-data-strip");
     expect(homePageView).not.toContain("app-page-head");
     expect(homePageView).not.toContain("status-${point.tone}");

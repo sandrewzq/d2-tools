@@ -1,6 +1,8 @@
 import type { AccountSummary } from "@d2-tools/core/account/summary";
+import type { DailySummary } from "@d2-tools/core/daily/summary";
 import type { LoadoutTemplate } from "@d2-tools/core/loadouts/templates";
-import type { HomeDashboardDiagnosticRow } from "./homeDashboard.js";
+import type { StartupState } from "@d2-tools/core/startup/startupState";
+import type { HomeDashboardDiagnosticRow, HomeDashboardWorkspace } from "./homeDashboard.js";
 import {
   homePageFocus,
   homePageLabels,
@@ -13,6 +15,24 @@ export type AssistantPageContext = {
   page_label: string;
   focus: string;
   facts: string[];
+};
+
+export type HomePageModel = HomeDashboardWorkspace;
+
+export type HomePageModelInput = {
+  state: StartupState;
+  diagnosticRows?: HomeDashboardDiagnosticRow[];
+  diagnosticError?: string;
+  accountError?: string;
+  hasAccountData?: boolean;
+  dailySummary?: DailySummary | null;
+  dailyMessage?: string;
+  dailyError?: string;
+  isLoggingIn?: boolean;
+  isLoadingAccount?: boolean;
+  isInitializingManifest?: boolean;
+  isRefreshingDiagnostics?: boolean;
+  isLoadingDaily?: boolean;
 };
 
 export type HomePageDerivedState = {
@@ -37,6 +57,24 @@ export type HomePageDerivedState = {
   loadoutFacts: string[];
   libraryFacts: string[];
 };
+
+export function selectHomePageModel(input: HomePageModelInput): HomePageModel {
+  return {
+    state: input.state,
+    diagnosticRows: input.diagnosticRows ?? [],
+    diagnosticError: input.diagnosticError ?? "",
+    accountError: input.accountError ?? "",
+    hasAccountData: input.hasAccountData ?? false,
+    dailySummary: input.dailySummary ?? null,
+    dailyMessage: input.dailyMessage ?? "",
+    dailyError: input.dailyError ?? "",
+    isLoggingIn: input.isLoggingIn ?? false,
+    isLoadingAccount: input.isLoadingAccount ?? false,
+    isInitializingManifest: input.isInitializingManifest ?? false,
+    isRefreshingDiagnostics: input.isRefreshingDiagnostics ?? false,
+    isLoadingDaily: input.isLoadingDaily ?? false
+  };
+}
 
 export function createHomePageDerivedState(input: Omit<HomePageDerivedState, "pageMeta" | "assistantPageContext" | "loadoutFacts" | "libraryFacts"> & {
   loadoutFacts?: string[];

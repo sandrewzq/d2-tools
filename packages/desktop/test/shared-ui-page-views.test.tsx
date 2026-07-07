@@ -6,10 +6,14 @@ import {
   HomePageContentView,
   HomePageView,
   LibraryPageView,
+  LoadoutsPageContentView,
   LoadoutsPageView,
   SettingsPageView,
   VendorsPageView
 } from "../../ui/src/index";
+import { selectLoadoutsPageModel } from "../../app/src/workspaces/loadoutsPage";
+import type { AccountItemSummary, AccountSummary } from "@d2-tools/core/account/summary";
+import type { LoadoutTemplate } from "@d2-tools/core/loadouts/templates";
 
 describe("shared UI page views", () => {
   it("renders shared page roots for home, account, and settings", () => {
@@ -138,4 +142,188 @@ describe("shared UI page views", () => {
     expect(dailyPanel).toContain("遗失区域：清道夫洞穴");
     expect(dailyPanel).toContain("另有 6 个区域");
   });
+
+  it("renders the loadouts workbench from the page model contract instead of source-string assertions", () => {
+    const html = renderToStaticMarkup(
+      <LoadoutsPageContentView
+        interfaceLocale="zh-CN"
+        model={selectLoadoutsPageModel({
+          accountSummary: loadoutsAccountSummary(),
+          templates: [targetLoadoutTemplate()],
+          selectedTemplateId: "target",
+          selectedEntryId: "in-game-char-target-0",
+          compareTemplateId: "",
+          showDiffOnly: false
+        })}
+        actions={loadoutsActions()}
+        compareTemplateId=""
+        renameDraft="Grandmaster"
+        showDiffOnly={false}
+        message=""
+        isRunningItemAction={false}
+        actionFeedback={{}}
+      />
+    );
+
+    expect(html).toContain("loadout-workbench-shell");
+    expect(html).toContain("配装工作台");
+    expect(html).toContain("Grandmaster");
+    expect(html).toContain("Raid slot");
+    expect(html).toContain("游戏内配装详情");
+    expect(html).toContain("Kinetic Ready");
+    expect(html).toContain("应用到角色");
+    expect(html).toContain("用当前装备覆盖");
+  });
+
+  it("renders saved loadout compare rows from the page model contract", () => {
+    const html = renderToStaticMarkup(
+      <LoadoutsPageContentView
+        interfaceLocale="zh-CN"
+        model={selectLoadoutsPageModel({
+          accountSummary: loadoutsAccountSummary(),
+          templates: [targetLoadoutTemplate(), compareLoadoutTemplate()],
+          selectedTemplateId: "target",
+          selectedEntryId: "local-template-target",
+          compareTemplateId: "compare",
+          showDiffOnly: true
+        })}
+        actions={loadoutsActions()}
+        compareTemplateId="compare"
+        renameDraft="Grandmaster"
+        showDiffOnly
+        message=""
+        isRunningItemAction={false}
+        actionFeedback={{}}
+      />
+    );
+
+    expect(html).toContain("loadout-compare-grid");
+    expect(html).toContain("loadout-compare-row changed");
+    expect(html).toContain("Grandmaster");
+    expect(html).toContain("Raid");
+    expect(html).toContain("Energy Weapons");
+    expect(html).toContain("Energy Missing");
+    expect(html).toContain("Different Energy");
+    expect(html).toContain("框架：精准框架");
+    expect(html).toContain("Perk：快速命中");
+    expect(html).toContain("Perk：丰盈满溢");
+  });
 });
+
+function loadoutsActions() {
+  return {
+    selectEntry: () => undefined,
+    selectTemplate: () => undefined,
+    selectCompareTemplate: () => undefined,
+    renameDraftChange: () => undefined,
+    showDiffOnlyChange: () => undefined,
+    renameTemplate: () => undefined,
+    deleteTemplate: () => undefined,
+    createTransferPlan: () => undefined,
+    copyMissingItems: () => undefined,
+    executeMissingTransfer: () => undefined,
+    executeSingleItemTransfer: () => undefined,
+    equipSingleItem: () => undefined,
+    equipSavedLoadout: () => undefined,
+    snapshotCurrentLoadout: () => undefined,
+    openTemplateSourceItem: () => undefined
+  };
+}
+
+function targetLoadoutTemplate(): LoadoutTemplate {
+  return {
+    id: "target",
+    name: "Grandmaster",
+    character_id: "char-target",
+    class_name: "Titan",
+    created_at: "2026-07-02T00:00:00.000Z",
+    items: [
+      { hash: 100, instance_id: "target-equipped", name: "Kinetic Ready", bucket_name: "Kinetic Weapons" },
+      {
+        hash: 200,
+        instance_id: "vault-energy",
+        name: "Energy Missing",
+        bucket_name: "Energy Weapons",
+        weapon_frame_name: "精准框架",
+        perk_names: ["快速命中"]
+      }
+    ]
+  };
+}
+
+function compareLoadoutTemplate(): LoadoutTemplate {
+  return {
+    id: "compare",
+    name: "Raid",
+    character_id: "char-target",
+    class_name: "Titan",
+    created_at: "2026-07-02T00:00:00.000Z",
+    items: [
+      { hash: 100, instance_id: "target-equipped", name: "Kinetic Ready", bucket_name: "Kinetic Weapons" },
+      {
+        hash: 201,
+        instance_id: "other-energy",
+        name: "Different Energy",
+        bucket_name: "Energy Weapons",
+        weapon_frame_name: "适配框架",
+        perk_names: ["丰盈满溢"]
+      }
+    ]
+  };
+}
+
+function loadoutsAccountSummary(): AccountSummary {
+  return {
+    account_name: "Guardian",
+    destiny_membership_id: "membership",
+    membership_type: 3,
+    characters: [
+      {
+        character_id: "char-target",
+        class_name: "Titan",
+        light: 2010,
+        equipped_items: [loadoutsItem("target-equipped", 100, "Kinetic Ready", "Kinetic Weapons")],
+        equipment_groups: [],
+        inventory_items: [],
+        inventory_groups: [],
+        postmaster_items: [],
+        loadout_slots: [
+          {
+            index: 0,
+            name: "Raid slot",
+            item_count: 10,
+            items: [
+              { instance_id: "target-equipped", name: "Kinetic Ready", bucket_name: "Kinetic Weapons" }
+            ]
+          }
+        ],
+        activities: []
+      }
+    ],
+    vault: {
+      item_count: 1,
+      items: [loadoutsItem("vault-energy", 200, "Energy Missing", "Energy Weapons")],
+      sample_items: []
+    },
+    materials: {
+      item_count: 0,
+      items: []
+    }
+  };
+}
+
+function loadoutsItem(
+  instanceId: string,
+  hash: number,
+  name: string,
+  bucketName: string
+): AccountItemSummary {
+  return {
+    hash,
+    instance_id: instanceId,
+    name,
+    bucket_name: bucketName,
+    group_key: "weapons",
+    socket_plugs: []
+  };
+}

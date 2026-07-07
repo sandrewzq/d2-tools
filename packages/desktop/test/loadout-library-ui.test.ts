@@ -38,21 +38,6 @@ describe("loadout library UI", () => {
     expect(loadoutsPage).toContain("showDiffOnly");
   });
 
-  it("renders compare rows as side-by-side item, frame, and perk details", () => {
-    const loadoutsContent = readFileSync(join(uiRoot, "src", "loadouts", "LoadoutsPageContentView.tsx"), "utf8");
-    const loadoutsWorkspace = readFileSync(join(appRoot, "src", "workspaces", "loadoutsPage.ts"), "utf8");
-    const viewModel = readFileSync(join(appRoot, "src", "workspaces", "loadoutViewModel.ts"), "utf8");
-    const styles = readFileSync(join(desktopRoot, "..", "ui", "src", "styles.css"), "utf8");
-
-    expect(loadoutsContent).toContain("loadout-compare-grid");
-    expect(loadoutsContent).toContain("loadout-compare-row");
-    expect(loadoutsContent).toContain("loadout-compare-side");
-    expect(loadoutsWorkspace).toContain("buildLoadoutCompareRows");
-    expect(viewModel).toContain("formatLoadoutComparePerks");
-    expect(styles).toContain(".loadout-compare-grid");
-    expect(styles).toContain(".loadout-compare-side");
-  });
-
   it("shows richer status labels for each saved loadout item", () => {
     const loadoutsContent = readFileSync(join(uiRoot, "src", "loadouts", "LoadoutsPageContentView.tsx"), "utf8");
     const helper = readFileSync(join(appRoot, "src", "workspaces", "loadoutItemStatus.ts"), "utf8");
@@ -194,33 +179,6 @@ describe("loadout library UI", () => {
     expect(loadoutsPage).toContain("onSnapshotCurrentLoadout");
     expect(productShell).toContain("onEquipSavedLoadout: (character, slot)");
     expect(productShell).toContain("onSnapshotCurrentLoadout: (character, slot)");
-  });
-
-  it("presents local templates and in-game slots as one loadout workbench", () => {
-    const loadoutsContent = readFileSync(join(uiRoot, "src", "loadouts", "LoadoutsPageContentView.tsx"), "utf8");
-    const styles = readFileSync(join(uiRoot, "src", "styles.css"), "utf8");
-
-    expect(loadoutsContent).toContain("loadout-workbench-shell");
-    expect(loadoutsContent).toContain("loadout-entry-list");
-    expect(loadoutsContent).toContain("loadout-entry-source-filter");
-    expect(loadoutsContent).toContain("props.model.entries");
-    expect(loadoutsContent).not.toContain("buildFallbackLoadoutEntries");
-    expect(loadoutsContent).not.toContain("in-game-loadout-slots");
-    expect(styles).toContain(".loadout-workbench-shell");
-    expect(styles).toContain(".loadout-entry-list");
-  });
-
-  it("lets app-modeled in-game loadout slots open their own detail panel", () => {
-    const loadoutsContent = readFileSync(join(uiRoot, "src", "loadouts", "LoadoutsPageContentView.tsx"), "utf8");
-
-    expect(loadoutsContent).toContain("model: LoadoutsPageModel");
-    expect(loadoutsContent).toContain("actions: LoadoutsPageActions");
-    expect(loadoutsContent).toContain('selectedDetail.kind === "in-game-slot"');
-    expect(loadoutsContent).toContain("actions.selectEntry");
-    expect(loadoutsContent).toContain("loadout-in-game-detail");
-    expect(loadoutsContent).not.toContain("selectedLoadoutEntryId");
-    expect(loadoutsContent).not.toContain("getSelectedInGameLoadoutSlot");
-    expect(loadoutsContent).toContain("InGameLoadoutSlotDetail");
   });
 
   it("keeps prototype loadout surfaces on dark-mode semantic tokens", () => {

@@ -463,13 +463,13 @@ describe("desktop workspace layout", () => {
     const appIndex = readFileSync(join(process.cwd(), "packages", "app", "src", "index.ts"), "utf8");
     const vaultWorkspace = readFileSync(join(process.cwd(), "packages", "app", "src", "workspaces", "vaultPage.ts"), "utf8");
 
-    expect(vaultPage).toContain("createVaultPageWorkspace");
-    expect(vaultPage).toContain("workspace.vaultItems");
-    expect(vaultPage).toContain("workspace.currentCharacterId");
-    expect(vaultPage).toContain("workspace.currentCharacterLabel");
+    expect(vaultPage).toContain("selectVaultPageModel");
+    expect(vaultPage).toContain("model.vaultItems");
+    expect(vaultPage).toContain("model.currentCharacterId");
+    expect(vaultPage).toContain("model.currentCharacterLabel");
     expect(vaultPage).not.toContain("currentCharacterId = props.selectedCharacterId || props.account.characters[0]?.character_id");
-    expect(vaultWorkspace).toContain("createVaultPageWorkspace");
-    expect(appIndex).toContain("createVaultPageWorkspace");
+    expect(vaultWorkspace).toContain("selectVaultPageModel");
+    expect(appIndex).toContain("selectVaultPageModel");
   });
 
   it("uses shared source status styling for fallback and warning messages", () => {

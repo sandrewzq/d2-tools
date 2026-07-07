@@ -1,4 +1,5 @@
 import { HomePageContentView, type ShellPageKey } from "@d2-tools/ui";
+import { selectHomePageModel } from "@d2-tools/app";
 import type { DailySummary, StartupState } from "../../api/types";
 import { type DiagnosticRow } from "../../components/DiagnosticsPanel";
 
@@ -28,5 +29,21 @@ export function HomeDashboard(props: {
   onCopyDailySummary: () => void;
   onCopyWeeklyFocus: () => void;
 }) {
-  return <HomePageContentView {...props} />;
+  const model = selectHomePageModel(props);
+
+  return (
+    <HomePageContentView
+      {...model}
+      onConfigure={props.onConfigure}
+      onLogin={props.onLogin}
+      onLoadAccount={props.onLoadAccount}
+      onInitializeManifest={props.onInitializeManifest}
+      onConfigureAi={props.onConfigureAi}
+      onRefreshDiagnostics={props.onRefreshDiagnostics}
+      onNavigate={props.onNavigate}
+      onRefreshDaily={props.onRefreshDaily}
+      onCopyDailySummary={props.onCopyDailySummary}
+      onCopyWeeklyFocus={props.onCopyWeeklyFocus}
+    />
+  );
 }

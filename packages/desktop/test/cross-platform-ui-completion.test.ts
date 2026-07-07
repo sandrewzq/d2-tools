@@ -165,15 +165,15 @@ describe("cross-platform UI completion boundary", () => {
   });
 
   it("keeps prototype mock data dense enough to compare with desktop pages", () => {
-    const prototypeMain = read("packages/prototype/src/main.tsx");
+    const prototypeFixture = read("packages/prototype/src/fixtures/usePrototypeFixtureRuntime.ts");
 
-    expect(prototypeMain).toContain("emblem_url");
-    expect((prototypeMain.match(/prototypeAccountItem\(/g) ?? []).length).toBeGreaterThanOrEqual(24);
-    expect(prototypeMain).toMatch(/item_count:\s*764/);
-    expect(prototypeMain).toMatch(/materials:\s*\{\s*item_count:\s*28/);
-    expect(prototypeMain).toContain("postmaster_items: [");
-    expect(prototypeMain).toContain("prototypeLibraryItems: any[] = [");
-    expect((prototypeMain.match(/source:\s*\{ status: "ready"/g) ?? []).length).toBeGreaterThanOrEqual(5);
+    expect(prototypeFixture).toContain("emblem_url");
+    expect((prototypeFixture.match(/prototypeAccountItem\(/g) ?? []).length).toBeGreaterThanOrEqual(24);
+    expect(prototypeFixture).toMatch(/item_count:\s*764/);
+    expect(prototypeFixture).toMatch(/materials:\s*\{\s*item_count:\s*28/);
+    expect(prototypeFixture).toContain("postmaster_items: [");
+    expect(prototypeFixture).toContain("prototypeLibraryItems: any[] = [");
+    expect((prototypeFixture.match(/source:\s*\{ status: "ready"/g) ?? []).length).toBeGreaterThanOrEqual(5);
   });
 
   it("keeps the prototype settings fallback menu interactive", () => {

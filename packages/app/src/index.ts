@@ -49,8 +49,8 @@ export {
 } from "./workspaces/accountPage.js";
 export type { VaultWorkspace } from "./workspaces/vault.js";
 export { loadVaultWorkspace } from "./workspaces/vault.js";
-export type { VaultPageWorkspace } from "./workspaces/vaultPage.js";
-export { loadVaultPageWorkspace, createVaultPageWorkspace } from "./workspaces/vaultPage.js";
+export type { VaultPageInput, VaultPageModel, VaultPageWorkspace } from "./workspaces/vaultPage.js";
+export { loadVaultPageWorkspace, createVaultPageWorkspace, selectVaultPageModel } from "./workspaces/vaultPage.js";
 export type { VaultLocalDataState } from "./workspaces/vaultLocalData.js";
 export { loadVaultLocalData } from "./workspaces/vaultLocalData.js";
 export type {
@@ -150,6 +150,7 @@ export type {
   LoadoutCompareView,
   LoadoutEntry,
   LoadoutEntryView,
+  LoadoutsPageInput,
   LoadoutRiskSummaryView,
   LoadoutsPageModel,
   LoadoutsPageWorkspace,
@@ -159,7 +160,8 @@ export type {
 export {
   createLoadoutsPageWorkspace,
   getLoadoutItemBlockedDetails,
-  getLoadoutItemStatus
+  getLoadoutItemStatus,
+  selectLoadoutsPageModel
 } from "./workspaces/loadoutsPage.js";
 export type { LoadoutActionResultCounts } from "./workspaces/loadoutActions.js";
 export {
@@ -262,8 +264,14 @@ export {
 } from "./workspaces/vaultActions.js";
 export type { HomePageKey } from "./workspaces/pageMetadata.js";
 export { homePageFocus, homePageLabels, homePageMetaMap } from "./workspaces/pageMetadata.js";
-export type { HomePageDerivedState, AssistantPageContext } from "./workspaces/homePage.js";
-export { createHomePageDerivedState, resolvePageMeta, buildLoadoutContextFacts, buildLibraryContextFacts } from "./workspaces/homePage.js";
+export type { HomePageDerivedState, HomePageModel, HomePageModelInput, AssistantPageContext } from "./workspaces/homePage.js";
+export {
+  createHomePageDerivedState,
+  selectHomePageModel,
+  resolvePageMeta,
+  buildLoadoutContextFacts,
+  buildLibraryContextFacts
+} from "./workspaces/homePage.js";
 export type {
   AmmoTypeKey,
   EquipmentGroupKey,
@@ -306,6 +314,15 @@ export {
   groupLibraryDropQueryItems,
   selectLibraryPageModel
 } from "./workspaces/libraryPage.js";
+export type {
+  SettingsActionLogResultFilter,
+  SettingsActionLogTypeFilter,
+  SettingsLanguagePreferences,
+  SettingsPageModel,
+  SettingsPageModelInput,
+  SettingsSectionKey
+} from "./workspaces/settingsPage.js";
+export { selectSettingsPageModel } from "./workspaces/settingsPage.js";
 export type {
   VendorDetailToolbarWorkspace,
   VendorInventoryGroupWorkspace,

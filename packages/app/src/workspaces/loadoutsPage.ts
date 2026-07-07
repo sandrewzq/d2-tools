@@ -48,6 +48,15 @@ export type LoadoutsPageModel = {
   compare: LoadoutCompareView;
 };
 
+export type LoadoutsPageInput = {
+  accountSummary: AccountSummary | null;
+  templates: LoadoutTemplate[];
+  selectedTemplateId: string;
+  selectedEntryId?: string;
+  compareTemplateId: string;
+  showDiffOnly: boolean;
+};
+
 export type LoadoutEntry = LoadoutEntryView;
 
 export type LoadoutEntryView = {
@@ -112,14 +121,11 @@ export type LoadoutCompareView = {
   visibleRows: LoadoutCompareRow[];
 };
 
-export function createLoadoutsPageWorkspace(input: {
-  accountSummary: AccountSummary | null;
-  templates: LoadoutTemplate[];
-  selectedTemplateId: string;
-  selectedEntryId?: string;
-  compareTemplateId: string;
-  showDiffOnly: boolean;
-}): LoadoutsPageWorkspace {
+export function selectLoadoutsPageModel(input: LoadoutsPageInput): LoadoutsPageModel {
+  return createLoadoutsPageWorkspace(input).model;
+}
+
+export function createLoadoutsPageWorkspace(input: LoadoutsPageInput): LoadoutsPageWorkspace {
   const selectedTemplate = input.templates.find((template) => template.id === input.selectedTemplateId)
     ?? input.templates[0]
     ?? null;

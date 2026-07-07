@@ -3,7 +3,8 @@ import {
   createHomePageDerivedState,
   resolvePageMeta,
   buildLoadoutContextFacts,
-  buildLibraryContextFacts
+  buildLibraryContextFacts,
+  selectHomePageModel
 } from "../src/workspaces/homePage";
 
 describe("home page derived workspace", () => {
@@ -97,5 +98,36 @@ describe("home page derived workspace", () => {
     expect(loadoutFacts[0]).toContain("已找到 1 / 1 件");
     expect(libraryFacts[0]).toContain("资料库搜索：装备 / hand cannon，命中 4 条。");
     expect(resolvePageMeta("settings").title).toBe("设置");
+  });
+
+  it("exposes a home page model selector with stable defaults", () => {
+    const model = selectHomePageModel({
+      state: {
+        nextStep: "home",
+        colorMode: "light",
+        languagePreferences: {
+          interfaceLocale: "zh-CN",
+          bungieLocale: "zh-chs",
+          followInterfaceLocaleForBungie: true
+        },
+        cards: {
+          bungieConfig: { status: "ready", label: "Bungie 配置已完成" },
+          account: { status: "missing", label: "需要登录 Bungie" },
+          manifest: { status: "ready", label: "资料库已初始化" },
+          ai: { status: "skipped", label: "AI 未配置" }
+        }
+      },
+      accountError: "账号未读取",
+      dailyMessage: "日报已刷新"
+    });
+
+    expect(model.state.cards.account.label).toBe("需要登录 Bungie");
+    expect(model.accountError).toBe("账号未读取");
+    expect(model.dailyMessage).toBe("日报已刷新");
+    expect(model.diagnosticRows).toEqual([]);
+    expect(model.dailySummary).toBeNull();
+    expect(model.hasAccountData).toBe(false);
+    expect(model.isLoggingIn).toBe(false);
+    expect(model.isLoadingDaily).toBe(false);
   });
 });

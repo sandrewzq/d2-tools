@@ -3,7 +3,7 @@ import { LoadoutsPageContentView, type LoadoutActionFeedbackState, type Loadouts
 import { analyzeLoadoutTemplate } from "@d2-tools/core/loadouts/analysis";
 import type { AccountSummary, LoadoutTemplate } from "../../api/types";
 import {
-  createLoadoutsPageWorkspace
+  selectLoadoutsPageModel
 } from "@d2-tools/app";
 
 export type LoadoutsPageProps = {
@@ -55,7 +55,7 @@ export type LoadoutsPageProps = {
 
 export function LoadoutsPage(props: LoadoutsPageProps) {
   const [selectedEntryId, setSelectedEntryId] = useState("");
-  const workspace = createLoadoutsPageWorkspace({
+  const model = selectLoadoutsPageModel({
     accountSummary: props.accountSummary,
     templates: props.templates,
     selectedTemplateId: props.selectedTemplateId,
@@ -86,7 +86,7 @@ export function LoadoutsPage(props: LoadoutsPageProps) {
 
   return (
     <LoadoutsPageContentView
-      model={workspace.model}
+      model={model}
       actions={actions}
       compareTemplateId={props.compareTemplateId}
       renameDraft={props.renameDraft}

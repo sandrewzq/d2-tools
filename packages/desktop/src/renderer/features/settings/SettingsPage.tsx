@@ -5,6 +5,7 @@ import {
   type SettingsActionLogTypeFilter,
   type SettingsBungieConfigInput
 } from "@d2-tools/ui";
+import { selectSettingsPageModel } from "@d2-tools/app";
 import { api } from "../../api/client";
 import type { AccountSummary, ActionLogEntry, BackgroundTaskSnapshot, ManifestStatus, UpdateSnapshot } from "../../api/types";
 import { AiSettingsPanel } from "../../components/AiSettingsPanel";
@@ -59,11 +60,15 @@ export function SettingsPage(props: {
   onLanguagePreferencesChange: (preferences: LanguagePreferences) => void;
 }) {
   const initialSection = ((import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env?.VITE_D2_VISUAL_SETTINGS_SECTION ?? "overview") as Parameters<typeof SettingsPageContentView>[0]["initialSection"];
+  const model = selectSettingsPageModel({
+    ...props,
+    initialSection
+  });
 
   return (
     <SettingsPageContentView
       {...props}
-      initialSection={initialSection}
+      {...model}
       aiSettingsPanel={<AiSettingsPanel onSaved={props.onAiSettingsSaved} />}
       onLoadBungieConfig={() => api.getConfig()}
       onSaveBungieConfig={saveBungieConfig}

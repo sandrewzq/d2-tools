@@ -4,7 +4,8 @@ import type { LoadoutTemplate } from "@d2-tools/core/loadouts/templates";
 import {
   createLoadoutsPageWorkspace,
   getLoadoutItemBlockedDetails,
-  getLoadoutItemStatus
+  getLoadoutItemStatus,
+  selectLoadoutsPageModel
 } from "../src/workspaces/loadoutsPage";
 
 describe("loadouts page workspace", () => {
@@ -110,6 +111,31 @@ describe("loadouts page workspace", () => {
       "equip-target"
     ]);
     expect(workspace.model.selectedDetail.itemRows.map((row) => row.status.key)).toEqual(["equipped", "vault"]);
+  });
+
+  it("exposes a page model selector without requiring callers to use the full workspace", () => {
+    const model = selectLoadoutsPageModel({
+      accountSummary: accountSummary(),
+      templates: [targetTemplate(), compareTemplate()],
+      selectedTemplateId: "target",
+      selectedEntryId: "local-template-target",
+      compareTemplateId: "compare",
+      showDiffOnly: true
+    });
+
+    expect(model.entries.map((entry) => entry.id)).toEqual([
+      "local-template-target",
+      "local-template-compare"
+    ]);
+    expect(model.selectedEntryId).toBe("local-template-target");
+    expect(model.riskSummary).toEqual({
+      missingCount: 1,
+      readyCount: 1,
+      actionableCount: 1
+    });
+    expect(model.compare.options).toEqual([{ id: "compare", name: "Raid" }]);
+    expect(model.compare.visibleRows).toHaveLength(1);
+    expect(model.selectedDetail.kind).toBe("local-template");
   });
 
   it("models the selected in-game loadout detail for shared loadouts UI", () => {

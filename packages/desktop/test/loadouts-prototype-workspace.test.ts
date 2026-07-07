@@ -9,13 +9,13 @@ function read(path: string): string {
 }
 
 describe("prototype loadouts workspace wiring", () => {
-  it("uses the shared loadouts workspace instead of hand-written derived state", () => {
+  it("uses the shared loadouts page model selector instead of hand-written derived state", () => {
     const prototypeMain = read("packages/prototype/src/main.tsx");
 
-    expect(prototypeMain).toContain("createLoadoutsPageWorkspace");
-    expect(prototypeMain).toContain("const loadoutsWorkspace = useMemo");
+    expect(prototypeMain).toContain("selectLoadoutsPageModel");
+    expect(prototypeMain).toContain("const loadoutsModel = useMemo");
     expect(prototypeMain).toContain("selectedEntryId: selectedLoadoutEntryId");
-    expect(prototypeMain).toContain("model={loadoutsWorkspace.model}");
+    expect(prototypeMain).toContain("model={loadoutsModel}");
     expect(prototypeMain).toContain("actions={{");
     expect(prototypeMain).not.toContain("getLoadoutItemStatus");
     expect(prototypeMain).not.toContain("getLoadoutItemBlockedDetails");

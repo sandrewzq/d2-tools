@@ -1,4 +1,4 @@
-import { createVaultPageWorkspace } from "@d2-tools/app";
+import { selectVaultPageModel } from "@d2-tools/app";
 import { ProductWorkspaceEmptyState, VaultPageContentView } from "@d2-tools/ui";
 import { useState } from "react";
 import type { LoadoutTemplateLookup } from "../../shared/domain/loadouts/loadoutLookup";
@@ -54,7 +54,7 @@ export function VaultPage(props: {
     );
   }
 
-  const workspace = createVaultPageWorkspace({
+  const model = selectVaultPageModel({
     account: props.account,
     selectedCharacterId: props.selectedCharacterId,
     activeLoadoutLookup: props.activeLoadoutLookup,
@@ -66,25 +66,25 @@ export function VaultPage(props: {
   });
 
   return (
-    <VaultPageContentView
-        items={workspace.vaultItems}
-        vaultItemCount={workspace.vaultItemCount}
-        highlightedItemKeys={workspace.activeLoadoutLookup}
-        highlightedLabel={workspace.activeLoadoutName}
-        tags={workspace.tags}
+        <VaultPageContentView
+        items={model.vaultItems}
+        vaultItemCount={model.vaultItemCount}
+        highlightedItemKeys={model.activeLoadoutLookup}
+        highlightedLabel={model.activeLoadoutName}
+        tags={model.tags}
         openingItemKey={props.openingItemKey}
         onSaveTagBatch={props.onSaveTagBatch}
         cleanupActions={{
           characters: props.account.characters,
-          currentCharacterId: workspace.currentCharacterId,
-          currentCharacterLabel: workspace.currentCharacterLabel,
+          currentCharacterId: model.currentCharacterId,
+          currentCharacterLabel: model.currentCharacterLabel,
           writeActionsEnabled: props.writeActionsEnabled,
           onBatchUnlock: props.onBatchUnlock,
           onBatchTransferToCharacter: props.onBatchTransferToCharacter
         }}
-        wishlist={workspace.wishlist}
-        localTargetRules={workspace.targetRules}
-        communityMatch={workspace.communityMatch}
+        wishlist={model.wishlist}
+        localTargetRules={model.targetRules}
+        communityMatch={model.communityMatch}
         recommendationImportActions={{
           localCommunityTable,
           onSaveWishlist: async (wishlist) => {

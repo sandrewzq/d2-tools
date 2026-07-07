@@ -41,4 +41,17 @@ describe("architecture maintenance guardrails", () => {
     expect(desktopBridge).toContain("export function createDesktopBridgeServices");
     expect(rendererServices).toContain("createAppServices(api)");
   });
+
+  it("keeps migrated loadouts page behavior out of source-string UI assertions", () => {
+    const loadoutsUiTest = readFileSync(join(desktopRoot, "test", "loadout-library-ui.test.ts"), "utf8");
+    const sharedUiPageViewsTest = readFileSync(join(desktopRoot, "test", "shared-ui-page-views.test.tsx"), "utf8");
+
+    expect(sharedUiPageViewsTest).toContain("renders the loadouts workbench from the page model contract");
+    expect(sharedUiPageViewsTest).toContain("renders saved loadout compare rows from the page model contract");
+    expect(sharedUiPageViewsTest).toContain("renderToStaticMarkup");
+    expect(sharedUiPageViewsTest).toContain("selectLoadoutsPageModel");
+    expect(loadoutsUiTest).not.toContain("presents local templates and in-game slots as one loadout workbench");
+    expect(loadoutsUiTest).not.toContain("lets app-modeled in-game loadout slots open their own detail panel");
+    expect(loadoutsUiTest).not.toContain("renders compare rows as side-by-side item, frame, and perk details");
+  });
 });

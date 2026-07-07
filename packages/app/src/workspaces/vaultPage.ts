@@ -7,7 +7,7 @@ import type { D2Services } from "@d2-tools/services";
 import { runQuery, type QueryState } from "../queryState.js";
 import { loadFullAccountWorkspace } from "./accountDerived.js";
 
-export type VaultPageWorkspace = {
+export type VaultPageModel = {
   vaultItems: AccountItemSummary[];
   vaultItemCount: number;
   currentCharacterId: string;
@@ -17,6 +17,22 @@ export type VaultPageWorkspace = {
     bucketHashKeys: Set<string>;
     hashKeys: Set<number>;
   } | null;
+  activeLoadoutName?: string;
+  tags: VaultTags;
+  targetRules: LocalTargetRules;
+  wishlist: DimWishlist | null;
+  communityMatch: Map<number, VaultItemMatchInfo>;
+};
+
+export type VaultPageWorkspace = VaultPageModel;
+
+export type VaultPageInput = {
+  account: {
+    characters: Array<{ character_id: string; class_name: string }>;
+    vault: { item_count?: number; items: AccountItemSummary[] };
+  };
+  selectedCharacterId: string;
+  activeLoadoutLookup: VaultPageModel["activeLoadoutLookup"];
   activeLoadoutName?: string;
   tags: VaultTags;
   targetRules: LocalTargetRules;
@@ -49,19 +65,11 @@ export async function loadVaultPageWorkspace(
   });
 }
 
-export function createVaultPageWorkspace(input: {
-  account: {
-    characters: Array<{ character_id: string; class_name: string }>;
-    vault: { item_count?: number; items: AccountItemSummary[] };
-  };
-  selectedCharacterId: string;
-  activeLoadoutLookup: VaultPageWorkspace["activeLoadoutLookup"];
-  activeLoadoutName?: string;
-  tags: VaultTags;
-  targetRules: LocalTargetRules;
-  wishlist: DimWishlist | null;
-  communityMatch: Map<number, VaultItemMatchInfo>;
-}): VaultPageWorkspace {
+export function selectVaultPageModel(input: VaultPageInput): VaultPageModel {
+  return createVaultPageWorkspace(input);
+}
+
+export function createVaultPageWorkspace(input: VaultPageInput): VaultPageWorkspace {
   const currentCharacterId = input.selectedCharacterId || input.account.characters[0]?.character_id || "";
   const currentCharacterLabel = input.account.characters.find((character) =>
     character.character_id === currentCharacterId
