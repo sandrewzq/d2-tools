@@ -24,8 +24,9 @@ export type LostSectorResult = {
   total_known_sectors: number;
 };
 
-/** Hash for "Lost Sector" activity type in DestinyActivityDefinition. */
-const LOST_SECTOR_ACTIVITY_TYPE_HASH = 2724706103;
+/** Current hash and mode type for "Lost Sector" activities in DestinyActivityDefinition. */
+const LOST_SECTOR_ACTIVITY_TYPE_HASH = 103143560;
+const LOST_SECTOR_ACTIVITY_MODE_TYPE = 87;
 
 /** Known lost sector name keywords in English and Chinese. */
 const LOST_SECTOR_NAME_MARKERS = ["lost sector", "遗失区域"];
@@ -41,13 +42,13 @@ const WORLD_LOST_SECTOR_DAILY_LIMIT = 9;
 export function findLostSectorActivities(
   activityDefinitions: DefinitionComponentData
 ): LostSectorEntry[] {
-  const found = new Map<number, LostSectorEntry>();
+  const found = new Map<string, LostSectorEntry>();
 
   for (const [hashStr, def] of Object.entries(activityDefinitions)) {
     const hash = Number(hashStr);
     if (!Number.isFinite(hash)) continue;
 
-    const name = def.displayProperties?.name?.trim();
+    const name = readableLostSectorName(def);
     if (!name) continue;
 
     const isMatch =
@@ -55,8 +56,9 @@ export function findLostSectorActivities(
 
     if (!isMatch) continue;
 
-    if (found.has(hash)) continue;
-    found.set(hash, {
+    const key = name.toLocaleLowerCase();
+    if (found.has(key)) continue;
+    found.set(key, {
       hash,
       name,
       description: def.displayProperties?.description?.trim(),
@@ -106,7 +108,11 @@ export function buildLostSectorData(
 
 function isLostSectorByType(def: DefinitionRecord): boolean {
   const typeHash = def.activityTypeHash as number | undefined;
-  return typeHash === LOST_SECTOR_ACTIVITY_TYPE_HASH;
+  const modeTypes = def.activityModeTypes as number[] | undefined;
+  const directModeType = def.directActivityModeType as number | undefined;
+  return typeHash === LOST_SECTOR_ACTIVITY_TYPE_HASH
+    || directModeType === LOST_SECTOR_ACTIVITY_MODE_TYPE
+    || Boolean(modeTypes?.includes(LOST_SECTOR_ACTIVITY_MODE_TYPE));
 }
 
 function isLostSectorByName(name: string): boolean {
@@ -120,4 +126,25 @@ function readLightLevel(def: DefinitionRecord): number | undefined {
   const ll = def.activityLightLevel as number | undefined;
   if (typeof ll === "number" && ll > 0) return ll;
   return undefined;
+}
+
+function readableLostSectorName(def: DefinitionRecord): string | undefined {
+  const originalName = def.originalDisplayProperties?.name?.trim();
+  const displayName = def.displayProperties?.name?.trim();
+  const name = originalName && !isQuestionMarkPlaceholder(originalName) ? originalName : displayName;
+  return stripLostSectorDifficulty(name);
+}
+
+function isQuestionMarkPlaceholder(value: string): boolean {
+  return /^\?+$/.test(value);
+}
+
+function stripLostSectorDifficulty(name: string | undefined): string | undefined {
+  const trimmed = name?.trim();
+  if (!trimmed) return undefined;
+
+  return trimmed.replace(
+    /\s*[:：]\s*(专家|大师|传说|英雄|得心应手|expert|master|legend|hero)\s*$/i,
+    ""
+  ).trim();
 }

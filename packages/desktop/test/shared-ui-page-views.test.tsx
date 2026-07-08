@@ -99,6 +99,7 @@ describe("shared UI page views", () => {
     const dailyLead = dailyPanel.slice(dailyPanel.indexOf("home-daily-lead"));
 
     expect(dailyPanel).toContain("每日重置 · 5 小时 20 分钟");
+    expect(dailyPanel).not.toContain("复制日报");
     expect(dailyLead).not.toContain("<strong>每日重置</strong>");
     expect(html).toContain("home-weekly-panel");
     expect(html).toContain("每周重置 · 5 天 14 小时");

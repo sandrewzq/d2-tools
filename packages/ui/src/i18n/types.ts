@@ -79,7 +79,6 @@ export type HomeCopy = {
     pending: { title: string; subtitle: string };
   };
   actions: {
-    copyDaily: string;
     runDiagnostics: string;
     diagnosing: string;
   };

@@ -136,8 +136,6 @@ export type HomePageViewProps = {
   onRefreshDiagnostics?: () => void;
   onNavigate?: (page: ShellPageKey) => void;
   onRefreshDaily?: () => void;
-  onCopyDailySummary?: () => void;
-  onCopyWeeklyFocus?: () => void;
 };
 
 const noop = () => undefined;
@@ -177,8 +175,7 @@ export function HomePageContentView(props: HomePageViewProps) {
     dailyMessage: props.dailyMessage ?? "",
     dailyError: props.dailyError ?? "",
     isLoadingDaily: props.isLoadingDaily ?? false,
-    onRefreshDiagnostics: props.onRefreshDiagnostics ?? noop,
-    onCopyDailySummary: props.onCopyDailySummary ?? noop
+    onRefreshDiagnostics: props.onRefreshDiagnostics ?? noop
   };
   const rewardGroups = buildHomeRewardGroups(viewProps.dailySummary, copy);
   const weeklyIntel = buildWeeklyIntelSections(viewProps.dailySummary, copy);
@@ -200,9 +197,6 @@ export function HomePageContentView(props: HomePageViewProps) {
               <h2>{homeText(copy, "本日更新")}</h2>
               <span>{dailyResetStatus}</span>
             </div>
-            <button type="button" className="secondary-button" disabled={!viewProps.dailySummary} onClick={viewProps.onCopyDailySummary}>
-              {copy.actions.copyDaily}
-            </button>
           </div>
 
           <div className="home-daily-lead">

@@ -90,4 +90,26 @@ describe("daily summary", () => {
     ]);
     expect(summary.sources.vendors.message).toBe("已找到 9 条可读信息。");
   });
+
+  it("keeps all nine readable world lost sectors for the home daily panel", () => {
+    const summary = buildDailySummary(new Date("2026-07-06T10:30:00.000Z"), {
+      lost_sector: Array.from({ length: 9 }, (_, index) => ({
+        title: `遗失区域：Sector ${index + 1}`,
+        subtitle: "世界遗失区域"
+      }))
+    });
+
+    expect(summary.sources.lost_sector.items?.map((item) => item.title)).toEqual([
+      "遗失区域：Sector 1",
+      "遗失区域：Sector 2",
+      "遗失区域：Sector 3",
+      "遗失区域：Sector 4",
+      "遗失区域：Sector 5",
+      "遗失区域：Sector 6",
+      "遗失区域：Sector 7",
+      "遗失区域：Sector 8",
+      "遗失区域：Sector 9"
+    ]);
+    expect(summary.sources.lost_sector.message).toBe("已找到 9 条可读信息。");
+  });
 });

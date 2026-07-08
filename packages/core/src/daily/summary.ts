@@ -75,7 +75,7 @@ export function buildDailySummary(
     sources: {
       rotations: sourceFromItems("今日轮换", liveData.rotations, "暂时没有可读的今日轮换名称，只显示重置时间。"),
       vendors: sourceFromItems("商人库存", liveData.vendors, "商人接口没有返回可读名称，暂不展示 hash。", 20),
-      lost_sector: sourceFromItems("遗失区域", liveData.lost_sector, "今日遗失区域暂不可读，不展示猜测数据。"),
+      lost_sector: sourceFromItems("遗失区域", liveData.lost_sector, "今日遗失区域暂不可读，不展示猜测数据。", 9),
       weekly_report: sourceFromItems("本周活动线索", liveData.weekly_report, "本周活动线索暂不可读，不展示猜测数据。")
     },
     checklist: [

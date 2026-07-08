@@ -2,6 +2,19 @@
 
 这个项目使用面向玩家的更新日志。这里优先记录”玩家能感知到什么变化”，而不是逐条展开内部实现细节。
 
+## 0.0.13 - 2026-07-07
+
+### 修复
+
+- 修复 Prototype / Web 在候选 5 架构收口后可能把 Node 本地模块打进浏览器包的问题，避免启动时报 `node:path`、`node:fs` externalized 相关错误。
+- 首页今日信息继续保留 9 个可读世界遗失区域；即使 Bungie 公共里程碑只暴露一条遗失区域，也不会把资料库中的完整世界遗失区域列表覆盖成单条。
+
+### 工程
+
+- `@d2-tools/services` 根入口恢复为浏览器安全入口；本地配置、OAuth callback、token store、Manifest cache 等 Node-only adapter 只能通过明确 subpath 在 Desktop 主进程或 worker 中使用。
+- 新增边界护栏，防止 Prototype、Web、共享 UI、app 查询层和 Desktop renderer 误导入 `@d2-tools/core` 根入口或把 Node-only services adapter 暴露给浏览器包。
+- 明确静态 HTML 参考稿只作为冻结视觉基准和规则样板，真实菜单 UI、交互和样式改动继续直接进入共享 UI、Prototype/Web/Desktop 壳或 app ViewModel。
+
 ## 0.0.12 - 2026-07-06
 
 ### 工程

@@ -20,6 +20,18 @@ describe("vendors page UI", () => {
     expect(source).not.toContain("getDefaultVendorWorkspace");
   });
 
+  it("keeps vendor stock title and status chips from overlapping", () => {
+    const styles = readFileSync(join(process.cwd(), "packages/ui/src/styles.css"), "utf8");
+
+    expect(styles).toContain(".vendor-detail-panel .vendor-stock-title");
+    expect(styles).toContain("grid-template-columns: minmax(0, 1fr) max-content");
+    expect(styles).toContain(".vendor-stock-title strong");
+    expect(styles).toContain("min-width: 0");
+    expect(styles).toContain("-webkit-line-clamp: 2");
+    expect(styles).toContain(".vendor-stock-title .app-chip");
+    expect(styles).toContain("max-width: 88px");
+  });
+
   it("renders a DIM-like vendor rail, item icons, and non-empty evidence details", () => {
     const html = renderToStaticMarkup(
       <VendorsPageContentView

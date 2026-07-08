@@ -11,8 +11,6 @@ export function HomeDashboard(props: HomePageModelInput & {
   onRefreshDiagnostics: () => void;
   onNavigate: (page: ShellPageKey) => void;
   onRefreshDaily: () => void;
-  onCopyDailySummary: () => void;
-  onCopyWeeklyFocus: () => void;
 }) {
   const model = selectHomePageModel(props);
 
@@ -27,8 +25,6 @@ export function HomeDashboard(props: HomePageModelInput & {
       onRefreshDiagnostics={props.onRefreshDiagnostics}
       onNavigate={props.onNavigate}
       onRefreshDaily={props.onRefreshDaily}
-      onCopyDailySummary={props.onCopyDailySummary}
-      onCopyWeeklyFocus={props.onCopyWeeklyFocus}
     />
   );
 }

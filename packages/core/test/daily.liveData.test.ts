@@ -425,6 +425,46 @@ describe("daily live data mapping", () => {
     expect(liveData.weekly_report.map((item) => item.title)).toContain("Bungie 公共里程碑：每日活动");
   });
 
+  it("keeps the manifest world lost sector list when public milestones only expose one lost sector", () => {
+    const liveData = buildDailyLiveDataFromBungie({
+      milestones: {
+        "777": {
+          displayProperties: { name: "遗失区域" },
+          availableQuests: [{ questItemHash: 900 }]
+        }
+      },
+      definitions: {
+        activities: {
+          "1": { displayProperties: { name: "Sector A" }, activityTypeHash: 103143560, directActivityModeType: 87, activityModeTypes: [87, 7] },
+          "2": { displayProperties: { name: "Sector B" }, activityTypeHash: 103143560, directActivityModeType: 87, activityModeTypes: [87, 7] },
+          "3": { displayProperties: { name: "Sector C" }, activityTypeHash: 103143560, directActivityModeType: 87, activityModeTypes: [87, 7] },
+          "4": { displayProperties: { name: "Sector D" }, activityTypeHash: 103143560, directActivityModeType: 87, activityModeTypes: [87, 7] },
+          "5": { displayProperties: { name: "Sector E" }, activityTypeHash: 103143560, directActivityModeType: 87, activityModeTypes: [87, 7] },
+          "6": { displayProperties: { name: "Sector F" }, activityTypeHash: 103143560, directActivityModeType: 87, activityModeTypes: [87, 7] },
+          "7": { displayProperties: { name: "Sector G" }, activityTypeHash: 103143560, directActivityModeType: 87, activityModeTypes: [87, 7] },
+          "8": { displayProperties: { name: "Sector H" }, activityTypeHash: 103143560, directActivityModeType: 87, activityModeTypes: [87, 7] },
+          "9": { displayProperties: { name: "Sector I" }, activityTypeHash: 103143560, directActivityModeType: 87, activityModeTypes: [87, 7] }
+        },
+        items: {
+          "900": { displayProperties: { name: "传说遗失区域：英灵日遗失区域" } }
+        }
+      }
+    });
+
+    expect(liveData.lost_sector).toHaveLength(9);
+    expect(liveData.lost_sector.map((item) => item.title)).toEqual([
+      "遗失区域：Sector A",
+      "遗失区域：Sector B",
+      "遗失区域：Sector C",
+      "遗失区域：Sector D",
+      "遗失区域：Sector E",
+      "遗失区域：Sector F",
+      "遗失区域：Sector G",
+      "遗失区域：Sector H",
+      "遗失区域：Sector I"
+    ]);
+  });
+
   it("does not expose raw Bungie milestone or vendor hashes to players", () => {
     const liveData = buildDailyLiveDataFromBungie({
       milestones: {

@@ -111,9 +111,12 @@ export async function fetchDailyLiveData(options: FetchDailyLiveDataOptions): Pr
 
 export function buildDailyLiveDataFromBungie(input: BuildDailyLiveDataInput): Required<DailyLiveData> {
   const milestoneItems = mapMilestones(input.milestones ?? {}, input.definitions ?? {});
-  const lostSectorItems = milestoneItems.lost_sector.length > 0
-    ? milestoneItems.lost_sector
-    : buildLostSectorFallback(input.definitions);
+  const manifestLostSectorItems = buildLostSectorFallback(input.definitions);
+  const lostSectorItems = manifestLostSectorItems.length > 1
+    ? manifestLostSectorItems
+    : milestoneItems.lost_sector.length > 0
+      ? milestoneItems.lost_sector
+      : manifestLostSectorItems;
   return {
     rotations: milestoneItems.rotations,
     vendors: mapVendors(input.publicVendors, input.characterVendors ?? [], input.definitions ?? {}),

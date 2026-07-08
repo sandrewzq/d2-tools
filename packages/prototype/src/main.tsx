@@ -183,7 +183,6 @@ function PrototypeApp() {
             <HomePageContentView
               interfaceLocale={preferences.interfaceLocale}
               {...fixture.createHomePageModel(scenario)}
-              onCopyDailySummary={() => undefined}
               onRefreshDiagnostics={() => undefined}
             />
           ) : null}

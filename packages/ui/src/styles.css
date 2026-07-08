@@ -9838,7 +9838,28 @@ button.vault-side-signal:not(:disabled):hover {
 }
 
 .vendor-detail-panel .vendor-stock-title {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content;
   align-items: flex-start;
+  gap: var(--space-8);
+}
+
+.vendor-stock-title strong {
+  display: -webkit-box;
+  min-width: 0;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  text-overflow: ellipsis;
+  white-space: normal;
+}
+
+.vendor-stock-title .app-chip {
+  justify-self: end;
+  max-width: 88px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .vendor-cost-row {

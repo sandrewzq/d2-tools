@@ -1,10 +1,7 @@
 import { useState } from "react";
 import type { DailySummary } from "../../api/types";
 import { api } from "../../api/client";
-import {
-  buildDailyShareText,
-  buildWeeklyFocusText
-} from "../../utils/dailyShare";
+import { buildWeeklyFocusText } from "../../utils/dailyShare";
 
 export function useDailySummary() {
   const [dailySummary, setDailySummary] = useState<DailySummary | null>(null);
@@ -24,16 +21,6 @@ export function useDailySummary() {
     }
   }
 
-  async function copyDailySummary() {
-    if (!dailySummary) return;
-    try {
-      await navigator.clipboard.writeText(buildDailyShareText(dailySummary));
-      setDailyMessage("已复制今日摘要");
-    } catch {
-      setDailyMessage("复制失败，请检查系统剪贴板权限");
-    }
-  }
-
   async function copyWeeklyFocus() {
     if (!dailySummary) return;
     try {
@@ -45,7 +32,6 @@ export function useDailySummary() {
   }
 
   return {
-    copyDailySummary,
     copyWeeklyFocus,
     dailyError,
     dailyMessage,

@@ -11,7 +11,9 @@ function makeActivityDef(
     [String(hash)]: {
       hash,
       displayProperties: { name, description: `Desc: ${name}` },
-      activityTypeHash: 2724706103,
+      activityTypeHash: 103143560,
+      directActivityModeType: 87,
+      activityModeTypes: [87, 7],
       activityLightLevel: 1830,
       ...overrides,
     },
@@ -61,6 +63,30 @@ describe("lost sectors from manifest", () => {
     const result = buildLostSectorData(defs, new Date("2026-06-25T18:00:00Z"));
     expect(result.items).toHaveLength(1);
     expect(result.items[0].title).toContain("Extraction");
+  });
+
+  it("finds current manifest lost sectors by Bungie activity mode type", () => {
+    const defs: DefinitionComponentData = {
+      "100": {
+        hash: 100,
+        displayProperties: { name: "天空码头IV: 专家" },
+        originalDisplayProperties: { name: "天空码头IV" },
+        activityTypeHash: 103143560,
+        directActivityModeType: 87,
+        activityModeTypes: [87, 7],
+      },
+      "200": {
+        hash: 200,
+        displayProperties: { name: "国王的陨落：标准" },
+        activityTypeHash: 2043403989,
+        activityModeTypes: [4],
+      },
+    };
+
+    const result = buildLostSectorData(defs);
+
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0].title).toBe("遗失区域：天空码头IV");
   });
 
   it("returns empty when no lost sectors found", () => {

@@ -1,9 +1,23 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 const repoRoot = fileURLToPath(new URL("../../..", import.meta.url));
+
+function readSourceFiles(dir: string): Array<{ path: string; source: string }> {
+  const entries: Array<{ path: string; source: string }> = [];
+  for (const entry of readdirSync(dir)) {
+    const path = join(dir, entry);
+    const stats = statSync(path);
+    if (stats.isDirectory()) {
+      entries.push(...readSourceFiles(path));
+    } else if (/\.(ts|tsx)$/.test(entry)) {
+      entries.push({ path, source: readFileSync(path, "utf8") });
+    }
+  }
+  return entries;
+}
 
 describe("desktop package format", () => {
   it("builds core before workspace typecheck so clean checkouts can resolve package exports", () => {
@@ -196,6 +210,38 @@ describe("desktop package format", () => {
       expect(source, relativePath).not.toContain("@d2-tools/core/manifest/cache");
       expect(source, relativePath).not.toContain("@d2-tools/core/manifest/definitions");
       expect(source, relativePath).toMatch(/@d2-tools\/services\/manifest\/(cache|definitions)/);
+    }
+  });
+
+  it("keeps the services root entry browser-safe for Prototype and Web", () => {
+    const servicesIndex = readFileSync(join(repoRoot, "packages", "services", "src", "index.ts"), "utf8");
+
+    expect(servicesIndex).toContain("./contracts.js");
+    expect(servicesIndex).toContain("./memoryAdapter.js");
+    expect(servicesIndex).toContain("./appServices.js");
+    expect(servicesIndex).toContain("./errors.js");
+    expect(servicesIndex).not.toContain("./config/store.js");
+    expect(servicesIndex).not.toContain("./manifest/cache.js");
+    expect(servicesIndex).not.toContain("./manifest/definitions.js");
+    expect(servicesIndex).not.toContain("./oauth/callbackServer.js");
+    expect(servicesIndex).not.toContain("./oauth/client.js");
+    expect(servicesIndex).not.toContain("./oauth/tokenStore.js");
+  });
+
+  it("keeps browser-facing source away from the core package root", () => {
+    const browserSourceRoots = [
+      join(repoRoot, "packages", "prototype", "src"),
+      join(repoRoot, "packages", "web", "src"),
+      join(repoRoot, "packages", "app", "src"),
+      join(repoRoot, "packages", "ui", "src"),
+      join(repoRoot, "packages", "desktop", "src", "renderer")
+    ];
+
+    for (const root of browserSourceRoots) {
+      for (const file of readSourceFiles(root)) {
+        expect(file.source, file.path).not.toContain('from "@d2-tools/core"');
+        expect(file.source, file.path).not.toContain("from '@d2-tools/core'");
+      }
     }
   });
 

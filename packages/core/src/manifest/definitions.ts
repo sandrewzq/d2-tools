@@ -18,6 +18,11 @@ export type DefinitionRecord = {
     description?: string;
     icon?: string;
   };
+  originalDisplayProperties?: {
+    name?: string;
+    description?: string;
+    icon?: string;
+  };
   itemTypeDisplayName?: string;
   inventory?: {
     tierTypeName?: string;

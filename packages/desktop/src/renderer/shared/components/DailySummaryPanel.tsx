@@ -10,7 +10,6 @@ export function DailySummaryPanel(props: {
   dailyError: string;
   isLoading: boolean;
   onRefresh: () => void;
-  onCopyDailySummary: () => void;
   onCopyWeeklyFocus: () => void;
 }) {
   const {
@@ -19,7 +18,6 @@ export function DailySummaryPanel(props: {
     dailyError,
     isLoading,
     onRefresh,
-    onCopyDailySummary,
     onCopyWeeklyFocus
   } = props;
 
@@ -33,9 +31,6 @@ export function DailySummaryPanel(props: {
         <div className="button-row">
           <button type="button" className="secondary-button" disabled={isLoading} onClick={onRefresh}>
             {isLoading ? "刷新中..." : "刷新"}
-          </button>
-          <button type="button" disabled={!dailySummary} onClick={onCopyDailySummary}>
-            复制日报
           </button>
           <button type="button" className="secondary-button" disabled={!dailySummary} onClick={onCopyWeeklyFocus}>
             复制本周重点

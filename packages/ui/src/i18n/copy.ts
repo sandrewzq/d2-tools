@@ -83,7 +83,6 @@ export const localeCopy: Record<InterfaceLocale, LocaleCopy> = {
         }
       },
       actions: {
-        copyDaily: "复制日报",
         runDiagnostics: "运行诊断",
         diagnosing: "诊断中"
       },
@@ -406,7 +405,6 @@ export const localeCopy: Record<InterfaceLocale, LocaleCopy> = {
         }
       },
       actions: {
-        copyDaily: "Copy daily report",
         runDiagnostics: "Run diagnostics",
         diagnosing: "Diagnosing"
       },
@@ -461,7 +459,7 @@ export const localeCopy: Record<InterfaceLocale, LocaleCopy> = {
         trialsMap: "Trials map",
         trialsMapDetail: "Show map and rewards after the weekend opens",
         weekendChecklist: "Weekend checklist",
-        weekendChecklistDetail: "Copy to AI or daily report after vendor and Trials data are ready"
+        weekendChecklistDetail: "Copy to AI or weekly notes after vendor and Trials data are ready"
       },
       vendors: {
         xurDetail: "Show exotic highlights after the weekend vendor appears.",

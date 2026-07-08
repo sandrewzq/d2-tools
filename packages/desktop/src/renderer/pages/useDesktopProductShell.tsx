@@ -202,9 +202,7 @@ export function useDesktopProductShell(props: {
     onConfigureAi: () => setActivePage("settings"),
     onRefreshDiagnostics: () => void diagnostics.refreshDiagnostics(),
     onNavigate: setActivePage,
-    onRefreshDaily: () => void daily.loadDailySummary(),
-    onCopyDailySummary: () => void daily.copyDailySummary(),
-    onCopyWeeklyFocus: () => void daily.copyWeeklyFocus()
+    onRefreshDaily: () => void daily.loadDailySummary()
   });
   const productPreferences: ProductPreferences = {
     ...diagnostics.languagePreferences,

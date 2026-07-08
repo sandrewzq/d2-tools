@@ -207,7 +207,7 @@ tools\git-preflight.cmd
 - `packages/desktop/test/workspace-layout.test.ts` 负责锁定主菜单工作区骨架和菜单私有样式权限，防止页面 class 覆盖 `ProductWorkspace*` 的首层间距、面板 chrome 和工具栏 chrome。
 - 后续 UI 开发以本节和 `packages/desktop/test/ui-style-system.test.ts` 为准，不再维护单独的历史样式规范文档。
 - `docs/work/references/` 里的静态 HTML 只能作为冻结视觉基准、规则样板和对比标注，不是活跃原型、开发入口或 UI 修改源。菜单 UI、样式和交互改动必须直接进入 `packages/ui`、Prototype/Web/Desktop 共享壳或对应 app ViewModel；不得要求 agent “先改 HTML 再照抄实现”。只有调整全局工作区骨架、首层 chrome 或 reference-only 规则时，才同步更新静态 HTML。
-- 静态 HTML 中的规范说明、边界解释和对比标注必须同时使用 `<!-- d2-reference-only:start ... -->` / `<!-- d2-reference-only:end -->` 包住，并在对应 HTML 元素上标记 `data-reference-only="true"`；标记块只用于设计评审和规则表达，不得迁入 `packages/ui`、`packages/prototype`、`packages/web` 或 Desktop 真实页面。`packages/desktop/test/workspace-layout.test.ts` 会抽取这些标记块的文案，拦截说明内容进入共享产品 UI。
+- 静态 HTML 可以保留规范说明、边界解释和对比标注，但必须同时使用 `<!-- d2-reference-only:start ... -->` / `<!-- d2-reference-only:end -->` 包住，并在对应 HTML 元素上标记 `data-reference-only="true"`；标记块只用于设计评审和规则表达，不得迁入 `packages/ui`、`packages/prototype`、`packages/web` 或 Desktop 真实页面。`packages/desktop/test/workspace-layout.test.ts` 会抽取这些标记块的文案，拦截说明内容进入共享产品 UI。
 
 ### 2.6 桌面外壳、更新和后台任务
 

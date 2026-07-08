@@ -65,6 +65,24 @@
 - 写操作框架：锁定、解锁、转移、装备，有安全边界和确认流程。
 - 工具接口：留出 HTTP API 和 MCP server 扩展能力。
 
+## Destiny2 Checkinfo
+
+[Destiny2 Checkinfo](https://github.com/hub380/Destiny2-Checkinfo) 是本地参考项目，已放在 `D:\sandrew\Destiny2-Checkinfo`。当前参考分支为 `feature/pvp-history-career-layout`。核心参考点：
+
+- 轻量 Web 工具：用 Vite + React + TypeScript 多页面承载组队、玩家生涯、装备、Perk 和攻略入口。
+- 组队信息：展示小黑盒组队列表，支持定时刷新、识别 `名称#数字代码`，并复制 `/j 名称#代码` 加入队伍。
+- 公开玩家查询：不要求玩家本人 OAuth 登录，查询公开 Bungie 生涯数据、角色、Raid、地牢、PvP 分模式统计和锻造进度。
+- 装备与 Perk 查询：搜索武器、护甲、Perk，展示 Perk 池、普通 / 强化差异、Perk 反查武器和 Manifest 来源提示。
+- 后端聚合层：前端消费 `/api/*` 整理后的 DTO，可参考其“后端收口、前端少拼装”的页面数据组织方式。
+- Cloudflare 部署：Workers、KV、R2 用于边缘部署、热点缓存、活动定义、装备索引、玩家大型历史快照和攻略内容。
+- 攻略 / 资讯库骨架：`content/guides/`、R2 上传和校验流程可作为后续攻略证据工作台的轻量参考。
+
+使用边界：
+
+- 小黑盒组队来源没有稳定公开接口文档，不把其私有接口、Cookie 或绕过鉴权逻辑作为 d2-tools 的实现依据。
+- 武器来源提示来自 Bungie Manifest 可读字段，只能参考信息组织方式，不能等同于精确掉落表。
+- d2-tools 仍以 Bungie 官方接口、Destiny Manifest 和用户本地授权数据为数据真相；该项目主要作为公开查询、轻量页面和 Cloudflare 缓存部署的参考。
+
 ## 命运之小日向 Bot
 
 [命运之小日向 Bot](https://qun.qq.com/qunpro/robot/share?robot_appid=102076550) 是面向中文玩家的 QQ 群日报 / 周报机器人。核心能力：

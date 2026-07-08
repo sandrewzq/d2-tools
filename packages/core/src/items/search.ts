@@ -28,6 +28,11 @@ export type ItemSearchResult = {
 };
 
 const bungieStaticBaseUrl = "https://www.bungie.net";
+const nonEquipmentItemTypes = new Set([
+  19, // Mod
+  20, // Dummy
+  30 // Pattern
+]);
 
 export function searchItemDefinitions(
   definitions: DefinitionComponentData,
@@ -48,6 +53,9 @@ export function searchItemDefinitions(
     if (!name || !normalizedTerms.some((term) => name.toLocaleLowerCase().includes(term))) {
       continue;
     }
+    if (!isSearchableEquipmentDefinition(definition)) {
+      continue;
+    }
 
     results.push(toItemSearchResult(definition, definitions, options));
     if (results.length >= limit) {
@@ -56,6 +64,10 @@ export function searchItemDefinitions(
   }
 
   return results;
+}
+
+function isSearchableEquipmentDefinition(definition: DefinitionRecord): boolean {
+  return typeof definition.itemType !== "number" || !nonEquipmentItemTypes.has(definition.itemType);
 }
 
 function toItemSearchResult(

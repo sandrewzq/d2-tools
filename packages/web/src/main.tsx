@@ -176,7 +176,6 @@ function WebApp() {
             <HomePageContentView
               interfaceLocale={preferences.interfaceLocale}
               {...fixture.createHomePageModel(snapshot)}
-              onCopyDailySummary={() => undefined}
               onRefreshDiagnostics={() => undefined}
             />
           ) : null}

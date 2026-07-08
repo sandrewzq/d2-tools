@@ -134,7 +134,6 @@ describe("shared UI i18n", () => {
       <HomePageView
         interfaceLocale="en-US"
         diagnosticRows={[{ tone: "ready" }]}
-        onCopyDailySummary={() => undefined}
         onRefreshDiagnostics={() => undefined}
       />
     );

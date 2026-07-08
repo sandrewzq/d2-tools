@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { searchItemDefinitions } from "../src/items/search.js";
+import { searchItemDefinitions } from "../src/items/search.ts";
 import type { DefinitionComponentData } from "../src/manifest/definitions.js";
 
 const definitions: DefinitionComponentData = {
@@ -127,6 +127,57 @@ describe("item definition search", () => {
 
   it("matches English display names case-insensitively", () => {
     expect(searchItemDefinitions(definitions, "runner").map((item) => item.hash)).toEqual([2]);
+  });
+
+  it("filters same-name pattern, dummy, and mod definitions from equipment search", () => {
+    const tyrannyDefinitions: DefinitionComponentData = {
+      "543990593": {
+        hash: 543990593,
+        displayProperties: { name: "天堂暴政", description: "Pattern entry" },
+        itemType: 30,
+        itemTypeDisplayName: "战斗弓箭",
+        inventory: { bucketTypeHash: 766235248 }
+      },
+      "910588426": {
+        hash: 910588426,
+        displayProperties: { name: "天堂暴政", description: "Dummy entry" },
+        itemType: 20,
+        itemTypeDisplayName: "战斗弓箭",
+        inventory: { bucketTypeHash: 2465295065 }
+      },
+      "2721249463": {
+        hash: 2721249463,
+        displayProperties: { name: "天堂暴政", description: "Weapon entry" },
+        itemType: 3,
+        itemTypeDisplayName: "战斗弓箭",
+        inventory: { bucketTypeHash: 2465295065 }
+      },
+      "2902836964": {
+        hash: 2902836964,
+        displayProperties: { name: "天堂暴政", description: "Mod entry" },
+        itemType: 19,
+        inventory: { bucketTypeHash: 3313201758 }
+      },
+      "3052325065": {
+        hash: 3052325065,
+        displayProperties: { name: "天堂暴政", description: "Second dummy entry" },
+        itemType: 20,
+        itemTypeDisplayName: "战斗弓箭",
+        inventory: { bucketTypeHash: 2465295065 }
+      },
+      "3388655311": {
+        hash: 3388655311,
+        displayProperties: { name: "天堂暴政", description: "Second weapon entry" },
+        itemType: 3,
+        itemTypeDisplayName: "战斗弓箭",
+        inventory: { bucketTypeHash: 2465295065 }
+      }
+    };
+
+    expect(searchItemDefinitions(tyrannyDefinitions, "天堂暴政").map((item) => item.hash)).toEqual([
+      2721249463,
+      3388655311
+    ]);
   });
 
   it("returns confirmed bucket, group, and ammo fields for library filters", () => {

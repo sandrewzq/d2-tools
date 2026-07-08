@@ -80,8 +80,6 @@ export type HomeDashboardActions = {
   onRefreshDiagnostics: () => void;
   onNavigate: (page: "home" | "account" | "vault" | "loadouts" | "library" | "vendors" | "settings") => void;
   onRefreshDaily: () => void;
-  onCopyDailySummary: () => void;
-  onCopyWeeklyFocus: () => void;
 };
 
 export function createHomeDashboardWorkspace(input: HomeDashboardWorkspace) {

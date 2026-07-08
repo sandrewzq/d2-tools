@@ -7,7 +7,6 @@ export function DailyPage(props: {
   dailyError: string;
   isLoading: boolean;
   onRefresh: () => void;
-  onCopyDailySummary: () => void;
   onCopyWeeklyFocus: () => void;
 }) {
   return <DailySummaryPanel {...props} />;

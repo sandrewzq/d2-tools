@@ -34,7 +34,7 @@ describe("daily and weekly layout", () => {
     expect(dailyPanel).toContain("\u4eca\u65e5\u5fc5\u770b");
     expect(dailyPanel).toContain("\u5956\u52b1\u8fdb\u5ea6");
     expect(dailyPanel).toContain("\u6765\u6e90\u72b6\u6001");
-    expect(dailyPanel).toContain("\u590d\u5236\u65e5\u62a5");
+    expect(dailyPanel).not.toContain("\u590d\u5236\u65e5\u62a5");
     expect(dailyPanel).toContain("\u590d\u5236\u672c\u5468\u91cd\u70b9");
     expect(dailyPanel).toContain("\u4eca\u65e5\u884c\u52a8");
     expect(dailyPanel).toContain("\u672c\u5468\u5468\u62a5");
