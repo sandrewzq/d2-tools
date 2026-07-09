@@ -8,7 +8,11 @@ export type DefinitionComponentName =
   | "DestinyMilestoneDefinition"
   | "DestinyVendorDefinition"
   | "DestinyInventoryBucketDefinition"
-  | "DestinyLoadoutNameDefinition";
+  | "DestinyLoadoutNameDefinition"
+  | "DestinyStatDefinition"
+  | "DestinyActivityModifierDefinition"
+  | "DestinyDestinationDefinition"
+  | "DestinyPlaceDefinition";
 
 export type DefinitionRecord = {
   hash?: number;
@@ -34,6 +38,14 @@ export type DefinitionRecord = {
   sourceData?: {
     sourceString?: string;
   };
+  stats?: {
+    stats?: Record<string, {
+      statHash?: number;
+      value?: number;
+      displayMaximum?: number;
+      maximum?: number;
+    }>;
+  };
   investmentStats?: Array<{
     statTypeHash?: number;
     value?: number;
@@ -50,6 +62,7 @@ export type DefinitionRecord = {
   itemCount?: number;
   fifo?: boolean;
   scope?: number;
+  index?: number;
   sockets?: {
     socketEntries?: Array<{
       reusablePlugItems?: Array<{ plugItemHash?: number }>;
@@ -80,7 +93,11 @@ export const requiredDefinitionComponents: DefinitionComponentName[] = [
   "DestinyMilestoneDefinition",
   "DestinyVendorDefinition",
   "DestinyInventoryBucketDefinition",
-  "DestinyLoadoutNameDefinition"
+  "DestinyLoadoutNameDefinition",
+  "DestinyStatDefinition",
+  "DestinyActivityModifierDefinition",
+  "DestinyDestinationDefinition",
+  "DestinyPlaceDefinition"
 ];
 
 export function selectDefinitionComponentPath(

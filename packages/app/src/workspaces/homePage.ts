@@ -4,6 +4,7 @@ import type {
   HomeDashboardDailySummary,
   HomeDashboardDiagnosticRow,
   HomeDashboardStartupState,
+  HomeDashboardWeeklySummary,
   HomeDashboardWorkspace
 } from "./homeDashboard.js";
 import {
@@ -29,6 +30,7 @@ export type HomePageModelInput = {
   accountError?: string;
   hasAccountData?: boolean;
   dailySummary?: HomeDashboardDailySummary | null;
+  weeklySummary?: HomeDashboardWeeklySummary | null;
   dailyMessage?: string;
   dailyError?: string;
   isLoggingIn?: boolean;
@@ -69,6 +71,7 @@ export function selectHomePageModel(input: HomePageModelInput): HomePageModel {
     accountError: input.accountError ?? "",
     hasAccountData: input.hasAccountData ?? false,
     dailySummary: input.dailySummary ?? null,
+    weeklySummary: input.weeklySummary ?? null,
     dailyMessage: input.dailyMessage ?? "",
     dailyError: input.dailyError ?? "",
     isLoggingIn: input.isLoggingIn ?? false,

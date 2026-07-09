@@ -44,6 +44,35 @@ export type HomeDashboardDailySummary = {
   recommendations?: string[];
 };
 
+export type HomeDashboardWeeklyPriorityKind =
+  | "nightfall"
+  | "rotating_raid"
+  | "rotating_dungeon"
+  | "weekly_bonus"
+  | "special_event";
+
+export type HomeDashboardWeeklySummary = {
+  weekly_reset: {
+    label: string;
+    next_reset_iso?: string;
+    time_remaining_label: string;
+  };
+  priorities: Record<HomeDashboardWeeklyPriorityKind, {
+    status: "ready" | "pending";
+    title: string;
+    detail: string;
+    evidence?: string;
+    source?: string;
+  }>;
+  public_clues: Array<{
+    title: string;
+    subtitle?: string;
+    description?: string;
+    source?: string;
+    weeklyActivityKind?: HomeDashboardWeeklyPriorityKind | "public_clue";
+  }>;
+};
+
 export type HomeDashboardStartupState = {
   cards: {
     manifest: {
@@ -62,6 +91,7 @@ export type HomeDashboardWorkspace = {
   accountError: string;
   hasAccountData: boolean;
   dailySummary: HomeDashboardDailySummary | null;
+  weeklySummary: HomeDashboardWeeklySummary | null;
   dailyMessage: string;
   dailyError: string;
   isLoggingIn: boolean;

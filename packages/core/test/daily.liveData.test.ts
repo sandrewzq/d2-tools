@@ -453,16 +453,81 @@ describe("daily live data mapping", () => {
 
     expect(liveData.lost_sector).toHaveLength(9);
     expect(liveData.lost_sector.map((item) => item.title)).toEqual([
-      "遗失区域：Sector A",
-      "遗失区域：Sector B",
-      "遗失区域：Sector C",
-      "遗失区域：Sector D",
-      "遗失区域：Sector E",
-      "遗失区域：Sector F",
-      "遗失区域：Sector G",
-      "遗失区域：Sector H",
-      "遗失区域：Sector I"
+      "Sector A",
+      "Sector B",
+      "Sector C",
+      "Sector D",
+      "Sector E",
+      "Sector F",
+      "Sector G",
+      "Sector H",
+      "Sector I"
     ]);
+  });
+
+  it("passes official lost sector destination, modifier, and solo reward definitions into daily live data", () => {
+    const liveData = buildDailyLiveDataFromBungie({
+      definitions: {
+        activities: {
+          "100": {
+            displayProperties: { name: "采石场" },
+            activityTypeHash: 103143560,
+            directActivityModeType: 87,
+            activityModeTypes: [87, 7],
+            destinationHash: 697502628,
+            rewards: [{ rewardItems: [{ itemHash: 2284123716 }, { itemHash: 3339998924 }] }],
+            modifiers: [
+              { activityModifierHash: 1806568190 },
+              { activityModifierHash: 1377274412 },
+              { activityModifierHash: 3652821947 },
+              { activityModifierHash: 1174869237 }
+            ]
+          },
+          "101": {
+            displayProperties: { name: "采石场" },
+            activityTypeHash: 103143560,
+            directActivityModeType: 87,
+            activityModeTypes: [87, 7],
+            destinationHash: 697502628,
+            rewards: [{ rewardItems: [{ itemHash: 4087193961 }, { itemHash: 585074942 }] }],
+            modifiers: [
+              { activityModifierHash: 1806568190 },
+              { activityModifierHash: 1377274412 },
+              { activityModifierHash: 3652821947 },
+              { activityModifierHash: 501815068 }
+            ]
+          }
+        },
+        items: {
+          "2284123716": { displayProperties: { name: "如若单人 - 异域记忆水晶（稀有）" } },
+          "3339998924": { displayProperties: { name: "如若单人 - 传说武器（罕见）" } },
+          "4087193961": { displayProperties: { name: "如若单人 - 异域记忆水晶（普通）" } },
+          "585074942": { displayProperties: { name: "如若单人 - 传说武器（普通）" } }
+        },
+        destinations: {
+          "697502628": { displayProperties: { name: "欧洲无人区" } }
+        },
+        modifiers: {
+          "1806568190": { displayProperties: { name: "勇士敌人", description: "你将面对屏障和势不可挡勇士。" } },
+          "1377274412": { displayProperties: { name: "护盾敌人", description: "烈日和虚空护盾" } },
+          "3652821947": { displayProperties: { name: "虚空威胁" } },
+          "1174869237": { displayProperties: { name: "专家修改器" } },
+          "501815068": { displayProperties: { name: "大师难度修改器" } }
+        }
+      } as any
+    });
+
+    expect(liveData.lost_sector[0]).toMatchObject({
+      title: "采石场",
+      destinationName: "欧洲无人区",
+      championTypes: ["屏障", "势不可挡"],
+      shieldTypes: ["烈日", "虚空"],
+      threatType: "虚空",
+      expertSoloRewards: ["异域记忆水晶（稀有）", "传说武器（罕见）"],
+      masterSoloRewards: ["异域记忆水晶（普通）", "传说武器（普通）"]
+    });
+    expect(liveData.lost_sector[0]?.subtitle ?? "").not.toContain("950");
+    expect(liveData.lost_sector[0]?.source ?? "").not.toContain("Manifest");
   });
 
   it("does not expose raw Bungie milestone or vendor hashes to players", () => {

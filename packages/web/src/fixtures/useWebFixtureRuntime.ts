@@ -143,6 +143,14 @@ export const webLibraryItems: any[] = [
     ammo_type: "primary",
     weapon_frame: { key: "lightweight", name: "轻质框架" },
     source: { status: "ready", label: "来源可确认", description: "Web provider 后续接真实来源。" },
+    definition_stats: [
+      { hash: 4284893193, name: "射速", value: 450, display_maximum: 1000 },
+      { hash: 4043523819, name: "伤害", value: 27, display_maximum: 100 },
+      { hash: 1240592695, name: "射程", value: 62, display_maximum: 100 },
+      { hash: 155624089, name: "稳定性", value: 72, display_maximum: 100 },
+      { hash: 943549884, name: "操控性", value: 48, display_maximum: 100 },
+      { hash: 4188031367, name: "装填速度", value: 41, display_maximum: 100 }
+    ],
     perks: []
   }
 ];

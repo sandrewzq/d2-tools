@@ -34,7 +34,9 @@ describe("lost sectors from manifest", () => {
 
     const result = buildLostSectorData(defs, new Date("2026-06-25T18:00:00Z"));
     expect(result.items).toHaveLength(2);
-    expect(result.items[0].title).toContain("遗失区域");
+    expect(result.items[0].title).toBe("Aphelion's Rest");
+    expect(result.items[0].subtitle ?? "").not.toContain("推荐光等");
+    expect(result.items[0].source ?? "").not.toContain("Manifest");
     expect(result.source).toBe("manifest-rotation");
   });
 
@@ -49,7 +51,7 @@ describe("lost sectors from manifest", () => {
 
     const result = buildLostSectorData(defs, new Date("2026-06-25T18:00:00Z"));
     expect(result.items).toHaveLength(1);
-    expect(result.items[0].title).toBe("遗失区域：传说遗失区域：掘出");
+    expect(result.items[0].title).toBe("传说遗失区域：掘出");
   });
 
   it("finds lost sectors by English name keyword", () => {
@@ -86,7 +88,7 @@ describe("lost sectors from manifest", () => {
     const result = buildLostSectorData(defs);
 
     expect(result.items).toHaveLength(1);
-    expect(result.items[0].title).toBe("遗失区域：天空码头IV");
+    expect(result.items[0].title).toBe("天空码头IV");
   });
 
   it("returns empty when no lost sectors found", () => {
@@ -120,27 +122,111 @@ describe("lost sectors from manifest", () => {
 
     expect(result.items).toHaveLength(9);
     expect(result.items.map((item) => item.title)).toEqual([
-      "遗失区域：Sector A",
-      "遗失区域：Sector B",
-      "遗失区域：Sector C",
-      "遗失区域：Sector D",
-      "遗失区域：Sector E",
-      "遗失区域：Sector F",
-      "遗失区域：Sector G",
-      "遗失区域：Sector H",
-      "遗失区域：Sector I"
+      "Sector A",
+      "Sector B",
+      "Sector C",
+      "Sector D",
+      "Sector E",
+      "Sector F",
+      "Sector G",
+      "Sector H",
+      "Sector I"
     ]);
     expect(result.message).toContain("今日展示 9 个");
   });
 
-  it("includes daily rotation info in subtitle", () => {
+  it("builds player-facing briefing fields from official destination, modifier, and reward definitions", () => {
     const defs: DefinitionComponentData = {
-      ...makeActivityDef(1, "Sector A", { activityLightLevel: 1840 }),
+      ...makeActivityDef(100, "采石场", {
+        destinationHash: 697502628,
+        activityLightLevel: 950,
+        rewards: [
+          {
+            rewardItems: [
+              { itemHash: 3632457717 },
+              { itemHash: 2284123716 },
+              { itemHash: 3339998924 }
+            ]
+          }
+        ],
+        modifiers: [
+          { activityModifierHash: 1806568190 },
+          { activityModifierHash: 1377274412 },
+          { activityModifierHash: 3652821947 },
+          { activityModifierHash: 1174869237 },
+          { activityModifierHash: 3758645512 }
+        ]
+      }),
+      ...makeActivityDef(101, "采石场", {
+        destinationHash: 697502628,
+        activityLightLevel: 980,
+        rewards: [
+          {
+            rewardItems: [
+              { itemHash: 3632457717 },
+              { itemHash: 4087193961 },
+              { itemHash: 585074942 }
+            ]
+          }
+        ],
+        modifiers: [
+          { activityModifierHash: 1806568190 },
+          { activityModifierHash: 1377274412 },
+          { activityModifierHash: 3652821947 },
+          { activityModifierHash: 501815068 },
+          { activityModifierHash: 3758645512 }
+        ]
+      }),
     };
 
-    const result = buildLostSectorData(defs, new Date("2026-06-25T18:00:00Z"));
-    expect(result.items[0].subtitle).toContain("1840");
-    expect(result.items[0].subtitle).toContain("世界遗失区域");
-    expect(result.items[0].source).toBe("Manifest 世界遗失区域");
+    const result = (buildLostSectorData as any)(defs, new Date("2026-06-25T18:00:00Z"), {
+      destinations: {
+        "697502628": {
+          displayProperties: { name: "欧洲无人区" }
+        }
+      },
+      items: {
+        "3632457717": { displayProperties: { name: "强化核心（罕见）" } },
+        "2284123716": { displayProperties: { name: "如若单人 - 异域记忆水晶（稀有）" } },
+        "3339998924": { displayProperties: { name: "如若单人 - 传说武器（罕见）" } },
+        "4087193961": { displayProperties: { name: "如若单人 - 异域记忆水晶（普通）" } },
+        "585074942": { displayProperties: { name: "如若单人 - 传说武器（普通）" } }
+      },
+      modifiers: {
+        "1806568190": {
+          displayProperties: { name: "勇士敌人", description: "你将面对屏障和势不可挡勇士。" }
+        },
+        "1377274412": {
+          displayProperties: { name: "护盾敌人", description: "烈日和虚空护盾" }
+        },
+        "3652821947": {
+          displayProperties: { name: "虚空威胁", description: "受到的虚空伤害提升。" }
+        },
+        "1174869237": {
+          displayProperties: { name: "专家修改器" }
+        },
+        "501815068": {
+          displayProperties: { name: "大师难度修改器" }
+        },
+        "3758645512": {
+          displayProperties: { name: "过充榴弹发射器" }
+        }
+      }
+    });
+
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0]).toMatchObject({
+      title: "采石场",
+      destinationName: "欧洲无人区",
+      championTypes: ["屏障", "势不可挡"],
+      shieldTypes: ["烈日", "虚空"],
+      threatType: "虚空",
+      expertSoloRewards: ["异域记忆水晶（稀有）", "传说武器（罕见）"],
+      masterSoloRewards: ["异域记忆水晶（普通）", "传说武器（普通）"]
+    });
+    expect(result.items[0].subtitle ?? "").not.toContain("950");
+    expect(result.items[0].subtitle ?? "").not.toContain("世界遗失区域");
+    expect(result.items[0].description ?? "").not.toContain("强化核心");
+    expect(result.items[0].source ?? "").not.toContain("Manifest");
   });
 });

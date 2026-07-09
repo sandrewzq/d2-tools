@@ -12,7 +12,10 @@ export function registerDailyIpcHandlers(): void {
       activities: loadDefinitionComponent(config.data.data_dir, "DestinyActivityDefinition") ?? undefined,
       milestones: loadDefinitionComponent(config.data.data_dir, "DestinyMilestoneDefinition") ?? undefined,
       vendors: loadDefinitionComponent(config.data.data_dir, "DestinyVendorDefinition") ?? undefined,
-      items: loadDefinitionComponent(config.data.data_dir, "DestinyInventoryItemDefinition") ?? undefined
+      items: loadDefinitionComponent(config.data.data_dir, "DestinyInventoryItemDefinition") ?? undefined,
+      modifiers: loadDefinitionComponent(config.data.data_dir, "DestinyActivityModifierDefinition") ?? undefined,
+      destinations: loadDefinitionComponent(config.data.data_dir, "DestinyDestinationDefinition") ?? undefined,
+      places: loadDefinitionComponent(config.data.data_dir, "DestinyPlaceDefinition") ?? undefined
     };
     const token = await loadFreshOAuthToken(config).catch(() => null);
     const liveData = await fetchDailyLiveData({ config, token, definitions });

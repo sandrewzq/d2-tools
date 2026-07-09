@@ -260,6 +260,85 @@ describe("library filters", () => {
     expect(libraryContent).toContain("library-weapon-card");
   });
 
+  it("keeps library equipment results as a list and opens definition details in a dialog", () => {
+    const libraryContent = readFileSync("packages/ui/src/library/LibraryPageContentView.tsx", "utf8");
+    const styles = readFileSync("packages/ui/src/styles.css", "utf8");
+
+    expect(libraryContent).toContain("library-equipment-browser");
+    expect(libraryContent).toContain("library-equipment-list");
+    expect(libraryContent).toContain("library-definition-dialog");
+    expect(libraryContent).toContain("library-definition-backdrop");
+    expect(libraryContent).toContain("library-definition-stats");
+    expect(libraryContent).toContain("library-definition-perk-columns");
+    expect(libraryContent).toContain("library-definition-perk-card");
+    expect(libraryContent).toContain("definition_stats");
+    expect(libraryContent).toContain("DefinitionStatRow");
+    expect(libraryContent).toContain("查看详情");
+    expect(libraryContent).toContain("定义详情");
+    expect(libraryContent).toContain("定义属性");
+    expect(libraryContent).toContain("武器定义结构");
+    expect(libraryContent).toContain("getLibraryWeaponPerkColumns");
+    expect(libraryContent).toContain("item.weapon_frame?.name");
+    expect(libraryContent).toContain("selectedDefinitionRow");
+    expect(libraryContent).not.toContain('group.socket_index + 1');
+    expect(libraryContent).not.toContain("onOpenItemDetail(item)");
+    expect(libraryContent).not.toContain("ItemDetailStats");
+    expect(libraryContent).not.toContain("selectedItem.weapon_stats");
+    expect(libraryContent).not.toContain("实际 Roll");
+    expect(styles).toContain(".library-equipment-browser");
+    expect(styles).toContain(".library-equipment-list");
+    expect(styles).toContain(".library-definition-dialog");
+    expect(styles).toContain(".library-definition-backdrop");
+    expect(styles).toContain(".library-definition-stats");
+    expect(styles).toContain(".library-definition-stat-row");
+    expect(styles).toContain("grid-template-columns: minmax(86px, 0.72fr) 42px minmax(90px, 1fr);");
+    expect(styles).toContain(".library-definition-stat-row i");
+    expect(styles).not.toContain(".library-definition-stat-row {\n  display: grid;\n  gap: 6px;\n  min-width: 0;\n  padding: 8px;");
+    expect(styles).toContain(".library-definition-perk-columns");
+    expect(styles).toContain(".library-definition-perk-card");
+  });
+
+  it("keeps definition summary and weapon structure in separate dialog regions", () => {
+    const libraryContent = readFileSync("packages/ui/src/library/LibraryPageContentView.tsx", "utf8");
+    const styles = readFileSync("packages/ui/src/styles.css", "utf8");
+    const dialog = libraryContent.slice(
+      libraryContent.indexOf("function LibraryDefinitionDialog"),
+      libraryContent.indexOf("export function getLibraryRandomPerkGroups")
+    );
+    const body = dialog.slice(
+      dialog.indexOf('className="library-definition-body"'),
+      dialog.indexOf('className="library-definition-perk-pool"')
+    );
+
+    expect(dialog).toContain('className="library-definition-overview"');
+    expect(body).toContain('className="library-definition-overview"');
+    expect(body).toContain('className="library-definition-meta"');
+    expect(body).toContain('className="library-definition-stats"');
+    expect(body).toContain('className="library-definition-source-grid"');
+    expect(styles).toContain(".library-definition-overview");
+    expect(styles).toContain(".library-definition-stats");
+    expect(styles).toContain(".library-definition-body {\n  display: grid;\n  grid-template-rows: auto minmax(0, 1fr);\n  gap: 14px;\n  min-height: 0;\n  overflow: hidden;");
+    expect(styles).toContain(".library-definition-perk-pool {\n  display: grid;\n  grid-template-rows: auto minmax(0, 1fr);\n  gap: 12px;\n  min-height: 0;\n  overflow: auto;");
+  });
+
+  it("loads stat definitions for library equipment search", () => {
+    const libraryIpc = readFileSync("packages/desktop/src/main/ipc/library.ts", "utf8");
+    const appLibrary = readFileSync("packages/app/src/workspaces/libraryPage.ts", "utf8");
+    const rendererLibraryApi = readFileSync("packages/desktop/src/renderer/api/libraryApi.ts", "utf8");
+    const itemSearch = readFileSync("packages/core/src/items/search.ts", "utf8");
+    const searchHandler = libraryIpc.slice(
+      libraryIpc.indexOf('ipcMain.handle("items:search"'),
+      libraryIpc.indexOf('ipcMain.handle("items:perks:search"')
+    );
+
+    expect(itemSearch).toContain("definition_stats?: ItemDefinitionStat[]");
+    expect(searchHandler).toContain("DestinyStatDefinition");
+    expect(searchHandler).toContain("statDefinitions");
+    expect(searchHandler).toContain("statDefinitions: statDefinitions ?? undefined");
+    expect(appLibrary).toContain("definition_stats?: Array");
+    expect(rendererLibraryApi).toContain("definition_stats?: ItemDefinitionStat[]");
+  });
+
   it("passes plug set definitions into perk search related item lookup", () => {
     const libraryIpc = readFileSync("packages/desktop/src/main/ipc/library.ts", "utf8");
     const perkHandler = libraryIpc.slice(

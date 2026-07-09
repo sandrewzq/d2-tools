@@ -201,6 +201,14 @@ export const prototypeLibraryItems: any[] = [
     ammo_type: "primary",
     weapon_frame: { key: "lightweight", name: "轻质框架" },
     source: { status: "ready", label: "来源可确认", description: "夜幕轮换奖励，需要等本周或后续轮换复查。" },
+    definition_stats: [
+      { hash: 4284893193, name: "射速", value: 450, display_maximum: 1000 },
+      { hash: 4043523819, name: "伤害", value: 27, display_maximum: 100 },
+      { hash: 1240592695, name: "射程", value: 62, display_maximum: 100 },
+      { hash: 155624089, name: "稳定性", value: 72, display_maximum: 100 },
+      { hash: 943549884, name: "操控性", value: 48, display_maximum: 100 },
+      { hash: 4188031367, name: "装填速度", value: 41, display_maximum: 100 }
+    ],
     perks: [{ socket_index: 3, plugs: [{ hash: 2001, name: "快速命中", description: "精准命中提高稳定性和装填速度。" }, { hash: 2002, name: "动能震颤", description: "持续命中会产生冲击波。" }] }]
   },
   {
@@ -215,7 +223,25 @@ export const prototypeLibraryItems: any[] = [
     ammo_type: "primary",
     weapon_frame: { key: "precision", name: "精确框架" },
     source: { status: "ready", label: "来源可确认", description: "当前公开商人库存有售卖线索。" },
-    perks: [{ socket_index: 3, plugs: [{ hash: 2003, name: "丰盈满溢", description: "拾取特殊或重弹溢出弹匣。" }, { hash: 2004, name: "爆炸载荷", description: "弹体造成范围爆炸伤害。" }] }]
+    definition_stats: [
+      { hash: 4284893193, name: "射速", value: 140, display_maximum: 1000 },
+      { hash: 4043523819, name: "伤害", value: 84, display_maximum: 100 },
+      { hash: 1240592695, name: "射程", value: 61, display_maximum: 100 },
+      { hash: 155624089, name: "稳定性", value: 68, display_maximum: 100 },
+      { hash: 943549884, name: "操控性", value: 42, display_maximum: 100 },
+      { hash: 4188031367, name: "装填速度", value: 36, display_maximum: 100 },
+      { hash: 3871231066, name: "弹匣", value: 11, display_maximum: 100 }
+    ],
+    perks: [
+      { socket_index: 0, plugs: [{ hash: 2101, name: "精确框架", description: "后坐方向更垂直，开火手感稳定。" }] },
+      { socket_index: 1, plugs: [{ hash: 2102, name: "箭头制退器", description: "大幅控制后坐方向。" }, { hash: 2103, name: "小口径", description: "提高射程和稳定性。" }] },
+      { socket_index: 2, plugs: [{ hash: 2104, name: "战术弹匣", description: "提高稳定性、装填速度和弹匣容量。" }, { hash: 2105, name: "附加弹匣", description: "提高弹匣容量。" }] },
+      { socket_index: 3, plugs: [{ hash: 2003, name: "丰盈满溢", description: "拾取特殊或重弹溢出弹匣。" }, { hash: 2106, name: "快速命中", description: "精准命中提高稳定性和装填速度。" }] },
+      { socket_index: 4, plugs: [{ hash: 2004, name: "爆炸载荷", description: "弹体造成范围爆炸伤害。" }, { hash: 2107, name: "狂暴", description: "击败目标后暂时提高伤害。" }] },
+      { socket_index: 5, plugs: [{ hash: 2108, name: "原始特性", description: "来自该来源的武器定义特性。" }] },
+      { socket_index: 6, plugs: [{ hash: 2109, name: "专家稳定性", description: "武器模组。" }] },
+      { socket_index: 7, plugs: [{ hash: 2110, name: "6阶：稳定性", description: "大幅提升的属性。" }] }
+    ]
   },
   {
     hash: 1007,
@@ -243,6 +269,14 @@ export const prototypeLibraryItems: any[] = [
     ammo_type: "primary",
     weapon_frame: { key: "rapid-fire", name: "速射框架" },
     source: { status: "ready", label: "来源可确认", description: "世界掉落和公开商人池中可复查。" },
+    definition_stats: [
+      { hash: 4284893193, name: "射速", value: 720, display_maximum: 1000 },
+      { hash: 4043523819, name: "伤害", value: 18, display_maximum: 100 },
+      { hash: 1240592695, name: "射程", value: 44, display_maximum: 100 },
+      { hash: 155624089, name: "稳定性", value: 50, display_maximum: 100 },
+      { hash: 943549884, name: "操控性", value: 65, display_maximum: 100 },
+      { hash: 4188031367, name: "装填速度", value: 58, display_maximum: 100 }
+    ],
     perks: [{ socket_index: 3, plugs: [{ hash: 2005, name: "维持生计", description: "击败目标后部分装填弹匣。" }, { hash: 2006, name: "目标锁定", description: "持续命中提高伤害。" }] }]
   },
   {

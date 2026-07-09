@@ -20,6 +20,12 @@ export type ItemSearchResult = {
     label: string;
     description: string;
   };
+  definition_stats?: Array<{
+    hash: number;
+    name: string;
+    value: number;
+    display_maximum: number;
+  }>;
   perks?: Array<{
     socket_index: number;
     plugs: Array<{

@@ -74,6 +74,9 @@ export type BuildDailyLiveDataInput = {
     milestones?: DefinitionComponentData | null;
     vendors?: DefinitionComponentData | null;
     items?: DefinitionComponentData | null;
+    modifiers?: DefinitionComponentData | null;
+    destinations?: DefinitionComponentData | null;
+    places?: DefinitionComponentData | null;
   };
 };
 
@@ -169,7 +172,12 @@ function buildLostSectorFallback(
   definitions: BuildDailyLiveDataInput["definitions"]
 ): DailySummaryItem[] {
   if (!definitions?.activities) return [];
-  const { items } = buildLostSectorData(definitions.activities);
+  const { items } = buildLostSectorData(definitions.activities, new Date(), {
+    destinations: definitions.destinations,
+    places: definitions.places,
+    items: definitions.items,
+    modifiers: definitions.modifiers
+  });
   return items;
 }
 
@@ -206,11 +214,13 @@ function mapMilestones(
       for (const name of displayedNames) {
         const itemIsLostSector = containsLostSector(name) || (milestoneIsLostSector && !hasExplicitLostSectorName);
         const prefix = itemIsLostSector ? "遗失区域" : milestoneName ?? "活动轮换";
+        const weeklyActivityKind = inferWeeklyActivityKind([milestoneName, name, milestoneDescription].filter(Boolean).join(" "));
         const item = {
           title: formatMilestoneItemTitle(prefix, name),
           subtitle: "Bungie 公共里程碑",
           description: milestoneDescription,
-          source: "Bungie"
+          source: "Bungie",
+          weeklyActivityKind
         };
         if (itemIsLostSector) {
           lostSector.push(item);
@@ -220,11 +230,13 @@ function mapMilestones(
         }
       }
     } else if (milestoneName) {
+      const weeklyActivityKind = inferWeeklyActivityKind([milestoneName, milestoneDescription].filter(Boolean).join(" "));
       const item = {
         title: milestoneName,
         subtitle: "Bungie 公共里程碑",
         description: milestoneDescription,
-        source: "Bungie"
+        source: "Bungie",
+        weeklyActivityKind
       };
       if (milestoneIsLostSector) {
         lostSector.push(item);
@@ -244,7 +256,8 @@ function mapMilestones(
         title,
         subtitle: `非完整掉落地图；${nonLostSectorNames.slice(0, 3).join(" / ") || "Bungie 公共里程碑"}`,
         description: milestoneDescription,
-        source: "Bungie"
+        source: "Bungie",
+        weeklyActivityKind: inferWeeklyActivityKind([milestoneName, nonLostSectorNames.join(" "), milestoneDescription].filter(Boolean).join(" "))
       });
     }
   }
@@ -254,6 +267,20 @@ function mapMilestones(
     lost_sector: uniqueByTitle(lostSector).slice(0, 4),
     weekly_report: uniqueByTitle(weeklyReport).slice(0, 4)
   };
+}
+
+function inferWeeklyActivityKind(value: string): DailySummaryItem["weeklyActivityKind"] | undefined {
+  if (/试炼|Trials|铁旗|Iron Banner/i.test(value)) return undefined;
+  if (/日落|Nightfall/i.test(value)) return "nightfall";
+  if (/加成|双倍|声望|奖励加成|Bonus|reputation/i.test(value)) return "weekly_bonus";
+  if (/特殊活动|限时活动|曙光|英灵日|守护者游戏|至日|Event|Festival|Solstice|Guardian Games/i.test(value)) return "special_event";
+  if (/守望者尖塔|预言|二象性|贪婪之握|异端深渊|破碎王座|战争领主的废墟|鬼魅深渊|Spire of the Watcher|Prophecy|Duality|Grasp of Avarice|Pit of Heresy|Shattered Throne|Warlord'?s Ruin|Ghosts of the Deep/i.test(value)) {
+    return "rotating_dungeon";
+  }
+  if (/国王的陨落|克洛塔的末日|深岩墓室|玻璃拱顶|救赎花园|最后一愿|门徒誓约|梦魇根源|救赎边缘|King'?s Fall|Crota'?s End|Deep Stone Crypt|Vault of Glass|Garden of Salvation|Last Wish|Vow of the Disciple|Root of Nightmares|Salvation'?s Edge/i.test(value)) {
+    return "rotating_raid";
+  }
+  return undefined;
 }
 
 function mapVendors(

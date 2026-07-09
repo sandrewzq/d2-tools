@@ -46,8 +46,9 @@ describe("desktop product redesign wiring", () => {
     expect(homeDashboard).toContain("home-weekly-panel");
     expect(homeDashboard).toContain('homeText(copy, "本周更新")');
     expect(homeCopy).toContain("本周奖励与轮换");
-    expect(homeDashboard).toContain("home-weekly-rewards");
-    expect(homeDashboard).toContain("home-weekly-intel");
+    expect(homeDashboard).toContain("home-weekly-primary-grid");
+    expect(homeDashboard).toContain("home-weekly-support");
+    expect(homeDashboard).toContain("home-weekly-support-icon");
     expect(homeDashboard).toContain("home-briefing-grid");
     expect(homeDashboard).toContain("home-daily-panel");
     expect(homeDashboard).toContain("home-weekly-panel");
@@ -56,7 +57,7 @@ describe("desktop product redesign wiring", () => {
     expect(homeDashboard).not.toContain("home-vendor-highlight");
     expect(homeDashboard).not.toContain("copy.fallback.todayActionTitle");
     expect(homeDashboard).not.toContain("copy.account.vaultTitle");
-    expect(homeDashboard).toContain("data-source={item.source}");
+    expect(homeDashboard).toContain("data-source={card.source}");
     expect(homeDashboard).not.toContain("getHomeRewardSourceIcon");
     expect(homeDashboard).not.toContain("reward-source-icon");
     expect(homeDashboard).not.toContain('className="reward-icon"');

@@ -1,10 +1,11 @@
 import { useState } from "react";
-import type { DailySummary } from "../../api/types";
+import type { DailySummary, WeeklySummary } from "../../api/types";
 import { api } from "../../api/client";
 import { buildWeeklyFocusText } from "../../utils/dailyShare";
 
 export function useDailySummary() {
   const [dailySummary, setDailySummary] = useState<DailySummary | null>(null);
+  const [weeklySummary, setWeeklySummary] = useState<WeeklySummary | null>(null);
   const [dailyMessage, setDailyMessage] = useState("");
   const [dailyError, setDailyError] = useState("");
   const [isLoadingDaily, setIsLoadingDaily] = useState(false);
@@ -13,7 +14,12 @@ export function useDailySummary() {
     setIsLoadingDaily(true);
     setDailyError("");
     try {
-      setDailySummary(await api.getDailySummary());
+      const [nextDailySummary, nextWeeklySummary] = await Promise.all([
+        api.getDailySummary(),
+        api.getWeeklySummary()
+      ]);
+      setDailySummary(nextDailySummary);
+      setWeeklySummary(nextWeeklySummary);
     } catch (error) {
       setDailyError(error instanceof Error ? error.message : "今日面板读取失败");
     } finally {
@@ -36,6 +42,7 @@ export function useDailySummary() {
     dailyError,
     dailyMessage,
     dailySummary,
+    weeklySummary,
     isLoadingDaily,
     loadDailySummary
   };

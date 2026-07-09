@@ -34,6 +34,7 @@ import type { ManifestStatus } from "@d2-tools/core/manifest/cache";
 import type { AuthLoginResult } from "@d2-tools/core/oauth/login";
 import type { StartupState } from "@d2-tools/core/startup/startupState";
 import type { SaveVaultNoteInput, SaveVaultTagInput, VaultTags } from "@d2-tools/core/vault/tags";
+import type { WeeklySummary } from "@d2-tools/core/weekly/summary";
 import type { BackgroundTaskSnapshot } from "../shared/backgroundTasks.js";
 import type { UpdateSnapshot } from "../shared/updateTypes.js";
 
@@ -219,6 +220,7 @@ contextBridge.exposeInMainWorld("d2", {
   createBatchTransferPlan: (input: { character_id: string; transfer_to_vault: boolean; items: AccountSummary["vault"]["items"] }) =>
     ipcRenderer.invoke("actions:plan:batch-transfer", input) as Promise<BatchTransferPlan>,
   getDailySummary: () => ipcRenderer.invoke("daily:summary") as Promise<DailySummary>,
+  getWeeklySummary: () => ipcRenderer.invoke("weekly:summary") as Promise<WeeklySummary>,
   getActivitySummary: (input: { membership_type: number; membership_id: string; character_ids: string[] }) =>
     ipcRenderer.invoke("activities:summary", input) as Promise<ActivityHistorySummary>,
   exportDiagnostics: () => ipcRenderer.invoke("diagnostics:export") as Promise<string>,

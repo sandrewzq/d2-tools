@@ -1,6 +1,7 @@
 import type {
   AmmoTypeKey,
   EquipmentGroupKey,
+  ItemDefinitionStat,
   ItemPerkGroup,
   ItemSourceSummary,
   LiveItemAvailability,
@@ -44,6 +45,7 @@ export type ItemSearchResult = {
   group_key?: EquipmentGroupKey;
   weapon_frame?: WeaponFrameSummary;
   source: ItemSourceSummary;
+  definition_stats?: ItemDefinitionStat[];
   perks?: ItemPerkGroup[];
 };
 

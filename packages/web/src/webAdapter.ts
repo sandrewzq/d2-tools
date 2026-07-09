@@ -33,6 +33,87 @@ export type WebShellAdapter = {
   openExternal: (url: string) => void;
 };
 
+const fallbackLostSectorItems: NonNullable<HomeDailySummary["sources"]["lost_sector"]["items"]> = [
+  {
+    title: "采石场",
+    destinationName: "欧洲无人区",
+    championTypes: ["屏障", "势不可挡"],
+    shieldTypes: ["烈日", "虚空"],
+    threatType: "虚空",
+    expertSoloRewards: ["异域记忆水晶（稀有）", "传说武器（罕见）"],
+    masterSoloRewards: ["异域记忆水晶（普通）", "传说武器（普通）"]
+  },
+  {
+    title: "萃取地",
+    destinationName: "萨瓦图恩的王座世界",
+    championTypes: ["过载", "势不可挡"],
+    shieldTypes: ["电弧", "虚空"],
+    expertSoloRewards: ["异域臂甲（稀有）", "异域胸甲（稀有）", "异域头盔（稀有）", "异域腿甲（稀有）"],
+    masterSoloRewards: ["异域臂甲（常见）", "异域胸甲（常见）", "异域头盔（常见）", "异域腿甲（常见）"]
+  },
+  {
+    title: "地堡E15",
+    destinationName: "木卫二",
+    championTypes: ["屏障", "过载"],
+    shieldTypes: ["电弧", "虚空"],
+    threatType: "电弧",
+    expertSoloRewards: ["异域记忆水晶（稀有）", "传说武器（罕见）"],
+    masterSoloRewards: ["异域记忆水晶（普通）", "传说武器（普通）"]
+  },
+  {
+    title: "镀金箴言",
+    destinationName: "内欧姆那",
+    championTypes: ["屏障", "势不可挡"],
+    shieldTypes: ["烈日", "电弧"],
+    threatType: "烈日",
+    expertSoloRewards: ["传说武器（罕见）"],
+    masterSoloRewards: ["传说武器（普通）"]
+  },
+  {
+    title: "繁盛深渊",
+    destinationName: "苍白之心",
+    championTypes: ["过载", "势不可挡"],
+    shieldTypes: ["虚空", "缚丝"],
+    threatType: "缚丝",
+    expertSoloRewards: ["异域记忆水晶（稀有）"],
+    masterSoloRewards: ["异域记忆水晶（普通）"]
+  },
+  {
+    title: "黑色移民号花园2A",
+    destinationName: "涅索斯",
+    championTypes: ["屏障", "过载"],
+    shieldTypes: ["电弧", "烈日"],
+    expertSoloRewards: ["传说武器（罕见）"],
+    masterSoloRewards: ["传说武器（普通）"]
+  },
+  {
+    title: "汇流",
+    destinationName: "涅索斯",
+    championTypes: ["屏障", "势不可挡"],
+    shieldTypes: ["虚空", "烈日"],
+    threatType: "虚空",
+    expertSoloRewards: ["异域记忆水晶（稀有）", "传说武器（罕见）"],
+    masterSoloRewards: ["异域记忆水晶（普通）", "传说武器（普通）"]
+  },
+  {
+    title: "惊颤竞速",
+    destinationName: "月球",
+    championTypes: ["过载", "势不可挡"],
+    shieldTypes: ["电弧", "虚空"],
+    threatType: "电弧",
+    expertSoloRewards: ["传说武器（罕见）"],
+    masterSoloRewards: ["传说武器（普通）"]
+  },
+  {
+    title: "空坦克",
+    destinationName: "纷争海岸",
+    championTypes: ["屏障", "过载"],
+    shieldTypes: ["烈日", "虚空"],
+    expertSoloRewards: ["异域记忆水晶（稀有）"],
+    masterSoloRewards: ["异域记忆水晶（普通）"]
+  }
+];
+
 export const fallbackHomeSnapshot: WebHomeSnapshot = {
   shellStatus: [
     { key: "bungie", label: "Bungie", value: "Web 待接入", tone: "neutral" },
@@ -62,9 +143,12 @@ export const fallbackHomeSnapshot: WebHomeSnapshot = {
     },
     sources: {
       weekly_report: {
-        status: "warning",
-        message: "Web API adapter 接入后读取。",
-        items: []
+        status: "ready",
+        message: "Web fallback 周报样例。",
+        items: [
+          { title: "克洛塔的末日", subtitle: "轮换突袭", description: "关注巅峰奖励", source: "Web fallback", weeklyActivityKind: "rotating_raid" },
+          { title: "守望者尖塔", subtitle: "轮换地牢", description: "可反复刷取轮换奖励", source: "Web fallback", weeklyActivityKind: "rotating_dungeon" }
+        ]
       },
       rotations: {
         status: "warning",
@@ -72,14 +156,24 @@ export const fallbackHomeSnapshot: WebHomeSnapshot = {
         items: []
       },
       vendors: {
-        status: "warning",
-        message: "等待商人服务。",
-        items: []
+        status: "ready",
+        message: "Web fallback 奇异商人样例。",
+        items: [
+          {
+            title: "仄 / Xur",
+            subtitle: "奇异商人库存",
+            description: "关键库存已读取",
+            items: [
+              { title: "透视之眼", subtitle: "异域武器", iconUrl: "/common/destiny2_content/icons/xur-weapon.png" },
+              { title: "圣火之心", subtitle: "泰坦胸甲", iconUrl: "/common/destiny2_content/icons/xur-armor.png" }
+            ]
+          }
+        ]
       },
       lost_sector: {
-        status: "warning",
-        message: "等待活动服务。",
-        items: []
+        status: "ready",
+        message: "Web fallback 展示 9 个世界遗失区域样例。",
+        items: fallbackLostSectorItems
       }
     },
     checklist: ["Web 入口先复用共享首页壳，后续接 HTTP/API adapter。"]

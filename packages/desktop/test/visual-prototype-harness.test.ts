@@ -164,7 +164,8 @@ describe("visual prototype harness", () => {
     expect(homePageView).not.toContain("status-${row.tone}");
     expect(homePageView).not.toContain("status-${card.tone}");
     expect(homePageView).not.toContain("data-tone={point.tone}");
-    expect(homePageView).toContain("data-tone={item.tone}");
+    expect(homePageView).toContain("data-tone={card.tone}");
+    expect(homePageView).toContain("home-weekly-support-section");
     expect(canonicalBlock).not.toContain(".status-ready {");
     expect(canonicalBlock).not.toContain(".status-warning {");
   });
@@ -371,7 +372,9 @@ describe("visual prototype harness", () => {
     expect(styles).toMatch(/\.app-shell\[data-color-mode="dark"\]\s*{[\s\S]*?--surface-panel:\s*#171d26;/);
     expect(styles).toMatch(/\.app-shell\[data-color-mode="dark"\]\s*{[\s\S]*?--surface-subtle:\s*#1b222c;/);
     expect(styles).toMatch(/\.home-briefing-grid\s*{[\s\S]*?grid-template-columns:\s*minmax\(288px,\s*0\.58fr\) minmax\(0,\s*1\.72fr\);/);
-    expect(styles).toMatch(/\.home-weekly-dashboard\s*{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1\.35fr\) minmax\(260px,\s*0\.75fr\);/);
+    expect(styles).toMatch(/\.home-weekly-dashboard\s*{[\s\S]*?grid-template-columns:\s*1fr;/);
+    expect(styles).toMatch(/\.home-weekly-primary-grid\s*{[\s\S]*?grid-template-columns:\s*repeat\(5,\s*minmax\(0,\s*1fr\)\);/);
+    expect(styles).toMatch(/\.home-weekly-support\s*{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*0\.72fr\) minmax\(0,\s*1\.28fr\);/);
     expect(styles).not.toContain(".home-data-strip");
     expect(styles).not.toContain(".home-data-point");
   });

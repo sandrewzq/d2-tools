@@ -178,6 +178,14 @@
       "types": "./dist/daily/liveData.d.ts",
       "import": "./dist/daily/liveData.js"
     },
+    "./weekly/summary": {
+      "types": "./dist/weekly/summary.d.ts",
+      "import": "./dist/weekly/summary.js"
+    },
+    "./weekly/liveData": {
+      "types": "./dist/weekly/liveData.d.ts",
+      "import": "./dist/weekly/liveData.js"
+    },
     "./health": {
       "types": "./dist/health/index.d.ts",
       "import": "./dist/health/index.js"

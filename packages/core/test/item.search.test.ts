@@ -125,6 +125,67 @@ describe("item definition search", () => {
       ]);
   });
 
+  it("includes definition weapon stats when stat definitions are provided", () => {
+    const itemWithStats: DefinitionComponentData = {
+      "1": {
+        ...definitions["1"],
+        stats: {
+          stats: {
+            "4043523819": {
+              statHash: 4043523819,
+              value: 68,
+              displayMaximum: 100
+            },
+            "155624089": {
+              statHash: 155624089,
+              value: 59,
+              displayMaximum: 100
+            },
+            "4284893193": {
+              statHash: 4284893193,
+              value: 140,
+              displayMaximum: 1000
+            },
+            "999": {
+              statHash: 999,
+              value: 0,
+              displayMaximum: 100
+            }
+          }
+        }
+      }
+    };
+    const statDefinitions: DefinitionComponentData = {
+      "4043523819": {
+        hash: 4043523819,
+        displayProperties: { name: "伤害" },
+        index: 10
+      },
+      "155624089": {
+        hash: 155624089,
+        displayProperties: { name: "稳定性" },
+        index: 30
+      },
+      "4284893193": {
+        hash: 4284893193,
+        displayProperties: { name: "RPM" },
+        index: 5
+      },
+      "999": {
+        hash: 999,
+        displayProperties: { name: "隐藏零值" },
+        index: 1
+      }
+    };
+
+    expect(searchItemDefinitions(itemWithStats, "风险", { statDefinitions })[0]?.definition_stats)
+      .toEqual([
+        { hash: 4284893193, name: "RPM", value: 140, display_maximum: 1000 },
+        { hash: 4043523819, name: "伤害", value: 68, display_maximum: 100 },
+        { hash: 155624089, name: "稳定性", value: 59, display_maximum: 100 }
+      ]);
+  });
+
   it("matches English display names case-insensitively", () => {
     expect(searchItemDefinitions(definitions, "runner").map((item) => item.hash)).toEqual([2]);
   });

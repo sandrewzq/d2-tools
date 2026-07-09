@@ -14,6 +14,7 @@ import type { ManifestApi } from "./manifestApi";
 import type { TargetApi } from "./targetApi";
 import type { UpdateApi } from "./updateApi";
 import type { VaultApi } from "./vaultApi";
+import type { WeeklyApi } from "./weeklyApi";
 import type { WindowApi } from "./windowApi";
 
 export type * from "./accountApi";
@@ -33,6 +34,7 @@ export type * from "./sharedTypes";
 export type * from "./targetApi";
 export type * from "./updateApi";
 export type * from "./vaultApi";
+export type * from "./weeklyApi";
 export type * from "./windowApi";
 
 export type AppApi =
@@ -52,4 +54,5 @@ export type AppApi =
   & ActivityApi
   & DiagnosticsApi
   & UpdateApi
+  & WeeklyApi
   & WindowApi;

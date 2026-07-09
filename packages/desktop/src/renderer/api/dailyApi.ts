@@ -16,6 +16,13 @@ export type DailySummaryItem = {
   subtitle?: string;
   description?: string;
   source?: string;
+  weeklyActivityKind?: "nightfall" | "rotating_raid" | "rotating_dungeon" | "weekly_bonus" | "special_event" | "public_clue";
+  destinationName?: string;
+  championTypes?: string[];
+  shieldTypes?: string[];
+  threatType?: string;
+  expertSoloRewards?: string[];
+  masterSoloRewards?: string[];
   vendorHash?: number;
   iconUrl?: string;
   icon?: string;

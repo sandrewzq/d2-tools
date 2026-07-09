@@ -1,3 +1,4 @@
+import { useMemo, useState } from "react";
 import type {
   ItemSearchResult,
   LibraryDropAccessKey,
@@ -22,6 +23,13 @@ import {
 } from "../workspace/ProductWorkspace.js";
 
 type LiveEntry = LiveItemAvailabilityEntry;
+type LibraryPerkGroup = NonNullable<ItemSearchResult["perks"]>[number];
+type LibraryDefinitionStat = NonNullable<ItemSearchResult["definition_stats"]>[number];
+type LibraryWeaponPerkColumn = {
+  key: string;
+  label: string;
+  plugs: LibraryPerkGroup["plugs"];
+};
 
 export type LibraryPageActions = {
   onViewModeChange: (mode: LibraryViewMode) => void;
@@ -61,6 +69,12 @@ export function LibraryPageContentView(props: LibraryPageContentViewProps) {
   const dropQueryStats = model.stats.dropQuery;
   const isManifestBlocked = model.queryPanel.isManifestBlocked;
   const manifestAlert = buildManifestAlert(model.manifestAlert, copy);
+  const equipmentRows = useMemo(
+    () => model.results.equipmentGroups.flatMap((group) => group.items),
+    [model.results.equipmentGroups]
+  );
+  const [selectedDefinitionHash, setSelectedDefinitionHash] = useState<number | null>(null);
+  const selectedDefinitionRow = equipmentRows.find((row) => row.item.hash === selectedDefinitionHash);
 
   const manifestAlertElement = manifestAlert ? (
         <section className={`library-manifest-alert status-message ${manifestAlert.className}`}>
@@ -418,27 +432,29 @@ export function LibraryPageContentView(props: LibraryPageContentViewProps) {
         <p className="muted-copy">{libraryText(copy, "不补猜来源、分类或关联项，缺字段就按缺字段显示。")}</p>
         {model.status.searchError ? <p className="status-message status-error">{model.status.searchError}</p> : null}
         {model.queryPanel.viewMode === "equipment" ? (
-          <div className="drop-query-groups library-source-groups">
-            {model.results.equipmentGroups.map((group) => (
-              <section className={"drop-query-group drop-access-" + group.key} key={group.key}>
-                <div className="drop-query-group-heading">
-                  <div>
-                    <strong>{formatDropAccessLabel(group.key, copy)}</strong>
-                    <span>{formatDropAccessDescription(group.key, copy)}</span>
+          <div className="library-equipment-browser">
+            <div className="drop-query-groups library-source-groups library-equipment-list" aria-label={libraryText(copy, "装备结果列表")}>
+              {model.results.equipmentGroups.map((group) => (
+                <section className={"drop-query-group drop-access-" + group.key} key={group.key}>
+                  <div className="drop-query-group-heading">
+                    <div>
+                      <strong>{formatDropAccessLabel(group.key, copy)}</strong>
+                      <span>{formatDropAccessDescription(group.key, copy)}</span>
+                    </div>
+                    <span className={"ui-badge " + getDropAccessBadgeClass(group.key)}>{group.items.length} {libraryText(copy, "件")}</span>
                   </div>
-                  <span className={"ui-badge " + getDropAccessBadgeClass(group.key)}>{group.items.length} {libraryText(copy, "件")}</span>
-                </div>
-                <div className="item-results">
-                  {group.items.map((item) => renderEquipmentResult(
-                    item,
-                    actions.onOpenItemDetail,
-                    actions.onAddFavorite,
-                    actions.onRemoveFavorite,
-                    copy
-                  ))}
-                </div>
-              </section>
-            ))}
+                  <div className="item-results">
+                    {group.items.map((item) => renderEquipmentResult(
+                      item,
+                      () => setSelectedDefinitionHash(item.item.hash),
+                      actions.onAddFavorite,
+                      actions.onRemoveFavorite,
+                      copy
+                    ))}
+                  </div>
+                </section>
+              ))}
+            </div>
           </div>
         ) : (
           <div className="item-results">
@@ -481,6 +497,13 @@ export function LibraryPageContentView(props: LibraryPageContentViewProps) {
         ) : null}
       </ProductWorkspaceContentStack>
       </ProductWorkspaceSplit>
+      {selectedDefinitionRow ? (
+        <LibraryDefinitionDialog
+          row={selectedDefinitionRow}
+          copy={copy}
+          onClose={() => setSelectedDefinitionHash(null)}
+        />
+      ) : null}
     </>
   );
 }
@@ -532,21 +555,20 @@ function buildManifestAlert(
 
 function renderEquipmentResult(
   row: LibraryEquipmentResultView,
-  onOpenItemDetail: (item: ItemSearchResult) => void,
+  onOpenDefinition: () => void,
   onAddFavorite: (item: ItemSearchResult | PerkSearchResult) => void,
   onRemoveFavorite: (hash: number) => void,
   copy: LibraryCopy
 ) {
   const item = row.item;
-  const sourceStatus = item.source.status;
   const dropAccess = row.dropAccess;
   const communityMatch = row.communityMatch;
   const liveEntry = row.liveEntry;
 
   return (
     <article className="item-result library-weapon-card library-reference-card" key={item.hash}>
-      {item.icon ? <img alt="" src={item.icon} /> : null}
-      <div>
+      <div className="library-result-summary">
+        {item.icon ? <img alt="" src={item.icon} /> : null}
         <div className="library-weapon-card-heading">
           <div>
             <h3>{item.name}</h3>
@@ -555,62 +577,16 @@ function renderEquipmentResult(
           <span className={"ui-badge " + getDropAccessBadgeClass(dropAccess)}>{formatDropAccessLabel(dropAccess, copy)}</span>
         </div>
         <p>{item.description}</p>
-        <div className="item-source-panel">
-          <div className="item-source-heading">
-            <strong>{libraryText(copy, "实时状态")}</strong>
-            <span className={"source-status-badge " + getLiveStatusClass(liveEntry)}>
-              {liveEntry?.label ?? libraryText(copy, "等待实时查询")}
-            </span>
-          </div>
-          <span>{liveEntry?.description ?? libraryText(copy, "正在结合 Bungie 当前公开数据和登录角色商人数据复查。")}</span>
-          {liveEntry?.sources.length ? (
-            <small>{liveEntry.sources.map((source) => formatLiveSource(source, copy)).join(" / ")}</small>
-          ) : null}
+        <div className="library-result-status-row">
+          <span className={"source-status-badge " + getLiveStatusClass(liveEntry)}>
+            {liveEntry?.label ?? libraryText(copy, "等待实时查询")}
+          </span>
+          {item.perks?.length ? <span>{item.perks.length} {libraryText(copy, "列 Perk")}</span> : null}
+          {(communityMatch?.available ?? 0) > 0 ? <span>{libraryText(copy, "社区推荐")} {communityMatch?.available}</span> : null}
         </div>
-        <div className="item-source-panel">
-          <div className="item-source-heading">
-            <strong>{libraryText(copy, "掉落来源")}</strong>
-            <span className={"source-status-badge " + getLibrarySourceStatusClass(sourceStatus)}>
-              {libraryText(copy, "来源状态：")}{formatLibrarySourceStatus(sourceStatus, copy)}
-            </span>
-          </div>
-          <span>{item.source.description}</span>
-        </div>
-        <div className="item-source-panel">
-          <strong>{libraryText(copy, "刷取判断")}</strong>
-          <span>{formatDropActionHint(dropAccess, communityMatch, liveEntry, copy)}</span>
-        </div>
-        {item.perks?.length ? (
-          <div className="library-perk-pool">
-            <strong>{libraryText(copy, "Perk 池")}</strong>
-            <div className="perk-groups">
-              {item.perks.slice(0, 6).map((group) => (
-                <div className="perk-group" key={group.socket_index}>
-                  {group.plugs.slice(0, 6).map((plug) => (
-                    <span className="perk-chip" key={plug.hash}>{plug.name}</span>
-                  ))}
-                </div>
-              ))}
-            </div>
-          </div>
-        ) : (
-          <p className="muted-copy">{libraryText(copy, "资料库暂未提供可展示的 Perk 池。")}</p>
-        )}
-        {(communityMatch?.available ?? 0) > 0 ? (
-          <small className="library-community-match">
-            {`${libraryText(copy, "社区推荐")} ${communityMatch?.available} ${libraryText(copy, "个组合")}${
-              formatCommunityPerkPreview(communityMatch?.sample_perks)
-                ? ` · ${formatCommunityPerkPreview(communityMatch?.sample_perks)}`
-                : ""
-            }`}
-          </small>
-        ) : null}
-        <button
-          type="button"
-          className="inline-action"
-          aria-busy={row.isDetailLoading}
-          onClick={() => onOpenItemDetail(item)}
-        >
+      </div>
+      <div className="library-result-actions">
+        <button type="button" className="inline-action" onClick={onOpenDefinition}>
           {libraryText(copy, "查看详情")}
         </button>
         <button type="button" className="inline-action" onClick={() => onAddFavorite(item)}>
@@ -624,6 +600,213 @@ function renderEquipmentResult(
       </div>
     </article>
   );
+}
+
+function LibraryDefinitionDialog(props: {
+  row: LibraryEquipmentResultView;
+  copy: LibraryCopy;
+  onClose: () => void;
+}) {
+  const row = props.row;
+  const item = row.item;
+  const copy = props.copy;
+  const sourceStatus = item.source.status;
+  const liveEntry = row.liveEntry;
+  const communityMatch = row.communityMatch;
+  const weaponPerkColumns = getLibraryWeaponPerkColumns(item.perks ?? [], item.item_type);
+  const meta = [
+    item.tier,
+    item.item_type,
+    item.bucket_name,
+    item.weapon_frame?.name
+  ].filter(Boolean);
+
+  return (
+    <div className="library-definition-modal">
+      <button type="button" className="library-definition-backdrop" aria-label={libraryText(copy, "关闭定义详情")} onClick={props.onClose} />
+      <section className="library-definition-dialog" role="dialog" aria-modal="true" aria-label={libraryText(copy, "定义详情")}>
+        <div className="library-definition-toolbar">
+          <div>
+            <strong>{libraryText(copy, "定义详情")}</strong>
+            <span>{libraryText(copy, "Manifest 定义，不是当前装备实例。")}</span>
+          </div>
+          <button type="button" className="secondary-button" onClick={props.onClose}>
+            {libraryText(copy, "关闭")}
+          </button>
+        </div>
+        <div className="library-definition-head">
+          {item.icon ? <img alt="" src={item.icon} /> : null}
+          <div>
+            <span className={"ui-badge " + getDropAccessBadgeClass(row.dropAccess)}>{formatDropAccessLabel(row.dropAccess, copy)}</span>
+            <h3>{item.name}</h3>
+            <p>{meta.join(" / ") || libraryText(copy, "装备定义")}</p>
+          </div>
+        </div>
+        <div className="library-definition-body">
+          <div className="library-definition-overview">
+            <div className="library-definition-meta" aria-label={libraryText(copy, "定义字段")}>
+              {meta.map((value) => <span key={value}>{value}</span>)}
+              <span>{libraryText(copy, "Hash")} {item.hash}</span>
+            </div>
+            {item.description ? <p className="library-definition-description">{item.description}</p> : null}
+            {item.definition_stats?.length ? (
+              <section className="library-definition-stats" aria-label={libraryText(copy, "定义属性")}>
+                <div className="library-definition-section-heading">
+                  <strong>{libraryText(copy, "定义属性")}</strong>
+                  <span>{libraryText(copy, "来自 Manifest 定义数值，不包含已有装备 Roll。")}</span>
+                </div>
+                <div className="library-definition-stat-list">
+                  {item.definition_stats.map((stat) => (
+                    <DefinitionStatRow key={stat.hash} stat={stat} />
+                  ))}
+                </div>
+              </section>
+            ) : null}
+            <div className="library-definition-source-grid">
+              <div className="library-definition-source">
+                <div className="item-source-heading">
+                  <strong>{libraryText(copy, "实时状态")}</strong>
+                  <span className={"source-status-badge " + getLiveStatusClass(liveEntry)}>
+                    {liveEntry?.label ?? libraryText(copy, "等待实时查询")}
+                  </span>
+                </div>
+                <span>{liveEntry?.description ?? libraryText(copy, "正在结合 Bungie 当前公开数据和登录角色商人数据复查。")}</span>
+                {liveEntry?.sources.length ? <small>{liveEntry.sources.map((source) => formatLiveSource(source, copy)).join(" / ")}</small> : null}
+              </div>
+              <div className="library-definition-source">
+                <div className="item-source-heading">
+                  <strong>{libraryText(copy, "掉落来源")}</strong>
+                  <span className={"source-status-badge " + getLibrarySourceStatusClass(sourceStatus)}>
+                    {formatLibrarySourceStatus(sourceStatus, copy)}
+                  </span>
+                </div>
+                <span>{item.source.description}</span>
+              </div>
+              <div className="library-definition-source">
+                <strong>{libraryText(copy, "刷取判断")}</strong>
+                <span>{formatDropActionHint(row.dropAccess, communityMatch, liveEntry, copy)}</span>
+              </div>
+              {(communityMatch?.available ?? 0) > 0 ? (
+                <div className="library-definition-source">
+                  <strong>{libraryText(copy, "社区推荐")}</strong>
+                  <span>{`${communityMatch?.available} ${libraryText(copy, "个组合")}${
+                    formatCommunityPerkPreview(communityMatch?.sample_perks)
+                      ? ` · ${formatCommunityPerkPreview(communityMatch?.sample_perks)}`
+                      : ""
+                  }`}</span>
+                </div>
+              ) : null}
+            </div>
+          </div>
+          {weaponPerkColumns.length ? (
+            <section className="library-definition-perk-pool" aria-label={libraryText(copy, "武器定义结构")}>
+              <div className="library-definition-section-heading">
+                <strong>{libraryText(copy, "武器定义结构")}</strong>
+                <span>{libraryText(copy, "按玩家可读的武器列展示，不显示大师杰作、模组、专家模组或已有装备实例状态。")}</span>
+              </div>
+              <div className="library-definition-perk-columns">
+                {weaponPerkColumns.map((column) => (
+                  <div className="library-definition-perk-column" key={column.key}>
+                    <h4>{libraryText(copy, column.label)}</h4>
+                    <div className="library-definition-perk-list">
+                      {column.plugs.map((plug) => (
+                        <article className="library-definition-perk-card" key={plug.hash}>
+                          {plug.icon ? <img alt="" src={plug.icon} /> : <span aria-hidden="true" />}
+                          <div>
+                            <strong>{plug.name}</strong>
+                            {plug.description ? <p>{plug.description}</p> : null}
+                          </div>
+                        </article>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          ) : (
+            <p className="muted-copy">{libraryText(copy, "资料库暂未提供可展示的武器定义结构。")}</p>
+          )}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function DefinitionStatRow(props: { stat: LibraryDefinitionStat }) {
+  const stat = props.stat;
+  const fillPercent = Math.max(3, Math.min(100, (stat.value / stat.display_maximum) * 100));
+
+  return (
+    <div className="library-definition-stat-row">
+      <span>{stat.name}</span>
+      <b>{stat.value}</b>
+      <i style={{ width: `${fillPercent}%` }} aria-hidden="true" />
+    </div>
+  );
+}
+
+export function getLibraryRandomPerkGroups(groups: LibraryPerkGroup[]): LibraryPerkGroup[] {
+  return normalizeLibraryWeaponPerkGroups(groups);
+}
+
+export function getLibraryWeaponPerkColumns(groups: LibraryPerkGroup[], itemType = ""): LibraryWeaponPerkColumn[] {
+  const labels = getLibraryWeaponColumnLabels(itemType);
+  return normalizeLibraryWeaponPerkGroups(groups)
+    .flatMap((group) => {
+      const label = labels[group.socket_index];
+      if (!label) {
+        return [];
+      }
+
+      return [{
+        key: `socket-${group.socket_index}`,
+        label,
+        plugs: group.plugs
+      }];
+    });
+}
+
+function normalizeLibraryWeaponPerkGroups(groups: LibraryPerkGroup[]): LibraryPerkGroup[] {
+  return groups
+    .filter((group) => group.socket_index >= 0 && group.socket_index <= 5)
+    .map((group) => ({
+      ...group,
+      plugs: group.plugs.filter((plug) => !isLibrarySystemPlug(plug))
+    }))
+    .filter((group) => group.plugs.length > 0);
+}
+
+function isLibrarySystemPlug(plug: LibraryPerkGroup["plugs"][number]): boolean {
+  const text = `${plug.name} ${plug.description}`.toLowerCase();
+  return [
+    "纪念",
+    "memento",
+    "着色器",
+    "shader",
+    "配色",
+    "外观",
+    "ornament",
+    "击杀记录",
+    "记录器",
+    "tracker",
+    "kill tracker",
+    "kill counter",
+    "大师杰作",
+    "masterwork",
+    "将其铸造为大师杰作",
+    "模组",
+    "mod",
+    "专家",
+    "adept"
+  ].some((keyword) => text.includes(keyword));
+}
+
+function getLibraryWeaponColumnLabels(itemType: string): string[] {
+  if (itemType.includes("弓")) {
+    return ["框架 / 固有", "弓弦", "箭矢", "第 4 列", "第 5 列", "起源特性"];
+  }
+
+  return ["框架 / 固有", "枪管 / 瞄具", "弹匣 / 电池", "第 4 列", "第 5 列", "起源特性"];
 }
 
 function formatLiveScope(scope: LibraryPageModel["stats"]["live"]["scope"], isLoading: boolean, copy: LibraryCopy): string {

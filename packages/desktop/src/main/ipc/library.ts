@@ -30,6 +30,10 @@ export function registerLibraryIpcHandlers(): void {
       config.data.data_dir,
       "DestinyPlugSetDefinition"
     );
+    const statDefinitions = loadDefinitionComponent(
+      config.data.data_dir,
+      "DestinyStatDefinition"
+    );
 
     if (!definitions) {
       throw new Error("请先初始化资料库");
@@ -38,6 +42,7 @@ export function registerLibraryIpcHandlers(): void {
     return searchItemDefinitions(definitions, query, {
       limit: 20,
       plugSetDefinitions: plugSetDefinitions ?? undefined,
+      statDefinitions: statDefinitions ?? undefined,
       aliases: loadItemAliases(config.data.data_dir)
     });
   });

@@ -18,7 +18,10 @@ const metadata: DestinyManifestMetadata = {
     "zh-chs": {
       DestinyInventoryItemDefinition: "/common/destiny2_content/json/zh-chs/items.json",
       DestinyPlugSetDefinition: "/common/destiny2_content/json/zh-chs/plug-sets.json",
-      DestinySandboxPerkDefinition: "/common/destiny2_content/json/zh-chs/sandbox-perks.json"
+      DestinySandboxPerkDefinition: "/common/destiny2_content/json/zh-chs/sandbox-perks.json",
+      DestinyActivityModifierDefinition: "/common/destiny2_content/json/zh-chs/activity-modifiers.json",
+      DestinyDestinationDefinition: "/common/destiny2_content/json/zh-chs/destinations.json",
+      DestinyPlaceDefinition: "/common/destiny2_content/json/zh-chs/places.json"
     }
   }
 };
@@ -31,6 +34,12 @@ describe("manifest definition core helpers", () => {
       .toBe("/common/destiny2_content/json/zh-chs/plug-sets.json");
     expect(selectDefinitionComponentPath(metadata, "zh-chs", "DestinySandboxPerkDefinition"))
       .toBe("/common/destiny2_content/json/zh-chs/sandbox-perks.json");
+    expect(selectDefinitionComponentPath(metadata, "zh-chs", "DestinyActivityModifierDefinition"))
+      .toBe("/common/destiny2_content/json/zh-chs/activity-modifiers.json");
+    expect(selectDefinitionComponentPath(metadata, "zh-chs", "DestinyDestinationDefinition"))
+      .toBe("/common/destiny2_content/json/zh-chs/destinations.json");
+    expect(selectDefinitionComponentPath(metadata, "zh-chs", "DestinyPlaceDefinition"))
+      .toBe("/common/destiny2_content/json/zh-chs/places.json");
   });
 
   it("falls back to English JSON component paths", () => {
@@ -47,7 +56,11 @@ describe("manifest definition core helpers", () => {
       "DestinyMilestoneDefinition",
       "DestinyVendorDefinition",
       "DestinyInventoryBucketDefinition",
-      "DestinyLoadoutNameDefinition"
+      "DestinyLoadoutNameDefinition",
+      "DestinyStatDefinition",
+      "DestinyActivityModifierDefinition",
+      "DestinyDestinationDefinition",
+      "DestinyPlaceDefinition"
     ]);
   });
 });

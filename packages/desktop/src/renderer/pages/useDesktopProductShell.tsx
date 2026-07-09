@@ -187,6 +187,7 @@ export function useDesktopProductShell(props: {
     accountError,
     hasAccountData: Boolean(accountSummary),
     dailySummary: daily.dailySummary,
+    weeklySummary: daily.weeklySummary,
     dailyMessage: daily.dailyMessage,
     dailyError: daily.dailyError,
     isLoadingAccount,

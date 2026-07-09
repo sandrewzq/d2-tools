@@ -134,14 +134,34 @@ describe("shared UI i18n", () => {
       <HomePageView
         interfaceLocale="en-US"
         diagnosticRows={[{ tone: "ready" }]}
+        dailySummary={{
+          daily_reset: {
+            label: "Daily reset",
+            time_remaining_label: "5 hours"
+          },
+          weekly_reset: {
+            label: "Weekly reset",
+            time_remaining_label: "5 days"
+          },
+          sources: {
+            weekly_report: { status: "pending", message: "Waiting for weekly data." },
+            rotations: { status: "pending", message: "Waiting for rotations." },
+            vendors: { status: "pending", message: "Waiting for vendors." },
+            lost_sector: { status: "pending", message: "Waiting for lost sectors." }
+          },
+          checklist: []
+        }}
         onRefreshDiagnostics={() => undefined}
       />
     );
 
     expect(html).toContain("Weekly update");
     expect(html).toContain("Daily update");
-    expect(html).toContain("Account alerts");
-    expect(html).toContain("Weekly public rotation");
+    expect(html).toContain("Key vendors");
+    expect(html).toContain("Rules pending");
+    expect(html).not.toContain("Account alerts");
+    expect(html).toContain("Weekly Nightfall");
+    expect(html).toContain("Public clues");
     expect(html).not.toContain("本周奖励与轮换");
     expect(html).not.toContain("今天可确认");
     expect(html).not.toMatch(/[\u4e00-\u9fff]/);

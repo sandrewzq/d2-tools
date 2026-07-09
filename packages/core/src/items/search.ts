@@ -8,7 +8,15 @@ import { summarizeWeaponFrame, type WeaponFrameSummary } from "./weaponFrames.js
 export type ItemSearchOptions = {
   limit?: number;
   plugSetDefinitions?: DefinitionComponentData;
+  statDefinitions?: DefinitionComponentData;
   aliases?: ItemAliases;
+};
+
+export type ItemDefinitionStat = {
+  hash: number;
+  name: string;
+  value: number;
+  display_maximum: number;
 };
 
 export type ItemSearchResult = {
@@ -24,6 +32,7 @@ export type ItemSearchResult = {
   group_key: EquipmentGroupKey;
   weapon_frame?: WeaponFrameSummary;
   source: ItemSourceSummary;
+  definition_stats?: ItemDefinitionStat[];
   perks?: ItemPerkGroup[];
 };
 
@@ -104,6 +113,11 @@ function toItemSearchResult(
     result.weapon_frame = weaponFrame;
   }
 
+  const definitionStats = summarizeDefinitionStats(definition, options.statDefinitions);
+  if (definitionStats.length > 0) {
+    result.definition_stats = definitionStats;
+  }
+
   const perks = summarizeItemPerks(definition, definitions, {
     plugSetDefinitions: options.plugSetDefinitions,
     maxPlugsPerSocket: 6
@@ -113,6 +127,38 @@ function toItemSearchResult(
   }
 
   return result;
+}
+
+function summarizeDefinitionStats(
+  definition: DefinitionRecord,
+  statDefinitions: DefinitionComponentData | undefined
+): ItemDefinitionStat[] {
+  if (!statDefinitions) {
+    return [];
+  }
+
+  return Object.entries(definition.stats?.stats ?? {})
+    .map(([statKey, stat]) => {
+      const hash = Number(stat.statHash ?? statKey);
+      const value = Number(stat.value ?? 0);
+      const statDefinition = statDefinitions[String(hash)];
+      const name = statDefinition?.displayProperties?.name?.trim();
+      if (!Number.isFinite(hash) || !Number.isFinite(value) || value <= 0 || !name) {
+        return null;
+      }
+
+      const displayMaximum = Number(stat.displayMaximum ?? stat.maximum ?? 100);
+      return {
+        hash,
+        name,
+        value,
+        display_maximum: Number.isFinite(displayMaximum) && displayMaximum > 0 ? displayMaximum : 100,
+        order: statDefinition?.index ?? Number.MAX_SAFE_INTEGER
+      };
+    })
+    .filter((stat): stat is ItemDefinitionStat & { order: number } => Boolean(stat))
+    .sort((left, right) => left.order - right.order || left.name.localeCompare(right.name, "zh-Hans-CN"))
+    .map(({ order: _order, ...stat }) => stat);
 }
 
 function normalizeBungieAssetUrl(path: string | undefined): string | undefined {

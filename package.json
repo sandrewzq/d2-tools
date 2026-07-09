@@ -40,7 +40,7 @@
     "test:release": "node scripts/run-test-set.mjs release",
     "test": "pnpm docs:check && pnpm build && vitest --run",
     "typecheck:ui": "pnpm --filter @d2-tools/ui typecheck && pnpm --filter @d2-tools/prototype typecheck && pnpm --filter @d2-tools/web typecheck",
-    "typecheck:desktop-fast": "pnpm --filter @d2-tools/services build && pnpm --filter @d2-tools/desktop typecheck",
+    "typecheck:desktop-fast": "pnpm --filter @d2-tools/core build && pnpm --filter @d2-tools/services build && pnpm --filter @d2-tools/app build && pnpm --filter @d2-tools/desktop typecheck",
     "typecheck:desktop": "pnpm --filter @d2-tools/core build && pnpm --filter @d2-tools/http build && pnpm --filter @d2-tools/services build && pnpm --filter @d2-tools/desktop typecheck",
     "typecheck": "pnpm --filter @d2-tools/core build && pnpm --filter @d2-tools/http build && pnpm --filter @d2-tools/services build && pnpm -r typecheck",
     "verify": "pnpm check && pnpm test:fast",
