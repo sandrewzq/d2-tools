@@ -39,7 +39,23 @@ const LOST_SECTOR_ACTIVITY_MODE_TYPE = 87;
 
 /** Known lost sector name keywords in English and Chinese. */
 const LOST_SECTOR_NAME_MARKERS = ["lost sector", "遗失区域"];
-const WORLD_LOST_SECTOR_DAILY_LIMIT = 9;
+
+/**
+ * The nine Expert Lost Sector activities currently shown on the destination map.
+ * Manifest contains historical Expert activities too, so it cannot be reduced by
+ * sorting names or taking an arbitrary first nine entries.
+ */
+const CURRENT_EXPERT_LOST_SECTORS = [
+  { activityHash: 1344654780, destinationName: "欧洲无人区" },
+  { activityHash: 1509764568, destinationName: "萨瓦图恩的王座世界" },
+  { activityHash: 1962464165, destinationName: "木卫二" },
+  { activityHash: 2983905025, destinationName: "海王星" },
+  { activityHash: 3995113176, destinationName: "苍白之心" },
+  { activityHash: 2504276275, destinationName: "发射基地" },
+  { activityHash: 4269987990, destinationName: "涅索斯" },
+  { activityHash: 1956131630, destinationName: "月球" },
+  { activityHash: 457172842, destinationName: "幽梦之城" },
+];
 
 /**
  * Extract lost sector activities from Manifest.
@@ -106,18 +122,43 @@ export function buildLostSectorData(
     };
   }
 
-  const dailyWorldSectors = all.slice(0, WORLD_LOST_SECTOR_DAILY_LIMIT);
+  const dailyWorldSectors = selectCurrentExpertLostSectors(all);
+
+  if (!dailyWorldSectors.length) {
+    return {
+      items: [],
+      source: "manifest-rotation",
+      message: "Manifest 缺少当前专家遗失区域定义，请更新资料库后重试。",
+    };
+  }
 
   return {
-    items: dailyWorldSectors.map((sector) => buildLostSectorSummaryItem(sector, options)),
+    items: dailyWorldSectors.map(({ sector, destinationName }) =>
+      buildLostSectorSummaryItem(sector, options, destinationName)
+    ),
     source: "manifest-rotation",
-    message: `从 Manifest 共 ${all.length} 个遗失区域中读取，今日展示 ${dailyWorldSectors.length} 个世界遗失区域。`,
+    message: `已读取 ${dailyWorldSectors.length} 个当前专家遗失区域。`,
   };
+}
+
+function selectCurrentExpertLostSectors(all: LostSectorEntry[]): Array<{
+  sector: LostSectorEntry;
+  destinationName: string;
+}> {
+  return CURRENT_EXPERT_LOST_SECTORS
+    .map(({ activityHash, destinationName }) => {
+      const sector = all.find((entry) =>
+        entry.activities?.some((activity) => readNumber(activity.hash) === activityHash)
+      );
+      return sector ? { sector, destinationName } : undefined;
+    })
+    .filter((entry): entry is { sector: LostSectorEntry; destinationName: string } => Boolean(entry));
 }
 
 function buildLostSectorSummaryItem(
   sector: LostSectorEntry,
-  options: LostSectorBuildOptions
+  options: LostSectorBuildOptions,
+  currentDestinationName?: string
 ): DailySummaryItem {
   if (!hasStructuredDefinitions(options)) {
     return {
@@ -133,7 +174,7 @@ function buildLostSectorSummaryItem(
 
   return {
     title: sector.name,
-    destinationName: readDestinationName(sector, activities, options),
+    destinationName: currentDestinationName ?? readDestinationName(sector, activities, options),
     championTypes: extractChampionTypes(modifierRecords),
     shieldTypes: extractShieldTypes(modifierRecords),
     threatType: extractThreatType(modifierRecords),

@@ -6381,38 +6381,6 @@ button.vault-side-signal:not(:disabled):hover {
   background: var(--accent-primary);
 }
 
-.global-update-banner {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: var(--space-16);
-  align-items: center;
-  padding: 12px var(--space-16);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-panel);
-  background: var(--surface-elevated);
-}
-
-.global-update-banner > div:first-child {
-  display: grid;
-  gap: 4px;
-  min-width: 0;
-}
-
-.global-update-banner strong {
-  color: var(--text-title);
-}
-
-.global-update-banner span {
-  color: var(--text-muted);
-}
-
-.global-update-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  justify-content: flex-end;
-}
-
 .switch-row {
   display: flex;
   gap: 10px;
@@ -9297,13 +9265,8 @@ button.vault-side-signal:not(:disabled):hover {
   }
 
   .settings-update-hero,
-  .settings-update-grid,
-  .global-update-banner {
+  .settings-update-grid {
     grid-template-columns: 1fr;
-  }
-
-  .global-update-actions {
-    justify-content: flex-start;
   }
 
   .ai-chat-input {

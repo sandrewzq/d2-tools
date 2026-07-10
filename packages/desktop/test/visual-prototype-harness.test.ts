@@ -321,10 +321,10 @@ describe("visual prototype harness", () => {
     expect(shellStatusBuilder).toContain('label: "资料库"');
     expect(shellStatusBuilder).toContain('label: "AI"');
     expect(shellStatusBuilder).not.toContain('label: "后台任务"');
-    expect(shellStatusBuilder).toContain('label: "应用版本"');
     expect(shellStatusBuilder.indexOf('label: "Bungie"')).toBeLessThan(shellStatusBuilder.indexOf('label: "账号"'));
     expect(shellStatusBuilder.indexOf('label: "账号"')).toBeLessThan(shellStatusBuilder.indexOf('label: "资料库"'));
     expect(shellStatusBuilder.indexOf('label: "资料库"')).toBeLessThan(shellStatusBuilder.indexOf('label: "AI"'));
+    expect(shellStatusBuilder).toContain('label: "应用版本"');
     expect(shellStatusBuilder.indexOf('label: "AI"')).toBeLessThan(shellStatusBuilder.indexOf('label: "应用版本"'));
     expect(shellStatusBuilder).toContain("formatUpdateShellStatus");
     expect(shellStatusBuilder).toContain("updateSnapshot");

@@ -30,6 +30,7 @@ export type DefinitionRecord = {
     icon?: string;
   };
   itemTypeDisplayName?: string;
+  classType?: number;
   inventory?: {
     tierTypeName?: string;
     bucketTypeHash?: number;

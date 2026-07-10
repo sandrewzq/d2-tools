@@ -3,6 +3,7 @@ export type BackgroundTaskType =
   | "app-update-download"
   | "manifest-version-check"
   | "manifest-update"
+  | "manifest-repair"
   | "account-sync"
   | "account-activity"
   | "vendor-refresh"
@@ -47,6 +48,7 @@ export type StartBackgroundTaskInput = {
   title: string;
   message?: string;
   retryDelaysMs?: number[];
+  restartIfRetrying?: boolean;
   canCancel?: boolean;
   run: (context: BackgroundTaskRunContext) => Promise<void>;
 };
@@ -68,6 +70,7 @@ export function createBackgroundTaskStore(options: BackgroundTaskStoreOptions = 
   const schedule = options.schedule ?? ((callback, delayMs) => setTimeout(callback, delayMs));
   const tasks = new Map<string, BackgroundTaskSnapshot>();
   const activeTaskByType = new Map<BackgroundTaskType, string>();
+  const retryGenerationByTask = new Map<string, number>();
 
   function listTasks(): BackgroundTaskSnapshot[] {
     return [...tasks.values()].sort((left, right) => right.updated_at.localeCompare(left.updated_at));
@@ -124,6 +127,8 @@ export function createBackgroundTaskStore(options: BackgroundTaskStoreOptions = 
       const message = error instanceof Error ? error.message : "后台任务失败";
 
       if (delayMs !== undefined) {
+        const retryGeneration = (retryGenerationByTask.get(taskId) ?? 0) + 1;
+        retryGenerationByTask.set(taskId, retryGeneration);
         setTask(taskId, {
           status: "retrying",
           attempt,
@@ -132,7 +137,10 @@ export function createBackgroundTaskStore(options: BackgroundTaskStoreOptions = 
           next_retry_at: new Date(now().getTime() + delayMs).toISOString(),
           can_retry: true
         });
-        schedule(() => runExistingTask(taskId, input), delayMs);
+        schedule(() => {
+          if (retryGenerationByTask.get(taskId) !== retryGeneration) return;
+          runExistingTask(taskId, input);
+        }, delayMs);
         return;
       }
 
@@ -152,6 +160,10 @@ export function createBackgroundTaskStore(options: BackgroundTaskStoreOptions = 
     const activeTaskId = activeTaskByType.get(input.type);
     const activeTask = activeTaskId ? tasks.get(activeTaskId) : null;
     if (activeTask && ["queued", "running", "retrying"].includes(activeTask.status)) {
+      if (activeTask.status === "retrying" && input.restartIfRetrying) {
+        retryGenerationByTask.set(activeTask.task_id, (retryGenerationByTask.get(activeTask.task_id) ?? 0) + 1);
+        runExistingTask(activeTask.task_id, input);
+      }
       return activeTask;
     }
 

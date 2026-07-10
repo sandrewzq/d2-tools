@@ -52,11 +52,7 @@ export function useDesktopProductShell(props: {
     }
   }), []);
   const {
-    loginMessage,
-    loginError,
     isLoggingIn,
-    manifestMessage,
-    manifestError,
     isInitializingManifest,
     accountSummary,
     vaultTags,
@@ -161,10 +157,6 @@ export function useDesktopProductShell(props: {
   const assistantPageContext = homeDerivedState.assistantPageContext;
   const isAiConfigured = homeDerivedState.isAiConfigured;
   const updateSnapshot = diagnostics.updateSnapshot;
-  const shouldShowUpdateBanner = updateSnapshot?.status === "available"
-    || updateSnapshot?.status === "downloading"
-    || updateSnapshot?.status === "downloaded"
-    || updateSnapshot?.status === "error";
   const shellStatus = buildShellStatus({
     manifestStatus: diagnostics.manifestStatus,
     accountSummary,
@@ -175,7 +167,7 @@ export function useDesktopProductShell(props: {
     isBungieConfigured: props.state.cards.bungieConfig.status === "ready",
     isAiConfigured,
     updateSnapshot,
-    onRepairManifest: () => void diagnostics.initializeManifest()
+    onRepairManifest: () => void diagnostics.repairManifest()
   });
 
   const homeWorkspace = createHomeDashboardWorkspace({
@@ -322,7 +314,7 @@ export function useDesktopProductShell(props: {
         onSearch: () => void library.searchItems(),
         onClearFilters: library.clearLibraryFilters,
         onRefreshManifestStatus: () => void library.refreshManifestStatus(),
-        onInitializeManifest: () => void library.initializeManifest(),
+        onRepairManifest: () => void library.repairManifest(),
         onAliasDraftChange: library.setAliasDraft,
         onAliasTargetDraftChange: library.setAliasTargetDraft,
         onAliasKindChange: library.setAliasKind,
@@ -392,7 +384,7 @@ export function useDesktopProductShell(props: {
       onCopyUpdateDiagnostic: () => void diagnostics.copyUpdateDiagnostic(),
       onRefreshManifestStatus: () => void diagnostics.refreshManifestStatus(),
       onInitializeManifest: () => void diagnostics.initializeManifest(),
-      onRepairManifest: () => void diagnostics.initializeManifest(),
+      onRepairManifest: () => void diagnostics.repairManifest(),
       onExportConfig: () => void diagnostics.exportConfig(),
       onImportConfig: () => void diagnostics.importConfig(),
       onClearCache: () => void diagnostics.clearCache(),
@@ -407,39 +399,6 @@ export function useDesktopProductShell(props: {
       onLanguagePreferencesChange: (preferences) => void diagnostics.saveLanguagePreferences(preferences)
     }
   };
-
-  const globalMessages = (
-    <>
-      {loginMessage ? <p className="status-message status-ready">{loginMessage}</p> : null}
-      {loginError ? <p className="status-message status-error">{loginError}</p> : null}
-      {manifestMessage ? <p className="status-message status-ready">{manifestMessage}</p> : null}
-      {manifestError ? <p className="status-message status-error">{manifestError}</p> : null}
-      {shouldShowUpdateBanner && updateSnapshot ? (
-        <section className={`global-update-banner update-${updateSnapshot.status}`}>
-          <div>
-            <strong>{updateSnapshot.status === "downloaded" ? "更新已准备好" : "应用更新"}</strong>
-            <span>{updateSnapshot.user_message ?? updateSnapshot.error ?? "有新的更新状态。"}</span>
-          </div>
-          <div className="global-update-actions">
-            {updateSnapshot.status === "available" ? (
-              <button type="button" onClick={() => void diagnostics.downloadUpdate()}>下载更新</button>
-            ) : null}
-            {updateSnapshot.status === "downloaded" ? (
-              <button type="button" onClick={() => void diagnostics.quitAndInstallUpdate()}>重启并安装</button>
-            ) : null}
-            {updateSnapshot.status === "error" ? (
-              <button type="button" className="secondary-button" onClick={() => void diagnostics.openUpdateDownloadPage()}>
-                打开下载页
-              </button>
-            ) : null}
-            <button type="button" className="secondary-button" onClick={() => setActivePage("settings")}>
-              查看更新
-            </button>
-          </div>
-        </section>
-      ) : null}
-    </>
-  );
 
   const assistantPanel = (
     <GlobalAssistantSidebar
@@ -467,7 +426,6 @@ export function useDesktopProductShell(props: {
     assistantMode,
     assistantPanel,
     backgroundTasks: diagnostics.backgroundTasks,
-    globalMessages,
     handleAssistantModeChange: setAssistantMode,
     handlePageChange: setActivePage,
     handleProductPreferencesChange,
@@ -542,7 +500,7 @@ function buildShellStatus(input: {
       label: "应用版本",
       value: formatUpdateShellStatus(input.updateSnapshot),
       tone: getUpdateStatusTone(input.updateSnapshot)
-    }
+    },
   ];
 }
 

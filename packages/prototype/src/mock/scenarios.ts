@@ -48,7 +48,7 @@ const readyLostSectorItems: NonNullable<HomeDailySummary["sources"]["lost_sector
     masterSoloRewards: ["异域臂甲（常见）", "异域胸甲（常见）", "异域头盔（常见）", "异域腿甲（常见）"]
   },
   {
-    title: "地堡E15",
+    title: "永劫地狱",
     destinationName: "木卫二",
     championTypes: ["屏障", "过载"],
     shieldTypes: ["电弧", "虚空"],
@@ -58,7 +58,7 @@ const readyLostSectorItems: NonNullable<HomeDailySummary["sources"]["lost_sector
   },
   {
     title: "镀金箴言",
-    destinationName: "内欧姆那",
+    destinationName: "海王星",
     championTypes: ["屏障", "势不可挡"],
     shieldTypes: ["烈日", "电弧"],
     threatType: "烈日",
@@ -76,7 +76,7 @@ const readyLostSectorItems: NonNullable<HomeDailySummary["sources"]["lost_sector
   },
   {
     title: "黑色移民号花园2A",
-    destinationName: "涅索斯",
+    destinationName: "发射基地",
     championTypes: ["屏障", "过载"],
     shieldTypes: ["电弧", "烈日"],
     expertSoloRewards: ["传说武器（罕见）"],
@@ -92,7 +92,7 @@ const readyLostSectorItems: NonNullable<HomeDailySummary["sources"]["lost_sector
     masterSoloRewards: ["异域记忆水晶（普通）", "传说武器（普通）"]
   },
   {
-    title: "惊颤竞速",
+    title: "K1通讯区",
     destinationName: "月球",
     championTypes: ["过载", "势不可挡"],
     shieldTypes: ["电弧", "虚空"],
@@ -101,12 +101,13 @@ const readyLostSectorItems: NonNullable<HomeDailySummary["sources"]["lost_sector
     masterSoloRewards: ["传说武器（普通）"]
   },
   {
-    title: "空坦克",
-    destinationName: "纷争海岸",
-    championTypes: ["屏障", "过载"],
+    title: "星光大殿",
+    destinationName: "幽梦之城",
+    championTypes: ["过载", "势不可挡"],
     shieldTypes: ["烈日", "虚空"],
-    expertSoloRewards: ["异域记忆水晶（稀有）"],
-    masterSoloRewards: ["异域记忆水晶（普通）"]
+    threatType: "烈日",
+    expertSoloRewards: ["异域记忆水晶（稀有）", "传说武器（罕见）"],
+    masterSoloRewards: ["异域记忆水晶（普通）", "传说武器（普通）"]
   }
 ];
 

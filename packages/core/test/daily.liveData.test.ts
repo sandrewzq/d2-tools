@@ -434,17 +434,17 @@ describe("daily live data mapping", () => {
         }
       },
       definitions: {
-        activities: {
-          "1": { displayProperties: { name: "Sector A" }, activityTypeHash: 103143560, directActivityModeType: 87, activityModeTypes: [87, 7] },
-          "2": { displayProperties: { name: "Sector B" }, activityTypeHash: 103143560, directActivityModeType: 87, activityModeTypes: [87, 7] },
-          "3": { displayProperties: { name: "Sector C" }, activityTypeHash: 103143560, directActivityModeType: 87, activityModeTypes: [87, 7] },
-          "4": { displayProperties: { name: "Sector D" }, activityTypeHash: 103143560, directActivityModeType: 87, activityModeTypes: [87, 7] },
-          "5": { displayProperties: { name: "Sector E" }, activityTypeHash: 103143560, directActivityModeType: 87, activityModeTypes: [87, 7] },
-          "6": { displayProperties: { name: "Sector F" }, activityTypeHash: 103143560, directActivityModeType: 87, activityModeTypes: [87, 7] },
-          "7": { displayProperties: { name: "Sector G" }, activityTypeHash: 103143560, directActivityModeType: 87, activityModeTypes: [87, 7] },
-          "8": { displayProperties: { name: "Sector H" }, activityTypeHash: 103143560, directActivityModeType: 87, activityModeTypes: [87, 7] },
-          "9": { displayProperties: { name: "Sector I" }, activityTypeHash: 103143560, directActivityModeType: 87, activityModeTypes: [87, 7] }
-        },
+        activities: Object.fromEntries([
+          [1344654780, "采石场"], [1509764568, "萃取地"], [1962464165, "永劫地狱"],
+          [2983905025, "镀金箴言"], [3995113176, "繁盛深渊"], [2504276275, "黑色移民号花园2A"],
+          [4269987990, "汇流"], [1956131630, "K1通讯区"], [457172842, "星光大殿"]
+        ].map(([hash, name]) => [String(hash), {
+          hash,
+          displayProperties: { name },
+          activityTypeHash: 103143560,
+          directActivityModeType: 87,
+          activityModeTypes: [87, 7]
+        }])),
         items: {
           "900": { displayProperties: { name: "传说遗失区域：英灵日遗失区域" } }
         }
@@ -453,15 +453,15 @@ describe("daily live data mapping", () => {
 
     expect(liveData.lost_sector).toHaveLength(9);
     expect(liveData.lost_sector.map((item) => item.title)).toEqual([
-      "Sector A",
-      "Sector B",
-      "Sector C",
-      "Sector D",
-      "Sector E",
-      "Sector F",
-      "Sector G",
-      "Sector H",
-      "Sector I"
+      "采石场",
+      "萃取地",
+      "永劫地狱",
+      "镀金箴言",
+      "繁盛深渊",
+      "黑色移民号花园2A",
+      "汇流",
+      "K1通讯区",
+      "星光大殿"
     ]);
   });
 
@@ -469,7 +469,8 @@ describe("daily live data mapping", () => {
     const liveData = buildDailyLiveDataFromBungie({
       definitions: {
         activities: {
-          "100": {
+          "1344654780": {
+            hash: 1344654780,
             displayProperties: { name: "采石场" },
             activityTypeHash: 103143560,
             directActivityModeType: 87,

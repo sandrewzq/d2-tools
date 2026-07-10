@@ -222,10 +222,7 @@ function getBackgroundTaskDockState(tasks: ShellBackgroundTaskItem[], copy: Shel
     return null;
   }
 
-  const orderedTasks = [
-    ...importantTasks,
-    ...tasks.filter((task) => !importantTasks.includes(task))
-  ].slice(0, 5);
+  const orderedTasks = importantTasks.slice(0, 5);
   const primaryTask = importantTasks[0];
   const activeCount = importantTasks.filter(isBackgroundTaskActive).length;
   const tone = importantTasks.some((task) => task.status === "retrying") ? "warning" : "active";

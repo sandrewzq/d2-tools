@@ -81,6 +81,29 @@ describe("highest power workspace", () => {
     expect(executionPlan.summary).toContain("再装备 2 件");
   });
 
+  it("ignores armor that belongs to a different class while retaining weapons", () => {
+    const character: CharacterSummary = {
+      character_id: "titan-1",
+      class_name: "泰坦",
+      equipped_items: [item("titan-helmet", "泰坦头盔", "头盔", 1800, 0)],
+      equipment_groups: [],
+      inventory_items: [],
+      inventory_groups: [],
+      postmaster_items: [],
+      loadout_slots: []
+    };
+
+    const plan = createHighestPowerEquipPlan({
+      character,
+      vaultItems: [
+        item("warlock-helmet", "术士头盔", "头盔", 1810, 2),
+        item("shared-weapon", "共享武器", "动能武器", 1810, 3)
+      ]
+    });
+
+    expect(plan.items.map((entry) => entry.item.name)).toEqual(["共享武器", "泰坦头盔"]);
+  });
+
   it("builds the confirm copy for highest-power write actions", () => {
     const character: CharacterSummary = {
       character_id: "char-1",
@@ -141,7 +164,8 @@ function item(
   instanceId: string,
   name: string,
   bucketName: string,
-  power: number | undefined
+  power: number | undefined,
+  classType?: number
 ): AccountItemSummary {
   return {
     hash: instanceId.length,
@@ -149,6 +173,7 @@ function item(
     name,
     bucket_name: bucketName,
     group_key: bucketName.includes("武器") ? "weapons" : bucketName === "飞船" ? "equipment" : "armor",
-    power
+    power,
+    class_type: classType
   };
 }

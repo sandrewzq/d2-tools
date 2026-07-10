@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildLostSectorData } from "../src/daily/lostSectors.js";
+import { buildLostSectorData, findLostSectorActivities } from "../src/daily/lostSectors.js";
 import type { DefinitionComponentData } from "../src/manifest/definitions.js";
 
 function makeActivityDef(
@@ -32,12 +32,9 @@ describe("lost sectors from manifest", () => {
       },
     };
 
-    const result = buildLostSectorData(defs, new Date("2026-06-25T18:00:00Z"));
-    expect(result.items).toHaveLength(2);
-    expect(result.items[0].title).toBe("Aphelion's Rest");
-    expect(result.items[0].subtitle ?? "").not.toContain("推荐光等");
-    expect(result.items[0].source ?? "").not.toContain("Manifest");
-    expect(result.source).toBe("manifest-rotation");
+    const result = findLostSectorActivities(defs);
+    expect(result).toHaveLength(2);
+    expect(result[0].name).toBe("Aphelion's Rest");
   });
 
   it("finds lost sectors by Chinese name keyword", () => {
@@ -49,9 +46,9 @@ describe("lost sectors from manifest", () => {
       },
     };
 
-    const result = buildLostSectorData(defs, new Date("2026-06-25T18:00:00Z"));
-    expect(result.items).toHaveLength(1);
-    expect(result.items[0].title).toBe("传说遗失区域：掘出");
+    const result = findLostSectorActivities(defs);
+    expect(result).toHaveLength(1);
+    expect(result[0].name).toBe("传说遗失区域：掘出");
   });
 
   it("finds lost sectors by English name keyword", () => {
@@ -62,9 +59,9 @@ describe("lost sectors from manifest", () => {
       },
     };
 
-    const result = buildLostSectorData(defs, new Date("2026-06-25T18:00:00Z"));
-    expect(result.items).toHaveLength(1);
-    expect(result.items[0].title).toContain("Extraction");
+    const result = findLostSectorActivities(defs);
+    expect(result).toHaveLength(1);
+    expect(result[0].name).toContain("Extraction");
   });
 
   it("finds current manifest lost sectors by Bungie activity mode type", () => {
@@ -85,10 +82,10 @@ describe("lost sectors from manifest", () => {
       },
     };
 
-    const result = buildLostSectorData(defs);
+    const result = findLostSectorActivities(defs);
 
-    expect(result.items).toHaveLength(1);
-    expect(result.items[0].title).toBe("天空码头IV");
+    expect(result).toHaveLength(1);
+    expect(result[0].name).toBe("天空码头IV");
   });
 
   it("returns empty when no lost sectors found", () => {
@@ -104,7 +101,7 @@ describe("lost sectors from manifest", () => {
     expect(result.message).toContain("未找到");
   });
 
-  it("returns up to nine active world lost sectors instead of a single N-of-1 pick", () => {
+  it("does not present arbitrary manifest sectors when current expert definitions are missing", () => {
     const defs: DefinitionComponentData = {
       ...makeActivityDef(1, "Sector A"),
       ...makeActivityDef(2, "Sector B"),
@@ -120,24 +117,53 @@ describe("lost sectors from manifest", () => {
 
     const result = buildLostSectorData(defs, new Date("2026-07-06T18:00:00Z"));
 
-    expect(result.items).toHaveLength(9);
+    expect(result.items).toEqual([]);
+    expect(result.message).toContain("缺少当前专家遗失区域定义");
+  });
+
+  it("selects the nine confirmed expert sector activities instead of alphabetically truncating the manifest", () => {
+    const defs: DefinitionComponentData = {
+      ...makeActivityDef(1344654780, "采石场: 专家"),
+      ...makeActivityDef(1509764568, "萃取地: 专家"),
+      ...makeActivityDef(1962464165, "永劫地狱: 专家"),
+      ...makeActivityDef(2983905025, "镀金箴言: 专家"),
+      ...makeActivityDef(3995113176, "繁盛深渊: 专家"),
+      ...makeActivityDef(2504276275, "黑色移民号花园2A: 专家"),
+      ...makeActivityDef(4269987990, "汇流: 专家"),
+      ...makeActivityDef(1956131630, "K1通讯区: 专家"),
+      ...makeActivityDef(457172842, "星光大殿: 专家"),
+      ...makeActivityDef(2019961998, "空坦克: 专家"),
+    };
+
+    const result = buildLostSectorData(defs, new Date(), { destinations: {} });
+
     expect(result.items.map((item) => item.title)).toEqual([
-      "Sector A",
-      "Sector B",
-      "Sector C",
-      "Sector D",
-      "Sector E",
-      "Sector F",
-      "Sector G",
-      "Sector H",
-      "Sector I"
+      "采石场",
+      "萃取地",
+      "永劫地狱",
+      "镀金箴言",
+      "繁盛深渊",
+      "黑色移民号花园2A",
+      "汇流",
+      "K1通讯区",
+      "星光大殿",
     ]);
-    expect(result.message).toContain("今日展示 9 个");
+    expect(result.items.map((item) => item.destinationName)).toEqual([
+      "欧洲无人区",
+      "萨瓦图恩的王座世界",
+      "木卫二",
+      "海王星",
+      "苍白之心",
+      "发射基地",
+      "涅索斯",
+      "月球",
+      "幽梦之城",
+    ]);
   });
 
   it("builds player-facing briefing fields from official destination, modifier, and reward definitions", () => {
     const defs: DefinitionComponentData = {
-      ...makeActivityDef(100, "采石场", {
+      ...makeActivityDef(1344654780, "采石场", {
         destinationHash: 697502628,
         activityLightLevel: 950,
         rewards: [

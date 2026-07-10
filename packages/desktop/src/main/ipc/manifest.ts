@@ -26,6 +26,10 @@ export function registerManifestIpcHandlers(): void {
   ipcMain.handle("manifest:initialize", async () => {
     return initializeManifestWithBackgroundTask();
   });
+
+  ipcMain.handle("manifest:repair", async () => {
+    return initializeManifestWithBackgroundTask({ repair: true });
+  });
 }
 
 export function scheduleInitialManifestVersionCheck(delayMs = 12000): void {
@@ -85,31 +89,38 @@ function shouldAutoUpdateManifest(status: ManifestStatus): boolean {
   return Boolean(status.needs_update || status.missing_required_components?.length || !status.initialized);
 }
 
-function initializeManifestWithBackgroundTask(): Promise<ReturnType<typeof getManifestStatus>> {
-  if (manifestUpdatePromise) {
+function initializeManifestWithBackgroundTask(options: { repair?: boolean } = {}): Promise<ReturnType<typeof getManifestStatus>> {
+  if (manifestUpdatePromise && !options.repair) {
     return manifestUpdatePromise;
   }
 
-  manifestUpdatePromise = runManifestUpdate().finally(() => {
-    manifestUpdatePromise = null;
+  const previousUpdate = manifestUpdatePromise;
+  const update = options.repair && previousUpdate
+    ? previousUpdate.catch(() => undefined).then(() => runManifestUpdate(true))
+    : runManifestUpdate(options.repair);
+  const trackedUpdate = update.finally(() => {
+    if (manifestUpdatePromise === trackedUpdate) {
+      manifestUpdatePromise = null;
+    }
   });
+  manifestUpdatePromise = trackedUpdate;
 
   startBackgroundTask({
-    type: "manifest-update",
-    title: "更新资料库",
-    message: "正在后台更新 Destiny 2 资料库。",
+    type: options.repair ? "manifest-repair" : "manifest-update",
+    title: options.repair ? "修复资料库" : "更新资料库",
+    message: options.repair ? "正在清理并重建 Destiny 2 资料库。" : "正在后台更新 Destiny 2 资料库。",
     retryDelaysMs: MANIFEST_RETRY_DELAYS_MS,
     run: async () => {
-      await (manifestUpdatePromise ?? runManifestUpdate());
+      await trackedUpdate;
     }
   });
 
-  return manifestUpdatePromise;
+  return trackedUpdate;
 }
 
-async function runManifestUpdate(): Promise<ReturnType<typeof getManifestStatus>> {
+async function runManifestUpdate(repair = false): Promise<ReturnType<typeof getManifestStatus>> {
   const config = loadConfig();
-  const status = await runHeavyTaskInWorker<ManifestStatus>({ task: "manifest-update" });
+  const status = await runHeavyTaskInWorker<ManifestStatus>({ task: "manifest-update", repair });
   lastManifestVersionStatus = {
     latest_version: status.version,
     needs_update: false,

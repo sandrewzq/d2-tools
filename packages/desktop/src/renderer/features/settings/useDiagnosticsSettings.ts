@@ -83,6 +83,7 @@ export function useDiagnosticsSettings(input: {
     openUpdateDownloadPage: updateFlow.openUpdateDownloadPage,
     quitAndInstallUpdate: updateFlow.quitAndInstallUpdate,
     refreshManifestStatus: manifestStatusState.refreshManifestStatus,
+    repairManifest: manifestStatusState.repairManifest,
     refreshDiagnostics: settingsModel.refreshDiagnostics,
     saveWriteActionsEnabled: settingsModel.saveWriteActionsEnabled,
     saveLanguagePreferences: settingsModel.saveLanguagePreferences,

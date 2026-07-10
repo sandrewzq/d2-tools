@@ -1,7 +1,7 @@
 import { Worker } from "node:worker_threads";
 
 export type HeavyTaskInput =
-  | { task: "manifest-update" }
+  | { task: "manifest-update"; repair?: boolean }
   | { task: "account-summary" };
 
 type HeavyTaskMessage<TResult> =

@@ -142,6 +142,7 @@ contextBridge.exposeInMainWorld("d2", {
   },
   getManifestStatus: () => ipcRenderer.invoke("manifest:status") as Promise<ManifestStatus>,
   initializeManifest: () => ipcRenderer.invoke("manifest:initialize") as Promise<ManifestStatus>,
+  repairManifest: () => ipcRenderer.invoke("manifest:repair") as Promise<ManifestStatus>,
   searchItems: (query: string) => ipcRenderer.invoke("items:search", query) as Promise<ItemSearchResult[]>,
   searchPerks: (query: string) => ipcRenderer.invoke("items:perks:search", query) as Promise<PerkSearchResult[]>,
   getLiveItemAvailability: (itemHashes: number[]) =>

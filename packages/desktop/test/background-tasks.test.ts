@@ -78,6 +78,40 @@ describe("background task store", () => {
     expect(scheduled).toEqual([{ delayMs: 30_000 }]);
   });
 
+  it("immediately reruns a waiting retry when a user manually retries the task", async () => {
+    const scheduled: Array<{ callback: () => void; delayMs: number }> = [];
+    let attempts = 0;
+    const store = createBackgroundTaskStore({
+      now: () => new Date("2026-06-29T00:00:00.000Z"),
+      schedule: (callback, delayMs) => {
+        scheduled.push({ callback, delayMs });
+      }
+    });
+    const input = {
+      type: "app-update-check" as const,
+      title: "检查应用更新",
+      retryDelaysMs: [30_000],
+      run: async () => {
+        attempts += 1;
+        throw new Error("network failed");
+      }
+    };
+
+    store.startTask(input);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    store.startTask({ ...input, restartIfRetrying: true });
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(attempts).toBe(2);
+    scheduled[0].callback();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(attempts).toBe(2);
+  });
+
   it("can keep retrying with the last finite delay when the retry policy is open ended", async () => {
     const scheduled: Array<{ callback: () => void; delayMs: number }> = [];
     let currentTime = new Date("2026-06-29T00:00:00.000Z").getTime();

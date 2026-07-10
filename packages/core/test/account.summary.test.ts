@@ -58,6 +58,7 @@ const itemDefinitions: DefinitionComponentData = {
       icon: "/common/destiny2_content/icons/helmet.png"
     },
     itemTypeDisplayName: "Helmet",
+    classType: 1,
     inventory: { tierTypeName: "Legendary", bucketTypeHash: 3448274439 }
   },
   "4001": {
@@ -405,6 +406,7 @@ describe("account summary", () => {
     expect(summary.characters[0]?.equipped_items[1]).toMatchObject({
       name: "Helmet A",
       group_key: "armor",
+      class_type: 1,
       armor_stats: {
         health: 26,
         melee: 8,

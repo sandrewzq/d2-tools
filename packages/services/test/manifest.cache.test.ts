@@ -7,11 +7,16 @@ import type { DestinyManifestMetadata } from "@d2-tools/core/manifest/metadata";
 import { selectManifestLanguagePath } from "@d2-tools/core/manifest/metadata";
 import {
   checkManifestVersion,
+  clearManifestCache,
   getManifestStatus,
   initializeManifestMetadata,
   loadManifestMetadataCache,
   saveManifestMetadataCache
 } from "../src/manifest/cache";
+import {
+  getDefinitionStatus,
+  initializeDefinitionComponent
+} from "../src/manifest/definitions";
 
 const manifest: DestinyManifestMetadata = {
   version: "123",
@@ -48,6 +53,39 @@ function config(dataDir: string): D2Config {
 }
 
 describe("manifest metadata service adapter", () => {
+  it("clears incomplete manifest caches so a repair can rebuild them", () => {
+    const dataDir = mkdtempSync(join(tmpdir(), "d2-tools-manifest-"));
+
+    saveManifestMetadataCache({
+      dataDir,
+      language: "zh-chs",
+      metadata: manifest,
+      cachedAt: "2026-06-18T00:00:00.000Z"
+    });
+
+    clearManifestCache(dataDir);
+
+    expect(loadManifestMetadataCache(dataDir)).toBeNull();
+    expect(getManifestStatus(dataDir)).toEqual({ initialized: false });
+  });
+
+  it("clears in-memory definition caches with the repaired files", async () => {
+    const dataDir = mkdtempSync(join(tmpdir(), "d2-tools-manifest-"));
+
+    await initializeDefinitionComponent({
+      dataDir,
+      language: "zh-chs",
+      metadata: manifest,
+      component: "DestinyInventoryItemDefinition",
+      fetchJson: async () => ({})
+    });
+    expect(getDefinitionStatus(dataDir, "DestinyInventoryItemDefinition").initialized).toBe(true);
+
+    clearManifestCache(dataDir);
+
+    expect(getDefinitionStatus(dataDir, "DestinyInventoryItemDefinition")).toEqual({ initialized: false });
+  });
+
   it("persists metadata cache and exposes status", () => {
     const dataDir = mkdtempSync(join(tmpdir(), "d2-tools-manifest-"));
 

@@ -419,7 +419,7 @@ describe("shared UI page views", () => {
         masterSoloRewards: ["异域臂甲（常见）", "异域胸甲（常见）", "异域头盔（常见）", "异域腿甲（常见）"]
       },
       {
-        title: "地堡E15",
+        title: "永劫地狱",
         destinationName: "木卫二",
         championTypes: ["屏障", "过载"],
         shieldTypes: ["电弧", "虚空"],
@@ -429,7 +429,7 @@ describe("shared UI page views", () => {
       },
       {
         title: "镀金箴言",
-        destinationName: "内欧姆那",
+        destinationName: "海王星",
         championTypes: ["屏障", "势不可挡"],
         shieldTypes: ["烈日", "电弧"],
         threatType: "烈日",
@@ -447,7 +447,7 @@ describe("shared UI page views", () => {
       },
       {
         title: "黑色移民号花园2A",
-        destinationName: "涅索斯",
+        destinationName: "发射基地",
         championTypes: ["屏障", "过载"],
         shieldTypes: ["电弧", "烈日"],
         expertSoloRewards: ["传说武器（罕见）"],
@@ -463,21 +463,22 @@ describe("shared UI page views", () => {
         masterSoloRewards: ["异域记忆水晶（普通）", "传说武器（普通）"]
       },
       {
-        title: "惊颤竞速",
+        title: "K1通讯区",
         destinationName: "月球",
-        championTypes: ["过载", "势不可挡"],
-        shieldTypes: ["电弧", "虚空"],
-        threatType: "电弧",
-        expertSoloRewards: ["传说武器（罕见）"],
-        masterSoloRewards: ["传说武器（普通）"]
-      },
-      {
-        title: "空坦克",
-        destinationName: "纷争海岸",
         championTypes: ["屏障", "过载"],
         shieldTypes: ["烈日", "虚空"],
-        expertSoloRewards: ["异域记忆水晶（稀有）"],
-        masterSoloRewards: ["异域记忆水晶（普通）"]
+        threatType: "烈日",
+        expertSoloRewards: ["异域记忆水晶（稀有）", "传说武器（罕见）"],
+        masterSoloRewards: ["异域记忆水晶（普通）", "传说武器（普通）"]
+      },
+      {
+        title: "星光大殿",
+        destinationName: "幽梦之城",
+        championTypes: ["过载", "势不可挡"],
+        shieldTypes: ["烈日", "虚空"],
+        threatType: "烈日",
+        expertSoloRewards: ["异域记忆水晶（稀有）", "传说武器（罕见）"],
+        masterSoloRewards: ["异域记忆水晶（普通）", "传说武器（普通）"]
       }
     ] as any;
 
@@ -527,8 +528,8 @@ describe("shared UI page views", () => {
     expect(dailyPanel).not.toContain("进入日报");
     expect(dailyPanel).toContain("欧洲无人区");
     expect(dailyPanel).toContain("勇士：屏障、势不可挡");
-    expect(dailyPanel).not.toContain("护盾：");
-    expect(dailyPanel).not.toContain("威胁：");
+    expect(dailyPanel).toContain("护盾：烈日、虚空");
+    expect(dailyPanel).toContain("威胁：虚空");
     expect(dailyPanel).toContain("专家：");
     expect(dailyPanel).toContain("异域记忆水晶（稀有）、传说武器（罕见）");
     expect(dailyPanel).toContain("大师：");
@@ -572,13 +573,13 @@ describe("shared UI page views", () => {
               items: [
                 { title: "采石场" },
                 { title: "萃取地" },
-                { title: "地堡E15" },
+                { title: "永劫地狱" },
                 { title: "镀金箴言" },
                 { title: "繁盛深渊" },
                 { title: "黑色移民号花园2A" },
                 { title: "汇流" },
-                { title: "惊颤竞速" },
-                { title: "空坦克" }
+                { title: "K1通讯区" },
+                { title: "星光大殿" }
               ]
             }
           },

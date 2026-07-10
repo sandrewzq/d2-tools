@@ -1037,6 +1037,8 @@ function renderLostSectorBriefing(item: HomeDailyItem) {
   return (
     <div className="home-lost-sector-briefing">
       {item.championTypes?.length ? <span>勇士：{item.championTypes.join("、")}</span> : null}
+      {item.shieldTypes?.length ? <span>护盾：{item.shieldTypes.join("、")}</span> : null}
+      {item.threatType ? <span>威胁：{item.threatType}</span> : null}
       {item.expertSoloRewards?.length ? (
         <div className="home-lost-sector-reward">
           <strong>专家：</strong>

@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { D2Config } from "@d2-tools/core/config/schema";
 import {
@@ -10,7 +10,7 @@ import {
   selectManifestLanguagePath,
   type DestinyManifestMetadata
 } from "@d2-tools/core/manifest/metadata";
-import { getDefinitionStatus } from "./definitions.js";
+import { clearDefinitionMemoryCache, getDefinitionStatus } from "./definitions.js";
 
 export type ManifestMetadataCache = {
   cached_at: string;
@@ -54,6 +54,11 @@ export function manifestDir(dataDir: string): string {
 
 export function manifestMetadataPath(dataDir: string): string {
   return join(manifestDir(dataDir), "metadata.json");
+}
+
+export function clearManifestCache(dataDir: string): void {
+  clearDefinitionMemoryCache(dataDir);
+  rmSync(manifestDir(dataDir), { recursive: true, force: true });
 }
 
 export function loadManifestMetadataCache(dataDir: string): ManifestMetadataCache | null {

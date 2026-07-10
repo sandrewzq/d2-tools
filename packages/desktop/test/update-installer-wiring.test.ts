@@ -96,9 +96,8 @@ describe("desktop installer and update wiring", () => {
     expect(diagnosticsModel).toContain("api.getManifestStatus()");
     expect(diagnosticsModel).toContain("api.getActionLog()");
     expect(productShell).toContain("updateSnapshot: diagnostics.updateSnapshot");
-    expect(productShell).toContain("global-update-banner");
-    expect(productShell).toContain("updateSnapshot.status === \"available\"");
-    expect(productShell).toContain("updateSnapshot.status === \"downloaded\"");
+    expect(productShell).not.toContain("global-update-banner");
+    expect(productShell).not.toContain("shouldShowUpdateBanner");
     expect(productShell).toContain("onOpenUpdateDownloadPage: () => void diagnostics.openUpdateDownloadPage()");
     expect(productShell).toContain("onCopyUpdateDiagnostic: () => void diagnostics.copyUpdateDiagnostic()");
     expect(homeRoutes).toContain("<SettingsMenuProvider");

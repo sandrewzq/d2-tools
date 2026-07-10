@@ -15,6 +15,7 @@ export type AccountItemSummary = {
   name: string;
   icon?: string;
   item_type?: string;
+  class_type?: number;
   ammo_type?: AmmoTypeKey;
   tier?: string;
   bucket_hash?: number;
@@ -462,6 +463,7 @@ function summarizeItem(
     name: definition?.displayProperties?.name?.trim() || `Item ${item.itemHash}`,
     icon: normalizeBungieAssetUrl(definition?.displayProperties?.icon),
     item_type: definition?.itemTypeDisplayName,
+    class_type: definition?.classType,
     ammo_type: ammoTypeKey(definition?.equippingBlock?.ammoType),
     tier: definition?.inventory?.tierTypeName,
     bucket_hash: bucketHash,

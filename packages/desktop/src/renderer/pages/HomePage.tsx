@@ -31,7 +31,6 @@ export function HomePage(props: {
         assistantPanel={shell.assistantPanel}
         renderPage={() => (
           <>
-            {shell.globalMessages}
             <HomePageRoutes activePage={shell.activePage} />
             <HomePageItemDetailModal {...shell.itemDetailModalProps} />
           </>

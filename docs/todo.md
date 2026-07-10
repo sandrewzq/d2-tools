@@ -1,95 +1,37 @@
 # 当前待办
 
 > 更新时间：2026-07-10
-> 这是唯一当前待办目录。这里只保留当前健康度、未完成任务、近期关键 bug 和 backlog 入口；完整需求、切片、验收标准放在 `docs/work/backlog/`。
+> 这里只保留当前健康度、未完成任务和未解决 bug。已完成 Bug 与阶段过程使用 Git 历史追溯；详细目标、切片和验收标准在 `docs/work/backlog/`。
 
 ## 健康度
 
 | 检查项 | 状态 | 备注 |
 |---|---|---|
-| `pnpm test` | ✅ 通过 | 发布门禁已通过：行为层 102 个文件 / 353 条，架构层 14 个文件 / 59 条；质量门禁确认没有新增源码字符串测试 |
-| `pnpm test:legacy` | ✅ 报告通过 | 59 个遗留文件 / 284 条旧源码护栏当前通过；该层在 GitHub CI 中只报告、不阻断发布 |
-| `pnpm typecheck` | ✅ 通过 | 本次全仓类型检查通过 |
-| `pnpm docs:check` | ✅ 通过 | 本轮文档结构与编码检查通过 |
+| `pnpm test` | ✅ 通过 | 行为、架构与测试质量门禁通过 |
+| `pnpm test:legacy` | ✅ 报告通过 | 遗留源码护栏只报告，不阻断发布 |
+| `pnpm typecheck` | ✅ 通过 | 全仓类型检查通过 |
+| `pnpm docs:check` | ✅ 通过 | 文档结构与编码检查通过 |
 
-> 构建提醒：Prototype 生产构建提示部分 chunk 超过 500 kB，不阻塞构建。npm 提示 `.npmrc` 中 Electron mirror 配置未来可能不被支持，Vite 提示 CJS Node API 已废弃，均不阻塞当前验证。
+构建提醒：Prototype 生产构建仍可能提示 chunk 超过 500 kB；Electron mirror 与 Vite CJS Node API 的弃用提示不阻断当前验证。
 
-## 近期关键 Bug
-
-| 状态 | 标题 | 备注 |
-|---|---|---|
-| ✅ 已修复 | Bug #22 桌面启动：每次打开停留在启动页数秒 | 启动状态改为只读取轻量 Manifest metadata 和定义缓存文件存在性，不再解析 199MB 级 Bungie 定义 JSON；启动鉴权不再刷新 token；启动状态读取失败时显示可重试错误 |
-| ✅ 已修复 | Bug #25 桌面启动：5173 端口冲突时 Electron 打开其他应用 | 开发端口统一规范为 Prototype `53170`、Web `53171`、Desktop renderer `53172`；桌面启动脚本使用 Vite strict port，并把同一个 `D2_RENDERER_URL` 注入 Electron；发布版继续加载安装包内 `dist/renderer/index.html`，不依赖本地端口 |
-| ✅ 已修复 | Bug #26 脚本：发布和本地打包脚本中文说明存在乱码 | `scripts/generate-release-notes.mjs` 的 Release footer 和 `scripts/local-package.ps1` 的中文注释/输出已恢复为 UTF-8 中文；`pnpm docs:check` 会继续拦截 mojibake 和编码回退 |
-| ✅ 已修复 | Bug #27 测试：设置页共享 UI 迁移后视觉 harness 断言未同步 | 设置页、资料库和配装相关测试已改为检查 `packages/ui` 的 `*ContentView.tsx`，Desktop feature 只检查 adapter 接线 |
-| ✅ 已修复 | Bug #28 CI：i18n 收口后桌面源码断言未同步 | 账号页目录和设置页资料库状态断言已改为检查 `accountText` / `settingsText` i18n 调用，避免要求组件退回中文硬编码 |
-| ✅ 已修复 | Bug #29 Prototype：设置页 fallback 菜单无法切换 | `SettingsPageView` fallback 已补内部 `activeSection` 状态和菜单点击；Prototype 设置页的账号、资料库、备份迁移和诊断分区可正常切换 |
-| ✅ 已修复 | Bug #30 Prototype：AI 抽屉仍是占位内容 | Prototype / Web / Desktop 全局 AI 抽屉已统一复用 `packages/ui` 的 `AiAssistantPanelView`；Desktop 只保留真实 AI 调用和历史 adapter，Prototype / Web 只提供 mock 数据和 mock 回复，并加回归测试防止回退到本地占位或“小日向”标题 |
-| ✅ 已修复 | Bug #31 Prototype：AI 抽屉暗色模式露出浅色背景 | `AppShell` 统一持有 `global-assistant-sidebar` 包装层，Desktop 不再自建抽屉内层；暗色 drawer token、消息气泡和视觉脚本 computed background 校验已补齐，防止 Prototype / Web / Desktop 抽屉背景再次分叉 |
-| ✅ 已修复 | Bug #32 Prototype：配装页暗色模式露出浅色面板 | 配装页复用的 `daily-source.source-ready`、配装模板和操作日志样式已收口到共享语义 token；新增 `visual:loadouts` 覆盖 Prototype 与 Desktop 暗色配装页，防止共享 UI 再出现白底面板 |
-| ✅ 已修复 | Bug #33 跨端视觉：单页截图无法覆盖所有暗色漏白 | 新增 `visual:all`，遍历 Prototype / Web / Desktop、明暗主题、主菜单和设置分区，对 `.app-shell` 可见 DOM 做 computed style 扫描、浅色大背景拦截和基础文字对比度检查；同时补齐 dark 派生 token，并用样式测试禁止新增直接浅色 background |
-| ✅ 已修复 | Bug #34 Desktop 启动：右上角原生窗口按钮白块割裂 | 移除 Electron 原生 `titleBarOverlay`，窗口控制按钮改为 `packages/ui` 共享 `AppShell` 自绘，Desktop 只通过 IPC 注入最小化、最大化/还原和关闭动作 |
-| ✅ 已修复 | Bug #35 Prototype：首页内容区混入原型场景控制 | Prototype 场景切换从页面内容区移到右下角可收起调试面板，首页默认只展示共享产品内容，避免原型与 Desktop/Web 对比时误判多出状态块 |
-| ✅ 已修复 | Bug #36 Prototype：调试面板亮色模式下拉菜单文字过浅 | Prototype 调试面板改回 `.app-shell` 主题作用域内渲染，浮层仍 fixed 不占页面布局；同时补齐标题、按钮、select 和 option 的语义色，避免亮色模式使用错误前景色 |
-| ✅ 已修复 | Bug #37 跨端 UI：Prototype 账号和仓库页仍与 Desktop 分叉 | Prototype 账号页已改用共享 `AccountPageContentView` 和 mock workspace；仓库完整 UI 已迁入 `packages/ui/src/vault/`，包括筛选、列表、整理、同名对比、目标规则和推荐数据导入，Prototype / Web / Desktop 共用同一仓库内容页 |
-| ✅ 已修复 | Bug #38 Web：非首页菜单仍渲染首页 fallback | Web 已按菜单接入账号、仓库、配装、资料库和设置共享内容页，并补 mock 数据；测试禁止 Web 非首页继续渲染 `HomePageView` fallback |
-| ✅ 已修复 | Bug #39 配装页：Prototype 与 Desktop 因游戏内槽位置顶造成观感分叉 | 配装页 workspace 新增统一 `loadoutEntries`，把本地模板和 Bungie 游戏内配装栏合并到同一个配装工作台列表；共享 UI 不再渲染独立置顶的游戏内配装栏大区，Prototype / Desktop 继续共用同一内容页 |
-| ✅ 已修复 | Bug #40 配装页：工作台筛选、卡片和详情提示在窄屏重叠 | 配装工作台的响应式覆盖已移到基础规则之后，小屏下左右面板改为单列；筛选、按钮和状态 chip 允许弹性换行，并补配装 UI 回归断言和多视口矩形扫描 |
-| ✅ 已修复 | Bug #42 配装页：覆盖游戏内配装栏返回 Bungie 1622 | 账号汇总保留 Bungie 配装槽的 `nameHash`、`iconHash`、`colorHash`，Desktop 覆盖配装时一路传到 `SnapshotLoadout`，避免只发空外观字段导致 invalid request |
-| ✅ 已修复 | Bug #41 跨端 UI：打开 AI 抽屉后账号页内容挤压重叠 | 账号页在 `.assistant-open` 状态下主动切换为紧凑单列布局，目录、角色标题、装备/背包比较和侧栏摘要不再等窄屏媒体查询才换行；补账号页抽屉回归断言和 Prototype 账号页 + AI 抽屉矩形检查 |
-| ✅ 已修复 | Bug #43 Release v0.0.11：测试断言未同步导致发布失败 | `Release Windows Package` 在 Test 步骤被导航和仓库样式断言拦截；导航期望已纳入“商人”，仓库样式测试改为检查 `packages/ui/src/vault/` 共享 View 和 Desktop adapter 接线 |
-| ✅ 已修复 | Bug #44 Release 脚本：失败重发时错误升 patch 版本 | `tools/git-auto-release.cmd` 先检查当前版本 GitHub Release；当前版本 Release 缺失时复用当前版本并更新同名 tag 重跑发布，只有当前版本已发布成功时才自动升到下一个 patch 版本 |
-| ✅ 已修复 | Bug #45 Release 脚本：`git diff --check` 打开 pager 卡住 | `tools/git-auto-release.cmd` 启动时禁用 Git pager，发布检查输出不再停在 `(END)` 等待手动按 `q` |
-| ✅ 已修复 | Bug #46 跨端 UI：首页泄漏参考说明文案 | 参考 HTML 的规范说明块改为 `d2-reference-only` 边界和 `data-reference-only="true"` 双标记；真实首页移除说明条，`workspace-layout.test.ts` 会抽取标记块文案并拦截其进入 `packages/ui` |
-| ✅ 已修复 | Bug #47 仓库页：容量数字和方案命中提示占据顶部导致布局混乱 | 仓库页不再把筛选结果当容量显示；仓库已读取数量来自 `account.vault.item_count`，筛选命中和方案命中改为命令栏小型状态 chip；AI 抽屉打开时优先展示筛选工作台，摘要下沉 |
-| ✅ 已修复 | Bug #48 商人页：商人名称中英混杂且角色商人未接真实库存 | 商人页名称以 Bungie 资料库 definition 为准；本地目录只显示功能占位，不再人工翻译官方名或硬写“塔楼”；日报商人数据在公共商人基础上追加登录角色商人接口，未登录或接口失败时继续显示等待实时库存 |
-| ✅ 已修复 | Bug #49 首页：本周重置倒计时丢失 | 首页本周面板重新展示 `weekly_reset.time_remaining_label`；共享 UI 渲染测试已覆盖每周重置倒计时，避免 Prototype / Web / Desktop 再漏掉该字段 |
-| ✅ 已修复 | Bug #50 装备详情：同名对比残留“最高分”文案 | 同名对比和仓库重复组不再使用“最高分 / 最佳同名”，改为“推荐项 / 推荐同名”，避免误导用户以为仍存在分值评价系统 |
-| ✅ 已修复 | Bug #51 账号页：刷新账号和重新授权只留在 HTML 参考稿 | 登录后的共享账号页补回刷新账号和重新授权操作，Prototype / Web / Desktop 通过同一个 `AccountPageContentView` 获得按钮；账号 UI 回归测试锁定真实内容页必须保留这两个回调 |
-| ✅ 已修复 | Bug #52 商人页：商人图标和费用仍是占位 | 商人头像改为读取 Bungie 资料库 vendor icon；库存物品继续读取 item icon；费用只展示 Bungie 返回的真实 currency 数量和图标，本地商人目录不再生成“待确认”假库存卡 |
-| ✅ 已修复 | Bug #53 账号页：装备与背包对比列边框不完整 | 账号页槽位对比的左右列统一改为有内边距、边框和圆角的内部面板，右侧背包候选区域使用完整选中态边界，避免标题区出现半截色块或无边框背景 |
-| ✅ 已修复 | Bug #54 资料库：Perk 搜索漏掉通过 PlugSet 关联的装备 | Perk 关联装备查找现在同时展开装备 socket 的 `reusablePlugSetHash` 和 `randomizedPlugSetHash`；Desktop `items:perks:search` 会加载 `DestinyPlugSetDefinition` 传入核心搜索，避免“爆炸箭头”等 Perk 明明在武器池里却显示无关联装备 |
-| ✅ 已修复 | Bug #57 首页：遗失区域混入非遗失区域且只显示一条 | Bungie 公共里程碑按 activity / quest 名称逐条分类，避免同一 milestone 内的“国王的陨落”等非遗失区域被塞进 `lost_sector`；首页本日更新会渲染已确认的多条遗失区域，不再只取第一条 |
-| ✅ 已修复 | Bug #58 商人页：部分商人库存被过滤或截断 | 商人日报不再只保留关键商人，summary 商人来源上限提高到 20；app 层保留暂无可读库存的 live 商人，并避免把“库存名称暂不可读”解析成假库存卡；商人和库存图标加载失败时回退到本地 SVG |
-| ✅ 已修复 | Bug #63 商人页：左侧分组和空态信息噪音过高 | 商人页左侧改按重点库存、仪式声望、周末活动、外观 / 服务分组，不再暴露“实时”来源分组；空库存商人统一显示“未读取”，详情区改为轻量空态和状态工具条 |
-| ✅ 已修复 | Bug #55 仓库页：筛选区和装备卡内层边框割裂 | 仓库筛选标签改为轻量 caption，框架筛选 chip 去掉割裂的大块背景；装备卡主内容按钮清除全局按钮边框和阴影，避免卡片内部多出一圈边框 |
-| ✅ 已修复 | Bug #56 账号页：最近活动列表被挤成右侧窄栏 | 活动复盘布局改为上方两列摘要、下方“最近 10 场”横跨整行；宽列表内部两列展示，窄屏和 AI 抽屉打开时回到单列，避免长列表挤压页面并留下大块空白 |
-| ✅ 已修复 | Bug #59 仓库页：快速筛选与主筛选表单重复 | 移除顶部“快速筛选”chip 行，标记、锁定、DIM 愿望单和本地目标统一通过主筛选表单选择；右侧“查看可清理候选”继续复用主筛选的可清理条件 |
-| ✅ 已修复 | Bug #60 账号页：活动复盘只显示 PVE 且摘要卡挤压 | 活动历史改为每个角色显式拉取 AllPvE 和 AllPvP，再合并去重并按时间排序；核心分类补齐具体熔炉竞技场模式，活动摘要卡增加账号页专属网格样式，避免 PVE/PVP 统计挤成一行 |
-| ✅ 已修复 | Bug #61 首页：传说遗失区域仍按单个轮换展示 | Manifest fallback 不再用旧的 `N 选 1` 单遗失区域模型，改为首页可展示最多 9 个世界遗失区域；本日更新使用集合卡显示 3 条预览和剩余数量，HTML 参考稿与共享 UI 同步 |
-| ✅ 已修复 | Bug #62 配装页：游戏内配装条目无法查看详情 | 配装工作台的游戏内条目也能选中；右侧新增游戏内配装详情面板，展示角色、槽位、装备列表，并保留应用到角色和用当前装备覆盖操作 |
-| ✅ 已修复 | Bug #64 仓库页：目标规则作为一级 Tab 抢占主流程 | 仓库主导航移除“目标规则”，标记继续作为整理主流程；本地目标只在已有规则时出现在右侧摘要，可跳回筛选列表查看命中，规则管理下沉到“推荐数据”的高级入口 |
-| ✅ 已修复 | Bug #65 首页：遗失区域仍只显示 1 条 | Manifest 遗失区域识别改为使用 Bungie 当前 `activityModeTypes` 87 / `activityTypeHash` 103143560，并按原始区域名去重；首页 daily 数据链路优先使用可读的 9 条世界遗失区域集合，Bungie 单条里程碑不再覆盖列表，summary 上限同步提高到 9 |
-| ✅ 已修复 | Bug #66 资料库：同名武器搜索混入非装备定义 | 资料库搜索同名装备时过滤 Bungie Manifest 中的 Pattern / Dummy / Mod definition；“天堂暴政”当前本地资料库同名定义 6 条，但真实武器只保留 `2721249463` 和 `3388655311` 两条 |
-| ✅ 已修复 | Bug #67 资料库：装备定义详情误入当前装备实例交互 | 资料库装备搜索先展示结果列表，点击“查看详情”后打开菜单内定义详情弹框；弹框只展示 Manifest 定义字段、来源、定义级武器属性和武器定义结构，过滤纪念品、记录器、大师杰作、模组、专家模组和外观等实例 / 系统插槽，不进入账号 / 仓库复用的当前装备实例详情，也不展示实际 roll；Desktop 搜索会加载 `DestinyStatDefinition` 并从 `definition.stats.stats` 生成定义属性条；详情弹框摘要区与武器结构区已分区布局，避免候选区压住定义字段和来源信息 |
-| ✅ 已修复 | Bug #72 资料库：同名装备结果缺少玩家可读的版本与来源 | 装备搜索直接按 `traitIds` 中的 Bungie 发布标记解析已核验赛季；来源只读取 Bungie Manifest 的物品 / 收藏品 `sourceString`，复刻定义通过 `translationBlock.arrangements[].artArrangementHash` 关联旧定义再读取其收藏品提示。结果卡分开显示“官方来源提示”和“当前公开渠道”：后者只表示当前商人 / 公共活动是否直接命中，不再把未命中误写成无掉落；移除 Perk 列数、实时状态、图样和栏位等无法帮助玩家区分同名装备的内容。 |
-| ✅ 已修复 | Bug #73 资料库：顶部“需修复”状态没有直接修复入口 | 共享顶部状态条支持具名操作；当资料库缺少必需 Manifest 组件时，“资料库 需修复”直接成为“修复资料库”按钮，点击复用设置页的后台 Manifest 更新动作。 |
-| ✅ 已修复 | Bug #74 资料库：同名装备提示重复版本信息且结果卡留有大片空白 | 移除只按名称重复生成的“同名区别”提示和列表中的基础属性区；结果卡保留左侧装备信息（稀有度、类型、槽位、元素、专家、弹药、框架、可可靠识别的起源特性）与右侧版本、官方来源提示、当前公开渠道。玩家直接用这些定义信息判断同名版本，不展示 Perk 池或已有装备实际 Roll。 |
-| ✅ 已修复 | Bug #68 首页：本周确认数据仍显示待确认且仄商人误用列表首项 | 首页本周卡片会从 Bungie 公共里程碑标题 / 副标题 / 描述中提取已知突袭、地牢和日落名称，过滤“非完整掉落地图”等来源说明；仄商人区域恢复 0.0.12 紧凑库存样式，并按 `vendorHash=2190858386` 或仄 / Xur / 老九名称匹配，不再把 vendors 第一条其他商人当成仄 |
-| ✅ 已修复 | Bug #69 首页：本周更新错误依赖 daily summary | 新增独立 `weekly:summary`、core weekly live data / summary 和 renderer `getWeeklySummary`；首页本周五个固定关注位优先读取 `weeklySummary`，`dailySummary.sources.weekly_report` 只保留旧数据兼容，不再作为本周主入口 |
-| ✅ 已修复 | Bug #70 后台任务：失败后仍显示浮动后台任务 | `AppShell` 右下角浮动后台任务 dock 只由 queued / running / retrying 任务触发；failed / blocked 记录保留在设置页诊断入口，不再误显示为“1 个后台任务”。 |
-| ✅ 已修复 | Bug #71 首页：轮换突袭混入公共突袭列表 | 首页没有 `weeklySummary` 时不再从 `dailySummary.weekly_report` 或 `dailySummary.rotations` 猜测周常主卡；公共突袭 / 地牢里程碑只保留为线索，不会升级成已确认轮换突袭或地牢。 |
-| ✅ 已修复 | Bug #75 发布脚本：本地代码未通过 CI 仍会 push | `git-auto-release.cmd` 在修改版本、commit、push 和 tag 前执行 frozen install、发布测试门禁与全量类型检查；失败时显示具体阶段和原始输出并等待按键，不继续发布。CI 通过后才准备版本和执行 Release 专属校验。 |
-| ✅ 已修复 | Bug #76 测试：源码字符串断言过多导致需求变化后 CI 假失败 | 测试拆为行为、架构和遗留三层；发布门禁只阻断真实行为、明确架构契约和测试质量规则，59 个现有源码字符串测试独立报告且不阻断。新增 `test:quality` 冻结遗留清单，禁止继续增加匹配变量名、class、HTML 或 CSS 的普通功能测试；账号最高光等反馈已迁为真实共享 UI 渲染测试，3 条过时 UI / 布局断言已删除。 |
-
-## 当前任务目录
+## 当前任务
 
 | 编号 | 优先级 | 状态 | 任务 | Backlog | 下一步 |
 |---|---|---|---|---|---|
-| T1 | P1 | 🟡 待推进 | 小日向与 d2-skill 产品级能力 | [总纲](work/backlog/kohinata-d2-skill-product-architecture.md) / [攻略证据工作台](work/backlog/kohinata-guide-evidence-workbench.md) | 先做攻略解析、账号命中、perk 证据和配装草稿 |
-| T2 | P1 | 🟡 待推进 | 仓库推荐与清理工作台 | [仓库推荐与清理工作台](work/backlog/vault-recommendation-and-cleanup-workbench.md) | 统一 DIM wishlist、本地目标、同名对比和清理清单；推荐数据只支持用户导入，不默认内置未授权社区数据 |
-| T3 | P1 | 🟡 待推进 | 小日向日报、商人与掉落查询 | [日报、商人与掉落查询](work/backlog/daily-report-and-drops-assistant.md) / [首页遗失区域简报](work/backlog/home-lost-sector-briefing-redesign.md) / [首页每周活动简报](work/backlog/home-weekly-activity-briefing-redesign.md) | 首页本日更新已按新边界收口为“完整遗失区域 + 重点商人预留位”，账号提醒和今日商人变化不再进入本日主卡；首页本周更新收敛为“先锋行动 · 宗师先锋警戒、轮换突袭、轮换地牢、仄商人”四个核心关注位，公共里程碑不再作为轮换突袭 / 地牢主来源，公共线索只保留未归类线索，不展示试炼、铁旗或周末窗口；遗失区域简报已接 Manifest 目的地、勇士、护盾、威胁、专家单人奖励和大师单人奖励，不展示推荐光等、通关奖励、Manifest 来源或旧 dropSummary；每周活动简报已接入 `CharacterActivities(204)`、`Grandmaster Vanguard Alerts`、`Weekly Raid Challenge` 和 `Weekly Dungeon Challenge`，首页当前可确认本周先锋警戒为“移民号的坠毁 / 崇拜”，本周高亮突袭为“救赎的边缘 / 门徒誓约”，本周高亮地牢为“晚星之主 / 二象性”；商人页已接共享 UI、Desktop 入口、公共商人刷新、9 商人目录兜底、Bungie 图标路径修复、登录角色商人库存和 `model + actions` 边界收口；下一步继续补活动、掉落来源状态、更完整的购买判断，以及仄商人首页摘要规则 |
-| T4 | P1 | 🟡 进行中 | 跨端 UI 壳、可交互原型与桌面视觉收口 | [工作区骨架与样式收口](work/backlog/cross-platform-workspace-style-hardening.md) / [桌面视觉与详情打磨](work/backlog/desktop-ui-account-detail-polish.md) / [账号页 ViewModel 硬化](work/backlog/account-page-viewmodel-hardening.md) / [配装页 ViewModel 收深](work/backlog/loadouts-page-viewmodel-deepening.md) / [资料库页面 ViewModel 收口](work/backlog/library-page-viewmodel-hardening.md) | 工作区骨架和共享视觉已收口：`ProductShellHost` 统一持有页面骨架，主菜单真实入口改为纯内容层，首层 panel / side rail chrome、仓库卡片抗压、配装详情 panel 化、header actions 两列布局和视觉脚本卡住问题已修复。Desktop 菜单 Provider 解耦已落地：`HomePage.tsx` 只挂产品 Shell、菜单 Provider context、路由和全局弹窗，首页、账号、仓库、配装、资料库、商人和设置都由 `pages/providers/*MenuProvider.tsx` 平级渲染，边界测试已禁止首页重新直接 import 菜单 workspace hooks。候选 1 已完成主菜单页面 ViewModel interface 收口：`selectHomePageModel`、`selectAccountPageModel`、`selectVaultPageModel`、`selectLoadoutsPageModel`、`selectLibraryPageModel`、`selectVendorsPageModel` 和 `selectSettingsPageModel` 都已进入 `packages/app`，Desktop / Prototype / Web 主菜单入口已统一优先走 selector，跨端测试护栏会拦截首页、设置页、仓库、配装、账号、资料库和商人入口绕过 selector。候选 2 已继续落地 FixtureRuntime：Prototype 和 Web 的大块 mock 数据、首页 / 账号 / 仓库 / 配装 / 资料库 / 商人 / 设置页面模型组装、AI 助手 mock 初始消息 / quick prompts / 上下文 / 回复生成都已从入口 `main.tsx` 移到各自 `fixtures/use*FixtureRuntime.ts`，入口只保留路由、渲染分支、交互状态和动作接线；新增护栏禁止 Prototype / Web 入口重新直接调用页面 selector 或内联 AI mock 内容。候选 3 已继续落地测试分层瘦身：配装页“本地模板 + 游戏内槽位工作台”“游戏内配装详情”和“本地方案对比行”已从源码字符串断言迁到 `selectLoadoutsPageModel` + 共享 UI 渲染行为测试；账号页“刷新账号 / 重新授权”登录态操作、“未连接 Bungie / 去设置 Bungie / 登录 Bungie”空态操作、装备 / 背包 / 方案命中 / 材料工作台内容，以及背包候选预览上限 / 显示全部 / 图标 lazy-load 行为已迁到 `selectAccountPageModel` + 共享 UI 渲染行为测试；资料库“出处来源分组 / 来源状态”已迁到 `selectLibraryPageModel` + `LibraryPageContentView` 共享 UI 渲染行为测试，并保留架构维护护栏防止回流。候选 5 的核心运行环境 adapter 迁移已完成：OAuth callback server、Bungie OAuth token HTTP client、OAuth token 本地文件读写、config store、Manifest metadata cache 和 definition component cache 已从 `@d2-tools/core` 收口到 `@d2-tools/services`；Desktop 登录、启动鉴权、配置读写、资料库更新、资料库状态和 definition 读取均改用 services subpath，`core` 保留纯 schema/defaults/env、Manifest metadata/definitions 类型与路径选择 helper，并补齐 Desktop 构建 / 类型检查前的 services build 顺序和护栏测试。后续 T4 继续以人工复核发现的单页视觉问题、真实体验打磨和 fixture 类型收紧为主。 |
-| T5 | P3 | 🟡 待推进 | 活动复盘增强 | [活动复盘增强](work/backlog/activity-review-enhancement.md) | 后续接 PGCR、完成时间推算和副本级趋势 |
-| T6 | P4 | 🟡 待推进 | 桌面发布、更新与迁移体验 | [桌面发布体验](work/backlog/desktop-release-experience.md) | 继续验证真实 GitHub Release、更新提示、备份迁移和诊断体验 |
+| T1 | P1 | 🟡 待推进 | 小日向与 d2-skill 产品级能力 | [总纲](work/backlog/kohinata-d2-skill-product-architecture.md) / [攻略证据工作台](work/backlog/kohinata-guide-evidence-workbench.md) | 攻略解析、账号命中、perk 证据和配装草稿 |
+| T2 | P1 | 🟡 待推进 | 仓库推荐与清理工作台 | [仓库推荐与清理工作台](work/backlog/vault-recommendation-and-cleanup-workbench.md) | 统一 DIM wishlist、本地目标、同名对比和清理清单 |
+| T3 | P1 | 🟡 待推进 | 小日向日报、商人与掉落查询 | [日报、商人与掉落查询](work/backlog/daily-report-and-drops-assistant.md) / [遗失区域简报](work/backlog/home-lost-sector-briefing-redesign.md) / [每周活动简报](work/backlog/home-weekly-activity-briefing-redesign.md) | 补活动、掉落来源状态、购买判断和仄商人首页摘要 |
+| T4 | P1 | 🟡 进行中 | 跨端 UI 壳、可交互原型与桌面视觉收口 | [工作区骨架与样式收口](work/backlog/cross-platform-workspace-style-hardening.md) / [模块深度与跨端 seam 收口](work/backlog/module-depth-and-platform-seams.md) / [桌面视觉与详情打磨](work/backlog/desktop-ui-account-detail-polish.md) | 已移除主菜单标题下的全局横幅位，运行态统一收口到右下角任务中心，完成任务不再进入浮层；后续人工视觉复核，并分批推进模块深度 backlog |
+| T5 | P3 | 🟡 待推进 | 活动复盘增强 | [活动复盘增强](work/backlog/activity-review-enhancement.md) | 接 PGCR、完成时间推算和副本级趋势 |
+| T6 | P4 | 🟡 待推进 | 桌面发布、更新与迁移体验 | [桌面发布体验](work/backlog/desktop-release-experience.md) | 验证 GitHub Release、更新提示、备份迁移和诊断体验 |
 
 ## 暂不优先
 
-| 项目 | 状态 | 原因 |
-|---|---|---|
-| 配装模板使用引导 | 暂缓 | 已有能力但引导不足，后续补使用说明 |
+| 项目 | 原因 |
+|---|---|
+| 配装模板使用引导 | 已有能力但引导不足，后续补使用说明 |
 
-## 验证命令
+## 常用验证
 
 ```powershell
 npx pnpm@9.15.0 docs:check

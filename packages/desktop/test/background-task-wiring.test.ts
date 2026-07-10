@@ -154,7 +154,7 @@ describe("product shell background task wiring", () => {
     expect(libraryPage).toContain("后台更新资料库");
     expect(productShell).toContain("manifestStatus: library.manifestStatus");
     expect(productShell).toContain("onRefreshManifestStatus: () => void library.refreshManifestStatus()");
-    expect(productShell).toContain("onInitializeManifest: () => void library.initializeManifest()");
+    expect(productShell).toContain("onRepairManifest: () => void library.repairManifest()");
   });
 
   it("shares manifest status UI state across library and settings pages", () => {

@@ -2,6 +2,7 @@ export type ManifestApi = {
   getStartupState(): Promise<StartupState>;
   getManifestStatus(): Promise<ManifestStatus>;
   initializeManifest(): Promise<ManifestStatus>;
+  repairManifest(): Promise<ManifestStatus>;
 };
 
 export type StartupState = {

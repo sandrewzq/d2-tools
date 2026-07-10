@@ -101,4 +101,43 @@ describe("shared UI AppShell", () => {
     expect(html).not.toContain("1 个后台任务");
     expect(html).not.toContain("读取最近活动");
   });
+
+  it("keeps completed tasks out of an active task dock", () => {
+    const html = renderToStaticMarkup(
+      <AppShell
+        activePage="vault"
+        assistantMode={null}
+        colorMode="dark"
+        shellStatus={[{ key: "account", label: "账号", value: "已读取", tone: "ready" }]}
+        backgroundTasks={[
+          {
+            task_id: "app-update-check:test",
+            title: "检查应用更新",
+            status: "retrying",
+            error: "net::ERR_CONNECTION_TIMED_OUT",
+            next_retry_at: "2026-07-10T22:08:00+08:00"
+          },
+          {
+            task_id: "community-analysis:test",
+            title: "分析仓库推荐",
+            status: "success",
+            message: "任务已完成"
+          }
+        ]}
+        assistantPanel={<p>AI 助手</p>}
+        platformActions={{ openExternal: vi.fn() }}
+        onNavigate={() => {}}
+        onAssistantModeChange={() => {}}
+        onColorModeToggle={() => {}}
+        onOpenBackgroundTasks={() => {}}
+      >
+        <section>仓库内容</section>
+      </AppShell>
+    );
+
+    expect(html).toContain("检查应用更新");
+    expect(html).toContain("net::ERR_CONNECTION_TIMED_OUT");
+    expect(html).not.toContain("分析仓库推荐");
+    expect(html).not.toContain("任务已完成");
+  });
 });

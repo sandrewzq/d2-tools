@@ -284,12 +284,10 @@ describe("cross-platform UI completion boundary", () => {
     expect(copy).not.toContain('vaultReadyBadge: "待统计"');
   });
 
-  it("closes Bug #26 after restoring release and packaging script Chinese text", () => {
-    const todo = read("docs/todo.md");
+  it("keeps release and packaging script Chinese text readable", () => {
     const releaseNotes = read("scripts/generate-release-notes.mjs");
     const localPackage = read("scripts/local-package.ps1");
 
-    expect(todo).toContain("✅ 已修复 | Bug #26");
     expect(releaseNotes).toContain("Windows x64 安装器");
     expect(releaseNotes).toContain("自动更新相关发布资产");
     expect(localPackage).toContain("本地一键打包脚本");

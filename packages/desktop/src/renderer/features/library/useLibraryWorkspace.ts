@@ -205,6 +205,7 @@ export function useLibraryWorkspace() {
     perks,
     removeFavorite,
     refreshManifestStatus: manifestStatusState.refreshManifestStatus,
+    repairManifest: manifestStatusState.repairManifest,
     saveAlias,
     searchError,
     searchItems,

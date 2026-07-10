@@ -77,7 +77,11 @@ export function createHighestPowerEquipPlan(input: {
     ...input.character.equipped_items.map((item) => ({ item, source: "equipped" as const })),
     ...input.character.inventory_items.map((item) => ({ item, source: "inventory" as const })),
     ...input.vaultItems.map((item) => ({ item, source: "vault" as const }))
-  ].filter((candidate) => candidate.item.instance_id && typeof candidate.item.power === "number");
+  ].filter((candidate) => (
+    candidate.item.instance_id
+    && typeof candidate.item.power === "number"
+    && canEquipOnCharacter(candidate.item, input.character)
+  ));
 
   const bestBySlot = new Map<string, Candidate>();
 
@@ -196,6 +200,20 @@ function powerSlotLabel(item: AccountItemSummary): string | undefined {
   }
   const bucketName = item.bucket_name?.trim();
   return bucketName ? bucketNameToSlot.get(bucketName) : undefined;
+}
+
+function canEquipOnCharacter(item: AccountItemSummary, character: CharacterSummary): boolean {
+  if (item.group_key !== "armor" || item.class_type === undefined || item.class_type === 3) {
+    return true;
+  }
+  return item.class_type === classTypeForCharacter(character.class_name);
+}
+
+function classTypeForCharacter(className: string): number | undefined {
+  if (className === "泰坦" || /^titan$/i.test(className)) return 0;
+  if (className === "猎人" || /^hunter$/i.test(className)) return 1;
+  if (className === "术士" || /^warlock$/i.test(className)) return 2;
+  return undefined;
 }
 
 function compareCandidates(left: Candidate, right: Candidate): number {

@@ -25,10 +25,18 @@ export function useManifestStatus() {
   }
 
   async function initializeManifest() {
+    return updateManifest(false);
+  }
+
+  async function repairManifest() {
+    return updateManifest(true);
+  }
+
+  async function updateManifest(repair: boolean) {
     setIsInitializingManifest(true);
     setManifestStatusError("");
     try {
-      setManifestStatus(await api.initializeManifest());
+      setManifestStatus(await (repair ? api.repairManifest() : api.initializeManifest()));
     } catch (error) {
       setManifestStatusError(error instanceof Error ? error.message : "资料库更新启动失败");
     } finally {
@@ -39,6 +47,7 @@ export function useManifestStatus() {
 
   return {
     initializeManifest,
+    repairManifest,
     isInitializingManifest,
     isLoadingManifestStatus,
     manifestStatus,

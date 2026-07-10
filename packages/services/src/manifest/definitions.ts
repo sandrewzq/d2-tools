@@ -105,6 +105,15 @@ export function hasRequiredDefinitionComponents(dataDir: string): boolean {
   );
 }
 
+export function clearDefinitionMemoryCache(dataDir: string): void {
+  const cacheDirectory = definitionDir(dataDir);
+  for (const path of definitionMemoryCache.keys()) {
+    if (path === cacheDirectory || path.startsWith(`${cacheDirectory}/`) || path.startsWith(`${cacheDirectory}\\`)) {
+      definitionMemoryCache.delete(path);
+    }
+  }
+}
+
 function loadDefinitionComponentCache(
   dataDir: string,
   component: DefinitionComponentName

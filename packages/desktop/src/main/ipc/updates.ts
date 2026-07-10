@@ -43,16 +43,17 @@ export function scheduleInitialUpdateCheck(delayMs = 10000): void {
 
   hasScheduledInitialCheck = true;
   setTimeout(() => {
-    void checkForUpdates();
+    void checkForUpdates({ restartIfRetrying: false });
   }, delayMs);
 }
 
-async function checkForUpdates(): Promise<UpdateSnapshot> {
+async function checkForUpdates(options: { restartIfRetrying?: boolean } = {}): Promise<UpdateSnapshot> {
   startBackgroundTask({
     type: "app-update-check",
     title: "检查应用更新",
     message: "正在连接更新服务。",
     retryDelaysMs: getUpdateRetryDelaysMs(),
+    restartIfRetrying: options.restartIfRetrying ?? true,
     run: async () => {
       await runUpdateCheck();
     }

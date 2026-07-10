@@ -8,6 +8,7 @@ import {
   type DefinitionComponentStatus
 } from "@d2-tools/services/manifest/definitions";
 import {
+  clearManifestCache,
   getManifestStatus,
   initializeManifestMetadata,
   loadManifestMetadataCache,
@@ -29,7 +30,7 @@ void runWorkerTask(workerData as HeavyTaskInput)
 
 async function runWorkerTask(input: HeavyTaskInput): Promise<ManifestStatus | AccountSummary> {
   if (input.task === "manifest-update") {
-    return runManifestUpdate();
+    return runManifestUpdate(input.repair);
   }
   if (input.task === "account-summary") {
     return fetchDesktopAccountSummary();
@@ -37,8 +38,11 @@ async function runWorkerTask(input: HeavyTaskInput): Promise<ManifestStatus | Ac
   throw new Error("未知后台 worker 任务");
 }
 
-async function runManifestUpdate(): Promise<ManifestStatus> {
+async function runManifestUpdate(repair = false): Promise<ManifestStatus> {
   const config = loadConfig();
+  if (repair) {
+    clearManifestCache(config.data.data_dir);
+  }
   await initializeManifestMetadata({ config });
   const cache = loadManifestMetadataCache(config.data.data_dir);
   if (!cache) {

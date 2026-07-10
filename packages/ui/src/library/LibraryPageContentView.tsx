@@ -42,7 +42,7 @@ export type LibraryPageActions = {
   onSearch: () => void;
   onClearFilters: () => void;
   onRefreshManifestStatus: () => void;
-  onInitializeManifest: () => void;
+  onRepairManifest: () => void;
   onAliasDraftChange: (value: string) => void;
   onAliasTargetDraftChange: (value: string) => void;
   onAliasKindChange: (kind: "item" | "perk") => void;
@@ -93,9 +93,9 @@ export function LibraryPageContentView(props: LibraryPageContentViewProps) {
             <button
               type="button"
               disabled={model.status.isInitializingManifest}
-              onClick={actions.onInitializeManifest}
+              onClick={actions.onRepairManifest}
             >
-              {model.status.isInitializingManifest ? libraryText(copy, "更新中...") : libraryText(copy, "后台更新资料库")}
+              {model.status.isInitializingManifest ? libraryText(copy, "更新中...") : libraryText(copy, "修复资料库")}
             </button>
           </div>
         </section>
