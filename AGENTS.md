@@ -24,10 +24,13 @@
 
 Vibecoding 快路径：
 
-- 单 agent 编码循环优先跑 `verify:vibe:*`，只验证当前菜单或共享 UI 的测试集合，不默认跑类型检查、视觉检查或全量测试。
+- 单 agent 编码循环优先运行能覆盖当前改动的单个定向测试，例如 `vitest --run packages/<pkg>/test/<name>.test.ts`；只有找不到更小的稳定测试集合时，才使用 `verify:vibe:*`。
+- `verify:vibe:*` 是可选的中途反馈，不是最终 `verify:*` 的前置步骤。如果下一步就是收尾门禁，直接运行对应 `verify:*`，不要先跑一遍 `verify:vibe:*`。
+- 同一代码状态下禁止连续运行同范围的 `verify:vibe:*` 和 `verify:*`。如果中途测试已经覆盖最终门禁里的测试部分，收尾改跑对应 `verify:finish:*`，只补未执行的检查；只有在两次验证之间又修改了代码，才重新运行完整门禁。
 - 菜单私有循环优先使用 `pnpm verify:vibe:desktop:account`、`pnpm verify:vibe:desktop:ai`、`pnpm verify:vibe:desktop:loadouts`、`pnpm verify:vibe:desktop:vault`。
 - 跨端 UI / Prototype / Web 的中途循环优先使用 `pnpm verify:vibe:ui`；文档或工具测试中途循环可用 `pnpm verify:vibe:docs`。
-- 交接、提交、合并或声称门禁通过前，再按上表升级到 `verify:*`；视觉脚本默认由收口 agent 或最终检查运行。
+- 交接、提交、合并或声称门禁通过前，按实际改动范围只选一个主 `verify:*`。只有确实同时修改两个独立边界时才运行两个范围门禁；不要把 `verify`、`verify:ui`、`verify:desktop` 当作固定组合全部执行。
+- 视觉脚本只在实际修改布局、CSS、主题、响应式断点、窗口视口表现或截图目标时运行；纯数据、类型、IPC、文案和接线改动默认不跑视觉检查。
 - 测试断言优先检查稳定行为、结构、导出、role / label 或 ViewModel 输出；避免把中文文案、源码 import 顺序、整段 HTML 或 CSS 片段作为普通功能断言。
 - 用户只需要描述业务目标，例如“开发商人菜单内的功能”“优化商人菜单的交互”。agent 必须自行识别菜单、改动类型和默认修改范围，不要求用户提供 Red / Green / Tidy 模板或精确文件清单。
 - agent 生成计划时必须把菜单开发循环拆成短任务：`Red: <菜单>边界测试`、`Green: <菜单>最小实现`、`Tidy: <菜单>整理`、`Verify: <菜单>验证`。不要使用“补失败测试锁定 xxx model + actions 边界”这类同时包含测试、实现、整理和验证的混合任务名。
@@ -84,7 +87,7 @@ Vibecoding 快路径：
 - 遇到共享问题时，菜单 agent 不得私自改全局规则；必须先说明“需要共享改动”，由共享 / 集成 agent 修改 `ProductWorkspace`、token、全局样式或 shell。
 - 需要升级为共享改动的情况包括：两个以上菜单需要同一种布局或组件；需要改页面标题区、页面级分栏、首层侧栏、首层 panel chrome、顶部状态条、AI 抽屉、后台任务 Dock；需要改 `ProductShellHost.tsx`、`ProductWorkspace.tsx`、`AppShell.tsx`、无菜单前缀的 CSS 规则或 token。
 - 多 agent 并行时，首页菜单尽量最后集成；首页依赖账号、资料库、仓库、商人和配装摘要，其他菜单未稳定前不要让首页 agent 私自固化跨菜单数据结构。
-- 每个菜单完成后至少运行 `npx pnpm@9.15.0 verify:ui`；碰 Desktop adapter / IPC / 真实数据接线再运行 `npx pnpm@9.15.0 verify:desktop`。
+- 每个菜单完成后运行一次 `npx pnpm@9.15.0 verify:ui`；如果当前代码状态已经通过 `verify:vibe:ui`，改跑 `npx pnpm@9.15.0 verify:finish:ui`，不要重复 UI 测试。碰 Desktop adapter / IPC / 真实数据接线时，再按同样规则选择 `verify:desktop` 或 `verify:finish:desktop`。
 - 全部菜单合并后由集成 agent 运行 `npx pnpm@9.15.0 visual:all`，并检查跨菜单页面顶部、首层面板、工具栏、侧栏和内容密度是否统一。
 
 ## 语言规则
@@ -117,12 +120,15 @@ Vibecoding 快路径：
 ## 验证规则
 
 - 日常开发优先按改动范围选择最小验证，不要默认运行发布级重链路。
-- Vibecoding 中途循环优先运行 `verify:vibe:*`；收口、交接或提交前再升级到对应 `verify:*`。
-- 文档、待办、README 或工具说明改动运行 `pnpm verify:docs`。
+- 默认验证顺序是“定向测试 -> 修改代码 -> 同一定向测试 -> 一个最终范围门禁”。如果改动很小且最终门禁能快速覆盖，可跳过中途 `verify:vibe:*`。
+- 不得在代码未变化时重复运行已被更高层门禁包含的测试集合。例如 `verify:desktop` 已包含 `test:desktop-wiring`，运行它之前不要再执行 `verify:vibe:desktop`。
+- 已在当前代码状态运行过 `verify:vibe:docs`、`verify:vibe:ui` 或任一 `verify:vibe:desktop:*` 时，收尾分别使用 `verify:finish:docs`、`verify:finish:ui` 或 `verify:finish:desktop`，只补剩余检查。没有运行过中途整组测试时，才使用完整 `verify:*`。
+- 独立文档、README、AGENTS 或文档工具改动运行 `pnpm verify:docs`。业务改动仅顺带更新 `docs/todo.md` 一行状态时，运行 `pnpm docs:check` 即可，不额外执行 `verify:docs`。
 - `pnpm docs:check` 同时检查文档结构和全仓文本编码；如果发现疑似 mojibake、Unicode replacement character 或连续问号造成的信息丢失，先修复乱码再继续开发。
-- 改 `packages/ui`、`packages/prototype` 或 `packages/web` 时，至少运行 `pnpm verify:ui`；影响首页或设置页视觉时追加 `pnpm visual:home` 或 `pnpm visual:settings`。
-- 改 Desktop 主进程、preload、renderer adapter 或 IPC 接线时，至少运行 `pnpm verify:desktop`；如果触到底层依赖再追加 `pnpm typecheck:desktop`。
+- 改 `packages/ui`、`packages/prototype` 或 `packages/web` 时，收尾运行一次 `pnpm verify:ui`；只有实际视觉变化才追加一个最匹配的 `visual:*`，不要默认运行 `visual:all`。
+- 改 Desktop 主进程、preload、renderer adapter 或 IPC 接线时，收尾运行一次 `pnpm verify:desktop`；该命令已经包含 Desktop 快速类型检查，不要再单独追加 `typecheck:desktop-fast`。只有触到底层依赖或准备发布时才追加 `pnpm typecheck:desktop`。
 - 改 release、CHANGELOG、版本号或发布脚本时，至少运行 `pnpm verify:release`。
-- 普通功能改动优先运行相关定向测试；需要一轮中等门禁时运行 `pnpm verify`。
+- `pnpm verify` 是跨领域中等门禁，不是范围门禁的固定补充；已经运行 `verify:ui`、`verify:desktop` 或 `verify:release` 时，除非改动跨越其覆盖范围，否则不要再运行 `pnpm verify`。
+- 一次收尾最多运行一次相同命令；命令失败后修改代码再重跑不受此限制。
 - 只有在发布、提交 release、声称全仓检查通过、或用户明确要求全量验证前，才运行发布级 `pnpm test` 和 `pnpm typecheck`。
 - 如果没有运行全量测试，最终回答必须明确说明已运行哪些定向验证，以及没有运行全量 `pnpm test` / `pnpm typecheck`。

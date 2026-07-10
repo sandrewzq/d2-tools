@@ -14,6 +14,8 @@ export type ShellStatusItem = {
   label: string;
   value: string;
   tone?: "neutral" | "ready" | "warning" | "error";
+  actionLabel?: string;
+  onAction?: () => void;
 };
 
 export type ShellBackgroundTaskItem = {

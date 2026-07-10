@@ -237,7 +237,8 @@ describe("library filters", () => {
     expect(libraryContent).toContain("掉落查询");
     expect(libraryContent).toContain("可确认来源");
     expect(libraryContent).toContain("Perk 池");
-    expect(libraryContent).toContain("掉落来源");
+    expect(libraryContent).toContain("item.source.label");
+    expect(libraryContent).toContain("当前公开渠道");
     expect(libraryContent).toContain("来源状态");
     expect(libraryContent).toContain("item.source.status");
     expect(libraryContent).toContain("item.perks");
@@ -337,6 +338,19 @@ describe("library filters", () => {
     expect(searchHandler).toContain("statDefinitions: statDefinitions ?? undefined");
     expect(appLibrary).toContain("definition_stats?: Array");
     expect(rendererLibraryApi).toContain("definition_stats?: ItemDefinitionStat[]");
+  });
+
+  it("loads collectible definitions for official library source hints", () => {
+    const libraryIpc = readFileSync("packages/desktop/src/main/ipc/library.ts", "utf8");
+    const itemSearch = readFileSync("packages/core/src/items/search.ts", "utf8");
+    const searchHandler = libraryIpc.slice(
+      libraryIpc.indexOf('ipcMain.handle("items:search"'),
+      libraryIpc.indexOf('ipcMain.handle("items:perks:search"')
+    );
+
+    expect(itemSearch).toContain("collectibleDefinitions?: DefinitionComponentData");
+    expect(searchHandler).toContain("DestinyCollectibleDefinition");
+    expect(searchHandler).toContain("collectibleDefinitions: collectibleDefinitions ?? undefined");
   });
 
   it("passes plug set definitions into perk search related item lookup", () => {

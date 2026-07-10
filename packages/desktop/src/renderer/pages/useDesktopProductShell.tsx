@@ -174,7 +174,8 @@ export function useDesktopProductShell(props: {
     canRefreshAccount,
     isBungieConfigured: props.state.cards.bungieConfig.status === "ready",
     isAiConfigured,
-    updateSnapshot
+    updateSnapshot,
+    onRepairManifest: () => void diagnostics.initializeManifest()
   });
 
   const homeWorkspace = createHomeDashboardWorkspace({
@@ -505,7 +506,10 @@ function buildShellStatus(input: {
   isBungieConfigured: boolean;
   isAiConfigured: boolean;
   updateSnapshot: UpdateSnapshot | null;
+  onRepairManifest: () => void;
 }): ShellStatusItem[] {
+  const needsLibraryRepair = Boolean(input.manifestStatus?.missing_required_components?.length);
+
   return [
     {
       key: "bungie",
@@ -522,8 +526,10 @@ function buildShellStatus(input: {
     {
       key: "library",
       label: "资料库",
-      value: formatManifestShellStatus(input.manifestStatus),
-      tone: getManifestStatusTone(input.manifestStatus)
+      value: needsLibraryRepair ? "修复资料库" : formatManifestShellStatus(input.manifestStatus),
+      tone: getManifestStatusTone(input.manifestStatus),
+      actionLabel: needsLibraryRepair ? "修复资料库" : undefined,
+      onAction: needsLibraryRepair ? input.onRepairManifest : undefined
     },
     {
       key: "ai",

@@ -15,6 +15,7 @@ export type ItemDefinitionDetail = {
 
 export type ItemDefinitionDetailOptions = {
   plugSetDefinitions?: DefinitionComponentData;
+  collectibleDefinitions?: DefinitionComponentData;
 };
 
 const bungieStaticBaseUrl = "https://www.bungie.net";
@@ -36,7 +37,10 @@ export function getItemDefinitionDetail(
     icon: normalizeBungieAssetUrl(definition.displayProperties?.icon),
     item_type: definition.itemTypeDisplayName,
     tier: definition.inventory?.tierTypeName,
-    source: summarizeItemSource(definition as DefinitionRecord)
+    source: summarizeItemSource(definition as DefinitionRecord, {
+      itemDefinitions: definitions,
+      collectibleDefinitions: options.collectibleDefinitions
+    })
   };
 
   const perks = summarizeItemPerks(definition as DefinitionRecord, definitions, {

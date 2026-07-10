@@ -34,7 +34,10 @@ export function registerLibraryIpcHandlers(): void {
       config.data.data_dir,
       "DestinyStatDefinition"
     );
-
+    const collectibleDefinitions = loadDefinitionComponent(
+      config.data.data_dir,
+      "DestinyCollectibleDefinition"
+    );
     if (!definitions) {
       throw new Error("请先初始化资料库");
     }
@@ -43,6 +46,7 @@ export function registerLibraryIpcHandlers(): void {
       limit: 20,
       plugSetDefinitions: plugSetDefinitions ?? undefined,
       statDefinitions: statDefinitions ?? undefined,
+      collectibleDefinitions: collectibleDefinitions ?? undefined,
       aliases: loadItemAliases(config.data.data_dir)
     });
   });
@@ -61,7 +65,6 @@ export function registerLibraryIpcHandlers(): void {
       config.data.data_dir,
       "DestinyPlugSetDefinition"
     );
-
     if (!perkDefinitions) {
       throw new Error("请先初始化资料库");
     }
@@ -101,13 +104,18 @@ export function registerLibraryIpcHandlers(): void {
       config.data.data_dir,
       "DestinyPlugSetDefinition"
     );
+    const collectibleDefinitions = loadDefinitionComponent(
+      config.data.data_dir,
+      "DestinyCollectibleDefinition"
+    );
 
     if (!definitions) {
       throw new Error("请先初始化资料库");
     }
 
     const detail = getItemDefinitionDetail(definitions, Number(hash), {
-      plugSetDefinitions: plugSetDefinitions ?? undefined
+      plugSetDefinitions: plugSetDefinitions ?? undefined,
+      collectibleDefinitions: collectibleDefinitions ?? undefined
     });
     if (!detail) {
       throw new Error("未找到物品详情");

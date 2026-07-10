@@ -3,6 +3,7 @@ import type {
   EquipmentGroupKey,
   ItemDefinitionStat,
   ItemPerkGroup,
+  ItemReleaseSummary,
   ItemSourceSummary,
   LiveItemAvailability,
   WeaponFrameSummary
@@ -28,7 +29,9 @@ export type ItemDefinitionDetail = {
   icon?: string;
   item_type?: string;
   tier?: string;
+  damage_type?: string;
   source: ItemSourceSummary;
+  release?: ItemReleaseSummary;
   perks?: ItemPerkGroup[];
 };
 
@@ -39,6 +42,12 @@ export type ItemSearchResult = {
   icon?: string;
   item_type?: string;
   tier?: string;
+  damage_type?: string;
+  is_adept?: boolean;
+  origin_traits?: Array<{
+    hash: number;
+    name: string;
+  }>;
   ammo_type?: AmmoTypeKey;
   bucket_hash?: number;
   bucket_name?: string;

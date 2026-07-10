@@ -74,21 +74,33 @@ describe("manifest metadata service adapter", () => {
         { initialized: false, component: "DestinyInventoryItemDefinition" },
         { initialized: false, component: "DestinyPlugSetDefinition" },
         { initialized: false, component: "DestinySandboxPerkDefinition" },
+        { initialized: false, component: "DestinyCollectibleDefinition" },
         { initialized: false, component: "DestinyActivityDefinition" },
         { initialized: false, component: "DestinyMilestoneDefinition" },
         { initialized: false, component: "DestinyVendorDefinition" },
         { initialized: false, component: "DestinyInventoryBucketDefinition" },
-        { initialized: false, component: "DestinyLoadoutNameDefinition" }
+        { initialized: false, component: "DestinyLoadoutNameDefinition" },
+        { initialized: false, component: "DestinyStatDefinition" },
+        { initialized: false, component: "DestinyActivityModifierDefinition" },
+        { initialized: false, component: "DestinyDestinationDefinition" },
+        { initialized: false, component: "DestinyPlaceDefinition" },
+        { initialized: false, component: "DestinyObjectiveDefinition" }
       ],
       missing_required_components: [
         "DestinyInventoryItemDefinition",
         "DestinyPlugSetDefinition",
         "DestinySandboxPerkDefinition",
+        "DestinyCollectibleDefinition",
         "DestinyActivityDefinition",
         "DestinyMilestoneDefinition",
         "DestinyVendorDefinition",
         "DestinyInventoryBucketDefinition",
-        "DestinyLoadoutNameDefinition"
+        "DestinyLoadoutNameDefinition",
+        "DestinyStatDefinition",
+        "DestinyActivityModifierDefinition",
+        "DestinyDestinationDefinition",
+        "DestinyPlaceDefinition",
+        "DestinyObjectiveDefinition"
       ]
     });
   });
@@ -117,21 +129,33 @@ describe("manifest metadata service adapter", () => {
         { initialized: false, component: "DestinyInventoryItemDefinition" },
         { initialized: false, component: "DestinyPlugSetDefinition" },
         { initialized: false, component: "DestinySandboxPerkDefinition" },
+        { initialized: false, component: "DestinyCollectibleDefinition" },
         { initialized: false, component: "DestinyActivityDefinition" },
         { initialized: false, component: "DestinyMilestoneDefinition" },
         { initialized: false, component: "DestinyVendorDefinition" },
         { initialized: false, component: "DestinyInventoryBucketDefinition" },
-        { initialized: false, component: "DestinyLoadoutNameDefinition" }
+        { initialized: false, component: "DestinyLoadoutNameDefinition" },
+        { initialized: false, component: "DestinyStatDefinition" },
+        { initialized: false, component: "DestinyActivityModifierDefinition" },
+        { initialized: false, component: "DestinyDestinationDefinition" },
+        { initialized: false, component: "DestinyPlaceDefinition" },
+        { initialized: false, component: "DestinyObjectiveDefinition" }
       ],
       missing_required_components: [
         "DestinyInventoryItemDefinition",
         "DestinyPlugSetDefinition",
         "DestinySandboxPerkDefinition",
+        "DestinyCollectibleDefinition",
         "DestinyActivityDefinition",
         "DestinyMilestoneDefinition",
         "DestinyVendorDefinition",
         "DestinyInventoryBucketDefinition",
-        "DestinyLoadoutNameDefinition"
+        "DestinyLoadoutNameDefinition",
+        "DestinyStatDefinition",
+        "DestinyActivityModifierDefinition",
+        "DestinyDestinationDefinition",
+        "DestinyPlaceDefinition",
+        "DestinyObjectiveDefinition"
       ]
     });
   });

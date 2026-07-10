@@ -654,6 +654,13 @@ describe("shared UI page views", () => {
     expect(html).toContain("缺来源武器");
     expect(html).toContain("library-equipment-browser");
     expect(html).toContain("library-equipment-list");
+    expect(html).toContain("烈日伤害");
+    expect(html).toContain("library-element-tag library-element-solar");
+    expect(html).toContain("专家");
+    expect(html).toContain("起源特性：爆炸契约");
+    expect(html).toContain("适配框架");
+    expect(html).not.toContain("同名区别");
+    expect(html).not.toContain("基础属性");
     expect(html).toContain("查看详情");
     expect(html).not.toContain("library-definition-dialog");
   });
@@ -1012,6 +1019,9 @@ function libraryItem(hash: number, name: string, sourceDescription: string): Ite
     tier: "传说",
     group_key: "weapons",
     bucket_name: "动能武器",
+    damage_type: "烈日伤害",
+    is_adept: true,
+    origin_traits: [{ hash: 900, name: "爆炸契约" }],
     weapon_frame: {
       key: "adaptive-frame",
       name: "适配框架"

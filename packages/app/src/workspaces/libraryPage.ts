@@ -8,6 +8,12 @@ export type ItemSearchResult = {
   icon?: string;
   item_type?: string;
   tier?: string;
+  damage_type?: string;
+  is_adept?: boolean;
+  origin_traits?: Array<{
+    hash: number;
+    name: string;
+  }>;
   group_key?: EquipmentGroupKey;
   bucket_name?: string;
   ammo_type?: AmmoTypeKey;
@@ -18,6 +24,14 @@ export type ItemSearchResult = {
   source: {
     status: "ready" | "missing";
     label: string;
+    description: string;
+    source_kind?: "item" | "collectible" | "linked_item" | "linked_collectible";
+    source_hash?: number;
+    linked_definition_hash?: number;
+  };
+  release?: {
+    status: "ready";
+    label: "版本";
     description: string;
   };
   definition_stats?: Array<{

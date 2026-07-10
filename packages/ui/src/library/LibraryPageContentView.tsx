@@ -30,6 +30,10 @@ type LibraryWeaponPerkColumn = {
   label: string;
   plugs: LibraryPerkGroup["plugs"];
 };
+type LibraryEquipmentTag = {
+  label: string;
+  className?: string;
+};
 
 export type LibraryPageActions = {
   onViewModeChange: (mode: LibraryViewMode) => void;
@@ -561,29 +565,55 @@ function renderEquipmentResult(
   copy: LibraryCopy
 ) {
   const item = row.item;
-  const dropAccess = row.dropAccess;
-  const communityMatch = row.communityMatch;
-  const liveEntry = row.liveEntry;
+  const equipmentTags = [
+    toLibraryEquipmentTag(item.tier),
+    toLibraryEquipmentTag(item.item_type),
+    toLibraryEquipmentTag(item.bucket_name),
+    toLibraryElementTag(item.damage_type),
+    item.is_adept ? toLibraryEquipmentTag(libraryText(copy, "专家")) : undefined,
+    toLibraryEquipmentTag(formatLibraryAmmo(item.ammo_type, copy)),
+    toLibraryEquipmentTag(item.weapon_frame?.name)
+  ].filter((tag): tag is LibraryEquipmentTag => Boolean(tag));
+  const versionDescription = item.release?.description ?? libraryText(copy, "暂无已验证版本");
+  const sourceDescription = item.source.status === "ready"
+    ? item.source.description
+    : libraryText(copy, "暂无已验证来源");
+  const liveChannelDescription = formatLibraryLiveChannel(row.liveEntry, copy);
 
   return (
     <article className="item-result library-weapon-card library-reference-card" key={item.hash}>
       <div className="library-result-summary">
         {item.icon ? <img alt="" src={item.icon} /> : null}
-        <div className="library-weapon-card-heading">
-          <div>
+        <div className="library-result-identity">
+          <div className="library-weapon-card-heading">
             <h3>{item.name}</h3>
-            <p>{[item.tier, item.item_type, item.bucket_name].filter(Boolean).join(" / ")}</p>
           </div>
-          <span className={"ui-badge " + getDropAccessBadgeClass(dropAccess)}>{formatDropAccessLabel(dropAccess, copy)}</span>
+          {equipmentTags.length ? (
+            <div className="library-equipment-tags" aria-label={libraryText(copy, "装备信息")}>
+              {equipmentTags.map((tag) => <span className={tag.className} key={tag.label}>{tag.label}</span>)}
+            </div>
+          ) : null}
+          {item.origin_traits?.length ? (
+            <p className="library-origin-traits">
+              {libraryText(copy, "起源特性：")}{item.origin_traits.map((trait) => trait.name).join("、")}
+            </p>
+          ) : null}
+          {item.description ? <p>{item.description}</p> : null}
         </div>
-        <p>{item.description}</p>
-        <div className="library-result-status-row">
-          <span className={"source-status-badge " + getLiveStatusClass(liveEntry)}>
-            {liveEntry?.label ?? libraryText(copy, "等待实时查询")}
-          </span>
-          {item.perks?.length ? <span>{item.perks.length} {libraryText(copy, "列 Perk")}</span> : null}
-          {(communityMatch?.available ?? 0) > 0 ? <span>{libraryText(copy, "社区推荐")} {communityMatch?.available}</span> : null}
-        </div>
+        <dl className="library-version-source">
+          <div>
+            <dt>{libraryText(copy, "版本")}</dt>
+            <dd>{versionDescription}</dd>
+          </div>
+          <div>
+            <dt>{item.source.label}</dt>
+            <dd>{sourceDescription}</dd>
+          </div>
+          <div>
+            <dt>{libraryText(copy, "当前公开渠道")}</dt>
+            <dd>{liveChannelDescription}</dd>
+          </div>
+        </dl>
       </div>
       <div className="library-result-actions">
         <button type="button" className="inline-action" onClick={onOpenDefinition}>
@@ -675,7 +705,7 @@ function LibraryDefinitionDialog(props: {
               </div>
               <div className="library-definition-source">
                 <div className="item-source-heading">
-                  <strong>{libraryText(copy, "掉落来源")}</strong>
+                  <strong>{item.source.label}</strong>
                   <span className={"source-status-badge " + getLibrarySourceStatusClass(sourceStatus)}>
                     {formatLibrarySourceStatus(sourceStatus, copy)}
                   </span>
@@ -831,6 +861,38 @@ function formatCommunityPerkPreview(perks: VaultItemMatchInfo["sample_perks"]): 
     .slice(0, 2)
     .map((perk) => (perk.englishName ? `${perk.name} / ${perk.englishName}` : perk.name))
     .join(" · ");
+}
+
+function formatLibraryAmmo(ammoType: ItemSearchResult["ammo_type"], copy: LibraryCopy): string | undefined {
+  if (ammoType === "primary") return libraryText(copy, "主弹药");
+  if (ammoType === "special") return libraryText(copy, "特殊弹药");
+  if (ammoType === "heavy") return libraryText(copy, "重型弹药");
+  return undefined;
+}
+
+function toLibraryEquipmentTag(label: string | undefined): LibraryEquipmentTag | undefined {
+  return label ? { label } : undefined;
+}
+
+function toLibraryElementTag(damageType: string | undefined): LibraryEquipmentTag | undefined {
+  const classNameByDamageType: Record<string, string> = {
+    "动能伤害": "library-element-tag library-element-kinetic",
+    "电弧伤害": "library-element-tag library-element-arc",
+    "烈日伤害": "library-element-tag library-element-solar",
+    "虚空伤害": "library-element-tag library-element-void",
+    "冰影伤害": "library-element-tag library-element-stasis",
+    "缚丝伤害": "library-element-tag library-element-strand"
+  };
+  const className = damageType ? classNameByDamageType[damageType] : undefined;
+  return className && damageType ? { label: damageType, className } : toLibraryEquipmentTag(damageType);
+}
+
+function formatLibraryLiveChannel(liveEntry: LiveEntry | undefined, copy: LibraryCopy): string {
+  if (!liveEntry) return libraryText(copy, "正在查询商人和公共活动。");
+  if (liveEntry.status === "manifest_only") {
+    return libraryText(copy, "当前商人和公共活动未直接命中。")
+  }
+  return liveEntry.label;
 }
 
 function formatLibraryGroupLabel(

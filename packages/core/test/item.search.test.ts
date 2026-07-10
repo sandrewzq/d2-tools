@@ -59,8 +59,8 @@ describe("item definition search", () => {
         group_key: "other",
         source: {
           status: "missing",
-          label: "来源",
-          description: "Bungie Manifest 未提供完整来源，后续再接入更细的数据源。"
+          label: "官方来源提示",
+          description: "Bungie Manifest 未提供官方来源提示。"
         }
       }
     ]);
@@ -118,8 +118,8 @@ describe("item definition search", () => {
           ],
           source: {
             status: "missing",
-            label: "来源",
-            description: "Bungie Manifest 未提供完整来源，后续再接入更细的数据源。"
+            label: "官方来源提示",
+            description: "Bungie Manifest 未提供官方来源提示。"
           }
         }
       ]);
@@ -241,6 +241,72 @@ describe("item definition search", () => {
     ]);
   });
 
+  it("returns player-readable release summaries for same-name weapon versions", () => {
+    const tyrannyDefinitions: DefinitionComponentData = {
+      "2721249463": {
+        hash: 2721249463,
+        displayProperties: { name: "天堂暴政", description: "旧版" },
+        itemType: 3,
+        itemTypeDisplayName: "战斗弓箭",
+        inventory: { bucketTypeHash: 2465295065 },
+        collectibleHash: 301231525,
+        traitIds: ["releases.v400.annual"]
+      },
+      "3388655311": {
+        hash: 3388655311,
+        displayProperties: { name: "天堂暴政", description: "复刻版" },
+        itemType: 3,
+        itemTypeDisplayName: "战斗弓箭",
+        inventory: { bucketTypeHash: 2465295065 },
+        translationBlock: {
+          arrangements: [{ classHash: 0, artArrangementHash: 2721249463 }]
+        },
+        traitIds: ["releases.v710.season"]
+      }
+    };
+
+    const results = searchItemDefinitions(tyrannyDefinitions, "天堂暴政", {
+      collectibleDefinitions: {
+        "301231525": {
+          hash: 301231525,
+          sourceString: "来源：“救赎花园”突袭",
+          sourceHash: 1491707941
+        }
+      }
+    });
+
+    expect(results.map((item) => item.release)).toEqual([
+      {
+        status: "ready",
+        label: "版本",
+        description: "遗落之族（年 2，第 4 赛季）"
+      },
+      {
+        status: "ready",
+        label: "版本",
+        description: "深渊赛季（年 6，第 21 赛季）"
+      }
+    ]);
+    expect(results.map((item) => item.source)).toEqual([
+      {
+        status: "ready",
+        label: "官方来源提示",
+        description: "“救赎花园”突袭",
+        source_kind: "collectible",
+        source_hash: 1491707941,
+        linked_definition_hash: undefined
+      },
+      {
+        status: "ready",
+        label: "官方来源提示",
+        description: "“救赎花园”突袭",
+        source_kind: "linked_collectible",
+        source_hash: 1491707941,
+        linked_definition_hash: 2721249463
+      }
+    ]);
+  });
+
   it("returns confirmed bucket, group, and ammo fields for library filters", () => {
     const weaponDefinitions: DefinitionComponentData = {
       "1": {
@@ -260,6 +326,30 @@ describe("item definition search", () => {
       bucket_name: "能量武器",
       group_key: "weapons",
       ammo_type: "primary"
+    });
+  });
+
+  it("returns fixed card tags for element, adept status, and origin traits", () => {
+    const weaponDefinitions: DefinitionComponentData = {
+      "1": {
+        ...definitions["1"],
+        defaultDamageType: 3,
+        isAdept: true,
+        sockets: {
+          socketEntries: [{ singleInitialItemHash: 2 }]
+        }
+      },
+      "2": {
+        hash: 2,
+        displayProperties: { name: "爆炸契约" },
+        plug: { plugCategoryIdentifier: "origins" }
+      }
+    };
+
+    expect(searchItemDefinitions(weaponDefinitions, "风险")[0]).toMatchObject({
+      damage_type: "烈日伤害",
+      is_adept: true,
+      origin_traits: [{ hash: 2, name: "爆炸契约" }]
     });
   });
 

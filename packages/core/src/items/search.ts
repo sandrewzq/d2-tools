@@ -3,12 +3,14 @@ import { expandAliasQuery, type ItemAliases } from "./aliases.js";
 import { ammoTypeKey, classifyBucket, type AmmoTypeKey, type EquipmentGroupKey } from "./classification.js";
 import { summarizeItemPerks, type ItemPerkGroup } from "./perks.js";
 import { summarizeItemSource, type ItemSourceSummary } from "./source.js";
+import { summarizeItemRelease, type ItemReleaseSummary } from "./release.js";
 import { summarizeWeaponFrame, type WeaponFrameSummary } from "./weaponFrames.js";
 
 export type ItemSearchOptions = {
   limit?: number;
   plugSetDefinitions?: DefinitionComponentData;
   statDefinitions?: DefinitionComponentData;
+  collectibleDefinitions?: DefinitionComponentData;
   aliases?: ItemAliases;
 };
 
@@ -19,6 +21,11 @@ export type ItemDefinitionStat = {
   display_maximum: number;
 };
 
+export type ItemOriginTrait = {
+  hash: number;
+  name: string;
+};
+
 export type ItemSearchResult = {
   hash: number;
   name: string;
@@ -26,12 +33,16 @@ export type ItemSearchResult = {
   icon?: string;
   item_type?: string;
   tier?: string;
+  damage_type?: string;
+  is_adept?: boolean;
+  origin_traits?: ItemOriginTrait[];
   ammo_type?: AmmoTypeKey;
   bucket_hash?: number;
   bucket_name?: string;
   group_key: EquipmentGroupKey;
   weapon_frame?: WeaponFrameSummary;
   source: ItemSourceSummary;
+  release?: ItemReleaseSummary;
   definition_stats?: ItemDefinitionStat[];
   perks?: ItemPerkGroup[];
 };
@@ -94,11 +105,25 @@ function toItemSearchResult(
     item_type: definition.itemTypeDisplayName,
     group_key: bucket?.group ?? "other",
     tier: definition.inventory?.tierTypeName,
-    source: summarizeItemSource(definition)
+    source: summarizeItemSource(definition, {
+      itemDefinitions: definitions,
+      collectibleDefinitions: options.collectibleDefinitions
+    })
   };
   const ammoType = ammoTypeKey(definition.equippingBlock?.ammoType);
   if (ammoType) {
     result.ammo_type = ammoType;
+  }
+  const damageType = damageTypeLabel(definition.equippingBlock?.damageType ?? definition.defaultDamageType);
+  if (damageType) {
+    result.damage_type = damageType;
+  }
+  if (definition.isAdept) {
+    result.is_adept = true;
+  }
+  const originTraits = summarizeOriginTraits(definition, definitions);
+  if (originTraits.length > 0) {
+    result.origin_traits = originTraits;
   }
   if (bucketHash) {
     result.bucket_hash = bucketHash;
@@ -111,6 +136,10 @@ function toItemSearchResult(
   });
   if (weaponFrame) {
     result.weapon_frame = weaponFrame;
+  }
+  const release = summarizeItemRelease(definition);
+  if (release) {
+    result.release = release;
   }
 
   const definitionStats = summarizeDefinitionStats(definition, options.statDefinitions);
@@ -161,6 +190,20 @@ function summarizeDefinitionStats(
     .map(({ order: _order, ...stat }) => stat);
 }
 
+function summarizeOriginTraits(
+  definition: DefinitionRecord,
+  itemDefinitions: DefinitionComponentData
+): ItemOriginTrait[] {
+  const originTraits = (definition.sockets?.socketEntries ?? [])
+    .flatMap((entry) => typeof entry.singleInitialItemHash === "number" ? [entry.singleInitialItemHash] : [])
+    .map((hash) => ({ hash, definition: itemDefinitions[String(hash)] }))
+    .filter((entry) => entry.definition?.plug?.plugCategoryIdentifier === "origins")
+    .map(({ hash, definition }) => ({ hash, name: definition?.displayProperties?.name?.trim() ?? "" }))
+    .filter((trait): trait is ItemOriginTrait => Boolean(trait.name));
+
+  return [...new Map(originTraits.map((trait) => [trait.hash, trait])).values()];
+}
+
 function normalizeBungieAssetUrl(path: string | undefined): string | undefined {
   if (!path) {
     return undefined;
@@ -171,4 +214,16 @@ function normalizeBungieAssetUrl(path: string | undefined): string | undefined {
   }
 
   return new URL(path, bungieStaticBaseUrl).toString();
+}
+
+function damageTypeLabel(damageType: number | undefined): string | undefined {
+  const labels: Record<number, string> = {
+    1: "动能伤害",
+    2: "电弧伤害",
+    3: "烈日伤害",
+    4: "虚空伤害",
+    6: "冰影伤害",
+    7: "缚丝伤害"
+  };
+  return damageType ? labels[damageType] : undefined;
 }

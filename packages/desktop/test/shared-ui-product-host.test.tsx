@@ -62,4 +62,26 @@ describe("shared UI ProductShellHost", () => {
     expect(html).toContain("账号");
     expect(html).toContain("中");
   });
+
+  it("renders an actionable library repair status in the shared top bar", () => {
+    const html = renderToStaticMarkup(
+      <ProductShellHost
+        shellStatus={[{
+          key: "library",
+          label: "资料库",
+          value: "需修复",
+          tone: "warning",
+          actionLabel: "修复资料库",
+          onAction: () => undefined
+        }]}
+        assistantPanel={<p>Assistant slot</p>}
+        platformActions={{ openExternal: () => undefined }}
+        renderPage={() => <section>route</section>}
+      />
+    );
+
+    expect(html).toContain('aria-label="修复资料库"');
+    expect(html).toContain("资料库");
+    expect(html).toContain("需修复");
+  });
 });

@@ -56,8 +56,8 @@ describe("item definition detail", () => {
       ],
       source: {
         status: "missing",
-        label: "来源",
-        description: "Bungie Manifest 未提供完整来源，后续再接入更细的数据源。"
+        label: "官方来源提示",
+        description: "Bungie Manifest 未提供官方来源提示。"
       }
     });
   });

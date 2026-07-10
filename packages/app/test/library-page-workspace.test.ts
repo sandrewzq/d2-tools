@@ -177,6 +177,28 @@ describe("library page workspace", () => {
     ]);
   });
 
+  it("keeps same-name versions distinguishable through their visible definition data", () => {
+    const duplicateItems: ItemSearchResult[] = [
+      {
+        ...equipmentItems[0],
+        hash: 10,
+        name: "天堂暴政",
+        release: { status: "ready", label: "版本", description: "遗落之族（年 2，第 4 赛季）" }
+      },
+      {
+        ...equipmentItems[0],
+        hash: 11,
+        name: "天堂暴政",
+        release: { status: "ready", label: "版本", description: "深渊赛季（年 6，第 21 赛季）" }
+      }
+    ];
+
+    const rows = selectLibraryPageModel(createCache({ items: duplicateItems }), createState())
+      .results.equipmentGroups.flatMap((group) => group.items);
+
+    expect(rows).not.toContainEqual(expect.objectContaining({ isSameNameVariant: expect.anything() }));
+  });
+
   it("selects manifest alerts as semantic page state", () => {
     expect(selectLibraryPageModel(
       createCache({ manifestStatus: null, manifestStatusError: "读取失败" }),

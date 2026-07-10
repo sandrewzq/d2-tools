@@ -39,20 +39,7 @@ export function AppShell(props: AppShellProps) {
           </div>
         </div>
         <div className="shell-status-strip shell-global-status global-shell-status" aria-label={copy.statusAriaLabel}>
-          {visibleShellStatus.map((item) => (
-            <span
-              className={[
-                "shell-status-group",
-                item.key === "account" ? "shell-account-status" : "",
-                `status-${item.tone ?? "neutral"}`
-              ].filter(Boolean).join(" ")}
-              key={item.label}
-            >
-              <span className="shell-status-dot" />
-              <span>{item.label}</span>
-              <strong>{item.value}</strong>
-            </span>
-          ))}
+          {visibleShellStatus.map((item) => renderShellStatusItem(item))}
         </div>
         <div className="shell-toolstrip" aria-label={copy.toolstripAriaLabel}>
           <button
@@ -194,6 +181,32 @@ export function AppShell(props: AppShellProps) {
       ) : null}
     </main>
   );
+}
+
+function renderShellStatusItem(item: AppShellLayoutProps["shellStatus"][number]) {
+  const className = [
+    "shell-status-group",
+    item.key === "account" ? "shell-account-status" : "",
+    item.onAction && item.actionLabel ? "shell-status-action" : "",
+    `status-${item.tone ?? "neutral"}`
+  ].filter(Boolean).join(" ");
+  const content = (
+    <>
+      <span className="shell-status-dot" />
+      <span>{item.label}</span>
+      <strong>{item.value}</strong>
+    </>
+  );
+
+  if (item.onAction && item.actionLabel) {
+    return (
+      <button className={className} type="button" title={item.actionLabel} aria-label={item.actionLabel} onClick={item.onAction} key={item.label}>
+        {content}
+      </button>
+    );
+  }
+
+  return <span className={className} key={item.label}>{content}</span>;
 }
 
 function getBackgroundTaskDockState(tasks: ShellBackgroundTaskItem[], copy: ShellCopy): {

@@ -305,7 +305,7 @@ npx pnpm@9.15.0 dev:electron
 
 ### 4.0 Vibecoding 快路径
 
-单 agent 做菜单或共享 UI 时，默认先跑 `verify:vibe:*`，只拿当前循环需要的反馈；交接、提交、合并或声称门禁通过前，再升级到对应 `verify:*`。
+单 agent 做菜单或共享 UI 时，默认先运行能覆盖当前改动的单个定向测试。找不到更小的稳定测试集合时，才使用 `verify:vibe:*`；交接、提交、合并或声称门禁通过前，只选择与实际改动范围匹配的一个主 `verify:*`。
 
 ```powershell
 npx pnpm@9.15.0 verify:vibe:docs
@@ -317,7 +317,17 @@ npx pnpm@9.15.0 verify:vibe:desktop:loadouts
 npx pnpm@9.15.0 verify:vibe:desktop:vault
 ```
 
-这些命令不替代收口门禁：`verify:vibe:*` 用来缩短 coding 循环，`verify:*` 用来交接和提交前兜底。视觉脚本默认放到收口阶段运行；只有当前改动直接影响视觉主题、页面壳或截图目标时，才在单 agent 循环里提前运行。
+这些命令是可选的中途反馈，不是收口门禁的前置步骤。同一代码状态下禁止先运行 `verify:vibe:*`，随后马上运行包含相同测试集合的 `verify:*`；如果下一步就是收尾，直接运行最终门禁。如果中途整组测试已经通过，收尾使用 `verify:finish:*` 只补类型检查或文档检查。只有两次验证之间又修改了代码，才需要重新运行完整门禁。
+
+默认验证层级：
+
+| 阶段 | 默认动作 | 不要做 |
+|---|---|---|
+| Red / Green | 只跑当前行为对应的单个测试文件 | 不跑类型检查、视觉检查或整组门禁 |
+| Tidy | 必要时运行 `git diff --check` | 不重复运行已经通过且代码未变化的测试 |
+| 收尾 | 未跑中途整组测试时选一个完整 `verify:*`；已经跑过时选对应 `verify:finish:*` | 不重复执行相同测试集合，不把多个范围门禁固定串联 |
+| 视觉 | 只运行一个与实际视觉改动匹配的 `visual:*` | 纯数据、类型、IPC、文案和接线改动不跑视觉脚本 |
+| 发布 | 按发布流程运行全量 `test` / `typecheck` | 日常小改动不提前支付发布级成本 |
 
 测试断言优先检查稳定契约，例如组件可渲染、导出存在、role / label、关键 class 结构和 ViewModel 输出。不要把普通功能测试写成源码中文、import 顺序、整段 HTML 或大段 CSS 的字符串匹配；这类检查只用于边界规则或迁移保护。
 
@@ -333,11 +343,22 @@ npx pnpm@9.15.0 verify:vibe:desktop:vault
 给 agent 的固定入口：
 
 1. 开工前先运行 `tools\git-preflight.cmd`，确认当前脏文件属于哪个菜单或共享 lane、建议跑哪个验证命令、是否触碰高冲突文件，以及是否需要 worktree 隔离。
-2. 文档或工具说明改动运行 `npx pnpm@9.15.0 verify:docs`。
-3. 跨端 UI、Prototype 或 Web 改动运行 `npx pnpm@9.15.0 verify:ui`；首页或设置页视觉改动追加 `visual:home` 或 `visual:settings`，全局 AI 抽屉改动追加 `visual:ai`。如果改动影响共享 CSS token、暗色模式、页面壳或多个菜单，追加 `visual:all`。
-4. Desktop 接线、IPC、preload 或 renderer adapter 改动运行 `npx pnpm@9.15.0 verify:desktop`。
+2. 独立文档或工具说明改动运行 `npx pnpm@9.15.0 verify:docs`；业务改动仅顺带更新 `docs/todo.md` 一行状态时只运行 `npx pnpm@9.15.0 docs:check`。
+3. 跨端 UI、Prototype 或 Web 改动收尾运行一次 `npx pnpm@9.15.0 verify:ui`；只有实际布局、CSS、主题或响应式变化才追加一个匹配的视觉命令。`visual:all` 只用于共享 token、全局页面壳或多菜单视觉集成。
+4. Desktop 接线、IPC、preload 或 renderer adapter 改动收尾运行一次 `npx pnpm@9.15.0 verify:desktop`；它已经包含 Desktop 快速类型检查和 wiring 测试。
 5. Release / CHANGELOG / 版本脚本改动运行 `npx pnpm@9.15.0 verify:release`，发布前再按需要跑全量 `test` 和 `typecheck`。
-6. 如果只改某个领域测试覆盖明确的业务模块，优先跑对应 `vitest --run packages/<pkg>/test/<name>.test.ts`；准备提交或范围变大时再跑 `verify`。
+6. 如果只改某个领域测试覆盖明确的业务模块，优先跑对应 `vitest --run packages/<pkg>/test/<name>.test.ts`；只有跨领域改动才考虑通用 `verify`。
+7. 同一代码状态不得连续运行 `verify:vibe:ui` + `verify:ui`、`verify:vibe:desktop` + `verify:desktop` 等包含关系命令；前者已通过时分别改跑 `verify:finish:ui` 或 `verify:finish:desktop`。
+
+中途整组测试已经通过时的增量收尾命令：
+
+```powershell
+npx pnpm@9.15.0 verify:finish:docs
+npx pnpm@9.15.0 verify:finish:ui
+npx pnpm@9.15.0 verify:finish:desktop
+```
+
+它们只补完整门禁中尚未执行的部分，不重复运行 `test:docs`、`test:ui` 或 `test:desktop-wiring`。
 
 基础检查：
 
@@ -386,12 +407,9 @@ npx pnpm@9.15.0 typecheck:desktop
 
 `typecheck:desktop-fast` 会先 build `services` 再跑 Desktop 自身类型检查，适合日常接线快验；`typecheck:desktop` 会先 build `core`、`http` 和 `services`，适合碰到底层依赖或准备发布前使用。
 
-提交前如果需要一轮中等门禁：
+收尾时按改动范围选择一个主门禁，不要把下面命令全部执行：
 
 ```powershell
-npx pnpm@9.15.0 verify:vibe:ui
-npx pnpm@9.15.0 verify:vibe:desktop:loadouts
-npx pnpm@9.15.0 verify
 npx pnpm@9.15.0 verify:docs
 npx pnpm@9.15.0 verify:ui
 npx pnpm@9.15.0 verify:desktop
@@ -401,6 +419,8 @@ npx pnpm@9.15.0 verify:desktop:loadouts
 npx pnpm@9.15.0 verify:desktop:vault
 npx pnpm@9.15.0 verify:release
 ```
+
+`verify:vibe:*` 只用于还要继续修改代码的中途循环；若已经准备收尾，不再运行。若它已经在当前代码状态通过，使用对应 `verify:finish:*` 完成剩余检查。通用 `verify` 只用于跨领域且没有更精确范围门禁的情况。
 
 发布级全量测试：
 

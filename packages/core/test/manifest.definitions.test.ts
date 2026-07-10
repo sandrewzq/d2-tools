@@ -19,6 +19,7 @@ const metadata: DestinyManifestMetadata = {
       DestinyInventoryItemDefinition: "/common/destiny2_content/json/zh-chs/items.json",
       DestinyPlugSetDefinition: "/common/destiny2_content/json/zh-chs/plug-sets.json",
       DestinySandboxPerkDefinition: "/common/destiny2_content/json/zh-chs/sandbox-perks.json",
+      DestinyCollectibleDefinition: "/common/destiny2_content/json/zh-chs/collectibles.json",
       DestinyActivityModifierDefinition: "/common/destiny2_content/json/zh-chs/activity-modifiers.json",
       DestinyDestinationDefinition: "/common/destiny2_content/json/zh-chs/destinations.json",
       DestinyPlaceDefinition: "/common/destiny2_content/json/zh-chs/places.json",
@@ -35,6 +36,8 @@ describe("manifest definition core helpers", () => {
       .toBe("/common/destiny2_content/json/zh-chs/plug-sets.json");
     expect(selectDefinitionComponentPath(metadata, "zh-chs", "DestinySandboxPerkDefinition"))
       .toBe("/common/destiny2_content/json/zh-chs/sandbox-perks.json");
+    expect(selectDefinitionComponentPath(metadata, "zh-chs", "DestinyCollectibleDefinition"))
+      .toBe("/common/destiny2_content/json/zh-chs/collectibles.json");
     expect(selectDefinitionComponentPath(metadata, "zh-chs", "DestinyActivityModifierDefinition"))
       .toBe("/common/destiny2_content/json/zh-chs/activity-modifiers.json");
     expect(selectDefinitionComponentPath(metadata, "zh-chs", "DestinyDestinationDefinition"))
@@ -55,6 +58,7 @@ describe("manifest definition core helpers", () => {
       "DestinyInventoryItemDefinition",
       "DestinyPlugSetDefinition",
       "DestinySandboxPerkDefinition",
+      "DestinyCollectibleDefinition",
       "DestinyActivityDefinition",
       "DestinyMilestoneDefinition",
       "DestinyVendorDefinition",

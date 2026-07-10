@@ -4,6 +4,7 @@ export type DefinitionComponentName =
   | "DestinyInventoryItemDefinition"
   | "DestinyPlugSetDefinition"
   | "DestinySandboxPerkDefinition"
+  | "DestinyCollectibleDefinition"
   | "DestinyActivityDefinition"
   | "DestinyMilestoneDefinition"
   | "DestinyVendorDefinition"
@@ -35,10 +36,25 @@ export type DefinitionRecord = {
   };
   equippingBlock?: {
     ammoType?: number;
+    damageType?: number;
   };
+  defaultDamageType?: number;
+  isAdept?: boolean;
   sourceData?: {
     sourceString?: string;
   };
+  collectibleHash?: number;
+  displaySource?: string;
+  sourceString?: string;
+  sourceHash?: number;
+  translationBlock?: {
+    artArrangementHash?: number;
+    arrangements?: Array<{
+      artArrangementHash?: number;
+      classHash?: number;
+    }>;
+  };
+  traitIds?: string[];
   stats?: {
     stats?: Record<string, {
       statHash?: number;
@@ -73,6 +89,9 @@ export type DefinitionRecord = {
       hidePerksInItemTooltip?: boolean;
     }>;
   };
+  plug?: {
+    plugCategoryIdentifier?: string;
+  };
   [key: string]: unknown;
 };
 
@@ -90,6 +109,7 @@ export const requiredDefinitionComponents: DefinitionComponentName[] = [
   "DestinyInventoryItemDefinition",
   "DestinyPlugSetDefinition",
   "DestinySandboxPerkDefinition",
+  "DestinyCollectibleDefinition",
   "DestinyActivityDefinition",
   "DestinyMilestoneDefinition",
   "DestinyVendorDefinition",

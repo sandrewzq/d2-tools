@@ -78,6 +78,10 @@
       "types": "./dist/items/source.d.ts",
       "import": "./dist/items/source.js"
     },
+    "./items/release": {
+      "types": "./dist/items/release.d.ts",
+      "import": "./dist/items/release.js"
+    },
     "./items/liveAvailability": {
       "types": "./dist/items/liveAvailability.d.ts",
       "import": "./dist/items/liveAvailability.js"
