@@ -4848,8 +4848,8 @@ button.vault-side-signal:not(:disabled):hover {
 }
 
 .home-weekly-primary-grid {
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 10px;
+  grid-template-columns: minmax(240px, 1.12fr) repeat(2, minmax(190px, 0.94fr));
+  gap: var(--space-12);
 }
 
 .home-weekly-card {
@@ -4860,8 +4860,8 @@ button.vault-side-signal:not(:disabled):hover {
   grid-template-rows: auto minmax(38px, 1fr) auto;
   gap: 8px;
   min-width: 0;
-  min-height: 150px;
-  padding: var(--space-12);
+  min-height: 136px;
+  padding: 14px;
   border: 1px solid var(--weekly-source-border);
   border-radius: var(--radius-control);
   background:
@@ -4929,7 +4929,7 @@ button.vault-side-signal:not(:disabled):hover {
 }
 
 .home-weekly-support {
-  grid-template-columns: minmax(0, 0.72fr) minmax(0, 1.28fr);
+  grid-template-columns: minmax(0, 1.32fr) minmax(240px, 0.68fr);
 }
 
 .home-weekly-support-section {
@@ -5312,7 +5312,7 @@ button.vault-side-signal:not(:disabled):hover {
 
 .home-briefing-grid {
   display: grid;
-  grid-template-columns: minmax(288px, 0.58fr) minmax(0, 1.72fr);
+  grid-template-columns: minmax(360px, 0.95fr) minmax(0, 1.25fr);
   gap: var(--space-16);
   align-items: start;
 }
@@ -5357,8 +5357,8 @@ button.vault-side-signal:not(:disabled):hover {
 
 .home-summary-list {
   display: grid;
-  gap: 5px;
-  margin-top: 2px;
+  gap: 7px;
+  margin-top: 4px;
 }
 
 .home-summary-list-item,
@@ -5370,7 +5370,7 @@ button.vault-side-signal:not(:disabled):hover {
 }
 
 .home-summary-list-item {
-  padding: 5px 7px;
+  padding: 8px 9px;
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-control);
   background: var(--surface-subtle);
@@ -5430,7 +5430,9 @@ button.vault-side-signal:not(:disabled):hover {
 }
 
 .home-summary-list small {
+  padding: 6px 2px 0;
   color: var(--text-body);
+  font-weight: 700;
 }
 
 .home-daily-panel .home-summary-card,
@@ -6003,6 +6005,8 @@ button.vault-side-signal:not(:disabled):hover {
   .app-hero-panel,
   .home-briefing-grid,
   .home-weekly-dashboard,
+  .home-weekly-primary-grid,
+  .home-weekly-support,
   .home-main-grid,
   .home-secondary-grid,
   .app-settings-shell,

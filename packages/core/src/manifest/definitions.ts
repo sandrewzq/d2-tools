@@ -12,7 +12,8 @@ export type DefinitionComponentName =
   | "DestinyStatDefinition"
   | "DestinyActivityModifierDefinition"
   | "DestinyDestinationDefinition"
-  | "DestinyPlaceDefinition";
+  | "DestinyPlaceDefinition"
+  | "DestinyObjectiveDefinition";
 
 export type DefinitionRecord = {
   hash?: number;
@@ -97,7 +98,8 @@ export const requiredDefinitionComponents: DefinitionComponentName[] = [
   "DestinyStatDefinition",
   "DestinyActivityModifierDefinition",
   "DestinyDestinationDefinition",
-  "DestinyPlaceDefinition"
+  "DestinyPlaceDefinition",
+  "DestinyObjectiveDefinition"
 ];
 
 export function selectDefinitionComponentPath(

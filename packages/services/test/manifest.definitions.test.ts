@@ -32,7 +32,8 @@ const metadata: DestinyManifestMetadata = {
       DestinySandboxPerkDefinition: "/common/destiny2_content/json/zh-chs/sandbox-perks.json",
       DestinyActivityModifierDefinition: "/common/destiny2_content/json/zh-chs/activity-modifiers.json",
       DestinyDestinationDefinition: "/common/destiny2_content/json/zh-chs/destinations.json",
-      DestinyPlaceDefinition: "/common/destiny2_content/json/zh-chs/places.json"
+      DestinyPlaceDefinition: "/common/destiny2_content/json/zh-chs/places.json",
+      DestinyObjectiveDefinition: "/common/destiny2_content/json/zh-chs/objectives.json"
     }
   }
 };
@@ -251,6 +252,8 @@ describe("manifest definition pure core helpers", () => {
       .toBe("/common/destiny2_content/json/zh-chs/destinations.json");
     expect(selectDefinitionComponentPath(metadata, "zh-chs", "DestinyPlaceDefinition"))
       .toBe("/common/destiny2_content/json/zh-chs/places.json");
+    expect(selectDefinitionComponentPath(metadata, "zh-chs", "DestinyObjectiveDefinition"))
+      .toBe("/common/destiny2_content/json/zh-chs/objectives.json");
   });
 
   it("falls back to English JSON component paths", () => {
@@ -271,7 +274,8 @@ describe("manifest definition pure core helpers", () => {
       "DestinyStatDefinition",
       "DestinyActivityModifierDefinition",
       "DestinyDestinationDefinition",
-      "DestinyPlaceDefinition"
+      "DestinyPlaceDefinition",
+      "DestinyObjectiveDefinition"
     ]);
   });
 });

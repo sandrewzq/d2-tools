@@ -63,7 +63,7 @@ export const localeCopy: Record<InterfaceLocale, LocaleCopy> = {
         weeklyRewards: {
           title: "本周奖励与轮换",
           subtitle: "只展示本周上线前最值得确认的轮换、奖励和活动",
-          badge: "5 个本周关注"
+          badge: "4 个本周关注"
         },
         today: {
           title: "今天可确认",
@@ -108,7 +108,7 @@ export const localeCopy: Record<InterfaceLocale, LocaleCopy> = {
         accountFailed: "读取失败",
         accountReady: "已读取",
         accountPending: "待同步",
-        weeklyFixedMeta: "本周固定关注位：日落、轮换突袭、轮换地牢、加成和特殊活动",
+        weeklyFixedMeta: "本周固定关注位：先锋行动、轮换突袭、轮换地牢、仄商人",
         otherRewardMeta: "公共线索只作为辅助信息展示",
         waitingRefresh: "等待今日信息刷新。",
         todayLoadingTitle: "今日信息读取中",
@@ -373,9 +373,9 @@ export const localeCopy: Record<InterfaceLocale, LocaleCopy> = {
         "只放今天上线前需要看一眼的事项": "Only the items worth checking before logging in today",
         "只显示会影响今天游玩决策的账号提醒": "Only account alerts that affect today's play decisions",
         "本周更新": "Weekly update",
-        "日落、轮换突袭、轮换地牢、加成和特殊活动": "Nightfall, rotating raid, rotating dungeon, bonuses, and events",
+        "先锋行动、轮换突袭、轮换地牢、仄商人": "Vanguard Ops, rotating raid, rotating dungeon, and Xur",
         "周商人": "Xur vendor",
-        "本周日落任务": "Weekly Nightfall",
+        "先锋行动 · 宗师先锋警戒": "Vanguard Ops · Grandmaster Vanguard Alerts",
         "本周轮换突袭": "Weekly rotating raid",
         "本周轮换地牢": "Weekly rotating dungeon",
         "本周加成": "Weekly bonus",
@@ -384,6 +384,7 @@ export const localeCopy: Record<InterfaceLocale, LocaleCopy> = {
         "公共线索": "Public clues",
         "本周辅助线索": "Weekly supporting clues",
         "日落任务待确认": "Nightfall pending",
+        "宗师先锋警戒待确认": "Grandmaster Vanguard Alerts pending",
         "轮换突袭待确认": "Rotating raid pending",
         "轮换地牢待确认": "Rotating dungeon pending",
         "确认后展示可刷奖励状态": "Show farmable reward status after confirmation",
@@ -407,7 +408,7 @@ export const localeCopy: Record<InterfaceLocale, LocaleCopy> = {
         weeklyRewards: {
           title: "Weekly rewards and rotations",
           subtitle: "Only show the rotations, rewards, and events worth checking before playing this week",
-          badge: "5 weekly priorities"
+          badge: "4 weekly priorities"
         },
         today: {
           title: "Today to verify",
@@ -452,7 +453,7 @@ export const localeCopy: Record<InterfaceLocale, LocaleCopy> = {
         accountFailed: "Read failed",
         accountReady: "Read",
         accountPending: "Pending",
-        weeklyFixedMeta: "Fixed weekly focus: Nightfall, rotating raid, rotating dungeon, bonuses, and events",
+        weeklyFixedMeta: "Fixed weekly focus: Vanguard Ops, rotating raid, rotating dungeon, and Xur",
         otherRewardMeta: "Public clues are supporting information only",
         waitingRefresh: "Waiting for today's data.",
         todayLoadingTitle: "Reading today's data",

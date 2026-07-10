@@ -276,6 +276,7 @@ describe("cross-platform UI completion boundary", () => {
     const copy = read("packages/ui/src/i18n/copy.ts");
 
     expect(copy).toContain('weeklyFixedMeta: "本周固定关注位');
+    expect(copy).toContain("先锋行动、轮换突袭、轮换地牢、仄商人");
     expect(copy).toContain('vaultReady: "仓库 496 / 600');
     expect(copy).toContain('vaultReadyBadge: "496 / 600"');
     expect(copy).not.toContain('weeklyFixedMeta: "账号进度待接入前');

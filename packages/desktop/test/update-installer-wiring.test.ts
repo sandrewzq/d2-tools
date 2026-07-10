@@ -125,6 +125,8 @@ describe("desktop installer and update wiring", () => {
     const main = readFileSync(join(desktopRoot, "src", "main", "main.ts"), "utf8");
 
     expect(main).toContain("Menu.setApplicationMenu(null)");
+    expect(main).toContain("width: isVisualCapture ? captureWidth : 1920");
+    expect(main).toContain("height: isVisualCapture ? captureHeight : 1080");
     expect(main).toContain("autoHideMenuBar: true");
     expect(main).toContain('titleBarStyle: "hidden"');
     expect(main).not.toContain("titleBarOverlay");

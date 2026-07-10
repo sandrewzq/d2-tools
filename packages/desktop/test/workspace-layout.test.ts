@@ -322,8 +322,9 @@ describe("desktop workspace layout", () => {
     expect(homeDashboard).not.toContain("../daily/DailyPage");
     expect(homePage).not.toContain("function renderDailyPanel");
     expect(dailyPage).toContain("export function DailyPage");
-    expect(styles).toMatch(/\.home-briefing-grid\s*{[\s\S]*?grid-template-columns:\s*minmax\(288px,\s*0\.58fr\) minmax\(0,\s*1\.72fr\);/);
-    expect(styles).toMatch(/\.home-weekly-dashboard\s*{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1\.35fr\) minmax\(260px,\s*0\.75fr\);/);
+    expect(styles).toMatch(/\.home-briefing-grid\s*{[\s\S]*?grid-template-columns:\s*minmax\(360px,\s*0\.95fr\) minmax\(0,\s*1\.25fr\);/);
+    expect(styles).toMatch(/\.home-weekly-dashboard\s*{[\s\S]*?grid-template-columns:\s*1fr;/);
+    expect(styles).toMatch(/\.home-weekly-support\s*{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1\.32fr\) minmax\(240px,\s*0\.68fr\);/);
     expect(styles).toMatch(/@media \(max-width:\s*1180px\)\s*{[\s\S]*?\.home-weekly-dashboard,[\s\S]*?\.home-main-grid,[\s\S]*?\.home-secondary-grid,[\s\S]*?\.app-settings-grid\s*{[\s\S]*?grid-template-columns:\s*1fr;/);
   });
 
@@ -429,7 +430,12 @@ describe("desktop workspace layout", () => {
     expect(homeDashboard).not.toContain("home-data-strip");
     expect(homeDashboard).toContain("home-briefing-grid");
     expect(homeDashboard).not.toContain("copy.sections.pending.title");
-    expect(homeDashboard).toContain("copy.account.diagnosticReadyTitle");
+    expect(homeDashboard).toContain('homeText(copy, "本日更新")');
+    expect(homeDashboard).toContain('homeText(copy, "本周更新")');
+    expect(homeDashboard).toContain('homeText(copy, "先锋行动 · 宗师先锋警戒")');
+    expect(homeDashboard).toContain('homeText(copy, "本周轮换突袭")');
+    expect(homeDashboard).toContain('homeText(copy, "本周轮换地牢")');
+    expect(homeDashboard).toContain('homeText(copy, "周商人")');
     expect(homeCopy).toContain("健康检查正常");
     expect(homeDashboard).not.toContain("Bungie App 已配置");
     expect(homeDashboard).not.toContain("AI 未配置");
@@ -445,11 +451,17 @@ describe("desktop workspace layout", () => {
     const statusOverview = readFileSync(join(desktopRoot, "src", "renderer", "components", "StatusOverview.tsx"), "utf8");
     const statusCard = readFileSync(join(desktopRoot, "src", "renderer", "components", "StatusCard.tsx"), "utf8");
     const styles = readFileSync(join(desktopRoot, "..", "ui", "src", "styles.css"), "utf8");
+    const homePageWorkspace = readFileSync(join(desktopRoot, "..", "app", "src", "workspaces", "homePage.ts"), "utf8");
+    const homePageWorkspaceTest = readFileSync(join(desktopRoot, "..", "app", "test", "home-page-workspace.test.ts"), "utf8");
 
     expect(productShell).toContain("accountError");
     expect(productShell).toContain("hasAccountData: Boolean(accountSummary)");
-    expect(homeDashboard).toContain("accountError");
-    expect(homeDashboard).toContain("hasAccountData");
+    expect(homeDashboard).toContain("selectHomePageModel(props)");
+    expect(homeDashboard).toContain("{...model}");
+    expect(homePageWorkspace).toContain("accountError: input.accountError ?? \"\"");
+    expect(homePageWorkspace).toContain("hasAccountData: input.hasAccountData ?? false");
+    expect(homePageWorkspaceTest).toContain("expect(model.accountError).toBe(\"账号未读取\")");
+    expect(homePageWorkspaceTest).toContain("expect(model.hasAccountData).toBe(false)");
     expect(statusOverview).toContain("accountError");
     expect(statusOverview).toContain("账号数据读取失败");
     expect(statusOverview).toContain("重试读取");

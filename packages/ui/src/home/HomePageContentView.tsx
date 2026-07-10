@@ -11,6 +11,8 @@ export type HomeDailyItem = {
   description?: string;
   source?: string;
   weeklyActivityKind?: HomeWeeklyActivityKind;
+  related_hashes?: number[];
+  rewards?: HomeWeeklyActivityReward[];
   iconUrl?: string;
   icon?: string;
   iconLabel?: string;
@@ -68,8 +70,25 @@ export type HomeWeeklySummary = {
     detail: string;
     evidence?: string;
     source?: string;
+    entries?: HomeWeeklyActivityEntry[];
   }>;
   public_clues: HomeDailyItem[];
+};
+
+export type HomeWeeklyActivityReward = {
+  hash: number;
+  name: string;
+  icon?: string;
+  item_type?: string;
+};
+
+export type HomeWeeklyActivityEntry = {
+  title: string;
+  detail?: string;
+  evidence?: string;
+  source?: string;
+  related_hashes?: number[];
+  rewards?: HomeWeeklyActivityReward[];
 };
 
 export type HomeStartupState = {
@@ -322,9 +341,9 @@ function buildWeeklyBriefing(
     const cards: HomeWeeklyCard[] = [
       buildWeeklySummaryCard({
         key: "nightfall",
-        title: homeText(copy, "本周日落任务"),
+        title: homeText(copy, "先锋行动 · 宗师先锋警戒"),
         priority: weeklySummary.priorities.nightfall,
-        fallbackValue: homeText(copy, "日落任务待确认"),
+        fallbackValue: homeText(copy, "宗师先锋警戒待确认"),
         fallbackDetail: copy.fallback.nightfallWaiting,
         source: "nightfall",
         copy
@@ -347,24 +366,6 @@ function buildWeeklyBriefing(
         source: "dungeon",
         copy
       }),
-      buildWeeklySummaryCard({
-        key: "bonus",
-        title: homeText(copy, "本周加成"),
-        priority: weeklySummary.priorities.weekly_bonus,
-        fallbackValue: homeText(copy, "奖励加成待确认"),
-        fallbackDetail: homeText(copy, "先锋、熔炉、智谋或日落加成确认后展示"),
-        source: "crucible",
-        copy
-      }),
-      buildWeeklySummaryCard({
-        key: "event",
-        title: homeText(copy, "特殊活动"),
-        priority: weeklySummary.priorities.special_event,
-        fallbackValue: homeText(copy, "暂无可确认特殊活动"),
-        fallbackDetail: homeText(copy, "只显示已确认的限时活动"),
-        source: "destination",
-        copy
-      })
     ];
 
     return {
@@ -386,9 +387,9 @@ function buildWeeklyBriefing(
   const cards: HomeWeeklyCard[] = [
     buildWeeklyCard({
       key: "nightfall",
-      title: homeText(copy, "本周日落任务"),
-      item: findWeeklyItem(weeklyItems, "nightfall", [/日落|Nightfall/i], [/勇士|护盾|威胁|Champion|Shield|Threat/i]),
-      fallbackValue: homeText(copy, "日落任务待确认"),
+      title: homeText(copy, "先锋行动 · 宗师先锋警戒"),
+      item: findWeeklyItem(weeklyItems, "nightfall", [/宗师先锋警戒|日落|Nightfall/i], [/勇士|护盾|威胁|Champion|Shield|Threat/i]),
+      fallbackValue: homeText(copy, "宗师先锋警戒待确认"),
       fallbackDetail: copy.fallback.nightfallWaiting,
       tone: weeklyReportTone,
       source: "nightfall",
@@ -414,26 +415,6 @@ function buildWeeklyBriefing(
       source: "dungeon",
       copy
     }),
-    buildWeeklyCard({
-      key: "bonus",
-      title: homeText(copy, "本周加成"),
-      item: findWeeklyItem(weeklyItems, "weekly_bonus", [/加成|双倍|声望|奖励加成|Bonus|reputation/i]),
-      fallbackValue: homeText(copy, "奖励加成待确认"),
-      fallbackDetail: homeText(copy, "先锋、熔炉、智谋或日落加成确认后展示"),
-      tone: rotationsTone,
-      source: "crucible",
-      copy
-    }),
-    buildWeeklyCard({
-      key: "event",
-      title: homeText(copy, "特殊活动"),
-      item: findWeeklyItem(weeklyItems, "special_event", [/特殊活动|限时活动|曙光|英灵日|守护者游戏|至日|Event|Festival|Solstice|Guardian Games/i]),
-      fallbackValue: homeText(copy, "暂无可确认特殊活动"),
-      fallbackDetail: homeText(copy, "只显示已确认的限时活动"),
-      tone: "neutral",
-      source: "destination",
-      copy
-    })
   ];
 
   return {
@@ -478,12 +459,41 @@ function buildWeeklySummaryCard(options: {
   return {
     key: options.key,
     title: options.title,
-    value: isReady ? sanitizeWeeklyText(options.priority.title) : options.fallbackValue,
-    detail: isReady ? sanitizeWeeklyText(options.priority.detail) : options.fallbackDetail,
+    value: isReady ? getWeeklyPriorityValue(options.priority) : options.fallbackValue,
+    detail: isReady ? getWeeklyPriorityDetail(options.priority) : options.fallbackDetail,
     tone: isReady ? "ready" : "neutral",
     source: options.source,
     badge: isReady ? options.copy.labels.confirmed : options.copy.labels.pending
   };
+}
+
+function getWeeklyPriorityValue(priority: HomeWeeklySummary["priorities"][HomeWeeklyPriorityKind]): string {
+  const entryTitles = uniqueText((priority.entries ?? [])
+    .map((entry) => sanitizeWeeklyText(entry.title))
+    .filter(Boolean));
+  return entryTitles.length ? entryTitles.join(" / ") : sanitizeWeeklyText(priority.title);
+}
+
+function getWeeklyPriorityDetail(priority: HomeWeeklySummary["priorities"][HomeWeeklyPriorityKind]): string {
+  const entryDetails = uniqueText((priority.entries ?? [])
+    .map((entry) => sanitizeWeeklyText(entry.detail))
+    .filter(Boolean));
+  if (entryDetails.length) {
+    return entryDetails.join(" / ");
+  }
+  if ((priority.entries?.length ?? 0) > 1) {
+    return `${priority.entries?.length ?? 0} 项已确认`;
+  }
+  return sanitizeWeeklyText(priority.detail);
+}
+
+function uniqueText(values: string[]): string[] {
+  const seen = new Set<string>();
+  return values.filter((value) => {
+    if (seen.has(value)) return false;
+    seen.add(value);
+    return true;
+  });
 }
 
 function renderXurSpotlight(xurSpotlight: HomeXurSpotlight, copy: HomeCopy) {
@@ -712,7 +722,7 @@ function inferWeeklyActivityKind(item: HomeDailyItem): HomeWeeklyActivityKind | 
 
   const value = weeklyItemText(item);
   if (/试炼|Trials|铁旗|Iron Banner/i.test(value)) return null;
-  if (/日落|Nightfall/i.test(value)) return "nightfall";
+  if (/宗师先锋警戒|日落|Nightfall/i.test(value)) return "nightfall";
   if (/加成|双倍|声望|奖励加成|Bonus|reputation/i.test(value)) return "weekly_bonus";
   if (/特殊活动|限时活动|曙光|英灵日|守护者游戏|至日|Event|Festival|Solstice|Guardian Games/i.test(value)) return "special_event";
   if (isKnownDungeon(value) || /轮换地牢|地牢|Dungeon/i.test(value)) return "rotating_dungeon";
@@ -725,11 +735,11 @@ function isRecognizedWeeklyPriority(item: HomeDailyItem): boolean {
 }
 
 function isKnownRaid(value: string): boolean {
-  return /国王的陨落|克洛塔的末日|深岩墓室|玻璃拱顶|救赎花园|最后一愿|门徒誓约|梦魇根源|救赎边缘|King'?s Fall|Crota'?s End|Deep Stone Crypt|Vault of Glass|Garden of Salvation|Last Wish|Vow of the Disciple|Root of Nightmares|Salvation'?s Edge/i.test(value);
+  return /国王的陨落|克洛塔的末日|深岩墓室|玻璃拱顶|救赎花园|最后一愿|门徒誓约|梦魇根源|救赎(?:的)?边缘|King'?s Fall|Crota'?s End|Deep Stone Crypt|Vault of Glass|Garden of Salvation|Last Wish|Vow of the Disciple|Root of Nightmares|Salvation'?s Edge/i.test(value);
 }
 
 function isKnownDungeon(value: string): boolean {
-  return /守望者尖塔|预言|二象性|贪婪之握|异端深渊|破碎王座|战争领主的废墟|鬼魅深渊|Spire of the Watcher|Prophecy|Duality|Grasp of Avarice|Pit of Heresy|Shattered Throne|Warlord'?s Ruin|Ghosts of the Deep/i.test(value);
+  return /晚星之主|守望者尖塔|预言|二象性|贪婪之握|异端深渊|破碎王座|战争领主的废墟|鬼魅深渊|Spire of the Watcher|Prophecy|Duality|Grasp of Avarice|Pit of Heresy|Shattered Throne|Warlord'?s Ruin|Ghosts of the Deep/i.test(value);
 }
 
 function describeWeeklyPriorityItem(item: HomeDailyItem | undefined): string {
@@ -737,7 +747,7 @@ function describeWeeklyPriorityItem(item: HomeDailyItem | undefined): string {
   return [item.subtitle, item.description, item.source]
     .map((part) => sanitizeWeeklyText(part))
     .filter(Boolean)
-    .filter((part) => !/^本周(?:日落任务|轮换突袭|轮换地牢|加成)$/i.test(part))
+    .filter((part) => !/^(?:本周)?(?:日落任务|轮换突袭|轮换地牢|加成|先锋行动 · 宗师先锋警戒)$/i.test(part))
     .join(" · ");
 }
 
@@ -884,7 +894,7 @@ function formatWeeklyResetStatus(
   dailySummary: HomeDailySummary | null,
   copy: HomeCopy
 ): string {
-  return formatResetStatus(weeklySummary?.weekly_reset ?? dailySummary?.weekly_reset, copy.labels.weeklyReset, homeText(copy, "日落、轮换突袭、轮换地牢、加成和特殊活动"));
+  return formatResetStatus(weeklySummary?.weekly_reset ?? dailySummary?.weekly_reset, copy.labels.weeklyReset, homeText(copy, "先锋行动、轮换突袭、轮换地牢、仄商人"));
 }
 
 function formatResetStatus(
@@ -943,13 +953,16 @@ function sourceSummaryCards(keyPrefix: string, fallbackTitle: string, source: Ho
       }];
     }
 
+    const previewItems = readableItems.slice(0, 3);
+    const hiddenCount = Math.max(readableItems.length - previewItems.length, 0);
     return [{
       key: keyPrefix,
       title: homeText(copy, "今日世界遗失区域"),
       message: `${readableItems.length} 个区域 · 每个目的地每日 1 个`,
       tone: source.status === "ready" ? "ready" : "warning",
       badge: source.status === "ready" ? copy.labels.confirmed : copy.labels.pending,
-      items: readableItems
+      items: previewItems,
+      overflowLabel: hiddenCount > 0 ? `另有 ${hiddenCount} 个区域，进入日报查看完整列表。` : undefined
     }];
   }
 

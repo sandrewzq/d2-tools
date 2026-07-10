@@ -160,7 +160,7 @@ describe("shared UI i18n", () => {
     expect(html).toContain("Key vendors");
     expect(html).toContain("Rules pending");
     expect(html).not.toContain("Account alerts");
-    expect(html).toContain("Weekly Nightfall");
+    expect(html).toContain("Vanguard Ops · Grandmaster Vanguard Alerts");
     expect(html).toContain("Public clues");
     expect(html).not.toContain("本周奖励与轮换");
     expect(html).not.toContain("今天可确认");

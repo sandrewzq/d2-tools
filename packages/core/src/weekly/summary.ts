@@ -13,6 +13,24 @@ export type WeeklySummaryItem = {
   description?: string;
   source?: string;
   weeklyActivityKind?: WeeklyPriorityKind | "public_clue";
+  related_hashes?: number[];
+  rewards?: WeeklyActivityReward[];
+};
+
+export type WeeklyActivityReward = {
+  hash: number;
+  name: string;
+  icon?: string;
+  item_type?: string;
+};
+
+export type WeeklyActivityEntry = {
+  title: string;
+  detail?: string;
+  evidence?: string;
+  source?: string;
+  related_hashes?: number[];
+  rewards?: WeeklyActivityReward[];
 };
 
 export type WeeklySummaryPriority = {
@@ -21,6 +39,7 @@ export type WeeklySummaryPriority = {
   detail: string;
   evidence?: string;
   source?: string;
+  entries?: WeeklyActivityEntry[];
 };
 
 export type WeeklySummary = {
@@ -47,8 +66,8 @@ const weeklyResetHourUtc = 17;
 
 const priorityLabels: Record<WeeklyPriorityKind, { pendingTitle: string; pendingDetail: string }> = {
   nightfall: {
-    pendingTitle: "日落任务待确认",
-    pendingDetail: "等待可靠周维度来源接入。"
+    pendingTitle: "宗师先锋警戒待确认",
+    pendingDetail: "等待 Bungie 角色活动来源接入。"
   },
   rotating_raid: {
     pendingTitle: "轮换突袭待确认",
@@ -97,7 +116,8 @@ export function buildWeeklySummary(
 }
 
 function buildPriority(kind: WeeklyPriorityKind, items: WeeklySummaryItem[]): WeeklySummaryPriority {
-  const item = items.find((candidate) => candidate.weeklyActivityKind === kind);
+  const matchingItems = items.filter((candidate) => candidate.weeklyActivityKind === kind);
+  const item = matchingItems[0];
   if (!item) {
     const pending = priorityLabels[kind];
     return {
@@ -112,7 +132,15 @@ function buildPriority(kind: WeeklyPriorityKind, items: WeeklySummaryItem[]): We
     title: extractPriorityTitle(kind, item),
     detail: [item.subtitle, item.description].filter(Boolean).join(" · ") || "本周来源已确认。",
     evidence: item.source,
-    source: item.source
+    source: item.source,
+    entries: matchingItems.map((candidate) => ({
+      title: extractPriorityTitle(kind, candidate),
+      detail: [candidate.subtitle, candidate.description].filter(Boolean).join(" · ") || undefined,
+      evidence: candidate.source,
+      source: candidate.source,
+      related_hashes: candidate.related_hashes,
+      rewards: candidate.rewards
+    }))
   };
 }
 

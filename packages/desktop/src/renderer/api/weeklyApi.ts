@@ -17,6 +17,7 @@ export type WeeklySummaryPriority = {
   detail: string;
   evidence?: string;
   source?: string;
+  entries?: WeeklyActivityEntry[];
 };
 
 export type WeeklySummaryItem = {
@@ -25,6 +26,24 @@ export type WeeklySummaryItem = {
   description?: string;
   source?: string;
   weeklyActivityKind?: WeeklyPriorityKind | "public_clue";
+  related_hashes?: number[];
+  rewards?: WeeklyActivityReward[];
+};
+
+export type WeeklyActivityReward = {
+  hash: number;
+  name: string;
+  icon?: string;
+  item_type?: string;
+};
+
+export type WeeklyActivityEntry = {
+  title: string;
+  detail?: string;
+  evidence?: string;
+  source?: string;
+  related_hashes?: number[];
+  rewards?: WeeklyActivityReward[];
 };
 
 export type WeeklySummary = {

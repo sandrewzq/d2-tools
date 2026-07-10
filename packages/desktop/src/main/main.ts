@@ -24,8 +24,8 @@ if (isVisualCapture) {
 async function createWindow(): Promise<void> {
   const [captureWidth, captureHeight] = parseVisualViewport(visualCaptureViewport);
   const window = new BrowserWindow({
-    width: isVisualCapture ? captureWidth : 1200,
-    height: isVisualCapture ? captureHeight : 800,
+    width: isVisualCapture ? captureWidth : 1920,
+    height: isVisualCapture ? captureHeight : 1080,
     minWidth: 980,
     minHeight: 680,
     show: !isVisualCapture,

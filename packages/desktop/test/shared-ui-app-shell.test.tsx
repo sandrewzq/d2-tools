@@ -69,4 +69,36 @@ describe("shared UI AppShell", () => {
     expect(html).toContain("Bungie");
     expect(html).not.toContain("1 个运行中");
   });
+
+  it("does not keep the floating dock visible after every background task has failed", () => {
+    const html = renderToStaticMarkup(
+      <AppShell
+        activePage="account"
+        assistantMode={null}
+        colorMode="dark"
+        shellStatus={[{ key: "account", label: "账号", value: "已读取", tone: "ready" }]}
+        backgroundTasks={[
+          {
+            task_id: "account-activity:test",
+            title: "读取最近活动",
+            status: "failed",
+            error: "fetch failed",
+            updated_at: "2026-07-10T09:16:00+08:00"
+          }
+        ]}
+        assistantPanel={<p>AI 助手</p>}
+        platformActions={{ openExternal: vi.fn() }}
+        onNavigate={() => {}}
+        onAssistantModeChange={() => {}}
+        onColorModeToggle={() => {}}
+        onOpenBackgroundTasks={() => {}}
+      >
+        <section>账号内容</section>
+      </AppShell>
+    );
+
+    expect(html).not.toContain("background-task-dock");
+    expect(html).not.toContain("1 个后台任务");
+    expect(html).not.toContain("读取最近活动");
+  });
 });

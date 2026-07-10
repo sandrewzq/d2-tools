@@ -203,7 +203,7 @@ function getBackgroundTaskDockState(tasks: ShellBackgroundTaskItem[], copy: Shel
   helper: string;
   tasks: ShellBackgroundTaskItem[];
 } | null {
-  const importantTasks = tasks.filter((task) => isBackgroundTaskActive(task) || isBackgroundTaskFailed(task));
+  const importantTasks = tasks.filter(isBackgroundTaskActive);
 
   if (!importantTasks.length) {
     return null;
@@ -214,30 +214,23 @@ function getBackgroundTaskDockState(tasks: ShellBackgroundTaskItem[], copy: Shel
     ...tasks.filter((task) => !importantTasks.includes(task))
   ].slice(0, 5);
   const primaryTask = importantTasks[0];
-  const failedCount = importantTasks.filter(isBackgroundTaskFailed).length;
   const activeCount = importantTasks.filter(isBackgroundTaskActive).length;
-  const tone = failedCount ? "error" : importantTasks.some((task) => task.status === "retrying") ? "warning" : "active";
+  const tone = importantTasks.some((task) => task.status === "retrying") ? "warning" : "active";
   const count = importantTasks.length;
 
   return {
     tone,
     summary: copy.backgroundTasks.itemCount(count),
     primaryTitle: primaryTask?.title ?? copy.backgroundTasks.fallbackTitle,
-    helper: failedCount
-      ? copy.backgroundTasks.failedSummary(failedCount)
-      : activeCount
-        ? copy.backgroundTasks.activeSummary(activeCount)
-        : copy.backgroundTasks.recentSummary,
+    helper: activeCount
+      ? copy.backgroundTasks.activeSummary(activeCount)
+      : copy.backgroundTasks.recentSummary,
     tasks: orderedTasks
   };
 }
 
 function isBackgroundTaskActive(task: ShellBackgroundTaskItem): boolean {
   return task.status === "queued" || task.status === "running" || task.status === "retrying";
-}
-
-function isBackgroundTaskFailed(task: ShellBackgroundTaskItem): boolean {
-  return task.status === "failed" || task.status === "blocked";
 }
 
 function getBackgroundTaskTone(task: ShellBackgroundTaskItem): "active" | "warning" | "ready" | "error" | "neutral" {

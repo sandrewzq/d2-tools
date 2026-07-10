@@ -125,7 +125,7 @@ describe("shared UI page views", () => {
               status: "ready",
               message: "本周周报已读取。",
               items: [
-                { title: "玻璃小径", subtitle: "本周日落任务", description: "奖励武器：热头" },
+                { title: "玻璃小径", subtitle: "先锋行动 · 宗师先锋警戒", description: "奖励武器：热头" },
                 { title: "国王的陨落", subtitle: "本周轮换突袭", description: "可反复刷取轮换奖励" },
                 { title: "守望者尖塔", subtitle: "本周轮换地牢", description: "可反复刷取轮换奖励" },
                 { title: "先锋声望加成", subtitle: "本周加成", description: "先锋声望额外奖励" },
@@ -151,17 +151,17 @@ describe("shared UI page views", () => {
     );
     const weeklyPanel = html.slice(html.indexOf("home-weekly-panel"));
 
-    expect(weeklyPanel).toContain("本周日落任务");
+    expect(weeklyPanel).toContain("先锋行动 · 宗师先锋警戒");
     expect(weeklyPanel).toContain("玻璃小径");
     expect(weeklyPanel).toContain("奖励武器：热头");
     expect(weeklyPanel).toContain("本周轮换突袭");
     expect(weeklyPanel).toContain("国王的陨落");
     expect(weeklyPanel).toContain("本周轮换地牢");
     expect(weeklyPanel).toContain("守望者尖塔");
-    expect(weeklyPanel).toContain("本周加成");
-    expect(weeklyPanel).toContain("先锋声望加成");
-    expect(weeklyPanel).toContain("特殊活动");
-    expect(weeklyPanel).toContain("曙光节");
+    expect(weeklyPanel).not.toContain("本周加成");
+    expect(weeklyPanel).not.toContain("先锋声望加成");
+    expect(weeklyPanel).not.toContain("特殊活动");
+    expect(weeklyPanel).not.toContain("曙光节");
     expect(weeklyPanel).toContain("奇异商人");
     expect(weeklyPanel).toContain("关键库存 8 件已读取");
     expect(weeklyPanel).toContain("公共线索");
@@ -294,13 +294,21 @@ describe("shared UI page views", () => {
               status: "ready",
               title: "国王的陨落",
               detail: "轮换突袭可反复刷取",
-              evidence: "Bungie 周维度数据"
+              evidence: "Bungie 周维度数据",
+              entries: [
+                { title: "救赎的边缘", detail: "周常突袭挑战" },
+                { title: "门徒誓约", detail: "周常突袭挑战" }
+              ]
             },
             rotating_dungeon: {
               status: "ready",
               title: "守望者尖塔",
               detail: "轮换地牢可反复刷取",
-              evidence: "Bungie 周维度数据"
+              evidence: "Bungie 周维度数据",
+              entries: [
+                { title: "晚星之主", detail: "周常地牢挑战" },
+                { title: "二象性", detail: "周常地牢挑战" }
+              ]
             },
             weekly_bonus: {
               status: "ready",
@@ -323,11 +331,11 @@ describe("shared UI page views", () => {
     const weeklyPanel = html.slice(html.indexOf("home-weekly-panel"));
 
     expect(weeklyPanel).toContain("玻璃小径：大师");
-    expect(weeklyPanel).toContain("国王的陨落");
-    expect(weeklyPanel).toContain("守望者尖塔");
-    expect(weeklyPanel).toContain("先锋声望加成");
-    expect(weeklyPanel).toContain("曙光节");
-    expect(weeklyPanel).not.toContain("日落任务待确认");
+    expect(weeklyPanel).toContain("救赎的边缘 / 门徒誓约");
+    expect(weeklyPanel).toContain("晚星之主 / 二象性");
+    expect(weeklyPanel).not.toContain("先锋声望加成");
+    expect(weeklyPanel).not.toContain("曙光节");
+    expect(weeklyPanel).not.toContain("宗师先锋警戒待确认");
     expect(weeklyPanel).not.toContain("轮换突袭待确认");
     expect(weeklyPanel).not.toContain("轮换地牢待确认");
     expect(weeklyPanel).not.toContain("奖励加成待确认");
@@ -455,9 +463,11 @@ describe("shared UI page views", () => {
 
     expect(dailyPanel).toContain("今日世界遗失区域");
     expect(dailyPanel).toContain("9 个区域");
-    for (const item of lostSectorItems) {
-      expect(dailyPanel).toContain(item.title);
-    }
+    expect(dailyPanel).toContain("采石场");
+    expect(dailyPanel).toContain("萃取地");
+    expect(dailyPanel).toContain("地堡E15");
+    expect(dailyPanel).not.toContain("镀金箴言");
+    expect(dailyPanel).toContain("另有 6 个区域");
     expect(dailyPanel).toContain("欧洲无人区");
     expect(dailyPanel).toContain("勇士：屏障、势不可挡");
     expect(dailyPanel).toContain("护盾：烈日、虚空");
@@ -473,7 +483,6 @@ describe("shared UI page views", () => {
     expect(dailyPanel).not.toContain("Manifest");
     expect(dailyPanel).toContain("重点商人");
     expect(dailyPanel).toContain("规则整理中");
-    expect(dailyPanel).not.toContain("另有 6 个区域");
     expect(dailyPanel).not.toContain("账号提醒");
     expect(dailyPanel).not.toContain("只显示会影响今天游玩决策的账号提醒");
     expect(dailyPanel).not.toContain("每日武器商人");
