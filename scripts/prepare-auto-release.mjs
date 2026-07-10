@@ -111,7 +111,8 @@ function updateChangelog(version, dryRun) {
   const changelog = readFileSync(changelogPath, "utf8");
   const heading = `## ${version}`;
   if (changelog.split(/\r?\n/).some((line) => line.startsWith(heading))) {
-    throw new Error(`CHANGELOG.md already contains a section for ${version}.`);
+    console.log(`Reusing existing CHANGELOG.md section for ${version}.`);
+    return false;
   }
 
   const section = buildChangelogSection(version);
@@ -123,6 +124,7 @@ function updateChangelog(version, dryRun) {
   if (!dryRun) {
     writeFileSync(changelogPath, nextChangelog, "utf8");
   }
+  return true;
 }
 
 function main() {
@@ -143,12 +145,13 @@ function main() {
     }
   }
 
-  updateChangelog(nextVersion, dryRun);
+  const changelogUpdated = updateChangelog(nextVersion, dryRun);
 
   console.log(JSON.stringify({
     currentVersion,
     nextVersion,
     releaseTag: `v${nextVersion}`,
+    changelogUpdated,
     packageFiles: packageFiles.map((file) => file.replace(`${repoRoot}\\`, "").replaceAll("\\", "/")),
     dryRun
   }, null, 2));

@@ -20,8 +20,7 @@ try {
 
   Write-Host ""
   Write-Host "=== 2/3 构建 + 测试 + 类型检查 ===" -ForegroundColor Cyan
-  npx pnpm@9.15.0 build
-  npx vitest --run
+  npx pnpm@9.15.0 test
   npx pnpm@9.15.0 typecheck
 
   Write-Host ""

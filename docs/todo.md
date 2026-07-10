@@ -7,7 +7,8 @@
 
 | 检查项 | 状态 | 备注 |
 |---|---|---|
-| `pnpm test` | ✅ 通过 | 本轮 Release v0.0.11 断言同步后全量验证通过：165 个测试文件 / 620 条测试 |
+| `pnpm test` | ✅ 通过 | 发布门禁已通过：行为层 102 个文件 / 353 条，架构层 14 个文件 / 59 条；质量门禁确认没有新增源码字符串测试 |
+| `pnpm test:legacy` | ✅ 报告通过 | 59 个遗留文件 / 284 条旧源码护栏当前通过；该层在 GitHub CI 中只报告、不阻断发布 |
 | `pnpm typecheck` | ✅ 通过 | 本次全仓类型检查通过 |
 | `pnpm docs:check` | ✅ 通过 | 本轮文档结构与编码检查通过 |
 
@@ -68,6 +69,8 @@
 | ✅ 已修复 | Bug #69 首页：本周更新错误依赖 daily summary | 新增独立 `weekly:summary`、core weekly live data / summary 和 renderer `getWeeklySummary`；首页本周五个固定关注位优先读取 `weeklySummary`，`dailySummary.sources.weekly_report` 只保留旧数据兼容，不再作为本周主入口 |
 | ✅ 已修复 | Bug #70 后台任务：失败后仍显示浮动后台任务 | `AppShell` 右下角浮动后台任务 dock 只由 queued / running / retrying 任务触发；failed / blocked 记录保留在设置页诊断入口，不再误显示为“1 个后台任务”。 |
 | ✅ 已修复 | Bug #71 首页：轮换突袭混入公共突袭列表 | 首页没有 `weeklySummary` 时不再从 `dailySummary.weekly_report` 或 `dailySummary.rotations` 猜测周常主卡；公共突袭 / 地牢里程碑只保留为线索，不会升级成已确认轮换突袭或地牢。 |
+| ✅ 已修复 | Bug #75 发布脚本：本地代码未通过 CI 仍会 push | `git-auto-release.cmd` 在修改版本、commit、push 和 tag 前执行 frozen install、发布测试门禁与全量类型检查；失败时显示具体阶段和原始输出并等待按键，不继续发布。CI 通过后才准备版本和执行 Release 专属校验。 |
+| ✅ 已修复 | Bug #76 测试：源码字符串断言过多导致需求变化后 CI 假失败 | 测试拆为行为、架构和遗留三层；发布门禁只阻断真实行为、明确架构契约和测试质量规则，59 个现有源码字符串测试独立报告且不阻断。新增 `test:quality` 冻结遗留清单，禁止继续增加匹配变量名、class、HTML 或 CSS 的普通功能测试；账号最高光等反馈已迁为真实共享 UI 渲染测试，3 条过时 UI / 布局断言已删除。 |
 
 ## 当前任务目录
 

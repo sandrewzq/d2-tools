@@ -31,7 +31,8 @@ Vibecoding 快路径：
 - 跨端 UI / Prototype / Web 的中途循环优先使用 `pnpm verify:vibe:ui`；文档或工具测试中途循环可用 `pnpm verify:vibe:docs`。
 - 交接、提交、合并或声称门禁通过前，按实际改动范围只选一个主 `verify:*`。只有确实同时修改两个独立边界时才运行两个范围门禁；不要把 `verify`、`verify:ui`、`verify:desktop` 当作固定组合全部执行。
 - 视觉脚本只在实际修改布局、CSS、主题、响应式断点、窗口视口表现或截图目标时运行；纯数据、类型、IPC、文案和接线改动默认不跑视觉检查。
-- 测试断言优先检查稳定行为、结构、导出、role / label 或 ViewModel 输出；避免把中文文案、源码 import 顺序、整段 HTML 或 CSS 片段作为普通功能断言。
+- 测试断言优先检查稳定行为、导出、role / label 或 ViewModel 输出；禁止新增读取生产源码后匹配中文文案、变量名、import 顺序、HTML、class 或 CSS 片段的普通功能测试，`pnpm test:quality` 会直接拦截。
+- `pnpm test` 的发布门禁只包含行为测试、测试质量检查和明确列入白名单的架构测试；现有源码字符串测试由 `pnpm test:legacy` 单独报告，不阻断 CI。迁移旧测试时必须同步缩小 `scripts/test-classification.mjs` 的遗留清单。
 - 用户只需要描述业务目标，例如“开发商人菜单内的功能”“优化商人菜单的交互”。agent 必须自行识别菜单、改动类型和默认修改范围，不要求用户提供 Red / Green / Tidy 模板或精确文件清单。
 - agent 生成计划时必须把菜单开发循环拆成短任务：`Red: <菜单>边界测试`、`Green: <菜单>最小实现`、`Tidy: <菜单>整理`、`Verify: <菜单>验证`。不要使用“补失败测试锁定 xxx model + actions 边界”这类同时包含测试、实现、整理和验证的混合任务名。
 - Red 阶段只允许写或调整能失败的测试，不改实现文件，不运行 `git diff --check`，不清 BOM、空白或无关 diff；Green 阶段只做让该测试通过的最小实现，不做顺手重构；Tidy 阶段才处理编码、空白、`git diff --check` 和机械整理；Verify 阶段只运行当前切片需要的定向验证。
@@ -42,7 +43,7 @@ Vibecoding 快路径：
 - 优先使用已有脚本别名，不自行拼复杂命令。
 - 发现无关脏文件时只记录，不回退、不格式化、不顺手修。
 - 需要跨越两个以上 package 或触碰高冲突文件时，先说明影响范围再动手。
-- 最终回答必须写清楚运行过哪些验证；没跑全量 `pnpm test` / `pnpm typecheck` 时直接说明。
+- 最终回答必须写清楚运行过哪些验证；没跑发布门禁 `pnpm test` / `pnpm typecheck` 时直接说明。`pnpm test:all` 仅用于专项清理遗留测试，不是发布门禁。
 
 ## 并行开发边界
 
@@ -130,5 +131,5 @@ Vibecoding 快路径：
 - 改 release、CHANGELOG、版本号或发布脚本时，至少运行 `pnpm verify:release`。
 - `pnpm verify` 是跨领域中等门禁，不是范围门禁的固定补充；已经运行 `verify:ui`、`verify:desktop` 或 `verify:release` 时，除非改动跨越其覆盖范围，否则不要再运行 `pnpm verify`。
 - 一次收尾最多运行一次相同命令；命令失败后修改代码再重跑不受此限制。
-- 只有在发布、提交 release、声称全仓检查通过、或用户明确要求全量验证前，才运行发布级 `pnpm test` 和 `pnpm typecheck`。
-- 如果没有运行全量测试，最终回答必须明确说明已运行哪些定向验证，以及没有运行全量 `pnpm test` / `pnpm typecheck`。
+- 只有在发布、提交 release、声称发布门禁通过、或用户明确要求时，才运行发布级 `pnpm test` 和 `pnpm typecheck`。`pnpm test:all` 会额外执行非阻断遗留测试，只在清理测试债务时运行。
+- 如果没有运行发布门禁，最终回答必须明确说明已运行哪些定向验证，以及没有运行 `pnpm test` / `pnpm typecheck`。

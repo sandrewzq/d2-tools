@@ -49,14 +49,11 @@ jobs:
             throw "Release tag $tagName must match v$rootVersion or a prerelease tag like v$rootVersion-beta.1 / v$rootVersion-rc.1"
           }
 
-      - name: Build
-        run: pnpm build
-
       - name: Test
-        run: pnpm vitest --run
+        run: pnpm test
 
       - name: Typecheck
-        run: pnpm -r typecheck
+        run: pnpm typecheck
 
       - name: Build Windows NSIS installer
         run: cd packages/desktop && pnpm exec electron-builder --config electron-builder.yml --win nsis --publish never

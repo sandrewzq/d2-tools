@@ -295,7 +295,7 @@ npx pnpm@9.15.0 dev:electron
 - `tools/dev-status.cmd`：只读查看 Prototype / Web / Desktop 开发端口占用情况。
 - `tools/git-preflight.cmd`：只读按文档、工具、跨端 UI、Desktop、core/services/app/http 分组查看 Git 改动，识别菜单 lane / 共享层风险 / 多 lane 混改，并提示建议验证命令、高冲突文件和并行安全建议。
 - `tools/git-commit-and-push.cmd`：全量提交并 push，不创建 release tag。
-- `tools/git-auto-release.cmd`：先检查当前版本 GitHub Release 是否存在；失败或缺失时复用当前版本并更新同名 tag 重跑发布，已成功时才自动 patch +1 版本、生成 changelog、提交、push 并创建新 release tag。
+- `tools/git-auto-release.cmd`：先检查当前版本 GitHub Release 是否存在，并在任何版本修改、commit、push 或 tag 之前执行与 GitHub CI 一致的 frozen install、发布测试门禁和全量类型检查。失败时保留错误输出、显示失败阶段并等待按键；通过后，Release 缺失则复用当前版本更新同名 tag，已成功才自动 patch +1、生成 changelog、提交、push 并创建新 release tag。
 
 命名规则：本地开发启动脚本使用 `dev-` 前缀，Git / Release 辅助脚本使用 `git-` 前缀，后续批量维护脚本优先使用 `maintenance-` 前缀。
 
@@ -329,7 +329,7 @@ npx pnpm@9.15.0 verify:vibe:desktop:vault
 | 视觉 | 只运行一个与实际视觉改动匹配的 `visual:*` | 纯数据、类型、IPC、文案和接线改动不跑视觉脚本 |
 | 发布 | 按发布流程运行全量 `test` / `typecheck` | 日常小改动不提前支付发布级成本 |
 
-测试断言优先检查稳定契约，例如组件可渲染、导出存在、role / label、关键 class 结构和 ViewModel 输出。不要把普通功能测试写成源码中文、import 顺序、整段 HTML 或大段 CSS 的字符串匹配；这类检查只用于边界规则或迁移保护。
+测试断言优先检查稳定契约，例如真实函数输出、组件渲染结果、导出、role / label 和 ViewModel 输出。禁止新增读取生产源码后匹配中文文案、变量名、import 顺序、HTML、class 或 CSS 片段的普通功能测试；`test:quality` 会阻止这类测试进入遗留层。只有少量明确登记的包依赖、renderer 隔离、格式和 Release 契约可以作为架构测试。
 
 用户提出菜单功能或交互需求时，不需要提供 Red / Green / Tidy 模板、精确文件清单或测试命令。agent 必须自行识别菜单和改动类型，并按以下默认循环拆任务：
 
@@ -376,6 +376,11 @@ npx pnpm@9.15.0 test:docs
 
 ```powershell
 npx pnpm@9.15.0 test:fast
+npx pnpm@9.15.0 test:behavior
+npx pnpm@9.15.0 test:architecture
+npx pnpm@9.15.0 test:quality
+npx pnpm@9.15.0 test:legacy
+npx pnpm@9.15.0 test:all
 npx pnpm@9.15.0 test:ui
 npx pnpm@9.15.0 test:desktop
 npx pnpm@9.15.0 test:desktop:account
@@ -386,7 +391,7 @@ npx pnpm@9.15.0 test:desktop-wiring
 npx pnpm@9.15.0 test:release
 ```
 
-`test:fast` 直接运行 Vitest，不预先全仓 build；`test:ui` 跑共享 UI / 跨端页面收口相关测试；`test:desktop` 跑桌面端测试；`test:desktop:account`、`test:desktop:ai`、`test:desktop:loadouts`、`test:desktop:vault` 是菜单私有快测；`test:desktop-wiring` 只跑桌面接线、边界和打包格式相关快测；`test:release` 只跑 release 规则、changelog 提取和安装包格式相关快测。测试集合由 `scripts/run-test-set.mjs` 维护，避免 Windows shell 通配差异导致漏跑。普通功能改动优先跑相关定向测试，例如：
+`test:behavior` 运行真实调用模块或渲染组件的行为测试；`test:architecture` 只运行显式登记的架构和发布契约；`test:quality` 禁止新增源码字符串测试并要求遗留清单只能缩小；`test:legacy` 运行现有源码文本护栏，仅用于报告和逐步迁移；`test:all` 才会运行仓库内全部 Vitest 文件。`test:fast` 是 `test:behavior` 的别名，不预先 build。`test:ui` 跑共享 UI / 跨端页面收口相关测试；`test:desktop` 跑桌面端测试；`test:desktop:account`、`test:desktop:ai`、`test:desktop:loadouts`、`test:desktop:vault` 是菜单私有快测；`test:desktop-wiring` 只跑桌面接线、边界和打包格式相关快测；`test:release` 只跑 release 规则、changelog 提取和安装包格式相关快测。测试集合由 `scripts/run-test-set.mjs` 维护，避免 Windows shell 通配差异导致漏跑。普通功能改动优先跑相关定向测试，例如：
 
 ```powershell
 npx pnpm@9.15.0 vitest --run packages/desktop/test/package-format.test.ts
@@ -422,7 +427,7 @@ npx pnpm@9.15.0 verify:release
 
 `verify:vibe:*` 只用于还要继续修改代码的中途循环；若已经准备收尾，不再运行。若它已经在当前代码状态通过，使用对应 `verify:finish:*` 完成剩余检查。通用 `verify` 只用于跨领域且没有更精确范围门禁的情况。
 
-发布级全量测试：
+发布测试门禁：
 
 ```powershell
 npx pnpm@9.15.0 test
@@ -434,20 +439,21 @@ npx pnpm@9.15.0 test
 npx pnpm@9.15.0 typecheck
 ```
 
-`test` 会先跑 `docs:check`，再全仓 build，最后全量 Vitest；`typecheck` 会先 build `core`、`http` 和 `services`，再全仓类型检查。它们更适合发布、release、CI 或声称“全仓通过”前使用，不作为每次 vibecoding 小改动的默认动作。
+`test` 会先跑 `docs:check` 和全仓 build，再依次运行行为测试、测试质量门禁和架构测试；它不执行 `test:legacy`。`typecheck` 会先 build `core`、`http` 和 `services`，再全仓类型检查。它们更适合发布、release、CI 或声称“发布门禁通过”前使用，不作为每次 vibecoding 小改动的默认动作。
 
 GitHub Actions 中的最小 CI 会在 Windows runner 上执行：
 
 1. `pnpm install --frozen-lockfile`
 2. `pnpm test`
-3. `pnpm typecheck`
+3. `pnpm test:legacy`，`continue-on-error`，只报告遗留护栏
+4. `pnpm typecheck`
 
-也就是说，任何会影响依赖锁文件、测试结果、类型边界或文档检查脚本的改动，都会在 PR / push 阶段被拦截。
+也就是说，真实行为、架构契约、类型边界、文档检查和新增低质量测试会在 PR / push 阶段被拦截；旧 UI 源码字符串护栏仍展示结果，但不会因为实现变量名、class 或 CSS 数值变化阻止发布。
 
 如果你只想跑桌面端某个定向测试，也可以直接用：
 
 ```powershell
-npx pnpm@9.15.0 vitest --run packages/desktop/src/vault-panel.test.ts
+npx pnpm@9.15.0 vitest --run packages/desktop/test/vault-panel.test.ts
 ```
 
 ## 5. 打包
@@ -461,10 +467,9 @@ powershell -File scripts/local-package.ps1
 该脚本内部执行：
 
 1. `pnpm install`
-2. `pnpm build`
-3. `vitest --run`
-4. `pnpm typecheck`
-5. `pnpm package:win`
+2. `pnpm test`
+3. `pnpm typecheck`
+4. `pnpm package:win`
 
 打包链路主要用于发布前或需要验证 Windows NSIS 安装器时；日常开发优先使用 `npx pnpm@9.15.0 dev:desktop`，不要为了看一次本地改动反复打包安装。
 
@@ -493,23 +498,27 @@ packages/desktop/release/
 
 ### 6.1 发版流程
 
-1. 更新所有 `package.json` 版本号（root、core、app、services、desktop、http 保持一致）
-2. 更新 `CHANGELOG.md`，新增 `## x.y.z - YYYY-MM-DD` 章节
-3. 本地预览 Release Body：
+使用 `tools\git-auto-release.cmd` 时，脚本按以下顺序执行：
+
+1. 检查 Git、GitHub CLI、当前 Release 和目标 tag 状态。
+2. 在修改发布文件之前执行本地 CI：`pnpm install --frozen-lockfile`、`pnpm test`、`pnpm typecheck`。
+3. 任一 CI 步骤失败时停止流程，显示失败阶段和原始命令输出，并等待按键确认；此时不会 commit、push、打 tag 或触发 GitHub Release。
+4. CI 通过后才更新所有 `package.json` 版本号和 `CHANGELOG.md`；重试当前失败版本时复用已有版本。
+5. 运行 `pnpm verify:release` 和 Release Body 预览：
    ```powershell
    npx pnpm@9.15.0 release:preview --version x.y.z
    ```
-4. 提交改动：
+6. 提交改动：
    ```powershell
    git add .
    git commit -m "release: prepare vX.Y.Z"
    ```
-5. 打 tag 并推送：
+7. push 分支、创建或更新 tag，并推送 tag：
    ```powershell
    git tag vX.Y.Z
    git push origin vX.Y.Z
    ```
-6. CI 自动构建、校验 CHANGELOG、生成 Release Body 并发布 GitHub Release
+8. GitHub Release workflow 自动构建安装包、校验 CHANGELOG、生成 Release Body 并发布 GitHub Release。
 
 ### 6.2 注意事项
 
@@ -520,11 +529,12 @@ packages/desktop/release/
 
 ### 6.3 发布前检查
 
-1. `test` 通过
-2. `typecheck` 通过
-3. `pnpm release:preview --version x.y.z` 输出符合预期
-4. README 和核心文档没有明显失真
-5. 版本号和 tag 一致
+1. `pnpm install --frozen-lockfile` 通过
+2. `test` 通过
+3. `typecheck` 通过
+4. `pnpm release:preview --version x.y.z` 输出符合预期
+5. README 和核心文档没有明显失真
+6. 版本号和 tag 一致
 
 ### 6.4 备份与恢复
 

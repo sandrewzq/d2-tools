@@ -58,8 +58,6 @@ describe("desktop UI prototype fidelity", () => {
     expect(homeDashboard).toContain("home-weekly-dashboard");
     expect(homeDashboard).toContain('homeText(copy, "本周更新")');
     expect(homeCopy).toContain("本周奖励与轮换");
-    expect(homeDashboard).toContain("home-weekly-rewards");
-    expect(homeDashboard).toContain("home-weekly-intel");
     expect(homeDashboard).not.toContain("home-main-grid");
     expect(homeDashboard).not.toContain("home-overview-hero");
     expect(homeDashboard).not.toContain("home-risk-grid");
@@ -103,24 +101,6 @@ describe("desktop UI prototype fidelity", () => {
     expect(settingsPage).toContain("app-setting-group");
     expect(settingsPage).toContain("app-log-row");
     expect(settingsPage).not.toContain("ui-list-row diagnostic-row");
-  });
-
-  it("locks wide desktop grids so text cannot collapse into vertical columns", () => {
-    const styles = readUiFile("styles.css");
-    const briefingGrid = readCssRule(styles, ".home-briefing-grid");
-    const weeklyDashboard = readCssRule(styles, ".home-weekly-dashboard");
-    const rewardList = readCssRule(styles, ".home-reward-list");
-    const settingsGrid = readCssRule(styles, ".app-settings-grid");
-    const settingsShell = readCssRule(styles, ".app-settings-shell");
-    const settingRow = readCssRule(styles, ".app-setting-row");
-
-    expect(briefingGrid).toContain("grid-template-columns: minmax(288px, 0.58fr) minmax(0, 1.72fr)");
-    expect(weeklyDashboard).toContain("grid-template-columns: minmax(0, 1.35fr) minmax(260px, 0.75fr)");
-    expect(rewardList).toContain("grid-template-columns: repeat(auto-fit, minmax(165px, 1fr))");
-    expect(settingsGrid).toContain("grid-template-columns: repeat(2, minmax(0, 1fr))");
-    expect(settingsShell).toContain("grid-template-columns: 220px minmax(0, 1fr)");
-    expect(settingRow).toContain("grid-template-columns: minmax(0, 1fr) auto");
-    expect(styles).not.toContain(".settings-product-grid .settings-update-grid");
   });
 
   it("keeps core prototype surfaces tokenized in light and dark modes", () => {

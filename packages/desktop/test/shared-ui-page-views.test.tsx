@@ -869,6 +869,41 @@ describe("shared UI page views", () => {
     expect(html).toContain("猎人");
   });
 
+  it("renders highest-power feedback as an accessible status next to the account action", () => {
+    const html = renderToStaticMarkup(
+      <AccountPageContentView
+        interfaceLocale="zh-CN"
+        viewModel={selectAccountPageModel({
+          cache: {
+            accountSummary: accountPageSummary(),
+            activitySummary: null
+          },
+          pageState: {
+            selectedCharacterId: "account-char-1",
+            isBungieConfigured: true,
+            isAccountLoggedIn: true,
+            isLoadingAccount: false,
+            writeActionsEnabled: true,
+            accountError: "",
+            itemDetailError: "",
+            activityMessage: "",
+            activityError: "",
+            loadoutMessage: "最高光等执行完成",
+            itemActionMessage: "",
+            activeLoadoutName: ""
+          }
+        })}
+        actions={accountActions()}
+      />
+    );
+
+    expect(html).toContain('aria-describedby="highest-power-feedback"');
+    expect(html).toContain('id="highest-power-feedback"');
+    expect(html).toContain('role="status"');
+    expect(html).toContain('aria-live="polite"');
+    expect(html).toContain("最高光等执行完成");
+  });
+
   it("renders account equipment, inventory, loadout hits, and materials from the page model contract", () => {
     const html = renderToStaticMarkup(
       <AccountPageContentView

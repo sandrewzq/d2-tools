@@ -2,18 +2,61 @@
 
 这个项目使用面向玩家的更新日志。这里优先记录”玩家能感知到什么变化”，而不是逐条展开内部实现细节。
 
-## 0.0.13 - 2026-07-07
+## 0.0.13 - 2026-07-10
 
-### 修复
+### 中文
 
-- 修复 Prototype / Web 在候选 5 架构收口后可能把 Node 本地模块打进浏览器包的问题，避免启动时报 `node:path`、`node:fs` externalized 相关错误。
-- 首页今日信息继续保留 9 个可读世界遗失区域；即使 Bungie 公共里程碑只暴露一条遗失区域，也不会把资料库中的完整世界遗失区域列表覆盖成单条。
+#### 新增
 
-### 工程
+- 首页新增独立的每周活动简报，展示宗师先锋警戒、轮换突袭、轮换地牢和仄商人等重点信息，不再从每日摘要中猜测周常内容。
+- 遗失区域简报补充目的地、勇士、护盾、威胁、专家单人奖励和大师单人奖励，并保留最多 9 个可读世界遗失区域。
+- 资料库同名装备结果新增已核验版本、官方来源提示和当前公开渠道，帮助区分复刻、赛季及当前可获取状态。
 
+#### 改进
+
+- 桌面窗口默认尺寸调整为 1920×1080，首次打开即可获得更完整的工作区视野。
+- 首页、账号、仓库、配装、资料库、商人和设置页统一通过共享 ViewModel 输出；Prototype 与 Web 的 mock 数据迁入 FixtureRuntime，减少多端页面分叉。
+- 资料库装备定义详情重新整理信息密度，移除无法可靠帮助判断版本的重复提示、Perk 列数和实例级噪音。
+
+#### 修复
+
+- 修复 Prototype / Web 可能把 Node 本地模块打进浏览器包的问题，避免启动时报 `node:path`、`node:fs` externalized 相关错误。
+- 修复 Bungie 公共里程碑只有一条遗失区域时覆盖完整世界遗失区域列表的问题。
+- 修复需求变化后旧源码字符串断言误拦截 CI 和 Release 的问题；最高光等操作反馈改由真实共享 UI 渲染测试覆盖。
+- 发布脚本现在会在 commit、push 和 tag 前运行与 GitHub 一致的本地门禁，失败时保留完整原因并等待确认，不再推送已知无法发布的代码。
+
+#### 工程
+
+- 测试拆分为行为、架构和遗留三层。行为与架构测试阻断发布，59 个旧源码字符串测试只报告；质量门禁禁止继续新增匹配变量名、class、HTML 或 CSS 的普通功能测试。
 - `@d2-tools/services` 根入口恢复为浏览器安全入口；本地配置、OAuth callback、token store、Manifest cache 等 Node-only adapter 只能通过明确 subpath 在 Desktop 主进程或 worker 中使用。
-- 新增边界护栏，防止 Prototype、Web、共享 UI、app 查询层和 Desktop renderer 误导入 `@d2-tools/core` 根入口或把 Node-only services adapter 暴露给浏览器包。
-- 明确静态 HTML 参考稿只作为冻结视觉基准和规则样板，真实菜单 UI、交互和样式改动继续直接进入共享 UI、Prototype/Web/Desktop 壳或 app ViewModel。
+- 新增跨端包边界、renderer 隔离、发布契约和测试质量护栏；本地发布脚本、GitHub CI 与 Release workflow 使用同一套测试和类型检查门禁。
+
+### English
+
+#### Added
+
+- Added a dedicated weekly activity briefing for Grandmaster alerts, rotating raids, rotating dungeons, and Xur instead of inferring weekly data from the daily summary.
+- Expanded Lost Sector briefings with destination, champions, shields, threat, solo Legend rewards, solo Master rewards, and up to nine readable world Lost Sectors.
+- Added verified release information, official source hints, and current public availability to same-name Library results.
+
+#### Improved
+
+- Changed the default desktop window size to 1920×1080 for a fuller workspace on first launch.
+- Routed Home, Account, Vault, Loadouts, Library, Vendors, and Settings through shared ViewModels, while moving Prototype and Web mock data into FixtureRuntime modules.
+- Simplified Library definition details by removing duplicated version hints, unreliable perk-column metadata, and instance-only noise.
+
+#### Fixed
+
+- Fixed Prototype and Web builds accidentally pulling Node-only modules into browser bundles, preventing `node:path` and `node:fs` externalization errors at startup.
+- Fixed a single Bungie milestone Lost Sector from replacing the complete world Lost Sector list.
+- Fixed stale source-string assertions blocking CI and Release after requirements changed; highest-power action feedback is now covered by a real shared UI rendering test.
+- Updated the release script to run the same local gate as GitHub before commit, push, or tag creation, preserving the full failure reason and waiting for confirmation when validation fails.
+
+#### Engineering
+
+- Split tests into behavior, architecture, and legacy layers. Behavior and architecture tests block releases, while 59 legacy source-string test files are reported separately; a quality gate prevents new tests from matching implementation names, classes, HTML, or CSS.
+- Restored a browser-safe `@d2-tools/services` root entry and moved Node-only configuration, OAuth, token storage, and Manifest cache adapters behind explicit Desktop-only subpaths.
+- Added cross-platform package, renderer isolation, release contract, and test-quality guards. Local release, GitHub CI, and the Release workflow now use the same test and typecheck gates.
 
 ## 0.0.12 - 2026-07-06
 

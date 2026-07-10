@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process";
 import { existsSync, readdirSync } from "node:fs";
 import path from "node:path";
+import { classifyTestFiles, discoverTestFiles } from "./test-classification.mjs";
 
 const root = process.cwd();
 
@@ -62,7 +63,7 @@ const setName = process.argv[2];
 const passthroughArgs = process.argv.slice(3);
 
 if (!setName || setName === "--help" || setName === "/?") {
-  console.log("Usage: node scripts/run-test-set.mjs <ui|desktop-ai|desktop-vault|desktop-loadouts|desktop-account|desktop-wiring|release> [vitest args]");
+  console.log("用法: node scripts/run-test-set.mjs <behavior|architecture|legacy|ui|desktop-ai|desktop-vault|desktop-loadouts|desktop-account|desktop-wiring|release> [vitest 参数]");
   process.exit(setName ? 0 : 1);
 }
 
@@ -94,6 +95,10 @@ child.on("exit", (code, signal) => {
 });
 
 function resolveSet(name) {
+  if (["behavior", "architecture", "legacy"].includes(name)) {
+    return classifyTestFiles(discoverTestFiles(root))[name];
+  }
+
   if (exactSets[name]) {
     return assertExistingFiles(exactSets[name]);
   }
@@ -101,7 +106,7 @@ function resolveSet(name) {
   const dynamicSet = dynamicSets[name];
   if (!dynamicSet) {
     console.error(`Unknown test set: ${name}`);
-    console.error(`Known test sets: ${[...Object.keys(exactSets), ...Object.keys(dynamicSets)].sort().join(", ")}`);
+    console.error(`Known test sets: ${["behavior", "architecture", "legacy", ...Object.keys(exactSets), ...Object.keys(dynamicSets)].sort().join(", ")}`);
     process.exit(1);
   }
 

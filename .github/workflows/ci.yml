@@ -32,5 +32,9 @@ jobs:
       - name: Run tests
         run: pnpm test
 
+      - name: Report legacy source-inspection tests
+        continue-on-error: true
+        run: pnpm test:legacy
+
       - name: Run typecheck
         run: pnpm typecheck

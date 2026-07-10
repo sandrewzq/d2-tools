@@ -1,6 +1,6 @@
 {
   "name": "@d2-tools/ui",
-  "version": "0.0.12",
+  "version": "0.0.13",
   "private": true,
   "type": "module",
   "main": "dist/index.js",

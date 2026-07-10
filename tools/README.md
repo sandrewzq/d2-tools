@@ -28,7 +28,7 @@ tools/
 - `tools/dev-status.cmd`：只读查看 desktop/prototype/web 开发端口是否已被占用，不启动或结束任何进程。
 - `tools/git-preflight.cmd`：只读按文档、工具、跨端 UI、Desktop、core/services/app/http 分组查看 Git 改动，识别菜单 lane / 共享层风险 / 多 lane 混改，并提示建议验证命令、高冲突文件和并行安全建议；后续 agent 开工前优先运行它。
 - `tools/git-commit-and-push.cmd`：全量 `git add -A`；有变更就提交，没有变更就跳过；随后 push 当前分支；不创建 release tag。
-- `tools/git-auto-release.cmd`：维护者一键发布入口；先用 GitHub CLI 检查当前包版本对应的 GitHub Release 是否已存在；如果当前版本发布失败或 Release 缺失，则复用当前版本并更新同名 tag 重新触发发布；如果当前版本已发布成功，才自动把版本号 patch +1，例如 `0.0.11` 到 `0.0.12`，并更新所有 package 版本和 `CHANGELOG.md`；随后运行 `check`、`test:docs` 和 `release:preview`，全量提交、push、创建或更新 release tag。
+- `tools/git-auto-release.cmd`：维护者一键发布入口；先用 GitHub CLI 检查当前包版本对应的 GitHub Release 是否已存在，再在修改版本文件之前执行与 GitHub CI 一致的 `install --frozen-lockfile`、发布测试门禁和全量 `typecheck`。测试门禁包含文档、构建、行为、架构和测试质量检查，不包含非阻断的 `test:legacy`。任一步失败都会停止发布、保留完整错误输出、显示失败阶段并等待按键，不会继续 commit、push 或打 tag。CI 通过后，当前版本发布失败或 Release 缺失时复用当前版本并更新同名 tag；当前版本已发布成功时才自动把 patch 版本 +1，并更新 package 版本和 `CHANGELOG.md`，最后执行 Release 专属校验和发布。
 
 ## Agent 快路径
 
