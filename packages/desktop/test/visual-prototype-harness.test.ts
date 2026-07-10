@@ -371,10 +371,11 @@ describe("visual prototype harness", () => {
     expect(styles).toMatch(/\.app-shell\[data-color-mode="dark"\]\s*{[\s\S]*?--surface-page:\s*#0e1218;/);
     expect(styles).toMatch(/\.app-shell\[data-color-mode="dark"\]\s*{[\s\S]*?--surface-panel:\s*#171d26;/);
     expect(styles).toMatch(/\.app-shell\[data-color-mode="dark"\]\s*{[\s\S]*?--surface-subtle:\s*#1b222c;/);
-    expect(styles).toMatch(/\.home-briefing-grid\s*{[\s\S]*?grid-template-columns:\s*minmax\(360px,\s*0\.95fr\) minmax\(0,\s*1\.25fr\);/);
+    expect(styles).toMatch(/\.home-briefing-grid\s*{[\s\S]*?grid-template-columns:\s*minmax\(360px,\s*0\.68fr\) minmax\(680px,\s*1\.32fr\);/);
     expect(styles).toMatch(/\.home-weekly-dashboard\s*{[\s\S]*?grid-template-columns:\s*1fr;/);
-    expect(styles).toMatch(/\.home-weekly-primary-grid\s*{[\s\S]*?grid-template-columns:\s*minmax\(240px,\s*1\.12fr\) repeat\(2,\s*minmax\(190px,\s*0\.94fr\)\);/);
-    expect(styles).toMatch(/\.home-weekly-support\s*{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1\.32fr\) minmax\(240px,\s*0\.68fr\);/);
+    expect(styles).toMatch(/\.home-weekly-primary-grid\s*{[\s\S]*?grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\);/);
+    expect(styles).toMatch(/\.home-weekly-card\[data-source="nightfall"\]\s*{[\s\S]*?grid-column:\s*1 \/ -1;/);
+    expect(styles).toMatch(/\.home-weekly-support\s*{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1fr\) minmax\(220px,\s*0\.72fr\);/);
     expect(styles).not.toContain(".home-data-strip");
     expect(styles).not.toContain(".home-data-point");
   });

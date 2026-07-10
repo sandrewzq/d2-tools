@@ -322,9 +322,12 @@ describe("desktop workspace layout", () => {
     expect(homeDashboard).not.toContain("../daily/DailyPage");
     expect(homePage).not.toContain("function renderDailyPanel");
     expect(dailyPage).toContain("export function DailyPage");
-    expect(styles).toMatch(/\.home-briefing-grid\s*{[\s\S]*?grid-template-columns:\s*minmax\(360px,\s*0\.95fr\) minmax\(0,\s*1\.25fr\);/);
+    expect(styles).toMatch(/\.home-briefing-grid\s*{[\s\S]*?grid-template-columns:\s*minmax\(360px,\s*0\.68fr\) minmax\(680px,\s*1\.32fr\);/);
     expect(styles).toMatch(/\.home-weekly-dashboard\s*{[\s\S]*?grid-template-columns:\s*1fr;/);
-    expect(styles).toMatch(/\.home-weekly-support\s*{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1\.32fr\) minmax\(240px,\s*0\.68fr\);/);
+    expect(styles).toMatch(/\.home-weekly-primary-grid\s*{[\s\S]*?grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\);/);
+    expect(styles).toMatch(/\.home-weekly-card\s*{[\s\S]*?grid-template-rows:\s*auto auto auto;/);
+    expect(styles).toMatch(/\.home-weekly-card\[data-source="nightfall"\]\s*{[\s\S]*?grid-column:\s*1 \/ -1;/);
+    expect(styles).toMatch(/\.home-weekly-support\s*{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1fr\) minmax\(220px,\s*0\.72fr\);/);
     expect(styles).toMatch(/@media \(max-width:\s*1180px\)\s*{[\s\S]*?\.home-weekly-dashboard,[\s\S]*?\.home-main-grid,[\s\S]*?\.home-secondary-grid,[\s\S]*?\.app-settings-grid\s*{[\s\S]*?grid-template-columns:\s*1fr;/);
   });
 

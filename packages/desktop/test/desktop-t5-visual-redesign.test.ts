@@ -102,7 +102,7 @@ describe("desktop T5 visual redesign", () => {
     expect(homeDashboard).not.toContain("copy.sections.pending.title");
     expect(homeDashboard).not.toContain("copy.actions.runDiagnostics");
     expect(homeCopy).toContain("本周奖励与轮换");
-    expect(homeDashboard).toContain('homeText(copy, "每日重置、遗失区域和重点商人预留")');
+    expect(homeDashboard).toContain('homeText(copy, "每日重置和世界遗失区域")');
     expect(homeDashboard).toContain('homeText(copy, "先锋行动 · 宗师先锋警戒")');
     expect(homeDashboard).toContain('homeText(copy, "本周轮换突袭")');
     expect(homeDashboard).toContain('homeText(copy, "本周轮换地牢")');
@@ -122,8 +122,10 @@ describe("desktop T5 visual redesign", () => {
     expect(styles).toContain(".home-weekly-panel");
     expect(styles).toContain(".home-weekly-dashboard");
     expect(styles).toContain(".home-reward-list");
-    expect(styles).toMatch(/\.home-briefing-grid\s*{[\s\S]*?grid-template-columns:\s*minmax\(360px,\s*0\.95fr\) minmax\(0,\s*1\.25fr\);/);
+    expect(styles).toMatch(/\.home-briefing-grid\s*{[\s\S]*?grid-template-columns:\s*minmax\(360px,\s*0\.68fr\) minmax\(680px,\s*1\.32fr\);/);
     expect(styles).toMatch(/\.home-weekly-dashboard\s*{[\s\S]*?grid-template-columns:\s*1fr;/);
+    expect(styles).toMatch(/\.home-weekly-card\s*{[\s\S]*?grid-template-rows:\s*auto auto auto;/);
+    expect(styles).toMatch(/\.home-weekly-card\[data-source="nightfall"\]\s*{[\s\S]*?grid-column:\s*1 \/ -1;/);
   });
 
   it("uses the account A2 layout with visible backpack previews and a narrow secondary summary", () => {

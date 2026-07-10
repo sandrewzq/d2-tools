@@ -157,8 +157,8 @@ describe("shared UI i18n", () => {
 
     expect(html).toContain("Weekly update");
     expect(html).toContain("Daily update");
-    expect(html).toContain("Key vendors");
-    expect(html).toContain("Rules pending");
+    expect(html).not.toContain("Key vendors");
+    expect(html).not.toContain("Rules pending");
     expect(html).not.toContain("Account alerts");
     expect(html).toContain("Vanguard Ops · Grandmaster Vanguard Alerts");
     expect(html).toContain("Public clues");

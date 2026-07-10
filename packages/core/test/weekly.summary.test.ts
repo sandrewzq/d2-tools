@@ -3,6 +3,27 @@ import { buildWeeklyLiveDataFromBungie, fetchWeeklyLiveData } from "../src/weekl
 import { buildWeeklySummary } from "../src/weekly/summary";
 
 describe("weekly summary", () => {
+  it("keeps public raid milestones as clues instead of confirmed rotating raids", () => {
+    const liveData = buildWeeklyLiveDataFromBungie({
+      milestones: {
+        "1": {
+          displayProperties: { name: "Raid portal", description: "Public milestone only" },
+          activities: [{ activityHash: 100 }, { activityHash: 101 }]
+        }
+      },
+      definitions: {
+        activities: {
+          "100": { displayProperties: { name: "King's Fall: Standard" } },
+          "101": { displayProperties: { name: "Last Wish: Standard" } }
+        }
+      }
+    });
+
+    expect(liveData.items?.map((item) => item.weeklyActivityKind)).not.toContain("rotating_raid");
+    expect(liveData.public_clues?.map((item) => item.weeklyActivityKind)).toEqual(["public_clue"]);
+    expect(liveData.public_clues?.[0]?.subtitle).toContain("King's Fall: Standard");
+  });
+
   it("classifies Bungie milestone definitions into weekly priority data", () => {
     const liveData = buildWeeklyLiveDataFromBungie({
       milestones: {
@@ -25,11 +46,12 @@ describe("weekly summary", () => {
       }
     });
 
-    expect(liveData.items?.map((item) => item.weeklyActivityKind)).toEqual(["rotating_raid", "nightfall"]);
-    expect(liveData.items?.[0]?.title).toBe("Bungie 公共里程碑：国王的陨落");
+    expect(liveData.items?.map((item) => item.weeklyActivityKind)).toEqual(["nightfall"]);
+    expect(liveData.public_clues?.map((item) => item.weeklyActivityKind)).toEqual(["public_clue"]);
+    expect(liveData.public_clues?.[0]?.title).toBe("Bungie 公共里程碑：国王的陨落");
   });
 
-  it("builds fixed weekly priorities separately from daily summary", () => {
+  it("keeps unconfirmed public weekly activity items out of confirmed priorities", () => {
     const summary = buildWeeklySummary(new Date("2026-07-09T09:00:00.000Z"), {
       items: [
         {
@@ -43,9 +65,8 @@ describe("weekly summary", () => {
     }, { timeZone: "Asia/Shanghai" });
 
     expect(summary.priorities.rotating_raid).toMatchObject({
-      status: "ready",
-      title: "国王的陨落: 标准",
-      detail: "非完整掉落地图；国王的陨落: 标准 · 国王万岁"
+      status: "pending",
+      title: "轮换突袭待确认"
     });
     expect(summary.priorities.nightfall).toMatchObject({
       status: "pending",

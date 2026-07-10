@@ -4848,7 +4848,7 @@ button.vault-side-signal:not(:disabled):hover {
 }
 
 .home-weekly-primary-grid {
-  grid-template-columns: minmax(240px, 1.12fr) repeat(2, minmax(190px, 0.94fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--space-12);
 }
 
@@ -4857,11 +4857,12 @@ button.vault-side-signal:not(:disabled):hover {
   --weekly-source-bg: var(--surface-panel);
   --weekly-source-border: var(--border-subtle);
   display: grid;
-  grid-template-rows: auto minmax(38px, 1fr) auto;
+  grid-template-rows: auto auto auto;
+  align-content: start;
   gap: 8px;
   min-width: 0;
-  min-height: 136px;
-  padding: 14px;
+  min-height: 104px;
+  padding: 12px;
   border: 1px solid var(--weekly-source-border);
   border-radius: var(--radius-control);
   background:
@@ -4881,11 +4882,20 @@ button.vault-side-signal:not(:disabled):hover {
 }
 
 .home-weekly-card p {
+  display: -webkit-box;
+  overflow: hidden;
   margin: 0;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
 }
 
 .home-weekly-card .app-chip {
   justify-self: start;
+}
+
+.home-weekly-card[data-source="nightfall"] {
+  grid-column: 1 / -1;
+  min-height: 112px;
 }
 
 .home-weekly-card[data-source="nightfall"],
@@ -4929,7 +4939,7 @@ button.vault-side-signal:not(:disabled):hover {
 }
 
 .home-weekly-support {
-  grid-template-columns: minmax(0, 1.32fr) minmax(240px, 0.68fr);
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 0.72fr);
 }
 
 .home-weekly-support-section {
@@ -5312,7 +5322,7 @@ button.vault-side-signal:not(:disabled):hover {
 
 .home-briefing-grid {
   display: grid;
-  grid-template-columns: minmax(360px, 0.95fr) minmax(0, 1.25fr);
+  grid-template-columns: minmax(360px, 0.68fr) minmax(680px, 1.32fr);
   gap: var(--space-16);
   align-items: start;
 }
@@ -5357,7 +5367,7 @@ button.vault-side-signal:not(:disabled):hover {
 
 .home-summary-list {
   display: grid;
-  gap: 7px;
+  gap: 6px;
   margin-top: 4px;
 }
 
@@ -5370,7 +5380,7 @@ button.vault-side-signal:not(:disabled):hover {
 }
 
 .home-summary-list-item {
-  padding: 8px 9px;
+  padding: 7px 8px;
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-control);
   background: var(--surface-subtle);
@@ -5412,15 +5422,18 @@ button.vault-side-signal:not(:disabled):hover {
 
 .home-lost-sector-briefing {
   display: grid;
-  gap: 3px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 3px 10px;
   color: var(--text-muted);
   font-size: 12px;
   line-height: 1.4;
 }
 
 .home-lost-sector-reward {
+  grid-column: 1 / -1;
   display: grid;
-  gap: 2px;
+  grid-template-columns: 42px minmax(0, 1fr);
+  gap: 6px;
   padding-top: 4px;
 }
 

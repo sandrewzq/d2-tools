@@ -163,7 +163,6 @@ type HomeSummaryCard = {
   tone: HomeTone;
   badge: string;
   items?: HomeDailyItem[];
-  overflowLabel?: string;
 };
 
 export type HomePageViewProps = {
@@ -235,7 +234,7 @@ export function HomePageContentView(props: HomePageViewProps) {
   const weeklyBriefing = buildWeeklyBriefing(viewProps.dailySummary, viewProps.weeklySummary, copy);
   const xurSpotlight = buildXurSpotlight(viewProps.dailySummary?.sources.vendors, copy);
   const todayCards = buildTodayConfirmationCards(viewProps.dailySummary, copy);
-  const dailyResetStatus = formatResetStatus(viewProps.dailySummary?.daily_reset, copy.labels.dailyReset, homeText(copy, "每日重置、遗失区域和重点商人预留"));
+  const dailyResetStatus = formatResetStatus(viewProps.dailySummary?.daily_reset, copy.labels.dailyReset, homeText(copy, "每日重置和世界遗失区域"));
   const weeklyResetStatus = formatWeeklyResetStatus(viewProps.weeklySummary, viewProps.dailySummary, copy);
 
   return (
@@ -376,42 +375,34 @@ function buildWeeklyBriefing(
     };
   }
 
-  const weeklyItems = [
-    ...(dailySummary?.sources.weekly_report.items ?? []),
-    ...(dailySummary?.sources.rotations.items ?? [])
-  ].filter((item) => !isExcludedWeeklyItem(item));
-
-  const weeklyReportTone = sourceTone(dailySummary?.sources.weekly_report);
-  const rotationsTone = sourceTone(dailySummary?.sources.rotations);
-
   const cards: HomeWeeklyCard[] = [
     buildWeeklyCard({
       key: "nightfall",
       title: homeText(copy, "先锋行动 · 宗师先锋警戒"),
-      item: findWeeklyItem(weeklyItems, "nightfall", [/宗师先锋警戒|日落|Nightfall/i], [/勇士|护盾|威胁|Champion|Shield|Threat/i]),
+      item: undefined,
       fallbackValue: homeText(copy, "宗师先锋警戒待确认"),
       fallbackDetail: copy.fallback.nightfallWaiting,
-      tone: weeklyReportTone,
+      tone: "neutral",
       source: "nightfall",
       copy
     }),
     buildWeeklyCard({
       key: "raid",
       title: homeText(copy, "本周轮换突袭"),
-      item: findWeeklyItem(weeklyItems, "rotating_raid", [/轮换突袭|突袭|Raid/i], [/地牢|Dungeon|日落|Nightfall/i]),
+      item: undefined,
       fallbackValue: homeText(copy, "轮换突袭待确认"),
       fallbackDetail: homeText(copy, "确认后展示可刷奖励状态"),
-      tone: rotationsTone,
+      tone: "neutral",
       source: "raid",
       copy
     }),
     buildWeeklyCard({
       key: "dungeon",
       title: homeText(copy, "本周轮换地牢"),
-      item: findWeeklyItem(weeklyItems, "rotating_dungeon", [/轮换地牢|地牢|Dungeon/i]),
+      item: undefined,
       fallbackValue: homeText(copy, "轮换地牢待确认"),
       fallbackDetail: homeText(copy, "确认后展示可刷奖励状态"),
-      tone: rotationsTone,
+      tone: "neutral",
       source: "dungeon",
       copy
     }),
@@ -665,8 +656,9 @@ function findWeeklyItem(
   includes: RegExp[],
   excludes: RegExp[] = []
 ): HomeDailyItem | undefined {
-  return items.find((item) => inferWeeklyActivityKind(item) === kind)
-    ?? items.find((item) => {
+  const eligibleItems = items.filter((item) => !isUnconfirmedPublicWeeklyPriority(item, kind));
+  return eligibleItems.find((item) => inferWeeklyActivityKind(item) === kind)
+    ?? eligibleItems.find((item) => {
     const value = weeklyItemText(item);
     return includes.some((pattern) => pattern.test(value)) && !excludes.some((pattern) => pattern.test(value));
   });
@@ -731,7 +723,16 @@ function inferWeeklyActivityKind(item: HomeDailyItem): HomeWeeklyActivityKind | 
 }
 
 function isRecognizedWeeklyPriority(item: HomeDailyItem): boolean {
-  return Boolean(inferWeeklyActivityKind(item));
+  const kind = inferWeeklyActivityKind(item);
+  if (!kind) return false;
+  return !isUnconfirmedPublicWeeklyPriority(item, kind);
+}
+
+function isUnconfirmedPublicWeeklyPriority(item: HomeDailyItem, kind: HomeWeeklyActivityKind): boolean {
+  if (kind !== "rotating_raid" && kind !== "rotating_dungeon") {
+    return false;
+  }
+  return /Bungie.*(?:公共|public)|公共里程碑|非完整掉落地图/i.test(weeklyItemText(item));
 }
 
 function isKnownRaid(value: string): boolean {
@@ -877,16 +878,7 @@ function buildTodayConfirmationCards(dailySummary: HomeDailySummary | null, copy
     ];
   }
 
-  return [
-    ...sourceSummaryCards("lost-sector", homeText(copy, "遗失区域"), dailySummary.sources.lost_sector, copy),
-    {
-      key: "vendor-placeholder",
-      title: homeText(copy, "重点商人"),
-      message: homeText(copy, "规则整理中 · 完整库存先去商人页查看"),
-      tone: "neutral",
-      badge: homeText(copy, "预留")
-    }
-  ];
+  return sourceSummaryCards("lost-sector", homeText(copy, "遗失区域"), dailySummary.sources.lost_sector, copy);
 }
 
 function formatWeeklyResetStatus(
@@ -953,16 +945,13 @@ function sourceSummaryCards(keyPrefix: string, fallbackTitle: string, source: Ho
       }];
     }
 
-    const previewItems = readableItems.slice(0, 3);
-    const hiddenCount = Math.max(readableItems.length - previewItems.length, 0);
     return [{
       key: keyPrefix,
       title: homeText(copy, "今日世界遗失区域"),
       message: `${readableItems.length} 个区域 · 每个目的地每日 1 个`,
       tone: source.status === "ready" ? "ready" : "warning",
       badge: source.status === "ready" ? copy.labels.confirmed : copy.labels.pending,
-      items: previewItems,
-      overflowLabel: hiddenCount > 0 ? `另有 ${hiddenCount} 个区域，进入日报查看完整列表。` : undefined
+      items: readableItems
     }];
   }
 
@@ -1025,7 +1014,6 @@ function renderHomeSummaryCard(card: HomeSummaryCard) {
               {renderLostSectorBriefing(item)}
             </div>
           ))}
-          {card.overflowLabel ? <small>{card.overflowLabel}</small> : null}
         </div>
       ) : null}
       <span className={toneClass(card.tone, "app-chip")}>{card.badge}</span>
@@ -1049,18 +1037,16 @@ function renderLostSectorBriefing(item: HomeDailyItem) {
   return (
     <div className="home-lost-sector-briefing">
       {item.championTypes?.length ? <span>勇士：{item.championTypes.join("、")}</span> : null}
-      {item.shieldTypes?.length ? <span>护盾：{item.shieldTypes.join("、")}</span> : null}
-      {item.threatType ? <span>威胁：{item.threatType}</span> : null}
       {item.expertSoloRewards?.length ? (
         <div className="home-lost-sector-reward">
           <strong>专家：</strong>
-          <span>单人奖励：{item.expertSoloRewards.join("、")}</span>
+          <span>{item.expertSoloRewards.join("、")}</span>
         </div>
       ) : null}
       {item.masterSoloRewards?.length ? (
         <div className="home-lost-sector-reward">
           <strong>大师：</strong>
-          <span>单人奖励：{item.masterSoloRewards.join("、")}</span>
+          <span>{item.masterSoloRewards.join("、")}</span>
         </div>
       ) : null}
     </div>

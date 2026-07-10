@@ -150,7 +150,7 @@ export function buildWeeklyLiveDataFromBungie(input: BuildWeeklyLiveDataInput): 
       weeklyActivityKind
     };
 
-    if (weeklyActivityKind && weeklyActivityKind !== "public_clue") {
+    if (weeklyActivityKind && weeklyActivityKind !== "public_clue" && !isPublicMilestoneOnlyClue(weeklyActivityKind)) {
       items.push(item);
     } else {
       publicClues.push({ ...item, weeklyActivityKind: "public_clue" });
@@ -243,6 +243,10 @@ function inferWeeklyActivityKind(value: string): WeeklyPriorityKind | "public_cl
     return "rotating_raid";
   }
   return "public_clue";
+}
+
+function isPublicMilestoneOnlyClue(kind: WeeklyPriorityKind): boolean {
+  return kind === "rotating_raid" || kind === "rotating_dungeon";
 }
 
 function definitionRecord(definitions: DefinitionComponentData | null | undefined, hash: number | undefined): DefinitionRecord | undefined {

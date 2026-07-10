@@ -64,6 +64,7 @@
 | ✅ 已修复 | Bug #68 首页：本周确认数据仍显示待确认且仄商人误用列表首项 | 首页本周卡片会从 Bungie 公共里程碑标题 / 副标题 / 描述中提取已知突袭、地牢和日落名称，过滤“非完整掉落地图”等来源说明；仄商人区域恢复 0.0.12 紧凑库存样式，并按 `vendorHash=2190858386` 或仄 / Xur / 老九名称匹配，不再把 vendors 第一条其他商人当成仄 |
 | ✅ 已修复 | Bug #69 首页：本周更新错误依赖 daily summary | 新增独立 `weekly:summary`、core weekly live data / summary 和 renderer `getWeeklySummary`；首页本周五个固定关注位优先读取 `weeklySummary`，`dailySummary.sources.weekly_report` 只保留旧数据兼容，不再作为本周主入口 |
 | ✅ 已修复 | Bug #70 后台任务：失败后仍显示浮动后台任务 | `AppShell` 右下角浮动后台任务 dock 只由 queued / running / retrying 任务触发；failed / blocked 记录保留在设置页诊断入口，不再误显示为“1 个后台任务”。 |
+| ✅ 已修复 | Bug #71 首页：轮换突袭混入公共突袭列表 | 首页没有 `weeklySummary` 时不再从 `dailySummary.weekly_report` 或 `dailySummary.rotations` 猜测周常主卡；公共突袭 / 地牢里程碑只保留为线索，不会升级成已确认轮换突袭或地牢。 |
 
 ## 当前任务目录
 

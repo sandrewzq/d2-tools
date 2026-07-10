@@ -116,7 +116,7 @@ export function buildWeeklySummary(
 }
 
 function buildPriority(kind: WeeklyPriorityKind, items: WeeklySummaryItem[]): WeeklySummaryPriority {
-  const matchingItems = items.filter((candidate) => candidate.weeklyActivityKind === kind);
+  const matchingItems = items.filter((candidate) => candidate.weeklyActivityKind === kind && isConfirmedPriorityItem(kind, candidate));
   const item = matchingItems[0];
   if (!item) {
     const pending = priorityLabels[kind];
@@ -142,6 +142,17 @@ function buildPriority(kind: WeeklyPriorityKind, items: WeeklySummaryItem[]): We
       rewards: candidate.rewards
     }))
   };
+}
+
+function isConfirmedPriorityItem(kind: WeeklyPriorityKind, item: WeeklySummaryItem): boolean {
+  if (kind !== "rotating_raid" && kind !== "rotating_dungeon") {
+    return true;
+  }
+  return !/Bungie.*(?:公共|public)|公共里程碑|非完整掉落地图/i.test(weeklyItemText(item));
+}
+
+function weeklyItemText(item: WeeklySummaryItem): string {
+  return [item.title, item.subtitle, item.description, item.source].filter(Boolean).join(" ");
 }
 
 function extractPriorityTitle(kind: WeeklyPriorityKind, item: WeeklySummaryItem): string {
