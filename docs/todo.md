@@ -20,7 +20,7 @@
 |---|---|---|---|---|---|
 | T1 | P1 | 🟡 待推进 | 小日向与 d2-skill 产品级能力 | [总纲](work/backlog/kohinata-d2-skill-product-architecture.md) / [攻略证据工作台](work/backlog/kohinata-guide-evidence-workbench.md) | 攻略解析、账号命中、perk 证据和配装草稿 |
 | T2 | P1 | 🟡 待推进 | 仓库推荐与清理工作台 | [仓库推荐与清理工作台](work/backlog/vault-recommendation-and-cleanup-workbench.md) | 统一 DIM wishlist、本地目标、同名对比和清理清单 |
-| T3 | P1 | 🟡 进行中 | 首页本周世界简报、商人与掉落查询 | [本周世界简报重设计](work/backlog/home-weekly-world-briefing-redesign.md) / [日报、商人与掉落查询](work/backlog/daily-report-and-drops-assistant.md) / [每周活动简报](work/backlog/home-weekly-activity-briefing-redesign.md) | 首页已统一为产品标准圆角面板与卡片语言，完整展示仄的全部可读库存并移除固定高度空洞；下一步接入经过校验的无需登录公开周常 provider |
+| T3 | P1 | 🟡 进行中 | 首页本周世界简报、商人与掉落查询 | [本周世界简报重设计](work/backlog/home-weekly-world-briefing-redesign.md) / [日报、商人与掉落查询](work/backlog/daily-report-and-drops-assistant.md) / [商人菜单仄纵向切片](work/backlog/vendors-menu-xur-vertical-slice.md) / [每周活动简报](work/backlog/home-weekly-activity-briefing-redesign.md) | 商人菜单设计已收敛；下一步按仄纵向切片实现专用库存契约、全商人搜索、服务内兑换库存和共用装备详情，再推广到其他商人 |
 | T4 | P1 | 🟡 进行中 | 跨端 UI 壳、可交互原型与桌面视觉收口 | [工作区骨架与样式收口](work/backlog/cross-platform-workspace-style-hardening.md) / [模块深度与跨端 seam 收口](work/backlog/module-depth-and-platform-seams.md) / [桌面视觉与详情打磨](work/backlog/desktop-ui-account-detail-polish.md) | 已移除主菜单标题下的全局横幅位，运行态统一收口到右下角任务中心，完成任务不再进入浮层；后续人工视觉复核，并分批推进模块深度 backlog |
 | T5 | P3 | 🟡 待推进 | 活动复盘增强 | [活动复盘增强](work/backlog/activity-review-enhancement.md) | 接 PGCR、完成时间推算和副本级趋势 |
 | T6 | P4 | 🟡 待推进 | 桌面发布、更新与迁移体验 | [桌面发布体验](work/backlog/desktop-release-experience.md) | 验证 GitHub Release、更新提示、备份迁移和诊断体验 |

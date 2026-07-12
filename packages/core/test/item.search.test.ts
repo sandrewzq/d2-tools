@@ -241,6 +241,76 @@ describe("item definition search", () => {
     ]);
   });
 
+  it("collapses historical armor definitions and excludes same-name engram entries", () => {
+    const starfireDefinitions: DefinitionComponentData = {
+      "599049453": {
+        hash: 599049453,
+        displayProperties: {
+          name: "星火协议",
+          description: "当前收藏品版本",
+          icon: "/common/destiny2_content/icons/starfire.jpg"
+        },
+        itemType: 2,
+        itemTypeDisplayName: "胸部护甲",
+        classType: 2,
+        inventory: { tierTypeName: "异域", bucketTypeHash: 14239492 },
+        collectibleHash: 860077154,
+        traitIds: ["item.armor.chest", "item.armor.exotic", "releases.v300.annual"]
+      },
+      "1256834041": {
+        hash: 1256834041,
+        displayProperties: {
+          name: "星火协议",
+          description: "异域记忆水晶条目",
+          icon: "/common/destiny2_content/icons/starfire.jpg"
+        },
+        itemType: 0,
+        itemTypeDisplayName: "胸部护甲",
+        classType: 2,
+        inventory: { tierTypeName: "异域", bucketTypeHash: 2422292810 },
+        traitIds: ["item.engram", "releases.v300.annual"]
+      },
+      "2082483156": {
+        hash: 2082483156,
+        displayProperties: {
+          name: "星火协议",
+          description: "旧护甲属性版本",
+          icon: "/common/destiny2_content/icons/starfire.jpg"
+        },
+        itemType: 2,
+        itemTypeDisplayName: "胸部护甲",
+        classType: 2,
+        inventory: { tierTypeName: "异域", bucketTypeHash: 14239492 },
+        traitIds: ["item.armor.chest", "item.armor.exotic", "releases.v300.annual"]
+      },
+      "2782999717": {
+        hash: 2782999717,
+        displayProperties: {
+          name: "星火协议",
+          description: "更早的护甲属性版本",
+          icon: "/common/destiny2_content/icons/starfire.jpg"
+        },
+        itemType: 2,
+        itemTypeDisplayName: "胸部护甲",
+        classType: 2,
+        inventory: { tierTypeName: "异域", bucketTypeHash: 14239492 },
+        traitIds: ["item.armor.chest", "item.armor.exotic", "releases.v300.annual"]
+      }
+    };
+
+    const results = searchItemDefinitions(starfireDefinitions, "星火协议", {
+      collectibleDefinitions: {
+        "860077154": {
+          hash: 860077154,
+          sourceString: "异域记忆水晶；极稀有世界掉落。"
+        }
+      }
+    });
+
+    expect(results.map((item) => item.hash)).toEqual([599049453]);
+    expect(results[0]?.source.status).toBe("ready");
+  });
+
   it("returns player-readable release summaries for same-name weapon versions", () => {
     const tyrannyDefinitions: DefinitionComponentData = {
       "2721249463": {

@@ -49,6 +49,7 @@ export type ItemSearchResult = {
 
 const bungieStaticBaseUrl = "https://www.bungie.net";
 const nonEquipmentItemTypes = new Set([
+  0, // None / engram-like inventory entry
   19, // Mod
   20, // Dummy
   30 // Pattern
@@ -66,7 +67,7 @@ export function searchItemDefinitions(
   }
 
   const limit = options.limit ?? 20;
-  const results: ItemSearchResult[] = [];
+  const matches: DefinitionRecord[] = [];
 
   for (const definition of Object.values(definitions)) {
     const name = definition.displayProperties?.name?.trim();
@@ -77,17 +78,57 @@ export function searchItemDefinitions(
       continue;
     }
 
-    results.push(toItemSearchResult(definition, definitions, options));
-    if (results.length >= limit) {
-      break;
-    }
+    matches.push(definition);
   }
 
-  return results;
+  return selectCanonicalEquipmentDefinitions(matches)
+    .slice(0, limit)
+    .map((definition) => toItemSearchResult(definition, definitions, options));
 }
 
 function isSearchableEquipmentDefinition(definition: DefinitionRecord): boolean {
   return typeof definition.itemType !== "number" || !nonEquipmentItemTypes.has(definition.itemType);
+}
+
+function selectCanonicalEquipmentDefinitions(definitions: DefinitionRecord[]): DefinitionRecord[] {
+  const selected = new Map<string, DefinitionRecord>();
+
+  for (const definition of definitions) {
+    const key = equipmentDefinitionIdentity(definition);
+    const current = selected.get(key);
+    if (!current || equipmentDefinitionScore(definition) > equipmentDefinitionScore(current)) {
+      selected.set(key, definition);
+    }
+  }
+
+  return [...selected.values()];
+}
+
+function equipmentDefinitionIdentity(definition: DefinitionRecord): string {
+  const name = definition.displayProperties?.name?.trim().toLocaleLowerCase() ?? "";
+  const icon = definition.displayProperties?.icon?.trim() ?? "";
+  if (!name || !icon) {
+    return `hash:${definition.hash ?? "unknown"}`;
+  }
+
+  const releaseTraits = (definition.traitIds ?? [])
+    .filter((traitId) => traitId.startsWith("releases."))
+    .sort()
+    .join(",");
+  return [
+    name,
+    icon,
+    definition.itemType ?? "unknown",
+    definition.classType ?? "unknown",
+    definition.inventory?.bucketTypeHash ?? "unknown",
+    releaseTraits
+  ].join("|");
+}
+
+function equipmentDefinitionScore(definition: DefinitionRecord): number {
+  return (definition.collectibleHash ? 1000 : 0)
+    + (definition.sourceData?.sourceString?.trim() ? 100 : 0)
+    + (definition.index ?? 0) / 1_000_000;
 }
 
 function toItemSearchResult(
