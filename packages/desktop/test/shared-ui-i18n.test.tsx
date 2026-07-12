@@ -155,13 +155,14 @@ describe("shared UI i18n", () => {
       />
     );
 
-    expect(html).toContain("Weekly update");
-    expect(html).toContain("Daily update");
+    expect(html).toContain("Weekly intelligence");
+    expect(html).toContain("Weekly world status is unavailable");
+    expect(html).not.toContain("Daily update");
     expect(html).not.toContain("Key vendors");
     expect(html).not.toContain("Rules pending");
     expect(html).not.toContain("Account alerts");
-    expect(html).toContain("Vanguard Ops · Grandmaster Vanguard Alerts");
-    expect(html).toContain("Public clues");
+    expect(html).not.toContain("Vanguard Ops · Grandmaster Vanguard Alerts");
+    expect(html).not.toContain("Public clues");
     expect(html).not.toContain("本周奖励与轮换");
     expect(html).not.toContain("今天可确认");
     expect(html).not.toMatch(/[\u4e00-\u9fff]/);

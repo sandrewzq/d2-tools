@@ -29,9 +29,8 @@ describe("library prototype redesign", () => {
     expect(content).toContain("library-query-panel");
     expect(content).toContain("library-search-command");
     expect(content).toContain("library-quick-filters");
-    expect(content).toContain("library-advanced-disclosure");
-    expect(content).toContain("library-source-guide-details");
-    expect(content).toContain("library-side-utilities");
+    expect(content).not.toContain("library-advanced-disclosure");
+    expect(content).toContain("library-result-filters");
     expect(content).toContain("library-results-panel");
     expect(content).toContain("搜索结果");
     expect(content).not.toContain("library-source-grid");
@@ -47,9 +46,8 @@ describe("library prototype redesign", () => {
     expect(styles).not.toContain(".library-reference-hero-compact");
     expect(styles).toContain("box-shadow: none;");
     expect(styles).toContain(".library-main-filter-row");
-    expect(styles).toContain(".library-advanced-disclosure");
-    expect(styles).toContain(".library-source-guide-details");
-    expect(styles).toContain(".library-side-utilities");
+    expect(styles).not.toContain(".library-advanced-disclosure");
+    expect(styles).toContain(".library-result-filters");
     expect(styles).toContain(".library-results-panel");
     expect(styles).not.toContain(".library-version-chip");
     expect(styles).toContain("max-width: 100%;");

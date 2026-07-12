@@ -222,7 +222,6 @@ describe("library filters", () => {
     expect(libraryContent).toContain("library-search-command");
     expect(libraryContent).toContain("library-main-filter-row");
     expect(libraryContent).toContain("relatedGroup");
-    expect(libraryContent).toContain("libraryEquipmentFilter.frame");
     expect(libraryContent).not.toContain("hasPerks");
     expect(libraryContent).toContain("formatCommunityPerkPreview");
     expect(libraryWorkspace).toContain("communityMatch: input.communityMatch.get(item.hash)");
@@ -230,32 +229,16 @@ describe("library filters", () => {
     expect(libraryContent).toContain("communityMatch?.available");
   });
 
-  it("renders a manifest-backed and live drop query workflow for equipment results", () => {
+  it("renders source evidence and live availability for equipment results", () => {
     const libraryContent = readFileSync("packages/ui/src/library/LibraryPageContentView.tsx", "utf8");
 
-    expect(libraryContent).toContain("drop-query-panel");
-    expect(libraryContent).toContain("掉落查询");
-    expect(libraryContent).toContain("可确认来源");
-    expect(libraryContent).toContain("Perk 池");
     expect(libraryContent).toContain("item.source.label");
     expect(libraryContent).toContain("当前公开渠道");
-    expect(libraryContent).toContain("来源状态");
     expect(libraryContent).toContain("item.source.status");
     expect(libraryContent).toContain("item.perks");
-    expect(libraryContent).toContain("drop-query-advanced");
-    expect(libraryContent).toContain("来源状态筛选");
-    expect(libraryContent).toContain("来源线索");
-    expect(libraryContent).toContain("只看有 Perk 池");
-    expect(libraryContent).toContain("Perk AND 条件");
     expect(libraryContent).toContain("drop-query-groups");
-    expect(libraryContent).toContain("来源可确认");
-    expect(libraryContent).toContain("实时商人与公共活动优先");
-    expect(libraryContent).toContain("没有证据时明确标记为待补");
     expect(libraryContent).toContain("刷取判断");
     expect(libraryContent).toContain("实时状态");
-    expect(libraryContent).toContain("liveAvailability");
-    expect(libraryContent).toContain("当前角色商人售卖");
-    expect(libraryContent).toContain("当前公开商人售卖");
     expect(libraryContent).toContain("等轮换");
     expect(libraryContent).toContain("已下架或待确认");
     expect(libraryContent).toContain("library-weapon-card");

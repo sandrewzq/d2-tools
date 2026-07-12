@@ -1,7 +1,7 @@
 export type HomePageKey = "home" | "account" | "vault" | "loadouts" | "library" | "vendors" | "settings";
 
 export const homePageMetaMap: Record<HomePageKey, { title: string; subtitle: string }> = {
-  home: { title: "今日工作台", subtitle: "先看官方可确认的今日 / 本周内容，再处理商人、账号和仓库提醒。" },
+  home: { title: "本周游戏世界简报", subtitle: "只展示 Bungie 当前能够确认的周常活动、限时事件和仄商人库存。" },
   account: { title: "账号", subtitle: "读取 Bungie 账号、角色装备、背包和材料数量。" },
   vault: { title: "仓库", subtitle: "先筛出候选，再用证据决定保留、复查或清理。" },
   loadouts: { title: "配装", subtitle: "管理本地方案、补齐缺失装备并对比不同配装。" },
@@ -21,7 +21,7 @@ export const homePageLabels: Record<HomePageKey, string> = {
 };
 
 export const homePageFocus: Record<HomePageKey, string> = {
-  home: "当前正在查看首页，应优先分析今日状态、奖励进度、数据缺口和下一步入口。",
+  home: "当前正在查看首页，应优先分析已确认的本周活动、限时事件、仄商人库存和数据缺口。",
   account: "当前正在查看账号页，应优先分析当前角色、背包装备、邮政官、材料和账号状态。",
   vault: "当前正在查看仓库页，应优先分析仓库筛选、标签、同名装备、保留和清理问题。",
   loadouts: "当前正在查看配装页，应优先分析当前配装方案、缺失装备、转移计划和替代方案。",

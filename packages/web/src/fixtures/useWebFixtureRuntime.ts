@@ -235,7 +235,8 @@ export function createWebHomePageModel(snapshot: WebHomeSnapshot) {
     state: snapshot.homeState,
     accountError: "",
     diagnosticRows: [{ tone: "warning" }],
-    dailySummary: snapshot.homeDailySummary
+    dailySummary: snapshot.homeDailySummary,
+    weeklySummary: snapshot.homeWeeklySummary
   });
 }
 
@@ -395,7 +396,7 @@ export function createWebAssistantContext(snapshot: WebHomeSnapshot): AiAssistan
 
   return {
     pageLabel: "首页工作台",
-    focus: "先看官方可确认的今日 / 本周内容，再处理账号、资料库和应用版本状态。",
+    focus: "只看官方可确认的本周活动、限时事件和仄商人库存。",
     facts: snapshot.shellStatus.map((item) => `${item.label}：${item.value}`),
     itemCount: 496,
     characterCount: hasAccountData ? 2 : 0,

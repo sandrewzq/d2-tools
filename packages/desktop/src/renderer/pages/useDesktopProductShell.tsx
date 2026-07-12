@@ -444,7 +444,7 @@ export function useDesktopProductShell(props: {
       subtitle: currentPageMeta.subtitle,
       actions: activePage === "home" || activePage === "vendors" ? (
         <button type="button" className="secondary-button" disabled={daily.isLoadingDaily} onClick={() => void daily.loadDailySummary()}>
-          {daily.isLoadingDaily ? "刷新中..." : activePage === "vendors" ? "刷新商人数据" : "刷新今日信息"}
+          {daily.isLoadingDaily ? "刷新中..." : activePage === "vendors" ? "刷新商人数据" : "刷新本周信息"}
         </button>
       ) : null
     },

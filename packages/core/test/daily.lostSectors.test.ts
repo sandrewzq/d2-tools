@@ -118,7 +118,7 @@ describe("lost sectors from manifest", () => {
     const result = buildLostSectorData(defs, new Date("2026-07-06T18:00:00Z"));
 
     expect(result.items).toEqual([]);
-    expect(result.message).toContain("缺少当前专家遗失区域定义");
+    expect(result.message).toContain("无法确认当天激活");
   });
 
   it("selects the nine confirmed expert sector activities instead of alphabetically truncating the manifest", () => {
@@ -128,14 +128,20 @@ describe("lost sectors from manifest", () => {
       ...makeActivityDef(1962464165, "永劫地狱: 专家"),
       ...makeActivityDef(2983905025, "镀金箴言: 专家"),
       ...makeActivityDef(3995113176, "繁盛深渊: 专家"),
-      ...makeActivityDef(2504276275, "黑色移民号花园2A: 专家"),
+      ...makeActivityDef(2310698359, "溪谷迷宫: 专家"),
       ...makeActivityDef(4269987990, "汇流: 专家"),
       ...makeActivityDef(1956131630, "K1通讯区: 专家"),
       ...makeActivityDef(457172842, "星光大殿: 专家"),
       ...makeActivityDef(2019961998, "空坦克: 专家"),
     };
 
-    const result = buildLostSectorData(defs, new Date(), { destinations: {} });
+    const result = buildLostSectorData(defs, new Date(), {
+      destinations: {},
+      activeActivityHashes: [
+        1344654780, 1509764568, 1962464165, 2983905025, 3995113176,
+        2310698359, 4269987990, 1956131630, 457172842
+      ]
+    });
 
     expect(result.items.map((item) => item.title)).toEqual([
       "采石场",
@@ -143,22 +149,23 @@ describe("lost sectors from manifest", () => {
       "永劫地狱",
       "镀金箴言",
       "繁盛深渊",
-      "黑色移民号花园2A",
+      "溪谷迷宫",
       "汇流",
       "K1通讯区",
       "星光大殿",
     ]);
-    expect(result.items.map((item) => item.destinationName)).toEqual([
-      "欧洲无人区",
-      "萨瓦图恩的王座世界",
-      "木卫二",
-      "海王星",
-      "苍白之心",
-      "发射基地",
-      "涅索斯",
-      "月球",
-      "幽梦之城",
-    ]);
+  });
+
+  it("does not show sectors from manifest definitions without confirmed active activity hashes", () => {
+    const defs: DefinitionComponentData = {
+      ...makeActivityDef(2310698359, "溪谷迷宫: 专家"),
+      ...makeActivityDef(4269987990, "汇流: 专家"),
+    };
+
+    const result = buildLostSectorData(defs, new Date(), { destinations: {} });
+
+    expect(result.items).toEqual([]);
+    expect(result.message).toContain("无法确认当天激活");
   });
 
   it("builds player-facing briefing fields from official destination, modifier, and reward definitions", () => {
@@ -206,6 +213,7 @@ describe("lost sectors from manifest", () => {
     };
 
     const result = (buildLostSectorData as any)(defs, new Date("2026-06-25T18:00:00Z"), {
+      activeActivityHashes: [1344654780],
       destinations: {
         "697502628": {
           displayProperties: { name: "欧洲无人区" }

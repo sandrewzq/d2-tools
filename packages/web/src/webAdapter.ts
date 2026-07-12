@@ -1,6 +1,7 @@
 import type {
   HomeDailySummary,
   HomeStartupState,
+  HomeWeeklySummary,
   ShellPageKey,
   ShellStatusItem
 } from "@d2-tools/ui";
@@ -9,6 +10,7 @@ export type WebHomeSnapshot = {
   shellStatus: ShellStatusItem[];
   homeState: HomeStartupState;
   homeDailySummary: HomeDailySummary;
+  homeWeeklySummary: HomeWeeklySummary;
 };
 
 export type WebPageSnapshot = {
@@ -32,88 +34,6 @@ export type WebShellAdapter = {
   loadPageSnapshot: (page: ShellPageKey) => Promise<WebPageSnapshot | null>;
   openExternal: (url: string) => void;
 };
-
-const fallbackLostSectorItems: NonNullable<HomeDailySummary["sources"]["lost_sector"]["items"]> = [
-  {
-    title: "采石场",
-    destinationName: "欧洲无人区",
-    championTypes: ["屏障", "势不可挡"],
-    shieldTypes: ["烈日", "虚空"],
-    threatType: "虚空",
-    expertSoloRewards: ["异域记忆水晶（稀有）", "传说武器（罕见）"],
-    masterSoloRewards: ["异域记忆水晶（普通）", "传说武器（普通）"]
-  },
-  {
-    title: "萃取地",
-    destinationName: "萨瓦图恩的王座世界",
-    championTypes: ["过载", "势不可挡"],
-    shieldTypes: ["电弧", "虚空"],
-    expertSoloRewards: ["异域臂甲（稀有）", "异域胸甲（稀有）", "异域头盔（稀有）", "异域腿甲（稀有）"],
-    masterSoloRewards: ["异域臂甲（常见）", "异域胸甲（常见）", "异域头盔（常见）", "异域腿甲（常见）"]
-  },
-  {
-    title: "永劫地狱",
-    destinationName: "木卫二",
-    championTypes: ["屏障", "过载"],
-    shieldTypes: ["电弧", "虚空"],
-    threatType: "电弧",
-    expertSoloRewards: ["异域记忆水晶（稀有）", "传说武器（罕见）"],
-    masterSoloRewards: ["异域记忆水晶（普通）", "传说武器（普通）"]
-  },
-  {
-    title: "镀金箴言",
-    destinationName: "海王星",
-    championTypes: ["屏障", "势不可挡"],
-    shieldTypes: ["烈日", "电弧"],
-    threatType: "烈日",
-    expertSoloRewards: ["传说武器（罕见）"],
-    masterSoloRewards: ["传说武器（普通）"]
-  },
-  {
-    title: "繁盛深渊",
-    destinationName: "苍白之心",
-    championTypes: ["过载", "势不可挡"],
-    shieldTypes: ["虚空", "缚丝"],
-    threatType: "缚丝",
-    expertSoloRewards: ["异域记忆水晶（稀有）"],
-    masterSoloRewards: ["异域记忆水晶（普通）"]
-  },
-  {
-    title: "黑色移民号花园2A",
-    destinationName: "发射基地",
-    championTypes: ["屏障", "过载"],
-    shieldTypes: ["电弧", "烈日"],
-    expertSoloRewards: ["传说武器（罕见）"],
-    masterSoloRewards: ["传说武器（普通）"]
-  },
-  {
-    title: "汇流",
-    destinationName: "涅索斯",
-    championTypes: ["屏障", "势不可挡"],
-    shieldTypes: ["虚空", "烈日"],
-    threatType: "虚空",
-    expertSoloRewards: ["异域记忆水晶（稀有）", "传说武器（罕见）"],
-    masterSoloRewards: ["异域记忆水晶（普通）", "传说武器（普通）"]
-  },
-  {
-    title: "K1通讯区",
-    destinationName: "月球",
-    championTypes: ["过载", "势不可挡"],
-    shieldTypes: ["电弧", "虚空"],
-    threatType: "电弧",
-    expertSoloRewards: ["传说武器（罕见）"],
-    masterSoloRewards: ["传说武器（普通）"]
-  },
-  {
-    title: "星光大殿",
-    destinationName: "幽梦之城",
-    championTypes: ["过载", "势不可挡"],
-    shieldTypes: ["烈日", "虚空"],
-    threatType: "烈日",
-    expertSoloRewards: ["异域记忆水晶（稀有）", "传说武器（罕见）"],
-    masterSoloRewards: ["异域记忆水晶（普通）", "传说武器（普通）"]
-  }
-];
 
 export const fallbackHomeSnapshot: WebHomeSnapshot = {
   shellStatus: [
@@ -164,6 +84,8 @@ export const fallbackHomeSnapshot: WebHomeSnapshot = {
             title: "仄 / Xur",
             subtitle: "奇异商人库存",
             description: "关键库存已读取",
+            vendorHash: 2190858386,
+            vendorEnabled: true,
             items: [
               { title: "透视之眼", subtitle: "异域武器", iconUrl: "/common/destiny2_content/icons/xur-weapon.png" },
               { title: "圣火之心", subtitle: "泰坦胸甲", iconUrl: "/common/destiny2_content/icons/xur-armor.png" }
@@ -172,12 +94,33 @@ export const fallbackHomeSnapshot: WebHomeSnapshot = {
         ]
       },
       lost_sector: {
-        status: "ready",
-        message: "Web fallback 展示 9 个世界遗失区域样例。",
-        items: fallbackLostSectorItems
+        status: "pending",
+        message: "无法确认当天激活的专家遗失区域。"
       }
     },
-    checklist: ["Web 入口先复用共享首页壳，后续接 HTTP/API adapter。"]
+    checklist: []
+  },
+  homeWeeklySummary: {
+    weekly_reset: {
+      label: "每周三 01:00 重置",
+      time_remaining_label: "距离每周重置还有 5 天 14 小时"
+    },
+    priorities: {
+      nightfall: {
+        status: "ready",
+        title: "光之利刃",
+        detail: "屏障 · 势不可挡 · 电弧威胁",
+        entries: [{
+          title: "光之利刃",
+          rewards: [{ hash: 1, name: "本周奖励武器", item_type: "武器" }]
+        }]
+      },
+      rotating_raid: { status: "ready", title: "最后一愿", detail: "奖励可重复获取" },
+      rotating_dungeon: { status: "ready", title: "预言", detail: "奖励可重复获取" },
+      weekly_bonus: { status: "ready", title: "先锋声望加成", detail: "本周声望额外奖励" },
+      special_event: { status: "ready", title: "铁旗已开放", detail: "限时活动" }
+    },
+    public_clues: []
   }
 };
 

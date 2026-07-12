@@ -194,8 +194,8 @@ describe("desktop T5 visual redesign", () => {
     expect(uiCopy).toContain("出处查询");
     expect(libraryPage).toContain("library-search-command");
     expect(libraryPage).toContain("library-main-filter-row");
-    expect(libraryPage).toContain("library-advanced-disclosure");
-    expect(libraryPage).toContain("library-source-guide-details");
+    expect(libraryPage).not.toContain("library-advanced-disclosure");
+    expect(libraryPage).toContain("library-result-filters");
     expect(libraryPage).not.toContain("获取优先级");
     expect(uiCopy).toContain("资料库版本");
     expect(libraryPage).not.toContain("资料库日期");
@@ -208,6 +208,7 @@ describe("desktop T5 visual redesign", () => {
     expect(styles).toContain(".library-acquisition-tabs");
     expect(styles).toContain(".library-search-command");
     expect(styles).toContain(".library-main-filter-row");
+    expect(styles).toContain(".library-result-filters");
     expect(styles).toContain(".library-source-groups");
     expect(styles).toContain(".library-reference-card");
   });

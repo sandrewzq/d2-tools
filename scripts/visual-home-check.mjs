@@ -16,13 +16,13 @@ const settingsSectionArg = process.argv.includes("--settings-section")
   : undefined;
 const settingsSection = process.env.D2_VISUAL_SETTINGS_SECTION ?? settingsSectionArg ?? "overview";
 const logPrefix = `[visual:${page}]`;
-const defaultViewport = "1365x900";
+const defaultViewport = "1920x1080";
 const defaultTheme = "dark";
-const defaultReferencePngName = "reference-dark-1365x900.png";
-const defaultAppPngName = "app-dark-1365x900.png";
-const defaultComparePngName = "compare-dark-1365x900.png";
+const defaultReferencePngName = "reference-dark-1920x1080.png";
+const defaultAppPngName = "app-dark-1920x1080.png";
+const defaultComparePngName = "compare-dark-1920x1080.png";
 const expectedSelectorsByPage = {
-  home: [".home-briefing-grid", ".home-daily-panel", ".home-weekly-dashboard"],
+  home: [".home-operations-desk", ".home-operations-week", ".home-operations-source"],
   loadouts: [".loadout-workbench-shell", ".loadout-template-detail"],
   settings: [".app-settings-shell", ".settings-menu"]
 };
@@ -348,8 +348,8 @@ async function main() {
   rmSync(outputDir, { recursive: true, force: true });
   mkdirSync(dirname(reportPath), { recursive: true });
   prepareVisualConfig();
-  await captureReference();
   await buildElectronOutputs();
+  await captureReference();
   await captureApp();
   writeComparePlaceholder();
   console.log(`Visual ${page} report: ${reportPath}`);

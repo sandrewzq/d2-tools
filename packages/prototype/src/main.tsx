@@ -439,7 +439,7 @@ function getPrototypePageHeader(page: ShellPageKey) {
     title: meta.title,
     subtitle: meta.subtitle,
     actions: page === "home" ? (
-      <button type="button" className="secondary-button">刷新今日信息</button>
+      <button type="button" className="secondary-button">刷新本周信息</button>
     ) : null
   };
 }

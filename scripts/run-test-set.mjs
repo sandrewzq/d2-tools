@@ -9,6 +9,7 @@ const exactSets = {
   ui: [
     "packages/desktop/test/shared-ui-app-shell.test.tsx",
     "packages/desktop/test/shared-ui-i18n.test.tsx",
+    "packages/desktop/test/home-weekly-briefing.test.tsx",
     "packages/desktop/test/shared-ui-page-views.test.tsx",
     "packages/desktop/test/shared-ui-product-host.test.tsx",
     "packages/desktop/test/shared-ui-shell-model.test.ts",

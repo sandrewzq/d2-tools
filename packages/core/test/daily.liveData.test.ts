@@ -48,7 +48,7 @@ describe("daily live data mapping", () => {
     });
 
     expect(liveData.rotations.map((item) => item.title)).toContain("日落：玻璃小径");
-    expect(liveData.lost_sector.map((item) => item.title)).toContain("遗失区域：传说遗失区域：天启");
+    expect(liveData.lost_sector).toEqual([]);
     expect(liveData.vendors.map((item) => item.title)).toContain("枪匠");
     expect(liveData.vendors[0].description).toContain("风险管理者");
     expect(liveData.weekly_report.some((item) => item.title === "Bungie 公共里程碑：日落")).toBe(true);
@@ -194,6 +194,89 @@ describe("daily live data mapping", () => {
       costIconUrl: "/common/destiny2_content/icons/strange-coin.jpg",
       source: "Bungie 公共商人"
     });
+  });
+
+  it("keeps confirmed Xur availability, refresh time, and resolved location", () => {
+    const liveData = buildDailyLiveDataFromBungie({
+      publicVendors: {
+        vendors: {
+          data: {
+            "2190858386": {
+              vendorHash: 2190858386,
+              enabled: true,
+              nextRefreshDate: "2026-07-14T17:00:00Z",
+              vendorLocationIndex: 0
+            }
+          }
+        },
+        sales: {
+          data: {
+            "2190858386": {
+              saleItems: {
+                "14": { itemHash: 3883286571 }
+              }
+            }
+          }
+        }
+      },
+      definitions: {
+        vendors: {
+          "2190858386": {
+            displayProperties: { name: "仄" },
+            locations: [{ destinationHash: 900 }]
+          }
+        },
+        destinations: {
+          "900": { displayProperties: { name: "高塔" } }
+        },
+        items: {
+          "3883286571": { displayProperties: { name: "守誓者" } }
+        }
+      }
+    });
+
+    expect(liveData.vendors[0]).toMatchObject({
+      title: "仄",
+      vendorHash: 2190858386,
+      vendorEnabled: true,
+      vendorRefreshDate: "2026-07-14T17:00:00Z",
+      vendorLocation: "高塔"
+    });
+  });
+
+  it("drops disabled Xur vendor data instead of presenting stale inventory", () => {
+    const liveData = buildDailyLiveDataFromBungie({
+      publicVendors: {
+        vendors: {
+          data: {
+            "2190858386": {
+              vendorHash: 2190858386,
+              enabled: false,
+              nextRefreshDate: "2026-07-14T17:00:00Z"
+            }
+          }
+        },
+        sales: {
+          data: {
+            "2190858386": {
+              saleItems: {
+                "14": { itemHash: 3883286571 }
+              }
+            }
+          }
+        }
+      },
+      definitions: {
+        vendors: {
+          "2190858386": { displayProperties: { name: "仄" } }
+        },
+        items: {
+          "3883286571": { displayProperties: { name: "守誓者" } }
+        }
+      }
+    });
+
+    expect(liveData.vendors).toEqual([]);
   });
 
   it("uses neutral placeholders when vendor definitions are missing", () => {
@@ -417,15 +500,13 @@ describe("daily live data mapping", () => {
       }
     });
 
-    expect(liveData.lost_sector.map((item) => item.title)).toEqual([
-      "遗失区域：传说遗失区域：英灵日遗失区域"
-    ]);
+    expect(liveData.lost_sector).toEqual([]);
     expect(liveData.rotations.map((item) => item.title)).toContain("每日活动：国王的陨落：标准");
     expect(liveData.lost_sector.map((item) => item.title).join(" ")).not.toContain("国王的陨落");
     expect(liveData.weekly_report.map((item) => item.title)).toContain("Bungie 公共里程碑：每日活动");
   });
 
-  it("keeps the manifest world lost sector list when public milestones only expose one lost sector", () => {
+  it("does not present an incomplete public milestone lost sector without confirmed active hashes", () => {
     const liveData = buildDailyLiveDataFromBungie({
       milestones: {
         "777": {
@@ -436,7 +517,7 @@ describe("daily live data mapping", () => {
       definitions: {
         activities: Object.fromEntries([
           [1344654780, "采石场"], [1509764568, "萃取地"], [1962464165, "永劫地狱"],
-          [2983905025, "镀金箴言"], [3995113176, "繁盛深渊"], [2504276275, "黑色移民号花园2A"],
+          [2983905025, "镀金箴言"], [3995113176, "繁盛深渊"], [2310698359, "溪谷迷宫"],
           [4269987990, "汇流"], [1956131630, "K1通讯区"], [457172842, "星光大殿"]
         ].map(([hash, name]) => [String(hash), {
           hash,
@@ -451,22 +532,12 @@ describe("daily live data mapping", () => {
       }
     });
 
-    expect(liveData.lost_sector).toHaveLength(9);
-    expect(liveData.lost_sector.map((item) => item.title)).toEqual([
-      "采石场",
-      "萃取地",
-      "永劫地狱",
-      "镀金箴言",
-      "繁盛深渊",
-      "黑色移民号花园2A",
-      "汇流",
-      "K1通讯区",
-      "星光大殿"
-    ]);
+    expect(liveData.lost_sector).toEqual([]);
   });
 
   it("passes official lost sector destination, modifier, and solo reward definitions into daily live data", () => {
     const liveData = buildDailyLiveDataFromBungie({
+      activeLostSectorActivityHashes: [1344654780],
       definitions: {
         activities: {
           "1344654780": {

@@ -73,7 +73,7 @@ describe("shared UI page views", () => {
     expect(vendors).not.toContain('class="section-heading"');
   });
 
-  it("renders daily and weekly reset countdowns as panel subtitles", () => {
+  it("renders only the weekly reset countdown on the home briefing", () => {
     const html = renderToStaticMarkup(
       <HomePageContentView
         interfaceLocale="zh-CN"
@@ -97,13 +97,9 @@ describe("shared UI page views", () => {
         hasAccountData
       />
     );
-    const dailyPanel = html.slice(html.indexOf("home-daily-panel"), html.indexOf("home-weekly-panel"));
-    const dailyLead = dailyPanel.slice(dailyPanel.indexOf("home-daily-lead"));
-
-    expect(dailyPanel).toContain("每日重置 · 5 小时 20 分钟");
-    expect(dailyPanel).not.toContain("复制日报");
-    expect(dailyLead).not.toContain("<strong>每日重置</strong>");
-    expect(html).toContain("home-weekly-panel");
+    expect(html).not.toContain("home-daily-panel");
+    expect(html).not.toContain("每日重置 · 5 小时 20 分钟");
+    expect(html).toContain("home-operations-desk");
     expect(html).toContain("每周重置 · 5 天 14 小时");
   });
 
@@ -153,14 +149,12 @@ describe("shared UI page views", () => {
         hasAccountData
       />
     );
-    const weeklyPanel = html.slice(html.indexOf("home-weekly-panel"));
+    const weeklyPanel = html.slice(html.indexOf("home-operations-desk"));
 
-    expect(weeklyPanel).toContain("先锋行动 · 宗师先锋警戒");
-    expect(weeklyPanel).toContain("本周轮换突袭");
-    expect(weeklyPanel).toContain("本周轮换地牢");
-    expect(weeklyPanel).toContain("宗师先锋警戒待确认");
-    expect(weeklyPanel).toContain("轮换突袭待确认");
-    expect(weeklyPanel).toContain("轮换地牢待确认");
+    expect(weeklyPanel).toContain("本周世界状态暂不可读");
+    expect(weeklyPanel).not.toContain("宗师先锋警戒待确认");
+    expect(weeklyPanel).not.toContain("轮换突袭待确认");
+    expect(weeklyPanel).not.toContain("轮换地牢待确认");
     expect(weeklyPanel).not.toContain("玻璃小径");
     expect(weeklyPanel).not.toContain("奖励武器：热头");
     expect(weeklyPanel).not.toContain("国王的陨落");
@@ -169,10 +163,10 @@ describe("shared UI page views", () => {
     expect(weeklyPanel).not.toContain("先锋声望加成");
     expect(weeklyPanel).not.toContain("特殊活动");
     expect(weeklyPanel).not.toContain("曙光节");
-    expect(weeklyPanel).toContain("奇异商人");
-    expect(weeklyPanel).toContain("关键库存 8 件已读取");
-    expect(weeklyPanel).toContain("公共线索");
-    expect(weeklyPanel).toContain("活动轮换待核对");
+    expect(weeklyPanel).not.toContain("奇异商人");
+    expect(weeklyPanel).not.toContain("关键库存 8 件已读取");
+    expect(weeklyPanel).not.toContain("公共线索");
+    expect(weeklyPanel).not.toContain("活动轮换待核对");
     expect(weeklyPanel).not.toContain("勇士：");
     expect(weeklyPanel).not.toContain("护盾：");
     expect(weeklyPanel).not.toContain("威胁：");
@@ -242,21 +236,21 @@ describe("shared UI page views", () => {
         hasAccountData
       />
     );
-    const weeklyPanel = html.slice(html.indexOf("home-weekly-panel"));
+    const weeklyPanel = html.slice(html.indexOf("home-operations-desk"));
 
-    expect(weeklyPanel).toContain("宗师先锋警戒待确认");
-    expect(weeklyPanel).toContain("轮换突袭待确认");
-    expect(weeklyPanel).toContain("轮换地牢待确认");
+    expect(weeklyPanel).not.toContain("宗师先锋警戒待确认");
+    expect(weeklyPanel).not.toContain("轮换突袭待确认");
+    expect(weeklyPanel).not.toContain("轮换地牢待确认");
     expect(weeklyPanel).not.toContain("玻璃小径：专家");
     expect(weeklyPanel).not.toContain("奖励武器：热头");
     expect(weeklyPanel).not.toContain("国王的陨落：标准");
     expect(weeklyPanel).not.toContain("守望者尖塔：标准");
     expect(weeklyPanel).not.toContain("Bungie 公共里程碑：轮换突袭");
     expect(weeklyPanel).not.toContain("非完整掉落地图");
-    expect(weeklyPanel).toContain("克洛塔的末日：标准");
-    expect(weeklyPanel).toContain("深岩墓室");
-    expect(weeklyPanel).toContain("home-xur-spotlight");
-    expect(weeklyPanel).toContain("home-xur-item-grid");
+    expect(weeklyPanel).not.toContain("克洛塔的末日：标准");
+    expect(weeklyPanel).not.toContain("深岩墓室");
+    expect(weeklyPanel).toContain("home-operations-stock");
+    expect(weeklyPanel).toContain("home-operations-stock-grid");
     expect(weeklyPanel).toContain("仄 / Xur");
     expect(weeklyPanel).toContain("透视之眼");
     expect(weeklyPanel).toContain("圣火之心");
@@ -337,13 +331,15 @@ describe("shared UI page views", () => {
         hasAccountData
       />
     );
-    const weeklyPanel = html.slice(html.indexOf("home-weekly-panel"));
+    const weeklyPanel = html.slice(html.indexOf("home-operations-desk"));
 
     expect(weeklyPanel).toContain("玻璃小径：大师");
-    expect(weeklyPanel).toContain("救赎的边缘 / 门徒誓约");
-    expect(weeklyPanel).toContain("晚星之主 / 二象性");
-    expect(weeklyPanel).not.toContain("先锋声望加成");
-    expect(weeklyPanel).not.toContain("曙光节");
+    expect(weeklyPanel).toContain("救赎的边缘");
+    expect(weeklyPanel).toContain("门徒誓约");
+    expect(weeklyPanel).toContain("晚星之主");
+    expect(weeklyPanel).toContain("二象性");
+    expect(weeklyPanel).toContain("先锋声望加成");
+    expect(weeklyPanel).toContain("曙光节");
     expect(weeklyPanel).not.toContain("宗师先锋警戒待确认");
     expect(weeklyPanel).not.toContain("轮换突袭待确认");
     expect(weeklyPanel).not.toContain("轮换地牢待确认");
@@ -387,16 +383,10 @@ describe("shared UI page views", () => {
         hasAccountData
       />
     );
-    const weeklyPanel = html.slice(html.indexOf("home-weekly-panel"));
-    const primaryGrid = weeklyPanel.slice(
-      weeklyPanel.indexOf("home-weekly-primary-grid"),
-      weeklyPanel.indexOf("home-weekly-support")
-    );
+    const weeklyPanel = html.slice(html.indexOf("home-operations-desk"));
 
-    expect(primaryGrid).not.toContain("King&#x27;s Fall");
-    expect(primaryGrid).not.toContain("Last Wish");
-    expect(weeklyPanel).toContain("King&#x27;s Fall");
-    expect(weeklyPanel).toContain("Last Wish");
+    expect(weeklyPanel).not.toContain("King&#x27;s Fall");
+    expect(weeklyPanel).not.toContain("Last Wish");
   });
 
   it("renders all confirmed world lost sectors and keeps vendor/account noise out of daily briefing", () => {
@@ -446,12 +436,13 @@ describe("shared UI page views", () => {
         masterSoloRewards: ["异域记忆水晶（普通）"]
       },
       {
-        title: "黑色移民号花园2A",
+        title: "溪谷迷宫",
         destinationName: "发射基地",
-        championTypes: ["屏障", "过载"],
+        championTypes: ["屏障", "势不可挡"],
         shieldTypes: ["电弧", "烈日"],
-        expertSoloRewards: ["传说武器（罕见）"],
-        masterSoloRewards: ["传说武器（普通）"]
+        threatType: "电弧",
+        expertSoloRewards: ["异域记忆水晶（稀有）", "传说武器（罕见）"],
+        masterSoloRewards: ["异域记忆水晶（普通）", "传说武器（普通）"]
       },
       {
         title: "汇流",
@@ -517,37 +508,17 @@ describe("shared UI page views", () => {
         hasAccountData
       />
     );
-    const dailyPanel = html.slice(html.indexOf("home-daily-panel"), html.indexOf("home-weekly-panel"));
-
-    expect(dailyPanel).toContain("今日世界遗失区域");
-    expect(dailyPanel).toContain("9 个区域");
+    expect(html).not.toContain("home-daily-panel");
+    expect(html).not.toContain("今日世界遗失区域");
+    expect(html).not.toContain("9 个区域");
     for (const item of lostSectorItems) {
-      expect(dailyPanel).toContain(item.title);
+      expect(html).not.toContain(item.title);
     }
-    expect(dailyPanel).not.toContain("另有 6 个区域");
-    expect(dailyPanel).not.toContain("进入日报");
-    expect(dailyPanel).toContain("欧洲无人区");
-    expect(dailyPanel).toContain("勇士：屏障、势不可挡");
-    expect(dailyPanel).toContain("护盾：烈日、虚空");
-    expect(dailyPanel).toContain("威胁：虚空");
-    expect(dailyPanel).toContain("专家：");
-    expect(dailyPanel).toContain("异域记忆水晶（稀有）、传说武器（罕见）");
-    expect(dailyPanel).toContain("大师：");
-    expect(dailyPanel).toContain("异域记忆水晶（普通）、传说武器（普通）");
-    expect(dailyPanel).not.toContain("单人奖励：");
-    expect(dailyPanel).not.toContain("通关奖励");
-    expect(dailyPanel).not.toContain("单人掉落");
-    expect(dailyPanel).not.toContain("强化核心");
-    expect(dailyPanel).not.toContain("推荐光等");
-    expect(dailyPanel).not.toContain("Manifest");
-    expect(dailyPanel).not.toContain("重点商人");
-    expect(dailyPanel).not.toContain("规则整理中");
-    expect(dailyPanel).not.toContain("预留");
-    expect(dailyPanel).not.toContain("账号提醒");
-    expect(dailyPanel).not.toContain("只显示会影响今天游玩决策的账号提醒");
-    expect(dailyPanel).not.toContain("每日武器商人");
-    expect(dailyPanel).not.toContain("国王的陨落：标准");
-    expect(html).toContain("国王的陨落：标准");
+    expect(html).not.toContain("欧洲无人区");
+    expect(html).not.toContain("勇士：屏障、势不可挡");
+    expect(html).not.toContain("异域记忆水晶（稀有）、传说武器（罕见）");
+    expect(html).not.toContain("每日武器商人");
+    expect(html).not.toContain("国王的陨落：标准");
   });
 
   it("does not render lost sector name-only rows as completed daily briefing", () => {
@@ -576,7 +547,7 @@ describe("shared UI page views", () => {
                 { title: "永劫地狱" },
                 { title: "镀金箴言" },
                 { title: "繁盛深渊" },
-                { title: "黑色移民号花园2A" },
+                { title: "溪谷迷宫" },
                 { title: "汇流" },
                 { title: "K1通讯区" },
                 { title: "星光大殿" }
@@ -588,13 +559,33 @@ describe("shared UI page views", () => {
         hasAccountData
       />
     );
-    const dailyPanel = html.slice(html.indexOf("home-daily-panel"), html.indexOf("home-weekly-panel"));
+    expect(html).not.toContain("home-daily-panel");
+    expect(html).not.toContain("今日世界遗失区域");
+    expect(html).not.toContain("遗失区域详情暂不可读");
+    expect(html).not.toContain(">采石场</strong>");
+  });
 
-    expect(dailyPanel).toContain("今日世界遗失区域");
-    expect(dailyPanel).toContain("遗失区域详情暂不可读");
-    expect(dailyPanel).toContain("请先更新或修复资料库");
-    expect(dailyPanel).not.toContain('class="home-summary-list-item"');
-    expect(dailyPanel).not.toContain(">采石场</strong>");
+  it("hides the lost sector card when no confirmed active sectors are available", () => {
+    const html = renderToStaticMarkup(
+      <HomePageContentView
+        interfaceLocale="zh-CN"
+        dailySummary={{
+          daily_reset: { label: "每日 01:00 重置", time_remaining_label: "距离每日重置还有 5 小时" },
+          weekly_reset: { label: "每周三 01:00 重置", time_remaining_label: "距离每周重置还有 5 天" },
+          sources: {
+            weekly_report: { status: "ready", message: "本周周报已读取。" },
+            rotations: { status: "ready", message: "公共轮换已读取。" },
+            vendors: { status: "pending", message: "等待商人库存。" },
+            lost_sector: { status: "pending", message: "无法确认当天激活的专家遗失区域。" }
+          },
+          checklist: []
+        }}
+        hasAccountData
+      />
+    );
+    const dailyPanel = html.slice(html.indexOf("home-daily-panel"), html.indexOf("home-operations-desk"));
+
+    expect(dailyPanel).not.toContain("遗失区域");
   });
 
   it("renders library acquisition source groups from the page model contract", () => {
@@ -664,6 +655,55 @@ describe("shared UI page views", () => {
     expect(html).not.toContain("基础属性");
     expect(html).toContain("查看详情");
     expect(html).not.toContain("library-definition-dialog");
+  });
+
+  it("keeps result filters with the library results instead of the query rail", () => {
+    const html = renderToStaticMarkup(
+      <LibraryPageContentView
+        interfaceLocale="zh-CN"
+        model={selectLibraryPageModel({
+          items: [libraryItem(710, "筛选测试武器", "先锋打击掉落。")],
+          perks: [],
+          libraryHistory: { recent: [], favorites: [] },
+          libraryCommunityMatch: new Map(),
+          liveAvailability: null,
+          liveAvailabilityError: "",
+          manifestStatus: { initialized: true, version: "2026.07.07.0000" },
+          manifestStatusError: ""
+        }, {
+          libraryViewMode: "equipment",
+          equipmentFilters: defaultLibraryEquipmentFilter,
+          perkFilters: defaultLibraryPerkFilter,
+          equipmentSearchTouched: true,
+          perkSearchTouched: false,
+          isSearching: false,
+          searchError: "",
+          aliasDraft: "",
+          aliasTargetDraft: "",
+          aliasKind: "item",
+          aliasMessage: "",
+          isLoadingLiveAvailability: false,
+          isLoadingManifestStatus: false,
+          isInitializingManifest: false,
+          itemDetailLoadingKey: ""
+        })}
+        actions={libraryActions()}
+      />
+    );
+    const queryRailStart = html.indexOf('aria-label="出处查询"');
+    const resultsStart = html.indexOf('aria-label="搜索结果"');
+    const resultFiltersStart = html.indexOf('aria-label="结果筛选"');
+    const queryRail = html.slice(queryRailStart, resultsStart);
+    const resultFilters = html.slice(resultFiltersStart, html.indexOf('aria-label="装备结果列表"'));
+
+    expect(queryRailStart).toBeGreaterThanOrEqual(0);
+    expect(resultsStart).toBeGreaterThan(queryRailStart);
+    expect(resultFiltersStart).toBeGreaterThan(resultsStart);
+    expect(queryRail).not.toContain('aria-label="结果筛选"');
+    expect(queryRail).not.toContain("别名与收藏");
+    expect(queryRail).not.toContain("来源说明");
+    expect(resultFilters).not.toContain("掉落查询");
+    expect(resultFilters).not.toContain("高级筛选");
   });
 
   it("filters library definition sockets down to random perk candidates", () => {

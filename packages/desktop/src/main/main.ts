@@ -77,7 +77,7 @@ app.on("window-all-closed", () => {
 function parseVisualViewport(value: string): [number, number] {
   const [width, height] = value.split("x").map((part) => Number.parseInt(part, 10));
   if (!Number.isFinite(width) || !Number.isFinite(height)) {
-    return [1365, 900];
+    return [1920, 1080];
   }
   return [width, height];
 }
@@ -86,11 +86,11 @@ async function captureVisualSnapshot(window: BrowserWindow): Promise<void> {
   if (!visualCaptureDir) return;
 
   const waitSelectorByPage: Record<string, string> = {
-    home: ".home-briefing-grid",
+    home: ".home-operations-desk",
     loadouts: ".loadout-workbench-shell",
     settings: ".app-settings-shell"
   };
-  const waitSelector = waitSelectorByPage[visualCapturePage] ?? ".home-briefing-grid";
+  const waitSelector = waitSelectorByPage[visualCapturePage] ?? ".home-operations-desk";
   const waitText = visualCapturePage === "home" ? "刷新中..." : "";
 
   await window.webContents.executeJavaScript(`
@@ -122,7 +122,7 @@ async function captureVisualSnapshot(window: BrowserWindow): Promise<void> {
   `);
 
   const image = await window.webContents.capturePage();
-  const imagePath = visualCaptureFile ?? join(visualCaptureDir, "app-dark-1365x900.png");
+  const imagePath = visualCaptureFile ?? join(visualCaptureDir, "app-dark-1920x1080.png");
   await mkdir(visualCaptureDir, { recursive: true });
   await writeFile(imagePath, image.toPNG());
 
@@ -134,12 +134,13 @@ async function captureVisualSnapshot(window: BrowserWindow): Promise<void> {
         ".shell-sidebar",
         ".shell-content",
         ".page-header",
-        ".home-briefing-grid",
-        ".home-daily-panel",
-        ".home-weekly-panel",
-        ".home-weekly-dashboard",
-        ".home-reward-item",
-        ".home-intel-row",
+        ".home-operations-desk",
+        ".home-operations-week",
+        ".home-operations-nightfall",
+        ".home-operations-body",
+        ".home-operations-stock",
+        ".home-operations-stock-grid",
+        ".home-operations-live",
         ".home-main-grid",
         ".loadout-workbench-shell",
         ".loadout-entry-list",
@@ -193,7 +194,7 @@ async function captureVisualSnapshot(window: BrowserWindow): Promise<void> {
         colorMode: document.querySelector(".app-shell")?.getAttribute("data-color-mode") ?? "unknown",
         homeTitleCount: Array.from(document.querySelectorAll("h1, h2")).filter((item) => {
           const text = item.textContent?.trim();
-          return text === "首页" || text === "今日工作台";
+          return text === "首页" || text === "本周游戏世界简报";
         }).length,
         settingsTitleCount: Array.from(document.querySelectorAll("h1, h2")).filter((item) => item.textContent?.trim() === "设置").length,
         computedStyles: Object.fromEntries(selectors.map((selector) => [selector, pick(selector)])),

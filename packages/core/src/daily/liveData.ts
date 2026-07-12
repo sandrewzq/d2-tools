@@ -20,6 +20,9 @@ type PublicMilestone = {
 
 type PublicVendor = {
   vendorHash?: number;
+  enabled?: boolean;
+  nextRefreshDate?: string;
+  vendorLocationIndex?: number;
 };
 
 type PublicSale = {
@@ -69,6 +72,7 @@ export type BuildDailyLiveDataInput = {
   milestones?: Record<string, PublicMilestone>;
   publicVendors?: PublicVendorsResponse;
   characterVendors?: CharacterVendorResponse[];
+  activeLostSectorActivityHashes?: number[];
   definitions?: {
     activities?: DefinitionComponentData | null;
     milestones?: DefinitionComponentData | null;
@@ -114,12 +118,10 @@ export async function fetchDailyLiveData(options: FetchDailyLiveDataOptions): Pr
 
 export function buildDailyLiveDataFromBungie(input: BuildDailyLiveDataInput): Required<DailyLiveData> {
   const milestoneItems = mapMilestones(input.milestones ?? {}, input.definitions ?? {});
-  const manifestLostSectorItems = buildLostSectorFallback(input.definitions);
-  const lostSectorItems = manifestLostSectorItems.length > 1
-    ? manifestLostSectorItems
-    : milestoneItems.lost_sector.length > 0
-      ? milestoneItems.lost_sector
-      : manifestLostSectorItems;
+  const lostSectorItems = buildLostSectorFallback(
+    input.definitions,
+    input.activeLostSectorActivityHashes
+  );
   return {
     rotations: milestoneItems.rotations,
     vendors: mapVendors(input.publicVendors, input.characterVendors ?? [], input.definitions ?? {}),
@@ -169,14 +171,16 @@ function selectDestinyMembership(data: UserMembershipData): DestinyMembership {
 }
 
 function buildLostSectorFallback(
-  definitions: BuildDailyLiveDataInput["definitions"]
+  definitions: BuildDailyLiveDataInput["definitions"],
+  activeActivityHashes: number[] | undefined
 ): DailySummaryItem[] {
   if (!definitions?.activities) return [];
   const { items } = buildLostSectorData(definitions.activities, new Date(), {
     destinations: definitions.destinations,
     places: definitions.places,
     items: definitions.items,
-    modifiers: definitions.modifiers
+    modifiers: definitions.modifiers,
+    activeActivityHashes
   });
   return items;
 }
@@ -306,6 +310,9 @@ function mapVendorResponse(
   const vendors = response?.vendors?.data ?? {};
   const sales = response?.sales?.data ?? {};
   const mapped = Object.entries(vendors).flatMap(([vendorKey, vendor]) => {
+    if (vendor.enabled === false) {
+      return [];
+    }
     const vendorHash = vendor.vendorHash ?? Number(vendorKey);
     const vendorName = definitionName(definitions.vendors, vendorHash) ?? "等待资料库解析的商人";
     const vendorIconUrl = definitionIcon(definitions.vendors, vendorHash);
@@ -313,35 +320,61 @@ function mapVendorResponse(
       .map((sale) => saleItemSummaryItem(definitions.items, sale, sourceLabel))
       .filter(Boolean) as DailySummaryItem[];
 
-    return [buildVendorItem(vendorHash, vendorName, vendorIconUrl, saleItems, sourceLabel)];
+    return [buildVendorItem({
+      vendorHash,
+      vendorName,
+      vendorIconUrl,
+      vendor,
+      vendorLocation: resolveVendorLocation(vendorHash, vendor.vendorLocationIndex, definitions),
+      saleItems,
+      sourceLabel
+    })];
   });
 
   return mapped;
 }
 
-function buildVendorItem(
-  vendorHash: number,
-  name: string,
-  iconUrl: string | undefined,
-  saleItems: DailySummaryItem[],
-  sourceLabel: "Bungie 公共商人" | "Bungie 登录角色商人"
-): DailySummaryItem {
-  const vendorLabel = vendorRoleLabel(vendorHash);
-  const salePreview = saleItems
+function buildVendorItem(input: {
+  vendorHash: number;
+  vendorName: string;
+  vendorIconUrl?: string;
+  vendor: PublicVendor;
+  vendorLocation?: string;
+  saleItems: DailySummaryItem[];
+  sourceLabel: "Bungie 公共商人" | "Bungie 登录角色商人";
+}): DailySummaryItem {
+  const vendorLabel = vendorRoleLabel(input.vendorHash);
+  const salePreview = input.saleItems
     .map((item) => saleItemLabelFromSummary(item))
     .slice(0, 8)
     .join(" / ") || "库存名称暂不可读";
 
   const item: DailySummaryItem = {
-    title: name,
+    title: input.vendorName,
     subtitle: vendorLabel,
     description: salePreview,
-    source: sourceLabel,
-    vendorHash,
-    iconUrl,
-    items: saleItems.slice(0, 12)
+    source: input.sourceLabel,
+    vendorHash: input.vendorHash,
+    vendorEnabled: input.vendor.enabled ?? true,
+    vendorRefreshDate: input.vendor.nextRefreshDate,
+    vendorLocation: input.vendorLocation,
+    iconUrl: input.vendorIconUrl,
+    items: input.saleItems.slice(0, 12)
   };
   return item;
+}
+
+function resolveVendorLocation(
+  vendorHash: number,
+  locationIndex: number | undefined,
+  definitions: NonNullable<BuildDailyLiveDataInput["definitions"]>
+): string | undefined {
+  if (locationIndex === undefined) return undefined;
+  const vendorDefinition = definitionRecord(definitions.vendors, vendorHash) as (DefinitionRecord & {
+    locations?: Array<{ destinationHash?: number }>;
+  }) | undefined;
+  const destinationHash = vendorDefinition?.locations?.[locationIndex]?.destinationHash;
+  return definitionName(definitions.destinations, destinationHash);
 }
 
 const KEY_VENDOR_ORDER = [

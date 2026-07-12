@@ -23,6 +23,9 @@ export type HomeDailyItem = {
   expertSoloRewards?: string[];
   masterSoloRewards?: string[];
   vendorHash?: number;
+  vendorEnabled?: boolean;
+  vendorRefreshDate?: string;
+  vendorLocation?: string;
   items?: HomeDailyItem[];
 };
 
@@ -165,6 +168,16 @@ type HomeSummaryCard = {
   items?: HomeDailyItem[];
 };
 
+type HomeWeeklyPriority = HomeWeeklySummary["priorities"][HomeWeeklyPriorityKind];
+
+type HomeConfirmedXur = {
+  title: string;
+  location?: string;
+  refreshLabel?: string;
+  inventoryCount: number;
+  items: HomeDailyItem[];
+};
+
 export type HomePageViewProps = {
   interfaceLocale?: InterfaceLocale;
   state?: HomeStartupState;
@@ -231,103 +244,206 @@ export function HomePageContentView(props: HomePageViewProps) {
     isLoadingDaily: props.isLoadingDaily ?? false,
     onRefreshDiagnostics: props.onRefreshDiagnostics ?? noop
   };
-  const weeklyBriefing = buildWeeklyBriefing(viewProps.dailySummary, viewProps.weeklySummary, copy);
-  const xurSpotlight = buildXurSpotlight(viewProps.dailySummary?.sources.vendors, copy);
-  const todayCards = buildTodayConfirmationCards(viewProps.dailySummary, copy);
-  const dailyResetStatus = formatResetStatus(viewProps.dailySummary?.daily_reset, copy.labels.dailyReset, homeText(copy, "每日重置和世界遗失区域"));
   const weeklyResetStatus = formatWeeklyResetStatus(viewProps.weeklySummary, viewProps.dailySummary, copy);
+  const confirmedPriorities = buildConfirmedWeeklyPriorities(viewProps.weeklySummary);
+  const xur = buildConfirmedXur(viewProps.dailySummary?.sources.vendors, copy);
+  const hasWeeklyBriefing = Boolean(
+    confirmedPriorities.nightfall
+    || confirmedPriorities.rotating_raid
+    || confirmedPriorities.rotating_dungeon
+  );
+  const hasLiveSignals = Boolean(confirmedPriorities.special_event || confirmedPriorities.weekly_bonus);
+  const hasWeeklyContent = Boolean(
+    hasWeeklyBriefing
+    || hasLiveSignals
+    || xur
+  );
 
   return (
-    <>
-      {viewProps.dailyError ? <p className="status-message status-error">{viewProps.dailyError}</p> : null}
-      {viewProps.dailyMessage ? <p className="status-message status-ready">{viewProps.dailyMessage}</p> : null}
+    <ProductWorkspacePanel className="home-operations-desk app-panel-body">
+      <header className="home-operations-heading app-section-title">
+        <div>
+          <h2>{homeText(copy, "本周情报")}</h2>
+          <span>{homeText(copy, "无需登录即可查看的公开游戏世界数据")}</span>
+        </div>
+        <span className="home-operations-reset app-chip status-ready">{weeklyResetStatus}</span>
+      </header>
 
-      <div className="home-briefing-grid">
-        <ProductWorkspacePanel className="home-daily-panel">
-          <div className="app-section-title">
-            <div>
-              <h2>{homeText(copy, "本日更新")}</h2>
-              <span>{dailyResetStatus}</span>
-            </div>
-          </div>
+      {hasWeeklyContent ? (
+        <>
+          {hasWeeklyBriefing ? (
+            <section className="home-operations-week">
+              {confirmedPriorities.nightfall ? renderWeeklyPrimaryCard(confirmedPriorities.nightfall, copy) : null}
+              {confirmedPriorities.rotating_raid
+                ? renderWeeklyOperationsList("raid", homeText(copy, "轮换突袭"), confirmedPriorities.rotating_raid)
+                : null}
+              {confirmedPriorities.rotating_dungeon
+                ? renderWeeklyOperationsList("dungeon", homeText(copy, "轮换地牢"), confirmedPriorities.rotating_dungeon)
+                : null}
+            </section>
+          ) : null}
 
-          <div className="home-daily-lead">
-            {todayCards.map((card) => renderHomeSummaryCard(card))}
-          </div>
-        </ProductWorkspacePanel>
-
-        <ProductWorkspacePanel className="home-weekly-panel">
-          <div className="app-section-title">
-            <div>
-              <h2>{homeText(copy, "本周更新")}</h2>
-              <span>{weeklyResetStatus}</span>
-            </div>
-            <span className={toneClass("ready", "app-chip")}>{copy.sections.weeklyRewards.badge}</span>
-          </div>
-
-          <div className="home-weekly-summary">
-            <div>
-              <span>{copy.labels.priority}</span>
-              <strong>{copy.rewardGroups.powerPriority}</strong>
-            </div>
-            <div className="home-reward-count">
-              <strong>{weeklyBriefing.cards.length}</strong>
-              <span>{copy.labels.focusCount}</span>
-            </div>
-          </div>
-
-          <div className="home-weekly-dashboard">
-            <div className="home-weekly-primary-grid">
-              {weeklyBriefing.cards.map((card) => (
-                <article className="home-weekly-card" data-source={card.source} data-tone={card.tone} key={card.key}>
+          <div className="home-operations-body">
+            {xur ? renderConfirmedXur(xur, copy) : null}
+            {hasLiveSignals ? (
+              <aside className="home-operations-live app-panel app-panel-body">
+                <div className="home-operations-live-heading app-section-title">
                   <div>
-                    <span>{card.title}</span>
-                    <strong>{card.value}</strong>
+                    <h3>{homeText(copy, "实时情报")}</h3>
+                    <span>{homeText(copy, "限时活动与公开周加成")}</span>
                   </div>
-                  <p>{card.detail}</p>
-                  <span className={toneClass(card.tone, "app-chip")}>{card.badge}</span>
-                </article>
-              ))}
-            </div>
-
-            <div className="home-weekly-support" aria-label={homeText(copy, "本周辅助线索")}>
-              {renderXurSpotlight(xurSpotlight, copy)}
-              {weeklyBriefing.supportSections.map((section) => (
-                <section className="home-weekly-support-section" data-tone={section.tone} key={section.key}>
-                  <div className="home-weekly-support-heading">
-                    <div>
-                      <strong>{section.title}</strong>
-                      <span>{section.detail}</span>
-                    </div>
-                    <span className={toneClass(section.tone, "app-chip")}>{section.badge}</span>
-                  </div>
-                  {section.items?.length ? (
-                    <div className="home-weekly-support-list">
-                      {section.items.map((item) => (
-                        <div className="home-weekly-support-row" data-has-icon={item.iconUrl ? "true" : "false"} key={`${section.key}-${item.label}`}>
-                          {item.iconUrl ? (
-                            <img
-                              alt=""
-                              className="home-weekly-support-icon"
-                              onError={(event) => {
-                                event.currentTarget.src = createWeeklySupportIconUrl(item.label);
-                              }}
-                              src={item.iconUrl}
-                            />
-                          ) : null}
-                          <strong>{item.label}</strong>
-                          <span>{item.detail}</span>
-                        </div>
-                      ))}
-                    </div>
-                  ) : null}
-                </section>
-              ))}
-            </div>
+                </div>
+                {confirmedPriorities.special_event
+                  ? renderWeeklySignalCard("event", homeText(copy, "限时活动"), confirmedPriorities.special_event)
+                  : null}
+                {confirmedPriorities.weekly_bonus
+                  ? renderWeeklySignalCard("bonus", homeText(copy, "本周加成"), confirmedPriorities.weekly_bonus)
+                  : null}
+              </aside>
+            ) : null}
           </div>
-        </ProductWorkspacePanel>
+        </>
+      ) : (
+        <div className="home-operations-empty">
+          <strong>{homeText(copy, "本周世界状态暂不可读")}</strong>
+          <span>{homeText(copy, "只展示 Bungie 当前接口能够确认的活动和商人库存")}</span>
+        </div>
+      )}
+
+      <small className="home-operations-source">
+        {homeText(copy, "来源：Bungie 公开接口与经过校验的公开机器数据")}
+      </small>
+    </ProductWorkspacePanel>
+  );
+}
+
+function buildConfirmedWeeklyPriorities(weeklySummary: HomeWeeklySummary | null): Partial<Record<HomeWeeklyPriorityKind, HomeWeeklyPriority>> {
+  if (!weeklySummary) return {};
+  return Object.fromEntries(
+    Object.entries(weeklySummary.priorities).filter(([, priority]) => priority.status === "ready")
+  ) as Partial<Record<HomeWeeklyPriorityKind, HomeWeeklyPriority>>;
+}
+
+function renderWeeklyPrimaryCard(priority: HomeWeeklyPriority, copy: HomeCopy) {
+  const reward = priority.entries?.flatMap((entry) => entry.rewards ?? [])[0];
+  return (
+    <article className="home-operations-nightfall app-metric status-ready" data-tone="ready">
+      <span className="home-operations-section-label">{homeText(copy, "先锋行动 · 宗师先锋警戒")}</span>
+      <div className="home-operations-nightfall-body">
+        <div>
+          <strong>{priority.title}</strong>
+          <p>{priority.detail}</p>
+        </div>
+        {reward ? (
+          <div className="home-operations-reward">
+            <span>{homeText(copy, "可见奖励")}</span>
+            <strong>{reward.name}</strong>
+            {reward.item_type ? <small>{reward.item_type}</small> : null}
+          </div>
+        ) : null}
       </div>
-    </>
+    </article>
+  );
+}
+
+function renderWeeklyOperationsList(key: string, label: string, priority: HomeWeeklyPriority) {
+  const entries = priority.entries?.filter((entry) => entry.title.trim()) ?? [];
+  const visibleEntries = entries.length ? entries : [{ title: priority.title, detail: priority.detail }];
+  return (
+    <article className="home-operations-rotation app-metric" data-kind={key} key={key}>
+      <div className="home-operations-rotation-heading">
+        <span>{label}</span>
+        <strong>{visibleEntries.length}</strong>
+      </div>
+      <div className="home-operations-entry-list">
+        {visibleEntries.map((entry) => (
+          <div className="home-operations-entry" key={`${key}-${entry.title}`}>
+            <strong>{entry.title}</strong>
+            <span>{entry.detail || priority.detail}</span>
+          </div>
+        ))}
+      </div>
+    </article>
+  );
+}
+
+function renderWeeklySignalCard(key: string, label: string, priority: HomeWeeklyPriority) {
+  return (
+    <article className="home-operations-live-block app-metric" data-kind={key} key={key}>
+      <span>{label}</span>
+      <strong>{priority.title}</strong>
+      <p>{priority.detail}</p>
+    </article>
+  );
+}
+
+function buildConfirmedXur(source: HomeDailySource | undefined, copy: HomeCopy): HomeConfirmedXur | null {
+  if (!source || source.status !== "ready") return null;
+  const vendor = source.items?.find((item) => item.vendorHash === 2190858386 || /仄|Xur|Xûr/i.test(item.title));
+  const items = (vendor?.items ?? []).filter((item) => item.title.trim());
+  if (!vendor || vendor.vendorEnabled === false || !items.length) return null;
+  return {
+    title: vendor.title,
+    location: vendor.vendorLocation,
+    refreshLabel: formatVendorRefreshLabel(vendor.vendorRefreshDate, copy),
+    inventoryCount: vendor.items?.filter((item) => item.title.trim()).length ?? items.length,
+    items
+  };
+}
+
+function formatVendorRefreshLabel(value: string | undefined, copy: HomeCopy): string | undefined {
+  if (!value) return undefined;
+  const remainingMs = new Date(value).getTime() - Date.now();
+  if (!Number.isFinite(remainingMs) || remainingMs <= 0) return undefined;
+  const totalHours = Math.ceil(remainingMs / 3_600_000);
+  const days = Math.floor(totalHours / 24);
+  const hours = totalHours % 24;
+  const prefix = homeText(copy, "离开还有");
+  return days > 0
+    ? `${prefix} ${days} ${homeText(copy, "天")} ${hours} ${homeText(copy, "小时")}`
+    : `${prefix} ${hours} ${homeText(copy, "小时")}`;
+}
+
+function renderConfirmedXur(xur: HomeConfirmedXur, copy: HomeCopy) {
+  return (
+    <section className="home-operations-stock app-panel app-panel-body">
+      <div className="home-operations-stock-heading app-section-title">
+        <div>
+          <strong>{xur.title}</strong>
+          <span>{homeText(copy, "本周商人库存")}</span>
+        </div>
+        <div>
+          {xur.refreshLabel ? <strong>{xur.refreshLabel}</strong> : null}
+          <span>{[
+            xur.location,
+            `${homeText(copy, "共读取")} ${xur.inventoryCount} ${homeText(copy, "件")}`
+          ].filter(Boolean).join(" · ")}</span>
+        </div>
+      </div>
+      <div className="home-operations-stock-grid">
+        {xur.items.map((item) => {
+          const iconTone = inferXurIconTone([item.title, item.subtitle, item.description].filter(Boolean).join(" "));
+          const iconUrl = normalizeBungieIconUrl(item.iconUrl ?? item.icon) ?? createXurItemIconUrl({
+            label: item.title,
+            detail: item.description ?? item.subtitle ?? "",
+            tone: "ready",
+            iconTone
+          });
+          return (
+            <article className="home-operations-stock-item" key={`${item.related_hashes?.[0] ?? item.title}-${item.subtitle ?? ""}-${item.description ?? ""}`}>
+              <span className="home-operations-stock-icon" data-icon-tone={iconTone} aria-hidden="true">
+                <img alt="" src={iconUrl} />
+              </span>
+              <div>
+                <span>{item.subtitle ?? homeText(copy, "商人库存")}</span>
+                <strong>{item.title}</strong>
+                {item.description ? <small>{item.description}</small> : null}
+              </div>
+            </article>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 

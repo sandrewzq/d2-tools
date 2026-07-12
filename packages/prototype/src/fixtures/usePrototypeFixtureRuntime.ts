@@ -621,6 +621,7 @@ export function createPrototypeHomePageModel(scenario: PrototypeScenario) {
     accountError: scenario.accountError,
     hasAccountData: scenario.hasAccountData,
     dailySummary: scenario.homeDailySummary,
+    weeklySummary: scenario.homeWeeklySummary ?? null,
     isInitializingManifest: scenario.isInitializingManifest,
     isLoadingDaily: scenario.isLoadingDaily,
     isRefreshingDiagnostics: scenario.isRefreshingDiagnostics
@@ -852,7 +853,7 @@ function getPrototypePageLabel(page: ShellPageKey) {
 
 function getPrototypeAssistantFocus(page: ShellPageKey) {
   const focus: Record<ShellPageKey, string> = {
-    home: "先看官方可确认的今日 / 本周内容，再处理账号、资料库和应用版本状态。",
+    home: "只看官方可确认的本周活动、限时事件和仄商人库存。",
     account: "检查角色、仓库和最近活动是否已读取，后续账号切换也应从这里进入。",
     vault: "从重复同名、目标命中、配装占用和清理候选中找出下一步整理动作。",
     loadouts: "确认配装缺口、转移计划和可直接应用的装备，避免把状态藏在页面底部。",
