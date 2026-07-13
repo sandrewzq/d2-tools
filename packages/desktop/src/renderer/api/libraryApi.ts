@@ -22,17 +22,8 @@ export type LibraryApi = {
   removeFavoriteItem(hash: number): Promise<LibraryHistory>;
 };
 
-export type ItemDefinitionDetail = {
-  hash: number;
-  name: string;
-  description: string;
-  icon?: string;
-  item_type?: string;
-  tier?: string;
-  damage_type?: string;
-  source: ItemSourceSummary;
+export type ItemDefinitionDetail = ItemSearchResult & {
   release?: ItemReleaseSummary;
-  perks?: ItemPerkGroup[];
 };
 
 export type ItemSearchResult = {

@@ -9,7 +9,7 @@ import type {
 export type VendorInventoryTone = "exotic" | "weapon" | "armor" | "material";
 export type VendorInventoryStatus = "owned" | "recommended" | "unknown";
 export type VendorInventoryState = "loaded" | "empty" | "not_read" | "unavailable";
-export type VendorDetailState = "ready" | "partial" | "failed";
+export type VendorDetailState = "pending" | "ready" | "partial" | "failed";
 
 export type VendorInventoryItemWorkspace = {
   id: string;
@@ -24,12 +24,32 @@ export type VendorInventoryItemWorkspace = {
   tone: VendorInventoryTone;
   status: VendorInventoryStatus;
   itemHash?: number;
+  quantity?: number;
   vendorItemIndex?: number;
+  categoryIndex?: number;
+  categoryName?: string;
   characterIds?: string[];
   decisionLabel?: string;
   costs?: VendorCostWorkspace[];
   stats?: Record<string, number>;
   sourcePath?: string;
+};
+
+export type VendorInventorySectionWorkspace = {
+  id: string;
+  name: string;
+  description?: string;
+  presentation?: "standard" | "featured";
+  items: VendorInventoryItemWorkspace[];
+};
+
+export type VendorContentSectionWorkspace = {
+  id: string;
+  name: string;
+  description?: string;
+  layout: "featured" | "columns" | "list" | "rank";
+  groups: VendorInventorySectionWorkspace[];
+  progression?: VendorProgressionWorkspace;
 };
 
 export type VendorCostWorkspace = {
@@ -42,9 +62,19 @@ export type VendorCostWorkspace = {
 
 export type VendorServiceWorkspace = {
   id: string;
+  vendorHash?: number;
   name: string;
   description: string;
   items: VendorInventoryItemWorkspace[];
+  sections?: VendorInventorySectionWorkspace[];
+};
+
+export type VendorProgressionWorkspace = {
+  currentProgress: number;
+  level: number;
+  levelCap: number;
+  progressToNextLevel: number;
+  nextLevelAt: number;
 };
 
 export type VendorInventoryGroupWorkspace = {
@@ -70,6 +100,9 @@ export type VendorInventoryGroupWorkspace = {
   featured?: boolean;
   items: VendorInventoryItemWorkspace[];
   services?: VendorServiceWorkspace[];
+  rankRewards?: VendorInventoryItemWorkspace[];
+  progression?: VendorProgressionWorkspace;
+  contentSections?: VendorContentSectionWorkspace[];
 };
 
 export type VendorRailSectionWorkspace = {
@@ -154,6 +187,10 @@ export type VendorSearchResults = {
 };
 
 const publicVendorSourceLabel = "Bungie 公共商人";
+const xurVendorHash = 2190858386;
+const xurOffersVendorHash = 537912098;
+const xurGearVendorHash = 3751514131;
+const xurChildVendorHashes = [xurOffersVendorHash, xurGearVendorHash] as const;
 
 export function selectVendorsPageModel(input: DailySummary | VendorsPageInput | null): VendorsPageModel {
   if (isVendorsPageInput(input)) return selectSnapshotVendorsPageModel(input);
@@ -209,7 +246,10 @@ export function filterVendorSearchResults(
         .filter((item) => matchesVendorSearch(item, query, input.filters))
         .map((item) => ({ ...item, sourcePath: `${vendor.name} → ${service.name}` }))
     );
-    const items = [...directItems, ...serviceItems];
+    const rankItems = (vendor.rankRewards ?? [])
+      .filter((item) => matchesVendorSearch(item, query, input.filters))
+      .map((item) => ({ ...item, sourcePath: `${vendor.name} → 声望与等级` }));
+    const items = [...directItems, ...serviceItems, ...rankItems];
     return items.length ? [{ vendorId: vendor.id, vendorName: vendor.name, items }] : [];
   });
   return { groups };
@@ -240,21 +280,36 @@ function selectSnapshotVendorsPageModel(input: VendorsPageInput): VendorsPageMod
     };
   }
 
-  const vendors = snapshot.vendors.map((vendor) => {
+  const mappedVendors = snapshot.vendors.map((vendor) => {
     const detailFailures = getVendorDetailFailures(snapshot, vendor.vendorHash, input.scope);
-    const detailState = getVendorDetailState(vendor.characterIds, detailFailures, input.scope);
-    const items = vendor.offers
+    const detailState = getVendorDetailState(
+      vendor.vendorHash,
+      vendor.characterIds,
+      detailFailures,
+      input.scope,
+      snapshot.detailVendorHashes
+    );
+    const mappedOffers = vendor.offers
       .filter((offer) => offerMatchesScope(offer, input.scope))
       .map((offer) => mapSnapshotOffer(offer, snapshot, vendor.name));
+    const items = vendor.vendorHash === xurVendorHash
+      ? mappedOffers.filter((offer) => offer.categoryIndex === 0)
+      : mappedOffers;
+    const rankRewards = vendor.vendorHash === xurVendorHash
+      ? mappedOffers.filter((offer) => offer.categoryIndex === 4)
+      : undefined;
     const services = vendor.services.map((service) => ({
       id: service.id,
       name: service.name,
       description: service.description,
       items: service.offers
         .filter((offer) => offerMatchesScope(offer, input.scope))
-        .map((offer) => mapSnapshotOffer(offer, snapshot, `${vendor.name} → ${service.name}`))
+        .map((offer) => mapSnapshotOffer(offer, snapshot, `${vendor.name} → ${service.name}`)),
+      sections: createInventorySections(service.offers
+        .filter((offer) => offerMatchesScope(offer, input.scope))
+        .map((offer) => mapSnapshotOffer(offer, snapshot, `${vendor.name} → ${service.name}`)))
     }));
-    return enrichVendorViewModel({
+    return {
       id: vendor.id,
       vendorHash: vendor.vendorHash,
       name: vendor.name,
@@ -268,14 +323,28 @@ function selectSnapshotVendorsPageModel(input: VendorsPageInput): VendorsPageMod
         ? "详情失败"
         : detailState === "partial"
           ? "部分详情失败"
-          : "已确认",
+          : detailState === "pending"
+            ? "属性读取中"
+            : "已确认",
       detailState,
       detailFailureMessage: getVendorDetailFailureMessage(detailState, detailFailures),
       featured: vendor.vendorHash === 2190858386,
       items,
-      services
-    });
+      services,
+      rankRewards,
+      progression: vendor.progression ? {
+        currentProgress: vendor.progression.currentProgress,
+        level: vendor.progression.level,
+        levelCap: vendor.progression.levelCap,
+        progressToNextLevel: vendor.progression.progressToNextLevel,
+        nextLevelAt: vendor.progression.nextLevelAt
+      } : undefined
+    } satisfies VendorInventoryGroupWorkspace;
   });
+  const vendors = composeXurVendorFamily(mappedVendors).map((vendor) => enrichVendorViewModel({
+    ...vendor,
+    contentSections: vendor.contentSections ?? createDefaultContentSections(vendor)
+  }));
   const defaultVendorId = input.selectedVendorId && vendors.some((vendor) => vendor.id === input.selectedVendorId)
     ? input.selectedVendorId
     : vendors.find((vendor) => vendor.featured)?.id ?? vendors[0]?.id ?? null;
@@ -295,7 +364,7 @@ function selectSnapshotVendorsPageModel(input: VendorsPageInput): VendorsPageMod
       0
     ),
     verifiedItemCount: vendors.reduce(
-      (count, vendor) => count + vendor.items.length + (vendor.services ?? []).reduce(
+      (count, vendor) => count + vendor.items.length + (vendor.rankRewards?.length ?? 0) + (vendor.services ?? []).reduce(
         (serviceCount, service) => serviceCount + service.items.length,
         0
       ),
@@ -328,7 +397,10 @@ function mapSnapshotOffer(
   return {
     id: offer.id,
     itemHash: offer.itemHash,
+    quantity: offer.quantity,
     vendorItemIndex: offer.vendorItemIndex,
+    categoryIndex: offer.categoryIndex,
+    categoryName: offer.categoryName,
     characterIds: [...offer.characterIds],
     name: offer.name,
     itemType: [offer.itemType, offer.tierType].filter(Boolean).join("，"),
@@ -343,6 +415,211 @@ function mapSnapshotOffer(
     stats: { ...offer.stats },
     sourcePath
   };
+}
+
+function composeXurVendorFamily(
+  vendors: VendorInventoryGroupWorkspace[]
+): VendorInventoryGroupWorkspace[] {
+  const parent = vendors.find((vendor) => vendor.vendorHash === xurVendorHash);
+  if (!parent) return vendors;
+
+  const children = xurChildVendorHashes
+    .map((vendorHash) => vendors.find((vendor) => vendor.vendorHash === vendorHash))
+    .filter((vendor): vendor is VendorInventoryGroupWorkspace => Boolean(vendor));
+  const childServices = children.map((child) => {
+    const items = child.items.map((item) => ({
+      ...item,
+      sourcePath: `${parent.name} → ${child.name}`
+    }));
+    return {
+      id: child.id,
+      vendorHash: child.vendorHash,
+      name: child.name,
+      description: child.description,
+      items,
+      sections: createInventorySections(items)
+    };
+  });
+  const family = [parent, ...children];
+  const detailState = mergeVendorDetailStates(family.map((vendor) => vendor.detailState));
+  const detailFailureMessage = family
+    .map((vendor) => vendor.detailFailureMessage)
+    .filter((message): message is string => Boolean(message))
+    .join("；") || undefined;
+  const services = [
+    ...(parent.services ?? []).filter((service) => service.items.length > 0),
+    ...childServices
+  ];
+  const mergedParent: VendorInventoryGroupWorkspace = {
+    ...parent,
+    detailState,
+    detailFailureMessage,
+    services,
+    contentSections: createXurContentSections(parent, services)
+  };
+
+  return vendors
+    .filter((vendor) => !xurChildVendorHashes.includes(vendor.vendorHash as typeof xurChildVendorHashes[number]))
+    .map((vendor) => vendor.vendorHash === xurVendorHash ? mergedParent : vendor);
+}
+
+function createXurContentSections(
+  parent: VendorInventoryGroupWorkspace,
+  childServices: VendorServiceWorkspace[]
+): VendorContentSectionWorkspace[] {
+  const sections: VendorContentSectionWorkspace[] = [];
+  if (parent.rankRewards?.length || parent.progression) {
+    sections.push({
+      id: "xur-rank",
+      name: "声望与等级",
+      description: parent.progression
+        ? `等级上限 ${parent.progression.levelCap} · ${parent.rankRewards?.length ?? 0} 个奖励`
+        : `${parent.rankRewards?.length ?? 0} 个等级奖励`,
+      layout: "rank",
+      progression: parent.progression,
+      groups: [{
+        id: "xur-rank-rewards",
+        name: "等级奖励",
+        items: parent.rankRewards ?? []
+      }]
+    });
+  }
+  if (parent.items.length) {
+    sections.push({
+      id: "xur-weekly",
+      name: "本周库存",
+      description: `多样奇异优惠 · 当前角色 ${parent.items.length} 件`,
+      layout: "featured",
+      groups: [{ id: "xur-weekly-items", name: "", items: parent.items }]
+    });
+  }
+  for (const service of childServices) {
+    const groups = orderXurServiceSections(service).map((group) => decorateXurServiceSection(service, group));
+    sections.push({
+      id: service.id,
+      name: service.name,
+      description: `${service.items.length} 件 · ${groups.length} 个 Bungie 分类`,
+      layout: groups.length > 1 ? "columns" : "list",
+      groups: groups.length ? groups : [{
+        id: `${service.id}-items`,
+        name: "",
+        items: service.items
+      }]
+    });
+  }
+  return sections;
+}
+
+function decorateXurServiceSection(
+  service: VendorServiceWorkspace,
+  group: VendorInventorySectionWorkspace
+): VendorInventorySectionWorkspace {
+  if (service.vendorHash === xurOffersVendorHash) {
+    if (group.name === "玖的忠诚计划") {
+      return { ...group, description: "账户级增益", presentation: "featured" };
+    }
+    if (group.name === "奇异材料优惠") {
+      return { ...group, description: `${group.items.length} 个独立兑换条目` };
+    }
+    if (group.name === "奇异可重复优惠") {
+      return { ...group, description: "可重复兑换" };
+    }
+  }
+  if (service.vendorHash === xurGearVendorHash) {
+    if (group.name === "异域装备") {
+      return { ...group, description: "武器、记忆水晶与催化剂" };
+    }
+    if (group.name === "传说武器") {
+      return { ...group, description: `${group.items.length} 件武器与记忆水晶` };
+    }
+    if (group.name === "传说护甲") {
+      return { ...group, description: "当前角色职业套装" };
+    }
+  }
+  return group;
+}
+
+function orderXurServiceSections(service: VendorServiceWorkspace): VendorInventorySectionWorkspace[] {
+  const groups = service.sections ?? [];
+  const names = service.vendorHash === xurOffersVendorHash
+    ? ["玖的忠诚计划", "奇异材料优惠", "奇异可重复优惠"]
+    : service.vendorHash === xurGearVendorHash
+      ? ["异域装备", "传说武器", "传说护甲"]
+      : [];
+  if (!names.length) return groups;
+  return [...groups].sort((left, right) => {
+    const leftIndex = names.indexOf(left.name);
+    const rightIndex = names.indexOf(right.name);
+    return (leftIndex < 0 ? Number.MAX_SAFE_INTEGER : leftIndex)
+      - (rightIndex < 0 ? Number.MAX_SAFE_INTEGER : rightIndex);
+  });
+}
+
+function createDefaultContentSections(
+  vendor: VendorInventoryGroupWorkspace
+): VendorContentSectionWorkspace[] {
+  const sections: VendorContentSectionWorkspace[] = [];
+  if (vendor.items.length) {
+    sections.push({
+      id: `${vendor.id}-inventory`,
+      name: "库存",
+      description: `${vendor.items.length} 件`,
+      layout: "featured",
+      groups: createInventorySections(vendor.items)
+    });
+  }
+  for (const service of vendor.services ?? []) {
+    if (!service.items.length) continue;
+    sections.push({
+      id: service.id,
+      name: service.name,
+      description: service.description || `${service.items.length} 件`,
+      layout: (service.sections?.length ?? 0) > 1 ? "columns" : "list",
+      groups: service.sections?.length ? service.sections : [{
+        id: `${service.id}-items`,
+        name: "",
+        items: service.items
+      }]
+    });
+  }
+  if (vendor.rankRewards?.length || vendor.progression) {
+    sections.push({
+      id: `${vendor.id}-rank`,
+      name: "声望与等级",
+      layout: "rank",
+      progression: vendor.progression,
+      groups: [{
+        id: `${vendor.id}-rank-rewards`,
+        name: "等级奖励",
+        items: vendor.rankRewards ?? []
+      }]
+    });
+  }
+  return sections;
+}
+
+function createInventorySections(items: VendorInventoryItemWorkspace[]): VendorInventorySectionWorkspace[] {
+  const sections = new Map<string, VendorInventoryItemWorkspace[]>();
+  for (const item of items) {
+    const name = item.categoryName?.trim() || "其他";
+    const sectionItems = sections.get(name) ?? [];
+    sectionItems.push(item);
+    sections.set(name, sectionItems);
+  }
+  return [...sections.entries()].map(([name, sectionItems], index) => ({
+    id: `${slugify(name) || "section"}-${index}`,
+    name,
+    items: sectionItems
+  }));
+}
+
+function mergeVendorDetailStates(
+  states: Array<VendorDetailState | undefined>
+): VendorDetailState | undefined {
+  if (states.some((state) => state === "failed" || state === "partial")) return "partial";
+  if (states.some((state) => state === "pending")) return "pending";
+  if (states.every((state) => state === "ready")) return "ready";
+  return states.find((state): state is VendorDetailState => Boolean(state));
 }
 
 function offerMatchesScope(offer: VendorOffer, scope: VendorCharacterScope): boolean {
@@ -399,10 +676,13 @@ function getVendorDetailFailures(
 }
 
 function getVendorDetailState(
+  vendorHash: number,
   vendorCharacterIds: string[],
   failures: VendorInventorySnapshot["failedVendorDetails"],
-  scope: VendorCharacterScope
+  scope: VendorCharacterScope,
+  detailVendorHashes: number[] | undefined
 ): VendorDetailState {
+  if (detailVendorHashes && !detailVendorHashes.includes(vendorHash)) return "pending";
   if (!failures.length) return "ready";
   const expectedCharacterIds = scope.kind === "account"
     ? vendorCharacterIds
@@ -418,14 +698,25 @@ function getVendorDetailFailureMessage(
   detailState: VendorDetailState,
   failures: VendorInventorySnapshot["failedVendorDetails"]
 ): string | undefined {
-  if (detailState === "ready") return undefined;
+  if (detailState === "ready" || detailState === "pending") return undefined;
   if (detailState === "failed" && failures.length === 1) return failures[0].message;
   return `${new Set(failures.map((failure) => failure.characterId)).size} 个角色的属性与插槽详情读取失败`;
 }
 
 function createStatusBanner(input: VendorsPageInput): VendorStatusBannerWorkspace {
   if (input.refreshState === "refreshing") {
-    return { tone: "neutral", message: "正在刷新商人数据", live: "polite", busy: true };
+    const selectedVendorHash = input.snapshot?.vendors.find((vendor) => vendor.id === input.selectedVendorId)?.vendorHash
+      ?? input.snapshot?.vendors.find((vendor) => vendor.vendorHash === 2190858386)?.vendorHash
+      ?? input.snapshot?.vendors[0]?.vendorHash;
+    const isLoadingSelectedDetail = selectedVendorHash !== undefined
+      && input.snapshot?.detailVendorHashes !== undefined
+      && !input.snapshot.detailVendorHashes.includes(selectedVendorHash);
+    return {
+      tone: "neutral",
+      message: isLoadingSelectedDetail ? "正在读取当前商人属性" : "正在读取实时商人库存",
+      live: "polite",
+      busy: true
+    };
   }
   if (input.refreshState === "failed") {
     return { tone: "error", message: input.refreshError ?? "商人数据刷新失败", live: "polite", busy: false };
@@ -701,7 +992,7 @@ function enrichVendorViewModel(vendor: VendorInventoryGroupWorkspace): VendorInv
   const inventoryState = getVendorInventoryState(vendor);
   const displayStatusLabel = getVendorDisplayStatusLabel(vendor, inventoryState);
   const inventoryStateLabel = getVendorInventoryStateLabel(inventoryState);
-  const itemCountLabel = `${vendor.items.length} 件物品`;
+  const itemCountLabel = `${countVendorSaleItems(vendor)} 件物品`;
   return {
     ...vendor,
     taskCategory,
@@ -719,13 +1010,21 @@ function enrichVendorViewModel(vendor: VendorInventoryGroupWorkspace): VendorInv
 }
 
 function getVendorInventoryState(vendor: VendorInventoryGroupWorkspace): VendorInventoryState {
-  if (vendor.items.length > 0) return "loaded";
+  if (countVendorSaleItems(vendor) > 0 || (vendor.rankRewards?.length ?? 0) > 0) return "loaded";
   if (vendor.source === "本地商人目录") return "not_read";
   if (vendor.statusLabel === "已确认") return "empty";
   return "unavailable";
 }
 
+function countVendorSaleItems(vendor: VendorInventoryGroupWorkspace): number {
+  return vendor.items.length + (vendor.services ?? []).reduce(
+    (count, service) => count + service.items.length,
+    0
+  );
+}
+
 function getVendorDisplayStatusLabel(vendor: VendorInventoryGroupWorkspace, inventoryState: VendorInventoryState): string {
+  if (vendor.detailState === "pending") return "属性读取中";
   if (vendor.detailState === "failed") return "详情失败";
   if (vendor.detailState === "partial") return "部分详情失败";
   if (inventoryState === "not_read") return "未读取";

@@ -11,7 +11,7 @@ import type {
 } from "../../api/types";
 import type { SameNameItemSummary, SelectedItemDetail, SelectedItemSource } from "../hooks/useItemDetail";
 import type { buildDuplicateGroupBatchTagPlan } from "../domain/vault/vaultCleanup";
-import { SharedItemDetailDialog, type VendorOfferContext } from "@d2-tools/ui";
+import { SharedItemDetailDialog } from "@d2-tools/ui";
 import { ItemDetailHeader } from "./item-detail/ItemDetailHeader";
 import { ItemDetailStats } from "./item-detail/ItemDetailStats";
 import { ItemDetailTools } from "./item-detail/ItemDetailTools";
@@ -34,7 +34,6 @@ export type ItemDetailModalProps = {
   sameNameItems: SameNameItemSummary[];
   selectedActionCharacterId: string;
   selectedItem: SelectedItemDetail;
-  vendorContext?: VendorOfferContext;
   vaultTags: VaultTags;
   onApplySameNameBatchTags: (
     items: SameNameItemSummary[],
@@ -67,7 +66,6 @@ export function ItemDetailModal(props: ItemDetailModalProps) {
   return (
     <SharedItemDetailDialog
       detail={{ name: selectedItem.name, isBusy: selectedItem.is_detail_loading }}
-      vendorContext={props.vendorContext}
       closeLabel="关闭装备详情"
       onClose={props.onClose}
       sections={(

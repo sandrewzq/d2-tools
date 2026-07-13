@@ -57,6 +57,16 @@ describe("live vendor inventory service", () => {
     expect(tracker.maxActive).toBeLessThanOrEqual(4);
   });
 
+  it("returns base inventory without requesting vendor details", async () => {
+    const requests: string[] = [];
+    const options = createOptions(requests);
+    const snapshot = await fetchVendorInventorySnapshot({ ...options, detailVendorHashes: [] });
+
+    expect(requests.some((url) => /\/Vendors\/\d+\//.test(url))).toBe(false);
+    expect(snapshot.vendors.length).toBeGreaterThan(0);
+    expect(snapshot.detailVendorHashes).toEqual([]);
+  });
+
   it("changes the cache context and roll fingerprint when the equipped Armorer mod changes", async () => {
     const first = await fetchVendorInventorySnapshot(createOptions([], 555, 18));
     const second = await fetchVendorInventorySnapshot(createOptions([], 556, 19));

@@ -32,7 +32,7 @@ export type {
 } from "./i18n/types.js";
 export { LibraryPageView } from "./library/LibraryPageView.js";
 export type { LibraryPageViewMode } from "./library/LibraryPageView.js";
-export { getLibraryRandomPerkGroups, getLibraryWeaponPerkColumns, LibraryPageContentView } from "./library/LibraryPageContentView.js";
+export { getLibraryRandomPerkGroups, getLibraryWeaponPerkColumns, LibraryDefinitionDialog, LibraryPageContentView } from "./library/LibraryPageContentView.js";
 export type { LibraryPageActions, LibraryPageContentViewProps } from "./library/LibraryPageContentView.js";
 export type {
   LibraryDropAccessKey,
@@ -83,6 +83,9 @@ export type {
   VendorCostView,
   VendorInventoryGroupView,
   VendorInventoryItemView,
+  VendorInventorySectionView,
+  VendorContentSectionView,
+  VendorProgressionView,
   VendorRailSectionView,
   VendorsPageActions,
   VendorsPageContentViewProps,

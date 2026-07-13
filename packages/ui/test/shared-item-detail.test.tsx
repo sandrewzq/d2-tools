@@ -2,7 +2,9 @@ import React, { createRef } from "react";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
+import { getLocaleCopy } from "../src/i18n/copy.js";
 import { SharedItemDetailDialog } from "../src/item-detail/SharedItemDetailDialog.js";
+import { LibraryDefinitionDialog } from "../src/library/LibraryPageContentView.js";
 
 describe("shared item detail dialog", () => {
   it("renders an accessible shared dialog without vendor context", () => {
@@ -65,5 +67,37 @@ describe("shared item detail dialog", () => {
     view.unmount();
     expect(trigger).toHaveFocus();
     trigger.remove();
+  });
+});
+
+describe("vendor library definition detail", () => {
+  it("shows sale context without vault instance tools", () => {
+    render(
+      <LibraryDefinitionDialog
+        item={{
+          hash: 1001,
+          name: "鹰月",
+          description: "异域手炮",
+          group_key: "weapons",
+          source: { status: "ready", label: "资料库来源", description: "定义来源" }
+        }}
+        dropAccess="available"
+        vendorContext={{
+          vendorName: "仄",
+          costLabel: "23 奇异硬币",
+          affordabilityLabel: "可兑换",
+          characterLabel: "猎人",
+          refreshLabel: "刚刚刷新"
+        }}
+        copy={getLocaleCopy("zh-CN").library}
+        onClose={() => undefined}
+      />
+    );
+
+    expect(screen.getByRole("dialog", { name: "定义详情" })).toBeTruthy();
+    expect(screen.getByRole("region", { name: "商人售卖信息" })).toHaveTextContent("23 奇异硬币");
+    expect(screen.queryByText("本地标记")).toBeNull();
+    expect(screen.queryByText("本地备注")).toBeNull();
+    expect(screen.queryByText("装备操作")).toBeNull();
   });
 });

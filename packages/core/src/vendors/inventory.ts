@@ -26,6 +26,7 @@ export type VendorOffer = {
   vendorHash: number;
   vendorItemIndex: number;
   itemHash: number;
+  quantity?: number;
   name: string;
   itemType: string;
   tierType: string;
@@ -45,6 +46,16 @@ export type VendorOffer = {
   socketPlugHashes: number[];
 };
 
+export type VendorProgression = {
+  progressionHash: number;
+  currentProgress: number;
+  level: number;
+  levelCap: number;
+  stepIndex: number;
+  progressToNextLevel: number;
+  nextLevelAt: number;
+};
+
 export type VendorService = {
   id: string;
   name: string;
@@ -61,6 +72,7 @@ export type VendorInventory = {
   iconUrl?: string;
   location?: string;
   nextRefreshAt?: string;
+  progression?: VendorProgression;
   characterIds: string[];
   offers: VendorOffer[];
   services: VendorService[];
@@ -75,6 +87,7 @@ export type VendorInventorySnapshot = {
   failedVendorDetails: VendorDetailFailure[];
   currencyBalances: Record<string, number>;
   characterContexts: Record<string, VendorCharacterContext>;
+  detailVendorHashes?: number[];
   vendors: VendorInventory[];
 };
 
@@ -113,6 +126,7 @@ export type VendorResponseInput = {
   canPurchase: boolean;
   location?: string;
   nextRefreshAt?: string;
+  progression?: VendorProgression;
   categories: readonly VendorCategoryInput[];
   saleItems: Readonly<Record<string, VendorSaleItemInput>>;
   stats?: Readonly<Record<string, Readonly<Record<string, number>>>>;
@@ -128,6 +142,7 @@ export type VendorCategoryInput = {
 export type VendorSaleItemInput = {
   vendorItemIndex: number;
   itemHash: number;
+  quantity?: number;
   costs: readonly { itemHash: number; quantity: number }[];
   failureIndexes: readonly number[];
   saleStatus: number;
@@ -143,6 +158,7 @@ export type BuildVendorInventorySnapshotInput = {
   failedCharacterIds: readonly string[];
   failedVendorDetails: readonly VendorDetailFailure[];
   currencyBalances: Readonly<Record<string, number>>;
+  detailVendorHashes?: readonly number[];
   definitions: VendorInventoryDefinitions;
 };
 
@@ -198,6 +214,7 @@ export function buildVendorInventorySnapshot(input: BuildVendorInventorySnapshot
     failedVendorDetails: [...input.failedVendorDetails],
     currencyBalances: { ...input.currencyBalances },
     characterContexts: { ...input.characterContexts },
+    detailVendorHashes: input.detailVendorHashes ? [...input.detailVendorHashes] : undefined,
     vendors: [...vendors.values()]
   };
 }
@@ -266,6 +283,7 @@ function mapCharacterVendor(
     iconUrl: vendorDefinition?.iconUrl,
     location: response.location,
     nextRefreshAt: response.nextRefreshAt,
+    progression: response.progression,
     characterIds: [characterId],
     offers,
     services: [...services.values()]
@@ -309,6 +327,7 @@ function mapOffer(
     vendorHash: response.vendorHash,
     vendorItemIndex: sale.vendorItemIndex,
     itemHash: sale.itemHash,
+    quantity: sale.quantity ?? 1,
     name: item?.name ?? String(sale.itemHash),
     itemType: item?.itemType ?? "",
     tierType: item?.tierType ?? "",
@@ -336,6 +355,7 @@ function findCategory(categories: readonly VendorCategoryInput[], vendorItemInde
 }
 
 function mergeVendor(target: VendorInventory, source: VendorInventory): void {
+  target.progression ??= source.progression;
   for (const characterId of source.characterIds) {
     if (!target.characterIds.includes(characterId)) target.characterIds.push(characterId);
   }

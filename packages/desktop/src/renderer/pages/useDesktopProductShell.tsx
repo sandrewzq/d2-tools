@@ -16,6 +16,7 @@ import { useLibraryWorkspace } from "../features/library/useLibraryWorkspace";
 import { useLoadoutTemplates } from "../features/loadouts/useLoadoutTemplates";
 import { useDiagnosticsSettings } from "../features/settings/useDiagnosticsSettings";
 import { useVendorsWorkspace } from "../features/vendors/useVendorsWorkspace";
+import { useVendorDefinitionDetail } from "../features/vendors/useVendorDefinitionDetail";
 import type { DesktopMenuProviderContextValue } from "./providers/DesktopMenuProviderContext";
 import { useDesktopProductWriteActions } from "./useDesktopProductWriteActions";
 
@@ -101,6 +102,7 @@ export function useDesktopProductShell(props: {
     active: activePage === "vendors",
     loadInventory: api.getVendorInventory
   });
+  const vendorDefinitionDetail = useVendorDefinitionDetail();
   const loadoutMessage = writeActions.loadoutMessage;
   const itemActionMessage = writeActions.itemActionMessage;
   const isRunningItemAction = writeActions.isRunningItemAction;
@@ -108,6 +110,12 @@ export function useDesktopProductShell(props: {
   const loadoutTemplateActions = writeActions.loadoutTemplateActions;
   const loadoutWriteActions = writeActions.loadoutWriteActions;
   const vaultWriteActions = writeActions.vaultWriteActions;
+
+  function handlePageChange(page: ShellPageKey) {
+    itemDetail.closeSelectedItemDetail();
+    vendorDefinitionDetail.close();
+    setActivePage(page);
+  }
 
   useEffect(() => {
     if (isVisualCapture) {
@@ -335,7 +343,10 @@ export function useDesktopProductShell(props: {
       actions: {
         selectVendor: vendorsWorkspace.selectVendor,
         refreshVendors: () => void vendorsWorkspace.refresh(),
-        onOpenItem: (item, context) => void itemDetail.openVendorItemDetail(item, context)
+        onOpenItem: (item, context) => {
+          itemDetail.closeSelectedItemDetail();
+          void vendorDefinitionDetail.open(item, context);
+        }
       },
       interfaceLocale: diagnostics.languagePreferences.interfaceLocale
     },
@@ -437,7 +448,7 @@ export function useDesktopProductShell(props: {
     assistantPanel,
     backgroundTasks: diagnostics.backgroundTasks,
     handleAssistantModeChange: setAssistantMode,
-    handlePageChange: setActivePage,
+    handlePageChange,
     handleProductPreferencesChange,
     itemDetailModalProps: {
       accountSummary,
@@ -446,22 +457,22 @@ export function useDesktopProductShell(props: {
       itemDetail,
       isRunningItemAction,
       localTargetRules,
+      interfaceLocale: diagnostics.languagePreferences.interfaceLocale,
+      vendorDefinitionDetail,
       vaultTags
     },
     menuContext,
-    pageHeader: {
+    pageHeader: activePage === "vendors" ? undefined : {
       title: currentPageMeta.title,
       subtitle: currentPageMeta.subtitle,
-      actions: activePage === "home" || activePage === "vendors" ? (
+      actions: activePage === "home" ? (
         <button
           type="button"
           className="secondary-button"
-          disabled={activePage === "vendors" ? vendorsWorkspace.isRefreshing : daily.isLoadingDaily}
-          onClick={() => activePage === "vendors" ? void vendorsWorkspace.refresh() : void daily.loadDailySummary()}
+          disabled={daily.isLoadingDaily}
+          onClick={() => void daily.loadDailySummary()}
         >
-          {activePage === "vendors"
-            ? vendorsWorkspace.isRefreshing ? "刷新中..." : "刷新商人数据"
-            : daily.isLoadingDaily ? "刷新中..." : "刷新本周信息"}
+          {daily.isLoadingDaily ? "刷新中..." : "刷新本周信息"}
         </button>
       ) : null
     },

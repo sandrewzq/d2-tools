@@ -8,7 +8,7 @@ import { loadFreshOAuthToken } from "./authSession.js";
 export function registerVendorIpcHandlers(): void {
   ipcMain.handle("vendors:inventory", async (_event, input: VendorInventoryRequest) => {
     const config = loadConfig();
-    const token = await loadFreshOAuthToken(config);
+    const tokenRequest = loadFreshOAuthToken(config);
     const vendorDefinitions = loadDefinitionComponent(
       config.data.data_dir,
       "DestinyVendorDefinition"
@@ -17,6 +17,7 @@ export function registerVendorIpcHandlers(): void {
       config.data.data_dir,
       "DestinyInventoryItemDefinition"
     );
+    const token = await tokenRequest;
     if (!vendorDefinitions || !itemDefinitions) {
       throw new Error("资料库尚未准备好，无法读取商人详情");
     }
@@ -27,6 +28,7 @@ export function registerVendorIpcHandlers(): void {
       membershipType: input.membership_type,
       membershipId: input.membership_id,
       characterIds: input.character_ids,
+      detailVendorHashes: input.detail_vendor_hashes,
       definitions: {
         vendors: vendorDefinitions,
         items: itemDefinitions

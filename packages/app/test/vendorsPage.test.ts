@@ -66,7 +66,7 @@ describe("vendor snapshot workspace", () => {
       detailState: "failed",
       detailFailureMessage: "仄详情读取失败",
       displayStatusLabel: "详情失败",
-      railStatusLabel: "详情失败 · 1 件物品"
+      railStatusLabel: "详情失败 · 2 件物品"
     });
   });
 

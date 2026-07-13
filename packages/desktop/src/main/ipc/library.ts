@@ -5,10 +5,9 @@ import {
   saveItemAlias,
   type ItemAliasEntry
 } from "@d2-tools/core/items/aliases";
-import { getItemDefinitionDetail } from "@d2-tools/core/items/detail";
 import { fetchLiveItemAvailability } from "@d2-tools/core/items/liveAvailability";
 import { searchPerkDefinitions } from "@d2-tools/core/items/perkSearch";
-import { searchItemDefinitions } from "@d2-tools/core/items/search";
+import { getItemSearchResultByHash, searchItemDefinitions } from "@d2-tools/core/items/search";
 import {
   addFavoriteItem,
   addRecentItem,
@@ -108,13 +107,18 @@ export function registerLibraryIpcHandlers(): void {
       config.data.data_dir,
       "DestinyCollectibleDefinition"
     );
+    const statDefinitions = loadDefinitionComponent(
+      config.data.data_dir,
+      "DestinyStatDefinition"
+    );
 
     if (!definitions) {
       throw new Error("请先初始化资料库");
     }
 
-    const detail = getItemDefinitionDetail(definitions, Number(hash), {
+    const detail = getItemSearchResultByHash(definitions, Number(hash), {
       plugSetDefinitions: plugSetDefinitions ?? undefined,
+      statDefinitions: statDefinitions ?? undefined,
       collectibleDefinitions: collectibleDefinitions ?? undefined
     });
     if (!detail) {

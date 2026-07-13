@@ -5,6 +5,7 @@ import {
   type VendorCharacterResponseInput,
   type VendorInventoryDefinitions,
   type VendorInventorySnapshot,
+  type VendorProgression,
   type VendorResponseInput
 } from "@d2-tools/core/vendors/inventory";
 
@@ -86,6 +87,7 @@ type RawVendorComponent = {
   vendorHash?: number;
   canPurchase?: boolean;
   nextRefreshDate?: string;
+  progression?: VendorProgression;
 };
 
 type RawVendorCategory = {
@@ -96,6 +98,7 @@ type RawVendorCategory = {
 type RawSaleItem = {
   vendorItemIndex?: number;
   itemHash?: number;
+  quantity?: number;
   costs?: Array<{ itemHash?: number; quantity?: number }>;
   failureIndexes?: number[];
   saleStatus?: number;
@@ -107,27 +110,28 @@ export async function fetchVendorInventorySnapshot(
 ): Promise<VendorInventorySnapshot> {
   const fetchJson = options.fetchJson ?? createFetchJson(options);
   const now = options.now ?? (() => new Date());
-  const profile = await fetchJson<ProfileResponse>(
+  const profileRequest = fetchJson<ProfileResponse>(
     `/Destiny2/${options.membershipType}/Profile/${options.membershipId}/?components=${profileComponents}`,
     options.accessToken
   );
-  const characterContexts = buildCharacterContexts(
-    profile,
-    options.characterIds,
-    options.definitions.items
-  );
-
-  const listResults = await Promise.allSettled(options.characterIds.map(async (characterId) => ({
+  const listRequest = Promise.allSettled(options.characterIds.map(async (characterId) => ({
     characterId,
     response: await fetchJson<VendorListResponse>(
       `/Destiny2/${options.membershipType}/Profile/${options.membershipId}/Character/${characterId}/Vendors/?components=${vendorListComponents}`,
       options.accessToken
     )
   })));
+  const [profile, listResults] = await Promise.all([profileRequest, listRequest]);
+  const characterContexts = buildCharacterContexts(
+    profile,
+    options.characterIds,
+    options.definitions.items
+  );
   const failedCharacterIds: string[] = [];
   const failedVendorDetails: Array<{ characterId: string; vendorHash: number; message: string }> = [];
   const characterResponses: VendorCharacterResponseInput[] = [];
   const currencyBalances: Record<string, number> = {};
+  const requestedDetailVendorHashes = new Set<number>();
 
   for (let index = 0; index < listResults.length; index += 1) {
     const result = listResults[index];
@@ -141,6 +145,7 @@ export async function fetchVendorInventorySnapshot(
     const details = new Map<number, VendorDetailResponse>();
     const detailVendorHashes = options.detailVendorHashes
       ?? discoverVendorHashes(result.value.response, options.definitions.vendors);
+    detailVendorHashes.forEach((vendorHash) => requestedDetailVendorHashes.add(vendorHash));
     const detailResults = await mapSettledWithConcurrency(
       detailVendorHashes,
       vendorDetailConcurrency,
@@ -184,6 +189,7 @@ export async function fetchVendorInventorySnapshot(
     failedCharacterIds,
     failedVendorDetails,
     currencyBalances,
+    detailVendorHashes: [...requestedDetailVendorHashes],
     definitions: mapDefinitions(options.definitions, characterResponses)
   });
 }
@@ -205,7 +211,11 @@ function shouldIncludeTopLevelVendor(
   vendor: RawVendorComponent | undefined,
   definition: DefinitionRecord | undefined
 ): boolean {
-  if (definition?.vendorIdentifier === "TOWER_NINE") return true;
+  if (
+    definition?.vendorIdentifier === "TOWER_NINE"
+    || definition?.vendorIdentifier === "TOWER_NINE_OFFERS"
+    || definition?.vendorIdentifier === "TOWER_NINE_GEAR"
+  ) return true;
   if (definition?.vendorIdentifier === "30TH_ANNIVERSARY_XUR") return false;
   return vendor?.canPurchase === true;
 }
@@ -286,6 +296,7 @@ function mapVendorResponses(
       vendorHash: vendor.vendorHash ?? vendorHash,
       canPurchase: vendor.canPurchase ?? false,
       nextRefreshAt: vendor.nextRefreshDate,
+      progression: vendor.progression,
       categories: categories.map((category) => ({
         categoryIndex: category.displayCategoryIndex ?? -1,
         name: vendorDefinition?.displayCategories?.[category.displayCategoryIndex ?? -1]
@@ -297,6 +308,7 @@ function mapVendorResponses(
         {
           vendorItemIndex: sale.vendorItemIndex ?? Number(itemKey),
           itemHash: sale.itemHash ?? 0,
+          quantity: sale.quantity ?? 1,
           costs: (sale.costs ?? []).map((cost) => ({
             itemHash: cost.itemHash ?? 0,
             quantity: cost.quantity ?? 0

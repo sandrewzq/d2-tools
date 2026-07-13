@@ -17,13 +17,24 @@ export function summarizeItemIntrinsicTraits(
     .flatMap((entry) => typeof entry.singleInitialItemHash === "number" ? [entry.singleInitialItemHash] : [])
     .map((hash) => ({ hash, definition: itemDefinitions[String(hash)] }))
     .filter((entry) => entry.definition?.plug?.plugCategoryIdentifier === "intrinsics")
-    .map(({ hash, definition }) => ({
-      hash,
-      name: definition?.displayProperties?.name?.trim() ?? "",
-      description: definition?.displayProperties?.description?.trim() ?? "",
-      icon: normalizeBungieAssetUrl(definition?.displayProperties?.icon)
-    }))
-    .filter((trait): trait is ItemIntrinsicTraitSummary => Boolean(trait.name));
+    .map(({ hash, definition }): ItemIntrinsicTraitSummary | null => {
+      const name = definition?.displayProperties?.name?.trim();
+      if (!name) {
+        return null;
+      }
+
+      const trait: ItemIntrinsicTraitSummary = {
+        hash,
+        name,
+        description: definition?.displayProperties?.description?.trim() ?? ""
+      };
+      const icon = normalizeBungieAssetUrl(definition?.displayProperties?.icon);
+      if (icon) {
+        trait.icon = icon;
+      }
+      return trait;
+    })
+    .filter((trait): trait is ItemIntrinsicTraitSummary => trait !== null);
 
   return [...new Map(traits.map((trait) => [trait.hash, trait])).values()];
 }

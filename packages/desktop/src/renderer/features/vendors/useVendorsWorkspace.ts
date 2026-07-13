@@ -47,39 +47,48 @@ export function useVendorsWorkspace(input: {
   const [refreshError, setRefreshError] = useState("");
   const [statusMessage, setStatusMessage] = useState("");
   const [selectedVendorId, setSelectedVendorId] = useState<string | undefined>("vendor-2190858386");
-  const wasActiveRef = useRef(false);
-  const requestContextKeyRef = useRef("");
+  const requestContextKeyRef = useRef("__initial__");
   const requestSequenceRef = useRef(0);
 
-  const refresh = useCallback(async (options?: { preserveCache?: boolean }) => {
-    if (!input.accountSummary) return;
-    const characterId = input.selectedCharacterId
-      || input.accountSummary.characters[0]?.character_id;
-    if (!characterId) return;
+  const characterId = input.selectedCharacterId
+    || input.accountSummary?.characters[0]?.character_id
+    || "";
+  const requestContextKey = input.accountSummary && characterId
+    ? `${input.accountSummary.membership_type}:${input.accountSummary.destiny_membership_id}:${characterId}`
+    : "";
+  const selectedVendorHash = selectVendorHash(snapshot, selectedVendorId);
+  const selectedDetailVendorHashes = useMemo(
+    () => expandVendorDetailHashes(selectedVendorHash, snapshot),
+    [selectedVendorHash, snapshot]
+  );
+
+  const refresh = useCallback(async () => {
+    if (!input.accountSummary || !characterId) return;
     const requestSequence = ++requestSequenceRef.current;
-    const cachedSnapshot = options?.preserveCache === false ? null : snapshot;
-    const request: VendorInventoryRequest = {
-      membership_type: input.accountSummary.membership_type,
-      membership_id: input.accountSummary.destiny_membership_id,
-      character_ids: [characterId]
-    };
+    const currentSnapshot = snapshot;
+    const request = createVendorInventoryRequest(
+      input.accountSummary,
+      characterId,
+      selectedDetailVendorHashes
+    );
     setRefreshState("refreshing");
     setRefreshError("");
     try {
       const next = await input.loadInventory(request);
-      if (requestSequence !== requestSequenceRef.current) return;
-      if (cachedSnapshot) {
-        const resolved = resolveVendorRefreshState(cachedSnapshot, next);
+      if (requestSequence !== requestSequenceRef.current || requestContextKey !== requestContextKeyRef.current) return;
+      if (currentSnapshot) {
+        const resolved = resolveVendorRefreshState(currentSnapshot, next);
         setSnapshot(resolved.snapshot);
         setStatusMessage(resolved.statusMessage ?? "");
       } else {
         setSnapshot(next);
+        setStatusMessage("");
       }
       setRefreshState("idle");
     } catch (error) {
-      if (requestSequence !== requestSequenceRef.current) return;
-      if (cachedSnapshot) {
-        const resolved = resolveVendorRefreshState(cachedSnapshot, null, error);
+      if (requestSequence !== requestSequenceRef.current || requestContextKey !== requestContextKeyRef.current) return;
+      if (currentSnapshot) {
+        const resolved = resolveVendorRefreshState(currentSnapshot, null, error);
         setSnapshot(resolved.snapshot);
         setRefreshState(resolved.refreshState);
         setRefreshError(resolved.refreshError ?? "");
@@ -88,33 +97,63 @@ export function useVendorsWorkspace(input: {
         setRefreshError(error instanceof Error ? error.message : "商人数据读取失败");
       }
     }
-  }, [input.accountSummary, input.loadInventory, input.selectedCharacterId, snapshot]);
+  }, [characterId, input.accountSummary, input.loadInventory, requestContextKey, selectedDetailVendorHashes, snapshot]);
 
   useEffect(() => {
-    const accountKey = input.accountSummary
-      ? `${input.accountSummary.membership_type}:${input.accountSummary.destiny_membership_id}`
-      : "";
-    const characterId = input.selectedCharacterId
-      || input.accountSummary?.characters[0]?.character_id
-      || "";
-    const requestContextKey = accountKey && characterId
-      ? `${accountKey}:${characterId}`
-      : accountKey;
-    const enteredPage = input.active && !wasActiveRef.current;
-    const requestContextChanged = requestContextKey !== requestContextKeyRef.current;
-    wasActiveRef.current = input.active;
+    if (requestContextKey === requestContextKeyRef.current) return;
     requestContextKeyRef.current = requestContextKey;
+    const requestSequence = ++requestSequenceRef.current;
+    setSnapshot(null);
+    setRefreshError("");
+    setStatusMessage("");
 
-    if (requestContextChanged) {
-      requestSequenceRef.current += 1;
-      setSnapshot(null);
+    if (!input.accountSummary || !characterId) {
       setRefreshState("idle");
-      setRefreshError("");
-      setStatusMessage("");
+      return;
     }
-    if (!input.active || !input.accountSummary || !characterId || (!enteredPage && !requestContextChanged)) return;
-    void refresh({ preserveCache: !requestContextChanged });
-  }, [input.active, input.accountSummary, refresh]);
+
+    setRefreshState("refreshing");
+    void input.loadInventory(createVendorInventoryRequest(input.accountSummary, characterId, []))
+      .then((next) => {
+        if (requestSequence !== requestSequenceRef.current || requestContextKey !== requestContextKeyRef.current) return;
+        setSnapshot(next);
+        setRefreshState("idle");
+      })
+      .catch((error) => {
+        if (requestSequence !== requestSequenceRef.current || requestContextKey !== requestContextKeyRef.current) return;
+        setRefreshState("failed");
+        setRefreshError(error instanceof Error ? error.message : "商人数据读取失败");
+      });
+  }, [characterId, input.accountSummary, input.loadInventory, requestContextKey]);
+
+  useEffect(() => {
+    if (!input.accountSummary || !characterId || !snapshot || !selectedDetailVendorHashes.length) return;
+    if (
+      snapshot.detailVendorHashes === undefined
+      || selectedDetailVendorHashes.every((vendorHash) => snapshot.detailVendorHashes?.includes(vendorHash))
+    ) return;
+
+    const requestSequence = ++requestSequenceRef.current;
+    setRefreshState("refreshing");
+    setRefreshError("");
+    void input.loadInventory(createVendorInventoryRequest(
+      input.accountSummary,
+      characterId,
+      selectedDetailVendorHashes
+    )).then((next) => {
+      if (requestSequence !== requestSequenceRef.current || requestContextKey !== requestContextKeyRef.current) return;
+      const resolved = resolveVendorRefreshState(snapshot, next);
+      setSnapshot(resolved.snapshot);
+      setStatusMessage(resolved.statusMessage ?? "");
+      setRefreshState("idle");
+    }).catch((error) => {
+      if (requestSequence !== requestSequenceRef.current || requestContextKey !== requestContextKeyRef.current) return;
+      const resolved = resolveVendorRefreshState(snapshot, null, error);
+      setSnapshot(resolved.snapshot);
+      setRefreshState(resolved.refreshState);
+      setRefreshError(resolved.refreshError ?? "");
+    });
+  }, [characterId, input.accountSummary, input.loadInventory, requestContextKey, selectedDetailVendorHashes, snapshot]);
 
   const model: VendorsPageWorkspace = useMemo(() => selectVendorsPageModel({
     snapshot,
@@ -135,4 +174,39 @@ export function useVendorsWorkspace(input: {
     statusMessage,
     selectVendor: setSelectedVendorId
   };
+}
+
+function createVendorInventoryRequest(
+  account: AccountSummary,
+  characterId: string,
+  detailVendorHashes: number[]
+): VendorInventoryRequest {
+  return {
+    membership_type: account.membership_type,
+    membership_id: account.destiny_membership_id,
+    character_ids: [characterId],
+    detail_vendor_hashes: detailVendorHashes
+  };
+}
+
+function selectVendorHash(
+  snapshot: VendorInventorySnapshot | null,
+  selectedVendorId: string | undefined
+): number | undefined {
+  if (!snapshot) return undefined;
+  return snapshot.vendors.find((vendor) => vendor.id === selectedVendorId)?.vendorHash
+    ?? snapshot.vendors.find((vendor) => vendor.vendorHash === 2190858386)?.vendorHash
+    ?? snapshot.vendors[0]?.vendorHash;
+}
+
+function expandVendorDetailHashes(
+  vendorHash: number | undefined,
+  snapshot: VendorInventorySnapshot | null
+): number[] {
+  if (vendorHash === undefined) return [];
+  if (vendorHash === 2190858386) {
+    const availableHashes = new Set(snapshot?.vendors.map((vendor) => vendor.vendorHash) ?? []);
+    return [2190858386, 537912098, 3751514131].filter((hash) => availableHashes.has(hash));
+  }
+  return [vendorHash];
 }

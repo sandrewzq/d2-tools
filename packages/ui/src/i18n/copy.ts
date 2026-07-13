@@ -215,6 +215,7 @@ export const localeCopy: Record<InterfaceLocale, LocaleCopy> = {
       sourceLabel: "数据来源",
       recommendationsLabel: "推荐关注",
       verifiedInventory: "已确认库存",
+      loadingTitle: "正在读取实时商人库存",
       emptyTitle: "暂未读取到商人库存",
       emptyBody: "真实数据接入前，这里只展示 mock 或可确认的库存样本。",
       labels: {
@@ -812,6 +813,7 @@ export const localeCopy: Record<InterfaceLocale, LocaleCopy> = {
       sourceLabel: "Data source",
       recommendationsLabel: "Recommendations",
       verifiedInventory: "Verified inventory",
+      loadingTitle: "Reading live vendor inventory",
       emptyTitle: "No vendor inventory loaded",
       emptyBody: "Before live data is connected, this page only shows mock or verified inventory samples.",
       labels: {

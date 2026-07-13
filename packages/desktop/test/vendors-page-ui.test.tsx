@@ -4,8 +4,8 @@ import React from "react";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AccountSummary } from "../src/renderer/api/types.js";
+import { useVendorDefinitionDetail } from "../src/renderer/features/vendors/useVendorDefinitionDetail.js";
 import { useVendorsWorkspace } from "../src/renderer/features/vendors/useVendorsWorkspace.js";
-import { useItemDetailWorkspace } from "../src/renderer/shared/hooks/useItemDetailWorkspace.js";
 
 vi.mock("../src/renderer/api/client.js", () => ({
   api: {
@@ -31,11 +31,11 @@ describe("vendor item detail wiring", () => {
     vi.clearAllMocks();
   });
 
-  it("opens a vendor offer in shared item detail with its sale context", async () => {
-    const { result } = renderHook(() => useItemDetailWorkspace(createWorkspaceInput()));
+  it("opens a vendor offer as a library definition with its sale context", async () => {
+    const { result } = renderHook(() => useVendorDefinitionDetail());
 
     await act(async () => {
-      await result.current.openVendorItemDetail({
+      await result.current.open({
         id: "xur-hawkmoon",
         itemHash: 1001,
         name: "鹰月",
@@ -55,14 +55,12 @@ describe("vendor item detail wiring", () => {
       });
     });
 
-    expect(result.current.selectedItem).toMatchObject({
+    expect(result.current.state?.item).toMatchObject({
       hash: 1001,
       name: "鹰月",
-      icon: "https://www.bungie.net/hawkmoon.jpg",
-      item_type: "手炮，异域",
-      tier: "异域"
+      description: "异域手炮"
     });
-    expect(result.current.vendorContext).toEqual({
+    expect(result.current.state?.context).toEqual({
       vendorName: "仄",
       costLabel: "23 奇异硬币",
       affordabilityLabel: "可兑换",
@@ -71,11 +69,11 @@ describe("vendor item detail wiring", () => {
     });
   });
 
-  it("clears vendor context when the shared detail closes", async () => {
-    const { result } = renderHook(() => useItemDetailWorkspace(createWorkspaceInput()));
+  it("clears the vendor definition detail when it closes", async () => {
+    const { result } = renderHook(() => useVendorDefinitionDetail());
 
     await act(async () => {
-      await result.current.openVendorItemDetail({
+      await result.current.open({
         id: "xur-hawkmoon",
         itemHash: 1001,
         name: "鹰月",
@@ -93,15 +91,14 @@ describe("vendor item detail wiring", () => {
       });
     });
 
-    act(() => result.current.closeSelectedItemDetail());
+    act(() => result.current.close());
 
-    expect(result.current.selectedItem).toBeNull();
-    expect(result.current.vendorContext).toBeNull();
+    expect(result.current.state).toBeNull();
   });
 });
 
 describe("vendor workspace loading", () => {
-  it("reloads live inventory whenever the vendor page is re-entered", async () => {
+  it("prefetches live inventory before entry and does not reload on menu re-entry", async () => {
     const loadInventory = vi.fn().mockResolvedValue(createVendorSnapshot());
     const { rerender } = renderHook(
       ({ active }) => useVendorsWorkspace({
@@ -110,14 +107,45 @@ describe("vendor workspace loading", () => {
         active,
         loadInventory
       }),
-      { initialProps: { active: true } }
+      { initialProps: { active: false } }
     );
 
     await waitFor(() => expect(loadInventory).toHaveBeenCalledTimes(1));
     rerender({ active: false });
     rerender({ active: true });
 
+    await waitFor(() => expect(loadInventory).toHaveBeenCalledTimes(1));
+    expect(loadInventory.mock.calls[0]?.[0].detail_vendor_hashes).toEqual([]);
+  });
+
+  it("loads only the selected vendor detail after the base inventory arrives", async () => {
+    const baseSnapshot = {
+      ...createVendorSnapshot(),
+      detailVendorHashes: [],
+      vendors: [{
+        id: "vendor-2190858386",
+        vendorHash: 2190858386,
+        name: "仄",
+        description: "九之代理人",
+        characterIds: ["hunter"],
+        offers: [],
+        services: []
+      }]
+    };
+    const loadInventory = vi.fn()
+      .mockResolvedValueOnce(baseSnapshot)
+      .mockResolvedValueOnce({ ...baseSnapshot, detailVendorHashes: [2190858386] });
+
+    renderHook(() => useVendorsWorkspace({
+      accountSummary: createAccountSummary("membership-a"),
+      selectedCharacterId: "hunter",
+      active: false,
+      loadInventory
+    }));
+
     await waitFor(() => expect(loadInventory).toHaveBeenCalledTimes(2));
+    expect(loadInventory.mock.calls[0]?.[0].detail_vendor_hashes).toEqual([]);
+    expect(loadInventory.mock.calls[1]?.[0].detail_vendor_hashes).toEqual([2190858386]);
   });
 
   it("requests only the selected character and reloads when the selection changes", async () => {
@@ -237,26 +265,6 @@ describe("vendor workspace loading", () => {
     expect(result.current.model.selectedCharacterContext).toBeNull();
   });
 });
-
-function createWorkspaceInput(): Parameters<typeof useItemDetailWorkspace>[0] {
-  return {
-    accountSummary: null,
-    vaultTags: { items: {} },
-    setVaultTags: vi.fn(),
-    importedWishlist: null,
-    localTargetRules: { rules: [] },
-    diagnostics: {
-      aiSettings: { enable_lightgg: false },
-      setWriteActionsEnabled: vi.fn(),
-      loadActionLog: vi.fn().mockResolvedValue(undefined)
-    },
-    setAccountError: vi.fn(),
-    setIsRunningItemAction: vi.fn(),
-    setItemActionMessage: vi.fn(),
-    loadAccountSummary: vi.fn().mockResolvedValue(undefined),
-    onRecentHistoryChanged: vi.fn()
-  };
-}
 
 function createAccountSummary(membershipId: string): AccountSummary {
   return {

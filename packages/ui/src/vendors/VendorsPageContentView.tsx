@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { getLocaleCopy } from "../i18n/copy.js";
 import type { InterfaceLocale } from "../i18n/types.js";
 import {
@@ -19,7 +19,10 @@ export type VendorCostView = {
 export type VendorInventoryItemView = {
   id: string;
   itemHash?: number;
+  quantity?: number;
   vendorItemIndex?: number;
+  categoryIndex?: number;
+  categoryName?: string;
   characterIds?: string[];
   name: string;
   itemType: string;
@@ -37,11 +40,37 @@ export type VendorInventoryItemView = {
   sourcePath?: string;
 };
 
+export type VendorInventorySectionView = {
+  id: string;
+  name: string;
+  description?: string;
+  presentation?: "standard" | "featured";
+  items: VendorInventoryItemView[];
+};
+
+export type VendorProgressionView = {
+  currentProgress: number;
+  level: number;
+  levelCap: number;
+  progressToNextLevel: number;
+  nextLevelAt: number;
+};
+
+export type VendorContentSectionView = {
+  id: string;
+  name: string;
+  description?: string;
+  layout: "featured" | "columns" | "list" | "rank";
+  groups: VendorInventorySectionView[];
+  progression?: VendorProgressionView;
+};
+
 export type VendorServiceView = {
   id: string;
   name: string;
   description: string;
   items: VendorInventoryItemView[];
+  sections?: VendorInventorySectionView[];
 };
 
 export type VendorInventoryGroupView = {
@@ -62,11 +91,14 @@ export type VendorInventoryGroupView = {
   inventoryStateLabel?: string;
   railStatusLabel?: string;
   detailToolbar?: VendorDetailToolbarView;
-  detailState?: "ready" | "partial" | "failed";
+  detailState?: "pending" | "ready" | "partial" | "failed";
   detailFailureMessage?: string;
   featured?: boolean;
   items: VendorInventoryItemView[];
   services?: VendorServiceView[];
+  rankRewards?: VendorInventoryItemView[];
+  progression?: VendorProgressionView;
+  contentSections?: VendorContentSectionView[];
 };
 
 export type VendorRailSectionView = {
@@ -138,22 +170,17 @@ export function VendorsPageContentView(props: VendorsPageContentViewProps) {
     ?? props.model.vendors[0]?.id
     ?? "";
   const [selectedVendorId, setSelectedVendorId] = useState(initialVendorId);
-  const [query, setQuery] = useState("");
-  const [expandedServiceId, setExpandedServiceId] = useState<string | null>(null);
   const selectedVendor = props.model.vendors.find((vendor) => vendor.id === selectedVendorId)
     ?? props.model.selectedVendor
     ?? props.model.vendors[0]
     ?? null;
-  const searchGroups = useMemo(
-    () => query.trim() ? searchAllVendors(props.model.vendors, query) : [],
-    [props.model.vendors, query]
-  );
+  const contentSections = getVendorContentSections(selectedVendor);
   const refreshStatus = props.model.statusBanner;
 
   if (!selectedVendor) {
     return (
       <ProductWorkspaceEmptyState className="vendor-empty-state">
-        <strong>{copy.emptyTitle}</strong>
+        <strong>{refreshStatus?.busy ? copy.loadingTitle : copy.emptyTitle}</strong>
         {refreshStatus ? (
           <div
             role="status"
@@ -191,14 +218,12 @@ export function VendorsPageContentView(props: VendorsPageContentViewProps) {
                   aria-pressed={vendor.id === selectedVendor.id}
                   onClick={() => {
                     setSelectedVendorId(vendor.id);
-                    setQuery("");
-                    setExpandedServiceId(null);
                     props.actions.selectVendor?.(vendor.id);
                   }}
                 >
                   <span>
                     <strong>{vendor.name}</strong>
-                    <small>{vendor.railStatusLabel ?? `${getVendorDisplayStatusLabel(vendor)} · ${vendor.items.length} 件`}</small>
+                    <small>{vendor.railStatusLabel ?? `${getVendorDisplayStatusLabel(vendor)} · ${countVendorItems(vendor)} 件`}</small>
                   </span>
                 </button>
               ))}
@@ -214,7 +239,9 @@ export function VendorsPageContentView(props: VendorsPageContentViewProps) {
               <h3>{selectedVendor.name}</h3>
               <span className={selectedVendor.detailState === "failed" || selectedVendor.detailState === "partial"
                 ? "app-chip status-error"
-                : "app-chip status-ready"}
+                : selectedVendor.detailState === "pending"
+                  ? "app-chip status-pending"
+                  : "app-chip status-ready"}
               >
                 {getVendorDisplayStatusLabel(selectedVendor)}
               </span>
@@ -248,16 +275,6 @@ export function VendorsPageContentView(props: VendorsPageContentViewProps) {
         ) : null}
 
         <div className="vendor-toolbar">
-          <label className="vendor-search-field">
-            <span>搜索全部商人库存</span>
-            <input
-              type="search"
-              name="vendor-search"
-              autoComplete="off"
-              value={query}
-              onChange={(event) => setQuery(event.currentTarget.value)}
-            />
-          </label>
           <span className="vendor-armorer-context">
             {props.model.selectedCharacterContext?.label ?? "当前机灵：未检测到护甲师模组"}
           </span>
@@ -272,56 +289,22 @@ export function VendorsPageContentView(props: VendorsPageContentViewProps) {
           </div>
         </div>
 
-        {query.trim() ? (
-          <VendorSearchResults groups={searchGroups} actions={props.actions} />
-        ) : (
-          <>
-            <VendorInventoryGrid vendor={selectedVendor} actions={props.actions} />
-            {(selectedVendor.services ?? []).length ? (
-              <section className="vendor-services" aria-label="商人服务">
-                <h4>服务与兑换</h4>
-                {(selectedVendor.services ?? []).map((service) => {
-                  const expanded = expandedServiceId === service.id;
-                  const contentId = `vendor-service-${service.id}`;
-                  return (
-                    <div className="vendor-service" key={service.id}>
-                      <button
-                        type="button"
-                        className="vendor-service-trigger"
-                        aria-label={expanded ? `收起${service.name}` : `展开${service.name}`}
-                        aria-expanded={expanded}
-                        aria-controls={contentId}
-                        onClick={() => setExpandedServiceId(expanded ? null : service.id)}
-                      >
-                        <span>{service.name}</span>
-                        <small>{service.items.length} 件</small>
-                        <span>{expanded ? `收起${service.name}` : `展开${service.name}`}</span>
-                      </button>
-                      {expanded ? (
-                        <div id={contentId}>
-                          <ul className="vendor-service-grid" aria-label={`${service.name}兑换库存`}>
-                            {service.items.map((item) => (
-                              <li key={item.id}>
-                                <VendorOfferButton item={item} vendor={selectedVendor} actions={props.actions} compact />
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      ) : null}
-                    </div>
-                  );
-                })}
-              </section>
-            ) : null}
-          </>
-        )}
+        <VendorContentSections
+          sections={contentSections}
+          vendor={selectedVendor}
+          actions={props.actions}
+        />
       </ProductWorkspaceContentStack>
     </ProductWorkspaceSplit>
   );
 }
 
-function VendorInventoryGrid(props: { vendor: VendorInventoryGroupView; actions: VendorsPageActions }) {
-  if (!props.vendor.items.length) {
+function VendorContentSections(props: {
+  sections: VendorContentSectionView[];
+  vendor: VendorInventoryGroupView;
+  actions: VendorsPageActions;
+}) {
+  if (!props.sections.length) {
     return (
       <ProductWorkspaceEmptyState className="vendor-empty-state vendor-empty-card">
         <strong>当前没有可显示的库存</strong>
@@ -329,19 +312,170 @@ function VendorInventoryGrid(props: { vendor: VendorInventoryGroupView; actions:
       </ProductWorkspaceEmptyState>
     );
   }
+
   return (
-    <section className="vendor-inventory-section" aria-label={`${props.vendor.name}主库存`}>
-      <div className="vendor-section-heading">
-        <h4>主库存</h4>
-        <span>{props.vendor.items.length} 件</span>
-      </div>
-      <div className="vendor-inventory-grid">
-        {props.vendor.items.map((item) => (
-          <VendorOfferButton key={item.id} item={item} vendor={props.vendor} actions={props.actions} />
+    <div className="vendor-content-flow">
+      {props.sections.map((section) => (
+        <section className="vendor-content-section" key={section.id} aria-labelledby={`vendor-section-${section.id}`}>
+          <div className="vendor-section-heading">
+            <h4 id={`vendor-section-${section.id}`}>{section.name}</h4>
+            <span>{section.description ?? `${countSectionItems(section)} 件`}</span>
+          </div>
+          {section.layout === "rank" ? (
+            <VendorRankSection section={section} vendor={props.vendor} actions={props.actions} />
+          ) : section.layout === "featured" ? (
+            <div className="vendor-inventory-grid vendor-featured-grid">
+              {section.groups.flatMap((group) => group.items).map((item) => (
+                <VendorOfferButton key={item.id} item={item} vendor={props.vendor} actions={props.actions} />
+              ))}
+            </div>
+          ) : (
+            <div className={section.layout === "columns" ? "vendor-category-columns" : "vendor-category-columns is-list"}>
+              {section.groups.map((group) => (
+                <section
+                  className={group.presentation === "featured"
+                    ? "vendor-category-column is-featured"
+                    : "vendor-category-column"}
+                  key={group.id}
+                  aria-label={group.name || section.name}
+                >
+                  {group.name ? (
+                    <div className="vendor-category-heading">
+                      <div>
+                        <h5>{group.name}</h5>
+                        {group.description ? <p>{group.description}</p> : null}
+                      </div>
+                      <span>{group.items.length}</span>
+                    </div>
+                  ) : null}
+                  <div className="vendor-compact-list">
+                    {group.items.map((item) => (
+                      <VendorOfferButton
+                        key={item.id}
+                        item={item}
+                        vendor={props.vendor}
+                        actions={props.actions}
+                        compact={group.presentation !== "featured"}
+                      />
+                    ))}
+                  </div>
+                </section>
+              ))}
+            </div>
+          )}
+        </section>
+      ))}
+    </div>
+  );
+}
+
+function VendorRankSection(props: {
+  section: VendorContentSectionView;
+  vendor: VendorInventoryGroupView;
+  actions: VendorsPageActions;
+}) {
+  const progression = props.section.progression;
+  const rewards = props.section.groups.flatMap((group) => group.items);
+  const currentStepProgress = progression
+    ? Math.max(0, progression.nextLevelAt - progression.progressToNextLevel)
+    : 0;
+  const progressPercent = progression?.nextLevelAt
+    ? Math.min(100, Math.max(0, currentStepProgress / progression.nextLevelAt * 100))
+    : 0;
+
+  return (
+    <div className="vendor-rank-layout">
+      {progression ? (
+        <section className="vendor-rank-summary" aria-label="商人声望进度">
+          <div className="vendor-rank-title">
+            <div>
+              <span>当前等级</span>
+              <strong>{progression.level}</strong>
+            </div>
+            <small>上限 {progression.levelCap}</small>
+          </div>
+          <div className="vendor-rank-progress-label">
+            <span>本级进度 {currentStepProgress} / {progression.nextLevelAt}</span>
+            <strong>还差 {progression.progressToNextLevel} 点</strong>
+          </div>
+          <div className="vendor-rank-progress" aria-label={`声望进度 ${Math.round(progressPercent)}%`}>
+            <span style={{ width: `${progressPercent}%` }} />
+          </div>
+          <span className="vendor-rank-total">累计进度 {progression.currentProgress}</span>
+        </section>
+      ) : null}
+      <div className="vendor-rank-rewards" aria-label="等级奖励">
+        {rewards.map((item) => (
+          <button
+            type="button"
+            className="vendor-rank-reward"
+            key={item.id}
+            aria-label={`查看${item.name}资料库详情`}
+            onClick={() => props.actions.onOpenItem?.(item, {
+              vendorName: props.vendor.name,
+              costLabel: "等级奖励",
+              affordabilityLabel: "随商人等级解锁",
+              characterLabel: item.characterIds?.join("、") ?? "当前角色",
+              refreshLabel: props.vendor.resetLabel
+            })}
+          >
+            <VendorItemArt item={item} />
+            <span>
+              <strong>{item.name}</strong>
+              <small>{item.itemType || "等级奖励"}</small>
+            </span>
+          </button>
         ))}
       </div>
-    </section>
+    </div>
   );
+}
+
+function getVendorContentSections(vendor: VendorInventoryGroupView | null): VendorContentSectionView[] {
+  if (!vendor) return [];
+  if (vendor.contentSections?.length) return vendor.contentSections;
+
+  const sections: VendorContentSectionView[] = [];
+  if (vendor.items.length) {
+    sections.push({
+      id: `${vendor.id}-inventory`,
+      name: "库存",
+      layout: "featured",
+      groups: [{ id: `${vendor.id}-inventory-items`, name: "", items: vendor.items }]
+    });
+  }
+  for (const service of vendor.services ?? []) {
+    if (!service.items.length) continue;
+    sections.push({
+      id: service.id,
+      name: service.name,
+      description: service.description || `${service.items.length} 件`,
+      layout: (service.sections?.length ?? 0) > 1 ? "columns" : "list",
+      groups: service.sections?.length ? service.sections : [{
+        id: `${service.id}-items`,
+        name: "",
+        items: service.items
+      }]
+    });
+  }
+  if (vendor.rankRewards?.length || vendor.progression) {
+    sections.push({
+      id: `${vendor.id}-rank`,
+      name: "声望与等级",
+      layout: "rank",
+      progression: vendor.progression,
+      groups: [{ id: `${vendor.id}-rank-items`, name: "等级奖励", items: vendor.rankRewards ?? [] }]
+    });
+  }
+  return sections;
+}
+
+function countSectionItems(section: VendorContentSectionView): number {
+  return section.groups.reduce((count, group) => count + group.items.length, 0);
+}
+
+function countVendorItems(vendor: VendorInventoryGroupView): number {
+  return getVendorContentSections(vendor).reduce((count, section) => count + countSectionItems(section), 0);
 }
 
 function VendorOfferButton(props: {
@@ -350,7 +484,7 @@ function VendorOfferButton(props: {
   actions: VendorsPageActions;
   compact?: boolean;
 }) {
-  const costLabel = props.item.costs?.map((cost) => `${cost.required} / ${cost.owned ?? "?"} ${cost.label}`).join(" · ")
+  const costLabel = props.item.costs?.map((cost) => `${cost.required} ${cost.label}`).join(" · ")
     ?? props.item.cost
     ?? "无费用信息";
   const affordable = props.item.costs?.every((cost) => cost.affordable === true);
@@ -372,65 +506,17 @@ function VendorOfferButton(props: {
       <span className="vendor-stock-body">
         <span className="vendor-stock-title">
           <strong>{props.item.name}</strong>
-          {props.item.decisionLabel ? <span className="app-chip vendor-decision-chip">{props.item.decisionLabel}</span> : null}
+          {props.item.quantity && props.item.quantity > 1
+            ? <span className="vendor-quantity-badge">× {props.item.quantity.toLocaleString("zh-CN")}</span>
+            : null}
         </span>
         <span>{props.item.itemType}</span>
-        <span className="vendor-stock-summary">{props.item.summary}</span>
       </span>
       <span className="vendor-cost-row">
         <span>{costLabel}</span>
-        <strong>{affordable ? "可购买" : "需确认"}</strong>
       </span>
     </button>
   );
-}
-
-function VendorSearchResults(props: {
-  groups: Array<{ vendor: VendorInventoryGroupView; items: VendorInventoryItemView[] }>;
-  actions: VendorsPageActions;
-}) {
-  return (
-    <section className="vendor-search-results" aria-live="polite">
-      <h4>全部商人结果</h4>
-      {props.groups.length ? props.groups.map((group) => (
-        <section key={group.vendor.id}>
-          <h5>
-            {group.vendor.name}
-            {group.vendor.detailState === "failed" || group.vendor.detailState === "partial"
-              ? ` · ${getVendorDisplayStatusLabel(group.vendor)}`
-              : ""}
-          </h5>
-          <div className="vendor-inventory-grid">
-            {group.items.map((item) => (
-              <div key={`${group.vendor.id}-${item.id}`}>
-                <span className="vendor-result-source">{item.sourcePath}</span>
-                <VendorOfferButton item={item} vendor={group.vendor} actions={props.actions} compact />
-              </div>
-            ))}
-          </div>
-        </section>
-      )) : <p>没有匹配的商人库存。</p>}
-    </section>
-  );
-}
-
-function searchAllVendors(vendors: VendorInventoryGroupView[], query: string) {
-  const normalized = query.trim().toLocaleLowerCase();
-  return vendors.flatMap((vendor) => {
-    const direct = vendor.items
-      .filter((item) => matchesItem(item, normalized))
-      .map((item) => ({ ...item, sourcePath: vendor.name }));
-    const services = (vendor.services ?? []).flatMap((service) => service.items
-      .filter((item) => matchesItem(item, normalized))
-      .map((item) => ({ ...item, sourcePath: `${vendor.name} → ${service.name}` }))
-    );
-    const items = [...direct, ...services];
-    return items.length ? [{ vendor, items }] : [];
-  });
-}
-
-function matchesItem(item: VendorInventoryItemView, query: string) {
-  return `${item.name} ${item.itemType} ${item.summary}`.toLocaleLowerCase().includes(query);
 }
 
 function VendorItemArt(props: { item: VendorInventoryItemView }) {

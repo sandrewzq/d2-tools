@@ -4,6 +4,7 @@ export type VendorInventoryRequest = {
   membership_type: number;
   membership_id: string;
   character_ids: string[];
+  detail_vendor_hashes?: number[];
 };
 
 export type VendorsApi = {

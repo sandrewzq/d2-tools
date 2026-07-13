@@ -1,19 +1,48 @@
 import type { AccountSummary, DimWishlist, LocalTargetRules, VaultTags } from "../api/types";
+import { getLocaleCopy, LibraryDefinitionDialog } from "@d2-tools/ui";
+import type { useVendorDefinitionDetail } from "../features/vendors/useVendorDefinitionDetail";
 import { ItemDetailModal } from "../shared/components/ItemDetailModal";
 import type { useItemDetailWorkspace } from "../shared/hooks/useItemDetailWorkspace";
 
 type ItemDetailWorkspace = ReturnType<typeof useItemDetailWorkspace>;
+type VendorDefinitionDetailWorkspace = ReturnType<typeof useVendorDefinitionDetail>;
 
 export function HomePageItemDetailModal(props: {
   accountSummary: AccountSummary | null;
   aiSettingsEnableLightgg: boolean;
   importedWishlist: DimWishlist | null;
+  interfaceLocale: "zh-CN" | "en-US";
   itemDetail: ItemDetailWorkspace;
   isRunningItemAction: boolean;
   localTargetRules: LocalTargetRules;
+  vendorDefinitionDetail: VendorDefinitionDetailWorkspace;
   vaultTags: VaultTags;
 }) {
   const itemDetail = props.itemDetail;
+  const vendorDefinitionState = props.vendorDefinitionDetail.state;
+
+  if (vendorDefinitionState) {
+    return (
+      <LibraryDefinitionDialog
+        item={vendorDefinitionState.item}
+        dropAccess="available"
+        liveEntry={{
+          status: "character_vendor",
+          label: "当前商人售卖",
+          description: `${vendorDefinitionState.context.vendorName}正在售卖该装备。`,
+          sources: [{
+            kind: "character_vendor",
+            label: vendorDefinitionState.context.vendorName
+          }]
+        }}
+        vendorContext={vendorDefinitionState.context}
+        isBusy={vendorDefinitionState.isBusy}
+        error={vendorDefinitionState.error}
+        copy={getLocaleCopy(props.interfaceLocale).library}
+        onClose={props.vendorDefinitionDetail.close}
+      />
+    );
+  }
 
   return itemDetail.selectedItem ? (
     <ItemDetailModal
@@ -34,7 +63,6 @@ export function HomePageItemDetailModal(props: {
       sameNameItems={itemDetail.selectedSameNameItems}
       selectedActionCharacterId={itemDetail.selectedActionCharacterId}
       selectedItem={itemDetail.selectedItem}
-      vendorContext={itemDetail.vendorContext ?? undefined}
       vaultTags={props.vaultTags}
       onApplySameNameBatchTags={(items, mode) => void itemDetail.applySameNameBatchTags(items, mode)}
       onApplySameNameCurrentKeepTags={(items, currentItemKey, mode) => void itemDetail.applySameNameCurrentKeepTags(items, currentItemKey, mode)}

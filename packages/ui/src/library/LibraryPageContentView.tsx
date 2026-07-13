@@ -14,6 +14,7 @@ import type {
 } from "@d2-tools/app";
 import { getLocaleCopy } from "../i18n/copy.js";
 import type { InterfaceLocale, LibraryCopy } from "../i18n/types.js";
+import type { VendorOfferContext } from "../item-detail/SharedItemDetailDialog.js";
 import {
   ProductWorkspaceCommandBar,
   ProductWorkspaceContentStack,
@@ -325,7 +326,10 @@ export function LibraryPageContentView(props: LibraryPageContentViewProps) {
       </ProductWorkspaceSplit>
       {selectedDefinitionRow ? (
         <LibraryDefinitionDialog
-          row={selectedDefinitionRow}
+          item={selectedDefinitionRow.item}
+          dropAccess={selectedDefinitionRow.dropAccess}
+          liveEntry={selectedDefinitionRow.liveEntry}
+          communityMatch={selectedDefinitionRow.communityMatch}
           copy={copy}
           onClose={() => setSelectedDefinitionHash(null)}
         />
@@ -454,17 +458,23 @@ function renderEquipmentResult(
   );
 }
 
-function LibraryDefinitionDialog(props: {
-  row: LibraryEquipmentResultView;
+export function LibraryDefinitionDialog(props: {
+  item: ItemSearchResult;
+  dropAccess?: LibraryDropAccessKey;
+  liveEntry?: LiveItemAvailabilityEntry;
+  communityMatch?: VaultItemMatchInfo;
+  vendorContext?: VendorOfferContext;
+  isBusy?: boolean;
+  error?: string;
   copy: LibraryCopy;
   onClose: () => void;
 }) {
-  const row = props.row;
-  const item = row.item;
+  const item = props.item;
   const copy = props.copy;
   const sourceStatus = item.source.status;
-  const liveEntry = row.liveEntry;
-  const communityMatch = row.communityMatch;
+  const dropAccess = props.dropAccess ?? "unknown";
+  const liveEntry = props.liveEntry;
+  const communityMatch = props.communityMatch;
   const weaponPerkColumns = item.group_key === "weapons"
     ? getLibraryWeaponPerkColumns(item.perks ?? [], item.item_type)
     : [];
@@ -479,7 +489,13 @@ function LibraryDefinitionDialog(props: {
   return (
     <div className="library-definition-modal">
       <button type="button" className="library-definition-backdrop" aria-label={libraryText(copy, "关闭定义详情")} onClick={props.onClose} />
-      <section className="library-definition-dialog" role="dialog" aria-modal="true" aria-label={libraryText(copy, "定义详情")}>
+      <section
+        className="library-definition-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-label={libraryText(copy, "定义详情")}
+        aria-busy={props.isBusy ? "true" : "false"}
+      >
         <div className="library-definition-toolbar">
           <div>
             <strong>{libraryText(copy, "定义详情")}</strong>
@@ -492,13 +508,23 @@ function LibraryDefinitionDialog(props: {
         <div className="library-definition-head">
           {item.icon ? <img alt="" src={item.icon} /> : null}
           <div>
-            <span className={"ui-badge " + getDropAccessBadgeClass(row.dropAccess)}>{formatDropAccessLabel(row.dropAccess, copy)}</span>
+            <span className={"ui-badge " + getDropAccessBadgeClass(dropAccess)}>{formatDropAccessLabel(dropAccess, copy)}</span>
             <h3>{item.name}</h3>
             <p>{meta.join(" / ") || libraryText(copy, "装备定义")}</p>
           </div>
         </div>
+        {props.vendorContext ? (
+          <section className="shared-item-detail-vendor" role="region" aria-label="商人售卖信息">
+            <strong>{props.vendorContext.vendorName}</strong>
+            <span>{props.vendorContext.costLabel}</span>
+            <span>{props.vendorContext.affordabilityLabel}</span>
+            <span>{props.vendorContext.characterLabel}</span>
+            <span>{props.vendorContext.refreshLabel}</span>
+          </section>
+        ) : null}
         <div className="library-definition-body">
           <div className="library-definition-overview">
+            {props.error ? <div className="status-message is-error" role="status">{props.error}</div> : null}
             <div className="library-definition-meta" aria-label={libraryText(copy, "定义字段")}>
               {meta.map((value) => <span key={value}>{value}</span>)}
               <span>{libraryText(copy, "Hash")} {item.hash}</span>
@@ -539,7 +565,7 @@ function LibraryDefinitionDialog(props: {
               </div>
               <div className="library-definition-source">
                 <strong>{libraryText(copy, "刷取判断")}</strong>
-                <span>{formatDropActionHint(row.dropAccess, communityMatch, liveEntry, copy)}</span>
+                <span>{formatDropActionHint(dropAccess, communityMatch, liveEntry, copy)}</span>
               </div>
               {(communityMatch?.available ?? 0) > 0 ? (
                 <div className="library-definition-source">

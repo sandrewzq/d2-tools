@@ -208,6 +208,7 @@ export type VendorsCopy = {
   sourceLabel: string;
   recommendationsLabel: string;
   verifiedInventory: string;
+  loadingTitle: string;
   emptyTitle: string;
   emptyBody: string;
   labels: {

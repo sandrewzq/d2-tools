@@ -179,6 +179,18 @@ type HomeConfirmedXur = {
   items: HomeDailyItem[];
 };
 
+const hiddenHomeXurItemTitles = new Set([
+  "更多奇异优惠",
+  "奇异装备优惠",
+  "仄",
+  "奇异记忆水晶",
+  "More Exotic Offers",
+  "Exotic Gear Offers",
+  "Xur",
+  "Xûr",
+  "Exotic Engram"
+]);
+
 export type HomePageViewProps = {
   interfaceLocale?: InterfaceLocale;
   selectedCharacterId?: string;
@@ -393,13 +405,16 @@ function buildConfirmedXur(
   const vendor = xurVendors.find((item) => item.characterId === selectedCharacterId)
     ?? xurVendors.find((item) => Boolean(item.characterId))
     ?? xurVendors[0];
-  const items = (vendor?.items ?? []).filter((item) => item.title.trim());
+  const items = (vendor?.items ?? []).filter((item) => {
+    const title = item.title.trim();
+    return title && !hiddenHomeXurItemTitles.has(title);
+  });
   if (!vendor || vendor.vendorEnabled === false || !items.length) return null;
   return {
     title: vendor.title,
     location: vendor.vendorLocation,
     refreshLabel: formatVendorRefreshLabel(vendor.vendorRefreshDate, copy),
-    inventoryCount: vendor.items?.filter((item) => item.title.trim()).length ?? items.length,
+    inventoryCount: items.length,
     items
   };
 }

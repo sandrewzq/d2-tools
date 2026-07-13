@@ -89,6 +89,19 @@ export function searchItemDefinitions(
     .map((definition) => toItemSearchResult(definition, definitions, options));
 }
 
+export function getItemSearchResultByHash(
+  definitions: DefinitionComponentData,
+  hash: number,
+  options: ItemSearchOptions = {}
+): ItemSearchResult | null {
+  const definition = definitions[String(hash)];
+  if (!definition) {
+    return null;
+  }
+
+  return toItemSearchResult(definition, definitions, options);
+}
+
 function isSearchableEquipmentDefinition(definition: DefinitionRecord): boolean {
   return typeof definition.itemType !== "number" || !nonEquipmentItemTypes.has(definition.itemType);
 }
