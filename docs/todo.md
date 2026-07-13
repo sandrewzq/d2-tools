@@ -9,11 +9,11 @@
 |---|---|---|
 | GitHub CI | ⏳ push 后异步执行 | 执行 frozen install、`pnpm test` 和 `pnpm typecheck`；agent 不等待普通 push 的 CI |
 | Release 门禁 | ⏳ 发版时执行 | `tools\git-auto-release.cmd` 必须等待本地门禁和 GitHub Release 全部成功 |
-| 本地开发验证 | ⛔ 默认禁用 | 开发、完成、检查、交接和普通提交均不自动运行测试、类型检查、构建、`verify:*` 或视觉脚本 |
+| Agent 自动验证 | ⛔ 默认禁用 | 普通开发不自动运行；用户主动本地测试或打包时照常运行现有测试和类型检查 |
 
 构建提醒：Prototype 生产构建仍可能提示 chunk 超过 500 kB；Electron mirror 与 Vite CJS Node API 的弃用提示不阻断当前验证。
 
-开发验证策略：本地 vibecoding 到普通提交阶段全面禁用自动化验证；普通 push 交给 GitHub CI 异步验证；只有 Release 使用 `tools\git-auto-release.cmd` 并等待全部门禁成功。用户明确点名命令时只运行该命令。
+开发验证策略：本地 vibecoding 到普通提交阶段，agent 默认不自动运行验证，也不新增普通功能测试；用户主动要求本地测试、类型检查或打包时照常执行。普通 push 交给 GitHub CI 异步验证；Release 使用 `tools\git-auto-release.cmd` 并等待全部门禁成功。
 
 测试资产：当前共 130 个测试文件，其中行为层 116 个、架构层 14 个、遗留层 0 个。遗留源码字符串测试已全部删除，混合测试只保留真实行为部分。默认禁止新增测试，仅严重 Bug、OAuth、IPC、数据写入、发布流程和关键架构边界允许增加最小行为覆盖。
 
@@ -27,6 +27,7 @@
 | T4 | P1 | 🟡 进行中 | 跨端 UI 壳、可交互原型与桌面视觉收口 | [工作区骨架与样式收口](work/backlog/cross-platform-workspace-style-hardening.md) / [模块深度与跨端 seam 收口](work/backlog/module-depth-and-platform-seams.md) / [桌面视觉与详情打磨](work/backlog/desktop-ui-account-detail-polish.md) | 已移除主菜单标题下的全局横幅位，运行态统一收口到右下角任务中心，完成任务不再进入浮层；后续人工视觉复核，并分批推进模块深度 backlog |
 | T5 | P3 | 🟡 待推进 | 活动复盘增强 | [活动复盘增强](work/backlog/activity-review-enhancement.md) | 接 PGCR、完成时间推算和副本级趋势 |
 | T6 | P4 | 🟡 待推进 | 桌面发布、更新与迁移体验 | [桌面发布体验](work/backlog/desktop-release-experience.md) | 验证 GitHub Release、更新提示、备份迁移和诊断体验 |
+| T7 | P1 | 🟡 待 CI | 资料库异域护甲定义详情修复 | [异域护甲定义详情](work/backlog/library-exotic-armor-definition-detail.md) / [实施计划](work/backlog/library-exotic-armor-definition-detail-implementation-plan.md) | 代码已实现：展示异域固有特性，护甲不再生成武器结构或重复模组池；不展示六维实例 Roll，等待普通 push 后由 CI 验证 |
 
 ## 暂不优先
 

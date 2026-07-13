@@ -465,13 +465,16 @@ function LibraryDefinitionDialog(props: {
   const sourceStatus = item.source.status;
   const liveEntry = row.liveEntry;
   const communityMatch = row.communityMatch;
-  const weaponPerkColumns = getLibraryWeaponPerkColumns(item.perks ?? [], item.item_type);
-  const meta = [
+  const weaponPerkColumns = item.group_key === "weapons"
+    ? getLibraryWeaponPerkColumns(item.perks ?? [], item.item_type)
+    : [];
+  const meta = [...new Set([
     item.tier,
+    item.class_name,
     item.item_type,
     item.bucket_name,
     item.weapon_frame?.name
-  ].filter(Boolean);
+  ].filter((value): value is string => Boolean(value)))];
 
   return (
     <div className="library-definition-modal">
@@ -550,7 +553,7 @@ function LibraryDefinitionDialog(props: {
               ) : null}
             </div>
           </div>
-          {weaponPerkColumns.length ? (
+          {item.group_key === "weapons" && weaponPerkColumns.length ? (
             <section className="library-definition-perk-pool" aria-label={libraryText(copy, "武器定义结构")}>
               <div className="library-definition-section-heading">
                 <strong>{libraryText(copy, "武器定义结构")}</strong>
@@ -575,8 +578,32 @@ function LibraryDefinitionDialog(props: {
                 ))}
               </div>
             </section>
+          ) : item.group_key === "armor" ? (
+            <section className="library-definition-intrinsics" aria-label={libraryText(copy, "异域固有特性")}>
+              <div className="library-definition-section-heading">
+                <strong>{libraryText(copy, "异域固有特性")}</strong>
+                <span>{libraryText(copy, "来自 Bungie Manifest 的固定特性，不包含护甲模组、能量或实际属性 Roll。")}</span>
+              </div>
+              {item.intrinsic_traits?.length ? (
+                <div className="library-definition-intrinsic-list">
+                  {item.intrinsic_traits.map((trait) => (
+                    <article className="library-definition-intrinsic-card" key={trait.hash}>
+                      {trait.icon ? <img alt="" src={trait.icon} /> : <span aria-hidden="true" />}
+                      <div>
+                        <strong>{trait.name}</strong>
+                        {trait.description ? <p>{trait.description}</p> : null}
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              ) : (
+                <p className="muted-copy">{libraryText(copy, "资料库暂未提供可确认的护甲固有特性。")}</p>
+              )}
+            </section>
           ) : (
-            <p className="muted-copy">{libraryText(copy, "资料库暂未提供可展示的武器定义结构。")}</p>
+            <p className="muted-copy">{libraryText(copy, item.group_key === "weapons"
+              ? "资料库暂未提供可展示的武器定义结构。"
+              : "资料库暂未提供该装备的专属定义结构。")}</p>
           )}
         </div>
       </section>

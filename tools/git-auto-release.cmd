@@ -148,6 +148,7 @@ if "%DRY_RUN%"=="1" (
     echo [dry-run] Would run: git tag "%RELEASE_TAG%"
     echo [dry-run] Would run: git push origin "%RELEASE_TAG%"
   )
+  echo [dry-run] Would wait for the GitHub Release workflow and confirm release %RELEASE_TAG% exists.
   echo [dry-run] No files were changed, staged, committed, tagged, or pushed.
   exit /b 0
 )
@@ -264,6 +265,9 @@ if errorlevel 1 (
 )
 set "FAILURE_SAFETY=The release branch was pushed, but no release tag or GitHub Release was confirmed."
 
+set "PREVIOUS_RELEASE_RUN_ID="
+for /f "usebackq delims=" %%R in (`gh run list --workflow release.yml --branch "%RELEASE_TAG%" --limit 1 --json databaseId --jq ".[0].databaseId" 2^>nul`) do set "PREVIOUS_RELEASE_RUN_ID=%%R"
+
 echo.
 if "%RELEASE_MODE%"=="retry-current" (
   echo Updating release tag...
@@ -302,8 +306,48 @@ if "%RELEASE_MODE%"=="retry-current" (
 )
 
 echo.
-echo Done. Release workflow should start from tag %RELEASE_TAG%.
+echo Waiting for the GitHub Release workflow for %RELEASE_TAG%...
+call :wait_for_release_workflow
+if errorlevel 1 (
+  set "FAILURE_STAGE=Wait for GitHub Release workflow for %RELEASE_TAG%"
+  set "FAILURE_HINT=The workflow did not appear, failed, was cancelled, or completed without creating the GitHub Release. Review the gh output above."
+  set "FAILURE_SAFETY=The release branch and tag were pushed, but a successful GitHub Release was not confirmed."
+  goto :release_failed
+)
+
+echo.
+echo Done. GitHub Release %RELEASE_TAG% is available.
 exit /b 0
+
+:wait_for_release_workflow
+setlocal EnableDelayedExpansion
+set "RELEASE_RUN_ID="
+
+for /L %%A in (1,1,60) do (
+  set "RELEASE_RUN_ID="
+  for /f "usebackq delims=" %%R in (`gh run list --workflow release.yml --branch "%RELEASE_TAG%" --limit 1 --json databaseId --jq ".[0].databaseId" 2^>nul`) do set "RELEASE_RUN_ID=%%R"
+  if defined RELEASE_RUN_ID if not "!RELEASE_RUN_ID!"=="%PREVIOUS_RELEASE_RUN_ID%" goto :release_workflow_found
+  if %%A==1 echo Waiting for GitHub Actions to register the tag workflow...
+  timeout /t 5 /nobreak >nul
+)
+
+echo No GitHub Release workflow run was found for %RELEASE_TAG% within 5 minutes.
+endlocal & exit /b 1
+
+:release_workflow_found
+echo Watching GitHub Actions run !RELEASE_RUN_ID!...
+gh run watch "!RELEASE_RUN_ID!" --exit-status
+if errorlevel 1 (
+  endlocal & exit /b 1
+)
+
+gh release view "%RELEASE_TAG%" >nul 2>nul
+if errorlevel 1 (
+  echo Workflow succeeded, but GitHub Release %RELEASE_TAG% was not found.
+  endlocal & exit /b 1
+)
+
+endlocal & exit /b 0
 
 :release_failed
 echo.
@@ -338,5 +382,5 @@ echo   - Before changing release files, runs the same local CI gate as GitHub: f
 echo   - Stops before commit or push when local CI fails, shows the failing stage and command output, and waits for a key press.
 echo   - Runs verify:release and release:preview for the target version after release files are prepared.
 echo   - Stages all changes, commits if needed, pushes the current branch, creates or updates tag vX.Y.Z, and pushes the tag.
-echo   - The pushed tag triggers the GitHub Release workflow.
+echo   - Waits for the tag-triggered GitHub Release workflow and confirms the GitHub Release exists.
 exit /b 0

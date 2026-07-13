@@ -108,7 +108,7 @@ docs/        正式文档
 6. 顶部状态条等跨端状态对象必须使用稳定 key 做样式和逻辑判断，例如 `account`、`library`、`app-version`；本地化后的 `label` 只用于显示，不能参与逻辑判断。
 7. 全局 AI 抽屉等产品级辅助面板也属于共享 UI：`assistantPanel` 不允许各端长期自建标题、对话结构或占位页面，必须复用 `packages/ui` 的 AI Assistant View；Desktop / Prototype / Web 只提供真实服务 adapter 或 mock 数据。
 8. 窗口控制按钮由 `packages/ui` 的共享 `AppShell` 自绘，Desktop 只通过 `platformActions.windowControls` 注入最小化、最大化/还原和关闭动作；不要重新启用 Electron 原生 `titleBarOverlay`。
-9. 改 `packages/ui` 后不在本地新增或运行 UI 测试、消费者类型检查和视觉脚本；需要体验时启动 Prototype、Web 或 Desktop 人工检查，普通 push 后交给 CI。只有 Release 或用户明确点名时才执行对应自动化命令。
+9. 改 `packages/ui` 后默认不新增测试，也不自动运行 UI 测试、消费者类型检查和视觉脚本；需要体验时可以启动 Prototype、Web 或 Desktop。用户要求本地测试时正常运行现有检查，否则普通 push 后交给 CI。
 10. 产品样式不得再复制到 Desktop 私有样式文件；需要新增 class、token、暗色规则或页面布局时，直接修改 `packages/ui/src/styles.css`。Desktop 私有 CSS 只能放窗口、拖拽区或 Electron 特有平台差异。
 
 常见改动归属：
@@ -160,7 +160,7 @@ docs/        正式文档
 
 升级为共享改动时，agent 必须先说明影响范围。不能把共享骨架问题伪装成某个菜单的私有样式补丁。
 
-菜单开发、收尾、检查、验收、交接和普通提交均不自动运行测试、类型检查、构建、`verify:*` 或视觉脚本。需要体验页面时可以启动 Prototype、Web 或 Desktop，由开发者人工确认交互；普通 push 后由 GitHub CI 异步验证，agent 不等待 CI。只有 Release 才通过 `tools\git-auto-release.cmd` 执行并等待完整门禁。
+菜单开发、收尾、检查、验收、交接和普通提交默认不自动运行测试、类型检查、构建、`verify:*` 或视觉脚本。用户要求本地测试或打包时正常执行现有检查；否则普通 push 后由 GitHub CI 异步验证，agent 不等待 CI。Release 通过 `tools\git-auto-release.cmd` 执行并等待完整门禁。
 
 提交或交接前，如果工作区已有多个菜单或共享层改动，必须先运行：
 
@@ -291,7 +291,7 @@ npx pnpm@9.15.0 dev:electron
 | 普通提交 | 按本次范围提交 | 禁止自动运行本地验证 |
 | 普通 push | push 后结束，不等待 GitHub CI | GitHub CI 异步验证 |
 | 发布 / release / 发版 | 使用 `tools\git-auto-release.cmd` | 必须等待本地门禁和 GitHub Release 全部成功 |
-| 用户明确指定命令 | 只运行用户点名的命令 | 不自行追加其他检查 |
+| 用户要求本地测试 / 检查 / 打包 | 运行现有测试或用户点名的命令 | 不自行新增测试用例或追加其他检查 |
 
 允许为了人工体验启动 Prototype、Web 或 Desktop；启动应用不等于通过测试，也不得在启动前机械追加 build、typecheck 或测试命令。`tools\git-preflight.cmd` 只负责只读识别改动 lane、高冲突文件和提交风险，不再推荐本地验证命令。
 
@@ -324,7 +324,7 @@ tools\git-auto-release.cmd
 
 脚本会在修改版本、commit、push 或 tag 之前执行 frozen install、`pnpm test` 和 `pnpm typecheck`，随后执行 Release 专属校验。任一步失败都要显示失败阶段和原始原因并等待确认，不得继续发布；本地门禁通过后还必须等待 GitHub Release workflow 成功。
 
-底层 `test:*`、`typecheck:*`、`visual:*`、`check` 和 `verify:release` 命令仍保留给 GitHub CI、Release 脚本、维护者专项排查或用户明确点名使用。agent 在日常开发、完成、检查、交接和普通提交阶段不得自行调用。仓库不再提供开发期 `verify:*` 别名，唯一保留的是 Release 专用 `verify:release`。
+底层 `test:*`、`typecheck:*`、`visual:*`、`check` 和 `verify:release` 命令保留给用户主动本地测试、本地打包、GitHub CI、Release 脚本和专项排查。agent 在日常开发中不自动调用，但用户要求测试、检查或打包时必须正常执行现有测试。仓库不再提供开发期 `verify:*` 别名，唯一保留的是 Release 专用 `verify:release`。
 
 ## 5. 打包
 
@@ -341,7 +341,7 @@ powershell -File scripts/local-package.ps1
 3. `pnpm typecheck`
 4. `pnpm package:win`
 
-打包链路主要用于发布前或需要验证 Windows NSIS 安装器时；日常开发优先使用 `npx pnpm@9.15.0 dev:desktop`，不要为了看一次本地改动反复打包安装。
+本地打包会运行现有测试和类型检查，但 Agent 在普通开发过程中默认不新增测试用例，也不自动触发这条重链路。日常开发优先使用 `npx pnpm@9.15.0 dev:desktop`，不要为了看一次本地改动反复打包安装。
 
 仅构建 Windows NSIS 安装器（跳过测试和类型检查）：
 

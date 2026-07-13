@@ -1,6 +1,7 @@
 import type { DefinitionComponentData, DefinitionRecord } from "../manifest/definitions.js";
 import { expandAliasQuery, type ItemAliases } from "./aliases.js";
 import { ammoTypeKey, classifyBucket, type AmmoTypeKey, type EquipmentGroupKey } from "./classification.js";
+import { summarizeItemIntrinsicTraits, type ItemIntrinsicTraitSummary } from "./intrinsics.js";
 import { summarizeItemPerks, type ItemPerkGroup } from "./perks.js";
 import { summarizeItemSource, type ItemSourceSummary } from "./source.js";
 import { summarizeItemRelease, type ItemReleaseSummary } from "./release.js";
@@ -33,9 +34,11 @@ export type ItemSearchResult = {
   icon?: string;
   item_type?: string;
   tier?: string;
+  class_name?: string;
   damage_type?: string;
   is_adept?: boolean;
   origin_traits?: ItemOriginTrait[];
+  intrinsic_traits?: ItemIntrinsicTraitSummary[];
   ammo_type?: AmmoTypeKey;
   bucket_hash?: number;
   bucket_name?: string;
@@ -151,6 +154,10 @@ function toItemSearchResult(
       collectibleDefinitions: options.collectibleDefinitions
     })
   };
+  const className = classTypeLabel(definition.classType);
+  if (className) {
+    result.class_name = className;
+  }
   const ammoType = ammoTypeKey(definition.equippingBlock?.ammoType);
   if (ammoType) {
     result.ammo_type = ammoType;
@@ -188,12 +195,21 @@ function toItemSearchResult(
     result.definition_stats = definitionStats;
   }
 
-  const perks = summarizeItemPerks(definition, definitions, {
-    plugSetDefinitions: options.plugSetDefinitions,
-    maxPlugsPerSocket: 6
-  });
-  if (perks.length > 0) {
-    result.perks = perks;
+  if (bucket?.group === "armor") {
+    const intrinsicTraits = summarizeItemIntrinsicTraits(definition, definitions);
+    if (intrinsicTraits.length > 0) {
+      result.intrinsic_traits = intrinsicTraits;
+    }
+  }
+
+  if (bucket?.group === "weapons") {
+    const perks = summarizeItemPerks(definition, definitions, {
+      plugSetDefinitions: options.plugSetDefinitions,
+      maxPlugsPerSocket: 6
+    });
+    if (perks.length > 0) {
+      result.perks = perks;
+    }
   }
 
   return result;
@@ -267,4 +283,13 @@ function damageTypeLabel(damageType: number | undefined): string | undefined {
     7: "缚丝伤害"
   };
   return damageType ? labels[damageType] : undefined;
+}
+
+function classTypeLabel(classType: number | undefined): string | undefined {
+  const labels: Record<number, string> = {
+    0: "泰坦",
+    1: "猎人",
+    2: "术士"
+  };
+  return typeof classType === "number" ? labels[classType] : undefined;
 }

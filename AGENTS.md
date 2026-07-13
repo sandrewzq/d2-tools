@@ -15,23 +15,23 @@
 
 | 改动类型 | 优先修改位置 | 自动验证策略 | 避免事项 |
 |---|---|---|---|
-| 文档、待办、README | `README.md`、`docs/`、`AGENTS.md` | 本地不运行；push 后交给 CI | 不重建 archive / superpowers 目录；不把阶段计划塞进 README |
-| 维护者脚本、Git 辅助 | `tools/*.cmd`、必要时 `scripts/` | 本地不运行；push 后交给 CI | 不提交 token、Cookie、profile、缓存库；不把用户本地数据放进仓库 |
-| 跨端 UI / 原型 / Web | `packages/ui` 优先，`packages/prototype` 和 `packages/web` 只做壳或 mock | 本地不运行；push 后交给 CI | 不在 prototype 长期维护第二套真实页面；不只改 Desktop 复制 UI |
-| Desktop 接线、IPC、preload | `packages/desktop/src/main/ipc/*`、`api/*Api.ts`、对应 feature | 本地不运行；push 后交给 CI | 尽量不碰 `api/client.ts`、`api/types.ts`、`ipc.ts` 等高冲突聚合文件 |
-| 领域、服务、workspace | `packages/core`、`packages/services`、`packages/app` | 本地不运行；push 后交给 CI | 不跨层直接依赖平台能力；不要把业务真相写进平台壳 |
+| 文档、待办、README | `README.md`、`docs/`、`AGENTS.md` | Agent 默认不自动运行；用户要求时可本地检查 | 不重建 archive / superpowers 目录；不把阶段计划塞进 README |
+| 维护者脚本、Git 辅助 | `tools/*.cmd`、必要时 `scripts/` | Agent 默认不自动运行；用户要求时可本地检查 | 不提交 token、Cookie、profile、缓存库；不把用户本地数据放进仓库 |
+| 跨端 UI / 原型 / Web | `packages/ui` 优先，`packages/prototype` 和 `packages/web` 只做壳或 mock | Agent 默认不自动运行；用户要求时可本地测试 | 不在 prototype 长期维护第二套真实页面；不只改 Desktop 复制 UI |
+| Desktop 接线、IPC、preload | `packages/desktop/src/main/ipc/*`、`api/*Api.ts`、对应 feature | Agent 默认不自动运行；用户要求时可本地测试 | 尽量不碰 `api/client.ts`、`api/types.ts`、`ipc.ts` 等高冲突聚合文件 |
+| 领域、服务、workspace | `packages/core`、`packages/services`、`packages/app` | Agent 默认不自动运行；用户要求时可本地测试 | 不跨层直接依赖平台能力；不要把业务真相写进平台壳 |
 | 发布、版本、CHANGELOG | `CHANGELOG.md`、各 package 版本、release 脚本 | 只通过 `tools\git-auto-release.cmd` 执行完整门禁 | 不手写不一致版本号；不在未确认 tag 时推 release |
 
 Vibecoding 快路径：
 
-- 用户只说“开发、修改、优化、继续做、完成、做完、检查、验收、交接、提交”时，本地一律不运行测试、类型检查、构建、`verify:*` 或视觉脚本。
-- 本地只允许启动应用进行人工体验；除非用户明确要求执行某条命令，否则 agent 不主动运行任何自动化验证。
+- 用户只说“开发、修改、优化、继续做、完成、做完、检查、验收、交接、提交”时，agent 默认不自动运行测试、类型检查、构建、`verify:*` 或视觉脚本；用户明确说“本地测试”“运行测试”“本地打包”时正常执行。
+- 本地可以启动应用人工体验，也可以按用户明确要求运行现有测试、类型检查、构建或打包；agent 不得自行追加未要求的验证。
 - 普通 push 后由 GitHub CI 异步执行文档、构建、行为测试、架构测试、质量检查和类型检查；agent 报告 CI 链接后继续工作，不等待结果。
 - 用户说“发布、release、发版”时，使用 `tools\git-auto-release.cmd`。脚本运行完整本地门禁，push tag 后必须等待 GitHub Release workflow 和安装包发布成功。
 - 默认禁止新增测试文件。只有严重 Bug 回归、OAuth、IPC、数据写入、发布流程和关键架构边界允许新增测试；普通 UI、文案、CSS、按钮接线和简单页面功能不新增测试。
 - 不执行本地 TDD 循环。需要新增高风险测试时只写入测试资产，首次执行交给 CI 或 Release；用户明确要求本地运行时例外。
 - 测试断言优先检查稳定行为、导出、role / label 或 ViewModel 输出；禁止新增读取生产源码后匹配中文文案、变量名、import 顺序、HTML、class 或 CSS 片段的普通功能测试，`pnpm test:quality` 会直接拦截。
-- `pnpm test` 只由 CI 和 Release 调用，包含行为测试、测试质量检查和明确列入白名单的架构测试。仓库不再保留遗留源码测试层。
+- `pnpm test` 可由用户主动本地测试、本地打包、CI 和 Release 调用，包含行为测试、测试质量检查和明确列入白名单的架构测试。仓库不再保留遗留源码测试层。
 - 用户只需要描述业务目标，例如“开发商人菜单内的功能”“优化商人菜单的交互”。agent 必须自行识别菜单、改动类型和默认修改范围，不要求用户提供 Red / Green / Tidy 模板或精确文件清单。
 - agent 生成计划时默认拆成短任务：`实现: <功能切片>`、`整理: <功能切片>`。不要默认创建测试或验证任务；CI 和 Release 验证不属于本地编码循环。
 
@@ -41,13 +41,13 @@ Vibecoding 快路径：
 - 优先使用已有脚本别名，不自行拼复杂命令。
 - 发现无关脏文件时只记录，不回退、不格式化、不顺手修。
 - 需要跨越两个以上 package 或触碰高冲突文件时，先说明影响范围再动手。
-- 最终回答必须明确写“未运行本地自动化验证，由 CI/Release 负责”。只有拿到 CI 或 Release 成功结果后才能声称测试通过。
+- 未运行本地自动化验证时，最终回答必须明确写“未运行本地自动化验证，由后续本地测试、CI 或 Release 负责”。只有拿到用户要求的本地测试、CI 或 Release 成功结果后才能声称对应检查通过。
 
 ## 并行开发边界
 
 - 普通功能开发优先只改对应 `packages/desktop/src/renderer/features/<menu>/` 目录，避免一个菜单的改动影响其他菜单。
 - 单个菜单私有目录改动默认不要求 worktree；例如一个 agent 只改 `features/account/`，另一个只改 `features/vault/`，且都不碰共享层时，可以在当前工作区轻量并行。
-- 菜单私有目录和共享层改动都不在本地运行自动化验证；push 后统一由 CI 判断。
+- 菜单私有目录和共享层改动默认不自动运行本地验证；用户要求本地测试时运行现有测试，否则 push 后由 CI 判断。
 - worktree 是隔离复杂并行现场的工具，不是所有任务的默认要求。触碰 `packages/ui`、`packages/app`、`packages/desktop/src/renderer/shared/`、renderer API、主进程 IPC、release / 版本号 / CHANGELOG，或当前工作区已有多条无关脏改动时，才优先考虑 worktree 或暂停其他 agent。
 - 多 agent 共用同一工作区时，提交前必须先运行 `tools\git-preflight.cmd`；如果输出多条 lane 或高冲突文件，不要使用全量 `git add -A` 提交脚本，除非确认这些改动都属于本次提交。
 - 跨菜单复用能力必须先进入 `packages/desktop/src/renderer/shared/`，不要让 feature 之间直接 import。
@@ -65,7 +65,7 @@ Vibecoding 快路径：
 - 如果为了探索先在 `packages/prototype` 写了临时 UI，用户确认后必须在同一次收口中迁入 `packages/ui`，再让 Prototype / Web / Desktop 共同消费；不能声称“应用已改好”但只改了 prototype。
 - `packages/web` 和 `packages/desktop` 是平台壳：只处理 Web / Electron 特有 adapter、登录态、IPC、本地文件、窗口、更新、端口和打包能力；页面实现应通过 `ProductShellHost` 和 `packages/ui` 共享。
 - 新增或调整产品级外壳时，Prototype / Web / Desktop 都应继续挂同一个 `ProductShellHost`。不得重新引入 Desktop 专用 shell wrapper，除非先更新本文件和 `docs/development.md` 说明新的边界。
-- 改 `packages/ui` 后不在本地新增或运行 UI 测试、消费者类型检查和视觉脚本；需要体验时启动共享页面人工检查，push 后交给 CI。
+- 改 `packages/ui` 后默认不新增测试，也不自动运行 UI 测试、消费者类型检查和视觉脚本；用户要求本地测试时正常运行现有检查，否则 push 后交给 CI。
 - 原型对比应优先使用 React prototype 和视觉脚本；旧 HTML 只能作为历史参考，不得作为新的活跃实现入口。
 
 ### 多 agent 菜单 UI 默认边界
@@ -117,8 +117,8 @@ Vibecoding 快路径：
 
 ## 验证规则
 
-- 本地开发、完成、检查、验收、交接和普通提交阶段不运行任何自动化验证。
+- 本地开发、完成、检查、验收、交接和普通提交阶段，agent 默认不自动运行验证；用户明确要求本地测试或执行具体命令时照常运行。
 - 普通 push 触发 GitHub CI；agent 不等待 CI，除非用户明确要求查看结果。
 - Release 必须使用 `tools\git-auto-release.cmd`，并等待本地门禁、GitHub Actions、安装包和 GitHub Release 全部成功。
 - 用户明确要求运行某条本地验证命令时可以执行，但不得自行扩大到其他命令。
-- 未获得 CI 或 Release 成功证据时，最终回答只能说明代码改动状态，不得声称测试、构建或类型检查通过。
+- 未获得用户要求的本地命令、CI 或 Release 成功证据时，最终回答只能说明代码改动状态，不得声称测试、构建或类型检查通过。

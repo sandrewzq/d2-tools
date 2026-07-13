@@ -8,11 +8,18 @@ export type ItemSearchResult = {
   icon?: string;
   item_type?: string;
   tier?: string;
+  class_name?: string;
   damage_type?: string;
   is_adept?: boolean;
   origin_traits?: Array<{
     hash: number;
     name: string;
+  }>;
+  intrinsic_traits?: Array<{
+    hash: number;
+    name: string;
+    description: string;
+    icon?: string;
   }>;
   group_key?: EquipmentGroupKey;
   bucket_name?: string;

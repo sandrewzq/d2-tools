@@ -111,10 +111,12 @@ powershell -File scripts/local-package.ps1
 
 ```powershell
 npx pnpm@9.15.0 install      # 安装依赖
-npx pnpm@9.15.0 test          # 运行测试
-npx pnpm@9.15.0 typecheck     # 类型检查
-npx pnpm@9.15.0 package:win   # 仅打包
+npx pnpm@9.15.0 test         # 运行现有测试
+npx pnpm@9.15.0 typecheck    # 类型检查
+npx pnpm@9.15.0 package:win  # 仅打包
 ```
+
+Agent 在普通开发过程中默认不新增测试用例，也不自动运行重型验证；用户主动本地测试或打包时仍运行现有测试。
 
 更多开发和发布细节见 [开发说明](docs/development.md)。
 
