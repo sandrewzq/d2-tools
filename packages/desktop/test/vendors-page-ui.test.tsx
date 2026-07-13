@@ -11,12 +11,14 @@ vi.mock("../src/renderer/api/client.js", () => ({
   api: {
     addRecentItem: vi.fn().mockResolvedValue({ items: [] }),
     getCommunityPerkRecommendations: vi.fn().mockResolvedValue(null),
-    getItemDetail: vi.fn().mockResolvedValue({
-      hash: 1001,
+    searchItems: vi.fn().mockResolvedValue([{
+      hash: 2002,
       name: "鹰月",
-      description: "异域手炮",
-      source: { status: "ready", label: "商人售卖", description: "仄" }
-    })
+      description: "资料库规范化的异域手炮定义",
+      group_key: "weapons",
+      intrinsic_traits: [],
+      source: { status: "ready", label: "资料库来源", description: "规范定义" }
+    }])
   }
 }));
 
@@ -56,9 +58,10 @@ describe("vendor item detail wiring", () => {
     });
 
     expect(result.current.state?.item).toMatchObject({
-      hash: 1001,
+      hash: 2002,
       name: "鹰月",
-      description: "异域手炮"
+      description: "资料库规范化的异域手炮定义",
+      group_key: "weapons"
     });
     expect(result.current.state?.context).toEqual({
       vendorName: "仄",

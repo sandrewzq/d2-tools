@@ -513,17 +513,17 @@ export function LibraryDefinitionDialog(props: {
             <p>{meta.join(" / ") || libraryText(copy, "装备定义")}</p>
           </div>
         </div>
-        {props.vendorContext ? (
-          <section className="shared-item-detail-vendor" role="region" aria-label="商人售卖信息">
-            <strong>{props.vendorContext.vendorName}</strong>
-            <span>{props.vendorContext.costLabel}</span>
-            <span>{props.vendorContext.affordabilityLabel}</span>
-            <span>{props.vendorContext.characterLabel}</span>
-            <span>{props.vendorContext.refreshLabel}</span>
-          </section>
-        ) : null}
         <div className="library-definition-body">
           <div className="library-definition-overview">
+            {props.vendorContext ? (
+              <section className="shared-item-detail-vendor" role="region" aria-label="商人售卖信息">
+                <strong>{props.vendorContext.vendorName}</strong>
+                <span>{props.vendorContext.costLabel}</span>
+                <span>{props.vendorContext.affordabilityLabel}</span>
+                <span>{props.vendorContext.characterLabel}</span>
+                <span>{props.vendorContext.refreshLabel}</span>
+              </section>
+            ) : null}
             {props.error ? <div className="status-message is-error" role="status">{props.error}</div> : null}
             <div className="library-definition-meta" aria-label={libraryText(copy, "定义字段")}>
               {meta.map((value) => <span key={value}>{value}</span>)}

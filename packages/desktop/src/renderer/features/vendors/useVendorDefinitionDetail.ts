@@ -40,7 +40,10 @@ export function useVendorDefinitionDetail() {
     });
 
     try {
-      const detail = await api.getItemDetail(item.itemHash);
+      const matches = await api.searchItems(item.name);
+      const normalizedName = item.name.trim().toLocaleLowerCase();
+      const detail = matches.find((candidate) => candidate.name.trim().toLocaleLowerCase() === normalizedName)
+        ?? await api.getItemDetail(item.itemHash);
       if (requestSequence !== requestSequenceRef.current) return;
       setState({ item: detail, context, isBusy: false, error: "" });
     } catch (error) {

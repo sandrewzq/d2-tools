@@ -27,7 +27,7 @@
 - 账号不可用时只保留非个性化推荐，不伪造拥有状态或账号对比。
 - 正常目录条目显示真实主库存数量；加载失败显示“加载失败”，不得显示为 `0 件`。
 - 首次加载可先显示缓存；后台刷新失败时保留缓存、显示缓存时间和明确错误；从未成功加载时显示完整错误态。
-- 点击普通物品或二级兑换物品都打开与资料库共用的装备详情浮层；商人售价等信息作为可选上下文条传入，不复制详情主体。
+- 点击普通物品或二级兑换物品必须直接渲染资料库现有的 `LibraryDefinitionDialog`；商人只通过 `searchItems` 取得与资料库搜索页相同的 canonical `ItemSearchResult`，并把售价作为可选上下文传入。禁止新建商人详情页、复制详情 DOM，或用另一套共享壳模拟资料库详情。
 - 退出菜单只保留角色范围和选中商人；搜索、筛选、结果模式、折叠状态与滚动位置重置。
 - 窄窗口目录抽屉必须有可访问名称、Esc 关闭、焦点锁定、关闭后焦点恢复和 `overscroll-behavior: contain`；分区与服务折叠按钮必须暴露 `aria-expanded` / `aria-controls`。
 - 搜索框使用 `type="search"`、可见或可访问 label、稳定 `name` 和 `autocomplete="off"`；刷新、搜索结果和错误更新使用 `aria-live="polite"`，刷新容器暴露 `aria-busy`。
@@ -53,7 +53,7 @@
 - 新建 `packages/ui/src/vendors/VendorToolbar.tsx`：角色范围、刷新状态、搜索框和筛选面板。
 - 新建 `packages/ui/src/vendors/VendorInventorySections.tsx`：Bungie 原始分区、折叠和舒展卡片。
 - 新建 `packages/ui/src/vendors/VendorServices.tsx`：服务手风琴和紧凑二级库存。
-- 新建 `packages/ui/src/item-detail/SharedItemDetailDialog.tsx`：资料库和商人共同消费的详情呈现壳及可选商人上下文条。
+- 修改 `packages/ui/src/library/LibraryPageContentView.tsx`：继续由 `LibraryDefinitionDialog` 唯一持有资料库定义详情结构，并支持可选商人上下文条。
 - 修改 `packages/ui/src/index.ts`、`packages/ui/src/styles.css`、`packages/ui/src/i18n/copy.ts`：导出组件并增加 `.vendor-*`、`.shared-item-detail-*` 文案和样式。
 - 新建 `packages/ui/test/vendors-page.test.tsx`：按 role/label/callback 测试目录、筛选、服务展开和详情动作。
 - 新建 `packages/ui/test/shared-item-detail.test.tsx`：测试商人上下文条存在/缺省时的共享详情行为。
@@ -63,7 +63,7 @@
 - 新建 `packages/desktop/src/main/ipc/vendors.ts`：注册 `vendors:inventory` handler。
 - 修改 `packages/desktop/src/main/ipc.ts`、`packages/desktop/src/preload/preload.ts`、`packages/desktop/src/renderer/api/types.ts`：只做聚合注册和 runtime 暴露。
 - 修改 `packages/desktop/src/renderer/pages/useDesktopProductShell.tsx`：加载快照、后台刷新、缓存错误、角色范围和共享详情动作接线。
-- 修改 `packages/desktop/src/renderer/shared/components/ItemDetailModal.tsx`、`packages/desktop/src/renderer/pages/HomePageItemDetailModal.tsx`：改用共享详情呈现并接收可选售卖上下文。
+- 修改 `packages/desktop/src/renderer/features/vendors/useVendorDefinitionDetail.ts`、`packages/desktop/src/renderer/pages/HomePageItemDetailModal.tsx`：商人 adapter 使用资料库规范化搜索结果，并直接渲染 `LibraryDefinitionDialog`。
 - 重写 `packages/desktop/test/vendors-page-ui.test.tsx`：删除现有源码字符串测试，改为新模型和交互的行为测试。
 - 修改 `docs/todo.md`：记录 T3 下一步为仄纵向切片。
 
@@ -747,7 +747,16 @@ git add packages/ui/src/vendors packages/ui/src/index.ts packages/ui/src/i18n/co
 git commit -m "feat: redesign shared vendor menu"
 ```
 
-### Task 9: Red: 共用装备详情测试
+### 详情复用最终约束
+
+本节覆盖下面 Task 9 / Task 10 的早期 `SharedItemDetailDialog` 方案。最终实现不得为商人抽取或维护另一套详情页面：
+
+1. 资料库搜索结果和商人物品都渲染 `packages/ui/src/library/LibraryPageContentView.tsx` 导出的同一个 `LibraryDefinitionDialog`。
+2. 商人 adapter 先调用 `api.searchItems(item.name)`，选取资料库 canonical 精确同名结果；只有资料库搜索无结果时才按售卖 hash 回退读取。
+3. `vendorContext` 必须放在 `LibraryDefinitionDialog` 的正文内部，不能成为 `.library-definition-dialog` 的独立 grid 行。
+4. 后续详情结构、文案和样式只修改 `LibraryDefinitionDialog`；商人目录只负责传入物品和售卖上下文。
+
+### Task 9: Red: 共用装备详情测试（历史方案，以上述最终约束为准）
 
 **文件：**
 - 新建：`packages/ui/test/shared-item-detail.test.tsx`
@@ -827,7 +836,7 @@ git add packages/ui/test/shared-item-detail.test.tsx
 git commit -m "test: define shared item detail presentation"
 ```
 
-### Task 10: Green: 共用装备详情最小实现
+### Task 10: Green: 共用装备详情最小实现（历史方案，以上述最终约束为准）
 
 **文件：**
 - 新建：`packages/ui/src/item-detail/SharedItemDetailDialog.tsx`
