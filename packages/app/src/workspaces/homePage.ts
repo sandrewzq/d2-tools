@@ -25,6 +25,7 @@ export type HomePageModel = HomeDashboardWorkspace;
 
 export type HomePageModelInput = {
   state: HomeDashboardStartupState;
+  selectedCharacterId?: string;
   diagnosticRows?: HomeDashboardDiagnosticRow[];
   diagnosticError?: string;
   accountError?: string;
@@ -66,6 +67,7 @@ export type HomePageDerivedState = {
 export function selectHomePageModel(input: HomePageModelInput): HomePageModel {
   return {
     state: input.state,
+    selectedCharacterId: input.selectedCharacterId,
     diagnosticRows: input.diagnosticRows ?? [],
     diagnosticError: input.diagnosticError ?? "",
     accountError: input.accountError ?? "",

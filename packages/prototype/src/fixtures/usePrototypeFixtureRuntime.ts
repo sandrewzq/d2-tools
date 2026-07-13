@@ -9,7 +9,8 @@ import {
   selectSettingsPageModel,
   selectVaultPageModel,
   selectVendorsPageModel,
-  type SettingsSectionKey
+  type SettingsSectionKey,
+  type VendorsPageInput
 } from "@d2-tools/app";
 import type {
   AiAssistantContextView,
@@ -491,6 +492,225 @@ export function getPrototypeBackgroundTasks(scenarioKey: PrototypeScenarioKey): 
   return prototypeBackgroundTasks;
 }
 
+export function createPrototypeVendorsPageModel(
+  scenario: PrototypeScenario,
+  selectedCharacterId: string
+) {
+  const refreshState = scenario.key === "background-running"
+    ? "refreshing"
+    : scenario.key === "account-error" || scenario.key === "manifest-missing-components"
+      ? "failed"
+      : "idle";
+  const snapshot = scenario.key === "account-missing" || scenario.key === "manifest-missing-components"
+    ? null
+    : createPrototypeVendorSnapshot(scenario.key === "update-available" ? 222 : 111);
+  if (snapshot && scenario.key === "vendor-partial-failure") {
+    snapshot.failedVendorDetails = [{
+      characterId: "hunter-1",
+      vendorHash: 672118013,
+      message: "枪匠属性与插槽详情读取失败"
+    }];
+  }
+  const refreshError = scenario.key === "account-error"
+    ? "Bungie 商人刷新失败，正在显示上次成功库存。"
+    : scenario.key === "manifest-missing-components"
+      ? "商人库存首次读取失败。"
+      : undefined;
+  const input: VendorsPageInput = {
+    snapshot,
+    account: scenario.hasAccountData ? prototypeAccountSummary : null,
+    scope: selectedCharacterId
+      ? { kind: "character", characterId: selectedCharacterId }
+      : { kind: "account" },
+    selectedVendorId: "vendor-2190858386",
+    refreshState,
+    refreshError
+  };
+  return selectVendorsPageModel(input);
+}
+
+function createPrototypeVendorSnapshot(armorerModHash: number): NonNullable<VendorsPageInput["snapshot"]> {
+  const commonOffers = [
+    [1001, "鹰月", "手炮", "异域"],
+    [1002, "守誓者", "臂铠", "异域"],
+    [1003, "差分方程", "脉冲步枪", "传说"],
+    [1004, "真言者", "榴弹发射器", "传说"],
+    [1005, "第七炽天使卡宾枪", "自动步枪", "传说"],
+    [1006, "伊克洛斯霰弹枪", "霰弹枪", "传说"],
+    [1007, "孤独", "手枪", "传说"],
+    [1008, "主原料", "融合步枪", "传说"]
+  ] as const;
+  const offers = commonOffers.map(([itemHash, name, itemType, tierType], index) => createPrototypeVendorOffer({
+    itemHash,
+    vendorItemIndex: index,
+    name,
+    itemType,
+    tierType,
+    characterIds: ["hunter-1", "warlock-1"],
+    stats: itemHash === 1002 ? { mobility: armorerModHash === 111 ? 18 : 8, discipline: armorerModHash === 111 ? 8 : 18 } : {}
+  }));
+  offers.push(
+    createPrototypeVendorOffer({
+      itemHash: 1010,
+      vendorItemIndex: 10,
+      name: "猎人高机动护甲",
+      itemType: "头盔",
+      tierType: "传说",
+      characterIds: ["hunter-1"],
+      stats: { mobility: armorerModHash === 111 ? 22 : 10, discipline: armorerModHash === 111 ? 10 : 22 }
+    }),
+    createPrototypeVendorOffer({
+      itemHash: 1011,
+      vendorItemIndex: 11,
+      name: "术士高恢复护甲",
+      itemType: "胸甲",
+      tierType: "传说",
+      characterIds: ["warlock-1"],
+      stats: { recovery: 21, discipline: 12 }
+    })
+  );
+  const serviceOffers = [
+    [1101, "奇异记忆水晶", "记忆水晶"],
+    [1102, "异域密码兑换", "材料"],
+    [1103, "随机异域护甲", "护甲"],
+    [1104, "异域装备聚焦", "聚焦服务"]
+  ] as const;
+
+  return {
+    status: "ready",
+    fetchedAt: "2026-07-12T12:00:00.000Z",
+    failedCharacterIds: [],
+    failedVendorDetails: [],
+    currencyBalances: { "2001": 143, "2002": 50000 },
+    characterContexts: {
+      "hunter-1": {
+        characterId: "hunter-1",
+        armorerModHash,
+        armorerModName: armorerModHash === 111 ? "机动护甲模组" : "纪律护甲模组"
+      },
+      "warlock-1": {
+        characterId: "warlock-1",
+        armorerModHash: 333,
+        armorerModName: "恢复护甲模组"
+      }
+    },
+    vendors: [
+      {
+        id: "vendor-2190858386",
+        vendorHash: 2190858386,
+        name: "仄",
+        description: "九巨头的神秘代理人。",
+        iconUrl: prototypeItemIcon("仄", "#c6922e"),
+        location: "高塔机库",
+        nextRefreshAt: "2026-07-17T17:00:00.000Z",
+        characterIds: ["hunter-1", "warlock-1"],
+        offers,
+        services: [{
+          id: "xur-services",
+          name: "异域服务",
+          description: "使用奇异硬币和异域密码兑换。",
+          categoryIndex: 9,
+          offers: serviceOffers.map(([itemHash, name, itemType], index) => createPrototypeVendorOffer({
+            itemHash,
+            vendorItemIndex: 100 + index,
+            name,
+            itemType,
+            tierType: "异域",
+            characterIds: ["hunter-1", "warlock-1"],
+            stats: {},
+            serviceId: "xur-services"
+          }))
+        }]
+      },
+      {
+        id: "vendor-672118013",
+        vendorHash: 672118013,
+        name: "枪匠",
+        description: "高塔武器商人。",
+        iconUrl: prototypeItemIcon("枪", "#587da8"),
+        location: "高塔庭院",
+        nextRefreshAt: "2026-07-13T17:00:00.000Z",
+        characterIds: ["hunter-1", "warlock-1"],
+        offers: [
+          createPrototypeVendorOffer({
+            vendorHash: 672118013,
+            itemHash: 1201,
+            vendorItemIndex: 0,
+            name: "逆转危机",
+            itemType: "自动步枪",
+            tierType: "传说",
+            characterIds: ["hunter-1", "warlock-1"],
+            stats: {},
+            costItemHash: 2002,
+            costName: "微光",
+            costQuantity: 7000
+          }),
+          createPrototypeVendorOffer({
+            vendorHash: 672118013,
+            itemHash: 1202,
+            vendorItemIndex: 1,
+            name: "定向罗盘",
+            itemType: "斥候步枪",
+            tierType: "传说",
+            characterIds: ["hunter-1", "warlock-1"],
+            stats: {},
+            costItemHash: 2002,
+            costName: "微光",
+            costQuantity: 7000
+          })
+        ],
+        services: []
+      }
+    ]
+  };
+}
+
+function createPrototypeVendorOffer(input: {
+  vendorHash?: number;
+  itemHash: number;
+  vendorItemIndex: number;
+  name: string;
+  itemType: string;
+  tierType: string;
+  characterIds: string[];
+  stats: Record<string, number>;
+  serviceId?: string;
+  costItemHash?: number;
+  costName?: string;
+  costQuantity?: number;
+}): NonNullable<VendorsPageInput["snapshot"]>["vendors"][number]["offers"][number] {
+  const vendorHash = input.vendorHash ?? 2190858386;
+  const costName = input.costName ?? "奇异硬币";
+  return {
+    id: `${vendorHash}-${input.itemHash}-${input.characterIds.join("-")}`,
+    vendorHash,
+    vendorItemIndex: input.vendorItemIndex,
+    itemHash: input.itemHash,
+    name: input.name,
+    itemType: input.itemType,
+    tierType: input.tierType,
+    iconUrl: prototypeItemIcon(input.name.slice(0, 1), input.tierType === "异域" ? "#c6922e" : "#2f7dd1"),
+    characterIds: input.characterIds,
+    costs: [{
+      itemHash: input.costItemHash ?? 2001,
+      name: costName,
+      quantity: input.costQuantity ?? (input.tierType === "异域" ? 23 : 17),
+      iconUrl: prototypeItemIcon(costName.slice(0, 1), costName === "微光" ? "#587da8" : "#8a6a24")
+    }],
+    failureIndexes: [],
+    failureMessages: [],
+    saleStatus: 0,
+    canPurchase: true,
+    apiPurchasable: false,
+    categoryIndex: input.serviceId ? 9 : 1,
+    categoryName: input.serviceId ? "异域服务" : "特色装备",
+    serviceId: input.serviceId,
+    rollFingerprint: `${input.itemHash}:${JSON.stringify(input.stats)}`,
+    stats: input.stats,
+    socketPlugHashes: []
+  };
+}
+
 export const prototypeBackgroundTasks: ShellBackgroundTaskItem[] = [
   {
     id: "manifest-check",
@@ -908,7 +1128,7 @@ export function usePrototypeFixtureRuntime() {
     actionLog: prototypeActionLog,
     bungieConfig: prototypeBungieConfig,
     vaultItems: prototypeVaultItems,
-    vendorsModel: selectVendorsPageModel(null),
+    createVendorsPageModel: createPrototypeVendorsPageModel,
     assistantInitialMessages: prototypeAssistantInitialMessages,
     assistantQuickPrompts: prototypeAssistantQuickPrompts,
     findLoadoutTemplate: findPrototypeLoadoutTemplate,

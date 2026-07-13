@@ -1,5 +1,7 @@
 # 配装页 ViewModel 收深计划
 
+> 执行规则覆盖：本文保留的测试、`Red / Verify` 和 `verify:*` 命令仅是历史计划记录，不是当前 agent 执行要求。实际开发不得据此新增或运行测试；统一遵守仓库根目录 `AGENTS.md`。
+
 > 状态：待推进
 > 关联任务：`docs/todo.md` T4 跨端 UI 壳、可交互原型与桌面视觉收口
 > 关联架构候选：候选 1「收深共享缓存和页面 ViewModel module，让 ui 的 interface 变窄」

@@ -155,6 +155,39 @@ describe("home weekly world briefing", () => {
     expect(html).toContain("23 奇异硬币");
   });
 
+  it("uses the selected character Xur inventory instead of the public class item", () => {
+    const html = renderToStaticMarkup(
+      <HomePageContentView
+        selectedCharacterId="warlock"
+        dailySummary={createDailySummary({
+          vendors: {
+            status: "ready",
+            message: "仄库存已读取。",
+            items: [
+              {
+                title: "仄",
+                vendorHash: 2190858386,
+                vendorEnabled: true,
+                items: [{ title: "坚忍克己" }]
+              },
+              {
+                title: "仄",
+                vendorHash: 2190858386,
+                vendorEnabled: true,
+                characterId: "warlock",
+                items: [{ title: "唯我主义" }]
+              }
+            ]
+          }
+        })}
+        weeklySummary={createWeeklySummary()}
+      />
+    );
+
+    expect(html).toContain("唯我主义");
+    expect(html).not.toContain("坚忍克己");
+  });
+
   it("renders confirmed world data as one continuous operations desk", () => {
     const html = renderToStaticMarkup(
       <HomePageContentView

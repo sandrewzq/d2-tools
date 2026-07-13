@@ -1,5 +1,7 @@
 # 账号页 ViewModel 收口计划
 
+> 执行规则覆盖：本文保留的测试、`Red / Verify` 和 `verify:*` 命令仅是历史计划记录，不是当前 agent 执行要求。实际开发不得据此新增或运行测试；统一遵守仓库根目录 `AGENTS.md`。
+
 ## 背景
 
 账号页已经有 `packages/app/src/workspaces/accountPage.ts` 中的 `AccountPageWorkspace`，但共享 UI `AccountPageContentView` 仍然接收大量宽 props，并混用原始账号实体、页面派生数据、平台状态、活动数据、配装状态、工具函数和行为回调。Prototype / Web / Desktop 也都需要手工拼同一批参数，导致账号页新增按钮、活动状态或物品打开参数时容易三端漏改。

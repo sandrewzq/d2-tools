@@ -1,5 +1,7 @@
 # 首页本周作战桌实施计划
 
+> 执行规则覆盖：本文保留的测试、`Red / Verify`、`verify:*` 和视觉命令仅是历史计划记录，不是当前 agent 执行要求。实际开发不得据此新增或运行测试；统一遵守仓库根目录 `AGENTS.md`。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `executing-plans` inline，按任务逐项执行；本计划不启用子 agent。
 
 **Goal:** 将共享首页改为连续的“本周作战桌”，完整展示仄的全部可读库存，并消除固定两排布局产生的大面积空洞。

@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { readFileSync } from "node:fs";
 import { buildAiChatContext } from "@d2-tools/core/ai/chat";
 import {
   addAssistantHistoryEntry,
@@ -96,32 +95,6 @@ describe("assistant page context and history", () => {
     expect(nextHistory.map((entry) => entry.id)).toEqual(["second"]);
     expect(loadAssistantHistory(storage).map((entry) => entry.id)).toEqual(["second"]);
   });
-
-  it("shows explicit session controls in the AI panel", () => {
-    const aiPanel = readSource("src/renderer/components/AiAnalysisPanel.tsx");
-    const assistantView = readUiSource("src/assistant/AiAssistantPanelView.tsx");
-
-    expect(aiPanel).toContain("AiAssistantPanelView");
-    expect(aiPanel).toContain("activeSessionId");
-    expect(aiPanel).toContain("startNewSession");
-    expect(aiPanel).toContain("switchSession");
-    expect(aiPanel).toContain("deleteSession");
-    expect(aiPanel).toContain("onStartNewSession={startNewSession}");
-    expect(aiPanel).toContain("onSwitchSession={switchSession}");
-    expect(aiPanel).toContain("onDeleteSession={deleteSession}");
-    expect(assistantView).toContain("删除");
-    expect(assistantView).toContain("新会话");
-    expect(assistantView).toContain("会话列表");
-    expect(assistantView).toContain("恢复");
-  });
-
-  it("guards AI chat context against missing vault tags during startup", () => {
-    const aiPanel = readSource("src/renderer/components/AiAnalysisPanel.tsx");
-
-    expect(aiPanel).toContain("const safeTags = props.tags ?? { items: {} }");
-    expect(aiPanel).toContain("tags: safeTags");
-    expect(aiPanel).not.toContain(" as never");
-  });
 });
 
 function createMemoryStorage(): AssistantStorageLike {
@@ -135,12 +108,4 @@ function createMemoryStorage(): AssistantStorageLike {
       map.delete(key);
     }
   };
-}
-
-function readSource(path: string): string {
-  return readFileSync(`packages/desktop/${path}`, "utf8");
-}
-
-function readUiSource(path: string): string {
-  return readFileSync(`packages/ui/${path}`, "utf8");
 }

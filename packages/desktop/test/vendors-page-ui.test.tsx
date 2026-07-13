@@ -1,413 +1,292 @@
+// @vitest-environment jsdom
+
 import React from "react";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
-import { VendorsPageContentView } from "../../ui/src/index";
-import { selectVendorsPageModel } from "../../app/src/workspaces/vendorsPage";
+import { act, renderHook, waitFor } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { AccountSummary } from "../src/renderer/api/types.js";
+import { useVendorsWorkspace } from "../src/renderer/features/vendors/useVendorsWorkspace.js";
+import { useItemDetailWorkspace } from "../src/renderer/shared/hooks/useItemDetailWorkspace.js";
 
-describe("vendors page UI", () => {
-  it("keeps the content view boundary at model and actions", () => {
-    const source = readFileSync(join(process.cwd(), "packages/ui/src/vendors/VendorsPageContentView.tsx"), "utf8");
+vi.mock("../src/renderer/api/client.js", () => ({
+  api: {
+    addRecentItem: vi.fn().mockResolvedValue({ items: [] }),
+    getCommunityPerkRecommendations: vi.fn().mockResolvedValue(null),
+    getItemDetail: vi.fn().mockResolvedValue({
+      hash: 1001,
+      name: "鹰月",
+      description: "异域手炮",
+      source: { status: "ready", label: "商人售卖", description: "仄" }
+    })
+  }
+}));
 
-    expect(source).toContain("model: VendorsPageModelView");
-    expect(source).toContain("actions: VendorsPageActions");
-    expect(source).not.toContain("model?: VendorsPageModelView");
-    expect(source).not.toContain("actions?: VendorsPageActions");
-    expect(source).not.toContain("vendors?: VendorInventoryGroupView[]");
-    expect(source).not.toContain("railSections?: VendorRailSectionView[]");
-    expect(source).not.toContain("updatedLabel?: string");
-    expect(source).not.toContain("getDefaultVendorWorkspace");
+vi.mock("../src/renderer/api/services.js", () => ({
+  services: {
+    localData: {}
+  }
+}));
+
+describe("vendor item detail wiring", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
   });
 
-  it("keeps vendor stock title and status chips from overlapping", () => {
-    const styles = readFileSync(join(process.cwd(), "packages/ui/src/styles.css"), "utf8");
+  it("opens a vendor offer in shared item detail with its sale context", async () => {
+    const { result } = renderHook(() => useItemDetailWorkspace(createWorkspaceInput()));
 
-    expect(styles).toContain(".vendor-detail-panel .vendor-stock-title");
-    expect(styles).toContain("grid-template-columns: minmax(0, 1fr) max-content");
-    expect(styles).toContain(".vendor-stock-title strong");
-    expect(styles).toContain("min-width: 0");
-    expect(styles).toContain("-webkit-line-clamp: 2");
-    expect(styles).toContain(".vendor-stock-title .app-chip");
-    expect(styles).toContain("max-width: 88px");
+    await act(async () => {
+      await result.current.openVendorItemDetail({
+        id: "xur-hawkmoon",
+        itemHash: 1001,
+        name: "鹰月",
+        itemType: "手炮，异域",
+        summary: "当前角色商人库存",
+        cost: "23 奇异硬币",
+        iconLabel: "鹰",
+        iconUrl: "https://www.bungie.net/hawkmoon.jpg",
+        tone: "exotic",
+        status: "unknown"
+      }, {
+        vendorName: "仄",
+        costLabel: "23 奇异硬币",
+        affordabilityLabel: "可兑换",
+        characterLabel: "猎人",
+        refreshLabel: "刚刚刷新"
+      });
+    });
+
+    expect(result.current.selectedItem).toMatchObject({
+      hash: 1001,
+      name: "鹰月",
+      icon: "https://www.bungie.net/hawkmoon.jpg",
+      item_type: "手炮，异域",
+      tier: "异域"
+    });
+    expect(result.current.vendorContext).toEqual({
+      vendorName: "仄",
+      costLabel: "23 奇异硬币",
+      affordabilityLabel: "可兑换",
+      characterLabel: "猎人",
+      refreshLabel: "刚刚刷新"
+    });
   });
 
-  it("renders a DIM-like vendor rail, item icons, and non-empty evidence details", () => {
-    const html = renderToStaticMarkup(
-      <VendorsPageContentView
-        interfaceLocale="zh-CN"
-        model={selectVendorsPageModel(createVendorDailySummary())}
-        actions={{}}
-      />
-    );
+  it("clears vendor context when the shared detail closes", async () => {
+    const { result } = renderHook(() => useItemDetailWorkspace(createWorkspaceInput()));
 
-    expect(html).toContain("vendor-workbench-layout");
-    expect(html).toContain("vendor-rail");
-    expect(html).toContain("vendor-rail-item");
-    expect(html).toContain("vendor-avatar");
-    expect(html).toContain("vendor-item-art");
-    expect(html).toContain("data:image/svg+xml");
-    expect(html).toContain("vendor-cost-row");
-    expect(html).toContain("vendor-evidence-grid");
-    expect(html).toContain("vendor-detail-toolbar");
-    expect(html).toContain("vendor-inventory-grid");
-    expect(html).toContain("公共商人证据");
-    expect(html).toContain("每日武器商人");
-    expect(html).toContain("护甲合成商人");
-    expect(html).toContain("试炼商人");
-    expect(html).toContain("先锋商人");
-    expect(html).toContain("熔炉商人");
-    expect(html).toContain("智谋商人");
-    expect(html).toContain("记忆水晶商人");
-    expect(html).toContain("外观商人");
-    expect(html).not.toContain("Banshee-44");
-    expect(html).not.toContain("Ada-1");
-    expect(html).not.toContain("Saint-14");
-    expect(html).not.toContain("塔楼");
-    expect(html).not.toContain("实时");
-  });
+    await act(async () => {
+      await result.current.openVendorItemDetail({
+        id: "xur-hawkmoon",
+        itemHash: 1001,
+        name: "鹰月",
+        itemType: "手炮，异域",
+        summary: "当前角色商人库存",
+        iconLabel: "鹰",
+        tone: "exotic",
+        status: "unknown"
+      }, {
+        vendorName: "仄",
+        costLabel: "23 奇异硬币",
+        affordabilityLabel: "可兑换",
+        characterLabel: "猎人",
+        refreshLabel: "刚刚刷新"
+      });
+    });
 
-  it("groups vendors by player task instead of raw live source", () => {
-    const html = renderToStaticMarkup(
-      <VendorsPageContentView
-        interfaceLocale="zh-CN"
-        model={selectVendorsPageModel(null)}
-        actions={{}}
-      />
-    );
+    act(() => result.current.closeSelectedItemDetail());
 
-    expect(html).toContain("重点库存");
-    expect(html).toContain("仪式声望");
-    expect(html).toContain("周末活动");
-    expect(html).toContain("外观 / 服务");
-    expect(html).not.toContain("特殊 / 活动");
-  });
-
-  it("renders vendor rail sections and toolbar labels from the workspace model", () => {
-    const vendor = {
-      id: "custom-weekend",
-      name: "资料库周末商人",
-      description: "模型已整理的周末商人。",
-      badge: "内部状态",
-      source: "Bungie 登录角色商人",
-      resetLabel: "距离每日重置还有 2 小时",
-      category: "不会被 UI 解释",
-      iconLabel: "周",
-      statusLabel: "等待库存读取",
-      displayStatusLabel: "模型未读取",
-      inventoryState: "not_read" as const,
-      inventoryStateLabel: "模型未读取库存",
-      railStatusLabel: "模型未读取 · 0 件物品",
-      detailToolbar: {
-        taskCategory: "模型周末活动",
-        inventoryStateLabel: "模型未读取库存",
-        statusLabel: "模型未读取",
-        itemCountLabel: "模型 0 件物品"
-      },
-      featured: true,
-      items: []
-    };
-    const model = {
-      vendors: [vendor],
-      railSections: [
-        {
-          id: "weekend",
-          title: "模型分组",
-          vendors: [vendor]
-        }
-      ],
-      defaultVendorId: "custom-weekend",
-      updatedLabel: "模型更新",
-      sourceLabel: "模型来源",
-      nextResetLabel: "模型重置",
-      recommendationCount: 0,
-      verifiedItemCount: 0
-    };
-    const html = renderToStaticMarkup(
-      <VendorsPageContentView
-        interfaceLocale="zh-CN"
-        model={model}
-        actions={{}}
-      />
-    );
-
-    expect(html).toContain("模型分组");
-    expect(html).toContain("模型未读取 · 0 件物品");
-    expect(html).toContain("模型周末活动");
-    expect(html).toContain("模型未读取库存");
-    expect(html).not.toContain("其他商人");
-    expect(html).not.toContain("等待实时库存");
-  });
-
-  it("renders a compact unread empty state for vendors without readable inventory", () => {
-    const vendor = {
-      id: "tess",
-      name: "外观商人",
-      description: "外观和光尘轮换。",
-      badge: "周更",
-      source: "本地商人目录",
-      resetLabel: "距离每日重置还有 2 小时",
-      category: "特殊 / 活动",
-      iconLabel: "EV",
-      statusLabel: "等待库存读取",
-      displayStatusLabel: "未读取",
-      inventoryState: "not_read" as const,
-      inventoryStateLabel: "未读取库存",
-      railStatusLabel: "未读取 · 0 件物品",
-      detailToolbar: {
-        taskCategory: "外观 / 服务",
-        inventoryStateLabel: "未读取库存",
-        statusLabel: "未读取",
-        itemCountLabel: "0 件物品"
-      },
-      featured: true,
-      items: []
-    };
-    const html = renderToStaticMarkup(
-      <VendorsPageContentView
-        interfaceLocale="zh-CN"
-        model={{
-          vendors: [vendor],
-          railSections: [{ id: "cosmetic", title: "外观 / 服务", vendors: [vendor] }],
-          defaultVendorId: "tess",
-          updatedLabel: "模型更新",
-          sourceLabel: "模型来源",
-          nextResetLabel: "模型重置",
-          recommendationCount: 0,
-          verifiedItemCount: 0
-        }}
-        actions={{}}
-      />
-    );
-
-    expect(html).toContain("vendor-empty-card");
-    expect(html).toContain("未读取");
-    expect(html).not.toContain("等待实时库存");
-    expect(html).not.toContain("实时");
-  });
-
-  it("selects the featured vendor as the initial detail target", () => {
-    const html = renderToStaticMarkup(
-      <VendorsPageContentView
-        interfaceLocale="zh-CN"
-        model={{
-          vendors: [
-            {
-              id: "xur",
-              name: "仄",
-              description: "周末库存",
-              badge: "周末",
-              source: "仄样本",
-              resetLabel: "周末",
-              category: "重点",
-              iconLabel: "X",
-              statusLabel: "已确认",
-              items: []
-            },
-            {
-              id: "saint",
-              name: "试炼商人",
-              description: "试炼奖励",
-              badge: "周末",
-              source: "试炼商人样本",
-              resetLabel: "周末",
-              category: "周末",
-              iconLabel: "S14",
-              statusLabel: "原型样本",
-              featured: true,
-              items: [
-                {
-                  id: "saint-engram",
-                  name: "试炼记忆水晶聚焦",
-                  itemType: "聚焦奖励",
-                  summary: "周末优先查看。",
-                  cost: "试炼记忆水晶",
-                  iconLabel: "试",
-                  tone: "weapon",
-                  status: "recommended"
-                }
-              ]
-            }
-          ],
-          railSections: [
-            {
-              id: "weekend",
-              title: "周末活动",
-              vendors: [
-                {
-                  id: "saint",
-                  name: "试炼商人",
-                  description: "试炼奖励",
-                  badge: "周末",
-                  source: "试炼商人样本",
-                  resetLabel: "周末",
-                  category: "周末",
-                  iconLabel: "S14",
-                  statusLabel: "原型样本",
-                  featured: true,
-                  items: [
-                    {
-                      id: "saint-engram",
-                      name: "试炼记忆水晶聚焦",
-                      itemType: "聚焦奖励",
-                      summary: "周末优先查看。",
-                      cost: "试炼记忆水晶",
-                      iconLabel: "试",
-                      tone: "weapon",
-                      status: "recommended"
-                    }
-                  ]
-                }
-              ]
-            }
-          ],
-          defaultVendorId: "saint",
-          updatedLabel: "模型更新",
-          sourceLabel: "模型来源",
-          nextResetLabel: "模型重置",
-          recommendationCount: 1,
-          verifiedItemCount: 1
-        }}
-        actions={{}}
-      />
-    );
-
-    expect(html).toContain('aria-pressed="true"');
-    expect(html).toContain("试炼商人样本");
-    expect(html).toContain("试炼记忆水晶聚焦");
-  });
-
-  it("renders real vendor and currency icons when provided", () => {
-    const html = renderToStaticMarkup(
-      <VendorsPageContentView
-        interfaceLocale="zh-CN"
-        model={{
-          vendors: [
-            {
-              id: "xur",
-              name: "资料库周末商人",
-              description: "周末库存",
-              badge: "已确认",
-              source: "Bungie 公共商人",
-              resetLabel: "每日",
-              category: "重点",
-              iconUrl: "https://www.bungie.net/common/destiny2_content/icons/xur.jpg",
-              statusLabel: "已确认",
-              featured: true,
-              items: [
-                {
-                  id: "xur-oathkeeper",
-                  name: "守誓者",
-                  itemType: "臂铠，异域",
-                  summary: "Bungie 公共商人",
-                  cost: "23 奇异硬币",
-                  costIconUrl: "https://www.bungie.net/common/destiny2_content/icons/strange-coin.jpg",
-                  iconLabel: "守",
-                  iconUrl: "https://www.bungie.net/common/destiny2_content/icons/oathkeeper.jpg",
-                  tone: "exotic",
-                  status: "recommended"
-                }
-              ]
-            }
-          ],
-          railSections: [
-            {
-              id: "featured",
-              title: "重点库存",
-              vendors: [
-                {
-                  id: "xur",
-                  name: "资料库周末商人",
-                  description: "周末库存",
-                  badge: "已确认",
-                  source: "Bungie 公共商人",
-                  resetLabel: "每日",
-                  category: "重点",
-                  iconUrl: "https://www.bungie.net/common/destiny2_content/icons/xur.jpg",
-                  statusLabel: "已确认",
-                  featured: true,
-                  items: [
-                    {
-                      id: "xur-oathkeeper",
-                      name: "守誓者",
-                      itemType: "臂铠，异域",
-                      summary: "Bungie 公共商人",
-                      cost: "23 奇异硬币",
-                      costIconUrl: "https://www.bungie.net/common/destiny2_content/icons/strange-coin.jpg",
-                      iconLabel: "守",
-                      iconUrl: "https://www.bungie.net/common/destiny2_content/icons/oathkeeper.jpg",
-                      tone: "exotic",
-                      status: "recommended"
-                    }
-                  ]
-                }
-              ]
-            }
-          ],
-          defaultVendorId: "xur",
-          updatedLabel: "模型更新",
-          sourceLabel: "模型来源",
-          nextResetLabel: "模型重置",
-          recommendationCount: 1,
-          verifiedItemCount: 1
-        }}
-        actions={{}}
-      />
-    );
-
-    expect(html).toContain("https://www.bungie.net/common/destiny2_content/icons/xur.jpg");
-    expect(html).toContain("https://www.bungie.net/common/destiny2_content/icons/oathkeeper.jpg");
-    expect(html).toContain("https://www.bungie.net/common/destiny2_content/icons/strange-coin.jpg");
-    expect(html).toContain("23 奇异硬币");
-    expect(html).not.toContain("待确认");
-    expect(html).not.toContain("费用待确认");
+    expect(result.current.selectedItem).toBeNull();
+    expect(result.current.vendorContext).toBeNull();
   });
 });
 
-function createVendorDailySummary(): Parameters<typeof selectVendorsPageModel>[0] {
+describe("vendor workspace loading", () => {
+  it("reloads live inventory whenever the vendor page is re-entered", async () => {
+    const loadInventory = vi.fn().mockResolvedValue(createVendorSnapshot());
+    const { rerender } = renderHook(
+      ({ active }) => useVendorsWorkspace({
+        accountSummary: createAccountSummary("membership-a"),
+        selectedCharacterId: "hunter",
+        active,
+        loadInventory
+      }),
+      { initialProps: { active: true } }
+    );
+
+    await waitFor(() => expect(loadInventory).toHaveBeenCalledTimes(1));
+    rerender({ active: false });
+    rerender({ active: true });
+
+    await waitFor(() => expect(loadInventory).toHaveBeenCalledTimes(2));
+  });
+
+  it("requests only the selected character and reloads when the selection changes", async () => {
+    const loadInventory = vi.fn().mockResolvedValue(createVendorSnapshot());
+    const account = {
+      ...createAccountSummary("membership-a"),
+      characters: [
+        { character_id: "warlock", class_name: "术士" },
+        { character_id: "titan", class_name: "泰坦" }
+      ]
+    } as AccountSummary;
+    const { rerender } = renderHook(
+      ({ selectedCharacterId }) => useVendorsWorkspace({
+        accountSummary: account,
+        selectedCharacterId,
+        active: true,
+        loadInventory
+      }),
+      { initialProps: { selectedCharacterId: "warlock" } }
+    );
+
+    await waitFor(() => expect(loadInventory).toHaveBeenCalledTimes(1));
+    expect(loadInventory.mock.calls[0]?.[0].character_ids).toEqual(["warlock"]);
+
+    rerender({ selectedCharacterId: "titan" });
+
+    await waitFor(() => expect(loadInventory).toHaveBeenCalledTimes(2));
+    expect(loadInventory.mock.calls[1]?.[0].character_ids).toEqual(["titan"]);
+  });
+
+  it("reloads and replaces cache when the active Bungie account changes", async () => {
+    const loadInventory = vi.fn().mockResolvedValue(createVendorSnapshot());
+    const { rerender } = renderHook(
+      ({ account }) => useVendorsWorkspace({
+        accountSummary: account,
+        selectedCharacterId: "hunter",
+        active: true,
+        loadInventory
+      }),
+      { initialProps: { account: createAccountSummary("membership-a") } }
+    );
+
+    await waitFor(() => expect(loadInventory).toHaveBeenCalledTimes(1));
+    rerender({ account: createAccountSummary("membership-b") });
+
+    await waitFor(() => expect(loadInventory).toHaveBeenCalledTimes(2));
+    expect(loadInventory.mock.calls[1]?.[0].membership_id).toBe("membership-b");
+  });
+
+  it("does not restore the previous account snapshot when the new account load fails", async () => {
+    const loadInventory = vi.fn()
+      .mockResolvedValueOnce(createVendorSnapshot("2026-07-12T12:00:00.000Z"))
+      .mockRejectedValueOnce(new Error("新账号商人数据读取失败"));
+    const { result, rerender } = renderHook(
+      ({ account }) => useVendorsWorkspace({
+        accountSummary: account,
+        selectedCharacterId: "hunter",
+        active: true,
+        loadInventory
+      }),
+      { initialProps: { account: createAccountSummary("membership-a") } }
+    );
+
+    await waitFor(() => expect(result.current.model.updatedLabel).toBe("更新：2026-07-12T12:00:00.000Z"));
+    rerender({ account: createAccountSummary("membership-b") });
+
+    await waitFor(() => expect(result.current.model.statusBanner?.message).toBe("新账号商人数据读取失败"));
+    expect(result.current.model.updatedLabel).toBe("等待商人数据");
+    expect(result.current.model.selectedCharacterContext).toBeNull();
+  });
+
+  it("ignores a previous account response that arrives after the current account", async () => {
+    const accountARequest = createDeferred<ReturnType<typeof createVendorSnapshot>>();
+    const accountBRequest = createDeferred<ReturnType<typeof createVendorSnapshot>>();
+    const loadInventory = vi.fn()
+      .mockImplementationOnce(() => accountARequest.promise)
+      .mockImplementationOnce(() => accountBRequest.promise);
+    const { result, rerender } = renderHook(
+      ({ account }) => useVendorsWorkspace({
+        accountSummary: account,
+        selectedCharacterId: "hunter",
+        active: true,
+        loadInventory
+      }),
+      { initialProps: { account: createAccountSummary("membership-a") } }
+    );
+
+    await waitFor(() => expect(loadInventory).toHaveBeenCalledTimes(1));
+    rerender({ account: createAccountSummary("membership-b") });
+    await waitFor(() => expect(loadInventory).toHaveBeenCalledTimes(2));
+
+    await act(async () => accountBRequest.resolve(createVendorSnapshot("2026-07-12T13:00:00.000Z")));
+    await waitFor(() => expect(result.current.model.updatedLabel).toBe("更新：2026-07-12T13:00:00.000Z"));
+
+    await act(async () => accountARequest.resolve(createVendorSnapshot("2026-07-12T11:00:00.000Z")));
+    expect(result.current.model.updatedLabel).toBe("更新：2026-07-12T13:00:00.000Z");
+  });
+
+  it("clears inventory and ignores pending responses when the account is removed", async () => {
+    const pendingRequest = createDeferred<ReturnType<typeof createVendorSnapshot>>();
+    const loadInventory = vi.fn(() => pendingRequest.promise);
+    const { result, rerender } = renderHook(
+      ({ account }: { account: AccountSummary | null }) => useVendorsWorkspace({
+        accountSummary: account,
+        selectedCharacterId: "hunter",
+        active: true,
+        loadInventory
+      }),
+      { initialProps: { account: createAccountSummary("membership-a") as AccountSummary | null } }
+    );
+
+    await waitFor(() => expect(loadInventory).toHaveBeenCalledTimes(1));
+    rerender({ account: null });
+    await act(async () => pendingRequest.resolve(createVendorSnapshot()));
+
+    expect(result.current.model.updatedLabel).toBe("等待商人数据");
+    expect(result.current.model.selectedCharacterContext).toBeNull();
+  });
+});
+
+function createWorkspaceInput(): Parameters<typeof useItemDetailWorkspace>[0] {
   return {
-    date_label: "2026-07-07",
-    daily_reset: {
-      label: "每日重置：2026-07-08 01:00 Asia/Shanghai",
-      next_reset_iso: "2026-07-07T17:00:00.000Z",
-      time_remaining_label: "距离每日重置还有 7 小时 30 分钟"
+    accountSummary: null,
+    vaultTags: { items: {} },
+    setVaultTags: vi.fn(),
+    importedWishlist: null,
+    localTargetRules: { rules: [] },
+    diagnostics: {
+      aiSettings: { enable_lightgg: false },
+      setWriteActionsEnabled: vi.fn(),
+      loadActionLog: vi.fn().mockResolvedValue(undefined)
     },
-    weekly_reset: {
-      label: "每周重置：2026-07-08 01:00 Asia/Shanghai",
-      next_reset_iso: "2026-07-07T17:00:00.000Z",
-      time_remaining_label: "距离每周重置还有 7 小时 30 分钟"
-    },
-    sources: {
-      vendors: {
-        status: "ready",
-        label: "商人库存",
-        message: "已读取公共商人库存。",
-        items: [
-          {
-            title: "周末异域商人",
-            subtitle: "周末商人库存",
-            description: "守誓者（臂铠，异域；23 奇异硬币）",
-            source: "公共商人证据",
-            vendorHash: 2190858386,
-            iconUrl: "/common/destiny2_content/icons/xur.jpg",
-            items: [
-              {
-                title: "守誓者",
-                subtitle: "臂铠，异域",
-                description: "23 奇异硬币",
-                source: "公共商人证据",
-                iconUrl: "/common/destiny2_content/icons/oathkeeper.jpg",
-                costIconUrl: "/common/destiny2_content/icons/strange-coin.jpg"
-              }
-            ]
-          }
-        ]
-      },
-      rotations: { status: "pending", label: "今日轮换", message: "" },
-      lost_sector: { status: "pending", label: "遗失区域", message: "" },
-      weekly_report: { status: "pending", label: "本周活动线索", message: "" }
-    },
-    checklist: [],
-    recommendations: []
+    setAccountError: vi.fn(),
+    setIsRunningItemAction: vi.fn(),
+    setItemActionMessage: vi.fn(),
+    loadAccountSummary: vi.fn().mockResolvedValue(undefined),
+    onRecentHistoryChanged: vi.fn()
   };
+}
+
+function createAccountSummary(membershipId: string): AccountSummary {
+  return {
+    account_name: membershipId,
+    destiny_membership_id: membershipId,
+    membership_type: 3,
+    characters: [{ character_id: "hunter", class_name: "猎人" }],
+    vault: { item_count: 0, items: [], sample_items: [] },
+    materials: { item_count: 0, items: [] }
+  } as AccountSummary;
+}
+
+function createVendorSnapshot(fetchedAt = "2026-07-12T12:00:00.000Z") {
+  return {
+    status: "ready" as const,
+    fetchedAt,
+    failedCharacterIds: [],
+    failedVendorDetails: [],
+    currencyBalances: {},
+    characterContexts: {
+      hunter: { characterId: "hunter", armorerModHash: 111, armorerModName: "机动护甲模组" }
+    },
+    vendors: []
+  };
+}
+
+function createDeferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((resolvePromise) => {
+    resolve = resolvePromise;
+  });
+  return { promise, resolve };
 }

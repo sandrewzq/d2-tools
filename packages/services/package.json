@@ -33,6 +33,10 @@
     "./oauth/tokenStore": {
       "types": "./dist/oauth/tokenStore.d.ts",
       "import": "./dist/oauth/tokenStore.js"
+    },
+    "./vendors/liveInventory": {
+      "types": "./dist/vendors/liveInventory.d.ts",
+      "import": "./dist/vendors/liveInventory.js"
     }
   },
   "scripts": {

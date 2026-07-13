@@ -226,6 +226,10 @@
       "types": "./dist/vault/tags.d.ts",
       "import": "./dist/vault/tags.js"
     },
+    "./vendors/inventory": {
+      "types": "./dist/vendors/inventory.d.ts",
+      "import": "./dist/vendors/inventory.js"
+    },
     "./community-perks": {
       "types": "./dist/community-perks/index.d.ts",
       "import": "./dist/community-perks/index.js"

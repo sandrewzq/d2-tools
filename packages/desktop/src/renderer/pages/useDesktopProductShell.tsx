@@ -1,4 +1,4 @@
-import { createHomeDashboardActions, createHomeDashboardWorkspace, selectVendorsPageModel } from "@d2-tools/app";
+import { createHomeDashboardActions, createHomeDashboardWorkspace } from "@d2-tools/app";
 import {
   type ProductPreferences,
   type ShellAssistantMode,
@@ -15,6 +15,7 @@ import { useHomePageDerivedState } from "../features/home/useHomePageDerivedStat
 import { useLibraryWorkspace } from "../features/library/useLibraryWorkspace";
 import { useLoadoutTemplates } from "../features/loadouts/useLoadoutTemplates";
 import { useDiagnosticsSettings } from "../features/settings/useDiagnosticsSettings";
+import { useVendorsWorkspace } from "../features/vendors/useVendorsWorkspace";
 import type { DesktopMenuProviderContextValue } from "./providers/DesktopMenuProviderContext";
 import { useDesktopProductWriteActions } from "./useDesktopProductWriteActions";
 
@@ -94,6 +95,12 @@ export function useDesktopProductShell(props: {
     onRecentHistoryChanged: library.setLibraryHistory
   });
   const itemDetail = writeActions.itemDetail;
+  const vendorsWorkspace = useVendorsWorkspace({
+    accountSummary,
+    selectedCharacterId,
+    active: activePage === "vendors",
+    loadInventory: api.getVendorInventory
+  });
   const loadoutMessage = writeActions.loadoutMessage;
   const itemActionMessage = writeActions.itemActionMessage;
   const isRunningItemAction = writeActions.isRunningItemAction;
@@ -172,6 +179,7 @@ export function useDesktopProductShell(props: {
 
   const homeWorkspace = createHomeDashboardWorkspace({
     state: props.state,
+    selectedCharacterId,
     isLoggingIn,
     isInitializingManifest,
     isRefreshingDiagnostics: diagnostics.isRefreshingDiagnostics,
@@ -186,8 +194,6 @@ export function useDesktopProductShell(props: {
     isLoadingAccount,
     isLoadingDaily: daily.isLoadingDaily
   });
-  const vendorsWorkspace = selectVendorsPageModel(daily.dailySummary);
-
   const homeActions = createHomeDashboardActions({
     onConfigure: props.onConfigure,
     onLogin: () => void loginBungie(),
@@ -325,8 +331,12 @@ export function useDesktopProductShell(props: {
       }
     },
     vendors: {
-      model: vendorsWorkspace,
-      actions: {},
+      model: vendorsWorkspace.model,
+      actions: {
+        selectVendor: vendorsWorkspace.selectVendor,
+        refreshVendors: () => void vendorsWorkspace.refresh(),
+        onOpenItem: (item, context) => void itemDetail.openVendorItemDetail(item, context)
+      },
       interfaceLocale: diagnostics.languagePreferences.interfaceLocale
     },
     vault: {
@@ -443,8 +453,15 @@ export function useDesktopProductShell(props: {
       title: currentPageMeta.title,
       subtitle: currentPageMeta.subtitle,
       actions: activePage === "home" || activePage === "vendors" ? (
-        <button type="button" className="secondary-button" disabled={daily.isLoadingDaily} onClick={() => void daily.loadDailySummary()}>
-          {daily.isLoadingDaily ? "刷新中..." : activePage === "vendors" ? "刷新商人数据" : "刷新本周信息"}
+        <button
+          type="button"
+          className="secondary-button"
+          disabled={activePage === "vendors" ? vendorsWorkspace.isRefreshing : daily.isLoadingDaily}
+          onClick={() => activePage === "vendors" ? void vendorsWorkspace.refresh() : void daily.loadDailySummary()}
+        >
+          {activePage === "vendors"
+            ? vendorsWorkspace.isRefreshing ? "刷新中..." : "刷新商人数据"
+            : daily.isLoadingDaily ? "刷新中..." : "刷新本周信息"}
         </button>
       ) : null
     },

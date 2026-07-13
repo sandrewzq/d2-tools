@@ -1,8 +1,15 @@
 import type { DailySummary, DailySummaryItem } from "@d2-tools/core/daily/summary";
+import type { AccountSummary } from "@d2-tools/core/account/summary";
+import type {
+  VendorCharacterScope,
+  VendorInventorySnapshot,
+  VendorOffer
+} from "@d2-tools/core/vendors/inventory";
 
 export type VendorInventoryTone = "exotic" | "weapon" | "armor" | "material";
 export type VendorInventoryStatus = "owned" | "recommended" | "unknown";
 export type VendorInventoryState = "loaded" | "empty" | "not_read" | "unavailable";
+export type VendorDetailState = "ready" | "partial" | "failed";
 
 export type VendorInventoryItemWorkspace = {
   id: string;
@@ -16,6 +23,28 @@ export type VendorInventoryItemWorkspace = {
   costIconUrl?: string;
   tone: VendorInventoryTone;
   status: VendorInventoryStatus;
+  itemHash?: number;
+  vendorItemIndex?: number;
+  characterIds?: string[];
+  decisionLabel?: string;
+  costs?: VendorCostWorkspace[];
+  stats?: Record<string, number>;
+  sourcePath?: string;
+};
+
+export type VendorCostWorkspace = {
+  label: string;
+  required: number;
+  owned: number | null;
+  affordable: boolean | null;
+  iconUrl?: string;
+};
+
+export type VendorServiceWorkspace = {
+  id: string;
+  name: string;
+  description: string;
+  items: VendorInventoryItemWorkspace[];
 };
 
 export type VendorInventoryGroupWorkspace = {
@@ -36,8 +65,11 @@ export type VendorInventoryGroupWorkspace = {
   inventoryStateLabel?: string;
   railStatusLabel?: string;
   detailToolbar?: VendorDetailToolbarWorkspace;
+  detailState?: VendorDetailState;
+  detailFailureMessage?: string;
   featured?: boolean;
   items: VendorInventoryItemWorkspace[];
+  services?: VendorServiceWorkspace[];
 };
 
 export type VendorRailSectionWorkspace = {
@@ -62,13 +94,73 @@ export type VendorsPageModel = {
   nextResetLabel: string;
   recommendationCount: number;
   verifiedItemCount: number;
+  selectedVendor?: VendorInventoryGroupWorkspace;
+  scopeOptions?: VendorScopeOptionWorkspace[];
+  selectedCharacterContext?: VendorCharacterContextWorkspace | null;
+  search?: { query: string; resultCount: number };
+  filters?: VendorFiltersWorkspace;
+  statusBanner?: VendorStatusBannerWorkspace;
 };
 
 export type VendorsPageWorkspace = VendorsPageModel;
 
+export type VendorScopeOptionWorkspace = {
+  kind: "character" | "account";
+  characterId?: string;
+  label: string;
+  description: string;
+};
+
+export type VendorCharacterContextWorkspace = {
+  characterId?: string;
+  armorerModHash: number | null;
+  armorerModName: string | null;
+  label: string;
+};
+
+export type VendorFiltersWorkspace = {
+  affordableOnly: boolean;
+  recommendedOnly: boolean;
+};
+
+export type VendorStatusBannerWorkspace = {
+  tone: "neutral" | "error";
+  message: string;
+  live: "polite";
+  busy: boolean;
+} | null;
+
+export type VendorsPageInput = {
+  snapshot: VendorInventorySnapshot | null;
+  account: AccountSummary | null;
+  scope: VendorCharacterScope;
+  selectedVendorId?: string;
+  refreshState: "idle" | "refreshing" | "failed";
+  refreshError?: string;
+  statusMessage?: string;
+};
+
+export type VendorSearchInput = {
+  query: string;
+  filters: VendorFiltersWorkspace;
+};
+
+export type VendorSearchResults = {
+  groups: Array<{
+    vendorId: string;
+    vendorName: string;
+    items: VendorInventoryItemWorkspace[];
+  }>;
+};
+
 const publicVendorSourceLabel = "Bungie 公共商人";
 
-export function selectVendorsPageModel(dailySummary: DailySummary | null): VendorsPageModel {
+export function selectVendorsPageModel(input: DailySummary | VendorsPageInput | null): VendorsPageModel {
+  if (isVendorsPageInput(input)) return selectSnapshotVendorsPageModel(input);
+  return selectLegacyVendorsPageModel(input);
+}
+
+function selectLegacyVendorsPageModel(dailySummary: DailySummary | null): VendorsPageModel {
   const vendorSource = dailySummary?.sources.vendors;
   if (!dailySummary || vendorSource?.status !== "ready") {
     return buildVendorsPageModel({
@@ -99,6 +191,271 @@ export function selectVendorsPageModel(dailySummary: DailySummary | null): Vendo
     ),
     verifiedItemCount
   });
+}
+
+export function filterVendorSearchResults(
+  model: VendorsPageModel,
+  input: VendorSearchInput
+): VendorSearchResults {
+  const query = input.query.trim().toLocaleLowerCase();
+  if (!query) return { groups: [] };
+
+  const groups = model.vendors.flatMap((vendor) => {
+    const directItems = vendor.items
+      .filter((item) => matchesVendorSearch(item, query, input.filters))
+      .map((item) => ({ ...item, sourcePath: vendor.name }));
+    const serviceItems = (vendor.services ?? []).flatMap((service) =>
+      service.items
+        .filter((item) => matchesVendorSearch(item, query, input.filters))
+        .map((item) => ({ ...item, sourcePath: `${vendor.name} → ${service.name}` }))
+    );
+    const items = [...directItems, ...serviceItems];
+    return items.length ? [{ vendorId: vendor.id, vendorName: vendor.name, items }] : [];
+  });
+  return { groups };
+}
+
+function isVendorsPageInput(input: DailySummary | VendorsPageInput | null): input is VendorsPageInput {
+  return Boolean(input && "snapshot" in input && "scope" in input);
+}
+
+function selectSnapshotVendorsPageModel(input: VendorsPageInput): VendorsPageModel {
+  const snapshot = input.snapshot;
+  const filters: VendorFiltersWorkspace = { affordableOnly: false, recommendedOnly: false };
+  if (!snapshot) {
+    return {
+      vendors: [],
+      railSections: createVendorRailSections([]),
+      defaultVendorId: null,
+      updatedLabel: "等待商人数据",
+      sourceLabel: "Bungie 角色商人",
+      nextResetLabel: "等待商人刷新时间",
+      recommendationCount: 0,
+      verifiedItemCount: 0,
+      scopeOptions: [],
+      selectedCharacterContext: null,
+      search: { query: "", resultCount: 0 },
+      filters,
+      statusBanner: createStatusBanner(input)
+    };
+  }
+
+  const vendors = snapshot.vendors.map((vendor) => {
+    const detailFailures = getVendorDetailFailures(snapshot, vendor.vendorHash, input.scope);
+    const detailState = getVendorDetailState(vendor.characterIds, detailFailures, input.scope);
+    const items = vendor.offers
+      .filter((offer) => offerMatchesScope(offer, input.scope))
+      .map((offer) => mapSnapshotOffer(offer, snapshot, vendor.name));
+    const services = vendor.services.map((service) => ({
+      id: service.id,
+      name: service.name,
+      description: service.description,
+      items: service.offers
+        .filter((offer) => offerMatchesScope(offer, input.scope))
+        .map((offer) => mapSnapshotOffer(offer, snapshot, `${vendor.name} → ${service.name}`))
+    }));
+    return enrichVendorViewModel({
+      id: vendor.id,
+      vendorHash: vendor.vendorHash,
+      name: vendor.name,
+      description: vendor.description,
+      iconUrl: normalizeBungieIconUrl(vendor.iconUrl),
+      badge: vendor.vendorHash === 2190858386 ? "周末" : "已确认",
+      source: "Bungie 角色商人",
+      resetLabel: vendor.nextRefreshAt ? `刷新：${vendor.nextRefreshAt}` : "等待刷新时间",
+      category: vendor.vendorHash === 2190858386 ? "重点" : "已确认",
+      statusLabel: detailState === "failed"
+        ? "详情失败"
+        : detailState === "partial"
+          ? "部分详情失败"
+          : "已确认",
+      detailState,
+      detailFailureMessage: getVendorDetailFailureMessage(detailState, detailFailures),
+      featured: vendor.vendorHash === 2190858386,
+      items,
+      services
+    });
+  });
+  const defaultVendorId = input.selectedVendorId && vendors.some((vendor) => vendor.id === input.selectedVendorId)
+    ? input.selectedVendorId
+    : vendors.find((vendor) => vendor.featured)?.id ?? vendors[0]?.id ?? null;
+  const selectedVendor = vendors.find((vendor) => vendor.id === defaultVendorId);
+  const selectedCharacterContext = createSelectedCharacterContext(snapshot, input.scope);
+
+  return {
+    vendors,
+    railSections: createVendorRailSections(vendors),
+    defaultVendorId,
+    selectedVendor,
+    updatedLabel: `更新：${snapshot.fetchedAt}`,
+    sourceLabel: "Bungie 角色商人",
+    nextResetLabel: selectedVendor?.resetLabel ?? "等待商人刷新时间",
+    recommendationCount: vendors.reduce(
+      (count, vendor) => count + vendor.items.filter((item) => Boolean(item.decisionLabel)).length,
+      0
+    ),
+    verifiedItemCount: vendors.reduce(
+      (count, vendor) => count + vendor.items.length + (vendor.services ?? []).reduce(
+        (serviceCount, service) => serviceCount + service.items.length,
+        0
+      ),
+      0
+    ),
+    scopeOptions: createScopeOptions(snapshot),
+    selectedCharacterContext,
+    search: { query: "", resultCount: 0 },
+    filters,
+    statusBanner: createStatusBanner(input)
+  };
+}
+
+function mapSnapshotOffer(
+  offer: VendorOffer,
+  snapshot: VendorInventorySnapshot,
+  sourcePath: string
+): VendorInventoryItemWorkspace {
+  const costs = offer.costs.map((cost) => {
+    const owned = snapshot.currencyBalances[String(cost.itemHash)];
+    return {
+      label: cost.name,
+      required: cost.quantity,
+      owned: owned ?? null,
+      affordable: owned === undefined ? null : owned >= cost.quantity,
+      iconUrl: normalizeBungieIconUrl(cost.iconUrl)
+    };
+  });
+  const tone = getInventoryTone(`${offer.name} ${offer.itemType} ${offer.tierType}`);
+  return {
+    id: offer.id,
+    itemHash: offer.itemHash,
+    vendorItemIndex: offer.vendorItemIndex,
+    characterIds: [...offer.characterIds],
+    name: offer.name,
+    itemType: [offer.itemType, offer.tierType].filter(Boolean).join("，"),
+    summary: offer.failureMessages[0] ?? "Bungie 当前角色商人库存",
+    cost: costs.map((cost) => `${cost.required} ${cost.label}`).join(" / ") || undefined,
+    costs,
+    iconLabel: getIconLabel(offer.name),
+    iconUrl: normalizeBungieIconUrl(offer.iconUrl),
+    tone,
+    status: "unknown",
+    decisionLabel: tone === "exotic" ? "高质量售卖实例" : undefined,
+    stats: { ...offer.stats },
+    sourcePath
+  };
+}
+
+function offerMatchesScope(offer: VendorOffer, scope: VendorCharacterScope): boolean {
+  return scope.kind === "account" || offer.characterIds.includes(scope.characterId);
+}
+
+function createScopeOptions(snapshot: VendorInventorySnapshot): VendorScopeOptionWorkspace[] {
+  return [
+    {
+      kind: "account",
+      label: "账号全部",
+      description: "按各角色当前机灵模组合并"
+    },
+    ...Object.values(snapshot.characterContexts).map((context) => ({
+      kind: "character" as const,
+      characterId: context.characterId,
+      label: context.characterId,
+      description: context.armorerModName ? `当前机灵：${context.armorerModName}` : "当前机灵：未检测到护甲师模组"
+    }))
+  ];
+}
+
+function createSelectedCharacterContext(
+  snapshot: VendorInventorySnapshot,
+  scope: VendorCharacterScope
+): VendorCharacterContextWorkspace {
+  if (scope.kind === "account") {
+    return {
+      armorerModHash: null,
+      armorerModName: null,
+      label: "按各角色当前机灵模组合并"
+    };
+  }
+  const context = snapshot.characterContexts[scope.characterId];
+  return {
+    characterId: scope.characterId,
+    armorerModHash: context?.armorerModHash ?? null,
+    armorerModName: context?.armorerModName ?? null,
+    label: context?.armorerModName
+      ? `当前机灵：${context.armorerModName}`
+      : "当前机灵：未检测到护甲师模组"
+  };
+}
+
+function getVendorDetailFailures(
+  snapshot: VendorInventorySnapshot,
+  vendorHash: number,
+  scope: VendorCharacterScope
+) {
+  return snapshot.failedVendorDetails.filter((failure) =>
+    failure.vendorHash === vendorHash
+    && (scope.kind === "account" || failure.characterId === scope.characterId)
+  );
+}
+
+function getVendorDetailState(
+  vendorCharacterIds: string[],
+  failures: VendorInventorySnapshot["failedVendorDetails"],
+  scope: VendorCharacterScope
+): VendorDetailState {
+  if (!failures.length) return "ready";
+  const expectedCharacterIds = scope.kind === "account"
+    ? vendorCharacterIds
+    : [scope.characterId];
+  const failedCharacterIds = new Set(failures.map((failure) => failure.characterId));
+  return expectedCharacterIds.length > 0
+    && expectedCharacterIds.every((characterId) => failedCharacterIds.has(characterId))
+    ? "failed"
+    : "partial";
+}
+
+function getVendorDetailFailureMessage(
+  detailState: VendorDetailState,
+  failures: VendorInventorySnapshot["failedVendorDetails"]
+): string | undefined {
+  if (detailState === "ready") return undefined;
+  if (detailState === "failed" && failures.length === 1) return failures[0].message;
+  return `${new Set(failures.map((failure) => failure.characterId)).size} 个角色的属性与插槽详情读取失败`;
+}
+
+function createStatusBanner(input: VendorsPageInput): VendorStatusBannerWorkspace {
+  if (input.refreshState === "refreshing") {
+    return { tone: "neutral", message: "正在刷新商人数据", live: "polite", busy: true };
+  }
+  if (input.refreshState === "failed") {
+    return { tone: "error", message: input.refreshError ?? "商人数据刷新失败", live: "polite", busy: false };
+  }
+  if (input.snapshot?.failedCharacterIds.length || input.snapshot?.failedVendorDetails.length) {
+    const messages = [];
+    if (input.snapshot.failedCharacterIds.length) {
+      messages.push(`${input.snapshot.failedCharacterIds.length} 个角色商人列表读取失败`);
+    }
+    if (input.snapshot.failedVendorDetails.length) {
+      messages.push(`${input.snapshot.failedVendorDetails.length} 个商人详情读取失败`);
+    }
+    return { tone: "error", message: messages.join("；"), live: "polite", busy: false };
+  }
+  if (input.statusMessage) {
+    return { tone: "neutral", message: input.statusMessage, live: "polite", busy: false };
+  }
+  return null;
+}
+
+function matchesVendorSearch(
+  item: VendorInventoryItemWorkspace,
+  query: string,
+  filters: VendorFiltersWorkspace
+): boolean {
+  const text = `${item.name} ${item.itemType} ${item.summary}`.toLocaleLowerCase();
+  if (!text.includes(query)) return false;
+  if (filters.affordableOnly && !item.costs?.every((cost) => cost.affordable === true)) return false;
+  if (filters.recommendedOnly && !item.decisionLabel) return false;
+  return true;
 }
 
 function buildVendorsPageModel(input: {
@@ -369,6 +726,8 @@ function getVendorInventoryState(vendor: VendorInventoryGroupWorkspace): VendorI
 }
 
 function getVendorDisplayStatusLabel(vendor: VendorInventoryGroupWorkspace, inventoryState: VendorInventoryState): string {
+  if (vendor.detailState === "failed") return "详情失败";
+  if (vendor.detailState === "partial") return "部分详情失败";
   if (inventoryState === "not_read") return "未读取";
   if (inventoryState === "empty") return "暂无可读库存";
   if (inventoryState === "unavailable") return "无法确认";

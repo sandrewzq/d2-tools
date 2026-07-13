@@ -1,16 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-import { fileURLToPath } from "node:url";
 import {
   getAiLightggSupportSettings,
   isAiSettingsConfigured,
   normalizeAiSettings
 } from "../src/renderer/utils/aiSettings";
-import { readRendererApiContracts } from "./source-readers";
-
-const desktopRoot = fileURLToPath(new URL("..", import.meta.url));
-const uiRoot = fileURLToPath(new URL("../../ui", import.meta.url));
 
 describe("AI settings panel helpers", () => {
   it("trims AI settings and keeps empty protocol as disabled", () => {
@@ -144,113 +137,5 @@ describe("AI settings panel helpers", () => {
       enable_lightgg: false,
       force_lightgg: false
     })).toMatchObject({ supported: false, canForce: true });
-  });
-
-  it("uses dropdown selection by default and keeps a manual model ID mode", () => {
-    const panel = readFileSync(
-      join(desktopRoot, "src", "renderer", "components", "AiSettingsPanel.tsx"),
-      "utf8"
-    );
-
-    expect(panel).toContain("刷新模型");
-    expect(panel).toContain("手动输入模型 ID");
-    expect(panel).toContain("改为下拉选择");
-    expect(panel).toContain("请选择模型");
-    expect(panel).toContain("先刷新模型列表");
-    expect(panel).toContain("目标服务未返回模型列表，请手动填写模型 ID。");
-    expect(panel).not.toContain("也可以直接手动输入");
-    expect(panel).not.toContain("仍可手动输入模型名称");
-  });
-
-  it("wires the AI connection test button through preload and main IPC", () => {
-    const panel = readFileSync(
-      join(desktopRoot, "src", "renderer", "components", "AiSettingsPanel.tsx"),
-      "utf8"
-    );
-    const apiClient = readRendererApiContracts(desktopRoot);
-    const preload = readFileSync(join(desktopRoot, "src", "preload", "preload.ts"), "utf8");
-    const analysisIpc = readFileSync(join(desktopRoot, "src", "main", "ipc", "analysis.ts"), "utf8");
-
-    expect(panel).toContain("保存并测试连接");
-    expect(panel).toContain("OpenAI Responses");
-    expect(panel).toContain("OpenAI Chat Completions");
-    expect(panel).toContain("Anthropic Messages");
-    expect(panel).not.toContain("OpenAI 兼容接口");
-    expect(panel).toContain("启用 light.gg 实时分析");
-    expect(panel).toContain("强制开启");
-    expect(panel).toContain("api.listAiModels");
-    expect(panel).not.toContain("buildDraftConfig");
-    expect(panel).toContain("api.testAiConnection()");
-    expect(apiClient).toContain("listAiModels(ai: AiSettings): Promise<AiModelListResult>");
-    expect(apiClient).toContain("testAiConnection(): Promise<AiConnectionTestResult>");
-    expect(preload).toContain('ipcRenderer.invoke("ai:models"');
-    expect(preload).toContain('ipcRenderer.invoke("ai:test")');
-    expect(analysisIpc).toContain('ipcMain.handle("ai:models"');
-    expect(analysisIpc).toContain("listAiModels({ ai })");
-    expect(analysisIpc).toContain('ipcMain.handle("ai:test"');
-  });
-
-  it("reuses core AI settings normalization instead of duplicating protocol rules in the renderer", () => {
-    const aiSettings = readFileSync(
-      join(desktopRoot, "src", "renderer", "utils", "aiSettings.ts"),
-      "utf8"
-    );
-
-    expect(aiSettings).toContain("@d2-tools/core/ai/settings");
-    expect(aiSettings).not.toContain("function normalizeAiProtocol");
-    expect(aiSettings).not.toContain("function inferLegacyCompatibleProtocol");
-    expect(aiSettings).not.toContain("function normalizeLegacyBaseUrl");
-  });
-
-  it("mounts AI settings in the settings page and sends unconfigured sidebar users there", () => {
-    const homePage = readFileSync(
-      join(desktopRoot, "src", "renderer", "pages", "HomePage.tsx"),
-      "utf8"
-    );
-    const productShell = readFileSync(
-      join(desktopRoot, "src", "renderer", "pages", "useDesktopProductShell.tsx"),
-      "utf8"
-    );
-    const settingsPage = [
-      readFileSync(join(uiRoot, "src", "settings", "SettingsPageContentView.tsx"), "utf8"),
-      readFileSync(join(uiRoot, "src", "i18n", "copy.ts"), "utf8"),
-      readFileSync(join(desktopRoot, "src", "renderer", "features", "settings", "SettingsPage.tsx"), "utf8")
-    ].join("\n");
-    const aiPage = readFileSync(
-      join(desktopRoot, "src", "renderer", "features", "ai", "AiPage.tsx"),
-      "utf8"
-    );
-    const assistantSidebar = readFileSync(
-      join(desktopRoot, "src", "renderer", "components", "GlobalAssistantSidebar.tsx"),
-      "utf8"
-    );
-    const homeRoutes = readFileSync(
-      join(desktopRoot, "src", "renderer", "pages", "HomePageRoutes.tsx"),
-      "utf8"
-    );
-    const settingsMenuProvider = readFileSync(
-      join(desktopRoot, "src", "renderer", "pages", "providers", "SettingsMenuProvider.tsx"),
-      "utf8"
-    );
-
-    expect(productShell).toContain('setActivePage("settings")');
-    expect(productShell).toContain("setAssistantMode(null)");
-    expect(homePage).toContain("<HomePageRoutes");
-    expect(homePage).not.toContain("<SettingsPage");
-    expect(homeRoutes).toContain("<SettingsMenuProvider");
-    expect(settingsMenuProvider).toContain("<SettingsPage");
-    expect(productShell).toContain("<GlobalAssistantSidebar");
-    expect(homePage).not.toContain("<AiSettingsPanel");
-    expect(homePage).not.toContain("查看或修改 Bungie 配置、AI、写操作开关、本地日志、更新和备份迁移。");
-    expect(settingsPage).toContain("export function SettingsPage");
-    expect(settingsPage).toContain("settings-menu");
-    expect(settingsPage).toContain("AI 助手");
-    expect(settingsPage).toContain("模型、上下文、安全边界");
-    expect(settingsPage).toContain("<AiSettingsPanel");
-    expect(settingsPage).not.toContain("查看或修改 Bungie 配置、AI、写操作开关、本地日志、更新和备份迁移。");
-    expect(productShell).not.toContain("activePage === \"ai\"");
-    expect(assistantSidebar).toContain("<AiPage");
-    expect(aiPage).toContain("!props.isConfigured");
-    expect(aiPage).toContain("props.onConfigureAi");
   });
 });

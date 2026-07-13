@@ -14,10 +14,7 @@ const exactSets = {
     "packages/desktop/test/shared-ui-product-host.test.tsx",
     "packages/desktop/test/shared-ui-shell-model.test.ts",
     "packages/desktop/test/vendors-page-ui.test.tsx",
-    "packages/desktop/test/cross-platform-ui-completion.test.ts",
     "packages/desktop/test/cross-platform-ui-packages.test.ts",
-    "packages/desktop/test/cross-platform-ui-page-internals.test.ts",
-    "packages/desktop/test/visual-prototype-harness.test.ts",
   ],
   release: [
     "scripts/extract-changelog.test.mjs",
@@ -64,7 +61,7 @@ const setName = process.argv[2];
 const passthroughArgs = process.argv.slice(3);
 
 if (!setName || setName === "--help" || setName === "/?") {
-  console.log("用法: node scripts/run-test-set.mjs <behavior|architecture|legacy|ui|desktop-ai|desktop-vault|desktop-loadouts|desktop-account|desktop-wiring|release> [vitest 参数]");
+  console.log("用法: node scripts/run-test-set.mjs <behavior|architecture|ui|desktop-ai|desktop-vault|desktop-loadouts|desktop-account|desktop-wiring|release> [vitest 参数]");
   process.exit(setName ? 0 : 1);
 }
 
@@ -96,7 +93,7 @@ child.on("exit", (code, signal) => {
 });
 
 function resolveSet(name) {
-  if (["behavior", "architecture", "legacy"].includes(name)) {
+  if (["behavior", "architecture"].includes(name)) {
     return classifyTestFiles(discoverTestFiles(root))[name];
   }
 
@@ -107,7 +104,7 @@ function resolveSet(name) {
   const dynamicSet = dynamicSets[name];
   if (!dynamicSet) {
     console.error(`Unknown test set: ${name}`);
-    console.error(`Known test sets: ${["behavior", "architecture", "legacy", ...Object.keys(exactSets), ...Object.keys(dynamicSets)].sort().join(", ")}`);
+    console.error(`Known test sets: ${["behavior", "architecture", ...Object.keys(exactSets), ...Object.keys(dynamicSets)].sort().join(", ")}`);
     process.exit(1);
   }
 

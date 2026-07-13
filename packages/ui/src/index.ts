@@ -44,6 +44,12 @@ export { LoadoutsPageView } from "./loadouts/LoadoutsPageView.js";
 export { LoadoutsPageContentView } from "./loadouts/LoadoutsPageContentView.js";
 export type { LoadoutsPageActions } from "./loadouts/LoadoutsPageContentView.js";
 export type { LoadoutActionFeedbackState } from "./loadouts/loadoutActionFeedback.js";
+export { SharedItemDetailDialog } from "./item-detail/SharedItemDetailDialog.js";
+export type {
+  SharedItemDetailDialogProps,
+  SharedItemDetailView,
+  VendorOfferContext
+} from "./item-detail/SharedItemDetailDialog.js";
 export { ProductShellHost } from "./product/ProductShellHost.js";
 export type { ProductShellHostProps } from "./product/types.js";
 export {
@@ -72,6 +78,9 @@ export type { VendorsPageViewProps } from "./vendors/VendorsPageView.js";
 export { VendorsPageContentView } from "./vendors/VendorsPageContentView.js";
 export type {
   VendorDetailToolbarView,
+  VendorOfferContextView,
+  VendorServiceView,
+  VendorCostView,
   VendorInventoryGroupView,
   VendorInventoryItemView,
   VendorRailSectionView,

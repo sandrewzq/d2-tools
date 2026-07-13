@@ -416,6 +416,28 @@ describe("daily live data mapping", () => {
     });
   });
 
+  it("keeps character-specific Xur inventories separate from the public inventory", () => {
+    const liveData = buildDailyLiveDataFromBungie({
+      publicVendors: createXurVendorResponse(9001),
+      characterVendors: [
+        { characterId: "warlock", ...createXurVendorResponse(9002) },
+        { characterId: "titan", ...createXurVendorResponse(9001) }
+      ],
+      definitions: {
+        vendors: { "2190858386": { displayProperties: { name: "仄" } } },
+        items: {
+          "9001": { displayProperties: { name: "坚忍克己" } },
+          "9002": { displayProperties: { name: "唯我主义" } }
+        }
+      }
+    });
+
+    const xurInventories = liveData.vendors.filter((item) => item.vendorHash === 2190858386);
+    expect(xurInventories).toHaveLength(3);
+    expect(xurInventories.find((item) => item.characterId === "warlock")?.items?.[0]?.title).toBe("唯我主义");
+    expect(xurInventories.find((item) => item.characterId === "titan")?.items?.[0]?.title).toBe("坚忍克己");
+  });
+
   it("keeps non-key vendors when key vendors are present", () => {
     const liveData = buildDailyLiveDataFromBungie({
       publicVendors: {
@@ -636,3 +658,16 @@ describe("daily live data mapping", () => {
     expect(liveData.weekly_report).toEqual([]);
   });
 });
+
+function createXurVendorResponse(itemHash: number) {
+  return {
+    vendors: { data: { "2190858386": { vendorHash: 2190858386 } } },
+    sales: {
+      data: {
+        "2190858386": {
+          saleItems: { "0": { itemHash } }
+        }
+      }
+    }
+  };
+}

@@ -5,7 +5,7 @@
 ## 开始修改前
 
 - 先阅读本文件，再检查 `docs/todo.md` 和 `docs/development.md`。
-- 弱模型或上下文不足时，先运行 `tools\git-preflight.cmd` 判断改动范围、建议验证命令和高冲突文件，再按下方“快速执行矩阵”行动。
+- 弱模型或上下文不足时，先运行 `tools\git-preflight.cmd` 判断改动范围、当前验证策略和高冲突文件，再按下方“快速执行矩阵”行动。
 - 不要删除用户已有工作或无关改动。
 - 修改应小而聚焦，遵循当前 package 边界。
 
@@ -13,29 +13,27 @@
 
 后续 agent 默认按这个矩阵行动；拿不准时先只读检查，不要扩大改动范围。
 
-| 改动类型 | 优先修改位置 | 必跑验证 | 避免事项 |
+| 改动类型 | 优先修改位置 | 自动验证策略 | 避免事项 |
 |---|---|---|---|
-| 文档、待办、README | `README.md`、`docs/`、`AGENTS.md` | `pnpm verify:docs` | 不重建 archive / superpowers 目录；不把阶段计划塞进 README |
-| 维护者脚本、Git 辅助 | `tools/*.cmd`、必要时 `scripts/` | `pnpm verify:docs`，并运行脚本 `--help` 或只读模式 | 不提交 token、Cookie、profile、缓存库；不把用户本地数据放进仓库 |
-| 跨端 UI / 原型 / Web | `packages/ui` 优先，`packages/prototype` 和 `packages/web` 只做壳或 mock | `pnpm verify:ui`；首页或设置页视觉改动追加 `pnpm visual:home` / `pnpm visual:settings` | 不在 prototype 长期维护第二套真实页面；不只改 Desktop 复制 UI |
-| Desktop 接线、IPC、preload | `packages/desktop/src/main/ipc/*`、`api/*Api.ts`、对应 feature | `pnpm verify:desktop`；复杂改动再跑相关定向测试 | 尽量不碰 `api/client.ts`、`api/types.ts`、`ipc.ts` 等高冲突聚合文件 |
-| 领域、服务、workspace | `packages/core`、`packages/services`、`packages/app` | 相关 `vitest --run packages/<pkg>/test/<name>.test.ts`，必要时 `pnpm test:fast` | 不跨层直接依赖平台能力；不要把业务真相写进平台壳 |
-| 发布、版本、CHANGELOG | `CHANGELOG.md`、各 package 版本、release 脚本 | `pnpm verify:release`，发布前按需追加 `pnpm test` / `pnpm typecheck` | 不手写不一致版本号；不在未确认 tag 时推 release |
+| 文档、待办、README | `README.md`、`docs/`、`AGENTS.md` | 本地不运行；push 后交给 CI | 不重建 archive / superpowers 目录；不把阶段计划塞进 README |
+| 维护者脚本、Git 辅助 | `tools/*.cmd`、必要时 `scripts/` | 本地不运行；push 后交给 CI | 不提交 token、Cookie、profile、缓存库；不把用户本地数据放进仓库 |
+| 跨端 UI / 原型 / Web | `packages/ui` 优先，`packages/prototype` 和 `packages/web` 只做壳或 mock | 本地不运行；push 后交给 CI | 不在 prototype 长期维护第二套真实页面；不只改 Desktop 复制 UI |
+| Desktop 接线、IPC、preload | `packages/desktop/src/main/ipc/*`、`api/*Api.ts`、对应 feature | 本地不运行；push 后交给 CI | 尽量不碰 `api/client.ts`、`api/types.ts`、`ipc.ts` 等高冲突聚合文件 |
+| 领域、服务、workspace | `packages/core`、`packages/services`、`packages/app` | 本地不运行；push 后交给 CI | 不跨层直接依赖平台能力；不要把业务真相写进平台壳 |
+| 发布、版本、CHANGELOG | `CHANGELOG.md`、各 package 版本、release 脚本 | 只通过 `tools\git-auto-release.cmd` 执行完整门禁 | 不手写不一致版本号；不在未确认 tag 时推 release |
 
 Vibecoding 快路径：
 
-- 单 agent 编码循环优先运行能覆盖当前改动的单个定向测试，例如 `vitest --run packages/<pkg>/test/<name>.test.ts`；只有找不到更小的稳定测试集合时，才使用 `verify:vibe:*`。
-- `verify:vibe:*` 是可选的中途反馈，不是最终 `verify:*` 的前置步骤。如果下一步就是收尾门禁，直接运行对应 `verify:*`，不要先跑一遍 `verify:vibe:*`。
-- 同一代码状态下禁止连续运行同范围的 `verify:vibe:*` 和 `verify:*`。如果中途测试已经覆盖最终门禁里的测试部分，收尾改跑对应 `verify:finish:*`，只补未执行的检查；只有在两次验证之间又修改了代码，才重新运行完整门禁。
-- 菜单私有循环优先使用 `pnpm verify:vibe:desktop:account`、`pnpm verify:vibe:desktop:ai`、`pnpm verify:vibe:desktop:loadouts`、`pnpm verify:vibe:desktop:vault`。
-- 跨端 UI / Prototype / Web 的中途循环优先使用 `pnpm verify:vibe:ui`；文档或工具测试中途循环可用 `pnpm verify:vibe:docs`。
-- 交接、提交、合并或声称门禁通过前，按实际改动范围只选一个主 `verify:*`。只有确实同时修改两个独立边界时才运行两个范围门禁；不要把 `verify`、`verify:ui`、`verify:desktop` 当作固定组合全部执行。
-- 视觉脚本只在实际修改布局、CSS、主题、响应式断点、窗口视口表现或截图目标时运行；纯数据、类型、IPC、文案和接线改动默认不跑视觉检查。
+- 用户只说“开发、修改、优化、继续做、完成、做完、检查、验收、交接、提交”时，本地一律不运行测试、类型检查、构建、`verify:*` 或视觉脚本。
+- 本地只允许启动应用进行人工体验；除非用户明确要求执行某条命令，否则 agent 不主动运行任何自动化验证。
+- 普通 push 后由 GitHub CI 异步执行文档、构建、行为测试、架构测试、质量检查和类型检查；agent 报告 CI 链接后继续工作，不等待结果。
+- 用户说“发布、release、发版”时，使用 `tools\git-auto-release.cmd`。脚本运行完整本地门禁，push tag 后必须等待 GitHub Release workflow 和安装包发布成功。
+- 默认禁止新增测试文件。只有严重 Bug 回归、OAuth、IPC、数据写入、发布流程和关键架构边界允许新增测试；普通 UI、文案、CSS、按钮接线和简单页面功能不新增测试。
+- 不执行本地 TDD 循环。需要新增高风险测试时只写入测试资产，首次执行交给 CI 或 Release；用户明确要求本地运行时例外。
 - 测试断言优先检查稳定行为、导出、role / label 或 ViewModel 输出；禁止新增读取生产源码后匹配中文文案、变量名、import 顺序、HTML、class 或 CSS 片段的普通功能测试，`pnpm test:quality` 会直接拦截。
-- `pnpm test` 的发布门禁只包含行为测试、测试质量检查和明确列入白名单的架构测试；现有源码字符串测试由 `pnpm test:legacy` 单独报告，不阻断 CI。迁移旧测试时必须同步缩小 `scripts/test-classification.mjs` 的遗留清单。
+- `pnpm test` 只由 CI 和 Release 调用，包含行为测试、测试质量检查和明确列入白名单的架构测试。仓库不再保留遗留源码测试层。
 - 用户只需要描述业务目标，例如“开发商人菜单内的功能”“优化商人菜单的交互”。agent 必须自行识别菜单、改动类型和默认修改范围，不要求用户提供 Red / Green / Tidy 模板或精确文件清单。
-- agent 生成计划时必须把菜单开发循环拆成短任务：`Red: <菜单>边界测试`、`Green: <菜单>最小实现`、`Tidy: <菜单>整理`、`Verify: <菜单>验证`。不要使用“补失败测试锁定 xxx model + actions 边界”这类同时包含测试、实现、整理和验证的混合任务名。
-- Red 阶段只允许写或调整能失败的测试，不改实现文件，不运行 `git diff --check`，不清 BOM、空白或无关 diff；Green 阶段只做让该测试通过的最小实现，不做顺手重构；Tidy 阶段才处理编码、空白、`git diff --check` 和机械整理；Verify 阶段只运行当前切片需要的定向验证。
+- agent 生成计划时默认拆成短任务：`实现: <功能切片>`、`整理: <功能切片>`。不要默认创建测试或验证任务；CI 和 Release 验证不属于本地编码循环。
 
 小参数模型工作约束：
 
@@ -43,13 +41,13 @@ Vibecoding 快路径：
 - 优先使用已有脚本别名，不自行拼复杂命令。
 - 发现无关脏文件时只记录，不回退、不格式化、不顺手修。
 - 需要跨越两个以上 package 或触碰高冲突文件时，先说明影响范围再动手。
-- 最终回答必须写清楚运行过哪些验证；没跑发布门禁 `pnpm test` / `pnpm typecheck` 时直接说明。`pnpm test:all` 仅用于专项清理遗留测试，不是发布门禁。
+- 最终回答必须明确写“未运行本地自动化验证，由 CI/Release 负责”。只有拿到 CI 或 Release 成功结果后才能声称测试通过。
 
 ## 并行开发边界
 
 - 普通功能开发优先只改对应 `packages/desktop/src/renderer/features/<menu>/` 目录，避免一个菜单的改动影响其他菜单。
 - 单个菜单私有目录改动默认不要求 worktree；例如一个 agent 只改 `features/account/`，另一个只改 `features/vault/`，且都不碰共享层时，可以在当前工作区轻量并行。
-- 菜单私有快路径：只改 `features/account/`、`features/ai/`、`features/loadouts/` 或 `features/vault/` 时，优先运行对应 `pnpm verify:desktop:account`、`pnpm verify:desktop:ai`、`pnpm verify:desktop:loadouts`、`pnpm verify:desktop:vault`；碰到 `shared/`、`packages/ui`、`packages/app`、API 或 IPC 后再升级到 `pnpm verify:desktop` / `pnpm verify:ui`。
+- 菜单私有目录和共享层改动都不在本地运行自动化验证；push 后统一由 CI 判断。
 - worktree 是隔离复杂并行现场的工具，不是所有任务的默认要求。触碰 `packages/ui`、`packages/app`、`packages/desktop/src/renderer/shared/`、renderer API、主进程 IPC、release / 版本号 / CHANGELOG，或当前工作区已有多条无关脏改动时，才优先考虑 worktree 或暂停其他 agent。
 - 多 agent 共用同一工作区时，提交前必须先运行 `tools\git-preflight.cmd`；如果输出多条 lane 或高冲突文件，不要使用全量 `git add -A` 提交脚本，除非确认这些改动都属于本次提交。
 - 跨菜单复用能力必须先进入 `packages/desktop/src/renderer/shared/`，不要让 feature 之间直接 import。
@@ -67,7 +65,7 @@ Vibecoding 快路径：
 - 如果为了探索先在 `packages/prototype` 写了临时 UI，用户确认后必须在同一次收口中迁入 `packages/ui`，再让 Prototype / Web / Desktop 共同消费；不能声称“应用已改好”但只改了 prototype。
 - `packages/web` 和 `packages/desktop` 是平台壳：只处理 Web / Electron 特有 adapter、登录态、IPC、本地文件、窗口、更新、端口和打包能力；页面实现应通过 `ProductShellHost` 和 `packages/ui` 共享。
 - 新增或调整产品级外壳时，Prototype / Web / Desktop 都应继续挂同一个 `ProductShellHost`。不得重新引入 Desktop 专用 shell wrapper，除非先更新本文件和 `docs/development.md` 说明新的边界。
-- 改 `packages/ui` 后，至少验证相关共享 UI 测试和消费者类型检查；影响首页或设置页视觉时，还要运行 `visual:home` 或 `visual:settings`。
+- 改 `packages/ui` 后不在本地新增或运行 UI 测试、消费者类型检查和视觉脚本；需要体验时启动共享页面人工检查，push 后交给 CI。
 - 原型对比应优先使用 React prototype 和视觉脚本；旧 HTML 只能作为历史参考，不得作为新的活跃实现入口。
 
 ### 多 agent 菜单 UI 默认边界
@@ -88,8 +86,7 @@ Vibecoding 快路径：
 - 遇到共享问题时，菜单 agent 不得私自改全局规则；必须先说明“需要共享改动”，由共享 / 集成 agent 修改 `ProductWorkspace`、token、全局样式或 shell。
 - 需要升级为共享改动的情况包括：两个以上菜单需要同一种布局或组件；需要改页面标题区、页面级分栏、首层侧栏、首层 panel chrome、顶部状态条、AI 抽屉、后台任务 Dock；需要改 `ProductShellHost.tsx`、`ProductWorkspace.tsx`、`AppShell.tsx`、无菜单前缀的 CSS 规则或 token。
 - 多 agent 并行时，首页菜单尽量最后集成；首页依赖账号、资料库、仓库、商人和配装摘要，其他菜单未稳定前不要让首页 agent 私自固化跨菜单数据结构。
-- 每个菜单完成后运行一次 `npx pnpm@9.15.0 verify:ui`；如果当前代码状态已经通过 `verify:vibe:ui`，改跑 `npx pnpm@9.15.0 verify:finish:ui`，不要重复 UI 测试。碰 Desktop adapter / IPC / 真实数据接线时，再按同样规则选择 `verify:desktop` 或 `verify:finish:desktop`。
-- 全部菜单合并后由集成 agent 运行 `npx pnpm@9.15.0 visual:all`，并检查跨菜单页面顶部、首层面板、工具栏、侧栏和内容密度是否统一。
+- 菜单完成和多菜单合并后都不自动运行测试、类型检查或视觉脚本；需要体验时只启动应用人工检查，push 后交给 CI。
 
 ## 语言规则
 
@@ -120,16 +117,8 @@ Vibecoding 快路径：
 
 ## 验证规则
 
-- 日常开发优先按改动范围选择最小验证，不要默认运行发布级重链路。
-- 默认验证顺序是“定向测试 -> 修改代码 -> 同一定向测试 -> 一个最终范围门禁”。如果改动很小且最终门禁能快速覆盖，可跳过中途 `verify:vibe:*`。
-- 不得在代码未变化时重复运行已被更高层门禁包含的测试集合。例如 `verify:desktop` 已包含 `test:desktop-wiring`，运行它之前不要再执行 `verify:vibe:desktop`。
-- 已在当前代码状态运行过 `verify:vibe:docs`、`verify:vibe:ui` 或任一 `verify:vibe:desktop:*` 时，收尾分别使用 `verify:finish:docs`、`verify:finish:ui` 或 `verify:finish:desktop`，只补剩余检查。没有运行过中途整组测试时，才使用完整 `verify:*`。
-- 独立文档、README、AGENTS 或文档工具改动运行 `pnpm verify:docs`。业务改动仅顺带更新 `docs/todo.md` 一行状态时，运行 `pnpm docs:check` 即可，不额外执行 `verify:docs`。
-- `pnpm docs:check` 同时检查文档结构和全仓文本编码；如果发现疑似 mojibake、Unicode replacement character 或连续问号造成的信息丢失，先修复乱码再继续开发。
-- 改 `packages/ui`、`packages/prototype` 或 `packages/web` 时，收尾运行一次 `pnpm verify:ui`；只有实际视觉变化才追加一个最匹配的 `visual:*`，不要默认运行 `visual:all`。
-- 改 Desktop 主进程、preload、renderer adapter 或 IPC 接线时，收尾运行一次 `pnpm verify:desktop`；该命令已经包含 Desktop 快速类型检查，不要再单独追加 `typecheck:desktop-fast`。只有触到底层依赖或准备发布时才追加 `pnpm typecheck:desktop`。
-- 改 release、CHANGELOG、版本号或发布脚本时，至少运行 `pnpm verify:release`。
-- `pnpm verify` 是跨领域中等门禁，不是范围门禁的固定补充；已经运行 `verify:ui`、`verify:desktop` 或 `verify:release` 时，除非改动跨越其覆盖范围，否则不要再运行 `pnpm verify`。
-- 一次收尾最多运行一次相同命令；命令失败后修改代码再重跑不受此限制。
-- 只有在发布、提交 release、声称发布门禁通过、或用户明确要求时，才运行发布级 `pnpm test` 和 `pnpm typecheck`。`pnpm test:all` 会额外执行非阻断遗留测试，只在清理测试债务时运行。
-- 如果没有运行发布门禁，最终回答必须明确说明已运行哪些定向验证，以及没有运行 `pnpm test` / `pnpm typecheck`。
+- 本地开发、完成、检查、验收、交接和普通提交阶段不运行任何自动化验证。
+- 普通 push 触发 GitHub CI；agent 不等待 CI，除非用户明确要求查看结果。
+- Release 必须使用 `tools\git-auto-release.cmd`，并等待本地门禁、GitHub Actions、安装包和 GitHub Release 全部成功。
+- 用户明确要求运行某条本地验证命令时可以执行，但不得自行扩大到其他命令。
+- 未获得 CI 或 Release 成功证据时，最终回答只能说明代码改动状态，不得声称测试、构建或类型检查通过。

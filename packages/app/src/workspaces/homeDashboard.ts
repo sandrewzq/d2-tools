@@ -6,6 +6,7 @@ export type HomeDashboardDiagnosticRow = {
 
 export type HomeDashboardDailyItem = {
   title: string;
+  characterId?: string;
   subtitle?: string;
   description?: string;
   source?: string;
@@ -86,6 +87,7 @@ export type HomeDashboardStartupState = {
 
 export type HomeDashboardWorkspace = {
   state: HomeDashboardStartupState;
+  selectedCharacterId?: string;
   diagnosticRows: HomeDashboardDiagnosticRow[];
   diagnosticError: string;
   accountError: string;

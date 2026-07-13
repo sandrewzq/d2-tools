@@ -9,6 +9,7 @@ import {
   LoadoutsPageContentView,
   ProductShellHost,
   SettingsPageContentView,
+  SharedItemDetailDialog,
   VaultPageContentView,
   VendorsPageContentView,
   type LibraryEquipmentFilter,
@@ -16,6 +17,8 @@ import {
   type LibraryViewMode,
   type ShellAssistantMode,
   type ShellPageKey,
+  type VendorInventoryItemView,
+  type VendorOfferContextView,
 } from "@d2-tools/ui";
 import {
   homePageMetaMap,
@@ -60,6 +63,10 @@ function PrototypeApp() {
   const [assistantMessages, setAssistantMessages] = useState(() => fixture.assistantInitialMessages);
   const [isAssistantSessionDrawerOpen, setIsAssistantSessionDrawerOpen] = useState(false);
   const [isAssistantContextDrawerOpen, setIsAssistantContextDrawerOpen] = useState(false);
+  const [vendorDetail, setVendorDetail] = useState<{
+    item: VendorInventoryItemView;
+    context: VendorOfferContextView;
+  } | null>(null);
   const scenario = prototypeScenarios[scenarioKey];
   const backgroundTasks = fixture.getBackgroundTasks(scenarioKey);
   const accountViewModel = useMemo(
@@ -86,6 +93,10 @@ function PrototypeApp() {
       showDiffOnly
     }),
     [fixture, scenario, compareTemplateId, selectedLoadoutEntryId, selectedTemplateId, showDiffOnly]
+  );
+  const vendorsModel = useMemo(
+    () => fixture.createVendorsPageModel(scenario, selectedAccountCharacterId),
+    [fixture, scenario, selectedAccountCharacterId]
   );
   const platformActions = useMemo(() => ({
     openExternal: (url: string) => {
@@ -296,8 +307,8 @@ function PrototypeApp() {
           {activePage === "vendors" ? (
             <VendorsPageContentView
               interfaceLocale={preferences.interfaceLocale}
-              model={fixture.vendorsModel}
-              actions={{}}
+              model={vendorsModel}
+              actions={{ onOpenItem: (item, context) => setVendorDetail({ item, context }) }}
             />
           ) : null}
           {activePage === "settings" ? (
@@ -338,7 +349,7 @@ function PrototypeApp() {
               onSaveBungieConfig={async () => undefined}
             />
           ) : null}
-          <div className="prototype-debug">
+           <div className="prototype-debug">
             {isPrototypeDebugOpen ? (
               <section className="prototype-debug-panel" aria-label="Prototype scenario controls">
                 <div className="prototype-debug-heading">
@@ -366,8 +377,23 @@ function PrototypeApp() {
             >
               Prototype
             </button>
-          </div>
-          </>
+           </div>
+           {vendorDetail ? (
+             <SharedItemDetailDialog
+               detail={{ name: vendorDetail.item.name }}
+               vendorContext={vendorDetail.context}
+               closeLabel="关闭装备详情"
+               onClose={() => setVendorDetail(null)}
+               sections={(
+                 <section className="item-detail-game-card">
+                   <h3>{vendorDetail.item.name}</h3>
+                   <p>{vendorDetail.item.itemType}</p>
+                   <p>{vendorDetail.item.summary}</p>
+                 </section>
+               )}
+             />
+           ) : null}
+           </>
         )}
       />
     </>
@@ -394,6 +420,7 @@ function isPrototypeScenarioKey(value: string | undefined): value is PrototypeSc
     || value === "update-available"
     || value === "ai-unconfigured"
     || value === "account-error"
+    || value === "vendor-partial-failure"
     || value === "manifest-missing-components";
 }
 

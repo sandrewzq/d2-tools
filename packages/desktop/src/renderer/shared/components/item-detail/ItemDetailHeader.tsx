@@ -1,6 +1,6 @@
 import type { SelectedItemDetail } from "../../hooks/useItemDetail";
 
-export function ItemDetailHeader(props: { selectedItem: SelectedItemDetail; onClose: () => void }) {
+export function ItemDetailHeader(props: { selectedItem: SelectedItemDetail; onClose: () => void; showClose?: boolean }) {
   const selectedItem = props.selectedItem;
   const itemMeta = [
     selectedItem.bucket_name,
@@ -10,7 +10,7 @@ export function ItemDetailHeader(props: { selectedItem: SelectedItemDetail; onCl
 
   return (
     <>
-      <button className="modal-close" type="button" onClick={props.onClose}>关闭</button>
+      {props.showClose === false ? null : <button className="modal-close" type="button" onClick={props.onClose}>关闭</button>}
       <div className="item-detail-game-header">
         <div className="item-detail-game-icon">
           {selectedItem.icon ? <img alt="" src={selectedItem.icon} /> : <span aria-hidden="true">◆</span>}

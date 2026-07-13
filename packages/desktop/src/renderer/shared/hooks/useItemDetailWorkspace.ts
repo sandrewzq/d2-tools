@@ -1,4 +1,9 @@
 import { useMemo, useState } from "react";
+import type {
+  VendorInventoryItemView,
+  VendorOfferContext,
+  VendorOfferContextView
+} from "@d2-tools/ui";
 import {
   api } from "../../api/client";
 import type { AccountItemSummary, AccountSummary, D2Config, DimWishlist, ItemActionResult, ItemAiAdviceResult, LibraryHistory, LocalTargetRules, VaultTags, VaultTagValue, WeaponRecommendation } from "../../api/types";
@@ -50,6 +55,7 @@ export function useItemDetailWorkspace(input: {
   const [itemShareMessage, setItemShareMessage] = useState("");
   const [isGeneratingItemAi, setIsGeneratingItemAi] = useState(false);
   const [selectedActionCharacterId, setSelectedActionCharacterId] = useState("");
+  const [vendorContext, setVendorContext] = useState<VendorOfferContext | null>(null);
 
   const {
     selectedItem,
@@ -190,9 +196,31 @@ export function useItemDetailWorkspace(input: {
 
   function closeSelectedItemDetail() {
     closeItemDetailCore();
+    setVendorContext(null);
     setCommunityRecommendations(null);
     setCommunityRecommendationError("");
     setIsCommunityRecommendationsLoading(false);
+  }
+
+  async function openVendorItemDetail(
+    item: VendorInventoryItemView,
+    context: VendorOfferContextView
+  ) {
+    if (item.itemHash === undefined) return;
+    setVendorContext(context);
+    await openItemDetail({
+      hash: item.itemHash,
+      name: item.name,
+      description: item.summary,
+      icon: item.iconUrl,
+      item_type: item.itemType,
+      tier: item.tone === "exotic" ? "异域" : undefined,
+      source: {
+        status: "ready",
+        label: "商人售卖",
+        description: context.vendorName
+      }
+    });
   }
 
   async function saveSelectedItemTag(tag: VaultTagValue) {
@@ -401,6 +429,7 @@ export function useItemDetailWorkspace(input: {
 
   return {
     selectedItem,
+    vendorContext,
     selectedSameNameItems,
     selectedActionCharacterId,
     itemDetailLoadingKey,
@@ -415,6 +444,7 @@ export function useItemDetailWorkspace(input: {
     itemShareMessage,
     isGeneratingItemAi,
     openItemDetail,
+    openVendorItemDetail,
     closeSelectedItemDetail,
     setItemNoteDraft,
     setSelectedActionCharacterId,

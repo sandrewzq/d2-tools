@@ -1,5 +1,7 @@
 # 首页本日更新信息重设计实施计划
 
+> 执行规则覆盖：本文保留的测试、`Red / Verify`、`verify:*` 和视觉命令仅是历史计划记录，不是当前 agent 执行要求。实际开发不得据此新增或运行测试；统一遵守仓库根目录 `AGENTS.md`。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `executing-plans` or equivalent task-by-task execution. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** 首页“本日更新”只展示玩家当天打开应用就能行动的信息；当前真实主内容是“今日世界遗失区域”，展示今日 active 的 9 个世界遗失区域。每条只展示目的地 / 星球、遗失区域名、勇士、护盾、威胁、专家单人奖励和大师单人奖励。为避免本日区域过空，首页保留“重点商人”预留位，但在商人页展示规范完成前不接真实库存、不展示假数据。

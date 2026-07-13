@@ -23,6 +23,7 @@ export type HomeDailyItem = {
   expertSoloRewards?: string[];
   masterSoloRewards?: string[];
   vendorHash?: number;
+  characterId?: string;
   vendorEnabled?: boolean;
   vendorRefreshDate?: string;
   vendorLocation?: string;
@@ -180,6 +181,7 @@ type HomeConfirmedXur = {
 
 export type HomePageViewProps = {
   interfaceLocale?: InterfaceLocale;
+  selectedCharacterId?: string;
   state?: HomeStartupState;
   isLoggingIn?: boolean;
   isLoadingAccount?: boolean;
@@ -246,7 +248,11 @@ export function HomePageContentView(props: HomePageViewProps) {
   };
   const weeklyResetStatus = formatWeeklyResetStatus(viewProps.weeklySummary, viewProps.dailySummary, copy);
   const confirmedPriorities = buildConfirmedWeeklyPriorities(viewProps.weeklySummary);
-  const xur = buildConfirmedXur(viewProps.dailySummary?.sources.vendors, copy);
+  const xur = buildConfirmedXur(
+    viewProps.dailySummary?.sources.vendors,
+    copy,
+    props.selectedCharacterId
+  );
   const hasWeeklyBriefing = Boolean(
     confirmedPriorities.nightfall
     || confirmedPriorities.rotating_raid
@@ -377,9 +383,16 @@ function renderWeeklySignalCard(key: string, label: string, priority: HomeWeekly
   );
 }
 
-function buildConfirmedXur(source: HomeDailySource | undefined, copy: HomeCopy): HomeConfirmedXur | null {
+function buildConfirmedXur(
+  source: HomeDailySource | undefined,
+  copy: HomeCopy,
+  selectedCharacterId?: string
+): HomeConfirmedXur | null {
   if (!source || source.status !== "ready") return null;
-  const vendor = source.items?.find((item) => item.vendorHash === 2190858386 || /仄|Xur|Xûr/i.test(item.title));
+  const xurVendors = source.items?.filter((item) => item.vendorHash === 2190858386 || /仄|Xur|Xûr/i.test(item.title)) ?? [];
+  const vendor = xurVendors.find((item) => item.characterId === selectedCharacterId)
+    ?? xurVendors.find((item) => Boolean(item.characterId))
+    ?? xurVendors[0];
   const items = (vendor?.items ?? []).filter((item) => item.title.trim());
   if (!vendor || vendor.vendorEnabled === false || !items.length) return null;
   return {

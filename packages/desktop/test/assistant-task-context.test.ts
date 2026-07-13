@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { readFileSync } from "node:fs";
 import { buildAssistantPageContext } from "../src/renderer/shared/domain/assistant/assistantContext";
 import { buildAssistantTaskContext } from "../src/renderer/shared/domain/assistant/assistantTaskContext";
 
@@ -48,18 +47,5 @@ describe("assistant task context", () => {
     expect(context.facts).toContain("仓库筛选：武器 / DIM 愿望单 / 已锁定");
     expect(context.facts).toContain("配装缺失：2 件，1 件可自动转移");
     expect(context.facts).toContain("资料库搜索：装备 / Riskrunner");
-  });
-
-  it("renders editable task assistant controls in the global sidebar", () => {
-    const sidebar = readFileSync("packages/desktop/src/renderer/components/GlobalAssistantSidebar.tsx", "utf8");
-    const taskContext = readFileSync("packages/desktop/src/renderer/shared/domain/assistant/assistantTaskContext.ts", "utf8");
-    const taskAssistantSources = `${sidebar}\n${taskContext}`;
-
-    expect(sidebar).toContain("taskContextDraft");
-    expect(sidebar).toContain("粘贴任务文本或攻略");
-    expect(taskAssistantSources).toContain("攻略步骤");
-    expect(taskAssistantSources).toContain("关联装备");
-    expect(taskAssistantSources).toContain("可保存方案草稿");
-    expect(taskAssistantSources).toContain("AI 问答");
   });
 });

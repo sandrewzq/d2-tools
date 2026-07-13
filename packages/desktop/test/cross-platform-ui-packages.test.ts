@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -6,6 +6,23 @@ const repoRoot = process.cwd();
 
 function readJson(path: string) {
   return JSON.parse(readFileSync(join(repoRoot, path), "utf8")) as Record<string, unknown>;
+}
+
+function readText(path: string) {
+  return readFileSync(join(repoRoot, path), "utf8");
+}
+
+function readSourceTree(relativeDirectory: string): string {
+  const absoluteDirectory = join(repoRoot, relativeDirectory);
+  return readdirSync(absoluteDirectory, { withFileTypes: true })
+    .flatMap((entry) => {
+      const relativePath = join(relativeDirectory, entry.name);
+      if (entry.isDirectory()) {
+        return readSourceTree(relativePath);
+      }
+      return /\.(?:ts|tsx)$/.test(entry.name) ? [readText(relativePath)] : [];
+    })
+    .join("\n");
 }
 
 describe("cross-platform UI package layout", () => {
@@ -37,5 +54,41 @@ describe("cross-platform UI package layout", () => {
     expect(existsSync(join(repoRoot, "packages/ui/src/index.ts"))).toBe(true);
     expect(existsSync(join(repoRoot, "packages/prototype/src/main.tsx"))).toBe(true);
     expect(existsSync(join(repoRoot, "packages/web/src/main.tsx"))).toBe(true);
+  });
+
+  it("mounts the same shared product shell in prototype, web and desktop", () => {
+    expect(readText("packages/prototype/src/main.tsx")).toContain("ProductShellHost");
+    expect(readText("packages/web/src/main.tsx")).toContain("ProductShellHost");
+    expect(readText("packages/desktop/src/renderer/pages/HomePage.tsx")).toContain("ProductShellHost");
+  });
+
+  it("keeps the shared UI package independent from platform shells", () => {
+    const sharedUiSource = readSourceTree("packages/ui/src");
+
+    expect(sharedUiSource).not.toMatch(/@d2-tools\/(?:desktop|prototype|web)/);
+    expect(sharedUiSource).not.toMatch(/packages[\\/](?:desktop|prototype|web)/);
+  });
+
+  it("keeps product page styles out of the Desktop platform stylesheet", () => {
+    const desktopStyles = readText("packages/desktop/src/renderer/styles.css");
+
+    expect(desktopStyles).not.toMatch(/^\.(?:home|account|vault|loadout|library|vendor|settings)-/m);
+    expect(desktopStyles).not.toMatch(/^\.product-workspace/m);
+  });
+
+  it("keeps primary page layout on shared ProductWorkspace modules", () => {
+    const pageViews = [
+      "packages/ui/src/home/HomePageView.tsx",
+      "packages/ui/src/account/AccountPageView.tsx",
+      "packages/ui/src/vault/VaultPageView.tsx",
+      "packages/ui/src/loadouts/LoadoutsPageView.tsx",
+      "packages/ui/src/library/LibraryPageView.tsx",
+      "packages/ui/src/vendors/VendorsPageView.tsx",
+      "packages/ui/src/settings/SettingsPageView.tsx"
+    ];
+
+    for (const pageView of pageViews) {
+      expect(readText(pageView)).toContain("ProductWorkspace");
+    }
   });
 });

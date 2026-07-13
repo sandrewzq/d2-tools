@@ -294,9 +294,9 @@ function mapVendors(
 ): DailySummaryItem[] {
   const publicItems = mapVendorResponse(publicVendors, definitions, "Bungie 公共商人");
   const characterItems = characterVendors.flatMap((response) =>
-    mapVendorResponse(response, definitions, "Bungie 登录角色商人")
+    mapVendorResponse(response, definitions, "Bungie 登录角色商人", response.characterId)
   );
-  const mapped = [...publicItems, ...characterItems];
+  const mapped = [...characterItems, ...publicItems];
   return uniqueByVendorIdentity(mapped)
     .sort((left, right) => vendorSortRank(left) - vendorSortRank(right))
     .slice(0, 20);
@@ -305,7 +305,8 @@ function mapVendors(
 function mapVendorResponse(
   response: PublicVendorsResponse | undefined,
   definitions: NonNullable<BuildDailyLiveDataInput["definitions"]>,
-  sourceLabel: "Bungie 公共商人" | "Bungie 登录角色商人"
+  sourceLabel: "Bungie 公共商人" | "Bungie 登录角色商人",
+  characterId?: string
 ): DailySummaryItem[] {
   const vendors = response?.vendors?.data ?? {};
   const sales = response?.sales?.data ?? {};
@@ -322,6 +323,7 @@ function mapVendorResponse(
 
     return [buildVendorItem({
       vendorHash,
+      characterId,
       vendorName,
       vendorIconUrl,
       vendor,
@@ -336,6 +338,7 @@ function mapVendorResponse(
 
 function buildVendorItem(input: {
   vendorHash: number;
+  characterId?: string;
   vendorName: string;
   vendorIconUrl?: string;
   vendor: PublicVendor;
@@ -355,6 +358,7 @@ function buildVendorItem(input: {
     description: salePreview,
     source: input.sourceLabel,
     vendorHash: input.vendorHash,
+    characterId: input.characterId,
     vendorEnabled: input.vendor.enabled ?? true,
     vendorRefreshDate: input.vendor.nextRefreshDate,
     vendorLocation: input.vendorLocation,
@@ -531,7 +535,11 @@ function uniqueByTitle(items: DailySummaryItem[]): DailySummaryItem[] {
 function uniqueByVendorIdentity(items: DailySummaryItem[]): DailySummaryItem[] {
   const seen = new Set<string>();
   return items.filter((item) => {
-    const key = item.vendorHash !== undefined ? `vendor:${item.vendorHash}` : `title:${item.title}`;
+    const key = item.vendorHash === 2190858386 && item.characterId
+      ? `vendor:${item.vendorHash}:character:${item.characterId}`
+      : item.vendorHash !== undefined
+        ? `vendor:${item.vendorHash}`
+        : `title:${item.title}`;
     if (seen.has(key)) return false;
     seen.add(key);
     return true;

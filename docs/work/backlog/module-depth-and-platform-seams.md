@@ -1,5 +1,7 @@
 # 模块深度与跨端 seam 收口计划
 
+> 执行规则覆盖：本文保留的测试、`Red / Verify` 和 `verify:*` 命令仅是历史计划记录，不是当前 agent 执行要求。只有 `AGENTS.md` 允许的高风险边界才能新增最小测试，且本地不运行。
+
 > 状态：待推进
 > 关联任务：`docs/todo.md` T4 跨端 UI 壳、可交互原型与桌面视觉收口
 > 前置：现有 `cross-platform-workspace-style-hardening.md` 已完成共享页面骨架与菜单 Provider 的第一轮拆分；本文只记录仍未收口的模块深度问题。

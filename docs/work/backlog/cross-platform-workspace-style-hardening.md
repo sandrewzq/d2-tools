@@ -1,5 +1,7 @@
 # 跨端工作区骨架与样式系统彻底收口计划
 
+> 执行规则覆盖：本文保留的测试、`Red / Verify`、`verify:*` 和视觉命令仅是历史计划记录，不是当前 agent 执行要求。实际开发不得据此新增或运行测试；统一遵守仓库根目录 `AGENTS.md`，普通 push 交给 CI，Release 使用发布脚本。
+
 > 状态：进行中（结构收口与代码边界已落地，真实 UI 视觉样式收口未完成）
 > 关联任务：`docs/todo.md` T4 跨端 UI 壳、可交互原型与桌面视觉收口
 > 参考基准：`docs/work/references/d2-unified-workspace-layout-v0.html`

@@ -18,6 +18,7 @@ import { registerStartupIpcHandlers } from "./ipc/startup.js";
 import { registerTargetRulesIpcHandlers } from "./ipc/targets.js";
 import { registerUpdateIpcHandlers } from "./ipc/updates.js";
 import { registerVaultIpcHandlers } from "./ipc/vault.js";
+import { registerVendorIpcHandlers } from "./ipc/vendors.js";
 import { registerWeeklyIpcHandlers } from "./ipc/weekly.js";
 import { registerWindowIpcHandlers } from "./ipc/window.js";
 import { registerWishlistIpcHandlers } from "./ipc/wishlist.js";
@@ -36,6 +37,7 @@ export function registerIpcHandlers(): void {
   registerTargetRulesIpcHandlers();
   registerCommunityIpcHandlers();
   registerVaultIpcHandlers();
+  registerVendorIpcHandlers();
   registerAnalysisIpcHandlers();
   registerAssistantIpcHandlers();
   registerActionIpcHandlers();

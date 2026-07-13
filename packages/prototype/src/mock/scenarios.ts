@@ -13,6 +13,7 @@ export type PrototypeScenarioKey =
   | "update-available"
   | "ai-unconfigured"
   | "account-error"
+  | "vendor-partial-failure"
   | "manifest-missing-components";
 
 export type PrototypeScenario = {
@@ -271,6 +272,21 @@ export const prototypeScenarios: Record<PrototypeScenarioKey, PrototypeScenario>
     hasAccountData: false,
     accountError: "Bungie 账号读取失败，请重新授权后再试。",
     diagnosticRows: [{ tone: "error" }],
+    isInitializingManifest: false,
+    isLoadingDaily: false,
+    isRefreshingDiagnostics: false
+  },
+  "vendor-partial-failure": {
+    key: "vendor-partial-failure",
+    label: "商人部分失败",
+    description: "用于确认单个商人详情失败时仍保留基础库存和其他成功商人。",
+    shellStatus: baseShellStatus,
+    homeState: readyHomeState,
+    homeDailySummary: readyDailySummary,
+    homeWeeklySummary: readyWeeklySummary,
+    hasAccountData: true,
+    accountError: "",
+    diagnosticRows: [{ tone: "warning" }],
     isInitializingManifest: false,
     isLoadingDaily: false,
     isRefreshingDiagnostics: false

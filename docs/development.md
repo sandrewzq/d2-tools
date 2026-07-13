@@ -108,7 +108,7 @@ docs/        正式文档
 6. 顶部状态条等跨端状态对象必须使用稳定 key 做样式和逻辑判断，例如 `account`、`library`、`app-version`；本地化后的 `label` 只用于显示，不能参与逻辑判断。
 7. 全局 AI 抽屉等产品级辅助面板也属于共享 UI：`assistantPanel` 不允许各端长期自建标题、对话结构或占位页面，必须复用 `packages/ui` 的 AI Assistant View；Desktop / Prototype / Web 只提供真实服务 adapter 或 mock 数据。
 8. 窗口控制按钮由 `packages/ui` 的共享 `AppShell` 自绘，Desktop 只通过 `platformActions.windowControls` 注入最小化、最大化/还原和关闭动作；不要重新启用 Electron 原生 `titleBarOverlay`。
-9. 改 `packages/ui` 后，至少运行相关共享 UI 测试和消费者类型检查；影响首页或设置页视觉时运行 `visual:home` 或 `visual:settings`；影响全局 AI 抽屉时运行 `visual:ai`，它会实际点击 Prototype / Web / Desktop 顶部 AI 并检查共享抽屉标题、旧占位文案和截图。跨页面、主题 token、暗色模式或共享样式大改后运行 `visual:all`，它会遍历 Prototype / Web / Desktop、明暗主题、主菜单和设置分区，并对 `.app-shell` 可见 DOM 做 computed style 扫描。
+9. 改 `packages/ui` 后不在本地新增或运行 UI 测试、消费者类型检查和视觉脚本；需要体验时启动 Prototype、Web 或 Desktop 人工检查，普通 push 后交给 CI。只有 Release 或用户明确点名时才执行对应自动化命令。
 10. 产品样式不得再复制到 Desktop 私有样式文件；需要新增 class、token、暗色规则或页面布局时，直接修改 `packages/ui/src/styles.css`。Desktop 私有 CSS 只能放窗口、拖拽区或 Electron 特有平台差异。
 
 常见改动归属：
@@ -158,28 +158,9 @@ docs/        正式文档
 3. 需要改 `packages/ui/src/styles.css` 中无菜单前缀的规则。
 4. 需要动 `ProductShellHost.tsx`、`ProductWorkspace.tsx`、`AppShell.tsx`、`styles.css` token 区或跨端入口。
 
-升级为共享改动时，agent 必须先说明影响范围，并补测试红线。不能把共享骨架问题伪装成某个菜单的私有样式补丁。
+升级为共享改动时，agent 必须先说明影响范围。不能把共享骨架问题伪装成某个菜单的私有样式补丁。
 
-每个菜单 agent 收尾至少运行：
-
-```powershell
-npx pnpm@9.15.0 verify:ui
-```
-
-如果碰到 Desktop adapter、IPC、真实数据接线或 renderer feature，再追加：
-
-```powershell
-npx pnpm@9.15.0 verify:desktop
-```
-
-如果影响首页、设置、AI 抽屉、暗色模式、全局 token 或共享 workspace chrome，再追加对应视觉脚本：
-
-```powershell
-npx pnpm@9.15.0 visual:home
-npx pnpm@9.15.0 visual:settings
-npx pnpm@9.15.0 visual:ai
-npx pnpm@9.15.0 visual:all
-```
+菜单开发、收尾、检查、验收、交接和普通提交均不自动运行测试、类型检查、构建、`verify:*` 或视觉脚本。需要体验页面时可以启动 Prototype、Web 或 Desktop，由开发者人工确认交互；普通 push 后由 GitHub CI 异步验证，agent 不等待 CI。只有 Release 才通过 `tools\git-auto-release.cmd` 执行并等待完整门禁。
 
 提交或交接前，如果工作区已有多个菜单或共享层改动，必须先运行：
 
@@ -203,11 +184,9 @@ tools\git-preflight.cmd
 - 菜单私有 class 和 `ProductWorkspace*` 叠加使用时，不得重新定义共享 chrome 属性，包括 `padding`、`border`、`border-radius`、`background`、`box-shadow` 和页面级 `gap`。如果首块区域需要不同密度，优先调整内部子元素；确实需要新的骨架能力时，先扩展 `ProductWorkspace*` 或 token，而不是在菜单 class 里覆盖。
 - 私有样式必须使用共享 token 表达颜色、间距、圆角和状态；不要新增硬编码浅色背景、菜单专属暗色兼容块，或只在某一端生效的视觉修补。Prototype / Web / Desktop 的差异只能来自数据、平台 adapter 或 mock 状态，不能来自不同页面 CSS。
 - `app-panel`、`product-card` 和 `tool-panel` 可以保留，但不能参与主菜单页面骨架：`app-panel` 只作为 legacy 内部块或逐步迁移对象，`product-card` 只用于面板内部的重复对象卡片，`tool-panel` 只用于 AI、诊断、设置工具和日志区。它们不得和 `ProductWorkspacePanel` 叠加，也不得作为主菜单首层面板、页面根或首层工具栏 chrome。
-- `packages/desktop/test/ui-style-system.test.ts` 负责锁定 token、共享样式类、设置页布局、状态语言和 Desktop CSS 平台边界，防止产品样式回流到 Desktop 私有 CSS。
-- `packages/desktop/test/workspace-layout.test.ts` 负责锁定主菜单工作区骨架和菜单私有样式权限，防止页面 class 覆盖 `ProductWorkspace*` 的首层间距、面板 chrome 和工具栏 chrome。
-- 后续 UI 开发以本节和 `packages/desktop/test/ui-style-system.test.ts` 为准，不再维护单独的历史样式规范文档。
+- 后续 UI 开发以本节为准，不再维护依赖源码字符串匹配的样式护栏测试或单独的历史样式规范文档。
 - `docs/work/references/` 里的静态 HTML 只能作为冻结视觉基准、规则样板和对比标注，不是活跃原型、开发入口或 UI 修改源。菜单 UI、样式和交互改动必须直接进入 `packages/ui`、Prototype/Web/Desktop 共享壳或对应 app ViewModel；不得要求 agent “先改 HTML 再照抄实现”。只有调整全局工作区骨架、首层 chrome 或 reference-only 规则时，才同步更新静态 HTML。
-- 静态 HTML 可以保留规范说明、边界解释和对比标注，但必须同时使用 `<!-- d2-reference-only:start ... -->` / `<!-- d2-reference-only:end -->` 包住，并在对应 HTML 元素上标记 `data-reference-only="true"`；标记块只用于设计评审和规则表达，不得迁入 `packages/ui`、`packages/prototype`、`packages/web` 或 Desktop 真实页面。`packages/desktop/test/workspace-layout.test.ts` 会抽取这些标记块的文案，拦截说明内容进入共享产品 UI。
+- 静态 HTML 可以保留规范说明、边界解释和对比标注，但必须同时使用 `<!-- d2-reference-only:start ... -->` / `<!-- d2-reference-only:end -->` 包住，并在对应 HTML 元素上标记 `data-reference-only="true"`；标记块只用于设计评审和规则表达，不得迁入 `packages/ui`、`packages/prototype`、`packages/web` 或 Desktop 真实页面。
 
 ### 2.6 桌面外壳、更新和后台任务
 
@@ -293,7 +272,7 @@ npx pnpm@9.15.0 dev:electron
 - `tools/dev-web.cmd`：清理 `53171` 残留监听进程后启动 Web。
 - `tools/dev-desktop.cmd`：清理 `53172` 残留监听进程后启动 Desktop 开发版。
 - `tools/dev-status.cmd`：只读查看 Prototype / Web / Desktop 开发端口占用情况。
-- `tools/git-preflight.cmd`：只读按文档、工具、跨端 UI、Desktop、core/services/app/http 分组查看 Git 改动，识别菜单 lane / 共享层风险 / 多 lane 混改，并提示建议验证命令、高冲突文件和并行安全建议。
+- `tools/git-preflight.cmd`：只读按文档、工具、跨端 UI、Desktop、core/services/app/http 分组查看 Git 改动，识别菜单 lane / 共享层风险 / 多 lane 混改，并提示当前验证策略、高冲突文件和并行安全建议。
 - `tools/git-commit-and-push.cmd`：全量提交并 push，不创建 release tag。
 - `tools/git-auto-release.cmd`：先检查当前版本 GitHub Release 是否存在，并在任何版本修改、commit、push 或 tag 之前执行与 GitHub CI 一致的 frozen install、发布测试门禁和全量类型检查。失败时保留错误输出、显示失败阶段并等待按键；通过后，Release 缺失则复用当前版本更新同名 tag，已成功才自动 patch +1、生成 changelog、提交、push 并创建新 release tag。
 
@@ -301,160 +280,51 @@ npx pnpm@9.15.0 dev:electron
 
 ## 4. 测试与检查
 
-日常开发优先按改动范围跑快路径，不要每次都跑发布级全量链路。
+测试是 CI 和 Release 门禁，不是本地 vibecoding 循环的一部分。开发者只需描述业务目标，agent 自行定位菜单、领域和改动范围，不要求用户提供测试模板、命令或文件清单。
 
-### 4.0 Vibecoding 快路径
+### 4.0 默认执行策略
 
-单 agent 做菜单或共享 UI 时，默认先运行能覆盖当前改动的单个定向测试。找不到更小的稳定测试集合时，才使用 `verify:vibe:*`；交接、提交、合并或声称门禁通过前，只选择与实际改动范围匹配的一个主 `verify:*`。
-
-```powershell
-npx pnpm@9.15.0 verify:vibe:docs
-npx pnpm@9.15.0 verify:vibe:ui
-npx pnpm@9.15.0 verify:vibe:desktop
-npx pnpm@9.15.0 verify:vibe:desktop:account
-npx pnpm@9.15.0 verify:vibe:desktop:ai
-npx pnpm@9.15.0 verify:vibe:desktop:loadouts
-npx pnpm@9.15.0 verify:vibe:desktop:vault
-```
-
-这些命令是可选的中途反馈，不是收口门禁的前置步骤。同一代码状态下禁止先运行 `verify:vibe:*`，随后马上运行包含相同测试集合的 `verify:*`；如果下一步就是收尾，直接运行最终门禁。如果中途整组测试已经通过，收尾使用 `verify:finish:*` 只补类型检查或文档检查。只有两次验证之间又修改了代码，才需要重新运行完整门禁。
-
-默认验证层级：
-
-| 阶段 | 默认动作 | 不要做 |
+| 用户意图 | 默认动作 | 自动化验证 |
 |---|---|---|
-| Red / Green | 只跑当前行为对应的单个测试文件 | 不跑类型检查、视觉检查或整组门禁 |
-| Tidy | 必要时运行 `git diff --check` | 不重复运行已经通过且代码未变化的测试 |
-| 收尾 | 未跑中途整组测试时选一个完整 `verify:*`；已经跑过时选对应 `verify:finish:*` | 不重复执行相同测试集合，不把多个范围门禁固定串联 |
-| 视觉 | 只运行一个与实际视觉改动匹配的 `visual:*` | 纯数据、类型、IPC、文案和接线改动不跑视觉脚本 |
-| 发布 | 按发布流程运行全量 `test` / `typecheck` | 日常小改动不提前支付发布级成本 |
+| 开发 / 修改 / 优化 / 继续 | 直接实现当前功能切片 | 禁止自动运行测试、类型检查、构建、`verify:*` 和视觉脚本 |
+| 完成 / 检查 / 验收 / 交接 | 只读复核改动，说明风险和未验证项 | 禁止自动运行本地验证 |
+| 普通提交 | 按本次范围提交 | 禁止自动运行本地验证 |
+| 普通 push | push 后结束，不等待 GitHub CI | GitHub CI 异步验证 |
+| 发布 / release / 发版 | 使用 `tools\git-auto-release.cmd` | 必须等待本地门禁和 GitHub Release 全部成功 |
+| 用户明确指定命令 | 只运行用户点名的命令 | 不自行追加其他检查 |
 
-测试断言优先检查稳定契约，例如真实函数输出、组件渲染结果、导出、role / label 和 ViewModel 输出。禁止新增读取生产源码后匹配中文文案、变量名、import 顺序、HTML、class 或 CSS 片段的普通功能测试；`test:quality` 会阻止这类测试进入遗留层。只有少量明确登记的包依赖、renderer 隔离、格式和 Release 契约可以作为架构测试。
+允许为了人工体验启动 Prototype、Web 或 Desktop；启动应用不等于通过测试，也不得在启动前机械追加 build、typecheck 或测试命令。`tools\git-preflight.cmd` 只负责只读识别改动 lane、高冲突文件和提交风险，不再推荐本地验证命令。
 
-用户提出菜单功能或交互需求时，不需要提供 Red / Green / Tidy 模板、精确文件清单或测试命令。agent 必须自行识别菜单和改动类型，并按以下默认循环拆任务：
+默认禁止新增测试。只有以下高风险场景允许增加最小行为测试：
 
-1. `Red: <菜单>边界测试`：只写或调整会失败的测试，不改实现文件，不运行 `git diff --check`，不清 BOM、空白或无关 diff。
-2. `Green: <菜单>最小实现`：只做让当前失败测试通过的最小实现，不做顺手重构，不扩大到其他菜单。
-3. `Tidy: <菜单>整理`：只处理编码、空白、`git diff --check` 和机械整理，不引入新行为。
-4. `Verify: <菜单>验证`：只运行当前切片需要的定向验证；交接、提交或声明门禁通过前再升级到对应 `verify:*`。
+- 严重且可复现的生产 Bug，需要证明回归能够被捕获。
+- OAuth、认证和授权流程。
+- IPC、preload 与主进程边界。
+- 数据写入、迁移、删除和不可逆操作。
+- 发布、版本、安装包和自动更新流程。
+- 关键架构边界，且无法通过类型系统或模块结构直接约束。
 
-计划任务名必须短、阶段明确、范围明确；不要生成“补失败测试锁定 xxx model + actions 边界”这类混合任务名，因为它会让一个计划项同时承担测试、实现、整理和验证，导致 vibecoding 循环变慢。
+允许新增的测试必须调用真实生产模块或渲染真实组件，断言稳定行为、导出、role / label 或 ViewModel 输出。禁止读取生产源码后匹配中文文案、变量名、import 顺序、HTML、class 或 CSS 片段。混合测试文件只保留真实行为部分，不保留源码字符串护栏。
 
-给 agent 的固定入口：
+### 4.1 CI 与 Release 门禁
 
-1. 开工前先运行 `tools\git-preflight.cmd`，确认当前脏文件属于哪个菜单或共享 lane、建议跑哪个验证命令、是否触碰高冲突文件，以及是否需要 worktree 隔离。
-2. 独立文档或工具说明改动运行 `npx pnpm@9.15.0 verify:docs`；业务改动仅顺带更新 `docs/todo.md` 一行状态时只运行 `npx pnpm@9.15.0 docs:check`。
-3. 跨端 UI、Prototype 或 Web 改动收尾运行一次 `npx pnpm@9.15.0 verify:ui`；只有实际布局、CSS、主题或响应式变化才追加一个匹配的视觉命令。`visual:all` 只用于共享 token、全局页面壳或多菜单视觉集成。
-4. Desktop 接线、IPC、preload 或 renderer adapter 改动收尾运行一次 `npx pnpm@9.15.0 verify:desktop`；它已经包含 Desktop 快速类型检查和 wiring 测试。
-5. Release / CHANGELOG / 版本脚本改动运行 `npx pnpm@9.15.0 verify:release`，发布前再按需要跑全量 `test` 和 `typecheck`。
-6. 如果只改某个领域测试覆盖明确的业务模块，优先跑对应 `vitest --run packages/<pkg>/test/<name>.test.ts`；只有跨领域改动才考虑通用 `verify`。
-7. 同一代码状态不得连续运行 `verify:vibe:ui` + `verify:ui`、`verify:vibe:desktop` + `verify:desktop` 等包含关系命令；前者已通过时分别改跑 `verify:finish:ui` 或 `verify:finish:desktop`。
-
-中途整组测试已经通过时的增量收尾命令：
-
-```powershell
-npx pnpm@9.15.0 verify:finish:docs
-npx pnpm@9.15.0 verify:finish:ui
-npx pnpm@9.15.0 verify:finish:desktop
-```
-
-它们只补完整门禁中尚未执行的部分，不重复运行 `test:docs`、`test:ui` 或 `test:desktop-wiring`。
-
-基础检查：
-
-```powershell
-npx pnpm@9.15.0 check
-```
-
-这会运行 `docs:check` 和 `git diff --check`，适合文档、脚本说明和小范围整理。改了文档检查或编码检查脚本时，追加：
-
-```powershell
-npx pnpm@9.15.0 test:docs
-```
-
-开发态测试：
-
-```powershell
-npx pnpm@9.15.0 test:fast
-npx pnpm@9.15.0 test:behavior
-npx pnpm@9.15.0 test:architecture
-npx pnpm@9.15.0 test:quality
-npx pnpm@9.15.0 test:legacy
-npx pnpm@9.15.0 test:all
-npx pnpm@9.15.0 test:ui
-npx pnpm@9.15.0 test:desktop
-npx pnpm@9.15.0 test:desktop:account
-npx pnpm@9.15.0 test:desktop:ai
-npx pnpm@9.15.0 test:desktop:loadouts
-npx pnpm@9.15.0 test:desktop:vault
-npx pnpm@9.15.0 test:desktop-wiring
-npx pnpm@9.15.0 test:release
-```
-
-`test:behavior` 运行真实调用模块或渲染组件的行为测试；`test:architecture` 只运行显式登记的架构和发布契约；`test:quality` 禁止新增源码字符串测试并要求遗留清单只能缩小；`test:legacy` 运行现有源码文本护栏，仅用于报告和逐步迁移；`test:all` 才会运行仓库内全部 Vitest 文件。`test:fast` 是 `test:behavior` 的别名，不预先 build。`test:ui` 跑共享 UI / 跨端页面收口相关测试；`test:desktop` 跑桌面端测试；`test:desktop:account`、`test:desktop:ai`、`test:desktop:loadouts`、`test:desktop:vault` 是菜单私有快测；`test:desktop-wiring` 只跑桌面接线、边界和打包格式相关快测；`test:release` 只跑 release 规则、changelog 提取和安装包格式相关快测。测试集合由 `scripts/run-test-set.mjs` 维护，避免 Windows shell 通配差异导致漏跑。普通功能改动优先跑相关定向测试，例如：
-
-```powershell
-npx pnpm@9.15.0 vitest --run packages/desktop/test/package-format.test.ts
-```
-
-跨端 UI 快速类型检查：
-
-```powershell
-npx pnpm@9.15.0 typecheck:ui
-```
-
-它覆盖 `packages/ui`、`packages/prototype` 和 `packages/web`。改 Desktop 主进程、preload、renderer adapter 或 IPC 接线时，使用：
-
-```powershell
-npx pnpm@9.15.0 typecheck:desktop-fast
-npx pnpm@9.15.0 typecheck:desktop
-```
-
-`typecheck:desktop-fast` 会先 build `services` 再跑 Desktop 自身类型检查，适合日常接线快验；`typecheck:desktop` 会先 build `core`、`http` 和 `services`，适合碰到底层依赖或准备发布前使用。
-
-收尾时按改动范围选择一个主门禁，不要把下面命令全部执行：
-
-```powershell
-npx pnpm@9.15.0 verify:docs
-npx pnpm@9.15.0 verify:ui
-npx pnpm@9.15.0 verify:desktop
-npx pnpm@9.15.0 verify:desktop:account
-npx pnpm@9.15.0 verify:desktop:ai
-npx pnpm@9.15.0 verify:desktop:loadouts
-npx pnpm@9.15.0 verify:desktop:vault
-npx pnpm@9.15.0 verify:release
-```
-
-`verify:vibe:*` 只用于还要继续修改代码的中途循环；若已经准备收尾，不再运行。若它已经在当前代码状态通过，使用对应 `verify:finish:*` 完成剩余检查。通用 `verify` 只用于跨领域且没有更精确范围门禁的情况。
-
-发布测试门禁：
-
-```powershell
-npx pnpm@9.15.0 test
-```
-
-类型检查：
-
-```powershell
-npx pnpm@9.15.0 typecheck
-```
-
-`test` 会先跑 `docs:check` 和全仓 build，再依次运行行为测试、测试质量门禁和架构测试；它不执行 `test:legacy`。`typecheck` 会先 build `core`、`http` 和 `services`，再全仓类型检查。它们更适合发布、release、CI 或声称“发布门禁通过”前使用，不作为每次 vibecoding 小改动的默认动作。
-
-GitHub Actions 中的最小 CI 会在 Windows runner 上执行：
+普通 push 后，GitHub Actions 在 Windows runner 上异步执行：
 
 1. `pnpm install --frozen-lockfile`
 2. `pnpm test`
-3. `pnpm test:legacy`，`continue-on-error`，只报告遗留护栏
-4. `pnpm typecheck`
+3. `pnpm typecheck`
 
-也就是说，真实行为、架构契约、类型边界、文档检查和新增低质量测试会在 PR / push 阶段被拦截；旧 UI 源码字符串护栏仍展示结果，但不会因为实现变量名、class 或 CSS 数值变化阻止发布。
+`pnpm test` 包含文档检查、全仓 build、行为测试、测试质量检查和架构测试。遗留源码测试层及其命令入口已经删除。
 
-如果你只想跑桌面端某个定向测试，也可以直接用：
+Release 必须从以下入口执行：
 
 ```powershell
-npx pnpm@9.15.0 vitest --run packages/desktop/test/vault-panel.test.ts
+tools\git-auto-release.cmd
 ```
+
+脚本会在修改版本、commit、push 或 tag 之前执行 frozen install、`pnpm test` 和 `pnpm typecheck`，随后执行 Release 专属校验。任一步失败都要显示失败阶段和原始原因并等待确认，不得继续发布；本地门禁通过后还必须等待 GitHub Release workflow 成功。
+
+底层 `test:*`、`typecheck:*`、`visual:*`、`check` 和 `verify:release` 命令仍保留给 GitHub CI、Release 脚本、维护者专项排查或用户明确点名使用。agent 在日常开发、完成、检查、交接和普通提交阶段不得自行调用。仓库不再提供开发期 `verify:*` 别名，唯一保留的是 Release 专用 `verify:release`。
 
 ## 5. 打包
 

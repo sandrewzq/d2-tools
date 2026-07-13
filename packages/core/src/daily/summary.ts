@@ -13,6 +13,7 @@ export type DailySummaryItem = {
   expertSoloRewards?: string[];
   masterSoloRewards?: string[];
   vendorHash?: number;
+  characterId?: string;
   vendorEnabled?: boolean;
   vendorRefreshDate?: string;
   vendorLocation?: string;

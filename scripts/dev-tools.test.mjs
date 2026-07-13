@@ -23,11 +23,10 @@ describe("dev tool scripts", () => {
     expect(script).not.toContain("Opening existing renderer page without starting another process");
   });
 
-  it("keeps finish verification aliases free of test suites already covered by vibe checks", () => {
+  it("removes local development verification aliases while keeping the release gate", () => {
     const packageJson = JSON.parse(readFileSync(join(repoRoot, "package.json"), "utf8"));
 
-    expect(packageJson.scripts["verify:finish:docs"]).toBe("pnpm check");
-    expect(packageJson.scripts["verify:finish:ui"]).toBe("pnpm typecheck:ui");
-    expect(packageJson.scripts["verify:finish:desktop"]).toBe("pnpm typecheck:desktop-fast");
+    expect(Object.keys(packageJson.scripts).filter((name) => name.startsWith("verify:") && name !== "verify:release")).toEqual([]);
+    expect(packageJson.scripts["verify:release"]).toBe("pnpm check && pnpm test:docs && pnpm test:release");
   });
 });

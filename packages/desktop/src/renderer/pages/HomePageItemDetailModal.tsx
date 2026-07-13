@@ -34,6 +34,7 @@ export function HomePageItemDetailModal(props: {
       sameNameItems={itemDetail.selectedSameNameItems}
       selectedActionCharacterId={itemDetail.selectedActionCharacterId}
       selectedItem={itemDetail.selectedItem}
+      vendorContext={itemDetail.vendorContext ?? undefined}
       vaultTags={props.vaultTags}
       onApplySameNameBatchTags={(items, mode) => void itemDetail.applySameNameBatchTags(items, mode)}
       onApplySameNameCurrentKeepTags={(items, currentItemKey, mode) => void itemDetail.applySameNameCurrentKeepTags(items, currentItemKey, mode)}

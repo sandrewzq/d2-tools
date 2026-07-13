@@ -327,14 +327,23 @@ export type {
   VendorDetailToolbarWorkspace,
   VendorInventoryGroupWorkspace,
   VendorInventoryItemWorkspace,
+  VendorCostWorkspace,
+  VendorServiceWorkspace,
   VendorInventoryState,
   VendorInventoryStatus,
   VendorInventoryTone,
+  VendorCharacterContextWorkspace,
+  VendorFiltersWorkspace,
+  VendorScopeOptionWorkspace,
+  VendorSearchInput,
+  VendorSearchResults,
+  VendorStatusBannerWorkspace,
   VendorRailSectionWorkspace,
+  VendorsPageInput,
   VendorsPageModel,
   VendorsPageWorkspace
 } from "./workspaces/vendorsPage.js";
-export { selectVendorsPageModel } from "./workspaces/vendorsPage.js";
+export { filterVendorSearchResults, selectVendorsPageModel } from "./workspaces/vendorsPage.js";
 export type { AssistantWorkspace, AssistantWorkspaceInput } from "./workspaces/assistant.js";
 export { sendAssistantMessage } from "./workspaces/assistant.js";
 export type { D2SkillWorkspace } from "./workspaces/d2Skill.js";
