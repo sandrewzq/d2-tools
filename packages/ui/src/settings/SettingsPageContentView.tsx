@@ -592,19 +592,19 @@ export function SettingsPageContentView(props: SettingsPageContentViewProps) {
                 <button type="button" className="secondary-button" onClick={props.onOpenDataDir}>{settingsText(copy, "打开")}</button>
               </div>
               <div className="app-setting-row">
-                <div><strong>{settingsText(copy, "导出配置")}</strong><span>{settingsText(copy, "导出不包含账号令牌的本地偏好设置。")}</span></div>
-                <button type="button" className="secondary-button" onClick={props.onExportConfig}>{settingsText(copy, "导出")}</button>
+                <div><strong>{settingsText(copy, "创建便携备份")}</strong><span>{settingsText(copy, "备份偏好、愿望单、标签和配装模板，不包含账号令牌、密钥、资料库、缓存或日志。")}</span></div>
+                <button type="button" className="secondary-button" onClick={props.onExportConfig}>{settingsText(copy, "创建备份")}</button>
               </div>
               <div className="app-setting-row">
-                <div><strong>{settingsText(copy, "导入配置")}</strong><span>{settingsText(copy, "迁移电脑时先关闭应用，再用备份覆盖数据目录。")}</span></div>
-                <button type="button" className="secondary-button" onClick={props.onImportConfig}>{settingsText(copy, "导入")}</button>
+                <div><strong>{settingsText(copy, "恢复便携备份")}</strong><span>{settingsText(copy, "恢复前自动保存本机回滚备份；目标电脑仍需重新登录并填写密钥。")}</span></div>
+                <button type="button" className="secondary-button" onClick={props.onImportConfig}>{settingsText(copy, "恢复备份")}</button>
               </div>
               <div className="app-setting-row">
                 <div><strong>{settingsText(copy, "清理缓存")}</strong><span>{settingsText(copy, "清理临时缓存，不删除账号授权、设置和本地标记。")}</span></div>
                 <button type="button" className="secondary-button" onClick={props.onClearCache}>{settingsText(copy, "清理")}</button>
               </div>
               <div className="app-setting-row">
-                <div><strong>{settingsText(copy, "迁移说明")}</strong><span>{settingsText(copy, "覆盖安装或换电脑前，先关闭 d2-tools，再复制整个本地数据目录。")}</span></div>
+                <div><strong>{settingsText(copy, "迁移说明")}</strong><span>{settingsText(copy, "优先使用便携备份；只有需要保留账号令牌时才手动复制整个数据目录。")}</span></div>
                 <button type="button" className="secondary-button" onClick={props.onCopyDataBackupGuide}>{settingsText(copy, "复制备份/迁移说明")}</button>
               </div>
             </section>

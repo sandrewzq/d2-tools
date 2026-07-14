@@ -4,6 +4,7 @@ import { createRequire } from "node:module";
 import { dirname } from "node:path";
 import { startBackgroundTask } from "../backgroundTasks.js";
 import type { AppUpdateSnapshot } from "../../shared/updateTypes.js";
+import { normalizeUpdateError } from "../../shared/updateError.js";
 
 const { autoUpdater } = updaterPkg;
 const require = createRequire(import.meta.url);
@@ -236,34 +237,4 @@ function getInstallPath(): string {
   }
 
   return process.cwd();
-}
-
-function normalizeUpdateError(error: unknown): { userMessage: string; technicalMessage: string } {
-  const technicalMessage = error instanceof Error && error.message
-    ? error.message
-    : "更新检查失败";
-
-  if (technicalMessage.includes("net::ERR_CONNECTION_CLOSED")) {
-    return {
-      userMessage: "GitHub 连接失败：网络连接被中断。可以稍后重试，或打开下载页手动安装最新版本。",
-      technicalMessage
-    };
-  }
-
-  if (
-    technicalMessage.includes("ENOTFOUND")
-    || technicalMessage.includes("ETIMEDOUT")
-    || technicalMessage.includes("ECONNRESET")
-    || technicalMessage.includes("ERR_NETWORK")
-  ) {
-    return {
-      userMessage: "GitHub 连接失败：当前网络无法稳定访问更新服务。可以稍后重试，或打开下载页手动安装最新版本。",
-      technicalMessage
-    };
-  }
-
-  return {
-    userMessage: "更新检查失败。可以重试，或打开下载页手动安装最新版本。",
-    technicalMessage
-  };
 }

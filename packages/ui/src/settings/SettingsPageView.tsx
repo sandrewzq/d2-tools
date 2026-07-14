@@ -164,7 +164,7 @@ function DefaultSettingsPrototype(props: { interfaceLocale?: InterfaceLocale }) 
                 </div>
               </div>
               <div className="app-setting-group">
-                {["导出备份", "导入备份", "清理缓存"].map((label) => (
+                {["创建便携备份", "恢复便携备份", "清理缓存"].map((label) => (
                   <div className="app-setting-row" key={label}>
                     <div>
                       <strong>{settingsText(copy, label)}</strong>
@@ -292,7 +292,7 @@ function DefaultSettingsPrototype(props: { interfaceLocale?: InterfaceLocale }) 
                 <span>{settingsText(copy, "迁移电脑和清理缓存")}</span>
               </div>
             </div>
-            {["导出备份", "导入备份", "清理缓存"].map((label) => (
+            {["创建便携备份", "恢复便携备份", "清理缓存"].map((label) => (
               <div className="app-setting-row" key={label}>
                 <div>
                   <strong>{settingsText(copy, label)}</strong>

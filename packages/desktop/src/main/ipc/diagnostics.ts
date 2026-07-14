@@ -1,4 +1,4 @@
-import { ipcMain } from "electron";
+import { app, ipcMain } from "electron";
 import { loadActionLog } from "@d2-tools/core/actions/log";
 import { loadConfig } from "@d2-tools/services/config/store";
 import { buildDiagnosticsExport } from "@d2-tools/core/diagnostics/export";
@@ -9,7 +9,7 @@ export function registerDiagnosticsIpcHandlers(): void {
   ipcMain.handle("diagnostics:export", () => {
     const config = loadConfig();
     return buildDiagnosticsExport({
-      app_version: "0.0.4",
+      app_version: app.getVersion(),
       config,
       manifest: getManifestStatus(config.data.data_dir),
       action_log: loadActionLog(config.data.data_dir, 20),
