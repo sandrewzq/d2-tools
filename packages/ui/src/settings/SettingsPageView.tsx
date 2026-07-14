@@ -264,7 +264,7 @@ function DefaultSettingsPrototype(props: { interfaceLocale?: InterfaceLocale }) 
               </div>
             </div>
             <div className="button-row">
-              <button className="secondary-button" type="button">{settingsText(copy, "检查更新")}</button>
+              <button className="secondary-button" type="button">{settingsText(copy, "检查软件版本")}</button>
               <button className="secondary-button" type="button">{settingsText(copy, "立即更新")}</button>
               <button className="secondary-button" type="button">{settingsText(copy, "修复资料库")}</button>
             </div>

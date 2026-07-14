@@ -34,7 +34,7 @@ export type SettingsPageModel = {
   error: string;
   diagnosticDataDir: string;
   writeActionsEnabled: boolean;
-  updateSnapshot: any | null;
+  appUpdateSnapshot: any | null;
   manifestStatus: any | null;
   manifestStatusError: string;
   isLoadingManifestStatus: boolean;

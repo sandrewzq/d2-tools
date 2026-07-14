@@ -234,7 +234,7 @@ describe("shared UI i18n", () => {
         error=""
         diagnosticDataDir=""
         writeActionsEnabled={false}
-        updateSnapshot={null}
+        appUpdateSnapshot={null}
         manifestStatus={null}
         manifestStatusError=""
         isLoadingManifestStatus={false}
@@ -253,11 +253,11 @@ describe("shared UI i18n", () => {
         aiSettingsPanel={<p>AI</p>}
         onOpenDataDir={() => undefined}
         onWriteActionsEnabledChange={() => undefined}
-        onCheckForUpdates={() => undefined}
-        onDownloadUpdate={() => undefined}
-        onQuitAndInstallUpdate={() => undefined}
-        onOpenUpdateDownloadPage={() => undefined}
-        onCopyUpdateDiagnostic={() => undefined}
+        onCheckAppUpdate={() => undefined}
+        onDownloadAppUpdate={() => undefined}
+        onQuitAndInstallAppUpdate={() => undefined}
+        onOpenAppUpdateDownloadPage={() => undefined}
+        onCopyAppUpdateDiagnostic={() => undefined}
         onRefreshManifestStatus={() => undefined}
         onInitializeManifest={() => undefined}
         onRepairManifest={() => undefined}

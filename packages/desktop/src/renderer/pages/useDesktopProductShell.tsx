@@ -7,7 +7,7 @@ import {
 } from "@d2-tools/ui";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api/client";
-import type { AccountSummary, ManifestStatus, StartupState, UpdateSnapshot } from "../api/types";
+import type { AccountSummary, AppUpdateSnapshot, ManifestStatus, StartupState } from "../api/types";
 import { GlobalAssistantSidebar } from "../components/GlobalAssistantSidebar";
 import { useAccountWorkspace } from "../features/account/useAccountWorkspace";
 import { useDailySummary } from "../features/daily/useDailySummary";
@@ -171,7 +171,7 @@ export function useDesktopProductShell(props: {
   const currentPageMeta = homeDerivedState.currentPageMeta;
   const assistantPageContext = homeDerivedState.assistantPageContext;
   const isAiConfigured = homeDerivedState.isAiConfigured;
-  const updateSnapshot = diagnostics.updateSnapshot;
+  const appUpdateSnapshot = diagnostics.appUpdateSnapshot;
   const shellStatus = buildShellStatus({
     manifestStatus: diagnostics.manifestStatus,
     accountSummary,
@@ -181,7 +181,7 @@ export function useDesktopProductShell(props: {
     canRefreshAccount,
     isBungieConfigured: props.state.cards.bungieConfig.status === "ready",
     isAiConfigured,
-    updateSnapshot,
+    appUpdateSnapshot,
     onRepairManifest: () => void diagnostics.repairManifest()
   });
 
@@ -379,7 +379,7 @@ export function useDesktopProductShell(props: {
       error: diagnostics.settingsError,
       diagnosticDataDir: diagnostics.diagnosticDataDir,
       writeActionsEnabled: diagnostics.writeActionsEnabled,
-      updateSnapshot: diagnostics.updateSnapshot,
+      appUpdateSnapshot: diagnostics.appUpdateSnapshot,
       manifestStatus: diagnostics.manifestStatus,
       manifestStatusError: diagnostics.manifestStatusError,
       isLoadingManifestStatus: diagnostics.isLoadingManifestStatus,
@@ -398,11 +398,11 @@ export function useDesktopProductShell(props: {
       onAiSettingsSaved: diagnostics.handleAiSettingsSaved,
       onOpenDataDir: () => void api.openDataDir(),
       onWriteActionsEnabledChange: (enabled) => void diagnostics.saveWriteActionsEnabled(enabled),
-      onCheckForUpdates: () => void diagnostics.checkForUpdates(),
-      onDownloadUpdate: () => void diagnostics.downloadUpdate(),
-      onQuitAndInstallUpdate: () => void diagnostics.quitAndInstallUpdate(),
-      onOpenUpdateDownloadPage: () => void diagnostics.openUpdateDownloadPage(),
-      onCopyUpdateDiagnostic: () => void diagnostics.copyUpdateDiagnostic(),
+      onCheckAppUpdate: () => void diagnostics.checkAppUpdate(),
+      onDownloadAppUpdate: () => void diagnostics.downloadAppUpdate(),
+      onQuitAndInstallAppUpdate: () => void diagnostics.quitAndInstallAppUpdate(),
+      onOpenAppUpdateDownloadPage: () => void diagnostics.openAppUpdateDownloadPage(),
+      onCopyAppUpdateDiagnostic: () => void diagnostics.copyAppUpdateDiagnostic(),
       onRefreshManifestStatus: () => void diagnostics.refreshManifestStatus(),
       onInitializeManifest: () => void diagnostics.initializeManifest(),
       onRepairManifest: () => void diagnostics.repairManifest(),
@@ -491,7 +491,7 @@ function buildShellStatus(input: {
   canRefreshAccount: boolean;
   isBungieConfigured: boolean;
   isAiConfigured: boolean;
-  updateSnapshot: UpdateSnapshot | null;
+  appUpdateSnapshot: AppUpdateSnapshot | null;
   onRepairManifest: () => void;
 }): ShellStatusItem[] {
   const needsLibraryRepair = Boolean(input.manifestStatus?.missing_required_components?.length);
@@ -526,8 +526,8 @@ function buildShellStatus(input: {
     {
       key: "app-version",
       label: "应用版本",
-      value: formatUpdateShellStatus(input.updateSnapshot),
-      tone: getUpdateStatusTone(input.updateSnapshot)
+      value: formatAppUpdateShellStatus(input.appUpdateSnapshot),
+      tone: getAppUpdateStatusTone(input.appUpdateSnapshot)
     },
   ];
 }
@@ -565,7 +565,7 @@ function formatManifestShellStatus(status: ManifestStatus | null): string {
   return formatLibraryVersion(status.version) ?? "可用";
 }
 
-function formatUpdateShellStatus(snapshot: UpdateSnapshot | null): string {
+function formatAppUpdateShellStatus(snapshot: AppUpdateSnapshot | null): string {
   const version = snapshot?.current_version ?? "未读取";
   if (!snapshot) return version;
   if (snapshot.status === "available") return `${version} 有新版`;
@@ -607,7 +607,7 @@ function getManifestStatusTone(status: ManifestStatus | null): ShellStatusItem["
   return "ready";
 }
 
-function getUpdateStatusTone(snapshot: UpdateSnapshot | null): ShellStatusItem["tone"] {
+function getAppUpdateStatusTone(snapshot: AppUpdateSnapshot | null): ShellStatusItem["tone"] {
   if (!snapshot) return "neutral";
   if (snapshot.status === "error") return "error";
   if (snapshot.status === "available" || snapshot.status === "downloaded" || snapshot.status === "downloading") return "warning";

@@ -14,7 +14,7 @@ import {
   useDiagnosticsStatusState,
   useLanguagePreferencesState
 } from "./useDiagnosticsSettingsState";
-import { useUpdateFlow } from "./useUpdateFlow";
+import { useAppUpdateFlow } from "./useAppUpdateFlow";
 import { useBackgroundTasks } from "../../shared/hooks/useBackgroundTasks";
 import { useManifestStatus } from "../../shared/hooks/useManifestStatus";
 
@@ -30,7 +30,7 @@ export function useDiagnosticsSettings(input: {
   const diagnosticsStatus = useDiagnosticsStatusState();
   const aiWriteSettings = useAiWriteSettingsState();
   const actionLogState = useActionLogState();
-  const updateFlow = useUpdateFlow();
+  const appUpdateFlow = useAppUpdateFlow();
   const backgroundTaskState = useBackgroundTasks();
   const manifestStatusState = useManifestStatus();
   const colorModeState = useColorModeState(input.initialColorMode);
@@ -47,8 +47,8 @@ export function useDiagnosticsSettings(input: {
     setColorMode: colorModeState.setColorMode,
     setLanguagePreferences: languagePreferencesState.setLanguagePreferences,
     setActionLog: actionLogState.setActionLog,
-    setSettingsMessage: updateFlow.setSettingsMessage,
-    setSettingsError: updateFlow.setSettingsError
+    setSettingsMessage: appUpdateFlow.setSettingsMessage,
+    setSettingsError: appUpdateFlow.setSettingsError
   });
 
   return {
@@ -58,18 +58,18 @@ export function useDiagnosticsSettings(input: {
     aiSettings: aiWriteSettings.aiSettings,
     activeBackgroundTasks: backgroundTaskState.activeBackgroundTasks,
     backgroundTasks: backgroundTaskState.backgroundTasks,
-    checkForUpdates: updateFlow.checkForUpdates,
-    copyActionDiagnostic: (entry: ActionLogEntry) => copyActionDiagnostic(entry, updateFlow.setSettingsMessage, updateFlow.setSettingsError),
-    copyDataBackupGuide: () => copyDataBackupGuide(diagnosticsStatus.diagnosticDataDir, updateFlow.setSettingsMessage, updateFlow.setSettingsError),
-    copyDiagnosticsExport: () => copyDiagnosticsExport(updateFlow.setSettingsMessage, updateFlow.setSettingsError),
-    copyUpdateDiagnostic: updateFlow.copyUpdateDiagnostic,
-    exportConfig: () => runConfigBackupAction(api.exportConfig, updateFlow.setSettingsMessage, updateFlow.setSettingsError),
-    importConfig: () => runConfigBackupAction(api.importConfig, updateFlow.setSettingsMessage, updateFlow.setSettingsError),
-    clearCache: () => runConfigBackupAction(api.clearCache, updateFlow.setSettingsMessage, updateFlow.setSettingsError),
+    checkAppUpdate: appUpdateFlow.checkAppUpdate,
+    copyActionDiagnostic: (entry: ActionLogEntry) => copyActionDiagnostic(entry, appUpdateFlow.setSettingsMessage, appUpdateFlow.setSettingsError),
+    copyDataBackupGuide: () => copyDataBackupGuide(diagnosticsStatus.diagnosticDataDir, appUpdateFlow.setSettingsMessage, appUpdateFlow.setSettingsError),
+    copyDiagnosticsExport: () => copyDiagnosticsExport(appUpdateFlow.setSettingsMessage, appUpdateFlow.setSettingsError),
+    copyAppUpdateDiagnostic: appUpdateFlow.copyAppUpdateDiagnostic,
+    exportConfig: () => runConfigBackupAction(api.exportConfig, appUpdateFlow.setSettingsMessage, appUpdateFlow.setSettingsError),
+    importConfig: () => runConfigBackupAction(api.importConfig, appUpdateFlow.setSettingsMessage, appUpdateFlow.setSettingsError),
+    clearCache: () => runConfigBackupAction(api.clearCache, appUpdateFlow.setSettingsMessage, appUpdateFlow.setSettingsError),
     diagnosticDataDir: diagnosticsStatus.diagnosticDataDir,
     diagnosticError: diagnosticsStatus.diagnosticError,
     diagnosticManifestVersion: diagnosticsStatus.diagnosticManifestVersion,
-    downloadUpdate: updateFlow.downloadUpdate,
+    downloadAppUpdate: appUpdateFlow.downloadAppUpdate,
     handleAiSettingsSaved: settingsModel.handleAiSettingsSaved,
     colorMode: colorModeState.colorMode,
     languagePreferences: languagePreferencesState.languagePreferences,
@@ -77,11 +77,11 @@ export function useDiagnosticsSettings(input: {
     initializeManifest: manifestStatusState.initializeManifest,
     isInitializingManifest: manifestStatusState.isInitializingManifest,
     isLoadingManifestStatus: manifestStatusState.isLoadingManifestStatus,
-    loadActionLog: () => loadActionLog(actionLogState.setActionLog, updateFlow.setSettingsError),
+    loadActionLog: () => loadActionLog(actionLogState.setActionLog, appUpdateFlow.setSettingsError),
     manifestStatus: manifestStatusState.manifestStatus,
     manifestStatusError: manifestStatusState.manifestStatusError,
-    openUpdateDownloadPage: updateFlow.openUpdateDownloadPage,
-    quitAndInstallUpdate: updateFlow.quitAndInstallUpdate,
+    openAppUpdateDownloadPage: appUpdateFlow.openAppUpdateDownloadPage,
+    quitAndInstallAppUpdate: appUpdateFlow.quitAndInstallAppUpdate,
     refreshManifestStatus: manifestStatusState.refreshManifestStatus,
     repairManifest: manifestStatusState.repairManifest,
     refreshDiagnostics: settingsModel.refreshDiagnostics,
@@ -102,10 +102,10 @@ export function useDiagnosticsSettings(input: {
     setActionLogResultFilter: actionLogState.setActionLogResultFilter,
     setActionLogTypeFilter: actionLogState.setActionLogTypeFilter,
     setWriteActionsEnabled: aiWriteSettings.setWriteActionsEnabled,
-    settingsError: updateFlow.settingsError,
-    settingsMessage: updateFlow.settingsMessage,
+    settingsError: appUpdateFlow.settingsError,
+    settingsMessage: appUpdateFlow.settingsMessage,
     latestBackgroundTask: backgroundTaskState.latestBackgroundTask,
-    updateSnapshot: updateFlow.updateSnapshot,
+    appUpdateSnapshot: appUpdateFlow.appUpdateSnapshot,
     writeActionsEnabled: aiWriteSettings.writeActionsEnabled
   };
 }

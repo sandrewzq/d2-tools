@@ -1,4 +1,4 @@
-export type UpdateStatus =
+export type AppUpdateStatus =
   | "idle"
   | "checking"
   | "available"
@@ -7,8 +7,8 @@ export type UpdateStatus =
   | "downloaded"
   | "error";
 
-export type UpdateSnapshot = {
-  status: UpdateStatus;
+export type AppUpdateSnapshot = {
+  status: AppUpdateStatus;
   current_version: string;
   install_path: string;
   release_page_url: string;
@@ -21,3 +21,6 @@ export type UpdateSnapshot = {
   last_checked_at?: string;
   progress_percent?: number;
 };
+
+export type UpdateStatus = AppUpdateStatus;
+export type UpdateSnapshot = AppUpdateSnapshot;

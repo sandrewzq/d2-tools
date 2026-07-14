@@ -38,7 +38,7 @@ import type { WeeklySummary } from "@d2-tools/core/weekly/summary";
 import type { VendorInventorySnapshot } from "@d2-tools/core/vendors/inventory";
 import type { VendorInventoryRequest } from "../renderer/api/vendorsApi.js";
 import type { BackgroundTaskSnapshot } from "../shared/backgroundTasks.js";
-import type { UpdateSnapshot } from "../shared/updateTypes.js";
+import type { AppUpdateSnapshot } from "../shared/updateTypes.js";
 
 type ItemLockActionInput = {
   membership_type: number;
@@ -229,13 +229,13 @@ contextBridge.exposeInMainWorld("d2", {
   getActivitySummary: (input: { membership_type: number; membership_id: string; character_ids: string[] }) =>
     ipcRenderer.invoke("activities:summary", input) as Promise<ActivityHistorySummary>,
   exportDiagnostics: () => ipcRenderer.invoke("diagnostics:export") as Promise<string>,
-  getUpdateStatus: () => ipcRenderer.invoke("updates:get-status") as Promise<UpdateSnapshot>,
-  checkForUpdates: () => ipcRenderer.invoke("updates:check") as Promise<UpdateSnapshot>,
-  downloadUpdate: () => ipcRenderer.invoke("updates:download") as Promise<UpdateSnapshot>,
+  getUpdateStatus: () => ipcRenderer.invoke("updates:get-status") as Promise<AppUpdateSnapshot>,
+  checkForUpdates: () => ipcRenderer.invoke("updates:check") as Promise<AppUpdateSnapshot>,
+  downloadUpdate: () => ipcRenderer.invoke("updates:download") as Promise<AppUpdateSnapshot>,
   quitAndInstallUpdate: () => ipcRenderer.invoke("updates:quit-and-install") as Promise<void>,
   openUpdateDownloadPage: () => ipcRenderer.invoke("updates:open-download-page") as Promise<void>,
-  onUpdateStatusChanged: (callback: (snapshot: UpdateSnapshot) => void) => {
-    const listener = (_event: Electron.IpcRendererEvent, snapshot: UpdateSnapshot) => callback(snapshot);
+  onUpdateStatusChanged: (callback: (snapshot: AppUpdateSnapshot) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, snapshot: AppUpdateSnapshot) => callback(snapshot);
     ipcRenderer.on("updates:status", listener);
     return () => ipcRenderer.removeListener("updates:status", listener);
   },

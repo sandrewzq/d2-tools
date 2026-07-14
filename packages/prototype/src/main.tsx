@@ -326,11 +326,11 @@ function PrototypeApp() {
               onReauthorizeAccount={() => undefined}
               onOpenDataDir={() => undefined}
               onWriteActionsEnabledChange={() => undefined}
-              onCheckForUpdates={() => undefined}
-              onDownloadUpdate={() => undefined}
-              onQuitAndInstallUpdate={() => undefined}
-              onOpenUpdateDownloadPage={() => undefined}
-              onCopyUpdateDiagnostic={() => undefined}
+              onCheckAppUpdate={() => undefined}
+              onDownloadAppUpdate={() => undefined}
+              onQuitAndInstallAppUpdate={() => undefined}
+              onOpenAppUpdateDownloadPage={() => undefined}
+              onCopyAppUpdateDiagnostic={() => undefined}
               onRefreshManifestStatus={() => undefined}
               onInitializeManifest={() => undefined}
               onRepairManifest={() => undefined}

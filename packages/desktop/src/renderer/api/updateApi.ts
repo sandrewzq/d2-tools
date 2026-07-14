@@ -1,16 +1,19 @@
-import type { UpdateSnapshot as SharedUpdateSnapshot, UpdateStatus as SharedUpdateStatus } from "../../shared/updateTypes";
+import type { AppUpdateSnapshot as SharedAppUpdateSnapshot, AppUpdateStatus as SharedAppUpdateStatus } from "../../shared/updateTypes";
 
-export type UpdateStatus = SharedUpdateStatus;
+export type AppUpdateStatus = SharedAppUpdateStatus;
 
-export type UpdateSnapshot = SharedUpdateSnapshot & {
+export type AppUpdateSnapshot = SharedAppUpdateSnapshot & {
   install_path: string;
 };
 
+export type UpdateStatus = AppUpdateStatus;
+export type UpdateSnapshot = AppUpdateSnapshot;
+
 export type UpdateApi = {
-  getUpdateStatus(): Promise<UpdateSnapshot>;
-  checkForUpdates(): Promise<UpdateSnapshot>;
-  downloadUpdate(): Promise<UpdateSnapshot>;
+  getUpdateStatus(): Promise<AppUpdateSnapshot>;
+  checkForUpdates(): Promise<AppUpdateSnapshot>;
+  downloadUpdate(): Promise<AppUpdateSnapshot>;
   quitAndInstallUpdate(): Promise<void>;
   openUpdateDownloadPage(): Promise<void>;
-  onUpdateStatusChanged(callback: (snapshot: UpdateSnapshot) => void): () => void;
+  onUpdateStatusChanged(callback: (snapshot: AppUpdateSnapshot) => void): () => void;
 };

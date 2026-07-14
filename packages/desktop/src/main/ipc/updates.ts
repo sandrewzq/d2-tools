@@ -3,7 +3,7 @@ import updaterPkg from "electron-updater";
 import { createRequire } from "node:module";
 import { dirname } from "node:path";
 import { startBackgroundTask } from "../backgroundTasks.js";
-import type { UpdateSnapshot } from "../../shared/updateTypes.js";
+import type { AppUpdateSnapshot } from "../../shared/updateTypes.js";
 
 const { autoUpdater } = updaterPkg;
 const require = createRequire(import.meta.url);
@@ -14,18 +14,18 @@ const updatesEnabled = app.isPackaged && !isDevelopment;
 const releasePageUrl = "https://github.com/sandrewzq/d2-tools/releases/latest";
 const mirrorFeedUrl = process.env.D2_TOOLS_UPDATE_FEED_URL?.trim();
 const UPDATE_RETRY_DELAYS_MS = [30_000, 120_000, 300_000, 900_000, 1_800_000, Number.POSITIVE_INFINITY];
-let updateSnapshot: UpdateSnapshot = createBaseSnapshot("idle");
+let appUpdateSnapshot: AppUpdateSnapshot = createBaseAppUpdateSnapshot("idle");
 let hasRegisteredUpdaterEvents = false;
 let hasScheduledInitialCheck = false;
 
 export function registerUpdateIpcHandlers(): void {
   configureUpdater();
 
-  ipcMain.handle("updates:get-status", () => updateSnapshot);
-  ipcMain.handle("updates:check", () => checkForUpdates());
-  ipcMain.handle("updates:download", () => downloadUpdate());
+  ipcMain.handle("updates:get-status", () => appUpdateSnapshot);
+  ipcMain.handle("updates:check", () => checkAppUpdates());
+  ipcMain.handle("updates:download", () => downloadAppUpdate());
   ipcMain.handle("updates:open-download-page", async () => {
-    await shell.openExternal(updateSnapshot.release_page_url || releasePageUrl);
+    await shell.openExternal(appUpdateSnapshot.release_page_url || releasePageUrl);
   });
   ipcMain.handle("updates:quit-and-install", () => {
     if (!updatesEnabled) {
@@ -43,11 +43,11 @@ export function scheduleInitialUpdateCheck(delayMs = 10000): void {
 
   hasScheduledInitialCheck = true;
   setTimeout(() => {
-    void checkForUpdates({ restartIfRetrying: false });
+    void checkAppUpdates({ restartIfRetrying: false });
   }, delayMs);
 }
 
-async function checkForUpdates(options: { restartIfRetrying?: boolean } = {}): Promise<UpdateSnapshot> {
+async function checkAppUpdates(options: { restartIfRetrying?: boolean } = {}): Promise<AppUpdateSnapshot> {
   startBackgroundTask({
     type: "app-update-check",
     title: "检查应用更新",
@@ -55,33 +55,33 @@ async function checkForUpdates(options: { restartIfRetrying?: boolean } = {}): P
     retryDelaysMs: getUpdateRetryDelaysMs(),
     restartIfRetrying: options.restartIfRetrying ?? true,
     run: async () => {
-      await runUpdateCheck();
+      await runAppUpdateCheck();
     }
   });
 
-  return updateSnapshot;
+  return appUpdateSnapshot;
 }
 
 function getUpdateRetryDelaysMs(): number[] | undefined {
   return updatesEnabled ? UPDATE_RETRY_DELAYS_MS : undefined;
 }
 
-async function runUpdateCheck(): Promise<UpdateSnapshot> {
+async function runAppUpdateCheck(): Promise<AppUpdateSnapshot> {
   if (!updatesEnabled) {
-    return setUpdateSnapshot({
-      ...createBaseSnapshot("not_available"),
+    return setAppUpdateSnapshot({
+      ...createBaseAppUpdateSnapshot("not_available"),
       error: "开发环境不会检查线上更新",
       user_message: "开发环境不会检查线上更新。打包安装后会使用正式更新通道。"
     });
   }
 
-  setUpdateSnapshot({ ...createBaseSnapshot("checking"), last_checked_at: new Date().toISOString() });
+  setAppUpdateSnapshot({ ...createBaseAppUpdateSnapshot("checking"), last_checked_at: new Date().toISOString() });
   try {
     await autoUpdater.checkForUpdates();
   } catch (error) {
     const normalized = normalizeUpdateError(error);
-    setUpdateSnapshot({
-      ...createBaseSnapshot("error"),
+    setAppUpdateSnapshot({
+      ...createBaseAppUpdateSnapshot("error"),
       last_checked_at: new Date().toISOString(),
       error: normalized.userMessage,
       user_message: normalized.userMessage,
@@ -89,48 +89,48 @@ async function runUpdateCheck(): Promise<UpdateSnapshot> {
     });
     throw new Error(normalized.technicalMessage);
   }
-  return updateSnapshot;
+  return appUpdateSnapshot;
 }
 
-async function downloadUpdate(): Promise<UpdateSnapshot> {
+async function downloadAppUpdate(): Promise<AppUpdateSnapshot> {
   startBackgroundTask({
     type: "app-update-download",
     title: "下载应用更新",
     message: "正在下载应用更新。",
     run: async ({ update }) => {
-      update({ progress_percent: updateSnapshot.progress_percent ?? 0 });
-      await runUpdateDownload();
+      update({ progress_percent: appUpdateSnapshot.progress_percent ?? 0 });
+      await runAppUpdateDownload();
     }
   });
 
-  return updateSnapshot;
+  return appUpdateSnapshot;
 }
 
-async function runUpdateDownload(): Promise<UpdateSnapshot> {
+async function runAppUpdateDownload(): Promise<AppUpdateSnapshot> {
   if (!updatesEnabled) {
-    return setUpdateSnapshot({
-      ...createBaseSnapshot("not_available"),
+    return setAppUpdateSnapshot({
+      ...createBaseAppUpdateSnapshot("not_available"),
       error: "开发环境不会下载线上更新",
       user_message: "开发环境不会下载线上更新。打包安装后会使用正式更新通道。"
     });
   }
 
-  setUpdateSnapshot({ ...updateSnapshot, status: "downloading", error: undefined });
+  setAppUpdateSnapshot({ ...appUpdateSnapshot, status: "downloading", error: undefined });
   try {
     await autoUpdater.downloadUpdate();
   } catch (error) {
     const normalized = normalizeUpdateError(error);
-    setUpdateSnapshot({
-      ...createBaseSnapshot("error"),
-      available_version: updateSnapshot.available_version,
-      last_checked_at: updateSnapshot.last_checked_at,
+    setAppUpdateSnapshot({
+      ...createBaseAppUpdateSnapshot("error"),
+      available_version: appUpdateSnapshot.available_version,
+      last_checked_at: appUpdateSnapshot.last_checked_at,
       error: normalized.userMessage,
       user_message: normalized.userMessage,
       technical_error: normalized.technicalMessage
     });
     throw new Error(normalized.technicalMessage);
   }
-  return updateSnapshot;
+  return appUpdateSnapshot;
 }
 
 function configureUpdater(): void {
@@ -149,46 +149,46 @@ function configureUpdater(): void {
 
   hasRegisteredUpdaterEvents = true;
   autoUpdater.on("checking-for-update", () => {
-    setUpdateSnapshot({ ...createBaseSnapshot("checking"), last_checked_at: new Date().toISOString() });
+    setAppUpdateSnapshot({ ...createBaseAppUpdateSnapshot("checking"), last_checked_at: new Date().toISOString() });
   });
   autoUpdater.on("update-available", (info) => {
-    setUpdateSnapshot({
-      ...createBaseSnapshot("available"),
+    setAppUpdateSnapshot({
+      ...createBaseAppUpdateSnapshot("available"),
       available_version: info.version,
       last_checked_at: new Date().toISOString(),
       user_message: `发现新版本 ${info.version}，可先下载，下载完成后再重启安装。`
     });
   });
   autoUpdater.on("update-not-available", () => {
-    setUpdateSnapshot({
-      ...createBaseSnapshot("not_available"),
+    setAppUpdateSnapshot({
+      ...createBaseAppUpdateSnapshot("not_available"),
       last_checked_at: new Date().toISOString(),
       user_message: "当前已是最新版本。"
     });
   });
   autoUpdater.on("download-progress", (progress) => {
-    setUpdateSnapshot({
-      ...updateSnapshot,
+    setAppUpdateSnapshot({
+      ...appUpdateSnapshot,
       status: "downloading",
       user_message: "正在下载更新，下载完成后可以手动重启安装。",
       progress_percent: Math.round(progress.percent)
     });
   });
   autoUpdater.on("update-downloaded", (info) => {
-    setUpdateSnapshot({
-      ...createBaseSnapshot("downloaded"),
-      available_version: updateSnapshot.available_version ?? info.version,
+    setAppUpdateSnapshot({
+      ...createBaseAppUpdateSnapshot("downloaded"),
+      available_version: appUpdateSnapshot.available_version ?? info.version,
       downloaded_version: info.version,
-      last_checked_at: updateSnapshot.last_checked_at,
+      last_checked_at: appUpdateSnapshot.last_checked_at,
       user_message: `更新 ${info.version} 已下载，重启后安装。`
     });
   });
   autoUpdater.on("error", (error) => {
     const normalized = normalizeUpdateError(error);
-    setUpdateSnapshot({
-      ...createBaseSnapshot("error"),
-      available_version: updateSnapshot.available_version,
-      last_checked_at: updateSnapshot.last_checked_at,
+    setAppUpdateSnapshot({
+      ...createBaseAppUpdateSnapshot("error"),
+      available_version: appUpdateSnapshot.available_version,
+      last_checked_at: appUpdateSnapshot.last_checked_at,
       error: normalized.userMessage,
       user_message: normalized.userMessage,
       technical_error: normalized.technicalMessage
@@ -196,7 +196,7 @@ function configureUpdater(): void {
   });
 }
 
-function createBaseSnapshot(status: UpdateSnapshot["status"]): UpdateSnapshot {
+function createBaseAppUpdateSnapshot(status: AppUpdateSnapshot["status"]): AppUpdateSnapshot {
   return {
     status,
     current_version: getApplicationVersion(),
@@ -219,15 +219,15 @@ function getApplicationVersion(): string {
   return app.getVersion();
 }
 
-function setUpdateSnapshot(snapshot: UpdateSnapshot): UpdateSnapshot {
-  updateSnapshot = snapshot;
+function setAppUpdateSnapshot(snapshot: AppUpdateSnapshot): AppUpdateSnapshot {
+  appUpdateSnapshot = snapshot;
   for (const window of BrowserWindow.getAllWindows()) {
     if (window.isDestroyed()) {
       continue;
     }
-    window.webContents.send(updateChannel, updateSnapshot);
+    window.webContents.send(updateChannel, appUpdateSnapshot);
   }
-  return updateSnapshot;
+  return appUpdateSnapshot;
 }
 
 function getInstallPath(): string {

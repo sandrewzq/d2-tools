@@ -7,7 +7,7 @@ import {
 } from "@d2-tools/ui";
 import { selectSettingsPageModel } from "@d2-tools/app";
 import { api } from "../../api/client";
-import type { AccountSummary, ActionLogEntry, BackgroundTaskSnapshot, ManifestStatus, UpdateSnapshot } from "../../api/types";
+import type { AccountSummary, ActionLogEntry, AppUpdateSnapshot, BackgroundTaskSnapshot, ManifestStatus } from "../../api/types";
 import { AiSettingsPanel } from "../../components/AiSettingsPanel";
 import type { LanguagePreferences } from "./diagnosticsModel";
 
@@ -19,7 +19,7 @@ export function SettingsPage(props: {
   error: string;
   diagnosticDataDir: string;
   writeActionsEnabled: boolean;
-  updateSnapshot: UpdateSnapshot | null;
+  appUpdateSnapshot: AppUpdateSnapshot | null;
   manifestStatus: ManifestStatus | null;
   manifestStatusError: string;
   isLoadingManifestStatus: boolean;
@@ -38,11 +38,11 @@ export function SettingsPage(props: {
   onAiSettingsSaved: () => void;
   onOpenDataDir: () => void;
   onWriteActionsEnabledChange: (enabled: boolean) => void;
-  onCheckForUpdates: () => void;
-  onDownloadUpdate: () => void;
-  onQuitAndInstallUpdate: () => void;
-  onOpenUpdateDownloadPage: () => void;
-  onCopyUpdateDiagnostic: () => void;
+  onCheckAppUpdate: () => void;
+  onDownloadAppUpdate: () => void;
+  onQuitAndInstallAppUpdate: () => void;
+  onOpenAppUpdateDownloadPage: () => void;
+  onCopyAppUpdateDiagnostic: () => void;
   onRefreshManifestStatus: () => void;
   onInitializeManifest: () => void;
   onRepairManifest: () => void;

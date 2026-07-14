@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { api } from "../../api/client";
-import type { UpdateSnapshot } from "../../api/types";
+import type { AppUpdateSnapshot } from "../../api/types";
 
-export function useUpdateFlow() {
-  const [updateSnapshot, setUpdateSnapshot] = useState<UpdateSnapshot | null>(null);
+export function useAppUpdateFlow() {
+  const [appUpdateSnapshot, setAppUpdateSnapshot] = useState<AppUpdateSnapshot | null>(null);
   const [settingsMessage, setSettingsMessage] = useState("");
   const [settingsError, setSettingsError] = useState("");
 
@@ -11,7 +11,7 @@ export function useUpdateFlow() {
     let mounted = true;
     void api.getUpdateStatus()
       .then((snapshot) => {
-        if (mounted) setUpdateSnapshot(snapshot);
+        if (mounted) setAppUpdateSnapshot(snapshot);
       })
       .catch((error) => {
         if (mounted) {
@@ -20,7 +20,7 @@ export function useUpdateFlow() {
       });
 
     const unsubscribe = api.onUpdateStatusChanged((snapshot) => {
-      setUpdateSnapshot(snapshot);
+      setAppUpdateSnapshot(snapshot);
     });
 
     return () => {
@@ -29,27 +29,27 @@ export function useUpdateFlow() {
     };
   }, []);
 
-  async function checkForUpdates() {
+  async function checkAppUpdate() {
     setSettingsMessage("");
     setSettingsError("");
     try {
-      setUpdateSnapshot(await api.checkForUpdates());
+      setAppUpdateSnapshot(await api.checkForUpdates());
     } catch (error) {
       setSettingsError(error instanceof Error ? error.message : "更新检查失败");
     }
   }
 
-  async function downloadUpdate() {
+  async function downloadAppUpdate() {
     setSettingsMessage("");
     setSettingsError("");
     try {
-      setUpdateSnapshot(await api.downloadUpdate());
+      setAppUpdateSnapshot(await api.downloadUpdate());
     } catch (error) {
       setSettingsError(error instanceof Error ? error.message : "更新下载失败");
     }
   }
 
-  async function quitAndInstallUpdate() {
+  async function quitAndInstallAppUpdate() {
     setSettingsMessage("");
     setSettingsError("");
     try {
@@ -59,7 +59,7 @@ export function useUpdateFlow() {
     }
   }
 
-  async function openUpdateDownloadPage() {
+  async function openAppUpdateDownloadPage() {
     setSettingsMessage("");
     setSettingsError("");
     try {
@@ -69,11 +69,11 @@ export function useUpdateFlow() {
     }
   }
 
-  async function copyUpdateDiagnostic() {
+  async function copyAppUpdateDiagnostic() {
     setSettingsMessage("");
     setSettingsError("");
     try {
-      await navigator.clipboard.writeText(buildUpdateDiagnosticText(updateSnapshot));
+      await navigator.clipboard.writeText(buildAppUpdateDiagnosticText(appUpdateSnapshot));
       setSettingsMessage("更新诊断已复制。");
     } catch (error) {
       setSettingsError(error instanceof Error ? error.message : "复制更新诊断失败");
@@ -81,20 +81,20 @@ export function useUpdateFlow() {
   }
 
   return {
-    updateSnapshot,
+    appUpdateSnapshot,
     settingsMessage,
     settingsError,
     setSettingsMessage,
     setSettingsError,
-    checkForUpdates,
-    downloadUpdate,
-    quitAndInstallUpdate,
-    openUpdateDownloadPage,
-    copyUpdateDiagnostic
+    checkAppUpdate,
+    downloadAppUpdate,
+    quitAndInstallAppUpdate,
+    openAppUpdateDownloadPage,
+    copyAppUpdateDiagnostic
   };
 }
 
-function buildUpdateDiagnosticText(snapshot: UpdateSnapshot | null): string {
+function buildAppUpdateDiagnosticText(snapshot: AppUpdateSnapshot | null): string {
   if (!snapshot) {
     return "d2-tools 更新诊断：尚未读取更新状态。";
   }

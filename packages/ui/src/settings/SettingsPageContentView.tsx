@@ -12,7 +12,7 @@ type AccountSummary = any;
 type ActionLogEntry = any;
 type BackgroundTaskSnapshot = any;
 type ManifestStatus = any;
-type UpdateSnapshot = any;
+type AppUpdateSnapshot = any;
 
 export type SettingsActionLogResultFilter = "all" | "success" | "failed";
 export type SettingsActionLogTypeFilter =
@@ -48,7 +48,7 @@ export type SettingsPageContentViewProps = {
   error: string;
   diagnosticDataDir: string;
   writeActionsEnabled: boolean;
-  updateSnapshot: UpdateSnapshot | null;
+  appUpdateSnapshot: AppUpdateSnapshot | null;
   manifestStatus: ManifestStatus | null;
   manifestStatusError: string;
   isLoadingManifestStatus: boolean;
@@ -67,11 +67,11 @@ export type SettingsPageContentViewProps = {
   aiSettingsPanel: ReactNode;
   onOpenDataDir: () => void;
   onWriteActionsEnabledChange: (enabled: boolean) => void;
-  onCheckForUpdates: () => void;
-  onDownloadUpdate: () => void;
-  onQuitAndInstallUpdate: () => void;
-  onOpenUpdateDownloadPage: () => void;
-  onCopyUpdateDiagnostic: () => void;
+  onCheckAppUpdate: () => void;
+  onDownloadAppUpdate: () => void;
+  onQuitAndInstallAppUpdate: () => void;
+  onOpenAppUpdateDownloadPage: () => void;
+  onCopyAppUpdateDiagnostic: () => void;
   onRefreshManifestStatus: () => void;
   onInitializeManifest: () => void;
   onRepairManifest: () => void;
@@ -129,8 +129,8 @@ export function SettingsPageContentView(props: SettingsPageContentViewProps) {
     props.actionLogResultFilter,
     props.actionLogTypeFilter
   ).slice(0, 8);
-  const updateUi = getUpdateUi(props.updateSnapshot, copy);
-  const updateProgress = formatUpdateProgress(props.updateSnapshot);
+  const updateUi = getAppUpdateUi(props.appUpdateSnapshot, copy);
+  const updateProgress = formatAppUpdateProgress(props.appUpdateSnapshot);
   const libraryUi = getLibraryUi(props.manifestStatus, props.manifestStatusError, props.isLoadingManifestStatus, copy);
   const accountUi = getAccountUi(props.accountSummary, props.accountError, props.isLoadingAccount, copy);
   const libraryVersion = formatLibraryVersion(props.manifestStatus?.version);
@@ -244,7 +244,7 @@ export function SettingsPageContentView(props: SettingsPageContentViewProps) {
                 </div>
                 <div className={`app-metric status-${updateUi.tone}`}>
                   <span>{copy.labels.appVersion}</span>
-                  <strong>{props.updateSnapshot?.current_version ?? settingsText(copy, "未读取")}</strong>
+                  <strong>{props.appUpdateSnapshot?.current_version ?? settingsText(copy, "未读取")}</strong>
                   <span>{updateUi.statusLabel}</span>
                 </div>
                 <div className={`app-metric status-${backgroundTaskUi.tone}`}>
@@ -266,17 +266,17 @@ export function SettingsPageContentView(props: SettingsPageContentViewProps) {
               <div className="app-metric-grid">
                 <div className="app-metric status-neutral">
                   <span>{settingsText(copy, "应用版本")}</span>
-                  <strong>{props.updateSnapshot?.current_version ?? settingsText(copy, "未读取")}</strong>
+                  <strong>{props.appUpdateSnapshot?.current_version ?? settingsText(copy, "未读取")}</strong>
                   <span>{settingsText(copy, "当前安装版本")}</span>
                 </div>
                 <div className="app-metric status-neutral">
                   <span>{settingsText(copy, "更新来源")}</span>
-                  <strong>{props.updateSnapshot?.update_source_label ?? "GitHub Release"}</strong>
+                  <strong>{props.appUpdateSnapshot?.update_source_label ?? "GitHub Release"}</strong>
                   <span>{settingsText(copy, "GitHub 连接失败时可打开下载页手动处理")}</span>
                 </div>
                 <div className="app-metric status-neutral">
                   <span>{settingsText(copy, "上次检查")}</span>
-                  <strong>{formatUpdateCheckedAt(props.updateSnapshot?.last_checked_at, interfaceLocale, copy)}</strong>
+                  <strong>{formatUpdateCheckedAt(props.appUpdateSnapshot?.last_checked_at, interfaceLocale, copy)}</strong>
                   <span>{settingsText(copy, "应用更新检查时间")}</span>
                 </div>
               </div>
@@ -286,11 +286,11 @@ export function SettingsPageContentView(props: SettingsPageContentViewProps) {
                 </div>
               ) : null}
               <div className="button-row settings-update-actions">
-                <button type="button" className="secondary-button" disabled={props.updateSnapshot?.status === "checking"} onClick={props.onCheckForUpdates}>{settingsText(copy, "检查更新")}</button>
-                <button type="button" className="secondary-button" disabled={props.updateSnapshot?.status !== "available"} onClick={props.onDownloadUpdate}>{settingsText(copy, "下载更新")}</button>
-                <button type="button" disabled={props.updateSnapshot?.status !== "downloaded"} onClick={props.onQuitAndInstallUpdate}>{settingsText(copy, "重启并安装")}</button>
-                <button type="button" className="secondary-button" onClick={props.onOpenUpdateDownloadPage}>{settingsText(copy, "打开下载页")}</button>
-                <button type="button" className="secondary-button" onClick={props.onCopyUpdateDiagnostic}>{settingsText(copy, "复制更新诊断")}</button>
+                <button type="button" className="secondary-button" disabled={props.appUpdateSnapshot?.status === "checking"} onClick={props.onCheckAppUpdate}>{settingsText(copy, "检查软件版本")}</button>
+                <button type="button" className="secondary-button" disabled={props.appUpdateSnapshot?.status !== "available"} onClick={props.onDownloadAppUpdate}>{settingsText(copy, "下载更新")}</button>
+                <button type="button" disabled={props.appUpdateSnapshot?.status !== "downloaded"} onClick={props.onQuitAndInstallAppUpdate}>{settingsText(copy, "重启并安装")}</button>
+                <button type="button" className="secondary-button" onClick={props.onOpenAppUpdateDownloadPage}>{settingsText(copy, "打开下载页")}</button>
+                <button type="button" className="secondary-button" onClick={props.onCopyAppUpdateDiagnostic}>{settingsText(copy, "复制更新诊断")}</button>
               </div>
             </section>
 
@@ -311,7 +311,7 @@ export function SettingsPageContentView(props: SettingsPageContentViewProps) {
                   <strong>{settingsText(copy, "检查资料库更新")}</strong>
                   <span>{settingsText(copy, "手动检查不受“每天自动检查一次”限制。")}</span>
                 </div>
-                <button type="button" className="secondary-button" disabled={props.isLoadingManifestStatus} onClick={props.onRefreshManifestStatus}>{settingsText(copy, "检查更新")}</button>
+                <button type="button" className="secondary-button" disabled={props.isLoadingManifestStatus} onClick={props.onRefreshManifestStatus}>{settingsText(copy, "检查资料库版本")}</button>
               </div>
               <div className="app-setting-row">
                 <div>
@@ -490,10 +490,10 @@ export function SettingsPageContentView(props: SettingsPageContentViewProps) {
                 <div className="version-row"><span>{settingsText(copy, "上次检查")}</span><strong>{formatDateTime(props.manifestStatus?.checked_at, interfaceLocale, copy)}</strong></div>
                 <div className="version-row"><span>{settingsText(copy, "自动检查")}</span><strong>{settingsText(copy, "启动后或打开资料库状态时触发；同一本地日期只自动检查一次")}</strong></div>
                 <div className="version-row"><span>{settingsText(copy, "自动更新")}</span><strong>{settingsText(copy, "未初始化、不完整或发现新版时后台更新；失败时保留旧资料库")}</strong></div>
-                <div className="version-row"><span>{settingsText(copy, "手动操作")}</span><strong>{settingsText(copy, "检查更新、立即更新、修复资料库始终立即执行")}</strong></div>
+                <div className="version-row"><span>{settingsText(copy, "手动操作")}</span><strong>{settingsText(copy, "检查资料库版本、立即更新、修复资料库始终立即执行")}</strong></div>
               </div>
               <div className="button-row">
-                <button type="button" className="secondary-button" disabled={props.isLoadingManifestStatus} onClick={props.onRefreshManifestStatus}>{settingsText(copy, "检查更新")}</button>
+                <button type="button" className="secondary-button" disabled={props.isLoadingManifestStatus} onClick={props.onRefreshManifestStatus}>{settingsText(copy, "检查资料库版本")}</button>
                 <button type="button" disabled={props.isInitializingManifest} onClick={props.onInitializeManifest}>
                   {props.isInitializingManifest ? settingsText(copy, "更新中...") : settingsText(copy, "立即更新")}
                 </button>
@@ -760,7 +760,7 @@ function formatAccountLoadedAt(loadedAt: Date | null, accountSummary: AccountSum
   }).format(loadedAt);
 }
 
-function getUpdateUi(snapshot: UpdateSnapshot | null, copy: SettingsCopy): { statusLabel: string; summary: string; tone: "neutral" | "ready" | "warning" | "error" } {
+function getAppUpdateUi(snapshot: AppUpdateSnapshot | null, copy: SettingsCopy): { statusLabel: string; summary: string; tone: "neutral" | "ready" | "warning" | "error" } {
   if (!snapshot) {
     return { statusLabel: settingsText(copy, "读取中"), summary: settingsText(copy, "正在读取更新状态。"), tone: "neutral" };
   }
@@ -811,7 +811,7 @@ function getUpdateUi(snapshot: UpdateSnapshot | null, copy: SettingsCopy): { sta
     };
   }
 
-  return { statusLabel: settingsText(copy, "未检查"), summary: settingsText(copy, "尚未检查更新。"), tone: "neutral" };
+  return { statusLabel: settingsText(copy, "未检查"), summary: settingsText(copy, "尚未检查软件版本。"), tone: "neutral" };
 }
 
 function getLibraryUi(
@@ -887,7 +887,7 @@ function formatUpdateCheckedAt(value: string | undefined, locale: InterfaceLocal
   });
 }
 
-function formatUpdateProgress(snapshot: UpdateSnapshot | null): number {
+function formatAppUpdateProgress(snapshot: AppUpdateSnapshot | null): number {
   if (!snapshot) return 0;
   if (snapshot.status === "downloaded") return 100;
   if (snapshot.status === "downloading") return Math.max(8, Math.min(100, snapshot.progress_percent ?? 8));
