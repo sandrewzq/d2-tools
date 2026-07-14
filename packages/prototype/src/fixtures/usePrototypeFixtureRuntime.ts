@@ -531,14 +531,14 @@ export function createPrototypeVendorsPageModel(
 
 function createPrototypeVendorSnapshot(armorerModHash: number): NonNullable<VendorsPageInput["snapshot"]> {
   const commonOffers = [
-    [1001, "鹰月", "手炮", "异域"],
-    [1002, "守誓者", "臂铠", "异域"],
-    [1003, "差分方程", "脉冲步枪", "传说"],
-    [1004, "真言者", "榴弹发射器", "传说"],
-    [1005, "第七炽天使卡宾枪", "自动步枪", "传说"],
-    [1006, "伊克洛斯霰弹枪", "霰弹枪", "传说"],
-    [1007, "孤独", "手枪", "传说"],
-    [1008, "主原料", "融合步枪", "传说"]
+    [1001, "仄浪板", "载具", "异域"],
+    [1002, "幼年阿罕卡拉之脊", "臂铠", "异域"],
+    [1003, "至纯光能护心甲", "胸部护甲", "异域"],
+    [1004, "炎阳护腕", "臂铠", "异域"],
+    [1005, "陨星胸甲", "胸部护甲", "异域"],
+    [1006, "特里同之罪", "臂铠", "异域"],
+    [1007, "霜袍服装", "胸部护甲", "异域"],
+    [1008, "唯我主义", "术士臂环", "异域"]
   ] as const;
   const offers = commonOffers.map(([itemHash, name, itemType, tierType], index) => createPrototypeVendorOffer({
     itemHash,
@@ -547,34 +547,90 @@ function createPrototypeVendorSnapshot(armorerModHash: number): NonNullable<Vend
     itemType,
     tierType,
     characterIds: ["hunter-1", "warlock-1"],
-    stats: itemHash === 1002 ? { mobility: armorerModHash === 111 ? 18 : 8, discipline: armorerModHash === 111 ? 8 : 18 } : {}
+    stats: itemType.includes("护甲") || itemType === "臂铠"
+      ? { mobility: armorerModHash === 111 ? 18 : 8, discipline: armorerModHash === 111 ? 8 : 18 }
+      : {},
+    categoryIndex: 0,
+    categoryName: "多样奇异优惠",
+    costQuantity: itemHash === 1001 ? 97 : 41
   }));
-  offers.push(
-    createPrototypeVendorOffer({
-      itemHash: 1010,
-      vendorItemIndex: 10,
-      name: "猎人高机动护甲",
-      itemType: "头盔",
-      tierType: "传说",
-      characterIds: ["hunter-1"],
-      stats: { mobility: armorerModHash === 111 ? 22 : 10, discipline: armorerModHash === 111 ? 10 : 22 }
-    }),
-    createPrototypeVendorOffer({
-      itemHash: 1011,
-      vendorItemIndex: 11,
-      name: "术士高恢复护甲",
-      itemType: "胸甲",
-      tierType: "传说",
-      characterIds: ["warlock-1"],
-      stats: { recovery: 21, discipline: 12 }
-    })
-  );
-  const serviceOffers = [
-    [1101, "奇异记忆水晶", "记忆水晶"],
-    [1102, "异域密码兑换", "材料"],
-    [1103, "随机异域护甲", "护甲"],
-    [1104, "异域装备聚焦", "聚焦服务"]
+  const rankRewards = [
+    [1101, "奇异记忆水晶", "等级 1"],
+    [1102, "强化核心", "等级 4"],
+    [1103, "增强棱镜", "等级 7"],
+    [1104, "异域记忆水晶", "等级 10"],
+    [1105, "增强棱镜", "等级 13"],
+    [1106, "超越木星", "等级 16"],
+    [1107, "重置等级", "等级 17"]
+  ].map(([itemHash, name, itemType], index) => createPrototypeVendorOffer({
+    itemHash: Number(itemHash),
+    vendorItemIndex: 140 + index,
+    name: String(name),
+    itemType: String(itemType),
+    tierType: "传说",
+    characterIds: ["hunter-1", "warlock-1"],
+    stats: {},
+    categoryIndex: 4,
+    categoryName: "等级奖励",
+    hasCost: false
+  }));
+  const moreOffers = [
+    { name: "玖的恩惠", itemType: "增益", tierType: "传说", categoryIndex: 0, categoryName: "玖的忠诚计划", hasCost: false },
+    { name: "上维合金", itemType: "材料", tierType: "异域", categoryIndex: 1, categoryName: "奇异材料优惠", costQuantity: 41 },
+    { name: "强化核心", itemType: "材料", tierType: "传说", categoryIndex: 1, categoryName: "奇异材料优惠", quantity: 3, costQuantity: 3 },
+    { name: "强化核心", itemType: "材料", tierType: "传说", categoryIndex: 1, categoryName: "奇异材料优惠", quantity: 13, costQuantity: 17 },
+    { name: "微光", itemType: "货币", tierType: "基本", categoryIndex: 1, categoryName: "奇异材料优惠", quantity: 57077, costQuantity: 11 },
+    { name: "微光", itemType: "货币", tierType: "基本", categoryIndex: 1, categoryName: "奇异材料优惠", quantity: 70717, costQuantity: 11 },
+    { name: "突袭旗帜", itemType: "消耗品", tierType: "传说", categoryIndex: 1, categoryName: "奇异材料优惠", quantity: 7, costQuantity: 11 },
+    { name: "奇异礼物", itemType: "容器", tierType: "基本", categoryIndex: 2, categoryName: "奇异可重复优惠", costQuantity: 1 }
+  ].map((item, index) => createPrototypeVendorOffer({
+    ...item,
+    vendorHash: 537912098,
+    itemHash: 1200 + index,
+    vendorItemIndex: index,
+    characterIds: ["hunter-1", "warlock-1"],
+    stats: {}
+  }));
+  const gearCatalog = [
+    ["异域记忆水晶", "记忆水晶", "异域", 0, "异域装备", 19],
+    ["血色浪漫", "手炮", "异域", 0, "异域装备", 23],
+    ["三体坐观者", "战斗弓箭", "异域", 0, "异域装备", 23],
+    ["双尾狐", "火箭发射器", "异域", 0, "异域装备", 23],
+    ["黑桃A催化", "催化剂", "异域", 0, "异域装备", 71],
+    ["魔鬼之厄催化剂", "催化剂", "异域", 0, "异域装备", 71],
+    ["隼月", "手炮", "异域", 0, "异域装备", 23],
+    ["崇高追逐", "斥候步枪", "传说", 1, "传说武器", 17],
+    ["海盗之怒", "线性融合步枪", "传说", 1, "传说武器", 17],
+    ["决斗法则", "火箭发射器", "传说", 1, "传说武器", 17],
+    ["天龙座", "融合步枪", "传说", 1, "传说武器", 17],
+    ["不同时代", "脉冲步枪", "传说", 1, "传说武器", 17],
+    ["言语轨迹", "狙击步枪", "传说", 1, "传说武器", 17],
+    ["洞穴学者", "机枪", "传说", 1, "传说武器", 17],
+    ["破坏之光", "手枪", "传说", 1, "传说武器", 17],
+    ["空洞之语", "融合步枪", "传说", 1, "传说武器", 17],
+    ["奇异武器记忆水晶", "武器记忆水晶", "传说", 1, "传说武器", 7],
+    ["奇异护甲记忆水晶", "护甲记忆水晶", "传说", 2, "传说护甲", 11],
+    ["剑圣面罩", "头盔", "传说", 2, "传说护甲", 23],
+    ["剑圣手套", "臂铠", "传说", 2, "传说护甲", 23],
+    ["剑圣法袍", "胸部护甲", "传说", 2, "传说护甲", 23],
+    ["剑圣战靴", "腿部护甲", "传说", 2, "传说护甲", 23],
+    ["剑圣臂环", "术士臂环", "传说", 2, "传说护甲", 23]
   ] as const;
+  const gearOffers = gearCatalog.map(([name, itemType, tierType, categoryIndex, categoryName, costQuantity], index) => createPrototypeVendorOffer({
+    vendorHash: 3751514131,
+    itemHash: 1300 + index,
+    vendorItemIndex: index,
+    name,
+    itemType,
+    tierType,
+    characterIds: ["hunter-1", "warlock-1"],
+    stats: itemType.includes("护甲") || ["头盔", "臂铠", "胸部护甲", "腿部护甲", "术士臂环"].includes(itemType)
+      ? { mobility: 12, recovery: 18, discipline: 22 }
+      : {},
+    categoryIndex,
+    categoryName,
+    costQuantity
+  }));
 
   return {
     status: "ready",
@@ -602,25 +658,39 @@ function createPrototypeVendorSnapshot(armorerModHash: number): NonNullable<Vend
         description: "九巨头的神秘代理人。",
         iconUrl: prototypeItemIcon("仄", "#c6922e"),
         location: "高塔机库",
-        nextRefreshAt: "2026-07-17T17:00:00.000Z",
+        nextRefreshAt: "2026-07-17T09:00:00.000Z",
+        progression: {
+          progressionHash: 2411069437,
+          currentProgress: 60,
+          level: 4,
+          levelCap: 16,
+          stepIndex: 4,
+          progressToNextLevel: 2,
+          nextLevelAt: 17
+        },
         characterIds: ["hunter-1", "warlock-1"],
-        offers,
-        services: [{
-          id: "xur-services",
-          name: "异域服务",
-          description: "使用奇异硬币和异域密码兑换。",
-          categoryIndex: 9,
-          offers: serviceOffers.map(([itemHash, name, itemType], index) => createPrototypeVendorOffer({
-            itemHash,
-            vendorItemIndex: 100 + index,
-            name,
-            itemType,
-            tierType: "异域",
-            characterIds: ["hunter-1", "warlock-1"],
-            stats: {},
-            serviceId: "xur-services"
-          }))
-        }]
+        offers: [...offers, ...rankRewards],
+        services: []
+      },
+      {
+        id: "vendor-537912098",
+        vendorHash: 537912098,
+        name: "更多奇异优惠",
+        description: "仄来去自如，爱冒险的守护者们热切搜寻着他的奇珍异宝。",
+        location: "高塔",
+        characterIds: ["hunter-1", "warlock-1"],
+        offers: moreOffers,
+        services: []
+      },
+      {
+        id: "vendor-3751514131",
+        vendorHash: 3751514131,
+        name: "奇异装备优惠",
+        description: "",
+        location: "高塔",
+        characterIds: ["hunter-1", "warlock-1"],
+        offers: gearOffers,
+        services: []
       },
       {
         id: "vendor-672118013",
@@ -675,6 +745,10 @@ function createPrototypeVendorOffer(input: {
   characterIds: string[];
   stats: Record<string, number>;
   serviceId?: string;
+  categoryIndex?: number;
+  categoryName?: string;
+  quantity?: number;
+  hasCost?: boolean;
   costItemHash?: number;
   costName?: string;
   costQuantity?: number;
@@ -690,8 +764,9 @@ function createPrototypeVendorOffer(input: {
     itemType: input.itemType,
     tierType: input.tierType,
     iconUrl: prototypeItemIcon(input.name.slice(0, 1), input.tierType === "异域" ? "#c6922e" : "#2f7dd1"),
+    quantity: input.quantity,
     characterIds: input.characterIds,
-    costs: [{
+    costs: input.hasCost === false ? [] : [{
       itemHash: input.costItemHash ?? 2001,
       name: costName,
       quantity: input.costQuantity ?? (input.tierType === "异域" ? 23 : 17),
@@ -702,8 +777,8 @@ function createPrototypeVendorOffer(input: {
     saleStatus: 0,
     canPurchase: true,
     apiPurchasable: false,
-    categoryIndex: input.serviceId ? 9 : 1,
-    categoryName: input.serviceId ? "异域服务" : "特色装备",
+    categoryIndex: input.categoryIndex ?? (input.serviceId ? 9 : 0),
+    categoryName: input.categoryName ?? (input.serviceId ? "异域服务" : "特色装备"),
     serviceId: input.serviceId,
     rollFingerprint: `${input.itemHash}:${JSON.stringify(input.stats)}`,
     stats: input.stats,

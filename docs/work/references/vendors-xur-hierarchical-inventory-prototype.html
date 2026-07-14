@@ -468,24 +468,74 @@
       border-top: 1px solid var(--line);
     }
 
+    #child-vendor-sections {
+      margin-top: 28px;
+      border-top: 1px solid var(--line);
+    }
+
     .section-heading {
       justify-content: space-between;
+      align-items: flex-end;
       gap: 12px;
-      margin-bottom: 11px;
+      min-height: 38px;
+      margin-bottom: 12px;
+      padding-bottom: 9px;
+      border-bottom: 1px solid color-mix(in srgb, var(--gold) 48%, var(--line));
     }
 
     .section-heading h2,
     .column-heading h3,
-    .rank-head h2 {
+    .rank-head h3 {
       margin: 0;
       color: var(--text);
+      font-size: 18px;
+    }
+
+    .section-heading-main {
+      display: grid;
+      gap: 4px;
+      min-width: 0;
+    }
+
+    .rank-head h3 {
       font-size: 16px;
+    }
+
+    .section-kicker {
+      color: var(--gold) !important;
+      font-size: 10px !important;
+      font-weight: 700;
+    }
+
+    .section-description {
+      max-width: 680px;
+      margin: 0;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.5;
+    }
+
+    .section-summary {
+      display: grid;
+      justify-items: end;
+      gap: 2px;
+      min-width: 92px;
+      padding-left: 14px;
+      border-left: 1px solid var(--line);
+    }
+
+    .section-summary strong {
+      color: var(--text);
+      font-size: 18px;
+      font-variant-numeric: tabular-nums;
     }
 
     .weekly-grid {
       display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
+      grid-template-columns: repeat(8, minmax(148px, 1fr));
       gap: 10px;
+      overflow-x: auto;
+      padding-bottom: 4px;
     }
 
     .offer {
@@ -512,9 +562,9 @@
     }
 
     .weekly-grid .offer {
-      grid-template-columns: 68px minmax(0, 1fr);
-      min-height: 112px;
-      padding: 12px;
+      grid-template-columns: 58px minmax(0, 1fr);
+      min-height: 96px;
+      padding: 10px;
       border-top-color: color-mix(in srgb, var(--gold) 58%, var(--line));
     }
 
@@ -533,8 +583,8 @@
     }
 
     .weekly-grid .offer-icon {
-      width: 68px;
-      height: 68px;
+      width: 58px;
+      height: 58px;
     }
 
     .offer-icon img {
@@ -614,6 +664,72 @@
       border-radius: var(--radius);
       background: #11151a;
       box-shadow: var(--shadow);
+    }
+
+    .inventory-rows {
+      display: grid;
+      gap: 24px;
+      min-width: 0;
+    }
+
+    .inventory-row {
+      display: grid;
+      gap: 9px;
+      min-width: 0;
+    }
+
+    .inventory-row-heading {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      min-height: 30px;
+      padding-bottom: 7px;
+      border-bottom: 1px solid color-mix(in srgb, var(--text) 52%, var(--line));
+    }
+
+    .inventory-row-heading h3 {
+      margin: 0;
+      color: var(--text);
+      font-size: 14px;
+      font-weight: 650;
+    }
+
+    .inventory-row-count {
+      color: var(--muted);
+      font-size: 10px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .inventory-row-track {
+      display: grid;
+      grid-auto-flow: column;
+      grid-auto-columns: 142px;
+      gap: 8px;
+      min-width: 0;
+      overflow-x: auto;
+      padding-bottom: 4px;
+    }
+
+    .inventory-row-track .offer {
+      grid-template-columns: 48px minmax(0, 1fr);
+      min-height: 86px;
+      padding: 8px;
+      background: var(--panel-subtle);
+    }
+
+    .inventory-row-track .offer-icon {
+      width: 48px;
+      height: 48px;
+    }
+
+    .inventory-row-track .offer-name {
+      font-size: 12px;
+    }
+
+    .inventory-row-track .offer-type,
+    .inventory-row-track .offer-cost {
+      font-size: 10px;
     }
 
     .column-heading {
@@ -708,25 +824,27 @@
       line-height: 1.55;
     }
 
-    .rank-layout {
+    .rank-card {
       display: grid;
-      grid-template-columns: minmax(280px, 0.72fr) minmax(0, 1.28fr);
-      gap: 12px;
-      align-items: start;
-    }
-
-    .rank-card,
-    .reward-track {
+      grid-template-columns: minmax(210px, 0.34fr) minmax(0, 1fr);
+      gap: 22px;
+      align-items: center;
+      padding: 18px;
       border: 1px solid var(--line);
       border-radius: var(--radius);
       background: var(--panel);
     }
 
-    .rank-card {
-      padding: 18px;
+    .rank-head {
+      min-height: 96px;
+      padding-right: 22px;
+      border-right: 1px solid var(--line);
     }
 
-    .rank-head {
+    .rank-head,
+    .xur-row-heading {
+      display: flex;
+      align-items: center;
       justify-content: space-between;
       gap: 12px;
     }
@@ -741,7 +859,6 @@
     .progress-labels {
       display: flex;
       justify-content: space-between;
-      margin-top: 22px;
       color: var(--muted);
       font-size: 11px;
       font-variant-numeric: tabular-nums;
@@ -765,12 +882,17 @@
 
     .rank-card dl {
       display: grid;
-      grid-template-columns: 1fr auto;
-      gap: 9px 12px;
-      margin: 20px 0 0;
-      padding-top: 16px;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin: 14px 0 0;
+      padding-top: 12px;
       border-top: 1px solid var(--line);
       font-size: 12px;
+    }
+
+    .rank-card dl > div {
+      display: grid;
+      gap: 3px;
     }
 
     .rank-card dt {
@@ -783,25 +905,59 @@
       font-variant-numeric: tabular-nums;
     }
 
+    .xur-offer-rows {
+      display: grid;
+      gap: 18px;
+      margin-top: 18px;
+    }
+
+    .xur-offer-row {
+      display: grid;
+      gap: 9px;
+      min-width: 0;
+    }
+
+    .xur-row-heading {
+      min-height: 30px;
+      padding-bottom: 7px;
+      border-bottom: 2px solid color-mix(in srgb, var(--gold) 48%, var(--line));
+    }
+
+    .xur-row-heading h3 {
+      margin: 0;
+      color: var(--text);
+      font-size: 15px;
+    }
+
+    .xur-row-heading span {
+      color: var(--muted);
+      font-size: 11px;
+    }
+
     .reward-track {
       display: grid;
-      gap: 0;
-      overflow: hidden;
+      grid-template-columns: repeat(7, minmax(122px, 1fr));
+      gap: 8px;
+      min-width: 0;
+      overflow-x: auto;
+      padding-bottom: 4px;
     }
 
     .reward {
       display: grid;
-      grid-template-columns: 48px 58px minmax(0, 1fr) auto;
-      gap: 10px;
+      grid-template-columns: 48px minmax(0, 1fr);
+      grid-template-areas:
+        "icon name"
+        "icon level"
+        "icon state";
+      gap: 2px 9px;
       align-items: center;
       min-width: 0;
-      min-height: 72px;
-      padding: 9px 12px;
-      border-bottom: 1px solid var(--line);
-    }
-
-    .reward:last-child {
-      border-bottom: 0;
+      min-height: 86px;
+      padding: 9px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--panel);
     }
 
     .reward.is-current {
@@ -809,26 +965,32 @@
     }
 
     .reward-level {
+      grid-area: level;
+      color: var(--muted);
+      font-size: 10px;
       font-variant-numeric: tabular-nums;
     }
 
     .reward .offer-icon {
+      grid-area: icon;
       width: 48px;
       height: 48px;
     }
 
     .reward-name {
+      grid-area: name;
       overflow: hidden;
       color: var(--text);
-      font-size: 13px;
+      font-size: 12px;
       font-weight: 650;
       text-overflow: ellipsis;
       white-space: nowrap;
     }
 
     .reward-state {
+      grid-area: state;
       color: var(--muted);
-      font-size: 11px;
+      font-size: 10px;
     }
 
     .reward.is-current .reward-state {
@@ -967,7 +1129,7 @@
 
     @media (max-width: 1180px) {
       .weekly-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+        grid-template-columns: repeat(8, minmax(148px, 1fr));
       }
 
       .inventory-columns {
@@ -978,8 +1140,16 @@
         grid-template-columns: repeat(2, minmax(0, 1fr));
       }
 
-      .rank-layout {
+      .rank-card {
         grid-template-columns: 1fr;
+      }
+
+      .rank-head {
+        min-height: auto;
+        padding-right: 0;
+        padding-bottom: 14px;
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
       }
     }
 
@@ -1056,7 +1226,6 @@
         justify-content: start;
       }
 
-      .weekly-grid,
       .offer-list,
       body.is-loading .loading-layer {
         grid-template-columns: 1fr;
@@ -1066,12 +1235,8 @@
         min-height: 96px;
       }
 
-      .reward {
-        grid-template-columns: 40px 44px minmax(0, 1fr);
-      }
-
-      .reward-state {
-        grid-column: 3;
+      .rank-card dl {
+        grid-template-columns: 1fr;
       }
 
       h1 {
@@ -1123,64 +1288,56 @@
             <header class="vendor-header">
               <div>
                 <span class="eyebrow">限时商人 · 高塔</span>
-                <h1>仄</h1>
-                <p class="vendor-description">一位奇怪的古玩商贩，仄的初衷不是为了自己，他是向遥远的主人玖致意。</p>
+                <h1 id="vendor-name">仄</h1>
+                <p class="vendor-description" id="vendor-description"></p>
                 <div class="vendor-meta">
-                  <span><i data-lucide="database" aria-hidden="true"></i>Bungie 实时数据</span>
-                  <span><i data-lucide="clock-3" aria-hidden="true"></i>周五 17:00 刷新</span>
+                  <span><i data-lucide="database" aria-hidden="true"></i><span id="capture-time">Bungie 实时数据</span></span>
+                  <span><i data-lucide="clock-3" aria-hidden="true"></i><span id="refresh-time">等待刷新时间</span></span>
                   <span><i data-lucide="coins" aria-hidden="true"></i>主要货币：奇异硬币</span>
                 </div>
               </div>
               <div class="header-actions">
-                <button class="text-button" id="search-button" type="button" aria-expanded="false" aria-controls="search-panel"><i data-lucide="search" aria-hidden="true"></i>搜索库存</button>
                 <button class="text-button" id="refresh-button" type="button"><i data-lucide="refresh-cw" aria-hidden="true"></i><span>刷新</span></button>
               </div>
             </header>
 
-            <div class="search-panel" id="search-panel" hidden>
-              <label class="search-field"><span>搜索全部库存</span><input id="inventory-search" type="search" autocomplete="off" placeholder="输入装备或物品名称"></label>
-              <button class="text-button" id="clear-search" type="button"><i data-lucide="x" aria-hidden="true"></i>清除</button>
-            </div>
-
             <div class="context-bar" role="status" aria-live="polite">
               <div class="status-line"><span class="status-dot"></span><span id="status-text">当前角色库存已就绪，护甲属性按当前机灵护甲师模组读取</span></div>
-              <span>仄等级 4 / 16 · 距离下一等级 2 点</span>
+              <span id="rank-context"></span>
             </div>
+
+            <section class="panel" id="panel-rank" aria-labelledby="heading-rank">
+              <div class="loading-layer" aria-hidden="true"><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div></div>
+              <div class="section-heading"><h2 id="heading-rank">声望与等级</h2><span id="rank-section-meta"></span></div>
+              <section class="rank-card" aria-label="仄声望进度">
+                <div class="rank-head"><div><span class="eyebrow">当前等级</span><h3>仄声望</h3></div><span class="rank-number" id="rank-number"></span></div>
+                <div class="rank-progress-body">
+                  <div class="progress-labels"><span id="rank-current-progress"></span><span id="rank-next-level"></span></div>
+                  <div class="progress-track" id="rank-progress-track"><span></span></div>
+                  <dl>
+                    <div><dt>距离下一等级</dt><dd id="rank-remaining"></dd></div>
+                    <div><dt>下一奖励等级</dt><dd id="rank-next-reward"></dd></div>
+                    <div><dt>等级上限</dt><dd id="rank-cap"></dd></div>
+                  </dl>
+                </div>
+              </section>
+              <div class="xur-offer-rows">
+                <section class="xur-offer-row" aria-labelledby="heading-rewards">
+                  <div class="xur-row-heading"><h3 id="heading-rewards">等级奖励</h3><span id="reward-count"></span></div>
+                  <div class="reward-track" id="reward-track" aria-label="等级奖励"></div>
+                </section>
+              </div>
+            </section>
 
             <section class="panel" id="panel-weekly" aria-labelledby="heading-weekly">
               <div class="loading-layer" aria-hidden="true"><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div></div>
-              <div class="section-heading"><h2 id="heading-weekly">本周库存</h2><span>多样奇异优惠 · 当前角色 8 件</span></div>
+              <div class="section-heading"><h2 id="heading-weekly">多样奇异优惠</h2><span id="weekly-count"></span></div>
               <div class="weekly-grid" id="weekly-grid"></div>
               <p class="source-note">装备属性与随机特性应在打开详情时按需读取；切换机灵护甲师模组后，重新刷新当前角色即可获得对应属性分布。</p>
             </section>
 
-            <section class="panel" id="panel-more" aria-labelledby="heading-more">
-              <div class="loading-layer" aria-hidden="true"><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div></div>
-              <div class="section-heading"><h2 id="heading-more">更多奇异优惠</h2><span>8 个条目 · 3 个 Bungie 分类</span></div>
-              <div class="inventory-columns" id="more-columns"></div>
-              <p class="source-note">相同名称的强化核心和微光是独立售卖条目，数量与价格不同，因此不合并。</p>
-            </section>
+            <div id="child-vendor-sections"></div>
 
-            <section class="panel" id="panel-gear" aria-labelledby="heading-gear">
-              <div class="loading-layer" aria-hidden="true"><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div></div>
-              <div class="section-heading"><h2 id="heading-gear">奇异装备优惠</h2><span>23 件 · 异域装备 / 传说武器 / 传说护甲</span></div>
-              <div class="inventory-columns" id="gear-columns"></div>
-              <p class="source-note">三栏严格跟随 Bungie 的异域装备、传说武器、传说护甲分类；点击条目应进入资料库定义详情，而不是仓库实例详情。</p>
-            </section>
-
-            <section class="panel" id="panel-rank" aria-labelledby="heading-rank">
-              <div class="loading-layer" aria-hidden="true"><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div></div>
-              <div class="section-heading"><h2 id="heading-rank">声望与等级</h2><span>等级上限 16 · 7 个关键奖励</span></div>
-              <div class="rank-layout">
-                <section class="rank-card" aria-label="仄声望进度">
-                  <div class="rank-head"><div><span class="eyebrow">当前等级</span><h2>奇异青睐</h2></div><span class="rank-number">4</span></div>
-                  <div class="progress-labels"><span>当前进度 60</span><span>下一等级 68</span></div>
-                  <div class="progress-track" aria-label="等级进度 88%"><span></span></div>
-                  <dl><dt>距离下一等级</dt><dd>2 点</dd><dt>下一奖励等级</dt><dd>5</dd><dt>等级上限</dt><dd>16</dd></dl>
-                </section>
-                <div class="reward-track" id="reward-track" aria-label="等级奖励"></div>
-              </div>
-            </section>
           </div>
         </main>
       </div>
@@ -1199,137 +1356,204 @@
     <button class="icon-button" id="tweak-button" type="button" aria-label="打开原型状态设置" aria-expanded="false" aria-controls="tweak-panel" title="原型状态"><i data-lucide="sliders-horizontal" aria-hidden="true"></i></button>
   </div>
 
-  <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
   <script>
     const bungie = "https://www.bungie.net";
     const coinIcon = "/common/destiny2_content/icons/1fa5806bb6ec16b5f8cdeb4b36d4bb01.jpg";
 
-    const weekly = [
-      ["仄浪板", "载具", "/common/destiny2_content/icons/0f9ed83ab7bbe0282f9974c62f930cf4.jpg", 97],
-      ["幼年阿罕卡拉之脊", "臂铠", "/common/destiny2_content/icons/e8ebba4e0fbbaf71de4bd188f072fe67.jpg", 41],
-      ["至纯光能护心甲", "胸部护甲", "/common/destiny2_content/icons/34f23604746fc260a2153e93ccfaec7f.jpg", 41],
-      ["炎阳护腕", "臂铠", "/common/destiny2_content/icons/220fda89a88058f84725ff1df39a9f5e.jpg", 41],
-      ["陨星胸甲", "胸部护甲", "/common/destiny2_content/icons/23e3d07bead2936a80612419f3ee9f94.jpg", 41],
-      ["特里同之罪", "臂铠", "/common/destiny2_content/icons/8f4613a7a4d1d0cac4cddb50f81d965b.jpg", 41],
-      ["霜袍服装", "胸部护甲", "/common/destiny2_content/icons/16001620c3ec683e805fe68017167b69.jpg", 41],
-      ["唯我主义", "术士臂环", "/common/destiny2_content/icons/7b57cd041db1987c3f566b96535daf9f.jpg", 41]
-    ];
+    const xurLiveData = {"capturedAt":"2026-07-14T01:07:24.155Z","vendorDefinitions":{"537912098":{"hash":537912098,"vendorIdentifier":"TOWER_NINE_OFFERS","name":"更多奇异优惠","description":"仄来去自如，爱冒险的守护者们热切搜寻着他的奇珍异宝。","icon":"/common/destiny2_content/icons/95bb18e6edbdc9b70ce9ffc077814f32.jpg","displayCategories":[{"index":0,"identifier":"category_xur_buff","name":"玖的忠诚计划"},{"index":1,"identifier":"category_xur_offer_material","name":"奇异材料优惠"},{"index":2,"identifier":"category_xur_offer_repeatable","name":"奇异可重复优惠"}],"failureStrings":["本周已领取","花费更多奇异硬币来解锁此物品。"]},"2190858386":{"hash":2190858386,"vendorIdentifier":"TOWER_NINE","name":"仄","description":"一位奇怪的古玩商贩，仄的初衷不是为了自己，他是向遥远的主人玖致意。","icon":"/common/destiny2_content/icons/9c2eda96877ed53dceb90568ebb27f11.png","displayCategories":[{"index":0,"identifier":"category_xur_offers_peculiar","name":"多样奇异优惠"},{"index":1,"identifier":"category_consumables","name":"消耗品"},{"index":2,"identifier":"category_exotic_weapons","name":"异域武器"},{"index":3,"identifier":"category_xur_offer_strange","name":"更多奇异优惠"},{"index":4,"identifier":"category.rank_rewards_seasonal","name":"等级奖励"},{"index":5,"identifier":"xur_help_name","name":"仄"},{"index":6,"identifier":"intro_step0_name","name":"一位老朋友"},{"index":7,"identifier":"","name":""},{"index":8,"identifier":"generic_quest_resume_display_category","name":"已放弃的任务"},{"index":9,"identifier":"xur_vendor_category","name":"异域密码"}],"failureStrings":["已获取","","需要《命运2：暗影要塞》","本周已领取","需要命运2：遗落之族组合包","需要《命运2：凌光之刻》","需要《命运2：邪姬魅影》","需要《命运2：光陨之秋》","需要《命运2：终焉之形》","于收藏品中解锁此物品以购买。","需要下一等级","需要下一重要等级","需要等级4","需要等级7","需要等级10","需要等级13","需要等级16","需要完成等级16","需要先领取先前的所有奖励","空间不足","你已经拥有一个异域密码了。"]},"3751514131":{"hash":3751514131,"vendorIdentifier":"TOWER_NINE_GEAR","name":"奇异装备优惠","description":"","icon":"/common/destiny2_content/icons/51dcc6133effbed04c9221adbdd7d405.jpg","displayCategories":[{"index":0,"identifier":"category_black_market_exotics","name":"异域装备"},{"index":1,"identifier":"category.weapons_past","name":"传说武器"},{"index":2,"identifier":"category.armor_past","name":"传说护甲"}],"failureStrings":["本周已领取","需要命运2：遗落之族组合包","已获取","需要模组物品","需要《命运2：凌光之刻》"]}},"vendors":{"537912098":{"vendor":{"vendorHash":537912098,"canPurchase":false,"nextRefreshDate":"9999-12-31T23:59:59.999Z","progression":null},"categories":[{"displayCategoryIndex":1,"itemIndexes":[7,9,17,31,32,33]},{"displayCategoryIndex":2,"itemIndexes":[36]},{"displayCategoryIndex":0,"itemIndexes":[37]}],"saleItems":{"7":{"vendorItemIndex":7,"itemHash":353704689,"quantity":1,"costs":[{"itemHash":800069450,"quantity":41,"hasConditionalVisibility":false}],"failureIndexes":[],"saleStatus":0,"apiPurchasable":null},"9":{"vendorItemIndex":9,"itemHash":3853748946,"quantity":3,"costs":[{"itemHash":800069450,"quantity":3,"hasConditionalVisibility":false}],"failureIndexes":[],"saleStatus":0,"apiPurchasable":null},"17":{"vendorItemIndex":17,"itemHash":3853748946,"quantity":13,"costs":[{"itemHash":800069450,"quantity":17,"hasConditionalVisibility":false}],"failureIndexes":[],"saleStatus":0,"apiPurchasable":null},"31":{"vendorItemIndex":31,"itemHash":3159615086,"quantity":57077,"costs":[{"itemHash":800069450,"quantity":11,"hasConditionalVisibility":false}],"failureIndexes":[],"saleStatus":0,"apiPurchasable":null},"32":{"vendorItemIndex":32,"itemHash":3159615086,"quantity":70717,"costs":[{"itemHash":800069450,"quantity":11,"hasConditionalVisibility":false}],"failureIndexes":[],"saleStatus":0,"apiPurchasable":null},"33":{"vendorItemIndex":33,"itemHash":3282419336,"quantity":7,"costs":[{"itemHash":800069450,"quantity":11,"hasConditionalVisibility":false}],"failureIndexes":[],"saleStatus":0,"apiPurchasable":null},"36":{"vendorItemIndex":36,"itemHash":3581456570,"quantity":1,"costs":[{"itemHash":800069450,"quantity":1,"hasConditionalVisibility":false}],"failureIndexes":[],"saleStatus":0,"apiPurchasable":null},"37":{"vendorItemIndex":37,"itemHash":4032296272,"quantity":1,"costs":[],"failureIndexes":[1],"saleStatus":8,"apiPurchasable":null}},"stats":{},"sockets":{}},"2190858386":{"vendor":{"vendorHash":2190858386,"canPurchase":false,"nextRefreshDate":"2026-07-17T09:00:00Z","progression":{"progressionHash":2411069437,"dailyProgress":0,"dailyLimit":0,"weeklyProgress":0,"weeklyLimit":0,"currentProgress":60,"level":4,"levelCap":16,"stepIndex":4,"progressToNextLevel":2,"nextLevelAt":17}},"categories":[{"displayCategoryIndex":0,"itemIndexes":[0,18,41,74,92,114,132,135]},{"displayCategoryIndex":3,"itemIndexes":[137,138]},{"displayCategoryIndex":5,"itemIndexes":[140]},{"displayCategoryIndex":4,"itemIndexes":[143,144,145,146,147,148,154]}],"saleItems":{"0":{"vendorItemIndex":0,"itemHash":3158812152,"quantity":1,"costs":[{"itemHash":800069450,"quantity":97,"hasConditionalVisibility":false}],"failureIndexes":[],"saleStatus":2,"apiPurchasable":null},"18":{"vendorItemIndex":18,"itemHash":405059572,"quantity":1,"costs":[{"itemHash":800069450,"quantity":41,"hasConditionalVisibility":false}],"failureIndexes":[],"saleStatus":0,"apiPurchasable":null},"41":{"vendorItemIndex":41,"itemHash":502173648,"quantity":1,"costs":[{"itemHash":800069450,"quantity":41,"hasConditionalVisibility":false}],"failureIndexes":[],"saleStatus":0,"apiPurchasable":null},"74":{"vendorItemIndex":74,"itemHash":950745251,"quantity":1,"costs":[{"itemHash":800069450,"quantity":41,"hasConditionalVisibility":false}],"failureIndexes":[],"saleStatus":0,"apiPurchasable":null},"92":{"vendorItemIndex":92,"itemHash":4057875770,"quantity":1,"costs":[{"itemHash":800069450,"quantity":41,"hasConditionalVisibility":false}],"failureIndexes":[],"saleStatus":0,"apiPurchasable":null},"114":{"vendorItemIndex":114,"itemHash":1304266146,"quantity":1,"costs":[{"itemHash":800069450,"quantity":41,"hasConditionalVisibility":false}],"failureIndexes":[],"saleStatus":0,"apiPurchasable":null},"132":{"vendorItemIndex":132,"itemHash":888791258,"quantity":1,"costs":[{"itemHash":800069450,"quantity":41,"hasConditionalVisibility":false}],"failureIndexes":[],"saleStatus":0,"apiPurchasable":null},"135":{"vendorItemIndex":135,"itemHash":3546314515,"quantity":1,"costs":[{"itemHash":800069450,"quantity":41,"hasConditionalVisibility":false}],"failureIndexes":[9],"saleStatus":8,"apiPurchasable":null},"137":{"vendorItemIndex":137,"itemHash":1617663696,"quantity":1,"costs":[],"failureIndexes":[],"saleStatus":0,"apiPurchasable":null},"138":{"vendorItemIndex":138,"itemHash":3670668729,"quantity":1,"costs":[],"failureIndexes":[],"saleStatus":0,"apiPurchasable":null},"140":{"vendorItemIndex":140,"itemHash":3329627384,"quantity":1,"costs":[],"failureIndexes":[1],"saleStatus":8,"apiPurchasable":null},"143":{"vendorItemIndex":143,"itemHash":553950490,"quantity":1,"costs":[],"failureIndexes":[],"saleStatus":0,"apiPurchasable":null},"144":{"vendorItemIndex":144,"itemHash":3853748946,"quantity":7,"costs":[],"failureIndexes":[12],"saleStatus":8,"apiPurchasable":null},"145":{"vendorItemIndex":145,"itemHash":4257549984,"quantity":3,"costs":[],"failureIndexes":[13],"saleStatus":8,"apiPurchasable":null},"146":{"vendorItemIndex":146,"itemHash":903043774,"quantity":1,"costs":[],"failureIndexes":[14],"saleStatus":8,"apiPurchasable":null},"147":{"vendorItemIndex":147,"itemHash":4257549984,"quantity":3,"costs":[],"failureIndexes":[15],"saleStatus":8,"apiPurchasable":null},"148":{"vendorItemIndex":148,"itemHash":723818653,"quantity":1,"costs":[],"failureIndexes":[16],"saleStatus":8,"apiPurchasable":null},"154":{"vendorItemIndex":154,"itemHash":309248508,"quantity":1,"costs":[],"failureIndexes":[17,18],"saleStatus":8,"apiPurchasable":null}},"stats":{"18":{"144602215":20,"392767087":0,"1735777505":25,"1943323491":0,"2996146975":30,"4244567218":0},"41":{"144602215":30,"392767087":25,"1735777505":0,"1943323491":20,"2996146975":0,"4244567218":0},"74":{"144602215":0,"392767087":0,"1735777505":0,"1943323491":30,"2996146975":20,"4244567218":25},"92":{"144602215":20,"392767087":30,"1735777505":0,"1943323491":25,"2996146975":0,"4244567218":0},"114":{"144602215":25,"392767087":0,"1735777505":0,"1943323491":0,"2996146975":30,"4244567218":20},"132":{"144602215":0,"392767087":20,"1735777505":0,"1943323491":0,"2996146975":25,"4244567218":30},"135":{"144602215":0,"392767087":0,"1735777505":0,"1943323491":0,"2996146975":0,"4244567218":0}},"sockets":{"0":[4248210736,3910216754,2978337238,36293031],"18":[1980618587,3820147479,3820147479,3820147479,4248210736,2183487823,1807652646,2058600181,2498433749,1370696622,702981643,481860150,2121121504],"41":[1980618587,1803434835,1803434835,1803434835,4248210736,2183487823,1418248448,1387474177,465064631,627959594,702981643,1919923227,2121121504],"74":[1980618587,3820147479,3820147479,3820147479,4248210736,2183487823,351770835,644737181,462856096,2041822466,702981643,2731901711,2121121504],"92":[1980618587,1803434835,1803434835,1803434835,4248210736,2183487823,549468645,481842213,627959599,1370696622,702981643,4235122381,2121121504],"114":[1980618587,3820147479,3820147479,3820147479,4248210736,2183487823,544009373,2058600181,1370696619,462856101,702981643,187957397,2121121504],"132":[1980618587,1803434835,1803434835,1803434835,4248210736,2183487823,1687144140,446078514,2041822471,465064626,702981643,1871764335,2121121504],"135":[2323986101,2323986101,702981643,1656746282]}},"3751514131":{"vendor":{"vendorHash":3751514131,"canPurchase":false,"nextRefreshDate":"9999-12-31T23:59:59.999Z","progression":null},"categories":[{"displayCategoryIndex":0,"itemIndexes":[2,10,14,30,68,89,101]},{"displayCategoryIndex":1,"itemIndexes":[120,122,126,141,155,165,172,181,202,208]},{"displayCategoryIndex":2,"itemIndexes":[211,341,346,351,356,361]}],"saleItems":{"2":{"vendorItemIndex":2,"itemHash":903043774,"quantity":1,"costs":[{"itemHash":800069450,"quantity":19,"hasConditionalVisibility":false}],"failureIndexes":[],"saleStatus":0,"apiPurchasable":null},"10":{"vendorItemIndex":10,"itemHash":3437746471,"quantity":1,"costs":[{"itemHash":800069450,"quantity":23,"hasConditionalVisibility":false}],"failureIndexes":[],"saleStatus":0,"apiPurchasable":null},"14":{"vendorItemIndex":14,"itemHash":814876685,"quantity":1,"costs":[{"itemHash":800069450,"quantity":23,"hasConditionalVisibility":false}],"failureIndexes":[],"saleStatus":0,"apiPurchasable":null},"30":{"vendorItemIndex":30,"itemHash":2694576561,"quantity":1,"costs":[{"itemHash":800069450,"quantity":23,"hasConditionalVisibility":false}],"failureIndexes":[],"saleStatus":0,"apiPurchasable":null},"68":{"vendorItemIndex":68,"itemHash":3708505013,"quantity":1,"costs":[{"itemHash":800069450,"quantity":71,"hasConditionalVisibility":false}],"failureIndexes":[2],"saleStatus":10,"apiPurchasable":null},"89":{"vendorItemIndex":89,"itemHash":2732252706,"quantity":1,"costs":[{"itemHash":800069450,"quantity":71,"hasConditionalVisibility":false}],"failureIndexes":[3],"saleStatus":10,"apiPurchasable":null},"101":{"vendorItemIndex":101,"itemHash":3856705927,"quantity":1,"costs":[{"itemHash":800069450,"quantity":23,"hasConditionalVisibility":false}],"failureIndexes":[],"saleStatus":0,"apiPurchasable":null},"120":{"vendorItemIndex":120,"itemHash":2776503072,"quantity":1,"costs":[{"itemHash":800069450,"quantity":17,"hasConditionalVisibility":false}],"failureIndexes":[],"saleStatus":0,"apiPurchasable":null},"122":{"vendorItemIndex":122,"itemHash":2714022207,"quantity":1,"costs":[{"itemHash":800069450,"quantity":17,"hasConditionalVisibility":false}],"failureIndexes":[],"saleStatus":0,"apiPurchasable":null},"126":{"vendorItemIndex":126,"itemHash":2496242052,"quantity":1,"costs":[{"itemHash":800069450,"quantity":17,"hasConditionalVisibility":false}],"failureIndexes":[],"saleStatus":0,"apiPurchasable":null},"141":{"vendorItemIndex":141,"itemHash":3044460004,"quantity":1,"costs":[{"itemHash":800069450,"quantity":17,"hasConditionalVisibility":false}],"failureIndexes":[],"saleStatus":0,"apiPurchasable":null},"155":{"vendorItemIndex":155,"itemHash":3016891299,"quantity":1,"costs":[{"itemHash":800069450,"quantity":17,"hasConditionalVisibility":false}],"failureIndexes":[],"saleStatus":0,"apiPurchasable":null},"165":{"vendorItemIndex":165,"itemHash":4132072834,"quantity":1,"costs":[{"itemHash":800069450,"quantity":17,"hasConditionalVisibility":false}],"failureIndexes":[],"saleStatus":0,"apiPurchasable":null},"172":{"vendorItemIndex":172,"itemHash":412251536,"quantity":1,"costs":[{"itemHash":800069450,"quantity":17,"hasConditionalVisibility":false}],"failureIndexes":[],"saleStatus":0,"apiPurchasable":null},"181":{"vendorItemIndex":181,"itemHash":2328923181,"quantity":1,"costs":[{"itemHash":800069450,"quantity":17,"hasConditionalVisibility":false}],"failureIndexes":[],"saleStatus":0,"apiPurchasable":null},"202":{"vendorItemIndex":202,"itemHash":342027677,"quantity":1,"costs":[{"itemHash":800069450,"quantity":17,"hasConditionalVisibility":false}],"failureIndexes":[],"saleStatus":0,"apiPurchasable":null},"208":{"vendorItemIndex":208,"itemHash":3691823069,"quantity":1,"costs":[{"itemHash":800069450,"quantity":7,"hasConditionalVisibility":false}],"failureIndexes":[],"saleStatus":0,"apiPurchasable":null},"211":{"vendorItemIndex":211,"itemHash":4049195331,"quantity":1,"costs":[{"itemHash":800069450,"quantity":11,"hasConditionalVisibility":false}],"failureIndexes":[],"saleStatus":0,"apiPurchasable":null},"341":{"vendorItemIndex":341,"itemHash":3520307277,"quantity":1,"costs":[{"itemHash":800069450,"quantity":23,"hasConditionalVisibility":false}],"failureIndexes":[],"saleStatus":0,"apiPurchasable":null},"346":{"vendorItemIndex":346,"itemHash":4172973116,"quantity":1,"costs":[{"itemHash":800069450,"quantity":23,"hasConditionalVisibility":false}],"failureIndexes":[],"saleStatus":0,"apiPurchasable":null},"351":{"vendorItemIndex":351,"itemHash":1504698788,"quantity":1,"costs":[{"itemHash":800069450,"quantity":23,"hasConditionalVisibility":false}],"failureIndexes":[],"saleStatus":0,"apiPurchasable":null},"356":{"vendorItemIndex":356,"itemHash":3558781766,"quantity":1,"costs":[{"itemHash":800069450,"quantity":23,"hasConditionalVisibility":false}],"failureIndexes":[],"saleStatus":0,"apiPurchasable":null},"361":{"vendorItemIndex":361,"itemHash":2248528889,"quantity":1,"costs":[{"itemHash":800069450,"quantity":23,"hasConditionalVisibility":false}],"failureIndexes":[],"saleStatus":0,"apiPurchasable":null}},"stats":{"10":{"155624089":97,"943549884":35,"1240592695":72,"1345609583":75,"1931675084":100,"2714457168":15,"2715839340":55,"3555269338":14,"3871231066":8,"4043523819":92,"4188031367":60,"4284893193":415},"14":{"155624089":45,"447667954":733,"943549884":63,"1345609583":74,"1591432999":95,"1931675084":52,"2714457168":24,"2715839340":77,"3555269338":18,"4043523819":80,"4188031367":60},"30":{"155624089":70,"943549884":52,"1345609583":67,"1931675084":30,"2523465841":50,"2714457168":12,"2715839340":61,"3555269338":20,"3614673599":40,"3871231066":1,"4188031367":39,"4284893193":40},"101":{"155624089":73,"943549884":81,"1240592695":57,"1345609583":93,"1931675084":52,"2714457168":26,"2715839340":96,"3555269338":14,"3871231066":8,"4043523819":84,"4188031367":59,"4284893193":140},"120":{"155624089":38,"943549884":51,"1240592695":39,"1345609583":63,"1931675084":68,"2714457168":10,"2715839340":93,"3555269338":20,"3871231066":17,"4043523819":62,"4188031367":40,"4284893193":180},"122":{"155624089":48,"943549884":20,"1240592695":34,"1345609583":61,"1931675084":26,"2714457168":6,"2715839340":84,"2961396640":533,"3555269338":25,"3871231066":5,"4043523819":38,"4188031367":22},"126":{"155624089":58,"943549884":64,"1345609583":62,"1931675084":42,"2523465841":47,"2714457168":3,"2715839340":52,"3555269338":20,"3614673599":100,"3871231066":1,"4188031367":45,"4284893193":15},"141":{"155624089":34,"943549884":12,"1240592695":57,"1345609583":59,"1931675084":18,"2714457168":4,"2715839340":83,"2961396640":967,"3555269338":15,"3871231066":5,"4043523819":95,"4188031367":17},"155":{"155624089":40,"943549884":28,"1240592695":28,"1345609583":75,"1931675084":50,"2714457168":18,"2715839340":82,"3555269338":17,"3871231066":34,"4043523819":23,"4188031367":28,"4284893193":540},"165":{"155624089":54,"943549884":37,"1240592695":49,"1345609583":61,"1931675084":43,"2714457168":14,"2715839340":73,"3555269338":40,"3871231066":5,"4043523819":70,"4188031367":22,"4284893193":90},"172":{"155624089":38,"943549884":55,"1240592695":33,"1345609583":62,"1931675084":29,"2714457168":12,"2715839340":58,"3555269338":16,"3871231066":87,"4043523819":25,"4188031367":61,"4284893193":900},"181":{"155624089":52,"943549884":25,"1240592695":54,"1345609583":82,"1931675084":27,"2714457168":19,"2715839340":92,"3555269338":12,"3871231066":24,"4043523819":56,"4188031367":23,"4284893193":325},"202":{"155624089":38,"943549884":33,"1240592695":49,"1345609583":63,"1931675084":26,"2714457168":4,"2715839340":100,"2961396640":800,"3555269338":18,"3871231066":7,"4043523819":80,"4188031367":21},"341":{"144602215":0,"392767087":19,"1735777505":25,"1943323491":0,"2996146975":30,"4244567218":0},"346":{"144602215":18,"392767087":0,"1735777505":24,"1943323491":0,"2996146975":30,"4244567218":0},"351":{"144602215":0,"392767087":30,"1735777505":20,"1943323491":25,"2996146975":0,"4244567218":0},"356":{"144602215":0,"392767087":30,"1735777505":0,"1943323491":24,"2996146975":16,"4244567218":0},"361":{"144602215":19,"392767087":30,"1735777505":25,"1943323491":0,"2996146975":0,"4244567218":0}},"sockets":{"10":[1030990989,1482024992,3142289711,2383960413,1012699414,2931483505,1783582993,2302094943],"14":[1573888036,3371775011,16392701,200829441,2931483505,905869860,1498917124],"30":[3649430342,1844523823,2822142346,777637181,3465198467,2931483505,2240097604,1498917124],"101":[213689231,4090651448,1431678320,3436462433,3326204863,2931483505,2302094943,1498917124],"120":[1636108362,839105230,1087426260,2869569095,2458213969,4248210736,2323986101,150943607,905869860],"122":[2057203855,3661387068,689005463,972757866,3108830275,4248210736,2323986101,518224747,2240097604],"126":[1019291327,1478423395,2822142346,3300816228,1275731761,4248210736,2323986101,3928770367,2240097604],"141":[1019291327,1467527085,3868766766,1570042021,3673922083,4248210736,2323986101,150943607,905869860],"155":[878286503,839105230,1431678320,2416023159,460017080,4248210736,2323986101,1590375901,2931483505,2302094943,1961918267,2909846572,4043342755,2053642371,1892982956],"165":[1294026524,3661387068,2420895100,3978468247,124408337,4248210736,2323986101,150943607,2565067140,2302094943,1961918267,2909846572,4043342755,3854296178,1892982956],"172":[878286503,4090651448,1087426260,1583705720,4049631843,4248210736,2323986101,518224747,253121539,2240097604,2909846572,1961918267,4043342755,3854296178,1892982956],"181":[3330548924,1467527085,3177308360,1428297954,4082225868,4248210736,2323986101,150943607,2838996248,2302094943,2909846572,253922071,4043342755],"202":[1636108362,839105230,2680121939,1119449540,1546637391,4248210736,2323986101,4283235143,1600429811,905869860,2909846572,253922071,4043342755],"341":[1980618587,1078080765,1078080765,1078080765,4248210736,3266153492,1807652646,2058600181,2498433749,448286934,702981643,2121121504],"346":[1980618587,3820147479,3820147479,3820147479,4248210736,3266153492,1807652646,2058600181,2498433748,1353919027,702981643,2121121504],"351":[1980618587,1803434835,1803434835,1803434835,4248210736,3266153492,549468645,481842213,627959599,2498433744,702981643,2121121504],"356":[1980618587,2269836811,2269836811,2269836811,4248210736,3266153492,549468645,481842213,627959598,2025044905,702981643,2121121504],"361":[1980618587,3200810407,3200810407,3200810407,4248210736,3266153492,2503381935,481842213,2498433749,1353919026,702981643,2121121504]}}},"itemDefinitions":{"309248508":{"hash":309248508,"name":"重置等级","description":"重置等级，使你能获得额外的等级奖励。\n\n你还将获得一个异域密码并解锁3阶异域聚焦。","icon":"/common/destiny2_content/icons/9970631fe1052642c268132dfc30e16b.jpg","itemType":"阵营奖励","tierType":""},"342027677":{"hash":342027677,"name":"空洞之语","description":"","icon":"/common/destiny2_content/icons/2a0f2aa7f52e6c992725ef0a85f848f7.jpg","itemType":"融合步枪","tierType":"传说"},"353704689":{"hash":353704689,"name":"上维合金","description":"在武器塑形中用于强化特性与升级武器阶级。可从极具挑战性的活动中获取，或从高塔的解密大师处购买获得。","icon":"/common/destiny2_content/icons/b4d6dbc8eda17711bfb8fedb6e48cc80.jpg","itemType":"材料","tierType":"异域"},"405059572":{"hash":405059572,"name":"幼年阿罕卡拉之脊","description":"","icon":"/common/destiny2_content/icons/e8ebba4e0fbbaf71de4bd188f072fe67.jpg","itemType":"臂铠","tierType":"异域"},"412251536":{"hash":412251536,"name":"洞穴学者","description":"","icon":"/common/destiny2_content/icons/594fbfdc5ff60b49c2ba4902c5d35925.jpg","itemType":"机枪","tierType":"传说"},"502173648":{"hash":502173648,"name":"至纯光能护心甲","description":"","icon":"/common/destiny2_content/icons/34f23604746fc260a2153e93ccfaec7f.jpg","itemType":"胸部护甲","tierType":"异域"},"553950490":{"hash":553950490,"name":"奇异记忆水晶","description":"一个有着复杂标记的记忆水晶。\n\n包含一件来自仄的随机武器或护甲。","icon":"/common/destiny2_content/icons/1563b4c3cf617ac6011581c1c4b5f162.png","itemType":"记忆水晶","tierType":"传说"},"723818653":{"hash":723818653,"name":"超越木星","description":"","icon":"/common/destiny2_content/icons/2ebb5872f93aec5b5b74cb407ad69913.jpg","itemType":"徽标","tierType":"传说"},"800069450":{"hash":800069450,"name":"奇异硬币","description":"这枚不同寻常的硬币摸上去有些温热，在你的手中轻轻颤动。\n\n可以用来在高塔的仄处交换包括异域装备在内的物品。","icon":"/common/destiny2_content/icons/1fa5806bb6ec16b5f8cdeb4b36d4bb01.jpg","itemType":"可兑换","tierType":"传说"},"814876685":{"hash":814876685,"name":"三体坐观者","description":"","icon":"/common/destiny2_content/icons/ab33a7c7024299b28d8c6410d63e5bb5.jpg","itemType":"战斗弓箭","tierType":"异域"},"888791258":{"hash":888791258,"name":"霜袍服装","description":"","icon":"/common/destiny2_content/icons/16001620c3ec683e805fe68017167b69.jpg","itemType":"胸部护甲","tierType":"异域"},"903043774":{"hash":903043774,"name":"异域记忆水晶","description":"具有预定结果的记忆水晶。\n\n如果还有可能的奖励未被收集，它将包含一个新的异域装备。","icon":"/common/destiny2_content/icons/3e6a698e1a8a5fb446fdcbf1e63c5269.png","itemType":"记忆水晶","tierType":"异域"},"950745251":{"hash":950745251,"name":"炎阳护腕","description":"","icon":"/common/destiny2_content/icons/220fda89a88058f84725ff1df39a9f5e.jpg","itemType":"臂铠","tierType":"异域"},"1304266146":{"hash":1304266146,"name":"特里同之罪","description":"","icon":"/common/destiny2_content/icons/8f4613a7a4d1d0cac4cddb50f81d965b.jpg","itemType":"臂铠","tierType":"异域"},"1504698788":{"hash":1504698788,"name":"剑圣法袍","description":"","icon":"/common/destiny2_content/icons/6e43d0848c2fe12c2d83af335dfb5e5d.jpg","itemType":"胸部护甲","tierType":"传说"},"1617663696":{"hash":1617663696,"name":"更多奇异优惠","description":"看看仄还有哪些商品可供购买。","icon":"/common/destiny2_content/icons/95bb18e6edbdc9b70ce9ffc077814f32.jpg","itemType":"","tierType":""},"2248528889":{"hash":2248528889,"name":"剑圣臂环","description":"","icon":"/common/destiny2_content/icons/d88cc04ab71b380f3422ca6ead305926.jpg","itemType":"术士臂环","tierType":"传说"},"2328923181":{"hash":2328923181,"name":"破坏之光","description":"","icon":"/common/destiny2_content/icons/eb5d014d193dbb12cac96c0c483796a5.jpg","itemType":"手枪","tierType":"传说"},"2496242052":{"hash":2496242052,"name":"决斗法则","description":"","icon":"/common/destiny2_content/icons/e331c2975fd1cdf02901a48abc111d17.jpg","itemType":"火箭发射器","tierType":"传说"},"2694576561":{"hash":2694576561,"name":"双尾狐","description":"","icon":"/common/destiny2_content/icons/c065e1c0d03d9648fcad7762031eede9.jpg","itemType":"火箭发射器","tierType":"异域"},"2714022207":{"hash":2714022207,"name":"海盗之怒","description":"","icon":"/common/destiny2_content/icons/b493fc12f672531508a226b7321cba59.jpg","itemType":"线性融合步枪","tierType":"传说"},"2732252706":{"hash":2732252706,"name":"魔鬼之厄催化剂","description":"将此武器升级为大师杰作。升级后，武器将获得强化能力，如提高的属性和/或额外的特性。\n\n使用此武器消灭目标以解锁这项升级。","icon":"/common/destiny2_content/icons/0131a0551d2193229619e753d3541575.jpg","itemType":"","tierType":"异域"},"2776503072":{"hash":2776503072,"name":"崇高追逐","description":"","icon":"/common/destiny2_content/icons/ebc4ebda968fb2de2b05de517c9a0369.jpg","itemType":"斥候步枪","tierType":"传说"},"3016891299":{"hash":3016891299,"name":"不同时代","description":"","icon":"/common/destiny2_content/icons/d91283eef0ce0055dbbac4108262b356.jpg","itemType":"脉冲步枪","tierType":"传说"},"3044460004":{"hash":3044460004,"name":"天龙座","description":"","icon":"/common/destiny2_content/icons/aa48186de4cf0826ec42e6a2e44d30a3.jpg","itemType":"融合步枪","tierType":"传说"},"3158812152":{"hash":3158812152,"name":"仄浪板","description":"","icon":"/common/destiny2_content/icons/0f9ed83ab7bbe0282f9974c62f930cf4.jpg","itemType":"载具","tierType":"异域"},"3159615086":{"hash":3159615086,"name":"微光","description":"圣城货币。编程式物品的一种形式，可用于制造物品或作为燃料。","icon":"/common/destiny2_content/icons/88993eaeedad32f42072df6f77f47311.png","itemType":"货币","tierType":"基本"},"3282419336":{"hash":3282419336,"name":"突袭旗帜","description":"可在任意突袭遭遇战前使用，可使火力战队成员获得超能能量和重型弹药。","icon":"/common/destiny2_content/icons/c3e315408bb063aac2133c0c52167d95.jpg","itemType":"消耗品","tierType":"传说"},"3329627384":{"hash":3329627384,"name":"仄","description":"• 用奇异硬币在仄处购买物品来获得仄等级。\n\n• 升级以获得武器和护甲。","icon":"/common/destiny2_content/icons/52a7f94af601cf70aef26adb3759df9a.png","itemType":"","tierType":"普通"},"3437746471":{"hash":3437746471,"name":"血色浪漫","description":"","icon":"/common/destiny2_content/icons/5a7cb122bf2e8968a68cee59ef93b23d.jpg","itemType":"手炮","tierType":"异域"},"3520307277":{"hash":3520307277,"name":"剑圣面罩","description":"","icon":"/common/destiny2_content/icons/97c53f7d497cbd9df50d347f90e50772.jpg","itemType":"头盔","tierType":"传说"},"3546314515":{"hash":3546314515,"name":"唯我主义","description":"","icon":"/common/destiny2_content/icons/7b57cd041db1987c3f566b96535daf9f.jpg","itemType":"术士臂环","tierType":"异域"},"3558781766":{"hash":3558781766,"name":"剑圣战靴","description":"","icon":"/common/destiny2_content/icons/ac51157276f5a4ecc0a2accfe04eb033.jpg","itemType":"腿部护甲","tierType":"传说"},"3581456570":{"hash":3581456570,"name":"奇异礼物","description":"包含一件随机物品。","icon":"/common/destiny2_content/icons/0c7464df898b1fb8636b914b81fbd1eb.png","itemType":"容器","tierType":"基本"},"3670668729":{"hash":3670668729,"name":"奇异装备优惠","description":"仄还有更多的武器出售。","icon":"/common/destiny2_content/icons/51dcc6133effbed04c9221adbdd7d405.jpg","itemType":"","tierType":""},"3691823069":{"hash":3691823069,"name":"奇异武器记忆水晶","description":"一个有着复杂标记的记忆水晶。\n\n包含一件来自仄的随机武器。","icon":"/common/destiny2_content/icons/6515a012a64659cda9cf9f5f9ac966e9.png","itemType":"武器记忆水晶","tierType":"传说"},"3708505013":{"hash":3708505013,"name":"黑桃A催化","description":"将此武器升级为大师杰作。升级后，武器将获得强化能力，如提高的属性和/或额外的特性。\n\n使用此武器消灭目标以解锁这项升级。","icon":"/common/destiny2_content/icons/8e54c8921ee2947dc378088725197f22.jpg","itemType":"","tierType":"异域"},"3853748946":{"hash":3853748946,"name":"强化核心","description":"需要以购买升级模块和铸造大师杰作装备。有几率从传说装备、某些活动和悬赏中获得，或从高塔的解密大师处购买。","icon":"/common/destiny2_content/icons/0a4eb695ed55b4e720ddc401460cc0f9.jpg","itemType":"材料","tierType":"传说"},"3856705927":{"hash":3856705927,"name":"隼月","description":"","icon":"/common/destiny2_content/icons/cef1290d58a2d94d1437e1e569fa7996.jpg","itemType":"手炮","tierType":"异域"},"4032296272":{"hash":4032296272,"name":"玖的恩惠","description":"当你获得一枚奇异硬币时，你有几率再获得一枚奇异硬币。可多次叠加。","icon":"/common/destiny2_content/icons/58702fec1cff51cb70d4637a437137d2.jpg","itemType":"增益","tierType":"传说"},"4049195331":{"hash":4049195331,"name":"奇异护甲记忆水晶","description":"一个有着复杂标记的记忆水晶。\n\n包含一件来自仄的随机护甲。","icon":"/common/destiny2_content/icons/72f81678b877631635c66822f199601b.png","itemType":"护甲记忆水晶","tierType":"传说"},"4057875770":{"hash":4057875770,"name":"陨星胸甲","description":"","icon":"/common/destiny2_content/icons/23e3d07bead2936a80612419f3ee9f94.jpg","itemType":"胸部护甲","tierType":"异域"},"4132072834":{"hash":4132072834,"name":"言语轨迹","description":"","icon":"/common/destiny2_content/icons/544ab1ac0e749b60d65e4aab52901dad.jpg","itemType":"狙击步枪","tierType":"传说"},"4172973116":{"hash":4172973116,"name":"剑圣手套","description":"","icon":"/common/destiny2_content/icons/b5b69e7a48e9aa956923bccb93247b1b.jpg","itemType":"臂铠","tierType":"传说"},"4257549984":{"hash":4257549984,"name":"增强棱镜","description":"需要以铸造大师杰作装备。可从极具挑战性的活动中获取，或从高塔的解密大师处购买获得。","icon":"/common/destiny2_content/icons/dea2a35badf7466d4c2c2697ce6e8d87.jpg","itemType":"材料","tierType":"传说"}},"currencyBalances":{"800069450":69}};
 
-    const moreGroups = [
-      {
-        title: "玖的忠诚计划",
-        subtitle: "账户级增益",
-        kind: "loyalty",
-        items: [["玖的恩惠", "增益", "/common/destiny2_content/icons/58702fec1cff51cb70d4637a437137d2.jpg", null, 1]]
-      },
-      {
-        title: "奇异材料优惠",
-        subtitle: "6 个独立兑换条目",
-        items: [
-          ["上维合金", "材料", "/common/destiny2_content/icons/b4d6dbc8eda17711bfb8fedb6e48cc80.jpg", 41, 1],
-          ["强化核心", "材料", "/common/destiny2_content/icons/0a4eb695ed55b4e720ddc401460cc0f9.jpg", 3, 3],
-          ["强化核心", "材料", "/common/destiny2_content/icons/0a4eb695ed55b4e720ddc401460cc0f9.jpg", 17, 13],
-          ["微光", "货币", "/common/destiny2_content/icons/88993eaeedad32f42072df6f77f47311.png", 11, 57077],
-          ["微光", "货币", "/common/destiny2_content/icons/88993eaeedad32f42072df6f77f47311.png", 11, 70717],
-          ["突袭旗帜", "消耗品", "/common/destiny2_content/icons/c3e315408bb063aac2133c0c52167d95.jpg", 11, 7]
-        ]
-      },
-      {
-        title: "奇异可重复优惠",
-        subtitle: "可重复兑换",
-        items: [["奇异礼物", "容器", "/common/destiny2_content/icons/0c7464df898b1fb8636b914b81fbd1eb.png", 1, 1]]
-      }
-    ];
-
-    const gearGroups = [
-      {
-        title: "异域装备",
-        subtitle: "武器、记忆水晶与催化剂",
-        items: [
-          ["异域记忆水晶", "记忆水晶", "/common/destiny2_content/icons/3e6a698e1a8a5fb446fdcbf1e63c5269.png", 19],
-          ["血色浪漫", "手炮", "/common/destiny2_content/icons/5a7cb122bf2e8968a68cee59ef93b23d.jpg", 23],
-          ["三体坐观者", "战斗弓箭", "/common/destiny2_content/icons/ab33a7c7024299b28d8c6410d63e5bb5.jpg", 23],
-          ["双尾狐", "火箭发射器", "/common/destiny2_content/icons/c065e1c0d03d9648fcad7762031eede9.jpg", 23],
-          ["黑桃A催化", "催化剂", "/common/destiny2_content/icons/8e54c8921ee2947dc378088725197f22.jpg", 71],
-          ["魔鬼之厄催化剂", "催化剂", "/common/destiny2_content/icons/0131a0551d2193229619e753d3541575.jpg", 71],
-          ["隼月", "手炮", "/common/destiny2_content/icons/cef1290d58a2d94d1437e1e569fa7996.jpg", 23]
-        ]
-      },
-      {
-        title: "传说武器",
-        subtitle: "9 件武器与 1 个记忆水晶",
-        items: [
-          ["崇高追逐", "斥候步枪", "/common/destiny2_content/icons/ebc4ebda968fb2de2b05de517c9a0369.jpg", 17],
-          ["海盗之怒", "线性融合步枪", "/common/destiny2_content/icons/b493fc12f672531508a226b7321cba59.jpg", 17],
-          ["决斗法则", "火箭发射器", "/common/destiny2_content/icons/e331c2975fd1cdf02901a48abc111d17.jpg", 17],
-          ["天龙座", "融合步枪", "/common/destiny2_content/icons/aa48186de4cf0826ec42e6a2e44d30a3.jpg", 17],
-          ["不同时代", "脉冲步枪", "/common/destiny2_content/icons/d91283eef0ce0055dbbac4108262b356.jpg", 17],
-          ["言语轨迹", "狙击步枪", "/common/destiny2_content/icons/544ab1ac0e749b60d65e4aab52901dad.jpg", 17],
-          ["洞穴学者", "机枪", "/common/destiny2_content/icons/594fbfdc5ff60b49c2ba4902c5d35925.jpg", 17],
-          ["破坏之光", "手枪", "/common/destiny2_content/icons/eb5d014d193dbb12cac96c0c483796a5.jpg", 17],
-          ["空洞之语", "融合步枪", "/common/destiny2_content/icons/2a0f2aa7f52e6c992725ef0a85f848f7.jpg", 17],
-          ["奇异武器记忆水晶", "武器记忆水晶", "/common/destiny2_content/icons/6515a012a64659cda9cf9f5f9ac966e9.png", 7]
-        ]
-      },
-      {
-        title: "传说护甲",
-        subtitle: "当前角色职业套装",
-        items: [
-          ["奇异护甲记忆水晶", "护甲记忆水晶", "/common/destiny2_content/icons/72f81678b877631635c66822f199601b.png", 11],
-          ["剑圣面罩", "头盔", "/common/destiny2_content/icons/97c53f7d497cbd9df50d347f90e50772.jpg", 23],
-          ["剑圣手套", "臂铠", "/common/destiny2_content/icons/b5b69e7a48e9aa956923bccb93247b1b.jpg", 23],
-          ["剑圣法袍", "胸部护甲", "/common/destiny2_content/icons/6e43d0848c2fe12c2d83af335dfb5e5d.jpg", 23],
-          ["剑圣战靴", "腿部护甲", "/common/destiny2_content/icons/ac51157276f5a4ecc0a2accfe04eb033.jpg", 23],
-          ["剑圣臂环", "术士臂环", "/common/destiny2_content/icons/d88cc04ab71b380f3422ca6ead305926.jpg", 23]
-        ]
-      }
-    ];
-
-    const rewards = [
-      [1, "奇异记忆水晶", "/common/destiny2_content/icons/1563b4c3cf617ac6011581c1c4b5f162.png"],
-      [4, "强化核心", "/common/destiny2_content/icons/0a4eb695ed55b4e720ddc401460cc0f9.jpg"],
-      [7, "增强棱镜", "/common/destiny2_content/icons/dea2a35badf7466d4c2c2697ce6e8d87.jpg"],
-      [10, "异域记忆水晶", "/common/destiny2_content/icons/3e6a698e1a8a5fb446fdcbf1e63c5269.png"],
-      [13, "增强棱镜", "/common/destiny2_content/icons/dea2a35badf7466d4c2c2697ce6e8d87.jpg"],
-      [16, "超越木星", "/common/destiny2_content/icons/2ebb5872f93aec5b5b74cb407ad69913.jpg"],
-      [17, "重置等级", "/common/destiny2_content/icons/9970631fe1052642c268132dfc30e16b.jpg"]
-    ];
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
 
     function image(path, name, contain = false) {
       const className = contain ? " class=\"is-contain\"" : "";
-      return `<img${className} src="${bungie + path}" alt="" width="58" height="58" loading="lazy" referrerpolicy="no-referrer" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><span hidden>${name.slice(0, 1)}</span>`;
+      const fallback = escapeHtml(String(name || "?").slice(0, 1));
+      if (!path) return `<span>${fallback}</span>`;
+      return `<img${className} src="${bungie + path}" alt="" width="58" height="58" loading="lazy" referrerpolicy="no-referrer" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><span hidden>${fallback}</span>`;
     }
 
-    function cost(value) {
-      if (value === null) return `<span class="offer-cost">无需货币</span>`;
-      return `<span class="offer-cost"><img class="cost-icon" src="${bungie + coinIcon}" alt="" width="17" height="17" loading="lazy">${value} 奇异硬币</span>`;
+    function categoryDefinition(vendorHash, displayCategoryIndex) {
+      return xurLiveData.vendorDefinitions[String(vendorHash)]?.displayCategories?.[displayCategoryIndex]
+        ?? { index: displayCategoryIndex, identifier: "", name: "其他" };
     }
 
-    function offer(item, options = {}) {
-      const [name, type, icon, price, quantity] = item;
-      const quantityHtml = quantity && quantity !== 1 ? `<span class="quantity-badge">× ${quantity.toLocaleString("zh-CN")}</span>` : "";
-      return `<button class="offer" type="button" aria-label="查看${name}资料库详情" data-item="${name}">
-        <span class="offer-icon">${image(icon, name, options.contain)}</span>
-        <span class="offer-body"><span class="offer-name">${name}</span><span class="offer-type">${type || "异域物品"}</span>${cost(price)}</span>
+    function offerFromSale(vendorHash, vendorItemIndex) {
+      const vendor = xurLiveData.vendors[String(vendorHash)];
+      const sale = vendor?.saleItems?.[String(vendorItemIndex)];
+      if (!sale) return null;
+      const definition = xurLiveData.itemDefinitions[String(sale.itemHash)] ?? {};
+      const vendorDefinition = xurLiveData.vendorDefinitions[String(vendorHash)] ?? {};
+      return {
+        vendorHash: Number(vendorHash),
+        vendorItemIndex,
+        itemHash: sale.itemHash,
+        name: definition.name || String(sale.itemHash),
+        description: definition.description || "",
+        icon: definition.icon,
+        itemType: definition.itemType || "",
+        tierType: definition.tierType || "",
+        quantity: sale.quantity ?? 1,
+        costs: (sale.costs ?? []).map(cost => ({
+          ...cost,
+          definition: xurLiveData.itemDefinitions[String(cost.itemHash)] ?? {}
+        })),
+        failureIndexes: sale.failureIndexes ?? [],
+        failureMessages: (sale.failureIndexes ?? []).map(index => vendorDefinition.failureStrings?.[index] || "无法购买"),
+        saleStatus: sale.saleStatus ?? 0,
+        stats: vendor?.stats?.[String(vendorItemIndex)] ?? {},
+        socketPlugHashes: vendor?.sockets?.[String(vendorItemIndex)] ?? []
+      };
+    }
+
+    function activeCategories(vendorHash) {
+      const vendor = xurLiveData.vendors[String(vendorHash)];
+      return (vendor?.categories ?? [])
+        .map(category => {
+          const definition = categoryDefinition(vendorHash, category.displayCategoryIndex);
+          return {
+            index: category.displayCategoryIndex,
+            identifier: definition.identifier || "",
+            name: definition.name || "其他",
+            items: (category.itemIndexes ?? [])
+              .map(index => offerFromSale(vendorHash, index))
+              .filter(Boolean)
+          };
+        })
+        .filter(category => category.items.length)
+        .sort((left, right) => left.index - right.index);
+    }
+
+    function costHtml(item) {
+      if (!item.costs.length) return `<span class="offer-cost">无需货币</span>`;
+      return item.costs.map(cost => {
+        const costName = cost.definition.name || String(cost.itemHash);
+        const costIcon = cost.definition.icon || coinIcon;
+        return `<span class="offer-cost"><img class="cost-icon" src="${bungie + costIcon}" alt="" width="17" height="17" loading="lazy">${cost.quantity.toLocaleString("zh-CN")} ${escapeHtml(costName)}</span>`;
+      }).join("");
+    }
+
+    function offerHtml(item, options = {}) {
+      const quantityHtml = item.quantity > 1
+        ? `<span class="quantity-badge">× ${item.quantity.toLocaleString("zh-CN")}</span>`
+        : "";
+      const contain = options.contain
+        ?? /水晶|货币|材料|容器/.test(`${item.itemType} ${item.name}`);
+      const detailSummary = `${Object.keys(item.stats).length} 项属性 · ${item.socketPlugHashes.length} 个插槽`;
+      return `<button class="offer" type="button" aria-label="查看${escapeHtml(item.name)}资料库详情" data-item="${escapeHtml(item.name)}" title="${detailSummary}">
+        <span class="offer-icon">${image(item.icon, item.name, contain)}</span>
+        <span class="offer-body"><span class="offer-name">${escapeHtml(item.name)}</span><span class="offer-type">${escapeHtml(item.itemType || item.tierType || "异域物品")}</span>${costHtml(item)}</span>
         ${quantityHtml}
       </button>`;
     }
 
-    function column(group) {
-      if (group.kind === "loyalty") {
-        const item = group.items[0];
-        return `<section class="inventory-column"><div class="column-heading"><div><h3>${group.title}</h3><p>${group.subtitle}</p></div><span class="column-count">1</span></div><div class="offer-list"><button class="loyalty-card" type="button" aria-label="查看玖的恩惠详情" data-item="${item[0]}"><span class="offer-icon">${image(item[2], item[0])}</span><span><h3>${item[0]}</h3><p>忠诚计划账户增益。该条目来自 Bungie 独立分类，不与材料兑换合并。</p>${cost(item[3])}</span></button></div></section>`;
-      }
-      return `<section class="inventory-column"><div class="column-heading"><div><h3>${group.title}</h3><p>${group.subtitle}</p></div><span class="column-count">${group.items.length}</span></div><div class="offer-list">${group.items.map(item => offer(item, { contain: item[1].includes("水晶") || item[1] === "货币" || item[1] === "材料" })).join("")}</div></section>`;
+    function inventoryRowHtml(category) {
+      return `<section class="inventory-row" data-category="${escapeHtml(category.identifier)}">
+        <div class="inventory-row-heading"><h3>${escapeHtml(category.name)}</h3><span class="inventory-row-count">${category.items.length} 件</span></div>
+        <div class="inventory-row-track">${category.items.map(item => offerHtml(item)).join("")}</div>
+      </section>`;
     }
 
-    document.getElementById("weekly-grid").innerHTML = weekly.map(item => offer(item)).join("");
-    document.getElementById("more-columns").innerHTML = moreGroups.map(column).join("");
-    document.getElementById("gear-columns").innerHTML = gearGroups.map(column).join("");
-    document.getElementById("reward-track").innerHTML = rewards.map(([level, name, icon]) => {
-      const state = level < 4 ? "已领取" : level === 4 ? "当前等级" : "未解锁";
-      return `<div class="reward${level === 4 ? " is-current" : ""}"><span class="reward-level">等级 ${level}</span><span class="offer-icon">${image(icon, name, true)}</span><span class="reward-name">${name}</span><span class="reward-state">${state}</span></div>`;
+    function rewardLevel(item, index, progression) {
+      for (const message of item.failureMessages) {
+        const required = message.match(/需要等级\s*(\d+)/);
+        if (required) return Number(required[1]);
+        const reset = message.match(/完成等级\s*(\d+)/);
+        if (reset) return Number(reset[1]) + 1;
+      }
+      if (index === 0) return 1;
+      return Math.min(progression.levelCap + 1, index + 1);
+    }
+
+    function rewardState(item, level, progression) {
+      if (!item.failureIndexes.length && item.saleStatus === 0) return "可领取";
+      if (level === progression.level) return "当前等级";
+      if (level < progression.level) return "已领取";
+      return "未解锁";
+    }
+
+    const definitionEntries = Object.entries(xurLiveData.vendorDefinitions);
+    const rootEntry = definitionEntries.find(([, candidate]) =>
+      definitionEntries.some(([, child]) =>
+        child.vendorIdentifier !== candidate.vendorIdentifier
+        && child.vendorIdentifier.startsWith(`${candidate.vendorIdentifier}_`)
+      )
+    ) ?? definitionEntries[0];
+    const [rootHash, rootDefinition] = rootEntry;
+    const rootVendor = xurLiveData.vendors[rootHash];
+    const rootCategories = activeCategories(rootHash);
+    const progression = rootVendor.vendor.progression;
+    const rankCategory = rootCategories.find(category => category.identifier.includes("rank_rewards"));
+    const weeklyCategory = rootCategories
+      .filter(category => category !== rankCategory)
+      .filter(category => category.items.some(item => item.costs.length || item.itemType))
+      .sort((left, right) => right.items.length - left.items.length)[0];
+    const rewardItems = rankCategory?.items ?? [];
+    const weeklyItems = weeklyCategory?.items ?? [];
+    const rewardModels = rewardItems.map((item, index) => ({
+      item,
+      level: rewardLevel(item, index, progression)
+    }));
+
+    document.getElementById("vendor-name").textContent = rootDefinition.name;
+    document.getElementById("vendor-description").textContent = rootDefinition.description;
+    document.getElementById("capture-time").textContent = `抓取：${new Date(xurLiveData.capturedAt).toLocaleString("zh-CN")}`;
+    document.getElementById("refresh-time").textContent = rootVendor.vendor.nextRefreshDate
+      ? `刷新：${new Date(rootVendor.vendor.nextRefreshDate).toLocaleString("zh-CN")}`
+      : "等待刷新时间";
+    document.getElementById("rank-context").textContent = `${rootDefinition.name}等级 ${progression.level} / ${progression.levelCap} · 距离下一等级 ${progression.progressToNextLevel} 点`;
+    document.getElementById("rank-section-meta").textContent = `等级上限 ${progression.levelCap} · ${rewardItems.length} 个奖励`;
+    document.getElementById("rank-number").textContent = progression.level;
+    const currentStepProgress = Math.max(0, progression.nextLevelAt - progression.progressToNextLevel);
+    const progressPercent = progression.nextLevelAt ? currentStepProgress / progression.nextLevelAt * 100 : 0;
+    document.getElementById("rank-current-progress").textContent = `本级进度 ${currentStepProgress} / ${progression.nextLevelAt}`;
+    document.getElementById("rank-next-level").textContent = `累计进度 ${progression.currentProgress}`;
+    document.getElementById("rank-progress-track").setAttribute("aria-label", `等级进度 ${Math.round(progressPercent)}%`);
+    document.querySelector("#rank-progress-track span").style.width = `${progressPercent}%`;
+    document.getElementById("rank-remaining").textContent = `${progression.progressToNextLevel} 点`;
+    document.getElementById("rank-next-reward").textContent = rewardModels.find(reward => reward.level > progression.level)?.level ?? progression.levelCap;
+    document.getElementById("rank-cap").textContent = progression.levelCap;
+    document.getElementById("reward-count").textContent = `${rewardItems.length} 个奖励节点`;
+    document.getElementById("weekly-count").textContent = `当前角色 ${weeklyItems.length} 件`;
+    document.getElementById("weekly-grid").innerHTML = weeklyItems.map(item => offerHtml(item)).join("");
+    document.getElementById("reward-track").innerHTML = rewardModels.map(({ item, level }) => {
+      const state = rewardState(item, level, progression);
+      return `<div class="reward${state === "当前等级" ? " is-current" : ""}"><span class="reward-level">等级 ${level}</span><span class="offer-icon">${image(item.icon, item.name, true)}</span><span class="reward-name">${escapeHtml(item.name)}</span><span class="reward-state">${state}</span></div>`;
     }).join("");
+
+    const childEntries = definitionEntries
+      .filter(([hash, definition]) => hash !== rootHash && definition.vendorIdentifier.startsWith(`${rootDefinition.vendorIdentifier}_`));
+    const navigationOrder = rootCategories
+      .flatMap(category => category.items)
+      .map(item => item.name);
+    childEntries.sort((left, right) => {
+      const leftIndex = navigationOrder.indexOf(left[1].name);
+      const rightIndex = navigationOrder.indexOf(right[1].name);
+      return (leftIndex < 0 ? Number.MAX_SAFE_INTEGER : leftIndex)
+        - (rightIndex < 0 ? Number.MAX_SAFE_INTEGER : rightIndex);
+    });
+    document.getElementById("child-vendor-sections").innerHTML = childEntries.map(([hash, definition], index) => {
+      const categories = activeCategories(hash);
+      const itemCount = categories.reduce((count, category) => count + category.items.length, 0);
+      return `<section class="panel" data-vendor="${escapeHtml(definition.vendorIdentifier)}">
+        <div class="loading-layer" aria-hidden="true"><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div></div>
+        <div class="section-heading"><div class="section-heading-main"><span class="section-kicker">仄 · 子库存 ${String(index + 1).padStart(2, "0")}</span><h2>${escapeHtml(definition.name)}</h2>${definition.description ? `<p class="section-description">${escapeHtml(definition.description)}</p>` : ""}</div><span class="section-summary"><strong>${itemCount}</strong><span>${categories.length} 个分类</span></span></div>
+        <div class="inventory-rows">${categories.map(inventoryRowHtml).join("")}</div>
+        <p class="source-note">分类名称、分类顺序和售卖条目均由 Bungie 实时数据与 Manifest 动态解析。</p>
+      </section>`;
+    }).join("");
+    const visibleInventoryCount = weeklyItems.length + childEntries.reduce(
+      (count, [hash]) => count + activeCategories(hash).reduce((sum, category) => sum + category.items.length, 0),
+      0
+    );
+    document.querySelector(".vendor-row strong").textContent = rootDefinition.name;
+    document.querySelector(".vendor-row span").textContent = `高塔 · ${visibleInventoryCount} 个售卖条目`;
+    document.getElementById("status-text").textContent = `已解析 ${visibleInventoryCount} 个售卖条目、${rewardItems.length} 个等级奖励和 ${childEntries.length} 个子库存`;
 
     const tweaks = document.getElementById("tweaks");
     const tweakButton = document.getElementById("tweak-button");
@@ -1359,43 +1583,6 @@
 
     loadingButton.addEventListener("click", () => setLoading(true));
     document.getElementById("refresh-button").addEventListener("click", () => setLoading(true));
-    const searchButton = document.getElementById("search-button");
-    const searchPanel = document.getElementById("search-panel");
-    const searchInput = document.getElementById("inventory-search");
-    function filterInventory() {
-      const query = searchInput.value.trim().toLocaleLowerCase();
-      const cards = [...document.querySelectorAll("[data-item]")];
-      let visible = 0;
-      cards.forEach(card => {
-        const matches = !query || card.dataset.item.toLocaleLowerCase().includes(query);
-        card.hidden = !matches;
-        if (matches) visible += 1;
-      });
-      document.querySelectorAll(".inventory-column").forEach(columnElement => {
-        const columnCards = [...columnElement.querySelectorAll("[data-item]")];
-        columnElement.hidden = Boolean(query) && columnCards.every(card => card.hidden);
-      });
-      document.querySelectorAll(".panel").forEach(panelElement => {
-        const panelCards = [...panelElement.querySelectorAll("[data-item]")];
-        panelElement.hidden = Boolean(query) && (panelCards.length === 0 || panelCards.every(card => card.hidden));
-      });
-      if (query) statusText.textContent = `全部库存找到 ${visible} 个匹配条目`;
-    }
-
-    searchButton.addEventListener("click", () => {
-      const open = searchPanel.hidden;
-      searchPanel.hidden = !open;
-      searchButton.setAttribute("aria-expanded", String(open));
-      if (open) searchInput.focus();
-    });
-    searchInput.addEventListener("input", filterInventory);
-    document.getElementById("clear-search").addEventListener("click", () => {
-      searchInput.value = "";
-      filterInventory();
-      statusText.textContent = "当前角色库存已就绪，护甲属性按当前机灵护甲师模组读取";
-      searchInput.focus();
-    });
-
     document.addEventListener("click", event => {
       const card = event.target.closest("[data-item]");
       if (!card) return;
@@ -1404,5 +1591,6 @@
 
     if (window.lucide) window.lucide.createIcons({ attrs: { width: 16, height: 16, "stroke-width": 1.8 } });
   </script>
+  <script async src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js" onload="window.lucide?.createIcons({ attrs: { width: 16, height: 16, 'stroke-width': 1.8 } })"></script>
 </body>
 </html>

@@ -236,7 +236,7 @@ export function VendorsPageContentView(props: VendorsPageContentViewProps) {
         <header className="vendor-detail-head">
           <div className="vendor-detail-heading">
             <div className="vendor-detail-title-row">
-              <h3>{selectedVendor.name}</h3>
+              <h1>{selectedVendor.name}</h1>
               <span className={selectedVendor.detailState === "failed" || selectedVendor.detailState === "partial"
                 ? "app-chip status-error"
                 : selectedVendor.detailState === "pending"
@@ -315,56 +315,84 @@ function VendorContentSections(props: {
 
   return (
     <div className="vendor-content-flow">
-      {props.sections.map((section) => (
-        <section className="vendor-content-section" key={section.id} aria-labelledby={`vendor-section-${section.id}`}>
-          <div className="vendor-section-heading">
-            <h4 id={`vendor-section-${section.id}`}>{section.name}</h4>
-            <span>{section.description ?? `${countSectionItems(section)} 件`}</span>
-          </div>
-          {section.layout === "rank" ? (
-            <VendorRankSection section={section} vendor={props.vendor} actions={props.actions} />
-          ) : section.layout === "featured" ? (
-            <div className="vendor-inventory-grid vendor-featured-grid">
-              {section.groups.flatMap((group) => group.items).map((item) => (
-                <VendorOfferButton key={item.id} item={item} vendor={props.vendor} actions={props.actions} />
-              ))}
+      {props.sections.map((section) => {
+        const isSubinventory = section.layout === "columns" || section.layout === "list";
+        const subinventoryIndex = isSubinventory
+          ? props.sections.filter((candidate) => candidate.layout === "columns" || candidate.layout === "list").findIndex((candidate) => candidate.id === section.id) + 1
+          : 0;
+        const itemCount = countSectionItems(section);
+        const headingId = `vendor-section-${section.id}`;
+
+        return (
+          <section
+            className={isSubinventory
+              ? `vendor-content-section is-${section.layout} is-subinventory`
+              : `vendor-content-section is-${section.layout}`}
+            key={section.id}
+            aria-labelledby={headingId}
+          >
+            <div className="vendor-section-heading">
+              <div className="vendor-section-heading-main">
+                {isSubinventory ? (
+                  <span className="vendor-section-kicker">
+                    {props.vendor.name} · 子库存 {String(subinventoryIndex).padStart(2, "0")}
+                  </span>
+                ) : null}
+                <h2 id={headingId}>{section.name}</h2>
+                {isSubinventory && section.description ? <p>{section.description}</p> : null}
+              </div>
+              {isSubinventory ? (
+                <span className="vendor-section-summary">
+                  <strong>{itemCount}</strong>
+                  <small>{section.groups.length} 个分类</small>
+                </span>
+              ) : (
+                <span className="vendor-section-meta">{section.description ?? `${itemCount} 件`}</span>
+              )}
             </div>
-          ) : (
-            <div className={section.layout === "columns" ? "vendor-category-columns" : "vendor-category-columns is-list"}>
-              {section.groups.map((group) => (
-                <section
-                  className={group.presentation === "featured"
-                    ? "vendor-category-column is-featured"
-                    : "vendor-category-column"}
-                  key={group.id}
-                  aria-label={group.name || section.name}
-                >
-                  {group.name ? (
-                    <div className="vendor-category-heading">
-                      <div>
-                        <h5>{group.name}</h5>
-                        {group.description ? <p>{group.description}</p> : null}
+            {section.layout === "rank" ? (
+              <VendorRankSection section={section} vendor={props.vendor} actions={props.actions} />
+            ) : section.layout === "featured" ? (
+              <div className="vendor-inventory-grid vendor-featured-grid">
+                {section.groups.flatMap((group) => group.items).map((item) => (
+                  <VendorOfferButton key={item.id} item={item} vendor={props.vendor} actions={props.actions} />
+                ))}
+              </div>
+            ) : (
+              <div className="vendor-category-columns">
+                {section.groups.map((group) => {
+                  const groupHeadingId = `${headingId}-${group.id}`;
+                  return (
+                    <section
+                      className="vendor-category-column"
+                      key={group.id}
+                      aria-labelledby={group.name ? groupHeadingId : headingId}
+                    >
+                      {group.name ? (
+                        <div className="vendor-category-heading">
+                          <h3 id={groupHeadingId}>{group.name}</h3>
+                          <span>{group.items.length} 件</span>
+                        </div>
+                      ) : null}
+                      <div className="vendor-compact-list">
+                        {group.items.map((item) => (
+                          <VendorOfferButton
+                            key={item.id}
+                            item={item}
+                            vendor={props.vendor}
+                            actions={props.actions}
+                            compact
+                          />
+                        ))}
                       </div>
-                      <span>{group.items.length}</span>
-                    </div>
-                  ) : null}
-                  <div className="vendor-compact-list">
-                    {group.items.map((item) => (
-                      <VendorOfferButton
-                        key={item.id}
-                        item={item}
-                        vendor={props.vendor}
-                        actions={props.actions}
-                        compact={group.presentation !== "featured"}
-                      />
-                    ))}
-                  </div>
-                </section>
-              ))}
-            </div>
-          )}
-        </section>
-      ))}
+                    </section>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+        );
+      })}
     </div>
   );
 }
@@ -375,6 +403,7 @@ function VendorRankSection(props: {
   actions: VendorsPageActions;
 }) {
   const progression = props.section.progression;
+  const rewardGroup = props.section.groups[0];
   const rewards = props.section.groups.flatMap((group) => group.items);
   const currentStepProgress = progression
     ? Math.max(0, progression.nextLevelAt - progression.progressToNextLevel)
@@ -387,46 +416,58 @@ function VendorRankSection(props: {
     <div className="vendor-rank-layout">
       {progression ? (
         <section className="vendor-rank-summary" aria-label="商人声望进度">
-          <div className="vendor-rank-title">
+          <div className="vendor-rank-level">
+            <span>当前等级</span>
             <div>
-              <span>当前等级</span>
-              <strong>{progression.level}</strong>
+              <strong>{props.vendor.name}声望</strong>
+              <b>{progression.level}</b>
             </div>
-            <small>上限 {progression.levelCap}</small>
           </div>
-          <div className="vendor-rank-progress-label">
-            <span>本级进度 {currentStepProgress} / {progression.nextLevelAt}</span>
-            <strong>还差 {progression.progressToNextLevel} 点</strong>
+          <div className="vendor-rank-progress-body">
+            <div className="vendor-rank-progress-label">
+              <span>本级进度 {currentStepProgress} / {progression.nextLevelAt}</span>
+              <span>累计进度 {progression.currentProgress}</span>
+            </div>
+            <div className="vendor-rank-progress" aria-label={`声望进度 ${Math.round(progressPercent)}%`}>
+              <span style={{ width: `${progressPercent}%` }} />
+            </div>
+            <dl className="vendor-rank-metrics">
+              <div><dt>距离下一等级</dt><dd>{progression.progressToNextLevel} 点</dd></div>
+              <div><dt>等级上限</dt><dd>{progression.levelCap}</dd></div>
+              <div><dt>奖励节点</dt><dd>{rewards.length}</dd></div>
+            </dl>
           </div>
-          <div className="vendor-rank-progress" aria-label={`声望进度 ${Math.round(progressPercent)}%`}>
-            <span style={{ width: `${progressPercent}%` }} />
-          </div>
-          <span className="vendor-rank-total">累计进度 {progression.currentProgress}</span>
         </section>
       ) : null}
-      <div className="vendor-rank-rewards" aria-label="等级奖励">
-        {rewards.map((item) => (
-          <button
-            type="button"
-            className="vendor-rank-reward"
-            key={item.id}
-            aria-label={`查看${item.name}资料库详情`}
-            onClick={() => props.actions.onOpenItem?.(item, {
-              vendorName: props.vendor.name,
-              costLabel: "等级奖励",
-              affordabilityLabel: "随商人等级解锁",
-              characterLabel: item.characterIds?.join("、") ?? "当前角色",
-              refreshLabel: props.vendor.resetLabel
-            })}
-          >
-            <VendorItemArt item={item} />
-            <span>
-              <strong>{item.name}</strong>
-              <small>{item.itemType || "等级奖励"}</small>
-            </span>
-          </button>
-        ))}
-      </div>
+      <section className="vendor-rank-reward-section" aria-labelledby={`vendor-rank-rewards-${props.section.id}`}>
+        <div className="vendor-category-heading vendor-rank-reward-heading">
+          <h3 id={`vendor-rank-rewards-${props.section.id}`}>{rewardGroup?.name || "等级奖励"}</h3>
+          <span>{rewards.length} 个奖励节点</span>
+        </div>
+        <div className="vendor-rank-rewards">
+          {rewards.map((item) => (
+            <button
+              type="button"
+              className="vendor-rank-reward"
+              key={item.id}
+              aria-label={`查看${item.name}资料库详情`}
+              onClick={() => props.actions.onOpenItem?.(item, {
+                vendorName: props.vendor.name,
+                costLabel: "等级奖励",
+                affordabilityLabel: "随商人等级解锁",
+                characterLabel: item.characterIds?.join("、") ?? "当前角色",
+                refreshLabel: props.vendor.resetLabel
+              })}
+            >
+              <VendorItemArt item={item} />
+              <span>
+                <strong>{item.name}</strong>
+                <small>{item.itemType || "等级奖励"}</small>
+              </span>
+            </button>
+          ))}
+        </div>
+      </section>
     </div>
   );
 }

@@ -317,7 +317,7 @@ function selectSnapshotVendorsPageModel(input: VendorsPageInput): VendorsPageMod
       iconUrl: normalizeBungieIconUrl(vendor.iconUrl),
       badge: vendor.vendorHash === 2190858386 ? "周末" : "已确认",
       source: "Bungie 角色商人",
-      resetLabel: vendor.nextRefreshAt ? `刷新：${vendor.nextRefreshAt}` : "等待刷新时间",
+      resetLabel: formatVendorRefreshLabel(vendor.nextRefreshAt),
       category: vendor.vendorHash === 2190858386 ? "重点" : "已确认",
       statusLabel: detailState === "failed"
         ? "详情失败"
@@ -417,6 +417,24 @@ function mapSnapshotOffer(
   };
 }
 
+function formatVendorRefreshLabel(value: string | undefined): string {
+  if (!value) return "等待刷新时间";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "等待刷新时间";
+
+  const parts = new Intl.DateTimeFormat("zh-CN", {
+    year: "numeric",
+    month: "numeric",
+    day: "numeric",
+    weekday: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23"
+  }).formatToParts(date);
+  const part = (type: string) => parts.find((entry) => entry.type === type)?.value ?? "";
+  return `刷新：${part("year")}年${part("month")}月${part("day")}日 ${part("weekday")} ${part("hour")}:${part("minute")}`;
+}
+
 function composeXurVendorFamily(
   vendors: VendorInventoryGroupWorkspace[]
 ): VendorInventoryGroupWorkspace[] {
@@ -487,8 +505,8 @@ function createXurContentSections(
   if (parent.items.length) {
     sections.push({
       id: "xur-weekly",
-      name: "本周库存",
-      description: `多样奇异优惠 · 当前角色 ${parent.items.length} 件`,
+      name: "多样奇异优惠",
+      description: `当前角色 ${parent.items.length} 件`,
       layout: "featured",
       groups: [{ id: "xur-weekly-items", name: "", items: parent.items }]
     });
@@ -498,7 +516,7 @@ function createXurContentSections(
     sections.push({
       id: service.id,
       name: service.name,
-      description: `${service.items.length} 件 · ${groups.length} 个 Bungie 分类`,
+      description: service.description || undefined,
       layout: groups.length > 1 ? "columns" : "list",
       groups: groups.length ? groups : [{
         id: `${service.id}-items`,
