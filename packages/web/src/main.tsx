@@ -17,9 +17,7 @@ import {
   type ShellAssistantMode,
   type ShellPageKey
 } from "@d2-tools/ui";
-import {
-  homePageMetaMap,
-} from "@d2-tools/app";
+import { homePageMetaMap } from "@d2-tools/app/home";
 import "@d2-tools/ui/styles.css";
 import {
   createWebShellAdapter,

@@ -9,15 +9,8 @@ import type { DimWishlist } from "@d2-tools/core/analysis/wishlistImport";
 import type { LocalTargetRules } from "@d2-tools/core/analysis/targets";
 import type { VaultItemMatchInfo } from "@d2-tools/core/community-perks";
 import type { VaultTags, VaultTagValue } from "@d2-tools/core/vault/tags";
-import {
-  matchesLoadoutTemplateItem,
-  type LoadoutTemplateLookup,
-  ammoFilterLabels,
-  formatArmorStatsInline,
-  getVaultItemKey,
-  normalizeCoreItem,
-  tagLabels
-} from "@d2-tools/app";
+import { matchesLoadoutTemplateItem, type LoadoutTemplateLookup } from "@d2-tools/app/loadouts";
+import { ammoFilterLabels, formatArmorStatsInline, getVaultItemKey, normalizeCoreItem, tagLabels } from "@d2-tools/app/vault";
 
 export function VaultListItem(props: {
   item: AccountItemSummary;

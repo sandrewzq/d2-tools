@@ -1,17 +1,11 @@
 import { useMemo } from "react";
-import {
-  buildLoadoutTemplateLookup,
-  matchesLoadoutTemplateItem,
-  selectAccountPageModel,
-  selectHomePageModel,
-  selectLibraryPageModel,
-  selectLoadoutsPageModel,
-  selectSettingsPageModel,
-  selectVaultPageModel,
-  selectVendorsPageModel,
-  type SettingsSectionKey,
-  type VendorsPageInput
-} from "@d2-tools/app";
+import { buildLoadoutTemplateLookup, matchesLoadoutTemplateItem, selectLoadoutsPageModel } from "@d2-tools/app/loadouts";
+import { selectAccountPageModel } from "@d2-tools/app/account";
+import { selectHomePageModel } from "@d2-tools/app/home";
+import { selectLibraryPageModel } from "@d2-tools/app/library";
+import { selectSettingsPageModel, type SettingsSectionKey } from "@d2-tools/app/settings";
+import { selectVaultPageModel } from "@d2-tools/app/vault";
+import { selectVendorsPageModel, type VendorsPageInput } from "@d2-tools/app/vendors";
 import type {
   AiAssistantContextView,
   AiAssistantMessageView,

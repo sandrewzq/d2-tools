@@ -9,7 +9,7 @@ import {
   type SameNameItemSummary,
   type SelectedItemDetail,
   type SelectedItemSource
-} from "@d2-tools/app";
+} from "@d2-tools/app/items";
 import { formatAccountItemMeta, formatArmorStatsSummary } from "./itemDetailFormatters";
 import { formatVaultTagLabel } from "./itemDetailFormatters";
 

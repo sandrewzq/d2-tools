@@ -8,8 +8,8 @@ import type { DimWishlist } from "@d2-tools/core/analysis/wishlistImport";
 import type { LocalTargetRules } from "@d2-tools/core/analysis/targets";
 import type { VaultItemMatchInfo } from "@d2-tools/core/community-perks";
 import type { SaveVaultTagInput, VaultTags, VaultTagValue } from "@d2-tools/core/vault/tags";
+import type { LoadoutTemplateLookup } from "@d2-tools/app/loadouts";
 import type {
-  LoadoutTemplateLookup,
   VaultAmmoFilter,
   VaultArmorStatRule,
   VaultFilter,
@@ -23,7 +23,7 @@ import type {
   VaultSlotSummary,
   VaultSortKey,
   VaultTagFilter
-} from "@d2-tools/app";
+} from "@d2-tools/app/vault";
 import {
   applyVisibleVaultSelection,
   buildVaultDuplicateSummary,
@@ -32,12 +32,12 @@ import {
   createVaultListWorkspace,
   defaultVaultGroupTab,
   getVaultItemKey,
-  matchesLoadoutTemplateItem,
   selectMarkedCleanupItems,
   selectVaultBatchItems,
   type VaultBatchSelectionMode,
   type VaultVisibleSelectionMode
-} from "@d2-tools/app";
+} from "@d2-tools/app/vault";
+import { matchesLoadoutTemplateItem } from "@d2-tools/app/loadouts";
 import { VaultDuplicateGroups } from "./VaultDuplicateGroups.js";
 import { VaultFilterToolbar } from "./VaultFilterToolbar.js";
 import { VaultItemSections } from "./VaultItemSections.js";

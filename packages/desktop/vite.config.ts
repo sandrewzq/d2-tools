@@ -3,17 +3,20 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
 const currentDir = fileURLToPath(new URL(".", import.meta.url));
+const appSourceDir = fileURLToPath(new URL("../app/src", import.meta.url));
+const appDomains = ["account", "assistant", "home", "items", "library", "loadouts", "settings", "vault", "vendors"];
 
 export default defineConfig({
   root: currentDir,
   base: "./",
   plugins: [react()],
   resolve: {
-    alias: {
-      "@d2-tools/app": fileURLToPath(new URL("../app/src/index.ts", import.meta.url)),
-      "@d2-tools/ui/styles.css": fileURLToPath(new URL("../ui/src/styles.css", import.meta.url)),
-      "@d2-tools/ui": fileURLToPath(new URL("../ui/src/index.ts", import.meta.url))
-    }
+    alias: [
+      ...appDomains.map((domain) => ({ find: `@d2-tools/app/${domain}`, replacement: `${appSourceDir}/${domain}.ts` })),
+      { find: "@d2-tools/app", replacement: `${appSourceDir}/index.ts` },
+      { find: "@d2-tools/ui/styles.css", replacement: fileURLToPath(new URL("../ui/src/styles.css", import.meta.url)) },
+      { find: "@d2-tools/ui", replacement: fileURLToPath(new URL("../ui/src/index.ts", import.meta.url)) }
+    ]
   },
   build: {
     outDir: "dist/renderer",

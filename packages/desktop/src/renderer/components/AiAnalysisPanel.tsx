@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { buildAiChatContext } from "@d2-tools/core/ai/chat";
-import { sendAssistantMessage } from "@d2-tools/app";
+import { sendAssistantMessage } from "@d2-tools/app/assistant";
 import {
   AiAssistantPanelView,
   type AiAssistantHistoryEntryView,

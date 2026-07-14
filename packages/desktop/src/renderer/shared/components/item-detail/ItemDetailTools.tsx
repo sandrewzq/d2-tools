@@ -16,7 +16,7 @@ import type {
   SelectedItemDetail,
   SelectedItemSource
 } from "../../hooks/useItemDetail";
-import { selectedItemToAccountItem } from "@d2-tools/app";
+import { selectedItemToAccountItem } from "@d2-tools/app/items";
 import type { buildDuplicateGroupBatchTagPlan } from "../../domain/vault/vaultCleanup";
 import {
   formatVaultTagLabel,

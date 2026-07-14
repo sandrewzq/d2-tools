@@ -20,7 +20,6 @@
 | T1 | P1 | 🟡 待推进 | 小日向与 d2-skill 产品级能力 | [总纲](work/backlog/kohinata-d2-skill-product-architecture.md) / [攻略证据工作台](work/backlog/kohinata-guide-evidence-workbench.md) | 攻略解析、账号命中、perk 证据和配装草稿 |
 | T2 | P1 | 🟡 待推进 | 仓库推荐与清理工作台 | [仓库推荐与清理工作台](work/backlog/vault-recommendation-and-cleanup-workbench.md) | 统一 DIM wishlist、本地目标、同名对比和清理清单 |
 | T3 | P1 | 🟡 进行中 | 首页本周世界简报、商人与掉落查询 | [本周世界简报](work/backlog/home-weekly-world-briefing-redesign.md) / [日报与掉落查询](work/backlog/daily-report-and-drops-assistant.md) | 验收机灵模组 A/B；逐个确认其他商人的子库存、声望和首页摘要，不复用仄的专属规则 |
-| T4 | P1 | 🟡 待推进 | 跨端模块边界收口 | [模块边界](work/backlog/module-depth-and-platform-seams.md) | 按 `app` 分域导出、Desktop 菜单 Provider、Web snapshot 三个独立切片推进 |
 | T5 | P3 | 🟡 待推进 | 活动复盘增强 | [活动复盘增强](work/backlog/activity-review-enhancement.md) | 接 PGCR、完成时间推算和副本级趋势 |
 
 ## 验证入口

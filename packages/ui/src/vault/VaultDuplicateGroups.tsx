@@ -7,11 +7,7 @@ import type { AccountItemSummary } from "@d2-tools/core/account/summary";
 import type { LocalTargetRules } from "@d2-tools/core/analysis/targets";
 import type { VaultTags } from "@d2-tools/core/vault/tags";
 import { formatVaultItemMeta } from "./VaultListItem.js";
-import {
-  getVaultItemKey,
-  selectDuplicateGroupItems,
-  type DuplicateGroupBatchTagMode
-} from "@d2-tools/app";
+import { getVaultItemKey, selectDuplicateGroupItems, type DuplicateGroupBatchTagMode } from "@d2-tools/app/vault";
 
 export const INITIAL_DUPLICATE_GROUP_RENDER_LIMIT = 40;
 const DUPLICATE_GROUP_RENDER_INCREMENT = 40;

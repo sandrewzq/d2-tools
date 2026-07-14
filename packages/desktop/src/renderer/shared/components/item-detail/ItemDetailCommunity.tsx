@@ -6,7 +6,7 @@ import {
   sortSameNameItems,
   type SameNameItemSummary,
   type SelectedItemDetail
-} from "@d2-tools/app";
+} from "@d2-tools/app/items";
 import {
   formatCommunityMode,
   formatVaultTagLabel,

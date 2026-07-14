@@ -11,7 +11,7 @@ import type {
   LiveItemAvailabilityEntry,
   PerkSearchResult,
   VaultItemMatchInfo
-} from "@d2-tools/app";
+} from "@d2-tools/app/library";
 import { getLocaleCopy } from "../i18n/copy.js";
 import type { InterfaceLocale, LibraryCopy } from "../i18n/types.js";
 import type { VendorOfferContext } from "../item-detail/SharedItemDetailDialog.js";

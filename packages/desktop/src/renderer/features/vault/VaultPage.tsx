@@ -1,4 +1,4 @@
-import { selectVaultPageModel } from "@d2-tools/app";
+import { selectVaultPageModel } from "@d2-tools/app/vault";
 import { ProductWorkspaceEmptyState, VaultPageContentView } from "@d2-tools/ui";
 import { useState } from "react";
 import type { LoadoutTemplateLookup } from "../../shared/domain/loadouts/loadoutLookup";

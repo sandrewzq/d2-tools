@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { homePageLabels } from "@d2-tools/app";
+import { homePageLabels } from "@d2-tools/app/home";
 import type {
   AccountSummary,
   AccountItemSummary,

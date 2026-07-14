@@ -23,7 +23,7 @@ export {
   tagLabels,
   vaultGroupLabels,
   vaultGroupOrder
-} from "@d2-tools/app";
+} from "@d2-tools/app/vault";
 
 export type {
   VaultAmmoFilter,
@@ -42,4 +42,4 @@ export type {
   VaultSortKey,
   VaultTagFilter,
   VaultViewMode
-} from "@d2-tools/app";
+} from "@d2-tools/app/vault";

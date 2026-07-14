@@ -4,7 +4,7 @@ import type {
   AccountOpenItemPayload,
   AccountPageViewModel,
   AccountSlotComparisonViewRow
-} from "@d2-tools/app";
+} from "@d2-tools/app/account";
 import { getLocaleCopy } from "../i18n/copy.js";
 import type { AccountCopy, InterfaceLocale } from "../i18n/types.js";
 import {

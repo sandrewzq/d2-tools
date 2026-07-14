@@ -9,6 +9,42 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./account": {
+      "types": "./dist/account.d.ts",
+      "import": "./dist/account.js"
+    },
+    "./assistant": {
+      "types": "./dist/assistant.d.ts",
+      "import": "./dist/assistant.js"
+    },
+    "./home": {
+      "types": "./dist/home.d.ts",
+      "import": "./dist/home.js"
+    },
+    "./items": {
+      "types": "./dist/items.d.ts",
+      "import": "./dist/items.js"
+    },
+    "./library": {
+      "types": "./dist/library.d.ts",
+      "import": "./dist/library.js"
+    },
+    "./loadouts": {
+      "types": "./dist/loadouts.d.ts",
+      "import": "./dist/loadouts.js"
+    },
+    "./settings": {
+      "types": "./dist/settings.d.ts",
+      "import": "./dist/settings.js"
+    },
+    "./vault": {
+      "types": "./dist/vault.d.ts",
+      "import": "./dist/vault.js"
+    },
+    "./vendors": {
+      "types": "./dist/vendors.d.ts",
+      "import": "./dist/vendors.js"
     }
   },
   "scripts": {

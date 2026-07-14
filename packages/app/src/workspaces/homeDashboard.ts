@@ -113,11 +113,3 @@ export type HomeDashboardActions = {
   onNavigate: (page: "home" | "account" | "vault" | "loadouts" | "library" | "vendors" | "settings") => void;
   onRefreshDaily: () => void;
 };
-
-export function createHomeDashboardWorkspace(input: HomeDashboardWorkspace) {
-  return input;
-}
-
-export function createHomeDashboardActions(input: HomeDashboardActions) {
-  return input;
-}

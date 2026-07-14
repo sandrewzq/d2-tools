@@ -1,4 +1,4 @@
-export type { LoadoutCompareCell, LoadoutCompareRow } from "@d2-tools/app";
+export type { LoadoutCompareCell, LoadoutCompareRow } from "@d2-tools/app/loadouts";
 export {
   buildLoadoutCompareRows,
   buildMissingLoadoutItemsText,
@@ -7,4 +7,4 @@ export {
   isMatchingTemplateItem,
   isTemplateItemReady,
   isTemplateItemReadyFromPlan
-} from "@d2-tools/app";
+} from "@d2-tools/app/loadouts";

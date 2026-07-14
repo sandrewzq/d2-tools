@@ -30,8 +30,6 @@ export {
   buildSingleLoadoutTransferStartMessage,
   buildSingleLoadoutTransferStepProgressMessage,
   getMissingLoadoutActionableCount
-} from "@d2-tools/app";
+} from "@d2-tools/app/loadouts";
 
-export type {
-  LoadoutActionResultCounts
-} from "@d2-tools/app";
+export type { LoadoutActionResultCounts } from "@d2-tools/app/loadouts";

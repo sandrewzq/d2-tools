@@ -1,7 +1,7 @@
 import { VendorsPageContentView } from "@d2-tools/ui";
 import type { InterfaceLocale } from "@d2-tools/ui";
 import type { VendorsPageActions } from "@d2-tools/ui";
-import type { VendorsPageWorkspace } from "@d2-tools/app";
+import type { VendorsPageWorkspace } from "@d2-tools/app/vendors";
 
 export function VendorsPage(props: {
   model: VendorsPageWorkspace;

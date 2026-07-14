@@ -2,9 +2,7 @@ import { useState } from "react";
 import { LoadoutsPageContentView, type LoadoutActionFeedbackState, type LoadoutsPageActions } from "@d2-tools/ui";
 import { analyzeLoadoutTemplate } from "@d2-tools/core/loadouts/analysis";
 import type { AccountSummary, LoadoutTemplate } from "../../api/types";
-import {
-  selectLoadoutsPageModel
-} from "@d2-tools/app";
+import { selectLoadoutsPageModel } from "@d2-tools/app/loadouts";
 
 export type LoadoutsPageProps = {
   accountSummary: AccountSummary | null;

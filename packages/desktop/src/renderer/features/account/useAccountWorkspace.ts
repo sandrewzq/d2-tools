@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { loadAccountWorkspace, loadAccountDerivedWorkspace } from "@d2-tools/app";
+import { loadAccountWorkspace, loadAccountDerivedWorkspace } from "@d2-tools/app/account";
 import {
   api } from "../../api/client";
 import type { AccountSummary, ActivityHistorySummary, DimWishlist, StartupState, VaultItemMatchInfo, LocalTargetRules, VaultTags } from "../../api/types";

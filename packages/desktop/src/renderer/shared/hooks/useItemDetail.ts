@@ -11,7 +11,7 @@ import {
   type SelectedItemDetail,
   type SelectedItemSource,
   type SelectedItemSourceKind
-} from "@d2-tools/app";
+} from "@d2-tools/app/items";
 
 export {
   createSelectedItemPreview,

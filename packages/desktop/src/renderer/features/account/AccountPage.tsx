@@ -6,10 +6,7 @@ import type {
   LoadoutTemplate,
   StartupState
 } from "../../api/types";
-import {
-  selectAccountPageModel,
-  type AccountOpenItemPayload
-} from "@d2-tools/app";
+import { selectAccountPageModel, type AccountOpenItemPayload } from "@d2-tools/app/account";
 import {
   matchesLoadoutTemplateItem,
   type LoadoutTemplateLookup

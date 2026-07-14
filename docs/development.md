@@ -60,7 +60,7 @@ docs/        正式文档
 - `packages/web`
   - 负责 Web 平台壳、浏览器启动、Web 登录态和 HTTP/API adapter
   - 与 Prototype / Desktop 挂同一个产品 UI Host，不复制页面实现；后续移动 App 也按同一壳模式接入
-  - 首页和页面数据通过 Web snapshot provider / adapter 边界读取，当前约定为 `/api/home-snapshot` 和 `/api/pages/:page/snapshot`，无服务时回退到共享 fallback snapshot
+  - 首页数据可以通过 Web snapshot provider / adapter 从 `/api/home-snapshot` 读取，无服务时回退到共享 fallback；其他页面当前明确使用 fixture runtime，不保留未消费的通用 page snapshot 契约
 
 - `packages/http`
   - 暴露本地 HTTP / 工具接口
@@ -73,7 +73,9 @@ docs/        正式文档
 
 ### 2.2 Renderer feature 边界
 
+- `@d2-tools/app` 业务能力必须从 `./account`、`./assistant`、`./home`、`./items`、`./library`、`./loadouts`、`./settings`、`./vault`、`./vendors` 分域入口导入；根入口只保留通用查询状态，不重新聚合页面业务接口。
 - `packages/desktop/src/renderer/pages/HomePage.tsx` 是桌面端菜单 composition root，只做菜单接线和跨 feature 状态组装。
+- Desktop 菜单公共 Context 只传递 `DesktopMenuSession` 这类跨菜单运行时能力，不保存页面组件的完整 Props；每个菜单 Provider 负责组装本菜单 ViewModel、加载状态和操作回调。
 - `packages/desktop/src/renderer/features/<menu>/` 是菜单私有实现。feature 可以 import `shared/`、`components/`、`utils/` 和 `api/`，但不能 import 其他 feature。
 - `packages/desktop/src/renderer/shared/` 只能放跨菜单复用能力，不能反向 import `features/`。
 - 跨账号、仓库、资料库复用的装备详情、配装定位、状态卡片等能力应先进入 `shared/`，再由各 feature 引用。

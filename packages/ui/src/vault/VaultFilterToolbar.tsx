@@ -14,7 +14,7 @@ import {
   type VaultSlotSummary,
   type VaultSortKey,
   type VaultTagFilter
-} from "@d2-tools/app";
+} from "@d2-tools/app/vault";
 import { VaultArmorFilterPanel } from "./VaultArmorFilterPanel.js";
 
 export function VaultFilterToolbar(props: {

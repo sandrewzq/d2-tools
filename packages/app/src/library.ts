@@ -8,15 +8,26 @@ export type {
   LibraryEquipmentFilter,
   LibraryEquipmentFilterOptions,
   LibraryEquipmentGroupFilter,
+  LibraryEquipmentResultGroupView,
+  LibraryEquipmentResultView,
   LibraryFilterOption,
+  LibraryHistory,
+  LibraryManifestAlertModel,
+  LibraryPageCache,
+  LibraryPageModel,
+  LibraryPageState,
   LibraryPerkFilter,
   LibraryPerkPoolFilter,
+  LibraryPerkResultView,
   LibraryRelatedItemsFilter,
   LibrarySourceStatusFilter,
   LibraryViewMode,
-  PerkSearchResult
-} from "@d2-tools/app/library";
-
+  LiveItemAvailability,
+  LiveItemAvailabilityEntry,
+  ManifestStatus,
+  PerkSearchResult,
+  VaultItemMatchInfo
+} from "./workspaces/libraryPage.js";
 export {
   buildLibraryEquipmentFilterOptions,
   buildLibraryPerkGroupOptions,
@@ -25,5 +36,7 @@ export {
   defaultLibraryPerkFilter,
   filterLibraryEquipmentItems,
   filterLibraryPerks,
-  groupLibraryDropQueryItems
-} from "@d2-tools/app/library";
+  formatLibraryVersion,
+  groupLibraryDropQueryItems,
+  selectLibraryPageModel
+} from "./workspaces/libraryPage.js";

@@ -8,7 +8,7 @@ import {
   selectBestSameNameItem,
   selectedItemToAccountItem,
   type SameNameItemSummary
-} from "@d2-tools/app";
+} from "@d2-tools/app/items";
 import { services } from "../../api/services";
 import {
   buildDuplicateGroupBatchTagPlan,

@@ -1,7 +1,21 @@
 import { VendorsPage } from "../../features/vendors/VendorsPage";
-import { useDesktopMenuProviderContext } from "./DesktopMenuProviderContext";
+import { useDesktopMenuSession } from "./DesktopMenuProviderContext";
 
 export function VendorsMenuProvider() {
-  const { vendors } = useDesktopMenuProviderContext();
-  return <VendorsPage {...vendors} />;
+  const session = useDesktopMenuSession();
+
+  return (
+    <VendorsPage
+      model={session.vendors.model}
+      actions={{
+        selectVendor: session.vendors.selectVendor,
+        refreshVendors: () => void session.vendors.refresh(),
+        onOpenItem: (item, context) => {
+          session.writeActions.itemDetail.closeSelectedItemDetail();
+          void session.vendorDefinitionDetail.open(item, context);
+        }
+      }}
+      interfaceLocale={session.diagnostics.languagePreferences.interfaceLocale}
+    />
+  );
 }

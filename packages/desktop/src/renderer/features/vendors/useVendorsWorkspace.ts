@@ -1,4 +1,4 @@
-import { selectVendorsPageModel, type VendorsPageWorkspace } from "@d2-tools/app";
+import { selectVendorsPageModel, type VendorsPageWorkspace } from "@d2-tools/app/vendors";
 import type { AccountSummary } from "../../api/types";
 import type {
   VendorInventoryRequest,

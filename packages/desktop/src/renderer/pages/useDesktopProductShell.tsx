@@ -1,4 +1,3 @@
-import { createHomeDashboardActions, createHomeDashboardWorkspace } from "@d2-tools/app";
 import {
   type ProductPreferences,
   type ShellAssistantMode,
@@ -17,7 +16,7 @@ import { useLoadoutTemplates } from "../features/loadouts/useLoadoutTemplates";
 import { useDiagnosticsSettings } from "../features/settings/useDiagnosticsSettings";
 import { useVendorsWorkspace } from "../features/vendors/useVendorsWorkspace";
 import { useVendorDefinitionDetail } from "../features/vendors/useVendorDefinitionDetail";
-import type { DesktopMenuProviderContextValue } from "./providers/DesktopMenuProviderContext";
+import type { DesktopMenuSession } from "./providers/DesktopMenuProviderContext";
 import { useDesktopProductWriteActions } from "./useDesktopProductWriteActions";
 
 export function useDesktopProductShell(props: {
@@ -53,9 +52,13 @@ export function useDesktopProductShell(props: {
       close: () => window.d2.closeWindow()
     }
   }), []);
+  const accountWorkspace = useAccountWorkspace({
+    state: props.state,
+    diagnostics,
+    onLoginComplete: props.onLoginComplete,
+    onManifestInitialized: props.onManifestInitialized
+  });
   const {
-    isLoggingIn,
-    isInitializingManifest,
     accountSummary,
     vaultTags,
     setVaultTags,
@@ -64,25 +67,12 @@ export function useDesktopProductShell(props: {
     accountWarning,
     isLoadingAccount,
     selectedCharacterId,
-    setSelectedCharacterId,
     activitySummary,
-    activityMessage,
-    activityError,
     importedWishlist,
-    setImportedWishlist,
     localTargetRules,
     setLocalTargetRules,
-    vaultCommunityMatch,
-    loginBungie,
-    initializeManifest,
-    refreshAccountSnapshot,
-    refreshAccountDerivedData
-  } = useAccountWorkspace({
-    state: props.state,
-    diagnostics,
-    onLoginComplete: props.onLoginComplete,
-    onManifestInitialized: props.onManifestInitialized
-  });
+    refreshAccountSnapshot
+  } = accountWorkspace;
   const refreshAccountManually = () => refreshAccountSnapshot("manual");
   const refreshAccountAfterWrite = () => refreshAccountSnapshot("write-action");
   const loadoutLibrary = useLoadoutTemplates();
@@ -106,13 +96,8 @@ export function useDesktopProductShell(props: {
     loadInventory: api.getVendorInventory
   });
   const vendorDefinitionDetail = useVendorDefinitionDetail();
-  const loadoutMessage = writeActions.loadoutMessage;
-  const itemActionMessage = writeActions.itemActionMessage;
   const isRunningItemAction = writeActions.isRunningItemAction;
-  const loadoutActionFeedback = writeActions.loadoutActionFeedback;
-  const loadoutTemplateActions = writeActions.loadoutTemplateActions;
   const loadoutWriteActions = writeActions.loadoutWriteActions;
-  const vaultWriteActions = writeActions.vaultWriteActions;
 
   function handlePageChange(page: ShellPageKey) {
     itemDetail.closeSelectedItemDetail();
@@ -169,8 +154,6 @@ export function useDesktopProductShell(props: {
     library,
     diagnostics
   });
-  const activeLoadoutLookup = homeDerivedState.activeLoadoutLookup;
-  const diagnosticRows = homeDerivedState.diagnosticRows;
   const currentPageMeta = homeDerivedState.currentPageMeta;
   const assistantPageContext = homeDerivedState.assistantPageContext;
   const isAiConfigured = homeDerivedState.isAiConfigured;
@@ -190,33 +173,6 @@ export function useDesktopProductShell(props: {
     onRepairManifest: () => void diagnostics.repairManifest()
   });
 
-  const homeWorkspace = createHomeDashboardWorkspace({
-    state: props.state,
-    selectedCharacterId,
-    isLoggingIn,
-    isInitializingManifest,
-    isRefreshingDiagnostics: diagnostics.isRefreshingDiagnostics,
-    diagnosticRows,
-    diagnosticError: diagnostics.diagnosticError,
-    accountError,
-    hasAccountData: Boolean(accountSummary),
-    dailySummary: daily.dailySummary,
-    weeklySummary: daily.weeklySummary,
-    dailyMessage: daily.dailyMessage,
-    dailyError: daily.dailyError,
-    isLoadingAccount,
-    isLoadingDaily: daily.isLoadingDaily
-  });
-  const homeActions = createHomeDashboardActions({
-    onConfigure: props.onConfigure,
-    onLogin: () => void loginBungie(),
-    onLoadAccount: () => void refreshAccountManually(),
-    onInitializeManifest: () => void initializeManifest(),
-    onConfigureAi: () => setActivePage("settings"),
-    onRefreshDiagnostics: () => void diagnostics.refreshDiagnostics(),
-    onNavigate: setActivePage,
-    onRefreshDaily: () => void daily.loadDailySummary()
-  });
   const productPreferences: ProductPreferences = {
     ...diagnostics.languagePreferences,
     colorMode: diagnostics.colorMode
@@ -240,192 +196,22 @@ export function useDesktopProductShell(props: {
     }
   }
 
-  const menuContext: DesktopMenuProviderContextValue = {
-    home: {
-      ...homeWorkspace,
-      ...homeActions,
-      interfaceLocale: diagnostics.languagePreferences.interfaceLocale
-    },
-    account: {
-      interfaceLocale: diagnostics.languagePreferences.interfaceLocale,
-      accountSummary,
-      startupState: props.state,
-      selectedCharacterId,
-      isLoadingAccount,
-      accountError,
-      accountWarning,
-      itemDetailError: itemDetail.itemDetailError,
-      itemDetailLoadingKey: itemDetail.itemDetailLoadingKey,
-      writeActionsEnabled: diagnostics.writeActionsEnabled,
-      activitySummary,
-      activityMessage,
-      activityError,
-      loadoutMessage,
-      itemActionMessage,
-      isRunningItemAction,
-      activeLoadoutLookup,
-      activeLoadoutTemplate,
-      onConfigureBungie: props.onConfigure,
-      onLoginBungie: () => void loginBungie(),
-      onLoadAccount: () => void refreshAccountManually(),
-      onRefreshActivity: () => void refreshAccountDerivedData(),
-      onSelectCharacter: setSelectedCharacterId,
-      onSaveCharacterLoadout: (character) => void loadoutWriteActions.saveCharacterLoadout(character),
-      onEquipHighestPowerItems: (character) => void loadoutWriteActions.equipHighestPowerItems(character),
-      onOpenItem: (item, options) => void itemDetail.openItemDetail(item, options)
-    },
-    loadouts: {
-      accountSummary,
-      templates: loadoutLibrary.templates,
-      selectedTemplateId: loadoutLibrary.selectedTemplateId,
-      compareTemplateId: loadoutLibrary.compareTemplateId,
-      renameDraft: loadoutLibrary.renameDraft,
-      showDiffOnly: loadoutLibrary.showDiffOnly,
-      message: loadoutMessage,
-      isRunningItemAction,
-      actionFeedback: loadoutActionFeedback.actionFeedback,
-      onSelectTemplate: loadoutLibrary.selectTemplate,
-      onSelectCompareTemplate: loadoutLibrary.setCompareTemplateId,
-      onRenameDraftChange: loadoutLibrary.setRenameDraft,
-      onShowDiffOnlyChange: loadoutLibrary.setShowDiffOnly,
-      onRenameTemplate: (template) => void loadoutWriteActions.renameLoadoutTemplate(template),
-      onDeleteTemplate: (id) => void loadoutWriteActions.deleteLoadoutTemplate(id),
-      onCreateTransferPlan: (template) => void loadoutTemplateActions.createTemplateTransferPlan(template),
-      onCopyMissingItems: (template, analysis) => void loadoutTemplateActions.copyMissingLoadoutItems(template, analysis),
-      onExecuteMissingTransfer: (template, analysis) => void loadoutWriteActions.executeMissingLoadoutTransfer(template, analysis),
-      onExecuteSingleItemTransfer: (template, item) => void loadoutWriteActions.executeSingleLoadoutItemTransfer(template, item),
-      onEquipSingleItem: (template, item) => void loadoutWriteActions.equipSingleLoadoutItem(template, item),
-      onEquipSavedLoadout: (character, slot) => void loadoutWriteActions.equipSavedLoadout(character, slot),
-      onSnapshotCurrentLoadout: (character, slot) => void loadoutWriteActions.snapshotCurrentLoadout(character, slot),
-      onOpenTemplateSourceItem: (item, characterId) => void loadoutWriteActions.openTemplateSourceItem(item, characterId)
-    },
-    library: {
-      cache: {
-        items: library.items,
-        perks: library.perks,
-        libraryHistory: library.libraryHistory,
-        libraryCommunityMatch: library.libraryCommunityMatch,
-        liveAvailability: library.liveAvailability,
-        liveAvailabilityError: library.liveAvailabilityError,
-        manifestStatus: library.manifestStatus,
-        manifestStatusError: library.manifestStatusError
-      },
-      state: {
-        libraryViewMode: library.libraryViewMode,
-        equipmentFilters: library.equipmentFilters,
-        perkFilters: library.perkFilters,
-        equipmentSearchTouched: library.equipmentSearchTouched,
-        perkSearchTouched: library.perkSearchTouched,
-        isSearching: library.isSearching,
-        searchError: library.searchError,
-        aliasDraft: library.aliasDraft,
-        aliasTargetDraft: library.aliasTargetDraft,
-        aliasKind: library.aliasKind,
-        aliasMessage: library.aliasMessage,
-        isLoadingLiveAvailability: library.isLoadingLiveAvailability,
-        isLoadingManifestStatus: library.isLoadingManifestStatus,
-        isInitializingManifest: library.isInitializingManifest,
-        itemDetailLoadingKey: itemDetail.itemDetailLoadingKey
-      },
-      actions: {
-        onViewModeChange: library.setLibraryViewMode,
-        onEquipmentFiltersChange: (patch) => library.setEquipmentFilters((current) => ({ ...current, ...patch })),
-        onPerkFiltersChange: (patch) => library.setPerkFilters((current) => ({ ...current, ...patch })),
-        onSearch: () => void library.searchItems(),
-        onClearFilters: library.clearLibraryFilters,
-        onRefreshManifestStatus: () => void library.refreshManifestStatus(),
-        onRepairManifest: () => void library.repairManifest(),
-        onAliasDraftChange: library.setAliasDraft,
-        onAliasTargetDraftChange: library.setAliasTargetDraft,
-        onAliasKindChange: library.setAliasKind,
-        onSaveAlias: () => void library.saveAlias(),
-        onOpenItemDetail: (item) => void itemDetail.openItemDetail(item),
-        onAddFavorite: (item) => void library.addSelectedItemToFavorites(item),
-        onRemoveFavorite: (hash) => void library.removeFavorite(hash)
-      }
-    },
-    vendors: {
-      model: vendorsWorkspace.model,
-      actions: {
-        selectVendor: vendorsWorkspace.selectVendor,
-        refreshVendors: () => void vendorsWorkspace.refresh(),
-        onOpenItem: (item, context) => {
-          itemDetail.closeSelectedItemDetail();
-          void vendorDefinitionDetail.open(item, context);
-        }
-      },
-      interfaceLocale: diagnostics.languagePreferences.interfaceLocale
-    },
-    vault: {
-      account: accountSummary,
-      isLoadingAccount,
-      accountError,
-      activeLoadoutLookup,
-      activeLoadoutName: activeLoadoutTemplate?.name,
-      selectedCharacterId,
-      writeActionsEnabled: diagnostics.writeActionsEnabled,
-      tags: vaultTags,
-      openingItemKey: itemDetail.itemDetailLoadingKey,
-      wishlist: importedWishlist,
-      localTargetRules,
-      communityMatch: vaultCommunityMatch,
-      onContextFactsChange: setVaultFacts,
-      onWishlistChanged: setImportedWishlist,
-      onLocalTargetRulesChanged: setLocalTargetRules,
-      onLoadAccount: () => void refreshAccountManually(),
-      onSaveTagBatch: (inputs) => vaultWriteActions.saveVaultTagsBatch(inputs),
-      onBatchUnlock: vaultWriteActions.handleVaultCleanupUnlock,
-      onBatchTransferToCharacter: vaultWriteActions.handleVaultCleanupTransfer,
-      onOpenItem: (item) => void itemDetail.openItemDetail(item, { is_vault_item: true }),
-      onSaveTag: (item, tag) => vaultWriteActions.saveVaultTag(item, tag)
-    },
-    settings: {
-      interfaceLocale: diagnostics.languagePreferences.interfaceLocale,
-      message: diagnostics.settingsMessage,
-      error: diagnostics.settingsError,
-      diagnosticDataDir: diagnostics.diagnosticDataDir,
-      writeActionsEnabled: diagnostics.writeActionsEnabled,
-      appUpdateSnapshot: diagnostics.appUpdateSnapshot,
-      manifestStatus: diagnostics.manifestStatus,
-      manifestStatusError: diagnostics.manifestStatusError,
-      isLoadingManifestStatus: diagnostics.isLoadingManifestStatus,
-      isInitializingManifest: diagnostics.isInitializingManifest,
-      accountSummary,
-      accountError,
-      accountWarning,
-      isLoadingAccount,
-      lastAccountLoadedAt,
-      isAiConfigured,
-      onRefreshAccount: () => void refreshAccountManually(),
-      onReauthorizeAccount: () => void loginBungie(),
-      backgroundTasks: diagnostics.backgroundTasks,
-      actionLog: diagnostics.actionLog,
-      actionLogResultFilter: diagnostics.actionLogResultFilter,
-      actionLogTypeFilter: diagnostics.actionLogTypeFilter,
-      onAiSettingsSaved: diagnostics.handleAiSettingsSaved,
-      onOpenDataDir: () => void api.openDataDir(),
-      onWriteActionsEnabledChange: (enabled) => void diagnostics.saveWriteActionsEnabled(enabled),
-      onCheckAppUpdate: () => void diagnostics.checkAppUpdate(),
-      onDownloadAppUpdate: () => void diagnostics.downloadAppUpdate(),
-      onQuitAndInstallAppUpdate: () => void diagnostics.quitAndInstallAppUpdate(),
-      onOpenAppUpdateDownloadPage: () => void diagnostics.openAppUpdateDownloadPage(),
-      onCopyAppUpdateDiagnostic: () => void diagnostics.copyAppUpdateDiagnostic(),
-      onRefreshManifestStatus: () => void diagnostics.refreshManifestStatus(),
-      onInitializeManifest: () => void diagnostics.initializeManifest(),
-      onRepairManifest: () => void diagnostics.repairManifest(),
-      onExportConfig: () => void diagnostics.exportConfig(),
-      onImportConfig: () => void diagnostics.importConfig(),
-      onClearCache: () => void diagnostics.clearCache(),
-      onCopyDataBackupGuide: () => void diagnostics.copyDataBackupGuide(),
-      onCopyDiagnosticsExport: () => void diagnostics.copyDiagnosticsExport(),
-      onRefreshDiagnostics: () => void diagnostics.refreshDiagnostics(),
-      onRefreshActionLog: () => void diagnostics.loadActionLog(),
-      onActionLogResultFilterChange: diagnostics.setActionLogResultFilter,
-      onActionLogTypeFilterChange: diagnostics.setActionLogTypeFilter,
-      onCopyActionDiagnostic: (entry) => void diagnostics.copyActionDiagnostic(entry),
-      languagePreferences: diagnostics.languagePreferences,
-      onLanguagePreferencesChange: (preferences) => void diagnostics.saveLanguagePreferences(preferences)
-    }
+  const menuSession: DesktopMenuSession = {
+    state: props.state,
+    onConfigure: props.onConfigure,
+    setActivePage,
+    setVaultFacts,
+    lastAccountLoadedAt,
+    refreshAccountManually,
+    account: accountWorkspace,
+    daily,
+    diagnostics,
+    home: homeDerivedState,
+    library,
+    loadouts: loadoutLibrary,
+    vendors: vendorsWorkspace,
+    vendorDefinitionDetail,
+    writeActions
   };
 
   const assistantPanel = (
@@ -468,7 +254,7 @@ export function useDesktopProductShell(props: {
       vendorDefinitionDetail,
       vaultTags
     },
-    menuContext,
+    menuSession,
     pageHeader: activePage === "vendors" ? undefined : {
       title: currentPageMeta.title,
       subtitle: currentPageMeta.subtitle,

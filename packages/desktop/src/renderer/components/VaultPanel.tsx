@@ -16,4 +16,4 @@ export {
   selectMarkedCleanupItems,
   selectVaultBatchItems,
   sortVaultItems
-} from "@d2-tools/app";
+} from "@d2-tools/app/vault";

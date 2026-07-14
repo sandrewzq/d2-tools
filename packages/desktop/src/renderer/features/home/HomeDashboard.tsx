@@ -1,5 +1,5 @@
 import { HomePageContentView, type ShellPageKey } from "@d2-tools/ui";
-import { selectHomePageModel, type HomePageModelInput } from "@d2-tools/app";
+import { selectHomePageModel, type HomePageModelInput } from "@d2-tools/app/home";
 
 export function HomeDashboard(props: HomePageModelInput & {
   interfaceLocale?: "zh-CN" | "en-US";

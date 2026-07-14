@@ -1,30 +1,42 @@
-import { createContext, useContext, type ComponentProps } from "react";
-import { AccountPage } from "../../features/account/AccountPage";
-import { HomeDashboard } from "../../features/home/HomeDashboard";
-import { LibraryPage } from "../../features/library/LibraryPage";
-import { LoadoutsPage } from "../../features/loadouts/LoadoutsPage";
-import { SettingsPage } from "../../features/settings/SettingsPage";
-import { VaultPage } from "../../features/vault/VaultPage";
-import { VendorsPage } from "../../features/vendors/VendorsPage";
+import { createContext, useContext, type Dispatch, type SetStateAction } from "react";
+import type { ShellPageKey } from "@d2-tools/ui";
+import type { StartupState } from "../../api/types";
+import type { useAccountWorkspace } from "../../features/account/useAccountWorkspace";
+import type { useDailySummary } from "../../features/daily/useDailySummary";
+import type { useHomePageDerivedState } from "../../features/home/useHomePageDerivedState";
+import type { useLibraryWorkspace } from "../../features/library/useLibraryWorkspace";
+import type { useLoadoutTemplates } from "../../features/loadouts/useLoadoutTemplates";
+import type { useDiagnosticsSettings } from "../../features/settings/useDiagnosticsSettings";
+import type { useVendorDefinitionDetail } from "../../features/vendors/useVendorDefinitionDetail";
+import type { useVendorsWorkspace } from "../../features/vendors/useVendorsWorkspace";
+import type { useDesktopProductWriteActions } from "../useDesktopProductWriteActions";
 
-export type DesktopMenuProviderContextValue = {
-  account: ComponentProps<typeof AccountPage>;
-  home: ComponentProps<typeof HomeDashboard>;
-  library: ComponentProps<typeof LibraryPage>;
-  loadouts: ComponentProps<typeof LoadoutsPage>;
-  settings: ComponentProps<typeof SettingsPage>;
-  vault: ComponentProps<typeof VaultPage>;
-  vendors: ComponentProps<typeof VendorsPage>;
+export type DesktopMenuSession = {
+  state: StartupState;
+  onConfigure: () => void;
+  setActivePage: Dispatch<SetStateAction<ShellPageKey>>;
+  setVaultFacts: Dispatch<SetStateAction<string[]>>;
+  lastAccountLoadedAt: Date | null;
+  refreshAccountManually: () => void;
+  account: ReturnType<typeof useAccountWorkspace>;
+  daily: ReturnType<typeof useDailySummary>;
+  diagnostics: ReturnType<typeof useDiagnosticsSettings>;
+  home: ReturnType<typeof useHomePageDerivedState>;
+  library: ReturnType<typeof useLibraryWorkspace>;
+  loadouts: ReturnType<typeof useLoadoutTemplates>;
+  vendors: ReturnType<typeof useVendorsWorkspace>;
+  vendorDefinitionDetail: ReturnType<typeof useVendorDefinitionDetail>;
+  writeActions: ReturnType<typeof useDesktopProductWriteActions>;
 };
 
-const DesktopMenuProviderContext = createContext<DesktopMenuProviderContextValue | null>(null);
+const DesktopMenuSessionContext = createContext<DesktopMenuSession | null>(null);
 
-export const DesktopMenuProvider = DesktopMenuProviderContext.Provider;
+export const DesktopMenuSessionProvider = DesktopMenuSessionContext.Provider;
 
-export function useDesktopMenuProviderContext() {
-  const value = useContext(DesktopMenuProviderContext);
+export function useDesktopMenuSession(): DesktopMenuSession {
+  const value = useContext(DesktopMenuSessionContext);
   if (!value) {
-    throw new Error("Desktop menu providers must be rendered inside DesktopMenuProvider.");
+    throw new Error("Desktop menu providers must be rendered inside DesktopMenuSessionProvider.");
   }
 
   return value;

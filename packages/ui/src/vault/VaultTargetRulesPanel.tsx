@@ -7,7 +7,7 @@ import type {
 } from "@d2-tools/core/analysis/targets";
 import type { ArmorStatKey } from "@d2-tools/core/loadouts/analysis";
 import type { PerkSearchResult } from "@d2-tools/core/items/perkSearch";
-import { armorStatLabels } from "@d2-tools/app";
+import { armorStatLabels } from "@d2-tools/app/vault";
 
 type DraftCondition = {
   stat: ArmorStatKey | "";

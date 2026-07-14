@@ -2,7 +2,7 @@ import { ProductShellHost } from "@d2-tools/ui";
 import type { StartupState } from "../api/types";
 import { HomePageItemDetailModal } from "./HomePageItemDetailModal";
 import { HomePageRoutes } from "./HomePageRoutes";
-import { DesktopMenuProvider } from "./providers/DesktopMenuProviderContext";
+import { DesktopMenuSessionProvider } from "./providers/DesktopMenuProviderContext";
 import { useDesktopProductShell } from "./useDesktopProductShell";
 
 export function HomePage(props: {
@@ -15,7 +15,7 @@ export function HomePage(props: {
   const shell = useDesktopProductShell(props);
 
   return (
-    <DesktopMenuProvider value={shell.menuContext}>
+    <DesktopMenuSessionProvider value={shell.menuSession}>
       <ProductShellHost
         activePage={shell.activePage}
         assistantMode={shell.assistantMode}
@@ -36,6 +36,6 @@ export function HomePage(props: {
           </>
         )}
       />
-    </DesktopMenuProvider>
+    </DesktopMenuSessionProvider>
   );
 }

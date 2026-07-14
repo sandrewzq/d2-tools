@@ -23,9 +23,6 @@ export {
   getVaultActionItemKey,
   selectDuplicateGroupItems,
   selectVaultActionableItems
-} from "@d2-tools/app";
+} from "@d2-tools/app/vault";
 
-export type {
-  DuplicateGroupBatchTagMode,
-  DuplicateGroupSelectionMode
-} from "@d2-tools/app";
+export type { DuplicateGroupBatchTagMode, DuplicateGroupSelectionMode } from "@d2-tools/app/vault";

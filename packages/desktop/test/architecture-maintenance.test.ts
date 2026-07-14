@@ -8,12 +8,12 @@ const repoRoot = fileURLToPath(new URL("../../..", import.meta.url));
 
 describe("architecture maintenance guardrails", () => {
   it("uses one shared page label source for app workspace and desktop assistant surfaces", () => {
-    const appIndex = readFileSync(join(repoRoot, "packages", "app", "src", "index.ts"), "utf8");
+    const appHomeEntry = readFileSync(join(repoRoot, "packages", "app", "src", "home.ts"), "utf8");
     const homePageWorkspace = readFileSync(join(repoRoot, "packages", "app", "src", "workspaces", "homePage.ts"), "utf8");
     const assistantContext = readFileSync(join(desktopRoot, "src", "renderer", "shared", "domain", "assistant", "assistantContext.ts"), "utf8");
     const globalAssistant = readFileSync(join(desktopRoot, "src", "renderer", "components", "GlobalAssistantSidebar.tsx"), "utf8");
 
-    expect(appIndex).toContain("homePageLabels");
+    expect(appHomeEntry).toContain("homePageLabels");
     expect(homePageWorkspace).toContain("homePageLabels");
     expect(assistantContext).toContain("homePageLabels");
     expect(globalAssistant).toContain("homePageLabels");

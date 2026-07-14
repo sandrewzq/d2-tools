@@ -1,15 +1,8 @@
 import type { AccountItemSummary } from "@d2-tools/core/account/summary";
 import type { VaultTags, VaultTagValue } from "@d2-tools/core/vault/tags";
 import { formatVaultItemMeta } from "./VaultListItem.js";
-import {
-  type VaultBatchSelectionMode,
-  type VaultVisibleSelectionMode,
-  getVaultItemKey
-} from "@d2-tools/app";
-import type {
-  VaultGroupFilter,
-  VaultGroupSummary
-} from "@d2-tools/app";
+import { type VaultBatchSelectionMode, type VaultVisibleSelectionMode, getVaultItemKey } from "@d2-tools/app/vault";
+import type { VaultGroupFilter, VaultGroupSummary } from "@d2-tools/app/vault";
 import type { VaultCleanupActions } from "./useVaultBatchActions.js";
 
 export function VaultOrganizePanel(props: {

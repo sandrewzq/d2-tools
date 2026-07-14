@@ -1,8 +1,5 @@
 import type { ArmorStatKey } from "@d2-tools/core/loadouts/analysis";
-import {
-  armorStatLabels,
-  type VaultArmorStatRule
-} from "@d2-tools/app";
+import { armorStatLabels, type VaultArmorStatRule } from "@d2-tools/app/vault";
 
 export function VaultArmorFilterPanel(props: {
   rules: VaultArmorStatRule[];

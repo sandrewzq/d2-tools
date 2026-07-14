@@ -23,7 +23,7 @@ import {
 } from "../../app/src/workspaces/libraryPage";
 import { selectLoadoutsPageModel } from "../../app/src/workspaces/loadoutsPage";
 import type { AccountItemSummary, AccountSummary } from "@d2-tools/core/account/summary";
-import type { ItemSearchResult } from "@d2-tools/app";
+import type { ItemSearchResult } from "@d2-tools/app/library";
 import type { LoadoutTemplate } from "@d2-tools/core/loadouts/templates";
 
 describe("shared UI page views", () => {

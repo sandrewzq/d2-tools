@@ -4,9 +4,10 @@ import type { DimWishlist } from "@d2-tools/core/analysis/wishlistImport";
 import type { LocalTargetRules } from "@d2-tools/core/analysis/targets";
 import type { VaultItemMatchInfo } from "@d2-tools/core/community-perks";
 import type { VaultTags, VaultTagValue } from "@d2-tools/core/vault/tags";
-import type { LoadoutTemplateLookup, VaultSection } from "@d2-tools/app";
+import type { LoadoutTemplateLookup } from "@d2-tools/app/loadouts";
+import type { VaultSection } from "@d2-tools/app/vault";
 import { MemoizedVaultListItem as VaultListItem } from "./VaultListItem.js";
-import { getVaultItemKey } from "@d2-tools/app";
+import { getVaultItemKey } from "@d2-tools/app/vault";
 
 export const INITIAL_VAULT_RENDER_LIMIT = 200;
 const VAULT_RENDER_INCREMENT = 200;

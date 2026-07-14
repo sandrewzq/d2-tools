@@ -2,7 +2,6 @@ import type {
   HomeDailySummary,
   HomeStartupState,
   HomeWeeklySummary,
-  ShellPageKey,
   ShellStatusItem
 } from "@d2-tools/ui";
 
@@ -13,25 +12,16 @@ export type WebHomeSnapshot = {
   homeWeeklySummary: HomeWeeklySummary;
 };
 
-export type WebPageSnapshot = {
-  page: ShellPageKey;
-  payload: unknown;
-  updatedAt?: string;
-};
-
 export type WebSnapshotSource = {
   getHomeSnapshot: () => Promise<WebHomeSnapshot | null>;
-  getPageSnapshot: (page: ShellPageKey) => Promise<WebPageSnapshot | null>;
 };
 
 export type WebSnapshotProvider = {
   loadHomeSnapshot: () => Promise<WebHomeSnapshot>;
-  loadPageSnapshot: (page: ShellPageKey) => Promise<WebPageSnapshot | null>;
 };
 
 export type WebShellAdapter = {
   loadHomeSnapshot: () => Promise<WebHomeSnapshot>;
-  loadPageSnapshot: (page: ShellPageKey) => Promise<WebPageSnapshot | null>;
   openExternal: (url: string) => void;
 };
 
@@ -139,22 +129,12 @@ export function createWebSnapshotProvider(input: {
       } catch {
         return fallback;
       }
-    },
-    async loadPageSnapshot(page) {
-      if (!input.source) return null;
-
-      try {
-        return await input.source.getPageSnapshot(page);
-      } catch {
-        return null;
-      }
     }
   };
 }
 
 export function createWebShellAdapter(input: {
   fetchHomeSnapshot?: () => Promise<WebHomeSnapshot>;
-  fetchPageSnapshot?: (page: ShellPageKey) => Promise<WebPageSnapshot | null>;
   fetchJson?: <T>(url: string) => Promise<T>;
 } = {}): WebShellAdapter {
   const fetchJson = input.fetchJson ?? defaultFetchJson;
@@ -169,17 +149,6 @@ export function createWebShellAdapter(input: {
         return await fetchJson<WebHomeSnapshot>("/api/home-snapshot");
       } catch {
         return fallbackHomeSnapshot;
-      }
-    },
-    async loadPageSnapshot(page) {
-      if (input.fetchPageSnapshot) {
-        return input.fetchPageSnapshot(page);
-      }
-
-      try {
-        return await fetchJson<WebPageSnapshot>(`/api/pages/${page}/snapshot`);
-      } catch {
-        return null;
       }
     },
     openExternal(url: string) {

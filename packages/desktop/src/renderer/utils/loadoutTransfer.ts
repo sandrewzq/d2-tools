@@ -1,7 +1,4 @@
-export {
-  buildMissingLoadoutTransferPlan,
-  describeMissingLoadoutBlockedReason
-} from "@d2-tools/app";
+export { buildMissingLoadoutTransferPlan, describeMissingLoadoutBlockedReason } from "@d2-tools/app/loadouts";
 
 export type {
   MissingLoadoutBlockedDescription,
@@ -10,4 +7,4 @@ export type {
   MissingLoadoutTransferPlan,
   MissingLoadoutTransferReason,
   MissingLoadoutTransferStep
-} from "@d2-tools/app";
+} from "@d2-tools/app/loadouts";

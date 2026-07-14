@@ -20,9 +20,7 @@ import {
   type VendorInventoryItemView,
   type VendorOfferContextView,
 } from "@d2-tools/ui";
-import {
-  homePageMetaMap,
-} from "@d2-tools/app";
+import { homePageMetaMap } from "@d2-tools/app/home";
 import "@d2-tools/ui/styles.css";
 import {
   defaultPrototypeScenarioKey,

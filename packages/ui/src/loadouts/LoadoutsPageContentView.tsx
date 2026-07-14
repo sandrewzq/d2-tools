@@ -1,9 +1,5 @@
 import { useState } from "react";
-import type {
-  LoadoutsPageModel,
-  LoadoutEntryView,
-  LoadoutTemplateItemRowView
-} from "@d2-tools/app";
+import type { LoadoutsPageModel, LoadoutEntryView, LoadoutTemplateItemRowView } from "@d2-tools/app/loadouts";
 import type { AccountSummary } from "@d2-tools/core/account/summary";
 import type { LoadoutTemplate } from "@d2-tools/core/loadouts/templates";
 import type { LoadoutTemplateAnalysis } from "@d2-tools/core/loadouts/analysis";

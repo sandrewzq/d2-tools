@@ -5,7 +5,7 @@ import {
   type SettingsActionLogTypeFilter,
   type SettingsBungieConfigInput
 } from "@d2-tools/ui";
-import { selectSettingsPageModel } from "@d2-tools/app";
+import { selectSettingsPageModel } from "@d2-tools/app/settings";
 import { api } from "../../api/client";
 import type { AccountSummary, ActionLogEntry, AppUpdateSnapshot, BackgroundTaskSnapshot, ManifestStatus } from "../../api/types";
 import { AiSettingsPanel } from "../../components/AiSettingsPanel";

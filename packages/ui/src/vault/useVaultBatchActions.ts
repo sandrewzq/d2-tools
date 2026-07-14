@@ -19,7 +19,7 @@ import {
   buildVaultSelectedBulkMovePrepareMessage,
   selectVaultBatchItems,
   type DuplicateGroupBatchTagMode
-} from "@d2-tools/app";
+} from "@d2-tools/app/vault";
 
 type BatchItemActionResult = {
   success_count: number;

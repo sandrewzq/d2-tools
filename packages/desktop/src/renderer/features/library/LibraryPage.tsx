@@ -1,4 +1,4 @@
-import { selectLibraryPageModel, type LibraryPageCache, type LibraryPageState } from "@d2-tools/app";
+import { selectLibraryPageModel, type LibraryPageCache, type LibraryPageState } from "@d2-tools/app/library";
 import { LibraryPageContentView, type LibraryPageActions } from "@d2-tools/ui";
 
 export type LibraryPageProps = {
