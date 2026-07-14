@@ -1,5 +1,5 @@
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { isAbsolute, join, relative, resolve } from "node:path";
 import type { D2Config } from "@d2-tools/core/config/schema";
 import {
   requiredDefinitionComponents,
@@ -10,7 +10,11 @@ import {
   selectManifestLanguagePath,
   type DestinyManifestMetadata
 } from "@d2-tools/core/manifest/metadata";
-import { clearDefinitionMemoryCache, getDefinitionStatus } from "./definitions.js";
+import {
+  clearDefinitionMemoryCache,
+  getDefinitionStatus,
+  getDefinitionStatusByLanguage
+} from "./definitions.js";
 
 export type ManifestMetadataCache = {
   cached_at: string;
@@ -30,6 +34,7 @@ export type ManifestStatus = {
   cached_at?: string;
   definitions?: DefinitionComponentStatus[];
   missing_required_components?: DefinitionComponentName[];
+  missing_optional_components?: DefinitionComponentName[];
 };
 
 export type ManifestVersionCheckCache = {
@@ -71,13 +76,65 @@ export function clearManifestCache(dataDir: string): void {
   rmSync(manifestDir(dataDir), { recursive: true, force: true });
 }
 
+export function recoverManifestCacheDirectories(dataDir: string): void {
+  mkdirSync(dataDir, { recursive: true });
+  const targetDir = manifestDir(dataDir);
+  const entries = readdirSync(dataDir, { withFileTypes: true });
+  const backups = entries
+    .filter((entry) => entry.isDirectory() && entry.name.startsWith("manifest-backup-"))
+    .map((entry) => join(dataDir, entry.name))
+    .sort((left, right) => right.localeCompare(left));
+  let recoveryFailedPath: string | null = null;
+
+  if (!existsSync(targetDir) && backups[0]) {
+    const recoverySource = backups.shift()!;
+    try {
+      renameSync(recoverySource, targetDir);
+    } catch {
+      recoveryFailedPath = recoverySource;
+    }
+  }
+
+  for (const entry of entries) {
+    if (!entry.isDirectory() || !entry.name.startsWith("manifest-staging-")) {
+      continue;
+    }
+    removeManifestWorkDirectory(dataDir, join(dataDir, entry.name));
+  }
+  for (const backup of backups) {
+    if (backup === recoveryFailedPath) {
+      continue;
+    }
+    removeManifestWorkDirectory(dataDir, backup);
+  }
+}
+
+function removeManifestWorkDirectory(dataDir: string, path: string): void {
+  const root = resolve(dataDir);
+  const target = resolve(path);
+  const relativePath = relative(root, target);
+  if (!relativePath || relativePath.startsWith("..") || isAbsolute(relativePath)) {
+    return;
+  }
+  try {
+    rmSync(target, { recursive: true, force: true });
+  } catch {
+    // A locked stale directory can be retried during the next startup/update.
+  }
+}
+
 export function loadManifestMetadataCache(dataDir: string): ManifestMetadataCache | null {
   const path = manifestMetadataPath(dataDir);
   if (!existsSync(path)) {
     return null;
   }
 
-  return JSON.parse(readFileSync(path, "utf8")) as ManifestMetadataCache;
+  try {
+    const cache = JSON.parse(readFileSync(path, "utf8")) as ManifestMetadataCache;
+    return cache?.metadata?.version && cache.language ? cache : null;
+  } catch {
+    return null;
+  }
 }
 
 export function loadManifestVersionCheckCache(dataDir: string): ManifestVersionCheckCache | null {
@@ -86,7 +143,12 @@ export function loadManifestVersionCheckCache(dataDir: string): ManifestVersionC
     return null;
   }
 
-  return JSON.parse(readFileSync(path, "utf8")) as ManifestVersionCheckCache;
+  try {
+    const cache = JSON.parse(readFileSync(path, "utf8")) as ManifestVersionCheckCache;
+    return cache?.checked_at ? cache : null;
+  } catch {
+    return null;
+  }
 }
 
 export function saveManifestVersionCheckCache(input: {
@@ -102,7 +164,7 @@ export function saveManifestVersionCheckCache(input: {
   };
 
   mkdirSync(manifestDir(input.dataDir), { recursive: true });
-  writeFileSync(manifestVersionCheckPath(input.dataDir), `${JSON.stringify(cache, null, 2)}\n`, "utf8");
+  writeJsonCache(manifestVersionCheckPath(input.dataDir), cache);
   return cache;
 }
 
@@ -120,8 +182,18 @@ export function saveManifestMetadataCache(input: {
   };
 
   mkdirSync(manifestDir(input.dataDir), { recursive: true });
-  writeFileSync(manifestMetadataPath(input.dataDir), `${JSON.stringify(cache, null, 2)}\n`, "utf8");
+  writeJsonCache(manifestMetadataPath(input.dataDir), cache);
   return cache;
+}
+
+function writeJsonCache(path: string, value: unknown): void {
+  const temporaryPath = `${path}.tmp-${process.pid}-${Date.now()}`;
+  try {
+    writeFileSync(temporaryPath, `${JSON.stringify(value, null, 2)}\n`, "utf8");
+    renameSync(temporaryPath, path);
+  } finally {
+    rmSync(temporaryPath, { force: true });
+  }
 }
 
 export function getManifestStatus(dataDir: string): ManifestStatus {
@@ -136,7 +208,7 @@ export function getManifestStatus(dataDir: string): ManifestStatus {
     language: cache.language,
     sqlite_path: cache.sqlite_path,
     cached_at: cache.cached_at,
-    ...definitionStatusSummary(dataDir)
+    ...definitionStatusSummary(dataDir, cache)
   };
 }
 
@@ -157,21 +229,26 @@ export async function initializeManifestMetadata(
     language: cache.language,
     sqlite_path: cache.sqlite_path,
     cached_at: cache.cached_at,
-    ...definitionStatusSummary(options.config.data.data_dir)
+    ...definitionStatusSummary(options.config.data.data_dir, cache)
   };
 }
 
 export async function checkManifestVersion(
   options: CheckManifestVersionOptions
 ): Promise<ManifestStatus> {
+  const currentCache = loadManifestMetadataCache(options.config.data.data_dir);
   const current = getManifestStatus(options.config.data.data_dir);
   const latest = await (options.fetchMetadata ?? fetchManifestMetadata)(options.config.bungie.api_key);
   const checkedAt = (options.now ?? (() => new Date()))().toISOString();
+  const configuredLanguage = options.config.data.manifest_language.trim().toLowerCase();
+  const cachedLanguage = current.language?.trim().toLowerCase();
 
   return {
     ...current,
     latest_version: latest.version,
-    needs_update: current.version !== latest.version,
+    needs_update: current.version !== latest.version
+      || cachedLanguage !== configuredLanguage
+      || manifestContentPathsChanged(currentCache?.metadata, latest, configuredLanguage),
     checked_at: checkedAt
   };
 }
@@ -183,6 +260,7 @@ async function fetchManifestMetadata(apiKey: string): Promise<DestinyManifestMet
   }
 
   const response = await fetch(new URL("Destiny2/Manifest/", `${bungiePlatformBaseUrl}/`), {
+    signal: AbortSignal.timeout(30_000),
     headers: {
       "X-API-Key": key,
       "Accept": "application/json"
@@ -197,21 +275,57 @@ async function fetchManifestMetadata(apiKey: string): Promise<DestinyManifestMet
     throw new Error(`Bungie API error ${body.ErrorCode}: ${body.Message ?? "Unknown error"}`);
   }
   if (body.Response) {
-    return body.Response;
+    return validateManifestMetadata(body.Response);
   }
-  return body as DestinyManifestMetadata;
+  return validateManifestMetadata(body as DestinyManifestMetadata);
 }
 
-function definitionStatusSummary(dataDir: string): Pick<ManifestStatus, "definitions" | "missing_required_components"> {
+function validateManifestMetadata(metadata: DestinyManifestMetadata): DestinyManifestMetadata {
+  if (!metadata?.version || !metadata.jsonWorldComponentContentPaths) {
+    throw new Error("Bungie Manifest metadata is incomplete");
+  }
+  return metadata;
+}
+
+function manifestContentPathsChanged(
+  current: DestinyManifestMetadata | undefined,
+  latest: DestinyManifestMetadata,
+  language: string
+): boolean {
+  if (!current) {
+    return true;
+  }
+  const currentPaths = current.jsonWorldComponentContentPaths?.[language]
+    ?? current.jsonWorldComponentContentPaths?.en;
+  const latestPaths = latest.jsonWorldComponentContentPaths?.[language]
+    ?? latest.jsonWorldComponentContentPaths?.en;
+  return JSON.stringify(currentPaths ?? null) !== JSON.stringify(latestPaths ?? null);
+}
+
+function definitionStatusSummary(
+  dataDir: string,
+  cache: ManifestMetadataCache
+): Pick<ManifestStatus, "definitions" | "missing_required_components" | "missing_optional_components"> {
   const definitions = requiredDefinitionComponents.map((component) => {
-    const status = getDefinitionStatus(dataDir, component);
+    const status = getDefinitionStatus(dataDir, component, {
+      language: cache.language,
+      manifestVersion: cache.metadata.version
+    });
     return status.initialized ? status : { ...status, component };
   });
 
+  const optionalEnglishComponents: DefinitionComponentName[] = cache.language.toLowerCase() === "en"
+    ? []
+    : ["DestinyInventoryItemDefinition", "DestinyPlugSetDefinition"];
   return {
     definitions,
     missing_required_components: definitions
       .filter((status) => !status.initialized)
-      .map((status) => status.component as DefinitionComponentName)
+      .map((status) => status.component as DefinitionComponentName),
+    missing_optional_components: optionalEnglishComponents.filter((component) => (
+      !getDefinitionStatusByLanguage(dataDir, component, "en", {
+        manifestVersion: cache.metadata.version
+      }).initialized
+    ))
   };
 }

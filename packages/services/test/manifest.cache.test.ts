@@ -226,6 +226,31 @@ describe("manifest metadata service adapter", () => {
     });
     expect(loadManifestMetadataCache(dataDir)?.metadata.version).toBe("123");
   });
+
+  it("marks the manifest for update when the configured language changes", async () => {
+    const dataDir = mkdtempSync(join(tmpdir(), "d2-tools-manifest-"));
+    saveManifestMetadataCache({
+      dataDir,
+      language: "zh-chs",
+      metadata: manifest,
+      cachedAt: "2026-06-18T00:00:00.000Z"
+    });
+
+    const nextConfig = config(dataDir);
+    nextConfig.data.manifest_language = "en";
+    const status = await checkManifestVersion({
+      config: nextConfig,
+      fetchMetadata: async () => manifest,
+      now: () => new Date("2026-06-29T01:02:03.000Z")
+    });
+
+    expect(status).toMatchObject({
+      version: "123",
+      latest_version: "123",
+      language: "zh-chs",
+      needs_update: true
+    });
+  });
 });
 
 describe("manifest metadata pure core helpers", () => {

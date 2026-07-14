@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, linkSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import type { DestinyManifestMetadata } from "@d2-tools/core/manifest/metadata";
 import {
@@ -34,9 +34,14 @@ type DefinitionComponentCache = {
   cached_at: string;
   component: DefinitionComponentName;
   language: string;
+  manifest_version?: string;
   source_path: string;
   count: number;
   data: DefinitionComponentData;
+};
+
+type DefinitionComponentCacheStatus = Omit<DefinitionComponentCache, "data"> & {
+  file_size?: number;
 };
 
 const bungieStaticBaseUrl = "https://www.bungie.net";
@@ -52,19 +57,24 @@ export async function initializeDefinitionComponent(
     options.component
   );
   const data = await (options.fetchJson ?? fetchDefinitionJson)(staticContentUrl(sourcePath));
+  if (!data || Array.isArray(data) || typeof data !== "object" || Object.keys(data).length === 0) {
+    throw new Error(`Definition download returned no records: ${options.component}`);
+  }
   const cache: DefinitionComponentCache = {
     cached_at: (options.now ?? (() => new Date()))().toISOString(),
     component: options.component,
     language,
+    manifest_version: options.metadata.version,
     source_path: sourcePath,
     count: Object.keys(data).length,
     data
   };
 
   mkdirSync(definitionDir(options.dataDir), { recursive: true });
-  writeDefinitionCache(definitionCachePathForLanguage(options.dataDir, options.component, language), cache);
+  const languagePath = definitionCachePathForLanguage(options.dataDir, options.component, language);
+  writeDefinitionCache(languagePath, cache);
   if (options.writeDefaultCache !== false) {
-    writeDefinitionCache(definitionCachePath(options.dataDir, options.component), cache);
+    writeDefinitionCacheAlias(languagePath, definitionCachePath(options.dataDir, options.component), cache);
   }
 
   return statusFromCache(cache);
@@ -87,10 +97,33 @@ export function loadDefinitionComponentByLanguage(
 
 export function getDefinitionStatus(
   dataDir: string,
-  component: DefinitionComponentName
+  component: DefinitionComponentName,
+  expected?: { language?: string; manifestVersion?: string }
 ): DefinitionComponentStatus {
-  const cache = loadDefinitionComponentCache(dataDir, component);
-  return cache ? statusFromCache(cache) : { initialized: false };
+  const cache = loadDefinitionComponentStatus(dataDir, component, "")
+    ?? loadDefinitionComponentCache(dataDir, component);
+  if (!cache || !isCompatibleCache(cache, component, expected)) {
+    return { initialized: false, component };
+  }
+  return statusFromCache(cache);
+}
+
+export function getDefinitionStatusByLanguage(
+  dataDir: string,
+  component: DefinitionComponentName,
+  language: string,
+  expected?: { manifestVersion?: string }
+): DefinitionComponentStatus {
+  const normalizedLanguage = normalizeDefinitionLanguage(language);
+  const cache = loadDefinitionComponentStatus(dataDir, component, normalizedLanguage)
+    ?? loadDefinitionComponentCacheByLanguage(dataDir, component, normalizedLanguage);
+  if (!cache || !isCompatibleCache(cache, component, {
+    language: normalizedLanguage,
+    manifestVersion: expected?.manifestVersion
+  })) {
+    return { initialized: false, component, language: normalizedLanguage };
+  }
+  return statusFromCache(cache);
 }
 
 export function hasRequiredDefinitionCacheFiles(dataDir: string): boolean {
@@ -135,9 +168,16 @@ function loadDefinitionComponentCacheByLanguage(
     return null;
   }
 
-  const loaded = JSON.parse(readFileSync(path, "utf8")) as DefinitionComponentCache;
-  definitionMemoryCache.set(path, loaded);
-  return loaded;
+  try {
+    const loaded = JSON.parse(readFileSync(path, "utf8")) as DefinitionComponentCache;
+    if (!isDefinitionComponentCache(loaded)) {
+      return null;
+    }
+    definitionMemoryCache.set(path, loaded);
+    return loaded;
+  } catch {
+    return null;
+  }
 }
 
 function definitionDir(dataDir: string): string {
@@ -171,7 +211,65 @@ function writeDefinitionCache(path: string, cache: DefinitionComponentCache): vo
     `${JSON.stringify(cache)}\n`,
     "utf8"
   );
+  const { data: _data, ...cacheStatus } = cache;
+  const status: DefinitionComponentCacheStatus = {
+    ...cacheStatus,
+    file_size: statSync(path).size
+  };
+  writeFileSync(
+    definitionStatusPath(path),
+    `${JSON.stringify(status)}\n`,
+    "utf8"
+  );
   definitionMemoryCache.set(path, cache);
+}
+
+function writeDefinitionCacheAlias(
+  sourcePath: string,
+  targetPath: string,
+  cache: DefinitionComponentCache
+): void {
+  mkdirSync(dirname(targetPath), { recursive: true });
+  rmSync(targetPath, { force: true });
+  rmSync(definitionStatusPath(targetPath), { force: true });
+  try {
+    linkSync(sourcePath, targetPath);
+    linkSync(definitionStatusPath(sourcePath), definitionStatusPath(targetPath));
+  } catch {
+    rmSync(targetPath, { force: true });
+    rmSync(definitionStatusPath(targetPath), { force: true });
+    copyFileSync(sourcePath, targetPath);
+    copyFileSync(definitionStatusPath(sourcePath), definitionStatusPath(targetPath));
+  }
+  definitionMemoryCache.set(targetPath, cache);
+}
+
+function loadDefinitionComponentStatus(
+  dataDir: string,
+  component: DefinitionComponentName,
+  language: string
+): DefinitionComponentCacheStatus | null {
+  const cachePath = definitionCachePathForLanguage(dataDir, component, language);
+  const path = definitionStatusPath(cachePath);
+  if (!existsSync(cachePath) || !existsSync(path)) {
+    return null;
+  }
+  try {
+    const status = JSON.parse(readFileSync(path, "utf8")) as DefinitionComponentCacheStatus;
+    if (!isDefinitionComponentStatus(status)) {
+      return null;
+    }
+    if (status.file_size !== undefined && statSync(cachePath).size !== status.file_size) {
+      return null;
+    }
+    return status;
+  } catch {
+    return null;
+  }
+}
+
+function definitionStatusPath(cachePath: string): string {
+  return `${cachePath}.status.json`;
 }
 
 function staticContentUrl(path: string): string {
@@ -179,7 +277,10 @@ function staticContentUrl(path: string): string {
 }
 
 async function fetchDefinitionJson(url: string): Promise<DefinitionComponentData> {
-  const response = await fetch(url, { headers: { "Accept": "application/json" } });
+  const response = await fetch(url, {
+    signal: AbortSignal.timeout(120_000),
+    headers: { "Accept": "application/json" }
+  });
   if (!response.ok) {
     throw new Error(`Definition download failed: HTTP ${response.status}`);
   }
@@ -187,7 +288,7 @@ async function fetchDefinitionJson(url: string): Promise<DefinitionComponentData
   return response.json() as Promise<DefinitionComponentData>;
 }
 
-function statusFromCache(cache: DefinitionComponentCache): DefinitionComponentStatus {
+function statusFromCache(cache: DefinitionComponentCacheStatus): DefinitionComponentStatus {
   return {
     initialized: true,
     component: cache.component,
@@ -195,4 +296,42 @@ function statusFromCache(cache: DefinitionComponentCache): DefinitionComponentSt
     cached_at: cache.cached_at,
     count: cache.count
   };
+}
+
+function isDefinitionComponentStatus(
+  cache: DefinitionComponentCacheStatus | DefinitionComponentCache | null | undefined
+): cache is DefinitionComponentCacheStatus {
+  return Boolean(
+    cache
+    && cache.component
+    && cache.language
+    && Number.isFinite(cache.count)
+    && cache.count > 0
+  );
+}
+
+function isDefinitionComponentCache(cache: DefinitionComponentCache | null | undefined): cache is DefinitionComponentCache {
+  return Boolean(
+    isDefinitionComponentStatus(cache)
+    && cache.data
+    && !Array.isArray(cache.data)
+    && typeof cache.data === "object"
+  );
+}
+
+function isCompatibleCache(
+  cache: DefinitionComponentCacheStatus,
+  component: DefinitionComponentName,
+  expected?: { language?: string; manifestVersion?: string }
+): boolean {
+  if (cache.component !== component) {
+    return false;
+  }
+  if (expected?.language && cache.language !== normalizeDefinitionLanguage(expected.language)) {
+    return false;
+  }
+  if (expected?.manifestVersion && cache.manifest_version !== expected.manifestVersion) {
+    return false;
+  }
+  return true;
 }

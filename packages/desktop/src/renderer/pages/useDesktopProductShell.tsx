@@ -177,6 +177,7 @@ export function useDesktopProductShell(props: {
   const appUpdateSnapshot = diagnostics.appUpdateSnapshot;
   const shellStatus = buildShellStatus({
     manifestStatus: diagnostics.manifestStatus,
+    manifestStatusError: diagnostics.manifestStatusError,
     accountSummary,
     lastAccountLoadedAt,
     isLoadingAccount,
@@ -490,6 +491,7 @@ export function useDesktopProductShell(props: {
 
 function buildShellStatus(input: {
   manifestStatus: ManifestStatus | null;
+  manifestStatusError: string;
   accountSummary: AccountSummary | null;
   lastAccountLoadedAt: Date | null;
   isLoadingAccount: boolean;
@@ -519,8 +521,10 @@ function buildShellStatus(input: {
     {
       key: "library",
       label: "资料库",
-      value: needsLibraryRepair ? "修复资料库" : formatManifestShellStatus(input.manifestStatus),
-      tone: getManifestStatusTone(input.manifestStatus),
+      value: input.manifestStatusError
+        ? "检查失败"
+        : (needsLibraryRepair ? "修复资料库" : formatManifestShellStatus(input.manifestStatus)),
+      tone: input.manifestStatusError ? "error" : getManifestStatusTone(input.manifestStatus),
       actionLabel: needsLibraryRepair ? "修复资料库" : undefined,
       onAction: needsLibraryRepair ? input.onRepairManifest : undefined
     },

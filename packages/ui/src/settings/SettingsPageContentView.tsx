@@ -844,6 +844,13 @@ function getLibraryUi(
       tone: "warning"
     };
   }
+  if (status.missing_optional_components?.length) {
+    return {
+      statusLabel: settingsText(copy, "可用"),
+      summary: `${settingsText(copy, "英文辅助数据缺失")} ${status.missing_optional_components.length} ${settingsText(copy, "项，英文匹配能力可能降低。")}`,
+      tone: "warning"
+    };
+  }
   if (status.needs_update) {
     return {
       statusLabel: settingsText(copy, "可更新"),
@@ -867,6 +874,8 @@ function formatLibraryIntegrity(status: ManifestStatus | null, copy: SettingsCop
   if (!status?.initialized) return settingsText(copy, "未准备");
   const missingCount = status.missing_required_components?.length ?? 0;
   if (missingCount > 0) return `${settingsText(copy, "缺失")} ${missingCount} ${settingsText(copy, "项，需修复")}`;
+  const optionalMissingCount = status.missing_optional_components?.length ?? 0;
+  if (optionalMissingCount > 0) return `${settingsText(copy, "辅助数据缺失")} ${optionalMissingCount} ${settingsText(copy, "项")}`;
   return settingsText(copy, "完整");
 }
 

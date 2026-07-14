@@ -1,6 +1,6 @@
 # 当前待办
 
-> 更新时间：2026-07-13
+> 更新时间：2026-07-14
 > 这里只保留当前健康度、未完成任务和未解决 bug。已完成 Bug 与阶段过程使用 Git 历史追溯；详细目标、切片和验收标准在 `docs/work/backlog/`。
 
 ## 健康度
@@ -28,6 +28,7 @@
 | T5 | P3 | 🟡 待推进 | 活动复盘增强 | [活动复盘增强](work/backlog/activity-review-enhancement.md) | 接 PGCR、完成时间推算和副本级趋势 |
 | T6 | P4 | 🟡 待推进 | 桌面发布、更新与迁移体验 | [桌面发布体验](work/backlog/desktop-release-experience.md) | 验证 GitHub Release、更新提示、备份迁移和诊断体验 |
 | T7 | P1 | 🟡 待 CI | 资料库异域护甲定义详情修复 | [异域护甲定义详情](work/backlog/library-exotic-armor-definition-detail.md) / [实施计划](work/backlog/library-exotic-armor-definition-detail-implementation-plan.md) | 代码已实现：展示异域固有特性，护甲不再生成武器结构或重复模组池；不展示六维实例 Roll，等待普通 push 后由 CI 验证 |
+| T8 | P1 | 🟡 待 CI | 资料库自动更新与重试机制收口 | - | 已统一更新/修复单任务编排并拆除双层重试，补齐请求超时、4 路有限并发、组件进度、磁盘预检、语言立即检查、跨天检查、损坏缓存降级、版本/语言/组件完整性、轻量状态侧车、staging/backup 恢复清理和失败状态反馈；后续仍需设计运行中取消、跨应用实例文件锁与更深记录级校验，等待普通 push 后由 CI 验证 |
 
 ## 暂不优先
 

@@ -149,8 +149,9 @@ export function createDiagnosticsSettingsModel(input: {
       };
       const saved = await api.saveConfig(nextConfig);
       input.setLanguagePreferences(languagePreferencesFromConfig(saved));
-      input.setSettingsMessage("语言设置已保存。资料库语言会在后续资料库读取和更新时生效。");
+      input.setSettingsMessage("语言设置已保存，正在后台检查资料库语言数据。");
       input.onConfigChanged();
+      await api.getManifestStatus();
     } catch (error) {
       input.setSettingsError(error instanceof Error ? error.message : "语言设置保存失败");
       void refreshDiagnostics();

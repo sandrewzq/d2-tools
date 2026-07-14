@@ -4,39 +4,45 @@ import {
   checkManifestVersion,
   getManifestStatus,
   loadManifestVersionCheckCache,
+  recoverManifestCacheDirectories,
   saveManifestVersionCheckCache,
   type ManifestStatus
 } from "@d2-tools/services/manifest/cache";
 import { clearDefinitionMemoryCache } from "@d2-tools/services/manifest/definitions";
-import { startBackgroundTask } from "../backgroundTasks.js";
+import { listBackgroundTasks, startBackgroundTask } from "../backgroundTasks.js";
 import { runHeavyTaskInWorker } from "../workers/heavyTaskRunner.js";
+import type { BackgroundTaskRunContext } from "../../shared/backgroundTasks.js";
 
 const MANIFEST_RETRY_DELAYS_MS = [30_000, 120_000, 300_000, 900_000];
 const isVisualCapture = Boolean(process.env.D2_VISUAL_CAPTURE_DIR);
-let manifestUpdatePromise: Promise<ReturnType<typeof getManifestStatus>> | null = null;
 let hasScheduledInitialManifestVersionCheck = false;
-let lastManifestVersionStatus: Pick<ManifestStatus, "latest_version" | "needs_update" | "checked_at"> | null = null;
+let lastManifestVersionStatus: (Pick<ManifestStatus, "latest_version" | "needs_update" | "checked_at"> & {
+  data_dir: string;
+}) | null = null;
 
 type ManifestStatusRequestOptions = {
   forceCheck?: boolean;
 };
 
 export function registerManifestIpcHandlers(): void {
+  const initialConfig = loadConfig();
+  recoverManifestCacheDirectories(initialConfig.data.data_dir);
+
   ipcMain.handle("manifest:status", (_event, options?: ManifestStatusRequestOptions) => {
     const config = loadConfig();
     const status = getManifestStatus(config.data.data_dir);
     if (!isVisualCapture && shouldRunManifestVersionCheck(status, Boolean(options?.forceCheck))) {
-      runManifestVersionCheckTask();
+      runManifestVersionCheckTask(Boolean(options?.forceCheck));
     }
-    return mergeManifestVersionStatus(status);
+    return mergeManifestVersionStatus(status, config.data.data_dir, config.data.manifest_language);
   });
 
   ipcMain.handle("manifest:initialize", async () => {
-    return initializeManifestWithBackgroundTask();
+    return startManifestUpdateTask({ restartIfRetrying: true });
   });
 
   ipcMain.handle("manifest:repair", async () => {
-    return initializeManifestWithBackgroundTask({ repair: true });
+    return startManifestUpdateTask({ repair: true, restartIfRetrying: true });
   });
 }
 
@@ -47,17 +53,35 @@ export function scheduleInitialManifestVersionCheck(delayMs = 12000): void {
 
   hasScheduledInitialManifestVersionCheck = true;
   setTimeout(() => {
+    runScheduledManifestVersionCheck();
+  }, delayMs);
+  setInterval(runScheduledManifestVersionCheck, 60 * 60 * 1000);
+}
+
+function runScheduledManifestVersionCheck(): void {
+  try {
     const config = loadConfig();
     const status = getManifestStatus(config.data.data_dir);
     if (shouldRunManifestVersionCheck(status, false)) {
       runManifestVersionCheckTask();
     }
-  }, delayMs);
+  } catch {
+    startManifestUpdateTask();
+  }
 }
 
-function runManifestVersionCheckTask(): void {
+function runManifestVersionCheckTask(restartIfRetrying = false): void {
   const config = loadConfig();
   if (!config.bungie.api_key.trim()) {
+    startBackgroundTask({
+      type: "manifest-version-check",
+      title: "检查资料库版本",
+      message: "缺少 Bungie API Key，无法检查资料库版本。",
+      restartIfRetrying,
+      run: async () => {
+        throw new Error("请先在设置中配置 Bungie API Key");
+      }
+    });
     return;
   }
 
@@ -66,15 +90,21 @@ function runManifestVersionCheckTask(): void {
     title: "检查资料库版本",
     message: "正在检查 Bungie Manifest 最新版本。",
     retryDelaysMs: MANIFEST_RETRY_DELAYS_MS,
+    restartIfRetrying,
     run: async ({ update }) => {
-      const status = await checkManifestVersion({ config });
+      const attemptConfig = loadConfig();
+      if (!attemptConfig.bungie.api_key.trim()) {
+        throw new Error("请先在设置中配置 Bungie API Key");
+      }
+      const status = await checkManifestVersion({ config: attemptConfig });
       lastManifestVersionStatus = {
+        data_dir: attemptConfig.data.data_dir,
         latest_version: status.latest_version,
         needs_update: status.needs_update,
         checked_at: status.checked_at
       };
       saveManifestVersionCheckCache({
-        dataDir: config.data.data_dir,
+        dataDir: attemptConfig.data.data_dir,
         checkedAt: status.checked_at ?? new Date().toISOString(),
         latestVersion: status.latest_version,
         needsUpdate: status.needs_update
@@ -85,22 +115,29 @@ function runManifestVersionCheckTask(): void {
           : `资料库已是最新版本：${status.version ?? "未知版本"}。`
       });
       if (shouldAutoUpdateManifest(status)) {
-        await initializeManifestWithBackgroundTask();
+        startManifestUpdateTask();
       }
     }
   });
 }
 
-function mergeManifestVersionStatus(status: ManifestStatus): ManifestStatus {
-  const versionStatus = lastManifestVersionStatus ?? loadPersistedManifestVersionStatus();
+function mergeManifestVersionStatus(status: ManifestStatus, dataDir: string, configuredLanguage: string): ManifestStatus {
+  const versionStatus = getManifestVersionStatus(dataDir);
   if (!versionStatus) {
-    return status;
+    return {
+      ...status,
+      needs_update: status.needs_update || manifestLanguageNeedsUpdate(status, configuredLanguage)
+    };
   }
   return {
     ...status,
     latest_version: versionStatus.latest_version,
     checked_at: versionStatus.checked_at,
-    needs_update: versionStatus.latest_version ? status.version !== versionStatus.latest_version : versionStatus.needs_update
+    needs_update: Boolean(
+      versionStatus.needs_update
+      || (versionStatus.latest_version && status.version !== versionStatus.latest_version)
+      || manifestLanguageNeedsUpdate(status, configuredLanguage)
+    )
   };
 }
 
@@ -112,26 +149,54 @@ function shouldRunManifestVersionCheck(status: ManifestStatus, forceCheck: boole
   if (forceCheck) {
     return true;
   }
+  const hasActiveManifestTask = listBackgroundTasks().some((task) => (
+    ["manifest-version-check", "manifest-update", "manifest-repair"].includes(task.type)
+    && ["queued", "running", "retrying"].includes(task.status)
+  ));
+  if (hasActiveManifestTask) {
+    return false;
+  }
   if (!status.initialized || status.missing_required_components?.length) {
     return true;
   }
 
-  const versionStatus = lastManifestVersionStatus ?? loadPersistedManifestVersionStatus();
-  return !versionStatus?.checked_at || localDateKey(versionStatus.checked_at) !== localDateKey(new Date());
+  const config = loadConfig();
+  if (manifestLanguageNeedsUpdate(status, config.data.manifest_language)) {
+    return true;
+  }
+
+  const versionStatus = getManifestVersionStatus(config.data.data_dir);
+  return Boolean(
+    versionStatus?.needs_update
+    || !versionStatus?.checked_at
+    || localDateKey(versionStatus.checked_at) !== localDateKey(new Date())
+  );
 }
 
-function loadPersistedManifestVersionStatus(): Pick<ManifestStatus, "latest_version" | "needs_update" | "checked_at"> | null {
-  const config = loadConfig();
-  const cache = loadManifestVersionCheckCache(config.data.data_dir);
+function getManifestVersionStatus(dataDir: string): Pick<ManifestStatus, "latest_version" | "needs_update" | "checked_at"> | null {
+  if (lastManifestVersionStatus?.data_dir === dataDir) {
+    return lastManifestVersionStatus;
+  }
+
+  const cache = loadManifestVersionCheckCache(dataDir);
   if (!cache) {
+    lastManifestVersionStatus = null;
     return null;
   }
   lastManifestVersionStatus = {
+    data_dir: dataDir,
     latest_version: cache.latest_version,
     needs_update: cache.needs_update,
     checked_at: cache.checked_at
   };
   return lastManifestVersionStatus;
+}
+
+function manifestLanguageNeedsUpdate(status: ManifestStatus, configuredLanguage: string): boolean {
+  if (!status.initialized) {
+    return false;
+  }
+  return status.language?.trim().toLowerCase() !== configuredLanguage.trim().toLowerCase();
 }
 
 function localDateKey(input: string | Date): string {
@@ -143,40 +208,45 @@ function localDateKey(input: string | Date): string {
   ].join("-");
 }
 
-function initializeManifestWithBackgroundTask(options: { repair?: boolean } = {}): Promise<ReturnType<typeof getManifestStatus>> {
-  if (manifestUpdatePromise && !options.repair) {
-    return manifestUpdatePromise;
-  }
-
-  const previousUpdate = manifestUpdatePromise;
-  const update = options.repair && previousUpdate
-    ? previousUpdate.catch(() => undefined).then(() => runManifestUpdate(true))
-    : runManifestUpdate(options.repair);
-  const trackedUpdate = update.finally(() => {
-    if (manifestUpdatePromise === trackedUpdate) {
-      manifestUpdatePromise = null;
-    }
-  });
-  manifestUpdatePromise = trackedUpdate;
-
+function startManifestUpdateTask(options: { repair?: boolean; restartIfRetrying?: boolean } = {}): Promise<ReturnType<typeof getManifestStatus>> {
+  const config = loadConfig();
+  const hasApiKey = Boolean(config.bungie.api_key.trim());
   startBackgroundTask({
-    type: options.repair ? "manifest-repair" : "manifest-update",
+    type: "manifest-update",
     title: options.repair ? "修复资料库" : "更新资料库",
-    message: options.repair ? "正在清理并重建 Destiny 2 资料库。" : "正在后台更新 Destiny 2 资料库。",
-    retryDelaysMs: MANIFEST_RETRY_DELAYS_MS,
-    run: async () => {
-      await trackedUpdate;
+    message: hasApiKey
+      ? (options.repair ? "正在清理并重建 Destiny 2 资料库。" : "正在后台更新 Destiny 2 资料库。")
+      : "缺少 Bungie API Key，无法更新资料库。",
+    retryDelaysMs: hasApiKey ? MANIFEST_RETRY_DELAYS_MS : undefined,
+    restartIfRetrying: options.restartIfRetrying,
+    run: async (context) => {
+      if (!hasApiKey) {
+        throw new Error("请先在设置中配置 Bungie API Key");
+      }
+      await runManifestUpdate(Boolean(options.repair), context);
     }
   });
 
-  return trackedUpdate;
+  const currentStatus = mergeManifestVersionStatus(
+    getManifestStatus(config.data.data_dir),
+    config.data.data_dir,
+    config.data.manifest_language
+  );
+  return Promise.resolve(currentStatus);
 }
 
-async function runManifestUpdate(repair = false): Promise<ReturnType<typeof getManifestStatus>> {
+async function runManifestUpdate(
+  repair: boolean,
+  context: BackgroundTaskRunContext
+): Promise<ReturnType<typeof getManifestStatus>> {
   const config = loadConfig();
-  const status = await runHeavyTaskInWorker<ManifestStatus>({ task: "manifest-update", repair });
+  const status = await runHeavyTaskInWorker<ManifestStatus>(
+    { task: "manifest-update", repair, config },
+    (progress) => context.update(progress)
+  );
   clearDefinitionMemoryCache(config.data.data_dir);
   lastManifestVersionStatus = {
+    data_dir: config.data.data_dir,
     latest_version: status.version,
     needs_update: false,
     checked_at: new Date().toISOString()
@@ -187,5 +257,9 @@ async function runManifestUpdate(repair = false): Promise<ReturnType<typeof getM
     latestVersion: status.version,
     needsUpdate: false
   });
-  return mergeManifestVersionStatus(getManifestStatus(config.data.data_dir));
+  return mergeManifestVersionStatus(
+    getManifestStatus(config.data.data_dir),
+    config.data.data_dir,
+    config.data.manifest_language
+  );
 }

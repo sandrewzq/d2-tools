@@ -22,4 +22,5 @@ export type ManifestStatus = {
   cached_at?: string;
   definitions?: DefinitionComponentStatus[];
   missing_required_components?: DefinitionComponentName[];
+  missing_optional_components?: DefinitionComponentName[];
 };

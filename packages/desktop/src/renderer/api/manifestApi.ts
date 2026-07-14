@@ -49,4 +49,5 @@ export type ManifestStatus = {
     count?: number;
   }>;
   missing_required_components?: string[];
+  missing_optional_components?: string[];
 };
