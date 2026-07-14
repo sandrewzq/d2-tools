@@ -37,6 +37,7 @@ import type { SaveVaultNoteInput, SaveVaultTagInput, VaultTags } from "@d2-tools
 import type { WeeklySummary } from "@d2-tools/core/weekly/summary";
 import type { VendorInventorySnapshot } from "@d2-tools/core/vendors/inventory";
 import type { VendorInventoryRequest } from "../renderer/api/vendorsApi.js";
+import type { ManifestStatusRequestOptions } from "../renderer/api/manifestApi.js";
 import type { BackgroundTaskSnapshot } from "../shared/backgroundTasks.js";
 import type { AppUpdateSnapshot } from "../shared/updateTypes.js";
 
@@ -142,7 +143,8 @@ contextBridge.exposeInMainWorld("d2", {
     ipcRenderer.on("background-tasks:changed", listener);
     return () => ipcRenderer.removeListener("background-tasks:changed", listener);
   },
-  getManifestStatus: () => ipcRenderer.invoke("manifest:status") as Promise<ManifestStatus>,
+  getManifestStatus: (options?: ManifestStatusRequestOptions) =>
+    ipcRenderer.invoke("manifest:status", options) as Promise<ManifestStatus>,
   initializeManifest: () => ipcRenderer.invoke("manifest:initialize") as Promise<ManifestStatus>,
   repairManifest: () => ipcRenderer.invoke("manifest:repair") as Promise<ManifestStatus>,
   searchItems: (query: string) => ipcRenderer.invoke("items:search", query) as Promise<ItemSearchResult[]>,

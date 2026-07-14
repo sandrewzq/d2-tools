@@ -9,19 +9,23 @@ export function useManifestStatus() {
   const [isInitializingManifest, setIsInitializingManifest] = useState(false);
 
   useEffect(() => {
-    void refreshManifestStatus();
+    void loadManifestStatus(false);
   }, []);
 
-  async function refreshManifestStatus() {
+  async function loadManifestStatus(forceCheck: boolean) {
     setIsLoadingManifestStatus(true);
     setManifestStatusError("");
     try {
-      setManifestStatus(await api.getManifestStatus());
+      setManifestStatus(await api.getManifestStatus({ forceCheck }));
     } catch (error) {
       setManifestStatusError(error instanceof Error ? error.message : "资料库状态读取失败");
     } finally {
       setIsLoadingManifestStatus(false);
     }
+  }
+
+  async function refreshManifestStatus() {
+    return loadManifestStatus(true);
   }
 
   async function initializeManifest() {
@@ -41,7 +45,7 @@ export function useManifestStatus() {
       setManifestStatusError(error instanceof Error ? error.message : "资料库更新启动失败");
     } finally {
       setIsInitializingManifest(false);
-      void refreshManifestStatus();
+      void loadManifestStatus(false);
     }
   }
 

@@ -1,4 +1,6 @@
 import { parentPort, workerData } from "node:worker_threads";
+import { existsSync, mkdtempSync, renameSync, rmSync } from "node:fs";
+import { join } from "node:path";
 import { fetchAccountSummary, type AccountSummary } from "@d2-tools/core/account/summary";
 import { loadConfig } from "@d2-tools/services/config/store";
 import {
@@ -8,10 +10,10 @@ import {
   type DefinitionComponentStatus
 } from "@d2-tools/services/manifest/definitions";
 import {
-  clearManifestCache,
   getManifestStatus,
   initializeManifestMetadata,
   loadManifestMetadataCache,
+  manifestDir,
   type ManifestStatus
 } from "@d2-tools/services/manifest/cache";
 import { loadFreshOAuthToken } from "../ipc/authSession.js";
@@ -40,47 +42,85 @@ async function runWorkerTask(input: HeavyTaskInput): Promise<ManifestStatus | Ac
 
 async function runManifestUpdate(repair = false): Promise<ManifestStatus> {
   const config = loadConfig();
-  if (repair) {
-    clearManifestCache(config.data.data_dir);
-  }
-  await initializeManifestMetadata({ config });
-  const cache = loadManifestMetadataCache(config.data.data_dir);
-  if (!cache) {
-    throw new Error("Manifest metadata cache was not created");
-  }
+  const stagingDataDir = mkdtempSync(join(config.data.data_dir, "manifest-staging-"));
+  const stagingConfig = {
+    ...config,
+    data: {
+      ...config.data,
+      data_dir: stagingDataDir
+    }
+  };
 
-  const primaryLanguage = cache.language;
-  const primaryTasks = requiredDefinitionComponents.map((component) =>
-    initializeDefinitionComponent({
-      dataDir: config.data.data_dir,
-      language: primaryLanguage,
-      metadata: cache.metadata,
-      component
-    })
-  );
+  try {
+    await initializeManifestMetadata({ config: stagingConfig });
+    const cache = loadManifestMetadataCache(stagingDataDir);
+    if (!cache) {
+      throw new Error("Manifest metadata cache was not created");
+    }
 
-  const englishTasks: Promise<DefinitionComponentStatus | null>[] = [];
-  if (primaryLanguage.toLowerCase() !== "en") {
-    englishTasks.push(
+    const primaryLanguage = cache.language;
+    const primaryTasks = requiredDefinitionComponents.map((component) =>
       initializeDefinitionComponent({
-        dataDir: config.data.data_dir,
-        language: "en",
+        dataDir: stagingDataDir,
+        language: primaryLanguage,
         metadata: cache.metadata,
-        component: "DestinyInventoryItemDefinition",
-        writeDefaultCache: false
-      }).catch(() => null),
-      initializeDefinitionComponent({
-        dataDir: config.data.data_dir,
-        language: "en",
-        metadata: cache.metadata,
-        component: "DestinyPlugSetDefinition",
-        writeDefaultCache: false
-      }).catch(() => null)
+        component
+      })
     );
+
+    const englishTasks: Promise<DefinitionComponentStatus | null>[] = [];
+    if (primaryLanguage.toLowerCase() !== "en") {
+      englishTasks.push(
+        initializeDefinitionComponent({
+          dataDir: stagingDataDir,
+          language: "en",
+          metadata: cache.metadata,
+          component: "DestinyInventoryItemDefinition",
+          writeDefaultCache: false
+        }).catch(() => null),
+        initializeDefinitionComponent({
+          dataDir: stagingDataDir,
+          language: "en",
+          metadata: cache.metadata,
+          component: "DestinyPlugSetDefinition",
+          writeDefaultCache: false
+        }).catch(() => null)
+      );
+    }
+
+    await Promise.all([...primaryTasks, ...englishTasks]);
+    replaceManifestCache(config.data.data_dir, stagingDataDir, repair);
+    return getManifestStatus(config.data.data_dir);
+  } finally {
+    rmSync(stagingDataDir, { recursive: true, force: true });
+  }
+}
+
+function replaceManifestCache(dataDir: string, stagingDataDir: string, repair: boolean): void {
+  const targetDir = manifestDir(dataDir);
+  const sourceDir = manifestDir(stagingDataDir);
+  const backupDir = join(dataDir, `manifest-backup-${Date.now()}`);
+  const hadExistingManifest = existsSync(targetDir);
+
+  if (!existsSync(sourceDir)) {
+    throw new Error("Manifest staging cache was not created");
   }
 
-  await Promise.all([...primaryTasks, ...englishTasks]);
-  return getManifestStatus(config.data.data_dir);
+  if (hadExistingManifest) {
+    renameSync(targetDir, backupDir);
+  }
+
+  try {
+    renameSync(sourceDir, targetDir);
+    if (hadExistingManifest || repair) {
+      rmSync(backupDir, { recursive: true, force: true });
+    }
+  } catch (error) {
+    if (hadExistingManifest && !existsSync(targetDir) && existsSync(backupDir)) {
+      renameSync(backupDir, targetDir);
+    }
+    throw error;
+  }
 }
 
 async function fetchDesktopAccountSummary(): Promise<AccountSummary> {

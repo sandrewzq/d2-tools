@@ -32,6 +32,12 @@ export type ManifestStatus = {
   missing_required_components?: DefinitionComponentName[];
 };
 
+export type ManifestVersionCheckCache = {
+  checked_at: string;
+  latest_version?: string;
+  needs_update?: boolean;
+};
+
 export type InitializeManifestMetadataOptions = {
   config: D2Config;
   fetchMetadata?: (apiKey: string) => Promise<DestinyManifestMetadata>;
@@ -56,6 +62,10 @@ export function manifestMetadataPath(dataDir: string): string {
   return join(manifestDir(dataDir), "metadata.json");
 }
 
+export function manifestVersionCheckPath(dataDir: string): string {
+  return join(manifestDir(dataDir), "version-check.json");
+}
+
 export function clearManifestCache(dataDir: string): void {
   clearDefinitionMemoryCache(dataDir);
   rmSync(manifestDir(dataDir), { recursive: true, force: true });
@@ -68,6 +78,32 @@ export function loadManifestMetadataCache(dataDir: string): ManifestMetadataCach
   }
 
   return JSON.parse(readFileSync(path, "utf8")) as ManifestMetadataCache;
+}
+
+export function loadManifestVersionCheckCache(dataDir: string): ManifestVersionCheckCache | null {
+  const path = manifestVersionCheckPath(dataDir);
+  if (!existsSync(path)) {
+    return null;
+  }
+
+  return JSON.parse(readFileSync(path, "utf8")) as ManifestVersionCheckCache;
+}
+
+export function saveManifestVersionCheckCache(input: {
+  dataDir: string;
+  checkedAt: string;
+  latestVersion?: string;
+  needsUpdate?: boolean;
+}): ManifestVersionCheckCache {
+  const cache: ManifestVersionCheckCache = {
+    checked_at: input.checkedAt,
+    latest_version: input.latestVersion,
+    needs_update: input.needsUpdate
+  };
+
+  mkdirSync(manifestDir(input.dataDir), { recursive: true });
+  writeFileSync(manifestVersionCheckPath(input.dataDir), `${JSON.stringify(cache, null, 2)}\n`, "utf8");
+  return cache;
 }
 
 export function saveManifestMetadataCache(input: {
