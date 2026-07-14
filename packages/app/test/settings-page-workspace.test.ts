@@ -26,6 +26,7 @@ describe("settings page workspace", () => {
       isInitializingManifest: false,
       accountSummary: null,
       accountError: "未登录",
+      accountWarning: "",
       isLoadingAccount: false,
       lastAccountLoadedAt: null,
       isAiConfigured: true,

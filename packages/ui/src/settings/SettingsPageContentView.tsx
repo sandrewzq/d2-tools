@@ -55,6 +55,7 @@ export type SettingsPageContentViewProps = {
   isInitializingManifest: boolean;
   accountSummary: AccountSummary | null;
   accountError: string;
+  accountWarning: string;
   isLoadingAccount: boolean;
   lastAccountLoadedAt: Date | null;
   isAiConfigured: boolean;
@@ -132,7 +133,7 @@ export function SettingsPageContentView(props: SettingsPageContentViewProps) {
   const updateUi = getAppUpdateUi(props.appUpdateSnapshot, copy);
   const updateProgress = formatAppUpdateProgress(props.appUpdateSnapshot);
   const libraryUi = getLibraryUi(props.manifestStatus, props.manifestStatusError, props.isLoadingManifestStatus, copy);
-  const accountUi = getAccountUi(props.accountSummary, props.accountError, props.isLoadingAccount, copy);
+  const accountUi = getAccountUi(props.accountSummary, props.accountError, props.accountWarning, props.isLoadingAccount, copy);
   const libraryVersion = formatLibraryVersion(props.manifestStatus?.version);
   const bungieUi = getBungieUi({
     isLoading: isLoadingBungieConfig,
@@ -418,12 +419,12 @@ export function SettingsPageContentView(props: SettingsPageContentViewProps) {
                   <span>{accountUi.summary}</span>
                 </div>
                 <div className="app-metric status-neutral">
-                  <span>{settingsText(copy, "上次更新")}</span>
+                  <span>{settingsText(copy, "上次刷新")}</span>
                   <strong>{formatAccountLoadedAt(props.lastAccountLoadedAt, props.accountSummary, interfaceLocale, copy)}</strong>
                   <span>{settingsText(copy, "成功刷新账号资料的时间")}</span>
                 </div>
                 <div className="app-metric status-neutral">
-                  <span>{settingsText(copy, "更新规则")}</span>
+                  <span>{settingsText(copy, "刷新规则")}</span>
                   <strong>{settingsText(copy, "启动自动读取一次")}</strong>
                   <span>{settingsText(copy, "手动刷新、重新授权和切换账号不受限制")}</span>
                 </div>
@@ -675,11 +676,18 @@ export function SettingsPageContentView(props: SettingsPageContentViewProps) {
 function getAccountUi(
   accountSummary: AccountSummary | null,
   error: string,
+  warning: string,
   isLoading: boolean,
   copy: SettingsCopy
 ): { statusLabel: string; summary: string; tone: "neutral" | "ready" | "warning" | "error" } {
+  if (error && accountSummary) return { statusLabel: settingsText(copy, "刷新失败"), summary: `${settingsText(copy, "显示上次账号数据")}：${error}`, tone: "error" };
   if (error) return { statusLabel: settingsText(copy, "读取失败"), summary: error, tone: "error" };
-  if (isLoading) return { statusLabel: settingsText(copy, "读取中"), summary: settingsText(copy, "正在读取账号和仓库。"), tone: "warning" };
+  if (isLoading) {
+    return accountSummary
+      ? { statusLabel: settingsText(copy, "刷新中"), summary: settingsText(copy, "正在刷新账号和仓库。"), tone: "warning" }
+      : { statusLabel: settingsText(copy, "读取中"), summary: settingsText(copy, "正在读取账号和仓库。"), tone: "warning" };
+  }
+  if (warning && accountSummary) return { statusLabel: settingsText(copy, "已读取"), summary: warning, tone: "warning" };
   if (accountSummary) {
     return {
       statusLabel: settingsText(copy, "已读取"),

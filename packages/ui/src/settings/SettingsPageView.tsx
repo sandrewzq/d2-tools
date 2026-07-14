@@ -225,7 +225,7 @@ function DefaultSettingsPrototype(props: { interfaceLocale?: InterfaceLocale }) 
                 <span>{settingsText(copy, "成功刷新账号资料的时间")}</span>
               </div>
               <div className="app-metric status-neutral">
-                <span>{settingsText(copy, "更新规则")}</span>
+                <span>{settingsText(copy, "刷新规则")}</span>
                 <strong>{settingsText(copy, "启动自动读取一次")}</strong>
                 <span>{settingsText(copy, "手动刷新、重新授权和切换账号不受限制")}</span>
               </div>

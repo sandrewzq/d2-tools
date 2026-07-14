@@ -26,6 +26,7 @@ export function SettingsPage(props: {
   isInitializingManifest: boolean;
   accountSummary: AccountSummary | null;
   accountError: string;
+  accountWarning: string;
   isLoadingAccount: boolean;
   lastAccountLoadedAt: Date | null;
   isAiConfigured: boolean;

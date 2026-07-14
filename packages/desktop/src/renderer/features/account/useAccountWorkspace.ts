@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { loadAccountWorkspace, loadAccountDerivedWorkspace } from "@d2-tools/app";
 import {
   api } from "../../api/client";
@@ -9,6 +9,8 @@ import { formatBungieLoginError } from "./loginErrors";
 type DiagnosticsBridge = {
   refreshDiagnostics: () => Promise<void>;
 };
+
+type AccountRefreshReason = "initial" | "manual" | "auto" | "write-action";
 
 export function useAccountWorkspace(input: {
   state: StartupState;
@@ -30,6 +32,7 @@ export function useAccountWorkspace(input: {
     weapons: []
   });
   const [accountError, setAccountError] = useState("");
+  const [accountWarning, setAccountWarning] = useState("");
   const [isLoadingAccount, setIsLoadingAccount] = useState(false);
   const [selectedCharacterId, setSelectedCharacterId] = useState("");
   const [activitySummary, setActivitySummary] = useState<ActivityHistorySummary | null>(null);
@@ -38,6 +41,14 @@ export function useAccountWorkspace(input: {
   const [importedWishlist, setImportedWishlist] = useState<DimWishlist | null>(null);
   const [vaultCommunityMatch, setVaultCommunityMatch] = useState<Map<number, VaultItemMatchInfo>>(new Map());
   const [isVaultCommunityMatchLoading, setIsVaultCommunityMatchLoading] = useState(false);
+  const accountSummaryRef = useRef<AccountSummary | null>(null);
+  const accountRequestSequenceRef = useRef(0);
+  const derivedRequestSequenceRef = useRef(0);
+
+  function setAccountSummaryState(summary: AccountSummary | null) {
+    accountSummaryRef.current = summary;
+    setAccountSummary(summary);
+  }
 
   async function loginBungie() {
     setIsLoggingIn(true);
@@ -73,12 +84,15 @@ export function useAccountWorkspace(input: {
     }
   }
 
-  async function loadAccountSummary() {
+  async function refreshAccountSnapshot(reason: AccountRefreshReason = accountSummaryRef.current ? "manual" : "initial") {
+    const requestSequence = ++accountRequestSequenceRef.current;
     setIsLoadingAccount(true);
     setAccountError("");
+    setAccountWarning("");
 
     try {
       const workspace = await loadAccountWorkspace(services);
+      if (requestSequence !== accountRequestSequenceRef.current) return;
       if (workspace.status !== "success") {
         throw new Error(workspace.error?.message ?? "账号数据读取失败");
       }
@@ -88,7 +102,7 @@ export function useAccountWorkspace(input: {
         targetRules,
         wishlist
       } = workspace.data;
-      setAccountSummary(summary);
+      setAccountSummaryState(summary);
       setVaultTags(tags);
       setLocalTargetRules(targetRules);
       setImportedWishlist(wishlist);
@@ -100,24 +114,37 @@ export function useAccountWorkspace(input: {
       });
       setActivitySummary(null);
       setVaultCommunityMatch(new Map());
-      setActivityMessage("账号已读取，最近活动和社区匹配会继续在后台更新");
-      void loadActivitySummary(summary);
+      setActivityMessage("账号已读取，最近活动和社区匹配会继续在后台刷新");
+      if (workspace.data.warnings.length) {
+        setAccountWarning(`本地增强数据读取失败：${formatAccountWorkspaceWarnings(workspace.data.warnings)}`);
+      }
+      void refreshAccountDerivedData(summary);
     } catch (error) {
+      if (requestSequence !== accountRequestSequenceRef.current) return;
       const message = error instanceof Error ? error.message : "账号数据读取失败";
-      setAccountError(getAccountLoadErrorMessage(input.state, message));
-      setAccountSummary(null);
+      const resolvedMessage = getAccountLoadErrorMessage(input.state, message);
+      if (accountSummaryRef.current) {
+        setAccountError(`${formatAccountRefreshFailurePrefix(reason)}，仍显示上次读取数据。${resolvedMessage}`);
+      } else {
+        setAccountError(resolvedMessage);
+        setAccountSummaryState(null);
+      }
     } finally {
-      setIsLoadingAccount(false);
+      if (requestSequence === accountRequestSequenceRef.current) {
+        setIsLoadingAccount(false);
+      }
     }
   }
 
-  async function loadActivitySummary(summary = accountSummary) {
+  async function refreshAccountDerivedData(summary = accountSummary) {
     if (!summary) return;
 
+    const requestSequence = ++derivedRequestSequenceRef.current;
     setActivityError("");
     setActivityMessage("");
     setIsVaultCommunityMatchLoading(true);
     const derived = await loadAccountDerivedWorkspace(services, summary);
+    if (requestSequence !== derivedRequestSequenceRef.current) return;
     if (derived.status === "success") {
       setActivitySummary(derived.data.activitySummary);
       setVaultCommunityMatch(derived.data.vaultCommunityMatch);
@@ -140,13 +167,14 @@ export function useAccountWorkspace(input: {
     manifestError,
     isInitializingManifest,
     accountSummary,
-    setAccountSummary,
+    setAccountSummary: setAccountSummaryState,
     vaultTags,
     setVaultTags,
     localTargetRules,
     setLocalTargetRules,
     accountError,
     setAccountError,
+    accountWarning,
     isLoadingAccount,
     selectedCharacterId,
     setSelectedCharacterId,
@@ -159,9 +187,28 @@ export function useAccountWorkspace(input: {
     isVaultCommunityMatchLoading,
     loginBungie,
     initializeManifest,
-    loadAccountSummary,
-    loadActivitySummary
+    loadAccountSummary: refreshAccountSnapshot,
+    refreshAccountSnapshot,
+    loadActivitySummary: refreshAccountDerivedData,
+    refreshAccountDerivedData
   };
+}
+
+function formatAccountWorkspaceWarnings(warnings: Array<{ source: string; message: string }>): string {
+  return warnings.map((warning) => `${formatAccountWarningSource(warning.source)}：${warning.message}`).join("；");
+}
+
+function formatAccountWarningSource(source: string): string {
+  if (source === "vault-tags") return "本地标签";
+  if (source === "target-rules") return "目标规则";
+  if (source === "wishlist") return "DIM wishlist";
+  return "本地数据";
+}
+
+function formatAccountRefreshFailurePrefix(reason: AccountRefreshReason): string {
+  if (reason === "auto") return "自动刷新账号数据失败";
+  if (reason === "write-action") return "操作后刷新账号数据失败";
+  return "刷新账号数据失败";
 }
 
 function getAccountLoadErrorMessage(state: StartupState, message: string): string {

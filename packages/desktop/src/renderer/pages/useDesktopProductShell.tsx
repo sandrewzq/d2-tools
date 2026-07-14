@@ -61,6 +61,7 @@ export function useDesktopProductShell(props: {
     setVaultTags,
     accountError,
     setAccountError,
+    accountWarning,
     isLoadingAccount,
     selectedCharacterId,
     setSelectedCharacterId,
@@ -74,14 +75,16 @@ export function useDesktopProductShell(props: {
     vaultCommunityMatch,
     loginBungie,
     initializeManifest,
-    loadAccountSummary,
-    loadActivitySummary
+    refreshAccountSnapshot,
+    refreshAccountDerivedData
   } = useAccountWorkspace({
     state: props.state,
     diagnostics,
     onLoginComplete: props.onLoginComplete,
     onManifestInitialized: props.onManifestInitialized
   });
+  const refreshAccountManually = () => refreshAccountSnapshot("manual");
+  const refreshAccountAfterWrite = () => refreshAccountSnapshot("write-action");
   const loadoutLibrary = useLoadoutTemplates();
   const writeActions = useDesktopProductWriteActions({
     accountSummary,
@@ -91,7 +94,7 @@ export function useDesktopProductShell(props: {
     importedWishlist,
     localTargetRules,
     setAccountError,
-    loadAccountSummary,
+    loadAccountSummary: refreshAccountAfterWrite,
     loadoutLibrary,
     onRecentHistoryChanged: library.setLibraryHistory
   });
@@ -126,8 +129,8 @@ export function useDesktopProductShell(props: {
     void library.loadLibraryHistory();
   }, [isVisualCapture]);
 
-  const loadAccountRef = useRef(loadAccountSummary);
-  loadAccountRef.current = loadAccountSummary;
+  const refreshAccountRef = useRef(refreshAccountSnapshot);
+  refreshAccountRef.current = refreshAccountSnapshot;
   const canRefreshAccount = props.state.cards.bungieConfig.status === "ready"
     && props.state.cards.account.status === "ready";
 
@@ -136,14 +139,14 @@ export function useDesktopProductShell(props: {
       return;
     }
     setHasAutoLoadedAccount(true);
-    void loadAccountSummary();
+    void refreshAccountRef.current("initial");
   }, [canRefreshAccount, hasAutoLoadedAccount]);
 
   useEffect(() => {
     if (!canRefreshAccount) return;
 
     const id = setInterval(() => {
-      void loadAccountRef.current();
+      void refreshAccountRef.current("auto");
     }, 10 * 60 * 1000);
 
     return () => clearInterval(id);
@@ -178,6 +181,7 @@ export function useDesktopProductShell(props: {
     lastAccountLoadedAt,
     isLoadingAccount,
     accountError,
+    accountWarning,
     canRefreshAccount,
     isBungieConfigured: props.state.cards.bungieConfig.status === "ready",
     isAiConfigured,
@@ -205,7 +209,7 @@ export function useDesktopProductShell(props: {
   const homeActions = createHomeDashboardActions({
     onConfigure: props.onConfigure,
     onLogin: () => void loginBungie(),
-    onLoadAccount: () => void loadAccountSummary(),
+    onLoadAccount: () => void refreshAccountManually(),
     onInitializeManifest: () => void initializeManifest(),
     onConfigureAi: () => setActivePage("settings"),
     onRefreshDiagnostics: () => void diagnostics.refreshDiagnostics(),
@@ -248,6 +252,7 @@ export function useDesktopProductShell(props: {
       selectedCharacterId,
       isLoadingAccount,
       accountError,
+      accountWarning,
       itemDetailError: itemDetail.itemDetailError,
       itemDetailLoadingKey: itemDetail.itemDetailLoadingKey,
       writeActionsEnabled: diagnostics.writeActionsEnabled,
@@ -261,8 +266,8 @@ export function useDesktopProductShell(props: {
       activeLoadoutTemplate,
       onConfigureBungie: props.onConfigure,
       onLoginBungie: () => void loginBungie(),
-      onLoadAccount: () => void loadAccountSummary(),
-      onRefreshActivity: () => void loadActivitySummary(),
+      onLoadAccount: () => void refreshAccountManually(),
+      onRefreshActivity: () => void refreshAccountDerivedData(),
       onSelectCharacter: setSelectedCharacterId,
       onSaveCharacterLoadout: (character) => void loadoutWriteActions.saveCharacterLoadout(character),
       onEquipHighestPowerItems: (character) => void loadoutWriteActions.equipHighestPowerItems(character),
@@ -366,7 +371,7 @@ export function useDesktopProductShell(props: {
       onContextFactsChange: setVaultFacts,
       onWishlistChanged: setImportedWishlist,
       onLocalTargetRulesChanged: setLocalTargetRules,
-      onLoadAccount: () => void loadAccountSummary(),
+      onLoadAccount: () => void refreshAccountManually(),
       onSaveTagBatch: (inputs) => vaultWriteActions.saveVaultTagsBatch(inputs),
       onBatchUnlock: vaultWriteActions.handleVaultCleanupUnlock,
       onBatchTransferToCharacter: vaultWriteActions.handleVaultCleanupTransfer,
@@ -386,10 +391,11 @@ export function useDesktopProductShell(props: {
       isInitializingManifest: diagnostics.isInitializingManifest,
       accountSummary,
       accountError,
+      accountWarning,
       isLoadingAccount,
       lastAccountLoadedAt,
       isAiConfigured,
-      onRefreshAccount: () => void loadAccountSummary(),
+      onRefreshAccount: () => void refreshAccountManually(),
       onReauthorizeAccount: () => void loginBungie(),
       backgroundTasks: diagnostics.backgroundTasks,
       actionLog: diagnostics.actionLog,
@@ -432,7 +438,7 @@ export function useDesktopProductShell(props: {
       pageContext={assistantPageContext}
       tags={vaultTags}
       isLoadingAccount={isLoadingAccount}
-      onLoadAccount={() => void loadAccountSummary()}
+      onLoadAccount={() => void refreshAccountManually()}
       onConfigureAi={() => {
         setActivePage("settings");
         setAssistantMode(null);
@@ -488,6 +494,7 @@ function buildShellStatus(input: {
   lastAccountLoadedAt: Date | null;
   isLoadingAccount: boolean;
   accountError: string;
+  accountWarning: string;
   canRefreshAccount: boolean;
   isBungieConfigured: boolean;
   isAiConfigured: boolean;
@@ -506,8 +513,8 @@ function buildShellStatus(input: {
     {
       key: "account",
       label: "账号",
-      value: formatAccountShellStatus(input.accountSummary, input.lastAccountLoadedAt, input.isLoadingAccount, input.accountError, input.canRefreshAccount),
-      tone: getAccountStatusTone(input.accountSummary, input.isLoadingAccount, input.accountError, input.canRefreshAccount)
+      value: formatAccountShellStatus(input.accountSummary, input.lastAccountLoadedAt, input.isLoadingAccount, input.accountError, input.accountWarning, input.canRefreshAccount),
+      tone: getAccountStatusTone(input.accountSummary, input.isLoadingAccount, input.accountError, input.accountWarning, input.canRefreshAccount)
     },
     {
       key: "library",
@@ -537,10 +544,13 @@ function formatAccountShellStatus(
   lastAccountLoadedAt: Date | null,
   isLoadingAccount: boolean,
   accountError: string,
+  accountWarning: string,
   canRefreshAccount: boolean
 ): string {
-  if (isLoadingAccount) return "读取中";
+  if (isLoadingAccount) return accountSummary ? "刷新中" : "读取中";
+  if (accountError && accountSummary) return "刷新失败";
   if (accountError) return "读取失败";
+  if (accountWarning && accountSummary) return "增强数据异常";
   if (accountSummary) return formatTime(lastAccountLoadedAt) ?? "已读取";
   return canRefreshAccount ? "可读取" : "未登录";
 }
@@ -549,10 +559,12 @@ function getAccountStatusTone(
   accountSummary: AccountSummary | null,
   isLoadingAccount: boolean,
   accountError: string,
+  accountWarning: string,
   canRefreshAccount: boolean
 ): ShellStatusItem["tone"] {
   if (accountError) return "error";
   if (isLoadingAccount) return "warning";
+  if (accountWarning && accountSummary) return "warning";
   if (accountSummary) return "ready";
   return canRefreshAccount ? "warning" : "neutral";
 }

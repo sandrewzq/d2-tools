@@ -183,6 +183,7 @@ describe("shared UI i18n", () => {
           },
           feedback: {
             accountError: "",
+            accountWarning: "",
             itemDetailError: "",
             loadoutMessage: "",
             itemActionMessage: "",
@@ -241,6 +242,7 @@ describe("shared UI i18n", () => {
         isInitializingManifest={false}
         accountSummary={null}
         accountError=""
+        accountWarning=""
         isLoadingAccount={false}
         lastAccountLoadedAt={null}
         isAiConfigured={false}

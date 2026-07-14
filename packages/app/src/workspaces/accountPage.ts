@@ -45,6 +45,7 @@ export type AccountConnectionView = {
 
 export type AccountFeedbackView = {
   accountError: string;
+  accountWarning: string;
   itemDetailError: string;
   loadoutMessage: string;
   itemActionMessage: string;
@@ -124,6 +125,7 @@ export type AccountPageState = {
   writeActionsEnabled: boolean;
   accountStatusLabel?: string;
   accountError: string;
+  accountWarning?: string;
   itemDetailError: string;
   activityMessage: string;
   activityError: string;
@@ -312,6 +314,7 @@ export function selectAccountPageModel(input: AccountPageModelInput): AccountPag
     },
     feedback: {
       accountError: pageState.accountError,
+      accountWarning: pageState.accountWarning ?? "",
       itemDetailError: pageState.itemDetailError,
       loadoutMessage: pageState.loadoutMessage,
       itemActionMessage: pageState.itemActionMessage,

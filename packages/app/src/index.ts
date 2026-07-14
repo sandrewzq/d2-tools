@@ -1,6 +1,6 @@
 export type { QueryState } from "./queryState.js";
 export { idleQuery, runQuery } from "./queryState.js";
-export type { AccountWorkspace } from "./workspaces/account.js";
+export type { AccountWorkspace, AccountWorkspaceWarning } from "./workspaces/account.js";
 export { loadAccountWorkspace } from "./workspaces/account.js";
 export type { AccountDerivedWorkspace, FullAccountWorkspace } from "./workspaces/accountDerived.js";
 export { loadAccountDerivedWorkspace, loadFullAccountWorkspace } from "./workspaces/accountDerived.js";

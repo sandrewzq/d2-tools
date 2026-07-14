@@ -47,6 +47,7 @@ export function AccountPageContentView(props: AccountPageContentViewProps) {
   return (
     <>
       {viewModel.feedback.accountError ? <p className="status-message status-error">{viewModel.feedback.accountError}</p> : null}
+      {viewModel.feedback.accountWarning ? <p className="status-message status-warning">{viewModel.feedback.accountWarning}</p> : null}
       {viewModel.feedback.itemDetailError ? <p className="status-message status-error">{viewModel.feedback.itemDetailError}</p> : null}
       {!viewModel.connection.hasAccount ? (
         <div className="account-empty-state">

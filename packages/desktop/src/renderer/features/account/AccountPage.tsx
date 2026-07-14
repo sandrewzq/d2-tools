@@ -24,6 +24,7 @@ export function AccountPage(props: {
   selectedCharacterId: string;
   isLoadingAccount: boolean;
   accountError: string;
+  accountWarning: string;
   itemDetailError: string;
   itemDetailLoadingKey: string;
   writeActionsEnabled: boolean;
@@ -68,6 +69,7 @@ export function AccountPage(props: {
       writeActionsEnabled: props.writeActionsEnabled,
       accountStatusLabel: props.startupState.cards.account.label,
       accountError: props.accountError,
+      accountWarning: props.accountWarning,
       itemDetailError: props.itemDetailError,
       activityMessage: props.activityMessage,
       activityError: props.activityError,

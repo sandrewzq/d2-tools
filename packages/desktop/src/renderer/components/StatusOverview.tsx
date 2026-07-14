@@ -6,6 +6,7 @@ export function StatusOverview(props: {
   isLoggingIn: boolean;
   isLoadingAccount: boolean;
   accountError: string;
+  accountWarning: string;
   hasAccountData: boolean;
   isInitializingManifest: boolean;
   onConfigure: () => void;
@@ -18,6 +19,7 @@ export function StatusOverview(props: {
   const accountCard = getAccountStatusCard({
     state: props.state,
     accountError: props.accountError,
+    accountWarning: props.accountWarning,
     hasAccountData: props.hasAccountData,
     isLoadingAccount: props.isLoadingAccount
   });
@@ -77,13 +79,21 @@ export function StatusOverview(props: {
 function getAccountStatusCard(input: {
   state: StartupState;
   accountError: string;
+  accountWarning: string;
   hasAccountData: boolean;
   isLoadingAccount: boolean;
 }): StartupState["cards"]["account"] {
   if (input.isLoadingAccount) {
     return {
       status: "skipped",
-      label: "正在读取账号数据"
+      label: input.hasAccountData ? "正在刷新账号数据" : "正在读取账号数据"
+    };
+  }
+
+  if (input.accountError && input.hasAccountData) {
+    return {
+      status: "skipped",
+      label: `刷新失败，显示上次账号数据：${input.accountError}`
     };
   }
 
@@ -91,6 +101,13 @@ function getAccountStatusCard(input: {
     return {
       status: "missing",
       label: `账号数据读取失败：${input.accountError}`
+    };
+  }
+
+  if (input.accountWarning && input.hasAccountData) {
+    return {
+      status: "skipped",
+      label: `账号数据已读取，本地增强数据异常：${input.accountWarning}`
     };
   }
 

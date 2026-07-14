@@ -85,6 +85,90 @@ describe("account workspace", () => {
     expect(result.data.wishlist?.title).toBe("Test Wishlist");
   });
 
+  it("keeps the account snapshot when local enhancement data fails", async () => {
+    const result = await loadAccountWorkspace({
+      profile: {
+        async getAccountSummary() {
+          return {
+            account_name: "tester",
+            destiny_membership_id: "123",
+            membership_type: 1,
+            characters: [],
+            vault: { item_count: 0, items: [], sample_items: [] },
+            materials: { item_count: 0, items: [] }
+          };
+        },
+        async getActivitySummary() {
+          return {
+            recent: { total: 0, pve: { total: 0, completed: 0 }, pvp: { total: 0, completed: 0 }, other: { total: 0, completed: 0 } },
+            raids: { entries: [] },
+            recent_items: []
+          };
+        }
+      },
+      localData: {
+        async getVaultTags() {
+          throw new Error("tags unavailable");
+        },
+        async getLocalTargetRules() {
+          throw new Error("rules unavailable");
+        },
+        async getDimWishlist() {
+          throw new Error("wishlist unavailable");
+        },
+        async getLocalCommunityRecommendations() {
+          return null;
+        },
+        async saveDimWishlist() {
+          throw new Error("not used");
+        },
+        async clearDimWishlist() {
+          throw new Error("not used");
+        },
+        async saveLocalCommunityRecommendations() {
+          throw new Error("not used");
+        },
+        async clearLocalCommunityRecommendations() {
+          throw new Error("not used");
+        },
+        async saveVaultTag() {
+          throw new Error("not used");
+        },
+        async saveVaultTagsBatch() {
+          throw new Error("not used");
+        },
+        async saveVaultNote() {
+          throw new Error("not used");
+        },
+        async saveLocalTargetRules() {
+          throw new Error("not used");
+        },
+        async clearLocalTargetRules() {
+          throw new Error("not used");
+        }
+      }
+    });
+
+    expect(result.status).toBe("success");
+    if (result.status !== "success") {
+      throw new Error("unexpected failure");
+    }
+
+    expect(result.data.account.account_name).toBe("tester");
+    expect(result.data.tags.items).toEqual({});
+    expect(result.data.targetRules).toEqual({
+      action_policy: "notify_only",
+      armor: [],
+      weapons: []
+    });
+    expect(result.data.wishlist).toBeNull();
+    expect(result.data.warnings.map((warning) => warning.source)).toEqual([
+      "vault-tags",
+      "target-rules",
+      "wishlist"
+    ]);
+  });
+
   it("loads full account workspace including derived activity and community matches in one app-layer call", async () => {
     const result = await loadFullAccountWorkspace({
       profile: {
