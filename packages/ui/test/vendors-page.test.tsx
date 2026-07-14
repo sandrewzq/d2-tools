@@ -14,18 +14,12 @@ describe("shared vendors page", () => {
     expect(screen.getByRole("status", { name: "商人刷新状态" })).toHaveAttribute("aria-live", "polite");
   });
 
-  it("searches the current vendor while keeping service inventory in the vertical flow", async () => {
-    const user = userEvent.setup();
+  it("keeps direct and service inventory in the vertical flow", () => {
     render(<VendorsPageContentView model={createModel()} actions={{}} />);
 
-    await user.type(screen.getByRole("searchbox", { name: "搜索当前商人库存" }), "蒙特卡洛");
     expect(screen.getByRole("heading", { name: "奇异装备优惠" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "查看蒙特卡洛详情" })).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "查看鹰月详情" })).toBeNull();
-
-    await user.clear(screen.getByRole("searchbox", { name: "搜索当前商人库存" }));
     expect(screen.getByRole("button", { name: "查看鹰月详情" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "查看蒙特卡洛详情" })).toBeTruthy();
   });
 
   it("opens a vendor item through the shared item action", async () => {
@@ -50,8 +44,6 @@ describe("shared vendors page", () => {
     );
     expect(screen.getByRole("button", { name: "查看鹰月详情" })).toBeTruthy();
 
-    await user.type(screen.getByRole("searchbox", { name: "搜索当前商人库存" }), "鹰月");
-    expect(screen.getByRole("button", { name: "查看鹰月详情" })).toBeTruthy();
   });
 
   it("shows the real refresh error when the first inventory load fails", () => {

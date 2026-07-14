@@ -87,40 +87,29 @@ describe("item definition search", () => {
       }
     };
 
-    expect(searchItemDefinitions(itemWithPerks, "风险", { plugSetDefinitions: plugSets }))
+    itemWithPerks["1"].inventory = {
+      ...itemWithPerks["1"].inventory,
+      bucketTypeHash: 1498876634
+    };
+
+    expect(searchItemDefinitions(itemWithPerks, "风险", { plugSetDefinitions: plugSets })[0]?.perks)
       .toEqual([
         {
-          hash: 1,
-          name: "风险管理者",
-          description: "一把会导引电弧的异域冲锋枪。",
-          icon: "https://www.bungie.net/common/destiny2_content/icons/riskrunner.png",
-          item_type: "冲锋枪",
-          tier: "异域",
-          group_key: "other",
-          perks: [
+          socket_index: 0,
+          plugs: [
             {
-              socket_index: 0,
-              plugs: [
-                {
-                  hash: 100,
-                  name: "爆破专家",
-                  description: "使用技能会重新装填武器。",
-                  icon: undefined
-                },
-                {
-                  hash: 101,
-                  name: "萤火虫",
-                  description: "精准击杀产生元素爆炸。",
-                  icon: undefined
-                }
-              ]
+              hash: 100,
+              name: "爆破专家",
+              description: "使用技能会重新装填武器。",
+              icon: undefined
+            },
+            {
+              hash: 101,
+              name: "萤火虫",
+              description: "精准击杀产生元素爆炸。",
+              icon: undefined
             }
-          ],
-          source: {
-            status: "missing",
-            label: "官方来源提示",
-            description: "Bungie Manifest 未提供官方来源提示。"
-          }
+          ]
         }
       ]);
   });

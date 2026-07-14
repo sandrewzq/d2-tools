@@ -103,7 +103,7 @@ export function getDefinitionStatus(
   const cache = loadDefinitionComponentStatus(dataDir, component, "")
     ?? loadDefinitionComponentCache(dataDir, component);
   if (!cache || !isCompatibleCache(cache, component, expected)) {
-    return { initialized: false, component };
+    return { initialized: false };
   }
   return statusFromCache(cache);
 }

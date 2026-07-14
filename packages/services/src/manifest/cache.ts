@@ -317,15 +317,20 @@ function definitionStatusSummary(
   const optionalEnglishComponents: DefinitionComponentName[] = cache.language.toLowerCase() === "en"
     ? []
     : ["DestinyInventoryItemDefinition", "DestinyPlugSetDefinition"];
+  const missingRequiredComponents = definitions
+    .filter((status) => !status.initialized)
+    .map((status) => status.component as DefinitionComponentName);
   return {
     definitions,
-    missing_required_components: definitions
-      .filter((status) => !status.initialized)
-      .map((status) => status.component as DefinitionComponentName),
-    missing_optional_components: optionalEnglishComponents.filter((component) => (
-      !getDefinitionStatusByLanguage(dataDir, component, "en", {
-        manifestVersion: cache.metadata.version
-      }).initialized
-    ))
+    missing_required_components: missingRequiredComponents,
+    ...(missingRequiredComponents.length === 0
+      ? {
+          missing_optional_components: optionalEnglishComponents.filter((component) => (
+            !getDefinitionStatusByLanguage(dataDir, component, "en", {
+              manifestVersion: cache.metadata.version
+            }).initialized
+          ))
+        }
+      : {})
   };
 }

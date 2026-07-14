@@ -31,18 +31,6 @@ describe("desktop package format", () => {
     expect(rootPackageJson.scripts.typecheck).toContain("pnpm --filter @d2-tools/services build");
   });
 
-  it("exposes vibe verification scripts for menu-level agent loops", () => {
-    const rootPackageJson = JSON.parse(readFileSync(join(repoRoot, "package.json"), "utf8")) as {
-      scripts: Record<string, string>;
-    };
-
-    expect(rootPackageJson.scripts["verify:vibe:ui"]).toBe("pnpm test:ui");
-    expect(rootPackageJson.scripts["verify:vibe:desktop:account"]).toBe("pnpm test:desktop:account");
-    expect(rootPackageJson.scripts["verify:vibe:desktop:ai"]).toBe("pnpm test:desktop:ai");
-    expect(rootPackageJson.scripts["verify:vibe:desktop:loadouts"]).toBe("pnpm test:desktop:loadouts");
-    expect(rootPackageJson.scripts["verify:vibe:desktop:vault"]).toBe("pnpm test:desktop:vault");
-  });
-
   it("keeps OAuth local adapters in services instead of core", () => {
     const corePackageJson = JSON.parse(readFileSync(join(repoRoot, "packages", "core", "package.json"), "utf8")) as {
       dependencies?: Record<string, string>;

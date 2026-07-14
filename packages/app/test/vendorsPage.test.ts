@@ -52,7 +52,7 @@ describe("vendor snapshot workspace", () => {
     });
   });
 
-  it("marks the selected vendor failed when the current character detail request fails", () => {
+  it("keeps selected vendor inventory partial when the current character detail request fails", () => {
     const snapshot = createSnapshot();
     snapshot.failedVendorDetails = [{
       characterId: "hunter",
@@ -63,10 +63,10 @@ describe("vendor snapshot workspace", () => {
     const model = selectVendorsPageModel(createInput({ snapshot }));
 
     expect(model.selectedVendor).toMatchObject({
-      detailState: "failed",
+      detailState: "partial",
       detailFailureMessage: "仄详情读取失败",
-      displayStatusLabel: "详情失败",
-      railStatusLabel: "详情失败 · 2 件物品"
+      displayStatusLabel: "部分详情失败",
+      railStatusLabel: "部分详情失败 · 2 件物品"
     });
   });
 

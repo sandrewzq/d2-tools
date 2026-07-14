@@ -77,7 +77,7 @@ describe("manifest metadata service adapter", () => {
       language: "zh-chs",
       metadata: manifest,
       component: "DestinyInventoryItemDefinition",
-      fetchJson: async () => ({})
+      fetchJson: async () => ({ "1": { hash: 1 } })
     });
     expect(getDefinitionStatus(dataDir, "DestinyInventoryItemDefinition").initialized).toBe(true);
 
