@@ -245,15 +245,16 @@ async function runManifestUpdate(
     (progress) => context.update(progress)
   );
   clearDefinitionMemoryCache(config.data.data_dir);
+  const checkedAt = new Date().toISOString();
   lastManifestVersionStatus = {
     data_dir: config.data.data_dir,
     latest_version: status.version,
     needs_update: false,
-    checked_at: new Date().toISOString()
+    checked_at: checkedAt
   };
   saveManifestVersionCheckCache({
     dataDir: config.data.data_dir,
-    checkedAt: lastManifestVersionStatus.checked_at,
+    checkedAt,
     latestVersion: status.version,
     needsUpdate: false
   });
