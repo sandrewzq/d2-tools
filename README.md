@@ -81,6 +81,7 @@ d2-tools-setup-<version>.exe
 开发者：
 
 - [开发说明](docs/development.md)
+- [玩家文案字典](docs/player-facing-language.md)
 - [贡献指南](CONTRIBUTING.md)
 - [安全策略](SECURITY.md)
 
@@ -133,4 +134,3 @@ Agent 在普通开发过程中默认不新增测试用例，也不自动运行�
     <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=sandrewzq/d2-tools&type=date&legend=top-left" />
   </picture>
 </a>
-
