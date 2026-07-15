@@ -1,0 +1,453 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>玉兔异域武器详情原型</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --page: #070b0f;
+      --panel: #0d151c;
+      --panel-2: #111c24;
+      --surface: #15222c;
+      --line: #283b48;
+      --line-strong: #3d5969;
+      --text: #f4f7f8;
+      --body: #c6d3da;
+      --muted: #8197a4;
+      --gold: #dfbd63;
+      --gold-soft: #5a4820;
+      --gold-bg: #241d0f;
+      --mint: #72d5aa;
+      --blue: #74c8ef;
+      --kinetic: #dce5e9;
+      --danger: #ee988c;
+      --radius: 6px;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      min-width: 320px;
+      min-height: 100vh;
+      color: var(--body);
+      background:
+        radial-gradient(circle at 72% -10%, rgb(153 119 37 / 16%), transparent 34%),
+        linear-gradient(135deg, rgb(255 255 255 / 2%) 1px, transparent 1px),
+        var(--page);
+      background-size: auto, 28px 28px, auto;
+      font-family: Bahnschrift, "Microsoft YaHei UI", "Microsoft YaHei", sans-serif;
+    }
+    button { font: inherit; cursor: pointer; }
+
+    .prototype-bar {
+      width: min(1420px, calc(100% - 28px));
+      min-height: 58px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      margin: 14px auto 10px;
+      padding: 8px 12px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #0c141b;
+    }
+    .prototype-label strong { display: block; color: var(--text); font-size: 13px; }
+    .prototype-label span { display: block; margin-top: 2px; color: var(--muted); font-size: 11px; }
+    .prototype-controls { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+    .prototype-controls button {
+      min-height: 38px;
+      padding: 0 12px;
+      border: 1px solid transparent;
+      border-radius: 5px;
+      color: var(--muted);
+      background: transparent;
+    }
+    .prototype-controls button:hover { color: var(--text); background: var(--surface); }
+    .prototype-controls button[aria-pressed="true"] { color: var(--text); border-color: #6f5a2b; background: #2a2212; }
+
+    .dossier {
+      width: min(1420px, calc(100% - 28px));
+      margin: 0 auto 20px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      box-shadow: 0 24px 80px rgb(0 0 0 / 48%);
+    }
+    .dossier-toolbar {
+      min-height: 50px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 8px 16px;
+      border-bottom: 1px solid var(--line);
+      background: #101922;
+    }
+    .dossier-toolbar h1 { margin: 0; color: var(--text); font-size: 16px; }
+    .dossier-toolbar p { margin: 2px 0 0; color: var(--muted); font-size: 11px; }
+    .data-badge {
+      display: inline-flex;
+      min-height: 26px;
+      align-items: center;
+      padding: 0 8px;
+      border: 1px solid #6f5a2b;
+      border-radius: 4px;
+      color: #f5d98b;
+      background: #2a2212;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .hero {
+      position: relative;
+      min-height: 178px;
+      display: grid;
+      grid-template-columns: 92px minmax(280px, 1fr) minmax(360px, .8fr);
+      gap: 18px;
+      align-items: center;
+      padding: 20px 22px;
+      overflow: hidden;
+      border-bottom: 1px solid var(--line);
+      isolation: isolate;
+    }
+    .hero::before {
+      content: "";
+      position: absolute;
+      z-index: -2;
+      inset: 0;
+      background: url("https://www.bungie.net/common/destiny2_content/screenshots/3844694310.jpg") center 45% / cover;
+      filter: saturate(.7) contrast(1.05);
+      opacity: .24;
+      transform: scale(1.04);
+    }
+    .hero::after {
+      content: "";
+      position: absolute;
+      z-index: -1;
+      inset: 0;
+      background: linear-gradient(90deg, #0c1319 0%, rgb(12 19 25 / 92%) 45%, rgb(12 19 25 / 75%) 100%);
+    }
+    .item-icon {
+      width: 92px;
+      height: 92px;
+      border: 2px solid var(--gold);
+      border-radius: 6px;
+      object-fit: cover;
+      box-shadow: 0 0 28px rgb(223 189 99 / 20%);
+    }
+    .identity { min-width: 0; }
+    .identity-kicker { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 5px; }
+    .pill {
+      display: inline-flex;
+      min-height: 25px;
+      align-items: center;
+      padding: 0 7px;
+      border: 1px solid var(--line-strong);
+      border-radius: 4px;
+      color: var(--muted);
+      background: rgb(13 21 28 / 82%);
+      font-size: 11px;
+    }
+    .pill.exotic { color: #f3d581; border-color: #765f28; background: #2d2411; }
+    .pill.primary { color: #eef3f5; border-color: #6d7c84; }
+    .pill.kinetic { color: var(--kinetic); border-color: #65737a; }
+    .identity h2 { margin: 0; color: var(--text); font-size: 31px; line-height: 1.1; letter-spacing: .01em; }
+    .identity > p { margin: 6px 0 0; color: var(--body); font-size: 13px; }
+    .identity small { display: block; margin-top: 7px; color: var(--muted); font-size: 11px; }
+
+    .account-summary {
+      min-width: 0;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 7px;
+    }
+    .summary-cell { min-width: 0; padding: 9px 10px; border: 1px solid var(--line); border-radius: 5px; background: rgb(10 17 23 / 82%); }
+    .summary-cell span { display: block; color: var(--muted); font-size: 10px; }
+    .summary-cell strong { display: block; margin-top: 3px; overflow: hidden; color: var(--text); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+
+    .exotic-trait {
+      display: grid;
+      grid-template-columns: 54px minmax(0, 1fr) auto;
+      gap: 14px;
+      align-items: center;
+      padding: 13px 22px;
+      border-bottom: 1px solid #685527;
+      background: linear-gradient(90deg, #231c0f, #131a1e 70%);
+    }
+    .exotic-trait img { width: 54px; height: 54px; border-radius: 5px; background: #302b1b; }
+    .exotic-trait h3 { margin: 0; color: #f2d785; font-size: 17px; }
+    .exotic-trait p { max-width: 880px; margin: 4px 0 0; color: #d8d1b9; font-size: 12px; line-height: 1.55; }
+    .exotic-trait .trait-label { color: #f2d785; border-color: #765f28; background: #2d2411; }
+
+    .section-nav {
+      position: sticky;
+      z-index: 20;
+      top: 0;
+      display: flex;
+      gap: 4px;
+      padding: 7px 18px;
+      overflow-x: auto;
+      border-bottom: 1px solid var(--line);
+      background: #101922;
+      box-shadow: 0 8px 20px rgb(0 0 0 / 24%);
+    }
+    .section-nav button { min-height: 38px; flex: 0 0 auto; padding: 0 12px; border: 0; border-radius: 5px; color: var(--muted); background: transparent; }
+    .section-nav button:hover { color: var(--text); background: var(--surface); }
+    .section-nav button.is-active { color: #f5d98b; background: #2a2212; }
+
+    .section { scroll-margin-top: 58px; padding: 18px 20px 22px; border-bottom: 1px solid var(--line); }
+    .section-head { display: flex; align-items: end; justify-content: space-between; gap: 18px; margin-bottom: 13px; }
+    .section-head h3 { margin: 0; color: var(--text); font-size: 18px; }
+    .section-head p { max-width: 720px; margin: 0; color: var(--muted); font-size: 11px; line-height: 1.5; text-align: right; }
+    .eyebrow { display: block; margin-bottom: 3px; color: var(--gold); font-size: 10px; font-weight: 700; letter-spacing: .08em; }
+
+    .fixed-grid { display: grid; grid-template-columns: 1.15fr repeat(4, minmax(0, 1fr)); gap: 9px; align-items: stretch; }
+    .fixed-perk { min-width: 0; display: grid; grid-template-columns: 42px minmax(0, 1fr); gap: 9px; align-content: start; padding: 10px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel-2); }
+    .fixed-perk.intrinsic { border-color: #765f28; background: #201b10; }
+    .fixed-perk img { width: 42px; height: 42px; border-radius: 5px; background: #27343d; }
+    .fixed-perk h4 { margin: 0; color: var(--text); font-size: 13px; }
+    .fixed-perk p { margin: 4px 0 0; color: var(--muted); font-size: 11px; line-height: 1.45; }
+    .fixed-perk.intrinsic h4 { color: #f2d785; }
+
+    .stats-layout { display: grid; grid-template-columns: minmax(620px, 1.15fr) minmax(350px, .85fr); gap: 18px; }
+    .stat-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 18px; }
+    .stat-row { min-width: 0; min-height: 36px; display: grid; grid-template-columns: 88px minmax(100px, 1fr) 72px; gap: 8px; align-items: center; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+    .stat-row > span:first-child { color: var(--body); font-size: 11px; }
+    .stat-track { position: relative; height: 7px; overflow: hidden; border-radius: 99px; background: #22313a; }
+    .stat-base, .stat-catalyst { position: absolute; top: 0; bottom: 0; }
+    .stat-base { left: 0; background: #72b79c; }
+    .stat-catalyst { background: var(--gold); box-shadow: -1px 0 0 #ffe5a0; }
+    .stat-value { display: flex; justify-content: flex-end; gap: 5px; color: var(--text); font-size: 12px; font-weight: 700; }
+    .stat-value em { color: var(--gold); font-size: 10px; font-style: normal; }
+
+    .catalyst-card { display: grid; gap: 11px; align-content: start; padding: 14px; border: 1px solid #6f5a2b; border-radius: var(--radius); background: linear-gradient(145deg, #221c10, #111a20); }
+    .catalyst-title { display: grid; grid-template-columns: 48px minmax(0, 1fr); gap: 10px; align-items: center; }
+    .catalyst-title img { width: 48px; height: 48px; border-radius: 5px; }
+    .catalyst-title h4 { margin: 0; color: #f2d785; font-size: 15px; }
+    .catalyst-title p { margin: 3px 0 0; color: var(--muted); font-size: 11px; }
+    .catalyst-bonus { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 9px 10px; border: 1px solid #59481f; border-radius: 4px; background: #17150f; }
+    .catalyst-bonus span { color: var(--body); font-size: 11px; }
+    .catalyst-bonus strong { color: var(--gold); font-size: 18px; }
+    .progress-track { height: 8px; overflow: hidden; border-radius: 99px; background: #28343c; }
+    .progress-track i { height: 100%; display: block; background: linear-gradient(90deg, #9d7a2f, var(--gold)); }
+    .progress-copy { display: flex; justify-content: space-between; gap: 12px; color: var(--muted); font-size: 11px; }
+    .catalyst-note { margin: 0; color: var(--body); font-size: 11px; line-height: 1.5; }
+
+    .source-layout { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+    .info-card { min-width: 0; padding: 12px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel-2); }
+    .info-card span { display: block; color: var(--muted); font-size: 10px; }
+    .info-card h4 { margin: 5px 0 0; color: var(--text); font-size: 14px; }
+    .info-card p { margin: 5px 0 0; color: var(--body); font-size: 11px; line-height: 1.5; }
+    .info-card strong { color: var(--gold); }
+
+    .footnote { padding: 10px 20px; color: var(--muted); background: #0a1117; font-size: 10px; line-height: 1.5; }
+
+    @media (max-width: 1080px) {
+      .hero { grid-template-columns: 78px minmax(0, 1fr); }
+      .item-icon { width: 78px; height: 78px; }
+      .account-summary { grid-column: 1 / -1; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+      .fixed-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .fixed-perk.intrinsic { grid-column: 1 / -1; }
+      .stats-layout { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 720px) {
+      .prototype-bar { align-items: stretch; flex-direction: column; }
+      .prototype-controls { justify-content: flex-start; }
+      .dossier { width: calc(100% - 16px); }
+      .hero { grid-template-columns: 64px minmax(0, 1fr); padding: 15px 12px; }
+      .item-icon { width: 64px; height: 64px; }
+      .identity h2 { font-size: 25px; }
+      .account-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .exotic-trait { grid-template-columns: 46px minmax(0, 1fr); padding-inline: 12px; }
+      .exotic-trait img { width: 46px; height: 46px; }
+      .exotic-trait .trait-label { display: none; }
+      .section { padding-inline: 12px; }
+      .section-head { align-items: start; flex-direction: column; }
+      .section-head p { text-align: left; }
+      .fixed-grid, .stat-grid, .source-layout { grid-template-columns: 1fr; }
+      .fixed-perk.intrinsic { grid-column: auto; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+    }
+  </style>
+</head>
+<body>
+  <!-- 玩家可见文案遵循 docs/player-facing-language.md -->
+  <!-- 资料来源：DestinyInventoryItemDefinition 3844694310；Collectible 564802915 -->
+  <main>
+    <header class="prototype-bar">
+      <div class="prototype-label">
+        <strong>账号状态演示</strong>
+        <span>装备、Perk、属性和催化数据来自本机游戏资料库；账号状态仅用于预览交互</span>
+      </div>
+      <div class="prototype-controls" role="group" aria-label="切换玉兔账号状态">
+        <button type="button" data-state="definition" aria-pressed="true">只看资料</button>
+        <button type="button" data-state="owned" aria-pressed="false">已拥有</button>
+        <button type="button" data-state="progress" aria-pressed="false">催化进行中</button>
+        <button type="button" data-state="complete" aria-pressed="false">催化已完成</button>
+      </div>
+    </header>
+
+    <article class="dossier">
+      <header class="dossier-toolbar">
+        <div><h1>异域武器详情</h1><p>固定配置、异域能力、催化进度和获取方式</p></div>
+        <span class="data-badge">资料库真实数据</span>
+      </header>
+
+      <section class="hero">
+        <img class="item-icon" src="https://www.bungie.net/common/destiny2_content/icons/f513e68c68d76392cffd52d94cc1410a.jpg" alt="玉兔武器图标" width="92" height="92">
+        <div class="identity">
+          <div class="identity-kicker">
+            <span class="pill exotic">异域</span>
+            <span class="pill primary">主弹药</span>
+            <span class="pill kinetic">动能伤害</span>
+          </div>
+          <h2>玉兔</h2>
+          <p>斥候步枪 · 150 RPM · 固定配置</p>
+          <small>玉兔采用固定配置，没有随机 Roll；所有玩家获得相同的固定 Perk，差异主要来自催化完成状态。</small>
+        </div>
+        <div class="account-summary" data-account-summary></div>
+      </section>
+
+      <section class="exotic-trait">
+        <img src="https://www.bungie.net/common/destiny2_content/icons/b49e2025a1c4a1ca92c66523a657e1dc.png" alt="愚者宿命图标" width="54" height="54">
+        <div>
+          <h3>愚者宿命</h3>
+          <p>连续精准射击或造成精准最后一击可填充弹匣、提升稳定性，并大幅提升萤火虫和身体射击的伤害。身体射击命中会移除一层伤害加成。</p>
+        </div>
+        <span class="pill trait-label">异域固有能力</span>
+      </section>
+
+      <nav class="section-nav" aria-label="玉兔详情章节">
+        <button type="button" class="is-active" data-target="fixed">固定配置</button>
+        <button type="button" data-target="stats">属性与催化</button>
+        <button type="button" data-target="source">获取与账号</button>
+      </nav>
+
+      <section class="section" data-section="fixed">
+        <div class="section-head">
+          <div><span class="eyebrow">固定配置</span><h3>全部固定 Perk</h3></div>
+          <p>异域武器不展示随机 Perk 池，也不做推荐 Roll 匹配；这里直接解释武器始终拥有的完整配置。</p>
+        </div>
+        <div class="fixed-grid">
+          <article class="fixed-perk intrinsic">
+            <img src="https://www.bungie.net/common/destiny2_content/icons/b49e2025a1c4a1ca92c66523a657e1dc.png" alt="愚者宿命" width="42" height="42">
+            <div><h4>愚者宿命</h4><p>精准射击叠加收益，强化稳定性、萤火虫和身体射击伤害。</p></div>
+          </article>
+          <article class="fixed-perk">
+            <img src="https://www.bungie.net/common/destiny2_content/icons/7d7aaccee29cf450d4057a9de871cdc8.png" alt="多边形膛线" width="42" height="42">
+            <div><h4>多边形膛线</h4><p>经优化减少后坐力的枪管，提高稳定性。</p></div>
+          </article>
+          <article class="fixed-perk">
+            <img src="https://www.bungie.net/common/destiny2_content/icons/9d1c49edb2d2b24c74067742c09fd5a5.png" alt="大口径弹药" width="42" height="42">
+            <div><h4>大口径弹药</h4><p>提高子弹命中冲击力，并略微增加射程。</p></div>
+          </article>
+          <article class="fixed-perk">
+            <img src="https://www.bungie.net/common/destiny2_content/icons/e8c6e23afe3c4215f0dc0c2941500c28.png" alt="边打边劫" width="42" height="42">
+            <div><h4>边打边劫</h4><p>射击能量球或弹药盒即可拾取，并从储备中填充已装备武器。</p></div>
+          </article>
+          <article class="fixed-perk">
+            <img src="https://www.bungie.net/common/destiny2_content/icons/629e225e6f8214326bc1eb0a911a6f6d.png" alt="萤火虫" width="42" height="42">
+            <div><h4>萤火虫</h4><p>精准击杀提高填装速度，并使目标爆炸造成烈日伤害。</p></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="section" data-section="stats">
+        <div class="section-head">
+          <div><span class="eyebrow">属性与催化</span><h3>催化完成后稳定性 +30</h3></div>
+          <p>绿色表示基础属性，金色表示催化完成后新增的数值。右侧始终显示精确结果。</p>
+        </div>
+        <div class="stats-layout">
+          <div class="stat-grid" data-stats></div>
+          <aside class="catalyst-card">
+            <div class="catalyst-title">
+              <img src="https://www.bungie.net/common/destiny2_content/icons/e444e97b9d2c368006272fc90eb1e022.jpg" alt="玉兔催化图标" width="48" height="48">
+              <div><h4>玉兔催化</h4><p data-catalyst-state></p></div>
+            </div>
+            <div class="catalyst-bonus"><span>完成奖励</span><strong>稳定性 +30</strong></div>
+            <div class="progress-track" aria-label="催化进度"><i data-progress-bar></i></div>
+            <div class="progress-copy"><span>消灭熔炉竞技场敌人</span><strong data-progress-copy></strong></div>
+            <p class="catalyst-note">完成条件：使用玉兔在熔炉竞技场消灭 250 名敌人。完成后稳定性从 40 提升到 70。</p>
+          </aside>
+        </div>
+      </section>
+
+      <section class="section" data-section="source">
+        <div class="section-head">
+          <div><span class="eyebrow">获取与账号</span><h3>获取方式和拥有状态</h3></div>
+          <p>获取方式来自游戏资料库；拥有、催化和击杀进度需要读取玩家账号。</p>
+        </div>
+        <div class="source-layout">
+          <article class="info-card"><span>武器获取方式</span><h4>异域记忆水晶</h4><p>游戏记录的来源为：<strong>异域记忆水晶；极稀有世界掉落</strong>。</p></article>
+          <article class="info-card"><span>催化获取提示</span><h4>查看游戏成就</h4><p>游戏资料提示前往成就中的异域催化页面查看具体获取位置。</p></article>
+          <article class="info-card"><span>当前账号状态</span><h4 data-owned-title></h4><p data-owned-copy></p></article>
+        </div>
+      </section>
+
+      <footer class="footnote">装备、固定 Perk、属性、获取方式和催化条件来自本机中文游戏资料库。账号状态和进度为交互演示，不代表当前登录账号。</footer>
+    </article>
+  </main>
+
+  <script>
+    const jadeRabbit = {
+      stats: [
+        ["每分钟发射数", 150, 200], ["射程", 80, 100], ["弹匣", 15, 40], ["操控性", 21, 100],
+        ["辅助瞄准", 60, 100], ["变焦", 20, 50], ["伤害", 67, 100], ["稳定性", 40, 100, 30],
+        ["弹药生成", 30, 100], ["填装速度", 54, 100], ["后坐方向", 100, 100], ["空中效率", 29, 100]
+      ],
+      states: {
+        definition: {owned:false, catalyst:false, progress:0, label:"未读取账号", copy:"这里只展示玉兔的固定资料和催化完成条件。"},
+        owned: {owned:true, catalyst:false, progress:0, label:"已拥有玉兔", copy:"账号状态演示：已拥有武器，尚未获得或插入催化。"},
+        progress: {owned:true, catalyst:true, progress:135, label:"催化进行中", copy:"账号状态演示：已完成 135 / 250 次熔炉竞技场击杀。"},
+        complete: {owned:true, catalyst:true, progress:250, label:"催化已完成", copy:"账号状态演示：催化已完成，稳定性提高到 70。"}
+      }
+    };
+
+    const state = {view:"definition"};
+    const elements = {
+      summary: document.querySelector("[data-account-summary]"),
+      stats: document.querySelector("[data-stats]"),
+      catalystState: document.querySelector("[data-catalyst-state]"),
+      progressBar: document.querySelector("[data-progress-bar]"),
+      progressCopy: document.querySelector("[data-progress-copy]"),
+      ownedTitle: document.querySelector("[data-owned-title]"),
+      ownedCopy: document.querySelector("[data-owned-copy]")
+    };
+
+    function render() {
+      const current = jadeRabbit.states[state.view];
+      const completed = current.progress >= 250;
+      document.querySelectorAll("[data-state]").forEach(button => button.setAttribute("aria-pressed", String(button.dataset.state === state.view)));
+      elements.summary.innerHTML = `<div class="summary-cell"><span>账号拥有</span><strong>${current.owned ? "已拥有" : "未读取"}</strong></div><div class="summary-cell"><span>配置类型</span><strong>固定 Perk</strong></div><div class="summary-cell"><span>催化状态</span><strong>${current.catalyst ? (completed ? "已完成" : "进行中") : "未启用"}</strong></div><div class="summary-cell"><span>最终稳定性</span><strong>${completed ? "70" : "40"}</strong></div>`;
+      elements.stats.innerHTML = jadeRabbit.stats.map(([name, base, max, catalyst = 0]) => {
+        const activeBonus = completed ? catalyst : 0;
+        const baseWidth = Math.min(100, base / max * 100);
+        const bonusWidth = Math.min(100 - baseWidth, activeBonus / max * 100);
+        return `<div class="stat-row"><span>${name}</span><div class="stat-track" role="img" aria-label="${name} ${base}${activeBonus ? `，催化增加 ${activeBonus}` : ""}"><i class="stat-base" style="width:${baseWidth}%"></i>${bonusWidth ? `<i class="stat-catalyst" style="left:${baseWidth}%;width:${bonusWidth}%"></i>` : ""}</div><span class="stat-value">${base + activeBonus}${activeBonus ? `<em>+${activeBonus}</em>` : ""}</span></div>`;
+      }).join("");
+      elements.catalystState.textContent = current.catalyst ? (completed ? "已完成并生效" : "已获得，正在完成目标") : "尚未启用催化";
+      elements.progressBar.style.width = `${current.progress / 250 * 100}%`;
+      elements.progressCopy.textContent = `${current.progress} / 250`;
+      elements.ownedTitle.textContent = current.label;
+      elements.ownedCopy.textContent = current.copy;
+    }
+
+    document.querySelectorAll("[data-state]").forEach(button => button.addEventListener("click", () => {
+      state.view = button.dataset.state;
+      render();
+    }));
+    document.querySelectorAll("[data-target]").forEach(button => button.addEventListener("click", () => {
+      document.querySelector(`[data-section="${button.dataset.target}"]`)?.scrollIntoView({behavior:"smooth", block:"start"});
+      document.querySelectorAll("[data-target]").forEach(item => item.classList.toggle("is-active", item === button));
+    }));
+    render();
+  </script>
+</body>
+</html>
