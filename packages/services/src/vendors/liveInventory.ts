@@ -30,7 +30,11 @@ type DefinitionRecord = {
     displayCategoryIndex?: number;
     redirectToSaleIndexes?: number[];
   }>;
-  displayCategories?: Array<{ displayProperties?: { name?: string } }>;
+  displayCategories?: Array<{
+    identifier?: string;
+    displayProperties?: { name?: string };
+  }>;
+  preview?: { previewVendorHash?: number };
 };
 
 export type FetchVendorInventorySnapshotOptions = {
@@ -144,7 +148,11 @@ export async function fetchVendorInventorySnapshot(
     mergeCurrencyBalances(currencyBalances, result.value.response.currencyLookups?.data);
     const details = new Map<number, VendorDetailResponse>();
     const detailVendorHashes = options.detailVendorHashes
-      ?? discoverVendorHashes(result.value.response, options.definitions.vendors);
+      ?? discoverVendorHashes(
+        result.value.response,
+        options.definitions.vendors,
+        options.definitions.items
+      );
     detailVendorHashes.forEach((vendorHash) => requestedDetailVendorHashes.add(vendorHash));
     const detailResults = await mapSettledWithConcurrency(
       detailVendorHashes,
@@ -196,12 +204,15 @@ export async function fetchVendorInventorySnapshot(
 
 function discoverVendorHashes(
   response: VendorListResponse,
-  vendorDefinitions: Record<string, DefinitionRecord>
+  vendorDefinitions: Record<string, DefinitionRecord>,
+  itemDefinitions: Record<string, DefinitionRecord>
 ): number[] {
+  const previewVendorHashes = collectPreviewVendorHashes(response, itemDefinitions);
   return Object.keys(response.sales?.data ?? {})
     .filter((vendorHash) => shouldIncludeTopLevelVendor(
       response.vendors?.data?.[vendorHash],
-      vendorDefinitions[vendorHash]
+      vendorDefinitions[vendorHash],
+      previewVendorHashes.has(Number(vendorHash))
     ))
     .map(Number)
     .filter((vendorHash) => Number.isInteger(vendorHash) && vendorHash > 0);
@@ -209,7 +220,8 @@ function discoverVendorHashes(
 
 function shouldIncludeTopLevelVendor(
   vendor: RawVendorComponent | undefined,
-  definition: DefinitionRecord | undefined
+  definition: DefinitionRecord | undefined,
+  referencedByPreview = false
 ): boolean {
   if (
     definition?.vendorIdentifier === "TOWER_NINE"
@@ -217,7 +229,7 @@ function shouldIncludeTopLevelVendor(
     || definition?.vendorIdentifier === "TOWER_NINE_GEAR"
   ) return true;
   if (definition?.vendorIdentifier === "30TH_ANNIVERSARY_XUR") return false;
-  return vendor?.canPurchase === true;
+  return referencedByPreview || vendor?.canPurchase === true;
 }
 
 async function mapSettledWithConcurrency<T, TResult>(
@@ -285,11 +297,12 @@ function mapVendorResponses(
   definitions: FetchVendorInventorySnapshotOptions["definitions"]
 ): Record<string, VendorResponseInput> {
   const mapped: Record<string, VendorResponseInput> = {};
+  const previewVendorHashes = collectPreviewVendorHashes(list, definitions.items);
   for (const [vendorKey, salesComponent] of Object.entries(list.sales?.data ?? {})) {
     const vendorHash = Number(vendorKey);
     const vendor = list.vendors?.data?.[vendorKey] ?? {};
     const vendorDefinition = definitions.vendors[vendorKey];
-    if (!shouldIncludeTopLevelVendor(vendor, vendorDefinition)) continue;
+    if (!shouldIncludeTopLevelVendor(vendor, vendorDefinition, previewVendorHashes.has(vendorHash))) continue;
     const detail = details.get(vendorHash);
     const categories = list.categories?.data?.[vendorKey]?.categories ?? [];
     mapped[vendorKey] = {
@@ -301,6 +314,8 @@ function mapVendorResponses(
         categoryIndex: category.displayCategoryIndex ?? -1,
         name: vendorDefinition?.displayCategories?.[category.displayCategoryIndex ?? -1]
           ?.displayProperties?.name?.trim() || "其他",
+        identifier: vendorDefinition?.displayCategories?.[category.displayCategoryIndex ?? -1]
+          ?.identifier?.trim() || undefined,
         itemIndexes: category.itemIndexes ?? []
       })),
       saleItems: Object.fromEntries(Object.entries(salesComponent.saleItems ?? {}).map(([itemKey, sale]) => [
@@ -323,6 +338,18 @@ function mapVendorResponses(
     };
   }
   return mapped;
+}
+
+function collectPreviewVendorHashes(
+  response: VendorListResponse,
+  itemDefinitions: Record<string, DefinitionRecord>
+): Set<number> {
+  return new Set(Object.values(response.sales?.data ?? {}).flatMap((sales) =>
+    Object.values(sales.saleItems ?? {}).flatMap((sale) => {
+      const previewVendorHash = itemDefinitions[String(sale.itemHash)]?.preview?.previewVendorHash;
+      return previewVendorHash === undefined ? [] : [previewVendorHash];
+    })
+  ));
 }
 
 function mapStats(detail: VendorDetailResponse | undefined): Record<string, Record<string, number>> {
@@ -350,7 +377,7 @@ function mapDefinitions(
     Object.values(character.vendors).flatMap((vendor) => Object.values(vendor.saleItems).flatMap((sale) => [
       sale.itemHash,
       ...sale.costs.map((cost) => cost.itemHash)
-    ]))
+    ]).concat(Object.values(vendor.sockets ?? {}).flat()))
   ));
 
   return {
@@ -358,6 +385,7 @@ function mapDefinitions(
       const definition = definitions.vendors[String(vendorHash)];
       return [String(vendorHash), {
         name: definition?.displayProperties?.name?.trim() || `商人 ${vendorHash}`,
+        vendorIdentifier: definition?.vendorIdentifier,
         description: definition?.displayProperties?.description?.trim() || "",
         iconUrl: definition?.displayProperties?.icon,
         failureStrings: definition?.failureStrings ?? [],
@@ -373,7 +401,8 @@ function mapDefinitions(
         name: definition?.displayProperties?.name?.trim() || String(itemHash),
         itemType: definition?.itemTypeDisplayName?.trim() || "",
         tierType: definition?.inventory?.tierTypeName?.trim() || "",
-        iconUrl: definition?.displayProperties?.icon
+        iconUrl: definition?.displayProperties?.icon,
+        previewVendorHash: definition?.preview?.previewVendorHash
       }];
     }))
   };

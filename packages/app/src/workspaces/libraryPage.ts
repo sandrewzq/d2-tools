@@ -1,3 +1,5 @@
+import type { AccountItemSummary, AccountSummary } from "@d2-tools/core/account/summary";
+
 export type AmmoTypeKey = "primary" | "special" | "heavy";
 export type EquipmentGroupKey = "weapons" | "armor" | "equipment" | "other";
 
@@ -117,6 +119,19 @@ export type LibrarySourceStatusFilter = ItemSearchResult["source"]["status"] | "
 export type LibraryPerkPoolFilter = "all" | "yes" | "no";
 export type LibraryDropAccessKey = "available" | "rotation" | "archived" | "unknown";
 export type LibraryDropAccessFilter = LibraryDropAccessKey | "all";
+export type LibraryAcquisitionStatus = "current" | "historical" | "unknown";
+
+export type LibraryOwnershipEntry = {
+  status: "owned" | "not_owned" | "unavailable";
+  totalCount: number;
+  vaultCount: number;
+  locations: Array<{
+    kind: "vault" | "equipped" | "inventory" | "postmaster";
+    label: string;
+    count: number;
+    characterId?: string;
+  }>;
+};
 
 export type LibraryEquipmentFilter = {
   query: string;
@@ -166,6 +181,7 @@ export type LibraryPageCache = {
   liveAvailabilityError: string;
   manifestStatus: ManifestStatus | null;
   manifestStatusError: string;
+  accountSummary?: AccountSummary | null;
 };
 
 export type LibraryPageState = {
@@ -200,6 +216,8 @@ export type LibraryEquipmentResultView = {
   dropAccess: LibraryDropAccessKey;
   communityMatch?: VaultItemMatchInfo;
   liveEntry?: LiveItemAvailabilityEntry;
+  acquisitionStatus: LibraryAcquisitionStatus;
+  ownership: LibraryOwnershipEntry;
   isFavorite: boolean;
   isDetailLoading: boolean;
 };
@@ -329,6 +347,8 @@ export function selectLibraryPageModel(cache: LibraryPageCache, state: LibraryPa
         history: cache.libraryHistory,
         communityMatch: cache.libraryCommunityMatch,
         liveAvailability: cache.liveAvailability,
+        ownership: buildLibraryOwnership(cache.accountSummary),
+        ownershipAvailable: Boolean(cache.accountSummary),
         itemDetailLoadingKey: state.itemDetailLoadingKey
       }),
       perks: visiblePerks.map((perk) => createPerkResultView(perk))
@@ -516,6 +536,8 @@ function buildEquipmentResultGroups(input: {
   history: LibraryHistory;
   communityMatch: Map<number, VaultItemMatchInfo>;
   liveAvailability: LiveItemAvailability | null;
+  ownership: Map<number, LibraryOwnershipEntry>;
+  ownershipAvailable: boolean;
   itemDetailLoadingKey: string;
 }): LibraryEquipmentResultGroupView[] {
   return groupLibraryDropQueryItems(input.visibleItems).map((group) => ({
@@ -525,10 +547,79 @@ function buildEquipmentResultGroups(input: {
       dropAccess: classifyLibraryDropAccess(item),
       communityMatch: input.communityMatch.get(item.hash),
       liveEntry: input.liveAvailability?.items[String(item.hash)],
+      acquisitionStatus: classifyLibraryAcquisitionStatus(
+        item,
+        input.liveAvailability?.items[String(item.hash)]
+      ),
+      ownership: input.ownership.get(item.hash) ?? {
+        status: input.ownershipAvailable ? "not_owned" : "unavailable",
+        totalCount: 0,
+        vaultCount: 0,
+        locations: []
+      },
       isFavorite: input.history.favorites.some((favorite) => favorite.hash === item.hash),
       isDetailLoading: getItemKey(item) === input.itemDetailLoadingKey
     }))
   }));
+}
+
+export function buildLibraryOwnership(account: AccountSummary | null | undefined): Map<number, LibraryOwnershipEntry> {
+  const ownership = new Map<number, LibraryOwnershipEntry>();
+  if (!account) return ownership;
+
+  addOwnedItems(ownership, account.vault.items, { kind: "vault", label: "仓库" });
+  for (const character of account.characters) {
+    addOwnedItems(ownership, character.equipped_items, {
+      kind: "equipped",
+      label: `${character.class_name}已装备`,
+      characterId: character.character_id
+    });
+    addOwnedItems(ownership, character.inventory_items, {
+      kind: "inventory",
+      label: `${character.class_name}背包`,
+      characterId: character.character_id
+    });
+    addOwnedItems(ownership, character.postmaster_items, {
+      kind: "postmaster",
+      label: `${character.class_name}邮政官`,
+      characterId: character.character_id
+    });
+  }
+  return ownership;
+}
+
+export function classifyLibraryAcquisitionStatus(
+  item: ItemSearchResult,
+  liveEntry: LiveItemAvailabilityEntry | undefined
+): LibraryAcquisitionStatus {
+  if (
+    liveEntry?.status === "character_vendor"
+    || liveEntry?.status === "public_vendor"
+    || liveEntry?.status === "public_activity"
+  ) return "current";
+  if (item.source.status === "ready") return "historical";
+  return "unknown";
+}
+
+function addOwnedItems(
+  ownership: Map<number, LibraryOwnershipEntry>,
+  items: AccountItemSummary[],
+  location: Omit<LibraryOwnershipEntry["locations"][number], "count">
+): void {
+  const counts = new Map<number, number>();
+  for (const item of items) counts.set(item.hash, (counts.get(item.hash) ?? 0) + 1);
+  for (const [hash, count] of counts) {
+    const entry = ownership.get(hash) ?? {
+      status: "owned" as const,
+      totalCount: 0,
+      vaultCount: 0,
+      locations: []
+    };
+    entry.totalCount += count;
+    if (location.kind === "vault") entry.vaultCount += count;
+    entry.locations.push({ ...location, count });
+    ownership.set(hash, entry);
+  }
 }
 
 function createPerkResultView(perk: PerkSearchResult): LibraryPerkResultView {

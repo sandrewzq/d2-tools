@@ -214,6 +214,7 @@ export function filterVaultItems(items: AccountItemSummary[], filter: VaultFilte
     if (!query) return true;
 
     return [
+      String(item.hash),
       item.name,
       item.item_type,
       item.tier,

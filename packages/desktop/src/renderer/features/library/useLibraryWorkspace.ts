@@ -11,7 +11,7 @@ import {
   type LibraryViewMode
 } from "../../utils/libraryFilters";
 
-export function useLibraryWorkspace() {
+export function useLibraryWorkspace(input: { vendorSourcePaths?: Map<number, string[]> } = {}) {
   const [libraryViewMode, setLibraryViewMode] = useState<LibraryViewMode>("equipment");
   const [items, setItems] = useState<ItemSearchResult[]>([]);
   const [perks, setPerks] = useState<PerkSearchResult[]>([]);
@@ -74,11 +74,11 @@ export function useLibraryWorkspace() {
     api.getLiveItemAvailability(uniqueHashes)
       .then((result) => {
         if (cancelled) return;
-        setLiveAvailability(result);
+        setLiveAvailability(applyVendorSourcePaths(result, input.vendorSourcePaths));
       })
       .catch((error) => {
         if (cancelled) return;
-        setLiveAvailability(null);
+        setLiveAvailability(buildVendorPathAvailability(uniqueHashes, input.vendorSourcePaths));
         setLiveAvailabilityError(error instanceof Error ? error.message : "实时状态查询失败");
       })
       .finally(() => {
@@ -90,7 +90,7 @@ export function useLibraryWorkspace() {
     return () => {
       cancelled = true;
     };
-  }, [libraryViewMode, items]);
+  }, [input.vendorSourcePaths, libraryViewMode, items]);
 
   async function loadLibraryHistory() {
     try {
@@ -216,5 +216,62 @@ export function useLibraryWorkspace() {
     setLibraryHistory,
     setLibraryViewMode,
     setPerkFilters
+  };
+}
+
+function applyVendorSourcePaths(
+  availability: LiveItemAvailability,
+  sourcePaths: Map<number, string[]> | undefined
+): LiveItemAvailability {
+  if (!sourcePaths?.size) return availability;
+  const items = { ...availability.items };
+  for (const [itemHash, paths] of sourcePaths) {
+    const entry = items[String(itemHash)];
+    if (!entry || !paths.length) continue;
+    const characterId = entry.sources.find((source) => source.kind === "character_vendor")?.character_id;
+    items[String(itemHash)] = {
+      ...entry,
+      status: "character_vendor",
+      label: "当前商人售卖",
+      description: paths.join("；"),
+      sources: [
+        ...entry.sources.filter((source) => source.kind !== "character_vendor" && source.kind !== "public_vendor"),
+        ...paths.map((label) => ({
+          kind: "character_vendor" as const,
+          label,
+          ...(characterId ? { character_id: characterId } : {})
+        }))
+      ]
+    };
+  }
+  return { ...availability, items, account_scope: "character" };
+}
+
+function buildVendorPathAvailability(
+  itemHashes: number[],
+  sourcePaths: Map<number, string[]> | undefined
+): LiveItemAvailability | null {
+  if (!sourcePaths?.size) return null;
+  const items = Object.fromEntries(itemHashes.map((hash) => {
+    const paths = sourcePaths.get(hash) ?? [];
+    return [String(hash), paths.length ? {
+      hash,
+      status: "character_vendor" as const,
+      label: "当前商人售卖",
+      description: paths.join("；"),
+      sources: paths.map((label) => ({ kind: "character_vendor" as const, label }))
+    } : {
+      hash,
+      status: "manifest_only" as const,
+      label: "未发现当前公开入口",
+      description: "当前只保留资料库来源线索。",
+      sources: []
+    }];
+  }));
+  return {
+    checked_at: new Date().toISOString(),
+    items,
+    milestone_clues: [],
+    account_scope: "character"
   };
 }

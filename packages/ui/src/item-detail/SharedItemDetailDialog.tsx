@@ -17,6 +17,7 @@ export type VendorOfferContext = {
   affordabilityLabel: string;
   characterLabel: string;
   refreshLabel: string;
+  rollLabels?: string[];
 };
 
 export type SharedItemDetailDialogProps = {
@@ -94,6 +95,9 @@ export function SharedItemDetailDialog(props: SharedItemDetailDialogProps) {
             <span>{props.vendorContext.affordabilityLabel}</span>
             <span>{props.vendorContext.characterLabel}</span>
             <span>{props.vendorContext.refreshLabel}</span>
+            {props.vendorContext.rollLabels?.length ? (
+              <span>当前售卖 Perk：{props.vendorContext.rollLabels.join(" / ")}</span>
+            ) : null}
           </section>
         ) : null}
         {props.sections}

@@ -4,6 +4,7 @@ import {
   type ShellPageKey,
   type ShellStatusItem
 } from "@d2-tools/ui";
+import { buildVendorItemSourcePaths } from "@d2-tools/app/vendors";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api/client";
 import type { AccountSummary, AppUpdateSnapshot, ManifestStatus, StartupState } from "../api/types";
@@ -35,9 +36,13 @@ export function useDesktopProductShell(props: {
   const [hasAutoLoadedAccount, setHasAutoLoadedAccount] = useState(false);
   const [lastAccountLoadedAt, setLastAccountLoadedAt] = useState<Date | null>(null);
   const [vaultFacts, setVaultFacts] = useState<string[]>([]);
+  const [vaultLocateRequest, setVaultLocateRequest] = useState<{
+    hash: number;
+    name: string;
+    requestId: number;
+  } | null>(null);
   const isVisualCapture = visualEnv?.VITE_D2_VISUAL_CAPTURE === "1";
   const daily = useDailySummary();
-  const library = useLibraryWorkspace();
   const diagnostics = useDiagnosticsSettings({
     onConfigChanged: props.onConfigChanged,
     initialColorMode: visualColorMode ?? props.state.colorMode,
@@ -75,6 +80,17 @@ export function useDesktopProductShell(props: {
   } = accountWorkspace;
   const refreshAccountManually = () => refreshAccountSnapshot("manual");
   const refreshAccountAfterWrite = () => refreshAccountSnapshot("write-action");
+  const vendorsWorkspace = useVendorsWorkspace({
+    accountSummary,
+    selectedCharacterId,
+    active: activePage === "vendors",
+    loadInventory: api.getVendorInventory
+  });
+  const vendorSourcePaths = useMemo(
+    () => buildVendorItemSourcePaths(vendorsWorkspace.model),
+    [vendorsWorkspace.model]
+  );
+  const library = useLibraryWorkspace({ vendorSourcePaths });
   const loadoutLibrary = useLoadoutTemplates();
   const writeActions = useDesktopProductWriteActions({
     accountSummary,
@@ -89,12 +105,6 @@ export function useDesktopProductShell(props: {
     onRecentHistoryChanged: library.setLibraryHistory
   });
   const itemDetail = writeActions.itemDetail;
-  const vendorsWorkspace = useVendorsWorkspace({
-    accountSummary,
-    selectedCharacterId,
-    active: activePage === "vendors",
-    loadInventory: api.getVendorInventory
-  });
   const vendorDefinitionDetail = useVendorDefinitionDetail();
   const isRunningItemAction = writeActions.isRunningItemAction;
   const loadoutWriteActions = writeActions.loadoutWriteActions;
@@ -103,6 +113,14 @@ export function useDesktopProductShell(props: {
     itemDetail.closeSelectedItemDetail();
     vendorDefinitionDetail.close();
     setActivePage(page);
+  }
+
+  function locateVaultItem(item: { hash: number; name: string }) {
+    setVaultLocateRequest((current) => ({
+      ...item,
+      requestId: (current?.requestId ?? 0) + 1
+    }));
+    setActivePage("vault");
   }
 
   useEffect(() => {
@@ -201,6 +219,8 @@ export function useDesktopProductShell(props: {
     onConfigure: props.onConfigure,
     setActivePage,
     setVaultFacts,
+    vaultLocateRequest,
+    locateVaultItem,
     lastAccountLoadedAt,
     refreshAccountManually,
     account: accountWorkspace,

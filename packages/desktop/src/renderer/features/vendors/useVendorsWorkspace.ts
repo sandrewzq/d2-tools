@@ -1,4 +1,8 @@
-import { selectVendorsPageModel, type VendorsPageWorkspace } from "@d2-tools/app/vendors";
+import {
+  getVendorDetailHashes,
+  selectVendorsPageModel,
+  type VendorsPageWorkspace
+} from "@d2-tools/app/vendors";
 import type { AccountSummary } from "../../api/types";
 import type {
   VendorInventoryRequest,
@@ -204,9 +208,8 @@ function expandVendorDetailHashes(
   snapshot: VendorInventorySnapshot | null
 ): number[] {
   if (vendorHash === undefined) return [];
-  if (vendorHash === 2190858386) {
-    const availableHashes = new Set(snapshot?.vendors.map((vendor) => vendor.vendorHash) ?? []);
-    return [2190858386, 537912098, 3751514131].filter((hash) => availableHashes.has(hash));
-  }
-  return [vendorHash];
+  return getVendorDetailHashes(
+    vendorHash,
+    snapshot?.vendors ?? []
+  );
 }

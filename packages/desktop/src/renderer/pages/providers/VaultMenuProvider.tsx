@@ -17,6 +17,7 @@ export function VaultMenuProvider() {
       writeActionsEnabled={session.diagnostics.writeActionsEnabled}
       tags={account.vaultTags}
       openingItemKey={writeActions.itemDetail.itemDetailLoadingKey}
+      locateRequest={session.vaultLocateRequest}
       wishlist={account.importedWishlist}
       localTargetRules={account.localTargetRules}
       communityMatch={account.vaultCommunityMatch}

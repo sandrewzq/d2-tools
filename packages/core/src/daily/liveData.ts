@@ -384,7 +384,9 @@ function resolveVendorLocation(
 const KEY_VENDOR_ORDER = [
   2190858386,
   672118013,
+  350061650,
   3500617033,
+  765357505,
   3902439767,
   2255782930
 ];

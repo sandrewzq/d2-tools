@@ -27,6 +27,7 @@ export function VaultPage(props: {
   writeActionsEnabled: boolean;
   tags: VaultTags;
   openingItemKey: string;
+  locateRequest?: { hash: number; name: string; requestId: number } | null;
   wishlist: DimWishlist | null;
   localTargetRules: LocalTargetRules;
   communityMatch: Map<number, VaultItemMatchInfo>;
@@ -73,6 +74,7 @@ export function VaultPage(props: {
         highlightedLabel={model.activeLoadoutName}
         tags={model.tags}
         openingItemKey={props.openingItemKey}
+        locateRequest={props.locateRequest}
         onSaveTagBatch={props.onSaveTagBatch}
         cleanupActions={{
           characters: props.account.characters,

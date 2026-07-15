@@ -40,10 +40,13 @@ export type VendorOffer = {
   apiPurchasable: boolean | null;
   categoryIndex: number;
   categoryName: string;
+  categoryIdentifier?: string;
+  previewVendorHash?: number;
   serviceId?: string;
   rollFingerprint: string;
   stats: Record<string, number>;
   socketPlugHashes: number[];
+  socketPlugs?: Array<{ hash: number; name: string; iconUrl?: string }>;
 };
 
 export type VendorProgression = {
@@ -67,6 +70,7 @@ export type VendorService = {
 export type VendorInventory = {
   id: string;
   vendorHash: number;
+  vendorIdentifier?: string;
   name: string;
   description: string;
   iconUrl?: string;
@@ -98,6 +102,7 @@ export type VendorInventoryDefinitions = {
 
 export type VendorDefinitionInput = {
   name: string;
+  vendorIdentifier?: string;
   description?: string;
   iconUrl?: string;
   failureStrings?: readonly string[];
@@ -114,6 +119,7 @@ export type VendorItemDefinitionInput = {
   itemType?: string;
   tierType?: string;
   iconUrl?: string;
+  previewVendorHash?: number;
 };
 
 export type VendorCharacterResponseInput = {
@@ -136,6 +142,7 @@ export type VendorResponseInput = {
 export type VendorCategoryInput = {
   categoryIndex: number;
   name: string;
+  identifier?: string;
   itemIndexes: readonly number[];
 };
 
@@ -278,6 +285,7 @@ function mapCharacterVendor(
   return {
     id: `vendor-${response.vendorHash}`,
     vendorHash: response.vendorHash,
+    vendorIdentifier: vendorDefinition?.vendorIdentifier,
     name: vendorDefinition?.name ?? `商人 ${response.vendorHash}`,
     description: vendorDefinition?.description ?? "",
     iconUrl: vendorDefinition?.iconUrl,
@@ -311,6 +319,14 @@ function mapOffer(
   });
   const stats = { ...(response.stats?.[String(sale.vendorItemIndex)] ?? {}) };
   const socketPlugHashes = [...(response.sockets?.[String(sale.vendorItemIndex)] ?? [])];
+  const socketPlugs = socketPlugHashes.map((hash) => {
+    const plug = definitions.items[String(hash)];
+    return {
+      hash,
+      name: plug?.name ?? String(hash),
+      iconUrl: plug?.iconUrl
+    };
+  });
   const canPurchase = response.canPurchase && sale.saleStatus === 0 && sale.failureIndexes.length === 0;
   const rollFingerprint = createVendorOfferFingerprint({
     itemHash: sale.itemHash,
@@ -343,10 +359,13 @@ function mapOffer(
     apiPurchasable: sale.apiPurchasable ?? null,
     categoryIndex: category?.categoryIndex ?? -1,
     categoryName: category?.name ?? "其他",
+    categoryIdentifier: category?.identifier,
+    previewVendorHash: item?.previewVendorHash,
     serviceId,
     rollFingerprint,
     stats,
-    socketPlugHashes
+    socketPlugHashes,
+    socketPlugs
   };
 }
 

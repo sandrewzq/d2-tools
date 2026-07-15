@@ -37,6 +37,7 @@ export type VendorInventoryItemView = {
   status: "owned" | "recommended" | "unknown";
   decisionLabel?: string;
   stats?: Record<string, number>;
+  socketPlugs?: Array<{ hash: number; name: string; iconUrl?: string }>;
   sourcePath?: string;
 };
 
@@ -58,6 +59,10 @@ export type VendorProgressionView = {
 
 export type VendorContentSectionView = {
   id: string;
+  kind: "reputation" | "inventory" | "subinventory" | "tasks";
+  scope?: "character" | "account" | "clan";
+  action?: "purchase" | "exchange" | "focus" | "decode" | "claim" | "acquire" | "inspect";
+  condition?: string;
   name: string;
   description?: string;
   layout: "featured" | "columns" | "list" | "rank";
@@ -97,6 +102,7 @@ export type VendorInventoryGroupView = {
   items: VendorInventoryItemView[];
   services?: VendorServiceView[];
   rankRewards?: VendorInventoryItemView[];
+  taskItems?: VendorInventoryItemView[];
   progression?: VendorProgressionView;
   contentSections?: VendorContentSectionView[];
 };
@@ -148,6 +154,7 @@ export type VendorOfferContextView = {
   affordabilityLabel: string;
   characterLabel: string;
   refreshLabel: string;
+  rollLabels?: string[];
 };
 
 export type VendorsPageActions = {
@@ -316,9 +323,9 @@ function VendorContentSections(props: {
   return (
     <div className="vendor-content-flow">
       {props.sections.map((section) => {
-        const isSubinventory = section.layout === "columns" || section.layout === "list";
+        const isSubinventory = section.kind === "subinventory";
         const subinventoryIndex = isSubinventory
-          ? props.sections.filter((candidate) => candidate.layout === "columns" || candidate.layout === "list").findIndex((candidate) => candidate.id === section.id) + 1
+          ? props.sections.filter((candidate) => candidate.kind === "subinventory").findIndex((candidate) => candidate.id === section.id) + 1
           : 0;
         const itemCount = countSectionItems(section);
         const headingId = `vendor-section-${section.id}`;
@@ -456,7 +463,8 @@ function VendorRankSection(props: {
                 costLabel: "等级奖励",
                 affordabilityLabel: "随商人等级解锁",
                 characterLabel: item.characterIds?.join("、") ?? "当前角色",
-                refreshLabel: props.vendor.resetLabel
+                refreshLabel: props.vendor.resetLabel,
+                rollLabels: item.socketPlugs?.map((plug) => plug.name).filter(Boolean)
               })}
             >
               <VendorItemArt item={item} />
@@ -480,6 +488,7 @@ function getVendorContentSections(vendor: VendorInventoryGroupView | null): Vend
   if (vendor.items.length) {
     sections.push({
       id: `${vendor.id}-inventory`,
+      kind: "inventory",
       name: "库存",
       layout: "featured",
       groups: [{ id: `${vendor.id}-inventory-items`, name: "", items: vendor.items }]
@@ -489,6 +498,7 @@ function getVendorContentSections(vendor: VendorInventoryGroupView | null): Vend
     if (!service.items.length) continue;
     sections.push({
       id: service.id,
+      kind: "subinventory",
       name: service.name,
       description: service.description || `${service.items.length} 件`,
       layout: (service.sections?.length ?? 0) > 1 ? "columns" : "list",
@@ -502,10 +512,20 @@ function getVendorContentSections(vendor: VendorInventoryGroupView | null): Vend
   if (vendor.rankRewards?.length || vendor.progression) {
     sections.push({
       id: `${vendor.id}-rank`,
+      kind: "reputation",
       name: "声望与等级",
       layout: "rank",
       progression: vendor.progression,
       groups: [{ id: `${vendor.id}-rank-items`, name: "等级奖励", items: vendor.rankRewards ?? [] }]
+    });
+  }
+  if (vendor.taskItems?.length) {
+    sections.push({
+      id: `${vendor.id}-tasks`,
+      kind: "tasks",
+      name: "任务",
+      layout: "featured",
+      groups: [{ id: `${vendor.id}-task-items`, name: "", items: vendor.taskItems }]
     });
   }
   return sections;
@@ -540,7 +560,8 @@ function VendorOfferButton(props: {
         costLabel,
         affordabilityLabel: affordable ? "可购买" : "货币不足或未知",
         characterLabel: props.item.characterIds?.join("、") ?? "当前角色",
-        refreshLabel: props.vendor.resetLabel
+        refreshLabel: props.vendor.resetLabel,
+        rollLabels: props.item.socketPlugs?.map((plug) => plug.name).filter(Boolean)
       })}
     >
       <VendorItemArt item={props.item} />

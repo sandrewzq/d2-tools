@@ -79,6 +79,7 @@ export function VaultPageContentView(props: {
   wishlist?: DimWishlist | null;
   localTargetRules?: LocalTargetRules | null;
   openingItemKey?: string;
+  locateRequest?: { hash: number; name: string; requestId: number } | null;
   communityMatch?: Map<number, VaultItemMatchInfo>;
   recommendationImportActions?: VaultRecommendationImportActions;
   targetRulesActions?: VaultTargetRulesActions;
@@ -102,6 +103,20 @@ export function VaultPageContentView(props: {
   const [cleanupCharacterId, setCleanupCharacterId] = useState("");
   const [activeVaultTab, setActiveVaultTab] = useState<VaultWorkspaceTab>("filters");
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(() => new Set());
+
+  useEffect(() => {
+    if (!props.locateRequest) return;
+    setQuery(String(props.locateRequest.hash));
+    setGroup("all");
+    setTagFilter("all");
+    setLockFilter("all");
+    setSlotFilter("all");
+    setAmmoFilter("all");
+    setArmorStatRules([]);
+    setFrameFilters([]);
+    setActiveVaultTab("filters");
+    setIsCleanupMode(false);
+  }, [props.locateRequest?.requestId]);
   const cleanupCharacters = props.cleanupActions?.characters ?? [];
   const cleanupTargetCharacterId = cleanupCharacterId
     || props.cleanupActions?.currentCharacterId

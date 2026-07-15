@@ -16,7 +16,8 @@ export function LibraryMenuProvider() {
         liveAvailability: library.liveAvailability,
         liveAvailabilityError: library.liveAvailabilityError,
         manifestStatus: library.manifestStatus,
-        manifestStatusError: library.manifestStatusError
+        manifestStatusError: library.manifestStatusError,
+        accountSummary: session.account.accountSummary
       }}
       state={{
         libraryViewMode: library.libraryViewMode,
@@ -49,7 +50,8 @@ export function LibraryMenuProvider() {
         onSaveAlias: () => void library.saveAlias(),
         onOpenItemDetail: (item) => void itemDetail.openItemDetail(item),
         onAddFavorite: (item) => void library.addSelectedItemToFavorites(item),
-        onRemoveFavorite: (hash) => void library.removeFavorite(hash)
+        onRemoveFavorite: (hash) => void library.removeFavorite(hash),
+        onLocateOwnedItem: session.locateVaultItem
       }}
     />
   );

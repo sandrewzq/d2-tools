@@ -5,6 +5,7 @@ import type {
   LibraryEquipmentFilter,
   LibraryEquipmentResultView,
   LibraryManifestAlertModel,
+  LibraryOwnershipEntry,
   LibraryPageModel,
   LibraryPerkFilter,
   LibraryViewMode,
@@ -51,6 +52,7 @@ export type LibraryPageActions = {
   onOpenItemDetail: (item: ItemSearchResult) => void;
   onAddFavorite: (item: ItemSearchResult | PerkSearchResult) => void;
   onRemoveFavorite: (hash: number) => void;
+  onLocateOwnedItem?: (item: ItemSearchResult) => void;
 };
 
 export type LibraryPageContentViewProps = {
@@ -276,6 +278,7 @@ export function LibraryPageContentView(props: LibraryPageContentViewProps) {
                       () => setSelectedDefinitionHash(item.item.hash),
                       actions.onAddFavorite,
                       actions.onRemoveFavorite,
+                      actions.onLocateOwnedItem,
                       copy
                     ))}
                   </div>
@@ -329,9 +332,14 @@ export function LibraryPageContentView(props: LibraryPageContentViewProps) {
           item={selectedDefinitionRow.item}
           dropAccess={selectedDefinitionRow.dropAccess}
           liveEntry={selectedDefinitionRow.liveEntry}
+          acquisitionStatus={selectedDefinitionRow.acquisitionStatus}
+          ownership={selectedDefinitionRow.ownership}
           communityMatch={selectedDefinitionRow.communityMatch}
           copy={copy}
           onClose={() => setSelectedDefinitionHash(null)}
+          onLocateOwnedItem={actions.onLocateOwnedItem
+            ? () => actions.onLocateOwnedItem?.(selectedDefinitionRow.item)
+            : undefined}
         />
       ) : null}
     </>
@@ -388,6 +396,7 @@ function renderEquipmentResult(
   onOpenDefinition: () => void,
   onAddFavorite: (item: ItemSearchResult | PerkSearchResult) => void,
   onRemoveFavorite: (hash: number) => void,
+  onLocateOwnedItem: ((item: ItemSearchResult) => void) | undefined,
   copy: LibraryCopy
 ) {
   const item = row.item;
@@ -439,6 +448,14 @@ function renderEquipmentResult(
             <dt>{libraryText(copy, "当前公开渠道")}</dt>
             <dd>{liveChannelDescription}</dd>
           </div>
+          <div>
+            <dt>{libraryText(copy, "获取状态")}</dt>
+            <dd>{formatAcquisitionStatus(row.acquisitionStatus, copy)}</dd>
+          </div>
+          <div>
+            <dt>{libraryText(copy, "账号拥有")}</dt>
+            <dd>{formatOwnership(row.ownership, copy)}</dd>
+          </div>
         </dl>
       </div>
       <div className="library-result-actions">
@@ -453,6 +470,11 @@ function renderEquipmentResult(
             {libraryText(copy, "取消收藏")}
           </button>
         ) : null}
+        {row.ownership.vaultCount > 0 && onLocateOwnedItem ? (
+          <button type="button" className="inline-action" onClick={() => onLocateOwnedItem(item)}>
+            {libraryText(copy, "在仓库定位")}
+          </button>
+        ) : null}
       </div>
     </article>
   );
@@ -462,12 +484,15 @@ export function LibraryDefinitionDialog(props: {
   item: ItemSearchResult;
   dropAccess?: LibraryDropAccessKey;
   liveEntry?: LiveItemAvailabilityEntry;
+  acquisitionStatus?: "current" | "historical" | "unknown";
+  ownership?: LibraryOwnershipEntry;
   communityMatch?: VaultItemMatchInfo;
   vendorContext?: VendorOfferContext;
   isBusy?: boolean;
   error?: string;
   copy: LibraryCopy;
   onClose: () => void;
+  onLocateOwnedItem?: () => void;
 }) {
   const item = props.item;
   const copy = props.copy;
@@ -522,6 +547,9 @@ export function LibraryDefinitionDialog(props: {
                 <span>{props.vendorContext.affordabilityLabel}</span>
                 <span>{props.vendorContext.characterLabel}</span>
                 <span>{props.vendorContext.refreshLabel}</span>
+                {props.vendorContext.rollLabels?.length ? (
+                  <span>当前售卖 Perk：{props.vendorContext.rollLabels.join(" / ")}</span>
+                ) : null}
               </section>
             ) : null}
             {props.error ? <div className="status-message is-error" role="status">{props.error}</div> : null}
@@ -544,6 +572,19 @@ export function LibraryDefinitionDialog(props: {
               </section>
             ) : null}
             <div className="library-definition-source-grid">
+              <div className="library-definition-source">
+                <strong>{libraryText(copy, "获取状态")}</strong>
+                <span>{formatAcquisitionStatus(props.acquisitionStatus ?? "unknown", copy)}</span>
+              </div>
+              <div className="library-definition-source">
+                <strong>{libraryText(copy, "账号拥有")}</strong>
+                <span>{formatOwnership(props.ownership, copy)}</span>
+                {(props.ownership?.vaultCount ?? 0) > 0 && props.onLocateOwnedItem ? (
+                  <button type="button" className="inline-action" onClick={props.onLocateOwnedItem}>
+                    {libraryText(copy, "在仓库定位")}
+                  </button>
+                ) : null}
+              </div>
               <div className="library-definition-source">
                 <div className="item-source-heading">
                   <strong>{libraryText(copy, "实时状态")}</strong>
@@ -777,6 +818,22 @@ function formatLibraryGroupLabel(
 
 function formatLibrarySourceStatus(status: ItemSearchResult["source"]["status"], copy: LibraryCopy): string {
   return status === "ready" ? libraryText(copy, "可确认") : libraryText(copy, "待补充");
+}
+
+function formatAcquisitionStatus(
+  status: "current" | "historical" | "unknown",
+  copy: LibraryCopy
+): string {
+  if (status === "current") return libraryText(copy, "当前可获取");
+  if (status === "historical") return libraryText(copy, "历史来源线索");
+  return libraryText(copy, "来源未知");
+}
+
+function formatOwnership(ownership: LibraryOwnershipEntry | undefined, copy: LibraryCopy): string {
+  if (!ownership || ownership.status === "unavailable") return libraryText(copy, "账号数据未读取");
+  if (ownership.status === "not_owned") return libraryText(copy, "未拥有");
+  const locations = ownership.locations.map((location) => `${location.label} ${location.count} 件`).join(" / ");
+  return `${libraryText(copy, "已拥有")} ${ownership.totalCount} 件${locations ? ` · ${locations}` : ""}`;
 }
 
 function getLibrarySourceStatusClass(status: ItemSearchResult["source"]["status"]): string {

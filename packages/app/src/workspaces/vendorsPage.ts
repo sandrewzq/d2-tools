@@ -5,6 +5,13 @@ import type {
   VendorInventorySnapshot,
   VendorOffer
 } from "@d2-tools/core/vendors/inventory";
+import {
+  composeVendorStructures,
+  createDefaultVendorContentSections,
+  createInventorySections,
+  partitionVendorItems,
+  type VendorContentKind
+} from "./vendorStructure.js";
 
 export type VendorInventoryTone = "exotic" | "weapon" | "armor" | "material";
 export type VendorInventoryStatus = "owned" | "recommended" | "unknown";
@@ -28,10 +35,13 @@ export type VendorInventoryItemWorkspace = {
   vendorItemIndex?: number;
   categoryIndex?: number;
   categoryName?: string;
+  categoryIdentifier?: string;
+  previewVendorHash?: number;
   characterIds?: string[];
   decisionLabel?: string;
   costs?: VendorCostWorkspace[];
   stats?: Record<string, number>;
+  socketPlugs?: Array<{ hash: number; name: string; iconUrl?: string }>;
   sourcePath?: string;
 };
 
@@ -45,6 +55,10 @@ export type VendorInventorySectionWorkspace = {
 
 export type VendorContentSectionWorkspace = {
   id: string;
+  kind: VendorContentKind;
+  scope?: "character" | "account" | "clan";
+  action?: "purchase" | "exchange" | "focus" | "decode" | "claim" | "acquire" | "inspect";
+  condition?: string;
   name: string;
   description?: string;
   layout: "featured" | "columns" | "list" | "rank";
@@ -80,6 +94,7 @@ export type VendorProgressionWorkspace = {
 export type VendorInventoryGroupWorkspace = {
   id: string;
   vendorHash?: number;
+  vendorIdentifier?: string;
   name: string;
   description: string;
   badge: string;
@@ -101,6 +116,8 @@ export type VendorInventoryGroupWorkspace = {
   items: VendorInventoryItemWorkspace[];
   services?: VendorServiceWorkspace[];
   rankRewards?: VendorInventoryItemWorkspace[];
+  taskItems?: VendorInventoryItemWorkspace[];
+  childInventoryEntries?: VendorInventoryItemWorkspace[];
   progression?: VendorProgressionWorkspace;
   contentSections?: VendorContentSectionWorkspace[];
 };
@@ -188,9 +205,6 @@ export type VendorSearchResults = {
 
 const publicVendorSourceLabel = "Bungie 公共商人";
 const xurVendorHash = 2190858386;
-const xurOffersVendorHash = 537912098;
-const xurGearVendorHash = 3751514131;
-const xurChildVendorHashes = [xurOffersVendorHash, xurGearVendorHash] as const;
 
 export function selectVendorsPageModel(input: DailySummary | VendorsPageInput | null): VendorsPageModel {
   if (isVendorsPageInput(input)) return selectSnapshotVendorsPageModel(input);
@@ -249,10 +263,40 @@ export function filterVendorSearchResults(
     const rankItems = (vendor.rankRewards ?? [])
       .filter((item) => matchesVendorSearch(item, query, input.filters))
       .map((item) => ({ ...item, sourcePath: `${vendor.name} → 声望与等级` }));
-    const items = [...directItems, ...serviceItems, ...rankItems];
+    const taskItems = (vendor.taskItems ?? [])
+      .filter((item) => matchesVendorSearch(item, query, input.filters))
+      .map((item) => ({ ...item, sourcePath: `${vendor.name} → 任务` }));
+    const items = [...directItems, ...serviceItems, ...rankItems, ...taskItems];
     return items.length ? [{ vendorId: vendor.id, vendorName: vendor.name, items }] : [];
   });
   return { groups };
+}
+
+export function buildVendorItemSourcePaths(model: VendorsPageModel): Map<number, string[]> {
+  const paths = new Map<number, string[]>();
+  for (const vendor of model.vendors) {
+    addVendorItemPaths(paths, vendor.items, vendor.name);
+    addVendorItemPaths(paths, vendor.rankRewards ?? [], `${vendor.name} → 声望与等级`);
+    addVendorItemPaths(paths, vendor.taskItems ?? [], `${vendor.name} → 任务`);
+    for (const service of vendor.services ?? []) {
+      addVendorItemPaths(paths, service.items, `${vendor.name} → ${service.name}`);
+    }
+  }
+  return paths;
+}
+
+function addVendorItemPaths(
+  paths: Map<number, string[]>,
+  items: VendorInventoryItemWorkspace[],
+  fallbackPath: string
+): void {
+  for (const item of items) {
+    if (item.itemHash === undefined) continue;
+    const path = item.sourcePath?.trim() || fallbackPath;
+    const itemPaths = paths.get(item.itemHash) ?? [];
+    if (!itemPaths.includes(path)) itemPaths.push(path);
+    paths.set(item.itemHash, itemPaths);
+  }
 }
 
 function isVendorsPageInput(input: DailySummary | VendorsPageInput | null): input is VendorsPageInput {
@@ -281,6 +325,7 @@ function selectSnapshotVendorsPageModel(input: VendorsPageInput): VendorsPageMod
   }
 
   const mappedVendors = snapshot.vendors.map((vendor) => {
+    const availableVendorHashes = new Set(snapshot.vendors.map((candidate) => candidate.vendorHash));
     const detailFailures = getVendorDetailFailures(snapshot, vendor.vendorHash, input.scope);
     const detailState = getVendorDetailState(
       vendor.vendorHash,
@@ -292,26 +337,35 @@ function selectSnapshotVendorsPageModel(input: VendorsPageInput): VendorsPageMod
     const mappedOffers = vendor.offers
       .filter((offer) => offerMatchesScope(offer, input.scope))
       .map((offer) => mapSnapshotOffer(offer, snapshot, vendor.name));
-    const items = vendor.vendorHash === xurVendorHash
-      ? mappedOffers.filter((offer) => offer.categoryIndex === 0)
-      : mappedOffers;
-    const rankRewards = vendor.vendorHash === xurVendorHash
-      ? mappedOffers.filter((offer) => offer.categoryIndex === 4)
-      : undefined;
-    const services = vendor.services.map((service) => ({
-      id: service.id,
-      name: service.name,
-      description: service.description,
-      items: service.offers
+    const partitionedItems = partitionVendorItems(
+      vendor.vendorHash,
+      mappedOffers,
+      availableVendorHashes
+    );
+    const serviceChildEntries: VendorInventoryItemWorkspace[] = [];
+    const services = vendor.services.map((service) => {
+      const mappedServiceOffers = service.offers
         .filter((offer) => offerMatchesScope(offer, input.scope))
-        .map((offer) => mapSnapshotOffer(offer, snapshot, `${vendor.name} → ${service.name}`)),
-      sections: createInventorySections(service.offers
-        .filter((offer) => offerMatchesScope(offer, input.scope))
-        .map((offer) => mapSnapshotOffer(offer, snapshot, `${vendor.name} → ${service.name}`)))
-    }));
+        .map((offer) => mapSnapshotOffer(offer, snapshot, `${vendor.name} → ${service.name}`));
+      const childEntries = mappedServiceOffers.filter((offer) =>
+        offer.previewVendorHash !== undefined
+        && offer.previewVendorHash !== vendor.vendorHash
+        && availableVendorHashes.has(offer.previewVendorHash)
+      );
+      serviceChildEntries.push(...childEntries);
+      const items = mappedServiceOffers.filter((offer) => !childEntries.includes(offer));
+      return {
+        id: service.id,
+        name: service.name,
+        description: service.description,
+        items,
+        sections: createInventorySections(items)
+      };
+    });
     return {
       id: vendor.id,
       vendorHash: vendor.vendorHash,
+      vendorIdentifier: vendor.vendorIdentifier,
       name: vendor.name,
       description: vendor.description,
       iconUrl: normalizeBungieIconUrl(vendor.iconUrl),
@@ -329,9 +383,14 @@ function selectSnapshotVendorsPageModel(input: VendorsPageInput): VendorsPageMod
       detailState,
       detailFailureMessage: getVendorDetailFailureMessage(detailState, detailFailures),
       featured: vendor.vendorHash === 2190858386,
-      items,
+      items: partitionedItems.items,
       services,
-      rankRewards,
+      rankRewards: partitionedItems.rankRewards,
+      taskItems: partitionedItems.taskItems,
+      childInventoryEntries: [
+        ...(partitionedItems.childInventoryEntries ?? []),
+        ...serviceChildEntries
+      ],
       progression: vendor.progression ? {
         currentProgress: vendor.progression.currentProgress,
         level: vendor.progression.level,
@@ -341,9 +400,9 @@ function selectSnapshotVendorsPageModel(input: VendorsPageInput): VendorsPageMod
       } : undefined
     } satisfies VendorInventoryGroupWorkspace;
   });
-  const vendors = composeXurVendorFamily(mappedVendors).map((vendor) => enrichVendorViewModel({
+  const vendors = composeVendorStructures(mappedVendors).map((vendor) => enrichVendorViewModel({
     ...vendor,
-    contentSections: vendor.contentSections ?? createDefaultContentSections(vendor)
+    contentSections: vendor.contentSections ?? createDefaultVendorContentSections(vendor)
   }));
   const defaultVendorId = input.selectedVendorId && vendors.some((vendor) => vendor.id === input.selectedVendorId)
     ? input.selectedVendorId
@@ -367,7 +426,7 @@ function selectSnapshotVendorsPageModel(input: VendorsPageInput): VendorsPageMod
       (count, vendor) => count + vendor.items.length + (vendor.rankRewards?.length ?? 0) + (vendor.services ?? []).reduce(
         (serviceCount, service) => serviceCount + service.items.length,
         0
-      ),
+      ) + (vendor.taskItems?.length ?? 0),
       0
     ),
     scopeOptions: createScopeOptions(snapshot),
@@ -401,6 +460,8 @@ function mapSnapshotOffer(
     vendorItemIndex: offer.vendorItemIndex,
     categoryIndex: offer.categoryIndex,
     categoryName: offer.categoryName,
+    categoryIdentifier: offer.categoryIdentifier,
+    previewVendorHash: offer.previewVendorHash,
     characterIds: [...offer.characterIds],
     name: offer.name,
     itemType: [offer.itemType, offer.tierType].filter(Boolean).join("，"),
@@ -413,6 +474,10 @@ function mapSnapshotOffer(
     status: "unknown",
     decisionLabel: tone === "exotic" ? "高质量售卖实例" : undefined,
     stats: { ...offer.stats },
+    socketPlugs: (offer.socketPlugs ?? []).map((plug) => ({
+      ...plug,
+      iconUrl: normalizeBungieIconUrl(plug.iconUrl)
+    })),
     sourcePath
   };
 }
@@ -433,211 +498,6 @@ function formatVendorRefreshLabel(value: string | undefined): string {
   }).formatToParts(date);
   const part = (type: string) => parts.find((entry) => entry.type === type)?.value ?? "";
   return `刷新：${part("year")}年${part("month")}月${part("day")}日 ${part("weekday")} ${part("hour")}:${part("minute")}`;
-}
-
-function composeXurVendorFamily(
-  vendors: VendorInventoryGroupWorkspace[]
-): VendorInventoryGroupWorkspace[] {
-  const parent = vendors.find((vendor) => vendor.vendorHash === xurVendorHash);
-  if (!parent) return vendors;
-
-  const children = xurChildVendorHashes
-    .map((vendorHash) => vendors.find((vendor) => vendor.vendorHash === vendorHash))
-    .filter((vendor): vendor is VendorInventoryGroupWorkspace => Boolean(vendor));
-  const childServices = children.map((child) => {
-    const items = child.items.map((item) => ({
-      ...item,
-      sourcePath: `${parent.name} → ${child.name}`
-    }));
-    return {
-      id: child.id,
-      vendorHash: child.vendorHash,
-      name: child.name,
-      description: child.description,
-      items,
-      sections: createInventorySections(items)
-    };
-  });
-  const family = [parent, ...children];
-  const detailState = mergeVendorDetailStates(family.map((vendor) => vendor.detailState));
-  const detailFailureMessage = family
-    .map((vendor) => vendor.detailFailureMessage)
-    .filter((message): message is string => Boolean(message))
-    .join("；") || undefined;
-  const services = [
-    ...(parent.services ?? []).filter((service) => service.items.length > 0),
-    ...childServices
-  ];
-  const mergedParent: VendorInventoryGroupWorkspace = {
-    ...parent,
-    detailState,
-    detailFailureMessage,
-    services,
-    contentSections: createXurContentSections(parent, services)
-  };
-
-  return vendors
-    .filter((vendor) => !xurChildVendorHashes.includes(vendor.vendorHash as typeof xurChildVendorHashes[number]))
-    .map((vendor) => vendor.vendorHash === xurVendorHash ? mergedParent : vendor);
-}
-
-function createXurContentSections(
-  parent: VendorInventoryGroupWorkspace,
-  childServices: VendorServiceWorkspace[]
-): VendorContentSectionWorkspace[] {
-  const sections: VendorContentSectionWorkspace[] = [];
-  if (parent.rankRewards?.length || parent.progression) {
-    sections.push({
-      id: "xur-rank",
-      name: "声望与等级",
-      description: parent.progression
-        ? `等级上限 ${parent.progression.levelCap} · ${parent.rankRewards?.length ?? 0} 个奖励`
-        : `${parent.rankRewards?.length ?? 0} 个等级奖励`,
-      layout: "rank",
-      progression: parent.progression,
-      groups: [{
-        id: "xur-rank-rewards",
-        name: "等级奖励",
-        items: parent.rankRewards ?? []
-      }]
-    });
-  }
-  if (parent.items.length) {
-    sections.push({
-      id: "xur-weekly",
-      name: "多样奇异优惠",
-      description: `当前角色 ${parent.items.length} 件`,
-      layout: "featured",
-      groups: [{ id: "xur-weekly-items", name: "", items: parent.items }]
-    });
-  }
-  for (const service of childServices) {
-    const groups = orderXurServiceSections(service).map((group) => decorateXurServiceSection(service, group));
-    sections.push({
-      id: service.id,
-      name: service.name,
-      description: service.description || undefined,
-      layout: groups.length > 1 ? "columns" : "list",
-      groups: groups.length ? groups : [{
-        id: `${service.id}-items`,
-        name: "",
-        items: service.items
-      }]
-    });
-  }
-  return sections;
-}
-
-function decorateXurServiceSection(
-  service: VendorServiceWorkspace,
-  group: VendorInventorySectionWorkspace
-): VendorInventorySectionWorkspace {
-  if (service.vendorHash === xurOffersVendorHash) {
-    if (group.name === "玖的忠诚计划") {
-      return { ...group, description: "账户级增益", presentation: "featured" };
-    }
-    if (group.name === "奇异材料优惠") {
-      return { ...group, description: `${group.items.length} 个独立兑换条目` };
-    }
-    if (group.name === "奇异可重复优惠") {
-      return { ...group, description: "可重复兑换" };
-    }
-  }
-  if (service.vendorHash === xurGearVendorHash) {
-    if (group.name === "异域装备") {
-      return { ...group, description: "武器、记忆水晶与催化剂" };
-    }
-    if (group.name === "传说武器") {
-      return { ...group, description: `${group.items.length} 件武器与记忆水晶` };
-    }
-    if (group.name === "传说护甲") {
-      return { ...group, description: "当前角色职业套装" };
-    }
-  }
-  return group;
-}
-
-function orderXurServiceSections(service: VendorServiceWorkspace): VendorInventorySectionWorkspace[] {
-  const groups = service.sections ?? [];
-  const names = service.vendorHash === xurOffersVendorHash
-    ? ["玖的忠诚计划", "奇异材料优惠", "奇异可重复优惠"]
-    : service.vendorHash === xurGearVendorHash
-      ? ["异域装备", "传说武器", "传说护甲"]
-      : [];
-  if (!names.length) return groups;
-  return [...groups].sort((left, right) => {
-    const leftIndex = names.indexOf(left.name);
-    const rightIndex = names.indexOf(right.name);
-    return (leftIndex < 0 ? Number.MAX_SAFE_INTEGER : leftIndex)
-      - (rightIndex < 0 ? Number.MAX_SAFE_INTEGER : rightIndex);
-  });
-}
-
-function createDefaultContentSections(
-  vendor: VendorInventoryGroupWorkspace
-): VendorContentSectionWorkspace[] {
-  const sections: VendorContentSectionWorkspace[] = [];
-  if (vendor.items.length) {
-    sections.push({
-      id: `${vendor.id}-inventory`,
-      name: "库存",
-      description: `${vendor.items.length} 件`,
-      layout: "featured",
-      groups: createInventorySections(vendor.items)
-    });
-  }
-  for (const service of vendor.services ?? []) {
-    if (!service.items.length) continue;
-    sections.push({
-      id: service.id,
-      name: service.name,
-      description: service.description || `${service.items.length} 件`,
-      layout: (service.sections?.length ?? 0) > 1 ? "columns" : "list",
-      groups: service.sections?.length ? service.sections : [{
-        id: `${service.id}-items`,
-        name: "",
-        items: service.items
-      }]
-    });
-  }
-  if (vendor.rankRewards?.length || vendor.progression) {
-    sections.push({
-      id: `${vendor.id}-rank`,
-      name: "声望与等级",
-      layout: "rank",
-      progression: vendor.progression,
-      groups: [{
-        id: `${vendor.id}-rank-rewards`,
-        name: "等级奖励",
-        items: vendor.rankRewards ?? []
-      }]
-    });
-  }
-  return sections;
-}
-
-function createInventorySections(items: VendorInventoryItemWorkspace[]): VendorInventorySectionWorkspace[] {
-  const sections = new Map<string, VendorInventoryItemWorkspace[]>();
-  for (const item of items) {
-    const name = item.categoryName?.trim() || "其他";
-    const sectionItems = sections.get(name) ?? [];
-    sectionItems.push(item);
-    sections.set(name, sectionItems);
-  }
-  return [...sections.entries()].map(([name, sectionItems], index) => ({
-    id: `${slugify(name) || "section"}-${index}`,
-    name,
-    items: sectionItems
-  }));
-}
-
-function mergeVendorDetailStates(
-  states: Array<VendorDetailState | undefined>
-): VendorDetailState | undefined {
-  if (states.some((state) => state === "failed" || state === "partial")) return "partial";
-  if (states.some((state) => state === "pending")) return "pending";
-  if (states.every((state) => state === "ready")) return "ready";
-  return states.find((state): state is VendorDetailState => Boolean(state));
 }
 
 function offerMatchesScope(offer: VendorOffer, scope: VendorCharacterScope): boolean {
@@ -886,7 +746,7 @@ function createLocalVendorDirectory(resetLabel: string): VendorInventoryGroupWor
     }),
     createDirectoryVendor({
       id: "ada",
-      vendorHash: 3500617033,
+      vendorHash: 350061650,
       name: "护甲合成商人",
       description: "护甲合成和外观相关入口。",
       badge: "常驻",
@@ -897,7 +757,7 @@ function createLocalVendorDirectory(resetLabel: string): VendorInventoryGroupWor
     }),
     createDirectoryVendor({
       id: "saint",
-      vendorHash: 3902439767,
+      vendorHash: 765357505,
       name: "试炼商人",
       description: "试炼声望、周末奖励和聚焦入口。",
       badge: "周末",
@@ -908,6 +768,7 @@ function createLocalVendorDirectory(resetLabel: string): VendorInventoryGroupWor
     }),
     createDirectoryVendor({
       id: "zavala",
+      vendorHash: 69482069,
       name: "先锋商人",
       description: "先锋声望、聚焦和周常奖励。",
       badge: "周更",
@@ -918,6 +779,7 @@ function createLocalVendorDirectory(resetLabel: string): VendorInventoryGroupWor
     }),
     createDirectoryVendor({
       id: "shaxx",
+      vendorHash: 3603221665,
       name: "熔炉商人",
       description: "熔炉竞技场声望和聚焦奖励。",
       badge: "周更",
@@ -928,6 +790,7 @@ function createLocalVendorDirectory(resetLabel: string): VendorInventoryGroupWor
     }),
     createDirectoryVendor({
       id: "drifter",
+      vendorHash: 248695599,
       name: "智谋商人",
       description: "智谋声望、聚焦和周常奖励。",
       badge: "周更",
@@ -1038,7 +901,7 @@ function countVendorSaleItems(vendor: VendorInventoryGroupWorkspace): number {
   return vendor.items.length + (vendor.services ?? []).reduce(
     (count, service) => count + service.items.length,
     0
-  );
+  ) + (vendor.taskItems?.length ?? 0);
 }
 
 function getVendorDisplayStatusLabel(vendor: VendorInventoryGroupWorkspace, inventoryState: VendorInventoryState): string {
@@ -1141,11 +1004,17 @@ function isFeaturedVendor(name: string, vendorHash?: number): boolean {
 
 function isSameVendor(left: VendorInventoryGroupWorkspace, right: VendorInventoryGroupWorkspace): boolean {
   if (left.vendorHash !== undefined && right.vendorHash !== undefined) {
-    return left.vendorHash === right.vendorHash;
+    return canonicalVendorHash(left.vendorHash) === canonicalVendorHash(right.vendorHash);
   }
   const leftKey = vendorMatchKey(`${left.id} ${left.name} ${left.description}`);
   const rightKey = vendorMatchKey(`${right.id} ${right.name} ${right.description}`);
   return leftKey !== "" && leftKey === rightKey;
+}
+
+function canonicalVendorHash(vendorHash: number): number {
+  if (vendorHash === 3500617033) return 350061650;
+  if (vendorHash === 3902439767) return 765357505;
+  return vendorHash;
 }
 
 function vendorMatchKey(value: string): string {

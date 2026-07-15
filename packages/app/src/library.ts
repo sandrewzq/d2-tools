@@ -4,6 +4,7 @@ export type {
   ItemSearchResult,
   LibraryDropAccessFilter,
   LibraryDropAccessKey,
+  LibraryAcquisitionStatus,
   LibraryDropQueryGroup,
   LibraryEquipmentFilter,
   LibraryEquipmentFilterOptions,
@@ -13,6 +14,7 @@ export type {
   LibraryFilterOption,
   LibraryHistory,
   LibraryManifestAlertModel,
+  LibraryOwnershipEntry,
   LibraryPageCache,
   LibraryPageModel,
   LibraryPageState,
@@ -30,8 +32,10 @@ export type {
 } from "./workspaces/libraryPage.js";
 export {
   buildLibraryEquipmentFilterOptions,
+  buildLibraryOwnership,
   buildLibraryPerkGroupOptions,
   classifyLibraryDropAccess,
+  classifyLibraryAcquisitionStatus,
   defaultLibraryEquipmentFilter,
   defaultLibraryPerkFilter,
   filterLibraryEquipmentItems,

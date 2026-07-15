@@ -16,6 +16,8 @@ export type DesktopMenuSession = {
   onConfigure: () => void;
   setActivePage: Dispatch<SetStateAction<ShellPageKey>>;
   setVaultFacts: Dispatch<SetStateAction<string[]>>;
+  vaultLocateRequest: { hash: number; name: string; requestId: number } | null;
+  locateVaultItem: (item: { hash: number; name: string }) => void;
   lastAccountLoadedAt: Date | null;
   refreshAccountManually: () => void;
   account: ReturnType<typeof useAccountWorkspace>;

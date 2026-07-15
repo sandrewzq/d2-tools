@@ -21,4 +21,6 @@ export type {
   VendorsPageModel,
   VendorsPageWorkspace
 } from "./workspaces/vendorsPage.js";
-export { filterVendorSearchResults, selectVendorsPageModel } from "./workspaces/vendorsPage.js";
+export type { VendorContentKind } from "./workspaces/vendorStructure.js";
+export { getVendorDetailHashes } from "./workspaces/vendorStructure.js";
+export { buildVendorItemSourcePaths, filterVendorSearchResults, selectVendorsPageModel } from "./workspaces/vendorsPage.js";
