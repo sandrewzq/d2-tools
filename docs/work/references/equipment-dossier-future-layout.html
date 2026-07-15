@@ -3,296 +3,768 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>装备档案整体布局原型</title>
+  <title>统一装备详情与知识分析原型</title>
   <style>
     :root {
       color-scheme: dark;
-      --page: #080d13;
-      --panel: #141b24;
-      --surface: #19222d;
-      --surface-2: #1e2936;
-      --surface-3: #243141;
-      --line: #303e4e;
-      --line-2: #44566b;
-      --text: #edf3f7;
-      --body: #c7d1db;
-      --muted: #8f9baa;
-      --green: #82d9b2;
-      --green-bg: #112a22;
-      --blue: #8cc7f4;
-      --gold: #e1bd72;
-      --orange: #dfa36d;
-      --danger: #e18f86;
-      --radius: 7px;
+      --page: #070b10;
+      --panel: #101820;
+      --panel-2: #151f29;
+      --surface: #192530;
+      --surface-2: #1e2c38;
+      --line: #30404d;
+      --line-strong: #526879;
+      --text: #f2f6f8;
+      --body: #ced8df;
+      --muted: #91a1ae;
+      --mint: #83d6b3;
+      --mint-bg: #102b23;
+      --blue: #8cc7ef;
+      --blue-bg: #132838;
+      --amber: #e5bd70;
+      --amber-bg: #302816;
+      --rose: #e7a0a0;
+      --rose-bg: #351d22;
+      --violet: #c2b2ed;
+      --violet-bg: #25213b;
+      --radius: 6px;
       font-family: "Segoe UI", "Microsoft YaHei UI", system-ui, sans-serif;
     }
 
     * { box-sizing: border-box; }
     html { min-width: 320px; scroll-behavior: smooth; }
-    body { min-height: 100vh; margin: 0; overflow: hidden; color: var(--body); background: var(--page); }
-    button, input { font: inherit; }
+    body { min-height: 100vh; margin: 0; overflow: hidden; color: var(--body); background: var(--page); font-size: 14px; }
+    button, input, select, textarea { font: inherit; }
     button { cursor: pointer; }
-    button:focus-visible, input:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+    button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+    button:disabled { cursor: not-allowed; opacity: .48; }
 
-    .prototype-controls {
+    .prototype-bar {
       position: fixed;
-      z-index: 20;
-      top: 12px;
+      z-index: 50;
+      top: 10px;
       left: 50%;
-      display: flex;
-      gap: 5px;
-      padding: 5px;
-      border: 1px solid var(--line);
-      border-radius: 7px;
-      background: #111923;
-      box-shadow: 0 12px 30px rgb(0 0 0 / 34%);
       transform: translateX(-50%);
+      width: min(980px, calc(100vw - 24px));
+      min-height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 5px 6px 5px 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #111923;
+      box-shadow: 0 12px 32px rgb(0 0 0 / 36%);
     }
-    .prototype-controls button {
-      min-height: 40px;
-      padding: 0 18px;
-      border: 1px solid transparent;
-      border-radius: 5px;
-      color: var(--muted);
-      background: transparent;
-    }
-    .prototype-controls button:hover { color: var(--text); background: var(--surface-2); }
-    .prototype-controls button[aria-pressed="true"] { color: var(--text); border-color: #4c718d; background: #22384a; }
+    .prototype-label { min-width: 0; display: grid; gap: 2px; }
+    .prototype-label strong { color: var(--text); font-size: 13px; }
+    .prototype-label span { color: var(--muted); font-size: 12px; }
+    .prototype-controls { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 5px; }
+    .prototype-controls button { min-height: 38px; padding: 0 12px; border: 1px solid transparent; border-radius: 5px; color: var(--muted); background: transparent; }
+    .prototype-controls button:hover { color: var(--text); background: var(--surface); }
+    .prototype-controls button[aria-pressed="true"] { color: var(--text); border-color: #557288; background: #203445; }
 
-    .stage { min-height: 100vh; display: grid; place-items: center; padding: 66px 20px 18px; background: rgb(4 8 13 / 72%); }
+    .stage { min-width: 0; min-height: 100vh; display: grid; grid-template-columns: minmax(0, 1fr); place-items: center; padding: 70px 14px 14px; background: #070b10; }
     .dossier {
-      width: min(1680px, calc(100vw - 40px));
-      height: min(1000px, calc(100vh - 84px));
-      min-height: 720px;
+      width: min(1760px, calc(100vw - 28px));
+      min-width: 0;
+      height: calc(100vh - 84px);
+      min-height: 680px;
       display: grid;
       grid-template-rows: auto minmax(0, 1fr);
       overflow: hidden;
       border: 1px solid var(--line);
-      border-radius: 9px;
+      border-radius: 8px;
       background: var(--panel);
-      box-shadow: 0 24px 70px rgb(0 0 0 / 48%);
+      box-shadow: 0 28px 80px rgb(0 0 0 / 48%);
     }
-    .dossier-toolbar { min-height: 58px; display: flex; justify-content: space-between; align-items: center; padding: 9px 16px; border-bottom: 1px solid var(--line); }
-    .dossier-toolbar h1 { margin: 0; color: var(--text); font-size: 17px; }
-    .dossier-toolbar p { margin: 3px 0 0; color: var(--muted); font-size: 11px; }
-    .close { min-width: 48px; min-height: 40px; border: 1px solid var(--line-2); border-radius: 6px; color: var(--text); background: var(--surface-2); }
-    .dossier-scroll { min-height: 0; overflow: auto; scrollbar-width: thin; scrollbar-color: #53667b #111821; }
+    .dossier.is-hidden { display: none; }
+    .dossier-toolbar { min-height: 52px; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 8px 14px; border-bottom: 1px solid var(--line); background: #111a23; }
+    .dossier-toolbar > div { min-width: 0; }
+    .dossier-toolbar h1 { margin: 0; color: var(--text); font-size: 16px; }
+    .dossier-toolbar p { margin: 2px 0 0; color: var(--muted); font-size: 12px; }
+    .icon-button { width: 40px; height: 40px; flex: 0 0 40px; display: grid; place-items: center; border: 1px solid var(--line-strong); border-radius: 5px; color: var(--text); background: var(--surface); font-size: 20px; line-height: 1; }
 
-    .identity-band { display: grid; grid-template-columns: 72px minmax(280px, 1fr) minmax(480px, auto); gap: 14px; align-items: center; padding: 16px 20px; border-bottom: 1px solid var(--line); }
-    .identity-band img { width: 72px; height: 72px; border-radius: 7px; object-fit: cover; }
-    .identity-band h2 { margin: 3px 0; color: var(--text); font-size: 24px; line-height: 1.2; }
-    .identity-band p { margin: 0; color: var(--muted); font-size: 12px; }
-    .badge-row { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
-    .badge { display: inline-flex; min-height: 22px; align-items: center; padding: 0 7px; border: 1px solid var(--line); border-radius: 5px; color: var(--muted); font-size: 10px; }
-    .badge.ready { color: var(--green); border-color: #367c61; background: var(--green-bg); }
-    .commerce-context { display: grid; grid-template-columns: repeat(2, minmax(0, auto)); gap: 7px 18px; justify-content: end; font-size: 11px; }
-    .commerce-context span { color: var(--muted); }
-    .commerce-context strong { color: var(--text); font-weight: 600; }
-
-    .version-strip { display: grid; grid-template-columns: 130px repeat(3, minmax(0, 1fr)); gap: 1px; padding: 10px 20px; border-bottom: 1px solid var(--line); background: #111821; }
-    .version-label, .version-entry { min-width: 0; display: grid; gap: 3px; padding: 8px 10px; }
-    .version-label strong, .version-entry strong { color: var(--text); font-size: 11px; }
-    .version-label span, .version-entry span { color: var(--muted); font-size: 10px; }
-    .version-entry.is-current { border-left: 2px solid var(--green); background: var(--surface); }
-
-    .section-nav {
-      position: sticky;
-      z-index: 8;
-      top: 0;
-      display: flex;
-      gap: 4px;
-      padding: 7px 20px;
+    .dossier-scroll { min-width: 0; min-height: 0; overflow: auto; scrollbar-color: #526879 #101820; scrollbar-width: thin; }
+    .identity {
+      display: grid;
+      grid-template-columns: 88px minmax(300px, 1fr) minmax(420px, .9fr);
+      gap: 16px;
+      align-items: center;
+      padding: 16px 18px;
       border-bottom: 1px solid var(--line);
-      background: #121923;
-      box-shadow: 0 8px 18px rgb(0 0 0 / 18%);
     }
-    .section-nav button { min-height: 38px; padding: 0 14px; border: 0; border-radius: 5px; color: var(--muted); background: transparent; }
-    .section-nav button:hover { color: var(--text); background: var(--surface-2); }
-    .section-nav button.is-active { color: var(--text); background: #22384a; }
+    .identity img { width: 88px; height: 88px; border-radius: 6px; object-fit: cover; background: #29203c; }
+    .identity-copy { min-width: 0; }
+    .identity-copy h2 { margin: 3px 0 4px; color: var(--text); font-size: 26px; line-height: 1.15; }
+    .identity-copy p { margin: 0; color: var(--muted); font-size: 13px; }
+    .identity-meta { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 9px; }
+    .context-ledger { min-width: 0; display: grid; grid-template-columns: 110px minmax(0, 1fr); border-top: 1px solid var(--line); }
+    .context-ledger > * { min-width: 0; padding: 7px 10px; border-bottom: 1px solid var(--line); }
+    .context-ledger dt { color: var(--muted); font-size: 12px; }
+    .context-ledger dd { margin: 0; color: var(--text); font-size: 12px; }
 
-    .dossier-section { scroll-margin-top: 58px; padding: 20px; border-bottom: 1px solid var(--line); }
-    .dossier-section:last-child { border-bottom: 0; }
-    .section-heading { display: flex; justify-content: space-between; gap: 18px; align-items: end; margin-bottom: 14px; }
-    .section-heading h3 { margin: 0; color: var(--text); font-size: 17px; }
-    .section-heading p { max-width: 720px; margin: 0; color: var(--muted); font-size: 11px; line-height: 1.45; text-align: right; }
-    .section-kicker { display: block; margin-bottom: 4px; color: var(--blue); font-size: 10px; font-weight: 600; }
+    .badge { display: inline-flex; max-width: 100%; min-height: 24px; align-items: center; padding: 0 7px; border: 1px solid var(--line); border-radius: 4px; color: var(--muted); background: #111923; font-size: 12px; white-space: normal; }
+    .badge.mint { color: var(--mint); border-color: #367b60; background: var(--mint-bg); }
+    .badge.blue { color: var(--blue); border-color: #355c78; background: var(--blue-bg); }
+    .badge.amber { color: var(--amber); border-color: #756037; background: var(--amber-bg); }
+    .badge.violet { color: var(--violet); border-color: #5f5689; background: var(--violet-bg); }
+    .badge.rose { color: var(--rose); border-color: #87515a; background: var(--rose-bg); }
 
-    .overview-grid { display: grid; grid-template-columns: minmax(420px, .9fr) minmax(0, 1.4fr); gap: 20px; }
-    .stats-panel { min-width: 0; }
-    .stat-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px 16px; }
-    .stat { display: grid; grid-template-columns: 72px 34px minmax(70px, 1fr); gap: 8px; align-items: center; font-size: 11px; }
-    .stat span { color: var(--muted); }
-    .stat b { color: var(--text); text-align: right; font-variant-numeric: tabular-nums; }
-    .stat i { height: 7px; border-radius: 999px; background: var(--green); }
-    .facts-ledger { display: grid; grid-template-columns: 130px minmax(180px, .8fr) minmax(0, 1.4fr); border-top: 1px solid var(--line); }
-    .facts-ledger > * { min-width: 0; padding: 10px 12px; border-bottom: 1px solid var(--line); }
-    .facts-ledger strong { color: var(--text); font-size: 11px; }
-    .facts-ledger span { color: var(--muted); font-size: 11px; line-height: 1.45; }
-    .facts-ledger .good { color: var(--green); }
-    .locate { min-height: 32px; border: 1px solid #51657a; border-radius: 5px; color: var(--text); background: #243142; }
+    .version-row { display: grid; grid-template-columns: 130px minmax(0, 1fr) minmax(250px, .65fr); gap: 1px; padding: 8px 18px; border-bottom: 1px solid var(--line); background: #0d141c; }
+    .version-cell { min-width: 0; display: grid; gap: 3px; padding: 8px 10px; }
+    .version-cell strong { color: var(--text); font-size: 12px; }
+    .version-cell span { color: var(--muted); font-size: 12px; }
+    .version-cell.current { border-left: 2px solid var(--mint); background: var(--panel-2); }
 
-    .weapon-focus-strip { display: grid; grid-template-columns: 1.15fr 1fr .9fr .9fr; margin-bottom: 14px; border: 1px solid var(--line); border-radius: var(--radius); background: #111821; }
-    .weapon-focus-strip > div { min-width: 0; display: grid; gap: 4px; padding: 10px 12px; border-right: 1px solid var(--line); }
-    .weapon-focus-strip > div:last-child { border-right: 0; }
-    .weapon-focus-strip small { color: var(--muted); font-size: 9px; }
-    .weapon-focus-strip strong { color: var(--text); font-size: 11px; }
-    .weapon-focus-strip span { color: var(--muted); font-size: 9px; line-height: 1.35; }
-    .weapon-focus-strip .highlight strong { color: var(--green); }
+    .current-roll-panel { padding: 16px 18px 18px; border-bottom: 1px solid #3d745f; box-shadow: inset 4px 0 0 var(--mint); background: #101d19; }
+    .current-roll-panel[hidden] { display: none; }
+    .current-roll-head { display: flex; align-items: end; justify-content: space-between; gap: 16px; margin-bottom: 8px; }
+    .current-roll-head h3 { margin: 0; color: var(--text); font-size: 18px; }
+    .current-roll-head p { margin: 0; color: var(--muted); font-size: 12px; }
+    .current-roll-summary { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 12px; }
+    .current-roll-summary span { padding: 5px 8px; border: 1px solid #3f6657; border-radius: 4px; color: #cbe9dc; background: #142b23; font-size: 12px; font-weight: 600; }
+    .current-roll-summary strong { color: #f0fff8; }
+    .current-roll-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 9px; }
+    .current-roll-slot { min-width: 0; padding: 10px; border: 1px solid #355548; border-radius: 5px; background: #0d1714; }
+    .current-roll-slot h4 { margin: 0 0 3px; color: #d9efe5; font-size: 12px; }
+    .current-roll-slot > p { margin: 0 0 8px; color: var(--muted); font-size: 11px; }
+    .current-roll-options { display: grid; gap: 6px; }
+    .current-roll-option { min-width: 0; display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 7px; align-items: center; padding: 7px; border: 1px solid #4c819f; border-radius: 4px; background: #172e3d; }
+    .current-roll-option.is-selected { border: 2px solid #72d8ab; box-shadow: inset 4px 0 0 #a5f0cf; background: #174331; }
+    .current-roll-option img { width: 30px; height: 30px; border-radius: 4px; }
+    .current-roll-option strong { min-width: 0; overflow: hidden; color: var(--text); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+    .current-roll-option .option-copy { min-width: 0; }
+    .current-roll-option .option-state { display: block; margin-top: 3px; color: #b9dff5; font-size: 11px; font-weight: 600; }
+    .current-roll-option.is-selected .option-state { color: #dfffee; }
 
-    .recommendation-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
-    .recommendation-card { min-width: 0; display: grid; grid-template-rows: auto auto 1fr auto; gap: 10px; padding: 13px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
-    .recommendation-card header { display: flex; justify-content: space-between; gap: 10px; align-items: start; }
-    .recommendation-card h4 { margin: 0; color: var(--text); font-size: 14px; }
-    .recommendation-card header span { color: var(--green); font-size: 11px; font-weight: 600; }
-    .perk-pair { display: grid; grid-template-columns: 1fr auto 1fr; gap: 8px; align-items: center; }
-    .perk-token { min-width: 0; display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 7px; align-items: center; }
-    .perk-token i { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 5px; color: var(--text); background: var(--surface-3); font-style: normal; font-size: 10px; }
-    .perk-token strong { overflow: hidden; color: var(--text); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
-    .pair-plus { color: var(--muted); }
-    .recommendation-card p { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
-    .evidence-row { display: flex; flex-wrap: wrap; gap: 5px; }
-    .evidence { padding: 3px 6px; border: 1px solid var(--line); border-radius: 4px; color: var(--muted); font-size: 9px; }
+    .section-nav { position: sticky; z-index: 10; top: 0; display: flex; gap: 3px; padding: 7px 18px; overflow-x: auto; border-bottom: 1px solid var(--line); background: #111923; box-shadow: 0 8px 18px rgb(0 0 0 / 18%); }
+    .section-nav button { flex: 0 0 auto; min-height: 40px; padding: 0 13px; border: 0; border-radius: 5px; color: var(--muted); background: transparent; }
+    .section-nav button:hover { color: var(--text); background: var(--surface); }
+    .section-nav button.is-active { color: var(--text); background: #213747; }
 
-    .perk-columns { display: grid; grid-template-columns: minmax(160px, .72fr) repeat(4, minmax(0, 1fr)); gap: 10px; align-items: start; }
-    .perk-column { min-width: 0; display: grid; align-content: start; gap: 8px; padding: 10px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
-    .perk-column h4 { margin: 0 0 2px; color: var(--muted); font-size: 11px; }
-    .perk { min-width: 0; display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 8px; padding: 9px; border: 1px solid #364657; border-radius: 5px; background: var(--surface-2); }
-    .perk-icon { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 5px; color: #e7eff5; background: #2b3745; font-size: 10px; font-weight: 700; }
-    .perk strong { display: block; color: var(--text); font-size: 12px; }
-    .perk p { margin: 3px 0 0; color: var(--muted); font-size: 10px; line-height: 1.35; }
+    .dossier-section { scroll-margin-top: 58px; padding: 20px 18px 22px; border-bottom: 1px solid var(--line); }
+    .section-heading { display: flex; align-items: end; justify-content: space-between; gap: 18px; margin-bottom: 14px; }
+    .section-heading h3 { margin: 0; color: var(--text); font-size: 18px; }
+    .section-heading p { max-width: 720px; margin: 0; color: var(--muted); font-size: 12px; line-height: 1.5; text-align: right; }
+    .eyebrow { display: block; margin-bottom: 4px; color: var(--blue); font-size: 12px; font-weight: 600; }
 
-    .upgrade-grid { display: grid; grid-template-columns: 1fr 1.25fr; gap: 20px; }
-    .choice-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 9px; }
-    .choice-grid.mods { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-    .choice { min-width: 0; display: grid; grid-template-columns: 38px minmax(0, 1fr); gap: 9px; align-items: center; padding: 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); }
-    .choice-icon { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 5px; color: var(--gold); background: #332f22; font-size: 10px; font-weight: 700; }
-    .choice strong { display: block; color: var(--text); font-size: 11px; }
-    .choice span { color: var(--muted); font-size: 9px; }
+    .overview-grid { display: grid; grid-template-columns: minmax(520px, .95fr) minmax(0, 1.25fr); gap: 22px; }
+    .stat-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+    .stat-table th, .stat-table td { padding: 8px 7px; border-bottom: 1px solid var(--line); text-align: right; }
+    .stat-table th { color: var(--muted); font-size: 12px; font-weight: 500; }
+    .stat-table th:first-child, .stat-table td:first-child { text-align: left; }
+    .stat-table td { color: var(--body); font-size: 12px; }
+    .stat-table td strong { color: var(--text); }
+    .delta-up { color: var(--mint) !important; }
+    .delta-down { color: var(--rose) !important; }
+    .delta-neutral { color: var(--muted) !important; }
+    .stat-bar { width: 110px; height: 6px; display: inline-block; overflow: hidden; vertical-align: middle; border-radius: 99px; background: #263541; }
+    .stat-bar i { height: 100%; display: block; background: var(--mint); }
 
-    .ai-layout { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(360px, .8fr); gap: 20px; }
+    .source-ledger { border-top: 1px solid var(--line); }
+    .source-row { display: grid; grid-template-columns: 150px minmax(0, 1fr) auto; gap: 12px; align-items: start; padding: 11px 8px; border-bottom: 1px solid var(--line); }
+    .source-row > strong { color: var(--text); font-size: 12px; }
+    .source-row p { margin: 0; color: var(--body); font-size: 12px; line-height: 1.55; }
+    .source-row small { display: block; margin-top: 3px; color: var(--muted); font-size: 12px; }
+    .source-meta { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 5px; }
+    .source-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+
+    .perk-toolbar { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+    .perk-toolbar button, .secondary-button, .primary-button { min-height: 38px; padding: 0 11px; border-radius: 5px; }
+    .perk-toolbar button, .secondary-button { border: 1px solid var(--line-strong); color: var(--body); background: var(--surface); }
+    .perk-toolbar button:hover, .secondary-button:hover { color: var(--text); border-color: #6d8799; }
+    .perk-toolbar button[aria-pressed="true"] { color: var(--text); border-color: #4f7d99; background: #1d3545; }
+    .perk-legend { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-bottom: 10px; padding: 9px 11px; border: 1px solid var(--line); background: #0d161e; }
+    .perk-legend span { display: inline-flex; align-items: center; gap: 7px; color: var(--body); font-size: 12px; }
+    .perk-legend i { width: 18px; height: 12px; border: 2px solid var(--line-strong); border-radius: 3px; background: var(--surface); }
+    .perk-legend .active i { border-color: #77d8ad; background: #174331; }
+    .perk-legend .owned i { border-color: #63a8d2; background: #173349; }
+    .perk-legend .recommended i { border-color: var(--amber); background: var(--amber-bg); }
+    .primary-button { border: 1px solid #4e8b70; color: #eafff5; background: #1d6047; }
+
+    .perk-grid { display: grid; grid-template-columns: minmax(170px, .72fr) repeat(4, minmax(0, 1fr)); gap: 10px; align-items: start; }
+    .perk-column { min-width: 0; padding: 9px; border: 1px solid var(--line); border-radius: var(--radius); background: #131d26; }
+    .perk-column h4 { margin: 0 0 8px; color: var(--muted); font-size: 12px; }
+    .perk-list { display: grid; gap: 7px; }
+    .perk-group-label { display: flex; justify-content: space-between; gap: 8px; margin-top: 5px; padding: 5px 6px; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 11px; font-weight: 600; }
+    .perk-group-label:first-child { margin-top: 0; }
+    .perk-owned-zone { display: grid; gap: 7px; margin-bottom: 10px; padding: 7px; border: 2px solid #5799c0; border-radius: 5px; background: #102737; }
+    .perk-owned-zone .perk-group-label { margin: -7px -7px 0; padding: 7px 8px; border: 0; color: #e1f4ff; background: #24536f; font-size: 12px; }
+    .perk-other-zone { display: grid; gap: 7px; padding-top: 2px; }
+    .perk-other-zone .perk-group-label { margin-top: 0; }
+    .perk { min-width: 0; display: grid; grid-template-columns: 38px minmax(0, 1fr); gap: 8px; padding: 8px; border: 1px solid #354857; border-radius: 5px; background: var(--surface); }
+    .perk.is-owned { border: 2px solid #5799c0; background: #173247; }
+    .perk.is-active { border: 2px solid #72d8ab; background: #174331; box-shadow: inset 4px 0 0 #a5f0cf; }
+    .perk.is-recommended:not(.is-active) { box-shadow: inset 3px 0 0 var(--amber); }
+    .perk.is-external:not(.is-active) { box-shadow: inset 3px 0 0 var(--violet); }
+    .perk-state { grid-column: 1 / -1; margin: -8px -8px 0; padding: 5px 8px; color: #d9f1ff; background: #24536f; font-size: 11px; font-weight: 700; }
+    .perk.is-active .perk-state { color: #edfff6; background: #26714f; }
+    .perk img { width: 38px; height: 38px; border-radius: 5px; background: #283744; }
+    .perk strong { display: block; color: var(--text); font-size: 12px; line-height: 1.3; }
+    .perk p { margin: 3px 0 0; color: var(--muted); font-size: 12px; line-height: 1.35; }
+    .perk-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+    .perk-tags span { padding: 3px 6px; border: 1px solid var(--line); border-radius: 3px; color: var(--muted); background: #111923; font-size: 11px; font-weight: 600; }
+    .perk-tags .active { color: #dfffee; border-color: #72d8ab; background: #1c5b42; }
+    .perk-tags .owned { color: #d9f1ff; border-color: #5799c0; background: #204661; }
+    .perk-tags .recommended { color: #ffecbb; border-color: var(--amber); background: #51401e; }
+    .perk-tags .personal { color: #eee8ff; border-color: var(--violet); background: #3a335b; }
+
+    .knowledge-layout { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(360px, .65fr); gap: 22px; }
+    .recommendation-list { display: grid; gap: 10px; }
+    .recommendation { display: grid; grid-template-columns: 160px minmax(0, 1fr) auto; gap: 14px; align-items: center; padding: 12px; border: 1px solid var(--line); border-radius: var(--radius); background: #141e27; }
+    .recommendation h4 { margin: 0 0 4px; color: var(--text); font-size: 14px; }
+    .recommendation p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+    .combo { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+    .combo strong { padding: 6px 8px; border: 1px solid var(--line-strong); border-radius: 4px; color: var(--text); background: var(--surface); font-size: 12px; }
+    .match { min-width: 92px; color: var(--mint); font-size: 12px; text-align: right; }
+
+    .knowledge-stack { border-top: 1px solid var(--line); }
+    .knowledge-source { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 9px; padding: 10px 5px; border-bottom: 1px solid var(--line); }
+    .knowledge-source strong { color: var(--text); font-size: 12px; }
+    .knowledge-source p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.45; }
+    .knowledge-source.is-active { background: #14251f; }
+    .knowledge-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+
+    .upgrade-table { width: 100%; border-collapse: collapse; }
+    .upgrade-table th, .upgrade-table td { padding: 10px; border-bottom: 1px solid var(--line); text-align: left; font-size: 12px; }
+    .upgrade-table th { color: var(--muted); font-weight: 500; }
+    .upgrade-table td { color: var(--body); }
+    .upgrade-table strong { color: var(--text); }
+
+    .instances-table { width: 100%; border-collapse: collapse; }
+    .instances-table th, .instances-table td { padding: 10px 8px; border-bottom: 1px solid var(--line); text-align: left; font-size: 12px; }
+    .instances-table th { color: var(--muted); font-weight: 500; }
+    .instances-table tbody tr { cursor: pointer; }
+    .instances-table tbody tr:hover { background: #17232d; }
+    .instances-table tbody tr.is-selected { background: #173128; box-shadow: inset 3px 0 0 var(--mint); }
+    .instances-table td strong { color: var(--text); }
+
+    .ai-layout { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(380px, .75fr); gap: 22px; }
     .ai-analysis { display: grid; gap: 12px; }
-    .ai-label { display: inline-flex; width: fit-content; min-height: 22px; align-items: center; padding: 0 7px; border: 1px solid #5665a1; border-radius: 5px; color: #bfc8ff; background: #202640; font-size: 10px; }
-    .ai-analysis h4 { margin: 0; color: var(--text); font-size: 16px; }
-    .ai-analysis p { max-width: 760px; margin: 0; color: var(--body); font-size: 12px; line-height: 1.65; }
-    .ai-evidence { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
-    .ai-evidence div { display: grid; gap: 4px; padding: 10px; border-top: 1px solid var(--line); }
-    .ai-evidence small { color: var(--muted); font-size: 9px; }
-    .ai-evidence strong { color: var(--text); font-size: 11px; }
-    .ai-tools { display: grid; gap: 10px; align-content: start; padding: 14px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
-    .ai-tools label { color: var(--text); font-size: 11px; font-weight: 600; }
-    .ai-tools input { width: 100%; min-height: 42px; padding: 0 10px; border: 1px solid var(--line-2); border-radius: 5px; color: var(--text); background: #111821; }
-    .ai-action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
-    .ai-action-grid button { min-height: 38px; border: 1px solid var(--line); border-radius: 5px; color: var(--body); background: var(--surface-2); }
-    .ai-action-grid button:hover { color: var(--text); border-color: #60758b; }
-    .ai-disclaimer { color: var(--muted); font-size: 9px; line-height: 1.4; }
+    .ai-analysis h4 { margin: 0; color: var(--text); font-size: 17px; }
+    .ai-analysis p { max-width: 840px; margin: 0; color: var(--body); font-size: 13px; line-height: 1.65; }
+    .evidence-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+    .evidence-grid div { padding: 10px; border-top: 1px solid var(--line); }
+    .evidence-grid small { display: block; margin-bottom: 4px; color: var(--muted); font-size: 12px; }
+    .evidence-grid strong { color: var(--text); font-size: 12px; }
+    .ai-tools { display: grid; gap: 10px; align-content: start; padding: 13px; border: 1px solid var(--line); border-radius: var(--radius); background: #141e27; }
+    .ai-tools label { color: var(--text); font-size: 12px; font-weight: 600; }
+    .ai-tools textarea { width: 100%; min-height: 88px; resize: vertical; padding: 9px 10px; border: 1px solid var(--line-strong); border-radius: 5px; color: var(--text); background: #0d151d; line-height: 1.5; }
+    .ai-tools small { color: var(--muted); font-size: 12px; line-height: 1.45; }
 
-    .armor-core-grid { display: grid; grid-template-columns: minmax(360px, .9fr) minmax(0, 1.3fr); gap: 20px; }
-    .intrinsic-block { display: grid; grid-template-columns: 58px minmax(0, 1fr); gap: 13px; align-items: start; }
-    .intrinsic-icon { width: 58px; height: 58px; display: grid; place-items: center; border-radius: 6px; color: var(--gold); background: #353122; font-weight: 700; }
-    .intrinsic-block h4 { margin: 0; color: var(--text); font-size: 17px; }
-    .intrinsic-block p { margin: 7px 0 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
-    .target-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
-    .target-card { display: grid; gap: 8px; padding: 12px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
-    .target-card h4 { margin: 0; color: var(--text); font-size: 13px; }
-    .target-card p { margin: 0; color: var(--muted); font-size: 10px; line-height: 1.45; }
+    .data-note { margin-top: 14px; padding: 9px 11px; border-left: 3px solid var(--blue); color: var(--muted); background: #101c25; font-size: 12px; line-height: 1.5; }
+    .status-message { min-height: 20px; color: var(--mint); font-size: 12px; }
+    .table-scroll { width: 100%; min-width: 0; max-width: 100%; overflow-x: auto; }
 
-    @media (max-width: 1200px) {
-      .identity-band { grid-template-columns: 72px minmax(0, 1fr); }
-      .commerce-context { grid-column: 1 / -1; justify-content: start; }
-      .overview-grid, .upgrade-grid, .ai-layout, .armor-core-grid { grid-template-columns: 1fr; }
-      .weapon-focus-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-      .weapon-focus-strip > div:nth-child(2) { border-right: 0; }
-      .weapon-focus-strip > div:nth-child(-n + 2) { border-bottom: 1px solid var(--line); }
-      .recommendation-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-      .perk-columns { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-      .choice-grid, .choice-grid.mods { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    dialog { width: min(560px, calc(100vw - 28px)); padding: 0; border: 1px solid var(--line-strong); border-radius: 8px; color: var(--body); background: #111923; box-shadow: 0 24px 80px rgb(0 0 0 / 62%); }
+    dialog::backdrop { background: rgb(0 0 0 / 68%); }
+    .confirm-head, .confirm-body, .confirm-actions { padding: 14px 16px; }
+    .confirm-head { border-bottom: 1px solid var(--line); }
+    .confirm-head h3 { margin: 0; color: var(--text); font-size: 17px; }
+    .confirm-body { display: grid; gap: 10px; }
+    .confirm-body p { margin: 0; font-size: 13px; line-height: 1.55; }
+    .confirm-actions { display: flex; justify-content: flex-end; gap: 8px; border-top: 1px solid var(--line); }
+
+    @media (max-width: 1180px) {
+      .identity { grid-template-columns: 76px minmax(0, 1fr); }
+      .identity img { width: 76px; height: 76px; }
+      .context-ledger { grid-column: 1 / -1; }
+      .overview-grid, .knowledge-layout, .ai-layout { grid-template-columns: 1fr; }
+      .perk-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .current-roll-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 760px) {
+      body { overflow: auto; }
+      .prototype-bar { position: static; left: auto; width: auto; margin: 8px; transform: none; align-items: stretch; flex-direction: column; }
+      .prototype-controls { justify-content: flex-start; }
+      .stage { min-height: 0; padding: 0 8px 8px; }
+      .dossier { width: 100%; height: auto; min-height: 0; }
+      .dossier-scroll { overflow: visible; }
+      .identity { grid-template-columns: 64px minmax(0, 1fr); padding: 14px 12px; }
+      .identity img { width: 64px; height: 64px; }
+      .identity-copy h2 { font-size: 22px; }
+      .context-ledger { grid-template-columns: 1fr; }
+      .context-ledger dt { padding-bottom: 0; border-bottom: 0; }
+      .version-row { grid-template-columns: 1fr; padding: 8px 12px; }
+      .section-nav { padding-inline: 10px; }
+      .dossier-section { padding-inline: 12px; }
+      .section-heading { align-items: start; flex-direction: column; }
+      .section-heading p { text-align: left; }
+      .overview-grid { grid-template-columns: 1fr; }
+      .source-row { grid-template-columns: 1fr; }
+      .source-meta { justify-content: flex-start; }
+      .perk-grid { grid-template-columns: 1fr; }
+      .recommendation { grid-template-columns: 1fr; }
+      .match { text-align: left; }
+      .evidence-grid { grid-template-columns: 1fr; }
+      .table-scroll { overflow-x: auto; }
+      .stat-table, .instances-table, .upgrade-table { min-width: 680px; }
+    }
+    @media (max-width: 520px) {
+      .prototype-controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .prototype-controls button { width: 100%; padding-inline: 8px; }
+      .dossier-toolbar p { max-width: 250px; }
+      .identity { grid-template-columns: 56px minmax(0, 1fr); gap: 10px; }
+      .identity img { width: 56px; height: 56px; }
+      .identity-meta { gap: 4px; }
+      .section-nav { flex-wrap: wrap; overflow-x: visible; }
+      .section-nav button { min-height: 36px; padding-inline: 9px; }
+      .stat-table { min-width: 0; }
+      .stat-table th:last-child, .stat-table td:last-child { display: none; }
+      .stat-table th, .stat-table td { padding-inline: 4px; }
+      .current-roll-head { align-items: start; flex-direction: column; }
+      .current-roll-grid { grid-template-columns: 1fr; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      * { transition: none !important; }
     }
   </style>
 </head>
 <body>
-  <!-- d2-reference-only:start equipment-dossier-future-layout -->
+  <!-- d2-reference-only:start unified-equipment-detail -->
   <main data-reference-only="true">
-    <nav class="prototype-controls" aria-label="装备类型">
-      <button type="button" data-item-button="weapon" aria-pressed="true">武器档案</button>
-      <button type="button" data-item-button="armor" aria-pressed="false">护甲档案</button>
-    </nav>
+    <header class="prototype-bar">
+      <div class="prototype-label">
+        <strong>入口场景</strong>
+        <span>同一装备档案，不同默认查看对象</span>
+      </div>
+      <div class="prototype-controls" role="group" aria-label="切换装备详情入口">
+        <button type="button" data-mode="library" aria-pressed="true">资料库装备</button>
+        <button type="button" data-mode="vendor" aria-pressed="false">商人售卖品</button>
+        <button type="button" data-mode="vault-a" aria-pressed="false">仓库实例 A</button>
+        <button type="button" data-mode="vault-b" aria-pressed="false">仓库实例 B</button>
+        <button type="button" data-open hidden>打开档案</button>
+      </div>
+    </header>
+
     <div class="stage">
-      <article class="dossier">
-        <header class="dossier-toolbar"><div><h1>装备档案</h1><p>定义、实时数据、账号实例、社区证据与 AI 分析。</p></div><button type="button" class="close">关闭</button></header>
-        <div class="dossier-scroll" data-dossier-scroll></div>
+      <article class="dossier" data-dossier>
+        <header class="dossier-toolbar">
+          <div><h1>装备档案</h1><p>定义、官方来源、Offer、账号实例与知识分析共用同一事实模型</p></div>
+          <button type="button" class="icon-button" data-close aria-label="关闭装备档案">×</button>
+        </header>
+        <div class="dossier-scroll" data-scroll>
+          <section class="identity">
+            <img src="https://www.bungie.net/common/destiny2_content/icons/b493fc12f672531508a226b7321cba59.jpg" alt="海盗之怒武器图标" width="88" height="88">
+            <div class="identity-copy">
+              <span class="badge mint">Manifest 实际定义</span>
+              <h2>海盗之怒</h2>
+              <p>传说 · 线性融合步枪 · 威能武器 · 精密框架</p>
+              <div class="identity-meta">
+                <span class="badge">Hash 2714022207</span>
+                <span class="badge">重型弹药</span>
+                <span class="badge">电弧伤害</span>
+                <span class="badge blue">知识按当前版本验证</span>
+              </div>
+            </div>
+            <dl class="context-ledger" data-context-ledger></dl>
+          </section>
+
+          <section class="version-row">
+            <div class="version-cell"><strong>当前版本</strong><span>当前详情 Hash 决定全部后续数据</span></div>
+            <div class="version-cell current"><strong>2714022207 · 已选择</strong><span>Manifest 版本 244213.26.06.29.2000-1-bnet.65583</span></div>
+            <div class="version-cell"><strong>同名版本规则</strong><span>不同 Hash 不混合实例和 Perk 池</span></div>
+          </section>
+
+          <section class="current-roll-panel" data-current-roll-panel hidden>
+            <div class="current-roll-head">
+              <div><span class="eyebrow">OWNED SOCKET POOL</span><h3 data-current-roll-title>当前对象的小范围 Perk 池</h3></div>
+              <p data-current-roll-note></p>
+            </div>
+            <div class="current-roll-summary" data-current-roll-summary></div>
+            <div class="current-roll-grid" data-current-roll-grid></div>
+          </section>
+
+          <nav class="section-nav" aria-label="装备详情章节">
+            <button type="button" class="is-active" data-target="overview">属性与获取</button>
+            <button type="button" data-target="perks">完整 Perk 池</button>
+            <button type="button" data-target="knowledge">组合推荐</button>
+            <button type="button" data-target="upgrades">大师杰作与模组</button>
+            <button type="button" data-target="instances">我的同名装备</button>
+            <button type="button" data-target="ai">AI 分析</button>
+          </nav>
+
+          <section class="dossier-section" data-section="overview">
+            <div class="section-heading">
+              <div><span class="eyebrow">EQUIPMENT DATA</span><h3>属性与获取详情</h3></div>
+              <p>基础值来自当前 Manifest。商人售卖值和账号实例值只在能够追溯实际修正时计算。</p>
+            </div>
+            <div class="overview-grid">
+              <div class="table-scroll"><table class="stat-table" data-stats></table></div>
+              <div>
+                <div class="source-ledger" data-sources></div>
+                <div class="data-note" data-source-note></div>
+              </div>
+            </div>
+          </section>
+
+          <section class="dossier-section" data-section="perks">
+            <div class="section-heading">
+              <div><span class="eyebrow">MANIFEST POOL</span><h3>完整 Perk 池</h3></div>
+              <p>全部候选来自当前 Manifest；商人 Offer、账号实例和推荐知识只在同一份 Perk 上添加事实标记。</p>
+            </div>
+            <div class="perk-legend" data-perk-legend></div>
+            <div class="perk-toolbar" role="group" aria-label="Perk 池标记过滤">
+              <button type="button" data-perk-filter="all" aria-pressed="true">全部候选</button>
+              <button type="button" data-perk-filter="current" aria-pressed="false" data-current-filter>只看当前对象</button>
+              <button type="button" data-perk-filter="recommended" aria-pressed="false">当前推荐</button>
+            </div>
+            <div class="perk-grid" data-perk-grid></div>
+          </section>
+
+          <section class="dossier-section" data-section="knowledge">
+            <div class="section-heading">
+              <div><span class="eyebrow">KNOWLEDGE PRIORITY</span><h3>组合推荐</h3></div>
+              <p>用户确认保存的个人知识优先，其次内置知识库；AI 外部查询只补充缺失字段。</p>
+            </div>
+            <div class="knowledge-layout">
+              <div class="recommendation-list" data-recommendations></div>
+              <aside>
+                <div class="knowledge-stack" data-knowledge-sources></div>
+                <div class="knowledge-actions">
+                  <button type="button" class="secondary-button" data-query-external>模拟查询外部知识</button>
+                  <button type="button" class="secondary-button" data-save-external disabled>保存为个人知识</button>
+                  <button type="button" class="secondary-button" data-clear-user disabled>删除个人知识</button>
+                </div>
+                <p class="status-message" data-knowledge-status aria-live="polite"></p>
+              </aside>
+            </div>
+          </section>
+
+          <section class="dossier-section" data-section="upgrades">
+            <div class="section-heading">
+              <div><span class="eyebrow">MASTERWORK & MOD</span><h3>大师杰作与武器模组</h3></div>
+              <p>资料库装备只显示推荐；商人售卖品和账号实例显示实际内容，并与当前知识推荐比较。</p>
+            </div>
+            <div class="table-scroll"><table class="upgrade-table" data-upgrades></table></div>
+          </section>
+
+          <section class="dossier-section" data-section="instances">
+            <div class="section-heading">
+              <div><span class="eyebrow">ACCOUNT ITEMS</span><h3>我的同名装备</h3></div>
+              <p>只统计当前 Hash 的真实实例。下列实例为交互样本，不是从本机账号导出的真实 Roll。</p>
+            </div>
+            <div class="table-scroll"><table class="instances-table" data-instances></table></div>
+            <div class="data-note">已验证真实账号摘要：该装备曾在仓库中命中 1 件。本原型额外提供两个匿名样本，用于验证实例切换、差值和知识匹配。</div>
+          </section>
+
+          <section class="dossier-section" data-section="ai">
+            <div class="section-heading">
+              <div><span class="eyebrow">AI ASSISTED</span><h3>AI 知识分析</h3></div>
+              <p>分析对象随当前入口变化；外部知识不能修改 Bungie 官方来源，未确认前也不能写入个人知识库。</p>
+            </div>
+            <div class="ai-layout">
+              <div class="ai-analysis" data-ai-analysis></div>
+              <aside class="ai-tools">
+                <label for="ai-question">询问当前对象</label>
+                <textarea id="ai-question">这把武器当前值得购买或保留吗？</textarea>
+                <button type="button" class="primary-button" data-run-ai>结合当前知识分析</button>
+                <small>原型只演示知识优先级和证据组合，不发送网络请求。</small>
+                <p class="status-message" data-ai-status aria-live="polite"></p>
+              </aside>
+            </div>
+          </section>
+        </div>
       </article>
     </div>
+
+    <dialog data-confirm>
+      <div class="confirm-head"><h3>保存到个人知识库</h3></div>
+      <div class="confirm-body">
+        <p>将外部查询样本保存为“海盗之怒 · PvE”个人知识。</p>
+        <p><strong>推荐 Roll：</strong>稳若磐石 + 不屈<br><strong>大师杰作：</strong>稳定性<br><strong>模组：</strong>备用弹匣</p>
+        <p>保存后优先级高于内置知识库。原始外部出处和查询时间会继续保留。</p>
+      </div>
+      <div class="confirm-actions">
+        <button type="button" class="secondary-button" data-cancel-save>取消</button>
+        <button type="button" class="primary-button" data-confirm-save>确认保存</button>
+      </div>
+    </dialog>
   </main>
-  <!-- d2-reference-only:end equipment-dossier-future-layout -->
-
-  <template id="weapon-template">
-    <section class="identity-band"><img src="https://www.bungie.net/common/destiny2_content/icons/b493fc12f672531508a226b7321cba59.jpg" alt="海盗之怒"><div><span class="badge ready">来源可确认</span><h2>海盗之怒</h2><p>传说 / 线性融合步枪 / 威能武器 / 精密框架</p><div class="badge-row"><span class="badge">Hash 2714022207</span><span class="badge">当前可获取</span><span class="badge">仓库 1 件</span></div></div><div class="commerce-context"><span>商人 <strong>仄 → 奇异装备优惠</strong></span><span>价格 <strong>17 奇异硬币</strong></span><span>刷新 <strong>本周五 17:00</strong></span><span>当前售卖 Roll <strong>脉搏监控 / 不屈</strong></span></div></section>
-    <section class="version-strip"><div class="version-label"><strong>版本</strong><span>同名装备版本记录</span></div><div class="version-entry is-current"><strong>#1 · 当前</strong><span>赛季 8 第 28 赛季 · 动能纪念碑</span></div><div class="version-entry"><strong>#2</strong><span>赛季 8 第 28 赛季 · 动能纪念碑</span></div><div class="version-entry"><strong>#3</strong><span>年 2 第 5 赛季 · 锻炉赛季</span></div></section>
-    <nav class="section-nav"><button type="button" data-section-target="overview" class="is-active">属性与获取</button><button type="button" data-section-target="pool">Perk 池</button><button type="button" data-section-target="recommendations">组合推荐</button><button type="button" data-section-target="upgrades">强化选项</button><button type="button" data-section-target="ai">AI 分析</button></nav>
-    <section class="dossier-section" data-section="overview"><div class="section-heading"><div><span class="section-kicker">EQUIPMENT DATA</span><h3>属性与获取详情</h3></div><p>定义数值来自 Manifest；获取与拥有状态来自当前 Live 数据和账号实例。</p></div><div class="overview-grid"><div class="stats-panel">__WEAPON_STATS__</div><div class="facts-ledger">__WEAPON_FACTS__</div></div></section>
-    <section class="dossier-section" data-section="pool"><div class="section-heading"><div><span class="section-kicker">PRIMARY WORKSPACE</span><h3>完整 Perk 池</h3></div><p>属性与获取详情之后紧接核心 Perk 数据；大师杰作、模组、记录器和外观保持独立。</p></div><div class="weapon-focus-strip"><div class="highlight"><small>当前售卖 Roll</small><strong>脉搏监控 + 不屈</strong><span>已在下方池中标记，可直接对照全部候选。</span></div><div><small>推荐优先级</small><strong>持续输出 · 13.2%</strong><span>社区样本与当前售卖同时命中。</span></div><div><small>获取入口</small><strong>仄 · 奇异装备优惠</strong><span>17 奇异硬币，本周五刷新。</span></div><div><small>账号对比</small><strong>仓库已有 1 件</strong><span>可展开实例 Roll 并排比较。</span></div></div><div class="perk-columns">__WEAPON_PERKS__</div></section>
-    <section class="dossier-section" data-section="recommendations"><div class="section-heading"><div><span class="section-kicker">DECISION</span><h3>Perk 组合推荐</h3></div><p>组合推荐是 Perk 池之后的决策层，同时标明模式、证据来源、社区采用率和账号命中。</p></div><div class="recommendation-grid">__WEAPON_RECOMMENDATIONS__</div></section>
-    <section class="dossier-section" data-section="upgrades"><div class="section-heading"><div><span class="section-kicker">ENHANCEMENT</span><h3>大师杰作与武器模组</h3></div><p>强化建议独立于 Perk 池，后续可以接入拥有状态、活动限制和材料成本。</p></div><div class="upgrade-grid"><div><h4>大师杰作候选</h4><div class="choice-grid">__MASTERWORKS__</div></div><div><h4>武器模组候选</h4><div class="choice-grid mods">__WEAPON_MODS__</div></div></div></section>
-    <section class="dossier-section" data-section="ai"><div class="section-heading"><div><span class="section-kicker">AI ASSISTED</span><h3>AI 装备分析</h3></div><p>AI 只基于当前页面可追溯证据生成分析，结论与原始数据分开呈现。</p></div><div class="ai-layout">__WEAPON_AI__</div></section>
-  </template>
-
-  <template id="armor-template">
-    <section class="identity-band"><img src="https://www.bungie.net/common/destiny2_content/icons/220fda89a88058f84725ff1df39a9f5e.jpg" alt="炎阳护腕"><div><span class="badge ready">来源可确认</span><h2>炎阳护腕</h2><p>异域 / 臂铠 / 术士 / 护甲</p><div class="badge-row"><span class="badge">Hash 950745251</span><span class="badge">当前可获取</span><span class="badge">已拥有 2 件</span></div></div><div class="commerce-context"><span>商人 <strong>仄 → 奇异装备优惠</strong></span><span>价格 <strong>23 奇异硬币</strong></span><span>当前售卖属性 <strong>总计 69</strong></span><span>账号位置 <strong>仓库 / 术士背包</strong></span></div></section>
-    <section class="version-strip"><div class="version-label"><strong>护甲状态</strong><span>定义与当前售卖实例</span></div><div class="version-entry is-current"><strong>当前售卖</strong><span>恢复 17 · 纪律 18 · 总计 69</span></div><div class="version-entry"><strong>仓库实例</strong><span>总计 66 · 当前未展开</span></div><div class="version-entry"><strong>术士背包</strong><span>总计 64 · 当前未展开</span></div></section>
-    <nav class="section-nav"><button type="button" data-section-target="overview" class="is-active">概览</button><button type="button" data-section-target="recommendations">构筑方向</button><button type="button" data-section-target="pool">固有特性</button><button type="button" data-section-target="upgrades">模组建议</button><button type="button" data-section-target="ai">AI 分析</button></nav>
-    <section class="dossier-section" data-section="overview"><div class="section-heading"><div><span class="section-kicker">OVERVIEW</span><h3>属性与获取概览</h3></div><p>当前售卖属性与账号实例分开显示，避免把定义数据当成实际护甲 Roll。</p></div><div class="overview-grid"><div class="stats-panel">__ARMOR_STATS__</div><div class="facts-ledger">__ARMOR_FACTS__</div></div></section>
-    <section class="dossier-section" data-section="recommendations"><div class="section-heading"><div><span class="section-kicker">BUILD DIRECTION</span><h3>属性目标与构筑方向</h3></div><p>根据职业、异域固有特性和账号现有护甲给出目标分布，不直接替代配装计算。</p></div><div class="target-grid">__ARMOR_TARGETS__</div></section>
-    <section class="dossier-section" data-section="pool"><div class="section-heading"><div><span class="section-kicker">INTRINSIC</span><h3>固有特性与协同</h3></div><p>护甲没有武器 Perk 池，这里展示异域固有能力、触发条件和构筑协同。</p></div><div class="armor-core-grid">__ARMOR_CORE__</div></section>
-    <section class="dossier-section" data-section="upgrades"><div class="section-heading"><div><span class="section-kicker">ARMOR MODS</span><h3>护甲模组建议</h3></div><p>模组建议按构筑目标组织，后续可以接入能量费用、槽位和账号解锁状态。</p></div><div class="choice-grid mods">__ARMOR_MODS__</div></section>
-    <section class="dossier-section" data-section="ai"><div class="section-heading"><div><span class="section-kicker">AI ASSISTED</span><h3>AI 护甲分析</h3></div><p>AI 结合固有特性、当前 Roll、账号实例和配装目标提供解释与下一步建议。</p></div><div class="ai-layout">__ARMOR_AI__</div></section>
-  </template>
+  <!-- d2-reference-only:end unified-equipment-detail -->
 
   <script>
-    const weaponStats = `<div class="stat-list"><div class="stat"><span>伤害</span><b>41</b><i style="width:41%"></i></div><div class="stat"><span>射程</span><b>34</b><i style="width:34%"></i></div><div class="stat"><span>充能时间</span><b>533</b><i style="width:100%"></i></div><div class="stat"><span>稳定性</span><b>38</b><i style="width:38%"></i></div><div class="stat"><span>弹匣</span><b>5</b><i style="width:8%"></i></div><div class="stat"><span>弹药生成</span><b>26</b><i style="width:26%"></i></div><div class="stat"><span>操控性</span><b>24</b><i style="width:24%"></i></div><div class="stat"><span>填装速度</span><b>22</b><i style="width:22%"></i></div><div class="stat"><span>辅助瞄准</span><b>61</b><i style="width:61%"></i></div><div class="stat"><span>后坐方向</span><b>74</b><i style="width:74%"></i></div></div>`;
-    const armorStats = `<div class="stat-list"><div class="stat"><span>机动</span><b>8</b><i style="width:27%"></i></div><div class="stat"><span>韧性</span><b>12</b><i style="width:40%"></i></div><div class="stat"><span>恢复</span><b>17</b><i style="width:57%"></i></div><div class="stat"><span>纪律</span><b>18</b><i style="width:60%"></i></div><div class="stat"><span>智慧</span><b>8</b><i style="width:27%"></i></div><div class="stat"><span>力量</span><b>6</b><i style="width:20%"></i></div><div class="stat"><span>属性总计</span><b>69</b><i style="width:86%"></i></div></div>`;
-    const weaponFacts = `<strong>获取状态</strong><span class="good">当前可获取</span><span>登录角色商人库存已命中</span><strong>账号拥有</strong><span>已拥有 1 件 · 仓库 1 件</span><button class="locate" type="button">在仓库定位</button><strong>实时入口</strong><span>当前商人售卖</span><span>仄 → 奇异装备优惠</span><strong>官方来源</strong><span>来源可确认</span><span>“猎杀暴怒之子”任务</span>`;
-    const armorFacts = `<strong>获取状态</strong><span class="good">当前可获取</span><span>登录角色商人库存已命中</span><strong>账号拥有</strong><span>已拥有 2 件</span><button class="locate" type="button">比较账号实例</button><strong>当前 Roll</strong><span>总计 69</span><span>恢复 17 · 纪律 18</span><strong>实时入口</strong><span>当前商人售卖</span><span>仄 → 奇异装备优惠</span>`;
-    const recommendation = (title, left, right, rate, body, evidence) => `<article class="recommendation-card"><header><h4>${title}</h4><span>${rate}</span></header><div class="perk-pair"><div class="perk-token"><i>技</i><strong>${left}</strong></div><span class="pair-plus">+</span><div class="perk-token"><i>伤</i><strong>${right}</strong></div></div><p>${body}</p><div class="evidence-row">${evidence.map((item) => `<span class="evidence">${item}</span>`).join("")}</div></article>`;
-    const weaponRecommendations = [recommendation("持续输出", "脉搏监控", "不屈", "13.2%", "受伤时自动装填，并通过快速击杀恢复生命，适合高压 PvE 场景。", ["社区样本", "当前售卖", "PvE"]), recommendation("稳定远射", "稳若磐石", "光速拔枪", "11.3%", "强化蹲伏射击稳定性，同时改善武器切换手感。", ["社区样本", "远距离"]), recommendation("机动追击", "杀人风", "移动目标", "6.2%", "击杀后获得机动增益，适合持续转点和追击。", ["PvP", "机动"]), recommendation("伤害循环", "心无旁骛", "杀戮弹匣", "5.7%", "先稳定命中，再通过击杀与装填进入伤害增益循环。", ["AI 解释", "伤害"] )].join("");
-    const perkColumn = (title, items) => `<section class="perk-column"><h4>${title}</h4>${items.map(([icon,name,desc]) => `<article class="perk"><span class="perk-icon">${icon}</span><div><strong>${name}</strong><p>${desc}</p></div></article>`).join("")}</section>`;
-    const weaponPerks = [perkColumn("框架 / 固有", [["框","精密框架","精准远程光束，后坐轨迹规则。"]]), perkColumn("枪管 / 瞄具", [["枪","加长枪管","提高射程，降低操控。"],["枪","箭头制退器","控制后坐方向。"],["枪","枪膛修正器","均衡稳定与操控。"],["枪","螺旋膛线","均衡提升多项属性。"]]), perkColumn("弹匣 / 电池", [["电","离子电池","提高弹匣容量。"],["电","加速线圈","缩短充能时间。"],["电","强化电池","增加弹匣容量。"],["电","液态线圈","提高伤害，延长充能。"]]), perkColumn("特性 1", [["技","心无旁骛","瞄准后减少抖动。"],["技","稳若磐石","蹲伏射击提高稳定性。"],["技","杀人风","击杀后提高机动性。"],["技","脉搏监控","受伤时自动装填。"]]), perkColumn("特性 2", [["伤","杀戮弹匣","装填后提高伤害。"],["伤","光速拔枪","提高拔出速度。"],["伤","不屈","快速击杀恢复生命。"],["伤","高强度弹药储备","弹匣较低时提高伤害。"]])].join("");
-    const choices = (items) => items.map(([icon,name,meta]) => `<article class="choice"><span class="choice-icon">${icon}</span><div><strong>${name}</strong><span>${meta}</span></div></article>`).join("");
-    const masterworks = choices([["杰","射程","社区采用率 26.6%"],["杰","稳定性","社区采用率 26.2%"],["杰","填装速度","社区采用率 23.7%"],["杰","操控性","社区采用率 23.3%"]]);
-    const weaponMods = choices([["模","备用弹匣","提高弹匣容量"],["模","快速切换枪带","改善武器切换"],["模","徒手握把","改善腰射操控"],["模","冲刺之握","冲刺后提高操控"],["模","瞄准协调器","提高目标获取"],["模","伊卡洛斯握把","提高空中效率"]]);
-    const armorMods = choices([["模","恢复模组","补齐恢复目标"],["模","纪律模组","强化手雷循环"],["模","火力无限","手雷击杀生成能量球"],["模","资产化灰烬","手雷击杀提供超能"],["模","神经刺激","近战伤害返还手雷能量"],["模","复原","拾取能量球恢复生命"]]);
-    const weaponAi = `<div class="ai-analysis"><span class="ai-label">AI 生成分析</span><h4>当前售卖 Roll 更偏向生存与持续输出</h4><p>脉搏监控可以在受伤时自动装填，不屈则通过快速击杀触发生命恢复。该组合不追求最高爆发，但在高压 PvE 环境中能降低换弹和生存压力。建议先与仓库中的同名实例比较，再决定是否购买。</p><div class="ai-evidence"><div><small>实时证据</small><strong>仄当前售卖</strong></div><div><small>账号证据</small><strong>仓库已有 1 件</strong></div><div><small>社区证据</small><strong>组合采用率 13.2%</strong></div></div></div><aside class="ai-tools"><label for="weapon-ai-question">询问这件武器</label><input id="weapon-ai-question" value="这把武器适合什么场景？" aria-label="询问这件武器"><div class="ai-action-grid"><button type="button">解释推荐组合</button><button type="button">比较仓库实例</button><button type="button">生成刷取目标</button><button type="button">生成配装草稿</button></div><span class="ai-disclaimer">AI 内容会标明依据，不替代游戏内实际数据和玩家判断。</span></aside>`;
-    const armorTargets = `<article class="target-card"><h4>手雷循环</h4><p>优先恢复与纪律，目标为恢复 100 / 纪律 100。</p><div class="evidence-row"><span class="evidence">固有特性</span><span class="evidence">PvE</span></div></article><article class="target-card"><h4>生存平衡</h4><p>恢复、韧性与纪律平衡，降低高难活动容错压力。</p><div class="evidence-row"><span class="evidence">高难 PvE</span><span class="evidence">账号护甲</span></div></article><article class="target-card"><h4>近战触发</h4><p>保留力量属性，通过近战击杀启动无限手雷窗口。</p><div class="evidence-row"><span class="evidence">能力循环</span><span class="evidence">AI 解释</span></div></article>`;
-    const armorCore = `<div class="intrinsic-block"><span class="intrinsic-icon">焰</span><div><h4>氦螺旋</h4><p>延长烈日手雷持续时间。近战击杀后会在短时间内提供无限烈日手雷能量。</p></div></div><div class="facts-ledger"><strong>触发条件</strong><span>近战击杀</span><span>启动短时间无限烈日手雷窗口</span><strong>主要协同</strong><span>恢复 / 纪律</span><span>提高技能循环稳定性与生存能力</span><strong>当前售卖</strong><span>总计 69</span><span>恢复 17 · 纪律 18 · 力量 6</span></div>`;
-    const armorAi = `<div class="ai-analysis"><span class="ai-label">AI 生成分析</span><h4>当前 Roll 适合作为手雷循环构筑的过渡件</h4><p>恢复 17 与纪律 18 符合炎阳护腕的核心方向，总计 69 也具备保留价值。力量只有 6，但可以通过模组、碎片或其他护甲补足近战触发需求。建议与仓库现有实例比较后再决定替换。</p><div class="ai-evidence"><div><small>固有特性</small><strong>近战触发无限手雷</strong></div><div><small>当前 Roll</small><strong>恢复 17 / 纪律 18</strong></div><div><small>账号证据</small><strong>已有 2 件实例</strong></div></div></div><aside class="ai-tools"><label for="armor-ai-question">询问这件护甲</label><input id="armor-ai-question" value="这个 Roll 值得保留吗？" aria-label="询问这件护甲"><div class="ai-action-grid"><button type="button">比较账号实例</button><button type="button">生成属性目标</button><button type="button">推荐护甲模组</button><button type="button">生成配装草稿</button></div><span class="ai-disclaimer">AI 内容会标明依据，不替代游戏内实际数据和玩家判断。</span></aside>`;
+    const iconRoot = "https://www.bungie.net";
+    const data = {
+      baseStats: [
+        ["伤害", 41], ["射程", 34], ["稳定性", 38], ["操控性", 24], ["填装速度", 22],
+        ["辅助瞄准", 61], ["后坐方向", 74], ["充能时间", 533], ["弹匣", 5], ["弹药生成", 26]
+      ],
+      columns: [
+        { title: "框架 / 固有", perks: [
+          ["精密框架", "发射精准的远程能量光束，垂直后坐轨迹更规则。", "e9dd736124e8ef94048901a279a5bb18.png"]
+        ]},
+        { title: "枪管", perks: [
+          ["箭头制退器", "增强后坐控制并提高操控。", "8f7fb54687aa52a9c2595d90ce9c9417.png"],
+          ["枪膛修正钮", "提高稳定性和后坐控制，略降操控。", "0b451cbccc7f11f6aec9c153e59474cb.png"],
+          ["螺旋膛线", "均衡提高射程、稳定性和操控。", "7730e1732ed7ef91afce50277639c493.png"],
+          ["加长枪管", "射程 +10，操控 -10，后坐方向 +10。", "d9e5e8fa07a84c29252b78b0e7b3106d.png"],
+          ["全口径枪膛", "大幅增加射程，降低稳定性和操控。", "40a4bdcf0f5a4e492927f9569eaf529d.png"],
+          ["小口径枪膛", "同时增加射程和稳定性。", "7d1bb6a623f14959a47156ee71acfc3a.png"]
+        ]},
+        { title: "电池", perks: [
+          ["加速线圈", "缩短充能时间，但降低命中伤害。", "a51d91da9fb0a4c8f45b2ffa89e51ad7.png"],
+          ["强化电池", "增加弹匣容量。", "0ee59b61e99c52c85c2ea18ab705f700.png"],
+          ["离子电池", "大幅增加弹匣，降低填装速度。", "a278b79aba1d341d2a070c0e48d9129a.png"],
+          ["液态线圈", "提高伤害，延长充能时间。", "01e813d983526b009b4e1c700a1d0081.png"],
+          ["离子中继器", "提高稳定性。", "8a273117023794757631a34803314351.png"],
+          ["弹头保险丝", "增加射程。", "eaa6fcec699a88e768782068d5e509e1.png"]
+        ]},
+        { title: "特性 1", perks: [
+          ["稳若磐石", "蹲伏时提高稳定性、精准度和操控。", "379796d2e74676d3790f0bd485ea03a9.png"],
+          ["杀人风", "击杀后提高机动性、射程和操控。", "db2aa71ff6d808929bb0e668dcf0822e.png"],
+          ["脉搏监控", "受伤时自动装填。", "64642b7455e88ffde77be53ce7cb7c05.png"],
+          ["移动目标", "瞄准移动时提高速度和目标获取。", "40b591eae7f122fdf1cfca21fc6f6c0f.png"],
+          ["心无旁骛", "短暂瞄准后减少抖动。", "3f6534e7fd934e0ecfeb1cac9da9c97f.png"],
+          ["不法之徒", "精准击杀大幅缩短填装时间。", "382df469a091c33e190ee583b64923e8.png"]
+        ]},
+        { title: "特性 2", perks: [
+          ["光速拔枪", "提高拔出速度。", "6893bb2c7ec7d13cb0d91ec9dd8b6500.png"],
+          ["不屈", "快速击杀恢复生命。", "1e5843177c71ae3f2a4770d01a2f3813.png"],
+          ["爆破专家", "击杀生成手雷能量，投掷手雷装填。", "da009697110e06b65d6f827b3b6d5f70.png"],
+          ["敲打", "连续命中提高稳定性。", "7f9dcf3bd4a8a4e0d2d0922827f038c9.png"],
+          ["杀戮弹匣", "击杀后装填提高伤害。", "0afd4799427004b2d8170ab213a2ef0c.png"],
+          ["高强度型弹药储备", "弹匣较低时提高伤害。", "33ed859a08f2ccf643a1ac3c7f201966.png"]
+        ]}
+      ],
+      contexts: {
+        library: {
+          type: "资料库装备", object: "装备定义", detail: "未选择商人 Offer 或账号实例",
+          sockets: [], stats: null, masterwork: null, mod: null, instance: null
+        },
+        vendor: {
+          type: "商人入口", object: "仄当前售卖品", detail: "已选择当前官方 Offer",
+          sockets: [
+            {title:"特性 1", options:["脉搏监控"], selected:"脉搏监控"},
+            {title:"特性 2", options:["不屈"], selected:"不屈"}
+          ], stats: null, masterwork: "接口样本未确认", mod: "接口样本未确认", instance: null
+        },
+        "vault-a": {
+          type: "仓库入口", object: "当前账号实例 A", detail: "仓库 · 已锁定 · 交互样本",
+          sockets: [
+            {title:"枪管", options:["加长枪管","螺旋膛线"], selected:"加长枪管"},
+            {title:"电池", options:["离子电池","加速线圈"], selected:"离子电池"},
+            {title:"特性 1", options:["心无旁骛","脉搏监控"], selected:"心无旁骛"},
+            {title:"特性 2", options:["杀戮弹匣","不屈"], selected:"杀戮弹匣"}
+          ],
+          stats: {"伤害":41,"射程":54,"稳定性":38,"操控性":14,"填装速度":12,"辅助瞄准":61,"后坐方向":84,"充能时间":533,"弹匣":6,"弹药生成":26},
+          masterwork: "射程 · 10 级", mod: "备用弹匣", instance: "A"
+        },
+        "vault-b": {
+          type: "仓库入口", object: "当前账号实例 B", detail: "猎人背包 · 未锁定 · 交互样本",
+          sockets: [
+            {title:"枪管", options:["箭头制退器","小口径枪膛"], selected:"箭头制退器"},
+            {title:"电池", options:["离子中继器","弹头保险丝"], selected:"离子中继器"},
+            {title:"特性 1", options:["稳若磐石","移动目标"], selected:"稳若磐石"},
+            {title:"特性 2", options:["光速拔枪","不屈"], selected:"光速拔枪"}
+          ],
+          stats: {"伤害":41,"射程":34,"稳定性":48,"操控性":34,"填装速度":22,"辅助瞄准":61,"后坐方向":100,"充能时间":533,"弹匣":5,"弹药生成":26},
+          masterwork: "稳定性 · 7 级", mod: "快速切换枪带", instance: "B"
+        }
+      },
+      instances: [
+        {id:"A", location:"仓库", power:"2000", locked:"已锁定", roll:"心无旁骛 / 杀戮弹匣", masterwork:"射程 10 级", tag:"保留"},
+        {id:"B", location:"猎人背包", power:"1995", locked:"未锁定", roll:"稳若磐石 / 光速拔枪", masterwork:"稳定性 7 级", tag:"关注"}
+      ]
+    };
 
-    function render(kind) {
-      const template = document.querySelector(`#${kind}-template`).innerHTML;
-      const content = kind === "armor"
-        ? template.replace("__ARMOR_STATS__", armorStats).replace("__ARMOR_FACTS__", armorFacts).replace("__ARMOR_TARGETS__", armorTargets).replace("__ARMOR_CORE__", armorCore).replace("__ARMOR_MODS__", armorMods).replace("__ARMOR_AI__", armorAi)
-        : template.replace("__WEAPON_STATS__", weaponStats).replace("__WEAPON_FACTS__", weaponFacts).replace("__WEAPON_RECOMMENDATIONS__", weaponRecommendations).replace("__WEAPON_PERKS__", weaponPerks).replace("__MASTERWORKS__", masterworks).replace("__WEAPON_MODS__", weaponMods).replace("__WEAPON_AI__", weaponAi);
-      const scroll = document.querySelector("[data-dossier-scroll]");
-      scroll.innerHTML = content;
-      scroll.scrollTop = 0;
+    const state = { mode: location.hash.slice(1) || "library", perkFilter: "all", external: false, userKnowledge: false };
+    if (!data.contexts[state.mode]) state.mode = "library";
+
+    const elements = {
+      dossier: document.querySelector("[data-dossier]"), scroll: document.querySelector("[data-scroll]"),
+      context: document.querySelector("[data-context-ledger]"), stats: document.querySelector("[data-stats]"),
+      sources: document.querySelector("[data-sources]"), sourceNote: document.querySelector("[data-source-note]"),
+      currentRollPanel: document.querySelector("[data-current-roll-panel]"), currentRollTitle: document.querySelector("[data-current-roll-title]"), currentRollNote: document.querySelector("[data-current-roll-note]"), currentRollSummary: document.querySelector("[data-current-roll-summary]"), currentRollGrid: document.querySelector("[data-current-roll-grid]"),
+      perkGrid: document.querySelector("[data-perk-grid]"), perkLegend: document.querySelector("[data-perk-legend]"), currentFilter: document.querySelector("[data-current-filter]"), recommendations: document.querySelector("[data-recommendations]"),
+      knowledgeSources: document.querySelector("[data-knowledge-sources]"), knowledgeStatus: document.querySelector("[data-knowledge-status]"),
+      upgrades: document.querySelector("[data-upgrades]"), instances: document.querySelector("[data-instances]"),
+      ai: document.querySelector("[data-ai-analysis]"), aiStatus: document.querySelector("[data-ai-status]"),
+      confirm: document.querySelector("[data-confirm]")
+    };
+
+    function activeKnowledge() {
+      if (state.userKnowledge) return {source:"个人知识", tone:"mint", roll:["稳若磐石","不屈"], masterwork:"稳定性", mod:"备用弹匣", reason:"用户确认保存的外部知识样本，优先级最高。"};
+      return {source:"内置知识库", tone:"amber", roll:["心无旁骛","杀戮弹匣"], masterwork:"射程", mod:"瞄准协调器", reason:"内置 PvE 知识样本：稳定命中后进入击杀增伤循环。"};
     }
 
-    const initialKind = window.location.hash === "#armor" ? "armor" : "weapon";
-    document.querySelectorAll("[data-item-button]").forEach((button) => button.setAttribute("aria-pressed", String(button.dataset.itemButton === initialKind)));
-    render(initialKind);
+    function render() {
+      const context = data.contexts[state.mode];
+      document.querySelectorAll("[data-mode]").forEach(button => button.setAttribute("aria-pressed", String(button.dataset.mode === state.mode)));
+      renderContext(context); renderCurrentRoll(context); renderStats(context); renderSources(context); renderPerks(context); renderKnowledge(context); renderUpgrades(context); renderInstances(context); renderAi(context);
+      document.querySelector("[data-save-external]").disabled = !state.external || state.userKnowledge;
+      document.querySelector("[data-clear-user]").disabled = !state.userKnowledge;
+    }
 
-    document.querySelectorAll("[data-item-button]").forEach((button) => button.addEventListener("click", () => {
-      document.querySelectorAll("[data-item-button]").forEach((item) => item.setAttribute("aria-pressed", String(item === button)));
-      window.history.replaceState({}, "", `#${button.dataset.itemButton}`);
-      render(button.dataset.itemButton);
+    function renderContext(context) {
+      const ownedCount = ownedNames(context).length;
+      const actual = state.mode === "vendor" ? `${context.sockets.length} 个已确认插槽` : ownedCount ? `${context.sockets.length} 个插槽 · ${ownedCount} 个可选 Perk` : "未选择实际装备";
+      elements.context.innerHTML = `<dt>当前入口</dt><dd>${context.type}</dd><dt>当前查看</dt><dd>${context.object}</dd><dt>对象说明</dt><dd>${context.detail}</dd><dt>实例 Perk</dt><dd>${actual}</dd>`;
+    }
+
+    function ownedNames(context) { return context.sockets.flatMap(socket => socket.options); }
+    function selectedNames(context) { return context.sockets.map(socket => socket.selected).filter(Boolean); }
+    function selectedTraitNames(context) { return context.sockets.filter(socket => socket.title.startsWith("特性")).map(socket => socket.selected).filter(Boolean); }
+    function findPerk(name) {
+      for (const column of data.columns) {
+        const found = column.perks.find(perk => perk[0] === name);
+        if (found) return found;
+      }
+      return [name, "当前 Manifest 未解析到说明。", ""];
+    }
+
+    function renderCurrentRoll(context) {
+      if (!context.sockets.length) { elements.currentRollPanel.hidden = true; return; }
+      elements.currentRollPanel.hidden = false;
+      const selectedCount = selectedNames(context).length;
+      const ownedCount = ownedNames(context).length;
+      elements.currentRollTitle.textContent = state.mode === "vendor" ? "当前商人 Offer 的已确认 Perk" : "本件装备实际拥有的 Perk";
+      elements.currentRollNote.textContent = state.mode === "vendor" ? "当前验收样本只确认两个特性列，其他插槽不做推测。" : "这不是完整 Manifest 池，而是该实例真正可以切换的小范围 Roll。";
+      elements.currentRollSummary.innerHTML = `<span><strong>${context.sockets.length}</strong> 个实际插槽</span><span><strong>${ownedCount}</strong> 个实例候选</span><span><strong>${selectedCount}</strong> 个当前启用</span>`;
+      elements.currentRollGrid.innerHTML = context.sockets.map(socket => `<section class="current-roll-slot"><h4>${socket.title}</h4><p>本实例拥有 ${socket.options.length} 个候选</p><div class="current-roll-options">${[...socket.options].sort(name => name === socket.selected ? -1 : 1).map(name => {
+        const perk = findPerk(name); const selected = name === socket.selected;
+        return `<div class="current-roll-option ${selected ? "is-selected" : ""}"><img src="${perk[2] ? `${iconRoot}/common/destiny2_content/icons/${perk[2]}` : ""}" alt="" width="30" height="30"><div class="option-copy"><strong>${name}</strong><span class="option-state">${selected ? "✓ 当前启用" : "本实例可切换"}</span></div></div>`;
+      }).join("")}</div></section>`).join("");
+    }
+
+    function renderStats(context) {
+      const showCurrent = state.mode !== "library";
+      elements.stats.innerHTML = `<thead><tr><th>属性</th><th>基础值</th><th>${showCurrent ? "当前值" : "定义值"}</th><th>变化</th><th>对比</th></tr></thead><tbody>${data.baseStats.map(([name, base]) => {
+        const current = context.stats?.[name];
+        const known = typeof current === "number";
+        const value = showCurrent ? (known ? current : "待确认") : base;
+        const delta = known ? current - base : 0;
+        const deltaText = showCurrent ? (known ? `${delta > 0 ? "+" : ""}${delta}` : "—") : "—";
+        const deltaClass = !known || delta === 0 ? "delta-neutral" : delta > 0 ? "delta-up" : "delta-down";
+        const barValue = known ? current : base;
+        const width = name === "充能时间" ? Math.min(100, Math.round(base / 6)) : Math.min(100, barValue);
+        return `<tr><td><strong>${name}</strong></td><td>${base}</td><td>${value}</td><td class="${deltaClass}">${deltaText}</td><td><span class="stat-bar"><i style="width:${width}%"></i></span></td></tr>`;
+      }).join("")}</tbody>`;
+    }
+
+    function renderSources(context) {
+      const rows = [];
+      rows.push(`<div class="source-row"><strong>当前商人售卖</strong><div><p>仄 → 奇异装备优惠</p><small>17 奇异硬币 · 当前售卖 Roll：脉搏监控 / 不屈</small><div class="source-actions"><button class="secondary-button" type="button" data-open-vendor>${state.mode === "vendor" ? "当前正在查看此 Offer" : "查看商人售卖详情"}</button></div></div><div class="source-meta"><span class="badge mint">现在可购买</span><span class="badge">周五 17:00 刷新</span></div></div>`);
+      rows.push(`<div class="source-row"><strong>官方来源提示</strong><div><p>来源：“猎杀暴怒之子”任务</p><small>DestinyCollectibleDefinition 3452922755 · Bungie Manifest 官方文字</small></div><div class="source-meta"><span class="badge blue">来源已知</span></div></div>`);
+      elements.sources.innerHTML = rows.join("");
+      elements.sourceNote.textContent = "来源结果：已知。仄的当前 Offer 证明现在可以购买；Manifest 任务提示作为另一条官方来源信息保留，但不单独证明该任务当前仍可进入。";
+    }
+
+    function perkFlags(name, context, recommendation) {
+      const flags = [];
+      const selected = selectedNames(context).includes(name);
+      const owned = ownedNames(context).includes(name);
+      if (selected) flags.push({label: state.mode === "vendor" ? "✓ Offer 当前启用" : "✓ 当前启用", tone:"active"});
+      else if (owned) flags.push({label: state.mode === "vendor" ? "Offer 可切换" : "实例可切换", tone:"owned"});
+      if (recommendation.roll.includes(name)) flags.push({label: recommendation.source, tone: recommendation.source === "个人知识" ? "personal" : "recommended"});
+      return flags;
+    }
+
+    function renderPerks(context) {
+      const recommendation = activeKnowledge();
+      const owned = ownedNames(context);
+      const selected = selectedNames(context);
+      elements.currentFilter.textContent = owned.length ? `只看当前对象（${owned.length}）` : "只看当前对象";
+      elements.perkLegend.innerHTML = owned.length
+        ? `<span class="active"><i></i>${state.mode === "vendor" ? "Offer 当前启用" : "实例当前启用"}（${selected.length}）</span><span class="owned"><i></i>${state.mode === "vendor" ? "Offer 可切换" : "实例可切换"}（${owned.length - selected.length}）</span><span class="recommended"><i></i>${recommendation.source}推荐</span>`
+        : `<span>当前未选择商人 Offer 或账号实例；这里只展示完整 Manifest 候选池和${recommendation.source}标记。</span>`;
+      elements.perkGrid.innerHTML = data.columns.map(column => {
+        const filtered = column.perks.filter(([name]) => {
+          if (state.perkFilter === "current") return ownedNames(context).includes(name);
+          if (state.perkFilter === "recommended") return recommendation.roll.includes(name);
+          return true;
+        });
+        const renderCard = ([name, desc, icon]) => {
+          const flags = perkFlags(name, context, recommendation);
+          const classes = ["perk", ownedNames(context).includes(name) ? "is-owned" : "", selectedNames(context).includes(name) ? "is-active" : "", recommendation.roll.includes(name) ? (recommendation.source === "个人知识" ? "is-external" : "is-recommended") : ""].filter(Boolean).join(" ");
+          const stateBanner = selectedNames(context).includes(name) ? "✓ 本实例当前启用" : ownedNames(context).includes(name) ? "本实例拥有，可切换" : "";
+          return `<article class="${classes}">${stateBanner ? `<div class="perk-state">${stateBanner}</div>` : ""}<img src="${iconRoot}/common/destiny2_content/icons/${icon}" alt="" width="38" height="38" loading="lazy"><div><strong>${name}</strong><p>${desc}</p>${flags.length ? `<div class="perk-tags">${flags.map(flag => `<span class="${flag.tone}">${flag.label}</span>`).join("")}</div>` : ""}</div></article>`;
+        };
+        const ownedItems = filtered.filter(([name]) => owned.includes(name));
+        const otherItems = filtered.filter(([name]) => !owned.includes(name));
+        let content = "";
+        if (ownedItems.length) content += `<div class="perk-owned-zone"><div class="perk-group-label"><span>${state.mode === "vendor" ? "当前 Offer 拥有" : "本实例实际拥有"}</span><span>${ownedItems.length}</span></div>${ownedItems.map(renderCard).join("")}</div>`;
+        if (otherItems.length) content += `<div class="perk-other-zone"><div class="perk-group-label"><span>Manifest 其他候选</span><span>${otherItems.length}</span></div>${otherItems.map(renderCard).join("")}</div>`;
+        if (!content) content = `<p style="color:var(--muted);font-size:12px">当前筛选无匹配项</p>`;
+        return `<section class="perk-column"><h4>${column.title}</h4><div class="perk-list">${content}</div></section>`;
+      }).join("");
+    }
+
+    function matchLabel(roll, recommendation) {
+      if (!roll.length) return "等待选择对象";
+      const count = recommendation.roll.filter(name => roll.includes(name)).length;
+      if (count === recommendation.roll.length) return "完全命中";
+      if (count > 0) return `部分命中 ${count}/${recommendation.roll.length}`;
+      return "未命中";
+    }
+
+    function renderKnowledge(context) {
+      const recommendation = activeKnowledge();
+      elements.recommendations.innerHTML = `<article class="recommendation"><div><h4>PvE · 持续输出</h4><p>${recommendation.source} · 当前有效</p></div><div><div class="combo"><strong>${recommendation.roll[0]}</strong><span>+</span><strong>${recommendation.roll[1]}</strong></div><p>${recommendation.reason}</p></div><div class="match">${matchLabel(ownedNames(context), recommendation)}</div></article>`;
+      const externalText = state.external ? "稳若磐石 + 不屈 · 稳定性大师杰作 · 备用弹匣（模拟外部结果）" : "尚未查询；只在内置知识缺失字段时补充。";
+      elements.knowledgeSources.innerHTML = `<div class="knowledge-source ${state.userKnowledge ? "is-active" : ""}"><strong>1 · 个人知识</strong><p>${state.userKnowledge ? "已确认保存：稳若磐石 + 不屈。当前优先级最高。" : "暂无已保存条目；对话中的新知识需要用户确认后持久化。"}</p></div><div class="knowledge-source ${!state.userKnowledge ? "is-active" : ""}"><strong>2 · 内置知识</strong><p>心无旁骛 + 杀戮弹匣；射程大师杰作；瞄准协调器。</p></div><div class="knowledge-source"><strong>3 · 外部知识</strong><p>${externalText}</p></div><div class="knowledge-source"><strong>个人目标</strong><p>DIM Wishlist 可单独导入，但不冒充系统推荐。</p></div>`;
+    }
+
+    function renderUpgrades(context) {
+      const recommendation = activeKnowledge();
+      const actualMasterwork = state.mode === "library" ? "未选择实际装备" : context.masterwork;
+      const actualMod = state.mode === "library" ? "未选择实际装备" : context.mod;
+      const masterworkMatch = actualMasterwork?.includes(recommendation.masterwork) ? "命中推荐" : state.mode === "library" ? "仅显示推荐" : "与推荐不同或待确认";
+      const modMatch = actualMod === recommendation.mod ? "命中推荐" : state.mode === "library" ? "仅显示推荐" : "与推荐不同或待确认";
+      elements.upgrades.innerHTML = `<thead><tr><th>类别</th><th>当前商人售卖品 / 账号实例</th><th>${recommendation.source}推荐</th><th>比较结果</th></tr></thead><tbody><tr><td><strong>大师杰作</strong></td><td>${actualMasterwork}</td><td>${recommendation.masterwork}</td><td>${masterworkMatch}</td></tr><tr><td><strong>武器模组</strong></td><td>${actualMod}</td><td>${recommendation.mod}</td><td>${modMatch}</td></tr></tbody>`;
+    }
+
+    function renderInstances(context) {
+      elements.instances.innerHTML = `<thead><tr><th>实例</th><th>位置</th><th>光等</th><th>实际 Roll</th><th>大师杰作</th><th>状态</th><th>本地标签</th></tr></thead><tbody>${data.instances.map(item => `<tr data-instance="${item.id}" class="${context.instance === item.id ? "is-selected" : ""}"><td><strong>样本 ${item.id}</strong></td><td>${item.location}</td><td>${item.power}</td><td>${item.roll}</td><td>${item.masterwork}</td><td>${item.locked}</td><td>${item.tag}</td></tr>`).join("")}</tbody>`;
+    }
+
+    function renderAi(context) {
+      const recommendation = activeKnowledge();
+      let title = "装备定义分析";
+      let body = `当前版本完整 Perk 池已经与${recommendation.source}按名称完成验证。推荐组合为 ${recommendation.roll.join(" + ")}。Manifest 官方来源提示为“猎杀暴怒之子”任务，但该提示不能单独证明任务当前可进入。`;
+      if (state.mode === "vendor") {
+        title = "当前商人售卖品分析";
+        body = `仄当前售卖样本确认的特性为 ${selectedTraitNames(context).join(" + ")}，${matchLabel(ownedNames(context), recommendation)}。价格为 17 奇异硬币。账号已有摘要显示仓库曾命中 1 件同版本装备；购买前应先比较已有实例。Offer 未提供足够的枪管、电池和大师杰作数据，因此不生成售卖属性差值。`;
+      } else if (context.instance) {
+        title = `当前账号实例 ${context.instance} 分析`;
+        body = `当前启用特性为 ${selectedTraitNames(context).join(" + ")}；实例全部可选 Perk 对当前推荐的结果为${matchLabel(ownedNames(context), recommendation)}。实例属性与基础值的差异来自原型中明确列出的枪管、电池和大师杰作样本。分析只使用当前有效的${recommendation.source}，不会把其他版本或未保存的外部知识混入结论。`;
+      }
+      elements.ai.innerHTML = `<span class="badge violet">AI 生成 · 依据可追溯</span><h4>${title}</h4><p>${body}</p><div class="evidence-grid"><div><small>官方事实</small><strong>Manifest + Bungie Offer</strong></div><div><small>推荐依据</small><strong>${recommendation.source}</strong></div><div><small>分析对象</small><strong>${context.object}</strong></div></div>`;
+    }
+
+    document.querySelectorAll("[data-mode]").forEach(button => button.addEventListener("click", () => {
+      state.mode = button.dataset.mode; location.hash = state.mode; elements.dossier.classList.remove("is-hidden"); document.querySelector("[data-open]").hidden = true; render();
     }));
-
-    document.addEventListener("click", (event) => {
-      const button = event.target.closest("[data-section-target]");
-      if (!button) return;
-      const scroll = button.closest("[data-dossier-scroll]");
-      const section = scroll.querySelector(`[data-section="${button.dataset.sectionTarget}"]`);
-      section?.scrollIntoView({ behavior: "smooth", block: "start" });
-      scroll.querySelectorAll("[data-section-target]").forEach((item) => item.classList.toggle("is-active", item === button));
+    document.querySelectorAll("[data-target]").forEach(button => button.addEventListener("click", () => {
+      const section = document.querySelector(`[data-section="${button.dataset.target}"]`); section?.scrollIntoView({behavior:"smooth",block:"start"});
+      document.querySelectorAll("[data-target]").forEach(item => item.classList.toggle("is-active", item === button));
+    }));
+    document.querySelectorAll("[data-perk-filter]").forEach(button => button.addEventListener("click", () => {
+      state.perkFilter = button.dataset.perkFilter; document.querySelectorAll("[data-perk-filter]").forEach(item => item.setAttribute("aria-pressed", String(item === button))); renderPerks(data.contexts[state.mode]);
+    }));
+    document.addEventListener("click", event => {
+      const vendorButton = event.target.closest("[data-open-vendor]");
+      if (vendorButton && state.mode !== "vendor") { state.mode = "vendor"; location.hash = state.mode; render(); return; }
+      const row = event.target.closest("[data-instance]");
+      if (row) { state.mode = `vault-${row.dataset.instance.toLowerCase()}`; location.hash = state.mode; render(); }
     });
+    document.querySelector("[data-query-external]").addEventListener("click", event => {
+      state.external = true;
+      elements.knowledgeStatus.textContent = "外部知识已返回。内置知识仍优先，确认保存后才进入个人知识库。";
+      render();
+    });
+    document.querySelector("[data-save-external]").addEventListener("click", () => elements.confirm.showModal());
+    document.querySelector("[data-cancel-save]").addEventListener("click", () => elements.confirm.close());
+    document.querySelector("[data-confirm-save]").addEventListener("click", () => { state.userKnowledge = true; elements.confirm.close(); elements.knowledgeStatus.textContent = "已保存到个人知识库，当前推荐已按最高优先级更新。"; render(); });
+    document.querySelector("[data-clear-user]").addEventListener("click", () => { state.userKnowledge = false; elements.knowledgeStatus.textContent = "个人知识已删除，恢复使用内置知识库。"; render(); });
+    document.querySelector("[data-run-ai]").addEventListener("click", () => { elements.aiStatus.textContent = "分析已按当前对象、官方事实和知识优先级更新。"; renderAi(data.contexts[state.mode]); });
+    document.querySelector("[data-close]").addEventListener("click", () => { elements.dossier.classList.add("is-hidden"); document.querySelector("[data-open]").hidden = false; });
+    document.querySelector("[data-open]").addEventListener("click", event => { elements.dossier.classList.remove("is-hidden"); event.currentTarget.hidden = true; });
+    window.addEventListener("hashchange", () => { const next = location.hash.slice(1); if (data.contexts[next]) { state.mode = next; render(); } });
+    render();
   </script>
 </body>
 </html>

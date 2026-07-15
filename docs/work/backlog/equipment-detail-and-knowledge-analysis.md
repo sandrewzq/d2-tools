@@ -320,6 +320,7 @@ AI 外部查询结果默认只缓存。用户明确确认保存后，才以“�
 
 ### 切片 6：UI 设计与跨端落地
 
+- 当前交互参考：[统一装备详情与知识分析 HTML 原型](../references/equipment-dossier-future-layout.html)。原型接入真实 Manifest 定义、官方来源提示和已验收商人摘要，账号实例使用明确标注的匿名交互样本。
 - 内容和数据规则稳定后再设计正式布局。
 - 正式页面进入 `packages/ui`，Prototype、Web 和 Desktop 共用。
 - 不沿用当前参考 HTML 作为最终实现依据，除非后续视觉验收重新确认。
