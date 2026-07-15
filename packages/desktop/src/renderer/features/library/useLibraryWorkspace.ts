@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { mergeLibraryVendorSourcePaths } from "@d2-tools/app/library";
 import {
   api } from "../../api/client";
 import type { ItemSearchResult, LibraryHistory, LiveItemAvailability, PerkSearchResult, VaultItemMatchInfo } from "../../api/types";
@@ -74,7 +75,7 @@ export function useLibraryWorkspace(input: { vendorSourcePaths?: Map<number, str
     api.getLiveItemAvailability(uniqueHashes)
       .then((result) => {
         if (cancelled) return;
-        setLiveAvailability(applyVendorSourcePaths(result, input.vendorSourcePaths));
+        setLiveAvailability(mergeLibraryVendorSourcePaths(result, input.vendorSourcePaths));
       })
       .catch((error) => {
         if (cancelled) return;
@@ -217,34 +218,6 @@ export function useLibraryWorkspace(input: { vendorSourcePaths?: Map<number, str
     setLibraryViewMode,
     setPerkFilters
   };
-}
-
-function applyVendorSourcePaths(
-  availability: LiveItemAvailability,
-  sourcePaths: Map<number, string[]> | undefined
-): LiveItemAvailability {
-  if (!sourcePaths?.size) return availability;
-  const items = { ...availability.items };
-  for (const [itemHash, paths] of sourcePaths) {
-    const entry = items[String(itemHash)];
-    if (!entry || !paths.length) continue;
-    const characterId = entry.sources.find((source) => source.kind === "character_vendor")?.character_id;
-    items[String(itemHash)] = {
-      ...entry,
-      status: "character_vendor",
-      label: "当前商人售卖",
-      description: paths.join("；"),
-      sources: [
-        ...entry.sources.filter((source) => source.kind !== "character_vendor" && source.kind !== "public_vendor"),
-        ...paths.map((label) => ({
-          kind: "character_vendor" as const,
-          label,
-          ...(characterId ? { character_id: characterId } : {})
-        }))
-      ]
-    };
-  }
-  return { ...availability, items, account_scope: "character" };
 }
 
 function buildVendorPathAvailability(

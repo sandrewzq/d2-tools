@@ -1,5 +1,6 @@
 import type { AccountSummary, DimWishlist, LocalTargetRules, VaultTags } from "../api/types";
 import { getLocaleCopy, LibraryDefinitionDialog } from "@d2-tools/ui";
+import { buildLibraryDefinitionDetailView, buildLibraryOwnership } from "@d2-tools/app/library";
 import type { useVendorDefinitionDetail } from "../features/vendors/useVendorDefinitionDetail";
 import { ItemDetailModal } from "../shared/components/ItemDetailModal";
 import type { useItemDetailWorkspace } from "../shared/hooks/useItemDetailWorkspace";
@@ -15,6 +16,7 @@ export function HomePageItemDetailModal(props: {
   itemDetail: ItemDetailWorkspace;
   isRunningItemAction: boolean;
   localTargetRules: LocalTargetRules;
+  onLocateOwnedItem: (item: { hash: number; name: string }) => void;
   vendorDefinitionDetail: VendorDefinitionDetailWorkspace;
   vaultTags: VaultTags;
 }) {
@@ -22,24 +24,30 @@ export function HomePageItemDetailModal(props: {
   const vendorDefinitionState = props.vendorDefinitionDetail.state;
 
   if (vendorDefinitionState) {
+    const ownership = buildLibraryOwnership(props.accountSummary).get(vendorDefinitionState.item.hash);
+    const detail = buildLibraryDefinitionDetailView({
+      item: vendorDefinitionState.item,
+      liveEntry: vendorDefinitionState.liveEntry,
+      communityMatch: vendorDefinitionState.communityMatch,
+      ownership,
+      ownershipAvailable: Boolean(props.accountSummary)
+    });
     return (
       <LibraryDefinitionDialog
-        item={vendorDefinitionState.item}
-        dropAccess="available"
-        liveEntry={{
-          status: "character_vendor",
-          label: "当前商人售卖",
-          description: `${vendorDefinitionState.context.vendorName}正在售卖该装备。`,
-          sources: [{
-            kind: "character_vendor",
-            label: vendorDefinitionState.context.vendorName
-          }]
-        }}
+        item={detail.item}
+        dropAccess={detail.dropAccess}
+        liveEntry={detail.liveEntry}
+        acquisitionStatus={detail.acquisitionStatus}
+        ownership={detail.ownership}
+        communityMatch={detail.communityMatch}
         vendorContext={vendorDefinitionState.context}
         isBusy={vendorDefinitionState.isBusy}
         error={vendorDefinitionState.error}
         copy={getLocaleCopy(props.interfaceLocale).library}
         onClose={props.vendorDefinitionDetail.close}
+        onLocateOwnedItem={detail.ownership.vaultCount > 0
+          ? () => props.onLocateOwnedItem(detail.item)
+          : undefined}
       />
     );
   }

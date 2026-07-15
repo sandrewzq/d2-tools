@@ -155,6 +155,7 @@ export type VendorOfferContextView = {
   characterLabel: string;
   refreshLabel: string;
   rollLabels?: string[];
+  stats?: Record<string, number>;
 };
 
 export type VendorsPageActions = {
@@ -464,7 +465,8 @@ function VendorRankSection(props: {
                 affordabilityLabel: "随商人等级解锁",
                 characterLabel: item.characterIds?.join("、") ?? "当前角色",
                 refreshLabel: props.vendor.resetLabel,
-                rollLabels: item.socketPlugs?.map((plug) => plug.name).filter(Boolean)
+                rollLabels: item.socketPlugs?.map((plug) => plug.name).filter(Boolean),
+                stats: item.stats
               })}
             >
               <VendorItemArt item={item} />
@@ -561,7 +563,8 @@ function VendorOfferButton(props: {
         affordabilityLabel: affordable ? "可购买" : "货币不足或未知",
         characterLabel: props.item.characterIds?.join("、") ?? "当前角色",
         refreshLabel: props.vendor.resetLabel,
-        rollLabels: props.item.socketPlugs?.map((plug) => plug.name).filter(Boolean)
+        rollLabels: props.item.socketPlugs?.map((plug) => plug.name).filter(Boolean),
+        stats: props.item.stats
       })}
     >
       <VendorItemArt item={props.item} />

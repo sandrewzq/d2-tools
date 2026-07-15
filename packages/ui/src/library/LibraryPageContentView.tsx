@@ -482,10 +482,10 @@ function renderEquipmentResult(
 
 export function LibraryDefinitionDialog(props: {
   item: ItemSearchResult;
-  dropAccess?: LibraryDropAccessKey;
+  dropAccess: LibraryDropAccessKey;
   liveEntry?: LiveItemAvailabilityEntry;
-  acquisitionStatus?: "current" | "historical" | "unknown";
-  ownership?: LibraryOwnershipEntry;
+  acquisitionStatus: "current" | "historical" | "unknown";
+  ownership: LibraryOwnershipEntry;
   communityMatch?: VaultItemMatchInfo;
   vendorContext?: VendorOfferContext;
   isBusy?: boolean;
@@ -497,12 +497,16 @@ export function LibraryDefinitionDialog(props: {
   const item = props.item;
   const copy = props.copy;
   const sourceStatus = item.source.status;
-  const dropAccess = props.dropAccess ?? "unknown";
+  const dropAccess = props.dropAccess;
   const liveEntry = props.liveEntry;
   const communityMatch = props.communityMatch;
   const weaponPerkColumns = item.group_key === "weapons"
     ? getLibraryWeaponPerkColumns(item.perks ?? [], item.item_type)
     : [];
+  const vendorArmorStats = item.group_key === "armor"
+    ? getVendorArmorStats(props.vendorContext?.stats)
+    : [];
+  const vendorArmorStatTotal = vendorArmorStats.reduce((total, stat) => total + stat.value, 0);
   const meta = [...new Set([
     item.tier,
     item.class_name,
@@ -532,32 +536,113 @@ export function LibraryDefinitionDialog(props: {
         </div>
         <div className="library-definition-head">
           {item.icon ? <img alt="" src={item.icon} /> : null}
-          <div>
+          <div className="library-definition-identity">
             <span className={"ui-badge " + getDropAccessBadgeClass(dropAccess)}>{formatDropAccessLabel(dropAccess, copy)}</span>
             <h3>{item.name}</h3>
             <p>{meta.join(" / ") || libraryText(copy, "装备定义")}</p>
           </div>
+          {props.vendorContext ? (
+            <section className="shared-item-detail-vendor" role="region" aria-label="商人售卖信息">
+              <strong>{props.vendorContext.vendorName}</strong>
+              <span>{props.vendorContext.costLabel}</span>
+              <span>{props.vendorContext.affordabilityLabel}</span>
+              <span>{props.vendorContext.characterLabel}</span>
+              <span>{props.vendorContext.refreshLabel}</span>
+              {item.group_key === "weapons" && props.vendorContext.rollLabels?.length ? (
+                <span>当前售卖 Perk：{props.vendorContext.rollLabels.join(" / ")}</span>
+              ) : null}
+              {item.group_key === "armor" && vendorArmorStats.length ? (
+                <span>当前售卖属性：总计 {vendorArmorStatTotal}</span>
+              ) : null}
+            </section>
+          ) : null}
         </div>
         <div className="library-definition-body">
-          <div className="library-definition-overview">
-            {props.vendorContext ? (
-              <section className="shared-item-detail-vendor" role="region" aria-label="商人售卖信息">
-                <strong>{props.vendorContext.vendorName}</strong>
-                <span>{props.vendorContext.costLabel}</span>
-                <span>{props.vendorContext.affordabilityLabel}</span>
-                <span>{props.vendorContext.characterLabel}</span>
-                <span>{props.vendorContext.refreshLabel}</span>
-                {props.vendorContext.rollLabels?.length ? (
-                  <span>当前售卖 Perk：{props.vendorContext.rollLabels.join(" / ")}</span>
-                ) : null}
+          <section className="library-definition-primary">
+            {item.group_key === "weapons" && weaponPerkColumns.length ? (
+              <section className="library-definition-perk-pool" aria-label={libraryText(copy, "武器 Perk 池")}>
+                <div className="library-definition-section-heading">
+                  <strong>{libraryText(copy, "武器 Perk 池")}</strong>
+                  <span>{libraryText(copy, "按玩家可读的武器列展示，不显示大师杰作、模组、专家模组或已有装备实例状态。")}</span>
+                </div>
+                <div className="library-definition-perk-columns">
+                  {weaponPerkColumns.map((column) => (
+                    <div className="library-definition-perk-column" key={column.key}>
+                      <h4>{libraryText(copy, column.label)}</h4>
+                      <div className="library-definition-perk-list">
+                        {column.plugs.map((plug) => (
+                          <article className="library-definition-perk-card" key={plug.hash}>
+                            {plug.icon ? <img alt="" src={plug.icon} /> : <span aria-hidden="true" />}
+                            <div>
+                              <strong>{plug.name}</strong>
+                              {plug.description ? <p>{plug.description}</p> : null}
+                            </div>
+                          </article>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </section>
-            ) : null}
+            ) : item.group_key === "armor" ? (
+              <div className="library-definition-armor-primary">
+                <section className="library-definition-intrinsics" aria-label={libraryText(copy, "异域固有特性")}>
+                  <div className="library-definition-section-heading">
+                    <strong>{libraryText(copy, "异域固有特性")}</strong>
+                    <span>{libraryText(copy, "来自 Bungie Manifest 的固定特性，不包含护甲模组、能量或实际属性 Roll。")}</span>
+                  </div>
+                  {item.intrinsic_traits?.length ? (
+                    <div className="library-definition-intrinsic-list">
+                      {item.intrinsic_traits.map((trait) => (
+                        <article className="library-definition-intrinsic-card" key={trait.hash}>
+                          {trait.icon ? <img alt="" src={trait.icon} /> : <span aria-hidden="true" />}
+                          <div>
+                            <strong>{trait.name}</strong>
+                            {trait.description ? <p>{trait.description}</p> : null}
+                          </div>
+                        </article>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="muted-copy">{libraryText(copy, "资料库暂未提供可确认的护甲固有特性。")}</p>
+                  )}
+                </section>
+                {vendorArmorStats.length ? (
+                  <section className="library-definition-vendor-armor-stats" aria-label="当前售卖属性">
+                    <div className="library-definition-section-heading">
+                      <strong>当前售卖属性</strong>
+                      <span>总计 {vendorArmorStatTotal}</span>
+                    </div>
+                    <div className="library-definition-vendor-armor-stat-list">
+                      {vendorArmorStats.map((stat) => (
+                        <div className="library-definition-vendor-armor-stat" key={stat.hash}>
+                          <span>{stat.label}</span>
+                          <b>{stat.value}</b>
+                          <i style={{ width: `${Math.max(4, Math.min(100, stat.value / 30 * 100))}%` }} aria-hidden="true" />
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                ) : null}
+              </div>
+            ) : (
+              <section className="library-definition-generic-primary" aria-label={libraryText(copy, "装备定义")}>
+                <div className="library-definition-section-heading">
+                  <strong>{libraryText(copy, "装备定义")}</strong>
+                </div>
+                <p>{item.description || libraryText(copy, "资料库暂未提供该装备的专属定义结构。")}</p>
+              </section>
+            )}
+          </section>
+          <aside className="library-definition-overview">
             {props.error ? <div className="status-message is-error" role="status">{props.error}</div> : null}
             <div className="library-definition-meta" aria-label={libraryText(copy, "定义字段")}>
               {meta.map((value) => <span key={value}>{value}</span>)}
               <span>{libraryText(copy, "Hash")} {item.hash}</span>
             </div>
-            {item.description ? <p className="library-definition-description">{item.description}</p> : null}
+            {item.description && (item.group_key === "weapons" || item.group_key === "armor") ? (
+              <p className="library-definition-description">{item.description}</p>
+            ) : null}
             {item.definition_stats?.length ? (
               <section className="library-definition-stats" aria-label={libraryText(copy, "定义属性")}>
                 <div className="library-definition-section-heading">
@@ -574,7 +659,7 @@ export function LibraryDefinitionDialog(props: {
             <div className="library-definition-source-grid">
               <div className="library-definition-source">
                 <strong>{libraryText(copy, "获取状态")}</strong>
-                <span>{formatAcquisitionStatus(props.acquisitionStatus ?? "unknown", copy)}</span>
+                <span>{formatAcquisitionStatus(props.acquisitionStatus, copy)}</span>
               </div>
               <div className="library-definition-source">
                 <strong>{libraryText(copy, "账号拥有")}</strong>
@@ -619,63 +704,32 @@ export function LibraryDefinitionDialog(props: {
                 </div>
               ) : null}
             </div>
-          </div>
-          {item.group_key === "weapons" && weaponPerkColumns.length ? (
-            <section className="library-definition-perk-pool" aria-label={libraryText(copy, "武器定义结构")}>
-              <div className="library-definition-section-heading">
-                <strong>{libraryText(copy, "武器定义结构")}</strong>
-                <span>{libraryText(copy, "按玩家可读的武器列展示，不显示大师杰作、模组、专家模组或已有装备实例状态。")}</span>
-              </div>
-              <div className="library-definition-perk-columns">
-                {weaponPerkColumns.map((column) => (
-                  <div className="library-definition-perk-column" key={column.key}>
-                    <h4>{libraryText(copy, column.label)}</h4>
-                    <div className="library-definition-perk-list">
-                      {column.plugs.map((plug) => (
-                        <article className="library-definition-perk-card" key={plug.hash}>
-                          {plug.icon ? <img alt="" src={plug.icon} /> : <span aria-hidden="true" />}
-                          <div>
-                            <strong>{plug.name}</strong>
-                            {plug.description ? <p>{plug.description}</p> : null}
-                          </div>
-                        </article>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </section>
-          ) : item.group_key === "armor" ? (
-            <section className="library-definition-intrinsics" aria-label={libraryText(copy, "异域固有特性")}>
-              <div className="library-definition-section-heading">
-                <strong>{libraryText(copy, "异域固有特性")}</strong>
-                <span>{libraryText(copy, "来自 Bungie Manifest 的固定特性，不包含护甲模组、能量或实际属性 Roll。")}</span>
-              </div>
-              {item.intrinsic_traits?.length ? (
-                <div className="library-definition-intrinsic-list">
-                  {item.intrinsic_traits.map((trait) => (
-                    <article className="library-definition-intrinsic-card" key={trait.hash}>
-                      {trait.icon ? <img alt="" src={trait.icon} /> : <span aria-hidden="true" />}
-                      <div>
-                        <strong>{trait.name}</strong>
-                        {trait.description ? <p>{trait.description}</p> : null}
-                      </div>
-                    </article>
-                  ))}
-                </div>
-              ) : (
-                <p className="muted-copy">{libraryText(copy, "资料库暂未提供可确认的护甲固有特性。")}</p>
-              )}
-            </section>
-          ) : (
-            <p className="muted-copy">{libraryText(copy, item.group_key === "weapons"
-              ? "资料库暂未提供可展示的武器定义结构。"
-              : "资料库暂未提供该装备的专属定义结构。")}</p>
-          )}
+          </aside>
         </div>
       </section>
     </div>
   );
+}
+
+const vendorArmorStatDefinitions = [
+  { hash: "2996146975", label: "机动" },
+  { hash: "392767087", label: "韧性" },
+  { hash: "1943323491", label: "恢复" },
+  { hash: "1735777505", label: "纪律" },
+  { hash: "144602215", label: "智慧" },
+  { hash: "4244567218", label: "力量" }
+] as const;
+
+function getVendorArmorStats(stats: Record<string, number> | undefined): Array<{
+  hash: string;
+  label: string;
+  value: number;
+}> {
+  if (!stats) return [];
+  return vendorArmorStatDefinitions.flatMap((definition) => {
+    const value = stats[definition.hash];
+    return typeof value === "number" ? [{ ...definition, value }] : [];
+  });
 }
 
 function DefinitionStatRow(props: { stat: LibraryDefinitionStat }) {

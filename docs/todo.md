@@ -19,8 +19,9 @@
 |---|---|---|---|---|---|
 | T1 | P1 | 🟡 待推进 | 小日向攻略解析与账号匹配 | [攻略证据工作台](work/backlog/kohinata-guide-evidence-workbench.md) | 统一攻略要求、账号命中、perk 证据、护甲可达性和配装草稿 |
 | T2 | P1 | 🟡 待推进 | 仓库推荐与清理工作台 | [仓库推荐与清理工作台](work/backlog/vault-recommendation-and-cleanup-workbench.md) | 统一 DIM wishlist、本地目标、同名对比和清理清单 |
-| T3 | P1 | 🟡 进行中 | 商人结构、覆盖与掉落来源 | [商人覆盖与掉落来源](work/backlog/vendors-and-drop-sources.md) | 掉落来源、账号拥有和仓库定位已通过真实账号验收；待机灵模组 A/B 与逐商人验收 |
+| T3 | P1 | 🟡 进行中 | 商人结构、覆盖与官方获取来源 | [商人结构、覆盖与官方获取来源](work/backlog/vendors-and-drop-sources.md) | 收口官方来源模型、Offer 时效和去重，继续机灵模组 A/B 与逐商人验收 |
 | T4 | P3 | 🟡 待推进 | 活动复盘增强 | [活动复盘增强](work/backlog/activity-review-enhancement.md) | 接 PGCR、完成时间推算和副本级趋势 |
+| T5 | P1 | 🟡 待推进 | 统一装备详情与知识分析 | [统一装备详情与知识分析](work/backlog/equipment-detail-and-knowledge-analysis.md) | 先统一装备定义、商人 Offer、账号实例和知识优先级，再进行 UI 设计与跨端落地 |
 
 ## 验证入口
 

@@ -222,6 +222,11 @@ export type LibraryEquipmentResultView = {
   isDetailLoading: boolean;
 };
 
+export type LibraryDefinitionDetailView = Pick<
+  LibraryEquipmentResultView,
+  "item" | "dropAccess" | "communityMatch" | "liveEntry" | "acquisitionStatus" | "ownership"
+>;
+
 export type LibraryEquipmentResultGroupView = {
   key: LibraryDropAccessKey;
   items: LibraryEquipmentResultView[];
@@ -543,24 +548,85 @@ function buildEquipmentResultGroups(input: {
   return groupLibraryDropQueryItems(input.visibleItems).map((group) => ({
     key: group.key,
     items: group.items.map((item) => ({
-      item,
-      dropAccess: classifyLibraryDropAccess(item),
-      communityMatch: input.communityMatch.get(item.hash),
-      liveEntry: input.liveAvailability?.items[String(item.hash)],
-      acquisitionStatus: classifyLibraryAcquisitionStatus(
+      ...buildLibraryDefinitionDetailView({
         item,
-        input.liveAvailability?.items[String(item.hash)]
-      ),
-      ownership: input.ownership.get(item.hash) ?? {
-        status: input.ownershipAvailable ? "not_owned" : "unavailable",
-        totalCount: 0,
-        vaultCount: 0,
-        locations: []
-      },
+        liveEntry: input.liveAvailability?.items[String(item.hash)],
+        communityMatch: input.communityMatch.get(item.hash),
+        ownership: input.ownership.get(item.hash),
+        ownershipAvailable: input.ownershipAvailable
+      }),
       isFavorite: input.history.favorites.some((favorite) => favorite.hash === item.hash),
       isDetailLoading: getItemKey(item) === input.itemDetailLoadingKey
     }))
   }));
+}
+
+export function buildLibraryDefinitionDetailView(input: {
+  item: ItemSearchResult;
+  liveEntry?: LiveItemAvailabilityEntry;
+  communityMatch?: VaultItemMatchInfo;
+  ownership?: LibraryOwnershipEntry;
+  ownershipAvailable: boolean;
+}): LibraryDefinitionDetailView {
+  return {
+    item: input.item,
+    dropAccess: classifyLibraryDropAccess(input.item),
+    communityMatch: input.communityMatch,
+    liveEntry: input.liveEntry,
+    acquisitionStatus: classifyLibraryAcquisitionStatus(input.item, input.liveEntry),
+    ownership: input.ownership ?? {
+      status: input.ownershipAvailable ? "not_owned" : "unavailable",
+      totalCount: 0,
+      vaultCount: 0,
+      locations: []
+    }
+  };
+}
+
+export function mergeLibraryVendorSourcePaths<T extends LiveItemAvailability>(
+  availability: T,
+  sourcePaths: Map<number, string[]> | undefined
+): T {
+  if (!sourcePaths?.size) return availability;
+  const items = { ...availability.items };
+  for (const [itemHash, paths] of sourcePaths) {
+    const entry = items[String(itemHash)];
+    if (!entry || !paths.length) continue;
+    const characterId = entry.sources.find((source) => source.kind === "character_vendor")?.character_id;
+    items[String(itemHash)] = {
+      ...entry,
+      status: "character_vendor",
+      label: "当前商人售卖",
+      description: paths.join("；"),
+      sources: [
+        ...entry.sources.filter((source) => source.kind !== "character_vendor" && source.kind !== "public_vendor"),
+        ...paths.map((label) => ({
+          kind: "character_vendor" as const,
+          label,
+          ...(characterId ? { character_id: characterId } : {})
+        }))
+      ]
+    };
+  }
+  return { ...availability, items, account_scope: "character" } as T;
+}
+
+export function buildLibraryVendorLiveEntry(
+  paths: string[],
+  characterId?: string
+): LiveItemAvailabilityEntry | undefined {
+  const normalizedPaths = [...new Set(paths.map((path) => path.trim()).filter(Boolean))];
+  if (!normalizedPaths.length) return undefined;
+  return {
+    status: "character_vendor",
+    label: "当前商人售卖",
+    description: normalizedPaths.join("；"),
+    sources: normalizedPaths.map((label) => ({
+      kind: "character_vendor",
+      label,
+      ...(characterId ? { character_id: characterId } : {})
+    }))
+  };
 }
 
 export function buildLibraryOwnership(account: AccountSummary | null | undefined): Map<number, LibraryOwnershipEntry> {

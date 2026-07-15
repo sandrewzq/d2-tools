@@ -18,6 +18,7 @@ export type VendorOfferContext = {
   characterLabel: string;
   refreshLabel: string;
   rollLabels?: string[];
+  stats?: Record<string, number>;
 };
 
 export type SharedItemDetailDialogProps = {

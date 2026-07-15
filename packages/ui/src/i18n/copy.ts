@@ -759,6 +759,7 @@ export const localeCopy: Record<InterfaceLocale, LocaleCopy> = {
         "可选 Perk 池": "Candidate perk pool",
         "随机 Perk 候选": "Random perk candidates",
         "武器定义结构": "Weapon definition structure",
+        "武器 Perk 池": "Weapon perk pool",
         "来自 Manifest socket / PlugSet，是定义层面的候选池。": "From Manifest sockets and PlugSets; these are definition-level candidates.",
         "仅展示资料库定义中的武器随机候选，不包含外观、记录器、模组或已有装备实例状态。": "Only weapon random candidates from the manifest definition are shown. Cosmetics, trackers, mods, and owned-item instance state are excluded.",
         "按玩家可读的武器列展示，不显示大师杰作、模组、专家模组或已有装备实例状态。": "Shown as player-readable weapon columns. Masterworks, mods, adept mods, and owned-item instance state are excluded.",

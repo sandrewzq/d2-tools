@@ -82,6 +82,8 @@ describe("vendor library definition detail", () => {
           source: { status: "ready", label: "资料库来源", description: "定义来源" }
         }}
         dropAccess="available"
+        acquisitionStatus="current"
+        ownership={{ status: "unavailable", totalCount: 0, vaultCount: 0, locations: [] }}
         vendorContext={{
           vendorName: "仄",
           costLabel: "23 奇异硬币",

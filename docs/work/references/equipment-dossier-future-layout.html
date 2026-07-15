@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>装备档案整体布局原型</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --page: #080d13;
+      --panel: #141b24;
+      --surface: #19222d;
+      --surface-2: #1e2936;
+      --surface-3: #243141;
+      --line: #303e4e;
+      --line-2: #44566b;
+      --text: #edf3f7;
+      --body: #c7d1db;
+      --muted: #8f9baa;
+      --green: #82d9b2;
+      --green-bg: #112a22;
+      --blue: #8cc7f4;
+      --gold: #e1bd72;
+      --orange: #dfa36d;
+      --danger: #e18f86;
+      --radius: 7px;
+      font-family: "Segoe UI", "Microsoft YaHei UI", system-ui, sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    html { min-width: 320px; scroll-behavior: smooth; }
+    body { min-height: 100vh; margin: 0; overflow: hidden; color: var(--body); background: var(--page); }
+    button, input { font: inherit; }
+    button { cursor: pointer; }
+    button:focus-visible, input:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+
+    .prototype-controls {
+      position: fixed;
+      z-index: 20;
+      top: 12px;
+      left: 50%;
+      display: flex;
+      gap: 5px;
+      padding: 5px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: #111923;
+      box-shadow: 0 12px 30px rgb(0 0 0 / 34%);
+      transform: translateX(-50%);
+    }
+    .prototype-controls button {
+      min-height: 40px;
+      padding: 0 18px;
+      border: 1px solid transparent;
+      border-radius: 5px;
+      color: var(--muted);
+      background: transparent;
+    }
+    .prototype-controls button:hover { color: var(--text); background: var(--surface-2); }
+    .prototype-controls button[aria-pressed="true"] { color: var(--text); border-color: #4c718d; background: #22384a; }
+
+    .stage { min-height: 100vh; display: grid; place-items: center; padding: 66px 20px 18px; background: rgb(4 8 13 / 72%); }
+    .dossier {
+      width: min(1680px, calc(100vw - 40px));
+      height: min(1000px, calc(100vh - 84px));
+      min-height: 720px;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      background: var(--panel);
+      box-shadow: 0 24px 70px rgb(0 0 0 / 48%);
+    }
+    .dossier-toolbar { min-height: 58px; display: flex; justify-content: space-between; align-items: center; padding: 9px 16px; border-bottom: 1px solid var(--line); }
+    .dossier-toolbar h1 { margin: 0; color: var(--text); font-size: 17px; }
+    .dossier-toolbar p { margin: 3px 0 0; color: var(--muted); font-size: 11px; }
+    .close { min-width: 48px; min-height: 40px; border: 1px solid var(--line-2); border-radius: 6px; color: var(--text); background: var(--surface-2); }
+    .dossier-scroll { min-height: 0; overflow: auto; scrollbar-width: thin; scrollbar-color: #53667b #111821; }
+
+    .identity-band { display: grid; grid-template-columns: 72px minmax(280px, 1fr) minmax(480px, auto); gap: 14px; align-items: center; padding: 16px 20px; border-bottom: 1px solid var(--line); }
+    .identity-band img { width: 72px; height: 72px; border-radius: 7px; object-fit: cover; }
+    .identity-band h2 { margin: 3px 0; color: var(--text); font-size: 24px; line-height: 1.2; }
+    .identity-band p { margin: 0; color: var(--muted); font-size: 12px; }
+    .badge-row { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+    .badge { display: inline-flex; min-height: 22px; align-items: center; padding: 0 7px; border: 1px solid var(--line); border-radius: 5px; color: var(--muted); font-size: 10px; }
+    .badge.ready { color: var(--green); border-color: #367c61; background: var(--green-bg); }
+    .commerce-context { display: grid; grid-template-columns: repeat(2, minmax(0, auto)); gap: 7px 18px; justify-content: end; font-size: 11px; }
+    .commerce-context span { color: var(--muted); }
+    .commerce-context strong { color: var(--text); font-weight: 600; }
+
+    .version-strip { display: grid; grid-template-columns: 130px repeat(3, minmax(0, 1fr)); gap: 1px; padding: 10px 20px; border-bottom: 1px solid var(--line); background: #111821; }
+    .version-label, .version-entry { min-width: 0; display: grid; gap: 3px; padding: 8px 10px; }
+    .version-label strong, .version-entry strong { color: var(--text); font-size: 11px; }
+    .version-label span, .version-entry span { color: var(--muted); font-size: 10px; }
+    .version-entry.is-current { border-left: 2px solid var(--green); background: var(--surface); }
+
+    .section-nav {
+      position: sticky;
+      z-index: 8;
+      top: 0;
+      display: flex;
+      gap: 4px;
+      padding: 7px 20px;
+      border-bottom: 1px solid var(--line);
+      background: #121923;
+      box-shadow: 0 8px 18px rgb(0 0 0 / 18%);
+    }
+    .section-nav button { min-height: 38px; padding: 0 14px; border: 0; border-radius: 5px; color: var(--muted); background: transparent; }
+    .section-nav button:hover { color: var(--text); background: var(--surface-2); }
+    .section-nav button.is-active { color: var(--text); background: #22384a; }
+
+    .dossier-section { scroll-margin-top: 58px; padding: 20px; border-bottom: 1px solid var(--line); }
+    .dossier-section:last-child { border-bottom: 0; }
+    .section-heading { display: flex; justify-content: space-between; gap: 18px; align-items: end; margin-bottom: 14px; }
+    .section-heading h3 { margin: 0; color: var(--text); font-size: 17px; }
+    .section-heading p { max-width: 720px; margin: 0; color: var(--muted); font-size: 11px; line-height: 1.45; text-align: right; }
+    .section-kicker { display: block; margin-bottom: 4px; color: var(--blue); font-size: 10px; font-weight: 600; }
+
+    .overview-grid { display: grid; grid-template-columns: minmax(420px, .9fr) minmax(0, 1.4fr); gap: 20px; }
+    .stats-panel { min-width: 0; }
+    .stat-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px 16px; }
+    .stat { display: grid; grid-template-columns: 72px 34px minmax(70px, 1fr); gap: 8px; align-items: center; font-size: 11px; }
+    .stat span { color: var(--muted); }
+    .stat b { color: var(--text); text-align: right; font-variant-numeric: tabular-nums; }
+    .stat i { height: 7px; border-radius: 999px; background: var(--green); }
+    .facts-ledger { display: grid; grid-template-columns: 130px minmax(180px, .8fr) minmax(0, 1.4fr); border-top: 1px solid var(--line); }
+    .facts-ledger > * { min-width: 0; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+    .facts-ledger strong { color: var(--text); font-size: 11px; }
+    .facts-ledger span { color: var(--muted); font-size: 11px; line-height: 1.45; }
+    .facts-ledger .good { color: var(--green); }
+    .locate { min-height: 32px; border: 1px solid #51657a; border-radius: 5px; color: var(--text); background: #243142; }
+
+    .weapon-focus-strip { display: grid; grid-template-columns: 1.15fr 1fr .9fr .9fr; margin-bottom: 14px; border: 1px solid var(--line); border-radius: var(--radius); background: #111821; }
+    .weapon-focus-strip > div { min-width: 0; display: grid; gap: 4px; padding: 10px 12px; border-right: 1px solid var(--line); }
+    .weapon-focus-strip > div:last-child { border-right: 0; }
+    .weapon-focus-strip small { color: var(--muted); font-size: 9px; }
+    .weapon-focus-strip strong { color: var(--text); font-size: 11px; }
+    .weapon-focus-strip span { color: var(--muted); font-size: 9px; line-height: 1.35; }
+    .weapon-focus-strip .highlight strong { color: var(--green); }
+
+    .recommendation-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+    .recommendation-card { min-width: 0; display: grid; grid-template-rows: auto auto 1fr auto; gap: 10px; padding: 13px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
+    .recommendation-card header { display: flex; justify-content: space-between; gap: 10px; align-items: start; }
+    .recommendation-card h4 { margin: 0; color: var(--text); font-size: 14px; }
+    .recommendation-card header span { color: var(--green); font-size: 11px; font-weight: 600; }
+    .perk-pair { display: grid; grid-template-columns: 1fr auto 1fr; gap: 8px; align-items: center; }
+    .perk-token { min-width: 0; display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 7px; align-items: center; }
+    .perk-token i { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 5px; color: var(--text); background: var(--surface-3); font-style: normal; font-size: 10px; }
+    .perk-token strong { overflow: hidden; color: var(--text); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+    .pair-plus { color: var(--muted); }
+    .recommendation-card p { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
+    .evidence-row { display: flex; flex-wrap: wrap; gap: 5px; }
+    .evidence { padding: 3px 6px; border: 1px solid var(--line); border-radius: 4px; color: var(--muted); font-size: 9px; }
+
+    .perk-columns { display: grid; grid-template-columns: minmax(160px, .72fr) repeat(4, minmax(0, 1fr)); gap: 10px; align-items: start; }
+    .perk-column { min-width: 0; display: grid; align-content: start; gap: 8px; padding: 10px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
+    .perk-column h4 { margin: 0 0 2px; color: var(--muted); font-size: 11px; }
+    .perk { min-width: 0; display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 8px; padding: 9px; border: 1px solid #364657; border-radius: 5px; background: var(--surface-2); }
+    .perk-icon { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 5px; color: #e7eff5; background: #2b3745; font-size: 10px; font-weight: 700; }
+    .perk strong { display: block; color: var(--text); font-size: 12px; }
+    .perk p { margin: 3px 0 0; color: var(--muted); font-size: 10px; line-height: 1.35; }
+
+    .upgrade-grid { display: grid; grid-template-columns: 1fr 1.25fr; gap: 20px; }
+    .choice-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 9px; }
+    .choice-grid.mods { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .choice { min-width: 0; display: grid; grid-template-columns: 38px minmax(0, 1fr); gap: 9px; align-items: center; padding: 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); }
+    .choice-icon { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 5px; color: var(--gold); background: #332f22; font-size: 10px; font-weight: 700; }
+    .choice strong { display: block; color: var(--text); font-size: 11px; }
+    .choice span { color: var(--muted); font-size: 9px; }
+
+    .ai-layout { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(360px, .8fr); gap: 20px; }
+    .ai-analysis { display: grid; gap: 12px; }
+    .ai-label { display: inline-flex; width: fit-content; min-height: 22px; align-items: center; padding: 0 7px; border: 1px solid #5665a1; border-radius: 5px; color: #bfc8ff; background: #202640; font-size: 10px; }
+    .ai-analysis h4 { margin: 0; color: var(--text); font-size: 16px; }
+    .ai-analysis p { max-width: 760px; margin: 0; color: var(--body); font-size: 12px; line-height: 1.65; }
+    .ai-evidence { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+    .ai-evidence div { display: grid; gap: 4px; padding: 10px; border-top: 1px solid var(--line); }
+    .ai-evidence small { color: var(--muted); font-size: 9px; }
+    .ai-evidence strong { color: var(--text); font-size: 11px; }
+    .ai-tools { display: grid; gap: 10px; align-content: start; padding: 14px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
+    .ai-tools label { color: var(--text); font-size: 11px; font-weight: 600; }
+    .ai-tools input { width: 100%; min-height: 42px; padding: 0 10px; border: 1px solid var(--line-2); border-radius: 5px; color: var(--text); background: #111821; }
+    .ai-action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+    .ai-action-grid button { min-height: 38px; border: 1px solid var(--line); border-radius: 5px; color: var(--body); background: var(--surface-2); }
+    .ai-action-grid button:hover { color: var(--text); border-color: #60758b; }
+    .ai-disclaimer { color: var(--muted); font-size: 9px; line-height: 1.4; }
+
+    .armor-core-grid { display: grid; grid-template-columns: minmax(360px, .9fr) minmax(0, 1.3fr); gap: 20px; }
+    .intrinsic-block { display: grid; grid-template-columns: 58px minmax(0, 1fr); gap: 13px; align-items: start; }
+    .intrinsic-icon { width: 58px; height: 58px; display: grid; place-items: center; border-radius: 6px; color: var(--gold); background: #353122; font-weight: 700; }
+    .intrinsic-block h4 { margin: 0; color: var(--text); font-size: 17px; }
+    .intrinsic-block p { margin: 7px 0 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
+    .target-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+    .target-card { display: grid; gap: 8px; padding: 12px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
+    .target-card h4 { margin: 0; color: var(--text); font-size: 13px; }
+    .target-card p { margin: 0; color: var(--muted); font-size: 10px; line-height: 1.45; }
+
+    @media (max-width: 1200px) {
+      .identity-band { grid-template-columns: 72px minmax(0, 1fr); }
+      .commerce-context { grid-column: 1 / -1; justify-content: start; }
+      .overview-grid, .upgrade-grid, .ai-layout, .armor-core-grid { grid-template-columns: 1fr; }
+      .weapon-focus-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .weapon-focus-strip > div:nth-child(2) { border-right: 0; }
+      .weapon-focus-strip > div:nth-child(-n + 2) { border-bottom: 1px solid var(--line); }
+      .recommendation-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .perk-columns { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .choice-grid, .choice-grid.mods { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+  </style>
+</head>
+<body>
+  <!-- d2-reference-only:start equipment-dossier-future-layout -->
+  <main data-reference-only="true">
+    <nav class="prototype-controls" aria-label="装备类型">
+      <button type="button" data-item-button="weapon" aria-pressed="true">武器档案</button>
+      <button type="button" data-item-button="armor" aria-pressed="false">护甲档案</button>
+    </nav>
+    <div class="stage">
+      <article class="dossier">
+        <header class="dossier-toolbar"><div><h1>装备档案</h1><p>定义、实时数据、账号实例、社区证据与 AI 分析。</p></div><button type="button" class="close">关闭</button></header>
+        <div class="dossier-scroll" data-dossier-scroll></div>
+      </article>
+    </div>
+  </main>
+  <!-- d2-reference-only:end equipment-dossier-future-layout -->
+
+  <template id="weapon-template">
+    <section class="identity-band"><img src="https://www.bungie.net/common/destiny2_content/icons/b493fc12f672531508a226b7321cba59.jpg" alt="海盗之怒"><div><span class="badge ready">来源可确认</span><h2>海盗之怒</h2><p>传说 / 线性融合步枪 / 威能武器 / 精密框架</p><div class="badge-row"><span class="badge">Hash 2714022207</span><span class="badge">当前可获取</span><span class="badge">仓库 1 件</span></div></div><div class="commerce-context"><span>商人 <strong>仄 → 奇异装备优惠</strong></span><span>价格 <strong>17 奇异硬币</strong></span><span>刷新 <strong>本周五 17:00</strong></span><span>当前售卖 Roll <strong>脉搏监控 / 不屈</strong></span></div></section>
+    <section class="version-strip"><div class="version-label"><strong>版本</strong><span>同名装备版本记录</span></div><div class="version-entry is-current"><strong>#1 · 当前</strong><span>赛季 8 第 28 赛季 · 动能纪念碑</span></div><div class="version-entry"><strong>#2</strong><span>赛季 8 第 28 赛季 · 动能纪念碑</span></div><div class="version-entry"><strong>#3</strong><span>年 2 第 5 赛季 · 锻炉赛季</span></div></section>
+    <nav class="section-nav"><button type="button" data-section-target="overview" class="is-active">属性与获取</button><button type="button" data-section-target="pool">Perk 池</button><button type="button" data-section-target="recommendations">组合推荐</button><button type="button" data-section-target="upgrades">强化选项</button><button type="button" data-section-target="ai">AI 分析</button></nav>
+    <section class="dossier-section" data-section="overview"><div class="section-heading"><div><span class="section-kicker">EQUIPMENT DATA</span><h3>属性与获取详情</h3></div><p>定义数值来自 Manifest；获取与拥有状态来自当前 Live 数据和账号实例。</p></div><div class="overview-grid"><div class="stats-panel">__WEAPON_STATS__</div><div class="facts-ledger">__WEAPON_FACTS__</div></div></section>
+    <section class="dossier-section" data-section="pool"><div class="section-heading"><div><span class="section-kicker">PRIMARY WORKSPACE</span><h3>完整 Perk 池</h3></div><p>属性与获取详情之后紧接核心 Perk 数据；大师杰作、模组、记录器和外观保持独立。</p></div><div class="weapon-focus-strip"><div class="highlight"><small>当前售卖 Roll</small><strong>脉搏监控 + 不屈</strong><span>已在下方池中标记，可直接对照全部候选。</span></div><div><small>推荐优先级</small><strong>持续输出 · 13.2%</strong><span>社区样本与当前售卖同时命中。</span></div><div><small>获取入口</small><strong>仄 · 奇异装备优惠</strong><span>17 奇异硬币，本周五刷新。</span></div><div><small>账号对比</small><strong>仓库已有 1 件</strong><span>可展开实例 Roll 并排比较。</span></div></div><div class="perk-columns">__WEAPON_PERKS__</div></section>
+    <section class="dossier-section" data-section="recommendations"><div class="section-heading"><div><span class="section-kicker">DECISION</span><h3>Perk 组合推荐</h3></div><p>组合推荐是 Perk 池之后的决策层，同时标明模式、证据来源、社区采用率和账号命中。</p></div><div class="recommendation-grid">__WEAPON_RECOMMENDATIONS__</div></section>
+    <section class="dossier-section" data-section="upgrades"><div class="section-heading"><div><span class="section-kicker">ENHANCEMENT</span><h3>大师杰作与武器模组</h3></div><p>强化建议独立于 Perk 池，后续可以接入拥有状态、活动限制和材料成本。</p></div><div class="upgrade-grid"><div><h4>大师杰作候选</h4><div class="choice-grid">__MASTERWORKS__</div></div><div><h4>武器模组候选</h4><div class="choice-grid mods">__WEAPON_MODS__</div></div></div></section>
+    <section class="dossier-section" data-section="ai"><div class="section-heading"><div><span class="section-kicker">AI ASSISTED</span><h3>AI 装备分析</h3></div><p>AI 只基于当前页面可追溯证据生成分析，结论与原始数据分开呈现。</p></div><div class="ai-layout">__WEAPON_AI__</div></section>
+  </template>
+
+  <template id="armor-template">
+    <section class="identity-band"><img src="https://www.bungie.net/common/destiny2_content/icons/220fda89a88058f84725ff1df39a9f5e.jpg" alt="炎阳护腕"><div><span class="badge ready">来源可确认</span><h2>炎阳护腕</h2><p>异域 / 臂铠 / 术士 / 护甲</p><div class="badge-row"><span class="badge">Hash 950745251</span><span class="badge">当前可获取</span><span class="badge">已拥有 2 件</span></div></div><div class="commerce-context"><span>商人 <strong>仄 → 奇异装备优惠</strong></span><span>价格 <strong>23 奇异硬币</strong></span><span>当前售卖属性 <strong>总计 69</strong></span><span>账号位置 <strong>仓库 / 术士背包</strong></span></div></section>
+    <section class="version-strip"><div class="version-label"><strong>护甲状态</strong><span>定义与当前售卖实例</span></div><div class="version-entry is-current"><strong>当前售卖</strong><span>恢复 17 · 纪律 18 · 总计 69</span></div><div class="version-entry"><strong>仓库实例</strong><span>总计 66 · 当前未展开</span></div><div class="version-entry"><strong>术士背包</strong><span>总计 64 · 当前未展开</span></div></section>
+    <nav class="section-nav"><button type="button" data-section-target="overview" class="is-active">概览</button><button type="button" data-section-target="recommendations">构筑方向</button><button type="button" data-section-target="pool">固有特性</button><button type="button" data-section-target="upgrades">模组建议</button><button type="button" data-section-target="ai">AI 分析</button></nav>
+    <section class="dossier-section" data-section="overview"><div class="section-heading"><div><span class="section-kicker">OVERVIEW</span><h3>属性与获取概览</h3></div><p>当前售卖属性与账号实例分开显示，避免把定义数据当成实际护甲 Roll。</p></div><div class="overview-grid"><div class="stats-panel">__ARMOR_STATS__</div><div class="facts-ledger">__ARMOR_FACTS__</div></div></section>
+    <section class="dossier-section" data-section="recommendations"><div class="section-heading"><div><span class="section-kicker">BUILD DIRECTION</span><h3>属性目标与构筑方向</h3></div><p>根据职业、异域固有特性和账号现有护甲给出目标分布，不直接替代配装计算。</p></div><div class="target-grid">__ARMOR_TARGETS__</div></section>
+    <section class="dossier-section" data-section="pool"><div class="section-heading"><div><span class="section-kicker">INTRINSIC</span><h3>固有特性与协同</h3></div><p>护甲没有武器 Perk 池，这里展示异域固有能力、触发条件和构筑协同。</p></div><div class="armor-core-grid">__ARMOR_CORE__</div></section>
+    <section class="dossier-section" data-section="upgrades"><div class="section-heading"><div><span class="section-kicker">ARMOR MODS</span><h3>护甲模组建议</h3></div><p>模组建议按构筑目标组织，后续可以接入能量费用、槽位和账号解锁状态。</p></div><div class="choice-grid mods">__ARMOR_MODS__</div></section>
+    <section class="dossier-section" data-section="ai"><div class="section-heading"><div><span class="section-kicker">AI ASSISTED</span><h3>AI 护甲分析</h3></div><p>AI 结合固有特性、当前 Roll、账号实例和配装目标提供解释与下一步建议。</p></div><div class="ai-layout">__ARMOR_AI__</div></section>
+  </template>
+
+  <script>
+    const weaponStats = `<div class="stat-list"><div class="stat"><span>伤害</span><b>41</b><i style="width:41%"></i></div><div class="stat"><span>射程</span><b>34</b><i style="width:34%"></i></div><div class="stat"><span>充能时间</span><b>533</b><i style="width:100%"></i></div><div class="stat"><span>稳定性</span><b>38</b><i style="width:38%"></i></div><div class="stat"><span>弹匣</span><b>5</b><i style="width:8%"></i></div><div class="stat"><span>弹药生成</span><b>26</b><i style="width:26%"></i></div><div class="stat"><span>操控性</span><b>24</b><i style="width:24%"></i></div><div class="stat"><span>填装速度</span><b>22</b><i style="width:22%"></i></div><div class="stat"><span>辅助瞄准</span><b>61</b><i style="width:61%"></i></div><div class="stat"><span>后坐方向</span><b>74</b><i style="width:74%"></i></div></div>`;
+    const armorStats = `<div class="stat-list"><div class="stat"><span>机动</span><b>8</b><i style="width:27%"></i></div><div class="stat"><span>韧性</span><b>12</b><i style="width:40%"></i></div><div class="stat"><span>恢复</span><b>17</b><i style="width:57%"></i></div><div class="stat"><span>纪律</span><b>18</b><i style="width:60%"></i></div><div class="stat"><span>智慧</span><b>8</b><i style="width:27%"></i></div><div class="stat"><span>力量</span><b>6</b><i style="width:20%"></i></div><div class="stat"><span>属性总计</span><b>69</b><i style="width:86%"></i></div></div>`;
+    const weaponFacts = `<strong>获取状态</strong><span class="good">当前可获取</span><span>登录角色商人库存已命中</span><strong>账号拥有</strong><span>已拥有 1 件 · 仓库 1 件</span><button class="locate" type="button">在仓库定位</button><strong>实时入口</strong><span>当前商人售卖</span><span>仄 → 奇异装备优惠</span><strong>官方来源</strong><span>来源可确认</span><span>“猎杀暴怒之子”任务</span>`;
+    const armorFacts = `<strong>获取状态</strong><span class="good">当前可获取</span><span>登录角色商人库存已命中</span><strong>账号拥有</strong><span>已拥有 2 件</span><button class="locate" type="button">比较账号实例</button><strong>当前 Roll</strong><span>总计 69</span><span>恢复 17 · 纪律 18</span><strong>实时入口</strong><span>当前商人售卖</span><span>仄 → 奇异装备优惠</span>`;
+    const recommendation = (title, left, right, rate, body, evidence) => `<article class="recommendation-card"><header><h4>${title}</h4><span>${rate}</span></header><div class="perk-pair"><div class="perk-token"><i>技</i><strong>${left}</strong></div><span class="pair-plus">+</span><div class="perk-token"><i>伤</i><strong>${right}</strong></div></div><p>${body}</p><div class="evidence-row">${evidence.map((item) => `<span class="evidence">${item}</span>`).join("")}</div></article>`;
+    const weaponRecommendations = [recommendation("持续输出", "脉搏监控", "不屈", "13.2%", "受伤时自动装填，并通过快速击杀恢复生命，适合高压 PvE 场景。", ["社区样本", "当前售卖", "PvE"]), recommendation("稳定远射", "稳若磐石", "光速拔枪", "11.3%", "强化蹲伏射击稳定性，同时改善武器切换手感。", ["社区样本", "远距离"]), recommendation("机动追击", "杀人风", "移动目标", "6.2%", "击杀后获得机动增益，适合持续转点和追击。", ["PvP", "机动"]), recommendation("伤害循环", "心无旁骛", "杀戮弹匣", "5.7%", "先稳定命中，再通过击杀与装填进入伤害增益循环。", ["AI 解释", "伤害"] )].join("");
+    const perkColumn = (title, items) => `<section class="perk-column"><h4>${title}</h4>${items.map(([icon,name,desc]) => `<article class="perk"><span class="perk-icon">${icon}</span><div><strong>${name}</strong><p>${desc}</p></div></article>`).join("")}</section>`;
+    const weaponPerks = [perkColumn("框架 / 固有", [["框","精密框架","精准远程光束，后坐轨迹规则。"]]), perkColumn("枪管 / 瞄具", [["枪","加长枪管","提高射程，降低操控。"],["枪","箭头制退器","控制后坐方向。"],["枪","枪膛修正器","均衡稳定与操控。"],["枪","螺旋膛线","均衡提升多项属性。"]]), perkColumn("弹匣 / 电池", [["电","离子电池","提高弹匣容量。"],["电","加速线圈","缩短充能时间。"],["电","强化电池","增加弹匣容量。"],["电","液态线圈","提高伤害，延长充能。"]]), perkColumn("特性 1", [["技","心无旁骛","瞄准后减少抖动。"],["技","稳若磐石","蹲伏射击提高稳定性。"],["技","杀人风","击杀后提高机动性。"],["技","脉搏监控","受伤时自动装填。"]]), perkColumn("特性 2", [["伤","杀戮弹匣","装填后提高伤害。"],["伤","光速拔枪","提高拔出速度。"],["伤","不屈","快速击杀恢复生命。"],["伤","高强度弹药储备","弹匣较低时提高伤害。"]])].join("");
+    const choices = (items) => items.map(([icon,name,meta]) => `<article class="choice"><span class="choice-icon">${icon}</span><div><strong>${name}</strong><span>${meta}</span></div></article>`).join("");
+    const masterworks = choices([["杰","射程","社区采用率 26.6%"],["杰","稳定性","社区采用率 26.2%"],["杰","填装速度","社区采用率 23.7%"],["杰","操控性","社区采用率 23.3%"]]);
+    const weaponMods = choices([["模","备用弹匣","提高弹匣容量"],["模","快速切换枪带","改善武器切换"],["模","徒手握把","改善腰射操控"],["模","冲刺之握","冲刺后提高操控"],["模","瞄准协调器","提高目标获取"],["模","伊卡洛斯握把","提高空中效率"]]);
+    const armorMods = choices([["模","恢复模组","补齐恢复目标"],["模","纪律模组","强化手雷循环"],["模","火力无限","手雷击杀生成能量球"],["模","资产化灰烬","手雷击杀提供超能"],["模","神经刺激","近战伤害返还手雷能量"],["模","复原","拾取能量球恢复生命"]]);
+    const weaponAi = `<div class="ai-analysis"><span class="ai-label">AI 生成分析</span><h4>当前售卖 Roll 更偏向生存与持续输出</h4><p>脉搏监控可以在受伤时自动装填，不屈则通过快速击杀触发生命恢复。该组合不追求最高爆发，但在高压 PvE 环境中能降低换弹和生存压力。建议先与仓库中的同名实例比较，再决定是否购买。</p><div class="ai-evidence"><div><small>实时证据</small><strong>仄当前售卖</strong></div><div><small>账号证据</small><strong>仓库已有 1 件</strong></div><div><small>社区证据</small><strong>组合采用率 13.2%</strong></div></div></div><aside class="ai-tools"><label for="weapon-ai-question">询问这件武器</label><input id="weapon-ai-question" value="这把武器适合什么场景？" aria-label="询问这件武器"><div class="ai-action-grid"><button type="button">解释推荐组合</button><button type="button">比较仓库实例</button><button type="button">生成刷取目标</button><button type="button">生成配装草稿</button></div><span class="ai-disclaimer">AI 内容会标明依据，不替代游戏内实际数据和玩家判断。</span></aside>`;
+    const armorTargets = `<article class="target-card"><h4>手雷循环</h4><p>优先恢复与纪律，目标为恢复 100 / 纪律 100。</p><div class="evidence-row"><span class="evidence">固有特性</span><span class="evidence">PvE</span></div></article><article class="target-card"><h4>生存平衡</h4><p>恢复、韧性与纪律平衡，降低高难活动容错压力。</p><div class="evidence-row"><span class="evidence">高难 PvE</span><span class="evidence">账号护甲</span></div></article><article class="target-card"><h4>近战触发</h4><p>保留力量属性，通过近战击杀启动无限手雷窗口。</p><div class="evidence-row"><span class="evidence">能力循环</span><span class="evidence">AI 解释</span></div></article>`;
+    const armorCore = `<div class="intrinsic-block"><span class="intrinsic-icon">焰</span><div><h4>氦螺旋</h4><p>延长烈日手雷持续时间。近战击杀后会在短时间内提供无限烈日手雷能量。</p></div></div><div class="facts-ledger"><strong>触发条件</strong><span>近战击杀</span><span>启动短时间无限烈日手雷窗口</span><strong>主要协同</strong><span>恢复 / 纪律</span><span>提高技能循环稳定性与生存能力</span><strong>当前售卖</strong><span>总计 69</span><span>恢复 17 · 纪律 18 · 力量 6</span></div>`;
+    const armorAi = `<div class="ai-analysis"><span class="ai-label">AI 生成分析</span><h4>当前 Roll 适合作为手雷循环构筑的过渡件</h4><p>恢复 17 与纪律 18 符合炎阳护腕的核心方向，总计 69 也具备保留价值。力量只有 6，但可以通过模组、碎片或其他护甲补足近战触发需求。建议与仓库现有实例比较后再决定替换。</p><div class="ai-evidence"><div><small>固有特性</small><strong>近战触发无限手雷</strong></div><div><small>当前 Roll</small><strong>恢复 17 / 纪律 18</strong></div><div><small>账号证据</small><strong>已有 2 件实例</strong></div></div></div><aside class="ai-tools"><label for="armor-ai-question">询问这件护甲</label><input id="armor-ai-question" value="这个 Roll 值得保留吗？" aria-label="询问这件护甲"><div class="ai-action-grid"><button type="button">比较账号实例</button><button type="button">生成属性目标</button><button type="button">推荐护甲模组</button><button type="button">生成配装草稿</button></div><span class="ai-disclaimer">AI 内容会标明依据，不替代游戏内实际数据和玩家判断。</span></aside>`;
+
+    function render(kind) {
+      const template = document.querySelector(`#${kind}-template`).innerHTML;
+      const content = kind === "armor"
+        ? template.replace("__ARMOR_STATS__", armorStats).replace("__ARMOR_FACTS__", armorFacts).replace("__ARMOR_TARGETS__", armorTargets).replace("__ARMOR_CORE__", armorCore).replace("__ARMOR_MODS__", armorMods).replace("__ARMOR_AI__", armorAi)
+        : template.replace("__WEAPON_STATS__", weaponStats).replace("__WEAPON_FACTS__", weaponFacts).replace("__WEAPON_RECOMMENDATIONS__", weaponRecommendations).replace("__WEAPON_PERKS__", weaponPerks).replace("__MASTERWORKS__", masterworks).replace("__WEAPON_MODS__", weaponMods).replace("__WEAPON_AI__", weaponAi);
+      const scroll = document.querySelector("[data-dossier-scroll]");
+      scroll.innerHTML = content;
+      scroll.scrollTop = 0;
+    }
+
+    const initialKind = window.location.hash === "#armor" ? "armor" : "weapon";
+    document.querySelectorAll("[data-item-button]").forEach((button) => button.setAttribute("aria-pressed", String(button.dataset.itemButton === initialKind)));
+    render(initialKind);
+
+    document.querySelectorAll("[data-item-button]").forEach((button) => button.addEventListener("click", () => {
+      document.querySelectorAll("[data-item-button]").forEach((item) => item.setAttribute("aria-pressed", String(item === button)));
+      window.history.replaceState({}, "", `#${button.dataset.itemButton}`);
+      render(button.dataset.itemButton);
+    }));
+
+    document.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-section-target]");
+      if (!button) return;
+      const scroll = button.closest("[data-dossier-scroll]");
+      const section = scroll.querySelector(`[data-section="${button.dataset.sectionTarget}"]`);
+      section?.scrollIntoView({ behavior: "smooth", block: "start" });
+      scroll.querySelectorAll("[data-section-target]").forEach((item) => item.classList.toggle("is-active", item === button));
+    });
+  </script>
+</body>
+</html>
