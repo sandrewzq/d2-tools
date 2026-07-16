@@ -354,9 +354,10 @@ AI 外部查询结果默认只缓存。用户明确确认保存后，才以“�
 
 ### 切片 6：UI 设计与跨端落地
 
-- 随机 Roll 武器参考：[传说武器装备档案 HTML 原型](../references/equipment-dossier-future-layout.html)。
-- 固定配置异域武器参考：[玉兔异域武器详情 HTML 原型](../references/exotic-weapon-jade-rabbit-prototype.html)。
-- 两个原型都使用玩家可理解文案；真实资料与演示账号状态必须明确区分。
+- 随机 Roll 武器参考：[传说武器详情原型](../references/传说武器详情原型.html)。
+- 固定配置异域武器参考：[异域武器详情原型](../references/异域武器详情原型.html)。
+- 传说与异域护甲参考：[统一护甲详情原型](../references/统一护甲详情原型.html)。护甲共用一套页面骨架，按定义能力显示异域固有特性、诡计护甲、套装效果和特殊插槽；没有 Offer 或账号实例时不得展示虚构属性 Roll。
+- 所有原型都使用玩家可理解文案；真实资料与演示账号状态必须明确区分。
 - 内容和数据规则稳定后再设计正式布局。
 - 正式页面进入 `packages/ui`，Prototype、Web 和 Desktop 共用。
 - 不沿用当前参考 HTML 作为最终实现依据，除非后续视觉验收重新确认。

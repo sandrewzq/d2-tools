@@ -1,0 +1,555 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>统一护甲详情原型</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #070c11;
+      --shell: #0d151d;
+      --panel: #111c25;
+      --panel-2: #16232d;
+      --surface: #1a2934;
+      --line: #2b3d49;
+      --line-strong: #466070;
+      --text: #f0f5f7;
+      --body: #c1ced5;
+      --muted: #8396a2;
+      --mint: #75d8ad;
+      --mint-bg: #173c2e;
+      --amber: #e3bd64;
+      --amber-bg: #44371d;
+      --blue: #71b9de;
+      --blue-bg: #173549;
+      --violet: #ba9cf0;
+      --violet-bg: #342b4c;
+      --rose: #ef8e98;
+      --radius: 6px;
+      font-family: Inter, "Segoe UI", "Microsoft YaHei", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { min-width: 320px; margin: 0; color: var(--body); background: var(--bg); }
+    button { font: inherit; cursor: pointer; }
+    button:focus-visible { outline: 3px solid #91ccec; outline-offset: 2px; }
+
+    .prototype-switcher {
+      position: fixed; z-index: 50; top: 10px; left: 50%; width: min(820px, calc(100% - 24px));
+      display: grid; grid-template-columns: minmax(180px, 1fr) auto; gap: 12px; align-items: center;
+      padding: 8px 10px; border: 1px solid var(--line); border-radius: var(--radius); transform: translateX(-50%);
+      background: #111b24; box-shadow: 0 16px 42px rgb(0 0 0 / 36%);
+    }
+    .switcher-copy strong { display: block; color: var(--text); font-size: 12px; }
+    .switcher-copy span { display: block; color: var(--muted); font-size: 11px; }
+    .mode-buttons { display: flex; flex-wrap: wrap; gap: 4px; }
+    .mode-buttons button { min-height: 38px; padding: 0 11px; border: 1px solid transparent; border-radius: 4px; color: var(--muted); background: transparent; }
+    .mode-buttons button:hover { color: var(--text); background: var(--surface); }
+    .mode-buttons button[aria-pressed="true"] { color: var(--text); border-color: #4c7085; background: #203746; }
+
+    .modal-shell {
+      width: min(1540px, calc(100% - 28px)); height: calc(100dvh - 88px); margin: 72px auto 16px;
+      overflow: hidden; border: 1px solid var(--line); border-radius: var(--radius); background: var(--shell);
+      box-shadow: 0 26px 80px rgb(0 0 0 / 52%);
+    }
+    .modal-titlebar { height: 48px; display: flex; align-items: center; justify-content: space-between; padding: 0 14px; border-bottom: 1px solid var(--line); background: #101a23; }
+    .modal-titlebar strong { display: block; color: var(--text); font-size: 14px; }
+    .modal-titlebar span { display: block; color: var(--muted); font-size: 11px; }
+    .icon-button { width: 36px; height: 36px; border: 1px solid var(--line-strong); border-radius: 4px; color: var(--body); background: var(--panel); font-size: 18px; }
+    .modal-scroll { height: calc(100% - 48px); overflow: auto; }
+
+    .identity-band { display: grid; grid-template-columns: minmax(0, 1fr) 310px; min-height: 166px; border-bottom: 1px solid var(--line); }
+    .identity-main { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 16px; align-items: center; padding: 22px; }
+    .item-icon { width: 96px; height: 96px; border: 1px solid var(--line-strong); border-radius: 5px; background: var(--surface); }
+    .item-copy h1 { margin: 4px 0 5px; color: var(--text); font-size: 25px; letter-spacing: 0; }
+    .item-copy p { margin: 0; color: var(--muted); font-size: 13px; }
+    .badges { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 11px; }
+    .badge { display: inline-flex; align-items: center; min-height: 25px; padding: 0 7px; border: 1px solid var(--line-strong); border-radius: 3px; color: var(--body); background: #12202a; font-size: 11px; font-weight: 600; }
+    .badge.legendary { color: #eadfff; border-color: #8067ad; background: #352b50; }
+    .badge.exotic { color: #fff0bd; border-color: #9a7933; background: #493817; }
+    .badge.sample { color: #d8f3ff; border-color: #4a84a5; background: #17364a; }
+    .item-media { position: relative; min-height: 166px; overflow: hidden; border-left: 1px solid var(--line); background: #0a1117; }
+    .item-media img { width: 100%; height: 100%; display: block; object-fit: cover; }
+    .item-media span { position: absolute; right: 8px; bottom: 8px; padding: 4px 6px; border: 1px solid rgb(255 255 255 / 18%); border-radius: 3px; color: #edf5f8; background: rgb(5 10 14 / 78%); font-size: 11px; }
+
+    .context-strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-bottom: 1px solid var(--line); background: #101922; }
+    .context-cell { min-width: 0; padding: 9px 14px; border-right: 1px solid var(--line); }
+    .context-cell:last-child { border-right: 0; }
+    .context-cell span { display: block; margin-bottom: 3px; color: var(--muted); font-size: 11px; }
+    .context-cell strong { display: block; overflow: hidden; color: var(--text); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+
+    .section-nav { position: sticky; z-index: 20; top: 0; display: flex; gap: 3px; padding: 7px 14px; overflow-x: auto; border-bottom: 1px solid var(--line); background: #111b24; box-shadow: 0 9px 22px rgb(0 0 0 / 22%); }
+    .section-nav button { flex: 0 0 auto; min-height: 38px; padding: 0 12px; border: 0; border-radius: 4px; color: var(--muted); background: transparent; }
+    .section-nav button:hover { color: var(--text); background: var(--surface); }
+    .section-nav button.is-active { color: var(--text); background: #223b4a; }
+
+    .detail-section { scroll-margin-top: 56px; padding: 20px 18px 24px; border-bottom: 1px solid var(--line); }
+    .section-heading { display: flex; align-items: end; justify-content: space-between; gap: 18px; margin-bottom: 14px; }
+    .section-heading h2 { margin: 2px 0 0; color: var(--text); font-size: 18px; }
+    .section-heading p { max-width: 720px; margin: 0; color: var(--muted); font-size: 12px; line-height: 1.55; text-align: right; }
+    .eyebrow { color: var(--blue); font-size: 11px; font-weight: 700; }
+    .overview-layout { display: grid; grid-template-columns: minmax(500px, .9fr) minmax(0, 1.1fr); gap: 20px; }
+    .block-title { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+    .block-title h3 { margin: 0; color: var(--text); font-size: 13px; }
+    .block-title span { color: var(--muted); font-size: 11px; }
+
+    .stat-summary { display: grid; grid-template-columns: repeat(3, 1fr); margin-bottom: 8px; border: 1px solid var(--line); background: var(--panel); }
+    .stat-summary div { padding: 9px 10px; border-right: 1px solid var(--line); }
+    .stat-summary div:last-child { border-right: 0; }
+    .stat-summary span { display: block; color: var(--muted); font-size: 11px; }
+    .stat-summary strong { display: block; margin-top: 2px; color: var(--text); font-size: 15px; font-variant-numeric: tabular-nums; }
+    .stat-list { border-top: 1px solid var(--line); }
+    .stat-row { display: grid; grid-template-columns: 86px 46px minmax(120px, 1fr) 54px; gap: 9px; align-items: center; padding: 8px 5px; border-bottom: 1px solid var(--line); font-size: 12px; }
+    .stat-row strong { color: var(--text); }
+    .stat-row .value { color: var(--text); font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
+    .stat-bar { height: 8px; overflow: hidden; border-radius: 99px; background: #293944; }
+    .stat-bar i { height: 100%; display: block; background: var(--mint); }
+    .stat-row .target { color: var(--muted); text-align: right; }
+    .stat-empty { padding: 18px; border: 1px dashed var(--line-strong); color: var(--muted); background: #0e171e; font-size: 12px; line-height: 1.6; }
+
+    .source-list { border-top: 1px solid var(--line); }
+    .source-row { display: grid; grid-template-columns: 132px minmax(0, 1fr) auto; gap: 12px; align-items: start; padding: 11px 7px; border-bottom: 1px solid var(--line); }
+    .source-row > strong { color: var(--text); font-size: 12px; }
+    .source-row p { margin: 0; color: var(--body); font-size: 12px; line-height: 1.5; }
+    .source-row small { display: block; margin-top: 3px; color: var(--muted); font-size: 11px; }
+    .source-state { min-width: 82px; color: var(--mint); font-size: 11px; text-align: right; }
+    .source-state.muted { color: var(--muted); }
+    .data-note { margin-top: 10px; padding: 9px 10px; border-left: 3px solid var(--blue); color: #a9c6d6; background: #10202a; font-size: 11px; line-height: 1.55; }
+
+    .ability-layout { display: grid; grid-template-columns: minmax(300px, .78fr) minmax(0, 1.22fr); gap: 18px; }
+    .ability-feature { display: grid; grid-template-columns: 58px minmax(0, 1fr); gap: 12px; padding: 14px; border: 1px solid var(--line-strong); border-left: 4px solid var(--violet); background: var(--panel); }
+    .ability-feature.exotic { border-left-color: var(--amber); }
+    .ability-feature img { width: 58px; height: 58px; border-radius: 5px; background: var(--surface); }
+    .ability-feature h3 { margin: 0 0 4px; color: var(--text); font-size: 15px; }
+    .ability-feature p { margin: 0; color: var(--body); font-size: 12px; line-height: 1.55; }
+    .ability-feature small { display: block; margin-top: 7px; color: var(--muted); font-size: 11px; }
+    .capability-table { border-top: 1px solid var(--line); }
+    .capability-row { display: grid; grid-template-columns: 150px minmax(0, 1fr) auto; gap: 12px; padding: 10px 6px; border-bottom: 1px solid var(--line); font-size: 12px; }
+    .capability-row strong { color: var(--text); }
+    .capability-row span { color: var(--body); }
+    .capability-row em { color: var(--muted); font-style: normal; }
+
+    .mods-layout { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 20px; }
+    .socket-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+    .socket { min-width: 0; padding: 10px; border: 1px solid var(--line); border-radius: 5px; background: var(--panel); }
+    .socket.is-special { border-color: #7f68aa; background: #2c2740; }
+    .socket.is-exotic { border-color: #8f7133; background: #3c311b; }
+    .socket span { display: block; color: var(--muted); font-size: 11px; }
+    .socket strong { display: block; margin-top: 6px; color: var(--text); font-size: 12px; line-height: 1.35; }
+    .socket small { display: block; margin-top: 4px; color: var(--muted); font-size: 11px; line-height: 1.4; }
+    .recommend-panel { border-top: 1px solid var(--line); }
+    .recommend-row { padding: 10px 5px; border-bottom: 1px solid var(--line); }
+    .recommend-row span { display: block; color: var(--muted); font-size: 11px; }
+    .recommend-row strong { display: block; margin-top: 3px; color: var(--text); font-size: 12px; }
+    .recommend-row p { margin: 4px 0 0; color: var(--muted); font-size: 11px; line-height: 1.45; }
+
+    .knowledge-layout { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(360px, .85fr); gap: 20px; }
+    .target-list { display: grid; gap: 8px; }
+    .target-row { display: grid; grid-template-columns: 160px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 11px; border: 1px solid var(--line); background: var(--panel); }
+    .target-row h3 { margin: 0; color: var(--text); font-size: 13px; }
+    .target-row span, .target-row p { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.45; }
+    .target-row strong { color: var(--mint); font-size: 12px; }
+    .ai-panel { padding: 14px; border: 1px solid #5d4d7f; background: #211d30; }
+    .ai-panel h3 { margin: 8px 0 5px; color: var(--text); font-size: 14px; }
+    .ai-panel p { margin: 0; color: var(--body); font-size: 12px; line-height: 1.65; }
+    .ai-panel button { min-height: 38px; margin-top: 12px; padding: 0 11px; border: 1px solid #806dae; border-radius: 4px; color: #f2ebff; background: #3b3156; }
+
+    .instances { width: 100%; border-collapse: collapse; }
+    .instances th, .instances td { padding: 10px 8px; border-bottom: 1px solid var(--line); text-align: left; font-size: 12px; }
+    .instances th { color: var(--muted); font-weight: 500; }
+    .instances td { color: var(--body); }
+    .instances td strong { color: var(--text); }
+    .instances tr[data-select-instance] { cursor: pointer; }
+    .instances tr[data-select-instance]:hover { background: var(--panel-2); }
+    .instances tr.is-selected { background: #183226; box-shadow: inset 3px 0 0 var(--mint); }
+    .table-scroll { overflow-x: auto; }
+
+    @media (max-width: 1100px) {
+      .identity-band { grid-template-columns: minmax(0, 1fr) 250px; }
+      .overview-layout, .ability-layout, .knowledge-layout { grid-template-columns: 1fr; }
+      .mods-layout { grid-template-columns: 1fr; }
+      .socket-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 760px) {
+      .prototype-switcher { position: static; width: auto; margin: 8px; grid-template-columns: 1fr; transform: none; }
+      .mode-buttons { display: grid; grid-template-columns: 1fr 1fr; }
+      .modal-shell { width: auto; height: auto; min-height: calc(100dvh - 130px); margin: 8px; }
+      .modal-scroll { height: auto; overflow: visible; }
+      .identity-band { grid-template-columns: 1fr; }
+      .identity-main { grid-template-columns: 76px minmax(0, 1fr); padding: 16px; }
+      .item-icon { width: 76px; height: 76px; }
+      .item-copy h1 { font-size: 21px; }
+      .item-media { min-height: 150px; border-top: 1px solid var(--line); border-left: 0; }
+      .context-strip { grid-template-columns: 1fr 1fr; }
+      .context-cell:nth-child(2) { border-right: 0; }
+      .context-cell:nth-child(-n+2) { border-bottom: 1px solid var(--line); }
+      .section-heading { align-items: start; flex-direction: column; }
+      .section-heading p { text-align: left; }
+      .detail-section { padding-inline: 12px; }
+      .stat-row { grid-template-columns: 70px 38px minmax(90px, 1fr) 46px; gap: 6px; }
+      .source-row { grid-template-columns: 110px minmax(0, 1fr); }
+      .source-state { grid-column: 2; text-align: left; }
+      .socket-grid { grid-template-columns: 1fr; }
+      .target-row { grid-template-columns: 1fr; }
+      .instances { min-width: 720px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+    }
+  </style>
+</head>
+<body>
+  <section class="prototype-switcher" aria-label="护甲详情场景切换">
+    <div class="switcher-copy"><strong>统一护甲详情</strong><span>同一页面骨架，按装备能力和当前对象显示内容</span></div>
+    <div class="mode-buttons">
+      <button type="button" data-mode="legendary-definition">传说定义</button>
+      <button type="button" data-mode="legendary-instance">传说实例</button>
+      <button type="button" data-mode="exotic-definition">异域定义</button>
+      <button type="button" data-mode="exotic-instance">异域实例</button>
+    </div>
+  </section>
+
+  <main class="modal-shell">
+    <header class="modal-titlebar">
+      <div><strong>护甲档案</strong><span>定义、来源、账号实例与知识分析共用一套详情</span></div>
+      <button class="icon-button" type="button" aria-label="关闭原型">×</button>
+    </header>
+    <div class="modal-scroll" data-scroll>
+      <section class="identity-band">
+        <div class="identity-main">
+          <img class="item-icon" data-item-icon alt="">
+          <div class="item-copy">
+            <span class="eyebrow" data-rarity-label></span>
+            <h1 data-item-name></h1>
+            <p data-item-subtitle></p>
+            <div class="badges" data-item-badges></div>
+          </div>
+        </div>
+        <div class="item-media"><img data-item-shot alt=""><span>Manifest 实物图</span></div>
+      </section>
+
+      <section class="context-strip" data-context></section>
+
+      <nav class="section-nav" aria-label="护甲详情章节">
+        <button type="button" class="is-active" data-target="overview">属性与获取</button>
+        <button type="button" data-target="ability">护甲能力</button>
+        <button type="button" data-target="mods">模组与升级</button>
+        <button type="button" data-target="knowledge">推荐与分析</button>
+        <button type="button" data-target="instances">我的同名护甲</button>
+      </nav>
+
+      <section class="detail-section" data-section="overview">
+        <div class="section-heading">
+          <div><span class="eyebrow">ARMOR DATA</span><h2>属性与获取详情</h2></div>
+          <p>护甲定义没有固定属性 Roll。只有当前商人售卖品或账号实例才能提供实际六维属性。</p>
+        </div>
+        <div class="overview-layout">
+          <div>
+            <div class="block-title"><h3>当前对象属性</h3><span data-stat-origin></span></div>
+            <div data-stat-content></div>
+          </div>
+          <div>
+            <div class="block-title"><h3>官方获取来源</h3><span>不会因入口不同而隐藏</span></div>
+            <div class="source-list" data-sources></div>
+            <div class="data-note" data-source-note></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="detail-section" data-section="ability">
+        <div class="section-heading">
+          <div><span class="eyebrow">CONDITIONAL CAPABILITY</span><h2>护甲能力</h2></div>
+          <p>这里不是传说与异域两套页面，而是同一能力区域根据当前定义显示不同内容。</p>
+        </div>
+        <div class="ability-layout">
+          <article class="ability-feature" data-ability-feature></article>
+          <div class="capability-table" data-capabilities></div>
+        </div>
+      </section>
+
+      <section class="detail-section" data-section="mods">
+        <div class="section-heading">
+          <div><span class="eyebrow">SOCKETS & UPGRADE</span><h2>模组与升级</h2></div>
+          <p>定义模式只展示可用插槽；实例模式展示实际安装内容，并与知识库建议比较。</p>
+        </div>
+        <div class="mods-layout">
+          <div>
+            <div class="block-title"><h3 data-socket-title></h3><span data-socket-note></span></div>
+            <div class="socket-grid" data-sockets></div>
+          </div>
+          <aside>
+            <div class="block-title"><h3>知识库建议</h3><span>内置知识库</span></div>
+            <div class="recommend-panel" data-mod-recommendations></div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="detail-section" data-section="knowledge">
+        <div class="section-heading">
+          <div><span class="eyebrow">KNOWLEDGE ANALYSIS</span><h2>推荐与 AI 分析</h2></div>
+          <p>推荐围绕属性方向、模组和玩法定位，不为护甲虚构武器式 Perk 池或推荐 Roll。</p>
+        </div>
+        <div class="knowledge-layout">
+          <div class="target-list" data-targets></div>
+          <aside class="ai-panel">
+            <span class="badge sample">AI 生成 · 依据可追溯</span>
+            <h3 data-ai-title></h3>
+            <p data-ai-body></p>
+            <button type="button" data-run-ai>按当前对象重新分析</button>
+          </aside>
+        </div>
+      </section>
+
+      <section class="detail-section" data-section="instances">
+        <div class="section-heading">
+          <div><span class="eyebrow">ACCOUNT INSTANCES</span><h2>我的同名护甲</h2></div>
+          <p>这里只列出当前 Hash 的真实实例；原型中的数值均为匿名交互样本。</p>
+        </div>
+        <div class="table-scroll"><table class="instances" data-instances></table></div>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    const assetRoot = "https://www.bungie.net";
+    const manifestVersion = "244213.26.06.29.2000-1-bnet.65583";
+    const statNames = ["生命值", "近战", "手雷", "超能", "职业", "武器"];
+
+    const armor = {
+      legendary: {
+        hash: "51786498",
+        name: "邪神胸甲",
+        rarity: "传说",
+        type: "胸部护甲",
+        guardianClass: "猎人",
+        icon: "/common/destiny2_content/icons/3c0070209fc20151d36aafeb136e4eb4.jpg",
+        screenshot: "/common/destiny2_content/screenshots/51786498.jpg",
+        ability: {
+          name: "诡计护甲",
+          type: "固有能力",
+          description: "此护甲包含一个额外插槽，可装备允许你稍微改变其属性的模组。",
+          icon: "/common/destiny2_content/icons/e0f4d253fed747aac5378163ade2ff30.png"
+        },
+        sources: [
+          ["官方活动来源", "国王的陨落", "具体遭遇、难度和当前轮换由官方来源服务继续确认。", "来源已知"],
+          ["当前商人售卖", "未发现当前明确 Offer", "商人不在售时不生成价格、刷新或购买条件。", "当前未在售"]
+        ],
+        capabilities: [
+          ["稀有度能力", "传说护甲，可正常与异域护甲同时装备", "通用"],
+          ["特殊插槽", "诡计护甲额外属性调整插槽", "当前定义存在"],
+          ["异域固有特性", "不适用", "不显示占位模块"],
+          ["套装效果", "当前定义未解析到套装特性", "按能力显示"]
+        ],
+        definitionSockets: [
+          ["一般护甲模组", "可安装", "定义提供的通用插槽"],
+          ["胸部护甲模组 1", "可安装", "抗性或储备类模组"],
+          ["胸部护甲模组 2", "可安装", "按玩法组合"],
+          ["胸部护甲模组 3", "可安装", "按玩法组合"],
+          ["诡计护甲插槽", "额外属性调整", "当前定义特有", "special"]
+        ],
+        instanceSockets: [
+          ["一般护甲模组", "手雷模组", "实际安装 · 交互样本"],
+          ["胸部护甲模组 1", "震荡阻尼器", "实际安装 · 交互样本"],
+          ["胸部护甲模组 2", "电弧伤害抗性", "实际安装 · 交互样本"],
+          ["胸部护甲模组 3", "空插槽", "当前未安装"],
+          ["诡计护甲插槽", "+3 手雷", "实际安装 · 交互样本", "special"]
+        ],
+        stats: [14, 8, 27, 16, 6, 15],
+        targets: [12, 8, 25, 15, 5, 15],
+        total: 86,
+        upgrade: "大师杰作",
+        location: "猎人已装备",
+        instances: [
+          ["L-A", "猎人已装备", 86, "手雷 27 / 超能 16", "大师杰作", "已锁定"],
+          ["L-B", "仓库", 82, "生命值 23 / 武器 19", "7 级", "未锁定"]
+        ],
+        recommendations: [
+          ["属性方向", "手雷优先，兼顾超能与武器", "适合以技能循环和稳定输出为中心的样本目标。"],
+          ["一般模组", "手雷模组", "实例 A 已命中建议。"],
+          ["部位模组", "震荡阻尼器 + 对应元素抗性", "根据活动伤害类型调整。"],
+          ["特殊插槽", "+3 手雷或补齐阈值", "只在诡计护甲定义存在时显示。"]
+        ]
+      },
+      exotic: {
+        hash: "2002759681",
+        name: "合成感受器",
+        rarity: "异域",
+        type: "臂铠",
+        guardianClass: "泰坦",
+        icon: "/common/destiny2_content/icons/9f51bbad83aeb142eb56d9faf7440662.jpg",
+        screenshot: "/common/destiny2_content/screenshots/2002759681.jpg",
+        ability: {
+          name: "生物强化",
+          type: "异域固有特性",
+          description: "被包围时增加近战和超能伤害，并提升武器操控性和填装速度。",
+          icon: "/common/destiny2_content/icons/640d76fb6ab52e290116455379194b07.png"
+        },
+        sources: [
+          ["官方获取方式", "异域记忆水晶与拉胡尔解码", "实际可用解码方式和资源要求由当前官方数据确认。", "来源已知"],
+          ["当前商人售卖", "未发现当前明确 Offer", "若仄或其他商人出现 Offer，这里会与其他来源同时显示。", "当前未在售"]
+        ],
+        capabilities: [
+          ["异域限制", "同一时间只能装备一件异域护甲", "装备规则"],
+          ["固有特性", "生物强化固定属于装备定义", "不随实例变化"],
+          ["随机属性", "不同账号实例拥有不同属性分布", "实例级数据"],
+          ["传说套装效果", "不适用", "不显示占位模块"]
+        ],
+        definitionSockets: [
+          ["一般护甲模组", "可安装", "定义提供的通用插槽"],
+          ["手臂护甲模组 1", "可安装", "技能循环类模组"],
+          ["手臂护甲模组 2", "可安装", "技能循环类模组"],
+          ["手臂护甲模组 3", "可安装", "按玩法组合"],
+          ["调整模组插槽", "由实例调整属性决定", "当前版本定义提供", "exotic"]
+        ],
+        instanceSockets: [
+          ["一般护甲模组", "近战模组", "实际安装 · 交互样本"],
+          ["手臂护甲模组 1", "动量转移", "实际安装 · 交互样本"],
+          ["手臂护甲模组 2", "重手出击", "实际安装 · 交互样本"],
+          ["手臂护甲模组 3", "空插槽", "当前未安装"],
+          ["调整模组插槽", "近战调整", "实际属性方向 · 交互样本", "exotic"]
+        ],
+        stats: [18, 29, 8, 14, 7, 12],
+        targets: [15, 25, 8, 12, 5, 10],
+        total: 88,
+        upgrade: "大师杰作",
+        location: "泰坦背包",
+        instances: [
+          ["E-A", "泰坦背包", 88, "近战 29 / 生命值 18", "大师杰作", "已锁定"],
+          ["E-B", "仓库", 83, "超能 22 / 武器 17", "8 级", "未锁定"]
+        ],
+        recommendations: [
+          ["属性方向", "近战优先，兼顾生命值与超能", "与生物强化的近战定位保持一致。"],
+          ["一般模组", "近战模组", "实例 A 已命中建议。"],
+          ["部位模组", "动量转移 + 重手出击", "围绕近战和手雷循环配置。"],
+          ["异域特性", "贴近目标并保持被包围条件", "由固有特性决定使用方式，不是随机 Roll。"]
+        ]
+      }
+    };
+
+    const state = { mode: location.hash.slice(1) || "legendary-definition", analysisCount: 0 };
+    const elements = {
+      icon: document.querySelector("[data-item-icon]"), shot: document.querySelector("[data-item-shot]"), name: document.querySelector("[data-item-name]"),
+      rarity: document.querySelector("[data-rarity-label]"), subtitle: document.querySelector("[data-item-subtitle]"), badges: document.querySelector("[data-item-badges]"),
+      context: document.querySelector("[data-context]"), statOrigin: document.querySelector("[data-stat-origin]"), statContent: document.querySelector("[data-stat-content]"),
+      sources: document.querySelector("[data-sources]"), sourceNote: document.querySelector("[data-source-note]"), ability: document.querySelector("[data-ability-feature]"),
+      capabilities: document.querySelector("[data-capabilities]"), socketTitle: document.querySelector("[data-socket-title]"), socketNote: document.querySelector("[data-socket-note]"),
+      sockets: document.querySelector("[data-sockets]"), modRecommendations: document.querySelector("[data-mod-recommendations]"), targets: document.querySelector("[data-targets]"),
+      aiTitle: document.querySelector("[data-ai-title]"), aiBody: document.querySelector("[data-ai-body]"), instances: document.querySelector("[data-instances]")
+    };
+
+    function current() {
+      const isExotic = state.mode.startsWith("exotic");
+      return { item: isExotic ? armor.exotic : armor.legendary, hasInstance: state.mode.endsWith("instance"), isExotic };
+    }
+
+    function renderIdentity(item, hasInstance, isExotic) {
+      elements.icon.src = assetRoot + item.icon;
+      elements.icon.alt = item.name;
+      elements.shot.src = assetRoot + item.screenshot;
+      elements.shot.alt = `${item.name} Manifest 截图`;
+      elements.name.textContent = item.name;
+      elements.rarity.textContent = `${item.rarity}护甲 · ${item.guardianClass}`;
+      elements.subtitle.textContent = `${item.type} · ${hasInstance ? "当前查看匿名账号实例" : "当前查看装备定义"}`;
+      elements.badges.innerHTML = `<span class="badge ${isExotic ? "exotic" : "legendary"}">${item.rarity}</span><span class="badge">${item.type}</span><span class="badge">${item.guardianClass}</span><span class="badge">Hash ${item.hash}</span>${hasInstance ? `<span class="badge sample">实例数据为交互样本</span>` : ""}`;
+    }
+
+    function renderContext(item, hasInstance) {
+      const cells = [
+        ["当前入口", hasInstance ? "仓库护甲实例" : "资料库护甲定义"],
+        ["当前对象", hasInstance ? `样本实例 ${item.instances[0][0]}` : `${item.name} 定义`],
+        ["属性数据", hasInstance ? `实际实例 Roll · 总计 ${item.total}` : "未选择实例，不显示虚构数值"],
+        ["Manifest 版本", manifestVersion]
+      ];
+      elements.context.innerHTML = cells.map(([label, value]) => `<div class="context-cell"><span>${label}</span><strong>${value}</strong></div>`).join("");
+    }
+
+    function renderStats(item, hasInstance) {
+      elements.statOrigin.textContent = hasInstance ? "账号实例样本" : "装备定义";
+      if (!hasInstance) {
+        elements.statContent.innerHTML = `<div class="stat-empty"><strong>当前没有实际属性 Roll。</strong><br>Manifest 装备定义只确定护甲类型、插槽和能力；六维属性属于商人 Offer 或账号实例。下方推荐值是知识目标，不会冒充基础属性。</div>`;
+        return;
+      }
+      const highestIndex = item.stats.indexOf(Math.max(...item.stats));
+      elements.statContent.innerHTML = `<div class="stat-summary"><div><span>实例总属性</span><strong>${item.total}</strong></div><div><span>最高属性</span><strong>${statNames[highestIndex]} ${item.stats[highestIndex]}</strong></div><div><span>升级状态</span><strong>${item.upgrade}</strong></div></div><div class="stat-list">${statNames.map((name, index) => `<div class="stat-row"><strong>${name}</strong><span class="value">${item.stats[index]}</span><span class="stat-bar"><i style="width:${Math.min(100, item.stats[index] / 45 * 100)}%"></i></span><span class="target">目标 ${item.targets[index]}</span></div>`).join("")}</div>`;
+    }
+
+    function renderSources(item) {
+      elements.sources.innerHTML = item.sources.map(([type, name, note, stateText], index) => `<div class="source-row"><strong>${type}</strong><div><p>${name}</p><small>${note}</small></div><span class="source-state ${index ? "muted" : ""}">${stateText}</span></div>`).join("");
+      elements.sourceNote.textContent = "来源区展示全部官方获取方式和当前商人 Offer。账号拥有状态、知识库和 AI 不能生成或覆盖官方来源。";
+    }
+
+    function renderAbility(item, isExotic) {
+      elements.ability.className = `ability-feature ${isExotic ? "exotic" : ""}`;
+      elements.ability.innerHTML = `<img src="${assetRoot + item.ability.icon}" alt=""><div><span class="eyebrow">${item.ability.type}</span><h3>${item.ability.name}</h3><p>${item.ability.description}</p><small>来自当前 Manifest 装备定义，不随账号实例改变。</small></div>`;
+      elements.capabilities.innerHTML = item.capabilities.map(([label, value, status]) => `<div class="capability-row"><strong>${label}</strong><span>${value}</span><em>${status}</em></div>`).join("");
+    }
+
+    function renderSockets(item, hasInstance) {
+      const sockets = hasInstance ? item.instanceSockets : item.definitionSockets;
+      elements.socketTitle.textContent = hasInstance ? "当前实例实际插槽" : "定义支持的插槽";
+      elements.socketNote.textContent = hasInstance ? "实例内容为匿名交互样本" : "未选择实例，不显示已安装模组";
+      elements.sockets.innerHTML = sockets.map(([label, value, note, tone]) => `<article class="socket ${tone === "special" ? "is-special" : tone === "exotic" ? "is-exotic" : ""}"><span>${label}</span><strong>${value}</strong><small>${note}</small></article>`).join("");
+      elements.modRecommendations.innerHTML = item.recommendations.slice(1).map(([label, value, note]) => `<div class="recommend-row"><span>${label}</span><strong>${value}</strong><p>${note}</p></div>`).join("");
+    }
+
+    function renderKnowledge(item, hasInstance, isExotic) {
+      const match = hasInstance ? (item.stats.every((value, index) => value >= item.targets[index]) ? "全部达到目标" : "部分达到目标") : "等待选择实例";
+      elements.targets.innerHTML = item.recommendations.map(([title, value, note], index) => `<article class="target-row"><div><h3>${title}</h3><span>内置知识库 · 当前版本</span></div><p><strong>${value}</strong><br>${note}</p><strong>${index === 0 ? match : hasInstance ? "可比较" : "仅显示建议"}</strong></article>`).join("");
+      elements.aiTitle.textContent = hasInstance ? `当前${item.rarity}护甲实例分析` : `${item.rarity}护甲定义分析`;
+      elements.aiBody.textContent = hasInstance
+        ? `${item.name}样本实例的总属性为 ${item.total}，当前最高属性是${statNames[item.stats.indexOf(Math.max(...item.stats))]}。分析会同时参考实际模组、${isExotic ? "异域固有特性" : "诡计护甲插槽"}和知识库目标，不会把其他同名实例的属性混入当前结论。`
+        : `${item.name}当前只查看装备定义。可以解释${isExotic ? "生物强化的使用方式" : "诡计护甲的额外插槽"}、官方来源和知识库建议，但不能在没有 Offer 或账号实例时生成一组虚假的护甲属性。`;
+    }
+
+    function renderInstances(item, hasInstance) {
+      elements.instances.innerHTML = `<thead><tr><th>实例</th><th>位置</th><th>总属性</th><th>属性重点</th><th>升级</th><th>状态</th><th>操作</th></tr></thead><tbody>${item.instances.map((row, index) => `<tr data-select-instance class="${hasInstance && index === 0 ? "is-selected" : ""}"><td><strong>样本 ${row[0]}</strong></td><td>${row[1]}</td><td>${row[2]}</td><td>${row[3]}</td><td>${row[4]}</td><td>${row[5]}</td><td>${hasInstance && index === 0 ? "当前查看" : "查看实例"}</td></tr>`).join("")}</tbody>`;
+    }
+
+    function render() {
+      if (!armor[state.mode.startsWith("exotic") ? "exotic" : "legendary"]) state.mode = "legendary-definition";
+      const { item, hasInstance, isExotic } = current();
+      document.querySelectorAll("[data-mode]").forEach(button => button.setAttribute("aria-pressed", String(button.dataset.mode === state.mode)));
+      renderIdentity(item, hasInstance, isExotic);
+      renderContext(item, hasInstance);
+      renderStats(item, hasInstance);
+      renderSources(item);
+      renderAbility(item, isExotic);
+      renderSockets(item, hasInstance);
+      renderKnowledge(item, hasInstance, isExotic);
+      renderInstances(item, hasInstance);
+    }
+
+    document.querySelectorAll("[data-mode]").forEach(button => button.addEventListener("click", () => {
+      state.mode = button.dataset.mode;
+      location.hash = state.mode;
+      render();
+    }));
+    document.querySelectorAll("[data-target]").forEach(button => button.addEventListener("click", () => {
+      document.querySelector(`[data-section="${button.dataset.target}"]`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+      document.querySelectorAll("[data-target]").forEach(item => item.classList.toggle("is-active", item === button));
+    }));
+    document.addEventListener("click", event => {
+      if (!event.target.closest("[data-select-instance]")) return;
+      state.mode = state.mode.startsWith("exotic") ? "exotic-instance" : "legendary-instance";
+      location.hash = state.mode;
+      render();
+    });
+    document.querySelector("[data-run-ai]").addEventListener("click", event => {
+      state.analysisCount += 1;
+      const { item, hasInstance, isExotic } = current();
+      renderKnowledge(item, hasInstance, isExotic);
+      event.currentTarget.textContent = `已按当前对象更新 ${state.analysisCount} 次`;
+    });
+    window.addEventListener("hashchange", () => {
+      const next = location.hash.slice(1);
+      if (["legendary-definition", "legendary-instance", "exotic-definition", "exotic-instance"].includes(next)) {
+        state.mode = next;
+        render();
+      }
+    });
+    render();
+  </script>
+</body>
+</html>
