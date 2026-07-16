@@ -3,6 +3,10 @@ import type { ActivityHistorySummary } from "@d2-tools/core/activities/history";
 import type { DimWishlist } from "@d2-tools/core/analysis/wishlistImport";
 import type { LocalTargetRules } from "@d2-tools/core/analysis/targets";
 import type { LocalCommunityRecommendationTable } from "@d2-tools/core/community-perks";
+import type {
+  PersonalWeaponKnowledgeTable,
+  SavePersonalWeaponKnowledgeInput
+} from "@d2-tools/core/community-perks/personalWeaponKnowledge";
 import type { VaultItemMatchInfo, WeaponRecommendation } from "@d2-tools/core/community-perks";
 import type { VaultTags, SaveVaultNoteInput, SaveVaultTagInput } from "@d2-tools/core/vault/tags";
 import type { AiChatReplyResult, AiChatRequest } from "./types.js";
@@ -19,6 +23,10 @@ export type DesktopBridgeApi = {
   getLocalCommunityRecommendations(): Promise<LocalCommunityRecommendationTable | null>;
   saveLocalCommunityRecommendations(table: LocalCommunityRecommendationTable): Promise<LocalCommunityRecommendationTable>;
   clearLocalCommunityRecommendations(): Promise<null>;
+  getPersonalWeaponKnowledge(weaponName?: string): Promise<PersonalWeaponKnowledgeTable>;
+  savePersonalWeaponKnowledge(input: SavePersonalWeaponKnowledgeInput): Promise<PersonalWeaponKnowledgeTable>;
+  setPersonalWeaponKnowledgeEnabled(id: string, enabled: boolean): Promise<PersonalWeaponKnowledgeTable>;
+  deletePersonalWeaponKnowledge(id: string): Promise<PersonalWeaponKnowledgeTable>;
   getVaultTags(): Promise<VaultTags>;
   saveVaultTag(input: SaveVaultTagInput): Promise<VaultTags>;
   saveVaultTagsBatch(inputs: SaveVaultTagInput[]): Promise<VaultTags>;
@@ -42,6 +50,10 @@ export function createDesktopBridgeServices(api: DesktopBridgeApi): D2Services {
       getLocalCommunityRecommendations: () => api.getLocalCommunityRecommendations(),
       saveLocalCommunityRecommendations: (table) => api.saveLocalCommunityRecommendations(table),
       clearLocalCommunityRecommendations: () => api.clearLocalCommunityRecommendations(),
+      getPersonalWeaponKnowledge: (weaponName) => api.getPersonalWeaponKnowledge(weaponName),
+      savePersonalWeaponKnowledge: (input) => api.savePersonalWeaponKnowledge(input),
+      setPersonalWeaponKnowledgeEnabled: (id, enabled) => api.setPersonalWeaponKnowledgeEnabled(id, enabled),
+      deletePersonalWeaponKnowledge: (id) => api.deletePersonalWeaponKnowledge(id),
       getVaultTags: () => api.getVaultTags(),
       saveVaultTag: (input) => api.saveVaultTag(input),
       saveVaultTagsBatch: (inputs) => api.saveVaultTagsBatch(inputs),

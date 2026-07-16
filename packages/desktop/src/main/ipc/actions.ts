@@ -12,6 +12,7 @@ import {
 } from "@d2-tools/core/actions/plan";
 import {
   equipItem as bungieEquipItem,
+  insertSocketPlug as bungieInsertSocketPlug,
   equipLoadout as bungieEquipLoadout,
   pullFromPostmaster as bungiePullFromPostmaster,
   setItemLockState as bungieSetItemLockState,
@@ -35,6 +36,16 @@ type ItemEquipActionInput = {
   character_id: string;
   item_id: string;
   item_name?: string;
+};
+
+type InsertSocketPlugActionInput = {
+  membership_type: number;
+  character_id: string;
+  item_id: string;
+  item_name?: string;
+  socket_index: number;
+  plug_hash: number;
+  plug_name?: string;
 };
 
 type ItemTransferActionInput = {
@@ -119,6 +130,27 @@ export function registerActionIpcHandlers(): void {
           membershipType: input.membership_type,
           characterId: input.character_id,
           itemId: input.item_id
+        });
+      }
+    });
+  });
+
+  ipcMain.handle("actions:item:insert-socket-plug", async (_event, input: InsertSocketPlugActionInput) => {
+    return runWriteAction({
+      action: "insert-socket-plug",
+      itemName: input.item_name,
+      itemInstanceId: input.item_id,
+      characterId: input.character_id,
+      successMessage: `已应用 Perk：${input.plug_name ?? input.plug_hash}`,
+      run: async ({ config, token }) => {
+        await bungieInsertSocketPlug({
+          config,
+          token,
+          membershipType: input.membership_type,
+          characterId: input.character_id,
+          itemId: input.item_id,
+          socketIndex: input.socket_index,
+          plugHash: input.plug_hash
         });
       }
     });

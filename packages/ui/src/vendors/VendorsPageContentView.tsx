@@ -21,6 +21,7 @@ export type VendorInventoryItemView = {
   itemHash?: number;
   quantity?: number;
   vendorItemIndex?: number;
+  vendorHash?: number;
   categoryIndex?: number;
   categoryName?: string;
   characterIds?: string[];
@@ -36,8 +37,18 @@ export type VendorInventoryItemView = {
   tone: "exotic" | "weapon" | "armor" | "material";
   status: "owned" | "recommended" | "unknown";
   decisionLabel?: string;
+  canPurchase?: boolean;
+  failureMessages?: string[];
   stats?: Record<string, number>;
-  socketPlugs?: Array<{ hash: number; name: string; iconUrl?: string }>;
+  socketPlugs?: Array<{
+    hash: number;
+    name: string;
+    iconUrl?: string;
+    description?: string;
+    categoryIdentifier?: string;
+    statModifiers?: Record<string, number>;
+    itemType?: string;
+  }>;
   sourcePath?: string;
 };
 

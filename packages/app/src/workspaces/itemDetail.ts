@@ -1,9 +1,19 @@
 import { evaluateLocalTargets, type LocalTargetRules } from "@d2-tools/core/analysis/targets";
 import { evaluateWishlistRoll } from "@d2-tools/core/analysis/wishlist";
 import type { DimWishlist } from "@d2-tools/core/analysis/wishlistImport";
-import type { AccountItemPlugSummary, AccountItemSummary, AccountSummary } from "@d2-tools/core/account/summary";
+import type {
+  AccountItemPlugSummary,
+  AccountItemSummary,
+  AccountSummary,
+  AmmoTypeKey,
+  WeaponFrameSummary
+} from "@d2-tools/core/account/summary";
 import type { ItemSourceSummary } from "@d2-tools/core/items/source";
 import type { ItemPerkGroup } from "@d2-tools/core/items/perks";
+import type { ItemReleaseSummary } from "@d2-tools/core/items/release";
+import type { ItemDefinitionStat, ItemOriginTrait } from "@d2-tools/core/items/search";
+import type { WeaponBreakerTypeSummary } from "@d2-tools/core/items/breakerTypes";
+import type { DamageTypeSummary } from "@d2-tools/core/items/damageTypes";
 import type { VaultTags, VaultTagValue } from "@d2-tools/core/vault/tags";
 import { getAllKnownAccountItemsWithSource, type LoadoutSourceItem } from "./loadoutSources.js";
 
@@ -23,6 +33,25 @@ export type ItemDefinitionDetailLike = {
   icon?: string;
   item_type?: string;
   tier?: string;
+  class_name?: string;
+  damage_type?: string;
+  damage_type_summary?: DamageTypeSummary;
+  is_adept?: boolean;
+  origin_traits?: ItemOriginTrait[];
+  intrinsic_traits?: Array<{
+    hash: number;
+    name: string;
+    description: string;
+    icon?: string;
+  }>;
+  ammo_type?: AmmoTypeKey;
+  bucket_hash?: number;
+  bucket_name?: string;
+  group_key?: AccountItemSummary["group_key"];
+  weapon_frame?: WeaponFrameSummary;
+  breaker_type?: WeaponBreakerTypeSummary;
+  definition_stats?: ItemDefinitionStat[];
+  release?: ItemReleaseSummary;
   source: ItemSourceSummary;
   perks?: ItemPerkGroup[];
 };
@@ -34,8 +63,20 @@ export type ItemSearchResultLike = {
   icon?: string;
   item_type?: string;
   tier?: string;
+  class_name?: string;
+  damage_type?: string;
+  damage_type_summary?: DamageTypeSummary;
+  is_adept?: boolean;
+  origin_traits?: ItemOriginTrait[];
+  intrinsic_traits?: ItemDefinitionDetailLike["intrinsic_traits"];
+  ammo_type?: AmmoTypeKey;
+  bucket_hash?: number;
   group_key?: AccountItemSummary["group_key"];
   bucket_name?: string;
+  weapon_frame?: WeaponFrameSummary;
+  breaker_type?: WeaponBreakerTypeSummary;
+  definition_stats?: ItemDefinitionStat[];
+  release?: ItemReleaseSummary;
   source: ItemSourceSummary;
   perks?: ItemPerkGroup[];
 };
@@ -50,6 +91,9 @@ export type SelectedItemDetail = ItemDefinitionDetailLike & {
   armor_stat_breakdown?: AccountItemSummary["armor_stat_breakdown"];
   armor_energy?: AccountItemSummary["armor_energy"];
   weapon_stats?: AccountItemSummary["weapon_stats"];
+  instance?: AccountItemSummary["instance"];
+  item_objectives?: AccountItemSummary["item_objectives"];
+  sockets?: AccountItemSummary["sockets"];
   group_key?: AccountItemSummary["group_key"];
   bucket_name?: string;
   source_character_id?: string;
@@ -77,14 +121,20 @@ export function selectedItemToAccountItem(item: SelectedItemDetail): AccountItem
     icon: item.icon,
     item_type: item.item_type,
     tier: item.tier,
+    ammo_type: item.ammo_type,
+    bucket_hash: item.bucket_hash,
     bucket_name: item.bucket_name,
     group_key: item.group_key,
+    weapon_frame: item.weapon_frame,
     power: item.power,
     locked: item.locked,
     armor_stats: item.armor_stats,
     armor_stat_breakdown: item.armor_stat_breakdown,
     armor_energy: item.armor_energy,
     weapon_stats: item.weapon_stats,
+    instance: item.instance,
+    item_objectives: item.item_objectives,
+    sockets: item.sockets,
     socket_plugs: item.socket_plugs ?? []
   };
 }
@@ -100,6 +150,18 @@ export function createSelectedItemPreview(
     icon: item.icon,
     item_type: item.item_type,
     tier: item.tier,
+    class_name: "class_name" in item ? item.class_name : undefined,
+    damage_type: "damage_type" in item ? item.damage_type : undefined,
+    damage_type_summary: "damage_type_summary" in item ? item.damage_type_summary : undefined,
+    is_adept: "is_adept" in item ? item.is_adept : undefined,
+    origin_traits: "origin_traits" in item ? item.origin_traits : undefined,
+    intrinsic_traits: "intrinsic_traits" in item ? item.intrinsic_traits : undefined,
+    ammo_type: "ammo_type" in item ? item.ammo_type : undefined,
+    bucket_hash: "bucket_hash" in item ? item.bucket_hash : undefined,
+    weapon_frame: "weapon_frame" in item ? item.weapon_frame : undefined,
+    breaker_type: "breaker_type" in item ? item.breaker_type : undefined,
+    definition_stats: "definition_stats" in item ? item.definition_stats : undefined,
+    release: "release" in item ? item.release : undefined,
     source: "source" in item ? item.source : itemDetailLoadingSource,
     perks: "perks" in item ? item.perks : undefined,
     item_key: getItemKey(item),
@@ -110,6 +172,9 @@ export function createSelectedItemPreview(
     armor_stat_breakdown: "armor_stat_breakdown" in item ? item.armor_stat_breakdown : undefined,
     armor_energy: "armor_energy" in item ? item.armor_energy : undefined,
     weapon_stats: "weapon_stats" in item ? item.weapon_stats : undefined,
+    instance: "instance" in item ? item.instance : undefined,
+    item_objectives: "item_objectives" in item ? item.item_objectives : undefined,
+    sockets: "sockets" in item ? item.sockets : undefined,
     socket_plugs: "socket_plugs" in item ? item.socket_plugs : undefined,
     group_key: "group_key" in item ? item.group_key : undefined,
     bucket_name: "bucket_name" in item ? item.bucket_name : undefined,

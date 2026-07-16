@@ -37,6 +37,14 @@ export function registerLibraryIpcHandlers(): void {
       config.data.data_dir,
       "DestinyCollectibleDefinition"
     );
+    const breakerTypeDefinitions = loadDefinitionComponent(
+      config.data.data_dir,
+      "DestinyBreakerTypeDefinition"
+    );
+    const damageTypeDefinitions = loadDefinitionComponent(
+      config.data.data_dir,
+      "DestinyDamageTypeDefinition"
+    );
     if (!definitions) {
       throw new Error("请先初始化资料库");
     }
@@ -46,6 +54,8 @@ export function registerLibraryIpcHandlers(): void {
       plugSetDefinitions: plugSetDefinitions ?? undefined,
       statDefinitions: statDefinitions ?? undefined,
       collectibleDefinitions: collectibleDefinitions ?? undefined,
+      breakerTypeDefinitions: breakerTypeDefinitions ?? undefined,
+      damageTypeDefinitions: damageTypeDefinitions ?? undefined,
       aliases: loadItemAliases(config.data.data_dir)
     });
   });
@@ -111,6 +121,14 @@ export function registerLibraryIpcHandlers(): void {
       config.data.data_dir,
       "DestinyStatDefinition"
     );
+    const breakerTypeDefinitions = loadDefinitionComponent(
+      config.data.data_dir,
+      "DestinyBreakerTypeDefinition"
+    );
+    const damageTypeDefinitions = loadDefinitionComponent(
+      config.data.data_dir,
+      "DestinyDamageTypeDefinition"
+    );
 
     if (!definitions) {
       throw new Error("请先初始化资料库");
@@ -119,7 +137,10 @@ export function registerLibraryIpcHandlers(): void {
     const detail = getItemSearchResultByHash(definitions, Number(hash), {
       plugSetDefinitions: plugSetDefinitions ?? undefined,
       statDefinitions: statDefinitions ?? undefined,
-      collectibleDefinitions: collectibleDefinitions ?? undefined
+      collectibleDefinitions: collectibleDefinitions ?? undefined,
+      breakerTypeDefinitions: breakerTypeDefinitions ?? undefined,
+      damageTypeDefinitions: damageTypeDefinitions ?? undefined,
+      includeAllPerks: true
     });
     if (!detail) {
       throw new Error("未找到物品详情");

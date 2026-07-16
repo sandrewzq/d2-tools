@@ -35,6 +35,11 @@ type DefinitionRecord = {
     displayProperties?: { name?: string };
   }>;
   preview?: { previewVendorHash?: number };
+  investmentStats?: Array<{
+    statTypeHash?: number;
+    value?: number;
+    isConditionallyActive?: boolean;
+  }>;
 };
 
 export type FetchVendorInventorySnapshotOptions = {
@@ -402,7 +407,14 @@ function mapDefinitions(
         itemType: definition?.itemTypeDisplayName?.trim() || "",
         tierType: definition?.inventory?.tierTypeName?.trim() || "",
         iconUrl: definition?.displayProperties?.icon,
-        previewVendorHash: definition?.preview?.previewVendorHash
+        previewVendorHash: definition?.preview?.previewVendorHash,
+        ...(definition?.displayProperties?.description
+          ? { description: definition.displayProperties.description }
+          : {}),
+        ...(definition?.plug?.plugCategoryIdentifier
+          ? { categoryIdentifier: definition.plug.plugCategoryIdentifier }
+          : {}),
+        ...(definition?.investmentStats?.length ? { investmentStats: definition.investmentStats } : {})
       }];
     }))
   };

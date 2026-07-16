@@ -1,6 +1,8 @@
 import type { DefinitionComponentData, DefinitionRecord } from "../manifest/definitions.js";
 import { summarizeItemPerks, type ItemPerkGroup } from "./perks.js";
 import { summarizeItemSource, type ItemSourceSummary } from "./source.js";
+import { summarizeWeaponBreakerType, type WeaponBreakerTypeSummary } from "./breakerTypes.js";
+import { summarizeItemDamageType, type DamageTypeSummary } from "./damageTypes.js";
 
 export type ItemDefinitionDetail = {
   hash: number;
@@ -11,11 +13,15 @@ export type ItemDefinitionDetail = {
   tier?: string;
   source: ItemSourceSummary;
   perks?: ItemPerkGroup[];
+  breaker_type?: WeaponBreakerTypeSummary;
+  damage_type_summary?: DamageTypeSummary;
 };
 
 export type ItemDefinitionDetailOptions = {
   plugSetDefinitions?: DefinitionComponentData;
   collectibleDefinitions?: DefinitionComponentData;
+  breakerTypeDefinitions?: DefinitionComponentData;
+  damageTypeDefinitions?: DefinitionComponentData;
 };
 
 const bungieStaticBaseUrl = "https://www.bungie.net";
@@ -45,10 +51,23 @@ export function getItemDefinitionDetail(
 
   const perks = summarizeItemPerks(definition as DefinitionRecord, definitions, {
     plugSetDefinitions: options.plugSetDefinitions,
-    maxPlugsPerSocket: 8
+    maxPlugsPerSocket: null
   });
   if (perks.length > 0) {
     detail.perks = perks;
+  }
+
+  const breakerType = summarizeWeaponBreakerType(definition, definitions, {
+    plugSetDefinitions: options.plugSetDefinitions,
+    breakerTypeDefinitions: options.breakerTypeDefinitions
+  });
+  if (breakerType) {
+    detail.breaker_type = breakerType;
+  }
+
+  const damageTypeSummary = summarizeItemDamageType(definition, options.damageTypeDefinitions);
+  if (damageTypeSummary) {
+    detail.damage_type_summary = damageTypeSummary;
   }
 
   return detail;

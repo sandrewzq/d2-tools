@@ -10,7 +10,8 @@ export const portableBackupFileNames = [
   "target-rules.json",
   "vault-tags.json",
   "loadout-templates.json",
-  "local-community-recommendations.json"
+  "local-community-recommendations.json",
+  "personal-weapon-knowledge.json"
 ] as const;
 
 type PortableBackupFileName = typeof portableBackupFileNames[number];

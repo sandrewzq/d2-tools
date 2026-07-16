@@ -46,7 +46,15 @@ export type VendorOffer = {
   rollFingerprint: string;
   stats: Record<string, number>;
   socketPlugHashes: number[];
-  socketPlugs?: Array<{ hash: number; name: string; iconUrl?: string }>;
+  socketPlugs?: Array<{
+    hash: number;
+    name: string;
+    iconUrl?: string;
+    description?: string;
+    categoryIdentifier?: string;
+    statModifiers?: Record<string, number>;
+    itemType?: string;
+  }>;
 };
 
 export type VendorProgression = {
@@ -120,6 +128,9 @@ export type VendorItemDefinitionInput = {
   tierType?: string;
   iconUrl?: string;
   previewVendorHash?: number;
+  description?: string;
+  categoryIdentifier?: string;
+  investmentStats?: Array<{ statTypeHash?: number; value?: number; isConditionallyActive?: boolean }>;
 };
 
 export type VendorCharacterResponseInput = {
@@ -321,10 +332,15 @@ function mapOffer(
   const socketPlugHashes = [...(response.sockets?.[String(sale.vendorItemIndex)] ?? [])];
   const socketPlugs = socketPlugHashes.map((hash) => {
     const plug = definitions.items[String(hash)];
+    const statModifiers = summarizeVendorPlugStats(plug?.investmentStats);
     return {
       hash,
       name: plug?.name ?? String(hash),
-      iconUrl: plug?.iconUrl
+      iconUrl: plug?.iconUrl,
+      ...(plug?.description ? { description: plug.description } : {}),
+      ...(plug?.categoryIdentifier ? { categoryIdentifier: plug.categoryIdentifier } : {}),
+      ...(statModifiers ? { statModifiers } : {}),
+      ...(plug?.itemType ? { itemType: plug.itemType } : {})
     };
   });
   const canPurchase = response.canPurchase && sale.saleStatus === 0 && sale.failureIndexes.length === 0;
@@ -368,6 +384,31 @@ function mapOffer(
     socketPlugs
   };
 }
+
+function summarizeVendorPlugStats(
+  stats: VendorItemDefinitionInput["investmentStats"]
+): Record<string, number> | undefined {
+  const summary: Record<string, number> = {};
+  for (const stat of stats ?? []) {
+    const key = vendorWeaponStatKeys[Number(stat.statTypeHash)];
+    if (!key || stat.isConditionallyActive || typeof stat.value !== "number") continue;
+    summary[key] = (summary[key] ?? 0) + stat.value;
+  }
+  return Object.keys(summary).length ? summary : undefined;
+}
+
+const vendorWeaponStatKeys: Record<number, string> = {
+  4043523819: "impact",
+  1240592695: "range",
+  155624089: "stability",
+  943549884: "handling",
+  4188031367: "reload_speed",
+  3871231066: "magazine",
+  4284893193: "rounds_per_minute",
+  2961396640: "charge_time",
+  447667954: "draw_time",
+  2714457168: "recoil_direction"
+};
 
 function findCategory(categories: readonly VendorCategoryInput[], vendorItemIndex: number) {
   return categories.find((category) => category.itemIndexes.includes(vendorItemIndex));

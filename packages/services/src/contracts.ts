@@ -3,6 +3,10 @@ import type { ActivityHistorySummary } from "@d2-tools/core/activities/history";
 import type { DimWishlist } from "@d2-tools/core/analysis/wishlistImport";
 import type { LocalTargetRules } from "@d2-tools/core/analysis/targets";
 import type { LocalCommunityRecommendationTable } from "@d2-tools/core/community-perks";
+import type {
+  PersonalWeaponKnowledgeTable,
+  SavePersonalWeaponKnowledgeInput
+} from "@d2-tools/core/community-perks/personalWeaponKnowledge";
 import type { VaultItemMatchInfo, WeaponRecommendation } from "./sharedTypes.js";
 import type { VaultTags, SaveVaultNoteInput, SaveVaultTagInput } from "@d2-tools/core/vault/tags";
 import type { D2SkillService } from "./d2SkillService.js";
@@ -31,6 +35,10 @@ export type LocalDataService = {
     table: LocalCommunityRecommendationTable
   ): Promise<LocalCommunityRecommendationTable>;
   clearLocalCommunityRecommendations(): Promise<null>;
+  getPersonalWeaponKnowledge?: (weaponName?: string) => Promise<PersonalWeaponKnowledgeTable>;
+  savePersonalWeaponKnowledge?: (input: SavePersonalWeaponKnowledgeInput) => Promise<PersonalWeaponKnowledgeTable>;
+  setPersonalWeaponKnowledgeEnabled?: (id: string, enabled: boolean) => Promise<PersonalWeaponKnowledgeTable>;
+  deletePersonalWeaponKnowledge?: (id: string) => Promise<PersonalWeaponKnowledgeTable>;
   getVaultTags(): Promise<VaultTags>;
   saveVaultTag(input: SaveVaultTagInput): Promise<VaultTags>;
   saveVaultTagsBatch(inputs: SaveVaultTagInput[]): Promise<VaultTags>;

@@ -5,6 +5,8 @@ import type { ActivityHistorySummary } from "../activities/history.js";
 import type { D2Config } from "../config/schema.js";
 import type { DailySummary } from "../daily/summary.js";
 import type { VaultTags } from "../vault/tags.js";
+import type { WeaponRecommendation } from "../community-perks/types.js";
+import type { PersonalWeaponKnowledgeEntry } from "../community-perks/personalWeaponKnowledge.js";
 import {
   aiProtocolBaseUrls,
   normalizeAiSettings,
@@ -39,6 +41,18 @@ export type ItemAiAdviceInput = {
     note?: string;
   };
   tags: VaultTags;
+  user_knowledge?: string;
+  personal_knowledge?: PersonalWeaponKnowledgeEntry[];
+  builtin_knowledge?: WeaponRecommendation | null;
+  weapon_context?: {
+    object_kind: "definition" | "vendor_offer" | "account_instance";
+    official_sources: string[];
+    definition_stats?: Record<string, number>;
+    current_stats?: Record<string, number>;
+    perk_pool?: Array<{ socket_index: number; names: string[] }>;
+    same_hash_instances?: Array<{ location: string; power?: number; plugs: string[] }>;
+    offer?: { vendor_name: string; cost: string; affordability: string; refresh: string };
+  };
   fetcher?: typeof fetch;
 };
 
@@ -213,6 +227,9 @@ export async function generateItemAiAdvice(input: ItemAiAdviceInput): Promise<It
         role: "system",
         content: [
           "你是一个命运2单件装备分析助手。",
+          "用户指定知识的优先级最高，其次是输入中提供的本地知识和官方数据。",
+          "已保存的个人推荐优先于应用推荐；不同来源冲突时必须明确指出。",
+          "用户本次输入只对当前分析生效，除非界面另行获得明确确认，否则不得声称已经保存。",
           "只根据用户提供的装备信息、实际 roll、本地标签给建议。",
           "不要编造未提供的 perk、来源或外部数据库结论。",
           "输出中文，固定分为：事实、分析、建议、操作提醒。"
@@ -220,7 +237,15 @@ export async function generateItemAiAdvice(input: ItemAiAdviceInput): Promise<It
       },
       {
         role: "user",
-        content: buildItemPrompt(input.item)
+        content: [
+          buildItemPrompt(input.item),
+          input.user_knowledge?.trim()
+            ? `\n用户指定知识（最高优先级）：\n${input.user_knowledge.trim()}`
+            : "",
+          formatPersonalWeaponKnowledge(input.personal_knowledge),
+          formatBuiltinWeaponKnowledge(input.builtin_knowledge),
+          input.weapon_context ? `\n武器详情上下文：\n${JSON.stringify(input.weapon_context, null, 2)}` : ""
+        ].filter(Boolean).join("\n")
       }
     ],
     temperature: 0.2,
@@ -235,6 +260,37 @@ export async function generateItemAiAdvice(input: ItemAiAdviceInput): Promise<It
       sections: extractAiSections(text)
     }
   };
+}
+
+function formatPersonalWeaponKnowledge(entries: PersonalWeaponKnowledgeEntry[] | undefined): string {
+  const enabled = (entries ?? []).filter((entry) => entry.enabled);
+  if (!enabled.length) return "";
+  return `\n已保存的我的推荐（高于应用推荐）：\n${JSON.stringify(enabled.map((entry) => ({
+    mode: entry.mode,
+    title: entry.title,
+    perk_options: entry.perk_options,
+    masterwork_names: entry.masterwork_names,
+    mod_names: entry.mod_names,
+    reason: entry.reason,
+    origin: entry.origin,
+    external_url: entry.external_url
+  })), null, 2)}`;
+}
+
+function formatBuiltinWeaponKnowledge(recommendation: WeaponRecommendation | null | undefined): string {
+  if (!recommendation) return "";
+  return `\n应用推荐（仅在用户知识未覆盖时使用）：\n${JSON.stringify({
+    source_label: recommendation.source_label,
+    combos: recommendation.combos
+      .filter((combo) => combo.source !== "ai_lightgg")
+      .map((combo) => ({
+        mode: combo.mode,
+        perks: combo.perks.map((perk) => perk.name),
+        note: combo.note,
+        source: combo.source
+      })),
+    disclaimer: recommendation.disclaimer
+  }, null, 2)}`;
 }
 
 export function buildAiChatContext(input: AiChatContextInput): string {

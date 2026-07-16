@@ -32,6 +32,8 @@ export * from "./items/search.js";
 export * from "./items/classification.js";
 export * from "./items/source.js";
 export * from "./items/weaponFrames.js";
+export * from "./items/breakerTypes.js";
+export * from "./items/damageTypes.js";
 export * from "./library/history.js";
 export * from "./loadouts/plan.js";
 export * from "./loadouts/analysis.js";

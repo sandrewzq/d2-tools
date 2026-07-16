@@ -16,6 +16,7 @@ export type SettingsActionLogTypeFilter =
   | "all"
   | "set-lock"
   | "equip"
+  | "insert-socket-plug"
   | "transfer"
   | "postmaster-pull"
   | "loadout-equip"

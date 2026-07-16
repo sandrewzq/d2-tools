@@ -3,6 +3,7 @@ import type { AccountItemSummary } from "./sharedTypes";
 export type ActionsApi = {
   setItemLockState(input: ItemLockActionInput): Promise<ItemActionResult>;
   equipItem(input: ItemEquipActionInput): Promise<ItemActionResult>;
+  insertSocketPlug(input: InsertSocketPlugActionInput): Promise<ItemActionResult>;
   transferItem(input: ItemTransferActionInput): Promise<ItemActionResult>;
   batchEquipItems(input: BatchEquipItemsInput): Promise<BatchItemActionResult>;
   batchTransferItems(input: BatchTransferItemsInput): Promise<BatchItemActionResult>;
@@ -27,6 +28,16 @@ export type ItemEquipActionInput = {
   character_id: string;
   item_id: string;
   item_name?: string;
+};
+
+export type InsertSocketPlugActionInput = {
+  membership_type: number;
+  character_id: string;
+  item_id: string;
+  item_name?: string;
+  socket_index: number;
+  plug_hash: number;
+  plug_name?: string;
 };
 
 export type ItemTransferActionInput = {
@@ -92,7 +103,7 @@ export type BatchItemActionResult = {
 export type ActionLogEntry = {
   id: string;
   created_at: string;
-  action: "set-lock" | "equip" | "transfer" | "postmaster-pull" | "loadout-equip" | "loadout-snapshot";
+  action: "set-lock" | "equip" | "insert-socket-plug" | "transfer" | "postmaster-pull" | "loadout-equip" | "loadout-snapshot";
   item_name?: string;
   item_instance_id?: string;
   character_id?: string;

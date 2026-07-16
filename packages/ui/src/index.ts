@@ -50,6 +50,13 @@ export type {
   SharedItemDetailView,
   VendorOfferContext
 } from "./item-detail/SharedItemDetailDialog.js";
+export { WeaponDetailContent } from "./item-detail/weapon/WeaponDetailContent.js";
+export type {
+  WeaponDetailAnalysis,
+  WeaponDetailContentActions,
+  WeaponDetailContentProps,
+  WeaponDetailSection
+} from "./item-detail/weapon/WeaponDetailContent.js";
 export { ProductShellHost } from "./product/ProductShellHost.js";
 export type { ProductShellHostProps } from "./product/types.js";
 export {

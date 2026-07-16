@@ -42,7 +42,10 @@ export function registerAnalysisIpcHandlers(): void {
     return generateItemAiAdvice({
       config,
       item: input.item,
-      tags: input.tags
+      tags: input.tags,
+      user_knowledge: input.user_knowledge,
+      personal_knowledge: input.personal_knowledge,
+      builtin_knowledge: input.builtin_knowledge
     });
   });
 

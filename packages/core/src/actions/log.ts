@@ -5,6 +5,7 @@ import { join } from "node:path";
 export type ActionLogType =
   | "set-lock"
   | "equip"
+  | "insert-socket-plug"
   | "transfer"
   | "postmaster-pull"
   | "loadout-equip"

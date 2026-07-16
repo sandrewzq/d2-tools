@@ -5,6 +5,9 @@ export type ItemPlugSummary = {
   name: string;
   description: string;
   icon?: string;
+  category_identifier?: string;
+  source_description?: string;
+  item_type?: string;
 };
 
 export type ItemPerkGroup = {
@@ -14,7 +17,7 @@ export type ItemPerkGroup = {
 
 export type SummarizeItemPerksOptions = {
   plugSetDefinitions?: DefinitionComponentData;
-  maxPlugsPerSocket?: number;
+  maxPlugsPerSocket?: number | null;
 };
 
 const bungieStaticBaseUrl = "https://www.bungie.net";
@@ -33,19 +36,22 @@ export function summarizeItemPerks(
     }
 
     const hashes = [
+      ...(typeof entry.singleInitialItemHash === "number" ? [entry.singleInitialItemHash] : []),
       ...hashesFromReusablePlugItems(entry.reusablePlugItems),
       ...hashesFromPlugSet(options.plugSetDefinitions, entry.reusablePlugSetHash),
       ...hashesFromPlugSet(options.plugSetDefinitions, entry.randomizedPlugSetHash)
     ];
     const plugs = uniqueNumbers(hashes)
       .map((hash) => toPlugSummary(hash, itemDefinitions[String(hash)]))
-      .filter((plug): plug is ItemPlugSummary => Boolean(plug))
-      .slice(0, options.maxPlugsPerSocket ?? 8);
+      .filter((plug): plug is ItemPlugSummary => Boolean(plug));
+    const visiblePlugs = options.maxPlugsPerSocket === null
+      ? plugs
+      : plugs.slice(0, options.maxPlugsPerSocket ?? 8);
 
-    if (plugs.length > 0) {
+    if (visiblePlugs.length > 0) {
       groups.push({
         socket_index: index,
-        plugs
+        plugs: visiblePlugs
       });
     }
   });
@@ -89,7 +95,14 @@ function toPlugSummary(
     hash,
     name,
     description: definition.displayProperties?.description ?? "",
-    icon: normalizeBungieAssetUrl(definition.displayProperties?.icon)
+    icon: normalizeBungieAssetUrl(definition.displayProperties?.icon),
+    ...(definition.plug?.plugCategoryIdentifier
+      ? { category_identifier: definition.plug.plugCategoryIdentifier }
+      : {}),
+    ...(definition.sourceData?.sourceString
+      ? { source_description: definition.sourceData.sourceString }
+      : {}),
+    ...(definition.itemTypeDisplayName ? { item_type: definition.itemTypeDisplayName } : {})
   };
 }
 

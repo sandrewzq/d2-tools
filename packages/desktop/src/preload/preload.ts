@@ -20,6 +20,10 @@ import type { VaultAnalysisResult } from "@d2-tools/core/analysis/vault";
 import type { LocalTargetRules } from "@d2-tools/core/analysis/targets";
 import type { DimWishlist } from "@d2-tools/core/analysis/wishlistImport";
 import type { LocalCommunityRecommendationTable, VaultItemMatchInfo, WeaponRecommendation } from "@d2-tools/core/community-perks";
+import type {
+  PersonalWeaponKnowledgeTable,
+  SavePersonalWeaponKnowledgeInput
+} from "@d2-tools/core/community-perks/personalWeaponKnowledge";
 import type { D2Config } from "@d2-tools/core/config/schema";
 import type { DailySummary } from "@d2-tools/core/daily/summary";
 import type { HealthStatus } from "@d2-tools/core/health";
@@ -54,6 +58,16 @@ type ItemEquipActionInput = {
   character_id: string;
   item_id: string;
   item_name?: string;
+};
+
+type InsertSocketPlugActionInput = {
+  membership_type: number;
+  character_id: string;
+  item_id: string;
+  item_name?: string;
+  socket_index: number;
+  plug_hash: number;
+  plug_name?: string;
 };
 
 type ItemTransferActionInput = {
@@ -184,6 +198,14 @@ contextBridge.exposeInMainWorld("d2", {
   saveLocalCommunityRecommendations: (table: LocalCommunityRecommendationTable) =>
     ipcRenderer.invoke("community:local:save", table) as Promise<LocalCommunityRecommendationTable>,
   clearLocalCommunityRecommendations: () => ipcRenderer.invoke("community:local:clear") as Promise<null>,
+  getPersonalWeaponKnowledge: (weaponName?: string) =>
+    ipcRenderer.invoke("community:personal:get", weaponName) as Promise<PersonalWeaponKnowledgeTable>,
+  savePersonalWeaponKnowledge: (input: SavePersonalWeaponKnowledgeInput) =>
+    ipcRenderer.invoke("community:personal:save", input) as Promise<PersonalWeaponKnowledgeTable>,
+  setPersonalWeaponKnowledgeEnabled: (id: string, enabled: boolean) =>
+    ipcRenderer.invoke("community:personal:set-enabled", id, enabled) as Promise<PersonalWeaponKnowledgeTable>,
+  deletePersonalWeaponKnowledge: (id: string) =>
+    ipcRenderer.invoke("community:personal:delete", id) as Promise<PersonalWeaponKnowledgeTable>,
   getVaultTags: () => ipcRenderer.invoke("vault:tags:get") as Promise<VaultTags>,
   saveVaultTag: (input: SaveVaultTagInput) => ipcRenderer.invoke("vault:tag:save", input) as Promise<VaultTags>,
   saveVaultTagsBatch: (inputs: SaveVaultTagInput[]) =>
@@ -207,6 +229,8 @@ contextBridge.exposeInMainWorld("d2", {
     ipcRenderer.invoke("actions:item:set-lock", input) as Promise<ItemActionResult>,
   equipItem: (input: ItemEquipActionInput) =>
     ipcRenderer.invoke("actions:item:equip", input) as Promise<ItemActionResult>,
+  insertSocketPlug: (input: InsertSocketPlugActionInput) =>
+    ipcRenderer.invoke("actions:item:insert-socket-plug", input) as Promise<ItemActionResult>,
   transferItem: (input: ItemTransferActionInput) =>
     ipcRenderer.invoke("actions:item:transfer", input) as Promise<ItemActionResult>,
   batchEquipItems: (input: BatchEquipItemsInput) =>

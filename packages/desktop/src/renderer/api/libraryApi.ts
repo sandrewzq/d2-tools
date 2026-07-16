@@ -1,11 +1,13 @@
 import type {
   AmmoTypeKey,
+  DamageTypeSummary,
   EquipmentGroupKey,
   ItemDefinitionStat,
   ItemPerkGroup,
   ItemReleaseSummary,
   ItemSourceSummary,
   LiveItemAvailability,
+  WeaponBreakerTypeSummary,
   WeaponFrameSummary
 } from "./sharedTypes";
 
@@ -23,7 +25,6 @@ export type LibraryApi = {
 };
 
 export type ItemDefinitionDetail = ItemSearchResult & {
-  release?: ItemReleaseSummary;
 };
 
 export type ItemSearchResult = {
@@ -33,8 +34,10 @@ export type ItemSearchResult = {
   icon?: string;
   item_type?: string;
   tier?: string;
+  release?: ItemReleaseSummary;
   class_name?: string;
   damage_type?: string;
+  damage_type_summary?: DamageTypeSummary;
   is_adept?: boolean;
   origin_traits?: Array<{
     hash: number;
@@ -51,6 +54,7 @@ export type ItemSearchResult = {
   bucket_name?: string;
   group_key?: EquipmentGroupKey;
   weapon_frame?: WeaponFrameSummary;
+  breaker_type?: WeaponBreakerTypeSummary;
   source: ItemSourceSummary;
   definition_stats?: ItemDefinitionStat[];
   perks?: ItemPerkGroup[];

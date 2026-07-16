@@ -3,6 +3,7 @@ import type { AccountSummary } from "@d2-tools/core/account/summary";
 import type { LocalTargetRules } from "@d2-tools/core/analysis/targets";
 import type { DimWishlist } from "@d2-tools/core/analysis/wishlistImport";
 import type { LocalCommunityRecommendationTable, VaultItemMatchInfo } from "@d2-tools/core/community-perks";
+import type { PersonalWeaponKnowledgeTable } from "@d2-tools/core/community-perks/personalWeaponKnowledge";
 import type { SaveVaultNoteInput, SaveVaultTagInput, VaultTags } from "@d2-tools/core/vault/tags";
 import type { D2Services } from "./contracts.js";
 import { createD2SkillService } from "./d2SkillService.js";
@@ -15,6 +16,7 @@ export type MemoryServicesSeed = {
   wishlist?: DimWishlist | null;
   localTargetRules?: LocalTargetRules;
   communityRecommendations?: LocalCommunityRecommendationTable | null;
+  personalWeaponKnowledge?: PersonalWeaponKnowledgeTable;
   communityMatches?: Array<{ hash: number } & VaultItemMatchInfo>;
   manifestDefinitions?: Record<string, Record<number, unknown>>;
   aiReply?: AiChatReplyResult | ((input: AiChatRequest) => AiChatReplyResult | Promise<AiChatReplyResult>);
@@ -29,6 +31,7 @@ export function createMemoryServices(seed: MemoryServicesSeed): D2Services {
     weapons: []
   };
   let communityRecommendations = seed.communityRecommendations ?? null;
+  let personalWeaponKnowledge = seed.personalWeaponKnowledge ?? { version: 1 as const, entries: [] };
   const activitySummary = seed.activitySummary ?? {
     recent: { total: 0, pve: { total: 0, completed: 0 }, pvp: { total: 0, completed: 0 }, other: { total: 0, completed: 0 } },
     raids: { entries: [] },
@@ -84,6 +87,46 @@ export function createMemoryServices(seed: MemoryServicesSeed): D2Services {
     async clearLocalCommunityRecommendations() {
       communityRecommendations = null;
       return null;
+    },
+    async getPersonalWeaponKnowledge(weaponName) {
+      if (!weaponName) return personalWeaponKnowledge;
+      const normalizedName = weaponName.trim().toLocaleLowerCase();
+      return {
+        ...personalWeaponKnowledge,
+        entries: personalWeaponKnowledge.entries.filter((entry) => entry.weapon_name.trim().toLocaleLowerCase() === normalizedName)
+      };
+    },
+    async savePersonalWeaponKnowledge(input) {
+      if (input.confirmed !== true) throw new Error("保存到我的推荐前必须由用户明确确认。");
+      const now = new Date().toISOString();
+      const existing = input.entry.id
+        ? personalWeaponKnowledge.entries.find((entry) => entry.id === input.entry.id)
+        : undefined;
+      const entry = {
+        ...input.entry,
+        id: input.entry.id ?? `memory-${Date.now()}`,
+        created_at: existing?.created_at ?? now,
+        updated_at: now
+      };
+      personalWeaponKnowledge = {
+        version: 1,
+        entries: [entry, ...personalWeaponKnowledge.entries.filter((current) => current.id !== entry.id)]
+      };
+      return personalWeaponKnowledge;
+    },
+    async setPersonalWeaponKnowledgeEnabled(id, enabled) {
+      personalWeaponKnowledge = {
+        version: 1,
+        entries: personalWeaponKnowledge.entries.map((entry) => entry.id === id ? { ...entry, enabled } : entry)
+      };
+      return personalWeaponKnowledge;
+    },
+    async deletePersonalWeaponKnowledge(id) {
+      personalWeaponKnowledge = {
+        version: 1,
+        entries: personalWeaponKnowledge.entries.filter((entry) => entry.id !== id)
+      };
+      return personalWeaponKnowledge;
     },
     async getVaultTags() {
       return vaultTags;

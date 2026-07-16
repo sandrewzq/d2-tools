@@ -1,0 +1,563 @@
+import type {
+  AccountItemPlugSummary,
+  AccountItemSummary,
+  AmmoTypeKey,
+  WeaponFrameSummary,
+  WeaponStatKey,
+  WeaponStatSummary
+} from "@d2-tools/core/account/summary";
+import type { ItemPerkGroup, ItemPlugSummary } from "@d2-tools/core/items/perks";
+import type { ItemSourceSummary } from "@d2-tools/core/items/source";
+import type { SelectedItemSourceKind } from "./itemDetail.js";
+
+export type WeaponDetailObjectKind = "definition" | "vendor_offer" | "account_instance";
+
+export type WeaponDetailEntryKind = "library" | "vendor" | "vault" | "account" | "loadout";
+
+export type WeaponDetailObjectContext = {
+  kind: WeaponDetailObjectKind;
+  entry: WeaponDetailEntryKind;
+  entry_label: string;
+  object_label: string;
+  object_id?: string;
+  read_only: boolean;
+};
+
+export type WeaponDetailIdentity = {
+  hash: number;
+  name: string;
+  description: string;
+  icon?: string;
+  item_type?: string;
+  tier?: string;
+  slot?: string;
+  ammo?: WeaponDetailAmmo;
+  damage?: WeaponDetailDamage;
+  frame?: WeaponFrameSummary;
+  champion?: WeaponDetailChampionEffect;
+};
+
+export type WeaponDetailAmmo = {
+  key: AmmoTypeKey;
+  label: string;
+  icon?: string;
+};
+
+export type WeaponDetailDamage = {
+  hash?: number;
+  key: string;
+  label: string;
+  description?: string;
+  icon?: string;
+};
+
+export type WeaponDetailChampionEffect = {
+  key: "barrier" | "overload" | "unstoppable";
+  label: string;
+  effect_label: "贯穿护盾" | "干扰" | "眩晕";
+  description?: string;
+  icon?: string;
+  source: "weapon" | "plug" | "frame_perk";
+};
+
+export type WeaponDetailVersion = {
+  hash: number;
+  label: string;
+  season_label?: string;
+  is_current: boolean;
+};
+
+export type WeaponStatDirection = "higher" | "lower" | "neutral";
+
+export type WeaponStatAvailability = "definition_only" | "ready" | "current_unavailable";
+
+export type WeaponStatModifier = {
+  source: string;
+  amount: number;
+};
+
+export type WeaponStatTrack = {
+  key: WeaponStatKey;
+  label: string;
+  direction: WeaponStatDirection;
+  availability: WeaponStatAvailability;
+  standard_value?: number;
+  current_value?: number;
+  current_delta?: number;
+  current_modifiers: WeaponStatModifier[];
+  pending_value?: number;
+  pending_delta?: number;
+  pending_modifiers: WeaponStatModifier[];
+};
+
+export type WeaponPerkColumnRole =
+  | "intrinsic"
+  | "barrel"
+  | "magazine"
+  | "trait"
+  | "origin"
+  | "other";
+
+export type WeaponPerkCandidate = {
+  hash: number;
+  name: string;
+  description: string;
+  icon?: string;
+  enhanced_of_hash?: number;
+};
+
+export type WeaponOwnedPerkCandidate = WeaponPerkCandidate & {
+  selected: boolean;
+  can_apply: boolean;
+  pending: boolean;
+  unresolved_in_definition_pool: boolean;
+};
+
+export type WeaponPerkPoolColumn = {
+  key: string;
+  socket_index: number;
+  label: string;
+  role: WeaponPerkColumnRole;
+  candidates: WeaponPerkCandidate[];
+};
+
+export type WeaponPerkSelectionColumn = {
+  key: string;
+  socket_index: number;
+  label: string;
+  role: WeaponPerkColumnRole;
+  candidates: WeaponOwnedPerkCandidate[];
+};
+
+export type WeaponConfigurationKind = "random_roll" | "fixed" | "variable_exotic";
+
+export type WeaponDetailConfiguration = {
+  kind: WeaponConfigurationKind;
+  intrinsic?: WeaponPerkCandidate;
+  selection_columns: WeaponPerkSelectionColumn[];
+  pool_columns: WeaponPerkPoolColumn[];
+  has_pending_changes: boolean;
+  can_apply_changes: boolean;
+};
+
+export type WeaponSourceKind = "vendor_offer" | "activity_reward" | "manifest_hint";
+
+export type WeaponSourceEntry = {
+  id: string;
+  kind: WeaponSourceKind;
+  label: string;
+  description: string;
+  icon?: string;
+  available_now?: boolean;
+  updated_at?: string;
+  offer?: WeaponVendorOfferSummary;
+};
+
+export type WeaponVendorOfferSummary = {
+  offer_id: string;
+  vendor_hash?: number;
+  vendor_name: string;
+  price_labels: string[];
+  refresh_at?: string;
+  can_purchase?: boolean;
+  failure_messages: string[];
+};
+
+export type WeaponDetailSources = {
+  status: "ready" | "partial" | "unknown";
+  updated_at?: string;
+  entries: WeaponSourceEntry[];
+};
+
+export type WeaponMasterworkSummary = {
+  name: string;
+  level?: number;
+  complete?: boolean;
+  stat_key?: WeaponStatKey;
+  stat_amount?: number;
+};
+
+export type WeaponCatalystSummary = {
+  name: string;
+  acquired: boolean;
+  complete: boolean;
+  progress?: number;
+  objective?: string;
+  acquisition?: string;
+  effects: string[];
+};
+
+export type WeaponDetailUpgrades = {
+  masterwork?: WeaponMasterworkSummary;
+  mod?: WeaponPerkCandidate;
+  catalyst?: WeaponCatalystSummary;
+  crafting_level?: number;
+  enhanced: boolean;
+};
+
+export type WeaponRecommendationMode = "pve" | "pvp" | "general";
+
+export type WeaponRecommendationMatch = "full" | "partial" | "none" | "not_applicable";
+
+export type WeaponRecommendationSource = "user" | "builtin" | "external" | "dim";
+
+export type WeaponRecommendation = {
+  id: string;
+  mode: WeaponRecommendationMode;
+  title: string;
+  reason: string;
+  source: WeaponRecommendationSource;
+  source_label: string;
+  updated_at?: string;
+  external_url?: string;
+  perk_options: Array<{
+    column_key: string;
+    names: string[];
+  }>;
+  masterwork_names: string[];
+  mod_names: string[];
+  match: WeaponRecommendationMatch;
+  match_notes: string[];
+};
+
+export type WeaponDetailInstance = {
+  item_key: string;
+  instance_id: string;
+  hash: number;
+  name: string;
+  icon?: string;
+  power?: number;
+  location: string;
+  source_kind: SelectedItemSourceKind;
+  source_character_id?: string;
+  locked?: boolean;
+  equipped?: boolean;
+  current: boolean;
+  plug_names: string[];
+};
+
+export type WeaponDetailViewModel = {
+  identity: WeaponDetailIdentity;
+  context: WeaponDetailObjectContext;
+  versions: WeaponDetailVersion[];
+  stats: WeaponStatTrack[];
+  configuration: WeaponDetailConfiguration;
+  sources: WeaponDetailSources;
+  upgrades: WeaponDetailUpgrades;
+  recommendations: WeaponRecommendation[];
+  same_hash_instances: WeaponDetailInstance[];
+  loading: boolean;
+};
+
+export type WeaponDetailSelectedItemLike = {
+  hash: number;
+  name: string;
+  description?: string;
+  icon?: string;
+  item_type?: string;
+  tier?: string;
+  item_key?: string;
+  instance_id?: string;
+  power?: number;
+  locked?: boolean;
+  bucket_name?: string;
+  ammo_type?: AmmoTypeKey;
+  weapon_frame?: WeaponFrameSummary;
+  weapon_stats?: WeaponStatSummary;
+  socket_plugs?: AccountItemPlugSummary[];
+  perks?: ItemPerkGroup[];
+  source: ItemSourceSummary;
+  source_character_id?: string;
+  source_kind?: SelectedItemSourceKind;
+  is_vault_item?: boolean;
+  is_postmaster_item?: boolean;
+  is_detail_loading?: boolean;
+};
+
+export type WeaponDetailInstanceLike = Pick<
+  AccountItemSummary,
+  "hash" | "instance_id" | "name" | "icon" | "power" | "locked" | "socket_plugs"
+> & {
+  item_key?: string;
+  source_kind: SelectedItemSourceKind;
+  source_label?: string;
+  source_character_id?: string;
+  equipped?: boolean;
+};
+
+export type BuildWeaponDetailViewModelInput = {
+  item: WeaponDetailSelectedItemLike;
+  context?: Partial<WeaponDetailObjectContext>;
+  slot?: string;
+  ammo?: WeaponDetailAmmo;
+  damage?: WeaponDetailDamage;
+  champion?: WeaponDetailChampionEffect;
+  versions?: WeaponDetailVersion[];
+  definition_stats?: WeaponStatSummary;
+  current_stats?: WeaponStatSummary;
+  pending_stats?: WeaponStatSummary;
+  stat_modifiers?: Partial<Record<WeaponStatKey, WeaponStatModifier[]>>;
+  pending_stat_modifiers?: Partial<Record<WeaponStatKey, WeaponStatModifier[]>>;
+  configuration?: Partial<WeaponDetailConfiguration>;
+  selection_columns?: WeaponPerkSelectionColumn[];
+  pool_columns?: WeaponPerkPoolColumn[];
+  sources?: WeaponDetailSources;
+  upgrades?: WeaponDetailUpgrades;
+  recommendations?: WeaponRecommendation[];
+  same_hash_instances?: WeaponDetailInstanceLike[];
+};
+
+const weaponStatMetadata: ReadonlyArray<{
+  key: WeaponStatKey;
+  label: string;
+  direction: WeaponStatDirection;
+}> = [
+  { key: "impact", label: "伤害", direction: "higher" },
+  { key: "range", label: "射程", direction: "higher" },
+  { key: "stability", label: "稳定性", direction: "higher" },
+  { key: "handling", label: "操控性", direction: "higher" },
+  { key: "reload_speed", label: "装填速度", direction: "higher" },
+  { key: "magazine", label: "弹匣", direction: "higher" },
+  { key: "rounds_per_minute", label: "射速", direction: "neutral" },
+  { key: "charge_time", label: "蓄力时间", direction: "lower" },
+  { key: "draw_time", label: "拉弓时间", direction: "lower" },
+  { key: "recoil_direction", label: "后坐方向", direction: "higher" }
+];
+
+export function buildWeaponDetailViewModel(input: BuildWeaponDetailViewModelInput): WeaponDetailViewModel {
+  const { item } = input;
+  const context = buildObjectContext(item, input.context);
+  const definitionStats = input.definition_stats
+    ?? (context.kind === "definition" ? item.weapon_stats : undefined);
+  const currentStats = input.current_stats
+    ?? (context.kind !== "definition" ? item.weapon_stats : undefined);
+  const poolColumns = input.pool_columns ?? perkGroupsToPoolColumns(item.perks ?? []);
+  const selectionColumns = input.selection_columns ?? [];
+
+  return {
+    identity: {
+      hash: item.hash,
+      name: item.name,
+      description: item.description ?? "",
+      icon: item.icon,
+      item_type: item.item_type,
+      tier: item.tier,
+      slot: input.slot ?? item.bucket_name,
+      ammo: input.ammo ?? ammoFromKey(item.ammo_type),
+      damage: input.damage,
+      frame: item.weapon_frame,
+      champion: input.champion
+    },
+    context,
+    versions: input.versions?.length
+      ? input.versions.map((version) => ({ ...version, is_current: version.hash === item.hash }))
+      : [{ hash: item.hash, label: item.name, is_current: true }],
+    stats: buildWeaponStatTracks({
+      definition_stats: definitionStats,
+      current_stats: currentStats,
+      pending_stats: input.pending_stats,
+      stat_modifiers: input.stat_modifiers,
+      pending_stat_modifiers: input.pending_stat_modifiers
+    }),
+    configuration: {
+      kind: input.configuration?.kind ?? inferConfigurationKind(poolColumns),
+      intrinsic: input.configuration?.intrinsic,
+      selection_columns: selectionColumns,
+      pool_columns: poolColumns,
+      has_pending_changes: input.configuration?.has_pending_changes
+        ?? selectionColumns.some((column) => column.candidates.some((candidate) => candidate.pending)),
+      can_apply_changes: input.configuration?.can_apply_changes
+        ?? (context.kind === "account_instance" && selectionColumns.some(
+          (column) => column.candidates.some((candidate) => candidate.pending && candidate.can_apply)
+        ))
+    },
+    sources: input.sources ?? sourceSummaryToSources(item.source),
+    upgrades: input.upgrades ?? { enhanced: false },
+    recommendations: input.recommendations ?? [],
+    same_hash_instances: (input.same_hash_instances ?? [])
+      .filter((instance): instance is WeaponDetailInstanceLike & { instance_id: string } => (
+        instance.hash === item.hash && Boolean(instance.instance_id)
+      ))
+      .map((instance) => toWeaponDetailInstance(instance, item.instance_id)),
+    loading: Boolean(item.is_detail_loading)
+  };
+}
+
+export function buildWeaponStatTracks(input: {
+  definition_stats?: WeaponStatSummary;
+  current_stats?: WeaponStatSummary;
+  pending_stats?: WeaponStatSummary;
+  stat_modifiers?: Partial<Record<WeaponStatKey, WeaponStatModifier[]>>;
+  pending_stat_modifiers?: Partial<Record<WeaponStatKey, WeaponStatModifier[]>>;
+}): WeaponStatTrack[] {
+  return weaponStatMetadata
+    .filter(({ key }) => (
+      input.definition_stats?.[key] !== undefined
+      || input.current_stats?.[key] !== undefined
+      || input.pending_stats?.[key] !== undefined
+    ))
+    .map(({ key, label, direction }) => {
+      const standardValue = input.definition_stats?.[key];
+      const currentValue = input.current_stats?.[key];
+      const pendingValue = input.pending_stats?.[key];
+      return {
+        key,
+        label,
+        direction,
+        availability: currentValue !== undefined
+          ? "ready"
+          : standardValue !== undefined
+            ? "definition_only"
+            : "current_unavailable",
+        standard_value: standardValue,
+        current_value: currentValue,
+        current_delta: difference(currentValue, standardValue),
+        current_modifiers: input.stat_modifiers?.[key] ?? [],
+        pending_value: pendingValue,
+        pending_delta: difference(pendingValue, currentValue),
+        pending_modifiers: input.pending_stat_modifiers?.[key] ?? []
+      };
+    });
+}
+
+export function perkGroupsToPoolColumns(groups: readonly ItemPerkGroup[]): WeaponPerkPoolColumn[] {
+  return groups.map((group) => {
+    const role = perkColumnRole(group.plugs[0]?.category_identifier);
+    return {
+      key: `socket-${group.socket_index}`,
+      socket_index: group.socket_index,
+      label: perkColumnLabel(role, group.socket_index),
+      role,
+      candidates: group.plugs.map(toWeaponPerkCandidate)
+    };
+  });
+}
+
+function buildObjectContext(
+  item: WeaponDetailSelectedItemLike,
+  override: Partial<WeaponDetailObjectContext> | undefined
+): WeaponDetailObjectContext {
+  const kind = override?.kind ?? (item.instance_id ? "account_instance" : "definition");
+  const entry = override?.entry ?? inferEntry(item, kind);
+  return {
+    kind,
+    entry,
+    entry_label: override?.entry_label ?? entryLabel(entry),
+    object_label: override?.object_label ?? objectLabel(kind),
+    object_id: override?.object_id ?? item.instance_id,
+    read_only: override?.read_only ?? kind !== "account_instance"
+  };
+}
+
+function inferEntry(
+  item: WeaponDetailSelectedItemLike,
+  kind: WeaponDetailObjectKind
+): WeaponDetailEntryKind {
+  if (kind === "vendor_offer") return "vendor";
+  if (item.source_kind === "vault") return "vault";
+  if (item.instance_id) return "account";
+  return "library";
+}
+
+function entryLabel(entry: WeaponDetailEntryKind): string {
+  if (entry === "vendor") return "商人";
+  if (entry === "vault") return "仓库";
+  if (entry === "account") return "账号";
+  if (entry === "loadout") return "配装";
+  return "资料库";
+}
+
+function objectLabel(kind: WeaponDetailObjectKind): string {
+  if (kind === "vendor_offer") return "商人 Offer";
+  if (kind === "account_instance") return "账号实例";
+  return "装备定义";
+}
+
+function ammoFromKey(key: AmmoTypeKey | undefined): WeaponDetailAmmo | undefined {
+  if (!key) return undefined;
+  const labels: Record<AmmoTypeKey, string> = {
+    primary: "主要弹药",
+    special: "特殊弹药",
+    heavy: "威能弹药"
+  };
+  return { key, label: labels[key] };
+}
+
+function sourceSummaryToSources(source: ItemSourceSummary): WeaponDetailSources {
+  if (source.status !== "ready") {
+    return { status: "unknown", entries: [] };
+  }
+  return {
+    status: "partial",
+    entries: [{
+      id: `manifest:${source.source_kind ?? "item"}:${source.source_hash ?? source.linked_definition_hash ?? "hint"}`,
+      kind: "manifest_hint",
+      label: source.label,
+      description: source.description
+    }]
+  };
+}
+
+function inferConfigurationKind(columns: readonly WeaponPerkPoolColumn[]): WeaponConfigurationKind {
+  return columns.some((column) => column.candidates.length > 1) ? "random_roll" : "fixed";
+}
+
+function toWeaponPerkCandidate(plug: ItemPlugSummary): WeaponPerkCandidate {
+  return {
+    hash: plug.hash,
+    name: plug.name,
+    description: plug.description,
+    icon: plug.icon
+  };
+}
+
+function perkColumnRole(category: string | undefined): WeaponPerkColumnRole {
+  const value = category?.toLocaleLowerCase() ?? "";
+  if (value.includes("intrinsic")) return "intrinsic";
+  if (value.includes("barrel") || value.includes("scope")) return "barrel";
+  if (value.includes("magazine") || value.includes("battery")) return "magazine";
+  if (value.includes("origin")) return "origin";
+  if (value.includes("trait") || value.includes("perk")) return "trait";
+  return "other";
+}
+
+function perkColumnLabel(role: WeaponPerkColumnRole, socketIndex: number): string {
+  if (role === "intrinsic") return "武器框架";
+  if (role === "barrel") return "枪管";
+  if (role === "magazine") return "弹匣 / 电池";
+  if (role === "origin") return "起源特性";
+  if (role === "trait") return "武器特性";
+  return `插槽 ${socketIndex + 1}`;
+}
+
+function toWeaponDetailInstance(
+  item: WeaponDetailInstanceLike & { instance_id: string },
+  currentInstanceId: string | undefined
+): WeaponDetailInstance {
+  return {
+    item_key: item.item_key ?? item.instance_id,
+    instance_id: item.instance_id,
+    hash: item.hash,
+    name: item.name,
+    icon: item.icon,
+    power: item.power,
+    location: item.source_label ?? selectedItemSourceLabel(item.source_kind),
+    source_kind: item.source_kind,
+    source_character_id: item.source_character_id,
+    locked: item.locked,
+    equipped: item.equipped ?? item.source_kind === "equipped",
+    current: item.instance_id === currentInstanceId,
+    plug_names: item.socket_plugs.map((plug) => plug.name)
+  };
+}
+
+function selectedItemSourceLabel(kind: SelectedItemSourceKind): string {
+  if (kind === "equipped") return "已装备";
+  if (kind === "inventory") return "角色背包";
+  if (kind === "postmaster") return "邮政官";
+  return "仓库";
+}
+
+function difference(value: number | undefined, baseline: number | undefined): number | undefined {
+  return value !== undefined && baseline !== undefined ? value - baseline : undefined;
+}

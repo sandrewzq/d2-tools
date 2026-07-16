@@ -105,7 +105,7 @@ export function useDesktopProductShell(props: {
     onRecentHistoryChanged: library.setLibraryHistory
   });
   const itemDetail = writeActions.itemDetail;
-  const vendorDefinitionDetail = useVendorDefinitionDetail({ vendorSourcePaths });
+  const vendorDefinitionDetail = useVendorDefinitionDetail({ vendorSourcePaths, vaultTags });
   const isRunningItemAction = writeActions.isRunningItemAction;
   const loadoutWriteActions = writeActions.loadoutWriteActions;
 

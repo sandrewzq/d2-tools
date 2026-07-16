@@ -240,6 +240,10 @@ async function fetchDesktopAccountSummary(): Promise<AccountSummary> {
     config.data.data_dir,
     "DestinyLoadoutNameDefinition"
   );
+  const objectiveDefinitions = loadDefinitionComponent(
+    config.data.data_dir,
+    "DestinyObjectiveDefinition"
+  );
   if (!itemDefinitions) {
     throw new Error("请先初始化资料库");
   }
@@ -250,6 +254,7 @@ async function fetchDesktopAccountSummary(): Promise<AccountSummary> {
     itemDefinitions,
     bucketDefinitions: bucketDefinitions ?? undefined,
     plugSetDefinitions: plugSetDefinitions ?? undefined,
-    loadoutNameDefinitions: loadoutNameDefinitions ?? undefined
+    loadoutNameDefinitions: loadoutNameDefinitions ?? undefined,
+    objectiveDefinitions: objectiveDefinitions ?? undefined
   });
 }

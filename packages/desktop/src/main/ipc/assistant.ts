@@ -50,7 +50,8 @@ async function loadAssistantAccountSummary(): Promise<AccountSummary> {
     itemDefinitions,
     bucketDefinitions: loadDefinitionComponent(config.data.data_dir, "DestinyInventoryBucketDefinition") ?? undefined,
     plugSetDefinitions: loadDefinitionComponent(config.data.data_dir, "DestinyPlugSetDefinition") ?? undefined,
-    loadoutNameDefinitions: loadDefinitionComponent(config.data.data_dir, "DestinyLoadoutNameDefinition") ?? undefined
+    loadoutNameDefinitions: loadDefinitionComponent(config.data.data_dir, "DestinyLoadoutNameDefinition") ?? undefined,
+    objectiveDefinitions: loadDefinitionComponent(config.data.data_dir, "DestinyObjectiveDefinition") ?? undefined
   });
 }
 

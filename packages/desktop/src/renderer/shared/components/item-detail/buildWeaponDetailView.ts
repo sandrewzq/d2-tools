@@ -1,0 +1,486 @@
+import {
+  buildWeaponDetailViewModel,
+  perkGroupsToPoolColumns,
+  type WeaponDetailViewModel,
+  type WeaponPerkSelectionColumn,
+  type WeaponDetailObjectContext,
+  type WeaponDetailSources
+} from "@d2-tools/app/items";
+import type { WeaponStatKey, WeaponStatSummary } from "@d2-tools/core/account/summary";
+import type { WeaponRecommendation as CommunityWeaponRecommendation } from "@d2-tools/core/community-perks";
+import type { PersonalWeaponKnowledgeEntry } from "@d2-tools/core/community-perks/personalWeaponKnowledge";
+import type { SameNameItemSummary, SelectedItemDetail } from "../../hooks/useItemDetail";
+
+export type BuildDesktopWeaponDetailInput = {
+  selectedItem: SelectedItemDetail;
+  sameNameItems?: SameNameItemSummary[];
+  recommendations?: WeaponDetailViewModel["recommendations"];
+  context?: Partial<WeaponDetailObjectContext>;
+  sources?: WeaponDetailSources;
+  selectionNames?: string[];
+  currentStats?: WeaponStatSummary;
+  pendingPerks?: Record<number, number>;
+  versions?: Array<{ hash: number; name: string; tier?: string; release?: { description: string } }>;
+};
+
+export function buildWeaponDetailView(
+  input: BuildDesktopWeaponDetailInput
+): WeaponDetailViewModel | null {
+  const item = input.selectedItem;
+  if (item.group_key !== "weapons") return null;
+
+  const allPoolColumns = perkGroupsToPoolColumns(item.perks ?? []);
+  const intrinsic = allPoolColumns.find((column) => column.role === "intrinsic")?.candidates[0];
+  const poolColumns = allPoolColumns.filter((column) => column.role !== "intrinsic");
+  const hasVariablePerks = poolColumns.some((column) => column.candidates.length > 1);
+  const isExotic = /异域|exotic/i.test(item.tier ?? "");
+
+  return buildWeaponDetailViewModel({
+    item,
+    context: {
+      kind: input.context?.kind ?? (item.instance_id ? "account_instance" : "definition"),
+      entry: input.context?.entry ?? (item.is_vault_item ? "vault" : item.instance_id ? "account" : "library"),
+      ...input.context
+    },
+    slot: item.bucket_name,
+    damage: item.damage_type_summary
+      ? {
+          hash: item.damage_type_summary.hash,
+          key: item.damage_type_summary.key,
+          label: item.damage_type_summary.name,
+          description: item.damage_type_summary.description,
+          icon: item.damage_type_summary.icon
+        }
+      : item.damage_type
+      ? {
+          key: damageKey(item.damage_type),
+          label: item.damage_type
+        }
+      : undefined,
+    champion: item.breaker_type
+      ? {
+          key: item.breaker_type.champion_type,
+          label: championLabels[item.breaker_type.champion_type],
+          effect_label: championEffectLabels[item.breaker_type.champion_type],
+          description: item.breaker_type.description,
+          icon: item.breaker_type.icon,
+          source: item.breaker_type.source === "item"
+            ? "weapon"
+            : item.breaker_type.source === "intrinsic-perk"
+              ? "frame_perk"
+              : "plug"
+        }
+      : undefined,
+    versions: input.versions?.length
+      ? input.versions.map((version) => ({
+          hash: version.hash,
+          label: version.name,
+          season_label: version.release?.description ?? (version.hash === item.hash ? item.release?.description : undefined) ?? version.tier,
+          is_current: version.hash === item.hash
+        }))
+      : [{
+          hash: item.hash,
+          label: item.name,
+          season_label: item.release?.description,
+          is_current: true
+        }],
+    definition_stats: definitionStatsToSummary(item.definition_stats),
+    current_stats: input.currentStats ?? (item.instance_id ? item.weapon_stats : undefined),
+    pending_stats: buildPendingWeaponStats(item, input.pendingPerks),
+    configuration: {
+      intrinsic,
+      kind: isExotic
+        ? hasVariablePerks ? "variable_exotic" : "fixed"
+        : hasVariablePerks ? "random_roll" : "fixed"
+    },
+    pool_columns: poolColumns,
+    selection_columns: buildSelectionColumns(item, poolColumns, input.selectionNames, input.pendingPerks),
+    sources: input.sources,
+    upgrades: buildWeaponUpgrades(item),
+    recommendations: input.recommendations,
+    same_hash_instances: input.sameNameItems
+  });
+}
+
+export function buildWeaponRecommendationViews(
+  recommendation: CommunityWeaponRecommendation | null,
+  personalKnowledge: PersonalWeaponKnowledgeEntry[],
+  item: SelectedItemDetail
+): WeaponDetailViewModel["recommendations"] {
+  const availableHashes = new Set([
+    ...(item.socket_plugs ?? []).map((plug) => plug.hash),
+    ...(item.sockets ?? []).flatMap((socket) => socket.reusable_plugs.map((plug) => plug.hash))
+  ]);
+  const availableNames = new Set([
+    ...(item.socket_plugs ?? []).map((plug) => plug.name.trim().toLocaleLowerCase()),
+    ...(item.sockets ?? []).flatMap((socket) => socket.reusable_plugs.map((plug) => plug.name.trim().toLocaleLowerCase()))
+  ]);
+  const definitionNames = new Set((item.perks ?? [])
+    .flatMap((group) => group.plugs)
+    .map((plug) => plug.name.trim().toLocaleLowerCase()));
+  const currentUpgradeNames = currentWeaponUpgradeNames(item);
+  const personal = personalKnowledge.filter((entry) => entry.enabled).map((entry) => {
+    const matchedColumns = entry.perk_options.filter((option) => option.names.some((name) => (
+      availableNames.has(name.trim().toLocaleLowerCase())
+    ))).length;
+    const resolvedColumns = entry.perk_options.filter((option) => option.names.some((name) => (
+      definitionNames.has(name.trim().toLocaleLowerCase())
+    ))).length;
+    const masterworkMatched = entry.masterwork_names.length
+      ? entry.masterwork_names.some((name) => currentUpgradeNames.masterwork.has(name.trim().toLocaleLowerCase()))
+      : false;
+    const modMatched = entry.mod_names.length
+      ? entry.mod_names.some((name) => currentUpgradeNames.mod.has(name.trim().toLocaleLowerCase()))
+      : false;
+    const matched = matchedColumns + Number(masterworkMatched) + Number(modMatched);
+    const total = entry.perk_options.length + Number(entry.masterwork_names.length > 0) + Number(entry.mod_names.length > 0);
+    const versionMatches = resolvedColumns === entry.perk_options.length;
+    const match = versionMatches ? matchRecommendation(item, matched, total) : "not_applicable";
+    return {
+      id: `personal:${entry.id}`,
+      mode: entry.mode,
+      title: entry.title,
+      reason: entry.reason,
+      source: "user" as const,
+      source_label: "我的推荐",
+      updated_at: entry.updated_at,
+      external_url: entry.external_url,
+      perk_options: entry.perk_options,
+      masterwork_names: entry.masterwork_names,
+      mod_names: entry.mod_names,
+      match,
+      match_notes: [
+        ...(versionMatches
+          ? recommendationMatchNotes(item, matched, total)
+          : [`知识库推荐不适用于当前版本：仅解析到 ${resolvedColumns}/${entry.perk_options.length} 个 Perk 插槽。`]),
+        ...(entry.masterwork_names.length ? [masterworkMatched ? "大师杰作符合推荐。" : "大师杰作与推荐不同。"] : []),
+        ...(entry.mod_names.length ? [modMatched ? "武器模组符合推荐。" : "武器模组与推荐不同。"] : [])
+      ]
+    };
+  });
+  const isFixedConfiguration = Boolean(item.perks?.length)
+    && item.perks!.every((group) => group.plugs.length <= 1);
+  const builtin = (isFixedConfiguration ? [] : recommendation?.combos ?? [])
+    .filter((combo) => combo.source !== "ai_lightgg")
+    .map((combo, index) => {
+      const matched = combo.perks.filter((perk) => availableHashes.has(perk.hash)).length;
+      return {
+        id: `${combo.source}:${combo.mode}:${index}`,
+        mode: combo.mode,
+        title: combo.note || `${combo.mode.toUpperCase()} 推荐 Roll`,
+        reason: recommendation?.disclaimer || "依据本地知识与愿望单比较当前配置。",
+        source: combo.source === "dim_wishlist" ? "dim" as const : "builtin" as const,
+        source_label: combo.source === "dim_wishlist" ? "DIM 愿望单" : "内置知识库",
+        perk_options: combo.perks.map((perk, perkIndex) => ({
+          column_key: `Perk ${perkIndex + 1}`,
+          names: [perk.name]
+        })),
+        masterwork_names: [],
+        mod_names: [],
+        match: matchRecommendation(item, matched, combo.perks.length),
+        match_notes: recommendationMatchNotes(item, matched, combo.perks.length)
+      };
+    });
+  return [...personal, ...builtin];
+}
+
+function matchRecommendation(
+  item: SelectedItemDetail,
+  matched: number,
+  total: number
+): WeaponDetailViewModel["recommendations"][number]["match"] {
+  if (!item.instance_id && !item.socket_plugs?.length) return "not_applicable";
+  if (matched === total && matched > 0) return "full";
+  return matched > 0 ? "partial" : "none";
+}
+
+function recommendationMatchNotes(item: SelectedItemDetail, matched: number, total: number): string[] {
+  return item.instance_id || item.socket_plugs?.length
+    ? [`当前对象命中 ${matched}/${total} 个推荐插槽。`]
+    : ["当前对象没有账号实例 Roll，不执行实例命中判断。"];
+}
+
+function currentWeaponUpgradeNames(item: SelectedItemDetail): { masterwork: Set<string>; mod: Set<string> } {
+  const plugs = [
+    ...(item.socket_plugs ?? []),
+    ...(item.sockets ?? []).flatMap((socket) => socket.selected_plug ? [socket.selected_plug] : [])
+  ];
+  return {
+    masterwork: new Set(plugs
+      .filter((plug) => plugHasSemanticType(plug, "masterwork"))
+      .map((plug) => plug.name.trim().toLocaleLowerCase())),
+    mod: new Set(plugs
+      .filter((plug) => {
+        return plugHasSemanticType(plug, "mod");
+      })
+      .map((plug) => plug.name.trim().toLocaleLowerCase()))
+  };
+}
+
+function buildSelectionColumns(
+  item: SelectedItemDetail,
+  poolColumns: WeaponDetailViewModel["configuration"]["pool_columns"],
+  selectionNames: string[] | undefined,
+  pendingPerks: Record<number, number> | undefined
+): WeaponPerkSelectionColumn[] {
+  if (item.sockets?.length) {
+    const poolBySocket = new Map(poolColumns.map((column) => [column.socket_index, column]));
+    return item.sockets.flatMap((socket) => {
+      const pool = poolBySocket.get(socket.socket_index);
+      if (!pool && !socketLooksLikeWeaponRoll(socket)) return [];
+      const poolHashes = new Set(pool?.candidates.map((candidate) => candidate.hash) ?? []);
+      return [{
+        key: pool?.key ?? `socket-${socket.socket_index}`,
+        socket_index: socket.socket_index,
+        label: pool?.label ?? socketLabel(socket.socket_index, socket.selected_plug?.category_identifier),
+        role: pool?.role ?? "other",
+        candidates: socket.reusable_plugs.map((plug) => ({
+          hash: plug.hash,
+          name: plug.name,
+          description: plug.description ?? "",
+          icon: plug.icon,
+          selected: plug.selected,
+          can_apply: socket.is_enabled
+            && plug.can_insert === true
+            && plug.enabled !== false
+            && plug.insert_fail_indexes.length === 0
+            && plug.enable_fail_indexes.length === 0,
+          pending: pendingPerks?.[socket.socket_index] === plug.hash,
+          unresolved_in_definition_pool: !poolHashes.has(plug.hash)
+        }))
+      }];
+    });
+  }
+
+  const selectedHashes = new Set(item.socket_plugs?.map((plug) => plug.hash) ?? []);
+  const normalizedNames = new Set((selectionNames ?? []).map((name) => name.trim()).filter(Boolean));
+  if (!selectedHashes.size && !normalizedNames.size) return [];
+
+  return poolColumns
+    .map((column) => ({
+      key: column.key,
+      socket_index: column.socket_index,
+      label: column.label,
+      role: column.role,
+      candidates: column.candidates
+        .filter((candidate) => selectedHashes.has(candidate.hash) || normalizedNames.has(candidate.name))
+        .map((candidate) => ({
+          ...candidate,
+          selected: true,
+          can_apply: false,
+          pending: false,
+          unresolved_in_definition_pool: false
+        }))
+    }))
+    .filter((column) => column.candidates.length > 0);
+}
+
+function definitionStatsToSummary(
+  stats: SelectedItemDetail["definition_stats"]
+): WeaponStatSummary | undefined {
+  if (!stats?.length) return undefined;
+
+  const summary: WeaponStatSummary = {};
+  for (const stat of stats) {
+    const key = weaponStatKeyByHash[stat.hash];
+    if (key) summary[key] = stat.value;
+  }
+  return Object.keys(summary).length ? summary : undefined;
+}
+
+function buildPendingWeaponStats(
+  item: SelectedItemDetail,
+  pendingPerks: Record<number, number> | undefined
+): WeaponStatSummary | undefined {
+  if (!item.weapon_stats || !item.sockets?.length || !pendingPerks || !Object.keys(pendingPerks).length) return undefined;
+  const result: WeaponStatSummary = { ...item.weapon_stats };
+  for (const [socketValue, pendingHash] of Object.entries(pendingPerks)) {
+    const socket = item.sockets.find((candidate) => candidate.socket_index === Number(socketValue));
+    const pending = socket?.reusable_plugs.find((plug) => plug.hash === pendingHash);
+    if (!socket || !pending || pending.selected) continue;
+    for (const key of weaponStatKeys) {
+      const delta = (pending.stat_modifiers?.[key] ?? 0) - (socket.selected_plug?.stat_modifiers?.[key] ?? 0);
+      if (delta !== 0) result[key] = (result[key] ?? 0) + delta;
+    }
+  }
+  return result;
+}
+
+function damageKey(label: string): string {
+  if (label.includes("电弧")) return "arc";
+  if (label.includes("烈日")) return "solar";
+  if (label.includes("虚空")) return "void";
+  if (label.includes("冰影")) return "stasis";
+  if (label.includes("缚丝")) return "strand";
+  return "kinetic";
+}
+
+function buildWeaponUpgrades(item: SelectedItemDetail): WeaponDetailViewModel["upgrades"] {
+  const socketSelectedPlugs = (item.sockets ?? []).flatMap((socket) => socket.selected_plug ? [socket.selected_plug] : []);
+  const selectedPlugs = socketSelectedPlugs.length ? socketSelectedPlugs : item.socket_plugs ?? [];
+  const masterwork = selectedPlugs.find((plug) => plugHasSemanticType(plug, "masterwork"));
+  const catalyst = selectedPlugs.find((plug) => plugHasSemanticType(plug, "catalyst"));
+  const definitionCatalyst = item.perks
+    ?.flatMap((group) => group.plugs)
+    .find((plug) => plugHasSemanticType(plug, "catalyst"));
+  const mod = selectedPlugs.find((plug) => {
+    return plugHasSemanticType(plug, "mod");
+  });
+  const craftingLevel = extractCraftingLevel([
+    ...(item.item_objectives ?? []),
+    ...selectedPlugs.flatMap((plug) => plug.objectives ?? [])
+  ]);
+
+  return {
+    masterwork: masterwork
+      ? {
+          name: masterwork.name,
+          level: extractDisplayedLevel(`${masterwork.name} ${masterwork.item_type ?? ""}`),
+          complete: masterwork.objectives?.length
+            ? masterwork.objectives.every((objective) => objective.complete)
+            : extractDisplayedLevel(`${masterwork.name} ${masterwork.item_type ?? ""}`) === 10,
+          stat_key: firstStatModifier(masterwork.stat_modifiers)?.[0],
+          stat_amount: firstStatModifier(masterwork.stat_modifiers)?.[1]
+        }
+      : undefined,
+    mod: mod
+      ? { hash: mod.hash, name: mod.name, description: mod.description ?? "", icon: mod.icon }
+      : undefined,
+    catalyst: catalyst
+      ? {
+          name: catalyst.name,
+          acquired: true,
+          complete: catalyst.objectives?.length
+            ? catalyst.objectives.every((objective) => objective.complete)
+            : false,
+          progress: objectiveProgress(catalyst.objectives),
+          objective: catalyst.objectives?.map((objective) => objective.progress_description).filter(Boolean).join(" / "),
+          acquisition: catalyst.source_description,
+          effects: catalyst.description ? [catalyst.description] : []
+        }
+      : definitionCatalyst
+        ? {
+            name: definitionCatalyst.name,
+            acquired: false,
+            complete: false,
+            acquisition: definitionCatalyst.source_description,
+            effects: definitionCatalyst.description ? [definitionCatalyst.description] : []
+          }
+        : undefined,
+    crafting_level: craftingLevel,
+    enhanced: selectedPlugs.some((plug) => {
+      const category = plug.category_identifier?.toLocaleLowerCase() ?? "";
+      const itemType = plug.item_type?.toLocaleLowerCase() ?? "";
+      return category.includes("enhanced") || category.includes("enhancement") || itemType.includes("enhanced") || itemType.includes("强化");
+    })
+  };
+}
+
+function includesCategory(category: string | undefined, segment: string): boolean {
+  return category?.toLocaleLowerCase().includes(segment) ?? false;
+}
+
+function plugHasSemanticType(
+  plug: { category_identifier?: string; item_type?: string },
+  kind: "masterwork" | "catalyst" | "mod"
+): boolean {
+  const category = plug.category_identifier?.toLocaleLowerCase() ?? "";
+  const itemType = plug.item_type?.toLocaleLowerCase() ?? "";
+  if (kind === "masterwork") return category.includes("masterwork") || itemType.includes("masterwork") || itemType.includes("大师杰作");
+  if (kind === "catalyst") return category.includes("catalyst") || itemType.includes("catalyst") || itemType.includes("催化剂");
+  return (category.includes("weapon.mod") || category.includes("modguns") || category.includes("mods.weapon") || itemType.includes("weapon mod") || itemType.includes("武器模组"))
+    && !category.includes("shader")
+    && !category.includes("memento");
+}
+
+function socketLooksLikeWeaponRoll(socket: NonNullable<SelectedItemDetail["sockets"]>[number]): boolean {
+  const categories = [
+    socket.selected_plug?.category_identifier,
+    ...socket.reusable_plugs.map((plug) => plug.category_identifier)
+  ].map((value) => value?.toLocaleLowerCase() ?? "");
+  const excluded = ["masterwork", "catalyst", "shader", "tracker", "memento", "weapon.mod", "modguns"];
+  if (categories.some((category) => excluded.some((segment) => category.includes(segment)))) return false;
+  if (categories.some((category) => category.includes("intrinsic"))) return false;
+  return categories.some((category) => [
+    "barrel", "scope", "magazine", "battery", "trait", "origin", "grip", "stock", "guard", "blade", "bow"
+  ].some((segment) => category.includes(segment)));
+}
+
+function socketLabel(socketIndex: number, category: string | undefined): string {
+  const value = category?.toLocaleLowerCase() ?? "";
+  if (value.includes("intrinsic")) return "武器框架";
+  if (value.includes("barrel") || value.includes("scope")) return "枪管";
+  if (value.includes("magazine") || value.includes("battery")) return "弹匣 / 电池";
+  if (value.includes("origin")) return "起源特性";
+  return `Perk ${socketIndex + 1}`;
+}
+
+function objectiveProgress(
+  objectives: NonNullable<SelectedItemDetail["item_objectives"]> | undefined
+): number | undefined {
+  const objective = objectives?.find((candidate) => candidate.visible) ?? objectives?.[0];
+  if (!objective || objective.progress === undefined || objective.completion_value <= 0) return undefined;
+  return Math.min(100, Math.round(objective.progress / objective.completion_value * 100));
+}
+
+function extractCraftingLevel(
+  objectives: NonNullable<SelectedItemDetail["item_objectives"]>
+): number | undefined {
+  for (const objective of objectives) {
+    const description = objective.progress_description ?? "";
+    const match = description.match(/(?:等级|level)\s*[:：]?\s*(\d+)/i);
+    if (match) return Number(match[1]);
+  }
+  return undefined;
+}
+
+function extractDisplayedLevel(value: string): number | undefined {
+  const match = value.match(/(?:等级|tier|level)\s*[:：]?\s*(\d+)/i);
+  return match ? Number(match[1]) : undefined;
+}
+
+function firstStatModifier(
+  modifiers: NonNullable<SelectedItemDetail["weapon_stats"]> | undefined
+): [WeaponStatKey, number] | undefined {
+  return Object.entries(modifiers ?? {}).find((entry): entry is [WeaponStatKey, number] => (
+    typeof entry[1] === "number" && entry[1] !== 0
+  ));
+}
+
+const weaponStatKeyByHash: Partial<Record<number, WeaponStatKey>> = {
+  4043523819: "impact",
+  1240592695: "range",
+  155624089: "stability",
+  943549884: "handling",
+  4188031367: "reload_speed",
+  3871231066: "magazine",
+  4284893193: "rounds_per_minute",
+  2961396640: "charge_time",
+  447667954: "draw_time",
+  2714457168: "recoil_direction"
+};
+
+const weaponStatKeys: WeaponStatKey[] = [
+  "impact",
+  "range",
+  "stability",
+  "handling",
+  "reload_speed",
+  "magazine",
+  "rounds_per_minute",
+  "charge_time",
+  "draw_time",
+  "recoil_direction"
+];
+
+const championLabels = {
+  barrier: "反屏障",
+  overload: "反过载",
+  unstoppable: "反势不可挡"
+} as const;
+
+const championEffectLabels = {
+  barrier: "贯穿护盾",
+  overload: "干扰",
+  unstoppable: "眩晕"
+} as const;

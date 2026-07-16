@@ -82,6 +82,14 @@
       "types": "./dist/items/release.d.ts",
       "import": "./dist/items/release.js"
     },
+    "./items/breakerTypes": {
+      "types": "./dist/items/breakerTypes.d.ts",
+      "import": "./dist/items/breakerTypes.js"
+    },
+    "./items/damageTypes": {
+      "types": "./dist/items/damageTypes.d.ts",
+      "import": "./dist/items/damageTypes.js"
+    },
     "./items/liveAvailability": {
       "types": "./dist/items/liveAvailability.d.ts",
       "import": "./dist/items/liveAvailability.js"
@@ -237,6 +245,10 @@
     "./community-perks/localCommunityImport": {
       "types": "./dist/community-perks/localCommunityImport.d.ts",
       "import": "./dist/community-perks/localCommunityImport.js"
+    },
+    "./community-perks/personalWeaponKnowledge": {
+      "types": "./dist/community-perks/personalWeaponKnowledge.d.ts",
+      "import": "./dist/community-perks/personalWeaponKnowledge.js"
     }
   },
   "scripts": {

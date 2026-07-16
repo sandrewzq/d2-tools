@@ -22,6 +22,11 @@ export type TransferItemOptions = BungieItemActionOptions & {
   stackSize?: number;
 };
 
+export type InsertSocketPlugOptions = BungieItemActionOptions & {
+  socketIndex: number;
+  plugHash: number;
+};
+
 export type PullFromPostmasterOptions = BungieItemActionOptions & {
   itemReferenceHash: number;
   stackSize?: number;
@@ -73,6 +78,20 @@ export async function transferItem(options: TransferItemOptions): Promise<void> 
       stackSize: options.stackSize ?? 1,
       transferToVault: options.transferToVault,
       itemId: options.itemId,
+      characterId: options.characterId,
+      membershipType: options.membershipType
+    },
+    bungieWriteOptions(options)
+  );
+}
+
+export async function insertSocketPlug(options: InsertSocketPlugOptions): Promise<void> {
+  await postBungieJson<unknown>(
+    "/Destiny2/Actions/Items/InsertSocketPlugFree/",
+    {
+      itemId: options.itemId,
+      plug: options.plugHash,
+      socketIndex: options.socketIndex,
       characterId: options.characterId,
       membershipType: options.membershipType
     },

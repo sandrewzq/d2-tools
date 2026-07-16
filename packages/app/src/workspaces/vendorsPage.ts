@@ -33,15 +33,26 @@ export type VendorInventoryItemWorkspace = {
   itemHash?: number;
   quantity?: number;
   vendorItemIndex?: number;
+  vendorHash?: number;
   categoryIndex?: number;
   categoryName?: string;
   categoryIdentifier?: string;
   previewVendorHash?: number;
   characterIds?: string[];
   decisionLabel?: string;
+  canPurchase?: boolean;
+  failureMessages?: string[];
   costs?: VendorCostWorkspace[];
   stats?: Record<string, number>;
-  socketPlugs?: Array<{ hash: number; name: string; iconUrl?: string }>;
+  socketPlugs?: Array<{
+    hash: number;
+    name: string;
+    iconUrl?: string;
+    description?: string;
+    categoryIdentifier?: string;
+    statModifiers?: Record<string, number>;
+    itemType?: string;
+  }>;
   sourcePath?: string;
 };
 
@@ -458,6 +469,7 @@ function mapSnapshotOffer(
     itemHash: offer.itemHash,
     quantity: offer.quantity,
     vendorItemIndex: offer.vendorItemIndex,
+    vendorHash: offer.vendorHash,
     categoryIndex: offer.categoryIndex,
     categoryName: offer.categoryName,
     categoryIdentifier: offer.categoryIdentifier,
@@ -473,6 +485,8 @@ function mapSnapshotOffer(
     tone,
     status: "unknown",
     decisionLabel: tone === "exotic" ? "高质量售卖实例" : undefined,
+    canPurchase: offer.canPurchase,
+    failureMessages: [...offer.failureMessages],
     stats: { ...offer.stats },
     socketPlugs: (offer.socketPlugs ?? []).map((plug) => ({
       ...plug,

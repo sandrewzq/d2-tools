@@ -19,6 +19,7 @@ export type SettingsActionLogTypeFilter =
   | "all"
   | "set-lock"
   | "equip"
+  | "insert-socket-plug"
   | "transfer"
   | "postmaster-pull"
   | "loadout-equip"
@@ -644,6 +645,7 @@ export function SettingsPageContentView(props: SettingsPageContentViewProps) {
                     <option value="all">{settingsText(copy, "全部")}</option>
                     <option value="set-lock">{settingsText(copy, "锁定状态")}</option>
                     <option value="equip">{settingsText(copy, "装备")}</option>
+                    <option value="insert-socket-plug">{settingsText(copy, "切换武器 Perk")}</option>
                     <option value="transfer">{settingsText(copy, "仓库转移")}</option>
                     <option value="postmaster-pull">{settingsText(copy, "邮政官取回")}</option>
                     <option value="loadout-equip">{settingsText(copy, "应用游戏内配装栏")}</option>
@@ -915,6 +917,7 @@ function formatActionLogTitle(entry: ActionLogEntry, copy: SettingsCopy): string
   const actionLabels: Record<ActionLogEntry["action"], string> = {
     "set-lock": settingsText(copy, "锁定状态"),
     equip: settingsText(copy, "装备"),
+    "insert-socket-plug": settingsText(copy, "切换武器 Perk"),
     transfer: settingsText(copy, "仓库转移"),
     "postmaster-pull": settingsText(copy, "邮政官取回"),
     "loadout-equip": settingsText(copy, "应用游戏内配装栏"),

@@ -2,6 +2,8 @@ import type { DestinyManifestMetadata } from "./metadata.js";
 
 export type DefinitionComponentName =
   | "DestinyInventoryItemDefinition"
+  | "DestinyBreakerTypeDefinition"
+  | "DestinyDamageTypeDefinition"
   | "DestinyPlugSetDefinition"
   | "DestinySandboxPerkDefinition"
   | "DestinyCollectibleDefinition"
@@ -40,6 +42,11 @@ export type DefinitionRecord = {
     damageType?: number;
   };
   defaultDamageType?: number;
+  defaultDamageTypeHash?: number;
+  damageTypeHashes?: number[];
+  breakerType?: number;
+  breakerTypeHash?: number;
+  enumValue?: number;
   isAdept?: boolean;
   sourceData?: {
     sourceString?: string;
@@ -48,6 +55,8 @@ export type DefinitionRecord = {
   displaySource?: string;
   sourceString?: string;
   sourceHash?: number;
+  progressDescription?: string;
+  completionValue?: number;
   translationBlock?: {
     artArrangementHash?: number;
     arrangements?: Array<{
@@ -108,6 +117,8 @@ export type DefinitionComponentStatus = {
 
 export const requiredDefinitionComponents: DefinitionComponentName[] = [
   "DestinyInventoryItemDefinition",
+  "DestinyBreakerTypeDefinition",
+  "DestinyDamageTypeDefinition",
   "DestinyPlugSetDefinition",
   "DestinySandboxPerkDefinition",
   "DestinyCollectibleDefinition",

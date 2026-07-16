@@ -6,13 +6,18 @@ import { summarizeItemPerks, type ItemPerkGroup } from "./perks.js";
 import { summarizeItemSource, type ItemSourceSummary } from "./source.js";
 import { summarizeItemRelease, type ItemReleaseSummary } from "./release.js";
 import { summarizeWeaponFrame, type WeaponFrameSummary } from "./weaponFrames.js";
+import { summarizeWeaponBreakerType, type WeaponBreakerTypeSummary } from "./breakerTypes.js";
+import { summarizeItemDamageType, type DamageTypeSummary } from "./damageTypes.js";
 
 export type ItemSearchOptions = {
   limit?: number;
   plugSetDefinitions?: DefinitionComponentData;
   statDefinitions?: DefinitionComponentData;
   collectibleDefinitions?: DefinitionComponentData;
+  breakerTypeDefinitions?: DefinitionComponentData;
+  damageTypeDefinitions?: DefinitionComponentData;
   aliases?: ItemAliases;
+  includeAllPerks?: boolean;
 };
 
 export type ItemDefinitionStat = {
@@ -36,6 +41,7 @@ export type ItemSearchResult = {
   tier?: string;
   class_name?: string;
   damage_type?: string;
+  damage_type_summary?: DamageTypeSummary;
   is_adept?: boolean;
   origin_traits?: ItemOriginTrait[];
   intrinsic_traits?: ItemIntrinsicTraitSummary[];
@@ -44,6 +50,7 @@ export type ItemSearchResult = {
   bucket_name?: string;
   group_key: EquipmentGroupKey;
   weapon_frame?: WeaponFrameSummary;
+  breaker_type?: WeaponBreakerTypeSummary;
   source: ItemSourceSummary;
   release?: ItemReleaseSummary;
   definition_stats?: ItemDefinitionStat[];
@@ -179,6 +186,10 @@ function toItemSearchResult(
   if (damageType) {
     result.damage_type = damageType;
   }
+  const damageTypeSummary = summarizeItemDamageType(definition, options.damageTypeDefinitions);
+  if (damageTypeSummary) {
+    result.damage_type_summary = damageTypeSummary;
+  }
   if (definition.isAdept) {
     result.is_adept = true;
   }
@@ -197,6 +208,13 @@ function toItemSearchResult(
   });
   if (weaponFrame) {
     result.weapon_frame = weaponFrame;
+  }
+  const breakerType = summarizeWeaponBreakerType(definition, definitions, {
+    plugSetDefinitions: options.plugSetDefinitions,
+    breakerTypeDefinitions: options.breakerTypeDefinitions
+  });
+  if (breakerType) {
+    result.breaker_type = breakerType;
   }
   const release = summarizeItemRelease(definition);
   if (release) {
@@ -218,7 +236,7 @@ function toItemSearchResult(
   if (bucket?.group === "weapons") {
     const perks = summarizeItemPerks(definition, definitions, {
       plugSetDefinitions: options.plugSetDefinitions,
-      maxPlugsPerSocket: 6
+      maxPlugsPerSocket: options.includeAllPerks ? null : 6
     });
     if (perks.length > 0) {
       result.perks = perks;

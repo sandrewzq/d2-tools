@@ -3,10 +3,14 @@ import {
   clearLightggCache,
   clearLocalCommunityRecommendations,
   createDefaultCommunityPerkService,
-  createFullCommunityPerkService,
   loadLocalCommunityRecommendations,
   saveLocalCommunityRecommendations,
+  deletePersonalWeaponKnowledge,
+  loadPersonalWeaponKnowledge,
+  savePersonalWeaponKnowledge,
+  setPersonalWeaponKnowledgeEnabled,
   type LocalCommunityRecommendationTable,
+  type SavePersonalWeaponKnowledgeInput,
   type SourceOptions,
   type VaultItemMatchInput
 } from "@d2-tools/core/community-perks";
@@ -34,9 +38,29 @@ export function registerCommunityIpcHandlers(): void {
     return null;
   });
 
+  ipcMain.handle("community:personal:get", (_event, weaponName?: string) => {
+    const config = loadConfig();
+    return loadPersonalWeaponKnowledge(config.data.data_dir, weaponName);
+  });
+
+  ipcMain.handle("community:personal:save", (_event, input: SavePersonalWeaponKnowledgeInput) => {
+    const config = loadConfig();
+    return savePersonalWeaponKnowledge(config.data.data_dir, input);
+  });
+
+  ipcMain.handle("community:personal:set-enabled", (_event, id: string, enabled: boolean) => {
+    const config = loadConfig();
+    return setPersonalWeaponKnowledgeEnabled(config.data.data_dir, id, enabled);
+  });
+
+  ipcMain.handle("community:personal:delete", (_event, id: string) => {
+    const config = loadConfig();
+    return deletePersonalWeaponKnowledge(config.data.data_dir, id);
+  });
+
   ipcMain.handle("community:recommendations:get", async (_event, item_hash: number, options?: SourceOptions) => {
     const config = loadConfig();
-    const service = createFullCommunityPerkService(config);
+    const service = createDefaultCommunityPerkService(config);
 
     const itemDefinitions = options?.itemDefinitions ?? loadDefinitionComponent(config.data.data_dir, "DestinyInventoryItemDefinition") ?? undefined;
     const plugSetDefinitions = options?.plugSetDefinitions ?? loadDefinitionComponent(config.data.data_dir, "DestinyPlugSetDefinition") ?? undefined;

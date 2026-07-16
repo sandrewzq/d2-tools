@@ -110,6 +110,8 @@ describe("manifest metadata service adapter", () => {
       cached_at: "2026-06-18T00:00:00.000Z",
       definitions: [
         { initialized: false, component: "DestinyInventoryItemDefinition" },
+        { initialized: false, component: "DestinyBreakerTypeDefinition" },
+        { initialized: false, component: "DestinyDamageTypeDefinition" },
         { initialized: false, component: "DestinyPlugSetDefinition" },
         { initialized: false, component: "DestinySandboxPerkDefinition" },
         { initialized: false, component: "DestinyCollectibleDefinition" },
@@ -126,6 +128,8 @@ describe("manifest metadata service adapter", () => {
       ],
       missing_required_components: [
         "DestinyInventoryItemDefinition",
+        "DestinyBreakerTypeDefinition",
+        "DestinyDamageTypeDefinition",
         "DestinyPlugSetDefinition",
         "DestinySandboxPerkDefinition",
         "DestinyCollectibleDefinition",
@@ -165,6 +169,8 @@ describe("manifest metadata service adapter", () => {
       cached_at: "2026-06-18T01:02:03.000Z",
       definitions: [
         { initialized: false, component: "DestinyInventoryItemDefinition" },
+        { initialized: false, component: "DestinyBreakerTypeDefinition" },
+        { initialized: false, component: "DestinyDamageTypeDefinition" },
         { initialized: false, component: "DestinyPlugSetDefinition" },
         { initialized: false, component: "DestinySandboxPerkDefinition" },
         { initialized: false, component: "DestinyCollectibleDefinition" },
@@ -181,6 +187,8 @@ describe("manifest metadata service adapter", () => {
       ],
       missing_required_components: [
         "DestinyInventoryItemDefinition",
+        "DestinyBreakerTypeDefinition",
+        "DestinyDamageTypeDefinition",
         "DestinyPlugSetDefinition",
         "DestinySandboxPerkDefinition",
         "DestinyCollectibleDefinition",

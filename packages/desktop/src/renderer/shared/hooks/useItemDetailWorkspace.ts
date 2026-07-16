@@ -1,6 +1,11 @@
 import { useMemo, useState } from "react";
 import { api } from "../../api/client";
-import type { AccountItemSummary, AccountSummary, D2Config, DimWishlist, ItemActionResult, ItemAiAdviceResult, LibraryHistory, LocalTargetRules, VaultTags, VaultTagValue, WeaponRecommendation } from "../../api/types";
+import type { AccountItemSummary, AccountSummary, D2Config, DimWishlist, ItemActionResult, ItemAiAdviceResult, ItemSearchResult, LibraryHistory, LocalTargetRules, VaultTags, VaultTagValue, WeaponRecommendation } from "../../api/types";
+import type { LiveItemAvailabilityEntry } from "@d2-tools/core/items/liveAvailability";
+import type {
+  PersonalWeaponKnowledgeEntry,
+  SavePersonalWeaponKnowledgeInput
+} from "@d2-tools/core/community-perks/personalWeaponKnowledge";
 import {
   buildWishlistInsightText,
   collectSelectedSameNameItems,
@@ -42,6 +47,9 @@ export function useItemDetailWorkspace(input: {
   const [communityRecommendations, setCommunityRecommendations] = useState<WeaponRecommendation | null>(null);
   const [communityRecommendationError, setCommunityRecommendationError] = useState("");
   const [isCommunityRecommendationsLoading, setIsCommunityRecommendationsLoading] = useState(false);
+  const [personalWeaponKnowledge, setPersonalWeaponKnowledge] = useState<PersonalWeaponKnowledgeEntry[]>([]);
+  const [selectedItemAvailability, setSelectedItemAvailability] = useState<LiveItemAvailabilityEntry | null>(null);
+  const [selectedItemVersions, setSelectedItemVersions] = useState<ItemSearchResult[]>([]);
   const [itemAiResult, setItemAiResult] = useState<ItemAiAdviceResult | null>(null);
   const [itemAiError, setItemAiError] = useState("");
   const [itemNoteDraft, setItemNoteDraft] = useState("");
@@ -71,6 +79,9 @@ export function useItemDetailWorkspace(input: {
       setCommunityRecommendations(null);
       setCommunityRecommendationError("");
       setIsCommunityRecommendationsLoading(true);
+      setPersonalWeaponKnowledge([]);
+      setSelectedItemAvailability(null);
+      setSelectedItemVersions("description" in item && "source" in item ? [item] : []);
       void api.getCommunityPerkRecommendations(item.hash, { item_name: item.name })
         .then((result) => {
           if (!isCurrent()) return;
@@ -85,6 +96,36 @@ export function useItemDetailWorkspace(input: {
           if (!isCurrent()) return;
           setIsCommunityRecommendationsLoading(false);
         });
+      void api.getPersonalWeaponKnowledge(item.name)
+        .then((table) => {
+          if (!isCurrent()) return;
+          setPersonalWeaponKnowledge(table.entries);
+        })
+        .catch((error) => {
+          if (!isCurrent()) return;
+          console.warn("我的推荐读取失败：", error);
+        });
+      void api.getLiveItemAvailability([item.hash])
+        .then((availability) => {
+          if (!isCurrent()) return;
+          setSelectedItemAvailability(availability.items[String(item.hash)] ?? null);
+        })
+        .catch((error) => {
+          if (!isCurrent()) return;
+          console.warn("实时获取状态读取失败：", error);
+        });
+      void api.searchItems(item.name)
+        .then((results) => {
+          if (!isCurrent()) return;
+          const versions = results
+            .filter((candidate) => candidate.group_key === "weapons" && candidate.name.trim() === item.name.trim())
+            .filter((candidate, index, all) => all.findIndex((entry) => entry.hash === candidate.hash) === index);
+          setSelectedItemVersions(versions);
+        })
+        .catch((error) => {
+          if (!isCurrent()) return;
+          console.warn("同名版本读取失败：", error);
+        });
     },
     onRecentHistoryChanged: input.onRecentHistoryChanged
   });
@@ -93,7 +134,7 @@ export function useItemDetailWorkspace(input: {
     collectSelectedSameNameItems(input.accountSummary, selectedItem)
   ), [input.accountSummary, selectedItem]);
 
-  async function generateItemAiAdvice() {
+  async function generateItemAiAdvice(userKnowledge = "") {
     if (!selectedItem?.group_key) return;
 
     setIsGeneratingItemAi(true);
@@ -119,12 +160,96 @@ export function useItemDetailWorkspace(input: {
           description: selectedItem.description,
           note: selectedItem.item_key ? input.vaultTags.items[selectedItem.item_key]?.note : undefined
         },
-        tags: input.vaultTags
+        tags: input.vaultTags,
+        user_knowledge: userKnowledge.trim() || undefined,
+        personal_knowledge: personalWeaponKnowledge,
+        builtin_knowledge: communityRecommendations,
+        weapon_context: selectedItem.group_key === "weapons" ? {
+          object_kind: selectedItem.instance_id ? "account_instance" : "definition",
+          official_sources: [
+            ...(selectedItemAvailability?.sources.map((source) => source.label) ?? []),
+            ...(selectedItem.source.status === "ready" ? [selectedItem.source.description] : [])
+          ],
+          definition_stats: Object.fromEntries((selectedItem.definition_stats ?? []).map((stat) => [stat.name, stat.value])),
+          current_stats: selectedItem.weapon_stats,
+          perk_pool: (selectedItem.perks ?? []).map((group) => ({
+            socket_index: group.socket_index,
+            names: group.plugs.map((plug) => plug.name)
+          })),
+          same_hash_instances: selectedSameNameItems.map((item) => ({
+            location: item.source_label ?? item.source_kind,
+            power: item.power,
+            plugs: item.socket_plugs.map((plug) => plug.name)
+          }))
+        } : undefined
       }));
     } catch (error) {
       setItemAiError(error instanceof Error ? error.message : "AI 装备解读失败");
     } finally {
       setIsGeneratingItemAi(false);
+    }
+  }
+
+  async function saveConfirmedPersonalWeaponKnowledge(
+    draft: SavePersonalWeaponKnowledgeInput["entry"]
+  ): Promise<boolean> {
+    if (!selectedItem) return false;
+    const summary = [
+      `武器：${draft.weapon_name || selectedItem.name}`,
+      `模式：${draft.mode.toUpperCase()}`,
+      `推荐：${draft.title}`,
+      draft.perk_options.length
+        ? `Perk：${draft.perk_options.flatMap((option) => option.names).join(" / ")}`
+        : "",
+      draft.masterwork_names.length ? `大师杰作：${draft.masterwork_names.join(" / ")}` : "",
+      draft.mod_names.length ? `模组：${draft.mod_names.join(" / ")}` : "",
+      draft.reason ? `理由：${draft.reason}` : "",
+      draft.external_url ? `外部依据：${draft.external_url}` : "",
+      "",
+      "确认保存到我的推荐吗？保存后将优先于应用推荐。"
+    ].filter(Boolean).join("\n");
+    if (!window.confirm(summary)) return false;
+
+    try {
+      const table = await api.savePersonalWeaponKnowledge({
+        confirmed: true,
+        entry: {
+          ...draft,
+          weapon_name: draft.weapon_name || selectedItem.name,
+          weapon_hash: draft.weapon_hash ?? selectedItem.hash
+        }
+      });
+      setPersonalWeaponKnowledge(table.entries.filter((entry) => (
+        entry.weapon_name.trim().toLocaleLowerCase() === selectedItem.name.trim().toLocaleLowerCase()
+      )));
+      setItemNoteMessage("已保存到我的推荐。");
+      return true;
+    } catch (error) {
+      setItemAiError(error instanceof Error ? error.message : "我的推荐保存失败");
+      return false;
+    }
+  }
+
+  async function setPersonalWeaponKnowledgeEnabled(id: string, enabled: boolean): Promise<void> {
+    try {
+      const table = await api.setPersonalWeaponKnowledgeEnabled(id, enabled);
+      setPersonalWeaponKnowledge(table.entries.filter((entry) => (
+        selectedItem && entry.weapon_name.trim().toLocaleLowerCase() === selectedItem.name.trim().toLocaleLowerCase()
+      )));
+    } catch (error) {
+      setItemAiError(error instanceof Error ? error.message : "我的推荐更新失败");
+    }
+  }
+
+  async function deletePersonalWeaponKnowledge(id: string): Promise<void> {
+    if (!window.confirm("确认删除这条我的推荐吗？删除后将恢复使用应用推荐。")) return;
+    try {
+      const table = await api.deletePersonalWeaponKnowledge(id);
+      setPersonalWeaponKnowledge(table.entries.filter((entry) => (
+        selectedItem && entry.weapon_name.trim().toLocaleLowerCase() === selectedItem.name.trim().toLocaleLowerCase()
+      )));
+    } catch (error) {
+      setItemAiError(error instanceof Error ? error.message : "我的推荐删除失败");
     }
   }
 
@@ -192,6 +317,9 @@ export function useItemDetailWorkspace(input: {
     setCommunityRecommendations(null);
     setCommunityRecommendationError("");
     setIsCommunityRecommendationsLoading(false);
+    setPersonalWeaponKnowledge([]);
+    setSelectedItemAvailability(null);
+    setSelectedItemVersions([]);
   }
 
   async function saveSelectedItemTag(tag: VaultTagValue) {
@@ -392,7 +520,7 @@ export function useItemDetailWorkspace(input: {
       });
     } catch (error) {
       input.setItemActionMessage(error instanceof Error ? error.message : `${label}失败`);
-      await input.diagnostics.loadActionLog();
+      await Promise.allSettled([input.diagnostics.loadActionLog(), input.loadAccountSummary()]);
     } finally {
       input.setIsRunningItemAction(false);
     }
@@ -407,6 +535,9 @@ export function useItemDetailWorkspace(input: {
     communityRecommendations,
     communityRecommendationError,
     isCommunityRecommendationsLoading,
+    personalWeaponKnowledge,
+    selectedItemAvailability,
+    selectedItemVersions,
     itemAiResult,
     itemAiError,
     itemNoteDraft,
@@ -418,6 +549,9 @@ export function useItemDetailWorkspace(input: {
     setItemNoteDraft,
     setSelectedActionCharacterId,
     generateItemAiAdvice,
+    saveConfirmedPersonalWeaponKnowledge,
+    setPersonalWeaponKnowledgeEnabled,
+    deletePersonalWeaponKnowledge,
     copySelectedItemSummary,
     copySelectedItemChatGuide,
     saveSelectedItemNote,

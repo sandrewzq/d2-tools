@@ -4,3 +4,4 @@ export * from "./aiLightggSource.js";
 export * from "./dimWishlistSource.js";
 export * from "./localCommunityRecommendations.js";
 export * from "./communityPerkRecommendationService.js";
+export * from "./personalWeaponKnowledge.js";
