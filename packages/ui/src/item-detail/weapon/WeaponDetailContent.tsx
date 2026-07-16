@@ -1,4 +1,4 @@
-import { useEffect, useId, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import type {
   WeaponDetailInstance,
   WeaponDetailViewModel,
@@ -69,31 +69,73 @@ export function WeaponDetailContent(props: WeaponDetailContentProps) {
   const [poolOpen, setPoolOpen] = useState(model.context.kind === "definition");
   const [analysisPrompt, setAnalysisPrompt] = useState("");
   const section = props.activeSection ?? internalSection;
-  const sectionPanelId = useId();
+  const sectionIdPrefix = useId();
+  const detailRef = useRef<HTMLElement>(null);
+  const observedSectionRef = useRef<WeaponDetailSection>("overview");
+  const sectionRefs = useRef<Record<WeaponDetailSection, HTMLElement | null>>({
+    overview: null,
+    configuration: null,
+    recommendations: null,
+    upgrades: null,
+    instances: null,
+    analysis: null
+  });
 
   useEffect(() => {
     setPoolOpen(model.context.kind === "definition");
     setInternalSection("overview");
+    observedSectionRef.current = "overview";
   }, [model.identity.hash, model.context.object_id, model.context.kind]);
 
+  useEffect(() => {
+    const detail = detailRef.current;
+    const scrollRoot = detail?.closest<HTMLElement>(".shared-item-detail-body");
+    if (!detail || !scrollRoot) return;
+
+    const updateActiveSection = () => {
+      const rootTop = scrollRoot.getBoundingClientRect().top;
+      const activationLine = rootTop + 96;
+      let nextSection: WeaponDetailSection = "overview";
+      for (const item of sectionLabels) {
+        const sectionElement = sectionRefs.current[item.key];
+        if (sectionElement && sectionElement.getBoundingClientRect().top <= activationLine) {
+          nextSection = item.key;
+        }
+      }
+      if (observedSectionRef.current === nextSection) return;
+      observedSectionRef.current = nextSection;
+      if (props.activeSection === undefined) setInternalSection(nextSection);
+      props.onSectionChange?.(nextSection);
+    };
+
+    scrollRoot.addEventListener("scroll", updateActiveSection, { passive: true });
+    window.addEventListener("resize", updateActiveSection);
+    updateActiveSection();
+    return () => {
+      scrollRoot.removeEventListener("scroll", updateActiveSection);
+      window.removeEventListener("resize", updateActiveSection);
+    };
+  }, [model.identity.hash, model.context.object_id, props.activeSection, props.onSectionChange]);
+
   const changeSection = (next: WeaponDetailSection) => {
+    observedSectionRef.current = next;
     if (props.activeSection === undefined) setInternalSection(next);
     props.onSectionChange?.(next);
+    sectionRefs.current[next]?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
   return (
-    <article className={["weapon-detail", props.className].filter(Boolean).join(" ")} aria-busy={model.loading}>
+    <article ref={detailRef} className={["weapon-detail", props.className].filter(Boolean).join(" ")} aria-busy={model.loading}>
       <WeaponIdentity model={model} onSelectVersion={props.actions?.selectVersion} />
 
       <nav className="weapon-detail-nav" aria-label="武器详情章节">
-        <div role="tablist" aria-orientation="horizontal">
+        <div>
           {sectionLabels.map((item) => (
             <button
               key={item.key}
               type="button"
-              role="tab"
-              aria-selected={section === item.key}
-              aria-controls={sectionPanelId}
+              aria-current={section === item.key ? "location" : undefined}
+              aria-controls={`${sectionIdPrefix}-${item.key}`}
               className={section === item.key ? "is-active" : undefined}
               onClick={() => changeSection(item.key)}
             >
@@ -103,20 +145,28 @@ export function WeaponDetailContent(props: WeaponDetailContentProps) {
         </div>
       </nav>
 
-      <div id={sectionPanelId} className="weapon-detail-section" role="tabpanel">
-        {section === "overview" ? <OverviewSection model={model} onOpenSource={props.actions?.openSource} /> : null}
-        {section === "configuration" ? (
+      <div className="weapon-detail-sections">
+        <section ref={(node) => { sectionRefs.current.overview = node; }} id={`${sectionIdPrefix}-overview`} className="weapon-detail-section">
+          <OverviewSection model={model} onOpenSource={props.actions?.openSource} />
+        </section>
+        <section ref={(node) => { sectionRefs.current.configuration = node; }} id={`${sectionIdPrefix}-configuration`} className="weapon-detail-section">
           <ConfigurationSection
             model={model}
             poolOpen={poolOpen}
             onTogglePool={() => setPoolOpen((value) => !value)}
             actions={props.actions}
           />
-        ) : null}
-        {section === "recommendations" ? <RecommendationSection model={model} /> : null}
-        {section === "upgrades" ? <UpgradeSection model={model} /> : null}
-        {section === "instances" ? <InstancesSection model={model} onSelect={props.actions?.selectInstance} actions={props.instanceActions} /> : null}
-        {section === "analysis" ? (
+        </section>
+        <section ref={(node) => { sectionRefs.current.recommendations = node; }} id={`${sectionIdPrefix}-recommendations`} className="weapon-detail-section">
+          <RecommendationSection model={model} />
+        </section>
+        <section ref={(node) => { sectionRefs.current.upgrades = node; }} id={`${sectionIdPrefix}-upgrades`} className="weapon-detail-section">
+          <UpgradeSection model={model} />
+        </section>
+        <section ref={(node) => { sectionRefs.current.instances = node; }} id={`${sectionIdPrefix}-instances`} className="weapon-detail-section">
+          <InstancesSection model={model} onSelect={props.actions?.selectInstance} actions={props.instanceActions} />
+        </section>
+        <section ref={(node) => { sectionRefs.current.analysis = node; }} id={`${sectionIdPrefix}-analysis`} className="weapon-detail-section">
           <AnalysisSection
             model={model}
             analysis={props.analysis}
@@ -128,7 +178,7 @@ export function WeaponDetailContent(props: WeaponDetailContentProps) {
             onSetKnowledgeEnabled={props.actions?.setKnowledgeEnabled}
             onDeleteKnowledge={props.actions?.deleteKnowledge}
           />
-        ) : null}
+        </section>
       </div>
     </article>
   );
@@ -215,6 +265,12 @@ function OverviewSection(props: {
   model: WeaponDetailViewModel;
   onOpenSource?: (source: WeaponSourceEntry) => void;
 }) {
+  const expectCurrent = props.model.context.kind !== "definition";
+  const showCurrent = expectCurrent
+    && props.model.stats.some((stat) => stat.current_value !== undefined);
+  const showStandard = props.model.stats.some((stat) => stat.standard_value !== undefined);
+  const showPending = props.model.context.kind === "account_instance"
+    && props.model.stats.some((stat) => stat.pending_delta !== undefined && stat.pending_delta !== 0);
   return (
     <>
       <SectionHeading eyebrow="属性与获取" title="属性与获取详情" description="区分资料库标准值、当前对象实际值和待应用配置变化。" />
@@ -224,11 +280,19 @@ function OverviewSection(props: {
           {props.model.stats.length ? (
             <div className="weapon-detail-stats">
               <div className="weapon-detail-stat-legend">
-                <span><i className="is-current" />当前实际值</span>
-                <span><i className="is-standard" />资料库标准值</span>
-                <span><i className="is-pending" />待应用变化</span>
+                {showCurrent ? <span><i className="is-current" />当前实际值</span> : null}
+                {showStandard ? <span><i className="is-standard" />资料库标准值</span> : null}
+                {showPending ? <span><i className="is-pending" />待应用变化</span> : null}
               </div>
-              {props.model.stats.map((stat) => <StatTrack key={stat.key} stat={stat} />)}
+              {props.model.stats.map((stat) => (
+                <StatTrack
+                  key={stat.key}
+                  stat={stat}
+                  expectCurrent={expectCurrent}
+                  showStandard={showStandard}
+                  showPending={showPending}
+                />
+              ))}
             </div>
           ) : <EmptyState text="当前定义没有可显示的武器属性。" />}
         </section>
@@ -256,25 +320,80 @@ function OverviewSection(props: {
   );
 }
 
-function StatTrack({ stat }: { stat: WeaponStatTrack }) {
+function StatTrack(props: {
+  stat: WeaponStatTrack;
+  expectCurrent: boolean;
+  showStandard: boolean;
+  showPending: boolean;
+}) {
+  const { stat } = props;
+  const hasCurrent = props.expectCurrent && stat.current_value !== undefined;
+  const currentUnavailable = props.expectCurrent && stat.current_value === undefined;
   const maximum = Math.max(100, stat.standard_value ?? 0, stat.current_value ?? 0, stat.pending_value ?? 0);
+  const currentPercent = ((stat.current_value ?? 0) / maximum) * 100;
+  const pendingPercent = ((stat.pending_value ?? stat.current_value ?? 0) / maximum) * 100;
   const style = {
     "--weapon-standard": `${((stat.standard_value ?? 0) / maximum) * 100}%`,
-    "--weapon-current": `${((stat.current_value ?? 0) / maximum) * 100}%`,
-    "--weapon-pending": `${((stat.pending_value ?? stat.current_value ?? 0) / maximum) * 100}%`
+    "--weapon-current": `${currentPercent}%`,
+    "--weapon-pending-start": `${Math.min(currentPercent, pendingPercent)}%`,
+    "--weapon-pending-size": `${Math.abs(pendingPercent - currentPercent)}%`
   } as CSSProperties;
+  const currentTone = stat.current_delta ? statDeltaTone(stat, stat.current_delta) : "neutral";
+  const pendingTone = stat.pending_delta ? statDeltaTone(stat, stat.pending_delta) : "neutral";
+  const currentText = stat.current_delta === undefined
+    ? undefined
+    : stat.current_delta === 0
+      ? "与标准一致"
+      : `当前 ${stat.current_delta > 0 ? "+" : ""}${stat.current_delta} · ${toneLabel(currentTone)}`;
   const pendingText = stat.pending_delta
-    ? `${stat.pending_delta > 0 ? "+" : ""}${stat.pending_delta} → ${stat.pending_value}`
-    : stat.current_value === undefined ? "未返回实际值" : "无变化";
+    ? `${stat.pending_delta > 0 ? "+" : ""}${stat.pending_delta} → ${stat.pending_value} · ${toneLabel(pendingTone)}`
+    : "无变化";
+  const primaryValue = hasCurrent ? stat.current_value : stat.standard_value;
   return (
-    <div className="weapon-detail-stat-row" style={style}>
+    <div className={[
+      "weapon-detail-stat-row",
+      !hasCurrent && "is-definition",
+      ((hasCurrent && props.showStandard) || currentUnavailable) && "has-standard",
+      props.showPending && "has-pending"
+    ].filter(Boolean).join(" ")} style={style}>
       <strong>{stat.label}</strong>
-      <span className="weapon-detail-stat-value">{stat.current_value ?? "—"}</span>
-      <span className="weapon-detail-stat-track" aria-hidden="true"><i /><b /><em /></span>
-      <small>标准 {stat.standard_value ?? "—"}</small>
-      <small className={stat.pending_delta && stat.pending_delta < 0 ? "is-negative" : "is-positive"}>{pendingText}</small>
+      <span className="weapon-detail-stat-value">{primaryValue ?? "—"}</span>
+      <span className="weapon-detail-stat-track" aria-hidden="true">
+        {hasCurrent ? <i /> : null}
+        {props.showStandard && stat.standard_value !== undefined ? <b /> : null}
+        {props.showPending && stat.pending_delta ? <em className={stat.pending_delta > 0 ? "is-increase" : "is-decrease"} /> : null}
+      </span>
+      {hasCurrent && props.showStandard ? (
+        <span className="weapon-detail-stat-comparison">
+          <small>标准 {stat.standard_value ?? "—"}</small>
+          {currentText ? <small className={`is-${currentTone}`}>{currentText}</small> : null}
+          {stat.current_modifiers.length ? <small>{formatStatModifiers(stat.current_modifiers)}</small> : null}
+        </span>
+      ) : currentUnavailable ? <span className="weapon-detail-stat-comparison"><small>实际值未返回，当前显示标准值</small></span> : null}
+      {props.showPending ? (
+        <span className="weapon-detail-stat-comparison">
+          <small className={`is-${pendingTone}`}>{pendingText}</small>
+          {stat.pending_modifiers.length ? <small>{formatStatModifiers(stat.pending_modifiers)}</small> : null}
+        </span>
+      ) : null}
     </div>
   );
+}
+
+function statDeltaTone(stat: WeaponStatTrack, delta: number): "improved" | "worsened" | "neutral" {
+  if (!delta || stat.direction === "neutral") return "neutral";
+  const improved = stat.direction === "higher" ? delta > 0 : delta < 0;
+  return improved ? "improved" : "worsened";
+}
+
+function toneLabel(tone: "improved" | "worsened" | "neutral"): string {
+  return tone === "improved" ? "改善" : tone === "worsened" ? "降低" : "变化";
+}
+
+function formatStatModifiers(modifiers: WeaponStatTrack["current_modifiers"]): string {
+  return modifiers.map((modifier) => (
+    `${modifier.source} ${modifier.amount > 0 ? "+" : ""}${modifier.amount}`
+  )).join(" / ");
 }
 
 function ConfigurationSection(props: {
@@ -414,14 +533,70 @@ function InstancesSection(props: { model: WeaponDetailViewModel; onSelect?: (ins
   return (
     <>
       <SectionHeading eyebrow="我的同名武器" title="当前版本的账号实例" description="只比较当前 Hash，不把同名复刻版或专家版混在一起。" />
-      {props.model.same_hash_instances.length ? <div className="weapon-detail-instance-list" role="list">{props.model.same_hash_instances.map((instance) => (
+      {props.model.same_hash_instances.length ? <div className="weapon-detail-instance-list" role="list">{props.model.same_hash_instances.map((instance) => {
+        const metadata = instanceMetadata(instance);
+        return (
         <button key={instance.instance_id} type="button" role="listitem" className={instance.current ? "is-current" : undefined} aria-current={instance.current ? "true" : undefined} onClick={() => props.onSelect?.(instance)} disabled={!props.onSelect}>
-          {instance.icon ? <img src={instance.icon} alt="" /> : null}<span><strong>{instance.name}</strong><small>{instance.location} · {instance.power ?? "光等未知"}</small></span><span>{instance.plug_names.slice(0, 3).join(" / ") || "配置未返回"}</span><span>{instance.equipped ? "已装备" : instance.locked ? "已锁定" : "可管理"}</span>
+          {instance.icon ? <img src={instance.icon} alt="" /> : null}
+          <span className="weapon-detail-instance-identity">
+            <strong>{instance.name}</strong>
+            <small>{instance.location} · {instance.power ?? "光等未知"}</small>
+          </span>
+          <span className="weapon-detail-instance-detail">
+            <span>{instance.plug_names.slice(0, 3).join(" / ") || "配置未返回"}</span>
+            {metadata.length ? (
+              <small className="weapon-detail-instance-meta">
+                {metadata.map((entry) => <span key={entry}>{entry}</span>)}
+              </small>
+            ) : null}
+            {instance.note?.trim() ? <small className="weapon-detail-instance-note">备注：{instance.note.trim()}</small> : null}
+          </span>
+          <span className="weapon-detail-instance-state">{instanceStateLabel(instance)}</span>
         </button>
-      ))}</div> : <EmptyState text="账号中没有当前版本的同名武器。" />}
+        );
+      })}</div> : <EmptyState text="账号中没有当前版本的同名武器。" />}
       {props.actions}
     </>
   );
+}
+
+function instanceMetadata(instance: WeaponDetailInstance): string[] {
+  const entries: string[] = [];
+  if (instance.local_tag) entries.push(`标签：${instanceTagLabel(instance.local_tag)}`);
+  const upgrade = instanceUpgradeLabel(instance);
+  if (upgrade) entries.push(upgrade);
+  if (instance.loadout_references?.length) {
+    entries.push(`配装：${instance.loadout_references.map((reference) => reference.name).join(" / ")}`);
+  }
+  return entries;
+}
+
+function instanceTagLabel(tag: NonNullable<WeaponDetailInstance["local_tag"]>): string {
+  return {
+    keep: "保留",
+    review: "关注",
+    farm: "待刷",
+    loadout: "配装用",
+    junk: "可清理"
+  }[tag] ?? tag;
+}
+
+function instanceUpgradeLabel(instance: WeaponDetailInstance): string | undefined {
+  const upgrades = instance.upgrade_status;
+  if (!upgrades) return undefined;
+  const labels = [
+    upgrades.masterwork ? `大师杰作：${upgrades.masterwork.name}` : undefined,
+    upgrades.mod ? `模组：${upgrades.mod.name}` : undefined,
+    upgrades.catalyst ? `催化剂：${upgrades.catalyst.name}${upgrades.catalyst.complete ? "（完成）" : ""}` : undefined,
+    upgrades.crafting_level !== undefined ? `锻造 ${upgrades.crafting_level} 级` : undefined,
+    upgrades.enhanced ? "已强化" : undefined
+  ].filter(Boolean);
+  return labels.length ? labels.join(" · ") : undefined;
+}
+
+function instanceStateLabel(instance: WeaponDetailInstance): string {
+  const states = [instance.equipped ? "已装备" : undefined, instance.locked ? "已锁定" : undefined].filter(Boolean);
+  return states.length ? states.join(" · ") : "可管理";
 }
 
 function AnalysisSection(props: {

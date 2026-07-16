@@ -2,17 +2,20 @@ import {
   buildWeaponDetailViewModel,
   perkGroupsToPoolColumns,
   type WeaponDetailViewModel,
+  type WeaponDetailInstanceMetadata,
   type WeaponPerkSelectionColumn,
   type WeaponDetailObjectContext,
   type WeaponDetailSources
 } from "@d2-tools/app/items";
-import type { WeaponStatKey, WeaponStatSummary } from "@d2-tools/core/account/summary";
+import type { AccountSummary, WeaponStatKey, WeaponStatSummary } from "@d2-tools/core/account/summary";
 import type { WeaponRecommendation as CommunityWeaponRecommendation } from "@d2-tools/core/community-perks";
 import type { PersonalWeaponKnowledgeEntry } from "@d2-tools/core/community-perks/personalWeaponKnowledge";
+import type { VaultTags } from "@d2-tools/core/vault/tags";
 import type { SameNameItemSummary, SelectedItemDetail } from "../../hooks/useItemDetail";
 
 export type BuildDesktopWeaponDetailInput = {
   selectedItem: SelectedItemDetail;
+  accountSummary?: AccountSummary | null;
   sameNameItems?: SameNameItemSummary[];
   recommendations?: WeaponDetailViewModel["recommendations"];
   context?: Partial<WeaponDetailObjectContext>;
@@ -20,6 +23,8 @@ export type BuildDesktopWeaponDetailInput = {
   selectionNames?: string[];
   currentStats?: WeaponStatSummary;
   pendingPerks?: Record<number, number>;
+  vaultTags?: VaultTags;
+  instanceMetadata?: Record<string, WeaponDetailInstanceMetadata>;
   versions?: Array<{ hash: number; name: string; tier?: string; release?: { description: string } }>;
 };
 
@@ -34,6 +39,7 @@ export function buildWeaponDetailView(
   const poolColumns = allPoolColumns.filter((column) => column.role !== "intrinsic");
   const hasVariablePerks = poolColumns.some((column) => column.candidates.length > 1);
   const isExotic = /异域|exotic/i.test(item.tier ?? "");
+  const upgrades = buildWeaponUpgrades(item);
 
   return buildWeaponDetailViewModel({
     item,
@@ -87,6 +93,8 @@ export function buildWeaponDetailView(
     definition_stats: definitionStatsToSummary(item.definition_stats),
     current_stats: input.currentStats ?? (item.instance_id ? item.weapon_stats : undefined),
     pending_stats: buildPendingWeaponStats(item, input.pendingPerks),
+    stat_modifiers: buildCurrentWeaponStatModifiers(item),
+    pending_stat_modifiers: buildPendingWeaponStatModifiers(item, input.pendingPerks),
     configuration: {
       intrinsic,
       kind: isExotic
@@ -96,10 +104,81 @@ export function buildWeaponDetailView(
     pool_columns: poolColumns,
     selection_columns: buildSelectionColumns(item, poolColumns, input.selectionNames, input.pendingPerks),
     sources: input.sources,
-    upgrades: buildWeaponUpgrades(item),
+    upgrades,
     recommendations: input.recommendations,
-    same_hash_instances: input.sameNameItems
+    same_hash_instances: input.sameNameItems,
+    instance_metadata: buildInstanceMetadata(input, upgrades)
   });
+}
+
+function buildInstanceMetadata(
+  input: BuildDesktopWeaponDetailInput,
+  currentUpgrades: WeaponDetailViewModel["upgrades"]
+): Record<string, WeaponDetailInstanceMetadata> | undefined {
+  const metadata: Record<string, WeaponDetailInstanceMetadata> = { ...input.instanceMetadata };
+  for (const item of input.sameNameItems ?? []) {
+    if (!item.instance_id) continue;
+    const itemKey = "item_key" in item && typeof item.item_key === "string"
+      ? item.item_key
+      : item.instance_id;
+    const localEntry = input.vaultTags?.items[itemKey] ?? input.vaultTags?.items[item.instance_id];
+    const upgrades = item.instance_id === input.selectedItem.instance_id
+      ? currentUpgrades
+      : buildWeaponUpgrades(item);
+    const upgradeStatus = hasWeaponUpgradeData(upgrades) ? upgrades : undefined;
+    const explicit = metadata[item.instance_id];
+    const loadoutReferences = buildInGameLoadoutReferences(input.accountSummary, item.instance_id);
+    const next: WeaponDetailInstanceMetadata = {
+      ...explicit,
+      local_tag: explicit?.local_tag ?? localEntry?.tag,
+      note: explicit?.note ?? localEntry?.note,
+      upgrade_status: explicit?.upgrade_status ?? upgradeStatus,
+      loadout_references: mergeLoadoutReferences(explicit?.loadout_references, loadoutReferences)
+    };
+    if (Object.values(next).some((value) => value !== undefined)) {
+      metadata[item.instance_id] = next;
+    }
+  }
+  return Object.keys(metadata).length ? metadata : undefined;
+}
+
+function buildInGameLoadoutReferences(
+  accountSummary: AccountSummary | null | undefined,
+  instanceId: string
+): NonNullable<WeaponDetailInstanceMetadata["loadout_references"]> | undefined {
+  const references = (accountSummary?.characters ?? []).flatMap((character) => (
+    character.loadout_slots.flatMap((loadout) => (
+      loadout.items.some((item) => item.instance_id === instanceId)
+        ? [{
+            id: `in-game:${character.character_id}:${loadout.index}`,
+            name: loadout.name,
+            kind: "in_game" as const,
+            character_id: character.character_id,
+            loadout_index: loadout.index
+          }]
+        : []
+    ))
+  ));
+  return references.length ? references : undefined;
+}
+
+function mergeLoadoutReferences(
+  explicit: WeaponDetailInstanceMetadata["loadout_references"],
+  derived: WeaponDetailInstanceMetadata["loadout_references"]
+): WeaponDetailInstanceMetadata["loadout_references"] {
+  const merged = [...(explicit ?? []), ...(derived ?? [])];
+  if (!merged.length) return undefined;
+  return [...new Map(merged.map((reference) => [reference.id, reference])).values()];
+}
+
+function hasWeaponUpgradeData(upgrades: WeaponDetailViewModel["upgrades"]): boolean {
+  return Boolean(
+    upgrades.masterwork
+    || upgrades.mod
+    || upgrades.catalyst
+    || upgrades.crafting_level !== undefined
+    || upgrades.enhanced
+  );
 }
 
 export function buildWeaponRecommendationViews(
@@ -306,6 +385,45 @@ function buildPendingWeaponStats(
   return result;
 }
 
+function buildCurrentWeaponStatModifiers(
+  item: SelectedItemDetail
+): Partial<Record<WeaponStatKey, Array<{ source: string; amount: number }>>> | undefined {
+  const selectedPlugs = item.sockets?.length
+    ? item.sockets.flatMap((socket) => socket.selected_plug ? [socket.selected_plug] : [])
+    : item.socket_plugs ?? [];
+  const result: Partial<Record<WeaponStatKey, Array<{ source: string; amount: number }>>> = {};
+  for (const plug of selectedPlugs) {
+    for (const key of weaponStatKeys) {
+      const amount = plug.stat_modifiers?.[key];
+      if (!amount) continue;
+      (result[key] ??= []).push({ source: plug.name, amount });
+    }
+  }
+  return Object.keys(result).length ? result : undefined;
+}
+
+function buildPendingWeaponStatModifiers(
+  item: SelectedItemDetail,
+  pendingPerks: Record<number, number> | undefined
+): Partial<Record<WeaponStatKey, Array<{ source: string; amount: number }>>> | undefined {
+  if (!item.sockets?.length || !pendingPerks || !Object.keys(pendingPerks).length) return undefined;
+  const result: Partial<Record<WeaponStatKey, Array<{ source: string; amount: number }>>> = {};
+  for (const [socketValue, pendingHash] of Object.entries(pendingPerks)) {
+    const socket = item.sockets.find((candidate) => candidate.socket_index === Number(socketValue));
+    const pending = socket?.reusable_plugs.find((plug) => plug.hash === pendingHash);
+    if (!socket || !pending || pending.selected) continue;
+    for (const key of weaponStatKeys) {
+      const amount = (pending.stat_modifiers?.[key] ?? 0) - (socket.selected_plug?.stat_modifiers?.[key] ?? 0);
+      if (!amount) continue;
+      (result[key] ??= []).push({
+        source: `${socket.selected_plug?.name ?? "当前配置"} → ${pending.name}`,
+        amount
+      });
+    }
+  }
+  return Object.keys(result).length ? result : undefined;
+}
+
 function damageKey(label: string): string {
   if (label.includes("电弧")) return "arc";
   if (label.includes("烈日")) return "solar";
@@ -315,7 +433,10 @@ function damageKey(label: string): string {
   return "kinetic";
 }
 
-function buildWeaponUpgrades(item: SelectedItemDetail): WeaponDetailViewModel["upgrades"] {
+function buildWeaponUpgrades(item: Pick<
+  SelectedItemDetail,
+  "socket_plugs" | "sockets" | "item_objectives" | "perks"
+>): WeaponDetailViewModel["upgrades"] {
   const socketSelectedPlugs = (item.sockets ?? []).flatMap((socket) => socket.selected_plug ? [socket.selected_plug] : []);
   const selectedPlugs = socketSelectedPlugs.length ? socketSelectedPlugs : item.socket_plugs ?? [];
   const masterwork = selectedPlugs.find((plug) => plugHasSemanticType(plug, "masterwork"));

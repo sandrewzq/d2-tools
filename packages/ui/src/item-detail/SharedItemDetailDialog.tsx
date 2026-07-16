@@ -28,6 +28,9 @@ export type SharedItemDetailDialogProps = {
   returnFocusRef?: RefObject<HTMLElement | null>;
   onClose: () => void;
   sections: ReactNode;
+  variant?: "default" | "weapon";
+  subtitle?: ReactNode;
+  objectContext?: ReactNode;
 };
 
 export function SharedItemDetailDialog(props: SharedItemDetailDialogProps) {
@@ -72,23 +75,48 @@ export function SharedItemDetailDialog(props: SharedItemDetailDialogProps) {
     <div className="modal-backdrop" role="presentation" onClick={props.onClose}>
       <section
         ref={dialogRef}
-        className="item-modal shared-item-detail-dialog"
+        className={`item-modal shared-item-detail-dialog shared-item-detail-${props.variant ?? "default"}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
         aria-busy={props.detail.isBusy ? "true" : "false"}
         onClick={(event) => event.stopPropagation()}
       >
-        <h2 id={titleId} className="shared-item-detail-title">{props.detail.name}</h2>
-        <button
-          ref={closeButtonRef}
-          className="modal-close"
-          type="button"
-          aria-label={props.closeLabel}
-          onClick={props.onClose}
-        >
-          关闭
-        </button>
+        {props.variant === "weapon" ? (
+          <header className="shared-item-detail-header">
+            <div className="shared-item-detail-heading">
+              <span>装备详情</span>
+              <h2 id={titleId}>武器档案</h2>
+              <div className="shared-item-detail-subtitle">
+                <strong>{props.detail.name}</strong>
+                {props.subtitle ? <span>{props.subtitle}</span> : null}
+              </div>
+            </div>
+            {props.objectContext ? <div className="shared-item-detail-object-context">{props.objectContext}</div> : null}
+            <button
+              ref={closeButtonRef}
+              className="modal-close shared-item-detail-close"
+              type="button"
+              aria-label={props.closeLabel}
+              onClick={props.onClose}
+            >
+              关闭
+            </button>
+          </header>
+        ) : (
+          <>
+            <h2 id={titleId} className="shared-item-detail-title">{props.detail.name}</h2>
+            <button
+              ref={closeButtonRef}
+              className="modal-close"
+              type="button"
+              aria-label={props.closeLabel}
+              onClick={props.onClose}
+            >
+              关闭
+            </button>
+          </>
+        )}
         {props.vendorContext ? (
           <section className="shared-item-detail-vendor" role="region" aria-label="商人售卖信息">
             <strong>{props.vendorContext.vendorName}</strong>
@@ -101,7 +129,7 @@ export function SharedItemDetailDialog(props: SharedItemDetailDialogProps) {
             ) : null}
           </section>
         ) : null}
-        {props.sections}
+        <div className="shared-item-detail-body">{props.sections}</div>
       </section>
     </div>
   );

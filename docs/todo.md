@@ -21,7 +21,7 @@
 | T2 | P1 | 🟡 待推进 | 仓库推荐与清理工作台 | [仓库推荐与清理工作台](work/backlog/vault-recommendation-and-cleanup-workbench.md) | 统一 DIM wishlist、本地目标、同名对比和清理清单 |
 | T3 | P1 | 🟡 进行中 | 商人结构、覆盖与官方获取来源 | [商人结构、覆盖与官方获取来源](work/backlog/vendors-and-drop-sources.md) | 收口官方来源模型、Offer 时效和去重，继续机灵模组 A/B 与逐商人验收 |
 | T4 | P3 | 🟡 待推进 | 活动复盘增强 | [活动复盘增强](work/backlog/activity-review-enhancement.md) | 接 PGCR、完成时间推算和副本级趋势 |
-| T5 | P1 | 🟡 进行中 | 统一装备详情与知识分析 | [统一装备详情与知识分析](work/backlog/equipment-detail-and-knowledge-analysis.md) | 武器详情主链路已完成代码接入；下一步进行本地验收、补充可选外部搜索适配器并开发独立护甲详情 |
+| T5 | P1 | 🟡 进行中 | 统一装备详情与知识分析 | [统一装备详情与知识分析](work/backlog/equipment-detail-and-knowledge-analysis.md) | 武器详情代码已按冻结基准收口；下一步人工验收真实数据与明暗主题、补充可选 AI 外部搜索适配器并开发独立护甲详情 |
 
 ## 验证入口
 

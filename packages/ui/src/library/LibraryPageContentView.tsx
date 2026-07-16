@@ -275,7 +275,13 @@ export function LibraryPageContentView(props: LibraryPageContentViewProps) {
                   <div className="item-results">
                     {group.items.map((item) => renderEquipmentResult(
                       item,
-                      () => setSelectedDefinitionHash(item.item.hash),
+                      () => {
+                        if (item.item.group_key === "weapons") {
+                          actions.onOpenItemDetail(item.item);
+                          return;
+                        }
+                        setSelectedDefinitionHash(item.item.hash);
+                      },
                       actions.onAddFavorite,
                       actions.onRemoveFavorite,
                       actions.onLocateOwnedItem,
@@ -327,7 +333,7 @@ export function LibraryPageContentView(props: LibraryPageContentViewProps) {
         ) : null}
       </ProductWorkspaceContentStack>
       </ProductWorkspaceSplit>
-      {selectedDefinitionRow ? (
+      {selectedDefinitionRow && selectedDefinitionRow.item.group_key !== "weapons" ? (
         <LibraryDefinitionDialog
           item={selectedDefinitionRow.item}
           dropAccess={selectedDefinitionRow.dropAccess}

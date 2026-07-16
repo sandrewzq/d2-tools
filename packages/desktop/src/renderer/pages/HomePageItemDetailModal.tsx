@@ -43,6 +43,8 @@ export function HomePageItemDetailModal(props: {
     const vendorSameNameItems = collectSelectedSameNameItems(props.accountSummary, vendorSelectedItem);
     const vendorWeaponModel = buildWeaponDetailView({
       selectedItem: vendorSelectedItem,
+      accountSummary: props.accountSummary,
+      vaultTags: props.vaultTags,
       context: {
         kind: "vendor_offer",
         entry: "vendor",
@@ -65,6 +67,9 @@ export function HomePageItemDetailModal(props: {
       return (
         <SharedItemDetailDialog
           detail={{ name: vendorWeaponModel.identity.name, isBusy: vendorDefinitionState.isBusy }}
+          variant="weapon"
+          subtitle={`${vendorWeaponModel.context.entry_label} · ${vendorWeaponModel.context.object_label}`}
+          objectContext={vendorWeaponModel.context.read_only ? "只读查看" : "可管理实例"}
           closeLabel="关闭武器详情"
           onClose={props.vendorDefinitionDetail.close}
           sections={(

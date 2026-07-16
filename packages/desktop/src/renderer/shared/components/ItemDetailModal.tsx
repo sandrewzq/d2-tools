@@ -87,12 +87,14 @@ export function ItemDetailModal(props: ItemDetailModalProps) {
   }, [selectedItem.item_key]);
   const weaponModel = buildWeaponDetailView({
     selectedItem,
+    accountSummary: props.accountSummary,
     sameNameItems: props.sameNameItems,
     recommendations: buildWeaponRecommendationViews(
       props.communityRecommendations,
       props.personalWeaponKnowledge,
       selectedItem
     ),
+    vaultTags: props.vaultTags,
     pendingPerks,
     versions: props.itemVersions,
     sources: buildWeaponSources(selectedItem, props.itemAvailability)
@@ -101,6 +103,9 @@ export function ItemDetailModal(props: ItemDetailModalProps) {
   return (
     <SharedItemDetailDialog
       detail={{ name: selectedItem.name, isBusy: selectedItem.is_detail_loading }}
+      variant={weaponModel ? "weapon" : "default"}
+      subtitle={weaponModel ? `${weaponModel.context.entry_label} · ${weaponModel.context.object_label}` : undefined}
+      objectContext={weaponModel ? (weaponModel.context.read_only ? "只读查看" : "可管理实例") : undefined}
       closeLabel="关闭装备详情"
       onClose={props.onClose}
       sections={(

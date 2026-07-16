@@ -8,6 +8,7 @@ import type {
 } from "@d2-tools/core/account/summary";
 import type { ItemPerkGroup, ItemPlugSummary } from "@d2-tools/core/items/perks";
 import type { ItemSourceSummary } from "@d2-tools/core/items/source";
+import type { VaultTagValue } from "@d2-tools/core/vault/tags";
 import type { SelectedItemSourceKind } from "./itemDetail.js";
 
 export type WeaponDetailObjectKind = "definition" | "vendor_offer" | "account_instance";
@@ -195,6 +196,21 @@ export type WeaponDetailUpgrades = {
   enhanced: boolean;
 };
 
+export type WeaponDetailLoadoutReference = {
+  id: string;
+  name: string;
+  kind: "in_game" | "template";
+  character_id?: string;
+  loadout_index?: number;
+};
+
+export type WeaponDetailInstanceMetadata = {
+  local_tag?: Exclude<VaultTagValue, "none">;
+  note?: string;
+  upgrade_status?: WeaponDetailUpgrades;
+  loadout_references?: WeaponDetailLoadoutReference[];
+};
+
 export type WeaponRecommendationMode = "pve" | "pvp" | "general";
 
 export type WeaponRecommendationMatch = "full" | "partial" | "none" | "not_applicable";
@@ -232,6 +248,10 @@ export type WeaponDetailInstance = {
   source_character_id?: string;
   locked?: boolean;
   equipped?: boolean;
+  local_tag?: Exclude<VaultTagValue, "none">;
+  note?: string;
+  upgrade_status?: WeaponDetailUpgrades;
+  loadout_references?: WeaponDetailLoadoutReference[];
   current: boolean;
   plug_names: string[];
 };
@@ -283,6 +303,10 @@ export type WeaponDetailInstanceLike = Pick<
   source_label?: string;
   source_character_id?: string;
   equipped?: boolean;
+  local_tag?: Exclude<VaultTagValue, "none">;
+  note?: string;
+  upgrade_status?: WeaponDetailUpgrades;
+  loadout_references?: WeaponDetailLoadoutReference[];
 };
 
 export type BuildWeaponDetailViewModelInput = {
@@ -305,24 +329,37 @@ export type BuildWeaponDetailViewModelInput = {
   upgrades?: WeaponDetailUpgrades;
   recommendations?: WeaponRecommendation[];
   same_hash_instances?: WeaponDetailInstanceLike[];
+  instance_metadata?: Record<string, WeaponDetailInstanceMetadata>;
 };
 
-const weaponStatMetadata: ReadonlyArray<{
-  key: WeaponStatKey;
+const weaponStatOrder: readonly WeaponStatKey[] = [
+  "impact",
+  "range",
+  "stability",
+  "handling",
+  "reload_speed",
+  "magazine",
+  "rounds_per_minute",
+  "charge_time",
+  "draw_time",
+  "recoil_direction"
+];
+
+const weaponStatMetadata: Record<WeaponStatKey, {
   label: string;
   direction: WeaponStatDirection;
-}> = [
-  { key: "impact", label: "伤害", direction: "higher" },
-  { key: "range", label: "射程", direction: "higher" },
-  { key: "stability", label: "稳定性", direction: "higher" },
-  { key: "handling", label: "操控性", direction: "higher" },
-  { key: "reload_speed", label: "装填速度", direction: "higher" },
-  { key: "magazine", label: "弹匣", direction: "higher" },
-  { key: "rounds_per_minute", label: "射速", direction: "neutral" },
-  { key: "charge_time", label: "蓄力时间", direction: "lower" },
-  { key: "draw_time", label: "拉弓时间", direction: "lower" },
-  { key: "recoil_direction", label: "后坐方向", direction: "higher" }
-];
+}> = {
+  impact: { label: "伤害", direction: "higher" },
+  range: { label: "射程", direction: "higher" },
+  stability: { label: "稳定性", direction: "higher" },
+  handling: { label: "操控性", direction: "higher" },
+  reload_speed: { label: "装填速度", direction: "higher" },
+  magazine: { label: "弹匣", direction: "higher" },
+  rounds_per_minute: { label: "射速", direction: "neutral" },
+  charge_time: { label: "蓄力时间", direction: "lower" },
+  draw_time: { label: "拉弓时间", direction: "lower" },
+  recoil_direction: { label: "后坐方向", direction: "higher" }
+};
 
 export function buildWeaponDetailViewModel(input: BuildWeaponDetailViewModelInput): WeaponDetailViewModel {
   const { item } = input;
@@ -378,7 +415,11 @@ export function buildWeaponDetailViewModel(input: BuildWeaponDetailViewModelInpu
       .filter((instance): instance is WeaponDetailInstanceLike & { instance_id: string } => (
         instance.hash === item.hash && Boolean(instance.instance_id)
       ))
-      .map((instance) => toWeaponDetailInstance(instance, item.instance_id)),
+      .map((instance) => toWeaponDetailInstance(
+        instance,
+        item.instance_id,
+        input.instance_metadata?.[instance.instance_id]
+      )),
     loading: Boolean(item.is_detail_loading)
   };
 }
@@ -390,13 +431,14 @@ export function buildWeaponStatTracks(input: {
   stat_modifiers?: Partial<Record<WeaponStatKey, WeaponStatModifier[]>>;
   pending_stat_modifiers?: Partial<Record<WeaponStatKey, WeaponStatModifier[]>>;
 }): WeaponStatTrack[] {
-  return weaponStatMetadata
-    .filter(({ key }) => (
+  return weaponStatOrder
+    .filter((key) => (
       input.definition_stats?.[key] !== undefined
       || input.current_stats?.[key] !== undefined
       || input.pending_stats?.[key] !== undefined
     ))
-    .map(({ key, label, direction }) => {
+    .map((key) => {
+      const { label, direction } = weaponStatMetadata[key];
       const standardValue = input.definition_stats?.[key];
       const currentValue = input.current_stats?.[key];
       const pendingValue = input.pending_stats?.[key];
@@ -478,7 +520,7 @@ function ammoFromKey(key: AmmoTypeKey | undefined): WeaponDetailAmmo | undefined
   const labels: Record<AmmoTypeKey, string> = {
     primary: "主要弹药",
     special: "特殊弹药",
-    heavy: "威能弹药"
+    heavy: "重型弹药"
   };
   return { key, label: labels[key] };
 }
@@ -532,7 +574,8 @@ function perkColumnLabel(role: WeaponPerkColumnRole, socketIndex: number): strin
 
 function toWeaponDetailInstance(
   item: WeaponDetailInstanceLike & { instance_id: string },
-  currentInstanceId: string | undefined
+  currentInstanceId: string | undefined,
+  metadata: WeaponDetailInstanceMetadata | undefined
 ): WeaponDetailInstance {
   return {
     item_key: item.item_key ?? item.instance_id,
@@ -546,6 +589,10 @@ function toWeaponDetailInstance(
     source_character_id: item.source_character_id,
     locked: item.locked,
     equipped: item.equipped ?? item.source_kind === "equipped",
+    local_tag: item.local_tag ?? metadata?.local_tag,
+    note: item.note ?? metadata?.note,
+    upgrade_status: item.upgrade_status ?? metadata?.upgrade_status,
+    loadout_references: item.loadout_references ?? metadata?.loadout_references,
     current: item.instance_id === currentInstanceId,
     plug_names: item.socket_plugs.map((plug) => plug.name)
   };
