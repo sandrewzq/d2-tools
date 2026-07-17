@@ -65,9 +65,6 @@ export function createDesktopBridgeServices(api: DesktopBridgeApi): D2Services {
 
   return {
     profile,
-    manifest: {
-      getDefinition: async () => null
-    },
     localData,
     d2Skill: createD2SkillService({ profile, localData }),
     ai: {

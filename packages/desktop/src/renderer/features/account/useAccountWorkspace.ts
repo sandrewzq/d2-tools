@@ -1,9 +1,15 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { loadAccountWorkspace, loadAccountDerivedWorkspace } from "@d2-tools/app/account";
 import {
   api } from "../../api/client";
-import type { AccountSummary, ActivityHistorySummary, DimWishlist, StartupState, VaultItemMatchInfo, LocalTargetRules, VaultTags } from "../../api/types";
+import type { AccountItemActionPatch, AccountSummary, ActivityHistorySummary, DimWishlist, StartupState, VaultItemMatchInfo, LocalTargetRules, VaultTags } from "../../api/types";
 import { services } from "../../api/services";
+import {
+  applyAccountEntityPatches,
+  getAccountSummarySnapshot,
+  replaceAccountSummary,
+  useAccountSummaryStore
+} from "../../shared/stores/accountEntityStore";
 import { formatBungieLoginError } from "./loginErrors";
 
 type DiagnosticsBridge = {
@@ -24,7 +30,7 @@ export function useAccountWorkspace(input: {
   const [manifestMessage, setManifestMessage] = useState("");
   const [manifestError, setManifestError] = useState("");
   const [isInitializingManifest, setIsInitializingManifest] = useState(false);
-  const [accountSummary, setAccountSummary] = useState<AccountSummary | null>(null);
+  const accountSummary = useAccountSummaryStore();
   const [vaultTags, setVaultTags] = useState<VaultTags>({ items: {} });
   const [localTargetRules, setLocalTargetRules] = useState<LocalTargetRules>({
     action_policy: "notify_only",
@@ -41,13 +47,41 @@ export function useAccountWorkspace(input: {
   const [importedWishlist, setImportedWishlist] = useState<DimWishlist | null>(null);
   const [vaultCommunityMatch, setVaultCommunityMatch] = useState<Map<number, VaultItemMatchInfo>>(new Map());
   const [isVaultCommunityMatchLoading, setIsVaultCommunityMatchLoading] = useState(false);
-  const accountSummaryRef = useRef<AccountSummary | null>(null);
   const accountRequestSequenceRef = useRef(0);
   const derivedRequestSequenceRef = useRef(0);
+  const communityRequestSequenceRef = useRef(0);
+  const communityMatchAccountKeyRef = useRef("");
+
+  useEffect(() => {
+    let active = true;
+    void api.getCachedAccountSummary()
+      .then((cached) => {
+        if (!active || !cached || getAccountSummarySnapshot()) return;
+        applyAccountSummary(cached.snapshot);
+        setActivityMessage(`正在显示上次账号数据（${formatCachedTime(cached.saved_at)}），后台将继续刷新`);
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, []);
 
   function setAccountSummaryState(summary: AccountSummary | null) {
-    accountSummaryRef.current = summary;
-    setAccountSummary(summary);
+    replaceAccountSummary(summary);
+  }
+
+  function applyAccountSummary(summary: AccountSummary) {
+    setAccountSummaryState(summary);
+    setSelectedCharacterId((current) => {
+      if (current && summary.characters.some((character) => character.character_id === current)) {
+        return current;
+      }
+      return summary.characters[0]?.character_id ?? "";
+    });
+  }
+
+  function applyAccountActionPatches(patches: readonly AccountItemActionPatch[]) {
+    applyAccountEntityPatches(patches);
   }
 
   async function loginBungie() {
@@ -57,9 +91,21 @@ export function useAccountWorkspace(input: {
 
     try {
       const result = await api.loginBungie();
+      accountRequestSequenceRef.current += 1;
+      derivedRequestSequenceRef.current += 1;
+      communityRequestSequenceRef.current += 1;
+      setAccountSummaryState(null);
+      setSelectedCharacterId("");
+      setActivitySummary(null);
+      setVaultCommunityMatch(new Map());
+      communityMatchAccountKeyRef.current = "";
+      setIsVaultCommunityMatchLoading(false);
+      setActivityMessage("");
+      setActivityError("");
       setLoginMessage(result.message);
       input.onLoginComplete();
       await input.diagnostics.refreshDiagnostics();
+      await refreshAccountSnapshot("initial");
     } catch (error) {
       setLoginError(formatBungieLoginError(error));
     } finally {
@@ -84,7 +130,7 @@ export function useAccountWorkspace(input: {
     }
   }
 
-  async function refreshAccountSnapshot(reason: AccountRefreshReason = accountSummaryRef.current ? "manual" : "initial") {
+  async function refreshAccountSnapshot(reason: AccountRefreshReason = getAccountSummarySnapshot() ? "manual" : "initial") {
     const requestSequence = ++accountRequestSequenceRef.current;
     setIsLoadingAccount(true);
     setAccountError("");
@@ -102,19 +148,16 @@ export function useAccountWorkspace(input: {
         targetRules,
         wishlist
       } = workspace.data;
-      setAccountSummaryState(summary);
+      applyAccountSummary(summary);
       setVaultTags(tags);
       setLocalTargetRules(targetRules);
       setImportedWishlist(wishlist);
-      setSelectedCharacterId((current) => {
-        if (current && summary.characters.some((character) => character.character_id === current)) {
-          return current;
-        }
-        return summary.characters[0]?.character_id ?? "";
-      });
       setActivitySummary(null);
+      communityRequestSequenceRef.current += 1;
       setVaultCommunityMatch(new Map());
-      setActivityMessage("账号已读取，最近活动和社区匹配会继续在后台刷新");
+      communityMatchAccountKeyRef.current = "";
+      setIsVaultCommunityMatchLoading(false);
+      setActivityMessage("账号已读取，最近活动会继续在后台刷新");
       if (workspace.data.warnings.length) {
         setAccountWarning(`本地增强数据读取失败：${formatAccountWorkspaceWarnings(workspace.data.warnings)}`);
       }
@@ -123,7 +166,7 @@ export function useAccountWorkspace(input: {
       if (requestSequence !== accountRequestSequenceRef.current) return;
       const message = error instanceof Error ? error.message : "账号数据读取失败";
       const resolvedMessage = getAccountLoadErrorMessage(input.state, message);
-      if (accountSummaryRef.current) {
+      if (getAccountSummarySnapshot()) {
         setAccountError(`${formatAccountRefreshFailurePrefix(reason)}，仍显示上次读取数据。${resolvedMessage}`);
       } else {
         setAccountError(resolvedMessage);
@@ -136,27 +179,47 @@ export function useAccountWorkspace(input: {
     }
   }
 
-  async function refreshAccountDerivedData(summary = accountSummary) {
+  async function refreshAccountDerivedData(summary = getAccountSummarySnapshot()) {
     if (!summary) return;
 
     const requestSequence = ++derivedRequestSequenceRef.current;
     setActivityError("");
     setActivityMessage("");
-    setIsVaultCommunityMatchLoading(true);
-    const derived = await loadAccountDerivedWorkspace(services, summary);
+    const derived = await loadAccountDerivedWorkspace(services, summary, {
+      includeActivity: true,
+      includeCommunityMatch: false
+    });
     if (requestSequence !== derivedRequestSequenceRef.current) return;
     if (derived.status === "success") {
       setActivitySummary(derived.data.activitySummary);
-      setVaultCommunityMatch(derived.data.vaultCommunityMatch);
-      setIsVaultCommunityMatchLoading(false);
       setActivityMessage(derived.data.activitySummary ? "最近活动已更新" : "");
       return;
     }
 
     setActivitySummary(null);
-    setVaultCommunityMatch(new Map());
-    setIsVaultCommunityMatchLoading(false);
     setActivityError(derived.error?.message ?? "最近活动读取失败");
+  }
+
+  async function loadVaultCommunityMatch(summary = getAccountSummarySnapshot()) {
+    if (!summary) return;
+    const accountKey = `${summary.membership_type}:${summary.destiny_membership_id}`;
+    if (communityMatchAccountKeyRef.current === accountKey) return;
+
+    const requestSequence = ++communityRequestSequenceRef.current;
+    setIsVaultCommunityMatchLoading(true);
+    const derived = await loadAccountDerivedWorkspace(services, summary, {
+      includeActivity: false,
+      includeCommunityMatch: true
+    });
+    if (requestSequence !== communityRequestSequenceRef.current) return;
+    if (derived.status === "success") {
+      communityMatchAccountKeyRef.current = accountKey;
+      setVaultCommunityMatch(derived.data.vaultCommunityMatch);
+    } else {
+      setVaultCommunityMatch(new Map());
+      setActivityError(derived.error?.message ?? "社区匹配读取失败");
+    }
+    setIsVaultCommunityMatchLoading(false);
   }
 
   return {
@@ -168,6 +231,7 @@ export function useAccountWorkspace(input: {
     isInitializingManifest,
     accountSummary,
     setAccountSummary: setAccountSummaryState,
+    applyAccountActionPatches,
     vaultTags,
     setVaultTags,
     localTargetRules,
@@ -190,8 +254,14 @@ export function useAccountWorkspace(input: {
     loadAccountSummary: refreshAccountSnapshot,
     refreshAccountSnapshot,
     loadActivitySummary: refreshAccountDerivedData,
+    loadVaultCommunityMatch,
     refreshAccountDerivedData
   };
+}
+
+function formatCachedTime(value: string): string {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "时间未知" : date.toLocaleString("zh-CN");
 }
 
 function formatAccountWorkspaceWarnings(warnings: Array<{ source: string; message: string }>): string {

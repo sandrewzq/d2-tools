@@ -69,9 +69,12 @@ describe("prototype vendor scenarios", () => {
     const banshee = model.vendors.find((vendor) => vendor.vendorHash === 672118013);
 
     expect(banshee).toMatchObject({
-      detailState: "failed",
-      displayStatusLabel: "详情失败"
+      detailState: "partial",
+      displayStatusLabel: "部分详情失败",
+      inventoryState: "loaded",
+      detailToolbar: {
+        itemCountLabel: "2 件物品"
+      }
     });
-    expect(banshee?.items).toHaveLength(2);
   });
 });

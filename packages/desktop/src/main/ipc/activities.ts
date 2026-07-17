@@ -6,8 +6,8 @@ import {
 } from "@d2-tools/core/activities/history";
 import { ACTIVITY_HISTORY_SUMMARY_MODES } from "@d2-tools/core/activities/modes";
 import { loadConfig } from "@d2-tools/services/config/store";
-import { loadDefinitionComponent } from "@d2-tools/services/manifest/definitions";
 import { startBackgroundTask } from "../backgroundTasks.js";
+import { getDefinitions } from "../runtime/gameDataRuntime.js";
 import { loadFreshOAuthToken } from "./authSession.js";
 
 type ActivitySummaryInput = {
@@ -35,10 +35,6 @@ export function registerActivitiesIpcHandlers(): void {
 async function loadActivitySummary(input: ActivitySummaryInput) {
   const config = loadConfig();
   const token = await loadFreshOAuthToken(config);
-  const activityDefinitions = loadDefinitionComponent(
-    config.data.data_dir,
-    "DestinyActivityDefinition"
-  ) ?? {};
   const histories = await Promise.all(input.character_ids.flatMap((characterId) =>
     ACTIVITY_HISTORY_SUMMARY_MODES.map((mode) =>
       fetchCharacterActivityHistory({
@@ -52,9 +48,20 @@ async function loadActivitySummary(input: ActivitySummaryInput) {
       })
     )
   ));
+  const activities = dedupeActivityHistory(
+    histories.flatMap((history) => history.activities ?? [])
+  );
+  const activityDefinitions = await getDefinitions(
+    "DestinyActivityDefinition",
+    activities.flatMap((activity) => {
+      const details = activity.activityDetails;
+      return [details?.referenceId, details?.directorActivityHash]
+        .filter((hash): hash is number => typeof hash === "number");
+    })
+  );
 
   return summarizeActivityHistory(
-    dedupeActivityHistory(histories.flatMap((history) => history.activities ?? [])),
+    activities,
     activityDefinitions
   );
 }

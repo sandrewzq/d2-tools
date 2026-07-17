@@ -68,27 +68,15 @@ describe("memory services adapter", () => {
     expect((await services.localData.getVaultTags()).items["vault-1"]?.tag).toBe("review");
   });
 
-  it("serves seeded manifest definitions and dynamic AI replies through the same service contract", async () => {
+  it("serves dynamic AI replies through the same service contract", async () => {
     const services = createMemoryServices({
       account: createMemoryAccount(),
-      manifestDefinitions: {
-        DestinyInventoryItemDefinition: {
-          9001: { displayProperties: { name: "内存手炮定义" } }
-        }
-      },
       aiReply: (input) => ({
         provider: "memory",
         model: "dynamic-model",
         text: `收到：${input.question}`
       })
     });
-
-    await expect(
-      services.manifest.getDefinition<{ displayProperties: { name: string } }>("DestinyInventoryItemDefinition", 9001)
-    ).resolves.toEqual({ displayProperties: { name: "内存手炮定义" } });
-    await expect(
-      services.manifest.getDefinition("DestinyInventoryItemDefinition", 404)
-    ).resolves.toBeNull();
 
     const assistant = await sendAssistantMessage(services, {
       question: "第三阶段验证",

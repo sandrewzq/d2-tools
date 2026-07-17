@@ -1,5 +1,6 @@
 import { selectLibraryPageModel, type LibraryPageCache, type LibraryPageState } from "@d2-tools/app/library";
 import { LibraryPageContentView, type LibraryPageActions } from "@d2-tools/ui";
+import { useMemo } from "react";
 
 export type LibraryPageProps = {
   cache: LibraryPageCache;
@@ -8,9 +9,39 @@ export type LibraryPageProps = {
 };
 
 export function LibraryPage(props: LibraryPageProps) {
+  const model = useMemo(
+    () => selectLibraryPageModel(props.cache, props.state),
+    [
+      props.cache.items,
+      props.cache.perks,
+      props.cache.libraryHistory,
+      props.cache.libraryCommunityMatch,
+      props.cache.liveAvailability,
+      props.cache.liveAvailabilityError,
+      props.cache.manifestStatus,
+      props.cache.manifestStatusError,
+      props.cache.accountSummary,
+      props.state.libraryViewMode,
+      props.state.equipmentFilters,
+      props.state.perkFilters,
+      props.state.equipmentSearchTouched,
+      props.state.perkSearchTouched,
+      props.state.isSearching,
+      props.state.searchError,
+      props.state.aliasDraft,
+      props.state.aliasTargetDraft,
+      props.state.aliasKind,
+      props.state.aliasMessage,
+      props.state.isLoadingLiveAvailability,
+      props.state.isLoadingManifestStatus,
+      props.state.isInitializingManifest,
+      props.state.itemDetailLoadingKey
+    ]
+  );
+
   return (
     <LibraryPageContentView
-      model={selectLibraryPageModel(props.cache, props.state)}
+      model={model}
       actions={props.actions}
     />
   );

@@ -67,7 +67,7 @@ export function useVendorsWorkspace(input: {
   );
 
   const refresh = useCallback(async () => {
-    if (!input.accountSummary || !characterId) return;
+    if (!input.active || !input.accountSummary || !characterId) return;
     const requestSequence = ++requestSequenceRef.current;
     const currentSnapshot = snapshot;
     const request = createVendorInventoryRequest(
@@ -101,9 +101,13 @@ export function useVendorsWorkspace(input: {
         setRefreshError(error instanceof Error ? error.message : "商人数据读取失败");
       }
     }
-  }, [characterId, input.accountSummary, input.loadInventory, requestContextKey, selectedDetailVendorHashes, snapshot]);
+  }, [characterId, input.accountSummary, input.active, input.loadInventory, requestContextKey, selectedDetailVendorHashes, snapshot]);
 
   useEffect(() => {
+    if (!input.active) {
+      requestSequenceRef.current += 1;
+      return;
+    }
     if (requestContextKey === requestContextKeyRef.current) return;
     requestContextKeyRef.current = requestContextKey;
     const requestSequence = ++requestSequenceRef.current;
@@ -128,10 +132,10 @@ export function useVendorsWorkspace(input: {
         setRefreshState("failed");
         setRefreshError(error instanceof Error ? error.message : "商人数据读取失败");
       });
-  }, [characterId, input.accountSummary, input.loadInventory, requestContextKey]);
+  }, [characterId, input.accountSummary, input.active, input.loadInventory, requestContextKey]);
 
   useEffect(() => {
-    if (!input.accountSummary || !characterId || !snapshot || !selectedDetailVendorHashes.length) return;
+    if (!input.active || !input.accountSummary || !characterId || !snapshot || !selectedDetailVendorHashes.length) return;
     if (
       snapshot.detailVendorHashes === undefined
       || selectedDetailVendorHashes.every((vendorHash) => snapshot.detailVendorHashes?.includes(vendorHash))
@@ -157,7 +161,7 @@ export function useVendorsWorkspace(input: {
       setRefreshState(resolved.refreshState);
       setRefreshError(resolved.refreshError ?? "");
     });
-  }, [characterId, input.accountSummary, input.loadInventory, requestContextKey, selectedDetailVendorHashes, snapshot]);
+  }, [characterId, input.accountSummary, input.active, input.loadInventory, requestContextKey, selectedDetailVendorHashes, snapshot]);
 
   const model: VendorsPageWorkspace = useMemo(() => selectVendorsPageModel({
     snapshot,

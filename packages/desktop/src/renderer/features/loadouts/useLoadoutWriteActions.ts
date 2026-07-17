@@ -1,8 +1,10 @@
 import type { analyzeLoadoutTemplate } from "@d2-tools/core/loadouts/analysis";
 import { api } from "../../api/client";
 import {
+  type AccountItemActionPatch,
   type AccountItemSummary,
   type AccountSummary,
+  type BatchItemActionResult,
   type BuildGuideLoadoutDraft,
   type D2Config,
   type ItemActionResult,
@@ -68,6 +70,7 @@ type LoadoutActionFeedbackBridge = {
 
 export function useLoadoutWriteActions(input: {
   accountSummary: AccountSummary | null;
+  applyAccountActionPatches: (patches: readonly AccountItemActionPatch[]) => void;
   loadoutLibrary: LoadoutLibraryBridge;
   diagnostics: DiagnosticsBridge;
   loadoutActionFeedback: LoadoutActionFeedbackBridge;
@@ -77,6 +80,30 @@ export function useLoadoutWriteActions(input: {
   loadAccountSummary: () => Promise<void>;
   openItemDetail: (item: AccountItemSummary, source?: SelectedItemSource) => void | Promise<void>;
 }) {
+  function applySuccessfulWriteResult(result: ItemActionResult | BatchItemActionResult): {
+    hasSuccessfulWrite: boolean;
+    requiresFullRefresh: boolean;
+  } {
+    const patches = "account_patches" in result
+      ? result.account_patches
+      : result.account_patch
+        ? [result.account_patch]
+        : [];
+    input.applyAccountActionPatches(patches);
+    const successCount = "success_count" in result ? result.success_count : 1;
+    return {
+      hasSuccessfulWrite: successCount > 0,
+      requiresFullRefresh: successCount > patches.length
+    };
+  }
+
+  function finishWriteActionsInBackground(requiresFullRefresh: boolean): void {
+    if (requiresFullRefresh) {
+      void input.loadAccountSummary().catch(() => undefined);
+    }
+    void input.diagnostics.loadActionLog().catch(() => undefined);
+  }
+
   async function ensureWriteActionsEnabled(setMessage: (message: string) => void): Promise<D2Config | null> {
     try {
       const latestConfig = await api.getConfig();
@@ -162,6 +189,8 @@ export function useLoadoutWriteActions(input: {
     }
 
     input.setIsRunningItemAction(true);
+    let hasSuccessfulWrite = false;
+    let requiresFullRefresh = false;
 
     try {
       let transferResult = { success_count: 0, failed_count: 0 };
@@ -169,7 +198,7 @@ export function useLoadoutWriteActions(input: {
 
       if (executionPlan.transfer_items.length) {
         input.setItemActionMessage(buildHighestPowerTransferProgressMessage(executionPlan.transfer_items.length));
-        transferResult = await api.batchTransferItems({
+        const result = await api.batchTransferItems({
           membership_type: input.accountSummary.membership_type,
           character_id: character.character_id,
           items: executionPlan.transfer_items.map((entry) => ({
@@ -181,11 +210,15 @@ export function useLoadoutWriteActions(input: {
             transfer_to_vault: false
           }))
         });
+        transferResult = result;
+        const outcome = applySuccessfulWriteResult(result);
+        hasSuccessfulWrite = outcome.hasSuccessfulWrite || hasSuccessfulWrite;
+        requiresFullRefresh = outcome.requiresFullRefresh || requiresFullRefresh;
       }
 
       if (executionPlan.equip_items.length) {
         input.setItemActionMessage(buildHighestPowerEquipProgressMessage(executionPlan.equip_items.length));
-        equipResult = await api.batchEquipItems({
+        const result = await api.batchEquipItems({
           membership_type: input.accountSummary.membership_type,
           character_id: character.character_id,
           items: executionPlan.equip_items.map((entry) => ({
@@ -195,6 +228,10 @@ export function useLoadoutWriteActions(input: {
             item_name: entry.item.name
           }))
         });
+        equipResult = result;
+        const outcome = applySuccessfulWriteResult(result);
+        hasSuccessfulWrite = outcome.hasSuccessfulWrite || hasSuccessfulWrite;
+        requiresFullRefresh = outcome.requiresFullRefresh || requiresFullRefresh;
       }
 
       const failedSteps = transferResult.failed_count + equipResult.failed_count;
@@ -206,11 +243,9 @@ export function useLoadoutWriteActions(input: {
         equipTotalCount: executionPlan.equip_items.length,
         failedCount: failedSteps
       }));
-      input.setItemActionMessage("正在刷新账号数据...");
-      void Promise.all([input.loadAccountSummary(), input.diagnostics.loadActionLog()]).finally(() => {
-        input.setItemActionMessage("");
-      });
     } finally {
+      if (hasSuccessfulWrite) finishWriteActionsInBackground(requiresFullRefresh);
+      input.setItemActionMessage("");
       input.setIsRunningItemAction(false);
     }
   }
@@ -239,8 +274,9 @@ export function useLoadoutWriteActions(input: {
     input.setIsRunningItemAction(true);
     try {
       const result = await run();
+      const outcome = applySuccessfulWriteResult(result);
       input.setLoadoutMessage(result.message);
-      await Promise.all([input.loadAccountSummary(), input.diagnostics.loadActionLog()]);
+      finishWriteActionsInBackground(outcome.requiresFullRefresh);
     } catch (error) {
       input.setLoadoutMessage(error instanceof Error ? error.message : `${label}失败`);
       await input.diagnostics.loadActionLog();
@@ -347,6 +383,8 @@ export function useLoadoutWriteActions(input: {
 
     input.setIsRunningItemAction(true);
     input.setItemActionMessage(buildMissingLoadoutPrepareMessage(actionableItemCount));
+    let hasSuccessfulWrite = false;
+    let requiresFullRefresh = false;
 
     try {
       let targetTransferCount = 0;
@@ -365,6 +403,9 @@ export function useLoadoutWriteActions(input: {
               item_name: item.item_name
             }))
           });
+          const outcome = applySuccessfulWriteResult(equipResult);
+          hasSuccessfulWrite = outcome.hasSuccessfulWrite || hasSuccessfulWrite;
+          requiresFullRefresh = outcome.requiresFullRefresh || requiresFullRefresh;
 
           if (equipResult.failed_count > 0) {
             throw new Error(equipResult.message || "替代装备装备失败，请检查来源角色装备状态后重试。");
@@ -375,13 +416,16 @@ export function useLoadoutWriteActions(input: {
         if (step.phase === "pull-postmaster") {
           input.setItemActionMessage(buildMissingLoadoutStepProgressMessage(step, targetCharacter.class_name));
           for (const item of step.items) {
-            await api.pullFromPostmaster({
+            const result = await api.pullFromPostmaster({
               membership_type: input.accountSummary.membership_type,
               character_id: step.character_id,
               item_id: item.item_id,
               item_reference_hash: item.item_reference_hash,
               item_name: item.item_name
             });
+            const outcome = applySuccessfulWriteResult(result);
+            hasSuccessfulWrite = outcome.hasSuccessfulWrite || hasSuccessfulWrite;
+            requiresFullRefresh = outcome.requiresFullRefresh || requiresFullRefresh;
           }
           prepStepCount += step.items.length;
           continue;
@@ -398,6 +442,9 @@ export function useLoadoutWriteActions(input: {
               item_name: item.item_name
             }))
           });
+          const outcome = applySuccessfulWriteResult(equipResult);
+          hasSuccessfulWrite = outcome.hasSuccessfulWrite || hasSuccessfulWrite;
+          requiresFullRefresh = outcome.requiresFullRefresh || requiresFullRefresh;
 
           autoEquipCount += equipResult.success_count;
           if (equipResult.failed_count > 0) {
@@ -419,6 +466,9 @@ export function useLoadoutWriteActions(input: {
             transfer_to_vault: step.transfer_to_vault
           }))
         });
+        const outcome = applySuccessfulWriteResult(result);
+        hasSuccessfulWrite = outcome.hasSuccessfulWrite || hasSuccessfulWrite;
+        requiresFullRefresh = outcome.requiresFullRefresh || requiresFullRefresh;
         if (step.phase === "to-character") {
           targetTransferCount += result.success_count;
         } else {
@@ -429,7 +479,6 @@ export function useLoadoutWriteActions(input: {
           throw new Error(result.message || "缺失件转移未全部成功，请检查物品状态后重试。");
         }
       }
-      await Promise.all([input.loadAccountSummary(), input.diagnostics.loadActionLog()]);
       input.setLoadoutMessage(buildMissingLoadoutResultMessage({
         targetTransferCount,
         autoEquipCount,
@@ -439,6 +488,7 @@ export function useLoadoutWriteActions(input: {
     } catch (error) {
       input.setLoadoutMessage(error instanceof Error ? error.message : "缺失件转移失败");
     } finally {
+      if (hasSuccessfulWrite) finishWriteActionsInBackground(requiresFullRefresh);
       input.setIsRunningItemAction(false);
       input.setItemActionMessage("");
     }
@@ -491,6 +541,8 @@ export function useLoadoutWriteActions(input: {
     input.setItemActionMessage(buildSingleLoadoutTransferStartMessage(item.name));
     input.setLoadoutMessage(buildSingleLoadoutTransferStartMessage(item.name));
     let actionSucceeded = false;
+    let hasSuccessfulWrite = false;
+    let requiresFullRefresh = false;
 
     try {
       let targetTransferCount = 0;
@@ -515,6 +567,9 @@ export function useLoadoutWriteActions(input: {
               item_name: entry.item_name
             }))
           });
+          const outcome = applySuccessfulWriteResult(equipResult);
+          hasSuccessfulWrite = outcome.hasSuccessfulWrite || hasSuccessfulWrite;
+          requiresFullRefresh = outcome.requiresFullRefresh || requiresFullRefresh;
 
           if (equipResult.failed_count > 0) {
             throw new Error(equipResult.message || "来源角色替换装备失败，请稍后重试。");
@@ -532,13 +587,16 @@ export function useLoadoutWriteActions(input: {
           input.setItemActionMessage(stepMessage);
           input.setLoadoutMessage(stepMessage);
           for (const entry of step.items) {
-            await api.pullFromPostmaster({
+            const result = await api.pullFromPostmaster({
               membership_type: input.accountSummary.membership_type,
               character_id: step.character_id,
               item_id: entry.item_id,
               item_reference_hash: entry.item_reference_hash,
               item_name: entry.item_name
             });
+            const outcome = applySuccessfulWriteResult(result);
+            hasSuccessfulWrite = outcome.hasSuccessfulWrite || hasSuccessfulWrite;
+            requiresFullRefresh = outcome.requiresFullRefresh || requiresFullRefresh;
           }
           prepStepCount += step.items.length;
           continue;
@@ -562,6 +620,9 @@ export function useLoadoutWriteActions(input: {
               item_name: entry.item_name
             }))
           });
+          const outcome = applySuccessfulWriteResult(equipResult);
+          hasSuccessfulWrite = outcome.hasSuccessfulWrite || hasSuccessfulWrite;
+          requiresFullRefresh = outcome.requiresFullRefresh || requiresFullRefresh;
 
           autoEquipCount += equipResult.success_count;
           if (equipResult.failed_count > 0) {
@@ -590,6 +651,9 @@ export function useLoadoutWriteActions(input: {
             transfer_to_vault: step.transfer_to_vault
           }))
         });
+        const outcome = applySuccessfulWriteResult(result);
+        hasSuccessfulWrite = outcome.hasSuccessfulWrite || hasSuccessfulWrite;
+        requiresFullRefresh = outcome.requiresFullRefresh || requiresFullRefresh;
 
         if (step.phase === "to-character") {
           targetTransferCount += result.success_count;
@@ -602,7 +666,6 @@ export function useLoadoutWriteActions(input: {
         }
       }
 
-      await Promise.all([input.loadAccountSummary(), input.diagnostics.loadActionLog()]);
       input.setLoadoutMessage(buildSingleLoadoutTransferResultMessage({
         itemName: item.name,
         targetTransferCount,
@@ -614,6 +677,7 @@ export function useLoadoutWriteActions(input: {
     } catch (error) {
       input.setLoadoutMessage(error instanceof Error ? error.message : buildLoadoutItemActionFailureMessage("transfer", item.name));
     } finally {
+      if (hasSuccessfulWrite) finishWriteActionsInBackground(requiresFullRefresh);
       input.setIsRunningItemAction(false);
       input.setItemActionMessage("");
       if (!actionSucceeded) {
@@ -666,7 +730,8 @@ export function useLoadoutWriteActions(input: {
         item_id: sourceItem.instance_id,
         item_name: sourceItem.name
       });
-      await Promise.all([input.loadAccountSummary(), input.diagnostics.loadActionLog()]);
+      const outcome = applySuccessfulWriteResult(result);
+      finishWriteActionsInBackground(outcome.requiresFullRefresh);
       input.setLoadoutMessage(result.message);
       actionSucceeded = true;
       input.loadoutActionFeedback.setSingleActionFeedback(feedbackKey, "success");

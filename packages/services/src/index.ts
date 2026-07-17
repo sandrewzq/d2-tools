@@ -7,7 +7,6 @@ export type {
   AiService,
   D2Services,
   LocalDataService,
-  ManifestService,
   ProfileService
 } from "./contracts.js";
 export { createDesktopBridgeServices } from "./desktopBridge.js";
@@ -18,3 +17,9 @@ export type { ServiceError, ServiceErrorCode } from "./errors.js";
 export { toServiceError } from "./errors.js";
 export type { AiChatReplyResult, AiChatRequest } from "./types.js";
 export { createAppServices } from "./appServices.js";
+export type {
+  GameDataCatalog,
+  ItemDetailQuery,
+  ItemSearchQuery,
+  PerkSearchQuery
+} from "./gameData/catalog.js";

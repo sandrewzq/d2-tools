@@ -6,6 +6,14 @@ import { registerIpcHandlers } from "./ipc.js";
 import { scheduleInitialManifestVersionCheck } from "./ipc/manifest.js";
 import { scheduleInitialUpdateCheck } from "./ipc/updates.js";
 import { getWindowBackgroundColor } from "./ipc/window.js";
+import {
+  initializeRuntimeCoordinator,
+  shutdownRuntimeCoordinator
+} from "./runtime/runtimeCoordinator.js";
+import {
+  measureRuntime,
+  recordStartupMilestone
+} from "./runtime/runtimeMetrics.js";
 
 const currentDir = fileURLToPath(new URL(".", import.meta.url));
 const isDevelopment = process.env.NODE_ENV === "development";
@@ -16,6 +24,8 @@ const visualCapturePage = process.env.D2_VISUAL_CAPTURE_PAGE ?? "home";
 const rendererUrl = process.env.D2_RENDERER_URL ?? "http://127.0.0.1:53172";
 const rendererFile = join(currentDir, "../renderer/index.html");
 const isVisualCapture = Boolean(visualCaptureDir);
+const hasSingleInstanceLock = app.requestSingleInstanceLock();
+recordStartupMilestone("startup.main-module-ready");
 
 if (isVisualCapture) {
   app.commandLine.appendSwitch("disable-gpu");
@@ -51,10 +61,18 @@ async function createWindow(): Promise<void> {
   await captureVisualSnapshot(window);
 }
 
+if (!hasSingleInstanceLock) {
+  app.quit();
+} else {
 app.whenReady().then(async () => {
+  recordStartupMilestone("startup.electron-ready");
   Menu.setApplicationMenu(null);
+  initializeRuntimeCoordinator();
+  recordStartupMilestone("startup.runtime-coordinator-ready");
   registerIpcHandlers();
-  await createWindow();
+  recordStartupMilestone("startup.ipc-ready");
+  await measureRuntime("startup.window-load", createWindow);
+  recordStartupMilestone("startup.window-ready");
   if (isVisualCapture) {
     return;
   }
@@ -66,6 +84,25 @@ app.whenReady().then(async () => {
       void createWindow();
     }
   });
+});
+
+app.on("second-instance", () => {
+  const window = BrowserWindow.getAllWindows()[0];
+  if (!window) return;
+  if (window.isMinimized()) window.restore();
+  window.show();
+  window.focus();
+});
+}
+
+let runtimeShutdownStarted = false;
+app.on("before-quit", (event) => {
+  if (runtimeShutdownStarted) {
+    return;
+  }
+  event.preventDefault();
+  runtimeShutdownStarted = true;
+  void shutdownRuntimeCoordinator().finally(() => app.quit());
 });
 
 app.on("window-all-closed", () => {

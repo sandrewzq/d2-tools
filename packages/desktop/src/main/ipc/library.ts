@@ -5,9 +5,7 @@ import {
   saveItemAlias,
   type ItemAliasEntry
 } from "@d2-tools/core/items/aliases";
-import { fetchLiveItemAvailability } from "@d2-tools/core/items/liveAvailability";
-import { searchPerkDefinitions } from "@d2-tools/core/items/perkSearch";
-import { getItemSearchResultByHash, searchItemDefinitions } from "@d2-tools/core/items/search";
+import { buildLiveItemAvailabilityFromBungie } from "@d2-tools/core/items/liveAvailability";
 import {
   addFavoriteItem,
   addRecentItem,
@@ -15,73 +13,29 @@ import {
   removeFavoriteItem,
   type LibraryHistoryItem
 } from "@d2-tools/core/library/history";
-import { loadDefinitionComponent } from "@d2-tools/services/manifest/definitions";
+import {
+  type BungieHomeSnapshot,
+  type BungieVendorsResponse
+} from "@d2-tools/services/bungie/session";
+import { getDefinitions, getGameDataCatalog } from "../runtime/gameDataRuntime.js";
+import { getSharedBungieSession } from "../runtime/bungieSession.js";
 import { loadFreshOAuthToken } from "./authSession.js";
 
 export function registerLibraryIpcHandlers(): void {
   ipcMain.handle("items:search", (_event, query: string) => {
     const config = loadConfig();
-    const definitions = loadDefinitionComponent(
-      config.data.data_dir,
-      "DestinyInventoryItemDefinition"
-    );
-    const plugSetDefinitions = loadDefinitionComponent(
-      config.data.data_dir,
-      "DestinyPlugSetDefinition"
-    );
-    const statDefinitions = loadDefinitionComponent(
-      config.data.data_dir,
-      "DestinyStatDefinition"
-    );
-    const collectibleDefinitions = loadDefinitionComponent(
-      config.data.data_dir,
-      "DestinyCollectibleDefinition"
-    );
-    const breakerTypeDefinitions = loadDefinitionComponent(
-      config.data.data_dir,
-      "DestinyBreakerTypeDefinition"
-    );
-    const damageTypeDefinitions = loadDefinitionComponent(
-      config.data.data_dir,
-      "DestinyDamageTypeDefinition"
-    );
-    if (!definitions) {
-      throw new Error("请先初始化资料库");
-    }
-
-    return searchItemDefinitions(definitions, query, {
+    return getGameDataCatalog().searchItems({
+      query,
       limit: 20,
-      plugSetDefinitions: plugSetDefinitions ?? undefined,
-      statDefinitions: statDefinitions ?? undefined,
-      collectibleDefinitions: collectibleDefinitions ?? undefined,
-      breakerTypeDefinitions: breakerTypeDefinitions ?? undefined,
-      damageTypeDefinitions: damageTypeDefinitions ?? undefined,
       aliases: loadItemAliases(config.data.data_dir)
     });
   });
 
   ipcMain.handle("items:perks:search", (_event, query: string) => {
     const config = loadConfig();
-    const perkDefinitions = loadDefinitionComponent(
-      config.data.data_dir,
-      "DestinySandboxPerkDefinition"
-    );
-    const itemDefinitions = loadDefinitionComponent(
-      config.data.data_dir,
-      "DestinyInventoryItemDefinition"
-    );
-    const plugSetDefinitions = loadDefinitionComponent(
-      config.data.data_dir,
-      "DestinyPlugSetDefinition"
-    );
-    if (!perkDefinitions) {
-      throw new Error("请先初始化资料库");
-    }
-
-    return searchPerkDefinitions(perkDefinitions, query, {
+    return getGameDataCatalog().searchPerks({
+      query,
       limit: 20,
-      itemDefinitions: itemDefinitions ?? undefined,
-      plugSetDefinitions: plugSetDefinitions ?? undefined,
       aliases: loadItemAliases(config.data.data_dir)
     });
   });
@@ -89,59 +43,22 @@ export function registerLibraryIpcHandlers(): void {
   ipcMain.handle("items:live-availability", async (_event, itemHashes: number[]) => {
     const config = loadConfig();
     const token = await loadFreshOAuthToken(config).catch(() => null);
+    const snapshot = await getSharedBungieSession(config.bungie.api_key).getHomeSnapshot({
+      accessToken: token?.access_token
+    });
+    const normalizedItemHashes = Array.isArray(itemHashes) ? itemHashes.map(Number) : [];
 
-    return fetchLiveItemAvailability({
-      config,
-      token,
-      itemHashes: Array.isArray(itemHashes) ? itemHashes : [],
-      definitions: {
-        activities: loadDefinitionComponent(config.data.data_dir, "DestinyActivityDefinition"),
-        milestones: loadDefinitionComponent(config.data.data_dir, "DestinyMilestoneDefinition"),
-        vendors: loadDefinitionComponent(config.data.data_dir, "DestinyVendorDefinition"),
-        items: loadDefinitionComponent(config.data.data_dir, "DestinyInventoryItemDefinition")
-      }
+    return buildLiveItemAvailabilityFromBungie({
+      itemHashes: normalizedItemHashes,
+      publicVendors: snapshot.publicVendors,
+      characterVendors: snapshot.characterVendors,
+      milestones: snapshot.milestones,
+      definitions: await loadAvailabilityDefinitions(snapshot, normalizedItemHashes)
     });
   });
 
-  ipcMain.handle("items:detail", (_event, hash: number) => {
-    const config = loadConfig();
-    const definitions = loadDefinitionComponent(
-      config.data.data_dir,
-      "DestinyInventoryItemDefinition"
-    );
-    const plugSetDefinitions = loadDefinitionComponent(
-      config.data.data_dir,
-      "DestinyPlugSetDefinition"
-    );
-    const collectibleDefinitions = loadDefinitionComponent(
-      config.data.data_dir,
-      "DestinyCollectibleDefinition"
-    );
-    const statDefinitions = loadDefinitionComponent(
-      config.data.data_dir,
-      "DestinyStatDefinition"
-    );
-    const breakerTypeDefinitions = loadDefinitionComponent(
-      config.data.data_dir,
-      "DestinyBreakerTypeDefinition"
-    );
-    const damageTypeDefinitions = loadDefinitionComponent(
-      config.data.data_dir,
-      "DestinyDamageTypeDefinition"
-    );
-
-    if (!definitions) {
-      throw new Error("请先初始化资料库");
-    }
-
-    const detail = getItemSearchResultByHash(definitions, Number(hash), {
-      plugSetDefinitions: plugSetDefinitions ?? undefined,
-      statDefinitions: statDefinitions ?? undefined,
-      collectibleDefinitions: collectibleDefinitions ?? undefined,
-      breakerTypeDefinitions: breakerTypeDefinitions ?? undefined,
-      damageTypeDefinitions: damageTypeDefinitions ?? undefined,
-      includeAllPerks: true
-    });
+  ipcMain.handle("items:detail", async (_event, hash: number) => {
+    const detail = await getGameDataCatalog().getItemDetail({ hash: Number(hash) });
     if (!detail) {
       throw new Error("未找到物品详情");
     }
@@ -178,4 +95,42 @@ export function registerLibraryIpcHandlers(): void {
     const config = loadConfig();
     return removeFavoriteItem(config.data.data_dir, Number(hash));
   });
+}
+
+async function loadAvailabilityDefinitions(
+  snapshot: BungieHomeSnapshot,
+  itemHashes: number[]
+) {
+  const milestones = snapshot.milestones ?? {};
+  const vendorResponses = [snapshot.publicVendors, ...snapshot.characterVendors]
+    .filter((response): response is BungieVendorsResponse => Boolean(response));
+  const milestoneHashes = Object.keys(milestones).map(Number);
+  const activityHashes = Object.values(milestones).flatMap((milestone) =>
+    (milestone.activities ?? []).flatMap((activity) => numberValue(activity.activityHash))
+  );
+  const milestoneItemHashes = Object.values(milestones).flatMap((milestone) => [
+    ...(milestone.availableQuests ?? []).flatMap((quest) => numberValue(quest.questItemHash))
+  ]);
+  const vendorHashes = vendorResponses.flatMap((response) =>
+    Object.entries(response.vendors?.data ?? {}).flatMap(([key, vendor]) =>
+      numberValue(vendor.vendorHash ?? Number(key))
+    )
+  );
+  const [activities, milestoneDefinitions, vendors, items] = await Promise.all([
+    getDefinitions("DestinyActivityDefinition", activityHashes),
+    getDefinitions("DestinyMilestoneDefinition", milestoneHashes),
+    getDefinitions("DestinyVendorDefinition", vendorHashes),
+    getDefinitions("DestinyInventoryItemDefinition", [...itemHashes, ...milestoneItemHashes])
+  ]);
+
+  return {
+    activities,
+    milestones: milestoneDefinitions,
+    vendors,
+    items
+  };
+}
+
+function numberValue(value: unknown): number[] {
+  return typeof value === "number" && Number.isFinite(value) ? [value] : [];
 }

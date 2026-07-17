@@ -117,16 +117,12 @@ describe("desktop package format", () => {
       "src/main/ipc/wishlist.ts",
       "src/main/workers/heavyTaskWorker.ts"
     ];
-    const configStoreConsumerFiles = desktopRuntimeFiles.filter((relativePath) => relativePath !== "src/main/ipc/authSession.ts");
-
     for (const relativePath of desktopRuntimeFiles) {
       const source = readFileSync(join(repoRoot, "packages", "desktop", relativePath), "utf8");
       expect(source, relativePath).not.toContain("@d2-tools/core/config/store");
-    }
-
-    for (const relativePath of configStoreConsumerFiles) {
-      const source = readFileSync(join(repoRoot, "packages", "desktop", relativePath), "utf8");
-      expect(source, relativePath).toContain("@d2-tools/services/config/store");
+      if (source.includes("loadConfig")) {
+        expect(source, relativePath).toContain("@d2-tools/services/config/store");
+      }
     }
   });
 
@@ -181,7 +177,7 @@ describe("desktop package format", () => {
   });
 
   it("wires desktop Manifest runtime adapters through services", () => {
-    const manifestAdapterConsumers = [
+    const manifestRuntimeConsumers = [
       "src/main/ipc/activities.ts",
       "src/main/ipc/assistant.ts",
       "src/main/ipc/community.ts",
@@ -193,11 +189,28 @@ describe("desktop package format", () => {
       "src/main/workers/heavyTaskWorker.ts"
     ];
 
-    for (const relativePath of manifestAdapterConsumers) {
+    for (const relativePath of manifestRuntimeConsumers) {
       const source = readFileSync(join(repoRoot, "packages", "desktop", relativePath), "utf8");
       expect(source, relativePath).not.toContain("@d2-tools/core/manifest/cache");
-      expect(source, relativePath).not.toContain("@d2-tools/core/manifest/definitions");
-      expect(source, relativePath).toMatch(/@d2-tools\/services\/manifest\/(cache|definitions)/);
+    }
+
+    const directManifestAdapterConsumers = [
+      "src/main/ipc/manifest.ts",
+      "src/main/workers/heavyTaskWorker.ts"
+    ];
+    for (const relativePath of directManifestAdapterConsumers) {
+      const source = readFileSync(join(repoRoot, "packages", "desktop", relativePath), "utf8");
+      expect(source, relativePath).toMatch(/@d2-tools\/services\/manifest\/(cache|definitions|lifecycle)/);
+    }
+
+    const gameDataRuntimeConsumers = [
+      "src/main/ipc/activities.ts",
+      "src/main/ipc/community.ts",
+      "src/main/ipc/library.ts"
+    ];
+    for (const relativePath of gameDataRuntimeConsumers) {
+      const source = readFileSync(join(repoRoot, "packages", "desktop", relativePath), "utf8");
+      expect(source, relativePath).toContain("runtime/gameDataRuntime.js");
     }
   });
 

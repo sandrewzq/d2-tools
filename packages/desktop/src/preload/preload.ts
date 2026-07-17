@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from "electron";
-import type { AccountItemSummary, AccountSummary } from "@d2-tools/core/account/summary";
+import type { AccountItemDetail, AccountItemSummary, AccountSummary } from "@d2-tools/core/account/summary";
 import type { ActionLogEntry } from "@d2-tools/core/actions/log";
 import type { BatchTransferPlan, ItemActionPlan, ItemActionPlanInput } from "@d2-tools/core/actions/plan";
 import type { ActivityHistorySummary } from "@d2-tools/core/activities/history";
@@ -41,6 +41,8 @@ import type { SaveVaultNoteInput, SaveVaultTagInput, VaultTags } from "@d2-tools
 import type { WeeklySummary } from "@d2-tools/core/weekly/summary";
 import type { VendorInventorySnapshot } from "@d2-tools/core/vendors/inventory";
 import type { VendorInventoryRequest } from "../renderer/api/vendorsApi.js";
+import type { CachedAccountSummary } from "../renderer/api/accountApi.js";
+import type { HomeBriefing } from "../renderer/api/dailyApi.js";
 import type { ManifestStatusRequestOptions } from "../renderer/api/manifestApi.js";
 import type { BackgroundTaskSnapshot } from "../shared/backgroundTasks.js";
 import type { AppUpdateSnapshot } from "../shared/updateTypes.js";
@@ -105,9 +107,33 @@ type LoadoutSnapshotActionInput = {
   loadout_color_hash?: number;
 };
 
+type AccountItemActionPatch =
+  | {
+      kind: "lock";
+      item_instance_id: string;
+      locked: boolean;
+    }
+  | {
+      kind: "equip";
+      item_instance_id: string;
+      character_id: string;
+    }
+  | {
+      kind: "transfer";
+      item_instance_id: string;
+      character_id: string;
+      target: "vault" | "character-inventory";
+    }
+  | {
+      kind: "postmaster-pull";
+      item_instance_id: string;
+      character_id: string;
+    };
+
 type ItemActionResult = {
   ok: true;
   message: string;
+  account_patch?: AccountItemActionPatch;
 };
 
 type BatchEquipItemsInput = {
@@ -128,6 +154,7 @@ type BatchItemActionResult = {
   success_count: number;
   failed_count: number;
   message: string;
+  account_patches: AccountItemActionPatch[];
 };
 
 contextBridge.exposeInMainWorld("d2", {
@@ -142,6 +169,10 @@ contextBridge.exposeInMainWorld("d2", {
   testAiConnection: () => ipcRenderer.invoke("ai:test") as Promise<AiConnectionTestResult>,
   loginBungie: () => ipcRenderer.invoke("auth:login") as Promise<AuthLoginResult>,
   getAccountSummary: () => ipcRenderer.invoke("account:summary") as Promise<AccountSummary>,
+  getCachedAccountSummary: () =>
+    ipcRenderer.invoke("account:snapshot:cached") as Promise<CachedAccountSummary | null>,
+  getAccountItemDetail: (instanceId: string) =>
+    ipcRenderer.invoke("account:item-detail", instanceId) as Promise<AccountItemDetail>,
   getItemDetail: (hash: number) => ipcRenderer.invoke("items:detail", hash) as Promise<ItemDefinitionDetail>,
   getStartupState: () => ipcRenderer.invoke("startup:get") as Promise<StartupState>,
   setWindowColorMode: (colorMode: "light" | "dark") =>
@@ -248,6 +279,7 @@ contextBridge.exposeInMainWorld("d2", {
     ipcRenderer.invoke("actions:plan:item", input) as Promise<ItemActionPlan>,
   createBatchTransferPlan: (input: { character_id: string; transfer_to_vault: boolean; items: AccountSummary["vault"]["items"] }) =>
     ipcRenderer.invoke("actions:plan:batch-transfer", input) as Promise<BatchTransferPlan>,
+  getHomeBriefing: () => ipcRenderer.invoke("home:briefing") as Promise<HomeBriefing>,
   getDailySummary: () => ipcRenderer.invoke("daily:summary") as Promise<DailySummary>,
   getWeeklySummary: () => ipcRenderer.invoke("weekly:summary") as Promise<WeeklySummary>,
   getVendorInventory: (input: VendorInventoryRequest) =>

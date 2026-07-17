@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type {
   AccountSummary,
+  AccountItemActionPatch,
   DimWishlist,
   LibraryHistory,
   LoadoutTemplate,
@@ -27,8 +28,10 @@ type LoadoutLibraryBridge = {
 
 export function useDesktopProductWriteActions(input: {
   accountSummary: AccountSummary | null;
+  applyAccountActionPatches: (patches: readonly AccountItemActionPatch[]) => void;
   diagnostics: DiagnosticsBridge;
   importedWishlist: DimWishlist | null;
+  itemDetailCacheScopeKey: string;
   loadAccountSummary: () => Promise<void>;
   loadoutLibrary: LoadoutLibraryBridge;
   localTargetRules: LocalTargetRules;
@@ -44,9 +47,11 @@ export function useDesktopProductWriteActions(input: {
 
   const itemDetail = useItemDetailWorkspace({
     accountSummary: input.accountSummary,
+    applyAccountActionPatches: input.applyAccountActionPatches,
     vaultTags: input.vaultTags,
     setVaultTags: input.setVaultTags,
     importedWishlist: input.importedWishlist,
+    detailCacheScopeKey: input.itemDetailCacheScopeKey,
     localTargetRules: input.localTargetRules,
     diagnostics: input.diagnostics,
     setAccountError: input.setAccountError,
@@ -63,6 +68,7 @@ export function useDesktopProductWriteActions(input: {
 
   const loadoutWriteActions = useLoadoutWriteActions({
     accountSummary: input.accountSummary,
+    applyAccountActionPatches: input.applyAccountActionPatches,
     loadoutLibrary: input.loadoutLibrary,
     diagnostics: input.diagnostics,
     loadoutActionFeedback,
@@ -75,6 +81,7 @@ export function useDesktopProductWriteActions(input: {
 
   const vaultWriteActions = useVaultWriteActions({
     accountSummary: input.accountSummary,
+    applyAccountActionPatches: input.applyAccountActionPatches,
     diagnostics: input.diagnostics,
     setVaultTags: input.setVaultTags,
     setAccountError: input.setAccountError,

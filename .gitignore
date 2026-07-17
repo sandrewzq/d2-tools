@@ -8,6 +8,7 @@ out/
 .local-data/
 coverage/
 *.log
+.workbuddy/
 
 # generated source-adjacent build artifacts
 packages/*/src/**/*.js

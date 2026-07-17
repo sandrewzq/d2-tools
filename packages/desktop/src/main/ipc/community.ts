@@ -1,4 +1,5 @@
 import { ipcMain } from "electron";
+import type { DefinitionComponentData, DefinitionRecord } from "@d2-tools/core/manifest/definitions";
 import {
   clearLightggCache,
   clearLocalCommunityRecommendations,
@@ -15,11 +16,8 @@ import {
   type VaultItemMatchInput
 } from "@d2-tools/core/community-perks";
 import { loadConfig } from "@d2-tools/services/config/store";
-import {
-  loadDefinitionComponent,
-  loadDefinitionComponentByLanguage
-} from "@d2-tools/services/manifest/definitions";
 import { startBackgroundTask } from "../backgroundTasks.js";
+import { getDefinitions } from "../runtime/gameDataRuntime.js";
 
 export function registerCommunityIpcHandlers(): void {
   ipcMain.handle("community:local:get", () => {
@@ -61,18 +59,13 @@ export function registerCommunityIpcHandlers(): void {
   ipcMain.handle("community:recommendations:get", async (_event, item_hash: number, options?: SourceOptions) => {
     const config = loadConfig();
     const service = createDefaultCommunityPerkService(config);
-
-    const itemDefinitions = options?.itemDefinitions ?? loadDefinitionComponent(config.data.data_dir, "DestinyInventoryItemDefinition") ?? undefined;
-    const plugSetDefinitions = options?.plugSetDefinitions ?? loadDefinitionComponent(config.data.data_dir, "DestinyPlugSetDefinition") ?? undefined;
-    const manifestLanguage = config.data.manifest_language;
-    const englishItemDefinitions = options?.englishItemDefinitions ?? (manifestLanguage.toLowerCase() !== "en" ? loadDefinitionComponentByLanguage(config.data.data_dir, "DestinyInventoryItemDefinition", "en") ?? undefined : undefined);
-    const englishPlugSetDefinitions = options?.englishPlugSetDefinitions ?? (manifestLanguage.toLowerCase() !== "en" ? loadDefinitionComponentByLanguage(config.data.data_dir, "DestinyPlugSetDefinition", "en") ?? undefined : undefined);
+    const definitions = await loadCommunityDefinitions([Number(item_hash)]);
 
     const merged: SourceOptions = {
-      itemDefinitions,
-      plugSetDefinitions,
-      englishItemDefinitions,
-      englishPlugSetDefinitions,
+      itemDefinitions: options?.itemDefinitions ?? definitions.items,
+      plugSetDefinitions: options?.plugSetDefinitions ?? definitions.plugSets,
+      englishItemDefinitions: options?.englishItemDefinitions,
+      englishPlugSetDefinitions: options?.englishPlugSetDefinitions,
       item_name: options?.item_name
     };
 
@@ -104,18 +97,11 @@ async function matchVaultCommunityItems(items: VaultItemMatchInput[]) {
   const config = loadConfig();
   // 仓库/资料库匹配只使用本地 DIM wishlist，避免触发大量 AI 查询
   const service = createDefaultCommunityPerkService(config);
-
-  const itemDefinitions = loadDefinitionComponent(config.data.data_dir, "DestinyInventoryItemDefinition") ?? undefined;
-  const plugSetDefinitions = loadDefinitionComponent(config.data.data_dir, "DestinyPlugSetDefinition") ?? undefined;
-  const manifestLanguage = config.data.manifest_language;
-  const englishItemDefinitions = manifestLanguage.toLowerCase() !== "en"
-    ? loadDefinitionComponentByLanguage(config.data.data_dir, "DestinyInventoryItemDefinition", "en") ?? undefined
-    : undefined;
+  const definitions = await loadCommunityDefinitions(items.map((item) => item.hash));
 
   const resultMap = await service.matchVaultItems(items, {
-    itemDefinitions,
-    plugSetDefinitions,
-    englishItemDefinitions
+    itemDefinitions: definitions.items,
+    plugSetDefinitions: definitions.plugSets
   });
   const arr: Array<{
     hash: number;
@@ -140,4 +126,55 @@ async function matchVaultCommunityItems(items: VaultItemMatchInput[]) {
     });
   });
   return arr;
+}
+
+async function loadCommunityDefinitions(itemHashes: number[]): Promise<{
+  items: DefinitionComponentData;
+  plugSets: DefinitionComponentData;
+}> {
+  const rootItems = await getDefinitions(
+    "DestinyInventoryItemDefinition",
+    itemHashes,
+    { projection: "community-match" }
+  );
+  const itemRecords = Object.values(rootItems) as DefinitionRecord[];
+  const socketEntries = itemRecords.flatMap((item) =>
+    (item.sockets?.socketEntries ?? []) as Array<{
+      singleInitialItemHash?: number;
+      reusablePlugItems?: Array<{ plugItemHash?: number }>;
+      reusablePlugSetHash?: number;
+      randomizedPlugSetHash?: number;
+    }>
+  );
+  const plugSetHashes = socketEntries.flatMap((entry) => [
+    ...numberValue(entry.reusablePlugSetHash),
+    ...numberValue(entry.randomizedPlugSetHash)
+  ]);
+  const plugSets = await getDefinitions(
+    "DestinyPlugSetDefinition",
+    plugSetHashes,
+    { projection: "community-match" }
+  );
+  const directPlugHashes = socketEntries.flatMap((entry) => [
+    ...numberValue(entry.singleInitialItemHash),
+    ...(entry.reusablePlugItems ?? []).flatMap((plug) => numberValue(plug.plugItemHash))
+  ]);
+  const plugSetItemHashes = (Object.values(plugSets) as DefinitionRecord[]).flatMap((plugSet) =>
+    ((plugSet.reusablePlugItems as Array<{ plugItemHash?: number }> | undefined) ?? [])
+      .flatMap((plug) => numberValue(plug.plugItemHash))
+  );
+  const plugItems = await getDefinitions(
+    "DestinyInventoryItemDefinition",
+    [...directPlugHashes, ...plugSetItemHashes],
+    { projection: "community-match" }
+  );
+
+  return {
+    items: { ...rootItems, ...plugItems },
+    plugSets
+  };
+}
+
+function numberValue(value: unknown): number[] {
+  return typeof value === "number" && Number.isFinite(value) ? [value] : [];
 }

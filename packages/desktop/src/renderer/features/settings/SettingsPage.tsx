@@ -10,6 +10,7 @@ import { api } from "../../api/client";
 import type { AccountSummary, ActionLogEntry, AppUpdateSnapshot, BackgroundTaskSnapshot, ManifestStatus } from "../../api/types";
 import { AiSettingsPanel } from "../../components/AiSettingsPanel";
 import type { LanguagePreferences } from "./diagnosticsModel";
+import { useMemo } from "react";
 
 export type { SettingsActionLogResultFilter, SettingsActionLogTypeFilter };
 
@@ -61,10 +62,53 @@ export function SettingsPage(props: {
   onLanguagePreferencesChange: (preferences: LanguagePreferences) => void;
 }) {
   const initialSection = ((import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env?.VITE_D2_VISUAL_SETTINGS_SECTION ?? "overview") as Parameters<typeof SettingsPageContentView>[0]["initialSection"];
-  const model = selectSettingsPageModel({
-    ...props,
-    initialSection
-  });
+  const model = useMemo(() => selectSettingsPageModel({
+    interfaceLocale: props.interfaceLocale,
+    initialSection,
+    message: props.message,
+    error: props.error,
+    diagnosticDataDir: props.diagnosticDataDir,
+    writeActionsEnabled: props.writeActionsEnabled,
+    appUpdateSnapshot: props.appUpdateSnapshot,
+    manifestStatus: props.manifestStatus,
+    manifestStatusError: props.manifestStatusError,
+    isLoadingManifestStatus: props.isLoadingManifestStatus,
+    isInitializingManifest: props.isInitializingManifest,
+    accountSummary: props.accountSummary,
+    accountError: props.accountError,
+    accountWarning: props.accountWarning,
+    isLoadingAccount: props.isLoadingAccount,
+    lastAccountLoadedAt: props.lastAccountLoadedAt,
+    isAiConfigured: props.isAiConfigured,
+    backgroundTasks: props.backgroundTasks,
+    actionLog: props.actionLog,
+    actionLogResultFilter: props.actionLogResultFilter,
+    actionLogTypeFilter: props.actionLogTypeFilter,
+    languagePreferences: props.languagePreferences
+  }), [
+    props.interfaceLocale,
+    initialSection,
+    props.message,
+    props.error,
+    props.diagnosticDataDir,
+    props.writeActionsEnabled,
+    props.appUpdateSnapshot,
+    props.manifestStatus,
+    props.manifestStatusError,
+    props.isLoadingManifestStatus,
+    props.isInitializingManifest,
+    props.accountSummary,
+    props.accountError,
+    props.accountWarning,
+    props.isLoadingAccount,
+    props.lastAccountLoadedAt,
+    props.isAiConfigured,
+    props.backgroundTasks,
+    props.actionLog,
+    props.actionLogResultFilter,
+    props.actionLogTypeFilter,
+    props.languagePreferences
+  ]);
 
   return (
     <SettingsPageContentView

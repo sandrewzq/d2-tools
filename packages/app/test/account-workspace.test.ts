@@ -276,4 +276,39 @@ describe("account workspace", () => {
     expect(result.data.vaultCommunityMatch.get(123)?.matched).toBe(1);
     expect(result.data.vaultCommunityMatch.get(123)?.source_label).toBe("本地社区表");
   });
+
+  it("loads the activity slice without triggering community matching", async () => {
+    let communityCalls = 0;
+    const result = await loadAccountDerivedWorkspace({
+      profile: {
+        async getAccountSummary() {
+          throw new Error("not used");
+        },
+        async getActivitySummary() {
+          return {
+            recent: { total: 0, pve: { total: 0, completed: 0 }, pvp: { total: 0, completed: 0 }, other: { total: 0, completed: 0 } },
+            raids: { entries: [] },
+            recent_items: []
+          };
+        },
+        async matchCommunityVaultItems() {
+          communityCalls += 1;
+          return [];
+        }
+      }
+    }, {
+      account_name: "tester",
+      destiny_membership_id: "123",
+      membership_type: 1,
+      characters: [],
+      vault: { item_count: 0, items: [], sample_items: [] },
+      materials: { item_count: 0, items: [] }
+    }, {
+      includeActivity: true,
+      includeCommunityMatch: false
+    });
+
+    expect(result.status).toBe("success");
+    expect(communityCalls).toBe(0);
+  });
 });

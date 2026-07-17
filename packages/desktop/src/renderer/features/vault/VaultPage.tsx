@@ -1,6 +1,6 @@
 import { selectVaultPageModel } from "@d2-tools/app/vault";
 import { ProductWorkspaceEmptyState, VaultPageContentView } from "@d2-tools/ui";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type { LoadoutTemplateLookup } from "../../shared/domain/loadouts/loadoutLookup";
 import type {
   AccountItemSummary,
@@ -42,6 +42,25 @@ export function VaultPage(props: {
   onSaveTag: (item: AccountItemSummary, tag: VaultTagValue) => void | Promise<void>;
 }) {
   const [localCommunityTable, setLocalCommunityTable] = useState<LocalCommunityRecommendationTable | null>(null);
+  const model = useMemo(() => props.account ? selectVaultPageModel({
+    account: props.account,
+    selectedCharacterId: props.selectedCharacterId,
+    activeLoadoutLookup: props.activeLoadoutLookup,
+    activeLoadoutName: props.activeLoadoutName,
+    tags: props.tags,
+    targetRules: props.localTargetRules,
+    wishlist: props.wishlist,
+    communityMatch: props.communityMatch
+  }) : null, [
+    props.account,
+    props.selectedCharacterId,
+    props.activeLoadoutLookup,
+    props.activeLoadoutName,
+    props.tags,
+    props.localTargetRules,
+    props.wishlist,
+    props.communityMatch
+  ]);
 
   if (!props.account) {
     return (
@@ -55,16 +74,7 @@ export function VaultPage(props: {
     );
   }
 
-  const model = selectVaultPageModel({
-    account: props.account,
-    selectedCharacterId: props.selectedCharacterId,
-    activeLoadoutLookup: props.activeLoadoutLookup,
-    activeLoadoutName: props.activeLoadoutName,
-    tags: props.tags,
-    targetRules: props.localTargetRules,
-    wishlist: props.wishlist,
-    communityMatch: props.communityMatch
-  });
+  if (!model) return null;
 
   return (
         <VaultPageContentView

@@ -25,9 +25,11 @@ describe("architecture maintenance guardrails", () => {
     const hook = readFileSync(join(desktopRoot, "src", "renderer", "shared", "hooks", "useItemDetail.ts"), "utf8");
 
     expect(hook).toContain("ITEM_DETAIL_CACHE_LIMIT");
+    expect(hook).toContain("ACCOUNT_ITEM_DETAIL_CACHE_LIMIT");
     expect(hook).toContain("touchItemDetailCache");
-    expect(hook).toContain("evictOldestItemDetailCacheEntry");
-    expect(hook).toContain("itemDetailCacheRef.current.delete(oldestKey)");
+    expect(hook).toContain("touchAccountItemDetailCache");
+    expect(hook).toContain("evictOldestCacheEntry(itemDetailCacheRef.current, ITEM_DETAIL_CACHE_LIMIT)");
+    expect(hook).toContain("evictOldestCacheEntry(accountItemDetailCacheRef.current, ACCOUNT_ITEM_DETAIL_CACHE_LIMIT)");
   });
 
   it("keeps desktop app services delegated to the shared desktop bridge adapter", () => {

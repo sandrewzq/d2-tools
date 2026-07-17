@@ -812,7 +812,10 @@ export const localeCopy: Record<InterfaceLocale, LocaleCopy> = {
         "每日或周末重置": "Daily or weekend reset",
         "商人列表": "Vendor list",
         "商人": "Vendors",
-        "个来源": "sources"
+        "个来源": "sources",
+        "属性读取中": "Loading details",
+        "部分详情失败": "Some details failed",
+        "详情失败": "Details failed"
       },
       title: "Vendors",
       subtitle: "Review verified vendor inventory, costs, ownership, and recommended watch items.",
@@ -1048,6 +1051,7 @@ export const localeCopy: Record<InterfaceLocale, LocaleCopy> = {
         "默认账号": "Default account",
         "当前账号；切换账号功能上线后可修改": "Current account. Editable after account switching ships.",
         "装备写操作": "Item write actions",
+        "切换武器 Perk": "Switch weapon perk",
         "已关闭，写操作会被阻断。": "Disabled. Write actions will be blocked.",
         "已开启，执行前仍会二次确认。": "Enabled. Actions still require confirmation before execution.",
         "已开启，允许锁定、装备和转移。": "Enabled. Lock, equip, and transfer actions are allowed.",

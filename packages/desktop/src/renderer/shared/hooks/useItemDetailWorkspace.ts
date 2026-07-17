@@ -1,6 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../../api/client";
-import type { AccountItemSummary, AccountSummary, D2Config, DimWishlist, ItemActionResult, ItemAiAdviceResult, ItemSearchResult, LibraryHistory, LocalTargetRules, VaultTags, VaultTagValue, WeaponRecommendation } from "../../api/types";
+import type { AccountItemActionPatch, AccountItemSummary, AccountSummary, D2Config, DimWishlist, ItemActionResult, ItemAiAdviceResult, ItemSearchResult, LibraryHistory, LocalTargetRules, VaultTags, VaultTagValue, WeaponRecommendation } from "../../api/types";
 import type { LiveItemAvailabilityEntry } from "@d2-tools/core/items/liveAvailability";
 import type {
   PersonalWeaponKnowledgeEntry,
@@ -33,6 +33,8 @@ type DiagnosticsBridge = {
 
 export function useItemDetailWorkspace(input: {
   accountSummary: AccountSummary | null;
+  applyAccountActionPatches: (patches: readonly AccountItemActionPatch[]) => void;
+  detailCacheScopeKey: string;
   vaultTags: VaultTags;
   setVaultTags: (tags: VaultTags) => void;
   importedWishlist: DimWishlist | null;
@@ -57,6 +59,7 @@ export function useItemDetailWorkspace(input: {
   const [itemShareMessage, setItemShareMessage] = useState("");
   const [isGeneratingItemAi, setIsGeneratingItemAi] = useState(false);
   const [selectedActionCharacterId, setSelectedActionCharacterId] = useState("");
+  const workspaceRequestSequenceRef = useRef(0);
 
   const {
     selectedItem,
@@ -65,7 +68,13 @@ export function useItemDetailWorkspace(input: {
     openItemDetail,
     closeSelectedItemDetail: closeItemDetailCore
   } = useItemDetail({
+    cacheScopeKey: input.detailCacheScopeKey,
     onOpenStart: ({ item, source, itemKey, isCurrent }) => {
+      const workspaceRequestSequence = ++workspaceRequestSequenceRef.current;
+      const isCurrentWorkspace = () => (
+        workspaceRequestSequenceRef.current === workspaceRequestSequence
+        && isCurrent()
+      );
       setItemAiResult(null);
       setItemAiError("");
       setItemNoteMessage("");
@@ -84,51 +93,56 @@ export function useItemDetailWorkspace(input: {
       setSelectedItemVersions("description" in item && "source" in item ? [item] : []);
       void api.getCommunityPerkRecommendations(item.hash, { item_name: item.name })
         .then((result) => {
-          if (!isCurrent()) return;
+          if (!isCurrentWorkspace()) return;
           setCommunityRecommendations(result);
         })
         .catch((error) => {
-          if (!isCurrent()) return;
+          if (!isCurrentWorkspace()) return;
           console.warn("社区推荐加载失败：", error);
           setCommunityRecommendationError("社区推荐读取失败，已保留 DIM 愿望单和本地目标判断。");
         })
         .finally(() => {
-          if (!isCurrent()) return;
+          if (!isCurrentWorkspace()) return;
           setIsCommunityRecommendationsLoading(false);
         });
       void api.getPersonalWeaponKnowledge(item.name)
         .then((table) => {
-          if (!isCurrent()) return;
+          if (!isCurrentWorkspace()) return;
           setPersonalWeaponKnowledge(table.entries);
         })
         .catch((error) => {
-          if (!isCurrent()) return;
+          if (!isCurrentWorkspace()) return;
           console.warn("我的推荐读取失败：", error);
         });
       void api.getLiveItemAvailability([item.hash])
         .then((availability) => {
-          if (!isCurrent()) return;
+          if (!isCurrentWorkspace()) return;
           setSelectedItemAvailability(availability.items[String(item.hash)] ?? null);
         })
         .catch((error) => {
-          if (!isCurrent()) return;
+          if (!isCurrentWorkspace()) return;
           console.warn("实时获取状态读取失败：", error);
         });
       void api.searchItems(item.name)
         .then((results) => {
-          if (!isCurrent()) return;
+          if (!isCurrentWorkspace()) return;
           const versions = results
             .filter((candidate) => candidate.group_key === "weapons" && candidate.name.trim() === item.name.trim())
             .filter((candidate, index, all) => all.findIndex((entry) => entry.hash === candidate.hash) === index);
           setSelectedItemVersions(versions);
         })
         .catch((error) => {
-          if (!isCurrent()) return;
+          if (!isCurrentWorkspace()) return;
           console.warn("同名版本读取失败：", error);
         });
     },
     onRecentHistoryChanged: input.onRecentHistoryChanged
   });
+
+  useEffect(() => {
+    workspaceRequestSequenceRef.current += 1;
+    resetDetailWorkspaceState();
+  }, [input.detailCacheScopeKey]);
 
   const selectedSameNameItems: SameNameItemSummary[] = useMemo(() => (
     collectSelectedSameNameItems(input.accountSummary, selectedItem)
@@ -136,13 +150,14 @@ export function useItemDetailWorkspace(input: {
 
   async function generateItemAiAdvice(userKnowledge = "", allowExternalSearch = false) {
     if (!selectedItem?.group_key) return;
+    const requestSequence = workspaceRequestSequenceRef.current;
 
     setIsGeneratingItemAi(true);
     setItemAiError("");
     setItemShareMessage("");
 
     try {
-      setItemAiResult(await api.generateItemAiAdvice({
+      const result = await api.generateItemAiAdvice({
         item: {
           hash: selectedItem.hash,
           instance_id: selectedItem.instance_id,
@@ -183,11 +198,16 @@ export function useItemDetailWorkspace(input: {
             plugs: item.socket_plugs.map((plug) => plug.name)
           }))
         } : undefined
-      }));
+      });
+      if (workspaceRequestSequenceRef.current !== requestSequence) return;
+      setItemAiResult(result);
     } catch (error) {
+      if (workspaceRequestSequenceRef.current !== requestSequence) return;
       setItemAiError(error instanceof Error ? error.message : "AI 装备解读失败");
     } finally {
-      setIsGeneratingItemAi(false);
+      if (workspaceRequestSequenceRef.current === requestSequence) {
+        setIsGeneratingItemAi(false);
+      }
     }
   }
 
@@ -314,13 +334,25 @@ export function useItemDetailWorkspace(input: {
   }
 
   function closeSelectedItemDetail() {
+    workspaceRequestSequenceRef.current += 1;
     closeItemDetailCore();
+    resetDetailWorkspaceState();
+  }
+
+  function resetDetailWorkspaceState() {
     setCommunityRecommendations(null);
     setCommunityRecommendationError("");
     setIsCommunityRecommendationsLoading(false);
     setPersonalWeaponKnowledge([]);
     setSelectedItemAvailability(null);
     setSelectedItemVersions([]);
+    setItemAiResult(null);
+    setItemAiError("");
+    setItemNoteDraft("");
+    setItemNoteMessage("");
+    setItemShareMessage("");
+    setIsGeneratingItemAi(false);
+    setSelectedActionCharacterId("");
   }
 
   async function saveSelectedItemTag(tag: VaultTagValue) {
@@ -514,14 +546,19 @@ export function useItemDetailWorkspace(input: {
 
     try {
       const result = await run();
+      if (result.account_patch) {
+        input.applyAccountActionPatches([result.account_patch]);
+      }
       input.setItemActionMessage(result.message);
       closeSelectedItemDetail();
-      void Promise.all([input.loadAccountSummary(), input.diagnostics.loadActionLog()]).catch((error) => {
+      void input.loadAccountSummary().catch((error) => {
         input.setAccountError(error instanceof Error ? error.message : "操作完成，但刷新账号数据失败");
       });
+      void input.diagnostics.loadActionLog().catch(() => undefined);
     } catch (error) {
       input.setItemActionMessage(error instanceof Error ? error.message : `${label}失败`);
-      await Promise.allSettled([input.diagnostics.loadActionLog(), input.loadAccountSummary()]);
+      void input.loadAccountSummary().catch(() => undefined);
+      await Promise.allSettled([input.diagnostics.loadActionLog()]);
     } finally {
       input.setIsRunningItemAction(false);
     }

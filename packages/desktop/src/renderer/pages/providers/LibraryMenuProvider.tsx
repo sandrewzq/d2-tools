@@ -1,9 +1,11 @@
 import { LibraryPage } from "../../features/library/LibraryPage";
+import { useAccountSummaryStore } from "../../shared/stores/accountEntityStore";
 import { useDesktopMenuSession } from "./DesktopMenuProviderContext";
 
 export function LibraryMenuProvider() {
   const session = useDesktopMenuSession();
   const library = session.library;
+  const accountSummary = useAccountSummaryStore();
   const itemDetail = session.writeActions.itemDetail;
 
   return (
@@ -17,7 +19,7 @@ export function LibraryMenuProvider() {
         liveAvailabilityError: library.liveAvailabilityError,
         manifestStatus: library.manifestStatus,
         manifestStatusError: library.manifestStatusError,
-        accountSummary: session.account.accountSummary
+        accountSummary
       }}
       state={{
         libraryViewMode: library.libraryViewMode,

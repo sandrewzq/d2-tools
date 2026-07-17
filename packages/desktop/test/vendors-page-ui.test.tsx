@@ -10,7 +10,18 @@ import { useVendorsWorkspace } from "../src/renderer/features/vendors/useVendors
 vi.mock("../src/renderer/api/client.js", () => ({
   api: {
     addRecentItem: vi.fn().mockResolvedValue({ items: [] }),
+    getItemDetail: vi.fn().mockResolvedValue({
+      hash: 2002,
+      name: "鹰月",
+      description: "资料库规范化的异域手炮定义",
+      group_key: "weapons",
+      intrinsic_traits: [],
+      source: { status: "ready", label: "资料库来源", description: "规范定义" }
+    }),
+    getLiveItemAvailability: vi.fn().mockResolvedValue({ items: {} }),
+    matchCommunityVaultItems: vi.fn().mockResolvedValue([]),
     getCommunityPerkRecommendations: vi.fn().mockResolvedValue(null),
+    getPersonalWeaponKnowledge: vi.fn().mockResolvedValue({ entries: [] }),
     searchItems: vi.fn().mockResolvedValue([{
       hash: 2002,
       name: "鹰月",
@@ -101,7 +112,7 @@ describe("vendor item detail wiring", () => {
 });
 
 describe("vendor workspace loading", () => {
-  it("prefetches live inventory before entry and does not reload on menu re-entry", async () => {
+  it("defers live inventory until entry and does not reload on menu re-entry", async () => {
     const loadInventory = vi.fn().mockResolvedValue(createVendorSnapshot());
     const { rerender } = renderHook(
       ({ active }) => useVendorsWorkspace({
@@ -113,8 +124,9 @@ describe("vendor workspace loading", () => {
       { initialProps: { active: false } }
     );
 
-    await waitFor(() => expect(loadInventory).toHaveBeenCalledTimes(1));
+    expect(loadInventory).not.toHaveBeenCalled();
     rerender({ active: false });
+    expect(loadInventory).not.toHaveBeenCalled();
     rerender({ active: true });
 
     await waitFor(() => expect(loadInventory).toHaveBeenCalledTimes(1));
@@ -142,7 +154,7 @@ describe("vendor workspace loading", () => {
     renderHook(() => useVendorsWorkspace({
       accountSummary: createAccountSummary("membership-a"),
       selectedCharacterId: "hunter",
-      active: false,
+      active: true,
       loadInventory
     }));
 

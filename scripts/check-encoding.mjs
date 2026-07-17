@@ -24,6 +24,7 @@ const textExtensions = new Set([
 
 const ignoredDirs = new Set([
   ".git",
+  ".local-data",
   ".vite",
   "coverage",
   "dist",

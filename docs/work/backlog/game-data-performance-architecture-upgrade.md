@@ -1,7 +1,55 @@
 # 资料库与运行时性能架构升级
 
-> 状态：设计草案，待确认后推进
+> 状态：代码与本地验收完成，等待 Release 门禁与稳定版观察
 > 更新时间：2026-07-17
+
+## 当前进度
+
+- 已建立 `GameDataCatalog` 外部 Interface，以及 Memory、SQLite、JSON supplement Adapter。
+- Electron 已升级到 35.7.5，正式 SQLite 实现使用内置 `node:sqlite`，不依赖原生 ABI 扩展。
+- SQLite 下载、解压、完整性与必要表校验、sidecar 构建、staging、关闭连接、原子激活和失败回滚已经接入资料库更新 worker。
+- 装备、Perk、详情、首页、实时来源、活动、商人、社区和账号链路均按 hash 或索引查询；普通 Desktop 运行链路不再调用 `loadDefinitionComponent`。
+- sidecar 已覆盖装备、Perk、Perk-Plug、Perk-装备、canonical identity 和中英文轻量搜索；非当前语言完整 SQLite 只用于离线建索引，激活时不长期保留。
+- `AccountSession`、紧凑 `AccountSnapshot`、按需 `AccountItemDetail`、本地快照、写操作局部 patch 和后台 revalidate 已接入。
+- `BungieSession`、账号 Session 和首页/资料库来源共享请求 Broker；每日与每周合并为 `home:briefing`。
+- 查询 worker、资料库切换协调、共享 Manifest / 后台任务 store、菜单懒加载、ViewModel 缓存、详情状态释放、运行时 p95 / payload / 进程内存诊断、`RuntimeCoordinator` 分阶段启动和账号规范化 Renderer store 已经接入。
+- 商人库存和仓库社区匹配改为菜单进入后按需加载；账号活动与社区匹配拆成独立切片，不再在首页启动时读取隐藏菜单数据。
+- SQLite `getMany` 已由逐 hash 点查改为 512 条一批的参数化查询；账号/首页/社区链路使用专用紧凑投影，Catalog 与启动 Definition reader 使用独立 LRU 预算。
+- 大型 JSON 主缓存已退出正式链路；遗留 JSON 不进入 SQLite 主查询链路，至少经过一个稳定 Release 并验证回滚后再清理，JSON Adapter 当前只保留 supplement 和迁移兼容职责。
+- 最终本地回归已通过 behavior 130 个文件 / 510 个测试、architecture 14 个文件 / 59 个测试、test quality、文档与编码门禁、全仓 build 和全仓 typecheck。
+- Windows NSIS 打包、`win-unpacked` 真实运行、隔离目录安装/启动/卸载、`node:sqlite` 加载和迁移后性能预算均已验证；Release workflow 和稳定 Release 后的真实更新/回滚观察仍需在用户明确发版时执行。
+
+## 本地验收结果
+
+2026-07-17 在 Windows 打包版和真实本地账号/资料库上复测：
+
+| 指标 | 结果 | 状态 |
+|---|---:|---|
+| 打包版外壳加载 `startup.window-load` | 约 0.50-0.58 秒 | 达标 |
+| 缓存账号预热 | 约 4.5 ms | 达标 |
+| 装备搜索 p95（20 次） | 39.9 ms | 达标 |
+| Perk 搜索 p95（20 次） | 10.4 ms | 达标 |
+| 装备详情 p95（20 次） | 11.5 ms | 达标 |
+| AccountSnapshot payload | 约 2.2 MiB | 达标 |
+| 启动阶段最大 Definition batch | 约 983.9 KiB | 达标 |
+| 首页稳定后主进程 working set | 约 146-233 MiB | 达标 |
+| 首页稳定后 Renderer working set | 约 94-98 MiB | 达标 |
+| 仓库社区匹配 Definition batch | 7.2 MiB，原 34.5 MiB | 按需执行 |
+| 仓库加载后 Renderer working set | 约 108 MiB | 达标 |
+| 隔离安装版外壳加载 | 约 505 ms | 达标 |
+| 隔离安装版主进程 / Renderer | 约 223 MiB / 98 MiB | 达标 |
+
+装备搜索首次冷查询峰值约 113 ms，但 20 次采样 p95 为 39.9 ms。仓库社区匹配运行时主进程会短时高于首页预算，因为该预算定义为“首页稳定后”；Renderer 仍明显低于账号与仓库加载后的 450 MiB 预算。
+
+## 本轮复核结论
+
+- 阶段 1、2 的 Catalog Seam、紧凑账号快照和详情按需加载已经完成；Snapshot Definition loader 不再递归展开全部 socket plug set。
+- 阶段 3 的 SQLite 主数据源、supplement staging、pending activation、运行时验证、finalize、显式回滚和崩溃恢复已完成代码、行为测试和 Windows 打包/安装环境验证。
+- 阶段 4 已完成装备、Perk、Perk-Plug、Perk-装备、同名版本关系和双语 sidecar，英文完整 SQLite 只在离线建索引时临时使用。
+- 阶段 5 已完成请求去重、TTL、SWR、Profile component superset、`HomeBriefing` 和 `RuntimeCoordinator` 分阶段启动；旧 core HTTP 入口仅作为稳定 Release 前兼容层保留。
+- 阶段 6 已完成详情缓存作用域、乱序保护和关闭释放、账号规范化 Renderer entity store、稳定 selector、Manifest / 后台任务共享 store，以及活动/社区匹配和商人菜单的按需切片。当前性能预算已达标，不再追加仓库预计算索引或更细代码拆分。
+- 阶段 7 必须等待至少一个稳定 Release 和回滚演练后再删除 JSON 兼容 Adapter 与旧入口，因此当前按门禁保留。
+- 完成标准 1-6、8 已通过代码、全仓回归、Windows 打包版和安装版验证；完成标准 7 已通过本地生命周期回归和可用旧库保留验证，真实 Release 更新/回滚观察仍按发版门禁执行。
 
 ## 目标
 
@@ -498,9 +546,9 @@ SQLite 查询放在长生命周期 worker 中，主进程和 Renderer 不执行�
 - 阶段 6 必须基于阶段 2、3、5 完成后的新基线决定范围，避免优化已经被数据收口消除的问题。
 - 阶段 7 只能在全部正式调用切换且 Release 回滚路径验证后推进。
 
-## 暂定性能预算
+## 已确认性能预算
 
-以下预算需要在阶段 0 的打包版基线中确认：
+以下预算已经用 Windows 打包版确认，并由诊断导出持续显示：
 
 | 指标 | 目标 |
 |---|---:|

@@ -1,8 +1,15 @@
-import type { AccountItemSummary, EquipmentGroupKey } from "./sharedTypes";
+import type { AccountItemDetail, AccountItemSummary, EquipmentGroupKey } from "./sharedTypes.js";
 
 export type AccountApi = {
   loginBungie(): Promise<AuthLoginResult>;
   getAccountSummary(): Promise<AccountSummary>;
+  getCachedAccountSummary(): Promise<CachedAccountSummary | null>;
+  getAccountItemDetail(instanceId: string): Promise<AccountItemDetail>;
+};
+
+export type CachedAccountSummary = {
+  saved_at: string;
+  snapshot: AccountSummary;
 };
 
 export type AuthLoginResult = {

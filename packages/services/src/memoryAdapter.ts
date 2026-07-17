@@ -18,7 +18,6 @@ export type MemoryServicesSeed = {
   communityRecommendations?: LocalCommunityRecommendationTable | null;
   personalWeaponKnowledge?: PersonalWeaponKnowledgeTable;
   communityMatches?: Array<{ hash: number } & VaultItemMatchInfo>;
-  manifestDefinitions?: Record<string, Record<number, unknown>>;
   aiReply?: AiChatReplyResult | ((input: AiChatRequest) => AiChatReplyResult | Promise<AiChatReplyResult>);
 };
 
@@ -51,7 +50,6 @@ export function createMemoryServices(seed: MemoryServicesSeed): D2Services {
     model: "memory",
     text: ""
   };
-  const manifestDefinitions = seed.manifestDefinitions ?? {};
 
   const profile: D2Services["profile"] = {
     async getAccountSummary() {
@@ -162,11 +160,6 @@ export function createMemoryServices(seed: MemoryServicesSeed): D2Services {
 
   return {
     profile,
-    manifest: {
-      async getDefinition<TDefinition = unknown>(tableName: string, hash: number): Promise<TDefinition | null> {
-        return (manifestDefinitions[tableName]?.[hash] ?? null) as TDefinition | null;
-      }
-    },
     localData,
     d2Skill: createD2SkillService({ profile, localData }),
     ai: {

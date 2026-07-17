@@ -1,8 +1,11 @@
 import type { VaultItemMatchInfo, WeaponRecommendation } from "@d2-tools/core/community-perks";
 
 export type {
+  AccountItemDetail,
   AccountItemPlugSummary,
+  AccountItemSnapshot,
   AccountItemSummary,
+  AccountSnapshot,
   AmmoTypeKey,
   ArmorEnergySummary,
   ArmorStatBreakdownSummary,

@@ -14,6 +14,22 @@
       "types": "./dist/config/store.d.ts",
       "import": "./dist/config/store.js"
     },
+    "./account/snapshotStore": {
+      "types": "./dist/account/snapshotStore.d.ts",
+      "import": "./dist/account/snapshotStore.js"
+    },
+    "./account/session": {
+      "types": "./dist/account/session.d.ts",
+      "import": "./dist/account/session.js"
+    },
+    "./bungie/session": {
+      "types": "./dist/bungie/session.d.ts",
+      "import": "./dist/bungie/session.js"
+    },
+    "./bungie/client": {
+      "types": "./dist/bungie/client.d.ts",
+      "import": "./dist/bungie/client.js"
+    },
     "./manifest/cache": {
       "types": "./dist/manifest/cache.d.ts",
       "import": "./dist/manifest/cache.js"
@@ -21,6 +37,26 @@
     "./manifest/definitions": {
       "types": "./dist/manifest/definitions.d.ts",
       "import": "./dist/manifest/definitions.js"
+    },
+    "./manifest/lifecycle": {
+      "types": "./dist/manifest/lifecycle.d.ts",
+      "import": "./dist/manifest/lifecycle.js"
+    },
+    "./gameData": {
+      "types": "./dist/gameData/index.d.ts",
+      "import": "./dist/gameData/index.js"
+    },
+    "./gameData/json": {
+      "types": "./dist/gameData/jsonCatalog.d.ts",
+      "import": "./dist/gameData/jsonCatalog.js"
+    },
+    "./gameData/memory": {
+      "types": "./dist/gameData/memoryCatalog.d.ts",
+      "import": "./dist/gameData/memoryCatalog.js"
+    },
+    "./gameData/sqlite": {
+      "types": "./dist/gameData/sqlite.d.ts",
+      "import": "./dist/gameData/sqlite.js"
     },
     "./oauth/callbackServer": {
       "types": "./dist/oauth/callbackServer.d.ts",
@@ -46,6 +82,7 @@
   },
   "dependencies": {
     "@d2-tools/core": "workspace:*",
+    "extract-zip": "^2.0.1",
     "selfsigned": "^5.5.0"
   },
   "sideEffects": false

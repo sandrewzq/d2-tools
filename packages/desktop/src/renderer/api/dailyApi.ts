@@ -1,5 +1,14 @@
+import type { WeeklySummary } from "./weeklyApi.js";
+
 export type DailyApi = {
+  getHomeBriefing(): Promise<HomeBriefing>;
   getDailySummary(): Promise<DailySummary>;
+};
+
+export type HomeBriefing = {
+  fetched_at: string;
+  daily: DailySummary;
+  weekly: WeeklySummary;
 };
 
 export type DailySourceStatus = "ready" | "pending";

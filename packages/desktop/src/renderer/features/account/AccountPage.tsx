@@ -11,6 +11,7 @@ import {
   matchesLoadoutTemplateItem,
   type LoadoutTemplateLookup
 } from "../../shared/domain/loadouts/loadoutLookup";
+import { useMemo } from "react";
 
 type AccountItemSource = "equipped" | "inventory";
 
@@ -51,7 +52,7 @@ export function AccountPage(props: {
 }) {
   const isBungieConfigured = props.startupState.cards.bungieConfig.status === "ready";
   const isAccountLoggedIn = props.startupState.cards.account.status === "ready";
-  const viewModel = selectAccountPageModel({
+  const viewModel = useMemo(() => selectAccountPageModel({
     cache: {
       accountSummary: props.accountSummary,
       activitySummary: props.activitySummary
@@ -75,7 +76,27 @@ export function AccountPage(props: {
       isRunningItemAction: props.isRunningItemAction,
       activeLoadoutTemplateName: props.activeLoadoutTemplate?.name
     }
-  });
+  }), [
+    props.accountSummary,
+    props.activitySummary,
+    props.selectedCharacterId,
+    props.itemDetailLoadingKey,
+    props.activeLoadoutLookup,
+    isBungieConfigured,
+    isAccountLoggedIn,
+    props.isLoadingAccount,
+    props.writeActionsEnabled,
+    props.startupState.cards.account.label,
+    props.accountError,
+    props.accountWarning,
+    props.itemDetailError,
+    props.activityMessage,
+    props.activityError,
+    props.loadoutMessage,
+    props.itemActionMessage,
+    props.isRunningItemAction,
+    props.activeLoadoutTemplate?.name
+  ]);
 
   function findCharacter(characterId: string): AccountSummary["characters"][number] | null {
     return props.accountSummary?.characters.find((character) => character.character_id === characterId) ?? null;

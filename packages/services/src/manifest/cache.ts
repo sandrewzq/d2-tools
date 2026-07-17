@@ -25,6 +25,13 @@ export type ManifestMetadataCache = {
 
 export type ManifestStatus = {
   initialized: boolean;
+  runtime_state?:
+    | "ready"
+    | "update_available"
+    | "supplement_required"
+    | "repair_required"
+    | "updating"
+    | "failed_but_usable";
   version?: string;
   latest_version?: string;
   needs_update?: boolean;
@@ -293,6 +300,13 @@ function manifestContentPathsChanged(
   language: string
 ): boolean {
   if (!current) {
+    return true;
+  }
+  const currentSqlitePath = current.mobileWorldContentPaths?.[language]
+    ?? current.mobileWorldContentPaths?.en;
+  const latestSqlitePath = latest.mobileWorldContentPaths?.[language]
+    ?? latest.mobileWorldContentPaths?.en;
+  if (currentSqlitePath !== latestSqlitePath) {
     return true;
   }
   const currentPaths = current.jsonWorldComponentContentPaths?.[language]

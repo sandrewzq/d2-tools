@@ -1,6 +1,10 @@
 export type { AccountWorkspace, AccountWorkspaceWarning } from "./workspaces/account.js";
 export { loadAccountWorkspace } from "./workspaces/account.js";
-export type { AccountDerivedWorkspace, FullAccountWorkspace } from "./workspaces/accountDerived.js";
+export type {
+  AccountDerivedWorkspace,
+  FullAccountWorkspace,
+  LoadAccountDerivedWorkspaceOptions
+} from "./workspaces/accountDerived.js";
 export { loadAccountDerivedWorkspace, loadFullAccountWorkspace } from "./workspaces/accountDerived.js";
 export type {
   AccountCharacterTab,

@@ -1,5 +1,5 @@
 import { api } from "../../api/client";
-import type { AccountItemSummary, AccountSummary, BatchItemActionResult, D2Config, ItemActionResult, VaultTags, VaultTagValue } from "../../api/types";
+import type { AccountItemActionPatch, AccountItemSummary, AccountSummary, BatchItemActionResult, D2Config, ItemActionResult, VaultTags, VaultTagValue } from "../../api/types";
 import { services } from "../../api/services";
 import {
   buildVaultBatchTransferConfirmText,
@@ -19,6 +19,7 @@ type DiagnosticsBridge = {
 
 export function useVaultWriteActions(input: {
   accountSummary: AccountSummary | null;
+  applyAccountActionPatches: (patches: readonly AccountItemActionPatch[]) => void;
   diagnostics: DiagnosticsBridge;
   setVaultTags: (tags: VaultTags) => void;
   setAccountError: (message: string) => void;
@@ -85,16 +86,24 @@ export function useVaultWriteActions(input: {
 
     let successCount = 0;
     let failedCount = 0;
+    const accountPatches: AccountItemActionPatch[] = [];
     try {
       for (const item of actionableItems) {
         try {
-          await run(item);
+          const result = await run(item);
+          if (result.account_patch) accountPatches.push(result.account_patch);
           successCount += 1;
         } catch {
           failedCount += 1;
         }
       }
-      await Promise.all([input.loadAccountSummary(), input.diagnostics.loadActionLog()]);
+      input.applyAccountActionPatches(accountPatches);
+      if (successCount > accountPatches.length) {
+        void input.loadAccountSummary().catch((error) => {
+          input.setAccountError(error instanceof Error ? error.message : "操作完成，但刷新账号数据失败");
+        });
+      }
+      void input.diagnostics.loadActionLog().catch(() => undefined);
     } finally {
       input.setIsRunningItemAction(false);
     }
@@ -166,7 +175,13 @@ export function useVaultWriteActions(input: {
           transfer_to_vault: false
         }))
       });
-      await Promise.all([input.loadAccountSummary(), input.diagnostics.loadActionLog()]);
+      input.applyAccountActionPatches(result.account_patches);
+      if (result.success_count > result.account_patches.length) {
+        void input.loadAccountSummary().catch((error) => {
+          input.setAccountError(error instanceof Error ? error.message : "操作完成，但刷新账号数据失败");
+        });
+      }
+      void input.diagnostics.loadActionLog().catch(() => undefined);
       return result;
     } catch (error) {
       throw error instanceof Error ? error : new Error("批量转移失败");

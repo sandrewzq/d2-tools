@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { LoadoutsPageContentView, type LoadoutActionFeedbackState, type LoadoutsPageActions } from "@d2-tools/ui";
 import { analyzeLoadoutTemplate } from "@d2-tools/core/loadouts/analysis";
 import type { AccountSummary, LoadoutTemplate } from "../../api/types";
@@ -53,14 +53,21 @@ export type LoadoutsPageProps = {
 
 export function LoadoutsPage(props: LoadoutsPageProps) {
   const [selectedEntryId, setSelectedEntryId] = useState("");
-  const model = selectLoadoutsPageModel({
+  const model = useMemo(() => selectLoadoutsPageModel({
     accountSummary: props.accountSummary,
     templates: props.templates,
     selectedTemplateId: props.selectedTemplateId,
     selectedEntryId,
     compareTemplateId: props.compareTemplateId,
     showDiffOnly: props.showDiffOnly
-  });
+  }), [
+    props.accountSummary,
+    props.templates,
+    props.selectedTemplateId,
+    selectedEntryId,
+    props.compareTemplateId,
+    props.showDiffOnly
+  ]);
   const actions: LoadoutsPageActions = {
     selectEntry: setSelectedEntryId,
     selectTemplate: (id) => {

@@ -14,12 +14,9 @@ export function useDailySummary() {
     setIsLoadingDaily(true);
     setDailyError("");
     try {
-      const [nextDailySummary, nextWeeklySummary] = await Promise.all([
-        api.getDailySummary(),
-        api.getWeeklySummary()
-      ]);
-      setDailySummary(nextDailySummary);
-      setWeeklySummary(nextWeeklySummary);
+      const briefing = await api.getHomeBriefing();
+      setDailySummary(briefing.daily);
+      setWeeklySummary(briefing.weekly);
     } catch (error) {
       setDailyError(error instanceof Error ? error.message : "今日面板读取失败");
     } finally {

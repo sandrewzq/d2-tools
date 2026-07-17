@@ -78,7 +78,31 @@ export type LoadoutSnapshotActionInput = {
 export type ItemActionResult = {
   ok: true;
   message: string;
+  account_patch?: AccountItemActionPatch;
 };
+
+export type AccountItemActionPatch =
+  | {
+      kind: "lock";
+      item_instance_id: string;
+      locked: boolean;
+    }
+  | {
+      kind: "equip";
+      item_instance_id: string;
+      character_id: string;
+    }
+  | {
+      kind: "transfer";
+      item_instance_id: string;
+      character_id: string;
+      target: "vault" | "character-inventory";
+    }
+  | {
+      kind: "postmaster-pull";
+      item_instance_id: string;
+      character_id: string;
+    };
 
 export type BatchEquipItemsInput = {
   membership_type: number;
@@ -98,6 +122,7 @@ export type BatchItemActionResult = {
   success_count: number;
   failed_count: number;
   message: string;
+  account_patches: AccountItemActionPatch[];
 };
 
 export type ActionLogEntry = {

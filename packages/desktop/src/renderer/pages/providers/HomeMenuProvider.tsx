@@ -1,4 +1,5 @@
 import { HomeDashboard } from "../../features/home/HomeDashboard";
+import { useHasAccountDataStore } from "../../shared/stores/accountEntityStore";
 import { useDesktopMenuSession } from "./DesktopMenuProviderContext";
 
 export function HomeMenuProvider() {
@@ -6,6 +7,7 @@ export function HomeMenuProvider() {
   const account = session.account;
   const daily = session.daily;
   const diagnostics = session.diagnostics;
+  const hasAccountData = useHasAccountDataStore();
 
   return (
     <HomeDashboard
@@ -17,7 +19,7 @@ export function HomeMenuProvider() {
       diagnosticRows={session.home.diagnosticRows}
       diagnosticError={diagnostics.diagnosticError}
       accountError={account.accountError}
-      hasAccountData={Boolean(account.accountSummary)}
+      hasAccountData={hasAccountData}
       dailySummary={daily.dailySummary}
       weeklySummary={daily.weeklySummary}
       dailyMessage={daily.dailyMessage}

@@ -22,10 +22,6 @@ export type ProfileService = {
   matchCommunityVaultItems?: (items: Array<{ hash: number; socket_plugs?: Array<{ hash: number }> }>) => Promise<Array<{ hash: number } & VaultItemMatchInfo>>;
 };
 
-export type ManifestService = {
-  getDefinition<TDefinition = unknown>(tableName: string, hash: number): Promise<TDefinition | null>;
-};
-
 export type LocalDataService = {
   getDimWishlist(): Promise<DimWishlist | null>;
   saveDimWishlist(wishlist: DimWishlist): Promise<DimWishlist>;
@@ -54,7 +50,6 @@ export type AiService = {
 
 export type D2Services = {
   profile: ProfileService;
-  manifest: ManifestService;
   localData: LocalDataService;
   d2Skill: D2SkillService;
   ai: AiService;

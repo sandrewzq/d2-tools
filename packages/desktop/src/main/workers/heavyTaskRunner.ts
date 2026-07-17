@@ -2,17 +2,24 @@ import { Worker } from "node:worker_threads";
 import type { D2Config } from "@d2-tools/core/config/schema";
 
 export type HeavyTaskInput =
-  | { task: "manifest-update"; repair?: boolean; config: D2Config }
-  | { task: "account-summary" };
+  | { task: "manifest-update"; repair?: boolean; config: D2Config };
 
 type HeavyTaskMessage<TResult> =
   | { type: "result"; ok: true; result: TResult }
   | { type: "result"; ok: false; error: string }
-  | { type: "progress"; progress_percent: number; message: string };
+  | { type: "progress"; progress_percent: number; message: string }
+  | { type: "activation-request" };
+
+export type HeavyTaskRunOptions = {
+  beforeActivate?: () => void | Promise<void>;
+};
+
+const activationTimeoutMs = 10_000;
 
 export function runHeavyTaskInWorker<TResult>(
   input: HeavyTaskInput,
-  onProgress?: (progress: { progress_percent: number; message: string }) => void
+  onProgress?: (progress: { progress_percent: number; message: string }) => void,
+  options: HeavyTaskRunOptions = {}
 ): Promise<TResult> {
   return new Promise((resolve, reject) => {
     let settled = false;
@@ -26,6 +33,21 @@ export function runHeavyTaskInWorker<TResult>(
           progress_percent: message.progress_percent,
           message: message.message
         });
+        return;
+      }
+      if (message.type === "activation-request") {
+        void withTimeout(
+          Promise.resolve(options.beforeActivate?.()),
+          activationTimeoutMs,
+          "关闭旧资料库连接超时"
+        ).then(
+          () => worker.postMessage({ type: "activation-ready", ok: true }),
+          (error) => worker.postMessage({
+            type: "activation-ready",
+            ok: false,
+            error: error instanceof Error ? error.message : "关闭旧资料库连接失败"
+          })
+        );
         return;
       }
       settled = true;
@@ -44,5 +66,25 @@ export function runHeavyTaskInWorker<TResult>(
         reject(new Error(code === 0 ? "后台 worker 未返回结果" : `后台 worker 异常退出：${code}`));
       }
     });
+  });
+}
+
+function withTimeout<TResult>(
+  promise: Promise<TResult>,
+  timeoutMs: number,
+  message: string
+): Promise<TResult> {
+  return new Promise<TResult>((resolve, reject) => {
+    const timeout = setTimeout(() => reject(new Error(message)), timeoutMs);
+    void promise.then(
+      (value) => {
+        clearTimeout(timeout);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timeout);
+        reject(error);
+      }
+    );
   });
 }

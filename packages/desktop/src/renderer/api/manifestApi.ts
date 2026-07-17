@@ -34,6 +34,13 @@ export type StatusCardState = {
 
 export type ManifestStatus = {
   initialized: boolean;
+  runtime_state?:
+    | "ready"
+    | "update_available"
+    | "supplement_required"
+    | "repair_required"
+    | "updating"
+    | "failed_but_usable";
   version?: string;
   latest_version?: string;
   needs_update?: boolean;

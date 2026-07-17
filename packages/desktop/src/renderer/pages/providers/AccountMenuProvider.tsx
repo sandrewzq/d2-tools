@@ -1,15 +1,17 @@
 import { AccountPage } from "../../features/account/AccountPage";
+import { useAccountSummaryStore } from "../../shared/stores/accountEntityStore";
 import { useDesktopMenuSession } from "./DesktopMenuProviderContext";
 
 export function AccountMenuProvider() {
   const session = useDesktopMenuSession();
   const account = session.account;
+  const accountSummary = useAccountSummaryStore();
   const writeActions = session.writeActions;
 
   return (
     <AccountPage
       interfaceLocale={session.diagnostics.languagePreferences.interfaceLocale}
-      accountSummary={account.accountSummary}
+      accountSummary={accountSummary}
       startupState={session.state}
       selectedCharacterId={account.selectedCharacterId}
       isLoadingAccount={account.isLoadingAccount}

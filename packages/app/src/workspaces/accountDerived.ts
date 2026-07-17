@@ -12,6 +12,11 @@ export type AccountDerivedWorkspace = {
 
 export type FullAccountWorkspace = AccountWorkspace & AccountDerivedWorkspace;
 
+export type LoadAccountDerivedWorkspaceOptions = {
+  includeActivity?: boolean;
+  includeCommunityMatch?: boolean;
+};
+
 export async function loadFullAccountWorkspace(
   services: Pick<D2Services, "profile" | "localData">
 ): Promise<QueryState<FullAccountWorkspace>> {
@@ -37,14 +42,19 @@ export async function loadFullAccountWorkspace(
 
 export async function loadAccountDerivedWorkspace(
   services: Pick<D2Services, "profile">,
-  account: AccountSummary
+  account: AccountSummary,
+  options: LoadAccountDerivedWorkspaceOptions = {}
 ): Promise<QueryState<AccountDerivedWorkspace>> {
   return runQuery(async () => {
-    const activitySummary = await services.profile.getActivitySummary({
-      membership_type: account.membership_type,
-      membership_id: account.destiny_membership_id,
-      character_ids: account.characters.map((character) => character.character_id)
-    });
+    const includeActivity = options.includeActivity ?? true;
+    const includeCommunityMatch = options.includeCommunityMatch ?? true;
+    const activitySummary = includeActivity
+      ? await services.profile.getActivitySummary({
+          membership_type: account.membership_type,
+          membership_id: account.destiny_membership_id,
+          character_ids: account.characters.map((character) => character.character_id)
+        })
+      : null;
 
     const allItems = [
       ...account.characters.flatMap((character) => [
@@ -57,7 +67,7 @@ export async function loadAccountDerivedWorkspace(
 
     const matchCommunityVaultItems = services.profile.matchCommunityVaultItems;
     const vaultCommunityMatch = new Map<number, VaultItemMatchInfo>();
-    if (matchCommunityVaultItems) {
+    if (includeCommunityMatch && matchCommunityVaultItems) {
       const result = await matchCommunityVaultItems(
         allItems.map((item) => ({
           hash: item.hash,

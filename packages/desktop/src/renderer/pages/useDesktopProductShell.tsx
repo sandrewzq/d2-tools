@@ -65,6 +65,7 @@ export function useDesktopProductShell(props: {
   });
   const {
     accountSummary,
+    applyAccountActionPatches,
     vaultTags,
     setVaultTags,
     accountError,
@@ -90,15 +91,31 @@ export function useDesktopProductShell(props: {
     () => buildVendorItemSourcePaths(vendorsWorkspace.model),
     [vendorsWorkspace.model]
   );
+  const itemDetailCacheScopeKey = useMemo(() => [
+    accountSummary
+      ? `${accountSummary.membership_type}:${accountSummary.destiny_membership_id}`
+      : "signed-out",
+    diagnostics.manifestStatus?.version ?? "manifest-unavailable",
+    diagnostics.manifestStatus?.language ?? "",
+    diagnostics.manifestStatus?.cached_at ?? ""
+  ].join("\u0000"), [
+    accountSummary?.destiny_membership_id,
+    accountSummary?.membership_type,
+    diagnostics.manifestStatus?.cached_at,
+    diagnostics.manifestStatus?.language,
+    diagnostics.manifestStatus?.version
+  ]);
   const library = useLibraryWorkspace({ vendorSourcePaths });
   const loadoutLibrary = useLoadoutTemplates();
   const writeActions = useDesktopProductWriteActions({
     accountSummary,
+    applyAccountActionPatches,
     diagnostics,
     vaultTags,
     setVaultTags,
     importedWishlist,
     localTargetRules,
+    itemDetailCacheScopeKey,
     setAccountError,
     loadAccountSummary: refreshAccountAfterWrite,
     loadoutLibrary,

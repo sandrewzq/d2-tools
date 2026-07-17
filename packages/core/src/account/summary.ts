@@ -1,7 +1,11 @@
 import { fetchBungieJson } from "../bungie/client.js";
 import type { D2Config } from "../config/schema.js";
 import { ammoTypeKey, classifyBucket, type AmmoTypeKey, type EquipmentGroupKey } from "../items/classification.js";
-import { summarizeWeaponFrame, type WeaponFrameSummary } from "../items/weaponFrames.js";
+import {
+  summarizeSelectedWeaponFrame,
+  summarizeWeaponFrame,
+  type WeaponFrameSummary
+} from "../items/weaponFrames.js";
 import type { ArmorStatKey } from "../loadouts/analysis.js";
 import type { DefinitionComponentData, DefinitionRecord } from "../manifest/definitions.js";
 import type { BungieOAuthToken } from "../oauth/login.js";
@@ -207,6 +211,70 @@ export type AccountSummary = {
   };
 };
 
+export type AccountItemSnapshot = Omit<
+  AccountItemSummary,
+  "armor_energy" | "armor_stat_breakdown" | "item_objectives" | "sockets"
+>;
+
+export type AccountCharacterSnapshot = Omit<
+  CharacterSummary,
+  | "craftable_items"
+  | "equipped_items"
+  | "equipment_groups"
+  | "inventory_items"
+  | "inventory_groups"
+  | "postmaster_items"
+> & {
+  equipped_items: AccountItemSnapshot[];
+  equipment_groups: [];
+  inventory_items: AccountItemSnapshot[];
+  inventory_groups: [];
+  postmaster_items: AccountItemSnapshot[];
+};
+
+export type AccountSnapshot = Omit<AccountSummary, "characters" | "vault"> & {
+  characters: AccountCharacterSnapshot[];
+  vault: {
+    item_count: number;
+    items: AccountItemSnapshot[];
+    sample_items: [];
+  };
+};
+
+export type AccountItemDetail = AccountItemSummary & {
+  instance_id: string;
+  sockets: AccountItemSocketSummary[];
+};
+
+export type AccountItemDetailQuery = {
+  destiny_membership_id: string;
+  membership_type: number;
+  instance_id: string;
+  item_hash: number;
+  character_id?: string;
+};
+
+export type AccountDefinitionRequest = {
+  itemHashes: number[];
+  bucketHashes: number[];
+  plugSetHashes: number[];
+  objectiveHashes: number[];
+  loadoutNameHashes: number[];
+  expandSocketPlugSets?: boolean;
+};
+
+export type AccountDefinitionData = {
+  itemDefinitions?: DefinitionComponentData;
+  bucketDefinitions?: DefinitionComponentData;
+  plugSetDefinitions?: DefinitionComponentData;
+  objectiveDefinitions?: DefinitionComponentData;
+  loadoutNameDefinitions?: DefinitionComponentData;
+};
+
+export type AccountDefinitionLoader = (
+  request: AccountDefinitionRequest
+) => AccountDefinitionData | Promise<AccountDefinitionData>;
+
 export type FetchAccountSummaryOptions = {
   config: D2Config;
   token: BungieOAuthToken;
@@ -215,11 +283,16 @@ export type FetchAccountSummaryOptions = {
   plugSetDefinitions?: DefinitionComponentData;
   objectiveDefinitions?: DefinitionComponentData;
   loadoutNameDefinitions?: DefinitionComponentData;
+  loadDefinitions?: AccountDefinitionLoader;
   baseUrl?: string;
   fetchImpl?: typeof fetch;
 };
 
-type UserMembershipData = {
+export type FetchAccountItemDetailOptions = FetchAccountSummaryOptions & {
+  query: AccountItemDetailQuery;
+};
+
+export type UserMembershipData = {
   bungieNetUser?: {
     displayName?: string;
     uniqueName?: string;
@@ -228,7 +301,7 @@ type UserMembershipData = {
   primaryMembershipId?: string;
 };
 
-type DestinyMembership = {
+export type DestinyMembership = {
   membershipId: string;
   membershipType: number;
   displayName?: string;
@@ -236,7 +309,7 @@ type DestinyMembership = {
   bungieGlobalDisplayNameCode?: number;
 };
 
-type DestinyProfileResponse = {
+export type DestinyProfileResponse = {
   characters?: {
     data?: Record<string, DestinyCharacter>;
   };
@@ -283,6 +356,16 @@ type DestinyProfileResponse = {
   };
 };
 
+export type DestinyItemResponse = {
+  item?: { data?: DestinyProfileItem };
+  instance?: { data?: DestinyItemInstanceComponent };
+  objectives?: { data?: DestinyItemObjectivesComponent };
+  stats?: { data?: DestinyItemStatsComponent };
+  sockets?: { data?: DestinyItemSocketsComponent };
+  reusablePlugs?: { data?: DestinyItemReusablePlugsComponent };
+  plugObjectives?: { data?: DestinyItemPlugObjectivesComponent };
+};
+
 type DestinyCharacter = {
   characterId: string;
   classType?: number;
@@ -290,7 +373,7 @@ type DestinyCharacter = {
   emblemPath?: string;
 };
 
-type DestinyProfileItem = {
+export type DestinyProfileItem = {
   itemHash: number;
   itemInstanceId?: string;
   bucketHash?: number;
@@ -399,7 +482,7 @@ type DestinyCharacterLoadout = {
 };
 
 const bungieStaticBaseUrl = "https://www.bungie.net";
-const profileComponents = [
+const fullProfileComponents = [
   100, // Profiles
   102, // ProfileInventories
   200, // Characters
@@ -414,6 +497,40 @@ const profileComponents = [
   310, // ItemReusablePlugs
   1300 // Craftables
 ].join(",");
+
+const snapshotProfileComponents = [
+  100, // Profiles
+  102, // ProfileInventories
+  200, // Characters
+  201, // CharacterInventories
+  205, // CharacterEquipment
+  206, // CharacterLoadouts
+  300, // ItemInstances
+  304, // ItemStats
+  305 // ItemSockets
+].join(",");
+
+const itemDetailComponents = [
+  300, // ItemInstances
+  301, // ItemObjectives
+  304, // ItemStats
+  305, // ItemSockets
+  309, // ItemPlugObjectives
+  310 // ItemReusablePlugs
+].join(",");
+
+export type AccountSummaryMode = "full" | "snapshot";
+
+export type BuildAccountSummaryInput = AccountDefinitionData & {
+  memberships: UserMembershipData;
+  destinyMembership?: DestinyMembership;
+  profile: DestinyProfileResponse;
+};
+
+export type BuildAccountItemDetailInput = AccountDefinitionData & {
+  query: AccountItemDetailQuery;
+  response: DestinyItemResponse;
+};
 
 const equipmentGroupLabels: Record<EquipmentGroupKey, string> = {
   weapons: "武器",
@@ -449,6 +566,245 @@ const weaponStatHashMap: Record<number, WeaponStatKey> = {
 };
 
 export async function fetchAccountSummary(options: FetchAccountSummaryOptions): Promise<AccountSummary> {
+  const { memberships, destinyMembership, profile } = await fetchAccountProfile(
+    options,
+    fullProfileComponents
+  );
+  const hydratedOptions = await hydrateAccountDefinitions(options, profile);
+  return buildAccountSummaryFromResponses({
+    ...hydratedOptions,
+    memberships,
+    destinyMembership,
+    profile
+  });
+}
+
+export async function fetchAccountSnapshot(options: FetchAccountSummaryOptions): Promise<AccountSnapshot> {
+  const { memberships, destinyMembership, profile } = await fetchAccountProfile(
+    options,
+    snapshotProfileComponents
+  );
+  const hydratedOptions = await hydrateAccountDefinitions(options, profile);
+  return buildAccountSnapshot({
+    ...hydratedOptions,
+    memberships,
+    destinyMembership,
+    profile
+  });
+}
+
+export async function fetchAccountItemDetail(
+  options: FetchAccountItemDetailOptions
+): Promise<AccountItemDetail> {
+  const accessToken = options.token.access_token;
+  if (!accessToken) {
+    throw new Error("Bungie access token is required");
+  }
+
+  const response = await fetchBungieJson<DestinyItemResponse>(
+    `/Destiny2/${options.query.membership_type}/Profile/${options.query.destiny_membership_id}/Item/${options.query.instance_id}/?components=${itemDetailComponents}`,
+    {
+      apiKey: options.config.bungie.api_key,
+      accessToken,
+      baseUrl: options.baseUrl,
+      fetchImpl: options.fetchImpl
+    }
+  );
+  const { item, profile } = normalizeAccountItemDetailResponse(options.query, response);
+  const hydratedOptions = await hydrateAccountDefinitions(options, profile, [item]);
+  return buildAccountItemDetailFromResponse({
+    ...hydratedOptions,
+    query: options.query,
+    response
+  });
+}
+
+export function buildAccountSummaryFromResponses(input: BuildAccountSummaryInput): AccountSummary {
+  const destinyMembership = input.destinyMembership ?? selectDestinyMembership(input.memberships);
+  return buildAccountSummary(input, input.memberships, destinyMembership, input.profile, "full");
+}
+
+export function buildAccountSnapshot(input: BuildAccountSummaryInput): AccountSnapshot {
+  const destinyMembership = input.destinyMembership ?? selectDestinyMembership(input.memberships);
+  return buildAccountSummary(input, input.memberships, destinyMembership, input.profile, "snapshot") as AccountSnapshot;
+}
+
+export function buildAccountItemDetailFromResponse(
+  input: BuildAccountItemDetailInput
+): AccountItemDetail {
+  const { item, profile } = normalizeAccountItemDetailResponse(input.query, input.response);
+  return summarizeItem(
+    item,
+    input.itemDefinitions ?? {},
+    profile,
+    input.bucketDefinitions ?? {},
+    input.plugSetDefinitions ?? {},
+    input.objectiveDefinitions ?? {},
+    input.query.character_id,
+    "full"
+  ) as AccountItemDetail;
+}
+
+export function collectAccountItemDetailDefinitionRequest(
+  query: AccountItemDetailQuery,
+  response: DestinyItemResponse
+): AccountDefinitionRequest {
+  const { item, profile } = normalizeAccountItemDetailResponse(query, response);
+  return collectAccountDefinitionRequest(profile, [item]);
+}
+
+function normalizeAccountItemDetailResponse(
+  query: AccountItemDetailQuery,
+  response: DestinyItemResponse
+): { item: DestinyProfileItem; profile: DestinyProfileResponse } {
+  const item: DestinyProfileItem = {
+    ...response.item?.data,
+    itemHash: response.item?.data?.itemHash ?? query.item_hash,
+    itemInstanceId: query.instance_id
+  };
+  return {
+    item,
+    profile: {
+      itemComponents: {
+        instances: { data: response.instance?.data ? { [query.instance_id]: response.instance.data } : {} },
+        objectives: { data: response.objectives?.data ? { [query.instance_id]: response.objectives.data } : {} },
+        stats: { data: response.stats?.data ? { [query.instance_id]: response.stats.data } : {} },
+        sockets: { data: response.sockets?.data ? { [query.instance_id]: response.sockets.data } : {} },
+        reusablePlugs: { data: response.reusablePlugs?.data ? { [query.instance_id]: response.reusablePlugs.data } : {} },
+        plugObjectives: { data: response.plugObjectives?.data ? { [query.instance_id]: response.plugObjectives.data } : {} }
+      }
+    }
+  };
+}
+
+async function hydrateAccountDefinitions(
+  options: FetchAccountSummaryOptions,
+  profile: DestinyProfileResponse,
+  additionalItems: DestinyProfileItem[] = []
+): Promise<FetchAccountSummaryOptions> {
+  if (!options.loadDefinitions) {
+    return options;
+  }
+
+  const loaded = await options.loadDefinitions(
+    collectAccountDefinitionRequest(profile, additionalItems)
+  );
+  return {
+    ...options,
+    itemDefinitions: mergeDefinitionData(options.itemDefinitions, loaded.itemDefinitions),
+    bucketDefinitions: mergeDefinitionData(options.bucketDefinitions, loaded.bucketDefinitions),
+    plugSetDefinitions: mergeDefinitionData(options.plugSetDefinitions, loaded.plugSetDefinitions),
+    objectiveDefinitions: mergeDefinitionData(options.objectiveDefinitions, loaded.objectiveDefinitions),
+    loadoutNameDefinitions: mergeDefinitionData(
+      options.loadoutNameDefinitions,
+      loaded.loadoutNameDefinitions
+    )
+  };
+}
+
+export function collectAccountDefinitionRequest(
+  profile: DestinyProfileResponse,
+  additionalItems: DestinyProfileItem[] = []
+): AccountDefinitionRequest {
+  const itemHashes = new Set<number>();
+  const bucketHashes = new Set<number>();
+  const plugSetHashes = new Set<number>();
+  const objectiveHashes = new Set<number>();
+  const loadoutNameHashes = new Set<number>();
+  const addItem = (item: DestinyProfileItem): void => {
+    addHash(itemHashes, item.itemHash);
+    addHash(bucketHashes, item.bucketHash);
+  };
+  const addPlugState = (plug: DestinyItemPlugState): void => {
+    addHash(itemHashes, plug.plugItemHash);
+    for (const objective of plug.plugObjectives ?? []) {
+      addHash(objectiveHashes, objective.objectiveHash);
+    }
+  };
+
+  for (const item of additionalItems) addItem(item);
+  for (const item of profile.profileInventory?.data?.items ?? []) addItem(item);
+  for (const inventory of Object.values(profile.characterInventories?.data ?? {})) {
+    for (const item of inventory.items ?? []) addItem(item);
+  }
+  for (const equipment of Object.values(profile.characterEquipment?.data ?? {})) {
+    for (const item of equipment.items ?? []) addItem(item);
+  }
+  for (const sockets of Object.values(profile.itemComponents?.sockets?.data ?? {})) {
+    for (const socket of sockets.sockets ?? []) addHash(itemHashes, socket.plugHash);
+  }
+  for (const reusablePlugs of Object.values(profile.itemComponents?.reusablePlugs?.data ?? {})) {
+    for (const plugs of Object.values(reusablePlugs.plugs ?? {})) {
+      for (const plug of plugs) addPlugState(plug);
+    }
+  }
+  for (const objectives of Object.values(profile.itemComponents?.objectives?.data ?? {})) {
+    for (const objective of objectives.objectives ?? []) {
+      addHash(objectiveHashes, objective.objectiveHash);
+    }
+  }
+  for (const plugObjectives of Object.values(profile.itemComponents?.plugObjectives?.data ?? {})) {
+    for (const [plugHash, objectives] of Object.entries(plugObjectives.objectivesPerPlug ?? {})) {
+      addHash(itemHashes, Number(plugHash));
+      for (const objective of objectives) addHash(objectiveHashes, objective.objectiveHash);
+    }
+  }
+  for (const plugSet of [
+    profile.profilePlugSets?.data,
+    ...Object.values(profile.characterPlugSets?.data ?? {})
+  ]) {
+    for (const plugs of Object.values(plugSet?.plugs ?? {})) {
+      for (const plug of plugs) addPlugState(plug);
+    }
+  }
+  for (const loadoutComponent of Object.values(profile.characterLoadouts?.data ?? {})) {
+    for (const loadout of loadoutComponent.loadouts ?? []) {
+      addHash(loadoutNameHashes, loadout.nameHash);
+    }
+  }
+  for (const craftableComponent of Object.values(profile.characterCraftables?.data ?? {})) {
+    for (const [itemHash, craftable] of Object.entries(craftableComponent.craftables ?? {})) {
+      addHash(itemHashes, Number(itemHash));
+      for (const socket of craftable.sockets ?? []) {
+        addHash(plugSetHashes, socket.plugSetHash);
+        for (const plug of socket.plugs ?? []) addHash(itemHashes, plug.plugItemHash);
+      }
+    }
+  }
+
+  return {
+    itemHashes: [...itemHashes],
+    bucketHashes: [...bucketHashes],
+    plugSetHashes: [...plugSetHashes],
+    objectiveHashes: [...objectiveHashes],
+    loadoutNameHashes: [...loadoutNameHashes],
+    expandSocketPlugSets: true
+  };
+}
+
+function addHash(target: Set<number>, hash: number | undefined): void {
+  if (typeof hash === "number" && Number.isFinite(hash)) {
+    target.add(hash >>> 0);
+  }
+}
+
+function mergeDefinitionData(
+  existing: DefinitionComponentData | undefined,
+  loaded: DefinitionComponentData | undefined
+): DefinitionComponentData | undefined {
+  if (!existing) return loaded;
+  if (!loaded) return existing;
+  return { ...existing, ...loaded };
+}
+
+async function fetchAccountProfile(
+  options: FetchAccountSummaryOptions,
+  components: string
+): Promise<{
+  memberships: UserMembershipData;
+  destinyMembership: DestinyMembership;
+  profile: DestinyProfileResponse;
+}> {
   const accessToken = options.token.access_token;
   if (!accessToken) {
     throw new Error("Bungie access token is required");
@@ -465,7 +821,7 @@ export async function fetchAccountSummary(options: FetchAccountSummaryOptions): 
   );
   const destinyMembership = selectDestinyMembership(memberships);
   const profile = await fetchBungieJson<DestinyProfileResponse>(
-    `/Destiny2/${destinyMembership.membershipType}/Profile/${destinyMembership.membershipId}/?components=${profileComponents}`,
+    `/Destiny2/${destinyMembership.membershipType}/Profile/${destinyMembership.membershipId}/?components=${components}`,
     {
       apiKey: options.config.bungie.api_key,
       accessToken,
@@ -473,7 +829,24 @@ export async function fetchAccountSummary(options: FetchAccountSummaryOptions): 
       fetchImpl: options.fetchImpl
     }
   );
+  return { memberships, destinyMembership, profile };
+}
 
+function buildAccountSummary(
+  options: AccountDefinitionData,
+  memberships: UserMembershipData,
+  destinyMembership: DestinyMembership,
+  profile: DestinyProfileResponse,
+  mode: AccountSummaryMode
+): AccountSummary {
+  const profileInventory = summarizeProfileInventory(
+    profile,
+    options.itemDefinitions ?? {},
+    options.bucketDefinitions ?? {},
+    options.plugSetDefinitions ?? {},
+    options.objectiveDefinitions ?? {},
+    mode
+  );
   return {
     account_name: memberships.bungieNetUser?.displayName
       ?? memberships.bungieNetUser?.uniqueName
@@ -488,15 +861,11 @@ export async function fetchAccountSummary(options: FetchAccountSummaryOptions): 
       options.bucketDefinitions ?? {},
       options.loadoutNameDefinitions ?? {},
       options.plugSetDefinitions ?? {},
-      options.objectiveDefinitions ?? {}
+      options.objectiveDefinitions ?? {},
+      profileInventory.vault.items,
+      mode
     ),
-    ...summarizeProfileInventory(
-      profile,
-      options.itemDefinitions ?? {},
-      options.bucketDefinitions ?? {},
-      options.plugSetDefinitions ?? {},
-      options.objectiveDefinitions ?? {}
-    )
+    ...profileInventory
   };
 }
 
@@ -517,19 +886,11 @@ function summarizeCharacters(
   bucketDefinitions: DefinitionComponentData,
   loadoutNameDefinitions: DefinitionComponentData,
   plugSetDefinitions: DefinitionComponentData,
-  objectiveDefinitions: DefinitionComponentData
+  objectiveDefinitions: DefinitionComponentData,
+  vaultItems: AccountItemSummary[],
+  mode: AccountSummaryMode
 ): CharacterSummary[] {
   const characters = Object.values(profile.characters?.data ?? {});
-  const vaultItems = (profile.profileInventory?.data?.items ?? [])
-    .filter((item) => Boolean(item.itemInstanceId))
-    .map((item) => summarizeItem(
-      item,
-      definitions,
-      profile,
-      bucketDefinitions,
-      plugSetDefinitions,
-      objectiveDefinitions
-    ));
 
   return characters.map((character) => {
     const equippedItems = (profile.characterEquipment?.data?.[character.characterId]?.items ?? [])
@@ -541,7 +902,8 @@ function summarizeCharacters(
         bucketDefinitions,
         plugSetDefinitions,
         objectiveDefinitions,
-        character.characterId
+        character.characterId,
+        mode
       ));
     const allCharacterItems = (profile.characterInventories?.data?.[character.characterId]?.items ?? [])
       .map((item) => summarizeItem(
@@ -551,7 +913,8 @@ function summarizeCharacters(
         bucketDefinitions,
         plugSetDefinitions,
         objectiveDefinitions,
-        character.characterId
+        character.characterId,
+        mode
       ));
     const inventoryItems = allCharacterItems.filter((item) => !isPostmasterItem(item, bucketDefinitions));
     const postmasterItems = allCharacterItems.filter((item) => isPostmasterItem(item, bucketDefinitions));
@@ -563,19 +926,23 @@ function summarizeCharacters(
       light: character.light,
       emblem_url: normalizeBungieAssetUrl(character.emblemPath),
       equipped_items: equippedItems,
-      equipment_groups: groupEquipment(equippedItems),
+      equipment_groups: mode === "full" ? groupEquipment(equippedItems) : [],
       inventory_items: inventoryItems,
-      inventory_groups: groupEquipment(inventoryItems),
+      inventory_groups: mode === "full" ? groupEquipment(inventoryItems) : [],
       postmaster_items: postmasterItems,
       loadout_slots: summarizeCharacterLoadouts(
         profile.characterLoadouts?.data?.[character.characterId]?.loadouts ?? [],
         loadoutNameDefinitions,
         knownItems
       ),
-      craftable_items: summarizeCraftables(
-        profile.characterCraftables?.data?.[character.characterId],
-        definitions
-      )
+      ...(mode === "full"
+        ? {
+            craftable_items: summarizeCraftables(
+              profile.characterCraftables?.data?.[character.characterId],
+              definitions
+            )
+          }
+        : {})
     };
   });
 }
@@ -585,7 +952,8 @@ function summarizeProfileInventory(
   definitions: DefinitionComponentData,
   bucketDefinitions: DefinitionComponentData,
   plugSetDefinitions: DefinitionComponentData,
-  objectiveDefinitions: DefinitionComponentData
+  objectiveDefinitions: DefinitionComponentData,
+  mode: AccountSummaryMode
 ): Pick<AccountSummary, "vault" | "materials"> {
   const profileItems = profile.profileInventory?.data?.items ?? [];
   const items = profileItems
@@ -596,7 +964,9 @@ function summarizeProfileInventory(
       profile,
       bucketDefinitions,
       plugSetDefinitions,
-      objectiveDefinitions
+      objectiveDefinitions,
+      undefined,
+      mode
     ));
   const materials = profileItems
     .filter((item) => !item.itemInstanceId)
@@ -606,7 +976,7 @@ function summarizeProfileInventory(
     vault: {
       item_count: items.length,
       items,
-      sample_items: items.slice(0, 30)
+      sample_items: mode === "full" ? items.slice(0, 30) : []
     },
     materials: {
       item_count: materials.length,
@@ -637,7 +1007,8 @@ function summarizeItem(
   bucketDefinitions: DefinitionComponentData = {},
   plugSetDefinitions: DefinitionComponentData = {},
   objectiveDefinitions: DefinitionComponentData = {},
-  characterId?: string
+  characterId?: string,
+  mode: AccountSummaryMode = "full"
 ): AccountItemSummary {
   const components = profile.itemComponents;
   const definition = definitions[String(item.itemHash)] as DefinitionRecord | undefined;
@@ -654,16 +1025,23 @@ function summarizeItem(
   const bucketDefinition = bucketHash ? bucketDefinitions[String(bucketHash)] as DefinitionRecord | undefined : undefined;
   const instanceId = item.itemInstanceId;
   const instance = instanceId ? components?.instances?.data?.[instanceId] : undefined;
-  const sockets = summarizeSockets({
-    instanceId,
-    itemDefinition: definition,
-    components,
-    definitions,
-    plugSetDefinitions,
-    objectiveDefinitions,
-    profilePlugSets: profile.profilePlugSets?.data,
-    characterPlugSets: characterId ? profile.characterPlugSets?.data?.[characterId] : undefined
-  });
+  const sockets = mode === "full"
+    ? summarizeSockets({
+        instanceId,
+        itemDefinition: definition,
+        components,
+        definitions,
+        plugSetDefinitions,
+        objectiveDefinitions,
+        profilePlugSets: profile.profilePlugSets?.data,
+        characterPlugSets: characterId ? profile.characterPlugSets?.data?.[characterId] : undefined
+      })
+    : [];
+  const selectedPlugs = mode === "full"
+    ? sockets.flatMap((socket) => (
+        socket.is_visible && socket.selected_plug ? [socket.selected_plug] : []
+      ))
+    : summarizeSelectedPlugPreviews(instanceId, components, definitions);
   const summary: AccountItemSummary = {
     hash: item.itemHash,
     instance_id: instanceId,
@@ -679,23 +1057,27 @@ function summarizeItem(
     power: instance?.primaryStat?.value,
     locked: isLocked(item.state),
     instance: summarizeItemInstance(instance),
-    item_objectives: summarizeItemObjectives(instanceId, components, objectiveDefinitions),
-    sockets,
-    socket_plugs: sockets.flatMap((socket) => (
-      socket.is_visible && socket.selected_plug ? [socket.selected_plug] : []
-    ))
+    socket_plugs: selectedPlugs,
+    ...(mode === "full"
+      ? {
+          item_objectives: summarizeItemObjectives(instanceId, components, objectiveDefinitions),
+          sockets
+        }
+      : {})
   };
   const armorStats = groupKey === "armor" ? summarizeArmorStats(instanceId, components) : undefined;
   if (armorStats) {
     summary.armor_stats = armorStats;
-    summary.armor_stat_breakdown = summarizeArmorStatBreakdown(
-      armorStats,
-      instanceId,
-      components,
-      definitions
-    );
+    if (mode === "full") {
+      summary.armor_stat_breakdown = summarizeArmorStatBreakdown(
+        armorStats,
+        instanceId,
+        components,
+        definitions
+      );
+    }
   }
-  const armorEnergy = groupKey === "armor" ? summarizeArmorEnergy(instance) : undefined;
+  const armorEnergy = mode === "full" && groupKey === "armor" ? summarizeArmorEnergy(instance) : undefined;
   if (armorEnergy) {
     summary.armor_energy = armorEnergy;
   }
@@ -703,9 +1085,11 @@ function summarizeItem(
   if (weaponStats) {
     summary.weapon_stats = weaponStats;
   }
-  const weaponFrame = definition
-    ? summarizeWeaponFrame(definition, definitions, { plugSetDefinitions })
-    : undefined;
+  const weaponFrame = mode === "snapshot"
+    ? summarizeSelectedWeaponFrame(selectedPlugs)
+    : definition
+      ? summarizeWeaponFrame(definition, definitions, { plugSetDefinitions })
+      : undefined;
   if (weaponFrame) {
     summary.weapon_frame = weaponFrame;
   }
@@ -949,6 +1333,32 @@ function isPostmasterBucketDefinition(bucketDefinition: DefinitionRecord | undef
     || bucketName.includes("失物");
 }
 
+function summarizeSelectedPlugPreviews(
+  instanceId: string | undefined,
+  components: DestinyProfileResponse["itemComponents"] | undefined,
+  definitions: DefinitionComponentData
+): AccountItemPlugSummary[] {
+  if (!instanceId) {
+    return [];
+  }
+
+  return (components?.sockets?.data?.[instanceId]?.sockets ?? [])
+    .filter((socket) => socket.isVisible !== false && typeof socket.plugHash === "number")
+    .map((socket) => {
+      const hash = socket.plugHash as number;
+      const definition = definitions[String(hash)] as DefinitionRecord | undefined;
+      return {
+        hash,
+        name: definition?.displayProperties?.name?.trim() || `Plug ${hash}`,
+        icon: normalizeBungieAssetUrl(definition?.displayProperties?.icon),
+        ...(definition?.plug?.plugCategoryIdentifier
+          ? { category_identifier: definition.plug.plugCategoryIdentifier }
+          : {}),
+        ...(definition?.itemTypeDisplayName ? { item_type: definition.itemTypeDisplayName } : {})
+      };
+    });
+}
+
 function summarizeSockets(input: {
   instanceId: string | undefined;
   itemDefinition: DefinitionRecord | undefined;
@@ -1084,8 +1494,10 @@ function buildPlugSummary(
     name: definition?.displayProperties?.name?.trim() || `Plug ${hash}`,
     icon: normalizeBungieAssetUrl(definition?.displayProperties?.icon),
     description: definition?.displayProperties?.description,
-    category_identifier: definition?.plug?.plugCategoryIdentifier,
-    objectives: objectiveSummaries.length ? objectiveSummaries : undefined,
+    ...(definition?.plug?.plugCategoryIdentifier
+      ? { category_identifier: definition.plug.plugCategoryIdentifier }
+      : {}),
+    ...(objectiveSummaries.length ? { objectives: objectiveSummaries } : {}),
     ...(Object.keys(statModifiers).length ? { stat_modifiers: statModifiers } : {}),
     ...(definition?.sourceData?.sourceString
       ? { source_description: definition.sourceData.sourceString }

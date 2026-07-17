@@ -22,6 +22,8 @@ import {
 import type { D2Config } from "@d2-tools/core/config/schema";
 import { loadConfig } from "@d2-tools/services/config/store";
 import { loadFreshOAuthToken, type FreshOAuthToken } from "./authSession.js";
+import { invalidateAccountItemDetails } from "./account.js";
+import { patchAccountSession } from "../runtime/accountSession.js";
 
 type ItemLockActionInput = {
   membership_type: number;
@@ -95,6 +97,29 @@ type LoadoutSnapshotActionInput = {
   loadout_color_hash?: number;
 };
 
+type AccountItemActionPatch =
+  | {
+      kind: "lock";
+      item_instance_id: string;
+      locked: boolean;
+    }
+  | {
+      kind: "equip";
+      item_instance_id: string;
+      character_id: string;
+    }
+  | {
+      kind: "transfer";
+      item_instance_id: string;
+      character_id: string;
+      target: "vault" | "character-inventory";
+    }
+  | {
+      kind: "postmaster-pull";
+      item_instance_id: string;
+      character_id: string;
+    };
+
 export function registerActionIpcHandlers(): void {
   ipcMain.handle("actions:item:set-lock", async (_event, input: ItemLockActionInput) => {
     return runWriteAction({
@@ -103,6 +128,11 @@ export function registerActionIpcHandlers(): void {
       itemInstanceId: input.item_id,
       characterId: input.character_id,
       successMessage: input.state ? "装备已锁定" : "装备已解锁",
+      accountPatch: {
+        kind: "lock",
+        item_instance_id: input.item_id,
+        locked: input.state
+      },
       run: async ({ config, token }) => {
         await bungieSetItemLockState({
           config,
@@ -123,6 +153,11 @@ export function registerActionIpcHandlers(): void {
       itemInstanceId: input.item_id,
       characterId: input.character_id,
       successMessage: "装备成功",
+      accountPatch: {
+        kind: "equip",
+        item_instance_id: input.item_id,
+        character_id: input.character_id
+      },
       run: async ({ config, token }) => {
         await bungieEquipItem({
           config,
@@ -163,6 +198,12 @@ export function registerActionIpcHandlers(): void {
       itemInstanceId: input.item_id,
       characterId: input.character_id,
       successMessage: input.transfer_to_vault ? "已移入仓库" : "已取出到角色",
+      accountPatch: {
+        kind: "transfer",
+        item_instance_id: input.item_id,
+        character_id: input.character_id,
+        target: input.transfer_to_vault ? "vault" : "character-inventory"
+      },
       run: async ({ config, token }) => {
         await bungieTransferItem({
           config,
@@ -193,7 +234,12 @@ export function registerActionIpcHandlers(): void {
       },
       getItemName: (item) => item.item_name,
       getItemInstanceId: (item) => item.item_id,
-      getCharacterId: (item) => item.character_id
+      getCharacterId: (item) => item.character_id,
+      getAccountPatch: (item) => ({
+        kind: "equip",
+        item_instance_id: item.item_id,
+        character_id: input.character_id
+      })
     });
   });
 
@@ -215,7 +261,13 @@ export function registerActionIpcHandlers(): void {
       },
       getItemName: (item) => item.item_name,
       getItemInstanceId: (item) => item.item_id,
-      getCharacterId: (item) => item.character_id
+      getCharacterId: (item) => item.character_id,
+      getAccountPatch: (item) => ({
+        kind: "transfer",
+        item_instance_id: item.item_id,
+        character_id: input.character_id,
+        target: item.transfer_to_vault ? "vault" : "character-inventory"
+      })
     });
   });
 
@@ -226,6 +278,11 @@ export function registerActionIpcHandlers(): void {
       itemInstanceId: input.item_id,
       characterId: input.character_id,
       successMessage: "已从邮政官取回到角色背包",
+      accountPatch: {
+        kind: "postmaster-pull",
+        item_instance_id: input.item_id,
+        character_id: input.character_id
+      },
       run: async ({ config, token }) => {
         await bungiePullFromPostmaster({
           config,
@@ -246,6 +303,7 @@ export function registerActionIpcHandlers(): void {
       itemName: input.loadout_name,
       characterId: input.character_id,
       successMessage: `已应用游戏内配装栏：${input.loadout_name ?? `槽位 ${input.loadout_index + 1}`}`,
+      invalidateAllItemDetails: true,
       run: async ({ config, token }) => {
         await bungieEquipLoadout({
           config,
@@ -303,11 +361,13 @@ async function runWriteAction(input: {
   itemInstanceId?: string;
   characterId?: string;
   successMessage: string;
+  accountPatch?: AccountItemActionPatch;
+  invalidateAllItemDetails?: boolean;
   run: (context: {
     config: D2Config;
     token: FreshOAuthToken;
   }) => Promise<void>;
-}): Promise<{ ok: true; message: string }> {
+}): Promise<{ ok: true; message: string; account_patch?: AccountItemActionPatch }> {
   const config = loadConfig();
   if (!config.features.write_actions_enabled) {
     throw new Error("写操作未开启。请先到设置页开启装备写操作。");
@@ -317,6 +377,17 @@ async function runWriteAction(input: {
 
   try {
     await input.run({ config, token });
+    if (input.invalidateAllItemDetails) {
+      invalidateAccountItemDetails();
+    } else if (input.itemInstanceId) {
+      invalidateAccountItemDetails([input.itemInstanceId]);
+    }
+    let appliedAccountPatch: AccountItemActionPatch | undefined;
+    if (input.accountPatch) {
+      const applied = await patchAccountSession(input.accountPatch)
+        .then(() => true, () => false);
+      if (applied) appliedAccountPatch = input.accountPatch;
+    }
     appendActionLog(config.data.data_dir, {
       action: input.action,
       item_name: input.itemName,
@@ -325,7 +396,11 @@ async function runWriteAction(input: {
       ok: true,
       message: input.successMessage
     });
-    return { ok: true, message: input.successMessage };
+    return {
+      ok: true,
+      message: input.successMessage,
+      ...(appliedAccountPatch ? { account_patch: appliedAccountPatch } : {})
+    };
   } catch (error) {
     const message = normalizeWriteActionError(error);
     appendActionLog(config.data.data_dir, {
@@ -351,12 +426,14 @@ async function runBatchWriteActions<T>(input: {
   getItemName: (item: T) => string | undefined;
   getItemInstanceId: (item: T) => string | undefined;
   getCharacterId: (item: T) => string | undefined;
+  getAccountPatch?: (item: T) => AccountItemActionPatch | undefined;
 }): Promise<{
   ok: true;
   total: number;
   success_count: number;
   failed_count: number;
   message: string;
+  account_patches: AccountItemActionPatch[];
 }> {
   const config = loadConfig();
   if (!config.features.write_actions_enabled) {
@@ -366,11 +443,20 @@ async function runBatchWriteActions<T>(input: {
   const token = await loadFreshOAuthToken(config);
   let successCount = 0;
   let failedCount = 0;
+  const accountPatches: AccountItemActionPatch[] = [];
 
   for (const item of input.items) {
     try {
       await input.runItem({ config, token }, item);
       successCount += 1;
+      const itemInstanceId = input.getItemInstanceId(item);
+      if (itemInstanceId) invalidateAccountItemDetails([itemInstanceId]);
+      const accountPatch = input.getAccountPatch?.(item);
+      if (accountPatch) {
+        const applied = await patchAccountSession(accountPatch)
+          .then(() => true, () => false);
+        if (applied) accountPatches.push(accountPatch);
+      }
       appendActionLog(config.data.data_dir, {
         action: input.action,
         item_name: input.getItemName(item),
@@ -398,6 +484,7 @@ async function runBatchWriteActions<T>(input: {
     total: input.items.length,
     success_count: successCount,
     failed_count: failedCount,
+    account_patches: accountPatches,
     message: failedCount
       ? `批量操作完成：成功 ${successCount}，失败 ${failedCount}。`
       : `${input.successMessage}：共 ${successCount} 项。`

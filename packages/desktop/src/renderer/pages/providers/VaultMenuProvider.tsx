@@ -1,14 +1,21 @@
 import { VaultPage } from "../../features/vault/VaultPage";
+import { useAccountSummaryStore } from "../../shared/stores/accountEntityStore";
 import { useDesktopMenuSession } from "./DesktopMenuProviderContext";
+import { useEffect } from "react";
 
 export function VaultMenuProvider() {
   const session = useDesktopMenuSession();
   const account = session.account;
+  const accountSummary = useAccountSummaryStore();
   const writeActions = session.writeActions;
+
+  useEffect(() => {
+    void account.loadVaultCommunityMatch();
+  }, [accountSummary?.destiny_membership_id, accountSummary?.membership_type]);
 
   return (
     <VaultPage
-      account={account.accountSummary}
+      account={accountSummary}
       isLoadingAccount={account.isLoadingAccount}
       accountError={account.accountError}
       activeLoadoutLookup={session.home.activeLoadoutLookup}

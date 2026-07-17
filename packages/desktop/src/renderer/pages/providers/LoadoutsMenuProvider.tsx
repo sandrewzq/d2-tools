@@ -1,14 +1,16 @@
 import { LoadoutsPage } from "../../features/loadouts/LoadoutsPage";
+import { useAccountSummaryStore } from "../../shared/stores/accountEntityStore";
 import { useDesktopMenuSession } from "./DesktopMenuProviderContext";
 
 export function LoadoutsMenuProvider() {
   const session = useDesktopMenuSession();
   const loadouts = session.loadouts;
+  const accountSummary = useAccountSummaryStore();
   const writeActions = session.writeActions;
 
   return (
     <LoadoutsPage
-      accountSummary={session.account.accountSummary}
+      accountSummary={accountSummary}
       templates={loadouts.templates}
       selectedTemplateId={loadouts.selectedTemplateId}
       compareTemplateId={loadouts.compareTemplateId}

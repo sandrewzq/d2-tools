@@ -49,6 +49,15 @@ describe("collectDocPolicyErrors", () => {
     expect(errors).toEqual([]);
   });
 
+  it("accepts the formal player-facing language reference", () => {
+    const root = createDocsRoot();
+    writeFileSync(join(root, "docs", "player-facing-language.md"), "# 玩家文案字典\n", "utf8");
+
+    const errors = collectDocPolicyErrors(root, []);
+
+    expect(errors).toEqual([]);
+  });
+
   it("rejects archive work documents", () => {
     const root = createDocsRoot();
     mkdirSync(join(root, "docs", "work", "archive"), { recursive: true });

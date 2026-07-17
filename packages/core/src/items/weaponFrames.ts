@@ -42,6 +42,16 @@ export function summarizeWeaponFrame(
   return undefined;
 }
 
+export function summarizeSelectedWeaponFrame(
+  plugs: Array<{ name: string; item_type?: string }>
+): WeaponFrameSummary | undefined {
+  for (const plug of plugs) {
+    if (!isFrameLikePlug({ itemTypeDisplayName: plug.item_type }, plug.name)) continue;
+    return { key: normalizeFrameKey(plug.name), name: plug.name };
+  }
+  return undefined;
+}
+
 function hashesFromReusablePlugItems(
   reusablePlugItems: Array<{ plugItemHash?: number }> | undefined
 ): number[] {

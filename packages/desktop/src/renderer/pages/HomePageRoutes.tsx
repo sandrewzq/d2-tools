@@ -1,12 +1,34 @@
 import type { ShellPageKey } from "@d2-tools/ui";
-import { Suspense } from "react";
-import { AccountMenuProvider } from "./providers/AccountMenuProvider";
-import { HomeMenuProvider } from "./providers/HomeMenuProvider";
-import { LibraryMenuProvider } from "./providers/LibraryMenuProvider";
-import { LoadoutsMenuProvider } from "./providers/LoadoutsMenuProvider";
-import { SettingsMenuProvider } from "./providers/SettingsMenuProvider";
-import { VaultMenuProvider } from "./providers/VaultMenuProvider";
-import { VendorsMenuProvider } from "./providers/VendorsMenuProvider";
+import { lazy, Suspense } from "react";
+
+const HomeMenuProvider = lazy(async () => {
+  const module = await import("./providers/HomeMenuProvider");
+  return { default: module.HomeMenuProvider };
+});
+const AccountMenuProvider = lazy(async () => {
+  const module = await import("./providers/AccountMenuProvider");
+  return { default: module.AccountMenuProvider };
+});
+const LoadoutsMenuProvider = lazy(async () => {
+  const module = await import("./providers/LoadoutsMenuProvider");
+  return { default: module.LoadoutsMenuProvider };
+});
+const LibraryMenuProvider = lazy(async () => {
+  const module = await import("./providers/LibraryMenuProvider");
+  return { default: module.LibraryMenuProvider };
+});
+const VendorsMenuProvider = lazy(async () => {
+  const module = await import("./providers/VendorsMenuProvider");
+  return { default: module.VendorsMenuProvider };
+});
+const VaultMenuProvider = lazy(async () => {
+  const module = await import("./providers/VaultMenuProvider");
+  return { default: module.VaultMenuProvider };
+});
+const SettingsMenuProvider = lazy(async () => {
+  const module = await import("./providers/SettingsMenuProvider");
+  return { default: module.SettingsMenuProvider };
+});
 
 export function HomePageRoutes(props: {
   activePage: ShellPageKey;

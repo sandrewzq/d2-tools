@@ -4,10 +4,7 @@ import { parseBuildGuideFallback, parseBuildGuideFromAiJson } from "@d2-tools/co
 import { createBuildGuideLoadoutDraft } from "@d2-tools/core/assistant/loadoutDraft";
 import type { AccountSummary } from "@d2-tools/core/account/summary";
 import type { BuildGuideMatchResult, BuildGuideRequirement } from "@d2-tools/core/assistant/guideSchema";
-import { fetchAccountSummary } from "@d2-tools/core/account/summary";
-import { loadConfig } from "@d2-tools/services/config/store";
-import { loadDefinitionComponent } from "@d2-tools/services/manifest/definitions";
-import { loadFreshOAuthToken } from "./authSession.js";
+import { getAccountSnapshot } from "../runtime/accountSession.js";
 
 export function registerAssistantIpcHandlers(): void {
   ipcMain.handle("assistant:guide:parse", (_event, input: { rawText: string; aiText?: string }) => {
@@ -37,22 +34,7 @@ export function registerAssistantIpcHandlers(): void {
 }
 
 async function loadAssistantAccountSummary(): Promise<AccountSummary> {
-  const config = loadConfig();
-  const token = await loadFreshOAuthToken(config);
-  const itemDefinitions = loadDefinitionComponent(config.data.data_dir, "DestinyInventoryItemDefinition");
-  if (!itemDefinitions) {
-    throw new Error("请先初始化资料库");
-  }
-
-  return fetchAccountSummary({
-    config,
-    token,
-    itemDefinitions,
-    bucketDefinitions: loadDefinitionComponent(config.data.data_dir, "DestinyInventoryBucketDefinition") ?? undefined,
-    plugSetDefinitions: loadDefinitionComponent(config.data.data_dir, "DestinyPlugSetDefinition") ?? undefined,
-    loadoutNameDefinitions: loadDefinitionComponent(config.data.data_dir, "DestinyLoadoutNameDefinition") ?? undefined,
-    objectiveDefinitions: loadDefinitionComponent(config.data.data_dir, "DestinyObjectiveDefinition") ?? undefined
-  });
+  return getAccountSnapshot("refresh");
 }
 
 function collectAssistantAccountItems(account: AccountSummary): AccountSummary["vault"]["items"] {

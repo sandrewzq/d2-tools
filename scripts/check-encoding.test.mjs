@@ -41,4 +41,13 @@ describe("collectEncodingErrors", () => {
 
     expect(collectEncodingErrors(root)).toContain('docs/todo.md: contains likely mojibake text "瑁呭"');
   });
+
+  it("ignores local runtime and temporary data", () => {
+    const root = createRoot();
+    const localData = join(root, ".local-data", "tmp");
+    mkdirSync(localData, { recursive: true });
+    writeFileSync(join(localData, "external-source.ts"), "const broken = '????';\n", "utf8");
+
+    expect(collectEncodingErrors(root)).toEqual([]);
+  });
 });

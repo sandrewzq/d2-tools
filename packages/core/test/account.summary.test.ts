@@ -356,13 +356,15 @@ describe("account summary", () => {
         hash: 4001,
         name: "Arrowhead Brake",
         icon: "https://www.bungie.net/common/destiny2_content/icons/arrowhead.png",
-        description: "Greatly controls recoil."
+        description: "Greatly controls recoil.",
+        item_type: "Barrel"
       },
       {
         hash: 4002,
         name: "Voltshot",
         icon: "https://www.bungie.net/common/destiny2_content/icons/voltshot.png",
-        description: "Reloading after defeating a target overcharges this weapon."
+        description: "Reloading after defeating a target overcharges this weapon.",
+        item_type: "Trait"
       }
     ]);
     expect(summary.characters[0]?.inventory_items).toHaveLength(2);

@@ -203,6 +203,13 @@ tools\git-preflight.cmd
 - 设置页“资料库”区域负责展示完整状态：资料库版本、当前版本、最新版本、上次更新、上次检查、更新方式和资料完整性；按钮使用“检查更新”“立即更新”“修复资料库”等用户可理解文案。
 - 自动资料库检查应按本地日期做每日节流；本地资料库未初始化、资料库不完整、手动检查、立即更新和修复资料库不受每日节流限制。
 - 检查失败但本地资料库可用时，继续允许依赖资料库的功能使用旧数据；更新失败时保留旧资料库，不把旧数据删除或标记为不可用。
+- Desktop 的 Bungie Definition 主数据源是 Bungie SQLite。`packages/services/src/gameData/` 通过 `GameDataCatalog` 和内部 `DefinitionReader` 隐藏表名、SQL、signed / unsigned hash、缓存和关联查询；Renderer、IPC 和 `packages/core` 不得直接执行 SQL 或读取完整 Definition 表。
+- SQLite 查询由 Desktop 长生命周期查询 worker 持有；资料库更新进入激活阶段前，`RuntimeCoordinator` 必须先 quiesce 账号 Session 和查询 worker，确认连接关闭后再切换，完成或回滚后恢复查询。
+- 资料库更新使用当前语言 SQLite 作为主库，构建装备、Perk、关系和 canonical identity sidecar；非英文界面可离线下载英文 SQLite 构建轻量英文 sidecar，但不得长期保留第二份完整英文主库。
+- JSON Adapter 只用于 SQLite 未覆盖的 supplement 和稳定 Release 前的迁移兼容。至少经过一个稳定 Release 并验证回滚路径后，才能清理 SQLite 已覆盖的旧 JSON；不得重新把大型 JSON 主缓存接回普通请求。
+- 账号读取统一通过 `AccountSession`：列表使用紧凑 `AccountSnapshot`，实例详情按需加载；写操作成功后先局部 patch，再后台 refresh 校验。账号快照缓存和 Manifest / sidecar 都属于运行缓存，不进入便携备份。
+- 首页、资料库实时来源和账号 Session 共享 Bungie 请求 Broker；每日与每周通过同一次 `home:briefing` 获取，避免重复 membership、Profile 和里程碑请求。
+- 脱敏诊断必须保留 Catalog、账号快照、首页简报的耗时、p95、payload 和进程内存信息；绝对性能预算只在专项本地诊断和 Release 环境判断，不写成依赖机器速度的普通 CI 断言。
 - 切换菜单、卸载页面或重新进入页面不得中断资料库更新、应用更新下载等长任务；页面只订阅 `useBackgroundTasks` 和 `useManifestStatus` 等共享状态。
 - 设置页负责详细管理入口：应用更新、资料库状态、后台任务、AI、写操作、备份迁移、诊断导出和操作日志。
 - 新增长任务优先进入 `packages/desktop/src/shared/backgroundTasks.ts`、`packages/desktop/src/main/backgroundTasks.ts` 和对应领域 IPC，不要把长任务生命周期藏在 renderer feature hook 中。

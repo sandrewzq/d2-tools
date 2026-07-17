@@ -98,6 +98,7 @@ export function collectDocPolicyErrors(root, gitNameStatus = readGitNameStatus(r
     "bungie-setup.md",
     "development.md",
     "faq.md",
+    "player-facing-language.md",
     "security.md",
     "todo.md",
     "user-guide.md"

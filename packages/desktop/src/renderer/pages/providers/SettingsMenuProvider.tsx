@@ -1,11 +1,13 @@
 import { SettingsPage } from "../../features/settings/SettingsPage";
 import { api } from "../../api/client";
+import { useAccountSummaryStore } from "../../shared/stores/accountEntityStore";
 import { useDesktopMenuSession } from "./DesktopMenuProviderContext";
 
 export function SettingsMenuProvider() {
   const session = useDesktopMenuSession();
   const diagnostics = session.diagnostics;
   const account = session.account;
+  const accountSummary = useAccountSummaryStore();
 
   return (
     <SettingsPage
@@ -19,7 +21,7 @@ export function SettingsMenuProvider() {
       manifestStatusError={diagnostics.manifestStatusError}
       isLoadingManifestStatus={diagnostics.isLoadingManifestStatus}
       isInitializingManifest={diagnostics.isInitializingManifest}
-      accountSummary={account.accountSummary}
+      accountSummary={accountSummary}
       accountError={account.accountError}
       accountWarning={account.accountWarning}
       isLoadingAccount={account.isLoadingAccount}
