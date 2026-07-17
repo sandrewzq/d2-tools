@@ -45,7 +45,9 @@ export function registerAnalysisIpcHandlers(): void {
       tags: input.tags,
       user_knowledge: input.user_knowledge,
       personal_knowledge: input.personal_knowledge,
-      builtin_knowledge: input.builtin_knowledge
+      builtin_knowledge: input.builtin_knowledge,
+      allow_external_search: input.allow_external_search,
+      weapon_context: input.weapon_context
     });
   });
 

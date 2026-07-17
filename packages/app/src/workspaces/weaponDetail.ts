@@ -99,6 +99,13 @@ export type WeaponPerkColumnRole =
   | "origin"
   | "other";
 
+export type WeaponSocketPlugLike = {
+  name: string;
+  description?: string;
+  category_identifier?: string;
+  item_type?: string;
+};
+
 export type WeaponPerkCandidate = {
   hash: number;
   name: string;
@@ -158,9 +165,11 @@ export type WeaponVendorOfferSummary = {
   offer_id: string;
   vendor_hash?: number;
   vendor_name: string;
+  inventory_path?: string;
   price_labels: string[];
   refresh_at?: string;
   can_purchase?: boolean;
+  purchase_requirements: string[];
   failure_messages: string[];
 };
 
@@ -188,10 +197,16 @@ export type WeaponCatalystSummary = {
   effects: string[];
 };
 
+export type WeaponEnhancementSummary = {
+  name: string;
+  level?: number;
+};
+
 export type WeaponDetailUpgrades = {
   masterwork?: WeaponMasterworkSummary;
   mod?: WeaponPerkCandidate;
   catalyst?: WeaponCatalystSummary;
+  enhancement?: WeaponEnhancementSummary;
   crafting_level?: number;
   enhanced: boolean;
 };
@@ -265,6 +280,7 @@ export type WeaponDetailViewModel = {
   sources: WeaponDetailSources;
   upgrades: WeaponDetailUpgrades;
   recommendations: WeaponRecommendation[];
+  personal_targets: WeaponRecommendation[];
   same_hash_instances: WeaponDetailInstance[];
   loading: boolean;
 };
@@ -328,6 +344,7 @@ export type BuildWeaponDetailViewModelInput = {
   sources?: WeaponDetailSources;
   upgrades?: WeaponDetailUpgrades;
   recommendations?: WeaponRecommendation[];
+  personal_targets?: WeaponRecommendation[];
   same_hash_instances?: WeaponDetailInstanceLike[];
   instance_metadata?: Record<string, WeaponDetailInstanceMetadata>;
 };
@@ -411,6 +428,7 @@ export function buildWeaponDetailViewModel(input: BuildWeaponDetailViewModelInpu
     sources: input.sources ?? sourceSummaryToSources(item.source),
     upgrades: input.upgrades ?? { enhanced: false },
     recommendations: input.recommendations ?? [],
+    personal_targets: input.personal_targets ?? [],
     same_hash_instances: (input.same_hash_instances ?? [])
       .filter((instance): instance is WeaponDetailInstanceLike & { instance_id: string } => (
         instance.hash === item.hash && Boolean(instance.instance_id)
@@ -463,16 +481,67 @@ export function buildWeaponStatTracks(input: {
 }
 
 export function perkGroupsToPoolColumns(groups: readonly ItemPerkGroup[]): WeaponPerkPoolColumn[] {
-  return groups.map((group) => {
-    const role = perkColumnRole(group.plugs[0]?.category_identifier);
-    return {
+  const columns = groups.flatMap((group) => {
+    const visiblePlugs = group.plugs.filter((plug) => !isWeaponSystemPlug(plug) && !isEnhancedWeaponPerk(plug));
+    const role = classifyWeaponSocketPlugs(visiblePlugs);
+    if (!role) return [];
+    return [{
       key: `socket-${group.socket_index}`,
       socket_index: group.socket_index,
       label: perkColumnLabel(role, group.socket_index),
       role,
-      candidates: group.plugs.map(toWeaponPerkCandidate)
-    };
+      candidates: visiblePlugs.map(toWeaponPerkCandidate)
+    }];
   });
+  let traitIndex = 0;
+  return columns.map((column) => column.role === "trait"
+    ? { ...column, label: `Perk ${++traitIndex}` }
+    : column);
+}
+
+export function classifyWeaponSocketPlugs(
+  plugs: readonly WeaponSocketPlugLike[]
+): WeaponPerkColumnRole | undefined {
+  const visiblePlugs = plugs.filter((plug) => !isWeaponSystemPlug(plug));
+  if (!visiblePlugs.length) return undefined;
+  const categories = visiblePlugs
+    .map((plug) => plug.category_identifier?.toLocaleLowerCase() ?? "")
+    .filter(Boolean);
+  const category = categories.join(" ");
+
+  if (category.includes("intrinsic") || category.includes("frame")) return "intrinsic";
+  if (includesAny(category, ["barrel", "scope", "sight", "bowstring", "bow.string", "blade", "haft"])) return "barrel";
+  if (includesAny(category, ["magazine", "battery", "arrow", "guard", "stock", "grip"])) return "magazine";
+  if (category.includes("origin")) return "origin";
+  if (includesAny(category, ["trait", "perk"])) return "trait";
+
+  return undefined;
+}
+
+export function isWeaponSystemPlug(plug: WeaponSocketPlugLike): boolean {
+  const category = plug.category_identifier?.toLocaleLowerCase() ?? "";
+  const itemType = plug.item_type?.toLocaleLowerCase() ?? "";
+  const text = `${plug.name} ${plug.description ?? ""}`.toLocaleLowerCase();
+  if (includesAny(category, [
+    "shader", "ornament", "memento", "tracker", "masterwork", "catalyst",
+    "weapon.mod", "modguns", "mods.weapon", "cosmetic", "skin", "killcounter"
+  ])) return true;
+  if (includesAny(itemType, [
+    "着色器", "shader", "武器模组", "weapon mod", "大师杰作", "masterwork",
+    "催化剂", "catalyst", "记录器", "tracker", "装饰", "ornament", "皮肤", "skin"
+  ])) return true;
+  return includesAny(text, [
+    "使用此着色器", "更改装备配色", "默认皮肤", "默认外观", "战斗特效",
+    "击杀记录器", "kill tracker", "kill counter", "装备阶级升级", "阶升级",
+    "将其铸造为大师杰作", "memento", "纪念物"
+  ]);
+}
+
+export function isEnhancedWeaponPerk(plug: WeaponSocketPlugLike): boolean {
+  const category = plug.category_identifier?.toLocaleLowerCase() ?? "";
+  const itemType = plug.item_type?.toLocaleLowerCase() ?? "";
+  return (category.includes("enhanced") || itemType.includes("强化"))
+    && (category.includes("trait") || category.includes("perk") || itemType.includes("特性") || itemType.includes("perk"));
 }
 
 function buildObjectContext(
@@ -553,14 +622,8 @@ function toWeaponPerkCandidate(plug: ItemPlugSummary): WeaponPerkCandidate {
   };
 }
 
-function perkColumnRole(category: string | undefined): WeaponPerkColumnRole {
-  const value = category?.toLocaleLowerCase() ?? "";
-  if (value.includes("intrinsic")) return "intrinsic";
-  if (value.includes("barrel") || value.includes("scope")) return "barrel";
-  if (value.includes("magazine") || value.includes("battery")) return "magazine";
-  if (value.includes("origin")) return "origin";
-  if (value.includes("trait") || value.includes("perk")) return "trait";
-  return "other";
+function includesAny(value: string, segments: readonly string[]): boolean {
+  return segments.some((segment) => value.includes(segment));
 }
 
 function perkColumnLabel(role: WeaponPerkColumnRole, socketIndex: number): string {

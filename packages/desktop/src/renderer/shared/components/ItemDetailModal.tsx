@@ -25,7 +25,11 @@ import { ItemDetailHeader } from "./item-detail/ItemDetailHeader";
 import { ItemDetailStats } from "./item-detail/ItemDetailStats";
 import { ItemDetailTools } from "./item-detail/ItemDetailTools";
 import { ItemDetailActions } from "./item-detail/ItemDetailActions";
-import { buildWeaponDetailView, buildWeaponRecommendationViews } from "./item-detail/buildWeaponDetailView";
+import {
+  buildWeaponDetailView,
+  buildWeaponPersonalTargetViews,
+  buildWeaponRecommendationViews
+} from "./item-detail/buildWeaponDetailView";
 
 export type ItemDetailModalProps = {
   accountSummary: AccountSummary | null;
@@ -64,7 +68,7 @@ export type ItemDetailModalProps = {
   onCopySelectedItemChatGuide: () => void;
   onCopySelectedItemSummary: () => void;
   onCopyWishlistInsight: () => void;
-  onGenerateItemAiAdvice: (userKnowledge?: string) => void;
+  onGenerateItemAiAdvice: (userKnowledge?: string, allowExternalSearch?: boolean) => void;
   onOpenBestSameNameItem: (items: SameNameItemSummary[]) => void;
   onOpenItemDetail: (item: SameNameItemSummary | ItemSearchResult, source: SelectedItemSource) => void;
   onRunItemWriteAction: (label: string, action: () => Promise<ItemActionResult>) => void;
@@ -94,6 +98,7 @@ export function ItemDetailModal(props: ItemDetailModalProps) {
       props.personalWeaponKnowledge,
       selectedItem
     ),
+    personalTargets: buildWeaponPersonalTargetViews(props.communityRecommendations, selectedItem),
     vaultTags: props.vaultTags,
     pendingPerks,
     versions: props.itemVersions,
@@ -129,7 +134,9 @@ export function ItemDetailModal(props: ItemDetailModalProps) {
                     { label: "模型", value: props.itemAiResult.ai.model },
                     { label: "知识范围", value: "当前对象、官方数据与本地知识库" }
                   ]
-                : undefined
+                : undefined,
+              externalSources: props.itemAiResult?.ai?.external_search?.sources,
+              externalSearchMessage: props.itemAiResult?.ai?.external_search?.message
             }}
             actions={{
               selectInstance: (instance) => {
@@ -146,7 +153,7 @@ export function ItemDetailModal(props: ItemDetailModalProps) {
                 const version = props.itemVersions.find((candidate) => candidate.hash === hash);
                 if (version) props.onOpenItemDetail(version, {});
               },
-              runAnalysis: (prompt) => props.onGenerateItemAiAdvice(prompt),
+              runAnalysis: (request) => props.onGenerateItemAiAdvice(request.prompt, request.allow_external_search),
               saveKnowledge: props.onSavePersonalWeaponKnowledge,
               setKnowledgeEnabled: props.onSetPersonalWeaponKnowledgeEnabled,
               deleteKnowledge: props.onDeletePersonalWeaponKnowledge,
@@ -198,7 +205,7 @@ export function ItemDetailModal(props: ItemDetailModalProps) {
                 });
               }
             }}
-            instanceActions={(
+            instanceActions={selectedItem.instance_id ? (
               <>
                 <ItemDetailActions
                   accountSummary={props.accountSummary}
@@ -229,34 +236,32 @@ export function ItemDetailModal(props: ItemDetailModalProps) {
                     <button type="button" className="secondary-button" onClick={props.onSaveSelectedItemNote}>保存备注</button>
                     <button type="button" className="secondary-button" onClick={props.onCopySelectedItemSummary}>复制结论</button>
                     <button type="button" className="secondary-button" onClick={props.onCopySelectedItemChatGuide}>生成群聊说明</button>
-                    {selectedItem.instance_id ? (
-                      <button
-                        type="button"
-                        className="secondary-button"
-                        onClick={() => {
-                          const accountItem = selectedItemToAccountItem(selectedItem);
-                          const character = props.accountSummary?.characters.find((candidate) => candidate.character_id === props.selectedActionCharacterId);
-                          if (!accountItem || !props.selectedActionCharacterId || !character) {
-                            setItemToolMessage("请先选择用于配装草稿的角色。");
-                            return;
-                          }
-                          void api.createLoadoutTemplate({
-                            name: `${selectedItem.name} 配装草稿`,
-                            character_id: props.selectedActionCharacterId,
-                            class_name: character.class_name,
-                            equipped_items: [accountItem]
-                          }).then(() => setItemToolMessage("已保存到配装草稿。"))
-                            .catch((error) => setItemToolMessage(error instanceof Error ? error.message : "配装草稿保存失败"));
-                        }}
-                      >加入配装草稿</button>
-                    ) : null}
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      onClick={() => {
+                        const accountItem = selectedItemToAccountItem(selectedItem);
+                        const character = props.accountSummary?.characters.find((candidate) => candidate.character_id === props.selectedActionCharacterId);
+                        if (!accountItem || !props.selectedActionCharacterId || !character) {
+                          setItemToolMessage("请先选择用于配装草稿的角色。");
+                          return;
+                        }
+                        void api.createLoadoutTemplate({
+                          name: `${selectedItem.name} 配装草稿`,
+                          character_id: props.selectedActionCharacterId,
+                          class_name: character.class_name,
+                          equipped_items: [accountItem]
+                        }).then(() => setItemToolMessage("已保存到配装草稿。"))
+                          .catch((error) => setItemToolMessage(error instanceof Error ? error.message : "配装草稿保存失败"));
+                      }}
+                    >加入配装草稿</button>
                   </div>
                   {props.itemNoteMessage ? <p className="status-message status-ready">{props.itemNoteMessage}</p> : null}
                   {props.itemShareMessage ? <p className="status-message status-ready">{props.itemShareMessage}</p> : null}
                   {itemToolMessage ? <p className="status-message status-ready">{itemToolMessage}</p> : null}
                 </section>
               </>
-            )}
+            ) : undefined}
           />
         ) : (
           <>

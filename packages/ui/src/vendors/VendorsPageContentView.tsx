@@ -161,10 +161,12 @@ export type VendorsPageModelView = {
 
 export type VendorOfferContextView = {
   vendorName: string;
+  inventoryPath?: string;
   costLabel: string;
   affordabilityLabel: string;
   characterLabel: string;
   refreshLabel: string;
+  purchaseRequirements?: string[];
   rollLabels?: string[];
   stats?: Record<string, number>;
 };
@@ -570,10 +572,12 @@ function VendorOfferButton(props: {
       aria-label={`查看${props.item.name}详情`}
       onClick={() => props.actions.onOpenItem?.(props.item, {
         vendorName: props.vendor.name,
+        inventoryPath: props.item.sourcePath ?? [props.vendor.name, props.item.categoryName].filter(Boolean).join(" / "),
         costLabel,
         affordabilityLabel: affordable ? "可购买" : "货币不足或未知",
         characterLabel: props.item.characterIds?.join("、") ?? "当前角色",
         refreshLabel: props.vendor.resetLabel,
+        purchaseRequirements: props.item.failureMessages ?? [],
         rollLabels: props.item.socketPlugs?.map((plug) => plug.name).filter(Boolean),
         stats: props.item.stats
       })}

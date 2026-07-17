@@ -74,6 +74,10 @@ function PrototypeApp() {
   const [weaponObjectKind, setWeaponObjectKind] = useState<PrototypeWeaponObjectKind>("account_instance");
   const [weaponRarity, setWeaponRarity] = useState<PrototypeWeaponRarity>("legendary");
   const [selectedWeaponVersionHash, setSelectedWeaponVersionHash] = useState(4401);
+  const [selectedWeaponInstanceId, setSelectedWeaponInstanceId] = useState("instance-4401-a");
+  const [prototypeInstanceRuntime, setPrototypeInstanceRuntime] = useState<PrototypeInstanceRuntime>(initialPrototypeInstanceRuntime);
+  const [prototypeActionCharacter, setPrototypeActionCharacter] = useState<PrototypeCharacter>("泰坦");
+  const [prototypeActionMessage, setPrototypeActionMessage] = useState("");
   const [pendingWeaponPerkHash, setPendingWeaponPerkHash] = useState<number | null>(null);
   const [weaponAnalysis, setWeaponAnalysis] = useState<PrototypeWeaponAnalysis>({ status: "idle" });
   const [personalWeaponKnowledge, setPersonalWeaponKnowledge] = useState<PrototypePersonalKnowledge[]>(prototypePersonalKnowledge);
@@ -125,9 +129,11 @@ function PrototypeApp() {
     kind: weaponObjectKind,
     rarity: weaponRarity,
     selectedVersionHash: selectedWeaponVersionHash,
+    selectedInstanceId: selectedWeaponInstanceId,
+    instanceRuntime: prototypeInstanceRuntime,
     pendingPerkHash: pendingWeaponPerkHash,
     vendorDetail
-  }), [pendingWeaponPerkHash, selectedWeaponVersionHash, vendorDetail, weaponObjectKind, weaponRarity]);
+  }), [pendingWeaponPerkHash, prototypeInstanceRuntime, selectedWeaponInstanceId, selectedWeaponVersionHash, vendorDetail, weaponObjectKind, weaponRarity]);
 
   function appendPrototypeAssistantReply(prompt: string) {
     const trimmedPrompt = prompt.trim();
@@ -432,9 +438,10 @@ function PrototypeApp() {
                    <div className="item-detail-game-card" aria-label="武器详情 Prototype 控制">
                      <div className="button-row">
                      <label>对象
-                       <select value={weaponObjectKind} onChange={(event) => {
-                         setWeaponObjectKind(event.target.value as PrototypeWeaponObjectKind);
-                         setPendingWeaponPerkHash(null);
+                        <select value={weaponObjectKind} onChange={(event) => {
+                          setWeaponObjectKind(event.target.value as PrototypeWeaponObjectKind);
+                          setPendingWeaponPerkHash(null);
+                          setPrototypeActionMessage("");
                        }}>
                          <option value="definition">资料库定义</option>
                          <option value="vendor_offer">商人售卖</option>
@@ -444,9 +451,11 @@ function PrototypeApp() {
                      <label>武器
                        <select value={weaponRarity} onChange={(event) => {
                          const rarity = event.target.value as PrototypeWeaponRarity;
-                         setWeaponRarity(rarity);
-                         setSelectedWeaponVersionHash(rarity === "exotic" ? 5501 : 4401);
-                         setPendingWeaponPerkHash(null);
+                          setWeaponRarity(rarity);
+                          setSelectedWeaponVersionHash(rarity === "exotic" ? 5501 : 4401);
+                          setSelectedWeaponInstanceId("instance-4401-a");
+                          setPendingWeaponPerkHash(null);
+                          setPrototypeActionMessage("");
                        }}>
                          <option value="legendary">传说武器</option>
                          <option value="exotic">异域武器</option>
@@ -467,17 +476,25 @@ function PrototypeApp() {
                          setPendingWeaponPerkHash(null);
                          setWeaponAnalysis({ status: "ready", title: "配置已应用（Prototype）", body: "已模拟应用当前实例拥有的可切换 Perk。", evidence: [{ label: "对象", value: "账号实例 mock" }] });
                        },
-                       selectInstance: (instance) => setWeaponAnalysis({ status: "ready", title: `已选择 ${instance.location} 实例`, body: instance.plug_names.join(" / "), evidence: [{ label: "实例 ID", value: instance.instance_id }] }),
-                       runAnalysis: (prompt) => setWeaponAnalysis({
-                         status: "ready",
-                         title: `${prototypeWeaponModel.identity.name} 分析`,
-                         body: prompt.trim() || "当前配置适合高难 PvE：稳定触发增伤，并保留清怪与续航能力。商人对象会额外比较价格和账号已有实例。",
-                         evidence: [
-                           { label: "分析对象", value: prototypeWeaponModel.context.object_label },
-                           { label: "应用推荐", value: prototypeWeaponModel.recommendations[0]?.title ?? "无" },
-                           { label: "账号实例", value: `${prototypeWeaponModel.same_hash_instances.length} 件` }
-                         ]
-                       }),
+                        selectInstance: (instance) => {
+                          setWeaponObjectKind("account_instance");
+                          setSelectedWeaponInstanceId(instance.instance_id);
+                          setPendingWeaponPerkHash(null);
+                          setPrototypeActionMessage("");
+                          setWeaponAnalysis({ status: "ready", title: `已选择 ${instance.location} 实例`, body: instance.plug_names.join(" / "), evidence: [{ label: "实例 ID", value: instance.instance_id }] });
+                        },
+                        runAnalysis: (request) => setWeaponAnalysis({
+                          status: "ready",
+                          title: `${prototypeWeaponModel.identity.name} 分析`,
+                          body: request.prompt.trim() || "当前配置适合高难 PvE：稳定触发增伤，并保留清怪与续航能力。商人对象会额外比较价格和账号已有实例。",
+                          evidence: [
+                            { label: "分析对象", value: prototypeWeaponModel.context.object_label },
+                            { label: "应用推荐", value: prototypeWeaponModel.recommendations[0]?.title ?? "无" },
+                            { label: "账号实例", value: `${prototypeWeaponModel.same_hash_instances.length} 件` }
+                          ],
+                          externalSearchMessage: request.allow_external_search ? "Prototype 已模拟外部知识查询；外部内容保持最低优先级。" : "未请求外部知识。",
+                          externalSources: request.allow_external_search ? [{ title: "Bungie 武器设计说明（Prototype）", url: "https://www.bungie.net/7/zh-chs/News", queried_at: new Date().toISOString() }] : []
+                        }),
                        saveKnowledge: (draft) => setPersonalWeaponKnowledge((current) => {
                          const now = new Date().toISOString();
                          const next = { ...draft, id: draft.id ?? `prototype-${Date.now()}`, created_at: now, updated_at: now } as PrototypePersonalKnowledge;
@@ -486,7 +503,42 @@ function PrototypeApp() {
                        setKnowledgeEnabled: (id, enabled) => setPersonalWeaponKnowledge((current) => current.map((entry) => entry.id === id ? { ...entry, enabled, updated_at: new Date().toISOString() } : entry)),
                        deleteKnowledge: (id) => setPersonalWeaponKnowledge((current) => current.filter((entry) => entry.id !== id))
                      }}
-                     instanceActions={<div className="button-row"><button type="button">锁定</button><button type="button">转移</button><button type="button">装备</button><button type="button">加入配装草稿</button></div>}
+                      instanceActions={weaponObjectKind === "account_instance" ? (
+                        <section className="item-action-panel">
+                          <div><h3>装备操作</h3><p>Prototype 会更新当前实例的位置、装备和锁定状态，不调用 Bungie API。</p></div>
+                          <label className="compact-field">目标角色<select value={prototypeActionCharacter} onChange={(event) => setPrototypeActionCharacter(event.target.value as PrototypeCharacter)}><option value="猎人">猎人</option><option value="泰坦">泰坦</option><option value="术士">术士</option></select></label>
+                          <div className="button-row">
+                            <button type="button" className="secondary-button" onClick={() => {
+                              setPrototypeInstanceRuntime((current) => ({ ...current, [selectedWeaponInstanceId]: { ...current[selectedWeaponInstanceId], locked: !current[selectedWeaponInstanceId].locked } }));
+                              setPrototypeActionMessage(prototypeInstanceRuntime[selectedWeaponInstanceId].locked ? "已模拟解锁当前实例。" : "已模拟锁定当前实例。");
+                            }}>{prototypeInstanceRuntime[selectedWeaponInstanceId].locked ? "解锁" : "锁定"}</button>
+                            <button type="button" className="secondary-button" onClick={() => {
+                              const selected = prototypeInstanceRuntime[selectedWeaponInstanceId];
+                              const movingToVault = selected.source_kind !== "vault";
+                              setPrototypeInstanceRuntime((current) => ({ ...current, [selectedWeaponInstanceId]: movingToVault
+                                ? { ...current[selectedWeaponInstanceId], location: "仓库", source_kind: "vault", source_character_id: undefined, equipped: false }
+                                : { ...current[selectedWeaponInstanceId], location: `${prototypeActionCharacter}背包`, source_kind: "inventory", source_character_id: prototypeCharacterIds[prototypeActionCharacter], equipped: false } }));
+                              setPrototypeActionMessage(movingToVault ? "已模拟移入仓库。" : `已模拟转移到${prototypeActionCharacter}背包。`);
+                            }}>{prototypeInstanceRuntime[selectedWeaponInstanceId].source_kind === "vault" ? "取出到角色" : "移入仓库"}</button>
+                            <button type="button" className="secondary-button" onClick={() => {
+                              setPrototypeInstanceRuntime((current) => {
+                                const next: PrototypeInstanceRuntime = { ...current };
+                                for (const [id, instance] of Object.entries(current)) {
+                                  if (id === selectedWeaponInstanceId) {
+                                    next[id] = { ...instance, location: `${prototypeActionCharacter}已装备`, source_kind: "equipped", source_character_id: prototypeCharacterIds[prototypeActionCharacter], equipped: true };
+                                  } else if (instance.equipped && instance.source_character_id === prototypeCharacterIds[prototypeActionCharacter]) {
+                                    next[id] = { ...instance, location: `${prototypeActionCharacter}背包`, source_kind: "inventory", equipped: false };
+                                  }
+                                }
+                                return next;
+                              });
+                              setPrototypeActionMessage(`已模拟装备到${prototypeActionCharacter}。`);
+                            }}>装备到角色</button>
+                            <button type="button" className="secondary-button" onClick={() => setPrototypeActionMessage("已模拟加入配装草稿。")}>加入配装草稿</button>
+                          </div>
+                          {prototypeActionMessage ? <p className="status-message status-ready">{prototypeActionMessage}</p> : null}
+                        </section>
+                      ) : undefined}
                    />
                  </>
                )}
@@ -599,13 +651,34 @@ type PrototypeWeaponAnalysis = NonNullable<ComponentProps<typeof WeaponDetailCon
 type PrototypePersonalKnowledge = NonNullable<ComponentProps<typeof WeaponDetailContent>["personalKnowledge"]>[number];
 type PrototypeWeaponObjectKind = PrototypeWeaponModel["context"]["kind"];
 type PrototypeWeaponRarity = "legendary" | "exotic";
+type PrototypeCharacter = "猎人" | "泰坦" | "术士";
+type PrototypeInstanceRuntime = Record<string, {
+  location: string;
+  source_kind: "equipped" | "inventory" | "vault";
+  source_character_id?: string;
+  locked: boolean;
+  equipped: boolean;
+}>;
+
+const prototypeCharacterIds: Record<PrototypeCharacter, string> = {
+  猎人: "char-hunter",
+  泰坦: "char-titan",
+  术士: "char-warlock"
+};
+
+const initialPrototypeInstanceRuntime: PrototypeInstanceRuntime = {
+  "instance-4401-a": { location: "泰坦已装备", source_kind: "equipped", source_character_id: "char-titan", locked: true, equipped: true },
+  "instance-4401-b": { location: "仓库", source_kind: "vault", locked: false, equipped: false }
+};
 
 const prototypeVendorContext: VendorOfferContextView = {
   vendorName: "枪匠班希-44",
+  inventoryPath: "高塔 / 枪匠 / 武器",
   costLabel: "30 枪匠材料 + 7,000 微光",
   affordabilityLabel: "材料充足 · 可以购买",
   characterLabel: "泰坦角色库存",
   refreshLabel: "周三 01:00 刷新",
+  purchaseRequirements: [],
   rollLabels: ["箭头制退器", "战术弹匣", "爆破专家", "狂暴"]
 };
 
@@ -632,6 +705,8 @@ function createPrototypeWeaponModel(input: {
   kind: PrototypeWeaponObjectKind;
   rarity: PrototypeWeaponRarity;
   selectedVersionHash: number;
+  selectedInstanceId: string;
+  instanceRuntime: PrototypeInstanceRuntime;
   pendingPerkHash: number | null;
   vendorDetail: { item: VendorInventoryItemView; context: VendorOfferContextView } | null;
 }): PrototypeWeaponModel {
@@ -640,6 +715,8 @@ function createPrototypeWeaponModel(input: {
   const hash = exotic ? 5501 : input.selectedVersionHash;
   const accountInstance = input.kind === "account_instance";
   const vendorOffer = input.kind === "vendor_offer";
+  const selectedInstanceId = input.selectedInstanceId in input.instanceRuntime ? input.selectedInstanceId : "instance-4401-a";
+  const selectedInstanceRuntime = input.instanceRuntime[selectedInstanceId];
   const icon = prototypeWeaponIcon(exotic ? "异" : "脉", exotic ? "#c18a24" : "#3f6f8f");
   const barrel = perk(7101, "箭头制退器", "显著控制后坐方向并提高操控。", "管", "#52677a");
   const barrelAlternative = perk(7102, "小口径", "提高射程与稳定性。", "管", "#4b6b5b");
@@ -649,7 +726,13 @@ function createPrototypeWeaponModel(input: {
   const vorpal = perk(7402, "斩首武器", "对首领、载具和超能状态目标造成额外伤害。", "首", "#79506b");
   const exoticTrait = perk(7501, "裂隙共振", "连续命中会积累共振并释放元素冲击。", "裂", "#9a7423");
   const origin = perk(7601, "前线补给", "击破强敌后短暂提高装填与稳定性。", "源", "#485e76");
-  const selectedTrait = input.pendingPerkHash === vorpal.hash ? vorpal : frenzy;
+  const baseTrait = selectedInstanceId === "instance-4401-b" ? vorpal : frenzy;
+  const selectedTrait = input.pendingPerkHash === vorpal.hash
+    ? vorpal
+    : input.pendingPerkHash === frenzy.hash
+      ? frenzy
+      : baseTrait;
+  const selectedBarrel = selectedInstanceId === "instance-4401-b" ? barrelAlternative : barrel;
   const versions = exotic ? [{ hash: 5501, label: "裂界回响", season_label: "异域档案", is_current: true }] : [
     { hash: 4401, label: "边界裁决", season_label: "当前版本", is_current: hash === 4401 },
     { hash: 4402, label: "边界裁决（专家）", season_label: "专家版本", is_current: hash === 4402 }
@@ -675,17 +758,17 @@ function createPrototypeWeaponModel(input: {
       kind: input.kind,
       entry: vendorOffer ? "vendor" : accountInstance ? "vault" : "library",
       entry_label: vendorOffer ? "商人" : accountInstance ? "仓库" : "资料库",
-      object_label: vendorOffer ? "商人 Offer" : accountInstance ? "账号实例" : "装备定义",
-      object_id: vendorOffer ? "offer-4401" : accountInstance ? "instance-4401-a" : undefined,
+      object_label: vendorOffer ? "商人 Offer" : accountInstance ? selectedInstanceRuntime.location : "装备定义",
+      object_id: vendorOffer ? "offer-4401" : accountInstance ? selectedInstanceId : undefined,
       read_only: !accountInstance
     },
     versions,
-    stats: prototypeWeaponStats(accountInstance || vendorOffer, input.pendingPerkHash),
+    stats: prototypeWeaponStats(accountInstance || vendorOffer, input.pendingPerkHash, selectedInstanceId),
     configuration: {
       kind: exotic ? "fixed" : "random_roll",
       intrinsic: exotic ? exoticTrait : perk(7001, "高冲击框架", "静止或缓慢移动时更精准。", "框", "#46515c"),
       selection_columns: accountInstance || vendorOffer ? [
-        selectionColumn("barrel", 0, "枪管", "barrel", [selectable(barrel, true, false, accountInstance), selectable(barrelAlternative, false, false, accountInstance)]),
+        selectionColumn("barrel", 0, "枪管", "barrel", [selectable(barrel, selectedBarrel.hash === barrel.hash, false, accountInstance), selectable(barrelAlternative, selectedBarrel.hash === barrelAlternative.hash, input.pendingPerkHash === barrelAlternative.hash, accountInstance)]),
         selectionColumn("magazine", 1, "弹匣", "magazine", [selectable(magazine, true, false, false)]),
         selectionColumn("trait-1", 2, "特性 1", "trait", [selectable(demolitionist, true, false, false)]),
         selectionColumn("trait-2", 3, "特性 2", "trait", [selectable(frenzy, selectedTrait.hash === frenzy.hash, input.pendingPerkHash === frenzy.hash, accountInstance), selectable(vorpal, selectedTrait.hash === vorpal.hash, input.pendingPerkHash === vorpal.hash, accountInstance)]),
@@ -706,7 +789,7 @@ function createPrototypeWeaponModel(input: {
       updated_at: "2026-07-16T09:00:00.000Z",
       entries: [
         { id: "activity-1", kind: "activity_reward", label: exotic ? "异域任务：裂界信号" : "永夜打击任务", description: exotic ? "完成异域任务后获取固定配置。" : "完成活动后有概率掉落。", available_now: true, updated_at: "2026-07-16T09:00:00.000Z" },
-        ...(vendorOffer ? [{ id: "vendor-1", kind: "vendor_offer" as const, label: input.vendorDetail?.context.vendorName ?? prototypeVendorContext.vendorName, description: "当前角色库存已确认售卖。", available_now: true, updated_at: "2026-07-16T09:00:00.000Z", offer: { offer_id: "offer-4401", vendor_hash: 672118013, vendor_name: prototypeVendorContext.vendorName, price_labels: [prototypeVendorContext.costLabel], refresh_at: "2026-07-22T01:00:00.000Z", can_purchase: true, failure_messages: [] } }] : [])
+        ...(vendorOffer ? [{ id: "vendor-1", kind: "vendor_offer" as const, label: input.vendorDetail?.context.vendorName ?? prototypeVendorContext.vendorName, description: "当前角色库存已确认售卖。", available_now: true, updated_at: "2026-07-16T09:00:00.000Z", offer: { offer_id: "offer-4401", vendor_hash: 672118013, vendor_name: prototypeVendorContext.vendorName, inventory_path: prototypeVendorContext.inventoryPath, price_labels: [prototypeVendorContext.costLabel], refresh_at: prototypeVendorContext.refreshLabel, can_purchase: true, purchase_requirements: prototypeVendorContext.purchaseRequirements ?? [], failure_messages: [] } }] : [])
       ]
     },
     upgrades: exotic ? {
@@ -732,6 +815,19 @@ function createPrototypeWeaponModel(input: {
       match: accountInstance ? "full" : "not_applicable",
       match_notes: accountInstance ? ["当前实例已选爆破专家。", "特性 2 可在狂暴与斩首武器之间切换。"] : ["当前对象不是账号实例，不执行 Roll 命中判断。"]
     }],
+    personal_targets: exotic ? [] : [{
+      id: "legendary-dim-target",
+      mode: "pve",
+      title: "DIM 导入目标",
+      reason: "这是用户导入的个人目标，不属于应用默认推荐。",
+      source: "dim",
+      source_label: "DIM 愿望单",
+      perk_options: [{ column_key: "特性 1", names: ["爆破专家"] }, { column_key: "特性 2", names: ["斩首武器"] }],
+      masterwork_names: [],
+      mod_names: [],
+      match: accountInstance && selectedInstanceId === "instance-4401-b" ? "full" : accountInstance ? "partial" : "not_applicable",
+      match_notes: accountInstance ? [selectedInstanceId === "instance-4401-b" ? "当前实例命中个人目标。" : "当前实例部分命中个人目标。"] : ["选择账号实例后比较个人目标。"]
+    }],
     same_hash_instances: [
       {
         item_key: "instance-4401-a",
@@ -740,18 +836,18 @@ function createPrototypeWeaponModel(input: {
         name,
         icon,
         power: 2020,
-        location: "泰坦已装备",
-        source_kind: "equipped",
-        source_character_id: "char-titan",
-        locked: true,
-        equipped: true,
+        location: input.instanceRuntime["instance-4401-a"].location,
+        source_kind: input.instanceRuntime["instance-4401-a"].source_kind,
+        source_character_id: input.instanceRuntime["instance-4401-a"].source_character_id,
+        locked: input.instanceRuntime["instance-4401-a"].locked,
+        equipped: input.instanceRuntime["instance-4401-a"].equipped,
         local_tag: "keep",
         note: "高难 PvE 常用实例。",
         upgrade_status: exotic
           ? { catalyst: { name: "裂界稳定器", acquired: true, complete: false, progress: 68, effects: [] }, enhanced: false }
           : { masterwork: { name: "装填速度", level: 10, complete: true }, mod: perk(7901, "备用弹匣", "提高弹匣容量。", "模", "#4f6272"), crafting_level: 37, enhanced: true },
         loadout_references: [{ id: "in-game:char-titan:1", name: "虚空高难", kind: "in_game", character_id: "char-titan", loadout_index: 1 }],
-        current: accountInstance,
+        current: accountInstance && selectedInstanceId === "instance-4401-a",
         plug_names: exotic ? ["裂隙共振"] : ["箭头制退器", "战术弹匣", "爆破专家", "狂暴"]
       },
       {
@@ -761,12 +857,13 @@ function createPrototypeWeaponModel(input: {
         name,
         icon,
         power: 2010,
-        location: "仓库",
-        source_kind: "vault",
-        locked: false,
-        equipped: false,
+        location: input.instanceRuntime["instance-4401-b"].location,
+        source_kind: input.instanceRuntime["instance-4401-b"].source_kind,
+        source_character_id: input.instanceRuntime["instance-4401-b"].source_character_id,
+        locked: input.instanceRuntime["instance-4401-b"].locked,
+        equipped: input.instanceRuntime["instance-4401-b"].equipped,
         local_tag: "review",
-        current: false,
+        current: accountInstance && selectedInstanceId === "instance-4401-b",
         plug_names: exotic ? ["裂隙共振"] : ["小口径", "战术弹匣", "爆破专家", "斩首武器"]
       }
     ],
@@ -774,13 +871,14 @@ function createPrototypeWeaponModel(input: {
   };
 }
 
-function prototypeWeaponStats(hasCurrent: boolean, pendingPerkHash: number | null): PrototypeWeaponModel["stats"] {
+function prototypeWeaponStats(hasCurrent: boolean, pendingPerkHash: number | null, selectedInstanceId: string): PrototypeWeaponModel["stats"] {
   const pendingBarrel = hasCurrent && pendingPerkHash === 7102;
+  const secondInstance = selectedInstanceId === "instance-4401-b";
   return [
     stat("impact", "伤害", 33, hasCurrent ? 33 : undefined),
-    stat("range", "射程", 61, hasCurrent ? 68 : undefined, 7, [{ source: "枪管与大师杰作", amount: 7 }], pendingBarrel ? 76 : undefined),
-    stat("stability", "稳定性", 54, hasCurrent ? 59 : undefined, 5, [{ source: "战术弹匣", amount: 5 }], pendingBarrel ? 66 : undefined),
-    stat("handling", "操控性", 42, hasCurrent ? 52 : undefined, 10, [{ source: "箭头制退器", amount: 10 }], pendingBarrel ? 42 : undefined),
+    stat("range", "射程", 61, hasCurrent ? secondInstance ? 74 : 68 : undefined, secondInstance ? 13 : 7, [{ source: secondInstance ? "小口径与大师杰作" : "枪管与大师杰作", amount: secondInstance ? 13 : 7 }], pendingBarrel ? 76 : undefined),
+    stat("stability", "稳定性", 54, hasCurrent ? secondInstance ? 66 : 59 : undefined, secondInstance ? 12 : 5, [{ source: secondInstance ? "小口径与战术弹匣" : "战术弹匣", amount: secondInstance ? 12 : 5 }], pendingBarrel ? 66 : undefined),
+    stat("handling", "操控性", 42, hasCurrent ? secondInstance ? 42 : 52 : undefined, secondInstance ? 0 : 10, secondInstance ? [] : [{ source: "箭头制退器", amount: 10 }], pendingBarrel ? 42 : undefined),
     stat("reload_speed", "装填速度", 48, hasCurrent ? 63 : undefined, 15, [{ source: "战术弹匣与大师杰作", amount: 15 }]),
     stat("magazine", "弹匣", 36, hasCurrent ? 39 : undefined, 3, [{ source: "战术弹匣", amount: 3 }]),
     stat("rounds_per_minute", "射速", 340, hasCurrent ? 340 : undefined),

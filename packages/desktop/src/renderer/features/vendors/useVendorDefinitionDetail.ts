@@ -158,7 +158,7 @@ export function useVendorDefinitionDetail(input: { vendorSourcePaths?: Map<numbe
     }
   }
 
-  async function generateAi(userKnowledge = ""): Promise<void> {
+  async function generateAi(userKnowledge = "", allowExternalSearch = false): Promise<void> {
     if (!state) return;
     const current = state;
     setState((value) => value ? { ...value, isGeneratingAi: true, aiError: "" } : value);
@@ -184,6 +184,7 @@ export function useVendorDefinitionDetail(input: { vendorSourcePaths?: Map<numbe
         user_knowledge: userKnowledge.trim() || undefined,
         personal_knowledge: current.personalKnowledge,
         builtin_knowledge: current.recommendations ?? null,
+        allow_external_search: allowExternalSearch,
         weapon_context: {
           object_kind: "vendor_offer",
           official_sources: current.liveEntry?.sources.map((source) => source.label) ?? [current.context.vendorName],

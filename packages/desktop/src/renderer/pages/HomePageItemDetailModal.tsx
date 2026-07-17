@@ -5,7 +5,11 @@ import { buildLibraryDefinitionDetailView, buildLibraryOwnership } from "@d2-too
 import { collectSelectedSameNameItems, createSelectedItemPreview, type WeaponDetailSources } from "@d2-tools/app/items";
 import type { useVendorDefinitionDetail } from "../features/vendors/useVendorDefinitionDetail";
 import { ItemDetailModal } from "../shared/components/ItemDetailModal";
-import { buildWeaponDetailView, buildWeaponRecommendationViews } from "../shared/components/item-detail/buildWeaponDetailView";
+import {
+  buildWeaponDetailView,
+  buildWeaponPersonalTargetViews,
+  buildWeaponRecommendationViews
+} from "../shared/components/item-detail/buildWeaponDetailView";
 import type { useItemDetailWorkspace } from "../shared/hooks/useItemDetailWorkspace";
 
 type ItemDetailWorkspace = ReturnType<typeof useItemDetailWorkspace>;
@@ -61,6 +65,10 @@ export function HomePageItemDetailModal(props: {
         vendorDefinitionState.recommendations ?? null,
         vendorDefinitionState.personalKnowledge,
         vendorSelectedItem
+      ),
+      personalTargets: buildWeaponPersonalTargetViews(
+        vendorDefinitionState.recommendations ?? null,
+        vendorSelectedItem
       )
     });
     if (vendorWeaponModel) {
@@ -90,7 +98,9 @@ export function HomePageItemDetailModal(props: {
                         : "idle",
                   title: vendorDefinitionState.aiResult?.ai ? `${vendorWeaponModel.identity.name}售卖分析` : undefined,
                   body: vendorDefinitionState.aiResult?.ai?.text,
-                  message: vendorDefinitionState.aiError || vendorDefinitionState.aiResult?.skipped_reason
+                  message: vendorDefinitionState.aiError || vendorDefinitionState.aiResult?.skipped_reason,
+                  externalSources: vendorDefinitionState.aiResult?.ai?.external_search?.sources,
+                  externalSearchMessage: vendorDefinitionState.aiResult?.ai?.external_search?.message
                 }}
                 actions={{
                   selectInstance: (instance) => {
@@ -104,7 +114,7 @@ export function HomePageItemDetailModal(props: {
                       is_postmaster_item: item.is_postmaster_item
                     });
                   },
-                  runAnalysis: (prompt) => void props.vendorDefinitionDetail.generateAi(prompt),
+                  runAnalysis: (request) => void props.vendorDefinitionDetail.generateAi(request.prompt, request.allow_external_search),
                   saveKnowledge: (draft) => void props.vendorDefinitionDetail.saveKnowledge(draft),
                   setKnowledgeEnabled: (id, enabled) => void props.vendorDefinitionDetail.setKnowledgeEnabled(id, enabled),
                   deleteKnowledge: (id) => void props.vendorDefinitionDetail.deleteKnowledge(id)
@@ -175,7 +185,7 @@ export function HomePageItemDetailModal(props: {
       onCopySelectedItemChatGuide={() => void itemDetail.copySelectedItemChatGuide()}
       onCopySelectedItemSummary={() => void itemDetail.copySelectedItemSummary()}
       onCopyWishlistInsight={() => void itemDetail.copyWishlistInsight()}
-      onGenerateItemAiAdvice={(userKnowledge) => void itemDetail.generateItemAiAdvice(userKnowledge)}
+      onGenerateItemAiAdvice={(userKnowledge, allowExternalSearch) => void itemDetail.generateItemAiAdvice(userKnowledge, allowExternalSearch)}
       onOpenBestSameNameItem={(items) => itemDetail.openBestSameNameItem(items)}
       onOpenItemDetail={(item, source) => void itemDetail.openItemDetail(item, source)}
       onRunItemWriteAction={(label, action) => void itemDetail.runItemWriteAction(label, action)}
@@ -208,8 +218,11 @@ function buildVendorWeaponSources(
       offer_id: state.offerItem.id,
       vendor_hash: state.offerItem.vendorHash,
       vendor_name: state.context.vendorName,
+      inventory_path: state.context.inventoryPath ?? state.offerItem.sourcePath,
       price_labels: (state.offerItem.costs ?? []).map((cost) => `${cost.required} ${cost.label}`),
+      refresh_at: state.context.refreshLabel,
       can_purchase: state.offerItem.canPurchase,
+      purchase_requirements: state.context.purchaseRequirements ?? [],
       failure_messages: state.offerItem.failureMessages ?? []
     }
   }];

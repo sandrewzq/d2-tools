@@ -134,7 +134,7 @@ export function useItemDetailWorkspace(input: {
     collectSelectedSameNameItems(input.accountSummary, selectedItem)
   ), [input.accountSummary, selectedItem]);
 
-  async function generateItemAiAdvice(userKnowledge = "") {
+  async function generateItemAiAdvice(userKnowledge = "", allowExternalSearch = false) {
     if (!selectedItem?.group_key) return;
 
     setIsGeneratingItemAi(true);
@@ -164,6 +164,7 @@ export function useItemDetailWorkspace(input: {
         user_knowledge: userKnowledge.trim() || undefined,
         personal_knowledge: personalWeaponKnowledge,
         builtin_knowledge: communityRecommendations,
+        allow_external_search: allowExternalSearch,
         weapon_context: selectedItem.group_key === "weapons" ? {
           object_kind: selectedItem.instance_id ? "account_instance" : "definition",
           official_sources: [

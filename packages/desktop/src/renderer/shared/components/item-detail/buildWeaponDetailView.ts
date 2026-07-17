@@ -1,9 +1,13 @@
 import {
   buildWeaponDetailViewModel,
+  classifyWeaponSocketPlugs,
+  isEnhancedWeaponPerk,
+  isWeaponSystemPlug,
   perkGroupsToPoolColumns,
   type WeaponDetailViewModel,
   type WeaponDetailInstanceMetadata,
   type WeaponPerkSelectionColumn,
+  type WeaponPerkColumnRole,
   type WeaponDetailObjectContext,
   type WeaponDetailSources
 } from "@d2-tools/app/items";
@@ -18,6 +22,7 @@ export type BuildDesktopWeaponDetailInput = {
   accountSummary?: AccountSummary | null;
   sameNameItems?: SameNameItemSummary[];
   recommendations?: WeaponDetailViewModel["recommendations"];
+  personalTargets?: WeaponDetailViewModel["personal_targets"];
   context?: Partial<WeaponDetailObjectContext>;
   sources?: WeaponDetailSources;
   selectionNames?: string[];
@@ -36,7 +41,7 @@ export function buildWeaponDetailView(
 
   const allPoolColumns = perkGroupsToPoolColumns(item.perks ?? []);
   const intrinsic = allPoolColumns.find((column) => column.role === "intrinsic")?.candidates[0];
-  const poolColumns = allPoolColumns.filter((column) => column.role !== "intrinsic");
+  const poolColumns = sortConfigurationColumns(allPoolColumns.filter((column) => column.role !== "intrinsic"));
   const hasVariablePerks = poolColumns.some((column) => column.candidates.length > 1);
   const isExotic = /异域|exotic/i.test(item.tier ?? "");
   const upgrades = buildWeaponUpgrades(item);
@@ -106,6 +111,7 @@ export function buildWeaponDetailView(
     sources: input.sources,
     upgrades,
     recommendations: input.recommendations,
+    personal_targets: input.personalTargets,
     same_hash_instances: input.sameNameItems,
     instance_metadata: buildInstanceMetadata(input, upgrades)
   });
@@ -176,6 +182,7 @@ function hasWeaponUpgradeData(upgrades: WeaponDetailViewModel["upgrades"]): bool
     upgrades.masterwork
     || upgrades.mod
     || upgrades.catalyst
+    || upgrades.enhancement
     || upgrades.crafting_level !== undefined
     || upgrades.enhanced
   );
@@ -240,7 +247,7 @@ export function buildWeaponRecommendationViews(
   const isFixedConfiguration = Boolean(item.perks?.length)
     && item.perks!.every((group) => group.plugs.length <= 1);
   const builtin = (isFixedConfiguration ? [] : recommendation?.combos ?? [])
-    .filter((combo) => combo.source !== "ai_lightgg")
+    .filter((combo) => combo.source === "local_community")
     .map((combo, index) => {
       const matched = combo.perks.filter((perk) => availableHashes.has(perk.hash)).length;
       return {
@@ -248,8 +255,8 @@ export function buildWeaponRecommendationViews(
         mode: combo.mode,
         title: combo.note || `${combo.mode.toUpperCase()} 推荐 Roll`,
         reason: recommendation?.disclaimer || "依据本地知识与愿望单比较当前配置。",
-        source: combo.source === "dim_wishlist" ? "dim" as const : "builtin" as const,
-        source_label: combo.source === "dim_wishlist" ? "DIM 愿望单" : "内置知识库",
+        source: "builtin" as const,
+        source_label: "内置知识库",
         perk_options: combo.perks.map((perk, perkIndex) => ({
           column_key: `Perk ${perkIndex + 1}`,
           names: [perk.name]
@@ -261,6 +268,37 @@ export function buildWeaponRecommendationViews(
       };
     });
   return [...personal, ...builtin];
+}
+
+export function buildWeaponPersonalTargetViews(
+  recommendation: CommunityWeaponRecommendation | null,
+  item: SelectedItemDetail
+): WeaponDetailViewModel["personal_targets"] {
+  const availableHashes = new Set([
+    ...(item.socket_plugs ?? []).map((plug) => plug.hash),
+    ...(item.sockets ?? []).flatMap((socket) => socket.reusable_plugs.map((plug) => plug.hash))
+  ]);
+  return (recommendation?.combos ?? [])
+    .filter((combo) => combo.source === "dim_wishlist")
+    .map((combo, index) => {
+      const matched = combo.perks.filter((perk) => availableHashes.has(perk.hash)).length;
+      return {
+        id: `dim:${combo.mode}:${index}`,
+        mode: combo.mode,
+        title: combo.note || `${combo.mode.toUpperCase()} DIM 目标`,
+        reason: "这是用户导入的 DIM 愿望单目标，不属于应用默认推荐。",
+        source: "dim" as const,
+        source_label: "DIM 愿望单",
+        perk_options: combo.perks.map((perk, perkIndex) => ({
+          column_key: `Perk ${perkIndex + 1}`,
+          names: [perk.name]
+        })),
+        masterwork_names: [],
+        mod_names: [],
+        match: matchRecommendation(item, matched, combo.perks.length),
+        match_notes: recommendationMatchNotes(item, matched, combo.perks.length)
+      };
+    });
 }
 
 function matchRecommendation(
@@ -304,31 +342,56 @@ function buildSelectionColumns(
 ): WeaponPerkSelectionColumn[] {
   if (item.sockets?.length) {
     const poolBySocket = new Map(poolColumns.map((column) => [column.socket_index, column]));
-    return item.sockets.flatMap((socket) => {
+    return labelTraitColumns(sortConfigurationColumns(item.sockets.flatMap((socket) => {
       const pool = poolBySocket.get(socket.socket_index);
-      if (!pool && !socketLooksLikeWeaponRoll(socket)) return [];
+      const socketPlugs = [
+        ...(socket.selected_plug ? [socket.selected_plug] : []),
+        ...socket.reusable_plugs
+      ];
+      const role = pool?.role ?? classifyWeaponSocketPlugs(socketPlugs);
+      if (!role || role === "intrinsic") return [];
+      const reusablePlugs = socket.reusable_plugs.filter((plug) => !isWeaponSystemPlug(plug));
+      const selectedPlug = socket.selected_plug && !isWeaponSystemPlug(socket.selected_plug)
+        ? socket.selected_plug
+        : undefined;
+      if (!reusablePlugs.length && !selectedPlug) return [];
       const poolHashes = new Set(pool?.candidates.map((candidate) => candidate.hash) ?? []);
       return [{
         key: pool?.key ?? `socket-${socket.socket_index}`,
         socket_index: socket.socket_index,
-        label: pool?.label ?? socketLabel(socket.socket_index, socket.selected_plug?.category_identifier),
-        role: pool?.role ?? "other",
-        candidates: socket.reusable_plugs.map((plug) => ({
-          hash: plug.hash,
-          name: plug.name,
-          description: plug.description ?? "",
-          icon: plug.icon,
-          selected: plug.selected,
-          can_apply: socket.is_enabled
-            && plug.can_insert === true
-            && plug.enabled !== false
-            && plug.insert_fail_indexes.length === 0
-            && plug.enable_fail_indexes.length === 0,
-          pending: pendingPerks?.[socket.socket_index] === plug.hash,
-          unresolved_in_definition_pool: !poolHashes.has(plug.hash)
-        }))
+        label: pool?.label ?? socketLabel(socket.socket_index, role),
+        role,
+        candidates: reusablePlugs.length
+          ? reusablePlugs.map((plug) => ({
+              hash: plug.hash,
+              name: plug.name,
+              description: plug.description ?? "",
+              icon: plug.icon,
+              enhanced_of_hash: isEnhancedWeaponPerk(plug) ? findBasePerkHash(plug.name, pool?.candidates) : undefined,
+              selected: plug.selected,
+              can_apply: socket.is_enabled
+                && plug.can_insert === true
+                && plug.enabled !== false
+                && plug.insert_fail_indexes.length === 0
+                && plug.enable_fail_indexes.length === 0,
+              pending: pendingPerks?.[socket.socket_index] === plug.hash,
+              unresolved_in_definition_pool: !poolHashes.has(plug.hash)
+            }))
+          : selectedPlug
+            ? [{
+                hash: selectedPlug.hash,
+                name: selectedPlug.name,
+                description: selectedPlug.description ?? "",
+                icon: selectedPlug.icon,
+                enhanced_of_hash: isEnhancedWeaponPerk(selectedPlug) ? findBasePerkHash(selectedPlug.name, pool?.candidates) : undefined,
+                selected: true,
+                can_apply: false,
+                pending: false,
+                unresolved_in_definition_pool: !poolHashes.has(selectedPlug.hash)
+              }]
+            : []
       }];
-    });
+    })));
   }
 
   const selectedHashes = new Set(item.socket_plugs?.map((plug) => plug.hash) ?? []);
@@ -447,6 +510,7 @@ function buildWeaponUpgrades(item: Pick<
   const mod = selectedPlugs.find((plug) => {
     return plugHasSemanticType(plug, "mod");
   });
+  const enhancement = selectedPlugs.find((plug) => plugHasSemanticType(plug, "enhancement"));
   const craftingLevel = extractCraftingLevel([
     ...(item.item_objectives ?? []),
     ...selectedPlugs.flatMap((plug) => plug.objectives ?? [])
@@ -488,11 +552,18 @@ function buildWeaponUpgrades(item: Pick<
             effects: definitionCatalyst.description ? [definitionCatalyst.description] : []
           }
         : undefined,
+    enhancement: enhancement
+      ? {
+          name: /空的|empty/i.test(enhancement.name) ? "未强化" : enhancement.name,
+          level: extractDisplayedLevel(enhancement.name)
+        }
+      : undefined,
     crafting_level: craftingLevel,
     enhanced: selectedPlugs.some((plug) => {
       const category = plug.category_identifier?.toLocaleLowerCase() ?? "";
       const itemType = plug.item_type?.toLocaleLowerCase() ?? "";
-      return category.includes("enhanced") || category.includes("enhancement") || itemType.includes("enhanced") || itemType.includes("强化");
+      return !plugHasSemanticType(plug, "enhancement")
+        && (category.includes("enhanced") || itemType.includes("enhanced") || itemType.includes("强化"));
     })
   };
 }
@@ -502,38 +573,57 @@ function includesCategory(category: string | undefined, segment: string): boolea
 }
 
 function plugHasSemanticType(
-  plug: { category_identifier?: string; item_type?: string },
-  kind: "masterwork" | "catalyst" | "mod"
+  plug: { name?: string; description?: string; category_identifier?: string; item_type?: string },
+  kind: "masterwork" | "catalyst" | "mod" | "enhancement"
 ): boolean {
   const category = plug.category_identifier?.toLocaleLowerCase() ?? "";
   const itemType = plug.item_type?.toLocaleLowerCase() ?? "";
+  const text = `${plug.name ?? ""} ${plug.description ?? ""}`.toLocaleLowerCase();
   if (kind === "masterwork") return category.includes("masterwork") || itemType.includes("masterwork") || itemType.includes("大师杰作");
   if (kind === "catalyst") return category.includes("catalyst") || itemType.includes("catalyst") || itemType.includes("催化剂");
+  if (kind === "enhancement") return text.includes("装备阶级升级") || /(?:^|\s)\d+阶升级/.test(text) || text.includes("empty enhancement tier");
   return (category.includes("weapon.mod") || category.includes("modguns") || category.includes("mods.weapon") || itemType.includes("weapon mod") || itemType.includes("武器模组"))
     && !category.includes("shader")
     && !category.includes("memento");
 }
 
-function socketLooksLikeWeaponRoll(socket: NonNullable<SelectedItemDetail["sockets"]>[number]): boolean {
-  const categories = [
-    socket.selected_plug?.category_identifier,
-    ...socket.reusable_plugs.map((plug) => plug.category_identifier)
-  ].map((value) => value?.toLocaleLowerCase() ?? "");
-  const excluded = ["masterwork", "catalyst", "shader", "tracker", "memento", "weapon.mod", "modguns"];
-  if (categories.some((category) => excluded.some((segment) => category.includes(segment)))) return false;
-  if (categories.some((category) => category.includes("intrinsic"))) return false;
-  return categories.some((category) => [
-    "barrel", "scope", "magazine", "battery", "trait", "origin", "grip", "stock", "guard", "blade", "bow"
-  ].some((segment) => category.includes(segment)));
+function socketLabel(socketIndex: number, role: WeaponPerkColumnRole): string {
+  if (role === "barrel") return "枪管";
+  if (role === "magazine") return "弹匣 / 电池";
+  if (role === "origin") return "起源特性";
+  if (role === "trait") return "武器特性";
+  return `Perk ${socketIndex + 1}`;
 }
 
-function socketLabel(socketIndex: number, category: string | undefined): string {
-  const value = category?.toLocaleLowerCase() ?? "";
-  if (value.includes("intrinsic")) return "武器框架";
-  if (value.includes("barrel") || value.includes("scope")) return "枪管";
-  if (value.includes("magazine") || value.includes("battery")) return "弹匣 / 电池";
-  if (value.includes("origin")) return "起源特性";
-  return `Perk ${socketIndex + 1}`;
+function sortConfigurationColumns<T extends { role: WeaponPerkColumnRole; socket_index: number }>(columns: T[]): T[] {
+  return [...columns].sort((left, right) => {
+    if (left.role === "origin" && right.role !== "origin") return 1;
+    if (right.role === "origin" && left.role !== "origin") return -1;
+    return left.socket_index - right.socket_index;
+  });
+}
+
+function labelTraitColumns(columns: WeaponPerkSelectionColumn[]): WeaponPerkSelectionColumn[] {
+  let traitIndex = 0;
+  return columns.map((column) => column.role === "trait"
+    ? { ...column, label: `Perk ${++traitIndex}` }
+    : column);
+}
+
+function findBasePerkHash(
+  enhancedName: string,
+  candidates: WeaponDetailViewModel["configuration"]["pool_columns"][number]["candidates"] | undefined
+): number | undefined {
+  const normalized = normalizePerkVariantName(enhancedName);
+  return candidates?.find((candidate) => normalizePerkVariantName(candidate.name) === normalized)?.hash;
+}
+
+function normalizePerkVariantName(value: string): string {
+  return value.toLocaleLowerCase()
+    .replace(/enhanced/gi, "")
+    .replace(/强化(?:版|型|特性)?/g, "")
+    .replace(/[\s·:：()（）_-]+/g, "")
+    .trim();
 }
 
 function objectiveProgress(
@@ -556,8 +646,8 @@ function extractCraftingLevel(
 }
 
 function extractDisplayedLevel(value: string): number | undefined {
-  const match = value.match(/(?:等级|tier|level)\s*[:：]?\s*(\d+)/i);
-  return match ? Number(match[1]) : undefined;
+  const match = value.match(/(?:等级|tier|level)\s*[:：]?\s*(\d+)|(\d+)\s*阶/i);
+  return match ? Number(match[1] ?? match[2]) : undefined;
 }
 
 function firstStatModifier(

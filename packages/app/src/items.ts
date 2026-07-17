@@ -25,6 +25,7 @@ export type {
   WeaponDetailChampionEffect,
   WeaponDetailConfiguration,
   WeaponDetailDamage,
+  WeaponEnhancementSummary,
   WeaponDetailIdentity,
   WeaponDetailInstance,
   WeaponDetailInstanceLike,
@@ -35,8 +36,10 @@ export type {
   WeaponDetailUpgrades,
   WeaponDetailViewModel,
   WeaponPerkCandidate,
+  WeaponPerkColumnRole,
   WeaponPerkPoolColumn,
   WeaponPerkSelectionColumn,
+  WeaponSocketPlugLike,
   WeaponRecommendation,
   WeaponRecommendationMatch,
   WeaponSourceEntry,
@@ -46,5 +49,8 @@ export type {
 export {
   buildWeaponDetailViewModel,
   buildWeaponStatTracks,
+  classifyWeaponSocketPlugs,
+  isEnhancedWeaponPerk,
+  isWeaponSystemPlug,
   perkGroupsToPoolColumns
 } from "./workspaces/weaponDetail.js";

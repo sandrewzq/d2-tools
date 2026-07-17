@@ -44,6 +44,7 @@ export type ItemAiAdviceInput = {
   user_knowledge?: string;
   personal_knowledge?: PersonalWeaponKnowledgeEntry[];
   builtin_knowledge?: WeaponRecommendation | null;
+  allow_external_search?: boolean;
   weapon_context?: {
     object_kind: "definition" | "vendor_offer" | "account_instance";
     official_sources: string[];
@@ -62,6 +63,12 @@ export type ItemAiAdviceResult = {
     model: string;
     text: string;
     sections: AiAdviceSections;
+    external_search?: {
+      requested: boolean;
+      used: boolean;
+      message: string;
+      sources: AiExternalSource[];
+    };
   } | null;
   skipped_reason?: string;
 };
@@ -119,6 +126,11 @@ type ChatResponse = {
     type?: string;
     content?: Array<{
       text?: string;
+      annotations?: Array<{
+        type?: string;
+        url?: string;
+        title?: string;
+      }>;
     }>;
   }>;
   content?: Array<{
@@ -220,6 +232,27 @@ export async function generateItemAiAdvice(input: ItemAiAdviceInput): Promise<It
     throw new Error("请先填写 AI 模型名称。");
   }
 
+  let externalSearch: AiWebSearchResult | undefined;
+  let externalSearchMessage = "未请求外部知识。";
+  if (input.allow_external_search) {
+    if (supportsAiWebSearch(input.config.ai) || canForceLightgg(settings)) {
+      try {
+        externalSearch = await callAiWithWebSearch({
+          config: input.config,
+          query: buildExternalWeaponSearchQuery(input),
+          fetcher: input.fetcher
+        });
+        externalSearchMessage = externalSearch.sources.length
+          ? `已查询 ${externalSearch.sources.length} 个外部来源。`
+          : "已查询外部知识，但服务没有返回可追溯链接；结果仅作为 AI 推测。";
+      } catch (error) {
+        externalSearchMessage = error instanceof Error ? error.message : "外部知识查询失败。";
+      }
+    } else {
+      externalSearchMessage = "当前 AI 配置不支持可追溯的外部知识查询，已继续使用用户知识和内置知识库。";
+    }
+  }
+
   const text = await callAiText({
     settings,
     messages: [
@@ -229,6 +262,8 @@ export async function generateItemAiAdvice(input: ItemAiAdviceInput): Promise<It
           "你是一个命运2单件装备分析助手。",
           "用户指定知识的优先级最高，其次是输入中提供的本地知识和官方数据。",
           "已保存的个人推荐优先于应用推荐；不同来源冲突时必须明确指出。",
+          "外部搜索内容优先级最低，只能补充用户知识和内置知识库缺失的字段。",
+          "外部搜索不得修改或推断 Bungie 官方获取来源；没有可追溯链接时必须标记为 AI 推测。",
           "用户本次输入只对当前分析生效，除非界面另行获得明确确认，否则不得声称已经保存。",
           "只根据用户提供的装备信息、实际 roll、本地标签给建议。",
           "不要编造未提供的 perk、来源或外部数据库结论。",
@@ -244,6 +279,7 @@ export async function generateItemAiAdvice(input: ItemAiAdviceInput): Promise<It
             : "",
           formatPersonalWeaponKnowledge(input.personal_knowledge),
           formatBuiltinWeaponKnowledge(input.builtin_knowledge),
+          externalSearch?.text ? `\nAI 外部搜索补充（最低优先级）：\n${externalSearch.text}` : "",
           input.weapon_context ? `\n武器详情上下文：\n${JSON.stringify(input.weapon_context, null, 2)}` : ""
         ].filter(Boolean).join("\n")
       }
@@ -257,9 +293,25 @@ export async function generateItemAiAdvice(input: ItemAiAdviceInput): Promise<It
       provider: settings.protocol,
       model: settings.model,
       text,
-      sections: extractAiSections(text)
+      sections: extractAiSections(text),
+      external_search: {
+        requested: Boolean(input.allow_external_search),
+        used: Boolean(externalSearch),
+        message: externalSearchMessage,
+        sources: externalSearch?.sources ?? []
+      }
     }
   };
+}
+
+function buildExternalWeaponSearchQuery(input: ItemAiAdviceInput): string {
+  return [
+    `查询 Destiny 2 武器“${input.item.name}”的当前玩法建议。`,
+    "只补充推荐 Roll、武器模组、大师杰作和使用方式，不判断或修改官方获取来源。",
+    "优先引用 Bungie 官方资料；其他网页必须给出可追溯链接并区分事实与作者观点。",
+    input.user_knowledge?.trim() ? `用户当前问题：${input.user_knowledge.trim()}` : "",
+    "用中文总结，并明确网页标题和链接。"
+  ].filter(Boolean).join("\n");
 }
 
 function formatPersonalWeaponKnowledge(entries: PersonalWeaponKnowledgeEntry[] | undefined): string {
@@ -282,7 +334,7 @@ function formatBuiltinWeaponKnowledge(recommendation: WeaponRecommendation | nul
   return `\n应用推荐（仅在用户知识未覆盖时使用）：\n${JSON.stringify({
     source_label: recommendation.source_label,
     combos: recommendation.combos
-      .filter((combo) => combo.source !== "ai_lightgg")
+      .filter((combo) => combo.source === "local_community")
       .map((combo) => ({
         mode: combo.mode,
         perks: combo.perks.map((perk) => perk.name),
@@ -434,7 +486,13 @@ function normalizeSectionHeading(line: string): keyof Omit<AiAdviceSections, "ra
 
 export type AiWebSearchResult = {
   text: string;
-  source?: string;
+  sources: AiExternalSource[];
+};
+
+export type AiExternalSource = {
+  title?: string;
+  url: string;
+  queried_at: string;
 };
 
 export function supportsAiWebSearch(config: D2Config["ai"]): boolean {
@@ -453,7 +511,7 @@ export async function callAiWithWebSearch(input: {
     throw new Error("请先选择 AI API 格式。");
   }
   if (!supportsAiWebSearch(input.config.ai) && !canForceLightgg(settings)) {
-    throw new Error("当前 AI 配置默认不支持 light.gg 实时分析；如目标服务额外兼容 Responses 能力，可在设置中强制开启后重试。");
+    throw new Error("当前 AI 配置不支持带引用的网页搜索；请使用 OpenAI Responses 兼容接口。");
   }
   if (!settings.api_key) {
     throw new Error("请先填写 AI API Key。");
@@ -479,7 +537,7 @@ export async function callAiWithWebSearch(input: {
     throw new Error("AI 接口没有返回可读取的网页搜索结果。");
   }
 
-  return { text };
+  return { text, sources: extractAiWebSearchSources(body) };
 }
 
 function buildAiWebSearchRequest(settings: NormalizedAiSettings, query: string): {
@@ -510,6 +568,19 @@ function extractAiWebSearchText(body: ChatResponse): string {
     return messageOutput.content.map((content) => content.text).filter(Boolean).join("\n");
   }
   return extractAiText(body);
+}
+
+function extractAiWebSearchSources(body: ChatResponse): AiExternalSource[] {
+  const queriedAt = new Date().toISOString();
+  const citations = (body.output ?? []).flatMap((item) => item.content ?? [])
+    .flatMap((content) => content.annotations ?? [])
+    .filter((annotation) => annotation.type === "url_citation" && Boolean(annotation.url))
+    .map((annotation) => ({
+      title: annotation.title,
+      url: annotation.url ?? "",
+      queried_at: queriedAt
+    }));
+  return [...new Map(citations.map((source) => [source.url, source])).values()];
 }
 
 export async function testAiConnection(input: {
