@@ -1,5 +1,6 @@
 import { ipcMain } from "electron";
 import type { DefinitionComponentData, DefinitionRecord } from "@d2-tools/core/manifest/definitions";
+import { fetchBungieJson } from "@d2-tools/services/bungie/client";
 import { loadConfig } from "@d2-tools/services/config/store";
 import { fetchVendorInventorySnapshot } from "@d2-tools/services/vendors/liveInventory";
 import type { VendorInventoryRequest } from "../../contracts/vendors.js";
@@ -27,21 +28,28 @@ export function registerVendorIpcHandlers(): void {
       characterIds: input.character_ids,
       detailVendorHashes: input.detail_vendor_hashes,
       definitions,
-      fetchImpl: createVendorDefinitionHydratingFetch(definitions)
+      fetchJson: createVendorDefinitionHydratingFetchJson({
+        apiKey: config.bungie.api_key,
+        accessToken: token.access_token,
+        definitions
+      })
     });
   });
 }
 
-function createVendorDefinitionHydratingFetch(definitions: {
-  vendors: DefinitionComponentData;
-  items: DefinitionComponentData;
-}): typeof fetch {
-  return async (input, init) => {
-    const response = await fetch(input, init);
-    if (!response.ok) return response;
-
-    const body = await response.clone().json() as { Response?: unknown };
-    const payload = body.Response ?? body;
+function createVendorDefinitionHydratingFetchJson(options: {
+  apiKey: string;
+  accessToken: string;
+  definitions: {
+    vendors: DefinitionComponentData;
+    items: DefinitionComponentData;
+  };
+}): <T>(path: string, accessToken?: string) => Promise<T> {
+  return async <T>(path: string, accessToken?: string): Promise<T> => {
+    const payload = await fetchBungieJson<T>(path, {
+      apiKey: options.apiKey,
+      accessToken: accessToken ?? options.accessToken
+    });
     const itemHashes = collectNumericProperties(payload, new Set([
       "itemHash",
       "plugHash",
@@ -52,7 +60,7 @@ function createVendorDefinitionHydratingFetch(definitions: {
       ...collectVendorComponentKeys(payload)
     ]);
     const items = await getDefinitions("DestinyInventoryItemDefinition", itemHashes);
-    Object.assign(definitions.items, items);
+    Object.assign(options.definitions.items, items);
     for (const item of Object.values(items) as DefinitionRecord[]) {
       const previewVendorHash = (item.preview as { previewVendorHash?: number } | undefined)
         ?.previewVendorHash;
@@ -61,11 +69,11 @@ function createVendorDefinitionHydratingFetch(definitions: {
       }
     }
     Object.assign(
-      definitions.vendors,
+      options.definitions.vendors,
       await getDefinitions("DestinyVendorDefinition", vendorHashes)
     );
 
-    return response;
+    return payload;
   };
 }
 
