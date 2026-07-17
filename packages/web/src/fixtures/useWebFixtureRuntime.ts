@@ -14,8 +14,10 @@ import type {
   ShellBackgroundTaskItem
 } from "@d2-tools/ui";
 import {
+  createFixtureActivitySummary,
   createFixtureAccountItem,
-  createFixtureAccountSummary
+  createFixtureAccountSummary,
+  createFixtureLibraryFilters
 } from "@d2-tools/ui/fixtures";
 import { webAppVersion } from "../buildInfo";
 import type { WebHomeSnapshot } from "../webAdapter";
@@ -64,12 +66,12 @@ export const webAccountSummary = createFixtureAccountSummary({
   materials: { item_count: 0, items: [] }
 });
 
-export const webActivitySummary: any = {
-  recent: { total: 10, pve: { total: 7, completed: 6 }, pvp: { total: 3, completed: 2 }, latest_period: "2026-07-03T14:18:00+08:00" },
-  review: { completion_rate: 80, completions_in_a_row: 3, recent_10: [] },
-  raids: { entries: [] },
-  recent_items: []
-};
+export const webActivitySummary = createFixtureActivitySummary({
+  latestPeriod: "2026-07-03T14:18:00+08:00",
+  pve: { total: 7, completed: 6 },
+  pvp: { total: 3, completed: 2 },
+  review: { completion_rate: 80, completions_in_a_row: 3 }
+});
 
 export const webLoadoutTemplates: any[] = [
   {
@@ -112,24 +114,9 @@ export const webCompareRows = [
   }
 ];
 
-export const webEquipmentFilters: LibraryEquipmentFilter = {
-  query: "",
-  group: "all",
-  tier: "all",
-  bucket: "all",
-  ammo: "all",
-  frame: [],
-  sourceStatus: "all",
-  perkPool: "all",
-  dropAccess: "all",
-  perkQuery: ""
-};
-
-export const webPerkFilters: LibraryPerkFilter = {
-  query: "",
-  relatedGroup: "all",
-  hasRelatedItems: "all"
-};
+const webLibraryFilters = createFixtureLibraryFilters();
+export const webEquipmentFilters: LibraryEquipmentFilter = webLibraryFilters.equipment;
+export const webPerkFilters: LibraryPerkFilter = webLibraryFilters.perks;
 
 export const webLibraryItems: any[] = [
   {

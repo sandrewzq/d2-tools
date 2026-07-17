@@ -11,9 +11,13 @@ describe("desktop preload format", () => {
     const packageJson = JSON.parse(
       readFileSync(join(desktopRoot, "package.json"), "utf8")
     ) as { scripts: Record<string, string> };
+    const preloadConfig = readFileSync(join(desktopRoot, "vite.preload.config.ts"), "utf8");
 
     expect(existsSync(join(desktopRoot, "src", "preload", "preload.ts"))).toBe(true);
     expect(mainSource).toContain("../preload/preload.cjs");
-    expect(packageJson.scripts.build).toContain("node scripts/build-preload.cjs");
+    expect(packageJson.scripts.build).toContain("vite build --config vite.preload.config.ts");
+    expect(preloadConfig).toContain('formats: ["cjs"]');
+    expect(preloadConfig).toContain('entryFileNames: "preload.cjs"');
+    expect(preloadConfig).toContain('external: ["electron"]');
   });
 });

@@ -158,7 +158,7 @@ async function buildDesktopOutputs() {
   await run(pnpm, ["--filter", "@d2-tools/app", "build"]);
   await run(pnpm, ["--filter", "@d2-tools/http", "build"]);
   await run(pnpm, ["--filter", "@d2-tools/desktop", "exec", "tsc", "-p", "tsconfig.main.json"]);
-  await run("node", [join(repoRoot, "packages", "desktop", "scripts", "build-preload.cjs")]);
+  await run(pnpm, ["--filter", "@d2-tools/desktop", "exec", "vite", "build", "--config", "vite.preload.config.ts"]);
 }
 
 function prepareDesktopData() {

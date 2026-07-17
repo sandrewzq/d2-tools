@@ -145,14 +145,21 @@ export function useDesktopProductShell(props: {
       return;
     }
     void diagnostics.refreshDiagnostics();
-    void daily.loadDailySummary();
     void library.loadLibraryHistory();
   }, [isVisualCapture]);
+
+  const isManifestReady = props.state.cards.manifest.status === "ready";
+
+  useEffect(() => {
+    if (isVisualCapture || !isManifestReady) return;
+    void daily.loadDailySummary();
+  }, [isManifestReady, isVisualCapture]);
 
   const refreshAccountRef = useRef(refreshAccountSnapshot);
   refreshAccountRef.current = refreshAccountSnapshot;
   const canRefreshAccount = props.state.cards.bungieConfig.status === "ready"
-    && props.state.cards.account.status === "ready";
+    && props.state.cards.account.status === "ready"
+    && isManifestReady;
 
   useEffect(() => {
     if (hasAutoLoadedAccount || !canRefreshAccount) {
@@ -300,7 +307,7 @@ export function useDesktopProductShell(props: {
         <button
           type="button"
           className="secondary-button"
-          disabled={daily.isLoadingDaily}
+          disabled={daily.isLoadingDaily || !isManifestReady}
           onClick={() => void daily.loadDailySummary()}
         >
           {daily.isLoadingDaily ? "刷新中..." : "刷新本周信息"}

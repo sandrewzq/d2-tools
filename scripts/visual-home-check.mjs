@@ -278,7 +278,7 @@ async function buildElectronOutputs() {
   await run(pnpm, ["--filter", "@d2-tools/app", "build"], { label: "build app" });
   await run(pnpm, ["--filter", "@d2-tools/http", "build"], { label: "build http" });
   await run(pnpm, ["--filter", "@d2-tools/desktop", "exec", "tsc", "-p", "tsconfig.main.json"], { label: "compile electron main" });
-  await run("node", [join(repoRoot, "packages", "desktop", "scripts", "build-preload.cjs")], { label: "build preload" });
+  await run(pnpm, ["--filter", "@d2-tools/desktop", "exec", "vite", "build", "--config", "vite.preload.config.ts"], { label: "build preload" });
 }
 
 async function captureApp() {

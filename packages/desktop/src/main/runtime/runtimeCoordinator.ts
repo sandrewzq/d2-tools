@@ -1,4 +1,4 @@
-import type { HomeBriefing } from "./homeBriefing.js";
+import type { HomeBriefing } from "../../contracts/daily.js";
 import { loadConfig } from "@d2-tools/services/config/store";
 import { recoverSqliteManifest } from "@d2-tools/services/manifest/lifecycle";
 import {

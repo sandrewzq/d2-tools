@@ -1,5 +1,5 @@
 import { app, ipcMain } from "electron";
-import { loadActionLog } from "@d2-tools/core/actions/log";
+import { loadActionLog } from "@d2-tools/services/actions/logStore";
 import { loadConfig } from "@d2-tools/services/config/store";
 import { buildDiagnosticsExport } from "@d2-tools/core/diagnostics/export";
 import { loadToolAuditLog } from "@d2-tools/core/tools/audit";

@@ -30,6 +30,9 @@ export async function encodeDesktopIpcFailure<TResult>(
 
 export function classifyAccountIpcError(error: unknown): DesktopIpcErrorPayload {
   const message = errorMessage(error, "账号数据读取失败");
+  if (includesAny(message, ["资料库尚未就绪", "资料库未初始化", "请先更新资料库"])) {
+    return payload("ACCOUNT_LIBRARY_NOT_READY", message, true, "unavailable");
+  }
   if (includesAny(message, ["请先登录 Bungie", "access token is required"])) {
     return payload("ACCOUNT_AUTH_REQUIRED", message, false, "authentication");
   }
@@ -49,6 +52,26 @@ export function classifyAccountIpcError(error: unknown): DesktopIpcErrorPayload 
     return payload("ACCOUNT_NETWORK_FAILED", message, true, "network");
   }
   return payload("ACCOUNT_LOAD_FAILED", message, true, "internal");
+}
+
+export function classifyHomeBriefingIpcError(error: unknown): DesktopIpcErrorPayload {
+  const message = errorMessage(error, "首页信息读取失败");
+  if (includesAny(message, ["资料库尚未就绪", "资料库未初始化", "请先初始化", "请先更新资料库"])) {
+    return payload("HOME_LIBRARY_NOT_READY", message, true, "unavailable");
+  }
+  if (includesAny(message, ["缺少 Bungie API Key", "配置 Bungie API Key"])) {
+    return payload("HOME_CONFIG_MISSING", message, false, "configuration");
+  }
+  if (includesAny(message, ["登录已过期", "token 刷新失败", "重新登录"])) {
+    return payload("HOME_AUTH_EXPIRED", message, false, "authentication");
+  }
+  if (isTimeoutMessage(message)) {
+    return payload("HOME_TIMEOUT", message, true, "timeout");
+  }
+  if (isNetworkMessage(message)) {
+    return payload("HOME_NETWORK_FAILED", message, true, "network");
+  }
+  return payload("HOME_LOAD_FAILED", message, true, "internal");
 }
 
 export function classifyManifestIpcError(error: unknown): DesktopIpcErrorPayload {

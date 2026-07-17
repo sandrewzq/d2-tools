@@ -12,7 +12,6 @@ const uiRoot = join(repoRoot, "packages", "ui", "src");
 describe("multi-platform package boundaries", () => {
   it("prevents new core runtime IO and HTTP dependencies", () => {
     const legacyRuntimeFiles = new Set([
-      "actions/log.ts",
       "analysis/targetRulesStore.ts",
       "analysis/wishlistStore.ts",
       "bungie/client.ts",
@@ -28,7 +27,6 @@ describe("multi-platform package boundaries", () => {
     ]);
     const legacyBungieCallers = new Set([
       "account/summary.ts",
-      "activities/history.ts",
       "daily/liveData.ts",
       "items/liveAvailability.ts",
       "weekly/liveData.ts"

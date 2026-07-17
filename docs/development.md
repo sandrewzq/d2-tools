@@ -39,6 +39,7 @@ docs/        正式文档
   - 负责桌面、本地、Web、移动端或远端 API 的 adapter
   - 负责把网络、存储、鉴权等平台能力收口到服务边界
   - OAuth callback server、OAuth token store / HTTP client、config store、Manifest metadata cache 和 definition component cache 的运行时实现统一放在这里；Desktop 主进程和 worker 通过 services subpath 调用，不从 core 直接取运行环境 adapter
+  - action log 等本地 JSON store 的文件读写实现放在 services；core 只持有对应领域类型、筛选和格式化规则
 
 - `packages/app`
   - 负责跨端前端查询层、状态模型和页面 workspace 编排
@@ -72,6 +73,7 @@ docs/        正式文档
   - Electron channel 的共享 transport 契约放在 `src/contracts/<domain>.ts`；main、preload 和 renderer API 共同引用该目录，preload / main 不得反向依赖 renderer
   - Renderer 中仍未迁出的页面逻辑继续按 feature 边界维护，平台无关 UI 逐步迁入 `packages/ui`
   - Renderer 入口必须导入 `@d2-tools/ui/styles.css`；`packages/desktop/src/renderer/styles.css` 只允许保留 Electron 平台级调整，不承载产品页面样式
+  - main 使用 `tsconfig.main.json` 编译，renderer 使用 Vite 源码 alias 与 `tsconfig.renderer.json` 对齐；preload 使用独立 `vite.preload.config.ts` 直接产出 `dist/preload/preload.cjs`，不得再通过字符串替换转换 TypeScript 输出
 
 ### 2.2 Renderer feature 边界
 
@@ -241,7 +243,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev-desktop.ps1
 这条链路会：
 
 1. 构建 `@d2-tools/core`、`@d2-tools/http` 和 `@d2-tools/services`
-2. 编译 Electron 主进程和 preload
+2. 编译 Electron 主进程，并通过独立 Vite CJS 入口构建 preload
 3. 启动 Vite 前端开发服务器，固定使用 `http://127.0.0.1:53172`
 4. 打开 Electron 开发版桌面应用
 

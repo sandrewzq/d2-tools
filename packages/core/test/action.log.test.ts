@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { appendActionLog, buildActionLogDiagnosticText, filterActionLog, loadActionLog } from "../src/actions/log.js";
+import { buildActionLogDiagnosticText, filterActionLog } from "../src/actions/log.js";
+import { appendActionLog, loadActionLog } from "@d2-tools/services/actions/logStore";
 
 describe("action log", () => {
   it("appends write-operation entries newest first", () => {

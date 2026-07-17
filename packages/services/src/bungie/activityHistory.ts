@@ -9,6 +9,8 @@ export type FetchCharacterActivityHistoryOptions = {
   characterId: string;
   count?: number;
   mode?: number;
+  baseUrl?: string;
+  fetchImpl?: typeof fetch;
 };
 
 export function fetchCharacterActivityHistory(
@@ -20,7 +22,9 @@ export function fetchCharacterActivityHistory(
     `/Destiny2/${options.membershipType}/Account/${options.membershipId}/Character/${options.characterId}/Stats/Activities/?${query.toString()}`,
     {
       apiKey: options.apiKey,
-      accessToken: options.accessToken
+      accessToken: options.accessToken,
+      baseUrl: options.baseUrl,
+      fetchImpl: options.fetchImpl
     }
   );
 }

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { fetchCharacterActivityHistory, summarizeActivityHistory } from "../src/activities/history.js";
+import { summarizeActivityHistory } from "../src/activities/history.js";
+import { fetchCharacterActivityHistory } from "@d2-tools/services/bungie/activityHistory";
 import type { DefinitionComponentData } from "../src/manifest/definitions.js";
 
 const activityDefinitions: DefinitionComponentData = {
@@ -27,12 +28,7 @@ describe("Bungie activity history", () => {
     };
 
     await fetchCharacterActivityHistory({
-      config: {
-        bungie: { api_key: "api", client_id: "", client_secret: "", redirect_uri: "" },
-        data: { data_dir: "", manifest_language: "zh-chs" },
-        ai: { provider: "", api_key: "", model: "", base_url: "" },
-        features: { write_actions_enabled: false, color_mode: "light" }
-      },
+      apiKey: "api",
       membershipType: 3,
       membershipId: "membership-1",
       characterId: "character-1",
@@ -57,12 +53,7 @@ describe("Bungie activity history", () => {
     };
 
     await fetchCharacterActivityHistory({
-      config: {
-        bungie: { api_key: "api", client_id: "", client_secret: "", redirect_uri: "" },
-        data: { data_dir: "", manifest_language: "zh-chs" },
-        ai: { provider: "", api_key: "", model: "", base_url: "" },
-        features: { write_actions_enabled: false, color_mode: "light" }
-      },
+      apiKey: "api",
       membershipType: 3,
       membershipId: "membership-1",
       characterId: "character-1",

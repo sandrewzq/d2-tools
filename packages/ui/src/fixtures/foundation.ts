@@ -3,6 +3,13 @@ import type {
   AccountMaterialSummary,
   AccountSummary
 } from "@d2-tools/core/account/summary";
+import type { ActivityHistorySummary } from "@d2-tools/core/activities/history";
+import {
+  defaultLibraryEquipmentFilter,
+  defaultLibraryPerkFilter,
+  type LibraryEquipmentFilter,
+  type LibraryPerkFilter
+} from "@d2-tools/app/library";
 import type { ShellStatusItem } from "../shell/types.js";
 
 export type FixtureShellStatusState = Pick<ShellStatusItem, "value" | "tone"> &
@@ -96,5 +103,56 @@ export function createFixtureAccountSummary(input: FixtureAccountSummaryInput): 
       item_count: input.materials?.item_count ?? 0,
       items: input.materials?.items ?? []
     }
+  };
+}
+
+export type FixtureActivitySummaryInput = {
+  latestPeriod?: string;
+  pve?: Partial<ActivityHistorySummary["recent"]["pve"]>;
+  pvp?: Partial<ActivityHistorySummary["recent"]["pvp"]>;
+  other?: Partial<ActivityHistorySummary["recent"]["other"]>;
+  review?: Partial<ActivityHistorySummary["review"]>;
+  raidEntries?: ActivityHistorySummary["raids"]["entries"];
+  recentItems?: ActivityHistorySummary["recent_items"];
+};
+
+export function createFixtureActivitySummary(
+  input: FixtureActivitySummaryInput = {}
+): ActivityHistorySummary {
+  const pve = { total: input.pve?.total ?? 0, completed: input.pve?.completed ?? 0 };
+  const pvp = { total: input.pvp?.total ?? 0, completed: input.pvp?.completed ?? 0 };
+  const other = { total: input.other?.total ?? 0, completed: input.other?.completed ?? 0 };
+  const total = pve.total + pvp.total + other.total;
+  const completedCount = pve.completed + pvp.completed + other.completed;
+
+  return {
+    recent: {
+      total,
+      latest_period: input.latestPeriod,
+      pve,
+      pvp,
+      other
+    },
+    review: {
+      total_activities: input.review?.total_activities ?? total,
+      completed_count: input.review?.completed_count ?? completedCount,
+      completion_rate: input.review?.completion_rate ?? (total > 0 ? Math.round((completedCount / total) * 100) : 0),
+      latest_period: input.review?.latest_period ?? input.latestPeriod,
+      groups: input.review?.groups ?? [],
+      recent_10: input.review?.recent_10 ?? [],
+      completions_in_a_row: input.review?.completions_in_a_row ?? 0
+    },
+    raids: { entries: input.raidEntries ?? [] },
+    recent_items: input.recentItems ?? []
+  };
+}
+
+export function createFixtureLibraryFilters(): {
+  equipment: LibraryEquipmentFilter;
+  perks: LibraryPerkFilter;
+} {
+  return {
+    equipment: { ...defaultLibraryEquipmentFilter, frame: [...defaultLibraryEquipmentFilter.frame] },
+    perks: { ...defaultLibraryPerkFilter }
   };
 }

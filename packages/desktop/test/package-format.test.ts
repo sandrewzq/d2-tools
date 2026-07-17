@@ -281,7 +281,7 @@ describe("desktop package format", () => {
     expect(violations).toEqual([]);
   });
 
-  it("keeps preload runtime imports compatible with the CJS transform", () => {
+  it("keeps preload runtime imports limited to the bundled Electron bridge", () => {
     const preloadSource = readFileSync(join(repoRoot, "packages", "desktop", "src", "preload", "preload.ts"), "utf8");
     const runtimeImports = [...preloadSource.matchAll(
       /^import\s+(?!type\b)[\s\S]*?\s+from\s+["']([^"']+)["'];?\s*$/gm
@@ -330,8 +330,7 @@ describe("desktop package format", () => {
     expect(script).toContain('"pnpm@9.15.0", "exec", "tsc", "-p", "tsconfig.main.json"');
     expect(script).toContain("tsconfig.main.tsbuildinfo");
     expect(script).toContain("dist\\main\\main.js");
-    expect(script).toContain('"node.exe"');
-    expect(script).toContain('"scripts/build-preload.cjs"');
+    expect(script).toContain('"pnpm@9.15.0", "exec", "vite", "build", "--config", "vite.preload.config.ts"');
     expect(script).toContain("$rendererPort = 53172");
     expect(script).toContain("$rendererUrl = \"http://127.0.0.1:${rendererPort}\"");
     expect(script).toContain("D2_RENDERER_URL");

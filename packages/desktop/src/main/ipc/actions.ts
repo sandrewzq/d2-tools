@@ -1,9 +1,5 @@
 import { ipcMain } from "electron";
-import {
-  appendActionLog,
-  loadActionLog,
-  type ActionLogType
-} from "@d2-tools/core/actions/log";
+import type { ActionLogType } from "@d2-tools/core/actions/log";
 import {
   createBatchTransferPlan,
   createItemActionPlan
@@ -18,6 +14,7 @@ import {
   transferItem as bungieTransferItem
 } from "@d2-tools/core/bungie/actions";
 import type { D2Config } from "@d2-tools/core/config/schema";
+import { appendActionLog, loadActionLog } from "@d2-tools/services/actions/logStore";
 import { loadConfig } from "@d2-tools/services/config/store";
 import type {
   AccountItemActionPatch,

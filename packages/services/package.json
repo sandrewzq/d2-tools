@@ -22,6 +22,10 @@
       "types": "./dist/account/session.d.ts",
       "import": "./dist/account/session.js"
     },
+    "./actions/logStore": {
+      "types": "./dist/actions/logStore.d.ts",
+      "import": "./dist/actions/logStore.js"
+    },
     "./bungie/session": {
       "types": "./dist/bungie/session.d.ts",
       "import": "./dist/bungie/session.js"

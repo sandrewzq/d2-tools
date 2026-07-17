@@ -1,5 +1,3 @@
-import { fetchBungieJson } from "../bungie/client.js";
-import type { D2Config } from "../config/schema.js";
 import type { DefinitionComponentData } from "../manifest/definitions.js";
 import { activityModeValues, isPveActivityMode, isPvpActivityMode } from "./modes.js";
 import { buildActivityReview, type ActivityReview } from "./review.js";
@@ -47,34 +45,6 @@ export type ActivityHistorySummary = {
     period: string;
   }>;
 };
-
-export async function fetchCharacterActivityHistory(options: {
-  config: D2Config;
-  membershipType: number;
-  membershipId: string;
-  characterId: string;
-  count?: number;
-  mode?: number;
-  accessToken?: string;
-  baseUrl?: string;
-  fetchImpl?: typeof fetch;
-}): Promise<CharacterActivityHistoryResponse> {
-  const count = options.count ?? 20;
-  const query = new URLSearchParams({ count: String(count) });
-  if (options.mode !== undefined) {
-    query.set("mode", String(options.mode));
-  }
-
-  return fetchBungieJson<CharacterActivityHistoryResponse>(
-    `/Destiny2/${options.membershipType}/Account/${options.membershipId}/Character/${options.characterId}/Stats/Activities/?${query.toString()}`,
-    {
-      apiKey: options.config.bungie.api_key,
-      accessToken: options.accessToken,
-      baseUrl: options.baseUrl,
-      fetchImpl: options.fetchImpl
-    }
-  );
-}
 
 export function summarizeActivityHistory(
   activities: BungieActivityHistoryEntry[],

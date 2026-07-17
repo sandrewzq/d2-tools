@@ -16,8 +16,10 @@ import type {
   ShellStatusItem
 } from "@d2-tools/ui";
 import {
+  createFixtureActivitySummary,
   createFixtureAccountItem,
-  createFixtureAccountSummary
+  createFixtureAccountSummary,
+  createFixtureLibraryFilters
 } from "@d2-tools/ui/fixtures";
 import { prototypeAppVersion } from "../buildInfo";
 import type { PrototypeScenario, PrototypeScenarioKey } from "../mock/scenarios";
@@ -169,24 +171,9 @@ export const prototypeLoadoutTemplates: any[] = [
   }
 ];
 
-export const prototypeEquipmentFilters: LibraryEquipmentFilter = {
-  query: "",
-  group: "all",
-  tier: "all",
-  bucket: "all",
-  ammo: "all",
-  frame: [],
-  sourceStatus: "all",
-  perkPool: "all",
-  dropAccess: "all",
-  perkQuery: ""
-};
-
-export const prototypePerkFilters: LibraryPerkFilter = {
-  query: "",
-  relatedGroup: "all",
-  hasRelatedItems: "all"
-};
+const prototypeLibraryFilters = createFixtureLibraryFilters();
+export const prototypeEquipmentFilters: LibraryEquipmentFilter = prototypeLibraryFilters.equipment;
+export const prototypePerkFilters: LibraryPerkFilter = prototypeLibraryFilters.perks;
 
 export const prototypeLibraryItems: any[] = [
   {
@@ -374,44 +361,55 @@ export function prototypeStartupStateForScenario(scenario: PrototypeScenario): a
   };
 }
 
-export const prototypeActivitySummary: any = {
-  recent: {
-    total: 10,
-    pve: { total: 7, completed: 6 },
-    pvp: { total: 3, completed: 2 },
-    latest_period: "2026-07-03T13:42:00+08:00"
-  },
+export const prototypeActivitySummary = createFixtureActivitySummary({
+  latestPeriod: "2026-07-03T13:42:00+08:00",
+  pve: { total: 7, completed: 6 },
+  pvp: { total: 3, completed: 2 },
   review: {
     completion_rate: 80,
     completions_in_a_row: 3,
     recent_10: [
-      { status_label: "已完成", duration_label: "12分 08秒", key_stats: ["击杀 82", "死亡 1"] },
-      { status_label: "已完成", duration_label: "10分 31秒", key_stats: ["击杀 64", "助攻 21"] }
-    ]
-  },
-  raids: {
-    entries: [
       {
-        activity_type: "raid",
-        activity_name: "克洛塔的末日",
-        completions: 1,
-        attempts: 2,
-        last_completed_at: "2026-07-02T22:15:00+08:00"
+        period: "2026-07-03T13:42:00+08:00",
+        activity_name: "日落打击",
+        type: "strike",
+        completed: true,
+        status_label: "已完成",
+        duration_label: "12分 08秒",
+        key_stats: ["击杀 82", "死亡 1"]
       },
       {
-        activity_type: "dungeon",
-        activity_name: "战争领主的废墟",
-        completions: 2,
-        attempts: 2,
-        last_completed_at: "2026-07-01T21:05:00+08:00"
+        period: "2026-07-03T12:18:00+08:00",
+        activity_name: "控制",
+        type: "crucible",
+        completed: true,
+        status_label: "已完成",
+        duration_label: "10分 31秒",
+        key_stats: ["击杀 64", "助攻 21"]
       }
     ]
   },
-  recent_items: [
+  raidEntries: [
+    {
+      activity_type: "raid",
+      activity_name: "克洛塔的末日",
+      completions: 1,
+      attempts: 2,
+      last_completed_at: "2026-07-02T22:15:00+08:00"
+    },
+    {
+      activity_type: "dungeon",
+      activity_name: "战争领主的废墟",
+      completions: 2,
+      attempts: 2,
+      last_completed_at: "2026-07-01T21:05:00+08:00"
+    }
+  ],
+  recentItems: [
     { period: "2026-07-03T13:42:00+08:00", mode: "pve", activity_name: "日落打击", completed: true },
     { period: "2026-07-03T12:18:00+08:00", mode: "pvp", activity_name: "控制", completed: true }
   ]
-};
+});
 
 export const prototypeVaultTags = {
   items: {

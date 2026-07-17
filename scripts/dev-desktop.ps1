@@ -3,6 +3,8 @@
 # Keep this file ASCII-only: Windows PowerShell -File may parse UTF-8 without BOM as ANSI.
 
 $ErrorActionPreference = "Stop"
+$OutputEncoding = [System.Text.UTF8Encoding]::new($false)
+[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)
 
 $rootDir = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 $desktopDir = Join-Path $rootDir "packages\desktop"
@@ -95,8 +97,7 @@ try {
   try {
     Invoke-Checked $npx @("pnpm@9.15.0", "exec", "tsc", "-p", "tsconfig.main.json")
     Assert-FileExists (Join-Path $desktopDir "dist\main\main.js") "Electron main output is missing: dist\main\main.js"
-    Assert-FileExists (Join-Path $desktopDir "dist\preload\preload.js") "Electron preload output is missing: dist\preload\preload.js"
-    Invoke-Checked "node.exe" @("scripts/build-preload.cjs")
+    Invoke-Checked $npx @("pnpm@9.15.0", "exec", "vite", "build", "--config", "vite.preload.config.ts")
     Assert-FileExists (Join-Path $desktopDir "dist\preload\preload.cjs") "Electron preload CJS output is missing: dist\preload\preload.cjs"
   } finally {
     Pop-Location
