@@ -1,5 +1,5 @@
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
@@ -26,6 +26,8 @@ describe("desktop package format", () => {
     };
 
     expect(rootPackageJson.scripts["typecheck:desktop-fast"]).toContain("pnpm --filter @d2-tools/services build");
+    expect(rootPackageJson.scripts["typecheck:desktop-fast"]).toContain("pnpm --filter @d2-tools/app build");
+    expect(rootPackageJson.scripts["typecheck:desktop"]).toContain("pnpm --filter @d2-tools/app build");
     expect(rootPackageJson.scripts.typecheck).toContain("pnpm --filter @d2-tools/core build");
     expect(rootPackageJson.scripts.typecheck).toContain("pnpm -r typecheck");
     expect(rootPackageJson.scripts.typecheck).toContain("pnpm --filter @d2-tools/services build");
@@ -244,6 +246,48 @@ describe("desktop package format", () => {
         expect(file.source, file.path).not.toContain("from '@d2-tools/core'");
       }
     }
+  });
+
+  it("keeps production source behind workspace package exports", () => {
+    const packagesRoot = join(repoRoot, "packages");
+    const violations: string[] = [];
+
+    for (const packageName of readdirSync(packagesRoot)) {
+      const packageRoot = join(packagesRoot, packageName);
+      const sourceRoot = join(packageRoot, "src");
+      if (!statSync(packageRoot).isDirectory() || !existsSync(sourceRoot)) continue;
+
+      for (const file of readSourceFiles(sourceRoot)) {
+        const specifiers = [...file.source.matchAll(
+          /\b(?:import|export)\s+(?:type\s+)?(?:[^;]*?\s+from\s+)?["']([^"']+)["']/g
+        )].map((match) => match[1]);
+
+        for (const specifier of specifiers) {
+          if (/^@d2-tools\/[^/]+\/src(?:\/|$)/.test(specifier)) {
+            violations.push(`${relative(repoRoot, file.path)} imports ${specifier}`);
+            continue;
+          }
+          if (!specifier.startsWith(".")) continue;
+
+          const target = relative(packagesRoot, resolve(dirname(file.path), specifier)).replaceAll("\\", "/");
+          const [targetPackage, targetRoot] = target.split("/");
+          if (targetPackage !== packageName && targetRoot === "src") {
+            violations.push(`${relative(repoRoot, file.path)} imports ${specifier}`);
+          }
+        }
+      }
+    }
+
+    expect(violations).toEqual([]);
+  });
+
+  it("keeps preload runtime imports compatible with the CJS transform", () => {
+    const preloadSource = readFileSync(join(repoRoot, "packages", "desktop", "src", "preload", "preload.ts"), "utf8");
+    const runtimeImports = [...preloadSource.matchAll(
+      /^import\s+(?!type\b)[\s\S]*?\s+from\s+["']([^"']+)["'];?\s*$/gm
+    )].map((match) => match[1]);
+
+    expect(runtimeImports).toEqual(["electron"]);
   });
 
   it("uses NSIS as the Windows installer format for GitHub releases", () => {

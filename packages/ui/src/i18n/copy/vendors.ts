@@ -1,0 +1,67 @@
+import type { InterfaceLocale, LocaleCopy } from "../types.js";
+
+export const vendorsCopy: Record<InterfaceLocale, LocaleCopy["vendors"]> = {
+    "zh-CN": {
+      inline: {
+        "Prototype mock": "Prototype mock",
+        "Bungie / Manifest / 用户导入推荐": "Bungie / Manifest / 用户导入推荐",
+        "每日或周末重置": "每日或周末重置",
+        "商人列表": "商人列表",
+        "商人": "商人",
+        "个来源": "个来源"
+      },
+      title: "商人库存",
+      subtitle: "按商人分组查看可确认库存、费用和推荐关注项。",
+      inventoryTitle: "可确认库存",
+      inventorySubtitle: "只展示已有来源证据的商人库存，待接入数据单独标记。",
+      updatedLabel: "刷新状态",
+      resetLabel: "重置窗口",
+      sourceLabel: "数据来源",
+      recommendationsLabel: "推荐关注",
+      verifiedInventory: "已确认库存",
+      loadingTitle: "正在读取实时商人库存",
+      emptyTitle: "暂未读取到商人库存",
+      emptyBody: "真实数据接入前，这里只展示 mock 或可确认的库存样本。",
+      labels: {
+        items: "件",
+        cost: "费用",
+        evidence: "证据",
+        owned: "已拥有",
+        recommended: "推荐关注",
+        unknown: "未确认"
+      }
+    },
+    "en-US": {
+      inline: {
+        "Prototype mock": "Prototype mock",
+        "Bungie / Manifest / 用户导入推荐": "Bungie / Manifest / imported recommendations",
+        "每日或周末重置": "Daily or weekend reset",
+        "商人列表": "Vendor list",
+        "商人": "Vendors",
+        "个来源": "sources",
+        "属性读取中": "Loading details",
+        "部分详情失败": "Some details failed",
+        "详情失败": "Details failed"
+      },
+      title: "Vendors",
+      subtitle: "Review verified vendor inventory, costs, ownership, and recommended watch items.",
+      inventoryTitle: "Verified inventory",
+      inventorySubtitle: "Grouped by vendor with unverified data kept clearly marked.",
+      updatedLabel: "Refresh status",
+      resetLabel: "Reset window",
+      sourceLabel: "Data source",
+      recommendationsLabel: "Recommendations",
+      verifiedInventory: "Verified inventory",
+      loadingTitle: "Reading live vendor inventory",
+      emptyTitle: "No vendor inventory loaded",
+      emptyBody: "Before live data is connected, this page only shows mock or verified inventory samples.",
+      labels: {
+        items: "items",
+        cost: "Cost",
+        evidence: "Evidence",
+        owned: "Owned",
+        recommended: "Recommended",
+        unknown: "Unknown"
+      }
+    }
+};

@@ -1,0 +1,370 @@
+
+
+.settings-menu {
+  position: sticky;
+  top: 0;
+  display: grid;
+  gap: 6px;
+  padding: var(--space-12);
+}
+
+.settings-menu button {
+  justify-content: start;
+  width: 100%;
+  min-height: 44px;
+  border-color: transparent;
+  background: transparent;
+  color: var(--text-body);
+  text-align: left;
+}
+
+.settings-menu button.active {
+  border-color: color-mix(in srgb, var(--accent-primary) 42%, var(--border-subtle));
+  background: var(--state-selected-bg);
+  color: var(--accent-primary-strong);
+}
+
+.settings-menu span {
+  display: block;
+  margin-top: 2px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.settings-detail {
+  display: none;
+  gap: var(--space-16);
+  min-width: 0;
+}
+
+.settings-detail.active {
+  display: grid;
+}
+
+.library-version-table {
+  display: grid;
+  gap: 8px;
+  padding: var(--space-16);
+}
+
+.library-version-table.flush {
+  padding: 0;
+}
+
+.version-row {
+  display: grid;
+  grid-template-columns: 130px minmax(0, 1fr);
+  gap: var(--space-12);
+  align-items: center;
+  min-height: 38px;
+  padding: 9px 10px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-control);
+  background: var(--surface-subtle);
+}
+
+.version-row span {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.version-row strong {
+  overflow: hidden;
+  color: var(--text-title);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-note {
+  margin: 0;
+  padding: var(--space-12) var(--space-16);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-control);
+  background: var(--surface-subtle);
+  color: var(--text-body);
+  line-height: 1.55;
+}
+
+.config-help-card {
+  display: grid;
+  gap: 10px;
+  padding: var(--space-16);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-control);
+  background: var(--surface-subtle);
+}
+
+.config-help-card h3,
+.config-help-card p {
+  margin: 0;
+}
+
+.config-help-card h3 {
+  color: var(--text-title);
+  font-size: 17px;
+}
+
+.config-help-card p,
+.config-help-card code,
+.config-map dd {
+  color: var(--text-body);
+  line-height: 1.55;
+}
+
+.config-map {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px 18px;
+  margin: 0;
+}
+
+.config-map div {
+  display: contents;
+}
+
+.config-map dt {
+  color: var(--text-title);
+  font-weight: 700;
+}
+
+.config-map dd {
+  margin: 0;
+}
+
+.config-field-stack {
+  display: grid;
+  gap: var(--space-12);
+}
+
+.config-field {
+  display: grid;
+  gap: 6px;
+  color: var(--text-title);
+  font-weight: 700;
+}
+
+.config-field input,
+.config-field select {
+  width: 100%;
+  min-height: 38px;
+  padding: 0 var(--space-12);
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-control);
+  background: var(--field-bg);
+  color: var(--text-body);
+}
+
+.config-field input:disabled,
+.config-field select:disabled {
+  color: var(--text-muted);
+}
+
+.settings-app-page input,
+.settings-app-page select,
+.settings-ai-section input,
+.settings-ai-section select {
+  border-color: var(--field-border);
+  background: var(--field-bg);
+  color: var(--text-title);
+}
+
+.settings-app-page input:disabled,
+.settings-app-page select:disabled,
+.settings-ai-section input:disabled,
+.settings-ai-section select:disabled {
+  border-color: var(--field-border);
+  background: var(--field-bg);
+  color: var(--text-muted);
+  opacity: 0.72;
+}
+
+.config-field small {
+  color: var(--text-muted);
+  font-weight: 400;
+  line-height: 1.45;
+}
+
+.app-settings-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-16);
+  align-items: start;
+}
+
+.app-settings-wide {
+  grid-column: 1 / -1;
+}
+
+.settings-content {
+  display: block;
+  min-width: 0;
+}
+
+.settings-diagnostics-toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 160px) minmax(0, 220px);
+  gap: 10px;
+  align-items: end;
+  padding: 10px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-control);
+  background: var(--surface-subtle);
+}
+
+.settings-diagnostics-toolbar .compact-field {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.settings-diagnostics-toolbar select {
+  width: 100%;
+  min-height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-control);
+  background: var(--field-bg);
+  color: var(--text-body);
+}
+
+.settings-log-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px 12px;
+  align-items: center;
+  padding: 10px 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-control);
+  background: var(--surface-subtle);
+}
+
+.settings-log-row > div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.settings-log-row strong {
+  overflow: hidden;
+  color: var(--text-title);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-log-row span,
+.settings-log-row small {
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.settings-log-row small {
+  grid-column: 1 / -1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.settings-log-row.is-success {
+  border-color: color-mix(in srgb, var(--status-ready) 36%, var(--border-subtle));
+}
+
+.settings-log-row.is-failed {
+  border-color: color-mix(in srgb, var(--status-error) 38%, var(--border-subtle));
+}
+
+.app-setting-group > .settings-ai-section,
+.settings-ai-section > .tool-panel,
+.settings-ai-section .tool-panel {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.app-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 24px;
+  padding: 3px 10px;
+  border: 1px solid var(--chip-border);
+  border-radius: var(--radius-pill);
+  color: var(--chip-text);
+  background: var(--chip-bg);
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+.app-chip.status-ready {
+  border-color: color-mix(in srgb, var(--status-ready) 52%, var(--border-subtle));
+  color: var(--status-ready);
+  background: var(--status-ready-bg);
+}
+
+.app-chip.status-warning {
+  border-color: color-mix(in srgb, var(--status-warning) 52%, var(--border-subtle));
+  color: var(--status-warning);
+  background: var(--status-warning-bg);
+}
+
+.app-chip.status-error {
+  border-color: color-mix(in srgb, var(--status-error) 52%, var(--border-subtle));
+  color: var(--status-error);
+  background: var(--status-error-bg);
+}
+
+.app-diagnostic-summary ul {
+  display: grid;
+  gap: 6px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.app-diagnostic-summary li {
+  display: grid;
+  gap: 3px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+@media (max-width: 1180px) {
+  .app-overview-grid,
+  .app-hero-panel,
+  .home-briefing-grid,
+  .home-weekly-dashboard,
+  .home-weekly-primary-grid,
+  .home-weekly-support,
+  .home-main-grid,
+  .home-secondary-grid,
+  .app-settings-shell,
+  .app-settings-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .app-settings-wide {
+    grid-column: auto;
+  }
+}
+
+@media (max-width: 760px) {
+  .app-page-head,
+  .app-info-strip,
+  .app-status-row,
+  .app-setting-row,
+  .app-health-grid,
+  .app-metric-grid,
+  .home-daily-lead,
+  .home-card-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .app-page-head .button-row,
+  .app-info-strip .button-row {
+    justify-content: flex-start;
+  }
+}

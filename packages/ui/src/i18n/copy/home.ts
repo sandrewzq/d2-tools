@@ -1,0 +1,312 @@
+import type { InterfaceLocale, LocaleCopy } from "../types.js";
+
+export const homeCopy: Record<InterfaceLocale, LocaleCopy["home"]> = {
+    "zh-CN": {
+      inline: {},
+      dataStripAriaLabel: "首页数据状态",
+      sections: {
+        weeklyRewards: {
+          title: "本周奖励与轮换",
+          subtitle: "只展示本周上线前最值得确认的轮换、奖励和活动",
+          badge: "4 个本周关注"
+        },
+        today: {
+          title: "今天可确认",
+          subtitle: "每日重置、遗失区域和已接入活动线索"
+        },
+        vendors: {
+          title: "商人重点",
+          subtitle: "只保留需要今天看一眼的摘要"
+        },
+        account: {
+          title: "账号提醒",
+          subtitle: "账号进度只展示阻断和需要处理的信号"
+        },
+        pending: {
+          title: "待确认数据",
+          subtitle: "缺数据时保留低噪声提醒，不挤占主面板"
+        }
+      },
+      actions: {
+        runDiagnostics: "运行诊断",
+        diagnosing: "诊断中"
+      },
+      labels: {
+        dailyReset: "每日重置",
+        weeklyReset: "每周重置",
+        manifest: "资料库",
+        accountData: "账号数据",
+        priority: "优先级",
+        focusCount: "项关注",
+        confirmed: "已确认",
+        pending: "待确认",
+        error: "异常",
+        focus: "关注"
+      },
+      fallback: {
+        dailyPending: "待刷新",
+        dailyWaiting: "等待今日信息刷新",
+        weeklyPending: "待确认",
+        weeklyResetDetail: "每周三 01:00 重置",
+        manifestReady: "名称、图标和来源可解析",
+        manifestNeedsAttention: "异常时可去顶部状态或设置处理",
+        accountFailed: "读取失败",
+        accountReady: "已读取",
+        accountPending: "待同步",
+        weeklyFixedMeta: "本周固定关注位：先锋行动、轮换突袭、轮换地牢、仄商人",
+        otherRewardMeta: "公共线索只作为辅助信息展示",
+        waitingRefresh: "等待今日信息刷新。",
+        todayLoadingTitle: "今日信息读取中",
+        todayLoadingMessage: "正在读取可确认轮换数据。",
+        todayActionTitle: "今日动作",
+        todayQuiet: "没有可确认行动时保持安静。",
+        noGuessBeforeWeekend: "周末开启前不展示猜测数据。",
+        nightfallWaiting: "等待可靠来源接入。",
+        vendorsWaiting: "等待公共商人数据。",
+        healthFailed: "诊断读取失败",
+        healthReady: "资料库可用于名称和图标解析。"
+      },
+      rewardGroups: {
+        powerTitle: "本周重点",
+        otherTitle: "辅助线索",
+        powerPriority: "先看会影响本周刷取路线的内容"
+      },
+      intel: {
+        publicRotation: "本周公共轮换",
+        weekendWindow: "辅助线索",
+        raidDungeon: "突袭与地牢",
+        activityIntel: "活动线索",
+        doubleRewards: "双倍奖励",
+        doubleRewardsDetail: "Bungie 公共接口未稳定确认前不猜测",
+        xur: "仄 / Xur",
+        trialsMap: "公共线索",
+        trialsMapDetail: "只展示已确认或仍需核对的公开轮换线索",
+        weekendChecklist: "辅助清单",
+        weekendChecklistDetail: "缺数据时保持安静，不展示猜测内容"
+      },
+      vendors: {
+        xurDetail: "只展示关键库存是否已读取，完整库存去商人页查看。",
+        bansheeDetail: "优先查看武器清单里的高价值 Perk。",
+        adaDetail: "护甲模组和幻化相关需要进游戏确认。",
+        weekendBadge: "待周末",
+        waitingBadge: "待确认"
+      },
+      account: {
+        failedTitle: "账号数据异常",
+        readyTitle: "账号已就绪",
+        pendingTitle: "账号待同步",
+        syncing: "正在同步账号状态。",
+        pendingMessage: "账号同步后显示角色、里程碑和仓库提醒。",
+        failedBadge: "需处理",
+        readyBadge: "正常",
+        pendingBadge: "待同步",
+        vaultTitle: "仓库容量",
+        vaultReady: "仓库 496 / 600，接近上限时优先清理重复同名。",
+        vaultMissing: "账号未同步时不展示容量判断。",
+        vaultReadyBadge: "496 / 600",
+        vaultMissingBadge: "缺账号",
+        diagnosticWarningTitle: "健康检查有提醒",
+        diagnosticReadyTitle: "健康检查正常",
+        diagnosticWarning: (count) => `${count} 项需要处理。`,
+        diagnosticReady: "无账号、资料库或后台阻断项。",
+        diagnosticWarningBadge: "有提醒"
+      }
+    },
+    "en-US": {
+      inline: {
+        "可用": "Available",
+        "6月17日": "Jun 17",
+        "更新中": "Updating",
+        "智谋": "Gambit",
+        "完成每周挑战后降噪": "Quiet after weekly challenge completion",
+        "日落任务": "Nightfall",
+        "本周周报已有线索": "Weekly report has signals",
+        "武器和难度待确认": "Weapon and difficulty pending confirmation",
+        "熔炉竞技场": "Crucible",
+        "检查每周挑战和声望奖励": "Check weekly challenge and reputation rewards",
+        "突袭": "Raid",
+        "优先看轮换突袭和巅峰奖励": "Prioritize rotating raid and pinnacle rewards",
+        "永恒沙漠": "Eternity",
+        "轮换奖励待确认": "Rotation rewards pending confirmation",
+        "克洛塔的末日": "Crota's End",
+        "突袭轮换关注": "Raid rotation watch",
+        "玻璃拱顶": "Vault of Glass",
+        "旧突袭轮换关注": "Legacy raid rotation watch",
+        "宿命边缘": "Edge of Fate",
+        "地牢 / 赛季奖励关注": "Dungeon / seasonal rewards watch",
+        "传承：终焉之形": "Legacy: The Final Shape",
+        "DLC 周常关注": "DLC weekly watch",
+        "苍白之心寻路者": "Pale Heart Pathfinder",
+        "完成后从首页降噪": "Quiet after completion",
+        "遗失区域": "Lost Sector",
+        "本日更新": "Daily update",
+        "每日重置、遗失区域、活动线索和账号待办": "Daily reset, lost sector, activity signals, and account actions",
+        "每日重置、遗失区域和重点商人预留": "Daily reset, lost sectors, and reserved vendor highlights",
+        "重点商人": "Key vendors",
+        "规则整理中 · 完整库存先去商人页查看": "Rules pending · use the Vendors page for full inventory",
+        "预留": "Reserved",
+        "今日重点": "Daily focus",
+        "只放今天上线前需要看一眼的事项": "Only the items worth checking before logging in today",
+        "只显示会影响今天游玩决策的账号提醒": "Only account alerts that affect today's play decisions",
+        "本周更新": "Weekly update",
+        "本周游戏世界简报": "Weekly world briefing",
+        "本周情报": "Weekly intelligence",
+        "无需登录即可查看的公开游戏世界数据": "Public game-world data available without signing in",
+        "本周世界状态暂不可读": "Weekly world status is unavailable",
+        "只展示 Bungie 当前接口能够确认的活动和商人库存": "Only confirmed Bungie activities and vendor inventory are shown",
+        "来源：Bungie CharacterActivities、Public Milestones 与 Vendors": "Sources: Bungie CharacterActivities, Public Milestones, and Vendors",
+        "来源：Bungie 公开接口与经过校验的公开机器数据": "Sources: Bungie public APIs and validated machine-readable data",
+        "实时情报": "Live intelligence",
+        "限时活动与公开周加成": "Limited-time events and public weekly bonuses",
+        "轮换突袭": "Rotating raid",
+        "轮换地牢": "Rotating dungeon",
+        "限时活动": "Limited-time event",
+        "可见奖励": "Visible reward",
+        "周末商人 · 库存已确认": "Weekend vendor · inventory confirmed",
+        "离开还有": "Leaves in",
+        "天": "days",
+        "小时": "hours",
+        "共读取": "Loaded",
+        "件": "items",
+        "商人库存": "Vendor inventory",
+        "本周商人库存": "This week's vendor inventory",
+        "先锋行动、轮换突袭、轮换地牢、仄商人": "Vanguard Ops, rotating raid, rotating dungeon, and Xur",
+        "周商人": "Xur vendor",
+        "先锋行动 · 宗师先锋警戒": "Vanguard Ops · Grandmaster Vanguard Alerts",
+        "本周轮换突袭": "Weekly rotating raid",
+        "本周轮换地牢": "Weekly rotating dungeon",
+        "本周加成": "Weekly bonus",
+        "特殊活动": "Limited-time event",
+        "奇异商人": "Exotic vendor",
+        "公共线索": "Public clues",
+        "本周辅助线索": "Weekly supporting clues",
+        "日落任务待确认": "Nightfall pending",
+        "宗师先锋警戒待确认": "Grandmaster Vanguard Alerts pending",
+        "轮换突袭待确认": "Rotating raid pending",
+        "轮换地牢待确认": "Rotating dungeon pending",
+        "确认后展示可刷奖励状态": "Show farmable reward status after confirmation",
+        "奖励加成待确认": "Reward bonus pending",
+        "先锋、熔炉、智谋或日落加成确认后展示": "Show Vanguard, Crucible, Gambit, or Nightfall bonus after confirmation",
+        "暂无可确认特殊活动": "No confirmed limited-time event",
+        "只显示已确认的限时活动": "Only show confirmed limited-time events",
+        "仅保留仍需核对的公开轮换线索": "Only keep public rotation clues that still need review",
+        "暂无需要单独提示的公开线索": "No public clue needs separate attention",
+        "条": "items",
+        "售卖物待确认": "Vendor item pending",
+        "异域或传说装备": "Exotic or legendary gear",
+        "异域武器": "Exotic weapon",
+        "泰坦护甲": "Titan armor",
+        "猎人护甲": "Hunter armor",
+        "术士护甲": "Warlock armor",
+        "周末开启后确认": "Confirm after the weekend opens"
+      },
+      dataStripAriaLabel: "Home data status",
+      sections: {
+        weeklyRewards: {
+          title: "Weekly rewards and rotations",
+          subtitle: "Only show the rotations, rewards, and events worth checking before playing this week",
+          badge: "4 weekly priorities"
+        },
+        today: {
+          title: "Today to verify",
+          subtitle: "Daily reset, lost sectors, and connected activity signals"
+        },
+        vendors: {
+          title: "Vendor highlights",
+          subtitle: "Only keep the summaries worth checking today"
+        },
+        account: {
+          title: "Account alerts",
+          subtitle: "Only blockers and signals that need action"
+        },
+        pending: {
+          title: "Pending data",
+          subtitle: "Keep missing-data reminders quiet and out of the main workspace"
+        }
+      },
+      actions: {
+        runDiagnostics: "Run diagnostics",
+        diagnosing: "Diagnosing"
+      },
+      labels: {
+        dailyReset: "Daily reset",
+        weeklyReset: "Weekly reset",
+        manifest: "Manifest",
+        accountData: "Account data",
+        priority: "Priority",
+        focusCount: "tracked",
+        confirmed: "Confirmed",
+        pending: "Pending",
+        error: "Issue",
+        focus: "Watch"
+      },
+      fallback: {
+        dailyPending: "Waiting",
+        dailyWaiting: "Waiting for today's data",
+        weeklyPending: "Pending",
+        weeklyResetDetail: "Weekly reset at Wednesday 01:00",
+        manifestReady: "Names, icons, and sources can be resolved",
+        manifestNeedsAttention: "Handle issues from top status or Settings",
+        accountFailed: "Read failed",
+        accountReady: "Read",
+        accountPending: "Pending",
+        weeklyFixedMeta: "Fixed weekly focus: Vanguard Ops, rotating raid, rotating dungeon, and Xur",
+        otherRewardMeta: "Public clues are supporting information only",
+        waitingRefresh: "Waiting for today's data.",
+        todayLoadingTitle: "Reading today's data",
+        todayLoadingMessage: "Reading verified rotation data.",
+        todayActionTitle: "Today's action",
+        todayQuiet: "Stay quiet when nothing is verified.",
+        noGuessBeforeWeekend: "Do not show guesses before the weekend opens.",
+        nightfallWaiting: "Waiting for a reliable source.",
+        vendorsWaiting: "Waiting for public vendor data.",
+        healthFailed: "Diagnostics failed",
+        healthReady: "Manifest is ready for names and icons."
+      },
+      rewardGroups: {
+        powerTitle: "Weekly priorities",
+        otherTitle: "Supporting clues",
+        powerPriority: "Start with items that affect this week's farming route"
+      },
+      intel: {
+        publicRotation: "Weekly public rotation",
+        weekendWindow: "Supporting clues",
+        raidDungeon: "Raid and dungeon",
+        activityIntel: "Activity signals",
+        doubleRewards: "Double rewards",
+        doubleRewardsDetail: "Do not guess before Bungie public data is reliable",
+        xur: "Xur",
+        trialsMap: "Public clue",
+        trialsMapDetail: "Only show confirmed or review-needed public rotation clues",
+        weekendChecklist: "Supporting checklist",
+        weekendChecklistDetail: "Stay quiet when data is missing; do not show guesses"
+      },
+      vendors: {
+        xurDetail: "Only show whether key inventory was read; use Vendors for full inventory.",
+        bansheeDetail: "Prioritize high-value perks from the weapon list.",
+        adaDetail: "Mods and transmog information should be verified in game.",
+        weekendBadge: "Weekend",
+        waitingBadge: "To verify"
+      },
+      account: {
+        failedTitle: "Account data issue",
+        readyTitle: "Account ready",
+        pendingTitle: "Account pending",
+        syncing: "Syncing account state.",
+        pendingMessage: "After account sync, show character, milestone, and vault reminders here.",
+        failedBadge: "Action needed",
+        readyBadge: "OK",
+        pendingBadge: "Pending",
+        vaultTitle: "Vault capacity",
+        vaultReady: "Vault 496 / 600. Prioritize duplicate cleanup as it approaches the limit.",
+        vaultMissing: "Do not judge capacity before account sync.",
+        vaultReadyBadge: "496 / 600",
+        vaultMissingBadge: "No account",
+        diagnosticWarningTitle: "Health check has alerts",
+        diagnosticReadyTitle: "Health check ready",
+        diagnosticWarning: (count) => `${count} items need attention.`,
+        diagnosticReady: "No account, manifest, or background blockers.",
+        diagnosticWarningBadge: "Alerts"
+      }
+    }
+};

@@ -1,0 +1,409 @@
+
+
+.product-page-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-16);
+  align-items: end;
+  padding: var(--space-16);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-panel);
+  background: var(--surface-elevated);
+  box-shadow: var(--shadow-panel);
+}
+
+.product-page-head h1,
+.product-page-head h2,
+.product-page-head h3 {
+  margin: 0;
+  color: var(--text-title);
+}
+
+.product-page-head p {
+  margin: 6px 0 0;
+  color: var(--text-muted);
+}
+
+.product-card {
+  min-width: 0;
+  padding: var(--space-16);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-panel);
+  background: var(--surface-elevated);
+  box-shadow: var(--shadow-panel);
+}
+
+.product-info-strip,
+.vault-decision-summary,
+.loadout-risk-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: var(--space-8);
+  align-items: center;
+}
+
+.vault-decision-summary,
+.loadout-risk-panel {
+  margin-bottom: var(--space-16);
+}
+
+.vault-decision-summary strong,
+.loadout-risk-panel h3 {
+  color: var(--text-title);
+}
+
+.vault-decision-summary span,
+.loadout-risk-grid span {
+  padding: 8px 10px;
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-control);
+  color: var(--text-body);
+  background: var(--surface-subtle);
+}
+
+.decision-badge {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  max-width: 100%;
+  padding: 3px 8px;
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-pill);
+  color: var(--text-body);
+  background: var(--status-neutral-bg);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.vault-card-body .decision-badge {
+  justify-self: start;
+  max-width: 100%;
+}
+
+.decision-keep {
+  border-color: rgb(86 181 124 / 0.58);
+  color: var(--status-ready);
+  background: var(--status-ready-bg);
+}
+
+.decision-review {
+  border-color: rgb(232 189 102 / 0.58);
+  color: var(--status-warning);
+  background: var(--status-warning-bg);
+}
+
+.decision-cleanup_candidate {
+  border-color: rgb(239 141 126 / 0.58);
+  color: var(--status-error);
+  background: var(--status-error-bg);
+}
+
+.decision-unknown {
+  border-color: var(--border-control);
+  color: var(--text-muted);
+  background: var(--status-neutral-bg);
+}
+
+.account-product-layout,
+.vault-product-layout,
+.loadout-product-layout,
+.library-product-layout,
+.vendors-product-layout {
+  display: grid;
+  gap: var(--space-16);
+}
+
+.vault-empty-panel {
+  padding: var(--space-16);
+}
+
+.vault-workbench-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(270px, 320px);
+  grid-template-areas: "vault-main vault-summary";
+  gap: var(--space-16);
+  align-items: start;
+}
+
+.vault-workbench-main {
+  grid-area: vault-main;
+  display: grid;
+  gap: var(--space-12);
+  min-width: 0;
+}
+
+.vault-workbench-header {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.vault-side-summary {
+  grid-area: vault-summary;
+  position: sticky;
+  top: var(--space-16);
+  min-width: 0;
+  padding: var(--space-16);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-panel);
+  background: var(--surface-elevated);
+  box-shadow: var(--shadow-panel);
+}
+
+.assistant-open .vault-workbench-layout {
+  grid-template-columns: 1fr;
+  grid-template-areas:
+    "vault-main"
+    "vault-summary";
+}
+
+.assistant-open .vault-side-summary {
+  position: static;
+  padding: var(--space-12);
+}
+
+.vault-side-summary-inner {
+  display: grid;
+  gap: var(--space-16);
+}
+
+.assistant-open .vault-side-summary-inner {
+  grid-template-columns: minmax(190px, 0.55fr) minmax(0, 1fr);
+  gap: var(--space-12);
+  align-items: start;
+}
+
+.vault-side-heading {
+  display: grid;
+  gap: 4px;
+}
+
+.vault-side-heading span,
+.vault-side-heading small,
+.vault-side-signal span,
+.vault-side-signal small {
+  color: var(--text-muted);
+}
+
+.vault-side-heading span,
+.vault-side-signal span {
+  font-size: 12px;
+}
+
+.vault-side-heading strong {
+  color: var(--text-title);
+  font-size: 20px;
+  line-height: 1.2;
+}
+
+.vault-side-heading small,
+.vault-side-signal small {
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.vault-side-summary .vault-decision-summary {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  margin: 0;
+}
+
+.assistant-open .vault-side-summary .vault-decision-summary {
+  grid-template-columns: repeat(auto-fit, minmax(138px, 1fr));
+}
+
+.vault-side-summary .vault-decision-summary strong {
+  color: var(--text-title);
+}
+
+.vault-side-summary .vault-decision-summary span {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 10px;
+}
+
+.vault-side-summary .vault-decision-summary span[data-decision="keep"] {
+  border-color: color-mix(in srgb, var(--status-ready) 44%, var(--border-control));
+  color: var(--status-ready);
+  background: var(--status-ready-bg);
+}
+
+.vault-side-summary .vault-decision-summary span[data-decision="review"] {
+  border-color: color-mix(in srgb, var(--status-warning) 44%, var(--border-control));
+  color: var(--status-warning);
+  background: var(--status-warning-bg);
+}
+
+.vault-side-summary .vault-decision-summary span[data-decision="cleanup"] {
+  border-color: color-mix(in srgb, var(--status-error) 44%, var(--border-control));
+  color: var(--status-error);
+  background: var(--status-error-bg);
+}
+
+.vault-side-signal-list {
+  display: grid;
+  gap: 8px;
+}
+
+.assistant-open .vault-side-signal-list {
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+}
+
+.vault-side-signal {
+  display: grid;
+  gap: 3px;
+  padding: 10px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-control);
+  background: var(--surface-subtle);
+}
+
+button.vault-side-signal {
+  width: 100%;
+  color: inherit;
+  text-align: left;
+  box-shadow: none;
+}
+
+button.vault-side-signal:not(:disabled):hover {
+  border-color: var(--state-selected-border);
+  background: var(--state-selected-bg);
+  box-shadow: none;
+}
+
+.vault-side-signal strong {
+  color: var(--text-title);
+  font-size: 18px;
+}
+
+.vault-side-actions {
+  display: grid;
+  gap: 8px;
+}
+
+.vault-side-actions button {
+  width: 100%;
+}
+
+.product-workspace-page {
+  display: grid;
+  gap: 10px;
+  width: 100%;
+  min-width: 0;
+  color: var(--text-body);
+}
+
+.product-workspace-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-16);
+  min-height: 42px;
+  padding: 2px 0 0;
+  align-items: end;
+}
+
+.product-workspace-header h2 {
+  margin: 0 0 4px;
+  color: var(--text-title);
+  font-size: 23px;
+  line-height: 1.12;
+  letter-spacing: 0;
+}
+
+.product-workspace-header p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 14px;
+  line-height: 1.42;
+}
+
+.product-workspace-panel {
+  min-width: 0;
+  padding: var(--space-16);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-panel);
+  background: var(--surface-panel);
+  box-shadow: var(--shadow-panel);
+}
+
+.product-workspace-empty {
+  display: grid;
+  place-content: center;
+  gap: 8px;
+  min-height: 220px;
+  padding: var(--space-24);
+  border: 1px dashed var(--border-subtle);
+  border-radius: var(--radius-panel);
+  background: color-mix(in srgb, var(--surface-subtle) 86%, transparent);
+  text-align: center;
+}
+
+.product-workspace-empty strong {
+  color: var(--text-title);
+  font-size: 17px;
+}
+
+.product-workspace-empty span {
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.product-command-bar {
+  min-width: 0;
+  padding: var(--space-12);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-panel);
+  background: var(--surface-toolbar);
+}
+
+.product-split-workspace {
+  --workspace-side-width: 240px;
+  display: grid;
+  grid-template-columns: var(--workspace-side-width, 240px) minmax(0, 1fr);
+  gap: var(--space-16);
+  align-items: start;
+  min-width: 0;
+}
+
+.product-side-rail {
+  min-width: 0;
+  padding: var(--space-16);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-panel);
+  background: var(--surface-panel);
+  box-shadow: var(--shadow-panel);
+}
+
+.product-content-stack {
+  display: grid;
+  align-content: start;
+  gap: var(--space-12);
+  min-width: 0;
+}
+
+.vault-workbench-layout.product-split-workspace {
+  --workspace-side-width: minmax(270px, 320px);
+  grid-template-columns: minmax(0, 1fr) var(--workspace-side-width, minmax(270px, 320px));
+}
+
+.library-workbench-layout.product-split-workspace {
+  --workspace-side-width: minmax(300px, 0.34fr);
+  grid-template-columns: var(--workspace-side-width, minmax(300px, 0.34fr)) minmax(0, 1fr);
+  gap: var(--space-16);
+}
+
+.loadout-workbench-shell.product-split-workspace {
+  --workspace-side-width: minmax(280px, 0.42fr);
+}
+
+.vendor-workbench-layout.product-split-workspace {
+  --workspace-side-width: minmax(210px, 0.28fr);
+  grid-template-columns: var(--workspace-side-width, minmax(210px, 0.28fr)) minmax(0, 1fr);
+}
+
+.app-settings-shell.product-split-workspace {
+  --workspace-side-width: 220px;
+}

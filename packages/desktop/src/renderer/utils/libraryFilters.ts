@@ -15,7 +15,7 @@ export type {
   LibrarySourceStatusFilter,
   LibraryViewMode,
   PerkSearchResult
-} from "../../../../app/src/workspaces/libraryPage";
+} from "@d2-tools/app/library";
 
 export {
   buildLibraryEquipmentFilterOptions,
@@ -26,4 +26,4 @@ export {
   filterLibraryEquipmentItems,
   filterLibraryPerks,
   groupLibraryDropQueryItems
-} from "../../../../app/src/workspaces/libraryPage";
+} from "@d2-tools/app/library";

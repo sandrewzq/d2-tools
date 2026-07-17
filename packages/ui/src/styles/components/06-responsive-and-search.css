@@ -1,0 +1,221 @@
+
+
+.vault-tag-current.tag-farm {
+  border-color: #5b8dee;
+  color: #d7e4ff;
+}
+
+.vault-tag-current.tag-loadout {
+  border-color: #7f7ae6;
+  color: #ddd9ff;
+}
+
+.vault-tag-current.tag-none {
+  min-width: 0;
+  border-color: rgb(153 166 184 / 0.24);
+  color: var(--text-muted);
+  background: transparent;
+  opacity: 0.62;
+}
+
+.vault-tag-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+  min-width: 0;
+}
+
+.vault-tag-actions button {
+  padding: 5px 8px;
+  border: 1px solid var(--border-control);
+  color: var(--text-body);
+  background: var(--action-secondary-bg);
+  box-shadow: none;
+  font-size: 12px;
+}
+
+.vault-dashboard-panel .vault-item-card,
+.vault-dashboard-panel .vault-list-item,
+.vault-dashboard-panel .equipment-item,
+.vault-dashboard-panel .vault-item {
+  transition: none;
+  box-shadow: none;
+  filter: none;
+}
+
+.vault-dashboard-panel button,
+.vault-dashboard-panel .secondary-button,
+.vault-card-actions button,
+.vault-tag-actions button,
+.vault-organize-bar button,
+.vault-batch-panel button,
+.vault-content-tab {
+  transition: none;
+  box-shadow: none;
+  filter: none;
+}
+
+.vault-dashboard-panel button:not(:disabled):hover,
+.vault-dashboard-panel .secondary-button:not(:disabled):hover,
+.vault-card-actions button:not(:disabled):hover,
+.vault-tag-actions button:not(:disabled):hover,
+.vault-organize-bar button:not(:disabled):hover,
+.vault-batch-panel button:not(:disabled):hover,
+.vault-content-tab:hover,
+.vault-content-tab.active {
+  box-shadow: none;
+  filter: none;
+}
+
+@media (max-width: 760px) {
+  .account-profile-strip,
+  .account-primary-workbench,
+  .account-slot-comparison-columns,
+  .account-secondary-workbench,
+  .activity-review-grid,
+  .activity-review-list-wide ul {
+    grid-template-columns: 1fr;
+  }
+
+  .vault-workbench-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .vault-side-summary {
+    position: static;
+  }
+
+  .vault-workflow-tabs {
+    align-items: stretch;
+  }
+
+  .vault-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .vault-toolbar-top,
+  .vault-filter-common-row,
+  .weapon-filter-lane {
+    grid-template-columns: 1fr;
+  }
+
+  .vault-filter-mode-tabs {
+    justify-content: flex-start;
+  }
+
+  .vault-list {
+    grid-template-columns: 1fr;
+  }
+
+  .vault-card-grid,
+  .vault-card-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .vault-tag-row {
+    grid-template-columns: 1fr;
+  }
+
+  .vault-tag-current {
+    justify-self: start;
+  }
+
+  .vault-tag-actions {
+    justify-content: flex-start;
+  }
+
+  .character-title {
+    grid-template-columns: 48px minmax(0, 1fr);
+  }
+
+  .character-actions {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+  }
+
+  .account-page-actions {
+    justify-content: flex-start;
+  }
+
+  .character-action-feedback {
+    grid-column: 1 / -1;
+  }
+
+  .character-actions .inline-action {
+    justify-self: start;
+  }
+}
+
+.compact-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.compact-items span {
+  max-width: 180px;
+  overflow: hidden;
+  padding: 4px 8px;
+  border: 1px solid #384152;
+  border-radius: 6px;
+  color: #dce4f4;
+  background: #202838;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+.search-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+}
+
+.item-results {
+  display: grid;
+  gap: 10px;
+}
+
+.item-result {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  padding: 12px;
+  border: 1px solid #303848;
+  border-radius: 8px;
+  background: #181d27;
+}
+
+.item-result img {
+  width: 56px;
+  height: 56px;
+  border-radius: 6px;
+}
+
+.item-result h3,
+.item-result p {
+  margin: 0 0 6px;
+}
+
+.perk-groups {
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.perk-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.perk-chip {
+  padding: 4px 8px;
+  border: 1px solid #384152;
+  border-radius: 999px;
+  color: #dce4f4;
+  background: #202838;
+  font-size: 12px;
+}

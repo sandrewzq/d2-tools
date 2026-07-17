@@ -1,0 +1,785 @@
+
+
+/* Canonical product token surface rules. Shared by Prototype, Web and Desktop. */
+.home-overview-hero {
+  border-color: var(--border-subtle);
+  background: var(--surface-panel);
+}
+
+.loadout-entry-list,
+.loadout-template-detail,
+.daily-source.source-ready {
+  border-color: var(--border-subtle);
+  background: var(--surface-panel);
+  color: var(--text-body);
+}
+
+.daily-reset-grid > div,
+.daily-source,
+.source-status-card,
+.daily-source-matrix,
+.daily-source-matrix-item,
+.drop-query-panel,
+.drop-query-stat,
+.item-source-panel,
+.library-perk-pool,
+.ai-section-card,
+.target-match-panel,
+.wishlist-panel,
+.vault-duplicate-summary,
+.duplicate-group,
+.same-roll-row,
+.diagnostics-panel,
+.placeholder-panel,
+.analysis-section,
+.target-rule-row,
+.community-recommendations-panel,
+.source-status-list,
+.community-combo,
+.loadout-status-chip,
+.loadout-compare-row,
+.loadout-compare-side,
+.score-summary-row span,
+.daily-brief,
+.ai-context-strip span,
+.ai-chat-message,
+.ai-chat-input,
+.vault-count,
+.item-note-panel,
+.item-local-tag-panel,
+.modal-score-panel,
+.score-breakdown-card,
+.item-ai-panel,
+.item-detail-socket-group,
+.armor-stat-grid span,
+.modal-plug,
+.item-detail-loading {
+  border-color: var(--border-subtle);
+  background: var(--surface-panel);
+  color: var(--text-body);
+}
+
+.diagnostic-row,
+.action-log-row {
+  border-color: var(--border-subtle);
+  background: var(--surface-panel);
+  color: var(--text-body);
+}
+
+.daily-source-items li,
+.analysis-tag-block,
+.drop-query-group-heading,
+.item-detail-tool-area,
+.item-detail-total-row,
+.item-detail-energy-row,
+.item-detail-tool-section,
+.item-detail-tool-tabs span {
+  border-color: var(--border-subtle);
+  background: var(--surface-subtle);
+  color: var(--text-body);
+}
+
+.home-overview-hero h2,
+.home-overview-metrics strong,
+.daily-reset-grid strong,
+.daily-source strong,
+.daily-source-items b,
+.drop-query-heading strong,
+.drop-query-stat strong,
+.daily-source-matrix strong,
+.item-source-panel strong,
+.library-perk-pool strong,
+.target-match-header strong,
+.ai-section-card strong,
+.wishlist-panel strong,
+.vault-duplicate-summary strong,
+.duplicate-group strong,
+.same-roll-row strong,
+.diagnostic-row strong,
+.action-log-row strong,
+.analysis-section h3,
+.analysis-tag-block strong,
+.score-summary-row strong,
+.target-rule-row strong,
+.loadout-status-chip b,
+.loadout-compare-row > b,
+.loadout-compare-side span,
+.equipment-item strong,
+.vault-content-tab strong,
+.vault-count,
+.vault-select-row,
+.score-breakdown-card strong,
+.score-breakdown-card b,
+.armor-stat-grid strong,
+.modal-score-columns strong,
+.item-detail-tool-section > h3,
+.modal-perk-group h3,
+.same-roll-chip,
+.item-local-tag-header > span,
+.item-note-panel label {
+  color: var(--text-title);
+}
+
+.home-overview-hero p,
+.home-overview-metrics span,
+.daily-reset-grid span,
+.daily-source span,
+.daily-source-items small,
+.drop-query-heading small,
+.drop-query-stat span,
+.daily-source-matrix span,
+.item-source-panel span,
+.target-match-meta,
+.target-match-panel small,
+.ai-section-card span,
+.wishlist-panel span,
+.vault-duplicate-summary span,
+.duplicate-group span,
+.same-roll-row span,
+.same-roll-row small,
+.diagnostic-row span,
+.action-log-row span,
+.action-log-row small,
+.analysis-tag-block li span,
+.target-rule-row span,
+.loadout-status-chip small,
+.loadout-compare-side small,
+.equipment-item span,
+.equipment-item small,
+.vault-content-tab span,
+.score-breakdown-card > span,
+.score-breakdown-card li,
+.modal-score-columns ul,
+.item-ai-panel p,
+.item-detail-description,
+.modal-plug p,
+.armor-stat-panel p {
+  color: var(--text-muted);
+}
+
+.source-status-badge,
+.daily-date-badge,
+.daily-source-status,
+.daily-source-count,
+.source-status-badge.source-status-neutral,
+.same-roll-chip {
+  border-color: var(--border-control);
+  background: var(--surface-interactive);
+  color: var(--text-body);
+}
+
+.daily-source-status.status-ready,
+.source-status-badge.source-status-ready,
+.daily-source-items span.loadout-status-badge.ready,
+.source-status-card.source-status-ready,
+.diagnostic-ok,
+.diagnostic-ready,
+.action-log-row.log-ok,
+.target-match-panel.matched,
+.wishlist-panel,
+.item-ai-panel {
+  border-color: var(--status-ready);
+  background: var(--status-ready-bg);
+  color: var(--status-ready);
+}
+
+.daily-source-status.status-pending,
+.source-status-badge.source-status-pending,
+.source-status-badge.source-status-warning,
+.daily-source-items span.loadout-status-badge.warning,
+.daily-source.source-pending,
+.source-status-card.source-status-pending,
+.source-status-card.source-status-warning,
+.diagnostic-warning,
+.source-status-warning,
+.community-warning-list,
+.community-recommendations-panel.source-status-pending.loading {
+  border-color: var(--status-warning);
+  background: var(--status-warning-bg);
+  color: var(--status-warning);
+}
+
+.daily-source-items span.loadout-status-badge.blocked,
+.diagnostic-row.log-fail,
+.action-log-row.log-fail,
+.diagnostic-warning.log-fail {
+  border-color: var(--status-error);
+  background: var(--status-error-bg);
+  color: var(--status-error);
+}
+
+.weapon-filter-panel,
+.armor-filter-panel {
+  border-color: var(--border-subtle);
+  background: var(--surface-toolbar);
+  color: var(--text-body);
+}
+
+.account-slot-backpack-preview,
+.equipment-item.account-show-more-item {
+  border-color: var(--state-selected-border);
+  background: var(--state-selected-bg);
+}
+
+.equipment-item.inventory,
+.vault-card-select,
+.vault-select-row,
+.item-icon-placeholder,
+.loadout-template-badge,
+.community-source-badge,
+.wishlist-same-name-chip,
+.daily-brief-count {
+  border-color: var(--border-control);
+  background: var(--surface-interactive);
+  color: var(--text-body);
+}
+
+.vault-card-select {
+  background: color-mix(in srgb, var(--surface-panel) 88%, var(--accent-primary) 12%);
+}
+
+.loadout-compare-row.changed,
+.loadout-highlight {
+  border-color: var(--state-selected-border);
+  background: var(--state-selected-bg);
+  box-shadow: inset 0 0 0 1px var(--state-selected-border);
+}
+
+.ai-chat-message.message-user,
+.daily-source-items span.loadout-status-badge.info,
+.source-status-badge.source-status-neutral {
+  border-color: var(--status-pending);
+  background: var(--status-pending-bg);
+  color: var(--status-pending);
+}
+
+.daily-action-list,
+.weekly-focus-list,
+.daily-action-list li,
+.weekly-focus-list li {
+  color: var(--text-body);
+}
+
+.daily-source-items b,
+.equipment-section-heading h4,
+.account-slot-category-heading h4,
+.account-slot-heading strong,
+.vault-slot-heading h3,
+.vault-card-body strong,
+.vault-list-item strong,
+.section-heading h2,
+.section-heading h3,
+.action-log-row strong,
+.ai-empty-state strong,
+.modal-perk-group h3,
+.score-breakdown-card strong,
+.armor-stat-grid strong,
+.material-item strong,
+.weapon-filter-heading strong,
+.item-detail-tool-section > h3 {
+  color: var(--text-title);
+}
+
+.daily-source-items small,
+.equipment-section-heading span,
+.equipment-section-heading small,
+.account-slot-category-heading span,
+.account-slot-heading span,
+.account-slot-source-heading small,
+.vault-slot-heading span,
+.vault-card-body span,
+.vault-card-meta,
+.vault-card-roll,
+.vault-card-body small,
+.vault-list-item span,
+.vault-list-item small,
+.section-heading p,
+.vault-card-signals .wishlist-hit span,
+.vault-card-signals .target-hit span,
+.vault-card-signals .community-match span,
+.action-log-row span,
+.action-log-row small,
+.weapon-filter-heading span,
+.ai-empty-state p,
+.ai-composer-context {
+  color: var(--text-muted);
+}
+
+.account-slot-source-badge.equipped,
+.account-slot-source-badge.inventory,
+.vault-card-actions button,
+.vault-tag-current,
+.vault-tag-actions button,
+.vault-score-badge,
+.decision-badge,
+.perk-chip,
+.vault-card-select,
+.vault-select-row {
+  border-color: var(--chip-border);
+  background: var(--chip-bg);
+  color: var(--chip-text);
+}
+
+.vault-render-limit-message,
+.vault-slot-heading,
+.weapon-filter-panel,
+.armor-filter-panel {
+  border-color: var(--border-subtle);
+  background: var(--surface-toolbar);
+  color: var(--text-body);
+}
+
+.material-item span {
+  color: var(--status-pending);
+}
+
+.daily-brief,
+.source-status-card,
+.daily-reset-grid > div,
+.daily-source,
+.target-match-panel,
+.target-rule-row,
+.community-recommendations-panel,
+.source-status-list,
+.community-combo,
+.community-perk,
+.weekly-focus-section,
+.vault-duplicate-summary,
+.duplicate-group,
+.duplicate-row,
+.same-roll-row,
+.item-modal .daily-source,
+.config-help,
+.status-card,
+.diagnostics-panel,
+.diagnostic-row,
+.placeholder-panel,
+.analysis-section,
+.score-summary-row span,
+.loadout-status-chip,
+.loadout-compare-row,
+.loadout-compare-side,
+.vault-cleanup-locator,
+.compact-items span,
+.item-detail-tool-tabs span,
+.item-detail-loading,
+.same-roll-chip {
+  border-color: var(--item-border);
+  background: var(--item-bg);
+  color: var(--text-body);
+}
+
+.target-match-panel.matched,
+.wishlist-same-name-summary,
+.item-ai-panel,
+.community-recommendations-panel.ready,
+.community-recommendations-panel.source-status-ready {
+  border-color: var(--status-ready);
+  background: var(--status-ready-bg);
+  color: var(--text-body);
+}
+
+.target-match-panel.empty,
+.daily-source.source-pending,
+.source-status-warning,
+.community-warning-list,
+.source-status-card.item-detail-loading,
+.community-recommendations-panel.source-status-pending.loading,
+.community-recommendations-panel.source-status-pending.empty {
+  border-color: var(--status-warning);
+  background: var(--status-warning-bg);
+  color: var(--text-body);
+}
+
+.community-recommendations-panel.loading,
+.community-recommendations-panel.empty,
+.community-recommendations-panel.source-status-neutral.empty {
+  border-color: var(--item-border);
+  background: var(--item-bg);
+  color: var(--text-body);
+}
+
+.daily-brief strong,
+.target-match-header strong,
+.target-rule-row strong,
+.community-perk strong,
+.daily-reset-grid strong,
+.daily-source strong,
+.same-roll-row strong,
+.duplicate-row-main strong,
+.config-help dt,
+.config-help code,
+.diagnostic-row strong,
+.analysis-tag-block strong,
+.score-summary-row strong,
+.vault-content-tab strong,
+.vault-batch-panel span,
+.vault-cleanup-locator b,
+.item-local-tag-header > span,
+.modal-score-columns strong,
+.item-detail-socket-summary span {
+  color: var(--text-title);
+}
+
+.target-match-meta,
+.target-match-panel small,
+.target-rule-row span,
+.community-recommendations-header p,
+.community-combo-mode small,
+.community-perk p,
+.community-combo-note,
+.community-ai-analysis p,
+.community-recommendations-panel > small:last-child,
+.weekly-focus-section li,
+.duplicate-row-meta,
+.duplicate-row-note,
+.item-modal .daily-source span,
+.assistant-task-editor,
+.assistant-context-card small,
+.assistant-task-note,
+.assistant-task-tree li,
+.ai-context-drawer p,
+.ai-page-context p,
+.ai-page-context li,
+.ai-chat-history p,
+.ai-chat-history li span,
+.config-help p,
+.diagnostic-row span,
+.analysis-tag-block li span,
+.muted-copy,
+.vault-cleanup-panel p,
+.vault-cleanup-actions span,
+.vault-cleanup-locator small,
+.vault-cleanup-locator span,
+.vault-armor-filter-heading p,
+.vault-item span,
+.vault-score-reason,
+.item-detail-description,
+.score-breakdown-card > span,
+.score-breakdown-card li,
+.modal-score-columns ul,
+.item-ai-panel p,
+.armor-stat-panel p,
+.modal-plug p {
+  color: var(--text-muted);
+}
+
+.assistant-context-card span {
+  color: var(--text-title);
+}
+
+.assistant-task-tree details,
+.equipment-section-heading,
+.account-slot-group,
+.vault-cleanup-locator li {
+  border-color: var(--border-subtle);
+}
+
+.source-status-badge,
+.daily-date-badge,
+.daily-source-status,
+.daily-brief-count,
+.daily-source-count,
+.loadout-status-badge,
+.wishlist-same-name-chip,
+.community-source-badge,
+.library-community-match,
+.inline-action.is-pending,
+.inline-action.is-success {
+  border-color: var(--chip-border);
+  background: var(--chip-bg);
+  color: var(--chip-text);
+}
+
+.daily-source-status.status-ready,
+.source-status-ready,
+.source-status-badge.source-status-ready,
+.source-status-card.source-status-ready,
+.daily-source-items span.loadout-status-badge.ready,
+.inline-action.is-success,
+.diagnostic-ok,
+.diagnostic-ready {
+  border-color: var(--status-ready);
+  background: var(--status-ready-bg);
+  color: var(--status-ready);
+}
+
+.daily-source-status.status-pending,
+.source-status-pending,
+.source-status-badge.source-status-pending,
+.source-status-card.source-status-pending,
+.daily-source-items span.loadout-status-badge.warning,
+.inline-action.is-pending {
+  border-color: var(--status-warning);
+  background: var(--status-warning-bg);
+  color: var(--status-warning);
+}
+
+.source-status-neutral,
+.source-status-badge.source-status-neutral,
+.diagnostic-neutral,
+.status-skipped {
+  border-color: var(--border-control);
+  background: var(--status-neutral-bg);
+  color: var(--status-neutral);
+}
+
+.source-status-badge.source-status-warning,
+.source-status-card.source-status-warning {
+  border-color: var(--status-warning);
+  background: var(--status-warning-bg);
+  color: var(--status-warning);
+}
+
+.loadout-status-chip b,
+.loadout-compare-row > b {
+  color: var(--text-title);
+}
+
+.loadout-status-chip small,
+.loadout-compare-side small {
+  color: var(--text-muted);
+}
+
+.loadout-compare-side strong,
+.loadout-compare-side span,
+.config-help dd,
+.daily-source-items small.loadout-blocked-hint {
+  color: var(--text-body);
+}
+
+.loadout-compare-row.changed,
+.daily-source-items span.loadout-status-badge.info {
+  border-color: var(--status-pending);
+  background: var(--status-pending-bg);
+  color: var(--status-pending);
+}
+
+.daily-source-items small.loadout-blocked-reason,
+.daily-source.source-pending strong,
+.daily-source.source-pending span {
+  color: var(--status-warning);
+}
+
+.daily-source-items span.loadout-status-badge.blocked,
+.diagnostic-warning,
+.status-missing,
+.duplicate-junk,
+.inline-action.is-error {
+  border-color: var(--status-error);
+  background: var(--status-error-bg);
+  color: var(--status-error);
+}
+
+.duplicate-keep,
+.same-roll-row.current,
+.equipment-item.equipped,
+.equipment-item.equipped:hover {
+  border-color: var(--status-ready);
+  background: var(--status-ready-bg);
+  color: var(--text-body);
+}
+
+.equipment-item.inventory {
+  border-color: var(--item-border);
+}
+
+.library-reference-card,
+.item-result,
+.item-detail-tool-section,
+.item-note-panel,
+.item-local-tag-panel,
+.modal-score-panel,
+.score-breakdown-card,
+.item-detail-socket-group,
+.modal-plug,
+.armor-stat-grid span {
+  border-color: var(--item-border);
+  background: var(--item-bg);
+  color: var(--text-body);
+}
+
+.library-reference-card:hover,
+.item-result:hover,
+.ui-item-card:hover,
+.vault-item-card:hover,
+.source-status-card:hover,
+.target-rule-row:hover,
+.community-combo:hover,
+.duplicate-row:hover,
+.same-roll-row:hover,
+.status-card:hover,
+.diagnostic-row:hover,
+.analysis-section:hover,
+.vault-content-tab:hover,
+.vault-cleanup-locator:hover {
+  background: var(--item-bg-hover);
+}
+
+.compact-field,
+.ai-composer-context,
+.ai-chat-input,
+.ai-context-strip span {
+  border-color: var(--field-border);
+  background: var(--field-bg);
+  color: var(--text-body);
+}
+
+.compact-field:hover,
+.ai-composer-context:hover {
+  background: var(--field-bg-hover);
+}
+
+.settings-app-page input,
+.settings-app-page select,
+.settings-app-page textarea,
+.settings-ai-section input,
+.settings-ai-section select,
+.settings-ai-section textarea {
+  border-color: var(--field-border);
+  background: var(--field-bg);
+  background-color: var(--field-bg);
+  color: var(--text-title);
+  color-scheme: dark;
+}
+
+.app-shell[data-color-mode="light"] .settings-app-page input,
+.app-shell[data-color-mode="light"] .settings-app-page select,
+.app-shell[data-color-mode="light"] .settings-app-page textarea,
+.app-shell[data-color-mode="light"] .settings-ai-section input,
+.app-shell[data-color-mode="light"] .settings-ai-section select,
+.app-shell[data-color-mode="light"] .settings-ai-section textarea {
+  color-scheme: light;
+}
+
+.settings-app-page input:disabled,
+.settings-app-page select:disabled,
+.settings-app-page textarea:disabled,
+.settings-ai-section input:disabled,
+.settings-ai-section select:disabled,
+.settings-ai-section textarea:disabled {
+  border-color: var(--field-border);
+  background: var(--field-bg);
+  background-color: var(--field-bg);
+  color: var(--text-muted);
+  opacity: 0.72;
+  -webkit-text-fill-color: var(--text-muted);
+}
+
+.ai-chat-message {
+  border-color: var(--drawer-border);
+  background: var(--drawer-message-assistant-bg);
+  color: var(--text-body);
+}
+
+.ai-chat-message.message-user {
+  background: var(--drawer-message-user-bg);
+}
+
+.ai-chat-message strong {
+  color: var(--text-title);
+}
+
+.ai-chat-message p {
+  color: var(--text-body);
+}
+
+.global-assistant-header {
+  background: var(--drawer-header-bg);
+}
+
+.vault-content-tab span,
+.vault-select-row,
+.vault-card-body span,
+.vault-list-item small,
+.vault-note-snippet {
+  color: var(--text-muted);
+}
+
+.vault-score-badge.score-keep,
+.vault-tag-current.tag-keep {
+  border-color: var(--status-ready);
+  color: var(--status-ready);
+}
+
+.vault-score-badge.score-review,
+.vault-tag-current.tag-review {
+  border-color: var(--status-warning);
+  color: var(--status-warning);
+}
+
+.vault-score-badge.score-junk,
+.vault-tag-current.tag-junk {
+  border-color: var(--status-error);
+  color: var(--status-error);
+}
+
+.vault-score-badge.score-farm,
+.vault-tag-current.tag-farm {
+  border-color: var(--status-pending);
+  color: var(--status-pending);
+}
+
+.vault-score-badge.score-loadout,
+.vault-tag-current.tag-loadout,
+.loadout-template-badge,
+.loadout-highlight {
+  border-color: var(--state-selected-border);
+  color: var(--text-body);
+}
+
+.item-modal {
+  border-color: var(--border-subtle);
+  background: var(--surface-panel);
+  color: var(--text-body);
+}
+
+.item-detail-game-card {
+  background: var(--game-surface);
+  color: var(--game-text);
+}
+
+.item-detail-game-card p,
+.item-detail-game-card span {
+  color: var(--game-muted);
+}
+
+.item-detail-tool-area {
+  border-color: var(--border-subtle);
+  background: var(--surface-panel);
+  color: var(--text-body);
+}
+
+.modal-close {
+  background: var(--action-secondary-bg);
+  color: var(--text-title);
+}
+
+.item-detail-tool-tabs span {
+  border-color: var(--border-subtle);
+  background: var(--surface-toolbar);
+  color: var(--text-title);
+}
+
+.item-note-panel label,
+.modal-perk-group h3,
+.item-detail-socket-summary,
+.item-detail-socket-summary strong,
+.armor-stat-grid strong,
+.modal-plug strong {
+  color: var(--text-title);
+}
+
+.item-detail-loading,
+.item-note-panel,
+.item-local-tag-panel,
+.modal-score-panel,
+.score-breakdown-card,
+.same-roll-chip,
+.item-detail-socket-group,
+.armor-stat-grid span,
+.modal-plug {
+  border-color: var(--item-border);
+  background: var(--item-bg);
+  color: var(--text-body);
+}

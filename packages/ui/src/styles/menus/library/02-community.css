@@ -1,0 +1,14 @@
+
+
+.library-community-match {
+  display: inline-flex;
+  align-items: center;
+  margin: 6px 0;
+  padding: 4px 10px;
+  border: 1px solid #5b8dee;
+  border-radius: 999px;
+  background: rgba(91, 141, 238, 0.14);
+  color: #d7e4ff;
+  font-size: 12px;
+  font-weight: 700;
+}

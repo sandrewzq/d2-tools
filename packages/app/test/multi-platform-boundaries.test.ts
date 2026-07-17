@@ -4,11 +4,52 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 const repoRoot = fileURLToPath(new URL("../../..", import.meta.url));
+const coreRoot = join(repoRoot, "packages", "core", "src");
 const appRoot = join(repoRoot, "packages", "app", "src");
 const servicesRoot = join(repoRoot, "packages", "services", "src");
 const uiRoot = join(repoRoot, "packages", "ui", "src");
 
 describe("multi-platform package boundaries", () => {
+  it("prevents new core runtime IO and HTTP dependencies", () => {
+    const legacyRuntimeFiles = new Set([
+      "actions/log.ts",
+      "analysis/targetRulesStore.ts",
+      "analysis/wishlistStore.ts",
+      "bungie/client.ts",
+      "community-perks/aiLightggSource.ts",
+      "community-perks/localCommunityRecommendations.ts",
+      "community-perks/personalWeaponKnowledge.ts",
+      "config/defaults.ts",
+      "items/aliases.ts",
+      "library/history.ts",
+      "loadouts/templates.ts",
+      "tools/audit.ts",
+      "vault/tags.ts"
+    ]);
+    const legacyBungieCallers = new Set([
+      "account/summary.ts",
+      "activities/history.ts",
+      "daily/liveData.ts",
+      "items/liveAvailability.ts",
+      "weekly/liveData.ts"
+    ]);
+
+    expect(sourceFiles(coreRoot).flatMap((file) => {
+      const source = readFileSync(file, "utf8");
+      const path = relative(coreRoot, file).replaceAll("\\", "/");
+      const violations: string[] = [];
+      if (/from\s+["']node:(?:fs|fs\/promises|crypto|path|os)["']/.test(source)
+        && !legacyRuntimeFiles.has(path)) {
+        violations.push(`${path} adds a Node runtime dependency`);
+      }
+      if (/from\s+["']\.\.\/bungie\/client\.js["']/.test(source)
+        && !legacyBungieCallers.has(path)) {
+        violations.push(`${path} adds a direct Bungie HTTP dependency`);
+      }
+      return violations;
+    })).toEqual([]);
+  });
+
   it("keeps app package independent from desktop and platform runtime modules", () => {
     expect(findForbiddenImports(appRoot, [
       "@d2-tools/desktop",

@@ -13,8 +13,13 @@ import type {
   LibraryPerkFilter,
   ShellBackgroundTaskItem
 } from "@d2-tools/ui";
+import {
+  createFixtureAccountItem,
+  createFixtureAccountSummary
+} from "@d2-tools/ui/fixtures";
+import { webAppVersion } from "../buildInfo";
 import type { WebHomeSnapshot } from "../webAdapter";
-export const webAccountSummary: any = {
+export const webAccountSummary = createFixtureAccountSummary({
   account_name: "Web Guardian",
   destiny_membership_id: "4611686018429100000",
   membership_type: 3,
@@ -24,12 +29,12 @@ export const webAccountSummary: any = {
       class_name: "猎人",
       light: 2022,
       equipped_items: [
-        webAccountItem("web-pulse-equipped", 3001, "快速命中脉冲", "动能武器", "轻质框架", "已装备"),
-        webAccountItem("web-rocket-equipped", 3004, "边缘迁移火箭筒", "威能武器", "自适应框架", "已装备")
+        webWeaponAccountItem("web-pulse-equipped", 3001, "快速命中脉冲", "动能武器", "轻质框架", "已装备"),
+        webWeaponAccountItem("web-rocket-equipped", 3004, "边缘迁移火箭筒", "威能武器", "自适应框架", "已装备")
       ],
       equipment_groups: [],
       inventory_items: [
-        webAccountItem("web-shotgun-inventory", 3003, "终局霰弹枪", "能量武器", "精确框架", "背包")
+        webWeaponAccountItem("web-shotgun-inventory", 3003, "终局霰弹枪", "能量武器", "精确框架", "背包")
       ],
       inventory_groups: [],
       postmaster_items: [],
@@ -41,7 +46,7 @@ export const webAccountSummary: any = {
       light: 2018,
       equipped_items: [],
       equipment_groups: [],
-      inventory_items: [webAccountItem("web-fusion-warlock", 3005, "适配融合步枪", "能量武器", "适配框架", "术士背包")],
+      inventory_items: [webWeaponAccountItem("web-fusion-warlock", 3005, "适配融合步枪", "能量武器", "适配框架", "术士背包")],
       inventory_groups: [],
       postmaster_items: [],
       loadout_slots: []
@@ -50,14 +55,14 @@ export const webAccountSummary: any = {
   vault: {
     item_count: 485,
     items: [
-      webAccountItem("web-handcannon-vault", 3002, "精准手炮", "能量武器", "精确框架", "仓库"),
-      webAccountItem("web-sword-vault", 3006, "连锁反应刀剑", "威能武器", "旋风框架", "仓库"),
-      webAccountItem("web-scout-vault", 3007, "旧赛季斥候", "动能武器", "适配框架", "仓库")
+      webWeaponAccountItem("web-handcannon-vault", 3002, "精准手炮", "能量武器", "精确框架", "仓库"),
+      webWeaponAccountItem("web-sword-vault", 3006, "连锁反应刀剑", "威能武器", "旋风框架", "仓库"),
+      webWeaponAccountItem("web-scout-vault", 3007, "旧赛季斥候", "动能武器", "适配框架", "仓库")
     ],
     sample_items: []
   },
   materials: { item_count: 0, items: [] }
-};
+});
 
 export const webActivitySummary: any = {
   recent: { total: 10, pve: { total: 7, completed: 6 }, pvp: { total: 3, completed: 2 }, latest_period: "2026-07-03T14:18:00+08:00" },
@@ -166,7 +171,7 @@ export const webManifestStatus = {
 
 export const webUpdateSnapshot = {
   status: "not_available",
-  current_version: "0.0.10",
+  current_version: webAppVersion,
   available_version: null,
   downloaded_version: null,
   progress_percent: undefined,
@@ -185,20 +190,21 @@ export const webBackgroundTasks: ShellBackgroundTaskItem[] = [{ id: "web-task", 
 export const webActionLog = [{ id: "web-action", created_at: "2026-07-03T14:18:00+08:00", action: "mock", item_name: "Web mock", ok: true, message: "共享设置页操作日志 mock。" }];
 export const webBungieConfig = { bungie: { api_key: "web-api-key", client_id: "web-client-id", client_secret: "web-client-secret", redirect_uri: "https://127.0.0.1:28780/oauth/callback" } };
 
-function webAccountItem(instanceId: string, hash: number, name: string, bucketName: string, frameName: string, location: string) {
-  return {
+function webWeaponAccountItem(instanceId: string, hash: number, name: string, bucketName: string, frameName: string, location: string) {
+  const sourceKind = location === "仓库" ? "vault" : location.includes("背包") ? "inventory" : "equipped";
+
+  return createFixtureAccountItem({
+    instanceId,
     hash,
-    instance_id: instanceId,
     name,
-    item_type: bucketName.includes("武器") ? "武器" : "装备",
-    tier: "传说",
-    bucket_name: bucketName,
-    group_key: bucketName.includes("武器") ? "weapons" : "armor",
-    weapon_frame: { key: frameName, name: frameName },
-    socket_plugs: [{ hash: 4001, name: "快速命中" }, { hash: 4002, name: "爆炸载荷" }],
-    source_kind: location === "仓库" ? "vault" : location.includes("背包") ? "inventory" : "equipped",
-    source_character_id: location === "术士背包" ? "web-warlock" : "web-hunter"
-  };
+    bucketName,
+    groupKey: "weapons",
+    frameName,
+    itemType: "武器",
+    socketPlugs: [{ hash: 4001, name: "快速命中" }, { hash: 4002, name: "爆炸载荷" }],
+    sourceKind,
+    sourceCharacterId: location === "术士背包" ? "web-warlock" : "web-hunter"
+  });
 }
 
 export function getWebLoadoutItemStatus(item: any) {

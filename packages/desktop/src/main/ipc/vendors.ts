@@ -2,7 +2,7 @@ import { ipcMain } from "electron";
 import type { DefinitionComponentData, DefinitionRecord } from "@d2-tools/core/manifest/definitions";
 import { loadConfig } from "@d2-tools/services/config/store";
 import { fetchVendorInventorySnapshot } from "@d2-tools/services/vendors/liveInventory";
-import type { VendorInventoryRequest } from "../../renderer/api/vendorsApi.js";
+import type { VendorInventoryRequest } from "../../contracts/vendors.js";
 import { getDefinitions } from "../runtime/gameDataRuntime.js";
 import { loadFreshOAuthToken } from "./authSession.js";
 

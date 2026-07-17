@@ -3,9 +3,14 @@ import { dirname, isAbsolute, join, normalize, relative, resolve, sep } from "no
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
-const rendererRoot = fileURLToPath(new URL("../src/renderer", import.meta.url));
+const desktopSourceRoot = fileURLToPath(new URL("../src", import.meta.url));
+const rendererRoot = join(desktopSourceRoot, "renderer");
 const featuresRoot = join(rendererRoot, "features");
 const sharedRoot = join(rendererRoot, "shared");
+const rendererApiRoot = join(rendererRoot, "api");
+const mainRoot = join(desktopSourceRoot, "main");
+const preloadRoot = join(desktopSourceRoot, "preload");
+const contractsRoot = join(desktopSourceRoot, "contracts");
 
 describe("renderer architecture boundaries", () => {
   it("keeps feature modules independent from sibling feature modules", () => {
@@ -35,6 +40,25 @@ describe("renderer architecture boundaries", () => {
 
     expect(violations).toEqual([]);
   });
+
+  it("keeps main and preload independent from renderer API modules", () => {
+    const violations = [...sourceFiles(mainRoot), ...sourceFiles(preloadRoot)]
+      .flatMap((file) => importTargets(file)
+        .filter((target) => isInside(target, rendererApiRoot))
+        .map((target) => `${relative(desktopSourceRoot, file)} -> ${relative(desktopSourceRoot, target)}`));
+
+    expect(violations).toEqual([]);
+  });
+
+  it("keeps desktop contracts independent from runtime and renderer modules", () => {
+    const forbiddenRoots = [mainRoot, preloadRoot, rendererRoot];
+    const violations = sourceFiles(contractsRoot)
+      .flatMap((file) => importTargets(file)
+        .filter((target) => forbiddenRoots.some((root) => isInside(target, root)))
+        .map((target) => `${relative(desktopSourceRoot, file)} -> ${relative(desktopSourceRoot, target)}`));
+
+    expect(violations).toEqual([]);
+  });
 });
 
 function sourceFiles(dir: string): string[] {
@@ -51,23 +75,24 @@ function sourceFiles(dir: string): string[] {
 
 function importTargets(file: string): string[] {
   const source = readFileSync(file, "utf8");
-  const imports = [...source.matchAll(/\bimport\s+(?:type\s+)?(?:[\s\S]*?\s+from\s+)?["']([^"']+)["']/g)]
+  const dependencies = [...source.matchAll(/\b(?:import|export)\s+(?:type\s+)?(?:[\s\S]*?\s+from\s+)?["']([^"']+)["']/g)]
     .map((match) => match[1])
     .filter((specifier) => specifier.startsWith("."));
 
-  return imports
+  return dependencies
     .map((specifier) => resolveImport(file, specifier))
     .filter((target): target is string => Boolean(target));
 }
 
 function resolveImport(file: string, specifier: string): string | null {
   const base = resolve(dirname(file), specifier);
+  const sourceBase = base.replace(/\.(?:c|m)?jsx?$/, "");
   const candidates = [
     base,
-    `${base}.ts`,
-    `${base}.tsx`,
-    join(base, "index.ts"),
-    join(base, "index.tsx")
+    `${sourceBase}.ts`,
+    `${sourceBase}.tsx`,
+    join(sourceBase, "index.ts"),
+    join(sourceBase, "index.tsx")
   ];
 
   return candidates.find((candidate) => {

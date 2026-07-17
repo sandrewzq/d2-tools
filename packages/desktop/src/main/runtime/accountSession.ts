@@ -47,15 +47,54 @@ export async function warmAccountSession(): Promise<boolean> {
   return true;
 }
 
-export async function getAccountItemDetail(
-  query: AccountItemDetailQuery
+export async function getAccountItemDetailByInstanceId(
+  instanceId: string
 ): Promise<AccountItemDetail> {
   const session = await getAccountSession();
+  const snapshot = await session.getSnapshot({ freshness: "cached" });
+  const query = findAccountItemDetailQuery(snapshot, instanceId);
+  if (!query) {
+    throw new Error("当前账号快照中找不到该装备，请刷新账号后重试");
+  }
   return measureRuntime<AccountItemDetail>(
     "account.item-detail",
     () => session.getItemDetail(query),
     { measurePayload: true }
   );
+}
+
+function findAccountItemDetailQuery(
+  snapshot: AccountSnapshot,
+  instanceId: string
+): AccountItemDetailQuery | null {
+  const createQuery = (
+    item: { instance_id?: string; hash: number },
+    characterId?: string
+  ): AccountItemDetailQuery | null => item.instance_id === instanceId
+    ? {
+        destiny_membership_id: snapshot.destiny_membership_id,
+        membership_type: snapshot.membership_type,
+        instance_id: instanceId,
+        item_hash: item.hash,
+        ...(characterId ? { character_id: characterId } : {})
+      }
+    : null;
+
+  for (const item of snapshot.vault.items) {
+    const query = createQuery(item);
+    if (query) return query;
+  }
+  for (const character of snapshot.characters) {
+    for (const item of [
+      ...character.equipped_items,
+      ...character.inventory_items,
+      ...character.postmaster_items
+    ]) {
+      const query = createQuery(item, character.character_id);
+      if (query) return query;
+    }
+  }
+  return null;
 }
 
 export async function patchAccountSession(patch: AccountItemPatch): Promise<void> {
@@ -66,6 +105,17 @@ export async function patchAccountSession(patch: AccountItemPatch): Promise<void
 export async function invalidateAccountSession(input: AccountInvalidation): Promise<void> {
   const session = await getAccountSession();
   session.invalidate(input);
+}
+
+export function invalidateAccountItemDetails(instanceIds?: readonly string[]): void {
+  if (!instanceIds?.length) {
+    void invalidateAccountSession({ scope: "all" });
+    return;
+  }
+
+  for (const instanceId of instanceIds) {
+    void invalidateAccountSession({ scope: "item", instance_id: instanceId });
+  }
 }
 
 export function resetAccountSession(): void {

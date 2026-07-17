@@ -1,0 +1,149 @@
+
+
+.app-metric {
+  display: grid;
+  gap: 6px;
+  min-height: 78px;
+  padding: var(--space-12);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-control);
+  background: var(--surface-subtle);
+  color: var(--text-body);
+}
+
+.app-metric span,
+.app-status-row span,
+.app-setting-row span,
+.app-log-row span,
+.app-log-row small {
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.app-metric strong,
+.app-status-row strong,
+.app-setting-row strong,
+.app-log-row strong {
+  color: var(--text-title);
+  line-height: 1.35;
+}
+
+.app-metric.status-ready {
+  border-color: color-mix(in srgb, var(--status-ready) 40%, var(--border-subtle));
+  background: color-mix(in srgb, var(--surface-subtle) 82%, var(--status-ready-bg) 18%);
+}
+
+.app-metric.status-warning {
+  border-color: color-mix(in srgb, var(--status-warning) 44%, var(--border-subtle));
+  background: color-mix(in srgb, var(--surface-subtle) 80%, var(--status-warning-bg) 20%);
+}
+
+.app-metric.status-error {
+  border-color: color-mix(in srgb, var(--status-error) 44%, var(--border-subtle));
+  background: color-mix(in srgb, var(--surface-subtle) 80%, var(--status-error-bg) 20%);
+}
+
+.app-status-row.status-ready,
+.app-setting-row.status-ready,
+.app-log-row.status-ready {
+  border-color: color-mix(in srgb, var(--status-ready) 44%, var(--border-subtle));
+  background: var(--status-ready-bg);
+}
+
+.app-status-row.status-warning,
+.app-setting-row.status-warning,
+.app-log-row.status-warning {
+  border-color: color-mix(in srgb, var(--status-warning) 48%, var(--border-subtle));
+  background: var(--status-warning-bg);
+}
+
+.app-status-row.status-error,
+.app-setting-row.status-error,
+.app-log-row.status-error {
+  border-color: color-mix(in srgb, var(--status-error) 48%, var(--border-subtle));
+  background: var(--status-error-bg);
+}
+
+.app-side-stack,
+.app-status-list,
+.app-log-list,
+.app-setting-group {
+  display: grid;
+  gap: 10px;
+}
+
+.app-status-row,
+.app-setting-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: var(--space-12);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-control);
+  background: var(--surface-subtle);
+}
+
+.app-status-row > div,
+.app-setting-row > div,
+.app-log-row {
+  display: grid;
+  gap: 4px;
+}
+
+.app-status-row button,
+.app-setting-row button,
+.app-diagnostic-summary button {
+  justify-self: end;
+  white-space: nowrap;
+}
+
+.app-info-strip {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-16);
+  align-items: center;
+}
+
+.app-list-card,
+.app-source-card,
+.app-log-row {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-control);
+  background: var(--surface-subtle);
+  color: var(--text-body);
+}
+
+.app-list-card h3,
+.app-list-card strong,
+.app-source-card strong {
+  color: var(--text-title);
+}
+
+.app-list-card li,
+.app-source-card span,
+.app-source-card small {
+  color: var(--text-body);
+  line-height: 1.55;
+}
+
+.app-source-card .source-status-badge,
+.app-source-card .daily-source-count,
+.app-list-card .daily-brief-count,
+.app-list-card .daily-date-badge {
+  color: var(--chip-text);
+  background: var(--chip-bg);
+}
+
+.app-list-card .weekly-focus-section {
+  border-color: var(--border-subtle);
+  background: var(--surface-panel);
+}
+
+.app-settings-shell {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: var(--space-16);
+  align-items: start;
+}

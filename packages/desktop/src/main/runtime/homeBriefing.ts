@@ -1,25 +1,20 @@
 import { buildDailyLiveDataFromBungie } from "@d2-tools/core/daily/liveData";
-import { buildDailySummary, type DailySummary } from "@d2-tools/core/daily/summary";
+import { buildDailySummary } from "@d2-tools/core/daily/summary";
 import type { D2Config } from "@d2-tools/core/config/schema";
 import type { DefinitionComponentData, DefinitionRecord } from "@d2-tools/core/manifest/definitions";
 import { buildWeeklyLiveDataFromBungie } from "@d2-tools/core/weekly/liveData";
-import { buildWeeklySummary, type WeeklySummary } from "@d2-tools/core/weekly/summary";
+import { buildWeeklySummary } from "@d2-tools/core/weekly/summary";
 import {
   type BungieHomeSnapshot,
   type BungiePublicSale,
   type BungieVendorsResponse
 } from "@d2-tools/services/bungie/session";
 import { loadConfig } from "@d2-tools/services/config/store";
+import type { HomeBriefing } from "../../contracts/daily.js";
 import { loadFreshOAuthToken, type FreshOAuthToken } from "../ipc/authSession.js";
 import { getDefinitions } from "./gameDataRuntime.js";
 import { getSharedBungieSession } from "./bungieSession.js";
 import { measureRuntime } from "./runtimeMetrics.js";
-
-export type HomeBriefing = {
-  fetched_at: string;
-  daily: DailySummary;
-  weekly: WeeklySummary;
-};
 
 const briefingTtlMs = 30_000;
 

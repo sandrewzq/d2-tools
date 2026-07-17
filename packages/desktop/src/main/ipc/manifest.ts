@@ -1,4 +1,9 @@
 import { ipcMain } from "electron";
+import type { ManifestStatusRequestOptions } from "../../contracts/manifest.js";
+import {
+  classifyManifestIpcError,
+  encodeDesktopIpcFailure
+} from "../../contracts/errors.js";
 import { loadConfig } from "@d2-tools/services/config/store";
 import {
   checkManifestVersion,
@@ -32,30 +37,28 @@ let lastManifestVersionStatus: (Pick<ManifestStatus, "latest_version" | "needs_u
   data_dir: string;
 }) | null = null;
 
-type ManifestStatusRequestOptions = {
-  forceCheck?: boolean;
-};
-
 export function registerManifestIpcHandlers(): void {
   const initialConfig = loadConfig();
   recoverManifestCacheDirectories(initialConfig.data.data_dir);
 
-  ipcMain.handle("manifest:status", (_event, options?: ManifestStatusRequestOptions) => {
+  ipcMain.handle("manifest:status", (_event, options?: ManifestStatusRequestOptions) => encodeDesktopIpcFailure(() => {
     const config = loadConfig();
     const status = getDesktopManifestStatus();
     if (!isVisualCapture && shouldRunManifestVersionCheck(status, Boolean(options?.forceCheck))) {
       runManifestVersionCheckTask(Boolean(options?.forceCheck));
     }
     return mergeManifestVersionStatus(status, config.data.data_dir, config.data.manifest_language);
-  });
+  }, classifyManifestIpcError));
 
-  ipcMain.handle("manifest:initialize", async () => {
-    return startManifestUpdateTask({ restartIfRetrying: true });
-  });
+  ipcMain.handle("manifest:initialize", () => encodeDesktopIpcFailure(
+    () => startManifestUpdateTask({ restartIfRetrying: true }),
+    classifyManifestIpcError
+  ));
 
-  ipcMain.handle("manifest:repair", async () => {
-    return startManifestUpdateTask({ repair: true, restartIfRetrying: true });
-  });
+  ipcMain.handle("manifest:repair", () => encodeDesktopIpcFailure(
+    () => startManifestUpdateTask({ repair: true, restartIfRetrying: true }),
+    classifyManifestIpcError
+  ));
 }
 
 export function scheduleInitialManifestVersionCheck(delayMs = 12000): void {

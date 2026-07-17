@@ -4,6 +4,8 @@ import type {
   HomeWeeklySummary,
   ShellStatusItem
 } from "@d2-tools/ui";
+import { createFixtureShellStatus } from "@d2-tools/ui/fixtures";
+import { prototypeAppVersion } from "../buildInfo";
 
 export type PrototypeScenarioKey =
   | "ready"
@@ -159,13 +161,13 @@ const readyWeeklySummary: HomeWeeklySummary = {
   public_clues: []
 };
 
-const baseShellStatus: ShellStatusItem[] = [
-  { key: "bungie", label: "Bungie", value: "已配置", tone: "ready" },
-  { key: "account", label: "账号", value: "14:18", tone: "ready" },
-  { key: "library", label: "资料库", value: "2026/06/16 最新", tone: "ready" },
-  { key: "ai", label: "AI", value: "未配置", tone: "warning" },
-  { key: "app-version", label: "应用版本", value: "0.0.10 最新", tone: "ready" }
-];
+const baseShellStatus: ShellStatusItem[] = createFixtureShellStatus({
+  bungie: { value: "已配置", tone: "ready" },
+  account: { value: "14:18", tone: "ready" },
+  library: { value: "2026/06/16 最新", tone: "ready" },
+  ai: { value: "未配置", tone: "warning" },
+  appVersion: { version: prototypeAppVersion, suffix: " 最新", tone: "ready" }
+});
 
 export const prototypeScenarios: Record<PrototypeScenarioKey, PrototypeScenario> = {
   ready: {
@@ -238,7 +240,7 @@ export const prototypeScenarios: Record<PrototypeScenarioKey, PrototypeScenario>
     key: "update-available",
     label: "应用有新版",
     description: "用于确认应用版本在顶部提示新版，不占用首页大卡片。",
-    shellStatus: baseShellStatus.map((item) => item.key === "app-version" ? { ...item, value: "0.0.10 有新版", tone: "warning" } : item),
+    shellStatus: baseShellStatus.map((item) => item.key === "app-version" ? { ...item, value: `${prototypeAppVersion} 有新版`, tone: "warning" } : item),
     homeState: readyHomeState,
     homeDailySummary: readyDailySummary,
     hasAccountData: true,

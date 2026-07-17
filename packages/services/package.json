@@ -30,6 +30,10 @@
       "types": "./dist/bungie/client.d.ts",
       "import": "./dist/bungie/client.js"
     },
+    "./bungie/activityHistory": {
+      "types": "./dist/bungie/activityHistory.d.ts",
+      "import": "./dist/bungie/activityHistory.js"
+    },
     "./manifest/cache": {
       "types": "./dist/manifest/cache.d.ts",
       "import": "./dist/manifest/cache.js"

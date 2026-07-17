@@ -1,10 +1,10 @@
 import { ipcMain } from "electron";
 import {
   type BungieActivityHistoryEntry,
-  fetchCharacterActivityHistory,
   summarizeActivityHistory
 } from "@d2-tools/core/activities/history";
 import { ACTIVITY_HISTORY_SUMMARY_MODES } from "@d2-tools/core/activities/modes";
+import { fetchCharacterActivityHistory } from "@d2-tools/services/bungie/activityHistory";
 import { loadConfig } from "@d2-tools/services/config/store";
 import { startBackgroundTask } from "../backgroundTasks.js";
 import { getDefinitions } from "../runtime/gameDataRuntime.js";
@@ -36,17 +36,15 @@ async function loadActivitySummary(input: ActivitySummaryInput) {
   const config = loadConfig();
   const token = await loadFreshOAuthToken(config);
   const histories = await Promise.all(input.character_ids.flatMap((characterId) =>
-    ACTIVITY_HISTORY_SUMMARY_MODES.map((mode) =>
-      fetchCharacterActivityHistory({
-        config,
-        accessToken: token.access_token,
-        membershipType: input.membership_type,
-        membershipId: input.membership_id,
-        characterId,
-        count: 20,
-        mode,
-      })
-    )
+    ACTIVITY_HISTORY_SUMMARY_MODES.map((mode) => fetchCharacterActivityHistory({
+      apiKey: config.bungie.api_key,
+      accessToken: token.access_token,
+      membershipType: input.membership_type,
+      membershipId: input.membership_id,
+      characterId,
+      count: 20,
+      mode
+    }))
   ));
   const activities = dedupeActivityHistory(
     histories.flatMap((history) => history.activities ?? [])

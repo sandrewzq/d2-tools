@@ -1,0 +1,21 @@
+
+
+body {
+  margin: 0;
+  color: var(--text-body);
+  background: var(--surface-page);
+  overflow: hidden;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+.page {
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 32px;
+}

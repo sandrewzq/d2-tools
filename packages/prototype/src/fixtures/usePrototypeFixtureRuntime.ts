@@ -15,8 +15,13 @@ import type {
   ShellPageKey,
   ShellStatusItem
 } from "@d2-tools/ui";
+import {
+  createFixtureAccountItem,
+  createFixtureAccountSummary
+} from "@d2-tools/ui/fixtures";
+import { prototypeAppVersion } from "../buildInfo";
 import type { PrototypeScenario, PrototypeScenarioKey } from "../mock/scenarios";
-export const prototypeAccountSummary: any = {
+export const prototypeAccountSummary = createFixtureAccountSummary({
   account_name: "Prototype Guardian",
   destiny_membership_id: "4611686018429000000",
   membership_type: 3,
@@ -27,30 +32,30 @@ export const prototypeAccountSummary: any = {
       emblem_url: prototypeEmblem("猎", "#2f7dd1", "#9bd0ff"),
       light: 2022,
       equipped_items: [
-        prototypeAccountItem("pulse-equipped", 1001, "快速命中脉冲", "动能武器", "轻质框架", "已装备"),
-        prototypeAccountItem("shotgun-equipped", 1003, "终局霰弹枪", "能量武器", "精确框架", "已装备"),
-        prototypeAccountItem("rocket-equipped", 1004, "边缘迁移火箭筒", "威能武器", "自适应框架", "已装备"),
-        prototypeAccountItem("hunter-helmet-equipped", 1012, "猎人高纪律头盔", "头盔", "护甲", "已装备"),
-        prototypeAccountItem("hunter-arms-equipped", 1013, "猎人恢复臂铠", "臂铠", "护甲", "已装备"),
-        prototypeAccountItem("hunter-chest-equipped", 1014, "猎人抗性胸甲", "胸甲", "护甲", "已装备"),
-        prototypeAccountItem("hunter-legs-equipped", 1015, "猎人机动腿甲", "腿甲", "护甲", "已装备"),
-        prototypeAccountItem("hunter-class-equipped", 1016, "猎人职业物品", "职业物品", "护甲", "已装备")
+        prototypeWeaponAccountItem("pulse-equipped", 1001, "快速命中脉冲", "动能武器", "轻质框架", "已装备"),
+        prototypeWeaponAccountItem("shotgun-equipped", 1003, "终局霰弹枪", "能量武器", "精确框架", "已装备"),
+        prototypeWeaponAccountItem("rocket-equipped", 1004, "边缘迁移火箭筒", "威能武器", "自适应框架", "已装备"),
+        prototypeArmorAccountItem("hunter-helmet-equipped", 1012, "猎人高纪律头盔", "头盔", "护甲", "已装备"),
+        prototypeArmorAccountItem("hunter-arms-equipped", 1013, "猎人恢复臂铠", "臂铠", "护甲", "已装备"),
+        prototypeArmorAccountItem("hunter-chest-equipped", 1014, "猎人抗性胸甲", "胸甲", "护甲", "已装备"),
+        prototypeArmorAccountItem("hunter-legs-equipped", 1015, "猎人机动腿甲", "腿甲", "护甲", "已装备"),
+        prototypeArmorAccountItem("hunter-class-equipped", 1016, "猎人职业物品", "职业物品", "护甲", "已装备")
       ],
       equipment_groups: [],
       inventory_items: [
-        prototypeAccountItem("handcannon-inventory", 1002, "精准手炮", "能量武器", "精确框架", "背包"),
-        prototypeAccountItem("fusion-inventory", 1005, "适配融合步枪", "能量武器", "适配框架", "背包"),
-        prototypeAccountItem("sword-inventory", 1006, "连锁反应刀剑", "威能武器", "旋风框架", "背包"),
-        prototypeAccountItem("scout-inventory", 1007, "旧赛季斥候", "动能武器", "适配框架", "背包"),
-        prototypeAccountItem("hunter-alt-helmet", 1017, "PVP 机动头盔", "头盔", "护甲", "背包"),
-        prototypeAccountItem("hunter-alt-arms", 1018, "手雷臂铠", "臂铠", "护甲", "背包"),
-        prototypeAccountItem("hunter-alt-chest", 1019, "虚空胸甲", "胸甲", "护甲", "背包"),
-        prototypeAccountItem("hunter-alt-legs", 1020, "跑图腿甲", "腿甲", "护甲", "背包")
+        prototypeWeaponAccountItem("handcannon-inventory", 1002, "精准手炮", "能量武器", "精确框架", "背包"),
+        prototypeWeaponAccountItem("fusion-inventory", 1005, "适配融合步枪", "能量武器", "适配框架", "背包"),
+        prototypeWeaponAccountItem("sword-inventory", 1006, "连锁反应刀剑", "威能武器", "旋风框架", "背包"),
+        prototypeWeaponAccountItem("scout-inventory", 1007, "旧赛季斥候", "动能武器", "适配框架", "背包"),
+        prototypeArmorAccountItem("hunter-alt-helmet", 1017, "PVP 机动头盔", "头盔", "护甲", "背包"),
+        prototypeArmorAccountItem("hunter-alt-arms", 1018, "手雷臂铠", "臂铠", "护甲", "背包"),
+        prototypeArmorAccountItem("hunter-alt-chest", 1019, "虚空胸甲", "胸甲", "护甲", "背包"),
+        prototypeArmorAccountItem("hunter-alt-legs", 1020, "跑图腿甲", "腿甲", "护甲", "背包")
       ],
       inventory_groups: [],
       postmaster_items: [
-        prototypeAccountItem("postmaster-pulse", 1021, "邮政官脉冲", "动能武器", "高冲击力框架", "邮政官"),
-        prototypeAccountItem("postmaster-cloak", 1022, "遗落披风", "职业物品", "护甲", "邮政官")
+        prototypeWeaponAccountItem("postmaster-pulse", 1021, "邮政官脉冲", "动能武器", "高冲击力框架", "邮政官"),
+        prototypeArmorAccountItem("postmaster-cloak", 1022, "遗落披风", "职业物品", "护甲", "邮政官")
       ],
       loadout_slots: [
         {
@@ -71,27 +76,27 @@ export const prototypeAccountSummary: any = {
       emblem_url: prototypeEmblem("术", "#8c5bd6", "#e1c7ff"),
       light: 2018,
       equipped_items: [
-        prototypeAccountItem("warlock-pulse-equipped", 1030, "术士脉冲步枪", "动能武器", "适配框架", "术士已装备"),
-        prototypeAccountItem("warlock-fusion-equipped", 1031, "术士融合步枪", "能量武器", "精确框架", "术士已装备"),
-        prototypeAccountItem("warlock-linear-equipped", 1032, "术士线性融合", "威能武器", "线性框架", "术士已装备"),
-        prototypeAccountItem("warlock-helmet-equipped", 1033, "术士头盔", "头盔", "护甲", "术士已装备"),
-        prototypeAccountItem("warlock-arms-equipped", 1034, "术士臂铠", "臂铠", "护甲", "术士已装备"),
-        prototypeAccountItem("warlock-chest-equipped", 1035, "术士胸甲", "胸甲", "护甲", "术士已装备"),
-        prototypeAccountItem("warlock-legs-equipped", 1036, "术士腿甲", "腿甲", "护甲", "术士已装备"),
-        prototypeAccountItem("warlock-class-equipped", 1037, "术士臂环", "职业物品", "护甲", "术士已装备")
+        prototypeWeaponAccountItem("warlock-pulse-equipped", 1030, "术士脉冲步枪", "动能武器", "适配框架", "术士已装备"),
+        prototypeWeaponAccountItem("warlock-fusion-equipped", 1031, "术士融合步枪", "能量武器", "精确框架", "术士已装备"),
+        prototypeWeaponAccountItem("warlock-linear-equipped", 1032, "术士线性融合", "威能武器", "线性框架", "术士已装备"),
+        prototypeArmorAccountItem("warlock-helmet-equipped", 1033, "术士头盔", "头盔", "护甲", "术士已装备"),
+        prototypeArmorAccountItem("warlock-arms-equipped", 1034, "术士臂铠", "臂铠", "护甲", "术士已装备"),
+        prototypeArmorAccountItem("warlock-chest-equipped", 1035, "术士胸甲", "胸甲", "护甲", "术士已装备"),
+        prototypeArmorAccountItem("warlock-legs-equipped", 1036, "术士腿甲", "腿甲", "护甲", "术士已装备"),
+        prototypeArmorAccountItem("warlock-class-equipped", 1037, "术士臂环", "职业物品", "护甲", "术士已装备")
       ],
       equipment_groups: [],
       inventory_items: [
-        prototypeAccountItem("fusion-warlock", 1005, "适配融合步枪", "能量武器", "适配框架", "术士背包"),
-        prototypeAccountItem("warlock-handcannon", 1038, "术士手炮", "能量武器", "精确框架", "术士背包"),
-        prototypeAccountItem("warlock-rocket", 1039, "术士火箭筒", "威能武器", "自适应框架", "术士背包"),
-        prototypeAccountItem("warlock-alt-helmet", 1040, "术士备用头盔", "头盔", "护甲", "术士背包"),
-        prototypeAccountItem("warlock-alt-chest", 1041, "术士备用胸甲", "胸甲", "护甲", "术士背包"),
-        prototypeAccountItem("warlock-alt-legs", 1042, "术士备用腿甲", "腿甲", "护甲", "术士背包")
+        prototypeWeaponAccountItem("fusion-warlock", 1005, "适配融合步枪", "能量武器", "适配框架", "术士背包"),
+        prototypeWeaponAccountItem("warlock-handcannon", 1038, "术士手炮", "能量武器", "精确框架", "术士背包"),
+        prototypeWeaponAccountItem("warlock-rocket", 1039, "术士火箭筒", "威能武器", "自适应框架", "术士背包"),
+        prototypeArmorAccountItem("warlock-alt-helmet", 1040, "术士备用头盔", "头盔", "护甲", "术士背包"),
+        prototypeArmorAccountItem("warlock-alt-chest", 1041, "术士备用胸甲", "胸甲", "护甲", "术士背包"),
+        prototypeArmorAccountItem("warlock-alt-legs", 1042, "术士备用腿甲", "腿甲", "护甲", "术士背包")
       ],
       inventory_groups: [],
       postmaster_items: [
-        prototypeAccountItem("warlock-postmaster-scout", 1043, "邮政官斥候", "动能武器", "轻质框架", "邮政官")
+        prototypeWeaponAccountItem("warlock-postmaster-scout", 1043, "邮政官斥候", "动能武器", "轻质框架", "邮政官")
       ],
       loadout_slots: []
     }
@@ -99,40 +104,40 @@ export const prototypeAccountSummary: any = {
   vault: {
     item_count: 764,
     items: [
-      prototypeAccountItem("handcannon-vault", 1002, "精准手炮", "能量武器", "精确框架", "仓库"),
-      prototypeAccountItem("sword-vault", 1006, "连锁反应刀剑", "威能武器", "旋风框架", "仓库"),
-      prototypeAccountItem("scout-vault", 1007, "旧赛季斥候", "动能武器", "适配框架", "仓库"),
-      prototypeAccountItem("auto-vault", 1008, "高射速自动步枪", "动能武器", "速射框架", "仓库"),
-      prototypeAccountItem("sniper-vault", 1009, "精准狙击枪", "能量武器", "攻击型框架", "仓库"),
+      prototypeWeaponAccountItem("handcannon-vault", 1002, "精准手炮", "能量武器", "精确框架", "仓库"),
+      prototypeWeaponAccountItem("sword-vault", 1006, "连锁反应刀剑", "威能武器", "旋风框架", "仓库"),
+      prototypeWeaponAccountItem("scout-vault", 1007, "旧赛季斥候", "动能武器", "适配框架", "仓库"),
+      prototypeWeaponAccountItem("auto-vault", 1008, "高射速自动步枪", "动能武器", "速射框架", "仓库"),
+      prototypeWeaponAccountItem("sniper-vault", 1009, "精准狙击枪", "能量武器", "攻击型框架", "仓库"),
       {
-        ...prototypeAccountItem("helmet-vault", 1010, "高纪律头盔", "头盔", "护甲", "仓库"),
+        ...prototypeArmorAccountItem("helmet-vault", 1010, "高纪律头盔", "头盔", "护甲", "仓库"),
         group_key: "armor",
         item_type: "头盔",
         armor_stats: { total: 66, health: 18, melee: 4, grenade: 22, super: 10, class: 6, weapon: 6 }
       },
       {
-        ...prototypeAccountItem("class-vault", 1011, "职业物品目标件", "职业物品", "护甲", "仓库"),
+        ...prototypeArmorAccountItem("class-vault", 1011, "职业物品目标件", "职业物品", "护甲", "仓库"),
         group_key: "armor",
         item_type: "职业物品",
         armor_stats: { total: 0, health: 0, melee: 0, grenade: 0, super: 0, class: 0, weapon: 0 }
       },
-      prototypeAccountItem("boots-vault", 1044, "高恢复腿甲", "腿甲", "护甲", "仓库"),
-      prototypeAccountItem("gauntlets-vault", 1045, "近战臂铠", "臂铠", "护甲", "仓库"),
-      prototypeAccountItem("glaive-vault", 1046, "实验偃月", "能量武器", "适配框架", "仓库"),
-      prototypeAccountItem("machinegun-vault", 1047, "机枪清怪件", "威能武器", "高冲击力框架", "仓库"),
-      prototypeAccountItem("sidearm-vault", 1048, "轻质手枪", "能量武器", "轻质框架", "仓库")
+      prototypeArmorAccountItem("boots-vault", 1044, "高恢复腿甲", "腿甲", "护甲", "仓库"),
+      prototypeArmorAccountItem("gauntlets-vault", 1045, "近战臂铠", "臂铠", "护甲", "仓库"),
+      prototypeWeaponAccountItem("glaive-vault", 1046, "实验偃月", "能量武器", "适配框架", "仓库"),
+      prototypeWeaponAccountItem("machinegun-vault", 1047, "机枪清怪件", "威能武器", "高冲击力框架", "仓库"),
+      prototypeWeaponAccountItem("sidearm-vault", 1048, "轻质手枪", "能量武器", "轻质框架", "仓库")
     ],
     sample_items: []
   },
   materials: {
     item_count: 28,
     items: [
-      { hash: 9001, name: "增强核心", item_count: 126, icon: prototypeItemIcon("核", "#2e835c") },
-      { hash: 9002, name: "升级模块", item_count: 18, icon: prototypeItemIcon("升", "#2f7dd1") },
-      { hash: 9003, name: "异域密码", item_count: 1, icon: prototypeItemIcon("异", "#c6922e") }
+      { hash: 9001, name: "增强核心", quantity: 126, icon: prototypeItemIcon("核", "#2e835c") },
+      { hash: 9002, name: "升级模块", quantity: 18, icon: prototypeItemIcon("升", "#2f7dd1") },
+      { hash: 9003, name: "异域密码", quantity: 1, icon: prototypeItemIcon("异", "#c6922e") }
     ]
   }
-};
+});
 
 export const prototypeLoadoutTemplates: any[] = [
   {
@@ -344,7 +349,7 @@ export const prototypeManifestStatus = {
 
 export const prototypeUpdateSnapshot = {
   status: "not_available",
-  current_version: "0.0.10",
+  current_version: prototypeAppVersion,
   available_version: null,
   downloaded_version: null,
   progress_percent: undefined,
@@ -852,8 +857,16 @@ export const prototypeVaultItems = [
   }
 ];
 
-export function prototypeAccountItem(instanceId: string, hash: number, name: string, bucketName: string, frameName: string, location: string) {
-  const isWeapon = bucketName.includes("武器");
+function prototypeWeaponAccountItem(instanceId: string, hash: number, name: string, bucketName: string, frameName: string, location: string) {
+  return prototypeAccountItem(instanceId, hash, name, bucketName, frameName, location, "weapons");
+}
+
+function prototypeArmorAccountItem(instanceId: string, hash: number, name: string, bucketName: string, frameName: string, location: string) {
+  return prototypeAccountItem(instanceId, hash, name, bucketName, frameName, location, "armor");
+}
+
+export function prototypeAccountItem(instanceId: string, hash: number, name: string, bucketName: string, frameName: string, location: string, groupKey: "weapons" | "armor") {
+  const isWeapon = groupKey === "weapons";
   const sourceKind = location === "仓库"
     ? "vault"
     : location === "邮政官"
@@ -862,24 +875,22 @@ export function prototypeAccountItem(instanceId: string, hash: number, name: str
         ? "inventory"
         : "equipped";
 
-  return {
+  return createFixtureAccountItem({
+    instanceId,
     hash,
-    instance_id: instanceId,
     name,
+    bucketName,
+    groupKey,
+    frameName,
     icon: prototypeItemIcon(bucketName.slice(0, 1), isWeapon ? "#2f7dd1" : "#a87118"),
-    item_type: isWeapon ? "武器" : bucketName,
-    tier: "传说",
-    bucket_name: bucketName,
-    group_key: isWeapon ? "weapons" : "armor",
-    weapon_frame: isWeapon ? { key: frameName, name: frameName } : undefined,
-    armor_stats: isWeapon ? undefined : { total: 64, health: 12, melee: 8, grenade: 20, super: 10, class: 6, weapon: 8 },
-    socket_plugs: [
+    armorStats: isWeapon ? undefined : { total: 64, health: 12, melee: 8, grenade: 20, super: 10, class: 6, weapon: 8 },
+    socketPlugs: [
       { hash: hash + 10000, name: "快速命中" },
       { hash: hash + 20000, name: "目标锁定" }
     ],
-    source_kind: sourceKind,
-    source_character_id: location.includes("术士") ? "warlock-1" : "hunter-1"
-  };
+    sourceKind,
+    sourceCharacterId: location.includes("术士") ? "warlock-1" : "hunter-1"
+  });
 }
 
 export function prototypeEmblem(label: string, bg: string, fg: string) {

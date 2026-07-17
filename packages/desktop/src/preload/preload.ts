@@ -1,7 +1,4 @@
 import { contextBridge, ipcRenderer } from "electron";
-import type { AccountItemDetail, AccountItemSummary, AccountSummary } from "@d2-tools/core/account/summary";
-import type { ActionLogEntry } from "@d2-tools/core/actions/log";
-import type { BatchTransferPlan, ItemActionPlan, ItemActionPlanInput } from "@d2-tools/core/actions/plan";
 import type { ActivityHistorySummary } from "@d2-tools/core/activities/history";
 import type {
   BuildGuideMatchResult,
@@ -25,7 +22,6 @@ import type {
   SavePersonalWeaponKnowledgeInput
 } from "@d2-tools/core/community-perks/personalWeaponKnowledge";
 import type { D2Config } from "@d2-tools/core/config/schema";
-import type { DailySummary } from "@d2-tools/core/daily/summary";
 import type { HealthStatus } from "@d2-tools/core/health";
 import type { ItemAliases, ItemAliasEntry } from "@d2-tools/core/items/aliases";
 import type { ItemDefinitionDetail } from "@d2-tools/core/items/detail";
@@ -34,128 +30,48 @@ import type { PerkSearchResult } from "@d2-tools/core/items/perkSearch";
 import type { ItemSearchResult } from "@d2-tools/core/items/search";
 import type { LibraryHistory, LibraryHistoryItem } from "@d2-tools/core/library/history";
 import type { CreateLoadoutTemplateInput, LoadoutTemplate } from "@d2-tools/core/loadouts/templates";
-import type { ManifestStatus } from "@d2-tools/core/manifest/cache";
-import type { AuthLoginResult } from "@d2-tools/core/oauth/login";
-import type { StartupState } from "@d2-tools/core/startup/startupState";
 import type { SaveVaultNoteInput, SaveVaultTagInput, VaultTags } from "@d2-tools/core/vault/tags";
 import type { WeeklySummary } from "@d2-tools/core/weekly/summary";
-import type { VendorInventorySnapshot } from "@d2-tools/core/vendors/inventory";
-import type { VendorInventoryRequest } from "../renderer/api/vendorsApi.js";
-import type { CachedAccountSummary } from "../renderer/api/accountApi.js";
-import type { HomeBriefing } from "../renderer/api/dailyApi.js";
-import type { ManifestStatusRequestOptions } from "../renderer/api/manifestApi.js";
+import type {
+  AccountItemDetail,
+  AccountItemSummary,
+  AccountSummary,
+  AuthLoginResult,
+  CachedAccountSnapshot
+} from "../contracts/account.js";
+import type {
+  ActionLogEntry,
+  BatchEquipItemsInput,
+  BatchItemActionResult,
+  BatchTransferPlan,
+  BatchTransferItemsInput,
+  InsertSocketPlugActionInput,
+  ItemActionPlan,
+  ItemActionPlanInput,
+  ItemActionResult,
+  ItemEquipActionInput,
+  ItemLockActionInput,
+  ItemTransferActionInput,
+  LoadoutEquipActionInput,
+  LoadoutSnapshotActionInput,
+  PostmasterPullActionInput
+} from "../contracts/actions.js";
+import type { DailySummary, HomeBriefing } from "../contracts/daily.js";
+import type {
+  ManifestStatus,
+  ManifestStatusRequestOptions,
+  StartupState
+} from "../contracts/manifest.js";
+import type {
+  VendorInventoryRequest,
+  VendorInventorySnapshot
+} from "../contracts/vendors.js";
+import type {
+  DesktopIpcErrorDetails,
+  DesktopIpcErrorPayload
+} from "../contracts/errors.js";
 import type { BackgroundTaskSnapshot } from "../shared/backgroundTasks.js";
 import type { AppUpdateSnapshot } from "../shared/updateTypes.js";
-
-type ItemLockActionInput = {
-  membership_type: number;
-  character_id: string;
-  item_id: string;
-  item_name?: string;
-  state: boolean;
-};
-
-type ItemEquipActionInput = {
-  membership_type: number;
-  character_id: string;
-  item_id: string;
-  item_name?: string;
-};
-
-type InsertSocketPlugActionInput = {
-  membership_type: number;
-  character_id: string;
-  item_id: string;
-  item_name?: string;
-  socket_index: number;
-  plug_hash: number;
-  plug_name?: string;
-};
-
-type ItemTransferActionInput = {
-  membership_type: number;
-  character_id: string;
-  item_id: string;
-  item_reference_hash: number;
-  item_name?: string;
-  transfer_to_vault: boolean;
-};
-
-type PostmasterPullActionInput = {
-  membership_type: number;
-  character_id: string;
-  item_id: string;
-  item_reference_hash: number;
-  item_name?: string;
-  stack_size?: number;
-};
-
-type LoadoutEquipActionInput = {
-  membership_type: number;
-  character_id: string;
-  loadout_index: number;
-  loadout_name?: string;
-};
-
-type LoadoutSnapshotActionInput = {
-  membership_type: number;
-  character_id: string;
-  loadout_index: number;
-  loadout_name?: string;
-  loadout_name_hash?: number;
-  loadout_icon_hash?: number;
-  loadout_color_hash?: number;
-};
-
-type AccountItemActionPatch =
-  | {
-      kind: "lock";
-      item_instance_id: string;
-      locked: boolean;
-    }
-  | {
-      kind: "equip";
-      item_instance_id: string;
-      character_id: string;
-    }
-  | {
-      kind: "transfer";
-      item_instance_id: string;
-      character_id: string;
-      target: "vault" | "character-inventory";
-    }
-  | {
-      kind: "postmaster-pull";
-      item_instance_id: string;
-      character_id: string;
-    };
-
-type ItemActionResult = {
-  ok: true;
-  message: string;
-  account_patch?: AccountItemActionPatch;
-};
-
-type BatchEquipItemsInput = {
-  membership_type: number;
-  character_id: string;
-  items: ItemEquipActionInput[];
-};
-
-type BatchTransferItemsInput = {
-  membership_type: number;
-  character_id: string;
-  items: ItemTransferActionInput[];
-};
-
-type BatchItemActionResult = {
-  ok: true;
-  total: number;
-  success_count: number;
-  failed_count: number;
-  message: string;
-  account_patches: AccountItemActionPatch[];
-};
 
 contextBridge.exposeInMainWorld("d2", {
   getHealth: () => ipcRenderer.invoke("health:get") as Promise<HealthStatus>,
@@ -168,12 +84,12 @@ contextBridge.exposeInMainWorld("d2", {
   listAiModels: (ai: AiSettings) => ipcRenderer.invoke("ai:models", ai) as Promise<AiModelListResult>,
   testAiConnection: () => ipcRenderer.invoke("ai:test") as Promise<AiConnectionTestResult>,
   loginBungie: () => ipcRenderer.invoke("auth:login") as Promise<AuthLoginResult>,
-  getAccountSummary: () => ipcRenderer.invoke("account:summary") as Promise<AccountSummary>,
-  getCachedAccountSummary: () =>
-    ipcRenderer.invoke("account:snapshot:cached") as Promise<CachedAccountSummary | null>,
+  getAccountSummary: () => invokeDesktopIpc<AccountSummary>("account:summary"),
+  getCachedAccountSnapshot: () =>
+    ipcRenderer.invoke("account:snapshot:cached") as Promise<CachedAccountSnapshot | null>,
   getAccountItemDetail: (instanceId: string) =>
-    ipcRenderer.invoke("account:item-detail", instanceId) as Promise<AccountItemDetail>,
-  getItemDetail: (hash: number) => ipcRenderer.invoke("items:detail", hash) as Promise<ItemDefinitionDetail>,
+    invokeDesktopIpc<AccountItemDetail>("account:item-detail", instanceId),
+  getItemDetail: (hash: number) => invokeDesktopIpc<ItemDefinitionDetail>("items:detail", hash),
   getStartupState: () => ipcRenderer.invoke("startup:get") as Promise<StartupState>,
   setWindowColorMode: (colorMode: "light" | "dark") =>
     ipcRenderer.invoke("window:set-color-mode", colorMode) as Promise<void>,
@@ -189,13 +105,13 @@ contextBridge.exposeInMainWorld("d2", {
     return () => ipcRenderer.removeListener("background-tasks:changed", listener);
   },
   getManifestStatus: (options?: ManifestStatusRequestOptions) =>
-    ipcRenderer.invoke("manifest:status", options) as Promise<ManifestStatus>,
-  initializeManifest: () => ipcRenderer.invoke("manifest:initialize") as Promise<ManifestStatus>,
-  repairManifest: () => ipcRenderer.invoke("manifest:repair") as Promise<ManifestStatus>,
-  searchItems: (query: string) => ipcRenderer.invoke("items:search", query) as Promise<ItemSearchResult[]>,
-  searchPerks: (query: string) => ipcRenderer.invoke("items:perks:search", query) as Promise<PerkSearchResult[]>,
+    invokeDesktopIpc<ManifestStatus>("manifest:status", options),
+  initializeManifest: () => invokeDesktopIpc<ManifestStatus>("manifest:initialize"),
+  repairManifest: () => invokeDesktopIpc<ManifestStatus>("manifest:repair"),
+  searchItems: (query: string) => invokeDesktopIpc<ItemSearchResult[]>("items:search", query),
+  searchPerks: (query: string) => invokeDesktopIpc<PerkSearchResult[]>("items:perks:search", query),
   getLiveItemAvailability: (itemHashes: number[]) =>
-    ipcRenderer.invoke("items:live-availability", itemHashes) as Promise<LiveItemAvailability>,
+    invokeDesktopIpc<LiveItemAvailability>("items:live-availability", itemHashes),
   getItemAliases: () => ipcRenderer.invoke("aliases:get") as Promise<ItemAliases>,
   saveItemAlias: (input: ItemAliasEntry) => ipcRenderer.invoke("aliases:save", input) as Promise<ItemAliases>,
   getLibraryHistory: () => ipcRenderer.invoke("library:history:get") as Promise<LibraryHistory>,
@@ -257,23 +173,23 @@ contextBridge.exposeInMainWorld("d2", {
   createGuideLoadoutDraft: (input: { match: BuildGuideMatchResult; characterId: string; fallbackName: string }) =>
     ipcRenderer.invoke("assistant:guide:draft", input),
   setItemLockState: (input: ItemLockActionInput) =>
-    ipcRenderer.invoke("actions:item:set-lock", input) as Promise<ItemActionResult>,
+    invokeDesktopIpc<ItemActionResult>("actions:item:set-lock", input),
   equipItem: (input: ItemEquipActionInput) =>
-    ipcRenderer.invoke("actions:item:equip", input) as Promise<ItemActionResult>,
+    invokeDesktopIpc<ItemActionResult>("actions:item:equip", input),
   insertSocketPlug: (input: InsertSocketPlugActionInput) =>
-    ipcRenderer.invoke("actions:item:insert-socket-plug", input) as Promise<ItemActionResult>,
+    invokeDesktopIpc<ItemActionResult>("actions:item:insert-socket-plug", input),
   transferItem: (input: ItemTransferActionInput) =>
-    ipcRenderer.invoke("actions:item:transfer", input) as Promise<ItemActionResult>,
+    invokeDesktopIpc<ItemActionResult>("actions:item:transfer", input),
   batchEquipItems: (input: BatchEquipItemsInput) =>
-    ipcRenderer.invoke("actions:items:batch-equip", input) as Promise<BatchItemActionResult>,
+    invokeDesktopIpc<BatchItemActionResult>("actions:items:batch-equip", input),
   batchTransferItems: (input: BatchTransferItemsInput) =>
-    ipcRenderer.invoke("actions:items:batch-transfer", input) as Promise<BatchItemActionResult>,
+    invokeDesktopIpc<BatchItemActionResult>("actions:items:batch-transfer", input),
   pullFromPostmaster: (input: PostmasterPullActionInput) =>
-    ipcRenderer.invoke("actions:item:pull-postmaster", input) as Promise<ItemActionResult>,
+    invokeDesktopIpc<ItemActionResult>("actions:item:pull-postmaster", input),
   equipLoadout: (input: LoadoutEquipActionInput) =>
-    ipcRenderer.invoke("actions:loadout:equip", input) as Promise<ItemActionResult>,
+    invokeDesktopIpc<ItemActionResult>("actions:loadout:equip", input),
   snapshotLoadout: (input: LoadoutSnapshotActionInput) =>
-    ipcRenderer.invoke("actions:loadout:snapshot", input) as Promise<ItemActionResult>,
+    invokeDesktopIpc<ItemActionResult>("actions:loadout:snapshot", input),
   getActionLog: () => ipcRenderer.invoke("actions:log:get") as Promise<ActionLogEntry[]>,
   createItemActionPlan: (input: ItemActionPlanInput) =>
     ipcRenderer.invoke("actions:plan:item", input) as Promise<ItemActionPlan>,
@@ -303,3 +219,63 @@ contextBridge.exposeInMainWorld("d2", {
     ipcRenderer.invoke("community:vault:match", items) as Promise<Array<{ hash: number } & VaultItemMatchInfo>>,
   clearLightggCache: () => ipcRenderer.invoke("community:lightgg:cache:clear") as Promise<void>
 });
+
+async function invokeDesktopIpc<TResult>(
+  channel: string,
+  ...args: unknown[]
+): Promise<TResult> {
+  try {
+    return await ipcRenderer.invoke(channel, ...args) as TResult;
+  } catch (error) {
+    throw toDesktopIpcError(error, { channel });
+  }
+}
+
+const desktopIpcTransportPrefix = "D2_IPC_ERROR:";
+
+function toDesktopIpcError(
+  error: unknown,
+  details?: DesktopIpcErrorDetails
+): Error & DesktopIpcErrorPayload {
+  const payload = readDesktopIpcErrorPayload(error) ?? {
+    code: "IPC_INVOKE_FAILED",
+    message: errorMessage(error, "桌面服务调用失败"),
+    retryable: true,
+    causeCategory: "internal" as const
+  };
+  const ipcError = new Error(payload.message) as Error & DesktopIpcErrorPayload;
+  ipcError.name = "DesktopIpcError";
+  ipcError.code = payload.code;
+  ipcError.retryable = payload.retryable;
+  if (payload.causeCategory) ipcError.causeCategory = payload.causeCategory;
+  if (details || payload.details) {
+    ipcError.details = { ...payload.details, ...details };
+  }
+  return ipcError;
+}
+
+function readDesktopIpcErrorPayload(error: unknown): DesktopIpcErrorPayload | null {
+  const message = error instanceof Error ? error.message : String(error ?? "");
+  const markerIndex = message.indexOf(desktopIpcTransportPrefix);
+  if (markerIndex < 0) return null;
+  try {
+    const encoded = message.slice(markerIndex + desktopIpcTransportPrefix.length).trim();
+    const parsed = JSON.parse(decodeURIComponent(encoded)) as Partial<DesktopIpcErrorPayload>;
+    if (typeof parsed.code !== "string"
+      || typeof parsed.message !== "string"
+      || typeof parsed.retryable !== "boolean") {
+      return null;
+    }
+    return parsed as DesktopIpcErrorPayload;
+  } catch {
+    return null;
+  }
+}
+
+function errorMessage(error: unknown, fallback: string): string {
+  const message = error instanceof Error ? error.message : String(error ?? "");
+  return message
+    .replace(/^Error invoking remote method '[^']+':\s*/i, "")
+    .replace(/^Error:\s*/i, "")
+    .trim() || fallback;
+}

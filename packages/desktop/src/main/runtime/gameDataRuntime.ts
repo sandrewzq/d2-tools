@@ -21,6 +21,8 @@ type GameDataOperation =
 type PendingRequest = {
   resolve: (value: unknown) => void;
   reject: (error: Error) => void;
+  timeout: ReturnType<typeof setTimeout>;
+  worker: Worker;
 };
 
 export type DefinitionProjection = "account-snapshot" | "community-match" | "display-summary";
@@ -30,7 +32,17 @@ let nextRequestId = 1;
 let suspended = false;
 let closeRequest: Promise<void> | null = null;
 const pendingRequests = new Map<number, PendingRequest>();
+const workerTimeoutCounts = new WeakMap<Worker, number>();
 const closeTimeoutMs = 5_000;
+const workerRestartTimeoutThreshold = 2;
+const operationTimeoutMs: Record<GameDataOperation, number> = {
+  searchItems: 15_000,
+  searchPerks: 15_000,
+  getItemDetail: 15_000,
+  getDefinitions: 30_000,
+  ping: 5_000,
+  close: closeTimeoutMs
+};
 
 const catalog: GameDataCatalog = {
   searchItems(input: ItemSearchQuery) {
@@ -130,11 +142,28 @@ function request<TResult>(
   const activeWorker = targetWorker ?? ensureWorker();
   const id = nextRequestId++;
   return new Promise<TResult>((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      const pending = pendingRequests.get(id);
+      if (!pending) return;
+      pendingRequests.delete(id);
+      pending.reject(new Error(`资料库查询超时：${operation}`));
+      if (operation !== "close") {
+        handleWorkerRequestTimeout(activeWorker);
+      }
+    }, operationTimeoutMs[operation]);
     pendingRequests.set(id, {
       resolve: (value) => resolve(value as TResult),
-      reject
+      reject,
+      timeout,
+      worker: activeWorker
     });
-    activeWorker.postMessage({ id, operation, input });
+    try {
+      activeWorker.postMessage({ id, operation, input });
+    } catch (error) {
+      clearTimeout(timeout);
+      pendingRequests.delete(id);
+      reject(error instanceof Error ? error : new Error("资料库查询请求发送失败"));
+    }
   });
 }
 
@@ -150,10 +179,12 @@ function ensureWorker(): Worker {
     error?: string;
   }) => {
     const pending = pendingRequests.get(message.id);
-    if (!pending) {
+    if (!pending || pending.worker !== nextWorker) {
       return;
     }
     pendingRequests.delete(message.id);
+    clearTimeout(pending.timeout);
+    workerTimeoutCounts.set(nextWorker, 0);
     if (message.ok) {
       pending.resolve(message.result);
     } else {
@@ -180,9 +211,32 @@ function ensureWorker(): Worker {
 
 function rejectPendingRequests(error: Error): void {
   for (const pending of pendingRequests.values()) {
+    clearTimeout(pending.timeout);
     pending.reject(error);
   }
   pendingRequests.clear();
+}
+
+function handleWorkerRequestTimeout(targetWorker: Worker): void {
+  const timeoutCount = (workerTimeoutCounts.get(targetWorker) ?? 0) + 1;
+  workerTimeoutCounts.set(targetWorker, timeoutCount);
+  if (timeoutCount < workerRestartTimeoutThreshold) return;
+
+  if (worker === targetWorker) worker = null;
+  rejectPendingRequestsForWorker(
+    targetWorker,
+    new Error("资料库查询 worker 连续超时，已重新启动")
+  );
+  void targetWorker.terminate().catch(() => undefined);
+}
+
+function rejectPendingRequestsForWorker(targetWorker: Worker, error: Error): void {
+  for (const [id, pending] of pendingRequests) {
+    if (pending.worker !== targetWorker) continue;
+    clearTimeout(pending.timeout);
+    pending.reject(error);
+    pendingRequests.delete(id);
+  }
 }
 
 function withTimeout<TResult>(

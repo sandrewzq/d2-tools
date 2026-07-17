@@ -4,6 +4,8 @@ import type {
   HomeWeeklySummary,
   ShellStatusItem
 } from "@d2-tools/ui";
+import { createFixtureShellStatus } from "@d2-tools/ui/fixtures";
+import { webAppVersion } from "./buildInfo";
 
 export type WebHomeSnapshot = {
   shellStatus: ShellStatusItem[];
@@ -26,13 +28,13 @@ export type WebShellAdapter = {
 };
 
 export const fallbackHomeSnapshot: WebHomeSnapshot = {
-  shellStatus: [
-    { key: "bungie", label: "Bungie", value: "Web 待接入", tone: "neutral" },
-    { key: "account", label: "账号", value: "未登录", tone: "warning" },
-    { key: "library", label: "资料库", value: "待同步", tone: "neutral" },
-    { key: "ai", label: "AI", value: "未配置", tone: "warning" },
-    { key: "app-version", label: "应用版本", value: "0.0.10", tone: "ready" }
-  ],
+  shellStatus: createFixtureShellStatus({
+    bungie: { value: "Web 待接入", tone: "neutral" },
+    account: { value: "未登录", tone: "warning" },
+    library: { value: "待同步", tone: "neutral" },
+    ai: { value: "未配置", tone: "warning" },
+    appVersion: { version: webAppVersion }
+  }),
   homeState: {
     cards: {
       manifest: {

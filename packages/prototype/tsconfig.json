@@ -8,6 +8,7 @@
     "baseUrl": ".",
     "paths": {
       "@d2-tools/ui": ["../ui/src/index.ts"],
+      "@d2-tools/ui/fixtures": ["../ui/src/fixtures.ts"],
       "@d2-tools/ui/styles.css": ["../ui/src/styles.css"]
     },
     "types": ["node", "vite/client"]

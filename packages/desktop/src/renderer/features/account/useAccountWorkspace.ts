@@ -54,7 +54,7 @@ export function useAccountWorkspace(input: {
 
   useEffect(() => {
     let active = true;
-    void api.getCachedAccountSummary()
+    void api.getCachedAccountSnapshot()
       .then((cached) => {
         if (!active || !cached || getAccountSummarySnapshot()) return;
         applyAccountSummary(cached.snapshot);

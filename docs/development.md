@@ -49,7 +49,8 @@ docs/        正式文档
   - 负责共享 React UI、产品级 UI Host、设计系统 token 和 i18n copy
   - 不直接依赖 Electron、Web 部署、移动原生能力或 `window.d2`
   - 页面组件只接收 ViewModel、props 和 callback，真实数据由平台 adapter 提供
-  - `src/styles.css` 是 Prototype、Web、Desktop 共用的唯一产品级样式入口；颜色、间距、页面布局、暗色模式和通用状态样式不得再落到平台壳私有 CSS
+  - `src/styles.css` 是 Prototype、Web、Desktop 共用的唯一产品级样式入口，只按稳定级联顺序导入 `src/styles/` 下的 foundation、shell、workspace、components 和菜单分片；颜色、间距、页面布局、暗色模式和通用状态样式不得再落到平台壳私有 CSS
+  - Prototype / Web 共用的 typed fixture foundation 通过 `@d2-tools/ui/fixtures` 暴露，平台壳只保留场景差异和 adapter
 
 - `packages/prototype`
   - 负责可交互 React 原型，使用 mock 数据和 mock adapter
@@ -68,6 +69,7 @@ docs/        正式文档
 
 - `packages/desktop`
   - 负责 Electron 主进程、preload、IPC、窗口、本地文件和安装更新等系统能力
+  - Electron channel 的共享 transport 契约放在 `src/contracts/<domain>.ts`；main、preload 和 renderer API 共同引用该目录，preload / main 不得反向依赖 renderer
   - Renderer 中仍未迁出的页面逻辑继续按 feature 边界维护，平台无关 UI 逐步迁入 `packages/ui`
   - Renderer 入口必须导入 `@d2-tools/ui/styles.css`；`packages/desktop/src/renderer/styles.css` 只允许保留 Electron 平台级调整，不承载产品页面样式
 
@@ -79,7 +81,8 @@ docs/        正式文档
 - `packages/desktop/src/renderer/features/<menu>/` 是菜单私有实现。feature 可以 import `shared/`、`components/`、`utils/` 和 `api/`，但不能 import 其他 feature。
 - `packages/desktop/src/renderer/shared/` 只能放跨菜单复用能力，不能反向 import `features/`。
 - 跨账号、仓库、资料库复用的装备详情、配装定位、状态卡片等能力应先进入 `shared/`，再由各 feature 引用。
-- `packages/desktop/src/renderer/api/types.ts` 是 renderer 侧平台无关 API 聚合入口，只组合 `AppApi` 并重导出分域契约；账号、仓库、资料库、配装、AI、写操作等 DTO 应放在 `api/*Api.ts` 或 `api/sharedTypes.ts`，后续 Mac / 移动端适配应优先复用这些类型边界。
+- `packages/desktop/src/contracts/<domain>.ts` 是 Electron channel 的单一 transport 契约；领域 DTO 继续由 core 持有，session/cache patch 由 services 持有，contracts 只组合 channel 输入输出。`renderer/api/*Api.ts` 兼容性重导出 contracts，preload / main 不得从 renderer API 导入类型。
+- `packages/desktop/src/renderer/api/types.ts` 是 renderer 侧 `AppApi` 聚合入口；大型 DTO 不得重新塞回该文件或 `api/client.ts`。后续 Mac / 移动端适配优先复用 core/services 的领域和服务接口，不直接复用 Electron transport 契约。
 - `packages/desktop/src/renderer/api/client.ts` 只做 Electron renderer 运行时绑定：声明 `window.d2`、导出 `api`，并兼容性重导出 `types.ts` 里的类型；renderer / test 使用方不得从这里导类型，类型应从 `api/types.ts` 或分域 API 文件导入。
 - 新增用户可见文案优先进入 `packages/ui/src/i18n/` 或对应领域 copy，并遵循 [玩家文案字典](player-facing-language.md)；界面语言使用 `zh-CN` / `en-US`，Bungie 资料库语言使用 `zh-chs` / `en`，不要在组件里分散写 `locale === ... ? ... : ...`。共享 UI 的 prototype fallback 也必须接收 `interfaceLocale`，不能只给正式内容页做 i18n。
 - 默认数据目录由 `packages/core/src/config/defaults.ts` 的平台感知 helper 统一计算：Windows 使用 `%APPDATA%\d2-tools`，macOS 使用 `~/Library/Application Support/d2-tools`，Linux / 其他平台使用 `$XDG_DATA_HOME/d2-tools` 或 `~/.local/share/d2-tools`。
@@ -92,7 +95,7 @@ docs/        正式文档
 - 普通功能按菜单并行：账号页改 `features/account/`，仓库页改 `features/vault/`，资料库改 `features/library/`，配装改 `features/loadouts/`，AI 改 `features/ai/`，设置改 `features/settings/`，每日 / 每周改 `features/daily/`。
 - 跨菜单能力先抽到 `shared/`，再由各 feature 引用；不要让一个 feature 直接 import 另一个 feature。
 - 共享详情、配装来源、仓库清理等跨菜单逻辑应放到 `shared/components/`、`shared/hooks/` 或 `shared/domain/`。
-- Renderer API 按领域维护在 `api/*Api.ts`，`types.ts` 只聚合，`client.ts` 只绑定 Electron runtime。
+- Electron transport 契约按领域维护在 `src/contracts/`；Renderer API 在 `api/*Api.ts` 重导出所需契约，`types.ts` 只聚合，`client.ts` 只绑定 Electron runtime。
 - 主进程 IPC 按领域维护在 `src/main/ipc/` 子模块，`ipc.ts` 只聚合。
 - 新增可见文案优先进入 copy 体系；跨端 UI 文案优先进入 `packages/ui/src/i18n/`，设置页和旧 renderer feature 迁移前可保留局部中文，但不得新增分散的语言判断。
 - `HomePage.tsx`、`ItemDetailModal.tsx`、`useItemDetailWorkspace.ts`、`VaultPanel.tsx`、`api/types.ts`、`api/client.ts`、`ipc.ts` 等公共接线文件是并行开发高冲突区，修改前要确认是否真的需要，并说明影响范围。
@@ -111,7 +114,7 @@ docs/        正式文档
 7. 全局 AI 抽屉等产品级辅助面板也属于共享 UI：`assistantPanel` 不允许各端长期自建标题、对话结构或占位页面，必须复用 `packages/ui` 的 AI Assistant View；Desktop / Prototype / Web 只提供真实服务 adapter 或 mock 数据。
 8. 窗口控制按钮由 `packages/ui` 的共享 `AppShell` 自绘，Desktop 只通过 `platformActions.windowControls` 注入最小化、最大化/还原和关闭动作；不要重新启用 Electron 原生 `titleBarOverlay`。
 9. 改 `packages/ui` 后默认不新增测试，也不自动运行 UI 测试、消费者类型检查和视觉脚本；需要体验时可以启动 Prototype、Web 或 Desktop。用户要求本地测试时正常运行现有检查，否则普通 push 后交给 CI。
-10. 产品样式不得再复制到 Desktop 私有样式文件；需要新增 class、token、暗色规则或页面布局时，直接修改 `packages/ui/src/styles.css`。Desktop 私有 CSS 只能放窗口、拖拽区或 Electron 特有平台差异。
+10. 产品样式不得再复制到 Desktop 私有样式文件；需要新增 class、token、暗色规则或页面布局时，修改 `packages/ui/src/styles/` 下对应分片，并保持 `packages/ui/src/styles.css` 只作为稳定顺序的聚合入口。Desktop 私有 CSS 只能放窗口、拖拽区或 Electron 特有平台差异。
 
 常见改动归属：
 
@@ -142,7 +145,7 @@ docs/        正式文档
 菜单 agent 可以改：
 
 - 对应菜单目录下的 `*ContentView.tsx`、菜单专属组件、菜单专属 copy 和菜单专属 ViewModel props。
-- `packages/ui/src/styles.css` 中对应菜单前缀的内容层规则，例如 `.vault-*`、`.loadout-*`、`.library-*`。
+- `packages/ui/src/styles/menus/<menu>/` 中对应菜单前缀的内容层规则，例如 `.vault-*`、`.loadout-*`、`.library-*`。
 - Prototype / Web / Desktop 的 adapter 或 mock 数据，仅限把该菜单需要的数据接入共享 View。
 
 菜单 agent 不得改：
@@ -157,8 +160,8 @@ docs/        正式文档
 
 1. 两个以上菜单都需要同一种布局、按钮、卡片、空态、状态条或工具栏。
 2. 需要修改页面标题区、页面级左右分栏、首层侧栏、首层 panel chrome、顶部状态条、AI 抽屉或后台任务 Dock。
-3. 需要改 `packages/ui/src/styles.css` 中无菜单前缀的规则。
-4. 需要动 `ProductShellHost.tsx`、`ProductWorkspace.tsx`、`AppShell.tsx`、`styles.css` token 区或跨端入口。
+3. 需要改 `packages/ui/src/styles/` 中 foundation、shell、workspace 或无菜单前缀的共享规则。
+4. 需要动 `ProductShellHost.tsx`、`ProductWorkspace.tsx`、`AppShell.tsx`、foundation token 或跨端入口。
 
 升级为共享改动时，agent 必须先说明影响范围。不能把共享骨架问题伪装成某个菜单的私有样式补丁。
 
@@ -175,7 +178,7 @@ tools\git-preflight.cmd
 ### 2.5 Renderer UI 样式系统
 
 - 桌面端 UI 按“页面底层 / 主面板 / 子块或列表项”三层组织；页面必须有主工作区，辅助信息和低频信息下沉。
-- 全局样式 token 定义在 `packages/ui/src/styles.css` 的 `:root` 和 `.app-shell[data-color-mode]`：间距使用 `--space-8/12/16/24/32`，圆角使用 `--radius-control/panel/pill`，颜色使用 `--surface-*`、`--border-*`、`--text-*` 和 `--status-*`。
+- 全局样式 token 定义在 `packages/ui/src/styles/foundation/00-tokens.css` 的 `:root` 和 `.app-shell[data-color-mode]`：间距使用 `--space-8/12/16/24/32`，圆角使用 `--radius-control/panel/pill`，颜色使用 `--surface-*`、`--border-*`、`--text-*` 和 `--status-*`。
 - 共享 UI 设计系统继续补齐 `--field-*`、`--chip-*`、`--item-*`、`--drawer-*` 和 `--game-*` token：普通产品 UI 必须使用 field / chip / item / drawer 语义色，`--game-*` 只用于装备详情顶部等明确游戏视觉区域。
 - AI 抽屉是桌面外壳的独立 pane：`.shell-content` 和 `.global-assistant-panel` 各自滚动，抽屉不得再用 fixed 遮罩覆盖主工作区。
 - 明暗色模式由 `config.json` 的 `features.color_mode` 持久化，默认 `light`；桌面启动状态必须携带保存的颜色模式，避免应用重启或覆盖更新后回到默认外观。
@@ -205,6 +208,7 @@ tools\git-preflight.cmd
 - 检查失败但本地资料库可用时，继续允许依赖资料库的功能使用旧数据；更新失败时保留旧资料库，不把旧数据删除或标记为不可用。
 - Desktop 的 Bungie Definition 主数据源是 Bungie SQLite。`packages/services/src/gameData/` 通过 `GameDataCatalog` 和内部 `DefinitionReader` 隐藏表名、SQL、signed / unsigned hash、缓存和关联查询；Renderer、IPC 和 `packages/core` 不得直接执行 SQL 或读取完整 Definition 表。
 - SQLite 查询由 Desktop 长生命周期查询 worker 持有；资料库更新进入激活阶段前，`RuntimeCoordinator` 必须先 quiesce 账号 Session 和查询 worker，确认连接关闭后再切换，完成或回滚后恢复查询。
+- GameData worker 的 search/detail 请求必须有有限超时和单请求 pending 清理；definition 批量读取可使用更长超时，worker error/exit/close 时必须统一拒绝并清空剩余请求。
 - 资料库更新使用当前语言 SQLite 作为主库，构建装备、Perk、关系和 canonical identity sidecar；非英文界面可离线下载英文 SQLite 构建轻量英文 sidecar，但不得长期保留第二份完整英文主库。
 - JSON Adapter 只用于 SQLite 未覆盖的 supplement 和稳定 Release 前的迁移兼容。至少经过一个稳定 Release 并验证回滚路径后，才能清理 SQLite 已覆盖的旧 JSON；不得重新把大型 JSON 主缓存接回普通请求。
 - 账号读取统一通过 `AccountSession`：列表使用紧凑 `AccountSnapshot`，实例详情按需加载；写操作成功后先局部 patch，再后台 refresh 校验。账号快照缓存和 Manifest / sidecar 都属于运行缓存，不进入便携备份。

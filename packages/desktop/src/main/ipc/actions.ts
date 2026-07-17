@@ -1,5 +1,4 @@
 import { ipcMain } from "electron";
-import type { AccountItemSummary } from "@d2-tools/core/account/summary";
 import {
   appendActionLog,
   loadActionLog,
@@ -7,8 +6,7 @@ import {
 } from "@d2-tools/core/actions/log";
 import {
   createBatchTransferPlan,
-  createItemActionPlan,
-  type ItemActionPlanInput
+  createItemActionPlan
 } from "@d2-tools/core/actions/plan";
 import {
   equipItem as bungieEquipItem,
@@ -21,104 +19,31 @@ import {
 } from "@d2-tools/core/bungie/actions";
 import type { D2Config } from "@d2-tools/core/config/schema";
 import { loadConfig } from "@d2-tools/services/config/store";
+import type {
+  AccountItemActionPatch,
+  BatchEquipItemsInput,
+  BatchItemActionResult,
+  BatchTransferItemsInput,
+  BatchTransferPlanInput,
+  InsertSocketPlugActionInput,
+  ItemActionPlanInput,
+  ItemActionResult,
+  ItemEquipActionInput,
+  ItemLockActionInput,
+  ItemTransferActionInput,
+  LoadoutEquipActionInput,
+  LoadoutSnapshotActionInput,
+  PostmasterPullActionInput
+} from "../../contracts/actions.js";
+import {
+  classifyWriteActionIpcError,
+  encodeDesktopIpcFailure
+} from "../../contracts/errors.js";
 import { loadFreshOAuthToken, type FreshOAuthToken } from "./authSession.js";
-import { invalidateAccountItemDetails } from "./account.js";
-import { patchAccountSession } from "../runtime/accountSession.js";
-
-type ItemLockActionInput = {
-  membership_type: number;
-  character_id: string;
-  item_id: string;
-  item_name?: string;
-  state: boolean;
-};
-
-type ItemEquipActionInput = {
-  membership_type: number;
-  character_id: string;
-  item_id: string;
-  item_name?: string;
-};
-
-type InsertSocketPlugActionInput = {
-  membership_type: number;
-  character_id: string;
-  item_id: string;
-  item_name?: string;
-  socket_index: number;
-  plug_hash: number;
-  plug_name?: string;
-};
-
-type ItemTransferActionInput = {
-  membership_type: number;
-  character_id: string;
-  item_id: string;
-  item_reference_hash: number;
-  item_name?: string;
-  transfer_to_vault: boolean;
-};
-
-type BatchEquipItemsInput = {
-  membership_type: number;
-  character_id: string;
-  items: ItemEquipActionInput[];
-};
-
-type BatchTransferItemsInput = {
-  membership_type: number;
-  character_id: string;
-  items: ItemTransferActionInput[];
-};
-
-type PostmasterPullActionInput = {
-  membership_type: number;
-  character_id: string;
-  item_id: string;
-  item_reference_hash: number;
-  item_name?: string;
-  stack_size?: number;
-};
-
-type LoadoutEquipActionInput = {
-  membership_type: number;
-  character_id: string;
-  loadout_index: number;
-  loadout_name?: string;
-};
-
-type LoadoutSnapshotActionInput = {
-  membership_type: number;
-  character_id: string;
-  loadout_index: number;
-  loadout_name?: string;
-  loadout_name_hash?: number;
-  loadout_icon_hash?: number;
-  loadout_color_hash?: number;
-};
-
-type AccountItemActionPatch =
-  | {
-      kind: "lock";
-      item_instance_id: string;
-      locked: boolean;
-    }
-  | {
-      kind: "equip";
-      item_instance_id: string;
-      character_id: string;
-    }
-  | {
-      kind: "transfer";
-      item_instance_id: string;
-      character_id: string;
-      target: "vault" | "character-inventory";
-    }
-  | {
-      kind: "postmaster-pull";
-      item_instance_id: string;
-      character_id: string;
-    };
+import {
+  invalidateAccountItemDetails,
+  patchAccountSession
+} from "../runtime/accountSession.js";
 
 export function registerActionIpcHandlers(): void {
   ipcMain.handle("actions:item:set-lock", async (_event, input: ItemLockActionInput) => {
@@ -346,16 +271,12 @@ export function registerActionIpcHandlers(): void {
     return createItemActionPlan(input);
   });
 
-  ipcMain.handle("actions:plan:batch-transfer", (_event, input: {
-    character_id: string;
-    transfer_to_vault: boolean;
-    items: AccountItemSummary[];
-  }) => {
+  ipcMain.handle("actions:plan:batch-transfer", (_event, input: BatchTransferPlanInput) => {
     return createBatchTransferPlan(input);
   });
 }
 
-async function runWriteAction(input: {
+type WriteActionRunInput = {
   action: ActionLogType;
   itemName?: string;
   itemInstanceId?: string;
@@ -367,7 +288,16 @@ async function runWriteAction(input: {
     config: D2Config;
     token: FreshOAuthToken;
   }) => Promise<void>;
-}): Promise<{ ok: true; message: string; account_patch?: AccountItemActionPatch }> {
+};
+
+async function runWriteAction(input: WriteActionRunInput): Promise<ItemActionResult> {
+  return encodeDesktopIpcFailure(
+    () => performWriteAction(input),
+    classifyWriteActionIpcError
+  );
+}
+
+async function performWriteAction(input: WriteActionRunInput): Promise<ItemActionResult> {
   const config = loadConfig();
   if (!config.features.write_actions_enabled) {
     throw new Error("写操作未开启。请先到设置页开启装备写操作。");
@@ -402,7 +332,7 @@ async function runWriteAction(input: {
       ...(appliedAccountPatch ? { account_patch: appliedAccountPatch } : {})
     };
   } catch (error) {
-    const message = normalizeWriteActionError(error);
+    const message = classifyWriteActionIpcError(error).message;
     appendActionLog(config.data.data_dir, {
       action: input.action,
       item_name: input.itemName,
@@ -411,11 +341,11 @@ async function runWriteAction(input: {
       ok: false,
       message
     });
-    throw new Error(message);
+    throw error;
   }
 }
 
-async function runBatchWriteActions<T>(input: {
+type BatchWriteActionRunInput<T> = {
   action: ActionLogType;
   items: T[];
   successMessage: string;
@@ -427,14 +357,18 @@ async function runBatchWriteActions<T>(input: {
   getItemInstanceId: (item: T) => string | undefined;
   getCharacterId: (item: T) => string | undefined;
   getAccountPatch?: (item: T) => AccountItemActionPatch | undefined;
-}): Promise<{
-  ok: true;
-  total: number;
-  success_count: number;
-  failed_count: number;
-  message: string;
-  account_patches: AccountItemActionPatch[];
-}> {
+};
+
+async function runBatchWriteActions<T>(input: BatchWriteActionRunInput<T>): Promise<BatchItemActionResult> {
+  return encodeDesktopIpcFailure(
+    () => performBatchWriteActions(input),
+    classifyWriteActionIpcError
+  );
+}
+
+async function performBatchWriteActions<T>(
+  input: BatchWriteActionRunInput<T>
+): Promise<BatchItemActionResult> {
   const config = loadConfig();
   if (!config.features.write_actions_enabled) {
     throw new Error("写操作未开启。请先到设置页开启装备写操作。");
@@ -467,7 +401,7 @@ async function runBatchWriteActions<T>(input: {
       });
     } catch (error) {
       failedCount += 1;
-      const message = normalizeWriteActionError(error);
+      const message = classifyWriteActionIpcError(error).message;
       appendActionLog(config.data.data_dir, {
         action: input.action,
         item_name: input.getItemName(item),
@@ -489,13 +423,4 @@ async function runBatchWriteActions<T>(input: {
       ? `批量操作完成：成功 ${successCount}，失败 ${failedCount}。`
       : `${input.successMessage}：共 ${successCount} 项。`
   };
-}
-
-function normalizeWriteActionError(error: unknown): string {
-  const message = error instanceof Error ? error.message : "Bungie 写操作失败";
-  if (message.includes("DestinyItemActionForbidden") || message.includes("scope")) {
-    return `${message}。请确认 Bungie App 已勾选 MoveEquipDestinyItems，然后重新登录。`;
-  }
-
-  return message;
 }

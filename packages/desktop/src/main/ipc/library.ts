@@ -1,4 +1,8 @@
 import { ipcMain } from "electron";
+import {
+  classifyGameDataIpcError,
+  encodeDesktopIpcFailure
+} from "../../contracts/errors.js";
 import { loadConfig } from "@d2-tools/services/config/store";
 import {
   loadItemAliases,
@@ -22,25 +26,25 @@ import { getSharedBungieSession } from "../runtime/bungieSession.js";
 import { loadFreshOAuthToken } from "./authSession.js";
 
 export function registerLibraryIpcHandlers(): void {
-  ipcMain.handle("items:search", (_event, query: string) => {
+  ipcMain.handle("items:search", (_event, query: string) => encodeDesktopIpcFailure(() => {
     const config = loadConfig();
     return getGameDataCatalog().searchItems({
       query,
       limit: 20,
       aliases: loadItemAliases(config.data.data_dir)
     });
-  });
+  }, classifyGameDataIpcError));
 
-  ipcMain.handle("items:perks:search", (_event, query: string) => {
+  ipcMain.handle("items:perks:search", (_event, query: string) => encodeDesktopIpcFailure(() => {
     const config = loadConfig();
     return getGameDataCatalog().searchPerks({
       query,
       limit: 20,
       aliases: loadItemAliases(config.data.data_dir)
     });
-  });
+  }, classifyGameDataIpcError));
 
-  ipcMain.handle("items:live-availability", async (_event, itemHashes: number[]) => {
+  ipcMain.handle("items:live-availability", (_event, itemHashes: number[]) => encodeDesktopIpcFailure(async () => {
     const config = loadConfig();
     const token = await loadFreshOAuthToken(config).catch(() => null);
     const snapshot = await getSharedBungieSession(config.bungie.api_key).getHomeSnapshot({
@@ -55,16 +59,16 @@ export function registerLibraryIpcHandlers(): void {
       milestones: snapshot.milestones,
       definitions: await loadAvailabilityDefinitions(snapshot, normalizedItemHashes)
     });
-  });
+  }, classifyGameDataIpcError));
 
-  ipcMain.handle("items:detail", async (_event, hash: number) => {
+  ipcMain.handle("items:detail", (_event, hash: number) => encodeDesktopIpcFailure(async () => {
     const detail = await getGameDataCatalog().getItemDetail({ hash: Number(hash) });
     if (!detail) {
       throw new Error("未找到物品详情");
     }
 
     return detail;
-  });
+  }, classifyGameDataIpcError));
 
   ipcMain.handle("aliases:get", () => {
     const config = loadConfig();

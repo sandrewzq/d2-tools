@@ -1,0 +1,62 @@
+
+
+.account-page-shell {
+  display: grid;
+  grid-template-columns: 160px minmax(0, 1fr);
+  gap: var(--space-16);
+  align-items: start;
+}
+
+.account-page-main {
+  min-width: 0;
+}
+
+.account-a2-layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-16);
+  align-items: start;
+}
+
+.account-side-summary {
+  display: grid;
+  gap: var(--space-12);
+  min-width: 0;
+}
+
+.account-side-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  padding: var(--space-12);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-panel);
+  background: var(--surface-elevated);
+  box-shadow: var(--shadow-panel);
+}
+
+.account-side-summary-grid > div {
+  display: grid;
+  gap: 3px;
+  padding: 8px 10px;
+  border-left: 1px solid var(--border-subtle);
+  border-top: 0;
+}
+
+.account-side-summary-grid > div:first-child {
+  border-left: 0;
+}
+
+.account-side-summary-grid span {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.account-side-summary-grid strong {
+  color: var(--text-title);
+}
+
+.account-slot-backpack-preview {
+  border-color: var(--state-selected-border);
+  background: var(--state-selected-bg);
+}

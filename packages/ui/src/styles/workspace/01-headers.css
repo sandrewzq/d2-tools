@@ -1,0 +1,16 @@
+
+
+.product-page-header {
+  min-width: 0;
+}
+
+.page-header .button-row {
+  justify-content: flex-end;
+  flex-wrap: nowrap;
+}
+
+.product-page-header-actions {
+  justify-content: flex-end;
+  flex-wrap: nowrap;
+  min-width: max-content;
+}

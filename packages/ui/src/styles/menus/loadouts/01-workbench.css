@@ -1,0 +1,96 @@
+
+
+.loadout-workbench-shell {
+  display: grid;
+  grid-template-columns: minmax(300px, 360px) minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.loadout-entry-list,
+.loadout-template-detail {
+  min-width: 0;
+}
+
+.loadout-entry-list {
+  position: static;
+  align-self: start;
+}
+
+.loadout-entry-list-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: baseline;
+}
+
+.loadout-entry-source-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.loadout-entry-source-filter button {
+  min-height: 32px;
+  padding: 6px 10px;
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-control);
+  color: var(--text-body);
+  background: var(--surface-subtle);
+}
+
+.loadout-entry-list .action-log-list {
+  margin-top: 10px;
+}
+
+.loadout-entry-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px 10px;
+  text-align: left;
+}
+
+.loadout-entry-row > strong,
+.loadout-entry-row > span:not(.loadout-entry-source-badge):not(.loadout-entry-status),
+.loadout-entry-row > small {
+  grid-column: 1 / -1;
+}
+
+.loadout-entry-source-badge,
+.loadout-entry-status {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  max-width: 100%;
+  padding: 3px 8px;
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-pill);
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+.loadout-entry-source-badge {
+  color: var(--text-muted);
+  background: var(--surface-subtle);
+}
+
+.loadout-entry-status {
+  justify-self: end;
+  grid-column: 2;
+  grid-row: 1;
+  color: var(--text-body);
+  background: var(--surface-muted);
+}
+
+.loadout-entry-status.status-ready {
+  border-color: var(--status-ready-border);
+  color: var(--status-ready-text);
+  background: var(--status-ready-bg);
+}
+
+.loadout-entry-status.status-warning {
+  border-color: var(--status-warning-border);
+  color: var(--status-warning-text);
+  background: var(--status-warning-bg);
+}
