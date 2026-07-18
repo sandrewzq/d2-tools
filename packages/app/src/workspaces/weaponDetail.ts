@@ -482,7 +482,9 @@ export function buildWeaponStatTracks(input: {
 
 export function perkGroupsToPoolColumns(groups: readonly ItemPerkGroup[]): WeaponPerkPoolColumn[] {
   const columns = groups.flatMap((group) => {
-    const visiblePlugs = group.plugs.filter((plug) => !isWeaponSystemPlug(plug) && !isEnhancedWeaponPerk(plug));
+    const visiblePlugs = collapseEnhancedWeaponPlugs(
+      group.plugs.filter((plug) => !isWeaponSystemPlug(plug))
+    );
     const role = classifyWeaponSocketPlugs(visiblePlugs);
     if (!role) return [];
     return [{
@@ -508,12 +510,18 @@ export function classifyWeaponSocketPlugs(
     .map((plug) => plug.category_identifier?.toLocaleLowerCase() ?? "")
     .filter(Boolean);
   const category = categories.join(" ");
+  const itemTypes = visiblePlugs
+    .map((plug) => plug.item_type?.toLocaleLowerCase() ?? "")
+    .filter(Boolean)
+    .join(" ");
 
-  if (category.includes("intrinsic") || category.includes("frame")) return "intrinsic";
+  if (category.includes("intrinsic") || includesAny(itemTypes, ["固有", "intrinsic"])) return "intrinsic";
   if (includesAny(category, ["barrel", "scope", "sight", "bowstring", "bow.string", "blade", "haft"])) return "barrel";
   if (includesAny(category, ["magazine", "battery", "arrow", "guard", "stock", "grip"])) return "magazine";
-  if (category.includes("origin")) return "origin";
-  if (includesAny(category, ["trait", "perk"])) return "trait";
+  if (category.includes("origin") || includesAny(itemTypes, ["原始特性", "origin trait"])) return "origin";
+  if (includesAny(category, ["trait", "perk"])
+    || includesAny(itemTypes, ["特性", "特征", "trait", "perk"])) return "trait";
+  if (category.includes("frame")) return "intrinsic";
 
   return undefined;
 }
@@ -540,8 +548,23 @@ export function isWeaponSystemPlug(plug: WeaponSocketPlugLike): boolean {
 export function isEnhancedWeaponPerk(plug: WeaponSocketPlugLike): boolean {
   const category = plug.category_identifier?.toLocaleLowerCase() ?? "";
   const itemType = plug.item_type?.toLocaleLowerCase() ?? "";
-  return (category.includes("enhanced") || itemType.includes("强化"))
-    && (category.includes("trait") || category.includes("perk") || itemType.includes("特性") || itemType.includes("perk"));
+  return category.includes("enhanced") || includesAny(itemType, ["强化", "enhanced"]);
+}
+
+function collapseEnhancedWeaponPlugs(plugs: readonly ItemPlugSummary[]): ItemPlugSummary[] {
+  const baseNames = new Set(
+    plugs
+      .filter((plug) => !isEnhancedWeaponPerk(plug))
+      .map(normalizedPlugName)
+  );
+
+  return plugs.filter((plug) => (
+    !isEnhancedWeaponPerk(plug) || !baseNames.has(normalizedPlugName(plug))
+  ));
+}
+
+function normalizedPlugName(plug: WeaponSocketPlugLike): string {
+  return plug.name.trim().toLocaleLowerCase();
 }
 
 function buildObjectContext(

@@ -1,6 +1,6 @@
 # 当前待办
 
-> 更新时间：2026-07-17
+> 更新时间：2026-07-18
 > 这里只保留当前健康度、未完成任务和未解决 bug。已完成 Bug 与阶段过程使用 Git 历史追溯；详细目标、切片和验收标准在 `docs/work/backlog/`。
 
 ## 健康度
@@ -21,9 +21,15 @@
 | T2 | P1 | 🟡 待推进 | 仓库推荐与清理工作台 | [仓库推荐与清理工作台](work/backlog/vault-recommendation-and-cleanup-workbench.md) | 统一 DIM wishlist、本地目标、同名对比和清理清单 |
 | T3 | P1 | 🟡 进行中 | 商人结构、覆盖与官方获取来源 | [商人结构、覆盖与官方获取来源](work/backlog/vendors-and-drop-sources.md) | 收口官方来源模型、Offer 时效和去重，验证库存 JSON 单次解析修复，继续机灵模组 A/B 与逐商人验收 |
 | T4 | P3 | 🟡 待推进 | 活动复盘增强 | [活动复盘增强](work/backlog/activity-review-enhancement.md) | 接 PGCR、完成时间推算和副本级趋势 |
-| T5 | P1 | 🟡 进行中 | 统一装备详情与知识分析 | [统一装备详情与知识分析](work/backlog/equipment-detail-and-knowledge-analysis.md) | 武器代码已收口；下一步验收真实武器与明暗主题，并开发独立护甲详情 |
+| T5 | P1 | 🟡 进行中 | 统一装备详情与知识分析 | [统一装备详情与知识分析](work/backlog/equipment-detail-and-knowledge-analysis.md) | 已修复新式武器强化候选重复与 `frames` 特性误分类；下一步由 CI 和真实武器验证后开发独立护甲详情 |
 | T6 | P1 | 🟡 等待 Release | 资料库与运行时性能架构升级 | [资料库与运行时性能架构升级](work/backlog/game-data-performance-architecture-upgrade.md) | 代码、全仓回归、Windows NSIS 打包、隔离安装版和性能预算已完成；下一次正式发版执行 Release workflow 与真实更新/回滚观察，稳定 Release 后删除 JSON/旧 IPC/旧 core HTTP 兼容层 |
 | T7 | P1 | 🟡 待验证 | 架构边界收口 | [架构边界收口](work/backlog/architecture-boundary-hardening.md) | 第二轮已迁 IO/HTTP、fixture、preload CJS，并修复资料库未就绪时的启动请求与错误编码；下一步由 CI 验证，再迁 core 剩余 store/client 与宽松 fixture |
+
+## 当前 Bug
+
+| 编号 | 优先级 | 状态 | 问题 | 下一步 |
+|---|---|---|---|---|
+| Bug #1 | P1 | 🟡 待验证 | 武器详情将强化枪管、弹匣和特性重复计入默认 Perk 池，并把 `frames` 分类下的普通特性误判为固有框架 | 使用“赐予者的祝福”等真实武器确认普通候选数量、两列特性池和当前 Roll 均正确 |
 
 ## 验证入口
 
