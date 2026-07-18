@@ -58,7 +58,7 @@ export function WizardPage(props: {
   }
 
   return (
-    <main className="page">
+    <main className="page standalone-dark-theme">
       <h1>{props.canCancel ? "Bungie 配置" : "欢迎使用 d2-tools"}</h1>
       <p>这是本地 Destiny 2 工具，配置和 token 都保存在你的电脑里。</p>
       <section className="config-help" aria-label="Bungie 配置填写说明">

@@ -32,6 +32,7 @@ export function useDesktopProductShell(props: {
   const visualColorMode = isColorMode(visualEnv?.VITE_D2_VISUAL_THEME) ? visualEnv?.VITE_D2_VISUAL_THEME : undefined;
   const initialPage: ShellPageKey = isShellPageKey(visualInitialPage) ? visualInitialPage : "home";
   const [activePage, setActivePage] = useState<ShellPageKey>(initialPage);
+  const [settingsInitialSection, setSettingsInitialSection] = useState<"overview" | "account">("overview");
   const [assistantMode, setAssistantMode] = useState<ShellAssistantMode>(null);
   const [hasAutoLoadedAccount, setHasAutoLoadedAccount] = useState(false);
   const [lastAccountLoadedAt, setLastAccountLoadedAt] = useState<Date | null>(null);
@@ -242,6 +243,8 @@ export function useDesktopProductShell(props: {
     state: props.state,
     onConfigure: props.onConfigure,
     setActivePage,
+    settingsInitialSection,
+    setSettingsInitialSection,
     setVaultFacts,
     vaultLocateRequest,
     locateVaultItem,

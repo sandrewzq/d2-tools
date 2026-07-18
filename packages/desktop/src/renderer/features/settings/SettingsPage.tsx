@@ -16,6 +16,7 @@ export type { SettingsActionLogResultFilter, SettingsActionLogTypeFilter };
 
 export function SettingsPage(props: {
   interfaceLocale?: InterfaceLocale;
+  initialSection?: "overview" | "account";
   message: string;
   error: string;
   diagnosticDataDir: string;
@@ -61,7 +62,9 @@ export function SettingsPage(props: {
   languagePreferences: LanguagePreferences;
   onLanguagePreferencesChange: (preferences: LanguagePreferences) => void;
 }) {
-  const initialSection = ((import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env?.VITE_D2_VISUAL_SETTINGS_SECTION ?? "overview") as Parameters<typeof SettingsPageContentView>[0]["initialSection"];
+  const initialSection = (props.initialSection
+    ?? (import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env?.VITE_D2_VISUAL_SETTINGS_SECTION
+    ?? "overview") as Parameters<typeof SettingsPageContentView>[0]["initialSection"];
   const model = useMemo(() => selectSettingsPageModel({
     interfaceLocale: props.interfaceLocale,
     initialSection,

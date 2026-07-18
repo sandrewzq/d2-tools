@@ -43,6 +43,7 @@ function PrototypeApp() {
     ? env.VITE_D2_VISUAL_SETTINGS_SECTION
     : "overview";
   const [activePage, setActivePage] = useState<ShellPageKey>(initialPage);
+  const [settingsSection, setSettingsSection] = useState(initialSettingsSection);
   const [assistantMode, setAssistantMode] = useState<ShellAssistantMode>(null);
   const [scenarioKey, setScenarioKey] = useState<PrototypeScenarioKey>(initialScenario);
   const [selectedTemplateId, setSelectedTemplateId] = useState(fixture.loadoutTemplates[0]?.id ?? "");
@@ -226,6 +227,10 @@ function PrototypeApp() {
               viewModel={accountViewModel}
               actions={{
                 configureBungie: () => setActivePage("settings"),
+                openWriteSettings: () => {
+                  setSettingsSection("account");
+                  setActivePage("settings");
+                },
                 loginBungie: () => undefined,
                 refreshAccount: () => undefined,
                 refreshActivity: () => undefined,
@@ -358,7 +363,7 @@ function PrototypeApp() {
             <SettingsPageContentView
               {...fixture.createSettingsPageModel({
                 interfaceLocale: preferences.interfaceLocale,
-                initialSection: initialSettingsSection,
+                initialSection: settingsSection,
                 scenario,
                 backgroundTasks,
                 bungieLocale: preferences.bungieLocale,

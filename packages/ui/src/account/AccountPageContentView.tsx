@@ -18,6 +18,7 @@ const ACCOUNT_SLOT_PREVIEW_LIMIT = 8;
 
 export type AccountPageActions = {
   configureBungie: () => void;
+  openWriteSettings: () => void;
   loginBungie: () => void;
   refreshAccount: () => void;
   refreshActivity: () => void;
@@ -42,7 +43,7 @@ export function AccountPageContentView(props: AccountPageContentViewProps) {
   const activityReview = activitySummary ? activitySummary.review : null;
   const writeWarning = viewModel.feedback.writeActionsEnabled
     ? ""
-    : accountText(copy, "d2-tools 本地写操作开关未开启，请先到设置页开启。");
+    : accountText(copy, "写操作已关闭。要使用装备、转移等功能，请在“设置 → 账号 → 装备写操作”中开启“允许”。");
 
   return (
     <>
@@ -152,7 +153,12 @@ export function AccountPageContentView(props: AccountPageContentViewProps) {
                     aria-live="polite"
                   >
                     {writeWarning ? (
-                      <p className="status-message status-warning">{writeWarning}</p>
+                      <div className="status-message status-warning account-write-warning">
+                        <span>{writeWarning}</span>
+                        <button type="button" className="secondary-button" onClick={actions.openWriteSettings}>
+                          {accountText(copy, "前往设置开启")}
+                        </button>
+                      </div>
                     ) : null}
                     {viewModel.feedback.loadoutMessage ? <p className="status-message status-ready">{viewModel.feedback.loadoutMessage}</p> : null}
                     {viewModel.feedback.itemActionMessage ? <p className={viewModel.feedback.itemActionMessage.includes("失败") ? "status-message status-error" : "status-message status-ready"}>{viewModel.feedback.itemActionMessage}</p> : null}

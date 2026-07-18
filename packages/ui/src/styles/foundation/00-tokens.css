@@ -157,7 +157,8 @@
   color-scheme: light;
 }
 
-.app-shell[data-color-mode="dark"] {
+.app-shell[data-color-mode="dark"],
+.standalone-dark-theme {
   --prototype-page: #0e1218;
   --prototype-titlebar: #121821;
   --prototype-nav: #111720;

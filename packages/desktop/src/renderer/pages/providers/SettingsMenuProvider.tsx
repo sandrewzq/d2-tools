@@ -12,6 +12,7 @@ export function SettingsMenuProvider() {
   return (
     <SettingsPage
       interfaceLocale={diagnostics.languagePreferences.interfaceLocale}
+      initialSection={session.settingsInitialSection}
       message={diagnostics.settingsMessage}
       error={diagnostics.settingsError}
       diagnosticDataDir={diagnostics.diagnosticDataDir}

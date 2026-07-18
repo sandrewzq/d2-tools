@@ -34,6 +34,7 @@ function WebApp() {
   const [snapshot, setSnapshot] = useState<WebHomeSnapshot>(fallbackHomeSnapshot);
   const [assistantMode, setAssistantMode] = useState<ShellAssistantMode>(null);
   const [activePage, setActivePage] = useState<ShellPageKey>("home");
+  const [settingsSection, setSettingsSection] = useState<"overview" | "account">("overview");
   const [selectedAccountCharacterId, setSelectedAccountCharacterId] = useState(fixture.accountSummary.characters[0]?.character_id ?? "");
   const [selectedTemplateId, setSelectedTemplateId] = useState(fixture.loadoutTemplates[0]?.id ?? "");
   const [selectedLoadoutEntryId, setSelectedLoadoutEntryId] = useState("");
@@ -183,6 +184,10 @@ function WebApp() {
               viewModel={accountViewModel}
               actions={{
                 configureBungie: () => setActivePage("settings"),
+                openWriteSettings: () => {
+                  setSettingsSection("account");
+                  setActivePage("settings");
+                },
                 loginBungie: () => undefined,
                 refreshAccount: () => undefined,
                 refreshActivity: () => undefined,
@@ -295,7 +300,7 @@ function WebApp() {
             <SettingsPageContentView
               {...fixture.createSettingsPageModel({
                 interfaceLocale: preferences.interfaceLocale,
-                initialSection: "overview",
+                initialSection: settingsSection,
                 bungieLocale: preferences.bungieLocale,
                 followInterfaceLocaleForBungie: preferences.followInterfaceLocaleForBungie
               })}

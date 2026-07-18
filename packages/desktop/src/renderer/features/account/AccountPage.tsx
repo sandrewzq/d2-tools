@@ -35,6 +35,7 @@ export function AccountPage(props: {
   activeLoadoutLookup: LoadoutTemplateLookup | null;
   activeLoadoutTemplate: LoadoutTemplate | null;
   onConfigureBungie: () => void;
+  onOpenWriteSettings: () => void;
   onLoginBungie: () => void;
   onLoadAccount: () => void;
   onRefreshActivity: () => void;
@@ -116,6 +117,7 @@ export function AccountPage(props: {
       viewModel={viewModel}
       actions={{
         configureBungie: props.onConfigureBungie,
+        openWriteSettings: props.onOpenWriteSettings,
         loginBungie: props.onLoginBungie,
         refreshAccount: props.onLoadAccount,
         refreshActivity: props.onRefreshActivity,

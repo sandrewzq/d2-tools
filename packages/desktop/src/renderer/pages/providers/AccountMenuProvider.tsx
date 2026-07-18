@@ -29,6 +29,10 @@ export function AccountMenuProvider() {
       activeLoadoutLookup={session.home.activeLoadoutLookup}
       activeLoadoutTemplate={session.loadouts.activeTemplate}
       onConfigureBungie={session.onConfigure}
+      onOpenWriteSettings={() => {
+        session.setSettingsInitialSection("account");
+        session.setActivePage("settings");
+      }}
       onLoginBungie={() => void account.loginBungie()}
       onLoadAccount={session.refreshAccountManually}
       onRefreshActivity={() => void account.refreshAccountDerivedData()}
