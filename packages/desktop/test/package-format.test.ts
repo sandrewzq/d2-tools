@@ -334,7 +334,8 @@ describe("desktop package format", () => {
     expect(script).toContain("$rendererPort = 53172");
     expect(script).toContain("$rendererUrl = \"http://127.0.0.1:${rendererPort}\"");
     expect(script).toContain("D2_RENDERER_URL");
-    expect(script).toContain('"pnpm@9.15.0", "--filter", "@d2-tools/desktop", "exec", "vite"');
+    expect(script).toContain('node_modules\\vite\\bin\\vite.js');
+    expect(script).toContain('Stop-StaleDesktopProcesses');
     expect(script).toContain('"--port", "$rendererPort", "--strictPort"');
     expect(script).toContain('"pnpm@9.15.0", "--filter", "@d2-tools/desktop", "dev:electron"');
     expect(script).not.toContain("http://127.0.0.1:5173");

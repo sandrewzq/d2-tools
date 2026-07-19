@@ -39,8 +39,12 @@ import {
 } from "../../contracts/errors.js";
 import { loadFreshOAuthToken, type FreshOAuthToken } from "./authSession.js";
 import {
+  getAccountItemDetailByInstanceId,
   invalidateAccountItemDetails,
-  patchAccountSession
+  invalidateAccountSession,
+  patchAccountSession,
+  resolveAccountItemLocation,
+  type AccountItemLocation
 } from "../runtime/accountSession.js";
 
 export function registerActionIpcHandlers(): void {
@@ -101,15 +105,30 @@ export function registerActionIpcHandlers(): void {
       characterId: input.character_id,
       successMessage: `已应用 Perk：${input.plug_name ?? input.plug_hash}`,
       run: async ({ config, token }) => {
-        await bungieInsertSocketPlug({
-          config,
-          token,
-          membershipType: input.membership_type,
-          characterId: input.character_id,
-          itemId: input.item_id,
-          socketIndex: input.socket_index,
-          plugHash: input.plug_hash
-        });
+        let location = await resolveAccountItemLocation(input.item_id);
+        if (!location) location = await resolveAccountItemLocation(input.item_id, "refresh");
+        assertSocketWriteLocation(location);
+        await getAccountItemDetailByInstanceId(input.item_id);
+        try {
+          await insertSocketPlugAtLocation({ config, token, input, location });
+        } catch (error) {
+          if (isItemRefreshRequiredWriteError(error)) {
+            const refreshedDetail = await refreshAccountItemDetail(input.item_id);
+            if (hasAppliedSocketPlug(refreshedDetail, input)) return;
+            throw new Error("装备状态已经变化，详情已刷新。请按最新配置重新选择要切换的 Perk。");
+          }
+          if (isItemNotFoundWriteError(error)) {
+            const refreshedLocation = await resolveAccountItemLocation(input.item_id, "refresh");
+            if (!refreshedLocation) {
+              throw new Error("账号中已找不到这件装备。它可能已被移动、拆解或数据仍未刷新，请重新打开装备详情后再试。");
+            }
+            assertSocketWriteLocation(refreshedLocation);
+            await refreshAccountItemDetail(input.item_id);
+            await insertSocketPlugAtLocation({ config, token, input, location: refreshedLocation });
+            return;
+          }
+          throw error;
+        }
       }
     });
   });
@@ -276,6 +295,57 @@ export function registerActionIpcHandlers(): void {
   });
 }
 
+function assertSocketWriteLocation(location: AccountItemLocation | null): asserts location is AccountItemLocation {
+  if (!location) {
+    throw new Error("当前账号中找不到这件装备，请刷新账号后重试。");
+  }
+  if (location.kind === "postmaster") {
+    throw new Error("邮政官中的装备不能直接切换 Perk，请先取回角色背包。");
+  }
+}
+
+async function insertSocketPlugAtLocation(input: {
+  config: D2Config;
+  token: FreshOAuthToken;
+  input: InsertSocketPlugActionInput;
+  location: AccountItemLocation;
+}): Promise<void> {
+  await bungieInsertSocketPlug({
+    config: input.config,
+    token: input.token,
+    membershipType: input.input.membership_type,
+    characterId: input.location.characterId ?? input.input.character_id,
+    itemId: input.input.item_id,
+    socketIndex: input.input.socket_index,
+    plugHash: input.input.plug_hash
+  });
+}
+
+function isItemNotFoundWriteError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return /ErrorCode\s*1623|item requested was not found/i.test(message);
+}
+
+function isItemRefreshRequiredWriteError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return /ErrorCode\s*1679|refresh the item and try again/i.test(message);
+}
+
+async function refreshAccountItemDetail(instanceId: string) {
+  await invalidateAccountSession({ scope: "item", instance_id: instanceId });
+  await new Promise((resolve) => setTimeout(resolve, 500));
+  return getAccountItemDetailByInstanceId(instanceId);
+}
+
+function hasAppliedSocketPlug(
+  detail: Awaited<ReturnType<typeof getAccountItemDetailByInstanceId>>,
+  input: InsertSocketPlugActionInput
+): boolean {
+  return detail.sockets
+    .find((socket) => socket.socket_index === input.socket_index)
+    ?.selected_plug?.hash === input.plug_hash;
+}
+
 type WriteActionRunInput = {
   action: ActionLogType;
   itemName?: string;
@@ -308,9 +378,9 @@ async function performWriteAction(input: WriteActionRunInput): Promise<ItemActio
   try {
     await input.run({ config, token });
     if (input.invalidateAllItemDetails) {
-      invalidateAccountItemDetails();
+      await invalidateAccountItemDetails();
     } else if (input.itemInstanceId) {
-      invalidateAccountItemDetails([input.itemInstanceId]);
+      await invalidateAccountItemDetails([input.itemInstanceId]);
     }
     let appliedAccountPatch: AccountItemActionPatch | undefined;
     if (input.accountPatch) {
@@ -384,7 +454,7 @@ async function performBatchWriteActions<T>(
       await input.runItem({ config, token }, item);
       successCount += 1;
       const itemInstanceId = input.getItemInstanceId(item);
-      if (itemInstanceId) invalidateAccountItemDetails([itemInstanceId]);
+      if (itemInstanceId) await invalidateAccountItemDetails([itemInstanceId]);
       const accountPatch = input.getAccountPatch?.(item);
       if (accountPatch) {
         const applied = await patchAccountSession(accountPatch)

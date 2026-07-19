@@ -9,10 +9,12 @@ $OutputEncoding = [System.Text.UTF8Encoding]::new($false)
 $rootDir = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 $desktopDir = Join-Path $rootDir "packages\desktop"
 $npx = "npx.cmd"
+$node = (Get-Command "node.exe" -ErrorAction Stop).Source
 $rendererPort = 53172
 $rendererUrl = "http://127.0.0.1:${rendererPort}"
 $previousRendererUrl = $env:D2_RENDERER_URL
 $viteProcess = $null
+$viteCli = Join-Path $desktopDir "node_modules\vite\bin\vite.js"
 
 function Invoke-Checked {
   param(
@@ -57,6 +59,20 @@ function Stop-ProcessTree {
   }
 }
 
+function Stop-StaleDesktopProcesses {
+  $staleProcesses = Get-CimInstance Win32_Process -Filter "Name = 'electron.exe'" |
+    Where-Object { $_.CommandLine -like "*dist/main/main.js*" }
+
+  foreach ($staleProcess in $staleProcesses) {
+    Write-Host "Stopping stale d2-tools desktop process: PID $($staleProcess.ProcessId)" -ForegroundColor Yellow
+    & taskkill.exe /PID $staleProcess.ProcessId /T /F | Out-Null
+  }
+
+  if ($staleProcesses) {
+    Start-Sleep -Milliseconds 500
+  }
+}
+
 function Wait-RendererServer {
   param(
     [System.Diagnostics.Process] $Process,
@@ -82,6 +98,8 @@ function Wait-RendererServer {
 
 Push-Location $rootDir
 try {
+  Stop-StaleDesktopProcesses
+
   Write-Host "=== 1/3 Build workspace packages ===" -ForegroundColor Cyan
   Invoke-Checked $npx @("pnpm@9.15.0", "--filter", "@d2-tools/core", "build")
   Invoke-Checked $npx @("pnpm@9.15.0", "--filter", "@d2-tools/http", "build")
@@ -105,7 +123,8 @@ try {
 
   Write-Host ""
   Write-Host "=== 3/3 Start development desktop app ===" -ForegroundColor Cyan
-  $viteProcess = Start-Process -FilePath $npx -ArgumentList @("pnpm@9.15.0", "--filter", "@d2-tools/desktop", "exec", "vite", "--host", "127.0.0.1", "--port", "$rendererPort", "--strictPort") -WorkingDirectory $rootDir -NoNewWindow -PassThru
+  Assert-FileExists $viteCli "Vite CLI is missing: $viteCli"
+  $viteProcess = Start-Process -FilePath $node -ArgumentList @("`"$viteCli`"", "--host", "127.0.0.1", "--port", "$rendererPort", "--strictPort") -WorkingDirectory $desktopDir -NoNewWindow -PassThru
   Wait-RendererServer -Process $viteProcess -RendererUrl $rendererUrl
 
   Write-Host "Renderer is ready at $rendererUrl. Opening Electron. Close the desktop window to stop the dev server." -ForegroundColor Green

@@ -180,7 +180,8 @@ describe("Bungie item actions", () => {
       itemId: "item-1",
       plug: {
         socketIndex: 3,
-        socketEntryHash: 456
+        socketArrayType: 0,
+        plugItemHash: 456
       },
       characterId: "character-1",
       membershipType: 3

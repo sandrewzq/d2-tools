@@ -155,6 +155,45 @@ export function useItemDetail(options: {
     }
   }
 
+  async function refreshSelectedItemDetail(): Promise<void> {
+    const current = selectedItem;
+    if (!current?.instance_id) return;
+    const itemKey = current.item_key;
+    const instanceId = current.instance_id;
+    const requestScopeKey = cacheScopeKeyRef.current;
+    const requestSequence = ++requestSequenceRef.current;
+    const isCurrent = () => (
+      requestSequenceRef.current === requestSequence
+      && cacheScopeKeyRef.current === requestScopeKey
+    );
+    accountItemDetailCacheRef.current.delete(instanceId);
+    setItemDetailError("");
+    setItemDetailLoadingKey(itemKey);
+    setSelectedItem((value) => value?.item_key === itemKey
+      ? { ...value, is_detail_loading: true }
+      : value);
+    try {
+      const detail = await api.getAccountItemDetail(instanceId);
+      if (!isCurrent()) return;
+      accountItemDetailCacheRef.current.set(instanceId, detail);
+      evictOldestCacheEntry(accountItemDetailCacheRef.current, ACCOUNT_ITEM_DETAIL_CACHE_LIMIT);
+      setSelectedItem((value) => value?.item_key === itemKey
+        ? { ...mergeAccountItemDetail(value, detail), is_detail_loading: false }
+        : value);
+    } catch (error) {
+      if (!isCurrent()) return;
+      setSelectedItem((value) => value?.item_key === itemKey
+        ? { ...value, is_detail_loading: false }
+        : value);
+      setItemDetailError(errorMessage(error, "账号实例详情刷新失败"));
+      throw error;
+    } finally {
+      if (isCurrent()) {
+        setItemDetailLoadingKey((value) => value === itemKey ? "" : value);
+      }
+    }
+  }
+
   function closeSelectedItemDetail() {
     invalidateRequestsAndClearCaches();
     setItemDetailLoadingKey("");
@@ -182,6 +221,7 @@ export function useItemDetail(options: {
     itemDetailLoadingKey,
     itemDetailError,
     openItemDetail,
+    refreshSelectedItemDetail,
     closeSelectedItemDetail
   };
 }

@@ -188,7 +188,7 @@ export function HomePageItemDetailModal(props: {
       onGenerateItemAiAdvice={(userKnowledge, allowExternalSearch) => void itemDetail.generateItemAiAdvice(userKnowledge, allowExternalSearch)}
       onOpenBestSameNameItem={(items) => itemDetail.openBestSameNameItem(items)}
       onOpenItemDetail={(item, source) => void itemDetail.openItemDetail(item, source)}
-      onRunItemWriteAction={(label, action) => void itemDetail.runItemWriteAction(label, action)}
+      onRunItemWriteAction={(label, action, options) => void itemDetail.runItemWriteAction(label, action, options)}
       onSaveSelectedItemNote={() => void itemDetail.saveSelectedItemNote()}
       onSaveSelectedItemTag={(tag) => void itemDetail.saveSelectedItemTag(tag)}
       onSelectedActionCharacterIdChange={itemDetail.setSelectedActionCharacterId}

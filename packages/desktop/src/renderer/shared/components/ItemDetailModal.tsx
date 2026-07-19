@@ -71,7 +71,11 @@ export type ItemDetailModalProps = {
   onGenerateItemAiAdvice: (userKnowledge?: string, allowExternalSearch?: boolean) => void;
   onOpenBestSameNameItem: (items: SameNameItemSummary[]) => void;
   onOpenItemDetail: (item: SameNameItemSummary | ItemSearchResult, source: SelectedItemSource) => void;
-  onRunItemWriteAction: (label: string, action: () => Promise<ItemActionResult>) => void;
+  onRunItemWriteAction: (
+    label: string,
+    action: () => Promise<ItemActionResult>,
+    options?: { keepDetailOpen?: boolean }
+  ) => void;
   onSaveSelectedItemNote: () => void;
   onSaveSelectedItemTag: (tag: VaultTagValue) => void;
   onSelectedActionCharacterIdChange: (id: string) => void;
@@ -177,32 +181,27 @@ export function ItemDetailModal(props: ItemDetailModalProps) {
                 }));
                 if (!changes.length || !selectedItem.instance_id || !props.selectedActionCharacterId) return;
                 props.onRunItemWriteAction("应用武器配置到", async () => {
-                  try {
-                    for (const change of changes) {
-                      const plug = selectedItem.sockets
-                        ?.find((socket) => socket.socket_index === change.socketIndex)
-                        ?.reusable_plugs.find((candidate) => candidate.hash === change.plugHash);
-                      await api.insertSocketPlug({
-                        membership_type: props.accountSummary?.membership_type ?? 0,
-                        character_id: props.selectedActionCharacterId,
-                        item_id: selectedItem.instance_id ?? "",
-                        item_name: selectedItem.name,
-                        socket_index: change.socketIndex,
-                        plug_hash: change.plugHash,
-                        plug_name: plug?.name
-                      });
-                      setPendingPerks((current) => {
-                        const next = { ...current };
-                        delete next[change.socketIndex];
-                        return next;
-                      });
-                    }
-                  } catch (error) {
-                    props.onClose();
-                    throw error;
+                  for (const change of changes) {
+                    const plug = selectedItem.sockets
+                      ?.find((socket) => socket.socket_index === change.socketIndex)
+                      ?.reusable_plugs.find((candidate) => candidate.hash === change.plugHash);
+                    await api.insertSocketPlug({
+                      membership_type: props.accountSummary?.membership_type ?? 0,
+                      character_id: selectedItem.source_character_id ?? props.selectedActionCharacterId,
+                      item_id: selectedItem.instance_id ?? "",
+                      item_name: selectedItem.name,
+                      socket_index: change.socketIndex,
+                      plug_hash: change.plugHash,
+                      plug_name: plug?.name
+                    });
+                    setPendingPerks((current) => {
+                      const next = { ...current };
+                      delete next[change.socketIndex];
+                      return next;
+                    });
                   }
                   return { ok: true, message: `已应用 ${changes.length} 个 Perk 更改。` };
-                });
+                }, { keepDetailOpen: true });
               }
             }}
             instanceActions={selectedItem.instance_id ? (

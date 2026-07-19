@@ -44,6 +44,7 @@ echo.
 echo Behavior:
 echo   - Runs from the repository root.
 echo   - Stops any stale process listening on http://127.0.0.1:53172 before starting.
+echo   - Stops stale d2-tools development Electron processes before opening a new window.
 echo   - Calls npx pnpm@9.15.0 dev:desktop.
 echo   - Builds required workspace packages, starts the renderer dev server, and opens Electron.
 echo   - Keeps the dev server alive until the desktop window is closed.

@@ -66,6 +66,7 @@ export function useItemDetailWorkspace(input: {
     itemDetailLoadingKey,
     itemDetailError,
     openItemDetail,
+    refreshSelectedItemDetail,
     closeSelectedItemDetail: closeItemDetailCore
   } = useItemDetail({
     cacheScopeKey: input.detailCacheScopeKey,
@@ -511,7 +512,8 @@ export function useItemDetailWorkspace(input: {
 
   async function runItemWriteAction(
     label: string,
-    run: () => Promise<ItemActionResult>
+    run: () => Promise<ItemActionResult>,
+    options?: { keepDetailOpen?: boolean }
   ) {
     if (!selectedItem || !input.accountSummary) return;
 
@@ -550,14 +552,28 @@ export function useItemDetailWorkspace(input: {
         input.applyAccountActionPatches([result.account_patch]);
       }
       input.setItemActionMessage(result.message);
-      closeSelectedItemDetail();
-      void input.loadAccountSummary().catch((error) => {
-        input.setAccountError(error instanceof Error ? error.message : "操作完成，但刷新账号数据失败");
-      });
+      if (options?.keepDetailOpen) {
+        try {
+          await input.loadAccountSummary();
+          await refreshSelectedItemDetail();
+        } catch (error) {
+          input.setAccountError(error instanceof Error ? error.message : "操作完成，但刷新装备详情失败");
+        }
+      } else {
+        closeSelectedItemDetail();
+        void input.loadAccountSummary().catch((error) => {
+          input.setAccountError(error instanceof Error ? error.message : "操作完成，但刷新账号数据失败");
+        });
+      }
       void input.diagnostics.loadActionLog().catch(() => undefined);
     } catch (error) {
       input.setItemActionMessage(error instanceof Error ? error.message : `${label}失败`);
-      void input.loadAccountSummary().catch(() => undefined);
+      if (options?.keepDetailOpen) {
+        await input.loadAccountSummary().catch(() => undefined);
+        await refreshSelectedItemDetail().catch(() => undefined);
+      } else {
+        void input.loadAccountSummary().catch(() => undefined);
+      }
       await Promise.allSettled([input.diagnostics.loadActionLog()]);
     } finally {
       input.setIsRunningItemAction(false);

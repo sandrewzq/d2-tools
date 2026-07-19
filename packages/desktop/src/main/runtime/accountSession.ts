@@ -29,6 +29,11 @@ let sessionState: {
 let sessionRequest: Promise<AccountSession> | null = null;
 const loadAccountDefinitions = createAccountDefinitionLoader(getDefinitions);
 
+export type AccountItemLocation = {
+  kind: "vault" | "character" | "postmaster";
+  characterId?: string;
+};
+
 export async function getAccountSnapshot(
   freshness: "cached" | "refresh" = "cached"
 ): Promise<AccountSnapshot> {
@@ -61,6 +66,26 @@ export async function getAccountItemDetailByInstanceId(
     () => session.getItemDetail(query),
     { measurePayload: true }
   );
+}
+
+export async function resolveAccountItemLocation(
+  instanceId: string,
+  freshness: "cached" | "refresh" = "cached"
+): Promise<AccountItemLocation | null> {
+  const snapshot = await getAccountSnapshot(freshness);
+  if (snapshot.vault.items.some((item) => item.instance_id === instanceId)) {
+    return { kind: "vault" };
+  }
+  for (const character of snapshot.characters) {
+    if ([...character.equipped_items, ...character.inventory_items]
+      .some((item) => item.instance_id === instanceId)) {
+      return { kind: "character", characterId: character.character_id };
+    }
+    if (character.postmaster_items.some((item) => item.instance_id === instanceId)) {
+      return { kind: "postmaster", characterId: character.character_id };
+    }
+  }
+  return null;
 }
 
 function findAccountItemDetailQuery(
@@ -107,15 +132,14 @@ export async function invalidateAccountSession(input: AccountInvalidation): Prom
   session.invalidate(input);
 }
 
-export function invalidateAccountItemDetails(instanceIds?: readonly string[]): void {
+export async function invalidateAccountItemDetails(instanceIds?: readonly string[]): Promise<void> {
   if (!instanceIds?.length) {
-    void invalidateAccountSession({ scope: "all" });
+    await invalidateAccountSession({ scope: "all" });
     return;
   }
-
-  for (const instanceId of instanceIds) {
-    void invalidateAccountSession({ scope: "item", instance_id: instanceId });
-  }
+  await Promise.all(instanceIds.map((instanceId) => (
+    invalidateAccountSession({ scope: "item", instance_id: instanceId })
+  )));
 }
 
 export function resetAccountSession(): void {

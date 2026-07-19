@@ -108,7 +108,8 @@ export async function insertSocketPlug(options: InsertSocketPlugOptions): Promis
       itemId: options.itemId,
       plug: {
         socketIndex: options.socketIndex,
-        socketEntryHash: options.plugHash
+        socketArrayType: 0,
+        plugItemHash: options.plugHash
       },
       characterId: options.characterId,
       membershipType: options.membershipType
