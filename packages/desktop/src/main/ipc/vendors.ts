@@ -1,40 +1,89 @@
 import { ipcMain } from "electron";
 import type { DefinitionComponentData, DefinitionRecord } from "@d2-tools/core/manifest/definitions";
-import { fetchBungieJson } from "@d2-tools/services/bungie/client";
 import { loadConfig } from "@d2-tools/services/config/store";
 import { fetchVendorInventorySnapshot } from "@d2-tools/services/vendors/liveInventory";
+import {
+  createVendorInventoryCacheKey,
+  loadCachedVendorInventory,
+  saveCachedVendorInventory,
+  type VendorInventoryCacheContext
+} from "@d2-tools/services/vendors/inventoryCache";
 import type { VendorInventoryRequest } from "../../contracts/vendors.js";
+import { fetchSharedBungieJson } from "../runtime/bungieSession.js";
 import { getDefinitions } from "../runtime/gameDataRuntime.js";
+import { measureRuntime } from "../runtime/runtimeMetrics.js";
 import { loadFreshOAuthToken } from "./authSession.js";
 
-export function registerVendorIpcHandlers(): void {
-  ipcMain.handle("vendors:inventory", async (_event, input: VendorInventoryRequest) => {
-    const config = loadConfig();
-    const tokenRequest = loadFreshOAuthToken(config);
-    const definitions: {
-      vendors: DefinitionComponentData;
-      items: DefinitionComponentData;
-    } = {
-      vendors: {},
-      items: {}
-    };
-    const token = await tokenRequest;
+const vendorInventoryTimeoutMs = 30_000;
+const vendorInventoryRequests = new Map<string, Promise<Awaited<ReturnType<typeof fetchVendorInventorySnapshot>>>>();
 
-    return fetchVendorInventorySnapshot({
-      apiKey: config.bungie.api_key,
-      accessToken: token.access_token,
-      membershipType: input.membership_type,
-      membershipId: input.membership_id,
-      characterIds: input.character_ids,
-      detailVendorHashes: input.detail_vendor_hashes,
-      definitions,
-      fetchJson: createVendorDefinitionHydratingFetchJson({
+export function registerVendorIpcHandlers(): void {
+  ipcMain.handle("vendors:inventory", (_event, input: VendorInventoryRequest) => refreshVendorInventory(input));
+  ipcMain.handle("vendors:inventory:refresh", (_event, input: VendorInventoryRequest) => refreshVendorInventory(input));
+  ipcMain.handle("vendors:inventory:cached", async (_event, input: VendorInventoryRequest) => {
+    const config = loadConfig();
+    const cached = await measureRuntime(
+      "vendors.inventory.cache-read",
+      () => loadCachedVendorInventory(config.data.data_dir, createCacheContext(input, config.data.manifest_language))
+    );
+    return cached?.snapshot ?? null;
+  });
+}
+
+function refreshVendorInventory(input: VendorInventoryRequest) {
+  const config = loadConfig();
+  const cacheContext = createCacheContext(input, config.data.manifest_language);
+  const requestKey = createVendorInventoryCacheKey(cacheContext);
+  const existing = vendorInventoryRequests.get(requestKey);
+  if (existing) return existing;
+
+  const request = measureRuntime("vendors.inventory.refresh", () => (
+    runVendorInventoryWithTimeout(async (signal) => {
+      const definitions: {
+        vendors: DefinitionComponentData;
+        items: DefinitionComponentData;
+      } = {
+        vendors: {},
+        items: {}
+      };
+      const token = await measureRuntime("vendors.inventory.token", () => loadFreshOAuthToken(config));
+      const snapshot = await fetchVendorInventorySnapshot({
         apiKey: config.bungie.api_key,
         accessToken: token.access_token,
-        definitions
-      })
-    });
-  });
+        membershipType: input.membership_type,
+        membershipId: input.membership_id,
+        characterIds: input.character_ids,
+        detailVendorHashes: input.detail_vendor_hashes,
+        definitions,
+        signal,
+        fetchJson: createVendorDefinitionHydratingFetchJson({
+          apiKey: config.bungie.api_key,
+          accessToken: token.access_token,
+          definitions
+        })
+      });
+      await saveCachedVendorInventory(config.data.data_dir, cacheContext, snapshot);
+      return snapshot;
+    })
+  ));
+  vendorInventoryRequests.set(requestKey, request);
+  void request.finally(() => {
+    if (vendorInventoryRequests.get(requestKey) === request) vendorInventoryRequests.delete(requestKey);
+  }).catch(() => undefined);
+  return request;
+}
+
+function createCacheContext(
+  input: VendorInventoryRequest,
+  manifestLanguage: string
+): VendorInventoryCacheContext {
+  return {
+    membershipType: input.membership_type,
+    membershipId: input.membership_id,
+    characterIds: input.character_ids,
+    detailVendorHashes: input.detail_vendor_hashes,
+    manifestLanguage
+  };
 }
 
 function createVendorDefinitionHydratingFetchJson(options: {
@@ -46,10 +95,14 @@ function createVendorDefinitionHydratingFetchJson(options: {
   };
 }): <T>(path: string, accessToken?: string) => Promise<T> {
   return async <T>(path: string, accessToken?: string): Promise<T> => {
-    const payload = await fetchBungieJson<T>(path, {
-      apiKey: options.apiKey,
-      accessToken: accessToken ?? options.accessToken
-    });
+    const payload = await measureRuntime("vendors.inventory.bungie-request", () => (
+      fetchSharedBungieJson<T>(
+        options.apiKey,
+        path,
+        accessToken ?? options.accessToken,
+        { waitForRefresh: true }
+      )
+    ));
     const itemHashes = collectNumericProperties(payload, new Set([
       "itemHash",
       "plugHash",
@@ -59,22 +112,48 @@ function createVendorDefinitionHydratingFetchJson(options: {
       ...collectNumericProperties(payload, new Set(["vendorHash"])),
       ...collectVendorComponentKeys(payload)
     ]);
-    const items = await getDefinitions("DestinyInventoryItemDefinition", itemHashes);
-    Object.assign(options.definitions.items, items);
-    for (const item of Object.values(items) as DefinitionRecord[]) {
-      const previewVendorHash = (item.preview as { previewVendorHash?: number } | undefined)
-        ?.previewVendorHash;
-      if (typeof previewVendorHash === "number") {
-        vendorHashes.add(previewVendorHash);
+    await measureRuntime("vendors.inventory.definition-hydration", async () => {
+      const items = await getDefinitions("DestinyInventoryItemDefinition", itemHashes);
+      Object.assign(options.definitions.items, items);
+      for (const item of Object.values(items) as DefinitionRecord[]) {
+        const previewVendorHash = (item.preview as { previewVendorHash?: number } | undefined)
+          ?.previewVendorHash;
+        if (typeof previewVendorHash === "number") {
+          vendorHashes.add(previewVendorHash);
+        }
       }
-    }
-    Object.assign(
-      options.definitions.vendors,
-      await getDefinitions("DestinyVendorDefinition", vendorHashes)
-    );
+      Object.assign(
+        options.definitions.vendors,
+        await getDefinitions("DestinyVendorDefinition", vendorHashes)
+      );
+    });
 
     return payload;
   };
+}
+
+async function runVendorInventoryWithTimeout<T>(
+  action: (signal: AbortSignal) => Promise<T>
+): Promise<T> {
+  const controller = new AbortController();
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  const timeoutRequest = new Promise<never>((_resolve, reject) => {
+    timeout = setTimeout(() => {
+      reject(new Error("商人库存读取超时，请检查网络后重试"));
+      controller.abort();
+    }, vendorInventoryTimeoutMs);
+  });
+  try {
+    return await Promise.race([action(controller.signal), timeoutRequest]);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (controller.signal.aborted || /timed out|timeout|AbortError/i.test(message)) {
+      throw new Error("商人库存读取超时，请检查网络后重试");
+    }
+    throw error;
+  } finally {
+    if (timeout) clearTimeout(timeout);
+  }
 }
 
 function collectNumericProperties(value: unknown, keys: Set<string>, output = new Set<number>()): Set<number> {

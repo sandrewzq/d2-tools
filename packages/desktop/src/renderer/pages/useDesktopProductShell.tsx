@@ -86,7 +86,8 @@ export function useDesktopProductShell(props: {
     accountSummary,
     selectedCharacterId,
     active: activePage === "vendors",
-    loadInventory: api.getVendorInventory
+    loadCachedInventory: api.getCachedVendorInventory,
+    loadInventory: api.refreshVendorInventory
   });
   const vendorSourcePaths = useMemo(
     () => buildVendorItemSourcePaths(vendorsWorkspace.model),

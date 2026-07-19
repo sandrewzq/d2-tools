@@ -195,6 +195,11 @@
   background: var(--surface-subtle);
 }
 
+.vendor-empty-state > .secondary-button {
+  justify-self: center;
+  margin-top: var(--space-8);
+}
+
 .vendor-empty-card {
   min-height: 132px;
   align-content: center;

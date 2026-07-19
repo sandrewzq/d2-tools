@@ -8,6 +8,7 @@ import type { WeeklySummary } from "@d2-tools/core/weekly/summary";
 
 export type DailyApi = {
   getHomeBriefing(): Promise<HomeBriefing>;
+  refreshHomeBriefing(): Promise<HomeBriefing>;
   getDailySummary(): Promise<DailySummary>;
 };
 

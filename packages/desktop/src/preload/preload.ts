@@ -196,10 +196,15 @@ contextBridge.exposeInMainWorld("d2", {
   createBatchTransferPlan: (input: { character_id: string; transfer_to_vault: boolean; items: AccountSummary["vault"]["items"] }) =>
     ipcRenderer.invoke("actions:plan:batch-transfer", input) as Promise<BatchTransferPlan>,
   getHomeBriefing: () => invokeDesktopIpc<HomeBriefing>("home:briefing"),
+  refreshHomeBriefing: () => invokeDesktopIpc<HomeBriefing>("home:briefing:refresh"),
   getDailySummary: () => invokeDesktopIpc<DailySummary>("daily:summary"),
   getWeeklySummary: () => invokeDesktopIpc<WeeklySummary>("weekly:summary"),
   getVendorInventory: (input: VendorInventoryRequest) =>
     ipcRenderer.invoke("vendors:inventory", input) as Promise<VendorInventorySnapshot>,
+  getCachedVendorInventory: (input: VendorInventoryRequest) =>
+    ipcRenderer.invoke("vendors:inventory:cached", input) as Promise<VendorInventorySnapshot | null>,
+  refreshVendorInventory: (input: VendorInventoryRequest) =>
+    ipcRenderer.invoke("vendors:inventory:refresh", input) as Promise<VendorInventorySnapshot>,
   getActivitySummary: (input: { membership_type: number; membership_id: string; character_ids: string[] }) =>
     ipcRenderer.invoke("activities:summary", input) as Promise<ActivityHistorySummary>,
   exportDiagnostics: () => ipcRenderer.invoke("diagnostics:export") as Promise<string>,

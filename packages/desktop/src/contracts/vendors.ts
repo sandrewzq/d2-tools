@@ -9,6 +9,8 @@ export type VendorInventoryRequest = {
 
 export type VendorsApi = {
   getVendorInventory(input: VendorInventoryRequest): Promise<VendorInventorySnapshot>;
+  getCachedVendorInventory(input: VendorInventoryRequest): Promise<VendorInventorySnapshot | null>;
+  refreshVendorInventory(input: VendorInventoryRequest): Promise<VendorInventorySnapshot>;
 };
 
 export type { VendorInventorySnapshot };

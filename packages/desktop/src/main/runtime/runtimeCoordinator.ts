@@ -12,7 +12,7 @@ import {
   resumeGameDataRuntime,
   verifyGameDataRuntime
 } from "./gameDataRuntime.js";
-import { getHomeBriefing } from "./homeBriefing.js";
+import { getHomeBriefing, getPersistedHomeBriefing } from "./homeBriefing.js";
 import { measureRuntime } from "./runtimeMetrics.js";
 
 let initialized = false;
@@ -41,6 +41,16 @@ export function warmRuntimeInBackground(): Promise<void> {
 }
 
 export async function getCoordinatedHomeBriefing(): Promise<HomeBriefing> {
+  initializeRuntimeCoordinator();
+  const cached = await getPersistedHomeBriefing();
+  if (cached) {
+    void refreshCoordinatedHomeBriefing().catch(() => undefined);
+    return cached;
+  }
+  return refreshCoordinatedHomeBriefing();
+}
+
+export async function refreshCoordinatedHomeBriefing(): Promise<HomeBriefing> {
   initializeRuntimeCoordinator();
   const generation = runtimeGeneration;
   const recovered = await warmManifestRecovery(generation);

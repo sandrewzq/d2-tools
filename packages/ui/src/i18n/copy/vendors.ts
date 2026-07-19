@@ -8,7 +8,8 @@ export const vendorsCopy: Record<InterfaceLocale, LocaleCopy["vendors"]> = {
         "每日或周末重置": "每日或周末重置",
         "商人列表": "商人列表",
         "商人": "商人",
-        "个来源": "个来源"
+        "个来源": "个来源",
+        "重新加载商人库存": "重新加载商人库存"
       },
       title: "商人库存",
       subtitle: "按商人分组查看可确认库存、费用和推荐关注项。",
@@ -41,7 +42,8 @@ export const vendorsCopy: Record<InterfaceLocale, LocaleCopy["vendors"]> = {
         "个来源": "sources",
         "属性读取中": "Loading details",
         "部分详情失败": "Some details failed",
-        "详情失败": "Details failed"
+        "详情失败": "Details failed",
+        "重新加载商人库存": "Reload vendor inventory"
       },
       title: "Vendors",
       subtitle: "Review verified vendor inventory, costs, ownership, and recommended watch items.",

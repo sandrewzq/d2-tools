@@ -3,6 +3,8 @@ export type FetchBungieJsonOptions = {
   accessToken?: string;
   baseUrl?: string;
   fetchImpl?: typeof fetch;
+  signal?: AbortSignal;
+  timeoutMs?: number;
 };
 
 type BungiePlatformResponse<T> = {
@@ -49,16 +51,30 @@ async function requestBungieJson<T>(
 
   const fetchImpl = options.fetchImpl ?? fetch;
   const url = new URL(normalizePath(path), ensureTrailingSlash(options.baseUrl ?? defaultBaseUrl));
-  const response = await fetchImpl(url, {
-    method: options.method,
-    headers: {
-      "X-API-Key": apiKey,
-      ...(options.accessToken ? { "Authorization": `Bearer ${options.accessToken}` } : {}),
-      "Accept": "application/json",
-      ...(options.method === "POST" ? { "Content-Type": "application/json" } : {})
-    },
-    ...(options.method === "POST" ? { body: JSON.stringify(options.body ?? {}) } : {})
-  });
+  const timeoutMs = options.timeoutMs ?? 30_000;
+  const timeoutSignal = AbortSignal.timeout(timeoutMs);
+  const signal = options.signal
+    ? AbortSignal.any([options.signal, timeoutSignal])
+    : timeoutSignal;
+  let response: Response;
+  try {
+    response = await fetchImpl(url, {
+      method: options.method,
+      signal,
+      headers: {
+        "X-API-Key": apiKey,
+        ...(options.accessToken ? { "Authorization": `Bearer ${options.accessToken}` } : {}),
+        "Accept": "application/json",
+        ...(options.method === "POST" ? { "Content-Type": "application/json" } : {})
+      },
+      ...(options.method === "POST" ? { body: JSON.stringify(options.body ?? {}) } : {})
+    });
+  } catch (error) {
+    if (timeoutSignal.aborted && !options.signal?.aborted) {
+      throw new Error(`Bungie request timed out after ${timeoutMs} ms`);
+    }
+    throw error;
+  }
 
   if (!response.ok) {
     const details = await readBungieErrorDetails(response);

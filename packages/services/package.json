@@ -38,6 +38,10 @@
       "types": "./dist/bungie/activityHistory.d.ts",
       "import": "./dist/bungie/activityHistory.js"
     },
+    "./home/briefingCache": {
+      "types": "./dist/home/briefingCache.d.ts",
+      "import": "./dist/home/briefingCache.js"
+    },
     "./manifest/cache": {
       "types": "./dist/manifest/cache.d.ts",
       "import": "./dist/manifest/cache.js"
@@ -81,6 +85,10 @@
     "./vendors/liveInventory": {
       "types": "./dist/vendors/liveInventory.d.ts",
       "import": "./dist/vendors/liveInventory.js"
+    },
+    "./vendors/inventoryCache": {
+      "types": "./dist/vendors/inventoryCache.d.ts",
+      "import": "./dist/vendors/inventoryCache.js"
     }
   },
   "scripts": {

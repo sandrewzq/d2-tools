@@ -10,6 +10,11 @@ import {
   type BungieVendorsResponse
 } from "@d2-tools/services/bungie/session";
 import { loadConfig } from "@d2-tools/services/config/store";
+import {
+  loadCachedHomeBriefing,
+  saveCachedHomeBriefing
+} from "@d2-tools/services/home/briefingCache";
+import { loadOAuthToken } from "@d2-tools/services/oauth/tokenStore";
 import type { HomeBriefing } from "../../contracts/daily.js";
 import { loadFreshOAuthToken, type FreshOAuthToken } from "../ipc/authSession.js";
 import { getDefinitions } from "./gameDataRuntime.js";
@@ -32,8 +37,10 @@ let cachedBriefing: {
 export async function getHomeBriefing(): Promise<HomeBriefing> {
   const config = loadConfig();
   const token = await loadTokenOnce(config);
+  const accountId = token?.membership_id ?? loadOAuthToken(config.data.data_dir)?.membership_id;
   const contextKey = [
     config.data.data_dir,
+    config.data.manifest_language,
     config.bungie.api_key,
     token?.access_token ?? "public"
   ].join("\u0000");
@@ -55,6 +62,14 @@ export async function getHomeBriefing(): Promise<HomeBriefing> {
       value,
       freshUntil: Date.now() + briefingTtlMs
     };
+    void saveCachedHomeBriefing(
+      config.data.data_dir,
+      value,
+      {
+        accountId,
+        manifestLanguage: config.data.manifest_language
+      }
+    ).catch(() => undefined);
     return value;
   });
   briefingRequest = { contextKey, promise };
@@ -63,6 +78,16 @@ export async function getHomeBriefing(): Promise<HomeBriefing> {
     () => clearBriefingRequest(promise)
   );
   return promise;
+}
+
+export async function getPersistedHomeBriefing(): Promise<HomeBriefing | null> {
+  const config = loadConfig();
+  const token = loadOAuthToken(config.data.data_dir);
+  const cached = await loadCachedHomeBriefing(config.data.data_dir, {
+    accountId: token?.membership_id,
+    manifestLanguage: config.data.manifest_language
+  });
+  return cached?.briefing ?? null;
 }
 
 async function buildHomeBriefing(

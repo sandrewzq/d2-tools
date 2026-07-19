@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { DailySummary, WeeklySummary } from "../../api/types";
+import type { DailySummary, HomeBriefing, WeeklySummary } from "../../api/types";
 import { api } from "../../api/client";
 import { buildWeeklyFocusText } from "../../utils/dailyShare";
 
@@ -13,14 +13,38 @@ export function useDailySummary() {
   async function loadDailySummary() {
     setIsLoadingDaily(true);
     setDailyError("");
+    setDailyMessage("");
+    let cachedOrFresh: HomeBriefing | null = null;
     try {
-      const briefing = await api.getHomeBriefing();
-      setDailySummary(briefing.daily);
-      setWeeklySummary(briefing.weekly);
+      cachedOrFresh = await api.getHomeBriefing();
+      applyBriefing(cachedOrFresh);
     } catch (error) {
       setDailyError(error instanceof Error ? error.message : "今日面板读取失败");
     } finally {
       setIsLoadingDaily(false);
+    }
+    if (cachedOrFresh) {
+      void refreshHomeBriefingInBackground(cachedOrFresh);
+    }
+  }
+
+  function applyBriefing(briefing: HomeBriefing) {
+    setDailySummary(briefing.daily);
+    setWeeklySummary(briefing.weekly);
+  }
+
+  async function refreshHomeBriefingInBackground(current: HomeBriefing) {
+    try {
+      const refreshed = await api.refreshHomeBriefing();
+      setDailyError("");
+      if (!hasSameBriefingContent(current, refreshed)) {
+        applyBriefing(refreshed);
+        setDailyMessage("本周信息已在后台更新");
+      }
+    } catch (error) {
+      setDailyError(error instanceof Error
+        ? `后台检查更新失败，继续显示上次数据。${error.message}`
+        : "后台检查更新失败，继续显示上次数据。");
     }
   }
 
@@ -43,4 +67,9 @@ export function useDailySummary() {
     isLoadingDaily,
     loadDailySummary
   };
+}
+
+function hasSameBriefingContent(left: HomeBriefing, right: HomeBriefing): boolean {
+  return JSON.stringify({ daily: left.daily, weekly: left.weekly })
+    === JSON.stringify({ daily: right.daily, weekly: right.weekly });
 }

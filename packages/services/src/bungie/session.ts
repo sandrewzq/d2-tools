@@ -110,6 +110,7 @@ export type BungieRequestBroker = {
 
 export type BungieRequestOptions = {
   forceRefresh?: boolean;
+  waitForRefresh?: boolean;
 };
 
 export type CreateBungieRequestBrokerOptions = {
@@ -177,7 +178,7 @@ export function createBungieRequestBroker(
           .filter((candidate) => isSuperset(candidate.components, profileRequest.components))
           .sort((left, right) => left.components.size - right.components.size);
         for (const candidate of candidates) {
-          const existing = broker.getExisting<T>(candidate.key);
+          const existing = broker.getExisting<T>(candidate.key, requestOptions);
           if (existing) return existing;
         }
       }
@@ -265,10 +266,11 @@ export function createBungieSession(options: CreateBungieSessionOptions): Bungie
     accessToken: string
   ): Promise<BungieCharacterVendorResponse> {
     const scope = currentAuthScope(accessToken);
+    const components = "400,401,402,600";
     const response = await broker.get(
-      `${scope}:character-vendors:${membership.membershipType}:${membership.membershipId}:${characterId}`,
+      `${scope}:character-vendors:${membership.membershipType}:${membership.membershipId}:${characterId}:${components}`,
       () => fetchJson<BungieVendorsResponse>(
-        `/Destiny2/${membership.membershipType}/Profile/${membership.membershipId}/Character/${characterId}/Vendors/?components=400,402`,
+        `/Destiny2/${membership.membershipType}/Profile/${membership.membershipId}/Character/${characterId}/Vendors/?components=${components}`,
         accessToken
       ),
       policies.characterVendors
@@ -363,12 +365,14 @@ class RequestBroker {
       return Promise.resolve(entry.value);
     }
     if (entry?.inFlight) {
-      return entry.value !== undefined && currentTime < entry.staleUntil
+      return entry.value !== undefined && currentTime < entry.staleUntil && !options.waitForRefresh
         ? Promise.resolve(entry.value)
         : entry.inFlight;
     }
     if (entry?.value !== undefined && currentTime < entry.staleUntil) {
-      void this.refresh(key, entry, loader, policy).catch(() => undefined);
+      const refresh = this.refresh(key, entry, loader, policy);
+      if (options.waitForRefresh) return refresh;
+      void refresh.catch(() => undefined);
       return Promise.resolve(entry.value);
     }
     return this.refresh(key, entry ?? {
@@ -377,10 +381,13 @@ class RequestBroker {
     }, loader, policy);
   }
 
-  getExisting<T>(key: string): Promise<T> | undefined {
+  getExisting<T>(
+    key: string,
+    options: BungieRequestOptions = {}
+  ): Promise<T> | undefined {
     const entry = this.entries.get(key) as CacheEntry<T> | undefined;
     if (!entry?.loader || !entry.policy) return undefined;
-    return this.get(key, entry.loader, entry.policy);
+    return this.get(key, entry.loader, entry.policy, options);
   }
 
   deleteByPrefix(prefix: string): void {

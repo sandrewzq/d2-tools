@@ -55,6 +55,7 @@ export type FetchVendorInventorySnapshotOptions = {
   };
   fetchJson?: <T>(path: string, accessToken?: string) => Promise<T>;
   fetchImpl?: typeof fetch;
+  signal?: AbortSignal;
   now?: () => Date;
 };
 
@@ -443,6 +444,7 @@ function createFetchJson(options: FetchVendorInventorySnapshotOptions) {
   return async function fetchJson<T>(path: string, accessToken?: string): Promise<T> {
     const url = new URL(path.replace(/^\//, ""), "https://www.bungie.net/Platform/");
     const response = await (options.fetchImpl ?? fetch)(url, {
+      signal: options.signal,
       headers: {
         "X-API-Key": options.apiKey,
         "Authorization": `Bearer ${accessToken ?? options.accessToken}`,

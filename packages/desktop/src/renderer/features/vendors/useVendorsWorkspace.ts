@@ -44,6 +44,7 @@ export function useVendorsWorkspace(input: {
   accountSummary: AccountSummary | null;
   selectedCharacterId: string;
   active: boolean;
+  loadCachedInventory: (input: VendorInventoryRequest) => Promise<VendorInventorySnapshot | null>;
   loadInventory: (input: VendorInventoryRequest) => Promise<VendorInventorySnapshot>;
 }) {
   const [snapshot, setSnapshot] = useState<VendorInventorySnapshot | null>(null);
@@ -81,6 +82,11 @@ export function useVendorsWorkspace(input: {
       const next = await input.loadInventory(request);
       if (requestSequence !== requestSequenceRef.current || requestContextKey !== requestContextKeyRef.current) return;
       if (currentSnapshot) {
+        if (hasSameVendorInventoryContent(currentSnapshot, next)) {
+          setStatusMessage("已检查，商人库存无变化");
+          setRefreshState("idle");
+          return;
+        }
         const resolved = resolveVendorRefreshState(currentSnapshot, next);
         setSnapshot(resolved.snapshot);
         setStatusMessage(resolved.statusMessage ?? "");
@@ -106,6 +112,8 @@ export function useVendorsWorkspace(input: {
   useEffect(() => {
     if (!input.active) {
       requestSequenceRef.current += 1;
+      requestContextKeyRef.current = "__inactive__";
+      setRefreshState("idle");
       return;
     }
     if (requestContextKey === requestContextKeyRef.current) return;
@@ -121,18 +129,36 @@ export function useVendorsWorkspace(input: {
     }
 
     setRefreshState("refreshing");
-    void input.loadInventory(createVendorInventoryRequest(input.accountSummary, characterId, []))
-      .then((next) => {
+    const request = createVendorInventoryRequest(input.accountSummary, characterId, []);
+    void (async () => {
+      let availableSnapshot: VendorInventorySnapshot | null = null;
+      try {
+        const cached = await input.loadCachedInventory(request);
         if (requestSequence !== requestSequenceRef.current || requestContextKey !== requestContextKeyRef.current) return;
-        setSnapshot(next);
+        if (cached) {
+          availableSnapshot = cached;
+          setSnapshot(cached);
+          setStatusMessage("正在显示上次商人库存，后台检查更新");
+        }
+        const next = await input.loadInventory(request);
+        if (requestSequence !== requestSequenceRef.current || requestContextKey !== requestContextKeyRef.current) return;
+        if (availableSnapshot && hasSameVendorInventoryContent(availableSnapshot, next)) {
+          setStatusMessage("已检查，商人库存无变化");
+        } else {
+          setSnapshot(next);
+          setStatusMessage(availableSnapshot ? "商人库存已在后台更新" : "");
+        }
         setRefreshState("idle");
-      })
-      .catch((error) => {
+      } catch (error) {
         if (requestSequence !== requestSequenceRef.current || requestContextKey !== requestContextKeyRef.current) return;
+        if (availableSnapshot) setSnapshot(availableSnapshot);
         setRefreshState("failed");
-        setRefreshError(error instanceof Error ? error.message : "商人数据读取失败");
-      });
-  }, [characterId, input.accountSummary, input.active, input.loadInventory, requestContextKey]);
+        setRefreshError(error instanceof Error
+          ? `${availableSnapshot ? "继续显示上次库存。" : ""}${error.message}`
+          : "商人数据读取失败");
+      }
+    })();
+  }, [characterId, input.accountSummary, input.active, input.loadCachedInventory, input.loadInventory, requestContextKey]);
 
   useEffect(() => {
     if (!input.active || !input.accountSummary || !characterId || !snapshot || !selectedDetailVendorHashes.length) return;
@@ -144,24 +170,40 @@ export function useVendorsWorkspace(input: {
     const requestSequence = ++requestSequenceRef.current;
     setRefreshState("refreshing");
     setRefreshError("");
-    void input.loadInventory(createVendorInventoryRequest(
+    const request = createVendorInventoryRequest(
       input.accountSummary,
       characterId,
       selectedDetailVendorHashes
-    )).then((next) => {
-      if (requestSequence !== requestSequenceRef.current || requestContextKey !== requestContextKeyRef.current) return;
-      const resolved = resolveVendorRefreshState(snapshot, next);
-      setSnapshot(resolved.snapshot);
-      setStatusMessage(resolved.statusMessage ?? "");
-      setRefreshState("idle");
-    }).catch((error) => {
-      if (requestSequence !== requestSequenceRef.current || requestContextKey !== requestContextKeyRef.current) return;
-      const resolved = resolveVendorRefreshState(snapshot, null, error);
-      setSnapshot(resolved.snapshot);
-      setRefreshState(resolved.refreshState);
-      setRefreshError(resolved.refreshError ?? "");
-    });
-  }, [characterId, input.accountSummary, input.active, input.loadInventory, requestContextKey, selectedDetailVendorHashes, snapshot]);
+    );
+    void (async () => {
+      let availableSnapshot = snapshot;
+      try {
+        const cached = await input.loadCachedInventory(request);
+        if (requestSequence !== requestSequenceRef.current || requestContextKey !== requestContextKeyRef.current) return;
+        if (cached) {
+          availableSnapshot = cached;
+          setSnapshot(cached);
+          setStatusMessage("正在显示上次商人详情，后台检查更新");
+        }
+        const next = await input.loadInventory(request);
+        if (requestSequence !== requestSequenceRef.current || requestContextKey !== requestContextKeyRef.current) return;
+        if (hasSameVendorInventoryContent(availableSnapshot, next)) {
+          setStatusMessage("已检查，当前商人库存无变化");
+        } else {
+          const resolved = resolveVendorRefreshState(availableSnapshot, next);
+          setSnapshot(resolved.snapshot);
+          setStatusMessage(resolved.statusMessage ?? "当前商人库存已在后台更新");
+        }
+        setRefreshState("idle");
+      } catch (error) {
+        if (requestSequence !== requestSequenceRef.current || requestContextKey !== requestContextKeyRef.current) return;
+        const resolved = resolveVendorRefreshState(availableSnapshot, null, error);
+        setSnapshot(resolved.snapshot);
+        setRefreshState(resolved.refreshState);
+        setRefreshError(`继续显示上次库存。${resolved.refreshError ?? "商人详情刷新失败"}`);
+      }
+    })();
+  }, [characterId, input.accountSummary, input.active, input.loadCachedInventory, input.loadInventory, requestContextKey, selectedDetailVendorHashes, snapshot]);
 
   const model: VendorsPageWorkspace = useMemo(() => selectVendorsPageModel({
     snapshot,
@@ -216,4 +258,12 @@ function expandVendorDetailHashes(
     vendorHash,
     snapshot?.vendors ?? []
   );
+}
+
+function hasSameVendorInventoryContent(
+  left: VendorInventorySnapshot,
+  right: VendorInventorySnapshot
+): boolean {
+  const withoutFetchTime = (key: string, value: unknown) => key === "fetchedAt" ? undefined : value;
+  return JSON.stringify(left, withoutFetchTime) === JSON.stringify(right, withoutFetchTime);
 }

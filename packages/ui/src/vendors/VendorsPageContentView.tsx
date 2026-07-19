@@ -203,15 +203,22 @@ export function VendorsPageContentView(props: VendorsPageContentViewProps) {
       <ProductWorkspaceEmptyState className="vendor-empty-state">
         <strong>{refreshStatus?.busy ? copy.loadingTitle : copy.emptyTitle}</strong>
         {refreshStatus ? (
-          <div
-            role="status"
-            aria-label="商人刷新状态"
-            aria-live={refreshStatus.live}
-            aria-busy={refreshStatus.busy}
-            className={refreshStatus.tone === "error" ? "vendor-refresh-status is-error" : "vendor-refresh-status"}
-          >
-            {refreshStatus.message}
-          </div>
+          <>
+            <div
+              role="status"
+              aria-label="商人刷新状态"
+              aria-live={refreshStatus.live}
+              aria-busy={refreshStatus.busy}
+              className={refreshStatus.tone === "error" ? "vendor-refresh-status is-error" : "vendor-refresh-status"}
+            >
+              {refreshStatus.message}
+            </div>
+            {!refreshStatus.busy && props.actions.refreshVendors ? (
+              <button type="button" className="secondary-button" onClick={props.actions.refreshVendors}>
+                {copy.inline["重新加载商人库存"] ?? "Reload vendor inventory"}
+              </button>
+            ) : null}
+          </>
         ) : <span>{copy.emptyBody}</span>}
       </ProductWorkspaceEmptyState>
     );
