@@ -6,6 +6,7 @@ import {
 } from "@d2-tools/core/actions/plan";
 import {
   equipItem as bungieEquipItem,
+  equipItems as bungieEquipItems,
   insertSocketPlug as bungieInsertSocketPlug,
   equipLoadout as bungieEquipLoadout,
   pullFromPostmaster as bungiePullFromPostmaster,
@@ -141,18 +142,20 @@ export function registerActionIpcHandlers(): void {
   });
 
   ipcMain.handle("actions:items:batch-equip", async (_event, input: BatchEquipItemsInput) => {
+    let equipRequest: Promise<void> | null = null;
     return runBatchWriteActions({
       action: "equip",
       items: input.items,
       successMessage: "批量装备完成",
       runItem: async ({ config, token }, item) => {
-        await bungieEquipItem({
+        equipRequest ??= bungieEquipItems({
           config,
           token,
           membershipType: input.membership_type,
           characterId: input.character_id,
-          itemId: item.item_id
+          itemIds: input.items.map((entry) => entry.item_id)
         });
+        await equipRequest;
       },
       getItemName: (item) => item.item_name,
       getItemInstanceId: (item) => item.item_id,

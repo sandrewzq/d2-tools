@@ -3,6 +3,7 @@ export type FetchBungieJsonOptions = {
   accessToken?: string;
   baseUrl?: string;
   fetchImpl?: typeof fetch;
+  signal?: AbortSignal;
 };
 
 type BungiePlatformResponse<T> = {
@@ -51,6 +52,7 @@ async function requestBungieJson<T>(
   const url = new URL(normalizePath(path), ensureTrailingSlash(options.baseUrl ?? defaultBaseUrl));
   const response = await fetchImpl(url, {
     method: options.method,
+    signal: options.signal,
     headers: {
       "X-API-Key": apiKey,
       ...(options.accessToken ? { "Authorization": `Bearer ${options.accessToken}` } : {}),

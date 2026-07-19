@@ -16,6 +16,10 @@ export type SetItemLockStateOptions = BungieItemActionOptions & {
   state: boolean;
 };
 
+export type EquipItemsOptions = Omit<BungieItemActionOptions, "itemId"> & {
+  itemIds: string[];
+};
+
 export type TransferItemOptions = BungieItemActionOptions & {
   itemReferenceHash: number;
   transferToVault: boolean;
@@ -70,6 +74,18 @@ export async function equipItem(options: BungieItemActionOptions): Promise<void>
   );
 }
 
+export async function equipItems(options: EquipItemsOptions): Promise<void> {
+  await postBungieJson<unknown>(
+    "/Destiny2/Actions/Items/EquipItems/",
+    {
+      itemIds: options.itemIds,
+      characterId: options.characterId,
+      membershipType: options.membershipType
+    },
+    bungieWriteOptions(options)
+  );
+}
+
 export async function transferItem(options: TransferItemOptions): Promise<void> {
   await postBungieJson<unknown>(
     "/Destiny2/Actions/Items/TransferItem/",
@@ -90,8 +106,10 @@ export async function insertSocketPlug(options: InsertSocketPlugOptions): Promis
     "/Destiny2/Actions/Items/InsertSocketPlugFree/",
     {
       itemId: options.itemId,
-      plug: options.plugHash,
-      socketIndex: options.socketIndex,
+      plug: {
+        socketIndex: options.socketIndex,
+        socketEntryHash: options.plugHash
+      },
       characterId: options.characterId,
       membershipType: options.membershipType
     },
@@ -145,6 +163,7 @@ function bungieWriteOptions(options: Pick<BungieItemActionOptions, "config" | "t
     apiKey: options.config.bungie.api_key,
     accessToken: options.token.access_token,
     baseUrl: options.baseUrl,
-    fetchImpl: options.fetchImpl
+    fetchImpl: options.fetchImpl,
+    signal: AbortSignal.timeout(45_000)
   };
 }

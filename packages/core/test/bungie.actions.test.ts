@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   equipItem,
+  equipItems,
   equipLoadout,
+  insertSocketPlug,
   pullFromPostmaster,
   setItemLockState,
   snapshotLoadout,
@@ -99,6 +101,31 @@ describe("Bungie item actions", () => {
     });
   });
 
+  it("equips multiple items through one Bungie request", async () => {
+    let request: Request | undefined;
+    const fetchImpl: typeof fetch = async (input, init) => {
+      request = new Request(input, init);
+      return jsonResponse({ ErrorCode: 1, Message: "Ok", Response: 0 });
+    };
+
+    await equipItems({
+      config,
+      token,
+      membershipType: 3,
+      characterId: "character-1",
+      itemIds: ["item-1", "item-2", "item-3"],
+      baseUrl: "https://example.test/Platform",
+      fetchImpl
+    });
+
+    expect(request?.url).toBe("https://example.test/Platform/Destiny2/Actions/Items/EquipItems/");
+    expect(await request?.json()).toEqual({
+      itemIds: ["item-1", "item-2", "item-3"],
+      characterId: "character-1",
+      membershipType: 3
+    });
+  });
+
   it("transfers items to and from the vault", async () => {
     const requests: Request[] = [];
     const fetchImpl: typeof fetch = async (input, init) => {
@@ -124,6 +151,37 @@ describe("Bungie item actions", () => {
       stackSize: 1,
       transferToVault: true,
       itemId: "item-1",
+      characterId: "character-1",
+      membershipType: 3
+    });
+  });
+
+  it("inserts a reusable plug using Bungie's nested plug payload", async () => {
+    let request: Request | undefined;
+    const fetchImpl: typeof fetch = async (input, init) => {
+      request = new Request(input, init);
+      return jsonResponse({ ErrorCode: 1, Message: "Ok", Response: 0 });
+    };
+
+    await insertSocketPlug({
+      config,
+      token,
+      membershipType: 3,
+      characterId: "character-1",
+      itemId: "item-1",
+      socketIndex: 3,
+      plugHash: 456,
+      baseUrl: "https://example.test/Platform",
+      fetchImpl
+    });
+
+    expect(request?.url).toBe("https://example.test/Platform/Destiny2/Actions/Items/InsertSocketPlugFree/");
+    expect(await request?.json()).toEqual({
+      itemId: "item-1",
+      plug: {
+        socketIndex: 3,
+        socketEntryHash: 456
+      },
       characterId: "character-1",
       membershipType: 3
     });
