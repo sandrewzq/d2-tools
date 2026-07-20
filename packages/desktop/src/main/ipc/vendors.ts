@@ -13,9 +13,11 @@ export function registerVendorIpcHandlers(): void {
     const tokenRequest = loadFreshOAuthToken(config);
     const definitions: {
       vendors: DefinitionComponentData;
+      vendorGroups: DefinitionComponentData;
       items: DefinitionComponentData;
     } = {
       vendors: {},
+      vendorGroups: {},
       items: {}
     };
     const token = await tokenRequest;
@@ -42,6 +44,7 @@ function createVendorDefinitionHydratingFetchJson(options: {
   accessToken: string;
   definitions: {
     vendors: DefinitionComponentData;
+    vendorGroups: DefinitionComponentData;
     items: DefinitionComponentData;
   };
 }): <T>(path: string, accessToken?: string) => Promise<T> {
@@ -68,9 +71,19 @@ function createVendorDefinitionHydratingFetchJson(options: {
         vendorHashes.add(previewVendorHash);
       }
     }
+    const vendors = await getDefinitions("DestinyVendorDefinition", vendorHashes);
+    Object.assign(options.definitions.vendors, vendors);
+    const vendorGroupHashes = new Set<number>();
+    for (const vendor of Object.values(vendors) as DefinitionRecord[]) {
+      for (const group of vendor.groups ?? []) {
+        if (typeof group.vendorGroupHash === "number") {
+          vendorGroupHashes.add(group.vendorGroupHash);
+        }
+      }
+    }
     Object.assign(
-      options.definitions.vendors,
-      await getDefinitions("DestinyVendorDefinition", vendorHashes)
+      options.definitions.vendorGroups,
+      await getDefinitions("DestinyVendorGroupDefinition", vendorGroupHashes)
     );
 
     return payload;

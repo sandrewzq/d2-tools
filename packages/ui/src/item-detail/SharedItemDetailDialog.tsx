@@ -28,7 +28,7 @@ export type SharedItemDetailDialogProps = {
   returnFocusRef?: RefObject<HTMLElement | null>;
   onClose: () => void;
   sections: ReactNode;
-  variant?: "default" | "weapon";
+  variant?: "default" | "weapon" | "armor";
   subtitle?: ReactNode;
   objectContext?: ReactNode;
 };
@@ -82,11 +82,11 @@ export function SharedItemDetailDialog(props: SharedItemDetailDialogProps) {
         aria-busy={props.detail.isBusy ? "true" : "false"}
         onClick={(event) => event.stopPropagation()}
       >
-        {props.variant === "weapon" ? (
+        {props.variant === "weapon" || props.variant === "armor" ? (
           <header className="shared-item-detail-header">
             <div className="shared-item-detail-heading">
               <span>装备详情</span>
-              <h2 id={titleId}>武器档案</h2>
+              <h2 id={titleId}>{props.variant === "armor" ? "护甲档案" : "武器档案"}</h2>
               <div className="shared-item-detail-subtitle">
                 <strong>{props.detail.name}</strong>
                 {props.subtitle ? <span>{props.subtitle}</span> : null}

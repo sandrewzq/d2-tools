@@ -3,6 +3,8 @@ import type {
   VendorOfferContextView
 } from "@d2-tools/ui";
 import type { WeaponRecommendation } from "@d2-tools/core/community-perks";
+import type { ArmorStatSummary } from "@d2-tools/core/account/summary";
+import type { ArmorStatKey } from "@d2-tools/core/loadouts/analysis";
 import type { PersonalWeaponKnowledgeEntry } from "@d2-tools/core/community-perks/personalWeaponKnowledge";
 import type { SavePersonalWeaponKnowledgeInput } from "@d2-tools/core/community-perks/personalWeaponKnowledge";
 import type { ItemAiAdviceResult, VaultTags } from "../../api/types";
@@ -173,6 +175,7 @@ export function useVendorDefinitionDetail(input: { vendorSourcePaths?: Map<numbe
           bucket_name: current.item.bucket_name,
           group_key: current.item.group_key ?? "weapons",
           weapon_frame: current.item.weapon_frame,
+          armor_stats: current.item.group_key === "armor" ? buildVendorArmorStats(current.context.stats) : undefined,
           socket_plugs: (current.offerItem.socketPlugs ?? []).map((plug) => ({
             hash: plug.hash,
             name: plug.name,
@@ -182,10 +185,10 @@ export function useVendorDefinitionDetail(input: { vendorSourcePaths?: Map<numbe
         },
         tags: input.vaultTags ?? { items: {} },
         user_knowledge: userKnowledge.trim() || undefined,
-        personal_knowledge: current.personalKnowledge,
-        builtin_knowledge: current.recommendations ?? null,
+        personal_knowledge: current.item.group_key === "weapons" ? current.personalKnowledge : [],
+        builtin_knowledge: current.item.group_key === "weapons" ? current.recommendations ?? null : null,
         allow_external_search: allowExternalSearch,
-        weapon_context: {
+        weapon_context: current.item.group_key === "weapons" ? {
           object_kind: "vendor_offer",
           official_sources: current.liveEntry?.sources.map((source) => source.label) ?? [current.context.vendorName],
           definition_stats: Object.fromEntries((current.item.definition_stats ?? []).map((stat) => [stat.name, stat.value])),
@@ -200,13 +203,13 @@ export function useVendorDefinitionDetail(input: { vendorSourcePaths?: Map<numbe
             affordability: current.context.affordabilityLabel,
             refresh: current.context.refreshLabel
           }
-        }
+        } : undefined
       });
       setState((value) => value ? { ...value, aiResult: result, isGeneratingAi: false } : value);
     } catch (error) {
       setState((value) => value ? {
         ...value,
-        aiError: error instanceof Error ? error.message : "AI 武器分析失败",
+        aiError: error instanceof Error ? error.message : "AI 装备分析失败",
         isGeneratingAi: false
       } : value);
     }
@@ -218,3 +221,42 @@ export function useVendorDefinitionDetail(input: { vendorSourcePaths?: Map<numbe
 function sameWeaponName(left: string, right: string): boolean {
   return left.trim().toLocaleLowerCase() === right.trim().toLocaleLowerCase();
 }
+
+function buildVendorArmorStats(stats: Record<string, number> | undefined): ArmorStatSummary | undefined {
+  if (!stats) return undefined;
+  const result = { health: 0, melee: 0, grenade: 0, super: 0, class: 0, weapon: 0, total: 0 };
+  let matched = false;
+  for (const [label, value] of Object.entries(stats)) {
+    const key = vendorArmorStatKeys[label.trim().toLocaleLowerCase()] ?? vendorArmorStatHashKeys[Number(label)];
+    if (!key) continue;
+    result[key] = value;
+    matched = true;
+  }
+  if (!matched) return undefined;
+  result.total = result.health + result.melee + result.grenade + result.super + result.class + result.weapon;
+  return result;
+}
+
+const vendorArmorStatKeys: Record<string, ArmorStatKey> = {
+  "生命值": "health",
+  health: "health",
+  "近战": "melee",
+  melee: "melee",
+  "手雷": "grenade",
+  grenade: "grenade",
+  "超能": "super",
+  super: "super",
+  "职业": "class",
+  class: "class",
+  "武器": "weapon",
+  weapon: "weapon"
+};
+
+const vendorArmorStatHashKeys: Partial<Record<number, ArmorStatKey>> = {
+  392767087: "health",
+  4244567218: "melee",
+  1735777505: "grenade",
+  144602215: "super",
+  1943323491: "class",
+  2996146975: "weapon"
+};

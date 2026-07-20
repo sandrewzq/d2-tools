@@ -31,6 +31,14 @@ type VendorContentDefinition = {
 type VendorStructureDefinition = {
   vendorHash: number;
   childVendorHashes: number[];
+  fallbackParent?: {
+    vendorIdentifier?: string;
+    name: string;
+    description: string;
+    vendorGroupHash: number;
+    vendorGroupName: string;
+    vendorGroupOrder: number;
+  };
   ignoredChildVendorHashes?: number[];
   includeRemainder?: boolean;
   unconfiguredServicesPosition?: "before-subinventory" | "after";
@@ -185,6 +193,14 @@ const vendorStructures: VendorStructureDefinition[] = [
   {
     vendorHash: 2255782930,
     childVendorHashes: [2199358137, 1248953136],
+    fallbackParent: {
+      vendorIdentifier: "CRYPTARCH",
+      name: "拉乎尔大师",
+      description: "高级解密大师，拉乎尔大师解码记忆水晶，寻找旧时人类文明的宝藏。",
+      vendorGroupHash: 679769104,
+      vendorGroupName: "高塔",
+      vendorGroupOrder: 5
+    },
     includeRemainder: true,
     sections: [
       {
@@ -214,11 +230,12 @@ export function getVendorDetailHashes(vendorHash: number, vendors: readonly Vend
   const visited = new Set<number>();
 
   function visit(hash: number): void {
-    if (visited.has(hash) || !available.has(hash)) return;
+    if (visited.has(hash)) return;
     visited.add(hash);
-    result.push(hash);
 
     const configured = getVendorStructure(hash)?.childVendorHashes ?? [];
+    if (available.has(hash)) result.push(hash);
+    if (!available.has(hash) && !configured.length) return;
     const vendor = vendorByHash.get(hash);
     const discovered = [
       ...(vendor?.offers ?? []),
@@ -289,27 +306,66 @@ export function partitionVendorItems(
 export function composeVendorStructures(
   vendors: VendorInventoryGroupWorkspace[]
 ): VendorInventoryGroupWorkspace[] {
-  const inferredParents = vendors.filter((vendor) =>
+  const expandedVendors = addFallbackVendorParents(vendors);
+  const inferredParents = expandedVendors.filter((vendor) =>
     vendor.childInventoryEntries?.length && getVendorStructure(vendor.vendorHash ?? -1) === undefined
   ).sort((left, right) =>
-    getVendorNestingDepth(left, vendors, new Set()) - getVendorNestingDepth(right, vendors, new Set())
+    getVendorNestingDepth(left, expandedVendors, new Set()) - getVendorNestingDepth(right, expandedVendors, new Set())
   );
   const structures = [
     ...inferredParents.map(inferVendorStructure),
-    ...vendorStructures.filter((structure) => vendors.some((vendor) => vendor.vendorHash === structure.vendorHash))
+    ...vendorStructures.filter((structure) => expandedVendors.some((vendor) => vendor.vendorHash === structure.vendorHash))
   ];
-  const vendorByHash = new Map(vendors.flatMap((vendor) =>
+  const vendorByHash = new Map(expandedVendors.flatMap((vendor) =>
     vendor.vendorHash === undefined ? [] : [[vendor.vendorHash, vendor] as const]
   ));
   const attachedChildHashes = new Set<number>();
   for (const structure of structures) {
     composeVendorStructure(vendorByHash, structure, attachedChildHashes);
   }
-  return vendors.flatMap((vendor) => {
+  return expandedVendors.flatMap((vendor) => {
     const vendorHash = vendor.vendorHash;
     if (vendorHash === undefined || attachedChildHashes.has(vendorHash)) return [];
     return [vendorByHash.get(vendorHash) ?? vendor];
   });
+}
+
+function addFallbackVendorParents(
+  vendors: VendorInventoryGroupWorkspace[]
+): VendorInventoryGroupWorkspace[] {
+  const expanded = [...vendors];
+  const available = new Set(vendors.flatMap((vendor) => vendor.vendorHash === undefined ? [] : [vendor.vendorHash]));
+  for (const structure of vendorStructures) {
+    if (!structure.fallbackParent || available.has(structure.vendorHash)) continue;
+    const children = vendors.filter((vendor) =>
+      vendor.vendorHash !== undefined && structure.childVendorHashes.includes(vendor.vendorHash)
+    );
+    const reference = children[0];
+    if (!reference) continue;
+    expanded.push({
+      id: `vendor-${structure.vendorHash}`,
+      vendorHash: structure.vendorHash,
+      vendorIdentifier: structure.fallbackParent.vendorIdentifier,
+      vendorGroupHash: structure.fallbackParent.vendorGroupHash,
+      vendorGroupName: structure.fallbackParent.vendorGroupName,
+      vendorGroupOrder: structure.fallbackParent.vendorGroupOrder,
+      name: structure.fallbackParent.name,
+      description: structure.fallbackParent.description,
+      badge: reference.badge,
+      source: reference.source,
+      resetLabel: reference.resetLabel,
+      category: reference.category,
+      statusLabel: reference.statusLabel,
+      detailState: mergeVendorDetailStates(children.map((vendor) => vendor.detailState)),
+      detailFailureMessage: children
+        .map((vendor) => vendor.detailFailureMessage)
+        .filter((message): message is string => Boolean(message))
+        .join("；") || undefined,
+      items: [],
+      services: []
+    });
+  }
+  return expanded;
 }
 
 export function createDefaultVendorContentSections(

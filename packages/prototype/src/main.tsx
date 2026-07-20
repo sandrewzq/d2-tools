@@ -3,6 +3,7 @@ import { useMemo, useState, type ComponentProps } from "react";
 import {
   AccountPageContentView,
   AiAssistantPanelView,
+  ArmorDetailContent,
   defaultProductPreferences,
   HomePageContentView,
   LibraryPageContentView,
@@ -71,6 +72,7 @@ function PrototypeApp() {
     context: VendorOfferContextView;
   } | null>(null);
   const [isWeaponDetailOpen, setIsWeaponDetailOpen] = useState(true);
+  const [isArmorDetailOpen, setIsArmorDetailOpen] = useState(false);
   const [weaponObjectKind, setWeaponObjectKind] = useState<PrototypeWeaponObjectKind>("account_instance");
   const [weaponRarity, setWeaponRarity] = useState<PrototypeWeaponRarity>("legendary");
   const [selectedWeaponVersionHash, setSelectedWeaponVersionHash] = useState(4401);
@@ -80,6 +82,9 @@ function PrototypeApp() {
   const [prototypeActionMessage, setPrototypeActionMessage] = useState("");
   const [pendingWeaponPerkHash, setPendingWeaponPerkHash] = useState<number | null>(null);
   const [weaponAnalysis, setWeaponAnalysis] = useState<PrototypeWeaponAnalysis>({ status: "idle" });
+  const [armorObjectKind, setArmorObjectKind] = useState<PrototypeArmorObjectKind>("account_instance");
+  const [selectedArmorInstanceId, setSelectedArmorInstanceId] = useState("armor-instance-a");
+  const [armorAnalysis, setArmorAnalysis] = useState<PrototypeArmorAnalysis>({ status: "idle" });
   const [personalWeaponKnowledge, setPersonalWeaponKnowledge] = useState<PrototypePersonalKnowledge[]>(prototypePersonalKnowledge);
   const scenario = prototypeScenarios[scenarioKey];
   const backgroundTasks = fixture.getBackgroundTasks(scenarioKey);
@@ -134,6 +139,10 @@ function PrototypeApp() {
     pendingPerkHash: pendingWeaponPerkHash,
     vendorDetail
   }), [pendingWeaponPerkHash, prototypeInstanceRuntime, selectedWeaponInstanceId, selectedWeaponVersionHash, vendorDetail, weaponObjectKind, weaponRarity]);
+  const prototypeArmorModel = useMemo(
+    () => createPrototypeArmorModel(armorObjectKind, selectedArmorInstanceId, vendorDetail),
+    [armorObjectKind, selectedArmorInstanceId, vendorDetail]
+  );
 
   function appendPrototypeAssistantReply(prompt: string) {
     const trimmedPrompt = prompt.trim();
@@ -322,12 +331,20 @@ function PrototypeApp() {
                 onAliasKindChange: setAliasKind,
                 onSaveAlias: () => undefined,
                 onOpenItemDetail: (item) => {
+                  if (item.group_key === "armor") {
+                    setArmorObjectKind("definition");
+                    setArmorAnalysis({ status: "idle" });
+                    setIsWeaponDetailOpen(false);
+                    setIsArmorDetailOpen(true);
+                    return;
+                  }
                   if (item.group_key !== "weapons") return;
                   const exotic = /异域|exotic/i.test(item.tier ?? "");
                   setWeaponObjectKind("definition");
                   setWeaponRarity(exotic ? "exotic" : "legendary");
                   setSelectedWeaponVersionHash(exotic ? 5501 : 4401);
                   setPendingWeaponPerkHash(null);
+                  setIsArmorDetailOpen(false);
                   setIsWeaponDetailOpen(true);
                 },
                 onAddFavorite: () => undefined,
@@ -340,16 +357,27 @@ function PrototypeApp() {
               interfaceLocale={preferences.interfaceLocale}
                model={vendorsModel}
                actions={{ onOpenItem: (item, context) => {
+                 if (item.tone === "armor") {
+                   setGenericVendorDetail(null);
+                   setVendorDetail({ item, context });
+                   setArmorObjectKind("vendor_offer");
+                   setArmorAnalysis({ status: "idle" });
+                   setIsWeaponDetailOpen(false);
+                   setIsArmorDetailOpen(true);
+                   return;
+                 }
                  if (!isPrototypeWeaponItem(item)) {
                    setGenericVendorDetail({ item, context });
                    setVendorDetail(null);
                    setIsWeaponDetailOpen(false);
+                   setIsArmorDetailOpen(false);
                    return;
                  }
                  setGenericVendorDetail(null);
                  setVendorDetail({ item, context });
                  setWeaponObjectKind("vendor_offer");
                 setWeaponRarity(item.tone === "exotic" ? "exotic" : "legendary");
+                setIsArmorDetailOpen(false);
                 setIsWeaponDetailOpen(true);
               } }}
             />
@@ -410,7 +438,10 @@ function PrototypeApp() {
                   </select>
                 </label>
                 <small>{scenario.description}</small>
-                <button type="button" onClick={() => setIsWeaponDetailOpen(true)}>打开武器详情验收</button>
+                <div className="button-row">
+                  <button type="button" onClick={() => { setIsArmorDetailOpen(false); setIsWeaponDetailOpen(true); }}>打开武器详情验收</button>
+                  <button type="button" onClick={() => { setIsWeaponDetailOpen(false); setIsArmorDetailOpen(true); }}>打开护甲详情验收</button>
+                </div>
               </section>
             ) : null}
             <button
@@ -544,6 +575,69 @@ function PrototypeApp() {
                )}
              />
            ) : null}
+           {isArmorDetailOpen ? (
+             <SharedItemDetailDialog
+               detail={{ name: prototypeArmorModel.identity.name }}
+               variant="armor"
+               subtitle={`${prototypeArmorModel.context.entry_label} · ${prototypeArmorModel.context.object_label}`}
+               objectContext={prototypeArmorModel.context.read_only ? "只读查看" : "可管理实例"}
+               closeLabel="关闭装备详情"
+               onClose={() => {
+                 setIsArmorDetailOpen(false);
+                 setVendorDetail(null);
+               }}
+               sections={(
+                 <>
+                   <div className="item-detail-game-card" aria-label="护甲详情 Prototype 控制">
+                     <div className="button-row">
+                       <label>对象
+                         <select value={armorObjectKind} onChange={(event) => {
+                           setArmorObjectKind(event.target.value as PrototypeArmorObjectKind);
+                           setArmorAnalysis({ status: "idle" });
+                         }}>
+                           <option value="definition">资料库定义</option>
+                           <option value="vendor_offer">商人售卖</option>
+                           <option value="account_instance">账号实例</option>
+                         </select>
+                       </label>
+                     </div>
+                   </div>
+                   <ArmorDetailContent
+                     model={prototypeArmorModel}
+                     analysis={armorAnalysis}
+                     actions={{
+                       selectInstance: (instance) => {
+                         setSelectedArmorInstanceId(instance.instance_id);
+                         setArmorObjectKind("account_instance");
+                         setArmorAnalysis({ status: "idle" });
+                       },
+                       runAnalysis: (request) => setArmorAnalysis({
+                         status: "ready",
+                         title: `${prototypeArmorModel.identity.name} 分析`,
+                         body: request.prompt.trim() || "当前实例的生命值与手雷属性较集中，适合继续围绕生存和技能循环构建；是否保留仍应与同 Hash 实例和整套配装目标一起比较。",
+                         evidence: [
+                           { label: "分析对象", value: prototypeArmorModel.context.object_label },
+                           { label: "总属性", value: prototypeArmorModel.stats.total ? String(prototypeArmorModel.stats.total) : "无实际 Roll" },
+                           { label: "同名实例", value: `${prototypeArmorModel.same_hash_instances.length} 件` }
+                         ],
+                         externalSearchMessage: request.allow_external_search ? "Prototype 已模拟外部知识查询；外部内容保持最低优先级。" : "未请求外部知识。"
+                       })
+                     }}
+                     instanceActions={armorObjectKind === "account_instance" ? (
+                       <section className="item-action-panel">
+                         <div><h3>装备操作</h3><p>Prototype 仅验证真实实例可管理状态，不调用 Bungie API。</p></div>
+                         <div className="button-row">
+                           <button type="button" className="secondary-button">锁定</button>
+                           <button type="button" className="secondary-button">移入仓库</button>
+                           <button type="button" className="secondary-button">加入配装草稿</button>
+                         </div>
+                       </section>
+                     ) : undefined}
+                   />
+                 </>
+               )}
+             />
+           ) : null}
            {genericVendorDetail ? (
              <SharedItemDetailDialog
                detail={{ name: genericVendorDetail.item.name }}
@@ -648,6 +742,9 @@ function getPrototypePageHeader(page: ShellPageKey) {
 
 type PrototypeWeaponModel = ComponentProps<typeof WeaponDetailContent>["model"];
 type PrototypeWeaponAnalysis = NonNullable<ComponentProps<typeof WeaponDetailContent>["analysis"]>;
+type PrototypeArmorModel = ComponentProps<typeof ArmorDetailContent>["model"];
+type PrototypeArmorAnalysis = NonNullable<ComponentProps<typeof ArmorDetailContent>["analysis"]>;
+type PrototypeArmorObjectKind = PrototypeArmorModel["context"]["kind"];
 type PrototypePersonalKnowledge = NonNullable<ComponentProps<typeof WeaponDetailContent>["personalKnowledge"]>[number];
 type PrototypeWeaponObjectKind = PrototypeWeaponModel["context"]["kind"];
 type PrototypeWeaponRarity = "legendary" | "exotic";
@@ -700,6 +797,147 @@ const prototypePersonalKnowledge: PrototypePersonalKnowledge[] = [{
   created_at: "2026-07-15T08:00:00.000Z",
   updated_at: "2026-07-16T08:00:00.000Z"
 }];
+
+function createPrototypeArmorModel(
+  kind: PrototypeArmorObjectKind,
+  selectedInstanceId: string,
+  vendorDetail: { item: VendorInventoryItemView; context: VendorOfferContextView } | null
+): PrototypeArmorModel {
+  const definition = kind === "definition";
+  const vendorOffer = kind === "vendor_offer";
+  const currentStats = vendorOffer
+    ? { health: 22, melee: 8, grenade: 21, super: 7, class: 5, weapon: 4, total: 67 }
+    : selectedInstanceId === "armor-instance-b"
+      ? { health: 18, melee: 16, grenade: 12, super: 8, class: 7, weapon: 5, total: 66 }
+      : { health: 24, melee: 8, grenade: 22, super: 6, class: 5, weapon: 3, total: 68 };
+  const baseStats = {
+    health: currentStats.health - 10,
+    melee: currentStats.melee,
+    grenade: currentStats.grenade - 5,
+    super: currentStats.super,
+    class: currentStats.class,
+    weapon: currentStats.weapon
+  };
+  const statKeys = ["health", "melee", "grenade", "super", "class", "weapon"] as const;
+  const statLabels = { health: "生命值", melee: "近战", grenade: "手雷", super: "超能", class: "职业", weapon: "武器" } as const;
+  const name = vendorOffer && vendorDetail?.item.tone === "armor" ? vendorDetail.item.name : "风暴导体外衣";
+
+  return {
+    identity: {
+      hash: 8801,
+      name,
+      description: "引导电弧能量的泰坦胸部护甲，适合围绕生存与技能循环评估属性。",
+      icon: vendorOffer && vendorDetail?.item.tone === "armor" ? vendorDetail.item.iconUrl : undefined,
+      item_type: "胸部护甲",
+      tier: "异域",
+      class_name: "泰坦",
+      slot: "胸部护甲"
+    },
+    context: {
+      kind,
+      entry: vendorOffer ? "vendor" : definition ? "library" : "vault",
+      entry_label: vendorOffer ? "商人" : definition ? "资料库" : "仓库",
+      object_label: vendorOffer ? "商人 Offer" : definition ? "装备定义" : selectedInstanceId === "armor-instance-b" ? "仓库实例 B" : "泰坦实例 A",
+      object_id: definition ? undefined : vendorOffer ? "offer-8801" : selectedInstanceId,
+      read_only: kind !== "account_instance"
+    },
+    versions: [{ hash: 8801, label: "风暴导体外衣", season_label: "当前版本", is_current: true }],
+    stats: {
+      available: !definition,
+      total: definition ? undefined : currentStats.total,
+      base_total: definition ? undefined : currentStats.total - 15,
+      mod_total: definition ? undefined : 15,
+      masterwork_separable: false,
+      tracks: statKeys.map((key) => ({
+        key,
+        label: statLabels[key],
+        available: !definition,
+        final_value: definition ? undefined : currentStats[key],
+        base_value: definition ? undefined : baseStats[key],
+        mod_value: definition ? undefined : currentStats[key] - baseStats[key],
+        masterwork_separable: false
+      }))
+    },
+    sources: {
+      status: "ready",
+      updated_at: "2026-07-20T08:00:00.000Z",
+      entries: [
+        { id: "armor-source-1", kind: "activity_reward", label: "异域记忆水晶", description: "可从异域护甲奖励池获取。", available_now: true },
+        ...(vendorOffer ? [{ id: "armor-vendor-1", kind: "vendor_offer" as const, label: vendorDetail?.context.vendorName ?? "苏尔", description: "当前商人 Offer 已返回实际属性。", available_now: true }] : [])
+      ]
+    },
+    abilities: [{
+      id: "trait-armor-1",
+      hash: 8811,
+      name: "风暴导体",
+      description: "电弧能力命中会强化下一次电弧技能循环。",
+      kind: "exotic_intrinsic",
+      kind_label: "异域固有"
+    }],
+    upgrades: {
+      energy: definition ? undefined : { capacity: 10, used: 7, unused: 3 },
+      installed_mods: definition ? [] : [
+        { hash: 8821, name: "生命值模组", description: "提高生命值属性。", socket_index: 0 },
+        { hash: 8822, name: "手雷模组", description: "提高手雷属性。", socket_index: 1 }
+      ],
+      special_sockets: [{ id: "socket-artifice", name: "诡计属性插槽", description: "允许安装低成本属性调整模组。", kind: "artifice", kind_label: "诡计护甲" }],
+      masterwork: { level: definition ? undefined : 10, complete: !definition, stat_bonus_separable: false }
+    },
+    recommendations: {
+      targets: [{
+        id: "armor-target-survival",
+        title: "生存与手雷循环",
+        source_label: "本地目标",
+        reason: definition ? "选择 Offer 或账号实例后比较属性目标。" : "当前对象按实际属性与本地最低值比较。",
+        conditions: [
+          { stat: "health", label: "生命值", minimum: 20, current: definition ? undefined : currentStats.health, matched: definition ? undefined : currentStats.health >= 20 },
+          { stat: "grenade", label: "手雷", minimum: 20, current: definition ? undefined : currentStats.grenade, matched: definition ? undefined : currentStats.grenade >= 20 }
+        ],
+        match: definition ? "unavailable" : currentStats.health >= 20 && currentStats.grenade >= 20 ? "matched" : "missed"
+      }],
+      build_fits: definition ? [] : [{ title: "生命值 / 手雷取向", description: `当前最高属性为生命值 ${currentStats.health} 与手雷 ${currentStats.grenade}；需要结合碎片和整套配装目标判断最终可达档位。` }],
+      suggested_mods: definition ? [] : currentStats.health < 20 ? ["生命值模组（差 2）"] : currentStats.grenade < 20 ? ["手雷模组（差 8）"] : []
+    },
+    same_hash_instances: [
+      {
+        item_key: "armor-instance-a",
+        instance_id: "armor-instance-a",
+        hash: 8801,
+        name: "风暴导体外衣",
+        power: 2020,
+        location: "泰坦已装备",
+        source_kind: "equipped",
+        source_character_id: "char-titan",
+        locked: true,
+        equipped: true,
+        local_tag: "keep",
+        total: 68,
+        stats: { health: 24, melee: 8, grenade: 22, super: 6, class: 5, weapon: 3, total: 68 },
+        energy: { capacity: 10, used: 7, unused: 3 },
+        plug_names: ["生命值模组", "手雷模组"],
+        current: kind === "account_instance" && selectedInstanceId === "armor-instance-a"
+      },
+      {
+        item_key: "armor-instance-b",
+        instance_id: "armor-instance-b",
+        hash: 8801,
+        name: "风暴导体外衣",
+        power: 2010,
+        location: "仓库",
+        source_kind: "vault",
+        locked: false,
+        equipped: false,
+        local_tag: "review",
+        total: 66,
+        stats: { health: 18, melee: 16, grenade: 12, super: 8, class: 7, weapon: 5, total: 66 },
+        energy: { capacity: 8, used: 5, unused: 3 },
+        plug_names: ["近战模组"],
+        current: kind === "account_instance" && selectedInstanceId === "armor-instance-b"
+      }
+    ],
+    loading: false
+  };
+}
 
 function createPrototypeWeaponModel(input: {
   kind: PrototypeWeaponObjectKind;

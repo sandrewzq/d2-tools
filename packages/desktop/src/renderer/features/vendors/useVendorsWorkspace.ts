@@ -106,6 +106,9 @@ export function useVendorsWorkspace(input: {
   useEffect(() => {
     if (!input.active) {
       requestSequenceRef.current += 1;
+      if (!snapshot) {
+        requestContextKeyRef.current = "__inactive__";
+      }
       return;
     }
     if (requestContextKey === requestContextKeyRef.current) return;
@@ -132,7 +135,7 @@ export function useVendorsWorkspace(input: {
         setRefreshState("failed");
         setRefreshError(error instanceof Error ? error.message : "商人数据读取失败");
       });
-  }, [characterId, input.accountSummary, input.active, input.loadInventory, requestContextKey]);
+  }, [characterId, input.accountSummary, input.active, input.loadInventory, requestContextKey, snapshot]);
 
   useEffect(() => {
     if (!input.active || !input.accountSummary || !characterId || !snapshot || !selectedDetailVendorHashes.length) return;
@@ -202,7 +205,9 @@ function selectVendorHash(
   selectedVendorId: string | undefined
 ): number | undefined {
   if (!snapshot) return undefined;
+  const selectedHash = selectedVendorId?.match(/^vendor-(\d+)$/)?.[1];
   return snapshot.vendors.find((vendor) => vendor.id === selectedVendorId)?.vendorHash
+    ?? (selectedHash ? Number(selectedHash) : undefined)
     ?? snapshot.vendors.find((vendor) => vendor.vendorHash === 2190858386)?.vendorHash
     ?? snapshot.vendors[0]?.vendorHash;
 }

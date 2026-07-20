@@ -16,11 +16,15 @@ import type {
   SavePersonalWeaponKnowledgeInput
 } from "@d2-tools/core/community-perks/personalWeaponKnowledge";
 import { useEffect, useState } from "react";
-import { selectedItemToAccountItem, type WeaponDetailViewModel } from "@d2-tools/app/items";
+import {
+  selectedItemToAccountItem,
+  type ArmorDetailViewModel,
+  type WeaponDetailViewModel
+} from "@d2-tools/app/items";
 import { api } from "../../api/client";
 import type { SameNameItemSummary, SelectedItemDetail, SelectedItemSource } from "../hooks/useItemDetail";
 import type { buildDuplicateGroupBatchTagPlan } from "../domain/vault/vaultCleanup";
-import { SharedItemDetailDialog, WeaponDetailContent } from "@d2-tools/ui";
+import { ArmorDetailContent, SharedItemDetailDialog, WeaponDetailContent } from "@d2-tools/ui";
 import { ItemDetailHeader } from "./item-detail/ItemDetailHeader";
 import { ItemDetailStats } from "./item-detail/ItemDetailStats";
 import { ItemDetailTools } from "./item-detail/ItemDetailTools";
@@ -30,6 +34,7 @@ import {
   buildWeaponPersonalTargetViews,
   buildWeaponRecommendationViews
 } from "./item-detail/buildWeaponDetailView";
+import { buildArmorDetailView } from "./item-detail/buildArmorDetailView";
 
 export type ItemDetailModalProps = {
   accountSummary: AccountSummary | null;
@@ -104,13 +109,87 @@ export function ItemDetailModal(props: ItemDetailModalProps) {
     versions: props.itemVersions,
     sources: buildWeaponSources(selectedItem, props.itemAvailability)
   });
+  const armorModel = buildArmorDetailView({
+    selectedItem,
+    sameNameItems: props.sameNameItems,
+    localTargetRules: props.localTargetRules,
+    vaultTags: props.vaultTags,
+    versions: props.itemVersions,
+    sources: buildArmorSources(selectedItem, props.itemAvailability)
+  });
+
+  const instanceActions = selectedItem.instance_id ? (
+    <>
+      <ItemDetailActions
+        accountSummary={props.accountSummary}
+        isRunningItemAction={props.isRunningItemAction}
+        selectedActionCharacterId={props.selectedActionCharacterId}
+        selectedItem={selectedItem}
+        onCopyItemActionPlanText={props.onCopyItemActionPlanText}
+        onRunItemWriteAction={props.onRunItemWriteAction}
+        onSelectedActionCharacterIdChange={props.onSelectedActionCharacterIdChange}
+      />
+      <section className={`item-action-panel ${armorModel ? "armor-detail-local-tools" : "weapon-detail-local-tools"}`}>
+        <div>
+          <h3>本地整理</h3>
+          <p>标记和备注只保存在本地，不会修改游戏内物品。</p>
+        </div>
+        <div className="button-row">
+          {(["keep", "review", "farm", "loadout", "junk", "none"] as VaultTagValue[]).map((tag) => (
+            <button key={tag} type="button" className="secondary-button" onClick={() => props.onSaveSelectedItemTag(tag)}>
+              {tag === "keep" ? "保留" : tag === "review" ? "关注" : tag === "farm" ? "待刷" : tag === "loadout" ? "配装用" : tag === "junk" ? "可清理" : "清除标记"}
+            </button>
+          ))}
+        </div>
+        <label className="compact-field">
+          本地备注
+          <textarea value={props.itemNoteDraft} onChange={(event) => props.onSetItemNoteDraft(event.target.value)} />
+        </label>
+        <div className="button-row">
+          <button type="button" className="secondary-button" onClick={props.onSaveSelectedItemNote}>保存备注</button>
+          <button type="button" className="secondary-button" onClick={props.onCopySelectedItemSummary}>复制结论</button>
+          <button type="button" className="secondary-button" onClick={props.onCopySelectedItemChatGuide}>生成群聊说明</button>
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={() => {
+              const accountItem = selectedItemToAccountItem(selectedItem);
+              const character = props.accountSummary?.characters.find((candidate) => candidate.character_id === props.selectedActionCharacterId);
+              if (!accountItem || !props.selectedActionCharacterId || !character) {
+                setItemToolMessage("请先选择用于配装草稿的角色。");
+                return;
+              }
+              void api.createLoadoutTemplate({
+                name: `${selectedItem.name} 配装草稿`,
+                character_id: props.selectedActionCharacterId,
+                class_name: character.class_name,
+                equipped_items: [accountItem]
+              }).then(() => setItemToolMessage("已保存到配装草稿。"))
+                .catch((error) => setItemToolMessage(error instanceof Error ? error.message : "配装草稿保存失败"));
+            }}
+          >加入配装草稿</button>
+        </div>
+        {props.itemNoteMessage ? <p className="status-message status-ready">{props.itemNoteMessage}</p> : null}
+        {props.itemShareMessage ? <p className="status-message status-ready">{props.itemShareMessage}</p> : null}
+        {itemToolMessage ? <p className="status-message status-ready">{itemToolMessage}</p> : null}
+      </section>
+    </>
+  ) : undefined;
 
   return (
     <SharedItemDetailDialog
       detail={{ name: selectedItem.name, isBusy: selectedItem.is_detail_loading }}
-      variant={weaponModel ? "weapon" : "default"}
-      subtitle={weaponModel ? `${weaponModel.context.entry_label} · ${weaponModel.context.object_label}` : undefined}
-      objectContext={weaponModel ? (weaponModel.context.read_only ? "只读查看" : "可管理实例") : undefined}
+      variant={weaponModel ? "weapon" : armorModel ? "armor" : "default"}
+      subtitle={weaponModel
+        ? `${weaponModel.context.entry_label} · ${weaponModel.context.object_label}`
+        : armorModel
+          ? `${armorModel.context.entry_label} · ${armorModel.context.object_label}`
+          : undefined}
+      objectContext={weaponModel
+        ? (weaponModel.context.read_only ? "只读查看" : "可管理实例")
+        : armorModel
+          ? (armorModel.context.read_only ? "只读查看" : "可管理实例")
+          : undefined}
       closeLabel="关闭装备详情"
       onClose={props.onClose}
       sections={(
@@ -205,63 +284,49 @@ export function ItemDetailModal(props: ItemDetailModalProps) {
                 });
               }
             }}
-            instanceActions={selectedItem.instance_id ? (
-              <>
-                <ItemDetailActions
-                  accountSummary={props.accountSummary}
-                  isRunningItemAction={props.isRunningItemAction}
-                  selectedActionCharacterId={props.selectedActionCharacterId}
-                  selectedItem={selectedItem}
-                  onCopyItemActionPlanText={props.onCopyItemActionPlanText}
-                  onRunItemWriteAction={props.onRunItemWriteAction}
-                  onSelectedActionCharacterIdChange={props.onSelectedActionCharacterIdChange}
-                />
-                <section className="item-action-panel weapon-detail-local-tools">
-                  <div>
-                    <h3>本地整理</h3>
-                    <p>标记和备注只保存在本地，不会修改游戏内物品。</p>
-                  </div>
-                  <div className="button-row">
-                    {(["keep", "review", "farm", "loadout", "junk", "none"] as VaultTagValue[]).map((tag) => (
-                      <button key={tag} type="button" className="secondary-button" onClick={() => props.onSaveSelectedItemTag(tag)}>
-                        {tag === "keep" ? "保留" : tag === "review" ? "关注" : tag === "farm" ? "待刷" : tag === "loadout" ? "配装用" : tag === "junk" ? "可清理" : "清除标记"}
-                      </button>
-                    ))}
-                  </div>
-                  <label className="compact-field">
-                    本地备注
-                    <textarea value={props.itemNoteDraft} onChange={(event) => props.onSetItemNoteDraft(event.target.value)} />
-                  </label>
-                  <div className="button-row">
-                    <button type="button" className="secondary-button" onClick={props.onSaveSelectedItemNote}>保存备注</button>
-                    <button type="button" className="secondary-button" onClick={props.onCopySelectedItemSummary}>复制结论</button>
-                    <button type="button" className="secondary-button" onClick={props.onCopySelectedItemChatGuide}>生成群聊说明</button>
-                    <button
-                      type="button"
-                      className="secondary-button"
-                      onClick={() => {
-                        const accountItem = selectedItemToAccountItem(selectedItem);
-                        const character = props.accountSummary?.characters.find((candidate) => candidate.character_id === props.selectedActionCharacterId);
-                        if (!accountItem || !props.selectedActionCharacterId || !character) {
-                          setItemToolMessage("请先选择用于配装草稿的角色。");
-                          return;
-                        }
-                        void api.createLoadoutTemplate({
-                          name: `${selectedItem.name} 配装草稿`,
-                          character_id: props.selectedActionCharacterId,
-                          class_name: character.class_name,
-                          equipped_items: [accountItem]
-                        }).then(() => setItemToolMessage("已保存到配装草稿。"))
-                          .catch((error) => setItemToolMessage(error instanceof Error ? error.message : "配装草稿保存失败"));
-                      }}
-                    >加入配装草稿</button>
-                  </div>
-                  {props.itemNoteMessage ? <p className="status-message status-ready">{props.itemNoteMessage}</p> : null}
-                  {props.itemShareMessage ? <p className="status-message status-ready">{props.itemShareMessage}</p> : null}
-                  {itemToolMessage ? <p className="status-message status-ready">{itemToolMessage}</p> : null}
-                </section>
-              </>
-            ) : undefined}
+            instanceActions={instanceActions}
+          />
+        ) : armorModel ? (
+          <ArmorDetailContent
+            model={armorModel}
+            analysis={{
+              status: props.isGeneratingItemAi
+                ? "running"
+                : props.itemAiError
+                  ? "error"
+                  : props.itemAiResult?.ai
+                    ? "ready"
+                    : "idle",
+              title: props.itemAiResult?.ai ? `${selectedItem.name}分析` : undefined,
+              body: props.itemAiResult?.ai?.text,
+              message: props.itemAiError || props.itemAiResult?.skipped_reason || undefined,
+              evidence: props.itemAiResult?.ai
+                ? [
+                    { label: "模型", value: props.itemAiResult.ai.model },
+                    { label: "知识范围", value: "当前对象、官方数据与本地目标" }
+                  ]
+                : undefined,
+              externalSources: props.itemAiResult?.ai?.external_search?.sources,
+              externalSearchMessage: props.itemAiResult?.ai?.external_search?.message
+            }}
+            actions={{
+              selectInstance: (instance) => {
+                const item = props.sameNameItems.find((candidate) => candidate.instance_id === instance.instance_id);
+                if (!item) return;
+                props.onOpenItemDetail(item, {
+                  source_character_id: item.source_character_id,
+                  source_kind: item.source_kind,
+                  is_vault_item: item.is_vault_item,
+                  is_postmaster_item: item.is_postmaster_item
+                });
+              },
+              selectVersion: (hash) => {
+                const version = props.itemVersions.find((candidate) => candidate.hash === hash);
+                if (version) props.onOpenItemDetail(version, {});
+              },
+              runAnalysis: (request) => props.onGenerateItemAiAdvice(request.prompt, request.allow_external_search)
+            }}
+            instanceActions={instanceActions}
           />
         ) : (
           <>
@@ -310,6 +375,34 @@ export function ItemDetailModal(props: ItemDetailModalProps) {
       )}
     />
   );
+}
+
+function buildArmorSources(
+  item: SelectedItemDetail,
+  availability: LiveItemAvailabilityEntry | null
+): ArmorDetailViewModel["sources"] {
+  const entries: ArmorDetailViewModel["sources"]["entries"] = [];
+  for (const [index, source] of (availability?.sources ?? []).entries()) {
+    entries.push({
+      id: `live:${source.kind}:${source.label}:${index}`,
+      kind: source.kind === "public_activity" ? "activity_reward" : "vendor_offer",
+      label: source.label,
+      description: availability?.description ?? source.label,
+      available_now: true
+    });
+  }
+  if (item.source.status === "ready") {
+    entries.push({
+      id: `manifest:${item.hash}:${item.source.source_hash ?? "hint"}`,
+      kind: "manifest_hint",
+      label: item.source.label,
+      description: item.source.description
+    });
+  }
+  return {
+    status: entries.length ? availability?.sources.length ? "ready" : "partial" : "unknown",
+    entries
+  };
 }
 
 function buildWeaponSources(
