@@ -44,6 +44,11 @@ export function buildWeaponDetailView(
   const poolColumns = sortConfigurationColumns(allPoolColumns.filter((column) => column.role !== "intrinsic"));
   const hasVariablePerks = poolColumns.some((column) => column.candidates.length > 1);
   const isExotic = /异域|exotic/i.test(item.tier ?? "");
+  const configurationKind = isExotic
+    ? hasVariablePerks ? "variable_exotic" : "fixed"
+    : hasVariablePerks ? "random_roll" : "fixed";
+  const currentStats = input.currentStats ?? (item.instance_id ? item.weapon_stats : undefined);
+  const definitionStats = definitionStatsToSummary(item.definition_stats);
   const upgrades = buildWeaponUpgrades(item);
 
   return buildWeaponDetailViewModel({
@@ -95,16 +100,16 @@ export function buildWeaponDetailView(
           season_label: item.release?.description,
           is_current: true
         }],
-    definition_stats: definitionStatsToSummary(item.definition_stats),
-    current_stats: input.currentStats ?? (item.instance_id ? item.weapon_stats : undefined),
+    definition_stats: configurationKind === "fixed"
+      ? buildFixedConfigurationStandardStats(item, definitionStats)
+      : definitionStats,
+    current_stats: currentStats,
     pending_stats: buildPendingWeaponStats(item, input.pendingPerks),
     stat_modifiers: buildCurrentWeaponStatModifiers(item),
     pending_stat_modifiers: buildPendingWeaponStatModifiers(item, input.pendingPerks),
     configuration: {
       intrinsic,
-      kind: isExotic
-        ? hasVariablePerks ? "variable_exotic" : "fixed"
-        : hasVariablePerks ? "random_roll" : "fixed"
+      kind: configurationKind
     },
     pool_columns: poolColumns,
     selection_columns: buildSelectionColumns(item, poolColumns, input.selectionNames, input.pendingPerks),
@@ -428,6 +433,35 @@ function definitionStatsToSummary(
     if (key) summary[key] = stat.value;
   }
   return Object.keys(summary).length ? summary : undefined;
+}
+
+function buildFixedConfigurationStandardStats(
+  item: SelectedItemDetail,
+  definitionStats: WeaponStatSummary | undefined
+): WeaponStatSummary | undefined {
+  if (!definitionStats) return undefined;
+  const result: WeaponStatSummary = { ...definitionStats };
+  const modifiers: Partial<Record<WeaponStatKey, number>> = {};
+  const selectedPlugs = item.sockets?.length
+    ? item.sockets.flatMap((socket) => socket.selected_plug ? [socket.selected_plug] : [])
+    : item.socket_plugs?.length
+      ? item.socket_plugs
+      : (item.perks ?? []).flatMap((group) => group.plugs.length === 1 ? group.plugs : []);
+  for (const plug of selectedPlugs) {
+    if (isWeaponSystemPlug(plug)) continue;
+    for (const key of weaponStatKeys) {
+      const amount = plug.stat_modifiers?.[key];
+      if (!amount) continue;
+      modifiers[key] = (modifiers[key] ?? 0) + amount;
+    }
+  }
+  for (const key of weaponStatKeys) {
+    const base = definitionStats[key];
+    const modifier = modifiers[key] ?? 0;
+    if (base === undefined || modifier === 0) continue;
+    result[key] = base + modifier;
+  }
+  return result;
 }
 
 function buildPendingWeaponStats(
