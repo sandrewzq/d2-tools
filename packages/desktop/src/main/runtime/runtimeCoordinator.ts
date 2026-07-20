@@ -12,7 +12,7 @@ import {
   resumeGameDataRuntime,
   verifyGameDataRuntime
 } from "./gameDataRuntime.js";
-import { getHomeBriefing } from "./homeBriefing.js";
+import { getHomeBriefing, type HomeBriefingRefreshOptions } from "./homeBriefing.js";
 import { measureRuntime } from "./runtimeMetrics.js";
 
 let initialized = false;
@@ -40,7 +40,7 @@ export function warmRuntimeInBackground(): Promise<void> {
   return request;
 }
 
-export async function getCoordinatedHomeBriefing(): Promise<HomeBriefing> {
+export async function getCoordinatedHomeBriefing(options: HomeBriefingRefreshOptions = {}): Promise<HomeBriefing> {
   initializeRuntimeCoordinator();
   const generation = runtimeGeneration;
   const recovered = await warmManifestRecovery(generation);
@@ -48,7 +48,7 @@ export async function getCoordinatedHomeBriefing(): Promise<HomeBriefing> {
   if (!sqliteReady) {
     throw new Error("本地资料库尚未就绪，请先初始化或修复资料库");
   }
-  return requestHomeBriefing();
+  return requestHomeBriefing(options);
 }
 
 export async function shutdownRuntimeCoordinator(): Promise<void> {
@@ -122,9 +122,9 @@ function warmAccountCache(generation: number): Promise<boolean> {
   return accountCacheWarmupRequest;
 }
 
-function requestHomeBriefing(): Promise<HomeBriefing> {
+function requestHomeBriefing(options: HomeBriefingRefreshOptions = {}): Promise<HomeBriefing> {
   if (homeBriefingRequest) return homeBriefingRequest;
-  const request = getHomeBriefing();
+  const request = getHomeBriefing(options);
   homeBriefingRequest = request;
   void request.then(
     () => clearHomeBriefingRequest(request),

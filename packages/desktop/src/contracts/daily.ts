@@ -7,7 +7,7 @@ import type {
 import type { WeeklySummary } from "@d2-tools/core/weekly/summary";
 
 export type DailyApi = {
-  getHomeBriefing(): Promise<HomeBriefing>;
+  getHomeBriefing(options?: { force?: boolean }): Promise<HomeBriefing>;
   getDailySummary(): Promise<DailySummary>;
 };
 

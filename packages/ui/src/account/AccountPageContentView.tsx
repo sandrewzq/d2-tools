@@ -456,7 +456,15 @@ function renderAccountItemButton(
       aria-busy={item.isPending}
       onClick={() => props.onOpenItem(item.openPayload)}
     >
-      {item.icon ? <img alt="" loading="lazy" src={item.icon} /> : <div className="item-icon-placeholder" />}
+      {item.icon ? (
+        <img
+          alt=""
+          decoding="async"
+          fetchPriority={source === "equipped" ? "high" : "auto"}
+          loading={source === "equipped" ? "eager" : "lazy"}
+          src={item.icon}
+        />
+      ) : <div className="item-icon-placeholder" />}
       <div>
         <strong>{item.name}</strong>
         {item.isLoadoutMatch ? <small className="loadout-template-badge">{accountText(props.copy, "方案命中")}</small> : null}

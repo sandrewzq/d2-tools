@@ -29,6 +29,13 @@ export function resolveVendorRefreshState(
       refreshError: error instanceof Error ? error.message : "商人数据刷新失败"
     };
   }
+  if (refreshed.status === "stale") {
+    return {
+      snapshot: refreshed,
+      refreshState: "failed",
+      refreshError: refreshed.errorMessage ?? "商人数据刷新失败，正在显示上次库存"
+    };
+  }
   const armorerChanged = Object.keys(refreshed.characterContexts).some((characterId) =>
     refreshed.characterContexts[characterId]?.armorerModHash
       !== cached.characterContexts[characterId]?.armorerModHash
@@ -73,7 +80,8 @@ export function useVendorsWorkspace(input: {
     const request = createVendorInventoryRequest(
       input.accountSummary,
       characterId,
-      selectedDetailVendorHashes
+      selectedDetailVendorHashes,
+      true
     );
     setRefreshState("refreshing");
     setRefreshError("");
@@ -84,11 +92,14 @@ export function useVendorsWorkspace(input: {
         const resolved = resolveVendorRefreshState(currentSnapshot, next);
         setSnapshot(resolved.snapshot);
         setStatusMessage(resolved.statusMessage ?? "");
+        setRefreshState(resolved.refreshState);
+        setRefreshError(resolved.refreshError ?? "");
       } else {
         setSnapshot(next);
         setStatusMessage("");
+        setRefreshState(next.status === "stale" ? "failed" : "idle");
+        setRefreshError(next.status === "stale" ? next.errorMessage ?? "商人数据刷新失败，正在显示上次库存" : "");
       }
-      setRefreshState("idle");
     } catch (error) {
       if (requestSequence !== requestSequenceRef.current || requestContextKey !== requestContextKeyRef.current) return;
       if (currentSnapshot) {
@@ -104,13 +115,6 @@ export function useVendorsWorkspace(input: {
   }, [characterId, input.accountSummary, input.active, input.loadInventory, requestContextKey, selectedDetailVendorHashes, snapshot]);
 
   useEffect(() => {
-    if (!input.active) {
-      requestSequenceRef.current += 1;
-      if (!snapshot) {
-        requestContextKeyRef.current = "__inactive__";
-      }
-      return;
-    }
     if (requestContextKey === requestContextKeyRef.current) return;
     requestContextKeyRef.current = requestContextKey;
     const requestSequence = ++requestSequenceRef.current;
@@ -124,11 +128,16 @@ export function useVendorsWorkspace(input: {
     }
 
     setRefreshState("refreshing");
-    void input.loadInventory(createVendorInventoryRequest(input.accountSummary, characterId, []))
+    void input.loadInventory(createVendorInventoryRequest(
+      input.accountSummary,
+      characterId,
+      isXurActive(new Date()) ? [2190858386] : []
+    ))
       .then((next) => {
         if (requestSequence !== requestSequenceRef.current || requestContextKey !== requestContextKeyRef.current) return;
         setSnapshot(next);
-        setRefreshState("idle");
+        setRefreshState(next.status === "stale" ? "failed" : "idle");
+        setRefreshError(next.status === "stale" ? next.errorMessage ?? "商人数据刷新失败，正在显示上次库存" : "");
       })
       .catch((error) => {
         if (requestSequence !== requestSequenceRef.current || requestContextKey !== requestContextKeyRef.current) return;
@@ -156,7 +165,8 @@ export function useVendorsWorkspace(input: {
       const resolved = resolveVendorRefreshState(snapshot, next);
       setSnapshot(resolved.snapshot);
       setStatusMessage(resolved.statusMessage ?? "");
-      setRefreshState("idle");
+      setRefreshState(resolved.refreshState);
+      setRefreshError(resolved.refreshError ?? "");
     }).catch((error) => {
       if (requestSequence !== requestSequenceRef.current || requestContextKey !== requestContextKeyRef.current) return;
       const resolved = resolveVendorRefreshState(snapshot, null, error);
@@ -190,13 +200,15 @@ export function useVendorsWorkspace(input: {
 function createVendorInventoryRequest(
   account: AccountSummary,
   characterId: string,
-  detailVendorHashes: number[]
+  detailVendorHashes: number[],
+  forceRefresh = false
 ): VendorInventoryRequest {
   return {
     membership_type: account.membership_type,
     membership_id: account.destiny_membership_id,
     character_ids: [characterId],
-    detail_vendor_hashes: detailVendorHashes
+    detail_vendor_hashes: detailVendorHashes,
+    force_refresh: forceRefresh || undefined
   };
 }
 
@@ -221,4 +233,12 @@ function expandVendorDetailHashes(
     vendorHash,
     snapshot?.vendors ?? []
   );
+}
+
+function isXurActive(now: Date): boolean {
+  const day = now.getUTCDay();
+  const hour = now.getUTCHours();
+  if (day === 5) return hour >= 17;
+  if (day === 6 || day === 0 || day === 1) return true;
+  return day === 2 && hour < 17;
 }

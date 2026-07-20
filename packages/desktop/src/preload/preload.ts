@@ -195,7 +195,7 @@ contextBridge.exposeInMainWorld("d2", {
     ipcRenderer.invoke("actions:plan:item", input) as Promise<ItemActionPlan>,
   createBatchTransferPlan: (input: { character_id: string; transfer_to_vault: boolean; items: AccountSummary["vault"]["items"] }) =>
     ipcRenderer.invoke("actions:plan:batch-transfer", input) as Promise<BatchTransferPlan>,
-  getHomeBriefing: () => invokeDesktopIpc<HomeBriefing>("home:briefing"),
+  getHomeBriefing: (options?: { force?: boolean }) => invokeDesktopIpc<HomeBriefing>("home:briefing", options),
   getDailySummary: () => invokeDesktopIpc<DailySummary>("daily:summary"),
   getWeeklySummary: () => invokeDesktopIpc<WeeklySummary>("weekly:summary"),
   getVendorInventory: (input: VendorInventoryRequest) =>

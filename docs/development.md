@@ -215,6 +215,8 @@ tools\git-preflight.cmd
 - JSON Adapter 只用于 SQLite 未覆盖的 supplement 和稳定 Release 前的迁移兼容。至少经过一个稳定 Release 并验证回滚路径后，才能清理 SQLite 已覆盖的旧 JSON；不得重新把大型 JSON 主缓存接回普通请求。
 - 账号读取统一通过 `AccountSession`：列表使用紧凑 `AccountSnapshot`，实例详情按需加载；写操作成功后先局部 patch，再后台 refresh 校验。账号快照缓存和 Manifest / sidecar 都属于运行缓存，不进入便携备份。
 - 首页、资料库实时来源和账号 Session 共享 Bungie 请求 Broker；每日与每周通过同一次 `home:briefing` 获取，避免重复 membership、Profile 和里程碑请求。
+- 首页简报使用运行缓存保存已解析数据，按每日重置、每周重置和仄商人出现/离开窗口分别判断是否需要访问 Bungie；应用重启后优先复用缓存，倒计时只在 renderer 本地重算，手动刷新可强制绕过周期缓存。
+- 商人基础库存不再依赖商人菜单挂载。账号摘要准备后由顶层 workspace 后台预热当前角色库存；仄处于开放窗口时同时预热默认仄详情。主进程按账号、角色、详情范围和资料库版本合并并缓存请求，缓存到商人 `nextRefreshAt` 后失效，手动刷新强制重新读取。
 - 脱敏诊断必须保留 Catalog、账号快照、首页简报的耗时、p95、payload 和进程内存信息；绝对性能预算只在专项本地诊断和 Release 环境判断，不写成依赖机器速度的普通 CI 断言。
 - 切换菜单、卸载页面或重新进入页面不得中断资料库更新、应用更新下载等长任务；页面只订阅 `useBackgroundTasks` 和 `useManifestStatus` 等共享状态。
 - 设置页负责详细管理入口：应用更新、资料库状态、后台任务、AI、写操作、备份迁移、诊断导出和操作日志。

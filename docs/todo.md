@@ -19,7 +19,7 @@
 |---|---|---|---|---|---|
 | T1 | P1 | 🟡 待推进 | 小日向攻略解析与账号匹配 | [攻略证据工作台](work/backlog/kohinata-guide-evidence-workbench.md) | 统一攻略要求、账号命中、perk 证据、护甲可达性和配装草稿 |
 | T2 | P1 | 🟡 待推进 | 仓库推荐与清理工作台 | [仓库推荐与清理工作台](work/backlog/vault-recommendation-and-cleanup-workbench.md) | 统一 DIM wishlist、本地目标、同名对比和清理清单 |
-| T3 | P1 | 🟡 进行中 | 商人结构、覆盖与官方获取来源 | [商人结构、覆盖与官方获取来源](work/backlog/vendors-and-drop-sources.md) | 已修复切换菜单后永久加载，按官方商人组收口地点与子库存，并清理未解析的 Manifest 动态变量；继续验收 Offer 时效、去重和机灵模组 A/B |
+| T3 | P1 | 🟡 待验收 | 商人结构、覆盖与官方获取来源 | [商人结构、覆盖与官方获取来源](work/backlog/vendors-and-drop-sources.md) | 已接入启动期商人预热、请求缓存和首页每日/每周/仄周期刷新；下一步验收冷启动、跨重置边界、Offer 时效、去重和机灵模组 A/B |
 | T4 | P3 | 🟡 待推进 | 活动复盘增强 | [活动复盘增强](work/backlog/activity-review-enhancement.md) | 接 PGCR、完成时间推算和副本级趋势 |
 | T5 | P1 | 🟡 待验收 | 统一装备详情与知识分析 | [统一装备详情与知识分析](work/backlog/equipment-detail-and-knowledge-analysis.md) | 武器与独立护甲详情代码已收口；下一步验收资料库、商人、仓库真实对象与明暗主题，修正数据识别和视觉问题 |
 | T6 | P1 | 🟡 等待 Release | 资料库与运行时性能架构升级 | [资料库与运行时性能架构升级](work/backlog/game-data-performance-architecture-upgrade.md) | 代码、全仓回归、Windows NSIS 打包、隔离安装版和性能预算已完成；下一次正式发版执行 Release workflow 与真实更新/回滚观察，稳定 Release 后删除 JSON/旧 IPC/旧 core HTTP 兼容层 |

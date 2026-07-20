@@ -33,7 +33,7 @@ export function HomeMenuProvider() {
       onConfigureAi={() => session.setActivePage("settings")}
       onRefreshDiagnostics={() => void diagnostics.refreshDiagnostics()}
       onNavigate={session.setActivePage}
-      onRefreshDaily={() => void daily.loadDailySummary()}
+      onRefreshDaily={() => void daily.loadDailySummary(true)}
       interfaceLocale={diagnostics.languagePreferences.interfaceLocale}
     />
   );
