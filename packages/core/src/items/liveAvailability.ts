@@ -17,6 +17,7 @@ export type LiveItemAvailabilitySourceKind =
 export type LiveItemAvailabilitySource = {
   kind: LiveItemAvailabilitySourceKind;
   label: string;
+  vendor_hash?: number;
   character_id?: string;
 };
 
@@ -247,6 +248,7 @@ function collectVendorSources(
         source: {
           kind,
           label: vendorName,
+          vendor_hash: vendorHash,
           character_id: characterId
         }
       });
@@ -314,22 +316,29 @@ function applySources(
   for (const { itemHash, source } of sources) {
     const entry = items[String(itemHash)];
     if (!entry) continue;
-    if (!entry.sources.some((item) =>
-      item.kind === source.kind
-      && item.label === source.label
-      && item.character_id === source.character_id
-    )) {
+    if (!entry.sources.some((item) => isSameLiveAvailabilitySource(item, source))) {
       entry.sources.push(source);
     }
     updateEntryStatus(entry);
   }
 }
 
+function isSameLiveAvailabilitySource(
+  left: LiveItemAvailabilitySource,
+  right: LiveItemAvailabilitySource
+): boolean {
+  if (left.kind !== right.kind) return false;
+  if (left.vendor_hash !== undefined || right.vendor_hash !== undefined) {
+    return left.vendor_hash === right.vendor_hash;
+  }
+  return left.label === right.label;
+}
+
 function updateEntryStatus(entry: LiveItemAvailabilityEntry): void {
   if (entry.sources.some((source) => source.kind === "character_vendor")) {
     entry.status = "character_vendor";
     entry.label = "当前角色商人售卖";
-    entry.description = "登录账号的至少一个角色当前商人库存命中该装备。";
+    entry.description = "已通过当前账号的角色商人库存确认该装备在售。";
     return;
   }
   if (entry.sources.some((source) => source.kind === "public_vendor")) {
