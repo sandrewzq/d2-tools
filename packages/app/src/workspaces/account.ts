@@ -19,11 +19,15 @@ export type AccountWorkspaceWarning = {
 };
 
 export function loadAccountWorkspace(
-  services: Pick<D2Services, "profile" | "localData">
+  services: Pick<D2Services, "profile" | "localData">,
+  options?: { forceAccountRefresh?: boolean }
 ): Promise<QueryState<AccountWorkspace>> {
   return runQuery(async () => {
+    const accountRequest = options?.forceAccountRefresh
+      ? services.profile.getAccountSummary({ force: true })
+      : services.profile.getAccountSummary();
     const [account, tagsResult, targetRulesResult, wishlistResult] = await Promise.all([
-      services.profile.getAccountSummary(),
+      accountRequest,
       settleLocalData("vault-tags", services.localData.getVaultTags()),
       settleLocalData("target-rules", services.localData.getLocalTargetRules()),
       settleLocalData("wishlist", services.localData.getDimWishlist())

@@ -36,6 +36,7 @@ import type {
   AccountItemDetail,
   AccountItemSummary,
   AccountSummary,
+  AccountSummaryRequestOptions,
   AuthLoginResult,
   CachedAccountSnapshot
 } from "../contracts/account.js";
@@ -84,7 +85,8 @@ contextBridge.exposeInMainWorld("d2", {
   listAiModels: (ai: AiSettings) => ipcRenderer.invoke("ai:models", ai) as Promise<AiModelListResult>,
   testAiConnection: () => ipcRenderer.invoke("ai:test") as Promise<AiConnectionTestResult>,
   loginBungie: () => ipcRenderer.invoke("auth:login") as Promise<AuthLoginResult>,
-  getAccountSummary: () => invokeDesktopIpc<AccountSummary>("account:summary"),
+  getAccountSummary: (options?: AccountSummaryRequestOptions) =>
+    invokeDesktopIpc<AccountSummary>("account:summary", options),
   getCachedAccountSnapshot: () =>
     ipcRenderer.invoke("account:snapshot:cached") as Promise<CachedAccountSnapshot | null>,
   getAccountItemDetail: (instanceId: string) =>

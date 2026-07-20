@@ -137,7 +137,9 @@ export function useAccountWorkspace(input: {
     setAccountWarning("");
 
     try {
-      const workspace = await loadAccountWorkspace(services);
+      const workspace = await loadAccountWorkspace(services, {
+        forceAccountRefresh: reason !== "initial"
+      });
       if (requestSequence !== accountRequestSequenceRef.current) return;
       if (workspace.status !== "success") {
         throw new Error(workspace.error?.message ?? "账号数据读取失败");

@@ -13,7 +13,7 @@ import type { D2SkillService } from "./d2SkillService.js";
 import type { AiChatReplyResult, AiChatRequest } from "./types.js";
 
 export type ProfileService = {
-  getAccountSummary(): Promise<AccountSummary>;
+  getAccountSummary(options?: { force?: boolean }): Promise<AccountSummary>;
   getActivitySummary(input: {
     membership_type: number;
     membership_id: string;

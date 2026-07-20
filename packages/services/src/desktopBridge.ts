@@ -14,7 +14,7 @@ import type { D2Services } from "./contracts.js";
 import { createD2SkillService } from "./d2SkillService.js";
 
 export type DesktopBridgeApi = {
-  getAccountSummary(): Promise<AccountSummary>;
+  getAccountSummary(options?: { force?: boolean }): Promise<AccountSummary>;
   getActivitySummary(input: { membership_type: number; membership_id: string; character_ids: string[] }): Promise<ActivityHistorySummary>;
   matchCommunityVaultItems(items: Array<{ hash: number; socket_plugs?: Array<{ hash: number }> }>): Promise<Array<{ hash: number } & VaultItemMatchInfo>>;
   getDimWishlist(): Promise<DimWishlist | null>;
@@ -39,7 +39,7 @@ export type DesktopBridgeApi = {
 
 export function createDesktopBridgeServices(api: DesktopBridgeApi): D2Services {
   const profile: D2Services["profile"] = {
-      getAccountSummary: () => api.getAccountSummary(),
+      getAccountSummary: (options) => api.getAccountSummary(options),
       getActivitySummary: (input) => api.getActivitySummary(input),
       matchCommunityVaultItems: (items) => api.matchCommunityVaultItems(items)
     };

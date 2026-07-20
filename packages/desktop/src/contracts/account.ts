@@ -12,9 +12,13 @@ import type { CachedAccountSnapshot } from "@d2-tools/services/account/snapshotS
 
 export type AccountApi = {
   loginBungie(): Promise<AuthLoginResult>;
-  getAccountSummary(): Promise<AccountSummary>;
+  getAccountSummary(options?: AccountSummaryRequestOptions): Promise<AccountSummary>;
   getCachedAccountSnapshot(): Promise<CachedAccountSnapshot | null>;
   getAccountItemDetail(instanceId: string): Promise<AccountItemDetail>;
+};
+
+export type AccountSummaryRequestOptions = {
+  force?: boolean;
 };
 
 export type AccountSummary = CoreAccountSummary;

@@ -1,5 +1,5 @@
 import { ipcMain } from "electron";
-import type { AccountSummary } from "../../contracts/account.js";
+import type { AccountSummary, AccountSummaryRequestOptions } from "../../contracts/account.js";
 import {
   classifyAccountIpcError,
   encodeDesktopIpcFailure
@@ -24,8 +24,8 @@ export function registerAccountIpcHandlers(): void {
       : null;
   });
 
-  ipcMain.handle("account:summary", () => encodeDesktopIpcFailure(async () => {
-    const summaryRequest = Promise.resolve().then(loadAccountSummary);
+  ipcMain.handle("account:summary", (_event, options?: AccountSummaryRequestOptions) => encodeDesktopIpcFailure(async () => {
+    const summaryRequest = Promise.resolve().then(() => loadAccountSummary(options));
     startBackgroundTask({
       type: "account-sync",
       title: "读取账号数据",
@@ -47,6 +47,6 @@ export function registerAccountIpcHandlers(): void {
   }, classifyAccountIpcError));
 }
 
-async function loadAccountSummary(): Promise<AccountSummary> {
-  return getAccountSnapshot("refresh");
+async function loadAccountSummary(options?: AccountSummaryRequestOptions): Promise<AccountSummary> {
+  return getAccountSnapshot(options?.force ? "refresh" : "cached");
 }
