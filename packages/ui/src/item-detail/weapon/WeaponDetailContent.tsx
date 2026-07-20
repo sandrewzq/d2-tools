@@ -69,7 +69,7 @@ const sectionLabels: Array<{ key: WeaponDetailSection; label: string }> = [
 export function WeaponDetailContent(props: WeaponDetailContentProps) {
   const { model } = props;
   const [internalSection, setInternalSection] = useState<WeaponDetailSection>("overview");
-  const [poolOpen, setPoolOpen] = useState(model.context.kind === "definition");
+  const [poolOpen, setPoolOpen] = useState(true);
   const [analysisPrompt, setAnalysisPrompt] = useState("");
   const [allowExternalSearch, setAllowExternalSearch] = useState(false);
   const section = props.activeSection ?? internalSection;
@@ -86,7 +86,7 @@ export function WeaponDetailContent(props: WeaponDetailContentProps) {
   });
 
   useEffect(() => {
-    setPoolOpen(model.context.kind === "definition");
+    setPoolOpen(true);
     setInternalSection("overview");
     setAnalysisPrompt("");
     setAllowExternalSearch(false);
