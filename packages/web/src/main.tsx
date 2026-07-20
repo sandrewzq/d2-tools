@@ -2,6 +2,7 @@ import { createRoot } from "react-dom/client";
 import { useEffect, useMemo, useState } from "react";
 import {
   AccountPageContentView,
+  ArmorDetailContent,
   AiAssistantPanelView,
   defaultProductPreferences,
   HomePageContentView,
@@ -9,6 +10,7 @@ import {
   LoadoutsPageContentView,
   ProductShellHost,
   SettingsPageContentView,
+  SharedItemDetailDialog,
   VaultPageContentView,
   VendorsPageContentView,
   type LibraryEquipmentFilter,
@@ -18,6 +20,7 @@ import {
   type ShellPageKey
 } from "@d2-tools/ui";
 import { homePageMetaMap } from "@d2-tools/app/home";
+import { buildArmorDetailViewModel, type ArmorDetailViewModel } from "@d2-tools/app/items";
 import "@d2-tools/ui/styles.css";
 import {
   createWebShellAdapter,
@@ -47,6 +50,7 @@ function WebApp() {
   const [aliasDraft, setAliasDraft] = useState("ff");
   const [aliasTargetDraft, setAliasTargetDraft] = useState("喂食狂热");
   const [aliasKind, setAliasKind] = useState<"item" | "perk">("perk");
+  const [armorDetailModel, setArmorDetailModel] = useState<ArmorDetailViewModel | null>(null);
   const [assistantQuestion, setAssistantQuestion] = useState("");
   const [assistantMessages, setAssistantMessages] = useState(() => fixture.assistantInitialMessages);
   const [isAssistantSessionDrawerOpen, setIsAssistantSessionDrawerOpen] = useState(false);
@@ -112,6 +116,7 @@ function WebApp() {
   }, [adapter]);
 
   return (
+    <>
     <ProductShellHost
       activePage={activePage}
       onPageChange={setActivePage}
@@ -283,7 +288,9 @@ function WebApp() {
                 onAliasTargetDraftChange: setAliasTargetDraft,
                 onAliasKindChange: setAliasKind,
                 onSaveAlias: () => undefined,
-                onOpenItemDetail: () => undefined,
+                onOpenItemDetail: (item) => {
+                  if (item.group_key === "armor") setArmorDetailModel(buildArmorDetailViewModel({ item }));
+                },
                 onAddFavorite: () => undefined,
                 onRemoveFavorite: () => undefined
               }}
@@ -335,6 +342,18 @@ function WebApp() {
         </>
       )}
     />
+    {armorDetailModel ? (
+      <SharedItemDetailDialog
+        detail={{ name: armorDetailModel.identity.name }}
+        variant="armor"
+        subtitle={`${armorDetailModel.context.entry_label} · ${armorDetailModel.context.object_label}`}
+        objectContext="只读查看"
+        closeLabel="关闭护甲详情"
+        onClose={() => setArmorDetailModel(null)}
+        sections={<ArmorDetailContent model={armorDetailModel} />}
+      />
+    ) : null}
+    </>
   );
 }
 

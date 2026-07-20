@@ -34,6 +34,7 @@ Manifest 商人结构、父子 Vendor 关系和特殊情况的人工核对表见
 
 商人事实规则：
 
+- 左侧目录严格保持“地点 → 商人名称”两级；业务类型、库存类型、推荐数和读取状态只在商人详情中表达，不作为导航分组。
 - 当前是否出现、当前库存和购买状态以授权后的 Bungie `Destiny2.GetVendors` Live 数据为准。
 - `DestinyVendorDefinition` 只用于名称、候选页面和周期分类，不能证明商人当前在线或商品当前可买。
 - 优先使用 Live `nextRefreshDate` 或商品级 `overrideNextRefreshDate`；没有 Live 时间时只保留保守周期，不生成精确刷新时间。

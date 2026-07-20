@@ -182,10 +182,10 @@ export function useVendorDefinitionDetail(input: { vendorSourcePaths?: Map<numbe
         },
         tags: input.vaultTags ?? { items: {} },
         user_knowledge: userKnowledge.trim() || undefined,
-        personal_knowledge: current.personalKnowledge,
-        builtin_knowledge: current.recommendations ?? null,
+        personal_knowledge: current.item.group_key === "weapons" ? current.personalKnowledge : [],
+        builtin_knowledge: current.item.group_key === "weapons" ? current.recommendations ?? null : null,
         allow_external_search: allowExternalSearch,
-        weapon_context: {
+        weapon_context: current.item.group_key === "weapons" ? {
           object_kind: "vendor_offer",
           official_sources: current.liveEntry?.sources.map((source) => source.label) ?? [current.context.vendorName],
           definition_stats: Object.fromEntries((current.item.definition_stats ?? []).map((stat) => [stat.name, stat.value])),
@@ -200,13 +200,17 @@ export function useVendorDefinitionDetail(input: { vendorSourcePaths?: Map<numbe
             affordability: current.context.affordabilityLabel,
             refresh: current.context.refreshLabel
           }
-        }
+        } : undefined
       });
       setState((value) => value ? { ...value, aiResult: result, isGeneratingAi: false } : value);
     } catch (error) {
       setState((value) => value ? {
         ...value,
-        aiError: error instanceof Error ? error.message : "AI 武器分析失败",
+        aiError: error instanceof Error
+          ? error.message
+          : current.item.group_key === "armor"
+            ? "AI 护甲分析失败"
+            : "AI 武器分析失败",
         isGeneratingAi: false
       } : value);
     }

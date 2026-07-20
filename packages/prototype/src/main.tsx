@@ -2,6 +2,7 @@ import { createRoot } from "react-dom/client";
 import { useMemo, useState, type ComponentProps } from "react";
 import {
   AccountPageContentView,
+  ArmorDetailContent,
   AiAssistantPanelView,
   defaultProductPreferences,
   HomePageContentView,
@@ -22,6 +23,7 @@ import {
   type VendorOfferContextView,
 } from "@d2-tools/ui";
 import { homePageMetaMap } from "@d2-tools/app/home";
+import { buildArmorDetailViewModel, type ArmorDetailViewModel } from "@d2-tools/app/items";
 import "@d2-tools/ui/styles.css";
 import {
   defaultPrototypeScenarioKey,
@@ -72,6 +74,7 @@ function PrototypeApp() {
     context: VendorOfferContextView;
   } | null>(null);
   const [isWeaponDetailOpen, setIsWeaponDetailOpen] = useState(true);
+  const [armorDetailModel, setArmorDetailModel] = useState<ArmorDetailViewModel | null>(null);
   const [weaponObjectKind, setWeaponObjectKind] = useState<PrototypeWeaponObjectKind>("account_instance");
   const [weaponRarity, setWeaponRarity] = useState<PrototypeWeaponRarity>("legendary");
   const [selectedWeaponVersionHash, setSelectedWeaponVersionHash] = useState(4401);
@@ -327,6 +330,11 @@ function PrototypeApp() {
                 onAliasKindChange: setAliasKind,
                 onSaveAlias: () => undefined,
                 onOpenItemDetail: (item) => {
+                  if (item.group_key === "armor") {
+                    setArmorDetailModel(buildArmorDetailViewModel({ item }));
+                    setIsWeaponDetailOpen(false);
+                    return;
+                  }
                   if (item.group_key !== "weapons") return;
                   const exotic = /异域|exotic/i.test(item.tier ?? "");
                   setWeaponObjectKind("definition");
@@ -548,8 +556,19 @@ function PrototypeApp() {
                  </>
                )}
              />
-           ) : null}
-           {genericVendorDetail ? (
+            ) : null}
+            {armorDetailModel ? (
+              <SharedItemDetailDialog
+                detail={{ name: armorDetailModel.identity.name }}
+                variant="armor"
+                subtitle={`${armorDetailModel.context.entry_label} · ${armorDetailModel.context.object_label}`}
+                objectContext="只读查看"
+                closeLabel="关闭护甲详情"
+                onClose={() => setArmorDetailModel(null)}
+                sections={<ArmorDetailContent model={armorDetailModel} />}
+              />
+            ) : null}
+            {genericVendorDetail ? (
              <SharedItemDetailDialog
                detail={{ name: genericVendorDetail.item.name }}
                vendorContext={genericVendorDetail.context}

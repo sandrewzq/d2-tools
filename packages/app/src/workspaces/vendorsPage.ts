@@ -111,6 +111,7 @@ export type VendorInventoryGroupWorkspace = {
   badge: string;
   source: string;
   resetLabel: string;
+  location?: string;
   category?: string;
   iconLabel?: string;
   iconUrl?: string;
@@ -134,7 +135,7 @@ export type VendorInventoryGroupWorkspace = {
 };
 
 export type VendorRailSectionWorkspace = {
-  id: "featured" | "ritual" | "weekend" | "cosmetic" | "other";
+  id: string;
   title: string;
   vendors: VendorInventoryGroupWorkspace[];
 };
@@ -383,6 +384,7 @@ function selectSnapshotVendorsPageModel(input: VendorsPageInput): VendorsPageMod
       badge: vendor.vendorHash === 2190858386 ? "周末" : "已确认",
       source: "Bungie 角色商人",
       resetLabel: formatVendorRefreshLabel(vendor.nextRefreshAt),
+      location: vendor.location,
       category: vendor.vendorHash === 2190858386 ? "重点" : "已确认",
       statusLabel: detailState === "failed"
         ? "详情失败"
@@ -738,99 +740,108 @@ function createLocalVendorDirectory(resetLabel: string): VendorInventoryGroupWor
     createDirectoryVendor({
       id: "xur",
       vendorHash: 2190858386,
-      name: "周末异域商人",
+      name: "仄",
       description: "周末异域商人；库存读取后展示本周售卖和价格。",
       badge: "周末",
       category: "重点",
       iconLabel: "Xû",
       featured: true,
+      location: "高塔",
       resetLabel,
       items: []
     }),
     createDirectoryVendor({
       id: "banshee",
       vendorHash: 672118013,
-      name: "每日武器商人",
+      name: "班西-44",
       description: "每日武器库存和声望；后续接入武器 perk 复查。",
       badge: "每日",
       category: "重点",
       iconLabel: "B4",
+      location: "高塔",
       resetLabel,
       items: []
     }),
     createDirectoryVendor({
       id: "ada",
       vendorHash: 350061650,
-      name: "护甲合成商人",
+      name: "艾达-1",
       description: "护甲合成和外观相关入口。",
       badge: "常驻",
       category: "重点",
       iconLabel: "A1",
+      location: "高塔",
       resetLabel,
       items: []
     }),
     createDirectoryVendor({
       id: "saint",
       vendorHash: 765357505,
-      name: "试炼商人",
+      name: "圣人14号",
       description: "试炼声望、周末奖励和聚焦入口。",
       badge: "周末",
       category: "周末",
       iconLabel: "S14",
+      location: "高塔",
       resetLabel,
       items: []
     }),
     createDirectoryVendor({
       id: "zavala",
       vendorHash: 69482069,
-      name: "先锋商人",
+      name: "指挥官萨瓦拉",
       description: "先锋声望、聚焦和周常奖励。",
       badge: "周更",
       category: "常驻",
       iconLabel: "ZV",
+      location: "高塔",
       resetLabel,
       items: []
     }),
     createDirectoryVendor({
       id: "shaxx",
       vendorHash: 3603221665,
-      name: "熔炉商人",
+      name: "领主沙克斯",
       description: "熔炉竞技场声望和聚焦奖励。",
       badge: "周更",
       category: "常驻",
       iconLabel: "SX",
+      location: "高塔",
       resetLabel,
       items: []
     }),
     createDirectoryVendor({
       id: "drifter",
       vendorHash: 248695599,
-      name: "智谋商人",
+      name: "浪客",
       description: "智谋声望、聚焦和周常奖励。",
       badge: "周更",
       category: "常驻",
       iconLabel: "Dr",
+      location: "高塔",
       resetLabel,
       items: []
     }),
     createDirectoryVendor({
       id: "rahool",
       vendorHash: 2255782930,
-      name: "记忆水晶商人",
+      name: "拉乎尔大师",
       description: "记忆水晶解码和材料兑换。",
       badge: "常驻",
       category: "常驻",
       iconLabel: "Rh",
+      location: "高塔",
       resetLabel,
       items: []
     }),
     createDirectoryVendor({
       id: "tess",
-      name: "外观商人",
+      name: "泰斯·艾弗瑞斯",
       description: "永恒之诗外观和光尘轮换。",
       badge: "周更",
       category: "特殊 / 活动",
       iconLabel: "EV",
+      location: "高塔",
       resetLabel,
       items: []
     })
@@ -846,6 +857,7 @@ function createDirectoryVendor(input: {
   category: string;
   iconLabel: string;
   iconUrl?: string;
+  location: string;
   resetLabel: string;
   featured?: boolean;
   items: VendorInventoryItemWorkspace[];
@@ -858,6 +870,7 @@ function createDirectoryVendor(input: {
     badge: input.badge,
     source: "本地商人目录",
     resetLabel: input.resetLabel,
+    location: input.location,
     category: input.category,
     iconLabel: input.iconLabel,
     iconUrl: input.iconUrl,
@@ -867,29 +880,66 @@ function createDirectoryVendor(input: {
   };
 }
 
-const vendorRailSectionOrder: Array<Pick<VendorRailSectionWorkspace, "id" | "title">> = [
-  { id: "featured", title: "重点库存" },
-  { id: "ritual", title: "仪式声望" },
-  { id: "weekend", title: "周末活动" },
-  { id: "cosmetic", title: "外观 / 服务" },
-  { id: "other", title: "其他商人" }
+const vendorLocationOrder = [
+  "限时",
+  "凯旋纪念碑",
+  "反叛",
+  "开普勒",
+  "高塔",
+  "苍白之心",
+  "H.E.L.M.",
+  "海王星",
+  "王座世界",
+  "木卫二",
+  "月球",
+  "永恒",
+  "梦想之城",
+  "涅索斯",
+  "欧洲无人区",
+  "发射基地",
+  "其他地点"
 ];
 
+const towerVendorHashes = new Set([
+  2190858386,
+  672118013,
+  350061650,
+  765357505,
+  69482069,
+  3603221665,
+  248695599,
+  2255782930,
+  3347378076,
+  1976548992
+]);
+
 function createVendorRailSections(vendors: VendorInventoryGroupWorkspace[]): VendorRailSectionWorkspace[] {
-  return vendorRailSectionOrder.map((section) => ({
-    ...section,
-    vendors: vendors.filter((vendor) => vendor.taskCategory === section.title)
-  }));
+  const vendorsByLocation = new Map<string, VendorInventoryGroupWorkspace[]>();
+  for (const vendor of vendors) {
+    const location = vendor.location ?? "其他地点";
+    const locationVendors = vendorsByLocation.get(location) ?? [];
+    locationVendors.push(vendor);
+    vendorsByLocation.set(location, locationVendors);
+  }
+  return [...vendorsByLocation.entries()]
+    .sort(([left], [right]) => compareVendorLocations(left, right))
+    .map(([title, locationVendors]) => ({
+      id: `location-${slugify(title)}`,
+      title,
+      vendors: locationVendors
+    }));
 }
 
 function enrichVendorViewModel(vendor: VendorInventoryGroupWorkspace): VendorInventoryGroupWorkspace {
   const taskCategory = getVendorTaskCategory(vendor);
+  const location = getVendorLocation(vendor);
   const inventoryState = getVendorInventoryState(vendor);
   const displayStatusLabel = getVendorDisplayStatusLabel(vendor, inventoryState);
   const inventoryStateLabel = getVendorInventoryStateLabel(inventoryState);
   const itemCountLabel = `${countVendorSaleItems(vendor)} 件物品`;
   return {
     ...vendor,
+    location,
     taskCategory,
     displayStatusLabel,
     inventoryState,
@@ -902,6 +952,50 @@ function enrichVendorViewModel(vendor: VendorInventoryGroupWorkspace): VendorInv
       itemCountLabel
     }
   };
+}
+
+function compareVendorLocations(left: string, right: string): number {
+  const otherIndex = vendorLocationOrder.indexOf("其他地点");
+  const leftKnownIndex = vendorLocationOrder.indexOf(left);
+  const rightKnownIndex = vendorLocationOrder.indexOf(right);
+  const leftIndex = leftKnownIndex >= 0 ? leftKnownIndex : otherIndex - 0.5;
+  const rightIndex = rightKnownIndex >= 0 ? rightKnownIndex : otherIndex - 0.5;
+  return leftIndex === rightIndex ? left.localeCompare(right, "zh-CN") : leftIndex - rightIndex;
+}
+
+function getVendorLocation(vendor: VendorInventoryGroupWorkspace): string {
+  const location = normalizeVendorLocation(vendor.location);
+  if (location) return location;
+
+  const vendorHash = vendor.vendorHash === undefined ? undefined : canonicalVendorHash(vendor.vendorHash);
+  if (vendorHash !== undefined && towerVendorHashes.has(vendorHash)) return "高塔";
+
+  const value = `${vendor.id} ${vendor.name} ${vendor.description}`.toLocaleLowerCase();
+  if (/仄|xur|xûr|班西|banshee|艾达|ada|圣人14|saint|萨瓦拉|zavala|沙克斯|shaxx|浪客|drifter|拉乎尔|rahool|泰斯|tess|霍桑|hawthorne|艾可拉|ikora|任务档案|特殊货物|失落光能纪念碑|过往赛季纪念碑/.test(value)) return "高塔";
+  if (/星马|starhorse/.test(value)) return "永恒";
+  if (/伊娃|eva|萨拉丁|saladin|限时|event/.test(value)) return "限时";
+  if (/幽灵|ghost/.test(value)) return "苍白之心";
+  if (/宁博思|nimbus/.test(value)) return "海王星";
+  if (/芬奇|fynch/.test(value)) return "王座世界";
+  if (/瓦里克斯|variks|陌客|exo stranger/.test(value)) return "木卫二";
+  if (/厄里斯|eris|附魔台|lectern/.test(value)) return "月球";
+  if (/佩特拉|petra/.test(value)) return "梦想之城";
+  if (/失效保险|failsafe/.test(value)) return "涅索斯";
+  if (/德弗里姆|devrim/.test(value)) return "欧洲无人区";
+  if (/肖汉|shaw han/.test(value)) return "发射基地";
+  return "其他地点";
+}
+
+function normalizeVendorLocation(value: string | undefined): string | undefined {
+  const location = value?.trim();
+  if (!location) return undefined;
+  if (/高塔|tower/i.test(location)) return "高塔";
+  if (/苍白之心|pale heart/i.test(location)) return "苍白之心";
+  if (/凯旋纪念碑|monument to lost lights/i.test(location)) return "凯旋纪念碑";
+  if (/反叛|renegades/i.test(location)) return "反叛";
+  if (/开普勒|kepler/i.test(location)) return "开普勒";
+  if (/h\.e\.l\.m/i.test(location)) return "H.E.L.M.";
+  return location;
 }
 
 function getVendorInventoryState(vendor: VendorInventoryGroupWorkspace): VendorInventoryState {

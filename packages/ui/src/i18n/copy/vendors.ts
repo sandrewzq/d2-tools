@@ -8,6 +8,7 @@ export const vendorsCopy: Record<InterfaceLocale, LocaleCopy["vendors"]> = {
         "每日或周末重置": "每日或周末重置",
         "商人列表": "商人列表",
         "商人": "商人",
+        "个商人": "个商人",
         "个来源": "个来源",
         "重新加载商人库存": "重新加载商人库存"
       },
@@ -39,6 +40,7 @@ export const vendorsCopy: Record<InterfaceLocale, LocaleCopy["vendors"]> = {
         "每日或周末重置": "Daily or weekend reset",
         "商人列表": "Vendor list",
         "商人": "Vendors",
+        "个商人": "vendors",
         "个来源": "sources",
         "属性读取中": "Loading details",
         "部分详情失败": "Some details failed",

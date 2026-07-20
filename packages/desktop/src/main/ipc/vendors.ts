@@ -42,9 +42,11 @@ function refreshVendorInventory(input: VendorInventoryRequest) {
       const definitions: {
         vendors: DefinitionComponentData;
         items: DefinitionComponentData;
+        destinations: DefinitionComponentData;
       } = {
         vendors: {},
-        items: {}
+        items: {},
+        destinations: {}
       };
       const token = await measureRuntime("vendors.inventory.token", () => loadFreshOAuthToken(config));
       const snapshot = await fetchVendorInventorySnapshot({
@@ -92,6 +94,7 @@ function createVendorDefinitionHydratingFetchJson(options: {
   definitions: {
     vendors: DefinitionComponentData;
     items: DefinitionComponentData;
+    destinations: DefinitionComponentData;
   };
 }): <T>(path: string, accessToken?: string) => Promise<T> {
   return async <T>(path: string, accessToken?: string): Promise<T> => {
@@ -122,9 +125,17 @@ function createVendorDefinitionHydratingFetchJson(options: {
           vendorHashes.add(previewVendorHash);
         }
       }
+      const vendors = await getDefinitions("DestinyVendorDefinition", vendorHashes);
+      Object.assign(options.definitions.vendors, vendors);
+      const destinationHashes = new Set(Object.values(vendors).flatMap((definition) => {
+        const locations = definition.locations as Array<{ destinationHash?: number }> | undefined;
+        return (locations ?? []).flatMap((location) =>
+          typeof location.destinationHash === "number" ? [location.destinationHash] : []
+        );
+      }));
       Object.assign(
-        options.definitions.vendors,
-        await getDefinitions("DestinyVendorDefinition", vendorHashes)
+        options.definitions.destinations,
+        await getDefinitions("DestinyDestinationDefinition", destinationHashes)
       );
     });
 

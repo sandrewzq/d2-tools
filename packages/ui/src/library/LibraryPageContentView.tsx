@@ -276,7 +276,7 @@ export function LibraryPageContentView(props: LibraryPageContentViewProps) {
                     {group.items.map((item) => renderEquipmentResult(
                       item,
                       () => {
-                        if (item.item.group_key === "weapons") {
+                        if (item.item.group_key === "weapons" || item.item.group_key === "armor") {
                           actions.onOpenItemDetail(item.item);
                           return;
                         }
@@ -333,7 +333,7 @@ export function LibraryPageContentView(props: LibraryPageContentViewProps) {
         ) : null}
       </ProductWorkspaceContentStack>
       </ProductWorkspaceSplit>
-      {selectedDefinitionRow && selectedDefinitionRow.item.group_key !== "weapons" ? (
+      {selectedDefinitionRow && selectedDefinitionRow.item.group_key !== "weapons" && selectedDefinitionRow.item.group_key !== "armor" ? (
         <LibraryDefinitionDialog
           item={selectedDefinitionRow.item}
           dropAccess={selectedDefinitionRow.dropAccess}

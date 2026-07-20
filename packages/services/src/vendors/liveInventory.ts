@@ -20,6 +20,7 @@ const vendorDetailConcurrency = 4;
 type DefinitionRecord = {
   vendorIdentifier?: string;
   displayProperties?: { name?: string; description?: string; icon?: string };
+  locations?: Array<{ destinationHash?: number }>;
   itemTypeDisplayName?: string;
   inventory?: { tierTypeName?: string; bucketTypeHash?: number };
   plug?: { plugCategoryIdentifier?: string };
@@ -52,6 +53,7 @@ export type FetchVendorInventorySnapshotOptions = {
   definitions: {
     vendors: Record<string, DefinitionRecord>;
     items: Record<string, DefinitionRecord>;
+    destinations?: Record<string, DefinitionRecord>;
   };
   fetchJson?: <T>(path: string, accessToken?: string) => Promise<T>;
   fetchImpl?: typeof fetch;
@@ -97,6 +99,7 @@ type RawVendorComponent = {
   vendorHash?: number;
   canPurchase?: boolean;
   nextRefreshDate?: string;
+  vendorLocationIndex?: number;
   progression?: VendorProgression;
 };
 
@@ -314,6 +317,7 @@ function mapVendorResponses(
     mapped[vendorKey] = {
       vendorHash: vendor.vendorHash ?? vendorHash,
       canPurchase: vendor.canPurchase ?? false,
+      location: resolveVendorLocation(vendor, vendorDefinition, definitions.destinations ?? {}),
       nextRefreshAt: vendor.nextRefreshDate,
       progression: vendor.progression,
       categories: categories.map((category) => ({
@@ -344,6 +348,17 @@ function mapVendorResponses(
     };
   }
   return mapped;
+}
+
+function resolveVendorLocation(
+  vendor: RawVendorComponent,
+  vendorDefinition: DefinitionRecord | undefined,
+  destinations: Record<string, DefinitionRecord>
+): string | undefined {
+  if (vendor.vendorLocationIndex === undefined) return undefined;
+  const destinationHash = vendorDefinition?.locations?.[vendor.vendorLocationIndex]?.destinationHash;
+  if (destinationHash === undefined) return undefined;
+  return destinations[String(destinationHash)]?.displayProperties?.name?.trim() || undefined;
 }
 
 function collectPreviewVendorHashes(

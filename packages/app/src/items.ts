@@ -18,6 +18,24 @@ export {
   sortSameNameItems
 } from "./workspaces/itemDetail.js";
 export type {
+  ArmorAbility,
+  ArmorDetailEntryKind,
+  ArmorDetailIdentity,
+  ArmorDetailInstance,
+  ArmorDetailInstanceLike,
+  ArmorDetailObjectContext,
+  ArmorDetailObjectKind,
+  ArmorDetailSelectedItemLike,
+  ArmorDetailSources,
+  ArmorDetailViewModel,
+  ArmorRecommendation,
+  ArmorSocket,
+  ArmorSourceEntry,
+  ArmorStatTrack,
+  BuildArmorDetailViewModelInput
+} from "./workspaces/armorDetail.js";
+export { buildArmorDetailViewModel } from "./workspaces/armorDetail.js";
+export type {
   BuildWeaponDetailViewModelInput,
   WeaponCatalystSummary,
   WeaponConfigurationKind,

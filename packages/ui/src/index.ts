@@ -57,6 +57,13 @@ export type {
   WeaponDetailContentProps,
   WeaponDetailSection
 } from "./item-detail/weapon/WeaponDetailContent.js";
+export { ArmorDetailContent } from "./item-detail/armor/ArmorDetailContent.js";
+export type {
+  ArmorDetailAnalysis,
+  ArmorDetailContentActions,
+  ArmorDetailContentProps,
+  ArmorDetailSection
+} from "./item-detail/armor/ArmorDetailContent.js";
 export { ProductShellHost } from "./product/ProductShellHost.js";
 export type { ProductShellHostProps } from "./product/types.js";
 export {

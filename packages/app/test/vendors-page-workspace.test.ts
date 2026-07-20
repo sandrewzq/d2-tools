@@ -67,31 +67,21 @@ describe("vendors page workspace", () => {
     expect(workspace.nextResetLabel).toBe("距离每日重置还有 7 小时 30 分钟");
     expect(workspace.vendors).toHaveLength(9);
     expect(workspace.defaultVendorId).toBe("xur");
-    expect(workspace.railSections.map((section) => section.title)).toEqual([
-      "重点库存",
-      "仪式声望",
-      "周末活动",
-      "外观 / 服务",
-      "其他商人"
-    ]);
+    expect(workspace.railSections.map((section) => section.title)).toEqual(["高塔"]);
     expect(workspace.railSections.map((section) => section.vendors.map((vendor) => vendor.id))).toEqual([
-      ["xur", "banshee", "rahool"],
-      ["zavala", "shaxx", "drifter"],
-      ["saint"],
-      ["ada", "tess"],
-      []
+      ["xur", "banshee", "ada", "saint", "zavala", "shaxx", "drifter", "rahool", "tess"]
     ]);
     expect(workspace.verifiedItemCount).toBe(3);
     expect(workspace.vendors.map((vendor) => vendor.name)).toEqual([
       "资料库周末商人",
       "资料库武器商人",
-      "护甲合成商人",
-      "试炼商人",
-      "先锋商人",
-      "熔炉商人",
-      "智谋商人",
-      "记忆水晶商人",
-      "外观商人"
+      "艾达-1",
+      "圣人14号",
+      "指挥官萨瓦拉",
+      "领主沙克斯",
+      "浪客",
+      "拉乎尔大师",
+      "泰斯·艾弗瑞斯"
     ]);
     expect(workspace.vendors[0]).toMatchObject({
       name: "资料库周末商人",
@@ -136,7 +126,7 @@ describe("vendors page workspace", () => {
       statusLabel: "已确认"
     });
     expect(workspace.vendors[2]).toMatchObject({
-      name: "护甲合成商人",
+      name: "艾达-1",
       source: "本地商人目录",
       statusLabel: "等待库存读取",
       displayStatusLabel: "未读取",
@@ -157,33 +147,27 @@ describe("vendors page workspace", () => {
     const workspace = selectVendorsPageModel(null);
 
     expect(workspace.vendors.map((vendor) => vendor.name)).toEqual([
-      "周末异域商人",
-      "每日武器商人",
-      "护甲合成商人",
-      "试炼商人",
-      "先锋商人",
-      "熔炉商人",
-      "智谋商人",
-      "记忆水晶商人",
-      "外观商人"
+      "仄",
+      "班西-44",
+      "艾达-1",
+      "圣人14号",
+      "指挥官萨瓦拉",
+      "领主沙克斯",
+      "浪客",
+      "拉乎尔大师",
+      "泰斯·艾弗瑞斯"
     ]);
     expect(workspace.defaultVendorId).toBe("xur");
-    expect(workspace.railSections.map((section) => section.title)).toEqual([
-      "重点库存",
-      "仪式声望",
-      "周末活动",
-      "外观 / 服务",
-      "其他商人"
-    ]);
+    expect(workspace.railSections.map((section) => section.title)).toEqual(["高塔"]);
     expect(workspace.railSections.flatMap((section) => section.vendors).map((vendor) => vendor.id)).toEqual([
       "xur",
       "banshee",
-      "rahool",
+      "ada",
+      "saint",
       "zavala",
       "shaxx",
       "drifter",
-      "saint",
-      "ada",
+      "rahool",
       "tess"
     ]);
     expect(workspace.sourceLabel).toBe("等待 Bungie 公共商人");
@@ -199,7 +183,7 @@ describe("vendors page workspace", () => {
       featured: true
     });
     expect(workspace.vendors.at(-1)).toMatchObject({
-      name: "外观商人",
+      name: "泰斯·艾弗瑞斯",
       category: "特殊 / 活动"
     });
     expect(JSON.stringify(workspace.vendors)).not.toContain("待确认");

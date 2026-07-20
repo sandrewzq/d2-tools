@@ -97,6 +97,7 @@ function createModel(options: { detailFailure?: boolean } = {}) {
     badge: "周末",
     source: "Bungie 角色商人",
     resetLabel: "距离刷新 10 小时",
+    location: "高塔",
     taskCategory: "重点库存",
     displayStatusLabel: options.detailFailure ? "部分详情失败" : "已确认",
     inventoryState: "loaded" as const,
@@ -121,7 +122,7 @@ function createModel(options: { detailFailure?: boolean } = {}) {
   };
   return {
     vendors: [vendor],
-    railSections: [{ id: "featured", title: "重点库存", vendors: [vendor] }],
+    railSections: [{ id: "location-tower", title: "高塔", vendors: [vendor] }],
     defaultVendorId: vendor.id,
     selectedVendor: vendor,
     updatedLabel: "更新：现在",

@@ -97,6 +97,7 @@ export type VendorInventoryGroupView = {
   badge: string;
   source: string;
   resetLabel: string;
+  location?: string;
   category?: string;
   iconLabel?: string;
   iconUrl?: string;
@@ -230,7 +231,7 @@ export function VendorsPageContentView(props: VendorsPageContentViewProps) {
         <nav aria-label="商人列表" className="vendor-rail-nav">
           <div className="vendor-rail-head">
             <strong>{copy.inline["商人"] ?? "Vendors"}</strong>
-            <span>{props.model.vendors.length} {copy.inline["个来源"] ?? "sources"}</span>
+            <span>{props.model.vendors.length} {copy.inline["个商人"] ?? "vendors"}</span>
           </div>
           {props.model.railSections.map((section) => (
             <section className="vendor-rail-group" key={section.id}>
@@ -276,6 +277,7 @@ export function VendorsPageContentView(props: VendorsPageContentViewProps) {
             </div>
             <p>{selectedVendor.description}</p>
             <div className="vendor-detail-meta">
+              {selectedVendor.location ? <span>{selectedVendor.location}</span> : null}
               <span>{selectedVendor.source}</span>
               <span>{selectedVendor.resetLabel}</span>
             </div>

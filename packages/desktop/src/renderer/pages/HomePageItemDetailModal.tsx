@@ -1,8 +1,9 @@
 import type { AccountSummary, DimWishlist, LocalTargetRules, VaultTags } from "../api/types";
-import type { WeaponStatKey, WeaponStatSummary } from "@d2-tools/core/account/summary";
-import { getLocaleCopy, LibraryDefinitionDialog, SharedItemDetailDialog, WeaponDetailContent } from "@d2-tools/ui";
+import type { ArmorStatSummary, WeaponStatKey, WeaponStatSummary } from "@d2-tools/core/account/summary";
+import type { ArmorStatKey } from "@d2-tools/core/loadouts/analysis";
+import { ArmorDetailContent, getLocaleCopy, LibraryDefinitionDialog, SharedItemDetailDialog, WeaponDetailContent } from "@d2-tools/ui";
 import { buildLibraryDefinitionDetailView, buildLibraryOwnership } from "@d2-tools/app/library";
-import { collectSelectedSameNameItems, createSelectedItemPreview, type WeaponDetailSources } from "@d2-tools/app/items";
+import { collectSelectedSameNameItems, createSelectedItemPreview, type ArmorDetailSources, type WeaponDetailSources } from "@d2-tools/app/items";
 import type { useVendorDefinitionDetail } from "../features/vendors/useVendorDefinitionDetail";
 import { ItemDetailModal } from "../shared/components/ItemDetailModal";
 import {
@@ -10,6 +11,7 @@ import {
   buildWeaponPersonalTargetViews,
   buildWeaponRecommendationViews
 } from "../shared/components/item-detail/buildWeaponDetailView";
+import { buildArmorDetailView } from "../shared/components/item-detail/buildArmorDetailView";
 import type { useItemDetailWorkspace } from "../shared/hooks/useItemDetailWorkspace";
 
 type ItemDetailWorkspace = ReturnType<typeof useItemDetailWorkspace>;
@@ -118,6 +120,72 @@ export function HomePageItemDetailModal(props: {
                   saveKnowledge: (draft) => void props.vendorDefinitionDetail.saveKnowledge(draft),
                   setKnowledgeEnabled: (id, enabled) => void props.vendorDefinitionDetail.setKnowledgeEnabled(id, enabled),
                   deleteKnowledge: (id) => void props.vendorDefinitionDetail.deleteKnowledge(id)
+                }}
+              />
+            </>
+          )}
+        />
+      );
+    }
+
+    const vendorArmorModel = buildArmorDetailView({
+      selectedItem: vendorSelectedItem,
+      sameNameItems: vendorSameNameItems,
+      context: {
+        kind: "vendor_offer",
+        entry: "vendor",
+        entry_label: "商人",
+        object_label: "当前商人售卖",
+        object_id: vendorDefinitionState.offerItem.id,
+        read_only: true
+      },
+      sources: buildVendorArmorSources(vendorDefinitionState),
+      localTargetRules: props.localTargetRules,
+      currentStats: buildVendorArmorStats(vendorDefinitionState.context.stats)
+    });
+    if (vendorArmorModel) {
+      return (
+        <SharedItemDetailDialog
+          detail={{ name: vendorArmorModel.identity.name, isBusy: vendorDefinitionState.isBusy }}
+          variant="armor"
+          subtitle={`${vendorArmorModel.context.entry_label} · ${vendorArmorModel.context.object_label}`}
+          objectContext="只读查看"
+          closeLabel="关闭护甲详情"
+          onClose={props.vendorDefinitionDetail.close}
+          sections={(
+            <>
+              {vendorDefinitionState.error ? (
+                <p className="status-message status-error" role="status">{vendorDefinitionState.error}</p>
+              ) : null}
+              <ArmorDetailContent
+                model={vendorArmorModel}
+                analysis={{
+                  status: vendorDefinitionState.isGeneratingAi
+                    ? "running"
+                    : vendorDefinitionState.aiError
+                      ? "error"
+                      : vendorDefinitionState.aiResult?.ai
+                        ? "ready"
+                        : "idle",
+                  title: vendorDefinitionState.aiResult?.ai ? `${vendorArmorModel.identity.name}售卖分析` : undefined,
+                  body: vendorDefinitionState.aiResult?.ai?.text,
+                  message: vendorDefinitionState.aiError || vendorDefinitionState.aiResult?.skipped_reason,
+                  externalSources: vendorDefinitionState.aiResult?.ai?.external_search?.sources,
+                  externalSearchMessage: vendorDefinitionState.aiResult?.ai?.external_search?.message
+                }}
+                actions={{
+                  selectInstance: (instance) => {
+                    const item = vendorSameNameItems.find((candidate) => candidate.instance_id === instance.instance_id);
+                    if (!item) return;
+                    props.vendorDefinitionDetail.close();
+                    void props.itemDetail.openItemDetail(item, {
+                      source_character_id: item.source_character_id,
+                      source_kind: item.source_kind,
+                      is_vault_item: item.is_vault_item,
+                      is_postmaster_item: item.is_postmaster_item
+                    });
+                  },
+                  runAnalysis: (request) => void props.vendorDefinitionDetail.generateAi(request.prompt, request.allow_external_search)
                 }}
               />
             </>
@@ -259,6 +327,83 @@ function buildVendorWeaponStats(stats: Record<string, number> | undefined): Weap
   }
   return Object.keys(result).length ? result : undefined;
 }
+
+function buildVendorArmorSources(
+  state: NonNullable<VendorDefinitionDetailWorkspace["state"]>
+): ArmorDetailSources {
+  const entries: ArmorDetailSources["entries"] = [{
+    id: `vendor:${state.context.vendorName}:${state.item.hash}`,
+    label: state.context.vendorName,
+    description: [
+      state.context.costLabel,
+      state.context.affordabilityLabel,
+      state.context.characterLabel,
+      state.context.refreshLabel
+    ].filter(Boolean).join(" · "),
+    available_now: true,
+    status_label: "当前在售"
+  }];
+  for (const [index, source] of (state.liveEntry?.sources ?? []).entries()) {
+    if (entries.some((entry) => entry.label === source.label)) continue;
+    entries.push({
+      id: `live:${source.kind}:${index}:${source.label}`,
+      label: source.label,
+      description: state.liveEntry?.description ?? state.context.vendorName,
+      available_now: true,
+      status_label: "当前可获得"
+    });
+  }
+  if (state.item.source.status === "ready") {
+    entries.push({
+      id: `source:${state.item.hash}`,
+      label: state.item.source.label,
+      description: state.item.source.description,
+      status_label: "来源已记录"
+    });
+  }
+  return { status: "ready", entries };
+}
+
+function buildVendorArmorStats(stats: Record<string, number> | undefined): ArmorStatSummary | undefined {
+  if (!stats) return undefined;
+  const result = Object.fromEntries(armorStatKeys.map((key) => [key, 0])) as Record<ArmorStatKey, number>;
+  let matched = false;
+  for (const [label, value] of Object.entries(stats)) {
+    const normalized = label.trim().toLocaleLowerCase();
+    const key = vendorArmorStatKeys[normalized] ?? vendorArmorStatHashKeys[Number(label)];
+    if (!key) continue;
+    result[key] = value;
+    matched = true;
+  }
+  if (!matched) return undefined;
+  return { ...result, total: armorStatKeys.reduce((total, key) => total + result[key], 0) };
+}
+
+const armorStatKeys: ArmorStatKey[] = ["health", "melee", "grenade", "super", "class", "weapon"];
+
+const vendorArmorStatKeys: Record<string, ArmorStatKey> = {
+  "生命值": "health",
+  health: "health",
+  "近战": "melee",
+  melee: "melee",
+  "手雷": "grenade",
+  grenade: "grenade",
+  "超能": "super",
+  super: "super",
+  "职业": "class",
+  class: "class",
+  "武器": "weapon",
+  weapon: "weapon"
+};
+
+const vendorArmorStatHashKeys: Partial<Record<number, ArmorStatKey>> = {
+  392767087: "health",
+  4244567218: "melee",
+  1735777505: "grenade",
+  144602215: "super",
+  1943323491: "class",
+  2996146975: "weapon"
+};
 
 const vendorStatKeys: Record<string, WeaponStatKey> = {
   "伤害": "impact",
