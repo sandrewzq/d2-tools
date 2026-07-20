@@ -70,6 +70,10 @@
       "types": "./dist/gameData/sqlite.d.ts",
       "import": "./dist/gameData/sqlite.js"
     },
+    "./home/briefingStore": {
+      "types": "./dist/home/briefingStore.d.ts",
+      "import": "./dist/home/briefingStore.js"
+    },
     "./oauth/callbackServer": {
       "types": "./dist/oauth/callbackServer.d.ts",
       "import": "./dist/oauth/callbackServer.js"

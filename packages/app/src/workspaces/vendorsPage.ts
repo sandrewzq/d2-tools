@@ -106,6 +106,9 @@ export type VendorInventoryGroupWorkspace = {
   id: string;
   vendorHash?: number;
   vendorIdentifier?: string;
+  vendorGroupHash?: number;
+  vendorGroupName?: string;
+  vendorGroupOrder?: number;
   name: string;
   description: string;
   badge: string;
@@ -378,6 +381,9 @@ function selectSnapshotVendorsPageModel(input: VendorsPageInput): VendorsPageMod
       id: vendor.id,
       vendorHash: vendor.vendorHash,
       vendorIdentifier: vendor.vendorIdentifier,
+      vendorGroupHash: vendor.vendorGroupHash,
+      vendorGroupName: vendor.vendorGroupName,
+      vendorGroupOrder: vendor.vendorGroupOrder,
       name: vendor.name,
       description: vendor.description,
       iconUrl: normalizeBungieIconUrl(vendor.iconUrl),
@@ -413,7 +419,9 @@ function selectSnapshotVendorsPageModel(input: VendorsPageInput): VendorsPageMod
       } : undefined
     } satisfies VendorInventoryGroupWorkspace;
   });
-  const vendors = composeVendorStructures(mappedVendors).map((vendor) => enrichVendorViewModel({
+  const composedVendors = composeVendorStructures(mappedVendors);
+  const groupedVendors = composedVendors.filter((vendor) => vendor.vendorGroupName);
+  const vendors = (groupedVendors.length ? groupedVendors : composedVendors).map((vendor) => enrichVendorViewModel({
     ...vendor,
     contentSections: vendor.contentSections ?? createDefaultVendorContentSections(vendor)
   }));
@@ -914,6 +922,30 @@ const towerVendorHashes = new Set([
 ]);
 
 function createVendorRailSections(vendors: VendorInventoryGroupWorkspace[]): VendorRailSectionWorkspace[] {
+  if (vendors.some((vendor) => vendor.vendorGroupName)) {
+    const sections = new Map<string, VendorRailSectionWorkspace & { order: number }>();
+    for (const vendor of vendors) {
+      const title = vendor.vendorGroupName?.trim() || vendor.location || "其他地点";
+      const id = vendor.vendorGroupHash === undefined
+        ? `location-${slugify(title)}`
+        : `vendor-group-${vendor.vendorGroupHash}`;
+      const existing = sections.get(id);
+      if (existing) {
+        existing.vendors.push(vendor);
+        continue;
+      }
+      sections.set(id, {
+        id,
+        title,
+        order: vendor.vendorGroupOrder ?? Number.MAX_SAFE_INTEGER,
+        vendors: [vendor]
+      });
+    }
+    return [...sections.values()]
+      .sort((left, right) => left.order - right.order || left.title.localeCompare(right.title, "zh-CN"))
+      .map(({ order: _order, ...section }) => section);
+  }
+
   const vendorsByLocation = new Map<string, VendorInventoryGroupWorkspace[]>();
   for (const vendor of vendors) {
     const location = vendor.location ?? "其他地点";

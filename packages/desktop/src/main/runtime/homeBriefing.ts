@@ -1,5 +1,5 @@
 import { buildDailyLiveDataFromBungie } from "@d2-tools/core/daily/liveData";
-import { buildDailySummary } from "@d2-tools/core/daily/summary";
+import { buildDailySummary, type DailySummary } from "@d2-tools/core/daily/summary";
 import type { D2Config } from "@d2-tools/core/config/schema";
 import type { DefinitionComponentData, DefinitionRecord } from "@d2-tools/core/manifest/definitions";
 import { buildWeeklyLiveDataFromBungie } from "@d2-tools/core/weekly/liveData";
@@ -10,66 +10,57 @@ import {
   type BungieVendorsResponse
 } from "@d2-tools/services/bungie/session";
 import { loadConfig } from "@d2-tools/services/config/store";
+import { getManifestStatus } from "@d2-tools/services/manifest/cache";
 import {
   loadCachedHomeBriefing,
-  saveCachedHomeBriefing
-} from "@d2-tools/services/home/briefingCache";
-import { loadOAuthToken } from "@d2-tools/services/oauth/tokenStore";
+  saveCachedHomeBriefing,
+  type CachedHomeBriefing
+} from "@d2-tools/services/home/briefingStore";
 import type { HomeBriefing } from "../../contracts/daily.js";
 import { loadFreshOAuthToken, type FreshOAuthToken } from "../ipc/authSession.js";
 import { getDefinitions } from "./gameDataRuntime.js";
 import { getSharedBungieSession } from "./bungieSession.js";
 import { measureRuntime } from "./runtimeMetrics.js";
 
-const briefingTtlMs = 30_000;
+export type HomeBriefingRefreshOptions = {
+  force?: boolean;
+};
 
 let tokenRequest: {
   contextKey: string;
   promise: Promise<FreshOAuthToken | null>;
 } | null = null;
-let briefingRequest: { contextKey: string; promise: Promise<HomeBriefing> } | null = null;
-let cachedBriefing: {
-  contextKey: string;
-  value: HomeBriefing;
-  freshUntil: number;
-} | null = null;
+let briefingRequest: { contextKey: string; promise: Promise<CachedHomeBriefing> } | null = null;
+let cachedBriefing: CachedHomeBriefing | null = null;
+let cacheLoadRequest: { contextKey: string; promise: Promise<CachedHomeBriefing | null> } | null = null;
 
-export async function getHomeBriefing(): Promise<HomeBriefing> {
+export async function getHomeBriefing(options: HomeBriefingRefreshOptions = {}): Promise<HomeBriefing> {
   const config = loadConfig();
   const token = await loadTokenOnce(config);
-  const accountId = token?.membership_id ?? loadOAuthToken(config.data.data_dir)?.membership_id;
+  const manifest = getManifestStatus(config.data.data_dir);
   const contextKey = [
     config.data.data_dir,
-    config.data.manifest_language,
-    config.bungie.api_key,
-    token?.access_token ?? "public"
+    token?.membership_id ?? "public",
+    manifest.version ?? "manifest-unavailable",
+    manifest.language ?? config.data.manifest_language
   ].join("\u0000");
-  const now = Date.now();
-  if (cachedBriefing?.contextKey === contextKey && now < cachedBriefing.freshUntil) {
-    return cachedBriefing.value;
+  const now = new Date();
+  const cached = await loadBriefingCache(config.data.data_dir, contextKey);
+  const refreshPlan = createRefreshPlan(cached, now, Boolean(options.force));
+  if (cached && !refreshPlan.activities && !refreshPlan.vendors) {
+    return briefingFromCache(cached, now);
   }
   if (briefingRequest?.contextKey === contextKey) {
-    return briefingRequest.promise;
+    return briefingFromCache(await briefingRequest.promise, new Date());
   }
 
   const promise = measureRuntime(
     "home.briefing",
-    () => buildHomeBriefing(config, token),
+    () => buildHomeBriefing(config, token, cached, contextKey, refreshPlan),
     { measurePayload: true }
-  ).then((value) => {
-    cachedBriefing = {
-      contextKey,
-      value,
-      freshUntil: Date.now() + briefingTtlMs
-    };
-    void saveCachedHomeBriefing(
-      config.data.data_dir,
-      value,
-      {
-        accountId,
-        manifestLanguage: config.data.manifest_language
-      }
-    ).catch(() => undefined);
+  ).then(async (value) => {
+    cachedBriefing = value;
+    await saveCachedHomeBriefing(config.data.data_dir, value);
     return value;
   });
   briefingRequest = { contextKey, promise };
@@ -77,26 +68,22 @@ export async function getHomeBriefing(): Promise<HomeBriefing> {
     () => clearBriefingRequest(promise),
     () => clearBriefingRequest(promise)
   );
-  return promise;
-}
-
-export async function getPersistedHomeBriefing(): Promise<HomeBriefing | null> {
-  const config = loadConfig();
-  const token = loadOAuthToken(config.data.data_dir);
-  const cached = await loadCachedHomeBriefing(config.data.data_dir, {
-    accountId: token?.membership_id,
-    manifestLanguage: config.data.manifest_language
-  });
-  return cached?.briefing ?? null;
+  return briefingFromCache(await promise, new Date());
 }
 
 async function buildHomeBriefing(
   config: D2Config,
-  token: FreshOAuthToken | null
-): Promise<HomeBriefing> {
+  token: FreshOAuthToken | null,
+  cached: CachedHomeBriefing | null,
+  contextKey: string,
+  refreshPlan: HomeRefreshPlan
+): Promise<CachedHomeBriefing> {
   const bungieSession = getSharedBungieSession(config.bungie.api_key);
   const snapshot = await bungieSession.getHomeSnapshot({
-    accessToken: token?.access_token
+    accessToken: token?.access_token,
+    includeMilestones: refreshPlan.activities,
+    includeProfile: refreshPlan.activities,
+    includeVendors: refreshPlan.vendors
   });
   const definitions = await loadHomeDefinitions(snapshot);
   const activeActivityHashes = collectProfileActivityHashes(snapshot);
@@ -113,11 +100,30 @@ async function buildHomeBriefing(
     definitions
   });
   const now = new Date();
-
+  const freshDaily = buildDailySummary(now, dailyLiveData);
+  const daily = cached ? {
+    ...freshDaily,
+    sources: {
+      rotations: refreshPlan.activities ? freshDaily.sources.rotations : cached.daily.sources.rotations,
+      lost_sector: refreshPlan.activities ? freshDaily.sources.lost_sector : cached.daily.sources.lost_sector,
+      weekly_report: refreshPlan.activities ? freshDaily.sources.weekly_report : cached.daily.sources.weekly_report,
+      vendors: refreshPlan.vendors ? freshDaily.sources.vendors : cached.daily.sources.vendors
+    }
+  } : freshDaily;
+  const weekly = refreshPlan.activities || !cached
+    ? buildWeeklySummary(now, weeklyLiveData)
+    : cached.weekly;
   return {
+    version: 1,
+    context_key: contextKey,
+    saved_at: now.toISOString(),
     fetched_at: snapshot.fetchedAt,
-    daily: buildDailySummary(now, dailyLiveData),
-    weekly: buildWeeklySummary(now, weeklyLiveData)
+    daily_period_key: dailyPeriodKey(now),
+    weekly_period_key: weeklyPeriodKey(now),
+    xur_period_key: xurPeriodKey(now),
+    xur_refresh_at: findXurRefreshAt(daily),
+    daily,
+    weekly
   };
 }
 
@@ -259,6 +265,105 @@ function numberValue(value: unknown): number[] {
   return typeof value === "number" && Number.isFinite(value) ? [value] : [];
 }
 
+type HomeRefreshPlan = {
+  activities: boolean;
+  vendors: boolean;
+};
+
+function createRefreshPlan(
+  cached: CachedHomeBriefing | null,
+  now: Date,
+  force: boolean
+): HomeRefreshPlan {
+  if (force || !cached) return { activities: true, vendors: true };
+  return {
+    activities: cached.daily_period_key !== dailyPeriodKey(now)
+      || cached.weekly_period_key !== weeklyPeriodKey(now),
+    vendors: cached.xur_period_key !== xurPeriodKey(now)
+      || isExpired(cached.xur_refresh_at, now)
+  };
+}
+
+function briefingFromCache(cached: CachedHomeBriefing, now: Date): HomeBriefing {
+  const currentDaily = buildDailySummary(now);
+  const currentWeekly = buildWeeklySummary(now);
+  return {
+    fetched_at: cached.fetched_at,
+    daily: {
+      ...cached.daily,
+      date_label: currentDaily.date_label,
+      daily_reset: currentDaily.daily_reset,
+      weekly_reset: currentDaily.weekly_reset
+    },
+    weekly: {
+      ...cached.weekly,
+      weekly_reset: currentWeekly.weekly_reset
+    }
+  };
+}
+
+async function loadBriefingCache(dataDir: string, contextKey: string): Promise<CachedHomeBriefing | null> {
+  if (cachedBriefing?.context_key === contextKey) return cachedBriefing;
+  if (cacheLoadRequest?.contextKey === contextKey) return cacheLoadRequest.promise;
+  const promise = loadCachedHomeBriefing(dataDir, contextKey).then((value) => {
+    if (value) cachedBriefing = value;
+    return value;
+  });
+  cacheLoadRequest = { contextKey, promise };
+  void promise.then(
+    () => clearCacheLoadRequest(promise),
+    () => clearCacheLoadRequest(promise)
+  );
+  return promise;
+}
+
+function dailyPeriodKey(now: Date): string {
+  return latestUtcBoundary(now, [0, 1, 2, 3, 4, 5, 6]).toISOString();
+}
+
+function weeklyPeriodKey(now: Date): string {
+  return latestUtcBoundary(now, [2]).toISOString();
+}
+
+function xurPeriodKey(now: Date): string {
+  const boundary = latestUtcBoundary(now, [2, 5]);
+  return `${boundary.getUTCDay() === 5 ? "active" : "inactive"}:${boundary.toISOString()}`;
+}
+
+function latestUtcBoundary(now: Date, weekdays: number[]): Date {
+  for (let offset = 0; offset <= 7; offset += 1) {
+    const candidate = new Date(Date.UTC(
+      now.getUTCFullYear(),
+      now.getUTCMonth(),
+      now.getUTCDate() - offset,
+      17,
+      0,
+      0,
+      0
+    ));
+    if (weekdays.includes(candidate.getUTCDay()) && candidate <= now) return candidate;
+  }
+  return new Date(now);
+}
+
+function findXurRefreshAt(daily: DailySummary): string | undefined {
+  const now = Date.now();
+  const timestamps = (daily.sources.vendors.items ?? [])
+    .filter((item) => item.vendorHash === 2190858386)
+    .map((item) => item.vendorRefreshDate)
+    .filter((value): value is string => Boolean(value))
+    .map((value) => Date.parse(value))
+    .filter((value) => Number.isFinite(value) && value > now)
+    .sort((left, right) => left - right);
+  return timestamps.length ? new Date(timestamps[0]).toISOString() : undefined;
+}
+
+function isExpired(value: string | undefined, now: Date): boolean {
+  if (!value) return false;
+  const timestamp = Date.parse(value);
+  return Number.isFinite(timestamp) && timestamp <= now.getTime();
+}
+
 function loadTokenOnce(config: Parameters<typeof loadFreshOAuthToken>[0]): Promise<FreshOAuthToken | null> {
   const contextKey = `${config.data.data_dir}\u0000${config.bungie.client_id}`;
   if (tokenRequest?.contextKey === contextKey) {
@@ -273,10 +378,14 @@ function loadTokenOnce(config: Parameters<typeof loadFreshOAuthToken>[0]): Promi
   return promise;
 }
 
-function clearBriefingRequest(promise: Promise<HomeBriefing>): void {
+function clearBriefingRequest(promise: Promise<CachedHomeBriefing>): void {
   if (briefingRequest?.promise === promise) {
     briefingRequest = null;
   }
+}
+
+function clearCacheLoadRequest(promise: Promise<CachedHomeBriefing | null>): void {
+  if (cacheLoadRequest?.promise === promise) cacheLoadRequest = null;
 }
 
 function clearTokenRequest(promise: Promise<FreshOAuthToken | null>): void {

@@ -36,6 +36,9 @@ type DefinitionRecord = {
     displayProperties?: { name?: string };
   }>;
   preview?: { previewVendorHash?: number };
+  groups?: Array<{ vendorGroupHash?: number }>;
+  categoryName?: string;
+  order?: number;
   investmentStats?: Array<{
     statTypeHash?: number;
     value?: number;
@@ -52,6 +55,7 @@ export type FetchVendorInventorySnapshotOptions = {
   detailVendorHashes?: number[];
   definitions: {
     vendors: Record<string, DefinitionRecord>;
+    vendorGroups?: Record<string, DefinitionRecord>;
     items: Record<string, DefinitionRecord>;
     destinations?: Record<string, DefinitionRecord>;
   };
@@ -289,7 +293,7 @@ function buildCharacterContexts(
     return [characterId, {
       characterId,
       armorerModHash: armorerMod ?? null,
-      armorerModName: armorerDefinition?.displayProperties?.name?.trim() || null
+      armorerModName: cleanManifestDisplayText(armorerDefinition?.displayProperties?.name) || null
     }];
   }));
 }
@@ -312,18 +316,24 @@ function mapVendorResponses(
     const vendor = list.vendors?.data?.[vendorKey] ?? {};
     const vendorDefinition = definitions.vendors[vendorKey];
     if (!shouldIncludeTopLevelVendor(vendor, vendorDefinition, previewVendorHashes.has(vendorHash))) continue;
+    const vendorGroup = selectVendorGroup(vendorDefinition, definitions.vendorGroups ?? {});
     const detail = details.get(vendorHash);
     const categories = list.categories?.data?.[vendorKey]?.categories ?? [];
     mapped[vendorKey] = {
       vendorHash: vendor.vendorHash ?? vendorHash,
       canPurchase: vendor.canPurchase ?? false,
       location: resolveVendorLocation(vendor, vendorDefinition, definitions.destinations ?? {}),
+      vendorGroupHash: vendorGroup?.hash,
+      vendorGroupName: vendorGroup?.name,
+      vendorGroupOrder: vendorGroup?.order,
       nextRefreshAt: vendor.nextRefreshDate,
       progression: vendor.progression,
       categories: categories.map((category) => ({
         categoryIndex: category.displayCategoryIndex ?? -1,
-        name: vendorDefinition?.displayCategories?.[category.displayCategoryIndex ?? -1]
-          ?.displayProperties?.name?.trim() || "其他",
+        name: cleanManifestDisplayText(
+          vendorDefinition?.displayCategories?.[category.displayCategoryIndex ?? -1]
+            ?.displayProperties?.name
+        ) || "其他",
         identifier: vendorDefinition?.displayCategories?.[category.displayCategoryIndex ?? -1]
           ?.identifier?.trim() || undefined,
         itemIndexes: category.itemIndexes ?? []
@@ -359,6 +369,26 @@ function resolveVendorLocation(
   const destinationHash = vendorDefinition?.locations?.[vendor.vendorLocationIndex]?.destinationHash;
   if (destinationHash === undefined) return undefined;
   return destinations[String(destinationHash)]?.displayProperties?.name?.trim() || undefined;
+}
+
+function selectVendorGroup(
+  vendorDefinition: DefinitionRecord | undefined,
+  vendorGroups: Record<string, DefinitionRecord>
+): { hash: number; name: string; order: number } | undefined {
+  return (vendorDefinition?.groups ?? [])
+    .flatMap((group) => {
+      const hash = group.vendorGroupHash;
+      if (typeof hash !== "number") return [];
+      const definition = vendorGroups[String(hash)];
+      const name = cleanManifestDisplayText(definition?.categoryName);
+      if (!name) return [];
+      return [{
+        hash,
+        name,
+        order: typeof definition.order === "number" ? definition.order : Number.MAX_SAFE_INTEGER
+      }];
+    })
+    .sort((left, right) => left.order - right.order)[0];
 }
 
 function collectPreviewVendorHashes(
@@ -405,11 +435,13 @@ function mapDefinitions(
     vendors: Object.fromEntries([...vendorHashes].map((vendorHash) => {
       const definition = definitions.vendors[String(vendorHash)];
       return [String(vendorHash), {
-        name: definition?.displayProperties?.name?.trim() || `商人 ${vendorHash}`,
+        name: cleanManifestDisplayText(definition?.displayProperties?.name) || `商人 ${vendorHash}`,
         vendorIdentifier: definition?.vendorIdentifier,
-        description: definition?.displayProperties?.description?.trim() || "",
+        description: cleanManifestDisplayText(definition?.displayProperties?.description),
         iconUrl: definition?.displayProperties?.icon,
-        failureStrings: definition?.failureStrings ?? [],
+        failureStrings: (definition?.failureStrings ?? [])
+          .map(cleanManifestDisplayText)
+          .filter(Boolean),
         itemList: Object.fromEntries((definition?.itemList ?? []).map((item, index) => [String(index), {
           displayCategoryIndex: item.displayCategoryIndex ?? -1,
           redirectToSaleIndexes: item.redirectToSaleIndexes ?? []
@@ -419,13 +451,13 @@ function mapDefinitions(
     items: Object.fromEntries([...itemHashes].map((itemHash) => {
       const definition = definitions.items[String(itemHash)];
       return [String(itemHash), {
-        name: definition?.displayProperties?.name?.trim() || String(itemHash),
-        itemType: definition?.itemTypeDisplayName?.trim() || "",
-        tierType: definition?.inventory?.tierTypeName?.trim() || "",
+        name: cleanManifestDisplayText(definition?.displayProperties?.name) || String(itemHash),
+        itemType: cleanManifestDisplayText(definition?.itemTypeDisplayName),
+        tierType: cleanManifestDisplayText(definition?.inventory?.tierTypeName),
         iconUrl: definition?.displayProperties?.icon,
         previewVendorHash: definition?.preview?.previewVendorHash,
-        ...(definition?.displayProperties?.description
-          ? { description: definition.displayProperties.description }
+        ...(cleanManifestDisplayText(definition?.displayProperties?.description)
+          ? { description: cleanManifestDisplayText(definition?.displayProperties?.description) }
           : {}),
         ...(definition?.plug?.plugCategoryIdentifier
           ? { categoryIdentifier: definition.plug.plugCategoryIdentifier }
@@ -434,6 +466,16 @@ function mapDefinitions(
       }];
     }))
   };
+}
+
+function cleanManifestDisplayText(value: string | undefined): string {
+  return (value ?? "")
+    .replace(/[\(（]\s*\{var:\d+\}(?:\s*\/\s*\{var:\d+\})*\s*[\)）]/gi, "")
+    .replace(/\{var:\d+\}/gi, "")
+    .replace(/\s*\/\s*(?=$|[\)）])/g, "")
+    .replace(/[\(（]\s*[\)）]/g, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
 }
 
 function mergeCurrencyBalances(

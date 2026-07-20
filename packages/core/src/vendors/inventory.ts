@@ -83,6 +83,9 @@ export type VendorInventory = {
   description: string;
   iconUrl?: string;
   location?: string;
+  vendorGroupHash?: number;
+  vendorGroupName?: string;
+  vendorGroupOrder?: number;
   nextRefreshAt?: string;
   progression?: VendorProgression;
   characterIds: string[];
@@ -142,6 +145,9 @@ export type VendorResponseInput = {
   vendorHash: number;
   canPurchase: boolean;
   location?: string;
+  vendorGroupHash?: number;
+  vendorGroupName?: string;
+  vendorGroupOrder?: number;
   nextRefreshAt?: string;
   progression?: VendorProgression;
   categories: readonly VendorCategoryInput[];
@@ -301,6 +307,9 @@ function mapCharacterVendor(
     description: vendorDefinition?.description ?? "",
     iconUrl: vendorDefinition?.iconUrl,
     location: response.location,
+    vendorGroupHash: response.vendorGroupHash,
+    vendorGroupName: response.vendorGroupName,
+    vendorGroupOrder: response.vendorGroupOrder,
     nextRefreshAt: response.nextRefreshAt,
     progression: response.progression,
     characterIds: [characterId],

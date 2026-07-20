@@ -9,8 +9,8 @@ import {
 } from "../runtime/runtimeCoordinator.js";
 
 export function registerDailyIpcHandlers(): void {
-  ipcMain.handle("home:briefing", () => encodeDesktopIpcFailure(
-    getCoordinatedHomeBriefing,
+  ipcMain.handle("home:briefing", (_event, options?: { force?: boolean }) => encodeDesktopIpcFailure(
+    () => getCoordinatedHomeBriefing(options),
     classifyHomeBriefingIpcError
   ));
   ipcMain.handle("home:briefing:refresh", () => encodeDesktopIpcFailure(

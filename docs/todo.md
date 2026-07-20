@@ -1,6 +1,6 @@
 # 当前待办
 
-> 更新时间：2026-07-19
+> 更新时间：2026-07-20
 > 这里只保留当前健康度、未完成任务和未解决 bug。已完成 Bug 与阶段过程使用 Git 历史追溯；详细目标、切片和验收标准在 `docs/work/backlog/`。
 
 ## 健康度
@@ -19,10 +19,10 @@
 |---|---|---|---|---|---|
 | T1 | P1 | 🟡 待推进 | 小日向攻略解析与账号匹配 | [攻略证据工作台](work/backlog/kohinata-guide-evidence-workbench.md) | 统一攻略要求、账号命中、perk 证据、护甲可达性和配装草稿 |
 | T2 | P1 | 🟡 待推进 | 仓库推荐与清理工作台 | [仓库推荐与清理工作台](work/backlog/vault-recommendation-and-cleanup-workbench.md) | 统一 DIM wishlist、本地目标、同名对比和清理清单 |
-| T3 | P1 | 🟡 待验证 | 商人结构、覆盖与官方获取来源 | [商人结构、覆盖与官方获取来源](work/backlog/vendors-and-drop-sources.md) | 商人目录已改为地点 → 商人名称两级，并接通 Live 目的地定义；下一步由 CI 与真实账号验证地点覆盖、冷启动、超时恢复、机灵模组 A/B 和逐商人库存 |
+| T3 | P1 | 🟡 待验收 | 商人结构、覆盖与官方获取来源 | [商人结构、覆盖与官方获取来源](work/backlog/vendors-and-drop-sources.md) | 已接入 Vendor Group / 目的地两级目录、持久缓存、启动预热和周期刷新；下一步验收真实地点覆盖、跨重置边界、Offer 时效、去重和机灵模组 A/B |
 | T4 | P3 | 🟡 待推进 | 活动复盘增强 | [活动复盘增强](work/backlog/activity-review-enhancement.md) | 接 PGCR、完成时间推算和副本级趋势 |
-| T5 | P1 | 🟡 待验证 | 统一装备详情与知识分析 | [统一装备详情与知识分析](work/backlog/equipment-detail-and-knowledge-analysis.md) | 独立护甲详情已按确认原型迁入共享 UI，并接入资料库、商人和账号装备；下一步由 CI 与真实护甲验证属性、插槽、固有能力和同名装备切换 |
-| T6 | P1 | 🟡 待验证 | 资料库与运行时性能架构升级 | [资料库与运行时性能架构升级](work/backlog/game-data-performance-architecture-upgrade.md) | 已增加首页简报持久缓存与缓存优先后台刷新；下一步由 CI 和真实冷启动确认首页立即展示旧数据、内容变化后自动替换，再进入 Release 验证 |
+| T5 | P1 | 🟡 待验收 | 统一装备详情与知识分析 | [统一装备详情与知识分析](work/backlog/equipment-detail-and-knowledge-analysis.md) | 武器与独立护甲详情代码已收口；下一步验收资料库、商人、仓库真实对象与明暗主题，修正数据识别和视觉问题 |
+| T6 | P1 | 🟡 等待 Release | 资料库与运行时性能架构升级 | [资料库与运行时性能架构升级](work/backlog/game-data-performance-architecture-upgrade.md) | 代码、全仓回归、Windows NSIS 打包、隔离安装版和性能预算已完成；下一次正式发版执行 Release workflow 与真实更新/回滚观察，稳定 Release 后删除 JSON/旧 IPC/旧 core HTTP 兼容层 |
 | T7 | P1 | 🟡 待验证 | 架构边界收口 | [架构边界收口](work/backlog/architecture-boundary-hardening.md) | 第二轮已迁 IO/HTTP、fixture、preload CJS，并修复资料库未就绪时的启动请求与错误编码；下一步由 CI 验证，再迁 core 剩余 store/client 与宽松 fixture |
 
 ## 当前 Bug

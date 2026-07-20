@@ -312,7 +312,7 @@ export function useDesktopProductShell(props: {
           type="button"
           className="secondary-button"
           disabled={daily.isLoadingDaily || !isManifestReady}
-          onClick={() => void daily.loadDailySummary()}
+          onClick={() => void daily.loadDailySummary(true)}
         >
           {daily.isLoadingDaily ? "刷新中..." : "刷新本周信息"}
         </button>

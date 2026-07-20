@@ -133,6 +133,32 @@ describe("vendor workspace loading", () => {
     expect(loadInventory.mock.calls[0]?.[0].detail_vendor_hashes).toEqual([]);
   });
 
+  it("retries the base inventory when re-entering before the first request completes", async () => {
+    const firstRequest = createDeferred<ReturnType<typeof createVendorSnapshot>>();
+    const loadInventory = vi.fn()
+      .mockImplementationOnce(() => firstRequest.promise)
+      .mockResolvedValueOnce(createVendorSnapshot("2026-07-12T13:00:00.000Z"));
+    const { result, rerender } = renderHook(
+      ({ active }) => useVendorsWorkspace({
+        accountSummary: createAccountSummary("membership-a"),
+        selectedCharacterId: "hunter",
+        active,
+        loadInventory
+      }),
+      { initialProps: { active: true } }
+    );
+
+    await waitFor(() => expect(loadInventory).toHaveBeenCalledTimes(1));
+    rerender({ active: false });
+    rerender({ active: true });
+
+    await waitFor(() => expect(loadInventory).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(result.current.model.updatedLabel).toBe("更新：2026-07-12T13:00:00.000Z"));
+
+    await act(async () => firstRequest.resolve(createVendorSnapshot("2026-07-12T11:00:00.000Z")));
+    expect(result.current.model.updatedLabel).toBe("更新：2026-07-12T13:00:00.000Z");
+  });
+
   it("loads only the selected vendor detail after the base inventory arrives", async () => {
     const baseSnapshot = {
       ...createVendorSnapshot(),

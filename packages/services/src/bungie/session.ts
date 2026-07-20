@@ -90,7 +90,12 @@ export type BungieHomeSnapshot = {
 };
 
 export type BungieSession = {
-  getHomeSnapshot(options?: { accessToken?: string }): Promise<BungieHomeSnapshot>;
+  getHomeSnapshot(options?: {
+    accessToken?: string;
+    includeMilestones?: boolean;
+    includeProfile?: boolean;
+    includeVendors?: boolean;
+  }): Promise<BungieHomeSnapshot>;
 };
 
 export type CreateBungieSessionOptions = {
@@ -280,19 +285,26 @@ export function createBungieSession(options: CreateBungieSessionOptions): Bungie
 
   return {
     async getHomeSnapshot(sessionOptions = {}) {
-      const milestonesPromise = broker.get(
-        "public:milestones",
-        () => fetchJson<Record<string, BungiePublicMilestone>>("/Destiny2/Milestones/"),
-        policies.milestones
-      );
-      const publicVendorsPromise = broker.get(
-        "public:vendors:400,402",
-        () => fetchJson<BungieVendorsResponse>("/Destiny2/Vendors/?components=400,402"),
-        policies.publicVendors
-      );
+      const includeMilestones = sessionOptions.includeMilestones !== false;
+      const includeProfile = sessionOptions.includeProfile !== false;
+      const includeVendors = sessionOptions.includeVendors !== false;
+      const milestonesPromise = includeMilestones
+        ? broker.get(
+            "public:milestones",
+            () => fetchJson<Record<string, BungiePublicMilestone>>("/Destiny2/Milestones/"),
+            policies.milestones
+          )
+        : Promise.resolve(undefined);
+      const publicVendorsPromise = includeVendors
+        ? broker.get(
+            "public:vendors:400,402",
+            () => fetchJson<BungieVendorsResponse>("/Destiny2/Vendors/?components=400,402"),
+            policies.publicVendors
+          )
+        : Promise.resolve(undefined);
       const accessToken = sessionOptions.accessToken;
       const authSnapshotPromise = accessToken
-        ? loadAuthenticatedHomeSnapshot(accessToken)
+        ? loadAuthenticatedHomeSnapshot(accessToken, includeProfile, includeVendors)
         : Promise.resolve({
           membership: undefined,
           profile: undefined,
@@ -318,7 +330,11 @@ export function createBungieSession(options: CreateBungieSessionOptions): Bungie
     }
   };
 
-  async function loadAuthenticatedHomeSnapshot(accessToken: string): Promise<{
+  async function loadAuthenticatedHomeSnapshot(
+    accessToken: string,
+    includeProfile: boolean,
+    includeVendors: boolean
+  ): Promise<{
     membership?: BungieMembership;
     profile?: BungieHomeProfileResponse;
     characterVendors: BungieCharacterVendorResponse[];
@@ -328,12 +344,14 @@ export function createBungieSession(options: CreateBungieSessionOptions): Bungie
     const characterIds = Object.values(profile.characters?.data ?? {})
       .map((character) => character.characterId)
       .filter((characterId): characterId is string => Boolean(characterId));
-    const vendorResults = await Promise.allSettled(
-      characterIds.map((characterId) => getCharacterVendors(membership, characterId, accessToken))
-    );
+    const vendorResults = includeVendors
+      ? await Promise.allSettled(
+          characterIds.map((characterId) => getCharacterVendors(membership, characterId, accessToken))
+        )
+      : [];
     return {
       membership,
-      profile,
+      profile: includeProfile ? profile : undefined,
       characterVendors: vendorResults
         .filter((result): result is PromiseFulfilledResult<BungieCharacterVendorResponse> => result.status === "fulfilled")
         .map((result) => result.value)

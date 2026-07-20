@@ -43,10 +43,12 @@ function refreshVendorInventory(input: VendorInventoryRequest) {
         vendors: DefinitionComponentData;
         items: DefinitionComponentData;
         destinations: DefinitionComponentData;
+        vendorGroups: DefinitionComponentData;
       } = {
         vendors: {},
         items: {},
-        destinations: {}
+        destinations: {},
+        vendorGroups: {}
       };
       const token = await measureRuntime("vendors.inventory.token", () => loadFreshOAuthToken(config));
       const snapshot = await fetchVendorInventorySnapshot({
@@ -61,7 +63,8 @@ function refreshVendorInventory(input: VendorInventoryRequest) {
         fetchJson: createVendorDefinitionHydratingFetchJson({
           apiKey: config.bungie.api_key,
           accessToken: token.access_token,
-          definitions
+          definitions,
+          forceRefresh: Boolean(input.force_refresh)
         })
       });
       await saveCachedVendorInventory(config.data.data_dir, cacheContext, snapshot);
@@ -95,7 +98,9 @@ function createVendorDefinitionHydratingFetchJson(options: {
     vendors: DefinitionComponentData;
     items: DefinitionComponentData;
     destinations: DefinitionComponentData;
+    vendorGroups: DefinitionComponentData;
   };
+  forceRefresh: boolean;
 }): <T>(path: string, accessToken?: string) => Promise<T> {
   return async <T>(path: string, accessToken?: string): Promise<T> => {
     const payload = await measureRuntime("vendors.inventory.bungie-request", () => (
@@ -103,7 +108,10 @@ function createVendorDefinitionHydratingFetchJson(options: {
         options.apiKey,
         path,
         accessToken ?? options.accessToken,
-        { waitForRefresh: true }
+        {
+          waitForRefresh: true,
+          forceRefresh: options.forceRefresh
+        }
       )
     ));
     const itemHashes = collectNumericProperties(payload, new Set([
@@ -127,6 +135,15 @@ function createVendorDefinitionHydratingFetchJson(options: {
       }
       const vendors = await getDefinitions("DestinyVendorDefinition", vendorHashes);
       Object.assign(options.definitions.vendors, vendors);
+      const vendorGroupHashes = new Set<number>();
+      for (const vendor of Object.values(vendors) as DefinitionRecord[]) {
+        const groups = vendor.groups as Array<{ vendorGroupHash?: number }> | undefined;
+        for (const group of groups ?? []) {
+          if (typeof group.vendorGroupHash === "number") {
+            vendorGroupHashes.add(group.vendorGroupHash);
+          }
+        }
+      }
       const destinationHashes = new Set(Object.values(vendors).flatMap((definition) => {
         const locations = definition.locations as Array<{ destinationHash?: number }> | undefined;
         return (locations ?? []).flatMap((location) =>
@@ -136,6 +153,10 @@ function createVendorDefinitionHydratingFetchJson(options: {
       Object.assign(
         options.definitions.destinations,
         await getDefinitions("DestinyDestinationDefinition", destinationHashes)
+      );
+      Object.assign(
+        options.definitions.vendorGroups,
+        await getDefinitions("DestinyVendorGroupDefinition", vendorGroupHashes)
       );
     });
 

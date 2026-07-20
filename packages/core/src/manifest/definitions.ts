@@ -10,6 +10,7 @@ export type DefinitionComponentName =
   | "DestinyActivityDefinition"
   | "DestinyMilestoneDefinition"
   | "DestinyVendorDefinition"
+  | "DestinyVendorGroupDefinition"
   | "DestinyInventoryBucketDefinition"
   | "DestinyLoadoutNameDefinition"
   | "DestinyStatDefinition"
@@ -26,6 +27,11 @@ export type DefinitionRecord = {
     description?: string;
     icon?: string;
   };
+  categoryName?: string;
+  order?: number;
+  groups?: Array<{
+    vendorGroupHash?: number;
+  }>;
   originalDisplayProperties?: {
     name?: string;
     description?: string;

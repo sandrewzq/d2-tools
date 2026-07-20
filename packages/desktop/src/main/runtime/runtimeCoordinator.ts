@@ -12,7 +12,7 @@ import {
   resumeGameDataRuntime,
   verifyGameDataRuntime
 } from "./gameDataRuntime.js";
-import { getHomeBriefing, getPersistedHomeBriefing } from "./homeBriefing.js";
+import { getHomeBriefing, type HomeBriefingRefreshOptions } from "./homeBriefing.js";
 import { measureRuntime } from "./runtimeMetrics.js";
 
 let initialized = false;
@@ -40,17 +40,7 @@ export function warmRuntimeInBackground(): Promise<void> {
   return request;
 }
 
-export async function getCoordinatedHomeBriefing(): Promise<HomeBriefing> {
-  initializeRuntimeCoordinator();
-  const cached = await getPersistedHomeBriefing();
-  if (cached) {
-    void refreshCoordinatedHomeBriefing().catch(() => undefined);
-    return cached;
-  }
-  return refreshCoordinatedHomeBriefing();
-}
-
-export async function refreshCoordinatedHomeBriefing(): Promise<HomeBriefing> {
+export async function getCoordinatedHomeBriefing(options: HomeBriefingRefreshOptions = {}): Promise<HomeBriefing> {
   initializeRuntimeCoordinator();
   const generation = runtimeGeneration;
   const recovered = await warmManifestRecovery(generation);
@@ -58,7 +48,11 @@ export async function refreshCoordinatedHomeBriefing(): Promise<HomeBriefing> {
   if (!sqliteReady) {
     throw new Error("本地资料库尚未就绪，请先初始化或修复资料库");
   }
-  return requestHomeBriefing();
+  return requestHomeBriefing(options);
+}
+
+export function refreshCoordinatedHomeBriefing(): Promise<HomeBriefing> {
+  return getCoordinatedHomeBriefing({ force: true });
 }
 
 export async function shutdownRuntimeCoordinator(): Promise<void> {
@@ -132,9 +126,9 @@ function warmAccountCache(generation: number): Promise<boolean> {
   return accountCacheWarmupRequest;
 }
 
-function requestHomeBriefing(): Promise<HomeBriefing> {
+function requestHomeBriefing(options: HomeBriefingRefreshOptions = {}): Promise<HomeBriefing> {
   if (homeBriefingRequest) return homeBriefingRequest;
-  const request = getHomeBriefing();
+  const request = getHomeBriefing(options);
   homeBriefingRequest = request;
   void request.then(
     () => clearHomeBriefingRequest(request),
