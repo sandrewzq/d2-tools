@@ -23,6 +23,7 @@ tools/
 ## 当前工具
 
 - `tools/dev-desktop.cmd`：启动本地 desktop 开发版；启动前会清理占用 `53172` 的残留监听进程和持有单实例锁的本仓库开发版 Electron，随后调用 `npx pnpm@9.15.0 dev:desktop`。
+- `tools/dev-desktop-fast.cmd`：安全快速启动 Desktop；根据 `.local-data/tmp/dev-desktop-build.stamp` 和源码修改时间复用已有产物，只增量构建发生变化的 core / http / services / main / preload。首次运行、产物缺失或依赖与根构建配置变化时自动回退完整构建；仅 Renderer / UI / CSS 变化时直接启动。
 - `tools/dev-prototype.cmd`：启动本地 prototype 开发版；启动前会清理占用 `53170` 的残留监听进程，随后调用 `npx pnpm@9.15.0 dev:prototype`。
 - `tools/dev-web.cmd`：启动本地 web 开发版；启动前会清理占用 `53171` 的残留监听进程，随后调用 `npx pnpm@9.15.0 dev:web`。
 - `tools/dev-status.cmd`：只读查看 desktop/prototype/web 开发端口是否已被占用，不启动或结束任何进程。

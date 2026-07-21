@@ -23,6 +23,18 @@ describe("dev tool scripts", () => {
     expect(script).not.toContain("Opening existing renderer page without starting another process");
   });
 
+  it("provides a safe desktop fast-start entry with automatic full-build fallback", () => {
+    const commandScript = readFileSync(join(repoRoot, "tools", "dev-desktop-fast.cmd"), "utf8");
+    const launcher = readFileSync(join(repoRoot, "scripts", "dev-desktop.ps1"), "utf8");
+
+    expect(commandScript).toContain("set \"DEV_PORT=53172\"");
+    expect(commandScript).toContain("dev-desktop.ps1\" -Fast");
+    expect(launcher).toContain("[switch] $Fast");
+    expect(launcher).toContain("Fast start cannot reuse build outputs; falling back to a full build.");
+    expect(launcher).toContain("Workspace outputs are current; skipping package builds.");
+    expect(launcher).toContain("Main and preload outputs are current; reusing existing files.");
+  });
+
   it("removes local development verification aliases while keeping the release gate", () => {
     const packageJson = JSON.parse(readFileSync(join(repoRoot, "package.json"), "utf8"));
 

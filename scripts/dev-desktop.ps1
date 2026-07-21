@@ -2,6 +2,10 @@
 # Usage: powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev-desktop.ps1
 # Keep this file ASCII-only: Windows PowerShell -File may parse UTF-8 without BOM as ANSI.
 
+param(
+  [switch] $Fast
+)
+
 $ErrorActionPreference = "Stop"
 $OutputEncoding = [System.Text.UTF8Encoding]::new($false)
 [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)
@@ -9,12 +13,15 @@ $OutputEncoding = [System.Text.UTF8Encoding]::new($false)
 $rootDir = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 $desktopDir = Join-Path $rootDir "packages\desktop"
 $npx = "npx.cmd"
+$pnpmCommand = Get-Command "pnpm.cmd" -ErrorAction SilentlyContinue
+$pnpm = if ($pnpmCommand) { $pnpmCommand.Source } else { $null }
 $node = (Get-Command "node.exe" -ErrorAction Stop).Source
 $rendererPort = 53172
 $rendererUrl = "http://127.0.0.1:${rendererPort}"
 $previousRendererUrl = $env:D2_RENDERER_URL
 $viteProcess = $null
 $viteCli = Join-Path $desktopDir "node_modules\vite\bin\vite.js"
+$buildStampPath = Join-Path $rootDir ".local-data\tmp\dev-desktop-build.stamp"
 
 function Invoke-Checked {
   param(
@@ -37,6 +44,45 @@ function Assert-FileExists {
   if (-not (Test-Path -LiteralPath $Path)) {
     throw $Message
   }
+}
+
+function Invoke-Pnpm {
+  param([string[]] $ArgumentList)
+
+  if ($pnpm) {
+    Invoke-Checked $pnpm $ArgumentList
+    return
+  }
+  Invoke-Checked $npx (@("pnpm@9.15.0") + $ArgumentList)
+}
+
+function Test-AnyPathNewerThan {
+  param(
+    [string[]] $Paths,
+    [DateTime] $Timestamp
+  )
+
+  foreach ($path in $Paths) {
+    if (-not (Test-Path -LiteralPath $path)) {
+      continue
+    }
+    $item = Get-Item -LiteralPath $path
+    if (-not $item.PSIsContainer) {
+      if ($item.LastWriteTimeUtc -gt $Timestamp) { return $true }
+      continue
+    }
+    $newer = Get-ChildItem -LiteralPath $path -Recurse -File -Force -ErrorAction SilentlyContinue |
+      Where-Object { $_.LastWriteTimeUtc -gt $Timestamp } |
+      Select-Object -First 1
+    if ($newer) { return $true }
+  }
+  return $false
+}
+
+function Write-BuildStamp {
+  $stampDir = Split-Path -Parent $buildStampPath
+  New-Item -ItemType Directory -Path $stampDir -Force | Out-Null
+  [IO.File]::WriteAllText($buildStampPath, [DateTime]::UtcNow.ToString("O"), [Text.UTF8Encoding]::new($false))
 }
 
 function Stop-ProcessTree {
@@ -100,25 +146,114 @@ Push-Location $rootDir
 try {
   Stop-StaleDesktopProcesses
 
-  Write-Host "=== 1/3 Build workspace packages ===" -ForegroundColor Cyan
-  Invoke-Checked $npx @("pnpm@9.15.0", "--filter", "@d2-tools/core", "build")
-  Invoke-Checked $npx @("pnpm@9.15.0", "--filter", "@d2-tools/http", "build")
-  Invoke-Checked $npx @("pnpm@9.15.0", "--filter", "@d2-tools/services", "build")
+  $requiredOutputs = @(
+    (Join-Path $rootDir "packages\core\dist\index.js"),
+    (Join-Path $rootDir "packages\http\dist\server.js"),
+    (Join-Path $rootDir "packages\services\dist\index.js"),
+    (Join-Path $desktopDir "dist\main\main.js"),
+    (Join-Path $desktopDir "dist\preload\preload.cjs")
+  )
+  $requiresFullBuild = -not $Fast
+  $buildCore = $false
+  $buildHttp = $false
+  $buildServices = $false
+  $buildMain = $false
+  $buildPreload = $false
+
+  if ($Fast) {
+    $missingOutput = $requiredOutputs | Where-Object { -not (Test-Path -LiteralPath $_) } | Select-Object -First 1
+    if (-not (Test-Path -LiteralPath $buildStampPath) -or $missingOutput) {
+      Write-Host "Fast start cannot reuse build outputs; falling back to a full build." -ForegroundColor Yellow
+      $requiresFullBuild = $true
+    } else {
+      $stampTime = (Get-Item -LiteralPath $buildStampPath).LastWriteTimeUtc
+      $criticalChanged = Test-AnyPathNewerThan -Timestamp $stampTime -Paths @(
+        (Join-Path $rootDir "package.json"),
+        (Join-Path $rootDir "pnpm-lock.yaml"),
+        (Join-Path $rootDir "pnpm-workspace.yaml"),
+        (Join-Path $rootDir "tsconfig.base.json"),
+        (Join-Path $rootDir "packages\app\package.json"),
+        (Join-Path $rootDir "packages\ui\package.json"),
+        (Join-Path $desktopDir "package.json")
+      )
+      if ($criticalChanged) {
+        Write-Host "Dependency or root build configuration changed; falling back to a full build." -ForegroundColor Yellow
+        $requiresFullBuild = $true
+      } else {
+        $buildCore = Test-AnyPathNewerThan -Timestamp $stampTime -Paths @(
+          (Join-Path $rootDir "packages\core\src"),
+          (Join-Path $rootDir "packages\core\package.json"),
+          (Join-Path $rootDir "packages\core\tsconfig.json")
+        )
+        $buildHttp = $buildCore -or (Test-AnyPathNewerThan -Timestamp $stampTime -Paths @(
+          (Join-Path $rootDir "packages\http\src"),
+          (Join-Path $rootDir "packages\http\package.json"),
+          (Join-Path $rootDir "packages\http\tsconfig.json")
+        ))
+        $buildServices = $buildCore -or (Test-AnyPathNewerThan -Timestamp $stampTime -Paths @(
+          (Join-Path $rootDir "packages\services\src"),
+          (Join-Path $rootDir "packages\services\package.json"),
+          (Join-Path $rootDir "packages\services\tsconfig.json")
+        ))
+        $contractsChanged = Test-AnyPathNewerThan -Timestamp $stampTime -Paths @(
+          (Join-Path $desktopDir "src\contracts")
+        )
+        $buildMain = $buildCore -or $buildHttp -or $buildServices -or $contractsChanged -or (Test-AnyPathNewerThan -Timestamp $stampTime -Paths @(
+          (Join-Path $desktopDir "src\main"),
+          (Join-Path $desktopDir "tsconfig.main.json")
+        ))
+        $buildPreload = $buildCore -or $buildServices -or $contractsChanged -or (Test-AnyPathNewerThan -Timestamp $stampTime -Paths @(
+          (Join-Path $desktopDir "src\preload"),
+          (Join-Path $desktopDir "tsconfig.preload.json"),
+          (Join-Path $desktopDir "vite.preload.config.ts")
+        ))
+      }
+    }
+  }
+
+  if ($requiresFullBuild) {
+    $buildCore = $true
+    $buildHttp = $true
+    $buildServices = $true
+    $buildMain = $true
+    $buildPreload = $true
+  }
+
+  Write-Host "=== 1/3 Prepare workspace packages ===" -ForegroundColor Cyan
+  if ($buildCore) { Invoke-Pnpm @("--filter", "@d2-tools/core", "build") }
+  if ($buildHttp) { Invoke-Pnpm @("--filter", "@d2-tools/http", "build") }
+  if ($buildServices) { Invoke-Pnpm @("--filter", "@d2-tools/services", "build") }
+  if (-not ($buildCore -or $buildHttp -or $buildServices)) {
+    Write-Host "Workspace outputs are current; skipping package builds." -ForegroundColor Green
+  }
 
   Write-Host ""
-  Write-Host "=== 2/3 Build Electron main process and preload ===" -ForegroundColor Cyan
-  Remove-Item -LiteralPath (Join-Path $desktopDir "tsconfig.main.tsbuildinfo") -Force -ErrorAction SilentlyContinue
-  Remove-Item -LiteralPath (Join-Path $desktopDir "dist\main") -Recurse -Force -ErrorAction SilentlyContinue
-  Remove-Item -LiteralPath (Join-Path $desktopDir "dist\preload") -Recurse -Force -ErrorAction SilentlyContinue
+  Write-Host "=== 2/3 Prepare Electron main process and preload ===" -ForegroundColor Cyan
+  if ($requiresFullBuild) {
+    Remove-Item -LiteralPath (Join-Path $desktopDir "tsconfig.main.tsbuildinfo") -Force -ErrorAction SilentlyContinue
+    Remove-Item -LiteralPath (Join-Path $desktopDir "dist\main") -Recurse -Force -ErrorAction SilentlyContinue
+    Remove-Item -LiteralPath (Join-Path $desktopDir "dist\preload") -Recurse -Force -ErrorAction SilentlyContinue
+  }
 
   Push-Location $desktopDir
   try {
-    Invoke-Checked $npx @("pnpm@9.15.0", "exec", "tsc", "-p", "tsconfig.main.json")
-    Assert-FileExists (Join-Path $desktopDir "dist\main\main.js") "Electron main output is missing: dist\main\main.js"
-    Invoke-Checked $npx @("pnpm@9.15.0", "exec", "vite", "build", "--config", "vite.preload.config.ts")
-    Assert-FileExists (Join-Path $desktopDir "dist\preload\preload.cjs") "Electron preload CJS output is missing: dist\preload\preload.cjs"
+    if ($buildMain) {
+      Invoke-Pnpm @("exec", "tsc", "-p", "tsconfig.main.json")
+      Assert-FileExists (Join-Path $desktopDir "dist\main\main.js") "Electron main output is missing: dist\main\main.js"
+    }
+    if ($buildPreload) {
+      Invoke-Pnpm @("exec", "vite", "build", "--config", "vite.preload.config.ts")
+      Assert-FileExists (Join-Path $desktopDir "dist\preload\preload.cjs") "Electron preload CJS output is missing: dist\preload\preload.cjs"
+    }
+    if (-not ($buildMain -or $buildPreload)) {
+      Write-Host "Main and preload outputs are current; reusing existing files." -ForegroundColor Green
+    }
   } finally {
     Pop-Location
+  }
+
+  if ($buildCore -or $buildHttp -or $buildServices -or $buildMain -or $buildPreload) {
+    Write-BuildStamp
   }
 
   Write-Host ""
@@ -129,7 +264,7 @@ try {
 
   Write-Host "Renderer is ready at $rendererUrl. Opening Electron. Close the desktop window to stop the dev server." -ForegroundColor Green
   $env:D2_RENDERER_URL = $rendererUrl
-  Invoke-Checked $npx @("pnpm@9.15.0", "--filter", "@d2-tools/desktop", "dev:electron")
+  Invoke-Pnpm @("--filter", "@d2-tools/desktop", "dev:electron")
 } finally {
   if ($null -eq $previousRendererUrl) {
     Remove-Item Env:\D2_RENDERER_URL -ErrorAction SilentlyContinue

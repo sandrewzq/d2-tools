@@ -242,14 +242,22 @@ npx pnpm@9.15.0 dev:desktop
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev-desktop.ps1
 ```
 
-这条链路会：
+日常 Renderer / UI 开发优先使用安全快速启动：
+
+```powershell
+tools\dev-desktop-fast.cmd
+```
+
+快速启动会复用 `.local-data/tmp/dev-desktop-build.stamp` 对应的已有产物，并根据文件修改时间只增量构建变化的 core、http、services、Electron main 或 preload。首次运行、产物缺失、根依赖或构建配置变化时自动回退完整构建；Renderer、共享 UI 和 CSS 改动不执行预构建。
+
+完整启动链路会：
 
 1. 构建 `@d2-tools/core`、`@d2-tools/http` 和 `@d2-tools/services`
 2. 编译 Electron 主进程，并通过独立 Vite CJS 入口构建 preload
 3. 启动 Vite 前端开发服务器，固定使用 `http://127.0.0.1:53172`
 4. 打开 Electron 开发版桌面应用
 
-这不是打包流程，不会生成或解压 `release/win-unpacked`。渲染层改动支持热更新；主进程、preload、core、http 或 services 改动后，关闭桌面窗口再重新运行 `npx pnpm@9.15.0 dev:desktop` 即可重新编译启动。开发端口启用 strict port；如果 `53172` 被占用，启动会直接失败并提示释放端口，不会自动跳到别的端口导致 Electron 打开错误页面。发布版不依赖这个端口；打包后的 Electron 会直接加载安装包内的 `dist/renderer/index.html`。
+这不是打包流程，不会生成或解压 `release/win-unpacked`。渲染层改动支持热更新；主进程、preload、core、http 或 services 改动后，关闭桌面窗口并重新运行 `tools\dev-desktop-fast.cmd`，脚本会自动增量重建受影响层；需要确定性全量重建时使用 `npx pnpm@9.15.0 dev:desktop`。开发端口启用 strict port；如果 `53172` 被占用，启动会直接失败并提示释放端口，不会自动跳到别的端口导致 Electron 打开错误页面。发布版不依赖这个端口；打包后的 Electron 会直接加载安装包内的 `dist/renderer/index.html`。
 
 如果只想单独启动前端页面：
 
@@ -288,6 +296,7 @@ npx pnpm@9.15.0 dev:electron
 - `tools/dev-prototype.cmd`：清理 `53170` 残留监听进程后启动 Prototype。
 - `tools/dev-web.cmd`：清理 `53171` 残留监听进程后启动 Web。
 - `tools/dev-desktop.cmd`：清理 `53172` 残留监听进程后启动 Desktop 开发版。
+- `tools/dev-desktop-fast.cmd`：清理 `53172` 后安全复用已有构建产物，必要时增量构建或自动回退完整构建。
 - `tools/dev-status.cmd`：只读查看 Prototype / Web / Desktop 开发端口占用情况。
 - `tools/git-preflight.cmd`：只读按文档、工具、跨端 UI、Desktop、core/services/app/http 分组查看 Git 改动，识别菜单 lane / 共享层风险 / 多 lane 混改，并提示当前验证策略、高冲突文件和并行安全建议。
 - `tools/git-commit-and-push.cmd`：全量提交并 push，不创建 release tag。
