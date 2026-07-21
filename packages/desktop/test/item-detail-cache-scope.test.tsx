@@ -99,6 +99,20 @@ describe("item detail cache scope", () => {
     expect(apiMocks.getItemDetail).toHaveBeenCalledTimes(2);
     expect(result.current.selectedItem?.description).toBe("fresh-after-close");
   });
+
+  it("forces the account item detail request when refreshing after a write", async () => {
+    apiMocks.getItemDetail.mockResolvedValue(definitionDetail("manifest"));
+    apiMocks.getAccountItemDetail
+      .mockResolvedValueOnce(accountDetail("before-write"))
+      .mockResolvedValueOnce(accountDetail("after-write"));
+    const { result } = renderHook(() => useItemDetail({ cacheScopeKey: "account-a\u0000manifest-a" }));
+
+    await act(async () => result.current.openItemDetail(accountItem));
+    await act(async () => result.current.refreshSelectedItemDetail());
+
+    expect(apiMocks.getAccountItemDetail).toHaveBeenLastCalledWith("instance-1", { force: true });
+    expect(result.current.selectedItem?.socket_plugs[0]?.name).toBe("after-write");
+  });
 });
 
 const accountItem = {

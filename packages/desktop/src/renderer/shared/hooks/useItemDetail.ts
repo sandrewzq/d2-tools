@@ -155,9 +155,9 @@ export function useItemDetail(options: {
     }
   }
 
-  async function refreshSelectedItemDetail(): Promise<void> {
+  async function refreshSelectedItemDetail(): Promise<AccountItemDetail | null> {
     const current = selectedItem;
-    if (!current?.instance_id) return;
+    if (!current?.instance_id) return null;
     const itemKey = current.item_key;
     const instanceId = current.instance_id;
     const requestScopeKey = cacheScopeKeyRef.current;
@@ -173,15 +173,16 @@ export function useItemDetail(options: {
       ? { ...value, is_detail_loading: true }
       : value);
     try {
-      const detail = await api.getAccountItemDetail(instanceId);
-      if (!isCurrent()) return;
+      const detail = await api.getAccountItemDetail(instanceId, { force: true });
+      if (!isCurrent()) return null;
       accountItemDetailCacheRef.current.set(instanceId, detail);
       evictOldestCacheEntry(accountItemDetailCacheRef.current, ACCOUNT_ITEM_DETAIL_CACHE_LIMIT);
       setSelectedItem((value) => value?.item_key === itemKey
         ? { ...mergeAccountItemDetail(value, detail), is_detail_loading: false }
         : value);
+      return detail;
     } catch (error) {
-      if (!isCurrent()) return;
+      if (!isCurrent()) return null;
       setSelectedItem((value) => value?.item_key === itemKey
         ? { ...value, is_detail_loading: false }
         : value);

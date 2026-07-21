@@ -28,7 +28,7 @@ export type SharedItemDetailDialogProps = {
   returnFocusRef?: RefObject<HTMLElement | null>;
   onClose: () => void;
   sections: ReactNode;
-  variant?: "default" | "weapon" | "armor";
+  variant?: "default" | "weapon" | "armor" | "loading";
   subtitle?: ReactNode;
   objectContext?: ReactNode;
 };
@@ -82,11 +82,11 @@ export function SharedItemDetailDialog(props: SharedItemDetailDialogProps) {
         aria-busy={props.detail.isBusy ? "true" : "false"}
         onClick={(event) => event.stopPropagation()}
       >
-        {props.variant === "weapon" || props.variant === "armor" ? (
+        {props.variant === "weapon" || props.variant === "armor" || props.variant === "loading" ? (
           <header className="shared-item-detail-header">
             <div className="shared-item-detail-heading">
               <span>装备详情</span>
-              <h2 id={titleId}>{props.variant === "armor" ? "护甲档案" : "武器档案"}</h2>
+              <h2 id={titleId}>{props.variant === "armor" ? "护甲档案" : props.variant === "weapon" ? "武器档案" : "装备档案"}</h2>
               <div className="shared-item-detail-subtitle">
                 <strong>{props.detail.name}</strong>
                 {props.subtitle ? <span>{props.subtitle}</span> : null}
@@ -131,6 +131,34 @@ export function SharedItemDetailDialog(props: SharedItemDetailDialogProps) {
         ) : null}
         <div className="shared-item-detail-body">{props.sections}</div>
       </section>
+    </div>
+  );
+}
+
+export function SharedItemDetailLoading() {
+  return (
+    <div className="shared-item-detail-loading-state" role="status" aria-live="polite">
+      <div className="shared-item-detail-loading-identity">
+        <span className="shared-item-detail-loading-block is-icon" aria-hidden="true" />
+        <div>
+          <span className="shared-item-detail-loading-block is-title" aria-hidden="true" />
+          <span className="shared-item-detail-loading-block is-subtitle" aria-hidden="true" />
+        </div>
+        <div className="shared-item-detail-loading-summary" aria-hidden="true">
+          <span className="shared-item-detail-loading-block" />
+          <span className="shared-item-detail-loading-block" />
+          <span className="shared-item-detail-loading-block" />
+          <span className="shared-item-detail-loading-block" />
+        </div>
+      </div>
+      <div className="shared-item-detail-loading-tabs" aria-hidden="true">
+        <span /><span /><span /><span /><span />
+      </div>
+      <div className="shared-item-detail-loading-content" aria-hidden="true">
+        <section><span /><span /><span /><span /></section>
+        <section><span /><span /><span /></section>
+      </div>
+      <p>正在读取装备定义与实时状态...</p>
     </div>
   );
 }

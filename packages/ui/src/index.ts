@@ -44,7 +44,7 @@ export { LoadoutsPageView } from "./loadouts/LoadoutsPageView.js";
 export { LoadoutsPageContentView } from "./loadouts/LoadoutsPageContentView.js";
 export type { LoadoutsPageActions } from "./loadouts/LoadoutsPageContentView.js";
 export type { LoadoutActionFeedbackState } from "./loadouts/loadoutActionFeedback.js";
-export { SharedItemDetailDialog } from "./item-detail/SharedItemDetailDialog.js";
+export { SharedItemDetailDialog, SharedItemDetailLoading } from "./item-detail/SharedItemDetailDialog.js";
 export type {
   SharedItemDetailDialogProps,
   SharedItemDetailView,

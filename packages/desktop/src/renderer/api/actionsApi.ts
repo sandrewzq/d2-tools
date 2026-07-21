@@ -2,6 +2,7 @@ export type {
   AccountItemActionPatch,
   ActionLogEntry,
   ActionsApi,
+  ApplySocketPlugsActionInput,
   BatchEquipItemsInput,
   BatchItemActionResult,
   BatchTransferItemsInput,

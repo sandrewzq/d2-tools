@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../../api/client";
-import type { AccountItemActionPatch, AccountItemSummary, AccountSummary, D2Config, DimWishlist, ItemActionResult, ItemAiAdviceResult, ItemSearchResult, LibraryHistory, LocalTargetRules, VaultTags, VaultTagValue, WeaponRecommendation } from "../../api/types";
+import type { AccountItemActionPatch, AccountItemDetail, AccountItemSummary, AccountSummary, D2Config, DimWishlist, ItemActionResult, ItemAiAdviceResult, ItemSearchResult, LibraryHistory, LocalTargetRules, VaultTags, VaultTagValue, WeaponRecommendation } from "../../api/types";
 import type { LiveItemAvailabilityEntry } from "@d2-tools/core/items/liveAvailability";
 import type {
   PersonalWeaponKnowledgeEntry,
@@ -517,6 +517,8 @@ export function useItemDetailWorkspace(input: {
       keepDetailOpen?: boolean;
       feedbackScope?: "global" | "detail";
       onProgress?: (phase: "submitting" | "refreshing", message: string) => void;
+      verifyRefreshedItem?: (detail: AccountItemDetail) => boolean;
+      refreshMismatchMessage?: string;
     }
   ): Promise<{ ok: boolean; refreshed: boolean; message: string; cancelled?: boolean }> {
     const publishMessage = (message: string) => {
@@ -574,7 +576,20 @@ export function useItemDetailWorkspace(input: {
       if (options?.keepDetailOpen) {
         try {
           publishProgress("refreshing", "写入已完成，正在读取服务器最新配置...");
-          await refreshSelectedItemDetail();
+          const refreshed = await refreshItemDetailUntilVerified({
+            refresh: refreshSelectedItemDetail,
+            verify: options.verifyRefreshedItem,
+            onRetry: (attempt, total) => publishProgress(
+              "refreshing",
+              `Bungie 正在同步配置，正在重新读取（${attempt}/${total}）...`
+            )
+          });
+          if (!refreshed) {
+            const message = options.refreshMismatchMessage
+              ?? "写入成功，但 Bungie 返回的详情仍是旧状态。请稍后重新读取配置。";
+            publishMessage(message);
+            return { ok: true, refreshed: false, message };
+          }
           void input.loadAccountSummary().catch((error) => {
             if (options?.feedbackScope !== "detail") {
               input.setAccountError(error instanceof Error ? error.message : "操作完成，但账号数据刷新失败");
@@ -621,6 +636,24 @@ export function useItemDetailWorkspace(input: {
     } finally {
       input.setIsRunningItemAction(false);
     }
+  }
+
+  async function refreshItemDetailUntilVerified(input: {
+    refresh: () => Promise<AccountItemDetail | null>;
+    verify?: (detail: AccountItemDetail) => boolean;
+    onRetry: (attempt: number, total: number) => void;
+  }): Promise<boolean> {
+    const retryDelays = input.verify ? [0, 750, 1_500, 2_500, 4_000, 6_000] : [0];
+    for (let index = 0; index < retryDelays.length; index += 1) {
+      const delay = retryDelays[index];
+      if (delay > 0) {
+        input.onRetry(index + 1, retryDelays.length);
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      }
+      const detail = await input.refresh();
+      if (detail && (!input.verify || input.verify(detail))) return true;
+    }
+    return false;
   }
 
   return {

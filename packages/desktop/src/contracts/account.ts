@@ -14,10 +14,14 @@ export type AccountApi = {
   loginBungie(): Promise<AuthLoginResult>;
   getAccountSummary(options?: AccountSummaryRequestOptions): Promise<AccountSummary>;
   getCachedAccountSnapshot(): Promise<CachedAccountSnapshot | null>;
-  getAccountItemDetail(instanceId: string): Promise<AccountItemDetail>;
+  getAccountItemDetail(instanceId: string, options?: AccountItemDetailRequestOptions): Promise<AccountItemDetail>;
 };
 
 export type AccountSummaryRequestOptions = {
+  force?: boolean;
+};
+
+export type AccountItemDetailRequestOptions = {
   force?: boolean;
 };
 

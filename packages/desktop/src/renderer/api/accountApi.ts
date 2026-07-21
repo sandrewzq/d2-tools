@@ -4,6 +4,7 @@ export type AccountSummary = AccountSummaryContract;
 
 export type {
   AccountApi,
+  AccountItemDetailRequestOptions,
   AccountItemDetail,
   AccountItemSummary,
   AccountMaterialSummary,

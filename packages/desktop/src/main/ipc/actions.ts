@@ -19,6 +19,7 @@ import { appendActionLog, loadActionLog } from "@d2-tools/services/actions/logSt
 import { loadConfig } from "@d2-tools/services/config/store";
 import type {
   AccountItemActionPatch,
+  ApplySocketPlugsActionInput,
   BatchEquipItemsInput,
   BatchItemActionResult,
   BatchTransferItemsInput,
@@ -105,32 +106,42 @@ export function registerActionIpcHandlers(): void {
       characterId: input.character_id,
       successMessage: `已应用 Perk：${input.plug_name ?? input.plug_hash}`,
       run: async ({ config, token }) => {
-        let location = await resolveAccountItemLocation(input.item_id);
-        if (!location) location = await resolveAccountItemLocation(input.item_id, "refresh");
-        assertSocketWriteLocation(location);
-        await getAccountItemDetailByInstanceId(input.item_id, "refresh");
-        try {
-          await insertSocketPlugAtLocation({ config, token, input, location });
-          await refreshAccountItemDetail(input.item_id);
-          return;
-        } catch (error) {
-          if (isItemRefreshRequiredWriteError(error)) {
-            await retrySocketPlugAfterRefresh({ config, token, input });
-            return;
-          }
-          if (isItemNotFoundWriteError(error)) {
-            const refreshedLocation = await resolveAccountItemLocation(input.item_id, "refresh");
-            if (!refreshedLocation) {
-              throw new Error("账号中已找不到这件装备。它可能已被移动、拆解或数据仍未刷新，请重新打开装备详情后再试。");
-            }
-            assertSocketWriteLocation(refreshedLocation);
-            await refreshAccountItemDetail(input.item_id);
-            await insertSocketPlugAtLocation({ config, token, input, location: refreshedLocation });
-            await refreshAccountItemDetail(input.item_id);
-            return;
-          }
-          throw error;
+        const location = await prepareSocketWrite(input.item_id);
+        await applySocketPlugWithRecovery({ config, token, input, location, refreshAfterSuccess: true });
+      }
+    });
+  });
+
+  ipcMain.handle("actions:item:apply-socket-plugs", async (_event, input: ApplySocketPlugsActionInput) => {
+    return runWriteAction({
+      action: "insert-socket-plug",
+      itemName: input.item_name,
+      itemInstanceId: input.item_id,
+      characterId: input.character_id,
+      successMessage: `已应用 ${input.changes.length} 个 Perk 更改`,
+      run: async ({ config, token }) => {
+        if (!input.changes.length) {
+          throw new Error("没有需要应用的 Perk 更改。");
         }
+        const location = await prepareSocketWrite(input.item_id);
+        for (const change of input.changes) {
+          await applySocketPlugWithRecovery({
+            config,
+            token,
+            location,
+            refreshAfterSuccess: false,
+            input: {
+              membership_type: input.membership_type,
+              character_id: input.character_id,
+              item_id: input.item_id,
+              item_name: input.item_name,
+              socket_index: change.socket_index,
+              plug_hash: change.plug_hash,
+              plug_name: change.plug_name
+            }
+          });
+        }
+        await refreshAccountItemDetail(input.item_id);
       }
     });
   });
@@ -306,6 +317,45 @@ function assertSocketWriteLocation(location: AccountItemLocation | null): assert
   }
 }
 
+async function prepareSocketWrite(instanceId: string): Promise<AccountItemLocation> {
+  let location = await resolveAccountItemLocation(instanceId);
+  if (!location) location = await resolveAccountItemLocation(instanceId, "refresh");
+  assertSocketWriteLocation(location);
+  await getAccountItemDetailByInstanceId(instanceId, "refresh");
+  return location;
+}
+
+async function applySocketPlugWithRecovery(input: {
+  config: D2Config;
+  token: FreshOAuthToken;
+  input: InsertSocketPlugActionInput;
+  location: AccountItemLocation;
+  refreshAfterSuccess: boolean;
+}): Promise<void> {
+  try {
+    await insertSocketPlugAtLocation(input);
+    if (input.refreshAfterSuccess) await refreshAccountItemDetail(input.input.item_id);
+    return;
+  } catch (error) {
+    if (isItemRefreshRequiredWriteError(error)) {
+      await retrySocketPlugAfterRefresh(input);
+      return;
+    }
+    if (isItemNotFoundWriteError(error)) {
+      const refreshedLocation = await resolveAccountItemLocation(input.input.item_id, "refresh");
+      if (!refreshedLocation) {
+        throw new Error("账号中已找不到这件装备。它可能已被移动、拆解或数据仍未刷新，请重新打开装备详情后再试。");
+      }
+      assertSocketWriteLocation(refreshedLocation);
+      await refreshAccountItemDetail(input.input.item_id);
+      await insertSocketPlugAtLocation({ ...input, location: refreshedLocation });
+      if (input.refreshAfterSuccess) await refreshAccountItemDetail(input.input.item_id);
+      return;
+    }
+    throw error;
+  }
+}
+
 async function insertSocketPlugAtLocation(input: {
   config: D2Config;
   token: FreshOAuthToken;
@@ -343,6 +393,7 @@ async function retrySocketPlugAfterRefresh(input: {
   config: D2Config;
   token: FreshOAuthToken;
   input: InsertSocketPlugActionInput;
+  refreshAfterSuccess: boolean;
 }): Promise<void> {
   // Bungie can keep an item mutation pending briefly after returning ErrorCode 1679.
   // Each retry obtains a new item response and location; no stale request is reused.
@@ -357,7 +408,7 @@ async function retrySocketPlugAfterRefresh(input: {
     assertSocketWriteLocation(refreshedLocation);
     try {
       await insertSocketPlugAtLocation({ ...input, location: refreshedLocation });
-      await refreshAccountItemDetail(input.input.item_id);
+      if (input.refreshAfterSuccess) await refreshAccountItemDetail(input.input.item_id);
       return;
     } catch (error) {
       if (!isItemRefreshRequiredWriteError(error)) throw error;

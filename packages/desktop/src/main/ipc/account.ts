@@ -1,5 +1,9 @@
 import { ipcMain } from "electron";
-import type { AccountSummary, AccountSummaryRequestOptions } from "../../contracts/account.js";
+import type {
+  AccountItemDetailRequestOptions,
+  AccountSummary,
+  AccountSummaryRequestOptions
+} from "../../contracts/account.js";
 import {
   classifyAccountIpcError,
   encodeDesktopIpcFailure
@@ -38,12 +42,12 @@ export function registerAccountIpcHandlers(): void {
     return summaryRequest;
   }, classifyAccountIpcError));
 
-  ipcMain.handle("account:item-detail", (_event, instanceId: string) => encodeDesktopIpcFailure(async () => {
+  ipcMain.handle("account:item-detail", (_event, instanceId: string, options?: AccountItemDetailRequestOptions) => encodeDesktopIpcFailure(async () => {
     if (!instanceId || typeof instanceId !== "string") {
       throw new Error("装备实例 ID 无效");
     }
 
-    return getAccountItemDetailByInstanceId(instanceId);
+    return getAccountItemDetailByInstanceId(instanceId, options?.force ? "refresh" : "cached");
   }, classifyAccountIpcError));
 }
 

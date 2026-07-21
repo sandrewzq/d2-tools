@@ -34,6 +34,7 @@ import type { SaveVaultNoteInput, SaveVaultTagInput, VaultTags } from "@d2-tools
 import type { WeeklySummary } from "@d2-tools/core/weekly/summary";
 import type {
   AccountItemDetail,
+  AccountItemDetailRequestOptions,
   AccountItemSummary,
   AccountSummary,
   AccountSummaryRequestOptions,
@@ -42,6 +43,7 @@ import type {
 } from "../contracts/account.js";
 import type {
   ActionLogEntry,
+  ApplySocketPlugsActionInput,
   BatchEquipItemsInput,
   BatchItemActionResult,
   BatchTransferPlan,
@@ -89,8 +91,8 @@ contextBridge.exposeInMainWorld("d2", {
     invokeDesktopIpc<AccountSummary>("account:summary", options),
   getCachedAccountSnapshot: () =>
     ipcRenderer.invoke("account:snapshot:cached") as Promise<CachedAccountSnapshot | null>,
-  getAccountItemDetail: (instanceId: string) =>
-    invokeDesktopIpc<AccountItemDetail>("account:item-detail", instanceId),
+  getAccountItemDetail: (instanceId: string, options?: AccountItemDetailRequestOptions) =>
+    invokeDesktopIpc<AccountItemDetail>("account:item-detail", instanceId, options),
   getItemDetail: (hash: number) => invokeDesktopIpc<ItemDefinitionDetail>("items:detail", hash),
   getStartupState: () => ipcRenderer.invoke("startup:get") as Promise<StartupState>,
   setWindowColorMode: (colorMode: "light" | "dark") =>
@@ -180,6 +182,8 @@ contextBridge.exposeInMainWorld("d2", {
     invokeDesktopIpc<ItemActionResult>("actions:item:equip", input),
   insertSocketPlug: (input: InsertSocketPlugActionInput) =>
     invokeDesktopIpc<ItemActionResult>("actions:item:insert-socket-plug", input),
+  applySocketPlugs: (input: ApplySocketPlugsActionInput) =>
+    invokeDesktopIpc<ItemActionResult>("actions:item:apply-socket-plugs", input),
   transferItem: (input: ItemTransferActionInput) =>
     invokeDesktopIpc<ItemActionResult>("actions:item:transfer", input),
   batchEquipItems: (input: BatchEquipItemsInput) =>

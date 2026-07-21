@@ -1,5 +1,6 @@
 import type {
   AccountSummary,
+  AccountItemDetail,
   DimWishlist,
   ItemActionPlanInput,
   ItemActionResult,
@@ -20,7 +21,7 @@ import { selectedItemToAccountItem, type ArmorDetailViewModel, type WeaponDetail
 import { api } from "../../api/client";
 import type { SameNameItemSummary, SelectedItemDetail, SelectedItemSource } from "../hooks/useItemDetail";
 import type { buildDuplicateGroupBatchTagPlan } from "../domain/vault/vaultCleanup";
-import { ArmorDetailContent, SharedItemDetailDialog, WeaponDetailContent, type WeaponConfigurationWriteFeedback } from "@d2-tools/ui";
+import { ArmorDetailContent, SharedItemDetailDialog, SharedItemDetailLoading, WeaponDetailContent, type WeaponConfigurationWriteFeedback } from "@d2-tools/ui";
 import { ItemDetailHeader } from "./item-detail/ItemDetailHeader";
 import { ItemDetailStats } from "./item-detail/ItemDetailStats";
 import { ItemDetailTools } from "./item-detail/ItemDetailTools";
@@ -79,9 +80,11 @@ export type ItemDetailModalProps = {
       keepDetailOpen?: boolean;
       feedbackScope?: "global" | "detail";
       onProgress?: (phase: "submitting" | "refreshing", message: string) => void;
+      verifyRefreshedItem?: (detail: AccountItemDetail) => boolean;
+      refreshMismatchMessage?: string;
     }
   ) => Promise<{ ok: boolean; refreshed: boolean; message: string; cancelled?: boolean }>;
-  onRefreshSelectedItemDetail: () => Promise<void>;
+  onRefreshSelectedItemDetail: () => Promise<AccountItemDetail | null>;
   onSaveSelectedItemNote: () => void;
   onSaveSelectedItemTag: (tag: VaultTagValue) => void;
   onSelectedActionCharacterIdChange: (id: string) => void;
@@ -122,6 +125,7 @@ export function ItemDetailModal(props: ItemDetailModalProps) {
     localTargetRules: props.localTargetRules,
     sources: buildArmorSources(selectedItem, props.itemAvailability)
   });
+  const isCanonicalDetailLoading = selectedItem.is_detail_loading && !weaponModel && !armorModel;
   const instanceActions = selectedItem.instance_id ? (
     <ItemDetailInstanceActions
       props={props}
@@ -134,21 +138,27 @@ export function ItemDetailModal(props: ItemDetailModalProps) {
   return (
     <SharedItemDetailDialog
       detail={{ name: selectedItem.name, isBusy: selectedItem.is_detail_loading }}
-      variant={weaponModel ? "weapon" : armorModel ? "armor" : "default"}
+      variant={isCanonicalDetailLoading ? "loading" : weaponModel ? "weapon" : armorModel ? "armor" : "default"}
       subtitle={weaponModel
         ? `${weaponModel.context.entry_label} · ${weaponModel.context.object_label}`
         : armorModel
           ? `${armorModel.context.entry_label} · ${armorModel.context.object_label}`
-          : undefined}
+          : isCanonicalDetailLoading
+            ? "正在读取完整定义与装备状态"
+            : undefined}
       objectContext={weaponModel
         ? (weaponModel.context.read_only ? "只读查看" : "可管理装备")
         : armorModel
           ? (armorModel.context.read_only ? "只读查看" : "可管理装备")
-          : undefined}
+          : isCanonicalDetailLoading
+            ? "加载中"
+            : undefined}
       closeLabel="关闭装备详情"
       onClose={props.onClose}
       sections={(
-        weaponModel ? (
+        isCanonicalDetailLoading ? (
+          <SharedItemDetailLoading />
+        ) : weaponModel ? (
           <WeaponDetailContent
             model={weaponModel}
             personalKnowledge={props.personalWeaponKnowledge}
@@ -217,26 +227,24 @@ export function ItemDetailModal(props: ItemDetailModalProps) {
                 }));
                 if (!changes.length || !selectedItem.instance_id || !props.selectedActionCharacterId) return;
                 setPerkWriteFeedback({ status: "submitting", message: `正在提交 ${changes.length} 项 Perk 更改...` });
-                const outcome = await props.onRunItemWriteAction("应用武器配置到", async () => {
-                  for (const change of changes) {
-                    const plug = selectedItem.sockets
+                const outcome = await props.onRunItemWriteAction("应用武器配置到", () => api.applySocketPlugs({
+                  membership_type: props.accountSummary?.membership_type ?? 0,
+                  character_id: selectedItem.source_character_id ?? props.selectedActionCharacterId,
+                  item_id: selectedItem.instance_id ?? "",
+                  item_name: selectedItem.name,
+                  changes: changes.map((change) => ({
+                    socket_index: change.socketIndex,
+                    plug_hash: change.plugHash,
+                    plug_name: selectedItem.sockets
                       ?.find((socket) => socket.socket_index === change.socketIndex)
-                      ?.reusable_plugs.find((candidate) => candidate.hash === change.plugHash);
-                    await api.insertSocketPlug({
-                      membership_type: props.accountSummary?.membership_type ?? 0,
-                      character_id: selectedItem.source_character_id ?? props.selectedActionCharacterId,
-                      item_id: selectedItem.instance_id ?? "",
-                      item_name: selectedItem.name,
-                      socket_index: change.socketIndex,
-                      plug_hash: change.plugHash,
-                      plug_name: plug?.name
-                    });
-                  }
-                  return { ok: true, message: `已应用 ${changes.length} 个 Perk 更改。` };
-                }, {
+                      ?.reusable_plugs.find((candidate) => candidate.hash === change.plugHash)?.name
+                  }))
+                }), {
                   keepDetailOpen: true,
                   feedbackScope: "detail",
-                  onProgress: (phase, message) => setPerkWriteFeedback({ status: phase, message })
+                  onProgress: (phase, message) => setPerkWriteFeedback({ status: phase, message }),
+                  verifyRefreshedItem: (detail) => hasAppliedPerkChanges(detail, changes),
+                  refreshMismatchMessage: "Perk 已写入，但连续自动读取后 Bungie 仍返回旧配置。请稍后重新读取确认。"
                 });
                 if (outcome.cancelled) {
                   setPerkWriteFeedback({ status: "idle" });
@@ -257,7 +265,20 @@ export function ItemDetailModal(props: ItemDetailModalProps) {
                 const clearPendingAfterRefresh = perkWriteFeedback.status === "refresh-error";
                 setPerkWriteFeedback({ status: "refreshing", message: "正在读取服务器当前配置..." });
                 try {
-                  await props.onRefreshSelectedItemDetail();
+                  const detail = await props.onRefreshSelectedItemDetail();
+                  if (clearPendingAfterRefresh && (!detail || !hasAppliedPerkChanges(
+                    detail,
+                    Object.entries(pendingPerks).map(([socketIndex, plugHash]) => ({
+                      socketIndex: Number(socketIndex),
+                      plugHash
+                    }))
+                  ))) {
+                    setPerkWriteFeedback({
+                      status: "refresh-error",
+                      message: "Bungie 返回的仍是旧配置，请稍后再次读取。"
+                    });
+                    return;
+                  }
                   if (clearPendingAfterRefresh) setPendingPerks({});
                   setPerkWriteFeedback({ status: "success", message: "已读取服务器最新配置。" });
                 } catch (error) {
@@ -356,6 +377,15 @@ export function ItemDetailModal(props: ItemDetailModalProps) {
       )}
     />
   );
+}
+
+function hasAppliedPerkChanges(
+  detail: AccountItemDetail,
+  changes: ReadonlyArray<{ socketIndex: number; plugHash: number }>
+): boolean {
+  return changes.every((change) => detail.sockets
+    .find((socket) => socket.socket_index === change.socketIndex)
+    ?.selected_plug?.hash === change.plugHash);
 }
 
 function ItemDetailInstanceActions(input: {
