@@ -1,6 +1,6 @@
 # 当前待办
 
-> 更新时间：2026-07-20
+> 更新时间：2026-07-21
 > 这里只保留当前健康度、未完成任务和未解决 bug。已完成 Bug 与阶段过程使用 Git 历史追溯；详细目标、切片和验收标准在 `docs/work/backlog/`。
 
 ## 健康度
@@ -21,7 +21,7 @@
 | T2 | P1 | 🟡 待推进 | 仓库推荐与清理工作台 | [仓库推荐与清理工作台](work/backlog/vault-recommendation-and-cleanup-workbench.md) | 统一 DIM wishlist、本地目标、同名对比和清理清单 |
 | T3 | P1 | 🟡 待验收 | 商人结构、覆盖与官方获取来源 | [商人结构、覆盖与官方获取来源](work/backlog/vendors-and-drop-sources.md) | 已接入 Vendor Group / 目的地两级目录、持久缓存、启动预热和周期刷新；下一步验收真实地点覆盖、跨重置边界、Offer 时效、去重和机灵模组 A/B |
 | T4 | P3 | 🟡 待推进 | 活动复盘增强 | [活动复盘增强](work/backlog/activity-review-enhancement.md) | 接 PGCR、完成时间推算和副本级趋势 |
-| T5 | P1 | 🟡 待验收 | 统一装备详情与知识分析 | [统一装备详情与知识分析](work/backlog/equipment-detail-and-knowledge-analysis.md) | 武器与独立护甲详情代码已收口；下一步验收资料库、商人、仓库真实对象与明暗主题，修正数据识别和视觉问题 |
+| T5 | P1 | 🟡 待验收 | 统一装备详情与知识分析 | [统一装备详情与知识分析](work/backlog/equipment-detail-and-knowledge-analysis.md) | 武器详情已按确认原型收口为事实正文、独立目标来源和右侧同 Hash 实例操作栏；下一步验收资料库、商人、仓库真实对象与明暗主题，再继续护甲详情收口 |
 | T6 | P1 | 🟡 等待 Release | 资料库与运行时性能架构升级 | [资料库与运行时性能架构升级](work/backlog/game-data-performance-architecture-upgrade.md) | 代码、全仓回归、Windows NSIS 打包、隔离安装版和性能预算已完成；下一次正式发版执行 Release workflow 与真实更新/回滚观察，稳定 Release 后删除 JSON/旧 IPC/旧 core HTTP 兼容层 |
 | T7 | P1 | 🟡 待验证 | 架构边界收口 | [架构边界收口](work/backlog/architecture-boundary-hardening.md) | 独立本地 store 已迁 services，Prototype/Web fixture 已收紧；下一步由 CI 验证，并将 core 社区推荐编排与其剩余读写实现作为同一切片迁移 |
 

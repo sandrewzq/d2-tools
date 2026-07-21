@@ -502,7 +502,7 @@ function PrototypeApp() {
                           body: request.prompt.trim() || "当前配置适合高难 PvE：稳定触发增伤，并保留清怪与续航能力。商人对象会额外比较价格和账号已有实例。",
                           evidence: [
                             { label: "分析对象", value: prototypeWeaponModel.context.object_label },
-                            { label: "应用推荐", value: prototypeWeaponModel.recommendations[0]?.title ?? "无" },
+                            { label: "社区推荐", value: prototypeWeaponModel.recommendations[0]?.title ?? "无" },
                             { label: "账号实例", value: `${prototypeWeaponModel.same_hash_instances.length} 件` }
                           ],
                           externalSearchMessage: request.allow_external_search ? "Prototype 已模拟外部知识查询；外部内容保持最低优先级。" : "未请求外部知识。",
@@ -831,7 +831,7 @@ function createPrototypeWeaponModel(input: {
       title: exotic ? "共振循环" : "爆破狂暴",
       reason: exotic ? "围绕异域特性维持连续命中。" : "爆破专家负责技能循环，狂暴覆盖持续战斗增伤。",
       source: "builtin",
-      source_label: "应用推荐",
+      source_label: "社区推荐",
       updated_at: "2026-07-16T08:00:00.000Z",
       perk_options: exotic ? [{ column_key: "异域特性", names: ["裂隙共振"] }] : [{ column_key: "特性 1", names: ["爆破专家"] }, { column_key: "特性 2", names: ["狂暴", "斩首武器"] }],
       masterwork_names: exotic ? [] : ["装填速度"],

@@ -233,7 +233,7 @@ export function buildWeaponRecommendationViews(
       title: entry.title,
       reason: entry.reason,
       source: "user" as const,
-      source_label: "我的推荐",
+      source_label: "个人知识",
       updated_at: entry.updated_at,
       external_url: entry.external_url,
       perk_options: entry.perk_options,
@@ -261,7 +261,7 @@ export function buildWeaponRecommendationViews(
         title: combo.note || `${combo.mode.toUpperCase()} 推荐 Roll`,
         reason: recommendation?.disclaimer || "依据本地知识与愿望单比较当前配置。",
         source: "builtin" as const,
-        source_label: "内置知识库",
+        source_label: "社区推荐",
         perk_options: combo.perks.map((perk, perkIndex) => ({
           column_key: `Perk ${perkIndex + 1}`,
           names: [perk.name]
