@@ -28,12 +28,18 @@ export type WeaponDetailContentActions = {
   openSource?: (source: WeaponSourceEntry) => void;
   stagePerk?: (column: WeaponPerkSelectionColumn, perk: WeaponPerkCandidate) => void;
   cancelPendingPerks?: () => void;
-  applyPendingPerks?: () => void;
+  applyPendingPerks?: () => void | Promise<void>;
+  refreshConfiguration?: () => void | Promise<void>;
   selectInstance?: (instance: WeaponDetailInstance) => void;
   runAnalysis?: (request: { prompt: string; allow_external_search: boolean }) => void;
   saveKnowledge?: (draft: SavePersonalWeaponKnowledgeInput["entry"]) => void;
   setKnowledgeEnabled?: (id: string, enabled: boolean) => void;
   deleteKnowledge?: (id: string) => void;
+};
+
+export type WeaponConfigurationWriteFeedback = {
+  status: "idle" | "submitting" | "refreshing" | "success" | "error" | "refresh-error";
+  message?: string;
 };
 
 export type WeaponDetailAnalysis = {
@@ -49,6 +55,7 @@ export type WeaponDetailAnalysis = {
 export type WeaponDetailContentProps = {
   model: WeaponDetailViewModel;
   actions?: WeaponDetailContentActions;
+  configurationWriteFeedback?: WeaponConfigurationWriteFeedback;
   analysis?: WeaponDetailAnalysis;
   personalKnowledge?: PersonalWeaponKnowledgeEntry[];
   activeSection?: WeaponDetailSection;
@@ -161,6 +168,7 @@ export function WeaponDetailContent(props: WeaponDetailContentProps) {
             poolOpen={poolOpen}
             onTogglePool={() => setPoolOpen((value) => !value)}
             actions={props.actions}
+            configurationWriteFeedback={props.configurationWriteFeedback}
           />
         </section>
         <section ref={(node) => { sectionRefs.current.recommendations = node; }} id={`${sectionIdPrefix}-recommendations`} className="weapon-detail-section">
@@ -412,10 +420,22 @@ function ConfigurationSection(props: {
   poolOpen: boolean;
   onTogglePool: () => void;
   actions?: WeaponDetailContentActions;
+  configurationWriteFeedback?: WeaponConfigurationWriteFeedback;
 }) {
   const { configuration, context } = props.model;
   const showSelection = context.kind !== "definition" && configuration.selection_columns.length > 0;
   const columns = showSelection ? configuration.selection_columns : configuration.pool_columns;
+  const writeFeedback = props.configurationWriteFeedback ?? { status: "idle" as const };
+  const isBusy = writeFeedback.status === "submitting" || writeFeedback.status === "refreshing";
+  const pendingChangeCount = configuration.selection_columns.reduce(
+    (count, column) => count + (column.candidates.some((candidate) => candidate.pending) ? 1 : 0),
+    0
+  );
+  const panelState = writeFeedback.status === "idle" && configuration.has_pending_changes
+    ? "pending"
+    : writeFeedback.status;
+  const showWritePanel = panelState !== "idle";
+  const panelContent = configurationPanelContent(panelState, pendingChangeCount, writeFeedback.message);
   return (
     <>
       <SectionHeading
@@ -436,18 +456,45 @@ function ConfigurationSection(props: {
             label={column.label}
             role={column.role}
             candidates={column.candidates}
-            interactive={showSelection && context.kind === "account_instance"}
+            interactive={showSelection && context.kind === "account_instance" && !isBusy}
             onSelect={(perk) => props.actions?.stagePerk?.(column as WeaponPerkSelectionColumn, perk)}
           />
         ))}
       </div>
 
-      {configuration.has_pending_changes ? (
-        <div className="weapon-detail-write-bar" role="status">
-          <div><strong>配置有待应用更改</strong><p>原配置会保留到 Bungie 写操作成功。</p></div>
-          <div>
-            <button type="button" onClick={props.actions?.cancelPendingPerks}>取消</button>
-            <button type="button" className="is-primary" disabled={!configuration.can_apply_changes} onClick={props.actions?.applyPendingPerks}>应用更改</button>
+      {showWritePanel ? (
+        <div
+          className={`weapon-detail-write-panel is-${panelState}`}
+          role={panelState === "error" || panelState === "refresh-error" ? "alert" : "status"}
+          aria-live={panelState === "error" || panelState === "refresh-error" ? "assertive" : "polite"}
+          aria-busy={isBusy}
+        >
+          <span className="weapon-detail-write-indicator" aria-hidden="true" />
+          <div className="weapon-detail-write-copy">
+            <div className="weapon-detail-write-heading">
+              <strong>{panelContent.title}</strong>
+              <span>{panelContent.step}</span>
+            </div>
+            <p>{panelContent.message}</p>
+          </div>
+          <div className="weapon-detail-write-actions">
+            {panelState === "pending" ? (
+              <>
+                <button type="button" onClick={props.actions?.cancelPendingPerks}>取消选择</button>
+                <button type="button" className="is-primary" disabled={!configuration.can_apply_changes} onClick={() => void props.actions?.applyPendingPerks?.()}>应用 {pendingChangeCount} 项更改</button>
+              </>
+            ) : null}
+            {panelState === "error" ? (
+              <>
+                <button type="button" onClick={props.actions?.cancelPendingPerks}>取消选择</button>
+                <button type="button" onClick={() => void props.actions?.refreshConfiguration?.()}>重新读取</button>
+                <button type="button" className="is-primary" disabled={!configuration.can_apply_changes} onClick={() => void props.actions?.applyPendingPerks?.()}>保留选择重试</button>
+              </>
+            ) : null}
+            {panelState === "refresh-error" ? (
+              <button type="button" className="is-primary" onClick={() => void props.actions?.refreshConfiguration?.()}>重新读取配置</button>
+            ) : null}
+            {isBusy ? <span className="weapon-detail-write-busy-label">处理中</span> : null}
           </div>
         </div>
       ) : null}
@@ -467,6 +514,33 @@ function ConfigurationSection(props: {
       ) : null}
     </>
   );
+}
+
+function configurationPanelContent(
+  state: WeaponConfigurationWriteFeedback["status"] | "pending",
+  pendingChangeCount: number,
+  message?: string
+): { title: string; step: string; message: string } {
+  switch (state) {
+    case "pending":
+      return {
+        title: `已选择 ${pendingChangeCount} 项更改`,
+        step: "待提交",
+        message: "确认后才会写入游戏；写入成功前，当前配置保持不变。"
+      };
+    case "submitting":
+      return { title: "正在提交武器配置", step: "第 1/2 步", message: message ?? "正在将 Perk 更改提交到 Bungie..." };
+    case "refreshing":
+      return { title: "正在同步最新配置", step: "第 2/2 步", message: message ?? "正在读取服务器返回的实例状态..." };
+    case "success":
+      return { title: "武器配置已更新", step: "已完成", message: message ?? "详情已按服务器最新状态重绘。" };
+    case "error":
+      return { title: "武器配置未更新", step: "需要处理", message: message ?? "提交失败，已核对服务器当前配置。你可以保留选择重试。" };
+    case "refresh-error":
+      return { title: "写入成功，详情同步失败", step: "需要刷新", message: message ?? "请重新读取服务器配置，确认当前实际状态。" };
+    default:
+      return { title: "", step: "", message: "" };
+  }
 }
 
 function PerkColumn(props: {

@@ -34,7 +34,10 @@ export type { AccountItemPatch } from "./itemPatches.js";
 
 export type AccountSession = {
   getSnapshot(input?: { freshness?: AccountSnapshotFreshness }): Promise<AccountSnapshot>;
-  getItemDetail(input: AccountItemDetailQuery): Promise<AccountItemDetail>;
+  getItemDetail(
+    input: AccountItemDetailQuery,
+    options?: { freshness?: AccountSnapshotFreshness }
+  ): Promise<AccountItemDetail>;
   invalidate(input: AccountInvalidation): void;
   patch(input: AccountItemPatch): void;
 };
@@ -149,23 +152,24 @@ export function createAccountSession(options: CreateAccountSessionOptions): Acco
       return refreshSnapshot(accessToken, freshness === "refresh");
     },
 
-    async getItemDetail(input) {
+    async getItemDetail(input, options = {}) {
       const accessToken = await getScopedAccessToken();
+      const forceRefresh = options.freshness === "refresh";
       const cacheKey = detailKey(input);
       const cached = itemDetails.get(cacheKey);
-      if (cached && now() < cached.freshUntil) {
+      if (!forceRefresh && cached && now() < cached.freshUntil) {
         touchDetail(cacheKey, cached);
         return cached.detail;
       }
       const inFlight = itemDetailInFlight.get(cacheKey);
-      if (inFlight) {
+      if (!forceRefresh && inFlight) {
         return inFlight;
       }
 
       const requestEpoch = sessionEpoch;
       const itemVersion = itemDetailVersions.get(input.instance_id) ?? 0;
       let promise: Promise<AccountItemDetail>;
-      promise = loadItemDetail(input, accessToken)
+      promise = loadItemDetail(input, accessToken, { forceRefresh })
         .then((detail) => {
           assertActiveRequest(accessToken, requestEpoch);
           if ((itemDetailVersions.get(input.instance_id) ?? 0) !== itemVersion) {
@@ -436,11 +440,13 @@ export function createAccountSession(options: CreateAccountSessionOptions): Acco
 
   async function loadItemDetail(
     query: AccountItemDetailQuery,
-    accessToken: string
+    accessToken: string,
+    requestOptions?: BungieRequestOptions
   ): Promise<AccountItemDetail> {
     const response = await fetchJson<DestinyItemResponse>(
       `/Destiny2/${query.membership_type}/Profile/${query.destiny_membership_id}/Item/${query.instance_id}/?components=${itemDetailComponents}`,
-      accessToken
+      accessToken,
+      requestOptions
     );
     const definitions = await loadDefinitions(
       collectAccountItemDetailDefinitionRequest(query, response)

@@ -108,14 +108,15 @@ export function registerActionIpcHandlers(): void {
         let location = await resolveAccountItemLocation(input.item_id);
         if (!location) location = await resolveAccountItemLocation(input.item_id, "refresh");
         assertSocketWriteLocation(location);
-        await getAccountItemDetailByInstanceId(input.item_id);
+        await getAccountItemDetailByInstanceId(input.item_id, "refresh");
         try {
           await insertSocketPlugAtLocation({ config, token, input, location });
+          await refreshAccountItemDetail(input.item_id);
+          return;
         } catch (error) {
           if (isItemRefreshRequiredWriteError(error)) {
-            const refreshedDetail = await refreshAccountItemDetail(input.item_id);
-            if (hasAppliedSocketPlug(refreshedDetail, input)) return;
-            throw new Error("装备状态已经变化，详情已刷新。请按最新配置重新选择要切换的 Perk。");
+            await retrySocketPlugAfterRefresh({ config, token, input });
+            return;
           }
           if (isItemNotFoundWriteError(error)) {
             const refreshedLocation = await resolveAccountItemLocation(input.item_id, "refresh");
@@ -125,6 +126,7 @@ export function registerActionIpcHandlers(): void {
             assertSocketWriteLocation(refreshedLocation);
             await refreshAccountItemDetail(input.item_id);
             await insertSocketPlugAtLocation({ config, token, input, location: refreshedLocation });
+            await refreshAccountItemDetail(input.item_id);
             return;
           }
           throw error;
@@ -334,7 +336,35 @@ function isItemRefreshRequiredWriteError(error: unknown): boolean {
 async function refreshAccountItemDetail(instanceId: string) {
   await invalidateAccountSession({ scope: "item", instance_id: instanceId });
   await new Promise((resolve) => setTimeout(resolve, 500));
-  return getAccountItemDetailByInstanceId(instanceId);
+  return getAccountItemDetailByInstanceId(instanceId, "refresh");
+}
+
+async function retrySocketPlugAfterRefresh(input: {
+  config: D2Config;
+  token: FreshOAuthToken;
+  input: InsertSocketPlugActionInput;
+}): Promise<void> {
+  // Bungie can keep an item mutation pending briefly after returning ErrorCode 1679.
+  // Each retry obtains a new item response and location; no stale request is reused.
+  for (const waitMs of [750, 2_000]) {
+    await new Promise((resolve) => setTimeout(resolve, waitMs));
+    const refreshedDetail = await refreshAccountItemDetail(input.input.item_id);
+    if (hasAppliedSocketPlug(refreshedDetail, input.input)) return;
+    if (!hasReusableSocketPlug(refreshedDetail, input.input)) {
+      throw new Error("装备已刷新，原候选 Perk 在最新配置中不可用。请重新选择后再试。");
+    }
+    const refreshedLocation = await resolveAccountItemLocation(input.input.item_id, "refresh");
+    assertSocketWriteLocation(refreshedLocation);
+    try {
+      await insertSocketPlugAtLocation({ ...input, location: refreshedLocation });
+      await refreshAccountItemDetail(input.input.item_id);
+      return;
+    } catch (error) {
+      if (!isItemRefreshRequiredWriteError(error)) throw error;
+    }
+  }
+
+  throw new Error("Bungie 尚未同步这件装备，已强制刷新并重试 3 次。请等待几秒后重新打开详情再试。");
 }
 
 function hasAppliedSocketPlug(
@@ -344,6 +374,15 @@ function hasAppliedSocketPlug(
   return detail.sockets
     .find((socket) => socket.socket_index === input.socket_index)
     ?.selected_plug?.hash === input.plug_hash;
+}
+
+function hasReusableSocketPlug(
+  detail: Awaited<ReturnType<typeof getAccountItemDetailByInstanceId>>,
+  input: InsertSocketPlugActionInput
+): boolean {
+  return detail.sockets
+    .find((socket) => socket.socket_index === input.socket_index)
+    ?.reusable_plugs.some((plug) => plug.hash === input.plug_hash) ?? false;
 }
 
 type WriteActionRunInput = {

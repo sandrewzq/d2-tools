@@ -87,6 +87,19 @@ describe("vendor snapshot workspace", () => {
     });
   });
 
+  it("uses the canonical vendor hash when cached data has no location", () => {
+    const snapshot = createSnapshot();
+    const vendor = snapshot.vendors[0]!;
+    vendor.vendorHash = 3500617033;
+    vendor.name = "未知商人";
+    vendor.description = "";
+
+    const model = selectVendorsPageModel(createInput({ snapshot }));
+
+    expect(model.vendors[0]?.location).toBe("高塔");
+    expect(model.railSections[0]?.title).toBe("高塔");
+  });
+
   it("announces failed character lists and vendor details without hiding cached inventory", () => {
     const snapshot = createSnapshot();
     snapshot.failedCharacterIds = ["titan"];

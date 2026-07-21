@@ -20,7 +20,7 @@ import { selectedItemToAccountItem, type ArmorDetailViewModel, type WeaponDetail
 import { api } from "../../api/client";
 import type { SameNameItemSummary, SelectedItemDetail, SelectedItemSource } from "../hooks/useItemDetail";
 import type { buildDuplicateGroupBatchTagPlan } from "../domain/vault/vaultCleanup";
-import { ArmorDetailContent, SharedItemDetailDialog, WeaponDetailContent } from "@d2-tools/ui";
+import { ArmorDetailContent, SharedItemDetailDialog, WeaponDetailContent, type WeaponConfigurationWriteFeedback } from "@d2-tools/ui";
 import { ItemDetailHeader } from "./item-detail/ItemDetailHeader";
 import { ItemDetailStats } from "./item-detail/ItemDetailStats";
 import { ItemDetailTools } from "./item-detail/ItemDetailTools";
@@ -75,8 +75,13 @@ export type ItemDetailModalProps = {
   onRunItemWriteAction: (
     label: string,
     action: () => Promise<ItemActionResult>,
-    options?: { keepDetailOpen?: boolean }
-  ) => void;
+    options?: {
+      keepDetailOpen?: boolean;
+      feedbackScope?: "global" | "detail";
+      onProgress?: (phase: "submitting" | "refreshing", message: string) => void;
+    }
+  ) => Promise<{ ok: boolean; refreshed: boolean; message: string; cancelled?: boolean }>;
+  onRefreshSelectedItemDetail: () => Promise<void>;
   onSaveSelectedItemNote: () => void;
   onSaveSelectedItemTag: (tag: VaultTagValue) => void;
   onSelectedActionCharacterIdChange: (id: string) => void;
@@ -89,9 +94,11 @@ export type ItemDetailModalProps = {
 export function ItemDetailModal(props: ItemDetailModalProps) {
   const selectedItem = props.selectedItem;
   const [pendingPerks, setPendingPerks] = useState<Record<number, number>>({});
+  const [perkWriteFeedback, setPerkWriteFeedback] = useState<WeaponConfigurationWriteFeedback>({ status: "idle" });
   const [itemToolMessage, setItemToolMessage] = useState("");
   useEffect(() => {
     setPendingPerks({});
+    setPerkWriteFeedback({ status: "idle" });
     setItemToolMessage("");
   }, [selectedItem.item_key]);
   const weaponModel = buildWeaponDetailView({
@@ -185,6 +192,8 @@ export function ItemDetailModal(props: ItemDetailModalProps) {
               setKnowledgeEnabled: props.onSetPersonalWeaponKnowledgeEnabled,
               deleteKnowledge: props.onDeletePersonalWeaponKnowledge,
               stagePerk: (column, perk) => {
+                if (props.isRunningItemAction) return;
+                setPerkWriteFeedback({ status: "idle" });
                 setPendingPerks((current) => {
                   const selected = column.candidates.find((candidate) => candidate.hash === perk.hash)?.selected;
                   const next = { ...current };
@@ -196,14 +205,19 @@ export function ItemDetailModal(props: ItemDetailModalProps) {
                   return next;
                 });
               },
-              cancelPendingPerks: () => setPendingPerks({}),
-              applyPendingPerks: () => {
+              cancelPendingPerks: () => {
+                if (props.isRunningItemAction) return;
+                setPendingPerks({});
+                setPerkWriteFeedback({ status: "idle" });
+              },
+              applyPendingPerks: async () => {
                 const changes = Object.entries(pendingPerks).map(([socketIndex, plugHash]) => ({
                   socketIndex: Number(socketIndex),
                   plugHash
                 }));
                 if (!changes.length || !selectedItem.instance_id || !props.selectedActionCharacterId) return;
-                props.onRunItemWriteAction("应用武器配置到", async () => {
+                setPerkWriteFeedback({ status: "submitting", message: `正在提交 ${changes.length} 项 Perk 更改...` });
+                const outcome = await props.onRunItemWriteAction("应用武器配置到", async () => {
                   for (const change of changes) {
                     const plug = selectedItem.sockets
                       ?.find((socket) => socket.socket_index === change.socketIndex)
@@ -217,16 +231,44 @@ export function ItemDetailModal(props: ItemDetailModalProps) {
                       plug_hash: change.plugHash,
                       plug_name: plug?.name
                     });
-                    setPendingPerks((current) => {
-                      const next = { ...current };
-                      delete next[change.socketIndex];
-                      return next;
-                    });
                   }
                   return { ok: true, message: `已应用 ${changes.length} 个 Perk 更改。` };
-                }, { keepDetailOpen: true });
+                }, {
+                  keepDetailOpen: true,
+                  feedbackScope: "detail",
+                  onProgress: (phase, message) => setPerkWriteFeedback({ status: phase, message })
+                });
+                if (outcome.cancelled) {
+                  setPerkWriteFeedback({ status: "idle" });
+                  return;
+                }
+                if (!outcome.ok) {
+                  setPerkWriteFeedback({ status: "error", message: outcome.message });
+                  return;
+                }
+                if (!outcome.refreshed) {
+                  setPerkWriteFeedback({ status: "refresh-error", message: outcome.message });
+                  return;
+                }
+                setPendingPerks({});
+                setPerkWriteFeedback({ status: "success", message: outcome.message });
+              },
+              refreshConfiguration: async () => {
+                const clearPendingAfterRefresh = perkWriteFeedback.status === "refresh-error";
+                setPerkWriteFeedback({ status: "refreshing", message: "正在读取服务器当前配置..." });
+                try {
+                  await props.onRefreshSelectedItemDetail();
+                  if (clearPendingAfterRefresh) setPendingPerks({});
+                  setPerkWriteFeedback({ status: "success", message: "已读取服务器最新配置。" });
+                } catch (error) {
+                  setPerkWriteFeedback({
+                    status: "refresh-error",
+                    message: error instanceof Error ? error.message : "配置刷新失败，请稍后重试。"
+                  });
+                }
               }
             }}
+            configurationWriteFeedback={perkWriteFeedback}
             instanceActions={instanceActions}
           />
         ) : armorModel ? (
@@ -323,6 +365,39 @@ function ItemDetailInstanceActions(input: {
   setItemToolMessage: (message: string) => void;
 }) {
   const { props, selectedItem } = input;
+  const [actionFeedback, setActionFeedback] = useState<{
+    status: "idle" | "submitting" | "refreshing" | "success" | "error";
+    message?: string;
+  }>({ status: "idle" });
+
+  useEffect(() => {
+    setActionFeedback({ status: "idle" });
+  }, [selectedItem.item_key]);
+
+  const runDetailAction = async (label: string, action: () => Promise<ItemActionResult>) => {
+    setActionFeedback({ status: "submitting", message: `${label}正在提交到 Bungie...` });
+    try {
+      const outcome = await props.onRunItemWriteAction(label, action, {
+        keepDetailOpen: true,
+        feedbackScope: "detail",
+        onProgress: (phase, message) => setActionFeedback({ status: phase, message })
+      });
+      if (outcome.cancelled) {
+        setActionFeedback({ status: "idle" });
+        return;
+      }
+      setActionFeedback({
+        status: outcome.ok && outcome.refreshed ? "success" : "error",
+        message: outcome.message
+      });
+    } catch (error) {
+      setActionFeedback({
+        status: "error",
+        message: error instanceof Error ? error.message : `${label}失败，请稍后重试。`
+      });
+    }
+  };
+
   return (
     <>
       <ItemDetailActions
@@ -331,9 +406,29 @@ function ItemDetailInstanceActions(input: {
         selectedActionCharacterId={props.selectedActionCharacterId}
         selectedItem={selectedItem}
         onCopyItemActionPlanText={props.onCopyItemActionPlanText}
-        onRunItemWriteAction={props.onRunItemWriteAction}
+        onRunItemWriteAction={(label, action) => void runDetailAction(label, action)}
         onSelectedActionCharacterIdChange={props.onSelectedActionCharacterIdChange}
       />
+      {actionFeedback.status !== "idle" ? (
+        <div
+          className={`weapon-detail-operation-feedback is-${actionFeedback.status}`}
+          role={actionFeedback.status === "error" ? "alert" : "status"}
+          aria-live={actionFeedback.status === "error" ? "assertive" : "polite"}
+          aria-busy={actionFeedback.status === "submitting" || actionFeedback.status === "refreshing"}
+        >
+          <span className="weapon-detail-write-indicator" aria-hidden="true" />
+          <div>
+            <strong>{actionFeedback.status === "submitting"
+              ? "正在提交装备操作"
+              : actionFeedback.status === "refreshing"
+                ? "操作完成，正在刷新详情"
+                : actionFeedback.status === "success"
+                  ? "装备状态已更新"
+                  : "装备操作未完成"}</strong>
+            <p>{actionFeedback.message}</p>
+          </div>
+        </div>
+      ) : null}
       <section className="item-action-panel weapon-detail-local-tools">
         <div>
           <h3>本地整理</h3>

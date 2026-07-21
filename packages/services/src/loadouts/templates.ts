@@ -4,6 +4,8 @@ import { join } from "node:path";
 import type { AccountItemSummary } from "@d2-tools/core/account/summary";
 import type { CreateLoadoutTemplateInput, LoadoutTemplate, LoadoutTemplateItem } from "@d2-tools/core/loadouts/templates";
 
+export type { CreateLoadoutTemplateInput, LoadoutTemplate, LoadoutTemplateItem } from "@d2-tools/core/loadouts/templates";
+
 type LegacyLoadoutTemplateItem = {
   hash: number;
   instance_id?: string;

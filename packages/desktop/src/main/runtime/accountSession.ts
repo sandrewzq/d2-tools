@@ -53,17 +53,18 @@ export async function warmAccountSession(): Promise<boolean> {
 }
 
 export async function getAccountItemDetailByInstanceId(
-  instanceId: string
+  instanceId: string,
+  freshness: "cached" | "refresh" = "cached"
 ): Promise<AccountItemDetail> {
   const session = await getAccountSession();
-  const snapshot = await session.getSnapshot({ freshness: "cached" });
+  const snapshot = await session.getSnapshot({ freshness });
   const query = findAccountItemDetailQuery(snapshot, instanceId);
   if (!query) {
     throw new Error("当前账号快照中找不到该装备，请刷新账号后重试");
   }
   return measureRuntime<AccountItemDetail>(
     "account.item-detail",
-    () => session.getItemDetail(query),
+    () => session.getItemDetail(query, { freshness }),
     { measurePayload: true }
   );
 }

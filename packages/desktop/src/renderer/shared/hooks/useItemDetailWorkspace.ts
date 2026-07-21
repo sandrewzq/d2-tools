@@ -513,37 +513,57 @@ export function useItemDetailWorkspace(input: {
   async function runItemWriteAction(
     label: string,
     run: () => Promise<ItemActionResult>,
-    options?: { keepDetailOpen?: boolean }
-  ) {
-    if (!selectedItem || !input.accountSummary) return;
+    options?: {
+      keepDetailOpen?: boolean;
+      feedbackScope?: "global" | "detail";
+      onProgress?: (phase: "submitting" | "refreshing", message: string) => void;
+    }
+  ): Promise<{ ok: boolean; refreshed: boolean; message: string; cancelled?: boolean }> {
+    const publishMessage = (message: string) => {
+      if (options?.feedbackScope !== "detail") {
+        input.setItemActionMessage(message);
+      }
+    };
+    const publishProgress = (phase: "submitting" | "refreshing", message: string) => {
+      publishMessage(message);
+      options?.onProgress?.(phase, message);
+    };
+
+    if (!selectedItem || !input.accountSummary) {
+      return { ok: false, refreshed: false, message: "装备详情已关闭或账号数据不可用。" };
+    }
 
     let latestConfig: D2Config;
     try {
       latestConfig = await api.getConfig();
       input.diagnostics.setWriteActionsEnabled(latestConfig.features.write_actions_enabled);
     } catch (error) {
-      input.setItemActionMessage(error instanceof Error ? error.message : "读取写操作配置失败");
-      return;
+      const message = error instanceof Error ? error.message : "读取写操作配置失败";
+      publishMessage(message);
+      return { ok: false, refreshed: false, message };
     }
 
     if (!latestConfig.features.write_actions_enabled) {
-      input.setItemActionMessage("d2-tools 本地写操作开关未开启。请到左侧“设置”页开启“允许单件装备写操作”。");
-      return;
+      const message = "d2-tools 本地写操作开关未开启。请到左侧“设置”页开启“允许单件装备写操作”。";
+      publishMessage(message);
+      return { ok: false, refreshed: false, message };
     }
     if (!selectedItem.instance_id) {
-      input.setItemActionMessage("这个物品没有实例 ID，不能执行 Bungie 写操作。");
-      return;
+      const message = "这个物品没有实例 ID，不能执行 Bungie 写操作。";
+      publishMessage(message);
+      return { ok: false, refreshed: false, message };
     }
     if (!selectedActionCharacterId) {
-      input.setItemActionMessage("请先选择目标角色。");
-      return;
+      const message = "请先选择目标角色。";
+      publishMessage(message);
+      return { ok: false, refreshed: false, message };
     }
     if (!window.confirm(`确认要${label}${selectedItem.name}吗？`)) {
-      return;
+      return { ok: false, refreshed: false, message: "已取消操作。", cancelled: true };
     }
 
     input.setIsRunningItemAction(true);
-    input.setItemActionMessage(`${label}执行中...`);
+    publishProgress("submitting", `${label}正在提交到 Bungie...`);
     setItemShareMessage("");
 
     try {
@@ -551,30 +571,53 @@ export function useItemDetailWorkspace(input: {
       if (result.account_patch) {
         input.applyAccountActionPatches([result.account_patch]);
       }
-      input.setItemActionMessage(result.message);
       if (options?.keepDetailOpen) {
         try {
-          await input.loadAccountSummary();
+          publishProgress("refreshing", "写入已完成，正在读取服务器最新配置...");
           await refreshSelectedItemDetail();
+          void input.loadAccountSummary().catch((error) => {
+            if (options?.feedbackScope !== "detail") {
+              input.setAccountError(error instanceof Error ? error.message : "操作完成，但账号数据刷新失败");
+            }
+          });
+          publishMessage(`${result.message}，已读取服务器最新配置。`);
         } catch (error) {
-          input.setAccountError(error instanceof Error ? error.message : "操作完成，但刷新装备详情失败");
+          if (options?.feedbackScope !== "detail") {
+            input.setAccountError(error instanceof Error ? error.message : "操作完成，但刷新装备详情失败");
+          }
+          const message = "写入成功，但最新配置刷新失败。请重新读取配置后再继续操作。";
+          publishMessage(message);
+          return {
+            ok: true,
+            refreshed: false,
+            message
+          };
         }
       } else {
+        publishMessage(result.message);
         closeSelectedItemDetail();
         void input.loadAccountSummary().catch((error) => {
           input.setAccountError(error instanceof Error ? error.message : "操作完成，但刷新账号数据失败");
         });
       }
       void input.diagnostics.loadActionLog().catch(() => undefined);
+      return {
+        ok: true,
+        refreshed: true,
+        message: options?.keepDetailOpen ? `${result.message}，已读取服务器最新配置。` : result.message
+      };
     } catch (error) {
-      input.setItemActionMessage(error instanceof Error ? error.message : `${label}失败`);
+      const message = error instanceof Error ? error.message : `${label}失败`;
       if (options?.keepDetailOpen) {
+        publishProgress("refreshing", "操作未完成，正在核对服务器当前配置...");
         await input.loadAccountSummary().catch(() => undefined);
         await refreshSelectedItemDetail().catch(() => undefined);
       } else {
         void input.loadAccountSummary().catch(() => undefined);
       }
+      publishMessage(message);
       await Promise.allSettled([input.diagnostics.loadActionLog()]);
+      return { ok: false, refreshed: false, message };
     } finally {
       input.setIsRunningItemAction(false);
     }
@@ -616,6 +659,7 @@ export function useItemDetailWorkspace(input: {
     applySameNameBatchTags,
     applySameNameCurrentKeepTags,
     openBestSameNameItem,
+    refreshSelectedItemDetail,
     runItemWriteAction
   };
 }

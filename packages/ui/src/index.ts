@@ -54,6 +54,7 @@ export { WeaponDetailContent } from "./item-detail/weapon/WeaponDetailContent.js
 export type {
   WeaponDetailAnalysis,
   WeaponDetailContentActions,
+  WeaponConfigurationWriteFeedback,
   WeaponDetailContentProps,
   WeaponDetailSection
 } from "./item-detail/weapon/WeaponDetailContent.js";

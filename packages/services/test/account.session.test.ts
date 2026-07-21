@@ -66,6 +66,39 @@ describe("account session", () => {
     expect(profileRequests).toBe(2);
   });
 
+  it("强制读取实例详情会绕过共享 Bungie Broker 中的旧 Item 响应", async () => {
+    let itemRequests = 0;
+    const broker = createBungieRequestBroker({
+      apiKey: "api",
+      ttlMs: 60_000,
+      staleMs: 60_000,
+      fetchJson: async <T>(path: string) => {
+        if (path.includes("/Item/item-1/")) {
+          itemRequests += 1;
+          return { item: { data: { itemHash: 1001 } } } as T;
+        }
+        throw new Error(`Unexpected request: ${path}`);
+      }
+    });
+    const session = createAccountSession({
+      apiKey: "api",
+      getAccessToken: () => "access",
+      fetchJson: (path, accessToken, request) => broker.fetchJson(path, accessToken, request),
+      definitions: itemDefinitions()
+    });
+    const query = {
+      destiny_membership_id: "destiny-1",
+      membership_type: 3,
+      instance_id: "item-1",
+      item_hash: 1001
+    };
+
+    await session.getItemDetail(query);
+    await session.getItemDetail(query, { freshness: "refresh" });
+
+    expect(itemRequests).toBe(2);
+  });
+
   it("刷新期间发生的局部 patch 不会被旧请求结果覆盖", async () => {
     const initialSnapshot = snapshotWithItem(false);
     let resolveProfile!: (profile: DestinyProfileResponse) => void;

@@ -23,8 +23,10 @@ const visualCaptureFile = process.env.D2_VISUAL_CAPTURE_FILE;
 const visualCapturePage = process.env.D2_VISUAL_CAPTURE_PAGE ?? "home";
 const rendererUrl = process.env.D2_RENDERER_URL ?? "http://127.0.0.1:53172";
 const rendererFile = join(currentDir, "../renderer/index.html");
+const appIcon = join(currentDir, "../../build/icon.ico");
 const isVisualCapture = Boolean(visualCaptureDir);
 const hasSingleInstanceLock = app.requestSingleInstanceLock();
+app.setAppUserModelId("local.d2-tools.desktop");
 recordStartupMilestone("startup.main-module-ready");
 
 if (isVisualCapture) {
@@ -40,6 +42,7 @@ async function createWindow(): Promise<void> {
     minHeight: 680,
     show: !isVisualCapture,
     title: "d2-tools",
+    icon: appIcon,
     autoHideMenuBar: true,
     titleBarStyle: "hidden",
     backgroundColor: getWindowBackgroundColor("dark"),

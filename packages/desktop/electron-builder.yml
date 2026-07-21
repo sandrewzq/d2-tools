@@ -1,5 +1,6 @@
 appId: local.d2-tools.desktop
 productName: d2-tools
+icon: build/icon.ico
 electronDist: node_modules/electron/dist
 directories:
   output: release
