@@ -2,6 +2,11 @@ import { getLocaleCopy } from "../i18n/copy.js";
 import type { InterfaceLocale, HomeCopy } from "../i18n/types.js";
 import type { ShellPageKey } from "../shell/types.js";
 import { ProductWorkspacePanel } from "../workspace/ProductWorkspace.js";
+import {
+  createWeeklySupportIconUrl,
+  createXurItemIconUrl,
+  normalizeBungieIconUrl
+} from "./homeIconArt.js";
 
 export type HomeTone = "neutral" | "ready" | "warning" | "error";
 
@@ -915,88 +920,11 @@ function sanitizePublicClueText(value: string | undefined): string {
     .trim();
 }
 
-function normalizeBungieIconUrl(value: string | undefined): string | undefined {
-  if (!value) return undefined;
-  if (/^https?:\/\//i.test(value) || value.startsWith("data:")) return value;
-  if (value.startsWith("/")) return `https://www.bungie.net${value}`;
-  return value;
-}
-
 function inferXurIconTone(value: string): HomeXurSpotlight["items"][number]["iconTone"] {
   if (/材料|货币|模组|赏金|Material|Currency|Mod|Bounty/i.test(value)) return "material";
   if (/护甲|头盔|臂铠|胸甲|腿甲|职业|泰坦|猎人|术士|Armor|Helmet|Gauntlets|Chest|Leg|Titan|Hunter|Warlock/i.test(value)) return "armor";
   if (/异域|Exotic/i.test(value)) return "exotic";
   return "weapon";
-}
-
-function createXurItemIconUrl(item: HomeXurSpotlight["items"][number]): string {
-  const color = getXurIconColor(item.iconTone);
-  const accent = getXurIconAccent(item.iconTone);
-  const mark = item.iconTone === "weapon"
-    ? '<path d="M20 57h40l10-10h8v8h-5l-9 9H20v-7Z" fill="#fff" opacity=".82"/><path d="M26 42h28l8 8H26v-8Z" fill="#fff" opacity=".42"/>'
-    : item.iconTone === "armor"
-      ? '<path d="M48 16l26 11v20c0 17-10 27-26 34-16-7-26-17-26-34V27l26-11Z" fill="#fff" opacity=".72"/><path d="M36 36h24v26H36V36Z" fill="#000" opacity=".18"/>'
-      : item.iconTone === "material"
-        ? '<path d="M48 16l28 32-28 32-28-32 28-32Z" fill="#fff" opacity=".74"/><path d="M48 30l14 18-14 18-14-18 14-18Z" fill="#000" opacity=".16"/>'
-        : '<circle cx="48" cy="48" r="29" fill="#fff" opacity=".72"/><path d="M48 24l7 17 18 2-14 12 4 17-15-9-15 9 4-17-14-12 18-2 7-17Z" fill="#000" opacity=".18"/>';
-  const svg = `
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96">
-      <defs>
-        <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-          <stop stop-color="${color}"/>
-          <stop offset="1" stop-color="${accent}"/>
-        </linearGradient>
-      </defs>
-      <rect width="96" height="96" rx="12" fill="url(#g)"/>
-      <path d="M0 72 72 0h24v96H0V72Z" fill="#000" opacity=".14"/>
-      ${mark}
-      <text x="48" y="86" text-anchor="middle" font-family="Arial, sans-serif" font-size="13" font-weight="800" fill="#fff" opacity=".78">${escapeSvgText(item.iconLabel ?? getXurIconLabel(item.label))}</text>
-    </svg>`;
-  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
-}
-
-function getXurIconColor(tone: HomeXurSpotlight["items"][number]["iconTone"]): string {
-  if (tone === "exotic") return "#d7a33a";
-  if (tone === "armor") return "#b7a1e8";
-  if (tone === "material") return "#6fc39a";
-  return "#8bb8e8";
-}
-
-function getXurIconAccent(tone: HomeXurSpotlight["items"][number]["iconTone"]): string {
-  if (tone === "exotic") return "#7b4f15";
-  if (tone === "armor") return "#5d408d";
-  if (tone === "material") return "#226246";
-  return "#235c9d";
-}
-
-function getXurIconLabel(value: string): string {
-  const letters = Array.from(value.trim()).filter((char) => char.trim());
-  return letters.slice(0, Math.min(letters.length, 2)).join("") || "X";
-}
-
-function createWeeklySupportIconUrl(label: string): string {
-  const initials = Array.from(label.trim()).filter((char) => char.trim()).slice(0, 2).join("") || "物";
-  const svg = `
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96">
-      <defs>
-        <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-          <stop stop-color="#c6922e"/>
-          <stop offset="1" stop-color="#4e6f91"/>
-        </linearGradient>
-      </defs>
-      <rect width="96" height="96" rx="12" fill="url(#g)"/>
-      <path d="M0 72 72 0h24v96H0V72Z" fill="#000" opacity=".16"/>
-      <circle cx="48" cy="42" r="24" fill="#fff" opacity=".2"/>
-      <text x="48" y="61" text-anchor="middle" font-family="Arial, sans-serif" font-size="24" font-weight="800" fill="#fff">${escapeSvgText(initials)}</text>
-    </svg>`;
-  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
-}
-
-function escapeSvgText(value: string): string {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;");
 }
 
 function isExcludedWeeklyItem(item: HomeDailyItem): boolean {

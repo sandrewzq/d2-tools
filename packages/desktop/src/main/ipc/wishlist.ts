@@ -4,7 +4,7 @@ import {
   clearDimWishlist,
   loadDimWishlist,
   saveDimWishlist
-} from "@d2-tools/core/analysis/wishlistStore";
+} from "@d2-tools/services/analysis/wishlistStore";
 import { loadConfig } from "@d2-tools/services/config/store";
 
 export function registerWishlistIpcHandlers(): void {

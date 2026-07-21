@@ -8,7 +8,7 @@ import {
   loadItemAliases,
   saveItemAlias,
   type ItemAliasEntry
-} from "@d2-tools/core/items/aliases";
+} from "@d2-tools/services/items/aliases";
 import { buildLiveItemAvailabilityFromBungie } from "@d2-tools/core/items/liveAvailability";
 import {
   addFavoriteItem,
@@ -16,7 +16,7 @@ import {
   loadLibraryHistory,
   removeFavoriteItem,
   type LibraryHistoryItem
-} from "@d2-tools/core/library/history";
+} from "@d2-tools/services/library/history";
 import {
   type BungieHomeSnapshot,
   type BungieVendorsResponse

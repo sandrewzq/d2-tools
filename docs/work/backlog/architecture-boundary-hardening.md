@@ -24,14 +24,16 @@
 - typed fixture foundation 继续覆盖活动摘要和资料库默认筛选，Prototype / Web 不再用宽松 `any` 重复表达这些稳定 DTO。
 - Desktop 生产代码停止跨 package `/src/` 深导入；core 重复根 export 已清理；对应架构护栏用于阻止回归。
 - Desktop main、preload、renderer 使用明确的独立构建 / 类型检查入口；preload 由 Vite 直接产出 CJS bundle，已删除基于 TypeScript 输出的字符串转换。
+- core 不再持有真实 Bungie HTTP client；账号、日常、周常和实时来源读取通过注入的请求 seam 调用，由 services 的统一 client 负责超时、取消和错误语义。
+- Account summary 定义请求、AccountSession 补丁、Manifest 文件处理、商人身份归一化、首页图标生成和资料库文本辅助已各自拆出独立模块，原入口保持兼容。
+- services 错误模型已升级为可抛出的 `D2ServiceError`；Desktop IPC 只按稳定错误码和原因类别映射，不再解析中文错误文案。
 
 ## 后续工作
 
 以下工作不应阻塞当前功能开发，按领域触达逐步完成：
 
-- 将 core 中 vault tags、aliases、wishlist、target rules、community cache 等 IO store 迁到 services，并保留短期兼容 export。
-- 将 core 中 Account、Daily、Weekly 和 live availability 的 Bungie client 调用者逐个切换到 services；至少一个稳定 Release 后删除旧 client 兼容入口。
-- 继续把超过 600 行且持续变化的模块按稳定职责拆分，优先 Account summary、AccountSession、Manifest lifecycle、vendors/library workspace 和 Home ContentView；保留原 public interface。
+- vault tags、aliases、wishlist、target rules、loadout、library history 和 audit 等独立 IO store 已迁到 services；社区推荐的读写实现仍与 core 推荐编排直接组合，后续必须连同编排模块一起迁移，避免引入循环依赖。
+- 按后续真实功能触达继续细化热点模块，但本轮已完成它们最先应分离的网络、补丁、文件、身份、图标和文本职责；保留原 public interface。
 - 继续收口 Prototype / Web 的 loadout、library data、community match 等宽松 fixture；共享 factory 只表达稳定 DTO，不合并平台场景状态。
 - 让 renderer 对稳定错误 `code` / `causeCategory` 提供差异化登录、重试、修复和冲突提示；迁移低频 IPC 与后台任务最终失败。
 - 只有新增真实 HTTP 业务 endpoint 时，才补 services composition、请求限制、取消、typed error mapping 和 observability。

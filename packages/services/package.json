@@ -22,6 +22,13 @@
       "types": "./dist/account/session.d.ts",
       "import": "./dist/account/session.js"
     },
+    "./analysis/targetRulesStore": { "types": "./dist/analysis/targetRulesStore.d.ts", "import": "./dist/analysis/targetRulesStore.js" },
+    "./analysis/wishlistStore": { "types": "./dist/analysis/wishlistStore.d.ts", "import": "./dist/analysis/wishlistStore.js" },
+    "./vault/tags": { "types": "./dist/vault/tags.d.ts", "import": "./dist/vault/tags.js" },
+    "./loadouts/templates": { "types": "./dist/loadouts/templates.d.ts", "import": "./dist/loadouts/templates.js" },
+    "./items/aliases": { "types": "./dist/items/aliases.d.ts", "import": "./dist/items/aliases.js" },
+    "./library/history": { "types": "./dist/library/history.d.ts", "import": "./dist/library/history.js" },
+    "./tools/audit": { "types": "./dist/tools/audit.d.ts", "import": "./dist/tools/audit.js" },
     "./actions/logStore": {
       "types": "./dist/actions/logStore.d.ts",
       "import": "./dist/actions/logStore.js"

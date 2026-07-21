@@ -14,7 +14,6 @@ describe("multi-platform package boundaries", () => {
     const legacyRuntimeFiles = new Set([
       "analysis/targetRulesStore.ts",
       "analysis/wishlistStore.ts",
-      "bungie/client.ts",
       "community-perks/aiLightggSource.ts",
       "community-perks/localCommunityRecommendations.ts",
       "community-perks/personalWeaponKnowledge.ts",
@@ -25,13 +24,6 @@ describe("multi-platform package boundaries", () => {
       "tools/audit.ts",
       "vault/tags.ts"
     ]);
-    const legacyBungieCallers = new Set([
-      "account/summary.ts",
-      "daily/liveData.ts",
-      "items/liveAvailability.ts",
-      "weekly/liveData.ts"
-    ]);
-
     expect(sourceFiles(coreRoot).flatMap((file) => {
       const source = readFileSync(file, "utf8");
       const path = relative(coreRoot, file).replaceAll("\\", "/");
@@ -40,8 +32,7 @@ describe("multi-platform package boundaries", () => {
         && !legacyRuntimeFiles.has(path)) {
         violations.push(`${path} adds a Node runtime dependency`);
       }
-      if (/from\s+["']\.\.\/bungie\/client\.js["']/.test(source)
-        && !legacyBungieCallers.has(path)) {
+      if (/from\s+["'][^"']*bungie\/client(?:\.js)?["']/.test(source)) {
         violations.push(`${path} adds a direct Bungie HTTP dependency`);
       }
       return violations;

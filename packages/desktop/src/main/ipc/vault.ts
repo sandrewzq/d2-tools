@@ -7,7 +7,7 @@ import {
   saveVaultTagsBatch,
   type SaveVaultNoteInput,
   type SaveVaultTagInput
-} from "@d2-tools/core/vault/tags";
+} from "@d2-tools/services/vault/tags";
 
 export function registerVaultIpcHandlers(): void {
   ipcMain.handle("vault:tags:get", () => {

@@ -7,7 +7,7 @@ import {
   renameLoadoutTemplate,
   type CreateLoadoutTemplateInput,
   type LoadoutTemplate
-} from "@d2-tools/core/loadouts/templates";
+} from "@d2-tools/services/loadouts/templates";
 import { createLoadoutTemplateTransferPlan } from "@d2-tools/core/loadouts/plan";
 import { loadConfig } from "@d2-tools/services/config/store";
 

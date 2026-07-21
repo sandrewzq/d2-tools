@@ -12,6 +12,12 @@ import {
   partitionVendorItems,
   type VendorContentKind
 } from "./vendorStructure.js";
+import {
+  canonicalVendorHash,
+  normalizeBungieIconUrl,
+  slugify,
+  vendorMatchKey
+} from "./vendorIdentity.js";
 
 export type VendorInventoryTone = "exotic" | "weapon" | "armor" | "material";
 export type VendorInventoryStatus = "owned" | "recommended" | "unknown";
@@ -1149,41 +1155,4 @@ function isSameVendor(left: VendorInventoryGroupWorkspace, right: VendorInventor
   const leftKey = vendorMatchKey(`${left.id} ${left.name} ${left.description}`);
   const rightKey = vendorMatchKey(`${right.id} ${right.name} ${right.description}`);
   return leftKey !== "" && leftKey === rightKey;
-}
-
-function canonicalVendorHash(vendorHash: number): number {
-  if (vendorHash === 3500617033) return 350061650;
-  if (vendorHash === 3902439767) return 765357505;
-  return vendorHash;
-}
-
-function vendorMatchKey(value: string): string {
-  if (/xur|仄|老九/i.test(value)) return "xur";
-  if (/banshee|枪匠|班西/i.test(value)) return "banshee";
-  if (/ada|艾达/i.test(value)) return "ada";
-  if (/saint|试炼|圣-?14|圣人/i.test(value)) return "saint";
-  if (/zavala|萨瓦拉|先锋/i.test(value)) return "zavala";
-  if (/shaxx|沙克斯|熔炉/i.test(value)) return "shaxx";
-  if (/drifter|浪客|智谋/i.test(value)) return "drifter";
-  if (/rahool|拉乎尔|密码学家/i.test(value)) return "rahool";
-  if (/tess|苔丝|eververse|永恒之诗/i.test(value)) return "tess";
-  return "";
-}
-
-function normalizeBungieIconUrl(value: string | undefined): string | undefined {
-  const trimmed = value?.trim();
-  if (!trimmed) return undefined;
-  if (/^https?:\/\//i.test(trimmed) || trimmed.startsWith("data:")) return trimmed;
-  if (trimmed.startsWith("/")) return `https://www.bungie.net${trimmed}`;
-  return trimmed;
-}
-
-function slugify(value: string): string {
-  return Array.from(value.trim())
-    .map((char) => {
-      if (/^[a-z0-9]$/i.test(char)) return char.toLowerCase();
-      return char.codePointAt(0)?.toString(36) ?? "";
-    })
-    .filter(Boolean)
-    .join("-");
 }

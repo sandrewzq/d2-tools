@@ -158,18 +158,6 @@ describe("weekly summary", () => {
   it("fetches logged-in character activities for confirmed weekly portal activities", async () => {
     const requested: Array<{ path: string; accessToken?: string }> = [];
     const liveData = await fetchWeeklyLiveData({
-      config: {
-        bungie: {
-          api_key: "api-key",
-          client_id: "",
-          client_secret: "",
-          redirect_uri: ""
-        },
-        data: {
-          data_dir: ".local-data/test"
-        },
-        features: {}
-      },
       token: {
         access_token: "access-token",
         token_type: "Bearer",

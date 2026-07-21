@@ -1,5 +1,4 @@
-import { fetchBungieJson } from "../bungie/client.js";
-import type { D2Config } from "../config/schema.js";
+import type { BungieJsonFetcher } from "../bungie/transport.js";
 import type { DefinitionComponentData, DefinitionRecord } from "../manifest/definitions.js";
 import type { BungieOAuthToken } from "../oauth/login.js";
 import type { WeeklyActivityReward, WeeklyLiveData, WeeklyPriorityKind, WeeklySummaryItem } from "./summary.js";
@@ -63,17 +62,13 @@ export type BuildWeeklyLiveDataInput = {
 };
 
 export type FetchWeeklyLiveDataOptions = {
-  config: D2Config;
   token?: BungieOAuthToken | null;
   definitions?: BuildWeeklyLiveDataInput["definitions"];
-  fetchJson?: <T>(path: string, accessToken?: string) => Promise<T>;
+  fetchJson: BungieJsonFetcher;
 };
 
 export async function fetchWeeklyLiveData(options: FetchWeeklyLiveDataOptions): Promise<WeeklyLiveData> {
-  const fetchJson = options.fetchJson ?? ((path, accessToken) => fetchBungieJson(path, {
-    apiKey: options.config.bungie.api_key,
-    accessToken
-  }));
+  const { fetchJson } = options;
   const milestones = await fetchJson<Record<string, PublicMilestone>>("/Destiny2/Milestones/")
     .catch(() => undefined);
   const profile = options.token?.access_token

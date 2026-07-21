@@ -1,17 +1,13 @@
-import type {
-  ServiceError,
-  ServiceErrorCauseCategory,
-  ServiceErrorDetails
+import {
+  toServiceError,
+  type ServiceError,
+  type ServiceErrorCauseCategory,
+  type ServiceErrorDetails
 } from "@d2-tools/services";
 
 export type DesktopIpcErrorCauseCategory = ServiceErrorCauseCategory;
-
 export type DesktopIpcErrorDetails = ServiceErrorDetails;
-
-export type DesktopIpcErrorPayload = ServiceError & {
-  retryable: boolean;
-};
-
+export type DesktopIpcErrorPayload = ServiceError & { retryable: boolean };
 export type DesktopIpcErrorClassifier = (error: unknown) => DesktopIpcErrorPayload;
 
 const transportPrefix = "D2_IPC_ERROR:";
@@ -28,125 +24,57 @@ export async function encodeDesktopIpcFailure<TResult>(
   }
 }
 
-export function classifyAccountIpcError(error: unknown): DesktopIpcErrorPayload {
-  const message = errorMessage(error, "账号数据读取失败");
-  if (includesAny(message, ["资料库尚未就绪", "资料库未初始化", "请先更新资料库"])) {
-    return payload("ACCOUNT_LIBRARY_NOT_READY", message, true, "unavailable");
-  }
-  if (includesAny(message, ["请先登录 Bungie", "access token is required"])) {
-    return payload("ACCOUNT_AUTH_REQUIRED", message, false, "authentication");
-  }
-  if (includesAny(message, ["登录已过期", "token 刷新失败", "重新登录"])) {
-    return payload("ACCOUNT_AUTH_EXPIRED", message, false, "authentication");
-  }
-  if (message.includes("装备实例 ID 无效")) {
-    return payload("ACCOUNT_ITEM_ID_INVALID", message, false, "validation");
-  }
-  if (includesAny(message, ["当前账号快照中找不到", "没有 Destiny 档案"])) {
-    return payload("ACCOUNT_ITEM_NOT_FOUND", message, true, "not-found");
-  }
-  if (isTimeoutMessage(message)) {
-    return payload("ACCOUNT_TIMEOUT", message, true, "timeout");
-  }
-  if (isNetworkMessage(message)) {
-    return payload("ACCOUNT_NETWORK_FAILED", message, true, "network");
-  }
-  return payload("ACCOUNT_LOAD_FAILED", message, true, "internal");
+export const classifyAccountIpcError = createDomainClassifier("ACCOUNT", "LOAD_FAILED");
+export const classifyHomeBriefingIpcError = createDomainClassifier("HOME", "LOAD_FAILED");
+export const classifyManifestIpcError = createDomainClassifier("MANIFEST", "OPERATION_FAILED");
+export const classifyGameDataIpcError = createDomainClassifier("GAME_DATA", "QUERY_FAILED");
+export const classifyWriteActionIpcError = createDomainClassifier("WRITE_ACTION", "FAILED");
+
+function createDomainClassifier(domain: string, fallback: string): DesktopIpcErrorClassifier {
+  return (error) => {
+    const source = toServiceError(error, `${domain} 操作失败`);
+    const suffix = suffixFor(source, fallback);
+    return {
+      code: `${domain}_${suffix}`,
+      message: source.message,
+      retryable: source.retryable ?? isRetryable(source.causeCategory),
+      causeCategory: source.causeCategory ?? "internal",
+      ...(source.details ? { details: source.details } : {})
+    };
+  };
 }
 
-export function classifyHomeBriefingIpcError(error: unknown): DesktopIpcErrorPayload {
-  const message = errorMessage(error, "首页信息读取失败");
-  if (includesAny(message, ["资料库尚未就绪", "资料库未初始化", "请先初始化", "请先更新资料库"])) {
-    return payload("HOME_LIBRARY_NOT_READY", message, true, "unavailable");
+function suffixFor(error: ServiceError, fallback: string): string {
+  switch (error.code) {
+    case "auth_required": return "AUTH_REQUIRED";
+    case "bungie_api_key_missing": return "CONFIG_MISSING";
+    case "manifest_unavailable": return "NOT_READY";
+    case "bungie_timeout": return "TIMEOUT";
+    case "bungie_network_failed": return "NETWORK_FAILED";
+    default: break;
   }
-  if (includesAny(message, ["缺少 Bungie API Key", "配置 Bungie API Key"])) {
-    return payload("HOME_CONFIG_MISSING", message, false, "configuration");
+
+  switch (error.causeCategory) {
+    case "validation": return "INVALID";
+    case "authentication": return "AUTH_REQUIRED";
+    case "authorization": return "FORBIDDEN";
+    case "configuration": return "CONFIG_MISSING";
+    case "network": return "NETWORK_FAILED";
+    case "timeout": return "TIMEOUT";
+    case "not-found": return "NOT_FOUND";
+    case "conflict": return "CONFLICT";
+    case "unavailable": return "UNAVAILABLE";
+    case "storage": return "STORAGE_FAILED";
+    default: return fallback;
   }
-  if (includesAny(message, ["登录已过期", "token 刷新失败", "重新登录"])) {
-    return payload("HOME_AUTH_EXPIRED", message, false, "authentication");
-  }
-  if (isTimeoutMessage(message)) {
-    return payload("HOME_TIMEOUT", message, true, "timeout");
-  }
-  if (isNetworkMessage(message)) {
-    return payload("HOME_NETWORK_FAILED", message, true, "network");
-  }
-  return payload("HOME_LOAD_FAILED", message, true, "internal");
 }
 
-export function classifyManifestIpcError(error: unknown): DesktopIpcErrorPayload {
-  const message = errorMessage(error, "资料库操作失败");
-  if (includesAny(message, ["缺少 Bungie API Key", "配置 Bungie API Key"])) {
-    return payload("MANIFEST_CONFIG_MISSING", message, false, "configuration");
-  }
-  if (includesAny(message, ["空间不足", "ENOSPC"])) {
-    return payload("MANIFEST_DISK_SPACE_INSUFFICIENT", message, false, "storage");
-  }
-  if (includesAny(message, ["资料库正在更新", "尚未就绪", "未初始化"])) {
-    return payload("MANIFEST_NOT_READY", message, true, "unavailable");
-  }
-  if (includesAny(message, ["回滚", "验证失败", "repair", "损坏"])) {
-    return payload("MANIFEST_ACTIVATION_FAILED", message, true, "storage");
-  }
-  if (isTimeoutMessage(message)) {
-    return payload("MANIFEST_TIMEOUT", message, true, "timeout");
-  }
-  if (isNetworkMessage(message)) {
-    return payload("MANIFEST_NETWORK_FAILED", message, true, "network");
-  }
-  return payload("MANIFEST_OPERATION_FAILED", message, true, "internal");
-}
-
-export function classifyGameDataIpcError(error: unknown): DesktopIpcErrorPayload {
-  const message = errorMessage(error, "资料库查询失败");
-  if (message.includes("资料库正在更新")) {
-    return payload("GAME_DATA_UPDATING", message, true, "unavailable");
-  }
-  if (includesAny(message, ["尚未就绪", "未初始化"])) {
-    return payload("GAME_DATA_NOT_READY", message, true, "unavailable");
-  }
-  if (includesAny(message, ["worker 已关闭", "worker 已退出", "worker 异常退出"])) {
-    return payload("GAME_DATA_WORKER_UNAVAILABLE", message, true, "unavailable");
-  }
-  if (message.includes("未知资料库查询操作")) {
-    return payload("GAME_DATA_OPERATION_INVALID", message, false, "validation");
-  }
-  if (includesAny(message, ["未找到物品详情", "找不到物品详情"])) {
-    return payload("GAME_DATA_ITEM_NOT_FOUND", message, false, "not-found");
-  }
-  if (isTimeoutMessage(message)) {
-    return payload("GAME_DATA_TIMEOUT", message, true, "timeout");
-  }
-  if (isNetworkMessage(message)) {
-    return payload("GAME_DATA_NETWORK_FAILED", message, true, "network");
-  }
-  return payload("GAME_DATA_QUERY_FAILED", message, true, "internal");
-}
-
-export function classifyWriteActionIpcError(error: unknown): DesktopIpcErrorPayload {
-  const rawMessage = errorMessage(error, "Bungie 写操作失败");
-  if (rawMessage.includes("写操作未开启")) {
-    return payload("WRITE_ACTION_DISABLED", rawMessage, false, "configuration");
-  }
-  if (includesAny(rawMessage, ["DestinyItemActionForbidden", "MoveEquipDestinyItems", "scope"])) {
-    const message = rawMessage.includes("MoveEquipDestinyItems")
-      ? rawMessage
-      : `${rawMessage}。请确认 Bungie App 已勾选 MoveEquipDestinyItems，然后重新登录。`;
-    return payload("WRITE_ACTION_FORBIDDEN", message, false, "authorization");
-  }
-  if (includesAny(rawMessage, ["请先登录 Bungie", "登录已过期", "token 刷新失败", "重新登录"])) {
-    return payload("WRITE_ACTION_AUTH_REQUIRED", rawMessage, false, "authentication");
-  }
-  if (includesAny(rawMessage, ["找不到", "不存在", "不可用", "状态已变化"])) {
-    return payload("WRITE_ACTION_ITEM_UNAVAILABLE", rawMessage, true, "conflict");
-  }
-  if (isTimeoutMessage(rawMessage)) {
-    return payload("WRITE_ACTION_TIMEOUT", rawMessage, true, "timeout");
-  }
-  if (isNetworkMessage(rawMessage)) {
-    return payload("WRITE_ACTION_NETWORK_FAILED", rawMessage, true, "network");
-  }
-  return payload("WRITE_ACTION_FAILED", rawMessage, true, "internal");
+function isRetryable(causeCategory: ServiceErrorCauseCategory | undefined): boolean {
+  return causeCategory === "network"
+    || causeCategory === "timeout"
+    || causeCategory === "unavailable"
+    || causeCategory === "conflict"
+    || causeCategory === "storage";
 }
 
 function createDesktopIpcTransportError(payload: DesktopIpcErrorPayload): Error {
@@ -160,50 +88,11 @@ function readDesktopIpcErrorPayload(error: unknown): DesktopIpcErrorPayload | nu
   try {
     const encoded = message.slice(markerIndex + transportPrefix.length).trim();
     const parsed = JSON.parse(decodeURIComponent(encoded)) as Partial<DesktopIpcErrorPayload>;
-    if (typeof parsed.code !== "string"
-      || typeof parsed.message !== "string"
-      || typeof parsed.retryable !== "boolean") {
+    if (typeof parsed.code !== "string" || typeof parsed.message !== "string" || typeof parsed.retryable !== "boolean") {
       return null;
     }
     return parsed as DesktopIpcErrorPayload;
   } catch {
     return null;
   }
-}
-
-function payload(
-  code: string,
-  message: string,
-  retryable: boolean,
-  causeCategory: DesktopIpcErrorCauseCategory
-): DesktopIpcErrorPayload {
-  return { code, message, retryable, causeCategory };
-}
-
-function errorMessage(error: unknown, fallback: string): string {
-  const message = error instanceof Error ? error.message : String(error ?? "");
-  return message
-    .replace(/^Error invoking remote method '[^']+':\s*/i, "")
-    .replace(/^Error:\s*/i, "")
-    .trim() || fallback;
-}
-
-function includesAny(message: string, values: readonly string[]): boolean {
-  const normalized = message.toLowerCase();
-  return values.some((value) => normalized.includes(value.toLowerCase()));
-}
-
-function isTimeoutMessage(message: string): boolean {
-  return includesAny(message, ["超时", "timeout", "timed out"]);
-}
-
-function isNetworkMessage(message: string): boolean {
-  return includesAny(message, [
-    "fetch failed",
-    "network",
-    "ECONN",
-    "ENOTFOUND",
-    "EAI_AGAIN",
-    "socket hang up"
-  ]);
 }

@@ -1,32 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { fetchAccountSummary } from "../src/account/summary.js";
-import type { D2Config } from "../src/config/schema.js";
 import type { DefinitionComponentData } from "../src/manifest/definitions.js";
-
-function config(): D2Config {
-  return {
-    bungie: {
-      api_key: "api",
-      client_id: "client",
-      client_secret: "secret",
-      redirect_uri: "https://127.0.0.1:28780/oauth/callback"
-    },
-    data: {
-      data_dir: "C:/Users/test/AppData/Roaming/d2-tools",
-      manifest_language: "zh-chs"
-    },
-    ai: {
-      provider: "",
-      api_key: "",
-      model: "",
-      base_url: ""
-    },
-    features: {
-      write_actions_enabled: false,
-      color_mode: "light"
-    }
-  };
-}
 
 const itemDefinitions: DefinitionComponentData = {
   "1001": {
@@ -302,15 +276,19 @@ describe("account summary", () => {
         }
       });
     };
+    const fetchJson = async <T>(path: string, accessToken?: string): Promise<T> => {
+      const response = await fetchImpl(new URL(path, "https://example.test/Platform/"), {
+        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined
+      });
+      return (await response.json() as { Response: T }).Response;
+    };
 
     const summary = await fetchAccountSummary({
-      config: config(),
       token: { access_token: "access", token_type: "Bearer", expires_in: 3600 },
       itemDefinitions,
       bucketDefinitions,
       loadoutNameDefinitions,
-      fetchImpl,
-      baseUrl: "https://example.test/Platform"
+      fetchJson
     });
 
     expect(requested[1]).toContain("/Destiny2/3/Profile/destiny-1/");

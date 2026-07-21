@@ -1,8 +1,8 @@
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import type { ArmorStatKey } from "../loadouts/analysis.js";
-import type { LocalArmorTargetRule, LocalTargetActionPolicy, LocalTargetRules, LocalWeaponTargetRule } from "./targets.js";
-import { emptyLocalTargetRules } from "./targets.js";
+import type { ArmorStatKey } from "@d2-tools/core/loadouts/analysis";
+import type { LocalArmorTargetRule, LocalTargetActionPolicy, LocalTargetRules, LocalWeaponTargetRule } from "@d2-tools/core/analysis/targets";
+import { emptyLocalTargetRules } from "@d2-tools/core/analysis/targets";
 
 const targetRulesFileName = "target-rules.json";
 

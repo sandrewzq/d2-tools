@@ -1,4 +1,5 @@
 import type { AccountItemSummary, AccountSummary } from "@d2-tools/core/account/summary";
+import { formatLibraryVersion, matchesAnyKeyword, splitQueryTokens, uniqueInOrder, uniqueSorted } from "./libraryText.js";
 
 export type AmmoTypeKey = "primary" | "special" | "heavy";
 export type EquipmentGroupKey = "weapons" | "armor" | "equipment" | "other";
@@ -527,14 +528,7 @@ export function buildLibraryPerkGroupOptions(perks: PerkSearchResult[]): Library
     .map((group) => ({ value: group, label: groupLabels[group] }));
 }
 
-export function formatLibraryVersion(version?: string): string | undefined {
-  if (!version) return undefined;
-  const match = version.match(/(?:^|\.)(\d{2})\.(\d{2})\.(\d{2})(?:\.|-)/);
-  if (!match) return undefined;
-  const yearNumber = Number(match[1]);
-  const fullYear = yearNumber < 80 ? 2000 + yearNumber : 1900 + yearNumber;
-  return `${fullYear}/${match[2]}/${match[3]}`;
-}
+export { formatLibraryVersion };
 
 function buildEquipmentResultGroups(input: {
   visibleItems: ItemSearchResult[];
@@ -777,24 +771,6 @@ function getItemKey(item: ItemSearchResult): string {
     : `hash:${item.hash}`;
 }
 
-function uniqueSorted(values: Array<string | undefined>): string[] {
-  return [...new Set(values.filter((value): value is string => Boolean(value)))]
-    .sort((left, right) => left.localeCompare(right, "zh-Hans-CN"));
-}
-
-function uniqueInOrder(values: Array<string | undefined>): string[] {
-  const seen = new Set<string>();
-  const result: string[] = [];
-
-  for (const value of values) {
-    if (!value || seen.has(value)) continue;
-    seen.add(value);
-    result.push(value);
-  }
-
-  return result;
-}
-
 const rotationSourceKeywords = [
   "rotation",
   "rotator",
@@ -859,16 +835,4 @@ function matchesPerkQuery(item: ItemSearchResult, perkTokens: string[]): boolean
     .join(" ");
 
   return perkTokens.every((token) => perkNames.includes(token));
-}
-
-function splitQueryTokens(query: string): string[] {
-  return query
-    .trim()
-    .toLocaleLowerCase()
-    .split(/\s+/)
-    .filter(Boolean);
-}
-
-function matchesAnyKeyword(value: string, keywords: string[]): boolean {
-  return keywords.some((keyword) => value.includes(keyword));
 }

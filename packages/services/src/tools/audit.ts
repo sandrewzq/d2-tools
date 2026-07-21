@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import type { D2ToolName } from "./registry.js";
+import type { D2ToolName } from "@d2-tools/core/tools/registry";
 
 export type ToolAuditCaller = "gui" | "ai" | "http" | "mcp";
 

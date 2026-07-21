@@ -3,6 +3,7 @@ import { buildLoadoutTemplateLookup, matchesLoadoutTemplateItem, selectLoadoutsP
 import { selectAccountPageModel } from "@d2-tools/app/account";
 import { selectHomePageModel } from "@d2-tools/app/home";
 import { selectLibraryPageModel } from "@d2-tools/app/library";
+import type { ItemSearchResult, PerkSearchResult, VaultItemMatchInfo } from "@d2-tools/app/library";
 import { selectSettingsPageModel, type SettingsSectionKey } from "@d2-tools/app/settings";
 import { selectVaultPageModel } from "@d2-tools/app/vault";
 import { selectVendorsPageModel, type VendorsPageInput } from "@d2-tools/app/vendors";
@@ -22,6 +23,7 @@ import {
   createFixtureLibraryFilters
 } from "@d2-tools/ui/fixtures";
 import { prototypeAppVersion } from "../buildInfo";
+import type { LoadoutTemplate, LoadoutTemplateItem } from "@d2-tools/core/loadouts/templates";
 import type { PrototypeScenario, PrototypeScenarioKey } from "../mock/scenarios";
 export const prototypeAccountSummary = createFixtureAccountSummary({
   account_name: "Prototype Guardian",
@@ -141,7 +143,7 @@ export const prototypeAccountSummary = createFixtureAccountSummary({
   }
 });
 
-export const prototypeLoadoutTemplates: any[] = [
+export const prototypeLoadoutTemplates: LoadoutTemplate[] = [
   {
     id: "nightfall-hunter",
     name: "宗师夜幕安全位",
@@ -175,7 +177,7 @@ const prototypeLibraryFilters = createFixtureLibraryFilters();
 export const prototypeEquipmentFilters: LibraryEquipmentFilter = prototypeLibraryFilters.equipment;
 export const prototypePerkFilters: LibraryPerkFilter = prototypeLibraryFilters.perks;
 
-export const prototypeLibraryItems: any[] = [
+export const prototypeLibraryItems: ItemSearchResult[] = [
   {
     hash: 1001,
     name: "快速命中脉冲",
@@ -282,7 +284,7 @@ export const prototypeLibraryItems: any[] = [
   }
 ];
 
-export const prototypeLibraryPerks: any[] = [
+export const prototypeLibraryPerks: PerkSearchResult[] = [
   {
     hash: 2002,
     name: "动能震颤",
@@ -307,7 +309,7 @@ export const prototypeLibraryHistory = {
   ]
 };
 
-export const prototypeLibraryCommunityMatch = new Map<number, any>([
+export const prototypeLibraryCommunityMatch = new Map<number, VaultItemMatchInfo>([
   [1001, { available: 3, sample_perks: [{ name: "快速命中" }, { name: "动能震颤" }] }],
   [1002, { available: 2, sample_perks: [{ name: "丰盈满溢" }, { name: "爆炸载荷" }] }]
 ]);
@@ -346,7 +348,7 @@ export const prototypeUpdateSnapshot = {
   error: ""
 };
 
-export function prototypeStartupStateForScenario(scenario: PrototypeScenario): any {
+export function prototypeStartupStateForScenario(scenario: PrototypeScenario) {
   return {
     cards: {
       bungieConfig: {
@@ -452,7 +454,7 @@ export const prototypeWishlist = {
   ]
 };
 
-export const prototypeVaultCommunityMatch = new Map<number, any>([
+export const prototypeVaultCommunityMatch = new Map<number, VaultItemMatchInfo>([
   [1002, { matched: 2, modes: ["pve"], sample_perks: [{ name: "丰盈满溢" }, { name: "爆炸载荷" }] }],
   [1006, { matched: 1, modes: ["pve"], sample_perks: [{ name: "连锁反应" }] }]
 ]);

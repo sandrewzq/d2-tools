@@ -1,3 +1,7 @@
+import { createServiceError } from "../errors.js";
+
+export type BungieJsonFetcher = <T>(path: string, accessToken?: string) => Promise<T>;
+
 export type FetchBungieJsonOptions = {
   apiKey: string;
   accessToken?: string;
@@ -14,6 +18,10 @@ type BungiePlatformResponse<T> = {
 };
 
 const defaultBaseUrl = "https://www.bungie.net/Platform";
+
+export function createBungieJsonFetcher(options: Omit<FetchBungieJsonOptions, "accessToken">): BungieJsonFetcher {
+  return (path, accessToken) => fetchBungieJson(path, { ...options, accessToken });
+}
 
 export async function fetchBungieJson<T>(
   path: string,
@@ -46,7 +54,12 @@ async function requestBungieJson<T>(
 ): Promise<T> {
   const apiKey = options.apiKey.trim();
   if (!apiKey) {
-    throw new Error("Bungie API key is required");
+    throw createServiceError({
+      code: "bungie_api_key_missing",
+      message: "缺少 Bungie API Key",
+      retryable: false,
+      causeCategory: "configuration"
+    });
   }
 
   const fetchImpl = options.fetchImpl ?? fetch;
@@ -71,21 +84,45 @@ async function requestBungieJson<T>(
     });
   } catch (error) {
     if (timeoutSignal.aborted && !options.signal?.aborted) {
-      throw new Error(`Bungie request timed out after ${timeoutMs} ms`);
+      throw createServiceError({
+        code: "bungie_timeout",
+        message: `Bungie 请求在 ${timeoutMs} ms 后超时`,
+        retryable: true,
+        causeCategory: "timeout",
+        cause: error
+      });
     }
-    throw error;
+    throw createServiceError({
+      code: "bungie_network_failed",
+      message: error instanceof Error ? error.message : "Bungie 网络请求失败",
+      retryable: true,
+      causeCategory: "network",
+      cause: error
+    });
   }
 
   if (!response.ok) {
     const details = await readBungieErrorDetails(response);
-    throw new Error(details
-      ? `Bungie request failed: HTTP ${response.status} (${details})`
-      : `Bungie request failed: HTTP ${response.status}`);
+    throw createServiceError({
+      code: "bungie_http_failed",
+      message: details
+        ? `Bungie request failed: HTTP ${response.status} (${details})`
+        : `Bungie request failed: HTTP ${response.status}`,
+      retryable: response.status >= 500 || response.status === 429,
+      causeCategory: response.status === 401 || response.status === 403 ? "authentication" : "network",
+      details: { status: response.status }
+    });
   }
 
   const body = await response.json() as BungiePlatformResponse<T>;
   if (body.ErrorCode !== undefined && body.ErrorCode !== 1) {
-    throw new Error(`Bungie API error ${body.ErrorCode}: ${body.Message ?? "Unknown error"}`);
+    throw createServiceError({
+      code: "bungie_api_failed",
+      message: `Bungie API error ${body.ErrorCode}: ${body.Message ?? "Unknown error"}`,
+      retryable: body.ErrorCode === 5,
+      causeCategory: "unavailable",
+      details: { bungie_error_code: body.ErrorCode }
+    });
   }
   return "Response" in body ? body.Response as T : body as T;
 }

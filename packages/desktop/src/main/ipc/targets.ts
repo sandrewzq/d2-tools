@@ -4,7 +4,7 @@ import {
   clearLocalTargetRules,
   loadLocalTargetRules,
   saveLocalTargetRules
-} from "@d2-tools/core/analysis/targetRulesStore";
+} from "@d2-tools/services/analysis/targetRulesStore";
 import { emptyLocalTargetRules } from "@d2-tools/core/analysis/targets";
 import { loadConfig } from "@d2-tools/services/config/store";
 

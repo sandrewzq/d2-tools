@@ -1,5 +1,4 @@
-import { fetchBungieJson } from "../bungie/client.js";
-import type { D2Config } from "../config/schema.js";
+import type { BungieJsonFetcher } from "../bungie/transport.js";
 import type { DefinitionComponentData, DefinitionRecord } from "../manifest/definitions.js";
 import type { BungieOAuthToken } from "../oauth/login.js";
 import { buildLostSectorData } from "./lostSectors.js";
@@ -85,17 +84,13 @@ export type BuildDailyLiveDataInput = {
 };
 
 export type FetchDailyLiveDataOptions = {
-  config: D2Config;
   token?: BungieOAuthToken | null;
   definitions?: BuildDailyLiveDataInput["definitions"];
-  fetchJson?: <T>(path: string, accessToken?: string) => Promise<T>;
+  fetchJson: BungieJsonFetcher;
 };
 
 export async function fetchDailyLiveData(options: FetchDailyLiveDataOptions): Promise<DailyLiveData> {
-  const fetchJson = options.fetchJson ?? ((path, accessToken) => fetchBungieJson(path, {
-    apiKey: options.config.bungie.api_key,
-    accessToken
-  }));
+  const { fetchJson } = options;
 
   const [milestonesResult, vendorsResult] = await Promise.allSettled([
     fetchJson<Record<string, PublicMilestone>>("/Destiny2/Milestones/"),

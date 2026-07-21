@@ -20,7 +20,7 @@ export type {
   ServiceErrorCode,
   ServiceErrorDetails
 } from "./errors.js";
-export { toServiceError } from "./errors.js";
+export { createServiceError, D2ServiceError, isServiceError, toServiceError } from "./errors.js";
 export type { AiChatReplyResult, AiChatRequest } from "./types.js";
 export { createAppServices } from "./appServices.js";
 export type {

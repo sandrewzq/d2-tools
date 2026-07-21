@@ -138,10 +138,6 @@
       "types": "./dist/evidence/itemDecision.d.ts",
       "import": "./dist/evidence/itemDecision.js"
     },
-    "./tools/audit": {
-      "types": "./dist/tools/audit.d.ts",
-      "import": "./dist/tools/audit.js"
-    },
     "./tools/registry": {
       "types": "./dist/tools/registry.d.ts",
       "import": "./dist/tools/registry.js"
@@ -149,14 +145,6 @@
     "./analysis/vault": {
       "types": "./dist/analysis/vault.d.ts",
       "import": "./dist/analysis/vault.js"
-    },
-    "./analysis/wishlistStore": {
-      "types": "./dist/analysis/wishlistStore.d.ts",
-      "import": "./dist/analysis/wishlistStore.js"
-    },
-    "./analysis/targetRulesStore": {
-      "types": "./dist/analysis/targetRulesStore.d.ts",
-      "import": "./dist/analysis/targetRulesStore.js"
     },
     "./actions/log": {
       "types": "./dist/actions/log.d.ts",

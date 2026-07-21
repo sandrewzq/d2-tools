@@ -3,6 +3,7 @@ import { buildLoadoutTemplateLookup, matchesLoadoutTemplateItem, selectLoadoutsP
 import { selectAccountPageModel } from "@d2-tools/app/account";
 import { selectHomePageModel } from "@d2-tools/app/home";
 import { selectLibraryPageModel } from "@d2-tools/app/library";
+import type { ItemSearchResult, PerkSearchResult, VaultItemMatchInfo } from "@d2-tools/app/library";
 import { selectSettingsPageModel, type SettingsSectionKey } from "@d2-tools/app/settings";
 import { selectVaultPageModel } from "@d2-tools/app/vault";
 import { selectVendorsPageModel } from "@d2-tools/app/vendors";
@@ -20,6 +21,7 @@ import {
   createFixtureLibraryFilters
 } from "@d2-tools/ui/fixtures";
 import { webAppVersion } from "../buildInfo";
+import type { LoadoutTemplate, LoadoutTemplateItem } from "@d2-tools/core/loadouts/templates";
 import type { WebHomeSnapshot } from "../webAdapter";
 export const webAccountSummary = createFixtureAccountSummary({
   account_name: "Web Guardian",
@@ -73,7 +75,7 @@ export const webActivitySummary = createFixtureActivitySummary({
   review: { completion_rate: 80, completions_in_a_row: 3 }
 });
 
-export const webLoadoutTemplates: any[] = [
+export const webLoadoutTemplates: LoadoutTemplate[] = [
   {
     id: "web-nightfall",
     name: "Web 夜幕模板",
@@ -118,7 +120,7 @@ const webLibraryFilters = createFixtureLibraryFilters();
 export const webEquipmentFilters: LibraryEquipmentFilter = webLibraryFilters.equipment;
 export const webPerkFilters: LibraryPerkFilter = webLibraryFilters.perks;
 
-export const webLibraryItems: any[] = [
+export const webLibraryItems: ItemSearchResult[] = [
   {
     hash: 3001,
     name: "快速命中脉冲",
@@ -141,9 +143,9 @@ export const webLibraryItems: any[] = [
     perks: []
   }
 ];
-export const webLibraryPerks: any[] = [{ hash: 4001, name: "动能震颤", description: "连续命中目标后产生动能冲击波。", related_items: [] }];
+export const webLibraryPerks: PerkSearchResult[] = [{ hash: 4001, name: "动能震颤", description: "连续命中目标后产生动能冲击波。", related_items: [] }];
 export const webLibraryHistory = { recent: [{ hash: 3001, name: "快速命中脉冲" }], favorites: [] };
-export const webLibraryCommunityMatch = new Map<number, any>([[3001, { available: 1, sample_perks: [{ name: "快速命中" }] }]]);
+export const webLibraryCommunityMatch = new Map<number, VaultItemMatchInfo>([[3001, { available: 1, sample_perks: [{ name: "快速命中" }] }]]);
 export const webLiveAvailability = { account_scope: "character" as const, items: {} };
 
 export const webManifestStatus = {
@@ -171,7 +173,7 @@ export const webUpdateSnapshot = {
 export const webVaultTags = { items: { "web-handcannon-vault": { tag: "review", note: "Web mock 同名复查。" }, "web-scout-vault": { tag: "junk" } } } as const;
 export const webLocalTargetRules = { action_policy: "notify_only" as const, armor: [], weapons: [] };
 export const webWishlist = { title: "Web DIM Wishlist", rules: [{ item_hash: 3002, perk_hashes: [4001], mode: "pve" as const, note: "Web 推荐" }] };
-export const webVaultCommunityMatch = new Map<number, any>([[3002, { matched: 1, modes: ["pve"], sample_perks: [{ name: "爆炸载荷" }] }]]);
+export const webVaultCommunityMatch = new Map<number, VaultItemMatchInfo>([[3002, { matched: 1, modes: ["pve"], sample_perks: [{ name: "爆炸载荷" }] }]]);
 export const webBatchResult = { success_count: 0, failed_count: 0, results: [] };
 export const webBackgroundTasks: ShellBackgroundTaskItem[] = [{ id: "web-task", title: "Web snapshot", status: "succeeded", message: "Web mock 已载入。", created_at: "2026-07-03T14:18:00+08:00", updated_at: "2026-07-03T14:18:00+08:00" }];
 export const webActionLog = [{ id: "web-action", created_at: "2026-07-03T14:18:00+08:00", action: "mock", item_name: "Web mock", ok: true, message: "共享设置页操作日志 mock。" }];
@@ -194,14 +196,14 @@ function webWeaponAccountItem(instanceId: string, hash: number, name: string, bu
   });
 }
 
-export function getWebLoadoutItemStatus(item: any) {
+export function getWebLoadoutItemStatus(item: LoadoutTemplateItem) {
   if (item.instance_id === "web-pulse-equipped") {
     return { key: "equipped", badge_label: "已装备", badge_tone: "ready", location_label: "当前角色已装备" };
   }
   return { key: "vault", badge_label: "仓库待取", badge_tone: "info", location_label: "仓库", guidance_label: "可自动补齐", guidance_hint: "Web mock 暂不执行写操作。" };
 }
 
-export function getWebSourceItem(item: any) {
+export function getWebSourceItem(item: LoadoutTemplateItem) {
   return item.instance_id ? { instance_id: item.instance_id, source_kind: item.instance_id.includes("vault") ? "vault" : "inventory", source_character_id: "web-hunter" } : null;
 }
 

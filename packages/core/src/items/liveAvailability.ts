@@ -1,5 +1,4 @@
-import { fetchBungieJson } from "../bungie/client.js";
-import type { D2Config } from "../config/schema.js";
+import type { BungieJsonFetcher } from "../bungie/transport.js";
 import type { DefinitionComponentData, DefinitionRecord } from "../manifest/definitions.js";
 import type { BungieOAuthToken } from "../oauth/login.js";
 
@@ -43,12 +42,10 @@ export type LiveItemAvailability = {
 };
 
 export type FetchLiveItemAvailabilityOptions = {
-  config: D2Config;
   itemHashes: number[];
   token?: BungieOAuthToken | null;
   definitions?: LiveAvailabilityDefinitions;
-  fetchImpl?: typeof fetch;
-  baseUrl?: string;
+  fetchJson: BungieJsonFetcher;
   now?: () => Date;
 };
 
@@ -132,12 +129,7 @@ type CharacterVendorResponse = VendorResponse & {
 export async function fetchLiveItemAvailability(
   options: FetchLiveItemAvailabilityOptions
 ): Promise<LiveItemAvailability> {
-  const fetchJson = <T>(path: string, accessToken?: string) => fetchBungieJson<T>(path, {
-    apiKey: options.config.bungie.api_key,
-    accessToken,
-    baseUrl: options.baseUrl,
-    fetchImpl: options.fetchImpl
-  });
+  const { fetchJson } = options;
 
   const [milestonesResult, publicVendorsResult] = await Promise.allSettled([
     fetchJson<Record<string, PublicMilestone>>("/Destiny2/Milestones/"),

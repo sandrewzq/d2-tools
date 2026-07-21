@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import type { D2Config } from "../src/config/schema.js";
 import {
   buildLiveItemAvailabilityFromBungie,
   fetchLiveItemAvailability
@@ -106,9 +105,14 @@ describe("item live availability", () => {
 
       throw new Error(`Unexpected request ${request.url}`);
     };
+    const fetchJson = async <T>(path: string, accessToken?: string): Promise<T> => {
+      const response = await fetchImpl(new URL(path, "https://www.bungie.net/Platform/"), {
+        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined
+      });
+      return (await response.json() as { Response: T }).Response;
+    };
 
     const result = await fetchLiveItemAvailability({
-      config: config(),
       token: {
         access_token: "access",
         token_type: "Bearer",
@@ -116,7 +120,7 @@ describe("item live availability", () => {
         membership_id: "membership-1"
       },
       itemHashes: [101, 202],
-      fetchImpl
+      fetchJson
     });
 
     expect(result.items["101"].status).toBe("public_vendor");
@@ -125,32 +129,6 @@ describe("item live availability", () => {
     expect(requested.some((url) => url.includes("/Character/char-1/Vendors/"))).toBe(true);
   });
 });
-
-function config(): D2Config {
-  return {
-    bungie: {
-      api_key: "api-key",
-      client_id: "client-id",
-      client_secret: "client-secret",
-      redirect_uri: "http://127.0.0.1:17777/callback"
-    },
-    ai: {
-      provider: "openai-compatible",
-      base_url: "",
-      api_key: "",
-      model: "",
-      enable_lightgg: false
-    },
-    data: {
-      data_dir: ".local-data/test",
-      manifest_language: "zh-chs"
-    },
-    features: {
-      write_actions_enabled: false,
-      color_mode: "light"
-    }
-  };
-}
 
 function jsonResponse(body: unknown): Response {
   return new Response(JSON.stringify({ ErrorCode: 1, ...body }), {

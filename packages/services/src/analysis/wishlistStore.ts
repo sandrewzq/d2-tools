@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import type { DimWishlist } from "./wishlistImport.js";
+import type { DimWishlist } from "@d2-tools/core/analysis/wishlistImport";
 
 const wishlistFileName = "dim-wishlist.json";
 

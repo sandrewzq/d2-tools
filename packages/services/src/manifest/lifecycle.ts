@@ -1,9 +1,9 @@
 import {
-  existsSync,
+  closeSync,
   copyFileSync,
+  existsSync,
   mkdirSync,
   openSync,
-  closeSync,
   readFileSync,
   readSync,
   readdirSync,
@@ -12,7 +12,7 @@ import {
   statSync,
   writeFileSync
 } from "node:fs";
-import { basename, join, relative, resolve } from "node:path";
+import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 import extract from "extract-zip";
@@ -32,6 +32,15 @@ import {
   getDefinitionStatus,
   initializeDefinitionComponent
 } from "./definitions.js";
+import {
+  downloadManifestFile,
+  findExtractedDatabase,
+  isSqliteFile,
+  normalizeManifestLanguage,
+  removeManifestWorkDirectory,
+  safeArchiveName,
+  staticContentUrl
+} from "./artifacts.js";
 
 export type ManifestLifecyclePhase =
   | "download"
@@ -84,7 +93,6 @@ type StoredSqliteManifestActivation = Omit<
   activationState?: "pending" | "finalized";
 };
 
-const bungieStaticBaseUrl = "https://www.bungie.net";
 const activeDirectoryName = "active";
 const databaseFileName = "world.sqlite";
 const searchIndexFileName = "search.sqlite";
@@ -96,7 +104,7 @@ const catalogSchemaVersion = "3";
 export async function syncSqliteManifest(
   options: SyncSqliteManifestOptions
 ): Promise<SqliteManifestActivation> {
-  const language = normalizeLanguage(options.language);
+  const language = normalizeManifestLanguage(options.language);
   const sourcePath = selectManifestLanguagePath(options.metadata, language);
   const root = sqliteManifestLanguageDir(options.dataDir, language);
   mkdirSync(root, { recursive: true });
@@ -119,7 +127,7 @@ export async function syncSqliteManifest(
 
   try {
     options.onProgress?.("download");
-    await (options.download ?? downloadFile)(staticContentUrl(sourcePath), archivePath);
+    await (options.download ?? downloadManifestFile)(staticContentUrl(sourcePath), archivePath);
 
     if (isSqliteFile(archivePath)) {
       renameSync(archivePath, candidateDatabasePath);
@@ -161,7 +169,7 @@ export async function syncSqliteManifest(
           candidateIndexPath: candidateEnglishSearchIndexPath,
           reusableIndexPath: join(activeDir, englishSearchIndexFileName),
           manifestVersion: options.metadata.version,
-          download: options.download ?? downloadFile
+          download: options.download ?? downloadManifestFile
         })
       : false;
 
@@ -195,7 +203,7 @@ export async function syncSqliteManifest(
     }
     renameSync(candidateDir, activeDir);
     activeMovedToBackup = false;
-    removeWorkDirectory(root, workDir);
+      removeManifestWorkDirectory(root, workDir);
     return {
       ...activationFromStored(activeDir, stored),
       ...(existsSync(backupDir) ? { rollbackPath: backupDir } : {})
@@ -209,9 +217,9 @@ export async function syncSqliteManifest(
         // Recovery is retried by recoverSqliteManifest during the next startup.
       }
     }
-    removeWorkDirectory(root, workDir);
+    removeManifestWorkDirectory(root, workDir);
     if (!activeMovedToBackup) {
-      removeWorkDirectory(root, backupDir);
+      removeManifestWorkDirectory(root, backupDir);
     }
     throw error;
   }
@@ -236,7 +244,7 @@ export function loadActiveSqliteManifest(
       !stored.manifestVersion
       || stored.catalogSchemaVersion !== catalogSchemaVersion
       || !Array.isArray(stored.supplementComponents)
-      || stored.language !== normalizeLanguage(language)
+      || stored.language !== normalizeManifestLanguage(language)
       || stored.databaseSize !== statSync(databasePath).size
       || stored.searchIndexSize !== statSync(searchIndexPath).size
       || (stored.englishSearchIndexSize !== undefined && (
@@ -295,11 +303,11 @@ export function recoverSqliteManifest(dataDir: string, language: string): void {
 
   for (const entry of entries) {
     if (entry.isDirectory() && entry.name.startsWith("staging-")) {
-      removeWorkDirectory(root, join(root, entry.name));
+      removeManifestWorkDirectory(root, join(root, entry.name));
     }
   }
   for (const backup of backups) {
-    removeWorkDirectory(root, backup);
+    removeManifestWorkDirectory(root, backup);
   }
 }
 
@@ -318,7 +326,7 @@ export function finalizeSqliteManifestActivation(
     activationState: "finalized"
   });
   if (activation.rollbackPath) {
-    removeWorkDirectory(sqliteManifestLanguageDir(dataDir, language), activation.rollbackPath);
+    removeManifestWorkDirectory(sqliteManifestLanguageDir(dataDir, language), activation.rollbackPath);
   }
 }
 
@@ -335,7 +343,7 @@ export function rollbackSqliteManifestActivation(
     if (activation.rollbackPath && existsSync(activation.rollbackPath)) {
       renameSync(activation.rollbackPath, activeDir);
     }
-    removeWorkDirectory(root, failedDir);
+    removeManifestWorkDirectory(root, failedDir);
     return loadActiveSqliteManifest(dataDir, language);
   } catch (error) {
     if (!existsSync(activeDir) && existsSync(failedDir)) {
@@ -346,7 +354,7 @@ export function rollbackSqliteManifestActivation(
 }
 
 export function sqliteManifestLanguageDir(dataDir: string, language: string): string {
-  return join(dataDir, "manifest", "sqlite", normalizeLanguage(language));
+  return join(dataDir, "manifest", "sqlite", normalizeManifestLanguage(language));
 }
 
 export function activeSqliteManifestDir(dataDir: string, language: string): string {
@@ -394,7 +402,7 @@ function readValidStoredActivation(
       !stored.manifestVersion
       || stored.catalogSchemaVersion !== catalogSchemaVersion
       || !Array.isArray(stored.supplementComponents)
-      || stored.language !== normalizeLanguage(language)
+      || stored.language !== normalizeManifestLanguage(language)
       || (stored.activationState !== undefined
         && stored.activationState !== "pending"
         && stored.activationState !== "finalized")
@@ -435,7 +443,7 @@ function replaceActiveWithBackup(
       renameSync(activeDir, failedDir);
     }
     renameSync(backupDir, activeDir);
-    removeWorkDirectory(root, failedDir);
+    removeManifestWorkDirectory(root, failedDir);
   } catch {
     if (!existsSync(activeDir) && existsSync(failedDir)) {
       try { renameSync(failedDir, activeDir); } catch { /* retried later */ }
@@ -453,7 +461,7 @@ function takeValidBackup(
     if (readValidStoredActivation(backup, language)) {
       return backup;
     }
-    removeWorkDirectory(root, backup);
+    removeManifestWorkDirectory(root, backup);
   }
   return undefined;
 }
@@ -462,7 +470,7 @@ function removeInvalidActiveDirectory(root: string, activeDir: string): void {
   const failedDir = join(root, `failed-${process.pid}-${Date.now()}-${randomUUID()}`);
   try {
     renameSync(activeDir, failedDir);
-    removeWorkDirectory(root, failedDir);
+    removeManifestWorkDirectory(root, failedDir);
   } catch {
     if (!existsSync(activeDir) && existsSync(failedDir)) {
       try { renameSync(failedDir, activeDir); } catch { /* retried later */ }
@@ -591,73 +599,5 @@ function validateActiveSqliteManifest(activeDir: string): void {
     }
   } finally {
     index.close();
-  }
-}
-
-function findExtractedDatabase(directory: string): string {
-  const candidates = listFiles(directory)
-    .filter(isSqliteFile)
-    .sort((left, right) => statSync(right).size - statSync(left).size);
-  if (!candidates[0]) {
-    throw new Error("Downloaded Manifest archive does not contain a SQLite database");
-  }
-  return candidates[0];
-}
-
-function listFiles(directory: string): string[] {
-  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
-    const path = join(directory, entry.name);
-    return entry.isDirectory() ? listFiles(path) : [path];
-  });
-}
-
-async function downloadFile(url: string, destination: string): Promise<void> {
-  const response = await fetch(url, {
-    signal: AbortSignal.timeout(180_000),
-    headers: { "Accept": "application/zip, application/octet-stream" }
-  });
-  if (!response.ok) {
-    throw new Error(`SQLite Manifest download failed: HTTP ${response.status}`);
-  }
-  writeFileSync(destination, Buffer.from(await response.arrayBuffer()));
-}
-
-function staticContentUrl(path: string): string {
-  return new URL(path, bungieStaticBaseUrl).toString();
-}
-
-function safeArchiveName(sourcePath: string): string {
-  return basename(sourcePath).replace(/[^a-zA-Z0-9._-]+/g, "-") || "manifest";
-}
-
-function normalizeLanguage(language: string): string {
-  return language.trim().toLowerCase() || "en";
-}
-
-function isSqliteFile(path: string): boolean {
-  if (!existsSync(path) || statSync(path).size < 16) {
-    return false;
-  }
-  const file = openSync(path, "r");
-  try {
-    const header = Buffer.alloc(16);
-    readSync(file, header, 0, header.length, 0);
-    return header.toString("utf8") === "SQLite format 3\0";
-  } finally {
-    closeSync(file);
-  }
-}
-
-function removeWorkDirectory(root: string, target: string): void {
-  const resolvedRoot = resolve(root);
-  const resolvedTarget = resolve(target);
-  const relativePath = relative(resolvedRoot, resolvedTarget);
-  if (!relativePath || relativePath.startsWith("..")) {
-    return;
-  }
-  try {
-    rmSync(resolvedTarget, { recursive: true, force: true });
-  } catch {
-    // Locked stale directories are retried during the next startup.
   }
 }
