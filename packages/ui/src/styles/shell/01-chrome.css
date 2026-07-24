@@ -128,7 +128,7 @@
   border-radius: 0;
   color: var(--muted);
   background: var(--card-bg);
-  font-size: var(--font-meta);
+  font-size: 11px;
 }
 
 .shell-status-strip > .shell-status-group:first-child {
@@ -145,7 +145,7 @@ button.shell-status-group {
   appearance: none;
   cursor: pointer;
   font-family: inherit;
-  font-size: var(--font-meta);
+  font-size: 11px;
   font-style: inherit;
   font-variant: inherit;
   font-weight: inherit;
@@ -174,7 +174,7 @@ button.shell-status-group:focus-visible {
 .shell-status-group span:not(.shell-status-dot),
 .shell-status-group strong {
   overflow: hidden;
-  font-size: var(--font-meta);
+  font-size: 11px;
   text-overflow: ellipsis;
 }
 

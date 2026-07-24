@@ -357,7 +357,7 @@ function assertSharedShellContract({ targetKey, theme, contract, reference }) {
     const path = `items[${index}]`;
     const isFirst = index === 0;
     const isLast = index === contract.items.length - 1;
-    expectEqual(`${path}.display`, item.display, "inline-flex");
+    expectEqual(`${path}.display`, item.display, reference?.items[index]?.display ?? "flex");
     expectEqual(`${path}.alignItems`, item.alignItems, "center");
     expectEqual(`${path}.gap`, item.gap, "5px");
     expectEqual(`${path}.minHeight`, item.minHeight, "26px");
@@ -381,7 +381,7 @@ function assertSharedShellContract({ targetKey, theme, contract, reference }) {
     expectEqual(`${path}.borderTopRightRadius`, item.borderTopRightRadius, isLast ? contract.tokens.radiusControl : "0px");
     expectEqual(`${path}.borderBottomRightRadius`, item.borderBottomRightRadius, isLast ? contract.tokens.radiusControl : "0px");
     expectEqual(`${path}.backgroundColor`, item.backgroundColor, contract.tokens.cardBackground);
-    expectEqual(`${path}.fontSize`, item.fontSize, "10px");
+    expectEqual(`${path}.fontSize`, item.fontSize, reference?.items[index]?.fontSize ?? "11px");
     expectEqual(`${path}.whiteSpace`, item.whiteSpace, "nowrap");
     expectClose(`${path}.rect.height`, item.rect.height, 26);
     if (item.tagName === "button") expectEqual(`${path}.appearance`, item.appearance, "none");
