@@ -9,10 +9,13 @@
 - `全应用视觉原型.html`：全应用外壳、主菜单和各业务菜单的视觉基准。
 - `统一武器详情原型.html`：武器详情的信息与交互基准。
 - `统一护甲详情原型.html`：护甲详情的信息与交互基准。
+- `统一配装工作台原型.html`：T1 配装工作台的高仿真交互原型，含 Bungie 槽位、本地方案和 DIM 配装分享链接导入；在用户确认后收口为冻结规格。
 - `prototype-design-system.css`：三个原型唯一的公共视觉规则入口。
 - `assets/full-app-prototype.css`：全应用原型的页面布局、菜单领域结构和响应式差异。
 - `assets/weapon-detail-prototype.css`：武器详情原型的页面布局、武器领域结构和响应式差异。
 - `assets/armor-detail-prototype.css`：护甲详情原型的页面布局、护甲领域结构和响应式差异。
+- `assets/loadouts-workspace-prototype.css`：配装工作台高仿真原型的专属布局与响应式差异。
+- `assets/loadouts-workspace-prototype.js`：配装工作台高仿真原型的状态、确认与交互演示。
 - `specs/`：功能契约、状态矩阵和向真实应用还原时的字段与操作边界。
 
 当前冻结规格包括：
@@ -20,7 +23,7 @@
 - `specs/home-vendor-inventory.md`：首页商人库存展示与数据边界。
 - `specs/account-slot-comparison.md`：账号页按类型、位置、当前装备和背包候选分区。
 - `specs/vault-workspace.md`：仓库四个工作区、真实实例、标签和写操作边界。
-- `specs/loadouts-workspace.md`：本地模板与游戏内配装栏的对象和操作边界。
+- `specs/loadouts-workspace.md`：Bungie 游戏内配装与本地配装方案的对象和操作边界。
 - `specs/library-workspace.md`：Manifest 查询、版本、历史和更新状态。
 - `specs/vendors-workspace.md`：地点目录、完整库存、角色上下文和时效。
 - `specs/settings-workspace.md`：八个设置分区、敏感数据和真实 action 边界。

@@ -22,7 +22,7 @@
 | T3 | P1 | 🟡 待验收 | 商人结构、覆盖与官方获取来源 | [商人结构、覆盖与官方获取来源](work/backlog/T3-vendors-and-drop-sources.md) | 已接入 Vendor Group / 目的地两级目录、持久缓存、启动预热和周期刷新；仄已按周六到、周三走规则过滤离场缓存；下一步验收真实地点覆盖、跨重置边界、Offer 时效、去重和机灵模组 A/B |
 | T4 | P3 | 🟡 待推进 | 活动复盘增强 | [活动复盘增强](work/backlog/T4-activity-review-enhancement.md) | 接 PGCR、完成时间推算和副本级趋势 |
 | T7 | P1 | 🟡 待推进 | 社区推荐边界收口 | [社区推荐边界收口](work/backlog/T7-architecture-boundary-hardening.md) | Core、Services、App、UI 与平台壳的主边界已完成；下一步将本地社区表、个人知识及 AI/light.gg 缓存和外部调用迁入 Services，Core 只保留规则、DTO、解析和匹配。 |
-| T8 | P1 | 🟡 UI 对照中 | 全应用 UI 还原 | [全应用 UI 还原](work/backlog/T8-full-application-ui-functional-convergence.md) | 首页已按最新冻结原型重建共享内容层与刷新节奏；共享 Shell 已统一页面头与侧栏菜单首项的垂直基线；下一步在 Prototype / Desktop 验收实际窗口，再继续其余菜单唯一页面还原 |
+| T8 | P1 | 🟡 UI 对照中 | 全应用 UI 还原 | [全应用 UI 还原](work/backlog/T8-full-application-ui-functional-convergence.md) | 首页共享 UI 已按冻结原型重建紧凑页头、刷新栏、统一高度活动卡与仄状态模块；下一步在 Prototype / Desktop 实际窗口对照首页，再继续其余菜单唯一页面还原 |
 
 ## 验证入口
 

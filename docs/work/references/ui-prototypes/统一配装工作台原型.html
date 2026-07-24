@@ -1,0 +1,40 @@
+<!doctype html>
+<!-- 高仿真静态原型：验证 Bungie 游戏内配装与本地配装方案的真实流程，不包含产品代码。 -->
+<html lang="zh-CN" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>d2-tools 统一配装工作台原型</title>
+  <link rel="stylesheet" href="./assets/loadouts-workspace-prototype.css">
+  <link rel="stylesheet" href="./prototype-design-system.css">
+  <link rel="stylesheet" href="./prototype-typography.css">
+</head>
+<body>
+  <main class="loadout-prototype" data-reference-only="true">
+    <header class="loadout-topbar">
+      <div class="loadout-brand"><span>D2</span><div><strong>d2-tools</strong><small>Destiny 2 本地助手</small></div></div>
+      <div class="loadout-status"><span><i></i>Bungie <b>已连接</b></span><span><i></i>账号 <b>已读取</b></span><span><i></i>资料库 <b>v2.14.0</b></span></div>
+      <div class="loadout-tools"><button class="icon-button" type="button" data-theme-toggle aria-label="切换主题" title="切换主题">◐</button><button class="icon-button ai-button" type="button" aria-label="打开 AI 助手" title="AI 助手">AI</button></div>
+    </header>
+    <div class="loadout-shell">
+      <aside class="loadout-sidebar">
+        <div class="loadout-account"><strong>浅井光</strong><span>猎人 · 2010 光等</span><div><i></i></div></div>
+        <nav aria-label="主菜单"><button type="button">⌂<span>首页</span></button><button type="button">◯<span>账号</span></button><button type="button">▣<span>仓库</span></button><button class="active" type="button">◇<span>配装</span></button><button type="button">▤<span>资料库</span></button><button type="button">⌘<span>商人</span></button><button type="button">⚙<span>设置</span></button></nav>
+        <div class="loadout-sidebar-note"><strong>本地优先</strong><span>本地配装方案和攻略记录只保存在本机。</span></div>
+      </aside>
+      <section class="loadout-main">
+        <header class="loadout-page-head">
+          <div><span class="eyebrow">配装</span><h1>配装工作台</h1><p>游戏内配装由 Bungie 直接应用；本地方案用于准备、编辑和攻略匹配。</p></div>
+          <div class="page-actions"><button class="button" type="button" data-save-current>保存当前配装</button><button class="button" type="button" data-import-dim>导入 DIM 配装</button><button class="button primary" type="button" data-new-plan>新建本地方案</button></div>
+        </header>
+        <div class="character-tabs" role="tablist" aria-label="角色"><button class="active" type="button" data-character="hunter"><b>H</b><span><strong>猎人</strong><small>当前角色</small></span></button><button type="button" data-character="titan"><b>T</b><span><strong>泰坦</strong><small>2008 光等</small></span></button><button type="button" data-character="warlock"><b>W</b><span><strong>术士</strong><small>2006 光等</small></span></button><span class="character-context" data-character-context>当前查看：猎人的游戏内配装</span></div>
+        <div class="loadout-mode-tabs" role="tablist"><button class="active" type="button" data-mode="native">游戏内配装 <span>Bungie</span></button><button type="button" data-mode="local">本地配装方案 <span>本机</span></button></div>
+        <div class="operation-status" data-operation-status aria-live="polite"><span class="status-dot"></span><strong>就绪</strong><span>选择一个游戏内配装或本地方案开始操作。</span></div>
+        <section class="loadout-workspace" data-workspace></section>
+      </section>
+    </div>
+  </main>
+  <div class="loadout-modal" data-modal hidden><div class="modal-mask" data-close-modal></div><section class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-title"><header><div><span class="eyebrow" data-modal-eyebrow>操作确认</span><h2 id="modal-title" data-modal-title></h2></div><button class="icon-button" type="button" data-close-modal aria-label="关闭">×</button></header><div class="modal-body" data-modal-body></div><footer data-modal-footer></footer></section></div>
+  <script src="./assets/loadouts-workspace-prototype.js"></script>
+</body>
+</html>

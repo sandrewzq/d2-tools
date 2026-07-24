@@ -1,7 +1,5 @@
 .app-shell {
   --shell-task-dock-clearance: 0px;
-  --shell-sidebar-header-height: 72px;
-  --shell-navigation-start: calc(var(--shell-sidebar-header-height) + 8px);
   display: grid;
   grid-template-rows: var(--topbar-height) minmax(0, 1fr);
   width: 100%;
@@ -336,8 +334,6 @@ button.shell-status-group:focus-visible {
 }
 
 .shell-sidebar-account {
-  box-sizing: border-box;
-  min-height: var(--shell-sidebar-header-height);
   padding: 14px;
   border-bottom: 1px solid var(--line);
 }
@@ -780,6 +776,15 @@ button.shell-status-group:focus-visible {
     padding: 12px 10px;
   }
 
+  .shell-window-brand {
+    justify-content: center;
+    padding: 0;
+  }
+
+  .shell-window-brand > div {
+    display: none;
+  }
+
   .shell-nav button {
     grid-template-columns: 1fr;
     padding: 0;
@@ -819,7 +824,6 @@ button.shell-status-group:focus-visible {
     --topbar-height: 96px;
     --sidebar-width: 64px;
     --shell-brand-width: minmax(132px, 1fr);
-    --shell-sidebar-header-height: 64px;
   }
 
   .shell-titlebar,

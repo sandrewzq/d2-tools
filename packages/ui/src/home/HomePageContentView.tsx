@@ -174,7 +174,6 @@ export function HomePageContentView(props: HomePageViewProps) {
       dailyError={props.dailyError ?? ""}
       isLoadingDaily={props.isLoadingDaily ?? false}
       onNavigate={props.onNavigate}
-      onRefreshDaily={props.onRefreshDaily}
       onOpenXurOffer={props.onOpenXurOffer}
     />
   );
@@ -190,7 +189,6 @@ function HomePageContent(props: {
   dailyError: string;
   isLoadingDaily: boolean;
   onNavigate?: (page: ShellPageKey) => void;
-  onRefreshDaily?: () => void;
   onOpenXurOffer?: (item: VendorInventoryItemView, context: VendorOfferContextView) => void;
 }) {
   const priorities = props.weeklySummary?.priorities;
@@ -209,10 +207,9 @@ function HomePageContent(props: {
       {props.isLoadingDaily ? <p className="status-message status-pending">正在刷新公开情报…</p> : null}
       <div className="home-refresh-strip" aria-label="首页数据刷新节奏">
         {refreshEntries.map((entry) => <HomeRefreshCell key={entry.key} entry={entry} />)}
-        {props.onRefreshDaily ? <button className="home-refresh-button" type="button" onClick={props.onRefreshDaily} aria-label="刷新公开情报" title="刷新公开情报"><RefreshIcon /></button> : null}
       </div>
       <section className="home-core-grid" aria-label="本周核心活动">
-        {activities.map((activity) => <HomeActivityCard key={activity.kind} {...activity} />)}
+        {activities.map((activity) => <HomeActivityCard key={activity.kind} {...activity} featured={activity.kind === "nightfall"} />)}
       </section>
       <section className="home-signal-grid" aria-label="限时活动与本周加成">
         <HomeSignal label={homeText(props.copy, "限时活动")} priority={priorities?.special_event} />
@@ -244,7 +241,7 @@ function HomePageContent(props: {
               ))}
             </div>
           </>
-        ) : <HomeEmpty label="当前没有可确认的仄库存" />}
+        ) : <HomeXurState source={props.dailySummary?.sources.vendors} />}
         <small className="home-source">来源：Vendor API 与当前 Manifest。读取失败时不显示过期轮换。</small>
       </section>
     </section>
@@ -272,13 +269,17 @@ function buildRefreshEntries(
   const xurTarget = nextXurBoundaryAt(clock);
   const xurActive = isXurActiveAt(clock);
   return [
-    { key: "daily", label: homeText(copy, "每日更新"), moment: resetMoment(daily?.daily_reset, homeText(copy, "时间待确认")), countdown: resetCountdown(daily?.daily_reset, clock, copy), impact: homeText(copy, "今日轮换、遗失区域") },
-    { key: "weekly", label: homeText(copy, "每周更新"), moment: resetMoment(weekly?.weekly_reset ?? daily?.weekly_reset, homeText(copy, "时间待确认")), countdown: resetCountdown(weekly?.weekly_reset ?? daily?.weekly_reset, clock, copy), impact: homeText(copy, "日落、轮换、周常加成") },
-    { key: "xur", label: homeText(copy, xurActive ? "仄离开" : "仄到访"), moment: formatLocalMoment(xurTarget, locale), countdown: compactDuration(clock, xurTarget, copy), impact: homeText(copy, "仄八件异域轮换") }
+    { key: "daily", label: homeText(copy, "每日更新"), moment: `下次：${resetMoment(daily?.daily_reset, homeText(copy, "时间待确认"), locale)}`, countdown: `倒计时：${resetCountdown(daily?.daily_reset, clock, copy)}`, impact: homeText(copy, "今日轮换、遗失区域") },
+    { key: "weekly", label: homeText(copy, "每周更新"), moment: `下次：${resetMoment(weekly?.weekly_reset ?? daily?.weekly_reset, homeText(copy, "时间待确认"), locale)}`, countdown: `倒计时：${resetCountdown(weekly?.weekly_reset ?? daily?.weekly_reset, clock, copy)}`, impact: homeText(copy, "日落、轮换、周常加成") },
+    { key: "xur", label: homeText(copy, xurActive ? "仄离开" : "仄到访"), moment: `${xurActive ? "离开" : "到访"}：${formatLocalMoment(xurTarget, locale, "Asia/Shanghai")}`, countdown: `倒计时：${compactDuration(clock, xurTarget, copy)}`, impact: homeText(copy, "仄八件异域轮换") }
   ];
 }
 
-function resetMoment(reset: { label: string } | undefined, fallback: string) {
+function resetMoment(reset: { label: string; next_reset_iso?: string } | undefined, fallback: string, locale: InterfaceLocale) {
+  if (reset?.next_reset_iso) {
+    const target = new Date(reset.next_reset_iso);
+    if (Number.isFinite(target.getTime())) return formatLocalMoment(target, locale, "Asia/Shanghai");
+  }
   return (reset?.label ?? fallback).replace(/^(?:每日|每周)重置[：:]\s*/i, "");
 }
 
@@ -290,9 +291,9 @@ function resetCountdown(reset: { next_reset_iso?: string; time_remaining_label: 
   return compactResetCountdown(reset?.time_remaining_label ?? "", "") || homeText(copy, "倒计时待确认");
 }
 
-function formatLocalMoment(target: Date, locale: InterfaceLocale) {
-  const value = new Intl.DateTimeFormat(locale, { month: "2-digit", day: "2-digit", weekday: "short", hour: "2-digit", minute: "2-digit", hour12: false }).format(target);
-  return locale === "zh-CN" ? `${value}（本地时间）` : `${value} local`;
+function formatLocalMoment(target: Date, locale: InterfaceLocale, timeZone?: string) {
+  const value = new Intl.DateTimeFormat(locale, { timeZone, month: "long", day: "numeric", weekday: "short", hour: "2-digit", minute: "2-digit", hour12: false }).format(target);
+  return locale === "zh-CN" ? `${value}（${timeZone === "Asia/Shanghai" ? "中国标准时间" : "本地时间"}）` : `${value} ${timeZone ? "China Standard Time" : "local"}`;
 }
 
 function compactDuration(now: Date, target: Date, copy: HomeCopy) {
@@ -305,7 +306,7 @@ function compactDuration(now: Date, target: Date, copy: HomeCopy) {
 }
 
 function HomeRefreshCell(props: { entry: HomeRefreshEntry }) {
-  return <div className="home-refresh-cell" data-refresh={props.entry.key}><span className="home-refresh-label"><RefreshGlyph kind={props.entry.key} />{props.entry.label}</span><strong>{props.entry.moment}</strong><small>{props.entry.countdown}</small><small>{props.entry.impact}</small></div>;
+  return <div className="home-refresh-cell" data-refresh={props.entry.key}><div className="home-refresh-heading"><RefreshGlyph kind={props.entry.key} /><span>{props.entry.label}</span></div><strong>{props.entry.moment}</strong><small>{props.entry.countdown}</small><small className="home-refresh-impact">影响：{props.entry.impact}</small></div>;
 }
 
 function RefreshGlyph(props: { kind: HomeRefreshEntry["key"] }) {
@@ -314,18 +315,14 @@ function RefreshGlyph(props: { kind: HomeRefreshEntry["key"] }) {
   return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 5 7v5c0 4.5 3 7.7 7 9 4-1.3 7-4.5 7-9V7Z" /><path d="M9 12h6M12 9v6" /></svg>;
 }
 
-function RefreshIcon() {
-  return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 0 2 5.3" /><path d="M20 4v7h-7" /></svg>;
-}
-
-function HomeActivityCard(props: { kind: "nightfall" | "raid" | "dungeon"; label: string; priority: HomeWeeklyPriority | undefined }) {
+function HomeActivityCard(props: { kind: "nightfall" | "raid" | "dungeon"; label: string; priority: HomeWeeklyPriority | undefined; featured: boolean }) {
   const entries = homePriorityEntries(props.priority);
-  return <article className={`home-activity-card is-${props.kind}`}><header><span>{props.label}</span><strong className={entries.length ? "is-ready" : ""}>{entries.length ? `${entries.length} 项已确认` : "待确认"}</strong></header>{entries.length ? <div>{entries.map((entry) => <HomeActivityEntry key={`${props.kind}-${entry.title}`} entry={entry} />)}</div> : <HomeEmpty label="公开接口暂未确认本周内容。" />}</article>;
+  return <article className={`home-activity-card is-${props.kind}`}><header><span>{props.label}</span><strong className={entries.length ? "is-ready" : ""}>{entries.length ? `${entries.length} 项已确认` : "待确认"}</strong></header>{entries.length ? <div className="home-activity-list">{entries.map((entry) => <HomeActivityEntry key={`${props.kind}-${entry.title}`} entry={entry} featured={props.featured} />)}</div> : <HomeEmpty label="公开接口暂未确认本周内容。" />}</article>;
 }
 
-function HomeActivityEntry(props: { entry: HomeWeeklyActivityEntry }) {
+function HomeActivityEntry(props: { entry: HomeWeeklyActivityEntry; featured: boolean }) {
   const rewards = props.entry.rewards?.filter((reward) => reward.name.trim()) ?? [];
-  return <div className="home-activity-entry"><strong>{props.entry.title}</strong><div className="home-activity-rewards">{rewards.length ? rewards.map((reward) => <HomeActivityReward key={reward.hash} reward={reward} />) : <span className="home-reward-pending">奖励待确认</span>}</div></div>;
+  return <div className={props.featured ? "home-activity-entry is-featured" : "home-activity-entry"}><div className="home-activity-copy"><h3>{props.entry.title}</h3>{props.entry.detail ? <p>{props.entry.detail}</p> : null}</div><div className="home-activity-rewards">{rewards.length ? rewards.map((reward) => <HomeActivityReward key={reward.hash} reward={reward} />) : <span className="home-reward-pending">奖励待确认</span>}</div></div>;
 }
 
 function HomeActivityReward(props: { reward: HomeWeeklyActivityReward }) {
@@ -457,6 +454,19 @@ function HomeSignal(props: {
 function HomeEmpty(props: { label: string }) {
   return <div className="home-empty">{props.label}</div>;
 }
+
+function HomeXurState(props: { source: HomeDailySource | undefined }) {
+  if (!props.source || props.source.status === "pending") {
+    return <div className="home-xur-module-state"><strong>正在读取本周八件轮换</strong><span>等待当前商人库存和资料库定义返回；不会显示旧轮换。</span></div>;
+  }
+
+  if (props.source.status === "error") {
+    return <div className="home-xur-module-state"><strong>本周八件轮换读取失败</strong><span>本次读取未成功，因此不显示上一次缓存的商品。</span></div>;
+  }
+
+  return <div className="home-xur-module-state"><strong>当前没有可确认的仄本周八件轮换</strong><span>商人未开放或主商人轮换不可见。旧 Offer 已清除，请等待下一次有效读取。</span></div>;
+}
+
 function buildConfirmedXur(
   source: HomeDailySource | undefined,
   copy: HomeCopy,

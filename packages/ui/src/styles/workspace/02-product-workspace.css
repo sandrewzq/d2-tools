@@ -3,8 +3,7 @@
 .product-page-head {
   position: sticky;
   z-index: 12;
-  top: var(--shell-navigation-start, 0px);
-  margin-top: var(--shell-navigation-start, 0px);
+  top: 0;
   display: flex;
   justify-content: space-between;
   gap: 18px;
@@ -309,8 +308,7 @@ button.vault-side-signal:not(:disabled):hover {
 .product-workspace-header {
   position: sticky;
   z-index: 12;
-  top: var(--shell-navigation-start, 0px);
-  margin-top: var(--shell-navigation-start, 0px);
+  top: 0;
   display: flex;
   justify-content: space-between;
   gap: 18px;

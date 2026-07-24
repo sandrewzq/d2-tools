@@ -97,7 +97,7 @@ export function ProductShellHost(props: ProductShellHostProps) {
     >
       <ProductWorkspacePage element="section" className="product-shell-page">
         {pageHeader ? (
-          <ProductWorkspaceHeader className="product-shell-page-header" referenceId="shell.page-header" actions={pageHeader.actions}>
+          <ProductWorkspaceHeader className={activePage === "home" ? "product-shell-page-header home-page-head" : "product-shell-page-header"} referenceId="shell.page-header" actions={pageHeader.actions}>
             {pageHeader.eyebrow ? <span className="product-workspace-eyebrow">{pageHeader.eyebrow}</span> : null}
             <h2>{pageHeader.title}</h2>
             <p>{pageHeader.subtitle}</p>

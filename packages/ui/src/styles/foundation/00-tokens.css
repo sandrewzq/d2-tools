@@ -34,7 +34,7 @@
   --danger: var(--red);
   --topbar-height: 48px;
   --sidebar-width: 172px;
-  --shell-brand-width: 220px;
+  --shell-brand-width: var(--sidebar-width);
   --assistant-width: 360px;
   --workspace-page-space: 18px;
   --workspace-section-space: 18px;
