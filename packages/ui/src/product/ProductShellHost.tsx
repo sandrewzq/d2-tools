@@ -20,9 +20,13 @@ export function ProductShellHost(props: ProductShellHostProps) {
   const activePage = props.activePage ?? uncontrolledActivePage;
   const assistantMode = props.assistantMode ?? uncontrolledAssistantMode;
   const preferences = props.preferences ?? uncontrolledPreferences;
-  const pageHeader = typeof props.pageHeader === "function"
+  const providedPageHeader = typeof props.pageHeader === "function"
     ? props.pageHeader(activePage, preferences)
     : props.pageHeader;
+  const pageHeader = {
+    ...productPageHeaderMeta[activePage],
+    actions: providedPageHeader?.actions
+  };
 
   function changePage(page: ShellPageKey) {
     if (props.activePage === undefined) {
@@ -77,10 +81,13 @@ export function ProductShellHost(props: ProductShellHostProps) {
       activePage={activePage}
       assistantMode={assistantMode}
       colorMode={preferences.colorMode}
+      density={preferences.density ?? "standard"}
       interfaceLocale={preferences.interfaceLocale}
       shellStatus={props.shellStatus}
       backgroundTasks={props.backgroundTasks}
       onOpenBackgroundTasks={props.onOpenBackgroundTasks}
+      sidebarHeader={props.sidebarHeader}
+      sidebarFooter={props.sidebarFooter}
       assistantPanel={props.assistantPanel}
       platformActions={props.platformActions}
       onNavigate={changePage}
@@ -90,7 +97,8 @@ export function ProductShellHost(props: ProductShellHostProps) {
     >
       <ProductWorkspacePage element="section" className="product-shell-page">
         {pageHeader ? (
-          <ProductWorkspaceHeader actions={pageHeader.actions}>
+          <ProductWorkspaceHeader className="product-shell-page-header" referenceId="shell.page-header" actions={pageHeader.actions}>
+            {pageHeader.eyebrow ? <span className="product-workspace-eyebrow">{pageHeader.eyebrow}</span> : null}
             <h2>{pageHeader.title}</h2>
             <p>{pageHeader.subtitle}</p>
           </ProductWorkspaceHeader>
@@ -100,3 +108,13 @@ export function ProductShellHost(props: ProductShellHostProps) {
     </AppShell>
   );
 }
+
+const productPageHeaderMeta: Record<ShellPageKey, { eyebrow: string; title: string; subtitle: string }> = {
+  home: { eyebrow: "公开游戏世界", title: "本周情报", subtitle: "只展示 Bungie 公开接口与经过校验的公开机器数据，不猜测缺失内容。" },
+  account: { eyebrow: "账号", title: "角色与账号数据", subtitle: "角色装备、背包、活动、材料和邮政官均来自当前 Profile 快照。" },
+  vault: { eyebrow: "装备管理", title: "仓库工作台", subtitle: "真实工作流分为筛选列表、清理工作台、同名对比和推荐数据。" },
+  loadouts: { eyebrow: "配装", title: "配装工作台", subtitle: "集中处理本地模板和 Bungie 游戏内配装栏的补齐、应用、覆盖与差异。" },
+  library: { eyebrow: "资料库", title: "装备与 Perk 查询", subtitle: "使用本地 Manifest 搜索定义、版本、Perk 池、获取来源和账号持有实例。" },
+  vendors: { eyebrow: "商人", title: "地点与商人库存", subtitle: "先按地点分组定位商人，再查看库存、子库存、任务、声望和等级奖励。" },
+  settings: { eyebrow: "设置", title: "应用与数据", subtitle: "管理界面语言、账号读取、资料库、Bungie 接口、AI、备份和诊断。" }
+};

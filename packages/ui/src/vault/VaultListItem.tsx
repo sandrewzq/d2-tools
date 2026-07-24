@@ -21,16 +21,13 @@ export function VaultListItem(props: {
   communityMatch?: VaultItemMatchInfo;
   isOrganizing: boolean;
   isSelected: boolean;
-  openingItemKey?: string;
-  onOpenItem: (item: AccountItemSummary) => void;
-  onSaveTag: (item: AccountItemSummary, tag: VaultTagValue) => void | Promise<void>;
+  onSelectItem: (item: AccountItemSummary) => void;
   onToggleSelected: (item: AccountItemSummary) => void;
 }) {
   const note = props.tags.items[getVaultItemKey(props.item)]?.note;
   const wishlist = evaluateWishlistRoll(normalizeCoreItem(props.item), props.wishlist ?? undefined);
   const localTarget = evaluateLocalTargets(normalizeCoreItem(props.item), props.localTargetRules ?? undefined);
   const communityMatch = props.communityMatch;
-  const isPending = getVaultItemKey(props.item) === props.openingItemKey;
   const isLoadoutMatch = matchesLoadoutTemplateItem(props.item, props.highlightedItemKeys);
   const tagValue = tagValueForItem(props.item, props.tags);
   const tagLabel = tagLabelForItem(props.item, props.tags);
@@ -49,7 +46,6 @@ export function VaultListItem(props: {
       className={[
         "vault-item-card",
         props.isSelected ? "selected" : "",
-        isPending ? "pending" : "",
         isLoadoutMatch ? "loadout-highlight" : ""
       ].filter(Boolean).join(" ")}
     >
@@ -66,8 +62,7 @@ export function VaultListItem(props: {
       <button
         type="button"
         className="vault-card-main"
-        aria-busy={isPending}
-        onClick={() => props.onOpenItem(props.item)}
+        onClick={() => props.onSelectItem(props.item)}
       >
         <div className="vault-card-visual">
           {props.item.icon ? <img alt="" src={props.item.icon} /> : <div className="item-icon-placeholder" />}
@@ -102,30 +97,12 @@ export function VaultListItem(props: {
               </small>
             ) : null}
           </div>
-          {communityMatch && communityMatch.matched > 0 && formatCommunityPerkPreview(communityMatch.sample_perks) ? (
-            <small className="community-match">
-              {formatCommunityPerkPreview(communityMatch.sample_perks)}
-            </small>
-          ) : null}
           {props.item.socket_plugs?.length ? (
             <small className="vault-card-roll">{props.item.socket_plugs.slice(0, 4).map((plug) => plug.name).join(" / ")}</small>
           ) : null}
           {note ? <small className="vault-note-snippet">备注：{note}</small> : null}
         </div>
       </button>
-      <div className="vault-card-actions" aria-label={`${props.item.name} 本地标记`}>
-        <span className={`vault-tag-current tag-${tagValueForItem(props.item, props.tags)}`}>
-          {tagLabelForItem(props.item, props.tags)}
-        </span>
-        <div className="vault-tag-actions">
-          <button type="button" onClick={() => props.onSaveTag(props.item, "keep")}>保留</button>
-          <button type="button" onClick={() => props.onSaveTag(props.item, "review")}>关注</button>
-          <button type="button" onClick={() => props.onSaveTag(props.item, "farm")}>待刷</button>
-          <button type="button" onClick={() => props.onSaveTag(props.item, "loadout")}>配装用</button>
-          <button type="button" disabled={decision.protected} onClick={() => props.onSaveTag(props.item, "junk")}>可清理</button>
-          <button type="button" onClick={() => props.onSaveTag(props.item, "none")}>清除</button>
-        </div>
-      </div>
     </article>
   );
 }
@@ -144,17 +121,6 @@ function formatCommunityMode(mode: "pve" | "pvp" | "general"): string {
     case "general": return "通用";
     default: return mode;
   }
-}
-
-function formatCommunityPerkPreview(perks: VaultItemMatchInfo["sample_perks"]): string {
-  if (!perks?.length) {
-    return "";
-  }
-
-  return perks
-    .slice(0, 2)
-    .map((perk) => (perk.englishName ? `${perk.name} / ${perk.englishName}` : perk.name))
-    .join(" · ");
 }
 
 function tagLabelForItem(item: AccountItemSummary, tags: VaultTags): string {

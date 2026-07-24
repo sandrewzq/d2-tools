@@ -32,7 +32,7 @@
   color: var(--text-body);
   background: var(--action-secondary-bg);
   box-shadow: none;
-  font-size: 12px;
+  font-size: var(--font-content);
 }
 
 .vault-dashboard-panel .vault-item-card,
@@ -163,7 +163,7 @@
   background: #202838;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 12px;
+  font-size: var(--font-content);
 }
 
 .search-row {
@@ -217,5 +217,5 @@
   border-radius: 999px;
   color: #dce4f4;
   background: #202838;
-  font-size: 12px;
+  font-size: var(--font-content);
 }

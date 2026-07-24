@@ -17,7 +17,7 @@
 .app-log-row span,
 .app-log-row small {
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--font-content);
   line-height: 1.45;
 }
 

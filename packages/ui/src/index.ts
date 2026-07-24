@@ -3,6 +3,8 @@ export { AccountPageView } from "./account/AccountPageView.js";
 export { AccountPageContentView } from "./account/AccountPageContentView.js";
 export type { AccountPageContentViewProps } from "./account/AccountPageContentView.js";
 export { AiAssistantPanelView } from "./assistant/AiAssistantPanelView.js";
+export { KohinataTaskPanelView } from "./assistant/KohinataTaskPanelView.js";
+export type { KohinataTaskGroupView, KohinataTaskPanelViewProps } from "./assistant/KohinataTaskPanelView.js";
 export type {
   AiAssistantContextView,
   AiAssistantHistoryEntryView,
@@ -10,6 +12,7 @@ export type {
   AiAssistantPanelViewProps
 } from "./assistant/AiAssistantPanelView.js";
 export { AppShell } from "./shell/AppShell.js";
+export { ShellSidebarAccountSummary, ShellSidebarActions } from "./shell/ShellSidebar.js";
 export { HomePageView } from "./home/HomePageView.js";
 export { HomePageContentView } from "./home/HomePageContentView.js";
 export type { HomeDailySummary, HomeStartupState, HomePageViewProps, HomeWeeklySummary } from "./home/HomePageContentView.js";
@@ -80,6 +83,7 @@ export {
 export { getLocalizedNavItems, navItems } from "./shell/navigation.js";
 export { SettingsPageView } from "./settings/SettingsPageView.js";
 export { SettingsPageContentView } from "./settings/SettingsPageContentView.js";
+export { SettingsAiConfigPanel } from "./settings/SettingsAiConfigPanel.js";
 export type {
   SettingsActionLogResultFilter,
   SettingsActionLogTypeFilter,
@@ -88,6 +92,7 @@ export type {
   SettingsLanguagePreferences,
   SettingsPageContentViewProps
 } from "./settings/SettingsPageContentView.js";
+export type { SettingsAiAdapter } from "./settings/SettingsAiConfigPanel.js";
 export { VendorsPageView } from "./vendors/VendorsPageView.js";
 export type { VendorsPageViewProps } from "./vendors/VendorsPageView.js";
 export { VendorsPageContentView } from "./vendors/VendorsPageContentView.js";

@@ -197,6 +197,8 @@ export function VendorsPageContentView(props: VendorsPageContentViewProps) {
     ?? props.model.vendors[0]
     ?? null;
   const contentSections = getVendorContentSections(selectedVendor);
+  const displaySections = [...contentSections]
+    .sort((left, right) => getVendorSectionOrder(left.kind) - getVendorSectionOrder(right.kind));
   const refreshStatus = props.model.statusBanner;
 
   if (!selectedVendor) {
@@ -226,12 +228,12 @@ export function VendorsPageContentView(props: VendorsPageContentViewProps) {
   }
 
   return (
-    <ProductWorkspaceSplit className="vendor-workbench-layout">
-      <ProductWorkspaceSideRail className="vendor-rail" ariaLabel="商人目录">
+    <ProductWorkspaceSplit className="vendor-workbench-layout vendor-workbench">
+      <ProductWorkspaceSideRail className="vendor-rail" ariaLabel="商人目录" scrollRegion="pane">
         <nav aria-label="商人列表" className="vendor-rail-nav">
           <div className="vendor-rail-head">
-            <strong>{copy.inline["商人"] ?? "Vendors"}</strong>
-            <span>{props.model.vendors.length} {copy.inline["个商人"] ?? "vendors"}</span>
+            <strong>地点目录</strong>
+            <span>按地点优先</span>
           </div>
           {props.model.railSections.map((section) => (
             <section className="vendor-rail-group" key={section.id}>
@@ -320,13 +322,29 @@ export function VendorsPageContentView(props: VendorsPageContentViewProps) {
         </div>
 
         <VendorContentSections
-          sections={contentSections}
+          sections={displaySections}
           vendor={selectedVendor}
           actions={props.actions}
         />
       </ProductWorkspaceContentStack>
+      <ProductWorkspaceSideRail element="aside" className="vendor-context" ariaLabel="当前商人上下文">
+          <div className="vendor-context-head"><h3>当前商人上下文</h3><span>{props.model.selectedCharacterContext?.label ?? "当前角色"}</span></div>
+          <div className="vendor-ledger">
+            <div><strong>库存状态</strong><span><b>{selectedVendor.inventoryStateLabel ?? getVendorDisplayStatusLabel(selectedVendor)}</b><small>属性与插槽按当前响应显示</small></span><em className="ready">最新</em></div>
+            <div><strong>来源</strong><span><b>{selectedVendor.source}</b><small>不使用过期库存</small></span><em>官方</em></div>
+            <div><strong>刷新</strong><span><b>{selectedVendor.resetLabel}</b><small>{props.model.nextResetLabel}</small></span><em>重置边界</em></div>
+            <div><strong>已核验物品</strong><span><b>{props.model.verifiedItemCount} 件</b><small>可打开装备详情核对 Roll 与成本</small></span><em className="ready">{props.model.verifiedItemCount}</em></div>
+          </div>
+        </ProductWorkspaceSideRail>
     </ProductWorkspaceSplit>
   );
+}
+
+function getVendorSectionOrder(kind: VendorContentSectionView["kind"]): number {
+  if (kind === "inventory") return 0;
+  if (kind === "subinventory") return 1;
+  if (kind === "tasks") return 2;
+  return 3;
 }
 
 function VendorContentSections(props: {

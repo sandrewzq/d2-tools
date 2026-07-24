@@ -26,6 +26,8 @@ export function HomePage(props: {
         shellStatus={shell.shellStatus}
         backgroundTasks={shell.backgroundTasks}
         onOpenBackgroundTasks={() => shell.handlePageChange("settings")}
+        sidebarHeader={shell.sidebarHeader}
+        sidebarFooter={shell.sidebarFooter}
         platformActions={shell.platformActions}
         pageHeader={shell.pageHeader}
         assistantPanel={shell.assistantPanel}

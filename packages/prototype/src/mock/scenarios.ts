@@ -297,7 +297,13 @@ export const prototypeScenarios: Record<PrototypeScenarioKey, PrototypeScenario>
     key: "manifest-missing-components",
     label: "资料库缺组件",
     description: "用于确认必要组件缺失时以资料库异常状态展示。",
-    shellStatus: baseShellStatus.map((item) => item.key === "library" ? { ...item, value: "需修复", tone: "warning" } : item),
+    shellStatus: baseShellStatus.map((item) => item.key === "library" ? {
+      ...item,
+      value: "需修复",
+      tone: "warning",
+      actionLabel: "修复资料库",
+      onAction: () => undefined
+    } : item),
     homeState: {
       cards: {
         manifest: {

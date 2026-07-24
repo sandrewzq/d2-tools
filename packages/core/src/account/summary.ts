@@ -202,6 +202,7 @@ export type AccountSummary = {
   characters: CharacterSummary[];
   vault: {
     item_count: number;
+    capacity?: number;
     items: AccountItemSummary[];
     sample_items: AccountItemSummary[];
   };
@@ -236,6 +237,7 @@ export type AccountSnapshot = Omit<AccountSummary, "characters" | "vault"> & {
   characters: AccountCharacterSnapshot[];
   vault: {
     item_count: number;
+    capacity?: number;
     items: AccountItemSnapshot[];
     sample_items: [];
   };
@@ -870,10 +872,12 @@ function summarizeProfileInventory(
   const materials = profileItems
     .filter((item) => !item.itemInstanceId)
     .map((item) => summarizeMaterial(item, definitions));
+  const capacity = resolveVaultCapacity(profileItems, bucketDefinitions);
 
   return {
     vault: {
       item_count: items.length,
+      ...(capacity ? { capacity } : {}),
       items,
       sample_items: mode === "full" ? items.slice(0, 30) : []
     },
@@ -882,6 +886,20 @@ function summarizeProfileInventory(
       items: materials
     }
   };
+}
+
+function resolveVaultCapacity(
+  profileItems: DestinyProfileItem[],
+  bucketDefinitions: DefinitionComponentData
+): number | undefined {
+  for (const item of profileItems) {
+    if (!item.itemInstanceId || typeof item.bucketHash !== "number") continue;
+    const bucketDefinition = bucketDefinitions[String(item.bucketHash)] as DefinitionRecord | undefined;
+    if (typeof bucketDefinition?.itemCount === "number" && bucketDefinition.itemCount > 0) {
+      return bucketDefinition.itemCount;
+    }
+  }
+  return undefined;
 }
 
 function summarizeMaterial(

@@ -129,7 +129,7 @@ export function SharedItemDetailDialog(props: SharedItemDetailDialogProps) {
             ) : null}
           </section>
         ) : null}
-        <div className="shared-item-detail-body">{props.sections}</div>
+        <div className="shared-item-detail-body" data-scroll-region="pane">{props.sections}</div>
       </section>
     </div>
   );

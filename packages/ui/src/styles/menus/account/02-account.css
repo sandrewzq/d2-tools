@@ -104,7 +104,7 @@
 .account-slot-comparison-column h5 {
   margin: 0;
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--font-content);
   font-weight: 700;
 }
 
@@ -305,12 +305,12 @@
 
 .equipment-section-heading span {
   color: #8bd3ff;
-  font-size: 12px;
+  font-size: var(--font-content);
 }
 
 .equipment-section-heading small {
   color: #ddd9ff;
-  font-size: 12px;
+  font-size: var(--font-content);
 }
 
 .equipment-group,
@@ -324,7 +324,7 @@
 .vault-preview h3 {
   margin: 0;
   color: #cbd6e8;
-  font-size: 13px;
+  font-size: var(--font-row-title);
 }
 
 .account-slot-category {
@@ -345,18 +345,18 @@
 .account-slot-category-heading h4 {
   margin: 0;
   color: #f3f6fc;
-  font-size: 13px;
+  font-size: var(--font-row-title);
 }
 
 .account-slot-category-heading span,
 .account-slot-heading span {
   color: #8bd3ff;
-  font-size: 12px;
+  font-size: var(--font-content);
 }
 
 .account-slot-heading strong {
   color: #cbd6e8;
-  font-size: 12px;
+  font-size: var(--font-content);
 }
 
 .account-slot-group {
@@ -383,7 +383,7 @@
 
 .account-slot-source-heading small {
   color: #8bd3ff;
-  font-size: 12px;
+  font-size: var(--font-content);
 }
 
 .account-slot-source-badge {
@@ -393,7 +393,7 @@
   padding: 0 10px;
   border: 1px solid #384152;
   border-radius: 999px;
-  font-size: 12px;
+  font-size: var(--font-content);
   font-weight: 700;
 }
 
@@ -481,12 +481,12 @@
 
 .equipment-item strong {
   color: #f3f6fc;
-  font-size: 13px;
+  font-size: var(--font-row-title);
 }
 
 .equipment-item span {
   color: #9da9bc;
-  font-size: 12px;
+  font-size: var(--font-content);
 }
 
 .equipment-item small {
@@ -509,6 +509,6 @@
   border-radius: 999px;
   color: #ddd9ff;
   background: rgb(127 122 230 / 0.14);
-  font-size: 11px;
+  font-size: var(--font-body);
   line-height: 1.2;
 }

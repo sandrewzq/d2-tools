@@ -119,6 +119,27 @@ function Stop-StaleDesktopProcesses {
   }
 }
 
+function Stop-StaleRendererServer {
+  $listeners = Get-NetTCPConnection -LocalPort $rendererPort -State Listen -ErrorAction SilentlyContinue
+  if (-not $listeners) {
+    return
+  }
+
+  $processIds = $listeners | Select-Object -ExpandProperty OwningProcess -Unique
+  foreach ($processId in $processIds) {
+    $process = Get-Process -Id $processId -ErrorAction SilentlyContinue
+    if ($process) {
+      Write-Host "Stopping stale renderer process on port ${rendererPort}: PID ${processId} $($process.ProcessName)" -ForegroundColor Yellow
+      Stop-Process -Id $processId -Force
+    }
+  }
+
+  Start-Sleep -Milliseconds 500
+  if (Get-NetTCPConnection -LocalPort $rendererPort -State Listen -ErrorAction SilentlyContinue) {
+    throw "Renderer port ${rendererPort} is still in use after cleanup."
+  }
+}
+
 function Wait-RendererServer {
   param(
     [System.Diagnostics.Process] $Process,
@@ -145,6 +166,7 @@ function Wait-RendererServer {
 Push-Location $rootDir
 try {
   Stop-StaleDesktopProcesses
+  Stop-StaleRendererServer
 
   $requiredOutputs = @(
     (Join-Path $rootDir "packages\core\dist\index.js"),

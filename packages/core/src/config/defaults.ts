@@ -68,6 +68,7 @@ export function defaultConfig(dataDir = defaultDataDir()): D2Config {
     features: {
       write_actions_enabled: false,
       color_mode: "light",
+      density: "standard",
       interface_locale: "zh-CN",
       manifest_language_follows_interface: true
     }

@@ -252,7 +252,13 @@ describe("shared UI i18n", () => {
         actionLog={[]}
         actionLogResultFilter="all"
         actionLogTypeFilter="all"
-        aiSettingsPanel={<p>AI</p>}
+        aiSettingsAdapter={{
+          load: async () => ({ api_key: "", model: "", base_url: "", enable_lightgg: false }),
+          save: async () => undefined,
+          listModels: async () => ({ models: [], message: "" }),
+          testConnection: async () => ({ protocol: "", model: "", message: "" }),
+          clearLightggCache: async () => undefined
+        }}
         onOpenDataDir={() => undefined}
         onWriteActionsEnabledChange={() => undefined}
         onCheckAppUpdate={() => undefined}

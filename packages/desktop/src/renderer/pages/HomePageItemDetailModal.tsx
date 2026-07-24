@@ -1,7 +1,7 @@
 import type { AccountSummary, DimWishlist, LocalTargetRules, VaultTags } from "../api/types";
 import type { ArmorStatSummary, WeaponStatKey, WeaponStatSummary } from "@d2-tools/core/account/summary";
 import type { ArmorStatKey } from "@d2-tools/core/loadouts/analysis";
-import { ArmorDetailContent, getLocaleCopy, LibraryDefinitionDialog, SharedItemDetailDialog, WeaponDetailContent } from "@d2-tools/ui";
+import { ArmorDetailContent, getLocaleCopy, LibraryDefinitionDialog, SharedItemDetailDialog, SharedItemDetailLoading, WeaponDetailContent } from "@d2-tools/ui";
 import { buildLibraryDefinitionDetailView, buildLibraryOwnership } from "@d2-tools/app/library";
 import { collectSelectedSameNameItems, createSelectedItemPreview, type ArmorDetailSources, type WeaponDetailSources } from "@d2-tools/app/items";
 import type { useVendorDefinitionDetail } from "../features/vendors/useVendorDefinitionDetail";
@@ -33,6 +33,20 @@ export function HomePageItemDetailModal(props: {
   const vendorDefinitionState = props.vendorDefinitionDetail.state;
 
   if (vendorDefinitionState) {
+    if (vendorDefinitionState.isBusy) {
+      return (
+        <SharedItemDetailDialog
+          detail={{ name: vendorDefinitionState.item.name, isBusy: true }}
+          variant="loading"
+          subtitle="正在读取完整定义与当前商人售卖状态"
+          objectContext="加载中"
+          closeLabel="关闭装备详情"
+          onClose={props.vendorDefinitionDetail.close}
+          sections={<SharedItemDetailLoading />}
+        />
+      );
+    }
+
     const vendorSelectedItem = {
       ...createSelectedItemPreview(vendorDefinitionState.item, {}),
       socket_plugs: (vendorDefinitionState.offerItem.socketPlugs ?? []).map((plug) => ({

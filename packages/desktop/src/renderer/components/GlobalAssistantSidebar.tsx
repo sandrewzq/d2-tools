@@ -15,7 +15,7 @@ import { AiPage } from "../features/ai/AiPage";
 import type { AssistantPageContext } from "../shared/domain/assistant/assistantContext";
 import { buildAssistantTaskContext } from "../shared/domain/assistant/assistantTaskContext";
 import { formatKohinataTaskGroups } from "../shared/domain/assistant/kohinataViewModel";
-import type { ShellAssistantMode, ShellPageKey } from "@d2-tools/ui";
+import { KohinataTaskPanelView, type ShellAssistantMode, type ShellPageKey } from "@d2-tools/ui";
 
 const taskContextStorageKey = "d2-tools.assistant.task-context";
 
@@ -197,75 +197,29 @@ function TaskAssistantPanel(props: {
   }
 
   return (
-    <section className="assistant-task-panel">
-      <div className="assistant-context-card">
-        <strong>当前上下文</strong>
-        <span>{props.pageContext.page_label || homePageLabels[props.activePage]}</span>
-        <small>
-          {props.pageContext.facts.join("；") || "当前页面暂无可用上下文。"}
-        </small>
-      </div>
-      <label className="assistant-task-editor">
-        <span>粘贴任务文本或攻略</span>
-        <textarea
-          value={taskContextDraft}
-          onChange={(event) => setTaskContextDraft(event.target.value)}
-          placeholder="粘贴任务步骤、攻略正文、配装说明或视频文案。任务助手会提取步骤，并匹配当前账号里提到的装备。"
-          rows={7}
-        />
-      </label>
-      <div className="button-row">
-        <button type="button" className="secondary-button" disabled={!taskContextDraft.trim()} onClick={saveTaskContextDraft}>
-          保存上下文
-        </button>
-        <button type="button" className="secondary-button" disabled={!taskContextDraft.trim()} onClick={clearTaskContextDraft}>
-          清空
-        </button>
-      </div>
-      <div className="button-row">
-        <button type="button" onClick={handleParseGuide} disabled={!taskContextDraft.trim()}>解析攻略</button>
-        <button type="button" onClick={() => void handleMatchGuide()} disabled={!taskContextDraft.trim()}>对照账号</button>
-        <button type="button" onClick={() => void handleCreateDraft()} disabled={!kohinataTask?.match_result}>生成草稿</button>
-        <button type="button" onClick={handleSaveDraft} disabled={!kohinataTask?.draft}>保存草稿</button>
-        <button type="button" className="secondary-button" onClick={handleReviewGaps}>查看缺口</button>
-      </div>
-      {taskAssistantMessage ? <p className="status-message status-neutral">{taskAssistantMessage}</p> : null}
-      <div className="assistant-context-card">
-        <strong>{taskContext.title}</strong>
-        <small>
-          已识别 {taskContext.steps.length} 个攻略步骤，关联 {taskContext.linkedItems.length} 件账号装备。
-        </small>
-      </div>
-      <div className="assistant-task-tree">
-        <h3>小日向任务状态</h3>
-        {formatKohinataTaskGroups(kohinataTask).map((group) => (
-          <details key={group.title} open>
-            <summary>{group.title}</summary>
-            <ul>
-              {group.items.map((item) => (
-                <li key={item}>{item}</li>
-              ))}
-            </ul>
-          </details>
-        ))}
-      </div>
-      <div className="assistant-task-tree">
-        <h3>任务 / 攻略上下文</h3>
-        {taskContext.treeGroups.map((group) => (
-          <details key={group.title}>
-            <summary>{group.title}</summary>
-            <ul>
-              {group.items.map((item) => (
-                <li key={item}>{item}</li>
-              ))}
-            </ul>
-          </details>
-        ))}
-      </div>
-      <p className="assistant-task-note">
-        这棵树只整理你粘贴的任务和攻略，不会猜测外部数据；可保存方案草稿和 AI 问答节点可基于同一页面上下文继续问缺口和刷取建议。
-      </p>
-    </section>
+    <KohinataTaskPanelView
+      pageLabel={props.pageContext.page_label || homePageLabels[props.activePage]}
+      pageFacts={props.pageContext.facts}
+      draft={taskContextDraft}
+      statusMessage={taskAssistantMessage}
+      contextTitle={taskContext.title}
+      recognizedStepCount={taskContext.steps.length}
+      linkedItemCount={taskContext.linkedItems.length}
+      taskGroups={formatKohinataTaskGroups(kohinataTask)}
+      contextGroups={taskContext.treeGroups}
+      canParse={Boolean(taskContextDraft.trim())}
+      canMatch={Boolean(taskContextDraft.trim())}
+      canCreateDraft={Boolean(kohinataTask?.match_result)}
+      canSaveDraft={Boolean(kohinataTask?.draft)}
+      onDraftChange={setTaskContextDraft}
+      onSaveContext={saveTaskContextDraft}
+      onClearContext={clearTaskContextDraft}
+      onParse={() => void handleParseGuide()}
+      onMatch={() => void handleMatchGuide()}
+      onCreateDraft={() => void handleCreateDraft()}
+      onSaveDraft={handleSaveDraft}
+      onReviewGaps={handleReviewGaps}
+    />
   );
 }
 

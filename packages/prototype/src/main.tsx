@@ -1,11 +1,14 @@
 import { createRoot } from "react-dom/client";
-import { useMemo, useState, type ComponentProps } from "react";
+import { useMemo, useState, type ComponentProps, type ReactNode } from "react";
 import {
   AccountPageContentView,
+  ShellSidebarAccountSummary,
+  ShellSidebarActions,
   ArmorDetailContent,
   AiAssistantPanelView,
   defaultProductPreferences,
   HomePageContentView,
+  KohinataTaskPanelView,
   LibraryPageContentView,
   LoadoutsPageContentView,
   ProductShellHost,
@@ -19,10 +22,10 @@ import {
   type LibraryViewMode,
   type ShellAssistantMode,
   type ShellPageKey,
+  type SettingsAiAdapter,
   type VendorInventoryItemView,
   type VendorOfferContextView,
 } from "@d2-tools/ui";
-import { homePageMetaMap } from "@d2-tools/app/home";
 import { buildArmorDetailViewModel, type ArmorDetailViewModel } from "@d2-tools/app/items";
 import "@d2-tools/ui/styles.css";
 import {
@@ -37,13 +40,17 @@ function PrototypeApp() {
   const fixture = usePrototypeFixtureRuntime();
   const env = import.meta.env as Record<string, string | undefined>;
   const initialPage = isShellPageKey(env.VITE_D2_VISUAL_PAGE) ? env.VITE_D2_VISUAL_PAGE : "home";
-  const initialTheme = env.VITE_D2_VISUAL_THEME === "dark" ? "dark" : "light";
+  const initialTheme = env.VITE_D2_VISUAL_THEME === "light" ? "light" : "dark";
   const initialScenario = isPrototypeScenarioKey(env.VITE_D2_VISUAL_SCENARIO)
     ? env.VITE_D2_VISUAL_SCENARIO
     : defaultPrototypeScenarioKey;
   const initialSettingsSection = isSettingsSectionKey(env.VITE_D2_VISUAL_SETTINGS_SECTION)
     ? env.VITE_D2_VISUAL_SETTINGS_SECTION
     : "overview";
+  const [preferences, setPreferences] = useState({
+    ...defaultProductPreferences,
+    colorMode: initialTheme
+  });
   const [activePage, setActivePage] = useState<ShellPageKey>(initialPage);
   const [settingsSection, setSettingsSection] = useState(initialSettingsSection);
   const [assistantMode, setAssistantMode] = useState<ShellAssistantMode>(null);
@@ -61,6 +68,8 @@ function PrototypeApp() {
   const [aliasTargetDraft, setAliasTargetDraft] = useState("喂食狂热");
   const [aliasKind, setAliasKind] = useState<"item" | "perk">("perk");
   const [assistantQuestion, setAssistantQuestion] = useState("");
+  const [taskDraft, setTaskDraft] = useState("虚空猎人高难配装，需要反屏障脉冲步枪、奥菲斯钻机，韧性与纪律优先。");
+  const [taskMessage, setTaskMessage] = useState("Prototype：攻略文本已准备，可继续解析和对照账号。");
   const [isPrototypeDebugOpen, setIsPrototypeDebugOpen] = useState(false);
   const [assistantMessages, setAssistantMessages] = useState(() => fixture.assistantInitialMessages);
   const [isAssistantSessionDrawerOpen, setIsAssistantSessionDrawerOpen] = useState(false);
@@ -73,7 +82,7 @@ function PrototypeApp() {
     item: VendorInventoryItemView;
     context: VendorOfferContextView;
   } | null>(null);
-  const [isWeaponDetailOpen, setIsWeaponDetailOpen] = useState(true);
+  const [isWeaponDetailOpen, setIsWeaponDetailOpen] = useState(false);
   const [armorDetailModel, setArmorDetailModel] = useState<ArmorDetailViewModel | null>(null);
   const [weaponObjectKind, setWeaponObjectKind] = useState<PrototypeWeaponObjectKind>("account_instance");
   const [weaponRarity, setWeaponRarity] = useState<PrototypeWeaponRarity>("legendary");
@@ -87,6 +96,19 @@ function PrototypeApp() {
   const [personalWeaponKnowledge, setPersonalWeaponKnowledge] = useState<PrototypePersonalKnowledge[]>(prototypePersonalKnowledge);
   const scenario = prototypeScenarios[scenarioKey];
   const backgroundTasks = fixture.getBackgroundTasks(scenarioKey);
+  const aiSettingsAdapter = useMemo<SettingsAiAdapter>(() => {
+    const configured = scenario.key !== "ai-unconfigured";
+    const config = configured
+      ? { protocol: "openai_responses", provider: "", api_key: "prototype-key", model: "gpt-5-mini", base_url: "https://api.example.com/v1", enable_lightgg: true, force_lightgg: false }
+      : { protocol: "", provider: "", api_key: "", model: "", base_url: "", enable_lightgg: false, force_lightgg: false };
+    return {
+      load: async () => config,
+      save: async () => undefined,
+      listModels: async () => ({ models: configured ? ["gpt-5-mini", "gpt-5", "claude-sonnet-4"] : [], message: configured ? "Prototype fixture 模型列表。" : "请先选择 API 格式并填写 API Key。" }),
+      testConnection: async () => ({ protocol: config.protocol, model: config.model, message: "Prototype fixture 连接成功。" }),
+      clearLightggCache: async () => undefined
+    };
+  }, [scenario.key]);
   const accountViewModel = useMemo(
     () => fixture.createAccountPageModel({
       scenario,
@@ -122,6 +144,11 @@ function PrototypeApp() {
     },
     setColorMode: (mode: "light" | "dark") => {
       document.documentElement.dataset.colorMode = mode;
+    },
+    windowControls: {
+      minimize: () => undefined,
+      toggleMaximize: () => undefined,
+      close: () => undefined
     }
   }), []);
   const assistantContext = useMemo(
@@ -161,16 +188,66 @@ function PrototypeApp() {
         onPageChange={setActivePage}
         assistantMode={assistantMode}
         onAssistantModeChange={setAssistantMode}
-        initialPreferences={{
-          ...defaultProductPreferences,
-          colorMode: initialTheme
-        }}
+        preferences={preferences}
+        onPreferencesChange={setPreferences}
         shellStatus={scenario.shellStatus}
         backgroundTasks={backgroundTasks}
-        onOpenBackgroundTasks={() => setActivePage("settings")}
-        pageHeader={getPrototypePageHeader}
-        assistantPanel={(
-          <AiAssistantPanelView
+        onOpenBackgroundTasks={() => {
+          setSettingsSection("diagnostics");
+          setActivePage("settings");
+        }}
+        sidebarHeader={(
+          <ShellSidebarAccountSummary
+            accountName={fixture.accountSummary.account_name}
+            characterCount={fixture.accountSummary.characters.length}
+            vaultItemCount={vaultModel.vaultItemCount}
+            vaultCapacity={fixture.accountSummary.vault.capacity}
+          />
+        )}
+        sidebarFooter={(
+          <ShellSidebarActions
+            onOpenAi={() => setAssistantMode("ai")}
+          />
+        )}
+        pageHeader={(page) => getPrototypePageHeader(page, setActivePage)}
+        assistantPanel={
+          assistantMode === "tasks" ? (
+              <KohinataTaskPanelView
+                pageLabel={assistantContext.pageLabel}
+                pageFacts={assistantContext.facts}
+                draft={taskDraft}
+                statusMessage={taskMessage}
+                contextTitle="虚空猎人高难配装"
+                recognizedStepCount={4}
+                linkedItemCount={3}
+                taskGroups={[
+                  { title: "解析攻略", items: ["职业：猎人 · 子职业：虚空", "异域护甲：奥菲斯钻机", "武器要求：反屏障脉冲步枪", "属性目标：韧性、纪律优先"] },
+                  { title: "账号命中", items: ["奥菲斯钻机：猎人背包，账号实例已确认", "脉冲步枪：仓库 3 件，1 件命中 DIM Wishlist"] },
+                  { title: "缺口与待确认", items: ["缺口 0 项", "待确认：攻略未给出具体武器名称和 Perk"] },
+                  { title: "配装草稿", items: ["尚未生成草稿"] }
+                ]}
+                contextGroups={[
+                  { title: "攻略要求", items: ["虚空猎人", "高难内容", "反屏障脉冲步枪", "韧性与纪律优先"] },
+                  { title: "当前页面证据", items: assistantContext.facts.length ? assistantContext.facts : ["当前页面暂无额外证据"] }
+                ]}
+                canParse={Boolean(taskDraft.trim())}
+                canMatch={Boolean(taskDraft.trim())}
+                canCreateDraft
+                canSaveDraft
+                onDraftChange={setTaskDraft}
+                onSaveContext={() => setTaskMessage("Prototype：攻略上下文已保存到本地 mock。")}
+                onClearContext={() => {
+                  setTaskDraft("");
+                  setTaskMessage("Prototype：攻略上下文已清空。");
+                }}
+                onParse={() => setTaskMessage("Prototype：攻略已解析为 4 项结构化要求。")}
+                onMatch={() => setTaskMessage("Prototype：账号对照完成，命中 3 件装备。")}
+                onCreateDraft={() => setTaskMessage("Prototype：配装草稿已生成。")}
+                onSaveDraft={() => setTaskMessage("Prototype：草稿已发送到配装页保存。")}
+                onReviewGaps={() => setTaskMessage("Prototype：缺口 0 项，待确认 1 项。")}
+              />
+            ) : (
+              <AiAssistantPanelView
             isConfigured={scenarioKey !== "ai-unconfigured"}
             sessionTitle="Prototype mock 会话"
             messages={assistantMessages}
@@ -212,8 +289,8 @@ function PrototypeApp() {
             onClearHistory={() => undefined}
             onSwitchSession={() => undefined}
             onDeleteSession={() => undefined}
-          />
-        )}
+              />
+            )}
         platformActions={platformActions}
         renderPage={(activePage, preferences) => (
           <>
@@ -221,6 +298,7 @@ function PrototypeApp() {
             <HomePageContentView
               interfaceLocale={preferences.interfaceLocale}
               {...fixture.createHomePageModel(scenario)}
+              onNavigate={setActivePage}
               onRefreshDiagnostics={() => undefined}
             />
           ) : null}
@@ -298,7 +376,7 @@ function PrototypeApp() {
               compareTemplateId={compareTemplateId}
               renameDraft={renameDraft}
               showDiffOnly={showDiffOnly}
-              message="Prototype：已接入共享配装页 View，写操作为 mock。"
+              message=""
               isRunningItemAction={false}
               actionFeedback={{}}
             />
@@ -377,7 +455,11 @@ function PrototypeApp() {
                 bungieLocale: preferences.bungieLocale,
                 followInterfaceLocaleForBungie: preferences.followInterfaceLocaleForBungie
               })}
-              aiSettingsPanel={<PrototypeAiSettingsPanel />}
+              aiSettingsAdapter={aiSettingsAdapter}
+              colorMode={preferences.colorMode}
+              onColorModeChange={(colorMode) => setPreferences((current) => ({ ...current, colorMode }))}
+              density={preferences.density}
+              onDensityChange={(density) => setPreferences((current) => ({ ...current, density }))}
               onRefreshAccount={() => undefined}
               onReauthorizeAccount={() => undefined}
               onOpenDataDir={() => undefined}
@@ -634,40 +716,32 @@ function isPrototypeWeaponItem(item: VendorInventoryItemView): boolean {
   ].some((weaponType) => itemType.includes(weaponType));
 }
 
-function PrototypeAiSettingsPanel() {
-  return (
-    <div className="app-setting-group">
-      <div className="app-setting-row">
-        <div>
-          <strong>AI Provider</strong>
-          <span>Prototype mock：用于验证共享设置页的 AI 配置块。</span>
-        </div>
-        <select defaultValue="openai">
-          <option value="openai">OpenAI Compatible</option>
-          <option value="none">未配置</option>
-        </select>
-      </div>
-      <div className="app-setting-row">
-        <div>
-          <strong>模型</strong>
-          <span>后续由真实设置页保存到本地配置。</span>
-        </div>
-        <input defaultValue="gpt-4.1-mini" />
-      </div>
-    </div>
-  );
-}
-
-function getPrototypePageHeader(page: ShellPageKey) {
-  const meta = homePageMetaMap[page];
-
-  return {
-    title: meta.title,
-    subtitle: meta.subtitle,
-    actions: page === "home" ? (
-      <button type="button" className="secondary-button">刷新本周信息</button>
-    ) : null
+function getPrototypePageHeader(page: ShellPageKey, onNavigate: (page: ShellPageKey) => void) {
+  const meta: Record<ShellPageKey, { eyebrow: string; title: string; subtitle: string }> = {
+    home: { eyebrow: "公开游戏世界", title: "本周情报", subtitle: "只展示 Bungie 公开接口与经过校验的公开机器数据，不猜测缺失内容。" },
+    account: { eyebrow: "账号", title: "角色与账号数据", subtitle: "角色装备、背包、活动、材料和邮政官均来自当前 Profile 快照。" },
+    vault: { eyebrow: "装备管理", title: "仓库工作台", subtitle: "真实工作流分为筛选列表、清理工作台、同名对比和推荐数据。" },
+    loadouts: { eyebrow: "配装", title: "配装工作台", subtitle: "集中处理本地模板和 Bungie 游戏内配装栏的补齐、应用、覆盖与差异。" },
+    library: { eyebrow: "资料库", title: "装备与 Perk 查询", subtitle: "使用本地 Manifest 搜索定义、版本、Perk 池、获取来源和账号持有实例。" },
+    vendors: { eyebrow: "商人", title: "地点与商人库存", subtitle: "先按地点分组定位商人，再查看库存、子库存、任务、声望和等级奖励。" },
+    settings: { eyebrow: "设置", title: "应用与数据", subtitle: "管理界面语言、账号读取、资料库、Bungie 接口、AI、备份和诊断。" }
   };
+  const actions: Partial<Record<ShellPageKey, ReactNode>> = {
+    home: (
+      <>
+        <button type="button" className="secondary-button">刷新公开情报</button>
+        <button type="button" className="primary-button" onClick={() => onNavigate("vendors")}>查看商人库存</button>
+      </>
+    ),
+    account: <><button type="button" className="secondary-button">刷新账号</button><button type="button" className="secondary-button">重新授权</button></>,
+    vault: <><button type="button" className="secondary-button">复制清理清单</button><button type="button" className="primary-button">刷新账号装备</button></>,
+    loadouts: <button type="button" className="secondary-button" onClick={() => onNavigate("account")}>从账号保存当前装备</button>,
+    library: <><button type="button" className="secondary-button">重新检查资料库</button><button type="button" className="primary-button">修复资料库</button></>,
+    vendors: <button type="button" className="primary-button">刷新商人库存</button>,
+    settings: <button type="button" className="secondary-button">复制脱敏诊断</button>
+  };
+
+  return { ...meta[page], actions: actions[page] };
 }
 
 type PrototypeWeaponModel = ComponentProps<typeof WeaponDetailContent>["model"];

@@ -8,6 +8,7 @@ export type ProductPreferences = {
   bungieLocale: BungieManifestLocale;
   followInterfaceLocaleForBungie: boolean;
   colorMode: "light" | "dark";
+  density?: "compact" | "standard" | "comfortable";
 };
 
 export type ShellCopy = {

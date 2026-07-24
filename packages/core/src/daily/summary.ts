@@ -21,6 +21,7 @@ export type DailySummaryItem = {
   icon?: string;
   iconLabel?: string;
   costIconUrl?: string;
+  classType?: number;
   items?: DailySummaryItem[];
 };
 

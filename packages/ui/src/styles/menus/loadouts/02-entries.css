@@ -23,7 +23,7 @@
   min-width: 0;
   overflow: hidden;
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--font-content);
   line-height: 1.35;
   text-overflow: ellipsis;
   white-space: nowrap;

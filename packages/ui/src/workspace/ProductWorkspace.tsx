@@ -6,8 +6,10 @@ type WorkspaceProps = {
   children?: ReactNode;
   className?: string;
   ariaLabel?: string;
+  referenceId?: string;
   id?: string;
   element?: WorkspaceElement;
+  scrollRegion?: "page" | "pane" | "overlay";
 };
 
 function classNames(...values: Array<string | undefined>): string {
@@ -24,6 +26,8 @@ function renderWorkspaceElement(
     {
       className,
       "aria-label": props.ariaLabel,
+      "data-reference-id": props.referenceId,
+      "data-scroll-region": props.scrollRegion,
       id: props.id
     },
     props.children
@@ -46,7 +50,7 @@ export function ProductWorkspaceHeader(props: WorkspaceProps & { actions?: React
       ...props,
       children: (
         <>
-          <div>{props.children}</div>
+          <div className="product-workspace-title">{props.children}</div>
           {props.actions ? (
             <div className="button-row product-page-header-actions">
               {props.actions}

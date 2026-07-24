@@ -23,6 +23,7 @@ export function applyEnvOverrides(config: D2Config, env: ConfigEnv): D2Config {
     },
     features: {
       color_mode: parseColorModeEnv(env.D2_COLOR_MODE, config.features.color_mode),
+      density: parseDensityEnv(env.D2_UI_DENSITY, config.features.density),
       interface_locale: parseInterfaceLocaleEnv(env.D2_INTERFACE_LOCALE, config.features.interface_locale),
       manifest_language_follows_interface: parseBooleanEnv(
         env.D2_MANIFEST_LANGUAGE_FOLLOWS_INTERFACE,
@@ -38,6 +39,14 @@ export function applyEnvOverrides(config: D2Config, env: ConfigEnv): D2Config {
 
 function parseColorModeEnv(value: string | undefined, fallback: D2Config["features"]["color_mode"]): D2Config["features"]["color_mode"] {
   if (value === "light" || value === "dark") {
+    return value;
+  }
+
+  return fallback;
+}
+
+function parseDensityEnv(value: string | undefined, fallback: D2Config["features"]["density"]): D2Config["features"]["density"] {
+  if (value === "compact" || value === "standard" || value === "comfortable") {
     return value;
   }
 

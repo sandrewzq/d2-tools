@@ -55,6 +55,14 @@ export function SettingsMenuProvider() {
       onActionLogResultFilterChange={diagnostics.setActionLogResultFilter}
       onActionLogTypeFilterChange={diagnostics.setActionLogTypeFilter}
       onCopyActionDiagnostic={(entry) => void diagnostics.copyActionDiagnostic(entry)}
+      colorMode={diagnostics.colorMode}
+      onColorModeChange={(mode) => {
+        if (mode !== diagnostics.colorMode) void diagnostics.toggleColorMode();
+      }}
+      density={diagnostics.density}
+      onDensityChange={(density) => {
+        if (density !== diagnostics.density) void diagnostics.saveDensity(density);
+      }}
       languagePreferences={diagnostics.languagePreferences}
       onLanguagePreferencesChange={(preferences) => void diagnostics.saveLanguagePreferences(preferences)}
     />

@@ -175,6 +175,7 @@ function projectAccountSnapshotDefinition(
   if (component === "DestinyInventoryBucketDefinition") {
     return compactObject({
       hash: definition.hash,
+      itemCount: definition.itemCount,
       displayProperties: compactObject({ name: definition.displayProperties?.name })
     });
   }

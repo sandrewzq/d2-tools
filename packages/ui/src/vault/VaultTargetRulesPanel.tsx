@@ -219,7 +219,6 @@ export function VaultTargetRulesPanel(props: {
     <section className="vault-preview wishlist-import-panel vault-target-rules-panel">
       <div className="section-heading compact-heading">
         <div>
-          <h3>本地目标规则</h3>
           <p>保存护甲属性最低值或武器 perk 组合目标，命中后会在仓库卡片和装备详情里提示。</p>
         </div>
         <button
@@ -269,6 +268,8 @@ export function VaultTargetRulesPanel(props: {
         <p className="muted-copy">当前没有本地目标规则。</p>
       )}
 
+      <details className="vault-target-rule-editor">
+        <summary>新增护甲目标</summary>
       <label className="compact-field">
         护甲目标名称
         <input
@@ -326,6 +327,10 @@ export function VaultTargetRulesPanel(props: {
         </button>
       </div>
 
+      </details>
+
+      <details className="vault-target-rule-editor">
+        <summary>新增武器 perk 目标</summary>
       <div className="target-rule-subsection">
         <h4>武器 perk 目标</h4>
         <label className="compact-field">
@@ -422,6 +427,7 @@ export function VaultTargetRulesPanel(props: {
         </button>
         {message ? <span className="muted-copy">{message}</span> : null}
       </div>
+      </details>
     </section>
   );
 }

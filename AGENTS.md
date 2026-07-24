@@ -61,12 +61,22 @@ Vibecoding 快路径：
 ## 跨端 UI / Prototype 工作流
 
 - UI 需求默认改 `packages/ui`，包括页面布局、组件结构、颜色、间距、状态样式、通用交互和跨端文案；不要只在 Desktop 或 Web 里重做一份页面。
+- 全应用 UI 还原以以下三个冻结原型为唯一视觉真相：
+  - `docs/work/references/ui-prototypes/全应用视觉原型.html`
+  - `docs/work/references/ui-prototypes/统一武器详情原型.html`
+  - `docs/work/references/ui-prototypes/统一护甲详情原型.html`
+- 三个原型决定页面布局、组件层级、尺寸、密度、颜色、排版、图标、信息权重、交互状态和响应式行为。当前应用的 DOM、CSS、组件 chrome 和历史视觉不属于兼容目标；与原型冲突时应删除或替换，不得以“保留现有样式”为理由降低还原度。
+- 当前应用只作为功能真相：现有 ViewModel、props、actions、adapter、IPC、真实数据、加载/空/失败状态和错误恢复必须完整迁入新 UI。原型中的 mock 数组、固定数量、示例状态、假 toast 和演示按钮不是业务真相，不得直接复制到产品实现。
+- 不允许保留旧 DOM 后只替换颜色或补局部 CSS，也不允许再用 `presentation="archive"`、`Archive*Content`、`visualVariant` 等方式维护第二棵产品页面。每个菜单必须直接按原型重建唯一 `*ContentView`，并在该菜单完成时同步删除对应 archive 分支、组件和 CSS。
+- 每个菜单实施前必须完成四份对照：现有功能清单、原型视觉结构清单、原型组件到真实字段/action 的绑定表、加载/空/失败/部分失败/禁用/进行中状态矩阵。没有完成对照不得开始改 JSX。
+- 原型没有承载某项现有功能时，先更新并确认原型中的位置，再实施真实页面；不得自行隐藏或删除功能。原型出现当前应用没有真实能力的控件时，先确认需求和契约，不得伪造成功行为。
 - `packages/prototype` 只放 mock 数据、原型状态开关、演示入口和少量原型专用控制面板；不得在 prototype 中长期维护第二套真实页面结构。
 - 如果为了探索先在 `packages/prototype` 写了临时 UI，用户确认后必须在同一次收口中迁入 `packages/ui`，再让 Prototype / Web / Desktop 共同消费；不能声称“应用已改好”但只改了 prototype。
 - `packages/web` 和 `packages/desktop` 是平台壳：只处理 Web / Electron 特有 adapter、登录态、IPC、本地文件、窗口、更新、端口和打包能力；页面实现应通过 `ProductShellHost` 和 `packages/ui` 共享。
 - 新增或调整产品级外壳时，Prototype / Web / Desktop 都应继续挂同一个 `ProductShellHost`。不得重新引入 Desktop 专用 shell wrapper，除非先更新本文件和 `docs/development.md` 说明新的边界。
 - 改 `packages/ui` 后默认不新增测试，也不自动运行 UI 测试、消费者类型检查和视觉脚本；用户要求本地测试时正常运行现有检查，否则 push 后交给 CI。
-- 原型对比应优先使用 React prototype 和视觉脚本；旧 HTML 只能作为历史参考，不得作为新的活跃实现入口。
+- 三个冻结 HTML 是视觉规格和验收基准，不是生产代码模板；React Prototype 是共享 UI 的交互与状态验证入口。所谓“不得照抄 HTML”只指不得复制 mock 业务逻辑，不代表可以偏离原型视觉。
+- UI 验收必须同时满足“视觉完整还原”和“功能零丢失”。只改样式、只还原部分页面、用 mock 替代真实数据、隐藏旧功能或保留两套页面，均不算完成。
 
 ### 多 agent 菜单 UI 默认边界
 

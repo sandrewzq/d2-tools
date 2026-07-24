@@ -3,7 +3,7 @@ import type { AccountItemSummary } from "@d2-tools/core/account/summary";
 import type { DimWishlist } from "@d2-tools/core/analysis/wishlistImport";
 import type { LocalTargetRules } from "@d2-tools/core/analysis/targets";
 import type { VaultItemMatchInfo } from "@d2-tools/core/community-perks";
-import type { VaultTags, VaultTagValue } from "@d2-tools/core/vault/tags";
+import type { VaultTags } from "@d2-tools/core/vault/tags";
 import type { LoadoutTemplateLookup } from "@d2-tools/app/loadouts";
 import type { VaultSection } from "@d2-tools/app/vault";
 import { MemoizedVaultListItem as VaultListItem } from "./VaultListItem.js";
@@ -22,9 +22,7 @@ export function VaultItemSections(props: {
   isOrganizing: boolean;
   isSearchActive: boolean;
   selectedKeys: Set<string>;
-  openingItemKey?: string;
-  onOpenItem: (item: AccountItemSummary) => void;
-  onSaveTag: (item: AccountItemSummary, tag: VaultTagValue) => void | Promise<void>;
+  onSelectItem: (item: AccountItemSummary) => void;
   onToggleSelected: (item: AccountItemSummary) => void;
 }) {
   const totalItemCount = useMemo(
@@ -48,6 +46,7 @@ export function VaultItemSections(props: {
     });
   }, [props.sections, effectiveVisibleItemLimit]);
   const renderedItemCount = Math.min(effectiveVisibleItemLimit, totalItemCount);
+  const renderedItems = renderedSections.flatMap((section) => section.items);
 
   if (!props.sections.length) {
     return <p className="status-message status-neutral">没有匹配的仓库物品。</p>;
@@ -69,33 +68,23 @@ export function VaultItemSections(props: {
           ) : null}
         </div>
       ) : null}
-      {renderedSections.map((section) => (
-        <section className="vault-slot-section" key={section.key}>
-          <div className="vault-slot-heading">
-            <h3>{section.label}</h3>
-            <span>{section.count} 件</span>
-          </div>
-          <div className="vault-card-grid">
-            {section.items.map((item) => (
-              <VaultListItem
-                item={item}
-                key={`${item.hash}-${item.instance_id ?? ""}`}
-                highlightedItemKeys={props.highlightedItemKeys}
-                tags={props.tags}
-                wishlist={props.wishlist}
-                localTargetRules={props.localTargetRules}
-                communityMatch={props.communityMatch?.get(item.hash)}
-                isOrganizing={props.isOrganizing}
-                isSelected={props.selectedKeys.has(getVaultItemKey(item))}
-                openingItemKey={props.openingItemKey}
-                onOpenItem={props.onOpenItem}
-                onSaveTag={props.onSaveTag}
-                onToggleSelected={props.onToggleSelected}
-              />
-            ))}
-          </div>
-        </section>
-      ))}
+      <div className="vault-card-grid">
+        {renderedItems.map((item) => (
+          <VaultListItem
+            item={item}
+            key={`${item.hash}-${item.instance_id ?? ""}`}
+            highlightedItemKeys={props.highlightedItemKeys}
+            tags={props.tags}
+            wishlist={props.wishlist}
+            localTargetRules={props.localTargetRules}
+            communityMatch={props.communityMatch?.get(item.hash)}
+            isOrganizing={props.isOrganizing}
+            isSelected={props.selectedKeys.has(getVaultItemKey(item))}
+            onSelectItem={props.onSelectItem}
+            onToggleSelected={props.onToggleSelected}
+          />
+        ))}
+      </div>
     </div>
   );
 }

@@ -5,21 +5,21 @@ export const settingsCopy: Record<InterfaceLocale, LocaleCopy["settings"]> = {
       inline: {},
       menuAriaLabel: "设置菜单",
       menu: {
-        overview: { label: "总览", hint: "状态、常用操作" },
-        language: { label: "语言", hint: "界面、资料库" },
+        overview: { label: "概览", hint: "状态、常用操作" },
+        language: { label: "语言与外观", hint: "界面、资料库、密度" },
         account: { label: "账号", hint: "授权、读取、切换预留" },
         library: { label: "资料库", hint: "版本、检查、修复" },
-        bungie: { label: "Bungie", hint: "接口配置" },
+        bungie: { label: "Bungie 接口", hint: "接口配置" },
         ai: { label: "AI 助手", hint: "模型、上下文、安全边界" },
-        backup: { label: "备份迁移", hint: "数据目录、导入导出" },
-        diagnostics: { label: "诊断日志", hint: "运行检查和事件记录" }
+        backup: { label: "数据备份与迁移", hint: "数据目录、导入导出" },
+        diagnostics: { label: "诊断与操作日志", hint: "运行检查和事件记录" }
       },
       overview: {
-        title: "设置总览",
-        subtitle: "只展示会影响今天使用的状态",
-        badge: "核心状态",
+        title: "应用概览",
+        subtitle: "集中查看应用更新、账号、资料库、接口和后台任务。",
+        badge: "当前状态",
         commonActionsTitle: "常用操作",
-        commonActionsSubtitle: "不会触发危险写操作"
+        commonActionsSubtitle: "账号、资料库和诊断的手动操作始终立即执行。"
       },
       labels: {
         account: "账号",
@@ -100,8 +100,17 @@ export const settingsCopy: Record<InterfaceLocale, LocaleCopy["settings"]> = {
         "跟随界面语言": "Follow interface language",
         "开启后，切换界面语言会同步切换资料库语言。": "When enabled, changing interface language also changes manifest language.",
         "跟随": "Follow",
+        "设置目录": "Settings directory",
+        "界面主题": "Theme",
+        "切换整个工作区的浅色或深色视觉。": "Switch the entire workspace between light and dark appearance.",
+        "浅色": "Light",
+        "深色": "Dark",
+        "信息密度": "Information density",
+        "当前应用使用固定标准密度，尚未提供可写设置。": "The application currently uses a fixed standard density and does not provide a writable setting.",
+        "标准": "Standard",
         "账号": "Account",
         "当前账号、授权状态和后续切换账号入口。": "Current account, authorization state, and future account switching entry.",
+        "当前账号、授权状态、读取规则和后续切换账号入口。": "Current account, authorization state, read rules, and future account switching entry.",
         "当前账号": "Current account",
         "未登录": "Not signed in",
         "Bungie 账号已授权": "Bungie account authorized",
@@ -130,6 +139,8 @@ export const settingsCopy: Record<InterfaceLocale, LocaleCopy["settings"]> = {
         "刷新账号、重新授权、管理账号和未来切换账号始终立即执行": "Refresh, reauthorize, account management, and future account switching always run immediately.",
         "默认账号": "Default account",
         "当前账号；切换账号功能上线后可修改": "Current account. Editable after account switching ships.",
+        "账号操作": "Account actions",
+        "手动操作始终重新读取最新数据。": "Manual actions always read the latest data.",
         "装备写操作": "Item write actions",
         "切换武器 Perk": "Switch weapon perk",
         "已关闭，写操作会被阻断。": "Disabled. Write actions will be blocked.",
@@ -140,6 +151,7 @@ export const settingsCopy: Record<InterfaceLocale, LocaleCopy["settings"]> = {
         "资料库": "Manifest",
         "装备、perk、活动和商人数据。": "Item, perk, activity, and vendor data.",
         "资料库日期": "Manifest date",
+        "从完整版本号解析": "Parsed from the full version",
         "从完整版本号解析，顶部状态栏显示": "Parsed from full version and shown in the top status bar.",
         "资料完整性": "Manifest integrity",
         "用于搜索和详情判断": "Used for search and detail decisions",
@@ -277,20 +289,20 @@ export const settingsCopy: Record<InterfaceLocale, LocaleCopy["settings"]> = {
       menuAriaLabel: "Settings menu",
       menu: {
         overview: { label: "Overview", hint: "Status and common actions" },
-        language: { label: "Language", hint: "Interface and manifest" },
+        language: { label: "Language and appearance", hint: "Interface, manifest, density" },
         account: { label: "Account", hint: "Auth, refresh, switching" },
         library: { label: "Manifest", hint: "Version, check, repair" },
-        bungie: { label: "Bungie", hint: "API configuration" },
+        bungie: { label: "Bungie API", hint: "API configuration" },
         ai: { label: "AI Assistant", hint: "Model, context, safety" },
-        backup: { label: "Backup", hint: "Data folder and migration" },
-        diagnostics: { label: "Diagnostics", hint: "Checks and event log" }
+        backup: { label: "Data backup and migration", hint: "Data folder and migration" },
+        diagnostics: { label: "Diagnostics and action log", hint: "Checks and event log" }
       },
       overview: {
-        title: "Settings",
-        subtitle: "Only show states that affect today's use.",
-        badge: "Core status",
+        title: "Application overview",
+        subtitle: "Review app updates, account, manifest, APIs, and background tasks in one place.",
+        badge: "Current status",
         commonActionsTitle: "Common actions",
-        commonActionsSubtitle: "Does not trigger risky write actions"
+        commonActionsSubtitle: "Account, manifest, and diagnostics actions always run immediately."
       },
       labels: {
         account: "Account",

@@ -58,6 +58,7 @@ export const webAccountSummary = createFixtureAccountSummary({
   ],
   vault: {
     item_count: 485,
+    capacity: 1000,
     items: [
       webWeaponAccountItem("web-handcannon-vault", 3002, "精准手炮", "能量武器", "精确框架", "仓库"),
       webWeaponAccountItem("web-sword-vault", 3006, "连锁反应刀剑", "威能武器", "旋风框架", "仓库"),

@@ -3,12 +3,12 @@ import {
   type InterfaceLocale,
   type SettingsActionLogResultFilter,
   type SettingsActionLogTypeFilter,
+  type SettingsAiAdapter,
   type SettingsBungieConfigInput
 } from "@d2-tools/ui";
 import { selectSettingsPageModel } from "@d2-tools/app/settings";
 import { api } from "../../api/client";
 import type { AccountSummary, ActionLogEntry, AppUpdateSnapshot, BackgroundTaskSnapshot, ManifestStatus } from "../../api/types";
-import { AiSettingsPanel } from "../../components/AiSettingsPanel";
 import type { LanguagePreferences } from "./diagnosticsModel";
 import { useMemo } from "react";
 
@@ -59,6 +59,10 @@ export function SettingsPage(props: {
   onActionLogResultFilterChange: (filter: SettingsActionLogResultFilter) => void;
   onActionLogTypeFilterChange: (filter: SettingsActionLogTypeFilter) => void;
   onCopyActionDiagnostic: (entry: ActionLogEntry) => void;
+  colorMode: "light" | "dark";
+  onColorModeChange: (mode: "light" | "dark") => void;
+  density: "compact" | "standard" | "comfortable";
+  onDensityChange: (density: "compact" | "standard" | "comfortable") => void;
   languagePreferences: LanguagePreferences;
   onLanguagePreferencesChange: (preferences: LanguagePreferences) => void;
 }) {
@@ -112,12 +116,23 @@ export function SettingsPage(props: {
     props.actionLogTypeFilter,
     props.languagePreferences
   ]);
+  const aiSettingsAdapter = useMemo<SettingsAiAdapter>(() => ({
+    load: async () => (await api.getConfig()).ai,
+    save: async (ai) => {
+      const current = await api.getConfig();
+      await api.saveConfig({ ...current, ai });
+    },
+    listModels: (ai) => api.listAiModels(ai),
+    testConnection: () => api.testAiConnection(),
+    clearLightggCache: () => api.clearLightggCache(),
+    onSaved: props.onAiSettingsSaved
+  }), [props.onAiSettingsSaved]);
 
   return (
     <SettingsPageContentView
       {...props}
       {...model}
-      aiSettingsPanel={<AiSettingsPanel onSaved={props.onAiSettingsSaved} />}
+      aiSettingsAdapter={aiSettingsAdapter}
       onLoadBungieConfig={() => api.getConfig()}
       onSaveBungieConfig={saveBungieConfig}
     />

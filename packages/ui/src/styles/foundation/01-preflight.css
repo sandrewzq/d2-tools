@@ -5,3 +5,43 @@
 *::after {
   box-sizing: border-box;
 }
+
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+}
+
+:where([data-scroll-region]) {
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+}
+
+:where([data-scroll-region="pane"], [data-scroll-region="overlay"]) {
+  overscroll-behavior: contain;
+}
+
+:where([data-scroll-region])::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+:where([data-scroll-region])::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+}
+
+:where([data-scroll-region])::-webkit-scrollbar-thumb {
+  border: 2px solid var(--scrollbar-track);
+  border-radius: 999px;
+  background: var(--scrollbar-thumb);
+}
+
+:where([data-scroll-region])::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+}
+
+:where([data-scroll-region])::-webkit-scrollbar-thumb:active {
+  background: var(--scrollbar-thumb-active);
+}

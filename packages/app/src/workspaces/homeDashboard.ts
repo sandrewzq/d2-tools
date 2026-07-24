@@ -13,6 +13,11 @@ export type HomeDashboardDailyItem = {
   iconUrl?: string;
   icon?: string;
   iconLabel?: string;
+  classType?: number;
+  vendorHash?: number;
+  vendorEnabled?: boolean;
+  vendorRefreshDate?: string;
+  vendorLocation?: string;
   items?: HomeDashboardDailyItem[];
 };
 

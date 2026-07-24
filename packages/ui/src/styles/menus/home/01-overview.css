@@ -71,7 +71,7 @@
 
 .home-control-status-row span {
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--font-content);
 }
 
 .home-control-status-row strong {
@@ -84,7 +84,7 @@
 .home-control-status-row small {
   overflow: hidden;
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--font-content);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -92,7 +92,7 @@
 .home-control-status-row button,
 .home-diagnostic-summary button {
   padding: 6px 10px;
-  font-size: 12px;
+  font-size: var(--font-content);
   white-space: nowrap;
 }
 
@@ -116,7 +116,7 @@
 
 .home-diagnostic-summary span {
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--font-content);
 }
 
 .home-diagnostic-summary ul {
@@ -136,7 +136,7 @@
 
 .home-diagnostic-summary b {
   color: var(--status-warning);
-  font-size: 12px;
+  font-size: var(--font-content);
 }
 
 .home-overview-hero {
@@ -194,7 +194,7 @@
 .home-overview-metrics span,
 .home-risk-card span {
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--font-content);
 }
 
 .home-overview-metrics strong,

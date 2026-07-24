@@ -1,0 +1,183 @@
+.app-shell .library-workbench {
+  grid-template-columns: 270px minmax(0, 1fr);
+  min-height: calc(100vh - 116px);
+}
+
+.app-shell .library-query {
+  padding: 0;
+  border-right: 1px solid var(--border-subtle);
+  background: var(--surface-sidebar);
+}
+
+.app-shell .library-search-head,
+.app-shell .library-filter-stack {
+  display: grid;
+  gap: 7px;
+  padding: 10px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.app-shell .library-mode-tabs,
+.app-shell .library-search-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.app-shell .library-mode-tabs button {
+  flex: 1;
+  min-height: 34px;
+  border: 1px solid var(--border-control);
+  color: var(--text-muted);
+  background: transparent;
+}
+
+.app-shell .library-mode-tabs button.active {
+  color: var(--text-title);
+  background: var(--surface-interactive);
+}
+
+.app-shell .library-search-actions input {
+  min-width: 0;
+  flex: 1;
+}
+
+.app-shell .library-filter-stack label {
+  display: grid;
+  gap: 4px;
+  color: var(--text-muted);
+  font-size: var(--font-caption);
+}
+
+.app-shell .library-alias-editor {
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.app-shell .library-alias-editor summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 43px;
+  padding: 8px 12px;
+  background: var(--surface-elevated);
+  cursor: pointer;
+}
+
+.app-shell .library-alias-editor summary strong {
+  color: var(--text-title);
+  font-size: var(--font-content);
+}
+
+.app-shell .library-alias-editor summary span {
+  color: var(--text-muted);
+  font-size: var(--font-caption);
+}
+
+.app-shell .library-column-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 43px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--surface-elevated);
+}
+
+.app-shell .library-column-head h3 {
+  margin: 0;
+  color: var(--text-title);
+  font-size: var(--font-content);
+}
+
+.app-shell .library-column-head span {
+  color: var(--text-muted);
+  font-size: var(--font-caption);
+}
+
+.app-shell .library-results {
+  min-width: 0;
+}
+
+.app-shell .library-results-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 52px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.app-shell .library-results-head h3 {
+  margin: 0;
+  color: var(--text-title);
+  font-size: var(--font-row-title);
+}
+
+.app-shell .library-results-head div > span,
+.app-shell .library-result-note {
+  color: var(--text-muted);
+  font-size: var(--font-caption);
+}
+
+.app-shell .library-result-note {
+  margin: 0;
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.app-shell .library-result-list,
+.app-shell .library-result-group {
+  display: grid;
+  gap: 0;
+}
+
+.app-shell .library-result-group .item-result {
+  border: 0;
+  border-bottom: 1px solid var(--border-subtle);
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.app-shell .library-source-details {
+  min-width: 0;
+  padding: 8px 10px;
+  border-left: 1px solid var(--border-subtle);
+}
+
+.app-shell .library-source-details summary {
+  display: grid;
+  gap: 3px;
+  color: var(--text-body);
+  cursor: pointer;
+  font-size: var(--font-meta);
+}
+
+.app-shell .library-source-details summary strong {
+  color: var(--text-title);
+  font-size: var(--font-meta);
+}
+
+.app-shell .library-source-details summary span {
+  color: var(--text-muted);
+  font-size: var(--font-caption);
+}
+
+.app-shell .library-source-details[open] .library-version-source {
+  margin-top: 8px;
+}
+
+@media (max-width: 920px) {
+  .app-shell .library-source-details {
+    grid-column: 1 / -1;
+    border-top: 1px solid var(--border-subtle);
+    border-left: 0;
+  }
+}
+
+@media (max-width: 920px) {
+  .app-shell .library-workbench {
+    grid-template-columns: 220px minmax(0, 1fr);
+  }
+}

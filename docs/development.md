@@ -118,6 +118,17 @@ docs/        正式文档
 9. 改 `packages/ui` 后默认不新增测试，也不自动运行 UI 测试、消费者类型检查和视觉脚本；需要体验时可以启动 Prototype、Web 或 Desktop。用户要求本地测试时正常运行现有检查，否则普通 push 后交给 CI。
 10. 产品样式不得再复制到 Desktop 私有样式文件；需要新增 class、token、暗色规则或页面布局时，修改 `packages/ui/src/styles/` 下对应分片，并保持 `packages/ui/src/styles.css` 只作为稳定顺序的聚合入口。Desktop 私有 CSS 只能放窗口、拖拽区或 Electron 特有平台差异。
 
+冻结原型还原规则：
+
+1. `docs/work/references/ui-prototypes/全应用视觉原型.html`、`统一武器详情原型.html` 和 `统一护甲详情原型.html` 是全应用还原的唯一视觉真相。布局、组件层级、尺寸、密度、颜色、排版、图标、状态样式、响应式行为和信息权重均以三个原型为准。
+2. 当前应用的旧 DOM、旧 CSS、旧 token、旧组件 chrome 和 `archive` 实现不作为保留目标。还原不是在旧页面上换颜色或补样式，而是在 `packages/ui` 中按原型重建唯一页面结构；无法匹配原型的旧样式应随菜单迁移删除。
+3. 当前应用的 ViewModel、props、actions、adapter、IPC、真实数据规则、错误恢复和已有工作流是功能真相。视觉重建不得减少字段、入口、状态或写操作，也不得把原型 mock 当成产品逻辑。
+4. 每个菜单开工前必须产出功能清单、原型视觉结构清单、组件到真实字段/action 的绑定表，以及加载、空、失败、部分失败、禁用、进行中的状态矩阵。四项未完成时不得修改页面 JSX。
+5. 原型没有容纳现有功能时，应先修改并确认原型，再实现产品页面；不得在产品代码里自行隐藏或删除。原型有控件但当前没有真实能力时，应先确认功能契约，不得用假回调、固定成功 toast 或静态状态冒充实现。
+6. 每个菜单只允许一棵产品 JSX。不得新增或保留 `presentation="archive"`、`Archive*Content` 或以 `visualVariant` 切换页面结构；菜单还原完成时必须同步删除该菜单的 archive 分支、专用组件和专用 CSS。
+7. Prototype、Web 和 Desktop 必须共同消费 `packages/ui` 的同一页面。Prototype 只负责 mock 状态与演示控制，Web/Desktop 只负责平台 adapter 和真实能力。
+8. 验收同时检查视觉完整度和功能完整度。任何未获确认的视觉偏差、旧样式兼容层、mock 数据进入产品组件或原功能丢失，都表示该菜单尚未完成。
+
 常见改动归属：
 
 - 首页、设置页、账号页的布局和样式：`packages/ui`
@@ -179,8 +190,11 @@ tools\git-preflight.cmd
 
 ### 2.5 Renderer UI 样式系统
 
+- 本节描述三个冻结原型落入共享 UI 后的目标样式系统，不表示需要保留当前应用的视觉实现。`docs/work/references/ui-prototypes/prototype-design-system.css` 是视觉 token 和组件配方的来源；现有 `packages/ui` 样式只作为待迁移代码，和原型冲突的规则必须替换或删除。
+- `ProductWorkspace*`、`AppShell` 等共享组件可以保留代码职责，但其 DOM 和 chrome 不是视觉兼容边界；正式输出必须完整匹配原型。不得为了复用现有组件而保留原型中不存在的卡片、间距、边框、标题区或分栏。
 - 桌面端 UI 按“页面底层 / 主面板 / 子块或列表项”三层组织；页面必须有主工作区，辅助信息和低频信息下沉。
 - 全局样式 token 定义在 `packages/ui/src/styles/foundation/00-tokens.css` 的 `:root` 和 `.app-shell[data-color-mode]`：间距使用 `--space-8/12/16/24/32`，圆角使用 `--radius-control/panel/pill`，颜色使用 `--surface-*`、`--border-*`、`--text-*` 和 `--status-*`。
+- `:root` 只提供默认主题和独立页面 fallback。任何通过 `var(--page)`、`var(--panel)`、`var(--text)` 等基础色生成的语义别名，都必须在 `.app-shell[data-color-mode="light"]` 与 `.app-shell[data-color-mode="dark"]` 节点内重新声明；不能依赖从 `:root` 继承的别名随子节点基础 token 自动重算。新增主题 token 时必须同时检查 surface、field、chip、item、drawer、border、text、status 和 scrollbar 映射。
 - 共享 UI 设计系统继续补齐 `--field-*`、`--chip-*`、`--item-*`、`--drawer-*` 和 `--game-*` token：普通产品 UI 必须使用 field / chip / item / drawer 语义色，`--game-*` 只用于装备详情顶部等明确游戏视觉区域。
 - AI 抽屉是桌面外壳的独立 pane：`.shell-content` 和 `.global-assistant-panel` 各自滚动，抽屉不得再用 fixed 遮罩覆盖主工作区。
 - 明暗色模式由 `config.json` 的 `features.color_mode` 持久化，默认 `light`；桌面启动状态必须携带保存的颜色模式，避免应用重启或覆盖更新后回到默认外观。
@@ -190,10 +204,18 @@ tools\git-preflight.cmd
 - 菜单允许有私有样式，但只能作用在菜单内容层：信息架构、领域组件、列表密度、装备卡、筛选控件、库存图标、perk 池、配装条目等可以使用 `.account-*`、`.vault-*`、`.library-*`、`.loadout-*`、`.vendor-*`、`.home-*` 自定义。页面根、顶部标题、主分栏、首层面板、首层工具栏、滚动容器、暗色背景和主 surface chrome 归共享工作区骨架所有。
 - 菜单私有 class 和 `ProductWorkspace*` 叠加使用时，不得重新定义共享 chrome 属性，包括 `padding`、`border`、`border-radius`、`background`、`box-shadow` 和页面级 `gap`。如果首块区域需要不同密度，优先调整内部子元素；确实需要新的骨架能力时，先扩展 `ProductWorkspace*` 或 token，而不是在菜单 class 里覆盖。
 - 私有样式必须使用共享 token 表达颜色、间距、圆角和状态；不要新增硬编码浅色背景、菜单专属暗色兼容块，或只在某一端生效的视觉修补。Prototype / Web / Desktop 的差异只能来自数据、平台 adapter 或 mock 状态，不能来自不同页面 CSS。
-- `app-panel`、`product-card` 和 `tool-panel` 可以保留，但不能参与主菜单页面骨架：`app-panel` 只作为 legacy 内部块或逐步迁移对象，`product-card` 只用于面板内部的重复对象卡片，`tool-panel` 只用于 AI、诊断、设置工具和日志区。它们不得和 `ProductWorkspacePanel` 叠加，也不得作为主菜单首层面板、页面根或首层工具栏 chrome。
+- `app-panel`、`product-card` 和 `tool-panel` 只能在逐菜单迁移期间作为临时旧实现存在，不能作为视觉兼容目标。原型没有对应结构时必须随菜单迁移删除；原型确有对应对象时，也应按原型重新实现边界、尺寸和层级。
 - 后续 UI 开发以本节为准，不再维护依赖源码字符串匹配的样式护栏测试或单独的历史样式规范文档。
-- `docs/work/references/` 里的静态 HTML 只能作为冻结视觉基准、规则样板和对比标注，不是活跃原型、开发入口或 UI 修改源。菜单 UI、样式和交互改动必须直接进入 `packages/ui`、Prototype/Web/Desktop 共享壳或对应 app ViewModel；不得要求 agent “先改 HTML 再照抄实现”。只有调整全局工作区骨架、首层 chrome 或 reference-only 规则时，才同步更新静态 HTML。
+- 三个指定静态 HTML 是冻结视觉规格和唯一视觉验收基准，不是可复制进产品的代码模板。视觉需求变化时先修改并确认对应原型，再改 `packages/ui`；正式实现必须还原原型视觉，但必须绑定当前应用的真实 ViewModel 和 actions，不能复制 HTML 中的 mock 数据或假交互。`docs/work/references/` 中除此之外的其他 HTML 仍只作为历史资料或对比标注。
 - 静态 HTML 可以保留规范说明、边界解释和对比标注，但必须同时使用 `<!-- d2-reference-only:start ... -->` / `<!-- d2-reference-only:end -->` 包住，并在对应 HTML 元素上标记 `data-reference-only="true"`；标记块只用于设计评审和规则表达，不得迁入 `packages/ui`、`packages/prototype`、`packages/web` 或 Desktop 真实页面。
+
+共享 Shell 与跨菜单组件还原必须执行以下门禁：
+
+1. 先在 `docs/work/references/ui-prototypes/specs/` 建立原型 selector 到应用 selector 的组件映射，记录样式所有者、真实功能边界和状态矩阵。
+2. 读取冻结原型加载全部 CSS 后的最终计算样式；公共组件不得在 HTML 内联 CSS 和 `prototype-design-system.css` 中保留两套配方。
+3. 删除冲突旧规则后完整实现原型配方，不允许保留旧结构再叠加更具体的兼容覆盖。
+4. 共享组件必须提供浏览器计算样式契约；契约检查 DOM 渲染结果、盒模型、边框所有权、颜色 token 和关键几何关系，不读取生产源码匹配 CSS 字符串。
+5. CI 生成固定主题和视口截图作为评审产物。视觉契约和截图人工复核完成前，`docs/todo.md` 只能标记“待视觉验收”，不能标记“已修复”。
 
 ### 2.6 桌面外壳、更新和后台任务
 
@@ -230,25 +252,21 @@ tools\git-preflight.cmd
 npx pnpm@9.15.0 install
 ```
 
-日常开发桌面端时，推荐用命令行启动：
+日常开发桌面端时，直接双击：
 
-```powershell
-npx pnpm@9.15.0 dev:desktop
+```text
+tools\dev-desktop.cmd
 ```
 
-也可以直接运行底层 PowerShell 脚本：
+它会自动清理残留 Desktop 与 `53172` 端口，根据构建产物、依赖和源码变化安全地选择增量构建或完整重建；不需要为全量或快速模式选择不同脚本。
+
+需要在终端中启动时，也可以直接运行底层 PowerShell 脚本：
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev-desktop.ps1
 ```
 
-日常 Renderer / UI 开发优先使用安全快速启动：
-
-```powershell
-tools\dev-desktop-fast.cmd
-```
-
-快速启动会复用 `.local-data/tmp/dev-desktop-build.stamp` 对应的已有产物，并根据文件修改时间只增量构建变化的 core、http、services、Electron main 或 preload。首次运行、产物缺失、根依赖或构建配置变化时自动回退完整构建；Renderer、共享 UI 和 CSS 改动不执行预构建。
+双击入口会复用 `.local-data/tmp/dev-desktop-build.stamp` 对应的已有产物，并根据文件修改时间只增量构建变化的 core、http、services、Electron main 或 preload。首次运行、产物缺失、根依赖或构建配置变化时自动回退完整构建；Renderer、共享 UI 和 CSS 改动不执行预构建。
 
 完整启动链路会：
 
@@ -257,7 +275,7 @@ tools\dev-desktop-fast.cmd
 3. 启动 Vite 前端开发服务器，固定使用 `http://127.0.0.1:53172`
 4. 打开 Electron 开发版桌面应用
 
-这不是打包流程，不会生成或解压 `release/win-unpacked`。渲染层改动支持热更新；主进程、preload、core、http 或 services 改动后，关闭桌面窗口并重新运行 `tools\dev-desktop-fast.cmd`，脚本会自动增量重建受影响层；需要确定性全量重建时使用 `npx pnpm@9.15.0 dev:desktop`。开发端口启用 strict port；如果 `53172` 被占用，启动会直接失败并提示释放端口，不会自动跳到别的端口导致 Electron 打开错误页面。发布版不依赖这个端口；打包后的 Electron 会直接加载安装包内的 `dist/renderer/index.html`。
+这不是打包流程，不会生成或解压 `release/win-unpacked`。渲染层改动支持热更新；主进程、preload、core、http 或 services 改动后，关闭桌面窗口并重新双击 `tools\dev-desktop.cmd`，脚本会自动增量重建受影响层。开发端口启用 strict port；脚本会先清理 `53172` 的残留监听进程，不会自动跳到其他端口导致 Electron 打开错误页面。发布版不依赖这个端口；打包后的 Electron 会直接加载安装包内的 `dist/renderer/index.html`。
 
 如果只想单独启动前端页面：
 
@@ -293,13 +311,11 @@ npx pnpm@9.15.0 dev:electron
 
 常用脚本：
 
+- `tools/dev-desktop.cmd`：唯一的双击 Desktop 开发入口；自动清理 `53172`，并自行决定增量构建或完整重建。
 - `tools/dev-prototype.cmd`：清理 `53170` 残留监听进程后启动 Prototype。
 - `tools/dev-web.cmd`：清理 `53171` 残留监听进程后启动 Web。
-- `tools/dev-desktop.cmd`：清理 `53172` 残留监听进程后启动 Desktop 开发版。
-- `tools/dev-desktop-fast.cmd`：清理 `53172` 后安全复用已有构建产物，必要时增量构建或自动回退完整构建。
-- `tools/dev-status.cmd`：只读查看 Prototype / Web / Desktop 开发端口占用情况。
 - `tools/git-preflight.cmd`：只读按文档、工具、跨端 UI、Desktop、core/services/app/http 分组查看 Git 改动，识别菜单 lane / 共享层风险 / 多 lane 混改，并提示当前验证策略、高冲突文件和并行安全建议。
-- `tools/git-commit-and-push.cmd`：全量提交并 push，不创建 release tag。
+- `tools/git-commit-and-push.cmd`：全量提交并 push，不创建 release tag；有无关改动时不要使用。
 - `tools/git-auto-release.cmd`：先检查当前版本 GitHub Release 是否存在，并在任何版本修改、commit、push 或 tag 之前执行与 GitHub CI 一致的 frozen install、发布测试门禁和全量类型检查。失败时保留错误输出、显示失败阶段并等待按键；通过后，Release 缺失则复用当前版本更新同名 tag，已成功才自动 patch +1、生成 changelog、提交、push 并创建新 release tag。
 
 命名规则：本地开发启动脚本使用 `dev-` 前缀，Git / Release 辅助脚本使用 `git-` 前缀，后续批量维护脚本优先使用 `maintenance-` 前缀。
@@ -473,7 +489,7 @@ docs/
 
 当前仍有效的 reference 文件：
 
-- `docs/work/references/d2-unified-workspace-layout-v0.html`：冻结的跨端工作区视觉基准和规则样板，不是活跃原型或 UI 开发入口。日常菜单 UI 改动不要先改它；只有全局工作区骨架、首层 chrome、reference-only 标记或视觉基准本身变化时才同步更新。
+- `docs/work/references/d2-unified-workspace-layout-v0.html`：旧跨端工作区规则样板，只保留历史对照价值，不再作为当前视觉基准；当前 UI 只以 `ui-prototypes/` 下三个冻结原型验收。
 - `docs/work/references/destiny-tool-reference.md`：竞品能力和信息组织参考。
 - `docs/work/references/desktop-framework-comparison.md`：桌面技术方案对比参考。
 - `docs/work/references/2026-06-21-destiny2-weapon-sheet-analysis.md`：社区武器表和数据分析参考。

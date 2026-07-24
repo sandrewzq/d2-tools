@@ -1,11 +1,14 @@
 import { createRoot } from "react-dom/client";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   AccountPageContentView,
+  ShellSidebarAccountSummary,
+  ShellSidebarActions,
   ArmorDetailContent,
   AiAssistantPanelView,
   defaultProductPreferences,
   HomePageContentView,
+  KohinataTaskPanelView,
   LibraryPageContentView,
   LoadoutsPageContentView,
   ProductShellHost,
@@ -17,9 +20,9 @@ import {
   type LibraryPerkFilter,
   type LibraryViewMode,
   type ShellAssistantMode,
-  type ShellPageKey
+  type ShellPageKey,
+  type SettingsAiAdapter
 } from "@d2-tools/ui";
-import { homePageMetaMap } from "@d2-tools/app/home";
 import { buildArmorDetailViewModel, type ArmorDetailViewModel } from "@d2-tools/app/items";
 import "@d2-tools/ui/styles.css";
 import {
@@ -32,11 +35,15 @@ import { useWebFixtureRuntime } from "./fixtures/useWebFixtureRuntime";
 function WebApp() {
   const fixture = useWebFixtureRuntime();
   const env = ((import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env) ?? {};
-  const initialTheme = env.VITE_D2_VISUAL_THEME === "dark" ? "dark" : "light";
+  const initialTheme = env.VITE_D2_VISUAL_THEME === "light" ? "light" : "dark";
   const adapter = useMemo(() => createWebShellAdapter(), []);
   const [snapshot, setSnapshot] = useState<WebHomeSnapshot>(fallbackHomeSnapshot);
   const [assistantMode, setAssistantMode] = useState<ShellAssistantMode>(null);
   const [activePage, setActivePage] = useState<ShellPageKey>("home");
+  const [preferences, setPreferences] = useState({
+    ...defaultProductPreferences,
+    colorMode: initialTheme
+  });
   const [settingsSection, setSettingsSection] = useState<"overview" | "account">("overview");
   const [selectedAccountCharacterId, setSelectedAccountCharacterId] = useState(fixture.accountSummary.characters[0]?.character_id ?? "");
   const [selectedTemplateId, setSelectedTemplateId] = useState(fixture.loadoutTemplates[0]?.id ?? "");
@@ -52,12 +59,21 @@ function WebApp() {
   const [aliasKind, setAliasKind] = useState<"item" | "perk">("perk");
   const [armorDetailModel, setArmorDetailModel] = useState<ArmorDetailViewModel | null>(null);
   const [assistantQuestion, setAssistantQuestion] = useState("");
+  const [taskDraft, setTaskDraft] = useState("虚空猎人高难配装，需要反屏障脉冲步枪、奥菲斯钻机，韧性与纪律优先。");
+  const [taskMessage, setTaskMessage] = useState("Web mock：攻略文本已准备，可继续解析和对照账号。");
   const [assistantMessages, setAssistantMessages] = useState(() => fixture.assistantInitialMessages);
   const [isAssistantSessionDrawerOpen, setIsAssistantSessionDrawerOpen] = useState(false);
   const [isAssistantContextDrawerOpen, setIsAssistantContextDrawerOpen] = useState(false);
   const platformActions = useMemo(() => ({
     openExternal: adapter.openExternal
   }), [adapter]);
+  const aiSettingsAdapter = useMemo<SettingsAiAdapter>(() => ({
+    load: async () => ({ protocol: "openai_responses", provider: "", api_key: "web-fixture-key", model: "gpt-5-mini", base_url: "https://api.example.com/v1", enable_lightgg: true, force_lightgg: false }),
+    save: async () => undefined,
+    listModels: async () => ({ models: ["gpt-5-mini", "gpt-5", "claude-sonnet-4"], message: "Web fixture 模型列表。" }),
+    testConnection: async () => ({ protocol: "openai_responses", model: "gpt-5-mini", message: "Web fixture 连接成功。" }),
+    clearLightggCache: async () => undefined
+  }), []);
   const hasAccountData = snapshot.shellStatus.some((item) => item.key === "account" && item.tone === "ready");
   const accountViewModel = useMemo(
     () => fixture.createAccountPageModel({
@@ -120,18 +136,53 @@ function WebApp() {
     <ProductShellHost
       activePage={activePage}
       onPageChange={setActivePage}
-      initialPreferences={{
-        ...defaultProductPreferences,
-        colorMode: initialTheme
-      }}
+      preferences={preferences}
+      onPreferencesChange={setPreferences}
       assistantMode={assistantMode}
       onAssistantModeChange={setAssistantMode}
       shellStatus={snapshot.shellStatus}
       backgroundTasks={fixture.backgroundTasks}
       onOpenBackgroundTasks={() => setActivePage("settings")}
-      pageHeader={getWebPageHeader}
+      sidebarHeader={(
+        <ShellSidebarAccountSummary
+          accountName={fixture.accountSummary.account_name}
+          characterCount={fixture.accountSummary.characters.length}
+          vaultItemCount={vaultModel.vaultItemCount}
+          vaultCapacity={fixture.accountSummary.vault.capacity}
+        />
+      )}
+      sidebarFooter={<ShellSidebarActions onOpenAi={() => setAssistantMode("ai")} />}
+      pageHeader={(page) => getWebPageHeader(page, setActivePage)}
       assistantPanel={(
-        <AiAssistantPanelView
+        assistantMode === "tasks" ? (
+          <KohinataTaskPanelView
+            pageLabel={assistantContext.pageLabel}
+            pageFacts={assistantContext.facts}
+            draft={taskDraft}
+            statusMessage={taskMessage}
+            contextTitle="虚空猎人高难配装"
+            recognizedStepCount={4}
+            linkedItemCount={3}
+            taskGroups={[
+              { title: "解析攻略", items: ["职业：猎人 · 子职业：虚空", "异域护甲：奥菲斯钻机", "武器要求：反屏障脉冲步枪"] },
+              { title: "账号命中", items: ["奥菲斯钻机：账号实例已确认", "脉冲步枪：仓库 3 件"] },
+              { title: "缺口与待确认", items: ["缺口 0 项", "待确认 1 项"] }
+            ]}
+            contextGroups={[{ title: "当前页面证据", items: assistantContext.facts }]}
+            canParse={Boolean(taskDraft.trim())}
+            canMatch={Boolean(taskDraft.trim())}
+            canCreateDraft
+            canSaveDraft
+            onDraftChange={setTaskDraft}
+            onSaveContext={() => setTaskMessage("Web mock：攻略上下文已保存。")}
+            onClearContext={() => { setTaskDraft(""); setTaskMessage("Web mock：攻略上下文已清空。"); }}
+            onParse={() => setTaskMessage("Web mock：攻略已解析。")}
+            onMatch={() => setTaskMessage("Web mock：账号对照完成。")}
+            onCreateDraft={() => setTaskMessage("Web mock：配装草稿已生成。")}
+            onSaveDraft={() => setTaskMessage("Web mock：配装草稿已保存。")}
+            onReviewGaps={() => setTaskMessage("Web mock：缺口 0 项，待确认 1 项。")}
+          />
+        ) : <AiAssistantPanelView
           isConfigured
           sessionTitle="Web mock 会话"
           messages={assistantMessages}
@@ -172,6 +223,7 @@ function WebApp() {
           onSwitchSession={() => undefined}
           onDeleteSession={() => undefined}
         />
+        )
       )}
       platformActions={platformActions}
       renderPage={(activePage, preferences) => (
@@ -180,6 +232,7 @@ function WebApp() {
             <HomePageContentView
               interfaceLocale={preferences.interfaceLocale}
               {...fixture.createHomePageModel(snapshot)}
+              onNavigate={setActivePage}
               onRefreshDiagnostics={() => undefined}
             />
           ) : null}
@@ -311,7 +364,11 @@ function WebApp() {
                 bungieLocale: preferences.bungieLocale,
                 followInterfaceLocaleForBungie: preferences.followInterfaceLocaleForBungie
               })}
-              aiSettingsPanel={<WebAiSettingsPanel />}
+              aiSettingsAdapter={aiSettingsAdapter}
+              colorMode={preferences.colorMode}
+              onColorModeChange={(colorMode) => setPreferences((current) => ({ ...current, colorMode }))}
+              density={preferences.density}
+              onDensityChange={(density) => setPreferences((current) => ({ ...current, density }))}
               onRefreshAccount={() => undefined}
               onReauthorizeAccount={() => undefined}
               onOpenDataDir={() => undefined}
@@ -359,30 +416,20 @@ function WebApp() {
 
 createRoot(document.getElementById("root")!).render(<WebApp />);
 
-function getWebPageHeader(page: ShellPageKey) {
-  const meta = homePageMetaMap[page];
+function getWebPageHeader(page: ShellPageKey, onNavigate: (page: ShellPageKey) => void) {
+  const actions: Partial<Record<ShellPageKey, ReactNode>> = {
+    home: <><button type="button" className="secondary-button">刷新公开情报</button><button type="button" className="primary-button" onClick={() => onNavigate("vendors")}>查看商人库存</button></>,
+    account: <><button type="button" className="secondary-button">刷新账号</button><button type="button" className="secondary-button">重新授权</button></>,
+    vault: <><button type="button" className="secondary-button">复制清理清单</button><button type="button" className="primary-button">刷新账号装备</button></>,
+    loadouts: <button type="button" className="secondary-button" onClick={() => onNavigate("account")}>从账号保存当前装备</button>,
+    library: <><button type="button" className="secondary-button">重新检查资料库</button><button type="button" className="primary-button">修复资料库</button></>,
+    vendors: <button type="button" className="primary-button">刷新商人库存</button>,
+    settings: <button type="button" className="secondary-button">复制脱敏诊断</button>
+  };
 
   return {
-    title: meta.title,
-    subtitle: meta.subtitle,
-    actions: page === "home" ? (
-      <button type="button" className="secondary-button">刷新本周信息</button>
-    ) : null
+    title: "",
+    subtitle: "",
+    actions: actions[page]
   };
-}
-
-function WebAiSettingsPanel() {
-  return (
-    <div className="app-setting-group">
-      <div className="app-setting-row">
-        <div>
-          <strong>AI Provider</strong>
-          <span>Web mock：真实配置由 Web provider 接入。</span>
-        </div>
-        <select defaultValue="openai">
-          <option value="openai">OpenAI Compatible</option>
-        </select>
-      </div>
-    </div>
-  );
 }

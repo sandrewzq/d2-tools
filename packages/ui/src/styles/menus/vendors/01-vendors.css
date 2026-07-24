@@ -27,7 +27,7 @@
 .vendor-summary-strip strong {
   overflow: hidden;
   color: var(--text-title);
-  font-size: 13px;
+  font-size: var(--font-row-title);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -88,7 +88,7 @@
   flex-shrink: 0;
   gap: var(--space-8);
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--font-content);
 }
 
 .vendor-inventory-grid {
@@ -161,7 +161,7 @@
   overflow: hidden;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
-  font-size: 12px;
+  font-size: var(--font-content);
   line-height: 1.45;
 }
 
@@ -169,7 +169,7 @@
   grid-column: 1 / -1;
   padding-top: 8px;
   border-top: 1px solid var(--border-subtle);
-  font-size: 12px;
+  font-size: var(--font-content);
 }
 
 .vendor-status-owned {
@@ -290,7 +290,7 @@
 .vendor-refresh-status {
   align-self: end;
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--font-content);
 }
 
 .vendor-refresh-status {
@@ -311,7 +311,7 @@
   border-radius: var(--radius-control);
   background: color-mix(in srgb, var(--surface-panel) 88%, var(--status-error) 12%);
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--font-content);
 }
 
 .vendor-detail-warning strong {
@@ -412,7 +412,7 @@
   display: block;
   margin-bottom: 4px;
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--font-content);
 }
 
 .shared-item-detail-dialog {
@@ -427,7 +427,8 @@
   flex: 1 1 auto;
   min-width: 0;
   min-height: 0;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
 }
@@ -444,11 +445,11 @@
 }
 
 .shared-item-detail-heading { min-width: 0; }
-.shared-item-detail-heading > span { color: var(--accent-primary); font-size: 11px; font-weight: 700; }
+.shared-item-detail-heading > span { color: var(--accent-primary); font-size: var(--font-body); font-weight: 700; }
 .shared-item-detail-heading h2 { margin: 2px 0 0; color: var(--text-title); font-size: 20px; line-height: 1.2; }
-.shared-item-detail-subtitle { display: flex; flex-wrap: wrap; gap: 4px 8px; margin-top: 3px; color: var(--text-muted); font-size: 12px; }
+.shared-item-detail-subtitle { display: flex; flex-wrap: wrap; gap: 4px 8px; margin-top: 3px; color: var(--text-muted); font-size: var(--font-content); }
 .shared-item-detail-subtitle strong { color: var(--text-body); }
-.shared-item-detail-object-context { min-width: 0; color: var(--text-muted); font-size: 12px; text-align: right; }
+.shared-item-detail-object-context { min-width: 0; color: var(--text-muted); font-size: var(--font-content); text-align: right; }
 .shared-item-detail-close { top: var(--space-12); right: var(--space-12); }
 
 .shared-item-detail-title {
@@ -472,7 +473,7 @@
   border-radius: var(--radius-control);
   background: var(--surface-subtle);
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--font-content);
 }
 
 .shared-item-detail-vendor strong {
@@ -500,6 +501,7 @@
   gap: var(--space-12);
   min-width: 0;
   max-height: calc(100vh - 96px);
+  overflow-x: hidden;
   overflow-y: auto;
   padding: var(--space-12);
   border: 1px solid var(--border-subtle);
@@ -529,7 +531,7 @@
 .vendor-detail-meta,
 .vendor-evidence-grid span {
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--font-content);
 }
 
 .vendor-rail-group {
@@ -552,7 +554,7 @@
 
 .vendor-rail-category strong {
   color: var(--text-title);
-  font-size: 13px;
+  font-size: var(--font-row-title);
   font-weight: 800;
 }
 
@@ -564,7 +566,7 @@
   border: 1px solid var(--border-subtle);
   border-radius: 999px;
   color: var(--text-muted);
-  font-size: 11px;
+  font-size: var(--font-body);
   line-height: 1;
 }
 
@@ -704,7 +706,7 @@
   border-radius: 999px;
   background: var(--item-bg);
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--font-content);
   font-weight: 700;
 }
 
@@ -771,14 +773,14 @@
   padding-top: 8px;
   border-top: 1px solid var(--border-subtle);
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--font-content);
 }
 
 .vendor-cost-icon {
   width: 20px;
   height: 20px;
   border-radius: 6px;
-  font-size: 11px;
+  font-size: var(--font-body);
 }
 
 .vendor-evidence-panel {
@@ -856,19 +858,19 @@
 .vendor-section-heading p {
   max-width: 680px;
   color: var(--text-muted);
-  font-size: 11px;
+  font-size: var(--font-body);
   line-height: 1.5;
 }
 
 .vendor-section-kicker {
   color: #c6922e;
-  font-size: 10px;
+  font-size: var(--font-meta);
   font-weight: 800;
 }
 
 .vendor-section-meta {
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--font-content);
   text-align: right;
 }
 
@@ -890,16 +892,16 @@
 }
 
 .vendor-section-summary small {
-  font-size: 11px;
+  font-size: var(--font-body);
 }
 
 .vendor-featured-grid.vendor-inventory-grid {
-  grid-template-columns: none;
-  grid-auto-flow: column;
-  grid-auto-columns: minmax(148px, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-auto-flow: row;
+  grid-auto-columns: auto;
   gap: 10px;
-  overflow-x: auto;
-  padding-bottom: 4px;
+  overflow: visible;
+  padding-bottom: 0;
 }
 
 .vendor-featured-grid .vendor-stock-card {
@@ -925,7 +927,7 @@
 .vendor-compact-list .vendor-stock-title strong {
   display: block;
   overflow: hidden;
-  font-size: 12px;
+  font-size: var(--font-content);
   line-height: 1.3;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -934,7 +936,7 @@
 .vendor-featured-grid .vendor-stock-body > span:not(.vendor-stock-title),
 .vendor-compact-list .vendor-stock-body > span:not(.vendor-stock-title) {
   overflow: hidden;
-  font-size: 10px;
+  font-size: var(--font-meta);
   line-height: 1.3;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -946,7 +948,7 @@
   align-self: end;
   padding-top: 0;
   border-top: 0;
-  font-size: 10px;
+  font-size: var(--font-meta);
   line-height: 1.25;
 }
 
@@ -998,18 +1000,19 @@
 
 .vendor-category-heading > span {
   color: var(--text-muted);
-  font-size: 10px;
+  font-size: var(--font-meta);
   font-variant-numeric: tabular-nums;
 }
 
 .vendor-compact-list {
   display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: 142px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-auto-flow: row;
+  grid-auto-columns: auto;
   gap: var(--space-8);
   min-width: 0;
-  overflow-x: auto;
-  padding-bottom: 4px;
+  overflow: visible;
+  padding-bottom: 0;
 }
 
 .vendor-compact-list .vendor-stock-card {
@@ -1034,14 +1037,14 @@
   border-radius: var(--radius-control);
   color: var(--text-body);
   background: var(--surface-recessed);
-  font-size: 10px;
+  font-size: var(--font-meta);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
 .vendor-cost-row small {
   color: var(--text-muted);
-  font-size: 10px;
+  font-size: var(--font-meta);
   white-space: nowrap;
 }
 
@@ -1074,7 +1077,7 @@
 .vendor-rank-level > span,
 .vendor-rank-progress-label {
   color: var(--text-muted);
-  font-size: 11px;
+  font-size: var(--font-body);
 }
 
 .vendor-rank-level div {
@@ -1143,12 +1146,12 @@
 
 .vendor-rank-metrics dt {
   color: var(--text-muted);
-  font-size: 11px;
+  font-size: var(--font-body);
 }
 
 .vendor-rank-metrics dd {
   color: var(--text-title);
-  font-size: 12px;
+  font-size: var(--font-content);
   font-variant-numeric: tabular-nums;
 }
 
@@ -1160,12 +1163,13 @@
 
 .vendor-rank-rewards {
   display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: 122px;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  grid-auto-flow: row;
+  grid-auto-columns: auto;
   gap: var(--space-8);
   min-width: 0;
-  overflow-x: auto;
-  padding-bottom: 4px;
+  overflow: visible;
+  padding-bottom: 0;
 }
 
 .vendor-rank-reward {
@@ -1210,13 +1214,13 @@
 
 .vendor-rank-reward strong {
   color: var(--text-title);
-  font-size: 12px;
+  font-size: var(--font-content);
 }
 
 .vendor-rank-reward small {
   margin-top: 3px;
   color: var(--text-muted);
-  font-size: 10px;
+  font-size: var(--font-meta);
 }
 
 @media (max-width: 980px) {
@@ -1230,11 +1234,11 @@
 
   .vendor-rail {
     position: static;
-    grid-auto-flow: column;
-    grid-auto-columns: minmax(190px, 1fr);
+    grid-auto-flow: row;
+    grid-auto-columns: auto;
     max-height: none;
     overflow-y: visible;
-    overflow-x: auto;
+    overflow-x: hidden;
   }
 
   .vendor-evidence-grid {

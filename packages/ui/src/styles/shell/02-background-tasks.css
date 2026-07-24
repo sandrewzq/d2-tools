@@ -38,12 +38,12 @@
 
 .background-task-dock-button span:not(.background-task-pulse) {
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--font-content);
 }
 
 .background-task-dock-button strong {
   color: var(--text-title);
-  font-size: 13px;
+  font-size: var(--font-row-title);
 }
 
 .background-task-pulse {
@@ -104,7 +104,7 @@
 
 .background-task-popover-header span {
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--font-content);
 }
 
 .background-task-dock-list {
@@ -139,7 +139,7 @@
 .background-task-dock-row span,
 .background-task-dock-row p {
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--font-content);
 }
 
 .background-task-dock-row p {
@@ -182,7 +182,7 @@
 .action-log-row span,
 .action-log-row small {
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--font-content);
 }
 
 .action-log-row strong {

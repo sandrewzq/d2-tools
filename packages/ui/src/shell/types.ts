@@ -50,10 +50,13 @@ export type AppShellLayoutProps = {
   onColorModeToggle: () => void;
   onInterfaceLocaleToggle?: () => void;
   colorMode: "light" | "dark";
+  density?: ProductPreferences["density"];
   interfaceLocale?: InterfaceLocale;
   assistantPanel: ReactNode;
   shellStatus: ShellStatusItem[];
   backgroundTasks?: ShellBackgroundTaskItem[];
   onOpenBackgroundTasks?: () => void;
+  sidebarHeader?: ReactNode;
+  sidebarFooter?: ReactNode;
   children: ReactNode;
 };

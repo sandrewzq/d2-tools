@@ -4,6 +4,8 @@ body {
   margin: 0;
   color: var(--text-body);
   background: var(--surface-page);
+  font-size: var(--font-content);
+  line-height: 1.5;
   overflow: hidden;
 }
 
@@ -14,8 +16,33 @@ textarea {
   font: inherit;
 }
 
+button {
+  cursor: pointer;
+}
+
+button:disabled,
+input:disabled,
+select:disabled,
+textarea:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+a:focus-visible,
+summary:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+
+button:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
 .page {
-  max-width: 1040px;
-  margin: 0 auto;
-  padding: 32px;
+  width: 100%;
+  min-height: 100%;
 }

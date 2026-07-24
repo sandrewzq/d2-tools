@@ -270,6 +270,9 @@ function validateConfigSection(
     if (value.color_mode !== undefined && value.color_mode !== "light" && value.color_mode !== "dark") {
       throw new Error("备份配置中的 features.color_mode 值无效。");
     }
+    if (value.density !== undefined && value.density !== "compact" && value.density !== "standard" && value.density !== "comfortable") {
+      throw new Error("备份配置中的 features.density 值无效。");
+    }
     if (value.interface_locale !== undefined && value.interface_locale !== "zh-CN" && value.interface_locale !== "en-US") {
       throw new Error("备份配置中的 features.interface_locale 值无效。");
     }
@@ -303,6 +306,7 @@ const configFieldTypes = {
   features: {
     write_actions_enabled: "boolean",
     color_mode: "string",
+    density: "string",
     interface_locale: "string",
     manifest_language_follows_interface: "boolean"
   }
@@ -311,5 +315,6 @@ const configFieldTypes = {
 const optionalConfigFields = new Set([
   "ai.protocol",
   "ai.provider",
-  "ai.force_lightgg"
+  "ai.force_lightgg",
+  "features.density"
 ]);

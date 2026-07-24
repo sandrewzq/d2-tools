@@ -4,13 +4,12 @@ import { describe, expect, it } from "vitest";
 
 const repoRoot = process.cwd();
 
-const devScripts = [
-  { file: "dev-prototype.cmd", port: "53170", command: "dev:prototype" },
-  { file: "dev-web.cmd", port: "53171", command: "dev:web" },
-  { file: "dev-desktop.cmd", port: "53172", command: "dev:desktop" }
-];
-
 describe("dev tool scripts", () => {
+  const devScripts = [
+    { file: "dev-prototype.cmd", port: "53170", command: "dev:prototype" },
+    { file: "dev-web.cmd", port: "53171", command: "dev:web" }
+  ];
+
   it.each(devScripts)("clears stale port listeners before starting $file", ({ file, port, command }) => {
     const script = readFileSync(join(repoRoot, "tools", file), "utf8");
 
@@ -19,17 +18,16 @@ describe("dev tool scripts", () => {
     expect(script).toContain("Get-NetTCPConnection -LocalPort %DEV_PORT% -State Listen");
     expect(script).toContain("Stale process cleanup failed");
     expect(script).toContain(`call npx pnpm@9.15.0 ${command}`);
-    expect(script).not.toContain("Opening existing server without starting another process");
-    expect(script).not.toContain("Opening existing renderer page without starting another process");
   });
 
-  it("provides a safe desktop fast-start entry with automatic full-build fallback", () => {
-    const commandScript = readFileSync(join(repoRoot, "tools", "dev-desktop-fast.cmd"), "utf8");
+  it("provides one double-click desktop entry with automatic full-build fallback", () => {
+    const commandScript = readFileSync(join(repoRoot, "tools", "dev-desktop.cmd"), "utf8");
     const launcher = readFileSync(join(repoRoot, "scripts", "dev-desktop.ps1"), "utf8");
 
-    expect(commandScript).toContain("set \"DEV_PORT=53172\"");
     expect(commandScript).toContain("dev-desktop.ps1\" -Fast");
     expect(launcher).toContain("[switch] $Fast");
+    expect(launcher).toContain("function Stop-StaleRendererServer");
+    expect(launcher).toContain("Get-NetTCPConnection -LocalPort $rendererPort -State Listen");
     expect(launcher).toContain("Fast start cannot reuse build outputs; falling back to a full build.");
     expect(launcher).toContain("Workspace outputs are current; skipping package builds.");
     expect(launcher).toContain("Main and preload outputs are current; reusing existing files.");

@@ -49,7 +49,7 @@
 
 .account-side-summary-grid span {
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--font-content);
 }
 
 .account-side-summary-grid strong {

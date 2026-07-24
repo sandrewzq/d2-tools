@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { getLocaleCopy } from "../i18n/copy.js";
 import type { ShellCopy } from "../i18n/types.js";
 import { getLocalizedNavItems } from "./navigation.js";
-import type { AppShellLayoutProps, PlatformActions, ShellAssistantMode, ShellBackgroundTaskItem } from "./types.js";
+import type { AppShellLayoutProps, PlatformActions, ShellAssistantMode, ShellBackgroundTaskItem, ShellPageKey } from "./types.js";
 
 export type AppShellProps = AppShellLayoutProps & {
   platformActions: PlatformActions;
@@ -10,15 +10,20 @@ export type AppShellProps = AppShellLayoutProps & {
 
 export function AppShell(props: AppShellProps) {
   const [isBackgroundTaskDockOpen, setIsBackgroundTaskDockOpen] = useState(false);
-  const shellClassName = props.assistantMode ? "app-shell assistant-open" : "app-shell";
   const interfaceLocale = props.interfaceLocale ?? "zh-CN";
   const copy = getLocaleCopy(interfaceLocale).shell;
   const navItems = getLocalizedNavItems(interfaceLocale);
   const themeToggleLabel = props.colorMode === "light" ? copy.tools.switchToDark : copy.tools.switchToLight;
   const languageToggleLabel = interfaceLocale === "zh-CN" ? copy.tools.switchToEnglish : copy.tools.switchToChinese;
   const visibleShellStatus = props.shellStatus.filter((item) => item.key !== "background");
+  const activePageLabel = navItems.find((item) => item.key === props.activePage)?.label ?? "";
   const backgroundTasks = props.backgroundTasks ?? [];
   const taskDockState = getBackgroundTaskDockState(backgroundTasks, copy);
+  const shellClassName = [
+    "app-shell",
+    props.assistantMode ? "assistant-open" : "",
+    taskDockState ? "has-background-tasks" : ""
+  ].filter(Boolean).join(" ");
 
   function toggleAssistant(mode: Exclude<ShellAssistantMode, null>) {
     props.onAssistantModeChange(props.assistantMode === mode ? null : mode);
@@ -29,16 +34,16 @@ export function AppShell(props: AppShellProps) {
   }, [props.colorMode, props.platformActions]);
 
   return (
-    <main className={shellClassName} data-color-mode={props.colorMode}>
-      <header className="shell-titlebar shell-topbar">
-        <div className="shell-window-brand">
+    <main className={shellClassName} data-color-mode={props.colorMode} data-density={props.density}>
+      <header className="shell-titlebar shell-topbar" data-reference-id="shell.topbar">
+        <div className="shell-window-brand" data-reference-id="shell.brand">
           <span className="shell-app-mark">D2</span>
           <div>
             <strong>d2-tools</strong>
             <span>{copy.brandSubtitle}</span>
           </div>
         </div>
-        <div className="shell-status-strip shell-global-status global-shell-status" aria-label={copy.statusAriaLabel}>
+        <div className="shell-status-strip shell-global-status global-shell-status" data-reference-id="shell.status-strip" aria-label={copy.statusAriaLabel}>
           {visibleShellStatus.map((item) => renderShellStatusItem(item))}
         </div>
         <div className="shell-toolstrip" aria-label={copy.toolstripAriaLabel}>
@@ -49,7 +54,7 @@ export function AppShell(props: AppShellProps) {
             aria-label={themeToggleLabel}
             onClick={props.onColorModeToggle}
           >
-            {props.colorMode === "light" ? "☾" : "☀"}
+            <ThemeToolIcon colorMode={props.colorMode} />
           </button>
           <button
             className="shell-tool-button shell-tool-locale"
@@ -72,7 +77,7 @@ export function AppShell(props: AppShellProps) {
             </svg>
           </button>
           <button className="shell-tool-button" type="button" title={copy.tools.settings} aria-label={copy.tools.settings} onClick={() => props.onNavigate("settings")}>
-            ⚙
+            <SettingsToolIcon />
           </button>
           <button
             type="button"
@@ -94,7 +99,7 @@ export function AppShell(props: AppShellProps) {
                 aria-label={copy.windowControls.minimize}
                 onClick={() => void props.platformActions.windowControls?.minimize()}
               >
-                <span aria-hidden="true" className="window-control-icon">-</span>
+                <span aria-hidden="true" className="window-control-icon">－</span>
               </button>
               <button
                 className="shell-window-control-button window-toggle-maximize"
@@ -119,32 +124,49 @@ export function AppShell(props: AppShellProps) {
         </div>
       </header>
       <div className="shell-workspace">
-        <aside className="shell-sidebar" aria-label={copy.navigationAriaLabel}>
+        <aside className="shell-sidebar" data-reference-id="shell.sidebar" aria-label={copy.navigationAriaLabel}>
+          {props.sidebarHeader ? <div className="shell-sidebar-header">{props.sidebarHeader}</div> : null}
           <nav className="shell-nav">
-            {navItems.map((item) => (
-              <button
-                className={item.key === props.activePage ? "active" : ""}
-                key={item.key}
-                type="button"
-                title={item.label}
-                onClick={() => props.onNavigate(item.key)}
-              >
-                {item.label}
-              </button>
-            ))}
+            {navItems.map((item) => {
+              const isActive = item.key === props.activePage;
+
+              return (
+                <button
+                  className={isActive ? "active" : ""}
+                  key={item.key}
+                  type="button"
+                  title={item.label}
+                  aria-current={isActive ? "page" : undefined}
+                  onClick={() => props.onNavigate(item.key)}
+                >
+                  <span className="shell-nav-mark" aria-hidden="true"><ShellNavIcon page={item.key} /></span>
+                  <span className="shell-nav-label">{item.label}</span>
+                </button>
+              );
+            })}
           </nav>
+          {props.sidebarFooter ? <div className="shell-sidebar-footer">{props.sidebarFooter}</div> : null}
         </aside>
-        <section className="shell-content">{props.children}</section>
+        <section className="shell-content" data-reference-id="shell.page-content" data-scroll-region="page">{props.children}</section>
         {props.assistantMode ? (
-          <aside className="global-assistant-panel global-assistant-drawer" aria-label={copy.assistantPanelAriaLabel}>
+          <aside className="global-assistant-panel global-assistant-drawer" data-reference-id="shell.assistant" aria-label={copy.assistantPanelAriaLabel}>
             <div className="global-assistant-sidebar">
-              {props.assistantPanel}
+              <div className="assistant-workspace">
+                <header className="assistant-workspace-header">
+                  <div>
+                    <h2>AI 助手</h2>
+                    <p>当前页面：<span>{activePageLabel}</span></p>
+                  </div>
+                  <button type="button" onClick={() => props.onAssistantModeChange(null)} aria-label="关闭助手">×</button>
+                </header>
+                <div className="assistant-workspace-body">{props.assistantPanel}</div>
+              </div>
             </div>
           </aside>
         ) : null}
       </div>
       {taskDockState ? (
-        <section className={`background-task-dock task-${taskDockState.tone}`} aria-label={copy.backgroundTasks.ariaLabel}>
+        <section className={`background-task-dock task-${taskDockState.tone}`} data-reference-id="shell.task-dock" aria-label={copy.backgroundTasks.ariaLabel}>
           <button
             type="button"
             className="background-task-dock-button"
@@ -155,7 +177,7 @@ export function AppShell(props: AppShellProps) {
             <span>{taskDockState.summary}</span>
             <strong>{taskDockState.primaryTitle}</strong>
           </button>
-          <div className="background-task-popover" data-open={isBackgroundTaskDockOpen} aria-hidden={!isBackgroundTaskDockOpen}>
+          <div className="background-task-popover" data-scroll-region="overlay" data-open={isBackgroundTaskDockOpen} aria-hidden={!isBackgroundTaskDockOpen}>
             <div className="background-task-popover-header">
               <strong>{copy.backgroundTasks.title}</strong>
               <span>{taskDockState.helper}</span>
@@ -183,6 +205,60 @@ export function AppShell(props: AppShellProps) {
   );
 }
 
+function ShellNavIcon(props: { page: ShellPageKey }) {
+  const iconProps = {
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: "1.7",
+    strokeLinecap: "round" as const,
+    strokeLinejoin: "round" as const
+  };
+
+  switch (props.page) {
+    case "home":
+      return <svg {...iconProps}><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1Z" /></svg>;
+    case "account":
+      return <svg {...iconProps}><circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" /></svg>;
+    case "vault":
+      return <svg {...iconProps}><path d="M4 7h16v13H4zM3 3h18v4H3z" /><path d="M10 11h4" /></svg>;
+    case "loadouts":
+      return <svg {...iconProps}><path d="m12 2 9 5-9 5-9-5Z" /><path d="m3 12 9 5 9-5M3 17l9 5 9-5" /></svg>;
+    case "library":
+      return <svg {...iconProps}><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z" /></svg>;
+    case "vendors":
+      return <svg {...iconProps}><path d="M3 9h18l-2-6H5Z" /><path d="M5 9v12h14V9M9 21v-6h6v6" /></svg>;
+    case "settings":
+      return <svg {...iconProps}><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06a1.7 1.7 0 0 0-1.88-.34A1.7 1.7 0 0 0 14 20.92V21h-4v-.08A1.7 1.7 0 0 0 8.97 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.52-1H3v-4h.08A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.88l-.06-.06 2.83-2.83.06.06A1.7 1.7 0 0 0 8.97 4.6 1.7 1.7 0 0 0 10 3.08V3h4v.08a1.7 1.7 0 0 0 1.03 1.52 1.7 1.7 0 0 0 1.88-.34l.06-.06 2.83 2.83-.06.06A1.7 1.7 0 0 0 19.4 9c.13.62.68 1.05 1.32 1H21v4h-.28c-.64-.05-1.19.38-1.32 1Z" /></svg>;
+  }
+}
+
+function ThemeToolIcon(props: { colorMode: "light" | "dark" }) {
+  if (props.colorMode === "light") {
+    return (
+      <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M20.5 14.4A8.5 8.5 0 0 1 9.6 3.5 8.5 8.5 0 1 0 20.5 14.4Z" />
+      </svg>
+    );
+  }
+
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.66 6.34l1.41-1.41" />
+    </svg>
+  );
+}
+
+function SettingsToolIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z" />
+      <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.55V21h-4v-.08A1.7 1.7 0 0 0 8.97 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.52-1H3v-4h.08A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.88l-.06-.06 2.83-2.83.06.06A1.7 1.7 0 0 0 8.97 4.6 1.7 1.7 0 0 0 10 3.08V3h4v.08A1.7 1.7 0 0 0 15.03 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06 2.83 2.83-.06.06A1.7 1.7 0 0 0 19.4 9c.13.62.68 1.05 1.32 1H21v4h-.28c-.64-.05-1.19.38-1.32 1Z" />
+    </svg>
+  );
+}
+
 function renderShellStatusItem(item: AppShellLayoutProps["shellStatus"][number]) {
   const className = [
     "shell-status-group",
@@ -190,6 +266,7 @@ function renderShellStatusItem(item: AppShellLayoutProps["shellStatus"][number])
     item.onAction && item.actionLabel ? "shell-status-action" : "",
     `status-${item.tone ?? "neutral"}`
   ].filter(Boolean).join(" ");
+  const accessibilityLabel = `${item.label}：${item.value}`;
   const content = (
     <>
       <span className="shell-status-dot" />
@@ -200,13 +277,13 @@ function renderShellStatusItem(item: AppShellLayoutProps["shellStatus"][number])
 
   if (item.onAction && item.actionLabel) {
     return (
-      <button className={className} type="button" title={item.actionLabel} aria-label={item.actionLabel} onClick={item.onAction} key={item.label}>
+      <button className={className} type="button" title={item.actionLabel} aria-label={`${item.actionLabel}：${accessibilityLabel}`} onClick={item.onAction} key={item.label}>
         {content}
       </button>
     );
   }
 
-  return <span className={className} key={item.label}>{content}</span>;
+  return <span className={className} title={accessibilityLabel} aria-label={accessibilityLabel} key={item.label}>{content}</span>;
 }
 
 function getBackgroundTaskDockState(tasks: ShellBackgroundTaskItem[], copy: ShellCopy): {

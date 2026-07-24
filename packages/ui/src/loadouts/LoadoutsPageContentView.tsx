@@ -8,7 +8,6 @@ import { getLocaleCopy } from "../i18n/copy.js";
 import type { InterfaceLocale, LoadoutsCopy } from "../i18n/types.js";
 import {
   ProductWorkspaceEmptyState,
-  ProductWorkspacePanel,
   ProductWorkspaceSideRail,
   ProductWorkspaceSplit
 } from "../workspace/ProductWorkspace.js";
@@ -57,179 +56,108 @@ function loadoutsText(copy: LoadoutsCopy, key: string): string {
 
 export function LoadoutsPageContentView(props: LoadoutsPageContentViewProps) {
   const copy = getLocaleCopy(props.interfaceLocale ?? "zh-CN").loadouts;
+  const [entrySourceFilter, setEntrySourceFilter] = useState<LoadoutEntrySourceFilter>("all");
+  const visibleLoadoutEntries = entrySourceFilter === "all"
+    ? props.model.entries
+    : props.model.entries.filter((entry) => entry.source === entrySourceFilter);
+
+  return <LoadoutsPageWorkspace {...props} copy={copy} entrySourceFilter={entrySourceFilter} setEntrySourceFilter={setEntrySourceFilter} visibleLoadoutEntries={visibleLoadoutEntries} />;
+}
+function LoadoutsPageWorkspace(props: LoadoutsPageContentViewProps & {
+  copy: LoadoutsCopy;
+  entrySourceFilter: LoadoutEntrySourceFilter;
+  setEntrySourceFilter: (filter: LoadoutEntrySourceFilter) => void;
+  visibleLoadoutEntries: LoadoutEntryView[];
+}) {
   const selectedDetail = props.model.selectedDetail;
   const selectedTemplate = selectedDetail.kind === "local-template" ? selectedDetail.template : null;
   const selectedAnalysis = selectedDetail.kind === "local-template" ? selectedDetail.analysis : null;
   const transferPlan = selectedDetail.kind === "local-template" ? selectedDetail.transferPlan : null;
-  const compareTemplate = props.model.compare.compareTemplate;
-  const [entrySourceFilter, setEntrySourceFilter] = useState<LoadoutEntrySourceFilter>("all");
-  const loadoutEntries = props.model.entries;
-  const visibleLoadoutEntries = entrySourceFilter === "all"
-    ? loadoutEntries
-    : loadoutEntries.filter((entry) => entry.source === entrySourceFilter);
 
   return (
     <>
-      {props.message ? <p className={props.message.includes(copy.inline["失败"] ?? "失败") ? "status-message status-error" : "status-message status-ready"}>{props.message}</p> : null}
-      <ProductWorkspacePanel className="loadout-risk-panel">
-        <div className="section-heading compact-heading">
-          <div>
-            <h3>{copy.riskTitle}</h3>
-            <p>{copy.riskSubtitle}</p>
-          </div>
-        </div>
-        <div className="loadout-risk-grid">
-          <span>{copy.missingItems} {props.model.riskSummary.missingCount} {loadoutsText(copy, "件")}</span>
-          <span>{copy.readyItems} {props.model.riskSummary.readyCount} {loadoutsText(copy, "件")}</span>
-          <span>{copy.actionableItems} {props.model.riskSummary.actionableCount} {loadoutsText(copy, "件")}</span>
-        </div>
-      </ProductWorkspacePanel>
-      <ProductWorkspaceSplit className="loadout-workbench-shell">
-        <ProductWorkspaceSideRail element="section" className="loadout-entry-list">
-          <div className="loadout-entry-list-head">
-            <strong>{loadoutsText(copy, "配装工作台")}</strong>
-            <span>{loadoutEntries.length} {loadoutsText(copy, "个配装对象")}</span>
-          </div>
-          <div className="loadout-entry-source-filter" role="tablist" aria-label={loadoutsText(copy, "配装来源")}>
+      {props.message ? <p className={`loadout-inline-feedback ${props.message.includes(props.copy.inline["失败"] ?? "失败") ? "status-message status-error" : "status-message status-ready"}`}>{props.message}</p> : null}
+      <div className="loadout-risk-grid" aria-label="配装状态摘要">
+        <div><span>缺失件</span><strong>{props.model.riskSummary.missingCount}</strong><small>账号内未找到或暂时受阻</small></div>
+        <div><span>当前配装</span><strong>{props.model.entries.length}</strong><small>本地模板与游戏内配装栏</small></div>
+        <div><span>可定位件</span><strong>{props.model.riskSummary.readyCount + props.model.riskSummary.actionableCount}</strong><small>当前账号快照可继续处理</small></div>
+      </div>
+      <ProductWorkspaceSplit className="loadout-workbench">
+        <ProductWorkspaceSideRail element="section" className="loadout-directory">
+          <div className="loadout-column-head"><h3>配装对象</h3><span>{props.model.entries.length} 个</span></div>
+          <div className="loadout-tabs" role="tablist" aria-label={loadoutsText(props.copy, "配装来源")}>
             {(["all", "local-template", "in-game"] as const).map((source) => (
-              <button
-                type="button"
-                key={source}
-                className={entrySourceFilter === source ? "active-filter" : ""}
-                aria-selected={entrySourceFilter === source}
-                onClick={() => setEntrySourceFilter(source)}
-              >
-                {getLoadoutEntryFilterLabel(source, copy)}
+              <button type="button" key={source} className={props.entrySourceFilter === source ? "active" : ""} onClick={() => props.setEntrySourceFilter(source)}>
+                {getLoadoutEntryFilterLabel(source, props.copy)}
               </button>
             ))}
           </div>
-          <div className="action-log-list">
-            {visibleLoadoutEntries.length ? visibleLoadoutEntries.map((entry) => (
+          <div className="loadout-entry-list">
+            {props.visibleLoadoutEntries.map((entry) => (
               <LoadoutEntryRow
                 key={entry.id}
-                copy={copy}
+                copy={props.copy}
                 entry={entry}
                 interfaceLocale={props.interfaceLocale}
                 isSelected={props.model.selectedEntryId === entry.id}
                 isRunningItemAction={props.isRunningItemAction}
                 actions={props.actions}
               />
-            )) : (
-              <p className="status-message status-neutral">{loadoutsText(copy, "没有匹配的配装对象。")}</p>
-            )}
+            ))}
           </div>
         </ProductWorkspaceSideRail>
-        {selectedDetail.kind === "in-game-slot" ? (
-          <InGameLoadoutSlotDetail
-            copy={copy}
-            character={selectedDetail.character}
-            slot={selectedDetail.slot}
-            isRunningItemAction={props.isRunningItemAction}
-            actions={props.actions}
-          />
-        ) : selectedDetail.kind === "local-template" && selectedTemplate ? (
-          <ProductWorkspacePanel element="section" className="loadout-template-detail">
-            <strong>{loadoutsText(copy, "方案详情")}</strong>
-            <span>
-              {selectedAnalysis
-                ? `${loadoutsText(copy, "已就位")} ${props.model.riskSummary.readyCount} / ${loadoutsText(copy, "待补齐")} ${props.model.riskSummary.missingCount}`
-                : `${selectedTemplate.items.length} ${loadoutsText(copy, "件装备")}`}
-            </span>
-            <div className="field-grid">
-              <label>
-                <span>{loadoutsText(copy, "重命名")}</span>
-                <input value={props.renameDraft} onChange={(event) => props.actions.renameDraftChange(event.target.value)} placeholder={loadoutsText(copy, "输入方案名称")} />
-              </label>
-            </div>
-            <div className="button-row loadout-template-actions">
-              <button type="button" className="secondary-button" onClick={() => props.actions.renameTemplate(selectedTemplate)}>{loadoutsText(copy, "重命名")}</button>
-              <button type="button" className="secondary-button" onClick={() => props.actions.createTransferPlan(selectedTemplate)}>{loadoutsText(copy, "生成转移计划")}</button>
-              <button type="button" className="secondary-button" onClick={() => props.actions.copyMissingItems(selectedTemplate, selectedAnalysis)}>{loadoutsText(copy, "复制缺失清单")}</button>
-              <button type="button" className="secondary-button" disabled={props.isRunningItemAction} onClick={() => props.actions.executeMissingTransfer(selectedTemplate, selectedAnalysis)}>
-                {props.isRunningItemAction ? loadoutsText(copy, "执行中...") : loadoutsText(copy, "转移缺失件")}
-              </button>
-              <button type="button" className="secondary-button" onClick={() => props.actions.deleteTemplate(selectedTemplate.id)}>{loadoutsText(copy, "删除")}</button>
-            </div>
-            {props.model.riskSummary.missingCount > 0 ? (
-              <p className="status-message status-pending loadout-detail-callout">{loadoutsText(copy, "当前有")} {props.model.riskSummary.missingCount} {loadoutsText(copy, "件方案装备还没在目标角色就位，可用“转移缺失件”自动补齐并穿戴。")}</p>
-            ) : null}
-            {selectedDetail.statusSummary.length ? (
-              <div className="loadout-status-summary">
-                {selectedDetail.statusSummary.map((entry) => (
-                  <span className="loadout-status-chip" key={entry.key}>
-                    <b>{entry.label}</b>
-                    <small>{entry.count} {loadoutsText(copy, "件")}</small>
-                  </span>
+
+        <section className="loadout-detail">
+          {selectedDetail.kind === "local-template" && selectedTemplate ? (
+            <>
+              <div className="loadout-detail-head">
+                <div><span>本地模板</span><h2>{selectedTemplate.name}</h2><p>{selectedTemplate.items.length} 件装备 · {selectedTemplate.class_name || "未限定职业"}</p></div>
+                <span className="app-chip status-ready">{props.model.riskSummary.missingCount ? `${props.model.riskSummary.missingCount} 件待补齐` : "可以应用"}</span>
+              </div>
+              <div className="loadout-toolbar">
+                <input value={props.renameDraft} onChange={(event) => props.actions.renameDraftChange(event.target.value)} aria-label="配装名称" />
+                <button type="button" className="secondary-button" onClick={() => props.actions.renameTemplate(selectedTemplate)}>重命名</button>
+                <button type="button" className="secondary-button" onClick={() => props.actions.createTransferPlan(selectedTemplate)}>生成转移计划</button>
+                <button type="button" className="secondary-button" onClick={() => props.actions.copyMissingItems(selectedTemplate, selectedAnalysis)}>复制缺失清单</button>
+                <button type="button" className="primary-button" disabled={props.isRunningItemAction} onClick={() => props.actions.executeMissingTransfer(selectedTemplate, selectedAnalysis)}>转移缺失件</button>
+                <button type="button" className="secondary-button" onClick={() => props.actions.deleteTemplate(selectedTemplate.id)}>删除</button>
+              </div>
+              {transferPlan?.blocked.length ? <p className="status-message status-warning">有 {transferPlan.blocked.length} 件当前无法自动补齐，物品行会显示原因。</p> : null}
+              <div className="loadout-column-head"><h3>方案装备</h3><span>{selectedDetail.itemRows.length} 件</span></div>
+              <ul className="loadout-item-list">
+                {selectedDetail.itemRows.map((row, index) => (
+                  <LoadoutItemRow
+                    key={`${selectedTemplate.id}-${row.item.instance_id ?? row.item.hash}-${index}`}
+                    actionFeedback={props.actionFeedback}
+                    isRunningItemAction={props.isRunningItemAction}
+                    row={row}
+                    template={selectedTemplate}
+                    actions={props.actions}
+                    copy={props.copy}
+                  />
                 ))}
+              </ul>
+              <div className="loadout-compare-controls">
+                <label><span>对比方案</span><select value={props.compareTemplateId} onChange={(event) => props.actions.selectCompareTemplate(event.target.value)}><option value="">不对比</option>{props.model.compare.options.map((template) => <option key={template.id} value={template.id}>{template.name}</option>)}</select></label>
+                <label className="checkbox-row"><input type="checkbox" checked={props.showDiffOnly} onChange={(event) => props.actions.showDiffOnlyChange(event.target.checked)} /><span>仅看差异</span></label>
               </div>
-            ) : null}
-            {transferPlan?.blocked.length ? (
-              <p className="status-message status-warning loadout-detail-callout">{loadoutsText(copy, "有")} {transferPlan.blocked.length} {loadoutsText(copy, "件当前无法自动补齐，下面会显示原因和处理建议。")}</p>
-            ) : null}
-            <ul className="daily-source-items">
-              {selectedDetail.itemRows.slice(0, 10).map((row, index) => (
-                <LoadoutItemRow
-                  key={`${selectedTemplate.id}-${row.item.instance_id ?? row.item.hash}-${index}`}
-                  actionFeedback={props.actionFeedback}
-                  isRunningItemAction={props.isRunningItemAction}
-                  row={row}
-                  template={selectedTemplate}
-                  actions={props.actions}
-                  copy={copy}
-                />
-              ))}
-            </ul>
-            <div className="field-grid">
-              <label>
-                <span>{loadoutsText(copy, "对比方案")}</span>
-                <select value={props.compareTemplateId} onChange={(event) => props.actions.selectCompareTemplate(event.target.value)}>
-                  <option value="">{loadoutsText(copy, "不对比")}</option>
-                  {props.model.compare.options.map((template) => (
-                    <option key={template.id} value={template.id}>{template.name}</option>
-                  ))}
-                </select>
-              </label>
-              <label className="checkbox-row">
-                <input type="checkbox" checked={props.showDiffOnly} onChange={(event) => props.actions.showDiffOnlyChange(event.target.checked)} />
-                <span>{loadoutsText(copy, "仅看差异")}</span>
-              </label>
-            </div>
-            {compareTemplate ? (
-              <div className="loadout-compare-grid">
-                {props.model.compare.visibleRows.length ? props.model.compare.visibleRows.map((row) => (
-                  <article className={row.changed ? "loadout-compare-row changed" : "loadout-compare-row"} key={`${selectedTemplate.id}-${compareTemplate.id}-${row.slot}`}>
-                    <b>{row.slot}</b>
-                    <section className="loadout-compare-side">
-                      <strong>{selectedTemplate.name}</strong>
-                      <span>{row.left.name}</span>
-                      <small>{loadoutsText(copy, "框架：")}{row.left.frame}</small>
-                      <small>{loadoutsText(copy, "Perk：")}{formatComparePerks(row.left.perks)}</small>
-                    </section>
-                    <section className="loadout-compare-side">
-                      <strong>{compareTemplate.name}</strong>
-                      <span>{row.right.name}</span>
-                      <small>{loadoutsText(copy, "框架：")}{row.right.frame}</small>
-                      <small>{loadoutsText(copy, "Perk：")}{formatComparePerks(row.right.perks)}</small>
-                    </section>
-                  </article>
-                )) : (
-                  <article className="loadout-compare-row">
-                    <b>{loadoutsText(copy, "差异预览")}</b>
-                    <section className="loadout-compare-side">
-                      <span>{loadoutsText(copy, "两个方案当前没有可展示差异。")}</span>
-                    </section>
-                  </article>
-                )}
-              </div>
-            ) : null}
-          </ProductWorkspacePanel>
-        ) : selectedDetail.kind === "empty" ? (
-          <ProductWorkspaceEmptyState element="section" className="loadout-template-detail">
-            <span className="source-status-badge source-status-neutral">{loadoutsText(copy, "本地方案")}</span>
-            <h3>{localizeLoadoutEntryText(selectedDetail.title, copy)}</h3>
-            <p>{localizeLoadoutEntryText(selectedDetail.message, copy)}</p>
-          </ProductWorkspaceEmptyState>
-        ) : null}
+            </>
+          ) : selectedDetail.kind === "in-game-slot" ? (
+            <InGameLoadoutSlotDetail copy={props.copy} character={selectedDetail.character} slot={selectedDetail.slot} isRunningItemAction={props.isRunningItemAction} actions={props.actions} />
+          ) : (
+            <ProductWorkspaceEmptyState><h3>{selectedDetail.title}</h3><p>{selectedDetail.message}</p></ProductWorkspaceEmptyState>
+          )}
+        </section>
+
+        <aside className="loadout-summary">
+          <div className="loadout-column-head"><h3>当前方案摘要</h3><span>{selectedDetail.kind === "in-game-slot" ? "游戏内配装栏" : "本地模板"}</span></div>
+          <div className="loadout-ledger">
+            <div><strong>已装备</strong><span><b>{props.model.riskSummary.readyCount} 件</b><small>目标角色当前已经就位</small></span><em className="ready">就位</em></div>
+            <div><strong>可操作</strong><span><b>{props.model.riskSummary.actionableCount} 件</b><small>背包或仓库内可继续处理</small></span><em>可操作</em></div>
+            <div><strong>缺失 / 阻塞</strong><span><b>{props.model.riskSummary.missingCount} 件</b><small>账号内未找到或写操作受限</small></span><em className={props.model.riskSummary.missingCount ? "warning" : "ready"}>{props.model.riskSummary.missingCount ? "复核" : "无"}</em></div>
+          </div>
+          <p className="loadout-guidance">本地模板可以重命名、生成转移计划、复制缺失清单、转移缺失件和删除。每件装备可单独转移、装备或查看来源。</p>
+        </aside>
       </ProductWorkspaceSplit>
     </>
   );
@@ -313,42 +241,36 @@ function InGameLoadoutSlotDetail(props: {
   actions: LoadoutsPageActions;
 }) {
   return (
-    <ProductWorkspacePanel element="section" className="loadout-template-detail loadout-in-game-detail">
-      <strong>{loadoutsText(props.copy, "游戏内配装详情")}</strong>
-      <span>
-        {props.character.class_name} / {loadoutsText(props.copy, "槽位")} {props.slot.index + 1} / {props.slot.item_count} {loadoutsText(props.copy, "件装备")}
-      </span>
-      <div className="field-grid">
-        <label>
-          <span>{loadoutsText(props.copy, "配装名称")}</span>
-          <input value={props.slot.name || `${loadoutsText(props.copy, "配装栏")} ${props.slot.index + 1}`} readOnly />
-        </label>
+    <>
+      <div className="loadout-detail-head">
+        <div>
+          <span>{loadoutsText(props.copy, "游戏内配装栏")}</span>
+          <h2>{props.slot.name || `${loadoutsText(props.copy, "配装栏")} ${props.slot.index + 1}`}</h2>
+          <p>{props.character.class_name} / {loadoutsText(props.copy, "槽位")} {props.slot.index + 1} / {props.slot.item_count} {loadoutsText(props.copy, "件装备")}</p>
+        </div>
+        <span className="app-chip">游戏内</span>
       </div>
-      <div className="button-row loadout-template-actions">
-        <button type="button" className="secondary-button" disabled={props.isRunningItemAction} onClick={() => props.actions.equipSavedLoadout(props.character, props.slot)}>
-          {loadoutsText(props.copy, "应用到角色")}
-        </button>
-        <button type="button" className="secondary-button" disabled={props.isRunningItemAction} onClick={() => props.actions.snapshotCurrentLoadout(props.character, props.slot)}>
-          {loadoutsText(props.copy, "用当前装备覆盖")}
-        </button>
+      <div className="loadout-toolbar">
+        <button type="button" className="primary-button" disabled={props.isRunningItemAction} onClick={() => props.actions.equipSavedLoadout(props.character, props.slot)}>{loadoutsText(props.copy, "应用到角色")}</button>
+        <button type="button" className="secondary-button" disabled={props.isRunningItemAction} onClick={() => props.actions.snapshotCurrentLoadout(props.character, props.slot)}>{loadoutsText(props.copy, "用当前装备覆盖")}</button>
       </div>
-      <p className="status-message status-neutral loadout-detail-callout">
-        {loadoutsText(props.copy, "这是 Bungie 游戏内配装栏，当前只能应用到角色或用当前装备覆盖；重命名和删除请在游戏内完成。")}
-      </p>
+      <p className="loadout-in-game-boundary">{loadoutsText(props.copy, "这是 Bungie 游戏内配装栏，当前只能应用到角色或用当前装备覆盖；重命名和删除请在游戏内完成。")}</p>
       {props.slot.items.length ? (
-        <ul className="daily-source-items">
+        <>
+          <div className="loadout-column-head"><h3>方案装备</h3><span>{props.slot.items.length} 件</span></div>
+          <ul className="loadout-in-game-item-list">
           {props.slot.items.map((item, index) => (
-            <li className="loadout-item status-neutral" key={`${props.character.character_id}-${props.slot.index}-${item.instance_id ?? index}`}>
-              <b>{item.name}</b>
-              <span className="loadout-status-badge neutral">{item.bucket_name || loadoutsText(props.copy, "未知槽位")}</span>
+            <li key={`${props.character.character_id}-${props.slot.index}-${item.instance_id ?? index}`}>
+              <div><b>{item.name}</b><span>{item.bucket_name || loadoutsText(props.copy, "未知槽位")}</span></div>
               <small>{item.instance_id ? `${loadoutsText(props.copy, "物品")} ${item.instance_id}` : loadoutsText(props.copy, "暂无物品实例 ID")}</small>
             </li>
           ))}
-        </ul>
+          </ul>
+        </>
       ) : (
         <p className="status-message status-neutral">{loadoutsText(props.copy, "当前槽位为空")}</p>
       )}
-    </ProductWorkspacePanel>
+    </>
   );
 }
 
@@ -404,23 +326,19 @@ function LoadoutItemRow(props: {
 
   return (
     <li className={`loadout-item status-${status.badge_tone}`}>
-      <b>{item.name}</b>
-      <span className={`loadout-status-badge ${status.badge_tone}`}>{status.badge_label}</span>
-      <small>{[status.location_label, item.bucket_name, item.weapon_frame_name, item.perk_names?.slice(0, 2).join(" / ")].filter(Boolean).join(" / ") || loadoutsText(props.copy, "暂无额外信息")}</small>
-      {status.guidance_label && !blockedDetails ? (
-        <>
-          <small className="loadout-blocked-reason">{status.guidance_label}</small>
-          {status.guidance_hint ? <small className="loadout-blocked-hint">{status.guidance_hint}</small> : null}
-        </>
-      ) : null}
-      {blockedDetails ? (
-        <>
-          <small className="loadout-blocked-reason">{loadoutsText(props.copy, "无法自动补齐：")}{blockedDetails.label}</small>
-          <small className="loadout-blocked-hint">{blockedDetails.hint}</small>
-        </>
-      ) : null}
-      {status.key !== "equipped" ? (
-        <div className="button-row compact">
+      <div className="loadout-item-icon">
+        {sourceItem?.icon ? <img src={sourceItem.icon} alt="" /> : <div className="item-icon-placeholder" />}
+      </div>
+      <div className="loadout-item-copy">
+        <b>{item.name}</b>
+        <small>{[status.location_label, item.bucket_name, item.weapon_frame_name, item.perk_names?.slice(0, 2).join(" / ")].filter(Boolean).join(" / ") || loadoutsText(props.copy, "暂无额外信息")}</small>
+        {status.guidance_label && !blockedDetails ? <small className="loadout-blocked-reason">{status.guidance_label}{status.guidance_hint ? ` · ${status.guidance_hint}` : ""}</small> : null}
+        {blockedDetails ? <small className="loadout-blocked-reason">{loadoutsText(props.copy, "无法自动补齐：")}{blockedDetails.label} · {blockedDetails.hint}</small> : null}
+      </div>
+      <div className="loadout-item-actions">
+        <span className={`loadout-status-badge ${status.badge_tone}`}>{status.badge_label}</span>
+        {status.key !== "equipped" ? (
+          <div className="button-row compact">
           {!blockedDetails && status.key !== "current-inventory" && sourceItem?.instance_id ? (
             <button type="button" className={`secondary-button inline-action ${transferFeedbackState === "pending" ? "is-pending" : ""} ${transferFeedbackState === "success" ? "is-success" : ""}`.trim()} aria-busy={transferFeedbackState === "pending"} disabled={props.isRunningItemAction} onClick={() => props.actions.executeSingleItemTransfer(props.template, item)}>
               {getLoadoutActionButtonLabel("transfer", transferFeedbackState)}
@@ -434,8 +352,9 @@ function LoadoutItemRow(props: {
           <button type="button" className="secondary-button" onClick={() => props.actions.openTemplateSourceItem(item, props.template.character_id)}>
             {loadoutsText(props.copy, "查看来源")}
           </button>
-        </div>
-      ) : null}
+          </div>
+        ) : null}
+      </div>
     </li>
   );
 }

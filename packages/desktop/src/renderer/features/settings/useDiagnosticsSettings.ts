@@ -11,6 +11,7 @@ import {
   useActionLogState,
   useAiWriteSettingsState,
   useColorModeState,
+  useDensityState,
   useDiagnosticsStatusState,
   useLanguagePreferencesState
 } from "./useDiagnosticsSettingsState";
@@ -21,6 +22,7 @@ import { useManifestStatus } from "../../shared/hooks/useManifestStatus";
 export function useDiagnosticsSettings(input: {
   onConfigChanged: () => void;
   initialColorMode?: "light" | "dark";
+  initialDensity?: "compact" | "standard" | "comfortable";
   initialLanguagePreferences?: {
     interfaceLocale: "zh-CN" | "en-US";
     bungieLocale: string;
@@ -34,6 +36,7 @@ export function useDiagnosticsSettings(input: {
   const backgroundTaskState = useBackgroundTasks();
   const manifestStatusState = useManifestStatus();
   const colorModeState = useColorModeState(input.initialColorMode);
+  const densityState = useDensityState(input.initialDensity);
   const languagePreferencesState = useLanguagePreferencesState(normalizeInitialLanguagePreferences(input.initialLanguagePreferences));
 
   const settingsModel = createDiagnosticsSettingsModel({
@@ -45,6 +48,7 @@ export function useDiagnosticsSettings(input: {
     setAiSettings: aiWriteSettings.setAiSettings,
     setWriteActionsEnabled: aiWriteSettings.setWriteActionsEnabled,
     setColorMode: colorModeState.setColorMode,
+    setDensity: densityState.setDensity,
     setLanguagePreferences: languagePreferencesState.setLanguagePreferences,
     setActionLog: actionLogState.setActionLog,
     setSettingsMessage: appUpdateFlow.setSettingsMessage,
@@ -72,6 +76,7 @@ export function useDiagnosticsSettings(input: {
     downloadAppUpdate: appUpdateFlow.downloadAppUpdate,
     handleAiSettingsSaved: settingsModel.handleAiSettingsSaved,
     colorMode: colorModeState.colorMode,
+    density: densityState.density,
     languagePreferences: languagePreferencesState.languagePreferences,
     isRefreshingDiagnostics: diagnosticsStatus.isRefreshingDiagnostics,
     initializeManifest: manifestStatusState.initializeManifest,
@@ -86,6 +91,7 @@ export function useDiagnosticsSettings(input: {
     repairManifest: manifestStatusState.repairManifest,
     refreshDiagnostics: settingsModel.refreshDiagnostics,
     saveWriteActionsEnabled: settingsModel.saveWriteActionsEnabled,
+    saveDensity: settingsModel.saveDensity,
     saveLanguagePreferences: settingsModel.saveLanguagePreferences,
     toggleColorMode: () => settingsModel.saveColorMode(colorModeState.colorMode === "light" ? "dark" : "light"),
     toggleInterfaceLocale: () => {

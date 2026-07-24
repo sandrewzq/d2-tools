@@ -100,7 +100,7 @@ export function AiAssistantPanelView(props: AiAssistantPanelViewProps) {
       </div>
 
       <div className="ai-chat-workspace">
-        <div className="ai-conversation-log" aria-live="polite">
+        <div className="ai-conversation-log" data-scroll-region="pane" aria-live="polite">
           {props.error ? <p className="status-message status-error">{props.error}</p> : null}
           {!props.hasAccountItems ? (
             <div className="item-detail-inline-status">
@@ -146,6 +146,7 @@ export function AiAssistantPanelView(props: AiAssistantPanelViewProps) {
           <textarea
             value={props.question}
             onChange={(event) => props.onQuestionChange(event.target.value)}
+            aria-label="输入 AI 问题"
             placeholder="输入你的问题，例如：帮我找出仓库里可以清理的同名装备"
             rows={3}
           />
@@ -160,7 +161,7 @@ export function AiAssistantPanelView(props: AiAssistantPanelViewProps) {
         </form>
 
         {props.isSessionDrawerOpen ? (
-          <section className="ai-chat-history ai-session-drawer" aria-label="会话列表">
+          <section className="ai-chat-history ai-session-drawer" data-scroll-region="overlay" aria-label="会话列表">
             <div className="ai-history-heading">
               <strong>会话列表</strong>
               <button type="button" className="secondary-button" disabled={!props.history.length} onClick={props.onClearHistory}>
@@ -200,7 +201,7 @@ export function AiAssistantPanelView(props: AiAssistantPanelViewProps) {
         ) : null}
 
         {props.isContextDrawerOpen ? (
-          <section className="ai-context-drawer" aria-label="上下文">
+          <section className="ai-context-drawer" data-scroll-region="overlay" aria-label="上下文">
             <div className="ai-history-heading">
               <strong>上下文</strong>
               <button type="button" className="secondary-button" onClick={props.onCloseContextDrawer}>

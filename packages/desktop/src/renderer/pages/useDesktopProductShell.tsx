@@ -1,4 +1,6 @@
 import {
+  ShellSidebarAccountSummary,
+  ShellSidebarActions,
   type ProductPreferences,
   type ShellAssistantMode,
   type ShellPageKey,
@@ -47,6 +49,7 @@ export function useDesktopProductShell(props: {
   const diagnostics = useDiagnosticsSettings({
     onConfigChanged: props.onConfigChanged,
     initialColorMode: visualColorMode ?? props.state.colorMode,
+    initialDensity: props.state.density ?? "standard",
     initialLanguagePreferences: props.state.languagePreferences
   });
   const desktopPlatformActions = useMemo(() => ({
@@ -219,12 +222,18 @@ export function useDesktopProductShell(props: {
 
   const productPreferences: ProductPreferences = {
     ...diagnostics.languagePreferences,
-    colorMode: diagnostics.colorMode
+    colorMode: diagnostics.colorMode,
+    density: diagnostics.density
   };
 
   function handleProductPreferencesChange(preferences: ProductPreferences) {
     if (preferences.colorMode !== diagnostics.colorMode) {
       void diagnostics.toggleColorMode();
+    }
+
+    const density = preferences.density ?? "standard";
+    if (density !== diagnostics.density) {
+      void diagnostics.saveDensity(density);
     }
 
     if (
@@ -304,22 +313,56 @@ export function useDesktopProductShell(props: {
       vaultTags
     },
     menuSession,
-    pageHeader: activePage === "vendors" ? undefined : {
+    pageHeader: {
       title: currentPageMeta.title,
       subtitle: currentPageMeta.subtitle,
       actions: activePage === "home" ? (
-        <button
-          type="button"
-          className="secondary-button"
-          disabled={daily.isLoadingDaily || !isManifestReady}
-          onClick={() => void daily.loadDailySummary(true)}
-        >
-          {daily.isLoadingDaily ? "刷新中..." : "刷新本周信息"}
-        </button>
+        <>
+          <button
+            type="button"
+            className="secondary-button"
+            disabled={daily.isLoadingDaily || !isManifestReady}
+            onClick={() => void daily.loadDailySummary(true)}
+          >
+            {daily.isLoadingDaily ? "刷新中..." : "刷新公开情报"}
+          </button>
+          <button type="button" className="primary-button" onClick={() => handlePageChange("vendors")}>查看商人库存</button>
+        </>
+      ) : activePage === "account" ? (
+        <>
+          <button type="button" className="secondary-button" disabled={isLoadingAccount} onClick={() => void refreshAccountManually()}>刷新账号</button>
+          <button type="button" className="secondary-button" disabled={accountWorkspace.isLoggingIn} onClick={() => void accountWorkspace.loginBungie()}>重新授权</button>
+        </>
+      ) : activePage === "vault" ? (
+        <button type="button" className="primary-button" disabled={isLoadingAccount} onClick={() => void refreshAccountManually()}>刷新账号装备</button>
+      ) : activePage === "loadouts" ? (
+        <button type="button" className="secondary-button" onClick={() => handlePageChange("account")}>从账号保存当前装备</button>
+      ) : activePage === "library" ? (
+        <>
+          <button type="button" className="secondary-button" onClick={() => void diagnostics.refreshManifestStatus()}>重新检查资料库</button>
+          <button type="button" className="primary-button" disabled={diagnostics.isInitializingManifest} onClick={() => void diagnostics.repairManifest()}>修复资料库</button>
+        </>
+      ) : activePage === "vendors" ? (
+        <button type="button" className="primary-button" disabled={vendorsWorkspace.isRefreshing} onClick={() => void vendorsWorkspace.refresh()}>刷新商人库存</button>
+      ) : activePage === "settings" ? (
+        <button type="button" className="secondary-button" onClick={() => void diagnostics.copyDiagnosticsExport()}>复制脱敏诊断</button>
       ) : null
     },
     platformActions: desktopPlatformActions,
     productPreferences,
+    sidebarHeader: (
+      <ShellSidebarAccountSummary
+        accountName={accountSummary?.account_name}
+        characterCount={accountSummary?.characters.length}
+        vaultItemCount={accountSummary?.vault.item_count}
+        vaultCapacity={accountSummary?.vault.capacity}
+      />
+    ),
+    sidebarFooter: (
+      <ShellSidebarActions
+        onOpenAi={() => setAssistantMode("ai")}
+      />
+    ),
     shellStatus
   };
 }

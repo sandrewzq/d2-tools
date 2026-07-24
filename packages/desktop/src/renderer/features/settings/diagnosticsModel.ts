@@ -28,6 +28,7 @@ export function createDiagnosticsSettingsState() {
     } as D2Config["ai"],
     writeActionsEnabled: false,
     colorMode: "light" as D2Config["features"]["color_mode"],
+    density: "standard" as D2Config["features"]["density"],
     languagePreferences: {
       interfaceLocale: "zh-CN",
       bungieLocale: "zh-chs",
@@ -48,6 +49,7 @@ export function createDiagnosticsSettingsModel(input: {
   setAiSettings: (value: D2Config["ai"]) => void;
   setWriteActionsEnabled: (value: boolean) => void;
   setColorMode: (value: D2Config["features"]["color_mode"]) => void;
+  setDensity: (value: D2Config["features"]["density"]) => void;
   setLanguagePreferences: (value: LanguagePreferences) => void;
   setActionLog: (value: ActionLogEntry[]) => void;
   setSettingsMessage: (value: string) => void;
@@ -68,6 +70,7 @@ export function createDiagnosticsSettingsModel(input: {
       input.setAiSettings(config.ai);
       input.setWriteActionsEnabled(config.features.write_actions_enabled);
       input.setColorMode(config.features.color_mode);
+      input.setDensity(config.features.density);
       input.setLanguagePreferences(languagePreferencesFromConfig(config));
       input.setActionLog(log);
     } catch (error) {
@@ -128,6 +131,27 @@ export function createDiagnosticsSettingsModel(input: {
     }
   }
 
+  async function saveDensity(density: D2Config["features"]["density"]) {
+    input.setSettingsError("");
+    input.setDensity(density);
+
+    try {
+      const config = await api.getConfig();
+      const saved = await api.saveConfig({
+        ...config,
+        features: {
+          ...config.features,
+          density
+        }
+      });
+      input.setDensity(saved.features.density);
+      input.onConfigChanged();
+    } catch (error) {
+      input.setSettingsError(error instanceof Error ? error.message : "信息密度保存失败");
+      void refreshDiagnostics();
+    }
+  }
+
   async function saveLanguagePreferences(preferences: LanguagePreferences) {
     input.setSettingsMessage("");
     input.setSettingsError("");
@@ -163,6 +187,7 @@ export function createDiagnosticsSettingsModel(input: {
     handleAiSettingsSaved,
     saveWriteActionsEnabled,
     saveColorMode,
+    saveDensity,
     saveLanguagePreferences
   };
 }

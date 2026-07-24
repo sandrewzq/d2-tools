@@ -66,7 +66,7 @@
   padding: 3px 8px;
   border: 1px solid var(--border-control);
   border-radius: var(--radius-pill);
-  font-size: 12px;
+  font-size: var(--font-content);
   line-height: 1.2;
 }
 

@@ -48,6 +48,18 @@ export function useColorModeState(initialColorMode?: D2Config["features"]["color
   };
 }
 
+export function useDensityState(initialDensity?: D2Config["features"]["density"]) {
+  const initialState = createDiagnosticsSettingsState();
+  const [density, setDensity] = useState<D2Config["features"]["density"]>(
+    initialDensity ?? initialState.density
+  );
+
+  return {
+    density,
+    setDensity
+  };
+}
+
 export function useLanguagePreferencesState(initialLanguagePreferences?: LanguagePreferences) {
   const initialState = createDiagnosticsSettingsState();
   const [languagePreferences, setLanguagePreferences] = useState<LanguagePreferences>(

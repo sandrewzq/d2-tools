@@ -4,7 +4,8 @@ export const defaultProductPreferences: ProductPreferences = {
   interfaceLocale: "zh-CN",
   bungieLocale: "zh-chs",
   followInterfaceLocaleForBungie: true,
-  colorMode: "light"
+  colorMode: "light",
+  density: "standard"
 };
 
 export function getBungieLocaleForInterface(locale: InterfaceLocale): BungieManifestLocale {

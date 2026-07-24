@@ -39,6 +39,7 @@ export type D2Config = {
   features: {
     write_actions_enabled: boolean;
     color_mode: "light" | "dark";
+    density: "compact" | "standard" | "comfortable";
     interface_locale: "zh-CN" | "en-US";
     manifest_language_follows_interface: boolean;
   };

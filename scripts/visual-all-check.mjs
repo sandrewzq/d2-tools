@@ -2,20 +2,33 @@ import { spawn } from "node:child_process";
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
 import { join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { _electron as electron, chromium } from "playwright";
 
 const repoRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const isWindows = process.platform === "win32";
 const pnpm = isWindows ? "pnpm.cmd" : "pnpm";
-const pages = ["home", "account", "vault", "loadouts", "library", "vendors", "settings"];
-const settingsSections = ["overview", "language", "account", "library", "bungie", "ai", "backup", "diagnostics"];
+const shellContractOnly = process.argv.includes("--shell-contract-only");
+const skipBuild = process.env.D2_VISUAL_SKIP_BUILD === "1";
+const pages = shellContractOnly
+  ? ["home"]
+  : ["home", "account", "vault", "loadouts", "library", "vendors", "settings"];
+const settingsSections = shellContractOnly
+  ? []
+  : ["overview", "language", "account", "library", "bungie", "ai", "backup", "diagnostics"];
 const themes = ["light", "dark"];
 const viewport = process.env.D2_VISUAL_CAPTURE_VIEWPORT ?? "1365x900";
 const [width, height] = viewport.split("x").map((part) => Number.parseInt(part, 10));
-const outputDir = resolve(process.env.D2_VISUAL_OUTPUT_DIR ?? join(repoRoot, ".local-data", "tmp", "visual", "all"));
+const outputDir = resolve(process.env.D2_VISUAL_OUTPUT_DIR ?? join(
+  repoRoot,
+  ".local-data",
+  "tmp",
+  "visual",
+  shellContractOnly ? "shell-contract" : "all"
+));
 const reportPath = join(outputDir, "report.json");
 const desktopDataDir = join(outputDir, "desktop-data");
+const frozenFullAppPrototype = join(repoRoot, "docs", "work", "references", "ui-prototypes", "全应用视觉原型.html");
 const allowedLightBackgroundSelectors = [
   ".item-detail-game-card",
   ".item-detail-game-card *",
@@ -144,6 +157,9 @@ async function ensureTargetServer(target, theme) {
     env: {
       VITE_D2_VISUAL_PAGE: "home",
       VITE_D2_VISUAL_THEME: theme,
+      VITE_D2_VISUAL_SCENARIO: shellContractOnly && target.key === "prototype"
+        ? "manifest-missing-components"
+        : "ready",
       VITE_D2_VISUAL_CAPTURE: "1"
     }
   });
@@ -198,6 +214,230 @@ async function ensureColorMode(page, theme, targetKey) {
   }
 }
 
+async function readShellContract(page, selectors) {
+  return await page.evaluate(({ rootSelector, stripSelector, itemSelector }) => {
+    const root = document.querySelector(rootSelector);
+    const strip = document.querySelector(stripSelector);
+    const itemElements = strip ? Array.from(strip.children).filter((element) => element.matches(itemSelector)) : [];
+    if (!root || !strip || itemElements.length < 2) {
+      throw new Error("Missing shared shell status strip or status items");
+    }
+
+    function resolveToken(name) {
+      const probe = document.createElement("span");
+      probe.style.color = `var(${name})`;
+      root.appendChild(probe);
+      const color = window.getComputedStyle(probe).color;
+      probe.remove();
+      return color;
+    }
+
+    function itemSnapshot(element) {
+      const style = window.getComputedStyle(element);
+      const rect = element.getBoundingClientRect();
+      return {
+        tagName: element.tagName.toLowerCase(),
+        display: style.display,
+        alignItems: style.alignItems,
+        gap: style.gap,
+        minHeight: style.minHeight,
+        paddingTop: style.paddingTop,
+        paddingRight: style.paddingRight,
+        paddingBottom: style.paddingBottom,
+        paddingLeft: style.paddingLeft,
+        borderTopWidth: style.borderTopWidth,
+        borderRightWidth: style.borderRightWidth,
+        borderBottomWidth: style.borderBottomWidth,
+        borderLeftWidth: style.borderLeftWidth,
+        borderTopStyle: style.borderTopStyle,
+        borderRightStyle: style.borderRightStyle,
+        borderBottomStyle: style.borderBottomStyle,
+        borderLeftStyle: style.borderLeftStyle,
+        borderTopColor: style.borderTopColor,
+        borderRightColor: style.borderRightColor,
+        borderBottomColor: style.borderBottomColor,
+        borderLeftColor: style.borderLeftColor,
+        borderTopLeftRadius: style.borderTopLeftRadius,
+        borderTopRightRadius: style.borderTopRightRadius,
+        borderBottomRightRadius: style.borderBottomRightRadius,
+        borderBottomLeftRadius: style.borderBottomLeftRadius,
+        backgroundColor: style.backgroundColor,
+        color: style.color,
+        fontSize: style.fontSize,
+        whiteSpace: style.whiteSpace,
+        appearance: style.appearance,
+        rect: {
+          x: rect.x,
+          y: rect.y,
+          width: rect.width,
+          height: rect.height
+        }
+      };
+    }
+
+    const stripStyle = window.getComputedStyle(strip);
+    const rootStyle = window.getComputedStyle(root);
+    return {
+      tokens: {
+        objectBorder: resolveToken("--object-border"),
+        divider: resolveToken("--divider"),
+        cardBackground: resolveToken("--card-bg"),
+        radiusControl: rootStyle.getPropertyValue("--radius-control").trim()
+      },
+      strip: {
+        display: stripStyle.display,
+        alignItems: stripStyle.alignItems,
+        gap: stripStyle.gap,
+        overflowX: stripStyle.overflowX,
+        overflowY: stripStyle.overflowY,
+        paddingTop: stripStyle.paddingTop,
+        paddingRight: stripStyle.paddingRight,
+        paddingBottom: stripStyle.paddingBottom,
+        paddingLeft: stripStyle.paddingLeft
+      },
+      items: itemElements.map(itemSnapshot)
+    };
+  }, selectors);
+}
+
+async function captureFrozenShellContract(browser, theme) {
+  const page = await browser.newPage({ viewport: { width, height } });
+  try {
+    await page.goto(pathToFileURL(frozenFullAppPrototype).href, { waitUntil: "load" });
+    await page.evaluate((nextTheme) => {
+      document.documentElement.dataset.theme = nextTheme;
+    }, theme);
+    await page.waitForTimeout(50);
+    const contract = await readShellContract(page, {
+      rootSelector: "html",
+      stripSelector: ".status-strip",
+      itemSelector: ".status-chip"
+    });
+    const screenshotDir = join(outputDir, "screenshots");
+    mkdirSync(screenshotDir, { recursive: true });
+    await page.locator(".topbar").screenshot({
+      path: join(screenshotDir, `frozen-${theme}-shell-${viewport}.png`)
+    });
+    return contract;
+  } finally {
+    await page.close();
+  }
+}
+
+function assertSharedShellContract({ targetKey, theme, contract, reference }) {
+  const errors = [];
+  const expectEqual = (path, actual, expected) => {
+    if (actual !== expected) errors.push(`${path}: expected ${expected}, got ${actual}`);
+  };
+  const expectClose = (path, actual, expected, tolerance = 0.51) => {
+    if (Math.abs(actual - expected) > tolerance) errors.push(`${path}: expected ${expected} +/- ${tolerance}, got ${actual}`);
+  };
+
+  expectEqual("strip.display", contract.strip.display, "flex");
+  expectEqual("strip.alignItems", contract.strip.alignItems, "center");
+  expectEqual("strip.gap", contract.strip.gap, "0px");
+  expectEqual("strip.overflowX", contract.strip.overflowX, "hidden");
+  expectEqual("strip.overflowY", contract.strip.overflowY, "hidden");
+  expectEqual("strip.paddingTop", contract.strip.paddingTop, "0px");
+  expectEqual("strip.paddingRight", contract.strip.paddingRight, "12px");
+  expectEqual("strip.paddingBottom", contract.strip.paddingBottom, "0px");
+  expectEqual("strip.paddingLeft", contract.strip.paddingLeft, "12px");
+
+  if (reference) {
+    for (const [name, value] of Object.entries(reference.tokens)) {
+      expectEqual(`tokens.${name}`, contract.tokens[name], value);
+    }
+    for (const [name, value] of Object.entries(reference.strip)) {
+      expectEqual(`strip.${name}.reference`, contract.strip[name], value);
+    }
+    expectEqual("items.length.reference", String(contract.items.length), String(reference.items.length));
+  }
+
+  contract.items.forEach((item, index) => {
+    const path = `items[${index}]`;
+    const isFirst = index === 0;
+    const isLast = index === contract.items.length - 1;
+    expectEqual(`${path}.display`, item.display, "inline-flex");
+    expectEqual(`${path}.alignItems`, item.alignItems, "center");
+    expectEqual(`${path}.gap`, item.gap, "5px");
+    expectEqual(`${path}.minHeight`, item.minHeight, "26px");
+    expectEqual(`${path}.paddingTop`, item.paddingTop, "0px");
+    expectEqual(`${path}.paddingRight`, item.paddingRight, "8px");
+    expectEqual(`${path}.paddingBottom`, item.paddingBottom, "0px");
+    expectEqual(`${path}.paddingLeft`, item.paddingLeft, "8px");
+    expectEqual(`${path}.borderTopWidth`, item.borderTopWidth, "1px");
+    expectEqual(`${path}.borderRightWidth`, item.borderRightWidth, "1px");
+    expectEqual(`${path}.borderBottomWidth`, item.borderBottomWidth, "1px");
+    expectEqual(`${path}.borderLeftWidth`, item.borderLeftWidth, isFirst ? "1px" : "0px");
+    expectEqual(`${path}.borderTopStyle`, item.borderTopStyle, "solid");
+    expectEqual(`${path}.borderRightStyle`, item.borderRightStyle, "solid");
+    expectEqual(`${path}.borderBottomStyle`, item.borderBottomStyle, "solid");
+    expectEqual(`${path}.borderTopColor`, item.borderTopColor, contract.tokens.objectBorder);
+    expectEqual(`${path}.borderRightColor`, item.borderRightColor, isLast ? contract.tokens.objectBorder : contract.tokens.divider);
+    expectEqual(`${path}.borderBottomColor`, item.borderBottomColor, contract.tokens.objectBorder);
+    if (isFirst) expectEqual(`${path}.borderLeftColor`, item.borderLeftColor, contract.tokens.objectBorder);
+    expectEqual(`${path}.borderTopLeftRadius`, item.borderTopLeftRadius, isFirst ? contract.tokens.radiusControl : "0px");
+    expectEqual(`${path}.borderBottomLeftRadius`, item.borderBottomLeftRadius, isFirst ? contract.tokens.radiusControl : "0px");
+    expectEqual(`${path}.borderTopRightRadius`, item.borderTopRightRadius, isLast ? contract.tokens.radiusControl : "0px");
+    expectEqual(`${path}.borderBottomRightRadius`, item.borderBottomRightRadius, isLast ? contract.tokens.radiusControl : "0px");
+    expectEqual(`${path}.backgroundColor`, item.backgroundColor, contract.tokens.cardBackground);
+    expectEqual(`${path}.fontSize`, item.fontSize, "10px");
+    expectEqual(`${path}.whiteSpace`, item.whiteSpace, "nowrap");
+    expectClose(`${path}.rect.height`, item.rect.height, 26);
+    if (item.tagName === "button") expectEqual(`${path}.appearance`, item.appearance, "none");
+
+    const referenceItem = reference?.items[index];
+    if (referenceItem) {
+      const comparableProperties = [
+        "display",
+        "alignItems",
+        "gap",
+        "minHeight",
+        "paddingTop",
+        "paddingRight",
+        "paddingBottom",
+        "paddingLeft",
+        "borderTopWidth",
+        "borderRightWidth",
+        "borderBottomWidth",
+        "borderLeftWidth",
+        "borderTopStyle",
+        "borderRightStyle",
+        "borderBottomStyle",
+        "borderLeftStyle",
+        "borderTopColor",
+        "borderRightColor",
+        "borderBottomColor",
+        "borderLeftColor",
+        "borderTopLeftRadius",
+        "borderTopRightRadius",
+        "borderBottomRightRadius",
+        "borderBottomLeftRadius",
+        "backgroundColor",
+        "color",
+        "fontSize",
+        "whiteSpace"
+      ];
+      for (const property of comparableProperties) {
+        expectEqual(`${path}.${property}.reference`, item[property], referenceItem[property]);
+      }
+      expectClose(`${path}.rect.height.reference`, item.rect.height, referenceItem.rect.height);
+    }
+  });
+
+  for (let index = 1; index < contract.items.length; index += 1) {
+    const previous = contract.items[index - 1].rect;
+    const current = contract.items[index].rect;
+    expectClose(`items[${index}].adjacentX`, current.x, previous.x + previous.width);
+    expectClose(`items[${index}].alignedY`, current.y, previous.y);
+    expectClose(`items[${index}].equalHeight`, current.height, previous.height);
+  }
+
+  if (errors.length) {
+    throw new Error(`${targetKey}/${theme} shared shell contract failed:\n${errors.join("\n")}`);
+  }
+}
+
 async function navigateToPage(page, pageKey) {
   const label = pageLabels[pageKey];
   await page.locator(".shell-nav button", { hasText: label }).click();
@@ -219,15 +459,37 @@ async function navigateToSettingsSection(page, sectionKey) {
   return true;
 }
 
-async function scanState(page, target, theme, pageKey, sectionKey = null) {
+async function scanState(page, target, theme, pageKey, sectionKey = null, referenceShellContract = null) {
   await ensureColorMode(page, theme, target.key);
+  const stateName = [target.key, theme, pageKey, sectionKey].filter(Boolean).join("-");
+  const screenshotDir = join(outputDir, "screenshots");
+  mkdirSync(screenshotDir, { recursive: true });
+  const shellContract = pageKey === "home" && !sectionKey
+    ? await readShellContract(page, {
+        rootSelector: ".app-shell",
+        stripSelector: ".shell-status-strip",
+        itemSelector: ".shell-status-group"
+      })
+    : null;
+  const shellScreenshot = shellContractOnly
+    ? join(screenshotDir, `${stateName}-shell-${viewport}.png`)
+    : null;
+  if (shellScreenshot) {
+    await page.locator(".shell-titlebar").screenshot({ path: shellScreenshot });
+  }
+  if (shellContract) {
+    assertSharedShellContract({
+      targetKey: target.key,
+      theme,
+      contract: shellContract,
+      reference: referenceShellContract
+    });
+  }
   const scan = await scanVisibleElementStyles(page);
   assertNoLargeLightBackgrounds({ targetKey: target.key, theme, pageKey, sectionKey, scan });
   assertReadableTextContrast({ targetKey: target.key, theme, pageKey, sectionKey, scan });
 
-  const stateName = [target.key, theme, pageKey, sectionKey].filter(Boolean).join("-");
-  const screenshot = join(outputDir, "screenshots", `${stateName}-${viewport}.png`);
-  mkdirSync(join(outputDir, "screenshots"), { recursive: true });
+  const screenshot = join(screenshotDir, `${stateName}-${viewport}.png`);
   await page.screenshot({ path: screenshot, fullPage: true });
 
   return {
@@ -236,6 +498,8 @@ async function scanState(page, target, theme, pageKey, sectionKey = null) {
     page: pageKey,
     settingsSection: sectionKey,
     screenshot,
+    shellScreenshot,
+    shellContract,
     colorMode: await page.locator(".app-shell").getAttribute("data-color-mode"),
     url: page.url(),
     scannedElementCount: scan.elements.length,
@@ -412,7 +676,7 @@ function assertReadableTextContrast({ targetKey, theme, pageKey, sectionKey, sca
   }
 }
 
-async function scanBrowserTarget(browser, target, theme, server) {
+async function scanBrowserTarget(browser, target, theme, server, referenceShellContract) {
   const page = await browser.newPage({ viewport: { width, height } });
   try {
     await page.goto(server.url, { waitUntil: "networkidle" });
@@ -429,7 +693,7 @@ async function scanBrowserTarget(browser, target, theme, server) {
           results.push(await scanState(page, target, theme, pageKey, "shell-only"));
         }
       } else {
-        results.push(await scanState(page, target, theme, pageKey));
+        results.push(await scanState(page, target, theme, pageKey, null, referenceShellContract));
       }
     }
     return results;
@@ -438,7 +702,7 @@ async function scanBrowserTarget(browser, target, theme, server) {
   }
 }
 
-async function scanDesktopTarget(target, theme, server) {
+async function scanDesktopTarget(target, theme, server, referenceShellContract) {
   prepareDesktopData(theme);
   const app = await electron.launch({
     args: [join(repoRoot, "packages", "desktop", "dist", "main", "main.js")],
@@ -463,7 +727,7 @@ async function scanDesktopTarget(target, theme, server) {
           results.push(await scanState(page, target, theme, pageKey, section));
         }
       } else {
-        results.push(await scanState(page, target, theme, pageKey));
+        results.push(await scanState(page, target, theme, pageKey, null, referenceShellContract));
       }
     }
     return results;
@@ -479,22 +743,25 @@ async function main() {
 
   rmSync(outputDir, { recursive: true, force: true });
   mkdirSync(outputDir, { recursive: true });
-  await buildDesktopOutputs();
+  if (!skipBuild) await buildDesktopOutputs();
 
   const results = [];
+  const frozenShellContracts = {};
   const browser = await chromium.launch({ headless: true });
   try {
     for (const theme of themes) {
+      const referenceShellContract = await captureFrozenShellContract(browser, theme);
+      frozenShellContracts[theme] = referenceShellContract;
       const servers = [];
       try {
         for (const target of browserTargets) {
           const server = await ensureTargetServer(target, theme);
           servers.push(server);
-          results.push(...await scanBrowserTarget(browser, target, theme, server));
+          results.push(...await scanBrowserTarget(browser, target, theme, server, referenceShellContract));
         }
         const desktopServer = await ensureTargetServer(desktopTarget, theme);
         servers.push(desktopServer);
-        results.push(...await scanDesktopTarget(desktopTarget, theme, desktopServer));
+        results.push(...await scanDesktopTarget(desktopTarget, theme, desktopServer, referenceShellContract));
       } finally {
         for (const server of servers) stop(server.child);
       }
@@ -506,12 +773,15 @@ async function main() {
 
   const report = {
     generatedAt: new Date().toISOString(),
+    mode: shellContractOnly ? "shell-contract" : "all",
+    skippedBuild: skipBuild,
     viewport,
     pages,
     settingsSections,
     themes,
     targets: [...browserTargets.map((target) => target.key), desktopTarget.key],
     allowedLightBackgroundSelectors,
+    frozenShellContracts,
     resultCount: results.length,
     results
   };
@@ -523,6 +793,8 @@ async function main() {
 main().catch((error) => {
   const partial = {
     generatedAt: new Date().toISOString(),
+    mode: shellContractOnly ? "shell-contract" : "all",
+    skippedBuild: skipBuild,
     viewport,
     pages,
     settingsSections,

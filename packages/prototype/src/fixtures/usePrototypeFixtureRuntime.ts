@@ -107,6 +107,7 @@ export const prototypeAccountSummary = createFixtureAccountSummary({
   ],
   vault: {
     item_count: 764,
+    capacity: 1000,
     items: [
       prototypeWeaponAccountItem("handcannon-vault", 1002, "精准手炮", "能量武器", "精确框架", "仓库"),
       prototypeWeaponAccountItem("sword-vault", 1006, "连锁反应刀剑", "威能武器", "旋风框架", "仓库"),
@@ -787,10 +788,11 @@ function createPrototypeVendorOffer(input: {
 
 export const prototypeBackgroundTasks: ShellBackgroundTaskItem[] = [
   {
-    id: "manifest-check",
-    title: "资料库检查",
-    status: "succeeded",
-    message: "Prototype mock：资料库已是最新。",
+    id: "manifest-sidecar-index",
+    title: "构建英文名称侧车索引",
+    status: "running",
+    message: "已处理 18,420 / 27,130 条定义。",
+    progress_percent: 68,
     created_at: "2026-07-03T14:10:00+08:00",
     updated_at: "2026-07-03T14:18:00+08:00"
   }

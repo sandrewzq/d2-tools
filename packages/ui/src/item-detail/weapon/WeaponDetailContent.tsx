@@ -216,6 +216,7 @@ export function WeaponDetailContent(props: WeaponDetailContentProps) {
         <aside
           id={`${sectionIdPrefix}-instance-rail`}
           className={["weapon-detail-instance-rail", instanceRailOpen && "is-open"].filter(Boolean).join(" ")}
+          data-scroll-region="pane"
           aria-label="当前实例与同名武器"
         >
           <button type="button" className="weapon-detail-rail-close" aria-label="关闭实例与操作" onClick={() => setInstanceRailOpen(false)}>×</button>

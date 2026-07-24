@@ -476,7 +476,8 @@ function saleItemSummaryItem(
     description: cost?.label,
     source: sourceLabel,
     iconUrl: record?.displayProperties?.icon?.trim() || undefined,
-    costIconUrl: cost?.iconUrl
+    costIconUrl: cost?.iconUrl,
+    classType: record?.classType
   };
 }
 

@@ -10,6 +10,7 @@ export type StartupAuthStatus = {
 export type StartupState = {
   nextStep: StartupStep;
   colorMode: D2Config["features"]["color_mode"];
+  density?: D2Config["features"]["density"];
   languagePreferences: {
     interfaceLocale: D2Config["features"]["interface_locale"];
     bungieLocale: string;
@@ -52,6 +53,7 @@ export function computeStartupState(input: {
   return {
     nextStep: !bungieReady ? "home" : !accountReady ? "login" : "home",
     colorMode: input.config.features.color_mode,
+    density: input.config.features.density,
     languagePreferences: {
       interfaceLocale: input.config.features.interface_locale,
       bungieLocale: input.config.data.manifest_language,

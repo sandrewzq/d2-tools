@@ -8,6 +8,7 @@ out/
 .local-data/
 coverage/
 *.log
+.codex/
 .workbuddy/
 
 # generated source-adjacent build artifacts

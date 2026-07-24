@@ -42,13 +42,13 @@
 
 .vault-content-tab strong {
   color: #f3f6fc;
-  font-size: 12px;
+  font-size: var(--font-content);
   line-height: 1.2;
 }
 
 .vault-content-tab span {
   color: #8bd3ff;
-  font-size: 10px;
+  font-size: var(--font-meta);
   line-height: 1.2;
 }
 
@@ -88,7 +88,7 @@
 
 .vault-workflow-tab strong {
   color: var(--text-title);
-  font-size: 12px;
+  font-size: var(--font-content);
   line-height: 1.25;
 }
 
@@ -116,7 +116,7 @@
   border-radius: var(--radius-pill);
   background: var(--surface-subtle);
   color: var(--text-body);
-  font-size: 12px;
+  font-size: var(--font-content);
   line-height: 1.2;
   white-space: nowrap;
 }
@@ -131,7 +131,7 @@
 .vault-filter-result-pill strong,
 .vault-loadout-match-chip strong {
   color: var(--text-title);
-  font-size: 12px;
+  font-size: var(--font-content);
 }
 
 .vault-loadout-match-chip {
@@ -194,7 +194,7 @@
 .vault-toolbar .compact-field > span,
 .vault-toolbar .compact-field {
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--font-content);
   line-height: 1.2;
 }
 
@@ -239,12 +239,12 @@
 
 .weapon-filter-heading strong {
   color: var(--text-title);
-  font-size: 13px;
+  font-size: var(--font-row-title);
 }
 
 .weapon-filter-heading span {
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--font-content);
 }
 
 .weapon-filter-lane {
@@ -315,7 +315,7 @@
 .vault-organize-bar button,
 .vault-batch-panel button {
   padding: 7px 10px;
-  font-size: 12px;
+  font-size: var(--font-content);
 }
 
 .vault-batch-panel {
@@ -402,13 +402,13 @@
 
 .vault-cleanup-locator b {
   color: #f3f6fc;
-  font-size: 13px;
+  font-size: var(--font-row-title);
 }
 
 .vault-cleanup-locator small,
 .vault-cleanup-locator span {
   color: #aeb9ca;
-  font-size: 12px;
+  font-size: var(--font-content);
 }
 
 .vault-armor-filter-panel {
@@ -436,7 +436,7 @@
 .vault-armor-filter-heading p {
   margin-top: 4px;
   color: #aeb9ca;
-  font-size: 13px;
+  font-size: var(--font-row-title);
 }
 
 .vault-armor-rule-list {
@@ -541,12 +541,12 @@
 
 .material-item strong {
   color: #f3f6fc;
-  font-size: 12px;
+  font-size: var(--font-content);
 }
 
 .material-item span {
   color: #8bd3ff;
-  font-size: 13px;
+  font-size: var(--font-row-title);
   font-weight: 700;
 }
 
@@ -568,7 +568,7 @@
 .vault-item span {
   max-width: 100%;
   color: #dce4f4;
-  font-size: 12px;
+  font-size: var(--font-content);
 }
 
 .vault-list {
@@ -604,12 +604,12 @@
   border-radius: var(--radius-control);
   color: var(--text-muted);
   background: var(--surface-toolbar);
-  font-size: 12px;
+  font-size: var(--font-content);
 }
 
 .vault-render-limit-message button {
   padding: 6px 10px;
-  font-size: 12px;
+  font-size: var(--font-content);
 }
 
 .vault-slot-section {
@@ -636,7 +636,7 @@
 
 .vault-slot-heading span {
   color: #8bd3ff;
-  font-size: 12px;
+  font-size: var(--font-content);
 }
 
 .vault-list-item {
@@ -697,7 +697,7 @@
   border-radius: 999px;
   color: var(--text-body);
   background: rgb(17 23 32 / 0.94);
-  font-size: 12px;
+  font-size: var(--font-content);
 }
 
 .vault-card-select input {
@@ -711,7 +711,7 @@
   align-items: center;
   width: max-content;
   color: #cbd6e8;
-  font-size: 12px;
+  font-size: var(--font-content);
 }
 
 .vault-select-row input {
@@ -793,7 +793,7 @@
 
 .vault-card-body strong {
   color: #f3f6fc;
-  font-size: 13px;
+  font-size: var(--font-row-title);
   line-height: 1.35;
   white-space: nowrap;
 }
@@ -802,7 +802,7 @@
 .vault-card-roll,
 .vault-card-body small {
   color: #9da9bc;
-  font-size: 12px;
+  font-size: var(--font-content);
   line-height: 1.45;
 }
 
@@ -890,7 +890,7 @@
   border-radius: 999px;
   color: var(--text-body);
   background: var(--surface-interactive);
-  font-size: 11px;
+  font-size: var(--font-body);
   font-weight: 700;
   line-height: 1.1;
   white-space: nowrap;
@@ -924,7 +924,7 @@
 .vault-list-item span {
   margin-top: 3px;
   color: #9da9bc;
-  font-size: 12px;
+  font-size: var(--font-content);
   line-height: 1.45;
   white-space: normal;
 }
@@ -932,7 +932,7 @@
 .vault-list-item small {
   margin-top: 3px;
   color: #8bd3ff;
-  font-size: 12px;
+  font-size: var(--font-content);
   line-height: 1.45;
   white-space: normal;
 }
@@ -967,7 +967,7 @@
   border-radius: 999px;
   color: var(--text-muted);
   background: var(--surface-panel);
-  font-size: 12px;
+  font-size: var(--font-content);
 }
 
 .vault-tag-current.tag-keep {

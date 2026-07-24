@@ -32,5 +32,21 @@ jobs:
       - name: Run tests
         run: pnpm test
 
+      - name: Install Playwright Chromium
+        run: pnpm exec playwright install chromium
+
+      - name: Verify shared Shell prototype contract
+        run: pnpm visual:shell-contract
+        env:
+          D2_VISUAL_SKIP_BUILD: "1"
+
+      - name: Upload shared Shell visual artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: shared-shell-visual-contract
+          path: .local-data/tmp/visual/shell-contract
+          if-no-files-found: ignore
+
       - name: Run typecheck
         run: pnpm typecheck

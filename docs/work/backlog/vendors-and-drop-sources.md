@@ -17,6 +17,7 @@
 - 当前公共商人、登录后商人库存、公共活动和 Manifest 来源提示已经有基础读取能力。
 - 账号拥有状态能够汇总仓库、角色背包、已装备和邮政官中的真实实例。
 - 商人 Live 库存能够补充完整路径，例如“浪客 → 聚焦破译 → 武器”。
+- 全应用静态原型的商人页使用 `docs/work/references/ui-prototypes/data/vendors-page-snapshot.js` 保存当前 `VendorsPageModel` 的真实冻结投影。原型只渲染最终目录和 `contentSections`，不复制父子 Vendor 编排，也不允许回退到通用账号装备 Mock。
 
 Manifest 商人结构、父子 Vendor 关系和特殊情况的人工核对表见
 [商人结构与 Manifest 核对表](../references/商人/manifest-vendor-structure-audit.md)。

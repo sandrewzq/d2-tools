@@ -9,7 +9,7 @@
 }
 
 .app-page.product-workspace-page {
-  gap: 10px;
+  gap: 0;
 }
 
 .settings-app-page,
@@ -79,7 +79,7 @@
 
 .app-section-title span {
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--font-content);
 }
 
 .app-overview-grid {
