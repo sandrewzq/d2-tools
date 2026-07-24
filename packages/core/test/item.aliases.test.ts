@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { expandAliasQuery, loadItemAliases, saveItemAlias } from "../src/items/aliases.js";
+import { expandAliasQuery, loadItemAliases, saveItemAlias } from "../../services/src/items/aliases.js";
 
 describe("item aliases", () => {
   it("saves local aliases and expands search terms", () => {

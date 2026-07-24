@@ -1,8 +1,17 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { buildDailyLiveDataFromBungie } from "../src/daily/liveData.js";
 import type { DefinitionComponentData } from "../src/manifest/definitions.js";
 
 describe("daily live data mapping", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-11T18:00:00.000Z"));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("maps public milestones and public vendors into the four selected daily sections", () => {
     const activityDefinitions: DefinitionComponentData = {
       "100": { displayProperties: { name: "玻璃小径" } },

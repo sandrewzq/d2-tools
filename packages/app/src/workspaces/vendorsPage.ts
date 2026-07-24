@@ -206,6 +206,7 @@ export type VendorsPageInput = {
   snapshot: VendorInventorySnapshot | null;
   account: AccountSummary | null;
   scope: VendorCharacterScope;
+  now?: Date;
   selectedVendorId?: string;
   refreshState: "idle" | "refreshing" | "failed";
   refreshError?: string;
@@ -226,7 +227,6 @@ export type VendorSearchResults = {
 };
 
 const publicVendorSourceLabel = "Bungie 公共商人";
-const xurVendorHash = 2190858386;
 
 export function selectVendorsPageModel(input: DailySummary | VendorsPageInput | null): VendorsPageModel {
   if (isVendorsPageInput(input)) return selectSnapshotVendorsPageModel(input);
@@ -346,7 +346,7 @@ function selectSnapshotVendorsPageModel(input: VendorsPageInput): VendorsPageMod
     };
   }
 
-  const visibleSnapshotVendors = isXurActiveAt()
+  const visibleSnapshotVendors = isXurActiveAt(input.now)
     ? snapshot.vendors
     : snapshot.vendors.filter((vendor) => vendor.vendorHash !== xurVendorHash);
   const mappedVendors = visibleSnapshotVendors.map((vendor) => {

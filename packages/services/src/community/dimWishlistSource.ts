@@ -28,7 +28,8 @@ export function createDimWishlistSource(dataDir: string): CommunityPerkSource {
           note: rule.note || undefined
         }));
       if (!combos.length) return null;
-      combos.sort((a, b) => ({ pve: 0, pvp: 1, general: 2 }[a.mode] - ({ pve: 0, pvp: 1, general: 2 }[b.mode]));
+      const modeOrder = { pve: 0, pvp: 1, general: 2 } as const;
+      combos.sort((a, b) => modeOrder[a.mode] - modeOrder[b.mode]);
       return {
         item_hash: itemHash,
         item_name: options.item_name ?? String(itemHash),

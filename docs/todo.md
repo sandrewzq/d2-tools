@@ -17,14 +17,14 @@
 
 | 编号 | 优先级 | 状态 | 任务 | Backlog | 下一步 |
 |---|---|---|---|---|---|
-| T1 | P1 | 🟡 待推进 | 配装攻略导入与账号匹配 | [配装攻略导入与账号匹配](work/backlog/T1-loadout-guide-import-and-matching.md) | 在配装菜单重做导入、解析、真实账号匹配和可编辑草稿；先完成现有功能与新需求的对照 |
+| T1 | P1 | 🟡 待推进 | 配装攻略导入与账号匹配 | [配装攻略导入与账号匹配](work/backlog/T1-loadout-guide-import-and-matching.md) | 第一期只做装备与明确 Perk 的真实匹配；保留全输入方式、历史版本和可编辑草稿，技能与模组匹配后续再做 |
 | T2 | P1 | 🟡 待推进 | 仓库推荐与清理工作台 | [仓库推荐与清理工作台](work/backlog/T2-vault-recommendation-and-cleanup-workbench.md) | 统一 DIM wishlist、本地目标、同名对比和清理清单 |
 | T3 | P1 | 🟡 待验收 | 商人结构、覆盖与官方获取来源 | [商人结构、覆盖与官方获取来源](work/backlog/T3-vendors-and-drop-sources.md) | 已接入 Vendor Group / 目的地两级目录、持久缓存、启动预热和周期刷新；仄已按周六到、周三走规则过滤离场缓存；下一步验收真实地点覆盖、跨重置边界、Offer 时效、去重和机灵模组 A/B |
 | T4 | P3 | 🟡 待推进 | 活动复盘增强 | [活动复盘增强](work/backlog/T4-activity-review-enhancement.md) | 接 PGCR、完成时间推算和副本级趋势 |
 | T5 | P1 | 🟡 UI 待还原 | 统一装备详情与知识分析 | [统一装备详情与知识分析](work/backlog/T5-equipment-detail-and-knowledge-analysis.md) | 武器与护甲原型已补齐稳定 contract id、对象模式和完整状态入口，并完成人工复核；首页仄八件已可复用商人定义详情；下一步按冻结规格复核和还原共享 UI 实现 |
 | T6 | P1 | 🟡 等待 Release | 资料库与运行时性能架构升级 | [资料库与运行时性能架构升级](work/backlog/T6-game-data-performance-architecture-upgrade.md) | 代码、全仓回归、Windows NSIS 打包、隔离安装版和性能预算已完成；下一次正式发版执行 Release workflow 与真实更新/回滚观察，稳定 Release 后删除 JSON/旧 IPC/旧 core HTTP 兼容层 |
 | T7 | P1 | 🟡 待验证 | 架构边界收口 | [架构边界收口](work/backlog/T7-architecture-boundary-hardening.md) | 独立本地 store、Bungie 写操作、诊断导出和社区推荐编排已迁 Services，Prototype/Web fixture 已收紧；下一步由 CI 验证，并迁移 Core 中剩余的本地社区与 light.gg 读写实现 |
-| T8 | P1 | 🟡 UI 对照中 | 全应用 UI 还原 | [全应用 UI 还原](work/backlog/T8-full-application-ui-functional-convergence.md) | 三个冻结原型已确认；先完成 T8.1 共享 Shell 与设置页对照，再按菜单还原唯一共享页面并在 Prototype / Desktop 逐项验收 |
+| T8 | P1 | 🟡 UI 对照中 | 全应用 UI 还原 | [全应用 UI 还原](work/backlog/T8-full-application-ui-functional-convergence.md) | 三个冻结原型已确认；T8.1 共享 Shell / 设置页与各菜单内容层可并行对照，分别完成唯一页面还原和 Prototype / Desktop 验收 |
 
 ## 验证入口
 

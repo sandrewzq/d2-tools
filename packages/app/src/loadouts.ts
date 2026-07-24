@@ -1,4 +1,5 @@
 export type { LoadoutTemplateLookup } from "./workspaces/loadoutTemplateLookup.js";
+export type { LoadoutTemplate, LoadoutTemplateItem } from "@d2-tools/core/loadouts/templates";
 export { buildLoadoutTemplateLookup, matchesLoadoutTemplateItem } from "./workspaces/loadoutTemplateLookup.js";
 export type {
   MissingLoadoutBlockedDescription,

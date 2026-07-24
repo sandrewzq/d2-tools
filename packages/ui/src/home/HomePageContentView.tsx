@@ -251,8 +251,9 @@ function HomePageContent(props: {
   const nightfallReward = nightfall?.entries?.flatMap((entry) => entry.rewards ?? [])[0];
   const raids = homePriorityEntries(props.confirmedPriorities.rotating_raid);
   const dungeons = homePriorityEntries(props.confirmedPriorities.rotating_dungeon);
-  const xurItems = props.xur?.items.slice(0, 8) ?? [];
-  const hasConfirmedData = Boolean(nightfall || raids.length || dungeons.length || props.xur);
+  const xur = props.xur;
+  const xurItems = xur?.items.slice(0, 8) ?? [];
+  const hasConfirmedData = Boolean(nightfall || raids.length || dungeons.length || xur);
   return (
     <section className="home-page">
       {props.dailyError ? <p className="status-message status-error">{props.dailyError}</p> : null}
@@ -330,19 +331,19 @@ function HomePageContent(props: {
           </div>
           <button type="button" className="secondary-button" onClick={() => props.onNavigate?.("vendors")}>打开仄的完整库存</button>
         </div>
-        {props.xur ? (
+        {xur ? (
           <>
             <div className="home-xur-overview">
-              <div><span>本周八件轮换</span><strong>{xurItems.length} 件已确认 · {props.xur.refreshLabel ?? "当前有效"}</strong></div>
-              <div><span>当前位置</span><strong>{props.xur.location ?? props.xur.title}</strong></div>
+              <div><span>本周八件轮换</span><strong>{xurItems.length} 件已确认 · {xur.refreshLabel ?? "当前有效"}</strong></div>
+              <div><span>当前位置</span><strong>{xur.location ?? xur.title}</strong></div>
             </div>
             <div className="home-xur-stock-grid">
               {xurItems.map((item, index) => (
                 <HomeXurOffer
                   item={item}
                   key={`${item.title}-${item.vendorHash ?? "xur"}-${index}`}
-                  vendorName={props.xur.title}
-                  refreshLabel={props.xur.refreshLabel}
+                  vendorName={xur.title}
+                  refreshLabel={xur.refreshLabel}
                   onOpenXurOffer={props.onOpenXurOffer}
                 />
               ))}

@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 const desktopSourceRoot = fileURLToPath(new URL("../src", import.meta.url));
 const rendererRoot = join(desktopSourceRoot, "renderer");
 const featuresRoot = join(rendererRoot, "features");
+const sharedRoot = join(rendererRoot, "shared");
 const rendererApiRoot = join(rendererRoot, "api");
 const mainRoot = join(desktopSourceRoot, "main");
 const preloadRoot = join(desktopSourceRoot, "preload");

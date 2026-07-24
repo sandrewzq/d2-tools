@@ -70,10 +70,6 @@ function LoadoutsPageWorkspace(props: LoadoutsPageContentViewProps & {
   visibleLoadoutEntries: LoadoutEntryView[];
 }) {
   const selectedDetail = props.model.selectedDetail;
-  const selectedTemplate = selectedDetail.kind === "local-template" ? selectedDetail.template : null;
-  const selectedAnalysis = selectedDetail.kind === "local-template" ? selectedDetail.analysis : null;
-  const transferPlan = selectedDetail.kind === "local-template" ? selectedDetail.transferPlan : null;
-
   return (
     <>
       {props.message ? <p className={`loadout-inline-feedback ${props.message.includes(props.copy.inline["失败"] ?? "失败") ? "status-message status-error" : "status-message status-ready"}`}>{props.message}</p> : null}
@@ -108,30 +104,30 @@ function LoadoutsPageWorkspace(props: LoadoutsPageContentViewProps & {
         </ProductWorkspaceSideRail>
 
         <section className="loadout-detail">
-          {selectedDetail.kind === "local-template" && selectedTemplate ? (
+          {selectedDetail.kind === "local-template" ? (
             <>
               <div className="loadout-detail-head">
-                <div><span>本地模板</span><h2>{selectedTemplate.name}</h2><p>{selectedTemplate.items.length} 件装备 · {selectedTemplate.class_name || "未限定职业"}</p></div>
+                <div><span>本地模板</span><h2>{selectedDetail.template.name}</h2><p>{selectedDetail.template.items.length} 件装备 · {selectedDetail.template.class_name || "未限定职业"}</p></div>
                 <span className="app-chip status-ready">{props.model.riskSummary.missingCount ? `${props.model.riskSummary.missingCount} 件待补齐` : "可以应用"}</span>
               </div>
               <div className="loadout-toolbar">
                 <input value={props.renameDraft} onChange={(event) => props.actions.renameDraftChange(event.target.value)} aria-label="配装名称" />
-                <button type="button" className="secondary-button" onClick={() => props.actions.renameTemplate(selectedTemplate)}>重命名</button>
-                <button type="button" className="secondary-button" onClick={() => props.actions.createTransferPlan(selectedTemplate)}>生成转移计划</button>
-                <button type="button" className="secondary-button" onClick={() => props.actions.copyMissingItems(selectedTemplate, selectedAnalysis)}>复制缺失清单</button>
-                <button type="button" className="primary-button" disabled={props.isRunningItemAction} onClick={() => props.actions.executeMissingTransfer(selectedTemplate, selectedAnalysis)}>转移缺失件</button>
-                <button type="button" className="secondary-button" onClick={() => props.actions.deleteTemplate(selectedTemplate.id)}>删除</button>
+                <button type="button" className="secondary-button" onClick={() => props.actions.renameTemplate(selectedDetail.template)}>重命名</button>
+                <button type="button" className="secondary-button" onClick={() => props.actions.createTransferPlan(selectedDetail.template)}>生成转移计划</button>
+                <button type="button" className="secondary-button" onClick={() => props.actions.copyMissingItems(selectedDetail.template, selectedDetail.analysis)}>复制缺失清单</button>
+                <button type="button" className="primary-button" disabled={props.isRunningItemAction} onClick={() => props.actions.executeMissingTransfer(selectedDetail.template, selectedDetail.analysis)}>转移缺失件</button>
+                <button type="button" className="secondary-button" onClick={() => props.actions.deleteTemplate(selectedDetail.template.id)}>删除</button>
               </div>
-              {transferPlan?.blocked.length ? <p className="status-message status-warning">有 {transferPlan.blocked.length} 件当前无法自动补齐，物品行会显示原因。</p> : null}
+              {selectedDetail.transferPlan?.blocked.length ? <p className="status-message status-warning">有 {selectedDetail.transferPlan.blocked.length} 件当前无法自动补齐，物品行会显示原因。</p> : null}
               <div className="loadout-column-head"><h3>方案装备</h3><span>{selectedDetail.itemRows.length} 件</span></div>
               <ul className="loadout-item-list">
                 {selectedDetail.itemRows.map((row, index) => (
                   <LoadoutItemRow
-                    key={`${selectedTemplate.id}-${row.item.instance_id ?? row.item.hash}-${index}`}
+                    key={`${selectedDetail.template.id}-${row.item.instance_id ?? row.item.hash}-${index}`}
                     actionFeedback={props.actionFeedback}
                     isRunningItemAction={props.isRunningItemAction}
                     row={row}
-                    template={selectedTemplate}
+                    template={selectedDetail.template}
                     actions={props.actions}
                     copy={props.copy}
                   />

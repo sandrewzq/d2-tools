@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { addFavoriteItem, addRecentItem, loadLibraryHistory, removeFavoriteItem } from "../src/library/history.js";
+import { addFavoriteItem, addRecentItem, loadLibraryHistory, removeFavoriteItem } from "../../services/src/library/history.js";
 
 describe("library history", () => {
   it("keeps recent items newest first without duplicates", () => {

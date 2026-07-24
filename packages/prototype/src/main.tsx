@@ -20,6 +20,7 @@ import {
   type LibraryEquipmentFilter,
   type LibraryPerkFilter,
   type LibraryViewMode,
+  type ProductPreferences,
   type ShellAssistantMode,
   type ShellPageKey,
   type SettingsAiAdapter,
@@ -47,7 +48,7 @@ function PrototypeApp() {
   const initialSettingsSection = isSettingsSectionKey(env.VITE_D2_VISUAL_SETTINGS_SECTION)
     ? env.VITE_D2_VISUAL_SETTINGS_SECTION
     : "overview";
-  const [preferences, setPreferences] = useState({
+  const [preferences, setPreferences] = useState<ProductPreferences>({
     ...defaultProductPreferences,
     colorMode: initialTheme
   });

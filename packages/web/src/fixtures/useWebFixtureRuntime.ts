@@ -1,11 +1,12 @@
 import { useMemo } from "react";
-import { buildLoadoutTemplateLookup, matchesLoadoutTemplateItem, selectLoadoutsPageModel } from "@d2-tools/app/loadouts";
+import { buildLoadoutTemplateLookup, matchesLoadoutTemplateItem, selectLoadoutsPageModel, type LoadoutTemplate, type LoadoutTemplateItem } from "@d2-tools/app/loadouts";
 import { selectAccountPageModel } from "@d2-tools/app/account";
 import { selectHomePageModel } from "@d2-tools/app/home";
 import { selectLibraryPageModel } from "@d2-tools/app/library";
 import type { ItemSearchResult, PerkSearchResult, VaultItemMatchInfo } from "@d2-tools/app/library";
 import { selectSettingsPageModel, type SettingsSectionKey } from "@d2-tools/app/settings";
 import { selectVaultPageModel } from "@d2-tools/app/vault";
+import type { VaultItemMatchInfo as VaultCommunityMatchInfo } from "@d2-tools/app/vault";
 import { selectVendorsPageModel } from "@d2-tools/app/vendors";
 import type {
   AiAssistantContextView,
@@ -21,7 +22,6 @@ import {
   createFixtureLibraryFilters
 } from "@d2-tools/ui/fixtures";
 import { webAppVersion } from "../buildInfo";
-import type { LoadoutTemplate, LoadoutTemplateItem } from "@d2-tools/core/loadouts/templates";
 import type { WebHomeSnapshot } from "../webAdapter";
 export const webAccountSummary = createFixtureAccountSummary({
   account_name: "Web Guardian",
@@ -174,7 +174,7 @@ export const webUpdateSnapshot = {
 export const webVaultTags = { items: { "web-handcannon-vault": { tag: "review", note: "Web mock 同名复查。" }, "web-scout-vault": { tag: "junk" } } } as const;
 export const webLocalTargetRules = { action_policy: "notify_only" as const, armor: [], weapons: [] };
 export const webWishlist = { title: "Web DIM Wishlist", rules: [{ item_hash: 3002, perk_hashes: [4001], mode: "pve" as const, note: "Web 推荐" }] };
-export const webVaultCommunityMatch = new Map<number, VaultItemMatchInfo>([[3002, { matched: 1, modes: ["pve"], sample_perks: [{ name: "爆炸载荷" }] }]]);
+export const webVaultCommunityMatch = new Map<number, VaultCommunityMatchInfo>([[3002, { matched: 1, available: 1, modes: ["pve"], sample_perks: [{ hash: 4001, name: "爆炸载荷" }] }]]);
 export const webBatchResult = { success_count: 0, failed_count: 0, results: [] };
 export const webBackgroundTasks: ShellBackgroundTaskItem[] = [{ id: "web-task", title: "Web snapshot", status: "succeeded", message: "Web mock 已载入。", created_at: "2026-07-03T14:18:00+08:00", updated_at: "2026-07-03T14:18:00+08:00" }];
 export const webActionLog = [{ id: "web-action", created_at: "2026-07-03T14:18:00+08:00", action: "mock", item_name: "Web mock", ok: true, message: "共享设置页操作日志 mock。" }];

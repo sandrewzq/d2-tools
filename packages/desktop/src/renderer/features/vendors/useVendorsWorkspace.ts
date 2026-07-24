@@ -45,7 +45,8 @@ export function useVendorsWorkspace(input: {
   accountSummary: AccountSummary | null;
   selectedCharacterId: string;
   active: boolean;
-  loadCachedInventory: (input: VendorInventoryRequest) => Promise<VendorInventorySnapshot | null>;
+  now?: Date;
+  loadCachedInventory?: (input: VendorInventoryRequest) => Promise<VendorInventorySnapshot | null>;
   loadInventory: (input: VendorInventoryRequest) => Promise<VendorInventorySnapshot>;
 }) {
   const [snapshot, setSnapshot] = useState<VendorInventorySnapshot | null>(null);
@@ -71,7 +72,7 @@ export function useVendorsWorkspace(input: {
   const refresh = useCallback(async () => {
     if (!input.active || !input.accountSummary || !characterId) return;
     const requestSequence = ++requestSequenceRef.current;
-    const currentSnapshot = hideInactiveXur(snapshot);
+    const currentSnapshot = hideInactiveXur(snapshot, input.now);
     const request = createVendorInventoryRequest(
       input.accountSummary,
       characterId,
@@ -80,7 +81,7 @@ export function useVendorsWorkspace(input: {
     setRefreshState("refreshing");
     setRefreshError("");
     try {
-      const next = hideInactiveXur(await input.loadInventory(request));
+      const next = hideInactiveXur(await input.loadInventory(request), input.now);
       if (requestSequence !== requestSequenceRef.current || requestContextKey !== requestContextKeyRef.current) return;
       if (currentSnapshot) {
         if (hasSameVendorInventoryContent(currentSnapshot, next)) {
@@ -134,14 +135,14 @@ export function useVendorsWorkspace(input: {
     void (async () => {
       let availableSnapshot: VendorInventorySnapshot | null = null;
       try {
-        const cached = hideInactiveXur(await input.loadCachedInventory(request));
+        const cached = hideInactiveXur(await (input.loadCachedInventory?.(request) ?? Promise.resolve(null)), input.now);
         if (requestSequence !== requestSequenceRef.current || requestContextKey !== requestContextKeyRef.current) return;
         if (cached) {
           availableSnapshot = cached;
           setSnapshot(cached);
           setStatusMessage("正在显示上次商人库存，后台检查更新");
         }
-        const next = hideInactiveXur(await input.loadInventory(request));
+        const next = hideInactiveXur(await input.loadInventory(request), input.now);
         if (requestSequence !== requestSequenceRef.current || requestContextKey !== requestContextKeyRef.current) return;
         if (availableSnapshot && hasSameVendorInventoryContent(availableSnapshot, next)) {
           setStatusMessage("已检查，商人库存无变化");
@@ -177,16 +178,16 @@ export function useVendorsWorkspace(input: {
       selectedDetailVendorHashes
     );
     void (async () => {
-      let availableSnapshot = hideInactiveXur(snapshot);
+      let availableSnapshot = hideInactiveXur(snapshot, input.now);
       try {
-        const cached = hideInactiveXur(await input.loadCachedInventory(request));
+        const cached = hideInactiveXur(await (input.loadCachedInventory?.(request) ?? Promise.resolve(null)), input.now);
         if (requestSequence !== requestSequenceRef.current || requestContextKey !== requestContextKeyRef.current) return;
         if (cached) {
           availableSnapshot = cached;
           setSnapshot(cached);
           setStatusMessage("正在显示上次商人详情，后台检查更新");
         }
-        const next = hideInactiveXur(await input.loadInventory(request));
+        const next = hideInactiveXur(await input.loadInventory(request), input.now);
         if (requestSequence !== requestSequenceRef.current || requestContextKey !== requestContextKeyRef.current) return;
         if (hasSameVendorInventoryContent(availableSnapshot, next)) {
           setStatusMessage("已检查，当前商人库存无变化");
@@ -208,9 +209,10 @@ export function useVendorsWorkspace(input: {
 
   useEffect(() => {
     if (!input.active) return;
-    const delay = Math.max(1_000, nextXurBoundaryAt(new Date()).getTime() - Date.now() + 5_000);
+    const currentTime = input.now ?? new Date();
+    const delay = Math.max(1_000, nextXurBoundaryAt(currentTime).getTime() - currentTime.getTime() + 5_000);
     const id = window.setTimeout(() => {
-      setSnapshot((current) => hideInactiveXur(current));
+      setSnapshot((current) => hideInactiveXur(current, input.now));
       void refresh();
     }, delay);
     return () => window.clearTimeout(id);
@@ -225,8 +227,9 @@ export function useVendorsWorkspace(input: {
     selectedVendorId,
     refreshState,
     refreshError,
-    statusMessage
-  }), [input.accountSummary, input.selectedCharacterId, refreshError, refreshState, selectedVendorId, snapshot, statusMessage]);
+    statusMessage,
+    now: input.now
+  }), [input.accountSummary, input.now, input.selectedCharacterId, refreshError, refreshState, selectedVendorId, snapshot, statusMessage]);
 
   return {
     model,
@@ -279,8 +282,11 @@ function hasSameVendorInventoryContent(
   return JSON.stringify(left, withoutFetchTime) === JSON.stringify(right, withoutFetchTime);
 }
 
-function hideInactiveXur(snapshot: VendorInventorySnapshot | null): VendorInventorySnapshot | null {
-  if (!snapshot || isXurActiveAt()) return snapshot;
+function hideInactiveXur(snapshot: VendorInventorySnapshot, now?: Date): VendorInventorySnapshot;
+function hideInactiveXur(snapshot: null, now?: Date): null;
+function hideInactiveXur(snapshot: VendorInventorySnapshot | null, now?: Date): VendorInventorySnapshot | null;
+function hideInactiveXur(snapshot: VendorInventorySnapshot | null, now?: Date): VendorInventorySnapshot | null {
+  if (!snapshot || isXurActiveAt(now)) return snapshot;
   const vendors = snapshot.vendors.filter((vendor) => vendor.vendorHash !== xurVendorHash);
   return vendors.length === snapshot.vendors.length ? snapshot : { ...snapshot, vendors };
 }

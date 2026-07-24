@@ -307,9 +307,6 @@ export function VendorsPageContentView(props: VendorsPageContentViewProps) {
         ) : null}
 
         <div className="vendor-toolbar">
-          <span className="vendor-armorer-context">
-            {props.model.selectedCharacterContext?.label ?? "当前机灵：未检测到护甲师模组"}
-          </span>
           <div
             role="status"
             aria-label="商人刷新状态"

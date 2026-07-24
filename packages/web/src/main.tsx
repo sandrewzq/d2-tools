@@ -19,6 +19,7 @@ import {
   type LibraryEquipmentFilter,
   type LibraryPerkFilter,
   type LibraryViewMode,
+  type ProductPreferences,
   type ShellAssistantMode,
   type ShellPageKey,
   type SettingsAiAdapter
@@ -40,7 +41,7 @@ function WebApp() {
   const [snapshot, setSnapshot] = useState<WebHomeSnapshot>(fallbackHomeSnapshot);
   const [assistantMode, setAssistantMode] = useState<ShellAssistantMode>(null);
   const [activePage, setActivePage] = useState<ShellPageKey>("home");
-  const [preferences, setPreferences] = useState({
+  const [preferences, setPreferences] = useState<ProductPreferences>({
     ...defaultProductPreferences,
     colorMode: initialTheme
   });
@@ -223,8 +224,7 @@ function WebApp() {
           onSwitchSession={() => undefined}
           onDeleteSession={() => undefined}
         />
-        )
-      )}
+        )}
       platformActions={platformActions}
       renderPage={(activePage, preferences) => (
         <>

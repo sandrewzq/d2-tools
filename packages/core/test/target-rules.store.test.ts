@@ -6,7 +6,7 @@ import {
   clearLocalTargetRules,
   loadLocalTargetRules,
   saveLocalTargetRules
-} from "../src/analysis/targetRulesStore.js";
+} from "../../services/src/analysis/targetRulesStore.js";
 
 describe("local target rules store", () => {
   it("persists sanitized armor target rules in the local data directory", () => {

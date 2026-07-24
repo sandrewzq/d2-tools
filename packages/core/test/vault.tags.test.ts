@@ -2,7 +2,7 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { loadVaultTags, saveVaultNote, saveVaultTag, saveVaultTagsBatch } from "../src/vault/tags.js";
+import { loadVaultTags, saveVaultNote, saveVaultTag, saveVaultTagsBatch } from "../../services/src/vault/tags.js";
 
 describe("vault tags", () => {
   it("loads empty tags when no local tag file exists", () => {

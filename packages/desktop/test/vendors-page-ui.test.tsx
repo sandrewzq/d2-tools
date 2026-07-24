@@ -119,6 +119,7 @@ describe("vendor workspace loading", () => {
         accountSummary: createAccountSummary("membership-a"),
         selectedCharacterId: "hunter",
         active,
+        now: activeXurNow,
         loadInventory
       }),
       { initialProps: { active: false } }
@@ -143,6 +144,7 @@ describe("vendor workspace loading", () => {
         accountSummary: createAccountSummary("membership-a"),
         selectedCharacterId: "hunter",
         active,
+        now: activeXurNow,
         loadInventory
       }),
       { initialProps: { active: true } }
@@ -181,6 +183,7 @@ describe("vendor workspace loading", () => {
       accountSummary: createAccountSummary("membership-a"),
       selectedCharacterId: "hunter",
       active: true,
+      now: activeXurNow,
       loadInventory
     }));
 
@@ -203,6 +206,7 @@ describe("vendor workspace loading", () => {
         accountSummary: account,
         selectedCharacterId,
         active: true,
+        now: activeXurNow,
         loadInventory
       }),
       { initialProps: { selectedCharacterId: "warlock" } }
@@ -224,6 +228,7 @@ describe("vendor workspace loading", () => {
         accountSummary: account,
         selectedCharacterId: "hunter",
         active: true,
+        now: activeXurNow,
         loadInventory
       }),
       { initialProps: { account: createAccountSummary("membership-a") } }
@@ -245,6 +250,7 @@ describe("vendor workspace loading", () => {
         accountSummary: account,
         selectedCharacterId: "hunter",
         active: true,
+        now: activeXurNow,
         loadInventory
       }),
       { initialProps: { account: createAccountSummary("membership-a") } }
@@ -269,6 +275,7 @@ describe("vendor workspace loading", () => {
         accountSummary: account,
         selectedCharacterId: "hunter",
         active: true,
+        now: activeXurNow,
         loadInventory
       }),
       { initialProps: { account: createAccountSummary("membership-a") } }
@@ -293,6 +300,7 @@ describe("vendor workspace loading", () => {
         accountSummary: account,
         selectedCharacterId: "hunter",
         active: true,
+        now: activeXurNow,
         loadInventory
       }),
       { initialProps: { account: createAccountSummary("membership-a") as AccountSummary | null } }
@@ -306,6 +314,8 @@ describe("vendor workspace loading", () => {
     expect(result.current.model.selectedCharacterContext).toBeNull();
   });
 });
+
+const activeXurNow = new Date("2026-07-11T18:00:00.000Z");
 
 function createAccountSummary(membershipId: string): AccountSummary {
   return {

@@ -7,7 +7,7 @@ import {
   deleteLoadoutTemplate,
   listLoadoutTemplates,
   renameLoadoutTemplate
-} from "../src/loadouts/templates.js";
+} from "../../services/src/loadouts/templates.js";
 
 describe("loadout templates", () => {
   it("creates a local template from equipped items", () => {

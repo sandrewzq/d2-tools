@@ -241,7 +241,7 @@
 
 ## 实施范围
 
-当前活动子任务：[T8.1 共享框架与设置页还原合同](T8.1-shell-and-settings-restoration-contract.md)。在该子任务完成视觉验收前，不进入商人或其他菜单。
+并行子任务：[T8.1 共享框架与设置页还原合同](T8.1-shell-and-settings-restoration-contract.md)。它只约束共享 Shell 与设置页；商人、装备详情和其他菜单可在各自四份对照完成后独立实施与验收。
 
 ### 首页功能与视觉合并
 

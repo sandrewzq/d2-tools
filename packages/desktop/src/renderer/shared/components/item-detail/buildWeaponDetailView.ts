@@ -450,7 +450,7 @@ function buildFixedConfigurationStandardStats(
   for (const plug of selectedPlugs) {
     if (isWeaponSystemPlug(plug)) continue;
     for (const key of weaponStatKeys) {
-      const amount = plug.stat_modifiers?.[key];
+      const amount = ("stat_modifiers" in plug ? plug.stat_modifiers : undefined)?.[key];
       if (!amount) continue;
       modifiers[key] = (modifiers[key] ?? 0) + amount;
     }

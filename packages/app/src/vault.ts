@@ -107,3 +107,4 @@ export {
   selectDuplicateGroupItems,
   selectVaultActionableItems
 } from "./workspaces/vaultActions.js";
+export type { VaultItemMatchInfo } from "@d2-tools/core/community-perks";

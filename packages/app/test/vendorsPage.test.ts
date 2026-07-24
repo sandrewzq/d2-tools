@@ -129,6 +129,7 @@ function createInput(overrides: {
     snapshot: overrides.snapshot ?? createSnapshot(),
     account: null,
     scope: overrides.scope ?? { kind: "character" as const, characterId: "hunter" },
+    now: new Date("2026-07-11T18:00:00.000Z"),
     selectedVendorId: "vendor-2190858386",
     refreshState: "idle" as const
   };

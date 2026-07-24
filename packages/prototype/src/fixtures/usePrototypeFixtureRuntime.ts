@@ -1,11 +1,12 @@
 import { useMemo } from "react";
-import { buildLoadoutTemplateLookup, matchesLoadoutTemplateItem, selectLoadoutsPageModel } from "@d2-tools/app/loadouts";
+import { buildLoadoutTemplateLookup, matchesLoadoutTemplateItem, selectLoadoutsPageModel, type LoadoutTemplate, type LoadoutTemplateItem } from "@d2-tools/app/loadouts";
 import { selectAccountPageModel } from "@d2-tools/app/account";
 import { selectHomePageModel } from "@d2-tools/app/home";
 import { selectLibraryPageModel } from "@d2-tools/app/library";
 import type { ItemSearchResult, PerkSearchResult, VaultItemMatchInfo } from "@d2-tools/app/library";
 import { selectSettingsPageModel, type SettingsSectionKey } from "@d2-tools/app/settings";
 import { selectVaultPageModel } from "@d2-tools/app/vault";
+import type { VaultItemMatchInfo as VaultCommunityMatchInfo } from "@d2-tools/app/vault";
 import { selectVendorsPageModel, type VendorsPageInput } from "@d2-tools/app/vendors";
 import type {
   AiAssistantContextView,
@@ -23,7 +24,6 @@ import {
   createFixtureLibraryFilters
 } from "@d2-tools/ui/fixtures";
 import { prototypeAppVersion } from "../buildInfo";
-import type { LoadoutTemplate, LoadoutTemplateItem } from "@d2-tools/core/loadouts/templates";
 import type { PrototypeScenario, PrototypeScenarioKey } from "../mock/scenarios";
 export const prototypeAccountSummary = createFixtureAccountSummary({
   account_name: "Prototype Guardian",
@@ -278,7 +278,6 @@ export const prototypeLibraryItems: ItemSearchResult[] = [
     tier: "传说",
     group_key: "armor",
     bucket_name: "头盔",
-    ammo_type: "",
     weapon_frame: { key: "armor", name: "护甲" },
     source: { status: "ready", label: "来源可确认", description: "账号仓库中已有样本，可直接对照本地目标规则。" },
     perks: []
@@ -455,9 +454,9 @@ export const prototypeWishlist = {
   ]
 };
 
-export const prototypeVaultCommunityMatch = new Map<number, VaultItemMatchInfo>([
-  [1002, { matched: 2, modes: ["pve"], sample_perks: [{ name: "丰盈满溢" }, { name: "爆炸载荷" }] }],
-  [1006, { matched: 1, modes: ["pve"], sample_perks: [{ name: "连锁反应" }] }]
+export const prototypeVaultCommunityMatch = new Map<number, VaultCommunityMatchInfo>([
+  [1002, { matched: 2, available: 2, modes: ["pve"], sample_perks: [{ hash: 2003, name: "丰盈满溢" }, { hash: 2004, name: "爆炸载荷" }] }],
+  [1006, { matched: 1, available: 1, modes: ["pve"], sample_perks: [{ hash: 2006, name: "连锁反应" }] }]
 ]);
 
 export const prototypeBatchResult = {
@@ -522,6 +521,7 @@ export function createPrototypeVendorsPageModel(
     scope: selectedCharacterId
       ? { kind: "character", characterId: selectedCharacterId }
       : { kind: "account" },
+    now: new Date("2026-07-11T18:00:00.000Z"),
     selectedVendorId: "vendor-2190858386",
     refreshState,
     refreshError
