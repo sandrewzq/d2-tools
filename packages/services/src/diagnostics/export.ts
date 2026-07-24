@@ -1,8 +1,7 @@
-import type { ActionLogEntry } from "../actions/log.js";
-import type { D2Config } from "../config/schema.js";
-import type { ManifestStatus } from "../manifest/cache.js";
-import type { ToolAuditEntry } from "../tools/audit.js";
-import { buildToolAuditDiagnosticText } from "../tools/audit.js";
+import type { ActionLogEntry } from "@d2-tools/core/actions/log";
+import type { D2Config } from "@d2-tools/core/config/schema";
+import type { ManifestStatus } from "@d2-tools/core/manifest/cache";
+import { buildToolAuditDiagnosticText, type ToolAuditEntry } from "../tools/audit.js";
 
 export type DiagnosticsExportInput = {
   app_version: string;
@@ -30,14 +29,10 @@ export function buildDiagnosticsExport(input: DiagnosticsExportInput): string {
     `写操作：${input.config.features.write_actions_enabled ? "已开启" : "已关闭"}`,
     "",
     "最近写操作：",
-    ...input.action_log.slice(0, 10).map((entry) =>
-      `- ${entry.created_at} / ${entry.action} / ${entry.ok ? "成功" : "失败"} / ${entry.item_name ?? "-"} / ${entry.message ?? "-"}`
-    ),
+    ...input.action_log.slice(0, 10).map((entry) => `- ${entry.created_at} / ${entry.action} / ${entry.ok ? "成功" : "失败"} / ${entry.item_name ?? "-"} / ${entry.message ?? "-"}`),
     "",
     "最近工具调用：",
-    ...(input.tool_audit_log ?? []).slice(0, 10).map((entry) =>
-      `- ${entry.created_at} / ${entry.tool} / ${entry.caller} / ${entry.ok ? "成功" : "失败"} / ${toolAuditSummary(entry)}`
-    )
+    ...(input.tool_audit_log ?? []).slice(0, 10).map((entry) => `- ${entry.created_at} / ${entry.tool} / ${entry.caller} / ${entry.ok ? "成功" : "失败"} / ${toolAuditSummary(entry)}`)
   ].join("\n");
 }
 

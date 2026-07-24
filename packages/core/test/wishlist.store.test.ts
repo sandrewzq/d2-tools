@@ -2,7 +2,7 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { clearDimWishlist, loadDimWishlist, saveDimWishlist } from "../src/analysis/wishlistStore.js";
+import { clearDimWishlist, loadDimWishlist, saveDimWishlist } from "../../services/src/analysis/wishlistStore.js";
 
 describe("DIM wishlist store", () => {
   it("persists imported DIM wishlist rules in the local data directory", () => {

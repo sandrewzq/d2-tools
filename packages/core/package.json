@@ -130,10 +130,6 @@
       "types": "./dist/activities/review.d.ts",
       "import": "./dist/activities/review.js"
     },
-    "./diagnostics/export": {
-      "types": "./dist/diagnostics/export.d.ts",
-      "import": "./dist/diagnostics/export.js"
-    },
     "./evidence/itemDecision": {
       "types": "./dist/evidence/itemDecision.d.ts",
       "import": "./dist/evidence/itemDecision.js"
@@ -153,10 +149,6 @@
     "./account/summary": {
       "types": "./dist/account/summary.d.ts",
       "import": "./dist/account/summary.js"
-    },
-    "./bungie/actions": {
-      "types": "./dist/bungie/actions.d.ts",
-      "import": "./dist/bungie/actions.js"
     },
     "./config/schema": {
       "types": "./dist/config/schema.d.ts",

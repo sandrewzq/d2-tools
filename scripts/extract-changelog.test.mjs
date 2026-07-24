@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { extractChangelogSection } from './extract-changelog.mjs';
+import { assertBilingualChangelogSection, extractChangelogSection } from './extract-changelog.mjs';
 
 describe('extractChangelogSection', () => {
   it('returns trimmed section content for matching version', () => {
@@ -12,5 +12,11 @@ describe('extractChangelogSection', () => {
     const content = `## 0.0.4\n\n- Feature`;
     const result = extractChangelogSection(content, '0.0.99');
     expect(result).toBeNull();
+  });
+
+  it('requires player-facing Chinese and English release notes', () => {
+    const section = '### 中文\n\n- 修复装备详情读取失败。\n\n### English\n\n- Fixed equipment detail loading failures.';
+    expect(assertBilingualChangelogSection(section, '0.0.14')).toBe(section);
+    expect(() => assertBilingualChangelogSection('### 中文\n- 只有中文。', '0.0.14')).toThrow('### English');
   });
 });

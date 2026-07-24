@@ -8,7 +8,7 @@ import {
   setItemLockState,
   snapshotLoadout,
   transferItem
-} from "../src/bungie/actions.js";
+} from "../../services/src/bungie/actions.js";
 import type { D2Config } from "../src/config/schema.js";
 import type { BungieOAuthToken } from "../src/oauth/login.js";
 

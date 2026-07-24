@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { appendToolAuditLog, buildToolAuditDiagnosticText, loadToolAuditLog } from "../src/tools/audit.js";
+import { appendToolAuditLog, buildToolAuditDiagnosticText, loadToolAuditLog } from "../../services/src/tools/audit.js";
 
 describe("tool audit log", () => {
   it("appends tool calls newest first and limits diagnostics data", () => {

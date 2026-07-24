@@ -23,7 +23,7 @@
 | T4 | P3 | 🟡 待推进 | 活动复盘增强 | [活动复盘增强](work/backlog/T4-activity-review-enhancement.md) | 接 PGCR、完成时间推算和副本级趋势 |
 | T5 | P1 | 🟡 UI 待还原 | 统一装备详情与知识分析 | [统一装备详情与知识分析](work/backlog/T5-equipment-detail-and-knowledge-analysis.md) | 武器与护甲原型已补齐稳定 contract id、对象模式和完整状态入口，并完成人工复核；首页仄八件已可复用商人定义详情；下一步按冻结规格复核和还原共享 UI 实现 |
 | T6 | P1 | 🟡 等待 Release | 资料库与运行时性能架构升级 | [资料库与运行时性能架构升级](work/backlog/T6-game-data-performance-architecture-upgrade.md) | 代码、全仓回归、Windows NSIS 打包、隔离安装版和性能预算已完成；下一次正式发版执行 Release workflow 与真实更新/回滚观察，稳定 Release 后删除 JSON/旧 IPC/旧 core HTTP 兼容层 |
-| T7 | P1 | 🟡 待验证 | 架构边界收口 | [架构边界收口](work/backlog/T7-architecture-boundary-hardening.md) | 独立本地 store 已迁 services，Prototype/Web fixture 已收紧；下一步由 CI 验证，并将 core 社区推荐编排与其剩余读写实现作为同一切片迁移 |
+| T7 | P1 | 🟡 待验证 | 架构边界收口 | [架构边界收口](work/backlog/T7-architecture-boundary-hardening.md) | 独立本地 store、Bungie 写操作、诊断导出和社区推荐编排已迁 Services，Prototype/Web fixture 已收紧；下一步由 CI 验证，并迁移 Core 中剩余的本地社区与 light.gg 读写实现 |
 | T8 | P1 | 🟡 UI 对照中 | 全应用 UI 还原 | [全应用 UI 还原](work/backlog/T8-full-application-ui-functional-convergence.md) | 三个冻结原型已确认；先完成 T8.1 共享 Shell 与设置页对照，再按菜单还原唯一共享页面并在 Prototype / Desktop 逐项验收 |
 
 ## 验证入口

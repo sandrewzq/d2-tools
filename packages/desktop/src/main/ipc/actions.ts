@@ -13,7 +13,7 @@ import {
   setItemLockState as bungieSetItemLockState,
   snapshotLoadout as bungieSnapshotLoadout,
   transferItem as bungieTransferItem
-} from "@d2-tools/core/bungie/actions";
+} from "@d2-tools/services/bungie/actions";
 import type { D2Config } from "@d2-tools/core/config/schema";
 import { appendActionLog, loadActionLog } from "@d2-tools/services/actions/logStore";
 import { loadConfig } from "@d2-tools/services/config/store";

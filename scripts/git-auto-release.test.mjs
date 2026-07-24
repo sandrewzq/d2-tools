@@ -46,11 +46,11 @@ describe("git-auto-release script", () => {
     expect(script).toContain("pause");
   });
 
-  it("reuses a manually prepared changelog section for the target version", () => {
+  it("requires and promotes a manually prepared bilingual Unreleased changelog section", () => {
     const prepareScript = readFileSync(join(repoRoot, "scripts", "prepare-auto-release.mjs"), "utf8");
 
-    expect(prepareScript).toContain("Reusing existing CHANGELOG.md section for ${version}.");
-    expect(prepareScript).toContain("return false;");
-    expect(prepareScript).not.toContain("CHANGELOG.md already contains a section for ${version}.");
+    expect(prepareScript).toContain("CHANGELOG.md must contain a prepared ## Unreleased section before release.");
+    expect(prepareScript).toContain("Promoted bilingual Unreleased CHANGELOG.md section to ${version}.");
+    expect(prepareScript).toContain("assertBilingualChangelogSection");
   });
 });

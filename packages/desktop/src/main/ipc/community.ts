@@ -3,7 +3,6 @@ import type { DefinitionComponentData, DefinitionRecord } from "@d2-tools/core/m
 import {
   clearLightggCache,
   clearLocalCommunityRecommendations,
-  createDefaultCommunityPerkService,
   loadLocalCommunityRecommendations,
   saveLocalCommunityRecommendations,
   deletePersonalWeaponKnowledge,
@@ -16,6 +15,7 @@ import {
   type VaultItemMatchInput
 } from "@d2-tools/core/community-perks";
 import { loadConfig } from "@d2-tools/services/config/store";
+import { createDefaultCommunityPerkService } from "@d2-tools/services/community/perkRecommendation";
 import { startBackgroundTask } from "../backgroundTasks.js";
 import { getDefinitions } from "../runtime/gameDataRuntime.js";
 

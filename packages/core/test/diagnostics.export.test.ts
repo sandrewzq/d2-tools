@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildDiagnosticsExport } from "../src/diagnostics/export.js";
+import { buildDiagnosticsExport } from "../../services/src/diagnostics/export.js";
 
 describe("diagnostics export", () => {
   it("redacts secrets while keeping useful status", () => {

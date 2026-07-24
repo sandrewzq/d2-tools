@@ -1,6 +1,3 @@
-import { createAiLightggSource } from "./aiLightggSource.js";
-import { createDimWishlistSource } from "./dimWishlistSource.js";
-import { createLocalCommunitySource } from "./localCommunityRecommendations.js";
 import type {
   CommunityPerkSource,
   PerkCombo,
@@ -11,24 +8,13 @@ import type {
   WeaponRecommendation
 } from "./types.js";
 
-type FullServiceConfig = {
-  data?: { data_dir?: string };
-  ai?: {
-    protocol?: string;
-    provider?: string;
-    api_key?: string;
-    model?: string;
-    base_url?: string;
-    enable_lightgg?: boolean;
-    force_lightgg?: boolean;
-  };
-} | null | undefined;
+type CommunityServiceConfig = { data?: { data_dir?: string } } | null | undefined;
 
 export class CommunityPerkRecommendationService {
   private sources: CommunityPerkSource[];
-  private config: FullServiceConfig;
+  private config: CommunityServiceConfig;
 
-  constructor(config: FullServiceConfig, sources?: CommunityPerkSource[]) {
+  constructor(config: CommunityServiceConfig, sources?: CommunityPerkSource[]) {
     this.config = config;
     this.sources = sources ?? [];
   }
@@ -187,37 +173,6 @@ function previewPerks(recommendation: WeaponRecommendation): PerkRef[] | undefin
     }
   }
   return [...deduped.values()];
-}
-
-export function createDefaultCommunityPerkService(
-  config: { data?: { data_dir?: string } } | null | undefined
-): CommunityPerkRecommendationService {
-  const service = new CommunityPerkRecommendationService(config);
-  const data_dir = config?.data?.data_dir;
-  if (data_dir) {
-    service.addSource(createLocalCommunitySource(data_dir));
-    service.addSource(createDimWishlistSource(data_dir));
-  }
-  return service;
-}
-
-export function createFullCommunityPerkService(
-  config: FullServiceConfig
-): CommunityPerkRecommendationService {
-  const service = new CommunityPerkRecommendationService(config);
-  const data_dir = config?.data?.data_dir;
-
-  if (data_dir) {
-    service.addSource(createLocalCommunitySource(data_dir));
-    service.addSource(createDimWishlistSource(data_dir));
-  }
-
-  const ai = config?.ai;
-  if ((ai?.protocol || ai?.provider) && ai?.api_key && ai?.model) {
-    service.addSource(createAiLightggSource(config));
-  }
-
-  return service;
 }
 
 export type { PerkCombo };

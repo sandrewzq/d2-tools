@@ -41,6 +41,18 @@
       "types": "./dist/bungie/client.d.ts",
       "import": "./dist/bungie/client.js"
     },
+    "./bungie/actions": {
+      "types": "./dist/bungie/actions.d.ts",
+      "import": "./dist/bungie/actions.js"
+    },
+    "./community/perkRecommendation": {
+      "types": "./dist/community/perkRecommendation.d.ts",
+      "import": "./dist/community/perkRecommendation.js"
+    },
+    "./diagnostics/export": {
+      "types": "./dist/diagnostics/export.d.ts",
+      "import": "./dist/diagnostics/export.js"
+    },
     "./bungie/activityHistory": {
       "types": "./dist/bungie/activityHistory.d.ts",
       "import": "./dist/bungie/activityHistory.js"

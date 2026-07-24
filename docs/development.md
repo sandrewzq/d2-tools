@@ -316,7 +316,7 @@ npx pnpm@9.15.0 dev:electron
 - `tools/dev-web.cmd`：清理 `53171` 残留监听进程后启动 Web。
 - `tools/git-preflight.cmd`：只读按文档、工具、跨端 UI、Desktop、core/services/app/http 分组查看 Git 改动，识别菜单 lane / 共享层风险 / 多 lane 混改，并提示当前验证策略、高冲突文件和并行安全建议。
 - `tools/git-commit-and-push.cmd`：全量提交并 push，不创建 release tag；有无关改动时不要使用。
-- `tools/git-auto-release.cmd`：先检查当前版本 GitHub Release 是否存在，并在任何版本修改、commit、push 或 tag 之前执行与 GitHub CI 一致的 frozen install、发布测试门禁和全量类型检查。失败时保留错误输出、显示失败阶段并等待按键；通过后，Release 缺失则复用当前版本更新同名 tag，已成功才自动 patch +1、生成 changelog、提交、push 并创建新 release tag。
+- `tools/git-auto-release.cmd`：发布前必须在 `CHANGELOG.md` 准备双语 `## Unreleased` 段，包含 `### 中文` 和 `### English` 的玩家更新日志。脚本先检查当前版本 GitHub Release，并在任何版本修改、commit、push 或 tag 之前执行与 GitHub CI 一致的 frozen install、发布测试门禁和全量类型检查；通过后，Release 缺失则复用当前版本更新同名 tag，已成功才自动 patch +1、将已审核的 `Unreleased` 段提升为正式版本、提交、push 并创建新 release tag。
 
 命名规则：本地开发启动脚本使用 `dev-` 前缀，Git / Release 辅助脚本使用 `git-` 前缀，后续批量维护脚本优先使用 `maintenance-` 前缀。
 
@@ -415,7 +415,7 @@ packages/desktop/release/
 1. 检查 Git、GitHub CLI、当前 Release 和目标 tag 状态。
 2. 在修改发布文件之前执行本地 CI：`pnpm install --frozen-lockfile`、`pnpm test`、`pnpm typecheck`。
 3. 任一 CI 步骤失败时停止流程，显示失败阶段和原始命令输出，并等待按键确认；此时不会 commit、push、打 tag 或触发 GitHub Release。
-4. CI 通过后才更新所有 `package.json` 版本号和 `CHANGELOG.md`；重试当前失败版本时复用已有版本。
+4. 发布前先在 `CHANGELOG.md` 写好双语 `## Unreleased` 段。CI 通过后脚本才提升该段并更新所有 `package.json` 版本号；重试当前失败版本时复用已有版本。
 5. 运行 `pnpm verify:release` 和 Release Body 预览：
    ```powershell
    npx pnpm@9.15.0 release:preview --version x.y.z
@@ -434,7 +434,7 @@ packages/desktop/release/
 
 ### 6.2 注意事项
 
-- 如果 `CHANGELOG.md` 没有对应版本章节，CI 会失败，不会发布 Release
+- 新版本 Release 必须有包含 `### 中文` 与 `### English` 且两种语言都有实际条目的 `## Unreleased` 段；脚本提升后，缺少双语正式版本章节会导致 Release 失败
 - 只有 tag 名包含 `-beta` 或 `-rc` 时，GitHub Release 才会自动标记为 Pre-release，例如 `v0.0.8-beta.1`、`v1.0.0-rc.1`
 - Release workflow 接受两类 tag：正式版 `vX.Y.Z`，或与当前包版本一致的预发布 tag（例如 `vX.Y.Z-beta.1`、`vX.Y.Z-rc.1`）
 - Release Assets 当前包含 `d2-tools-setup-<version>.exe`、`latest.yml` 和安装器 blockmap

@@ -27,7 +27,7 @@ tools/
 - `tools/dev-web.cmd`：启动本地 web 开发版；启动前会清理占用 `53171` 的残留监听进程，并在服务就绪后自动打开浏览器。
 - `tools/git-preflight.cmd`：只读按文档、工具、跨端 UI、Desktop、core/services/app/http 分组查看 Git 改动，识别菜单 lane / 共享层风险 / 多 lane 混改，并提示当前验证策略、高冲突文件和并行安全建议；后续 agent 开工前优先运行它。
 - `tools/git-commit-and-push.cmd`：全量 `git add -A`、提交并 push 当前分支；在工作区存在无关改动时不要使用。
-- `tools/git-auto-release.cmd`：维护者一键发布入口；先用 GitHub CLI 检查当前包版本对应的 GitHub Release 是否已存在，再在修改版本文件之前执行与 GitHub CI 一致的 `install --frozen-lockfile`、发布测试门禁和全量 `typecheck`。任一步失败都会停止发布、保留完整错误输出、显示失败阶段并等待按键，不会继续 commit、push 或打 tag。门禁通过后，当前版本发布失败或 Release 缺失时复用当前版本并更新同名 tag；当前版本已发布成功时才自动把 patch 版本 +1，并更新 package 版本和 `CHANGELOG.md`，最后执行 Release 专属校验，push tag 并等待 GitHub Release workflow 成功。
+- `tools/git-auto-release.cmd`：维护者一键发布入口。发布前必须在 `CHANGELOG.md` 准备包含 `### 中文` 和 `### English` 的 `## Unreleased` 玩家更新日志；脚本先执行与 GitHub CI 一致的 `install --frozen-lockfile`、发布测试门禁和全量 `typecheck`，通过后才把该段提升为新版本、更新 package 版本、提交、推送 tag 并等待 GitHub Release workflow 成功。任一步失败都会停止发布并保留完整原因。
 
 ## Agent 快路径
 

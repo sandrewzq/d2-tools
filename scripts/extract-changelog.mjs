@@ -31,6 +31,20 @@ export function extractChangelogSection(content, version) {
   return lines.slice(start + 1, end).join('\n').trim();
 }
 
+export function assertBilingualChangelogSection(section, version) {
+  const lines = section.split(/\r?\n/);
+  const chineseIndex = lines.findIndex((line) => line.trim() === '### 中文');
+  const englishIndex = lines.findIndex((line) => line.trim() === '### English');
+  if (chineseIndex < 0 || englishIndex < 0 || chineseIndex > englishIndex) {
+    throw new Error(`CHANGELOG.md section for ${version} must contain ### 中文 followed by ### English.`);
+  }
+  const hasBullet = (start, end) => lines.slice(start + 1, end).some((line) => /^[-*]\s+\S/.test(line));
+  if (!hasBullet(chineseIndex, englishIndex) || !hasBullet(englishIndex, lines.length)) {
+    throw new Error(`CHANGELOG.md section for ${version} must contain player-facing bullets in both languages.`);
+  }
+  return section;
+}
+
 export function readChangelogFile(rootDir) {
   const filePath = path.join(rootDir, 'CHANGELOG.md');
   if (!fs.existsSync(filePath)) {
@@ -45,7 +59,7 @@ export function extractChangelogForVersion(rootDir, version) {
   if (section === null) {
     throw new Error(`CHANGELOG.md missing section for version ${version}`);
   }
-  return section;
+  return assertBilingualChangelogSection(section, version);
 }
 
 function main() {

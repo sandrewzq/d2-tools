@@ -2,15 +2,17 @@ import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { saveDimWishlist } from "../src/analysis/wishlistStore.js";
+import { saveDimWishlist } from "../../services/src/analysis/wishlistStore.js";
 import { saveLocalCommunityRecommendations } from "../src/community-perks/localCommunityRecommendations.js";
 import { parseLocalCommunityRecommendations } from "../src/community-perks/localCommunityImport.js";
 import {
   CommunityPerkRecommendationService,
   createAiLightggSource,
+} from "../src/community-perks/index.js";
+import {
   createDefaultCommunityPerkService,
   createDimWishlistSource
-} from "../src/community-perks/index.js";
+} from "../../services/src/community/perkRecommendation.js";
 import { parseLightggResponse } from "../src/community-perks/aiLightggSource.js";
 import type { CommunityPerkSource, WeaponRecommendation } from "../src/community-perks/index.js";
 import type { DefinitionComponentData } from "../src/manifest/definitions.js";

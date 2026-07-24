@@ -111,11 +111,11 @@ if "%DRY_RUN%"=="1" (
   echo.
   echo [dry-run] Release mode: %RELEASE_MODE%
   if "%RELEASE_MODE%"=="bump-patch" (
-    echo [dry-run] Would update package versions and CHANGELOG:
+    echo [dry-run] Would promote the prepared bilingual Unreleased CHANGELOG section and update package versions:
     node scripts\prepare-auto-release.mjs --dry-run
     if errorlevel 1 (
       set "FAILURE_STAGE=Preview release file preparation"
-      set "FAILURE_HINT=The dry-run version or CHANGELOG preparation failed. Review the error above."
+      set "FAILURE_HINT=Prepare a valid bilingual Unreleased CHANGELOG section, then review the error above."
       goto :release_failed
     )
   ) else (
@@ -191,11 +191,11 @@ echo Local CI passed. Release preparation can continue.
 
 if "%RELEASE_MODE%"=="bump-patch" (
   echo.
-  echo Updating package versions and CHANGELOG...
+  echo Promoting the prepared bilingual Unreleased CHANGELOG section and updating package versions...
   node scripts\prepare-auto-release.mjs
   if errorlevel 1 (
     set "FAILURE_STAGE=Prepare release files"
-    set "FAILURE_HINT=Version or CHANGELOG preparation failed. Review the error above."
+    set "FAILURE_HINT=Version preparation or the bilingual Unreleased CHANGELOG section failed validation. Review the error above."
     goto :release_failed
   )
 ) else (
@@ -377,7 +377,7 @@ echo   - Checks whether the current package version already has a GitHub Release
 echo   - If the current release is missing, reuses the current version and force-updates that tag.
 echo   - If the current release exists, bumps patch version, for example 0.0.10 -^> 0.0.11.
 echo   - Updates root and packages/* package.json versions only in bump-patch mode.
-echo   - Inserts a new CHANGELOG.md section only in bump-patch mode.
+echo   - Promotes a manually prepared bilingual Unreleased CHANGELOG.md section in bump-patch mode.
 echo   - Before changing release files, runs the same local CI gate as GitHub: frozen install, release test gate, and full typecheck.
 echo   - Stops before commit or push when local CI fails, shows the failing stage and command output, and waits for a key press.
 echo   - Runs verify:release and release:preview for the target version after release files are prepared.

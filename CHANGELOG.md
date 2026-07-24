@@ -2,6 +2,52 @@
 
 这个项目使用面向玩家的更新日志。这里优先记录”玩家能感知到什么变化”，而不是逐条展开内部实现细节。
 
+## Unreleased
+
+### 中文
+
+#### 新增
+
+- 新增统一的武器与护甲详情工作区：可查看来源、Perk、属性、同名装备与可执行操作，并从仓库、资料库和商人入口直接打开。
+- 首页仄商人模块支持展示完整八件异域轮换商品，并可直接打开对应装备详情。
+
+#### 改进
+
+- 首页、账号、仓库、配装、资料库、商人和设置页统一采用共享产品界面与响应式视觉规格，Prototype、Web 和 Desktop 保持同一页面结构。
+- 商人页补齐地点、商品分类、时效和装备详情入口；仄按周六到访、周三离场的窗口过滤过期库存。
+- 资料库运行时继续收口为 SQLite 查询与后台任务，减少大资料读取对桌面首屏和主进程的影响。
+
+#### 修复
+
+- 修复装备详情首次打开时的加载衔接、真实写入后的状态刷新，以及商人和首页之间的库存详情跳转。
+- 修复跨角色库存、同名装备比较和轮换活动在共享页面中的信息缺失或重复展示。
+
+#### 工程
+
+- 清理未接入的旧 Desktop 页面、仓库桥接层和过期首页缓存，收口 Core 与 Services 的运行时边界。
+
+### English
+
+#### Added
+
+- Added a unified weapon and armor detail workspace with sources, perks, stats, same-name items, and available actions, available directly from Vault, Library, and Vendors.
+- Added the full eight-item Xur Exotic rotation to Home, with direct links to each item detail.
+
+#### Improved
+
+- Unified Home, Account, Vault, Loadouts, Library, Vendors, and Settings around the shared product UI and responsive visual specification across Prototype, Web, and Desktop.
+- Expanded Vendors with location, offer grouping, availability windows, and item-detail entry points; Xur now filters expired inventory using the Saturday-arrival and Wednesday-departure window.
+- Continued the Game Data runtime migration to SQLite queries and background tasks to reduce large data reads on the Desktop startup path and main process.
+
+#### Fixed
+
+- Fixed first-open detail loading, state refresh after real item writes, and inventory-detail navigation between Vendors and Home.
+- Fixed missing or duplicated information for cross-character inventory, same-name comparison, and rotating activities in shared pages.
+
+#### Engineering
+
+- Removed unused legacy Desktop pages, Vault bridge layers, and the obsolete Home cache while tightening the Core and Services runtime boundary.
+
 ## 0.0.13 - 2026-07-10
 
 ### 中文
