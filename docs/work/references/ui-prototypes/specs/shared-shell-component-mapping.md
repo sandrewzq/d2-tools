@@ -5,7 +5,7 @@
 ## 真相来源
 
 - 视觉真相是三个冻结 HTML 加载全部样式后的浏览器最终计算结果，不是 HTML 中任意一段局部声明。
-- 主题 token 和 Shell / Surface 几何只允许在 `packages/ui/src/styles/foundation/00-tokens.css` 与 `03-surface-contract.css` 定义；`prototype-design-system.css` 只负责导入它们及静态原型专属公共控件规则。
+- 静态原型的主题 token 和 Shell / Surface 几何只在 `prototype-design-system.css` 定义；产品实现使用 `packages/ui/src/styles/foundation/00-tokens.css` 与 `03-surface-contract.css`。两侧不互相导入，通过本映射和视觉验收对齐。
 - 应用侧必须重新实现原型视觉，但继续消费真实 ViewModel、actions、adapter、IPC、状态和错误恢复。
 - 旧 DOM、旧 CSS、archive 样式和已有 class 不是兼容目标。与原型冲突的规则必须删除，不能通过不断增加更具体的覆盖选择器保留。
 

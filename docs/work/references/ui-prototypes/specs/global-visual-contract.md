@@ -2,14 +2,13 @@
 
 本合同把三个冻结原型与 `packages/ui` 的共享视觉层固定为同一套配方。它解决的是边框、圆角、页面区和滚动所有权，而不是替代各菜单的真实数据绑定或领域布局。
 
-## 唯一来源
+## 两个实现，唯一规格
 
-- 主题 token：`packages/ui/src/styles/foundation/00-tokens.css`
-- 表面与外壳几何：`packages/ui/src/styles/foundation/03-surface-contract.css`
-- 静态原型入口：`prototype-design-system.css` 通过相对路径导入以上两份 CSS。
-- React 产品入口：`packages/ui/src/styles.css` 导入同一份 CSS；Prototype、Web、Desktop 只能消费该入口。
+- 静态冻结原型：`prototype-design-system.css` 是自包含样式来源，三个 HTML 可以直接打开。
+- 产品实现：`packages/ui/src/styles/foundation/00-tokens.css` 与 `03-surface-contract.css` 是 Prototype、Web、Desktop 的共享实现来源。
+- 一致性来源：本合同、`shared-shell-component-mapping.md`、组件规格卡和跨端视觉验收。静态原型与产品 CSS 不得互相 `@import`。
 
-禁止把颜色、圆角、边框或共享尺寸重新抄回菜单 CSS、平台壳 CSS 或三个 HTML。静态原型为独立文件保留的 reset、控件状态和领域样式不能重新声明上述合同拥有的属性。
+禁止把颜色、圆角、边框或共享尺寸重新抄回菜单 CSS、平台壳 CSS 或三个 HTML 的页面私有样式。原型公共 CSS 和产品共享 CSS 可以各自实现同一规格，但必须由同一组件规格卡逐项对照，不能依赖运行时文件路径“自动同步”。
 
 ## 五类配方
 
@@ -22,6 +21,8 @@
 | Control / Chip | 现有按钮、字段、徽标语义 class | 组件公共样式 | 控件高度、控件圆角、状态与焦点 | 用于页面首层结构，或以状态色承担普通边框 |
 
 一条可见外边只能由一个元素拥有。PageSection、split 和左右栏只使用单条低对比结构线；独立对象才使用 `SurfaceFrame`。列表必须在“组合行”与“独立对象卡”之间二选一，不能混用。
+
+主侧栏的一级菜单是 ShellChrome，不是 `SurfaceList`：容器没有外框、圆角或独立底色，菜单项只使用水平分隔线；当前项仅使用选中背景和文字，不增加完整对象边框。二级目录、分段控件和真正的组合列表才允许使用外框。
 
 ## 共享组件映射
 

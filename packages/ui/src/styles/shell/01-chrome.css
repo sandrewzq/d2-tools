@@ -372,10 +372,9 @@ button.shell-status-group:focus-visible {
   align-content: start;
   gap: 0;
   margin: 8px 6px;
-  overflow: hidden;
-  border: 1px solid var(--object-border);
-  border-radius: var(--radius-control);
-  background: var(--section-bg);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
 }
 
 .shell-nav button {

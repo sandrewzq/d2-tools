@@ -9,7 +9,7 @@
 - `全应用视觉原型.html`：全应用外壳、主菜单和各业务菜单的视觉基准，包含 T1 配装工作台的游戏内配装、本地方案和 DIM 配装导入入口。
 - `统一武器详情原型.html`：武器详情的信息与交互基准。
 - `统一护甲详情原型.html`：护甲详情的信息与交互基准。
-- `prototype-design-system.css`：三个原型的公共视觉规则入口；它通过四级相对路径导入 `packages/ui/src/styles/foundation/00-tokens.css` 与 `03-surface-contract.css`，不再复制主题 token 或表面配方。
+- `prototype-design-system.css`：三个原型唯一、自包含的公共视觉规则入口；可直接打开 HTML，不依赖任何 `packages/` 下的 CSS。
 - `assets/full-app-prototype.css`：全应用原型的页面布局、菜单领域结构和响应式差异。
 - `assets/weapon-detail-prototype.css`：武器详情原型的页面布局、武器领域结构和响应式差异。
 - `assets/armor-detail-prototype.css`：护甲详情原型的页面布局、护甲领域结构和响应式差异。
@@ -35,7 +35,7 @@
 
 三个 HTML 不再包含内联 `<style>`。页面 CSS 只保留页面布局、领域内容和响应式差异；颜色 token、控件基础状态、目录、分段选择、数据组、对象卡、表格、Callout 和焦点规则统一由共享 CSS 提供。
 
-三个 HTML 的样式加载顺序统一为“页面 CSS 在前、`prototype-design-system.css` 在后”。其中设计系统再导入产品共享 token 与表面合同，因此静态原型和 Prototype / Web / Desktop 对 Shell、页面区、SurfaceFrame 与 SurfaceList 使用同一份数值；页面 CSS 只能补充布局与领域结构，不能依赖更晚加载覆盖公共配方。
+三个 HTML 的样式加载顺序统一为“页面 CSS 在前、`prototype-design-system.css` 在后”。静态原型与产品不建立 CSS 文件依赖；两侧通过 `specs/global-visual-contract.md`、组件映射和视觉验收保持数值一致。页面 CSS 只能补充布局与领域结构，不能依赖更晚加载覆盖公共配方。
 
 公共组件不得同时在页面 CSS 和 `prototype-design-system.css` 维护两套相互覆盖的配方。页面 CSS 与公共 CSS 同时命中一个元素时，声明职责必须互斥：页面 CSS 负责布局和领域差异，公共 CSS 负责共享 chrome 和状态。评审和还原一律以浏览器加载全部样式后的最终计算结果为准，不能从某一条历史声明单独推断视觉。
 
