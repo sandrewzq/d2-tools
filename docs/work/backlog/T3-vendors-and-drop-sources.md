@@ -8,7 +8,7 @@
 统一商人页面结构、商人覆盖和 Bungie 官方获取来源。用户应能确认商人当前卖什么、库存属于哪个页面、刷新信息是否可靠，以及官方数据是否提供了某件装备的获取来源。
 
 本需求负责商人解析和官方来源事实，不负责装备详情的信息架构、实例比较、推荐 Roll、知识库或 AI 分析。后续能力见
-[统一装备详情与知识分析](T5-equipment-detail-and-knowledge-analysis.md)。
+[装备详情与知识分析规格](../references/equipment-detail-and-knowledge-analysis.md)。
 
 ## 当前基础
 
@@ -143,7 +143,7 @@ Manifest 来源提示不能单独证明当前仍可获取。商人或活动 Live
 - 邮政官。
 
 收藏解锁、已经失效的配装引用和没有实例 ID 的定义记录不计入拥有数量。完整实例内容和详情复用规则由
-[统一装备详情与知识分析](T5-equipment-detail-and-knowledge-analysis.md) 负责。
+[装备详情与知识分析规格](../references/equipment-detail-and-knowledge-analysis.md) 负责。
 
 ## 当前实现与需要收口的差异
 

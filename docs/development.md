@@ -490,6 +490,7 @@ docs/
 当前仍有效的 reference 文件：
 
 - `docs/work/references/destiny-tool-reference.md`：竞品能力和信息组织参考。
+- `docs/work/references/equipment-detail-and-knowledge-analysis.md`：T8 装备详情还原的功能规则与数据语义参考。
 - `docs/work/references/desktop-framework-comparison.md`：桌面技术方案对比参考。
 - `docs/work/references/2026-06-21-destiny2-weapon-sheet-analysis.md`：社区武器表和数据分析参考。
 

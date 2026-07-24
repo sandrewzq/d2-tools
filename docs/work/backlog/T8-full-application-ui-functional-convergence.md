@@ -134,7 +134,7 @@
 - 不允许在全应用收口时恢复旧武器详情布局，也不允许为了匹配全应用外壳删减最新武器原型中的信息。
 - 资料库、仓库和商人必须复用 `packages/ui` 中同一套武器详情实现，不能按入口复制页面。
 
-护甲详情继续遵守 `T5-equipment-detail-and-knowledge-analysis.md`、[护甲详情冻结规格](../references/ui-prototypes/specs/armor-detail-layout.md) 和已确认的护甲原型；正式实现不得擅自增加目标值、最高属性、推荐模组或系统生成结论。
+护甲详情继续遵守 [装备详情与知识分析规格](../references/equipment-detail-and-knowledge-analysis.md)、[护甲详情冻结规格](../references/ui-prototypes/specs/armor-detail-layout.md) 和已确认的护甲原型；正式实现不得擅自增加目标值、最高属性、推荐模组或系统生成结论。
 
 ## 硬性约束
 
