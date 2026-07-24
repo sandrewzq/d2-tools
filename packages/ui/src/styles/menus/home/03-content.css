@@ -1,35 +1,3 @@
-.app-shell .home-page-head {
-  min-height: 44px;
-  justify-content: flex-start;
-  gap: 12px;
-  padding-block: 5px;
-}
-
-.app-shell .home-page-head .product-workspace-title {
-  display: flex;
-  min-width: 0;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 8px;
-}
-
-.app-shell .home-page-head .product-workspace-eyebrow {
-  font-size: var(--font-meta);
-}
-
-.app-shell .home-page-head h2 {
-  margin: 0;
-  font-size: 18px;
-}
-
-.app-shell .home-page-head p {
-  display: none;
-}
-
-.app-shell .home-page-head .product-page-header-actions {
-  justify-content: flex-start;
-}
-
 .app-shell .home-page {
   min-width: 0;
   background: var(--surface-panel);
@@ -42,6 +10,7 @@
 .app-shell .home-refresh-strip {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-inline: var(--workspace-page-space);
   border-block: 1px solid var(--border-subtle);
   background: var(--surface-elevated);
 }
@@ -444,6 +413,7 @@
 }
 
 @media (max-width: 720px) {
+  .app-shell .home-refresh-strip { margin-inline: 12px; }
   .app-shell .home-core-grid,
   .app-shell .home-signal-grid,
   .app-shell .home-band.home-xur { padding-inline: 12px; }

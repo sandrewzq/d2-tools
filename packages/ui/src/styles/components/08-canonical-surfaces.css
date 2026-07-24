@@ -7,7 +7,6 @@
 }
 
 .loadout-entry-list,
-.loadout-template-detail,
 .daily-source.source-ready {
   border-color: var(--border-subtle);
   background: var(--surface-panel);
@@ -36,7 +35,6 @@
 .community-recommendations-panel,
 .source-status-list,
 .community-combo,
-.loadout-status-chip,
 .loadout-compare-row,
 .loadout-compare-side,
 .score-summary-row span,
@@ -101,7 +99,6 @@
 .analysis-tag-block strong,
 .score-summary-row strong,
 .target-rule-row strong,
-.loadout-status-chip b,
 .loadout-compare-row > b,
 .loadout-compare-side span,
 .equipment-item strong,
@@ -142,7 +139,6 @@
 .action-log-row small,
 .analysis-tag-block li span,
 .target-rule-row span,
-.loadout-status-chip small,
 .loadout-compare-side small,
 .equipment-item span,
 .equipment-item small,
@@ -356,7 +352,6 @@
 .placeholder-panel,
 .analysis-section,
 .score-summary-row span,
-.loadout-status-chip,
 .loadout-compare-row,
 .loadout-compare-side,
 .vault-cleanup-locator,
@@ -531,12 +526,10 @@
   color: var(--status-warning);
 }
 
-.loadout-status-chip b,
 .loadout-compare-row > b {
   color: var(--text-title);
 }
 
-.loadout-status-chip small,
 .loadout-compare-side small {
   color: var(--text-muted);
 }

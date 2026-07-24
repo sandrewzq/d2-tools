@@ -444,26 +444,6 @@
   margin-top: 10px;
 }
 
-.loadout-status-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 10px;
-  border: 1px solid #263044;
-  border-radius: 999px;
-  background: #151d2a;
-}
-
-.loadout-status-chip b {
-  font-size: var(--font-content);
-  color: #f3f6fc;
-}
-
-.loadout-status-chip small {
-  font-size: var(--font-body);
-  color: #aeb9ca;
-}
-
 .loadout-compare-grid {
   display: grid;
   gap: 10px;

@@ -1259,10 +1259,6 @@
     grid-template-columns: 1fr;
   }
 
-  .loadout-workbench-shell {
-    grid-template-columns: 1fr;
-  }
-
   .loadout-entry-list {
     position: static;
   }

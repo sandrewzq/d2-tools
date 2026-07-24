@@ -5,7 +5,7 @@
 ## 真相来源
 
 - 视觉真相是三个冻结 HTML 加载全部样式后的浏览器最终计算结果，不是 HTML 中任意一段局部声明。
-- 公共组件配方只允许在 `prototype-design-system.css` 定义；HTML 内联样式只保留页面布局、领域内容和响应式差异。
+- 主题 token 和 Shell / Surface 几何只允许在 `packages/ui/src/styles/foundation/00-tokens.css` 与 `03-surface-contract.css` 定义；`prototype-design-system.css` 只负责导入它们及静态原型专属公共控件规则。
 - 应用侧必须重新实现原型视觉，但继续消费真实 ViewModel、actions、adapter、IPC、状态和错误恢复。
 - 旧 DOM、旧 CSS、archive 样式和已有 class 不是兼容目标。与原型冲突的规则必须删除，不能通过不断增加更具体的覆盖选择器保留。
 
@@ -13,14 +13,14 @@
 
 | 原型组件 | 应用组件 | 样式所有者 | 功能边界 | 自动契约 |
 |---|---|---|---|---|
-| `.topbar` | `.shell-titlebar` | `styles/shell/01-chrome.css` | 使用真实平台工具、窗口控制和状态数据 | Shell 契约 |
+| `.topbar[data-shell-role="titlebar"]` | `.shell-titlebar[data-shell-role="titlebar"]` | `styles/foundation/03-surface-contract.css` | 使用真实平台工具、窗口控制和状态数据 | Shell 契约 |
 | `.brand` / `.brand-mark` | `.shell-window-brand` / `.shell-app-mark` | `styles/shell/01-chrome.css` | 品牌文案来自共享 copy | Shell 契约 |
 | `.status-strip` | `.shell-status-strip` | `styles/shell/01-chrome.css` | 状态来自 `ShellStatusItem[]`；可操作项允许渲染为 button | Shell 契约 |
 | `.status-chip` | `.shell-status-group` | `styles/shell/01-chrome.css` | tone 只改变圆点；可操作项必须保持相同盒模型 | Shell 契约 |
 | `.top-tools` | `.shell-toolstrip` | `styles/shell/01-chrome.css` | 主题、语言、GitHub、AI 等真实工具 | 待补充 |
 | `.window-tools` | `.shell-window-controls` | `styles/shell/01-chrome.css` | Electron 窗口能力；Web/Prototype 可以为空 | 待补充 |
-| `.sidebar` | `.shell-sidebar` | `styles/shell/01-chrome.css` | 真实菜单、账号摘要和仓库容量 | 待补充 |
-| `.page-head` | `.product-workspace-header` | `styles/workspace/01-headers.css` | 页面标题与真实操作 | 待补充 |
+| `.sidebar[data-shell-role="sidebar"]` | `.shell-sidebar[data-shell-role="sidebar"]` | `styles/foundation/03-surface-contract.css` | 真实菜单、账号摘要和仓库容量 | 待补充 |
+| `.page-head[data-shell-role="page-header"]` | `.product-workspace-header[data-shell-role="page-header"]` | `styles/foundation/03-surface-contract.css` | 页面标题与真实操作 | 待补充 |
 | `[data-scroll-region]` | 共享纵向滚动容器或对应语义类 | foundation / components 公共滚动配方 | 只表达 page / pane / overlay 滚动所有权，不复制原型数据 | 待补充 |
 | AI 抽屉 | `.global-assistant-panel` / `.assistant-workspace` | `styles/shell/01-chrome.css` | 真实 AI 会话、上下文和任务 | 待补充 |
 

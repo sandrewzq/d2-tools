@@ -25,6 +25,7 @@ export function LoadoutsMenuProvider() {
       onShowDiffOnlyChange={loadouts.setShowDiffOnly}
       onRenameTemplate={(template) => void writeActions.loadoutWriteActions.renameLoadoutTemplate(template)}
       onDeleteTemplate={(id) => void writeActions.loadoutWriteActions.deleteLoadoutTemplate(id)}
+      onCreateLocalPlanFromCharacter={(character) => void writeActions.loadoutWriteActions.saveCharacterLoadout(character)}
       onCreateTransferPlan={(template) => void writeActions.loadoutTemplateActions.createTemplateTransferPlan(template)}
       onCopyMissingItems={(template, analysis) => void writeActions.loadoutTemplateActions.copyMissingLoadoutItems(template, analysis)}
       onExecuteMissingTransfer={(template, analysis) => void writeActions.loadoutWriteActions.executeMissingLoadoutTransfer(template, analysis)}

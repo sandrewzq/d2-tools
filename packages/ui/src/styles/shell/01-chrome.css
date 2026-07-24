@@ -36,8 +36,6 @@
   align-items: center;
   min-width: 0;
   height: var(--topbar-height);
-  border-bottom: 1px solid var(--line);
-  background: var(--chrome);
   -webkit-app-region: drag;
 }
 
@@ -320,8 +318,6 @@ button.shell-status-group:focus-visible {
   grid-template-rows: auto minmax(0, 1fr) auto;
   min-width: 0;
   min-height: 0;
-  border-right: 1px solid var(--divider);
-  background: var(--sidebar);
 }
 
 .shell-sidebar-header,

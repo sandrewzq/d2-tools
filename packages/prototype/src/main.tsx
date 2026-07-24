@@ -365,6 +365,7 @@ function PrototypeApp() {
           ) : null}
           {activePage === "loadouts" ? (
             <LoadoutsPageContentView
+              accountSummary={fixture.accountSummary}
               interfaceLocale={preferences.interfaceLocale}
               model={loadoutsModel}
               actions={{
@@ -380,6 +381,7 @@ function PrototypeApp() {
                 showDiffOnlyChange: setShowDiffOnly,
                 renameTemplate: () => undefined,
                 deleteTemplate: () => undefined,
+                createLocalPlanFromCharacter: () => undefined,
                 createTransferPlan: () => undefined,
                 copyMissingItems: () => undefined,
                 executeMissingTransfer: () => undefined,

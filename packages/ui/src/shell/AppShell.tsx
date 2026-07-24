@@ -35,7 +35,7 @@ export function AppShell(props: AppShellProps) {
 
   return (
     <main className={shellClassName} data-color-mode={props.colorMode} data-density={props.density}>
-      <header className="shell-titlebar shell-topbar" data-reference-id="shell.topbar">
+      <header className="shell-titlebar shell-topbar" data-reference-id="shell.topbar" data-shell-role="titlebar">
         <div className="shell-window-brand" data-reference-id="shell.brand">
           <span className="shell-app-mark">D2</span>
           <div>
@@ -124,7 +124,7 @@ export function AppShell(props: AppShellProps) {
         </div>
       </header>
       <div className="shell-workspace">
-        <aside className="shell-sidebar" data-reference-id="shell.sidebar" aria-label={copy.navigationAriaLabel}>
+        <aside className="shell-sidebar" data-reference-id="shell.sidebar" data-shell-role="sidebar" aria-label={copy.navigationAriaLabel}>
           {props.sidebarHeader ? <div className="shell-sidebar-header">{props.sidebarHeader}</div> : null}
           <nav className="shell-nav">
             {navItems.map((item) => {

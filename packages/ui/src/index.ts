@@ -43,7 +43,6 @@ export type {
   LibraryPerkFilter,
   LibraryViewMode
 } from "./library/libraryFilters.js";
-export { LoadoutsPageView } from "./loadouts/LoadoutsPageView.js";
 export { LoadoutsPageContentView } from "./loadouts/LoadoutsPageContentView.js";
 export type { LoadoutsPageActions } from "./loadouts/LoadoutsPageContentView.js";
 export type { LoadoutActionFeedbackState } from "./loadouts/loadoutActionFeedback.js";

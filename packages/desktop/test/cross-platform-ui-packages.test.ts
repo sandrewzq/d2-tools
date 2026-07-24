@@ -81,7 +81,7 @@ describe("cross-platform UI package layout", () => {
       "packages/ui/src/home/HomePageView.tsx",
       "packages/ui/src/account/AccountPageView.tsx",
       "packages/ui/src/vault/VaultPageView.tsx",
-      "packages/ui/src/loadouts/LoadoutsPageView.tsx",
+      "packages/ui/src/loadouts/LoadoutsPageContentView.tsx",
       "packages/ui/src/library/LibraryPageView.tsx",
       "packages/ui/src/vendors/VendorsPageView.tsx",
       "packages/ui/src/settings/SettingsPageView.tsx"

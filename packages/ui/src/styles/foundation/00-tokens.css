@@ -32,6 +32,7 @@
   --red: #ef9d9d;
   --red-bg: #341d20;
   --danger: var(--red);
+  --scrollbar-size: 10px;
   --topbar-height: 48px;
   --sidebar-width: 172px;
   --shell-brand-width: var(--sidebar-width);
@@ -146,7 +147,8 @@
   font-family: "Segoe UI", "Microsoft YaHei UI", system-ui, sans-serif;
 }
 
-.app-shell[data-color-mode="light"] {
+.app-shell[data-color-mode="light"],
+html[data-theme="light"] {
   color-scheme: light;
   --page: #dde6eb;
   --sidebar: #dfe8ed;

@@ -1,0 +1,178 @@
+/*
+ * 全应用唯一视觉合同。
+ *
+ * 这个文件只定义共享壳、页面区、外框、列表和控件的几何职责；菜单 CSS
+ * 只能定义领域布局与内容密度，不能重新取得这些边界的所有权。
+ */
+
+:root {
+  --shell-divider: var(--line);
+  --section-divider: var(--line);
+  --surface-frame-bg: var(--card-bg);
+  --surface-frame-border: var(--object-border);
+  --surface-frame-radius: var(--radius-panel);
+  --surface-frame-padding: var(--space-12);
+  --surface-list-divider: var(--divider);
+  --surface-row-pad-x: var(--space-12);
+  --surface-row-pad-y: 10px;
+}
+
+/* ShellChrome：连续结构线只属于壳和页面头，始终使用直角。 */
+[data-shell-role="titlebar"] {
+  border-bottom: 1px solid var(--shell-divider);
+  border-radius: 0;
+  background: var(--chrome);
+}
+
+[data-shell-role="sidebar"] {
+  border-right: 1px solid var(--shell-divider);
+  border-radius: 0;
+  background: var(--sidebar);
+}
+
+[data-shell-role="page-header"] {
+  position: sticky;
+  z-index: 12;
+  top: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--workspace-section-space);
+  min-height: 68px;
+  padding: 10px var(--workspace-page-space);
+  border: 0;
+  border-bottom: 1px solid var(--shell-divider);
+  border-radius: 0;
+  background: color-mix(in srgb, var(--panel) 94%, transparent);
+  backdrop-filter: blur(8px);
+}
+
+[data-shell-role="page-header"] h2 {
+  margin: 2px 0 0;
+  color: var(--text-title);
+  font-size: var(--font-page-title);
+  line-height: 1.25;
+  letter-spacing: 0;
+}
+
+[data-shell-role="page-header"] p {
+  margin: 3px 0 0;
+  color: var(--text-muted);
+  font-size: var(--font-meta);
+  line-height: 1.45;
+}
+
+/* PageSection：只负责内容承载与垂直节奏，不拥有独立面板外框。 */
+[data-surface="page"] {
+  display: grid;
+  grid-auto-rows: max-content;
+  align-content: start;
+  gap: 0;
+  width: 100%;
+  min-width: 0;
+  min-height: 100%;
+  color: var(--text-body);
+}
+
+[data-surface="section"] {
+  min-width: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+[data-shell-role="command-bar"] {
+  min-width: 0;
+  padding: var(--space-12);
+  border-bottom: 1px solid var(--section-divider);
+  border-radius: 0;
+  background: var(--surface-toolbar);
+}
+
+/* SurfaceFrame：唯一的独立对象外框拥有者。 */
+[data-surface="frame"] {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--surface-frame-border);
+  border-radius: var(--surface-frame-radius);
+  background: var(--surface-frame-bg);
+  box-shadow: none;
+}
+
+/* SurfaceList：父级拥有外框；内部行只画一条分隔线，不能再次画卡片外框。 */
+[data-surface="list"] {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--surface-frame-border);
+  border-radius: var(--surface-frame-radius);
+  background: var(--surface-frame-bg);
+}
+
+[data-surface="list"] > [data-surface="row"] {
+  min-width: 0;
+  padding: var(--surface-row-pad-y) var(--surface-row-pad-x);
+  border: 0;
+  border-bottom: 1px solid var(--surface-list-divider);
+  border-radius: 0;
+  background: transparent;
+}
+
+[data-surface="list"] > [data-surface="row"]:last-child {
+  border-bottom: 0;
+}
+
+/* Split 工作区不是面板；栏之间只有一条由栏位拥有的结构线。 */
+[data-surface="split"] {
+  display: grid;
+  gap: 0;
+  align-items: stretch;
+  min-width: 0;
+}
+
+[data-shell-role="side-rail"] {
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  border-right: 1px solid var(--section-divider);
+  border-radius: 0;
+  background: var(--surface-sidebar);
+  box-shadow: none;
+}
+
+[data-surface="content-stack"] {
+  display: grid;
+  align-content: start;
+  gap: 0;
+  min-width: 0;
+}
+
+[data-surface="empty"] {
+  display: grid;
+  place-content: center;
+  gap: var(--space-8);
+  min-height: 180px;
+  margin: var(--workspace-section-space) var(--workspace-page-space);
+  padding: var(--space-24);
+  border: 1px dashed var(--divider);
+  border-radius: var(--surface-frame-radius);
+  background: var(--section-bg);
+  text-align: center;
+}
+
+[data-surface="empty"] strong {
+  color: var(--text-title);
+  font-size: 17px;
+}
+
+[data-surface="empty"] span {
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+@media (max-width: 760px) {
+  [data-shell-role="page-header"] {
+    flex-direction: column;
+    gap: var(--space-16);
+    align-items: flex-start;
+  }
+}

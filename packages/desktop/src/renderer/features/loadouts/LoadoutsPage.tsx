@@ -20,6 +20,7 @@ export type LoadoutsPageProps = {
   onShowDiffOnlyChange: (value: boolean) => void;
   onRenameTemplate: (template: LoadoutTemplate) => void;
   onDeleteTemplate: (id: string) => void;
+  onCreateLocalPlanFromCharacter: (character: AccountSummary["characters"][number]) => void;
   onCreateTransferPlan: (template: LoadoutTemplate) => void;
   onCopyMissingItems: (
     template: LoadoutTemplate,
@@ -79,6 +80,7 @@ export function LoadoutsPage(props: LoadoutsPageProps) {
     showDiffOnlyChange: props.onShowDiffOnlyChange,
     renameTemplate: props.onRenameTemplate,
     deleteTemplate: props.onDeleteTemplate,
+    createLocalPlanFromCharacter: props.onCreateLocalPlanFromCharacter,
     createTransferPlan: props.onCreateTransferPlan,
     copyMissingItems: props.onCopyMissingItems,
     executeMissingTransfer: props.onExecuteMissingTransfer,
@@ -91,6 +93,7 @@ export function LoadoutsPage(props: LoadoutsPageProps) {
 
   return (
     <LoadoutsPageContentView
+      accountSummary={props.accountSummary}
       model={model}
       actions={actions}
       compareTemplateId={props.compareTemplateId}

@@ -17,12 +17,12 @@
 
 | 编号 | 优先级 | 状态 | 任务 | Backlog | 下一步 |
 |---|---|---|---|---|---|
-| T1 | P1 | 🟡 待推进 | 配装方案与攻略导入 | [配装方案与攻略导入](work/backlog/T1-loadout-plans-and-guide-import.md) | 重做 Bungie 游戏内配装与本地配装方案的边界；第一期完成装备 / Perk 匹配、方案应用和攻略导入，技能与模组后续再做 |
+| T1 | P1 | 🟠 进行中 | 配装方案与攻略导入 | [配装方案与攻略导入](work/backlog/T1-loadout-plans-and-guide-import.md) | 已完成原型和页面字段 / action 对照；正在重建配装页面结构，随后接入新本地方案模型、批量应用和 DIM 配装分享链接导入 |
 | T2 | P1 | 🟡 待推进 | 仓库推荐与清理工作台 | [仓库推荐与清理工作台](work/backlog/T2-vault-recommendation-and-cleanup-workbench.md) | 统一 DIM wishlist、本地目标、同名对比和清理清单 |
 | T3 | P1 | 🟡 待验收 | 商人结构、覆盖与官方获取来源 | [商人结构、覆盖与官方获取来源](work/backlog/T3-vendors-and-drop-sources.md) | 已接入 Vendor Group / 目的地两级目录、持久缓存、启动预热和周期刷新；仄已按周六到、周三走规则过滤离场缓存；下一步验收真实地点覆盖、跨重置边界、Offer 时效、去重和机灵模组 A/B |
 | T4 | P3 | 🟡 待推进 | 活动复盘增强 | [活动复盘增强](work/backlog/T4-activity-review-enhancement.md) | 接 PGCR、完成时间推算和副本级趋势 |
 | T7 | P1 | 🟡 待推进 | 社区推荐边界收口 | [社区推荐边界收口](work/backlog/T7-architecture-boundary-hardening.md) | Core、Services、App、UI 与平台壳的主边界已完成；下一步将本地社区表、个人知识及 AI/light.gg 缓存和外部调用迁入 Services，Core 只保留规则、DTO、解析和匹配。 |
-| T8 | P1 | 🟡 UI 对照中 | 全应用 UI 还原 | [全应用 UI 还原](work/backlog/T8-full-application-ui-functional-convergence.md) | 首页共享 UI 已按冻结原型重建紧凑页头、刷新栏、统一高度活动卡与仄状态模块；下一步在 Prototype / Desktop 实际窗口对照首页，再继续其余菜单唯一页面还原 |
+| T8 | P1 | 🟡 UI 对照中 | 全应用 UI 还原 | [全应用 UI 还原](work/backlog/T8-full-application-ui-functional-convergence.md) | 已建立原型与共享 UI 共用的主题 token、Shell / Surface 视觉合同和工作区语义标记；下一步按账号、仓库、配装、资料库、商人、设置、首页顺序删除菜单旧 chrome 并迁入唯一配方，再逐页进行 Prototype / Desktop 视觉对照 |
 
 ## 验证入口
 

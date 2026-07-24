@@ -6,7 +6,7 @@
 
 | 文件 | 允许内容 | 禁止内容 |
 |---|---|---|
-| `prototype-design-system.css` | 明暗主题 token、字体、控件基础状态、焦点与禁用状态、共享导航、分段选择、数据组、对象卡、表格、Callout、共享 Shell、装备详情 chrome 与统一滚动条外观 | 菜单私有布局、武器或护甲专属信息结构、mock 数据 |
+| `prototype-design-system.css` | 导入产品的 `00-tokens.css` 与 `03-surface-contract.css`，并维护静态 HTML 必需的控件基础状态、焦点与禁用状态、共享导航、分段选择、数据组、对象卡、表格、Callout、装备详情 chrome 与统一滚动条外观 | 重复主题 palette、重复 SurfaceFrame / SurfaceList / ShellChrome 数值、菜单私有布局、武器或护甲专属信息结构、mock 数据 |
 | `assets/full-app-prototype.css` | 全应用 Shell 布局尺寸、菜单工作区、菜单领域组件、页面响应式差异 | 重复主题 palette、公共控件 reset、公共组件的第二套边框或状态配方 |
 | `assets/weapon-detail-prototype.css` | 武器详情页面布局、武器配置、实例、知识与操作区域的领域结构和响应式差异 | 重复主题 palette、公共控件 reset、已由公共详情组件接管的 chrome 配方 |
 | `assets/armor-detail-prototype.css` | 护甲详情页面布局、Armor 3.0 属性、模组、来源与实例区域的领域结构和响应式差异 | 公共 token、全局 reset、与公共详情组件冲突的第二套状态配方 |
@@ -16,7 +16,7 @@
 
 ## 级联规则
 
-1. 三个 HTML 统一先加载页面 CSS，再加载 `prototype-design-system.css`；共享设计系统拥有公共 token、控件和 chrome 的最终级联权。
+1. 三个 HTML 统一先加载页面 CSS，再加载 `prototype-design-system.css`；该文件必须导入产品的 `00-tokens.css` 与 `03-surface-contract.css`，使静态原型与产品共享 token 和表面合同。
 2. 一个视觉职责只能有一个所有者；加载顺序是防回归边界，不是允许保留重复声明的理由。
 3. 页面 CSS 与公共 CSS 可以同时命中同一元素，但声明属性必须分工明确。例如页面 CSS 可以定义 `grid-template-columns`，公共 CSS 定义 `border-color` 和状态背景。
 4. 页面 CSS 不得重新声明 `--page`、`--panel`、`--surface`、`--line`、`--text`、语义色、公共圆角、公共控件高度、阴影和字体等共享 token。

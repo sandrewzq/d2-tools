@@ -283,6 +283,7 @@ function WebApp() {
           ) : null}
           {activePage === "loadouts" ? (
             <LoadoutsPageContentView
+              accountSummary={fixture.accountSummary}
               interfaceLocale={preferences.interfaceLocale}
               model={loadoutsModel}
               actions={{
@@ -298,6 +299,7 @@ function WebApp() {
                 showDiffOnlyChange: setShowDiffOnly,
                 renameTemplate: () => undefined,
                 deleteTemplate: () => undefined,
+                createLocalPlanFromCharacter: () => undefined,
                 createTransferPlan: () => undefined,
                 copyMissingItems: () => undefined,
                 executeMissingTransfer: () => undefined,

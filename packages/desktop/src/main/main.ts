@@ -127,7 +127,7 @@ async function captureVisualSnapshot(window: BrowserWindow): Promise<void> {
 
   const waitSelectorByPage: Record<string, string> = {
     home: ".home-operations-desk",
-    loadouts: ".loadout-workbench-shell",
+    loadouts: ".loadout-workspace",
     settings: ".app-settings-shell"
   };
   const waitSelector = waitSelectorByPage[visualCapturePage] ?? ".home-operations-desk";
@@ -182,11 +182,11 @@ async function captureVisualSnapshot(window: BrowserWindow): Promise<void> {
         ".home-operations-stock-grid",
         ".home-operations-live",
         ".home-main-grid",
-        ".loadout-workbench-shell",
+        ".loadout-page",
+        ".loadout-workspace",
         ".loadout-entry-list",
-        ".loadout-template-detail",
-        ".loadout-entry-row",
-        ".loadout-status-chip",
+        ".loadout-directory-row",
+        ".loadout-operation-status",
         ".loadout-item",
         ".app-settings-shell",
         ".settings-menu",
