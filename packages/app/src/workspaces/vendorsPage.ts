@@ -1,4 +1,5 @@
 import type { DailySummary, DailySummaryItem } from "@d2-tools/core/daily/summary";
+import { isXurActiveAt, xurVendorHash } from "@d2-tools/core/daily/xurSchedule";
 import type { AccountSummary } from "@d2-tools/core/account/summary";
 import type {
   VendorCharacterScope,
@@ -345,8 +346,11 @@ function selectSnapshotVendorsPageModel(input: VendorsPageInput): VendorsPageMod
     };
   }
 
-  const mappedVendors = snapshot.vendors.map((vendor) => {
-    const availableVendorHashes = new Set(snapshot.vendors.map((candidate) => candidate.vendorHash));
+  const visibleSnapshotVendors = isXurActiveAt()
+    ? snapshot.vendors
+    : snapshot.vendors.filter((vendor) => vendor.vendorHash !== xurVendorHash);
+  const mappedVendors = visibleSnapshotVendors.map((vendor) => {
+    const availableVendorHashes = new Set(visibleSnapshotVendors.map((candidate) => candidate.vendorHash));
     const detailFailures = getVendorDetailFailures(snapshot, vendor.vendorHash, input.scope);
     const detailState = getVendorDetailState(
       vendor.vendorHash,
@@ -393,11 +397,11 @@ function selectSnapshotVendorsPageModel(input: VendorsPageInput): VendorsPageMod
       name: vendor.name,
       description: vendor.description,
       iconUrl: normalizeBungieIconUrl(vendor.iconUrl),
-      badge: vendor.vendorHash === 2190858386 ? "周末" : "已确认",
+      badge: vendor.vendorHash === xurVendorHash ? "周末" : "已确认",
       source: "Bungie 角色商人",
       resetLabel: formatVendorRefreshLabel(vendor.nextRefreshAt),
       location: vendor.location,
-      category: vendor.vendorHash === 2190858386 ? "重点" : "已确认",
+      category: vendor.vendorHash === xurVendorHash ? "重点" : "已确认",
       statusLabel: detailState === "failed"
         ? "详情失败"
         : detailState === "partial"
@@ -407,7 +411,7 @@ function selectSnapshotVendorsPageModel(input: VendorsPageInput): VendorsPageMod
             : "已确认",
       detailState,
       detailFailureMessage: getVendorDetailFailureMessage(detailState, detailFailures),
-      featured: vendor.vendorHash === 2190858386,
+      featured: vendor.vendorHash === xurVendorHash,
       items: partitionedItems.items,
       services,
       rankRewards: partitionedItems.rankRewards,
@@ -732,6 +736,9 @@ function mapDailySaleItem(item: DailySummaryItem, vendorName: string, index: num
   const tone = getInventoryTone(`${item.title} ${itemType}`);
   return {
     id: `${slugify(vendorName)}-${slugify(item.title) || index}`,
+    itemHash: item.itemHash,
+    vendorHash: item.vendorHash ?? vendorHash,
+    characterIds: item.characterId ? [item.characterId] : undefined,
     name: item.title.trim(),
     itemType,
     summary: item.source?.trim() || "Bungie 公共商人库存",

@@ -181,6 +181,20 @@ function PrototypeApp() {
     setAssistantQuestion("");
   }
 
+  function openPrototypeVendorDetail(item: VendorInventoryItemView, context: VendorOfferContextView) {
+    if (!isPrototypeWeaponItem(item)) {
+      setGenericVendorDetail({ item, context });
+      setVendorDetail(null);
+      setIsWeaponDetailOpen(false);
+      return;
+    }
+    setGenericVendorDetail(null);
+    setVendorDetail({ item, context });
+    setWeaponObjectKind("vendor_offer");
+    setWeaponRarity(item.tone === "exotic" ? "exotic" : "legendary");
+    setIsWeaponDetailOpen(true);
+  }
+
   return (
     <>
       <ProductShellHost
@@ -300,6 +314,7 @@ function PrototypeApp() {
               {...fixture.createHomePageModel(scenario)}
               onNavigate={setActivePage}
               onRefreshDiagnostics={() => undefined}
+              onOpenXurOffer={openPrototypeVendorDetail}
             />
           ) : null}
           {activePage === "account" ? (
@@ -430,19 +445,7 @@ function PrototypeApp() {
             <VendorsPageContentView
               interfaceLocale={preferences.interfaceLocale}
                model={vendorsModel}
-               actions={{ onOpenItem: (item, context) => {
-                 if (!isPrototypeWeaponItem(item)) {
-                   setGenericVendorDetail({ item, context });
-                   setVendorDetail(null);
-                   setIsWeaponDetailOpen(false);
-                   return;
-                 }
-                 setGenericVendorDetail(null);
-                 setVendorDetail({ item, context });
-                 setWeaponObjectKind("vendor_offer");
-                setWeaponRarity(item.tone === "exotic" ? "exotic" : "legendary");
-                setIsWeaponDetailOpen(true);
-              } }}
+               actions={{ onOpenItem: openPrototypeVendorDetail }}
             />
           ) : null}
           {activePage === "settings" ? (

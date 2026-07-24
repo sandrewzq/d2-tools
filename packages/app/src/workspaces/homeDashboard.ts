@@ -6,6 +6,7 @@ export type HomeDashboardDiagnosticRow = {
 
 export type HomeDashboardDailyItem = {
   title: string;
+  itemHash?: number;
   characterId?: string;
   subtitle?: string;
   description?: string;

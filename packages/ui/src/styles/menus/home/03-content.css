@@ -253,6 +253,27 @@
   background: var(--surface-elevated);
 }
 
+.app-shell button.home-xur-stock-item {
+  width: 100%;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+
+.app-shell .home-xur-stock-item.is-actionable {
+  cursor: pointer;
+}
+
+.app-shell .home-xur-stock-item.is-actionable:hover {
+  border-color: var(--border-control);
+  background: var(--item-bg-hover);
+}
+
+.app-shell .home-xur-stock-item.is-actionable:focus-visible {
+  outline: 0;
+  box-shadow: var(--shadow-focus);
+}
+
 .app-shell .home-xur-stock-icon {
   width: 42px;
   height: 42px;

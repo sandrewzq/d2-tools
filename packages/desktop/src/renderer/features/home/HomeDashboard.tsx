@@ -1,4 +1,9 @@
-import { HomePageContentView, type ShellPageKey } from "@d2-tools/ui";
+import {
+  HomePageContentView,
+  type ShellPageKey,
+  type VendorInventoryItemView,
+  type VendorOfferContextView
+} from "@d2-tools/ui";
 import { selectHomePageModel, type HomePageModelInput } from "@d2-tools/app/home";
 import { useMemo } from "react";
 
@@ -12,6 +17,7 @@ export function HomeDashboard(props: HomePageModelInput & {
   onRefreshDiagnostics: () => void;
   onNavigate: (page: ShellPageKey) => void;
   onRefreshDaily: () => void;
+  onOpenXurOffer: (item: VendorInventoryItemView, context: VendorOfferContextView) => void;
 }) {
   const model = useMemo(() => selectHomePageModel(props), [
     props.state,
@@ -42,6 +48,8 @@ export function HomeDashboard(props: HomePageModelInput & {
       onRefreshDiagnostics={props.onRefreshDiagnostics}
       onNavigate={props.onNavigate}
       onRefreshDaily={props.onRefreshDaily}
+      onOpenXurOffer={props.onOpenXurOffer}
+      interfaceLocale={props.interfaceLocale}
     />
   );
 }

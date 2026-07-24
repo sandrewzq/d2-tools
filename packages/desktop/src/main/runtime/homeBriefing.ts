@@ -1,5 +1,6 @@
 import { buildDailyLiveDataFromBungie } from "@d2-tools/core/daily/liveData";
 import { buildDailySummary, type DailySummary } from "@d2-tools/core/daily/summary";
+import { isXurActiveAt, xurPeriodKey, xurVendorHash } from "@d2-tools/core/daily/xurSchedule";
 import type { D2Config } from "@d2-tools/core/config/schema";
 import type { DefinitionComponentData, DefinitionRecord } from "@d2-tools/core/manifest/definitions";
 import { buildWeeklyLiveDataFromBungie } from "@d2-tools/core/weekly/liveData";
@@ -87,19 +88,20 @@ async function buildHomeBriefing(
   });
   const definitions = await loadHomeDefinitions(snapshot);
   const activeActivityHashes = collectProfileActivityHashes(snapshot);
+  const now = new Date();
   const dailyLiveData = buildDailyLiveDataFromBungie({
     milestones: snapshot.milestones,
     publicVendors: snapshot.publicVendors,
     characterVendors: snapshot.characterVendors,
     activeLostSectorActivityHashes: activeActivityHashes,
-    definitions
+    definitions,
+    now
   });
   const weeklyLiveData = buildWeeklyLiveDataFromBungie({
     milestones: snapshot.milestones,
     profile: snapshot.profile,
     definitions
   });
-  const now = new Date();
   const freshDaily = buildDailySummary(now, dailyLiveData);
   const daily = cached ? {
     ...freshDaily,
@@ -121,7 +123,7 @@ async function buildHomeBriefing(
     daily_period_key: dailyPeriodKey(now),
     weekly_period_key: weeklyPeriodKey(now),
     xur_period_key: xurPeriodKey(now),
-    xur_refresh_at: findXurRefreshAt(daily),
+    xur_refresh_at: findXurRefreshAt(daily, now),
     daily,
     weekly
   };
@@ -290,7 +292,7 @@ function briefingFromCache(cached: CachedHomeBriefing, now: Date): HomeBriefing 
   return {
     fetched_at: cached.fetched_at,
     daily: {
-      ...cached.daily,
+      ...hideInactiveXur(cached.daily, now),
       date_label: currentDaily.date_label,
       daily_reset: currentDaily.daily_reset,
       weekly_reset: currentDaily.weekly_reset
@@ -325,11 +327,6 @@ function weeklyPeriodKey(now: Date): string {
   return latestUtcBoundary(now, [2]).toISOString();
 }
 
-function xurPeriodKey(now: Date): string {
-  const boundary = latestUtcBoundary(now, [2, 5]);
-  return `${boundary.getUTCDay() === 5 ? "active" : "inactive"}:${boundary.toISOString()}`;
-}
-
 function latestUtcBoundary(now: Date, weekdays: number[]): Date {
   for (let offset = 0; offset <= 7; offset += 1) {
     const candidate = new Date(Date.UTC(
@@ -346,16 +343,31 @@ function latestUtcBoundary(now: Date, weekdays: number[]): Date {
   return new Date(now);
 }
 
-function findXurRefreshAt(daily: DailySummary): string | undefined {
-  const now = Date.now();
+function findXurRefreshAt(daily: DailySummary, now: Date): string | undefined {
+  if (!isXurActiveAt(now)) return undefined;
+  const timestamp = now.getTime();
   const timestamps = (daily.sources.vendors.items ?? [])
-    .filter((item) => item.vendorHash === 2190858386)
+    .filter((item) => item.vendorHash === xurVendorHash)
     .map((item) => item.vendorRefreshDate)
     .filter((value): value is string => Boolean(value))
     .map((value) => Date.parse(value))
-    .filter((value) => Number.isFinite(value) && value > now)
+    .filter((value) => Number.isFinite(value) && value > timestamp)
     .sort((left, right) => left - right);
   return timestamps.length ? new Date(timestamps[0]).toISOString() : undefined;
+}
+
+function hideInactiveXur(daily: DailySummary, now: Date): DailySummary {
+  if (isXurActiveAt(now)) return daily;
+  return {
+    ...daily,
+    sources: {
+      ...daily.sources,
+      vendors: {
+        ...daily.sources.vendors,
+        items: daily.sources.vendors.items?.filter((item) => item.vendorHash !== xurVendorHash)
+      }
+    }
+  };
 }
 
 function isExpired(value: string | undefined, now: Date): boolean {

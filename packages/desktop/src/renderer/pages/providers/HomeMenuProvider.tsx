@@ -34,6 +34,10 @@ export function HomeMenuProvider() {
       onRefreshDiagnostics={() => void diagnostics.refreshDiagnostics()}
       onNavigate={session.setActivePage}
       onRefreshDaily={() => void daily.loadDailySummary(true)}
+      onOpenXurOffer={(item, context) => {
+        session.writeActions.itemDetail.closeSelectedItemDetail();
+        void session.vendorDefinitionDetail.open(item, context);
+      }}
       interfaceLocale={diagnostics.languagePreferences.interfaceLocale}
     />
   );

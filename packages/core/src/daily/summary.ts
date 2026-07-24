@@ -2,6 +2,7 @@ export type DailySourceStatus = "ready" | "pending";
 
 export type DailySummaryItem = {
   title: string;
+  itemHash?: number;
   subtitle?: string;
   description?: string;
   source?: string;

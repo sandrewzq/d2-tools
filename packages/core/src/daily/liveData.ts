@@ -3,6 +3,7 @@ import type { DefinitionComponentData, DefinitionRecord } from "../manifest/defi
 import type { BungieOAuthToken } from "../oauth/login.js";
 import { buildLostSectorData } from "./lostSectors.js";
 import type { DailyLiveData, DailySummaryItem } from "./summary.js";
+import { isXurActiveAt, xurVendorHash } from "./xurSchedule.js";
 
 type PublicMilestone = {
   displayProperties?: {
@@ -68,6 +69,7 @@ type CharacterProfileResponse = {
 };
 
 export type BuildDailyLiveDataInput = {
+  now?: Date;
   milestones?: Record<string, PublicMilestone>;
   publicVendors?: PublicVendorsResponse;
   characterVendors?: CharacterVendorResponse[];
@@ -119,7 +121,7 @@ export function buildDailyLiveDataFromBungie(input: BuildDailyLiveDataInput): Re
   );
   return {
     rotations: milestoneItems.rotations,
-    vendors: mapVendors(input.publicVendors, input.characterVendors ?? [], input.definitions ?? {}),
+    vendors: mapVendors(input.publicVendors, input.characterVendors ?? [], input.definitions ?? {}, input.now ?? new Date()),
     lost_sector: lostSectorItems,
     weekly_report: milestoneItems.weekly_report
   };
@@ -285,11 +287,12 @@ function inferWeeklyActivityKind(value: string): DailySummaryItem["weeklyActivit
 function mapVendors(
   publicVendors: PublicVendorsResponse | undefined,
   characterVendors: CharacterVendorResponse[],
-  definitions: NonNullable<BuildDailyLiveDataInput["definitions"]>
+  definitions: NonNullable<BuildDailyLiveDataInput["definitions"]>,
+  now: Date
 ): DailySummaryItem[] {
-  const publicItems = mapVendorResponse(publicVendors, definitions, "Bungie 公共商人");
+  const publicItems = mapVendorResponse(publicVendors, definitions, "Bungie 公共商人", now);
   const characterItems = characterVendors.flatMap((response) =>
-    mapVendorResponse(response, definitions, "Bungie 登录角色商人", response.characterId)
+    mapVendorResponse(response, definitions, "Bungie 登录角色商人", now, response.characterId)
   );
   const mapped = [...characterItems, ...publicItems];
   return uniqueByVendorIdentity(mapped)
@@ -301,6 +304,7 @@ function mapVendorResponse(
   response: PublicVendorsResponse | undefined,
   definitions: NonNullable<BuildDailyLiveDataInput["definitions"]>,
   sourceLabel: "Bungie 公共商人" | "Bungie 登录角色商人",
+  now: Date,
   characterId?: string
 ): DailySummaryItem[] {
   const vendors = response?.vendors?.data ?? {};
@@ -310,6 +314,9 @@ function mapVendorResponse(
       return [];
     }
     const vendorHash = vendor.vendorHash ?? Number(vendorKey);
+    if (vendorHash === xurVendorHash && !isXurActiveAt(now)) {
+      return [];
+    }
     const vendorName = definitionName(definitions.vendors, vendorHash) ?? "等待资料库解析的商人";
     const vendorIconUrl = definitionIcon(definitions.vendors, vendorHash);
     const saleItems = collectPublicSales(sales[vendorKey])
@@ -358,7 +365,11 @@ function buildVendorItem(input: {
     vendorRefreshDate: input.vendor.nextRefreshDate,
     vendorLocation: input.vendorLocation,
     iconUrl: input.vendorIconUrl,
-    items: input.saleItems.slice(0, 12)
+    items: input.saleItems.slice(0, 12).map((saleItem) => ({
+      ...saleItem,
+      vendorHash: input.vendorHash,
+      characterId: input.characterId
+    }))
   };
   return item;
 }
@@ -472,6 +483,7 @@ function saleItemSummaryItem(
 
   return {
     title: name,
+    itemHash: sale.itemHash,
     subtitle: itemDetails.join("，") || undefined,
     description: cost?.label,
     source: sourceLabel,

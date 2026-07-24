@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { nextXurBoundaryAt, xurVendorHash } from "@d2-tools/core/daily/xurSchedule";
 import type { DailySummary, WeeklySummary } from "../../api/types";
 import { api } from "../../api/client";
 import { buildWeeklyFocusText } from "../../utils/dailyShare";
@@ -88,30 +89,14 @@ function nextHomeRefreshAt(daily: DailySummary, weekly: WeeklySummary, now: Date
     daily.daily_reset.next_reset_iso,
     weekly.weekly_reset.next_reset_iso,
     ...((daily.sources.vendors.items ?? [])
-      .filter((item) => item.vendorHash === 2190858386)
+      .filter((item) => item.vendorHash === xurVendorHash)
       .map((item) => item.vendorRefreshDate)
       .filter((value): value is string => Boolean(value)))
   ]
     .map((value) => new Date(value))
     .filter((value) => Number.isFinite(value.getTime()) && value > now);
-  candidates.push(nextXurBoundary(now));
+  candidates.push(nextXurBoundaryAt(now));
   return candidates.sort((left, right) => left.getTime() - right.getTime())[0] ?? new Date(now.getTime() + 60 * 60_000);
-}
-
-function nextXurBoundary(now: Date): Date {
-  for (let offset = 0; offset <= 7; offset += 1) {
-    const candidate = new Date(Date.UTC(
-      now.getUTCFullYear(),
-      now.getUTCMonth(),
-      now.getUTCDate() + offset,
-      17,
-      0,
-      0,
-      0
-    ));
-    if ((candidate.getUTCDay() === 2 || candidate.getUTCDay() === 5) && candidate > now) return candidate;
-  }
-  return new Date(now.getTime() + 7 * 24 * 60 * 60_000);
 }
 
 function updateDailyResetLabels(summary: DailySummary, now: Date): DailySummary {

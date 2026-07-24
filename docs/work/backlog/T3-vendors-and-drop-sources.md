@@ -8,7 +8,7 @@
 统一商人页面结构、商人覆盖和 Bungie 官方获取来源。用户应能确认商人当前卖什么、库存属于哪个页面、刷新信息是否可靠，以及官方数据是否提供了某件装备的获取来源。
 
 本需求负责商人解析和官方来源事实，不负责装备详情的信息架构、实例比较、推荐 Roll、知识库或 AI 分析。后续能力见
-[统一装备详情与知识分析](equipment-detail-and-knowledge-analysis.md)。
+[统一装备详情与知识分析](T5-equipment-detail-and-knowledge-analysis.md)。
 
 ## 当前基础
 
@@ -19,8 +19,13 @@
 - 商人 Live 库存能够补充完整路径，例如“浪客 → 聚焦破译 → 武器”。
 - 全应用静态原型的商人页使用 `docs/work/references/ui-prototypes/data/vendors-page-snapshot.js` 保存当前 `VendorsPageModel` 的真实冻结投影。原型只渲染最终目录和 `contentSections`，不复制父子 Vendor 编排，也不允许回退到通用账号装备 Mock。
 
-Manifest 商人结构、父子 Vendor 关系和特殊情况的人工核对表见
-[商人结构与 Manifest 核对表](../references/商人/manifest-vendor-structure-audit.md)。
+### 已合并人工核对结论
+
+- Manifest 的分类、条目数和隐藏子 Vendor 只说明候选结构，不等同于当前页面、当前库存或实际售卖数量；所有当前可见性、价格、Roll、属性和进度仍以 Live Vendor 数据为准。
+- 空分类、帮助页、引导页、未命名历史条目和未被 Live 数据返回的预览 Vendor 必须归为内部或条件定义，不能生成页面结构。
+- 父入口、子库存和服务通过 Live 分类、Manifest 分类 identifier 与 `previewVendorHash` 组合识别；隐藏代理定义不能单独渲染为玩家可见页面。
+- 同名商人不得按名称合并：高塔仄 `2190858386` 与 30 周年仄 `3442679730` 是不同商人；高塔仄固定保留声望与等级、主库存“多样奇异优惠”及两个子库存 `537912098`、`3751514131`，但只在 Live 返回时展示。
+- 武器商人的售卖 Roll、护甲属性与等级奖励数量必须使用当前 Live 数据，不能用 Manifest 候选 Perk、定义条目数量或历史截图补全。
 
 ## 统一商人结构
 
@@ -138,7 +143,7 @@ Manifest 来源提示不能单独证明当前仍可获取。商人或活动 Live
 - 邮政官。
 
 收藏解锁、已经失效的配装引用和没有实例 ID 的定义记录不计入拥有数量。完整实例内容和详情复用规则由
-[统一装备详情与知识分析](equipment-detail-and-knowledge-analysis.md) 负责。
+[统一装备详情与知识分析](T5-equipment-detail-and-knowledge-analysis.md) 负责。
 
 ## 当前实现与需要收口的差异
 

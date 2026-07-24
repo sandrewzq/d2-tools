@@ -489,7 +489,6 @@ docs/
 
 当前仍有效的 reference 文件：
 
-- `docs/work/references/d2-unified-workspace-layout-v0.html`：旧跨端工作区规则样板，只保留历史对照价值，不再作为当前视觉基准；当前 UI 只以 `ui-prototypes/` 下三个冻结原型验收。
 - `docs/work/references/destiny-tool-reference.md`：竞品能力和信息组织参考。
 - `docs/work/references/desktop-framework-comparison.md`：桌面技术方案对比参考。
 - `docs/work/references/2026-06-21-destiny2-weapon-sheet-analysis.md`：社区武器表和数据分析参考。

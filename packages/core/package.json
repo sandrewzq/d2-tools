@@ -178,6 +178,10 @@
       "types": "./dist/daily/liveData.d.ts",
       "import": "./dist/daily/liveData.js"
     },
+    "./daily/xurSchedule": {
+      "types": "./dist/daily/xurSchedule.d.ts",
+      "import": "./dist/daily/xurSchedule.js"
+    },
     "./weekly/summary": {
       "types": "./dist/weekly/summary.d.ts",
       "import": "./dist/weekly/summary.js"

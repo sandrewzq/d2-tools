@@ -73,18 +73,14 @@ const readyDailySummary: HomeDailySummary = {
           vendorLocation: "高塔",
           vendorRefreshDate: "2026-07-17T09:00:00Z",
           items: [
-            { title: "贝浪板", subtitle: "载具 · 异域", description: "97 奇异硬币" },
-            { title: "幼年阿罕卡拉之脊", subtitle: "臂铠 · 异域", description: "41 奇异硬币" },
-            { title: "至纯光能静心甲", subtitle: "胸部护甲 · 异域", description: "41 奇异硬币" },
-            { title: "炎阳护腕", subtitle: "臂铠 · 异域", description: "41 奇异硬币" },
-            { title: "透视之眼", subtitle: "异域武器", description: "23 奇异硬币" },
-            { title: "鹰月", subtitle: "手炮 · 异域", description: "23 奇异硬币" },
-            { title: "差分方程", subtitle: "脉冲步枪 · 传说", description: "17 奇异硬币" },
-            { title: "真言者", subtitle: "榴弹发射器 · 传说", description: "17 奇异硬币" },
-            { title: "猎人护甲", subtitle: "猎人护甲 · 传说", description: "17 奇异硬币" },
-            { title: "泰坦护甲", subtitle: "泰坦护甲 · 传说", description: "17 奇异硬币" },
-            { title: "术士护甲", subtitle: "术士护甲 · 传说", description: "17 奇异硬币" },
-            { title: "异域印记", subtitle: "材料", description: "7 奇异硬币" }
+            { itemHash: 1001, vendorHash: 2190858386, title: "仄浪板", subtitle: "载具 · 异域", description: "97 奇异硬币" },
+            { itemHash: 1002, vendorHash: 2190858386, title: "幼年阿罕卡拉之脊", subtitle: "臂铠 · 异域", description: "41 奇异硬币" },
+            { itemHash: 1003, vendorHash: 2190858386, title: "至纯光能护心甲", subtitle: "胸部护甲 · 异域", description: "41 奇异硬币" },
+            { itemHash: 1004, vendorHash: 2190858386, title: "炎阳护腕", subtitle: "臂铠 · 异域", description: "41 奇异硬币" },
+            { itemHash: 1005, vendorHash: 2190858386, title: "陨星胸甲", subtitle: "胸部护甲 · 异域", description: "41 奇异硬币" },
+            { itemHash: 1006, vendorHash: 2190858386, title: "特里同之罪", subtitle: "臂铠 · 异域", description: "41 奇异硬币" },
+            { itemHash: 1007, vendorHash: 2190858386, title: "霜袍服装", subtitle: "胸部护甲 · 异域", description: "41 奇异硬币" },
+            { itemHash: 1008, vendorHash: 2190858386, title: "唯我主义", subtitle: "术士臂环 · 异域", description: "41 奇异硬币" }
           ]
         }
       ]

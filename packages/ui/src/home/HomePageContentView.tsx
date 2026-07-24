@@ -1,10 +1,13 @@
 import { getLocaleCopy } from "../i18n/copy.js";
 import type { InterfaceLocale, HomeCopy } from "../i18n/types.js";
+import { isXurActiveAt, xurVendorHash } from "@d2-tools/core/daily/xurSchedule";
 import type { ShellPageKey } from "../shell/types.js";
+import type { VendorInventoryItemView, VendorOfferContextView } from "../vendors/VendorsPageContentView.js";
 import { createXurItemIconUrl, normalizeBungieIconUrl } from "./homeIconArt.js";
 export type HomeTone = "neutral" | "ready" | "warning" | "error";
 export type HomeDailyItem = {
   title: string;
+  itemHash?: number;
   subtitle?: string;
   description?: string;
   source?: string;
@@ -196,6 +199,7 @@ export type HomePageViewProps = {
   onRefreshDiagnostics?: () => void;
   onNavigate?: (page: ShellPageKey) => void;
   onRefreshDaily?: () => void;
+  onOpenXurOffer?: (item: VendorInventoryItemView, context: VendorOfferContextView) => void;
 };
 function homeText(copy: HomeCopy, key: string): string {
   return copy.inline[key] ?? key;
@@ -229,6 +233,7 @@ export function HomePageContentView(props: HomePageViewProps) {
       dailyError={props.dailyError ?? ""}
       isLoadingDaily={props.isLoadingDaily ?? false}
       onNavigate={props.onNavigate}
+      onOpenXurOffer={props.onOpenXurOffer}
     />
   );
 }
@@ -240,6 +245,7 @@ function HomePageContent(props: {
   dailyError: string;
   isLoadingDaily: boolean;
   onNavigate?: (page: ShellPageKey) => void;
+  onOpenXurOffer?: (item: VendorInventoryItemView, context: VendorOfferContextView) => void;
 }) {
   const nightfall = props.confirmedPriorities.nightfall;
   const nightfallReward = nightfall?.entries?.flatMap((entry) => entry.rewards ?? [])[0];
@@ -331,7 +337,15 @@ function HomePageContent(props: {
               <div><span>当前位置</span><strong>{props.xur.location ?? props.xur.title}</strong></div>
             </div>
             <div className="home-xur-stock-grid">
-              {xurItems.map((item, index) => <HomeXurOffer item={item} key={`${item.title}-${item.vendorHash ?? "xur"}-${index}`} />)}
+              {xurItems.map((item, index) => (
+                <HomeXurOffer
+                  item={item}
+                  key={`${item.title}-${item.vendorHash ?? "xur"}-${index}`}
+                  vendorName={props.xur.title}
+                  refreshLabel={props.xur.refreshLabel}
+                  onOpenXurOffer={props.onOpenXurOffer}
+                />
+              ))}
             </div>
           </>
         ) : <HomeEmpty label="当前没有可确认的仄库存" />}
@@ -341,7 +355,12 @@ function HomePageContent(props: {
   );
 }
 
-function HomeXurOffer(props: { item: HomeDailyItem }) {
+function HomeXurOffer(props: {
+  item: HomeDailyItem;
+  vendorName: string;
+  refreshLabel?: string;
+  onOpenXurOffer?: (item: VendorInventoryItemView, context: VendorOfferContextView) => void;
+}) {
   const iconTone = getHomeXurTone(props.item);
   const iconUrl = normalizeBungieIconUrl(props.item.iconUrl ?? props.item.icon)
     ?? createXurItemIconUrl({ iconTone, iconLabel: props.item.iconLabel, label: props.item.title });
@@ -352,8 +371,7 @@ function HomeXurOffer(props: { item: HomeDailyItem }) {
     props.item.description
   ].filter(Boolean).join(" · ");
 
-  return (
-    <article className="home-xur-stock-item">
+  const content = <>
       <img className="home-xur-stock-icon" alt="" loading="lazy" src={iconUrl} />
       <div>
         <span>{details || "类型与职业备注未返回"}</span>
@@ -361,8 +379,63 @@ function HomeXurOffer(props: { item: HomeDailyItem }) {
         <small>{props.item.source || "当前轮换商品"}</small>
       </div>
       <span>本周轮换</span>
-    </article>
+  </>;
+  if (props.item.itemHash === undefined || !props.onOpenXurOffer) {
+    return <article className="home-xur-stock-item">{content}</article>;
+  }
+
+  const offer = createHomeXurOffer(props.item, iconTone, iconUrl, props.vendorName);
+  const context = createHomeXurOfferContext(props.item, props.vendorName, props.refreshLabel);
+  return (
+    <button
+      type="button"
+      className="home-xur-stock-item is-actionable"
+      aria-label={`查看${props.item.title}详情`}
+      onClick={() => props.onOpenXurOffer?.(offer, context)}
+    >
+      {content}
+    </button>
   );
+}
+
+function createHomeXurOffer(
+  item: HomeDailyItem,
+  tone: VendorInventoryItemView["tone"],
+  iconUrl: string,
+  vendorName: string
+): VendorInventoryItemView {
+  return {
+    id: `home-xur-${item.vendorHash ?? "unknown"}-${item.itemHash}`,
+    itemHash: item.itemHash,
+    vendorHash: item.vendorHash,
+    characterIds: item.characterId ? [item.characterId] : undefined,
+    name: item.title,
+    itemType: item.subtitle?.trim() || "当前轮换商品",
+    summary: item.source?.trim() || "Bungie 当前商人库存",
+    cost: item.description?.trim(),
+    iconLabel: item.iconLabel?.trim() || item.title.slice(0, 1) || "?",
+    iconUrl,
+    tone,
+    status: "unknown",
+    sourcePath: `${vendorName} / 本周八件轮换`
+  };
+}
+
+function createHomeXurOfferContext(
+  item: HomeDailyItem,
+  vendorName: string,
+  refreshLabel?: string
+): VendorOfferContextView {
+  return {
+    vendorName,
+    inventoryPath: `${vendorName} / 本周八件轮换`,
+    costLabel: item.description?.trim() || "当前公开库存未返回费用",
+    affordabilityLabel: item.characterId
+      ? "需要当前角色货币余额校验"
+      : "公共库存未返回当前角色货币余额",
+    characterLabel: item.characterId ? "当前角色商人库存" : "公共商人库存",
+    refreshLabel: refreshLabel || "当前刷新时间未返回"
+  };
 }
 
 function getHomeXurTone(item: HomeDailyItem): "exotic" | "weapon" | "armor" | "material" {
@@ -439,8 +512,8 @@ function buildConfirmedXur(
   copy: HomeCopy,
   selectedCharacterId?: string
 ): HomeConfirmedXur | null {
-  if (!source || source.status !== "ready") return null;
-  const xurVendors = source.items?.filter((item) => item.vendorHash === 2190858386 || /仄|Xur|Xûr/i.test(item.title)) ?? [];
+  if (!source || source.status !== "ready" || !isXurActiveAt()) return null;
+  const xurVendors = source.items?.filter((item) => item.vendorHash === xurVendorHash || /仄|Xur|Xûr/i.test(item.title)) ?? [];
   const vendor = xurVendors.find((item) => item.characterId === selectedCharacterId)
     ?? xurVendors.find((item) => Boolean(item.characterId))
     ?? xurVendors[0];

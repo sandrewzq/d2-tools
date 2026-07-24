@@ -15,7 +15,7 @@ export { AppShell } from "./shell/AppShell.js";
 export { ShellSidebarAccountSummary, ShellSidebarActions } from "./shell/ShellSidebar.js";
 export { HomePageView } from "./home/HomePageView.js";
 export { HomePageContentView } from "./home/HomePageContentView.js";
-export type { HomeDailySummary, HomeStartupState, HomePageViewProps, HomeWeeklySummary } from "./home/HomePageContentView.js";
+export type { HomeDailyItem, HomeDailySummary, HomeStartupState, HomePageViewProps, HomeWeeklySummary } from "./home/HomePageContentView.js";
 export { getLocaleCopy, localeCopy } from "./i18n/copy.js";
 export {
   defaultProductPreferences,

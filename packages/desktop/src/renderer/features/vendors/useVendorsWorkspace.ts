@@ -3,6 +3,7 @@ import {
   selectVendorsPageModel,
   type VendorsPageWorkspace
 } from "@d2-tools/app/vendors";
+import { isXurActiveAt, nextXurBoundaryAt, xurVendorHash } from "@d2-tools/core/daily/xurSchedule";
 import type { AccountSummary } from "../../api/types";
 import type {
   VendorInventoryRequest,
@@ -70,7 +71,7 @@ export function useVendorsWorkspace(input: {
   const refresh = useCallback(async () => {
     if (!input.active || !input.accountSummary || !characterId) return;
     const requestSequence = ++requestSequenceRef.current;
-    const currentSnapshot = snapshot;
+    const currentSnapshot = hideInactiveXur(snapshot);
     const request = createVendorInventoryRequest(
       input.accountSummary,
       characterId,
@@ -79,7 +80,7 @@ export function useVendorsWorkspace(input: {
     setRefreshState("refreshing");
     setRefreshError("");
     try {
-      const next = await input.loadInventory(request);
+      const next = hideInactiveXur(await input.loadInventory(request));
       if (requestSequence !== requestSequenceRef.current || requestContextKey !== requestContextKeyRef.current) return;
       if (currentSnapshot) {
         if (hasSameVendorInventoryContent(currentSnapshot, next)) {
@@ -133,14 +134,14 @@ export function useVendorsWorkspace(input: {
     void (async () => {
       let availableSnapshot: VendorInventorySnapshot | null = null;
       try {
-        const cached = await input.loadCachedInventory(request);
+        const cached = hideInactiveXur(await input.loadCachedInventory(request));
         if (requestSequence !== requestSequenceRef.current || requestContextKey !== requestContextKeyRef.current) return;
         if (cached) {
           availableSnapshot = cached;
           setSnapshot(cached);
           setStatusMessage("正在显示上次商人库存，后台检查更新");
         }
-        const next = await input.loadInventory(request);
+        const next = hideInactiveXur(await input.loadInventory(request));
         if (requestSequence !== requestSequenceRef.current || requestContextKey !== requestContextKeyRef.current) return;
         if (availableSnapshot && hasSameVendorInventoryContent(availableSnapshot, next)) {
           setStatusMessage("已检查，商人库存无变化");
@@ -176,16 +177,16 @@ export function useVendorsWorkspace(input: {
       selectedDetailVendorHashes
     );
     void (async () => {
-      let availableSnapshot = snapshot;
+      let availableSnapshot = hideInactiveXur(snapshot);
       try {
-        const cached = await input.loadCachedInventory(request);
+        const cached = hideInactiveXur(await input.loadCachedInventory(request));
         if (requestSequence !== requestSequenceRef.current || requestContextKey !== requestContextKeyRef.current) return;
         if (cached) {
           availableSnapshot = cached;
           setSnapshot(cached);
           setStatusMessage("正在显示上次商人详情，后台检查更新");
         }
-        const next = await input.loadInventory(request);
+        const next = hideInactiveXur(await input.loadInventory(request));
         if (requestSequence !== requestSequenceRef.current || requestContextKey !== requestContextKeyRef.current) return;
         if (hasSameVendorInventoryContent(availableSnapshot, next)) {
           setStatusMessage("已检查，当前商人库存无变化");
@@ -204,6 +205,16 @@ export function useVendorsWorkspace(input: {
       }
     })();
   }, [characterId, input.accountSummary, input.active, input.loadCachedInventory, input.loadInventory, requestContextKey, selectedDetailVendorHashes, snapshot]);
+
+  useEffect(() => {
+    if (!input.active) return;
+    const delay = Math.max(1_000, nextXurBoundaryAt(new Date()).getTime() - Date.now() + 5_000);
+    const id = window.setTimeout(() => {
+      setSnapshot((current) => hideInactiveXur(current));
+      void refresh();
+    }, delay);
+    return () => window.clearTimeout(id);
+  }, [input.active, refresh]);
 
   const model: VendorsPageWorkspace = useMemo(() => selectVendorsPageModel({
     snapshot,
@@ -266,4 +277,10 @@ function hasSameVendorInventoryContent(
 ): boolean {
   const withoutFetchTime = (key: string, value: unknown) => key === "fetchedAt" ? undefined : value;
   return JSON.stringify(left, withoutFetchTime) === JSON.stringify(right, withoutFetchTime);
+}
+
+function hideInactiveXur(snapshot: VendorInventorySnapshot | null): VendorInventorySnapshot | null {
+  if (!snapshot || isXurActiveAt()) return snapshot;
+  const vendors = snapshot.vendors.filter((vendor) => vendor.vendorHash !== xurVendorHash);
+  return vendors.length === snapshot.vendors.length ? snapshot : { ...snapshot, vendors };
 }
