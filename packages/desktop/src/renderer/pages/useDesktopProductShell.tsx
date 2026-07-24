@@ -326,7 +326,6 @@ export function useDesktopProductShell(props: {
           >
             {daily.isLoadingDaily ? "刷新中..." : "刷新公开情报"}
           </button>
-          <button type="button" className="primary-button" onClick={() => handlePageChange("vendors")}>查看商人库存</button>
         </>
       ) : activePage === "account" ? (
         <>
@@ -433,7 +432,11 @@ function formatAccountShellStatus(
   if (accountError && accountSummary) return "刷新失败";
   if (accountError) return "读取失败";
   if (accountWarning && accountSummary) return "增强数据异常";
-  if (accountSummary) return formatTime(lastAccountLoadedAt) ?? "已读取";
+  if (accountSummary) {
+    const characterCount = `${accountSummary.characters.length} 个角色`;
+    const loadedAt = formatTime(lastAccountLoadedAt);
+    return loadedAt ? `${characterCount} · ${loadedAt}` : characterCount;
+  }
   return canRefreshAccount ? "可读取" : "未登录";
 }
 

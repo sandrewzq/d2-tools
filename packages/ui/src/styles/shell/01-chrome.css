@@ -1,5 +1,7 @@
 .app-shell {
   --shell-task-dock-clearance: 0px;
+  --shell-sidebar-header-height: 72px;
+  --shell-navigation-start: calc(var(--shell-sidebar-header-height) + 8px);
   display: grid;
   grid-template-rows: var(--topbar-height) minmax(0, 1fr);
   width: 100%;
@@ -171,7 +173,7 @@ button.shell-status-group:focus-visible {
   border-right-color: var(--object-border);
 }
 
-.shell-status-group span:not(.shell-status-dot),
+.shell-status-group span:not(.shell-status-icon),
 .shell-status-group strong {
   overflow: hidden;
   font-size: 11px;
@@ -183,24 +185,23 @@ button.shell-status-group:focus-visible {
   font-weight: 600;
 }
 
-.shell-status-dot {
-  width: 6px;
-  height: 6px;
+.shell-status-icon {
+  width: 14px;
+  height: 14px;
   flex: 0 0 auto;
-  border-radius: 50%;
-  background: var(--mint);
+  color: var(--mint);
 }
 
-.shell-status-group.status-warning .shell-status-dot {
-  background: var(--amber);
+.shell-status-group.status-warning .shell-status-icon {
+  color: var(--amber);
 }
 
-.shell-status-group.status-error .shell-status-dot {
-  background: var(--red);
+.shell-status-group.status-error .shell-status-icon {
+  color: var(--red);
 }
 
-.shell-status-group.status-neutral .shell-status-dot {
-  background: var(--muted);
+.shell-status-group.status-neutral .shell-status-icon {
+  color: var(--muted);
 }
 
 .shell-toolstrip,
@@ -335,6 +336,8 @@ button.shell-status-group:focus-visible {
 }
 
 .shell-sidebar-account {
+  box-sizing: border-box;
+  min-height: var(--shell-sidebar-header-height);
   padding: 14px;
   border-bottom: 1px solid var(--line);
 }
@@ -816,6 +819,7 @@ button.shell-status-group:focus-visible {
     --topbar-height: 96px;
     --sidebar-width: 64px;
     --shell-brand-width: minmax(132px, 1fr);
+    --shell-sidebar-header-height: 64px;
   }
 
   .shell-titlebar,
@@ -847,7 +851,7 @@ button.shell-status-group:focus-visible {
     padding: 0 6px;
   }
 
-  .shell-status-group span:not(.shell-status-dot) { display: none; }
+  .shell-status-group span:not(.shell-status-icon) { display: none; }
 
   .shell-status-group strong {
     min-width: 0;

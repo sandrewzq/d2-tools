@@ -6,11 +6,9 @@
 @import "./styles/foundation/02-elements.css";
 @import "./styles/shell/01-chrome.css";
 @import "./styles/workspace/01-headers.css";
-@import "./styles/menus/home/01-overview.css";
 @import "./styles/components/02-assistant-and-controls.css";
 @import "./styles/workspace/02-product-workspace.css";
 @import "./styles/components/03-product-primitives.css";
-@import "./styles/menus/home/02-dashboard.css";
 @import "./styles/components/04-status-and-metrics.css";
 @import "./styles/components/05-settings-account-navigation.css";
 @import "./styles/menus/settings/01-workspace.css";

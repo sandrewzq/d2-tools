@@ -234,7 +234,7 @@ tools\git-preflight.cmd
 - SQLite 查询由 Desktop 长生命周期查询 worker 持有；资料库更新进入激活阶段前，`RuntimeCoordinator` 必须先 quiesce 账号 Session 和查询 worker，确认连接关闭后再切换，完成或回滚后恢复查询。
 - GameData worker 的 search/detail 请求必须有有限超时和单请求 pending 清理；definition 批量读取可使用更长超时，worker error/exit/close 时必须统一拒绝并清空剩余请求。
 - 资料库更新使用当前语言 SQLite 作为主库，构建装备、Perk、关系和 canonical identity sidecar；非英文界面可离线下载英文 SQLite 构建轻量英文 sidecar，但不得长期保留第二份完整英文主库。
-- JSON Adapter 只用于 SQLite 未覆盖的 supplement 和稳定 Release 前的迁移兼容。至少经过一个稳定 Release 并验证回滚路径后，才能清理 SQLite 已覆盖的旧 JSON；不得重新把大型 JSON 主缓存接回普通请求。
+- JSON Adapter 只用于 SQLite 未覆盖的 supplement 和受控的迁移 / 回退兼容；不得重新把大型 JSON 主缓存接回普通请求。
 - 账号读取统一通过 `AccountSession`：列表使用紧凑 `AccountSnapshot`，实例详情按需加载；写操作成功后先局部 patch，再后台 refresh 校验。账号快照缓存和 Manifest / sidecar 都属于运行缓存，不进入便携备份。
 - 首页、资料库实时来源和账号 Session 共享 Bungie 请求 Broker；每日与每周通过同一次 `home:briefing` 获取，避免重复 membership、Profile 和里程碑请求。
 - 首页简报使用运行缓存保存已解析数据，按每日重置、每周重置和仄商人出现/离开窗口分别判断是否需要访问 Bungie；应用重启后优先复用缓存，倒计时只在 renderer 本地重算，手动刷新可强制绕过周期缓存。

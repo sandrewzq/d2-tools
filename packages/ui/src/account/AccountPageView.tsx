@@ -68,22 +68,22 @@ function DefaultAccountPrototype(props: { interfaceLocale?: InterfaceLocale }) {
               <span>{accountText(copy, "只放需要立刻处理的信息")}</span>
             </div>
           </div>
-          <div className="home-account-list">
-            <div className="home-account-row" data-tone="ready">
+          <div className="account-summary-list">
+            <div className="account-summary-row" data-tone="ready">
               <div>
                 <strong>{accountText(copy, "授权状态")}</strong>
                 <span>{accountText(copy, "模拟账号已读取，更新时间 14:18。")}</span>
               </div>
               <span className="app-chip status-ready">{accountText(copy, "正常")}</span>
             </div>
-            <div className="home-account-row" data-tone="warning">
+            <div className="account-summary-row" data-tone="warning">
               <div>
                 <strong>{accountText(copy, "仓库容量")}</strong>
                 <span>{accountText(copy, "仓库 496 / 600，接近上限时从仓库页继续清理。")}</span>
               </div>
               <span className="app-chip status-warning">{accountText(copy, "496 / 600")}</span>
             </div>
-            <div className="home-account-row" data-tone="neutral">
+            <div className="account-summary-row" data-tone="neutral">
               <div>
                 <strong>{accountText(copy, "最近活动")}</strong>
                 <span>{accountText(copy, "最近 10 场已读取，突袭 / 地牢复盘可从账号页继续查看。")}</span>

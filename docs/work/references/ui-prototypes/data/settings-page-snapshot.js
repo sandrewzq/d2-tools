@@ -45,9 +45,9 @@ window.settingsPageSnapshot = Object.freeze({
   "message": "",
   "error": "",
   "appUpdate": {
-    "status": "unknown",
-    "statusLabel": "静态快照未读取更新服务",
-    "summary": "当前冻结快照只记录本地版本，不伪造 GitHub Release 检查结果。",
+    "status": "latest",
+    "statusLabel": "当前已是最新版本",
+    "summary": "当前冻结快照记录的是已确认的当前版本状态。",
     "currentVersion": "0.0.13",
     "updateSource": "GitHub Release",
     "lastCheckedAt": "未包含在本地快照中",

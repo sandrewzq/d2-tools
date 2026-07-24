@@ -418,7 +418,7 @@ createRoot(document.getElementById("root")!).render(<WebApp />);
 
 function getWebPageHeader(page: ShellPageKey, onNavigate: (page: ShellPageKey) => void) {
   const actions: Partial<Record<ShellPageKey, ReactNode>> = {
-    home: <><button type="button" className="secondary-button">刷新公开情报</button><button type="button" className="primary-button" onClick={() => onNavigate("vendors")}>查看商人库存</button></>,
+    home: <button type="button" className="secondary-button">刷新公开情报</button>,
     account: <><button type="button" className="secondary-button">刷新账号</button><button type="button" className="secondary-button">重新授权</button></>,
     vault: <><button type="button" className="secondary-button">复制清理清单</button><button type="button" className="primary-button">刷新账号装备</button></>,
     loadouts: <button type="button" className="secondary-button" onClick={() => onNavigate("account")}>从账号保存当前装备</button>,

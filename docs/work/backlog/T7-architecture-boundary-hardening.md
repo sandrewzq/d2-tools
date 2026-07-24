@@ -1,55 +1,103 @@
-# 架构边界收口
+# 社区推荐边界收口
 
-> 状态：第二轮迁移切片已推进，等待 CI / Release 验证并按业务触达继续迁移
+> 状态：待推进
+> 更新时间：2026-07-24
 
 ## 目标
 
-基于 `outputs/architecture-review-2026-07-17.md` 的 15 项发现，优先封闭会继续产生新债的 seam，删除重复状态真相，降低多人并行冲突。采用渐进迁移，不进行大爆炸式 package 重写。
+完成社区推荐子域的最后一段运行时边界迁移：`packages/core` 只保留推荐规则、领域 DTO、解析和匹配；所有本地文件读写、AI / light.gg 外部调用和缓存都进入 `packages/services`。Desktop IPC 只通过 Services 访问该能力。
 
-## 本轮已完成
+本任务不重开 Core、Services、App、UI、Prototype、Web 或 Desktop 的全仓架构重构。现有主分层已经稳定，本文件只跟踪仍然实际运行且违反该边界的社区推荐适配层。
 
-- core 新增 IO / HTTP 债务护栏：允许现有兼容文件，阻止新增 Node runtime 依赖和直接 Bungie HTTP 调用。
-- Desktop 活动历史生产 HTTP 调用迁到 services Adapter，core 保留领域类型和汇总逻辑。
-- core 活动历史模块已删除旧 HTTP 包装；action log 文件读写迁到 services，core 只保留领域类型和纯格式化逻辑。
-- 新建 `packages/desktop/src/contracts/`，Account、Actions、Manifest、Vendors、Daily 由 main、preload、renderer API 共用单一 transport 契约。
-- 删除 preload / main 对 renderer API 的反向类型依赖，并增加 renderer 边界护栏。
-- `account:summary` 前台返回与后台任务共享同一个 operation Promise。
-- 删除 Account IPC 的第二份 snapshot/index；实例详情从 AccountSession 当前 snapshot 派生。
-- GameData 普通请求按操作设置超时，正常响应、发送失败、worker error/exit/close 都会清理 pending；连续两次超时会终止并惰性替换卡死 worker。
-- 建立最小 Desktop IPC 错误模型，先覆盖 Account、Manifest、GameData 和写操作，保留现有 `Promise<T>` 调用界面与 `message` 兼容性。
-- 首页和账号自动读取会等待资料库 ready；Home/Account 对资料库未就绪使用稳定错误 code，开发启动脚本显式使用 UTF-8 输出中文异常。
-- `packages/ui/src/styles.css` 改为稳定顺序聚合入口，产品样式物理拆到 foundation、shell、workspace、components 和菜单目录。
-- i18n copy 按 shell/home/account/vault/loadouts/library/vendors/settings 分域，原入口只做聚合。
-- 新增 `@d2-tools/ui/fixtures` typed foundation，Prototype / Web 先共用账号和状态 fixture 基础结构，版本由各平台构建注入，平台场景继续独立。
-- typed fixture foundation 继续覆盖活动摘要和资料库默认筛选，Prototype / Web 不再用宽松 `any` 重复表达这些稳定 DTO。
-- Desktop 生产代码停止跨 package `/src/` 深导入；core 重复根 export 已清理；对应架构护栏用于阻止回归。
-- Desktop main、preload、renderer 使用明确的独立构建 / 类型检查入口；preload 由 Vite 直接产出 CJS bundle，已删除基于 TypeScript 输出的字符串转换。
-- core 不再持有真实 Bungie HTTP client；账号、日常、周常和实时来源读取通过注入的请求 seam 调用，由 services 的统一 client 负责超时、取消和错误语义。
-- Account summary 定义请求、AccountSession 补丁、Manifest 文件处理、商人身份归一化、首页图标生成和资料库文本辅助已各自拆出独立模块，原入口保持兼容。
-- services 错误模型已升级为可抛出的 `D2ServiceError`；Desktop IPC 只按稳定错误码和原因类别映射，不再解析中文错误文案。
+## 当前基线
 
-## 后续工作
+以下架构已经完成并作为前提保留：
 
-以下工作不应阻塞当前功能开发，按领域触达逐步完成：
+- `core -> services -> app -> ui -> 平台壳` 是当前包依赖方向。
+- Core 的 Bungie HTTP、OAuth、Manifest 文件读写、账号 Session、资料库 SQLite runtime、独立本地 store 和 Desktop transport 已经分别迁入 Services 或 Desktop。
+- Prototype、Web、Desktop 均挂同一个 `ProductShellHost`；Prototype / Web 使用共享 typed fixture foundation，不维护平台专属产品页面。
+- Desktop 的 main、preload、renderer contracts 和 Renderer feature 边界已有架构门禁。
+- Services 的稳定错误码可经 Desktop contracts 和 preload 传递。逐菜单如何展示登录、重试或修复提示属于后续 UX 工作，不属于本任务完成条件。
 
-- vault tags、aliases、wishlist、target rules、loadout、library history 和 audit 等独立 IO store 已迁到 services；社区推荐的读写实现仍与 core 推荐编排直接组合，后续必须连同编排模块一起迁移，避免引入循环依赖。
-- 按后续真实功能触达继续细化热点模块，但本轮已完成它们最先应分离的网络、补丁、文件、身份、图标和文本职责；保留原 public interface。
-- 继续收口 Prototype / Web 的 loadout、library data、community match 等宽松 fixture；共享 factory 只表达稳定 DTO，不合并平台场景状态。
-- 让 renderer 对稳定错误 `code` / `causeCategory` 提供差异化登录、重试、修复和冲突提示；迁移低频 IPC 与后台任务最终失败。
-- 只有新增真实 HTTP 业务 endpoint 时，才补 services composition、请求限制、取消、typed error mapping 和 observability。
+当前剩余的实际边界问题集中在社区推荐：
 
-## Release 门禁
+- `packages/core/src/community-perks/localCommunityRecommendations.ts` 读写本地社区表并构建本地 source。
+- `packages/core/src/community-perks/personalWeaponKnowledge.ts` 读写个人知识。
+- `packages/core/src/community-perks/aiLightggSource.ts` 调用 AI 网页检索并读写 light.gg 缓存。
+- `packages/desktop/src/main/ipc/community.ts` 直接从 Core 调用上述运行时实现；Services 仅承担部分推荐 source 的组合。
 
-以下清理必须等待 `tools\git-auto-release.cmd` 完成正式发版，并至少观察一个稳定 Release 与一次真实回滚：
+这些不是遗留死代码。仓库、装备详情、个人知识和社区推荐 IPC 当前仍会走该路径，因此必须迁移后才能关闭 T7。
 
-- 删除 SQLite 已覆盖的旧 JSON 主链路。
-- 删除旧 IPC / core HTTP / store 兼容入口。
-- 收缩 UI / app / core 根入口的兼容导出。
+## 目标边界
 
-## 验收
+### Core
 
-- 普通 CI 通过 frozen install、行为测试、架构测试和类型检查。
-- Desktop dev、unpacked、NSIS clean install、覆盖安装、离线启动均可用。
-- Manifest 激活中断和回滚不丢失上一版可用资料库。
-- Account snapshot、GameData query、Manifest activation/rollback 具有可比较的诊断基线。
-- 稳定 Release 后再更新本 backlog 与 `docs/todo.md`，执行兼容层删除。
+Core 保留：
+
+- `CommunityPerkRecommendationService` 的纯编排规则。
+- 推荐、Perk、个人知识和本地社区表的领域 DTO、校验、规范化、匹配与解析。
+- 可注入的 `CommunityPerkSource` 协议。
+- AI / light.gg 响应到领域推荐结果的纯解析函数。
+
+Core 不保留：
+
+- `node:fs`、`node:path` 或数据目录路径拼接。
+- 本地 JSON 表、个人知识或 light.gg 缓存的读写。
+- AI 请求、网页检索或其他外部调用。
+
+### Services
+
+Services 负责：
+
+- 本地社区表、个人知识与 light.gg 缓存的存储 adapter。
+- AI / light.gg source 的运行时实现、配置读取和失效策略。
+- 将本地表、DIM、个人知识和可选 AI source 组合为 `CommunityPerkRecommendationService`。
+- 对存储、配置和外部请求错误提供稳定 `D2ServiceError`。
+
+### Desktop、App 与 UI
+
+- Desktop IPC 只从 Services 导入社区推荐运行时能力；不再从 Core 导入文件存储或 AI source。
+- Preload、renderer API、App 和 UI 继续引用 Core 的领域类型或 Services 的稳定契约，不感知文件路径、缓存目录或 AI 请求细节。
+- Prototype 与 Web 继续使用内存 / fixture adapter，不复制社区推荐业务规则。
+
+## 实施切片
+
+### 实现：迁移本地社区表与个人知识存储
+
+- 将文件读写移入 `packages/services/src/community/`。
+- Core 只导出类型、输入规范化和纯校验。
+- 保持现有 JSON 文件名、数据格式、导入结果和用户可见行为不变。
+
+### 实现：迁移 AI / light.gg 运行时 source
+
+- 将配置使用、AI 网页检索、缓存 TTL 和缓存读写移入 Services。
+- Core 保留 URL / 响应解析所需的纯函数；不得在 Core 中发请求或落盘。
+- 保持“外部知识最低优先级、保留原始链接和查询时间”的现有数据规则。
+
+### 整理：收口 Desktop IPC 与公开契约
+
+- `community.ts` 仅调用 Services facade。
+- 保留已有 IPC channel、renderer API 和 UI action，避免产品功能回归。
+- 将个人知识相关类型从 Core 的运行时文件路径中拆出为纯领域入口，避免浏览器侧误引入 Node adapter。
+
+### 整理：更新架构护栏
+
+- 删除 `multi-platform-boundaries` 中社区推荐 Core IO 的历史白名单。
+- 架构门禁应直接拒绝 Core 新增或保留的文件系统、缓存和外部请求依赖；`config/defaults.ts` 的平台路径 helper 继续作为明确例外。
+- 不新增源码字符串形式的普通功能测试；只保留必要的架构边界检查和既有行为覆盖。
+
+## 验收标准
+
+1. Core 的社区推荐生产文件不再导入 `node:fs`、`node:path`，也不执行 AI / 网络调用。
+2. Desktop 社区 IPC 不再从 Core 导入本地表、个人知识或 AI/light.gg 运行时实现。
+3. 本地社区表、个人知识、DIM 愿望单和可选 AI/light.gg 推荐保持现有读取、保存、清除、缓存和错误恢复行为。
+4. Prototype、Web 与 Desktop 不复制社区推荐规则，继续通过共享 UI、App 和 adapter 使用能力。
+5. 架构门禁不再依赖社区推荐 Core IO 白名单。
+6. `docs/todo.md` 在完成时移除 T7；长期包边界规则保留在 `docs/development.md`，本 backlog 不保留为历史档案。
+
+## 非目标
+
+- 不迁移 JSON-only Manifest supplement。
+- 不重做资料库 SQLite、账号 Session、OAuth、Desktop IPC contracts 或共享 UI Shell。
+- 不因为服务边界迁移改变推荐优先级、AI 产品行为或玩家可见文案。
+- 不为未来可能的 Web 后端预先增加 HTTP server、数据库或远端同步层。

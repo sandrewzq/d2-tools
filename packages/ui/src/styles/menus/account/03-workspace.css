@@ -258,6 +258,50 @@
   text-align: right;
 }
 
+.app-shell .account-summary-list {
+  display: grid;
+  gap: 10px;
+}
+
+.app-shell .account-summary-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 10px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-control);
+  background: var(--surface-panel);
+}
+
+.app-shell .account-summary-row[data-tone="ready"] {
+  border-color: color-mix(in srgb, var(--status-ready) 38%, var(--border-subtle));
+  background: color-mix(in srgb, var(--surface-panel) 86%, var(--status-ready-bg) 14%);
+}
+
+.app-shell .account-summary-row[data-tone="warning"] {
+  border-color: color-mix(in srgb, var(--status-warning) 42%, var(--border-subtle));
+  background: color-mix(in srgb, var(--surface-panel) 84%, var(--status-warning-bg) 16%);
+}
+
+.app-shell .account-summary-row > div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.app-shell .account-summary-row strong {
+  color: var(--text-title);
+  font-size: var(--font-body);
+  line-height: 1.35;
+}
+
+.app-shell .account-summary-row > div > span {
+  color: var(--text-muted);
+  font-size: var(--font-content);
+  line-height: 1.45;
+}
+
 @media (max-width: 1280px) {
   .app-shell .account-workspace {
     grid-template-columns: 180px minmax(0, 1fr);

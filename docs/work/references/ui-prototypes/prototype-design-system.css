@@ -687,12 +687,15 @@ html[data-theme="light"] .badge.violet { color: #574583; }
   border-radius: 0 var(--radius-control) var(--radius-control) 0;
 }
 
-.status-chip i {
-  width: 6px;
-  height: 6px;
+.status-chip .status-icon {
+  width: 14px;
+  height: 14px;
   flex: 0 0 auto;
-  border-radius: 50%;
-  background: var(--mint);
+  fill: none;
+  stroke: var(--mint);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
 }
 
 .status-chip strong {
@@ -700,8 +703,8 @@ html[data-theme="light"] .badge.violet { color: #574583; }
   font-weight: 600;
 }
 
-.status-chip.warning i {
-  background: var(--amber);
+.status-chip.warning .status-icon {
+  stroke: var(--amber);
 }
 
 .notice,

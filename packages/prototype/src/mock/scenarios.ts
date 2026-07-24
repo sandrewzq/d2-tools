@@ -159,7 +159,7 @@ const readyWeeklySummary: HomeWeeklySummary = {
 
 const baseShellStatus: ShellStatusItem[] = createFixtureShellStatus({
   bungie: { value: "已配置", tone: "ready" },
-  account: { value: "14:18", tone: "ready" },
+  account: { value: "2 个角色 · 14:18", tone: "ready" },
   library: { value: "2026/06/16 最新", tone: "ready" },
   ai: { value: "未配置", tone: "warning" },
   appVersion: { version: prototypeAppVersion, suffix: " 最新", tone: "ready" }

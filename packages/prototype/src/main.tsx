@@ -734,7 +734,6 @@ function getPrototypePageHeader(page: ShellPageKey, onNavigate: (page: ShellPage
     home: (
       <>
         <button type="button" className="secondary-button">刷新公开情报</button>
-        <button type="button" className="primary-button" onClick={() => onNavigate("vendors")}>查看商人库存</button>
       </>
     ),
     account: <><button type="button" className="secondary-button">刷新账号</button><button type="button" className="secondary-button">重新授权</button></>,

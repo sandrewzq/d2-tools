@@ -269,7 +269,7 @@ function renderShellStatusItem(item: AppShellLayoutProps["shellStatus"][number])
   const accessibilityLabel = `${item.label}：${item.value}`;
   const content = (
     <>
-      <span className="shell-status-dot" />
+      <ShellStatusIcon statusKey={item.key} />
       <span>{item.label}</span>
       <strong>{item.value}</strong>
     </>
@@ -284,6 +284,32 @@ function renderShellStatusItem(item: AppShellLayoutProps["shellStatus"][number])
   }
 
   return <span className={className} title={accessibilityLabel} aria-label={accessibilityLabel} key={item.label}>{content}</span>;
+}
+
+function ShellStatusIcon(props: { statusKey: AppShellLayoutProps["shellStatus"][number]["key"] }) {
+  const commonProps = {
+    "aria-hidden": true,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 1.8,
+    strokeLinecap: "round" as const,
+    strokeLinejoin: "round" as const
+  };
+
+  switch (props.statusKey) {
+    case "account":
+      return <svg className="shell-status-icon" {...commonProps}><circle cx="12" cy="8" r="3.5" /><path d="M4.5 20a7.5 7.5 0 0 1 15 0" /></svg>;
+    case "library":
+      return <svg className="shell-status-icon" {...commonProps}><ellipse cx="12" cy="5" rx="7" ry="2.5" /><path d="M5 5v7c0 1.4 3.1 2.5 7 2.5s7-1.1 7-2.5V5" /><path d="M5 12v7c0 1.4 3.1 2.5 7 2.5s7-1.1 7-2.5v-7" /></svg>;
+    case "ai":
+      return <svg className="shell-status-icon" {...commonProps}><path d="m12 3 1.5 5.5L19 10l-5.5 1.5L12 17l-1.5-5.5L5 10l5.5-1.5L12 3Z" /><path d="m19 15 .7 2.3L22 18l-2.3.7L19 21l-.7-2.3L16 18l2.3-.7L19 15Z" /></svg>;
+    case "app-version":
+      return <svg className="shell-status-icon" {...commonProps}><circle cx="12" cy="12" r="8" /><path d="m8.5 12 2.2 2.2 4.8-4.8" /></svg>;
+    case "bungie":
+    default:
+      return <svg className="shell-status-icon" {...commonProps}><circle cx="12" cy="12" r="8" /><path d="M4 12h16M12 4a12 12 0 0 1 0 16M12 4a12 12 0 0 0 0 16" /></svg>;
+  }
 }
 
 function getBackgroundTaskDockState(tasks: ShellBackgroundTaskItem[], copy: ShellCopy): {
