@@ -51,12 +51,12 @@ Vibecoding 快路径：
 - worktree 是隔离复杂并行现场的工具，不是所有任务的默认要求。触碰 `packages/ui`、`packages/app`、`packages/desktop/src/renderer/shared/`、renderer API、主进程 IPC、release / 版本号 / CHANGELOG，或当前工作区已有多条无关脏改动时，才优先考虑 worktree 或暂停其他 agent。
 - 多 agent 共用同一工作区时，提交前必须先运行 `tools\git-preflight.cmd`；如果输出多条 lane 或高冲突文件，不要使用全量 `git add -A` 提交脚本，除非确认这些改动都属于本次提交。
 - 跨菜单复用能力必须先进入 `packages/desktop/src/renderer/shared/`，不要让 feature 之间直接 import。
-- `shared/` 不能 import `features/`，也不能通过 `components/VaultPanel.tsx` 等菜单桥接文件间接依赖 feature。
+- `shared/` 不能 import `features/`；跨菜单复用能力必须放在 `shared/` 或 `packages/ui`，不得通过菜单桥接文件间接依赖 feature。
 - 新增 renderer API 契约时放到对应 `packages/desktop/src/renderer/api/*Api.ts`；跨领域 DTO 放到 `sharedTypes.ts`；不要把大型 DTO 塞回 `api/types.ts` 或 `api/client.ts`。
 - `api/client.ts` 只做 Electron renderer 运行时绑定：声明 `window.d2`、导出 `api` 和兼容性重导出类型。
 - 新增主进程 IPC handler 时放到对应 `packages/desktop/src/main/ipc/<domain>.ts`；`ipc.ts` 只做聚合注册。
-- 新增用户可见文案时，优先沉淀到 `shared/copy.ts` 或对应领域 copy 文件；当前默认中文，不做语言切换 UI。
-- 多人或多 agent 并行时，尽量避免同时修改 `HomePage.tsx`、`ItemDetailModal.tsx`、`useItemDetailWorkspace.ts`、`VaultPanel.tsx`、`api/types.ts`、`api/client.ts`、`ipc.ts` 等公共接线文件；确需修改时先说明影响范围。
+- 新增用户可见文案时，优先沉淀到 `packages/ui/src/i18n/` 或对应领域 copy 文件；当前默认中文，不做语言切换 UI。
+- 多人或多 agent 并行时，尽量避免同时修改 `HomePage.tsx`、`ItemDetailModal.tsx`、`useItemDetailWorkspace.ts`、`api/types.ts`、`api/client.ts`、`ipc.ts` 等公共接线文件；确需修改时先说明影响范围。
 
 ## 跨端 UI / Prototype 工作流
 

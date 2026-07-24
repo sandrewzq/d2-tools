@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { groupAccountItemsBySlot } from "../src/renderer/utils/accountSlots";
+import { groupAccountItemsBySlot } from "../../app/src/account";
 import type { AccountItemSummary } from "../src/renderer/api/types";
 
 describe("account slot grouping", () => {

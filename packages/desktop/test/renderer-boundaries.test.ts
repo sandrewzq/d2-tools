@@ -6,7 +6,6 @@ import { describe, expect, it } from "vitest";
 const desktopSourceRoot = fileURLToPath(new URL("../src", import.meta.url));
 const rendererRoot = join(desktopSourceRoot, "renderer");
 const featuresRoot = join(rendererRoot, "features");
-const sharedRoot = join(rendererRoot, "shared");
 const rendererApiRoot = join(rendererRoot, "api");
 const mainRoot = join(desktopSourceRoot, "main");
 const preloadRoot = join(desktopSourceRoot, "preload");
@@ -27,15 +26,6 @@ describe("renderer architecture boundaries", () => {
     const violations = sourceFiles(sharedRoot)
       .flatMap((file) => importTargets(file)
         .filter((target) => isInside(target, featuresRoot))
-        .map((target) => `${relative(rendererRoot, file)} -> ${relative(rendererRoot, target)}`));
-
-    expect(violations).toEqual([]);
-  });
-
-  it("keeps shared renderer modules from using menu UI bridge modules", () => {
-    const violations = sourceFiles(sharedRoot)
-      .flatMap((file) => importTargets(file)
-        .filter((target) => relative(rendererRoot, target).replaceAll("\\", "/") === "components/VaultPanel.tsx")
         .map((target) => `${relative(rendererRoot, file)} -> ${relative(rendererRoot, target)}`));
 
     expect(violations).toEqual([]);

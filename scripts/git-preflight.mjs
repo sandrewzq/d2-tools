@@ -112,7 +112,6 @@ const hotspots = [
   "packages/desktop/src/renderer/pages/HomePage.tsx",
   "packages/desktop/src/renderer/shared/components/item-detail/ItemDetailModal.tsx",
   "packages/desktop/src/renderer/shared/hooks/useItemDetailWorkspace.ts",
-  "packages/desktop/src/renderer/components/VaultPanel.tsx",
   "packages/desktop/src/renderer/api/types.ts",
   "packages/desktop/src/renderer/api/client.ts",
   "packages/desktop/src/main/ipc.ts",

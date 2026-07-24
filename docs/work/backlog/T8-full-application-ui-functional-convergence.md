@@ -241,7 +241,7 @@
 
 ## 实施范围
 
-当前活动合同：[共享框架与设置页还原合同](T8-shell-and-settings-restoration-contract.md)。在该合同完成视觉验收前，不进入商人或其他菜单。
+当前活动子任务：[T8.1 共享框架与设置页还原合同](T8.1-shell-and-settings-restoration-contract.md)。在该子任务完成视觉验收前，不进入商人或其他菜单。
 
 ### 首页功能与视觉合并
 

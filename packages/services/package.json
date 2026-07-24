@@ -45,10 +45,6 @@
       "types": "./dist/bungie/activityHistory.d.ts",
       "import": "./dist/bungie/activityHistory.js"
     },
-    "./home/briefingCache": {
-      "types": "./dist/home/briefingCache.d.ts",
-      "import": "./dist/home/briefingCache.js"
-    },
     "./manifest/cache": {
       "types": "./dist/manifest/cache.d.ts",
       "import": "./dist/manifest/cache.js"

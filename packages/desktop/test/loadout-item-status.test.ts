@@ -4,7 +4,7 @@ import {
   buildLoadoutItemStatus,
   summarizeLoadoutItemStatuses,
   type LoadoutStatusSourceItem
-} from "../src/renderer/utils/loadoutItemStatus";
+} from "../../app/src/loadouts";
 
 const accountSummary: AccountSummary = {
   account_name: "tester",
