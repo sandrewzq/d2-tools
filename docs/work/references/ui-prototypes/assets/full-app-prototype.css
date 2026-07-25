@@ -231,3 +231,26 @@
     .account-character-switcher strong,.account-character-switcher small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
     .account-character-switcher strong{color:inherit}.account-character-switcher small{margin-top:2px}
     @media(max-width:760px){.account-character-switcher{flex-wrap:wrap}.account-character-switcher button{flex-basis:50%;min-width:0}}
+
+    /* Small-screen shell: status remains reachable without reserving a second
+       fixed row, and the assistant owns the full work area while open. */
+    .mobile-status{display:contents}.mobile-status>summary{display:none}
+    @media(min-width:761px) and (max-width:980px){.home-refresh-cell{grid-template-areas:"heading value" "state state" "detail detail"}.home-refresh-cell>small[data-ui-part="state"]{justify-self:start}}
+    @media(max-width:760px){
+      :root{--topbar:52px}
+      .topbar{grid-template-columns:minmax(108px,1fr) auto auto;grid-template-rows:52px}
+      .window-tools{display:none}
+      .mobile-status{position:relative;display:block;grid-column:auto}
+      .mobile-status>summary{display:grid;min-height:34px;padding:0 6px;place-items:center;list-style:none;cursor:pointer;white-space:nowrap}
+      .mobile-status>summary::-webkit-details-marker{display:none}
+      .mobile-status .status-strip{position:fixed;z-index:var(--layer-popover);top:calc(var(--topbar) + 8px);right:8px;left:8px;display:grid;grid-template-columns:1fr;max-height:calc(100dvh - var(--topbar) - 16px);overflow-y:auto;padding:8px;border:1px solid var(--control-border);background:var(--panel);box-shadow:var(--shadow-overlay)}
+      .mobile-status:not([open]) .status-strip{display:none}
+      .mobile-status .status-chip{display:grid;grid-template-columns:18px minmax(0,1fr) auto;gap:7px;align-items:center;min-height:38px;padding:7px 8px}
+      .mobile-status .status-chip>span{display:block}.mobile-status .status-chip strong{overflow-wrap:anywhere;white-space:normal}
+      .workspace.ai-open{grid-template-columns:minmax(0,1fr)}
+      .workspace.ai-open>.sidebar{display:none}
+      .workspace.ai-open .ai-drawer{top:var(--topbar);width:100vw;height:calc(100dvh - var(--topbar))}
+      .ai-drawer-scrim{inset:var(--topbar) 0 0 0}
+      .home-refresh-cell{grid-template-areas:"heading heading" "value value" "state state" "detail detail";grid-template-columns:1fr;align-items:start}
+      .home-refresh-cell strong,.home-refresh-cell>small[data-ui-part="state"]{justify-self:start;white-space:normal;overflow-wrap:anywhere}
+    }

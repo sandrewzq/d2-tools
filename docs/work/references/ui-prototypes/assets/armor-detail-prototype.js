@@ -290,6 +290,10 @@ const state = {
   instanceActionStatus: ""
 };
 
+const prototypeControls = String(new URLSearchParams(location.search).has("controls"));
+document.querySelector("[data-prototype-root]").dataset.prototypeControls = prototypeControls;
+document.body.dataset.prototypeControls = prototypeControls;
+
 function closeRail() {
   state.railOpen = false;
 }
@@ -552,6 +556,7 @@ function renderAi(data, object) {
 function render() {
   const data = armor();
   const object = currentObject(data);
+  document.querySelector(".overview-grid").classList.toggle("is-stat-empty", !object);
   document.documentElement.dataset.theme = state.theme;
   document.querySelector("[data-prototype-root]").dataset.state = state.detailState;
   document.querySelector("[data-detail-state-layer]").dataset.status = ({ normal: "neutral", loading: "pending", empty: "neutral", error: "error", partial: "warning", disabled: "warning", running: "pending" })[state.detailState];

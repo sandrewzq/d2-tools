@@ -325,3 +325,15 @@ html[data-theme="light"] .upgrade-summary { background: var(--card-bg); }
   .ai-evidence div { border-right: 0; border-bottom: 1px solid var(--divider); }
   .ai-evidence div:last-child { border-bottom: 0; }
 }
+
+/* A definition-only armor has no six-dimensional facts. Keep that explicit
+ * state compact and give the confirmed acquisition data the reading width. */
+.overview-grid.is-stat-empty { grid-template-columns: 1fr; }
+.overview-grid.is-stat-empty .stat-empty { min-height: 0; padding-block: 11px; }
+
+[data-prototype-controls="false"] .stage { padding: 14px; }
+[data-prototype-controls="false"] .dossier { height: calc(100dvh - 28px); }
+@media (max-width: 1150px) {
+  [data-prototype-controls="false"] .stage { padding: 8px; }
+  [data-prototype-controls="false"] .dossier { height: calc(100dvh - 16px); min-height: min(680px, calc(100dvh - 16px)); }
+}

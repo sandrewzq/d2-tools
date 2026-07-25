@@ -6,21 +6,24 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>d2-tools 全应用视觉原型</title>
   <link rel="stylesheet" href="./assets/full-app-prototype.css">
-  <link rel="stylesheet" href="./assets/vault-prototype-filters.css">
   <link rel="stylesheet" href="./prototype-design-system.css">
   <link rel="stylesheet" href="./assets/prototype-typography.css">
+  <link rel="stylesheet" href="./assets/vault-prototype-filters.css">
 </head>
-<body>
-  <main class="app" data-prototype-root="product-workspace" data-reference-only="true" data-visual-contract="surface-v2" data-theme="dark" data-density="standard" data-state="normal">
+<body data-prototype-controls="false">
+  <main class="app" data-prototype-root="product-workspace" data-reference-only="true" data-visual-contract="surface-v2" data-theme="dark" data-density="standard" data-state="normal" data-prototype-controls="false">
     <header class="topbar" data-shell-role="titlebar" data-ui-kind="shell-chrome">
       <div class="brand" data-ui-kind="product-identity"><span class="brand-mark">D2</span><div><strong data-ui-part="value" data-info-priority="context" data-text-tone="primary">d2-tools</strong><span data-ui-part="detail" data-info-priority="support" data-text-tone="meta">Destiny 2 本地助手</span></div></div>
-      <div class="status-strip" data-ui-kind="shell-status-strip">
+      <details class="mobile-status">
+        <summary>状态</summary>
+        <div class="status-strip" data-ui-kind="shell-status-strip">
         <span class="status-chip" data-status="success"><svg class="status-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"></circle><path d="M4 12h16M12 4a12 12 0 0 1 0 16M12 4a12 12 0 0 0 0 16"></path></svg><span data-ui-part="label" data-info-priority="support" data-text-tone="meta">Bungie</span><strong data-ui-part="value" data-info-priority="context" data-text-tone="primary" data-shell-bungie-status>读取中</strong></span>
         <span class="status-chip" data-status="success"><svg class="status-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.5"></circle><path d="M4.5 20a7.5 7.5 0 0 1 15 0"></path></svg><span data-ui-part="label" data-info-priority="support" data-text-tone="meta">账号</span><strong data-ui-part="value" data-info-priority="context" data-text-tone="primary" data-shell-account-status>读取中</strong></span>
         <span class="status-chip" data-status="success"><svg class="status-icon" viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="5" rx="7" ry="2.5"></ellipse><path d="M5 5v7c0 1.4 3.1 2.5 7 2.5s7-1.1 7-2.5V5"></path><path d="M5 12v7c0 1.4 3.1 2.5 7 2.5s7-1.1 7-2.5v-7"></path></svg><span data-ui-part="label" data-info-priority="support" data-text-tone="meta">资料库</span><strong data-ui-part="value" data-info-priority="context" data-text-tone="primary" data-shell-library-version>读取中</strong></span>
         <span class="status-chip" data-status="success"><svg class="status-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 1.5 5.5L19 10l-5.5 1.5L12 17l-1.5-5.5L5 10l5.5-1.5L12 3Z"></path><path d="m19 15 .7 2.3L22 18l-2.3.7L19 21l-.7-2.3L16 18l2.3-.7L19 15Z"></path></svg><span data-ui-part="label" data-info-priority="support" data-text-tone="meta">AI</span><strong data-ui-part="value" data-info-priority="context" data-text-tone="primary" data-shell-ai-status>读取中</strong></span>
         <span class="status-chip" data-status="success"><svg class="status-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"></circle><path d="m8.5 12 2.2 2.2 4.8-4.8"></path></svg><span data-ui-part="label" data-info-priority="support" data-text-tone="meta">应用版本</span><strong data-ui-part="value" data-info-priority="context" data-text-tone="primary" data-shell-app-version>读取中</strong></span>
-      </div>
+        </div>
+      </details>
       <div class="top-tools" aria-label="全局工具">
         <button class="tool-button active" type="button" data-theme-toggle title="切换到浅色模式" aria-label="切换到浅色模式"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.66 6.34l1.41-1.41"></path></svg></button>
         <button class="tool-button" type="button" data-locale-toggle title="切换到 English" aria-label="切换到 English"><span class="locale-badge" data-locale-badge>中</span></button>
@@ -136,6 +139,8 @@
     const pages=["home","account","vault","loadouts","library","vendors","settings"];
     const pageLabels={home:"首页",account:"账号",vault:"仓库",loadouts:"配装",library:"资料库",vendors:"商人",settings:"设置"};
     const state={page:pages.includes(location.hash.slice(1))?location.hash.slice(1):"home",theme:localStorage.getItem("full-app-prototype-theme")||"dark",density:localStorage.getItem("full-app-prototype-density")||"standard",locale:localStorage.getItem("full-app-prototype-locale")||"zh-CN",viewState:"normal",homeVendorState:"ready",ai:false,libraryMode:"equipment",libraryQuery:"",libraryPerkName:"",libraryFilters:{category:"all",ownership:"all"},characterId:workspaceSnapshot.characters[0]?.id||"",loadoutCharacterId:workspaceSnapshot.characters[0]?.id||"",loadoutMode:"game",loadoutId:"",loadoutDialog:null,dimUrl:"",dimPreview:false,loadoutSaveSlot:0,localLoadoutDrafts:[],hiddenLoadoutIds:new Set()};
+    const prototypeControls=String(new URLSearchParams(location.search).has("controls"));document.querySelector("[data-prototype-root]").dataset.prototypeControls=prototypeControls;document.body.dataset.prototypeControls=prototypeControls;
+    document.querySelectorAll(".main-nav [data-page]").forEach(button=>button.setAttribute("aria-label",button.textContent.trim()));
     let aiTrigger=null;
     let loadoutDialogTrigger=null;
     const perkData=workspaceSnapshot.perks;

@@ -1311,6 +1311,14 @@ html[data-theme="light"] .instances tr.is-selected {
   }
 }
 
+/* Prototype-only controls are intentionally absent from visual baselines.
+ * Add ?controls=1 to a prototype URL when exercising fixture states. */
+[data-prototype-controls="false"] .prototype-tools,
+[data-prototype-controls="false"] .prototype-bar,
+body[data-prototype-controls="false"] .prototype-tools {
+  display: none;
+}
+
 /* DetailDossier owns the final stacking order for both equipment prototypes. */
 [data-prototype-root="detail-dossier"] .detail-sticky,
 [data-prototype-root="detail-dossier"] .instance-rail {

@@ -8,8 +8,8 @@
   <link rel="stylesheet" href="./prototype-design-system.css">
   <link rel="stylesheet" href="./assets/prototype-typography.css">
 </head>
-<body>
-  <div data-prototype-root="detail-dossier" data-state="normal" data-reference-only="true" data-visual-contract="surface-v2" data-surface="page">
+<body data-prototype-controls="false">
+  <div data-prototype-root="detail-dossier" data-state="normal" data-reference-only="true" data-visual-contract="surface-v2" data-surface="page" data-prototype-controls="false">
     <header class="prototype-bar" data-prototype-only="true" data-ui-kind="shell-chrome">
       <div class="prototype-label"><strong>统一武器详情</strong><span>同一 UI 框架，根据武器能力和当前对象切换局部内容</span></div>
       <div class="prototype-groups">
@@ -94,6 +94,7 @@
       }
     };
     const state={weapon:location.hash.includes("exotic")?"exotic":"legendary",mode:(location.hash.split(":")[1]||"library"),filter:"all",matchSource:"dim",detailState:"normal"};
+    const prototypeControls=String(new URLSearchParams(location.search).has("controls"));document.querySelector("[data-prototype-root]").dataset.prototypeControls=prototypeControls;document.body.dataset.prototypeControls=prototypeControls;
     state.pending={};state.writeStatus="";state.instanceActionStatus="";state.poolOpen=false;state.railOpen=false;state.aiReady=false;state.theme=localStorage.getItem("weapon-detail-prototype-theme")||"dark";document.documentElement.dataset.theme=state.theme;
     if(!["library","vendor","instance-a","instance-b"].includes(state.mode))state.mode="library";
     const el={icon:document.querySelector("[data-item-icon]"),name:document.querySelector("[data-item-name]"),subtitle:document.querySelector("[data-item-subtitle]"),version:document.querySelector("[data-item-version]"),meta:document.querySelector("[data-item-meta]"),versionBadge:document.querySelector("[data-version-badge]"),context:document.querySelector("[data-context]"),definitionDetails:document.querySelector("[data-definition-details]"),stats:document.querySelector("[data-stats]"),sources:document.querySelector("[data-sources]"),sourceNote:document.querySelector("[data-source-note]"),configTitle:document.querySelector("[data-config-title]"),configCopy:document.querySelector("[data-config-copy]"),configContent:document.querySelector("[data-config-content]"),recommendTitle:document.querySelector("[data-recommend-title]"),recommendCopy:document.querySelector("[data-recommend-copy]"),recommendations:document.querySelector("[data-recommendations]"),upgradeTitle:document.querySelector("[data-upgrade-title]"),upgradeCopy:document.querySelector("[data-upgrade-copy]"),catalyst:document.querySelector("[data-catalyst]"),catalystIcon:document.querySelector("[data-catalyst-icon]"),catalystName:document.querySelector("[data-catalyst-name]"),catalystState:document.querySelector("[data-catalyst-state]"),catalystBonus:document.querySelector("[data-catalyst-bonus]"),progressBar:document.querySelector("[data-progress-bar]"),progressLabel:document.querySelector("[data-progress-label]"),progressCopy:document.querySelector("[data-progress-copy]"),catalystCopy:document.querySelector("[data-catalyst-copy]"),upgrades:document.querySelector("[data-upgrades]"),instances:document.querySelector("[data-instances]"),instanceCount:document.querySelector("[data-instance-count]"),instanceActions:document.querySelector("[data-instance-actions]"),instanceRail:document.querySelector("[data-instance-rail]"),railScrim:document.querySelector("[data-rail-scrim]"),ai:document.querySelector("[data-ai]"),aiStatus:document.querySelector("[data-ai-status]"),saveAi:document.querySelector("[data-save-ai]")};
