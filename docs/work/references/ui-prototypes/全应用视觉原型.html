@@ -6,6 +6,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>d2-tools 全应用视觉原型</title>
   <link rel="stylesheet" href="./assets/full-app-prototype.css">
+  <link rel="stylesheet" href="./assets/vault-prototype-filters.css">
   <link rel="stylesheet" href="./prototype-design-system.css">
   <link rel="stylesheet" href="./assets/prototype-typography.css">
 </head>
@@ -346,5 +347,6 @@ if(!selected){host.innerHTML=`<div class="full-loadout-workspace" data-surface="
     window.addEventListener("resize",()=>{if(state.ai)applyAi()});
     renderWorkspaceSnapshotMeta();renderShellStatusSummary();renderEquipment();renderMaterials();renderPostmaster();renderVault();renderLoadoutDirectory();renderLibrary();renderVendor();renderHomeRefreshRhythm();renderHomeWeekly();renderHomeVendor();renderSettings();applyTheme();applyLocale();applyPage();applyAi();applyViewState();window.setInterval(()=>renderHomeRefreshRhythm(),60000);
   </script>
+  <script src="./assets/vault-prototype-filters.js"></script>
 </body>
 </html>

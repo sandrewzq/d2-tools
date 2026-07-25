@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="zh-CN" data-theme="dark" data-state="normal">
+<html lang="zh-CN" data-theme="dark">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -9,41 +9,41 @@
   <link rel="stylesheet" href="./assets/prototype-typography.css">
 </head>
 <body>
-  <div data-prototype-root="detail-dossier" data-reference-only="true" data-visual-contract="surface-v2">
-  <header class="prototype-bar" data-prototype-only="true">
+  <div data-prototype-root="detail-dossier" data-state="normal" data-reference-only="true" data-visual-contract="surface-v2" data-surface="page">
+  <header class="prototype-bar" data-prototype-only="true" data-ui-kind="shell-chrome">
     <div class="prototype-copy">
       <strong>统一护甲详情</strong>
       <span>与武器共用正文和右侧实例栏骨架，护甲只保留领域差异</span>
     </div>
     <div class="prototype-groups">
-      <div class="control-group" aria-label="切换原型主题">
-        <button type="button" data-theme="dark">深色</button>
-        <button type="button" data-theme="light">浅色</button>
+      <div class="control-group" data-ui-kind="segmented-control" aria-label="切换原型主题">
+        <button type="button" data-ui-kind="button" data-control-variant="quiet" data-theme="dark">深色</button>
+        <button type="button" data-ui-kind="button" data-control-variant="quiet" data-theme="light">浅色</button>
       </div>
-      <div class="control-group" aria-label="切换护甲类型">
-        <button type="button" data-armor="legendary">传说套装护甲</button>
-        <button type="button" data-armor="exotic">异域护甲</button>
+      <div class="control-group" data-ui-kind="segmented-control" aria-label="切换护甲类型">
+        <button type="button" data-ui-kind="button" data-control-variant="quiet" data-armor="legendary">传说套装护甲</button>
+        <button type="button" data-ui-kind="button" data-control-variant="quiet" data-armor="exotic">异域护甲</button>
       </div>
-      <div class="control-group" aria-label="切换当前对象">
-        <button type="button" data-mode="library">资料库</button>
-        <button type="button" data-mode="vendor">商人 Offer</button>
-        <button type="button" data-mode="instance-a">实例 A</button>
-        <button type="button" data-mode="instance-b">实例 B</button>
+      <div class="control-group" data-ui-kind="segmented-control" aria-label="切换当前对象">
+        <button type="button" data-ui-kind="button" data-control-variant="quiet" data-mode="library">资料库</button>
+        <button type="button" data-ui-kind="button" data-control-variant="quiet" data-mode="vendor">商人 Offer</button>
+        <button type="button" data-ui-kind="button" data-control-variant="quiet" data-mode="instance-a">实例 A</button>
+        <button type="button" data-ui-kind="button" data-control-variant="quiet" data-mode="instance-b">实例 B</button>
       </div>
-      <div class="control-group detail-state-controls" aria-label="切换页面状态">
-        <button type="button" data-prototype-state="normal">正常</button>
-        <button type="button" data-prototype-state="loading">加载</button>
-        <button type="button" data-prototype-state="empty">空</button>
-        <button type="button" data-prototype-state="error">失败</button>
-        <button type="button" data-prototype-state="partial">部分</button>
-        <button type="button" data-prototype-state="disabled">禁用</button>
-        <button type="button" data-prototype-state="running">进行中</button>
+      <div class="control-group detail-state-controls" data-ui-kind="segmented-control" aria-label="切换页面状态">
+        <button type="button" data-ui-kind="button" data-control-variant="quiet" data-prototype-state="normal">正常</button>
+        <button type="button" data-ui-kind="button" data-control-variant="quiet" data-prototype-state="loading">加载</button>
+        <button type="button" data-ui-kind="button" data-control-variant="quiet" data-prototype-state="empty">空</button>
+        <button type="button" data-ui-kind="button" data-control-variant="quiet" data-prototype-state="error">失败</button>
+        <button type="button" data-ui-kind="button" data-control-variant="quiet" data-prototype-state="partial">部分</button>
+        <button type="button" data-ui-kind="button" data-control-variant="quiet" data-prototype-state="disabled">禁用</button>
+        <button type="button" data-ui-kind="button" data-control-variant="quiet" data-prototype-state="running">进行中</button>
       </div>
     </div>
   </header>
 
   <div class="stage">
-    <main class="dossier" data-contract-id="armor.detail" data-detail-contract="detail.dossier" data-layout="hybrid-workspace">
+    <main class="dossier" data-contract-id="armor.detail" data-detail-contract="detail.dossier" data-layout="hybrid-workspace" data-surface="page">
       <header class="dossier-toolbar" data-ui-kind="shell-chrome">
         <div>
           <h1>护甲档案</h1>
@@ -177,18 +177,18 @@
           </aside>
         </div>
       </div>
-      <div class="detail-state-layer" data-detail-state-layer data-prototype-only="true" role="status" aria-live="polite">
+      <div class="detail-state-layer" data-detail-state-layer data-prototype-only="true" data-status="neutral" role="status" aria-live="polite">
         <div class="detail-state-card">
-          <span class="eyebrow" data-detail-state-kicker></span>
-          <h2 data-detail-state-title></h2>
-          <p data-detail-state-copy></p>
-          <button type="button" class="secondary-button" data-detail-state-reset>返回正常状态</button>
+          <span class="eyebrow" data-ui-part="label" data-info-priority="support" data-text-tone="meta" data-detail-state-kicker></span>
+          <h2 data-ui-part="value" data-info-priority="decision" data-text-tone="primary" data-detail-state-title></h2>
+          <p data-ui-part="detail" data-info-priority="reading" data-text-tone="body" data-detail-state-copy></p>
+          <button type="button" class="secondary-button" data-ui-kind="button" data-control-variant="secondary" data-detail-state-reset>返回正常状态</button>
         </div>
       </div>
     </main>
   </div>
 
-  <button type="button" class="rail-scrim" data-rail-scrim aria-label="关闭实例与操作栏"></button>
+  <button type="button" class="rail-scrim" data-rail-scrim data-ui-kind="button" data-control-variant="quiet" aria-label="关闭实例与操作栏"></button>
   </div>
   <script src="./assets/armor-detail-prototype.js"></script>
 </body>

@@ -23,6 +23,12 @@ data-prototype-root="detail-dossier"
 
 实例栏在宽屏是工作区的上下文栏；`<=1360px` 时是右侧抽屉。抽屉必须有标题、关闭按钮、遮罩关闭、`Escape` 关闭及关闭后返回触发按钮焦点。武器与护甲使用相同的 DOM 位置、层级和交互条件。
 
+详情状态层是 `role="status"` 的详情私有覆盖公告。`data-prototype-root="detail-dossier"` 必须自带初始 `data-state="normal"`，所有状态切换只更新此属性；正常/空映射为 `neutral`，加载/进行中为 `pending`，部分可用/禁用为 `warning`，失败为 `error`。它不能复用 `state-frame` 或其他通用表面组件，以免正常态被全局状态框样式常驻显示。详情 CSS 只能使用全局层级 token，禁止为实例抽屉、遮罩或原型控制栏写数字 `z-index`。
+
+## 文字与颜色
+
+详情页的最终字号与颜色由 `assets/prototype-typography.css` 的 DetailDossier 共享层决定：身份标题使用 `display`，章节标题使用 `18px` 的 `display` 章节级，实例与字段名使用 `context`，说明文字使用 `reading`，来源与辅助说明使用 `trace`。主文本、正文、元信息、操作与状态分别只使用 `--text`、`--body`、`--muted`、`--blue` 和状态 token；武器/护甲私有 CSS 不再作为最终文字颜色所有者。详情正常态由根节点 `data-state="normal"` 唯一控制，状态覆盖层默认隐藏。
+
 ## 导航与章节
 
 详情章节导航是页内锚点导航，不使用 `role="tablist"`，点击后滚动到同页章节并保留所有章节正文。当前章节使用 `aria-current="location"`。目标来源选择才是互斥内容切换，必须使用完整 Tab 模式并连接对应 `tabpanel`。

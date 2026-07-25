@@ -340,29 +340,29 @@ function renderIdentity(data, object) {
   el.version.textContent = `${data.season} · ${data.version}`;
   el.versionBadge.className = `badge ${data.rarity === "异域" ? "exotic" : "mint"}`;
   el.meta.innerHTML = [
-    `<span class="badge ${data.rarity === "异域" ? "exotic" : "violet"}">${data.rarity}</span>`,
-    `<span class="badge">${data.type}</span>`,
-    `<span class="badge">${data.guardianClass}</span>`,
-    `<span class="badge blue">${data.setName}</span>`
+    `<span class="badge ${data.rarity === "异域" ? "exotic" : "violet"}" data-ui-kind="status-chip" data-ui-part="state" data-info-priority="support" data-text-tone="status" data-status="neutral">${data.rarity}</span>`,
+    `<span class="badge" data-ui-kind="status-chip" data-ui-part="detail" data-info-priority="support" data-text-tone="body">${data.type}</span>`,
+    `<span class="badge" data-ui-kind="status-chip" data-ui-part="detail" data-info-priority="support" data-text-tone="body">${data.guardianClass}</span>`,
+    `<span class="badge blue" data-ui-kind="status-chip" data-ui-part="source" data-info-priority="trace" data-text-tone="action">${data.setName}</span>`
   ].join("");
   el.context.innerHTML = [
     ["入口", entry],
     ["当前查看", currentLabel],
     ["对象", objectType],
     ["位置", data.type]
-  ].map(([key, value]) => `<div><dt>${key}</dt><dd>${value}</dd></div>`).join("")
-    + `<div class="context-version"><dt>版本</dt><dd><strong>#1 · 当前 Hash</strong></dd><span class="version-state">${data.season}</span></div>`;
+  ].map(([key, value]) => `<div><dt data-ui-part="label" data-info-priority="support" data-text-tone="meta">${key}</dt><dd data-ui-part="value" data-info-priority="context" data-text-tone="primary">${value}</dd></div>`).join("")
+    + `<div class="context-version"><dt data-ui-part="label" data-info-priority="support" data-text-tone="meta">版本</dt><dd data-ui-part="value" data-info-priority="context" data-text-tone="primary"><strong>#1 · 当前 Hash</strong></dd><span class="version-state" data-ui-part="state" data-info-priority="support" data-text-tone="status" data-status="success">${data.season}</span></div>`;
   el.definitionDetails.innerHTML = `
-    <dl><dt>装备 Hash</dt><dd>${data.hash}</dd></dl>
-    <dl><dt>职业限制</dt><dd>${data.guardianClass}</dd></dl>
-    <dl><dt>套装或固有能力</dt><dd>${data.setName}</dd></dl>
-    <dl><dt>资料状态</dt><dd>当前游戏资料 · 已确认</dd></dl>`;
+    <dl><dt data-ui-part="label" data-info-priority="support" data-text-tone="meta">装备 Hash</dt><dd data-ui-part="source" data-info-priority="trace" data-text-tone="meta">${data.hash}</dd></dl>
+    <dl><dt data-ui-part="label" data-info-priority="support" data-text-tone="meta">职业限制</dt><dd data-ui-part="detail" data-info-priority="reading" data-text-tone="body">${data.guardianClass}</dd></dl>
+    <dl><dt data-ui-part="label" data-info-priority="support" data-text-tone="meta">套装或固有能力</dt><dd data-ui-part="detail" data-info-priority="reading" data-text-tone="body">${data.setName}</dd></dl>
+    <dl><dt data-ui-part="label" data-info-priority="support" data-text-tone="meta">资料状态</dt><dd data-ui-part="state" data-info-priority="support" data-text-tone="status" data-status="success">当前游戏资料 · 已确认</dd></dl>`;
 }
 
 function renderStats(data, object) {
   if (!object) {
     el.statOrigin.textContent = state.mode === "vendor" ? "当前没有有效 Offer" : "装备定义没有固定属性";
-    el.stats.innerHTML = `<div class="stat-empty"><strong>${state.mode === "vendor" ? "当前没有可显示的售卖属性" : "护甲定义没有固定六维属性"}</strong><span>${state.mode === "vendor" ? "商人实时数据没有返回有效售卖内容，因此不显示旧价格、旧属性或旧模组。" : "实际属性只存在于商人 Offer 或账号实例。右侧栏可以切换账号中的同 Hash 护甲。"}</span></div>`;
+    el.stats.innerHTML = `<div class="stat-empty" data-surface="frame" data-ui-kind="state-frame" data-status="neutral"><strong data-ui-part="value" data-info-priority="decision" data-text-tone="primary">${state.mode === "vendor" ? "当前没有可显示的售卖属性" : "护甲定义没有固定六维属性"}</strong><span data-ui-part="detail" data-info-priority="reading" data-text-tone="body">${state.mode === "vendor" ? "商人实时数据没有返回有效售卖内容，因此不显示旧价格、旧属性或旧模组。" : "实际属性只存在于商人 Offer 或账号实例。右侧栏可以切换账号中的同 Hash 护甲。"}</span></div>`;
     return;
   }
   const baseTotal = total(object.base);
@@ -370,26 +370,26 @@ function renderStats(data, object) {
   el.statOrigin.textContent = state.mode === "vendor" ? "商人 Offer 实际值" : "账号当前实例 · 已确认";
   el.stats.innerHTML = `
     <div class="stat-summary">
-      <div><span>基础总属性</span><strong>${baseTotal}</strong></div>
-      <div><span>当前总属性</span><strong>${currentTotal}</strong></div>
-      <div><span>升级状态</span><strong>${object.masterwork ? "大师杰作" : `${object.energy} 级能量`}</strong></div>
+      <div><span data-ui-part="label" data-info-priority="support" data-text-tone="meta">基础总属性</span><strong data-ui-part="value" data-info-priority="metric" data-text-tone="primary">${baseTotal}</strong></div>
+      <div><span data-ui-part="label" data-info-priority="support" data-text-tone="meta">当前总属性</span><strong data-ui-part="value" data-info-priority="metric" data-text-tone="primary">${currentTotal}</strong></div>
+      <div><span data-ui-part="label" data-info-priority="support" data-text-tone="meta">升级状态</span><strong data-ui-part="state" data-info-priority="decision" data-text-tone="primary">${object.masterwork ? "大师杰作" : `${object.energy} 级能量`}</strong></div>
     </div>
     <p class="stat-note">当前实际值包含可确认的强化和已安装护甲模组影响；星象等角色级加成不计入单件护甲。</p>
     <div class="stat-table">
       ${statDefs.map((stat, index) => {
         const base = object.base[index];
         const current = object.stats[index];
-        return `<div class="stat-row"><strong>${stat.label}</strong><span class="stat-base">基础 ${base}</span><span class="stat-track"><i class="current" style="width:${Math.min(100, current / 45 * 100)}%"></i><i class="base" style="width:${Math.min(100, base / 45 * 100)}%"></i></span><span class="stat-current">${current}</span></div>`;
+        return `<div class="stat-row" data-surface="row"><strong data-ui-part="label" data-info-priority="context" data-text-tone="primary">${stat.label}</strong><span class="stat-base" data-ui-part="detail" data-info-priority="support" data-text-tone="body">基础 ${base}</span><span class="stat-track"><i class="current" style="width:${Math.min(100, current / 45 * 100)}%"></i><i class="base" style="width:${Math.min(100, base / 45 * 100)}%"></i></span><span class="stat-current" data-ui-part="value" data-info-priority="decision" data-text-tone="primary">${current}</span></div>`;
       }).join("")}
     </div>`;
 }
 
 function renderSources(data) {
   el.sources.innerHTML = data.sources.map(([type, name, note, status]) => `
-    <div class="source-row">
-      <strong>${type}</strong>
-      <div><p>${name}</p><small>${note}</small></div>
-      <span class="source-state ${status.includes("未") ? "muted" : ""}">${status}</span>
+    <div class="source-row" data-surface="row" data-status="${status.includes("未") ? "warning" : "success"}">
+      <strong data-ui-part="label" data-info-priority="support" data-text-tone="meta">${type}</strong>
+      <div><p data-ui-part="value" data-info-priority="context" data-text-tone="primary">${name}</p><small data-ui-part="detail" data-info-priority="reading" data-text-tone="body">${note}</small></div>
+      <span class="source-state ${status.includes("未") ? "muted" : ""}" data-ui-part="state" data-info-priority="support" data-text-tone="status" data-status="${status.includes("未") ? "warning" : "success"}">${status}</span>
     </div>`).join("");
   el.sourceNote.textContent = "获取方式和当前售卖状态分别展示；实时读取失败时不回退显示旧 Offer。";
 }
@@ -460,14 +460,15 @@ function renderTargets(data, object) {
     button.querySelector("span").textContent = String((data.targets[source] ?? []).length);
   });
   el.targetMatches.innerHTML = entries.map((entry) => `
-    <article class="armor-match-card" data-ui-kind="object-card">
-      <header><div><h4>${entry.title}</h4><p>${entry.meta}</p></div><span>独立来源</span></header>
+    <article class="armor-match-card" data-surface="object-card" data-ui-kind="object-card">
+      <header><div><h4 data-ui-part="value" data-info-priority="context" data-text-tone="primary">${entry.title}</h4><p data-ui-part="detail" data-info-priority="reading" data-text-tone="body">${entry.meta}</p></div><span data-ui-part="source" data-info-priority="trace" data-text-tone="meta">独立来源</span></header>
       <div class="armor-condition-list">
         ${entry.conditions.map((condition) => {
           const result = conditionResult(condition, data, object);
           const stateClass = result.unknown ? "unknown" : result.hit ? "hit" : "miss";
           const stateLabel = result.unknown ? "无实例数据" : result.hit ? "达到条件" : "未达到条件";
-          return `<div class="armor-condition-row"><span>${condition.label}</span><strong>${result.actual}</strong><em class="condition-state ${stateClass}">${stateLabel}</em></div>`;
+          const tone = result.unknown ? "warning" : result.hit ? "success" : "warning";
+          return `<div class="armor-condition-row" data-surface="row" data-status="${tone}"><span data-ui-part="label" data-info-priority="support" data-text-tone="meta">${condition.label}</span><strong data-ui-part="value" data-info-priority="context" data-text-tone="primary">${result.actual}</strong><em class="condition-state ${stateClass}" data-ui-part="state" data-info-priority="support" data-text-tone="status" data-status="${tone}">${stateLabel}</em></div>`;
         }).join("")}
       </div>
     </article>`).join("") || `<div class="stat-empty"><strong>当前来源没有护甲目标</strong><span>没有生成默认推荐，也不会从其他来源补齐。</span></div>`;
@@ -503,11 +504,12 @@ function renderInstances(data) {
   el.instances.innerHTML = data.instances.map((instance, index) => {
     const mode = index === 0 ? "instance-a" : "instance-b";
     const current = state.mode === mode;
-    return `<button type="button" class="armor-instance-card ${current ? "is-current" : ""}" data-ui-kind="object-card" data-instance-mode="${mode}">
-      <header><strong>实例 ${instance.id}</strong><span>${instance.location}</span></header>
-      <div class="armor-instance-total"><strong>${total(instance.stats)}</strong><span>${instance.masterwork ? "大师杰作" : `${instance.energy} 级能量`}</span></div>
-      <div class="armor-stat-strip">${statDefs.map((stat, statIndex) => `<span>${stat.short}<b>${instance.stats[statIndex]}</b></span>`).join("")}</div>
-      <div class="armor-instance-foot"><span>${instance.locked ? "已锁定" : "未锁定"}</span><span>${instance.tag || "未标记"}</span><span>${instance.tuningMod}</span></div>
+    const status = instance.locked ? "success" : "warning";
+    return `<button type="button" class="armor-instance-card ${current ? "is-current" : ""}" data-surface="object-card" data-ui-kind="object-card" data-status="${status}" data-instance-mode="${mode}" aria-current="${current ? "true" : "false"}">
+      <header><strong data-ui-part="value" data-info-priority="context" data-text-tone="primary">实例 ${instance.id}</strong><span data-ui-part="detail" data-info-priority="support" data-text-tone="body">${instance.location}</span></header>
+      <div class="armor-instance-total"><strong data-ui-part="value" data-info-priority="metric" data-text-tone="primary">${total(instance.stats)}</strong><span data-ui-part="state" data-info-priority="support" data-text-tone="body">${instance.masterwork ? "大师杰作" : `${instance.energy} 级能量`}</span></div>
+      <div class="armor-stat-strip">${statDefs.map((stat, statIndex) => `<span data-ui-part="detail" data-info-priority="support" data-text-tone="body">${stat.short}<b data-ui-part="value" data-info-priority="decision" data-text-tone="primary">${instance.stats[statIndex]}</b></span>`).join("")}</div>
+      <div class="armor-instance-foot"><span data-ui-part="state" data-info-priority="support" data-text-tone="status" data-status="${status}">${instance.locked ? "已锁定" : "未锁定"}</span><span data-ui-part="detail" data-info-priority="support" data-text-tone="body">${instance.tag || "未标记"}</span><span data-ui-part="detail" data-info-priority="support" data-text-tone="body">${instance.tuningMod}</span></div>
     </button>`;
   }).join("");
 }
@@ -515,7 +517,7 @@ function renderInstances(data) {
 function renderInstanceActions(data, instance) {
   if (!instance) {
     el.instanceActions.className = "rail-actions is-empty";
-    el.instanceActions.innerHTML = `<div><span class="eyebrow">当前对象只读</span><h3>${state.mode === "vendor" ? "正在查看商人 Offer" : "正在查看护甲定义"}</h3><p>从下方选择账号中的同 Hash 护甲后，可执行装备、转移、锁定、标签和备注操作。</p></div>`;
+    el.instanceActions.innerHTML = `<div data-surface="frame" data-ui-kind="state-frame" data-status="neutral"><span class="eyebrow" data-ui-part="label" data-info-priority="support" data-text-tone="meta">当前对象只读</span><h3 data-ui-part="value" data-info-priority="context" data-text-tone="primary">${state.mode === "vendor" ? "正在查看商人 Offer" : "正在查看护甲定义"}</h3><p data-ui-part="detail" data-info-priority="reading" data-text-tone="body">从下方选择账号中的同 Hash 护甲后，可执行装备、转移、锁定、标签和备注操作。</p></div>`;
     return;
   }
   const inVault = instance.location === "仓库";
@@ -526,13 +528,13 @@ function renderInstanceActions(data, instance) {
   const tags = ["保留", "关注", "待刷", "配装用", "可清理"];
   el.instanceActions.className = "rail-actions";
   el.instanceActions.innerHTML = `
-    <div class="rail-current"><div><span class="eyebrow">当前实例</span><h3>${data.name} · ${instance.id}</h3><p>${instance.location} · 总属性 ${total(instance.stats)}</p></div><span class="badge mint">正在查看</span></div>
-    <div class="rail-current-meta"><span>${instance.masterwork ? "大师杰作" : `${instance.energy} 级能量`}</span><span>${instance.locked ? "已锁定" : "未锁定"}</span><span>${instance.tuningMod}</span></div>
-    <div class="rail-compatible"><span>兼容角色</span><strong>${data.guardianClass} · 仅限同职业</strong></div>
+    <div class="rail-current"><div><span class="eyebrow" data-ui-part="label" data-info-priority="support" data-text-tone="meta">当前实例</span><h3 data-ui-part="value" data-info-priority="context" data-text-tone="primary">${data.name} · ${instance.id}</h3><p data-ui-part="detail" data-info-priority="reading" data-text-tone="body">${instance.location} · 总属性 ${total(instance.stats)}</p></div><span class="badge mint" data-ui-kind="status-chip" data-ui-part="state" data-info-priority="support" data-text-tone="status" data-status="success">正在查看</span></div>
+    <div class="rail-current-meta"><span data-ui-part="state" data-info-priority="support" data-text-tone="body">${instance.masterwork ? "大师杰作" : `${instance.energy} 级能量`}</span><span data-ui-part="state" data-info-priority="support" data-text-tone="status" data-status="${instance.locked ? "success" : "warning"}">${instance.locked ? "已锁定" : "未锁定"}</span><span data-ui-part="detail" data-info-priority="support" data-text-tone="body">${instance.tuningMod}</span></div>
+    <div class="rail-compatible"><span data-ui-part="label" data-info-priority="support" data-text-tone="meta">兼容角色</span><strong data-ui-part="value" data-info-priority="context" data-text-tone="primary">${data.guardianClass} · 仅限同职业</strong></div>
     <div class="rail-primary-actions"><button type="button" class="instance-command primary" data-instance-command="${primaryCommand}" ${equipped ? "disabled" : ""}>${primaryLabel}</button><button type="button" class="instance-command" data-instance-command="${inVault ? "equip" : "transfer"}">${secondaryLabel}</button><button type="button" class="instance-command" data-instance-command="lock">${instance.locked ? "解锁" : "锁定"}</button></div>
     <div class="rail-tag-group"><span>本地标记</span><div>${tags.map((tag) => `<button type="button" class="instance-command" data-instance-tag="${tag}" aria-pressed="${instance.tag === tag}">${tag}</button>`).join("")}</div></div>
     <details class="rail-more"><summary>备注与复用</summary><div class="rail-more-content"><textarea data-instance-note aria-label="实例备注" placeholder="记录属性用途、配装方向或后续处理计划">${instance.note || ""}</textarea><div class="instance-command-row"><button type="button" class="instance-command primary" data-instance-command="save-note">保存备注</button><button type="button" class="instance-command" data-instance-command="copy">复制摘要</button><button type="button" class="instance-command" data-instance-command="loadout">加入配装草稿</button></div></div></details>
-    <p class="instance-action-status" role="status" aria-live="polite">${state.instanceActionStatus}</p>`;
+    <p class="instance-action-status" data-ui-part="state" data-info-priority="support" data-text-tone="status" data-status="${state.instanceActionStatus ? "success" : "neutral"}" role="status" aria-live="polite">${state.instanceActionStatus}</p>`;
 }
 
 function renderAi(data, object) {
@@ -552,13 +554,20 @@ function render() {
   const object = currentObject(data);
   document.documentElement.dataset.theme = state.theme;
   document.querySelector("[data-prototype-root]").dataset.state = state.detailState;
+  document.querySelector("[data-detail-state-layer]").dataset.status = ({ normal: "neutral", loading: "pending", empty: "neutral", error: "error", partial: "warning", disabled: "warning", running: "pending" })[state.detailState];
   document.querySelectorAll("[data-theme]").forEach((button) => button.setAttribute("aria-pressed", String(button.dataset.theme === state.theme)));
   document.querySelectorAll("[data-armor]").forEach((button) => button.setAttribute("aria-pressed", String(button.dataset.armor === state.armor)));
   document.querySelectorAll("[data-mode]").forEach((button) => button.setAttribute("aria-pressed", String(button.dataset.mode === state.mode)));
   document.querySelectorAll("[data-prototype-state]").forEach((button) => button.setAttribute("aria-pressed", String(button.dataset.prototypeState === state.detailState)));
-  el.instanceRail.classList.toggle("is-open", state.railOpen);
-  el.railScrim.classList.toggle("is-open", state.railOpen);
-  document.querySelector("[data-toggle-rail]").setAttribute("aria-expanded", String(state.railOpen));
+  const drawerOpen = window.matchMedia("(max-width: 1360px)").matches && state.railOpen;
+  el.instanceRail.classList.toggle("is-open", drawerOpen);
+  el.instanceRail.setAttribute("aria-hidden", String(window.matchMedia("(max-width: 1360px)").matches && !drawerOpen));
+  el.railScrim.classList.toggle("is-open", drawerOpen);
+  document.querySelector(".dossier-toolbar").inert = drawerOpen;
+  document.querySelector(".identity").inert = drawerOpen;
+  document.querySelector(".detail-sticky").inert = drawerOpen;
+  document.querySelector(".dossier-main").inert = drawerOpen;
+  document.querySelector("[data-toggle-rail]").setAttribute("aria-expanded", String(drawerOpen));
   renderIdentity(data, object);
   renderStats(data, object);
   renderSources(data);
@@ -658,6 +667,7 @@ document.querySelector("[role=tablist]").addEventListener("keydown", (event) => 
 document.querySelector("[data-toggle-rail]").addEventListener("click", () => {
   state.railOpen = !state.railOpen;
   render();
+  if (state.railOpen) requestAnimationFrame(() => document.querySelector("[data-close-rail]")?.focus());
 });
 
 el.railScrim.addEventListener("click", () => {

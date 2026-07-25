@@ -316,3 +316,80 @@ textarea {
     font-size: 22px;
   }
 }
+
+/* DetailDossier follows the same Tone + Priority contract as the product workspace. */
+[data-prototype-root="detail-dossier"] [data-text-tone="primary"] { color: var(--text); }
+[data-prototype-root="detail-dossier"] [data-text-tone="body"] { color: var(--body); }
+[data-prototype-root="detail-dossier"] [data-text-tone="meta"] { color: var(--muted); }
+[data-prototype-root="detail-dossier"] [data-text-tone="action"] { color: var(--blue); }
+[data-prototype-root="detail-dossier"] [data-text-tone="status"][data-status="success"] { color: var(--mint); }
+[data-prototype-root="detail-dossier"] [data-text-tone="status"][data-status="pending"] { color: var(--blue); }
+[data-prototype-root="detail-dossier"] [data-text-tone="status"][data-status="warning"] { color: var(--amber); }
+[data-prototype-root="detail-dossier"] [data-text-tone="status"][data-status="error"] { color: var(--red); }
+
+[data-prototype-root="detail-dossier"] [data-info-priority="display"] { font-size: var(--font-page-title); font-weight: 700; line-height: 1.25; }
+[data-prototype-root="detail-dossier"] [data-info-priority="metric"] { font-size: 20px; font-weight: 700; line-height: 1.2; }
+[data-prototype-root="detail-dossier"] [data-info-priority="decision"] { font-size: 16px; font-weight: 600; line-height: 1.35; }
+[data-prototype-root="detail-dossier"] [data-info-priority="context"] { font-size: var(--font-row-title); font-weight: 600; line-height: 1.35; }
+[data-prototype-root="detail-dossier"] [data-info-priority="reading"] { font-size: var(--font-body); font-weight: 400; line-height: 1.5; }
+[data-prototype-root="detail-dossier"] [data-info-priority="support"] { font-size: 13px; font-weight: 400; line-height: 1.45; }
+[data-prototype-root="detail-dossier"] [data-info-priority="trace"] { font-size: var(--font-meta); font-weight: 400; line-height: 1.45; }
+
+/* Structural fallbacks cover real detail fields that are populated by the static fixture. */
+[data-prototype-root="detail-dossier"] .dossier-toolbar h1,
+[data-prototype-root="detail-dossier"] .identity-copy h2 {
+  color: var(--text);
+  font-size: var(--font-page-title);
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+[data-prototype-root="detail-dossier"] .section-heading h3 {
+  color: var(--text);
+  font-size: var(--font-section-title);
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+[data-prototype-root="detail-dossier"] :is(.rail-heading h3, .ai-analysis h4, .rail-actions h3) {
+  color: var(--text);
+  font-size: var(--font-row-title);
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+[data-prototype-root="detail-dossier"] :is(.identity-copy p, .section-heading p, .ai-analysis p, .ai-tools textarea, .source-quote) {
+  color: var(--body);
+  font-size: var(--font-body);
+  line-height: 1.5;
+}
+
+[data-prototype-root="detail-dossier"] :is(.eyebrow, .block-source span, .identity-meta, .rail-note, .definition-details, .ai-tools small, .status-message) {
+  color: var(--muted);
+  font-size: var(--font-meta);
+  line-height: 1.45;
+}
+
+[data-prototype-root="detail-dossier"] :is(.block-source strong, .rail-instance-card strong, .match-card h4, .configuration-subheading h4) {
+  color: var(--text);
+  font-size: var(--font-row-title);
+  line-height: 1.35;
+}
+
+[data-prototype-root="detail-dossier"] :is(button, select, textarea, input) {
+  color: var(--body);
+  font-size: var(--font-control);
+  line-height: 1.4;
+}
+
+[data-prototype-root="detail-dossier"] :is(.context-ledger dt, .definition-details dt, .source-row > strong, .rail-current-meta, .rail-instance-foot, .match-summary) {
+  color: var(--muted);
+  font-size: var(--font-meta);
+  line-height: 1.45;
+}
+
+[data-prototype-root="detail-dossier"] :is(.context-ledger dd, .definition-details dd, .source-row p, .rail-instance-card header strong, .perk-card strong) {
+  color: var(--text);
+  font-size: var(--font-row-title);
+  line-height: 1.35;
+}

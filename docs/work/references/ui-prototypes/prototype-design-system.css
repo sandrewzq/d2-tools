@@ -1228,17 +1228,17 @@ html[data-theme="light"] .instances tr.is-selected {
 }
 
 .detail-state-layer {
-  position: absolute;
-  z-index: 90;
-  inset: 52px 0 0;
   display: none;
+  position: absolute;
+  z-index: var(--layer-modal);
+  inset: 52px 0 0;
   place-items: center;
   padding: 24px;
   background: color-mix(in srgb, var(--panel) 94%, transparent);
   backdrop-filter: blur(3px);
 }
 
-html:not([data-detail-state="normal"]) .detail-state-layer {
+[data-prototype-root="detail-dossier"][data-state]:not([data-state="normal"]) .detail-state-layer {
   display: grid;
 }
 
@@ -1265,19 +1265,19 @@ html:not([data-detail-state="normal"]) .detail-state-layer {
   line-height: 1.55;
 }
 
-html[data-detail-state="partial"] .detail-state-layer {
+[data-prototype-root="detail-dossier"][data-state="partial"] .detail-state-layer {
   background: color-mix(in srgb, var(--panel) 72%, transparent);
 }
 
-html[data-detail-state="partial"] .detail-state-card {
+[data-prototype-root="detail-dossier"][data-state="partial"] .detail-state-card {
   border-left: 4px solid var(--amber);
 }
 
-html[data-detail-state="error"] .detail-state-card {
+[data-prototype-root="detail-dossier"][data-state="error"] .detail-state-card {
   border-left: 4px solid var(--red);
 }
 
-html[data-detail-state="running"] .detail-state-card {
+[data-prototype-root="detail-dossier"][data-state="running"] .detail-state-card {
   border-left: 4px solid var(--blue);
 }
 
@@ -1308,6 +1308,26 @@ html[data-detail-state="running"] .detail-state-card {
 
   .player-summary div:last-child {
     border-bottom: 0;
+  }
+}
+
+/* DetailDossier owns the final stacking order for both equipment prototypes. */
+[data-prototype-root="detail-dossier"] .detail-sticky,
+[data-prototype-root="detail-dossier"] .instance-rail {
+  z-index: var(--layer-sticky);
+}
+
+@media (max-width: 1360px) {
+  [data-prototype-root="detail-dossier"] .instance-rail {
+    z-index: var(--layer-drawer);
+  }
+
+  [data-prototype-root="detail-dossier"] .rail-scrim {
+    z-index: var(--layer-drawer-scrim);
+  }
+
+  [data-prototype-root="detail-dossier"] .rail-drawer-head {
+    z-index: var(--layer-base);
   }
 }
 
