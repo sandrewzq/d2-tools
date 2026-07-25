@@ -1,7 +1,7 @@
 /* 冻结原型的统一可读性规格。应用还原时必须以此层级为准。 */
 :root {
-  --font-micro: 11px;
-  --font-caption: 11px;
+  --font-micro: 12px;
+  --font-caption: 12px;
   --font-meta: 12px;
   --font-control: 13px;
   --font-body: 14px;

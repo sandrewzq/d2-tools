@@ -10,6 +10,8 @@
 
 禁止把颜色、圆角、边框或共享尺寸重新抄回菜单 CSS、平台壳 CSS 或三个 HTML 的页面私有样式。原型公共 CSS 和产品共享 CSS 可以各自实现同一规格，但必须由同一组件规格卡逐项对照，不能依赖运行时文件路径“自动同步”。
 
+三个原型的 HTML 语义、装备详情骨架、Overlay、控件、导航、字号下限和层级规则分别以 [原型 HTML 语义合同](prototype-semantic-contract.md)、[统一装备详情骨架合同](detail-dossier-contract.md)、[Overlay 与 Dialog 合同](overlay-dialog-contract.md) 和 [控件、导航与响应式合同](controls-navigation-and-responsive-contract.md) 为准；本文件不再允许用页面私有 class 覆盖这些共享职责。
+
 ## 十类页面与表面配方映射
 
 | 配方 | 静态原型 selector | 产品语义标记 / 组件 | 所有权要点 |
@@ -21,7 +23,7 @@
 | `PageSection` | `.content-band`、`.dossier-section` | `data-surface="section"` | 仅章节结构线 |
 | `WorkspaceSplit` | `.account-workspace`、`.vault-browse`、`.split-2`、`.library-workbench`、`.vendor-shell`、`.settings-shell`、`.full-loadout-workspace` | `data-surface="split"` | 只画栏位间单线，不画外框 |
 | `SurfaceList` | `.list-nav`、`.ledger`、`.table-list` | `data-surface="standalone"` / `embedded-list` / `row` | 独立列表由自身拥有一圈边缘；嵌入侧栏列表继承栏位边缘；行只画分隔 |
-| `SurfaceFrame` | 空态、独立工具面板 | `data-surface="frame"` | 唯一完整外框和裁剪 |
+| `SurfaceFrame` | 状态、摘要、空态、独立工具面板 | `data-surface="frame"` + `data-ui-kind="status-matrix|summary-frame|state-frame"` | 唯一完整外框和裁剪；数据型 frame 为直角 |
 | `ObjectCard` | `.item-card`、`.offer`、`.perk-card` | `data-ui-kind="object-card"` | 仅独立对象使用完整外框 |
 | `Callout` | `.notice`、`.data-note`、`.source-quote`、`.catalyst-panel`、`.ai-analysis`、`.vendor-detail-warning` | `data-ui-kind="callout"` | 唯一允许语义左色条 |
 
@@ -47,6 +49,26 @@
 - `SurfaceList` 在嵌入工作区时没有外框，只有 `RowLine`；standalone 列表才可拥有一圈 `ObjectOutline`。目录、表格化数据行和对象卡不能混用两种模式。
 - 页面 section、目录、工作区和正文容器一律不得使用圆角。圆角只属于 `ObjectOutline`、`Control`、Chip、弹层及明确的独立 `SurfaceFrame`。
 - 页面必须先归类为 `fluid-workspace`、`constrained-content` 或 `hybrid-workspace`。仓库、配装和账号的装备对照可使用满宽数据工作区；设置是“目录 + 宽数据轨道 + 局部受限说明”的混合工作区，不能把状态矩阵和操作台账缩进纯说明阅读轨道；首页、资料库和商人使用工作区与受限正文并存的混合轨道。
+
+### 圆角合同
+
+圆角由表面配方唯一拥有，页面私有 CSS 不得再直接声明 `border-radius`，也不得通过领域 class 改写公共值。
+
+| 表面或组件 | 圆角 | 典型内容 |
+|---|---:|---|
+| Shell、Workspace、PageSection、SurfaceList、RowLine | `0` | 页头、目录、章节、表格与台账 |
+| `status-matrix`、`summary-frame`、`state-frame` | `0` | 首页刷新节奏、周常摘要、周信号、商人摘要、加载/空/失败状态、设置状态矩阵 |
+| `object-card`、独立 Callout、独立空态与 Overlay | `6px`，即 `--radius-panel` | 装备、Offer、Perk、可独立操作的对象、对话框 |
+| Button、Field、SegmentedControl、缩略图与图标容器 | `4px`，即 `--radius-control` | 控件与紧凑媒体 |
+| Chip、进度轨道、滚动条滑块 | `999px`，即 `--radius-pill` | 胶囊状态与进度 |
+
+同一页面同一层级的摘要、状态和目录不得混入 `object-card`。首页中只有商人单件装备可使用 `object-card`；刷新节奏、周常、周信号、商人摘要和模块状态均为直角 frame。
+
+### 设置页状态矩阵例外
+
+设置页的应用概览和应用更新是同一组可比较的运行状态，不是连续目录行，也不是彼此独立的对象卡。它们必须使用一个 `SurfaceFrame` 作为矩阵唯一的外框拥有者：矩阵内部单元只绘制行、列分隔线，不单独圆角或补对象边框。不得为了避免卡片泛滥而删除这个外框，把状态矩阵退化为横向拉开的连续数据轨道。
+
+常用操作、账号管理、资料库检查和运行诊断属于可执行的设置行：桌面宽度下固定为“说明列 + 右侧操作列”，同一组命令的起始边缘必须对齐；说明不能决定按钮的水平位置。连续 `RowLine` 只用于这些设置项、日志和诊断记录，不用于顶层状态总览。窄窗口才允许把操作列折到说明下方。
 
 全局 CSS 的职责也必须唯一：`prototype-design-system.css` 与产品 `03-surface-contract.css` 只拥有上述边界、圆角、背景和主题 token；页面私有 CSS 只拥有领域网格、行高、内容列和对象内部排版。私有 CSS 不得再重设 Shell、Split、目录、章节或对象边界。
 

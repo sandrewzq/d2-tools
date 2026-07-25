@@ -6,6 +6,14 @@
 
 稳定契约标识：`account.slot-comparison`。
 
+## 页面骨架与交互
+
+账号页是 `hybrid-workspace`，由账号数据 Tab、账号身份区、角色上下文切换器和当前 Tab 面板组成。账号目录是完整 `tablist`：每个 Tab 必须有 `aria-controls`，对应面板使用 `tabpanel` 和 `aria-labelledby`，支持左右、上下、Home、End 键切换并移动焦点。
+
+角色不是导航。角色切换器使用 `ContextSwitcher`，以 `aria-pressed` 表达当前角色；切换后只重绘当前角色的对照数据，不改变账号目录的当前 Tab。
+
+装备对照是连续的满宽数据工作区：类别、位置标题和两列边界只使用直角 `PageSection`、`RowLine` 与 `SplitLine`。每件装备是独立 `ObjectCard`，拥有 `6px` 圆角和唯一对象边框；“显示全部”是 `secondary` Control，位置为空是直角 `state-frame`。不得把类别、位置或装备列再包成对象卡。
+
 ## 分类与顺序
 
 分类顺序与当前应用工作区保持一致：
@@ -70,11 +78,22 @@
 | 账号刷新中 | 保留位置结构，分别显示骨架 |
 | 读取失败 | 不把旧角色装备冒充为当前快照 |
 
+刷新和读取失败状态必须保留当前 Tab、角色上下文与位置骨架；每个位置的两列分别呈现骨架、空态或失败原因，不能用整页遮罩替代可辨认的对照结构。
+
 ## 还原映射
 
 - 原型：`[data-contract-id="account.slot-comparison"]`
 - 共享 UI：`AccountSlotComparison`
 - 工作区：`slotComparisonRows`
 - 行字段：`label`、`category`、`equippedItems`、`inventoryItems`
+
+| 原型区域 | 真实字段或 action | 状态来源 |
+|---|---|---|
+| 账号身份区 | `Profile` membership、账号名、快照时间、角色数、仓库数量 | 当前账号快照 |
+| 角色上下文 | `characters[]`、角色职业、光等、当前角色 ID | 当前 Profile 角色集合 |
+| 装备位置行 | `slotComparisonRows` 的位置、已装备项、背包候选、总数 | Manifest bucket 映射 + 实例 ViewModel |
+| 装备对象 | 名称、图标、类型、光等、Roll 摘要、配装命中、详情打开 | 当前实例 ViewModel |
+| 位置展开 | 当前角色和位置的展开 action | 仅影响该位置的背包候选预览 |
+| 活动、材料、邮政官 Tab | Activity History、材料集合、邮政官只读物品 | 各自独立读取状态，不借用装备快照伪造结果 |
 
 正式还原时必须复用当前完整位置对照组件。禁止通过 `flatMap` 生成独立的“当前装备”和“角色背包”长列表，也不得创建只在某个视觉变体中使用的简化 DOM。

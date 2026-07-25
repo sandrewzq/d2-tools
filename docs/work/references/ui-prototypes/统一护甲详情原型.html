@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="zh-CN" data-theme="dark" data-detail-state="normal">
+<html lang="zh-CN" data-theme="dark" data-state="normal">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -9,6 +9,7 @@
   <link rel="stylesheet" href="./assets/prototype-typography.css">
 </head>
 <body>
+  <div data-prototype-root="detail-dossier" data-reference-only="true" data-visual-contract="surface-v2">
   <header class="prototype-bar" data-prototype-only="true">
     <div class="prototype-copy">
       <strong>统一护甲详情</strong>
@@ -30,29 +31,29 @@
         <button type="button" data-mode="instance-b">实例 B</button>
       </div>
       <div class="control-group detail-state-controls" aria-label="切换页面状态">
-        <button type="button" data-detail-state="normal">正常</button>
-        <button type="button" data-detail-state="loading">加载</button>
-        <button type="button" data-detail-state="empty">空</button>
-        <button type="button" data-detail-state="error">失败</button>
-        <button type="button" data-detail-state="partial">部分</button>
-        <button type="button" data-detail-state="disabled">禁用</button>
-        <button type="button" data-detail-state="running">进行中</button>
+        <button type="button" data-prototype-state="normal">正常</button>
+        <button type="button" data-prototype-state="loading">加载</button>
+        <button type="button" data-prototype-state="empty">空</button>
+        <button type="button" data-prototype-state="error">失败</button>
+        <button type="button" data-prototype-state="partial">部分</button>
+        <button type="button" data-prototype-state="disabled">禁用</button>
+        <button type="button" data-prototype-state="running">进行中</button>
       </div>
     </div>
   </header>
 
   <div class="stage">
-    <main class="dossier" data-contract-id="armor.detail" data-reference-only="true" data-visual-contract="surface-v1" data-layout="hybrid-workspace">
-      <header class="dossier-toolbar">
+    <main class="dossier" data-contract-id="armor.detail" data-detail-contract="detail.dossier" data-layout="hybrid-workspace">
+      <header class="dossier-toolbar" data-ui-kind="shell-chrome">
         <div>
           <h1>护甲档案</h1>
           <p>真实属性、获取来源、当前配置、目标匹配、升级状态和账号实例</p>
         </div>
-        <button type="button" class="icon-button" aria-label="关闭护甲详情" title="关闭">×</button>
+        <button type="button" class="icon-button" data-ui-kind="button" data-control-variant="quiet" aria-label="关闭护甲详情" title="关闭">×</button>
       </header>
 
       <div class="dossier-scroll" data-scroll-region="page">
-        <section class="identity">
+        <section class="identity" data-surface="section">
           <img data-item-icon alt="" width="72" height="72">
           <div class="identity-copy">
             <div class="identity-title-line">
@@ -73,9 +74,9 @@
         </section>
 
         <div class="detail-sticky">
-          <nav class="section-nav" data-ui-kind="segmented-control" aria-label="护甲详情章节">
+          <nav class="section-nav" data-ui-kind="section-navigation" aria-label="护甲详情章节">
             <div>
-              <button type="button" class="is-active" data-target="overview">属性与获取</button>
+              <button type="button" class="is-active" data-target="overview" aria-current="location">属性与获取</button>
               <button type="button" data-target="configuration">护甲配置</button>
               <button type="button" data-target="targets">目标匹配</button>
               <button type="button" data-target="upgrades">升级状态</button>
@@ -85,8 +86,8 @@
           </nav>
         </div>
 
-        <div class="dossier-workspace">
-          <div class="dossier-main">
+        <div class="dossier-workspace" data-surface="split">
+          <div class="dossier-main" data-surface="content-stack">
             <section class="dossier-section" data-section="overview">
               <div class="section-heading">
                 <div><span class="eyebrow">属性与获取</span><h3>属性与获取详情</h3></div>
@@ -120,11 +121,11 @@
                 <p>个人目标、配装与攻略要求、社区来源分别匹配，不合并排序，不生成保留或购买结论。</p>
               </div>
               <div class="match-source-tabs" data-ui-kind="segmented-control" role="tablist" aria-label="选择护甲目标数据源">
-                <button type="button" data-target-source="personal" role="tab">个人目标 <span></span></button>
-                <button type="button" data-target-source="loadout" role="tab">配装与攻略 <span></span></button>
-                <button type="button" data-target-source="community" role="tab">社区来源 <span></span></button>
+                <button id="armor-target-personal" type="button" data-target-source="personal" role="tab" aria-controls="armor-target-panel" aria-selected="true">个人目标 <span></span></button>
+                <button id="armor-target-loadout" type="button" data-target-source="loadout" role="tab" aria-controls="armor-target-panel" aria-selected="false" tabindex="-1">配装与攻略 <span></span></button>
+                <button id="armor-target-community" type="button" data-target-source="community" role="tab" aria-controls="armor-target-panel" aria-selected="false" tabindex="-1">社区来源 <span></span></button>
               </div>
-              <div class="armor-target-list" data-target-matches></div>
+              <div id="armor-target-panel" class="armor-target-list" data-target-matches role="tabpanel" aria-labelledby="armor-target-personal"></div>
             </section>
 
             <section class="dossier-section" data-section="upgrades">
@@ -156,7 +157,7 @@
             </section>
           </div>
 
-          <aside class="instance-rail" data-instance-rail data-scroll-region="pane" aria-label="当前实例与同名护甲">
+          <aside class="instance-rail" data-instance-rail data-surface="drawer" data-ui-kind="drawer" data-scroll-region="pane" aria-label="当前实例与同名护甲">
             <header class="rail-drawer-head">
               <div>
                 <span>护甲实例</span>
@@ -188,6 +189,7 @@
   </div>
 
   <button type="button" class="rail-scrim" data-rail-scrim aria-label="关闭实例与操作栏"></button>
+  </div>
   <script src="./assets/armor-detail-prototype.js"></script>
 </body>
 </html>

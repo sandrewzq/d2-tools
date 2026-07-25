@@ -33,6 +33,10 @@
 - `specs/scrolling-and-overflow.md`：统一纵向滚动条、滚动容器所有权和禁止水平滚动的验收契约。
 - `specs/shared-shell-component-mapping.md`：共享 Shell 的原型 selector、应用 selector、样式所有权、功能边界和自动契约。
 - `specs/global-visual-contract.md`：Shell、页面区、独立外框、列表和控件的唯一视觉职责与迁移顺序。
+- `specs/prototype-semantic-contract.md`：三个 HTML 共用的根节点、表面、组件、文字、状态与数据来源语义标记。
+- `specs/detail-dossier-contract.md`：武器与护甲共用的详情骨架、实例抽屉和章节导航合同。
+- `specs/overlay-dialog-contract.md`：Dialog、Drawer、Popover、Toast 的焦点、关闭、背景与层级规则。
+- `specs/controls-navigation-and-responsive-contract.md`：控件状态、导航模式、字体下限、断点与层级使用规则。
 
 三个 HTML 不再包含内联 `<style>`。页面 CSS 只保留页面布局、领域内容和响应式差异；颜色 token、控件基础状态、目录、分段选择、数据组、对象卡、表格、Callout 和焦点规则统一由共享 CSS 提供。
 
@@ -45,12 +49,14 @@
 | 类型 | 规则 | 典型组件 |
 |---|---|---|
 | 结构分隔 | 单条低对比分隔线，无圆角 | 页面栏位、章节、数据行 |
-| 组合组 | 外框一圈、内部零间距、子项单线分隔 | 菜单目录、详情 Tab、状态组、摘要数据 |
-| 独立对象 | 每项完整对象边框、圆角、明确间距 | 装备、Offer、Perk、能力卡 |
+| 组合组 | 外框一圈、内部零间距、子项单线分隔、直角 | 菜单目录、详情 Tab、状态组、摘要数据 |
+| 独立对象 | 每项完整对象边框、6px 圆角、明确间距 | 装备、Offer、Perk、能力卡 |
 | 标签 | 默认使用底色和文字，不绘制中性对象边框 | 武器位置、弹药、伤害、普通 Badge |
 | Callout | 中性对象边界配合左侧语义色条 | 信息、警告、错误、AI 内容 |
 
 同一列表层级不能混用组合数据行和独立卡片。表格选中态只改变背景与文字状态，不增加对象卡边框或左侧色条。
+
+按钮、字段、分段控件、缩略图和图标容器统一使用 4px 圆角；Chip、进度与滚动条滑块使用胶囊圆角。页面、工作区、章节、目录、数据行、摘要矩阵与状态框一律直角。完整映射以 specs/global-visual-contract.md 的“圆角合同”为准。
 
 ## 还原到应用
 

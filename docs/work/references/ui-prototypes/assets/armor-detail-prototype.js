@@ -453,7 +453,10 @@ function renderTargets(data, object) {
   const entries = data.targets[state.targetSource] ?? [];
   document.querySelectorAll("[data-target-source]").forEach((button) => {
     const source = button.dataset.targetSource;
-    button.setAttribute("aria-selected", String(source === state.targetSource));
+    const active = source === state.targetSource;
+    button.setAttribute("aria-selected", String(active));
+    button.tabIndex = active ? 0 : -1;
+    if (active) document.querySelector("[data-target-matches]").setAttribute("aria-labelledby", button.id);
     button.querySelector("span").textContent = String((data.targets[source] ?? []).length);
   });
   el.targetMatches.innerHTML = entries.map((entry) => `
@@ -548,11 +551,11 @@ function render() {
   const data = armor();
   const object = currentObject(data);
   document.documentElement.dataset.theme = state.theme;
-  document.documentElement.dataset.detailState = state.detailState;
+  document.querySelector("[data-prototype-root]").dataset.state = state.detailState;
   document.querySelectorAll("[data-theme]").forEach((button) => button.setAttribute("aria-pressed", String(button.dataset.theme === state.theme)));
   document.querySelectorAll("[data-armor]").forEach((button) => button.setAttribute("aria-pressed", String(button.dataset.armor === state.armor)));
   document.querySelectorAll("[data-mode]").forEach((button) => button.setAttribute("aria-pressed", String(button.dataset.mode === state.mode)));
-  document.querySelectorAll("[data-detail-state]").forEach((button) => button.setAttribute("aria-pressed", String(button.dataset.detailState === state.detailState)));
+  document.querySelectorAll("[data-prototype-state]").forEach((button) => button.setAttribute("aria-pressed", String(button.dataset.prototypeState === state.detailState)));
   el.instanceRail.classList.toggle("is-open", state.railOpen);
   el.railScrim.classList.toggle("is-open", state.railOpen);
   document.querySelector("[data-toggle-rail]").setAttribute("aria-expanded", String(state.railOpen));
@@ -579,8 +582,8 @@ function render() {
   document.querySelector("[data-detail-state-copy]").textContent = detailStateCopy[2];
 }
 
-document.querySelectorAll("[data-detail-state]").forEach((button) => button.addEventListener("click", () => {
-  state.detailState = button.dataset.detailState;
+document.querySelectorAll("[data-prototype-state]").forEach((button) => button.addEventListener("click", () => {
+  state.detailState = button.dataset.prototypeState;
   render();
 }));
 
@@ -626,13 +629,31 @@ function scrollDossierTo(sectionName) {
 
 document.querySelectorAll("[data-target]").forEach((button) => button.addEventListener("click", () => {
   scrollDossierTo(button.dataset.target);
-  document.querySelectorAll("[data-target]").forEach((item) => item.classList.toggle("is-active", item === button));
+  document.querySelectorAll("[data-target]").forEach((item) => {
+    const active = item === button;
+    item.classList.toggle("is-active", active);
+    item.toggleAttribute("aria-current", active);
+  });
 }));
 
 document.querySelectorAll("[data-target-source]").forEach((button) => button.addEventListener("click", () => {
   state.targetSource = button.dataset.targetSource;
   renderTargets(armor(), currentObject());
 }));
+
+document.querySelector("[role=tablist]").addEventListener("keydown", (event) => {
+  if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+  const tabs = [...event.currentTarget.querySelectorAll('[role="tab"]')];
+  const current = tabs.indexOf(document.activeElement);
+  let next = current;
+  if (event.key === "ArrowLeft") next = (current - 1 + tabs.length) % tabs.length;
+  if (event.key === "ArrowRight") next = (current + 1) % tabs.length;
+  if (event.key === "Home") next = 0;
+  if (event.key === "End") next = tabs.length - 1;
+  event.preventDefault();
+  tabs[next].focus();
+  tabs[next].click();
+});
 
 document.querySelector("[data-toggle-rail]").addEventListener("click", () => {
   state.railOpen = !state.railOpen;

@@ -21,7 +21,7 @@
 
 ## 视觉与字段映射
 
-设置页属于 `hybrid-workspace`：左侧是嵌入式 `SurfaceList` 目录；右侧的状态、版本和操作数据使用完整可用工作轨道，不得再设置页面级最大宽度，只有标题说明、帮助说明和长文本字段限制阅读行长。Shell 只拥有目录与正文之间的 `SplitLine`；设置 section 和设置项使用 `RowLine`。概览状态不是装备、Offer 一类独立对象，必须使用连续的 `SurfaceList` 状态矩阵，不得拆成多个 `ObjectCard`。
+设置页属于 `hybrid-workspace`：左侧是嵌入式 `SurfaceList` 目录；右侧的状态、版本和操作数据使用完整可用工作轨道，不得再设置页面级最大宽度，只有标题说明、帮助说明和长文本字段限制阅读行长。Shell 只拥有目录与正文之间的 `SplitLine`；设置 section 和设置项使用 `RowLine`。概览状态不是装备、Offer 一类独立对象，必须使用一个带完整外框的 `SurfaceFrame` 状态矩阵：矩阵拥有唯一外框，内部单元只画行、列分隔线，不使用圆角或独立 `ObjectCard`。不得把该矩阵拆成多个卡片，也不得删除外框并退化成连续数据轨道。
 
 ### 概览切片
 
@@ -29,16 +29,24 @@
 |---|---|---|---|
 | 设置目录 | `SurfaceList` | 菜单名 `context + primary`；提示 `support + body` | 当前项使用导航定位配方，不使用业务状态色 |
 | 概览标题 | `PageSection` | 标题 `display + primary`；说明 `reading + body` | 无独立外框 |
-| 状态指标 | 连续三列 `SurfaceList` 状态矩阵 | 标签 `support + meta`；状态/关键值 `context + primary` 或 `decision + status`；摘要 `reading + body` | 矩阵只拥有一圈方形外框；单元只画行/列分隔，不使用圆角或独立对象边框 |
-| 应用更新 | `PageSection` + 连续字段矩阵 | 标题 `context + primary`；更新结果 `decision + status`；说明和版本字段 `reading + body` | 更新字段与概览矩阵使用同一连续边界；进度只在下载或安装中显示 |
-| 常用操作 | `SurfaceList` | 操作名 `context + primary`；原因/影响 `reading + body` | 行只画 `RowLine`；命令按 Control 合同 |
+| 状态指标 | 三列 `SurfaceFrame` 状态矩阵 | 标签 `support + meta`；状态/关键值 `context + primary` 或 `decision + status`；摘要 `reading + body` | 矩阵拥有一圈方形外框；单元只画行/列分隔，不使用圆角或独立对象边框 |
+| 应用更新 | `PageSection` + `SurfaceFrame` 更新字段矩阵 | 标题 `context + primary`；更新结果 `decision + status`；说明和版本字段 `reading + body` | 更新字段拥有一圈方形外框；内部单元只画分隔线；进度只在下载或安装中显示 |
+| 常用操作 | `SurfaceList` | 操作名 `context + primary`；原因/影响 `reading + body` | 行只画 `RowLine`；桌面固定为说明列 + 右侧操作列，命令按 Control 合同 |
 | 反馈 | `Callout` | 结论 `decision + status`；失败恢复 `reading + body` | 必须有 `data-status`，不通过 `.ready/.error` class 着色 |
+
+### 设置行列对齐
+
+桌面与平板宽度的设置行必须占满正文工作轨道，使用“弹性说明列 + 固定控制列”，而不是从左侧开始的固定总宽网格。控制列贴正文右侧：`>1280px` 为 `282px`，`981-1280px` 为 `260px`；Select / Field 填满该列，按钮和开关从该列起始边缘对齐。`980px` 及以下改为单列，控制自然移到说明下方。Bungie 帮助说明、AI 说明等局部帮助限制在表单阅读宽度，不横跨整个工作轨道。
 
 ### 概览响应式
 
-- `>1280px`：状态指标三列两行；更新字段三列；操作行保留“说明 + 命令”两列。
-- `1280px` 及以下：状态指标和更新字段改两列，文本与按钮先换行，不能缩小状态值。
-- `980px` 及以下：状态指标、更新字段和操作行全部单列；命令保持自然换行。
+- `>1280px`：状态指标三列两行；更新字段三列；操作行保留固定“说明 + 右侧命令”两列，同组命令右缘对齐。
+- `1280px` 及以下：状态指标和更新字段改两列；操作行仍保留说明列和右侧命令列，文本先换行，不能缩小状态值。
+- `980px` 及以下：状态指标、更新字段和操作行全部单列；命令移到说明下方并保持自然换行。
 - `760px` 及以下：目录折叠为窄轨，正文 gutter 使用全局 `12px`；状态指标仍为单列，字段、说明和状态不得截断或建立横向滚动。
+
+### 其他分区的状态摘要
+
+账号和资料库的四项摘要同样属于状态矩阵，不得因为它们不在“概览”目录而退化成无外框的连续行。它们使用三列、`1280px` 以下两列、`980px` 以下单列；矩阵外框始终由 `data-surface="frame" data-ui-kind="status-matrix"` 拥有。通用 `SurfaceList` / `RowLine` 规则不得匹配或覆盖该元素。
 
 设置页的动态模板必须直接输出 `data-ui-part`、`data-text-tone`、`data-info-priority`；状态项额外输出 `data-status`。不得用运行后扫描 DOM 的兼容脚本补齐语义。
