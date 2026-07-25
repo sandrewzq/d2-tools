@@ -255,7 +255,6 @@ const workspaceSnapshot = {
     savedAt: cache.saved_at,
     characterCount: characters.length,
     vaultItemCount: account.vault.item_count,
-    vaultCapacity: account.vault.capacity,
     materialCount: account.materials.item_count
   },
   characters,
@@ -314,7 +313,6 @@ const settingsSnapshot = {
     authorized: true,
     characterCount: characters.length,
     vaultItemCount: account.vault.item_count,
-    vaultCapacity: account.vault.capacity,
     lastLoadedAt: cache.saved_at,
     writeActionsEnabled: Boolean(config.features?.write_actions_enabled),
     warning: "",
@@ -371,5 +369,5 @@ const settingsSnapshot = {
 writeWindowValue("account-workspace-snapshot.js", "accountWorkspaceSnapshot", workspaceSnapshot);
 writeWindowValue("settings-page-snapshot.js", "settingsPageSnapshot", settingsSnapshot);
 
-console.log(`已生成账号工作区快照：${workspaceSnapshot.account.name}，${workspaceSnapshot.account.characterCount} 个角色，仓库 ${workspaceSnapshot.account.vaultItemCount}/${workspaceSnapshot.account.vaultCapacity}`);
+console.log(`已生成账号工作区快照：${workspaceSnapshot.account.name}，${workspaceSnapshot.account.characterCount} 个角色，仓库 ${workspaceSnapshot.account.vaultItemCount} 件`);
 console.log(`已生成设置快照：Manifest ${workspaceSnapshot.library.version}`);

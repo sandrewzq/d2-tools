@@ -22,7 +22,7 @@
 | T3 | P1 | 🟡 待验收 | 商人结构、覆盖与官方获取来源 | [商人结构、覆盖与官方获取来源](work/backlog/T3-vendors-and-drop-sources.md) | 已接入 Vendor Group / 目的地两级目录、持久缓存、启动预热和周期刷新；仄已按周六到、周三走规则过滤离场缓存；下一步验收真实地点覆盖、跨重置边界、Offer 时效、去重和机灵模组 A/B |
 | T4 | P3 | 🟡 待推进 | 活动复盘增强 | [活动复盘增强](work/backlog/T4-activity-review-enhancement.md) | 接 PGCR、完成时间推算和副本级趋势 |
 | T7 | P1 | 🟡 待推进 | 社区推荐边界收口 | [社区推荐边界收口](work/backlog/T7-architecture-boundary-hardening.md) | Core、Services、App、UI 与平台壳的主边界已完成；下一步将本地社区表、个人知识及 AI/light.gg 缓存和外部调用迁入 Services，Core 只保留规则、DTO、解析和匹配。 |
-| T8 | P1 | 🟡 UI 对照中 | 全应用 UI 还原 | [全应用 UI 还原](work/backlog/T8-full-application-ui-functional-convergence.md) | 已建立原型与共享 UI 共用的主题 token、Shell / Surface 视觉合同和工作区语义标记；下一步按账号、仓库、配装、资料库、商人、设置、首页顺序删除菜单旧 chrome 并迁入唯一配方，再逐页进行 Prototype / Desktop 视觉对照 |
+| T8 | P1 | 🟠 静态原型重建中 | 全应用 UI 还原 | [全应用 UI 还原](work/backlog/T8-full-application-ui-functional-convergence.md) | 已补齐全局边界、文字 `Tone + Priority`、对比度、图标、Control 状态、密度、层级和响应式验收合同；共享 Shell 与首页的 frame / object chrome 已从页面 CSS 收口到静态公共设计系统，首页状态改为显式 `data-status`，并删除运行后猜测文字角色的兼容观察器。首页已定义并实现 `1280 / 980 / 760` 的受控重排；设置页“应用概览”已改为宽数据轨道上的连续状态矩阵，修正了将服务状态误做独立对象卡的视觉决策。下一步完成设置的语言与外观、账号、资料库、Bungie、AI、备份和诊断，再逐菜单收敛配装、资料库和商人，随后处理两份详情原型。 |
 
 ## 验证入口
 

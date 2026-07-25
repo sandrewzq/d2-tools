@@ -15,11 +15,13 @@
   --surface-2: #1e2c38;
   --section-bg: #0d161e;
   --card-bg: #151f29;
-  --line: #30404d;
-  --line-strong: #526879;
-  --divider: #24323d;
-  --object-border: #3a4d5c;
-  --control-border: #526879;
+  --shell-divider: #425967;
+  --section-divider: #31424c;
+  --object-border: #3e5866;
+  --control-border: #5c7586;
+  --line: var(--section-divider);
+  --line-strong: var(--object-border);
+  --divider: var(--section-divider);
   --text: #f2f6f8;
   --body: #ced8df;
   --muted: #91a1ae;
@@ -27,6 +29,11 @@
   --selected-bg: #203445;
   --selected-border: #557288;
   --selected-fg: #f2f6f8;
+  --focus-ring: #8cc7ef;
+  --nav-current-bg: #243d4e;
+  --nav-current-fg: #f2f6f8;
+  --nav-current-indicator: #8cc7ef;
+  --nav-current-icon-bg: #315166;
   --mint: #83d6b3;
   --mint-bg: #102b23;
   --blue: #8cc7ef;
@@ -53,6 +60,14 @@
   --font-caption: 10px;
   --font-control: 11px;
   --font-content: 12px;
+  --priority-display: 24px;
+  --priority-section: 18px;
+  --priority-metric: 20px;
+  --priority-decision: 16px;
+  --priority-context: 15px;
+  --priority-reading: 14px;
+  --priority-support: 13px;
+  --priority-trace: 12px;
   --shadow-sticky: 0 8px 22px rgb(0 0 0 / 24%);
   --shadow-overlay: 0 16px 38px rgb(0 0 0 / 42%);
   --shadow-modal: 0 28px 80px rgb(0 0 0 / 48%);
@@ -124,9 +139,9 @@ a {
 }
 
 .eyebrow {
-  color: var(--blue);
+  color: var(--muted);
   font-size: var(--font-caption);
-  font-weight: 700;
+  font-weight: 600;
 }
 
 html[data-theme="light"] {
@@ -140,18 +155,25 @@ html[data-theme="light"] {
   --surface-2: #e3ebef;
   --section-bg: #eef3f6;
   --card-bg: #ffffff;
-  --line: #bccbd3;
-  --line-strong: #879daa;
-  --divider: #d3dde3;
-  --object-border: #b7c7d0;
-  --control-border: #78909d;
+  --shell-divider: #9aaeb9;
+  --section-divider: #b9c7cf;
+  --object-border: #8fa6b3;
+  --control-border: #67808e;
+  --line: var(--section-divider);
+  --line-strong: var(--object-border);
+  --divider: var(--section-divider);
   --text: #15232c;
   --body: #354a56;
   --muted: #526b78;
   --hover-bg: #e8f0f4;
   --selected-bg: #dbeaf2;
-  --selected-border: #7897aa;
+  --selected-border: #50788e;
   --selected-fg: #13232d;
+  --focus-ring: #17698f;
+  --nav-current-bg: #accddd;
+  --nav-current-fg: #13232d;
+  --nav-current-indicator: #4f778d;
+  --nav-current-icon-bg: #f8fbfd;
   --mint: #167956;
   --mint-bg: #e3f3eb;
   --blue: #17698f;
@@ -185,15 +207,13 @@ select:focus-visible,
 textarea:focus-visible,
 a:focus-visible,
 summary:focus-visible {
-  outline: 2px solid var(--blue);
+  outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
 
 .main-nav button:focus-visible,
 .list-nav button:focus-visible,
-.loadout-row:focus-visible,
 .vendor-button:focus-visible,
-.section-tabs button:focus-visible,
 .workflow-tabs button:focus-visible,
 .mode-tabs button:focus-visible,
 .assistant-switch button:focus-visible,
@@ -203,7 +223,7 @@ summary:focus-visible {
   position: relative;
   z-index: 1;
   outline: 0;
-  box-shadow: inset 0 0 0 2px var(--blue);
+  box-shadow: inset 0 0 0 2px var(--focus-ring);
 }
 
 button:disabled,
@@ -331,11 +351,13 @@ html[data-theme="light"] .write-actions .apply {
 }
 
 /* Product navigation */
-.list-nav,
-.loadout-list {
+.list-nav {
   gap: 0;
   padding: 0;
   overflow: hidden;
+}
+
+.list-nav[data-surface="standalone"] {
   border: 1px solid var(--object-border);
   border-radius: var(--radius-control);
   background: var(--section-bg);
@@ -352,14 +374,12 @@ html[data-theme="light"] .write-actions .apply {
   background: transparent;
 }
 
-.list-nav,
-.loadout-list {
+.list-nav {
   margin: 7px;
 }
 
 .main-nav button,
-.list-nav button,
-.loadout-row {
+.list-nav button {
   border: 0;
   border-bottom: 1px solid var(--divider);
   border-radius: 0;
@@ -370,8 +390,7 @@ html[data-theme="light"] .write-actions .apply {
 }
 
 .main-nav button:last-child,
-.list-nav button:last-child,
-.loadout-row:last-child {
+.list-nav button:last-child {
   border-bottom: 0;
 }
 
@@ -385,18 +404,16 @@ html[data-theme="light"] .write-actions .apply {
 }
 
 .main-nav button:hover,
-.list-nav button:hover,
-.loadout-row:hover {
+.list-nav button:hover {
   color: var(--text);
   background: var(--hover-bg);
 }
 
 .main-nav button.active,
-.list-nav button.active,
-.loadout-row.active {
+.list-nav button.active {
   color: var(--selected-fg);
   background: var(--selected-bg);
-  box-shadow: inset 0 0 0 1px var(--selected-border);
+  box-shadow: none;
 }
 
 .vendor-button {
@@ -419,7 +436,7 @@ html[data-theme="light"] .write-actions .apply {
 .vendor-button.active {
   color: var(--selected-fg);
   background: var(--selected-bg);
-  box-shadow: inset 0 0 0 1px var(--selected-border);
+  box-shadow: none;
 }
 
 .nav-mark,
@@ -437,7 +454,6 @@ html[data-theme="light"] .write-actions .apply {
 }
 
 /* Segmented controls */
-.section-tabs,
 .workflow-tabs,
 .mode-tabs,
 .assistant-switch,
@@ -452,7 +468,6 @@ html[data-theme="light"] .write-actions .apply {
   background: var(--section-bg);
 }
 
-.section-tabs button,
 .workflow-tabs button,
 .mode-tabs button,
 .assistant-switch button,
@@ -471,7 +486,6 @@ html[data-theme="light"] .write-actions .apply {
   transition: color var(--motion-fast), background var(--motion-fast);
 }
 
-.section-tabs button:last-child,
 .workflow-tabs button:last-child,
 .mode-tabs button:last-child,
 .assistant-switch button:last-child,
@@ -481,7 +495,6 @@ html[data-theme="light"] .write-actions .apply {
   border-right: 0;
 }
 
-.section-tabs button:hover,
 .workflow-tabs button:hover,
 .mode-tabs button:hover,
 .assistant-switch button:hover,
@@ -492,7 +505,6 @@ html[data-theme="light"] .write-actions .apply {
   background: var(--hover-bg);
 }
 
-.section-tabs button.active,
 .workflow-tabs button.active,
 .mode-tabs button.active,
 .assistant-switch button.active,
@@ -578,7 +590,7 @@ html[data-theme="light"] .write-actions .apply {
   min-height: var(--control-h);
   border: 1px solid var(--control-border);
   border-radius: var(--radius-control);
-  color: var(--text);
+  color: var(--body);
   background: var(--section-bg);
   font-size: var(--font-control);
   transition: border-color var(--motion-fast), background var(--motion-fast);
@@ -667,6 +679,8 @@ html[data-theme="light"] .badge.violet { color: #574583; }
   gap: 5px;
   min-height: 26px;
   padding: 0 8px;
+  border: 1px solid var(--object-border);
+  border-radius: 999px;
   color: var(--muted);
   background: var(--card-bg);
   white-space: nowrap;
@@ -675,28 +689,10 @@ html[data-theme="light"] .badge.violet { color: #574583; }
 .status-strip {
   display: flex;
   align-items: center;
-  gap: 0;
+  gap: 6px;
   min-width: 0;
   overflow: hidden;
   padding: 0 12px;
-}
-
-.status-strip .status-chip {
-  border: 0;
-  border-top: 1px solid var(--object-border);
-  border-right: 1px solid var(--divider);
-  border-bottom: 1px solid var(--object-border);
-  border-radius: 0;
-}
-
-.status-strip .status-chip:first-child {
-  border-left: 1px solid var(--object-border);
-  border-radius: var(--radius-control) 0 0 var(--radius-control);
-}
-
-.status-strip .status-chip:last-child {
-  border-right-color: var(--object-border);
-  border-radius: 0 var(--radius-control) var(--radius-control) 0;
 }
 
 .status-chip .status-icon {
@@ -715,8 +711,24 @@ html[data-theme="light"] .badge.violet { color: #574583; }
   font-weight: 600;
 }
 
-.status-chip.warning .status-icon {
-  stroke: var(--amber);
+.status-chip[data-status="success"] .status-icon { stroke: var(--mint); }
+.status-chip[data-status="pending"] .status-icon { stroke: var(--blue); }
+.status-chip[data-status="warning"] .status-icon { stroke: var(--amber); }
+.status-chip[data-status="error"] .status-icon { stroke: var(--red); }
+
+@media (max-width: 1280px) {
+  .status-strip {
+    gap: 4px;
+    padding-inline: 8px;
+  }
+
+  .status-chip {
+    padding-inline: 7px;
+  }
+
+  .status-chip > span {
+    display: none;
+  }
 }
 
 .notice,
@@ -757,13 +769,23 @@ html[data-theme="light"] .badge.violet { color: #574583; }
 .account-mini,
 .sidebar-foot,
 .page-head,
+.ai-drawer,
+.panel-column,
+.account-directory,
+.library-query,
+.vendor-directory,
+.vendor-context,
+.settings-nav,
+.instance-rail {
+  border-color: var(--shell-divider);
+}
+
 .content-band,
 .column-head,
 .workflow-bar,
 .command-bar,
 .toolbar-row,
 .summary-strip,
-.risk-grid,
 .library-results-head,
 .vendor-hero,
 .vendor-toolbar,
@@ -778,24 +800,12 @@ html[data-theme="light"] .badge.violet { color: #574583; }
 .section-nav,
 .dossier-section,
 .equipment-action-bar {
-  border-color: var(--divider);
-}
-
-.panel-column,
-.account-directory,
-.loadout-rail,
-.loadout-side,
-.library-query,
-.vendor-directory,
-.vendor-context,
-.settings-nav {
-  border-color: var(--divider);
+  border-color: var(--section-divider);
 }
 
 .ledger,
 .ledger-row,
 .table-row,
-.loadout-status-row,
 .library-result-row,
 .decision-row,
 .comparison-row,
@@ -819,7 +829,7 @@ html[data-theme="light"] .badge.violet { color: #574583; }
 .instances-table td,
 .instances th,
 .instances td {
-  border-color: var(--divider);
+  border-color: var(--section-divider);
 }
 
 /* Object cards */
@@ -849,7 +859,6 @@ html[data-theme="light"] .badge.violet { color: #574583; }
 }
 
 .item-card:hover,
-.loadout-status-row:hover,
 .library-result-row:hover,
 .decision-row:hover,
 .comparison-row:hover,
@@ -865,12 +874,43 @@ html[data-theme="light"] .badge.violet { color: #574583; }
   box-shadow: none;
 }
 
+/* Shared text roles: page CSS supplies layout, not an alternate hierarchy. */
+.page-title > span,
+.column-head > span,
+.data-source,
+.filter-stack > label {
+  color: var(--muted);
+}
+
+.page-title > h1,
+.band-heading > div > h2,
+.column-head > h3 {
+  color: var(--text);
+}
+
+.page-title > p,
+.band-heading > p {
+  color: var(--body);
+}
+
+.item-card > span > strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.item-card > span > span {
+  color: var(--body);
+}
+
+.item-card > span > small {
+  color: var(--muted);
+}
+
 .identity-meta .identity-fact {
   border-color: transparent;
   box-shadow: none;
 }
 
-.loadout-status-row,
 .library-result-row,
 .decision-row,
 .comparison-row,
@@ -1055,7 +1095,7 @@ html[data-theme="light"] .instances tr.is-selected {
 /* Dossier shell and semantic panels */
 .prototype-bar,
 .dossier {
-  border-color: var(--line);
+  border-color: var(--object-border);
   border-radius: var(--radius-panel);
 }
 
@@ -1188,10 +1228,10 @@ html[data-detail-state="running"] .detail-state-card {
   *,
   *::before,
   *::after {
-    scroll-behavior: auto !important;
-    transition-duration: 0.01ms !important;
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
+    scroll-behavior: auto;
+    transition-duration: 0.01ms;
+    animation-duration: 0.01ms;
+    animation-iteration-count: 1;
   }
 
   button:active:not(:disabled) {
@@ -1211,5 +1251,792 @@ html[data-detail-state="running"] .detail-state-card {
 
   .player-summary div:last-child {
     border-bottom: 0;
+  }
+}
+
+/*
+ * Information hierarchy contract.
+ *
+ * Tone answers "which semantic color?". Priority answers "how quickly must a
+ * player read this?". Page CSS may place the content, but cannot downsize a
+ * marked decision into metadata.
+ */
+html body .app [data-text-tone="primary"] { color: var(--text); }
+html body .app [data-text-tone="body"] { color: var(--body); }
+html body .app [data-text-tone="meta"] { color: var(--muted); }
+html body .app [data-text-tone="action"] { color: var(--blue); }
+html body .app [data-text-tone="status"][data-status="success"] { color: var(--mint); }
+html body .app [data-text-tone="status"][data-status="pending"] { color: var(--blue); }
+html body .app [data-text-tone="status"][data-status="warning"] { color: var(--amber); }
+html body .app [data-text-tone="status"][data-status="error"] { color: var(--red); }
+
+.badge[data-status="success"] {
+  color: var(--mint);
+  border-color: var(--mint);
+  background: var(--mint-bg);
+}
+
+.badge[data-status="pending"] {
+  color: var(--blue);
+  border-color: var(--blue);
+  background: var(--blue-bg);
+}
+
+.badge[data-status="warning"] {
+  color: var(--amber);
+  border-color: var(--amber);
+  background: var(--amber-bg);
+}
+
+.badge[data-status="error"] {
+  color: var(--red);
+  border-color: var(--red);
+  background: var(--red-bg);
+}
+
+/* Navigation consumes the primary value role, while its parent owns the
+ * inactive/current locating state. */
+html body .app .main-nav [data-ui-part="value"] { color: inherit; }
+
+html body .app [data-info-priority="display"] {
+  font-size: var(--priority-display);
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+html body .app .band-heading > div > [data-info-priority="display"] {
+  font-size: var(--priority-section);
+  line-height: 1.3;
+}
+
+html body .app [data-info-priority="metric"] {
+  font-size: var(--priority-metric);
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+html body .app [data-info-priority="decision"] {
+  font-size: var(--priority-decision);
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+html body .app [data-info-priority="context"] {
+  font-size: var(--priority-context);
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+html body .app [data-info-priority="reading"] {
+  font-size: var(--priority-reading);
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+html body .app [data-info-priority="support"] {
+  font-size: var(--priority-support);
+  font-weight: 500;
+  line-height: 1.45;
+}
+
+html body .app [data-info-priority="trace"] {
+  font-size: var(--priority-trace);
+  font-weight: 400;
+  line-height: 1.4;
+}
+
+/* Shared home object lines keep the same roles when their real snapshot is
+ * rendered after the document has loaded. */
+html body .app .home-vendor-summary > span {
+  color: var(--muted);
+  font-size: var(--priority-support);
+  font-weight: 500;
+  line-height: 1.45;
+}
+
+html body .app .home-vendor-summary > strong,
+html body .app .home-vendor-module-state > strong {
+  color: var(--text);
+  font-size: var(--priority-decision);
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+html body .app .home-vendor-module-state > span {
+  color: var(--body);
+  font-size: var(--priority-reading);
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+/* Home shared components: frame and object chrome belong here, never to a
+ * menu-local layout rule. */
+.app { background: var(--page); }
+
+.topbar { background: var(--chrome); }
+
+.sidebar { background: var(--sidebar); }
+
+.main { background: var(--panel); }
+
+.page-head {
+  background: color-mix(in srgb, var(--panel) 94%, transparent);
+  backdrop-filter: blur(8px);
+}
+
+.brand-mark {
+  border: 1px solid var(--mint);
+  border-radius: var(--radius-control);
+  color: var(--mint);
+  background: var(--mint-bg);
+}
+
+.nav-mark svg,
+.brief-mark svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.7;
+}
+
+.home-refresh-strip,
+.home-vendor-overview {
+  border: 1px solid var(--object-border);
+  border-radius: var(--radius-panel);
+  background: var(--section-bg);
+}
+
+.home-refresh-heading svg {
+  width: 13px;
+  height: 13px;
+  fill: none;
+  stroke: var(--blue);
+  stroke-width: 1.7;
+}
+
+.home-vendor-summary + .home-vendor-summary {
+  border-inline-start: 1px solid var(--section-divider);
+}
+
+.home-vendor-stock-item,
+.weekly-activity-card,
+.weekly-signal-card,
+.home-vendor-module-state {
+  border: 1px solid var(--object-border);
+  border-radius: var(--radius-panel);
+  background: var(--card-bg);
+}
+
+.home-vendor-stock-item:hover {
+  border-color: var(--selected-border);
+  background: var(--hover-bg);
+}
+
+.home-vendor-stock-item:focus-visible {
+  outline: 0;
+  box-shadow: 0 0 0 2px var(--focus-ring);
+}
+
+.home-vendor-stock-icon,
+.weekly-activity-reward-icon {
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+}
+
+.weekly-activity-reward-icon,
+.weekly-activity-reward-icon img {
+  width: 20px;
+  height: 20px;
+}
+
+.home-vendor-stock-icon.is-missing {
+  color: var(--muted);
+}
+
+.home-vendor-skeleton {
+  border: 1px solid var(--section-divider);
+  border-radius: var(--radius-panel);
+  background: var(--surface);
+}
+
+.weekly-activity-card > header {
+  border-bottom: 1px solid var(--section-divider);
+  background: var(--section-bg);
+}
+
+.weekly-activity-entry {
+  border-bottom: 1px solid var(--section-divider);
+}
+
+.weekly-activity-card > header > strong[data-status="success"],
+.home-vendor-stock-state[data-status="success"] {
+  color: var(--mint);
+}
+
+.weekly-activity-card > header > strong[data-status="pending"],
+.home-vendor-stock-state[data-status="pending"] {
+  color: var(--blue);
+}
+
+.home-vendor-stock-state[data-status="warning"] {
+  color: var(--amber);
+}
+
+.home-vendor-stock-state[data-status="error"] {
+  color: var(--red);
+}
+
+@media (max-width: 980px) {
+  .home-vendor-summary + .home-vendor-summary {
+    border-inline-start: 0;
+    border-top: 1px solid var(--section-divider);
+  }
+}
+
+@media (max-width: 1280px) {
+  .weekly-activity-reward-panel {
+    border-top: 1px solid var(--section-divider);
+  }
+}
+
+/* Settings overview: service state is a compact ledger, not six unrelated
+ * objects. The wide data track and locally constrained prose keep a desktop
+ * settings page dense without turning long explanations into measure-wide text. */
+.settings-menu-caption {
+  border-bottom: 1px solid var(--section-divider);
+}
+
+.settings-content > .settings-section {
+  inline-size: 100%;
+}
+
+.settings-section-head > div,
+.settings-panel-title > div {
+  max-inline-size: 760px;
+}
+
+.settings-overview-metrics,
+.settings-update-metrics {
+  display: grid;
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid var(--object-border);
+  border-radius: 0;
+  background: var(--panel);
+}
+
+.settings-overview-metrics {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.settings-update-metrics {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.settings-overview-metrics .settings-metric,
+.settings-update-metrics .settings-metric {
+  min-width: 0;
+  border: 0;
+  border-right: 1px solid var(--section-divider);
+  border-bottom: 1px solid var(--section-divider);
+  border-radius: 0;
+  background: transparent;
+}
+
+.settings-overview-metrics .settings-metric:nth-child(3n),
+.settings-update-metrics .settings-metric:nth-child(3n) {
+  border-right: 0;
+}
+
+.settings-overview-metrics .settings-metric:nth-last-child(-n + 3),
+.settings-update-metrics .settings-metric:nth-last-child(-n + 3) {
+  border-bottom: 0;
+}
+
+.settings-panel-title {
+  border-bottom: 1px solid var(--section-divider);
+}
+
+.settings-version-table,
+.settings-version-row,
+.settings-log-list,
+.settings-log-entry {
+  border-color: var(--section-divider);
+}
+
+.settings-feedback {
+  border: 1px solid var(--object-border);
+  border-left: 3px solid var(--blue);
+  border-radius: var(--radius-control);
+  background: var(--card-bg);
+}
+
+.settings-feedback[data-status="success"] { border-left-color: var(--mint); }
+.settings-feedback[data-status="pending"] { border-left-color: var(--blue); }
+.settings-feedback[data-status="warning"] { border-left-color: var(--amber); }
+.settings-feedback[data-status="error"] { border-left-color: var(--red); }
+
+.settings-update-progress {
+  overflow: hidden;
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+}
+
+.settings-update-progress i {
+  width: var(--update-progress, 0%);
+  border-radius: inherit;
+  background: var(--mint);
+}
+
+@media (max-width: 980px) {
+  .settings-overview-metrics,
+  .settings-update-metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-overview-metrics .settings-metric,
+  .settings-update-metrics .settings-metric,
+  .settings-overview-metrics .settings-metric:nth-child(3n),
+  .settings-update-metrics .settings-metric:nth-child(3n) {
+    border-right: 0;
+    border-bottom: 1px solid var(--section-divider);
+  }
+
+  .settings-overview-metrics .settings-metric:last-child,
+  .settings-update-metrics .settings-metric:last-child {
+    border-bottom: 0;
+  }
+
+}
+
+@media (min-width: 981px) and (max-width: 1280px) {
+  .settings-overview-metrics,
+  .settings-update-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .settings-overview-metrics .settings-metric,
+  .settings-update-metrics .settings-metric {
+    border-right: 1px solid var(--section-divider);
+    border-bottom: 1px solid var(--section-divider);
+  }
+
+  .settings-overview-metrics .settings-metric:nth-child(3n),
+  .settings-update-metrics .settings-metric:nth-child(3n) {
+    border-right: 1px solid var(--section-divider);
+  }
+
+  .settings-overview-metrics .settings-metric:nth-child(2n),
+  .settings-update-metrics .settings-metric:nth-child(2n) {
+    border-right: 0;
+  }
+
+  .settings-overview-metrics .settings-metric:nth-last-child(-n + 3),
+  .settings-update-metrics .settings-metric:nth-last-child(-n + 3) {
+    border-bottom: 1px solid var(--section-divider);
+  }
+
+  .settings-overview-metrics .settings-metric:last-child,
+  .settings-update-metrics .settings-metric:last-child {
+    border-bottom: 0;
+  }
+
+  .settings-update-metrics .settings-metric:last-child {
+    grid-column: 1 / -1;
+    border-right: 0;
+  }
+}
+
+/*
+ * Unified boundary contract
+ *
+ * Static page CSS owns grids and domain density only. These selectors own the
+ * visible page boundaries so a page cannot turn a shell, split, list, and
+ * object into nested cards merely by adding a local border declaration.
+ */
+
+/* ShellLine: continuous, square, and owned by the shell alone. */
+.topbar {
+  border: 0;
+  border-bottom: 1px solid var(--shell-divider);
+}
+
+.brand {
+  border: 0;
+  border-inline-end: 1px solid var(--shell-divider);
+}
+
+.top-tools,
+.window-tools {
+  border: 0;
+  border-inline-start: 1px solid var(--shell-divider);
+}
+
+.sidebar {
+  border: 0;
+  border-inline-end: 1px solid var(--shell-divider);
+}
+
+.account-mini {
+  border: 0;
+  border-bottom: 1px solid var(--shell-divider);
+}
+
+.sidebar-foot {
+  border: 0;
+  border-top: 1px solid var(--shell-divider);
+}
+
+.page-head {
+  border: 0;
+  border-bottom: 1px solid var(--shell-divider);
+  border-radius: 0;
+}
+
+.ai-drawer,
+.instance-rail {
+  border: 0;
+  border-inline-start: 1px solid var(--shell-divider);
+  border-radius: 0;
+}
+
+/* SplitLine: no enclosing frame, one divider for every adjacent pane. */
+.split-2,
+.account-workspace,
+.vault-browse,
+.library-workbench,
+.vendor-shell,
+.settings-shell,
+.full-loadout-workspace {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.split-2 > *,
+.account-workspace > *,
+.vault-browse > *,
+.library-workbench > *,
+.vendor-shell > *,
+.settings-shell > *,
+.full-loadout-workspace > * {
+  border: 0;
+  border-radius: 0;
+}
+
+.split-2 > * + *,
+.account-workspace > * + *,
+.vault-browse > * + *,
+.library-workbench > * + *,
+.vendor-shell > * + *,
+.settings-shell > * + *,
+.full-loadout-workspace > * + * {
+  border-inline-start: 1px solid var(--shell-divider);
+}
+
+.panel-column {
+  border: 0;
+  border-radius: 0;
+}
+
+.panel-column + .panel-column {
+  border-inline-start: 1px solid var(--shell-divider);
+}
+
+.account-slot-columns,
+.account-slot-column,
+.account-slot-column + .account-slot-column {
+  border: 0;
+  border-radius: 0;
+}
+
+.account-slot-column + .account-slot-column {
+  border-inline-start: 1px solid var(--section-divider);
+}
+
+/* ContextSwitcher: a structural strip, never a card or a segmented control. */
+.account-character-switcher,
+.full-loadout-character-tabs {
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius-control);
+  background: var(--section-bg);
+}
+
+.account-character-switcher button,
+.full-loadout-character-tabs button {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.account-character-switcher button + button,
+.full-loadout-character-tabs button + button {
+  border-inline-start: 1px solid var(--section-divider);
+}
+
+.full-loadout-character-context {
+  border-inline-start: 1px solid var(--section-divider);
+}
+
+/* RowLine: page sections, embedded directories, and dense data never get cards. */
+.content-band,
+.settings-panel,
+.account-slot-category,
+.account-slot-row,
+.vendor-section,
+.dossier-section,
+.column-head,
+.vendor-hero,
+.vendor-toolbar,
+.library-results-head,
+.command-bar,
+.workflow-bar,
+.full-loadout-detail-head,
+.full-loadout-section-label {
+  border: 0;
+  border-bottom: 1px solid var(--section-divider);
+  border-radius: 0;
+  background: transparent;
+}
+
+.content-band:last-child,
+.account-slot-category:last-child,
+.vendor-section:last-child,
+.dossier-section:last-child {
+  border-bottom: 0;
+}
+
+.main-nav,
+.list-nav[data-surface="embedded-list"],
+.full-loadout-directory-list,
+.ledger,
+.stat-table,
+.source-ledger,
+.source-list,
+.capability-table,
+.socket-list,
+.settings-group,
+.settings-metric-grid,
+.library-results,
+.vendor-category-list {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.target-list {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.main-nav button,
+.list-nav[data-surface="embedded-list"] button,
+.full-loadout-directory-row,
+.vendor-button,
+.ledger-row,
+.table-row,
+.library-result-row,
+.decision-row,
+.comparison-row,
+.source-row,
+.setting-row,
+.log-row,
+.stat-row,
+.capability-row,
+.socket-row,
+.knowledge-source,
+.target-row,
+.vendor-category-list .offer,
+.settings-metric {
+  border: 0;
+  border-bottom: 1px solid var(--section-divider);
+  border-radius: 0;
+  background: transparent;
+}
+
+.main-nav button:last-child,
+.list-nav[data-surface="embedded-list"] button:last-child,
+.full-loadout-directory-row:last-child,
+.vendor-button:last-child,
+.ledger-row:last-child,
+.table-row:last-child,
+.library-result-row:last-child,
+.decision-row:last-child,
+.comparison-row:last-child,
+.source-row:last-child,
+.setting-row:last-child,
+.log-row:last-child,
+.stat-row:last-child,
+.capability-row:last-child,
+.socket-row:last-child,
+.knowledge-source:last-child,
+.target-row:last-child,
+.vendor-category-list .offer:last-child,
+.settings-metric:last-child {
+  border-bottom: 0;
+}
+
+/* Current navigation has an independent, non-semantic locating state. */
+.main-nav button.active,
+.list-nav button.active,
+.list-nav[data-surface="embedded-list"] button.active,
+.vendor-button.active {
+  color: var(--nav-current-fg);
+  background: var(--nav-current-bg);
+  box-shadow: inset 3px 0 0 var(--nav-current-indicator);
+  font-weight: 700;
+}
+
+.main-nav button.active:hover,
+.list-nav button.active:hover,
+.list-nav[data-surface="embedded-list"] button.active:hover,
+.vendor-button.active:hover {
+  color: var(--nav-current-fg);
+  background: var(--nav-current-bg);
+}
+
+.main-nav button.active .nav-mark {
+  color: var(--nav-current-fg);
+  background: var(--nav-current-icon-bg);
+}
+
+.list-nav button.active small {
+  color: currentColor;
+  opacity: 0.76;
+}
+
+.vendor-button.active strong,
+.vendor-button.active span {
+  color: var(--nav-current-fg);
+}
+
+.main-nav button:focus-visible,
+.list-nav button:focus-visible,
+.vendor-button:focus-visible {
+  outline: 2px solid var(--control-border);
+  outline-offset: -2px;
+}
+
+/* A data row cannot inherit ObjectCard chrome. */
+.library-result-row,
+.decision-row,
+.comparison-row,
+.knowledge-source,
+.vendor-category-list .offer {
+  box-shadow: none;
+}
+
+/* ObjectOutline: only standalone game objects and independent state panels. */
+.character,
+.brief-item,
+.equipment-card,
+.item-card,
+.library-card,
+.offer,
+.activity-card,
+.rank-number,
+.state-card,
+.recommendation,
+.match-card,
+.rail-instance-card,
+.instance-comparison article,
+.ability-feature,
+.set-bonus-panel,
+.armor-match-card,
+.armor-instance-card,
+.core-feature,
+.stat-empty,
+.detail-state-card {
+  border: 1px solid var(--object-border);
+  border-radius: var(--radius-panel);
+  background: var(--card-bg);
+}
+
+.vendor-category-list .offer {
+  border: 0;
+  border-bottom: 1px solid var(--section-divider);
+  border-radius: 0;
+  background: transparent;
+}
+
+.vendor-category-list .offer:last-child {
+  border-bottom: 0;
+}
+
+/* Callouts keep a semantic accent, not a second workspace frame. */
+.settings-feedback,
+.settings-help,
+.vendor-detail-warning {
+  border: 1px solid var(--object-border);
+  border-radius: var(--radius-panel);
+  background: var(--card-bg);
+}
+
+.vendor-detail-warning {
+  border-left: 4px solid var(--amber);
+}
+
+/* Detail pages are workspaces, not modal cards wrapped in a second card. */
+.dossier {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.dossier-toolbar,
+.identity,
+.section-nav,
+.equipment-action-bar {
+  border: 0;
+  border-bottom: 1px solid var(--shell-divider);
+  border-radius: 0;
+}
+
+/* Readable prose is constrained locally; data workspaces remain fluid. */
+.account-content,
+.dossier-main {
+  min-width: 0;
+}
+
+@media (min-width: 1281px) {
+  .dossier-main > .dossier-section > * {
+    max-inline-size: 1180px;
+  }
+}
+
+/* The account rail repeats neither the selected profile name nor a second title. */
+.account-directory .column-head > span {
+  display: none;
+}
+
+@media (max-width: 760px) {
+  .split-2 > *,
+  .account-workspace > *,
+  .vault-browse > *,
+  .library-workbench > *,
+  .vendor-shell > *,
+  .settings-shell > *,
+  .full-loadout-workspace > *,
+  .panel-column,
+  .account-slot-column,
+  .account-slot-column + .account-slot-column {
+    border-inline: 0;
+  }
+
+  .split-2 > * + *,
+  .account-workspace > * + *,
+  .vault-browse > * + *,
+  .library-workbench > * + *,
+  .vendor-shell > * + *,
+  .settings-shell > * + *,
+  .full-loadout-workspace > * + *,
+  .panel-column + .panel-column,
+  .account-slot-column + .account-slot-column {
+    border-top: 1px solid var(--shell-divider);
   }
 }

@@ -22,6 +22,7 @@
 - `specs/vault-workspace.md`：仓库四个工作区、真实实例、标签和写操作边界。
 - `specs/loadouts-workspace.md`：Bungie 游戏内配装与本地配装方案的对象和操作边界。
 - `specs/loadouts-ui-binding.md`：T1 配装页的现有功能、原型结构、真实字段 / action 与状态对照。
+- `specs/loadouts-visual-contract.md`：配装工作台的角色切换、模式分段、三栏、目录、详情和响应式视觉合同。
 - `specs/library-workspace.md`：Manifest 查询、版本、历史和更新状态。
 - `specs/vendors-workspace.md`：地点目录、完整库存、角色上下文和时效。
 - `specs/settings-workspace.md`：八个设置分区、敏感数据和真实 action 边界。

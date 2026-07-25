@@ -8,7 +8,6 @@ window.accountWorkspaceSnapshot = Object.freeze({
     "savedAt": "2026-07-23T01:47:39.325Z",
     "characterCount": 2,
     "vaultItemCount": 824,
-    "vaultCapacity": 1300,
     "materialCount": 44
   },
   "characters": [

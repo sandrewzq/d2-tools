@@ -42,7 +42,7 @@
   </header>
 
   <div class="stage">
-    <main class="dossier" data-contract-id="armor.detail" data-reference-only="true" data-visual-contract="surface-v1">
+    <main class="dossier" data-contract-id="armor.detail" data-reference-only="true" data-visual-contract="surface-v1" data-layout="hybrid-workspace">
       <header class="dossier-toolbar">
         <div>
           <h1>护甲档案</h1>
@@ -73,7 +73,7 @@
         </section>
 
         <div class="detail-sticky">
-          <nav class="section-nav" aria-label="护甲详情章节">
+          <nav class="section-nav" data-ui-kind="segmented-control" aria-label="护甲详情章节">
             <div>
               <button type="button" class="is-active" data-target="overview">属性与获取</button>
               <button type="button" data-target="configuration">护甲配置</button>
@@ -119,7 +119,7 @@
                 <div><span class="eyebrow">目标匹配</span><h3>独立数据源条件匹配</h3></div>
                 <p>个人目标、配装与攻略要求、社区来源分别匹配，不合并排序，不生成保留或购买结论。</p>
               </div>
-              <div class="match-source-tabs" role="tablist" aria-label="选择护甲目标数据源">
+              <div class="match-source-tabs" data-ui-kind="segmented-control" role="tablist" aria-label="选择护甲目标数据源">
                 <button type="button" data-target-source="personal" role="tab">个人目标 <span></span></button>
                 <button type="button" data-target-source="loadout" role="tab">配装与攻略 <span></span></button>
                 <button type="button" data-target-source="community" role="tab">社区来源 <span></span></button>

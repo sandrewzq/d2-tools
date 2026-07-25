@@ -457,7 +457,7 @@ function renderTargets(data, object) {
     button.querySelector("span").textContent = String((data.targets[source] ?? []).length);
   });
   el.targetMatches.innerHTML = entries.map((entry) => `
-    <article class="armor-match-card">
+    <article class="armor-match-card" data-ui-kind="object-card">
       <header><div><h4>${entry.title}</h4><p>${entry.meta}</p></div><span>独立来源</span></header>
       <div class="armor-condition-list">
         ${entry.conditions.map((condition) => {
@@ -500,7 +500,7 @@ function renderInstances(data) {
   el.instances.innerHTML = data.instances.map((instance, index) => {
     const mode = index === 0 ? "instance-a" : "instance-b";
     const current = state.mode === mode;
-    return `<button type="button" class="armor-instance-card ${current ? "is-current" : ""}" data-instance-mode="${mode}">
+    return `<button type="button" class="armor-instance-card ${current ? "is-current" : ""}" data-ui-kind="object-card" data-instance-mode="${mode}">
       <header><strong>实例 ${instance.id}</strong><span>${instance.location}</span></header>
       <div class="armor-instance-total"><strong>${total(instance.stats)}</strong><span>${instance.masterwork ? "大师杰作" : `${instance.energy} 级能量`}</span></div>
       <div class="armor-stat-strip">${statDefs.map((stat, statIndex) => `<span>${stat.short}<b>${instance.stats[statIndex]}</b></span>`).join("")}</div>

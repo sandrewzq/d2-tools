@@ -60,7 +60,6 @@ window.settingsPageSnapshot = Object.freeze({
     "authorized": true,
     "characterCount": 2,
     "vaultItemCount": 824,
-    "vaultCapacity": 1300,
     "lastLoadedAt": "2026-07-23T01:47:39.325Z",
     "writeActionsEnabled": true,
     "warning": "",
