@@ -14,7 +14,7 @@
 | 两个本地模板对比 | `LoadoutCompareView` | 本地配装方案的对比区 | 保留，不再与游戏内槽位混在目录中 |
 | 从当前角色新建本地方案 | `saveCharacterLoadout` | 本地配装方案目录顶部 | 复用当前角色已装备物品创建本地模板；新模型完成后替换为可编辑方案创建流程 |
 | DIM 配装分享链接导入 | 无实现 | 本地配装方案目录底部 | 保留入口位置；能力完成前点击只说明解析服务未接通且不创建空方案，后续接入 Services / IPC / renderer 契约 |
-| 本地方案批量应用及指定 Perk | 旧模板仅有逐件 / 补齐写操作 | 本地配装方案 | 需新模型和计划执行器；不把旧“转移缺失件”标成完整方案应用 |
+| 本地方案批量应用及指定 Perk | `EquipItems`、`InsertSocketPlug` 已有平台接线；本地模板未保存 socket 选择 | 本地配装方案 | 计划只处理 3 武器 + 5 护甲；仅当已保存并验证 `socket_index` / `plug_hash` 时才追加职业分支 Plug，星象、碎片和技能否则仅记录 |
 
 ## 原型结构对照
 
@@ -38,6 +38,7 @@
 | 当前装备写入槽位 | `actions.snapshotCurrentLoadout` | 覆盖确认由 renderer 写入 action 负责 |
 | 本地方案名称、职业、装备与更新时间 | `LoadoutTemplate` | 当前是旧模板字段；新模型完成前不声称支持未拥有条目或目标 Perk 编辑 |
 | 方案条目位置、可操作状态、来源 | `LoadoutTemplateItemRowView` | 用实例和真实分析结果展示，不能用同名替代实例 |
+| 本地构筑配置 | 后续 `LoadoutTemplate` 构筑字段：职业分支实例、`socket_index`、`plug_hash`、星象 / 碎片 / 技能记录 | 装备应用列表固定排除非装备收藏项；未保存或未验证 Plug 时必须就地显示“仅记录 / 不可用”与原因 |
 | 转移、装备、查看来源 | `executeSingleItemTransfer`、`equipSingleItem`、`openTemplateSourceItem` | 保留现有确认、写操作开关和成功后刷新逻辑 |
 | 批量补齐、复制缺失、对比 | `executeMissingTransfer`、`copyMissingItems`、`LoadoutCompareView` | 保留现有语义，直到新批量应用完成 |
 
