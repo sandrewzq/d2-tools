@@ -7,11 +7,11 @@
 | 原型区域 | 数据来源 | 必须呈现 | 不得伪造 |
 |---|---|---|---|
 | 地点目录 | `railSections[]`、`vendors[]` | 地点、商人名称、目录状态、当前项 | 不显示商人图标或首字母替代；不按本地化名称猜测身份，使用稳定 `id` / `vendorHash` |
-| 商人身份区 | `name`、`location`、`description`、`source`、`resetLabel` | 当前地点、商人、来源、刷新边界、可见 Offer 数 | 缺少地点或说明时不补猜测文本 |
+| 商人身份区 | `name`、`location`、`description`、`source`、`resetAt` | 当前地点、商人、来源、按系统时区生成的刷新边界、可见 Offer 数 | 缺少地点或说明时不补猜测文本；不在快照中保存预格式化刷新文案 |
 | 角色上下文 | `selectedCharacterContext` | 当前角色范围与护甲师模组状态 | 不跨角色合并库存或推断模组 |
 | 库存章节 | `contentSections[]`、`groups[]` | 库存、子库存、任务、声望奖励及真实分组 | 不用分类摘要替代完整子库存 |
 | Offer | `iconUrl`、`name`、`itemType`、`summary`、`costs`、`quantity`、`canPurchase`、`failureMessages` | 图标、名称、类型/摘要、成本、数量、可购买或受阻原因 | 无图标显示缺图态；不能以首字母替代；不把不可购买标记成可购买 |
-| 右侧核对 | `inventoryStateLabel`、`displayStatusLabel`、`updatedLabel`、`verifiedItemCount` | 库存状态、来源/读取时间、刷新边界、核验范围 | 不把全局核验数表示为当前商人的库存数 |
+| 右侧核对 | `inventoryStateLabel`、`displayStatusLabel`、`updatedAt`、`verifiedItemCount` | 库存状态、按系统时区生成的来源/读取时间、刷新边界、核验范围 | 不把全局核验数表示为当前商人的库存数；不直出 UTC ISO |
 
 ## 操作边界
 

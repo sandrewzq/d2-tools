@@ -248,8 +248,9 @@ tools\git-preflight.cmd
 8. **页面有边界预算。** 页面级只允许 `ShellLine`、`SplitLine`、`RowLine`、`ObjectOutline` 四种可见边界：Shell 只画连续结构线，工作区只画相邻栏位分隔，章节和连续数据只画行线，独立对象才画完整外框。控件边框不参与页面布局；Callout 的语义左色条不能复用为导航或普通卡片。每条边只能由一个 DOM 层拥有。
 9. **页面先选宽度类型。** 仓库、配装和账号装备对照属于 `fluid-workspace`；设置与账号中的纯说明段落属于 `constrained-content`；首页、资料库、商人属于 `hybrid-workspace`。不得把阅读型内容无限拉宽，也不得把工作台包进居中的大卡片。
 10. **当前定位必须独立建模。** 一级菜单和嵌入目录使用 `--nav-current-*`，对象选择继续使用 `--selected-*`，角色上下文使用底部指示，分段控件只改变控件内部状态。亮色下当前背景、当前指示和文字分别满足 `1.25:1`、`3:1`、`4.5:1` 对比度；对象、上下文和分段控件的选中边界相对选中背景也必须达到 `3:1`。hover、focus、current、disabled 不能共用同一视觉状态。
-11. **文字、图标和状态同样必须有唯一语义。** 每段文字同时具有颜色 `Tone` 和决策 `Priority`：`--text`、`--body`、`--muted`、`--blue` 分别表达 primary、body、meta、action；`decision`、`context`、`reading`、`support`、`trace` 分别表达当前操作重要性。时间、奖励、成本、可用性、缺失、操作结果不能因语法像标签而缩小；页面描述不能降为 trace，普通 Perk、锁定和元数据不得使用 action 色。完整字号、图标、Control 状态、密度、层级和响应式规则见 `specs/global-visual-contract.md`，菜单不得私自例外。
-12. **全局验收检查最终计算样式。** 每个菜单在 light / dark、`1280 / 980 / 760` 下复核每个 `Tone + Priority` 的对比度、字号、换行与决策可见性，以及图标和命中区、default / hover / pressed / current / focus-visible / disabled / loading / error、间距刻度、层级和零横向滚动。共享 CSS 先提供语义 token，菜单只消费，不在页面 CSS 中直接挑选颜色、字号、阴影或 `z-index`。
+11. **文字、图标和状态同样必须有唯一语义。** 每段文字同时具有颜色 `Tone` 和决策 `Priority`：`--text`、`--body`、`--muted`、`--blue` 分别表达 primary、body、meta、action；`decision`、`context`、`reading`、`support`、`trace` 分别表达当前操作重要性。日期、版本、数量、名称和普通数值属于事实值，保持 primary / body；只有明确状态词才使用 status tone，容器 `data-status` 不得把事实值一起染色。时间、奖励、成本、可用性、缺失、操作结果不能因语法像标签而缩小；页面描述不能降为 trace，普通 Perk、锁定和元数据不得使用 action 色。完整字号、图标、Control 状态、密度、层级和响应式规则见 `specs/global-visual-contract.md`，菜单不得私自例外。
+12. **按钮几何由 Control 合同统一。** 文本命令默认 `34px` 高，Primary / Secondary / Danger / AI 只改变颜色，不改变尺寸；设置和诊断等重复操作列统一使用 `144px` 宽，普通命令栏按内容自适应。紧凑 `30px` 和主控件 `40px` 必须显式声明，菜单不得按文案长度或按钮颜色自行调整。
+13. **全局验收检查最终计算样式。** 每个菜单在 light / dark、`1280 / 980 / 760` 下复核每个 `Tone + Priority` 的对比度、字号、换行与决策可见性，以及图标和命中区、default / hover / pressed / current / focus-visible / disabled / loading / error、间距刻度、层级和零横向滚动。共享 CSS 先提供语义 token，菜单只消费，不在页面 CSS 中直接挑选颜色、字号、阴影或 `z-index`。
 
 #### 原型先行流程
 

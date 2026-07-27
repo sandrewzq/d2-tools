@@ -84,8 +84,6 @@ export function ProductShellHost(props: ProductShellHostProps) {
       density={preferences.density ?? "standard"}
       interfaceLocale={preferences.interfaceLocale}
       shellStatus={props.shellStatus}
-      backgroundTasks={props.backgroundTasks}
-      onOpenBackgroundTasks={props.onOpenBackgroundTasks}
       sidebarHeader={props.sidebarHeader}
       sidebarFooter={props.sidebarFooter}
       assistantPanel={props.assistantPanel}
@@ -98,9 +96,9 @@ export function ProductShellHost(props: ProductShellHostProps) {
       <ProductWorkspacePage element="section" className="product-shell-page">
         {pageHeader ? (
           <ProductWorkspaceHeader className="product-shell-page-header" referenceId="shell.page-header" actions={pageHeader.actions}>
-            {pageHeader.eyebrow ? <span className="product-workspace-eyebrow">{pageHeader.eyebrow}</span> : null}
-            <h2>{pageHeader.title}</h2>
-            <p>{pageHeader.subtitle}</p>
+            {pageHeader.eyebrow ? <span className="product-workspace-eyebrow" data-ui-part="label" data-info-priority="support" data-text-tone="meta">{pageHeader.eyebrow}</span> : null}
+            <h2 data-ui-part="value" data-info-priority="display" data-text-tone="primary">{pageHeader.title}</h2>
+            <p data-ui-part="detail" data-info-priority="reading" data-text-tone="body">{pageHeader.subtitle}</p>
           </ProductWorkspaceHeader>
         ) : null}
         {props.renderPage(activePage, preferences)}

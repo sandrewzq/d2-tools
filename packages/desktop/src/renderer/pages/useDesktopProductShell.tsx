@@ -343,8 +343,6 @@ export function useDesktopProductShell(props: {
         </>
       ) : activePage === "vendors" ? (
         <button type="button" className="primary-button" disabled={vendorsWorkspace.isRefreshing} onClick={() => void vendorsWorkspace.refresh()}>刷新商人库存</button>
-      ) : activePage === "settings" ? (
-        <button type="button" className="secondary-button" onClick={() => void diagnostics.copyDiagnosticsExport()}>复制脱敏诊断</button>
       ) : null
     },
     platformActions: desktopPlatformActions,
@@ -359,7 +357,8 @@ export function useDesktopProductShell(props: {
     ),
     sidebarFooter: (
       <ShellSidebarActions
-        onOpenAi={() => setAssistantMode("ai")}
+        isAiOpen={assistantMode !== null}
+        onToggleAi={() => setAssistantMode((current) => current === null ? "ai" : null)}
       />
     ),
     shellStatus

@@ -266,7 +266,6 @@
 .section-heading h2,
 .section-heading h3,
 .action-log-row strong,
-.ai-empty-state strong,
 .modal-perk-group h3,
 .score-breakdown-card strong,
 .armor-stat-grid strong,
@@ -295,9 +294,7 @@
 .vault-card-signals .community-match span,
 .action-log-row span,
 .action-log-row small,
-.weapon-filter-heading span,
-.ai-empty-state p,
-.ai-composer-context {
+.weapon-filter-heading span {
   color: var(--text-muted);
 }
 
@@ -610,7 +607,6 @@
 }
 
 .compact-field,
-.ai-composer-context,
 .ai-chat-input,
 .ai-context-strip span {
   border-color: var(--field-border);
@@ -618,8 +614,7 @@
   color: var(--text-body);
 }
 
-.compact-field:hover,
-.ai-composer-context:hover {
+.compact-field:hover {
   background: var(--field-bg-hover);
 }
 

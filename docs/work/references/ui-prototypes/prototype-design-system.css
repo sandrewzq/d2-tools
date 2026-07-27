@@ -53,6 +53,7 @@
   --control-h-compact: 30px;
   --control-h: 34px;
   --control-h-lg: 40px;
+  --control-command-width: 144px;
   --nav-h: 42px;
   --radius-control: 4px;
   --radius-panel: 6px;
@@ -308,17 +309,41 @@ button:active:not(:disabled) {
 .action-more > summary,
 .rail-toggle,
 .sidebar-foot button,
-.drawer-head button,
 .prototype-tools > button,
 .task-actions button {
   min-height: var(--control-h);
-  padding: 0 10px;
+  padding: 0 12px;
   border: 1px solid var(--control-border);
   border-radius: var(--radius-control);
   color: var(--body);
   background: var(--surface);
   font-size: var(--font-control);
   transition: color var(--motion-fast), background var(--motion-fast), border-color var(--motion-fast);
+}
+
+[data-ui-kind="button"][data-control-size="compact"] {
+  height: var(--control-h-compact);
+  min-height: var(--control-h-compact);
+}
+
+[data-ui-kind="button"][data-control-size="standard"] {
+  height: var(--control-h);
+  min-height: var(--control-h);
+}
+
+[data-ui-kind="button"][data-control-size="prominent"] {
+  height: var(--control-h-lg);
+  min-height: var(--control-h-lg);
+}
+
+[data-ui-kind="button"][data-control-width="uniform"] {
+  display: inline-flex;
+  flex: 0 0 var(--control-command-width);
+  align-items: center;
+  justify-content: center;
+  width: min(100%, var(--control-command-width));
+  max-width: 100%;
+  white-space: nowrap;
 }
 
 .button:hover,
@@ -329,7 +354,6 @@ button:active:not(:disabled) {
 .action-more > summary:hover,
 .rail-toggle:hover,
 .sidebar-foot button:hover,
-.drawer-head button:hover,
 .prototype-tools > button:hover {
   color: var(--text);
   border-color: var(--selected-border);
@@ -404,11 +428,14 @@ html[data-theme="light"] .write-actions .apply {
 }
 
 .icon-button {
+  display: grid;
+  place-items: center;
   width: var(--control-h-lg);
   height: var(--control-h-lg);
-  border-color: var(--control-border);
-  color: var(--text);
-  background: var(--surface);
+  padding: 0;
+  border-color: transparent;
+  color: var(--muted);
+  background: transparent;
 }
 
 /* Product navigation */
@@ -1370,6 +1397,11 @@ html body .app [data-text-tone="status"][data-status="success"] { color: var(--m
 html body .app [data-text-tone="status"][data-status="pending"] { color: var(--blue); }
 html body .app [data-text-tone="status"][data-status="warning"] { color: var(--amber); }
 html body .app [data-text-tone="status"][data-status="error"] { color: var(--red); }
+html body .app [data-text-tone="status"][data-status="neutral"] { color: var(--body); }
+
+html body .app [data-value-kind="fact"] {
+  font-variant-numeric: tabular-nums;
+}
 
 .badge[data-status="success"] {
   color: var(--mint);

@@ -1,15 +1,21 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { getLocaleCopy } from "../i18n/copy.js";
-import type { ShellCopy } from "../i18n/types.js";
 import { getLocalizedNavItems } from "./navigation.js";
-import type { AppShellLayoutProps, PlatformActions, ShellAssistantMode, ShellBackgroundTaskItem, ShellPageKey } from "./types.js";
+import type { AppShellLayoutProps, PlatformActions, ShellAssistantMode, ShellPageKey } from "./types.js";
 
 export type AppShellProps = AppShellLayoutProps & {
   platformActions: PlatformActions;
 };
 
 export function AppShell(props: AppShellProps) {
-  const [isBackgroundTaskDockOpen, setIsBackgroundTaskDockOpen] = useState(false);
+  const [isMobileStatusOpen, setIsMobileStatusOpen] = useState(false);
+  const assistantTriggerRef = useRef<HTMLButtonElement>(null);
+  const assistantPanelRef = useRef<HTMLElement>(null);
+  const mobileStatusRef = useRef<HTMLDivElement>(null);
+  const sidebarRef = useRef<HTMLElement>(null);
+  const contentRef = useRef<HTMLElement>(null);
+  const assistantModeChangeRef = useRef(props.onAssistantModeChange);
+  assistantModeChangeRef.current = props.onAssistantModeChange;
   const interfaceLocale = props.interfaceLocale ?? "zh-CN";
   const copy = getLocaleCopy(interfaceLocale).shell;
   const navItems = getLocalizedNavItems(interfaceLocale);
@@ -17,39 +23,158 @@ export function AppShell(props: AppShellProps) {
   const languageToggleLabel = interfaceLocale === "zh-CN" ? copy.tools.switchToEnglish : copy.tools.switchToChinese;
   const visibleShellStatus = props.shellStatus.filter((item) => item.key !== "background");
   const activePageLabel = navItems.find((item) => item.key === props.activePage)?.label ?? "";
-  const backgroundTasks = props.backgroundTasks ?? [];
-  const taskDockState = getBackgroundTaskDockState(backgroundTasks, copy);
+  const isAssistantOverlay = useMediaQuery("(max-width: 980px)");
+  const isAssistantOpen = props.assistantMode !== null;
   const shellClassName = [
     "app-shell",
-    props.assistantMode ? "assistant-open" : "",
-    taskDockState ? "has-background-tasks" : ""
+    isAssistantOpen ? "assistant-open" : ""
   ].filter(Boolean).join(" ");
 
   function toggleAssistant(mode: Exclude<ShellAssistantMode, null>) {
-    props.onAssistantModeChange(props.assistantMode === mode ? null : mode);
+    setIsMobileStatusOpen(false);
+    props.onAssistantModeChange(isAssistantOpen ? null : mode);
+  }
+
+  function selectAssistantMode(mode: Exclude<ShellAssistantMode, null>) {
+    props.onAssistantModeChange(mode);
+  }
+
+  function handleAssistantTabKeyDown(event: ReactKeyboardEvent<HTMLButtonElement>) {
+    if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+    event.preventDefault();
+    const nextMode = props.assistantMode === "ai" ? "tasks" : "ai";
+    selectAssistantMode(nextMode);
+    requestAnimationFrame(() => document.getElementById(`shell-assistant-tab-${nextMode}`)?.focus());
   }
 
   useEffect(() => {
     void props.platformActions.setColorMode?.(props.colorMode);
   }, [props.colorMode, props.platformActions]);
 
+  useEffect(() => {
+    setIsMobileStatusOpen(false);
+  }, [props.activePage]);
+
+  useEffect(() => {
+    if (isAssistantOpen) {
+      setIsMobileStatusOpen(false);
+    }
+  }, [isAssistantOpen]);
+
+  useEffect(() => {
+    if (!isMobileStatusOpen) return;
+
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setIsMobileStatusOpen(false);
+      }
+    }
+
+    function handlePointerDown(event: PointerEvent) {
+      if (event.target instanceof Node && !mobileStatusRef.current?.contains(event.target)) {
+        setIsMobileStatusOpen(false);
+      }
+    }
+
+    document.addEventListener("keydown", handleEscape);
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => {
+      document.removeEventListener("keydown", handleEscape);
+      document.removeEventListener("pointerdown", handlePointerDown);
+    };
+  }, [isMobileStatusOpen]);
+
+  useEffect(() => {
+    const shouldIsolateBackground = isAssistantOverlay && isAssistantOpen;
+    sidebarRef.current?.toggleAttribute("inert", shouldIsolateBackground);
+    contentRef.current?.toggleAttribute("inert", shouldIsolateBackground);
+
+    if (!shouldIsolateBackground) return;
+
+    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const panel = assistantPanelRef.current;
+    const focusable = getFocusableElements(panel);
+    focusable[0]?.focus();
+
+    function handleDrawerKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        assistantModeChangeRef.current(null);
+        return;
+      }
+
+      if (event.key !== "Tab" || !panel) return;
+      const elements = getFocusableElements(panel);
+      if (!elements.length) return;
+      const first = elements[0];
+      const last = elements[elements.length - 1];
+
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last?.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first?.focus();
+      }
+    }
+
+    document.addEventListener("keydown", handleDrawerKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleDrawerKeyDown);
+      sidebarRef.current?.removeAttribute("inert");
+      contentRef.current?.removeAttribute("inert");
+      (previousFocus ?? assistantTriggerRef.current)?.focus();
+    };
+  }, [isAssistantOpen, isAssistantOverlay]);
+
   return (
     <main className={shellClassName} data-color-mode={props.colorMode} data-density={props.density}>
-      <header className="shell-titlebar shell-topbar" data-reference-id="shell.topbar" data-shell-role="titlebar">
-        <div className="shell-window-brand" data-reference-id="shell.brand">
+      <header className="shell-titlebar shell-topbar" data-reference-id="shell.topbar" data-shell-role="titlebar" data-ui-kind="shell-chrome">
+        <div className="shell-window-brand" data-reference-id="shell.brand" data-ui-kind="product-identity">
           <span className="shell-app-mark">D2</span>
           <div>
-            <strong>d2-tools</strong>
-            <span>{copy.brandSubtitle}</span>
+            <strong data-ui-part="value" data-info-priority="context" data-text-tone="primary">d2-tools</strong>
+            <span data-ui-part="detail" data-info-priority="support" data-text-tone="meta">{copy.brandSubtitle}</span>
           </div>
         </div>
-        <div className="shell-status-strip shell-global-status global-shell-status" data-reference-id="shell.status-strip" aria-label={copy.statusAriaLabel}>
-          {visibleShellStatus.map((item) => renderShellStatusItem(item))}
+        <div
+          ref={mobileStatusRef}
+          className="shell-mobile-status"
+          data-open={isMobileStatusOpen}
+          onClickCapture={(event) => {
+            if (event.target instanceof Element && event.target.closest("button.shell-status-action")) {
+              setIsMobileStatusOpen(false);
+            }
+          }}
+        >
+          <button
+            className="shell-mobile-status-trigger"
+            type="button"
+            data-ui-kind="button"
+            data-control-variant="quiet"
+            aria-controls="shell-global-status"
+            aria-expanded={isMobileStatusOpen}
+            onClick={() => setIsMobileStatusOpen((current) => !current)}
+          >
+            {copy.statusMenuLabel}
+          </button>
+          <div
+            id="shell-global-status"
+            className="shell-status-strip shell-global-status global-shell-status"
+            data-reference-id="shell.status-strip"
+            data-contract-id="shell.status-strip"
+            data-ui-kind="shell-status-strip"
+            aria-label={copy.statusAriaLabel}
+          >
+            {visibleShellStatus.map((item) => renderShellStatusItem(item))}
+          </div>
         </div>
         <div className="shell-toolstrip" aria-label={copy.toolstripAriaLabel}>
           <button
             className={props.colorMode === "dark" ? "shell-tool-button shell-tool-theme active" : "shell-tool-button shell-tool-theme"}
             type="button"
+            data-ui-kind="button"
+            data-control-variant="quiet"
             title={themeToggleLabel}
             aria-label={themeToggleLabel}
             onClick={props.onColorModeToggle}
@@ -59,6 +184,8 @@ export function AppShell(props: AppShellProps) {
           <button
             className="shell-tool-button shell-tool-locale"
             type="button"
+            data-ui-kind="button"
+            data-control-variant="quiet"
             title={languageToggleLabel}
             aria-label={languageToggleLabel}
             onClick={props.onInterfaceLocaleToggle}
@@ -68,6 +195,8 @@ export function AppShell(props: AppShellProps) {
           <button
             className="shell-tool-button shell-tool-github"
             type="button"
+            data-ui-kind="button"
+            data-control-variant="quiet"
             title={copy.tools.github}
             aria-label={copy.tools.github}
             onClick={() => void props.platformActions.openExternal("https://github.com/sandrewzq/d2-tools")}
@@ -76,12 +205,16 @@ export function AppShell(props: AppShellProps) {
               <path d="M8 0.4a7.7 7.7 0 0 0-2.4 15c0.4 0.1 0.5-0.2 0.5-0.4v-1.5c-2.1 0.5-2.6-0.9-2.6-0.9-0.3-0.8-0.8-1-0.8-1-0.7-0.5 0.1-0.5 0.1-0.5 0.8 0.1 1.2 0.8 1.2 0.8 0.7 1.2 1.8 0.9 2.2 0.7 0.1-0.5 0.3-0.9 0.5-1.1-1.7-0.2-3.5-0.8-3.5-3.8 0-0.8 0.3-1.5 0.8-2.1-0.1-0.2-0.3-1 0.1-2 0 0 0.7-0.2 2.2 0.8A7.4 7.4 0 0 1 8 4c0.7 0 1.3 0.1 1.9 0.3 1.5-1 2.2-0.8 2.2-0.8 0.4 1 0.2 1.8 0.1 2 0.5 0.6 0.8 1.3 0.8 2.1 0 2.9-1.8 3.6-3.5 3.8 0.3 0.2 0.5 0.7 0.5 1.4V15c0 0.2 0.1 0.5 0.5 0.4A7.7 7.7 0 0 0 8 0.4Z" />
             </svg>
           </button>
-          <button className="shell-tool-button" type="button" title={copy.tools.settings} aria-label={copy.tools.settings} onClick={() => props.onNavigate("settings")}>
+          <button className="shell-tool-button" type="button" data-ui-kind="button" data-control-variant="quiet" title={copy.tools.settings} aria-label={copy.tools.settings} onClick={() => props.onNavigate("settings")}>
             <SettingsToolIcon />
           </button>
           <button
             type="button"
-            className={props.assistantMode === "ai" ? "shell-tool-button shell-tool-ai active" : "shell-tool-button shell-tool-ai"}
+            className={isAssistantOpen ? "shell-tool-button shell-tool-ai active" : "shell-tool-button shell-tool-ai"}
+            ref={assistantTriggerRef}
+            data-ui-kind="button"
+            data-control-variant="quiet"
+            aria-pressed={isAssistantOpen}
             aria-label={copy.tools.openAiAssistant}
             title={copy.tools.aiAssistant}
             onClick={() => toggleAssistant("ai")}
@@ -95,6 +228,8 @@ export function AppShell(props: AppShellProps) {
               <button
                 className="shell-window-control-button window-minimize"
                 type="button"
+                data-ui-kind="button"
+                data-control-variant="quiet"
                 title={copy.windowControls.minimize}
                 aria-label={copy.windowControls.minimize}
                 onClick={() => void props.platformActions.windowControls?.minimize()}
@@ -104,6 +239,8 @@ export function AppShell(props: AppShellProps) {
               <button
                 className="shell-window-control-button window-toggle-maximize"
                 type="button"
+                data-ui-kind="button"
+                data-control-variant="quiet"
                 title={copy.windowControls.toggleMaximize}
                 aria-label={copy.windowControls.toggleMaximize}
                 onClick={() => void props.platformActions.windowControls?.toggleMaximize()}
@@ -113,6 +250,8 @@ export function AppShell(props: AppShellProps) {
               <button
                 className="shell-window-control-button window-close"
                 type="button"
+                data-ui-kind="button"
+                data-control-variant="quiet"
                 title={copy.windowControls.close}
                 aria-label={copy.windowControls.close}
                 onClick={() => void props.platformActions.windowControls?.close()}
@@ -124,9 +263,9 @@ export function AppShell(props: AppShellProps) {
         </div>
       </header>
       <div className="shell-workspace">
-        <aside className="shell-sidebar" data-reference-id="shell.sidebar" data-shell-role="sidebar" aria-label={copy.navigationAriaLabel}>
+        <aside ref={sidebarRef} className="shell-sidebar" data-reference-id="shell.sidebar" data-shell-role="sidebar" data-ui-kind="shell-sidebar" aria-label={copy.navigationAriaLabel} aria-hidden={isAssistantOverlay && isAssistantOpen ? true : undefined}>
           {props.sidebarHeader ? <div className="shell-sidebar-header">{props.sidebarHeader}</div> : null}
-          <nav className="shell-nav">
+          <nav className="shell-nav" data-ui-kind="primary-navigation">
             {navItems.map((item) => {
               const isActive = item.key === props.activePage;
 
@@ -140,67 +279,101 @@ export function AppShell(props: AppShellProps) {
                   onClick={() => props.onNavigate(item.key)}
                 >
                   <span className="shell-nav-mark" aria-hidden="true"><ShellNavIcon page={item.key} /></span>
-                  <span className="shell-nav-label">{item.label}</span>
+                  <span className="shell-nav-label" data-ui-part="value" data-info-priority="context" data-text-tone="primary">{item.label}</span>
                 </button>
               );
             })}
           </nav>
           {props.sidebarFooter ? <div className="shell-sidebar-footer">{props.sidebarFooter}</div> : null}
         </aside>
-        <section className="shell-content" data-reference-id="shell.page-content" data-scroll-region="page">{props.children}</section>
+        <section ref={contentRef} className="shell-content" data-reference-id="shell.page-content" data-scroll-region="page" aria-hidden={isAssistantOverlay && isAssistantOpen ? true : undefined}>{props.children}</section>
+        {isAssistantOpen && isAssistantOverlay ? (
+          <button
+            className="global-assistant-scrim"
+            type="button"
+            tabIndex={-1}
+            aria-label={copy.assistant.close}
+            onClick={() => props.onAssistantModeChange(null)}
+          />
+        ) : null}
         {props.assistantMode ? (
-          <aside className="global-assistant-panel global-assistant-drawer" data-reference-id="shell.assistant" aria-label={copy.assistantPanelAriaLabel}>
+          <aside
+            ref={assistantPanelRef}
+            className="global-assistant-panel global-assistant-drawer"
+            data-reference-id="shell.assistant"
+            data-surface={isAssistantOverlay ? "drawer" : undefined}
+            data-ui-kind={isAssistantOverlay ? "drawer" : "assistant-panel"}
+            role={isAssistantOverlay ? "dialog" : undefined}
+            aria-modal={isAssistantOverlay ? true : undefined}
+            aria-labelledby="shell-assistant-title"
+          >
             <div className="global-assistant-sidebar">
               <div className="assistant-workspace">
                 <header className="assistant-workspace-header">
                   <div>
-                    <h2>AI 助手</h2>
-                    <p>当前页面：<span>{activePageLabel}</span></p>
+                    <h2 id="shell-assistant-title" data-text-tone="primary">{copy.assistant.title}</h2>
+                    <p data-info-priority="trace" data-text-tone="meta">{copy.assistant.currentPage(activePageLabel)}</p>
                   </div>
-                  <button type="button" onClick={() => props.onAssistantModeChange(null)} aria-label="关闭助手">×</button>
+                  <div className="assistant-workspace-header-actions">
+                    <button
+                      type="button"
+                      data-ui-kind="button"
+                      data-control-variant="quiet"
+                      title={copy.tools.settings}
+                      aria-label={copy.tools.settings}
+                      onClick={() => {
+                        props.onAssistantModeChange(null);
+                        props.onNavigate("settings");
+                      }}
+                    >
+                      <SettingsToolIcon />
+                    </button>
+                    <button type="button" data-assistant-close data-ui-kind="button" data-control-variant="quiet" onClick={() => props.onAssistantModeChange(null)} aria-label={copy.assistant.close} title={copy.assistant.close}>
+                      <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18" /></svg>
+                    </button>
+                  </div>
                 </header>
-                <div className="assistant-workspace-body">{props.assistantPanel}</div>
+                <div className="assistant-workspace-tabs" role="tablist" aria-label={copy.assistantPanelAriaLabel}>
+                  <button
+                    id="shell-assistant-tab-ai"
+                    className={props.assistantMode === "ai" ? "active" : ""}
+                    type="button"
+                    role="tab"
+                    aria-controls="shell-assistant-panel"
+                    aria-selected={props.assistantMode === "ai"}
+                    tabIndex={props.assistantMode === "ai" ? 0 : -1}
+                    onClick={() => selectAssistantMode("ai")}
+                    onKeyDown={handleAssistantTabKeyDown}
+                  >
+                    {copy.assistant.chat}
+                  </button>
+                  <button
+                    id="shell-assistant-tab-tasks"
+                    className={props.assistantMode === "tasks" ? "active" : ""}
+                    type="button"
+                    role="tab"
+                    aria-controls="shell-assistant-panel"
+                    aria-selected={props.assistantMode === "tasks"}
+                    tabIndex={props.assistantMode === "tasks" ? 0 : -1}
+                    onClick={() => selectAssistantMode("tasks")}
+                    onKeyDown={handleAssistantTabKeyDown}
+                  >
+                    {copy.assistant.tasks}
+                  </button>
+                </div>
+                <div
+                  id="shell-assistant-panel"
+                  className="assistant-workspace-body"
+                  role="tabpanel"
+                  aria-labelledby={`shell-assistant-tab-${props.assistantMode}`}
+                >
+                  {props.assistantPanel}
+                </div>
               </div>
             </div>
           </aside>
         ) : null}
       </div>
-      {taskDockState ? (
-        <section className={`background-task-dock task-${taskDockState.tone}`} data-reference-id="shell.task-dock" aria-label={copy.backgroundTasks.ariaLabel}>
-          <button
-            type="button"
-            className="background-task-dock-button"
-            aria-expanded={isBackgroundTaskDockOpen}
-            onClick={() => setIsBackgroundTaskDockOpen((current) => !current)}
-          >
-            <span className="background-task-pulse" aria-hidden="true" />
-            <span>{taskDockState.summary}</span>
-            <strong>{taskDockState.primaryTitle}</strong>
-          </button>
-          <div className="background-task-popover" data-scroll-region="overlay" data-open={isBackgroundTaskDockOpen} aria-hidden={!isBackgroundTaskDockOpen}>
-            <div className="background-task-popover-header">
-              <strong>{copy.backgroundTasks.title}</strong>
-              <span>{taskDockState.helper}</span>
-            </div>
-            <div className="background-task-dock-list">
-              {taskDockState.tasks.map((task) => (
-                <div className={`background-task-dock-row task-${getBackgroundTaskTone(task)}`} key={getBackgroundTaskKey(task)}>
-                  <div>
-                    <strong>{task.title}</strong>
-                    <span>{formatBackgroundTaskStatus(task, copy)}</span>
-                  </div>
-                  {getBackgroundTaskMessage(task) ? <p>{getBackgroundTaskMessage(task)}</p> : null}
-                </div>
-              ))}
-            </div>
-            {props.onOpenBackgroundTasks ? (
-              <button type="button" className="secondary-button background-task-open-all" onClick={props.onOpenBackgroundTasks}>
-                {copy.backgroundTasks.openAll}
-              </button>
-            ) : null}
-          </div>
-        </section>
-      ) : null}
     </main>
   );
 }
@@ -260,30 +433,32 @@ function SettingsToolIcon() {
 }
 
 function renderShellStatusItem(item: AppShellLayoutProps["shellStatus"][number]) {
+  const status = item.tone ?? "neutral";
+  const semanticStatus = status === "ready" ? "success" : status;
   const className = [
     "shell-status-group",
     item.key === "account" ? "shell-account-status" : "",
     item.onAction && item.actionLabel ? "shell-status-action" : "",
-    `status-${item.tone ?? "neutral"}`
+    `status-${status}`
   ].filter(Boolean).join(" ");
   const accessibilityLabel = `${item.label}：${item.value}`;
   const content = (
     <>
       <ShellStatusIcon statusKey={item.key} />
-      <span>{item.label}</span>
-      <strong>{item.value}</strong>
+      <span data-ui-part="label" data-info-priority="support" data-text-tone="meta">{item.label}</span>
+      <strong data-ui-part="value" data-info-priority="context" data-text-tone="primary">{item.value}</strong>
     </>
   );
 
   if (item.onAction && item.actionLabel) {
     return (
-      <button className={className} type="button" title={item.actionLabel} aria-label={`${item.actionLabel}：${accessibilityLabel}`} onClick={item.onAction} key={item.label}>
+      <button className={className} type="button" title={item.actionLabel} aria-label={`${item.actionLabel}：${accessibilityLabel}`} data-ui-kind="shell-status-item" data-status={semanticStatus} onClick={item.onAction} key={item.label}>
         {content}
       </button>
     );
   }
 
-  return <span className={className} title={accessibilityLabel} aria-label={accessibilityLabel} key={item.label}>{content}</span>;
+  return <span className={className} title={accessibilityLabel} aria-label={accessibilityLabel} data-ui-kind="shell-status-item" data-status={semanticStatus} key={item.label}>{content}</span>;
 }
 
 function ShellStatusIcon(props: { statusKey: AppShellLayoutProps["shellStatus"][number]["key"] }) {
@@ -312,84 +487,24 @@ function ShellStatusIcon(props: { statusKey: AppShellLayoutProps["shellStatus"][
   }
 }
 
-function getBackgroundTaskDockState(tasks: ShellBackgroundTaskItem[], copy: ShellCopy): {
-  tone: "active" | "warning" | "error";
-  summary: string;
-  primaryTitle: string;
-  helper: string;
-  tasks: ShellBackgroundTaskItem[];
-} | null {
-  const importantTasks = tasks.filter(isBackgroundTaskActive);
+function getFocusableElements(container: HTMLElement | null): HTMLElement[] {
+  if (!container) return [];
 
-  if (!importantTasks.length) {
-    return null;
-  }
-
-  const orderedTasks = importantTasks.slice(0, 5);
-  const primaryTask = importantTasks[0];
-  const activeCount = importantTasks.filter(isBackgroundTaskActive).length;
-  const tone = importantTasks.some((task) => task.status === "retrying") ? "warning" : "active";
-  const count = importantTasks.length;
-
-  return {
-    tone,
-    summary: copy.backgroundTasks.itemCount(count),
-    primaryTitle: primaryTask?.title ?? copy.backgroundTasks.fallbackTitle,
-    helper: activeCount
-      ? copy.backgroundTasks.activeSummary(activeCount)
-      : copy.backgroundTasks.recentSummary,
-    tasks: orderedTasks
-  };
+  return Array.from(container.querySelectorAll<HTMLElement>(
+    'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+  )).filter((element) => !element.hasAttribute("hidden") && element.getAttribute("aria-hidden") !== "true");
 }
 
-function isBackgroundTaskActive(task: ShellBackgroundTaskItem): boolean {
-  return task.status === "queued" || task.status === "running" || task.status === "retrying";
-}
+function useMediaQuery(query: string): boolean {
+  const [matches, setMatches] = useState(false);
 
-function getBackgroundTaskTone(task: ShellBackgroundTaskItem): "active" | "warning" | "ready" | "error" | "neutral" {
-  if (task.status === "failed" || task.status === "blocked") return "error";
-  if (task.status === "retrying") return "warning";
-  if (task.status === "success" || task.status === "succeeded") return "ready";
-  if (task.status === "running" || task.status === "queued") return "active";
-  return "neutral";
-}
+  useEffect(() => {
+    const mediaQuery = window.matchMedia(query);
+    const updateMatches = () => setMatches(mediaQuery.matches);
+    updateMatches();
+    mediaQuery.addEventListener("change", updateMatches);
+    return () => mediaQuery.removeEventListener("change", updateMatches);
+  }, [query]);
 
-function getBackgroundTaskKey(task: ShellBackgroundTaskItem): string {
-  return task.task_id ?? task.id ?? `${task.title}:${task.updated_at ?? task.status}`;
-}
-
-function getBackgroundTaskMessage(task: ShellBackgroundTaskItem): string {
-  return task.error ?? task.message ?? "";
-}
-
-function formatBackgroundTaskStatus(task: ShellBackgroundTaskItem, copy: ShellCopy): string {
-  if (task.status === "queued") return copy.backgroundTasks.status.queued;
-  if (task.status === "running") return formatProgressLabel(task.progress_percent, copy) ?? copy.backgroundTasks.status.running;
-  if (task.status === "retrying") {
-    return task.next_retry_at
-      ? copy.backgroundTasks.status.retryingAt(formatTaskTime(task.next_retry_at))
-      : copy.backgroundTasks.status.retrying;
-  }
-  if (task.status === "failed") return copy.backgroundTasks.status.failed;
-  if (task.status === "blocked") return copy.backgroundTasks.status.blocked;
-  if (task.status === "success" || task.status === "succeeded") return copy.backgroundTasks.status.success;
-  return copy.backgroundTasks.status.idle;
-}
-
-function formatProgressLabel(progress: number | undefined, copy: ShellCopy): string | null {
-  if (progress === undefined) return null;
-  return copy.backgroundTasks.status.runningProgress(Math.round(progress));
-}
-
-function formatTaskTime(value: string): string {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-
-  return new Intl.DateTimeFormat("zh-CN", {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false
-  }).format(date);
+  return matches;
 }

@@ -5,6 +5,7 @@ import {
   protocolLabel,
   type AiSettings
 } from "@d2-tools/core/ai/settings";
+import { SettingsButton } from "./SettingsButton.js";
 
 export type SettingsAiAdapter = {
   load: () => Promise<AiSettings>;
@@ -163,48 +164,48 @@ export function SettingsAiConfigPanel(props: { adapter: SettingsAiAdapter }) {
 
   return (
     <div className="settings-ai-form" data-reference-id="settings.ai.form">
-      <label>API 格式
-        <select disabled={isBusy} value={protocol} onChange={(event) => setProtocol(event.target.value)}>
+      <label data-info-priority="support" data-text-tone="primary">API 格式
+        <select data-ui-kind="field" disabled={isBusy} value={protocol} onChange={(event) => setProtocol(event.target.value)}>
           <option value="">不启用 AI</option>
           <option value="openai_chat_completions">OpenAI Chat Completions</option>
           <option value="openai_responses">OpenAI Responses</option>
           <option value="anthropic_messages">Anthropic Messages</option>
         </select>
       </label>
-      <label>API Key
-        <input disabled={isBusy || !settings.protocol} placeholder="填写你的 AI API Key" type="password" value={apiKey} onChange={(event) => setApiKey(event.target.value)} />
+      <label data-info-priority="support" data-text-tone="primary">API Key
+        <input data-ui-kind="field" disabled={isBusy || !settings.protocol} placeholder="填写你的 AI API Key" type="password" value={apiKey} onChange={(event) => setApiKey(event.target.value)} />
       </label>
-      <label>Base URL
-        <input disabled={isBusy || !settings.protocol} placeholder="支持填写服务根地址，或完整接口地址" value={baseUrl} onChange={(event) => setBaseUrl(event.target.value)} />
+      <label data-info-priority="support" data-text-tone="primary">Base URL
+        <input data-ui-kind="field" disabled={isBusy || !settings.protocol} placeholder="支持填写服务根地址，或完整接口地址" value={baseUrl} onChange={(event) => setBaseUrl(event.target.value)} />
       </label>
-      <p className="settings-muted">根地址和完整接口地址都兼容。程序会按当前 API 格式识别或补齐 /chat/completions、/responses 或 /messages 请求地址。</p>
-      <label>模型
+      <p className="settings-muted" data-ui-part="detail" data-info-priority="reading" data-text-tone="body">根地址和完整接口地址都兼容。程序会按当前 API 格式识别或补齐 /chat/completions、/responses 或 /messages 请求地址。</p>
+      <label data-info-priority="support" data-text-tone="primary">模型
         <div className="settings-actions">
           {modelInputMode === "select" ? (
-            <select className="settings-model-select" disabled={isBusy || !settings.protocol} value={modelOptions.includes(model) ? model : ""} onChange={(event) => setModel(event.target.value)}>
+            <select className="settings-model-select" data-ui-kind="field" disabled={isBusy || !settings.protocol} value={modelOptions.includes(model) ? model : ""} onChange={(event) => setModel(event.target.value)}>
               <option value="">{modelOptions.length ? "请选择模型" : "先刷新模型列表"}</option>
               {modelOptions.map((option) => <option key={option} value={option}>{option}</option>)}
             </select>
-          ) : <input disabled={isBusy || !settings.protocol} placeholder="输入模型 ID，例如 gpt-5.4" value={model} onChange={(event) => setModel(event.target.value)} />}
-          <button type="button" className="secondary-button" disabled={isBusy || isLoadingModels || !isConfigured} onClick={() => void refreshModels()}>{isLoadingModels ? "刷新中..." : "刷新模型"}</button>
-          <button type="button" className="secondary-button" disabled={isBusy || !settings.protocol} onClick={() => setModelInputMode((current) => current === "select" ? "manual" : "select")}>{modelInputMode === "select" ? "手动输入模型 ID" : "改为下拉选择"}</button>
+          ) : <input data-ui-kind="field" disabled={isBusy || !settings.protocol} placeholder="输入模型 ID，例如 gpt-5.4" value={model} onChange={(event) => setModel(event.target.value)} />}
+          <SettingsButton data-control-variant="secondary" disabled={isBusy || isLoadingModels || !isConfigured} onClick={() => void refreshModels()}>{isLoadingModels ? "刷新中..." : "刷新模型"}</SettingsButton>
+          <SettingsButton data-control-variant="secondary" disabled={isBusy || !settings.protocol} onClick={() => setModelInputMode((current) => current === "select" ? "manual" : "select")}>{modelInputMode === "select" ? "手动输入模型 ID" : "改为下拉选择"}</SettingsButton>
         </div>
       </label>
-      <p className="settings-muted">{modelListMessage || "模型列表会在 API 格式、Key 或 Base URL 变化后重新读取；服务未返回列表时可手动填写模型 ID。"}</p>
-      <label className="setting-toggle"><input checked={enableLightgg} disabled={isBusy || !lightggAvailable} type="checkbox" onChange={(event) => setEnableLightgg(event.target.checked)} />启用 light.gg 实时分析</label>
-      <p className="settings-muted">{lightggAvailable ? (lightggSupport.supported ? "当前 API 格式支持 light.gg 实时分析，结果会在本地缓存 24 小时。" : "当前通过强制开启尝试 light.gg 实时分析，仅当目标服务额外兼容 Responses 能力时才可能成功。") : lightggSupport.reason}</p>
+      <p className="settings-muted" data-ui-part="detail" data-info-priority="reading" data-text-tone="body">{modelListMessage || "模型列表会在 API 格式、Key 或 Base URL 变化后重新读取；服务未返回列表时可手动填写模型 ID。"}</p>
+      <label className="setting-toggle" data-ui-kind="switch" data-info-priority="support" data-text-tone="body"><input checked={enableLightgg} disabled={isBusy || !lightggAvailable} type="checkbox" onChange={(event) => setEnableLightgg(event.target.checked)} />启用 light.gg 实时分析</label>
+      <p className="settings-muted" data-ui-part="detail" data-info-priority="reading" data-text-tone="body">{lightggAvailable ? (lightggSupport.supported ? "当前 API 格式支持 light.gg 实时分析，结果会在本地缓存 24 小时。" : "当前通过强制开启尝试 light.gg 实时分析，仅当目标服务额外兼容 Responses 能力时才可能成功。") : lightggSupport.reason}</p>
       <details open={!lightggSupport.supported}>
-        <summary>强制开启说明</summary>
-        {lightggSupport.canForce ? <label className="setting-toggle"><input checked={forceLightgg} disabled={isBusy || !settings.protocol} type="checkbox" onChange={(event) => setForceLightgg(event.target.checked)} />强制开启 light.gg 实时分析</label> : null}
-        <p className="settings-muted">只有明确知道目标服务额外兼容 Responses 和网页搜索能力时才应强制开启；普通 Chat Completions 或 Anthropic Messages 不会因此自动获得该能力。</p>
+        <summary data-info-priority="support" data-text-tone="primary">强制开启说明</summary>
+        {lightggSupport.canForce ? <label className="setting-toggle" data-ui-kind="switch" data-info-priority="support" data-text-tone="body"><input checked={forceLightgg} disabled={isBusy || !settings.protocol} type="checkbox" onChange={(event) => setForceLightgg(event.target.checked)} />强制开启 light.gg 实时分析</label> : null}
+        <p className="settings-muted" data-ui-part="detail" data-info-priority="reading" data-text-tone="body">只有明确知道目标服务额外兼容 Responses 和网页搜索能力时才应强制开启；普通 Chat Completions 或 Anthropic Messages 不会因此自动获得该能力。</p>
       </details>
       <div className="settings-actions settings-action-row">
-        <button type="button" className="secondary-button" disabled={isBusy} onClick={() => void save()}>{isSaving ? "保存中..." : "保存 AI 配置"}</button>
-        <button type="button" disabled={isBusy || !settings.protocol} onClick={() => void saveAndTest()}>{isTesting ? "测试中..." : "保存并测试连接"}</button>
-        <button type="button" className="secondary-button" disabled={isBusy || isClearingCache || !lightggAvailable} onClick={() => void clearCache()}>{isClearingCache ? "清除中..." : "清除 light.gg 缓存"}</button>
+        <SettingsButton data-control-variant="secondary" disabled={isBusy} onClick={() => void save()}>{isSaving ? "保存中..." : "保存 AI 配置"}</SettingsButton>
+        <SettingsButton data-control-variant="primary" disabled={isBusy || !settings.protocol} onClick={() => void saveAndTest()}>{isTesting ? "测试中..." : "保存并测试连接"}</SettingsButton>
+        <SettingsButton data-control-variant="secondary" disabled={isBusy || isClearingCache || !lightggAvailable} onClick={() => void clearCache()}>{isClearingCache ? "清除中..." : "清除 light.gg 缓存"}</SettingsButton>
       </div>
-      {error ? <p className="settings-feedback status-error" role="alert">{error}</p> : null}
-      {message ? <p className="settings-feedback status-ready" role="status">{message}</p> : null}
+      {error ? <p className="settings-feedback" data-ui-kind="callout" data-ui-part="state" data-info-priority="decision" data-text-tone="status" data-status="error" role="alert">{error}</p> : null}
+      {message ? <p className="settings-feedback" data-ui-kind="callout" data-ui-part="state" data-info-priority="decision" data-text-tone="status" data-status="success" role="status" aria-live="polite">{message}</p> : null}
     </div>
   );
 }

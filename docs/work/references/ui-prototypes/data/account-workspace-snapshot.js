@@ -27706,7 +27706,7 @@ window.accountWorkspaceSnapshot = Object.freeze({
         "name": "至纯光能护心甲",
         "icon": "https://www.bungie.net/common/destiny2_content/icons/34f23604746fc260a2153e93ccfaec7f.jpg",
         "type": "Manifest 定义",
-        "meta": "最近查看于 2026-07-13T03:38:02.711Z",
+        "meta": "",
         "owned": false,
         "viewedAt": "2026-07-13T03:38:02.711Z"
       },
@@ -27715,7 +27715,7 @@ window.accountWorkspaceSnapshot = Object.freeze({
         "name": "炎阳护腕",
         "icon": "https://www.bungie.net/common/destiny2_content/icons/220fda89a88058f84725ff1df39a9f5e.jpg",
         "type": "Manifest 定义",
-        "meta": "最近查看于 2026-07-13T02:57:17.966Z",
+        "meta": "",
         "owned": false,
         "viewedAt": "2026-07-13T02:57:17.966Z"
       },
@@ -27724,7 +27724,7 @@ window.accountWorkspaceSnapshot = Object.freeze({
         "name": "特里同之罪",
         "icon": "https://www.bungie.net/common/destiny2_content/icons/8f4613a7a4d1d0cac4cddb50f81d965b.jpg",
         "type": "Manifest 定义",
-        "meta": "最近查看于 2026-07-13T02:54:18.970Z",
+        "meta": "",
         "owned": false,
         "viewedAt": "2026-07-13T02:54:18.970Z"
       },
@@ -27733,7 +27733,7 @@ window.accountWorkspaceSnapshot = Object.freeze({
         "name": "更多奇异优惠",
         "icon": "https://www.bungie.net/common/destiny2_content/icons/95bb18e6edbdc9b70ce9ffc077814f32.jpg",
         "type": "Manifest 定义",
-        "meta": "最近查看于 2026-07-13T02:35:37.035Z",
+        "meta": "",
         "owned": false,
         "viewedAt": "2026-07-13T02:35:37.035Z"
       },
@@ -27742,7 +27742,7 @@ window.accountWorkspaceSnapshot = Object.freeze({
         "name": "仄浪板",
         "icon": "https://www.bungie.net/common/destiny2_content/icons/0f9ed83ab7bbe0282f9974c62f930cf4.jpg",
         "type": "Manifest 定义",
-        "meta": "最近查看于 2026-07-13T02:27:01.404Z",
+        "meta": "",
         "owned": false,
         "viewedAt": "2026-07-13T02:27:01.404Z"
       },

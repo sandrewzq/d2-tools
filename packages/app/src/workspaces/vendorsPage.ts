@@ -121,6 +121,7 @@ export type VendorInventoryGroupWorkspace = {
   badge: string;
   source: string;
   resetLabel: string;
+  resetAt?: string;
   location?: string;
   category?: string;
   iconLabel?: string;
@@ -162,8 +163,10 @@ export type VendorsPageModel = {
   railSections: VendorRailSectionWorkspace[];
   defaultVendorId: string | null;
   updatedLabel: string;
+  updatedAt?: string;
   sourceLabel: string;
   nextResetLabel: string;
+  nextResetAt?: string;
   recommendationCount: number;
   verifiedItemCount: number;
   selectedVendor?: VendorInventoryGroupWorkspace;
@@ -237,10 +240,14 @@ function selectLegacyVendorsPageModel(dailySummary: DailySummary | null): Vendor
   const vendorSource = dailySummary?.sources.vendors;
   if (!dailySummary || vendorSource?.status !== "ready") {
     return buildVendorsPageModel({
-      vendors: createLocalVendorDirectory(dailySummary?.daily_reset.time_remaining_label ?? "等待每日重置时间"),
+      vendors: createLocalVendorDirectory(
+        dailySummary?.daily_reset.time_remaining_label ?? "等待每日重置时间",
+        dailySummary?.daily_reset.next_reset_iso
+      ),
       updatedLabel: dailySummary?.date_label ? `更新：${dailySummary.date_label}` : "等待商人数据",
       sourceLabel: "等待 Bungie 公共商人",
       nextResetLabel: dailySummary?.daily_reset.time_remaining_label ?? "等待每日重置时间",
+      nextResetAt: dailySummary?.daily_reset.next_reset_iso,
       recommendationCount: 0,
       verifiedItemCount: 0
     });
@@ -250,7 +257,11 @@ function selectLegacyVendorsPageModel(dailySummary: DailySummary | null): Vendor
   const liveVendors = vendorItems
     .filter((item) => item.title.trim())
     .map((item, index) => mapDailyVendorItem(item, dailySummary, index));
-  const vendors = mergeLiveVendorsWithDirectory(liveVendors, dailySummary.daily_reset.time_remaining_label);
+  const vendors = mergeLiveVendorsWithDirectory(
+    liveVendors,
+    dailySummary.daily_reset.time_remaining_label,
+    dailySummary.daily_reset.next_reset_iso
+  );
   const verifiedItemCount = liveVendors.reduce((count, vendor) => count + vendor.items.length, 0);
 
   return buildVendorsPageModel({
@@ -258,6 +269,7 @@ function selectLegacyVendorsPageModel(dailySummary: DailySummary | null): Vendor
     updatedLabel: dailySummary?.date_label ? `更新：${dailySummary.date_label}` : "等待商人数据",
     sourceLabel: liveVendors[0]?.source ?? publicVendorSourceLabel,
     nextResetLabel: dailySummary?.daily_reset.time_remaining_label ?? "等待每日重置时间",
+    nextResetAt: dailySummary?.daily_reset.next_reset_iso,
     recommendationCount: vendors.reduce(
       (count, vendor) => count + vendor.items.filter((item) => item.status === "recommended").length,
       0
@@ -399,7 +411,8 @@ function selectSnapshotVendorsPageModel(input: VendorsPageInput): VendorsPageMod
       iconUrl: normalizeBungieIconUrl(vendor.iconUrl),
       badge: vendor.vendorHash === xurVendorHash ? "周末" : "已确认",
       source: "Bungie 角色商人",
-      resetLabel: formatVendorRefreshLabel(vendor.nextRefreshAt),
+      resetLabel: "等待刷新时间",
+      resetAt: vendor.nextRefreshAt,
       location: vendor.location,
       category: vendor.vendorHash === xurVendorHash ? "重点" : "已确认",
       statusLabel: detailState === "failed"
@@ -446,9 +459,11 @@ function selectSnapshotVendorsPageModel(input: VendorsPageInput): VendorsPageMod
     railSections: createVendorRailSections(vendors),
     defaultVendorId,
     selectedVendor,
-    updatedLabel: `更新：${snapshot.fetchedAt}`,
+    updatedLabel: "已读取商人数据",
+    updatedAt: snapshot.fetchedAt,
     sourceLabel: "Bungie 角色商人",
     nextResetLabel: selectedVendor?.resetLabel ?? "等待商人刷新时间",
+    nextResetAt: selectedVendor?.resetAt,
     recommendationCount: vendors.reduce(
       (count, vendor) => count + vendor.items.filter((item) => Boolean(item.decisionLabel)).length,
       0
@@ -514,24 +529,6 @@ function mapSnapshotOffer(
     })),
     sourcePath
   };
-}
-
-function formatVendorRefreshLabel(value: string | undefined): string {
-  if (!value) return "等待刷新时间";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "等待刷新时间";
-
-  const parts = new Intl.DateTimeFormat("zh-CN", {
-    year: "numeric",
-    month: "numeric",
-    day: "numeric",
-    weekday: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-    hourCycle: "h23"
-  }).formatToParts(date);
-  const part = (type: string) => parts.find((entry) => entry.type === type)?.value ?? "";
-  return `刷新：${part("year")}年${part("month")}月${part("day")}日 ${part("weekday")} ${part("hour")}:${part("minute")}`;
 }
 
 function offerMatchesScope(offer: VendorOffer, scope: VendorCharacterScope): boolean {
@@ -664,8 +661,10 @@ function matchesVendorSearch(
 function buildVendorsPageModel(input: {
   vendors: VendorInventoryGroupWorkspace[];
   updatedLabel: string;
+  updatedAt?: string;
   sourceLabel: string;
   nextResetLabel: string;
+  nextResetAt?: string;
   recommendationCount: number;
   verifiedItemCount: number;
 }): VendorsPageModel {
@@ -680,9 +679,10 @@ function buildVendorsPageModel(input: {
 
 function mergeLiveVendorsWithDirectory(
   liveVendors: VendorInventoryGroupWorkspace[],
-  resetLabel: string
+  resetLabel: string,
+  resetAt?: string
 ): VendorInventoryGroupWorkspace[] {
-  const directory = createLocalVendorDirectory(resetLabel);
+  const directory = createLocalVendorDirectory(resetLabel, resetAt);
   const usedLiveIds = new Set<string>();
   const mergedDirectory = directory.map((directoryVendor) => {
     const liveVendorIndex = liveVendors.findIndex((vendor) => isSameVendor(directoryVendor, vendor));
@@ -719,6 +719,7 @@ function mapDailyVendorItem(item: DailySummaryItem, dailySummary: DailySummary, 
     badge: "已确认",
     source,
     resetLabel: dailySummary.daily_reset.time_remaining_label,
+    resetAt: dailySummary.daily_reset.next_reset_iso,
     category: isFeaturedVendor(vendorName, item.vendorHash) ? "重点" : "已确认",
     iconLabel: getIconLabel(vendorName),
     iconUrl: normalizeBungieIconUrl(item.iconUrl ?? item.icon),
@@ -756,7 +757,7 @@ function inferItemType(value: string): string {
   return getInventoryTone(value) === "armor" ? "护甲库存" : getInventoryTone(value) === "material" ? "材料库存" : "武器库存";
 }
 
-function createLocalVendorDirectory(resetLabel: string): VendorInventoryGroupWorkspace[] {
+function createLocalVendorDirectory(resetLabel: string, resetAt?: string): VendorInventoryGroupWorkspace[] {
   return [
     createDirectoryVendor({
       id: "xur",
@@ -769,6 +770,7 @@ function createLocalVendorDirectory(resetLabel: string): VendorInventoryGroupWor
       featured: true,
       location: "高塔",
       resetLabel,
+      resetAt,
       items: []
     }),
     createDirectoryVendor({
@@ -781,6 +783,7 @@ function createLocalVendorDirectory(resetLabel: string): VendorInventoryGroupWor
       iconLabel: "B4",
       location: "高塔",
       resetLabel,
+      resetAt,
       items: []
     }),
     createDirectoryVendor({
@@ -793,6 +796,7 @@ function createLocalVendorDirectory(resetLabel: string): VendorInventoryGroupWor
       iconLabel: "A1",
       location: "高塔",
       resetLabel,
+      resetAt,
       items: []
     }),
     createDirectoryVendor({
@@ -805,6 +809,7 @@ function createLocalVendorDirectory(resetLabel: string): VendorInventoryGroupWor
       iconLabel: "S14",
       location: "高塔",
       resetLabel,
+      resetAt,
       items: []
     }),
     createDirectoryVendor({
@@ -817,6 +822,7 @@ function createLocalVendorDirectory(resetLabel: string): VendorInventoryGroupWor
       iconLabel: "ZV",
       location: "高塔",
       resetLabel,
+      resetAt,
       items: []
     }),
     createDirectoryVendor({
@@ -829,6 +835,7 @@ function createLocalVendorDirectory(resetLabel: string): VendorInventoryGroupWor
       iconLabel: "SX",
       location: "高塔",
       resetLabel,
+      resetAt,
       items: []
     }),
     createDirectoryVendor({
@@ -841,6 +848,7 @@ function createLocalVendorDirectory(resetLabel: string): VendorInventoryGroupWor
       iconLabel: "Dr",
       location: "高塔",
       resetLabel,
+      resetAt,
       items: []
     }),
     createDirectoryVendor({
@@ -853,6 +861,7 @@ function createLocalVendorDirectory(resetLabel: string): VendorInventoryGroupWor
       iconLabel: "Rh",
       location: "高塔",
       resetLabel,
+      resetAt,
       items: []
     }),
     createDirectoryVendor({
@@ -864,6 +873,7 @@ function createLocalVendorDirectory(resetLabel: string): VendorInventoryGroupWor
       iconLabel: "EV",
       location: "高塔",
       resetLabel,
+      resetAt,
       items: []
     })
   ];
@@ -880,6 +890,7 @@ function createDirectoryVendor(input: {
   iconUrl?: string;
   location: string;
   resetLabel: string;
+  resetAt?: string;
   featured?: boolean;
   items: VendorInventoryItemWorkspace[];
 }): VendorInventoryGroupWorkspace {
@@ -891,6 +902,7 @@ function createDirectoryVendor(input: {
     badge: input.badge,
     source: "本地商人目录",
     resetLabel: input.resetLabel,
+    resetAt: input.resetAt,
     location: input.location,
     category: input.category,
     iconLabel: input.iconLabel,

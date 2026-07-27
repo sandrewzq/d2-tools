@@ -6,9 +6,7 @@ window.homeWeeklySnapshot = {
   "weeklyPeriodKey": "2026-07-21T17:00:00.000Z",
   "weekly": {
     "weekly_reset": {
-      "label": "每周重置：07/29 01:00",
-      "next_reset_iso": "2026-07-28T17:00:00.000Z",
-      "time_remaining_label": "距离每周重置还有 6 天 2 小时"
+      "nextResetAt": "2026-07-28T17:00:00.000Z"
     },
     "priorities": {
       "nightfall": {

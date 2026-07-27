@@ -4,6 +4,7 @@ import type { InterfaceLocale, HomeCopy } from "../i18n/types.js";
 import { isXurActiveAt, nextXurBoundaryAt, xurVendorHash } from "@d2-tools/core/daily/xurSchedule";
 import type { ShellPageKey } from "../shell/types.js";
 import type { VendorInventoryItemView, VendorOfferContextView } from "../vendors/VendorsPageContentView.js";
+import { formatScheduleDateTime } from "../time/formatTime.js";
 import { createXurItemIconUrl, normalizeBungieIconUrl } from "./homeIconArt.js";
 export type HomeTone = "neutral" | "ready" | "warning" | "error";
 export type HomeDailyItem = {
@@ -271,14 +272,14 @@ function buildRefreshEntries(
   return [
     { key: "daily", label: homeText(copy, "每日更新"), moment: `下次：${resetMoment(daily?.daily_reset, homeText(copy, "时间待确认"), locale)}`, countdown: `倒计时：${resetCountdown(daily?.daily_reset, clock, copy)}`, impact: homeText(copy, "今日轮换、遗失区域") },
     { key: "weekly", label: homeText(copy, "每周更新"), moment: `下次：${resetMoment(weekly?.weekly_reset ?? daily?.weekly_reset, homeText(copy, "时间待确认"), locale)}`, countdown: `倒计时：${resetCountdown(weekly?.weekly_reset ?? daily?.weekly_reset, clock, copy)}`, impact: homeText(copy, "日落、轮换、周常加成") },
-    { key: "xur", label: homeText(copy, xurActive ? "仄离开" : "仄到访"), moment: `${xurActive ? "离开" : "到访"}：${formatLocalMoment(xurTarget, locale, "Asia/Shanghai")}`, countdown: `倒计时：${compactDuration(clock, xurTarget, copy)}`, impact: homeText(copy, "仄八件异域轮换") }
+    { key: "xur", label: homeText(copy, xurActive ? "仄离开" : "仄到访"), moment: `${xurActive ? "离开" : "到访"}：${formatScheduleDateTime(xurTarget, locale, homeText(copy, "时间待确认"))}`, countdown: `倒计时：${compactDuration(clock, xurTarget, copy)}`, impact: homeText(copy, "仄八件异域轮换") }
   ];
 }
 
 function resetMoment(reset: { label: string; next_reset_iso?: string } | undefined, fallback: string, locale: InterfaceLocale) {
   if (reset?.next_reset_iso) {
     const target = new Date(reset.next_reset_iso);
-    if (Number.isFinite(target.getTime())) return formatLocalMoment(target, locale, "Asia/Shanghai");
+    if (Number.isFinite(target.getTime())) return formatScheduleDateTime(target, locale, fallback);
   }
   return (reset?.label ?? fallback).replace(/^(?:每日|每周)重置[：:]\s*/i, "");
 }
@@ -289,11 +290,6 @@ function resetCountdown(reset: { next_reset_iso?: string; time_remaining_label: 
     if (Number.isFinite(target.getTime())) return compactDuration(clock, target, copy);
   }
   return compactResetCountdown(reset?.time_remaining_label ?? "", "") || homeText(copy, "倒计时待确认");
-}
-
-function formatLocalMoment(target: Date, locale: InterfaceLocale, timeZone?: string) {
-  const value = new Intl.DateTimeFormat(locale, { timeZone, month: "long", day: "numeric", weekday: "short", hour: "2-digit", minute: "2-digit", hour12: false }).format(target);
-  return locale === "zh-CN" ? `${value}（${timeZone === "Asia/Shanghai" ? "中国标准时间" : "本地时间"}）` : `${value} ${timeZone ? "China Standard Time" : "local"}`;
 }
 
 function compactDuration(now: Date, target: Date, copy: HomeCopy) {

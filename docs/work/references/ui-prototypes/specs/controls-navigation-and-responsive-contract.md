@@ -6,6 +6,14 @@
 
 所有控件必须定义 `default`、`hover`、`pressed`、`focus-visible`、`disabled`；可选择对象额外定义 `current`，异步命令额外定义 `loading`、`success`、`warning`、`error`。`current`、`focus-visible`、`disabled` 与 `loading` 是不同状态，不能互相替代。
 
+### 尺寸与宽度
+
+- 文本命令默认使用 `data-control-size="standard"`，固定高度 `34px`、水平 padding `12px`、字号 `12px`。Primary、Secondary、Danger 和 AI 只改变颜色与语义，不改变高度、padding 或字体。
+- `compact` 为 `30px`，只用于高密度工具栏；`prominent` 为 `40px`，只用于单一主流程入口。两者必须显式声明，不能根据按钮颜色或文案长度自动升级。
+- 图标按钮使用标准 `34px × 34px` 正方形；窗口控制由 Shell 合同决定，不套文本按钮宽度。
+- 普通命令栏按钮按内容自适应，但同一重复操作列必须使用 `data-control-width="uniform"`。设置页、诊断行等重复操作按钮统一为 `144px`；超出可用宽度时整组换行或降为单列，不缩小按钮或字体。
+- Select、Input 和 Textarea 填充所属字段列，不与文本按钮共享固定宽度。按钮组中的各 variant 必须保持相同盒模型，禁用或加载状态不得改变尺寸。
+
 ## 导航模式
 
 - 路由和页面内章节定位：使用 `nav`、链接或按钮，加 `aria-current="page|location"`，不使用 Tab role。

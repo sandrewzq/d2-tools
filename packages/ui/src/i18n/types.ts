@@ -14,6 +14,7 @@ export type ProductPreferences = {
 export type ShellCopy = {
   brandSubtitle: string;
   statusAriaLabel: string;
+  statusMenuLabel: string;
   toolstripAriaLabel: string;
   navigationAriaLabel: string;
   assistantPanelAriaLabel: string;
@@ -21,6 +22,13 @@ export type ShellCopy = {
   windowControls: {
     minimize: string;
     toggleMaximize: string;
+    close: string;
+  };
+  assistant: {
+    title: string;
+    currentPage: (page: string) => string;
+    chat: string;
+    tasks: string;
     close: string;
   };
   backgroundTasks: {

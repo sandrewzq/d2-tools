@@ -72,31 +72,25 @@ export function AiAssistantPanelView(props: AiAssistantPanelViewProps) {
 
   return (
     <section className="tool-panel ai-chat-panel">
-      <header className="ai-conversation-header">
-        <div>
-          <h2>AI 助手</h2>
-          <p>{props.sessionTitle}</p>
-        </div>
-        <button type="button" className="secondary-button ai-drawer-close" onClick={props.onClose}>
-          关闭
-        </button>
-      </header>
-
       <div className="ai-conversation-toolbar" aria-label="AI 助手工具">
         <div className="ai-conversation-actions">
           <button type="button" className="secondary-button" disabled={props.isSending} onClick={props.onStartNewSession}>
             新会话
           </button>
           <button type="button" className="secondary-button" disabled={props.isSending} onClick={props.onToggleSessionDrawer}>
-            会话列表
-          </button>
-          <button type="button" className="secondary-button" onClick={props.onToggleContextDrawer}>
-            上下文
-          </button>
-          <button type="button" className="secondary-button" onClick={props.onConfigureAi}>
-            设置
+            会话记录
           </button>
         </div>
+        <button
+          type="button"
+          className="ai-conversation-context"
+          data-ui-kind="status-chip"
+          aria-expanded={props.isContextDrawerOpen}
+          title={props.contextChip}
+          onClick={props.onToggleContextDrawer}
+        >
+          {props.hasAccountItems ? "已载入当前页面上下文" : props.contextChip}
+        </button>
       </div>
 
       <div className="ai-chat-workspace">
@@ -117,23 +111,34 @@ export function AiAssistantPanelView(props: AiAssistantPanelViewProps) {
               <p>{message.text}</p>
             </article>
           )) : (
-            <div className="ai-empty-state">
-              <strong>可以直接问当前页面里的问题</strong>
-              <p>例如装备清理、仓库筛选、配装缺口、今日优先级。上下文和历史都在顶部按钮里，不会挤占对话区。</p>
-              <div className="ai-quick-prompts">
-                {props.quickPrompts.map((prompt) => (
-                  <button
-                    type="button"
-                    className="secondary-button"
-                    key={prompt}
-                    disabled={props.isSending}
-                    onClick={() => props.onQuickPrompt(prompt)}
-                  >
-                    {prompt}
-                  </button>
-                ))}
-              </div>
-            </div>
+            <>
+              <article className="ai-chat-message" data-ui-kind="callout">
+                <strong>当前页面上下文已就绪</strong>
+                <p>可以基于当前页面和已读取账号数据回答；详细上下文可通过顶部状态入口查看。</p>
+              </article>
+              <article className="ai-chat-message ai-chat-ready-message" data-ui-kind="callout">
+                <strong>等待提问</strong>
+                <p>AI 生成内容与事实数据分区展示，不会自动执行写操作。</p>
+                {props.quickPrompts.length ? (
+                  <details className="ai-quick-prompts">
+                    <summary>常用问题</summary>
+                    <div aria-label="常用问题">
+                      {props.quickPrompts.map((prompt) => (
+                        <button
+                          type="button"
+                          className="secondary-button"
+                          key={prompt}
+                          disabled={props.isSending}
+                          onClick={() => props.onQuickPrompt(prompt)}
+                        >
+                          {prompt}
+                        </button>
+                      ))}
+                    </div>
+                  </details>
+                ) : null}
+              </article>
+            </>
           )}
           {props.isSending ? <p className="status-message status-pending">AI 正在读取上下文并生成回答...</p> : null}
         </div>
@@ -142,22 +147,16 @@ export function AiAssistantPanelView(props: AiAssistantPanelViewProps) {
           event.preventDefault();
           props.onSubmit();
         }}>
-          <span className="ai-composer-context">{props.contextChip}</span>
           <textarea
             value={props.question}
             onChange={(event) => props.onQuestionChange(event.target.value)}
             aria-label="输入 AI 问题"
-            placeholder="输入你的问题，例如：帮我找出仓库里可以清理的同名装备"
+            placeholder="询问当前页面或账号数据"
             rows={3}
           />
-          <div className="ai-composer-actions">
-            <button type="button" className="secondary-button" onClick={props.onOpenContextDrawer}>
-              查看上下文
-            </button>
-            <button type="submit" disabled={props.isSending || !props.question.trim()}>
-              {props.isSending ? "发送中..." : "发送"}
-            </button>
-          </div>
+          <button type="submit" data-control-variant="primary" disabled={props.isSending || !props.question.trim()}>
+            {props.isSending ? "发送中..." : "发送"}
+          </button>
         </form>
 
         {props.isSessionDrawerOpen ? (

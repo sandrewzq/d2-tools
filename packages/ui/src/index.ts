@@ -12,6 +12,13 @@ export type {
   AiAssistantPanelViewProps
 } from "./assistant/AiAssistantPanelView.js";
 export { AppShell } from "./shell/AppShell.js";
+export {
+  formatCompactDateTime,
+  formatFullDateTime,
+  formatScheduleDateTime,
+  formatStandardDateTime
+} from "./time/formatTime.js";
+export type { TimeValue } from "./time/formatTime.js";
 export { ShellSidebarAccountSummary, ShellSidebarActions } from "./shell/ShellSidebar.js";
 export { HomePageView } from "./home/HomePageView.js";
 export { HomePageContentView } from "./home/HomePageContentView.js";

@@ -4,6 +4,7 @@ export const shellCopy: Record<InterfaceLocale, LocaleCopy["shell"]> = {
     "zh-CN": {
       brandSubtitle: "Destiny 2 本地助手",
       statusAriaLabel: "全局状态",
+      statusMenuLabel: "状态",
       toolstripAriaLabel: "全局工具",
       navigationAriaLabel: "主导航",
       assistantPanelAriaLabel: "AI 助手抽屉",
@@ -12,6 +13,13 @@ export const shellCopy: Record<InterfaceLocale, LocaleCopy["shell"]> = {
         minimize: "最小化",
         toggleMaximize: "最大化或还原",
         close: "关闭窗口"
+      },
+      assistant: {
+        title: "AI 助手",
+        currentPage: (page) => `当前页面：${page}`,
+        chat: "对话",
+        tasks: "任务",
+        close: "关闭助手"
       },
       backgroundTasks: {
         ariaLabel: "后台任务",
@@ -58,6 +66,7 @@ export const shellCopy: Record<InterfaceLocale, LocaleCopy["shell"]> = {
     "en-US": {
       brandSubtitle: "Destiny 2 local companion",
       statusAriaLabel: "Global status",
+      statusMenuLabel: "Status",
       toolstripAriaLabel: "Global tools",
       navigationAriaLabel: "Primary navigation",
       assistantPanelAriaLabel: "AI assistant drawer",
@@ -66,6 +75,13 @@ export const shellCopy: Record<InterfaceLocale, LocaleCopy["shell"]> = {
         minimize: "Minimize",
         toggleMaximize: "Maximize or restore",
         close: "Close window"
+      },
+      assistant: {
+        title: "AI Assistant",
+        currentPage: (page) => `Current page: ${page}`,
+        chat: "Chat",
+        tasks: "Tasks",
+        close: "Close assistant"
       },
       backgroundTasks: {
         ariaLabel: "Background tasks",

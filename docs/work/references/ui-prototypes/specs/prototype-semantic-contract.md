@@ -16,12 +16,14 @@
 ## 文字、状态与数据来源
 
 - 每个可见槽位都声明 `data-text-tone="primary|body|meta|action|status"` 与 `data-info-priority="display|metric|decision|context|reading|support|trace"`。
+- 状态矩阵、摘要和台账中的主要值额外声明 `data-value-kind="fact|status"`。日期、版本、数量、名称和普通数值属于 `fact`，使用 `primary` 或 `body`；只有“已配置、进行中、空闲、警告、失败”等业务状态词属于 `status`，同时使用 `data-text-tone="status"` 与 `data-status`。
 - 组件或槽位存在业务状态时，使用 `data-status="neutral|pending|success|warning|error"`；状态不得只依赖 `.ready`、`.mint`、`.error` 等 class。
+- `data-status` 可以放在容器上供状态逻辑和边框读取，但不得让后代文字自动继承状态色。文字是否着色只由该文字自身的 `data-text-tone` 决定。
 - 需要追溯的内容声明 `data-source`；展示来源的槽位仍使用 `data-ui-part="source"`。
 
 ## 控制状态
 
-所有交互控件声明 `data-control-variant="secondary|primary|danger|ai|quiet"`。当前、展开、加载和禁用分别使用原生 `aria-current`、`aria-expanded`、`aria-busy`、`disabled` 或 `aria-disabled`，不得只通过 `active` / `is-active` class 传达状态。
+所有交互控件声明 `data-control-variant="secondary|primary|danger|ai|quiet"`。文本按钮额外使用 `data-control-size="compact|standard|prominent"`；需要跨重复行统一宽度时使用 `data-control-width="uniform"`，普通命令栏保持内容自适应。当前、展开、加载和禁用分别使用原生 `aria-current`、`aria-expanded`、`aria-busy`、`disabled` 或 `aria-disabled`，不得只通过 `active` / `is-active` class 传达状态。
 
 ## 迁移要求
 

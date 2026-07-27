@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { getLocaleCopy } from "../i18n/copy.js";
 import type { InterfaceLocale } from "../i18n/types.js";
+import { formatScheduleDateTime } from "../time/formatTime.js";
 import {
   ProductWorkspaceContentStack,
   ProductWorkspaceEmptyState,
@@ -97,6 +98,7 @@ export type VendorInventoryGroupView = {
   badge: string;
   source: string;
   resetLabel: string;
+  resetAt?: string;
   location?: string;
   category?: string;
   iconLabel?: string;
@@ -152,8 +154,10 @@ export type VendorsPageModelView = {
   defaultVendorId?: string | null;
   selectedVendor?: VendorInventoryGroupView;
   updatedLabel: string;
+  updatedAt?: string;
   sourceLabel: string;
   nextResetLabel: string;
+  nextResetAt?: string;
   recommendationCount: number;
   verifiedItemCount: number;
   selectedCharacterContext?: VendorCharacterContextView | null;
@@ -227,6 +231,13 @@ export function VendorsPageContentView(props: VendorsPageContentViewProps) {
     );
   }
 
+  const selectedVendorResetLabel = formatVendorReset(selectedVendor, locale);
+  const nextResetLabel = formatScheduleDateTime(
+    props.model.nextResetAt,
+    locale,
+    props.model.nextResetLabel
+  );
+
   return (
     <ProductWorkspaceSplit className="vendor-workbench-layout vendor-workbench">
       <ProductWorkspaceSideRail className="vendor-rail" ariaLabel="商人目录" scrollRegion="pane">
@@ -281,7 +292,7 @@ export function VendorsPageContentView(props: VendorsPageContentViewProps) {
             <div className="vendor-detail-meta">
               {selectedVendor.location ? <span>{selectedVendor.location}</span> : null}
               <span>{selectedVendor.source}</span>
-              <span>{selectedVendor.resetLabel}</span>
+              <span>{selectedVendorResetLabel}</span>
             </div>
           </div>
           <button
@@ -322,6 +333,7 @@ export function VendorsPageContentView(props: VendorsPageContentViewProps) {
           sections={displaySections}
           vendor={selectedVendor}
           actions={props.actions}
+          locale={locale}
         />
       </ProductWorkspaceContentStack>
       <ProductWorkspaceSideRail element="aside" className="vendor-context" ariaLabel="当前商人上下文">
@@ -329,7 +341,7 @@ export function VendorsPageContentView(props: VendorsPageContentViewProps) {
           <div className="vendor-ledger">
             <div><strong>库存状态</strong><span><b>{selectedVendor.inventoryStateLabel ?? getVendorDisplayStatusLabel(selectedVendor)}</b><small>属性与插槽按当前响应显示</small></span><em className="ready">最新</em></div>
             <div><strong>来源</strong><span><b>{selectedVendor.source}</b><small>不使用过期库存</small></span><em>官方</em></div>
-            <div><strong>刷新</strong><span><b>{selectedVendor.resetLabel}</b><small>{props.model.nextResetLabel}</small></span><em>重置边界</em></div>
+            <div><strong>刷新</strong><span><b>{selectedVendorResetLabel}</b><small>{nextResetLabel}</small></span><em>重置边界</em></div>
             <div><strong>已核验物品</strong><span><b>{props.model.verifiedItemCount} 件</b><small>可打开装备详情核对 Roll 与成本</small></span><em className="ready">{props.model.verifiedItemCount}</em></div>
           </div>
         </ProductWorkspaceSideRail>
@@ -348,6 +360,7 @@ function VendorContentSections(props: {
   sections: VendorContentSectionView[];
   vendor: VendorInventoryGroupView;
   actions: VendorsPageActions;
+  locale: InterfaceLocale;
 }) {
   if (!props.sections.length) {
     return (
@@ -396,11 +409,11 @@ function VendorContentSections(props: {
               )}
             </div>
             {section.layout === "rank" ? (
-              <VendorRankSection section={section} vendor={props.vendor} actions={props.actions} />
+              <VendorRankSection section={section} vendor={props.vendor} actions={props.actions} locale={props.locale} />
             ) : section.layout === "featured" ? (
               <div className="vendor-inventory-grid vendor-featured-grid">
                 {section.groups.flatMap((group) => group.items).map((item) => (
-                  <VendorOfferButton key={item.id} item={item} vendor={props.vendor} actions={props.actions} />
+                  <VendorOfferButton key={item.id} item={item} vendor={props.vendor} actions={props.actions} locale={props.locale} />
                 ))}
               </div>
             ) : (
@@ -426,6 +439,7 @@ function VendorContentSections(props: {
                             item={item}
                             vendor={props.vendor}
                             actions={props.actions}
+                            locale={props.locale}
                             compact
                           />
                         ))}
@@ -446,6 +460,7 @@ function VendorRankSection(props: {
   section: VendorContentSectionView;
   vendor: VendorInventoryGroupView;
   actions: VendorsPageActions;
+  locale: InterfaceLocale;
 }) {
   const progression = props.section.progression;
   const rewardGroup = props.section.groups[0];
@@ -501,7 +516,7 @@ function VendorRankSection(props: {
                 costLabel: "等级奖励",
                 affordabilityLabel: "随商人等级解锁",
                 characterLabel: item.characterIds?.join("、") ?? "当前角色",
-                refreshLabel: props.vendor.resetLabel,
+                refreshLabel: formatVendorReset(props.vendor, props.locale),
                 rollLabels: item.socketPlugs?.map((plug) => plug.name).filter(Boolean),
                 stats: item.stats
               })}
@@ -582,6 +597,7 @@ function VendorOfferButton(props: {
   item: VendorInventoryItemView;
   vendor: VendorInventoryGroupView;
   actions: VendorsPageActions;
+  locale: InterfaceLocale;
   compact?: boolean;
 }) {
   const costLabel = props.item.costs?.map((cost) => `${cost.required} ${cost.label}`).join(" · ")
@@ -600,7 +616,7 @@ function VendorOfferButton(props: {
         costLabel,
         affordabilityLabel: affordable ? "可购买" : "货币不足或未知",
         characterLabel: props.item.characterIds?.join("、") ?? "当前角色",
-        refreshLabel: props.vendor.resetLabel,
+        refreshLabel: formatVendorReset(props.vendor, props.locale),
         purchaseRequirements: props.item.failureMessages ?? [],
         rollLabels: props.item.socketPlugs?.map((plug) => plug.name).filter(Boolean),
         stats: props.item.stats
@@ -637,4 +653,8 @@ function VendorItemArt(props: { item: VendorInventoryItemView }) {
 
 function getVendorDisplayStatusLabel(vendor: VendorInventoryGroupView): string {
   return vendor.displayStatusLabel ?? vendor.statusLabel ?? vendor.badge;
+}
+
+function formatVendorReset(vendor: VendorInventoryGroupView, locale: InterfaceLocale): string {
+  return formatScheduleDateTime(vendor.resetAt, locale, vendor.resetLabel);
 }

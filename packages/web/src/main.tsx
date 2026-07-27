@@ -142,8 +142,6 @@ function WebApp() {
       assistantMode={assistantMode}
       onAssistantModeChange={setAssistantMode}
       shellStatus={snapshot.shellStatus}
-      backgroundTasks={fixture.backgroundTasks}
-      onOpenBackgroundTasks={() => setActivePage("settings")}
       sidebarHeader={(
         <ShellSidebarAccountSummary
           accountName={fixture.accountSummary.account_name}
@@ -152,7 +150,7 @@ function WebApp() {
           vaultCapacity={fixture.accountSummary.vault.capacity}
         />
       )}
-      sidebarFooter={<ShellSidebarActions onOpenAi={() => setAssistantMode("ai")} />}
+      sidebarFooter={<ShellSidebarActions isAiOpen={assistantMode !== null} onToggleAi={() => setAssistantMode((current) => current === null ? "ai" : null)} />}
       pageHeader={(page) => getWebPageHeader(page, setActivePage)}
       assistantPanel={(
         assistantMode === "tasks" ? (
@@ -425,8 +423,7 @@ function getWebPageHeader(page: ShellPageKey, onNavigate: (page: ShellPageKey) =
     vault: <><button type="button" className="secondary-button">复制清理清单</button><button type="button" className="primary-button">刷新账号装备</button></>,
     loadouts: <button type="button" className="secondary-button" onClick={() => onNavigate("account")}>从账号保存当前装备</button>,
     library: <><button type="button" className="secondary-button">重新检查资料库</button><button type="button" className="primary-button">修复资料库</button></>,
-    vendors: <button type="button" className="primary-button">刷新商人库存</button>,
-    settings: <button type="button" className="secondary-button">复制脱敏诊断</button>
+    vendors: <button type="button" className="primary-button">刷新商人库存</button>
   };
 
   return {

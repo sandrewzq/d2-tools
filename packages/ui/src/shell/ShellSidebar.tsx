@@ -7,40 +7,32 @@ export function ShellSidebarAccountSummary(props: {
   const accountName = props.accountName?.trim() || "账号未读取";
   const characterCount = props.characterCount ?? 0;
   const vaultItemCount = props.vaultItemCount ?? 0;
-  const vaultCapacity = props.vaultCapacity;
-  const hasVaultCapacity = typeof vaultCapacity === "number" && vaultCapacity > 0;
-  const capacityPercent = hasVaultCapacity
-    ? Math.min(100, (vaultItemCount / vaultCapacity) * 100)
-    : 0;
 
   return (
-    <div className="shell-sidebar-account">
-      <strong>{accountName}</strong>
-      <span>{characterCount} 个角色 · 仓库 {vaultItemCount}{hasVaultCapacity ? ` / ${vaultCapacity}` : " 件"}</span>
-      {hasVaultCapacity ? (
-        <div
-          className="shell-sidebar-capacity"
-          role="progressbar"
-          aria-label={`仓库 ${vaultItemCount} / ${vaultCapacity}`}
-          aria-valuemin={0}
-          aria-valuemax={vaultCapacity}
-          aria-valuenow={Math.min(vaultCapacity, vaultItemCount)}
-        >
-          <i style={{ width: `${capacityPercent}%` }} />
-        </div>
-      ) : null}
+    <div className="shell-sidebar-account" data-ui-kind="account-summary">
+      <strong data-ui-part="value" data-info-priority="context" data-text-tone="primary">{accountName}</strong>
+      <span data-ui-part="detail" data-info-priority="reading" data-text-tone="body">{characterCount} 个角色 · 仓库 {vaultItemCount} 件</span>
     </div>
   );
 }
 
 export function ShellSidebarActions(props: {
-  onOpenAi: () => void;
+  isAiOpen: boolean;
+  onToggleAi: () => void;
 }) {
   return (
     <div className="shell-sidebar-actions">
-      <strong>本地优先</strong>
-      <span>账号数据与个人知识保存在本机。</span>
-      <button type="button" onClick={props.onOpenAi}>打开 AI 助手</button>
+      <strong data-ui-part="value" data-info-priority="context" data-text-tone="primary">本地优先</strong>
+      <span data-ui-part="detail" data-info-priority="reading" data-text-tone="body">账号数据与个人知识保存在本机。</span>
+      <button
+        type="button"
+        data-ui-kind="button"
+        data-control-variant="secondary"
+        aria-expanded={props.isAiOpen}
+        onClick={props.onToggleAi}
+      >
+        {props.isAiOpen ? "关闭 AI 助手" : "打开 AI 助手"}
+      </button>
     </div>
   );
 }

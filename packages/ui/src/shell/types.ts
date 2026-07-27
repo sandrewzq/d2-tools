@@ -54,8 +54,6 @@ export type AppShellLayoutProps = {
   interfaceLocale?: InterfaceLocale;
   assistantPanel: ReactNode;
   shellStatus: ShellStatusItem[];
-  backgroundTasks?: ShellBackgroundTaskItem[];
-  onOpenBackgroundTasks?: () => void;
   sidebarHeader?: ReactNode;
   sidebarFooter?: ReactNode;
   children: ReactNode;

@@ -14,6 +14,7 @@ type WorkspaceProps = {
   scrollRegion?: "page" | "pane" | "overlay";
   surface?: WorkspaceSurface;
   shellRole?: ShellRole;
+  uiKind?: string;
 };
 
 function classNames(...values: Array<string | undefined>): string {
@@ -34,6 +35,7 @@ function renderWorkspaceElement(
       "data-scroll-region": props.scrollRegion,
       "data-shell-role": props.shellRole,
       "data-surface": props.surface,
+      "data-ui-kind": props.uiKind,
       id: props.id
     },
     props.children
@@ -55,6 +57,7 @@ export function ProductWorkspaceHeader(props: WorkspaceProps & { actions?: React
     {
       ...props,
       shellRole: props.shellRole ?? "page-header",
+      uiKind: props.uiKind ?? "page-header",
       children: (
         <>
           <div className="product-workspace-title">{props.children}</div>

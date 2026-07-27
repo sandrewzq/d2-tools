@@ -6,8 +6,6 @@
  */
 
 :root {
-  --shell-divider: var(--line);
-  --section-divider: var(--line);
   --surface-frame-bg: var(--card-bg);
   --surface-frame-border: var(--object-border);
   --surface-frame-radius: var(--radius-panel);
@@ -38,7 +36,7 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--workspace-section-space);
-  min-height: 68px;
+  min-height: var(--workspace-header-height);
   padding: 10px var(--workspace-page-space);
   border: 0;
   border-bottom: 1px solid var(--shell-divider);
@@ -58,8 +56,65 @@
 [data-shell-role="page-header"] p {
   margin: 3px 0 0;
   color: var(--text-muted);
-  font-size: var(--font-meta);
+  font-size: var(--priority-reading);
+  line-height: 1.5;
+}
+
+/* Tone controls color; priority controls size, weight and reading rhythm. */
+.app-shell [data-text-tone="primary"] { color: var(--text); }
+.app-shell [data-text-tone="body"] { color: var(--body); }
+.app-shell [data-text-tone="meta"] { color: var(--muted); }
+.app-shell [data-text-tone="action"] { color: var(--blue); }
+.app-shell [data-text-tone="status"][data-status="success"] { color: var(--mint); }
+.app-shell [data-text-tone="status"][data-status="pending"] { color: var(--blue); }
+.app-shell [data-text-tone="status"][data-status="warning"] { color: var(--amber); }
+.app-shell [data-text-tone="status"][data-status="error"] { color: var(--red); }
+.app-shell [data-text-tone="status"][data-status="neutral"] { color: var(--body); }
+
+.app-shell [data-value-kind="fact"] {
+  font-variant-numeric: tabular-nums;
+}
+
+.app-shell [data-info-priority="display"] {
+  font-size: var(--priority-display);
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.app-shell [data-info-priority="metric"] {
+  font-size: var(--priority-metric);
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.app-shell [data-info-priority="decision"] {
+  font-size: var(--priority-decision);
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.app-shell [data-info-priority="context"] {
+  font-size: var(--priority-context);
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.app-shell [data-info-priority="reading"] {
+  font-size: var(--priority-reading);
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+.app-shell [data-info-priority="support"] {
+  font-size: var(--priority-support);
+  font-weight: 500;
   line-height: 1.45;
+}
+
+.app-shell [data-info-priority="trace"] {
+  font-size: var(--priority-trace);
+  font-weight: 400;
+  line-height: 1.4;
 }
 
 /* PageSection：只负责内容承载与垂直节奏，不拥有独立面板外框。 */
@@ -174,5 +229,6 @@
     flex-direction: column;
     gap: var(--space-16);
     align-items: flex-start;
+    min-height: 68px;
   }
 }

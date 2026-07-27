@@ -50,7 +50,7 @@ window.settingsPageSnapshot = Object.freeze({
     "summary": "当前冻结快照记录的是已确认的当前版本状态。",
     "currentVersion": "0.0.13",
     "updateSource": "GitHub Release",
-    "lastCheckedAt": "未包含在本地快照中",
+    "lastCheckedAt": null,
     "progressPercent": 0
   },
   "account": {
