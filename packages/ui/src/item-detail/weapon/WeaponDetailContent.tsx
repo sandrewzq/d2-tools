@@ -1,4 +1,5 @@
-import { useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react";
+import { formatStandardDateTime } from "../../time/formatTime.js";
 import type {
   WeaponDetailInstance,
   WeaponDetailViewModel,
@@ -84,6 +85,9 @@ export function WeaponDetailContent(props: WeaponDetailContentProps) {
   const section = props.activeSection ?? internalSection;
   const sectionIdPrefix = useId();
   const detailRef = useRef<HTMLElement>(null);
+  const instanceRailRef = useRef<HTMLElement>(null);
+  const instanceRailTriggerRef = useRef<HTMLButtonElement>(null);
+  const instanceRailCloseRef = useRef<HTMLButtonElement>(null);
   const observedSectionRef = useRef<WeaponDetailSection>("overview");
   const sectionRefs = useRef<Record<WeaponDetailSection, HTMLElement | null>>({
     overview: null,
@@ -105,11 +109,11 @@ export function WeaponDetailContent(props: WeaponDetailContentProps) {
 
   useEffect(() => {
     if (!instanceRailOpen) return;
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setInstanceRailOpen(false);
-    };
-    window.addEventListener("keydown", closeOnEscape);
-    return () => window.removeEventListener("keydown", closeOnEscape);
+    const previousFocus = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : instanceRailTriggerRef.current;
+    requestAnimationFrame(() => instanceRailCloseRef.current?.focus());
+    return () => previousFocus?.focus();
   }, [instanceRailOpen]);
 
   useEffect(() => {
@@ -149,16 +153,50 @@ export function WeaponDetailContent(props: WeaponDetailContentProps) {
     sectionRefs.current[next]?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
+  const handleInstanceRailKeyDown = (event: ReactKeyboardEvent<HTMLElement>) => {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      event.stopPropagation();
+      setInstanceRailOpen(false);
+      return;
+    }
+    if (event.key !== "Tab" || !instanceRailRef.current) return;
+    const focusable = [...instanceRailRef.current.querySelectorAll<HTMLElement>(
+      'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [href], [tabindex]:not([tabindex="-1"])'
+    )];
+    if (!focusable.length) return;
+    const first = focusable[0];
+    const last = focusable.at(-1)!;
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  };
+
   return (
-    <article ref={detailRef} className={["weapon-detail", props.className].filter(Boolean).join(" ")} aria-busy={model.loading}>
+    <article
+      ref={detailRef}
+      className={["weapon-detail", props.className].filter(Boolean).join(" ")}
+      data-contract-id="weapon.detail"
+      data-detail-contract="detail.dossier"
+      data-layout="hybrid-workspace"
+      data-surface="page"
+      data-state={model.loading ? "loading" : "normal"}
+      aria-busy={model.loading}
+    >
       <WeaponIdentity model={model} onSelectVersion={props.actions?.selectVersion} />
 
-      <nav className="weapon-detail-nav" aria-label="武器详情章节">
+      <nav className="weapon-detail-nav" data-ui-kind="section-navigation" aria-label="武器详情章节">
         <div>
           {sectionLabels.map((item) => (
             <button
               key={item.key}
               type="button"
+              data-ui-kind="button"
+              data-control-variant="quiet"
               aria-current={section === item.key ? "location" : undefined}
               aria-controls={`${sectionIdPrefix}-${item.key}`}
               className={section === item.key ? "is-active" : undefined}
@@ -169,16 +207,19 @@ export function WeaponDetailContent(props: WeaponDetailContentProps) {
           ))}
         </div>
         <button
+          ref={instanceRailTriggerRef}
           type="button"
           className="weapon-detail-rail-toggle"
+          data-ui-kind="button"
+          data-control-variant="secondary"
           aria-expanded={instanceRailOpen}
           aria-controls={`${sectionIdPrefix}-instance-rail`}
           onClick={() => setInstanceRailOpen((value) => !value)}
         >实例与操作</button>
       </nav>
 
-      <div className="weapon-detail-workspace">
-        <div className="weapon-detail-sections">
+      <div className="weapon-detail-workspace" data-surface="split">
+        <div className="weapon-detail-sections" data-surface="content-stack">
           <section ref={(node) => { sectionRefs.current.overview = node; }} id={`${sectionIdPrefix}-overview`} className="weapon-detail-section">
             <OverviewSection model={model} onOpenSource={props.actions?.openSource} />
           </section>
@@ -214,12 +255,28 @@ export function WeaponDetailContent(props: WeaponDetailContentProps) {
           </section>
         </div>
         <aside
+          ref={instanceRailRef}
           id={`${sectionIdPrefix}-instance-rail`}
           className={["weapon-detail-instance-rail", instanceRailOpen && "is-open"].filter(Boolean).join(" ")}
+          data-surface="drawer"
+          data-ui-kind="drawer"
           data-scroll-region="pane"
           aria-label="当前实例与同名武器"
+          onKeyDown={handleInstanceRailKeyDown}
         >
-          <button type="button" className="weapon-detail-rail-close" aria-label="关闭实例与操作" onClick={() => setInstanceRailOpen(false)}>×</button>
+          <header className="weapon-detail-rail-drawer-head">
+            <div><span>武器实例</span><strong>实例与操作</strong></div>
+            <button
+              ref={instanceRailCloseRef}
+              type="button"
+              className="weapon-detail-rail-close"
+              data-ui-kind="button"
+              data-control-variant="quiet"
+              aria-label="关闭实例与操作栏"
+              title="关闭"
+              onClick={() => setInstanceRailOpen(false)}
+            >×</button>
+          </header>
           {props.instanceActions ? (
             <div className="weapon-detail-instance-actions">{props.instanceActions}</div>
           ) : (
@@ -240,6 +297,8 @@ export function WeaponDetailContent(props: WeaponDetailContentProps) {
       <button
         type="button"
         className={["weapon-detail-rail-scrim", instanceRailOpen && "is-open"].filter(Boolean).join(" ")}
+        data-ui-kind="button"
+        data-control-variant="quiet"
         aria-label="关闭实例与操作"
         onClick={() => setInstanceRailOpen(false)}
       />
@@ -254,20 +313,22 @@ function WeaponIdentity(props: {
   const { identity, context, versions, configuration } = props.model;
   const currentVersion = versions.find((version) => version.is_current) ?? versions[0];
   return (
-    <header className="weapon-detail-identity">
+    <header className="weapon-detail-identity" data-surface="section">
       <div className="weapon-detail-identity-main">
         {identity.icon ? <img src={identity.icon} alt="" /> : <span className="weapon-detail-icon-placeholder" aria-hidden="true" />}
         <div>
           <div className="weapon-detail-identity-title-line">
-            <span className="weapon-detail-kicker">{identity.tier ?? "武器"}</span>
-            {currentVersion?.season_label ? <span>{currentVersion.season_label}</span> : null}
+            <span className="weapon-detail-version-badge" data-ui-part="state" data-text-tone="status" data-info-priority="support" data-status="success">当前装备版本</span>
+            <span className="weapon-detail-identity-version" data-ui-part="detail" data-text-tone="meta" data-info-priority="trace">
+              {currentVersion?.season_label ?? currentVersion?.label ?? "当前 Hash"}
+            </span>
           </div>
-          <h2>{identity.name}</h2>
-          <p>{[identity.item_type, identity.frame?.name].filter(Boolean).join(" · ")}</p>
+          <h2 data-ui-part="value" data-text-tone="primary" data-info-priority="display">{identity.name}</h2>
+          <p data-ui-part="detail" data-text-tone="body" data-info-priority="reading">{[identity.item_type, identity.frame?.name].filter(Boolean).join(" · ")}</p>
           <div className="weapon-detail-facts" aria-label="武器摘要">
-            {identity.slot ? <Fact label={identity.slot} symbol="▰" /> : null}
-            {identity.ammo ? <Fact label={identity.ammo.label} icon={identity.ammo.icon} symbol={ammoSymbol(identity.ammo.key)} tone={`ammo-${identity.ammo.key}`} /> : null}
-            {identity.damage ? <Fact label={identity.damage.label} icon={identity.damage.icon} symbol="✦" title={identity.damage.description} tone={`damage-${identity.damage.key}`} /> : null}
+            {identity.slot ? <Fact label={identity.slot} tone="slot" /> : null}
+            {identity.ammo ? <Fact label={identity.ammo.label} icon={identity.ammo.icon} tone={`ammo-${identity.ammo.key}`} /> : null}
+            {identity.damage ? <Fact label={identity.damage.label} icon={identity.damage.icon} title={identity.damage.description} tone={`damage-${identity.damage.key}`} /> : null}
             {identity.champion ? (
               <Fact
                 label={identity.champion.label}
@@ -282,13 +343,13 @@ function WeaponIdentity(props: {
 
       <div className="weapon-detail-identity-context">
         <dl className="weapon-detail-context">
-          <div><dt>入口</dt><dd>{context.entry_label}</dd></div>
-          <div><dt>当前查看</dt><dd>{context.object_label}</dd></div>
-          <div><dt>对象</dt><dd>{contextKindLabel(context.kind)}</dd></div>
-          <div><dt>配置</dt><dd>{configurationKindLabel(configuration.kind)}</dd></div>
+          <div><dt data-ui-part="label" data-text-tone="meta" data-info-priority="support">入口</dt><dd data-ui-part="value" data-text-tone="primary" data-info-priority="context">{context.entry_label}</dd></div>
+          <div><dt data-ui-part="label" data-text-tone="meta" data-info-priority="support">当前查看</dt><dd data-ui-part="value" data-text-tone="primary" data-info-priority="context">{context.object_label}</dd></div>
+          <div><dt data-ui-part="label" data-text-tone="meta" data-info-priority="support">对象</dt><dd data-ui-part="value" data-text-tone="primary" data-info-priority="context">{contextKindLabel(context.kind)}</dd></div>
+          <div><dt data-ui-part="label" data-text-tone="meta" data-info-priority="support">配置</dt><dd data-ui-part="value" data-text-tone="primary" data-info-priority="context">{configurationKindLabel(configuration.kind)}</dd></div>
           <div className="weapon-detail-version">
-            <dt>版本</dt>
-            <dd>
+            <dt data-ui-part="label" data-text-tone="meta" data-info-priority="support">版本</dt>
+            <dd data-ui-part="value" data-text-tone="primary" data-info-priority="context">
               {versions.length > 1 && props.onSelectVersion ? (
                 <select
                   aria-label="选择装备版本"
@@ -303,7 +364,7 @@ function WeaponIdentity(props: {
                 </select>
               ) : <strong>{currentVersion?.label ?? "当前 Hash"}</strong>}
             </dd>
-            {currentVersion?.season_label ? <span>{currentVersion.season_label}</span> : null}
+            <span className="weapon-detail-version-state" data-ui-part="state" data-text-tone="status" data-info-priority="support" data-status="success">{currentVersion?.season_label ?? "当前版本"}</span>
           </div>
         </dl>
         <details className="weapon-detail-definition-details">
@@ -320,11 +381,17 @@ function WeaponIdentity(props: {
   );
 }
 
-function Fact(props: { label: string; icon?: string; symbol?: string; tone?: string; title?: string }) {
+function Fact(props: { label: string; icon?: string; tone?: string; title?: string }) {
   return (
-    <span className={["weapon-detail-fact", props.tone].filter(Boolean).join(" ")} title={props.title} tabIndex={props.title ? 0 : undefined}>
+    <span
+      className={["weapon-detail-fact", props.tone].filter(Boolean).join(" ")}
+      data-ui-part="value"
+      data-text-tone="primary"
+      data-info-priority="support"
+      title={props.title}
+      tabIndex={props.title ? 0 : undefined}
+    >
       {props.icon ? <img src={props.icon} alt="" /> : null}
-      {!props.icon && props.symbol ? <i aria-hidden="true">{props.symbol}</i> : null}
       {props.label}
     </span>
   );
@@ -333,8 +400,8 @@ function Fact(props: { label: string; icon?: string; symbol?: string; tone?: str
 function SectionHeading(props: { eyebrow: string; title: string; description: string }) {
   return (
     <div className="weapon-detail-section-heading">
-      <div><span>{props.eyebrow}</span><h3>{props.title}</h3></div>
-      <p>{props.description}</p>
+      <div><span data-ui-part="label" data-text-tone="meta" data-info-priority="support">{props.eyebrow}</span><h3 data-ui-part="value" data-text-tone="primary" data-info-priority="display">{props.title}</h3></div>
+      <p data-ui-part="detail" data-text-tone="body" data-info-priority="reading">{props.description}</p>
     </div>
   );
 }
@@ -342,8 +409,8 @@ function SectionHeading(props: { eyebrow: string; title: string; description: st
 function DataBlockHeading(props: { id?: string; title: string; source: string }) {
   return (
     <div className="weapon-detail-data-heading">
-      <h4 id={props.id}>{props.title}</h4>
-      <span>{props.source}</span>
+      <h4 id={props.id} data-ui-part="value" data-text-tone="primary" data-info-priority="context">{props.title}</h4>
+      <span data-ui-part="source" data-text-tone="meta" data-info-priority="trace">{props.source}</span>
     </div>
   );
 }
@@ -401,18 +468,29 @@ function OverviewSection(props: {
           {props.model.sources.entries.length ? (
             <div className="weapon-detail-source-list">
               {props.model.sources.entries.map((source) => (
-                <article key={source.id} className="weapon-detail-source-row">
-                  {source.icon ? <img src={source.icon} alt="" /> : null}
-                  <div><strong>{source.label}</strong><p>{source.description}</p></div>
+                <article
+                  key={source.id}
+                  className={[
+                    "weapon-detail-source-row",
+                    source.available_now ? "is-current" : source.kind === "manifest_hint" ? "is-definition" : "is-scheduled"
+                  ].join(" ")}
+                >
+                  <div className="weapon-detail-source-identity">
+                    {source.icon ? <img src={source.icon} alt="" /> : null}
+                    <strong data-ui-part="value" data-text-tone="primary" data-info-priority="context">{source.label}</strong>
+                  </div>
+                  <div className="weapon-detail-source-copy">
+                    <p data-ui-part="detail" data-text-tone="body" data-info-priority="reading">{source.description}</p>
+                    {source.offer?.purchase_requirements?.length ? <small>{source.offer.purchase_requirements.join(" / ")}</small> : null}
+                    {source.offer?.can_purchase === false ? <small data-text-tone="status" data-status="warning">{source.offer.failure_messages.join(" / ") || "当前无法购买"}</small> : null}
+                  </div>
                   <div className="weapon-detail-source-meta">
-                    <span>{source.available_now === true ? "当前可获取" : "官方来源"}</span>
+                    <span data-ui-part="state" data-text-tone={source.available_now === true ? "status" : "meta"} data-info-priority="support" data-status={source.available_now === true ? "success" : undefined}>{source.available_now === true ? "当前可获取" : "官方来源"}</span>
                     {source.offer?.inventory_path ? <span>{source.offer.inventory_path}</span> : null}
                     {source.offer?.price_labels.length ? <span>{source.offer.price_labels.join(" + ")}</span> : null}
-                    {source.offer?.refresh_at ? <span>{source.offer.refresh_at}</span> : null}
+                    {source.offer?.refresh_at ? <span>{formatStandardDateTime(source.offer.refresh_at)}</span> : null}
                     {source.updated_at ? <span>更新于 {formatUpdatedAt(source.updated_at)}</span> : null}
-                    {source.offer?.purchase_requirements?.length ? <span>{source.offer.purchase_requirements.join(" / ")}</span> : null}
-                    {source.offer?.can_purchase === false ? <span>{source.offer.failure_messages.join(" / ") || "当前无法购买"}</span> : null}
-                    {props.onOpenSource ? <button type="button" onClick={() => props.onOpenSource?.(source)}>查看</button> : null}
+                    {props.onOpenSource ? <button type="button" data-control-variant="secondary" onClick={() => props.onOpenSource?.(source)}>查看</button> : null}
                   </div>
                 </article>
               ))}
@@ -529,6 +607,10 @@ function ConfigurationSection(props: {
         title={context.kind === "definition" ? "完整 Perk 池" : context.kind === "vendor_offer" ? "当前售卖配置" : "当前实例配置"}
         description={context.kind === "account_instance" ? "只允许切换当前实例真实拥有且可应用的 Perk。" : "当前对象为只读，不提供远程配置操作。"}
       />
+      <DataBlockHeading
+        title="配置数据"
+        source={context.kind === "account_instance" ? "Profile 实例插槽 + Manifest Perk 定义 · 当前读取" : context.kind === "vendor_offer" ? "Vendor Offer + Manifest Perk 定义 · 当前读取" : "Manifest Perk 定义 · 当前读取"}
+      />
       <div className="weapon-detail-config-summary">
         <span>{context.object_label}</span>
         <span>{configurationKindLabel(configuration.kind)}</span>
@@ -567,19 +649,19 @@ function ConfigurationSection(props: {
           <div className="weapon-detail-write-actions">
             {panelState === "pending" ? (
               <>
-                <button type="button" onClick={props.actions?.cancelPendingPerks}>取消选择</button>
-                <button type="button" className="is-primary" disabled={!configuration.can_apply_changes} onClick={() => void props.actions?.applyPendingPerks?.()}>应用 {pendingChangeCount} 项更改</button>
+                <button type="button" data-control-variant="secondary" onClick={props.actions?.cancelPendingPerks}>取消选择</button>
+                <button type="button" className="is-primary" data-control-variant="primary" disabled={!configuration.can_apply_changes} onClick={() => void props.actions?.applyPendingPerks?.()}>应用 {pendingChangeCount} 项更改</button>
               </>
             ) : null}
             {panelState === "error" ? (
               <>
-                <button type="button" onClick={props.actions?.cancelPendingPerks}>取消选择</button>
-                <button type="button" onClick={() => void props.actions?.refreshConfiguration?.()}>重新读取</button>
-                <button type="button" className="is-primary" disabled={!configuration.can_apply_changes} onClick={() => void props.actions?.applyPendingPerks?.()}>保留选择重试</button>
+                <button type="button" data-control-variant="secondary" onClick={props.actions?.cancelPendingPerks}>取消选择</button>
+                <button type="button" data-control-variant="secondary" onClick={() => void props.actions?.refreshConfiguration?.()}>重新读取</button>
+                <button type="button" className="is-primary" data-control-variant="primary" disabled={!configuration.can_apply_changes} onClick={() => void props.actions?.applyPendingPerks?.()}>保留选择重试</button>
               </>
             ) : null}
             {panelState === "refresh-error" ? (
-              <button type="button" className="is-primary" onClick={() => void props.actions?.refreshConfiguration?.()}>重新读取配置</button>
+              <button type="button" className="is-primary" data-control-variant="primary" onClick={() => void props.actions?.refreshConfiguration?.()}>重新读取配置</button>
             ) : null}
             {isBusy ? <span className="weapon-detail-write-busy-label">处理中</span> : null}
           </div>
@@ -588,7 +670,7 @@ function ConfigurationSection(props: {
 
       {context.kind !== "definition" && configuration.pool_columns.length ? (
         <section className="weapon-detail-full-pool">
-          <button type="button" aria-expanded={props.poolOpen} onClick={props.onTogglePool}>
+          <button type="button" data-control-variant="secondary" aria-expanded={props.poolOpen} onClick={props.onTogglePool}>
             <strong>{props.poolOpen ? "收起完整掉落池" : "查看完整掉落池"}</strong>
             <span>{props.poolOpen ? "收起" : `展开 ${countPool(configuration.pool_columns)} 个候选`}</span>
           </button>
@@ -662,16 +744,31 @@ function RecommendationSection(props: {
   onSourceChange: (source: WeaponTargetSource) => void;
 }) {
   const { model } = props;
+  const panelId = useId();
   const targetsBySource: Record<WeaponTargetSource, WeaponRecommendation[]> = {
     dim: model.personal_targets.filter((target) => target.source === "dim"),
     community: model.recommendations.filter((target) => target.source === "builtin" || target.source === "external"),
     personal: model.recommendations.filter((target) => target.source === "user")
   };
   const targets = targetsBySource[props.source];
+  const sourceOrder: WeaponTargetSource[] = ["dim", "community", "personal"];
+  const handleSourceKeyDown = (event: ReactKeyboardEvent<HTMLButtonElement>) => {
+    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+    const currentIndex = sourceOrder.indexOf(props.source);
+    const nextIndex = event.key === "Home"
+      ? 0
+      : event.key === "End"
+        ? sourceOrder.length - 1
+        : (currentIndex + (event.key === "ArrowRight" ? 1 : -1) + sourceOrder.length) % sourceOrder.length;
+    const nextSource = sourceOrder[nextIndex];
+    event.preventDefault();
+    props.onSourceChange(nextSource);
+    requestAnimationFrame(() => document.getElementById(`${panelId}-${nextSource}`)?.focus());
+  };
   return (
     <>
       <SectionHeading eyebrow="目标匹配" title="独立数据源目标匹配" description="DIM Wishlist、社区推荐和个人知识分别匹配，不合并、不排序，也不生成应用结论。" />
-      <div className="weapon-detail-target-tabs" role="tablist" aria-label="选择目标数据源">
+      <div className="weapon-detail-target-tabs" data-ui-kind="segmented-control" role="tablist" aria-label="选择目标数据源">
         {([
           ["dim", "DIM Wishlist"],
           ["community", "社区推荐"],
@@ -679,20 +776,29 @@ function RecommendationSection(props: {
         ] as const).map(([key, label]) => (
           <button
             key={key}
+            id={`${panelId}-${key}`}
             type="button"
             role="tab"
+            aria-controls={`${panelId}-panel`}
             aria-selected={props.source === key}
+            tabIndex={props.source === key ? 0 : -1}
             onClick={() => props.onSourceChange(key)}
+            onKeyDown={handleSourceKeyDown}
           >
             {label}<span>{targetsBySource[key].length}</span>
           </button>
         ))}
       </div>
       {targets.length ? (
-        <div className="weapon-detail-recommendations">
+        <div
+          id={`${panelId}-panel`}
+          className="weapon-detail-recommendations"
+          role="tabpanel"
+          aria-labelledby={`${panelId}-${props.source}`}
+        >
           {targets.map((target) => <RecommendationCard key={target.id} model={model} recommendation={target} />)}
         </div>
-      ) : <EmptyState text="当前来源没有可显示的目标数据。" />}
+      ) : <div id={`${panelId}-panel`} role="tabpanel" aria-labelledby={`${panelId}-${props.source}`}><EmptyState text="当前来源没有可显示的目标数据。" /></div>}
     </>
   );
 }
@@ -755,13 +861,16 @@ function UpgradeSection({ model }: { model: WeaponDetailViewModel }) {
   return (
     <>
       <SectionHeading eyebrow="升级与锻造" title={upgrades.catalyst ? "催化剂、杰作与当前进度" : "大师杰作、模组与强化"} description="当前对象状态与定义能力分别标明来源，不把未返回的信息补成结论。" />
-      {rows.length ? (
-        <div className="weapon-detail-upgrade-table" role="table" aria-label="升级与锻造状态">
-          <div role="row"><strong role="columnheader">项目</strong><strong role="columnheader">当前对象</strong><strong role="columnheader">状态</strong><strong role="columnheader">数据来源</strong></div>
-          {rows.map((row) => <div key={row.key} role="row"><strong role="cell">{row.label}</strong><span role="cell">{row.current}</span><span role="cell">{row.detail}</span><span role="cell">{row.source}</span></div>)}
-        </div>
-      ) : <EmptyState text="当前对象没有可显示的升级或附加能力。" />}
-      {upgrades.catalyst ? <div className="weapon-detail-catalyst"><div><strong>{upgrades.catalyst.name}</strong><span>{upgrades.catalyst.objective ?? "未返回完成条件"}</span></div><progress value={upgrades.catalyst.progress ?? (upgrades.catalyst.complete ? 100 : 0)} max={100} /><p>{upgrades.catalyst.acquisition ? `获取：${upgrades.catalyst.acquisition}` : "未返回催化剂获取方式"}</p>{upgrades.catalyst.effects.length ? <ul>{upgrades.catalyst.effects.map((effect) => <li key={effect}>{effect}</li>)}</ul> : null}</div> : null}
+      <DataBlockHeading title="升级状态" source="Profile 进度 + Manifest 定义 · 当前读取" />
+      <div className={["weapon-detail-upgrade-layout", !upgrades.catalyst && "without-catalyst"].filter(Boolean).join(" ")}>
+        {upgrades.catalyst ? <article className="weapon-detail-catalyst"><div><strong>{upgrades.catalyst.name}</strong><span>{upgrades.catalyst.objective ?? "未返回完成条件"}</span></div><progress value={upgrades.catalyst.progress ?? (upgrades.catalyst.complete ? 100 : 0)} max={100} /><p>{upgrades.catalyst.acquisition ? `获取：${upgrades.catalyst.acquisition}` : "未返回催化剂获取方式"}</p>{upgrades.catalyst.effects.length ? <ul>{upgrades.catalyst.effects.map((effect) => <li key={effect}>{effect}</li>)}</ul> : null}</article> : null}
+        {rows.length ? (
+          <div className="weapon-detail-upgrade-table" role="table" aria-label="升级与锻造状态">
+            <div role="row"><strong role="columnheader">项目</strong><strong role="columnheader">当前对象</strong><strong role="columnheader">状态</strong><strong role="columnheader">数据来源</strong></div>
+            {rows.map((row) => <div key={row.key} role="row"><strong role="cell">{row.label}</strong><span role="cell">{row.current}</span><span role="cell">{row.detail}</span><span role="cell">{row.source}</span></div>)}
+          </div>
+        ) : <EmptyState text="当前对象没有可显示的升级或附加能力。" />}
+      </div>
     </>
   );
 }
@@ -864,21 +973,28 @@ function AnalysisSection(props: {
   return (
     <>
       <SectionHeading eyebrow="AI 分析" title="结合当前对象与知识库分析" description="用户指定知识优先，其次使用内置知识库，AI 外部查询优先级最低。" />
-      <div className="weapon-detail-ai-input">
-        <label htmlFor="weapon-analysis-prompt">补充问题或指定知识</label>
-        <textarea id="weapon-analysis-prompt" value={props.prompt} onChange={(event) => props.onPromptChange(event.target.value)} placeholder="例如：结合我当前实例的全部可切换 Perk，分析 PvE 推荐匹配情况。" />
-        <label className="weapon-detail-ai-external"><input type="checkbox" checked={props.allowExternalSearch} onChange={(event) => props.onAllowExternalSearchChange(event.target.checked)} />允许 AI 查询外部知识（最低优先级，必须保留引用）</label>
-        <button type="button" disabled={!props.onRun || status === "running"} onClick={() => props.onRun?.({ prompt: props.prompt, allow_external_search: props.allowExternalSearch })}>{status === "running" ? "分析中..." : "开始分析"}</button>
+      <div className="weapon-detail-ai-layout">
+        <div className="weapon-detail-ai-analysis">
+          {props.analysis?.message ? <p className={`status-message status-${status === "error" ? "error" : status === "ready" ? "ready" : "pending"}`} role="status">{props.analysis.message}</p> : null}
+          {props.analysis?.body ? <article className="weapon-detail-ai-result"><span>AI 生成 · 可以查看依据</span><h4>{props.analysis.title ?? `${props.model.identity.name}分析`}</h4><p>{props.analysis.body}</p>{props.analysis.evidence?.length ? <dl>{props.analysis.evidence.map((entry) => <div key={entry.label}><dt>{entry.label}</dt><dd>{entry.value}</dd></div>)}</dl> : null}</article> : <EmptyState text="运行分析后，这里会显示结论和使用依据。" />}
+          {props.analysis?.externalSearchMessage ? <p className="weapon-detail-note">{props.analysis.externalSearchMessage}</p> : null}
+          {props.analysis?.externalSources?.length ? (
+            <section className="weapon-detail-external-sources" aria-label="AI 外部知识来源">
+              <div className="weapon-detail-block-heading"><h4>外部知识来源</h4><span>最低优先级</span></div>
+              <ul>{props.analysis.externalSources.map((source) => <li key={source.url}><a href={source.url} target="_blank" rel="noreferrer">{source.title || source.url}</a><span>{formatStandardDateTime(source.queried_at)}</span></li>)}</ul>
+            </section>
+          ) : null}
+        </div>
+        <aside className="weapon-detail-ai-tools">
+          <div className="weapon-detail-ai-input">
+            <label htmlFor="weapon-analysis-prompt">询问这件武器</label>
+            <textarea id="weapon-analysis-prompt" value={props.prompt} onChange={(event) => props.onPromptChange(event.target.value)} placeholder="例如：结合我当前实例的全部可切换 Perk，分析 PvE 推荐匹配情况。" />
+            <label className="weapon-detail-ai-external"><input type="checkbox" checked={props.allowExternalSearch} onChange={(event) => props.onAllowExternalSearchChange(event.target.checked)} />允许 AI 查询外部知识，必须保留引用</label>
+            <button type="button" data-control-variant="ai" disabled={!props.onRun || status === "running"} onClick={() => props.onRun?.({ prompt: props.prompt, allow_external_search: props.allowExternalSearch })}>{status === "running" ? "分析中..." : "结合全部来源分析"}</button>
+            <small>AI 结果不会自动进入可靠数据区，保存前必须由用户确认。</small>
+          </div>
+        </aside>
       </div>
-      {props.analysis?.message ? <p className={`status-message status-${status === "error" ? "error" : status === "ready" ? "ready" : "pending"}`} role="status">{props.analysis.message}</p> : null}
-      {props.analysis?.body ? <article className="weapon-detail-ai-result"><span>AI 生成 · 可以查看依据</span><h4>{props.analysis.title ?? `${props.model.identity.name}分析`}</h4><p>{props.analysis.body}</p>{props.analysis.evidence?.length ? <dl>{props.analysis.evidence.map((entry) => <div key={entry.label}><dt>{entry.label}</dt><dd>{entry.value}</dd></div>)}</dl> : null}</article> : <EmptyState text="运行分析后，这里会显示结论和使用依据。" />}
-      {props.analysis?.externalSearchMessage ? <p className="weapon-detail-note">{props.analysis.externalSearchMessage}</p> : null}
-      {props.analysis?.externalSources?.length ? (
-        <section className="weapon-detail-external-sources" aria-label="AI 外部知识来源">
-          <div className="weapon-detail-block-heading"><h4>外部知识来源</h4><span>最低优先级</span></div>
-          <ul>{props.analysis.externalSources.map((source) => <li key={source.url}><a href={source.url} target="_blank" rel="noreferrer">{source.title || source.url}</a><span>{new Date(source.queried_at).toLocaleString()}</span></li>)}</ul>
-        </section>
-      ) : null}
       <section className="weapon-detail-knowledge">
         <div className="weapon-detail-block-heading"><h4>个人知识</h4><span>确认后持久化</span></div>
         {props.personalKnowledge.length ? (
@@ -887,7 +1003,7 @@ function AnalysisSection(props: {
               <article key={entry.id}>
                 <div><strong>{entry.title}</strong><span>{entry.mode.toUpperCase()} · {entry.origin === "confirmed_external" ? "用户确认的外部知识" : "用户知识"} · {entry.enabled ? "已启用" : "已停用"}</span></div>
                 <p>{entry.reason || entry.perk_options.flatMap((option) => option.names).join(" / ")}</p>
-                <small>更新时间：{entry.updated_at ? new Date(entry.updated_at).toLocaleString() : "未知"}</small>
+                <small>更新时间：{formatStandardDateTime(entry.updated_at, "未知")}</small>
                 {entry.external_url ? <a href={entry.external_url} target="_blank" rel="noreferrer">查看保存的外部依据</a> : null}
                 <div>
                   <button type="button" onClick={() => {
@@ -966,8 +1082,7 @@ function countPool(columns: readonly WeaponPerkPoolColumn[]) {
 }
 
 function formatUpdatedAt(value: string): string {
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
+  return formatStandardDateTime(value);
 }
 
 function normalizedLabel(value?: string): string {
@@ -1013,12 +1128,6 @@ function findPerkIcon(model: WeaponDetailViewModel, name: string): string | unde
     ...model.configuration.pool_columns.flatMap((column) => column.candidates)
   ];
   return candidates.find((candidate) => sameLabel(candidate.name, name))?.icon;
-}
-
-function ammoSymbol(ammo: "primary" | "special" | "heavy") {
-  if (ammo === "special") return "◆";
-  if (ammo === "heavy") return "⬢";
-  return "●";
 }
 
 function splitKnowledgeValues(value: string): string[] {

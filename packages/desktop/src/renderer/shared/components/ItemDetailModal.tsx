@@ -21,17 +21,18 @@ import { selectedItemToAccountItem, type ArmorDetailViewModel, type WeaponDetail
 import { api } from "../../api/client";
 import type { SameNameItemSummary, SelectedItemDetail, SelectedItemSource } from "../hooks/useItemDetail";
 import type { buildDuplicateGroupBatchTagPlan } from "../domain/vault/vaultCleanup";
-import { ArmorDetailContent, SharedItemDetailDialog, SharedItemDetailLoading, WeaponDetailContent, type WeaponConfigurationWriteFeedback } from "@d2-tools/ui";
+import { ArmorDetailContent, DetailInstanceActionPanel, SharedItemDetailDialog, WeaponDetailContent, type WeaponConfigurationWriteFeedback } from "@d2-tools/ui";
 import { ItemDetailHeader } from "./item-detail/ItemDetailHeader";
 import { ItemDetailStats } from "./item-detail/ItemDetailStats";
 import { ItemDetailTools } from "./item-detail/ItemDetailTools";
-import { ItemDetailActions } from "./item-detail/ItemDetailActions";
+import { resolveItemTransferCharacterId } from "../../utils/itemActions";
 import {
   buildWeaponDetailView,
   buildWeaponPersonalTargetViews,
   buildWeaponRecommendationViews
 } from "./item-detail/buildWeaponDetailView";
 import { buildArmorDetailView } from "./item-detail/buildArmorDetailView";
+import { formatVaultTagLabel } from "./item-detail/itemDetailFormatters";
 
 export type ItemDetailModalProps = {
   accountSummary: AccountSummary | null;
@@ -125,7 +126,6 @@ export function ItemDetailModal(props: ItemDetailModalProps) {
     localTargetRules: props.localTargetRules,
     sources: buildArmorSources(selectedItem, props.itemAvailability)
   });
-  const isCanonicalDetailLoading = selectedItem.is_detail_loading && !weaponModel && !armorModel;
   const instanceActions = selectedItem.instance_id ? (
     <ItemDetailInstanceActions
       props={props}
@@ -138,27 +138,21 @@ export function ItemDetailModal(props: ItemDetailModalProps) {
   return (
     <SharedItemDetailDialog
       detail={{ name: selectedItem.name, isBusy: selectedItem.is_detail_loading }}
-      variant={isCanonicalDetailLoading ? "loading" : weaponModel ? "weapon" : armorModel ? "armor" : "default"}
+      variant={weaponModel ? "weapon" : armorModel ? "armor" : "default"}
       subtitle={weaponModel
         ? `${weaponModel.context.entry_label} · ${weaponModel.context.object_label}`
         : armorModel
           ? `${armorModel.context.entry_label} · ${armorModel.context.object_label}`
-          : isCanonicalDetailLoading
-            ? "正在读取完整定义与装备状态"
-            : undefined}
+          : undefined}
       objectContext={weaponModel
         ? (weaponModel.context.read_only ? "只读查看" : "可管理装备")
         : armorModel
           ? (armorModel.context.read_only ? "只读查看" : "可管理装备")
-          : isCanonicalDetailLoading
-            ? "加载中"
-            : undefined}
+          : undefined}
       closeLabel="关闭装备详情"
       onClose={props.onClose}
       sections={(
-        isCanonicalDetailLoading ? (
-          <SharedItemDetailLoading />
-        ) : weaponModel ? (
+        weaponModel ? (
           <WeaponDetailContent
             model={weaponModel}
             personalKnowledge={props.personalWeaponKnowledge}
@@ -428,18 +422,151 @@ function ItemDetailInstanceActions(input: {
     }
   };
 
+  const characters = props.accountSummary?.characters ?? [];
+  const targetCharacter = characters.find((character) => character.character_id === props.selectedActionCharacterId);
+  const sourceCharacter = characters.find((character) => character.character_id === selectedItem.source_character_id);
+  const localEntry = props.vaultTags.items[selectedItem.item_key]
+    ?? (selectedItem.instance_id ? props.vaultTags.items[selectedItem.instance_id] : undefined);
+  const currentTag = localEntry?.tag;
+  const locationLabel = selectedItem.is_postmaster_item
+    ? `${sourceCharacter?.class_name ?? "角色"}邮政官`
+    : selectedItem.is_vault_item
+      ? "仓库"
+      : selectedItem.source_kind === "equipped"
+        ? `${sourceCharacter?.class_name ?? "角色"}已装备`
+        : `${sourceCharacter?.class_name ?? "角色"}背包`;
+  const isAlreadyEquippedToTarget = selectedItem.source_kind === "equipped"
+    && selectedItem.source_character_id === props.selectedActionCharacterId;
+
+  const transferItem = () => api.transferItem({
+    membership_type: props.accountSummary?.membership_type ?? 0,
+    character_id: resolveItemTransferCharacterId({
+      selectedCharacterId: props.selectedActionCharacterId,
+      sourceCharacterId: selectedItem.source_character_id,
+      sourceKind: selectedItem.source_kind,
+      transferToVault: !selectedItem.is_vault_item
+    }),
+    item_id: selectedItem.instance_id ?? "",
+    item_reference_hash: selectedItem.hash,
+    item_name: selectedItem.name,
+    transfer_to_vault: !selectedItem.is_vault_item
+  });
+
+  const copyTransferPlan = () => props.onCopyItemActionPlanText({
+    action: "transfer",
+    item_name: selectedItem.name,
+    item_instance_id: selectedItem.instance_id,
+    item_reference_hash: selectedItem.hash,
+    character_id: selectedItem.is_vault_item
+      ? props.selectedActionCharacterId
+      : selectedItem.source_character_id ?? props.selectedActionCharacterId,
+    transfer_to_vault: !selectedItem.is_vault_item
+  });
+
+  const primaryActions = selectedItem.is_postmaster_item
+    ? [{
+        key: "postmaster-pull",
+        label: "取回到角色背包",
+        primary: true,
+        onClick: () => void runDetailAction("从邮政官取回", () => api.pullFromPostmaster({
+          membership_type: props.accountSummary?.membership_type ?? 0,
+          character_id: selectedItem.source_character_id ?? props.selectedActionCharacterId,
+          item_id: selectedItem.instance_id ?? "",
+          item_reference_hash: selectedItem.hash,
+          item_name: selectedItem.name
+        }))
+      }]
+    : [
+        selectedItem.is_vault_item
+          ? {
+              key: "transfer-from-vault",
+              label: `取出到${targetCharacter?.class_name ?? "角色"}`,
+              primary: true,
+              onClick: () => void runDetailAction("取出到角色", transferItem)
+            }
+          : {
+              key: "equip",
+              label: isAlreadyEquippedToTarget ? `已装备到${targetCharacter?.class_name ?? "角色"}` : `装备到${targetCharacter?.class_name ?? "角色"}`,
+              primary: true,
+              disabled: isAlreadyEquippedToTarget,
+              onClick: () => void runDetailAction("装备到角色", () => api.equipItem({
+                membership_type: props.accountSummary?.membership_type ?? 0,
+                character_id: props.selectedActionCharacterId,
+                item_id: selectedItem.instance_id ?? "",
+                item_name: selectedItem.name
+              }))
+            },
+        ...(selectedItem.is_vault_item
+          ? [{ key: "copy-transfer", label: "复制转移计划", onClick: copyTransferPlan }]
+          : [{
+              key: "transfer-to-vault",
+              label: "移入仓库",
+              onClick: () => void runDetailAction("移入仓库", transferItem)
+            }]),
+        {
+          key: "lock",
+          label: selectedItem.locked ? "解锁" : "锁定",
+          onClick: () => void runDetailAction(selectedItem.locked ? "解锁" : "锁定", () => api.setItemLockState({
+            membership_type: props.accountSummary?.membership_type ?? 0,
+            character_id: props.selectedActionCharacterId,
+            item_id: selectedItem.instance_id ?? "",
+            item_name: selectedItem.name,
+            state: !selectedItem.locked
+          }))
+        }
+      ];
+
+  const addToLoadoutDraft = () => {
+    const accountItem = selectedItemToAccountItem(selectedItem);
+    const character = characters.find((candidate) => candidate.character_id === props.selectedActionCharacterId);
+    if (!accountItem || !props.selectedActionCharacterId || !character) {
+      input.setItemToolMessage("请先选择用于配装草稿的角色。");
+      return;
+    }
+    void api.createLoadoutTemplate({
+      name: `${selectedItem.name} 配装草稿`,
+      character_id: props.selectedActionCharacterId,
+      class_name: character.class_name,
+      equipped_items: [accountItem]
+    }).then(() => input.setItemToolMessage("已保存到配装草稿。"))
+      .catch((error) => input.setItemToolMessage(error instanceof Error ? error.message : "配装草稿保存失败"));
+  };
+
   return (
-    <>
-      <ItemDetailActions
-        accountSummary={props.accountSummary}
-        isRunningItemAction={props.isRunningItemAction}
-        selectedActionCharacterId={props.selectedActionCharacterId}
-        selectedItem={selectedItem}
-        onCopyItemActionPlanText={props.onCopyItemActionPlanText}
-        onRunItemWriteAction={(label, action) => void runDetailAction(label, action)}
-        onSelectedActionCharacterIdChange={props.onSelectedActionCharacterIdChange}
-      />
-      {actionFeedback.status !== "idle" ? (
+    <DetailInstanceActionPanel
+      title={`${selectedItem.name} · ${selectedItem.instance_id?.slice(-4) ?? "实例"}`}
+      subtitle={`${locationLabel} · ${selectedItem.power ?? "-"} 光等`}
+      statusLabels={[
+        selectedItem.source_kind === "equipped" ? "已装备" : "未装备",
+        selectedItem.locked ? "已锁定" : "未锁定",
+        currentTag ? formatVaultTagLabel(currentTag) : "未标记"
+      ]}
+      targetValue={props.selectedActionCharacterId}
+      targetOptions={characters.map((character) => ({
+        value: character.character_id,
+        label: `${character.class_name} / 光等 ${character.light ?? "-"}`
+      }))}
+      disabled={props.isRunningItemAction}
+      actions={primaryActions}
+      tags={(["keep", "review", "farm", "loadout", "junk", "none"] as VaultTagValue[]).map((tag) => ({
+        key: tag,
+        label: tag === "none" ? "清除标记" : formatVaultTagLabel(tag),
+        pressed: tag === "none" ? !currentTag : currentTag === tag,
+        onClick: () => props.onSaveSelectedItemTag(tag)
+      }))}
+      note={props.itemNoteDraft}
+      onTargetChange={props.onSelectedActionCharacterIdChange}
+      onNoteChange={props.onSetItemNoteDraft}
+      noteActions={[
+        { key: "save-note", label: "保存备注", primary: true, onClick: props.onSaveSelectedItemNote },
+        ...(!selectedItem.is_postmaster_item && !selectedItem.is_vault_item
+          ? [{ key: "copy-transfer", label: "复制转移计划", onClick: copyTransferPlan }]
+          : []),
+        { key: "copy-summary", label: "复制结论", onClick: props.onCopySelectedItemSummary },
+        { key: "copy-chat", label: "生成群聊说明", onClick: props.onCopySelectedItemChatGuide },
+        { key: "loadout", label: "加入配装草稿", onClick: addToLoadoutDraft }
+      ]}
+      feedback={actionFeedback.status !== "idle" ? (
         <div
           className={`weapon-detail-operation-feedback is-${actionFeedback.status}`}
           role={actionFeedback.status === "error" ? "alert" : "status"}
@@ -458,52 +585,9 @@ function ItemDetailInstanceActions(input: {
             <p>{actionFeedback.message}</p>
           </div>
         </div>
-      ) : null}
-      <section className="item-action-panel weapon-detail-local-tools">
-        <div>
-          <h3>本地整理</h3>
-          <p>标记和备注只保存在本地，不会修改游戏内物品。</p>
-        </div>
-        <div className="button-row">
-          {(["keep", "review", "farm", "loadout", "junk", "none"] as VaultTagValue[]).map((tag) => (
-            <button key={tag} type="button" className="secondary-button" onClick={() => props.onSaveSelectedItemTag(tag)}>
-              {tag === "keep" ? "保留" : tag === "review" ? "关注" : tag === "farm" ? "待刷" : tag === "loadout" ? "配装用" : tag === "junk" ? "可清理" : "清除标记"}
-            </button>
-          ))}
-        </div>
-        <label className="compact-field">
-          本地备注
-          <textarea value={props.itemNoteDraft} onChange={(event) => props.onSetItemNoteDraft(event.target.value)} />
-        </label>
-        <div className="button-row">
-          <button type="button" className="secondary-button" onClick={props.onSaveSelectedItemNote}>保存备注</button>
-          <button type="button" className="secondary-button" onClick={props.onCopySelectedItemSummary}>复制结论</button>
-          <button type="button" className="secondary-button" onClick={props.onCopySelectedItemChatGuide}>生成群聊说明</button>
-          <button
-            type="button"
-            className="secondary-button"
-            onClick={() => {
-              const accountItem = selectedItemToAccountItem(selectedItem);
-              const character = props.accountSummary?.characters.find((candidate) => candidate.character_id === props.selectedActionCharacterId);
-              if (!accountItem || !props.selectedActionCharacterId || !character) {
-                input.setItemToolMessage("请先选择用于配装草稿的角色。");
-                return;
-              }
-              void api.createLoadoutTemplate({
-                name: `${selectedItem.name} 配装草稿`,
-                character_id: props.selectedActionCharacterId,
-                class_name: character.class_name,
-                equipped_items: [accountItem]
-              }).then(() => input.setItemToolMessage("已保存到配装草稿。"))
-                .catch((error) => input.setItemToolMessage(error instanceof Error ? error.message : "配装草稿保存失败"));
-            }}
-          >加入配装草稿</button>
-        </div>
-        {props.itemNoteMessage ? <p className="status-message status-ready">{props.itemNoteMessage}</p> : null}
-        {props.itemShareMessage ? <p className="status-message status-ready">{props.itemShareMessage}</p> : null}
-        {input.itemToolMessage ? <p className="status-message status-ready">{input.itemToolMessage}</p> : null}
-      </section>
-    </>
+      ) : undefined}
+      messages={[props.itemNoteMessage, props.itemShareMessage, input.itemToolMessage]}
+    />
   );
 }
 

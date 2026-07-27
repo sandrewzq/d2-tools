@@ -40,10 +40,21 @@ export function SharedItemDetailDialog(props: SharedItemDetailDialogProps) {
   const initialFocus = useRef<HTMLElement | null>(
     typeof document === "undefined" ? null : document.activeElement as HTMLElement | null
   );
+  const canonicalTitle = props.variant === "armor"
+    ? "护甲档案"
+    : props.variant === "weapon"
+      ? "武器档案"
+      : "装备档案";
+  const canonicalDescription = props.variant === "armor"
+    ? "真实属性、获取来源、当前配置、目标匹配、升级状态和账号实例"
+    : props.variant === "weapon"
+      ? "查看真实属性、获取来源、实例配置、目标匹配和升级状态"
+      : "正在读取完整定义与装备状态";
 
   useEffect(() => {
     closeButtonRef.current?.focus();
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented) return;
       if (event.key === "Escape") {
         event.preventDefault();
         props.onClose();
@@ -76,6 +87,9 @@ export function SharedItemDetailDialog(props: SharedItemDetailDialogProps) {
       <section
         ref={dialogRef}
         className={`item-modal shared-item-detail-dialog shared-item-detail-${props.variant ?? "default"}`}
+        data-detail-contract={props.variant === "weapon" || props.variant === "armor" || props.variant === "loading" ? "detail.dossier" : undefined}
+        data-state={props.detail.isBusy ? "loading" : "normal"}
+        data-surface="dialog"
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
@@ -83,24 +97,22 @@ export function SharedItemDetailDialog(props: SharedItemDetailDialogProps) {
         onClick={(event) => event.stopPropagation()}
       >
         {props.variant === "weapon" || props.variant === "armor" || props.variant === "loading" ? (
-          <header className="shared-item-detail-header">
-            <div className="shared-item-detail-heading">
-              <span>装备详情</span>
-              <h2 id={titleId}>{props.variant === "armor" ? "护甲档案" : props.variant === "weapon" ? "武器档案" : "装备档案"}</h2>
-              <div className="shared-item-detail-subtitle">
-                <strong>{props.detail.name}</strong>
-                {props.subtitle ? <span>{props.subtitle}</span> : null}
-              </div>
+          <header className="shared-item-detail-header" data-ui-kind="shell-chrome">
+            <div>
+              <h2 id={titleId} data-ui-part="value" data-text-tone="primary" data-info-priority="display">{canonicalTitle}</h2>
+              <p data-ui-part="detail" data-text-tone="body" data-info-priority="reading">{canonicalDescription}</p>
             </div>
-            {props.objectContext ? <div className="shared-item-detail-object-context">{props.objectContext}</div> : null}
             <button
               ref={closeButtonRef}
               className="modal-close shared-item-detail-close"
               type="button"
               aria-label={props.closeLabel}
+              title={props.closeLabel}
+              data-ui-kind="button"
+              data-control-variant="quiet"
               onClick={props.onClose}
             >
-              关闭
+              ×
             </button>
           </header>
         ) : (
@@ -129,7 +141,7 @@ export function SharedItemDetailDialog(props: SharedItemDetailDialogProps) {
             ) : null}
           </section>
         ) : null}
-        <div className="shared-item-detail-body" data-scroll-region="pane">{props.sections}</div>
+        <div className="shared-item-detail-body" data-scroll-region="page">{props.sections}</div>
       </section>
     </div>
   );

@@ -59,6 +59,12 @@ export type {
   SharedItemDetailView,
   VendorOfferContext
 } from "./item-detail/SharedItemDetailDialog.js";
+export { DetailInstanceActionPanel } from "./item-detail/DetailInstanceActionPanel.js";
+export type {
+  DetailInstanceAction,
+  DetailInstanceActionPanelProps,
+  DetailInstanceTagAction
+} from "./item-detail/DetailInstanceActionPanel.js";
 export { WeaponDetailContent } from "./item-detail/weapon/WeaponDetailContent.js";
 export type {
   WeaponDetailAnalysis,

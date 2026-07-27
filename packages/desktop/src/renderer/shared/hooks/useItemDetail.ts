@@ -72,8 +72,10 @@ export function useItemDetail(options: {
       requestSequenceRef.current === requestSequence
       && cacheScopeKeyRef.current === requestScopeKey
     );
+    const preview = createSelectedItemPreview(item, source);
+    const canRenderPreview = preview.group_key === "weapons" || preview.group_key === "armor";
     setItemDetailLoadingKey(itemKey);
-    setSelectedItem(createSelectedItemPreview(item, source));
+    setSelectedItem(canRenderPreview ? preview : null);
 
     options.onOpenStart?.({
       item,
@@ -98,10 +100,11 @@ export function useItemDetail(options: {
       : null;
     if (cachedDetail || cachedAccountDetail) {
       setSelectedItem((current) => {
-        if (!current || current.item_key !== itemKey) {
+        if (current && current.item_key !== itemKey) {
           return current;
         }
-        const withDefinition = cachedDetail ? mergeSelectedItemDetail(current, cachedDetail) : current;
+        const base = current ?? preview;
+        const withDefinition = cachedDetail ? mergeSelectedItemDetail(base, cachedDetail) : base;
         return cachedAccountDetail ? mergeAccountItemDetail(withDefinition, cachedAccountDetail) : withDefinition;
       });
     }
@@ -133,12 +136,13 @@ export function useItemDetail(options: {
     }
 
     setSelectedItem((current) => {
-      if (!current || current.item_key !== itemKey) {
+      if (current && current.item_key !== itemKey) {
         return current;
       }
+      const base = current ?? preview;
       const withDefinition = definitionResult.status === "fulfilled"
-        ? mergeSelectedItemDetail(current, definitionResult.value)
-        : current;
+        ? mergeSelectedItemDetail(base, definitionResult.value)
+        : base;
       const withAccount = accountResult.status === "fulfilled" && accountResult.value
         ? mergeAccountItemDetail(withDefinition, accountResult.value)
         : withDefinition;

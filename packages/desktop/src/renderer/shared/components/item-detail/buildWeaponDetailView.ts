@@ -50,6 +50,8 @@ export function buildWeaponDetailView(
   const currentStats = input.currentStats ?? (item.instance_id ? item.weapon_stats : undefined);
   const definitionStats = definitionStatsToSummary(item.definition_stats);
   const upgrades = buildWeaponUpgrades(item);
+  const versions = [...(input.versions ?? [])].sort((left, right) =>
+    Number(right.hash === item.hash) - Number(left.hash === item.hash));
 
   return buildWeaponDetailViewModel({
     item,
@@ -87,16 +89,16 @@ export function buildWeaponDetailView(
               : "plug"
         }
       : undefined,
-    versions: input.versions?.length
-      ? input.versions.map((version) => ({
+    versions: versions.length
+      ? versions.map((version, index) => ({
           hash: version.hash,
-          label: version.name,
+          label: `#${index + 1}${version.hash === item.hash ? " · 当前 Hash" : ""}`,
           season_label: version.release?.description ?? (version.hash === item.hash ? item.release?.description : undefined) ?? version.tier,
           is_current: version.hash === item.hash
         }))
       : [{
           hash: item.hash,
-          label: item.name,
+          label: "#1 · 当前 Hash",
           season_label: item.release?.description,
           is_current: true
         }],

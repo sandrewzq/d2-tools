@@ -382,6 +382,35 @@ textarea {
   line-height: 1.4;
 }
 
+[data-prototype-root="detail-dossier"] .primary-button:not(:disabled) {
+  color: #f3eeff;
+}
+
+html[data-theme="light"] [data-prototype-root="detail-dossier"] .primary-button:not(:disabled) {
+  color: #ffffff;
+  border-color: #594384;
+  background: #66519a;
+}
+
+html[data-theme="light"] [data-prototype-root="detail-dossier"] .primary-button:not(:disabled):hover {
+  color: #ffffff;
+  border-color: #4f3b78;
+  background: #594584;
+}
+
+html[data-theme="light"] [data-prototype-root="detail-dossier"] button:disabled {
+  opacity: 1;
+  color: #82939c;
+  border-color: #b9c7cf;
+  background: #eef3f6;
+}
+
+html[data-theme="light"] [data-prototype-root="detail-dossier"] .primary-button:disabled {
+  color: #8f87a3;
+  border-color: #c6bdd7;
+  background: #e7e2ef;
+}
+
 [data-prototype-root="detail-dossier"] :is(.context-ledger dt, .definition-details dt, .source-row > strong, .rail-current-meta, .rail-instance-foot, .match-summary) {
   color: var(--muted);
   font-size: var(--font-meta);
