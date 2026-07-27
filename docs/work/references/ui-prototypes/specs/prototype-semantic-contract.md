@@ -9,7 +9,8 @@
 ## 表面与组件
 
 - 页面结构使用 `data-surface="page|section|frame|list|row|split|content-stack|dialog|drawer"`。
-- 共享组件使用 `data-ui-kind`，至少覆盖 `shell-chrome`、`primary-navigation`、`context-switcher`、`segmented-control`、`button`、`field`、`object-card`、`callout`、`status-matrix`、`summary-frame`、`state-frame`、`dialog`、`drawer`、`toast`。`status-matrix`、`summary-frame` 与 `state-frame` 都是连续数据工作区的直角 frame，不得借用 `object-card` 获得圆角。
+- 共享组件使用 `data-ui-kind`，至少覆盖 `shell-chrome`、`shell-status-strip`、`shell-status-item`、`primary-navigation`、`context-switcher`、`segmented-control`、`button`、`field`、`object-card`、`callout`、`status-chip`、`status-matrix`、`summary-frame`、`state-frame`、`dialog`、`drawer`、`toast`。`shell-status-item` 属于连续状态组，内部直角且只允许整体首尾小圆角；`status-chip` 只用于可独立识别的短标签。`status-matrix`、`summary-frame` 与 `state-frame` 都是连续数据工作区的直角 frame，不得借用 `object-card` 获得圆角。
+- 跨页面稳定视觉对象使用 `data-contract-id`；顶部状态组固定为 `shell.status-strip`。该标记只用于合同定位，不参与业务状态判断。
 - 组件内部可见槽位使用 `data-ui-part="label|value|detail|state|source|action"`。动态模板必须在生成 HTML 时直接输出这些标记，不能在运行后扫描 DOM 补齐。
 
 ## 文字、状态与数据来源

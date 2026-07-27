@@ -57,6 +57,10 @@
   --radius-control: 4px;
   --radius-panel: 6px;
   --radius-pill: 999px;
+  --radius-structural: 0;
+  --radius-shell-group: var(--radius-control);
+  --radius-object: var(--radius-panel);
+  --radius-indicator: var(--radius-pill);
   --font-caption: 12px;
   --font-control: 12px;
   --font-content: 14px;
@@ -416,7 +420,7 @@ html[data-theme="light"] .write-actions .apply {
 
 .list-nav[data-surface="standalone"] {
   border: 1px solid var(--object-border);
-  border-radius: var(--radius-control);
+  border-radius: var(--radius-structural);
   background: var(--section-bg);
 }
 
@@ -673,10 +677,9 @@ html[data-theme="light"] .write-actions .apply {
 
 /* Badges and callouts */
 .badge,
-.status-chip,
 .rail-current-meta span,
 .match-summary span {
-  border-radius: 3px;
+  border-radius: var(--radius-indicator);
   font-size: var(--font-caption);
 }
 
@@ -730,14 +733,17 @@ html[data-theme="light"] .badge.violet { color: #574583; }
   min-height: 24px;
 }
 
-.status-chip {
+.status-item {
   display: inline-flex;
   align-items: center;
   gap: 5px;
   min-height: 26px;
   padding: 0 8px;
-  border: 1px solid var(--object-border);
-  border-radius: 999px;
+  border: 0;
+  border-top: 1px solid var(--object-border);
+  border-right: 1px solid var(--divider);
+  border-bottom: 1px solid var(--object-border);
+  border-radius: var(--radius-structural);
   color: var(--muted);
   background: var(--card-bg);
   white-space: nowrap;
@@ -746,13 +752,23 @@ html[data-theme="light"] .badge.violet { color: #574583; }
 .status-strip {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 0;
   min-width: 0;
   overflow: hidden;
   padding: 0 12px;
 }
 
-.status-chip .status-icon {
+.status-strip > .status-item:first-child {
+  border-left: 1px solid var(--object-border);
+  border-radius: var(--radius-shell-group) 0 0 var(--radius-shell-group);
+}
+
+.status-strip > .status-item:last-child {
+  border-right-color: var(--object-border);
+  border-radius: 0 var(--radius-shell-group) var(--radius-shell-group) 0;
+}
+
+.status-item .status-icon {
   width: 14px;
   height: 14px;
   flex: 0 0 auto;
@@ -763,27 +779,27 @@ html[data-theme="light"] .badge.violet { color: #574583; }
   stroke-width: 1.8;
 }
 
-.status-chip strong {
+.status-item strong {
   color: var(--body);
   font-weight: 600;
 }
 
-.status-chip[data-status="success"] .status-icon { stroke: var(--mint); }
-.status-chip[data-status="pending"] .status-icon { stroke: var(--blue); }
-.status-chip[data-status="warning"] .status-icon { stroke: var(--amber); }
-.status-chip[data-status="error"] .status-icon { stroke: var(--red); }
+.status-item[data-status="success"] .status-icon { stroke: var(--mint); }
+.status-item[data-status="pending"] .status-icon { stroke: var(--blue); }
+.status-item[data-status="warning"] .status-icon { stroke: var(--amber); }
+.status-item[data-status="error"] .status-icon { stroke: var(--red); }
 
 @media (max-width: 1280px) {
   .status-strip {
-    gap: 4px;
+    gap: 0;
     padding-inline: 8px;
   }
 
-  .status-chip {
+  .status-item {
     padding-inline: 7px;
   }
 
-  .status-chip > span {
+  .status-item > span {
     display: none;
   }
 }
@@ -1311,8 +1327,8 @@ html[data-theme="light"] .instances tr.is-selected {
   }
 }
 
-/* Prototype-only controls are intentionally absent from visual baselines.
- * Add ?controls=1 to a prototype URL when exercising fixture states. */
+/* Prototypes expose their fixture controls by default.
+ * Add ?controls=0 only when capturing a control-free visual baseline. */
 [data-prototype-controls="false"] .prototype-tools,
 [data-prototype-controls="false"] .prototype-bar,
 body[data-prototype-controls="false"] .prototype-tools {

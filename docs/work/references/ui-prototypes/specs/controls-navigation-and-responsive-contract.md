@@ -2,7 +2,7 @@
 
 ## 控件与状态
 
-按钮、字段、目录项、分段控件、对象行和状态标签分别使用 `data-ui-kind="button|field|primary-navigation|segmented-control|object-card|status-chip"`。视觉 variant 一律使用 `data-control-variant`，class 只保留领域布局。
+按钮、字段、目录项、分段控件、对象行和短状态标签分别使用 `data-ui-kind="button|field|primary-navigation|segmented-control|object-card|status-chip"`。顶部持久 Shell 状态使用 `shell-status-strip` / `shell-status-item`，不复用独立胶囊标签。视觉 variant 一律使用 `data-control-variant`，class 只保留领域布局。
 
 所有控件必须定义 `default`、`hover`、`pressed`、`focus-visible`、`disabled`；可选择对象额外定义 `current`，异步命令额外定义 `loading`、`success`、`warning`、`error`。`current`、`focus-visible`、`disabled` 与 `loading` 是不同状态，不能互相替代。
 

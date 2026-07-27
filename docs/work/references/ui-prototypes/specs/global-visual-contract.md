@@ -27,7 +27,7 @@
 | `ObjectCard` | `.item-card`、`.offer`、`.perk-card` | `data-ui-kind="object-card"` | 仅独立对象使用完整外框 |
 | `Callout` | `.notice`、`.data-note`、`.source-quote`、`.catalyst-panel`、`.ai-analysis`、`.vendor-detail-warning` | `data-ui-kind="callout"` | 唯一允许语义左色条 |
 
-`Control` 是跨切面的基础控件规则，不计入十类页面与表面配方。按钮、字段、徽标和状态 Chip 使用 `data-ui-kind="control"` 对齐其控件边框、圆角及 hover / focus / disabled / status token，但不得作为页面、目录或工作区的布局表面。
+`Control` 是跨切面的基础控件规则，不计入十类页面与表面配方。按钮、字段、徽标和短标签使用稳定 `data-ui-kind` 对齐其控件边框、圆角及 hover / focus / disabled / status token，但不得作为页面、目录或工作区的布局表面。顶部 Shell 状态项属于连续组合组，不按独立 Chip 处理。
 
 `data-ui-kind` 是后续共享组件接线时使用的稳定语义标记；在产品组件尚未迁入前，静态原型无需为了该标记复制产品 DOM。一个元素只能选择一个表面配方；状态、图标和文字不能取得第二个表面外框。
 
@@ -42,7 +42,7 @@
 | `RowLine` | 页面章节、目录行、台账行、表格行的末端分隔 | PageSection 或 SurfaceList；同一行不能再作为 ObjectCard |
 | `ObjectOutline` | 装备、Offer、Perk、实例、独立空态、弹层 | ObjectCard 或 SurfaceFrame |
 
-`Control` 的控件边框不属于页面边界预算，只能用于按钮、字段、分段控件和状态 Chip。`Callout` 只可额外使用语义左色条，不能借用为目录、导航、页面分区或普通对象的边界。
+`Control` 的控件边框不属于页面边界预算，只能用于按钮、字段、分段控件和短标签。顶部 Shell 状态组只拥有一圈连续边界与内部单分隔线。`Callout` 只可额外使用语义左色条，不能借用为目录、导航、页面分区或普通对象的边界。
 
 - 一条外边只能有一个拥有者。父级、子级、状态样式和阴影不得同时绘制同一条边。
 - `WorkspaceSplit` 的宽屏只画 `N - 1` 条纵向 `SplitLine`；窄屏折叠后，先移除纵线，再由后续栏位绘制一条横向 `SplitLine`。禁止使用 `border: 0` 后再由多个选择器补边。
@@ -54,15 +54,24 @@
 
 圆角由表面配方唯一拥有，页面私有 CSS 不得再直接声明 `border-radius`，也不得通过领域 class 改写公共值。
 
+圆角 token 使用三层结构，避免页面或 agent 直接按观感挑数值：
+
+1. 基础值只有 `0 / 4px / 6px / 999px`。
+2. 语义别名使用 `--radius-structural`、`--radius-shell-group`、`--radius-object`、`--radius-indicator`。
+3. 组件配方决定最终语义，例如 Shell 状态组使用 structural + shell-group，ObjectCard 使用 object，短标签与进度使用 indicator。
+
+页面专属 CSS 不得写 `3px`、`5px`、`7px`、`8px`、`9px`、`99px` 或裸 `999px`，也不得绕过语义别名重新定义圆角尺度。天然圆形头像、圆点和圆形图标容器可使用 `50%`。
+
 | 表面或组件 | 圆角 | 典型内容 |
 |---|---:|---|
 | Shell、Workspace、PageSection、SurfaceList、RowLine | `0` | 页头、目录、章节、表格与台账 |
 | `status-matrix`、`summary-frame`、`state-frame` | `0` | 首页刷新节奏、周常摘要、周信号、商人摘要、加载/空/失败状态、设置状态矩阵 |
 | `object-card`、独立 Callout、独立空态与 Overlay | `6px`，即 `--radius-panel` | 装备、Offer、Perk、可独立操作的对象、对话框 |
 | Button、Field、SegmentedControl、缩略图与图标容器 | `4px`，即 `--radius-control` | 控件与紧凑媒体 |
-| Chip、进度轨道、滚动条滑块 | `999px`，即 `--radius-pill` | 胶囊状态与进度 |
+| 顶部 Shell 状态组 | 内部 `0`，整体首尾 `4px` | Bungie、账号、资料库、AI 与应用版本连续状态 |
+| 短 Chip、进度轨道、滚动条滑块 | `999px`，即 `--radius-pill` | 短标签、计数、进度；不得用于长状态、摘要或结构栏 |
 
-同一页面同一层级的摘要、状态和目录不得混入 `object-card`。首页中只有商人单件装备可使用 `object-card`；刷新节奏、周常、周信号、商人摘要和模块状态均为直角 frame。
+同一页面同一层级的摘要、状态和目录不得混入 `object-card`。首页中只有商人单件装备可使用 `object-card`；刷新节奏、周常、周信号、商人摘要和模块状态均为直角 frame。胶囊只表达可独立识别的短标签、计数或进度，不得因为内容带有状态含义就自动使用 `999px`。
 
 ### 设置页状态矩阵例外
 
@@ -143,7 +152,7 @@
 
 | 组件 | `label` | `value` | `detail` | `state` / `source` |
 |---|---|---|---|---|
-| Shell 状态 Chip | `support + meta` | `context + primary` | 无 | 状态图标；无来源 |
+| Shell 状态项 | `support + meta` | `context + primary` | 无 | 状态图标；无来源 |
 | 账号摘要 | 无 | 账号名 `context + primary` | 角色/仓库已读取 `reading + body` | 无 |
 | 一级导航 | 无 | 菜单名 `context + primary` | 无 | 当前定位独立于文字 Tone |
 | 页头 | 域类别 `support + meta` | `display + primary` | 描述 `reading + body` | 操作按 Control 合同 |

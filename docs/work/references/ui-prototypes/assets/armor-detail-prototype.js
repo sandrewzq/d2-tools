@@ -290,7 +290,7 @@ const state = {
   instanceActionStatus: ""
 };
 
-const prototypeControls = String(new URLSearchParams(location.search).has("controls"));
+const prototypeControls = String(new URLSearchParams(location.search).get("controls") !== "0");
 document.querySelector("[data-prototype-root]").dataset.prototypeControls = prototypeControls;
 document.body.dataset.prototypeControls = prototypeControls;
 
