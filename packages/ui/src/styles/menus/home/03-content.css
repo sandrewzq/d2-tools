@@ -194,6 +194,28 @@
   min-height: 32px;
 }
 
+.app-shell button.weekly-activity-reward {
+  width: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-control);
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.app-shell button.weekly-activity-reward:hover {
+  background: var(--hover-bg);
+  box-shadow: 0 0 0 3px var(--hover-bg);
+}
+
+.app-shell button.weekly-activity-reward:focus-visible {
+  outline: 0;
+  box-shadow: 0 0 0 2px var(--focus-ring);
+}
+
 .app-shell .weekly-activity-reward.is-pending {
   grid-template-columns: 1fr;
 }

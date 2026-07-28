@@ -156,6 +156,10 @@ export const webManifestStatus = {
   needs_update: false,
   cached_at: "2026-06-16T17:00:00.000Z",
   checked_at: "2026-07-03T14:18:00+08:00",
+  language: "zh-chs",
+  item_count: 14406,
+  perk_count: 3871,
+  relation_count: 451375,
   missing_required_components: []
 };
 

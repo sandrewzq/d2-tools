@@ -4,7 +4,11 @@ import {
   type VendorInventoryItemView,
   type VendorOfferContextView
 } from "@d2-tools/ui";
-import { selectHomePageModel, type HomePageModelInput } from "@d2-tools/app/home";
+import {
+  selectHomePageModel,
+  type HomeDashboardActions,
+  type HomePageModelInput
+} from "@d2-tools/app/home";
 import { useMemo } from "react";
 
 export function HomeDashboard(props: HomePageModelInput & {
@@ -17,6 +21,7 @@ export function HomeDashboard(props: HomePageModelInput & {
   onRefreshDiagnostics: () => void;
   onNavigate: (page: ShellPageKey) => void;
   onRefreshDaily: () => void;
+  onOpenWeeklyActivityReward: HomeDashboardActions["onOpenWeeklyActivityReward"];
   onOpenXurOffer: (item: VendorInventoryItemView, context: VendorOfferContextView) => void;
 }) {
   const model = useMemo(() => selectHomePageModel(props), [
@@ -50,6 +55,7 @@ export function HomeDashboard(props: HomePageModelInput & {
       onRefreshDiagnostics={props.onRefreshDiagnostics}
       onNavigate={props.onNavigate}
       onRefreshDaily={props.onRefreshDaily}
+      onOpenWeeklyActivityReward={props.onOpenWeeklyActivityReward}
       onOpenXurOffer={props.onOpenXurOffer}
       interfaceLocale={props.interfaceLocale}
     />

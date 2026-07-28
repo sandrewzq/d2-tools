@@ -1,6 +1,6 @@
 .app-shell .account-workspace {
   display: grid;
-  grid-template-columns: 180px minmax(0, 1fr);
+  grid-template-columns: var(--rail-sm) minmax(0, 1fr);
   gap: 0;
   min-height: calc(100dvh - 116px);
   border: 0;
@@ -46,13 +46,13 @@
 .app-shell .account-column-head strong {
   margin: 0;
   color: var(--text-title);
-  font-size: var(--font-content);
+  font-size: var(--priority-context);
+  font-weight: 600;
+  line-height: 1.4;
 }
 
 .app-shell .account-column-head span {
   overflow: hidden;
-  color: var(--text-muted);
-  font-size: var(--font-caption);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -63,6 +63,8 @@
 
 .app-shell .account-directory-tabs {
   display: grid;
+  align-content: start;
+  margin: 7px;
 }
 
 .app-shell .account-directory-tabs > button {
@@ -71,15 +73,22 @@
   justify-content: space-between;
   gap: 8px;
   width: 100%;
-  min-height: 38px;
-  padding: 0 12px;
+  min-height: var(--control-h-lg);
+  padding: 0 9px;
   border: 0;
   border-bottom: 1px solid var(--border-subtle);
   border-radius: 0;
   color: var(--text-muted);
   background: transparent;
+  font-size: var(--priority-support);
+  font-weight: 500;
+  line-height: 1.45;
   text-align: left;
   cursor: pointer;
+}
+
+.app-shell .account-directory-tabs > button:last-child {
+  border-bottom: 0;
 }
 
 .app-shell .account-directory-tabs > button:hover {
@@ -95,14 +104,20 @@
 }
 
 .app-shell .account-directory-tabs > button.active {
-  color: var(--text-title);
-  background: var(--state-selected-bg);
-  box-shadow: inset 2px 0 0 var(--state-selected-border);
+  color: var(--nav-current-fg);
+  background: var(--nav-current-bg);
+  box-shadow: inset 3px 0 0 var(--nav-current-indicator);
+  font-weight: 700;
 }
 
 .app-shell .account-directory-tabs small {
   color: var(--text-muted);
-  font-size: var(--font-caption);
+  font-size: var(--priority-trace);
+}
+
+.app-shell .account-directory-tabs > button.active small {
+  color: currentColor;
+  opacity: 0.76;
 }
 
 .app-shell .account-content {
@@ -113,7 +128,7 @@
 .app-shell .account-summary {
   display: grid;
   gap: 10px;
-  padding: 10px 12px;
+  padding: 10px;
   border: 0;
   border-bottom: 1px solid var(--border-subtle);
   border-radius: 0;
@@ -132,22 +147,26 @@
 }
 
 .app-shell .account-band-heading > div > span {
-  color: var(--accent-primary);
-  font-size: var(--font-meta);
-  font-weight: 700;
+  color: var(--text-muted);
+  font-size: var(--priority-support);
+  font-weight: 500;
+  line-height: 1.45;
 }
 
 .app-shell .account-band-heading h2 {
   margin: 2px 0 0;
   color: var(--text-title);
-  font-size: 16px;
+  font-size: var(--priority-section);
+  font-weight: 700;
+  line-height: 1.3;
 }
 
 .app-shell .account-band-heading p {
   margin: 4px 0 0;
-  color: var(--text-muted);
-  font-size: var(--font-meta);
-  line-height: 1.45;
+  color: var(--text-body);
+  font-size: var(--priority-reading);
+  font-weight: 400;
+  line-height: 1.5;
 }
 
 .app-shell .account-summary .ui-badge.status-pending,
@@ -212,8 +231,9 @@
   border: 1px solid currentColor;
   border-radius: 50%;
   color: var(--accent-primary);
-  font-size: var(--font-content);
+  font-size: var(--font-caption);
   font-weight: 800;
+  line-height: normal;
 }
 
 .app-shell .account-character-switcher span,
@@ -227,21 +247,25 @@
 }
 
 .app-shell .account-character-switcher strong {
-  color: inherit;
-  font-size: var(--font-content);
+  color: var(--text-title);
+  font-size: var(--priority-context);
+  font-weight: 600;
+  line-height: 1.4;
 }
 
 .app-shell .account-character-switcher small {
   margin-top: 2px;
-  color: var(--text-muted);
-  font-size: var(--font-caption);
+  color: var(--text-body);
+  font-size: var(--priority-support);
+  font-weight: 500;
+  line-height: 1.45;
 }
 
 .app-shell .account-actions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: flex-start;
   gap: 6px;
 }
 
@@ -438,10 +462,17 @@
   color: var(--text-body);
   background: var(--card-bg);
   text-align: left;
+}
+
+.app-shell .account-slot-item.is-interactive {
   cursor: pointer;
 }
 
-.app-shell .account-slot-item:hover {
+.app-shell .account-slot-item.is-readonly {
+  cursor: default;
+}
+
+.app-shell .account-slot-item.is-interactive:hover {
   border-color: var(--state-selected-border);
   background: var(--state-selected-bg-hover);
 }
@@ -706,11 +737,17 @@
 
 @media (max-width: 1280px) {
   .app-shell .account-workspace {
-    grid-template-columns: 160px minmax(0, 1fr);
+    grid-template-columns: 180px minmax(0, 1fr);
   }
 
   .app-shell .account-slot-item-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 980px) {
+  .app-shell .account-workspace {
+    grid-template-columns: 160px minmax(0, 1fr);
   }
 }
 

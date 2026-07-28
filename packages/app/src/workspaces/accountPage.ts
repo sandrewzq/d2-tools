@@ -13,6 +13,7 @@ export type AccountItemView = {
   name: string;
   icon?: string;
   meta: string;
+  canOpenDetail: boolean;
   isPending: boolean;
   isLoadoutMatch: boolean;
   openPayload: AccountOpenItemPayload;
@@ -413,12 +414,14 @@ function toAccountItemView(input: {
   isPostmasterItem?: boolean;
 }): AccountItemView {
   const key = getAccountPageItemKey(input.item);
+  const canOpenDetail = input.item.group_key === "weapons" || input.item.group_key === "armor";
   return {
     key,
     name: input.item.name,
     icon: input.item.icon,
     meta: formatAccountItemMeta(input.item),
-    isPending: key === input.openingItemKey,
+    canOpenDetail,
+    isPending: canOpenDetail && key === input.openingItemKey,
     isLoadoutMatch: input.isLoadoutMatch(input.item),
     openPayload: {
       item: input.item,

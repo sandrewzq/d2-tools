@@ -155,6 +155,7 @@ export type HomePageViewProps = {
   onRefreshDiagnostics?: () => void;
   onNavigate?: (page: ShellPageKey) => void;
   onRefreshDaily?: () => void;
+  onOpenWeeklyActivityReward?: (reward: HomeWeeklyActivityReward) => void;
   onOpenXurOffer?: (item: VendorInventoryItemView, context: VendorOfferContextView) => void;
 };
 function homeText(copy: HomeCopy, key: string): string {
@@ -186,6 +187,7 @@ export function HomePageContentView(props: HomePageViewProps) {
       isLoadingDaily={isLoadingDaily}
       onNavigate={props.onNavigate}
       onRefreshDaily={props.onRefreshDaily}
+      onOpenWeeklyActivityReward={props.onOpenWeeklyActivityReward}
       onOpenXurOffer={props.onOpenXurOffer}
     />
   );
@@ -204,6 +206,7 @@ function HomePageContent(props: {
   isLoadingDaily: boolean;
   onNavigate?: (page: ShellPageKey) => void;
   onRefreshDaily?: () => void;
+  onOpenWeeklyActivityReward?: (reward: HomeWeeklyActivityReward) => void;
   onOpenXurOffer?: (item: VendorInventoryItemView, context: VendorOfferContextView) => void;
 }) {
   const priorities = props.weeklySummary?.priorities;
@@ -236,6 +239,7 @@ function HomePageContent(props: {
               key={activity.kind}
               {...activity}
               featured={activity.kind === "nightfall"}
+              onOpenReward={props.onOpenWeeklyActivityReward}
             />
           ))}
         </div>
@@ -405,6 +409,7 @@ function HomeActivityCard(props: {
   label: string;
   priority: HomeWeeklyPriority | undefined;
   featured: boolean;
+  onOpenReward?: (reward: HomeWeeklyActivityReward) => void;
 }) {
   const entries = homePriorityEntries(props.priority);
   const status = entries.length ? "success" : "pending";
@@ -423,6 +428,7 @@ function HomeActivityCard(props: {
               key={`${props.kind}-${entry.title}`}
               entry={entry}
               featured={props.featured}
+              onOpenReward={props.onOpenReward}
             />
           ))}
         </div>
@@ -434,6 +440,7 @@ function HomeActivityCard(props: {
 function HomeActivityEntry(props: {
   entry: HomeWeeklyActivityEntry;
   featured: boolean;
+  onOpenReward?: (reward: HomeWeeklyActivityReward) => void;
 }) {
   const rewards = props.entry.rewards?.filter((reward) => reward.name.trim()) ?? [];
   return (
@@ -446,7 +453,7 @@ function HomeActivityEntry(props: {
         <span data-ui-part="label" data-info-priority="support" data-text-tone="meta">本周奖励</span>
         <div className="weekly-activity-reward-list">
           {rewards.length ? rewards.map((reward) => (
-            <HomeActivityReward key={reward.hash} reward={reward} />
+            <HomeActivityReward key={reward.hash} reward={reward} onOpen={props.onOpenReward} />
           )) : (
             <div className="weekly-activity-reward is-pending">
               <div>
@@ -461,9 +468,11 @@ function HomeActivityEntry(props: {
   );
 }
 
-function HomeActivityReward(props: { reward: HomeWeeklyActivityReward }) {
-  return (
-    <div className="weekly-activity-reward">
+function HomeActivityReward(props: {
+  reward: HomeWeeklyActivityReward;
+  onOpen?: (reward: HomeWeeklyActivityReward) => void;
+}) {
+  const content = <>
       {props.reward.icon ? (
         <span className="weekly-activity-reward-icon"><img src={normalizeBungieIconUrl(props.reward.icon) ?? props.reward.icon} alt="" /></span>
       ) : <span className="weekly-activity-reward-icon is-missing" aria-label={`${props.reward.name} 无图标`}>?</span>}
@@ -471,7 +480,22 @@ function HomeActivityReward(props: { reward: HomeWeeklyActivityReward }) {
         <strong data-ui-part="value" data-info-priority="context" data-text-tone="primary">{props.reward.name}</strong>
         {props.reward.item_type ? <small data-ui-part="detail" data-info-priority="reading" data-text-tone="body">{props.reward.item_type}</small> : null}
       </div>
-    </div>
+    </>;
+
+  const isActionable = Boolean(props.onOpen) && Number.isFinite(props.reward.hash) && props.reward.hash > 0;
+  if (!isActionable) return <div className="weekly-activity-reward">{content}</div>;
+
+  return (
+    <button
+      type="button"
+      className="weekly-activity-reward is-actionable"
+      data-ui-kind="button"
+      data-control-variant="quiet"
+      aria-label={`查看${props.reward.name}详情`}
+      onClick={() => props.onOpen?.(props.reward)}
+    >
+      {content}
+    </button>
   );
 }
 

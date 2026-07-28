@@ -147,8 +147,8 @@ function AccountPageWorkspace(props: {
       <ProductWorkspaceSplit className="account-workspace">
       <ProductWorkspaceSideRail element="aside" className="account-directory" ariaLabel={accountText(props.copy, "账号目录")} scrollRegion="pane" surface="list">
         <div className="account-column-head">
-          <h3>账号目录</h3>
-          <span>{profile.accountName}</span>
+          <h3 data-ui-part="value" data-info-priority="context" data-text-tone="primary">账号目录</h3>
+          <span data-ui-part="detail" data-info-priority="trace" data-text-tone="meta">{profile.accountName}</span>
         </div>
         <div className="account-directory-tabs" role="tablist" aria-label={accountText(props.copy, "账号数据视图")}>
           {navigation.map((item, index) => (
@@ -175,11 +175,18 @@ function AccountPageWorkspace(props: {
         <section className="account-summary" data-surface="section" aria-busy={props.viewModel.connection.isLoadingAccount}>
           <div className="account-band-heading">
             <div>
-              <span>{profile.profileLine}</span>
-              <h2>{profile.accountName}</h2>
-              <p>{props.viewModel.characterTabs.length} 个角色 · {profile.inventoryLine}</p>
+              <span data-ui-part="label" data-info-priority="support" data-text-tone="meta">{profile.profileLine}</span>
+              <h2 data-ui-part="value" data-info-priority="display" data-text-tone="primary">{profile.accountName}</h2>
+              <p data-ui-part="detail" data-info-priority="reading" data-text-tone="body">{props.viewModel.characterTabs.length} 个角色 · {profile.inventoryLine}</p>
             </div>
-            <span className={`ui-badge ${props.viewModel.connection.isLoadingAccount ? "status-pending" : "status-ready"}`}>
+            <span
+              className={`ui-badge ${props.viewModel.connection.isLoadingAccount ? "status-pending" : "status-ready"}`}
+              data-ui-kind="status-chip"
+              data-ui-part="state"
+              data-info-priority="support"
+              data-text-tone="status"
+              data-status={props.viewModel.connection.isLoadingAccount ? "pending" : "success"}
+            >
               {props.viewModel.connection.isLoadingAccount ? accountText(props.copy, "账号刷新中") : accountText(props.copy, "账号已读取")}
             </span>
           </div>
@@ -194,7 +201,10 @@ function AccountPageWorkspace(props: {
                 onClick={() => props.actions.selectCharacter(tab.key)}
               >
                 <b aria-hidden="true">{tab.className.slice(0, 1)}</b>
-                <span><strong>{tab.className}</strong><small>{tab.lightLabel}</small></span>
+                <span>
+                  <strong data-ui-part="value" data-info-priority="context" data-text-tone="primary">{tab.className}</strong>
+                  <small data-ui-part="detail" data-info-priority="support" data-text-tone="body">{tab.lightLabel}</small>
+                </span>
               </button>
             ))}
           </div>
@@ -220,7 +230,10 @@ function AccountPageWorkspace(props: {
           aria-busy={props.viewModel.connection.isLoadingAccount}
           hidden={props.section !== "gear"}
         >
-            <div className="account-column-head"><h3>{props.selectedCharacter.className}当前装备与背包</h3><span>装备 {props.viewModel.loadout.equippedCount} 件 · 背包候选 {props.viewModel.loadout.inventoryCount} 件 · 按位置对照</span></div>
+            <div className="account-column-head">
+              <h3 data-ui-part="value" data-info-priority="context" data-text-tone="primary">{props.selectedCharacter.className}当前装备与背包</h3>
+              <span data-ui-part="detail" data-info-priority="support" data-text-tone="body">装备 {props.viewModel.loadout.equippedCount} 件 · 背包候选 {props.viewModel.loadout.inventoryCount} 件 · 按位置对照</span>
+            </div>
             <AccountSlotComparison
               isRefreshing={props.viewModel.connection.isLoadingAccount}
               rows={props.viewModel.loadout.slotComparisonRows}
@@ -246,7 +259,7 @@ function AccountPageWorkspace(props: {
                   <article><span>PVP 完成情况</span><strong>{props.activitySummary.recent.pvp.completed} 场</strong><p>最近记录中的 PVP 完成情况</p></article>
                   <article><span>突袭 / 地牢</span><strong>{props.activitySummary.raids.entries.filter((entry) => entry.activity_type === "raid").length} / {props.activitySummary.raids.entries.filter((entry) => entry.activity_type === "dungeon").length}</strong><p>当前可读取的完成记录</p></article>
                 </div>
-                <div className="account-column-head"><h3>最近 10 场</h3><span>Activity History</span></div>
+                <div className="account-column-head"><h3 data-ui-part="value" data-info-priority="context" data-text-tone="primary">最近 10 场</h3><span data-ui-part="detail" data-info-priority="support" data-text-tone="body">Activity History</span></div>
                 {props.activitySummary.recent_items.length ? (
                   <div className="account-table-list">
                     {props.activitySummary.recent_items.slice(0, 10).map((item, index) => (
@@ -269,7 +282,7 @@ function AccountPageWorkspace(props: {
           aria-labelledby="account-tab-materials"
           hidden={props.section !== "materials"}
         >
-            <div className="account-column-head"><h3>材料与消耗品</h3><span>{props.viewModel.materials.rows.length} 种</span></div>
+            <div className="account-column-head"><h3 data-ui-part="value" data-info-priority="context" data-text-tone="primary">材料与消耗品</h3><span data-ui-part="detail" data-info-priority="support" data-text-tone="body">{props.viewModel.materials.rows.length} 种</span></div>
             {props.viewModel.materials.rows.length ? (
               <div className="account-table-list account-material-list">
                 {props.viewModel.materials.rows.map((row) => (
@@ -291,11 +304,11 @@ function AccountPageWorkspace(props: {
           aria-labelledby="account-tab-postmaster"
           hidden={props.section !== "postmaster"}
         >
-            <div className="account-column-head"><h3>邮政官只读物品</h3><span>{props.viewModel.postmaster.items.length} 件 · 只读</span></div>
+            <div className="account-column-head"><h3 data-ui-part="value" data-info-priority="context" data-text-tone="primary">邮政官只读物品</h3><span data-ui-part="detail" data-info-priority="support" data-text-tone="body">{props.viewModel.postmaster.items.length} 件 · 只读</span></div>
             <div className="account-section-notice status-message status-warning">邮政官区域只展示当前可读取物品；取回操作会明确选择目标角色，不在列表中自动执行。</div>
             {props.viewModel.postmaster.items.length ? (
               <div className="account-item-list">
-                {props.viewModel.postmaster.items.map((item) => renderAccountItemButton(item, "inventory", { onOpenItem: props.actions.openItem, copy: props.copy }))}
+                {props.viewModel.postmaster.items.map((item) => renderAccountItemCard(item, "inventory", { onOpenItem: props.actions.openItem, copy: props.copy }))}
               </div>
             ) : <AccountInlineState title={accountText(props.copy, "邮政官为空")} detail={accountText(props.copy, "当前角色的账号快照没有邮政官物品。")} />}
         </section>
@@ -425,7 +438,7 @@ function renderAccountItemGrid(
 
   return (
     <div className="account-slot-item-grid">
-      {visibleItems.map((item) => renderAccountItemButton(item, source, {
+      {visibleItems.map((item) => renderAccountItemCard(item, source, {
         onOpenItem: props.onOpenItem,
         copy: props.copy
       }))}
@@ -439,7 +452,7 @@ function renderAccountItemGrid(
   );
 }
 
-function renderAccountItemButton(
+function renderAccountItemCard(
   item: AccountItemView,
   source: AccountItemSource,
   props: {
@@ -447,20 +460,15 @@ function renderAccountItemButton(
     copy: AccountCopy;
   }
 ) {
-  return (
-    <button
-      type="button"
-      className={[
-        "account-slot-item",
-        source === "equipped" ? "equipped" : "inventory",
-        item.isPending ? "pending" : "",
-        item.isLoadoutMatch ? "loadout-highlight" : ""
-      ].filter(Boolean).join(" ")}
-      key={item.key}
-      aria-busy={item.isPending}
-      aria-label={`${accountText(props.copy, "查看")}${item.name}${accountText(props.copy, "详情")}`}
-      onClick={() => props.onOpenItem(item.openPayload)}
-    >
+  const className = [
+    "account-slot-item",
+    source === "equipped" ? "equipped" : "inventory",
+    item.canOpenDetail ? "is-interactive" : "is-readonly",
+    item.isPending ? "pending" : "",
+    item.isLoadoutMatch ? "loadout-highlight" : ""
+  ].filter(Boolean).join(" ");
+  const content = (
+    <>
       {item.icon ? (
         <img
           alt=""
@@ -477,6 +485,29 @@ function renderAccountItemButton(
         {item.isLoadoutMatch ? <em data-status="success">{accountText(props.copy, "配装引用")}</em> : null}
         {item.isPending ? <em data-status="pending">{accountText(props.copy, "正在打开详情")}</em> : null}
       </span>
+    </>
+  );
+
+  if (!item.canOpenDetail) {
+    return (
+      <div className={className} data-ui-kind="object-card" data-interactive="false" key={item.key}>
+        {content}
+      </div>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      className={className}
+      data-ui-kind="object-card"
+      data-control-variant="quiet"
+      key={item.key}
+      aria-busy={item.isPending}
+      aria-label={`${accountText(props.copy, "查看")}${item.name}${accountText(props.copy, "详情")}`}
+      onClick={() => props.onOpenItem(item.openPayload)}
+    >
+      {content}
     </button>
   );
 }

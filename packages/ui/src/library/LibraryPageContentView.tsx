@@ -16,6 +16,7 @@ import type {
 import { getLocaleCopy } from "../i18n/copy.js";
 import type { InterfaceLocale, LibraryCopy } from "../i18n/types.js";
 import type { VendorOfferContext } from "../item-detail/SharedItemDetailDialog.js";
+import { formatStandardDateTime } from "../time/formatTime.js";
 import {
   ProductWorkspaceContentStack,
   ProductWorkspaceEmptyState,
@@ -73,7 +74,7 @@ export function LibraryPageContentView(props: LibraryPageContentViewProps) {
   const hitCount = model.results.hitCount;
   const isManifestBlocked = model.queryPanel.isManifestBlocked;
   const manifestAlert = buildManifestAlert(model.manifestAlert, copy);
-  const manifestSummary = buildManifestSummary(model, copy);
+  const manifestSummary = buildManifestSummary(model, copy, props.interfaceLocale ?? "zh-CN");
   const equipmentRows = useMemo(
     () => model.results.equipmentGroups.flatMap((group) => group.items),
     [model.results.equipmentGroups]
@@ -292,12 +293,17 @@ function buildManifestAlert(
 
 function buildManifestSummary(
   model: LibraryPageModel,
-  copy: LibraryCopy
+  copy: LibraryCopy,
+  locale: InterfaceLocale
 ): Array<{ label: string; value: string; detail: string; className?: string }> {
   const summary = model.manifestSummary;
   const activeVersion = summary.version ?? (summary.initialized === false ? libraryText(copy, "未初始化") : libraryText(copy, "未读取"));
   const latestVersion = summary.latestVersion ?? libraryText(copy, "等待检查");
   const hasMissingComponents = summary.missingComponentCount > 0;
+  const activatedAt = formatStandardDateTime(summary.activatedAt, libraryText(copy, "未读取"));
+  const checkedAt = formatStandardDateTime(summary.checkedAt, libraryText(copy, "未读取"));
+  const language = summary.language ?? libraryText(copy, "未记录");
+  const definitionCounts = formatManifestDefinitionCounts(summary, locale, copy);
   const status = summary.statusError
     ? { value: libraryText(copy, "读取失败"), className: "status-error", detail: libraryText(copy, "状态读取失败，使用页面操作重新检查") }
     : summary.initialized === null
@@ -308,21 +314,33 @@ function buildManifestSummary(
           ? { value: libraryText(copy, "需要修复"), className: "status-warning", detail: libraryText(copy, "搜索和详情可能不完整") }
           : summary.needsUpdate
             ? { value: libraryText(copy, "需要更新"), className: "status-warning", detail: libraryText(copy, "旧资料库仍保留为当前激活版本") }
-            : { value: libraryText(copy, "可用"), className: "status-ready", detail: libraryText(copy, "搜索和详情可以使用") };
+            : { value: libraryText(copy, "完整"), className: "status-ready", detail: `${libraryText(copy, "语言：")}${language}` };
   const integrity = summary.initialized === null
     ? { value: libraryText(copy, "正在检查"), detail: libraryText(copy, "等待必要组件状态") }
     : summary.initialized === false
       ? { value: libraryText(copy, "尚未建立"), detail: libraryText(copy, "必要组件未初始化") }
       : hasMissingComponents
-        ? { value: `${libraryText(copy, "缺失")} ${summary.missingComponentCount} ${libraryText(copy, "项")}`, detail: libraryText(copy, "必要组件检查未通过") }
-        : { value: libraryText(copy, "定义完整"), detail: libraryText(copy, "必要组件检查已通过") };
+        ? { value: `${libraryText(copy, "缺失")} ${summary.missingComponentCount} ${libraryText(copy, "项")}`, detail: definitionCounts }
+        : { value: libraryText(copy, "定义完整"), detail: definitionCounts };
 
   return [
-    { label: libraryText(copy, "激活版本"), value: activeVersion, detail: libraryText(copy, "当前本地 Manifest") },
-    { label: libraryText(copy, "最新版本"), value: latestVersion, detail: libraryText(copy, "最近一次版本检查") },
+    { label: libraryText(copy, "激活版本"), value: activeVersion, detail: `${libraryText(copy, "激活于")} ${activatedAt}` },
+    { label: libraryText(copy, "最新版本"), value: latestVersion, detail: `${libraryText(copy, "检查于")} ${checkedAt}` },
     { label: libraryText(copy, "资料库状态"), ...status },
     { label: libraryText(copy, "完整性"), ...integrity }
   ];
+}
+
+function formatManifestDefinitionCounts(
+  summary: LibraryPageModel["manifestSummary"],
+  locale: InterfaceLocale,
+  copy: LibraryCopy
+): string {
+  if (summary.itemCount === undefined || summary.perkCount === undefined || summary.relationCount === undefined) {
+    return libraryText(copy, "定义数量未读取");
+  }
+  const numberLocale = locale === "en-US" ? "en-US" : "zh-CN";
+  return `${libraryText(copy, "装备")} ${summary.itemCount.toLocaleString(numberLocale)} · Perk ${summary.perkCount.toLocaleString(numberLocale)} · ${libraryText(copy, "关系")} ${summary.relationCount.toLocaleString(numberLocale)}`;
 }
 
 function renderEquipmentResult(

@@ -1,4 +1,5 @@
 import { HomeDashboard } from "../../features/home/HomeDashboard";
+import { createHomeWeeklyActivityRewardDetailTarget } from "@d2-tools/app/home";
 import { useAccountSummaryStore, useHasAccountDataStore } from "../../shared/stores/accountEntityStore";
 import { useDesktopMenuSession } from "./DesktopMenuProviderContext";
 
@@ -39,6 +40,12 @@ export function HomeMenuProvider() {
       onRefreshDiagnostics={() => void diagnostics.refreshDiagnostics()}
       onNavigate={session.setActivePage}
       onRefreshDaily={() => void daily.loadDailySummary(true)}
+      onOpenWeeklyActivityReward={(reward) => {
+        session.vendorDefinitionDetail.close();
+        void session.writeActions.itemDetail.openItemDetail(
+          createHomeWeeklyActivityRewardDetailTarget(reward)
+        );
+      }}
       onOpenXurOffer={(item, context) => {
         session.writeActions.itemDetail.closeSelectedItemDetail();
         void session.vendorDefinitionDetail.open(item, context);

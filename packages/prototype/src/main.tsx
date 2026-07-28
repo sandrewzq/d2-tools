@@ -21,6 +21,7 @@ import {
   type LibraryEquipmentFilter,
   type LibraryPerkFilter,
   type LibraryViewMode,
+  type HomeWeeklyActivityReward,
   type ProductPreferences,
   type ShellAssistantMode,
   type ShellPageKey,
@@ -28,7 +29,13 @@ import {
   type VendorInventoryItemView,
   type VendorOfferContextView,
 } from "@d2-tools/ui";
-import { buildArmorDetailViewModel, type ArmorDetailViewModel } from "@d2-tools/app/items";
+import { createHomeWeeklyActivityRewardDetailTarget } from "@d2-tools/app/home";
+import {
+  buildArmorDetailViewModel,
+  buildWeaponDetailViewModel,
+  type ArmorDetailViewModel,
+  type WeaponDetailViewModel
+} from "@d2-tools/app/items";
 import "@d2-tools/ui/styles.css";
 import {
   defaultPrototypeScenarioKey,
@@ -86,6 +93,12 @@ function PrototypeApp() {
   } | null>(null);
   const [isWeaponDetailOpen, setIsWeaponDetailOpen] = useState(false);
   const [armorDetailModel, setArmorDetailModel] = useState<ArmorDetailViewModel | null>(null);
+  const [weeklyRewardDetail, setWeeklyRewardDetail] = useState<{
+    name: string;
+    itemType?: string;
+    armor?: ArmorDetailViewModel;
+    weapon?: WeaponDetailViewModel;
+  } | null>(null);
   const [weaponObjectKind, setWeaponObjectKind] = useState<PrototypeWeaponObjectKind>("account_instance");
   const [weaponRarity, setWeaponRarity] = useState<PrototypeWeaponRarity>("legendary");
   const [selectedWeaponVersionHash, setSelectedWeaponVersionHash] = useState(4401);
@@ -195,6 +208,17 @@ function PrototypeApp() {
     setWeaponObjectKind("vendor_offer");
     setWeaponRarity(item.tone === "exotic" ? "exotic" : "legendary");
     setIsWeaponDetailOpen(true);
+  }
+
+  function openPrototypeWeeklyReward(reward: HomeWeeklyActivityReward) {
+    const target = createHomeWeeklyActivityRewardDetailTarget(reward);
+    setVendorDetail(null);
+    setGenericVendorDetail(null);
+    setIsWeaponDetailOpen(false);
+    setArmorDetailModel(null);
+    setWeeklyRewardDetail(target.group_key === "armor"
+      ? { name: target.name, itemType: target.item_type, armor: buildArmorDetailViewModel({ item: target }) }
+      : { name: target.name, itemType: target.item_type, weapon: buildWeaponDetailViewModel({ item: target }) });
   }
 
   return (
@@ -312,6 +336,7 @@ function PrototypeApp() {
               {...fixture.createHomePageModel(scenario)}
               onNavigate={setActivePage}
               onRefreshDiagnostics={() => undefined}
+              onOpenWeeklyActivityReward={openPrototypeWeeklyReward}
               onOpenXurOffer={openPrototypeVendorDetail}
             />
           ) : null}
@@ -653,6 +678,19 @@ function PrototypeApp() {
                 sections={<ArmorDetailContent model={armorDetailModel} />}
               />
             ) : null}
+            {weeklyRewardDetail ? (
+              <SharedItemDetailDialog
+                detail={{ name: weeklyRewardDetail.name }}
+                variant={weeklyRewardDetail.armor ? "armor" : "weapon"}
+                subtitle={`本周活动奖励 · ${weeklyRewardDetail.itemType ?? "装备定义"}`}
+                objectContext="资料库定义"
+                closeLabel="关闭奖励详情"
+                onClose={() => setWeeklyRewardDetail(null)}
+                sections={weeklyRewardDetail.armor
+                  ? <ArmorDetailContent model={weeklyRewardDetail.armor} />
+                  : <WeaponDetailContent model={weeklyRewardDetail.weapon!} />}
+              />
+            ) : null}
             {genericVendorDetail ? (
              <SharedItemDetailDialog
                detail={{ name: genericVendorDetail.item.name }}
@@ -736,7 +774,7 @@ function getPrototypePageHeader(page: ShellPageKey) {
       </>
     ),
     account: <><ControlButton>刷新账号</ControlButton><ControlButton>重新授权</ControlButton></>,
-    vault: <><ControlButton>复制清理清单</ControlButton><ControlButton variant="primary">刷新账号装备</ControlButton></>,
+    vault: <ControlButton variant="primary">刷新账号装备</ControlButton>,
     library: <><ControlButton>重新检查资料库</ControlButton><ControlButton variant="primary">修复资料库</ControlButton></>,
     vendors: <ControlButton variant="primary">刷新商人库存</ControlButton>
   };

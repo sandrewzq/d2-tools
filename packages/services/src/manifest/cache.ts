@@ -39,6 +39,9 @@ export type ManifestStatus = {
   language?: string;
   sqlite_path?: string;
   cached_at?: string;
+  item_count?: number;
+  perk_count?: number;
+  relation_count?: number;
   definitions?: DefinitionComponentStatus[];
   missing_required_components?: DefinitionComponentName[];
   missing_optional_components?: DefinitionComponentName[];

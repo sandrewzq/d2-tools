@@ -83,6 +83,12 @@ export type ManifestStatus = {
   version?: string;
   latest_version?: string;
   needs_update?: boolean;
+  checked_at?: string;
+  language?: string;
+  cached_at?: string;
+  item_count?: number;
+  perk_count?: number;
+  relation_count?: number;
   missing_required_components?: string[];
 };
 
@@ -245,6 +251,12 @@ export type LibraryPageModel = {
     initialized: boolean | null;
     version?: string;
     latestVersion?: string;
+    activatedAt?: string;
+    checkedAt?: string;
+    language?: string;
+    itemCount?: number;
+    perkCount?: number;
+    relationCount?: number;
     needsUpdate: boolean;
     missingComponentCount: number;
     statusError: string;
@@ -347,6 +359,12 @@ export function selectLibraryPageModel(cache: LibraryPageCache, state: LibraryPa
       initialized: cache.manifestStatus?.initialized ?? null,
       version: cache.manifestStatus?.version,
       latestVersion: cache.manifestStatus?.latest_version,
+      activatedAt: cache.manifestStatus?.cached_at,
+      checkedAt: cache.manifestStatus?.checked_at,
+      language: cache.manifestStatus?.language,
+      itemCount: cache.manifestStatus?.item_count,
+      perkCount: cache.manifestStatus?.perk_count,
+      relationCount: cache.manifestStatus?.relation_count,
       needsUpdate: Boolean(cache.manifestStatus?.needs_update),
       missingComponentCount: cache.manifestStatus?.missing_required_components?.length ?? 0,
       statusError: cache.manifestStatusError

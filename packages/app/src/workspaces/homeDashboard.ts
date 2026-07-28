@@ -58,6 +58,22 @@ export type HomeDashboardWeeklyPriorityKind =
   | "weekly_bonus"
   | "special_event";
 
+export type HomeDashboardWeeklyActivityReward = {
+  hash: number;
+  name: string;
+  icon?: string;
+  item_type?: string;
+};
+
+export type HomeDashboardWeeklyActivityEntry = {
+  title: string;
+  detail?: string;
+  evidence?: string;
+  source?: string;
+  related_hashes?: number[];
+  rewards?: HomeDashboardWeeklyActivityReward[];
+};
+
 export type HomeDashboardWeeklySummary = {
   weekly_reset: {
     label: string;
@@ -70,6 +86,7 @@ export type HomeDashboardWeeklySummary = {
     detail: string;
     evidence?: string;
     source?: string;
+    entries?: HomeDashboardWeeklyActivityEntry[];
   }>;
   public_clues: Array<{
     title: string;
@@ -120,4 +137,45 @@ export type HomeDashboardActions = {
   onRefreshDiagnostics: () => void;
   onNavigate: (page: "home" | "account" | "vault" | "loadouts" | "library" | "vendors" | "settings") => void;
   onRefreshDaily: () => void;
+  onOpenWeeklyActivityReward: (reward: HomeDashboardWeeklyActivityReward) => void;
 };
+
+export type HomeDashboardItemDetailTarget = {
+  hash: number;
+  name: string;
+  description: string;
+  icon?: string;
+  item_type?: string;
+  group_key?: "weapons" | "armor";
+  source: {
+    status: "missing";
+    label: string;
+    description: string;
+  };
+};
+
+const armorRewardTypePattern = /头盔|臂铠|胸部护甲|胸甲|腿部护甲|腿甲|职业物品|护甲|helmet|gauntlets|chest armor|leg armor|class item|armor/i;
+const weaponRewardTypePattern = /步枪|手炮|弓|霰弹枪|狙击枪|榴弹发射器|机枪|火箭发射器|剑|融合步枪|线性融合步枪|冲锋枪|手枪|偃月|weapon|rifle|launcher|cannon|shotgun|sniper|sword|glaive|bow/i;
+
+export function createHomeWeeklyActivityRewardDetailTarget(
+  reward: HomeDashboardWeeklyActivityReward
+): HomeDashboardItemDetailTarget {
+  const itemType = reward.item_type?.trim() ?? "";
+  const groupKey = armorRewardTypePattern.test(itemType)
+    ? "armor"
+    : (weaponRewardTypePattern.test(itemType) ? "weapons" : undefined);
+
+  return {
+    hash: reward.hash,
+    name: reward.name,
+    description: "本周活动已确认该奖励，正在读取完整装备定义。",
+    icon: reward.icon,
+    item_type: reward.item_type,
+    group_key: groupKey,
+    source: {
+      status: "missing",
+      label: "来源详情待读取",
+      description: "打开详情后从当前 Manifest 读取官方来源。"
+    }
+  };
+}
