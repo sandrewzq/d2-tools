@@ -21,13 +21,13 @@
 1. 三个 HTML 统一先加载页面 CSS，再加载 `prototype-design-system.css`；该文件必须保持自包含，不得导入产品 CSS。静态原型与产品通过规格卡和视觉验收对齐，而非运行时文件依赖。
 2. 一个视觉职责只能有一个所有者；加载顺序是防回归边界，不是允许保留重复声明的理由。
 3. 页面 CSS 与公共 CSS 可以同时命中同一元素，但声明属性必须分工明确。例如页面 CSS 可以定义 `grid-template-columns`，公共 CSS 定义边框、状态背景、`Tone + Priority`、图标尺寸、焦点环、阴影和层级。
-4. 页面 CSS 不得重新声明 `--page`、`--panel`、`--surface`、`--line`、`--text`、语义色、文字 `Tone + Priority`、公共圆角、公共控件高度、阴影、层级和字体等共享 token，也不得为标准文字或控件直接挑选颜色、字号和字重。
+4. 页面 CSS 不得重新声明 `--page`、`--panel`、`--surface`、`--shell-divider`、`--section-divider`、`--object-border`、`--control-border`、`--text`、语义色、文字 `Tone + Priority`、公共圆角、公共控件高度、阴影、层级和字体等共享 token，也不得为标准文字或控件直接挑选颜色、字号和字重。
 5. 页面 CSS 不得重新声明全局 `button/input/select/textarea` 的字体、焦点、禁用和 active reset。
 6. 发现同一 selector 多次出现时，先判断是否为响应式或状态变体；普通后置覆盖必须合并到唯一有效规则，失效声明直接删除。
 7. 原型源码只用于定位结构和职责；视觉数值以浏览器加载全部样式后的最终计算结果为准。
 8. 滚动条颜色、宽度、圆角和交互状态只由公共设计系统定义；页面 CSS 只决定纵向滚动所有权，不得建立水平滚动轨道。
 9. 主题 token 定义以外不得直接写十六进制颜色；页面 CSS 的文字、图标、状态和背景只能引用全局合同规定的语义角色。任何例外先写入全局合同并补齐 light / dark 对。
-10. 圆角按“基础值 → 语义别名 → 组件配方”三层使用。页面 CSS 不得写裸圆角数值；`0` 仅用于结构面，`--radius-control` 用于控件和媒体，`--radius-panel` 用于独立对象，`--radius-pill` 仅用于短标签、计数和进度。顶部 Shell 状态项不是独立 Chip。
+10. 圆角按“基础值 → 语义别名 → 组件配方”三层使用。页面 CSS 不得写裸圆角数值；`0` 仅用于结构面，`--radius-frame` 用于状态矩阵、摘要和状态框，`--radius-control` 用于控件和媒体，`--radius-object` 用于独立对象，`--radius-indicator` 仅用于短标签、计数和进度。顶部 Shell 状态项不是独立 Chip。
 11. 原型的稳定共享对象必须提供 `data-contract-id` 或稳定 `data-ui-kind`，以便后续检查最终计算样式；禁止只靠 class 名和 CSS 加载顺序判断视觉合同。
 
 ## 还原检查

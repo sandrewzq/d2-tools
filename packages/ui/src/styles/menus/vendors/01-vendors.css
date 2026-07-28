@@ -5,7 +5,9 @@
   align-content: center;
   min-height: 160px;
   padding: 18px;
-  border-radius: 0;
+  border: 1px solid var(--object-border);
+  border-radius: var(--radius-frame);
+  background: var(--card-bg);
   color: var(--text-muted);
   text-align: center;
 }
@@ -15,7 +17,7 @@
   color: var(--text-title);
 }
 
-.app-shell .vendor-page-empty .secondary-button {
+.app-shell .vendor-page-empty [data-control-variant="secondary"] {
   justify-self: center;
   min-height: 34px;
   margin-top: 6px;
@@ -149,7 +151,7 @@
   min-height: 22px;
   padding: 0 8px;
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-indicator);
   color: var(--text-muted);
   background: var(--surface-panel);
   font-size: var(--font-caption);
@@ -330,7 +332,7 @@
   min-height: 118px;
   padding: 9px;
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-panel);
+  border-radius: var(--radius-object);
   color: var(--text-body);
   background: var(--surface-panel);
   text-align: left;

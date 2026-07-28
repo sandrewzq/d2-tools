@@ -223,7 +223,7 @@ export function VaultTargetRulesPanel(props: {
         </div>
         <button
           type="button"
-          className="secondary-button"
+          data-ui-kind="button" data-control-variant="secondary"
           disabled={!(rules.armor.length || rules.weapons?.length) || isSaving}
           onClick={() => void clearRules()}
         >
@@ -247,7 +247,7 @@ export function VaultTargetRulesPanel(props: {
                 <strong>{rule.name}</strong>
                 <span>护甲：{formatRuleConditions(rule.conditions)}</span>
               </div>
-              <button type="button" className="secondary-button" disabled={isSaving} onClick={() => void removeArmorRule(rule.id)}>
+              <button type="button" data-ui-kind="button" data-control-variant="secondary" disabled={isSaving} onClick={() => void removeArmorRule(rule.id)}>
                 移除
               </button>
             </div>
@@ -258,7 +258,7 @@ export function VaultTargetRulesPanel(props: {
                 <strong>{rule.name}</strong>
                 <span>武器：{rule.item_name} / {formatWeaponRuleConditions(rule.conditions)}</span>
               </div>
-              <button type="button" className="secondary-button" disabled={isSaving} onClick={() => void removeWeaponRule(rule.id)}>
+              <button type="button" data-ui-kind="button" data-control-variant="secondary" disabled={isSaving} onClick={() => void removeWeaponRule(rule.id)}>
                 移除
               </button>
             </div>
@@ -311,7 +311,7 @@ export function VaultTargetRulesPanel(props: {
                 placeholder="20"
               />
             </label>
-            <button type="button" className="secondary-button" disabled={conditions.length === 1} onClick={() => removeCondition(index)}>
+            <button type="button" data-ui-kind="button" data-control-variant="secondary" disabled={conditions.length === 1} onClick={() => removeCondition(index)}>
               移除
             </button>
           </div>
@@ -319,10 +319,10 @@ export function VaultTargetRulesPanel(props: {
       </div>
 
       <div className="button-row">
-        <button type="button" className="secondary-button" onClick={addCondition}>
+        <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={addCondition}>
           添加属性条件
         </button>
-        <button type="button" className="secondary-button" disabled={isSaving} onClick={() => void saveArmorDraft()}>
+        <button type="button" data-ui-kind="button" data-control-variant="secondary" disabled={isSaving} onClick={() => void saveArmorDraft()}>
           保存护甲目标
         </button>
       </div>
@@ -367,7 +367,7 @@ export function VaultTargetRulesPanel(props: {
           </label>
           <button
             type="button"
-            className="secondary-button"
+            data-ui-kind="button" data-control-variant="secondary"
             disabled={isSearchingPerks}
             onClick={() => void searchManifestPerks()}
           >
@@ -410,7 +410,7 @@ export function VaultTargetRulesPanel(props: {
                   ) : null}
                 </select>
               </label>
-              <button type="button" className="secondary-button" disabled={weaponConditions.length === 1} onClick={() => removeWeaponCondition(index)}>
+              <button type="button" data-ui-kind="button" data-control-variant="secondary" disabled={weaponConditions.length === 1} onClick={() => removeWeaponCondition(index)}>
                 移除
               </button>
             </div>
@@ -419,10 +419,10 @@ export function VaultTargetRulesPanel(props: {
       </div>
 
       <div className="button-row">
-        <button type="button" className="secondary-button" disabled={!selectedWeapon} onClick={addWeaponCondition}>
+        <button type="button" data-ui-kind="button" data-control-variant="secondary" disabled={!selectedWeapon} onClick={addWeaponCondition}>
           添加 perk 条件
         </button>
-        <button type="button" className="secondary-button" disabled={isSaving} onClick={() => void saveWeaponDraft()}>
+        <button type="button" data-ui-kind="button" data-control-variant="secondary" disabled={isSaving} onClick={() => void saveWeaponDraft()}>
           保存武器目标
         </button>
         {message ? <span className="muted-copy">{message}</span> : null}

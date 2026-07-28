@@ -25,8 +25,8 @@ function DefaultAccountPrototype(props: { interfaceLocale?: InterfaceLocale }) {
           <p>{accountText(copy, "角色、装备、背包和账号操作收口在同一个页面。")}</p>
         </div>
         <div className="account-actions">
-          <button className="secondary-button" type="button">{accountText(copy, "刷新账号")}</button>
-          <button className="secondary-button" type="button">{accountText(copy, "重新授权")}</button>
+          <button data-ui-kind="button" data-control-variant="secondary" type="button">{accountText(copy, "刷新账号")}</button>
+          <button data-ui-kind="button" data-control-variant="secondary" type="button">{accountText(copy, "重新授权")}</button>
         </div>
       </section>
 

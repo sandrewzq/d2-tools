@@ -155,8 +155,8 @@ export function LoadoutsPageContentView(props: LoadoutsPageContentViewProps) {
         </div>
         {mode === "local" ? (
           <div className="loadout-mode-actions">
-            <button type="button" className="secondary-button" onClick={() => setIsDimImportNoticeVisible(true)}>导入 DIM 配装</button>
-            <button type="button" className="primary-button" disabled={!activeCharacter} onClick={() => activeCharacter && props.actions.createLocalPlanFromCharacter(activeCharacter)}>新建本地方案</button>
+            <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={() => setIsDimImportNoticeVisible(true)}>导入 DIM 配装</button>
+            <button type="button" data-ui-kind="button" data-control-variant="primary" disabled={!activeCharacter} onClick={() => activeCharacter && props.actions.createLocalPlanFromCharacter(activeCharacter)}>新建本地方案</button>
           </div>
         ) : null}
       </div>
@@ -241,7 +241,7 @@ function InGameWorkspace(props: {
         ) : (
           <div className="loadout-empty-detail-head">
             <ProductWorkspaceEmptyState><h2>没有可查看的游戏内配装</h2><p>当前角色没有包含装备的 Bungie 配装槽位，仍可把当前装备保存到任意真实槽位。</p></ProductWorkspaceEmptyState>
-            {props.activeCharacter && slots.length ? <button type="button" className="primary-button" disabled={props.isRunningItemAction} onClick={() => setIsSlotPickerVisible((visible) => !visible)}>保存当前配装</button> : null}
+            {props.activeCharacter && slots.length ? <button type="button" data-ui-kind="button" data-control-variant="primary" disabled={props.isRunningItemAction} onClick={() => setIsSlotPickerVisible((visible) => !visible)}>保存当前配装</button> : null}
           </div>
         )}
         {isSlotPickerVisible && props.activeCharacter ? (
@@ -274,8 +274,8 @@ function InGameLoadoutSlotDetail(props: {
       <header className="loadout-detail-head">
         <div><span className="loadout-eyebrow">游戏内配装 · 槽位 {String(slot.index + 1).padStart(2, "0")}</span><h2>{slot.name || `配装栏 ${slot.index + 1}`}</h2><p>{character.class_name} · Bungie 保存的装备实例。未返回的 Perk、技能和模组不会在这里伪造显示。</p></div>
         <div className="loadout-action-stack">
-          <button type="button" className="primary-button" disabled={props.isRunningItemAction} onClick={() => props.actions.equipSavedLoadout(character, slot)}>应用游戏内配装</button>
-          <button type="button" className="secondary-button" disabled={props.isRunningItemAction} onClick={props.onOpenSlotPicker}>保存当前配装</button>
+          <button type="button" data-ui-kind="button" data-control-variant="primary" disabled={props.isRunningItemAction} onClick={() => props.actions.equipSavedLoadout(character, slot)}>应用游戏内配装</button>
+          <button type="button" data-ui-kind="button" data-control-variant="secondary" disabled={props.isRunningItemAction} onClick={props.onOpenSlotPicker}>保存当前配装</button>
         </div>
       </header>
       <div className="loadout-section-label"><span>保存的装备 · 当前账号状态</span><span>{slot.items.length} 件记录</span></div>
@@ -322,7 +322,7 @@ function InGameSlotPicker(props: {
           );
         })}
       </div>
-      <footer><button type="button" className="primary-button" disabled={!props.selectedSlot || props.isRunningItemAction} onClick={() => props.selectedSlot && props.onSave(props.selectedSlot)}>{props.selectedSlot && (props.selectedSlot.item_count > 0 || props.selectedSlot.items.length > 0) ? "确认覆盖" : "保存到槽位"}</button></footer>
+      <footer><button type="button" data-ui-kind="button" data-control-variant="primary" disabled={!props.selectedSlot || props.isRunningItemAction} onClick={() => props.selectedSlot && props.onSave(props.selectedSlot)}>{props.selectedSlot && (props.selectedSlot.item_count > 0 || props.selectedSlot.items.length > 0) ? "确认覆盖" : "保存到槽位"}</button></footer>
     </section>
   );
 }
@@ -371,7 +371,7 @@ function LocalWorkspace(props: LoadoutsPageContentViewProps & {
 
       <section className="loadout-detail">
         {props.isDimImportNoticeVisible ? (
-          <div className="loadout-dim-import-notice" data-status="warning"><div><strong>DIM 配装导入尚未接通</strong><p>解析、预览和确认流程完成前不会创建空方案。</p></div><button type="button" className="secondary-button" onClick={props.onDismissDimImportNotice}>关闭</button></div>
+          <div className="loadout-dim-import-notice" data-status="warning"><div><strong>DIM 配装导入尚未接通</strong><p>解析、预览和确认流程完成前不会创建空方案。</p></div><button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={props.onDismissDimImportNotice}>关闭</button></div>
         ) : null}
         {detail ? <LocalTemplateDetail {...props} detail={detail} /> : <ProductWorkspaceEmptyState><h2>还没有保存本地方案</h2><p>本地方案用于核对装备、转移缺失件和保留账号外条目。</p></ProductWorkspaceEmptyState>}
       </section>
@@ -401,10 +401,10 @@ function LocalTemplateDetail(props: LoadoutsPageContentViewProps & { detail: Ext
       </header>
       <div className="loadout-local-toolbar">
         <label><span>方案名称</span><input value={props.renameDraft} onChange={(event) => actions.renameDraftChange(event.target.value)} aria-label="配装名称" /></label>
-        <button type="button" className="secondary-button" onClick={() => actions.renameTemplate(detail.template)}>重命名</button>
-        <button type="button" className="secondary-button" onClick={() => actions.createTransferPlan(detail.template)}>生成应用计划</button>
-        <button type="button" className="secondary-button" onClick={() => actions.copyMissingItems(detail.template, detail.analysis)}>复制缺失清单</button>
-        <button type="button" className="primary-button" disabled={props.isRunningItemAction} onClick={() => actions.executeMissingTransfer(detail.template, detail.analysis)}>按计划应用</button>
+        <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={() => actions.renameTemplate(detail.template)}>重命名</button>
+        <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={() => actions.createTransferPlan(detail.template)}>生成应用计划</button>
+        <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={() => actions.copyMissingItems(detail.template, detail.analysis)}>复制缺失清单</button>
+        <button type="button" data-ui-kind="button" data-control-variant="primary" disabled={props.isRunningItemAction} onClick={() => actions.executeMissingTransfer(detail.template, detail.analysis)}>按计划应用</button>
       </div>
       {detail.transferPlan?.blocked.length ? <p className="loadout-callout" data-status="warning">有 {detail.transferPlan.blocked.length} 件当前无法自动补齐，具体原因显示在物品行中。</p> : null}
       <div className="loadout-section-label"><span>可执行装备 · 当前账号状态</span><span>{detail.itemRows.length} 件</span></div>
@@ -414,7 +414,7 @@ function LocalTemplateDetail(props: LoadoutsPageContentViewProps & { detail: Ext
       <div className="loadout-compare-controls">
         <label><span>对比方案</span><select value={props.compareTemplateId} onChange={(event) => actions.selectCompareTemplate(event.target.value)}><option value="">不对比</option>{props.model.compare.options.map((template) => <option key={template.id} value={template.id}>{template.name}</option>)}</select></label>
         <label className="checkbox-row"><input type="checkbox" checked={props.showDiffOnly} onChange={(event) => actions.showDiffOnlyChange(event.target.checked)} /><span>仅看差异</span></label>
-        <button type="button" className="danger-button" onClick={() => actions.deleteTemplate(detail.template.id)}>删除方案</button>
+        <button type="button" data-ui-kind="button" data-control-variant="danger" onClick={() => actions.deleteTemplate(detail.template.id)}>删除方案</button>
       </div>
     </>
   );
@@ -457,9 +457,9 @@ function LoadoutItemRow(props: {
       <ItemVisual icon={sourceItem?.icon} label={item.name} bucketName={item.bucket_name} />
       <div className="loadout-item-copy"><strong>{item.name}</strong><small>{[status.location_label, item.bucket_name, item.weapon_frame_name, item.perk_names?.slice(0, 2).join(" / ")].filter(Boolean).join(" · ") || "暂无额外信息"}</small>{blockedDetails ? <small className="loadout-blocked-reason">无法自动补齐：{blockedDetails.label} · {blockedDetails.hint}</small> : status.guidance_label ? <small className="loadout-blocked-reason">{status.guidance_label}{status.guidance_hint ? ` · ${status.guidance_hint}` : ""}</small> : null}</div>
       <div className="loadout-item-actions"><span className="loadout-status-badge" data-status={status.badge_tone}>{status.badge_label}</span>{status.key !== "equipped" ? <div className="button-row compact">
-        {!blockedDetails && status.key !== "current-inventory" && sourceItem?.instance_id ? <button type="button" className="secondary-button" aria-busy={transferFeedbackState === "pending"} disabled={props.isRunningItemAction} onClick={() => props.actions.executeSingleItemTransfer(props.template, item)}>{getLoadoutActionButtonLabel("transfer", transferFeedbackState)}</button> : null}
-        {!blockedDetails && status.key === "current-inventory" ? <button type="button" className="secondary-button" aria-busy={equipFeedbackState === "pending"} disabled={props.isRunningItemAction} onClick={() => props.actions.equipSingleItem(props.template, item)}>{getLoadoutActionButtonLabel("equip", equipFeedbackState)}</button> : null}
-        <button type="button" className="secondary-button" onClick={() => props.actions.openTemplateSourceItem(item, props.template.character_id)}>查看来源</button>
+        {!blockedDetails && status.key !== "current-inventory" && sourceItem?.instance_id ? <button type="button" data-ui-kind="button" data-control-variant="secondary" aria-busy={transferFeedbackState === "pending"} disabled={props.isRunningItemAction} onClick={() => props.actions.executeSingleItemTransfer(props.template, item)}>{getLoadoutActionButtonLabel("transfer", transferFeedbackState)}</button> : null}
+        {!blockedDetails && status.key === "current-inventory" ? <button type="button" data-ui-kind="button" data-control-variant="secondary" aria-busy={equipFeedbackState === "pending"} disabled={props.isRunningItemAction} onClick={() => props.actions.equipSingleItem(props.template, item)}>{getLoadoutActionButtonLabel("equip", equipFeedbackState)}</button> : null}
+        <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={() => props.actions.openTemplateSourceItem(item, props.template.character_id)}>查看来源</button>
       </div> : null}</div>
     </li>
   );

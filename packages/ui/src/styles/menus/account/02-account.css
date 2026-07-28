@@ -16,7 +16,7 @@
   max-width: 680px;
   padding: var(--space-16);
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-panel);
+  border-radius: var(--radius-object);
   background: var(--surface-subtle);
 }
 
@@ -212,7 +212,7 @@
   gap: 16px;
   padding: 12px;
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-panel);
+  border-radius: var(--radius-object);
   background: var(--surface-panel);
   box-shadow: var(--shadow-panel);
 }
@@ -263,7 +263,7 @@
   flex: 1 1 320px;
 }
 
-.account-write-warning .secondary-button {
+.account-write-warning [data-control-variant="secondary"] {
   flex: 0 0 auto;
   min-height: 34px;
   padding: 6px 12px;

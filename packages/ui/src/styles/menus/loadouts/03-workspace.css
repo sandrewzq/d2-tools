@@ -130,17 +130,17 @@
   gap: 8px;
 }
 
-.app-shell .loadout-mode-actions .primary-button,
-.app-shell .loadout-mode-actions .secondary-button,
-.app-shell .loadout-action-stack .primary-button,
-.app-shell .loadout-action-stack .secondary-button,
-.app-shell .loadout-local-toolbar .primary-button,
-.app-shell .loadout-local-toolbar .secondary-button,
-.app-shell .loadout-item-actions .secondary-button,
-.app-shell .loadout-dim-import-notice .secondary-button,
-.app-shell .loadout-slot-picker .primary-button,
-.app-shell .loadout-empty-detail-head > .primary-button,
-.app-shell .loadout-compare-controls .danger-button {
+.app-shell .loadout-mode-actions [data-control-variant="primary"],
+.app-shell .loadout-mode-actions [data-control-variant="secondary"],
+.app-shell .loadout-action-stack [data-control-variant="primary"],
+.app-shell .loadout-action-stack [data-control-variant="secondary"],
+.app-shell .loadout-local-toolbar [data-control-variant="primary"],
+.app-shell .loadout-local-toolbar [data-control-variant="secondary"],
+.app-shell .loadout-item-actions [data-control-variant="secondary"],
+.app-shell .loadout-dim-import-notice [data-control-variant="secondary"],
+.app-shell .loadout-slot-picker [data-control-variant="primary"],
+.app-shell .loadout-empty-detail-head > [data-control-variant="primary"],
+.app-shell .loadout-compare-controls [data-control-variant="danger"] {
   min-height: 34px;
   padding: 0 11px;
   font-size: var(--font-meta);
@@ -783,7 +783,7 @@
     flex: 0 0 auto;
   }
 
-  .app-shell .loadout-mode-actions .secondary-button {
+  .app-shell .loadout-mode-actions [data-control-variant="secondary"] {
     display: none;
   }
 

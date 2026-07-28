@@ -272,7 +272,6 @@ export type SettingsCopy = {
   overview: {
     title: string;
     subtitle: string;
-    badge: string;
     commonActionsTitle: string;
     commonActionsSubtitle: string;
   };

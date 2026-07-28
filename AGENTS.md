@@ -65,6 +65,7 @@ Vibecoding 快路径：
   - `docs/work/references/ui-prototypes/全应用视觉原型.html`
   - `docs/work/references/ui-prototypes/统一武器详情原型.html`
   - `docs/work/references/ui-prototypes/统一护甲详情原型.html`
+- 全应用采用轻圆角合同：Shell、页面分栏、章节、目录、连续列表和表格保持直角；`status-matrix`、`summary-frame`、`state-frame` 使用 `4px`；独立装备、Offer、Perk 等 `object-card` 使用 `6px`；按钮、字段、分段控件和缩略图使用 `4px`；短标签、计数和进度使用胶囊。不得把所有 `frame` 统一映射为对象卡圆角，也不得由菜单 CSS 自行决定圆角。
 - 三个原型决定页面布局、组件层级、尺寸、密度、颜色、排版、图标、信息权重、交互状态和响应式行为。当前应用的 DOM、CSS、组件 chrome 和历史视觉不属于兼容目标；与原型冲突时应删除或替换，不得以“保留现有样式”为理由降低还原度。
 - 当前应用只作为功能真相：现有 ViewModel、props、actions、adapter、IPC、真实数据、加载/空/失败状态和错误恢复必须完整迁入新 UI。原型中的 mock 数组、固定数量、示例状态、假 toast 和演示按钮不是业务真相，不得直接复制到产品实现。
 - 不允许保留旧 DOM 后只替换颜色或补局部 CSS，也不允许再用 `presentation="archive"`、`Archive*Content`、`visualVariant` 等方式维护第二棵产品页面。每个菜单必须直接按原型重建唯一 `*ContentView`，并在该菜单完成时同步删除对应 archive 分支、组件和 CSS。

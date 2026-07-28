@@ -28,7 +28,7 @@
 | 页面骨架 | `settings-shell = 240px 目录 + 正文` | Shell 只绘制目录右侧 `SplitLine`；正文 section 无外框 | `981-1280px` 目录 `210px`；`761-980px` 目录 `190px`；`<=760px` 目录置顶并限制 `240px` 高度 |
 | 设置目录 | 标题 + 八项单行嵌入式连续导航 | 容器无圆角对象框；行只保留底部分隔，current 使用起始侧 `3px` 定位条 | 窄屏保持连续列表，不改成卡片或横向滚动 |
 | 分区标题 | 标题、说明、可选状态 Chip | section 本身无框；Chip 只表达短状态 | 操作与状态允许换行，文字角色不降级 |
-| 状态摘要 | `status-matrix` 连续矩阵 | 矩阵拥有唯一方形外框；内部 cell 只绘制行列分隔 | 三列；`<=1280px` 两列；`<=980px` 单列 |
+| 状态摘要 | `status-matrix` 连续矩阵 | 矩阵拥有唯一 `4px` 轻圆角外框；内部 cell 保持直角并只绘制行列分隔 | 三列；`<=1280px` 两列；`<=980px` 单列 |
 | 应用更新 | 标题、三项版本矩阵、按需进度、操作区 | 更新矩阵使用方形 frame；进度仅下载/安装状态显示 | 操作自然换行，不建立横向滚动 |
 | 设置操作 | 连续 `settings-row` | 行只绘制 `RowLine`；说明列弹性，控制列宽屏 `282px` / 中屏 `260px` | `<=980px` 改单列，控制移到说明下方 |
 | 版本与规则 | 连续版本台账 | 父级无卡片外框；行只绘制底部分隔 | `<=980px` 单列 |
@@ -52,7 +52,7 @@
 
 | 原型区域 | 产品字段 / 派生值 | action / 禁用条件 |
 |---|---|---|
-| 六项应用概览 | `accountUi`、`libraryUi`、`bungieUi`、`aiUi`、当前版本、`backgroundTaskUi` | 只读；状态由真实快照派生 |
+| 六项应用概览 | `accountUi`、`libraryUi`、`bungieUi`、`aiUi`、当前版本、`backgroundTaskUi` | 只读；概览标题状态与应用更新标题共用同一个 `updateUi` |
 | 应用更新矩阵 | `current_version`、`update_source_label`、`last_checked_at` | checking 禁止重复检查；available 才下载；downloaded 才安装 |
 | 常用操作 | 账号、资料库、诊断入口 | 使用现有刷新和跳转回调 |
 | 语言与外观行 | `languagePreferences`、`colorMode`、`density` | 跟随开启时禁用独立 Manifest 语言选择 |
@@ -70,6 +70,7 @@
 | 场景 | 必须显示 | 可用操作 |
 |---|---|---|
 | 首次读取 | 更新、账号、资料库、Bungie 配置分别显示读取中 | 不依赖该数据的导航和设置仍可操作 |
+| 更新未检查 | 概览标题和应用更新标题统一显示中性“未检查”，上次检查不得伪造时间 | 检查与下载页可用，下载和安装禁用 |
 | 刷新中 | 原有成功数据保留，相关状态显示进行中 | 禁用同一请求的重复按钮 |
 | 未登录 / 未配置 | 明确显示未登录、未配置及影响范围 | 保留授权、配置和本地功能入口 |
 | 空日志 | 显示“没有符合筛选条件的记录” | 筛选、刷新、运行诊断仍可用 |
@@ -84,7 +85,7 @@
 
 ## 视觉与字段映射
 
-设置页属于 `hybrid-workspace`：左侧是嵌入式 `SurfaceList` 目录；右侧的状态、版本和操作数据使用完整可用工作轨道，不得再设置页面级最大宽度，只有标题说明、帮助说明和长文本字段限制阅读行长。Shell 只拥有目录与正文之间的 `SplitLine`；设置 section 和设置项使用 `RowLine`。概览状态不是装备、Offer 一类独立对象，必须使用一个带完整外框的 `SurfaceFrame` 状态矩阵：矩阵拥有唯一外框，内部单元只画行、列分隔线，不使用圆角或独立 `ObjectCard`。不得把该矩阵拆成多个卡片，也不得删除外框并退化成连续数据轨道。
+设置页属于 `hybrid-workspace`：左侧是嵌入式 `SurfaceList` 目录；右侧的状态、版本和操作数据使用完整可用工作轨道，不得再设置页面级最大宽度，只有标题说明、帮助说明和长文本字段限制阅读行长。Shell 只拥有目录与正文之间的 `SplitLine`；设置 section 和设置项使用 `RowLine`。概览状态不是装备、Offer 一类独立对象，必须使用一个带完整外框的 `SurfaceFrame` 状态矩阵：矩阵拥有唯一 `4px` 轻圆角外框，内部单元只画行、列分隔线且保持直角，不使用独立 `ObjectCard`。不得把该矩阵拆成多个卡片，也不得删除外框并退化成连续数据轨道。
 
 ### 概览切片
 
@@ -92,8 +93,8 @@
 |---|---|---|---|
 | 设置目录 | `SurfaceList` | 菜单名 `support + primary`，非当前项常规字重 | 当前项使用导航定位配方和加粗，不使用业务状态色 |
 | 概览标题 | `PageSection` | 标题 `display + primary`；说明 `reading + body` | 无独立外框 |
-| 状态指标 | 三列 `SurfaceFrame` 状态矩阵 | 标签 `support + meta`；日期、版本、数量等事实值使用 `fact + context + primary`；只有状态词使用 `status + decision + status tone`；摘要 `reading + body` | 矩阵拥有一圈方形外框；单元只画行/列分隔，不使用圆角或独立对象边框；容器状态不得给事实值染色 |
-| 应用更新 | `PageSection` + `SurfaceFrame` 更新字段矩阵 | 标题 `context + primary`；更新结果 `decision + status`；说明和版本字段 `reading + body` | 更新字段拥有一圈方形外框；内部单元只画分隔线；进度只在下载或安装中显示 |
+| 状态指标 | 三列 `SurfaceFrame` 状态矩阵 | 标签 `support + meta`；日期、版本、数量等事实值使用 `fact + context + primary`；只有状态词使用 `status + decision + status tone`；摘要 `reading + body` | 矩阵整体使用 `4px` 轻圆角；单元只画行/列分隔且保持直角，不使用独立对象边框；容器状态不得给事实值染色 |
+| 应用更新 | `PageSection` + `SurfaceFrame` 更新字段矩阵 | 标题 `context + primary`；更新结果 `decision + status`；说明和版本字段 `reading + body` | 更新字段矩阵整体使用 `4px` 轻圆角；内部单元只画分隔线且保持直角；进度只在下载或安装中显示 |
 | 常用操作 | `SurfaceList` | 操作名 `context + primary`；原因/影响 `reading + body` | 行只画 `RowLine`；桌面固定为说明列 + 右侧操作列，文本命令统一 `34px × 144px`，多个命令自然换行 |
 | 反馈 | `Callout` | 结论 `decision + status`；失败恢复 `reading + body` | 必须有 `data-status`，不通过 `.ready/.error` class 着色 |
 

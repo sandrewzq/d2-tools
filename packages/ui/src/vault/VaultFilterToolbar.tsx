@@ -57,7 +57,7 @@ export function VaultFilterToolbar(props: {
         </div>
         <div className="vault-filter-actions">
           <span className="vault-filter-hint">先缩小结果范围，再决定排列方式</span>
-          <button type="button" className="secondary-button vault-filter-reset" onClick={props.onClearFilters}>
+          <button type="button" className="vault-filter-reset" data-ui-kind="button" data-control-variant="secondary" onClick={props.onClearFilters}>
             清空当前筛选
           </button>
         </div>

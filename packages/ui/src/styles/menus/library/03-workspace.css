@@ -466,9 +466,9 @@
   min-height: 112px;
   margin: 10px 12px;
   padding: 14px;
-  border: 1px solid var(--border-subtle);
-  border-radius: 0;
-  background: var(--surface-subtle);
+  border: 1px solid var(--object-border);
+  border-radius: var(--radius-frame);
+  background: var(--card-bg);
 }
 
 .app-shell .library-empty-state strong,

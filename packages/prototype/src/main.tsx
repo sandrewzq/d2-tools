@@ -2,6 +2,7 @@ import { createRoot } from "react-dom/client";
 import { useMemo, useState, type ComponentProps, type ReactNode } from "react";
 import {
   AccountPageContentView,
+  ControlButton,
   ShellSidebarAccountSummary,
   ShellSidebarActions,
   ArmorDetailContent,
@@ -605,11 +606,11 @@ function PrototypeApp() {
                           <div><h3>装备操作</h3><p>Prototype 会更新当前实例的位置、装备和锁定状态，不调用 Bungie API。</p></div>
                           <label className="compact-field">目标角色<select value={prototypeActionCharacter} onChange={(event) => setPrototypeActionCharacter(event.target.value as PrototypeCharacter)}><option value="猎人">猎人</option><option value="泰坦">泰坦</option><option value="术士">术士</option></select></label>
                           <div className="button-row">
-                            <button type="button" className="secondary-button" onClick={() => {
+                            <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={() => {
                               setPrototypeInstanceRuntime((current) => ({ ...current, [selectedWeaponInstanceId]: { ...current[selectedWeaponInstanceId], locked: !current[selectedWeaponInstanceId].locked } }));
                               setPrototypeActionMessage(prototypeInstanceRuntime[selectedWeaponInstanceId].locked ? "已模拟解锁当前实例。" : "已模拟锁定当前实例。");
                             }}>{prototypeInstanceRuntime[selectedWeaponInstanceId].locked ? "解锁" : "锁定"}</button>
-                            <button type="button" className="secondary-button" onClick={() => {
+                            <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={() => {
                               const selected = prototypeInstanceRuntime[selectedWeaponInstanceId];
                               const movingToVault = selected.source_kind !== "vault";
                               setPrototypeInstanceRuntime((current) => ({ ...current, [selectedWeaponInstanceId]: movingToVault
@@ -617,7 +618,7 @@ function PrototypeApp() {
                                 : { ...current[selectedWeaponInstanceId], location: `${prototypeActionCharacter}背包`, source_kind: "inventory", source_character_id: prototypeCharacterIds[prototypeActionCharacter], equipped: false } }));
                               setPrototypeActionMessage(movingToVault ? "已模拟移入仓库。" : `已模拟转移到${prototypeActionCharacter}背包。`);
                             }}>{prototypeInstanceRuntime[selectedWeaponInstanceId].source_kind === "vault" ? "取出到角色" : "移入仓库"}</button>
-                            <button type="button" className="secondary-button" onClick={() => {
+                            <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={() => {
                               setPrototypeInstanceRuntime((current) => {
                                 const next: PrototypeInstanceRuntime = { ...current };
                                 for (const [id, instance] of Object.entries(current)) {
@@ -631,7 +632,7 @@ function PrototypeApp() {
                               });
                               setPrototypeActionMessage(`已模拟装备到${prototypeActionCharacter}。`);
                             }}>装备到角色</button>
-                            <button type="button" className="secondary-button" onClick={() => setPrototypeActionMessage("已模拟加入配装草稿。")}>加入配装草稿</button>
+                            <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={() => setPrototypeActionMessage("已模拟加入配装草稿。")}>加入配装草稿</button>
                           </div>
                           {prototypeActionMessage ? <p className="status-message status-ready">{prototypeActionMessage}</p> : null}
                         </section>
@@ -731,13 +732,13 @@ function getPrototypePageHeader(page: ShellPageKey) {
   const actions: Partial<Record<ShellPageKey, ReactNode>> = {
     home: (
       <>
-        <button type="button" className="secondary-button">刷新公开情报</button>
+        <ControlButton variant="primary">重新读取公开情报</ControlButton>
       </>
     ),
-    account: <><button type="button" className="secondary-button">刷新账号</button><button type="button" className="secondary-button">重新授权</button></>,
-    vault: <><button type="button" className="secondary-button">复制清理清单</button><button type="button" className="primary-button">刷新账号装备</button></>,
-    library: <><button type="button" className="secondary-button">重新检查资料库</button><button type="button" className="primary-button">修复资料库</button></>,
-    vendors: <button type="button" className="primary-button">刷新商人库存</button>
+    account: <><ControlButton>刷新账号</ControlButton><ControlButton>重新授权</ControlButton></>,
+    vault: <><ControlButton>复制清理清单</ControlButton><ControlButton variant="primary">刷新账号装备</ControlButton></>,
+    library: <><ControlButton>重新检查资料库</ControlButton><ControlButton variant="primary">修复资料库</ControlButton></>,
+    vendors: <ControlButton variant="primary">刷新商人库存</ControlButton>
   };
 
   return { ...meta[page], actions: actions[page] };

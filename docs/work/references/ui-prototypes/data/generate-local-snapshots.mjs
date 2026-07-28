@@ -298,12 +298,12 @@ const settingsSnapshot = {
   message: "",
   error: "",
   appUpdate: {
-    status: "unknown",
-    statusLabel: "静态快照未读取更新服务",
-    summary: "当前冻结快照只记录本地版本，不伪造 GitHub Release 检查结果。",
+    status: "neutral",
+    statusLabel: "未检查",
+    summary: "当前冻结快照未调用更新服务。",
     currentVersion: packageJson.version,
     updateSource: "GitHub Release",
-    lastCheckedAt: "未包含在本地快照中",
+    lastCheckedAt: "未检查",
     progressPercent: 0
   },
   account: {

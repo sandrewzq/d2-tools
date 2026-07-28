@@ -244,12 +244,12 @@ function ItemDetailTargetMatch(props: {
       )}
       <div className="button-row">
         {matched ? (
-          <button type="button" className="secondary-button" onClick={props.onCopyWishlistInsight}>
+          <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={props.onCopyWishlistInsight}>
             复制命中结论
           </button>
         ) : null}
-        <button type="button" className="secondary-button" onClick={() => props.onSaveSelectedItemTag("farm")}>标记待刷</button>
-        <button type="button" className="secondary-button" onClick={() => props.onSaveSelectedItemTag("loadout")}>标记配装用</button>
+        <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={() => props.onSaveSelectedItemTag("farm")}>标记待刷</button>
+        <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={() => props.onSaveSelectedItemTag("loadout")}>标记配装用</button>
       </div>
       <small>{localTarget.matched ? localTarget.disclaimer : wishlist.disclaimer}</small>
       <small>命中后不会自动收藏、加标签或改动装备；你需要手动选择标记或写操作。</small>
@@ -288,12 +288,12 @@ function ItemLocalTagPanel(props: {
         </strong>
       </div>
       <div className="button-row">
-        <button type="button" className="secondary-button" onClick={() => props.onSaveSelectedItemTag("keep")}>保留</button>
-        <button type="button" className="secondary-button" onClick={() => props.onSaveSelectedItemTag("review")}>关注</button>
-        <button type="button" className="secondary-button" onClick={() => props.onSaveSelectedItemTag("farm")}>待刷</button>
-        <button type="button" className="secondary-button" onClick={() => props.onSaveSelectedItemTag("loadout")}>配装用</button>
-        <button type="button" className="secondary-button" onClick={() => props.onSaveSelectedItemTag("junk")}>可清理</button>
-        <button type="button" className="secondary-button" onClick={() => props.onSaveSelectedItemTag("none")}>清除</button>
+        <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={() => props.onSaveSelectedItemTag("keep")}>保留</button>
+        <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={() => props.onSaveSelectedItemTag("review")}>关注</button>
+        <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={() => props.onSaveSelectedItemTag("farm")}>待刷</button>
+        <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={() => props.onSaveSelectedItemTag("loadout")}>配装用</button>
+        <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={() => props.onSaveSelectedItemTag("junk")}>可清理</button>
+        <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={() => props.onSaveSelectedItemTag("none")}>清除</button>
       </div>
     </section>
   );
@@ -316,7 +316,7 @@ function ItemNotePanel(props: {
         rows={3}
       />
       <div className="button-row">
-        <button type="button" className="secondary-button" onClick={props.onSaveSelectedItemNote}>
+        <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={props.onSaveSelectedItemNote}>
           保存备注
         </button>
         {props.itemNoteMessage ? <span className="muted-copy">{props.itemNoteMessage}</span> : null}

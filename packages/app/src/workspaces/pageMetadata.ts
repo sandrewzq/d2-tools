@@ -1,7 +1,7 @@
 export type HomePageKey = "home" | "account" | "vault" | "loadouts" | "library" | "vendors" | "settings";
 
 export const homePageMetaMap: Record<HomePageKey, { title: string; subtitle: string }> = {
-  home: { title: "本周游戏世界简报", subtitle: "只展示 Bungie 当前能够确认的周常活动、限时事件和仄商人库存。" },
+  home: { title: "本周情报", subtitle: "只展示 Bungie 公开接口与经过校验的公开机器数据，不猜测缺失内容。" },
   account: { title: "账号", subtitle: "读取 Bungie 账号、角色装备、背包和材料数量。" },
   vault: { title: "仓库", subtitle: "先筛出候选，再用证据决定保留、复查或清理。" },
   loadouts: { title: "配装", subtitle: "管理本地方案、补齐缺失装备并对比不同配装。" },

@@ -16,10 +16,10 @@ export function VaultArmorFilterPanel(props: {
           <p>所有条件同时成立。总属性不作为筛选门槛，只用于排序。</p>
         </div>
         <div className="button-row">
-          <button type="button" className="secondary-button" disabled={props.rules.length >= Object.keys(armorStatLabels).length} onClick={props.onAddRule}>
+          <button type="button" data-ui-kind="button" data-control-variant="secondary" disabled={props.rules.length >= Object.keys(armorStatLabels).length} onClick={props.onAddRule}>
             {props.rules.length >= Object.keys(armorStatLabels).length ? "六项属性均已添加" : "添加属性条件"}
           </button>
-          <button type="button" className="secondary-button" onClick={props.onClearRules} disabled={!props.rules.length}>
+          <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={props.onClearRules} disabled={!props.rules.length}>
             清空护甲条件
           </button>
         </div>
@@ -60,7 +60,7 @@ export function VaultArmorFilterPanel(props: {
                   placeholder="20"
                 />
               </label>
-              <button type="button" className="secondary-button vault-armor-rule-remove" aria-label={`删除${rule.stat ? armorStatLabels[rule.stat] : "护甲属性"}条件`} onClick={() => props.onRemoveRule(index)}>
+              <button type="button" className="vault-armor-rule-remove" data-ui-kind="button" data-control-variant="secondary" aria-label={`删除${rule.stat ? armorStatLabels[rule.stat] : "护甲属性"}条件`} onClick={() => props.onRemoveRule(index)}>
                 删除
               </button>
             </div>

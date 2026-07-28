@@ -78,16 +78,16 @@ export function ItemDetailCommunity(props: ItemDetailCommunityProps) {
             {wishlist.reasons.map((reason) => <li key={reason}>{reason}</li>)}
           </ul>
           <div className="button-row wishlist-quick-actions">
-            <button type="button" className="secondary-button" onClick={() => props.onSaveSelectedItemTag("keep")}>标记保留</button>
-            <button type="button" className="secondary-button" onClick={() => props.onSaveSelectedItemTag("review")}>标记关注</button>
-            <button type="button" className="secondary-button" onClick={() => props.onSaveSelectedItemTag("none")}>清除标记</button>
-            <button type="button" className="secondary-button" onClick={props.onCopyWishlistInsight}>复制命中结论</button>
+            <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={() => props.onSaveSelectedItemTag("keep")}>标记保留</button>
+            <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={() => props.onSaveSelectedItemTag("review")}>标记关注</button>
+            <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={() => props.onSaveSelectedItemTag("none")}>清除标记</button>
+            <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={props.onCopyWishlistInsight}>复制命中结论</button>
             {props.sameNameItems.length > 1 ? (
               <>
-                <button type="button" className="secondary-button" onClick={() => props.onOpenBestSameNameItem(sortedSameNameItems)}>打开推荐同名</button>
-                <button type="button" className="secondary-button" onClick={() => props.onCopySameNameLocator(props.sameNameItems)}>复制同名定位</button>
-                <button type="button" className="secondary-button" onClick={() => props.onApplySameNameCurrentKeepTags(props.sameNameItems, props.selectedItem.item_key, "keep-current-review-rest")}>当前保留，其余关注</button>
-                <button type="button" className="secondary-button" onClick={() => props.onApplySameNameCurrentKeepTags(props.sameNameItems, props.selectedItem.item_key, "keep-current-junk-rest")}>当前保留，其余可清理</button>
+                <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={() => props.onOpenBestSameNameItem(sortedSameNameItems)}>打开推荐同名</button>
+                <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={() => props.onCopySameNameLocator(props.sameNameItems)}>复制同名定位</button>
+                <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={() => props.onApplySameNameCurrentKeepTags(props.sameNameItems, props.selectedItem.item_key, "keep-current-review-rest")}>当前保留，其余关注</button>
+                <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={() => props.onApplySameNameCurrentKeepTags(props.sameNameItems, props.selectedItem.item_key, "keep-current-junk-rest")}>当前保留，其余可清理</button>
               </>
             ) : null}
           </div>

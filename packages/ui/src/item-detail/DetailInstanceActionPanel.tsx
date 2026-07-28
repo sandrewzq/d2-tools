@@ -73,7 +73,6 @@ export function DetailInstanceActionPanel(props: DetailInstanceActionPanelProps)
             <button
               key={action.key}
               type="button"
-              className={action.primary ? "is-primary" : undefined}
               data-ui-kind="button"
               data-control-variant={action.primary ? "primary" : "secondary"}
               disabled={props.disabled || action.disabled}
@@ -118,7 +117,6 @@ export function DetailInstanceActionPanel(props: DetailInstanceActionPanelProps)
               <button
                 key={action.key}
                 type="button"
-                className={action.primary ? "is-primary" : undefined}
                 data-ui-kind="button"
                 data-control-variant={action.primary ? "primary" : "secondary"}
                 disabled={action.disabled}

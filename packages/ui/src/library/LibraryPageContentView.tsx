@@ -125,12 +125,12 @@ export function LibraryPageContentView(props: LibraryPageContentViewProps) {
         <span>{manifestAlert.message}</span>
       </div>
       <div className="library-manifest-actions">
-        <button type="button" className="secondary-button" onClick={actions.onRefreshManifestStatus}>
+        <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={actions.onRefreshManifestStatus}>
           {libraryText(copy, "重新检查")}
         </button>
         <button
           type="button"
-          className="primary-button"
+          data-ui-kind="button" data-control-variant="primary"
           disabled={model.status.isInitializingManifest}
           onClick={actions.onRepairManifest}
         >
@@ -161,9 +161,9 @@ export function LibraryPageContentView(props: LibraryPageContentViewProps) {
             </div>
             <form className="library-search-actions" role="search" onSubmit={(event) => { event.preventDefault(); actions.onSearch(); }}>
               <input aria-label={libraryText(copy, "资料库主搜索")} value={model.queryPanel.primaryQuery} disabled={isManifestBlocked} onChange={(event) => isEquipmentMode ? actions.onEquipmentFiltersChange({ query: event.target.value }) : actions.onPerkFiltersChange({ query: event.target.value })} placeholder={isEquipmentMode ? "输入装备名称，例如加时交锋" : "输入特性或框架名称"} />
-              <button type="submit" className="primary-button" disabled={model.status.isSearching || isManifestBlocked}>{model.status.isSearching ? "搜索中..." : "搜索"}</button>
+              <button type="submit" data-ui-kind="button" data-control-variant="primary" disabled={model.status.isSearching || isManifestBlocked}>{model.status.isSearching ? "搜索中..." : "搜索"}</button>
             </form>
-            <button type="button" className="secondary-button library-clear-button" onClick={actions.onClearFilters}>清空</button>
+            <button type="button" className="library-clear-button" data-ui-kind="button" data-control-variant="secondary" onClick={actions.onClearFilters}>清空</button>
           </div>
 
           <div className="library-filter-stack">
@@ -209,7 +209,7 @@ export function LibraryPageContentView(props: LibraryPageContentViewProps) {
               <label>别名类型<select value={model.aliasPanel.kind} onChange={(event) => actions.onAliasKindChange(event.target.value as "item" | "perk")}><option value="item">装备</option><option value="perk">Perk</option></select></label>
               <label>常用别名<input value={model.aliasPanel.draft} onChange={(event) => actions.onAliasDraftChange(event.target.value)} placeholder="例如 ff" /></label>
               <label>实际名称<input value={model.aliasPanel.targetDraft} onChange={(event) => actions.onAliasTargetDraftChange(event.target.value)} /></label>
-              <button type="button" className="primary-button" onClick={actions.onSaveAlias}>保存别名</button>
+              <button type="button" data-ui-kind="button" data-control-variant="primary" onClick={actions.onSaveAlias}>保存别名</button>
               {model.aliasPanel.message ? <small className="library-alias-message" role="status">{model.aliasPanel.message}</small> : null}
             </div>
           </details>
@@ -378,20 +378,20 @@ function renderEquipmentResult(
         </details>
       </div>
       <div className="library-result-actions">
-        <button type="button" className="primary-button" disabled={row.isDetailLoading} onClick={onOpenDefinition}>
+        <button type="button" data-ui-kind="button" data-control-variant="primary" disabled={row.isDetailLoading} onClick={onOpenDefinition}>
           {row.isDetailLoading ? libraryText(copy, "打开中...") : libraryText(copy, "查看详情")}
         </button>
         {row.isFavorite ? (
-          <button type="button" className="secondary-button" onClick={() => onRemoveFavorite(item.hash)}>
+          <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={() => onRemoveFavorite(item.hash)}>
             {libraryText(copy, "取消收藏")}
           </button>
         ) : (
-          <button type="button" className="secondary-button" onClick={() => onAddFavorite(item)}>
+          <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={() => onAddFavorite(item)}>
             {libraryText(copy, "收藏")}
           </button>
         )}
         {row.ownership.vaultCount > 0 && onLocateOwnedItem ? (
-          <button type="button" className="secondary-button" onClick={() => onLocateOwnedItem(item)}>
+          <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={() => onLocateOwnedItem(item)}>
             {libraryText(copy, "在仓库定位")}
           </button>
         ) : null}
@@ -422,9 +422,9 @@ function renderPerkResult(
       </div>
       <div className="library-result-actions">
         {isFavorite ? (
-          <button type="button" className="secondary-button" onClick={() => onRemoveFavorite(perk.hash)}>{libraryText(copy, "取消收藏")}</button>
+          <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={() => onRemoveFavorite(perk.hash)}>{libraryText(copy, "取消收藏")}</button>
         ) : (
-          <button type="button" className="secondary-button" onClick={() => onAddFavorite(perk)}>{libraryText(copy, "收藏")}</button>
+          <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={() => onAddFavorite(perk)}>{libraryText(copy, "收藏")}</button>
         )}
       </div>
     </article>
@@ -481,7 +481,7 @@ export function LibraryDefinitionDialog(props: {
             <strong>{libraryText(copy, "定义详情")}</strong>
             <span>{libraryText(copy, "Manifest 定义，不是当前装备实例。")}</span>
           </div>
-          <button type="button" className="secondary-button" onClick={props.onClose}>
+          <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={props.onClose}>
             {libraryText(copy, "关闭")}
           </button>
         </div>

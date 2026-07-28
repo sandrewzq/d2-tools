@@ -57,25 +57,25 @@
 圆角 token 使用三层结构，避免页面或 agent 直接按观感挑数值：
 
 1. 基础值只有 `0 / 4px / 6px / 999px`。
-2. 语义别名使用 `--radius-structural`、`--radius-shell-group`、`--radius-object`、`--radius-indicator`。
-3. 组件配方决定最终语义，例如 Shell 状态组使用 structural + shell-group，ObjectCard 使用 object，短标签与进度使用 indicator。
+2. 语义别名使用 `--radius-structural`、`--radius-shell-group`、`--radius-frame`、`--radius-object`、`--radius-indicator`。
+3. 组件配方决定最终语义，例如 Shell 状态组使用 structural + shell-group，状态矩阵、摘要与状态框使用 frame，ObjectCard 使用 object，短标签与进度使用 indicator。
 
 页面专属 CSS 不得写 `3px`、`5px`、`7px`、`8px`、`9px`、`99px` 或裸 `999px`，也不得绕过语义别名重新定义圆角尺度。天然圆形头像、圆点和圆形图标容器可使用 `50%`。
 
 | 表面或组件 | 圆角 | 典型内容 |
 |---|---:|---|
 | Shell、Workspace、PageSection、SurfaceList、RowLine | `0` | 页头、目录、章节、表格与台账 |
-| `status-matrix`、`summary-frame`、`state-frame` | `0` | 首页刷新节奏、周常摘要、周信号、商人摘要、加载/空/失败状态、设置状态矩阵 |
-| `object-card`、独立 Callout、独立空态与 Overlay | `6px`，即 `--radius-panel` | 装备、Offer、Perk、可独立操作的对象、对话框 |
+| `status-matrix`、`summary-frame`、`state-frame` | `4px`，即 `--radius-frame` | 首页刷新节奏、周常摘要、周信号、商人摘要、加载/空/失败状态、设置状态矩阵 |
+| `object-card`、独立 Callout 与 Overlay | `6px`，即 `--radius-object` | 装备、Offer、Perk、可独立操作的对象、对话框 |
 | Button、Field、SegmentedControl、缩略图与图标容器 | `4px`，即 `--radius-control` | 控件与紧凑媒体 |
 | 顶部 Shell 状态组 | 内部 `0`，整体首尾 `4px` | Bungie、账号、资料库、AI 与应用版本连续状态 |
-| 短 Chip、进度轨道、滚动条滑块 | `999px`，即 `--radius-pill` | 短标签、计数、进度；不得用于长状态、摘要或结构栏 |
+| 短 Chip、进度轨道、滚动条滑块 | `999px`，即 `--radius-indicator` | 短标签、计数、进度；不得用于长状态、摘要或结构栏 |
 
-同一页面同一层级的摘要、状态和目录不得混入 `object-card`。首页中只有商人单件装备可使用 `object-card`；刷新节奏、周常、周信号、商人摘要和模块状态均为直角 frame。胶囊只表达可独立识别的短标签、计数或进度，不得因为内容带有状态含义就自动使用 `999px`。
+同一页面同一层级的摘要、状态和目录不得混入 `object-card`。首页中只有商人单件装备可使用 `object-card`；刷新节奏、周常、周信号、商人摘要和模块状态统一使用 `4px` 轻圆角 frame，内部连续单元仍保持直角。胶囊只表达可独立识别的短标签、计数或进度，不得因为内容带有状态含义就自动使用 `999px`。
 
 ### 设置页状态矩阵例外
 
-设置页的应用概览和应用更新是同一组可比较的运行状态，不是连续目录行，也不是彼此独立的对象卡。它们必须使用一个 `SurfaceFrame` 作为矩阵唯一的外框拥有者：矩阵内部单元只绘制行、列分隔线，不单独圆角或补对象边框。不得为了避免卡片泛滥而删除这个外框，把状态矩阵退化为横向拉开的连续数据轨道。
+设置页的应用概览和应用更新是同一组可比较的运行状态，不是连续目录行，也不是彼此独立的对象卡。它们必须使用一个 `SurfaceFrame` 作为矩阵唯一的外框拥有者：矩阵整体使用 `4px` 轻圆角，内部单元只绘制行、列分隔线，不单独圆角或补对象边框。不得为了避免卡片泛滥而删除这个外框，把状态矩阵退化为横向拉开的连续数据轨道。
 
 常用操作、账号管理、资料库检查和运行诊断属于可执行的设置行：桌面宽度下固定为“说明列 + 右侧操作列”，同一组命令的起始边缘必须对齐；说明不能决定按钮的水平位置。连续 `RowLine` 只用于这些设置项、日志和诊断记录，不用于顶层状态总览。窄窗口才允许把操作列折到说明下方。
 
@@ -109,7 +109,20 @@
 | 可操作控件边框 | `--control-border` | `>= 3:1` | `SegmentedControl`、`Control` |
 | 当前导航指示 | `--nav-current-indicator` | `>= 3:1` | `PrimaryNavigation`、嵌入式 `SurfaceList` |
 
-`--line`、`--line-strong` 和 `--divider` 只作为静态原型的兼容别名，分别映射到章节线、对象边框和章节线；新规则不得再以它们表达 Shell 或工作区结构线。亮色验收必须读取最终计算样式，确认目录、侧栏、栏位分隔不落到 `--section-divider`，对象卡和控件也不退化为章节线。
+旧 `--line`、`--line-strong` 和 `--divider` 已删除，不再提供兼容别名。亮色验收必须读取最终计算样式，确认 Shell、章节、对象和控件分别消费 `--shell-divider`、`--section-divider`、`--object-border` 和 `--control-border`，不得用较弱层级代替较强边界。
+
+### Control 合同
+
+所有文本或图标按钮必须声明 `data-ui-kind="button"`，并通过下列属性表达视觉语义，不得再通过 class 选择颜色：
+
+| 属性 | 允许值 | 默认值 |
+|---|---|---|
+| `data-control-variant` | `primary / secondary / danger / ai / quiet` | `secondary` |
+| `data-control-size` | `compact / standard / prominent` | `standard` |
+| `data-control-width` | `content / uniform` | `content` |
+| `data-control-shape` | `text / icon` | `text` |
+
+Primary 只表达主要确认或刷新操作：深色背景 `#1e6548`、hover `#27785a`、文字 `#eafff5`；亮色背景 `#267653`、hover `#1f6848`、文字白色；两种主题边框均为 `#438269`。AI 只表达智能分析命令并使用紫色 `--control-ai-*`。错误 Callout 内的恢复操作仍是 Secondary，Danger 只用于明确破坏性命令。所有 variant 必须消费 `--control-<variant>-border/text/bg/bg-hover`，页面 CSS 只能调整布局和尺寸。
 
 ## 文字、颜色与信息权重合同
 

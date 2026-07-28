@@ -382,20 +382,20 @@ textarea {
   line-height: 1.4;
 }
 
-[data-prototype-root="detail-dossier"] .primary-button:not(:disabled) {
-  color: #f3eeff;
+[data-prototype-root="detail-dossier"] [data-ui-kind="button"][data-control-variant="ai"]:not(:disabled) {
+  color: var(--control-ai-text);
 }
 
-html[data-theme="light"] [data-prototype-root="detail-dossier"] .primary-button:not(:disabled) {
-  color: #ffffff;
-  border-color: #594384;
-  background: #66519a;
+html[data-theme="light"] [data-prototype-root="detail-dossier"] [data-ui-kind="button"][data-control-variant="ai"]:not(:disabled) {
+  color: var(--control-ai-text);
+  border-color: var(--control-ai-border);
+  background: var(--control-ai-bg);
 }
 
-html[data-theme="light"] [data-prototype-root="detail-dossier"] .primary-button:not(:disabled):hover {
-  color: #ffffff;
-  border-color: #4f3b78;
-  background: #594584;
+html[data-theme="light"] [data-prototype-root="detail-dossier"] [data-ui-kind="button"][data-control-variant="ai"]:not(:disabled):hover {
+  color: var(--control-ai-text);
+  border-color: var(--control-ai-border);
+  background: var(--control-ai-bg-hover);
 }
 
 html[data-theme="light"] [data-prototype-root="detail-dossier"] button:disabled {
@@ -405,10 +405,11 @@ html[data-theme="light"] [data-prototype-root="detail-dossier"] button:disabled 
   background: #eef3f6;
 }
 
-html[data-theme="light"] [data-prototype-root="detail-dossier"] .primary-button:disabled {
-  color: #8f87a3;
-  border-color: #c6bdd7;
-  background: #e7e2ef;
+html[data-theme="light"] [data-prototype-root="detail-dossier"] [data-ui-kind="button"][data-control-variant="ai"]:disabled {
+  opacity: 0.48;
+  color: var(--control-ai-text);
+  border-color: var(--control-ai-border);
+  background: var(--control-ai-bg);
 }
 
 [data-prototype-root="detail-dossier"] :is(.context-ledger dt, .definition-details dt, .source-row > strong, .rail-current-meta, .rail-instance-foot, .match-summary) {

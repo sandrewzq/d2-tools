@@ -53,7 +53,7 @@
   padding: 3px 8px;
   overflow: hidden;
   border: 1px solid #457995;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-indicator);
   color: #dcf2ff;
   background: var(--blue-bg);
   font-size: var(--font-control);
@@ -96,7 +96,7 @@
   max-width: 100%;
   padding: 10px 11px;
   border: 1px solid var(--object-border);
-  border-radius: var(--radius-panel);
+  border-radius: var(--radius-object);
   background: var(--card-bg);
   font-size: 12px;
   line-height: 1.55;
@@ -303,32 +303,32 @@
 :where(.app-shell, .standalone-dark-theme) button {
   min-height: var(--control-h);
   padding: 0 10px;
-  border: 1px solid var(--control-border);
+  border: 1px solid var(--control-secondary-border);
   border-radius: var(--radius-control);
-  color: var(--body);
-  background: var(--action-secondary-bg);
+  color: var(--control-secondary-text);
+  background: var(--control-secondary-bg);
   box-shadow: none;
   font-size: var(--font-control);
   transition: color var(--motion-fast), background-color var(--motion-fast), border-color var(--motion-fast), opacity var(--motion-fast);
 }
 
-:where(.app-shell, .standalone-dark-theme) button[data-control-size="compact"] {
+:where(.app-shell, .standalone-dark-theme) [data-ui-kind="button"][data-control-size="compact"] {
   height: var(--control-h-compact);
   min-height: var(--control-h-compact);
 }
 
-:where(.app-shell, .standalone-dark-theme) button[data-control-size="standard"] {
+:where(.app-shell, .standalone-dark-theme) [data-ui-kind="button"][data-control-size="standard"] {
   height: var(--control-h);
   min-height: var(--control-h);
   padding: 0 12px;
 }
 
-:where(.app-shell, .standalone-dark-theme) button[data-control-size="prominent"] {
+:where(.app-shell, .standalone-dark-theme) [data-ui-kind="button"][data-control-size="prominent"] {
   height: var(--control-h-lg);
   min-height: var(--control-h-lg);
 }
 
-:where(.app-shell, .standalone-dark-theme) button[data-control-width="uniform"] {
+:where(.app-shell, .standalone-dark-theme) [data-ui-kind="button"][data-control-width="uniform"] {
   display: inline-flex;
   flex: 0 0 var(--control-command-width);
   align-items: center;
@@ -338,10 +338,30 @@
   white-space: nowrap;
 }
 
+:where(.app-shell, .standalone-dark-theme) [data-ui-kind="button"][data-control-width="content"] {
+  width: max-content;
+  max-width: 100%;
+}
+
+:where(.app-shell, .standalone-dark-theme) [data-ui-kind="button"][data-control-shape="text"] {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+:where(.app-shell, .standalone-dark-theme) [data-ui-kind="button"][data-control-shape="icon"] {
+  display: inline-grid;
+  width: var(--control-h);
+  min-width: var(--control-h);
+  height: var(--control-h);
+  padding: 0;
+  place-items: center;
+}
+
 :where(.app-shell, .standalone-dark-theme) button:not(:disabled):hover {
-  border-color: var(--selected-border);
-  color: var(--text);
-  background: var(--hover-bg);
+  border-color: var(--control-secondary-border);
+  color: var(--control-secondary-text);
+  background: var(--control-secondary-bg-hover);
   box-shadow: none;
 }
 
@@ -381,48 +401,68 @@
   align-items: center;
 }
 
-.secondary-button,
-:where(.app-shell, .standalone-dark-theme) button[data-control-variant="secondary"] {
-  border: 1px solid var(--control-border);
-  color: var(--body);
-  background: var(--action-secondary-bg);
+:where(.app-shell, .standalone-dark-theme) [data-ui-kind="button"][data-control-variant="secondary"] {
+  border-color: var(--control-secondary-border);
+  color: var(--control-secondary-text);
+  background: var(--control-secondary-bg);
   box-shadow: none;
 }
 
-.secondary-button:not(:disabled):hover,
-:where(.app-shell, .standalone-dark-theme) button[data-control-variant="secondary"]:not(:disabled):hover {
-  border-color: var(--selected-border);
+:where(.app-shell, .standalone-dark-theme) [data-ui-kind="button"][data-control-variant="secondary"]:not(:disabled):hover {
+  border-color: var(--control-secondary-border);
+  color: var(--control-secondary-text);
+  background: var(--control-secondary-bg-hover);
+  box-shadow: none;
+}
+
+:where(.app-shell, .standalone-dark-theme) [data-ui-kind="button"][data-control-variant="primary"] {
+  border-color: var(--control-primary-border);
+  color: var(--control-primary-text);
+  background: var(--control-primary-bg);
+  box-shadow: none;
+}
+
+:where(.app-shell, .standalone-dark-theme) [data-ui-kind="button"][data-control-variant="primary"]:not(:disabled):hover {
+  border-color: var(--control-primary-border);
+  color: var(--control-primary-text);
+  background: var(--control-primary-bg-hover);
+  box-shadow: none;
+}
+
+:where(.app-shell, .standalone-dark-theme) [data-ui-kind="button"][data-control-variant="danger"] {
+  border-color: var(--control-danger-border);
+  color: var(--control-danger-text);
+  background: var(--control-danger-bg);
+}
+
+:where(.app-shell, .standalone-dark-theme) [data-ui-kind="button"][data-control-variant="danger"]:not(:disabled):hover {
+  border-color: var(--control-danger-border);
+  color: var(--control-danger-text);
+  background: var(--control-danger-bg-hover);
+}
+
+:where(.app-shell, .standalone-dark-theme) [data-ui-kind="button"][data-control-variant="ai"] {
+  border-color: var(--control-ai-border);
+  color: var(--control-ai-text);
+  background: var(--control-ai-bg);
+}
+
+:where(.app-shell, .standalone-dark-theme) [data-ui-kind="button"][data-control-variant="ai"]:not(:disabled):hover {
+  border-color: var(--control-ai-border);
+  color: var(--control-ai-text);
+  background: var(--control-ai-bg-hover);
+}
+
+:where(.app-shell, .standalone-dark-theme) [data-ui-kind="button"][data-control-variant="quiet"] {
+  border-color: var(--control-quiet-border);
+  color: var(--control-quiet-text);
+  background: var(--control-quiet-bg);
+}
+
+:where(.app-shell, .standalone-dark-theme) [data-ui-kind="button"][data-control-variant="quiet"]:not(:disabled):hover {
+  border-color: var(--control-quiet-border);
   color: var(--text);
-  background: var(--hover-bg);
-  box-shadow: none;
-}
-
-.primary-button,
-:where(.app-shell, .standalone-dark-theme) button[data-control-variant="primary"] {
-  border-color: #438269;
-  color: var(--text-on-accent);
-  background: var(--action-primary-bg);
-  box-shadow: none;
-}
-
-.primary-button:not(:disabled):hover,
-:where(.app-shell, .standalone-dark-theme) button[data-control-variant="primary"]:not(:disabled):hover {
-  border-color: #438269;
-  color: var(--text-on-accent);
-  background: var(--action-primary-bg-hover);
-  box-shadow: none;
-}
-
-:where(.app-shell, .standalone-dark-theme) button[data-control-variant="danger"] {
-  border-color: #9b4b55;
-  color: #ffe8ea;
-  background: #59262d;
-}
-
-:where(.app-shell, .standalone-dark-theme) button[data-control-variant="danger"]:not(:disabled):hover {
-  border-color: #b45e69;
-  color: #ffffff;
-  background: #6b3038;
+  background: var(--control-quiet-bg-hover);
 }
 
 :where(.app-shell, .standalone-dark-theme) h2 {
@@ -494,7 +534,7 @@
   margin-top: var(--space-24);
   padding: var(--space-16);
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-panel);
+  border-radius: var(--radius-object);
   background: var(--surface-panel);
   box-shadow: var(--shadow-panel);
 }
@@ -570,7 +610,7 @@
   min-height: 22px;
   padding: 0 var(--space-8);
   border: 1px solid var(--border-control);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-indicator);
   color: var(--text-body);
   background: var(--surface-interactive);
   font-size: var(--font-content);
@@ -599,7 +639,7 @@
   gap: var(--space-12);
   padding: var(--space-12);
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-panel);
+  border-radius: var(--radius-object);
   background: var(--surface-toolbar);
   box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.04);
 }

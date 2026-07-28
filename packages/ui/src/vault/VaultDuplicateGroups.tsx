@@ -50,7 +50,7 @@ export function VaultDuplicateGroups(props: {
           <span>先显示 {Math.min(visibleGroupLimit, groups.length)} / {groups.length} 组，减少同名对比切换和批量标记时的界面延迟。</span>
           {visibleGroupLimit < groups.length ? (
             <button
-              className="secondary-button"
+              data-ui-kind="button" data-control-variant="secondary"
               type="button"
               onClick={() => setVisibleGroupLimit((current) => current + DUPLICATE_GROUP_RENDER_INCREMENT)}
             >
@@ -157,7 +157,7 @@ export function VaultDuplicateGroups(props: {
                   <div className="duplicate-row-actions">
                     <button
                       type="button"
-                      className="secondary-button"
+                      data-ui-kind="button" data-control-variant="secondary"
                       aria-busy={props.isBatchSaving}
                       disabled={props.isBatchSaving || !item}
                       onClick={() => item && void props.onApplyDuplicateGroupTags(group, "keep-best-review-rest", entry.item_key)}
@@ -166,7 +166,7 @@ export function VaultDuplicateGroups(props: {
                     </button>
                     <button
                       type="button"
-                      className="secondary-button"
+                      data-ui-kind="button" data-control-variant="secondary"
                       aria-busy={props.isBatchSaving}
                       disabled={props.isBatchSaving || !item}
                       onClick={() => item && void props.onApplyDuplicateGroupTags(group, "keep-best-junk-rest", entry.item_key)}

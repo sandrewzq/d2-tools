@@ -337,14 +337,14 @@ export const prototypeManifestStatus = {
 };
 
 export const prototypeUpdateSnapshot = {
-  status: "not_available",
+  status: "idle",
   current_version: prototypeAppVersion,
   available_version: null,
   downloaded_version: null,
   progress_percent: undefined,
-  last_checked_at: "2026-07-03T14:18:00+08:00",
+  last_checked_at: undefined,
   update_source_label: "GitHub Release",
-  user_message: "当前已是最新版本。",
+  user_message: "尚未检查软件版本。",
   error: ""
 };
 

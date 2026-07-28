@@ -1,17 +1,16 @@
-import type { ButtonHTMLAttributes } from "react";
+import { ControlButton, type ControlButtonProps, type ControlButtonVariant } from "../control/ControlButton.js";
 
-type SettingsButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
-  "data-control-variant"?: "secondary" | "primary" | "danger" | "ai" | "quiet";
+type SettingsButtonProps = Omit<ControlButtonProps, "variant" | "size" | "width"> & {
+  "data-control-variant"?: ControlButtonVariant;
 };
 
-export function SettingsButton({ type = "button", ...props }: SettingsButtonProps) {
+export function SettingsButton({ "data-control-variant": variant = "secondary", ...props }: SettingsButtonProps) {
   return (
-    <button
+    <ControlButton
       {...props}
-      type={type}
-      data-ui-kind="button"
-      data-control-size="standard"
-      data-control-width="uniform"
+      variant={variant}
+      size="standard"
+      width="uniform"
     />
   );
 }

@@ -22,6 +22,8 @@ export function HomeDashboard(props: HomePageModelInput & {
   const model = useMemo(() => selectHomePageModel(props), [
     props.state,
     props.selectedCharacterId,
+    props.selectedCharacterLabel,
+    props.briefingFetchedAt,
     props.diagnosticRows,
     props.diagnosticError,
     props.accountError,

@@ -45,12 +45,12 @@ window.settingsPageSnapshot = Object.freeze({
   "message": "",
   "error": "",
   "appUpdate": {
-    "status": "latest",
-    "statusLabel": "当前已是最新版本",
-    "summary": "当前冻结快照记录的是已确认的当前版本状态。",
-    "currentVersion": "0.0.13",
+    "status": "neutral",
+    "statusLabel": "未检查",
+    "summary": "当前冻结快照未调用更新服务。",
+    "currentVersion": "0.0.14",
     "updateSource": "GitHub Release",
-    "lastCheckedAt": null,
+    "lastCheckedAt": "未检查",
     "progressPercent": 0
   },
   "account": {

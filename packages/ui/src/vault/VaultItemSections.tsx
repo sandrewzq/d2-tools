@@ -61,7 +61,7 @@ export function VaultItemSections(props: {
           <span>先显示 {renderedItemCount} / {totalItemCount} 件，减少筛选和标记时的界面延迟。</span>
           {renderedItemCount < totalItemCount ? (
             <button
-              className="secondary-button"
+              data-ui-kind="button" data-control-variant="secondary"
               type="button"
               onClick={() => setVisibleItemLimit((current) => current + VAULT_RENDER_INCREMENT)}
             >

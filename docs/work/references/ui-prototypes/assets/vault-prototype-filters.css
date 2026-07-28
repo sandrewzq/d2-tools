@@ -6,7 +6,7 @@
 
 .vault-browse > * + * {
   border-inline-start: 0;
-  border-top: 1px solid var(--line);
+  border-top: 1px solid var(--section-divider);
 }
 
 .vault-filter-command {
@@ -17,7 +17,7 @@
   width: 100%;
   max-width: none;
   margin: 0;
-  border: 1px solid var(--line-strong);
+  border: 1px solid var(--object-border);
   background: var(--panel-2);
 }
 
@@ -102,7 +102,7 @@
 
 .vault-filter-workbench input:hover,
 .vault-select-trigger:hover {
-  border-color: var(--line-strong);
+  border-color: var(--object-border);
   background-color: var(--hover-bg);
 }
 
@@ -193,7 +193,7 @@
   max-height: 244px;
   overflow: auto;
   padding: 4px;
-  border: 1px solid var(--line-strong);
+  border: 1px solid var(--object-border);
   border-radius: var(--radius-control);
   background: var(--panel);
   box-shadow: 0 12px 24px color-mix(in srgb, #000 22%, transparent);
@@ -396,7 +396,7 @@
   min-height: 62px;
   padding: var(--row-pad-y) var(--row-pad-x);
   border: 0;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--section-divider);
   border-radius: 0;
 }
 

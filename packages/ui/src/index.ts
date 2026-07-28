@@ -1,4 +1,12 @@
 export const uiPackageName = "@d2-tools/ui";
+export { ControlButton } from "./control/ControlButton.js";
+export type {
+  ControlButtonProps,
+  ControlButtonShape,
+  ControlButtonSize,
+  ControlButtonVariant,
+  ControlButtonWidth
+} from "./control/ControlButton.js";
 export { AccountPageView } from "./account/AccountPageView.js";
 export { AccountPageContentView } from "./account/AccountPageContentView.js";
 export type { AccountPageContentViewProps } from "./account/AccountPageContentView.js";
@@ -22,7 +30,7 @@ export type { TimeValue } from "./time/formatTime.js";
 export { ShellSidebarAccountSummary, ShellSidebarActions } from "./shell/ShellSidebar.js";
 export { HomePageView } from "./home/HomePageView.js";
 export { HomePageContentView } from "./home/HomePageContentView.js";
-export type { HomeDailyItem, HomeDailySummary, HomeStartupState, HomePageViewProps, HomeWeeklySummary } from "./home/HomePageContentView.js";
+export type { HomeDailyItem, HomeDailySummary, HomeStartupState, HomePageViewProps, HomeWeeklyActivityReward, HomeWeeklySummary } from "./home/HomePageContentView.js";
 export { getLocaleCopy, localeCopy } from "./i18n/copy.js";
 export {
   defaultProductPreferences,

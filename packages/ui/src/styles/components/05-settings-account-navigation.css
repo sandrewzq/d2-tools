@@ -8,7 +8,7 @@
   gap: 4px;
   padding: var(--space-8);
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-panel);
+  border-radius: var(--radius-object);
   background: var(--surface-elevated);
   box-shadow: var(--shadow-panel);
 }

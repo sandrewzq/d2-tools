@@ -92,11 +92,11 @@ function AccountUnavailableState(props: {
       {props.viewModel.feedback.accountWarning ? <p className="status-message status-warning">{props.viewModel.feedback.accountWarning}</p> : null}
       <div className="button-row">
         {!isConfigured ? (
-          <button type="button" className="primary-button" onClick={props.actions.configureBungie}>{props.copy.configureBungie}</button>
+          <button type="button" data-ui-kind="button" data-control-variant="primary" onClick={props.actions.configureBungie}>{props.copy.configureBungie}</button>
         ) : !isLoggedIn ? (
-          <button type="button" className="primary-button" disabled={isLoading} onClick={props.actions.loginBungie}>{props.copy.loginBungie}</button>
+          <button type="button" data-ui-kind="button" data-control-variant="primary" disabled={isLoading} onClick={props.actions.loginBungie}>{props.copy.loginBungie}</button>
         ) : (
-          <button type="button" className="primary-button" aria-busy={isLoading} disabled={isLoading} onClick={props.actions.refreshAccount}>
+          <button type="button" data-ui-kind="button" data-control-variant="primary" aria-busy={isLoading} disabled={isLoading} onClick={props.actions.refreshAccount}>
             {isLoading ? props.copy.loadingAccount : props.copy.loadAccount}
           </button>
         )}
@@ -199,13 +199,13 @@ function AccountPageWorkspace(props: {
             ))}
           </div>
           <div className="account-actions">
-            <button type="button" className="primary-button" onClick={() => props.actions.saveCurrentLoadout(props.selectedCharacter.characterId)}>
+            <button type="button" data-ui-kind="button" data-control-variant="primary" onClick={() => props.actions.saveCurrentLoadout(props.selectedCharacter.characterId)}>
               {props.copy.actions.saveCurrentLoadout}
             </button>
-            <button type="button" className="secondary-button" disabled={!props.viewModel.feedback.writeActionsEnabled || props.viewModel.loadout.isRunningItemAction} onClick={() => props.actions.equipHighestPower(props.selectedCharacter.characterId)}>
+            <button type="button" data-ui-kind="button" data-control-variant="secondary" disabled={!props.viewModel.feedback.writeActionsEnabled || props.viewModel.loadout.isRunningItemAction} onClick={() => props.actions.equipHighestPower(props.selectedCharacter.characterId)}>
               {props.viewModel.loadout.isRunningItemAction ? props.copy.actions.running : props.copy.actions.equipHighestPower}
             </button>
-            <button type="button" className="secondary-button" onClick={props.actions.openWriteSettings}>写操作设置</button>
+            <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={props.actions.openWriteSettings}>写操作设置</button>
           </div>
           {props.writeWarning ? <p className="status-message status-warning">{props.writeWarning}</p> : null}
           {props.viewModel.feedback.loadoutMessage ? <p className="status-message status-ready">{props.viewModel.feedback.loadoutMessage}</p> : null}
@@ -236,7 +236,7 @@ function AccountPageWorkspace(props: {
           aria-labelledby="account-tab-activity"
           hidden={props.section !== "activity"}
         >
-            <div className="account-toolbar"><div><strong>活动复盘</strong><span>来源：Activity History</span></div><button type="button" className="secondary-button" onClick={props.actions.refreshActivity}>刷新活动记录</button></div>
+            <div className="account-toolbar"><div><strong>活动复盘</strong><span>来源：Activity History</span></div><button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={props.actions.refreshActivity}>刷新活动记录</button></div>
             {props.viewModel.activity.error ? <p className="status-message status-error">{props.viewModel.activity.error}</p> : null}
             {props.viewModel.activity.message ? <p className="status-message status-ready">{props.viewModel.activity.message}</p> : null}
             {props.activitySummary ? (
@@ -430,7 +430,7 @@ function renderAccountItemGrid(
         copy: props.copy
       }))}
       {hiddenItemCount > 0 ? (
-        <button type="button" className="secondary-button account-slot-show-more" onClick={props.onExpand}>
+        <button type="button" className="account-slot-show-more" data-ui-kind="button" data-control-variant="secondary" onClick={props.onExpand}>
           <strong>{accountText(props.copy, "显示全部")} {items.length} {accountText(props.copy, "件")}</strong>
           <span>{accountText(props.copy, "还有")} {hiddenItemCount} {accountText(props.copy, "件未展开的背包候选")}</span>
         </button>

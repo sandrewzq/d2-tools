@@ -116,7 +116,7 @@ export function WizardPage(props: {
           {isSaving ? "保存中..." : "保存配置"}
         </button>
         {props.canCancel ? (
-          <button type="button" className="secondary-button" onClick={props.onCancel}>
+          <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={props.onCancel}>
             返回
           </button>
         ) : null}

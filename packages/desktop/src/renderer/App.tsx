@@ -33,7 +33,7 @@ export function App() {
     return (
       <main className="page">
         <p className="status-message status-error">启动状态读取失败：{startupError}</p>
-        <button type="button" className="primary-button" onClick={() => void refresh()}>
+        <button type="button" data-ui-kind="button" data-control-variant="primary" onClick={() => void refresh()}>
           重试启动检查
         </button>
       </main>

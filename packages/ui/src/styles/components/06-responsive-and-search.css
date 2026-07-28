@@ -30,7 +30,7 @@
   padding: 5px 8px;
   border: 1px solid var(--border-control);
   color: var(--text-body);
-  background: var(--action-secondary-bg);
+  background: var(--control-secondary-bg);
   box-shadow: none;
   font-size: var(--font-content);
 }
@@ -45,7 +45,7 @@
 }
 
 .vault-dashboard-panel button,
-.vault-dashboard-panel .secondary-button,
+.vault-dashboard-panel [data-control-variant="secondary"],
 .vault-card-actions button,
 .vault-tag-actions button,
 .vault-organize-bar button,
@@ -57,7 +57,7 @@
 }
 
 .vault-dashboard-panel button:not(:disabled):hover,
-.vault-dashboard-panel .secondary-button:not(:disabled):hover,
+.vault-dashboard-panel [data-control-variant="secondary"]:not(:disabled):hover,
 .vault-card-actions button:not(:disabled):hover,
 .vault-tag-actions button:not(:disabled):hover,
 .vault-organize-bar button:not(:disabled):hover,

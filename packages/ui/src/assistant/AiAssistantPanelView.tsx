@@ -63,7 +63,7 @@ export function AiAssistantPanelView(props: AiAssistantPanelViewProps) {
           </div>
           <div className="button-row">
             <button type="button" onClick={props.onConfigureAi}>去设置配置 AI</button>
-            <button type="button" className="secondary-button" onClick={props.onClose}>关闭</button>
+            <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={props.onClose}>关闭</button>
           </div>
         </div>
       </section>
@@ -74,10 +74,10 @@ export function AiAssistantPanelView(props: AiAssistantPanelViewProps) {
     <section className="tool-panel ai-chat-panel">
       <div className="ai-conversation-toolbar" aria-label="AI 助手工具">
         <div className="ai-conversation-actions">
-          <button type="button" className="secondary-button" disabled={props.isSending} onClick={props.onStartNewSession}>
+          <button type="button" data-ui-kind="button" data-control-variant="secondary" disabled={props.isSending} onClick={props.onStartNewSession}>
             新会话
           </button>
-          <button type="button" className="secondary-button" disabled={props.isSending} onClick={props.onToggleSessionDrawer}>
+          <button type="button" data-ui-kind="button" data-control-variant="secondary" disabled={props.isSending} onClick={props.onToggleSessionDrawer}>
             会话记录
           </button>
         </div>
@@ -126,7 +126,7 @@ export function AiAssistantPanelView(props: AiAssistantPanelViewProps) {
                       {props.quickPrompts.map((prompt) => (
                         <button
                           type="button"
-                          className="secondary-button"
+                          data-ui-kind="button" data-control-variant="secondary"
                           key={prompt}
                           disabled={props.isSending}
                           onClick={() => props.onQuickPrompt(prompt)}
@@ -154,7 +154,7 @@ export function AiAssistantPanelView(props: AiAssistantPanelViewProps) {
             placeholder="询问当前页面或账号数据"
             rows={3}
           />
-          <button type="submit" data-control-variant="primary" disabled={props.isSending || !props.question.trim()}>
+          <button type="submit" data-ui-kind="button" data-control-variant="ai" disabled={props.isSending || !props.question.trim()}>
             {props.isSending ? "发送中..." : "发送"}
           </button>
         </form>
@@ -163,7 +163,7 @@ export function AiAssistantPanelView(props: AiAssistantPanelViewProps) {
           <section className="ai-chat-history ai-session-drawer" data-scroll-region="overlay" aria-label="会话列表">
             <div className="ai-history-heading">
               <strong>会话列表</strong>
-              <button type="button" className="secondary-button" disabled={!props.history.length} onClick={props.onClearHistory}>
+              <button type="button" data-ui-kind="button" data-control-variant="secondary" disabled={!props.history.length} onClick={props.onClearHistory}>
                 清空历史
               </button>
             </div>
@@ -175,7 +175,7 @@ export function AiAssistantPanelView(props: AiAssistantPanelViewProps) {
                     <div className="button-row">
                       <button
                         type="button"
-                        className="secondary-button"
+                        data-ui-kind="button" data-control-variant="secondary"
                         disabled={props.isSending || props.activeSessionId === entry.id}
                         onClick={() => props.onSwitchSession(entry)}
                       >
@@ -183,7 +183,7 @@ export function AiAssistantPanelView(props: AiAssistantPanelViewProps) {
                       </button>
                       <button
                         type="button"
-                        className="secondary-button"
+                        data-ui-kind="button" data-control-variant="secondary"
                         disabled={props.isSending || props.activeSessionId === entry.id}
                         onClick={() => props.onDeleteSession(entry.id)}
                       >
@@ -203,7 +203,7 @@ export function AiAssistantPanelView(props: AiAssistantPanelViewProps) {
           <section className="ai-context-drawer" data-scroll-region="overlay" aria-label="上下文">
             <div className="ai-history-heading">
               <strong>上下文</strong>
-              <button type="button" className="secondary-button" onClick={props.onCloseContextDrawer}>
+              <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={props.onCloseContextDrawer}>
                 收起
               </button>
             </div>

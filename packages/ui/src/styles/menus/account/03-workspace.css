@@ -385,7 +385,7 @@
   min-height: 68px;
   padding: 8px;
   border: 1px solid var(--object-border);
-  border-radius: var(--radius-panel);
+  border-radius: var(--radius-object);
   background: var(--card-bg);
 }
 
@@ -409,7 +409,7 @@
 
 .app-shell .account-slot-skeleton i {
   height: 7px;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-indicator);
 }
 
 .app-shell .account-slot-skeleton i:nth-child(1) {
@@ -434,7 +434,7 @@
   min-height: 68px;
   padding: 8px;
   border: 1px solid var(--object-border);
-  border-radius: var(--radius-panel);
+  border-radius: var(--radius-object);
   color: var(--text-body);
   background: var(--card-bg);
   text-align: left;
@@ -530,8 +530,8 @@
   align-content: center;
   min-height: 68px;
   padding: 8px;
-  border: 0;
-  border-radius: 0;
+  border: 1px solid var(--object-border);
+  border-radius: var(--radius-frame);
   color: var(--text-muted);
   background: var(--surface-recessed);
 }
@@ -678,9 +678,8 @@
   align-content: start;
   min-height: 180px;
   padding: 18px;
-  border: 0;
-  border-bottom: 1px solid var(--border-subtle);
-  border-radius: 0;
+  border: 1px solid var(--object-border);
+  border-radius: var(--radius-frame);
   background: var(--surface-recessed);
 }
 

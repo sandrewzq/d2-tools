@@ -1,4 +1,5 @@
 import {
+  ControlButton,
   ShellSidebarAccountSummary,
   ShellSidebarActions,
   type ProductPreferences,
@@ -318,29 +319,28 @@ export function useDesktopProductShell(props: {
       subtitle: currentPageMeta.subtitle,
       actions: activePage === "home" ? (
         <>
-          <button
-            type="button"
-            className="secondary-button"
+          <ControlButton
+            variant="primary"
             disabled={daily.isLoadingDaily || !isManifestReady}
             onClick={() => void daily.loadDailySummary(true)}
           >
-            {daily.isLoadingDaily ? "刷新中..." : "刷新公开情报"}
-          </button>
+            {daily.isLoadingDaily ? "读取中..." : "重新读取公开情报"}
+          </ControlButton>
         </>
       ) : activePage === "account" ? (
         <>
-          <button type="button" className="secondary-button" disabled={isLoadingAccount} onClick={() => void refreshAccountManually()}>刷新账号</button>
-          <button type="button" className="secondary-button" disabled={accountWorkspace.isLoggingIn} onClick={() => void accountWorkspace.loginBungie()}>重新授权</button>
+          <ControlButton disabled={isLoadingAccount} onClick={() => void refreshAccountManually()}>刷新账号</ControlButton>
+          <ControlButton disabled={accountWorkspace.isLoggingIn} onClick={() => void accountWorkspace.loginBungie()}>重新授权</ControlButton>
         </>
       ) : activePage === "vault" ? (
-        <button type="button" className="primary-button" disabled={isLoadingAccount} onClick={() => void refreshAccountManually()}>刷新账号装备</button>
+        <ControlButton variant="primary" disabled={isLoadingAccount} onClick={() => void refreshAccountManually()}>刷新账号装备</ControlButton>
       ) : activePage === "library" ? (
         <>
-          <button type="button" className="secondary-button" onClick={() => void diagnostics.refreshManifestStatus()}>重新检查资料库</button>
-          <button type="button" className="primary-button" disabled={diagnostics.isInitializingManifest} onClick={() => void diagnostics.repairManifest()}>修复资料库</button>
+          <ControlButton onClick={() => void diagnostics.refreshManifestStatus()}>重新检查资料库</ControlButton>
+          <ControlButton variant="primary" disabled={diagnostics.isInitializingManifest} onClick={() => void diagnostics.repairManifest()}>修复资料库</ControlButton>
         </>
       ) : activePage === "vendors" ? (
-        <button type="button" className="primary-button" disabled={vendorsWorkspace.isRefreshing} onClick={() => void vendorsWorkspace.refresh()}>刷新商人库存</button>
+        <ControlButton variant="primary" disabled={vendorsWorkspace.isRefreshing} onClick={() => void vendorsWorkspace.refresh()}>刷新商人库存</ControlButton>
       ) : null
     },
     platformActions: desktopPlatformActions,

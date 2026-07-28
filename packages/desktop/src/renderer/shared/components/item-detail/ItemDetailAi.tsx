@@ -17,15 +17,15 @@ export function ItemDetailAi(props: ItemDetailAiProps) {
       <div>
         <h3>装备操作</h3>
         <div className="button-row">
-          <button type="button" className="secondary-button" onClick={props.onCopySelectedItemSummary}>
+          <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={props.onCopySelectedItemSummary}>
             复制结论
           </button>
-          <button type="button" className="secondary-button" onClick={props.onCopySelectedItemChatGuide}>
+          <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={props.onCopySelectedItemChatGuide}>
             生成群聊说明
           </button>
           <button
             type="button"
-            className="secondary-button"
+            data-ui-kind="button" data-control-variant="secondary"
             disabled={props.isGeneratingItemAi}
             onClick={props.onGenerateItemAiAdvice}
           >

@@ -116,6 +116,6 @@ export function ProductWorkspaceEmptyState(props: WorkspaceProps) {
   return renderWorkspaceElement(
     props.element ?? "div",
     classNames("product-workspace-empty", props.className),
-    { ...props, surface: props.surface ?? "empty" }
+    { ...props, surface: props.surface ?? "empty", uiKind: props.uiKind ?? "state-frame" }
   );
 }

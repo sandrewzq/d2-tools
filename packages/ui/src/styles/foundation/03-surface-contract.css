@@ -8,11 +8,24 @@
 :root {
   --surface-frame-bg: var(--card-bg);
   --surface-frame-border: var(--object-border);
-  --surface-frame-radius: var(--radius-panel);
+  --surface-frame-radius: var(--radius-frame);
   --surface-frame-padding: var(--space-12);
-  --surface-list-divider: var(--divider);
+  --surface-list-divider: var(--section-divider);
   --surface-row-pad-x: var(--space-12);
   --surface-row-pad-y: 10px;
+}
+
+/*
+ * 颜色别名必须在主题宿主上重新计算。仅从 :root 继承会把默认深色主题的
+ * --card-bg / --object-border / --divider 计算结果带入亮色 AppShell。
+ */
+.app-shell[data-color-mode="light"],
+.app-shell[data-color-mode="dark"],
+html[data-theme="light"],
+.standalone-dark-theme {
+  --surface-frame-bg: var(--card-bg);
+  --surface-frame-border: var(--object-border);
+  --surface-list-divider: var(--section-divider);
 }
 
 /* ShellChrome：连续结构线只属于壳和页面头，始终使用直角。 */
@@ -154,12 +167,31 @@
   box-shadow: none;
 }
 
+[data-ui-kind="object-card"],
+[data-surface="object-card"] {
+  border-radius: var(--radius-object);
+}
+
+[data-surface="frame"][data-ui-kind="status-matrix"] {
+  gap: 0;
+  border: 1px solid var(--object-border);
+  border-radius: var(--radius-frame);
+  background: var(--surface-panel);
+}
+
+[data-ui-kind="summary-frame"],
+[data-ui-kind="state-frame"] {
+  border: 1px solid var(--object-border);
+  border-radius: var(--radius-frame);
+  background: var(--card-bg);
+}
+
 /* SurfaceList：父级拥有外框；内部行只画一条分隔线，不能再次画卡片外框。 */
 [data-surface="list"] {
   min-width: 0;
   overflow: hidden;
   border: 1px solid var(--surface-frame-border);
-  border-radius: var(--surface-frame-radius);
+  border-radius: var(--radius-structural);
   background: var(--surface-frame-bg);
 }
 
@@ -208,10 +240,15 @@
   min-height: 180px;
   margin: var(--workspace-section-space) var(--workspace-page-space);
   padding: var(--space-24);
-  border: 1px dashed var(--divider);
-  border-radius: var(--surface-frame-radius);
+  border: 1px dashed var(--section-divider);
+  border-radius: var(--radius-frame);
   background: var(--section-bg);
   text-align: center;
+}
+
+[data-surface="empty"][data-ui-kind="state-frame"] {
+  border: 1px solid var(--object-border);
+  background: var(--card-bg);
 }
 
 [data-surface="empty"] strong {

@@ -29,7 +29,7 @@
 .armor-detail-icon-placeholder { width: 72px; height: 72px; border: 1px solid var(--border-control); border-radius: var(--radius-control); background: var(--surface-recessed); object-fit: cover; }
 .armor-detail-identity-main > div { min-width: 0; }
 .armor-detail-identity-title-line { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; }
-.armor-detail-version-badge { min-height: 20px; padding: 2px 6px; border: 1px solid #438269; border-radius: var(--radius-pill); color: var(--status-ready); background: var(--status-ready-bg); font-size: 12px; font-weight: 700; }
+.armor-detail-version-badge { min-height: 20px; padding: 2px 6px; border: 1px solid #438269; border-radius: var(--radius-indicator); color: var(--status-ready); background: var(--status-ready-bg); font-size: 12px; font-weight: 700; }
 .armor-detail-identity-version { color: var(--muted); font-size: 12px; }
 .armor-detail-identity h2 { margin: 2px 0; color: var(--text-title); font-size: 22px; line-height: 1.2; }
 .armor-detail-identity p,
@@ -53,7 +53,7 @@
 .armor-detail-context-ledger dd { min-width: 0; margin: 0; color: var(--text); font-size: 12px; font-weight: 600; overflow-wrap: anywhere; }
 .armor-detail-context-ledger .armor-detail-context-version { flex: 1 1 100%; border-color: #497a65; background: var(--status-ready-bg); }
 .armor-detail-context-version dd { flex: 1 1 auto; }
-.armor-detail-context-version span { flex: 0 0 auto; padding: 2px 5px; border-radius: var(--radius-pill); color: var(--status-ready); background: var(--section-bg); font-size: 12px; font-weight: 700; }
+.armor-detail-context-version span { flex: 0 0 auto; padding: 2px 5px; border-radius: var(--radius-indicator); color: var(--status-ready); background: var(--section-bg); font-size: 12px; font-weight: 700; }
 .armor-detail-definition-details > summary { width: max-content; color: var(--accent-primary); font-size: var(--font-meta); font-weight: 700; cursor: pointer; }
 .armor-detail-definition-details > div { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; margin-top: 7px; padding: 8px; border: 1px solid var(--border-subtle); border-radius: var(--radius-control); background: var(--surface-subtle); }
 .armor-detail-definition-details dl { margin: 0; }
@@ -96,7 +96,7 @@
 .armor-detail-stat-row > strong { color: var(--text-title); }
 .armor-detail-stat-base { color: var(--text-muted); font-variant-numeric: tabular-nums; }
 .armor-detail-stat-current { color: var(--text-title); font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; }
-.armor-detail-stat-row > i { position: relative; display: block; height: 7px; overflow: hidden; border-radius: var(--radius-pill); background: var(--surface-recessed); }
+.armor-detail-stat-row > i { position: relative; display: block; height: 7px; overflow: hidden; border-radius: var(--radius-indicator); background: var(--surface-recessed); }
 .armor-detail-stat-row > i b { position: absolute; inset: 0 auto 0 0; border-radius: inherit; }
 .armor-detail-stat-row > i b.is-current { width: var(--armor-stat-current); background: var(--status-ready); opacity: 0.8; }
 .armor-detail-stat-row > i b.is-base { width: var(--armor-stat-base); background: var(--muted); opacity: 0.7; }
@@ -113,7 +113,7 @@
 .armor-detail-configuration { display: grid; gap: 14px; }
 .armor-detail-configuration-grid { display: grid; grid-template-columns: minmax(330px, 0.8fr) minmax(0, 1.2fr); gap: 16px; }
 .armor-detail-core-features { display: grid; align-content: start; gap: 8px; }
-.armor-detail-core-feature { display: grid; grid-template-columns: 54px minmax(0, 1fr); gap: 12px; padding: 12px; border: 1px solid var(--object-border); border-left: 4px solid var(--accent-primary); border-radius: var(--radius-panel); background: var(--card-bg); }
+.armor-detail-core-feature { display: grid; grid-template-columns: 54px minmax(0, 1fr); gap: 12px; padding: 12px; border: 1px solid var(--object-border); border-left: 4px solid var(--accent-primary); border-radius: var(--radius-object); background: var(--card-bg); }
 .armor-detail-core-feature.is-exotic { border-left-color: var(--status-warning); }
 .armor-detail-core-feature img,
 .armor-detail-core-feature-icon { width: 54px; height: 54px; border-radius: var(--radius-control); background: var(--surface-recessed); object-fit: cover; }
@@ -139,13 +139,13 @@
 .armor-detail-socket-block small { color: var(--text-muted); font-size: 12px; text-align: right; }
 
 .armor-detail-target-tabs { display: flex; flex-wrap: wrap; gap: 0; overflow: hidden; border: 1px solid var(--control-border); border-radius: var(--radius-control); background: var(--section-bg); }
-.armor-detail-target-tabs button { flex: 0 1 auto; min-height: 36px; padding: 0 11px; border: 0; border-right: 1px solid var(--divider); border-radius: 0; color: var(--muted); background: transparent; cursor: pointer; }
+.armor-detail-target-tabs button { flex: 0 1 auto; min-height: 36px; padding: 0 11px; border: 0; border-right: 1px solid var(--section-divider); border-radius: 0; color: var(--muted); background: transparent; cursor: pointer; }
 .armor-detail-target-tabs button:last-child { border-right: 0; }
 .armor-detail-target-tabs button:hover { color: var(--text-title); background: var(--surface-interactive); }
 .armor-detail-target-tabs button[aria-selected="true"] { color: var(--selected-fg); background: var(--selected-bg); }
-.armor-detail-target-tabs span { display: inline-grid; min-width: 18px; height: 18px; place-items: center; margin-left: 4px; border-radius: var(--radius-pill); background: var(--surface-subtle); font-size: var(--font-caption); }
+.armor-detail-target-tabs span { display: inline-grid; min-width: 18px; height: 18px; place-items: center; margin-left: 4px; border-radius: var(--radius-indicator); background: var(--surface-subtle); font-size: var(--font-caption); }
 .armor-detail-target-list { display: grid; gap: 9px; }
-.armor-detail-recommendation { overflow: hidden; border: 1px solid var(--object-border); border-radius: var(--radius-panel); background: var(--card-bg); }
+.armor-detail-recommendation { overflow: hidden; border: 1px solid var(--object-border); border-radius: var(--radius-object); background: var(--card-bg); }
 .armor-detail-recommendation header { display: flex; justify-content: space-between; gap: 12px; padding: 10px 12px; border-bottom: 1px solid var(--section-divider); background: var(--surface-interactive); }
 .armor-detail-recommendation h4 { margin: 0; color: var(--text-title); font-size: 12px; }
 .armor-detail-recommendation header p { margin: 3px 0 0; color: var(--text-muted); font-size: 12px; }
@@ -215,7 +215,7 @@
 .armor-detail-instance-actions .compact-field select { min-width: 0; min-height: 36px; border: 1px solid var(--field-border); border-radius: var(--radius-control); color: var(--text-body); background: var(--field-bg); }
 .armor-detail-instance-actions .compact-field textarea { grid-column: 1 / -1; width: 100%; min-height: 64px; resize: vertical; }
 .armor-detail-instance-actions .button-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
-.armor-detail-instance-actions .button-row .secondary-button { min-width: 0; min-height: 34px; padding: 5px 7px; font-size: var(--font-meta); white-space: normal; }
+.armor-detail-instance-actions .button-row [data-control-variant="secondary"] { min-width: 0; min-height: 34px; padding: 5px 7px; font-size: var(--font-meta); white-space: normal; }
 .armor-detail-instance-actions .status-message { margin: 0; font-size: var(--font-meta); }
 .armor-detail-instance-actions .weapon-detail-operation-feedback { margin: 8px 12px; }
 .armor-detail-rail-instances { padding: 12px; }
@@ -224,7 +224,7 @@
 .armor-detail-rail-heading h3 { margin: 2px 0 0; color: var(--text-title); font-size: 14px; }
 .armor-detail-rail-heading > strong { color: var(--text-muted); font-size: var(--font-meta); }
 .armor-detail-instance-list { display: grid; gap: 7px; }
-.armor-detail-instance-list button { width: 100%; display: grid; gap: 7px; min-height: 44px; padding: 9px; border: 1px solid var(--object-border); border-radius: var(--radius-panel); color: var(--body); background: var(--card-bg); text-align: left; }
+.armor-detail-instance-list button { width: 100%; display: grid; gap: 7px; min-height: 44px; padding: 9px; border: 1px solid var(--object-border); border-radius: var(--radius-object); color: var(--body); background: var(--card-bg); text-align: left; }
 .armor-detail-instance-list button:not(:disabled) { cursor: pointer; }
 .armor-detail-instance-list button:not(:disabled):hover { border-color: var(--item-border-strong); background: var(--item-bg-hover); }
 .armor-detail-instance-list button.is-current { color: var(--selected-fg); border-color: var(--selected-border); background: var(--selected-bg); }

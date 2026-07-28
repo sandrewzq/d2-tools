@@ -4,7 +4,7 @@ import type { InterfaceLocale, HomeCopy } from "../i18n/types.js";
 import { isXurActiveAt, nextXurBoundaryAt, xurVendorHash } from "@d2-tools/core/daily/xurSchedule";
 import type { ShellPageKey } from "../shell/types.js";
 import type { VendorInventoryItemView, VendorOfferContextView } from "../vendors/VendorsPageContentView.js";
-import { formatScheduleDateTime } from "../time/formatTime.js";
+import { formatFullDateTime, formatScheduleDateTime } from "../time/formatTime.js";
 import { createXurItemIconUrl, normalizeBungieIconUrl } from "./homeIconArt.js";
 export type HomeTone = "neutral" | "ready" | "warning" | "error";
 export type HomeDailyItem = {
@@ -113,6 +113,8 @@ type HomeConfirmedXur = {
   location?: string;
   refreshLabel?: string;
   inventoryCount: number;
+  missingItemCount: number;
+  isPartial: boolean;
   items: HomeDailyItem[];
 };
 const hiddenHomeXurItemTitles = new Set([
@@ -129,6 +131,8 @@ const hiddenHomeXurItemTitles = new Set([
 export type HomePageViewProps = {
   interfaceLocale?: InterfaceLocale;
   selectedCharacterId?: string;
+  selectedCharacterLabel?: string;
+  briefingFetchedAt?: string;
   state?: HomeStartupState;
   isLoggingIn?: boolean;
   isLoadingAccount?: boolean;
@@ -162,7 +166,11 @@ export function HomePageContentView(props: HomePageViewProps) {
   const clock = useHomeClock();
   const dailySummary = props.dailySummary ?? null;
   const weeklySummary = props.weeklySummary ?? null;
-  const xur = buildConfirmedXur(dailySummary?.sources.vendors, copy, props.selectedCharacterId);
+  const dailyError = props.dailyError ?? "";
+  const isLoadingDaily = props.isLoadingDaily ?? false;
+  const xur = dailyError || isLoadingDaily
+    ? null
+    : buildConfirmedXur(dailySummary?.sources.vendors, copy, clock, props.selectedCharacterId);
   return (
     <HomePageContent
       copy={copy}
@@ -171,10 +179,13 @@ export function HomePageContentView(props: HomePageViewProps) {
       weeklySummary={weeklySummary}
       clock={clock}
       xur={xur}
+      selectedCharacterLabel={props.selectedCharacterLabel}
+      briefingFetchedAt={props.briefingFetchedAt}
       dailyMessage={props.dailyMessage ?? ""}
-      dailyError={props.dailyError ?? ""}
-      isLoadingDaily={props.isLoadingDaily ?? false}
+      dailyError={dailyError}
+      isLoadingDaily={isLoadingDaily}
       onNavigate={props.onNavigate}
+      onRefreshDaily={props.onRefreshDaily}
       onOpenXurOffer={props.onOpenXurOffer}
     />
   );
@@ -186,10 +197,13 @@ function HomePageContent(props: {
   weeklySummary: HomeWeeklySummary | null;
   clock: Date;
   xur: HomeConfirmedXur | null;
+  selectedCharacterLabel?: string;
+  briefingFetchedAt?: string;
   dailyMessage: string;
   dailyError: string;
   isLoadingDaily: boolean;
   onNavigate?: (page: ShellPageKey) => void;
+  onRefreshDaily?: () => void;
   onOpenXurOffer?: (item: VendorInventoryItemView, context: VendorOfferContextView) => void;
 }) {
   const priorities = props.weeklySummary?.priorities;
@@ -199,38 +213,70 @@ function HomePageContent(props: {
     { kind: "dungeon", label: homeText(props.copy, "轮换地牢"), priority: priorities?.rotating_dungeon }
   ] as const;
   const xur = props.xur;
-  const xurItems = xur?.items.slice(0, 8) ?? [];
+  const xurItems = xur?.items ?? [];
   const refreshEntries = buildRefreshEntries(props.dailySummary, props.weeklySummary, props.clock, props.interfaceLocale, props.copy);
   return (
-    <section className="home-page">
-      {props.dailyError ? <p className="status-message status-error">{props.dailyError}</p> : null}
-      {props.dailyMessage ? <p className="status-message status-ready">{props.dailyMessage}</p> : null}
-      {props.isLoadingDaily ? <p className="status-message status-pending">正在刷新公开情报…</p> : null}
-      <div className="home-refresh-strip" aria-label="首页数据刷新节奏">
-        {refreshEntries.map((entry) => <HomeRefreshCell key={entry.key} entry={entry} />)}
-      </div>
-      <section className="home-core-grid" aria-label="本周核心活动">
-        {activities.map((activity) => <HomeActivityCard key={activity.kind} {...activity} featured={activity.kind === "nightfall"} />)}
+    <section className="home-page" data-page-view="home" data-surface="page">
+      {props.dailyError || props.dailyMessage || props.isLoadingDaily ? (
+        <section className="home-feedback-band" data-surface="section" aria-live="polite">
+          {props.dailyError ? <HomeFeedback status="error" message={props.dailyError} onRetry={props.onRefreshDaily} /> : null}
+          {props.dailyMessage ? <HomeFeedback status="success" message={props.dailyMessage} /> : null}
+          {props.isLoadingDaily ? <HomeFeedback status="pending" message="正在刷新公开情报…" /> : null}
+        </section>
+      ) : null}
+      <section className="home-content-band" data-surface="section">
+        <div className="home-refresh-strip" data-surface="frame" data-ui-kind="status-matrix" aria-label="首页数据刷新节奏">
+          {refreshEntries.map((entry) => <HomeRefreshCell key={entry.key} entry={entry} />)}
+        </div>
       </section>
-      <section className="home-signal-grid" aria-label="限时活动与本周加成">
-        <HomeSignal label={homeText(props.copy, "限时活动")} priority={priorities?.special_event} />
-        <HomeSignal label={homeText(props.copy, "本周加成")} priority={priorities?.weekly_bonus} />
+      <section className="home-content-band home-core-band" data-surface="section" aria-label="本周核心活动">
+        <div className="weekly-activity-grid" data-surface="content-stack">
+          {activities.map((activity) => (
+            <HomeActivityCard
+              key={activity.kind}
+              {...activity}
+              featured={activity.kind === "nightfall"}
+            />
+          ))}
+        </div>
       </section>
-      <section className="home-band home-xur">
+      <section className="home-content-band home-signals-band" data-surface="section" aria-label="限时活动与本周加成">
+        <div className="weekly-signal-grid" data-surface="content-stack">
+          <HomeSignal label={homeText(props.copy, "限时活动")} priority={priorities?.special_event} />
+          <HomeSignal label={homeText(props.copy, "本周加成")} priority={priorities?.weekly_bonus} />
+        </div>
+      </section>
+      <section className="home-content-band home-vendor-band" data-surface="section" data-contract-id="home.vendor-stock" data-source="Vendor API + current library">
         <div className="home-band-heading">
           <div>
-            <span>周末商人</span>
-            <h2>仄本周八件轮换</h2>
+            <span data-ui-part="label" data-info-priority="support" data-text-tone="meta">周末商人</span>
+            <h2 data-ui-part="value" data-info-priority="display" data-text-tone="primary">仄本周八件轮换</h2>
           </div>
-          <button type="button" className="secondary-button" onClick={() => props.onNavigate?.("vendors")}>打开仄的完整库存</button>
+          <button
+            type="button"
+            data-ui-kind="button" data-control-variant="secondary"
+            disabled={!props.onNavigate}
+            onClick={() => props.onNavigate?.("vendors")}
+          >
+            打开仄的完整库存
+          </button>
         </div>
-        {xur ? (
+        <div className="home-vendor-content" data-surface="content-stack" data-status={homeVendorStatus(props)} aria-live="polite" aria-busy={props.isLoadingDaily}>
+          {xur ? (
           <>
-            <div className="home-xur-overview">
-              <div><span>本周八件轮换</span><strong>{xurItems.length} 件已确认 · {xur.refreshLabel ?? "当前有效"}</strong></div>
-              <div><span>当前位置</span><strong>{xur.location ?? xur.title}</strong></div>
+            <div className="home-vendor-overview" data-surface="frame" data-ui-kind="status-matrix">
+              <div className="home-vendor-summary">
+                <span data-ui-part="label" data-info-priority="support" data-text-tone="meta">本周八件轮换</span>
+                <strong data-ui-part="value" data-info-priority="decision" data-text-tone="primary">
+                  {formatHomeVendorSummary(xur, xurItems.length)}
+                </strong>
+              </div>
+              <div className="home-vendor-summary">
+                <span data-ui-part="label" data-info-priority="support" data-text-tone="meta">当前位置</span>
+                <strong data-ui-part="value" data-info-priority="context" data-text-tone="primary">{xur.location ?? xur.title}</strong>
+              </div>
             </div>
-            <div className="home-xur-stock-grid">
+            <div className="home-vendor-stock-grid">
               {xurItems.map((item, index) => (
                 <HomeXurOffer
                   item={item}
@@ -240,16 +286,49 @@ function HomePageContent(props: {
                   onOpenXurOffer={props.onOpenXurOffer}
                 />
               ))}
+              {xur.missingItemCount ? <HomeMissingXurOffer count={xur.missingItemCount} /> : null}
             </div>
           </>
-        ) : <HomeXurState source={props.dailySummary?.sources.vendors} />}
-        <small className="home-source">来源：Vendor API 与当前 Manifest。读取失败时不显示过期轮换。</small>
+          ) : (
+            <HomeXurState
+              source={props.dailySummary?.sources.vendors}
+              isLoading={props.isLoadingDaily}
+              error={props.dailyError}
+              onRetry={props.onRefreshDaily}
+            />
+          )}
+        </div>
+        <small className="home-vendor-source" data-ui-part="source" data-info-priority="trace" data-text-tone="meta">
+          {formatHomeVendorSource({
+            xur,
+            fetchedAt: props.briefingFetchedAt,
+            selectedCharacterLabel: props.selectedCharacterLabel,
+            isLoading: props.isLoadingDaily,
+            error: props.dailyError
+          })}
+        </small>
       </section>
     </section>
   );
 }
 
 type HomeRefreshEntry = { key: "daily" | "weekly" | "xur"; label: string; moment: string; countdown: string; impact: string };
+
+function HomeFeedback(props: { status: "success" | "pending" | "error"; message: string; onRetry?: () => void }) {
+  return (
+    <div
+      className="home-feedback"
+      data-ui-kind="callout"
+      data-status={props.status}
+      role={props.status === "error" ? "alert" : "status"}
+    >
+      <span data-ui-part="state" data-info-priority="decision" data-text-tone="status" data-status={props.status}>{props.message}</span>
+      {props.status === "error" && props.onRetry ? (
+        <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={props.onRetry}>重新读取公开情报</button>
+      ) : null}
+    </div>
+  );
+}
 
 function useHomeClock() {
   const [clock, setClock] = useState(() => new Date());
@@ -302,7 +381,17 @@ function compactDuration(now: Date, target: Date, copy: HomeCopy) {
 }
 
 function HomeRefreshCell(props: { entry: HomeRefreshEntry }) {
-  return <div className="home-refresh-cell" data-refresh={props.entry.key}><div className="home-refresh-heading"><RefreshGlyph kind={props.entry.key} /><span>{props.entry.label}</span></div><strong>{props.entry.moment}</strong><small>{props.entry.countdown}</small><small className="home-refresh-impact">影响：{props.entry.impact}</small></div>;
+  return (
+    <div className="home-refresh-cell" data-refresh={props.entry.key}>
+      <div className="home-refresh-heading">
+        <RefreshGlyph kind={props.entry.key} />
+        <span data-ui-part="label" data-info-priority="support" data-text-tone="body">{props.entry.label}</span>
+      </div>
+      <strong data-ui-part="value" data-info-priority="decision" data-text-tone="primary" data-value-kind="fact">{props.entry.moment}</strong>
+      <small data-ui-part="state" data-info-priority="decision" data-text-tone="primary" data-value-kind="fact">{props.entry.countdown}</small>
+      <small className="home-refresh-impact" data-ui-part="detail" data-info-priority="support" data-text-tone="body">影响：{props.entry.impact}</small>
+    </div>
+  );
 }
 
 function RefreshGlyph(props: { kind: HomeRefreshEntry["key"] }) {
@@ -311,18 +400,79 @@ function RefreshGlyph(props: { kind: HomeRefreshEntry["key"] }) {
   return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 5 7v5c0 4.5 3 7.7 7 9 4-1.3 7-4.5 7-9V7Z" /><path d="M9 12h6M12 9v6" /></svg>;
 }
 
-function HomeActivityCard(props: { kind: "nightfall" | "raid" | "dungeon"; label: string; priority: HomeWeeklyPriority | undefined; featured: boolean }) {
+function HomeActivityCard(props: {
+  kind: "nightfall" | "raid" | "dungeon";
+  label: string;
+  priority: HomeWeeklyPriority | undefined;
+  featured: boolean;
+}) {
   const entries = homePriorityEntries(props.priority);
-  return <article className={`home-activity-card is-${props.kind}`}><header><span>{props.label}</span><strong className={entries.length ? "is-ready" : ""}>{entries.length ? `${entries.length} 项已确认` : "待确认"}</strong></header>{entries.length ? <div className="home-activity-list">{entries.map((entry) => <HomeActivityEntry key={`${props.kind}-${entry.title}`} entry={entry} featured={props.featured} />)}</div> : <HomeEmpty label="公开接口暂未确认本周内容。" />}</article>;
+  const status = entries.length ? "success" : "pending";
+  return (
+    <article className={`weekly-activity-card is-${props.kind}`} data-surface="frame" data-ui-kind="summary-frame" data-status={status}>
+      <header>
+        <span data-ui-part="label" data-info-priority="context" data-text-tone="primary">{props.label}</span>
+        <strong data-ui-part="state" data-info-priority="support" data-text-tone="status" data-status={status}>
+          {entries.length ? `${entries.length} 项已确认` : "待确认"}
+        </strong>
+      </header>
+      {entries.length ? (
+        <div className="weekly-activity-list">
+          {entries.map((entry) => (
+            <HomeActivityEntry
+              key={`${props.kind}-${entry.title}`}
+              entry={entry}
+              featured={props.featured}
+            />
+          ))}
+        </div>
+      ) : <HomeEmpty label="公开接口暂未确认本周内容。" />}
+    </article>
+  );
 }
 
-function HomeActivityEntry(props: { entry: HomeWeeklyActivityEntry; featured: boolean }) {
+function HomeActivityEntry(props: {
+  entry: HomeWeeklyActivityEntry;
+  featured: boolean;
+}) {
   const rewards = props.entry.rewards?.filter((reward) => reward.name.trim()) ?? [];
-  return <div className={props.featured ? "home-activity-entry is-featured" : "home-activity-entry"}><div className="home-activity-copy"><h3>{props.entry.title}</h3>{props.entry.detail ? <p>{props.entry.detail}</p> : null}</div><div className="home-activity-rewards">{rewards.length ? rewards.map((reward) => <HomeActivityReward key={reward.hash} reward={reward} />) : <span className="home-reward-pending">奖励待确认</span>}</div></div>;
+  return (
+    <div className={props.featured ? "weekly-activity-entry is-featured" : "weekly-activity-entry"}>
+      <div className="weekly-activity-copy">
+        <h3 data-ui-part="value" data-info-priority="decision" data-text-tone="primary">{props.entry.title}</h3>
+        {props.entry.detail ? <p data-ui-part="detail" data-info-priority="reading" data-text-tone="body">{props.entry.detail}</p> : null}
+      </div>
+      <div className="weekly-activity-reward-panel">
+        <span data-ui-part="label" data-info-priority="support" data-text-tone="meta">本周奖励</span>
+        <div className="weekly-activity-reward-list">
+          {rewards.length ? rewards.map((reward) => (
+            <HomeActivityReward key={reward.hash} reward={reward} />
+          )) : (
+            <div className="weekly-activity-reward is-pending">
+              <div>
+                <strong data-ui-part="value" data-info-priority="context" data-text-tone="primary">奖励待确认</strong>
+                <small data-ui-part="detail" data-info-priority="reading" data-text-tone="body">公开接口尚未返回可读奖励。</small>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function HomeActivityReward(props: { reward: HomeWeeklyActivityReward }) {
-  return <div className="home-activity-reward">{props.reward.icon ? <img src={normalizeBungieIconUrl(props.reward.icon) ?? props.reward.icon} alt="" /> : null}<span><strong>{props.reward.name}</strong>{props.reward.item_type ? <small>{props.reward.item_type}</small> : null}</span></div>;
+  return (
+    <div className="weekly-activity-reward">
+      {props.reward.icon ? (
+        <span className="weekly-activity-reward-icon"><img src={normalizeBungieIconUrl(props.reward.icon) ?? props.reward.icon} alt="" /></span>
+      ) : <span className="weekly-activity-reward-icon is-missing" aria-label={`${props.reward.name} 无图标`}>?</span>}
+      <div>
+        <strong data-ui-part="value" data-info-priority="context" data-text-tone="primary">{props.reward.name}</strong>
+        {props.reward.item_type ? <small data-ui-part="detail" data-info-priority="reading" data-text-tone="body">{props.reward.item_type}</small> : null}
+      </div>
+    </div>
+  );
 }
 
 function HomeXurOffer(props: {
@@ -335,23 +485,22 @@ function HomeXurOffer(props: {
   const iconUrl = normalizeBungieIconUrl(props.item.iconUrl ?? props.item.icon)
     ?? createXurItemIconUrl({ iconTone, iconLabel: props.item.iconLabel, label: props.item.title });
   const classNote = getHomeXurClassNote(props.item);
-  const details = [
+  const typeLabel = [
     classNote,
-    props.item.subtitle && props.item.subtitle !== classNote ? props.item.subtitle : "",
-    props.item.description
+    props.item.subtitle && props.item.subtitle !== classNote ? props.item.subtitle : ""
   ].filter(Boolean).join(" · ");
 
   const content = <>
-      <img className="home-xur-stock-icon" alt="" loading="lazy" src={iconUrl} />
-      <div>
-        <span>{details || "类型与职业备注未返回"}</span>
-        <strong>{props.item.title}</strong>
-        <small>{props.item.source || "当前轮换商品"}</small>
-      </div>
-      <span>本周轮换</span>
+      <span className="home-vendor-stock-icon"><img alt="" loading="lazy" src={iconUrl} /></span>
+      <span className="home-vendor-stock-copy">
+        <span data-ui-part="label" data-info-priority="support" data-text-tone="meta">{typeLabel || "类型与职业备注未返回"}</span>
+        <strong data-ui-part="value" data-info-priority="context" data-text-tone="primary">{props.item.title}</strong>
+        <small data-ui-part="detail" data-info-priority="reading" data-text-tone="body">{props.item.description || props.item.source || "当前轮换商品"}</small>
+      </span>
+      <span className="home-vendor-stock-state" data-ui-part="state" data-info-priority="support" data-text-tone="status" data-status="success">本周轮换</span>
   </>;
   if (props.item.itemHash === undefined || !props.onOpenXurOffer) {
-    return <article className="home-xur-stock-item">{content}</article>;
+    return <article className="home-vendor-stock-item" data-ui-kind="object-card">{content}</article>;
   }
 
   const offer = createHomeXurOffer(props.item, iconTone, iconUrl, props.vendorName);
@@ -359,7 +508,9 @@ function HomeXurOffer(props: {
   return (
     <button
       type="button"
-      className="home-xur-stock-item is-actionable"
+      className="home-vendor-stock-item"
+      data-ui-kind="object-card"
+      data-control-variant="quiet"
       aria-label={`查看${props.item.title}详情`}
       onClick={() => props.onOpenXurOffer?.(offer, context)}
     >
@@ -438,65 +589,157 @@ function HomeSignal(props: {
   priority: HomeWeeklyPriority | undefined;
 }) {
   const ready = props.priority?.status === "ready";
+  const status = ready ? "success" : "pending";
   return (
-    <article className="home-signal-card">
-      <header><span>{props.label}</span><span className={`app-chip status-${ready ? "ready" : "neutral"}`}>{ready ? "已确认" : "待确认"}</span></header>
-      <strong>{props.priority?.title ?? "公开接口尚未确认"}</strong>
-      <p>{props.priority?.detail ?? "当前不展示历史活动或推测内容。"}</p>
-      {props.priority?.source ? <small>来源：{props.priority.source}</small> : null}
+    <article className="weekly-signal-card" data-surface="frame" data-ui-kind="summary-frame" data-status={status}>
+      <header>
+        <span data-ui-part="label" data-info-priority="context" data-text-tone="primary">{props.label}</span>
+        <span className="app-chip" data-ui-kind="status-chip" data-ui-part="state" data-info-priority="support" data-text-tone="status" data-status={status}>{ready ? "已确认" : "待确认"}</span>
+      </header>
+      <strong data-ui-part="value" data-info-priority="decision" data-text-tone="primary">{props.priority?.title ?? "公开接口尚未确认"}</strong>
+      <p data-ui-part="detail" data-info-priority="reading" data-text-tone="body">{props.priority?.detail ?? "当前不展示历史活动或推测内容。"}</p>
+      {props.priority?.source ? <small data-ui-part="source" data-info-priority="trace" data-text-tone="meta">来源：{props.priority.source}</small> : null}
     </article>
   );
 }
 function HomeEmpty(props: { label: string }) {
-  return <div className="home-empty">{props.label}</div>;
+  return <div className="weekly-activity-empty" data-ui-part="detail" data-info-priority="reading" data-text-tone="body">{props.label}</div>;
 }
 
-function HomeXurState(props: { source: HomeDailySource | undefined }) {
-  if (!props.source || props.source.status === "pending") {
-    return <div className="home-xur-module-state"><strong>正在读取本周八件轮换</strong><span>等待当前商人库存和资料库定义返回；不会显示旧轮换。</span></div>;
+function HomeXurState(props: {
+  source: HomeDailySource | undefined;
+  isLoading: boolean;
+  error: string;
+  onRetry?: () => void;
+}) {
+  if (props.error || props.source?.status === "error") {
+    return (
+      <HomeVendorModuleState
+        status="error"
+        title="本周八件轮换读取失败"
+        detail="没有显示上一次缓存的 Offer。重新读取成功后才恢复轮换列表。"
+        onRetry={props.onRetry}
+      />
+    );
   }
 
-  if (props.source.status === "error") {
-    return <div className="home-xur-module-state"><strong>本周八件轮换读取失败</strong><span>本次读取未成功，因此不显示上一次缓存的商品。</span></div>;
+  if (props.isLoading || !props.source) {
+    return (
+      <>
+        <HomeVendorModuleState
+          status="pending"
+          title="正在读取本周八件轮换"
+          detail="保留模块尺寸，等待 Vendor API 和当前资料库返回；不会回退显示旧库存。"
+        />
+        <div className="home-vendor-stock-grid" aria-hidden="true">
+          <i className="home-vendor-skeleton" /><i className="home-vendor-skeleton" /><i className="home-vendor-skeleton" />
+        </div>
+      </>
+    );
   }
 
-  return <div className="home-xur-module-state"><strong>当前没有可确认的仄本周八件轮换</strong><span>商人未开放或主商人轮换不可见。旧 Offer 已清除，请等待下一次有效读取。</span></div>;
+  return (
+    <HomeVendorModuleState
+      status="warning"
+      title="当前没有可确认的仄本周八件轮换"
+      detail="商人未开放或主商人轮换不可见。旧 Offer 已清除，请等待下一次有效读取。"
+    />
+  );
+}
+
+function HomeVendorModuleState(props: {
+  status: "pending" | "warning" | "error";
+  title: string;
+  detail: string;
+  onRetry?: () => void;
+}) {
+  return (
+    <div className="home-vendor-module-state" data-surface="frame" data-ui-kind="state-frame" data-status={props.status}>
+      <strong data-ui-part="value" data-info-priority="decision" data-text-tone="status" data-status={props.status}>{props.title}</strong>
+      <span data-ui-part="detail" data-info-priority="reading" data-text-tone="body">{props.detail}</span>
+      {props.onRetry ? <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={props.onRetry}>重新读取商人库存</button> : null}
+    </div>
+  );
+}
+
+function HomeMissingXurOffer(props: { count: number }) {
+  return (
+    <article className="home-vendor-stock-item" data-ui-kind="object-card" data-status="warning">
+      <span className="home-vendor-stock-icon is-missing" aria-hidden="true">?</span>
+      <span className="home-vendor-stock-copy">
+        <span data-ui-part="label" data-info-priority="support" data-text-tone="meta">资料库定义待补齐</span>
+        <strong data-ui-part="value" data-info-priority="context" data-text-tone="primary">{props.count} 件轮换商品暂无可读名称</strong>
+        <small data-ui-part="detail" data-info-priority="reading" data-text-tone="body">Vendor API 已确认存在，不使用猜测名称、类型或图标。</small>
+      </span>
+      <span className="home-vendor-stock-state" data-ui-part="state" data-info-priority="support" data-text-tone="status" data-status="warning">部分可用</span>
+    </article>
+  );
+}
+
+function formatHomeVendorSummary(xur: HomeConfirmedXur, visibleCount: number): string {
+  if (xur.isPartial || xur.missingItemCount) {
+    return `${visibleCount} 件已确认 · ${xur.missingItemCount} 件定义待补齐`;
+  }
+  return `${xur.inventoryCount} 件轮换商品 · ${xur.refreshLabel ?? "当前有效"}`;
+}
+
+function formatHomeVendorSource(input: {
+  xur: HomeConfirmedXur | null;
+  fetchedAt?: string;
+  selectedCharacterLabel?: string;
+  isLoading: boolean;
+  error: string;
+}): string {
+  if (input.isLoading) return "来源：Vendor API + 当前资料库 · 正在确认主商人轮换";
+  if (input.error) return "来源：Vendor API · 本次读取失败，未使用过期库存";
+  if (!input.xur) return "来源：Vendor API · 当前未返回有效轮换";
+  const details = [
+    input.fetchedAt ? `真实读取 ${formatFullDateTime(input.fetchedAt)}` : "读取时间未返回",
+    input.selectedCharacterLabel || "公共商人库存",
+    input.xur.isPartial || input.xur.missingItemCount
+      ? "部分轮换定义缺失"
+      : `${input.xur.inventoryCount} 件本周轮换完整`
+  ];
+  return `来源：Vendor API + 当前资料库 · ${details.join(" · ")}`;
+}
+
+function homeVendorStatus(props: { xur: HomeConfirmedXur | null; isLoadingDaily: boolean; dailyError: string }): "success" | "pending" | "warning" | "error" {
+  if (props.isLoadingDaily) return "pending";
+  if (props.dailyError) return "error";
+  if (!props.xur) return "warning";
+  return props.xur.isPartial || props.xur.missingItemCount ? "warning" : "success";
 }
 
 function buildConfirmedXur(
   source: HomeDailySource | undefined,
   copy: HomeCopy,
+  now: Date,
   selectedCharacterId?: string
 ): HomeConfirmedXur | null {
-  if (!source || source.status !== "ready" || !isXurActiveAt()) return null;
+  if (!source || !["ready", "warning"].includes(source.status) || !isXurActiveAt(now)) return null;
   const xurVendors = source.items?.filter((item) => item.vendorHash === xurVendorHash || /仄|Xur|Xûr/i.test(item.title)) ?? [];
   const vendor = xurVendors.find((item) => item.characterId === selectedCharacterId)
     ?? xurVendors.find((item) => Boolean(item.characterId))
     ?? xurVendors[0];
-  const items = (vendor?.items ?? []).filter((item) => {
+  const candidates = (vendor?.items ?? []).filter((item) => {
     const title = item.title.trim();
-    return title && !hiddenHomeXurItemTitles.has(title);
+    return !title || !hiddenHomeXurItemTitles.has(title);
   });
-  if (!vendor || vendor.vendorEnabled === false || !items.length) return null;
+  const items = candidates.filter((item) => item.title.trim());
+  const missingItemCount = candidates.length - items.length;
+  if (!vendor || vendor.vendorEnabled === false || (!items.length && !missingItemCount)) return null;
   return {
     title: vendor.title,
     location: vendor.vendorLocation,
-    refreshLabel: formatVendorRefreshLabel(vendor.vendorRefreshDate, copy),
-    inventoryCount: items.length,
+    refreshLabel: formatXurDepartureLabel(now, copy),
+    inventoryCount: candidates.length,
+    missingItemCount,
+    isPartial: source.status === "warning",
     items
   };
 }
-function formatVendorRefreshLabel(value: string | undefined, copy: HomeCopy): string | undefined {
-  if (!value) return undefined;
-  const remainingMs = new Date(value).getTime() - Date.now();
-  if (!Number.isFinite(remainingMs) || remainingMs <= 0) return undefined;
-  const totalHours = Math.ceil(remainingMs / 3_600_000);
-  const days = Math.floor(totalHours / 24);
-  const hours = totalHours % 24;
-  const prefix = homeText(copy, "离开还有");
-  return days > 0
-    ? `${prefix} ${days} ${homeText(copy, "天")} ${hours} ${homeText(copy, "小时")}`
-    : `${prefix} ${hours} ${homeText(copy, "小时")}`;
+function formatXurDepartureLabel(now: Date, copy: HomeCopy): string {
+  return `${homeText(copy, "离开还有")} ${compactDuration(now, nextXurBoundaryAt(now), copy)}`;
 }
 function compactResetCountdown(value: string, label: string): string {
   return value

@@ -113,7 +113,7 @@
   min-height: 28px;
   padding: 5px 10px;
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-indicator);
   background: var(--surface-subtle);
   color: var(--text-body);
   font-size: var(--font-content);
@@ -336,7 +336,7 @@
   gap: 12px;
   padding: 14px;
   border: 1px solid rgb(107 188 247 / 0.28);
-  border-radius: var(--radius-panel);
+  border-radius: var(--radius-object);
   background: var(--surface-panel);
   box-shadow: var(--shadow-panel);
 }
@@ -466,7 +466,7 @@
   padding: 8px 10px;
   border: 1px solid var(--border-control);
   color: var(--text-body);
-  background: var(--action-secondary-bg);
+  background: var(--control-secondary-bg);
   box-shadow: none;
 }
 
@@ -488,8 +488,8 @@
   background: var(--state-selected-bg-hover);
 }
 
-.vault-organize-bar .secondary-button.active,
-.vault-organize-bar .secondary-button:not(:disabled):hover {
+.vault-organize-bar [data-control-variant="secondary"].active,
+.vault-organize-bar [data-control-variant="secondary"]:not(:disabled):hover {
   border-color: var(--state-selected-border);
   color: var(--text-title);
   background: var(--state-selected-bg);

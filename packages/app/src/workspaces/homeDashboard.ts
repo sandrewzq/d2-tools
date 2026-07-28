@@ -94,6 +94,8 @@ export type HomeDashboardStartupState = {
 export type HomeDashboardWorkspace = {
   state: HomeDashboardStartupState;
   selectedCharacterId?: string;
+  selectedCharacterLabel?: string;
+  briefingFetchedAt?: string;
   diagnosticRows: HomeDashboardDiagnosticRow[];
   diagnosticError: string;
   accountError: string;

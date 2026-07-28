@@ -11,7 +11,7 @@
   min-height: 68px;
   padding: 10px var(--workspace-page-space);
   border: 0;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--section-divider);
   border-radius: 0;
   background: color-mix(in srgb, var(--panel) 94%, transparent);
   box-shadow: none;
@@ -34,7 +34,7 @@
   min-width: 0;
   padding: var(--space-12);
   border: 1px solid var(--object-border);
-  border-radius: var(--radius-panel);
+  border-radius: var(--radius-object);
   background: var(--card-bg);
   box-shadow: none;
 }
@@ -74,7 +74,7 @@
   max-width: 100%;
   padding: 3px 8px;
   border: 1px solid var(--border-control);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-indicator);
   color: var(--text-body);
   background: var(--status-neutral-bg);
   font-size: var(--font-content);
@@ -151,7 +151,7 @@
   min-width: 0;
   padding: var(--space-16);
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-panel);
+  border-radius: var(--radius-object);
   background: var(--surface-elevated);
   box-shadow: var(--shadow-panel);
 }

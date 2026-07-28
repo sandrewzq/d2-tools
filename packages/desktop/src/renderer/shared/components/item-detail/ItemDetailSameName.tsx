@@ -48,22 +48,22 @@ export function ItemDetailSameName(props: ItemDetailSameNameProps) {
       </div>
       {sameNameDuplicateGroup ? (
         <div className="button-row">
-          <button type="button" className="secondary-button" onClick={() => props.onOpenBestSameNameItem(sortedSameNameItems)}>
+          <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={() => props.onOpenBestSameNameItem(sortedSameNameItems)}>
             打开推荐同名
           </button>
-          <button type="button" className="secondary-button" onClick={() => props.onApplySameNameCurrentKeepTags(props.sameNameItems, props.selectedItem.item_key, "keep-current-review-rest")}>
+          <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={() => props.onApplySameNameCurrentKeepTags(props.sameNameItems, props.selectedItem.item_key, "keep-current-review-rest")}>
             保留当前，其余关注
           </button>
-          <button type="button" className="secondary-button" onClick={() => props.onApplySameNameCurrentKeepTags(props.sameNameItems, props.selectedItem.item_key, "keep-current-junk-rest")}>
+          <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={() => props.onApplySameNameCurrentKeepTags(props.sameNameItems, props.selectedItem.item_key, "keep-current-junk-rest")}>
             保留当前，其余可清理
           </button>
-          <button type="button" className="secondary-button" onClick={() => props.onApplySameNameBatchTags(props.sameNameItems, "keep-best-review-rest")}>
+          <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={() => props.onApplySameNameBatchTags(props.sameNameItems, "keep-best-review-rest")}>
             其余标记关注
           </button>
-          <button type="button" className="secondary-button" onClick={() => props.onApplySameNameBatchTags(props.sameNameItems, "keep-best-junk-rest")}>
+          <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={() => props.onApplySameNameBatchTags(props.sameNameItems, "keep-best-junk-rest")}>
             其余标记可清理
           </button>
-          <button type="button" className="secondary-button" onClick={() => props.onApplySameNameBatchTags(props.sameNameItems, "clear-group-tags")}>
+          <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={() => props.onApplySameNameBatchTags(props.sameNameItems, "clear-group-tags")}>
             清除本组标记
           </button>
         </div>

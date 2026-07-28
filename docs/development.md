@@ -193,7 +193,8 @@ tools\git-preflight.cmd
 - 本节描述三个冻结原型落入共享 UI 后的目标样式系统，不表示需要保留当前应用的视觉实现。`docs/work/references/ui-prototypes/prototype-design-system.css` 是视觉 token 和组件配方的来源；现有 `packages/ui` 样式只作为待迁移代码，和原型冲突的规则必须替换或删除。
 - `ProductWorkspace*`、`AppShell` 等共享组件可以保留代码职责，但其 DOM 和 chrome 不是视觉兼容边界；正式输出必须完整匹配原型。不得为了复用现有组件而保留原型中不存在的卡片、间距、边框、标题区或分栏。
 - 桌面端 UI 按“页面底层 / 主面板 / 子块或列表项”三层组织；页面必须有主工作区，辅助信息和低频信息下沉。
-- 全局样式 token 定义在 `packages/ui/src/styles/foundation/00-tokens.css` 的 `:root` 和 `.app-shell[data-color-mode]`：间距使用 `--space-8/12/16/24/32`，圆角使用 `--radius-control/panel/pill`，颜色使用 `--surface-*`、`--border-*`、`--text-*` 和 `--status-*`。
+- 全局样式 token 定义在 `packages/ui/src/styles/foundation/00-tokens.css` 的 `:root` 和 `.app-shell[data-color-mode]`：间距使用 `--space-8/12/16/24/32`；圆角只使用 `--radius-structural/shell-group/control/frame/object/indicator`；边界只使用 `--shell-divider/section-divider/object-border/control-border`；颜色使用 `--surface-*`、`--border-*`、`--text-*`、`--status-*` 和 `--control-*`。
+- 产品按钮优先使用共享 `ControlButton`，最终 DOM 必须输出 `data-ui-kind="button"`、`data-control-variant`、`data-control-size`、`data-control-width` 和 `data-control-shape`。Primary 是绿色确认操作，AI 是紫色智能命令，Secondary 是中性操作，Danger 只用于破坏性命令，Quiet 用于图标、页签和低强调入口；菜单 class 只能负责布局，不能再次决定按钮颜色。
 - `:root` 只提供默认主题和独立页面 fallback。任何通过 `var(--page)`、`var(--panel)`、`var(--text)` 等基础色生成的语义别名，都必须在 `.app-shell[data-color-mode="light"]` 与 `.app-shell[data-color-mode="dark"]` 节点内重新声明；不能依赖从 `:root` 继承的别名随子节点基础 token 自动重算。新增主题 token 时必须同时检查 surface、field、chip、item、drawer、border、text、status 和 scrollbar 映射。
 - 共享 UI 设计系统继续补齐 `--field-*`、`--chip-*`、`--item-*`、`--drawer-*` 和 `--game-*` token：普通产品 UI 必须使用 field / chip / item / drawer 语义色，`--game-*` 只用于装备详情顶部等明确游戏视觉区域。
 - AI 抽屉是桌面外壳的独立 pane：`.shell-content` 和 `.global-assistant-panel` 各自滚动，抽屉不得再用 fixed 遮罩覆盖主工作区。
@@ -205,7 +206,7 @@ tools\git-preflight.cmd
 - 菜单私有 class 和 `ProductWorkspace*` 叠加使用时，不得重新定义共享 chrome 属性，包括 `padding`、`border`、`border-radius`、`background`、`box-shadow` 和页面级 `gap`。如果首块区域需要不同密度，优先调整内部子元素；确实需要新的骨架能力时，先扩展 `ProductWorkspace*` 或 token，而不是在菜单 class 里覆盖。
 - 私有样式必须使用共享 token 表达颜色、间距、圆角和状态；不要新增硬编码浅色背景、菜单专属暗色兼容块，或只在某一端生效的视觉修补。Prototype / Web / Desktop 的差异只能来自数据、平台 adapter 或 mock 状态，不能来自不同页面 CSS。
 - `app-panel`、`product-card` 和 `tool-panel` 只能在逐菜单迁移期间作为临时旧实现存在，不能作为视觉兼容目标。原型没有对应结构时必须随菜单迁移删除；原型确有对应对象时，也应按原型重新实现边界、尺寸和层级。
-- 后续 UI 开发以本节为准，不再维护依赖源码字符串匹配的样式护栏测试或单独的历史样式规范文档。
+- 后续 UI 开发以本节为准，不新增读取生产源码后匹配文案、HTML、class 或 CSS 片段的普通功能测试。明确废弃的按钮 class、token 和兼容样式入口由 `scripts/check-ui-contract.mjs` 做静态质量门禁，防止旧合同重新进入实现文件。
 - 三个指定静态 HTML 是冻结视觉规格和唯一视觉验收基准，不是可复制进产品的代码模板。视觉需求变化时先修改并确认对应原型，再改 `packages/ui`；正式实现必须还原原型视觉，但必须绑定当前应用的真实 ViewModel 和 actions，不能复制 HTML 中的 mock 数据或假交互。`docs/work/references/` 中除此之外的其他 HTML 仍只作为历史资料或对比标注。
 - 静态 HTML 可以保留规范说明、边界解释和对比标注，但必须同时使用 `<!-- d2-reference-only:start ... -->` / `<!-- d2-reference-only:end -->` 包住，并在对应 HTML 元素上标记 `data-reference-only="true"`；标记块只用于设计评审和规则表达，不得迁入 `packages/ui`、`packages/prototype`、`packages/web` 或 Desktop 真实页面。
 
@@ -229,9 +230,9 @@ tools\git-preflight.cmd
 | `SegmentedControl` | 游戏内 / 本地等同层模式切换 | 仅整个控件画一圈控件边框与控件圆角；子项只画内部单分隔 | 当前项使用背景与文字；不遮盖或重画外框 | 文件夹 Tab、每个按钮独立外框、负 margin 拼接 |
 | `PageSection` | 页面内容带、章节 | 只允许章节底部分隔；无圆角、无对象背景 | 不承载选中态 | 用页面 section 伪装卡片或重复画上下边框 |
 | `WorkspaceSplit` | 两栏 / 三栏工作区 | 外层不画完整框；只由相邻栏位画一条分隔线 | 不承载选中态 | 外框加左右栏重复边线，形成双线或框套框 |
-| `SurfaceList` | 目录、台账、表格化数据行 | standalone 由父级画一圈外框和圆角；嵌入栏位时继承栏位边缘；行只画底部分隔 | 嵌入目录的当前行使用导航专用背景、文字、字重和中性内嵌指示；普通数据行不取得导航状态 | 父子同时画外框，或把每行做成圆角卡片 |
-| `SurfaceFrame` | 独立空态、独立工具面板 | 唯一元素画完整对象边框、面板圆角、背景与裁剪 | 可有内部状态，但不使用导航色条 | 嵌套首层卡片、子元素重复外框 |
-| `ObjectCard` | 装备、Offer、Perk、能力 | 每个独立对象画完整对象边框与面板圆角 | 选中使用背景和对象边框 | 用于页面分区、目录或普通数据行 |
+| `SurfaceList` | 目录、台账、表格化数据行 | standalone 由父级画一圈直角外框；嵌入栏位时继承栏位边缘；行只画底部分隔 | 嵌入目录的当前行使用导航专用背景、文字、字重和中性内嵌指示；普通数据行不取得导航状态 | 父子同时画外框，或把每行做成圆角卡片 |
+| `SurfaceFrame` | 状态矩阵、摘要、独立空态、独立工具面板 | 唯一元素画完整对象边框、`4px` 轻圆角、背景与裁剪；内部单元保持直角 | 可有内部状态，但不使用导航色条 | 嵌套首层卡片、子元素重复外框、借用 `ObjectCard` 的 `6px` 圆角 |
+| `ObjectCard` | 装备、Offer、Perk、能力 | 每个独立对象画完整对象边框与 `6px` 对象圆角 | 选中使用背景和对象边框 | 用于页面分区、目录或普通数据行 |
 | `Callout` | 信息、警告、失败、AI 提示 | 中性对象边框；只有此类允许左侧语义色条 | 语义色与图标/文字共同表达 | 导航、Tab、卡片或目录复用左侧色条 |
 
 `Control` 是跨切面的基础控件规则，不计入十类页面与表面配方：按钮、字段、徽标和状态 Chip 使用统一控件边框、圆角与 hover / focus / disabled / status token；它们不得成为首层页面或工作区外框。
@@ -249,7 +250,7 @@ tools\git-preflight.cmd
 9. **页面先选宽度类型。** 仓库、配装和账号装备对照属于 `fluid-workspace`；设置与账号中的纯说明段落属于 `constrained-content`；首页、资料库、商人属于 `hybrid-workspace`。不得把阅读型内容无限拉宽，也不得把工作台包进居中的大卡片。
 10. **当前定位必须独立建模。** 一级菜单和嵌入目录使用 `--nav-current-*`，对象选择继续使用 `--selected-*`，角色上下文使用底部指示，分段控件只改变控件内部状态。亮色下当前背景、当前指示和文字分别满足 `1.25:1`、`3:1`、`4.5:1` 对比度；对象、上下文和分段控件的选中边界相对选中背景也必须达到 `3:1`。hover、focus、current、disabled 不能共用同一视觉状态。
 11. **文字、图标和状态同样必须有唯一语义。** 每段文字同时具有颜色 `Tone` 和决策 `Priority`：`--text`、`--body`、`--muted`、`--blue` 分别表达 primary、body、meta、action；`decision`、`context`、`reading`、`support`、`trace` 分别表达当前操作重要性。日期、版本、数量、名称和普通数值属于事实值，保持 primary / body；只有明确状态词才使用 status tone，容器 `data-status` 不得把事实值一起染色。时间、奖励、成本、可用性、缺失、操作结果不能因语法像标签而缩小；页面描述不能降为 trace，普通 Perk、锁定和元数据不得使用 action 色。完整字号、图标、Control 状态、密度、层级和响应式规则见 `specs/global-visual-contract.md`，菜单不得私自例外。
-12. **按钮几何由 Control 合同统一。** 文本命令默认 `34px` 高，Primary / Secondary / Danger / AI 只改变颜色，不改变尺寸；设置和诊断等重复操作列统一使用 `144px` 宽，普通命令栏按内容自适应。紧凑 `30px` 和主控件 `40px` 必须显式声明，菜单不得按文案长度或按钮颜色自行调整。
+12. **按钮几何由 Control 合同统一。** 文本命令默认 `34px` 高，Primary / Secondary / Danger / AI / Quiet 只改变颜色，不改变尺寸；设置和诊断等重复操作列统一使用 `144px` 宽，普通命令栏按内容自适应。紧凑 `30px` 和主控件 `40px` 必须显式声明，菜单不得按文案长度或按钮颜色自行调整。旧 `.primary-button/.secondary-button/.danger-button`、`.button.primary/.danger/.violet` 与 `is-primary` 不再是兼容入口。
 13. **全局验收检查最终计算样式。** 每个菜单在 light / dark、`1280 / 980 / 760` 下复核每个 `Tone + Priority` 的对比度、字号、换行与决策可见性，以及图标和命中区、default / hover / pressed / current / focus-visible / disabled / loading / error、间距刻度、层级和零横向滚动。共享 CSS 先提供语义 token，菜单只消费，不在页面 CSS 中直接挑选颜色、字号、阴影或 `z-index`。
 
 #### 原型先行流程

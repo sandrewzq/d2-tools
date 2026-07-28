@@ -19,7 +19,7 @@
   min-height: 34px;
   padding: 0 12px;
   border: 1px solid var(--border-control);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-indicator);
   color: var(--text-title);
   background: var(--surface-elevated);
   box-shadow: var(--shadow-panel);
@@ -31,7 +31,7 @@
   gap: 10px;
   padding: 12px;
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-panel);
+  border-radius: var(--radius-object);
   color: var(--text-body);
   background: var(--surface-panel);
   box-shadow: var(--shadow-panel);

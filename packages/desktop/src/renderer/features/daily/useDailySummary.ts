@@ -7,6 +7,7 @@ import { buildWeeklyFocusText } from "../../utils/dailyShare";
 export function useDailySummary() {
   const [storedDailySummary, setStoredDailySummary] = useState<DailySummary | null>(null);
   const [storedWeeklySummary, setStoredWeeklySummary] = useState<WeeklySummary | null>(null);
+  const [briefingFetchedAt, setBriefingFetchedAt] = useState("");
   const [dailyMessage, setDailyMessage] = useState("");
   const [dailyError, setDailyError] = useState("");
   const [isLoadingDaily, setIsLoadingDaily] = useState(false);
@@ -21,6 +22,7 @@ export function useDailySummary() {
       .then((briefing) => {
         setStoredDailySummary(briefing.daily);
         setStoredWeeklySummary(briefing.weekly);
+        setBriefingFetchedAt(briefing.fetched_at);
         setClock(new Date());
       })
       .catch((error) => {
@@ -75,6 +77,7 @@ export function useDailySummary() {
 
   return {
     copyWeeklyFocus,
+    briefingFetchedAt,
     dailyError,
     dailyMessage,
     dailySummary,

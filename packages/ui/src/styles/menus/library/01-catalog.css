@@ -324,7 +324,7 @@
   overflow: hidden;
   padding: 12px;
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-panel);
+  border-radius: var(--radius-object);
   background: var(--surface-panel);
   box-shadow: var(--shadow-panel);
   scrollbar-width: thin;
@@ -493,7 +493,7 @@
 .library-definition-stat-row i {
   display: block;
   height: 8px;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-indicator);
   background: color-mix(in srgb, var(--status-ready) 78%, #8de4cb);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, #d2f4e8 62%, transparent);
 }
@@ -621,7 +621,7 @@
 .library-definition-vendor-armor-stat i {
   display: block;
   height: 8px;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-indicator);
   background: color-mix(in srgb, var(--status-ready) 78%, #8de4cb);
 }
 
@@ -984,7 +984,7 @@
   font-size: 15px;
 }
 
-.library-primary-search .secondary-button {
+.library-primary-search [data-control-variant="secondary"] {
   grid-column: 1 / -1;
   min-height: 36px;
 }
@@ -1010,7 +1010,7 @@
   min-height: 32px;
   padding: 5px 10px;
   border: 1px solid var(--border-control);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-indicator);
   color: var(--text-body);
   background: var(--surface-interactive);
 }
@@ -1086,7 +1086,7 @@
   gap: var(--space-12);
   padding: var(--space-12);
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-panel);
+  border-radius: var(--radius-object);
   background: color-mix(in srgb, var(--surface-panel) 82%, var(--surface-subtle) 18%);
 }
 
@@ -1114,7 +1114,7 @@
   line-height: 1.4;
 }
 
-.library-result-filter-heading .secondary-button {
+.library-result-filter-heading [data-control-variant="secondary"] {
   flex: 0 0 auto;
   min-height: 36px;
 }
@@ -1162,7 +1162,7 @@
     flex-direction: column;
   }
 
-  .library-result-filter-heading .secondary-button {
+  .library-result-filter-heading [data-control-variant="secondary"] {
     width: 100%;
   }
 
@@ -1250,7 +1250,7 @@
   align-items: stretch;
 }
 
-.item-action-panel .secondary-button {
+.item-action-panel [data-control-variant="secondary"] {
   min-width: 118px;
 }
 

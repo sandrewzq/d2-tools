@@ -60,7 +60,7 @@ export function VaultOrganizePanel(props: {
                 <option value="noted">有备注</option>
               </select>
             </label>
-            <button type="button" className="secondary-button" onClick={props.onClearSelection}>清空选择</button>
+            <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={props.onClearSelection}>清空选择</button>
           </>
         ) : null}
         {props.cleanupCharacters.length ? (
@@ -70,11 +70,11 @@ export function VaultOrganizePanel(props: {
             </select>
           </label>
         ) : null}
-        <button type="button" className="secondary-button" aria-busy={props.isBatchSaving} disabled={props.isBatchSaving} onClick={() => void props.onCopyCleanupList()}>
+        <button type="button" data-ui-kind="button" data-control-variant="secondary" aria-busy={props.isBatchSaving} disabled={props.isBatchSaving} onClick={() => void props.onCopyCleanupList()}>
           {props.isBatchSaving ? "处理中..." : "复制清理清单"}
         </button>
         <button type="button" aria-busy={props.isBatchSaving} disabled={!canWrite || props.isBatchSaving} onClick={() => void props.onRunCleanupAction("unlock")}>批量解锁</button>
-        <button type="button" className="primary-button" aria-busy={props.isBatchSaving} disabled={!canWrite || props.isBatchSaving} onClick={() => void props.onRunCleanupAction("transfer")}>转移到角色背包</button>
+        <button type="button" data-ui-kind="button" data-control-variant="primary" aria-busy={props.isBatchSaving} disabled={!canWrite || props.isBatchSaving} onClick={() => void props.onRunCleanupAction("transfer")}>转移到角色背包</button>
       </div>
 
       {props.isOrganizing ? (

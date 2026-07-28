@@ -112,9 +112,9 @@ export function VaultRecommendationImportPanel(props: {
           <div className="vault-source-editor">
             <textarea id="dim-wishlist-import" value={wishlistImportDraft} onChange={(event) => setWishlistImportDraft(event.target.value)} placeholder="粘贴 DIM wishlist 文本，例如 dimwishlist:item=123&perks=11,22#notes:PVE" rows={4} />
             <div className="button-row">
-              <button type="button" className="secondary-button" onClick={importWishlistDraft}>解析愿望单</button>
-              <button type="button" className="secondary-button" disabled={!wishlistImportDraft.trim()} onClick={() => void saveImportedWishlist()}>导入并启用</button>
-              <button type="button" className="secondary-button" disabled={!props.wishlist} onClick={() => void clearImportedWishlist()}>清空愿望单</button>
+              <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={importWishlistDraft}>解析愿望单</button>
+              <button type="button" data-ui-kind="button" data-control-variant="secondary" disabled={!wishlistImportDraft.trim()} onClick={() => void saveImportedWishlist()}>导入并启用</button>
+              <button type="button" data-ui-kind="button" data-control-variant="secondary" disabled={!props.wishlist} onClick={() => void clearImportedWishlist()}>清空愿望单</button>
               {wishlistImportMessage ? <span className={formatImportStatusClass(wishlistImportMessage)}>{wishlistImportMessage}</span> : null}
             </div>
           </div>
@@ -124,9 +124,9 @@ export function VaultRecommendationImportPanel(props: {
           <div className="vault-source-editor">
             <textarea id="local-community-import" value={localCommunityImportDraft} onChange={(event) => setLocalCommunityImportDraft(event.target.value)} placeholder="粘贴本地社区推荐 JSON 或 CSV" rows={4} />
             <div className="button-row">
-              <button type="button" className="secondary-button" onClick={importLocalCommunityDraft}>解析推荐表</button>
-              <button type="button" className="secondary-button" disabled={!localCommunityImportDraft.trim()} onClick={() => void saveLocalCommunityDraft()}>导入并启用</button>
-              <button type="button" className="secondary-button" disabled={!localCommunityTable} onClick={() => void clearLocalCommunityDraft()}>清空推荐表</button>
+              <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={importLocalCommunityDraft}>解析推荐表</button>
+              <button type="button" data-ui-kind="button" data-control-variant="secondary" disabled={!localCommunityImportDraft.trim()} onClick={() => void saveLocalCommunityDraft()}>导入并启用</button>
+              <button type="button" data-ui-kind="button" data-control-variant="secondary" disabled={!localCommunityTable} onClick={() => void clearLocalCommunityDraft()}>清空推荐表</button>
               {localCommunityImportMessage ? <span className={formatImportStatusClass(localCommunityImportMessage)}>{localCommunityImportMessage}</span> : null}
             </div>
           </div>

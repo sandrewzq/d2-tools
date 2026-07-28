@@ -1,5 +1,5 @@
 import { HomeDashboard } from "../../features/home/HomeDashboard";
-import { useHasAccountDataStore } from "../../shared/stores/accountEntityStore";
+import { useAccountSummaryStore, useHasAccountDataStore } from "../../shared/stores/accountEntityStore";
 import { useDesktopMenuSession } from "./DesktopMenuProviderContext";
 
 export function HomeMenuProvider() {
@@ -8,11 +8,16 @@ export function HomeMenuProvider() {
   const daily = session.daily;
   const diagnostics = session.diagnostics;
   const hasAccountData = useHasAccountDataStore();
+  const accountSummary = useAccountSummaryStore();
+  const selectedCharacter = accountSummary?.characters.find((character) => character.character_id === account.selectedCharacterId)
+    ?? accountSummary?.characters[0];
 
   return (
     <HomeDashboard
       state={session.state}
       selectedCharacterId={account.selectedCharacterId}
+      selectedCharacterLabel={selectedCharacter?.class_name}
+      briefingFetchedAt={daily.briefingFetchedAt}
       isLoggingIn={account.isLoggingIn}
       isInitializingManifest={account.isInitializingManifest}
       isRefreshingDiagnostics={diagnostics.isRefreshingDiagnostics}

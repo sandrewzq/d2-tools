@@ -739,7 +739,7 @@
 }
 
 .modal-close {
-  background: var(--action-secondary-bg);
+  background: var(--control-secondary-bg);
   color: var(--text-title);
 }
 

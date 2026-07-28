@@ -82,7 +82,7 @@
               <button type="button" data-target="upgrades">升级状态</button>
               <button type="button" data-target="ai">AI 分析</button>
             </div>
-            <button type="button" class="rail-toggle" data-toggle-rail aria-expanded="false">实例与操作</button>
+            <button type="button" class="rail-toggle" data-toggle-rail aria-expanded="false" data-ui-kind="button" data-control-variant="secondary">实例与操作</button>
           </nav>
         </div>
 
@@ -148,8 +148,8 @@
                   <label for="armor-ai-question">询问这件护甲</label>
                   <textarea id="armor-ai-question">结合当前实例、套装状态、目标匹配和获取来源分析这件护甲。</textarea>
                   <label class="ai-external"><input type="checkbox" data-ai-external>允许 AI 查询外部知识，必须保留引用</label>
-                  <button type="button" class="primary-button" data-run-ai>结合全部来源分析</button>
-                  <button type="button" class="secondary-button" data-save-ai disabled>确认并保存为个人知识</button>
+                  <button type="button" data-ui-kind="button" data-control-variant="ai" data-control-size="prominent" data-run-ai>结合全部来源分析</button>
+                  <button type="button" data-ui-kind="button" data-control-variant="secondary" data-save-ai disabled>确认并保存为个人知识</button>
                   <small>AI 结果不会自动进入可靠数据区，保存前必须由用户确认。</small>
                   <p class="status-message" data-ai-status></p>
                 </aside>
@@ -163,7 +163,7 @@
                 <span>护甲实例</span>
                 <strong>实例与操作</strong>
               </div>
-              <button type="button" class="icon-button" data-close-rail aria-label="关闭实例与操作栏" title="关闭">×</button>
+              <button type="button" class="icon-button" data-close-rail aria-label="关闭实例与操作栏" title="关闭" data-ui-kind="button" data-control-variant="quiet" data-control-shape="icon">×</button>
             </header>
             <div data-instance-actions></div>
             <section class="rail-instance-section">
@@ -182,7 +182,7 @@
           <span class="eyebrow" data-ui-part="label" data-info-priority="support" data-text-tone="meta" data-detail-state-kicker></span>
           <h2 data-ui-part="value" data-info-priority="decision" data-text-tone="primary" data-detail-state-title></h2>
           <p data-ui-part="detail" data-info-priority="reading" data-text-tone="body" data-detail-state-copy></p>
-          <button type="button" class="secondary-button" data-ui-kind="button" data-control-variant="secondary" data-detail-state-reset>返回正常状态</button>
+          <button type="button" data-ui-kind="button" data-control-variant="secondary" data-detail-state-reset>返回正常状态</button>
         </div>
       </div>
     </main>

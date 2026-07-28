@@ -48,7 +48,7 @@ export function ItemDetailActions(props: ItemDetailActionsProps) {
       <div className="button-row">
         <button
           type="button"
-          className="secondary-button"
+          data-ui-kind="button" data-control-variant="secondary"
           disabled={props.isRunningItemAction}
           hidden={selectedItem.is_postmaster_item}
           onClick={() => props.onRunItemWriteAction(
@@ -67,7 +67,7 @@ export function ItemDetailActions(props: ItemDetailActionsProps) {
         {!selectedItem.is_vault_item && !selectedItem.is_postmaster_item ? (
           <button
             type="button"
-            className="secondary-button"
+            data-ui-kind="button" data-control-variant="secondary"
             disabled={props.isRunningItemAction}
             onClick={() => props.onRunItemWriteAction(
               "装备到角色",
@@ -86,7 +86,7 @@ export function ItemDetailActions(props: ItemDetailActionsProps) {
           <>
             <button
               type="button"
-              className="secondary-button"
+              data-ui-kind="button" data-control-variant="secondary"
               disabled={props.isRunningItemAction}
               onClick={() => props.onCopyItemActionPlanText({
                 action: "transfer",
@@ -103,7 +103,7 @@ export function ItemDetailActions(props: ItemDetailActionsProps) {
             </button>
             <button
               type="button"
-              className="secondary-button"
+              data-ui-kind="button" data-control-variant="secondary"
               disabled={props.isRunningItemAction}
               onClick={() => props.onRunItemWriteAction(
                 selectedItem.is_vault_item ? "取出到角色" : "移入仓库",
@@ -129,7 +129,7 @@ export function ItemDetailActions(props: ItemDetailActionsProps) {
         {selectedItem.is_postmaster_item ? (
           <button
             type="button"
-            className="secondary-button"
+            data-ui-kind="button" data-control-variant="secondary"
             disabled={props.isRunningItemAction}
             onClick={() => props.onRunItemWriteAction(
               "从邮政官取回",

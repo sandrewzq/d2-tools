@@ -17,7 +17,6 @@ export const settingsCopy: Record<InterfaceLocale, LocaleCopy["settings"]> = {
       overview: {
         title: "应用概览",
         subtitle: "集中查看应用更新、账号、资料库、接口和后台任务。",
-        badge: "当前状态",
         commonActionsTitle: "常用操作",
         commonActionsSubtitle: "账号、资料库和诊断的手动操作始终立即执行。"
       },
@@ -258,7 +257,7 @@ export const settingsCopy: Record<InterfaceLocale, LocaleCopy["settings"]> = {
         "正在连接更新服务。": "Connecting to update service.",
         "发现新版本": "New version available",
         "可先下载，下载完成后再重启安装。": "Download first, then restart to install.",
-        "已是最新": "Up to date",
+        "当前已是最新版本": "Up to date",
         "当前已是最新版本。": "The current version is up to date.",
         "下载中": "Downloading",
         "正在下载更新。": "Downloading update.",
@@ -305,7 +304,6 @@ export const settingsCopy: Record<InterfaceLocale, LocaleCopy["settings"]> = {
       overview: {
         title: "Application overview",
         subtitle: "Review app updates, account, manifest, APIs, and background tasks in one place.",
-        badge: "Current status",
         commonActionsTitle: "Common actions",
         commonActionsSubtitle: "Account, manifest, and diagnostics actions always run immediately."
       },

@@ -2,7 +2,7 @@
 @import "./styles/foundation/01-preflight.css";
 @import "./styles/foundation/03-surface-contract.css";
 @import "./styles/menus/library/01-catalog.css";
-@import "./styles/components/01-legacy-operations.css";
+@import "./styles/components/01-operational-surfaces.css";
 @import "./styles/foundation/02-elements.css";
 @import "./styles/shell/01-chrome.css";
 @import "./styles/workspace/01-headers.css";

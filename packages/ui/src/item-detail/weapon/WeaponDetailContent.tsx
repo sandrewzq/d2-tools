@@ -490,7 +490,7 @@ function OverviewSection(props: {
                     {source.offer?.price_labels.length ? <span>{source.offer.price_labels.join(" + ")}</span> : null}
                     {source.offer?.refresh_at ? <span>{formatStandardDateTime(source.offer.refresh_at)}</span> : null}
                     {source.updated_at ? <span>更新于 {formatUpdatedAt(source.updated_at)}</span> : null}
-                    {props.onOpenSource ? <button type="button" data-control-variant="secondary" onClick={() => props.onOpenSource?.(source)}>查看</button> : null}
+                    {props.onOpenSource ? <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={() => props.onOpenSource?.(source)}>查看</button> : null}
                   </div>
                 </article>
               ))}
@@ -649,19 +649,19 @@ function ConfigurationSection(props: {
           <div className="weapon-detail-write-actions">
             {panelState === "pending" ? (
               <>
-                <button type="button" data-control-variant="secondary" onClick={props.actions?.cancelPendingPerks}>取消选择</button>
-                <button type="button" className="is-primary" data-control-variant="primary" disabled={!configuration.can_apply_changes} onClick={() => void props.actions?.applyPendingPerks?.()}>应用 {pendingChangeCount} 项更改</button>
+                <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={props.actions?.cancelPendingPerks}>取消选择</button>
+                <button type="button" data-ui-kind="button" data-control-variant="primary" disabled={!configuration.can_apply_changes} onClick={() => void props.actions?.applyPendingPerks?.()}>应用 {pendingChangeCount} 项更改</button>
               </>
             ) : null}
             {panelState === "error" ? (
               <>
-                <button type="button" data-control-variant="secondary" onClick={props.actions?.cancelPendingPerks}>取消选择</button>
-                <button type="button" data-control-variant="secondary" onClick={() => void props.actions?.refreshConfiguration?.()}>重新读取</button>
-                <button type="button" className="is-primary" data-control-variant="primary" disabled={!configuration.can_apply_changes} onClick={() => void props.actions?.applyPendingPerks?.()}>保留选择重试</button>
+                <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={props.actions?.cancelPendingPerks}>取消选择</button>
+                <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={() => void props.actions?.refreshConfiguration?.()}>重新读取</button>
+                <button type="button" data-ui-kind="button" data-control-variant="primary" disabled={!configuration.can_apply_changes} onClick={() => void props.actions?.applyPendingPerks?.()}>保留选择重试</button>
               </>
             ) : null}
             {panelState === "refresh-error" ? (
-              <button type="button" className="is-primary" data-control-variant="primary" onClick={() => void props.actions?.refreshConfiguration?.()}>重新读取配置</button>
+              <button type="button" data-ui-kind="button" data-control-variant="primary" onClick={() => void props.actions?.refreshConfiguration?.()}>重新读取配置</button>
             ) : null}
             {isBusy ? <span className="weapon-detail-write-busy-label">处理中</span> : null}
           </div>
@@ -670,7 +670,7 @@ function ConfigurationSection(props: {
 
       {context.kind !== "definition" && configuration.pool_columns.length ? (
         <section className="weapon-detail-full-pool">
-          <button type="button" data-control-variant="secondary" aria-expanded={props.poolOpen} onClick={props.onTogglePool}>
+          <button type="button" data-ui-kind="button" data-control-variant="secondary" aria-expanded={props.poolOpen} onClick={props.onTogglePool}>
             <strong>{props.poolOpen ? "收起完整掉落池" : "查看完整掉落池"}</strong>
             <span>{props.poolOpen ? "收起" : `展开 ${countPool(configuration.pool_columns)} 个候选`}</span>
           </button>
@@ -990,7 +990,7 @@ function AnalysisSection(props: {
             <label htmlFor="weapon-analysis-prompt">询问这件武器</label>
             <textarea id="weapon-analysis-prompt" value={props.prompt} onChange={(event) => props.onPromptChange(event.target.value)} placeholder="例如：结合我当前实例的全部可切换 Perk，分析 PvE 推荐匹配情况。" />
             <label className="weapon-detail-ai-external"><input type="checkbox" checked={props.allowExternalSearch} onChange={(event) => props.onAllowExternalSearchChange(event.target.checked)} />允许 AI 查询外部知识，必须保留引用</label>
-            <button type="button" data-control-variant="ai" disabled={!props.onRun || status === "running"} onClick={() => props.onRun?.({ prompt: props.prompt, allow_external_search: props.allowExternalSearch })}>{status === "running" ? "分析中..." : "结合全部来源分析"}</button>
+            <button type="button" data-ui-kind="button" data-control-variant="ai" data-control-size="prominent" disabled={!props.onRun || status === "running"} onClick={() => props.onRun?.({ prompt: props.prompt, allow_external_search: props.allowExternalSearch })}>{status === "running" ? "分析中..." : "结合全部来源分析"}</button>
             <small>AI 结果不会自动进入可靠数据区，保存前必须由用户确认。</small>
           </div>
         </aside>

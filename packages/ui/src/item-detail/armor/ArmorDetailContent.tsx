@@ -239,7 +239,7 @@ export function ArmorDetailContent(props: ArmorDetailContentProps) {
             {props.instanceActions ? (
               <div className="armor-detail-instance-actions">{props.instanceActions}</div>
             ) : (
-              <div className="armor-detail-instance-readonly" data-surface="frame">
+              <div className="armor-detail-instance-readonly" data-status="neutral">
                 <span>当前对象只读</span>
                 <h3>{model.context.object_label}</h3>
                 <p>从下方选择账号中的同 Hash 护甲后，可执行装备、转移、锁定、标签和备注操作。</p>
@@ -523,7 +523,7 @@ function AnalysisSection(props: {
           <label htmlFor="armor-detail-question">询问这件护甲</label>
           <textarea id="armor-detail-question" value={props.prompt} onChange={(event) => props.onPromptChange(event.target.value)} />
           <label className="armor-detail-ai-external"><input type="checkbox" checked={props.allowExternalSearch} onChange={(event) => props.onAllowExternalSearchChange(event.target.checked)} />允许 AI 查询外部知识，必须保留引用</label>
-          <button type="button" data-control-variant="ai" disabled={!props.onRun || status === "running"} onClick={() => props.onRun?.({ prompt: props.prompt, allow_external_search: props.allowExternalSearch })}>{status === "running" ? "正在分析..." : "分析这件护甲"}</button>
+          <button type="button" data-ui-kind="button" data-control-variant="ai" data-control-size="prominent" disabled={!props.onRun || status === "running"} onClick={() => props.onRun?.({ prompt: props.prompt, allow_external_search: props.allowExternalSearch })}>{status === "running" ? "正在分析..." : "分析这件护甲"}</button>
           <small>AI 结果不会自动进入可靠数据区。</small>
         </aside>
       </div>

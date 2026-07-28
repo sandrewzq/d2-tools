@@ -151,7 +151,7 @@
   min-height: 24px;
   padding: 3px 8px;
   border: 1px solid var(--chip-border);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-indicator);
   background: var(--status-neutral-bg);
   white-space: nowrap;
 }
@@ -178,7 +178,7 @@
   gap: 0;
   overflow: hidden;
   border: 1px solid var(--object-border);
-  border-radius: 0;
+  border-radius: var(--radius-frame);
   background: var(--surface-panel);
 }
 
@@ -366,7 +366,7 @@
   margin-top: 12px;
   overflow: hidden;
   border: 0;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-indicator);
   background: var(--surface-subtle);
 }
 
@@ -384,7 +384,7 @@
   margin: 12px 0;
   padding: 11px;
   border: 1px solid var(--object-border);
-  border-radius: var(--radius-panel);
+  border-radius: var(--radius-object);
   background: var(--card-bg);
 }
 

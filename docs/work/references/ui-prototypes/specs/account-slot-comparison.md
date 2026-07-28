@@ -12,7 +12,7 @@
 
 角色不是导航。角色切换器使用 `ContextSwitcher`，以 `aria-pressed` 表达当前角色；切换后只重绘当前角色的对照数据，不改变账号目录的当前 Tab。
 
-装备对照是连续的满宽数据工作区：类别、位置标题和两列边界只使用直角 `PageSection`、`RowLine` 与 `SplitLine`。每件装备是独立 `ObjectCard`，拥有 `6px` 圆角和唯一对象边框；“显示全部”是 `secondary` Control，位置为空是直角 `state-frame`。不得把类别、位置或装备列再包成对象卡。
+装备对照是连续的满宽数据工作区：类别、位置标题和两列边界只使用直角 `PageSection`、`RowLine` 与 `SplitLine`。每件装备是独立 `ObjectCard`，拥有 `6px` 圆角和唯一对象边框；“显示全部”是 `secondary` Control，位置为空使用 `4px` 轻圆角 `state-frame`。不得把类别、位置或装备列再包成对象卡。
 
 ## 分类与顺序
 

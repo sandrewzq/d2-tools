@@ -206,7 +206,7 @@ export function VendorsPageContentView(props: VendorsPageContentViewProps) {
       <ProductWorkspaceEmptyState className="vendor-page-empty" ariaLabel="商人库存状态">
         <strong>{refreshStatus?.busy ? copy.loadingTitle : copy.emptyTitle}</strong>
         <span>{refreshStatus?.message ?? copy.emptyBody}</span>
-        {!refreshStatus?.busy && props.actions.refreshVendors ? <button type="button" className="secondary-button" onClick={props.actions.refreshVendors}>{copy.inline["重新加载商人库存"] ?? "重新加载商人库存"}</button> : null}
+        {!refreshStatus?.busy && props.actions.refreshVendors ? <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={props.actions.refreshVendors}>{copy.inline["重新加载商人库存"] ?? "重新加载商人库存"}</button> : null}
       </ProductWorkspaceEmptyState>
     );
   }

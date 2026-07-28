@@ -561,8 +561,8 @@ function renderVaultSideSummary(input: {
       </div>
       <div className="vault-side-actions">
         <button type="button" onClick={input.onCleanupClick}>查看可清理候选</button>
-        <button type="button" className="secondary-button" onClick={input.onDuplicatesClick}>进入同名对比</button>
-        <button type="button" className="secondary-button" disabled={!input.markedCleanupCount} onClick={input.onCopyCleanupList}>复制清理清单</button>
+        <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={input.onDuplicatesClick}>进入同名对比</button>
+        <button type="button" data-ui-kind="button" data-control-variant="secondary" disabled={!input.markedCleanupCount} onClick={input.onCopyCleanupList}>复制清理清单</button>
       </div>
     </div>
   );

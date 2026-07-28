@@ -45,10 +45,10 @@ export function KohinataTaskPanelView(props: KohinataTaskPanelViewProps) {
         />
       </label>
       <div className="button-row">
-        <button type="button" className="secondary-button" disabled={!props.draft.trim()} onClick={props.onSaveContext}>
+        <button type="button" data-ui-kind="button" data-control-variant="secondary" disabled={!props.draft.trim()} onClick={props.onSaveContext}>
           保存上下文
         </button>
-        <button type="button" className="secondary-button" disabled={!props.draft.trim()} onClick={props.onClearContext}>
+        <button type="button" data-ui-kind="button" data-control-variant="secondary" disabled={!props.draft.trim()} onClick={props.onClearContext}>
           清空
         </button>
       </div>
@@ -57,7 +57,7 @@ export function KohinataTaskPanelView(props: KohinataTaskPanelViewProps) {
         <button type="button" onClick={props.onMatch} disabled={!props.canMatch}>对照账号</button>
         <button type="button" onClick={props.onCreateDraft} disabled={!props.canCreateDraft}>生成草稿</button>
         <button type="button" onClick={props.onSaveDraft} disabled={!props.canSaveDraft}>保存草稿</button>
-        <button type="button" className="secondary-button" onClick={props.onReviewGaps}>查看缺口</button>
+        <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={props.onReviewGaps}>查看缺口</button>
       </div>
       {props.statusMessage ? <p className="status-message status-neutral">{props.statusMessage}</p> : null}
       <div className="assistant-context-card">
