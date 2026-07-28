@@ -334,8 +334,6 @@ export function useDesktopProductShell(props: {
         </>
       ) : activePage === "vault" ? (
         <button type="button" className="primary-button" disabled={isLoadingAccount} onClick={() => void refreshAccountManually()}>刷新账号装备</button>
-      ) : activePage === "loadouts" ? (
-        <button type="button" className="secondary-button" onClick={() => handlePageChange("account")}>从账号保存当前装备</button>
       ) : activePage === "library" ? (
         <>
           <button type="button" className="secondary-button" onClick={() => void diagnostics.refreshManifestStatus()}>重新检查资料库</button>

@@ -220,7 +220,7 @@ function PrototypeApp() {
             onToggleAi={() => setAssistantMode((current) => current === null ? "ai" : null)}
           />
         )}
-        pageHeader={(page) => getPrototypePageHeader(page, setActivePage)}
+        pageHeader={(page) => getPrototypePageHeader(page)}
         assistantPanel={
           assistantMode === "tasks" ? (
               <KohinataTaskPanelView
@@ -718,7 +718,7 @@ function isPrototypeWeaponItem(item: VendorInventoryItemView): boolean {
   ].some((weaponType) => itemType.includes(weaponType));
 }
 
-function getPrototypePageHeader(page: ShellPageKey, onNavigate: (page: ShellPageKey) => void) {
+function getPrototypePageHeader(page: ShellPageKey) {
   const meta: Record<ShellPageKey, { eyebrow: string; title: string; subtitle: string }> = {
     home: { eyebrow: "公开游戏世界", title: "本周情报", subtitle: "只展示 Bungie 公开接口与经过校验的公开机器数据，不猜测缺失内容。" },
     account: { eyebrow: "账号", title: "角色与账号数据", subtitle: "角色装备、背包、活动、材料和邮政官均来自当前 Profile 快照。" },
@@ -736,7 +736,6 @@ function getPrototypePageHeader(page: ShellPageKey, onNavigate: (page: ShellPage
     ),
     account: <><button type="button" className="secondary-button">刷新账号</button><button type="button" className="secondary-button">重新授权</button></>,
     vault: <><button type="button" className="secondary-button">复制清理清单</button><button type="button" className="primary-button">刷新账号装备</button></>,
-    loadouts: <button type="button" className="secondary-button" onClick={() => onNavigate("account")}>从账号保存当前装备</button>,
     library: <><button type="button" className="secondary-button">重新检查资料库</button><button type="button" className="primary-button">修复资料库</button></>,
     vendors: <button type="button" className="primary-button">刷新商人库存</button>
   };

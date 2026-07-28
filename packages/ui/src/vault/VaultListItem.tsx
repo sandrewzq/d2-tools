@@ -21,6 +21,7 @@ export function VaultListItem(props: {
   communityMatch?: VaultItemMatchInfo;
   isOrganizing: boolean;
   isSelected: boolean;
+  isOpening?: boolean;
   onSelectItem: (item: AccountItemSummary) => void;
   onToggleSelected: (item: AccountItemSummary) => void;
 }) {
@@ -46,7 +47,8 @@ export function VaultListItem(props: {
       className={[
         "vault-item-card",
         props.isSelected ? "selected" : "",
-        isLoadoutMatch ? "loadout-highlight" : ""
+        isLoadoutMatch ? "loadout-highlight" : "",
+        props.isOpening ? "pending" : ""
       ].filter(Boolean).join(" ")}
     >
       {props.isOrganizing ? (
@@ -62,6 +64,8 @@ export function VaultListItem(props: {
       <button
         type="button"
         className="vault-card-main"
+        aria-busy={props.isOpening}
+        disabled={props.isOpening}
         onClick={() => props.onSelectItem(props.item)}
       >
         <div className="vault-card-visual">
@@ -101,6 +105,7 @@ export function VaultListItem(props: {
             <small className="vault-card-roll">{props.item.socket_plugs.slice(0, 4).map((plug) => plug.name).join(" / ")}</small>
           ) : null}
           {note ? <small className="vault-note-snippet">备注：{note}</small> : null}
+          {props.isOpening ? <small className="vault-card-open-state">正在打开详情...</small> : null}
         </div>
       </button>
     </article>

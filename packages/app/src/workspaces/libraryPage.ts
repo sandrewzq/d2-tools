@@ -241,6 +241,14 @@ export type LibraryPerkResultView = {
 };
 
 export type LibraryPageModel = {
+  manifestSummary: {
+    initialized: boolean | null;
+    version?: string;
+    latestVersion?: string;
+    needsUpdate: boolean;
+    missingComponentCount: number;
+    statusError: string;
+  };
   queryPanel: {
     viewMode: LibraryViewMode;
     primaryQuery: string;
@@ -335,6 +343,14 @@ export function selectLibraryPageModel(cache: LibraryPageCache, state: LibraryPa
   const hitCount = mode === "equipment" ? visibleItems.length : visiblePerks.length;
 
   return {
+    manifestSummary: {
+      initialized: cache.manifestStatus?.initialized ?? null,
+      version: cache.manifestStatus?.version,
+      latestVersion: cache.manifestStatus?.latest_version,
+      needsUpdate: Boolean(cache.manifestStatus?.needs_update),
+      missingComponentCount: cache.manifestStatus?.missing_required_components?.length ?? 0,
+      statusError: cache.manifestStatusError
+    },
     queryPanel: {
       viewMode: mode,
       primaryQuery: mode === "equipment" ? state.equipmentFilters.query : state.perkFilters.query,

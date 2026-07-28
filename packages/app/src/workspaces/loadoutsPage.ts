@@ -85,6 +85,13 @@ export type LoadoutTemplateItemRowView = {
 
 export type InGameLoadoutItemView = AccountSummary["characters"][number]["loadout_slots"][number]["items"][number];
 
+export type InGameLoadoutItemRowView = {
+  item: InGameLoadoutItemView;
+  locatedItem: LoadoutSourceItem | null;
+  locationLabel: string;
+  located: boolean;
+};
+
 export type LoadoutsSelectedDetailView =
   | {
     kind: "local-template";
@@ -102,6 +109,7 @@ export type LoadoutsSelectedDetailView =
     className: string;
     slot: AccountSummary["characters"][number]["loadout_slots"][number];
     items: InGameLoadoutItemView[];
+    itemRows: InGameLoadoutItemRowView[];
   }
   | {
     kind: "empty";
@@ -287,12 +295,45 @@ function selectInGameLoadoutDetail(
           characterName: character.class_name,
           className: character.class_name,
           slot,
-          items: slot.items
+          items: slot.items,
+          itemRows: buildInGameLoadoutItemRows(accountSummary, slot.items)
         };
       }
     }
   }
   return null;
+}
+
+function buildInGameLoadoutItemRows(
+  accountSummary: AccountSummary,
+  items: InGameLoadoutItemView[]
+): InGameLoadoutItemRowView[] {
+  const accountItems = getAllKnownAccountItemsWithSource(accountSummary);
+  const characterNames = new Map(accountSummary.characters.map((character) => [
+    character.character_id,
+    character.class_name
+  ]));
+
+  return items.map((item) => {
+    const locatedItem = item.instance_id
+      ? accountItems.find((candidate) => candidate.instance_id === item.instance_id) ?? null
+      : null;
+    const characterName = locatedItem?.source_character_id
+      ? characterNames.get(locatedItem.source_character_id)
+      : undefined;
+    const locationLabel = locatedItem
+      ? [locatedItem.source_label, characterName].filter(Boolean).join(" · ")
+      : item.instance_id
+        ? "当前账号未定位"
+        : "未提供实例 ID";
+
+    return {
+      item,
+      locatedItem,
+      locationLabel,
+      located: Boolean(locatedItem)
+    };
+  });
 }
 
 function buildLoadoutTemplateItemRows(input: {
@@ -361,7 +402,9 @@ function buildLoadoutEntries(input: {
 
   const inGameEntries = input.accountSummary
     ? input.accountSummary.characters.flatMap((character) => (
-      character.loadout_slots.map((slot): LoadoutEntry => ({
+      character.loadout_slots
+        .filter((slot) => slot.item_count > 0 || slot.items.length > 0)
+        .map((slot): LoadoutEntry => ({
         id: `in-game-${character.character_id}-${slot.index}`,
         source: "in-game",
         title: slot.name || `配装栏 ${slot.index + 1}`,
@@ -373,7 +416,7 @@ function buildLoadoutEntries(input: {
         slotIndex: slot.index,
         character,
         slot
-      }))
+        }))
     ))
     : [];
 

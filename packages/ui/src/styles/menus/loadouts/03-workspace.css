@@ -3,54 +3,10 @@
   background: var(--surface-panel);
 }
 
-.app-shell .loadout-page-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  min-height: 106px;
-  padding: 17px 24px;
-  border-bottom: 1px solid var(--border-subtle);
-  background: var(--surface-panel);
-}
-
-.app-shell .loadout-page-actions {
-  display: flex;
-  flex: 0 0 auto;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 8px;
-}
-
-.app-shell .loadout-page-actions .primary-button,
-.app-shell .loadout-page-actions .secondary-button {
-  min-height: 34px;
-}
-
-.app-shell .loadout-eyebrow {
-  color: var(--accent-primary);
-  font-size: var(--font-caption);
-  font-weight: 700;
-}
-
-.app-shell .loadout-page-head h1 {
-  margin: 4px 0;
-  color: var(--text-title);
-  font-size: 20px;
-}
-
-.app-shell .loadout-page-head p {
-  max-width: 640px;
-  margin: 0;
-  color: var(--text-muted);
-  font-size: var(--font-content);
-  line-height: 1.5;
-}
-
 .app-shell .loadout-character-tabs {
   display: flex;
+  min-width: 0;
   min-height: 62px;
-  overflow-x: auto;
   border-bottom: 1px solid var(--border-subtle);
   background: var(--surface-subtle);
 }
@@ -58,9 +14,10 @@
 .app-shell .loadout-character-tabs button {
   display: grid;
   grid-template-columns: 28px minmax(0, 1fr);
+  flex: 0 1 150px;
   gap: 8px;
   align-items: center;
-  min-width: 144px;
+  min-width: 118px;
   padding: 0 13px;
   border: 0;
   border-right: 1px solid var(--border-subtle);
@@ -71,12 +28,12 @@
 }
 
 .app-shell .loadout-character-tabs button:hover,
-.app-shell .loadout-character-tabs button.active {
+.app-shell .loadout-character-tabs button[aria-pressed="true"] {
   color: var(--text-title);
   background: var(--surface-interactive);
 }
 
-.app-shell .loadout-character-tabs button.active {
+.app-shell .loadout-character-tabs button[aria-pressed="true"] {
   box-shadow: inset 0 -2px var(--accent-primary);
 }
 
@@ -116,55 +73,77 @@
   align-items: center;
   margin-left: auto;
   padding: 0 16px;
+  border-left: 1px solid var(--border-subtle);
   color: var(--text-muted);
   font-size: var(--font-meta);
   white-space: nowrap;
 }
 
-.app-shell .loadout-mode-tabs {
+.app-shell .loadout-mode-bar {
   display: flex;
-  padding: 10px 20px 0;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 54px;
+  padding: 10px 20px;
   border-bottom: 1px solid var(--border-subtle);
-  background: var(--surface-panel);
+}
+
+.app-shell .loadout-mode-tabs {
+  display: inline-flex;
+  overflow: hidden;
+  border: 1px solid var(--border-control);
+  border-radius: 4px;
+  background: var(--surface-subtle);
 }
 
 .app-shell .loadout-mode-tabs button {
   min-height: 34px;
   padding: 0 12px;
-  border: 1px solid var(--border-subtle);
-  border-bottom: 0;
-  border-radius: 4px 4px 0 0;
+  border: 0;
+  border-radius: 0;
   color: var(--text-muted);
-  background: var(--surface-subtle);
+  background: transparent;
   font-size: var(--font-content);
 }
 
 .app-shell .loadout-mode-tabs button + button {
-  margin-left: -1px;
-  border-radius: 0 4px 0 0;
+  border-left: 1px solid var(--border-control);
 }
 
-.app-shell .loadout-mode-tabs button.active {
-  position: relative;
-  z-index: 1;
+.app-shell .loadout-mode-tabs button:hover,
+.app-shell .loadout-mode-tabs button[aria-selected="true"] {
   color: var(--text-title);
-  background: var(--surface-panel);
-}
-
-.app-shell .loadout-mode-tabs button.active::after {
-  position: absolute;
-  right: 0;
-  bottom: -1px;
-  left: 0;
-  height: 1px;
-  background: var(--surface-panel);
-  content: "";
+  background: var(--surface-interactive);
 }
 
 .app-shell .loadout-mode-tabs span {
   margin-left: 5px;
   color: var(--text-muted);
   font-size: var(--font-caption);
+}
+
+.app-shell .loadout-mode-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.app-shell .loadout-mode-actions .primary-button,
+.app-shell .loadout-mode-actions .secondary-button,
+.app-shell .loadout-action-stack .primary-button,
+.app-shell .loadout-action-stack .secondary-button,
+.app-shell .loadout-local-toolbar .primary-button,
+.app-shell .loadout-local-toolbar .secondary-button,
+.app-shell .loadout-item-actions .secondary-button,
+.app-shell .loadout-dim-import-notice .secondary-button,
+.app-shell .loadout-slot-picker .primary-button,
+.app-shell .loadout-empty-detail-head > .primary-button,
+.app-shell .loadout-compare-controls .danger-button {
+  min-height: 34px;
+  padding: 0 11px;
+  font-size: var(--font-meta);
 }
 
 .app-shell .loadout-operation-status {
@@ -203,29 +182,38 @@
   color: var(--text-muted);
 }
 
+.app-shell .loadout-workspace-panel {
+  min-width: 0;
+}
+
 .app-shell .loadout-workspace {
   grid-template-columns: 230px minmax(0, 1fr) 260px;
   min-height: 560px;
-  margin: 16px 20px 32px;
-  border: 1px solid var(--border-subtle);
+  border: 0;
   border-radius: 0;
-  background: var(--surface-panel);
+  background: transparent;
 }
 
-.app-shell .loadout-directory,
-.app-shell .loadout-summary {
+.app-shell .loadout-workspace > * {
+  min-width: 0;
   padding: 0;
   border: 0;
   border-radius: 0;
-  background: var(--surface-sidebar);
 }
 
 .app-shell .loadout-directory {
   border-right: 1px solid var(--border-subtle);
+  background: var(--surface-sidebar);
 }
 
 .app-shell .loadout-summary {
   border-left: 1px solid var(--border-subtle);
+  background: var(--surface-sidebar);
+}
+
+.app-shell .loadout-detail {
+  min-width: 0;
+  background: var(--surface-panel);
 }
 
 .app-shell .loadout-column-head {
@@ -273,12 +261,8 @@
 }
 
 .app-shell .loadout-directory-row:hover,
-.app-shell .loadout-directory-row.selected {
+.app-shell .loadout-directory-row[aria-pressed="true"] {
   background: var(--surface-interactive);
-}
-
-.app-shell .loadout-directory-row.selected {
-  box-shadow: inset 2px 0 var(--accent-primary);
 }
 
 .app-shell .loadout-directory-index {
@@ -308,7 +292,8 @@
 
 .app-shell .loadout-directory-row em,
 .app-shell .loadout-detail-status,
-.app-shell .loadout-status-badge {
+.app-shell .loadout-status-badge,
+.app-shell .loadout-in-game-item-list em {
   display: inline-flex;
   align-items: center;
   min-height: 22px;
@@ -322,35 +307,47 @@
   white-space: nowrap;
 }
 
+.app-shell [data-status="success"].loadout-detail-status,
+.app-shell [data-status="success"].loadout-status-badge,
+.app-shell .loadout-in-game-item-list em[data-status="success"] {
+  border-color: var(--status-ready-border);
+  color: var(--status-ready-text);
+  background: var(--status-ready-bg);
+}
+
+.app-shell [data-status="warning"].loadout-detail-status,
+.app-shell [data-status="warning"].loadout-status-badge,
+.app-shell .loadout-directory-row em[data-status="warning"],
+.app-shell .loadout-in-game-item-list em[data-status="warning"] {
+  border-color: var(--status-warning-border);
+  color: var(--status-warning-text);
+  background: var(--status-warning-bg);
+}
+
+.app-shell [data-status="ready"].loadout-status-badge {
+  border-color: var(--status-ready-border);
+  color: var(--status-ready-text);
+  background: var(--status-ready-bg);
+}
+
+.app-shell [data-status="info"].loadout-status-badge {
+  border-color: var(--border-control);
+  color: var(--accent-primary);
+  background: var(--surface-subtle);
+}
+
+.app-shell [data-status="blocked"].loadout-status-badge {
+  border-color: color-mix(in srgb, var(--status-error) 48%, var(--border-subtle));
+  color: var(--status-error);
+  background: var(--status-error-bg);
+}
+
 .app-shell .loadout-rail-empty {
   margin: 0;
   padding: 14px 12px;
   color: var(--text-muted);
   font-size: var(--font-meta);
   line-height: 1.5;
-}
-
-.app-shell .loadout-dim-import-notice {
-  margin: 14px 14px 0;
-  padding: 10px 12px;
-  border: 1px solid var(--border-subtle);
-  border-left: 2px solid var(--status-warning);
-  color: var(--text-muted);
-  background: var(--surface-subtle);
-  font-size: var(--font-meta);
-}
-
-.app-shell .loadout-dim-import-notice strong {
-  color: var(--text-title);
-}
-
-.app-shell .loadout-dim-import-notice p {
-  margin: 4px 0 0;
-}
-
-.app-shell .loadout-detail {
-  min-width: 0;
-  background: var(--surface-panel);
 }
 
 .app-shell .loadout-detail-head {
@@ -360,6 +357,12 @@
   justify-content: space-between;
   padding: 14px;
   border-bottom: 1px solid var(--border-subtle);
+}
+
+.app-shell .loadout-eyebrow {
+  color: var(--accent-primary);
+  font-size: var(--font-caption);
+  font-weight: 700;
 }
 
 .app-shell .loadout-detail-head h2 {
@@ -383,16 +386,6 @@
   gap: 6px;
 }
 
-.app-shell .loadout-action-stack .primary-button,
-.app-shell .loadout-action-stack .secondary-button,
-.app-shell .loadout-local-toolbar .primary-button,
-.app-shell .loadout-local-toolbar .secondary-button,
-.app-shell .loadout-item-actions .secondary-button {
-  min-height: 32px;
-  padding: 0 10px;
-  font-size: var(--font-meta);
-}
-
 .app-shell .loadout-section-label {
   display: flex;
   gap: 8px;
@@ -401,8 +394,8 @@
   min-height: 36px;
   padding: 0 14px;
   border-bottom: 1px solid var(--border-subtle);
-  background: var(--surface-subtle);
   color: var(--text-muted);
+  background: transparent;
   font-size: var(--font-caption);
 }
 
@@ -417,23 +410,28 @@
 .app-shell .loadout-in-game-item-list li,
 .app-shell .loadout-item-list .loadout-item {
   display: grid;
-  grid-template-columns: 40px minmax(0, 1fr) auto;
+  grid-template-columns: 42px minmax(0, 1fr) auto;
   gap: 10px;
   align-items: center;
-  min-height: 60px;
+  min-height: 64px;
   padding: 10px 14px;
   border-bottom: 1px solid var(--border-subtle);
 }
 
-.app-shell .loadout-item-glyph {
-  display: grid;
-  width: 38px;
-  height: 38px;
-  place-items: center;
+.app-shell .loadout-item-visual {
+  display: block;
+  width: 40px;
+  height: 40px;
   border: 1px solid var(--border-control);
   border-radius: 4px;
-  color: var(--accent-primary);
+  object-fit: cover;
   background: var(--surface-subtle);
+}
+
+.app-shell .loadout-item-placeholder {
+  display: grid;
+  place-items: center;
+  color: var(--accent-primary);
   font-size: var(--font-caption);
   font-weight: 700;
 }
@@ -462,11 +460,141 @@
   line-height: 1.4;
 }
 
-.app-shell .loadout-in-game-item-list em {
+.app-shell .loadout-detail-footer,
+.app-shell .loadout-compare-controls {
+  border-top: 1px solid var(--border-subtle);
+}
+
+.app-shell .loadout-detail-footer {
+  padding: 10px 14px;
+}
+
+.app-shell .loadout-detail-footer p {
+  margin: 0;
   color: var(--text-muted);
   font-size: var(--font-caption);
-  font-style: normal;
-  white-space: nowrap;
+  line-height: 1.5;
+}
+
+.app-shell .loadout-empty-detail-head {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  padding-right: 14px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.app-shell .loadout-empty-detail-head .product-workspace-empty {
+  border: 0;
+}
+
+.app-shell .loadout-slot-picker {
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.app-shell .loadout-slot-picker > header,
+.app-shell .loadout-slot-picker > footer {
+  padding: 10px 14px;
+}
+
+.app-shell .loadout-slot-picker > header {
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--surface-subtle);
+}
+
+.app-shell .loadout-slot-picker > header strong,
+.app-shell .loadout-slot-picker > header small {
+  display: block;
+}
+
+.app-shell .loadout-slot-picker > header strong {
+  color: var(--text-title);
+  font-size: var(--font-content);
+}
+
+.app-shell .loadout-slot-picker > header small {
+  margin-top: 3px;
+  color: var(--text-muted);
+  font-size: var(--font-caption);
+}
+
+.app-shell .loadout-slot-picker-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.app-shell .loadout-slot-picker-list button {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  min-height: 58px;
+  padding: 8px 12px;
+  border: 0;
+  border-right: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--border-subtle);
+  border-radius: 0;
+  color: var(--text-muted);
+  background: transparent;
+  text-align: left;
+}
+
+.app-shell .loadout-slot-picker-list button:nth-child(2n) {
+  border-right: 0;
+}
+
+.app-shell .loadout-slot-picker-list button:hover,
+.app-shell .loadout-slot-picker-list button[aria-pressed="true"] {
+  background: var(--surface-interactive);
+}
+
+.app-shell .loadout-slot-picker-list button > span:first-child {
+  color: var(--accent-primary);
+  font-size: var(--font-meta);
+  font-weight: 700;
+}
+
+.app-shell .loadout-slot-picker-list strong,
+.app-shell .loadout-slot-picker-list small {
+  display: block;
+}
+
+.app-shell .loadout-slot-picker-list strong {
+  color: var(--text-title);
+  font-size: var(--font-meta);
+}
+
+.app-shell .loadout-slot-picker-list small {
+  margin-top: 3px;
+  color: var(--text-muted);
+  font-size: var(--font-caption);
+}
+
+.app-shell .loadout-slot-picker > footer {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.app-shell .loadout-dim-import-notice {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+  border-left: 4px solid var(--status-warning);
+  color: var(--text-muted);
+  background: var(--surface-subtle);
+  font-size: var(--font-meta);
+}
+
+.app-shell .loadout-dim-import-notice strong {
+  color: var(--text-title);
+}
+
+.app-shell .loadout-dim-import-notice p {
+  margin: 4px 0 0;
 }
 
 .app-shell .loadout-local-toolbar {
@@ -490,16 +618,17 @@
   font-size: var(--font-caption);
 }
 
-.app-shell .loadout-local-toolbar input {
+.app-shell .loadout-local-toolbar input,
+.app-shell .loadout-compare-controls select {
   width: 100%;
-  min-height: 32px;
+  min-height: 34px;
 }
 
 .app-shell .loadout-callout {
   margin: 0;
   padding: 9px 12px;
   border-bottom: 1px solid var(--border-subtle);
-  border-left: 2px solid var(--status-warning);
+  border-left: 4px solid var(--status-warning);
   color: var(--text-muted);
   background: var(--surface-subtle);
   font-size: var(--font-meta);
@@ -528,39 +657,12 @@
   margin: 0;
 }
 
-.app-shell .loadout-detail-status.ready,
-.app-shell .loadout-status-badge.ready {
-  border-color: var(--status-ready-border);
-  color: var(--status-ready-text);
-  background: var(--status-ready-bg);
-}
-
-.app-shell .loadout-detail-status.warning,
-.app-shell .loadout-status-badge.warning {
-  border-color: var(--status-warning-border);
-  color: var(--status-warning-text);
-  background: var(--status-warning-bg);
-}
-
-.app-shell .loadout-status-badge.info {
-  border-color: var(--border-control);
-  color: var(--accent-primary);
-  background: var(--surface-subtle);
-}
-
-.app-shell .loadout-status-badge.blocked {
-  border-color: color-mix(in srgb, var(--status-error) 48%, var(--border-subtle));
-  color: var(--status-error);
-  background: var(--status-error-bg);
-}
-
 .app-shell .loadout-compare-controls {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
   align-items: end;
   padding: 10px;
-  border-top: 1px solid var(--border-subtle);
 }
 
 .app-shell .loadout-compare-controls label:first-child {
@@ -569,21 +671,11 @@
   gap: 4px;
 }
 
-.app-shell .loadout-compare-controls select {
-  width: 100%;
-  min-height: 32px;
-}
-
 .app-shell .loadout-compare-controls .checkbox-row {
   display: flex;
   gap: 6px;
   align-items: center;
-  min-height: 32px;
-}
-
-.app-shell .loadout-compare-controls .danger-button {
-  min-height: 32px;
-  padding: 0 10px;
+  min-height: 34px;
 }
 
 .app-shell .loadout-ledger {
@@ -623,11 +715,9 @@
 }
 
 .app-shell .loadout-guidance {
-  margin: 12px;
-  padding: 11px;
-  border: 1px solid var(--border-subtle);
-  border-left: 2px solid var(--accent-primary);
-  border-radius: 0;
+  margin: 0;
+  padding: 11px 12px;
+  border-left: 4px solid var(--accent-primary);
   color: var(--text-muted);
   background: var(--surface-subtle);
   font-size: var(--font-caption);
@@ -647,7 +737,7 @@
   color: var(--text-title);
 }
 
-@media (max-width: 1180px) {
+@media (max-width: 1100px) {
   .app-shell .loadout-workspace {
     grid-template-columns: 230px minmax(0, 1fr);
   }
@@ -658,27 +748,43 @@
 }
 
 @media (max-width: 760px) {
-  .app-shell .loadout-page-head {
-    min-height: 0;
-    padding: 14px;
+  .app-shell .loadout-character-tabs button {
+    grid-template-columns: 25px minmax(0, 1fr);
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 0 8px;
   }
 
-  .app-shell .loadout-page-actions {
-    width: 100%;
-    justify-content: flex-start;
-  }
-
-  .app-shell .loadout-character-context {
+  .app-shell .loadout-character-context,
+  .app-shell .loadout-character-tabs small {
     display: none;
   }
 
-  .app-shell .loadout-character-tabs button {
-    min-width: 106px;
-    padding: 0 9px;
+  .app-shell .loadout-mode-bar {
+    align-items: stretch;
+    padding: 10px;
   }
 
   .app-shell .loadout-mode-tabs {
-    padding-inline: 10px;
+    flex: 1 1 auto;
+  }
+
+  .app-shell .loadout-mode-tabs button {
+    flex: 1 1 0;
+    min-width: 0;
+    padding-inline: 8px;
+  }
+
+  .app-shell .loadout-mode-tabs span {
+    display: none;
+  }
+
+  .app-shell .loadout-mode-actions {
+    flex: 0 0 auto;
+  }
+
+  .app-shell .loadout-mode-actions .secondary-button {
+    display: none;
   }
 
   .app-shell .loadout-operation-status {
@@ -693,7 +799,6 @@
   .app-shell .loadout-workspace {
     grid-template-columns: 1fr;
     min-height: 0;
-    margin: 10px 10px 24px;
   }
 
   .app-shell .loadout-directory,
@@ -709,17 +814,30 @@
     overflow-y: auto;
   }
 
-  .app-shell .loadout-detail-head {
+  .app-shell .loadout-detail-head,
+  .app-shell .loadout-dim-import-notice,
+  .app-shell .loadout-empty-detail-head {
+    align-items: stretch;
     flex-direction: column;
   }
 
-  .app-shell .loadout-action-stack {
+  .app-shell .loadout-action-stack,
+  .app-shell .loadout-slot-picker > footer {
     justify-content: flex-start;
+  }
+
+  .app-shell .loadout-slot-picker-list {
+    grid-template-columns: 1fr;
+  }
+
+  .app-shell .loadout-slot-picker-list button,
+  .app-shell .loadout-slot-picker-list button:nth-child(2n) {
+    border-right: 0;
   }
 
   .app-shell .loadout-in-game-item-list li,
   .app-shell .loadout-item-list .loadout-item {
-    grid-template-columns: 40px minmax(0, 1fr);
+    grid-template-columns: 42px minmax(0, 1fr);
   }
 
   .app-shell .loadout-in-game-item-list em,

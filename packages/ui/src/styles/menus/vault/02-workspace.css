@@ -1,4 +1,5 @@
-.app-shell .vault-page {
+.app-shell .vault-page,
+.app-shell .vault-workspace-panel {
   min-width: 0;
 }
 
@@ -6,50 +7,388 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: 12px;
+  min-height: 48px;
   padding: 7px 10px;
+  border-radius: 0;
 }
 
 .app-shell .vault-workflow-tabs,
 .app-shell .vault-workflow-meta {
   display: flex;
-  gap: 4px;
   align-items: center;
+  min-width: 0;
+}
+
+.app-shell .vault-workflow-tabs {
+  border: 1px solid var(--border-control);
 }
 
 .app-shell .vault-workflow-tabs button {
-  min-height: 32px;
-  padding: 0 10px;
-  border: 1px solid transparent;
+  min-height: 34px;
+  padding: 0 12px;
+  border: 0;
+  border-right: 1px solid var(--border-control);
+  border-radius: 0;
   color: var(--text-muted);
   background: transparent;
+  box-shadow: none;
+  white-space: nowrap;
+}
+
+.app-shell .vault-workflow-tabs button:last-child {
+  border-right: 0;
+}
+
+.app-shell .vault-workflow-tabs button:hover:not(.active) {
+  color: var(--text-title);
+  background: var(--surface-interactive);
 }
 
 .app-shell .vault-workflow-tabs button.active {
-  color: var(--text-title);
-  border-color: var(--border-control);
-  background: var(--surface-interactive);
+  color: var(--selected-fg);
+  background: var(--state-selected-bg);
+}
+
+.app-shell .vault-workflow-meta {
+  gap: 0;
+}
+
+.app-shell .vault-workflow-meta .app-chip {
+  min-height: 28px;
+  margin-left: -1px;
+  border-radius: 0;
+  white-space: nowrap;
+}
+
+.app-shell .vault-workflow-meta .app-chip:first-child {
+  margin-left: 0;
+}
+
+.app-shell .vault-page > .status-message {
+  margin: 0;
+  padding: 8px 10px;
+  border-width: 0 0 1px;
+  border-radius: 0;
 }
 
 .app-shell .vault-command-bar {
   display: grid;
-  grid-template-columns: minmax(260px, 1fr) 170px 170px auto;
-  gap: 6px;
-  padding: 9px 10px;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 12px;
+  align-items: baseline;
+  min-height: 42px;
+  padding: 9px 12px;
   border-bottom: 1px solid var(--border-subtle);
   background: var(--surface-toolbar);
 }
 
+.app-shell .vault-command-bar strong {
+  color: var(--text-title);
+  font-size: var(--font-meta);
+}
+
+.app-shell .vault-command-bar span {
+  min-width: 0;
+  color: var(--text-muted);
+  font-size: var(--font-content);
+}
+
 .app-shell .vault-browse {
   display: grid;
-  grid-template-columns: 220px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   min-height: 590px;
 }
 
-.app-shell .vault-filter-column,
-.app-shell .vault-results-column {
+.app-shell .vault-browse > * + * {
+  border-top: 1px solid var(--border-subtle);
+}
+
+.app-shell .vault-filter-workbench {
+  width: 100%;
   min-width: 0;
-  border-right: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--border-subtle);
+  border-radius: 0;
+  background: var(--surface-panel);
+  box-shadow: none;
+}
+
+.app-shell .vault-filter-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 52px;
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--surface-elevated);
+}
+
+.app-shell .vault-filter-title {
+  display: grid;
+  gap: 2px;
+}
+
+.app-shell .vault-filter-title span,
+.app-shell .vault-filter-search > span,
+.app-shell .vault-filter-field > span,
+.app-shell .vault-domain-field > span,
+.app-shell .vault-filter-scope-group > span,
+.app-shell .vault-armor-rule-field > span {
+  color: var(--text-muted);
+  font-size: var(--font-caption);
+}
+
+.app-shell .vault-filter-title strong {
+  color: var(--text-title);
+  font-size: var(--font-row-title);
+}
+
+.app-shell .vault-filter-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.app-shell .vault-filter-hint {
+  color: var(--text-muted);
+  font-size: var(--font-content);
+}
+
+.app-shell .vault-filter-primary,
+.app-shell .vault-filter-common {
+  display: grid;
+  gap: 12px;
+  padding: 12px 14px;
+}
+
+.app-shell .vault-filter-primary {
+  grid-template-columns: minmax(260px, 1fr) minmax(430px, 0.85fr);
+  align-items: end;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.app-shell .vault-filter-search,
+.app-shell .vault-filter-field,
+.app-shell .vault-domain-field,
+.app-shell .vault-filter-scope-group,
+.app-shell .vault-armor-rule-field {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.app-shell .vault-filter-workbench input,
+.app-shell .vault-filter-workbench select {
+  width: 100%;
+  min-width: 0;
+  min-height: 40px;
+  border-radius: var(--radius-control);
+}
+
+.app-shell .vault-filter-scope {
+  display: flex;
+  min-width: 0;
+  min-height: 40px;
+  overflow: hidden;
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-control);
+  background: var(--surface-interactive);
+}
+
+.app-shell .vault-filter-scope button {
+  display: inline-flex;
+  flex: 1 1 0;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-width: 0;
+  min-height: 40px;
+  padding: 0 7px;
+  border: 0;
+  border-right: 1px solid var(--border-control);
+  border-radius: 0;
+  color: var(--text-body);
+  background: transparent;
+  box-shadow: none;
+}
+
+.app-shell .vault-filter-scope button:last-child {
+  border-right: 0;
+}
+
+.app-shell .vault-filter-scope button[aria-pressed="true"] {
+  color: var(--selected-fg);
+  background: var(--state-selected-bg);
+}
+
+.app-shell .vault-filter-scope button:hover:not([aria-pressed="true"]) {
+  color: var(--text-title);
+  background: var(--surface-elevated);
+}
+
+.app-shell .vault-filter-scope button small {
+  color: inherit;
+  font-size: var(--font-caption);
+  opacity: 0.72;
+}
+
+.app-shell .vault-filter-section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--text-muted);
+  font-size: var(--font-caption);
+}
+
+.app-shell .vault-filter-section-head span:last-child {
+  color: var(--text-body);
+}
+
+.app-shell .vault-filter-common-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  align-items: end;
+}
+
+.app-shell .vault-domain-filter {
+  display: grid;
+  gap: 12px;
+  padding: 12px 14px 14px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.app-shell .vault-domain-filter p {
+  margin: 0;
+  color: var(--text-body);
+  font-size: var(--font-content);
+  line-height: 1.5;
+}
+
+.app-shell .vault-weapon-filter {
+  grid-template-columns: minmax(180px, 240px) minmax(0, 1fr);
+  align-items: start;
+}
+
+.app-shell .vault-frame-filter {
+  min-width: 0;
+  border: 1px solid var(--border-subtle);
+  background: var(--surface-subtle);
+}
+
+.app-shell .vault-frame-filter summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 40px;
+  padding: 0 10px;
+  color: var(--text-body);
+  font-size: var(--font-content);
+  cursor: pointer;
+}
+
+.app-shell .vault-frame-filter summary small {
+  color: var(--text-muted);
+  font-size: var(--font-caption);
+}
+
+.app-shell .vault-frame-chip-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.app-shell .vault-frame-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 32px;
+  padding: 0 9px;
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-control);
+  color: var(--text-body);
+  background: var(--surface-panel);
+  box-shadow: none;
+}
+
+.app-shell .vault-frame-chip small {
+  color: var(--text-muted);
+  font-size: var(--font-caption);
+}
+
+.app-shell .vault-frame-chip.active {
+  border-color: var(--state-selected-border);
+  color: var(--selected-fg);
+  background: var(--state-selected-bg);
+}
+
+.app-shell .vault-armor-filter-panel {
+  display: grid;
+  gap: 10px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.app-shell .vault-armor-filter-heading {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.app-shell .vault-armor-filter-heading h3,
+.app-shell .vault-armor-filter-heading p {
+  margin: 0;
+}
+
+.app-shell .vault-armor-filter-heading h3 {
+  color: var(--text-title);
+  font-size: var(--font-row-title);
+}
+
+.app-shell .vault-armor-filter-heading p,
+.app-shell .vault-armor-rule-empty {
+  margin-top: 3px;
+  color: var(--text-body);
+  font-size: var(--font-content);
+  line-height: 1.5;
+}
+
+.app-shell .vault-armor-rule-list {
+  display: grid;
+  gap: 6px;
+}
+
+.app-shell .vault-filter-workbench .vault-armor-rule {
+  display: grid;
+  grid-template-columns: minmax(154px, 220px) 24px minmax(94px, 120px) auto;
+  gap: 8px;
+  align-items: end;
+  max-width: 560px;
+  padding: 8px;
+  border: 1px solid var(--border-subtle);
+  background: var(--surface-elevated);
+}
+
+.app-shell .vault-filter-workbench .vault-rule-operator {
+  display: grid;
+  place-items: center;
+  min-height: 40px;
+  color: var(--text-body);
+  font-weight: 700;
+}
+
+.app-shell .vault-filter-workbench .vault-armor-rule-remove {
+  min-height: 40px;
 }
 
 .app-shell .vault-column-head {
@@ -74,116 +413,232 @@
   font-size: var(--font-caption);
 }
 
-.app-shell .vault-filter-stack {
-  display: grid;
-  gap: 9px;
-  padding: 10px;
+.app-shell .vault-results-column,
+.app-shell .vault-cleanup-grid > section {
+  min-width: 0;
 }
 
-.app-shell .vault-filter-stack label,
-.app-shell .vault-frame-filter {
-  display: grid;
-  gap: 4px;
-  color: var(--text-muted);
-  font-size: var(--font-caption);
+.app-shell .vault-results-column > .status-message,
+.app-shell .vault-cleanup-grid > section > .status-message {
+  margin: 12px;
 }
 
-.app-shell .vault-frame-filter button {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  min-height: 30px;
-  padding: 0 8px;
-  border: 1px solid var(--border-subtle);
-  color: var(--text-body);
-  background: var(--surface-panel);
-}
-
-.app-shell .vault-frame-filter button.active {
-  border-color: var(--state-selected-border);
-  background: var(--state-selected-bg);
-}
-
-.app-shell .vault-armor-rule {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 62px 30px;
-  gap: 4px;
-}
-
-.app-shell .vault-results-column .vault-section-list {
+.app-shell .vault-results-column .vault-section-list,
+.app-shell .vault-cleanup-grid .vault-section-list {
+  gap: 0;
   padding: 0;
 }
 
-.app-shell .vault-results-column .vault-card-grid {
-  grid-template-columns: repeat(3, minmax(220px, 1fr));
-  gap: 8px;
-  padding: 10px 12px;
+.app-shell .vault-results-column .vault-card-grid,
+.app-shell .vault-cleanup-grid .vault-card-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+  padding: 0;
 }
 
-.app-shell .vault-results-column .vault-item-card {
-  grid-template-rows: 1fr;
-  min-height: 62px;
-  padding: 9px 10px;
-  border-radius: 4px;
+.app-shell .vault-results-column .vault-item-card,
+.app-shell .vault-cleanup-grid .vault-item-card {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
+  gap: 0;
+  min-height: 70px;
+  padding: 8px 12px;
+  border: 0;
+  border-bottom: 1px solid var(--border-subtle);
+  border-radius: 0;
+  background: transparent;
   box-shadow: none;
 }
 
-.app-shell .vault-results-column .vault-card-main {
-  grid-template-columns: 44px minmax(0, 1fr);
-  gap: 9px;
+.app-shell .vault-results-column .vault-item-card:hover,
+.app-shell .vault-cleanup-grid .vault-item-card:hover {
+  border-color: var(--border-subtle);
+  background: var(--surface-elevated);
+}
+
+.app-shell .vault-results-column .vault-item-card.selected,
+.app-shell .vault-cleanup-grid .vault-item-card.selected {
+  background: var(--state-selected-bg);
+}
+
+.app-shell .vault-results-column .vault-item-card.pending,
+.app-shell .vault-cleanup-grid .vault-item-card.pending {
+  opacity: 0.72;
+}
+
+.app-shell .vault-results-column .vault-card-main,
+.app-shell .vault-cleanup-grid .vault-card-main {
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr);
+  gap: 10px;
   align-items: center;
 }
 
 .app-shell .vault-results-column .vault-card-visual,
 .app-shell .vault-results-column .vault-card-visual img,
-.app-shell .vault-results-column .vault-card-visual .item-icon-placeholder {
-  width: 44px;
-  min-width: 44px;
-  height: 44px;
+.app-shell .vault-results-column .vault-card-visual .item-icon-placeholder,
+.app-shell .vault-cleanup-grid .vault-card-visual,
+.app-shell .vault-cleanup-grid .vault-card-visual img,
+.app-shell .vault-cleanup-grid .vault-card-visual .item-icon-placeholder {
+  width: 46px;
+  min-width: 46px;
+  height: 46px;
+  border-radius: 3px;
 }
 
-.app-shell .vault-results-column .vault-card-body {
-  gap: 2px;
+.app-shell .vault-results-column .vault-card-body,
+.app-shell .vault-cleanup-grid .vault-card-body {
+  display: grid;
+  grid-template-columns: minmax(170px, 0.8fr) minmax(210px, 1.1fr) minmax(180px, 1fr) minmax(110px, auto);
+  grid-template-areas:
+    "identity detail signals decision"
+    "identity roll note decision";
+  gap: 3px 12px;
+  align-items: center;
 }
 
-.app-shell .vault-results-column .vault-card-body strong {
+.app-shell .vault-card-body .vault-title-row {
+  grid-area: identity;
+}
+
+.app-shell .vault-card-body > .decision-badge {
+  grid-area: decision;
+  justify-self: end;
+  width: auto;
+  max-width: 150px;
+  margin: 0;
+  white-space: normal;
+  text-align: right;
+}
+
+.app-shell .vault-card-body > .vault-card-meta {
+  grid-area: detail;
+}
+
+.app-shell .vault-card-body > .vault-card-signals {
+  grid-area: signals;
+}
+
+.app-shell .vault-card-body > .vault-card-roll {
+  grid-area: roll;
+}
+
+.app-shell .vault-card-body > .vault-note-snippet {
+  grid-area: note;
+}
+
+.app-shell .vault-card-body > .vault-card-open-state {
+  grid-area: decision;
+  justify-self: end;
+}
+
+.app-shell .vault-item-card.pending .decision-badge {
+  display: none;
+}
+
+.app-shell .vault-card-body strong,
+.app-shell .vault-card-body span,
+.app-shell .vault-card-body small {
+  min-width: 0;
+}
+
+.app-shell .vault-card-body strong {
   color: var(--text-title);
   font-size: var(--font-body);
 }
 
-.app-shell .vault-results-column .vault-card-meta,
-.app-shell .vault-results-column .vault-card-roll,
-.app-shell .vault-results-column .vault-card-body small {
+.app-shell .vault-card-meta,
+.app-shell .vault-card-roll,
+.app-shell .vault-note-snippet,
+.app-shell .vault-card-open-state {
+  overflow: hidden;
   color: var(--text-muted);
   font-size: var(--font-caption);
-  line-height: 1.35;
-}
-
-.app-shell .vault-results-column .vault-card-meta {
-  display: block;
+  line-height: 1.4;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.app-shell .vault-results-column .decision-badge,
-.app-shell .vault-results-column .vault-note-snippet,
-.app-shell .vault-results-column .vault-card-signals .wishlist-hit span:not(.wishlist-hit-badge),
-.app-shell .vault-results-column .vault-card-signals .target-hit span:not(.target-hit-badge),
-.app-shell .vault-results-column .vault-card-signals .community-match span:not(.community-match-badge) {
-  display: none;
+.app-shell .vault-note-snippet {
+  color: var(--status-warning);
 }
 
-.app-shell .vault-results-column .vault-card-signals {
+.app-shell .vault-card-signals {
+  display: flex;
+  flex-wrap: wrap;
   gap: 4px;
+  overflow: hidden;
 }
 
-.app-shell .vault-results-column .vault-card-signals small {
+.app-shell .vault-card-signals small {
   width: auto;
   max-width: 100%;
+}
+
+.app-shell .vault-card-signals .wishlist-hit,
+.app-shell .vault-card-signals .target-hit,
+.app-shell .vault-card-signals .community-match,
+.app-shell .vault-card-signals .loadout-template-badge {
+  display: inline-flex;
+}
+
+.app-shell .vault-score-badge,
+.app-shell .vault-tag-current,
+.app-shell .vault-card-select {
+  border-radius: 0;
+}
+
+.app-shell .vault-card-select {
+  top: 7px;
+  left: 7px;
+}
+
+.app-shell .vault-render-limit-message {
+  margin: 0;
+  padding: 8px 12px;
+  border-width: 0 0 1px;
+  border-radius: 0;
+  background: var(--surface-toolbar);
+}
+
+.app-shell .vault-summary-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.app-shell .vault-summary-strip > div {
+  padding: 10px 12px;
+  border-right: 1px solid var(--border-subtle);
+  background: var(--surface-elevated);
+}
+
+.app-shell .vault-summary-strip > div:last-child {
+  border-right: 0;
+}
+
+.app-shell .vault-summary-strip span,
+.app-shell .vault-summary-strip strong {
+  display: block;
+}
+
+.app-shell .vault-summary-strip span {
+  color: var(--text-muted);
+  font-size: var(--font-caption);
+}
+
+.app-shell .vault-summary-strip strong {
+  margin-top: 4px;
+  color: var(--text-title);
+  font-size: var(--font-row-title);
 }
 
 .app-shell .vault-organize-panel {
   display: grid;
   border-bottom: 1px solid var(--border-subtle);
+  border-radius: 0;
+  box-shadow: none;
 }
 
 .app-shell .vault-organize-bar {
@@ -197,41 +652,46 @@
 }
 
 .app-shell .vault-organize-bar .mode-tabs {
+  display: flex;
   align-self: center;
+  border: 1px solid var(--border-control);
 }
 
 .app-shell .vault-organize-bar .mode-tabs button {
-  min-height: 32px;
+  min-height: 34px;
   padding: 0 10px;
-  border: 1px solid transparent;
+  border: 0;
+  border-right: 1px solid var(--border-control);
+  border-radius: 0;
   color: var(--text-muted);
   background: transparent;
+  box-shadow: none;
+}
+
+.app-shell .vault-organize-bar .mode-tabs button:last-child {
+  border-right: 0;
 }
 
 .app-shell .vault-organize-bar .mode-tabs button.active {
-  border-color: var(--border-control);
-  color: var(--text-title);
-  background: var(--surface-interactive);
+  color: var(--selected-fg);
+  background: var(--state-selected-bg);
 }
 
 .app-shell .vault-organize-field {
   flex: 0 0 156px;
   width: 156px;
-  gap: 3px;
-  color: var(--text-muted);
-  font-size: var(--font-caption);
 }
 
-.app-shell .vault-organize-field select {
-  min-height: 32px;
-}
-
+.app-shell .vault-organize-field select,
 .app-shell .vault-organize-bar > button {
-  min-height: 32px;
-  padding: 0 10px;
+  min-height: 34px;
 }
 
 .app-shell .vault-organize-panel .vault-batch-panel {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
   margin: 0;
   padding: 8px 10px;
   border: 0;
@@ -240,62 +700,8 @@
   background: var(--surface-elevated);
 }
 
-.app-shell .vault-cleanup-grid .vault-section-list {
-  padding: 0;
-}
-
-.app-shell .vault-cleanup-grid .vault-card-grid {
-  grid-template-columns: 1fr;
-  gap: 0;
-  padding: 0;
-}
-
-.app-shell .vault-cleanup-grid .vault-item-card {
-  min-height: 62px;
-  padding: 9px 10px;
-  border: 0;
-  border-bottom: 1px solid var(--border-subtle);
-  border-radius: 0;
-  background: transparent;
-}
-
-.app-shell .vault-cleanup-grid .vault-card-main {
-  grid-template-columns: 44px minmax(0, 1fr);
-  gap: 9px;
-  align-items: center;
-}
-
-.app-shell .vault-cleanup-grid .vault-card-visual,
-.app-shell .vault-cleanup-grid .vault-card-visual img,
-.app-shell .vault-cleanup-grid .vault-card-visual .item-icon-placeholder {
-  width: 44px;
-  min-width: 44px;
-  height: 44px;
-}
-
-.app-shell .vault-cleanup-grid .vault-card-body {
-  gap: 2px;
-}
-
-.app-shell .vault-cleanup-grid .vault-card-body strong {
-  color: var(--text-title);
-  font-size: var(--font-body);
-}
-
-.app-shell .vault-cleanup-grid .vault-card-meta,
-.app-shell .vault-cleanup-grid .vault-card-roll,
-.app-shell .vault-cleanup-grid .vault-card-body small {
-  color: var(--text-muted);
-  font-size: var(--font-caption);
-  line-height: 1.35;
-}
-
-.app-shell .vault-cleanup-grid .decision-badge,
-.app-shell .vault-cleanup-grid .vault-note-snippet,
-.app-shell .vault-cleanup-grid .vault-card-signals .wishlist-hit span:not(.wishlist-hit-badge),
-.app-shell .vault-cleanup-grid .vault-card-signals .target-hit span:not(.target-hit-badge),
-.app-shell .vault-cleanup-grid .vault-card-signals .community-match span:not(.community-match-badge) {
-  display: none;
+.app-shell .vault-organize-panel .vault-batch-panel span {
+  margin-right: auto;
 }
 
 .app-shell .vault-cleanup-warning,
@@ -309,8 +715,8 @@
 }
 
 .app-shell .vault-cleanup-warning {
-  color: var(--state-warning-text);
-  background: var(--state-warning-bg);
+  color: var(--status-warning);
+  background: var(--status-warning-bg);
 }
 
 .app-shell .vault-cleanup-locator {
@@ -336,6 +742,182 @@
   font-size: var(--font-caption);
 }
 
+.app-shell .vault-cleanup-grid,
+.app-shell .vault-recommendations {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 330px;
+}
+
+.app-shell .vault-cleanup-grid > aside,
+.app-shell .vault-recommendations > aside {
+  min-width: 0;
+  border-left: 1px solid var(--border-subtle);
+  background: var(--surface-sidebar);
+}
+
+.app-shell .vault-cleanup-grid .vault-card-body {
+  grid-template-columns: minmax(150px, 0.9fr) minmax(180px, 1.1fr) minmax(140px, 1fr) auto;
+}
+
+.app-shell .vault-side-summary-inner {
+  display: grid;
+  gap: 0;
+}
+
+.app-shell .vault-side-heading,
+.app-shell .vault-side-signal,
+.app-shell .vault-side-actions {
+  border-radius: 0;
+}
+
+.app-shell .vault-side-heading {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.app-shell .vault-cleanup-grid > aside .vault-decision-summary {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+}
+
+.app-shell .vault-cleanup-grid > aside .vault-decision-summary span,
+.app-shell .vault-side-signal {
+  min-height: 52px;
+  padding: 8px 12px;
+  border: 0;
+  border-bottom: 1px solid var(--border-subtle);
+  border-radius: 0;
+  background: transparent;
+}
+
+.app-shell .vault-side-actions {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+}
+
+.app-shell .duplicate-group-list {
+  display: grid;
+  gap: 0;
+}
+
+.app-shell .duplicate-group {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-bottom: 1px solid var(--border-subtle);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.app-shell .duplicate-group-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 46px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--surface-elevated);
+}
+
+.app-shell .duplicate-group-heading h3 {
+  margin: 0;
+  color: var(--text-title);
+  font-size: var(--font-row-title);
+}
+
+.app-shell .duplicate-group > .vault-batch-panel {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 8px 12px;
+  border: 0;
+  border-bottom: 1px solid var(--border-subtle);
+  border-radius: 0;
+  background: var(--surface-toolbar);
+}
+
+.app-shell .duplicate-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  min-height: 66px;
+  padding: 8px 12px;
+  border: 0;
+  border-bottom: 1px solid var(--border-subtle);
+  border-radius: 0;
+  background: transparent;
+}
+
+.app-shell .duplicate-row:last-child {
+  border-bottom: 0;
+}
+
+.app-shell .duplicate-row.selected {
+  background: var(--state-selected-bg);
+}
+
+.app-shell .duplicate-row-main {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) minmax(220px, 1.3fr) minmax(140px, 0.7fr);
+  gap: 10px;
+  align-items: center;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  text-align: left;
+}
+
+.app-shell .duplicate-row-main span,
+.app-shell .duplicate-row-main small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-shell .duplicate-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.app-shell .vault-recommendations > section,
+.app-shell .vault-recommendations > aside,
+.app-shell .vault-dashboard-panel,
+.app-shell .vault-target-rules-panel {
+  min-width: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.app-shell .vault-recommendations .vault-dashboard-panel,
+.app-shell .vault-recommendations .wishlist-import-panel {
+  gap: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.app-shell .vault-recommendations > section > .status-message {
+  margin: 0;
+  padding: 9px 12px;
+  border-width: 0 0 1px;
+  border-radius: 0;
+}
+
 .app-shell .vault-source-list {
   display: grid;
   border-top: 1px solid var(--border-subtle);
@@ -351,7 +933,7 @@
   justify-content: space-between;
   gap: 9px;
   min-height: 61px;
-  padding: 8px 10px;
+  padding: 8px 12px;
   cursor: pointer;
 }
 
@@ -382,7 +964,7 @@
 .app-shell .vault-source-editor {
   display: grid;
   gap: 8px;
-  padding: 0 10px 10px;
+  padding: 0 12px 12px;
 }
 
 .app-shell .vault-source-editor textarea {
@@ -390,10 +972,25 @@
   resize: vertical;
 }
 
+.app-shell .vault-target-rules-panel {
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.app-shell .vault-target-rules-panel .vault-armor-rule {
+  grid-template-columns: minmax(0, 1fr) auto;
+  max-width: none;
+}
+
+.app-shell .vault-target-rules-panel .vault-armor-rule:has(> :nth-child(3)) {
+  grid-template-columns: minmax(0, 1fr) minmax(90px, 140px) auto;
+}
+
 .app-shell .vault-target-rule-editor {
   display: grid;
   gap: 9px;
-  padding: 9px 10px;
+  padding: 9px 12px;
   border-top: 1px solid var(--border-subtle);
 }
 
@@ -403,99 +1000,185 @@
   cursor: pointer;
 }
 
-.app-shell .vault-cleanup-grid,
-.app-shell .vault-recommendations {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 330px;
-}
-
-.app-shell .vault-cleanup-grid > aside,
-.app-shell .vault-recommendations > aside {
-  border-left: 1px solid var(--border-subtle);
-  background: var(--surface-sidebar);
-}
-
-.app-shell .vault-tab-content > .vault-organize-panel,
-.app-shell .vault-tab-content > .vault-duplicate-groups,
-.app-shell .vault-recommendations > section,
-.app-shell .vault-recommendations > aside {
-  border-radius: 0;
-  box-shadow: none;
-}
-
-.app-shell .vault-summary-strip {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  border-bottom: 1px solid var(--border-subtle);
-}
-
-.app-shell .vault-summary-strip > div {
-  padding: 10px 12px;
-  border-right: 1px solid var(--border-subtle);
-  background: var(--surface-elevated);
-}
-
-.app-shell .vault-summary-strip span,
-.app-shell .vault-summary-strip strong {
-  display: block;
-}
-
-.app-shell .vault-summary-strip span {
-  color: var(--text-muted);
-  font-size: var(--font-caption);
-}
-
-.app-shell .vault-summary-strip strong {
-  margin-top: 4px;
-  color: var(--text-title);
-  font-size: var(--font-row-title);
-}
-
 @media (max-width: 1280px) {
-  .app-shell .vault-browse {
-    grid-template-columns: 190px minmax(0, 1fr);
+  .app-shell .vault-filter-primary {
+    grid-template-columns: minmax(240px, 1fr) minmax(360px, 0.9fr);
   }
 
-  .app-shell .vault-results-column .vault-card-grid {
-    grid-template-columns: repeat(2, minmax(220px, 1fr));
+  .app-shell .vault-card-body,
+  .app-shell .vault-cleanup-grid .vault-card-body {
+    grid-template-columns: minmax(150px, 0.8fr) minmax(180px, 1fr) minmax(150px, 0.8fr) auto;
+  }
+}
+
+.app-shell.assistant-open .vault-filter-primary {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.app-shell.assistant-open .vault-filter-common-row {
+  grid-template-columns: repeat(2, minmax(160px, 1fr));
+}
+
+.app-shell.assistant-open .vault-cleanup-grid,
+.app-shell.assistant-open .vault-recommendations {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.app-shell.assistant-open .vault-cleanup-grid > aside,
+.app-shell.assistant-open .vault-recommendations > aside {
+  border-left: 0;
+  border-top: 1px solid var(--border-subtle);
+}
+
+@media (max-width: 1120px) {
+  .app-shell .vault-workflow-bar,
+  .app-shell .vault-filter-primary {
+    align-items: stretch;
+  }
+
+  .app-shell .vault-workflow-bar {
+    flex-direction: column;
+  }
+
+  .app-shell .vault-filter-primary {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .app-shell .vault-card-body,
+  .app-shell .vault-cleanup-grid .vault-card-body {
+    grid-template-columns: minmax(160px, 0.9fr) minmax(180px, 1fr) minmax(110px, auto);
+    grid-template-areas:
+      "identity detail decision"
+      "signals roll note";
+  }
+
+  .app-shell .vault-card-body > .vault-note-snippet {
+    justify-self: end;
+  }
+
+  .app-shell .duplicate-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .app-shell .duplicate-row-actions {
+    justify-content: flex-start;
   }
 }
 
 @media (max-width: 980px) {
-  .app-shell .vault-browse {
-    grid-template-columns: 200px minmax(0, 1fr);
+  .app-shell .vault-filter-common-row {
+    grid-template-columns: repeat(2, minmax(160px, 1fr));
   }
-}
 
-@media (max-width: 1120px) {
-  .app-shell .vault-organize-field {
-    flex-basis: 140px;
-    width: 140px;
+  .app-shell .vault-weapon-filter {
+    grid-template-columns: minmax(160px, 210px) minmax(0, 1fr);
+  }
+
+  .app-shell .vault-card-body,
+  .app-shell .vault-cleanup-grid .vault-card-body {
+    grid-template-columns: minmax(160px, 1fr) minmax(180px, 1fr) auto;
+    grid-template-areas:
+      "identity detail decision"
+      "signals signals note";
+  }
+
+  .app-shell .vault-card-body > .vault-card-roll {
+    display: none;
+  }
+
+  .app-shell .duplicate-row-main {
+    grid-template-columns: minmax(160px, 1fr) minmax(180px, 1fr);
+  }
+
+  .app-shell .duplicate-row-main > small:last-child {
+    grid-column: 1 / -1;
   }
 }
 
 @media (max-width: 760px) {
-  .app-shell .vault-browse,
-  .app-shell .vault-cleanup-grid,
-  .app-shell .vault-recommendations {
-    grid-template-columns: 1fr;
+  .app-shell .vault-workflow-tabs,
+  .app-shell .vault-workflow-meta,
+  .app-shell .vault-filter-scope {
+    overflow-x: auto;
   }
 
-  .app-shell .vault-filter-column,
-  .app-shell .vault-results-column,
+  .app-shell .vault-workflow-tabs button,
+  .app-shell .vault-filter-scope button {
+    flex: 0 0 auto;
+  }
+
+  .app-shell .vault-filter-head,
+  .app-shell .vault-filter-actions,
+  .app-shell .vault-armor-filter-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .app-shell .vault-filter-actions {
+    display: flex;
+  }
+
+  .app-shell .vault-filter-hint {
+    display: none;
+  }
+
+  .app-shell .vault-filter-common-row,
+  .app-shell .vault-weapon-filter,
+  .app-shell .vault-cleanup-grid,
+  .app-shell .vault-recommendations,
+  .app-shell .vault-summary-strip {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .app-shell .vault-cleanup-grid > aside,
   .app-shell .vault-recommendations > aside {
-    border-right: 0;
     border-left: 0;
+    border-top: 1px solid var(--border-subtle);
+  }
+
+  .app-shell .vault-summary-strip > div {
+    border-right: 0;
     border-bottom: 1px solid var(--border-subtle);
   }
 
-  .app-shell .vault-results-column .vault-card-grid {
-    grid-template-columns: 1fr;
+  .app-shell .vault-summary-strip > div:last-child {
+    border-bottom: 0;
+  }
+
+  .app-shell .vault-results-column .vault-card-main,
+  .app-shell .vault-cleanup-grid .vault-card-main {
+    grid-template-columns: 44px minmax(0, 1fr);
+  }
+
+  .app-shell .vault-card-body,
+  .app-shell .vault-cleanup-grid .vault-card-body {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "identity decision"
+      "detail detail"
+      "signals signals"
+      "note note";
+  }
+
+  .app-shell .vault-card-body > .vault-note-snippet {
+    justify-self: start;
+  }
+
+  .app-shell .vault-filter-workbench .vault-armor-rule {
+    grid-template-columns: minmax(0, 1fr) 24px minmax(84px, 104px) auto;
+    max-width: none;
   }
 
   .app-shell .vault-organize-field {
     flex: 1 1 150px;
     width: auto;
+  }
+
+  .app-shell .duplicate-row-main {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .app-shell .duplicate-row-main > small:last-child {
+    grid-column: auto;
   }
 }

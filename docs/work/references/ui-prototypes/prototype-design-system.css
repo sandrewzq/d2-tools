@@ -1312,16 +1312,16 @@ html[data-theme="light"] .instances tr.is-selected {
   background: color-mix(in srgb, var(--panel) 72%, transparent);
 }
 
-[data-prototype-root="detail-dossier"][data-state="partial"] .detail-state-card {
-  border-left: 4px solid var(--amber);
+.detail-state-layer[data-status="pending"] .detail-state-card {
+  border-inline-start: 4px solid var(--blue);
 }
 
-[data-prototype-root="detail-dossier"][data-state="error"] .detail-state-card {
-  border-left: 4px solid var(--red);
+.detail-state-layer[data-status="warning"] .detail-state-card {
+  border-inline-start: 4px solid var(--amber);
 }
 
-[data-prototype-root="detail-dossier"][data-state="running"] .detail-state-card {
-  border-left: 4px solid var(--blue);
+.detail-state-layer[data-status="error"] .detail-state-card {
+  border-inline-start: 4px solid var(--red);
 }
 
 @media (prefers-reduced-motion: reduce) {

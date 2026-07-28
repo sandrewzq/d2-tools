@@ -1,9 +1,8 @@
 import { useState } from "react";
 import { getLocaleCopy } from "../i18n/copy.js";
 import type { InterfaceLocale } from "../i18n/types.js";
-import { formatScheduleDateTime } from "../time/formatTime.js";
+import { formatFullDateTime, formatScheduleDateTime } from "../time/formatTime.js";
 import {
-  ProductWorkspaceContentStack,
   ProductWorkspaceEmptyState,
   ProductWorkspaceSideRail,
   ProductWorkspaceSplit
@@ -200,160 +199,104 @@ export function VendorsPageContentView(props: VendorsPageContentViewProps) {
     ?? props.model.selectedVendor
     ?? props.model.vendors[0]
     ?? null;
-  const contentSections = getVendorContentSections(selectedVendor);
-  const displaySections = [...contentSections]
-    .sort((left, right) => getVendorSectionOrder(left.kind) - getVendorSectionOrder(right.kind));
   const refreshStatus = props.model.statusBanner;
 
   if (!selectedVendor) {
     return (
-      <ProductWorkspaceEmptyState className="vendor-empty-state">
+      <ProductWorkspaceEmptyState className="vendor-page-empty" ariaLabel="商人库存状态">
         <strong>{refreshStatus?.busy ? copy.loadingTitle : copy.emptyTitle}</strong>
-        {refreshStatus ? (
-          <>
-            <div
-              role="status"
-              aria-label="商人刷新状态"
-              aria-live={refreshStatus.live}
-              aria-busy={refreshStatus.busy}
-              className={refreshStatus.tone === "error" ? "vendor-refresh-status is-error" : "vendor-refresh-status"}
-            >
-              {refreshStatus.message}
-            </div>
-            {!refreshStatus.busy && props.actions.refreshVendors ? (
-              <button type="button" className="secondary-button" onClick={props.actions.refreshVendors}>
-                {copy.inline["重新加载商人库存"] ?? "Reload vendor inventory"}
-              </button>
-            ) : null}
-          </>
-        ) : <span>{copy.emptyBody}</span>}
+        <span>{refreshStatus?.message ?? copy.emptyBody}</span>
+        {!refreshStatus?.busy && props.actions.refreshVendors ? <button type="button" className="secondary-button" onClick={props.actions.refreshVendors}>{copy.inline["重新加载商人库存"] ?? "重新加载商人库存"}</button> : null}
       </ProductWorkspaceEmptyState>
     );
   }
 
+  const contentSections = [...getVendorContentSections(selectedVendor)]
+    .sort((left, right) => getVendorSectionOrder(left.kind) - getVendorSectionOrder(right.kind));
+  const vendorStatus = getVendorStatus(selectedVendor);
   const selectedVendorResetLabel = formatVendorReset(selectedVendor, locale);
-  const nextResetLabel = formatScheduleDateTime(
-    props.model.nextResetAt,
-    locale,
-    props.model.nextResetLabel
-  );
+  const updatedLabel = formatFullDateTime(props.model.updatedAt, props.model.updatedLabel);
+  const nextResetLabel = formatScheduleDateTime(props.model.nextResetAt, locale, props.model.nextResetLabel);
+  const toolbarMessage = refreshStatus?.message
+    ?? (selectedVendor.detailState === "pending"
+      ? "商人详情正在读取；不会回退到旧库存。"
+      : selectedVendor.detailState === "partial"
+        ? "商人详情部分可用；缺失范围已在下方标注。"
+        : "商人数据已就绪");
 
   return (
     <ProductWorkspaceSplit className="vendor-workbench-layout vendor-workbench">
-      <ProductWorkspaceSideRail className="vendor-rail" ariaLabel="商人目录" scrollRegion="pane">
+      <ProductWorkspaceSideRail className="vendor-rail" ariaLabel="商人地点目录" scrollRegion="pane">
+        <div className="vendor-column-head"><strong>地点目录</strong><span>{props.model.vendors.length} 个商人</span></div>
         <nav aria-label="商人列表" className="vendor-rail-nav">
-          <div className="vendor-rail-head">
-            <strong>地点目录</strong>
-            <span>按地点优先</span>
-          </div>
           {props.model.railSections.map((section) => (
-            <section className="vendor-rail-group" key={section.id}>
-              <span className="vendor-rail-category">
-                <strong>{section.title}</strong>
-                <small>{section.vendors.length}</small>
-              </span>
-              {section.vendors.map((vendor) => (
-                <button
-                  type="button"
-                  className={vendor.id === selectedVendor.id ? "vendor-rail-item is-active" : "vendor-rail-item"}
-                  key={vendor.id}
-                  aria-pressed={vendor.id === selectedVendor.id}
-                  onClick={() => {
-                    setSelectedVendorId(vendor.id);
-                    props.actions.selectVendor?.(vendor.id);
-                  }}
-                >
-                  <span>
-                    <strong>{vendor.name}</strong>
-                    <small>{vendor.railStatusLabel ?? `${getVendorDisplayStatusLabel(vendor)} · ${countVendorItems(vendor)} 件`}</small>
-                  </span>
-                </button>
-              ))}
+            <section className="vendor-location-group" key={section.id} aria-label={section.title}>
+              <strong className="vendor-location-title">{section.title}</strong>
+              {section.vendors.map((vendor) => {
+                const active = vendor.id === selectedVendor.id;
+                return (
+                  <button
+                    type="button"
+                    className={active ? "vendor-rail-item is-active" : "vendor-rail-item"}
+                    key={vendor.id}
+                    aria-current={active ? "page" : undefined}
+                    data-status={getVendorStatus(vendor)}
+                    onClick={() => {
+                      setSelectedVendorId(vendor.id);
+                      props.actions.selectVendor?.(vendor.id);
+                    }}
+                  >
+                    <span><strong>{vendor.name}</strong><small>{vendor.railStatusLabel ?? getVendorDisplayStatusLabel(vendor)}</small></span>
+                  </button>
+                );
+              })}
             </section>
           ))}
         </nav>
       </ProductWorkspaceSideRail>
 
-      <ProductWorkspaceContentStack element="section" className="vendor-detail-panel">
-        <header className="vendor-detail-head">
-          <div className="vendor-detail-heading">
-            <div className="vendor-detail-title-row">
-              <h1>{selectedVendor.name}</h1>
-              <span className={selectedVendor.detailState === "failed" || selectedVendor.detailState === "partial"
-                ? "app-chip status-error"
-                : selectedVendor.detailState === "pending"
-                  ? "app-chip status-pending"
-                  : "app-chip status-ready"}
-              >
-                {getVendorDisplayStatusLabel(selectedVendor)}
-              </span>
-            </div>
-            <p>{selectedVendor.description}</p>
-            <div className="vendor-detail-meta">
-              {selectedVendor.location ? <span>{selectedVendor.location}</span> : null}
+      <section className="vendor-detail-main">
+        <header className="vendor-hero">
+          <div>
+            <span className="vendor-eyebrow">{selectedVendor.location || "地点待确认"}</span>
+            <h2>{selectedVendor.name}</h2>
+            <p>{selectedVendor.description || "当前商人没有额外说明"}</p>
+            <div className="vendor-hero-meta">
               <span>{selectedVendor.source}</span>
               <span>{selectedVendorResetLabel}</span>
+              <span>{countVendorItems(selectedVendor)} 个可见条目</span>
             </div>
           </div>
-          <button
-            type="button"
-            className="secondary-button vendor-refresh-button"
-            onClick={() => props.actions.refreshVendors?.()}
-            disabled={refreshStatus?.busy === true}
-          >
-            {refreshStatus?.busy ? "刷新中" : "刷新"}
-          </button>
+          <span className="vendor-status-chip" data-status={vendorStatus}>{getVendorDisplayStatusLabel(selectedVendor)}</span>
         </header>
 
-        {selectedVendor.detailFailureMessage ? (
-          <div
-            className="vendor-detail-warning"
-            role="status"
-            aria-label="商人详情状态"
-            aria-live="polite"
-          >
-            <strong>{getVendorDisplayStatusLabel(selectedVendor)}</strong>
-            <span>{selectedVendor.detailFailureMessage}。当前仍显示基础销售数据，属性与插槽可能不完整。</span>
-          </div>
-        ) : null}
-
-        <div className="vendor-toolbar">
-          <div
-            role="status"
-            aria-label="商人刷新状态"
-            aria-live={refreshStatus?.live ?? "polite"}
-            aria-busy={refreshStatus?.busy ?? false}
-            className={refreshStatus?.tone === "error" ? "vendor-refresh-status is-error" : "vendor-refresh-status"}
-          >
-            {refreshStatus?.message ?? "商人数据已就绪"}
-          </div>
+        <div className="vendor-toolbar" aria-live={refreshStatus?.live ?? "polite"} aria-busy={refreshStatus?.busy ?? false}>
+          <span>{props.model.selectedCharacterContext?.label ?? "当前机灵：未检测到护甲师模组"}</span>
+          <span data-status={refreshStatus?.tone === "error" ? "error" : vendorStatus}>{toolbarMessage}</span>
         </div>
 
-        <VendorContentSections
-          sections={displaySections}
-          vendor={selectedVendor}
-          actions={props.actions}
-          locale={locale}
-        />
-      </ProductWorkspaceContentStack>
+        <div className="vendor-detail-flow">
+          {selectedVendor.detailFailureMessage ? (
+            <div className="vendor-detail-warning" data-status="warning" role="status">
+              <strong>{getVendorDisplayStatusLabel(selectedVendor)}</strong>
+              <span>{selectedVendor.detailFailureMessage}。当前仍显示基础销售数据，属性与插槽可能不完整。</span>
+            </div>
+          ) : null}
+          <VendorContentSections sections={contentSections} vendor={selectedVendor} actions={props.actions} locale={locale} />
+        </div>
+      </section>
+
       <ProductWorkspaceSideRail element="aside" className="vendor-context" ariaLabel="当前商人上下文">
-          <div className="vendor-context-head"><h3>当前商人上下文</h3><span>{props.model.selectedCharacterContext?.label ?? "当前角色"}</span></div>
-          <div className="vendor-ledger">
-            <div><strong>库存状态</strong><span><b>{selectedVendor.inventoryStateLabel ?? getVendorDisplayStatusLabel(selectedVendor)}</b><small>属性与插槽按当前响应显示</small></span><em className="ready">最新</em></div>
-            <div><strong>来源</strong><span><b>{selectedVendor.source}</b><small>不使用过期库存</small></span><em>官方</em></div>
-            <div><strong>刷新</strong><span><b>{selectedVendorResetLabel}</b><small>{nextResetLabel}</small></span><em>重置边界</em></div>
-            <div><strong>已核验物品</strong><span><b>{props.model.verifiedItemCount} 件</b><small>可打开装备详情核对 Roll 与成本</small></span><em className="ready">{props.model.verifiedItemCount}</em></div>
-          </div>
-        </ProductWorkspaceSideRail>
+        <div className="vendor-column-head"><strong>当前商人上下文</strong><span>{props.model.selectedCharacterContext?.characterId ?? "当前角色"}</span></div>
+        <div className="vendor-ledger">
+          <div><strong>库存状态</strong><span><b>{selectedVendor.inventoryStateLabel ?? getVendorDisplayStatusLabel(selectedVendor)}</b><small>属性与插槽按当前响应显示</small></span><em data-status={vendorStatus}>{getVendorDisplayStatusLabel(selectedVendor)}</em></div>
+          <div><strong>来源</strong><span><b>{selectedVendor.source}</b><small>{updatedLabel}</small></span><em data-status="pending">官方</em></div>
+          <div><strong>刷新</strong><span><b>{selectedVendorResetLabel}</b><small>{nextResetLabel}</small></span><em>重置边界</em></div>
+          <div><strong>已核验物品</strong><span><b>{props.model.verifiedItemCount.toLocaleString("zh-CN")} 件</b><small>当前快照的全局核验范围</small></span><em data-status="success">{props.model.verifiedItemCount.toLocaleString("zh-CN")}</em></div>
+        </div>
+      </ProductWorkspaceSideRail>
     </ProductWorkspaceSplit>
   );
-}
-
-function getVendorSectionOrder(kind: VendorContentSectionView["kind"]): number {
-  if (kind === "inventory") return 0;
-  if (kind === "subinventory") return 1;
-  if (kind === "tasks") return 2;
-  return 3;
 }
 
 function VendorContentSections(props: {
@@ -363,92 +306,38 @@ function VendorContentSections(props: {
   locale: InterfaceLocale;
 }) {
   if (!props.sections.length) {
-    return (
-      <ProductWorkspaceEmptyState className="vendor-empty-state vendor-empty-card">
-        <strong>当前没有可显示的库存</strong>
-        <span>{getVendorDisplayStatusLabel(props.vendor)}</span>
-      </ProductWorkspaceEmptyState>
-    );
+    return <ProductWorkspaceEmptyState className="vendor-empty-section"><strong>当前没有可显示的库存</strong><span>{getVendorDisplayStatusLabel(props.vendor)}</span></ProductWorkspaceEmptyState>;
   }
 
+  let subinventoryIndex = 0;
   return (
-    <div className="vendor-content-flow">
+    <div className="vendor-content-sections">
       {props.sections.map((section) => {
         const isSubinventory = section.kind === "subinventory";
-        const subinventoryIndex = isSubinventory
-          ? props.sections.filter((candidate) => candidate.kind === "subinventory").findIndex((candidate) => candidate.id === section.id) + 1
-          : 0;
+        const currentSubinventoryIndex = isSubinventory ? ++subinventoryIndex : 0;
         const itemCount = countSectionItems(section);
         const headingId = `vendor-section-${section.id}`;
-
         return (
-          <section
-            className={isSubinventory
-              ? `vendor-content-section is-${section.layout} is-subinventory`
-              : `vendor-content-section is-${section.layout}`}
-            key={section.id}
-            aria-labelledby={headingId}
-          >
-            <div className="vendor-section-heading">
-              <div className="vendor-section-heading-main">
-                {isSubinventory ? (
-                  <span className="vendor-section-kicker">
-                    {props.vendor.name} · 子库存 {String(subinventoryIndex).padStart(2, "0")}
-                  </span>
-                ) : null}
-                <h2 id={headingId}>{section.name}</h2>
-                {isSubinventory && section.description ? <p>{section.description}</p> : null}
+          <section className="vendor-content-section" key={section.id} aria-labelledby={headingId}>
+            <header className="vendor-section-heading">
+              <div>
+                {isSubinventory ? <small>{props.vendor.name} · 子库存 {String(currentSubinventoryIndex).padStart(2, "0")}</small> : null}
+                <h3 id={headingId}>{section.name}</h3>
               </div>
-              {isSubinventory ? (
-                <span className="vendor-section-summary">
-                  <strong>{itemCount}</strong>
-                  <small>{section.groups.length} 个分类</small>
-                </span>
-              ) : (
-                <span className="vendor-section-meta">{section.description ?? `${itemCount} 件`}</span>
-              )}
-            </div>
-            {section.layout === "rank" ? (
-              <VendorRankSection section={section} vendor={props.vendor} actions={props.actions} locale={props.locale} />
-            ) : section.layout === "featured" ? (
-              <div className="vendor-inventory-grid vendor-featured-grid">
-                {section.groups.flatMap((group) => group.items).map((item) => (
-                  <VendorOfferButton key={item.id} item={item} vendor={props.vendor} actions={props.actions} locale={props.locale} />
-                ))}
-              </div>
-            ) : (
-              <div className="vendor-category-columns">
-                {section.groups.map((group) => {
-                  const groupHeadingId = `${headingId}-${group.id}`;
-                  return (
-                    <section
-                      className="vendor-category-column"
-                      key={group.id}
-                      aria-labelledby={group.name ? groupHeadingId : headingId}
-                    >
-                      {group.name ? (
-                        <div className="vendor-category-heading">
-                          <h3 id={groupHeadingId}>{group.name}</h3>
-                          <span>{group.items.length} 件</span>
-                        </div>
-                      ) : null}
-                      <div className="vendor-compact-list">
-                        {group.items.map((item) => (
-                          <VendorOfferButton
-                            key={item.id}
-                            item={item}
-                            vendor={props.vendor}
-                            actions={props.actions}
-                            locale={props.locale}
-                            compact
-                          />
-                        ))}
-                      </div>
-                    </section>
-                  );
-                })}
-              </div>
-            )}
+              <span>{isSubinventory ? `${itemCount} 件 · ${section.groups.length} 个分类` : section.description ?? `${itemCount} 件`}</span>
+            </header>
+            {isSubinventory && section.description ? <p className="vendor-section-description">{section.description}</p> : null}
+            {section.kind === "reputation" ? (
+              <VendorRankSummary section={section} vendor={props.vendor} />
+            ) : null}
+            {section.groups.map((group) => (
+              <section className="vendor-offer-group" key={group.id} aria-label={group.name || section.name}>
+                {section.groups.length > 1 ? <div className="vendor-offer-group-head"><strong>{group.name || section.name}</strong><span>{group.items.length} 件</span></div> : null}
+                <div className="vendor-offer-grid">
+                  {group.items.map((item) => <VendorOfferButton key={item.id} item={item} vendor={props.vendor} actions={props.actions} locale={props.locale} />)}
+                </div>
+              </section>
+            ))}
           </section>
         );
       })}
@@ -456,133 +345,109 @@ function VendorContentSections(props: {
   );
 }
 
-function VendorRankSection(props: {
-  section: VendorContentSectionView;
-  vendor: VendorInventoryGroupView;
-  actions: VendorsPageActions;
-  locale: InterfaceLocale;
-}) {
+function VendorRankSummary(props: { section: VendorContentSectionView; vendor: VendorInventoryGroupView }) {
   const progression = props.section.progression;
-  const rewardGroup = props.section.groups[0];
+  if (!progression) return null;
   const rewards = props.section.groups.flatMap((group) => group.items);
-  const currentStepProgress = progression
-    ? Math.max(0, progression.nextLevelAt - progression.progressToNextLevel)
-    : 0;
-  const progressPercent = progression?.nextLevelAt
+  const currentStepProgress = Math.max(0, progression.nextLevelAt - progression.progressToNextLevel);
+  const progressPercent = progression.nextLevelAt
     ? Math.min(100, Math.max(0, currentStepProgress / progression.nextLevelAt * 100))
     : 0;
 
   return (
-    <div className="vendor-rank-layout">
-      {progression ? (
-        <section className="vendor-rank-summary" aria-label="商人声望进度">
-          <div className="vendor-rank-level">
-            <span>当前等级</span>
-            <div>
-              <strong>{props.vendor.name}声望</strong>
-              <b>{progression.level}</b>
-            </div>
-          </div>
-          <div className="vendor-rank-progress-body">
-            <div className="vendor-rank-progress-label">
-              <span>本级进度 {currentStepProgress} / {progression.nextLevelAt}</span>
-              <span>累计进度 {progression.currentProgress}</span>
-            </div>
-            <div className="vendor-rank-progress" aria-label={`声望进度 ${Math.round(progressPercent)}%`}>
-              <span style={{ width: `${progressPercent}%` }} />
-            </div>
-            <dl className="vendor-rank-metrics">
-              <div><dt>距离下一等级</dt><dd>{progression.progressToNextLevel} 点</dd></div>
-              <div><dt>等级上限</dt><dd>{progression.levelCap}</dd></div>
-              <div><dt>奖励节点</dt><dd>{rewards.length}</dd></div>
-            </dl>
-          </div>
-        </section>
-      ) : null}
-      <section className="vendor-rank-reward-section" aria-labelledby={`vendor-rank-rewards-${props.section.id}`}>
-        <div className="vendor-category-heading vendor-rank-reward-heading">
-          <h3 id={`vendor-rank-rewards-${props.section.id}`}>{rewardGroup?.name || "等级奖励"}</h3>
-          <span>{rewards.length} 个奖励节点</span>
-        </div>
-        <div className="vendor-rank-rewards">
-          {rewards.map((item) => (
-            <button
-              type="button"
-              className="vendor-rank-reward"
-              key={item.id}
-              aria-label={`查看${item.name}资料库详情`}
-              onClick={() => props.actions.onOpenItem?.(item, {
-                vendorName: props.vendor.name,
-                costLabel: "等级奖励",
-                affordabilityLabel: "随商人等级解锁",
-                characterLabel: item.characterIds?.join("、") ?? "当前角色",
-                refreshLabel: formatVendorReset(props.vendor, props.locale),
-                rollLabels: item.socketPlugs?.map((plug) => plug.name).filter(Boolean),
-                stats: item.stats
-              })}
-            >
-              <VendorItemArt item={item} />
-              <span>
-                <strong>{item.name}</strong>
-                <small>{item.itemType || "等级奖励"}</small>
-              </span>
-            </button>
-          ))}
-        </div>
-      </section>
+    <div className="vendor-rank-panel">
+      <div className="vendor-rank-number"><span>当前等级</span><strong>{progression.level}</strong><small>{props.vendor.name}声望</small></div>
+      <dl className="vendor-rank-ledger">
+        <div><dt>本级进度</dt><dd><strong>{currentStepProgress} / {progression.nextLevelAt}</strong><small>累计进度 {progression.currentProgress}</small></dd><span>{Math.round(progressPercent)}%</span></div>
+        <div><dt>距离下一等级</dt><dd><strong>{progression.progressToNextLevel} 点</strong><small>等级上限 {progression.levelCap}</small></dd><span>{rewards.length} 个奖励节点</span></div>
+      </dl>
     </div>
   );
 }
 
-function getVendorContentSections(vendor: VendorInventoryGroupView | null): VendorContentSectionView[] {
-  if (!vendor) return [];
-  if (vendor.contentSections?.length) return vendor.contentSections;
+function VendorOfferButton(props: {
+  item: VendorInventoryItemView;
+  vendor: VendorInventoryGroupView;
+  actions: VendorsPageActions;
+  locale: InterfaceLocale;
+}) {
+  const availability = getVendorOfferAvailability(props.item);
+  const costLabel = getVendorCostLabel(props.item);
+  const equipment = isEquipmentOffer(props.item);
+  const rollLabel = props.item.socketPlugs?.map((plug) => plug.name).filter(Boolean).slice(0, 2).join(" · ");
+  return (
+    <button
+      type="button"
+      className="vendor-offer-card"
+      data-tone={props.item.tone}
+      data-status={availability.status}
+      aria-label={`${equipment ? "打开装备详情" : "查看库存信息"}：${props.item.name}`}
+      onClick={() => props.actions.onOpenItem?.(props.item, {
+        vendorName: props.vendor.name,
+        inventoryPath: props.item.sourcePath ?? [props.vendor.name, props.item.categoryName].filter(Boolean).join(" / "),
+        costLabel,
+        affordabilityLabel: availability.label,
+        characterLabel: props.item.characterIds?.join("、") ?? "当前角色",
+        refreshLabel: formatVendorReset(props.vendor, props.locale),
+        purchaseRequirements: props.item.failureMessages ?? [],
+        rollLabels: props.item.socketPlugs?.map((plug) => plug.name).filter(Boolean),
+        stats: props.item.stats
+      })}
+    >
+      <span className="vendor-offer-header">
+        <VendorItemArt item={props.item} />
+        <span className="vendor-offer-copy">
+          <span className="vendor-offer-title"><strong>{props.item.name}</strong>{props.item.quantity && props.item.quantity > 1 ? <em>× {props.item.quantity.toLocaleString("zh-CN")}</em> : null}</span>
+          <span className="vendor-offer-summary">{props.item.itemType || "类型待确认"}{props.item.summary ? ` · ${props.item.summary}` : ""}</span>
+          {rollLabel ? <span className="vendor-offer-roll">{rollLabel}</span> : null}
+        </span>
+      </span>
+      <span className="vendor-offer-footer">
+        <VendorCosts item={props.item} fallback={costLabel} />
+        <span className="vendor-offer-status" data-status={availability.status}>{availability.label}</span>
+      </span>
+    </button>
+  );
+}
 
+function VendorCosts(props: { item: VendorInventoryItemView; fallback: string }) {
+  if (!props.item.costs?.length) return <span className="vendor-offer-cost">{props.fallback}</span>;
+  return (
+    <span className="vendor-offer-costs">
+      {props.item.costs.map((cost, index) => (
+        <span key={`${cost.label}-${index}`} data-status={cost.affordable === false ? "warning" : "neutral"}>
+          {cost.iconUrl ? <img src={cost.iconUrl} alt="" loading="lazy" /> : null}
+          <span>{cost.required.toLocaleString("zh-CN")} {cost.label}</span>
+        </span>
+      ))}
+    </span>
+  );
+}
+
+function VendorItemArt(props: { item: VendorInventoryItemView }) {
+  return props.item.iconUrl
+    ? <span className="vendor-item-art"><img src={props.item.iconUrl} alt="" loading="lazy" /></span>
+    : <span className="vendor-item-art vendor-item-art-missing" role="img" aria-label={`${props.item.name}图标未读取`} />;
+}
+
+function getVendorContentSections(vendor: VendorInventoryGroupView): VendorContentSectionView[] {
+  if (vendor.contentSections?.length) return vendor.contentSections;
   const sections: VendorContentSectionView[] = [];
-  if (vendor.items.length) {
-    sections.push({
-      id: `${vendor.id}-inventory`,
-      kind: "inventory",
-      name: "库存",
-      layout: "featured",
-      groups: [{ id: `${vendor.id}-inventory-items`, name: "", items: vendor.items }]
-    });
-  }
+  if (vendor.items.length) sections.push({ id: `${vendor.id}-inventory`, kind: "inventory", name: "库存", layout: "featured", groups: [{ id: `${vendor.id}-inventory-items`, name: "", items: vendor.items }] });
   for (const service of vendor.services ?? []) {
     if (!service.items.length) continue;
-    sections.push({
-      id: service.id,
-      kind: "subinventory",
-      name: service.name,
-      description: service.description || `${service.items.length} 件`,
-      layout: (service.sections?.length ?? 0) > 1 ? "columns" : "list",
-      groups: service.sections?.length ? service.sections : [{
-        id: `${service.id}-items`,
-        name: "",
-        items: service.items
-      }]
-    });
+    sections.push({ id: service.id, kind: "subinventory", name: service.name, description: service.description || `${service.items.length} 件`, layout: (service.sections?.length ?? 0) > 1 ? "columns" : "list", groups: service.sections?.length ? service.sections : [{ id: `${service.id}-items`, name: "", items: service.items }] });
   }
-  if (vendor.rankRewards?.length || vendor.progression) {
-    sections.push({
-      id: `${vendor.id}-rank`,
-      kind: "reputation",
-      name: "声望与等级",
-      layout: "rank",
-      progression: vendor.progression,
-      groups: [{ id: `${vendor.id}-rank-items`, name: "等级奖励", items: vendor.rankRewards ?? [] }]
-    });
-  }
-  if (vendor.taskItems?.length) {
-    sections.push({
-      id: `${vendor.id}-tasks`,
-      kind: "tasks",
-      name: "任务",
-      layout: "featured",
-      groups: [{ id: `${vendor.id}-task-items`, name: "", items: vendor.taskItems }]
-    });
-  }
+  if (vendor.taskItems?.length) sections.push({ id: `${vendor.id}-tasks`, kind: "tasks", name: "任务", layout: "featured", groups: [{ id: `${vendor.id}-task-items`, name: "", items: vendor.taskItems }] });
+  if (vendor.rankRewards?.length || vendor.progression) sections.push({ id: `${vendor.id}-rank`, kind: "reputation", name: "声望与等级", layout: "rank", progression: vendor.progression, groups: [{ id: `${vendor.id}-rank-items`, name: "等级奖励", items: vendor.rankRewards ?? [] }] });
   return sections;
+}
+
+function getVendorSectionOrder(kind: VendorContentSectionView["kind"]): number {
+  if (kind === "inventory") return 0;
+  if (kind === "subinventory") return 1;
+  if (kind === "tasks") return 2;
+  return 3;
 }
 
 function countSectionItems(section: VendorContentSectionView): number {
@@ -593,66 +458,30 @@ function countVendorItems(vendor: VendorInventoryGroupView): number {
   return getVendorContentSections(vendor).reduce((count, section) => count + countSectionItems(section), 0);
 }
 
-function VendorOfferButton(props: {
-  item: VendorInventoryItemView;
-  vendor: VendorInventoryGroupView;
-  actions: VendorsPageActions;
-  locale: InterfaceLocale;
-  compact?: boolean;
-}) {
-  const costLabel = props.item.costs?.map((cost) => `${cost.required} ${cost.label}`).join(" · ")
-    ?? props.item.cost
-    ?? "无费用信息";
-  const affordable = props.item.costs?.every((cost) => cost.affordable === true);
-  return (
-    <button
-      type="button"
-      className={props.compact ? "vendor-stock-card is-compact" : "vendor-stock-card"}
-      data-tone={props.item.tone}
-      aria-label={`查看${props.item.name}详情`}
-      onClick={() => props.actions.onOpenItem?.(props.item, {
-        vendorName: props.vendor.name,
-        inventoryPath: props.item.sourcePath ?? [props.vendor.name, props.item.categoryName].filter(Boolean).join(" / "),
-        costLabel,
-        affordabilityLabel: affordable ? "可购买" : "货币不足或未知",
-        characterLabel: props.item.characterIds?.join("、") ?? "当前角色",
-        refreshLabel: formatVendorReset(props.vendor, props.locale),
-        purchaseRequirements: props.item.failureMessages ?? [],
-        rollLabels: props.item.socketPlugs?.map((plug) => plug.name).filter(Boolean),
-        stats: props.item.stats
-      })}
-    >
-      <VendorItemArt item={props.item} />
-      <span className="vendor-stock-body">
-        <span className="vendor-stock-title">
-          <strong>{props.item.name}</strong>
-          {props.item.quantity && props.item.quantity > 1
-            ? <span className="vendor-quantity-badge">× {props.item.quantity.toLocaleString("zh-CN")}</span>
-            : null}
-        </span>
-        <span>{props.item.itemType}</span>
-      </span>
-      <span className="vendor-cost-row">
-        <span>{costLabel}</span>
-      </span>
-    </button>
-  );
-}
-
-function VendorItemArt(props: { item: VendorInventoryItemView }) {
-  return (
-    <span className="vendor-item-art" data-tone={props.item.tone} aria-hidden="true">
-      {props.item.iconUrl ? (
-        <img src={props.item.iconUrl} alt="" width="58" height="58" loading="lazy" />
-      ) : (
-        <span>{props.item.iconLabel}</span>
-      )}
-    </span>
-  );
-}
-
 function getVendorDisplayStatusLabel(vendor: VendorInventoryGroupView): string {
   return vendor.displayStatusLabel ?? vendor.statusLabel ?? vendor.badge;
+}
+
+function getVendorStatus(vendor: VendorInventoryGroupView): "neutral" | "pending" | "success" | "warning" | "error" {
+  if (vendor.detailState === "ready" || vendor.inventoryState === "loaded") return "success";
+  if (vendor.detailState === "pending" || vendor.inventoryState === "not_read") return "pending";
+  if (vendor.detailState === "partial") return "warning";
+  if (vendor.detailState === "failed" || vendor.inventoryState === "unavailable") return "error";
+  return "neutral";
+}
+
+function getVendorOfferAvailability(item: VendorInventoryItemView): { label: string; status: "success" | "warning" | "neutral" } {
+  if (item.canPurchase === true) return { label: "可购买", status: "success" };
+  if (item.canPurchase === false) return { label: item.failureMessages?.[0] || "当前不可购买", status: "warning" };
+  return { label: item.failureMessages?.[0] || "条件待确认", status: "neutral" };
+}
+
+function getVendorCostLabel(item: VendorInventoryItemView): string {
+  return item.costs?.map((cost) => `${cost.required} ${cost.label}`).join(" · ") ?? item.cost ?? "无费用信息";
+}
+
+function isEquipmentOffer(item: VendorInventoryItemView): boolean {
+  return /武器|护甲|weapon|armor/i.test(item.itemType);
 }
 
 function formatVendorReset(vendor: VendorInventoryGroupView, locale: InterfaceLocale): string {

@@ -33,6 +33,7 @@ export {
   summarizeLoadoutItemStatuses
 } from "./workspaces/loadoutItemStatus.js";
 export type {
+  InGameLoadoutItemRowView,
   InGameLoadoutItemView,
   LoadoutCompareView,
   LoadoutEntry,

@@ -22,6 +22,8 @@ export function VaultItemSections(props: {
   isOrganizing: boolean;
   isSearchActive: boolean;
   selectedKeys: Set<string>;
+  openingItemKey?: string;
+  emptyMessage?: string;
   onSelectItem: (item: AccountItemSummary) => void;
   onToggleSelected: (item: AccountItemSummary) => void;
 }) {
@@ -49,7 +51,7 @@ export function VaultItemSections(props: {
   const renderedItems = renderedSections.flatMap((section) => section.items);
 
   if (!props.sections.length) {
-    return <p className="status-message status-neutral">没有匹配的仓库物品。</p>;
+    return <p className="status-message status-neutral">{props.emptyMessage ?? "没有匹配的仓库物品。"}</p>;
   }
 
   return (
@@ -80,6 +82,7 @@ export function VaultItemSections(props: {
             communityMatch={props.communityMatch?.get(item.hash)}
             isOrganizing={props.isOrganizing}
             isSelected={props.selectedKeys.has(getVaultItemKey(item))}
+            isOpening={props.openingItemKey === getVaultItemKey(item)}
             onSelectItem={props.onSelectItem}
             onToggleSelected={props.onToggleSelected}
           />

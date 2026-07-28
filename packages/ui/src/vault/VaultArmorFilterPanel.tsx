@@ -12,12 +12,12 @@ export function VaultArmorFilterPanel(props: {
     <section className="vault-armor-filter-panel">
       <div className="vault-armor-filter-heading">
         <div>
-          <h3>护甲属性筛选</h3>
-          <p>添加任意数量的属性最低值条件，结果会同时满足所有条件。</p>
+          <h3>护甲属性条件</h3>
+          <p>所有条件同时成立。总属性不作为筛选门槛，只用于排序。</p>
         </div>
         <div className="button-row">
-          <button type="button" className="secondary-button" onClick={props.onAddRule}>
-            添加属性条件
+          <button type="button" className="secondary-button" disabled={props.rules.length >= Object.keys(armorStatLabels).length} onClick={props.onAddRule}>
+            {props.rules.length >= Object.keys(armorStatLabels).length ? "六项属性均已添加" : "添加属性条件"}
           </button>
           <button type="button" className="secondary-button" onClick={props.onClearRules} disabled={!props.rules.length}>
             清空护甲条件
@@ -28,8 +28,8 @@ export function VaultArmorFilterPanel(props: {
         <div className="vault-armor-rule-list">
           {props.rules.map((rule, index) => (
             <div className="vault-armor-rule" key={index}>
-              <label className="compact-field">
-                属性
+              <label className="vault-armor-rule-field">
+                <span>属性</span>
                 <select
                   value={rule.stat}
                   onChange={(event) => props.onUpdateRule(index, {
@@ -38,13 +38,16 @@ export function VaultArmorFilterPanel(props: {
                   })}
                 >
                   <option value="">选择属性</option>
-                  {(Object.keys(armorStatLabels) as ArmorStatKey[]).map((key) => (
+                  {(Object.keys(armorStatLabels) as ArmorStatKey[]).filter((key) => (
+                    key === rule.stat || !props.rules.some((item, itemIndex) => itemIndex !== index && item.stat === key)
+                  )).map((key) => (
                     <option key={key} value={key}>{armorStatLabels[key]}</option>
                   ))}
                 </select>
               </label>
-              <label className="compact-field">
-                最低值
+              <span className="vault-rule-operator" aria-hidden="true">≥</span>
+              <label className="vault-armor-rule-field">
+                <span>最低值</span>
                 <input
                   type="number"
                   min="0"
@@ -57,14 +60,14 @@ export function VaultArmorFilterPanel(props: {
                   placeholder="20"
                 />
               </label>
-              <button type="button" className="secondary-button" onClick={() => props.onRemoveRule(index)}>
-                移除
+              <button type="button" className="secondary-button vault-armor-rule-remove" aria-label={`删除${rule.stat ? armorStatLabels[rule.stat] : "护甲属性"}条件`} onClick={() => props.onRemoveRule(index)}>
+                删除
               </button>
             </div>
           ))}
         </div>
       ) : (
-        <p className="muted-copy">未设置护甲属性条件。</p>
+        <p className="vault-armor-rule-empty">尚未添加属性条件；可按需要组合生命、近战、手雷、超能、职业和武器。</p>
       )}
     </section>
   );
