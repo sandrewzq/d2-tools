@@ -88,7 +88,6 @@ textarea {
 .app .vendor-section-description,
 .app .vendor-category-head span,
 .app .settings-menu-caption,
-.app .settings-nav .list-nav button span,
 .app .settings-panel-title p,
 .app .settings-metric span,
 .app .settings-metric small,
@@ -138,7 +137,6 @@ textarea {
 .app .metric span,
 .app .metric small,
 .app .summary-cell span,
-.app .settings-nav .list-nav button span,
 .app .vendor-section-title small,
 .app .offer-quantity {
   font-size: var(--font-caption);

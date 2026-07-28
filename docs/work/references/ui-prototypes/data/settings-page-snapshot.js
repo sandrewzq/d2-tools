@@ -67,7 +67,7 @@ window.settingsPageSnapshot = Object.freeze({
   },
   "library": {
     "status": "ready",
-    "statusLabel": "完整",
+    "statusLabel": "可用",
     "dateLabel": "2026/06/29",
     "version": "244213.26.06.29.2000-1-bnet.65583",
     "latestVersion": "244213.26.06.29.2000-1-bnet.65583",

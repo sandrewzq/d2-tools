@@ -74,8 +74,6 @@
 
 .settings-directory-label {
   color: inherit;
-  font-size: var(--priority-support);
-  font-weight: 400;
 }
 
 .settings-directory-list button.is-active {
@@ -101,7 +99,7 @@
 .settings-section {
   width: 100%;
   min-width: 0;
-  padding: 16px;
+  padding: 16px 18px;
 }
 
 .settings-section-head,
@@ -148,26 +146,32 @@
   display: inline-flex;
   flex: 0 0 auto;
   align-items: center;
-  min-height: 24px;
-  padding: 3px 8px;
-  border: 1px solid var(--chip-border);
+  min-height: 22px;
+  padding: 0 6px;
+  border: 1px solid transparent;
   border-radius: var(--radius-indicator);
-  background: var(--status-neutral-bg);
+  color: var(--text-body);
+  background: var(--section-bg);
+  font-size: var(--font-caption);
+  font-weight: 700;
   white-space: nowrap;
 }
 
 .settings-status-badge[data-status="success"] {
-  border-color: color-mix(in srgb, var(--mint) 52%, var(--object-border));
+  border-color: var(--status-ready);
+  color: var(--status-ready);
   background: var(--status-ready-bg);
 }
 
 .settings-status-badge[data-status="warning"] {
-  border-color: color-mix(in srgb, var(--amber) 52%, var(--object-border));
+  border-color: var(--status-warning);
+  color: var(--status-warning);
   background: var(--status-warning-bg);
 }
 
 .settings-status-badge[data-status="error"] {
-  border-color: color-mix(in srgb, var(--red) 52%, var(--object-border));
+  border-color: var(--status-error);
+  color: var(--status-error);
   background: var(--status-error-bg);
 }
 
@@ -316,13 +320,17 @@
   align-items: center;
   min-height: var(--control-h);
   margin: 0;
-  accent-color: var(--mint);
 }
 
 .settings-page .setting-toggle input {
   width: 17px;
   min-height: 17px;
   height: 17px;
+  accent-color: var(--blue);
+}
+
+.settings-button-note {
+  margin: 8px 0 0;
 }
 
 .settings-version-table,
@@ -524,12 +532,23 @@
 
 .settings-log-toolbar label {
   display: grid;
-  gap: 5px;
-  min-width: 160px;
+  gap: 4px;
+  min-width: 0;
 }
 
-.settings-log-toolbar label:last-child {
-  min-width: 220px;
+.settings-log-filters .compact-field:first-child {
+  flex: 0 0 64px;
+  width: 64px;
+}
+
+.settings-log-filters .compact-field:last-child {
+  flex: 0 0 142px;
+  width: 142px;
+}
+
+.settings-log-toolbar > .settings-actions {
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
 }
 
 .settings-log-list {
@@ -744,6 +763,15 @@
   .settings-log-toolbar label,
   .settings-log-toolbar label:last-child {
     min-width: 0;
+  }
+
+  .settings-log-filters .compact-field:first-child,
+  .settings-log-filters .compact-field:last-child {
+    width: 100%;
+  }
+
+  .settings-log-toolbar > .settings-actions {
+    flex-wrap: wrap;
   }
 
   .settings-config-fields,

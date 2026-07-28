@@ -267,7 +267,7 @@ const workspaceSnapshot = {
   perks: [...perkMap.values()].slice(0, 12).map((entry) => ({ ...entry, items: entry.items.slice(0, 4).join(" / ") })),
   library: {
     status: catalogStatus.activationState === "finalized" ? "ready" : "partial",
-    statusLabel: catalogStatus.activationState === "finalized" ? "完整" : "待修复",
+    statusLabel: catalogStatus.activationState === "finalized" ? "可用" : "待修复",
     language: catalogStatus.language || config.data?.manifest_language || "zh-chs",
     version: catalogStatus.manifestVersion || manifestMetadata.metadata?.version || "",
     latestVersion: manifestVersionCheck.latest_version || manifestMetadata.metadata?.version || "",

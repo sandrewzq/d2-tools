@@ -1701,6 +1701,14 @@ html body .app [data-page-view="home"] [data-ui-kind="object-card"] {
   border-bottom: 1px solid var(--section-divider);
 }
 
+.settings-nav .list-nav button.active [data-ui-part="value"] {
+  font-weight: 700;
+}
+
+.switch input[type="checkbox"] {
+  accent-color: var(--blue);
+}
+
 .settings-content > .settings-section {
   inline-size: 100%;
 }
@@ -1759,6 +1767,21 @@ html body .app [data-page-view="home"] [data-ui-kind="object-card"] {
   border-color: var(--section-divider);
 }
 
+.settings-log-filters .compact-field:first-child {
+  flex: 0 0 64px;
+  width: 64px;
+}
+
+.settings-log-filters .compact-field:last-child {
+  flex: 0 0 142px;
+  width: 142px;
+}
+
+.settings-log-toolbar > .setting-actions {
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
+}
+
 .settings-feedback {
   border: 1px solid var(--object-border);
   border-left: 3px solid var(--blue);
@@ -1802,6 +1825,23 @@ html body .app [data-page-view="home"] [data-ui-kind="object-card"] {
     border-bottom: 0;
   }
 
+}
+
+@media (max-width: 760px) {
+  .settings-log-toolbar,
+  .settings-log-filters {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .settings-log-filters .compact-field:first-child,
+  .settings-log-filters .compact-field:last-child {
+    width: 100%;
+  }
+
+  .settings-log-toolbar > .setting-actions {
+    flex-wrap: wrap;
+  }
 }
 
 @media (min-width: 981px) and (max-width: 1280px) {

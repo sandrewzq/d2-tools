@@ -52,12 +52,13 @@
 
 | 原型区域 | 产品字段 / 派生值 | action / 禁用条件 |
 |---|---|---|
-| 六项应用概览 | `accountUi`、`libraryUi`、`bungieUi`、`aiUi`、当前版本、`backgroundTaskUi` | 只读；概览标题状态与应用更新标题共用同一个 `updateUi` |
+| 六项应用概览 | `accountUi`、`libraryUi`、`bungieUi`、`aiUi`、当前版本、`backgroundTaskUi` | 只读；概览标题不显示单一领域状态，应用更新状态只出现在对应分区 |
 | 应用更新矩阵 | `current_version`、`update_source_label`、`last_checked_at` | checking 禁止重复检查；available 才下载；downloaded 才安装 |
 | 常用操作 | 账号、资料库、诊断入口 | 使用现有刷新和跳转回调 |
-| 语言与外观行 | `languagePreferences`、`colorMode`、`density` | 跟随开启时禁用独立 Manifest 语言选择 |
+| 语言与外观行 | `languagePreferences`、`colorMode`、`density` | 跟随开启时禁用独立 Manifest 语言选择；语言选项保留 `zh-chs / en` 代码，复选框使用蓝色选择态 |
 | 账号摘要与台账 | 账号名、角色/仓库数量、`lastAccountLoadedAt`、读取规则 | 加载中禁用刷新；重新授权始终可用 |
 | 资料库摘要与台账 | Manifest 版本、日期、完整性、缓存时间和检查规则 | 检查中禁用重复检查；初始化中禁用更新和修复 |
+| 分区标题状态 | 账号、资料库、Bungie、AI 的真实状态与语义级别 | HTML 必须传入 `{ label, level }`，应用传入同一状态 ViewModel；不得因传入纯字符串而漏掉胶囊 |
 | Bungie 表单 | 本地配置读取结果 | 加载/保存中禁用保存；错误与成功使用真实反馈 |
 | AI 表单 | `SettingsAiAdapter` | 忙碌时禁用冲突操作；协议/Key 不完整时禁用模型和测试 |
 | 备份行 | `diagnosticDataDir` | 所有命令调用现有平台能力，不伪造成功 |
@@ -70,7 +71,7 @@
 | 场景 | 必须显示 | 可用操作 |
 |---|---|---|
 | 首次读取 | 更新、账号、资料库、Bungie 配置分别显示读取中 | 不依赖该数据的导航和设置仍可操作 |
-| 更新未检查 | 概览标题和应用更新标题统一显示中性“未检查”，上次检查不得伪造时间 | 检查与下载页可用，下载和安装禁用 |
+| 更新未检查 | 应用更新标题显示中性“未检查”，概览标题不重复该状态，上次检查不得伪造时间 | 检查与下载页可用，下载和安装禁用 |
 | 刷新中 | 原有成功数据保留，相关状态显示进行中 | 禁用同一请求的重复按钮 |
 | 未登录 / 未配置 | 明确显示未登录、未配置及影响范围 | 保留授权、配置和本地功能入口 |
 | 空日志 | 显示“没有符合筛选条件的记录” | 筛选、刷新、运行诊断仍可用 |
@@ -91,8 +92,8 @@
 
 | 区域 | 结构 | 文字映射 | 状态与边界 |
 |---|---|---|---|
-| 设置目录 | `SurfaceList` | 菜单名 `support + primary`，非当前项常规字重 | 当前项使用导航定位配方和加粗，不使用业务状态色 |
-| 概览标题 | `PageSection` | 标题 `display + primary`；说明 `reading + body` | 无独立外框 |
+| 设置目录 | `SurfaceList` | 菜单名统一输出 `value + support + primary`，非当前项使用语义默认字重 | 当前项使用导航定位配方和加粗，不使用旧 typography 缩小规则或业务状态色 |
+| 概览标题 | `PageSection` | 标题 `display + primary`；说明 `reading + body` | 无独立外框，不显示聚合状态胶囊 |
 | 状态指标 | 三列 `SurfaceFrame` 状态矩阵 | 标签 `support + meta`；日期、版本、数量等事实值使用 `fact + context + primary`；只有状态词使用 `status + decision + status tone`；摘要 `reading + body` | 矩阵整体使用 `4px` 轻圆角；单元只画行/列分隔且保持直角，不使用独立对象边框；容器状态不得给事实值染色 |
 | 应用更新 | `PageSection` + `SurfaceFrame` 更新字段矩阵 | 标题 `context + primary`；更新结果 `decision + status`；说明和版本字段 `reading + body` | 更新字段矩阵整体使用 `4px` 轻圆角；内部单元只画分隔线且保持直角；进度只在下载或安装中显示 |
 | 常用操作 | `SurfaceList` | 操作名 `context + primary`；原因/影响 `reading + body` | 行只画 `RowLine`；桌面固定为说明列 + 右侧操作列，文本命令统一 `34px × 144px`，多个命令自然换行 |
@@ -100,7 +101,7 @@
 
 ### 设置行列对齐
 
-桌面与平板宽度的设置行必须占满正文工作轨道，使用“弹性说明列 + 固定控制列”，而不是从左侧开始的固定总宽网格。控制列贴正文右侧：`>1280px` 为 `282px`，`981-1280px` 为 `260px`；Select / Field 填满该列，文本按钮统一使用标准 `34px` 高与 `144px` 宽，按钮和开关从该列起始边缘对齐，多个按钮按 `6px` 间距换行。`980px` 及以下改为单列，控制自然移到说明下方。Bungie 帮助说明、AI 说明等局部帮助限制在表单阅读宽度，不横跨整个工作轨道。
+桌面与平板宽度的设置行必须占满正文工作轨道，使用“弹性说明列 + 固定控制列”，而不是从左侧开始的固定总宽网格。控制列贴正文右侧：`>1280px` 为 `282px`，`981-1280px` 为 `260px`；Select / Field 填满该列，文本按钮统一使用标准 `34px` 高与 `144px` 宽，按钮和开关从该列起始边缘对齐，多个按钮按 `6px` 间距换行。诊断筛选器在桌面固定为 `64px / 142px` 两个紧凑字段，右侧“运行诊断 / 刷新日志”保持单行 `144px + 6px + 144px`；`760px` 及以下才改为单列并允许按钮换行。`980px` 及以下的普通设置行改为单列，控制自然移到说明下方。Bungie 帮助说明、AI 说明等局部帮助限制在表单阅读宽度，不横跨整个工作轨道。
 
 ### 概览响应式
 
@@ -114,3 +115,5 @@
 账号和资料库的四项摘要同样属于状态矩阵，不得因为它们不在“概览”目录而退化成无外框的连续行。它们使用三列、`1280px` 以下两列、`980px` 以下单列；矩阵外框始终由 `data-surface="frame" data-ui-kind="status-matrix"` 拥有。通用 `SurfaceList` / `RowLine` 规则不得匹配或覆盖该元素。
 
 设置页的动态模板必须直接输出 `data-ui-part`、`data-text-tone`、`data-info-priority`；状态项额外输出 `data-status`。不得用运行后扫描 DOM 的兼容脚本补齐语义。
+
+原生复选框必须直接在 `input[type="checkbox"]` 上使用 `accent-color: var(--blue)`；不能只把颜色写在父级 label 上依赖浏览器继承。
