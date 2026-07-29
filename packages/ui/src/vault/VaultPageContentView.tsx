@@ -202,7 +202,6 @@ export function VaultPageContentView(props: {
     applyBatchTag,
     applyDuplicateGroupTags,
     batchMessage,
-    copyCleanupList,
     isBatchSaving,
     mergeSelectedKeys,
     runCleanupAction,
@@ -464,13 +463,13 @@ export function VaultPageContentView(props: {
               <div><span>当前已选择</span><strong>{selectedCleanupItems.length} 件</strong></div>
               <div><span>数据边界</span><strong>只使用玩家标签，不自动评价</strong></div>
             </div>
-            <VaultOrganizePanel groups={groups} group={group} isOrganizing={isOrganizing} filteredItemCount={cleanupListWorkspace.filteredItems.length} selectedItemCount={selectedCleanupItems.length} selectionSummary={selectionSummary} activeBatchAction={activeBatchAction} isBatchSaving={isBatchSaving} cleanupActions={props.cleanupActions} cleanupCharacters={cleanupCharacters} cleanupTargetCharacterId={cleanupTargetCharacterId} markedCleanupItemCount={markedCleanupItems.length} cleanupActionItems={cleanupActionItems} tags={props.tags} onGroupChange={setGroup} onToggleOrganizing={toggleOrganizingMode} onVisibleSelectionChange={updateVisibleSelection} onBatchSelectionChange={setBatchSelection} onClearSelection={() => setSelectedKeys(new Set())} onCleanupTargetCharacterChange={setCleanupCharacterId} onApplyBatchTag={applyBatchTag} onCopyCleanupList={copyCleanupList} onRunSelectedBulkMove={runSelectedBulkMove} onRunCleanupAction={runCleanupAction} />
+            <VaultOrganizePanel groups={groups} group={group} isOrganizing={isOrganizing} filteredItemCount={cleanupListWorkspace.filteredItems.length} selectedItemCount={selectedCleanupItems.length} selectionSummary={selectionSummary} activeBatchAction={activeBatchAction} isBatchSaving={isBatchSaving} cleanupActions={props.cleanupActions} cleanupCharacters={cleanupCharacters} cleanupTargetCharacterId={cleanupTargetCharacterId} markedCleanupItemCount={markedCleanupItems.length} cleanupActionItems={cleanupActionItems} tags={props.tags} onGroupChange={setGroup} onToggleOrganizing={toggleOrganizingMode} onVisibleSelectionChange={updateVisibleSelection} onBatchSelectionChange={setBatchSelection} onClearSelection={() => setSelectedKeys(new Set())} onCleanupTargetCharacterChange={setCleanupCharacterId} onApplyBatchTag={applyBatchTag} onRunSelectedBulkMove={runSelectedBulkMove} onRunCleanupAction={runCleanupAction} />
             <div className="vault-cleanup-grid">
               <section>
                 <div className="vault-column-head"><h3>待处理装备</h3><span>{markedCleanupItems.length ? `已标记 ${markedCleanupItems.length} 件` : "当前没有玩家标记"}</span></div>
                 {renderVaultItems(cleanupListWorkspace.sections, false, "当前没有玩家标记的清理候选。不会按未锁定、低光等或系统评分自动生成清理结论。")}
               </section>
-              <aside>{renderVaultSideSummary({ activeTab: activeVaultTab, decisionSummary, duplicateSummary, filteredCount: filteredItems.length, totalCount: props.items.length, markedCleanupCount: markedCleanupItems.length, wishlist: props.wishlist, wishlistSummaryCount, localTargetRules: props.localTargetRules, targetSummaryCount, onCleanupClick: showCleanupCandidates, onTargetClick: showTargetMatches, onDuplicatesClick: () => switchVaultTab("duplicates"), onCopyCleanupList: copyCleanupList })}</aside>
+              <aside>{renderVaultSideSummary({ activeTab: activeVaultTab, decisionSummary, duplicateSummary, filteredCount: filteredItems.length, totalCount: props.items.length, wishlist: props.wishlist, wishlistSummaryCount, localTargetRules: props.localTargetRules, targetSummaryCount, onCleanupClick: showCleanupCandidates, onTargetClick: showTargetMatches, onDuplicatesClick: () => switchVaultTab("duplicates") })}</aside>
             </div>
           </div>
         ) : null}
@@ -513,7 +512,6 @@ function renderVaultSideSummary(input: {
   duplicateSummary: ReturnType<typeof buildVaultDuplicateSummary>;
   filteredCount: number;
   totalCount: number;
-  markedCleanupCount: number;
   wishlist?: DimWishlist | null;
   wishlistSummaryCount: number;
   localTargetRules?: LocalTargetRules | null;
@@ -521,7 +519,6 @@ function renderVaultSideSummary(input: {
   onCleanupClick: () => void;
   onTargetClick: () => void;
   onDuplicatesClick: () => void;
-  onCopyCleanupList: () => void | Promise<void>;
 }) {
   const activeTabLabel = vaultWorkspaceTabs.find((tab) => tab.key === input.activeTab)?.label ?? "筛选列表";
   const hasLocalTargets = Boolean(input.localTargetRules?.armor.length || input.localTargetRules?.weapons?.length);
@@ -562,7 +559,6 @@ function renderVaultSideSummary(input: {
       <div className="vault-side-actions">
         <button type="button" onClick={input.onCleanupClick}>查看可清理候选</button>
         <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={input.onDuplicatesClick}>进入同名对比</button>
-        <button type="button" data-ui-kind="button" data-control-variant="secondary" disabled={!input.markedCleanupCount} onClick={input.onCopyCleanupList}>复制清理清单</button>
       </div>
     </div>
   );

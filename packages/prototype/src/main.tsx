@@ -18,6 +18,7 @@ import {
   VaultPageContentView,
   VendorsPageContentView,
   WeaponDetailContent,
+  getVendorEquipmentKind,
   type LibraryEquipmentFilter,
   type LibraryPerkFilter,
   type LibraryViewMode,
@@ -29,6 +30,7 @@ import {
   type VendorInventoryItemView,
   type VendorOfferContextView,
 } from "@d2-tools/ui";
+import type { AccountItemSummary } from "@d2-tools/core/account/summary";
 import { createHomeWeeklyActivityRewardDetailTarget } from "@d2-tools/app/home";
 import {
   buildArmorDetailViewModel,
@@ -87,12 +89,9 @@ function PrototypeApp() {
     item: VendorInventoryItemView;
     context: VendorOfferContextView;
   } | null>(null);
-  const [genericVendorDetail, setGenericVendorDetail] = useState<{
-    item: VendorInventoryItemView;
-    context: VendorOfferContextView;
-  } | null>(null);
   const [isWeaponDetailOpen, setIsWeaponDetailOpen] = useState(false);
   const [armorDetailModel, setArmorDetailModel] = useState<ArmorDetailViewModel | null>(null);
+  const [weaponDetailModel, setWeaponDetailModel] = useState<WeaponDetailViewModel | null>(null);
   const [weeklyRewardDetail, setWeeklyRewardDetail] = useState<{
     name: string;
     itemType?: string;
@@ -197,25 +196,79 @@ function PrototypeApp() {
   }
 
   function openPrototypeVendorDetail(item: VendorInventoryItemView, context: VendorOfferContextView) {
-    if (!isPrototypeWeaponItem(item)) {
-      setGenericVendorDetail({ item, context });
+    const equipmentKind = getVendorEquipmentKind(item);
+    if (!equipmentKind || item.itemHash === undefined) return;
+
+    setWeeklyRewardDetail(null);
+    setWeaponDetailModel(null);
+    if (equipmentKind === "armor") {
+      setArmorDetailModel(buildArmorDetailViewModel({
+        item: createVendorDetailTarget(item, context),
+        context: {
+          kind: "vendor_offer",
+          entry: "vendor",
+          entry_label: context.vendorName,
+          object_label: "商人售卖护甲",
+          object_id: String(item.itemHash),
+          read_only: true
+        }
+      }));
       setVendorDetail(null);
       setIsWeaponDetailOpen(false);
       return;
     }
-    setGenericVendorDetail(null);
+
+    setArmorDetailModel(null);
     setVendorDetail({ item, context });
     setWeaponObjectKind("vendor_offer");
     setWeaponRarity(item.tone === "exotic" ? "exotic" : "legendary");
     setIsWeaponDetailOpen(true);
   }
 
+  function openPrototypeAccountItem(item: AccountItemSummary, entry: "account" | "vault") {
+    if (item.group_key !== "weapons" && item.group_key !== "armor") return;
+    const entryLabel = entry === "vault" ? "仓库" : "账号";
+    const target = createAccountItemDetailTarget(item, entryLabel);
+
+    setVendorDetail(null);
+    setWeeklyRewardDetail(null);
+    setIsWeaponDetailOpen(false);
+    if (item.group_key === "armor") {
+      setWeaponDetailModel(null);
+      setArmorDetailModel(buildArmorDetailViewModel({
+        item: target,
+        context: {
+          kind: "account_item",
+          entry,
+          entry_label: entryLabel,
+          object_label: "账号护甲实例",
+          object_id: item.instance_id,
+          read_only: true
+        }
+      }));
+      return;
+    }
+
+    setArmorDetailModel(null);
+    setWeaponDetailModel(buildWeaponDetailViewModel({
+      item: target,
+      context: {
+        kind: "account_instance",
+        entry,
+        entry_label: entryLabel,
+        object_label: "账号武器实例",
+        object_id: item.instance_id,
+        read_only: true
+      }
+    }));
+  }
+
   function openPrototypeWeeklyReward(reward: HomeWeeklyActivityReward) {
     const target = createHomeWeeklyActivityRewardDetailTarget(reward);
     setVendorDetail(null);
-    setGenericVendorDetail(null);
     setIsWeaponDetailOpen(false);
     setArmorDetailModel(null);
+    setWeaponDetailModel(null);
     setWeeklyRewardDetail(target.group_key === "armor"
       ? { name: target.name, itemType: target.item_type, armor: buildArmorDetailViewModel({ item: target }) }
       : { name: target.name, itemType: target.item_type, weapon: buildWeaponDetailViewModel({ item: target }) });
@@ -356,7 +409,7 @@ function PrototypeApp() {
                 selectCharacter: setSelectedAccountCharacterId,
                 saveCurrentLoadout: () => undefined,
                 equipHighestPower: () => undefined,
-                openItem: () => undefined
+                openItem: (payload) => openPrototypeAccountItem(payload.item, "account")
               }}
             />
           ) : null}
@@ -380,7 +433,7 @@ function PrototypeApp() {
                 onBatchTransferToCharacter: async () => fixture.batchResult
               }}
               onContextFactsChange={() => undefined}
-              onOpenItem={() => undefined}
+              onOpenItem={(item) => openPrototypeAccountItem(item, "vault")}
               onSaveTag={() => undefined}
               onSaveTagBatch={() => undefined}
             />
@@ -448,6 +501,8 @@ function PrototypeApp() {
                 onAliasKindChange: setAliasKind,
                 onSaveAlias: () => undefined,
                 onOpenItemDetail: (item) => {
+                  setWeeklyRewardDetail(null);
+                  setWeaponDetailModel(null);
                   if (item.group_key === "armor") {
                     setArmorDetailModel(buildArmorDetailViewModel({ item }));
                     setIsWeaponDetailOpen(false);
@@ -678,6 +733,17 @@ function PrototypeApp() {
                 sections={<ArmorDetailContent model={armorDetailModel} />}
               />
             ) : null}
+            {weaponDetailModel ? (
+              <SharedItemDetailDialog
+                detail={{ name: weaponDetailModel.identity.name }}
+                variant="weapon"
+                subtitle={`${weaponDetailModel.context.entry_label} · ${weaponDetailModel.context.object_label}`}
+                objectContext="只读查看"
+                closeLabel="关闭武器详情"
+                onClose={() => setWeaponDetailModel(null)}
+                sections={<WeaponDetailContent model={weaponDetailModel} />}
+              />
+            ) : null}
             {weeklyRewardDetail ? (
               <SharedItemDetailDialog
                 detail={{ name: weeklyRewardDetail.name }}
@@ -691,21 +757,6 @@ function PrototypeApp() {
                   : <WeaponDetailContent model={weeklyRewardDetail.weapon!} />}
               />
             ) : null}
-            {genericVendorDetail ? (
-             <SharedItemDetailDialog
-               detail={{ name: genericVendorDetail.item.name }}
-               vendorContext={genericVendorDetail.context}
-               closeLabel="关闭装备详情"
-               onClose={() => setGenericVendorDetail(null)}
-               sections={(
-                 <section className="item-detail-game-card">
-                   <h3>{genericVendorDetail.item.name}</h3>
-                   <p>{genericVendorDetail.item.itemType}</p>
-                   <p>{genericVendorDetail.item.summary}</p>
-                 </section>
-               )}
-             />
-           ) : null}
            </>
         )}
       />
@@ -748,13 +799,34 @@ function isSettingsSectionKey(value: string | undefined): value is "overview" | 
     || value === "diagnostics";
 }
 
-function isPrototypeWeaponItem(item: VendorInventoryItemView): boolean {
-  if (item.tone === "weapon") return true;
-  const itemType = item.itemType.toLocaleLowerCase();
-  return [
-    "自动步枪", "脉冲步枪", "斥候步枪", "手炮", "冲锋枪", "手枪", "弓", "霰弹枪", "狙击枪",
-    "融合步枪", "线性融合步枪", "榴弹发射器", "火箭筒", "机枪", "剑", "偃月", "追踪步枪"
-  ].some((weaponType) => itemType.includes(weaponType));
+function createAccountItemDetailTarget(item: AccountItemSummary, entryLabel: string) {
+  return {
+    ...item,
+    description: "",
+    source: {
+      status: "ready" as const,
+      label: entryLabel,
+      description: `${entryLabel}中的账号装备实例。`
+    }
+  };
+}
+
+function createVendorDetailTarget(item: VendorInventoryItemView, context: VendorOfferContextView) {
+  const equipmentKind = getVendorEquipmentKind(item);
+  return {
+    hash: item.itemHash ?? 0,
+    name: item.name,
+    description: item.summary,
+    icon: item.iconUrl,
+    item_type: item.itemType,
+    tier: item.tone === "exotic" ? "异域" : undefined,
+    group_key: equipmentKind === "armor" ? "armor" : "weapons",
+    source: {
+      status: "ready" as const,
+      label: "商人售卖",
+      description: context.inventoryPath ?? context.vendorName
+    }
+  };
 }
 
 function getPrototypePageHeader(page: ShellPageKey) {

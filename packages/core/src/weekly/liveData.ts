@@ -1,5 +1,6 @@
 import type { BungieJsonFetcher } from "../bungie/transport.js";
 import type { DefinitionComponentData, DefinitionRecord } from "../manifest/definitions.js";
+import { classifyBucket } from "../items/classification.js";
 import type { BungieOAuthToken } from "../oauth/login.js";
 import type { WeeklyActivityReward, WeeklyLiveData, WeeklyPriorityKind, WeeklySummaryItem } from "./summary.js";
 
@@ -319,6 +320,8 @@ function activityRewards(
       if (typeof definition?.itemTypeDisplayName === "string") {
         reward.item_type = definition.itemTypeDisplayName;
       }
+      const group = classifyBucket(definition?.inventory?.bucketTypeHash)?.group;
+      if (group) reward.group_key = group;
       return reward;
     })
     .filter((reward): reward is WeeklyActivityReward => Boolean(reward));

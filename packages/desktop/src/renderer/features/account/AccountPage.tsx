@@ -20,6 +20,7 @@ export function AccountPage(props: {
   accountSummary: AccountSummary | null;
   startupState: StartupState;
   selectedCharacterId: string;
+  lastAccountLoadedAt?: Date | null;
   isLoadingAccount: boolean;
   accountError: string;
   accountWarning: string;
@@ -60,6 +61,7 @@ export function AccountPage(props: {
     },
     pageState: {
       selectedCharacterId: props.selectedCharacterId,
+      lastAccountLoadedAt: props.lastAccountLoadedAt,
       openingItemKey: props.itemDetailLoadingKey,
       isLoadoutMatch: (item) => matchesLoadoutTemplateItem(item, props.activeLoadoutLookup),
       isBungieConfigured,
@@ -81,6 +83,7 @@ export function AccountPage(props: {
     props.accountSummary,
     props.activitySummary,
     props.selectedCharacterId,
+    props.lastAccountLoadedAt,
     props.itemDetailLoadingKey,
     props.activeLoadoutLookup,
     isBungieConfigured,

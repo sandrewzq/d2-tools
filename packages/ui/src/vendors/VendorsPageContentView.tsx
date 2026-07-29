@@ -7,6 +7,7 @@ import {
   ProductWorkspaceSideRail,
   ProductWorkspaceSplit
 } from "../workspace/ProductWorkspace.js";
+import { getVendorEquipmentKind } from "./vendorEquipment.js";
 
 export type VendorCostView = {
   label: string;
@@ -373,15 +374,34 @@ function VendorOfferButton(props: {
 }) {
   const availability = getVendorOfferAvailability(props.item);
   const costLabel = getVendorCostLabel(props.item);
-  const equipment = isEquipmentOffer(props.item);
+  const equipmentKind = getVendorEquipmentKind(props.item);
   const rollLabel = props.item.socketPlugs?.map((plug) => plug.name).filter(Boolean).slice(0, 2).join(" · ");
+  const content = <>
+    <span className="vendor-offer-header">
+      <VendorItemArt item={props.item} />
+      <span className="vendor-offer-copy">
+        <span className="vendor-offer-title"><strong>{props.item.name}</strong>{props.item.quantity && props.item.quantity > 1 ? <em>× {props.item.quantity.toLocaleString("zh-CN")}</em> : null}</span>
+        <span className="vendor-offer-summary">{props.item.itemType || "类型待确认"}{props.item.summary ? ` · ${props.item.summary}` : ""}</span>
+        {rollLabel ? <span className="vendor-offer-roll">{rollLabel}</span> : null}
+      </span>
+    </span>
+    <span className="vendor-offer-footer">
+      <VendorCosts item={props.item} fallback={costLabel} />
+      <span className="vendor-offer-status" data-status={availability.status}>{availability.label}</span>
+    </span>
+  </>;
+
+  if (!equipmentKind || !props.actions.onOpenItem || props.item.itemHash === undefined) {
+    return <article className="vendor-offer-card is-readonly" data-tone={props.item.tone} data-status={availability.status}>{content}</article>;
+  }
+
   return (
     <button
       type="button"
       className="vendor-offer-card"
       data-tone={props.item.tone}
       data-status={availability.status}
-      aria-label={`${equipment ? "打开装备详情" : "查看库存信息"}：${props.item.name}`}
+      aria-label={`打开装备详情：${props.item.name}`}
       onClick={() => props.actions.onOpenItem?.(props.item, {
         vendorName: props.vendor.name,
         inventoryPath: props.item.sourcePath ?? [props.vendor.name, props.item.categoryName].filter(Boolean).join(" / "),
@@ -394,18 +414,7 @@ function VendorOfferButton(props: {
         stats: props.item.stats
       })}
     >
-      <span className="vendor-offer-header">
-        <VendorItemArt item={props.item} />
-        <span className="vendor-offer-copy">
-          <span className="vendor-offer-title"><strong>{props.item.name}</strong>{props.item.quantity && props.item.quantity > 1 ? <em>× {props.item.quantity.toLocaleString("zh-CN")}</em> : null}</span>
-          <span className="vendor-offer-summary">{props.item.itemType || "类型待确认"}{props.item.summary ? ` · ${props.item.summary}` : ""}</span>
-          {rollLabel ? <span className="vendor-offer-roll">{rollLabel}</span> : null}
-        </span>
-      </span>
-      <span className="vendor-offer-footer">
-        <VendorCosts item={props.item} fallback={costLabel} />
-        <span className="vendor-offer-status" data-status={availability.status}>{availability.label}</span>
-      </span>
+      {content}
     </button>
   );
 }
@@ -425,9 +434,12 @@ function VendorCosts(props: { item: VendorInventoryItemView; fallback: string })
 }
 
 function VendorItemArt(props: { item: VendorInventoryItemView }) {
-  return props.item.iconUrl
-    ? <span className="vendor-item-art"><img src={props.item.iconUrl} alt="" loading="lazy" /></span>
-    : <span className="vendor-item-art vendor-item-art-missing" role="img" aria-label={`${props.item.name}图标未读取`} />;
+  return (
+    <span className={props.item.iconUrl ? "vendor-item-art" : "vendor-item-art vendor-item-art-missing"} role={props.item.iconUrl ? undefined : "img"} aria-label={props.item.iconUrl ? undefined : `${props.item.name}图标未读取`}>
+      <span className="vendor-item-art-fallback" aria-hidden="true">{props.item.iconLabel.slice(0, 1)}</span>
+      {props.item.iconUrl ? <img src={props.item.iconUrl} alt="" loading="lazy" onError={(event) => { event.currentTarget.hidden = true; }} /> : null}
+    </span>
+  );
 }
 
 function getVendorContentSections(vendor: VendorInventoryGroupView): VendorContentSectionView[] {
@@ -478,10 +490,6 @@ function getVendorOfferAvailability(item: VendorInventoryItemView): { label: str
 
 function getVendorCostLabel(item: VendorInventoryItemView): string {
   return item.costs?.map((cost) => `${cost.required} ${cost.label}`).join(" · ") ?? item.cost ?? "无费用信息";
-}
-
-function isEquipmentOffer(item: VendorInventoryItemView): boolean {
-  return /武器|护甲|weapon|armor/i.test(item.itemType);
 }
 
 function formatVendorReset(vendor: VendorInventoryGroupView, locale: InterfaceLocale): string {

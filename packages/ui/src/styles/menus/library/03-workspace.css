@@ -72,7 +72,7 @@
 }
 
 .app-shell .library-workbench {
-  grid-template-columns: 270px minmax(0, 1fr);
+  grid-template-columns: var(--rail-md) minmax(0, 1fr);
   min-height: calc(100vh - 222px);
   margin-top: 10px;
   border-top: 1px solid var(--border-subtle);
@@ -88,7 +88,7 @@
   border: 0;
   border-right: 1px solid var(--border-subtle);
   border-radius: 0;
-  background: var(--surface-sidebar);
+  background: var(--surface-panel);
 }
 
 .app-shell .library-search-head,
@@ -186,7 +186,7 @@
   min-height: 43px;
   padding: 8px 12px;
   color: var(--text-title);
-  background: var(--surface-elevated);
+  background: var(--surface-subtle);
   cursor: pointer;
   font-size: var(--font-content);
 }
@@ -224,7 +224,7 @@
   border: 0;
   border-bottom: 1px solid var(--border-subtle);
   border-radius: 0;
-  background: var(--surface-elevated);
+  background: var(--surface-subtle);
 }
 
 .app-shell .library-column-head h3,

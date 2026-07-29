@@ -74,8 +74,8 @@ export type PerkSearchResult = {
 };
 
 export type LibraryHistory = {
-  recent: Array<{ hash: number; name: string; icon?: string }>;
-  favorites: Array<{ hash: number; name: string; icon?: string }>;
+  recent: Array<{ hash: number; name: string; icon?: string; viewed_at?: string }>;
+  favorites: Array<{ hash: number; name: string; icon?: string; viewed_at?: string }>;
 };
 
 export type ManifestStatus = {
@@ -143,6 +143,7 @@ export type LibraryOwnershipEntry = {
 export type LibraryEquipmentFilter = {
   query: string;
   group: LibraryEquipmentGroupFilter;
+  ownership?: "all" | "owned" | "definition";
   tier: string;
   bucket: string;
   ammo: AmmoTypeKey | "all";
@@ -331,6 +332,7 @@ const ammoOrder: AmmoTypeKey[] = ["primary", "special", "heavy"];
 export const defaultLibraryEquipmentFilter: LibraryEquipmentFilter = {
   query: "",
   group: "all",
+  ownership: "all",
   tier: "all",
   bucket: "all",
   ammo: "all",
@@ -348,7 +350,8 @@ export const defaultLibraryPerkFilter: LibraryPerkFilter = {
 };
 
 export function selectLibraryPageModel(cache: LibraryPageCache, state: LibraryPageState): LibraryPageModel {
-  const visibleItems = filterLibraryEquipmentItems(cache.items, state.equipmentFilters);
+  const ownership = buildLibraryOwnership(cache.accountSummary);
+  const visibleItems = filterLibraryEquipmentItems(cache.items, state.equipmentFilters, ownership);
   const visiblePerks = filterLibraryPerks(cache.perks, state.perkFilters);
   const mode = state.libraryViewMode;
   const searchTouched = mode === "equipment" ? state.equipmentSearchTouched : state.perkSearchTouched;
@@ -387,7 +390,7 @@ export function selectLibraryPageModel(cache: LibraryPageCache, state: LibraryPa
         history: cache.libraryHistory,
         communityMatch: cache.libraryCommunityMatch,
         liveAvailability: cache.liveAvailability,
-        ownership: buildLibraryOwnership(cache.accountSummary),
+        ownership,
         ownershipAvailable: Boolean(cache.accountSummary),
         itemDetailLoadingKey: state.itemDetailLoadingKey
       }),
@@ -424,9 +427,11 @@ export function selectLibraryPageModel(cache: LibraryPageCache, state: LibraryPa
 
 export function filterLibraryEquipmentItems(
   items: ItemSearchResult[],
-  filter: LibraryEquipmentFilter
+  filter: LibraryEquipmentFilter,
+  ownership: Map<number, LibraryOwnershipEntry> = new Map()
 ): ItemSearchResult[] {
   const query = filter.query.trim().toLocaleLowerCase();
+  const ownershipFilter = filter.ownership ?? "all";
   const sourceStatus = filter.sourceStatus ?? "all";
   const perkPool = filter.perkPool ?? "all";
   const dropAccess = filter.dropAccess ?? "all";
@@ -434,6 +439,8 @@ export function filterLibraryEquipmentItems(
 
   return items.filter((item) => {
     if (filter.group !== "all" && item.group_key !== filter.group) return false;
+    if (ownershipFilter === "owned" && ownership.get(item.hash)?.status !== "owned") return false;
+    if (ownershipFilter === "definition" && ownership.get(item.hash)?.status === "owned") return false;
     if (filter.tier !== "all" && item.tier !== filter.tier) return false;
     if (filter.bucket !== "all" && item.bucket_name !== filter.bucket) return false;
     if (filter.ammo !== "all" && item.ammo_type !== filter.ammo) return false;

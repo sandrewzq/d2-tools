@@ -118,7 +118,7 @@ const readyWeeklySummary: HomeWeeklySummary = {
       entries: [{
         title: "光之利刃",
         detail: "屏障 · 势不可挡 · 电弧威胁",
-        rewards: [{ hash: 1, name: "本周奖励武器", item_type: "武器" }]
+        rewards: [{ hash: 1, name: "本周奖励武器", item_type: "武器", group_key: "weapons" }]
       }]
     },
     rotating_raid: {

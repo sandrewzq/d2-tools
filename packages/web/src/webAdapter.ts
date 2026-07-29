@@ -104,7 +104,7 @@ export const fallbackHomeSnapshot: WebHomeSnapshot = {
         detail: "屏障 · 势不可挡 · 电弧威胁",
         entries: [{
           title: "光之利刃",
-          rewards: [{ hash: 1, name: "本周奖励武器", item_type: "武器" }]
+          rewards: [{ hash: 1, name: "本周奖励武器", item_type: "武器", group_key: "weapons" }]
         }]
       },
       rotating_raid: { status: "ready", title: "最后一愿", detail: "奖励可重复获取" },

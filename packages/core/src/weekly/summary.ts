@@ -22,6 +22,7 @@ export type WeeklyActivityReward = {
   name: string;
   icon?: string;
   item_type?: string;
+  group_key?: "weapons" | "armor" | "equipment" | "other";
 };
 
 export type WeeklyActivityEntry = {

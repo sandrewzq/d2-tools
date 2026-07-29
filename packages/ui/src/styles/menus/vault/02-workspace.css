@@ -21,12 +21,15 @@
 }
 
 .app-shell .vault-workflow-tabs {
+  gap: 0;
+  overflow: hidden;
   border: 1px solid var(--border-control);
+  border-radius: var(--radius-control);
 }
 
 .app-shell .vault-workflow-tabs button {
   min-height: 34px;
-  padding: 0 12px;
+  padding: 0 10px;
   border: 0;
   border-right: 1px solid var(--border-control);
   border-radius: 0;
@@ -457,6 +460,11 @@
   background: var(--surface-elevated);
 }
 
+.app-shell .vault-results-column .vault-item-card.is-readonly:hover,
+.app-shell .vault-cleanup-grid .vault-item-card.is-readonly:hover {
+  background: transparent;
+}
+
 .app-shell .vault-results-column .vault-item-card.selected,
 .app-shell .vault-cleanup-grid .vault-item-card.selected {
   background: var(--state-selected-bg);
@@ -820,37 +828,80 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  min-height: 46px;
-  padding: 8px 12px;
-  border-bottom: 1px solid var(--border-subtle);
-  background: var(--surface-elevated);
+  padding: 9px 10px;
+  background: var(--surface-subtle);
+}
+
+.app-shell .duplicate-group-heading > div:first-child {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
 }
 
 .app-shell .duplicate-group-heading h3 {
   margin: 0;
   color: var(--text-title);
-  font-size: var(--font-row-title);
+  font-size: var(--font-content);
 }
 
-.app-shell .duplicate-group > .vault-batch-panel {
+.app-shell .duplicate-group-heading span {
+  color: var(--text-muted);
+  font-size: var(--font-caption);
+}
+
+.app-shell .duplicate-group-actions {
   display: flex;
-  flex-wrap: wrap;
+  align-items: center;
   gap: 6px;
-  margin: 0;
-  padding: 8px 12px;
-  border: 0;
-  border-bottom: 1px solid var(--border-subtle);
-  border-radius: 0;
-  background: var(--surface-toolbar);
+}
+
+.app-shell .duplicate-group-actions > button,
+.app-shell .duplicate-batch-tools > summary {
+  min-height: 31px;
+  padding: 0 9px;
+  font-size: var(--font-caption);
+}
+
+.app-shell .duplicate-batch-tools {
+  position: relative;
+}
+
+.app-shell .duplicate-batch-tools > summary {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-control);
+  color: var(--text-body);
+  background: var(--surface-panel);
+  cursor: pointer;
+  list-style: none;
+}
+
+.app-shell .duplicate-batch-tools > summary::-webkit-details-marker {
+  display: none;
+}
+
+.app-shell .duplicate-batch-tools .vault-batch-panel {
+  position: absolute;
+  z-index: var(--layer-popover);
+  top: calc(100% + 5px);
+  right: 0;
+  display: grid;
+  gap: 5px;
+  width: 210px;
+  padding: 8px;
+  border: 1px solid var(--border-control);
+  background: var(--surface-panel);
+  box-shadow: var(--shadow-overlay);
 }
 
 .app-shell .duplicate-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 12px;
+  gap: 10px;
   align-items: center;
-  min-height: 66px;
-  padding: 8px 12px;
+  min-height: 62px;
+  padding: 0 10px;
   border: 0;
   border-bottom: 1px solid var(--border-subtle);
   border-radius: 0;
@@ -867,11 +918,12 @@
 
 .app-shell .duplicate-row-main {
   display: grid;
-  grid-template-columns: minmax(180px, 1fr) minmax(220px, 1.3fr) minmax(140px, 0.7fr);
+  grid-template-columns: var(--item-thumb) minmax(0, 1fr);
   gap: 10px;
   align-items: center;
   min-width: 0;
-  padding: 0;
+  min-height: 62px;
+  padding: 8px 0;
   border: 0;
   border-radius: 0;
   background: transparent;
@@ -879,12 +931,49 @@
   text-align: left;
 }
 
-.app-shell .duplicate-row-main span,
-.app-shell .duplicate-row-main small {
+.app-shell .duplicate-row-main.is-readonly {
+  cursor: default;
+}
+
+.app-shell .duplicate-row-main img,
+.app-shell .duplicate-row-icon-missing {
+  width: var(--item-thumb);
+  height: var(--item-thumb);
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-control);
+  object-fit: cover;
+  background: var(--surface-subtle);
+}
+
+.app-shell .duplicate-row-icon-missing {
+  display: grid;
+  place-items: center;
+  color: var(--text-muted);
+}
+
+.app-shell .duplicate-row-copy {
+  display: block;
+  min-width: 0;
+}
+
+.app-shell .duplicate-row-copy strong,
+.app-shell .duplicate-row-copy small {
+  display: block;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.app-shell .duplicate-row-copy strong {
+  color: var(--text-title);
+  font-size: var(--font-content);
+}
+
+.app-shell .duplicate-row-copy small {
+  margin-top: 3px;
+  color: var(--text-muted);
+  font-size: var(--font-caption);
 }
 
 .app-shell .duplicate-row-actions {
@@ -1056,13 +1145,6 @@
     justify-self: end;
   }
 
-  .app-shell .duplicate-row {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .app-shell .duplicate-row-actions {
-    justify-content: flex-start;
-  }
 }
 
 @media (max-width: 980px) {
@@ -1087,7 +1169,7 @@
   }
 
   .app-shell .duplicate-row-main {
-    grid-template-columns: minmax(160px, 1fr) minmax(180px, 1fr);
+    grid-template-columns: var(--item-thumb) minmax(0, 1fr);
   }
 
   .app-shell .duplicate-row-main > small:last-child {
@@ -1175,7 +1257,17 @@
   }
 
   .app-shell .duplicate-row-main {
+    grid-template-columns: var(--item-thumb) minmax(0, 1fr);
+  }
+
+  .app-shell .duplicate-row {
     grid-template-columns: minmax(0, 1fr);
+    padding-block: 6px;
+  }
+
+  .app-shell .duplicate-row-actions {
+    justify-content: flex-start;
+    padding: 0 0 8px calc(var(--item-thumb) + 10px);
   }
 
   .app-shell .duplicate-row-main > small:last-child {

@@ -116,6 +116,8 @@ export type { SettingsAiAdapter } from "./settings/SettingsAiConfigPanel.js";
 export { VendorsPageView } from "./vendors/VendorsPageView.js";
 export type { VendorsPageViewProps } from "./vendors/VendorsPageView.js";
 export { VendorsPageContentView } from "./vendors/VendorsPageContentView.js";
+export { getVendorEquipmentKind } from "./vendors/vendorEquipment.js";
+export type { VendorEquipmentKind } from "./vendors/vendorEquipment.js";
 export type {
   VendorDetailToolbarView,
   VendorOfferContextView,

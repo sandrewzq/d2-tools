@@ -59,6 +59,7 @@ export type AccountProfileView = {
   accountName: string;
   profileLine: string;
   inventoryLine: string;
+  snapshotAt?: string | number | Date | null;
 };
 
 export type AccountPageNavItem = {
@@ -118,6 +119,7 @@ export type SharedDomainCache = {
 
 export type AccountPageState = {
   selectedCharacterId: string;
+  lastAccountLoadedAt?: string | number | Date | null;
   openingItemKey?: string;
   isLoadoutMatch?: (item: AccountItemSummary) => boolean;
   isBungieConfigured: boolean;
@@ -264,7 +266,7 @@ export function createAccountPageWorkspace(input: {
 
   return {
     accountProfileLine: account ? `Membership ${account.membership_type} / ${account.destiny_membership_id}` : "",
-    accountInventoryLine: account ? `仓库装备：${account.vault.item_count} / 材料与消耗品：${account.materials.item_count}` : "",
+    accountInventoryLine: account ? `仓库 ${account.vault.item_count} 件` : "",
     characterTabs: account ? buildAccountCharacterTabs(account, selectedCharacter?.character_id ?? "") : [],
     materialRows: account ? buildAccountMaterialRows(account.materials.items) : [],
     loadoutSlotRows: selectedCharacter ? buildAccountLoadoutSlotRows(selectedCharacter) : [],
@@ -327,7 +329,8 @@ export function selectAccountPageModel(input: AccountPageModelInput): AccountPag
       ? {
         accountName: cache.accountSummary.account_name,
         profileLine: workspace.accountProfileLine,
-        inventoryLine: workspace.accountInventoryLine
+        inventoryLine: workspace.accountInventoryLine,
+        snapshotAt: pageState.lastAccountLoadedAt
       }
       : null,
     navigation: accountPageNavigation(),

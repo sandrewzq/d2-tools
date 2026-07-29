@@ -535,21 +535,22 @@ export function createPrototypeVendorsPageModel(
 
 function createPrototypeVendorSnapshot(armorerModHash: number): NonNullable<VendorsPageInput["snapshot"]> {
   const commonOffers = [
-    [1001, "仄浪板", "载具", "异域"],
-    [1002, "幼年阿罕卡拉之脊", "臂铠", "异域"],
-    [1003, "至纯光能护心甲", "胸部护甲", "异域"],
-    [1004, "炎阳护腕", "臂铠", "异域"],
-    [1005, "陨星胸甲", "胸部护甲", "异域"],
-    [1006, "特里同之罪", "臂铠", "异域"],
-    [1007, "霜袍服装", "胸部护甲", "异域"],
-    [1008, "唯我主义", "术士臂环", "异域"]
+    [1001, "仄浪板", "载具", "异域", "https://www.bungie.net/common/destiny2_content/icons/0f9ed83ab7bbe0282f9974c62f930cf4.jpg"],
+    [1002, "幼年阿罕卡拉之脊", "臂铠", "异域", "https://www.bungie.net/common/destiny2_content/icons/76cac5fbab0144f75832a21c50abb96f.jpg"],
+    [1003, "至纯光能护心甲", "胸部护甲", "异域", "https://www.bungie.net/common/destiny2_content/icons/34f23604746fc260a2153e93ccfaec7f.jpg"],
+    [1004, "炎阳护腕", "臂铠", "异域", "https://www.bungie.net/common/destiny2_content/icons/220fda89a88058f84725ff1df39a9f5e.jpg"],
+    [1005, "陨星胸甲", "胸部护甲", "异域", "https://www.bungie.net/common/destiny2_content/icons/23e3d07bead2936a80612419f3ee9f94.jpg"],
+    [1006, "特里同之罪", "臂铠", "异域", "https://www.bungie.net/common/destiny2_content/icons/8f4613a7a4d1d0cac4cddb50f81d965b.jpg"],
+    [1007, "霜袍服装", "胸部护甲", "异域", "https://www.bungie.net/common/destiny2_content/icons/16001620c3ec683e805fe68017167b69.jpg"],
+    [1008, "唯我主义", "术士臂环", "异域", "https://www.bungie.net/common/destiny2_content/icons/7b57cd041db1987c3f566b96535daf9f.jpg"]
   ] as const;
-  const offers = commonOffers.map(([itemHash, name, itemType, tierType], index) => createPrototypeVendorOffer({
+  const offers = commonOffers.map(([itemHash, name, itemType, tierType, iconUrl], index) => createPrototypeVendorOffer({
     itemHash,
     vendorItemIndex: index,
     name,
     itemType,
     tierType,
+    iconUrl,
     characterIds: ["hunter-1", "warlock-1"],
     stats: itemType.includes("护甲") || itemType === "臂铠"
       ? { mobility: armorerModHash === 111 ? 18 : 8, discipline: armorerModHash === 111 ? 8 : 18 }
@@ -746,6 +747,7 @@ function createPrototypeVendorOffer(input: {
   name: string;
   itemType: string;
   tierType: string;
+  iconUrl?: string;
   characterIds: string[];
   stats: Record<string, number>;
   serviceId?: string;
@@ -767,7 +769,7 @@ function createPrototypeVendorOffer(input: {
     name: input.name,
     itemType: input.itemType,
     tierType: input.tierType,
-    iconUrl: prototypeItemIcon(input.name.slice(0, 1), input.tierType === "异域" ? "#c6922e" : "#2f7dd1"),
+    iconUrl: input.iconUrl ?? prototypeItemIcon(input.name.slice(0, 1), input.tierType === "异域" ? "#c6922e" : "#2f7dd1"),
     quantity: input.quantity,
     characterIds: input.characterIds,
     costs: input.hasCost === false ? [] : [{
@@ -950,6 +952,7 @@ export function createPrototypeAccountPageModel(input: {
     },
     pageState: {
       selectedCharacterId: input.selectedCharacterId,
+      lastAccountLoadedAt: new Date("2026-07-23T09:47:39+08:00"),
       openingItemKey: "",
       isLoadoutMatch: (item) => matchesLoadoutTemplateItem(item, activeLoadoutLookup),
       isBungieConfigured,
@@ -1021,7 +1024,8 @@ export function createPrototypeLibraryPageModel(input: {
     liveAvailability: prototypeLiveAvailability,
     liveAvailabilityError: "",
     manifestStatus: prototypeManifestStatus,
-    manifestStatusError: ""
+    manifestStatusError: "",
+    accountSummary: prototypeAccountSummary
   }, {
     libraryViewMode: input.libraryViewMode,
     equipmentFilters: input.equipmentFilters,

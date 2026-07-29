@@ -63,6 +63,7 @@ export type HomeDashboardWeeklyActivityReward = {
   name: string;
   icon?: string;
   item_type?: string;
+  group_key?: "weapons" | "armor" | "equipment" | "other";
 };
 
 export type HomeDashboardWeeklyActivityEntry = {
@@ -161,9 +162,11 @@ export function createHomeWeeklyActivityRewardDetailTarget(
   reward: HomeDashboardWeeklyActivityReward
 ): HomeDashboardItemDetailTarget {
   const itemType = reward.item_type?.trim() ?? "";
-  const groupKey = armorRewardTypePattern.test(itemType)
-    ? "armor"
-    : (weaponRewardTypePattern.test(itemType) ? "weapons" : undefined);
+  const groupKey = reward.group_key === "weapons" || reward.group_key === "armor"
+    ? reward.group_key
+    : armorRewardTypePattern.test(itemType)
+      ? "armor"
+      : (weaponRewardTypePattern.test(itemType) ? "weapons" : undefined);
 
   return {
     hash: reward.hash,

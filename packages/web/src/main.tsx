@@ -17,15 +17,27 @@ import {
   SharedItemDetailDialog,
   VaultPageContentView,
   VendorsPageContentView,
+  WeaponDetailContent,
+  getVendorEquipmentKind,
+  type HomeWeeklyActivityReward,
   type LibraryEquipmentFilter,
   type LibraryPerkFilter,
   type LibraryViewMode,
   type ProductPreferences,
   type ShellAssistantMode,
   type ShellPageKey,
-  type SettingsAiAdapter
+  type SettingsAiAdapter,
+  type VendorInventoryItemView,
+  type VendorOfferContextView
 } from "@d2-tools/ui";
-import { buildArmorDetailViewModel, type ArmorDetailViewModel } from "@d2-tools/app/items";
+import type { AccountItemSummary } from "@d2-tools/core/account/summary";
+import { createHomeWeeklyActivityRewardDetailTarget } from "@d2-tools/app/home";
+import {
+  buildArmorDetailViewModel,
+  buildWeaponDetailViewModel,
+  type ArmorDetailViewModel,
+  type WeaponDetailViewModel
+} from "@d2-tools/app/items";
 import "@d2-tools/ui/styles.css";
 import {
   createWebShellAdapter,
@@ -60,6 +72,13 @@ function WebApp() {
   const [aliasTargetDraft, setAliasTargetDraft] = useState("喂食狂热");
   const [aliasKind, setAliasKind] = useState<"item" | "perk">("perk");
   const [armorDetailModel, setArmorDetailModel] = useState<ArmorDetailViewModel | null>(null);
+  const [weaponDetailModel, setWeaponDetailModel] = useState<WeaponDetailViewModel | null>(null);
+  const [weeklyRewardDetail, setWeeklyRewardDetail] = useState<{
+    name: string;
+    itemType?: string;
+    armor?: ArmorDetailViewModel;
+    weapon?: WeaponDetailViewModel;
+  } | null>(null);
   const [assistantQuestion, setAssistantQuestion] = useState("");
   const [taskDraft, setTaskDraft] = useState("虚空猎人高难配装，需要反屏障脉冲步枪、奥菲斯钻机，韧性与纪律优先。");
   const [taskMessage, setTaskMessage] = useState("Web mock：攻略文本已准备，可继续解析和对照账号。");
@@ -119,6 +138,87 @@ function WebApp() {
       }
     ]);
     setAssistantQuestion("");
+  }
+
+  function openWeeklyReward(reward: HomeWeeklyActivityReward) {
+    const target = createHomeWeeklyActivityRewardDetailTarget(reward);
+    setArmorDetailModel(null);
+    setWeaponDetailModel(null);
+    setWeeklyRewardDetail(target.group_key === "armor"
+      ? { name: target.name, itemType: target.item_type, armor: buildArmorDetailViewModel({ item: target }) }
+      : { name: target.name, itemType: target.item_type, weapon: buildWeaponDetailViewModel({ item: target }) });
+  }
+
+  function openWebAccountItem(item: AccountItemSummary, entry: "account" | "vault") {
+    if (item.group_key !== "weapons" && item.group_key !== "armor") return;
+    const entryLabel = entry === "vault" ? "仓库" : "账号";
+    const target = createAccountItemDetailTarget(item, entryLabel);
+
+    setWeeklyRewardDetail(null);
+    if (item.group_key === "armor") {
+      setWeaponDetailModel(null);
+      setArmorDetailModel(buildArmorDetailViewModel({
+        item: target,
+        context: {
+          kind: "account_item",
+          entry,
+          entry_label: entryLabel,
+          object_label: "账号护甲实例",
+          object_id: item.instance_id,
+          read_only: true
+        }
+      }));
+      return;
+    }
+
+    setArmorDetailModel(null);
+    setWeaponDetailModel(buildWeaponDetailViewModel({
+      item: target,
+      context: {
+        kind: "account_instance",
+        entry,
+        entry_label: entryLabel,
+        object_label: "账号武器实例",
+        object_id: item.instance_id,
+        read_only: true
+      }
+    }));
+  }
+
+  function openWebVendorDetail(item: VendorInventoryItemView, context: VendorOfferContextView) {
+    const equipmentKind = getVendorEquipmentKind(item);
+    if (!equipmentKind || item.itemHash === undefined) return;
+    const target = createVendorDetailTarget(item, context);
+
+    setWeeklyRewardDetail(null);
+    if (equipmentKind === "armor") {
+      setWeaponDetailModel(null);
+      setArmorDetailModel(buildArmorDetailViewModel({
+        item: target,
+        context: {
+          kind: "vendor_offer",
+          entry: "vendor",
+          entry_label: context.vendorName,
+          object_label: "商人售卖护甲",
+          object_id: String(item.itemHash),
+          read_only: true
+        }
+      }));
+      return;
+    }
+
+    setArmorDetailModel(null);
+    setWeaponDetailModel(buildWeaponDetailViewModel({
+      item: target,
+      context: {
+        kind: "vendor_offer",
+        entry: "vendor",
+        entry_label: context.vendorName,
+        object_label: "商人售卖武器",
+        object_id: String(item.itemHash),
+        read_only: true
+      }
+    }));
   }
 
   useEffect(() => {
@@ -233,6 +333,7 @@ function WebApp() {
               {...fixture.createHomePageModel(snapshot)}
               onNavigate={setActivePage}
               onRefreshDiagnostics={() => undefined}
+              onOpenWeeklyActivityReward={openWeeklyReward}
             />
           ) : null}
           {activePage === "account" ? (
@@ -251,7 +352,7 @@ function WebApp() {
                 selectCharacter: setSelectedAccountCharacterId,
                 saveCurrentLoadout: () => undefined,
                 equipHighestPower: () => undefined,
-                openItem: () => undefined
+                openItem: (payload) => openWebAccountItem(payload.item, "account")
               }}
             />
           ) : null}
@@ -275,7 +376,7 @@ function WebApp() {
                 onBatchTransferToCharacter: async () => fixture.batchResult
               }}
               onContextFactsChange={() => undefined}
-              onOpenItem={() => undefined}
+              onOpenItem={(item) => openWebAccountItem(item, "vault")}
               onSaveTag={() => undefined}
               onSaveTagBatch={() => undefined}
             />
@@ -343,7 +444,16 @@ function WebApp() {
                 onAliasKindChange: setAliasKind,
                 onSaveAlias: () => undefined,
                 onOpenItemDetail: (item) => {
-                  if (item.group_key === "armor") setArmorDetailModel(buildArmorDetailViewModel({ item }));
+                  setWeeklyRewardDetail(null);
+                  if (item.group_key === "armor") {
+                    setWeaponDetailModel(null);
+                    setArmorDetailModel(buildArmorDetailViewModel({ item }));
+                    return;
+                  }
+                  if (item.group_key === "weapons") {
+                    setArmorDetailModel(null);
+                    setWeaponDetailModel(buildWeaponDetailViewModel({ item }));
+                  }
                 },
                 onAddFavorite: () => undefined,
                 onRemoveFavorite: () => undefined
@@ -354,7 +464,7 @@ function WebApp() {
             <VendorsPageContentView
               interfaceLocale={preferences.interfaceLocale}
               model={fixture.vendorsModel}
-              actions={{}}
+              actions={{ onOpenItem: openWebVendorDetail }}
             />
           ) : null}
           {activePage === "settings" ? (
@@ -411,11 +521,65 @@ function WebApp() {
         sections={<ArmorDetailContent model={armorDetailModel} />}
       />
     ) : null}
+    {weaponDetailModel ? (
+      <SharedItemDetailDialog
+        detail={{ name: weaponDetailModel.identity.name }}
+        variant="weapon"
+        subtitle={`${weaponDetailModel.context.entry_label} · ${weaponDetailModel.context.object_label}`}
+        objectContext="只读查看"
+        closeLabel="关闭武器详情"
+        onClose={() => setWeaponDetailModel(null)}
+        sections={<WeaponDetailContent model={weaponDetailModel} />}
+      />
+    ) : null}
+    {weeklyRewardDetail ? (
+      <SharedItemDetailDialog
+        detail={{ name: weeklyRewardDetail.name }}
+        variant={weeklyRewardDetail.armor ? "armor" : "weapon"}
+        subtitle={`本周活动奖励 · ${weeklyRewardDetail.itemType ?? "装备定义"}`}
+        objectContext="资料库定义"
+        closeLabel="关闭奖励详情"
+        onClose={() => setWeeklyRewardDetail(null)}
+        sections={weeklyRewardDetail.armor
+          ? <ArmorDetailContent model={weeklyRewardDetail.armor} />
+          : <WeaponDetailContent model={weeklyRewardDetail.weapon!} />}
+      />
+    ) : null}
     </>
   );
 }
 
 createRoot(document.getElementById("root")!).render(<WebApp />);
+
+function createAccountItemDetailTarget(item: AccountItemSummary, entryLabel: string) {
+  return {
+    ...item,
+    description: "",
+    source: {
+      status: "ready" as const,
+      label: entryLabel,
+      description: `${entryLabel}中的账号装备实例。`
+    }
+  };
+}
+
+function createVendorDetailTarget(item: VendorInventoryItemView, context: VendorOfferContextView) {
+  const equipmentKind = getVendorEquipmentKind(item);
+  return {
+    hash: item.itemHash ?? 0,
+    name: item.name,
+    description: item.summary,
+    icon: item.iconUrl,
+    item_type: item.itemType,
+    tier: item.tone === "exotic" ? "异域" : undefined,
+    group_key: equipmentKind === "armor" ? "armor" : "weapons",
+    source: {
+      status: "ready" as const,
+      label: "商人售卖",
+      description: context.inventoryPath ?? context.vendorName
+    }
+  };
+}
 
 function getWebPageHeader(page: ShellPageKey) {
   const actions: Partial<Record<ShellPageKey, ReactNode>> = {

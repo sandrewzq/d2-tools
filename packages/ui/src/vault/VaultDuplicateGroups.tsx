@@ -63,66 +63,74 @@ export function VaultDuplicateGroups(props: {
         const selectedGroupCount = group.items.filter((entry) => props.selectedKeys.has(entry.item_key)).length;
         const junkCandidateKeys = selectDuplicateGroupItems(group, "junk");
         const restCandidateKeys = selectDuplicateGroupItems(group, "rest");
+        const topItem = group.items[0] ? itemByKey.get(group.items[0].item_key) : undefined;
+        const canOpenTopItem = topItem?.group_key === "weapons" || topItem?.group_key === "armor";
         return (
           <section className="duplicate-group" key={group.group_key}>
-            <div className="duplicate-group-heading">
-              <h3>{group.name}</h3>
-              <span>{group.count} 件 / 已选候选 {selectedGroupCount}</span>
-            </div>
-            <div className="vault-batch-panel">
-              <button
-                type="button"
-                aria-busy={props.isBatchSaving}
-                disabled={props.isBatchSaving}
-                onClick={() => {
-                  const topItem = group.items[0] ? itemByKey.get(group.items[0].item_key) : undefined;
-                  if (topItem) props.onOpenItem(topItem);
-                }}
-              >
-                打开推荐项
-              </button>
-              <button
-                type="button"
-                aria-busy={props.isBatchSaving}
-                disabled={props.isBatchSaving || !restCandidateKeys.length}
-                onClick={() => props.onMergeSelectedKeys(restCandidateKeys)}
-              >
-                选择其余候选
-              </button>
-              <button
-                type="button"
-                aria-busy={props.isBatchSaving}
-                disabled={props.isBatchSaving || !junkCandidateKeys.length}
-                onClick={() => props.onMergeSelectedKeys(junkCandidateKeys)}
-              >
-                选择可清理候选
-              </button>
-              <button
-                type="button"
-                aria-busy={props.isBatchSaving}
-                disabled={props.isBatchSaving}
-                onClick={() => void props.onApplyDuplicateGroupTags(group, "keep-best-review-rest")}
-              >
-                其余标记关注
-              </button>
-              <button
-                type="button"
-                aria-busy={props.isBatchSaving}
-                disabled={props.isBatchSaving}
-                onClick={() => void props.onApplyDuplicateGroupTags(group, "keep-best-junk-rest")}
-              >
-                其余标记可清理
-              </button>
-              <button
-                type="button"
-                aria-busy={props.isBatchSaving}
-                disabled={props.isBatchSaving}
-                onClick={() => void props.onApplyDuplicateGroupTags(group, "clear-group-tags")}
-              >
-                清除本组标记
-              </button>
-            </div>
-            {group.items.map((entry) => {
+            <header className="duplicate-group-heading">
+              <div>
+                <h3>{group.name}</h3>
+                <span>{group.hash ? `同 Hash ${group.hash}` : "同名不同 Hash"} · {group.count} 个实例{selectedGroupCount ? ` · 已选 ${selectedGroupCount}` : ""}</span>
+              </div>
+              <div className="duplicate-group-actions">
+                {canOpenTopItem ? <button
+                  type="button"
+                  data-ui-kind="button"
+                  data-control-variant="secondary"
+                  aria-busy={props.isBatchSaving}
+                  disabled={props.isBatchSaving}
+                  onClick={() => props.onOpenItem(topItem)}
+                >
+                  打开推荐项
+                </button> : null}
+                <details className="duplicate-batch-tools">
+                  <summary>批量操作</summary>
+                  <div className="vault-batch-panel">
+                    <button
+                      type="button"
+                      aria-busy={props.isBatchSaving}
+                      disabled={props.isBatchSaving || !restCandidateKeys.length}
+                      onClick={() => props.onMergeSelectedKeys(restCandidateKeys)}
+                    >
+                      选择其余候选
+                    </button>
+                    <button
+                      type="button"
+                      aria-busy={props.isBatchSaving}
+                      disabled={props.isBatchSaving || !junkCandidateKeys.length}
+                      onClick={() => props.onMergeSelectedKeys(junkCandidateKeys)}
+                    >
+                      选择可清理候选
+                    </button>
+                    <button
+                      type="button"
+                      aria-busy={props.isBatchSaving}
+                      disabled={props.isBatchSaving}
+                      onClick={() => void props.onApplyDuplicateGroupTags(group, "keep-best-review-rest")}
+                    >
+                      其余标记关注
+                    </button>
+                    <button
+                      type="button"
+                      aria-busy={props.isBatchSaving}
+                      disabled={props.isBatchSaving}
+                      onClick={() => void props.onApplyDuplicateGroupTags(group, "keep-best-junk-rest")}
+                    >
+                      其余标记可清理
+                    </button>
+                    <button
+                      type="button"
+                      aria-busy={props.isBatchSaving}
+                      disabled={props.isBatchSaving}
+                      onClick={() => void props.onApplyDuplicateGroupTags(group, "clear-group-tags")}
+                    >
+                      清除本组标记
+                    </button>
+                  </div>
+                </details>
+              </div>
+            </header>
+            {group.items.map((entry, index) => {
               const item = itemByKey.get(entry.item_key);
               const itemMeta = item ? formatVaultItemMeta(item) : "未找到实例信息";
               const note = item ? props.tags.items[getVaultItemKey(item)]?.note : undefined;
@@ -133,6 +141,16 @@ export function VaultDuplicateGroups(props: {
               const duplicateTone = entry.tag === "keep" || entry.tag === "review" || entry.tag === "junk"
                 ? entry.tag
                 : "none";
+              const canOpenDetail = item?.group_key === "weapons" || item?.group_key === "armor";
+              const rowContent = <>
+                {item?.icon ? <img src={item.icon} alt="" /> : <span className="duplicate-row-icon-missing" aria-hidden="true">?</span>}
+                <span className="duplicate-row-copy">
+                  <strong>实例 {index + 1} · {entry.roll_text || "暂无实际 Roll"}</strong>
+                  <small className="duplicate-row-meta">仓库 · {entry.locked ? "已锁定" : "未锁定"}{entry.tag ? ` · ${entry.tag}` : ""}{isSelected ? " · 已选候选" : ""}</small>
+                  {localTarget.matched ? <small className="duplicate-row-note">本地目标：{localTarget.labels.join(" / ")}</small> : null}
+                  {note ? <small className="duplicate-row-note">备注：{note}</small> : null}
+                </span>
+              </>;
               return (
                 <article
                   className={item && getVaultItemKey(item) === props.openingItemKey
@@ -140,20 +158,17 @@ export function VaultDuplicateGroups(props: {
                     : `duplicate-row duplicate-${duplicateTone}${isSelected ? " selected" : ""}`}
                   key={entry.item_key}
                 >
-                  <button
-                    className="duplicate-row-main"
-                    type="button"
-                    title={itemMeta}
-                    disabled={!item}
-                    aria-busy={Boolean(item && getVaultItemKey(item) === props.openingItemKey)}
-                    onClick={() => item && props.onOpenItem(item)}
-                  >
-                    <span>{entry.roll_text || "暂无实际 roll"}</span>
-                    <small className="duplicate-row-meta">{itemMeta}</small>
-                    <small>{entry.locked ? "已锁定" : "未锁定"} / {entry.tag ?? "未标记"}{isSelected ? " / 已选候选" : ""}</small>
-                    {localTarget.matched ? <small className="duplicate-row-note">本地目标：{localTarget.labels.join(" / ")}</small> : null}
-                    {note ? <small className="duplicate-row-note">备注：{note}</small> : null}
-                  </button>
+                  {canOpenDetail ? (
+                    <button
+                      className="duplicate-row-main"
+                      type="button"
+                      title={itemMeta}
+                      aria-busy={Boolean(item && getVaultItemKey(item) === props.openingItemKey)}
+                      onClick={() => item && props.onOpenItem(item)}
+                    >
+                      {rowContent}
+                    </button>
+                  ) : <div className="duplicate-row-main is-readonly" title={itemMeta}>{rowContent}</div>}
                   <div className="duplicate-row-actions">
                     <button
                       type="button"
@@ -162,7 +177,7 @@ export function VaultDuplicateGroups(props: {
                       disabled={props.isBatchSaving || !item}
                       onClick={() => item && void props.onApplyDuplicateGroupTags(group, "keep-best-review-rest", entry.item_key)}
                     >
-                      保留这件，其余关注
+                      设为基准
                     </button>
                     <button
                       type="button"
@@ -171,7 +186,7 @@ export function VaultDuplicateGroups(props: {
                       disabled={props.isBatchSaving || !item}
                       onClick={() => item && void props.onApplyDuplicateGroupTags(group, "keep-best-junk-rest", entry.item_key)}
                     >
-                      保留这件，其余可清理
+                      其余可清理
                     </button>
                   </div>
                 </article>

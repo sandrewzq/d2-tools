@@ -1,6 +1,6 @@
 .app-shell .vendor-workbench.vendor-workbench-layout.product-split-workspace {
-  grid-template-columns: 230px minmax(0, 1fr) 310px;
-  min-height: calc(100vh - 116px);
+  grid-template-columns: var(--rail-md) minmax(0, 1fr) var(--rail-context);
+  min-height: calc(100vh - var(--topbar) - var(--workspace-header-height));
   border: 0;
   border-radius: 0;
   background: transparent;
@@ -17,7 +17,7 @@
   position: sticky;
   top: 0;
   align-self: start;
-  max-height: calc(100vh - 116px);
+  max-height: calc(100vh - var(--topbar) - var(--workspace-header-height));
   overflow-x: hidden;
   overflow-y: auto;
   border-right: 1px solid var(--border-subtle);
@@ -28,7 +28,7 @@
   position: sticky;
   top: 0;
   align-self: start;
-  min-height: calc(100vh - 116px);
+  min-height: calc(100vh - var(--topbar) - var(--workspace-header-height));
   border-left: 1px solid var(--border-subtle);
   background: var(--surface-panel);
 }

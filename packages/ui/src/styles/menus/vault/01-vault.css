@@ -67,8 +67,10 @@
 
 .vault-workflow-tabs {
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
+  flex-wrap: nowrap;
+  gap: 0;
+  overflow: hidden;
+  border-radius: var(--radius-control);
 }
 
 .vault-workflow-tab {
@@ -679,6 +681,10 @@
   border-color: var(--state-selected-border);
 }
 
+.vault-item-card.is-readonly:hover {
+  border-color: var(--border-subtle);
+}
+
 .vault-item-card.selected {
   border-color: var(--state-selected-border);
   background: var(--state-selected-bg);
@@ -748,6 +754,10 @@
   box-shadow: none;
   text-align: left;
   cursor: pointer;
+}
+
+.vault-card-main.is-readonly {
+  cursor: default;
 }
 
 .vault-card-main:not(:disabled):hover,

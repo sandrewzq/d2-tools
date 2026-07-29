@@ -7,7 +7,7 @@ import type {
 } from "@d2-tools/app/account";
 import { getLocaleCopy } from "../i18n/copy.js";
 import type { AccountCopy, InterfaceLocale } from "../i18n/types.js";
-import { formatCompactDateTime } from "../time/formatTime.js";
+import { formatCompactDateTime, formatFullDateTime } from "../time/formatTime.js";
 import {
   ProductWorkspaceContentStack,
   ProductWorkspaceEmptyState,
@@ -177,7 +177,10 @@ function AccountPageWorkspace(props: {
             <div>
               <span data-ui-part="label" data-info-priority="support" data-text-tone="meta">{profile.profileLine}</span>
               <h2 data-ui-part="value" data-info-priority="display" data-text-tone="primary">{profile.accountName}</h2>
-              <p data-ui-part="detail" data-info-priority="reading" data-text-tone="body">{props.viewModel.characterTabs.length} 个角色 · {profile.inventoryLine}</p>
+              <p data-ui-part="detail" data-info-priority="reading" data-text-tone="body">
+                {props.viewModel.characterTabs.length} 个角色 · {profile.inventoryLine}
+                {profile.snapshotAt ? ` · 快照 ${formatFullDateTime(profile.snapshotAt)}` : ""}
+              </p>
             </div>
             <span
               className={`ui-badge ${props.viewModel.connection.isLoadingAccount ? "status-pending" : "status-ready"}`}

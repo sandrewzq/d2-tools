@@ -248,6 +248,7 @@ export function createWebAccountPageModel(input: {
     },
     pageState: {
       selectedCharacterId: input.selectedCharacterId,
+      lastAccountLoadedAt: new Date("2026-07-23T09:47:39+08:00"),
       openingItemKey: "",
       isLoadoutMatch: (item) => matchesLoadoutTemplateItem(item, activeLoadoutLookup),
       isBungieConfigured: true,
@@ -318,7 +319,8 @@ export function createWebLibraryPageModel(input: {
     liveAvailability: webLiveAvailability,
     liveAvailabilityError: "",
     manifestStatus: webManifestStatus,
-    manifestStatusError: ""
+    manifestStatusError: "",
+    accountSummary: webAccountSummary
   }, {
     libraryViewMode: input.libraryViewMode,
     equipmentFilters: input.equipmentFilters,

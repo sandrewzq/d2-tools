@@ -27,7 +27,6 @@ export function VaultOrganizePanel(props: {
   onClearSelection: () => void;
   onCleanupTargetCharacterChange: (value: string) => void;
   onApplyBatchTag: (tag: VaultTagValue) => void | Promise<void>;
-  onCopyCleanupList: () => void | Promise<void>;
   onRunSelectedBulkMove: () => void | Promise<void>;
   onRunCleanupAction: (action: "unlock" | "transfer") => void | Promise<void>;
 }) {
@@ -70,9 +69,6 @@ export function VaultOrganizePanel(props: {
             </select>
           </label>
         ) : null}
-        <button type="button" data-ui-kind="button" data-control-variant="secondary" aria-busy={props.isBatchSaving} disabled={props.isBatchSaving} onClick={() => void props.onCopyCleanupList()}>
-          {props.isBatchSaving ? "处理中..." : "复制清理清单"}
-        </button>
         <button type="button" aria-busy={props.isBatchSaving} disabled={!canWrite || props.isBatchSaving} onClick={() => void props.onRunCleanupAction("unlock")}>批量解锁</button>
         <button type="button" data-ui-kind="button" data-control-variant="primary" aria-busy={props.isBatchSaving} disabled={!canWrite || props.isBatchSaving} onClick={() => void props.onRunCleanupAction("transfer")}>转移到角色背包</button>
       </div>
@@ -104,7 +100,7 @@ export function VaultOrganizePanel(props: {
               return <li key={key}><b>{item.name}</b><small>{formatVaultItemMeta(item) || "未知位置"}{plugText ? ` / ${plugText}` : ""}</small>{note ? <small>备注：{note}</small> : null}</li>;
             })}
           </ul>
-          {props.cleanupActionItems.length > 8 ? <span>还有 {props.cleanupActionItems.length - 8} 件，复制清单可查看完整定位信息。</span> : null}
+          {props.cleanupActionItems.length > 8 ? <span>还有 {props.cleanupActionItems.length - 8} 件未在此处展开，请按筛选结果逐件核对。</span> : null}
         </details>
       ) : null}
     </div>

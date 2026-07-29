@@ -171,14 +171,15 @@ export function LibraryPageContentView(props: LibraryPageContentViewProps) {
             {isEquipmentMode ? (
               <>
                 <label>分类<select disabled={isManifestBlocked} value={libraryEquipmentFilter.group} onChange={(event) => actions.onEquipmentFiltersChange({ group: event.target.value as LibraryEquipmentFilter["group"] })}>{equipmentFilterOptions.groups.map((option) => <option key={option.value} value={option.value}>{libraryText(copy, option.label)}</option>)}</select></label>
-                <label>稀有度<select disabled={isManifestBlocked} value={libraryEquipmentFilter.tier} onChange={(event) => actions.onEquipmentFiltersChange({ tier: event.target.value })}>{equipmentFilterOptions.tiers.map((option) => <option key={option.value} value={option.value}>{libraryText(copy, option.label)}</option>)}</select></label>
-                <label>位置<select disabled={isManifestBlocked} value={libraryEquipmentFilter.bucket} onChange={(event) => actions.onEquipmentFiltersChange({ bucket: event.target.value })}>{equipmentFilterOptions.buckets.map((option) => <option key={option.value} value={option.value}>{libraryText(copy, option.label)}</option>)}</select></label>
-                <label>弹药<select disabled={isManifestBlocked} value={libraryEquipmentFilter.ammo} onChange={(event) => actions.onEquipmentFiltersChange({ ammo: event.target.value as LibraryEquipmentFilter["ammo"] })}>{equipmentFilterOptions.ammo.map((option) => <option key={option.value} value={option.value}>{libraryText(copy, option.label)}</option>)}</select></label>
-                <label>获取状态<select disabled={isManifestBlocked} value={libraryEquipmentFilter.dropAccess} onChange={(event) => actions.onEquipmentFiltersChange({ dropAccess: event.target.value as LibraryEquipmentFilter["dropAccess"] })}><option value="all">全部状态</option><option value="available">来源可确认</option><option value="rotation">轮换或限时</option><option value="archived">历史来源</option><option value="unknown">来源未确认</option></select></label>
-                <label>Perk 池<input disabled={isManifestBlocked} value={libraryEquipmentFilter.perkQuery} onChange={(event) => actions.onEquipmentFiltersChange({ perkQuery: event.target.value })} placeholder="在当前结果中筛选 Perk" /></label>
+                <label>账号持有<select disabled={isManifestBlocked} value={libraryEquipmentFilter.ownership ?? "all"} onChange={(event) => actions.onEquipmentFiltersChange({ ownership: event.target.value as LibraryEquipmentFilter["ownership"] })}><option value="all">全部</option><option value="owned">当前账号持有</option><option value="definition">只有 Manifest 定义</option></select></label>
                 <details className="library-advanced-filters">
                   <summary>高级筛选</summary>
                   <div className="library-filter-stack library-nested-filter-stack">
+                    <label>稀有度<select disabled={isManifestBlocked} value={libraryEquipmentFilter.tier} onChange={(event) => actions.onEquipmentFiltersChange({ tier: event.target.value })}>{equipmentFilterOptions.tiers.map((option) => <option key={option.value} value={option.value}>{libraryText(copy, option.label)}</option>)}</select></label>
+                    <label>位置<select disabled={isManifestBlocked} value={libraryEquipmentFilter.bucket} onChange={(event) => actions.onEquipmentFiltersChange({ bucket: event.target.value })}>{equipmentFilterOptions.buckets.map((option) => <option key={option.value} value={option.value}>{libraryText(copy, option.label)}</option>)}</select></label>
+                    <label>弹药<select disabled={isManifestBlocked} value={libraryEquipmentFilter.ammo} onChange={(event) => actions.onEquipmentFiltersChange({ ammo: event.target.value as LibraryEquipmentFilter["ammo"] })}>{equipmentFilterOptions.ammo.map((option) => <option key={option.value} value={option.value}>{libraryText(copy, option.label)}</option>)}</select></label>
+                    <label>获取状态<select disabled={isManifestBlocked} value={libraryEquipmentFilter.dropAccess} onChange={(event) => actions.onEquipmentFiltersChange({ dropAccess: event.target.value as LibraryEquipmentFilter["dropAccess"] })}><option value="all">全部状态</option><option value="available">来源可确认</option><option value="rotation">轮换或限时</option><option value="archived">历史来源</option><option value="unknown">来源未确认</option></select></label>
+                    <label>Perk 池<input disabled={isManifestBlocked} value={libraryEquipmentFilter.perkQuery} onChange={(event) => actions.onEquipmentFiltersChange({ perkQuery: event.target.value })} placeholder="在当前结果中筛选 Perk" /></label>
                     <label>框架<select disabled={isManifestBlocked} value={libraryEquipmentFilter.frame[0] ?? "all"} onChange={(event) => actions.onEquipmentFiltersChange({ frame: event.target.value === "all" ? [] : [event.target.value] })}>{equipmentFilterOptions.frames.map((option) => <option key={option.value} value={option.value}>{libraryText(copy, option.label)}</option>)}</select></label>
                     <label>来源状态<select disabled={isManifestBlocked} value={libraryEquipmentFilter.sourceStatus} onChange={(event) => actions.onEquipmentFiltersChange({ sourceStatus: event.target.value as LibraryEquipmentFilter["sourceStatus"] })}><option value="all">全部来源状态</option><option value="ready">可确认</option><option value="missing">待补充</option></select></label>
                     <label>Perk 池状态<select disabled={isManifestBlocked} value={libraryEquipmentFilter.perkPool} onChange={(event) => actions.onEquipmentFiltersChange({ perkPool: event.target.value as LibraryEquipmentFilter["perkPool"] })}><option value="all">全部</option><option value="yes">有 Perk 池</option><option value="no">无 Perk 池</option></select></label>
@@ -199,7 +200,7 @@ export function LibraryPageContentView(props: LibraryPageContentViewProps) {
               <button type="button" className="library-history-row" key={item.hash} onClick={() => fillRecentQuery(item.name)}>
                 <strong>{item.name}</strong>
                 <span>装备定义</span>
-                <small>填入当前查询</small>
+                <small>{item.viewed_at ? formatStandardDateTime(item.viewed_at) : "查看时间未记录"}</small>
               </button>
             )) : <div className="library-history-empty"><strong>没有最近查询</strong><span>本地资料库历史为空。</span></div>}
           </div>
@@ -225,10 +226,16 @@ export function LibraryPageContentView(props: LibraryPageContentViewProps) {
             {model.status.searchError ? <p className="status-message status-error">{model.status.searchError}</p> : null}
             {model.results.searchTouched && isEquipmentMode ? (
               <div className="library-result-list library-equipment-list">
-                {equipmentRows.map((item) => renderEquipmentResult(item, () => {
-                  if (item.item.group_key === "weapons" || item.item.group_key === "armor") actions.onOpenItemDetail(item.item);
-                  else setSelectedDefinitionHash(item.item.hash);
-                }, actions.onAddFavorite, actions.onRemoveFavorite, actions.onLocateOwnedItem, copy))}
+                {equipmentRows.map((item) => renderEquipmentResult(
+                  item,
+                  item.item.group_key === "weapons" || item.item.group_key === "armor"
+                    ? () => actions.onOpenItemDetail(item.item)
+                    : undefined,
+                  actions.onAddFavorite,
+                  actions.onRemoveFavorite,
+                  actions.onLocateOwnedItem,
+                  copy
+                ))}
               </div>
             ) : null}
             {model.results.searchTouched && !isEquipmentMode ? (
@@ -345,7 +352,7 @@ function formatManifestDefinitionCounts(
 
 function renderEquipmentResult(
   row: LibraryEquipmentResultView,
-  onOpenDefinition: () => void,
+  onOpenDefinition: (() => void) | undefined,
   onAddFavorite: (item: ItemSearchResult | PerkSearchResult) => void,
   onRemoveFavorite: (hash: number) => void,
   onLocateOwnedItem: ((item: ItemSearchResult) => void) | undefined,
@@ -396,9 +403,9 @@ function renderEquipmentResult(
         </details>
       </div>
       <div className="library-result-actions">
-        <button type="button" data-ui-kind="button" data-control-variant="primary" disabled={row.isDetailLoading} onClick={onOpenDefinition}>
+        {onOpenDefinition ? <button type="button" data-ui-kind="button" data-control-variant="primary" disabled={row.isDetailLoading} onClick={onOpenDefinition}>
           {row.isDetailLoading ? libraryText(copy, "打开中...") : libraryText(copy, "查看详情")}
-        </button>
+        </button> : null}
         {row.isFavorite ? (
           <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={() => onRemoveFavorite(item.hash)}>
             {libraryText(copy, "取消收藏")}

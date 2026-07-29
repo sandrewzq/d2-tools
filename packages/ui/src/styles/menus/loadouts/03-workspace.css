@@ -7,6 +7,7 @@
   display: flex;
   min-width: 0;
   min-height: 62px;
+  overflow: hidden;
   border-bottom: 1px solid var(--border-subtle);
   background: var(--surface-subtle);
 }
@@ -14,10 +15,10 @@
 .app-shell .loadout-character-tabs button {
   display: grid;
   grid-template-columns: 28px minmax(0, 1fr);
-  flex: 0 1 150px;
+  flex: 0 0 144px;
   gap: 8px;
   align-items: center;
-  min-width: 118px;
+  min-width: 144px;
   padding: 0 13px;
   border: 0;
   border-right: 1px solid var(--border-subtle);
@@ -73,7 +74,6 @@
   align-items: center;
   margin-left: auto;
   padding: 0 16px;
-  border-left: 1px solid var(--border-subtle);
   color: var(--text-muted);
   font-size: var(--font-meta);
   white-space: nowrap;
@@ -94,7 +94,7 @@
   overflow: hidden;
   border: 1px solid var(--border-control);
   border-radius: 4px;
-  background: var(--surface-subtle);
+  background: var(--surface-recessed);
 }
 
 .app-shell .loadout-mode-tabs button {
@@ -153,7 +153,7 @@
   min-height: 36px;
   padding: 0 20px;
   border-bottom: 1px solid var(--border-subtle);
-  background: var(--surface-subtle);
+  background: transparent;
   font-size: var(--font-meta);
 }
 

@@ -41,6 +41,48 @@ export function VaultListItem(props: {
     localTargetMatched: localTarget.matched,
     communityMatched: Boolean(communityMatch && communityMatch.matched > 0)
   });
+  const detailAvailable = props.item.group_key === "weapons" || props.item.group_key === "armor";
+  const cardContent = <>
+    <div className="vault-card-visual">
+      {props.item.icon ? <img alt="" src={props.item.icon} /> : <div className="item-icon-placeholder" />}
+    </div>
+    <div className="vault-card-body">
+      <div className="vault-title-row">
+        <strong>{props.item.name}</strong>
+        <span className={`vault-score-badge score-${tagValue}`}>{tagLabel}</span>
+      </div>
+      <small className={`decision-badge decision-${decision.decision}`}>
+        {summarizeItemDecision(decision)}
+      </small>
+      <span className="vault-card-meta">{formatVaultItemMeta(props.item)}</span>
+      <div className="vault-card-signals">
+        {isLoadoutMatch ? <small className="loadout-template-badge">方案命中</small> : null}
+        {wishlist.matched ? (
+          <small className="wishlist-hit">
+            <span className="wishlist-hit-badge">DIM 愿望单</span>
+            <span>{formatWishlistHint(wishlist.labels)}</span>
+          </small>
+        ) : null}
+        {localTarget.matched ? (
+          <small className="target-hit">
+            <span className="target-hit-badge">本地目标</span>
+            <span>{localTarget.labels.join(" / ")}</span>
+          </small>
+        ) : null}
+        {communityMatch && communityMatch.matched > 0 ? (
+          <small className="community-match">
+            <span className="community-match-badge">社区推荐</span>
+            <span>命中 {communityMatch.matched} 个组合{communityMatch.modes.length ? ` · ${communityMatch.modes.map(formatCommunityMode).join(" / ")}` : ""}</span>
+          </small>
+        ) : null}
+      </div>
+      {props.item.socket_plugs?.length ? (
+        <small className="vault-card-roll">{props.item.socket_plugs.slice(0, 4).map((plug) => plug.name).join(" / ")}</small>
+      ) : null}
+      {note ? <small className="vault-note-snippet">备注：{note}</small> : null}
+      {props.isOpening ? <small className="vault-card-open-state">正在打开详情...</small> : null}
+    </div>
+  </>;
 
   return (
     <article
@@ -48,7 +90,8 @@ export function VaultListItem(props: {
         "vault-item-card",
         props.isSelected ? "selected" : "",
         isLoadoutMatch ? "loadout-highlight" : "",
-        props.isOpening ? "pending" : ""
+        props.isOpening ? "pending" : "",
+        detailAvailable ? "" : "is-readonly"
       ].filter(Boolean).join(" ")}
     >
       {props.isOrganizing ? (
@@ -61,53 +104,17 @@ export function VaultListItem(props: {
           选择
         </label>
       ) : null}
-      <button
-        type="button"
-        className="vault-card-main"
-        aria-busy={props.isOpening}
-        disabled={props.isOpening}
-        onClick={() => props.onSelectItem(props.item)}
-      >
-        <div className="vault-card-visual">
-          {props.item.icon ? <img alt="" src={props.item.icon} /> : <div className="item-icon-placeholder" />}
-        </div>
-        <div className="vault-card-body">
-          <div className="vault-title-row">
-            <strong>{props.item.name}</strong>
-            <span className={`vault-score-badge score-${tagValue}`}>{tagLabel}</span>
-          </div>
-          <small className={`decision-badge decision-${decision.decision}`}>
-            {summarizeItemDecision(decision)}
-          </small>
-          <span className="vault-card-meta">{formatVaultItemMeta(props.item)}</span>
-          <div className="vault-card-signals">
-            {isLoadoutMatch ? <small className="loadout-template-badge">方案命中</small> : null}
-            {wishlist.matched ? (
-              <small className="wishlist-hit">
-                <span className="wishlist-hit-badge">DIM 愿望单</span>
-                <span>{formatWishlistHint(wishlist.labels)}</span>
-              </small>
-            ) : null}
-            {localTarget.matched ? (
-              <small className="target-hit">
-                <span className="target-hit-badge">本地目标</span>
-                <span>{localTarget.labels.join(" / ")}</span>
-              </small>
-            ) : null}
-            {communityMatch && communityMatch.matched > 0 ? (
-              <small className="community-match">
-                <span className="community-match-badge">社区推荐</span>
-                <span>命中 {communityMatch.matched} 个组合{communityMatch.modes.length ? ` · ${communityMatch.modes.map(formatCommunityMode).join(" / ")}` : ""}</span>
-              </small>
-            ) : null}
-          </div>
-          {props.item.socket_plugs?.length ? (
-            <small className="vault-card-roll">{props.item.socket_plugs.slice(0, 4).map((plug) => plug.name).join(" / ")}</small>
-          ) : null}
-          {note ? <small className="vault-note-snippet">备注：{note}</small> : null}
-          {props.isOpening ? <small className="vault-card-open-state">正在打开详情...</small> : null}
-        </div>
-      </button>
+      {detailAvailable ? (
+        <button
+          type="button"
+          className="vault-card-main"
+          aria-busy={props.isOpening}
+          disabled={props.isOpening}
+          onClick={() => props.onSelectItem(props.item)}
+        >
+          {cardContent}
+        </button>
+      ) : <div className="vault-card-main is-readonly">{cardContent}</div>}
     </article>
   );
 }

@@ -111,10 +111,10 @@
   gap: 12px;
   align-items: center;
   justify-content: space-between;
-  min-height: 98px;
-  padding: 12px 14px;
+  min-height: 82px;
+  padding: 12px;
   border-bottom: 1px solid var(--border-subtle);
-  background: var(--surface-subtle);
+  background: var(--surface-elevated);
 }
 
 .app-shell .vendor-eyebrow {
@@ -125,12 +125,12 @@
 .app-shell .vendor-hero h2 {
   margin: 3px 0 0;
   color: var(--text-title);
-  font-size: 18px;
+  font-size: 17px;
 }
 
 .app-shell .vendor-hero p {
   margin: 4px 0 0;
-  color: var(--text-body);
+  color: var(--text-muted);
   font-size: var(--font-meta);
   line-height: 1.5;
 }
@@ -138,8 +138,8 @@
 .app-shell .vendor-hero-meta {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px 12px;
-  margin-top: 6px;
+  gap: 6px;
+  margin-top: 5px;
   color: var(--text-muted);
   font-size: var(--font-caption);
 }
@@ -329,7 +329,7 @@
   gap: 8px;
   width: 100%;
   min-width: 0;
-  min-height: 118px;
+  min-height: 102px;
   padding: 9px;
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-object);
@@ -343,17 +343,23 @@
   background: var(--surface-interactive);
 }
 
+.app-shell .vendor-offer-card.is-readonly:hover {
+  border-color: var(--border-subtle);
+  background: var(--surface-panel);
+}
+
 .app-shell .vendor-offer-header {
   display: grid;
-  grid-template-columns: 42px minmax(0, 1fr);
-  gap: 9px;
-  align-items: start;
+  grid-template-columns: var(--item-thumb) minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
 }
 
 .app-shell .vendor-item-art {
+  position: relative;
   display: grid;
-  width: 42px;
-  height: 42px;
+  width: var(--item-thumb);
+  height: var(--item-thumb);
   place-items: center;
   overflow: hidden;
   border: 1px solid var(--border-control);
@@ -361,7 +367,18 @@
   background: var(--surface-subtle);
 }
 
+.app-shell .vendor-item-art-fallback {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--text-muted);
+  font-size: var(--font-caption);
+  font-weight: 700;
+}
+
 .app-shell .vendor-item-art img {
+  position: relative;
   width: 100%;
   height: 100%;
   object-fit: cover;

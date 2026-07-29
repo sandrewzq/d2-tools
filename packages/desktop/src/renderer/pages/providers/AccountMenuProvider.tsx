@@ -14,6 +14,7 @@ export function AccountMenuProvider() {
       accountSummary={accountSummary}
       startupState={session.state}
       selectedCharacterId={account.selectedCharacterId}
+      lastAccountLoadedAt={session.lastAccountLoadedAt}
       isLoadingAccount={account.isLoadingAccount}
       accountError={account.accountError}
       accountWarning={account.accountWarning}

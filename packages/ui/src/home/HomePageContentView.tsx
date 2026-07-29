@@ -85,6 +85,7 @@ export type HomeWeeklyActivityReward = {
   name: string;
   icon?: string;
   item_type?: string;
+  group_key?: "weapons" | "armor" | "equipment" | "other";
 };
 export type HomeWeeklyActivityEntry = {
   title: string;
@@ -482,7 +483,10 @@ function HomeActivityReward(props: {
       </div>
     </>;
 
-  const isActionable = Boolean(props.onOpen) && Number.isFinite(props.reward.hash) && props.reward.hash > 0;
+  const isActionable = Boolean(props.onOpen)
+    && Number.isFinite(props.reward.hash)
+    && props.reward.hash > 0
+    && isHomeEquipmentReward(props.reward);
   if (!isActionable) return <div className="weekly-activity-reward">{content}</div>;
 
   return (
@@ -497,6 +501,12 @@ function HomeActivityReward(props: {
       {content}
     </button>
   );
+}
+
+function isHomeEquipmentReward(reward: HomeWeeklyActivityReward): boolean {
+  if (reward.group_key === "weapons" || reward.group_key === "armor") return true;
+  if (reward.group_key === "equipment" || reward.group_key === "other") return false;
+  return /武器|步枪|手炮|弓|霰弹枪|狙击枪|榴弹发射器|机枪|火箭发射器|剑|融合步枪|冲锋枪|手枪|偃月|护甲|头盔|臂铠|胸甲|胸部护甲|腿甲|腿部护甲|职业物品|weapon|rifle|launcher|cannon|shotgun|sniper|sword|glaive|bow|armor|helmet|gauntlets|chest|leg armor|class item/i.test(reward.item_type?.trim() ?? "");
 }
 
 function HomeXurOffer(props: {
