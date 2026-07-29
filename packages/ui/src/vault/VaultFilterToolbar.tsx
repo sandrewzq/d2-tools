@@ -47,16 +47,23 @@ export function VaultFilterToolbar(props: {
   const isWeaponMode = props.group === "weapons";
   const isArmorMode = props.group === "armor";
   const currentGroup = props.groups.find((item) => item.key === props.group);
+  const currentGroupTitle = props.group === "all"
+    ? "全部物品装备"
+    : props.group === "equipment"
+      ? "装备"
+      : props.group === "other"
+        ? "其他物品"
+        : `${currentGroup?.label ?? "全部"}装备`;
 
   return (
     <section className="vault-filter-workbench" aria-label="仓库筛选">
       <header className="vault-filter-head">
         <div className="vault-filter-title">
           <span>筛选工作台</span>
-          <strong>{currentGroup?.label ?? "全部"}</strong>
+          <strong>{currentGroupTitle}</strong>
         </div>
         <div className="vault-filter-actions">
-          <span className="vault-filter-hint">先缩小结果范围，再决定排列方式</span>
+          <span className="vault-filter-hint">条件按范围分别保留</span>
           <button type="button" className="vault-filter-reset" data-ui-kind="button" data-control-variant="secondary" onClick={props.onClearFilters}>
             清空当前筛选
           </button>
@@ -94,7 +101,7 @@ export function VaultFilterToolbar(props: {
       <section className="vault-filter-common">
         <div className="vault-filter-section-head">
           <span>基础条件</span>
-          <span>共同条件会应用到当前范围</span>
+          <span>缩小结果范围，再决定排列方式</span>
         </div>
         <div className="vault-filter-common-row">
           <label className="vault-filter-field">

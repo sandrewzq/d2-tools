@@ -109,7 +109,7 @@ export function ProductShellHost(props: ProductShellHostProps) {
 
 const productPageHeaderMeta: Record<ShellPageKey, { eyebrow: string; title: string; subtitle: string }> = {
   home: { eyebrow: "公开游戏世界", title: "本周情报", subtitle: "只展示 Bungie 公开接口与经过校验的公开机器数据，不猜测缺失内容。" },
-  account: { eyebrow: "账号", title: "角色与账号数据", subtitle: "角色装备、背包、活动、材料和邮政官均来自当前 Profile 快照。" },
+  account: { eyebrow: "账号", title: "角色与账号数据", subtitle: "角色装备与背包保持按槽位对照，其他配置、任务和物品分别查看。" },
   vault: { eyebrow: "装备管理", title: "仓库工作台", subtitle: "真实工作流分为筛选列表、清理工作台、同名对比和推荐数据。" },
   loadouts: { eyebrow: "配装", title: "配装工作台", subtitle: "集中处理本地模板和 Bungie 游戏内配装栏的补齐、应用、覆盖与差异。" },
   library: { eyebrow: "资料库", title: "装备与 Perk 查询", subtitle: "使用本地 Manifest 搜索定义、版本、Perk 池、获取来源和账号持有实例。" },

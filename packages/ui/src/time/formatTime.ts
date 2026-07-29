@@ -40,6 +40,11 @@ export function formatCompactDateTime(
   return `${pad(date.getMonth() + 1)}/${pad(date.getDate())} ${formatClock(date)}`;
 }
 
+export function formatClockTime(value: TimeValue, fallback = defaultFallback): string {
+  const date = parseTimeValue(value);
+  return date ? formatClock(date) : fallback;
+}
+
 function parseTimeValue(value: TimeValue): Date | null {
   if (value === null || value === undefined || value === "") return null;
   const date = value instanceof Date ? new Date(value.getTime()) : new Date(value);

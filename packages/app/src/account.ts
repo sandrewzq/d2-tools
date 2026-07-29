@@ -9,10 +9,12 @@ export { loadAccountDerivedWorkspace, loadFullAccountWorkspace } from "./workspa
 export type {
   AccountCharacterTab,
   AccountActivitySectionView,
+  AccountConfigurationSectionView,
   AccountCharacterTabView,
   AccountConnectionView,
   AccountFeedbackView,
   AccountItemView,
+  AccountItemsSectionView,
   AccountLoadoutSectionView,
   AccountLoadoutSlotRow,
   AccountMaterialRow,
@@ -26,12 +28,15 @@ export type {
   AccountPostmasterSectionView,
   AccountPostmasterPreviewItem,
   AccountProfileView,
+  AccountReadonlyGroupView,
+  AccountReadonlyItemView,
   SharedDomainCache,
   AccountSlotCategory,
   AccountSlotCategoryKey,
   AccountSlotComparisonRow,
   AccountSlotComparisonViewRow,
-  AccountSlotGroup
+  AccountSlotGroup,
+  AccountTasksSectionView
 } from "./workspaces/accountPage.js";
 export {
   buildAccountCharacterTabs,

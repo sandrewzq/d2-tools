@@ -19,6 +19,22 @@ export type AccountItemView = {
   openPayload: AccountOpenItemPayload;
 };
 
+export type AccountReadonlyItemView = {
+  key: string;
+  name: string;
+  icon?: string;
+  typeLabel: string;
+  sourceLabel: string;
+};
+
+export type AccountReadonlyGroupView = {
+  key: string;
+  label: string;
+  description: string;
+  items: AccountReadonlyItemView[];
+  status: "neutral" | "warning";
+};
+
 export type AccountCharacterTabView = {
   key: string;
   className: string;
@@ -63,9 +79,9 @@ export type AccountProfileView = {
 };
 
 export type AccountPageNavItem = {
-  key: "profile" | "loadout" | "activity" | "materials" | "postmaster";
+  key: "gear" | "configuration" | "tasks" | "items" | "postmaster" | "activity";
   href: string;
-  labelKey: "overview" | "loadout" | "activity" | "materials" | "postmaster";
+  labelKey: "gear" | "configuration" | "tasks" | "items" | "postmaster" | "activity";
 };
 
 export type AccountCharacterDetailView = {
@@ -91,6 +107,28 @@ export type AccountActivitySectionView = {
   error: string;
 };
 
+export type AccountConfigurationSectionView = {
+  primaryItems: AccountReadonlyItemView[];
+  extraItems: AccountReadonlyItemView[];
+};
+
+export type AccountTasksSectionView = {
+  itemCount: number;
+  questCount: number;
+  orderCount: number;
+  seasonalCount: number;
+  groups: AccountReadonlyGroupView[];
+};
+
+export type AccountItemsSectionView = {
+  itemCount: number;
+  carriedCount: number;
+  materialCount: number;
+  collectionCount: number;
+  unknownCount: number;
+  groups: AccountReadonlyGroupView[];
+};
+
 export type AccountMaterialsSectionView = {
   rows: AccountMaterialRow[];
 };
@@ -107,6 +145,9 @@ export type AccountPageViewModel = {
   characterTabs: AccountCharacterTabView[];
   selectedCharacter: AccountCharacterDetailView | null;
   loadout: AccountLoadoutSectionView;
+  configuration: AccountConfigurationSectionView;
+  tasks: AccountTasksSectionView;
+  items: AccountItemsSectionView;
   activity: AccountActivitySectionView;
   materials: AccountMaterialsSectionView;
   postmaster: AccountPostmasterSectionView;
@@ -223,6 +264,19 @@ const categoryLabels: Record<AccountSlotCategoryKey, string> = {
 
 const categoryOrder: AccountSlotCategoryKey[] = ["weapons", "armor", "equipment", "other"];
 
+const configurationBuckets = new Set([
+  "职业分支",
+  "机灵",
+  "飞船",
+  "载具",
+  "徽标",
+  "公会战旗",
+  "终结技",
+  "动作"
+]);
+
+const primaryConfigurationBuckets = new Set(["职业分支", "机灵", "飞船", "载具", "徽标"]);
+
 const bucketOrder = [
   "动能武器",
   "能量武器",
@@ -263,6 +317,8 @@ export function createAccountPageWorkspace(input: {
     ?? account?.characters[0]
     ?? null;
   const selectedCharacterItems = selectedCharacter ? getCharacterCombinedItems(selectedCharacter) : [];
+  const combatEquippedItems = selectedCharacter?.equipped_items.filter(isCombatItem) ?? [];
+  const combatInventoryItems = selectedCharacter?.inventory_items.filter(isCombatItem) ?? [];
 
   return {
     accountProfileLine: account ? `Membership ${account.membership_type} / ${account.destiny_membership_id}` : "",
@@ -275,7 +331,7 @@ export function createAccountPageWorkspace(input: {
     equippedSlotCategories: selectedCharacter ? groupAccountItemsBySlot(selectedCharacter.equipped_items) : [],
     inventorySlotCategories: selectedCharacter ? groupAccountItemsBySlot(selectedCharacter.inventory_items) : [],
     slotComparisonRows: selectedCharacter
-      ? buildAccountSlotComparisonRows(selectedCharacter.equipped_items, selectedCharacter.inventory_items)
+      ? buildAccountSlotComparisonRows(combatEquippedItems, combatInventoryItems)
       : [],
     selectedCharacterLoadoutMatchCount: input.isLoadoutMatch
       ? selectedCharacterItems.filter(input.isLoadoutMatch).length
@@ -305,6 +361,9 @@ export function selectAccountPageModel(input: AccountPageModelInput): AccountPag
   const selectedCharacterId = selectedCharacter?.character_id ?? "";
   const openingItemKey = pageState.openingItemKey ?? "";
   const isLoadoutMatch = pageState.isLoadoutMatch ?? (() => false);
+  const configuration = buildAccountConfigurationSection(selectedCharacter);
+  const tasks = buildAccountTasksSection(selectedCharacter);
+  const items = buildAccountItemsSection(selectedCharacter, workspace.materialRows.length);
 
   return {
     connection: {
@@ -351,8 +410,8 @@ export function selectAccountPageModel(input: AccountPageModelInput): AccountPag
       }
       : null,
     loadout: {
-      equippedCount: selectedCharacter?.equipped_items.length ?? 0,
-      inventoryCount: selectedCharacter?.inventory_items.length ?? 0,
+      equippedCount: workspace.slotComparisonRows.reduce((count, row) => count + row.equippedItems.length, 0),
+      inventoryCount: workspace.slotComparisonRows.reduce((count, row) => count + row.inventoryItems.length, 0),
       activeTemplateName: pageState.activeLoadoutTemplateName,
       selectedCharacterLoadoutMatchCount: workspace.selectedCharacterLoadoutMatchCount,
       isRunningItemAction: pageState.isRunningItemAction,
@@ -376,6 +435,9 @@ export function selectAccountPageModel(input: AccountPageModelInput): AccountPag
         }))
       }))
     },
+    configuration,
+    tasks,
+    items,
     activity: {
       summary: cache.activitySummary,
       message: pageState.activityMessage,
@@ -400,12 +462,154 @@ export function selectAccountPageModel(input: AccountPageModelInput): AccountPag
 
 function accountPageNavigation(): AccountPageNavItem[] {
   return [
-    { key: "profile", href: "#account-profile", labelKey: "overview" },
-    { key: "loadout", href: "#account-loadout", labelKey: "loadout" },
-    { key: "activity", href: "#account-activity", labelKey: "activity" },
-    { key: "materials", href: "#account-materials", labelKey: "materials" },
-    { key: "postmaster", href: "#account-postmaster", labelKey: "postmaster" }
+    { key: "gear", href: "#account-gear", labelKey: "gear" },
+    { key: "configuration", href: "#account-configuration", labelKey: "configuration" },
+    { key: "tasks", href: "#account-tasks", labelKey: "tasks" },
+    { key: "items", href: "#account-items", labelKey: "items" },
+    { key: "postmaster", href: "#account-postmaster", labelKey: "postmaster" },
+    { key: "activity", href: "#account-activity", labelKey: "activity" }
   ];
+}
+
+function buildAccountConfigurationSection(
+  character: AccountSummary["characters"][number] | null
+): AccountConfigurationSectionView {
+  const items = character?.equipped_items.filter((item) => configurationBuckets.has(item.bucket_name?.trim() ?? "")) ?? [];
+  return {
+    primaryItems: toReadonlyItems(
+      items.filter((item) => primaryConfigurationBuckets.has(item.bucket_name?.trim() ?? "")),
+      "当前配置"
+    ),
+    extraItems: toReadonlyItems(
+      items.filter((item) => !primaryConfigurationBuckets.has(item.bucket_name?.trim() ?? "")),
+      "当前配置"
+    )
+  };
+}
+
+function buildAccountTasksSection(
+  character: AccountSummary["characters"][number] | null
+): AccountTasksSectionView {
+  const groups: Record<AccountTaskKind, AccountItemSummary[]> = {
+    quests: [],
+    orders: [],
+    seasonal: []
+  };
+
+  for (const item of character ? getCharacterCombinedItems(character) : []) {
+    const kind = getAccountTaskKind(item);
+    if (kind) groups[kind].push(item);
+  }
+
+  return {
+    itemCount: groups.quests.length + groups.orders.length + groups.seasonal.length,
+    questCount: groups.quests.length,
+    orderCount: groups.orders.length,
+    seasonalCount: groups.seasonal.length,
+    groups: [
+      toReadonlyGroup("quests", "任务与步骤", "主线、任务步骤和追踪记录", groups.quests, "角色任务"),
+      toReadonlyGroup("orders", "命令与赏金", "枪匠命令、铸造厂命令与赏金", groups.orders, "角色任务"),
+      toReadonlyGroup("seasonal", "神器与赛季进度", "神器和赛季加成记录", groups.seasonal, "角色进度")
+    ]
+  };
+}
+
+function buildAccountItemsSection(
+  character: AccountSummary["characters"][number] | null,
+  materialCount: number
+): AccountItemsSectionView {
+  const inventoryItems = character?.inventory_items ?? [];
+  const carried = inventoryItems.filter((item) => Boolean(getAccountCarryKind(item)));
+  const collection = inventoryItems.filter((item) => (
+    !getAccountTaskKind(item)
+    && !getAccountCarryKind(item)
+    && isAccountCollectionItem(item)
+  ));
+  const unknown = inventoryItems.filter((item) => (
+    !isCombatItem(item)
+    && !getAccountTaskKind(item)
+    && !getAccountCarryKind(item)
+    && !isAccountCollectionItem(item)
+  ));
+
+  return {
+    itemCount: carried.length + materialCount,
+    carriedCount: carried.length,
+    materialCount,
+    collectionCount: collection.length,
+    unknownCount: unknown.length,
+    groups: [
+      toReadonlyGroup("carried", "角色携带物品", "记忆水晶、消耗品和钥匙等角色物品", carried, "当前角色背包"),
+      toReadonlyGroup("collection", "外观与可选配置", "未装备的职业分支、飞船、载具、徽标和外观", collection, "当前角色背包"),
+      toReadonlyGroup(
+        "unknown",
+        "未分类数据",
+        "资料库暂时无法稳定归类，仅用于兼容和诊断",
+        unknown,
+        "当前角色背包",
+        unknown.length ? "warning" : "neutral"
+      )
+    ]
+  };
+}
+
+type AccountTaskKind = "quests" | "orders" | "seasonal";
+
+function getAccountTaskKind(item: AccountItemSummary): AccountTaskKind | "" {
+  const text = accountItemSearchText(item);
+  if (includesAny(text, ["命令", "赏金", "bounty", "order"])) return "orders";
+  if (includesAny(text, ["神器", "赛季加成", "artifact"])) return "seasonal";
+  if (includesAny(text, ["任务", "任务步骤", "周常", "传承", "信条", "召唤", "证章", "回归者", "quest"])) return "quests";
+  return "";
+}
+
+function getAccountCarryKind(item: AccountItemSummary): "engrams" | "consumables" | "" {
+  const text = accountItemSearchText(item);
+  if (includesAny(text, ["记忆水晶", "engram"])) return "engrams";
+  if (includesAny(text, ["消耗品", "钥匙", "礼物", "加成", "consumable", "boost", "gift", "key"])) return "consumables";
+  return "";
+}
+
+function isAccountCollectionItem(item: AccountItemSummary): boolean {
+  const bucketName = item.bucket_name?.trim() ?? "";
+  const text = `${bucketName} ${item.item_type ?? ""}`.toLowerCase();
+  return configurationBuckets.has(bucketName)
+    || includesAny(text, ["着色器", "配件", "外观", "投影", "shader", "ornament", "projection"]);
+}
+
+function isCombatItem(item: AccountItemSummary): boolean {
+  return item.group_key === "weapons" || item.group_key === "armor";
+}
+
+function accountItemSearchText(item: AccountItemSummary): string {
+  return `${item.bucket_name ?? ""} ${item.item_type ?? ""} ${item.name}`.toLowerCase();
+}
+
+function toReadonlyGroup(
+  key: string,
+  label: string,
+  description: string,
+  items: AccountItemSummary[],
+  sourceLabel: string,
+  status: AccountReadonlyGroupView["status"] = "neutral"
+): AccountReadonlyGroupView {
+  return {
+    key,
+    label,
+    description,
+    items: toReadonlyItems(items, sourceLabel),
+    status
+  };
+}
+
+function toReadonlyItems(items: AccountItemSummary[], sourceLabel: string): AccountReadonlyItemView[] {
+  return items.map((item, index) => ({
+    key: `${sourceLabel}:${getAccountPageItemKey(item)}:${index}`,
+    name: item.name,
+    icon: item.icon,
+    typeLabel: item.item_type?.trim() || item.bucket_name?.trim() || "类型未识别",
+    sourceLabel
+  }));
 }
 
 function toAccountItemView(input: {

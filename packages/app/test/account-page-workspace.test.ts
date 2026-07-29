@@ -206,11 +206,12 @@ describe("account page workspace", () => {
       inventoryLine: "仓库装备：2 / 材料与消耗品：1"
     });
     expect(viewModel.navigation.map((item) => item.href)).toEqual([
-      "#account-profile",
-      "#account-loadout",
-      "#account-activity",
-      "#account-materials",
-      "#account-postmaster"
+      "#account-gear",
+      "#account-configuration",
+      "#account-tasks",
+      "#account-items",
+      "#account-postmaster",
+      "#account-activity"
     ]);
     expect(viewModel.selectedCharacter?.characterId).toBe("char-1");
     expect(viewModel.loadout.slotComparisonRows[0]?.equippedItems[0]?.openPayload).toMatchObject({

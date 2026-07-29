@@ -599,6 +599,253 @@
   font-size: var(--font-caption);
 }
 
+.app-shell .account-section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--surface-panel);
+}
+
+.app-shell .account-section-heading span,
+.app-shell .account-section-heading h4 {
+  display: block;
+}
+
+.app-shell .account-section-heading h4 {
+  margin: 2px 0 0;
+  color: var(--text-title);
+  font-size: var(--priority-decision);
+}
+
+.app-shell .account-section-heading > span {
+  color: var(--text-body);
+  font-size: var(--priority-support);
+  text-align: right;
+}
+
+.app-shell .account-character-config {
+  border-top: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.app-shell .account-config-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+  padding: 10px 12px;
+}
+
+.app-shell .account-config-item {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  gap: 9px;
+  align-items: center;
+  min-width: 0;
+  min-height: 66px;
+  padding: 8px;
+  border: 1px solid var(--object-border);
+  border-radius: var(--radius-object);
+  background: var(--card-bg);
+}
+
+.app-shell .account-config-item > img,
+.app-shell .account-config-item > .item-icon-placeholder,
+.app-shell .account-readonly-row > img,
+.app-shell .account-readonly-row > .item-icon-placeholder {
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-control);
+  background: var(--surface-interactive);
+  object-fit: cover;
+}
+
+.app-shell .account-config-item > span,
+.app-shell .account-config-item strong,
+.app-shell .account-config-item span,
+.app-shell .account-config-item small {
+  display: block;
+  min-width: 0;
+}
+
+.app-shell .account-config-item strong {
+  overflow: hidden;
+  color: var(--text-title);
+  font-size: var(--font-content);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-shell .account-config-item span {
+  color: var(--text-body);
+  font-size: var(--font-caption);
+}
+
+.app-shell .account-config-item small {
+  margin-top: 2px;
+  color: var(--text-muted);
+  font-size: var(--font-caption);
+}
+
+.app-shell .account-config-more,
+.app-shell .account-data-group {
+  border-top: 1px solid var(--border-subtle);
+}
+
+.app-shell .account-config-more > summary,
+.app-shell .account-data-group > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 48px;
+  padding: 8px 12px;
+  list-style: none;
+  background: var(--surface-recessed);
+  cursor: pointer;
+}
+
+.app-shell .account-config-more > summary::-webkit-details-marker,
+.app-shell .account-data-group > summary::-webkit-details-marker {
+  display: none;
+}
+
+.app-shell .account-config-more > summary span,
+.app-shell .account-config-more > summary strong,
+.app-shell .account-config-more > summary small,
+.app-shell .account-data-group > summary span,
+.app-shell .account-data-group > summary strong,
+.app-shell .account-data-group > summary small {
+  display: block;
+}
+
+.app-shell .account-config-more > summary strong,
+.app-shell .account-data-group > summary strong {
+  color: var(--text-title);
+  font-size: var(--font-content);
+}
+
+.app-shell .account-config-more > summary small,
+.app-shell .account-data-group > summary small {
+  margin-top: 2px;
+  color: var(--text-body);
+  font-size: var(--font-caption);
+}
+
+.app-shell .account-config-more > summary b,
+.app-shell .account-data-group > summary b {
+  color: var(--text-muted);
+  font-size: var(--font-meta);
+  font-weight: 600;
+}
+
+.app-shell .account-config-more > summary b::after,
+.app-shell .account-data-group > summary b::after {
+  content: " · 展开";
+}
+
+.app-shell .account-config-more[open] > summary b::after,
+.app-shell .account-data-group[open] > summary b::after {
+  content: " · 收起";
+}
+
+.app-shell .account-status-matrix {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 10px 12px 0;
+  overflow: hidden;
+}
+
+.app-shell .account-status-matrix > div {
+  min-width: 0;
+  padding: 9px 11px;
+  border-right: 1px solid var(--border-subtle);
+}
+
+.app-shell .account-status-matrix > div:last-child {
+  border-right: 0;
+}
+
+.app-shell .account-status-matrix span,
+.app-shell .account-status-matrix strong {
+  display: block;
+}
+
+.app-shell .account-status-matrix span {
+  color: var(--text-muted);
+  font-size: var(--font-caption);
+}
+
+.app-shell .account-status-matrix strong {
+  margin-top: 3px;
+  color: var(--text-title);
+  font-size: var(--priority-decision);
+}
+
+.app-shell .account-data-groups {
+  margin-top: 10px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.app-shell .account-data-group:first-child {
+  border-top: 0;
+}
+
+.app-shell .account-data-group[data-status="warning"] > summary {
+  box-shadow: inset 3px 0 0 var(--status-warning);
+}
+
+.app-shell .account-readonly-list {
+  display: grid;
+}
+
+.app-shell .account-readonly-row {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  gap: 9px;
+  align-items: center;
+  min-height: 62px;
+  padding: 8px 12px;
+  border-top: 1px solid var(--border-subtle);
+  cursor: default;
+}
+
+.app-shell .account-readonly-row > span,
+.app-shell .account-readonly-row strong,
+.app-shell .account-readonly-row small {
+  display: block;
+  min-width: 0;
+}
+
+.app-shell .account-readonly-row strong {
+  overflow: hidden;
+  color: var(--text-title);
+  font-size: var(--font-content);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-shell .account-readonly-row small {
+  margin-top: 2px;
+  color: var(--text-body);
+  font-size: var(--font-caption);
+}
+
+.app-shell .account-readonly-row em {
+  color: var(--text-muted);
+  font-size: var(--font-caption);
+  font-style: normal;
+}
+
+.app-shell .account-material-group {
+  margin-top: 10px;
+  border-top: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
 .app-shell .account-activity-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -749,6 +996,22 @@
   .app-shell .account-workspace {
     grid-template-columns: 160px minmax(0, 1fr);
   }
+
+  .app-shell .account-config-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .app-shell .account-status-matrix {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .app-shell .account-status-matrix > div:nth-child(2) {
+    border-right: 0;
+  }
+
+  .app-shell .account-status-matrix > div:nth-child(-n + 2) {
+    border-bottom: 1px solid var(--border-subtle);
+  }
 }
 
 @media (max-width: 760px) {
@@ -792,9 +1055,14 @@
   }
 
   .app-shell .account-band-heading,
-  .app-shell .account-toolbar {
+  .app-shell .account-toolbar,
+  .app-shell .account-section-heading {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .app-shell .account-section-heading > span {
+    text-align: left;
   }
 
   .app-shell .account-actions {
@@ -803,8 +1071,28 @@
 
   .app-shell .account-slot-columns,
   .app-shell .account-activity-grid,
-  .app-shell .account-item-list {
+  .app-shell .account-item-list,
+  .app-shell .account-config-grid,
+  .app-shell .account-status-matrix {
     grid-template-columns: 1fr;
+  }
+
+  .app-shell .account-status-matrix > div,
+  .app-shell .account-status-matrix > div:nth-child(2) {
+    border-right: 0;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  .app-shell .account-status-matrix > div:last-child {
+    border-bottom: 0;
+  }
+
+  .app-shell .account-readonly-row {
+    grid-template-columns: 44px minmax(0, 1fr);
+  }
+
+  .app-shell .account-readonly-row > em {
+    grid-column: 2;
   }
 
   .app-shell .account-slot-column + .account-slot-column {

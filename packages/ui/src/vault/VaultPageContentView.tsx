@@ -47,7 +47,6 @@ import {
   useVaultBatchActions,
   type VaultCleanupActions
 } from "./useVaultBatchActions.js";
-import { ProductWorkspaceCommandBar } from "../workspace/ProductWorkspace.js";
 
 type VaultWorkspaceTab = "filters" | "cleanup" | "duplicates" | "recommendations";
 
@@ -387,11 +386,13 @@ export function VaultPageContentView(props: {
 
   return (
     <div className="vault-page">
-        <ProductWorkspaceCommandBar className="vault-workflow-bar">
-          <div className="vault-workflow-tabs" role="tablist" aria-label="仓库工作台">
+        <div className="vault-workflow-bar" data-surface="section">
+          <div className="vault-workflow-tabs" data-ui-kind="segmented-control" role="tablist" aria-label="仓库工作台">
             {vaultWorkspaceTabs.map((tab) => (
               <button
                 type="button"
+                data-ui-kind="button"
+                data-control-variant="quiet"
                 role="tab"
                 id={tabIds[tab.key]}
                 aria-controls={panelIds[tab.key]}
@@ -407,11 +408,11 @@ export function VaultPageContentView(props: {
             ))}
           </div>
           <div className="vault-workflow-meta">
-            <span className="app-chip">已读取 {vaultItemCount} 件</span>
-            <span className="app-chip status-pending">当前命中 {filteredItems.length} 件</span>
-            {props.highlightedItemKeys ? <span className="app-chip status-ready">配装命中 {loadoutMatchCount} 件</span> : null}
+            <span className="ui-badge status-neutral" data-ui-kind="status-chip" data-ui-part="value" data-info-priority="context" data-text-tone="primary">已读取 {vaultItemCount} 件</span>
+            <span className="ui-badge status-pending" data-ui-kind="status-chip" data-ui-part="state" data-info-priority="support" data-text-tone="action">当前显示 {filteredItems.length} 件</span>
+            {props.highlightedItemKeys ? <span className="ui-badge status-accent" data-ui-kind="status-chip" data-ui-part="state" data-info-priority="support" data-text-tone="status">配装命中 {loadoutMatchCount} 件</span> : null}
           </div>
-        </ProductWorkspaceCommandBar>
+        </div>
         {batchMessage ? <p className={batchMessage.includes("失败") ? "status-message status-error" : "status-message status-ready"}>{batchMessage}</p> : null}
 
         {activeVaultTab === "filters" ? (

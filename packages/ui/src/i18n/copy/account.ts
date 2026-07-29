@@ -5,8 +5,8 @@ export const accountCopy: Record<InterfaceLocale, LocaleCopy["account"]> = {
       inline: {
         "装备类别": "装备"
       },
-      title: "账号摘要",
-      subtitle: "读取当前 Bungie 账号、角色装备、背包、材料和邮政官。",
+      title: "角色与账号数据",
+      subtitle: "角色装备与背包保持按槽位对照，其他配置、任务和物品分别查看。",
       loadAccount: "读取账号数据",
       loadingAccount: "读取中...",
       disconnectedBadge: "未连接 Bungie",
@@ -73,6 +73,11 @@ export const accountCopy: Record<InterfaceLocale, LocaleCopy["account"]> = {
         "待接入": "Pending integration",
         "账号目录": "Account directory",
         "账号数据视图": "Account data views",
+        "角色装备与背包": "Character gear and inventory",
+        "角色配置": "Character configuration",
+        "任务与进度": "Tasks and progress",
+        "物品与货币": "Items and currency",
+        "活动记录": "Activity history",
         "正在读取账号": "Reading account",
         "账号快照尚未读取": "Account snapshot not read",
         "正在读取当前 Profile 快照，完成后会保留角色和位置结构。": "Reading the current Profile snapshot. Character and slot structure will remain visible after it loads.",
@@ -146,8 +151,8 @@ export const accountCopy: Record<InterfaceLocale, LocaleCopy["account"]> = {
         "件": "items",
         "项": "items"
       },
-      title: "Account",
-      subtitle: "Read the current Bungie account, character equipment, inventory, materials, and postmaster.",
+      title: "Characters and account data",
+      subtitle: "Compare weapons and armor by slot, then review configuration, tasks, and other items separately.",
       loadAccount: "Read account data",
       loadingAccount: "Reading...",
       disconnectedBadge: "Bungie disconnected",
