@@ -160,8 +160,96 @@ window.homeWeeklySnapshot = {
         "status": "ready",
         "title": "铁旗已开放",
         "detail": "要塞 · 匹配开放 · 限时熔炉竞技场",
+        "activity_name": "要塞",
+        "playlist_name": "匹配",
         "evidence": "activityTypeHash 2371050408 · modifier 3666600199",
         "source": "Bungie CharacterActivities + 当前 Manifest",
+        "characters": {
+          "available_count": 2,
+          "total_count": 2
+        },
+        "challenge": {
+          "objective_hash": 444837989,
+          "progress": 0,
+          "completion_value": 3,
+          "progress_label": "活动",
+          "description": "完成活动列表中的活动，获得大幅光等提升且装备阶级更高的装备。"
+        },
+        "reward_groups": [
+          {
+            "display_behavior": 0,
+            "display_mode": "aggregate",
+            "label": "活动奖励提示",
+            "note": "当前角色可见，不代表每局必定获得。",
+            "conditional": false,
+            "items": [
+              {
+                "hash": 2359714535,
+                "name": "铁旗记忆水晶",
+                "icon": "/common/destiny2_content/icons/c094fe5025c3d1d4c702e187121cf538.png",
+                "item_type": "装备阶级1-5"
+              }
+            ]
+          },
+          {
+            "display_behavior": 1,
+            "display_mode": "pick_first",
+            "label": "概率掉落提示",
+            "note": "条件可见的通用熔炉掉落，不计入铁旗专属奖励。",
+            "conditional": true,
+            "ui_style": "daily_grind_chance",
+            "items": [
+              {
+                "hash": 4059111040,
+                "name": "幸存者碑文",
+                "icon": "/common/destiny2_content/icons/ace673fedd9bcb795b44598164243450.jpg",
+                "item_type": "手炮",
+                "group_key": "weapons"
+              }
+            ]
+          }
+        ],
+        "loot_pool": {
+          "source": "Bungie Character Vendors + 当前 Manifest",
+          "refresh_at": "2026-08-04T17:00:00.000Z",
+          "attunement_count": 14,
+          "weapon_offer_count": 25,
+          "armor_offer_count": 10,
+          "featured_items": [
+            {
+              "hash": 3998696856,
+              "name": "前进之道",
+              "icon": "/common/destiny2_content/icons/6539d2503c231065fb6da05676084fd7.jpg",
+              "item_type": "自动步枪",
+              "group_key": "weapons",
+              "cost_label": "2 铁旗暗码 · 15,000 微光"
+            },
+            {
+              "hash": 1961110335,
+              "name": "致命丰裕",
+              "icon": "/common/destiny2_content/icons/7d1a259e4bba6673e160837784b91ad7.jpg",
+              "item_type": "自动步枪",
+              "group_key": "weapons",
+              "cost_label": "2 铁旗暗码 · 15,000 微光"
+            },
+            {
+              "hash": 2277616134,
+              "name": "牡鹿之角",
+              "icon": "/common/destiny2_content/icons/82cfc822a938ecc8415eb42f405b0e5d.jpg",
+              "item_type": "战斗弓箭",
+              "group_key": "weapons",
+              "cost_label": "2 铁旗暗码 · 15,000 微光"
+            },
+            {
+              "hash": 2260285379,
+              "name": "机械营面罩",
+              "icon": "/common/destiny2_content/icons/51ebf3d90362be71e1f473dfcb5dc578.jpg",
+              "item_type": "头盔",
+              "group_key": "armor",
+              "cost_label": "2 铁旗暗码 · 15,000 微光"
+            }
+          ]
+        },
         "entries": [
           {
             "title": "铁旗已开放",
