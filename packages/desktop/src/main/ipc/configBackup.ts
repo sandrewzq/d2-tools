@@ -10,6 +10,7 @@ export const portableBackupFileNames = [
   "target-rules.json",
   "vault-tags.json",
   "loadout-templates.json",
+  "loadout-plans.json",
   "local-community-recommendations.json",
   "personal-weapon-knowledge.json"
 ] as const;

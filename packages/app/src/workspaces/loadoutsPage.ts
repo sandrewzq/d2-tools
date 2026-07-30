@@ -90,6 +90,8 @@ export type InGameLoadoutItemRowView = {
   locatedItem: LoadoutSourceItem | null;
   locationLabel: string;
   located: boolean;
+  equipped_on_target_character: boolean;
+  plug_count: number;
 };
 
 export type LoadoutsSelectedDetailView =
@@ -296,7 +298,7 @@ function selectInGameLoadoutDetail(
           className: character.class_name,
           slot,
           items: slot.items,
-          itemRows: buildInGameLoadoutItemRows(accountSummary, slot.items)
+          itemRows: buildInGameLoadoutItemRows(accountSummary, slot.items, character.character_id)
         };
       }
     }
@@ -306,7 +308,8 @@ function selectInGameLoadoutDetail(
 
 function buildInGameLoadoutItemRows(
   accountSummary: AccountSummary,
-  items: InGameLoadoutItemView[]
+  items: InGameLoadoutItemView[],
+  targetCharacterId?: string
 ): InGameLoadoutItemRowView[] {
   const accountItems = getAllKnownAccountItemsWithSource(accountSummary);
   const characterNames = new Map(accountSummary.characters.map((character) => [
@@ -331,7 +334,11 @@ function buildInGameLoadoutItemRows(
       item,
       locatedItem,
       locationLabel,
-      located: Boolean(locatedItem)
+      located: Boolean(locatedItem),
+      equipped_on_target_character: Boolean(
+        locatedItem?.source_kind === "equipped" && locatedItem.source_character_id === targetCharacterId
+      ),
+      plug_count: item.plug_hashes?.length ?? 0
     };
   });
 }

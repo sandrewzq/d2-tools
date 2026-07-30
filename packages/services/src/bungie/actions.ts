@@ -74,6 +74,25 @@ export async function snapshotLoadout(options: BungieLoadoutActionOptions): Prom
   }, bungieWriteOptions(options));
 }
 
+export async function clearLoadout(options: BungieLoadoutActionOptions): Promise<void> {
+  await postBungieJson<unknown>("/Destiny2/Actions/Loadouts/ClearLoadout/", {
+    characterId: options.characterId,
+    membershipType: options.membershipType,
+    loadoutIndex: options.loadoutIndex
+  }, bungieWriteOptions(options));
+}
+
+export async function updateLoadoutIdentifiers(options: BungieLoadoutActionOptions): Promise<void> {
+  await postBungieJson<unknown>("/Destiny2/Actions/Loadouts/UpdateLoadoutIdentifiers/", {
+    colorHash: options.colorHash ?? null,
+    iconHash: options.iconHash ?? null,
+    nameHash: options.nameHash ?? null,
+    characterId: options.characterId,
+    membershipType: options.membershipType,
+    loadoutIndex: options.loadoutIndex
+  }, bungieWriteOptions(options));
+}
+
 function bungieWriteOptions(options: Pick<BungieItemActionOptions, "config" | "token" | "baseUrl" | "fetchImpl">) {
   return {
     apiKey: options.config.bungie.api_key,

@@ -26,6 +26,13 @@ import {
   type SettingsAiAdapter
 } from "@d2-tools/ui";
 import { buildArmorDetailViewModel, type ArmorDetailViewModel } from "@d2-tools/app/items";
+import {
+  createEmptyLocalLoadoutPlanDraft,
+  createLocalLoadoutPlanDraftFromCharacter,
+  selectLocalLoadoutPlanWorkbench,
+  toLocalLoadoutPlanDraft
+} from "@d2-tools/app/loadouts";
+import type { CreateLocalLoadoutPlanInput, LocalLoadoutPlan } from "@d2-tools/core/loadouts/plans";
 import "@d2-tools/ui/styles.css";
 import {
   createWebShellAdapter,
@@ -53,6 +60,10 @@ function WebApp() {
   const [compareTemplateId, setCompareTemplateId] = useState(fixture.loadoutTemplates[1]?.id ?? "");
   const [renameDraft, setRenameDraft] = useState(fixture.loadoutTemplates[0]?.name ?? "");
   const [showDiffOnly, setShowDiffOnly] = useState(false);
+  const [localPlans, setLocalPlans] = useState<LocalLoadoutPlan[]>([]);
+  const [selectedLocalPlanId, setSelectedLocalPlanId] = useState("");
+  const [localPlanEditingId, setLocalPlanEditingId] = useState<string | null>(null);
+  const [localPlanDraft, setLocalPlanDraft] = useState<CreateLocalLoadoutPlanInput | null>(null);
   const [libraryViewMode, setLibraryViewMode] = useState<LibraryViewMode>("equipment");
   const [equipmentFilters, setEquipmentFilters] = useState<LibraryEquipmentFilter>(fixture.equipmentFilters);
   const [perkFilters, setPerkFilters] = useState<LibraryPerkFilter>(fixture.perkFilters);
@@ -100,6 +111,42 @@ function WebApp() {
     }),
     [fixture, compareTemplateId, selectedLoadoutEntryId, selectedTemplateId, showDiffOnly]
   );
+  const localPlanWorkspace = useMemo(() => selectLocalLoadoutPlanWorkbench({
+    accountSummary: fixture.accountSummary,
+    plans: localPlans,
+    selectedPlanId: selectedLocalPlanId
+  }), [fixture.accountSummary, localPlans, selectedLocalPlanId]);
+
+  function selectLocalPlan(id: string) {
+    const plan = localPlans.find((candidate) => candidate.id === id);
+    if (!plan) return;
+    setSelectedLocalPlanId(plan.id);
+    setLocalPlanEditingId(plan.id);
+    setLocalPlanDraft(toLocalLoadoutPlanDraft(plan));
+  }
+
+  function saveLocalPlan() {
+    if (!localPlanDraft) return;
+    const now = new Date().toISOString();
+    const saved: LocalLoadoutPlan = localPlanEditingId
+      ? {
+        ...localPlanDraft,
+        id: localPlanEditingId,
+        created_at: localPlans.find((plan) => plan.id === localPlanEditingId)?.created_at ?? now,
+        updated_at: now
+      }
+      : {
+        ...localPlanDraft,
+        id: `web-local-${Date.now()}`,
+        created_at: now
+      };
+    setLocalPlans((plans) => localPlanEditingId
+      ? plans.map((plan) => plan.id === saved.id ? saved : plan)
+      : [saved, ...plans]);
+    setSelectedLocalPlanId(saved.id);
+    setLocalPlanEditingId(saved.id);
+    setLocalPlanDraft(toLocalLoadoutPlanDraft(saved));
+  }
   const assistantContext = useMemo(
     () => fixture.createAssistantContext(snapshot),
     [fixture, snapshot]
@@ -249,7 +296,6 @@ function WebApp() {
                 refreshAccount: () => undefined,
                 refreshActivity: () => undefined,
                 selectCharacter: setSelectedAccountCharacterId,
-                saveCurrentLoadout: () => undefined,
                 equipHighestPower: () => undefined,
                 openItem: () => undefined
               }}
@@ -299,6 +345,40 @@ function WebApp() {
                 renameTemplate: () => undefined,
                 deleteTemplate: () => undefined,
                 createLocalPlanFromCharacter: () => undefined,
+                selectLocalPlan,
+                startNewLocalPlan: (character) => {
+                  if (!character) return;
+                  setSelectedLocalPlanId("");
+                  setLocalPlanEditingId(null);
+                  setLocalPlanDraft(createEmptyLocalLoadoutPlanDraft({
+                    class_name: character.class_name,
+                    target_character_id: character.character_id
+                  }));
+                },
+                startLocalPlanFromCharacter: (character) => {
+                  if (!character) return;
+                  setSelectedLocalPlanId("");
+                  setLocalPlanEditingId(null);
+                  setLocalPlanDraft(createLocalLoadoutPlanDraftFromCharacter(character));
+                },
+                startLocalPlanFromInGameLoadout: () => undefined,
+                localPlanDraftChange: (draft) => setLocalPlanDraft(draft),
+                saveLocalPlan,
+                closeLocalPlanEditor: () => {
+                  setLocalPlanDraft(null);
+                  setLocalPlanEditingId(null);
+                },
+                deleteLocalPlan: (id) => {
+                  setLocalPlans((plans) => plans.filter((plan) => plan.id !== id));
+                  setSelectedLocalPlanId("");
+                  setLocalPlanDraft(null);
+                  setLocalPlanEditingId(null);
+                },
+                previewDimImport: () => undefined,
+                acceptDimImport: () => undefined,
+                dismissDimImport: () => undefined,
+                executeLocalPlan: () => undefined,
+                importGuideText: () => undefined,
                 createTransferPlan: () => undefined,
                 copyMissingItems: () => undefined,
                 executeMissingTransfer: () => undefined,
@@ -306,6 +386,8 @@ function WebApp() {
                 equipSingleItem: () => undefined,
                 equipSavedLoadout: () => undefined,
                 snapshotCurrentLoadout: () => undefined,
+                clearSavedLoadout: () => undefined,
+                updateSavedLoadoutIdentifiers: () => undefined,
                 openTemplateSourceItem: () => undefined
               }}
               compareTemplateId={compareTemplateId}
@@ -314,6 +396,17 @@ function WebApp() {
               message="Web mock：共享配装页已接入，真实 provider 后续替换数据源。"
               isRunningItemAction={false}
               actionFeedback={{}}
+              localPlanWorkspace={localPlanWorkspace}
+              localPlanDraft={localPlanDraft}
+              localPlanEditingId={localPlanEditingId}
+              localPlanIsSaving={false}
+              localPlanError=""
+              dimPreview={null}
+              localPlanIsPreviewingDim={false}
+              localPlanExecutionPlan={null}
+              localPlanExecutionReport={null}
+              localPlanIsExecuting={false}
+              localPlanIsImportingGuide={false}
             />
           ) : null}
           {activePage === "library" ? (

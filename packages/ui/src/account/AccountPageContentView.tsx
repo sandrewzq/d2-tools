@@ -25,7 +25,6 @@ export type AccountPageActions = {
   refreshAccount: () => void;
   refreshActivity: () => void;
   selectCharacter: (characterId: string) => void;
-  saveCurrentLoadout: (characterId: string) => void;
   equipHighestPower: (characterId: string) => void;
   openItem: (payload: AccountOpenItemPayload) => void;
 };
@@ -36,7 +35,7 @@ export type AccountPageContentViewProps = {
   actions: AccountPageActions;
 };
 
-type AccountSection = "gear" | "activity" | "materials" | "postmaster";
+type AccountSection = "gear" | "activity" | "postmaster";
 const accountCategoryOrder: AccountSlotComparisonViewRow["category"][] = ["weapons", "armor", "equipment", "other"];
 const accountCategoryLabels: Record<AccountSlotComparisonViewRow["category"], string> = {
   weapons: "武器",
@@ -122,7 +121,6 @@ function AccountPageWorkspace(props: {
   const navigation: Array<{ key: AccountSection; label: string; count?: number }> = [
     { key: "gear", label: accountText(props.copy, "角色装备与背包") },
     { key: "activity", label: accountText(props.copy, "活动复盘") },
-    { key: "materials", label: accountText(props.copy, "材料与消耗品"), count: props.viewModel.materials.rows.length },
     { key: "postmaster", label: accountText(props.copy, "邮政官"), count: props.viewModel.postmaster.items.length }
   ];
 
@@ -209,9 +207,6 @@ function AccountPageWorkspace(props: {
             ))}
           </div>
           <div className="account-actions">
-            <button type="button" data-ui-kind="button" data-control-variant="primary" onClick={() => props.actions.saveCurrentLoadout(props.selectedCharacter.characterId)}>
-              {props.copy.actions.saveCurrentLoadout}
-            </button>
             <button type="button" data-ui-kind="button" data-control-variant="secondary" disabled={!props.viewModel.feedback.writeActionsEnabled || props.viewModel.loadout.isRunningItemAction} onClick={() => props.actions.equipHighestPower(props.selectedCharacter.characterId)}>
               {props.viewModel.loadout.isRunningItemAction ? props.copy.actions.running : props.copy.actions.equipHighestPower}
             </button>
@@ -273,28 +268,6 @@ function AccountPageWorkspace(props: {
                 ) : <AccountInlineState title={accountText(props.copy, "暂无最近活动记录")} detail={accountText(props.copy, "Activity History 当前没有返回可展示的近期场次。")} />}
               </>
             ) : <AccountInlineState title={accountText(props.copy, "当前快照未包含活动记录")} detail={accountText(props.copy, "读取 Activity History 后会在这里显示真实的近期复盘。")} />}
-        </section>
-
-        <section
-          className={`account-section ${props.section === "materials" ? "active" : ""}`}
-          id="account-panel-materials"
-          role="tabpanel"
-          aria-labelledby="account-tab-materials"
-          hidden={props.section !== "materials"}
-        >
-            <div className="account-column-head"><h3 data-ui-part="value" data-info-priority="context" data-text-tone="primary">材料与消耗品</h3><span data-ui-part="detail" data-info-priority="support" data-text-tone="body">{props.viewModel.materials.rows.length} 种</span></div>
-            {props.viewModel.materials.rows.length ? (
-              <div className="account-table-list account-material-list">
-                {props.viewModel.materials.rows.map((row) => (
-                  <div key={row.key}>
-                    {row.material.icon ? <img src={row.material.icon} alt="" loading="lazy" /> : <span className="item-icon-placeholder" aria-hidden="true" />}
-                    <strong>{row.material.name}</strong>
-                    <span>{row.material.quantity.toLocaleString(props.interfaceLocale)}</span>
-                    <small>{row.meta}</small>
-                  </div>
-                ))}
-              </div>
-            ) : <AccountInlineState title={accountText(props.copy, "没有材料数据")} detail={accountText(props.copy, "当前账号快照未返回材料与消耗品。")} />}
         </section>
 
         <section

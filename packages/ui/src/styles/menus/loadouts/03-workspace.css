@@ -3,6 +3,48 @@
   background: var(--surface-panel);
 }
 
+.app-shell .loadout-dim-url-field {
+  display: grid;
+  gap: 4px;
+  margin-top: 10px;
+}
+
+.app-shell .loadout-dim-url-field span,
+.app-shell .loadout-dim-preview small {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.app-shell .loadout-dim-preview {
+  display: grid;
+  gap: 3px;
+  margin-top: 10px;
+  padding: 8px;
+}
+
+.app-shell .loadout-plan-step-list {
+  display: grid;
+  gap: 5px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.app-shell .loadout-plan-step-list li {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  padding: 7px 8px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 4px;
+}
+
+.app-shell .loadout-plan-step-list span {
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
 .app-shell .loadout-context-toolbar {
   position: relative;
   display: flex;
@@ -842,6 +884,122 @@
   min-height: 34px;
 }
 
+.app-shell .loadout-armor-workbench {
+  border-top: 1px solid var(--border-subtle);
+}
+
+.app-shell .loadout-armor-workbench > header {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--surface-subtle);
+}
+
+.app-shell .loadout-armor-workbench > header strong,
+.app-shell .loadout-armor-workbench > header small {
+  display: block;
+}
+
+.app-shell .loadout-armor-workbench > header strong {
+  color: var(--text-title);
+  font-size: var(--font-content);
+}
+
+.app-shell .loadout-armor-workbench > header small {
+  margin-top: 3px;
+  color: var(--text-muted);
+  font-size: var(--font-caption);
+}
+
+.app-shell .loadout-armor-constraint-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  padding: 12px 14px;
+}
+
+.app-shell .loadout-armor-constraint-grid label {
+  display: grid;
+  gap: 4px;
+}
+
+.app-shell .loadout-armor-constraint-grid span,
+.app-shell .loadout-armor-priority span {
+  color: var(--text-muted);
+  font-size: var(--font-caption);
+}
+
+.app-shell .loadout-armor-constraint-grid input {
+  min-width: 0;
+  min-height: 34px;
+}
+
+.app-shell .loadout-armor-priority {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  padding: 0 14px 12px;
+}
+
+.app-shell .loadout-armor-priority label {
+  display: inline-flex;
+  gap: 5px;
+  align-items: center;
+}
+
+.app-shell .loadout-armor-candidate-list {
+  border-top: 1px solid var(--border-subtle);
+}
+
+.app-shell .loadout-armor-candidate {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) auto;
+  gap: 9px;
+  align-items: center;
+  width: 100%;
+  min-height: 70px;
+  padding: 10px 14px;
+  border: 0;
+  border-bottom: 1px solid var(--border-subtle);
+  border-radius: 0;
+  color: var(--text-body);
+  background: transparent;
+  text-align: left;
+}
+
+.app-shell .loadout-armor-candidate:hover,
+.app-shell .loadout-armor-candidate:focus-visible {
+  background: var(--surface-interactive);
+}
+
+.app-shell .loadout-armor-candidate > span {
+  color: var(--accent-primary);
+  font-size: var(--font-meta);
+  font-weight: 700;
+}
+
+.app-shell .loadout-armor-candidate strong,
+.app-shell .loadout-armor-candidate small,
+.app-shell .loadout-armor-candidate em {
+  display: block;
+}
+
+.app-shell .loadout-armor-candidate strong {
+  color: var(--text-title);
+  font-size: var(--font-meta);
+}
+
+.app-shell .loadout-armor-candidate small,
+.app-shell .loadout-armor-candidate em {
+  margin-top: 3px;
+  color: var(--text-muted);
+  font-size: var(--font-caption);
+  font-style: normal;
+}
+
 .app-shell .loadout-ledger {
   margin: 0;
 }
@@ -1003,6 +1161,23 @@
   .app-shell .loadout-workspace {
     grid-template-columns: 1fr;
     min-height: 0;
+  }
+
+  .app-shell .loadout-armor-workbench > header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .app-shell .loadout-armor-constraint-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .app-shell .loadout-armor-candidate {
+    grid-template-columns: 30px minmax(0, 1fr);
+  }
+
+  .app-shell .loadout-armor-candidate em {
+    grid-column: 2;
   }
 
   .app-shell .loadout-directory,

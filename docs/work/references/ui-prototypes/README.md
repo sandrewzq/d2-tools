@@ -11,17 +11,17 @@
 - `assets/`：各原型的领域布局、交互脚本和响应式差异。
 - `data/`：原型 mock 与脱敏本地快照生成器。
 
-当前 `全应用视觉原型.html` 中的配装章节仍对应旧兼容切片。配装最终领域和页面由 [T1](../../backlog/T1-loadout-plans-and-guide-import.md) 更新；在 T1 完成原型重设计前，该章节不作为最终配装验收基准。
+`全应用视觉原型.html` 的配装章节已承载本地方案工作台的冻结视觉和交互规格。产品实现以当前领域、数据和写操作边界为准，原型中的 mock 数据与演示行为不得直接进入运行时代码；实现状态仍由 [T1](../../backlog/T1-loadout-plans-and-guide-import.md) 跟踪，待验证通过后才能收口。
 
 ## 规格
 
 `specs/` 只保留三份仍有效的规格：
 
 - [`global-visual-contract.md`](specs/global-visual-contract.md)：全局语义、表面配方、文字、控件、状态、响应式、滚动和验收规则。
-- [`application-workspaces.md`](specs/application-workspaces.md)：共享 Shell、设置、首页、账号、资料库、仓库和商人的真实数据与状态边界。
+- [`application-workspaces.md`](specs/application-workspaces.md)：共享 Shell 和各菜单（含 T1 配装工作台）的真实数据与状态边界。
 - [`equipment-details.md`](specs/equipment-details.md)：武器、护甲和共享详情档案骨架。
 
-不再为单个迁移切片、差异编号或已经完成的阶段保留平行规格。过程记录使用 Git 历史追溯。
+不再为单个迁移切片、差异编号保留平行规格；尚待验证的 T1 仍以其 backlog 为准。过程记录使用 Git 历史追溯。
 
 ## 所有权
 

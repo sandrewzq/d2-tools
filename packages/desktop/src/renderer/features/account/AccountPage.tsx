@@ -40,7 +40,6 @@ export function AccountPage(props: {
   onLoadAccount: () => void;
   onRefreshActivity: () => void;
   onSelectCharacter: (characterId: string) => void;
-  onSaveCharacterLoadout: (character: AccountSummary["characters"][number]) => void;
   onEquipHighestPowerItems: (character: AccountSummary["characters"][number]) => void;
   onOpenItem: (
     item: AccountItemSummary,
@@ -122,10 +121,6 @@ export function AccountPage(props: {
         refreshAccount: props.onLoadAccount,
         refreshActivity: props.onRefreshActivity,
         selectCharacter: props.onSelectCharacter,
-        saveCurrentLoadout: (characterId) => {
-          const character = findCharacter(characterId);
-          if (character) props.onSaveCharacterLoadout(character);
-        },
         equipHighestPower: (characterId) => {
           const character = findCharacter(characterId);
           if (character) props.onEquipHighestPowerItems(character);

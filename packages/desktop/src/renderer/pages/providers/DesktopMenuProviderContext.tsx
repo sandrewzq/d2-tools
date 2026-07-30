@@ -6,6 +6,7 @@ import type { useDailySummary } from "../../features/daily/useDailySummary";
 import type { useHomePageDerivedState } from "../../features/home/useHomePageDerivedState";
 import type { useLibraryWorkspace } from "../../features/library/useLibraryWorkspace";
 import type { useLoadoutTemplates } from "../../features/loadouts/useLoadoutTemplates";
+import type { useLocalLoadoutPlans } from "../../features/loadouts/useLocalLoadoutPlans";
 import type { useDiagnosticsSettings } from "../../features/settings/useDiagnosticsSettings";
 import type { useVendorDefinitionDetail } from "../../features/vendors/useVendorDefinitionDetail";
 import type { useVendorsWorkspace } from "../../features/vendors/useVendorsWorkspace";
@@ -28,6 +29,7 @@ export type DesktopMenuSession = {
   home: ReturnType<typeof useHomePageDerivedState>;
   library: ReturnType<typeof useLibraryWorkspace>;
   loadouts: ReturnType<typeof useLoadoutTemplates>;
+  localLoadoutPlans: ReturnType<typeof useLocalLoadoutPlans>;
   vendors: ReturnType<typeof useVendorsWorkspace>;
   vendorDefinitionDetail: ReturnType<typeof useVendorDefinitionDetail>;
   writeActions: ReturnType<typeof useDesktopProductWriteActions>;

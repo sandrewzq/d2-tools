@@ -181,8 +181,12 @@ export type AccountCraftableSocketSummary = {
 
 export type CharacterLoadoutSlotItemSummary = {
   instance_id?: string;
+  item_hash?: number;
   name: string;
+  icon?: string;
   bucket_name?: string;
+  plug_hashes?: number[];
+  plugs?: AccountItemPlugSummary[];
 };
 
 export type CharacterLoadoutSlotSummary = {
@@ -478,6 +482,7 @@ type DestinyCharacterLoadout = {
   colorHash?: number;
   items?: Array<{
     itemInstanceId?: string;
+    plugItemHashes?: number[];
   }>;
 };
 
@@ -834,6 +839,7 @@ function summarizeCharacters(
       loadout_slots: summarizeCharacterLoadouts(
         profile.characterLoadouts?.data?.[character.characterId]?.loadouts ?? [],
         loadoutNameDefinitions,
+        definitions,
         knownItems
       ),
       ...(mode === "full"
@@ -1193,6 +1199,7 @@ function summarizeArmorStatMods(
 function summarizeCharacterLoadouts(
   loadouts: DestinyCharacterLoadout[],
   loadoutNameDefinitions: DefinitionComponentData,
+  itemDefinitions: DefinitionComponentData,
   knownItems: AccountItemSummary[]
 ): CharacterLoadoutSlotSummary[] {
   const itemsByInstanceId = new Map(
@@ -1212,8 +1219,21 @@ function summarizeCharacterLoadouts(
       const matched = item.itemInstanceId ? itemsByInstanceId.get(item.itemInstanceId) : undefined;
       return {
         instance_id: item.itemInstanceId,
+        ...(matched ? { item_hash: matched.hash } : {}),
         name: matched?.name ?? `物品 ${item.itemInstanceId ?? "未知"}`,
-        bucket_name: matched?.bucket_name
+        icon: matched?.icon,
+        bucket_name: matched?.bucket_name,
+        plug_hashes: (item.plugItemHashes ?? []).filter((hash) => typeof hash === "number" && Number.isFinite(hash)),
+        plugs: (item.plugItemHashes ?? []).flatMap((hash) => {
+          if (typeof hash !== "number" || !Number.isFinite(hash)) return [];
+          const definition = itemDefinitions[String(hash)] as DefinitionRecord | undefined;
+          return [{
+            hash,
+            name: definition?.displayProperties?.name?.trim() || `Plug ${hash}`,
+            icon: normalizeBungieAssetUrl(definition?.displayProperties?.icon),
+            category_identifier: definition?.plug?.plugCategoryIdentifier
+          }];
+        })
       };
     })
   }));

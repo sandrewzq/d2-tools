@@ -33,11 +33,11 @@
   gap: 0;
   width: min(1180px, calc(100vw - 96px));
   max-height: min(88vh, 980px);
-  overflow-x: hidden;
   overflow-y: auto;
+  overflow-wrap: anywhere;
   padding: 0;
   border: 1px solid var(--border-subtle);
-  border-radius: 8px;
+  border-radius: var(--radius-frame);
   background: var(--surface-panel);
   box-shadow: 0 18px 60px rgb(0 0 0 / 0.45);
   scrollbar-width: thin;
@@ -135,8 +135,8 @@
 .shared-item-detail-body {
   min-width: 0;
   min-height: 0;
-  overflow-x: hidden;
   overflow-y: auto;
+  overflow-wrap: anywhere;
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
   scrollbar-width: thin;
@@ -1021,7 +1021,7 @@
 .modal-plug img {
   width: 36px;
   height: 36px;
-  border-radius: 5px;
+  border-radius: var(--radius-control);
 }
 
 .modal-plug strong {

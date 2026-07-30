@@ -446,7 +446,7 @@
 .item-icon-placeholder {
   width: 42px;
   height: 42px;
-  border-radius: 5px;
+  border-radius: var(--radius-control);
 }
 
 .item-icon-placeholder {

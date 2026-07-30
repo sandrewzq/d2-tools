@@ -69,7 +69,7 @@
   max-width: 920px;
   padding: 12px;
   border: 1px solid var(--drawer-border);
-  border-radius: 8px;
+  border-radius: var(--radius-object);
   background: var(--drawer-message-assistant-bg);
   color: var(--text-body);
   border-color: var(--drawer-border);
@@ -142,7 +142,7 @@
 
 .source-status-card {
   border: 1px solid var(--item-border);
-  border-radius: 8px;
+  border-radius: var(--radius-frame);
   background: var(--item-bg);
   color: var(--text-body);
 }
@@ -256,7 +256,7 @@
 
 .daily-source {
   border: 1px solid var(--item-border);
-  border-radius: 8px;
+  border-radius: var(--radius-object);
   background: var(--item-bg);
   color: var(--text-body);
   padding: 12px;
@@ -264,7 +264,7 @@
 
 .ai-section-card {
   border: 1px solid var(--border-subtle);
-  border-radius: 8px;
+  border-radius: var(--radius-frame);
   background: var(--surface-panel);
   color: var(--text-body);
   padding: 12px;
@@ -272,10 +272,17 @@
 
 .target-match-panel,
 .wishlist-panel,
-.duplicate-group,
+.duplicate-group {
+  border: 1px solid #303848;
+  border-radius: var(--radius-frame);
+  background: #181d27;
+  color: #eceff4;
+  padding: 12px;
+}
+
 .same-roll-row {
   border: 1px solid #303848;
-  border-radius: 8px;
+  border-radius: 0;
   background: #181d27;
   color: #eceff4;
   padding: 12px;
@@ -826,7 +833,7 @@
   margin: 12px 0;
   padding: 12px;
   border: 1px solid var(--item-border);
-  border-radius: 8px;
+  border-radius: var(--radius-frame);
   background: var(--item-bg);
   color: var(--text-body);
 }

@@ -489,7 +489,7 @@
   width: 46px;
   min-width: 46px;
   height: 46px;
-  border-radius: 3px;
+  border-radius: var(--radius-control);
 }
 
 :where(.app-shell) .vault-results-column .vault-card-body,

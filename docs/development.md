@@ -200,7 +200,7 @@ Renderer UI 的长期边界只在本节保留，具体视觉数值与菜单合�
 7. UI 视觉变化先更新并确认冻结 HTML，再修改共享 UI。Web 用于中间预览，Desktop 实窗在 `light / dark × 1280 / 980 / 760` 下通过后才能标记完成。
 8. 不新增读取生产源码后匹配文案、HTML、class 或 CSS 片段的普通功能测试；废弃入口由 `scripts/check-ui-contract.mjs` 的静态质量门禁维护。
 
-配装页的新领域模型、护甲优化、DIM 导入和最终页面由 `docs/work/backlog/T1-loadout-plans-and-guide-import.md` 管理。旧 `LoadoutTemplate` 兼容页和旧 T8 配装规格不再作为视觉基准。
+配装页的本地方案、护甲优化、DIM 导入与安全应用已接入共享工作台，仍由 [T1](work/backlog/T1-loadout-plans-and-guide-import.md) 跟踪并等待验证。旧 `LoadoutTemplate` 兼容页和旧 T8 配装规格不再作为视觉基准。
 
 ### 2.6 桌面外壳、更新和后台任务
 

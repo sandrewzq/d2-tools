@@ -32,8 +32,9 @@ T8 当前覆盖：
 - 设置、首页、账号、资料库、仓库和商人菜单。
 - 统一武器详情与统一护甲详情。
 - Web、Desktop 对同一 `ProductShellHost` 和共享页面的消费边界。
+- 账号页不展示“材料与消耗品”菜单，也不提供从当前角色装备直接创建本地方案的入口；材料快照和配装菜单中的创建入口不受影响。
 
-配装菜单已进入共享 UI，但当前仍是旧 `LoadoutTemplate` 兼容切片。新的本地方案、护甲优化、DIM 导入、应用与发布流程已经转由 [T1](T1-loadout-plans-and-guide-import.md) 重新设计。旧配装视觉规格已经失效，不作为 T8 完成依据；T1 更新冻结原型后再实施最终配装页面。
+配装菜单已接入共享 UI；本地方案、护甲优化、DIM 导入、应用与发布流程仍由 T1 跟踪并等待验证。旧 `LoadoutTemplate` 兼容切片与旧配装视觉规格已经失效，不作为 T8 完成依据。
 
 ## 当前状态
 
@@ -71,6 +72,22 @@ T8 只有在以下条件全部满足后才能标记完成：
 6. 视觉差异已经修正，验收结果回写 `docs/todo.md`；过程截图和临时差异记录不长期留在正式文档中。
 
 冻结 HTML 和 Web 只能提供规格与中间预览证据，Desktop 实窗是 T8 的最终完成依据。
+
+### Bug #6、#7 手工验收
+
+前提：使用 `tools\dev-desktop.cmd` 启动当前 Desktop。对每个主题 `light`、`dark`，将 Desktop 渲染区分别调整为 `1280`、`980`、`760` CSS 像素宽；使用真实已有数据，不能用原型或空状态替代。
+
+1. Bug #6：分别打开一件武器和一件护甲详情，使用包含“来源说明”的推荐数据。确认实例 Drawer 触发按钮的高度、边框、圆角和背景仍符合详情样式，来源说明保持零外边距与正确前景色；鼠标悬停和键盘焦点状态不得被通用按钮或段落规则覆盖。若当前数据没有来源说明，记录为“未覆盖”，不得标记该项通过。
+2. Bug #7：在每个主题和宽度下，依次打开首页主滚动区、武器详情、护甲详情、账号、设置、资料库与商人。确认正文、Drawer、账号目录、设置目录、资料库查询栏和商人目录没有横向滚动条、被截断的长 ID / URL / 英文名称或超出边框的控件；`760` 宽度下目录和详情内容必须按既有断点堆叠或换行。
+3. Bug #7：在上述页面打开时，于 Desktop renderer DevTools 控制台执行以下检查；结果必须为 `true`。这只检查横向尺寸，不能替代目视核对。
+
+```js
+document.documentElement.scrollWidth <= document.documentElement.clientWidth &&
+  [...document.querySelectorAll(".shell-content, .item-modal, .shared-item-detail-body, .account-directory, .settings-directory, .library-query, .vendor-rail")]
+    .every((element) => element.scrollWidth <= element.clientWidth)
+```
+
+4. 任一主题、宽度或页面失败时，在 `docs/todo.md` 将对应 Bug 改回“待修”，并简要记录失败区域；全部通过后，将 Bug #6、Bug #7 标记完成，并将 T8 转为可收口状态。
 
 ## 修改边界
 

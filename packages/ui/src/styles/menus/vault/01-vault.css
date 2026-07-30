@@ -449,7 +449,7 @@
 .material-item img {
   width: 42px;
   height: 42px;
-  border-radius: 5px;
+  border-radius: var(--radius-control);
 }
 
 .material-item strong,
@@ -669,7 +669,7 @@
   width: 58px;
   height: 58px;
   border: 1px solid var(--border-subtle);
-  border-radius: 5px;
+  border-radius: var(--radius-control);
 }
 
 .vault-card-body {
@@ -698,7 +698,7 @@
 .vault-list-item img {
   width: 52px;
   height: 52px;
-  border-radius: 5px;
+  border-radius: var(--radius-control);
 }
 
 .vault-list-item strong,

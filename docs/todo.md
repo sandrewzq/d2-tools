@@ -15,22 +15,21 @@
 
 | 编号 | 优先级 | 状态 | 任务 | Backlog | 下一步 |
 |---|---|---|---|---|---|
-| T1 | P1 | 🟠 进行中 | 本地配装工作台、护甲优化与 DIM 导入 | [任务说明](work/backlog/T1-loadout-plans-and-guide-import.md) | 已迁入统一上下文工具栏、状态框和三栏基础工作区；下一步重建本地方案领域模型并接入真实编辑器、护甲候选与 DIM 预览 |
-| T2 | P1 | 🟡 待推进 | 仓库推荐与清理工作台 | [任务说明](work/backlog/T2-vault-recommendation-and-cleanup-workbench.md) | 统一 DIM Wishlist、本地目标、同名对比和清理清单 |
+| T1 | P1 | 🟡 待验证 | 本地配装工作台、护甲优化与 DIM 导入 | [任务说明](work/backlog/T1-loadout-plans-and-guide-import.md) | 执行用户要求的本地验证或 CI 验证；通过前不得标记完成 |
 | T3 | P1 | 🟡 待验收 | 商人结构、覆盖与官方获取来源 | [任务说明](work/backlog/T3-vendors-and-drop-sources.md) | 验收真实地点覆盖、跨重置边界、Offer 时效、去重和机灵模组 A/B |
-| T4 | P3 | 🟡 待推进 | 活动复盘增强 | [任务说明](work/backlog/T4-activity-review-enhancement.md) | 接入 PGCR、完成时间推算和副本级趋势 |
-| T8 | P1 | 🟡 待视觉验收 | 全应用共享 UI 与视觉收口 | [任务说明](work/backlog/T8-full-application-ui-functional-convergence.md) | 继续统一圆角、删除非动画 `!important` 并修正横向溢出，再执行 Desktop `light / dark × 1280 / 980 / 760` 实窗验收 |
+| T8 | P1 | 🟡 待视觉验收 | 全应用共享 UI 与视觉收口 | [任务说明](work/backlog/T8-full-application-ui-functional-convergence.md) | 执行 Desktop `light / dark × 1280 / 980 / 760` 实窗验收 |
 
-## T8 UI 待修
+## Bug 列表
 
-- 按全局轻圆角合同统一状态框、对象卡、控件和缩略图，清理遗留的 `8px` 以及 `3px / 5px / 7px` 圆角。
-- 删除武器详情、护甲详情和账号区域中非无障碍动画用途的 `!important`，通过整理冲突规则确定唯一视觉来源。
-- 移除主滚动区、装备详情和菜单侧栏中用于掩盖超宽布局的 `overflow-x: hidden`，通过响应式重排实现零横向溢出。
-- 本轮只处理整体 UI；数据、mock、类型契约和 T1 配装工作台不纳入 T8 检查与修正范围。
+| 编号 | 状态 | 问题 | 范围与处理 | 验证 |
+|---|---|---|---|---|
+| Bug #1（配置） | 🟡 待验证 | 旧版 `config.json` 的 `ai.provider` 会导致 Desktop 启动失败 | 已在配置读取层兼容迁移到当前 `ai.protocol`，等待后续本地测试或 CI 验证 | 使用仅含旧 `ai.provider` 的本地配置启动 Desktop，确认能正常启动且 AI 状态正确映射 |
+| Bug #6（T8 UI：规则冲突） | 🟡 修复待验证 | 武器详情、护甲详情存在非无障碍动画用途的 `!important`，导致视觉来源不唯一 | 已移除 12 处详情样式强制声明；账号区域没有残留。仅保留 `prefers-reduced-motion` 无障碍规则 | 按 [T8 手工验收](work/backlog/T8-full-application-ui-functional-convergence.md) 的 Bug #6 步骤验证 |
+| Bug #7（T8 UI：横向溢出） | 🟡 修复待验证 | 主滚动区、装备详情和菜单侧栏以 `overflow-x: hidden` 掩盖超宽布局 | 已移除目标容器的掩盖规则，并为长 ID、URL 和英文名称补充换行 | 按 [T8 手工验收](work/backlog/T8-full-application-ui-functional-convergence.md) 的 Bug #7 步骤验证 |
 
 ## 说明
 
-- Bug #1（配置）：旧版 `config.json` 的 `ai.provider` 会导致 Desktop 启动失败；已在配置读取层兼容迁移到当前 `ai.protocol`，等待后续本地测试或 CI 验证。
-- T8 负责已经迁入 `packages/ui` 的共享视觉系统和页面收口；配装工作台的新领域模型与最终页面由 T1 负责。
+- T1 实现已接入，待验证：配装菜单通过同一本地方案工作台处理当前装备、DIM、攻略、护甲求解和安全应用；游戏内槽位保持 Bungie 官方对象与写操作边界。
+- T8 负责已经迁入 `packages/ui` 的共享视觉系统和页面收口。
 - React Prototype 已退役；后续视觉链路统一为冻结 HTML 规格、Web 快速预览和 Desktop 真实功能验收。
-- 当前没有单独登记的未解决 Bug；新增 Bug 必须使用全局唯一编号并在本文件中登记。
+- 新增 Bug 必须使用全局唯一编号并在本文件中登记。

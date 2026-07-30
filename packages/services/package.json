@@ -38,6 +38,14 @@
       "types": "./dist/loadouts/templates.d.ts",
       "import": "./dist/loadouts/templates.js"
     },
+    "./loadouts/plans": {
+      "types": "./dist/loadouts/plans.d.ts",
+      "import": "./dist/loadouts/plans.js"
+    },
+    "./loadouts/dimImport": {
+      "types": "./dist/loadouts/dimImport.d.ts",
+      "import": "./dist/loadouts/dimImport.js"
+    },
     "./items/aliases": {
       "types": "./dist/items/aliases.d.ts",
       "import": "./dist/items/aliases.js"

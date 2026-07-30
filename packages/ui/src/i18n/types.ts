@@ -246,11 +246,9 @@ export type AccountCopy = {
     overview: string;
     loadout: string;
     activity: string;
-    materials: string;
     postmaster: string;
   };
   actions: {
-    saveCurrentLoadout: string;
     equipHighestPower: string;
     running: string;
   };

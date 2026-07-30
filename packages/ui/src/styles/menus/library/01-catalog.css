@@ -348,7 +348,7 @@
 .library-definition-head > img {
   width: 64px;
   height: 64px;
-  border-radius: 7px;
+  border-radius: var(--radius-control);
   object-fit: cover;
 }
 

@@ -31,9 +31,10 @@
   position: sticky;
   top: var(--workspace-header-height);
   align-self: start;
+  min-width: 0;
   max-height: calc(100dvh - var(--topbar-height) - var(--workspace-header-height));
-  overflow-x: hidden;
   overflow-y: auto;
+  overflow-wrap: anywhere;
   background: transparent;
 }
 
