@@ -30,6 +30,9 @@ export function useDesktopProductShell(props: {
   onLoginComplete: () => void;
   onManifestInitialized: () => void;
 }) {
+  // #region debug-point B:shell-hook-enter
+  void fetch("http://127.0.0.1:7777/event", { method: "POST", body: JSON.stringify({ sessionId: "desktop-first-load-stall", runId: "pre-fix-2", hypothesisId: "B", location: "useDesktopProductShell.tsx:entry", msg: "[DEBUG] desktop shell hook entered", data: {}, ts: Date.now() }) }).catch(() => {});
+  // #endregion
   const visualEnv = (import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env;
   const visualInitialPage = visualEnv?.VITE_D2_VISUAL_PAGE;
   const visualColorMode = isColorMode(visualEnv?.VITE_D2_VISUAL_THEME) ? visualEnv?.VITE_D2_VISUAL_THEME : undefined;

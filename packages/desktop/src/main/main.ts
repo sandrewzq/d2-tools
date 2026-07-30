@@ -55,7 +55,13 @@ async function createWindow(): Promise<void> {
   });
 
   if (isDevelopment) {
+    // #region debug-point D:load-url-before
+    void fetch("http://127.0.0.1:7777/event", { method: "POST", body: JSON.stringify({ sessionId: "desktop-first-load-stall", runId: "pre-fix", hypothesisId: "D", location: "main.ts:loadURL", msg: "[DEBUG] renderer loadURL starting", data: { rendererUrl }, ts: Date.now() }) }).catch(() => {});
+    // #endregion
     await window.loadURL(rendererUrl);
+    // #region debug-point B:load-url-after
+    void fetch("http://127.0.0.1:7777/event", { method: "POST", body: JSON.stringify({ sessionId: "desktop-first-load-stall", runId: "pre-fix", hypothesisId: "B", location: "main.ts:loadURL", msg: "[DEBUG] renderer loadURL resolved", data: {}, ts: Date.now() }) }).catch(() => {});
+    // #endregion
     await captureVisualSnapshot(window);
     return;
   }

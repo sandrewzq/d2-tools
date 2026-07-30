@@ -12,7 +12,13 @@ export function HomePage(props: {
   onLoginComplete: () => void;
   onManifestInitialized: () => void;
 }) {
+  // #region debug-point B:home-render-enter
+  void fetch("http://127.0.0.1:7777/event", { method: "POST", body: JSON.stringify({ sessionId: "desktop-first-load-stall", runId: "pre-fix-2", hypothesisId: "B", location: "HomePage.tsx:HomePage", msg: "[DEBUG] HomePage render entered", data: {}, ts: Date.now() }) }).catch(() => {});
+  // #endregion
   const shell = useDesktopProductShell(props);
+  // #region debug-point B:shell-hook-returned
+  void fetch("http://127.0.0.1:7777/event", { method: "POST", body: JSON.stringify({ sessionId: "desktop-first-load-stall", runId: "pre-fix-2", hypothesisId: "B", location: "HomePage.tsx:HomePage", msg: "[DEBUG] desktop shell hook returned", data: { activePage: shell.activePage }, ts: Date.now() }) }).catch(() => {});
+  // #endregion
 
   return (
     <DesktopMenuSessionProvider value={shell.menuSession}>
