@@ -30,15 +30,6 @@
   color: var(--text-muted);
 }
 
-.product-card {
-  min-width: 0;
-  padding: var(--space-12);
-  border: 1px solid var(--object-border);
-  border-radius: var(--radius-object);
-  background: var(--card-bg);
-  box-shadow: none;
-}
-
 .product-info-strip,
 .vault-decision-summary,
 .loadout-risk-grid {

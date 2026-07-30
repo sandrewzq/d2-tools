@@ -39,7 +39,7 @@ export type SourceOptions = {
 
 export interface CommunityPerkSource {
   name: string;
-  isAvailable(config: { data?: { data_dir?: string } } | null | undefined): boolean;
+  isAvailable(): boolean;
   getRecommendations(
     item_hash: number,
     options: SourceOptions

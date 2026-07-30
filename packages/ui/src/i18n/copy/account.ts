@@ -23,7 +23,7 @@ export const accountCopy: Record<InterfaceLocale, LocaleCopy["account"]> = {
         postmaster: "邮政官"
       },
       actions: {
-        saveCurrentLoadout: "保存当前装备为本地模板",
+        saveCurrentLoadout: "保存当前装备为本地方案",
         equipHighestPower: "一键装备最高光等",
         running: "执行中..."
       }

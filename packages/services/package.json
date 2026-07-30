@@ -70,6 +70,18 @@
       "types": "./dist/community/perkRecommendation.d.ts",
       "import": "./dist/community/perkRecommendation.js"
     },
+    "./community/localCommunityRecommendations": {
+      "types": "./dist/community/localCommunityRecommendations.d.ts",
+      "import": "./dist/community/localCommunityRecommendations.js"
+    },
+    "./community/personalWeaponKnowledge": {
+      "types": "./dist/community/personalWeaponKnowledge.d.ts",
+      "import": "./dist/community/personalWeaponKnowledge.js"
+    },
+    "./community/aiLightggSource": {
+      "types": "./dist/community/aiLightggSource.d.ts",
+      "import": "./dist/community/aiLightggSource.js"
+    },
     "./diagnostics/export": {
       "types": "./dist/diagnostics/export.d.ts",
       "import": "./dist/diagnostics/export.js"

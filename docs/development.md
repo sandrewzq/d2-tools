@@ -40,6 +40,7 @@ docs/        正式文档
   - 负责把网络、存储、鉴权等平台能力收口到服务边界
   - OAuth callback server、OAuth token store / HTTP client、config store、Manifest metadata cache 和 definition component cache 的运行时实现统一放在这里；Desktop 主进程和 worker 通过 services subpath 调用，不从 core 直接取运行环境 adapter
   - action log 等本地 JSON store 的文件读写实现放在 services；core 只持有对应领域类型、筛选和格式化规则
+  - 社区推荐的本地表、个人知识、light.gg 缓存和 AI source 运行时统一放在 `services/community`；core 只保留 DTO、规范化、注入式 source、匹配和响应解析
 
 - `packages/app`
   - 负责跨端前端查询层、状态模型和页面 workspace 编排
@@ -86,7 +87,7 @@ docs/        正式文档
 - `packages/desktop/src/contracts/<domain>.ts` 是 Electron channel 的单一 transport 契约；领域 DTO 继续由 core 持有，session/cache patch 由 services 持有，contracts 只组合 channel 输入输出。`renderer/api/*Api.ts` 兼容性重导出 contracts，preload / main 不得从 renderer API 导入类型。
 - `packages/desktop/src/renderer/api/types.ts` 是 renderer 侧 `AppApi` 聚合入口；大型 DTO 不得重新塞回该文件或 `api/client.ts`。后续 Mac / 移动端适配优先复用 core/services 的领域和服务接口，不直接复用 Electron transport 契约。
 - `packages/desktop/src/renderer/api/client.ts` 只做 Electron renderer 运行时绑定：声明 `window.d2`、导出 `api`，并兼容性重导出 `types.ts` 里的类型；renderer / test 使用方不得从这里导类型，类型应从 `api/types.ts` 或分域 API 文件导入。
-- 新增用户可见文案优先进入 `packages/ui/src/i18n/` 或对应领域 copy，并遵循 [玩家文案字典](player-facing-language.md)；界面语言使用 `zh-CN` / `en-US`，Bungie 资料库语言使用 `zh-chs` / `en`，不要在组件里分散写 `locale === ... ? ... : ...`。共享 UI 的 prototype fallback 也必须接收 `interfaceLocale`，不能只给正式内容页做 i18n。
+- 新增用户可见文案优先进入 `packages/ui/src/i18n/` 或对应领域 copy，并遵循 [玩家文案字典](player-facing-language.md)；界面语言使用 `zh-CN` / `en-US`，Bungie 资料库语言使用 `zh-chs` / `en`，不要在组件里分散写 `locale === ... ? ... : ...`。共享 UI 的 Prototype mock 也必须接收 `interfaceLocale`，不能只给正式内容页做 i18n。
 - 默认数据目录由 `packages/core/src/config/defaults.ts` 的平台感知 helper 统一计算：Windows 使用 `%APPDATA%\d2-tools`，macOS 使用 `~/Library/Application Support/d2-tools`，Linux / 其他平台使用 `$XDG_DATA_HOME/d2-tools` 或 `~/.local/share/d2-tools`。
 - `packages/desktop/test/renderer-boundaries.test.ts` 会拦截 feature 互相 import 和 shared 反向依赖 feature。
 - `packages/desktop/test/renderer-api-boundaries.test.ts` 会拦截把大型 DTO 类型重新塞回 `api/client.ts`、renderer / test 从 `api/client.ts` 导类型，或重新塞回一个巨型 `api/types.ts`。
@@ -190,81 +191,24 @@ tools\git-preflight.cmd
 
 ### 2.5 Renderer UI 样式系统
 
-- 本节描述三个冻结原型落入共享 UI 后的目标样式系统，不表示需要保留当前应用的视觉实现。`docs/work/references/ui-prototypes/prototype-design-system.css` 是视觉 token 和组件配方的来源；现有 `packages/ui` 样式只作为待迁移代码，和原型冲突的规则必须替换或删除。
-- `ProductWorkspace*`、`AppShell` 等共享组件可以保留代码职责，但其 DOM 和 chrome 不是视觉兼容边界；正式输出必须完整匹配原型。不得为了复用现有组件而保留原型中不存在的卡片、间距、边框、标题区或分栏。
-- 桌面端 UI 按“页面底层 / 主面板 / 子块或列表项”三层组织；页面必须有主工作区，辅助信息和低频信息下沉。
-- 全局样式 token 定义在 `packages/ui/src/styles/foundation/00-tokens.css` 的 `:root` 和 `.app-shell[data-color-mode]`：间距使用 `--space-8/12/16/24/32`；圆角只使用 `--radius-structural/shell-group/control/frame/object/indicator`；边界只使用 `--shell-divider/section-divider/object-border/control-border`；颜色使用 `--surface-*`、`--border-*`、`--text-*`、`--status-*` 和 `--control-*`。
-- 产品按钮优先使用共享 `ControlButton`，最终 DOM 必须输出 `data-ui-kind="button"`、`data-control-variant`、`data-control-size`、`data-control-width` 和 `data-control-shape`。Primary 是绿色确认操作，AI 是紫色智能命令，Secondary 是中性操作，Danger 只用于破坏性命令，Quiet 用于图标、页签和低强调入口；菜单 class 只能负责布局，不能再次决定按钮颜色。
-- `:root` 只提供默认主题和独立页面 fallback。任何通过 `var(--page)`、`var(--panel)`、`var(--text)` 等基础色生成的语义别名，都必须在 `.app-shell[data-color-mode="light"]` 与 `.app-shell[data-color-mode="dark"]` 节点内重新声明；不能依赖从 `:root` 继承的别名随子节点基础 token 自动重算。新增主题 token 时必须同时检查 surface、field、chip、item、drawer、border、text、status 和 scrollbar 映射。
-- 共享 UI 设计系统继续补齐 `--field-*`、`--chip-*`、`--item-*`、`--drawer-*` 和 `--game-*` token：普通产品 UI 必须使用 field / chip / item / drawer 语义色，`--game-*` 只用于装备详情顶部等明确游戏视觉区域。
-- AI 抽屉是桌面外壳的独立 pane：`.shell-content` 和 `.global-assistant-panel` 各自滚动，抽屉不得再用 fixed 遮罩覆盖主工作区。
-- 明暗色模式由 `config.json` 的 `features.color_mode` 持久化，默认 `light`；桌面启动状态必须携带保存的颜色模式，避免应用重启或覆盖更新后回到默认外观。
-- 新增状态文案统一使用 `status-message status-neutral|pending|ready|warning|error`，不要再在 TSX 中新增 `notice` 或 `error` 类。
-- 新增列表、筛选和对象卡片优先复用 `ui-list-row`、`ui-filter-toolbar`、`ui-item-card`、`ui-badge`；设置页或工具区子块优先复用 `panel-subsection`。
-- 主菜单页面统一使用 `ProductWorkspacePage`、`ProductWorkspaceHeader`、`ProductWorkspacePanel`、`ProductWorkspaceCommandBar`、`ProductWorkspaceSplit`、`ProductWorkspaceSideRail`、`ProductWorkspaceContentStack` 和 `ProductWorkspaceEmptyState` 生成 `product-workspace-*` 共享工作区骨架；不要为某个菜单单独发明顶层间距、页面标题、左右分栏或空状态高度规则。`ProductWorkspacePage` 和 `ProductWorkspaceHeader` 只能由 `ProductShellHost` 或明确的 standalone fallback 使用，主菜单真实挂载的 `*ContentView.tsx` 不得 import、渲染或间接委托到它们。
-- 菜单允许有私有样式，但只能作用在菜单内容层：信息架构、领域组件、列表密度、装备卡、筛选控件、库存图标、perk 池、配装条目等可以使用 `.account-*`、`.vault-*`、`.library-*`、`.loadout-*`、`.vendor-*`、`.home-*` 自定义。页面根、顶部标题、主分栏、首层面板、首层工具栏、滚动容器、暗色背景和主 surface chrome 归共享工作区骨架所有。
-- 菜单私有 class 和 `ProductWorkspace*` 叠加使用时，不得重新定义共享 chrome 属性，包括 `padding`、`border`、`border-radius`、`background`、`box-shadow` 和页面级 `gap`。如果首块区域需要不同密度，优先调整内部子元素；确实需要新的骨架能力时，先扩展 `ProductWorkspace*` 或 token，而不是在菜单 class 里覆盖。
-- 私有样式必须使用共享 token 表达颜色、间距、圆角和状态；不要新增硬编码浅色背景、菜单专属暗色兼容块，或只在某一端生效的视觉修补。Prototype / Web / Desktop 的差异只能来自数据、平台 adapter 或 mock 状态，不能来自不同页面 CSS。
-- `app-panel`、`product-card` 和 `tool-panel` 只能在逐菜单迁移期间作为临时旧实现存在，不能作为视觉兼容目标。原型没有对应结构时必须随菜单迁移删除；原型确有对应对象时，也应按原型重新实现边界、尺寸和层级。
-- 后续 UI 开发以本节为准，不新增读取生产源码后匹配文案、HTML、class 或 CSS 片段的普通功能测试。明确废弃的按钮 class、token 和兼容样式入口由 `scripts/check-ui-contract.mjs` 做静态质量门禁，防止旧合同重新进入实现文件。
-- 三个指定静态 HTML 是冻结视觉规格和唯一视觉验收基准，不是可复制进产品的代码模板。视觉需求变化时先修改并确认对应原型，再改 `packages/ui`；正式实现必须还原原型视觉，但必须绑定当前应用的真实 ViewModel 和 actions，不能复制 HTML 中的 mock 数据或假交互。`docs/work/references/` 中除此之外的其他 HTML 仍只作为历史资料或对比标注。
-- 静态 HTML 可以保留规范说明、边界解释和对比标注，但必须同时使用 `<!-- d2-reference-only:start ... -->` / `<!-- d2-reference-only:end -->` 包住，并在对应 HTML 元素上标记 `data-reference-only="true"`；标记块只用于设计评审和规则表达，不得迁入 `packages/ui`、`packages/prototype`、`packages/web` 或 Desktop 真实页面。
+Renderer UI 的长期边界只在本节保留，具体视觉数值与菜单合同集中在：
 
-共享 Shell 与跨菜单组件还原必须执行以下门禁：
+- `docs/work/references/ui-prototypes/specs/global-visual-contract.md`
+- `docs/work/references/ui-prototypes/specs/application-workspaces.md`
+- `docs/work/references/ui-prototypes/specs/equipment-details.md`
 
-1. 先在 `docs/work/references/ui-prototypes/specs/` 建立原型 selector 到应用 selector 的组件映射，记录样式所有者、真实功能边界和状态矩阵。
-2. 读取冻结原型加载全部 CSS 后的最终计算样式；公共组件不得在 HTML 内联 CSS 和 `prototype-design-system.css` 中保留两套配方。
-3. 删除冲突旧规则后完整实现原型配方，不允许保留旧结构再叠加更具体的兼容覆盖。
-4. 共享组件必须提供浏览器计算样式契约；契约检查 DOM 渲染结果、盒模型、边框所有权、颜色 token 和关键几何关系，不读取生产源码匹配 CSS 字符串。
-5. CI 生成固定主题和视口截图作为评审产物。视觉契约和截图人工复核完成前，`docs/todo.md` 只能标记“待视觉验收”，不能标记“已修复”。
+实现规则：
 
-### 2.5.1 全局视觉合同与原型先行门禁
+1. 三个冻结 HTML 是视觉验收基准，当前 ViewModel、actions、adapter、IPC 和状态是功能真相；不得复制原型 mock，也不得用旧产品 DOM 推导视觉。
+2. 页面结构和视觉只在 `packages/ui` 实现。Prototype、Web 和 Desktop 只提供 mock、平台 adapter 和真实能力接线，共同消费 `ProductShellHost`。
+3. 全局 token 和共享 chrome 由 foundation、shell、workspace 与共享组件持有；菜单样式只负责对应领域内容，不覆盖 `.shell-*`、首层工作区、页面 gutter、全局滚动或主题 token。
+4. `ProductWorkspace*`、`ControlButton` 等共享组件输出稳定 `data-surface`、`data-ui-kind` 和 Control 语义；菜单不得用 class 重新决定全局颜色、按钮 variant、边框、圆角、文字、阴影或层级。
+5. 与原型冲突的旧 DOM、旧 CSS、archive 分支和平台私有视觉规则直接删除，不使用更高 specificity、`!important` 或后置样式维持兼容。
+6. 明暗主题必须使用同一套语义 selector，只替换 token；颜色模式由 `config.json` 的 `features.color_mode` 持久化。
+7. UI 视觉变化先更新并确认冻结原型，再修改共享 UI。Prototype 用于中间验证，Desktop 实窗在 `light / dark × 1280 / 980 / 760` 下通过后才能标记完成。
+8. 不新增读取生产源码后匹配文案、HTML、class 或 CSS 片段的普通功能测试；废弃入口由 `scripts/check-ui-contract.mjs` 的静态质量门禁维护。
 
-全应用只能有一套视觉语言，而不是“共享 token + 每个菜单各自决定边框和圆角”。下表定义唯一允许的十类页面与表面语义配方。它们不是十套主题；颜色、字体、间距和交互状态仍使用同一份 token。新组件或菜单改造必须先归类，不能按截图临时发明新的面板、Tab 或列表。
-
-| 配方 | 典型对象 | 边框与圆角所有权 | 当前/状态表达 | 禁止事项 |
-|---|---|---|---|---|
-| `ShellChrome` | 顶部栏、侧栏、页头 | 只画连续结构线，直角 | 不使用选中态 | 把 Shell 包成卡片或追加菜单外框 |
-| `PrimaryNavigation` | 左侧一级菜单 | 容器无外框、无圆角、无独立背景；菜单项只画底部分隔 | 导航专用背景、文字、字重、图标底色和中性 `3px` 内嵌当前指示；不画完整边框或业务语义色条 | 将一级菜单当作 `SurfaceList` 或卡片组 |
-| `ContextSwitcher` | 角色、当前账号、当前对象范围切换 | 全宽容器拥有一圈控件边框和控件圆角；子项只画内部单侧分隔 | 当前项使用背景和底部 2px 指示线 | 每项完整外框、导航色条、水平滚动轨道 |
-| `SegmentedControl` | 游戏内 / 本地等同层模式切换 | 仅整个控件画一圈控件边框与控件圆角；子项只画内部单分隔 | 当前项使用背景与文字；不遮盖或重画外框 | 文件夹 Tab、每个按钮独立外框、负 margin 拼接 |
-| `PageSection` | 页面内容带、章节 | 只允许章节底部分隔；无圆角、无对象背景 | 不承载选中态 | 用页面 section 伪装卡片或重复画上下边框 |
-| `WorkspaceSplit` | 两栏 / 三栏工作区 | 外层不画完整框；只由相邻栏位画一条分隔线 | 不承载选中态 | 外框加左右栏重复边线，形成双线或框套框 |
-| `SurfaceList` | 目录、台账、表格化数据行 | standalone 由父级画一圈直角外框；嵌入栏位时继承栏位边缘；行只画底部分隔 | 嵌入目录的当前行使用导航专用背景、文字、字重和中性内嵌指示；普通数据行不取得导航状态 | 父子同时画外框，或把每行做成圆角卡片 |
-| `SurfaceFrame` | 状态矩阵、摘要、独立空态、独立工具面板 | 唯一元素画完整对象边框、`4px` 轻圆角、背景与裁剪；内部单元保持直角 | 可有内部状态，但不使用导航色条 | 嵌套首层卡片、子元素重复外框、借用 `ObjectCard` 的 `6px` 圆角 |
-| `ObjectCard` | 装备、Offer、Perk、能力 | 每个独立对象画完整对象边框与 `6px` 对象圆角 | 选中使用背景和对象边框 | 用于页面分区、目录或普通数据行 |
-| `Callout` | 信息、警告、失败、AI 提示 | 中性对象边框；只有此类允许左侧语义色条 | 语义色与图标/文字共同表达 | 导航、Tab、卡片或目录复用左侧色条 |
-
-`Control` 是跨切面的基础控件规则，不计入十类页面与表面配方：按钮、字段、徽标和状态 Chip 使用统一控件边框、圆角与 hover / focus / disabled / status token；它们不得成为首层页面或工作区外框。
-
-以下是不可违反的全局边界：
-
-1. **一条外边只有一个拥有者。** 先在组件规格卡中记录四边分别由谁绘制；父级、子级和状态阴影不得再同时绘制同一外边。
-2. **一级导航、上下文切换、模式切换不是同一种组件。** 它们可以共享字体、颜色、控件高度和焦点，但不得混用外框、圆角、色条或激活指示方式。
-3. **三栏工作区不是 `SurfaceFrame`。** 它只使用栏位间的一条结构线；目录、正文和摘要不得再共同包一层对象边框。
-4. **只有独立对象才可以是卡片。** 页面 section、工作区、目录和普通数据行不得为了“整齐”添加圆角卡片。
-5. **静态原型和产品 CSS 运行时隔离。** 三个静态 HTML 的 `prototype-design-system.css` 必须自包含；`packages/prototype` 才消费 `packages/ui`。两侧以本节和组件规格卡对齐，绝不通过 `@import` 相互依赖。
-6. **不通过覆盖修复。** 与以上配方冲突的旧 DOM / CSS 必须删除或重建；禁止以更具体 selector、`!important` 或平台专属补丁压住旧规则。
-7. **共享 Shell 几何必须只有一个来源。** 顶栏高度、侧栏宽度、页面 gutter、页头高度和紧凑断点由共享 Shell token 决定；菜单 CSS、首页 CSS 和对象卡不得重新定义它们。视觉验收以 CSS viewport 的 `1280 / 980 / 760` 为准，不以浏览器缩放后的截图物理像素推断断点。
-8. **页面有边界预算。** 页面级只允许 `ShellLine`、`SplitLine`、`RowLine`、`ObjectOutline` 四种可见边界：Shell 只画连续结构线，工作区只画相邻栏位分隔，章节和连续数据只画行线，独立对象才画完整外框。控件边框不参与页面布局；Callout 的语义左色条不能复用为导航或普通卡片。每条边只能由一个 DOM 层拥有。
-9. **页面先选宽度类型。** 仓库、配装和账号装备对照属于 `fluid-workspace`；设置与账号中的纯说明段落属于 `constrained-content`；首页、资料库、商人属于 `hybrid-workspace`。不得把阅读型内容无限拉宽，也不得把工作台包进居中的大卡片。
-10. **当前定位必须独立建模。** 一级菜单和嵌入目录使用 `--nav-current-*`，对象选择继续使用 `--selected-*`，角色上下文使用底部指示，分段控件只改变控件内部状态。亮色下当前背景、当前指示和文字分别满足 `1.25:1`、`3:1`、`4.5:1` 对比度；对象、上下文和分段控件的选中边界相对选中背景也必须达到 `3:1`。hover、focus、current、disabled 不能共用同一视觉状态。
-11. **文字、图标和状态同样必须有唯一语义。** 每段文字同时具有颜色 `Tone` 和决策 `Priority`：`--text`、`--body`、`--muted`、`--blue` 分别表达 primary、body、meta、action；`decision`、`context`、`reading`、`support`、`trace` 分别表达当前操作重要性。日期、版本、数量、名称和普通数值属于事实值，保持 primary / body；只有明确状态词才使用 status tone，容器 `data-status` 不得把事实值一起染色。时间、奖励、成本、可用性、缺失、操作结果不能因语法像标签而缩小；页面描述不能降为 trace，普通 Perk、锁定和元数据不得使用 action 色。完整字号、图标、Control 状态、密度、层级和响应式规则见 `specs/global-visual-contract.md`，菜单不得私自例外。
-12. **按钮几何由 Control 合同统一。** 文本命令默认 `34px` 高，Primary / Secondary / Danger / AI / Quiet 只改变颜色，不改变尺寸；设置和诊断等重复操作列统一使用 `144px` 宽，普通命令栏按内容自适应。紧凑 `30px` 和主控件 `40px` 必须显式声明，菜单不得按文案长度或按钮颜色自行调整。旧 `.primary-button/.secondary-button/.danger-button`、`.button.primary/.danger/.violet` 与 `is-primary` 不再是兼容入口。
-13. **全局验收检查最终计算样式。** 每个菜单在 light / dark、`1280 / 980 / 760` 下复核每个 `Tone + Priority` 的对比度、字号、换行与决策可见性，以及图标和命中区、default / hover / pressed / current / focus-visible / disabled / loading / error、间距刻度、层级和零横向滚动。共享 CSS 先提供语义 token，菜单只消费，不在页面 CSS 中直接挑选颜色、字号、阴影或 `z-index`。
-
-#### 原型先行流程
-
-视觉改动按以下顺序执行，顺序不可跳过：
-
-1. 在本文档与 `specs/global-visual-contract.md` 先登记配方、边框所有权、文字 `Tone + Priority`、图标角色、状态、密度、层级、响应式规则和对应稳定标记。
-2. 先修改三个静态冻结原型，使它们内部不再存在旧配方；原型确认前不得修改 `packages/ui` 的页面 JSX 或菜单 CSS。
-3. 为原型中每个共享组件建立规格卡：原型 selector、主题、视口、DOM 层级、四边边框、圆角、背景、padding、gap、文字 `Tone + Priority`、图标、焦点、禁用、滚动和状态。
-4. 将同一配方实现为 `packages/ui` 的共享语义标记或共享组件，再让菜单接入真实 ViewModel 与 actions。
-5. 每个菜单迁入时先删除该菜单对应旧 chrome，再实现唯一页面；不保留 archive、旧兼容 selector 或第二棵页面 DOM。
-6. Prototype 仅证明共享 React UI；Desktop 实窗才是完成依据。按 light / dark 与 `1280 / 980 / 760` 宽度逐项对照原型后，才可标记完成。
-
-配装页是该流程的首个试点：角色栏必须归为 `ContextSwitcher`，游戏内 / 本地必须归为 `SegmentedControl`，三栏区域必须归为 `WorkspaceSplit`，左目录为嵌入式 `SurfaceList`。现有“文件夹 Tab”、工作区完整外框、目录左侧蓝条和重复栏位边线都属于待删除旧配方。
+配装页的新领域模型、护甲优化、DIM 导入和最终页面由 `docs/work/backlog/T1-loadout-plans-and-guide-import.md` 管理。旧 `LoadoutTemplate` 兼容页和旧 T8 配装规格不再作为视觉基准。
 
 ### 2.6 桌面外壳、更新和后台任务
 
@@ -502,7 +446,7 @@ packages/desktop/release/
 桌面端使用本地数据目录保存配置、Manifest 缓存、愿望单、本地标签、目标规则和操作日志。日常换机或重装优先使用设置页的便携备份：
 
 1. 选择“创建便携备份”，指定一个可信的保存位置。
-2. 便携备份包含脱敏偏好、愿望单、目标规则、本地标签、配装模板和本地社区推荐，不包含 OAuth token、Bungie/AI 密钥、Manifest、缓存或日志。
+2. 便携备份包含脱敏偏好、愿望单、目标规则、本地标签、本地方案和本地社区推荐，不包含 OAuth token、Bungie/AI 密钥、Manifest、缓存或日志。
 3. 在目标电脑安装并首次启动 d2-tools，然后选择“恢复便携备份”。
 4. 恢复前会校验备份格式、要求确认并创建本机回滚备份；写入失败时自动恢复原有数据。
 5. 重启应用，重新登录 Bungie，并填写目标电脑需要的 Bungie/AI 密钥。

@@ -579,7 +579,6 @@
   background: var(--status-error-bg);
 }
 
-.panel-subsection,
 .ui-item-card {
   display: grid;
   gap: var(--space-12);

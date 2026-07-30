@@ -6,7 +6,7 @@ import {
   clearLocalCommunityRecommendations,
   loadLocalCommunityRecommendations,
   saveLocalCommunityRecommendations
-} from "../src/community-perks/localCommunityRecommendations.js";
+} from "../../services/src/community/localCommunityRecommendations.js";
 import { parseLocalCommunityRecommendations } from "../src/community-perks/localCommunityImport.js";
 
 describe("local community recommendations", () => {

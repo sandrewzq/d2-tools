@@ -17,8 +17,7 @@
   width: 100%;
 }
 
-.app-page *,
-.app-panel * {
+.app-page * {
   min-width: 0;
   word-break: normal;
 }
@@ -31,8 +30,6 @@
 }
 
 .app-page-head h1,
-.app-section-title h2,
-.app-section-title h3,
 .app-hero-panel h2,
 .app-info-strip h3 {
   margin: 0;
@@ -54,32 +51,10 @@
   line-height: 1.6;
 }
 
-.app-panel {
-  min-width: 0;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-object);
-  background: var(--surface-panel);
-  box-shadow: var(--shadow-panel);
-}
-
-.app-panel-body,
 .app-setting-group,
 .app-list-card,
 .app-source-card {
   padding: var(--space-16);
-}
-
-.app-section-title {
-  display: flex;
-  justify-content: space-between;
-  gap: var(--space-12);
-  align-items: center;
-  margin-bottom: var(--space-12);
-}
-
-.app-section-title span {
-  color: var(--text-muted);
-  font-size: var(--font-content);
 }
 
 .app-overview-grid {

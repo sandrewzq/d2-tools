@@ -76,19 +76,22 @@ describe("cross-platform UI package layout", () => {
     expect(desktopStyles).not.toMatch(/^\.product-workspace/m);
   });
 
-  it("keeps primary page layout on shared ProductWorkspace modules", () => {
-    const pageViews = [
-      "packages/ui/src/home/HomePageView.tsx",
-      "packages/ui/src/account/AccountPageView.tsx",
-      "packages/ui/src/vault/VaultPageView.tsx",
+  it("exports one shared content view per product page without compatibility wrappers", () => {
+    const contentViews = [
+      "packages/ui/src/home/HomePageContentView.tsx",
+      "packages/ui/src/account/AccountPageContentView.tsx",
+      "packages/ui/src/vault/VaultPageContentView.tsx",
       "packages/ui/src/loadouts/LoadoutsPageContentView.tsx",
-      "packages/ui/src/library/LibraryPageView.tsx",
-      "packages/ui/src/vendors/VendorsPageView.tsx",
-      "packages/ui/src/settings/SettingsPageView.tsx"
+      "packages/ui/src/library/LibraryPageContentView.tsx",
+      "packages/ui/src/vendors/VendorsPageContentView.tsx",
+      "packages/ui/src/settings/SettingsPageContentView.tsx"
     ];
 
-    for (const pageView of pageViews) {
-      expect(readText(pageView)).toContain("ProductWorkspace");
+    for (const contentView of contentViews) {
+      expect(existsSync(join(repoRoot, contentView))).toBe(true);
     }
+
+    const uiIndex = readText("packages/ui/src/index.ts");
+    expect(uiIndex).not.toMatch(/export \{ \w+PageView \}/);
   });
 });

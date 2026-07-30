@@ -126,7 +126,7 @@
     .library-clear-button{width:100%;margin-top:6px}
     .inspector-field{margin-top:10px}.inspector-field textarea{min-height:74px;padding:8px;resize:vertical}
     .material-row{grid-template-columns:var(--item-thumb) minmax(150px,1fr) minmax(120px,.7fr) auto}.material-row img{width:var(--item-thumb);height:var(--item-thumb);border-radius:var(--radius-control);object-fit:cover}
-    .settings-action-row,.settings-spaced-group{margin-top:12px}.settings-model-select{flex:1 1 220px}.settings-update-progress i{width:var(--update-progress,0%)}
+    .settings-action-row,.settings-spaced-group{margin-top:12px}.settings-download-warning{display:grid;gap:4px;margin-top:12px;padding:9px 10px;border:1px solid var(--object-border);border-left:3px solid var(--amber);border-radius:var(--radius-control);background:var(--card-bg)}.settings-download-warning p{max-width:760px;margin:0}.settings-model-select{flex:1 1 220px}.settings-update-progress i{width:var(--update-progress,0%)}
     .setting-row>.setting-actions{width:100%;justify-self:stretch;justify-content:flex-start;min-width:0}.setting-row .field{width:100%}.form-grid label.switch{display:inline-flex;justify-self:start;align-items:center;gap:7px}.settings-help{max-width:760px}.settings-common-actions .settings-action-row{justify-content:flex-start}.settings-log-actions{display:flex;align-items:center;justify-content:flex-start;gap:6px;flex-wrap:wrap;min-width:0}.settings-log-actions [data-ui-kind="status-chip"]{display:inline-flex;margin-top:0}
 
     @media(max-width:1280px){

@@ -77,7 +77,7 @@ export function registerConfigIpcHandlers(): void {
       const confirmation = await dialog.showMessageBox({
         type: "warning",
         title: "导入旧版配置备份",
-        message: "这个文件只包含旧版配置，不能恢复愿望单、标签或配装模板。",
+        message: "这个文件只包含旧版配置，不能恢复愿望单、标签或本地方案。",
         detail: "为避免泄露或误覆盖，文件中的账号令牌、Bungie 密钥和 AI 密钥不会导入。是否继续？",
         buttons: ["继续导入", "取消"],
         defaultId: 1,

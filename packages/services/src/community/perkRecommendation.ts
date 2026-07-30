@@ -1,27 +1,12 @@
-import {
-  CommunityPerkRecommendationService,
-  createAiLightggSource,
-  createLocalCommunitySource
-} from "@d2-tools/core/community-perks";
+import { CommunityPerkRecommendationService } from "@d2-tools/core/community-perks";
+import { createAiLightggSource, type AiLightggConfig } from "./aiLightggSource.js";
 import { createDimWishlistSource } from "./dimWishlistSource.js";
-
-type FullServiceConfig = {
-  data?: { data_dir?: string };
-  ai?: {
-    protocol?: string;
-    provider?: string;
-    api_key?: string;
-    model?: string;
-    base_url?: string;
-    enable_lightgg?: boolean;
-    force_lightgg?: boolean;
-  };
-} | null | undefined;
+import { createLocalCommunitySource } from "./localCommunityRecommendations.js";
 
 export function createDefaultCommunityPerkService(
   config: { data?: { data_dir?: string } } | null | undefined
 ): CommunityPerkRecommendationService {
-  const service = new CommunityPerkRecommendationService(config);
+  const service = new CommunityPerkRecommendationService();
   const dataDir = config?.data?.data_dir;
   if (dataDir) {
     service.addSource(createLocalCommunitySource(dataDir));
@@ -30,7 +15,7 @@ export function createDefaultCommunityPerkService(
   return service;
 }
 
-export function createFullCommunityPerkService(config: FullServiceConfig): CommunityPerkRecommendationService {
+export function createFullCommunityPerkService(config: AiLightggConfig): CommunityPerkRecommendationService {
   const service = createDefaultCommunityPerkService(config);
   const ai = config?.ai;
   if ((ai?.protocol || ai?.provider) && ai?.api_key && ai?.model) {

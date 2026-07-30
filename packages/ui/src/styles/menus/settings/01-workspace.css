@@ -314,6 +314,22 @@
   margin-top: 12px;
 }
 
+.settings-download-warning {
+  display: grid;
+  gap: 4px;
+  margin-top: 12px;
+  padding: 9px 10px;
+  border: 1px solid var(--object-border);
+  border-left: 3px solid var(--amber);
+  border-radius: var(--radius-control);
+  background: var(--card-bg);
+}
+
+.settings-download-warning p {
+  max-width: 760px;
+  margin: 0;
+}
+
 .settings-page .setting-toggle {
   display: inline-flex;
   gap: 7px;

@@ -14,9 +14,6 @@ describe("multi-platform package boundaries", () => {
     const legacyRuntimeFiles = new Set([
       "analysis/targetRulesStore.ts",
       "analysis/wishlistStore.ts",
-      "community-perks/aiLightggSource.ts",
-      "community-perks/localCommunityRecommendations.ts",
-      "community-perks/personalWeaponKnowledge.ts",
       "config/defaults.ts",
       "items/aliases.ts",
       "library/history.ts",
