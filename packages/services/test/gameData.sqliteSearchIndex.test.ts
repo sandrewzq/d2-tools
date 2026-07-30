@@ -19,7 +19,7 @@ describe("SQLite game data search index", () => {
       duplicateVersionHashes: [200, 101],
       canonicalVersionHashes: [200, 101],
       separateBucketHashes: [300],
-      legacyVersionHashes: [100, 101]
+      rejectsOutdatedSchema: true
     });
   });
 });

@@ -166,7 +166,6 @@ function prepareDesktopData() {
     },
     ai: {
       protocol: "",
-      provider: "",
       api_key: "",
       model: "",
       base_url: "",

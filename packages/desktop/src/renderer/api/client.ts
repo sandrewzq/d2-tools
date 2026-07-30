@@ -7,5 +7,3 @@ declare global {
 }
 
 export const api: AppApi = window.d2;
-
-export type * from "./types";

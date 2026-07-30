@@ -281,11 +281,12 @@ describe("community perk recommendations", () => {
     const source = createAiLightggSource({
       data: { data_dir: dir },
       ai: {
-        provider: "openai_responses",
+        protocol: "openai_responses",
         api_key: "test-key",
         model: "gpt-test",
         base_url: "https://example.test/v1",
-        enable_lightgg: true
+        enable_lightgg: true,
+        force_lightgg: false
       }
     });
 
@@ -311,11 +312,12 @@ describe("community perk recommendations", () => {
     const source = createAiLightggSource({
       data: { data_dir: dir },
       ai: {
-        provider: "openai_responses",
+        protocol: "openai_responses",
         api_key: "test-key",
         model: "gpt-test",
         base_url: "https://example.test/v1",
-        enable_lightgg: true
+        enable_lightgg: true,
+        force_lightgg: false
       }
     });
 

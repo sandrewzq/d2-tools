@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { defaultDataDirForPlatform } from "@d2-tools/core/config/defaults";
+import { defaultDataDirForPlatform } from "../src/config/dataDir";
 import { loadConfig, saveConfig } from "../src/config/store";
 
 describe("config store service adapter", () => {
@@ -74,14 +74,17 @@ describe("config store service adapter", () => {
           manifest_language: "zh-chs"
         },
         ai: {
-          provider: "",
+          protocol: "",
           api_key: "",
           model: "",
-          base_url: ""
+          base_url: "",
+          enable_lightgg: false,
+          force_lightgg: false
         },
         features: {
           write_actions_enabled: true,
           color_mode: "dark",
+          density: "standard",
           interface_locale: "en-US",
           manifest_language_follows_interface: false
         }
@@ -115,14 +118,17 @@ describe("config store service adapter", () => {
           manifest_language: "zh-chs"
         },
         ai: {
-          provider: "",
+          protocol: "",
           api_key: "",
           model: "",
-          base_url: ""
+          base_url: "",
+          enable_lightgg: false,
+          force_lightgg: false
         },
         features: {
           write_actions_enabled: false,
           color_mode: "light",
+          density: "standard",
           interface_locale: "zh-CN",
           manifest_language_follows_interface: true
         }
@@ -144,7 +150,47 @@ describe("config store service adapter", () => {
     expect(loaded.features.color_mode).toBe("dark");
   });
 
-  it("keeps defaults for missing fields in a partial config file", () => {
+  it("migrates legacy ai.provider values to the current protocol field", () => {
+    const dir = mkdtempSync(join(tmpdir(), "d2-tools-config-"));
+    writeFileSync(
+      join(dir, "config.json"),
+      `${JSON.stringify({
+        bungie: {
+          api_key: "api",
+          client_id: "client",
+          client_secret: "secret",
+          redirect_uri: "https://127.0.0.1:28780/oauth/callback"
+        },
+        data: {
+          data_dir: dir,
+          manifest_language: "zh-chs"
+        },
+        ai: {
+          provider: "anthropic",
+          api_key: "ai-key",
+          model: "claude",
+          base_url: "https://api.anthropic.com",
+          enable_lightgg: false,
+          force_lightgg: false
+        },
+        features: {
+          write_actions_enabled: false,
+          color_mode: "light",
+          density: "standard",
+          interface_locale: "zh-CN",
+          manifest_language_follows_interface: true
+        }
+      }, null, 2)}\n`,
+      "utf8"
+    );
+
+    const loaded = loadConfig({ dataDir: dir, env: {} });
+
+    expect(loaded.ai.protocol).toBe("anthropic_messages");
+    expect(loaded.ai.api_key).toBe("ai-key");
+  });
+
+  it("rejects config files that do not match the current schema", () => {
     const dir = mkdtempSync(join(tmpdir(), "d2-tools-config-"));
     writeFileSync(
       join(dir, "config.json"),
@@ -152,19 +198,7 @@ describe("config store service adapter", () => {
       "utf8"
     );
 
-    const loaded = loadConfig({ dataDir: dir, env: {} });
-
-    expect(loaded.bungie.api_key).toBe("x");
-    expect(loaded.bungie.redirect_uri).toBe("https://127.0.0.1:28780/oauth/callback");
-    expect(loaded.data.manifest_language).toBe("zh-chs");
-    expect(loaded.ai.provider).toBe("");
-    expect(loaded.ai.api_key).toBe("");
-    expect(loaded.ai.model).toBe("");
-    expect(loaded.ai.base_url).toBe("");
-    expect(loaded.features.write_actions_enabled).toBe(false);
-    expect(loaded.features.color_mode).toBe("light");
-    expect(loaded.features.interface_locale).toBe("zh-CN");
-    expect(loaded.features.manifest_language_follows_interface).toBe(true);
+    expect(() => loadConfig({ dataDir: dir, env: {} })).toThrow("config.json 缺少 data 配置");
   });
 
 });

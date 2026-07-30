@@ -216,7 +216,6 @@ export type SqliteSearchIndexOptions = {
   databasePath: string;
   expectedManifestVersion?: string;
   expectedLanguage?: string;
-  requireCurrentSchema?: boolean;
 };
 
 export function createSqliteSearchIndex(
@@ -226,11 +225,9 @@ export function createSqliteSearchIndex(
     readOnly: true,
     timeout: 5_000
   });
-  let supportsItemVersionRelation = false;
   try {
     database.exec("PRAGMA query_only = ON;");
-    const schemaVersion = assertIndexCompatibility(database, options);
-    supportsItemVersionRelation = schemaVersion === searchIndexSchemaVersion;
+    assertIndexCompatibility(database, options);
   } catch (error) {
     database.close();
     throw error;
@@ -243,9 +240,7 @@ export function createSqliteSearchIndex(
     },
 
     getItemVersionHashes(itemHashes, limit) {
-      return supportsItemVersionRelation
-        ? queryItemVersionHashes(database, itemHashes, limit)
-        : [...new Set([...itemHashes].map(toUnsignedHash))].slice(0, limit);
+      return queryItemVersionHashes(database, itemHashes, limit);
     },
 
     getRelatedItemHashes(perkHashes, limitPerPerk = 8) {
@@ -483,15 +478,12 @@ function queryMappedHashes(
 function assertIndexCompatibility(
   database: DatabaseSync,
   options: SqliteSearchIndexOptions
-): string {
+): void {
   const metadata = Object.fromEntries(
     (database.prepare("SELECT key, value FROM metadata").all() as Array<{ key: string; value: string }>)
       .map((row) => [row.key, row.value])
   );
-  if (!new Set(["2", searchIndexSchemaVersion]).has(metadata.schema_version)) {
-    throw new Error("Search index schema version is not supported");
-  }
-  if (options.requireCurrentSchema && metadata.schema_version !== searchIndexSchemaVersion) {
+  if (metadata.schema_version !== searchIndexSchemaVersion) {
     throw new Error("Search index schema version is not current");
   }
   if (options.expectedManifestVersion && metadata.manifest_version !== options.expectedManifestVersion) {
@@ -503,7 +495,6 @@ function assertIndexCompatibility(
   ) {
     throw new Error("Search index language does not match the active database");
   }
-  return metadata.schema_version;
 }
 
 function loadPlugSets(database: DatabaseSync): Map<number, number[]> {

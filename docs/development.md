@@ -56,7 +56,7 @@ docs/        正式文档
 - `packages/web`
   - 负责 Web 平台壳、浏览器启动、Web 登录态和 HTTP/API adapter
   - 与 Desktop 挂同一个产品 UI Host，不复制页面实现；后续移动 App 也按同一壳模式接入
-  - 首页数据可以通过 Web snapshot provider / adapter 从 `/api/home-snapshot` 读取，无服务时回退到共享 fallback；其他页面当前明确使用 fixture runtime，不保留未消费的通用 page snapshot 契约
+  - 首页数据可以通过 Web snapshot provider / adapter 从 `/api/home-snapshot` 读取，无服务时显示 `unavailableHomeSnapshot` 明确不可用状态；其他页面当前明确使用 fixture runtime，不保留未消费的通用 page snapshot 契约
 
 - `packages/http`
   - 暴露本地 HTTP / 工具接口
@@ -77,11 +77,11 @@ docs/        正式文档
 - `packages/desktop/src/renderer/features/<menu>/` 是菜单私有实现。feature 可以 import `shared/`、`components/`、`utils/` 和 `api/`，但不能 import 其他 feature。
 - `packages/desktop/src/renderer/shared/` 只能放跨菜单复用能力，不能反向 import `features/`。
 - 跨账号、仓库、资料库复用的装备详情、配装定位、状态卡片等能力应先进入 `shared/`，再由各 feature 引用。
-- `packages/desktop/src/contracts/<domain>.ts` 是 Electron channel 的单一 transport 契约；领域 DTO 继续由 core 持有，session/cache patch 由 services 持有，contracts 只组合 channel 输入输出。`renderer/api/*Api.ts` 兼容性重导出 contracts，preload / main 不得从 renderer API 导入类型。
+- `packages/desktop/src/contracts/<domain>.ts` 是 Electron channel 的单一 transport 契约；领域 DTO 继续由 core 持有，session/cache patch 由 services 持有，contracts 只组合 channel 输入输出。已经迁入 contracts 的领域由 renderer 直接引用该契约，preload / main 不得从 renderer API 导入类型。
 - `packages/desktop/src/renderer/api/types.ts` 是 renderer 侧 `AppApi` 聚合入口；大型 DTO 不得重新塞回该文件或 `api/client.ts`。后续 Mac / 移动端适配优先复用 core/services 的领域和服务接口，不直接复用 Electron transport 契约。
-- `packages/desktop/src/renderer/api/client.ts` 只做 Electron renderer 运行时绑定：声明 `window.d2`、导出 `api`，并兼容性重导出 `types.ts` 里的类型；renderer / test 使用方不得从这里导类型，类型应从 `api/types.ts` 或分域 API 文件导入。
+- `packages/desktop/src/renderer/api/client.ts` 只做 Electron renderer 运行时绑定：声明 `window.d2` 并导出 `api`；renderer / test 类型应从 `api/types.ts`、分域 API 文件或对应 transport contract 导入。
 - 新增用户可见文案优先进入 `packages/ui/src/i18n/` 或对应领域 copy，并遵循 [玩家文案字典](player-facing-language.md)；界面语言使用 `zh-CN` / `en-US`，Bungie 资料库语言使用 `zh-chs` / `en`，不要在组件里分散写 `locale === ... ? ... : ...`。共享 UI 的 Web 预览数据也必须接收 `interfaceLocale`，不能只给 Desktop 正式内容页做 i18n。
-- 默认数据目录由 `packages/core/src/config/defaults.ts` 的平台感知 helper 统一计算：Windows 使用 `%APPDATA%\d2-tools`，macOS 使用 `~/Library/Application Support/d2-tools`，Linux / 其他平台使用 `$XDG_DATA_HOME/d2-tools` 或 `~/.local/share/d2-tools`。
+- 默认数据目录由 `packages/services/src/config/dataDir.ts` 的平台 adapter 统一计算：Windows 使用 `%APPDATA%\d2-tools`，macOS 使用 `~/Library/Application Support/d2-tools`，Linux / 其他平台使用 `$XDG_DATA_HOME/d2-tools` 或 `~/.local/share/d2-tools`；Core 的默认配置函数只接收明确的数据目录。
 - `packages/desktop/test/renderer-boundaries.test.ts` 会拦截 feature 互相 import 和 shared 反向依赖 feature。
 - `packages/desktop/test/renderer-api-boundaries.test.ts` 会拦截把大型 DTO 类型重新塞回 `api/client.ts`、renderer / test 从 `api/client.ts` 导类型，或重新塞回一个巨型 `api/types.ts`。
 - 源码目录下的 `packages/*/src/**/*.js` 和 `packages/*/src/**/*.d.ts` 默认视为构建或迁移过程产生的衍生文件，不作为正式源码提交目标；常规开发应以 `.ts` / `.tsx` 为准，构建产物优先落到 `dist/`。
@@ -219,7 +219,7 @@ Renderer UI 的长期边界只在本节保留，具体视觉数值与菜单合�
 - SQLite 查询由 Desktop 长生命周期查询 worker 持有；资料库更新进入激活阶段前，`RuntimeCoordinator` 必须先 quiesce 账号 Session 和查询 worker，确认连接关闭后再切换，完成或回滚后恢复查询。
 - GameData worker 的 search/detail 请求必须有有限超时和单请求 pending 清理；definition 批量读取可使用更长超时，worker error/exit/close 时必须统一拒绝并清空剩余请求。
 - 资料库更新使用当前语言 SQLite 作为主库，构建装备、Perk、关系和 canonical identity sidecar；非英文界面可离线下载英文 SQLite 构建轻量英文 sidecar，但不得长期保留第二份完整英文主库。
-- JSON Adapter 只用于 SQLite 未覆盖的 supplement 和受控的迁移 / 回退兼容；不得重新把大型 JSON 主缓存接回普通请求。
+- JSON Adapter 只用于 SQLite 当前未覆盖的 supplement；不得作为旧主缓存兼容层，也不得重新把大型 JSON 主缓存接回普通请求。
 - 账号读取统一通过 `AccountSession`：列表使用紧凑 `AccountSnapshot`，实例详情按需加载；写操作成功后先局部 patch，再后台 refresh 校验。账号快照缓存和 Manifest / sidecar 都属于运行缓存，不进入便携备份。
 - 首页、资料库实时来源和账号 Session 共享 Bungie 请求 Broker；每日与每周通过同一次 `home:briefing` 获取，避免重复 membership、Profile 和里程碑请求。
 - 首页简报使用运行缓存保存已解析数据，按每日重置、每周重置和仄商人出现/离开窗口分别判断是否需要访问 Bungie；应用重启后优先复用缓存，倒计时只在 renderer 本地重算，手动刷新可强制绕过周期缓存。

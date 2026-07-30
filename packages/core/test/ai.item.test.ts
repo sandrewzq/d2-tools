@@ -14,7 +14,7 @@ describe("AI item analysis", () => {
     let called = false;
 
     const result = await generateItemAiAdvice({
-      config: config({ provider: "", api_key: "", model: "", base_url: "" }),
+      config: config({ protocol: "", api_key: "", model: "", base_url: "", enable_lightgg: false, force_lightgg: false }),
       item: item(),
       tags,
       fetcher: async () => {
@@ -28,15 +28,17 @@ describe("AI item analysis", () => {
     expect(result.skipped_reason).toBe("AI 未启用。");
   });
 
-  it("calls an OpenAI-compatible endpoint with item roll", async () => {
+  it("calls a configured Chat Completions endpoint with item roll", async () => {
     const requests: Array<{ url: string; init: RequestInit }> = [];
 
     const result = await generateItemAiAdvice({
       config: config({
-        provider: "deepseek",
+        protocol: "openai_chat_completions",
         api_key: "key",
         model: "deepseek-chat",
-        base_url: ""
+        base_url: "https://api.deepseek.com",
+        enable_lightgg: false,
+        force_lightgg: false
       }),
       item: item(),
       tags,

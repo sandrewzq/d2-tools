@@ -19,7 +19,6 @@ export type AiLightggConfig = {
   data?: { data_dir?: string };
   ai?: {
     protocol?: string;
-    provider?: string;
     api_key?: string;
     model?: string;
     base_url?: string;
@@ -81,7 +80,6 @@ function buildAiConfig(config: AiLightggConfig): D2Config {
     },
     ai: {
       protocol: config?.ai?.protocol ?? "",
-      provider: config?.ai?.provider ?? "",
       api_key: config?.ai?.api_key ?? "",
       model: config?.ai?.model ?? "",
       base_url: config?.ai?.base_url ?? "",

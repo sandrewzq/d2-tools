@@ -22,19 +22,16 @@ describe("test classification", () => {
   it("assigns every test file to exactly one test layer", () => {
     const files = [
       "packages/core/test/behavior.test.ts",
-      "packages/desktop/test/renderer-boundaries.test.ts",
-      "packages/desktop/test/legacy-ui.test.ts"
+      "packages/desktop/test/renderer-boundaries.test.ts"
     ];
 
     const result = classifyTestFiles(files, {
-      architectureTests: ["packages/desktop/test/renderer-boundaries.test.ts"],
-      legacyTests: ["packages/desktop/test/legacy-ui.test.ts"]
+      architectureTests: ["packages/desktop/test/renderer-boundaries.test.ts"]
     });
 
     expect(result).toEqual({
       behavior: ["packages/core/test/behavior.test.ts"],
-      architecture: ["packages/desktop/test/renderer-boundaries.test.ts"],
-      legacy: ["packages/desktop/test/legacy-ui.test.ts"]
+      architecture: ["packages/desktop/test/renderer-boundaries.test.ts"]
     });
   });
 
@@ -69,52 +66,32 @@ describe("test classification", () => {
     expect(isSourceInspectionTest("packages/core/test/account.test.ts", source)).toBe(false);
   });
 
-  it("rejects new source-inspection tests outside the frozen legacy list", () => {
+  it("rejects source-inspection tests outside the architecture list", () => {
     const testPath = "packages/desktop/test/new-ui-source-check.test.ts";
     const root = createTestRoot({
       [testPath]: `
         import { readFileSync } from "node:fs";
-        const source = readFileSync("packages/ui/src/home/HomePageView.tsx", "utf8");
+        const source = readFileSync("packages/ui/src/home/HomePageContentView.tsx", "utf8");
         expect(source).toContain("home-page");
       `
     });
 
     expect(collectTestQualityErrors(root, [testPath], {
-      architectureTests: [],
-      legacyTests: []
+      architectureTests: []
     })).toEqual([
       `禁止新增源码字符串测试：${testPath}。请通过 import、渲染结果、role、label 或 ViewModel 输出验证行为。`
     ]);
   });
 
-  it("requires the legacy list to shrink after a test stops reading source", () => {
-    const testPath = "packages/desktop/test/migrated-ui.test.ts";
-    const root = createTestRoot({
-      [testPath]: `
-        import { selectHomePageModel } from "@d2-tools/app";
-        expect(selectHomePageModel({})).toBeDefined();
-      `
-    });
-
-    expect(collectTestQualityErrors(root, [testPath], {
-      architectureTests: [],
-      legacyTests: [testPath]
-    })).toEqual([
-      `遗留源码测试清单已有过期项：${testPath}。请从清单中删除。`
-    ]);
-  });
-
-  it("rejects missing architecture tests and overlapping policy entries", () => {
+  it("rejects missing architecture tests", () => {
     const testPath = "packages/desktop/test/renderer-boundaries.test.ts";
     const root = createTestRoot({
       [testPath]: "expect(true).toBe(true);"
     });
 
     expect(collectTestQualityErrors(root, [testPath], {
-      architectureTests: [testPath, "packages/desktop/test/missing-boundary.test.ts"],
-      legacyTests: [testPath]
+      architectureTests: [testPath, "packages/desktop/test/missing-boundary.test.ts"]
     })).toEqual([
-      `测试分类重复：${testPath} 同时属于 architecture 和 legacy。`,
       "架构测试文件已不存在：packages/desktop/test/missing-boundary.test.ts。请恢复测试或明确修改架构白名单。"
     ]);
   });

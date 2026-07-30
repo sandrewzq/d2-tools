@@ -1,9 +1,9 @@
-.app-shell .vault-page,
-.app-shell .vault-workspace-panel {
+:where(.app-shell) .vault-page,
+:where(.app-shell) .vault-workspace-panel {
   min-width: 0;
 }
 
-.app-shell .vault-workflow-bar {
+:where(.app-shell) .vault-workflow-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -13,18 +13,22 @@
   border-radius: 0;
 }
 
-.app-shell .vault-workflow-tabs,
-.app-shell .vault-workflow-meta {
+:where(.app-shell) .vault-workflow-meta {
   display: flex;
   align-items: center;
   min-width: 0;
 }
 
-.app-shell .vault-workflow-tabs {
+:where(.app-shell) .vault-workflow-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  min-width: 0;
   border: 1px solid var(--border-control);
 }
 
-.app-shell .vault-workflow-tabs button {
+:where(.app-shell) .vault-workflow-tabs button {
   min-height: 34px;
   padding: 0 12px;
   border: 0;
@@ -36,43 +40,43 @@
   white-space: nowrap;
 }
 
-.app-shell .vault-workflow-tabs button:last-child {
+:where(.app-shell) .vault-workflow-tabs button:last-child {
   border-right: 0;
 }
 
-.app-shell .vault-workflow-tabs button:hover:not(.active) {
+:where(.app-shell) .vault-workflow-tabs button:hover:not(.active) {
   color: var(--text-title);
   background: var(--surface-interactive);
 }
 
-.app-shell .vault-workflow-tabs button.active {
+:where(.app-shell) .vault-workflow-tabs button.active {
   color: var(--selected-fg);
   background: var(--state-selected-bg);
 }
 
-.app-shell .vault-workflow-meta {
+:where(.app-shell) .vault-workflow-meta {
   gap: 0;
 }
 
-.app-shell .vault-workflow-meta .app-chip {
+:where(.app-shell) .vault-workflow-meta .app-chip {
   min-height: 28px;
   margin-left: -1px;
   border-radius: 0;
   white-space: nowrap;
 }
 
-.app-shell .vault-workflow-meta .app-chip:first-child {
+:where(.app-shell) .vault-workflow-meta .app-chip:first-child {
   margin-left: 0;
 }
 
-.app-shell .vault-page > .status-message {
+:where(.app-shell) .vault-page > .status-message {
   margin: 0;
   padding: 8px 10px;
   border-width: 0 0 1px;
   border-radius: 0;
 }
 
-.app-shell .vault-command-bar {
+:where(.app-shell) .vault-command-bar {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   gap: 12px;
@@ -83,28 +87,28 @@
   background: var(--surface-toolbar);
 }
 
-.app-shell .vault-command-bar strong {
+:where(.app-shell) .vault-command-bar strong {
   color: var(--text-title);
   font-size: var(--font-meta);
 }
 
-.app-shell .vault-command-bar span {
+:where(.app-shell) .vault-command-bar span {
   min-width: 0;
   color: var(--text-muted);
   font-size: var(--font-content);
 }
 
-.app-shell .vault-browse {
+:where(.app-shell) .vault-browse {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   min-height: 590px;
 }
 
-.app-shell .vault-browse > * + * {
+:where(.app-shell) .vault-browse > * + * {
   border-top: 1px solid var(--border-subtle);
 }
 
-.app-shell .vault-filter-workbench {
+:where(.app-shell) .vault-filter-workbench {
   width: 100%;
   min-width: 0;
   border-bottom: 1px solid var(--border-subtle);
@@ -113,7 +117,7 @@
   box-shadow: none;
 }
 
-.app-shell .vault-filter-head {
+:where(.app-shell) .vault-filter-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -124,70 +128,70 @@
   background: var(--surface-elevated);
 }
 
-.app-shell .vault-filter-title {
+:where(.app-shell) .vault-filter-title {
   display: grid;
   gap: 2px;
 }
 
-.app-shell .vault-filter-title span,
-.app-shell .vault-filter-search > span,
-.app-shell .vault-filter-field > span,
-.app-shell .vault-domain-field > span,
-.app-shell .vault-filter-scope-group > span,
-.app-shell .vault-armor-rule-field > span {
+:where(.app-shell) .vault-filter-title span,
+:where(.app-shell) .vault-filter-search > span,
+:where(.app-shell) .vault-filter-field > span,
+:where(.app-shell) .vault-domain-field > span,
+:where(.app-shell) .vault-filter-scope-group > span,
+:where(.app-shell) .vault-armor-rule-field > span {
   color: var(--text-muted);
   font-size: var(--font-caption);
 }
 
-.app-shell .vault-filter-title strong {
+:where(.app-shell) .vault-filter-title strong {
   color: var(--text-title);
   font-size: var(--font-row-title);
 }
 
-.app-shell .vault-filter-actions {
+:where(.app-shell) .vault-filter-actions {
   display: flex;
   align-items: center;
   justify-content: flex-end;
   gap: 12px;
 }
 
-.app-shell .vault-filter-hint {
+:where(.app-shell) .vault-filter-hint {
   color: var(--text-muted);
   font-size: var(--font-content);
 }
 
-.app-shell .vault-filter-primary,
-.app-shell .vault-filter-common {
+:where(.app-shell) .vault-filter-primary,
+:where(.app-shell) .vault-filter-common {
   display: grid;
   gap: 12px;
   padding: 12px 14px;
 }
 
-.app-shell .vault-filter-primary {
+:where(.app-shell) .vault-filter-primary {
   grid-template-columns: minmax(260px, 1fr) minmax(430px, 0.85fr);
   align-items: end;
   border-bottom: 1px solid var(--border-subtle);
 }
 
-.app-shell .vault-filter-search,
-.app-shell .vault-filter-field,
-.app-shell .vault-domain-field,
-.app-shell .vault-filter-scope-group,
-.app-shell .vault-armor-rule-field {
+:where(.app-shell) .vault-filter-search,
+:where(.app-shell) .vault-filter-field,
+:where(.app-shell) .vault-domain-field,
+:where(.app-shell) .vault-filter-scope-group,
+:where(.app-shell) .vault-armor-rule-field {
   display: grid;
   gap: 4px;
   min-width: 0;
 }
 
-.app-shell .vault-filter-workbench input,
-.app-shell .vault-filter-workbench select {
+:where(.app-shell) .vault-filter-workbench input,
+:where(.app-shell) .vault-filter-workbench select {
   width: 100%;
   min-width: 0;
   min-height: 40px;
   border-radius: var(--radius-control);
 }
 
-.app-shell .vault-filter-scope {
+:where(.app-shell) .vault-filter-scope {
   display: flex;
   min-width: 0;
   min-height: 40px;
@@ -197,7 +201,7 @@
   background: var(--surface-interactive);
 }
 
-.app-shell .vault-filter-scope button {
+:where(.app-shell) .vault-filter-scope button {
   display: inline-flex;
   flex: 1 1 0;
   align-items: center;
@@ -214,27 +218,27 @@
   box-shadow: none;
 }
 
-.app-shell .vault-filter-scope button:last-child {
+:where(.app-shell) .vault-filter-scope button:last-child {
   border-right: 0;
 }
 
-.app-shell .vault-filter-scope button[aria-pressed="true"] {
+:where(.app-shell) .vault-filter-scope button[aria-pressed="true"] {
   color: var(--selected-fg);
   background: var(--state-selected-bg);
 }
 
-.app-shell .vault-filter-scope button:hover:not([aria-pressed="true"]) {
+:where(.app-shell) .vault-filter-scope button:hover:not([aria-pressed="true"]) {
   color: var(--text-title);
   background: var(--surface-elevated);
 }
 
-.app-shell .vault-filter-scope button small {
+:where(.app-shell) .vault-filter-scope button small {
   color: inherit;
   font-size: var(--font-caption);
   opacity: 0.72;
 }
 
-.app-shell .vault-filter-section-head {
+:where(.app-shell) .vault-filter-section-head {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
@@ -243,43 +247,37 @@
   font-size: var(--font-caption);
 }
 
-.app-shell .vault-filter-section-head span:last-child {
+:where(.app-shell) .vault-filter-section-head span:last-child {
   color: var(--text-body);
 }
 
-.app-shell .vault-filter-common-row {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
-  align-items: end;
-}
-
-.app-shell .vault-domain-filter {
+:where(.app-shell) .vault-domain-filter {
   display: grid;
   gap: 12px;
   padding: 12px 14px 14px;
   border-top: 1px solid var(--border-subtle);
 }
 
-.app-shell .vault-domain-filter p {
+:where(.app-shell) .vault-domain-filter p {
   margin: 0;
   color: var(--text-body);
   font-size: var(--font-content);
   line-height: 1.5;
 }
 
-.app-shell .vault-weapon-filter {
+:where(.app-shell) .vault-weapon-filter {
   grid-template-columns: minmax(180px, 240px) minmax(0, 1fr);
   align-items: start;
 }
 
-.app-shell .vault-frame-filter {
+:where(.app-shell) .vault-frame-filter {
+  align-items: start;
   min-width: 0;
   border: 1px solid var(--border-subtle);
   background: var(--surface-subtle);
 }
 
-.app-shell .vault-frame-filter summary {
+:where(.app-shell) .vault-frame-filter summary {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -291,45 +289,48 @@
   cursor: pointer;
 }
 
-.app-shell .vault-frame-filter summary small {
+:where(.app-shell) .vault-frame-filter summary small {
   color: var(--text-muted);
   font-size: var(--font-caption);
 }
 
-.app-shell .vault-frame-chip-grid {
+:where(.app-shell) .vault-frame-chip-grid {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+  min-width: 0;
   padding: 8px;
   border-top: 1px solid var(--border-subtle);
 }
 
-.app-shell .vault-frame-chip {
+:where(.app-shell) .vault-frame-chip {
   display: inline-flex;
-  align-items: center;
   justify-content: space-between;
   gap: 8px;
+  align-items: center;
+  min-width: 104px;
   min-height: 32px;
   padding: 0 9px;
   border: 1px solid var(--border-control);
   border-radius: var(--radius-control);
   color: var(--text-body);
   background: var(--surface-panel);
+  white-space: nowrap;
   box-shadow: none;
 }
 
-.app-shell .vault-frame-chip small {
+:where(.app-shell) .vault-frame-chip small {
   color: var(--text-muted);
   font-size: var(--font-caption);
 }
 
-.app-shell .vault-frame-chip.active {
+:where(.app-shell) .vault-frame-chip.active {
   border-color: var(--state-selected-border);
   color: var(--selected-fg);
   background: var(--state-selected-bg);
 }
 
-.app-shell .vault-armor-filter-panel {
+:where(.app-shell) .vault-armor-filter-panel {
   display: grid;
   gap: 10px;
   padding: 0;
@@ -338,37 +339,41 @@
   background: transparent;
 }
 
-.app-shell .vault-armor-filter-heading {
+:where(.app-shell) .vault-armor-filter-heading {
   display: flex;
-  align-items: start;
-  justify-content: space-between;
+  flex-wrap: wrap;
   gap: 16px;
+  justify-content: space-between;
+  align-items: start;
 }
 
-.app-shell .vault-armor-filter-heading h3,
-.app-shell .vault-armor-filter-heading p {
+:where(.app-shell) .vault-armor-filter-heading h3 {
   margin: 0;
-}
-
-.app-shell .vault-armor-filter-heading h3 {
   color: var(--text-title);
   font-size: var(--font-row-title);
 }
 
-.app-shell .vault-armor-filter-heading p,
-.app-shell .vault-armor-rule-empty {
+:where(.app-shell) .vault-armor-rule-empty {
   margin-top: 3px;
   color: var(--text-body);
   font-size: var(--font-content);
   line-height: 1.5;
 }
 
-.app-shell .vault-armor-rule-list {
+:where(.app-shell) .vault-armor-filter-heading p {
+  margin: 0;
+  margin-top: 3px;
+  color: var(--text-body);
+  font-size: var(--font-content);
+  line-height: 1.5;
+}
+
+:where(.app-shell) .vault-armor-rule-list {
   display: grid;
   gap: 6px;
 }
 
-.app-shell .vault-filter-workbench .vault-armor-rule {
+:where(.app-shell) .vault-filter-workbench .vault-armor-rule {
   display: grid;
   grid-template-columns: minmax(154px, 220px) 24px minmax(94px, 120px) auto;
   gap: 8px;
@@ -379,7 +384,7 @@
   background: var(--surface-elevated);
 }
 
-.app-shell .vault-filter-workbench .vault-rule-operator {
+:where(.app-shell) .vault-filter-workbench .vault-rule-operator {
   display: grid;
   place-items: center;
   min-height: 40px;
@@ -387,11 +392,11 @@
   font-weight: 700;
 }
 
-.app-shell .vault-filter-workbench .vault-armor-rule-remove {
+:where(.app-shell) .vault-filter-workbench .vault-armor-rule-remove {
   min-height: 40px;
 }
 
-.app-shell .vault-column-head {
+:where(.app-shell) .vault-column-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -402,43 +407,43 @@
   background: var(--surface-elevated);
 }
 
-.app-shell .vault-column-head h3 {
+:where(.app-shell) .vault-column-head h3 {
   margin: 0;
   color: var(--text-title);
   font-size: var(--font-content);
 }
 
-.app-shell .vault-column-head span {
+:where(.app-shell) .vault-column-head span {
   color: var(--text-muted);
   font-size: var(--font-caption);
 }
 
-.app-shell .vault-results-column,
-.app-shell .vault-cleanup-grid > section {
+:where(.app-shell) .vault-results-column,
+:where(.app-shell) .vault-cleanup-grid > section {
   min-width: 0;
 }
 
-.app-shell .vault-results-column > .status-message,
-.app-shell .vault-cleanup-grid > section > .status-message {
+:where(.app-shell) .vault-results-column > .status-message,
+:where(.app-shell) .vault-cleanup-grid > section > .status-message {
   margin: 12px;
 }
 
-.app-shell .vault-results-column .vault-section-list,
-.app-shell .vault-cleanup-grid .vault-section-list {
+:where(.app-shell) .vault-results-column .vault-section-list,
+:where(.app-shell) .vault-cleanup-grid .vault-section-list {
   gap: 0;
   padding: 0;
 }
 
-.app-shell .vault-results-column .vault-card-grid,
-.app-shell .vault-cleanup-grid .vault-card-grid {
+:where(.app-shell) .vault-results-column .vault-card-grid,
+:where(.app-shell) .vault-cleanup-grid .vault-card-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 0;
   padding: 0;
 }
 
-.app-shell .vault-results-column .vault-item-card,
-.app-shell .vault-cleanup-grid .vault-item-card {
+:where(.app-shell) .vault-results-column .vault-item-card,
+:where(.app-shell) .vault-cleanup-grid .vault-item-card {
   display: grid;
   grid-template-rows: minmax(0, 1fr);
   gap: 0;
@@ -451,44 +456,44 @@
   box-shadow: none;
 }
 
-.app-shell .vault-results-column .vault-item-card:hover,
-.app-shell .vault-cleanup-grid .vault-item-card:hover {
+:where(.app-shell) .vault-results-column .vault-item-card:hover,
+:where(.app-shell) .vault-cleanup-grid .vault-item-card:hover {
   border-color: var(--border-subtle);
   background: var(--surface-elevated);
 }
 
-.app-shell .vault-results-column .vault-item-card.selected,
-.app-shell .vault-cleanup-grid .vault-item-card.selected {
+:where(.app-shell) .vault-results-column .vault-item-card.selected,
+:where(.app-shell) .vault-cleanup-grid .vault-item-card.selected {
   background: var(--state-selected-bg);
 }
 
-.app-shell .vault-results-column .vault-item-card.pending,
-.app-shell .vault-cleanup-grid .vault-item-card.pending {
+:where(.app-shell) .vault-results-column .vault-item-card.pending,
+:where(.app-shell) .vault-cleanup-grid .vault-item-card.pending {
   opacity: 0.72;
 }
 
-.app-shell .vault-results-column .vault-card-main,
-.app-shell .vault-cleanup-grid .vault-card-main {
+:where(.app-shell) .vault-results-column .vault-card-main,
+:where(.app-shell) .vault-cleanup-grid .vault-card-main {
   display: grid;
   grid-template-columns: 46px minmax(0, 1fr);
   gap: 10px;
   align-items: center;
 }
 
-.app-shell .vault-results-column .vault-card-visual,
-.app-shell .vault-results-column .vault-card-visual img,
-.app-shell .vault-results-column .vault-card-visual .item-icon-placeholder,
-.app-shell .vault-cleanup-grid .vault-card-visual,
-.app-shell .vault-cleanup-grid .vault-card-visual img,
-.app-shell .vault-cleanup-grid .vault-card-visual .item-icon-placeholder {
+:where(.app-shell) .vault-results-column .vault-card-visual,
+:where(.app-shell) .vault-results-column .vault-card-visual img,
+:where(.app-shell) .vault-results-column .vault-card-visual .item-icon-placeholder,
+:where(.app-shell) .vault-cleanup-grid .vault-card-visual,
+:where(.app-shell) .vault-cleanup-grid .vault-card-visual img,
+:where(.app-shell) .vault-cleanup-grid .vault-card-visual .item-icon-placeholder {
   width: 46px;
   min-width: 46px;
   height: 46px;
   border-radius: 3px;
 }
 
-.app-shell .vault-results-column .vault-card-body,
-.app-shell .vault-cleanup-grid .vault-card-body {
+:where(.app-shell) .vault-results-column .vault-card-body,
+:where(.app-shell) .vault-cleanup-grid .vault-card-body {
   display: grid;
   grid-template-columns: minmax(170px, 0.8fr) minmax(210px, 1.1fr) minmax(180px, 1fr) minmax(110px, auto);
   grid-template-areas:
@@ -498,11 +503,11 @@
   align-items: center;
 }
 
-.app-shell .vault-card-body .vault-title-row {
+:where(.app-shell) .vault-card-body .vault-title-row {
   grid-area: identity;
 }
 
-.app-shell .vault-card-body > .decision-badge {
+:where(.app-shell) .vault-card-body > .decision-badge {
   grid-area: decision;
   justify-self: end;
   width: auto;
@@ -512,46 +517,61 @@
   text-align: right;
 }
 
-.app-shell .vault-card-body > .vault-card-meta {
+:where(.app-shell) .vault-card-body > .vault-card-meta {
   grid-area: detail;
 }
 
-.app-shell .vault-card-body > .vault-card-signals {
+:where(.app-shell) .vault-card-body > .vault-card-signals {
   grid-area: signals;
 }
 
-.app-shell .vault-card-body > .vault-card-roll {
+:where(.app-shell) .vault-card-body > .vault-card-roll {
   grid-area: roll;
 }
 
-.app-shell .vault-card-body > .vault-note-snippet {
+:where(.app-shell) .vault-card-body > .vault-note-snippet {
   grid-area: note;
 }
 
-.app-shell .vault-card-body > .vault-card-open-state {
+:where(.app-shell) .vault-card-body > .vault-card-open-state {
   grid-area: decision;
   justify-self: end;
 }
 
-.app-shell .vault-item-card.pending .decision-badge {
+:where(.app-shell) .vault-item-card.pending .decision-badge {
   display: none;
 }
 
-.app-shell .vault-card-body strong,
-.app-shell .vault-card-body span,
-.app-shell .vault-card-body small {
+:where(.app-shell) .vault-card-body span {
+  display: block;
   min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-muted);
 }
 
-.app-shell .vault-card-body strong {
+:where(.app-shell) .vault-card-body small {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-muted);
+  font-size: var(--font-content);
+  line-height: 1.45;
+}
+
+:where(.app-shell) .vault-card-body strong {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   color: var(--text-title);
   font-size: var(--font-body);
+  line-height: 1.35;
+  white-space: nowrap;
 }
 
-.app-shell .vault-card-meta,
-.app-shell .vault-card-roll,
-.app-shell .vault-note-snippet,
-.app-shell .vault-card-open-state {
+:where(.app-shell) .vault-card-open-state {
   overflow: hidden;
   color: var(--text-muted);
   font-size: var(--font-caption);
@@ -560,88 +580,185 @@
   white-space: nowrap;
 }
 
-.app-shell .vault-note-snippet {
-  color: var(--status-warning);
+:where(.app-shell) .vault-card-roll {
+  color: var(--text-muted);
+  font-size: var(--font-caption);
+  line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.app-shell .vault-card-signals {
+:where(.app-shell) .vault-card-meta {
+  color: var(--text-muted);
+  font-size: var(--font-caption);
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+:where(.app-shell) .vault-note-snippet {
+  white-space: nowrap;
+  overflow: hidden;
+  color: var(--status-warning);
+  text-overflow: ellipsis;
+  font-size: var(--font-caption);
+  line-height: 1.4;
+}
+
+:where(.app-shell) .vault-card-signals {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
+  min-width: 0;
   overflow: hidden;
 }
 
-.app-shell .vault-card-signals small {
+:where(.app-shell) .vault-card-signals small {
   width: auto;
   max-width: 100%;
 }
 
-.app-shell .vault-card-signals .wishlist-hit,
-.app-shell .vault-card-signals .target-hit,
-.app-shell .vault-card-signals .community-match,
-.app-shell .vault-card-signals .loadout-template-badge {
+:where(.app-shell) .vault-card-signals .loadout-template-badge {
   display: inline-flex;
+  width: max-content;
+  max-width: 100%;
+  overflow: hidden;
+  white-space: normal;
 }
 
-.app-shell .vault-score-badge,
-.app-shell .vault-tag-current,
-.app-shell .vault-card-select {
+:where(.app-shell) .vault-card-signals .community-match {
+  display: inline-flex;
+  width: max-content;
+  max-width: 100%;
+  overflow: hidden;
+  white-space: normal;
+}
+
+:where(.app-shell) .vault-card-signals .target-hit {
+  display: inline-flex;
+  width: max-content;
+  max-width: 100%;
+  overflow: hidden;
+  white-space: normal;
+}
+
+:where(.app-shell) .vault-card-signals .wishlist-hit {
+  display: inline-flex;
+  width: max-content;
+  max-width: 100%;
+  overflow: hidden;
+  white-space: normal;
+}
+
+:where(.app-shell) .vault-tag-current {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 52px;
+  padding: 4px 7px;
+  border: 1px solid var(--chip-border);
   border-radius: 0;
+  color: var(--chip-text);
+  background: var(--chip-bg);
+  font-size: var(--font-content);
 }
 
-.app-shell .vault-card-select {
+:where(.app-shell) .vault-score-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: start;
+  min-width: 0;
+  min-height: 22px;
+  padding: 2px 7px;
+  border: 1px solid var(--chip-border);
+  border-radius: 0;
+  color: var(--chip-text);
+  background: var(--chip-bg);
+  font-size: var(--font-body);
+  font-weight: 700;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+:where(.app-shell) .vault-card-select {
+  position: absolute;
   top: 7px;
   left: 7px;
-}
-
-.app-shell .vault-render-limit-message {
-  margin: 0;
-  padding: 8px 12px;
-  border-width: 0 0 1px;
+  z-index: 1;
+  display: inline-flex;
+  gap: 7px;
+  align-items: center;
+  padding: 4px 7px;
+  border: 1px solid var(--chip-border);
   border-radius: 0;
-  background: var(--surface-toolbar);
+  color: var(--chip-text);
+  background: var(--chip-bg);
+  font-size: var(--font-content);
 }
 
-.app-shell .vault-summary-strip {
+:where(.app-shell) .vault-render-limit-message {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 0;
+  color: var(--text-body);
+  background: var(--surface-toolbar);
+  font-size: var(--font-content);
+  border-color: var(--border-subtle);
+  margin: 0;
+  border-width: 0 0 1px;
+}
+
+:where(.app-shell) .vault-summary-strip {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   border-bottom: 1px solid var(--border-subtle);
 }
 
-.app-shell .vault-summary-strip > div {
+:where(.app-shell) .vault-summary-strip > div {
   padding: 10px 12px;
   border-right: 1px solid var(--border-subtle);
   background: var(--surface-elevated);
 }
 
-.app-shell .vault-summary-strip > div:last-child {
+:where(.app-shell) .vault-summary-strip > div:last-child {
   border-right: 0;
 }
 
-.app-shell .vault-summary-strip span,
-.app-shell .vault-summary-strip strong {
+:where(.app-shell) .vault-summary-strip span,
+:where(.app-shell) .vault-summary-strip strong {
   display: block;
 }
 
-.app-shell .vault-summary-strip span {
+:where(.app-shell) .vault-summary-strip span {
   color: var(--text-muted);
   font-size: var(--font-caption);
 }
 
-.app-shell .vault-summary-strip strong {
+:where(.app-shell) .vault-summary-strip strong {
   margin-top: 4px;
   color: var(--text-title);
   font-size: var(--font-row-title);
 }
 
-.app-shell .vault-organize-panel {
+:where(.app-shell) .vault-organize-panel {
   display: grid;
   border-bottom: 1px solid var(--border-subtle);
   border-radius: 0;
   box-shadow: none;
 }
 
-.app-shell .vault-organize-bar {
+:where(.app-shell) .vault-organize-bar {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
@@ -651,13 +768,13 @@
   background: var(--surface-toolbar);
 }
 
-.app-shell .vault-organize-bar .mode-tabs {
+:where(.app-shell) .vault-organize-bar .mode-tabs {
   display: flex;
   align-self: center;
   border: 1px solid var(--border-control);
 }
 
-.app-shell .vault-organize-bar .mode-tabs button {
+:where(.app-shell) .vault-organize-bar .mode-tabs button {
   min-height: 34px;
   padding: 0 10px;
   border: 0;
@@ -668,26 +785,26 @@
   box-shadow: none;
 }
 
-.app-shell .vault-organize-bar .mode-tabs button:last-child {
+:where(.app-shell) .vault-organize-bar .mode-tabs button:last-child {
   border-right: 0;
 }
 
-.app-shell .vault-organize-bar .mode-tabs button.active {
+:where(.app-shell) .vault-organize-bar .mode-tabs button.active {
   color: var(--selected-fg);
   background: var(--state-selected-bg);
 }
 
-.app-shell .vault-organize-field {
+:where(.app-shell) .vault-organize-field {
   flex: 0 0 156px;
   width: 156px;
 }
 
-.app-shell .vault-organize-field select,
-.app-shell .vault-organize-bar > button {
+:where(.app-shell) .vault-organize-field select,
+:where(.app-shell) .vault-organize-bar > button {
   min-height: 34px;
 }
 
-.app-shell .vault-organize-panel .vault-batch-panel {
+:where(.app-shell) .vault-organize-panel .vault-batch-panel {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
@@ -700,12 +817,12 @@
   background: var(--surface-elevated);
 }
 
-.app-shell .vault-organize-panel .vault-batch-panel span {
+:where(.app-shell) .vault-organize-panel .vault-batch-panel span {
   margin-right: auto;
 }
 
-.app-shell .vault-cleanup-warning,
-.app-shell .vault-cleanup-boundary {
+:where(.app-shell) .vault-cleanup-warning,
+:where(.app-shell) .vault-cleanup-boundary {
   margin: 0;
   padding: 7px 10px;
   border-bottom: 1px solid var(--border-subtle);
@@ -714,68 +831,91 @@
   line-height: 1.5;
 }
 
-.app-shell .vault-cleanup-warning {
+:where(.app-shell) .vault-cleanup-warning {
   color: var(--status-warning);
   background: var(--status-warning-bg);
 }
 
-.app-shell .vault-cleanup-locator {
-  margin: 0;
+:where(.app-shell) .vault-cleanup-locator {
+  display: grid;
+  gap: 8px;
   padding: 7px 10px;
   border: 0;
-  border-bottom: 1px solid var(--border-subtle);
   border-radius: 0;
   background: var(--surface-panel);
+  color: var(--text-body);
+  margin: 0;
+  border-bottom: 1px solid var(--border-subtle);
 }
 
-.app-shell .vault-cleanup-locator summary {
+:where(.app-shell) .vault-cleanup-locator summary {
   color: var(--text-body);
   font-size: var(--font-meta);
   cursor: pointer;
 }
 
-.app-shell .vault-cleanup-locator p,
-.app-shell .vault-cleanup-locator li,
-.app-shell .vault-cleanup-locator small,
-.app-shell .vault-cleanup-locator span {
+:where(.app-shell) .vault-cleanup-locator p {
   color: var(--text-muted);
   font-size: var(--font-caption);
 }
 
-.app-shell .vault-cleanup-grid,
-.app-shell .vault-recommendations {
+:where(.app-shell) .vault-cleanup-locator span {
+  overflow-wrap: anywhere;
+  color: var(--text-muted);
+  font-size: var(--font-caption);
+}
+
+:where(.app-shell) .vault-cleanup-locator small {
+  overflow-wrap: anywhere;
+  color: var(--text-muted);
+  font-size: var(--font-caption);
+}
+
+:where(.app-shell) .vault-cleanup-locator li {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  padding-top: 8px;
+  border-top: 1px solid #263044;
+  border-color: var(--border-subtle);
+  color: var(--text-muted);
+  font-size: var(--font-caption);
+}
+
+:where(.app-shell) .vault-cleanup-grid,
+:where(.app-shell) .vault-recommendations {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 330px;
 }
 
-.app-shell .vault-cleanup-grid > aside,
-.app-shell .vault-recommendations > aside {
+:where(.app-shell) .vault-cleanup-grid > aside,
+:where(.app-shell) .vault-recommendations > aside {
   min-width: 0;
   border-left: 1px solid var(--border-subtle);
   background: var(--surface-sidebar);
 }
 
-.app-shell .vault-cleanup-grid .vault-card-body {
+:where(.app-shell) .vault-cleanup-grid .vault-card-body {
   grid-template-columns: minmax(150px, 0.9fr) minmax(180px, 1.1fr) minmax(140px, 1fr) auto;
 }
 
-.app-shell .vault-side-summary-inner {
+:where(.app-shell) .vault-side-summary-inner {
   display: grid;
   gap: 0;
 }
 
-.app-shell .vault-side-heading,
-.app-shell .vault-side-signal,
-.app-shell .vault-side-actions {
+:where(.app-shell) .vault-side-heading,
+:where(.app-shell) .vault-side-signal,
+:where(.app-shell) .vault-side-actions {
   border-radius: 0;
 }
 
-.app-shell .vault-side-heading {
+:where(.app-shell) .vault-side-heading {
   padding: 10px 12px;
   border-bottom: 1px solid var(--border-subtle);
 }
 
-.app-shell .vault-cleanup-grid > aside .vault-decision-summary {
+:where(.app-shell) .vault-cleanup-grid > aside .vault-decision-summary {
   display: grid;
   grid-template-columns: 1fr;
   gap: 0;
@@ -784,8 +924,8 @@
   border-radius: 0;
 }
 
-.app-shell .vault-cleanup-grid > aside .vault-decision-summary span,
-.app-shell .vault-side-signal {
+:where(.app-shell) .vault-cleanup-grid > aside .vault-decision-summary span,
+:where(.app-shell) .vault-side-signal {
   min-height: 52px;
   padding: 8px 12px;
   border: 0;
@@ -794,18 +934,18 @@
   background: transparent;
 }
 
-.app-shell .vault-side-actions {
+:where(.app-shell) .vault-side-actions {
   display: grid;
   gap: 6px;
   padding: 10px 12px;
 }
 
-.app-shell .duplicate-group-list {
+:where(.app-shell) .duplicate-group-list {
   display: grid;
   gap: 0;
 }
 
-.app-shell .duplicate-group {
+:where(.app-shell) .duplicate-group {
   margin: 0;
   padding: 0;
   border: 0;
@@ -815,7 +955,7 @@
   box-shadow: none;
 }
 
-.app-shell .duplicate-group-heading {
+:where(.app-shell) .duplicate-group-heading {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -826,13 +966,13 @@
   background: var(--surface-elevated);
 }
 
-.app-shell .duplicate-group-heading h3 {
+:where(.app-shell) .duplicate-group-heading h3 {
   margin: 0;
   color: var(--text-title);
   font-size: var(--font-row-title);
 }
 
-.app-shell .duplicate-group > .vault-batch-panel {
+:where(.app-shell) .duplicate-group > .vault-batch-panel {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
@@ -844,7 +984,7 @@
   background: var(--surface-toolbar);
 }
 
-.app-shell .duplicate-row {
+:where(.app-shell) .duplicate-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 12px;
@@ -857,15 +997,15 @@
   background: transparent;
 }
 
-.app-shell .duplicate-row:last-child {
+:where(.app-shell) .duplicate-row:last-child {
   border-bottom: 0;
 }
 
-.app-shell .duplicate-row.selected {
+:where(.app-shell) .duplicate-row.selected {
   background: var(--state-selected-bg);
 }
 
-.app-shell .duplicate-row-main {
+:where(.app-shell) .duplicate-row-main {
   display: grid;
   grid-template-columns: minmax(180px, 1fr) minmax(220px, 1.3fr) minmax(140px, 0.7fr);
   gap: 10px;
@@ -879,55 +1019,55 @@
   text-align: left;
 }
 
-.app-shell .duplicate-row-main span,
-.app-shell .duplicate-row-main small {
+:where(.app-shell) .duplicate-row-main span,
+:where(.app-shell) .duplicate-row-main small {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.app-shell .duplicate-row-actions {
+:where(.app-shell) .duplicate-row-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
   justify-content: flex-end;
 }
 
-.app-shell .vault-recommendations > section,
-.app-shell .vault-recommendations > aside,
-.app-shell .vault-dashboard-panel,
-.app-shell .vault-target-rules-panel {
+:where(.app-shell) .vault-recommendations > section,
+:where(.app-shell) .vault-recommendations > aside,
+:where(.app-shell) .vault-dashboard-panel,
+:where(.app-shell) .vault-target-rules-panel {
   min-width: 0;
   border-radius: 0;
   box-shadow: none;
 }
 
-.app-shell .vault-recommendations .vault-dashboard-panel,
-.app-shell .vault-recommendations .wishlist-import-panel {
+:where(.app-shell) .vault-recommendations .vault-dashboard-panel,
+:where(.app-shell) .vault-recommendations .wishlist-import-panel {
   gap: 0;
   padding: 0;
   border: 0;
   background: transparent;
 }
 
-.app-shell .vault-recommendations > section > .status-message {
+:where(.app-shell) .vault-recommendations > section > .status-message {
   margin: 0;
   padding: 9px 12px;
   border-width: 0 0 1px;
   border-radius: 0;
 }
 
-.app-shell .vault-source-list {
+:where(.app-shell) .vault-source-list {
   display: grid;
   border-top: 1px solid var(--border-subtle);
 }
 
-.app-shell .vault-source-row {
+:where(.app-shell) .vault-source-row {
   border-bottom: 1px solid var(--border-subtle);
 }
 
-.app-shell .vault-source-row summary {
+:where(.app-shell) .vault-source-row summary {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -937,221 +1077,224 @@
   cursor: pointer;
 }
 
-.app-shell .vault-source-row summary span,
-.app-shell .vault-source-row summary strong,
-.app-shell .vault-source-row summary small {
+:where(.app-shell) .vault-source-row summary span,
+:where(.app-shell) .vault-source-row summary strong,
+:where(.app-shell) .vault-source-row summary small {
   display: block;
 }
 
-.app-shell .vault-source-row summary strong {
+:where(.app-shell) .vault-source-row summary strong {
   color: var(--text-title);
   font-size: var(--font-meta);
 }
 
-.app-shell .vault-source-row summary small,
-.app-shell .vault-source-row summary b {
+:where(.app-shell) .vault-source-row summary small,
+:where(.app-shell) .vault-source-row summary b {
   margin-top: 3px;
   color: var(--text-muted);
   font-size: var(--font-caption);
   font-weight: 400;
 }
 
-.app-shell .vault-source-row summary b {
+:where(.app-shell) .vault-source-row summary b {
   margin: 0;
   color: var(--accent-primary);
 }
 
-.app-shell .vault-source-editor {
+:where(.app-shell) .vault-source-editor {
   display: grid;
   gap: 8px;
   padding: 0 12px 12px;
 }
 
-.app-shell .vault-source-editor textarea {
+:where(.app-shell) .vault-source-editor textarea {
   min-height: 88px;
   resize: vertical;
 }
 
-.app-shell .vault-target-rules-panel {
+:where(.app-shell) .vault-target-rules-panel {
   padding: 0;
   border: 0;
   background: transparent;
 }
 
-.app-shell .vault-target-rules-panel .vault-armor-rule {
+:where(.app-shell) .vault-target-rules-panel .vault-armor-rule {
   grid-template-columns: minmax(0, 1fr) auto;
   max-width: none;
 }
 
-.app-shell .vault-target-rules-panel .vault-armor-rule:has(> :nth-child(3)) {
+:where(.app-shell) .vault-target-rules-panel .vault-armor-rule:has(> :nth-child(3)) {
   grid-template-columns: minmax(0, 1fr) minmax(90px, 140px) auto;
 }
 
-.app-shell .vault-target-rule-editor {
+:where(.app-shell) .vault-target-rule-editor {
   display: grid;
   gap: 9px;
   padding: 9px 12px;
   border-top: 1px solid var(--border-subtle);
 }
 
-.app-shell .vault-target-rule-editor summary {
+:where(.app-shell) .vault-target-rule-editor summary {
   color: var(--accent-primary);
   font-size: var(--font-meta);
   cursor: pointer;
 }
 
 @media (max-width: 1280px) {
-  .app-shell .vault-filter-primary {
+  :where(.app-shell) .vault-filter-primary {
     grid-template-columns: minmax(240px, 1fr) minmax(360px, 0.9fr);
   }
 
-  .app-shell .vault-card-body,
-  .app-shell .vault-cleanup-grid .vault-card-body {
+  :where(.app-shell) .vault-card-body,
+  :where(.app-shell) .vault-cleanup-grid .vault-card-body {
     grid-template-columns: minmax(150px, 0.8fr) minmax(180px, 1fr) minmax(150px, 0.8fr) auto;
   }
 }
 
-.app-shell.assistant-open .vault-filter-primary {
+:where(.app-shell.assistant-open) .vault-filter-primary {
   grid-template-columns: minmax(0, 1fr);
 }
 
-.app-shell.assistant-open .vault-filter-common-row {
+:where(.app-shell.assistant-open) .vault-filter-common-row {
+  display: grid;
+  gap: 12px;
+  align-items: end;
   grid-template-columns: repeat(2, minmax(160px, 1fr));
 }
 
-.app-shell.assistant-open .vault-cleanup-grid,
-.app-shell.assistant-open .vault-recommendations {
+:where(.app-shell.assistant-open) .vault-cleanup-grid,
+:where(.app-shell.assistant-open) .vault-recommendations {
   grid-template-columns: minmax(0, 1fr);
 }
 
-.app-shell.assistant-open .vault-cleanup-grid > aside,
-.app-shell.assistant-open .vault-recommendations > aside {
+:where(.app-shell.assistant-open) .vault-cleanup-grid > aside,
+:where(.app-shell.assistant-open) .vault-recommendations > aside {
   border-left: 0;
   border-top: 1px solid var(--border-subtle);
 }
 
 @media (max-width: 1120px) {
-  .app-shell .vault-workflow-bar,
-  .app-shell .vault-filter-primary {
+  :where(.app-shell) .vault-workflow-bar,
+  :where(.app-shell) .vault-filter-primary {
     align-items: stretch;
   }
 
-  .app-shell .vault-workflow-bar {
+  :where(.app-shell) .vault-workflow-bar {
     flex-direction: column;
   }
 
-  .app-shell .vault-filter-primary {
+  :where(.app-shell) .vault-filter-primary {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .app-shell .vault-card-body,
-  .app-shell .vault-cleanup-grid .vault-card-body {
+  :where(.app-shell) .vault-card-body,
+  :where(.app-shell) .vault-cleanup-grid .vault-card-body {
     grid-template-columns: minmax(160px, 0.9fr) minmax(180px, 1fr) minmax(110px, auto);
     grid-template-areas:
       "identity detail decision"
       "signals roll note";
   }
 
-  .app-shell .vault-card-body > .vault-note-snippet {
+  :where(.app-shell) .vault-card-body > .vault-note-snippet {
     justify-self: end;
   }
 
-  .app-shell .duplicate-row {
+  :where(.app-shell) .duplicate-row {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .app-shell .duplicate-row-actions {
+  :where(.app-shell) .duplicate-row-actions {
     justify-content: flex-start;
   }
 }
 
 @media (max-width: 980px) {
-  .app-shell .vault-filter-common-row {
+  :where(.app-shell) .vault-filter-common-row {
     grid-template-columns: repeat(2, minmax(160px, 1fr));
   }
 
-  .app-shell .vault-weapon-filter {
+  :where(.app-shell) .vault-weapon-filter {
     grid-template-columns: minmax(160px, 210px) minmax(0, 1fr);
   }
 
-  .app-shell .vault-card-body,
-  .app-shell .vault-cleanup-grid .vault-card-body {
+  :where(.app-shell) .vault-card-body,
+  :where(.app-shell) .vault-cleanup-grid .vault-card-body {
     grid-template-columns: minmax(160px, 1fr) minmax(180px, 1fr) auto;
     grid-template-areas:
       "identity detail decision"
       "signals signals note";
   }
 
-  .app-shell .vault-card-body > .vault-card-roll {
+  :where(.app-shell) .vault-card-body > .vault-card-roll {
     display: none;
   }
 
-  .app-shell .duplicate-row-main {
+  :where(.app-shell) .duplicate-row-main {
     grid-template-columns: minmax(160px, 1fr) minmax(180px, 1fr);
   }
 
-  .app-shell .duplicate-row-main > small:last-child {
+  :where(.app-shell) .duplicate-row-main > small:last-child {
     grid-column: 1 / -1;
   }
 }
 
 @media (max-width: 760px) {
-  .app-shell .vault-workflow-tabs,
-  .app-shell .vault-workflow-meta,
-  .app-shell .vault-filter-scope {
+  :where(.app-shell) .vault-workflow-tabs,
+  :where(.app-shell) .vault-workflow-meta,
+  :where(.app-shell) .vault-filter-scope {
     overflow-x: auto;
   }
 
-  .app-shell .vault-workflow-tabs button,
-  .app-shell .vault-filter-scope button {
+  :where(.app-shell) .vault-workflow-tabs button,
+  :where(.app-shell) .vault-filter-scope button {
     flex: 0 0 auto;
   }
 
-  .app-shell .vault-filter-head,
-  .app-shell .vault-filter-actions,
-  .app-shell .vault-armor-filter-heading {
+  :where(.app-shell) .vault-filter-head,
+  :where(.app-shell) .vault-filter-actions,
+  :where(.app-shell) .vault-armor-filter-heading {
     align-items: stretch;
     flex-direction: column;
   }
 
-  .app-shell .vault-filter-actions {
+  :where(.app-shell) .vault-filter-actions {
     display: flex;
   }
 
-  .app-shell .vault-filter-hint {
+  :where(.app-shell) .vault-filter-hint {
     display: none;
   }
 
-  .app-shell .vault-filter-common-row,
-  .app-shell .vault-weapon-filter,
-  .app-shell .vault-cleanup-grid,
-  .app-shell .vault-recommendations,
-  .app-shell .vault-summary-strip {
+  :where(.app-shell) .vault-filter-common-row,
+  :where(.app-shell) .vault-weapon-filter,
+  :where(.app-shell) .vault-cleanup-grid,
+  :where(.app-shell) .vault-recommendations,
+  :where(.app-shell) .vault-summary-strip {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .app-shell .vault-cleanup-grid > aside,
-  .app-shell .vault-recommendations > aside {
+  :where(.app-shell) .vault-cleanup-grid > aside,
+  :where(.app-shell) .vault-recommendations > aside {
     border-left: 0;
     border-top: 1px solid var(--border-subtle);
   }
 
-  .app-shell .vault-summary-strip > div {
+  :where(.app-shell) .vault-summary-strip > div {
     border-right: 0;
     border-bottom: 1px solid var(--border-subtle);
   }
 
-  .app-shell .vault-summary-strip > div:last-child {
+  :where(.app-shell) .vault-summary-strip > div:last-child {
     border-bottom: 0;
   }
 
-  .app-shell .vault-results-column .vault-card-main,
-  .app-shell .vault-cleanup-grid .vault-card-main {
+  :where(.app-shell) .vault-results-column .vault-card-main,
+  :where(.app-shell) .vault-cleanup-grid .vault-card-main {
     grid-template-columns: 44px minmax(0, 1fr);
   }
 
-  .app-shell .vault-card-body,
-  .app-shell .vault-cleanup-grid .vault-card-body {
+  :where(.app-shell) .vault-card-body,
+  :where(.app-shell) .vault-cleanup-grid .vault-card-body {
     grid-template-columns: minmax(0, 1fr) auto;
     grid-template-areas:
       "identity decision"
@@ -1160,25 +1303,25 @@
       "note note";
   }
 
-  .app-shell .vault-card-body > .vault-note-snippet {
+  :where(.app-shell) .vault-card-body > .vault-note-snippet {
     justify-self: start;
   }
 
-  .app-shell .vault-filter-workbench .vault-armor-rule {
+  :where(.app-shell) .vault-filter-workbench .vault-armor-rule {
     grid-template-columns: minmax(0, 1fr) 24px minmax(84px, 104px) auto;
     max-width: none;
   }
 
-  .app-shell .vault-organize-field {
+  :where(.app-shell) .vault-organize-field {
     flex: 1 1 150px;
     width: auto;
   }
 
-  .app-shell .duplicate-row-main {
+  :where(.app-shell) .duplicate-row-main {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .app-shell .duplicate-row-main > small:last-child {
+  :where(.app-shell) .duplicate-row-main > small:last-child {
     grid-column: auto;
   }
 }

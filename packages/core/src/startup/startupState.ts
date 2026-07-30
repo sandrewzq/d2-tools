@@ -70,8 +70,8 @@ export function computeStartupState(input: {
       },
       manifest: manifestStatus,
       ai: {
-        status: (input.config.ai.protocol ?? input.config.ai.provider ?? "").trim() ? "ready" : "skipped",
-        label: (input.config.ai.protocol ?? input.config.ai.provider ?? "").trim() ? "AI 已配置" : "AI 未配置"
+        status: input.config.ai.protocol.trim() ? "ready" : "skipped",
+        label: input.config.ai.protocol.trim() ? "AI 已配置" : "AI 未配置"
       }
     }
   };

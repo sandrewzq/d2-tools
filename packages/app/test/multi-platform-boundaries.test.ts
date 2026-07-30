@@ -11,22 +11,15 @@ const uiRoot = join(repoRoot, "packages", "ui", "src");
 
 describe("multi-platform package boundaries", () => {
   it("prevents new core runtime IO and HTTP dependencies", () => {
-    const legacyRuntimeFiles = new Set([
-      "analysis/targetRulesStore.ts",
-      "analysis/wishlistStore.ts",
-      "config/defaults.ts",
-      "items/aliases.ts",
-      "library/history.ts",
+    const allowedNodeRuntimeFiles = new Set([
       "loadouts/templates.ts",
-      "tools/audit.ts",
-      "vault/tags.ts"
     ]);
     expect(sourceFiles(coreRoot).flatMap((file) => {
       const source = readFileSync(file, "utf8");
       const path = relative(coreRoot, file).replaceAll("\\", "/");
       const violations: string[] = [];
       if (/from\s+["']node:(?:fs|fs\/promises|crypto|path|os)["']/.test(source)
-        && !legacyRuntimeFiles.has(path)) {
+        && !allowedNodeRuntimeFiles.has(path)) {
         violations.push(`${path} adds a Node runtime dependency`);
       }
       if (/from\s+["'][^"']*bungie\/client(?:\.js)?["']/.test(source)) {

@@ -53,7 +53,7 @@ Vibecoding 快路径：
 - 跨菜单复用能力必须先进入 `packages/desktop/src/renderer/shared/`，不要让 feature 之间直接 import。
 - `shared/` 不能 import `features/`；跨菜单复用能力必须放在 `shared/` 或 `packages/ui`，不得通过菜单桥接文件间接依赖 feature。
 - 新增 renderer API 契约时放到对应 `packages/desktop/src/renderer/api/*Api.ts`；跨领域 DTO 放到 `sharedTypes.ts`；不要把大型 DTO 塞回 `api/types.ts` 或 `api/client.ts`。
-- `api/client.ts` 只做 Electron renderer 运行时绑定：声明 `window.d2`、导出 `api` 和兼容性重导出类型。
+- `api/client.ts` 只做 Electron renderer 运行时绑定：声明 `window.d2` 并导出 `api`；类型从 `api/types.ts`、分域 API 或对应 transport contract 导入。
 - 新增主进程 IPC handler 时放到对应 `packages/desktop/src/main/ipc/<domain>.ts`；`ipc.ts` 只做聚合注册。
 - 新增用户可见文案时，优先沉淀到 `packages/ui/src/i18n/` 或对应领域 copy 文件；当前默认中文，不做语言切换 UI。
 - 多人或多 agent 并行时，尽量避免同时修改 `HomePage.tsx`、`ItemDetailModal.tsx`、`useItemDetailWorkspace.ts`、`api/types.ts`、`api/client.ts`、`ipc.ts` 等公共接线文件；确需修改时先说明影响范围。

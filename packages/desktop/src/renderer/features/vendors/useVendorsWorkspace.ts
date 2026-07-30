@@ -8,7 +8,7 @@ import type { AccountSummary } from "../../api/types";
 import type {
   VendorInventoryRequest,
   VendorInventorySnapshot
-} from "../../api/vendorsApi";
+} from "../../../contracts/vendors.js";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 export type VendorRefreshState = {

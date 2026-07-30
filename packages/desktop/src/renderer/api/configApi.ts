@@ -28,13 +28,12 @@ export type D2Config = {
     manifest_language: string;
   };
   ai: {
-    protocol?: string;
-    provider?: string;
+    protocol: string;
     api_key: string;
     model: string;
     base_url: string;
     enable_lightgg: boolean;
-    force_lightgg?: boolean;
+    force_lightgg: boolean;
   };
   features: {
     write_actions_enabled: boolean;

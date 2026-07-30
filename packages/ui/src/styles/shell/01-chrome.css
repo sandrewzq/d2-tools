@@ -680,7 +680,7 @@ button.shell-status-group:focus-visible {
 
 .assistant-task-editor {
   gap: 8px;
-  color: var(--body);
+  color: var(--text-muted);
   font-weight: 700;
 }
 
@@ -705,7 +705,7 @@ button.shell-status-group:focus-visible {
 }
 
 .assistant-context-card span {
-  color: var(--text);
+  color: var(--text-title);
   font-size: 16px;
   font-weight: 700;
 }
@@ -713,17 +713,25 @@ button.shell-status-group:focus-visible {
 .assistant-context-card small,
 .assistant-task-note,
 .ai-context-drawer p,
-.ai-page-context p,
 .ai-page-context li,
 .ai-chat-history p,
 .assistant-task-tree li {
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.ai-page-context p {
   color: var(--muted);
   line-height: 1.5;
 }
 
-.assistant-task-tree h3,
+.assistant-task-tree h3 {
+  margin: 0;
+}
+
 .ai-page-context p {
   margin: 0;
+  color: var(--text-muted);
 }
 
 .assistant-task-tree h3 {
@@ -733,6 +741,7 @@ button.shell-status-group:focus-visible {
 .assistant-task-tree details {
   padding-top: 10px;
   border-top: 1px solid var(--section-divider);
+  border-color: var(--border-subtle);
 }
 
 .assistant-task-tree details:first-of-type {
@@ -777,7 +786,7 @@ button.shell-status-group:focus-visible {
 .ai-chat-history li span {
   min-width: 0;
   overflow: hidden;
-  color: var(--body);
+  color: var(--text-muted);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1008,4 +1017,10 @@ button.shell-status-group:focus-visible {
   .shell-workspace {
     transition-duration: 0.01ms;
   }
+}
+
+/* Component states */
+
+.global-assistant-header {
+  background: var(--drawer-header-bg);
 }

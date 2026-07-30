@@ -206,6 +206,11 @@ function validatePortableBackup(value: Record<string, unknown>): PortableBackup 
 }
 
 function validateConfigShape(value: Record<string, unknown>): D2Config {
+  const allowedSections = new Set(["bungie", "data", "ai", "features"]);
+  const unknownSection = Object.keys(value).find((section) => !allowedSections.has(section));
+  if (unknownSection) {
+    throw new Error(`备份配置包含未知字段 ${unknownSection}。`);
+  }
   for (const section of ["bungie", "data", "ai", "features"] as const) {
     const sectionValue = value[section];
     if (!isRecord(sectionValue)) {
@@ -221,14 +226,15 @@ function validateConfigSection(
   value: Record<string, unknown>
 ): void {
   const fields = configFieldTypes[section];
+  const allowedFields = new Set(Object.keys(fields));
+  const unknownField = Object.keys(value).find((field) => !allowedFields.has(field));
+  if (unknownField) {
+    throw new Error(`备份配置包含未知字段 ${section}.${unknownField}。`);
+  }
   for (const [field, expectedType] of Object.entries(fields)) {
     const fieldValue = value[field];
-    const isOptional = optionalConfigFields.has(`${section}.${field}`);
     if (fieldValue === undefined) {
-      if (!isOptional) {
-        throw new Error(`备份配置缺少 ${section}.${field} 字段。`);
-      }
-      continue;
+      throw new Error(`备份配置缺少 ${section}.${field} 字段。`);
     }
     if (typeof fieldValue !== expectedType) {
       throw new Error(`备份配置中的 ${section}.${field} 字段类型无效。`);
@@ -244,6 +250,12 @@ function validateConfigSection(
     }
     if (value.interface_locale !== undefined && value.interface_locale !== "zh-CN" && value.interface_locale !== "en-US") {
       throw new Error("备份配置中的 features.interface_locale 值无效。");
+    }
+  }
+  if (section === "ai") {
+    const protocols = new Set(["", "openai_responses", "openai_chat_completions", "anthropic_messages"]);
+    if (!protocols.has(String(value.protocol))) {
+      throw new Error("备份配置中的 ai.protocol 值无效。");
     }
   }
 }
@@ -265,7 +277,6 @@ const configFieldTypes = {
   },
   ai: {
     protocol: "string",
-    provider: "string",
     api_key: "string",
     model: "string",
     base_url: "string",
@@ -280,10 +291,3 @@ const configFieldTypes = {
     manifest_language_follows_interface: "boolean"
   }
 } as const;
-
-const optionalConfigFields = new Set([
-  "ai.protocol",
-  "ai.provider",
-  "ai.force_lightgg",
-  "features.density"
-]);

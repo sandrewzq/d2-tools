@@ -18,7 +18,7 @@ export function createDefaultCommunityPerkService(
 export function createFullCommunityPerkService(config: AiLightggConfig): CommunityPerkRecommendationService {
   const service = createDefaultCommunityPerkService(config);
   const ai = config?.ai;
-  if ((ai?.protocol || ai?.provider) && ai?.api_key && ai?.model) {
+  if (ai?.protocol && ai.api_key && ai.model) {
     service.addSource(createAiLightggSource(config));
   }
   return service;

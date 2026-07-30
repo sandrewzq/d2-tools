@@ -19,7 +19,6 @@ export function createDiagnosticsSettingsState() {
     isRefreshingDiagnostics: false,
     aiSettings: {
       protocol: "",
-      provider: "",
       api_key: "",
       model: "",
       base_url: "",

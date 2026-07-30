@@ -620,31 +620,31 @@
   text-align: left;
 }
 
-.app-shell[data-density="compact"] .settings-section {
+:where(.app-shell[data-density="compact"]) .settings-section {
   padding-top: 12px;
   padding-bottom: 12px;
 }
 
-.app-shell[data-density="compact"] .settings-metric {
+:where(.app-shell[data-density="compact"]) .settings-metric {
   padding: 8px;
 }
 
-.app-shell[data-density="compact"] .setting-row {
+:where(.app-shell[data-density="compact"]) .setting-row {
   min-height: 56px;
   padding-top: 7px;
   padding-bottom: 7px;
 }
 
-.app-shell[data-density="comfortable"] .settings-section {
+:where(.app-shell[data-density="comfortable"]) .settings-section {
   padding-top: 20px;
   padding-bottom: 20px;
 }
 
-.app-shell[data-density="comfortable"] .settings-metric {
+:where(.app-shell[data-density="comfortable"]) .settings-metric {
   padding: 14px;
 }
 
-.app-shell[data-density="comfortable"] .setting-row {
+:where(.app-shell[data-density="comfortable"]) .setting-row {
   min-height: 74px;
   padding-top: 13px;
   padding-bottom: 13px;

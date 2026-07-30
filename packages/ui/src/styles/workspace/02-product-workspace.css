@@ -64,10 +64,10 @@
   width: fit-content;
   max-width: 100%;
   padding: 3px 8px;
-  border: 1px solid var(--border-control);
+  border: 1px solid var(--chip-border);
   border-radius: var(--radius-indicator);
-  color: var(--text-body);
-  background: var(--status-neutral-bg);
+  color: var(--chip-text);
+  background: var(--chip-bg);
   font-size: var(--font-content);
   line-height: 1.35;
 }

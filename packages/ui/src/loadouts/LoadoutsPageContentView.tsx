@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import type {
   InGameLoadoutItemRowView,
   LoadoutEntryView,
@@ -55,13 +55,15 @@ export type LoadoutsPageContentViewProps = {
 };
 
 type LoadoutMode = "in-game" | "local";
+type LoadoutCapabilityNotice = "dim" | "guide" | "workbench" | null;
 
 const loadoutModes: LoadoutMode[] = ["in-game", "local"];
 
 export function LoadoutsPageContentView(props: LoadoutsPageContentViewProps) {
   const [mode, setMode] = useState<LoadoutMode>("in-game");
   const [selectedCharacterId, setSelectedCharacterId] = useState("");
-  const [isDimImportNoticeVisible, setIsDimImportNoticeVisible] = useState(false);
+  const [capabilityNotice, setCapabilityNotice] = useState<LoadoutCapabilityNotice>(null);
+  const sourceMenuRef = useRef<HTMLDetailsElement>(null);
   const tabId = useId();
   const panelId = `${tabId}-panel`;
   const characters = props.accountSummary?.characters ?? [];
@@ -87,8 +89,29 @@ export function LoadoutsPageContentView(props: LoadoutsPageContentViewProps) {
     selectLocalEntry(props, localEntries[0]);
   }, [localEntries, mode, props.actions, props.model.selectedDetail]);
 
+  useEffect(() => {
+    function closeSourceMenu(event: PointerEvent) {
+      if (sourceMenuRef.current?.contains(event.target as Node)) return;
+      sourceMenuRef.current?.removeAttribute("open");
+    }
+
+    function closeSourceMenuWithKeyboard(event: KeyboardEvent) {
+      if (event.key !== "Escape" || !sourceMenuRef.current?.open) return;
+      sourceMenuRef.current.open = false;
+      sourceMenuRef.current.querySelector<HTMLElement>("summary")?.focus();
+    }
+
+    document.addEventListener("pointerdown", closeSourceMenu);
+    document.addEventListener("keydown", closeSourceMenuWithKeyboard);
+    return () => {
+      document.removeEventListener("pointerdown", closeSourceMenu);
+      document.removeEventListener("keydown", closeSourceMenuWithKeyboard);
+    };
+  }, []);
+
   function selectMode(nextMode: LoadoutMode) {
     setMode(nextMode);
+    setCapabilityNotice(null);
     if (nextMode === "in-game" && inGameEntries[0]) {
       props.actions.selectEntry(inGameEntries[0].id);
     }
@@ -117,74 +140,127 @@ export function LoadoutsPageContentView(props: LoadoutsPageContentViewProps) {
     if (entry && mode === "in-game") props.actions.selectEntry(entry.id);
   }
 
-  const statusTone = props.message.includes("失败") ? "error" : props.isRunningItemAction ? "running" : "ready";
-  const statusTitle = props.isRunningItemAction ? "处理中" : props.message ? "操作状态" : "就绪";
-  const statusMessage = props.message || (mode === "in-game"
-    ? "选择游戏内配装槽位后再应用或保存当前装备。"
-    : "本地方案只保存在本机，保存不会写入 Bungie 槽位。");
+  function createFromCurrentCharacter(details: HTMLDetailsElement) {
+    details.open = false;
+    setCapabilityNotice(null);
+    if (activeCharacter) props.actions.createLocalPlanFromCharacter(activeCharacter);
+  }
+
+  function showCapabilityNotice(notice: Exclude<LoadoutCapabilityNotice, null>, details?: HTMLDetailsElement) {
+    if (details) details.open = false;
+    setCapabilityNotice(notice);
+  }
+
+  const capabilityCopy = getCapabilityNoticeCopy(capabilityNotice);
+  const statusTone = props.message.includes("失败")
+    ? "error"
+    : props.isRunningItemAction
+      ? "running"
+      : capabilityNotice
+        ? "warning"
+        : !activeCharacter
+          ? "warning"
+          : "ready";
+  const statusTitle = props.isRunningItemAction
+    ? "处理中"
+    : capabilityCopy?.title
+      ?? (props.message ? "操作状态" : !activeCharacter ? "等待账号" : "就绪");
+  const statusMessage = capabilityCopy?.message
+    || props.message
+    || (!activeCharacter
+      ? "账号角色尚未读取，配装查看与创建操作暂不可用。"
+      : mode === "in-game"
+        ? "选择游戏内配装槽位后再应用或保存当前装备。"
+        : "本地方案只保存在本机，保存不会写入 Bungie 槽位。");
 
   return (
     <section className="loadout-page" aria-label="配装工作台">
-      <div className="loadout-character-tabs" data-ui-kind="context-switcher" aria-label="配装角色上下文">
-        {characters.map((character) => {
-          const active = activeCharacterId === character.character_id;
-          return (
-            <button
-              type="button"
-              aria-pressed={active}
-              className={active ? "active" : ""}
-              key={character.character_id}
-              onClick={() => selectCharacter(character.character_id)}
-            >
-              <span className="loadout-character-mark" aria-hidden="true">{character.class_name.slice(0, 1)}</span>
-              <span><strong>{character.class_name}</strong><small>{active ? "当前查看" : "切换查看"}</small></span>
-            </button>
-          );
-        })}
+      <div className="loadout-context-toolbar" data-surface="section">
+        <div className="loadout-context-group">
+          <span className="loadout-context-label">角色</span>
+          <div className="loadout-character-tabs" data-ui-kind="segmented-control" aria-label="配装角色上下文">
+            {characters.map((character) => {
+              const active = activeCharacterId === character.character_id;
+              return (
+                <button
+                  type="button"
+                  aria-pressed={active}
+                  className={active ? "active" : ""}
+                  key={character.character_id}
+                  onClick={() => selectCharacter(character.character_id)}
+                >
+                  <span className="loadout-character-mark" aria-hidden="true">{character.class_name.slice(0, 1)}</span>
+                  <span><strong>{character.class_name}</strong><small>{active ? "当前查看" : "切换查看"}</small></span>
+                </button>
+              );
+            })}
+            {!characters.length ? <span className="loadout-character-empty">未读取角色</span> : null}
+          </div>
+        </div>
+
+        <span className="loadout-context-divider" aria-hidden="true" />
+
+        <div className="loadout-context-group">
+          <span className="loadout-context-label">视图</span>
+          <div className="loadout-mode-tabs" data-ui-kind="segmented-control" role="tablist" aria-label="配装类型">
+            <button id={`${tabId}-in-game`} type="button" role="tab" aria-controls={panelId} aria-selected={mode === "in-game"} tabIndex={mode === "in-game" ? 0 : -1} className={mode === "in-game" ? "active" : ""} onKeyDown={handleModeKeyDown} onClick={() => selectMode("in-game")}>游戏内配装 <span>Bungie</span></button>
+            <button id={`${tabId}-local`} type="button" role="tab" aria-controls={panelId} aria-selected={mode === "local"} tabIndex={mode === "local" ? 0 : -1} className={mode === "local" ? "active" : ""} onKeyDown={handleModeKeyDown} onClick={() => selectMode("local")}>本地配装方案 <span>本机</span></button>
+          </div>
+        </div>
+
         {characters.length ? (
           <span className="loadout-character-context">
             当前查看：{activeCharacter?.class_name ?? "角色"}的{mode === "in-game" ? "游戏内配装" : "本地配装方案"}
           </span>
         ) : null}
-      </div>
 
-      <div className="loadout-mode-bar">
-        <div className="loadout-mode-tabs" data-ui-kind="segmented-control" role="tablist" aria-label="配装类型">
-          <button id={`${tabId}-in-game`} type="button" role="tab" aria-controls={panelId} aria-selected={mode === "in-game"} tabIndex={mode === "in-game" ? 0 : -1} className={mode === "in-game" ? "active" : ""} onKeyDown={handleModeKeyDown} onClick={() => selectMode("in-game")}>游戏内配装 <span>Bungie</span></button>
-          <button id={`${tabId}-local`} type="button" role="tab" aria-controls={panelId} aria-selected={mode === "local"} tabIndex={mode === "local" ? 0 : -1} className={mode === "local" ? "active" : ""} onKeyDown={handleModeKeyDown} onClick={() => selectMode("local")}>本地配装方案 <span>本机</span></button>
-        </div>
         {mode === "local" ? (
-          <div className="loadout-mode-actions">
-            <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={() => setIsDimImportNoticeVisible(true)}>导入 DIM 配装</button>
-            <button type="button" data-ui-kind="button" data-control-variant="primary" disabled={!activeCharacter} onClick={() => activeCharacter && props.actions.createLocalPlanFromCharacter(activeCharacter)}>新建本地方案</button>
+          <div className="loadout-context-actions">
+            <details ref={sourceMenuRef} className="loadout-create-menu">
+              <summary data-ui-kind="button" data-control-variant="secondary" aria-haspopup="true">从现有内容创建</summary>
+              <div className="loadout-create-options" data-surface="menu" aria-label="本地方案创建来源">
+                <button type="button" disabled={!activeCharacter || props.isRunningItemAction} onClick={(event) => createFromCurrentCharacter(event.currentTarget.closest("details")!)}>
+                  <strong>使用当前装备</strong>
+                  <span>按当前角色已装备实例直接创建本地模板</span>
+                </button>
+                <button type="button" onClick={(event) => showCapabilityNotice("guide", event.currentTarget.closest("details")!)}>
+                  <strong>从攻略生成</strong>
+                  <span>解析条件后预填同一本地方案工作台</span>
+                </button>
+              </div>
+            </details>
+            <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={() => showCapabilityNotice("dim")}>导入 DIM</button>
+            <button type="button" data-ui-kind="button" data-control-variant="primary" disabled={!activeCharacter || props.isRunningItemAction} onClick={() => showCapabilityNotice("workbench")}>新建方案</button>
           </div>
         ) : null}
       </div>
 
-      <div className={`loadout-operation-status ${statusTone}`} data-surface="section" aria-live="polite">
-        <span aria-hidden="true" />
-        <strong>{statusTitle}</strong>
-        <p>{statusMessage}</p>
-      </div>
+      <div className="loadout-content-frame">
+        <div className={`loadout-operation-status ${statusTone}`} data-surface="section" aria-live="polite">
+          <span aria-hidden="true" />
+          <strong>{statusTitle}</strong>
+          <p>{statusMessage}</p>
+        </div>
 
-      <div id={panelId} className="loadout-workspace-panel" role="tabpanel" aria-labelledby={`${tabId}-${mode}`}>
-        {mode === "in-game" ? (
-          <InGameWorkspace
-            activeCharacter={activeCharacter}
-            entries={inGameEntries}
-            isRunningItemAction={props.isRunningItemAction}
-            model={props.model}
-            actions={props.actions}
-          />
-        ) : (
-          <LocalWorkspace
-            {...props}
-            activeCharacter={activeCharacter}
-            entries={localEntries}
-            isDimImportNoticeVisible={isDimImportNoticeVisible}
-            onDismissDimImportNotice={() => setIsDimImportNoticeVisible(false)}
-          />
-        )}
+        <div id={panelId} className="loadout-workspace-panel" role="tabpanel" aria-labelledby={`${tabId}-${mode}`}>
+          {mode === "in-game" ? (
+            <InGameWorkspace
+              activeCharacter={activeCharacter}
+              entries={inGameEntries}
+              isRunningItemAction={props.isRunningItemAction}
+              model={props.model}
+              actions={props.actions}
+            />
+          ) : (
+            <LocalWorkspace
+              {...props}
+              activeCharacter={activeCharacter}
+              entries={localEntries}
+              capabilityNotice={capabilityNotice}
+              onDismissCapabilityNotice={() => setCapabilityNotice(null)}
+            />
+          )}
+        </div>
       </div>
     </section>
   );
@@ -346,10 +422,11 @@ function InGameSummary(props: { detail: Extract<LoadoutsPageModel["selectedDetai
 function LocalWorkspace(props: LoadoutsPageContentViewProps & {
   activeCharacter: AccountSummary["characters"][number] | null;
   entries: LoadoutEntryView[];
-  isDimImportNoticeVisible: boolean;
-  onDismissDimImportNotice: () => void;
+  capabilityNotice: LoadoutCapabilityNotice;
+  onDismissCapabilityNotice: () => void;
 }) {
   const detail = props.model.selectedDetail.kind === "local-template" ? props.model.selectedDetail : null;
+  const capabilityCopy = getCapabilityNoticeCopy(props.capabilityNotice);
   return (
     <ProductWorkspaceSplit className="loadout-workspace loadout-local-workspace">
       <ProductWorkspaceSideRail element="aside" className="loadout-directory">
@@ -370,8 +447,8 @@ function LocalWorkspace(props: LoadoutsPageContentViewProps & {
       </ProductWorkspaceSideRail>
 
       <section className="loadout-detail">
-        {props.isDimImportNoticeVisible ? (
-          <div className="loadout-dim-import-notice" data-status="warning"><div><strong>DIM 配装导入尚未接通</strong><p>解析、预览和确认流程完成前不会创建空方案。</p></div><button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={props.onDismissDimImportNotice}>关闭</button></div>
+        {capabilityCopy ? (
+          <div className="loadout-capability-notice" data-status="warning"><div><strong>{capabilityCopy.title}</strong><p>{capabilityCopy.message}</p></div><button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={props.onDismissCapabilityNotice}>关闭</button></div>
         ) : null}
         {detail ? <LocalTemplateDetail {...props} detail={detail} /> : <ProductWorkspaceEmptyState><h2>还没有保存本地方案</h2><p>本地方案用于核对装备、转移缺失件和保留账号外条目。</p></ProductWorkspaceEmptyState>}
       </section>
@@ -475,4 +552,26 @@ function formatTimestamp(value: string, locale?: InterfaceLocale): string {
   if (!value.startsWith("更新于 ")) return value;
   const date = new Date(value.slice("更新于 ".length));
   return Number.isNaN(date.valueOf()) ? value : `更新于 ${date.toLocaleString(locale ?? "zh-CN")}`;
+}
+
+function getCapabilityNoticeCopy(notice: LoadoutCapabilityNotice): { title: string; message: string } | null {
+  if (notice === "dim") {
+    return {
+      title: "DIM 配装导入尚未接通",
+      message: "后续会先解析和预览 DIM 分享链接，再预填本地方案工作台；当前不会直接创建空方案。"
+    };
+  }
+  if (notice === "guide") {
+    return {
+      title: "攻略生成尚未接通",
+      message: "攻略解析结果需要先预填本地方案工作台，再由你选择装备和护甲候选；当前不会生成虚假方案。"
+    };
+  }
+  if (notice === "workbench") {
+    return {
+      title: "本地方案工作台尚未接通",
+      message: "空白方案、武器选择、护甲优化和候选计算仍在接入；当前可先从现有装备创建本地模板。"
+    };
+  }
+  return null;
 }

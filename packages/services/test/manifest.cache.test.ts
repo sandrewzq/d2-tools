@@ -44,10 +44,12 @@ function config(dataDir: string): D2Config {
       manifest_language: "zh-chs"
     },
     ai: {
-      provider: "",
+      protocol: "",
       api_key: "",
       model: "",
-      base_url: ""
+      base_url: "",
+      enable_lightgg: false,
+      force_lightgg: false
     }
   };
 }

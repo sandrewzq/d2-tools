@@ -128,7 +128,7 @@ const hiddenHomeXurItemTitles = new Set([
   "Xûr",
   "Exotic Engram"
 ]);
-export type HomePageViewProps = {
+export type HomePageContentViewProps = {
   interfaceLocale?: InterfaceLocale;
   selectedCharacterId?: string;
   selectedCharacterLabel?: string;
@@ -161,7 +161,7 @@ export type HomePageViewProps = {
 function homeText(copy: HomeCopy, key: string): string {
   return copy.inline[key] ?? key;
 }
-export function HomePageContentView(props: HomePageViewProps) {
+export function HomePageContentView(props: HomePageContentViewProps) {
   const interfaceLocale = props.interfaceLocale ?? "zh-CN";
   const copy = getLocaleCopy(interfaceLocale).home;
   const clock = useHomeClock();

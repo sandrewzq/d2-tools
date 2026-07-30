@@ -89,3 +89,32 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
 }
+
+/* Component states */
+
+.settings-app-page input,
+.settings-app-page select,
+.settings-app-page textarea {
+  border-color: var(--field-border);
+  background: var(--field-bg);
+  background-color: var(--field-bg);
+  color: var(--text-title);
+  color-scheme: dark;
+}
+
+.app-shell[data-color-mode="light"] .settings-app-page input,
+.app-shell[data-color-mode="light"] .settings-app-page select,
+.app-shell[data-color-mode="light"] .settings-app-page textarea {
+  color-scheme: light;
+}
+
+.settings-app-page input:disabled,
+.settings-app-page select:disabled,
+.settings-app-page textarea:disabled {
+  border-color: var(--field-border);
+  background: var(--field-bg);
+  background-color: var(--field-bg);
+  color: var(--text-muted);
+  opacity: 0.72;
+  -webkit-text-fill-color: var(--text-muted);
+}

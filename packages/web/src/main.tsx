@@ -70,7 +70,7 @@ function WebApp() {
     openExternal: adapter.openExternal
   }), [adapter]);
   const aiSettingsAdapter = useMemo<SettingsAiAdapter>(() => ({
-    load: async () => ({ protocol: "openai_responses", provider: "", api_key: "web-fixture-key", model: "gpt-5-mini", base_url: "https://api.example.com/v1", enable_lightgg: true, force_lightgg: false }),
+    load: async () => ({ protocol: "openai_responses", api_key: "web-fixture-key", model: "gpt-5-mini", base_url: "https://api.example.com/v1", enable_lightgg: true, force_lightgg: false }),
     save: async () => undefined,
     listModels: async () => ({ models: ["gpt-5-mini", "gpt-5", "claude-sonnet-4"], message: "Web fixture 模型列表。" }),
     testConnection: async () => ({ protocol: "openai_responses", model: "gpt-5-mini", message: "Web fixture 连接成功。" }),
