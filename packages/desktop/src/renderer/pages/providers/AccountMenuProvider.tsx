@@ -38,7 +38,6 @@ export function AccountMenuProvider() {
       onLoadAccount={session.refreshAccountManually}
       onRefreshActivity={() => void account.refreshAccountDerivedData()}
       onSelectCharacter={account.setSelectedCharacterId}
-      onSaveCharacterLoadout={(character) => void writeActions.loadoutWriteActions.saveCharacterLoadout(character)}
       onEquipHighestPowerItems={(character) => void writeActions.loadoutWriteActions.equipHighestPowerItems(character)}
       onOpenItem={(item, options) => void writeActions.itemDetail.openItemDetail(item, options)}
     />

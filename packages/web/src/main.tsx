@@ -38,10 +38,17 @@ import {
   type ArmorDetailViewModel,
   type WeaponDetailViewModel
 } from "@d2-tools/app/items";
+import {
+  createEmptyLocalLoadoutPlanDraft,
+  createLocalLoadoutPlanDraftFromCharacter,
+  selectLocalLoadoutPlanWorkbench,
+  toLocalLoadoutPlanDraft
+} from "@d2-tools/app/loadouts";
+import type { CreateLocalLoadoutPlanInput, LocalLoadoutPlan } from "@d2-tools/core/loadouts/plans";
 import "@d2-tools/ui/styles.css";
 import {
   createWebShellAdapter,
-  fallbackHomeSnapshot,
+  unavailableHomeSnapshot,
   type WebHomeSnapshot
 } from "./webAdapter";
 import { useWebFixtureRuntime } from "./fixtures/useWebFixtureRuntime";
@@ -51,7 +58,7 @@ function WebApp() {
   const env = ((import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env) ?? {};
   const initialTheme = env.VITE_D2_VISUAL_THEME === "light" ? "light" : "dark";
   const adapter = useMemo(() => createWebShellAdapter(), []);
-  const [snapshot, setSnapshot] = useState<WebHomeSnapshot>(fallbackHomeSnapshot);
+  const [snapshot, setSnapshot] = useState<WebHomeSnapshot>(unavailableHomeSnapshot);
   const [assistantMode, setAssistantMode] = useState<ShellAssistantMode>(null);
   const [activePage, setActivePage] = useState<ShellPageKey>("home");
   const [preferences, setPreferences] = useState<ProductPreferences>({
@@ -65,6 +72,10 @@ function WebApp() {
   const [compareTemplateId, setCompareTemplateId] = useState(fixture.loadoutTemplates[1]?.id ?? "");
   const [renameDraft, setRenameDraft] = useState(fixture.loadoutTemplates[0]?.name ?? "");
   const [showDiffOnly, setShowDiffOnly] = useState(false);
+  const [localPlans, setLocalPlans] = useState<LocalLoadoutPlan[]>([]);
+  const [selectedLocalPlanId, setSelectedLocalPlanId] = useState("");
+  const [localPlanEditingId, setLocalPlanEditingId] = useState<string | null>(null);
+  const [localPlanDraft, setLocalPlanDraft] = useState<CreateLocalLoadoutPlanInput | null>(null);
   const [libraryViewMode, setLibraryViewMode] = useState<LibraryViewMode>("equipment");
   const [equipmentFilters, setEquipmentFilters] = useState<LibraryEquipmentFilter>(fixture.equipmentFilters);
   const [perkFilters, setPerkFilters] = useState<LibraryPerkFilter>(fixture.perkFilters);
@@ -89,7 +100,7 @@ function WebApp() {
     openExternal: adapter.openExternal
   }), [adapter]);
   const aiSettingsAdapter = useMemo<SettingsAiAdapter>(() => ({
-    load: async () => ({ protocol: "openai_responses", provider: "", api_key: "web-fixture-key", model: "gpt-5-mini", base_url: "https://api.example.com/v1", enable_lightgg: true, force_lightgg: false }),
+    load: async () => ({ protocol: "openai_responses", api_key: "web-fixture-key", model: "gpt-5-mini", base_url: "https://api.example.com/v1", enable_lightgg: true, force_lightgg: false }),
     save: async () => undefined,
     listModels: async () => ({ models: ["gpt-5-mini", "gpt-5", "claude-sonnet-4"], message: "Web fixture 模型列表。" }),
     testConnection: async () => ({ protocol: "openai_responses", model: "gpt-5-mini", message: "Web fixture 连接成功。" }),
@@ -119,6 +130,42 @@ function WebApp() {
     }),
     [fixture, compareTemplateId, selectedLoadoutEntryId, selectedTemplateId, showDiffOnly]
   );
+  const localPlanWorkspace = useMemo(() => selectLocalLoadoutPlanWorkbench({
+    accountSummary: fixture.accountSummary,
+    plans: localPlans,
+    selectedPlanId: selectedLocalPlanId
+  }), [fixture.accountSummary, localPlans, selectedLocalPlanId]);
+
+  function selectLocalPlan(id: string) {
+    const plan = localPlans.find((candidate) => candidate.id === id);
+    if (!plan) return;
+    setSelectedLocalPlanId(plan.id);
+    setLocalPlanEditingId(plan.id);
+    setLocalPlanDraft(toLocalLoadoutPlanDraft(plan));
+  }
+
+  function saveLocalPlan() {
+    if (!localPlanDraft) return;
+    const now = new Date().toISOString();
+    const saved: LocalLoadoutPlan = localPlanEditingId
+      ? {
+        ...localPlanDraft,
+        id: localPlanEditingId,
+        created_at: localPlans.find((plan) => plan.id === localPlanEditingId)?.created_at ?? now,
+        updated_at: now
+      }
+      : {
+        ...localPlanDraft,
+        id: `web-local-${Date.now()}`,
+        created_at: now
+      };
+    setLocalPlans((plans) => localPlanEditingId
+      ? plans.map((plan) => plan.id === saved.id ? saved : plan)
+      : [saved, ...plans]);
+    setSelectedLocalPlanId(saved.id);
+    setLocalPlanEditingId(saved.id);
+    setLocalPlanDraft(toLocalLoadoutPlanDraft(saved));
+  }
   const assistantContext = useMemo(
     () => fixture.createAssistantContext(snapshot),
     [fixture, snapshot]
@@ -350,7 +397,6 @@ function WebApp() {
                 refreshAccount: () => undefined,
                 refreshActivity: () => undefined,
                 selectCharacter: setSelectedAccountCharacterId,
-                saveCurrentLoadout: () => undefined,
                 equipHighestPower: () => undefined,
                 openItem: (payload) => openWebAccountItem(payload.item, "account")
               }}
@@ -400,6 +446,40 @@ function WebApp() {
                 renameTemplate: () => undefined,
                 deleteTemplate: () => undefined,
                 createLocalPlanFromCharacter: () => undefined,
+                selectLocalPlan,
+                startNewLocalPlan: (character) => {
+                  if (!character) return;
+                  setSelectedLocalPlanId("");
+                  setLocalPlanEditingId(null);
+                  setLocalPlanDraft(createEmptyLocalLoadoutPlanDraft({
+                    class_name: character.class_name,
+                    target_character_id: character.character_id
+                  }));
+                },
+                startLocalPlanFromCharacter: (character) => {
+                  if (!character) return;
+                  setSelectedLocalPlanId("");
+                  setLocalPlanEditingId(null);
+                  setLocalPlanDraft(createLocalLoadoutPlanDraftFromCharacter(character));
+                },
+                startLocalPlanFromInGameLoadout: () => undefined,
+                localPlanDraftChange: (draft) => setLocalPlanDraft(draft),
+                saveLocalPlan,
+                closeLocalPlanEditor: () => {
+                  setLocalPlanDraft(null);
+                  setLocalPlanEditingId(null);
+                },
+                deleteLocalPlan: (id) => {
+                  setLocalPlans((plans) => plans.filter((plan) => plan.id !== id));
+                  setSelectedLocalPlanId("");
+                  setLocalPlanDraft(null);
+                  setLocalPlanEditingId(null);
+                },
+                previewDimImport: () => undefined,
+                acceptDimImport: () => undefined,
+                dismissDimImport: () => undefined,
+                executeLocalPlan: () => undefined,
+                importGuideText: () => undefined,
                 createTransferPlan: () => undefined,
                 copyMissingItems: () => undefined,
                 executeMissingTransfer: () => undefined,
@@ -407,6 +487,8 @@ function WebApp() {
                 equipSingleItem: () => undefined,
                 equipSavedLoadout: () => undefined,
                 snapshotCurrentLoadout: () => undefined,
+                clearSavedLoadout: () => undefined,
+                updateSavedLoadoutIdentifiers: () => undefined,
                 openTemplateSourceItem: () => undefined
               }}
               compareTemplateId={compareTemplateId}
@@ -415,6 +497,17 @@ function WebApp() {
               message="Web mock：共享配装页已接入，真实 provider 后续替换数据源。"
               isRunningItemAction={false}
               actionFeedback={{}}
+              localPlanWorkspace={localPlanWorkspace}
+              localPlanDraft={localPlanDraft}
+              localPlanEditingId={localPlanEditingId}
+              localPlanIsSaving={false}
+              localPlanError=""
+              dimPreview={null}
+              localPlanIsPreviewingDim={false}
+              localPlanExecutionPlan={null}
+              localPlanExecutionReport={null}
+              localPlanIsExecuting={false}
+              localPlanIsImportingGuide={false}
             />
           ) : null}
           {activePage === "library" ? (

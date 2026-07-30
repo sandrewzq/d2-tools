@@ -36,7 +36,6 @@ export function SettingsAiConfigPanel(props: { adapter: SettingsAiAdapter }) {
 
   const settings = useMemo(() => normalizeAiSettings({
     protocol,
-    provider: "",
     api_key: apiKey,
     model,
     base_url: baseUrl,

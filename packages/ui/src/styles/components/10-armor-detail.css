@@ -66,7 +66,7 @@
 .armor-detail-nav button { flex: 0 1 auto; min-height: 40px; padding: 0 13px; border: 1px solid transparent; border-radius: 0; color: var(--muted); background: transparent; white-space: normal; cursor: pointer; }
 .armor-detail-nav button:hover { color: var(--text); background: var(--hover-bg); }
 .armor-detail-nav button.is-active { color: var(--selected-fg); border-color: var(--selected-border); background: var(--selected-bg); }
-.armor-detail-rail-toggle { display: none; flex: 0 0 auto; min-height: 36px !important; border: 1px solid var(--control-border) !important; border-radius: var(--radius-control) !important; background: var(--section-bg) !important; }
+.armor-detail-rail-toggle { display: none; flex: 0 0 auto; min-height: 36px; border: 1px solid var(--control-border); border-radius: var(--radius-control); background: var(--section-bg); }
 
 .armor-detail-workspace { display: grid; grid-template-columns: minmax(0, 1fr) 330px; align-items: start; min-width: 0; }
 .armor-detail-sections { display: grid; min-width: 0; }
@@ -158,7 +158,7 @@
 .armor-detail-condition-list em.is-hit { color: var(--status-ready); }
 .armor-detail-condition-list em.is-miss { color: var(--status-warning); }
 .armor-detail-condition-list em.is-unknown { color: var(--text-muted); }
-.armor-detail-source-quote { margin: 0 !important; padding: 8px 12px; border-left: 3px solid var(--border-control); color: var(--text-body) !important; background: var(--surface-interactive); font-size: 12px; line-height: 1.5; }
+.armor-detail-source-quote { margin: 0; padding: 8px 12px; border-left: 3px solid var(--border-control); color: var(--text-body); background: var(--surface-interactive); font-size: 12px; line-height: 1.5; }
 
 .armor-detail-upgrade-layout { display: grid; grid-template-columns: minmax(300px, 0.7fr) minmax(0, 1.3fr); gap: 16px; }
 .armor-detail-upgrade-summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); overflow: hidden; border: 1px solid var(--object-border); background: var(--card-bg); }
@@ -198,7 +198,7 @@
 .armor-detail-external-sources a { min-width: 0; overflow-wrap: anywhere; color: var(--link-text); }
 .armor-detail-external-sources li > span { flex: 0 0 auto; color: var(--text-muted); font-size: var(--font-body); }
 
-.armor-detail-instance-rail { position: sticky; z-index: var(--layer-sticky); top: 55px; max-height: calc(100dvh - 180px); overflow-x: hidden; overflow-y: auto; border-left: 1px solid var(--section-divider); background: var(--section-bg); }
+.armor-detail-instance-rail { position: sticky; z-index: var(--layer-sticky); top: 55px; max-height: calc(100dvh - 180px); overflow-y: auto; overflow-wrap: anywhere; border-left: 1px solid var(--section-divider); background: var(--section-bg); }
 .armor-detail-rail-drawer-head,
 .armor-detail-rail-close { display: none; }
 .armor-detail-instance-readonly { display: grid; gap: 3px; padding: 13px; border-bottom: 1px solid var(--border-subtle); }

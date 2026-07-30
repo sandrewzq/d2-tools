@@ -14,12 +14,11 @@ export function applyEnvOverrides(config: D2Config, env: ConfigEnv): D2Config {
     },
     ai: {
       protocol: env.AI_PROTOCOL ?? config.ai.protocol,
-      provider: env.AI_PROVIDER ?? config.ai.provider,
       api_key: env.AI_API_KEY ?? config.ai.api_key,
       model: env.AI_MODEL ?? config.ai.model,
       base_url: env.AI_BASE_URL ?? config.ai.base_url,
       enable_lightgg: parseBooleanEnv(env.AI_ENABLE_LIGHTGG, config.ai.enable_lightgg),
-      force_lightgg: parseBooleanEnv(env.AI_FORCE_LIGHTGG, config.ai.force_lightgg ?? false)
+      force_lightgg: parseBooleanEnv(env.AI_FORCE_LIGHTGG, config.ai.force_lightgg)
     },
     features: {
       color_mode: parseColorModeEnv(env.D2_COLOR_MODE, config.features.color_mode),

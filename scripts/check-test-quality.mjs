@@ -16,7 +16,7 @@ export function checkTestQuality(root = process.cwd()) {
 
 if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
   const result = checkTestQuality();
-  console.log(`测试分层：行为 ${result.classified.behavior.length}，架构 ${result.classified.architecture.length}，遗留 ${result.classified.legacy.length}，总计 ${result.total}。`);
+  console.log(`测试分层：行为 ${result.classified.behavior.length}，架构 ${result.classified.architecture.length}，总计 ${result.total}。`);
 
   if (result.errors.length) {
     console.error("测试质量门禁失败：");
@@ -26,5 +26,5 @@ if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.ar
     process.exit(1);
   }
 
-  console.log("测试质量门禁通过：没有新增源码字符串测试，遗留清单与仓库一致。");
+  console.log("测试质量门禁通过：没有架构白名单之外的源码字符串测试。");
 }

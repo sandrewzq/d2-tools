@@ -1,277 +1,153 @@
 # 全局视觉合同
 
-本合同把三个冻结原型与 `packages/ui` 的共享视觉层固定为同一套配方。它定义页面表面、文字、图标、控件状态、间距、层级、响应式和验收规则，而不是替代各菜单的真实数据绑定或领域布局。正式定义以 `docs/development.md` 的“全局视觉合同与原型先行门禁”为准；本文件记录原型与产品的具体映射。
+> 适用范围：三个冻结 HTML、`packages/ui` 共享产品 UI，以及 Web、Desktop 的最终渲染结果。
 
-## 两个实现，唯一规格
+## 真相与所有权
 
-- 静态冻结原型：`prototype-design-system.css` 是自包含样式来源，三个 HTML 可以直接打开。
-- 产品实现：`packages/ui/src/styles/foundation/00-tokens.css` 与 `03-surface-contract.css` 是 Prototype、Web、Desktop 的共享实现来源。
-- 一致性来源：本合同、`shared-shell-component-mapping.md`、组件规格卡和跨端视觉验收。静态原型与产品 CSS 不得互相 `@import`。
+- 三个冻结 HTML 决定视觉结构和最终表现；产品 ViewModel、actions、adapter、IPC 和状态决定真实功能。
+- `prototype-design-system.css` 负责原型公共 token、文字、控件、共享表面、状态、焦点、滚动条和层级。
+- `assets/*-prototype.css` 只负责对应页面布局、领域结构和响应式差异，不重复公共配方。
+- 产品视觉只在 `packages/ui` 实现。Web 和 Desktop 不维护第二套页面或平台专属视觉修补。
+- 一个视觉职责只能有一个所有者。发现父子重复边框、页面 CSS 覆盖公共配方或同一 token 多处定义时，先删除冲突来源。
 
-禁止把颜色、圆角、边框或共享尺寸重新抄回菜单 CSS、平台壳 CSS 或三个 HTML 的页面私有样式。原型公共 CSS 和产品共享 CSS 可以各自实现同一规格，但必须由同一组件规格卡逐项对照，不能依赖运行时文件路径“自动同步”。
+## 稳定语义
 
-三个原型的 HTML 语义、装备详情骨架、Overlay、控件、导航、字号下限和层级规则分别以 [原型 HTML 语义合同](prototype-semantic-contract.md)、[统一装备详情骨架合同](detail-dossier-contract.md)、[Overlay 与 Dialog 合同](overlay-dialog-contract.md) 和 [控件、导航与响应式合同](controls-navigation-and-responsive-contract.md) 为准；本文件不再允许用页面私有 class 覆盖这些共享职责。
+三个原型使用以下稳定标记，产品共享组件应输出同等语义：
 
-## 十类页面与表面配方映射
+| 标记 | 用途 |
+|---|---|
+| `data-prototype-root="product-workspace|detail-dossier"` | 原型根与页面级状态 |
+| `data-surface="page|section|frame|list|row|split|content-stack|dialog|drawer"` | 表面和布局职责 |
+| `data-ui-kind` | 共享组件类型，如 Shell、导航、按钮、字段、对象卡、状态矩阵和弹层 |
+| `data-contract-id` | 跨原型和产品稳定定位，不参与业务判断 |
+| `data-ui-part="label|value|detail|state|source|action"` | 组件内部信息槽位 |
+| `data-text-tone="primary|body|meta|action|status"` | 文字颜色语义 |
+| `data-info-priority="display|metric|decision|context|reading|support|trace"` | 信息权重与排版 |
+| `data-value-kind="fact|status"` | 区分事实值与状态词 |
+| `data-status="neutral|pending|success|warning|error"` | 业务状态 |
 
-| 配方 | 静态原型 selector | 产品语义标记 / 组件 | 所有权要点 |
+按钮额外使用：
+
+- `data-control-variant="primary|secondary|danger|ai|quiet"`
+- `data-control-size="compact|standard|prominent"`
+- `data-control-width="content|uniform"`
+- `data-control-shape="text|icon"`
+
+当前、展开、忙碌和禁用分别使用原生 `aria-current`、`aria-expanded`、`aria-busy`、`disabled` 或 `aria-disabled`，不得只靠 class 或颜色表达。
+
+## 表面配方
+
+| 配方 | 典型对象 | 边框与圆角 | 禁止事项 |
 |---|---|---|---|
-| `ShellChrome` | `.topbar`、`.sidebar`、`.page-head` | `data-shell-role="titlebar|sidebar|page-header"` | 连续结构线、直角 |
-| `PrimaryNavigation` | `.main-nav` | `.shell-nav` / `data-ui-kind="primary-navigation"` | 容器无外框；只有行分隔 |
-| `ContextSwitcher` | `.full-loadout-character-tabs`、`.account-character-switcher` | `data-ui-kind="context-switcher"` | 全宽上下文选择器拥有唯一控件外框；子项单分隔与底部指示线 |
-| `SegmentedControl` | `.full-loadout-mode-tabs`、`.workflow-tabs`、`.mode-tabs`、`.section-nav > div`、`.match-source-tabs` | `data-ui-kind="segmented-control"` | 仅控件整体有外框和圆角 |
-| `PageSection` | `.content-band`、`.dossier-section` | `data-surface="section"` | 仅章节结构线 |
-| `WorkspaceSplit` | `.account-workspace`、`.vault-browse`、`.split-2`、`.library-workbench`、`.vendor-shell`、`.settings-shell`、`.full-loadout-workspace` | `data-surface="split"` | 只画栏位间单线，不画外框 |
-| `SurfaceList` | `.list-nav`、`.ledger`、`.table-list` | `data-surface="standalone"` / `embedded-list` / `row` | 独立列表由自身拥有一圈边缘；嵌入侧栏列表继承栏位边缘；行只画分隔 |
-| `SurfaceFrame` | 状态、摘要、空态、独立工具面板 | `data-surface="frame"` + `data-ui-kind="status-matrix|summary-frame|state-frame"` | 唯一完整外框和裁剪；数据型 frame 为直角 |
-| `ObjectCard` | `.item-card`、`.offer`、`.perk-card` | `data-ui-kind="object-card"` | 仅独立对象使用完整外框 |
-| `Callout` | `.notice`、`.data-note`、`.source-quote`、`.catalyst-panel`、`.ai-analysis`、`.vendor-detail-warning` | `data-ui-kind="callout"` | 唯一允许语义左色条 |
+| `ShellChrome` | 顶部栏、侧栏、页头 | 连续结构线，直角 | 包成浮动卡片 |
+| `PrimaryNavigation` | 一级菜单、嵌入目录 | 连续行与单线分隔；当前项使用导航背景和定位指示 | 每项独立卡片或业务色条 |
+| `ContextSwitcher` | 角色、账号、当前对象 | 控件外框，当前项使用底部指示 | 当成页面导航或独立按钮组 |
+| `SegmentedControl` | 同层模式切换 | 整体一圈控件边框，内部单线分隔 | 每项完整外框、文件夹 Tab |
+| `PageSection` | 页面章节 | 只画必要章节分隔，直角 | 页面 section 卡片化 |
+| `WorkspaceSplit` | 两栏、三栏工作区 | 外层无完整框，相邻栏位只有一条分隔线 | 外框和栏位双重边线 |
+| `SurfaceList` | 目录、台账、连续结果 | 父级拥有一次外边界或继承栏位边界；行只画底部分隔 | 每行圆角卡片 |
+| `SurfaceFrame` | 状态矩阵、摘要、独立空态 | `4px` 轻圆角和唯一外框，内部单元直角 | 嵌套首层卡片或使用对象卡圆角 |
+| `ObjectCard` | 装备、Offer、Perk、能力 | `6px` 圆角和唯一对象边框 | 用于页面、目录或普通数据行 |
+| `Callout` | 信息、警告、失败、AI 提示 | 中性对象边框，可使用左侧语义色条 | 导航、Tab、对象卡复用色条 |
 
-`Control` 是跨切面的基础控件规则，不计入十类页面与表面配方。按钮、字段、徽标和短标签使用稳定 `data-ui-kind` 对齐其控件边框、圆角及 hover / focus / disabled / status token，但不得作为页面、目录或工作区的布局表面。文本按钮默认固定为 `34px` 高；Primary / Secondary / Danger / AI 只改变语义色，不改变盒模型。重复操作列使用 `144px` 统一宽度，普通命令栏按内容自适应。顶部 Shell 状态项属于连续组合组，不按独立 Chip 处理。
+页面级可见边界只分为 `ShellLine`、`SplitLine`、`RowLine` 和 `ObjectOutline`。同一条边只能由一个 DOM 层绘制。
 
-`data-ui-kind` 是后续共享组件接线时使用的稳定语义标记；在产品组件尚未迁入前，静态原型无需为了该标记复制产品 DOM。一个元素只能选择一个表面配方；状态、图标和文字不能取得第二个表面外框。
+## 尺寸与响应式
 
-### 边界预算与页面宽度
+- 间距只使用 `4 / 8 / 12 / 16 / 20 / 24 / 32px`。
+- 结构面直角；状态矩阵、摘要和状态框 `4px`；按钮、字段、分段控件、缩略图和图标容器 `4px`；对象卡 `6px`；短标签、计数和进度使用胶囊。
+- 控件高度：紧凑 `30px`、标准 `34px`、主要入口 `40px`。文本命令默认 `34px`，图标按钮默认 `34px × 34px`。
+- 设置和诊断等重复操作列使用 `144px` 文本按钮；普通命令栏按内容自适应。
+- 全局验收宽度为 `1280 / 980 / 760px`。装备详情在 `1360px` 增加实例栏转 Drawer 的领域断点。
+- Shell 顶栏默认 `48px`；`760px` 及以下可按冻结原型增高为两行。侧栏、品牌轨道、页面 gutter 和页头高度只由共享 Shell token 决定。
+- 页面宽度类型：账号装备和仓库为 `fluid-workspace`；设置阅读区为 `constrained-content`；首页、资料库和商人为 `hybrid-workspace`。
+- 响应式优先重排网格、换行操作区和转为单列，不缩小关键文字，不建立水平滚动轨道。
 
-十类配方描述组件语义，但不能允许一个区域同时取得多种边界。静态原型和产品实现都必须遵守以下预算：
+## 颜色、边框与当前状态
 
-| 可见边界角色 | 唯一允许的用途 | 所有权 |
+- 蓝色只表达导航、当前对象和可跳转操作；绿色表达成功、可用和主要确认；黄色表达警告；红色表达危险或失败；紫色只用于 AI。
+- Shell、章节、对象和控件分别使用对应语义边界 token，不使用弱边界代替强边界。
+- 导航当前状态、对象选择、角色上下文和分段控件是四种不同状态，不共用指示方式。
+- `hover`、`current`、`focus-visible`、`disabled` 和 `loading` 必须可同时区分。焦点环至少 `2px`，相对相邻表面达到 `3:1`。
+- 容器的 `data-status` 可以影响边框、图标或背景，但不得把日期、版本、数量、名称等事实值一起染成状态色。
+- 浅色与深色必须使用同一套语义 selector，仅替换 token；菜单不得新增主题专属硬编码颜色。
+
+## 文字与信息权重
+
+`Tone` 决定颜色，`Priority` 决定字号、字重和行高，两者不得混用。
+
+| Priority | 排版 | 用途 |
 |---|---|---|
-| `ShellLine` | 顶栏底边、侧栏右边、页头底边、抽屉边界 | ShellChrome |
-| `SplitLine` | 两栏或三栏工作区相邻栏位之间 | WorkspaceSplit 的相邻栏位；外层不画框 |
-| `RowLine` | 页面章节、目录行、台账行、表格行的末端分隔 | PageSection 或 SurfaceList；同一行不能再作为 ObjectCard |
-| `ObjectOutline` | 装备、Offer、Perk、实例、独立空态、弹层 | ObjectCard 或 SurfaceFrame |
+| `display` | 页面 `24px/700`，章节 `18px/700` | 页面名、章节名、装备身份 |
+| `metric` | `20px/700` | 单独呈现的关键数值 |
+| `decision` | `16px/600` | 时间、奖励、成本、可用性、缺失和操作结果 |
+| `context` | `15px/600` | 账号、角色、对象、活动、商人和方案名称 |
+| `reading` | `14px/400` | 说明、属性、字段值和错误恢复 |
+| `support` | `13px/400-600` | 标签、影响范围和辅助状态 |
+| `trace` | `12px/400` | 来源、快照、版本和技术追溯 |
 
-`Control` 的控件边框不属于页面边界预算，只能用于按钮、字段、分段控件和短标签。顶部 Shell 状态组只拥有一圈连续边界与内部单分隔线。`Callout` 只可额外使用语义左色条，不能借用为目录、导航、页面分区或普通对象的边界。
+- 最小可见字号为 `12px`，字重只使用 `400 / 600 / 700`，字距为 `0`。
+- 页面说明、错误原因和恢复路径至少使用 `reading + body`，不得降为 `trace + meta`。
+- 日期、版本、数量、名称和 ID 是事实值；只有明确状态词使用 `status` tone。
+- 截断只用于不可避免的单行对象名，并提供完整 tooltip、详情入口或可换行布局。
+- 普通正文相对实际背景至少达到 `4.5:1`；交互边界和焦点相对相邻表面至少达到 `3:1`。
 
-- 一条外边只能有一个拥有者。父级、子级、状态样式和阴影不得同时绘制同一条边。
-- `WorkspaceSplit` 的宽屏只画 `N - 1` 条纵向 `SplitLine`；窄屏折叠后，先移除纵线，再由后续栏位绘制一条横向 `SplitLine`。禁止使用 `border: 0` 后再由多个选择器补边。
-- `SurfaceList` 在嵌入工作区时没有外框，只有 `RowLine`；standalone 列表才可拥有一圈 `ObjectOutline`。目录、表格化数据行和对象卡不能混用两种模式。
-- 页面 section、目录、工作区和正文容器一律不得使用圆角。圆角只属于 `ObjectOutline`、`Control`、Chip、弹层及明确的独立 `SurfaceFrame`。
-- 页面必须先归类为 `fluid-workspace`、`constrained-content` 或 `hybrid-workspace`。仓库、配装和账号的装备对照可使用满宽数据工作区；设置是“目录 + 宽数据轨道 + 局部受限说明”的混合工作区，不能把状态矩阵和操作台账缩进纯说明阅读轨道；首页、资料库和商人使用工作区与受限正文并存的混合轨道。
+## 时间合同
 
-### 圆角合同
-
-圆角由表面配方唯一拥有，页面私有 CSS 不得再直接声明 `border-radius`，也不得通过领域 class 改写公共值。
-
-圆角 token 使用三层结构，避免页面或 agent 直接按观感挑数值：
-
-1. 基础值只有 `0 / 4px / 6px / 999px`。
-2. 语义别名使用 `--radius-structural`、`--radius-shell-group`、`--radius-frame`、`--radius-object`、`--radius-indicator`。
-3. 组件配方决定最终语义，例如 Shell 状态组使用 structural + shell-group，状态矩阵、摘要与状态框使用 frame，ObjectCard 使用 object，短标签与进度使用 indicator。
-
-页面专属 CSS 不得写 `3px`、`5px`、`7px`、`8px`、`9px`、`99px` 或裸 `999px`，也不得绕过语义别名重新定义圆角尺度。天然圆形头像、圆点和圆形图标容器可使用 `50%`。
-
-| 表面或组件 | 圆角 | 典型内容 |
-|---|---:|---|
-| Shell、Workspace、PageSection、SurfaceList、RowLine | `0` | 页头、目录、章节、表格与台账 |
-| `status-matrix`、`summary-frame`、`state-frame` | `4px`，即 `--radius-frame` | 首页刷新节奏、周常摘要、周信号、商人摘要、加载/空/失败状态、设置状态矩阵 |
-| `object-card`、独立 Callout 与 Overlay | `6px`，即 `--radius-object` | 装备、Offer、Perk、可独立操作的对象、对话框 |
-| Button、Field、SegmentedControl、缩略图与图标容器 | `4px`，即 `--radius-control` | 控件与紧凑媒体 |
-| 顶部 Shell 状态组 | 内部 `0`，整体首尾 `4px` | Bungie、账号、资料库、AI 与应用版本连续状态 |
-| 短 Chip、进度轨道、滚动条滑块 | `999px`，即 `--radius-indicator` | 短标签、计数、进度；不得用于长状态、摘要或结构栏 |
-
-同一页面同一层级的摘要、状态和目录不得混入 `object-card`。首页中只有商人单件装备可使用 `object-card`；刷新节奏、周常、周信号、商人摘要和模块状态统一使用 `4px` 轻圆角 frame，内部连续单元仍保持直角。胶囊只表达可独立识别的短标签、计数或进度，不得因为内容带有状态含义就自动使用 `999px`。
-
-### 设置页状态矩阵例外
-
-设置页的应用概览和应用更新是同一组可比较的运行状态，不是连续目录行，也不是彼此独立的对象卡。它们必须使用一个 `SurfaceFrame` 作为矩阵唯一的外框拥有者：矩阵整体使用 `4px` 轻圆角，内部单元只绘制行、列分隔线，不单独圆角或补对象边框。不得为了避免卡片泛滥而删除这个外框，把状态矩阵退化为横向拉开的连续数据轨道。
-
-常用操作、账号管理、资料库检查和运行诊断属于可执行的设置行：桌面宽度下固定为“说明列 + 右侧操作列”，同一组命令的起始边缘必须对齐；说明不能决定按钮的水平位置。连续 `RowLine` 只用于这些设置项、日志和诊断记录，不用于顶层状态总览。窄窗口才允许把操作列折到说明下方。
-
-全局 CSS 的职责也必须唯一：`prototype-design-system.css` 与产品 `03-surface-contract.css` 只拥有上述边界、圆角、背景和主题 token；页面私有 CSS 只拥有领域网格、行高、内容列和对象内部排版。私有 CSS 不得再重设 Shell、Split、目录、章节或对象边界。
-
-### 当前定位合同
-
-`--selected-bg`、`--selected-border` 与 `--selected-fg` 不再承担所有“选中”语义。它们只服务对象卡、实例和分段控件等对象选择；导航当前定位使用独立的 `--nav-current-*` token，避免为了让目录可见而加重装备、Offer 或 Tab 的状态。
-
-| 组件 | 当前定位配方 | 禁止事项 |
+| 类型 | 数据 | 显示 |
 |---|---|---|
-| `PrimaryNavigation` | `--nav-current-bg` 背景、`--nav-current-fg` 文字、`700` 字重、图标底色、起始侧 `3px` 内嵌 `--nav-current-indicator` | 完整外框、圆角卡片、业务语义色条 |
-| 嵌入式 `SurfaceList` | 与一级菜单相同的背景、文字、字重和起始侧内嵌指示 | 父级外框、每行对象卡、额外状态徽标 |
-| `ContextSwitcher` | 容器拥有 `--control-border` 外框与控件圆角；当前背景、文字和底部 `2px` 指示线 | 每项完整按钮外框、导航起始侧指示 |
-| `SegmentedControl` | 控件整体外框不变；当前项只改变填充与文字 | 导航起始侧指示、每项完整边框 |
-| `ObjectCard` | 对象选中背景与对象边框 | 导航当前定位指示 |
+| 绝对时间点 | UTC ISO 8601 | 渲染时转换到当前系统时区 |
+| 日期值 | `YYYY-MM-DD` 或结构化日期 | `YYYY/MM/DD`，不做时区转换 |
+| 周期边界 | UTC 规则与下一个时间点 | 动态生成当地日期、星期和时间 |
+| 时长 | 目标时间减当前时间 | 动态计算，不保存会过期文案 |
 
-导航当前指示是固定的中性定位色，不表达成功、警告、失败或 AI 等业务语义；因此它不是 `Callout` 的语义左色条。使用 `box-shadow: inset` 或等效的无布局变化实现，不能因选中而改变行宽、padding 或分隔线位置。
+完整时间使用 `YYYY/MM/DD HH:mm:ss`，普通列表使用 `YYYY/MM/DD HH:mm`，Shell 紧凑时间今天使用 `HH:mm`、非今天使用 `MM/DD HH:mm`。不得写死 `Asia/Shanghai`、地域时区名或预格式化相对时间。
 
-亮色主题的最低要求：`--nav-current-indicator` 相对默认导航面必须达到 `3:1`，当前文字相对 `--nav-current-bg` 必须达到 `4.5:1`；背景本身至少达到 `1.25:1` 的可扫描差异。对象、角色上下文和分段控件的 `--selected-border` 相对 `--selected-bg` 也必须达到 `3:1`。`hover` 只能使用较弱的 `--hover-bg`，不得与当前背景相同。`focus-visible` 使用独立焦点环，当前项在获得焦点时同时保留当前背景与当前指示。禁用项不显示当前指示。
+## 导航与控件
 
-### 亮色边框合同
+- 页面或章节定位使用链接/按钮和 `aria-current`，不使用 Tab role。
+- 互斥内容使用完整 `tablist / tab / tabpanel`，提供 `aria-controls`、`aria-labelledby`、方向键、Home 和 End。
+- 单选筛选使用按钮组和 `aria-pressed`，不伪装为导航或 Tab。
+- Primary、Secondary、Danger、AI 和 Quiet 只改变颜色语义，不改变按钮盒模型。
+- 禁用控件保留可读标签和紧邻原因；加载控件保留目标与进行中反馈，不提前显示成功。
+- 图标按钮必须有 tooltip 和可访问名称。产品使用同一套 Lucide 线性图标语言。
 
-十类配方同时规定亮色边框的对比层级，不能只规定“由谁画”：
+## 状态矩阵
 
-| 用途 | token | 亮色目标对比度（相对 `--panel`） | 适用配方 |
-|---|---|---:|---|
-| Shell 与工作区分隔 | `--shell-divider` | `>= 2.2:1` | `ShellChrome`、`WorkspaceSplit` |
-| 章节与列表行分隔 | `--section-divider` | `>= 1.65:1` | `PageSection`、`SurfaceList` |
-| 独立对象外边框 | `--object-border` | `>= 2.4:1` | `SurfaceFrame`、`ObjectCard`、`Callout` |
-| 可操作控件边框 | `--control-border` | `>= 3:1` | `SegmentedControl`、`Control` |
-| 当前导航指示 | `--nav-current-indicator` | `>= 3:1` | `PrimaryNavigation`、嵌入式 `SurfaceList` |
+三个原型和产品页面都必须表达：正常、加载、空、失败、部分可用、禁用和进行中。
 
-旧 `--line`、`--line-strong` 和 `--divider` 已删除，不再提供兼容别名。亮色验收必须读取最终计算样式，确认 Shell、章节、对象和控件分别消费 `--shell-divider`、`--section-divider`、`--object-border` 和 `--control-border`，不得用较弱层级代替较强边界。
+| 状态 | 展示要求 |
+|---|---|
+| 正常 | 展示当前确认数据和可用操作 |
+| 加载 | 保留稳定尺寸和主要导航，不以过期数据冒充当前结果 |
+| 空 | 保留查询、切换、刷新或创建入口 |
+| 失败 | 标明失败范围、原因和恢复入口 |
+| 部分可用 | 展示已确认内容，并单独标记缺失范围 |
+| 禁用 | 保留只读内容，并在控件附近说明原因 |
+| 进行中 | 保留当前事实，展示目标和进度，成功后再更新结果 |
 
-### Control 合同
+页面级状态写在原型根 `data-state`；业务状态写在具体组件或槽位的 `data-status`。产品必须绑定真实 ViewModel 状态，不复制原型状态开关。
 
-所有文本或图标按钮必须声明 `data-ui-kind="button"`，并通过下列属性表达视觉语义，不得再通过 class 选择颜色：
+## Overlay、Drawer 与层级
 
-| 属性 | 允许值 | 默认值 |
-|---|---|---|
-| `data-control-variant` | `primary / secondary / danger / ai / quiet` | `secondary` |
-| `data-control-size` | `compact / standard / prominent` | `standard` |
-| `data-control-width` | `content / uniform` | `content` |
-| `data-control-shape` | `text / icon` | `text` |
+- Dialog 必须具有 `role="dialog"`、`aria-modal="true"`、标题关联、焦点限制、`Escape`、统一关闭路径和焦点恢复。
+- Drawer 必须有标题、关闭按钮、遮罩、`Escape` 和焦点恢复；打开时背景不可操作。
+- AI 助手在宽度大于 `980px` 时是停靠辅助栏；`980px` 及以下才是覆盖式 Drawer。
+- Popover 在失焦、`Escape` 或触发器再次点击时关闭；Toast 不抢焦点，普通结果使用 `role="status"`。
+- 层级只使用语义 token：base、sticky、popover、drawer-scrim、drawer、modal、toast、prototype-tools。页面 CSS 不写数字 `z-index`。
 
-Primary 只表达主要确认或刷新操作：深色背景 `#1e6548`、hover `#27785a`、文字 `#eafff5`；亮色背景 `#267653`、hover `#1f6848`、文字白色；两种主题边框均为 `#438269`。AI 只表达智能分析命令并使用紫色 `--control-ai-*`。错误 Callout 内的恢复操作仍是 Secondary，Danger 只用于明确破坏性命令。所有 variant 必须消费 `--control-<variant>-border/text/bg/bg-hover`，页面 CSS 只能调整布局和尺寸。
+## 滚动与溢出
 
-## 文字、颜色与信息权重合同
+- 产品页面只允许纵向滚动，不允许水平滚动条；不得用 `overflow-x: hidden` 掩盖超宽布局。
+- 同一列最多只有一个纵向滚动容器。普通菜单由主内容区滚动，长目录可拥有独立纵向滚动，弹层内容使用 `overscroll-behavior: contain`。
+- 小屏分栏改为纵向堆叠，不改成水平轨道。
+- 原型滚动容器使用 `data-scroll-region="page|pane|overlay"` 标记所有权。
 
-文字颜色与信息大小是两条独立的轴。`Tone` 只表达内容语义和颜色，`Priority` 只表达当前决策重要性、字号、字重、行高与空间。不得因为一项内容的语法像“标签、时间或来源”就默认缩小；重置时间、活动奖励、当前账号、缺失件数、价格和可用性都可能是用户当前要读的高权重信息。
+## 实施与验收
 
-### Tone：颜色语义
-
-| `data-text-tone` | 颜色 | 用途 | 禁止事项 |
-|---|---|---|---|
-| `primary` | `--text` | 名称、日期、版本、数量、普通关键值和明确结论 | 用于大段说明或普通字段标签 |
-| `body` | `--body` | 可阅读说明、对象属性、表单当前值 | 用 `meta` 降低正文可读性 |
-| `meta` | `--muted` | 非决策性的标签、来源和技术追溯信息 | 承载日期、当前版本、数量、可用性、重置时间、错误原因、主要奖励或操作结果 |
-| `action` | `--blue` / action token | 链接、可跳转对象、可展开入口、非破坏性操作 | Perk、锁定、普通元数据或装饰性副标题 |
-| `status` | 由 `data-status` 选择 success / pending / warning / error token 对 | 成功、警告、失败、进行中 | 缺少 `data-status`，或仅靠颜色表达状态；必须同时有图标、文字或状态标签 |
-
-状态文字必须同时声明 `data-text-tone="status"` 与 `data-status="success|pending|warning|error"`。`data-status` 是唯一的状态色来源；`.mint`、`.warning`、`.is-ready`、`.error` 等 class 只能保留结构、行为或兼容选择，不能直接决定文字颜色。主题切换只替换 token，不能在菜单 CSS 中额外反转状态文字。
-
-状态矩阵、摘要、台账和信息卡中的主要值必须先区分“事实”与“状态”。日期、版本、数量、名称、ID 和普通数值使用 `data-value-kind="fact"`，保持 `primary` 或 `body`；“已配置、可更新、进行中、空闲、警告、失败”等状态词使用 `data-value-kind="status"`，才允许使用状态色。容器上的 `data-status` 只供状态逻辑、图标、边框或背景读取，绝不能把同一容器内的事实值一起染色。`neutral` 状态文字使用 `body` 色，不另造灰色状态 token。
-
-### Priority：决策权重
-
-| `data-info-priority` | 最终字号 / 字重 / 行高 | 用途 | 典型内容 |
-|---|---|---|---|
-| `display` | 页面 `24px/700/1.25`；章节 `18px/700/1.3` | 页面结构标题 | 页面名、章节名、装备详情身份标题 |
-| `metric` | `20px/700/1.2` | 单独呈现的关键数值 | 可清理数量、缺失件数、仓库已读取数、进度值 |
-| `decision` | `16px/600/1.35` | 直接决定下一步操作的信息 | 刷新时间、倒计时、奖励名、可用/不可用结论、成本、写操作结果 |
-| `context` | `15px/600/1.35` | 定位当前对象、位置或工作范围 | 账号名、导航项、角色名、装备名、活动名、商人名、配装名 |
-| `reading` | `14px/400/1.5` | 用户需要连续阅读的说明与属性 | 类型/光等、活动说明、空状态解释、字段当前值、错误恢复说明 |
-| `support` | `13px/400-600/1.45` | 辅助理解但不单独驱动决策 | “每日更新”、影响范围、筛选标签、确认状态、对象副标签 |
-| `trace` | `12px/400/1.45` | 可追溯而非当前决策的信息 | 来源、快照时间、版本、技术诊断、内部标记 |
-
-- `display` 属于结构标题，`metric` 属于独立数值组件；两者不能用来伪造普通信息的权重。
-- 页面标题下的描述、详情说明、空/失败原因和可读副标题至少是 `reading + body`，不是 `trace + meta`。
-- `support` 和 `trace` 的区别取决于是否帮助理解当前操作，而不是元素标签名。重置时间的标签可以是 `support`，具体时间必须是 `decision`；来源才是 `trace`。
-- 全局最小可读层为 `trace 12px`。禁止最终可见 `8px`、`9px`、`10px`、`11px` 文本；不得以“高信息密度”为理由把 `decision`、`context` 或 `reading` 降级。
-- 字重只使用 `400`、`600`、`700`；数字、库存、倒计时、版本和表格计数使用 tabular figures。文本默认不使用负字距，不按 viewport 缩放字体。
-- 截断只允许用于单行对象名称或不可避免的紧凑状态值；必须保留完整名称的 tooltip、详情入口或可换行布局。说明、错误和字段标签优先换行。
-
-### 时间与时区合同
-
-时间必须先区分“绝对时间点”、“日期值”、“周期边界”和“时长”，不得把已格式化文案当作数据合同。界面语言决定文案和星期名称，当前系统时区决定绝对时间显示为几点；两者不得绑定。
-
-| 时间类型 | 数据合同 | 显示合同 |
-|---|---|---|
-| 绝对时间点 | ISO 8601 UTC，例如 `2026-07-28T17:00:00.000Z` | 在渲染时转换为当前系统时区；禁止写死 `Asia/Shanghai`、“中国标准时间”或其他用户时区 |
-| 日期值 | `YYYY-MM-DD` 或结构化年月日 | 版本日期、赛季日期等显示为 `YYYY/MM/DD`，不做时区转换 |
-| 周期边界 | UTC 规则和下一个绝对时间点 | 根据系统时区动态生成当地日期、星期和时间；不保存“周五 17:00 刷新”等预格式化文案 |
-| 时长 / 倒计时 | 目标时间点减当前时间的毫秒差 | 按当前时间动态计算；不保存“还有 6 天 2 小时”等会过期文案 |
-| 相对时间 | 原始绝对时间点 | 只有在实时比较当前时间后才能显示“刚刚”、“几分钟前”；静态快照不得写死相对时间 |
-
-统一显示精度：
-
-- 完整时间：`YYYY/MM/DD HH:mm:ss`，用于设置、操作日志、诊断、快照确认时间和需要精确追溯的字段。
-- 普通时间：`YYYY/MM/DD HH:mm`，用于资料库历史、商人读取、配装创建和普通列表元数据。
-- 周期边界：`MM/DD 周X HH:mm`，年份不是必要决策信息时省略；跨年或需精确追溯时使用完整年份。
-- Shell 紧凑时间：当地今日使用 `HH:mm`，非今日使用 `MM/DD HH:mm`；禁止对过期快照只显示时分。
-- 所有数字补齐两位，使用 24 小时制和 `00-23` 小时周期。时间节点使用 tabular figures，无效或缺失时显示“时间未记录”，不把原始 ISO 或解析失败文本直接暴露给普通用户。
-- 时区标签默认不显示。确有跨时区对照需求时，动态显示当前系统的 IANA 时区或 UTC 偏移，不写死地域名称。
-- Prototype 快照只保存 `savedAt`、`fetchedAt`、`resetAt`、`checkedAt` 等原始时间字段。`resetLabel`、`updatedLabel`、`time_remaining_label` 等包含时间的展示文案必须在渲染时生成。
-
-### 共享组件槽位
-
-共享组件使用 `data-ui-part="label|value|detail|state|source"` 表达内部信息，不由菜单 CSS 猜测字号。每个槽位同时标注 `data-text-tone` 与 `data-info-priority`。
-
-| 组件 | `label` | `value` | `detail` | `state` / `source` |
-|---|---|---|---|---|
-| Shell 状态项 | `support + meta` | `context + primary` | 无 | 状态图标；无来源 |
-| 账号摘要 | 无 | 账号名 `context + primary` | 角色/仓库已读取 `reading + body` | 无 |
-| 一级导航 | 无 | 菜单名 `context + primary` | 无 | 当前定位独立于文字 Tone |
-| 页头 | 域类别 `support + meta` | `display + primary` | 描述 `reading + body` | 操作按 Control 合同 |
-| 刷新节奏 | 每日 / 每周 / 仄类别 `support + body` | 时间/倒计时 `decision + primary` | 影响范围 `support + body` | 可用性 `status + support` |
-| 对象行/卡片 | 对象分类 `support + meta`；可扫描的区域标题 `context + primary` | 名称 `context + primary`，关键奖励/成本 `decision + primary` | 奖励类型、光等、说明 `reading + body` | 可用性 `decision + status`；来源 `trace + meta` |
-| 空/失败/部分可用 | 范围 `support + meta` | 结论 `decision + primary/status` | 原因与恢复 `reading + body` | 来源/快照 `trace + meta` |
-| 表单与设置项 | 标签 `support + meta` | 当前值 `reading + body`；关键状态 `decision + primary/status` | 帮助与恢复 `reading + body` | 技术说明 `trace + meta` |
-
-### 跨菜单最低映射
-
-| 菜单 | 必须使用 `decision` 的信息 | 必须使用 `context` 的信息 | 只可使用 `trace` 的信息 |
-|---|---|---|---|
-| 首页 | 重置时间、倒计时、活动奖励、仄可用性 | 活动名、商人名 | 数据来源、快照确认时间 |
-| 账号 | 当前角色关键状态、邮政官风险、写操作结果 | 账号名、角色名、装备名 | Membership、快照时间 |
-| 仓库 | 筛选结果、可清理/配装命中、批量操作结果 | 装备名、筛选工作区 | 查询来源、刷新时间 |
-| 配装 | 缺失件数、可应用状态、转移结果 | 方案名、角色、槽位 | 模板来源、创建时间 |
-| 资料库 | 定义可用性、账号持有结论、资料库异常 | 搜索结果名、查询范围 | Manifest 版本、检查时间 |
-| 商人 | Offer 成本、可购买/缺失、刷新时间 | 商人名、地点、Offer 名 | Vendor 来源、读取时间 |
-| 设置 | 当前配置异常、更新可用、操作结果 | 设置项名称、账号/资料库状态 | 诊断编号、版本、日志时间 |
-| 武器/护甲详情 | 属性数值、Perk 状态、写操作结果、实例可用性 | 装备名、当前实例、来源条目 | 定义版本、证据与追溯信息 |
-
-### 首页响应式信息架构
-
-- 刷新节奏在 `>1280px` 保持三列；`1280px` 及以下改为两列，仄独占第二行；`980px` 及以下改为单列。每个单元固定为“类别 + 时间 / 倒计时 + 影响范围”的受控网格，不能由 flex 剩余空间决定换行。
-- 本周核心活动在 `>1280px` 三列并列；`1280px` 及以下日落打击独占首行，轮换突袭和轮换地牢并列；`760px` 及以下单列。活动条目先给活动名和说明完整宽度，再在下方横向排列可换行的奖励，不能把奖励塞进右侧窄列。
-- “限时活动”“本周加成”等可扫描区域标题为 `context + primary`；奖励类型为 `reading + body`。来源、快照和技术追溯才可使用 `meta` / `trace`。
-- 以上断点只改变网格与排列，不缩小时间、倒计时、活动名、奖励名或奖励类型；当空间不足时切换到下一个受控布局，不以单个文本临时换行作为布局策略。
-
-### 对比度与密度
-
-- 所有最终可见文字相对实际背景必须达到 `4.5:1`；`decision`、`context`、`reading` 的亮色目标为 `>= 7:1`，`support` 目标为 `>= 5.5:1`。`trace` 最低 `4.5:1`，且不得承担当前决策。
-- 密度只调整 padding、gap、行高和同层对象数量；不得改变 `Tone`、不得将 `decision/context/reading` 降到较低字号。紧凑模式也必须保留以上最小字号。
-- 在 `1280 / 980 / 760` 三个合同宽度，优先让 `decision` 和 `context` 换行或独占一行；不得为了保持单行而缩小文字、截断关键信息或建立横向滚动轨道。
-
-### 图标与状态合同
-
-- 产品 UI 使用同一套 Lucide 图标；冻结原型维持同一线性语言、圆角和 `1.7` 左右描边，不能混入填充图标、表情或不同线宽的手绘图形。
-- 紧凑状态图标为 `14px`，标准导航/控件图标为 `16px`，主操作图标为 `18px` 或 `20px`。图标颜色继承对应文字角色；禁用、当前和状态图标不能另造一套颜色逻辑。
-- 图标按钮必须有可见 tooltip 和可访问名称；只靠图标区分成功、警告、失败、锁定或写操作是不合格的。
-- 状态必须区分 `default`、`hover`、`pressed`、`current`、`focus-visible`、`disabled`、`loading`、`success`、`warning`、`error`。`current` 不等于 `focus`，`disabled` 不等于 `loading`，任何状态不得只通过降低不透明度表达。
-- `focus-visible` 使用独立至少 `2px` 的焦点环，并相对相邻表面达到 `3:1`；禁用控件保留可读标签和紧邻的原因；加载控件保留原标签、目标和进行中反馈，不能提前显示成功。
-
-### 密度、层级与响应式合同
-
-- 全局间距只使用 `4 / 8 / 12 / 16 / 20 / 24 / 32px` 刻度；页面 gutter、章节间距、行内 gap 和对象 padding 都必须从该刻度取值。Shell 固定几何继续以 `shared-shell-component-mapping.md` 为准。
-- 高度使用三档：紧凑控件 `30px`，标准控件 `34px`，主控件 `40px`。文本命令默认使用标准档，variant 不得改变高度；设置、诊断等重复操作列统一使用 `144px` 命令宽度，普通命令栏保持内容自适应。触控断点的实际命中区不得低于 `44px`，可通过透明 hit area 扩展，不能只放大边框。
-- 阴影只用于 sticky、drawer、popover、modal 和 toast 等层级关系，普通页面区、目录、列表和对象卡不能用阴影伪造边界。层级使用语义 token：base `0`、sticky `10`、popover `20`、drawer `30`、modal `40`、toast `50`、原型验收工具 `90`；禁止菜单私有魔法 `z-index`。
-- 在 `1280 / 980 / 760` 三个合同宽度，标题和说明先换行，操作区再换行，分段控件和上下文切换器再折行；不得建立横向滚动轨道。工作区按既定宽度类型重排，字段、表格和对象卡必须换行或单列堆叠。
-- 响应式只改变布局、内容优先级和命中区，不改变文字角色、颜色含义、状态表达或信息真相。小屏隐藏的辅助文字必须保留等价图标、tooltip 或可访问名称。
-
-### 文本与交互验收
-
-每个共享组件和菜单完成前，都必须在最终计算样式而不是源码片段上检查：
-
-1. light / dark 与 `1280 / 980 / 760` 下每个 `Tone + Priority` 组合的背景对比度、字号、字重、行高和换行行为。
-2. default、hover、pressed、current、focus-visible、disabled、loading、error 的可辨性，以及状态是否同时有文字或图标。
-3. 图标尺寸、描边、颜色继承、tooltip / accessible name 与图标按钮命中区。
-4. 间距刻度、z-index 语义、文字换行、数字对齐和零横向滚动。
-
-任何页面私有 `color`、`font-size`、`font-weight`、阴影、`z-index` 或图标尺寸若无法映射到本节 `Tone + Priority` 或 token，必须先补充全局规格，不能以菜单补丁保留。
-
-## 共享组件映射
-
-`ProductWorkspace` 已输出稳定语义标记：
-
-| 组件 | 标记 | 用途 |
-|---|---|---|
-| `ProductWorkspacePage` | `data-surface="page"` | 菜单页面承载层 |
-| `ProductWorkspaceHeader` | `data-shell-role="page-header"` | 共享页头 |
-| `ProductWorkspacePanel` | `data-surface="frame"` | 独立空态或独立面板外框 |
-| `ProductWorkspaceCommandBar` | `data-shell-role="command-bar"` | 连续工作区命令带 |
-| `ProductWorkspaceSplit` / `SideRail` | `data-surface="split"` / `data-shell-role="side-rail"` | 分栏结构与单一栏位分隔线 |
-| `ProductWorkspaceContentStack` / `EmptyState` | `content-stack` / `empty` | 无外框内容列与空态 |
-
-后续菜单重建只能在这些语义上添加领域 class。若确实需要新共享配方，先更新 `docs/development.md`、本合同和共享组件，不能在某一个菜单中发明新的首层 panel chrome。
-
-## 实施与验收顺序
-
-1. 先登记配方、原型 selector、计算样式和对应产品的稳定 `data-reference-id`。
-2. 先修改三个静态原型并确认配方，再修改产品 UI；禁止反向依赖产品 CSS 或从旧产品 CSS 推导原型。
-3. 删除会与合同争夺同一边框、圆角、背景、文字角色、图标、阴影或 padding 所有权的旧规则，再接入共享语义标记。
-4. 再迁移菜单领域布局和真实字段、action、加载/空/失败状态；不得把静态 mock 带入产品。
-5. 每个菜单必须在 Prototype 后，再在 Desktop 的 light / dark、1280 / 980 / 760 宽度复核边界、文字对比度、图标、状态和无横向滚动。发现任一旧视觉覆盖时，回到第 3 步，不追加高优先级补丁。
-
-当前阶段只完成共享合同和共享工作区接线。各菜单内容层仍须按本合同逐个迁移并完成视觉验收，不能因为共享层已接入而标记为“已还原”。
+1. 先确认冻结原型结构和最终计算样式，再修改产品 UI。
+2. 建立原型区域到真实字段、actions 和状态的绑定，不复制 mock 业务逻辑。
+3. 删除冲突旧 DOM、旧 CSS 和兼容分支，再实现共享语义；不得追加高优先级覆盖。
+4. Prototype 用于验证共享 React UI，Web 用于浏览器平台接线，Desktop 实窗作为最终完成依据。
+5. 在 `light / dark × 1280 / 980 / 760` 下检查边框所有权、布局、文字、图标、控件状态、焦点、滚动和零横向溢出。
+6. 未完成 Desktop 对照前，任务状态只能是“待视觉验收”。

@@ -7,11 +7,13 @@ import {
 import {
   equipItem as bungieEquipItem,
   equipItems as bungieEquipItems,
+  clearLoadout as bungieClearLoadout,
   insertSocketPlug as bungieInsertSocketPlug,
   equipLoadout as bungieEquipLoadout,
   pullFromPostmaster as bungiePullFromPostmaster,
   setItemLockState as bungieSetItemLockState,
   snapshotLoadout as bungieSnapshotLoadout,
+  updateLoadoutIdentifiers as bungieUpdateLoadoutIdentifiers,
   transferItem as bungieTransferItem
 } from "@d2-tools/services/bungie/actions";
 import type { D2Config } from "@d2-tools/core/config/schema";
@@ -31,6 +33,8 @@ import type {
   ItemLockActionInput,
   ItemTransferActionInput,
   LoadoutEquipActionInput,
+  LoadoutClearActionInput,
+  LoadoutIdentifiersActionInput,
   LoadoutSnapshotActionInput,
   PostmasterPullActionInput
 } from "../../contracts/actions.js";
@@ -281,6 +285,46 @@ export function registerActionIpcHandlers(): void {
       successMessage: `已用当前装备覆盖游戏内配装栏：${input.loadout_name ?? `槽位 ${input.loadout_index + 1}`}`,
       run: async ({ config, token }) => {
         await bungieSnapshotLoadout({
+          config,
+          token,
+          membershipType: input.membership_type,
+          characterId: input.character_id,
+          loadoutIndex: input.loadout_index,
+          nameHash: input.loadout_name_hash,
+          iconHash: input.loadout_icon_hash,
+          colorHash: input.loadout_color_hash
+        });
+      }
+    });
+  });
+
+  ipcMain.handle("actions:loadout:clear", async (_event, input: LoadoutClearActionInput) => {
+    return runWriteAction({
+      action: "loadout-clear",
+      itemName: input.loadout_name,
+      characterId: input.character_id,
+      successMessage: `已清空游戏内配装栏：${input.loadout_name ?? `槽位 ${input.loadout_index + 1}`}`,
+      invalidateAllItemDetails: true,
+      run: async ({ config, token }) => {
+        await bungieClearLoadout({
+          config,
+          token,
+          membershipType: input.membership_type,
+          characterId: input.character_id,
+          loadoutIndex: input.loadout_index
+        });
+      }
+    });
+  });
+
+  ipcMain.handle("actions:loadout:update-identifiers", async (_event, input: LoadoutIdentifiersActionInput) => {
+    return runWriteAction({
+      action: "loadout-update-identifiers",
+      itemName: input.loadout_name,
+      characterId: input.character_id,
+      successMessage: `已更新游戏内配装标识：${input.loadout_name ?? `槽位 ${input.loadout_index + 1}`}`,
+      run: async ({ config, token }) => {
+        await bungieUpdateLoadoutIdentifiers({
           config,
           token,
           membershipType: input.membership_type,

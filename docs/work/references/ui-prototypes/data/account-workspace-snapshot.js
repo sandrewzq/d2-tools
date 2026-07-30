@@ -27314,7 +27314,7 @@ window.accountWorkspaceSnapshot = Object.freeze({
       "name": "术士 光等 351",
       "characterId": "2305843009518626149",
       "className": "术士",
-      "source": "本地模板",
+      "source": "本地方案",
       "game": false,
       "createdAt": "2026-07-03T14:38:38.520Z",
       "items": [

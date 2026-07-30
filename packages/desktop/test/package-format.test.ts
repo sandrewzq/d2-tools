@@ -216,7 +216,7 @@ describe("desktop package format", () => {
     }
   });
 
-  it("keeps the services root entry browser-safe for Prototype and Web", () => {
+  it("keeps the services root entry browser-safe for Web", () => {
     const servicesIndex = readFileSync(join(repoRoot, "packages", "services", "src", "index.ts"), "utf8");
 
     expect(servicesIndex).toContain("./contracts.js");
@@ -233,7 +233,6 @@ describe("desktop package format", () => {
 
   it("keeps browser-facing source away from the core package root", () => {
     const browserSourceRoots = [
-      join(repoRoot, "packages", "prototype", "src"),
       join(repoRoot, "packages", "web", "src"),
       join(repoRoot, "packages", "app", "src"),
       join(repoRoot, "packages", "ui", "src"),

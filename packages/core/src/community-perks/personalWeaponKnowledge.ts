@@ -1,6 +1,3 @@
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
-
 export type PersonalWeaponKnowledgeMode = "pve" | "pvp" | "general";
 
 export type PersonalWeaponKnowledgeEntry = {
@@ -32,22 +29,32 @@ export type SavePersonalWeaponKnowledgeInput = {
   };
 };
 
-const fileName = "personal-weapon-knowledge.json";
+export function normalizePersonalWeaponKnowledgeTable(value: unknown): PersonalWeaponKnowledgeTable {
+  const table: { entries?: unknown[] } = value && typeof value === "object"
+    ? value as { entries?: unknown[] }
+    : {};
+  return {
+    version: 1,
+    entries: (Array.isArray(table.entries) ? table.entries : [])
+      .map(normalizeEntry)
+      .filter((entry): entry is PersonalWeaponKnowledgeEntry => Boolean(entry))
+  };
+}
 
-export function loadPersonalWeaponKnowledge(
-  dataDir: string,
+export function selectPersonalWeaponKnowledge(
+  table: PersonalWeaponKnowledgeTable,
   weaponName?: string
 ): PersonalWeaponKnowledgeTable {
-  const table = readTable(dataDir);
   const normalizedName = normalizeName(weaponName);
   return normalizedName
     ? { ...table, entries: table.entries.filter((entry) => normalizeName(entry.weapon_name) === normalizedName) }
     : table;
 }
 
-export function savePersonalWeaponKnowledge(
-  dataDir: string,
-  input: SavePersonalWeaponKnowledgeInput
+export function upsertPersonalWeaponKnowledge(
+  table: PersonalWeaponKnowledgeTable,
+  input: SavePersonalWeaponKnowledgeInput,
+  now: string
 ): PersonalWeaponKnowledgeTable {
   if (input.confirmed !== true) {
     throw new Error("保存到我的推荐前必须由用户明确确认。");
@@ -56,8 +63,6 @@ export function savePersonalWeaponKnowledge(
     throw new Error("保存外部知识时必须提供有效的 HTTP(S) 原始链接。");
   }
 
-  const now = new Date().toISOString();
-  const table = readTable(dataDir);
   const existing = input.entry.id
     ? table.entries.find((entry) => entry.id === input.entry.id)
     : undefined;
@@ -74,52 +79,34 @@ export function savePersonalWeaponKnowledge(
   const entries = existing
     ? table.entries.map((entry) => entry.id === existing.id ? nextEntry : entry)
     : [nextEntry, ...table.entries];
-  return writeTable(dataDir, { version: 1, entries });
+  return { version: 1, entries };
 }
 
-export function setPersonalWeaponKnowledgeEnabled(
-  dataDir: string,
+export function setPersonalWeaponKnowledgeEnabledInTable(
+  table: PersonalWeaponKnowledgeTable,
   id: string,
-  enabled: boolean
+  enabled: boolean,
+  now: string
 ): PersonalWeaponKnowledgeTable {
-  const table = readTable(dataDir);
   if (!table.entries.some((entry) => entry.id === id)) {
     throw new Error("没有找到要更新的个人推荐。");
   }
-  return writeTable(dataDir, {
-    version: 1,
-    entries: table.entries.map((entry) => entry.id === id
-      ? { ...entry, enabled, updated_at: new Date().toISOString() }
-      : entry)
-  });
-}
-
-export function deletePersonalWeaponKnowledge(dataDir: string, id: string): PersonalWeaponKnowledgeTable {
-  const table = readTable(dataDir);
-  return writeTable(dataDir, {
-    version: 1,
-    entries: table.entries.filter((entry) => entry.id !== id)
-  });
-}
-
-export function clearPersonalWeaponKnowledge(dataDir: string): void {
-  rmSync(tablePath(dataDir), { force: true });
-}
-
-function readTable(dataDir: string): PersonalWeaponKnowledgeTable {
-  const file = tablePath(dataDir);
-  if (!existsSync(file)) return { version: 1, entries: [] };
-  const value = JSON.parse(readFileSync(file, "utf8")) as { entries?: unknown[] };
   return {
     version: 1,
-    entries: (value.entries ?? []).map(normalizeEntry).filter((entry): entry is PersonalWeaponKnowledgeEntry => Boolean(entry))
+    entries: table.entries.map((entry) => entry.id === id
+      ? { ...entry, enabled, updated_at: now }
+      : entry)
   };
 }
 
-function writeTable(dataDir: string, table: PersonalWeaponKnowledgeTable): PersonalWeaponKnowledgeTable {
-  mkdirSync(dataDir, { recursive: true });
-  writeFileSync(tablePath(dataDir), `${JSON.stringify(table, null, 2)}\n`, "utf8");
-  return table;
+export function deletePersonalWeaponKnowledgeFromTable(
+  table: PersonalWeaponKnowledgeTable,
+  id: string
+): PersonalWeaponKnowledgeTable {
+  return {
+    version: 1,
+    entries: table.entries.filter((entry) => entry.id !== id)
+  };
 }
 
 function normalizeEntry(value: unknown): PersonalWeaponKnowledgeEntry | null {
@@ -186,8 +173,4 @@ function normalizeExternalUrl(value: unknown): string | undefined {
 function createEntryId(weaponName: string, mode: PersonalWeaponKnowledgeMode, now: string): string {
   const slug = normalizeName(weaponName).replace(/[^a-z0-9\u4e00-\u9fff]+/g, "-").replace(/^-|-$/g, "");
   return `${slug || "weapon"}-${mode}-${Date.parse(now)}`;
-}
-
-function tablePath(dataDir: string): string {
-  return join(dataDir, fileName);
 }

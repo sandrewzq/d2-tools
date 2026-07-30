@@ -3,12 +3,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { saveDimWishlist } from "../../services/src/analysis/wishlistStore.js";
-import { saveLocalCommunityRecommendations } from "../src/community-perks/localCommunityRecommendations.js";
+import { createAiLightggSource } from "../../services/src/community/aiLightggSource.js";
+import { saveLocalCommunityRecommendations } from "../../services/src/community/localCommunityRecommendations.js";
 import { parseLocalCommunityRecommendations } from "../src/community-perks/localCommunityImport.js";
-import {
-  CommunityPerkRecommendationService,
-  createAiLightggSource,
-} from "../src/community-perks/index.js";
+import { CommunityPerkRecommendationService } from "../src/community-perks/index.js";
 import {
   createDefaultCommunityPerkService,
   createDimWishlistSource
@@ -239,7 +237,7 @@ describe("community perk recommendations", () => {
       source_label: "DIM Wishlist",
       combos: [{ perks: [{ hash: 11, name: "Voltshot" }], source: "dim_wishlist", mode: "pve" }]
     }));
-    const service = new CommunityPerkRecommendationService({}, [failingLightgg, wishlist]);
+    const service = new CommunityPerkRecommendationService([failingLightgg, wishlist]);
 
     const result = await service.getRecommendationsWithAllSources(123, { item_name: "Test Weapon" });
 
@@ -283,11 +281,12 @@ describe("community perk recommendations", () => {
     const source = createAiLightggSource({
       data: { data_dir: dir },
       ai: {
-        provider: "openai_responses",
+        protocol: "openai_responses",
         api_key: "test-key",
         model: "gpt-test",
         base_url: "https://example.test/v1",
-        enable_lightgg: true
+        enable_lightgg: true,
+        force_lightgg: false
       }
     });
 
@@ -313,11 +312,12 @@ describe("community perk recommendations", () => {
     const source = createAiLightggSource({
       data: { data_dir: dir },
       ai: {
-        provider: "openai_responses",
+        protocol: "openai_responses",
         api_key: "test-key",
         model: "gpt-test",
         base_url: "https://example.test/v1",
-        enable_lightgg: true
+        enable_lightgg: true,
+        force_lightgg: false
       }
     });
 

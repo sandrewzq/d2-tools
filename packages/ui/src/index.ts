@@ -7,7 +7,6 @@ export type {
   ControlButtonVariant,
   ControlButtonWidth
 } from "./control/ControlButton.js";
-export { AccountPageView } from "./account/AccountPageView.js";
 export { AccountPageContentView } from "./account/AccountPageContentView.js";
 export type { AccountPageContentViewProps } from "./account/AccountPageContentView.js";
 export { AiAssistantPanelView } from "./assistant/AiAssistantPanelView.js";
@@ -28,9 +27,8 @@ export {
 } from "./time/formatTime.js";
 export type { TimeValue } from "./time/formatTime.js";
 export { ShellSidebarAccountSummary, ShellSidebarActions } from "./shell/ShellSidebar.js";
-export { HomePageView } from "./home/HomePageView.js";
 export { HomePageContentView } from "./home/HomePageContentView.js";
-export type { HomeDailyItem, HomeDailySummary, HomeStartupState, HomePageViewProps, HomeWeeklyActivityReward, HomeWeeklySummary } from "./home/HomePageContentView.js";
+export type { HomeDailyItem, HomeDailySummary, HomeStartupState, HomePageContentViewProps, HomeWeeklyActivityReward, HomeWeeklySummary } from "./home/HomePageContentView.js";
 export { getLocaleCopy, localeCopy } from "./i18n/copy.js";
 export {
   defaultProductPreferences,
@@ -48,8 +46,6 @@ export type {
   VendorsCopy,
   ShellCopy
 } from "./i18n/types.js";
-export { LibraryPageView } from "./library/LibraryPageView.js";
-export type { LibraryPageViewMode } from "./library/LibraryPageView.js";
 export { getLibraryRandomPerkGroups, getLibraryWeaponPerkColumns, LibraryDefinitionDialog, LibraryPageContentView } from "./library/LibraryPageContentView.js";
 export type { LibraryPageActions, LibraryPageContentViewProps } from "./library/LibraryPageContentView.js";
 export type {
@@ -101,7 +97,6 @@ export {
   ProductWorkspaceSplit
 } from "./workspace/ProductWorkspace.js";
 export { getLocalizedNavItems, navItems } from "./shell/navigation.js";
-export { SettingsPageView } from "./settings/SettingsPageView.js";
 export { SettingsPageContentView } from "./settings/SettingsPageContentView.js";
 export { SettingsAiConfigPanel } from "./settings/SettingsAiConfigPanel.js";
 export type {
@@ -113,8 +108,6 @@ export type {
   SettingsPageContentViewProps
 } from "./settings/SettingsPageContentView.js";
 export type { SettingsAiAdapter } from "./settings/SettingsAiConfigPanel.js";
-export { VendorsPageView } from "./vendors/VendorsPageView.js";
-export type { VendorsPageViewProps } from "./vendors/VendorsPageView.js";
 export { VendorsPageContentView } from "./vendors/VendorsPageContentView.js";
 export { getVendorEquipmentKind } from "./vendors/vendorEquipment.js";
 export type { VendorEquipmentKind } from "./vendors/vendorEquipment.js";
@@ -133,7 +126,6 @@ export type {
   VendorsPageContentViewProps,
   VendorsPageModelView
 } from "./vendors/VendorsPageContentView.js";
-export { VaultPageView } from "./vault/VaultPageView.js";
 export { VaultPageContentView } from "./vault/VaultPageContentView.js";
 export { VaultArmorFilterPanel } from "./vault/VaultArmorFilterPanel.js";
 export { VaultDuplicateGroups } from "./vault/VaultDuplicateGroups.js";

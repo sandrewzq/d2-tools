@@ -28,8 +28,8 @@ const sharedTargets = {
   ],
   loadout: [
     {
-      title: "配装模板 · 虚空高难",
-      meta: "本地模板 · 猎人",
+      title: "本地方案 · 虚空高难",
+      meta: "本地方案 · 猎人",
       conditions: [
         { type: "class", value: "猎人", label: "职业必须为猎人" },
         { type: "stat", stat: "health", value: 12, label: "生命值属性不低于 12" },
@@ -250,8 +250,8 @@ const armorData = {
       ],
       loadout: [
         {
-          title: "配装模板 · 近战循环",
-          meta: "本地模板 · 泰坦",
+          title: "本地方案 · 近战循环",
+          meta: "本地方案 · 泰坦",
           conditions: [
             { type: "item", value: "合成感受器", label: "指定异域护甲：合成感受器" },
             { type: "masterwork", value: true, label: "要求当前实例已大师杰作" }

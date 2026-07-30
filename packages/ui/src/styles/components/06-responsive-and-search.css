@@ -1,13 +1,13 @@
 
 
 .vault-tag-current.tag-farm {
-  border-color: #5b8dee;
-  color: #d7e4ff;
+  border-color: var(--status-pending);
+  color: var(--status-pending);
 }
 
 .vault-tag-current.tag-loadout {
-  border-color: #7f7ae6;
-  color: #ddd9ff;
+  border-color: var(--state-selected-border);
+  color: var(--text-body);
 }
 
 .vault-tag-current.tag-none {
@@ -46,8 +46,6 @@
 
 .vault-dashboard-panel button,
 .vault-dashboard-panel [data-control-variant="secondary"],
-.vault-card-actions button,
-.vault-tag-actions button,
 .vault-organize-bar button,
 .vault-batch-panel button,
 .vault-content-tab {
@@ -56,16 +54,31 @@
   filter: none;
 }
 
+.vault-card-actions button,
+.vault-tag-actions button {
+  transition: none;
+  box-shadow: none;
+  filter: none;
+  border-color: var(--chip-border);
+  background: var(--chip-bg);
+  color: var(--chip-text);
+}
+
 .vault-dashboard-panel button:not(:disabled):hover,
 .vault-dashboard-panel [data-control-variant="secondary"]:not(:disabled):hover,
 .vault-card-actions button:not(:disabled):hover,
 .vault-tag-actions button:not(:disabled):hover,
 .vault-organize-bar button:not(:disabled):hover,
 .vault-batch-panel button:not(:disabled):hover,
-.vault-content-tab:hover,
 .vault-content-tab.active {
   box-shadow: none;
   filter: none;
+}
+
+.vault-content-tab:hover {
+  box-shadow: none;
+  filter: none;
+  background: var(--item-bg-hover);
 }
 
 @media (max-width: 760px) {
@@ -157,10 +170,10 @@
   max-width: 180px;
   overflow: hidden;
   padding: 4px 8px;
-  border: 1px solid #384152;
+  border: 1px solid var(--item-border);
   border-radius: 6px;
-  color: #dce4f4;
-  background: #202838;
+  color: var(--text-body);
+  background: var(--item-bg);
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: var(--font-content);
@@ -177,28 +190,6 @@
   gap: 10px;
 }
 
-.item-result {
-  display: grid;
-  grid-template-columns: 56px minmax(0, 1fr);
-  gap: 12px;
-  align-items: start;
-  padding: 12px;
-  border: 1px solid #303848;
-  border-radius: 8px;
-  background: #181d27;
-}
-
-.item-result img {
-  width: 56px;
-  height: 56px;
-  border-radius: 6px;
-}
-
-.item-result h3,
-.item-result p {
-  margin: 0 0 6px;
-}
-
 .perk-groups {
   display: grid;
   gap: 6px;
@@ -213,9 +204,11 @@
 
 .perk-chip {
   padding: 4px 8px;
-  border: 1px solid #384152;
+  border: 1px solid var(--chip-border);
   border-radius: 999px;
-  color: #dce4f4;
-  background: #202838;
+  color: var(--chip-text);
+  background: var(--chip-bg);
   font-size: var(--font-content);
 }
+
+/* Component states */

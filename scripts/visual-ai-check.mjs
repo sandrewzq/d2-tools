@@ -11,18 +11,14 @@ const pnpm = isWindows ? "pnpm.cmd" : "pnpm";
 const viewport = process.env.D2_VISUAL_CAPTURE_VIEWPORT ?? "1365x900";
 const [width, height] = viewport.split("x").map((part) => Number.parseInt(part, 10));
 const theme = process.env.D2_VISUAL_THEME ?? "dark";
-const defaultPrototypePngName = "prototype-ai-dark-1365x900.png";
 const defaultWebPngName = "web-ai-dark-1365x900.png";
 const defaultDesktopPngName = "desktop-ai-dark-1365x900.png";
 const outputDir = resolve(process.env.D2_VISUAL_OUTPUT_DIR ?? join(repoRoot, ".local-data", "tmp", "visual", "ai"));
 const desktopDataDir = join(outputDir, "desktop-data");
 const reportPath = join(outputDir, "report.json");
 const forbiddenText = [
-  "PrototypeAssistantPanel",
   "Web AI 助手入口待接入",
-  "这是 prototype 的 mock 抽屉",
-  "后续接入真实页面上下文",
-  "Prototype / Mock"
+  "后续接入真实页面上下文"
 ];
 const forbiddenGlobalTitle = "小日向";
 const ignoredConsoleErrorPatterns = [
@@ -31,12 +27,6 @@ const ignoredConsoleErrorPatterns = [
   "/api/pages/"
 ];
 const targets = [
-  {
-    key: "prototype",
-    packageName: "@d2-tools/prototype",
-    port: 53170,
-    screenshot: theme === "dark" && viewport === "1365x900" ? defaultPrototypePngName : `prototype-ai-${theme}-${viewport}.png`
-  },
   {
     key: "web",
     packageName: "@d2-tools/web",
@@ -176,7 +166,6 @@ function prepareDesktopData() {
     },
     ai: {
       protocol: "",
-      provider: "",
       api_key: "",
       model: "",
       base_url: "",

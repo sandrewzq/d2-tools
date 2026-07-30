@@ -51,6 +51,20 @@ export {
   getLoadoutItemStatus,
   selectLoadoutsPageModel
 } from "./workspaces/loadoutsPage.js";
+export type {
+  LocalLoadoutPlanDirectoryEntry,
+  LocalLoadoutPlanItemRow,
+  LocalLoadoutPlanWorkbenchInput,
+  LocalLoadoutPlanWorkbenchModel
+} from "./workspaces/localLoadoutPlanWorkbench.js";
+export {
+  createEmptyLocalLoadoutPlanDraft,
+  createLocalLoadoutPlanDraftFromInGameLoadout,
+  createLocalLoadoutPlanDraftFromCharacter,
+  getLocalLoadoutPlanAccountItems,
+  selectLocalLoadoutPlanWorkbench,
+  toLocalLoadoutPlanDraft
+} from "./workspaces/localLoadoutPlanWorkbench.js";
 export type { LoadoutActionResultCounts } from "./workspaces/loadoutActions.js";
 export {
   buildCharacterLoadoutTemplateName,

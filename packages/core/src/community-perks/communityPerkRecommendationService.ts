@@ -8,14 +8,10 @@ import type {
   WeaponRecommendation
 } from "./types.js";
 
-type CommunityServiceConfig = { data?: { data_dir?: string } } | null | undefined;
-
 export class CommunityPerkRecommendationService {
   private sources: CommunityPerkSource[];
-  private config: CommunityServiceConfig;
 
-  constructor(config: CommunityServiceConfig, sources?: CommunityPerkSource[]) {
-    this.config = config;
+  constructor(sources?: CommunityPerkSource[]) {
     this.sources = sources ?? [];
   }
 
@@ -28,7 +24,7 @@ export class CommunityPerkRecommendationService {
     options: SourceOptions
   ): Promise<WeaponRecommendation | null> {
     for (const source of this.sources) {
-      if (!source.isAvailable(this.config)) {
+      if (!source.isAvailable()) {
         continue;
       }
       try {
@@ -47,7 +43,7 @@ export class CommunityPerkRecommendationService {
     item_hash: number,
     options: SourceOptions
   ): Promise<WeaponRecommendation | null> {
-    const available = this.sources.filter((s) => s.isAvailable(this.config));
+    const available = this.sources.filter((s) => s.isAvailable());
     if (available.length === 0) return null;
 
     const results = await Promise.allSettled(

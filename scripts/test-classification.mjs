@@ -18,11 +18,8 @@ export const architectureTests = [
   "scripts/test-classification.test.mjs"
 ];
 
-export const legacySourceInspectionTests = [];
-
 export const repositoryTestPolicy = {
-  architectureTests,
-  legacyTests: legacySourceInspectionTests
+  architectureTests
 };
 
 export function discoverTestFiles(root = process.cwd()) {
@@ -33,14 +30,11 @@ export function discoverTestFiles(root = process.cwd()) {
 
 export function classifyTestFiles(testFiles, policy = repositoryTestPolicy) {
   const architecture = new Set(policy.architectureTests.map(toPosixPath));
-  const legacy = new Set(policy.legacyTests.map(toPosixPath));
-  const result = { behavior: [], architecture: [], legacy: [] };
+  const result = { behavior: [], architecture: [] };
 
   for (const file of testFiles.map(toPosixPath).sort()) {
     if (architecture.has(file)) {
       result.architecture.push(file);
-    } else if (legacy.has(file)) {
-      result.legacy.push(file);
     } else {
       result.behavior.push(file);
     }
@@ -67,11 +61,6 @@ export function collectTestQualityErrors(root, testFiles = discoverTestFiles(roo
   const normalizedFiles = testFiles.map(toPosixPath);
   const fileSet = new Set(normalizedFiles);
   const architecture = new Set(policy.architectureTests.map(toPosixPath));
-  const legacy = new Set(policy.legacyTests.map(toPosixPath));
-
-  for (const file of [...architecture].filter((entry) => legacy.has(entry)).sort()) {
-    errors.push(`测试分类重复：${file} 同时属于 architecture 和 legacy。`);
-  }
 
   for (const file of [...architecture].sort()) {
     if (!fileSet.has(file)) {
@@ -90,16 +79,8 @@ export function collectTestQualityErrors(root, testFiles = discoverTestFiles(roo
     }
 
     const inspectsSource = isSourceInspectionTest(file, readFileSync(absolutePath, "utf8"));
-    if (inspectsSource && !legacy.has(file)) {
+    if (inspectsSource) {
       errors.push(`禁止新增源码字符串测试：${file}。请通过 import、渲染结果、role、label 或 ViewModel 输出验证行为。`);
-    } else if (!inspectsSource && legacy.has(file)) {
-      errors.push(`遗留源码测试清单已有过期项：${file}。请从清单中删除。`);
-    }
-  }
-
-  for (const file of [...legacy].sort()) {
-    if (!fileSet.has(file)) {
-      errors.push(`遗留源码测试文件已不存在：${file}。请从清单中删除。`);
     }
   }
 

@@ -30,6 +30,12 @@ import type { PerkSearchResult } from "@d2-tools/core/items/perkSearch";
 import type { ItemSearchResult } from "@d2-tools/core/items/search";
 import type { LibraryHistory, LibraryHistoryItem } from "@d2-tools/core/library/history";
 import type { CreateLoadoutTemplateInput, LoadoutTemplate } from "@d2-tools/core/loadouts/templates";
+import type {
+  CreateLocalLoadoutPlanInput,
+  DimLoadoutImportPreview,
+  LocalLoadoutPlan,
+  UpdateLocalLoadoutPlanInput
+} from "../contracts/loadouts.js";
 import type { SaveVaultNoteInput, SaveVaultTagInput, VaultTags } from "@d2-tools/core/vault/tags";
 import type { WeeklySummary } from "@d2-tools/core/weekly/summary";
 import type {
@@ -56,6 +62,8 @@ import type {
   ItemLockActionInput,
   ItemTransferActionInput,
   LoadoutEquipActionInput,
+  LoadoutClearActionInput,
+  LoadoutIdentifiersActionInput,
   LoadoutSnapshotActionInput,
   PostmasterPullActionInput
 } from "../contracts/actions.js";
@@ -131,6 +139,15 @@ contextBridge.exposeInMainWorld("d2", {
   renameLoadoutTemplate: (id: string, name: string) =>
     ipcRenderer.invoke("loadouts:rename", { id, name }) as Promise<LoadoutTemplate>,
   deleteLoadoutTemplate: (id: string) => ipcRenderer.invoke("loadouts:delete", id) as Promise<LoadoutTemplate[]>,
+  listLocalLoadoutPlans: () => ipcRenderer.invoke("loadouts:plans:list") as Promise<LocalLoadoutPlan[]>,
+  createLocalLoadoutPlan: (input: CreateLocalLoadoutPlanInput) =>
+    ipcRenderer.invoke("loadouts:plans:create", input) as Promise<LocalLoadoutPlan>,
+  updateLocalLoadoutPlan: (id: string, input: UpdateLocalLoadoutPlanInput) =>
+    ipcRenderer.invoke("loadouts:plans:update", { id, plan: input }) as Promise<LocalLoadoutPlan>,
+  deleteLocalLoadoutPlan: (id: string) =>
+    ipcRenderer.invoke("loadouts:plans:delete", id) as Promise<LocalLoadoutPlan[]>,
+  previewDimLoadoutImport: (url: string) =>
+    invokeDesktopIpc<DimLoadoutImportPreview>("loadouts:dim:preview", url),
   createLoadoutTemplateTransferPlan: (input: {
     template: LoadoutTemplate;
     target_character_id: string;
@@ -196,6 +213,10 @@ contextBridge.exposeInMainWorld("d2", {
     invokeDesktopIpc<ItemActionResult>("actions:loadout:equip", input),
   snapshotLoadout: (input: LoadoutSnapshotActionInput) =>
     invokeDesktopIpc<ItemActionResult>("actions:loadout:snapshot", input),
+  clearLoadout: (input: LoadoutClearActionInput) =>
+    invokeDesktopIpc<ItemActionResult>("actions:loadout:clear", input),
+  updateLoadoutIdentifiers: (input: LoadoutIdentifiersActionInput) =>
+    invokeDesktopIpc<ItemActionResult>("actions:loadout:update-identifiers", input),
   getActionLog: () => ipcRenderer.invoke("actions:log:get") as Promise<ActionLogEntry[]>,
   createItemActionPlan: (input: ItemActionPlanInput) =>
     ipcRenderer.invoke("actions:plan:item", input) as Promise<ItemActionPlan>,

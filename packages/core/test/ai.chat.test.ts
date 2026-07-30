@@ -306,16 +306,16 @@ describe("AI chat analysis", () => {
     expect(result.text).toBe("结构化分析结果");
   });
 
-  it("maps legacy DeepSeek settings to an OpenAI-compatible chat request", async () => {
+  it("uses an explicitly configured DeepSeek Chat Completions endpoint", async () => {
     const requests: Array<{ url: string; init: RequestInit }> = [];
 
     const result = await generateVaultAiAdvice({
       config: config({
         ai: {
-          provider: "deepseek",
+          protocol: "openai_chat_completions",
           api_key: "test-key",
           model: "deepseek-chat",
-          base_url: "",
+          base_url: "https://api.deepseek.com",
           enable_lightgg: false,
           force_lightgg: false
         }
@@ -325,14 +325,14 @@ describe("AI chat analysis", () => {
       fetcher: async (url, init) => {
         requests.push({ url: String(url), init: init ?? {} });
         return jsonResponse({
-          choices: [{ message: { content: "旧 DeepSeek 配置仍然可用。" } }]
+            choices: [{ message: { content: "DeepSeek 配置调用成功。" } }]
         });
       }
     });
 
     expect(requests[0].url).toBe("https://api.deepseek.com/chat/completions");
     expect(result.ai?.provider).toBe("openai_chat_completions");
-    expect(result.ai?.text).toBe("旧 DeepSeek 配置仍然可用。");
+    expect(result.ai?.text).toBe("DeepSeek 配置调用成功。");
   });
 
   it("calls Anthropic Messages API and parses text content", async () => {
@@ -388,7 +388,6 @@ function config(overrides: Partial<D2Config>): D2Config {
     },
     ai: {
       protocol: "",
-      provider: "",
       api_key: "",
       model: "",
       base_url: "",

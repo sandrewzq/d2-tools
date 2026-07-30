@@ -8,19 +8,13 @@ const rendererRoot = fileURLToPath(new URL("../src/renderer/", import.meta.url))
 const testRoot = fileURLToPath(new URL("../test/", import.meta.url));
 const clientPath = `${apiRoot}client.ts`;
 const typesPath = `${apiRoot}types.ts`;
-const accountApiPath = `${apiRoot}accountApi.ts`;
-const dailyApiPath = `${apiRoot}dailyApi.ts`;
 const domainApiFiles = [
-  "accountApi.ts",
-  "actionsApi.ts",
   "aiApi.ts",
   "communityApi.ts",
   "configApi.ts",
-  "dailyApi.ts",
   "diagnosticsApi.ts",
   "libraryApi.ts",
   "loadoutApi.ts",
-  "manifestApi.ts",
   "sharedTypes.ts",
   "targetApi.ts",
   "updateApi.ts",
@@ -34,14 +28,12 @@ describe("renderer API boundary", () => {
 
     const clientSource = readFileSync(clientPath, "utf8");
     const typesSource = readFileSync(typesPath, "utf8");
-    const accountApiSource = readFileSync(accountApiPath, "utf8");
-    const dailyApiSource = readFileSync(dailyApiPath, "utf8");
     const sharedTypesSource = readFileSync(`${apiRoot}sharedTypes.ts`, "utf8");
 
     expect(typesSource).toContain("export type AppApi");
     expect(countExportType(typesSource, "AppApi")).toBe(1);
-    expect(countExportType(accountApiSource, "AccountSummary")).toBe(1);
-    expect(countExportType(dailyApiSource, "DailySummary")).toBe(1);
+    expect(typesSource).toContain('export type * from "../../contracts/account.js"');
+    expect(typesSource).toContain('export type * from "../../contracts/daily.js"');
     expect(sharedTypesSource).toContain("@d2-tools/core/account/summary");
     expect(sharedTypesSource).not.toContain("export type AccountItemSummary =");
     expect(sharedTypesSource).not.toContain("socket_plugs?:");
@@ -49,7 +41,7 @@ describe("renderer API boundary", () => {
     expect(clientSource).toContain("import type { AppApi } from \"./types\"");
     expect(clientSource).toContain("export const api");
     expect(clientSource).toContain("window.d2");
-    expect(clientSource).toContain("export type * from \"./types\"");
+    expect(clientSource).not.toContain("export type *");
     expect(clientSource).not.toContain("export type AccountSummary");
     expect(clientSource).not.toContain("export type DailySummary");
     expect(clientSource).not.toContain("export type D2Config");
@@ -92,10 +84,6 @@ describe("renderer API boundary", () => {
     expect(offenders).toEqual([]);
   });
 });
-
-function countExportType(source: string, name: string): number {
-  return [...source.matchAll(new RegExp(`export type ${name}\\b`, "g"))].length;
-}
 
 function listSourceFiles(root: string): string[] {
   return readdirSync(root, { withFileTypes: true }).flatMap((entry) => {

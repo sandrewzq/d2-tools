@@ -10,13 +10,12 @@ export type D2Config = {
     manifest_language: string;
   };
   ai: {
-    protocol?: string;
-    provider?: string;
+    protocol: string;
     api_key: string;
     model: string;
     base_url: string;
     enable_lightgg: boolean;
-    force_lightgg?: boolean;
+    force_lightgg: boolean;
   };
   features: {
     write_actions_enabled: boolean;
@@ -38,7 +37,6 @@ export type ConfigEnv = Partial<Record<
   | "D2_UI_DENSITY"
   | "D2_INTERFACE_LOCALE"
   | "D2_MANIFEST_LANGUAGE_FOLLOWS_INTERFACE"
-  | "AI_PROVIDER"
   | "AI_PROTOCOL"
   | "AI_API_KEY"
   | "AI_MODEL"

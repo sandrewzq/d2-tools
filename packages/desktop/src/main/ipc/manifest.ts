@@ -342,20 +342,20 @@ async function runManifestUpdate(
 
 export function getDesktopManifestStatus(): ManifestStatus {
   const config = loadConfig();
-  const legacyStatus = getManifestStatus(config.data.data_dir);
+  const cachedManifestStatus = getManifestStatus(config.data.data_dir);
   const activation = loadActiveSqliteManifest(
     config.data.data_dir,
     config.data.manifest_language
   );
   if (!activation) {
     return withRuntimeState({
-      ...legacyStatus,
+      ...cachedManifestStatus,
       initialized: false,
-      missing_required_components: legacyStatus.missing_required_components
+      missing_required_components: cachedManifestStatus.missing_required_components
     });
   }
   return withRuntimeState({
-    ...legacyStatus,
+    ...cachedManifestStatus,
     initialized: true,
     version: activation.manifestVersion,
     language: activation.language,

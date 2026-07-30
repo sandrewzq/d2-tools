@@ -38,6 +38,14 @@
       "types": "./dist/loadouts/templates.d.ts",
       "import": "./dist/loadouts/templates.js"
     },
+    "./loadouts/plans": {
+      "types": "./dist/loadouts/plans.d.ts",
+      "import": "./dist/loadouts/plans.js"
+    },
+    "./loadouts/dimImport": {
+      "types": "./dist/loadouts/dimImport.d.ts",
+      "import": "./dist/loadouts/dimImport.js"
+    },
     "./items/aliases": {
       "types": "./dist/items/aliases.d.ts",
       "import": "./dist/items/aliases.js"
@@ -69,6 +77,18 @@
     "./community/perkRecommendation": {
       "types": "./dist/community/perkRecommendation.d.ts",
       "import": "./dist/community/perkRecommendation.js"
+    },
+    "./community/localCommunityRecommendations": {
+      "types": "./dist/community/localCommunityRecommendations.d.ts",
+      "import": "./dist/community/localCommunityRecommendations.js"
+    },
+    "./community/personalWeaponKnowledge": {
+      "types": "./dist/community/personalWeaponKnowledge.d.ts",
+      "import": "./dist/community/personalWeaponKnowledge.js"
+    },
+    "./community/aiLightggSource": {
+      "types": "./dist/community/aiLightggSource.d.ts",
+      "import": "./dist/community/aiLightggSource.js"
     },
     "./diagnostics/export": {
       "types": "./dist/diagnostics/export.d.ts",

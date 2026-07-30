@@ -534,8 +534,7 @@ function isReusableSearchIndex(
     const index = createSqliteSearchIndex({
       databasePath: path,
       expectedManifestVersion: manifestVersion,
-      expectedLanguage: language,
-      requireCurrentSchema: true
+      expectedLanguage: language
     });
     index.close();
     return true;

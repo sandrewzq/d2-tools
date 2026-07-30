@@ -1,10 +1,5 @@
 
 
-.account-summary {
-  display: grid;
-  gap: 16px;
-}
-
 .account-page {
   display: grid;
   gap: 16px;
@@ -68,11 +63,6 @@
 
 .account-slot-comparison {
   grid-column: 1 / -1;
-}
-
-.account-slot-comparison-list {
-  display: grid;
-  gap: 12px;
 }
 
 .account-slot-comparison-row {
@@ -290,6 +280,7 @@
   align-items: center;
   padding-top: 4px;
   border-top: 1px solid #263044;
+  border-color: var(--border-subtle);
 }
 
 .equipment-section-heading:first-of-type {
@@ -299,22 +290,21 @@
 
 .equipment-section-heading h4 {
   margin: 0;
-  color: #f3f6fc;
+  color: var(--text-title);
   font-size: 14px;
 }
 
 .equipment-section-heading span {
-  color: #8bd3ff;
+  color: var(--text-muted);
   font-size: var(--font-content);
 }
 
 .equipment-section-heading small {
-  color: #ddd9ff;
+  color: var(--text-muted);
   font-size: var(--font-content);
 }
 
 .equipment-group,
-.account-slot-category,
 .account-slot-group {
   display: grid;
   gap: 8px;
@@ -327,15 +317,7 @@
   font-size: var(--font-row-title);
 }
 
-.account-slot-category {
-  padding: 10px;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-control);
-  background: var(--surface-subtle);
-}
-
-.account-slot-category-heading,
-.account-slot-heading {
+.account-slot-category-heading {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -344,24 +326,19 @@
 
 .account-slot-category-heading h4 {
   margin: 0;
-  color: #f3f6fc;
+  color: var(--text-title);
   font-size: var(--font-row-title);
 }
 
-.account-slot-category-heading span,
-.account-slot-heading span {
-  color: #8bd3ff;
-  font-size: var(--font-content);
-}
-
-.account-slot-heading strong {
-  color: #cbd6e8;
+.account-slot-category-heading span {
+  color: var(--text-muted);
   font-size: var(--font-content);
 }
 
 .account-slot-group {
   padding-top: 8px;
   border-top: 1px solid #263044;
+  border-color: var(--border-subtle);
 }
 
 .account-slot-group:first-child {
@@ -382,7 +359,7 @@
 }
 
 .account-slot-source-heading small {
-  color: #8bd3ff;
+  color: var(--text-muted);
   font-size: var(--font-content);
 }
 
@@ -398,15 +375,15 @@
 }
 
 .account-slot-source-badge.equipped {
-  border-color: #4f9d69;
-  color: #c5f2d4;
-  background: #13231a;
+  border-color: var(--chip-border);
+  color: var(--chip-text);
+  background: var(--chip-bg);
 }
 
 .account-slot-source-badge.inventory {
-  border-color: #44536c;
-  color: #cbd6e8;
-  background: #1a2230;
+  border-color: var(--chip-border);
+  color: var(--chip-text);
+  background: var(--chip-bg);
 }
 
 .equipment-grid {
@@ -439,23 +416,29 @@
 }
 
 .equipment-item.equipped {
-  border-color: rgb(86 181 124 / 0.55);
-  background: var(--surface-subtle);
+  border-color: var(--status-ready);
+  background: var(--status-ready-bg);
   box-shadow: inset 0 0 0 1px rgb(86 181 124 / 0.18);
+  color: var(--text-body);
 }
 
 .equipment-item.equipped:hover {
-  border-color: #7bd89a;
+  border-color: var(--status-ready);
+  background: var(--status-ready-bg);
+  color: var(--text-body);
 }
 
 .equipment-item.inventory {
-  border-color: #303848;
+  border-color: var(--item-border);
+  background: var(--surface-interactive);
+  color: var(--text-body);
 }
 
 .equipment-item.account-show-more-item {
   grid-template-columns: minmax(0, 1fr);
   border-style: dashed;
-  background: rgb(112 188 243 / 0.08);
+  background: var(--state-selected-bg);
+  border-color: var(--state-selected-border);
 }
 
 .equipment-item img,
@@ -463,11 +446,13 @@
 .item-icon-placeholder {
   width: 42px;
   height: 42px;
-  border-radius: 5px;
+  border-radius: var(--radius-control);
 }
 
 .item-icon-placeholder {
-  background: #263044;
+  background: var(--surface-interactive);
+  border-color: var(--border-control);
+  color: var(--text-body);
 }
 
 .equipment-item strong,
@@ -480,23 +465,26 @@
 }
 
 .equipment-item strong {
-  color: #f3f6fc;
+  color: var(--text-title);
   font-size: var(--font-row-title);
 }
 
 .equipment-item span {
-  color: #9da9bc;
+  color: var(--text-muted);
   font-size: var(--font-content);
 }
 
 .equipment-item small {
   display: block;
   margin-top: 3px;
+  color: var(--text-muted);
 }
 
 .loadout-highlight {
-  border-color: #7f7ae6 !important;
-  box-shadow: inset 0 0 0 1px rgb(127 122 230 / 0.22);
+  border-color: var(--state-selected-border);
+  box-shadow: inset 0 0 0 1px var(--state-selected-border);
+  background: var(--state-selected-bg);
+  color: var(--text-body);
 }
 
 .loadout-template-badge {
@@ -505,10 +493,10 @@
   width: max-content;
   margin-top: 4px;
   padding: 2px 8px;
-  border: 1px solid #7f7ae6;
+  border: 1px solid var(--state-selected-border);
   border-radius: 999px;
-  color: #ddd9ff;
-  background: rgb(127 122 230 / 0.14);
+  color: var(--text-body);
+  background: var(--surface-interactive);
   font-size: var(--font-body);
   line-height: 1.2;
 }

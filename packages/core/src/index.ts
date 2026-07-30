@@ -34,6 +34,8 @@ export * from "./items/damageTypes.js";
 export * from "./library/history.js";
 export * from "./loadouts/plan.js";
 export * from "./loadouts/analysis.js";
+export * from "./loadouts/plans.js";
+export * from "./loadouts/armorSolver.js";
 export * from "./loadouts/templates.js";
 export * from "./logging/logger.js";
 export * from "./manifest/cache.js";

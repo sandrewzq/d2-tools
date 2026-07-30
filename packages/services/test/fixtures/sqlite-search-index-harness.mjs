@@ -10,7 +10,7 @@ import {
 const directory = mkdtempSync(join(tmpdir(), "d2-tools-search-index-"));
 const sourcePath = join(directory, "world.sqlite");
 const indexPath = join(directory, "search.sqlite");
-const legacyIndexPath = join(directory, "search-v2.sqlite");
+const outdatedIndexPath = join(directory, "outdated-search.sqlite");
 createSourceDatabase(sourcePath);
 buildSqliteSearchIndex({
   sourceDatabasePath: sourcePath,
@@ -18,33 +18,40 @@ buildSqliteSearchIndex({
   manifestVersion: "v1",
   language: "en"
 });
-copyFileSync(indexPath, legacyIndexPath);
-makeLegacyIndex(legacyIndexPath);
+copyFileSync(indexPath, outdatedIndexPath);
+makeOutdatedIndex(outdatedIndexPath);
 
 const index = createSqliteSearchIndex({
   databasePath: indexPath,
   expectedManifestVersion: "v1",
   expectedLanguage: "en"
 });
-const legacyIndex = createSqliteSearchIndex({
-  databasePath: legacyIndexPath,
-  expectedManifestVersion: "v1",
-  expectedLanguage: "en"
-});
+let rejectsOutdatedSchema = false;
+let outdatedIndex;
+try {
+  outdatedIndex = createSqliteSearchIndex({
+    databasePath: outdatedIndexPath,
+    expectedManifestVersion: "v1",
+    expectedLanguage: "en"
+  });
+} catch {
+  rejectsOutdatedSchema = true;
+} finally {
+  outdatedIndex?.close();
+}
 try {
   process.stdout.write(JSON.stringify({
     searchHashes: index.search("item", ["Same Gun"], 10),
     duplicateVersionHashes: index.getItemVersionHashes([100], 10),
     canonicalVersionHashes: index.getItemVersionHashes([101], 10),
     separateBucketHashes: index.getItemVersionHashes([300], 10),
-    legacyVersionHashes: legacyIndex.getItemVersionHashes([100, 101], 10)
+    rejectsOutdatedSchema
   }));
 } finally {
   index.close();
-  legacyIndex.close();
 }
 
-function makeLegacyIndex(path) {
+function makeOutdatedIndex(path) {
   const database = new DatabaseSync(path);
   try {
     database.exec("DROP TABLE item_version_relation");

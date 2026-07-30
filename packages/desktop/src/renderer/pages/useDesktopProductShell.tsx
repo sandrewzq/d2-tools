@@ -17,6 +17,7 @@ import { useDailySummary } from "../features/daily/useDailySummary";
 import { useHomePageDerivedState } from "../features/home/useHomePageDerivedState";
 import { useLibraryWorkspace } from "../features/library/useLibraryWorkspace";
 import { useLoadoutTemplates } from "../features/loadouts/useLoadoutTemplates";
+import { useLocalLoadoutPlans } from "../features/loadouts/useLocalLoadoutPlans";
 import { useDiagnosticsSettings } from "../features/settings/useDiagnosticsSettings";
 import { useVendorsWorkspace } from "../features/vendors/useVendorsWorkspace";
 import { useVendorDefinitionDetail } from "../features/vendors/useVendorDefinitionDetail";
@@ -30,6 +31,9 @@ export function useDesktopProductShell(props: {
   onLoginComplete: () => void;
   onManifestInitialized: () => void;
 }) {
+  // #region debug-point B:shell-hook-enter
+  void fetch("http://127.0.0.1:7777/event", { method: "POST", body: JSON.stringify({ sessionId: "desktop-first-load-stall", runId: "pre-fix-2", hypothesisId: "B", location: "useDesktopProductShell.tsx:entry", msg: "[DEBUG] desktop shell hook entered", data: {}, ts: Date.now() }) }).catch(() => {});
+  // #endregion
   const visualEnv = (import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env;
   const visualInitialPage = visualEnv?.VITE_D2_VISUAL_PAGE;
   const visualColorMode = isColorMode(visualEnv?.VITE_D2_VISUAL_THEME) ? visualEnv?.VITE_D2_VISUAL_THEME : undefined;
@@ -113,6 +117,7 @@ export function useDesktopProductShell(props: {
   ]);
   const library = useLibraryWorkspace({ vendorSourcePaths });
   const loadoutLibrary = useLoadoutTemplates();
+  const localLoadoutPlans = useLocalLoadoutPlans({ refreshAccount: refreshAccountAfterWrite });
   const writeActions = useDesktopProductWriteActions({
     accountSummary,
     applyAccountActionPatches,
@@ -130,7 +135,6 @@ export function useDesktopProductShell(props: {
   const itemDetail = writeActions.itemDetail;
   const vendorDefinitionDetail = useVendorDefinitionDetail({ vendorSourcePaths, vaultTags });
   const isRunningItemAction = writeActions.isRunningItemAction;
-  const loadoutWriteActions = writeActions.loadoutWriteActions;
 
   function handlePageChange(page: ShellPageKey) {
     itemDetail.closeSelectedItemDetail();
@@ -267,6 +271,7 @@ export function useDesktopProductShell(props: {
     home: homeDerivedState,
     library,
     loadouts: loadoutLibrary,
+    localLoadoutPlans,
     vendors: vendorsWorkspace,
     vendorDefinitionDetail,
     writeActions
@@ -288,7 +293,11 @@ export function useDesktopProductShell(props: {
         setActivePage("settings");
         setAssistantMode(null);
       }}
-      onSaveGuideDraft={(draft) => void loadoutWriteActions.saveGuideDraft(draft)}
+      onSaveGuideDraft={(draft) => {
+        localLoadoutPlans.startFromGuideDraft(draft);
+        setActivePage("loadouts");
+        setAssistantMode(null);
+      }}
       onClose={() => setAssistantMode(null)}
     />
   );

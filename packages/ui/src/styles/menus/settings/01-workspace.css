@@ -31,9 +31,10 @@
   position: sticky;
   top: var(--workspace-header-height);
   align-self: start;
+  min-width: 0;
   max-height: calc(100dvh - var(--topbar-height) - var(--workspace-header-height));
-  overflow-x: hidden;
   overflow-y: auto;
+  overflow-wrap: anywhere;
   background: transparent;
 }
 
@@ -312,6 +313,22 @@
 
 .settings-action-row {
   margin-top: 12px;
+}
+
+.settings-download-warning {
+  display: grid;
+  gap: 4px;
+  margin-top: 12px;
+  padding: 9px 10px;
+  border: 1px solid var(--object-border);
+  border-left: 3px solid var(--amber);
+  border-radius: var(--radius-control);
+  background: var(--card-bg);
+}
+
+.settings-download-warning p {
+  max-width: 760px;
+  margin: 0;
 }
 
 .settings-page .setting-toggle {
@@ -604,31 +621,31 @@
   text-align: left;
 }
 
-.app-shell[data-density="compact"] .settings-section {
+:where(.app-shell[data-density="compact"]) .settings-section {
   padding-top: 12px;
   padding-bottom: 12px;
 }
 
-.app-shell[data-density="compact"] .settings-metric {
+:where(.app-shell[data-density="compact"]) .settings-metric {
   padding: 8px;
 }
 
-.app-shell[data-density="compact"] .setting-row {
+:where(.app-shell[data-density="compact"]) .setting-row {
   min-height: 56px;
   padding-top: 7px;
   padding-bottom: 7px;
 }
 
-.app-shell[data-density="comfortable"] .settings-section {
+:where(.app-shell[data-density="comfortable"]) .settings-section {
   padding-top: 20px;
   padding-bottom: 20px;
 }
 
-.app-shell[data-density="comfortable"] .settings-metric {
+:where(.app-shell[data-density="comfortable"]) .settings-metric {
   padding: 14px;
 }
 
-.app-shell[data-density="comfortable"] .setting-row {
+:where(.app-shell[data-density="comfortable"]) .setting-row {
   min-height: 74px;
   padding-top: 13px;
   padding-bottom: 13px;

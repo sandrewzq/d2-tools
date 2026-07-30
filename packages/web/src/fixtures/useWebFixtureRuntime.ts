@@ -439,7 +439,12 @@ export function useWebFixtureRuntime() {
     backgroundTasks: webBackgroundTasks,
     actionLog: webActionLog,
     bungieConfig: webBungieConfig,
-    vendorsModel: selectVendorsPageModel(null),
+    vendorsModel: selectVendorsPageModel({
+      snapshot: null,
+      account: webAccountSummary,
+      scope: { kind: "account" },
+      refreshState: "idle"
+    }),
     assistantInitialMessages: webAssistantInitialMessages,
     assistantQuickPrompts: webAssistantQuickPrompts,
     findLoadoutTemplate: findWebLoadoutTemplate,

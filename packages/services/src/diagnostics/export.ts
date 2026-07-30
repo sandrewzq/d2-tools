@@ -23,7 +23,7 @@ export function buildDiagnosticsExport(input: DiagnosticsExportInput): string {
     `Bungie Client ID：${input.config.bungie.client_id ? redacted : "-"}`,
     `Bungie Client Secret：${redactedValue(input.config.bungie.client_secret)}`,
     `Bungie Redirect URI：${input.config.bungie.redirect_uri}`,
-    `AI Protocol：${input.config.ai.protocol || input.config.ai.provider || "-"}`,
+    `AI Protocol：${input.config.ai.protocol || "-"}`,
     `AI Model：${input.config.ai.model || "-"}`,
     `AI API Key：${redactedValue(input.config.ai.api_key)}`,
     `写操作：${input.config.features.write_actions_enabled ? "已开启" : "已关闭"}`,

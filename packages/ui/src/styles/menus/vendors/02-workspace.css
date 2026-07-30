@@ -1,55 +1,56 @@
 .app-shell .vendor-workbench.vendor-workbench-layout.product-split-workspace {
   grid-template-columns: var(--rail-md) minmax(0, 1fr) var(--rail-context);
-  min-height: calc(100vh - var(--topbar) - var(--workspace-header-height));
+  min-height: calc(100dvh - var(--topbar-height) - var(--workspace-header-height));
   border: 0;
   border-radius: 0;
   background: transparent;
 }
 
-.app-shell .vendor-workbench > * {
+:where(.app-shell) .vendor-workbench > * {
   min-width: 0;
   padding: 0;
   border: 0;
   border-radius: 0;
 }
 
-.app-shell .vendor-workbench .vendor-rail {
+:where(.app-shell) .vendor-workbench .vendor-rail {
   position: sticky;
   top: 0;
   align-self: start;
-  max-height: calc(100vh - var(--topbar) - var(--workspace-header-height));
-  overflow-x: hidden;
+  min-width: 0;
+  max-height: calc(100dvh - var(--topbar-height) - var(--workspace-header-height));
   overflow-y: auto;
+  overflow-wrap: anywhere;
   border-right: 1px solid var(--border-subtle);
   background: var(--surface-panel);
 }
 
-.app-shell .vendor-context {
+:where(.app-shell) .vendor-context {
   position: sticky;
   top: 0;
   align-self: start;
-  min-height: calc(100vh - var(--topbar) - var(--workspace-header-height));
+  min-height: calc(100dvh - var(--topbar-height) - var(--workspace-header-height));
   border-left: 1px solid var(--border-subtle);
   background: var(--surface-panel);
 }
 
 @media (max-width: 980px) {
-  .app-shell .vendor-workbench.vendor-workbench-layout.product-split-workspace {
+  :where(.app-shell) .vendor-workbench.vendor-workbench-layout.product-split-workspace {
     grid-template-columns: 190px minmax(0, 1fr);
   }
 
-  .app-shell .vendor-context {
+  :where(.app-shell) .vendor-context {
     display: none;
   }
 }
 
 @media (max-width: 760px) {
-  .app-shell .vendor-workbench.vendor-workbench-layout.product-split-workspace {
+  :where(.app-shell) .vendor-workbench.vendor-workbench-layout.product-split-workspace {
     grid-template-columns: 1fr;
     min-height: 0;
   }
 
-  .app-shell .vendor-workbench .vendor-rail {
+  :where(.app-shell) .vendor-workbench .vendor-rail {
     position: static;
     max-height: 260px;
     border-right: 0;

@@ -140,7 +140,7 @@ export function useAccountWorkspace(input: {
       const workspace = await loadAccountWorkspace(services, {
         forceAccountRefresh: reason !== "initial"
       });
-      if (requestSequence !== accountRequestSequenceRef.current) return;
+      if (requestSequence !== accountRequestSequenceRef.current) return null;
       if (workspace.status !== "success") {
         throw new Error(workspace.error?.message ?? "账号数据读取失败");
       }
@@ -164,8 +164,9 @@ export function useAccountWorkspace(input: {
         setAccountWarning(`本地增强数据读取失败：${formatAccountWorkspaceWarnings(workspace.data.warnings)}`);
       }
       void refreshAccountDerivedData(summary);
+      return summary;
     } catch (error) {
-      if (requestSequence !== accountRequestSequenceRef.current) return;
+      if (requestSequence !== accountRequestSequenceRef.current) return null;
       const message = error instanceof Error ? error.message : "账号数据读取失败";
       const resolvedMessage = getAccountLoadErrorMessage(input.state, message);
       if (getAccountSummarySnapshot()) {
@@ -174,6 +175,7 @@ export function useAccountWorkspace(input: {
         setAccountError(resolvedMessage);
         setAccountSummaryState(null);
       }
+      return null;
     } finally {
       if (requestSequence === accountRequestSequenceRef.current) {
         setIsLoadingAccount(false);

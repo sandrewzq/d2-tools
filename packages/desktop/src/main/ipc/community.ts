@@ -1,21 +1,25 @@
 import { ipcMain } from "electron";
 import type { DefinitionComponentData, DefinitionRecord } from "@d2-tools/core/manifest/definitions";
 import {
-  clearLightggCache,
-  clearLocalCommunityRecommendations,
-  loadLocalCommunityRecommendations,
-  saveLocalCommunityRecommendations,
-  deletePersonalWeaponKnowledge,
-  loadPersonalWeaponKnowledge,
-  savePersonalWeaponKnowledge,
-  setPersonalWeaponKnowledgeEnabled,
   type LocalCommunityRecommendationTable,
   type SavePersonalWeaponKnowledgeInput,
   type SourceOptions,
   type VaultItemMatchInput
 } from "@d2-tools/core/community-perks";
 import { loadConfig } from "@d2-tools/services/config/store";
+import { clearLightggCache } from "@d2-tools/services/community/aiLightggSource";
+import {
+  clearLocalCommunityRecommendations,
+  loadLocalCommunityRecommendations,
+  saveLocalCommunityRecommendations
+} from "@d2-tools/services/community/localCommunityRecommendations";
 import { createDefaultCommunityPerkService } from "@d2-tools/services/community/perkRecommendation";
+import {
+  deletePersonalWeaponKnowledge,
+  loadPersonalWeaponKnowledge,
+  savePersonalWeaponKnowledge,
+  setPersonalWeaponKnowledgeEnabled
+} from "@d2-tools/services/community/personalWeaponKnowledge";
 import { startBackgroundTask } from "../backgroundTasks.js";
 import { getDefinitions } from "../runtime/gameDataRuntime.js";
 

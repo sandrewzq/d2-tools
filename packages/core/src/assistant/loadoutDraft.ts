@@ -9,6 +9,7 @@ export function createBuildGuideLoadoutDraft(input: {
     name: input.fallbackName.trim() || firstGuideLine(input.match.requirement.raw_text),
     character_id: input.characterId,
     class_name: input.match.requirement.class_name?.value,
+    raw_text: input.match.requirement.raw_text,
     items: input.match.matched_items.filter((item) => item.status === "matched"),
     missing_requirements: input.match.missing_requirements,
     notes: [

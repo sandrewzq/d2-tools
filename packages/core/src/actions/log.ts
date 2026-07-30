@@ -5,7 +5,9 @@ export type ActionLogType =
   | "transfer"
   | "postmaster-pull"
   | "loadout-equip"
-  | "loadout-snapshot";
+  | "loadout-snapshot"
+  | "loadout-clear"
+  | "loadout-update-identifiers";
 
 export type ActionLogEntry = {
   id: string;

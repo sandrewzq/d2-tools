@@ -58,7 +58,12 @@ export function collectAccountDefinitionRequest(
     }
   }
   for (const loadoutComponent of Object.values(profile.characterLoadouts?.data ?? {})) {
-    for (const loadout of loadoutComponent.loadouts ?? []) addHash(loadoutNameHashes, loadout.nameHash);
+    for (const loadout of loadoutComponent.loadouts ?? []) {
+      addHash(loadoutNameHashes, loadout.nameHash);
+      for (const item of loadout.items ?? []) {
+        for (const plugHash of item.plugItemHashes ?? []) addHash(itemHashes, plugHash);
+      }
+    }
   }
   for (const craftableComponent of Object.values(profile.characterCraftables?.data ?? {})) {
     for (const [itemHash, craftable] of Object.entries(craftableComponent.craftables ?? {})) {

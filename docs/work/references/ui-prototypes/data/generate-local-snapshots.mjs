@@ -198,7 +198,7 @@ const localLoadouts = templates.map((template) => ({
   name: template.name,
   characterId: template.character_id,
   className: template.class_name,
-  source: "本地模板",
+  source: "本地方案",
   game: false,
   createdAt: template.created_at,
   items: template.items.map((item) => ({

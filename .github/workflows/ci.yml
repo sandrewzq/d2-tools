@@ -35,7 +35,7 @@ jobs:
       - name: Install Playwright Chromium
         run: pnpm exec playwright install chromium
 
-      - name: Verify shared Shell prototype contract
+      - name: Verify shared Shell visual contract
         run: pnpm visual:shell-contract
         env:
           D2_VISUAL_SKIP_BUILD: "1"

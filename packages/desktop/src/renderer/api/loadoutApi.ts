@@ -1,7 +1,15 @@
 import type { AccountItemSummary } from "./sharedTypes";
-import type { BatchTransferPlan } from "./actionsApi";
+import type { BatchTransferPlan } from "../../contracts/actions.js";
+import type { LoadoutPlansApi } from "../../contracts/loadouts.js";
 
-export type LoadoutApi = {
+export type {
+  CreateLocalLoadoutPlanInput,
+  DimLoadoutImportPreview,
+  LocalLoadoutPlan,
+  UpdateLocalLoadoutPlanInput
+} from "../../contracts/loadouts.js";
+
+export type LoadoutApi = LoadoutPlansApi & {
   listLoadoutTemplates(): Promise<LoadoutTemplate[]>;
   createLoadoutTemplate(input: CreateLoadoutTemplateInput): Promise<LoadoutTemplate>;
   renameLoadoutTemplate(id: string, name: string): Promise<LoadoutTemplate>;

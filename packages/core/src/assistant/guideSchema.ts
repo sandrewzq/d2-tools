@@ -65,6 +65,7 @@ export type BuildGuideLoadoutDraft = {
   name: string;
   character_id: string;
   class_name?: string;
+  raw_text?: string;
   items: GuideMatchedItem[];
   missing_requirements: string[];
   notes: string[];

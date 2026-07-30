@@ -19,8 +19,7 @@ Windows x64 安装器（NSIS）。
 - latest.yml
 - d2-tools-setup-<version>.exe.blockmap
 
-覆盖升级不会删除 %APPDATA%\\d2-tools 里的本地配置、token 和缓存。
-从旧版 d2-service 升级时，首次启动会复制 %APPDATA%\\d2-service 到 %APPDATA%\\d2-tools。`;
+覆盖升级不会删除 %APPDATA%\\d2-tools 里的本地配置、token 和缓存。`;
 
 export function buildReleaseNotes(changelogSection) {
   return `${changelogSection}\n\n${FOOTER}`;

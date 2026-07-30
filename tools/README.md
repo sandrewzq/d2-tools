@@ -23,7 +23,6 @@ tools/
 ## 当前工具
 
 - `tools/dev-desktop.cmd`：唯一的双击 Desktop 开发入口。自动清理 `53172` 残留监听进程和本仓库 Electron 进程；根据 `.local-data/tmp/dev-desktop-build.stamp`、产物与源码修改时间自动选择增量构建或完整重建。首次运行、产物缺失、依赖或根构建配置变化时自动完整重建；仅 Renderer / UI / CSS 变化时直接启动。
-- `tools/dev-prototype.cmd`：启动本地 prototype 开发版；启动前会清理占用 `53170` 的残留监听进程，并在服务就绪后自动打开浏览器。
 - `tools/dev-web.cmd`：启动本地 web 开发版；启动前会清理占用 `53171` 的残留监听进程，并在服务就绪后自动打开浏览器。
 - `tools/git-preflight.cmd`：只读按文档、工具、跨端 UI、Desktop、core/services/app/http 分组查看 Git 改动，识别菜单 lane / 共享层风险 / 多 lane 混改，并提示当前验证策略、高冲突文件和并行安全建议；后续 agent 开工前优先运行它。
 - `tools/git-commit-and-push.cmd`：全量 `git add -A`、提交并 push 当前分支；在工作区存在无关改动时不要使用。

@@ -1,42 +1,17 @@
-import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { applyEnvOverrides } from "@d2-tools/core/config/env";
-import { defaultConfig, defaultDataDir, legacyDefaultDataDir } from "@d2-tools/core/config/defaults";
+import { defaultConfig } from "@d2-tools/core/config/defaults";
 import type { ConfigEnv, D2Config } from "@d2-tools/core/config/schema";
+import { defaultDataDir } from "./dataDir.js";
 
 export type ConfigStoreOptions = {
   dataDir?: string;
   env?: ConfigEnv;
 };
 
-const legacyLocalRedirectUri = "http://127.0.0.1:28780/oauth/callback";
-const currentLocalRedirectUri = "https://127.0.0.1:28780/oauth/callback";
-
 export function configPath(dataDir: string): string {
   return join(dataDir, "config.json");
-}
-
-function mergeConfigWithDefaults(config: Partial<D2Config>, dataDir: string): D2Config {
-  const defaults = defaultConfig(dataDir);
-
-  return {
-    bungie: {
-      ...defaults.bungie,
-      ...config.bungie
-    },
-    data: {
-      ...defaults.data,
-      ...config.data
-    },
-    ai: {
-      ...defaults.ai,
-      ...config.ai
-    },
-    features: {
-      ...defaults.features,
-      ...config.features
-    }
-  };
 }
 
 export function loadConfig(options: ConfigStoreOptions = {}): D2Config {
@@ -45,44 +20,117 @@ export function loadConfig(options: ConfigStoreOptions = {}): D2Config {
 
   const path = configPath(selectedDataDir);
   const base = existsSync(path)
-    ? mergeConfigWithDefaults(JSON.parse(readFileSync(path, "utf8")) as Partial<D2Config>, selectedDataDir)
+    ? parseCurrentConfig(readFileSync(path, "utf8"))
     : defaultConfig(selectedDataDir);
 
   base.data.data_dir = selectedDataDir;
-  return normalizeConfig(applyEnvOverrides(base, options.env ?? process.env));
+  return applyEnvOverrides(base, options.env ?? process.env);
 }
 
 function selectDataDir(options: ConfigStoreOptions): string {
   if (options.dataDir) return options.dataDir;
   if (options.env?.D2_DATA_DIR) return options.env.D2_DATA_DIR;
 
-  const nextDataDir = defaultDataDir();
-  const legacyDataDir = legacyDefaultDataDir();
-
-  if (!existsSync(nextDataDir) && existsSync(legacyDataDir)) {
-    cpSync(legacyDataDir, nextDataDir, { recursive: true });
-  }
-
-  return nextDataDir;
+  return defaultDataDir();
 }
 
 export function saveConfig(config: D2Config, options: { dataDir?: string } = {}): void {
-  const normalizedConfig = normalizeConfig(config);
-  const selectedDataDir = options.dataDir ?? normalizedConfig.data.data_dir ?? defaultDataDir();
+  const selectedDataDir = options.dataDir ?? config.data.data_dir ?? defaultDataDir();
   mkdirSync(selectedDataDir, { recursive: true });
-  writeFileSync(configPath(selectedDataDir), `${JSON.stringify(normalizedConfig, null, 2)}\n`, "utf8");
+  writeFileSync(configPath(selectedDataDir), `${JSON.stringify(config, null, 2)}\n`, "utf8");
 }
 
-function normalizeConfig(config: D2Config): D2Config {
-  if (config.bungie.redirect_uri === legacyLocalRedirectUri) {
-    return {
-      ...config,
-      bungie: {
-        ...config.bungie,
-        redirect_uri: currentLocalRedirectUri
-      }
-    };
-  }
+function parseCurrentConfig(text: string): D2Config {
+  const value = JSON.parse(text) as unknown;
+  if (!isRecord(value)) throw new Error("config.json 格式无效。");
+  rejectUnknownFields(value, ["bungie", "data", "ai", "features"], "根配置");
 
-  return config;
+  const bungie = requireRecord(value.bungie, "bungie");
+  const data = requireRecord(value.data, "data");
+  const ai = requireRecord(value.ai, "ai");
+  const features = requireRecord(value.features, "features");
+  rejectUnknownFields(bungie, ["api_key", "client_id", "client_secret", "redirect_uri"], "bungie");
+  rejectUnknownFields(data, ["data_dir", "manifest_language"], "data");
+  rejectUnknownFields(ai, ["protocol", "provider", "api_key", "model", "base_url", "enable_lightgg", "force_lightgg"], "ai");
+  rejectUnknownFields(features, ["write_actions_enabled", "color_mode", "density", "interface_locale", "manifest_language_follows_interface"], "features");
+
+  return {
+    bungie: {
+      api_key: requireString(bungie.api_key, "bungie.api_key"),
+      client_id: requireString(bungie.client_id, "bungie.client_id"),
+      client_secret: requireString(bungie.client_secret, "bungie.client_secret"),
+      redirect_uri: requireString(bungie.redirect_uri, "bungie.redirect_uri")
+    },
+    data: {
+      data_dir: requireString(data.data_dir, "data.data_dir"),
+      manifest_language: requireString(data.manifest_language, "data.manifest_language")
+    },
+    ai: {
+      protocol: requireEnum(
+        resolveAiProtocol(ai),
+        "ai.protocol",
+        ["", "openai_responses", "openai_chat_completions", "anthropic_messages"]
+      ),
+      api_key: requireString(ai.api_key, "ai.api_key"),
+      model: requireString(ai.model, "ai.model"),
+      base_url: requireString(ai.base_url, "ai.base_url"),
+      enable_lightgg: requireBoolean(ai.enable_lightgg, "ai.enable_lightgg"),
+      force_lightgg: requireBoolean(ai.force_lightgg, "ai.force_lightgg")
+    },
+    features: {
+      write_actions_enabled: requireBoolean(features.write_actions_enabled, "features.write_actions_enabled"),
+      color_mode: requireEnum(features.color_mode, "features.color_mode", ["light", "dark"]),
+      density: requireEnum(features.density, "features.density", ["compact", "standard", "comfortable"]),
+      interface_locale: requireEnum(features.interface_locale, "features.interface_locale", ["zh-CN", "en-US"]),
+      manifest_language_follows_interface: requireBoolean(
+        features.manifest_language_follows_interface,
+        "features.manifest_language_follows_interface"
+      )
+    }
+  };
+}
+
+function resolveAiProtocol(ai: Record<string, unknown>): unknown {
+  if (ai.protocol !== undefined) return ai.protocol;
+
+  const provider = requireString(ai.provider ?? "", "ai.provider");
+  if (!provider || provider === "none") return "";
+  if (provider === "openai_responses") return "openai_responses";
+  if (provider === "anthropic" || provider === "anthropic_messages") return "anthropic_messages";
+  if (["openai", "openai_chat", "openai_compatible", "deepseek", "custom"].includes(provider)) {
+    return "openai_chat_completions";
+  }
+  return provider;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function requireRecord(value: unknown, field: string): Record<string, unknown> {
+  if (!isRecord(value)) throw new Error(`config.json 缺少 ${field} 配置。`);
+  return value;
+}
+
+function requireString(value: unknown, field: string): string {
+  if (typeof value !== "string") throw new Error(`config.json 的 ${field} 必须是字符串。`);
+  return value;
+}
+
+function requireBoolean(value: unknown, field: string): boolean {
+  if (typeof value !== "boolean") throw new Error(`config.json 的 ${field} 必须是布尔值。`);
+  return value;
+}
+
+function requireEnum<T extends string>(value: unknown, field: string, allowed: readonly T[]): T {
+  if (typeof value !== "string" || !allowed.includes(value as T)) {
+    throw new Error(`config.json 的 ${field} 值无效。`);
+  }
+  return value as T;
+}
+
+function rejectUnknownFields(value: Record<string, unknown>, allowed: readonly string[], section: string): void {
+  const allowedFields = new Set(allowed);
+  const unknown = Object.keys(value).find((field) => !allowedFields.has(field));
+  if (unknown) throw new Error(`config.json 的 ${section} 包含未知字段 ${unknown}。`);
 }

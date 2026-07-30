@@ -322,6 +322,44 @@ export function useLoadoutWriteActions(input: {
     );
   }
 
+  async function clearSavedLoadout(
+    character: AccountSummary["characters"][number],
+    slot: AccountSummary["characters"][number]["loadout_slots"][number]
+  ) {
+    await runLoadoutWriteAction(
+      character,
+      slot,
+      "清空游戏内配装栏",
+      () => api.clearLoadout({
+        membership_type: input.accountSummary?.membership_type ?? 0,
+        character_id: character.character_id,
+        loadout_index: slot.index,
+        loadout_name: slot.name
+      })
+    );
+  }
+
+  async function updateSavedLoadoutIdentifiers(
+    character: AccountSummary["characters"][number],
+    slot: AccountSummary["characters"][number]["loadout_slots"][number],
+    identifiers: { name_hash?: number; icon_hash?: number; color_hash?: number }
+  ) {
+    await runLoadoutWriteAction(
+      character,
+      slot,
+      "更新游戏内配装标识",
+      () => api.updateLoadoutIdentifiers({
+        membership_type: input.accountSummary?.membership_type ?? 0,
+        character_id: character.character_id,
+        loadout_index: slot.index,
+        loadout_name: slot.name,
+        loadout_name_hash: identifiers.name_hash,
+        loadout_icon_hash: identifiers.icon_hash,
+        loadout_color_hash: identifiers.color_hash
+      })
+    );
+  }
+
   async function deleteLoadoutTemplate(id: string) {
     try {
       await input.loadoutLibrary.deleteTemplate(id);
@@ -769,6 +807,8 @@ export function useLoadoutWriteActions(input: {
     equipHighestPowerItems,
     equipSavedLoadout,
     snapshotCurrentLoadout,
+    clearSavedLoadout,
+    updateSavedLoadoutIdentifiers,
     deleteLoadoutTemplate,
     renameLoadoutTemplate,
     executeMissingLoadoutTransfer,

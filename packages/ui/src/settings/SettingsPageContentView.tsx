@@ -261,6 +261,10 @@ function OverviewSection(props: any) {
     <SettingsPanel title={settingsText(copy, "应用更新")} subtitle={updateUi.summary} badge={updateUi.statusLabel} tone={updateUi.tone}>
       <MetricGrid variant="update"><Metric label={settingsText(copy, "应用版本")} value={props.appVersion} detail={settingsText(copy, "当前安装版本")} /><Metric label={settingsText(copy, "更新来源")} value={props.updateSource} detail={settingsText(copy, "GitHub 连接失败时可打开下载页手动处理")} /><Metric label={settingsText(copy, "上次检查")} value={props.updateCheckedAt} detail={settingsText(copy, "应用更新检查时间")} /></MetricGrid>
       {props.updateProgress > 0 ? <div className="settings-progress" aria-label={settingsText(copy, "更新下载进度")}><span style={{ width: `${props.updateProgress}%` }} /></div> : null}
+      <aside className="settings-download-warning" data-surface="frame" data-ui-kind="state-frame" data-status="warning" aria-label={settingsText(copy, "防骗提示")}>
+        <strong data-ui-part="value" data-info-priority="decision" data-text-tone="status">{settingsText(copy, "防骗提示")}</strong>
+        <p data-ui-part="detail" data-info-priority="reading" data-text-tone="body">{settingsText(copy, "官方版本永久免费。如果你是付费购买或通过收费渠道获得，请直接点击下方“打开下载页”获取官方版本。")}</p>
+      </aside>
       <div className="settings-action-row"><SettingsActions><SettingsButton data-control-variant="secondary" disabled={props.isCheckingUpdate} onClick={props.onCheckAppUpdate}>{settingsText(copy, "检查软件版本")}</SettingsButton><SettingsButton data-control-variant="secondary" disabled={!props.canDownload} onClick={props.onDownloadAppUpdate}>{settingsText(copy, "下载更新")}</SettingsButton><SettingsButton data-control-variant="primary" disabled={!props.canInstall} onClick={props.onQuitAndInstallAppUpdate}>{settingsText(copy, "重启并安装")}</SettingsButton><SettingsButton data-control-variant="secondary" onClick={props.onOpenAppUpdateDownloadPage}>{settingsText(copy, "打开下载页")}</SettingsButton><SettingsButton data-control-variant="secondary" onClick={props.onCopyAppUpdateDiagnostic}>{settingsText(copy, "复制更新诊断")}</SettingsButton></SettingsActions></div>
     </SettingsPanel>
     <SettingsPanel title={copy.overview.commonActionsTitle} subtitle={copy.overview.commonActionsSubtitle}>
@@ -341,7 +345,7 @@ function BackupSection(props: any) {
   return <SettingsSection id="backup" copy={copy} title={copy.menu.backup.label} subtitle={settingsText(copy, "低频但需要可发现的维护能力。")}>
     <div className="settings-group" data-surface="list">
       <SettingRow label={settingsText(copy, "数据目录")} detail={props.dataDir || settingsText(copy, "未读取到配置目录")}><SettingsButton data-control-variant="secondary" onClick={props.onOpenDataDir}>{settingsText(copy, "打开")}</SettingsButton></SettingRow>
-      <SettingRow label={settingsText(copy, "创建便携备份")} detail={settingsText(copy, "备份偏好、愿望单、标签和配装模板，不包含账号令牌、密钥、资料库、缓存或日志。")}><SettingsButton data-control-variant="primary" onClick={props.onExport}>{settingsText(copy, "创建备份")}</SettingsButton></SettingRow>
+      <SettingRow label={settingsText(copy, "创建便携备份")} detail={settingsText(copy, "备份偏好、愿望单、标签和本地方案，不包含账号令牌、密钥、资料库、缓存或日志。")}><SettingsButton data-control-variant="primary" onClick={props.onExport}>{settingsText(copy, "创建备份")}</SettingsButton></SettingRow>
       <SettingRow label={settingsText(copy, "恢复便携备份")} detail={settingsText(copy, "恢复前自动保存本机回滚备份；目标电脑仍需重新登录并填写密钥。")}><SettingsButton data-control-variant="secondary" onClick={props.onImport}>{settingsText(copy, "恢复备份")}</SettingsButton></SettingRow>
       <SettingRow label={settingsText(copy, "清理缓存")} detail={settingsText(copy, "清理临时缓存，不删除账号授权、设置和本地标记。")}><SettingsButton data-control-variant="secondary" onClick={props.onClearCache}>{settingsText(copy, "清理")}</SettingsButton></SettingRow>
       <SettingRow label={settingsText(copy, "迁移说明")} detail={settingsText(copy, "优先使用便携备份；只有需要保留账号令牌时才手动复制整个数据目录。")}><SettingsButton data-control-variant="secondary" onClick={props.onCopyGuide}>{settingsText(copy, "复制备份/迁移说明")}</SettingsButton></SettingRow>

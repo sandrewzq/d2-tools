@@ -18,6 +18,8 @@ export type ActionsApi = {
   pullFromPostmaster(input: PostmasterPullActionInput): Promise<ItemActionResult>;
   equipLoadout(input: LoadoutEquipActionInput): Promise<ItemActionResult>;
   snapshotLoadout(input: LoadoutSnapshotActionInput): Promise<ItemActionResult>;
+  clearLoadout(input: LoadoutClearActionInput): Promise<ItemActionResult>;
+  updateLoadoutIdentifiers(input: LoadoutIdentifiersActionInput): Promise<ItemActionResult>;
   getActionLog(): Promise<ActionLogEntry[]>;
   createItemActionPlan(input: ItemActionPlanInput): Promise<ItemActionPlan>;
   createBatchTransferPlan(input: BatchTransferPlanInput): Promise<BatchTransferPlan>;
@@ -86,6 +88,18 @@ export type LoadoutEquipActionInput = {
 };
 
 export type LoadoutSnapshotActionInput = {
+  membership_type: number;
+  character_id: string;
+  loadout_index: number;
+  loadout_name?: string;
+  loadout_name_hash?: number;
+  loadout_icon_hash?: number;
+  loadout_color_hash?: number;
+};
+
+export type LoadoutClearActionInput = LoadoutEquipActionInput;
+
+export type LoadoutIdentifiersActionInput = {
   membership_type: number;
   character_id: string;
   loadout_index: number;

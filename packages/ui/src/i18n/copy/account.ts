@@ -19,11 +19,9 @@ export const accountCopy: Record<InterfaceLocale, LocaleCopy["account"]> = {
         overview: "账号概览",
         loadout: "角色装备",
         activity: "活动复盘",
-        materials: "材料消耗",
         postmaster: "邮政官"
       },
       actions: {
-        saveCurrentLoadout: "保存当前装备为本地模板",
         equipHighestPower: "一键装备最高光等",
         running: "执行中..."
       }
@@ -99,7 +97,6 @@ export const accountCopy: Record<InterfaceLocale, LocaleCopy["account"]> = {
         "账号侧栏摘要": "Account side summary",
         "最近活动": "Recent activity",
         "待读取": "Waiting",
-        "材料": "Materials",
         "邮政官": "Postmaster",
         "活动复盘": "Activity review",
         "按最近记录快速回看 PVE / PVP 完成情况和突袭、地牢尝试。": "Review recent PVE / PVP completions plus raid and dungeon attempts.",
@@ -119,9 +116,6 @@ export const accountCopy: Record<InterfaceLocale, LocaleCopy["account"]> = {
         "关键统计：": "Key stats: ",
         "暂无最近活动记录。": "No recent activity records.",
         "读取账号后会显示最近活动复盘。": "Read account data to show the recent activity review.",
-        "材料与消耗品": "Materials and consumables",
-        "副本、日常和商人交互常用资源，按账号维度读取。": "Common dungeon, daily, and vendor resources read at account scope.",
-        "没有读取到账号材料或货币。": "No account materials or currencies were read.",
         "只读显示角色邮政官里的待领取物品，先帮助你发现堆积。": "Read-only view of character postmaster items to surface buildup.",
         "当前角色邮政官为空。": "This character's postmaster is empty.",
         "其他": "Other",
@@ -142,8 +136,6 @@ export const accountCopy: Record<InterfaceLocale, LocaleCopy["account"]> = {
         "当前快照未包含活动记录": "The current snapshot has no activity history",
         "读取 Activity History 后会在这里显示真实的近期复盘。": "Recent activity will appear here after Activity History is read.",
         "Activity History 当前没有返回可展示的近期场次。": "Activity History currently returned no recent runs to display.",
-        "没有材料数据": "No materials data",
-        "当前账号快照未返回材料与消耗品。": "The current account snapshot returned no materials or consumables.",
         "邮政官为空": "Postmaster is empty",
         "当前角色的账号快照没有邮政官物品。": "The current character snapshot has no postmaster items.",
         "当前角色没有装备位置数据": "No gear-slot data for the current character",
@@ -165,11 +157,9 @@ export const accountCopy: Record<InterfaceLocale, LocaleCopy["account"]> = {
         overview: "Account overview",
         loadout: "Character gear",
         activity: "Activity review",
-        materials: "Materials",
         postmaster: "Postmaster"
       },
       actions: {
-        saveCurrentLoadout: "Save current gear as template",
         equipHighestPower: "Equip highest power",
         running: "Running..."
       }

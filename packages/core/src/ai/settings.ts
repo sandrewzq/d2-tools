@@ -5,7 +5,6 @@ export type AiSettings = D2Config["ai"];
 
 export type NormalizedAiSettings = {
   protocol: "" | AiProtocol;
-  provider: string;
   api_key: string;
   model: string;
   base_url: string;
@@ -30,7 +29,6 @@ export function normalizeAiSettings(settings: AiSettings): NormalizedAiSettings 
   if (!protocol) {
     return {
       protocol: "",
-      provider: "",
       api_key: "",
       model: "",
       base_url: "",
@@ -41,12 +39,11 @@ export function normalizeAiSettings(settings: AiSettings): NormalizedAiSettings 
 
   return {
     protocol,
-    provider: "",
     api_key: settings.api_key.trim(),
     model: settings.model.trim(),
-    base_url: normalizeLegacyBaseUrl(settings.base_url, settings.provider, protocol),
-    enable_lightgg: settings.enable_lightgg ?? false,
-    force_lightgg: settings.force_lightgg ?? false
+    base_url: normalizeBaseUrl(settings.base_url, protocol),
+    enable_lightgg: settings.enable_lightgg,
+    force_lightgg: settings.force_lightgg
   };
 }
 
@@ -97,42 +94,17 @@ export function protocolLabel(protocol: string): string {
 }
 
 function normalizeAiProtocol(settings: AiSettings): "" | AiProtocol {
-  const protocol = (settings.protocol ?? "").trim();
+  const protocol = settings.protocol.trim();
   if (isAiProtocol(protocol)) {
     return protocol;
   }
-
-  const provider = (settings.provider ?? "").trim();
-  if (!provider || provider === "none") {
-    return "";
-  }
-  if (provider === "openai_responses") {
-    return "openai_responses";
-  }
-  if (provider === "anthropic") {
-    return "anthropic_messages";
-  }
-  if (provider === "openai_compatible") {
-    return inferLegacyCompatibleProtocol(settings);
-  }
-  return "openai_chat_completions";
+  return "";
 }
 
-function inferLegacyCompatibleProtocol(settings: AiSettings): AiProtocol {
-  const baseUrl = settings.base_url.trim().toLowerCase();
-  if (baseUrl.endsWith("/responses") || settings.enable_lightgg || settings.force_lightgg) {
-    return "openai_responses";
-  }
-  return "openai_chat_completions";
-}
-
-function normalizeLegacyBaseUrl(baseUrl: string, provider: string | undefined, protocol: AiProtocol): string {
+function normalizeBaseUrl(baseUrl: string, protocol: AiProtocol): string {
   const trimmed = baseUrl.trim();
   if (trimmed) {
     return trimmed;
-  }
-  if ((provider ?? "").trim() === "deepseek") {
-    return "https://api.deepseek.com";
   }
   return aiProtocolBaseUrls[protocol];
 }

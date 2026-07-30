@@ -6,7 +6,6 @@ const repoRoot = process.cwd();
 
 describe("dev tool scripts", () => {
   const devScripts = [
-    { file: "dev-prototype.cmd", port: "53170", command: "dev:prototype" },
     { file: "dev-web.cmd", port: "53171", command: "dev:web" }
   ];
 

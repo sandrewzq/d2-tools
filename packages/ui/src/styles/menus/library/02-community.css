@@ -5,10 +5,10 @@
   align-items: center;
   margin: 6px 0;
   padding: 4px 10px;
-  border: 1px solid #5b8dee;
+  border: 1px solid var(--chip-border);
   border-radius: 999px;
-  background: rgba(91, 141, 238, 0.14);
-  color: #d7e4ff;
+  background: var(--chip-bg);
+  color: var(--chip-text);
   font-size: var(--font-content);
   font-weight: 700;
 }

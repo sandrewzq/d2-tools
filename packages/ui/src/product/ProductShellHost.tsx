@@ -11,6 +11,9 @@ import { ProductWorkspaceHeader, ProductWorkspacePage } from "../workspace/Produ
 import type { ProductShellHostProps } from "./types.js";
 
 export function ProductShellHost(props: ProductShellHostProps) {
+  // #region debug-point B:product-shell-render
+  void fetch("http://127.0.0.1:7777/event", { method: "POST", body: JSON.stringify({ sessionId: "desktop-first-load-stall", runId: "pre-fix-2", hypothesisId: "B", location: "ProductShellHost.tsx:ProductShellHost", msg: "[DEBUG] ProductShellHost render entered", data: { activePage: props.activePage }, ts: Date.now() }) }).catch(() => {});
+  // #endregion
   const [uncontrolledActivePage, setUncontrolledActivePage] = useState<ShellPageKey>(props.initialPage ?? "home");
   const [uncontrolledAssistantMode, setUncontrolledAssistantMode] = useState<ShellAssistantMode>(props.initialAssistantMode ?? null);
   const [uncontrolledPreferences, setUncontrolledPreferences] = useState<ProductPreferences>({

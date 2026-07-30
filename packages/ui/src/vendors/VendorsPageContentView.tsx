@@ -106,7 +106,7 @@ export type VendorInventoryGroupView = {
   statusLabel?: string;
   taskCategory?: string;
   displayStatusLabel?: string;
-  inventoryState?: "loaded" | "empty" | "not_read" | "unavailable";
+  inventoryState?: "loaded" | "empty" | "unavailable";
   inventoryStateLabel?: string;
   railStatusLabel?: string;
   detailToolbar?: VendorDetailToolbarView;
@@ -476,7 +476,7 @@ function getVendorDisplayStatusLabel(vendor: VendorInventoryGroupView): string {
 
 function getVendorStatus(vendor: VendorInventoryGroupView): "neutral" | "pending" | "success" | "warning" | "error" {
   if (vendor.detailState === "ready" || vendor.inventoryState === "loaded") return "success";
-  if (vendor.detailState === "pending" || vendor.inventoryState === "not_read") return "pending";
+  if (vendor.detailState === "pending") return "pending";
   if (vendor.detailState === "partial") return "warning";
   if (vendor.detailState === "failed" || vendor.inventoryState === "unavailable") return "error";
   return "neutral";

@@ -27,7 +27,6 @@ export type AccountPageActions = {
   refreshAccount: () => void;
   refreshActivity: () => void;
   selectCharacter: (characterId: string) => void;
-  saveCurrentLoadout: (characterId: string) => void;
   equipHighestPower: (characterId: string) => void;
   openItem: (payload: AccountOpenItemPayload) => void;
 };
@@ -216,9 +215,6 @@ function AccountPageWorkspace(props: {
             ))}
           </div>
           <div className="account-actions">
-            <button type="button" data-ui-kind="button" data-control-variant="primary" onClick={() => props.actions.saveCurrentLoadout(props.selectedCharacter.characterId)}>
-              {props.copy.actions.saveCurrentLoadout}
-            </button>
             <button type="button" data-ui-kind="button" data-control-variant="secondary" disabled={!props.viewModel.feedback.writeActionsEnabled || props.viewModel.loadout.isRunningItemAction} onClick={() => props.actions.equipHighestPower(props.selectedCharacter.characterId)}>
               {props.viewModel.loadout.isRunningItemAction ? props.copy.actions.running : props.copy.actions.equipHighestPower}
             </button>
