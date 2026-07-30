@@ -5,7 +5,6 @@ import type { D2Config } from "@d2-tools/core/config/schema";
 import { loadConfig, saveConfig } from "@d2-tools/services/config/store";
 import {
   createPortableBackup,
-  mergePortableConfig,
   parseBackupDocument,
   portableBackupFileCount,
   restorePortableBackup,
@@ -72,33 +71,12 @@ export function registerConfigIpcHandlers(): void {
     }
 
     const inputPath = result.filePaths[0];
-    const parsed = parseBackupDocument(readFileSync(inputPath, "utf8"));
-    if (parsed.kind === "legacy-config") {
-      const confirmation = await dialog.showMessageBox({
-        type: "warning",
-        title: "导入旧版配置备份",
-        message: "这个文件只包含旧版配置，不能恢复愿望单、标签或本地方案。",
-        detail: "为避免泄露或误覆盖，文件中的账号令牌、Bungie 密钥和 AI 密钥不会导入。是否继续？",
-        buttons: ["继续导入", "取消"],
-        defaultId: 1,
-        cancelId: 1
-      });
-      if (confirmation.response !== 0) {
-        return { ok: true, message: "已取消导入旧版配置。" };
-      }
-
-      saveConfig(mergePortableConfig(config, parsed.config));
-      return {
-        ok: true,
-        message: `旧版配置已导入：${basename(inputPath)}。账号令牌和密钥未导入，重启应用后生效。`,
-        path: inputPath
-      };
-    }
+    const backup = parseBackupDocument(readFileSync(inputPath, "utf8"));
 
     const confirmation = await dialog.showMessageBox({
       type: "warning",
       title: "恢复便携备份",
-      message: `将恢复 ${portableBackupFileCount(parsed.backup)} 组用户数据和本地偏好。`,
+      message: `将恢复 ${portableBackupFileCount(backup)} 组用户数据和本地偏好。`,
       detail: "恢复不会导入或覆盖账号令牌、Bungie/AI 密钥和当前数据目录。现有用户数据会先保存为本机回滚备份。是否继续？",
       buttons: ["恢复", "取消"],
       defaultId: 1,
@@ -123,7 +101,7 @@ export function registerConfigIpcHandlers(): void {
     restorePortableBackup({
       dataDir: config.data.data_dir,
       currentConfig: config,
-      backup: parsed.backup,
+      backup,
       rollback,
       rollbackPath,
       saveConfig

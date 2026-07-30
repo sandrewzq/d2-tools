@@ -92,16 +92,6 @@
   --layer-modal: 50;
   --layer-toast: 60;
 
-  --prototype-page: var(--page);
-  --prototype-titlebar: var(--chrome);
-  --prototype-nav: var(--sidebar);
-  --prototype-panel: var(--panel);
-  --prototype-panel-soft: var(--panel-2);
-  --prototype-line: var(--section-divider);
-  --prototype-text: var(--text);
-  --prototype-muted: var(--muted);
-  --prototype-good: var(--mint);
-  --prototype-warn: var(--amber);
   --surface-page: var(--page);
   --surface-sidebar: var(--sidebar);
   --surface-panel: var(--panel);
@@ -313,16 +303,6 @@ html[data-theme="light"] {
 .app-shell[data-color-mode="dark"],
 .standalone-dark-theme {
   --danger: var(--red);
-  --prototype-page: var(--page);
-  --prototype-titlebar: var(--chrome);
-  --prototype-nav: var(--sidebar);
-  --prototype-panel: var(--panel);
-  --prototype-panel-soft: var(--panel-2);
-  --prototype-line: var(--section-divider);
-  --prototype-text: var(--text);
-  --prototype-muted: var(--muted);
-  --prototype-good: var(--mint);
-  --prototype-warn: var(--amber);
   --surface-page: var(--page);
   --surface-sidebar: var(--sidebar);
   --surface-panel: var(--panel);

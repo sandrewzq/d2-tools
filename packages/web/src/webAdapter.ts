@@ -4,7 +4,6 @@ import type {
   HomeWeeklySummary,
   ShellStatusItem
 } from "@d2-tools/ui";
-import { createFixtureShellStatus } from "@d2-tools/ui/fixtures";
 import { webAppVersion } from "./buildInfo";
 
 export type WebHomeSnapshot = {
@@ -27,90 +26,67 @@ export type WebShellAdapter = {
   openExternal: (url: string) => void;
 };
 
-export const fallbackHomeSnapshot: WebHomeSnapshot = {
-  shellStatus: createFixtureShellStatus({
-    bungie: { value: "Web 待接入", tone: "neutral" },
-    account: { value: "未登录", tone: "warning" },
-    library: { value: "待同步", tone: "neutral" },
-    ai: { value: "未配置", tone: "warning" },
-    appVersion: { version: webAppVersion }
-  }),
+export const unavailableHomeSnapshot: WebHomeSnapshot = {
+  shellStatus: [
+    { key: "bungie", label: "Bungie", value: "服务未连接", tone: "warning" },
+    { key: "account", label: "账号", value: "不可用", tone: "warning" },
+    { key: "library", label: "资料库", value: "不可用", tone: "warning" },
+    { key: "ai", label: "AI", value: "不可用", tone: "warning" },
+    { key: "app-version", label: "应用版本", value: webAppVersion, tone: "ready" }
+  ],
   homeState: {
     cards: {
       manifest: {
-        label: "Web 待同步",
-        status: "pending",
-        lastUpdated: "待同步",
-        needsUpdate: true
+        label: "资料库服务未连接",
+        status: "warning",
+        lastUpdated: "无法读取",
+        needsUpdate: false
       }
     }
   },
   homeDailySummary: {
     daily_reset: {
-      label: "每日 01:00 重置",
-      time_remaining_label: "等待服务接入"
+      label: "每日重置",
+      time_remaining_label: "无法读取"
     },
     weekly_reset: {
-      label: "每周三 01:00 重置",
-      time_remaining_label: "等待服务接入"
+      label: "每周重置",
+      time_remaining_label: "无法读取"
     },
     sources: {
       weekly_report: {
-        status: "ready",
-        message: "Web fallback 周报样例。",
-        items: [
-          { title: "克洛塔的末日", subtitle: "轮换突袭", description: "关注巅峰奖励", source: "Web fallback", weeklyActivityKind: "rotating_raid" },
-          { title: "守望者尖塔", subtitle: "轮换地牢", description: "可反复刷取轮换奖励", source: "Web fallback", weeklyActivityKind: "rotating_dungeon" }
-        ]
+        status: "warning",
+        message: "Web 服务未连接。",
+        items: []
       },
       rotations: {
         status: "warning",
-        message: "等待公共轮换服务。",
+        message: "Web 服务未连接。",
         items: []
       },
       vendors: {
-        status: "ready",
-        message: "Web fallback 奇异商人样例。",
-        items: [
-          {
-            title: "仄 / Xur",
-            subtitle: "奇异商人库存",
-            description: "关键库存已读取",
-            vendorHash: 2190858386,
-            vendorEnabled: true,
-            items: [
-              { title: "透视之眼", subtitle: "异域武器", iconUrl: "/common/destiny2_content/icons/xur-weapon.png" },
-              { title: "圣火之心", subtitle: "泰坦胸甲", iconUrl: "/common/destiny2_content/icons/xur-armor.png" }
-            ]
-          }
-        ]
+        status: "warning",
+        message: "Web 服务未连接。",
+        items: []
       },
       lost_sector: {
-        status: "pending",
-        message: "无法确认当天激活的专家遗失区域。"
+        status: "warning",
+        message: "Web 服务未连接。"
       }
     },
     checklist: []
   },
   homeWeeklySummary: {
     weekly_reset: {
-      label: "每周三 01:00 重置",
-      time_remaining_label: "距离每周重置还有 5 天 14 小时"
+      label: "每周重置",
+      time_remaining_label: "无法读取"
     },
     priorities: {
-      nightfall: {
-        status: "ready",
-        title: "光之利刃",
-        detail: "屏障 · 势不可挡 · 电弧威胁",
-        entries: [{
-          title: "光之利刃",
-          rewards: [{ hash: 1, name: "本周奖励武器", item_type: "武器" }]
-        }]
-      },
-      rotating_raid: { status: "ready", title: "最后一愿", detail: "奖励可重复获取" },
-      rotating_dungeon: { status: "ready", title: "预言", detail: "奖励可重复获取" },
-      weekly_bonus: { status: "ready", title: "先锋声望加成", detail: "本周声望额外奖励" },
-      special_event: { status: "ready", title: "铁旗已开放", detail: "限时活动" }
+      nightfall: { status: "warning", title: "日落数据不可用", detail: "Web 服务未连接", entries: [] },
+      rotating_raid: { status: "warning", title: "轮换突袭不可用", detail: "Web 服务未连接" },
+      rotating_dungeon: { status: "warning", title: "轮换地牢不可用", detail: "Web 服务未连接" },
+      weekly_bonus: { status: "warning", title: "周常加成不可用", detail: "Web 服务未连接" },
+      special_event: { status: "warning", title: "限时活动不可用", detail: "Web 服务未连接" }
     },
     public_clues: []
   }
@@ -118,18 +94,18 @@ export const fallbackHomeSnapshot: WebHomeSnapshot = {
 
 export function createWebSnapshotProvider(input: {
   source?: WebSnapshotSource;
-  fallback?: WebHomeSnapshot;
+  unavailableSnapshot?: WebHomeSnapshot;
 } = {}): WebSnapshotProvider {
-  const fallback = input.fallback ?? fallbackHomeSnapshot;
+  const unavailableSnapshot = input.unavailableSnapshot ?? unavailableHomeSnapshot;
 
   return {
     async loadHomeSnapshot() {
-      if (!input.source) return fallback;
+      if (!input.source) return unavailableSnapshot;
 
       try {
-        return await input.source.getHomeSnapshot() ?? fallback;
+        return await input.source.getHomeSnapshot() ?? unavailableSnapshot;
       } catch {
-        return fallback;
+        return unavailableSnapshot;
       }
     }
   };
@@ -150,7 +126,7 @@ export function createWebShellAdapter(input: {
       try {
         return await fetchJson<WebHomeSnapshot>("/api/home-snapshot");
       } catch {
-        return fallbackHomeSnapshot;
+        return unavailableHomeSnapshot;
       }
     },
     openExternal(url: string) {

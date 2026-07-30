@@ -33,7 +33,7 @@ if (branch) {
 printStatusSection("all changes", []);
 printStatusSection("docs and agent rules", ["AGENTS.md", "README.md", "CHANGELOG.md", "docs"]);
 printStatusSection("tools and automation", ["package.json", "pnpm-lock.yaml", "tools", "scripts", ".github"]);
-printStatusSection("cross-platform UI, prototype, web", ["packages/ui", "packages/prototype", "packages/web"]);
+printStatusSection("cross-platform UI and web", ["packages/ui", "packages/web"]);
 printStatusSection("desktop", ["packages/desktop"]);
 printStatusSection("core, services, app, http", ["packages/core", "packages/services", "packages/app", "packages/http"]);
 
@@ -49,7 +49,7 @@ const groups = {
     "scripts/extract-changelog.test.mjs",
     ".github/workflows",
   ]),
-  ui: statusLines(["packages/ui", "packages/prototype", "packages/web"]),
+  ui: statusLines(["packages/ui", "packages/web"]),
   desktop: statusLines(["packages/desktop"]),
   domain: statusLines(["packages/core", "packages/services", "packages/app", "packages/http"]),
 };
@@ -69,7 +69,6 @@ const lanes = [
   sharedLane("shared-risk: desktop main ipc aggregator", "packages/desktop/src/main/ipc.ts"),
   appLane("app-workspace: cross-platform workspace/view model", "packages/app"),
   sharedLane("shared-risk: packages/ui", "packages/ui"),
-  normalLane("prototype-lane", "packages/prototype"),
   normalLane("web-lane", "packages/web"),
   normalLane("core-domain-lane", "packages/core"),
   normalLane("services-lane", "packages/services"),

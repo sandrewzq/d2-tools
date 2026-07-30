@@ -26,23 +26,16 @@ function readSourceTree(relativeDirectory: string): string {
 }
 
 describe("cross-platform UI package layout", () => {
-  it("declares shared UI and interactive prototype packages", () => {
+  it("declares shared UI and web shell packages", () => {
     const rootPackage = readJson("package.json");
     const uiPackage = readJson("packages/ui/package.json");
-    const prototypePackage = readJson("packages/prototype/package.json");
     const webPackage = readJson("packages/web/package.json");
 
     expect(rootPackage.scripts).toMatchObject({
-      "dev:prototype": "pnpm --filter @d2-tools/prototype dev",
       "dev:web": "pnpm --filter @d2-tools/web dev"
     });
     expect(uiPackage).toMatchObject({
       name: "@d2-tools/ui",
-      private: true,
-      type: "module"
-    });
-    expect(prototypePackage).toMatchObject({
-      name: "@d2-tools/prototype",
       private: true,
       type: "module"
     });
@@ -52,12 +45,10 @@ describe("cross-platform UI package layout", () => {
       type: "module"
     });
     expect(existsSync(join(repoRoot, "packages/ui/src/index.ts"))).toBe(true);
-    expect(existsSync(join(repoRoot, "packages/prototype/src/main.tsx"))).toBe(true);
     expect(existsSync(join(repoRoot, "packages/web/src/main.tsx"))).toBe(true);
   });
 
-  it("mounts the same shared product shell in prototype, web and desktop", () => {
-    expect(readText("packages/prototype/src/main.tsx")).toContain("ProductShellHost");
+  it("mounts the same shared product shell in web and desktop", () => {
     expect(readText("packages/web/src/main.tsx")).toContain("ProductShellHost");
     expect(readText("packages/desktop/src/renderer/pages/HomePage.tsx")).toContain("ProductShellHost");
   });
@@ -65,8 +56,8 @@ describe("cross-platform UI package layout", () => {
   it("keeps the shared UI package independent from platform shells", () => {
     const sharedUiSource = readSourceTree("packages/ui/src");
 
-    expect(sharedUiSource).not.toMatch(/@d2-tools\/(?:desktop|prototype|web)/);
-    expect(sharedUiSource).not.toMatch(/packages[\\/](?:desktop|prototype|web)/);
+    expect(sharedUiSource).not.toMatch(/@d2-tools\/(?:desktop|web)/);
+    expect(sharedUiSource).not.toMatch(/packages[\\/](?:desktop|web)/);
   });
 
   it("keeps product page styles out of the Desktop platform stylesheet", () => {

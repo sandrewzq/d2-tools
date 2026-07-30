@@ -5,7 +5,7 @@
 
 ## 目标
 
-将产品界面收敛为 `packages/ui` 中唯一的共享页面结构，由 Prototype、Web 和 Desktop 共同消费。冻结原型决定视觉，当前 ViewModel、actions、adapter、IPC 和真实状态决定功能；两者不得互相替代。
+将产品界面收敛为 `packages/ui` 中唯一的共享页面结构，由 Web 和 Desktop 共同消费。冻结 HTML 决定视觉与规格交互，当前 ViewModel、actions、adapter、IPC 和真实状态决定功能；两者不得互相替代。
 
 T8 不再保存逐日迁移记录、差异编号和已完成切片的过程描述。需要追溯时使用 Git 历史。
 
@@ -31,7 +31,7 @@ T8 当前覆盖：
 - 共享 Shell：顶部栏、连续状态组、侧栏、页头、主滚动区、AI 辅助栏和后台任务入口。
 - 设置、首页、账号、资料库、仓库和商人菜单。
 - 统一武器详情与统一护甲详情。
-- Prototype、Web、Desktop 对同一 `ProductShellHost` 和共享页面的消费边界。
+- Web、Desktop 对同一 `ProductShellHost` 和共享页面的消费边界。
 
 配装菜单已进入共享 UI，但当前仍是旧 `LoadoutTemplate` 兼容切片。新的本地方案、护甲优化、DIM 导入、应用与发布流程已经转由 [T1](T1-loadout-plans-and-guide-import.md) 重新设计。旧配装视觉规格已经失效，不作为 T8 完成依据；T1 更新冻结原型后再实施最终配装页面。
 
@@ -52,7 +52,7 @@ T8 当前覆盖：
 ## 实施约束
 
 1. 每个菜单只保留一棵产品页面，不得恢复 `presentation="archive"`、`Archive*Content`、`visualVariant` 或平台专属视觉分支。
-2. `packages/ui` 持有页面结构和视觉；Prototype 只持有 mock 场景，Web 和 Desktop 只持有平台 adapter 与真实能力接线。
+2. `packages/ui` 持有页面结构和视觉；Web 和 Desktop 只持有平台 adapter、预览数据与真实能力接线。
 3. 原型决定布局、层级、尺寸、密度、颜色、排版、状态和响应式行为；产品现有数据合同决定字段、操作、权限、加载、空、失败、部分失败和进行中状态。
 4. 原型缺少现有功能时，先更新原型再实施；原型出现产品没有的能力时，先确认契约，不得伪造成功行为。
 5. 与共享 Shell、全局 token、首层工作区、跨菜单组件有关的规则进入共享层；菜单 CSS 只负责对应领域内容。
@@ -70,12 +70,11 @@ T8 只有在以下条件全部满足后才能标记完成：
 5. 没有旧视觉分支、平台复制页面或 mock 业务逻辑进入产品实现。
 6. 视觉差异已经修正，验收结果回写 `docs/todo.md`；过程截图和临时差异记录不长期留在正式文档中。
 
-Prototype 和 Web 只能提供中间证据，Desktop 实窗是 T8 的最终完成依据。
+冻结 HTML 和 Web 只能提供规格与中间预览证据，Desktop 实窗是 T8 的最终完成依据。
 
 ## 修改边界
 
 - 共享 UI：`packages/ui`
-- Prototype mock：`packages/prototype`
 - Web 壳：`packages/web`
 - Desktop 平台接线：`packages/desktop`
 - 视觉基准与规格：`docs/work/references/ui-prototypes/`

@@ -26,17 +26,6 @@ export type PortableBackup = {
   files: PortableBackupFiles;
 };
 
-export type PartialD2Config = {
-  bungie?: Partial<D2Config["bungie"]>;
-  data?: Partial<D2Config["data"]>;
-  ai?: Partial<D2Config["ai"]>;
-  features?: Partial<D2Config["features"]>;
-};
-
-export type ParsedBackupDocument =
-  | { kind: "portable"; backup: PortableBackup }
-  | { kind: "legacy-config"; config: PartialD2Config };
-
 export function createPortableBackup(input: {
   dataDir: string;
   config: D2Config;
@@ -73,7 +62,7 @@ export function writePortableBackup(path: string, backup: PortableBackup): void 
   writeFileSync(path, `${JSON.stringify(backup, null, 2)}\n`, "utf8");
 }
 
-export function parseBackupDocument(text: string): ParsedBackupDocument {
+export function parseBackupDocument(text: string): PortableBackup {
   let value: unknown;
   try {
     value = JSON.parse(text) as unknown;
@@ -86,14 +75,13 @@ export function parseBackupDocument(text: string): ParsedBackupDocument {
     throw new Error("备份文件格式无效。");
   }
 
-  if (value.format === portableBackupFormat) {
-    return { kind: "portable", backup: validatePortableBackup(value) };
+  if (value.format !== portableBackupFormat) {
+    throw new Error("文件不是有效的 d2-tools 便携备份。");
   }
-
-  return { kind: "legacy-config", config: validateLegacyConfig(value) };
+  return validatePortableBackup(value);
 }
 
-export function mergePortableConfig(current: D2Config, imported: PartialD2Config): D2Config {
+export function mergePortableConfig(current: D2Config, imported: D2Config): D2Config {
   return {
     ...current,
     bungie: {
@@ -217,46 +205,27 @@ function validatePortableBackup(value: Record<string, unknown>): PortableBackup 
   };
 }
 
-function validateLegacyConfig(value: Record<string, unknown>): PartialD2Config {
-  const sectionNames = ["bungie", "data", "ai", "features"] as const;
-  if (!sectionNames.some((section) => isRecord(value[section]))) {
-    throw new Error("文件既不是便携备份，也不是可识别的旧版配置备份。");
-  }
-
-  for (const section of sectionNames) {
-    const sectionValue = value[section];
-    if (sectionValue !== undefined && !isRecord(sectionValue)) {
-      throw new Error(`旧版配置中的 ${section} 字段格式无效。`);
-    }
-    if (isRecord(sectionValue)) {
-      validateConfigSection(section, sectionValue, false);
-    }
-  }
-  return value as unknown as PartialD2Config;
-}
-
 function validateConfigShape(value: Record<string, unknown>): D2Config {
   for (const section of ["bungie", "data", "ai", "features"] as const) {
     const sectionValue = value[section];
     if (!isRecord(sectionValue)) {
       throw new Error(`备份配置缺少 ${section} 字段。`);
     }
-    validateConfigSection(section, sectionValue, true);
+    validateConfigSection(section, sectionValue);
   }
   return value as unknown as D2Config;
 }
 
 function validateConfigSection(
   section: "bungie" | "data" | "ai" | "features",
-  value: Record<string, unknown>,
-  requireAll: boolean
+  value: Record<string, unknown>
 ): void {
   const fields = configFieldTypes[section];
   for (const [field, expectedType] of Object.entries(fields)) {
     const fieldValue = value[field];
     const isOptional = optionalConfigFields.has(`${section}.${field}`);
     if (fieldValue === undefined) {
-      if (requireAll && !isOptional) {
+      if (!isOptional) {
         throw new Error(`备份配置缺少 ${section}.${field} 字段。`);
       }
       continue;

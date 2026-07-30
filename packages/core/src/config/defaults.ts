@@ -16,20 +16,8 @@ export function defaultDataDir(): string {
   });
 }
 
-export function legacyDefaultDataDir(): string {
-  return legacyDefaultDataDirForPlatform({
-    platform: process.platform,
-    env: process.env,
-    homeDir: homedir()
-  });
-}
-
 export function defaultDataDirForPlatform(options: DataDirPlatformOptions): string {
   return platformDataDir(options, "d2-tools");
-}
-
-export function legacyDefaultDataDirForPlatform(options: DataDirPlatformOptions): string {
-  return platformDataDir(options, "d2-service");
 }
 
 function platformDataDir(options: DataDirPlatformOptions, appName: string): string {

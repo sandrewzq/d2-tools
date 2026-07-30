@@ -19,8 +19,7 @@ packages/
   services/  跨端服务接口和平台 adapter
   app/       跨端前端查询层、状态模型、页面 workspace 编排
   ui/        共享 React UI、产品 Host、设计系统和 i18n copy
-  prototype/ 可交互 React 原型，使用 mock adapter
-  web/       Web 平台壳，后续接 HTTP/API adapter
+  web/       Web 平台壳、共享 UI 浏览器预览和 HTTP/API adapter
   http/      本地 HTTP / 工具接口层
   desktop/   Electron 桌面壳
 docs/        正式文档
@@ -51,18 +50,12 @@ docs/        正式文档
   - 负责共享 React UI、产品级 UI Host、设计系统 token 和 i18n copy
   - 不直接依赖 Electron、Web 部署、移动原生能力或 `window.d2`
   - 页面组件只接收 ViewModel、props 和 callback，真实数据由平台 adapter 提供
-  - `src/styles.css` 是 Prototype、Web、Desktop 共用的唯一产品级样式入口，只按稳定级联顺序导入 `src/styles/` 下的 foundation、shell、workspace、components 和菜单分片；颜色、间距、页面布局、暗色模式和通用状态样式不得再落到平台壳私有 CSS
-  - Prototype / Web 共用的 typed fixture foundation 通过 `@d2-tools/ui/fixtures` 暴露，平台壳只保留场景差异和 adapter
-
-- `packages/prototype`
-  - 负责可交互 React 原型，使用 mock 数据和 mock adapter
-  - 只组合 `packages/ui`，不维护第二套页面结构
-  - 允许维护原型专用状态切换面板，例如未登录、资料库过期、后台任务运行和正常状态
-  - 首页、账号、仓库、配装、资料库和设置等主菜单必须挂共享 View 或明确的 mock 工作台，不允许回退到通用“后续接入”占位页
+  - `src/styles.css` 是 Web、Desktop 共用的唯一产品级样式入口，只按稳定级联顺序导入 `src/styles/` 下的 foundation、shell、workspace、components 和菜单分片；颜色、间距、页面布局、暗色模式和通用状态样式不得再落到平台壳私有 CSS
+  - Web 预览使用的 typed fixture foundation 通过 `@d2-tools/ui/fixtures` 暴露，平台壳只保留场景差异和 adapter
 
 - `packages/web`
   - 负责 Web 平台壳、浏览器启动、Web 登录态和 HTTP/API adapter
-  - 与 Prototype / Desktop 挂同一个产品 UI Host，不复制页面实现；后续移动 App 也按同一壳模式接入
+  - 与 Desktop 挂同一个产品 UI Host，不复制页面实现；后续移动 App 也按同一壳模式接入
   - 首页数据可以通过 Web snapshot provider / adapter 从 `/api/home-snapshot` 读取，无服务时回退到共享 fallback；其他页面当前明确使用 fixture runtime，不保留未消费的通用 page snapshot 契约
 
 - `packages/http`
@@ -87,7 +80,7 @@ docs/        正式文档
 - `packages/desktop/src/contracts/<domain>.ts` 是 Electron channel 的单一 transport 契约；领域 DTO 继续由 core 持有，session/cache patch 由 services 持有，contracts 只组合 channel 输入输出。`renderer/api/*Api.ts` 兼容性重导出 contracts，preload / main 不得从 renderer API 导入类型。
 - `packages/desktop/src/renderer/api/types.ts` 是 renderer 侧 `AppApi` 聚合入口；大型 DTO 不得重新塞回该文件或 `api/client.ts`。后续 Mac / 移动端适配优先复用 core/services 的领域和服务接口，不直接复用 Electron transport 契约。
 - `packages/desktop/src/renderer/api/client.ts` 只做 Electron renderer 运行时绑定：声明 `window.d2`、导出 `api`，并兼容性重导出 `types.ts` 里的类型；renderer / test 使用方不得从这里导类型，类型应从 `api/types.ts` 或分域 API 文件导入。
-- 新增用户可见文案优先进入 `packages/ui/src/i18n/` 或对应领域 copy，并遵循 [玩家文案字典](player-facing-language.md)；界面语言使用 `zh-CN` / `en-US`，Bungie 资料库语言使用 `zh-chs` / `en`，不要在组件里分散写 `locale === ... ? ... : ...`。共享 UI 的 Prototype mock 也必须接收 `interfaceLocale`，不能只给正式内容页做 i18n。
+- 新增用户可见文案优先进入 `packages/ui/src/i18n/` 或对应领域 copy，并遵循 [玩家文案字典](player-facing-language.md)；界面语言使用 `zh-CN` / `en-US`，Bungie 资料库语言使用 `zh-chs` / `en`，不要在组件里分散写 `locale === ... ? ... : ...`。共享 UI 的 Web 预览数据也必须接收 `interfaceLocale`，不能只给 Desktop 正式内容页做 i18n。
 - 默认数据目录由 `packages/core/src/config/defaults.ts` 的平台感知 helper 统一计算：Windows 使用 `%APPDATA%\d2-tools`，macOS 使用 `~/Library/Application Support/d2-tools`，Linux / 其他平台使用 `$XDG_DATA_HOME/d2-tools` 或 `~/.local/share/d2-tools`。
 - `packages/desktop/test/renderer-boundaries.test.ts` 会拦截 feature 互相 import 和 shared 反向依赖 feature。
 - `packages/desktop/test/renderer-api-boundaries.test.ts` 会拦截把大型 DTO 类型重新塞回 `api/client.ts`、renderer / test 从 `api/client.ts` 导类型，或重新塞回一个巨型 `api/types.ts`。
@@ -103,20 +96,19 @@ docs/        正式文档
 - 新增可见文案优先进入 copy 体系；跨端 UI 文案优先进入 `packages/ui/src/i18n/`，设置页和旧 renderer feature 迁移前可保留局部中文，但不得新增分散的语言判断。
 - `HomePage.tsx`、`ItemDetailModal.tsx`、`useItemDetailWorkspace.ts`、`api/types.ts`、`api/client.ts`、`ipc.ts` 等公共接线文件是并行开发高冲突区，修改前要确认是否真的需要，并说明影响范围。
 
-### 2.4 跨端 UI 与原型开发流程
+### 2.4 跨端 UI 与视觉规格开发流程
 
 后续 UI 开发按“共享 UI 优先，平台壳只接能力”的方式推进：
 
 1. 视觉、布局、组件结构、状态样式、通用交互和跨端文案默认进入 `packages/ui`。
-2. `packages/prototype` 只组合 `packages/ui`，并提供 mock 数据、状态切换和演示入口；它不是第二套页面实现。
-   - 主菜单页面必须覆盖到共享 View；如果某页尚未接真实数据，Prototype 也要提供可交互 mock，而不是显示 generic placeholder。
+2. 三个冻结 HTML 直接承载视觉结构、响应式行为和规格交互；它们是验收基准，不是第二套产品实现，也不提供真实业务能力。
 3. Web 和 Desktop 只负责平台 adapter。Web 处理浏览器登录态、HTTP/API、部署配置；Desktop 处理 Electron IPC、本地文件、窗口、更新和打包。
-4. 如果先在 prototype 中探索 UI，确认后必须迁入 `packages/ui`，再让 Prototype / Web / Desktop 共同消费。
-5. `ProductShellHost` 是产品外壳统一入口；Prototype / Web / Desktop 都应挂同一个 Host。不得重新引入 Desktop 或 Web 专用 shell wrapper 来复制页面结构。主菜单真实入口的页面根、页面标题和页面级 gap 归 `ProductShellHost` 统一管理，页面内容组件只返回内容层。
+4. UI 探索先更新冻结 HTML；确认后必须实现到 `packages/ui`，再让 Web / Desktop 共同消费。不能复制冻结 HTML 中的 mock 业务逻辑。
+5. `ProductShellHost` 是产品外壳统一入口；Web / Desktop 都应挂同一个 Host。不得重新引入平台专用 shell wrapper 来复制页面结构。主菜单真实入口的页面根、页面标题和页面级 gap 归 `ProductShellHost` 统一管理，页面内容组件只返回内容层。
 6. 顶部状态条等跨端状态对象必须使用稳定 key 做样式和逻辑判断，例如 `account`、`library`、`app-version`；本地化后的 `label` 只用于显示，不能参与逻辑判断。
-7. 全局 AI 抽屉等产品级辅助面板也属于共享 UI：`assistantPanel` 不允许各端长期自建标题、对话结构或占位页面，必须复用 `packages/ui` 的 AI Assistant View；Desktop / Prototype / Web 只提供真实服务 adapter 或 mock 数据。
+7. 全局 AI 抽屉等产品级辅助面板也属于共享 UI：`assistantPanel` 不允许各端长期自建标题、对话结构或占位页面，必须复用 `packages/ui` 的 AI Assistant View；Desktop / Web 只提供真实服务 adapter 或预览数据。
 8. 窗口控制按钮由 `packages/ui` 的共享 `AppShell` 自绘，Desktop 只通过 `platformActions.windowControls` 注入最小化、最大化/还原和关闭动作；不要重新启用 Electron 原生 `titleBarOverlay`。
-9. 改 `packages/ui` 后默认不新增测试，也不自动运行 UI 测试、消费者类型检查和视觉脚本；需要体验时可以启动 Prototype、Web 或 Desktop。用户要求本地测试时正常运行现有检查，否则普通 push 后交给 CI。
+9. 改 `packages/ui` 后默认不新增测试，也不自动运行 UI 测试、消费者类型检查和视觉脚本；需要快速体验时启动 Web，需要真实功能验收时启动 Desktop。用户要求本地测试时正常运行现有检查，否则普通 push 后交给 CI。
 10. 产品样式不得再复制到 Desktop 私有样式文件；需要新增 class、token、暗色规则或页面布局时，修改 `packages/ui/src/styles/` 下对应分片，并保持 `packages/ui/src/styles.css` 只作为稳定顺序的聚合入口。Desktop 私有 CSS 只能放窗口、拖拽区或 Electron 特有平台差异。
 
 冻结原型还原规则：
@@ -127,14 +119,14 @@ docs/        正式文档
 4. 每个菜单开工前必须产出功能清单、原型视觉结构清单、组件到真实字段/action 的绑定表，以及加载、空、失败、部分失败、禁用、进行中的状态矩阵。四项未完成时不得修改页面 JSX。
 5. 原型没有容纳现有功能时，应先修改并确认原型，再实现产品页面；不得在产品代码里自行隐藏或删除。原型有控件但当前没有真实能力时，应先确认功能契约，不得用假回调、固定成功 toast 或静态状态冒充实现。
 6. 每个菜单只允许一棵产品 JSX。不得新增或保留 `presentation="archive"`、`Archive*Content` 或以 `visualVariant` 切换页面结构；菜单还原完成时必须同步删除该菜单的 archive 分支、专用组件和专用 CSS。
-7. Prototype、Web 和 Desktop 必须共同消费 `packages/ui` 的同一页面。Prototype 只负责 mock 状态与演示控制，Web/Desktop 只负责平台 adapter 和真实能力。
+7. Web 和 Desktop 必须共同消费 `packages/ui` 的同一页面，只负责各自的平台 adapter、预览数据和真实能力。
 8. 验收同时检查视觉完整度和功能完整度。任何未获确认的视觉偏差、旧样式兼容层、mock 数据进入产品组件或原功能丢失，都表示该菜单尚未完成。
 
 常见改动归属：
 
 - 首页、设置页、账号页的布局和样式：`packages/ui`
 - 设置页、账号页、资料库页和配装页的内部复杂块已迁入 `packages/ui`；账号页和设置页主入口文案已进入 `packages/ui/src/i18n/`；Desktop feature 只保留真实数据 adapter、写操作 callback 和少量派生 ViewModel 接线。
-- 原型里的“未登录 / 资料库过期 / 后台任务运行 / 更新可用”等状态切换：`packages/prototype`
+- 浏览器预览中的场景数据和状态 adapter：`packages/web`
 - Web 的真实数据读取、snapshot provider、HTTP fallback 和浏览器外链打开：`packages/web/src/webAdapter.ts`
 - 真实账号读取、资料库检查、导入导出、窗口颜色和应用更新：`packages/desktop` 或对应 service / adapter
 - Web 登录态、浏览器存储和 HTTP adapter：`packages/web`
@@ -160,7 +152,7 @@ docs/        正式文档
 
 - 对应菜单目录下的 `*ContentView.tsx`、菜单专属组件、菜单专属 copy 和菜单专属 ViewModel props。
 - `packages/ui/src/styles/menus/<menu>/` 中对应菜单前缀的内容层规则，例如 `.vault-*`、`.loadout-*`、`.library-*`。
-- Prototype / Web / Desktop 的 adapter 或 mock 数据，仅限把该菜单需要的数据接入共享 View。
+- Web / Desktop 的 adapter 或预览数据，仅限把该菜单需要的数据接入共享 View。
 
 菜单 agent 不得改：
 
@@ -200,12 +192,12 @@ Renderer UI 的长期边界只在本节保留，具体视觉数值与菜单合�
 实现规则：
 
 1. 三个冻结 HTML 是视觉验收基准，当前 ViewModel、actions、adapter、IPC 和状态是功能真相；不得复制原型 mock，也不得用旧产品 DOM 推导视觉。
-2. 页面结构和视觉只在 `packages/ui` 实现。Prototype、Web 和 Desktop 只提供 mock、平台 adapter 和真实能力接线，共同消费 `ProductShellHost`。
+2. 页面结构和视觉只在 `packages/ui` 实现。Web 和 Desktop 只提供预览数据、平台 adapter 和真实能力接线，共同消费 `ProductShellHost`。
 3. 全局 token 和共享 chrome 由 foundation、shell、workspace 与共享组件持有；菜单样式只负责对应领域内容，不覆盖 `.shell-*`、首层工作区、页面 gutter、全局滚动或主题 token。
 4. `ProductWorkspace*`、`ControlButton` 等共享组件输出稳定 `data-surface`、`data-ui-kind` 和 Control 语义；菜单不得用 class 重新决定全局颜色、按钮 variant、边框、圆角、文字、阴影或层级。
 5. 与原型冲突的旧 DOM、旧 CSS、archive 分支和平台私有视觉规则直接删除，不使用更高 specificity、`!important` 或后置样式维持兼容。
 6. 明暗主题必须使用同一套语义 selector，只替换 token；颜色模式由 `config.json` 的 `features.color_mode` 持久化。
-7. UI 视觉变化先更新并确认冻结原型，再修改共享 UI。Prototype 用于中间验证，Desktop 实窗在 `light / dark × 1280 / 980 / 760` 下通过后才能标记完成。
+7. UI 视觉变化先更新并确认冻结 HTML，再修改共享 UI。Web 用于中间预览，Desktop 实窗在 `light / dark × 1280 / 980 / 760` 下通过后才能标记完成。
 8. 不新增读取生产源码后匹配文案、HTML、class 或 CSS 片段的普通功能测试；废弃入口由 `scripts/check-ui-contract.mjs` 的静态质量门禁维护。
 
 配装页的新领域模型、护甲优化、DIM 导入和最终页面由 `docs/work/backlog/T1-loadout-plans-and-guide-import.md` 管理。旧 `LoadoutTemplate` 兼容页和旧 T8 配装规格不再作为视觉基准。
@@ -276,13 +268,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev-desktop.ps1
 npx pnpm@9.15.0 dev
 ```
 
-如果要先做可交互原型，使用 React prototype：
-
-```powershell
-npx pnpm@9.15.0 dev:prototype
-```
-
-Prototype 使用 `packages/ui` 共享壳、产品 Host、页面 View 和 mock adapter，默认端口为 `http://127.0.0.1:53170`。视觉密集页面先在 Prototype 中验证，再接入 Desktop 或 Web。Web 默认端口为 `http://127.0.0.1:53171`。通过 `tools/dev-prototype.cmd`、`tools/dev-web.cmd` 或 `tools/dev-desktop.cmd` 启动时，脚本会先清理对应固定端口上的残留监听进程，再重新启动当前 dev 服务。
+需要确认视觉结构和规格交互时，直接打开 `docs/work/references/ui-prototypes/` 下的三个冻结 HTML。需要预览共享 React UI 时使用 Web，默认端口为 `http://127.0.0.1:53171`；需要核对真实数据、IPC 和平台能力时使用 Desktop。通过 `tools/dev-web.cmd` 或 `tools/dev-desktop.cmd` 启动时，脚本会先清理对应固定端口上的残留监听进程，再重新启动当前 dev 服务。
 
 正式 Web 入口使用：
 
@@ -290,7 +276,7 @@ Prototype 使用 `packages/ui` 共享壳、产品 Host、页面 View 和 mock ad
 npx pnpm@9.15.0 dev:web
 ```
 
-Web 是浏览器平台壳，不是第二套原型。日常验证真实产品页面时优先看 Web / Desktop 挂载的同一套产品 Host；原型只用于 mock 状态和视觉方案确认。
+Web 是浏览器平台壳，也是共享 UI 的快速预览入口，不维护第二套页面。日常视觉与交互预览使用 Web，真实功能和最终验收使用 Desktop。
 
 如果你已经手动启动了 Vite，并且只想单独启动 Electron 主进程：
 
@@ -305,7 +291,6 @@ npx pnpm@9.15.0 dev:electron
 常用脚本：
 
 - `tools/dev-desktop.cmd`：唯一的双击 Desktop 开发入口；自动清理 `53172`，并自行决定增量构建或完整重建。
-- `tools/dev-prototype.cmd`：清理 `53170` 残留监听进程后启动 Prototype。
 - `tools/dev-web.cmd`：清理 `53171` 残留监听进程后启动 Web。
 - `tools/git-preflight.cmd`：只读按文档、工具、跨端 UI、Desktop、core/services/app/http 分组查看 Git 改动，识别菜单 lane / 共享层风险 / 多 lane 混改，并提示当前验证策略、高冲突文件和并行安全建议。
 - `tools/git-commit-and-push.cmd`：全量提交并 push，不创建 release tag；有无关改动时不要使用。
@@ -328,7 +313,7 @@ npx pnpm@9.15.0 dev:electron
 | 发布 / release / 发版 | 使用 `tools\git-auto-release.cmd` | 必须等待本地门禁和 GitHub Release 全部成功 |
 | 用户要求本地测试 / 检查 / 打包 | 运行现有测试或用户点名的命令 | 不自行新增测试用例或追加其他检查 |
 
-允许为了人工体验启动 Prototype、Web 或 Desktop；启动应用不等于通过测试，也不得在启动前机械追加 build、typecheck 或测试命令。`tools\git-preflight.cmd` 只负责只读识别改动 lane、高冲突文件和提交风险，不再推荐本地验证命令。
+允许为了人工体验启动 Web 或 Desktop；启动应用不等于通过测试，也不得在启动前机械追加 build、typecheck 或测试命令。`tools\git-preflight.cmd` 只负责只读识别改动 lane、高冲突文件和提交风险，不再推荐本地验证命令。
 
 默认禁止新增测试。只有以下高风险场景允许增加最小行为测试：
 

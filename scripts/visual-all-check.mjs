@@ -57,7 +57,6 @@ const settingsSectionLabels = {
   diagnostics: "诊断"
 };
 const browserTargets = [
-  { key: "prototype", packageName: "@d2-tools/prototype", port: 53170, fullSettings: true },
   { key: "web", packageName: "@d2-tools/web", port: 53171, fullSettings: false }
 ];
 const desktopTarget = { key: "desktop", packageName: "@d2-tools/desktop", port: 53172, fullSettings: true };
@@ -157,9 +156,6 @@ async function ensureTargetServer(target, theme) {
     env: {
       VITE_D2_VISUAL_PAGE: "home",
       VITE_D2_VISUAL_THEME: theme,
-      VITE_D2_VISUAL_SCENARIO: shellContractOnly && target.key === "prototype"
-        ? "manifest-missing-components"
-        : "ready",
       VITE_D2_VISUAL_CAPTURE: "1"
     }
   });

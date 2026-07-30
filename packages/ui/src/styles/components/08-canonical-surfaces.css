@@ -1,6 +1,6 @@
 
 
-/* Canonical product token surface rules. Shared by Prototype, Web and Desktop. */
+/* Canonical product token surface rules. Shared by Web and Desktop. */
 .home-overview-hero {
   border-color: var(--border-subtle);
   background: var(--surface-panel);

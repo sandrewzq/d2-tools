@@ -1,13 +1,13 @@
 # 全局视觉合同
 
-> 适用范围：三个冻结 HTML、`packages/ui` 共享产品 UI，以及 Prototype、Web、Desktop 的最终渲染结果。
+> 适用范围：三个冻结 HTML、`packages/ui` 共享产品 UI，以及 Web、Desktop 的最终渲染结果。
 
 ## 真相与所有权
 
 - 三个冻结 HTML 决定视觉结构和最终表现；产品 ViewModel、actions、adapter、IPC 和状态决定真实功能。
 - `prototype-design-system.css` 负责原型公共 token、文字、控件、共享表面、状态、焦点、滚动条和层级。
 - `assets/*-prototype.css` 只负责对应页面布局、领域结构和响应式差异，不重复公共配方。
-- 产品视觉只在 `packages/ui` 实现。Prototype、Web 和 Desktop 不维护第二套页面或平台专属视觉修补。
+- 产品视觉只在 `packages/ui` 实现。Web 和 Desktop 不维护第二套页面或平台专属视觉修补。
 - 一个视觉职责只能有一个所有者。发现父子重复边框、页面 CSS 覆盖公共配方或同一 token 多处定义时，先删除冲突来源。
 
 ## 稳定语义

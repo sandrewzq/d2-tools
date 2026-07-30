@@ -40,9 +40,9 @@
 1. 原型决定布局、层级、尺寸、密度、颜色、排版、状态和响应式行为。
 2. 产品 ViewModel、actions、adapter、IPC、真实数据和错误恢复决定功能真相。
 3. mock 数组、固定数量、原型状态开关、演示 toast 和假按钮不得进入产品实现。
-4. 页面只在 `packages/ui` 实现；Prototype、Web 和 Desktop 共同消费同一个 `ProductShellHost`。
+4. 页面只在 `packages/ui` 实现；Web 和 Desktop 共同消费同一个 `ProductShellHost`。
 5. 与原型冲突的旧 DOM、旧 CSS 和视觉分支应删除，不使用覆盖层维持兼容。
-6. Prototype 和 Web 只提供中间证据，Desktop 实窗是最终完成依据。
+6. 冻结 HTML 和 Web 只提供规格与中间预览证据，Desktop 实窗是最终完成依据。
 
 ## 本地快照
 

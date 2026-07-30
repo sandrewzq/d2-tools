@@ -3,7 +3,6 @@ import type { InterfaceLocale, LocaleCopy } from "../types.js";
 export const vendorsCopy: Record<InterfaceLocale, LocaleCopy["vendors"]> = {
     "zh-CN": {
       inline: {
-        "Prototype mock": "Prototype mock",
         "Bungie / Manifest / 用户导入推荐": "Bungie / Manifest / 用户导入推荐",
         "每日或周末重置": "每日或周末重置",
         "商人列表": "商人列表",
@@ -35,7 +34,6 @@ export const vendorsCopy: Record<InterfaceLocale, LocaleCopy["vendors"]> = {
     },
     "en-US": {
       inline: {
-        "Prototype mock": "Prototype mock",
         "Bungie / Manifest / 用户导入推荐": "Bungie / Manifest / imported recommendations",
         "每日或周末重置": "Daily or weekend reset",
         "商人列表": "Vendor list",

@@ -29,7 +29,7 @@ import { buildArmorDetailViewModel, type ArmorDetailViewModel } from "@d2-tools/
 import "@d2-tools/ui/styles.css";
 import {
   createWebShellAdapter,
-  fallbackHomeSnapshot,
+  unavailableHomeSnapshot,
   type WebHomeSnapshot
 } from "./webAdapter";
 import { useWebFixtureRuntime } from "./fixtures/useWebFixtureRuntime";
@@ -39,7 +39,7 @@ function WebApp() {
   const env = ((import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env) ?? {};
   const initialTheme = env.VITE_D2_VISUAL_THEME === "light" ? "light" : "dark";
   const adapter = useMemo(() => createWebShellAdapter(), []);
-  const [snapshot, setSnapshot] = useState<WebHomeSnapshot>(fallbackHomeSnapshot);
+  const [snapshot, setSnapshot] = useState<WebHomeSnapshot>(unavailableHomeSnapshot);
   const [assistantMode, setAssistantMode] = useState<ShellAssistantMode>(null);
   const [activePage, setActivePage] = useState<ShellPageKey>("home");
   const [preferences, setPreferences] = useState<ProductPreferences>({

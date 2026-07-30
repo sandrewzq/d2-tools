@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { defaultDataDirForPlatform, legacyDefaultDataDirForPlatform } from "@d2-tools/core/config/defaults";
+import { defaultDataDirForPlatform } from "@d2-tools/core/config/defaults";
 import { loadConfig, saveConfig } from "../src/config/store";
 
 describe("config store service adapter", () => {
@@ -43,46 +43,6 @@ describe("config store service adapter", () => {
       homeDir: "/home/player"
     })).toBe(join("/home/player/.local-data", "d2-tools"));
 
-    expect(legacyDefaultDataDirForPlatform({
-      platform: "darwin",
-      env: {},
-      homeDir: "/Users/player"
-    })).toBe(join("/Users/player", "Library", "Application Support", "d2-service"));
-  });
-
-  it("migrates the old d2-service data directory into d2-tools", () => {
-    const originalAppData = process.env.APPDATA;
-    const appData = mkdtempSync(join(tmpdir(), "d2-tools-appdata-"));
-    const legacyDir = join(appData, "d2-service");
-    const nextDir = join(appData, "d2-tools");
-    process.env.APPDATA = appData;
-    mkdirSync(legacyDir, { recursive: true });
-    writeFileSync(
-      join(legacyDir, "config.json"),
-      `${JSON.stringify({
-        bungie: {
-          api_key: "legacy-api",
-          client_id: "legacy-client",
-          client_secret: "legacy-secret",
-          redirect_uri: "https://127.0.0.1:28780/oauth/callback"
-        }
-      }, null, 2)}\n`,
-      { encoding: "utf8", flag: "w" }
-    );
-
-    try {
-      const config = loadConfig({ env: {} });
-
-      expect(config.data.data_dir).toBe(nextDir);
-      expect(config.bungie.api_key).toBe("legacy-api");
-      expect(existsSync(join(nextDir, "config.json"))).toBe(true);
-    } finally {
-      if (originalAppData === undefined) {
-        delete process.env.APPDATA;
-      } else {
-        process.env.APPDATA = originalAppData;
-      }
-    }
   });
 
   it("creates defaults in the selected data directory", () => {
@@ -207,23 +167,4 @@ describe("config store service adapter", () => {
     expect(loaded.features.manifest_language_follows_interface).toBe(true);
   });
 
-  it("migrates the old local HTTP redirect URI to HTTPS", () => {
-    const dir = mkdtempSync(join(tmpdir(), "d2-tools-config-"));
-    writeFileSync(
-      join(dir, "config.json"),
-      `${JSON.stringify({
-        bungie: {
-          api_key: "api",
-          client_id: "client",
-          client_secret: "secret",
-          redirect_uri: "http://127.0.0.1:28780/oauth/callback"
-        }
-      }, null, 2)}\n`,
-      "utf8"
-    );
-
-    const loaded = loadConfig({ dataDir: dir, env: {} });
-
-    expect(loaded.bungie.redirect_uri).toBe("https://127.0.0.1:28780/oauth/callback");
-  });
 });
