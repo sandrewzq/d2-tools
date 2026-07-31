@@ -181,6 +181,7 @@ export function WeaponDetailContent(props: WeaponDetailContentProps) {
     <article
       ref={detailRef}
       className={["weapon-detail", props.className].filter(Boolean).join(" ")}
+      data-contract-root="detail-dossier"
       data-contract-id="weapon.detail"
       data-detail-contract="detail.dossier"
       data-layout="hybrid-workspace"

@@ -223,39 +223,39 @@
 }
 
 .library-equipment-tags .library-element-kinetic {
-  border-color: #7f95a8;
-  color: #d6e0e7;
-  background: #253443;
+  border-color: var(--element-kinetic-border);
+  color: var(--element-kinetic-text);
+  background: var(--element-kinetic-bg);
 }
 
 .library-equipment-tags .library-element-arc {
-  border-color: #4ea9d2;
-  color: #bdeaff;
-  background: #17384a;
+  border-color: var(--element-arc-border);
+  color: var(--element-arc-text);
+  background: var(--element-arc-bg);
 }
 
 .library-equipment-tags .library-element-solar {
-  border-color: #d76e49;
-  color: #ffd0bd;
-  background: #48241f;
+  border-color: var(--element-solar-border);
+  color: var(--element-solar-text);
+  background: var(--element-solar-bg);
 }
 
 .library-equipment-tags .library-element-void {
-  border-color: #a280d6;
-  color: #dfd1ff;
-  background: #32264d;
+  border-color: var(--element-void-border);
+  color: var(--element-void-text);
+  background: var(--element-void-bg);
 }
 
 .library-equipment-tags .library-element-stasis {
-  border-color: #62bfc9;
-  color: #c2f3f6;
-  background: #1d3d46;
+  border-color: var(--element-stasis-border);
+  color: var(--element-stasis-text);
+  background: var(--element-stasis-bg);
 }
 
 .library-equipment-tags .library-element-strand {
-  border-color: #78bf62;
-  color: #d0f3b8;
-  background: #263f28;
+  border-color: var(--element-strand-border);
+  color: var(--element-strand-text);
+  background: var(--element-strand-bg);
 }
 
 .library-version-source dt {
@@ -275,7 +275,7 @@
 .library-definition-modal {
   position: fixed;
   inset: 0;
-  z-index: 70;
+  z-index: var(--layer-modal);
   display: grid;
   place-items: center;
   padding: 24px 32px;
@@ -287,7 +287,7 @@
   z-index: 0;
   border: 0;
   border-radius: 0;
-  background: rgba(8, 12, 18, 0.62);
+  background: var(--overlay-scrim);
   box-shadow: none;
 }
 
@@ -474,8 +474,8 @@
   display: block;
   height: 8px;
   border-radius: var(--radius-indicator);
-  background: color-mix(in srgb, var(--status-ready) 78%, #8de4cb);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, #d2f4e8 62%, transparent);
+  background: color-mix(in srgb, var(--status-ready) 78%, var(--text-title));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--status-ready) 62%, transparent);
 }
 
 .library-definition-source-grid {
@@ -525,7 +525,7 @@
 
 .library-definition-perk-pool > .library-definition-section-heading {
   position: sticky;
-  z-index: 2;
+  z-index: var(--layer-sticky);
   top: 0;
   padding: 2px 0 8px;
   background: var(--surface-panel);
@@ -602,7 +602,7 @@
   display: block;
   height: 8px;
   border-radius: var(--radius-indicator);
-  background: color-mix(in srgb, var(--status-ready) 78%, #8de4cb);
+  background: color-mix(in srgb, var(--status-ready) 78%, var(--text-title));
 }
 
 .library-definition-intrinsic-list {
@@ -1201,7 +1201,7 @@
   border-color: var(--state-selected-border);
   background: var(--state-selected-bg);
   color: var(--text-title);
-  box-shadow: inset 0 0 0 1px rgb(107 188 247 / 0.18);
+  box-shadow: inset 0 0 0 1px var(--state-selected-border);
 }
 
 .character-card-focused {

@@ -25,7 +25,7 @@
 
 .shell-titlebar {
   position: relative;
-  z-index: 50;
+  z-index: var(--layer-sticky);
   display: grid;
   grid-template-columns: var(--shell-brand-width) minmax(0, 1fr) auto auto;
   align-items: center;
@@ -75,7 +75,7 @@
   color: var(--mint);
   background: var(--mint-bg);
   font-size: var(--font-meta);
-  font-weight: 800;
+  font-weight: 700;
 }
 
 .app-shell[data-color-mode="light"] .shell-app-mark {
@@ -257,7 +257,7 @@ button.shell-status-group:focus-visible {
 
 .shell-tool-locale {
   font-size: var(--font-meta);
-  font-weight: 800;
+  font-weight: 700;
 }
 
 .shell-window-controls {
@@ -424,7 +424,7 @@ button.shell-status-group:focus-visible {
   color: currentColor;
   background: var(--surface);
   font-size: var(--font-meta);
-  font-weight: 800;
+  font-weight: 700;
 }
 
 .shell-nav button.active .shell-nav-mark {

@@ -137,7 +137,7 @@
 .armor-detail-set-bonus > header { display: flex; align-items: start; justify-content: space-between; gap: 10px; padding: 10px 12px; border-bottom: 1px solid var(--section-divider); background: var(--surface-interactive); }
 .armor-detail-set-bonus header span { color: var(--accent-primary); font-size: 12px; font-weight: 700; }
 .armor-detail-set-bonus h4 { margin: 2px 0 0; color: var(--text-title); font-size: 14px; }
-.armor-detail-set-bonus header small { max-width: 46%; color: var(--text-muted); font-size: 11px; line-height: 1.4; text-align: right; }
+.armor-detail-set-bonus header small { max-width: 46%; color: var(--text-muted); font-size: var(--font-caption); line-height: 1.4; text-align: right; }
 .armor-detail-set-description { margin: 0; padding: 9px 12px; border-bottom: 1px solid var(--section-divider); color: var(--body); font-size: 12px; line-height: 1.5; }
 .armor-detail-set-bonus ol { display: grid; margin: 0; padding: 0; list-style: none; }
 .armor-detail-set-bonus li { display: grid; grid-template-columns: 52px 34px minmax(0, 1fr); gap: 9px; align-items: start; padding: 10px 12px; border-bottom: 1px solid var(--section-divider); }
@@ -197,7 +197,7 @@
 .armor-detail-upgrade-table { display: grid; min-width: 0; overflow: hidden; border-top: 1px solid var(--section-divider); }
 .armor-detail-upgrade-table > div { display: grid; grid-template-columns: minmax(110px, 0.7fr) minmax(150px, 1fr) minmax(180px, 1.2fr) minmax(120px, 0.8fr); }
 .armor-detail-upgrade-table > div > * { min-width: 0; padding: 10px 8px; border-bottom: 1px solid var(--border-subtle); overflow-wrap: anywhere; font-size: var(--font-content); }
-.armor-detail-upgrade-table > div:first-child > * { color: var(--text-muted); font-size: var(--font-body); font-weight: 500; }
+.armor-detail-upgrade-table > div:first-child > * { color: var(--text-muted); font-size: var(--font-body); font-weight: 600; }
 .armor-detail-upgrade-table > div:not(:first-child) > strong { color: var(--text-title); }
 .armor-detail-upgrade-table > div:not(:first-child) > span { color: var(--text-body); }
 

@@ -86,7 +86,7 @@
   background: var(--surface-subtle);
 }
 
-.app-shell .loadout-character-tabs button {
+:where(.app-shell) .loadout-character-tabs button {
   display: grid;
   grid-template-columns: 28px minmax(0, 1fr);
   flex: 0 0 144px;
@@ -116,14 +116,9 @@
   font-size: var(--font-meta);
 }
 
-.app-shell .loadout-character-tabs button:hover,
-.app-shell .loadout-character-tabs button[aria-pressed="true"] {
+.app-shell .loadout-character-tabs button:hover:not([aria-pressed="true"]) {
   color: var(--text-title);
   background: var(--surface-interactive);
-}
-
-.app-shell .loadout-character-tabs button[aria-pressed="true"] {
-  box-shadow: inset 0 -2px var(--accent-primary);
 }
 
 .app-shell .loadout-character-mark {
@@ -180,7 +175,7 @@
   background: var(--surface-recessed);
 }
 
-.app-shell .loadout-mode-tabs button {
+:where(.app-shell) .loadout-mode-tabs button {
   min-height: 42px;
   padding: 0 12px;
   border: 0;
@@ -194,8 +189,7 @@
   border-left: 1px solid var(--border-control);
 }
 
-.app-shell .loadout-mode-tabs button:hover,
-.app-shell .loadout-mode-tabs button[aria-selected="true"] {
+:where(.app-shell) .loadout-mode-tabs button:hover:not([aria-selected="true"]) {
   color: var(--text-title);
   background: var(--surface-interactive);
 }
@@ -263,7 +257,7 @@
 .app-shell .loadout-create-menu > summary::after {
   content: "▾";
   color: var(--text-muted);
-  font-size: 10px;
+  font-size: var(--font-caption);
 }
 
 .app-shell .loadout-create-menu[open] > summary {
@@ -277,16 +271,12 @@
 
 .app-shell .loadout-create-options {
   position: absolute;
-  z-index: 20;
+  z-index: var(--layer-popover);
   top: calc(100% + 6px);
   right: 0;
   display: grid;
   width: 236px;
   padding: 5px;
-  border: 1px solid var(--border-control);
-  border-radius: 4px;
-  background: var(--surface-panel);
-  box-shadow: 0 12px 28px rgb(0 0 0 / 24%);
 }
 
 .app-shell .loadout-create-options button {

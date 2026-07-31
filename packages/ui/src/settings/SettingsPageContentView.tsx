@@ -174,7 +174,7 @@ export function SettingsPageContentView(props: SettingsPageContentViewProps) {
   return (
     <div className="settings-page" data-reference-id="settings.workspace" data-surface="page">
       <div className="settings-workspace" data-surface="split">
-        <aside className="settings-directory" data-reference-id="settings.directory" data-shell-role="side-rail" data-ui-kind="context-switcher" data-scroll-region="pane" aria-label={copy.menuAriaLabel}>
+        <aside className="settings-directory" data-reference-id="settings.directory" data-shell-role="side-rail" data-ui-kind="primary-navigation" data-scroll-region="pane" aria-label={copy.menuAriaLabel}>
           <div className="settings-directory-caption" data-ui-part="label" data-info-priority="support" data-text-tone="meta">{settingsText(copy, "设置目录")}</div>
           <nav className="settings-directory-list" data-surface="list" aria-label={copy.menuAriaLabel}>
             {settingsMenu.map((item) => (
@@ -182,7 +182,7 @@ export function SettingsPageContentView(props: SettingsPageContentViewProps) {
                 aria-controls={`settings-${item.key}`}
                 aria-current={activeSection === item.key ? "page" : undefined}
                 className={activeSection === item.key ? "is-active" : undefined}
-                data-ui-kind="context-switcher"
+                data-ui-kind="primary-navigation"
                 data-control-variant="quiet"
                 id={`settings-menu-${item.key}`}
                 key={item.key}

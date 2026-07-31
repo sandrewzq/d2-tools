@@ -168,7 +168,7 @@
 .ai-context-drawer {
   position: absolute;
   inset: 12px 0 auto 0;
-  z-index: 2;
+  z-index: var(--layer-popover);
   max-height: min(72vh, 560px);
   overflow-x: hidden;
   overflow-y: auto;

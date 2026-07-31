@@ -43,7 +43,7 @@ html[data-theme="light"],
 
 [data-shell-role="page-header"] {
   position: sticky;
-  z-index: 12;
+  z-index: var(--layer-sticky);
   top: 0;
   display: flex;
   align-items: center;
@@ -122,7 +122,7 @@ html[data-theme="light"],
 
 .app-shell [data-info-priority="support"] {
   font-size: var(--priority-support);
-  font-weight: 500;
+  font-weight: 600;
   line-height: 1.45;
 }
 
@@ -130,6 +130,21 @@ html[data-theme="light"],
   font-size: var(--priority-trace);
   font-weight: 400;
   line-height: 1.4;
+}
+
+/* ContextSwitcher 与 SegmentedControl 共享状态 token，但保留各自布局语义。 */
+:where(.app-shell, .standalone-dark-theme) [data-ui-kind="context-switcher"] > button[aria-pressed="true"],
+:where(.app-shell, .standalone-dark-theme) [data-ui-kind="segmented-control"] > button[aria-pressed="true"],
+:where(.app-shell, .standalone-dark-theme) [data-ui-kind="segmented-control"] > [role="tab"][aria-selected="true"] {
+  color: var(--selected-fg);
+  background: var(--state-selected-bg);
+  box-shadow: inset 0 0 0 1px var(--state-selected-border);
+}
+
+:where(.app-shell, .standalone-dark-theme) [data-ui-kind="context-switcher"] > button[aria-pressed="true"]:hover,
+:where(.app-shell, .standalone-dark-theme) [data-ui-kind="segmented-control"] > button[aria-pressed="true"]:hover,
+:where(.app-shell, .standalone-dark-theme) [data-ui-kind="segmented-control"] > [role="tab"][aria-selected="true"]:hover {
+  background: var(--state-selected-bg-hover);
 }
 
 /* PageSection：只负责内容承载与垂直节奏，不拥有独立面板外框。 */
@@ -167,6 +182,13 @@ html[data-theme="light"],
   border-radius: var(--surface-frame-radius);
   background: var(--surface-frame-bg);
   box-shadow: none;
+}
+
+[data-surface="menu"] {
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius-control);
+  background: var(--surface-panel);
+  box-shadow: var(--shadow-overlay);
 }
 
 [data-ui-kind="object-card"],

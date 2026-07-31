@@ -87,6 +87,25 @@
   --shadow-sticky: 0 8px 22px rgb(0 0 0 / 24%);
   --shadow-overlay: 0 16px 38px rgb(0 0 0 / 42%);
   --shadow-modal: 0 28px 80px rgb(0 0 0 / 48%);
+  --overlay-scrim: rgb(0 0 0 / 62%);
+  --element-kinetic-border: #7f95a8;
+  --element-kinetic-text: #d6e0e7;
+  --element-kinetic-bg: #253443;
+  --element-arc-border: #4ea9d2;
+  --element-arc-text: #bdeaff;
+  --element-arc-bg: #17384a;
+  --element-solar-border: #d76e49;
+  --element-solar-text: #ffd0bd;
+  --element-solar-bg: #48241f;
+  --element-void-border: #a280d6;
+  --element-void-text: #dfd1ff;
+  --element-void-bg: #32264d;
+  --element-stasis-border: #62bfc9;
+  --element-stasis-text: #c2f3f6;
+  --element-stasis-bg: #1d3d46;
+  --element-strand-border: #78bf62;
+  --element-strand-text: #d0f3b8;
+  --element-strand-bg: #263f28;
   --layer-base: 0;
   --layer-sticky: 10;
   --layer-popover: 20;
@@ -239,6 +258,25 @@ html[data-theme="light"] {
   --shadow-sticky: 0 8px 22px rgb(55 75 88 / 12%);
   --shadow-overlay: 0 16px 38px rgb(55 75 88 / 20%);
   --shadow-modal: 0 28px 80px rgb(55 75 88 / 22%);
+  --overlay-scrim: rgb(39 55 64 / 42%);
+  --element-kinetic-border: #6f8492;
+  --element-kinetic-text: #314957;
+  --element-kinetic-bg: #e6edf1;
+  --element-arc-border: #3182a8;
+  --element-arc-text: #155a7a;
+  --element-arc-bg: #dff1f8;
+  --element-solar-border: #b65331;
+  --element-solar-text: #8c3a22;
+  --element-solar-bg: #fae4db;
+  --element-void-border: #8162b5;
+  --element-void-text: #574583;
+  --element-void-bg: #eee8f8;
+  --element-stasis-border: #388b95;
+  --element-stasis-text: #236770;
+  --element-stasis-bg: #dff2f3;
+  --element-strand-border: #4f9440;
+  --element-strand-text: #356d2c;
+  --element-strand-bg: #e5f3df;
 }
 
 .app-shell[data-color-mode="dark"],
@@ -302,6 +340,25 @@ html[data-theme="light"] {
   --shadow-sticky: 0 8px 22px rgb(0 0 0 / 24%);
   --shadow-overlay: 0 16px 38px rgb(0 0 0 / 42%);
   --shadow-modal: 0 28px 80px rgb(0 0 0 / 48%);
+  --overlay-scrim: rgb(0 0 0 / 62%);
+  --element-kinetic-border: #7f95a8;
+  --element-kinetic-text: #d6e0e7;
+  --element-kinetic-bg: #253443;
+  --element-arc-border: #4ea9d2;
+  --element-arc-text: #bdeaff;
+  --element-arc-bg: #17384a;
+  --element-solar-border: #d76e49;
+  --element-solar-text: #ffd0bd;
+  --element-solar-bg: #48241f;
+  --element-void-border: #a280d6;
+  --element-void-text: #dfd1ff;
+  --element-void-bg: #32264d;
+  --element-stasis-border: #62bfc9;
+  --element-stasis-text: #c2f3f6;
+  --element-stasis-bg: #1d3d46;
+  --element-strand-border: #78bf62;
+  --element-strand-text: #d0f3b8;
+  --element-strand-bg: #263f28;
 }
 
 .app-shell[data-color-mode="light"],

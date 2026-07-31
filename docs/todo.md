@@ -7,7 +7,7 @@
 
 | 检查项 | 状态 | 备注 |
 |---|---|---|
-| GitHub CI | ⏳ push 后异步执行 | 执行 frozen install、`pnpm test`、共享 Shell 视觉契约和 `pnpm typecheck`；普通 push 不等待结果 |
+| GitHub CI | ⏳ push 后异步执行 | 执行 frozen install、`pnpm test`、共享 Shell 视觉契约、UI 合同静态门禁和 `pnpm typecheck`；普通 push 不等待结果 |
 | Release 门禁 | ⏳ 发版时执行 | 必须通过 `tools\git-auto-release.cmd` 完成本地门禁、GitHub Actions、安装包和 GitHub Release |
 | Agent 自动验证 | ⛔ 默认禁用 | 只有用户明确要求本地测试、构建或打包时才执行 |
 
@@ -27,4 +27,5 @@
 ## 说明
 
 - UI 只维护 `packages/ui` 的共享产品实现；Markdown 合同记录稳定约束，Web 用于快速预览，Desktop 用于真实功能验收。
+- UI 合同静态门禁覆盖稳定标记、表面枚举、排版、层级、菜单主题色和选中态方向线，避免菜单实现重新取得共享视觉职责。
 - 新增 Bug 必须使用全局唯一编号并在本文件中登记。

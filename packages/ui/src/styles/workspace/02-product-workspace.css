@@ -2,7 +2,7 @@
 
 .product-page-head {
   position: sticky;
-  z-index: 12;
+  z-index: var(--layer-sticky);
   top: 0;
   display: flex;
   justify-content: space-between;

@@ -205,12 +205,11 @@ function AccountPageWorkspace(props: {
               {props.viewModel.connection.isLoadingAccount ? accountText(props.copy, "账号刷新中") : accountText(props.copy, "账号已读取")}
             </span>
           </div>
-          <div className="account-character-switcher" role="group" aria-label={accountText(props.copy, "当前角色")}>
+          <div className="account-character-switcher" data-ui-kind="context-switcher" role="group" aria-label={accountText(props.copy, "当前角色")}>
             {props.viewModel.characterTabs.map((tab) => (
               <button
                 type="button"
                 aria-pressed={tab.isSelected}
-                className={tab.isSelected ? "active" : ""}
                 key={tab.key}
                 title={`${accountText(props.copy, "切换到")}${tab.className}`}
                 onClick={() => props.actions.selectCharacter(tab.key)}

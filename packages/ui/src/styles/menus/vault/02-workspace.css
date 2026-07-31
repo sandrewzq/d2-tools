@@ -78,25 +78,15 @@
 }
 
 .app-shell .vault-workflow-meta .ui-badge.status-pending {
-  border-color: #457995;
-  color: #dcf2ff;
+  border-color: var(--status-pending);
+  color: var(--status-pending);
   background: var(--status-pending-bg);
 }
 
-.app-shell .vault-workflow-meta .ui-badge.status-accent {
-  border-color: #725f9d;
-  color: #eee8ff;
-  background: var(--violet-bg);
-}
-
-.app-shell[data-color-mode="light"] .vault-workflow-meta .ui-badge.status-pending,
-html[data-theme="light"] .app-shell .vault-workflow-meta .ui-badge.status-pending {
-  color: #155a7a;
-}
-
-.app-shell[data-color-mode="light"] .vault-workflow-meta .ui-badge.status-accent,
-html[data-theme="light"] .app-shell .vault-workflow-meta .ui-badge.status-accent {
-  color: #574583;
+.app-shell .vault-workflow-meta .ui-badge.status-success {
+  border-color: var(--status-ready);
+  color: var(--status-ready);
+  background: var(--status-ready-bg);
 }
 
 :where(.app-shell) .vault-page > .status-message {
@@ -973,7 +963,7 @@ html[data-theme="light"] .app-shell .vault-workflow-meta .ui-badge.status-accent
   gap: 3px;
   min-width: 0;
   padding-top: 8px;
-  border-top: 1px solid #263044;
+  border-top: 1px solid var(--section-divider);
   border-color: var(--border-subtle);
   color: var(--text-muted);
   font-size: var(--font-caption);

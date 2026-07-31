@@ -16,10 +16,10 @@
 
 | 标记 | 用途 |
 |---|---|
-| `data-prototype-root="product-workspace|detail-dossier"` | 原型根与页面级状态 |
-| `data-surface="page|section|frame|list|row|split|content-stack|dialog|drawer"` | 表面和布局职责 |
+| `data-contract-root="product-workspace|detail-dossier"` | 产品合同根与页面级状态 |
+| `data-surface="page|section|frame|object-card|list|row|split|content-stack|empty|menu|dialog|drawer"` | 表面和布局职责 |
 | `data-ui-kind` | 共享组件类型，如 Shell、导航、按钮、字段、对象卡、状态矩阵和弹层 |
-| `data-contract-id` | 跨原型和产品稳定定位，不参与业务判断 |
+| `data-contract-id` | 跨规格与产品页面稳定定位，不参与业务判断 |
 | `data-ui-part="label|value|detail|state|source|action"` | 组件内部信息槽位 |
 | `data-text-tone="primary|body|meta|action|countdown|status"` | 文字颜色语义 |
 | `data-info-priority="display|metric|decision|context|reading|support|trace"` | 信息权重与排版 |
@@ -128,7 +128,7 @@
 
 ## 状态矩阵
 
-三个原型和产品页面都必须表达：正常、加载、空、失败、部分可用、禁用和进行中。
+产品页面与对应 Markdown 合同都必须覆盖：正常、加载、空、失败、部分可用、禁用和进行中。
 
 | 状态 | 展示要求 |
 |---|---|
@@ -140,7 +140,7 @@
 | 禁用 | 保留只读内容，并在控件附近说明原因 |
 | 进行中 | 保留当前事实，展示目标和进度，成功后再更新结果 |
 
-页面级状态写在原型根 `data-state`；业务状态写在具体组件或槽位的 `data-status`。产品必须绑定真实 ViewModel 状态，不复制原型状态开关。
+页面级状态写在产品合同根 `data-state`；业务状态写在具体组件或槽位的 `data-status`。页面必须绑定真实 ViewModel 状态，不使用静态演示状态冒充运行结果。
 
 ## Overlay、Drawer 与层级
 
@@ -148,7 +148,7 @@
 - Drawer 必须有标题、关闭按钮、遮罩、`Escape` 和焦点恢复；打开时背景不可操作。
 - AI 助手在宽度大于 `980px` 时是停靠辅助栏；`980px` 及以下才是覆盖式 Drawer。
 - Popover 在失焦、`Escape` 或触发器再次点击时关闭；Toast 不抢焦点，普通结果使用 `role="status"`。
-- 层级只使用语义 token：base、sticky、popover、drawer-scrim、drawer、modal、toast。页面 CSS 不写数字 `z-index`。
+- 页面级层级只使用语义 token：base、sticky、popover、drawer-scrim、drawer、modal、toast。孤立组件内部为处理前后覆盖允许使用 `0 / 1`，不得用其他数字建立新的全局层级。
 
 ## 滚动与溢出
 
@@ -165,3 +165,4 @@
 4. Web 用于快速预览共享 React UI 和浏览器平台接线，Desktop 实窗作为真实功能的最终验收对象。
 5. 在 `light / dark × 1280 / 980 / 760` 下检查边框所有权、布局、文字、图标、控件状态、焦点、滚动和零横向溢出。
 6. 未完成 Desktop 对照前，任务状态只能是“待视觉验收”。
+7. `pnpm ui:contract:check` 负责拦截废弃根标记、未登记表面、非法字号和字重、页面级数字层级、菜单主题硬编码颜色及选中态方向线。

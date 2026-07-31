@@ -213,14 +213,13 @@ export function LoadoutsPageContentView(props: LoadoutsPageContentViewProps) {
       <div className="loadout-context-toolbar" data-surface="section">
         <div className="loadout-context-group">
           <span className="loadout-context-label">角色</span>
-          <div className="loadout-character-tabs" data-ui-kind="segmented-control" aria-label="配装角色上下文">
+          <div className="loadout-character-tabs" data-ui-kind="context-switcher" role="group" aria-label="配装角色上下文">
             {characters.map((character) => {
               const active = activeCharacterId === character.character_id;
               return (
                 <button
                   type="button"
                   aria-pressed={active}
-                  className={active ? "active" : ""}
                   key={character.character_id}
                   onClick={() => selectCharacter(character.character_id)}
                 >
@@ -253,7 +252,7 @@ export function LoadoutsPageContentView(props: LoadoutsPageContentViewProps) {
           <div className="loadout-context-actions">
             <details ref={sourceMenuRef} className="loadout-create-menu">
               <summary data-ui-kind="button" data-control-variant="secondary" aria-haspopup="true">从现有内容创建</summary>
-              <div className="loadout-create-options" data-surface="menu" aria-label="本地方案创建来源">
+              <div className="loadout-create-options" data-surface="menu" data-ui-kind="command-menu" aria-label="本地方案创建来源">
                 <button type="button" disabled={!activeCharacter || props.isRunningItemAction} onClick={(event) => createFromCurrentCharacter(event.currentTarget.closest("details")!)}>
                   <strong>使用当前装备</strong>
                   <span>预填真实实例后进入本地方案工作台</span>

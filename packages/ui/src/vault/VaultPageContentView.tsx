@@ -410,7 +410,7 @@ export function VaultPageContentView(props: {
           <div className="vault-workflow-meta">
             <span className="ui-badge status-neutral" data-ui-kind="status-chip" data-ui-part="value" data-info-priority="context" data-text-tone="primary">已读取 {vaultItemCount} 件</span>
             <span className="ui-badge status-pending" data-ui-kind="status-chip" data-ui-part="state" data-info-priority="support" data-text-tone="action">当前显示 {filteredItems.length} 件</span>
-            {props.highlightedItemKeys ? <span className="ui-badge status-accent" data-ui-kind="status-chip" data-ui-part="state" data-info-priority="support" data-text-tone="status">配装命中 {loadoutMatchCount} 件</span> : null}
+            {props.highlightedItemKeys ? <span className="ui-badge status-success" data-ui-kind="status-chip" data-ui-part="state" data-info-priority="support" data-text-tone="status" data-status="success">配装命中 {loadoutMatchCount} 件</span> : null}
           </div>
         </div>
         {batchMessage ? <p className={batchMessage.includes("失败") ? "status-message status-error" : "status-message status-ready"}>{batchMessage}</p> : null}

@@ -516,7 +516,7 @@
   justify-content: end;
   color: rgb(244 240 223 / 0.56);
   font-size: var(--font-body);
-  font-weight: 800;
+  font-weight: 700;
   text-align: right;
 }
 
@@ -536,7 +536,7 @@
 }
 
 .item-detail-stat-row b {
-  font-weight: 800;
+  font-weight: 700;
 }
 
 .item-detail-stat-breakdown {
@@ -582,7 +582,7 @@
   border-top: 1px solid rgb(255 255 255 / 0.16);
   color: var(--text-body);
   font-size: 17px;
-  font-weight: 800;
+  font-weight: 700;
   border-color: var(--border-subtle);
   background: var(--surface-subtle);
 }
@@ -596,7 +596,7 @@
   border-top: 1px solid rgb(255 255 255 / 0.16);
   color: #f4f0df;
   font-size: 17px;
-  font-weight: 800;
+  font-weight: 700;
 }
 
 .item-detail-total-row .item-detail-stat-breakdown {
@@ -640,7 +640,7 @@
   background: var(--surface-toolbar);
   color: var(--text-title);
   font-size: var(--font-row-title);
-  font-weight: 800;
+  font-weight: 700;
 }
 
 .item-detail-tool-grid {
@@ -843,7 +843,7 @@
 
 .score-breakdown-card b {
   color: var(--text-title);
-  font-weight: 800;
+  font-weight: 700;
 }
 
 .modal-score-columns div {
@@ -957,7 +957,7 @@
 }
 
 .item-detail-socket-summary span {
-  font-weight: 800;
+  font-weight: 700;
   color: var(--text-title);
 }
 

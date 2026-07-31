@@ -29,7 +29,7 @@ Shell、页头、页面 gutter、首层分栏和全局 token 由共享层持有�
 | 语言与外观 | `languagePreferences`、`colorMode`、`density` | 界面语言与资料库语言分开建模；跟随开启时禁用独立资料库语言 |
 | 账号 | `accountSummary`、读取状态、刷新时间、写操作开关 | 加载中禁用刷新；未授权保留重新授权入口 |
 | 资料库 | Manifest 状态、检查、更新、修复 | 失败时保留上一份可用资料；进行中禁用冲突操作 |
-| Bungie | API Key、Client ID、Client Secret、回调地址和数据目录 | 密钥只掩码展示，不进入原型快照；保存失败保留用户输入 |
+| Bungie | API Key、Client ID、Client Secret、回调地址和数据目录 | 密钥只掩码展示，不进入仓库示例或诊断快照；保存失败保留用户输入 |
 | AI | 协议、Key、Base URL、模型、light.gg 能力 | 无配置、加载、测试中、失败和不支持能力分别呈现 |
 | 备份与迁移 | 创建/恢复备份、清缓存、迁移说明、打开目录 | 调用真实平台能力，不伪造完成结果 |
 | 诊断与日志 | `backgroundTasks`、`actionLog`、筛选、刷新、复制诊断 | 空日志保留筛选和诊断入口；失败项提供脱敏诊断 |
@@ -133,7 +133,7 @@ Offer 使用响应式对象卡网格：宽屏五列，`1280px` 三列，`980px` 
 
 ### 配装绑定表
 
-| 原型区域 | 运行时字段或 action | 数据和状态约束 |
+| 页面区域 | 运行时字段或 action | 数据和状态约束 |
 |---|---|---|
 | 本地方案目录 | `listLocalLoadoutPlans`、`LocalLoadoutPlan[]`、`selectedPlanId` | 只列出已显式保存的方案；草稿不进入目录。 |
 | 基础信息 | `name`、`class_name`、`target_character_id`、`source`、`notes` | 新建和当前装备复制只创建草稿；`saveLocalLoadoutPlan` 成功前不写入本地文件。 |

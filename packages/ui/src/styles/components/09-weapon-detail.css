@@ -374,7 +374,7 @@ button.weapon-detail-perk:hover { border-color: var(--state-selected-border); ba
 .weapon-detail-upgrade-table { display: grid; min-width: 0; overflow: hidden; border-top: 1px solid var(--section-divider); }
 .weapon-detail-upgrade-table > div { display: grid; grid-template-columns: minmax(110px, 0.7fr) minmax(150px, 1fr) minmax(180px, 1.2fr) minmax(120px, 0.8fr); }
 .weapon-detail-upgrade-table > div > * { min-width: 0; padding: 10px 8px; border-bottom: 1px solid var(--border-subtle); overflow-wrap: anywhere; font-size: var(--font-content); }
-.weapon-detail-upgrade-table > div:first-child > * { color: var(--text-muted); font-size: var(--font-body); font-weight: 500; }
+.weapon-detail-upgrade-table > div:first-child > * { color: var(--text-muted); font-size: var(--font-body); font-weight: 600; }
 .weapon-detail-upgrade-table > div:not(:first-child) > strong { color: var(--text-title); }
 .weapon-detail-upgrade-table > div:not(:first-child) > span { color: var(--text-body); }
 .weapon-detail-catalyst { display: grid; gap: 8px; padding: 14px; border: 1px solid var(--status-warning); border-left: 4px solid var(--status-warning); border-radius: 0; background: var(--status-warning-bg); }

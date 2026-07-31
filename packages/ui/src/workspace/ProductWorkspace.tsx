@@ -1,7 +1,7 @@
 import { createElement, type AriaRole, type ReactNode } from "react";
 
 type WorkspaceElement = "div" | "section" | "main" | "aside" | "nav" | "header";
-type WorkspaceSurface = "page" | "section" | "frame" | "list" | "row" | "split" | "content-stack" | "empty";
+type WorkspaceSurface = "page" | "section" | "frame" | "object-card" | "list" | "row" | "split" | "content-stack" | "empty" | "menu" | "dialog" | "drawer";
 type ShellRole = "page-header" | "command-bar" | "side-rail";
 
 type WorkspaceProps = {
@@ -9,6 +9,7 @@ type WorkspaceProps = {
   className?: string;
   ariaLabel?: string;
   referenceId?: string;
+  contractRoot?: "product-workspace" | "detail-dossier";
   id?: string;
   element?: WorkspaceElement;
   scrollRegion?: "page" | "pane" | "overlay";
@@ -35,6 +36,7 @@ function renderWorkspaceElement(
       className,
       "aria-label": props.ariaLabel,
       "data-reference-id": props.referenceId,
+      "data-contract-root": props.contractRoot,
       "data-scroll-region": props.scrollRegion,
       "data-shell-role": props.shellRole,
       "data-surface": props.surface,
@@ -52,7 +54,7 @@ export function ProductWorkspacePage(props: WorkspaceProps) {
   return renderWorkspaceElement(
     props.element ?? "section",
     classNames("product-workspace-page", props.className),
-    { ...props, surface: props.surface ?? "page" }
+    { ...props, contractRoot: props.contractRoot ?? "product-workspace", surface: props.surface ?? "page" }
   );
 }
 
