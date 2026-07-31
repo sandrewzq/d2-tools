@@ -27,6 +27,9 @@ export function createJsonGameDataCatalog(options: JsonGameDataCatalogOptions): 
         collectibleDefinitions: load("DestinyCollectibleDefinition") ?? undefined,
         breakerTypeDefinitions: load("DestinyBreakerTypeDefinition") ?? undefined,
         damageTypeDefinitions: load("DestinyDamageTypeDefinition") ?? undefined,
+        seasonDefinitions: load("DestinySeasonDefinition") ?? undefined,
+        equipableItemSetDefinitions: load("DestinyEquipableItemSetDefinition") ?? undefined,
+        sandboxPerkDefinitions: load("DestinySandboxPerkDefinition") ?? undefined,
         aliases: input.aliases
       });
     },
@@ -57,6 +60,9 @@ export function createJsonGameDataCatalog(options: JsonGameDataCatalogOptions): 
         collectibleDefinitions: load("DestinyCollectibleDefinition") ?? undefined,
         breakerTypeDefinitions: load("DestinyBreakerTypeDefinition") ?? undefined,
         damageTypeDefinitions: load("DestinyDamageTypeDefinition") ?? undefined,
+        seasonDefinitions: load("DestinySeasonDefinition") ?? undefined,
+        equipableItemSetDefinitions: load("DestinyEquipableItemSetDefinition") ?? undefined,
+        sandboxPerkDefinitions: load("DestinySandboxPerkDefinition") ?? undefined,
         includeAllPerks: true
       });
     }

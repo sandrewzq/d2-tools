@@ -418,16 +418,22 @@ const vendorStatKeys: Record<string, WeaponStatKey> = {
   "装填速度": "reload_speed",
   "换弹速度": "reload_speed",
   "reload speed": "reload_speed",
+  "辅助瞄准": "aim_assistance",
+  "aim assistance": "aim_assistance",
+  "后坐方向": "recoil_direction",
+  "recoil direction": "recoil_direction",
+  "空中效率": "airborne_effectiveness",
+  "airborne effectiveness": "airborne_effectiveness",
   "弹匣": "magazine",
   magazine: "magazine",
+  "弹药生成": "ammo_generation",
+  "ammo generation": "ammo_generation",
   "射速": "rounds_per_minute",
   rpm: "rounds_per_minute",
   "蓄力时间": "charge_time",
   "charge time": "charge_time",
   "拉弓时间": "draw_time",
-  "draw time": "draw_time",
-  "后坐方向": "recoil_direction",
-  "recoil direction": "recoil_direction"
+  "draw time": "draw_time"
 };
 
 const vendorStatHashKeys: Partial<Record<number, WeaponStatKey>> = {
@@ -436,9 +442,12 @@ const vendorStatHashKeys: Partial<Record<number, WeaponStatKey>> = {
   155624089: "stability",
   943549884: "handling",
   4188031367: "reload_speed",
+  1345609583: "aim_assistance",
+  2715839340: "recoil_direction",
+  2714457168: "airborne_effectiveness",
+  1931675084: "ammo_generation",
   3871231066: "magazine",
   4284893193: "rounds_per_minute",
   2961396640: "charge_time",
-  447667954: "draw_time",
-  2714457168: "recoil_direction"
+  447667954: "draw_time"
 };

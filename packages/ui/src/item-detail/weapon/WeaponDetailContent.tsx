@@ -485,7 +485,7 @@ function OverviewSection(props: {
                     {source.offer?.can_purchase === false ? <small data-text-tone="status" data-status="warning">{source.offer.failure_messages.join(" / ") || "当前无法购买"}</small> : null}
                   </div>
                   <div className="weapon-detail-source-meta">
-                    <span data-ui-part="state" data-text-tone={source.available_now === true ? "status" : "meta"} data-info-priority="support" data-status={source.available_now === true ? "success" : undefined}>{source.available_now === true ? "当前可获取" : "官方来源"}</span>
+                    <span data-ui-part="state" data-text-tone={source.available_now === true ? "status" : "meta"} data-info-priority="support" data-status={source.available_now === true ? "success" : undefined}>{source.available_now === true ? "当前可获取" : source.kind === "live_status" ? source.available_now === false ? "当前未命中" : "实时状态未返回" : "官方来源"}</span>
                     {source.offer?.inventory_path ? <span>{source.offer.inventory_path}</span> : null}
                     {source.offer?.price_labels.length ? <span>{source.offer.price_labels.join(" + ")}</span> : null}
                     {source.offer?.refresh_at ? <span>{formatStandardDateTime(source.offer.refresh_at)}</span> : null}

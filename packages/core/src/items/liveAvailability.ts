@@ -18,6 +18,13 @@ export type LiveItemAvailabilitySource = {
   label: string;
   vendor_hash?: number;
   character_id?: string;
+  offer_id?: string;
+  inventory_path?: string;
+  price_labels?: string[];
+  refresh_at?: string;
+  can_purchase?: boolean;
+  purchase_requirements?: string[];
+  failure_messages?: string[];
 };
 
 export type LiveItemAvailabilityEntry = {
@@ -101,10 +108,21 @@ type PublicMilestone = {
 
 type Vendor = {
   vendorHash?: number;
+  canPurchase?: boolean;
+  nextRefreshDate?: string;
 };
 
 type VendorSale = {
   itemHash?: number;
+  vendorItemIndex?: number;
+  costs?: Array<{
+    itemHash?: number;
+    quantity?: number;
+  }>;
+  failureIndexes?: number[];
+  saleStatus?: number;
+  apiPurchasable?: boolean | null;
+  overrideNextRefreshDate?: string;
 };
 
 type VendorSaleCollection = Record<string, VendorSale>;
@@ -231,17 +249,35 @@ function collectVendorSources(
   const result: Array<{ itemHash: number; source: LiveItemAvailabilitySource }> = [];
 
   for (const [vendorKey, vendorSales] of Object.entries(sales)) {
-    const vendorHash = vendors[vendorKey]?.vendorHash ?? Number(vendorKey);
+    const vendor = vendors[vendorKey];
+    const vendorHash = vendor?.vendorHash ?? Number(vendorKey);
     const vendorName = definitionName(definitions?.vendors, vendorHash) ?? `商人 ${vendorHash}`;
-    for (const sale of collectVendorSales(vendorSales)) {
+    for (const { sale, saleKey } of collectVendorSales(vendorSales)) {
       if (sale.itemHash === undefined) continue;
+      const failureMessages = vendorFailureMessages(definitions?.vendors, vendorHash, sale.failureIndexes);
+      const canPurchase = typeof vendor?.canPurchase === "boolean"
+        ? vendor.canPurchase
+          && sale.saleStatus === 0
+          && !(sale.failureIndexes?.length)
+        : undefined;
       result.push({
         itemHash: sale.itemHash,
         source: {
           kind,
           label: vendorName,
           vendor_hash: vendorHash,
-          character_id: characterId
+          character_id: characterId,
+          offer_id: `${vendorHash}:${characterId ?? "public"}:${sale.vendorItemIndex ?? saleKey}`,
+          inventory_path: `库存条目 #${sale.vendorItemIndex ?? saleKey}`,
+          price_labels: (sale.costs ?? []).flatMap((cost) => {
+            if (typeof cost.itemHash !== "number" || typeof cost.quantity !== "number") return [];
+            const currencyName = definitionName(definitions?.items, cost.itemHash) ?? `货币 ${cost.itemHash}`;
+            return [`${cost.quantity} ${currencyName}`];
+          }),
+          refresh_at: sale.overrideNextRefreshDate ?? vendor?.nextRefreshDate,
+          can_purchase: canPurchase,
+          purchase_requirements: characterId ? ["当前角色库存"] : ["公开商人库存"],
+          failure_messages: failureMessages
         }
       });
     }
@@ -320,8 +356,11 @@ function isSameLiveAvailabilitySource(
   right: LiveItemAvailabilitySource
 ): boolean {
   if (left.kind !== right.kind) return false;
+  if (left.offer_id !== undefined || right.offer_id !== undefined) {
+    return left.offer_id === right.offer_id;
+  }
   if (left.vendor_hash !== undefined || right.vendor_hash !== undefined) {
-    return left.vendor_hash === right.vendor_hash;
+    return left.vendor_hash === right.vendor_hash && left.character_id === right.character_id;
   }
   return left.label === right.label;
 }
@@ -356,23 +395,25 @@ function manifestOnlyEntry(hash: number): LiveItemAvailabilityEntry {
   };
 }
 
-function collectVendorSales(vendorSales: VendorSales | undefined): VendorSale[] {
+function collectVendorSales(vendorSales: VendorSales | undefined): Array<{ sale: VendorSale; saleKey: string }> {
   if (!vendorSales) {
     return [];
   }
 
-  const saleItems = Object.values(vendorSales.saleItems ?? {});
+  const saleItems = Object.entries(vendorSales.saleItems ?? {}).map(([saleKey, sale]) => ({ sale, saleKey }));
   const directSales = Object.entries(vendorSales).flatMap(([key, value]) => {
     if (key === "saleItems" || value === undefined) {
       return [];
     }
     if (isVendorSale(value)) {
-      return [value];
+      return [{ sale: value, saleKey: key }];
     }
-    return Object.values(value).filter(isVendorSale);
+    return Object.entries(value)
+      .filter((entry): entry is [string, VendorSale] => isVendorSale(entry[1]))
+      .map(([saleKey, sale]) => ({ sale, saleKey: `${key}:${saleKey}` }));
   });
 
-  return [...saleItems, ...directSales].filter(isVendorSale);
+  return [...saleItems, ...directSales].filter(({ sale }) => isVendorSale(sale));
 }
 
 function isVendorSale(value: unknown): value is VendorSale {
@@ -398,4 +439,18 @@ function definitionName(definitions: DefinitionComponentData | null | undefined,
 function definitionRecord(definitions: DefinitionComponentData | null | undefined, hash: number | undefined): DefinitionRecord | undefined {
   if (hash === undefined) return undefined;
   return definitions?.[String(hash)] as DefinitionRecord | undefined;
+}
+
+function vendorFailureMessages(
+  definitions: DefinitionComponentData | null | undefined,
+  vendorHash: number,
+  failureIndexes: number[] | undefined
+): string[] {
+  const definition = definitionRecord(definitions, vendorHash);
+  const failureStrings = definition?.["failureStrings"];
+  if (!Array.isArray(failureStrings)) return [];
+  return (failureIndexes ?? []).flatMap((index) => {
+    const message = failureStrings[index];
+    return typeof message === "string" && message.trim() ? [message.trim()] : [];
+  });
 }

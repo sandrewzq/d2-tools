@@ -459,13 +459,11 @@ html[data-theme="light"] .app-shell .vault-workflow-meta .ui-badge.status-accent
   margin: 12px;
 }
 
-:where(.app-shell) .vault-results-column .vault-section-list,
 :where(.app-shell) .vault-cleanup-grid .vault-section-list {
   gap: 0;
   padding: 0;
 }
 
-:where(.app-shell) .vault-results-column .vault-card-grid,
 :where(.app-shell) .vault-cleanup-grid .vault-card-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -473,7 +471,6 @@ html[data-theme="light"] .app-shell .vault-workflow-meta .ui-badge.status-accent
   padding: 0;
 }
 
-:where(.app-shell) .vault-results-column .vault-item-card,
 :where(.app-shell) .vault-cleanup-grid .vault-item-card {
   display: grid;
   grid-template-rows: minmax(0, 1fr);
@@ -487,7 +484,6 @@ html[data-theme="light"] .app-shell .vault-workflow-meta .ui-badge.status-accent
   box-shadow: none;
 }
 
-:where(.app-shell) .vault-results-column .vault-item-card:hover,
 :where(.app-shell) .vault-cleanup-grid .vault-item-card:hover {
   border-color: var(--border-subtle);
   background: var(--surface-elevated);
@@ -503,12 +499,10 @@ html[data-theme="light"] .app-shell .vault-workflow-meta .ui-badge.status-accent
   background: var(--state-selected-bg);
 }
 
-:where(.app-shell) .vault-results-column .vault-item-card.pending,
 :where(.app-shell) .vault-cleanup-grid .vault-item-card.pending {
   opacity: 0.72;
 }
 
-:where(.app-shell) .vault-results-column .vault-card-main,
 :where(.app-shell) .vault-cleanup-grid .vault-card-main {
   display: grid;
   grid-template-columns: 46px minmax(0, 1fr);
@@ -516,9 +510,6 @@ html[data-theme="light"] .app-shell .vault-workflow-meta .ui-badge.status-accent
   align-items: center;
 }
 
-:where(.app-shell) .vault-results-column .vault-card-visual,
-:where(.app-shell) .vault-results-column .vault-card-visual img,
-:where(.app-shell) .vault-results-column .vault-card-visual .item-icon-placeholder,
 :where(.app-shell) .vault-cleanup-grid .vault-card-visual,
 :where(.app-shell) .vault-cleanup-grid .vault-card-visual img,
 :where(.app-shell) .vault-cleanup-grid .vault-card-visual .item-icon-placeholder {
@@ -528,7 +519,6 @@ html[data-theme="light"] .app-shell .vault-workflow-meta .ui-badge.status-accent
   border-radius: var(--radius-control);
 }
 
-:where(.app-shell) .vault-results-column .vault-card-body,
 :where(.app-shell) .vault-cleanup-grid .vault-card-body {
   display: grid;
   grid-template-columns: minmax(170px, 0.8fr) minmax(210px, 1.1fr) minmax(180px, 1fr) minmax(110px, auto);
@@ -539,11 +529,11 @@ html[data-theme="light"] .app-shell .vault-workflow-meta .ui-badge.status-accent
   align-items: center;
 }
 
-:where(.app-shell) .vault-card-body .vault-title-row {
+:where(.app-shell) .vault-cleanup-grid .vault-card-body .vault-title-row {
   grid-area: identity;
 }
 
-:where(.app-shell) .vault-card-body > .decision-badge {
+:where(.app-shell) .vault-cleanup-grid .vault-card-body > .decision-badge {
   grid-area: decision;
   justify-self: end;
   width: auto;
@@ -553,32 +543,32 @@ html[data-theme="light"] .app-shell .vault-workflow-meta .ui-badge.status-accent
   text-align: right;
 }
 
-:where(.app-shell) .vault-card-body > .vault-card-meta {
+:where(.app-shell) .vault-cleanup-grid .vault-card-body > .vault-card-meta {
   grid-area: detail;
 }
 
-:where(.app-shell) .vault-card-body > .vault-card-signals {
+:where(.app-shell) .vault-cleanup-grid .vault-card-body > .vault-card-signals {
   grid-area: signals;
 }
 
-:where(.app-shell) .vault-card-body > .vault-card-roll {
+:where(.app-shell) .vault-cleanup-grid .vault-card-body > .vault-card-roll {
   grid-area: roll;
 }
 
-:where(.app-shell) .vault-card-body > .vault-note-snippet {
+:where(.app-shell) .vault-cleanup-grid .vault-card-body > .vault-note-snippet {
   grid-area: note;
 }
 
-:where(.app-shell) .vault-card-body > .vault-card-open-state {
+:where(.app-shell) .vault-cleanup-grid .vault-card-body > .vault-card-open-state {
   grid-area: decision;
   justify-self: end;
 }
 
-:where(.app-shell) .vault-item-card.pending .decision-badge {
+:where(.app-shell) .vault-cleanup-grid .vault-item-card.pending .decision-badge {
   display: none;
 }
 
-:where(.app-shell) .vault-card-body span {
+:where(.app-shell) .vault-cleanup-grid .vault-card-body span {
   display: block;
   min-width: 0;
   overflow: hidden;
@@ -586,7 +576,7 @@ html[data-theme="light"] .app-shell .vault-workflow-meta .ui-badge.status-accent
   color: var(--text-muted);
 }
 
-:where(.app-shell) .vault-card-body small {
+:where(.app-shell) .vault-cleanup-grid .vault-card-body small {
   display: block;
   min-width: 0;
   overflow: hidden;
@@ -594,6 +584,77 @@ html[data-theme="light"] .app-shell .vault-workflow-meta .ui-badge.status-accent
   color: var(--text-muted);
   font-size: var(--font-content);
   line-height: 1.45;
+}
+
+:where(.app-shell) .vault-results-column .vault-card-grid {
+  grid-template-columns: repeat(3, minmax(220px, 1fr));
+  gap: 8px;
+  padding: 10px 12px;
+}
+
+:where(.app-shell) .vault-results-column .vault-section-list {
+  padding: 0;
+}
+
+:where(.app-shell) .vault-results-column .vault-item-card {
+  grid-template-rows: 1fr;
+  min-height: 62px;
+  padding: 9px 10px;
+  border-radius: var(--radius-control);
+  box-shadow: none;
+}
+
+:where(.app-shell) .vault-results-column .vault-card-main {
+  grid-template-columns: 44px minmax(0, 1fr);
+  gap: 9px;
+  align-items: center;
+}
+
+:where(.app-shell) .vault-results-column .vault-card-visual,
+:where(.app-shell) .vault-results-column .vault-card-visual img,
+:where(.app-shell) .vault-results-column .vault-card-visual .item-icon-placeholder {
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+}
+
+:where(.app-shell) .vault-results-column .vault-card-body {
+  gap: 2px;
+}
+
+:where(.app-shell) .vault-results-column .vault-card-body strong {
+  color: var(--text-title);
+  font-size: var(--font-body);
+}
+
+:where(.app-shell) .vault-results-column .vault-card-meta,
+:where(.app-shell) .vault-results-column .vault-card-roll,
+:where(.app-shell) .vault-results-column .vault-card-body small {
+  color: var(--text-muted);
+  font-size: var(--font-caption);
+  line-height: 1.35;
+}
+
+:where(.app-shell) .vault-results-column .vault-card-meta {
+  display: block;
+  white-space: nowrap;
+}
+
+:where(.app-shell) .vault-results-column .decision-badge,
+:where(.app-shell) .vault-results-column .vault-note-snippet,
+:where(.app-shell) .vault-results-column .vault-card-signals .wishlist-hit span:not(.wishlist-hit-badge),
+:where(.app-shell) .vault-results-column .vault-card-signals .target-hit span:not(.target-hit-badge),
+:where(.app-shell) .vault-results-column .vault-card-signals .community-match span:not(.community-match-badge) {
+  display: none;
+}
+
+:where(.app-shell) .vault-results-column .vault-card-signals {
+  gap: 4px;
+}
+
+:where(.app-shell) .vault-results-column .vault-card-signals small {
+  width: auto;
+  max-width: 100%;
 }
 
 :where(.app-shell) .vault-card-body strong {
@@ -1304,15 +1365,18 @@ html[data-theme="light"] .app-shell .vault-workflow-meta .ui-badge.status-accent
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .app-shell .vault-card-body,
-  .app-shell .vault-cleanup-grid .vault-card-body {
+  :where(.app-shell) .vault-results-column .vault-card-grid {
+    grid-template-columns: repeat(2, minmax(220px, 1fr));
+  }
+
+  :where(.app-shell) .vault-cleanup-grid .vault-card-body {
     grid-template-columns: minmax(160px, 0.9fr) minmax(180px, 1fr) minmax(110px, auto);
     grid-template-areas:
       "identity detail decision"
       "signals roll note";
   }
 
-  :where(.app-shell) .vault-card-body > .vault-note-snippet {
+  :where(.app-shell) .vault-cleanup-grid .vault-card-body > .vault-note-snippet {
     justify-self: end;
   }
 
@@ -1334,7 +1398,10 @@ html[data-theme="light"] .app-shell .vault-workflow-meta .ui-badge.status-accent
     grid-template-columns: minmax(160px, 210px) minmax(0, 1fr);
   }
 
-  :where(.app-shell) .vault-card-body,
+  :where(.app-shell) .vault-results-column .vault-card-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   :where(.app-shell) .vault-cleanup-grid .vault-card-body {
     grid-template-columns: minmax(160px, 1fr) minmax(180px, 1fr) auto;
     grid-template-areas:
@@ -1342,7 +1409,7 @@ html[data-theme="light"] .app-shell .vault-workflow-meta .ui-badge.status-accent
       "signals signals note";
   }
 
-  :where(.app-shell) .vault-card-body > .vault-card-roll {
+  :where(.app-shell) .vault-cleanup-grid .vault-card-body > .vault-card-roll {
     display: none;
   }
 
@@ -1406,12 +1473,10 @@ html[data-theme="light"] .app-shell .vault-workflow-meta .ui-badge.status-accent
     border-bottom: 0;
   }
 
-  :where(.app-shell) .vault-results-column .vault-card-main,
   :where(.app-shell) .vault-cleanup-grid .vault-card-main {
     grid-template-columns: 44px minmax(0, 1fr);
   }
 
-  :where(.app-shell) .vault-card-body,
   :where(.app-shell) .vault-cleanup-grid .vault-card-body {
     grid-template-columns: minmax(0, 1fr) auto;
     grid-template-areas:
@@ -1421,7 +1486,7 @@ html[data-theme="light"] .app-shell .vault-workflow-meta .ui-badge.status-accent
       "note note";
   }
 
-  :where(.app-shell) .vault-card-body > .vault-note-snippet {
+  :where(.app-shell) .vault-cleanup-grid .vault-card-body > .vault-note-snippet {
     justify-self: start;
   }
 

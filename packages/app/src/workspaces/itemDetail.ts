@@ -11,6 +11,8 @@ import type {
 import type { ItemSourceSummary } from "@d2-tools/core/items/source";
 import type { ItemPerkGroup } from "@d2-tools/core/items/perks";
 import type { ItemReleaseSummary } from "@d2-tools/core/items/release";
+import type { ItemDefinitionVersionSummary } from "@d2-tools/core/items/release";
+import type { EquipableItemSetSummary } from "@d2-tools/core/items/equipableItemSet";
 import type { ItemDefinitionStat, ItemOriginTrait } from "@d2-tools/core/items/search";
 import type { WeaponBreakerTypeSummary } from "@d2-tools/core/items/breakerTypes";
 import type { DamageTypeSummary } from "@d2-tools/core/items/damageTypes";
@@ -52,6 +54,8 @@ export type ItemDefinitionDetailLike = {
   breaker_type?: WeaponBreakerTypeSummary;
   definition_stats?: ItemDefinitionStat[];
   release?: ItemReleaseSummary;
+  definition_version?: ItemDefinitionVersionSummary;
+  armor_set?: EquipableItemSetSummary;
   source: ItemSourceSummary;
   perks?: ItemPerkGroup[];
 };
@@ -77,6 +81,8 @@ export type ItemSearchResultLike = {
   breaker_type?: WeaponBreakerTypeSummary;
   definition_stats?: ItemDefinitionStat[];
   release?: ItemReleaseSummary;
+  definition_version?: ItemDefinitionVersionSummary;
+  armor_set?: EquipableItemSetSummary;
   source: ItemSourceSummary;
   perks?: ItemPerkGroup[];
 };
@@ -162,6 +168,8 @@ export function createSelectedItemPreview(
     breaker_type: "breaker_type" in item ? item.breaker_type : undefined,
     definition_stats: "definition_stats" in item ? item.definition_stats : undefined,
     release: "release" in item ? item.release : undefined,
+    definition_version: "definition_version" in item ? item.definition_version : undefined,
+    armor_set: "armor_set" in item ? item.armor_set : undefined,
     source: "source" in item ? item.source : itemDetailLoadingSource,
     perks: "perks" in item ? item.perks : undefined,
     item_key: getItemKey(item),

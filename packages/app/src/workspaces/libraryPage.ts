@@ -1,4 +1,6 @@
 import type { AccountItemSummary, AccountSummary } from "@d2-tools/core/account/summary";
+import type { EquipableItemSetSummary } from "@d2-tools/core/items/equipableItemSet";
+import type { ItemDefinitionVersionSummary, ItemReleaseSummary } from "@d2-tools/core/items/release";
 import { formatLibraryVersion, matchesAnyKeyword, splitQueryTokens, uniqueInOrder, uniqueSorted } from "./libraryText.js";
 
 export type AmmoTypeKey = "primary" | "special" | "heavy";
@@ -39,11 +41,9 @@ export type ItemSearchResult = {
     source_hash?: number;
     linked_definition_hash?: number;
   };
-  release?: {
-    status: "ready";
-    label: "版本";
-    description: string;
-  };
+  release?: ItemReleaseSummary;
+  definition_version?: ItemDefinitionVersionSummary;
+  armor_set?: EquipableItemSetSummary;
   definition_stats?: Array<{
     hash: number;
     name: string;

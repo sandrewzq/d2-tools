@@ -46,6 +46,14 @@ const accountCategoryLabels: Record<AccountSlotComparisonViewRow["category"], st
   other: "其他"
 };
 
+function visibleAccountSlotRows(rows: AccountSlotComparisonViewRow[]): AccountSlotComparisonViewRow[] {
+  return rows.filter((row) => {
+    if (row.category !== "other") return true;
+    if (/记忆水晶|engram/i.test(row.label)) return true;
+    return [...row.equippedItems, ...row.inventoryItems].some((item) => /记忆水晶|engram/i.test(item.name));
+  });
+}
+
 export function AccountPageContentView(props: AccountPageContentViewProps) {
   const interfaceLocale = props.interfaceLocale ?? "zh-CN";
   const copy = getLocaleCopy(interfaceLocale).account;
@@ -120,6 +128,8 @@ function AccountPageWorkspace(props: {
 }) {
   const profile = props.viewModel.profile!;
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const displayedSlotRows = visibleAccountSlotRows(props.viewModel.loadout.slotComparisonRows);
+  const displayedInventoryCount = displayedSlotRows.reduce((count, row) => count + row.inventoryItems.length, 0);
   const navigation: Array<{ key: AccountSection; label: string; count?: number }> = [
     { key: "gear", label: accountText(props.copy, "角色装备与背包") },
     { key: "configuration", label: accountText(props.copy, "角色配置") },
@@ -235,11 +245,11 @@ function AccountPageWorkspace(props: {
         >
             <div className="account-column-head">
               <h3 data-ui-part="value" data-info-priority="context" data-text-tone="primary">{props.selectedCharacter.className}当前装备与背包</h3>
-              <span data-ui-part="detail" data-info-priority="support" data-text-tone="body">装备 {props.viewModel.loadout.equippedCount} 件 · 背包候选 {props.viewModel.loadout.inventoryCount} 件 · 按位置对照</span>
+              <span data-ui-part="detail" data-info-priority="support" data-text-tone="body">装备 {props.viewModel.loadout.equippedCount} 件 · 背包候选 {displayedInventoryCount} 件 · 按位置对照</span>
             </div>
             <AccountSlotComparison
               isRefreshing={props.viewModel.connection.isLoadingAccount}
-              rows={props.viewModel.loadout.slotComparisonRows}
+              rows={displayedSlotRows}
               onOpenItem={props.actions.openItem}
               copy={props.copy}
             />

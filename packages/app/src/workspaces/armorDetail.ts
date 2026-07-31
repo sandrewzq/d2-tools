@@ -7,6 +7,8 @@ import type {
 } from "@d2-tools/core/account/summary";
 import type { ArmorStatKey } from "@d2-tools/core/loadouts/analysis";
 import type { ItemSourceSummary } from "@d2-tools/core/items/source";
+import type { EquipableItemSetSummary } from "@d2-tools/core/items/equipableItemSet";
+import type { ItemDefinitionVersionSummary, ItemReleaseSummary } from "@d2-tools/core/items/release";
 import type { SelectedItemSourceKind } from "./itemDetail.js";
 
 export type ArmorDetailObjectKind = "definition" | "vendor_offer" | "account_item";
@@ -30,6 +32,9 @@ export type ArmorDetailIdentity = {
   tier?: string;
   class_name?: string;
   bucket_name?: string;
+  release?: ItemReleaseSummary;
+  definition_version?: ItemDefinitionVersionSummary;
+  armor_set?: EquipableItemSetSummary;
 };
 
 export type ArmorStatTrack = {
@@ -106,6 +111,9 @@ export type ArmorDetailSelectedItemLike = {
   tier?: string;
   class_name?: string;
   bucket_name?: string;
+  release?: ItemReleaseSummary;
+  definition_version?: ItemDefinitionVersionSummary;
+  armor_set?: EquipableItemSetSummary;
   group_key?: string;
   instance_id?: string;
   source_kind?: SelectedItemSourceKind;
@@ -194,7 +202,10 @@ export function buildArmorDetailViewModel(input: BuildArmorDetailViewModelInput)
       item_type: item.item_type,
       tier: item.tier,
       class_name: item.class_name,
-      bucket_name: item.bucket_name
+      bucket_name: item.bucket_name,
+      release: item.release,
+      definition_version: item.definition_version,
+      armor_set: item.armor_set
     },
     context,
     stats: stats ? statOrder.map((key) => ({
@@ -235,7 +246,7 @@ function buildObjectContext(
     kind,
     entry,
     entry_label: override?.entry_label ?? entryLabel(entry),
-    object_label: override?.object_label ?? objectLabel(kind),
+    object_label: override?.object_label ?? objectLabel(kind, item.instance_id),
     object_id: override?.object_id ?? item.instance_id,
     read_only: override?.read_only ?? kind !== "account_item"
   };
@@ -256,9 +267,9 @@ function entryLabel(entry: ArmorDetailEntryKind): string {
   return "资料库";
 }
 
-function objectLabel(kind: ArmorDetailObjectKind): string {
+function objectLabel(kind: ArmorDetailObjectKind, instanceId?: string): string {
   if (kind === "vendor_offer") return "当前商人售卖";
-  if (kind === "account_item") return "账号中的装备";
+  if (kind === "account_item") return instanceId ? `账号实例 ${instanceId.slice(-6)}` : "账号实例";
   return "装备基础信息";
 }
 

@@ -55,11 +55,14 @@ export function ItemDetailStats(props: { selectedItem: SelectedItemDetail }) {
             <WeaponStatRow label="稳定性" value={selectedItem.weapon_stats.stability} />
             <WeaponStatRow label="操控性" value={selectedItem.weapon_stats.handling} />
             <WeaponStatRow label="装填速度" value={selectedItem.weapon_stats.reload_speed} />
-            <WeaponStatRow label="弹匣" value={selectedItem.weapon_stats.magazine} />
-            <WeaponStatRow label="RPM" value={selectedItem.weapon_stats.rounds_per_minute} />
+            <WeaponStatRow label="辅助瞄准" value={selectedItem.weapon_stats.aim_assistance} />
+            <WeaponStatRow label="后坐方向" value={selectedItem.weapon_stats.recoil_direction} />
+            <WeaponStatRow label="空中效率" value={selectedItem.weapon_stats.airborne_effectiveness} />
             <WeaponStatRow label="蓄力时间" value={selectedItem.weapon_stats.charge_time} />
             <WeaponStatRow label="拉弓时间" value={selectedItem.weapon_stats.draw_time} />
-            <WeaponStatRow label="后坐方向" value={selectedItem.weapon_stats.recoil_direction} />
+            <WeaponStatRow label="弹匣" value={selectedItem.weapon_stats.magazine} />
+            <WeaponStatRow label="弹药生成" value={selectedItem.weapon_stats.ammo_generation} />
+            <WeaponStatRow label="RPM" value={selectedItem.weapon_stats.rounds_per_minute} />
           </div>
         </section>
       ) : null}

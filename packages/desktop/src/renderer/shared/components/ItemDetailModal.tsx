@@ -598,11 +598,22 @@ function buildArmorSources(
   const entries: ArmorDetailViewModel["sources"]["entries"] = [];
   for (const [index, source] of (availability?.sources ?? []).entries()) {
     entries.push({
-      id: `live:${source.kind}:${source.label}:${index}`,
+      id: `live:${source.offer_id ?? `${source.kind}:${source.label}:${index}`}`,
       label: source.label,
-      description: availability?.description ?? source.label,
-      available_now: true,
-      status_label: "当前可获得"
+      description: [
+        availability?.description,
+        source.inventory_path,
+        ...(source.price_labels ?? []),
+        ...(source.purchase_requirements ?? []),
+        source.refresh_at ? `刷新时间：${source.refresh_at}` : undefined,
+        ...(source.failure_messages ?? [])
+      ].filter((part): part is string => Boolean(part?.trim())).join(" · ") || source.label,
+      ...(source.can_purchase !== undefined ? { available_now: source.can_purchase } : {}),
+      status_label: source.can_purchase === true
+        ? "当前可购买"
+        : source.can_purchase === false
+          ? source.failure_messages?.join("；") || "当前不可购买"
+          : "当前角色库存已检出"
     });
   }
   if (item.source.status === "ready") {
@@ -625,12 +636,33 @@ function buildWeaponSources(
 ): WeaponDetailViewModel["sources"] {
   const entries: WeaponDetailViewModel["sources"]["entries"] = [];
   for (const [index, source] of (availability?.sources ?? []).entries()) {
+    const offer = source.kind === "public_activity" ? undefined : {
+      offer_id: source.offer_id ?? `live:${source.vendor_hash ?? source.label}:${index}`,
+      vendor_hash: source.vendor_hash,
+      vendor_name: source.label,
+      inventory_path: source.inventory_path,
+      price_labels: source.price_labels ?? [],
+      refresh_at: source.refresh_at,
+      can_purchase: source.can_purchase,
+      purchase_requirements: source.purchase_requirements ?? [],
+      failure_messages: source.failure_messages ?? []
+    };
     entries.push({
-      id: `live:${source.kind}:${source.label}:${index}`,
+      id: `live:${source.offer_id ?? `${source.kind}:${source.label}:${index}`}`,
       kind: source.kind === "public_activity" ? "activity_reward" : "vendor_offer",
       label: source.label,
       description: availability?.description ?? source.label,
-      available_now: true
+      available_now: true,
+      offer
+    });
+  }
+  if (!availability || availability.sources.length === 0) {
+    entries.push({
+      id: `live-status:${item.hash}`,
+      kind: "live_status",
+      label: availability?.label ?? "实时来源状态未返回",
+      description: availability?.description ?? "当前详情未返回可确认的商人、活动或里程碑来源。",
+      available_now: availability ? false : undefined
     });
   }
   if (item.source.status === "ready") {

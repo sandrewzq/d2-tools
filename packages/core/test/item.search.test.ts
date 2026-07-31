@@ -300,7 +300,7 @@ describe("item definition search", () => {
     expect(results[0]?.source.status).toBe("ready");
   });
 
-  it("returns player-readable release summaries for same-name weapon versions", () => {
+  it("returns player-readable release summaries from Manifest season definitions", () => {
     const tyrannyDefinitions: DefinitionComponentData = {
       "2721249463": {
         hash: 2721249463,
@@ -309,7 +309,7 @@ describe("item definition search", () => {
         itemTypeDisplayName: "战斗弓箭",
         inventory: { bucketTypeHash: 2465295065 },
         collectibleHash: 301231525,
-        traitIds: ["releases.v400.annual"]
+        seasonHash: 400004
       },
       "3388655311": {
         hash: 3388655311,
@@ -320,7 +320,7 @@ describe("item definition search", () => {
         translationBlock: {
           arrangements: [{ classHash: 0, artArrangementHash: 2721249463 }]
         },
-        traitIds: ["releases.v710.season"]
+        seasonHash: 400021
       }
     };
 
@@ -331,19 +331,37 @@ describe("item definition search", () => {
           sourceString: "来源：“救赎花园”突袭",
           sourceHash: 1491707941
         }
+      },
+      seasonDefinitions: {
+        "400004": {
+          hash: 400004,
+          seasonNumber: 4,
+          displayProperties: { name: "锻炉赛季" }
+        },
+        "400021": {
+          hash: 400021,
+          seasonNumber: 21,
+          displayProperties: { name: "深渊赛季" }
+        }
       }
     });
 
     expect(results.map((item) => item.release)).toEqual([
       {
         status: "ready",
-        label: "版本",
-        description: "遗落之族（年 2，第 4 赛季）"
+        label: "发布赛季",
+        season_hash: 400004,
+        season_number: 4,
+        name: "锻炉赛季",
+        description: "第 4 赛季 · 锻炉赛季"
       },
       {
         status: "ready",
-        label: "版本",
-        description: "深渊赛季（年 6，第 21 赛季）"
+        label: "发布赛季",
+        season_hash: 400021,
+        season_number: 21,
+        name: "深渊赛季",
+        description: "第 21 赛季 · 深渊赛季"
       }
     ]);
     expect(results.map((item) => item.source)).toEqual([

@@ -99,7 +99,7 @@ const searchIndexFileName = "search.sqlite";
 const englishSearchIndexFileName = "search-en.sqlite";
 const statusFileName = "status.json";
 const supplementDataDirectoryName = "supplement-data";
-const catalogSchemaVersion = "3";
+const catalogSchemaVersion = "4";
 
 export async function syncSqliteManifest(
   options: SyncSqliteManifestOptions

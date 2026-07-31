@@ -120,11 +120,23 @@ async function loadAvailabilityDefinitions(
       numberValue(vendor.vendorHash ?? Number(key))
     )
   );
+  const vendorSaleItemHashes = vendorResponses.flatMap((response) =>
+    Object.values(response.sales?.data ?? {}).flatMap((sales) =>
+      Object.values(sales?.saleItems ?? {}).flatMap((sale) => [
+        ...numberValue(sale.itemHash),
+        ...(sale.costs ?? []).flatMap((cost) => numberValue(cost.itemHash))
+      ])
+    )
+  );
   const [activities, milestoneDefinitions, vendors, items] = await Promise.all([
     getDefinitions("DestinyActivityDefinition", activityHashes),
     getDefinitions("DestinyMilestoneDefinition", milestoneHashes),
     getDefinitions("DestinyVendorDefinition", vendorHashes),
-    getDefinitions("DestinyInventoryItemDefinition", [...itemHashes, ...milestoneItemHashes])
+    getDefinitions("DestinyInventoryItemDefinition", [
+      ...itemHashes,
+      ...milestoneItemHashes,
+      ...vendorSaleItemHashes
+    ])
   ]);
 
   return {

@@ -148,7 +148,7 @@ export type WeaponDetailConfiguration = {
   can_apply_changes: boolean;
 };
 
-export type WeaponSourceKind = "vendor_offer" | "activity_reward" | "manifest_hint";
+export type WeaponSourceKind = "vendor_offer" | "activity_reward" | "live_status" | "manifest_hint";
 
 export type WeaponSourceEntry = {
   id: string;
@@ -355,11 +355,14 @@ const weaponStatOrder: readonly WeaponStatKey[] = [
   "stability",
   "handling",
   "reload_speed",
-  "magazine",
-  "rounds_per_minute",
+  "aim_assistance",
+  "recoil_direction",
+  "airborne_effectiveness",
   "charge_time",
   "draw_time",
-  "recoil_direction"
+  "magazine",
+  "ammo_generation",
+  "rounds_per_minute"
 ];
 
 const weaponStatMetadata: Record<WeaponStatKey, {
@@ -371,11 +374,14 @@ const weaponStatMetadata: Record<WeaponStatKey, {
   stability: { label: "稳定性", direction: "higher" },
   handling: { label: "操控性", direction: "higher" },
   reload_speed: { label: "装填速度", direction: "higher" },
+  aim_assistance: { label: "辅助瞄准", direction: "higher" },
+  recoil_direction: { label: "后坐方向", direction: "higher" },
+  airborne_effectiveness: { label: "空中效率", direction: "higher" },
+  ammo_generation: { label: "弹药生成", direction: "higher" },
   magazine: { label: "弹匣", direction: "higher" },
   rounds_per_minute: { label: "射速", direction: "neutral" },
   charge_time: { label: "蓄力时间", direction: "lower" },
-  draw_time: { label: "拉弓时间", direction: "lower" },
-  recoil_direction: { label: "后坐方向", direction: "higher" }
+  draw_time: { label: "拉弓时间", direction: "lower" }
 };
 
 export function buildWeaponDetailViewModel(input: BuildWeaponDetailViewModelInput): WeaponDetailViewModel {

@@ -3,8 +3,10 @@ import type {
   DamageTypeSummary,
   EquipmentGroupKey,
   ItemDefinitionStat,
+  ItemDefinitionVersionSummary,
   ItemPerkGroup,
   ItemReleaseSummary,
+  EquipableItemSetSummary,
   ItemSourceSummary,
   LiveItemAvailability,
   WeaponBreakerTypeSummary,
@@ -35,6 +37,8 @@ export type ItemSearchResult = {
   item_type?: string;
   tier?: string;
   release?: ItemReleaseSummary;
+  definition_version?: ItemDefinitionVersionSummary;
+  armor_set?: EquipableItemSetSummary;
   class_name?: string;
   damage_type?: string;
   damage_type_summary?: DamageTypeSummary;

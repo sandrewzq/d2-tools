@@ -263,14 +263,27 @@ export function ArmorDetailContent(props: ArmorDetailContentProps) {
 
 function ArmorIdentity({ model }: { model: ArmorDetailViewModel }) {
   const { identity, context } = model;
+  const feature = identity.armor_set
+    ? { label: identity.armor_set.name, tone: "set", title: identity.armor_set.description }
+    : model.abilities[0]
+      ? { label: model.abilities[0].name, tone: "ability", title: model.abilities[0].description }
+      : undefined;
+  const releaseLabel = identity.release?.description ?? "官方定义未提供发布信息";
+  const versionLabel = identity.definition_version?.label ?? "定义版本资料未返回";
+  const versionStatus = identity.definition_version ? "success" : "neutral";
+  const releaseStatus = identity.release?.status === "ready" ? "success" : "neutral";
+  const releaseTrace = identity.release?.season_number !== undefined
+    ? `第 ${identity.release.season_number} 赛季`
+    : identity.release?.release_traits?.join(" · ") ?? "发布资料未返回";
+  const watermarks = identity.definition_version?.watermark_icons ?? [];
   return (
     <header className="armor-detail-identity" data-surface="section">
       <div className="armor-detail-identity-main">
         {identity.icon ? <img src={identity.icon} alt="" /> : <span className="armor-detail-icon-placeholder" aria-hidden="true" />}
         <div>
           <div className="armor-detail-identity-title-line">
-            <span className="armor-detail-version-badge" data-ui-part="state" data-text-tone="status" data-info-priority="support" data-status="success">当前装备版本</span>
-            <span className="armor-detail-identity-version" data-ui-part="source" data-text-tone="meta" data-info-priority="trace">Hash {identity.hash}</span>
+            <span className="armor-detail-version-badge" data-ui-part="state" data-text-tone="status" data-info-priority="support" data-status={versionStatus}>当前定义版本</span>
+            <span className="armor-detail-identity-version" data-ui-part="source" data-text-tone="meta" data-info-priority="trace">{releaseLabel}</span>
           </div>
           <h2 data-ui-part="value" data-text-tone="primary" data-info-priority="display">{identity.name}</h2>
           <p data-ui-part="detail" data-text-tone="body" data-info-priority="reading">{[identity.tier, identity.item_type, identity.class_name].filter(Boolean).join(" · ")}</p>
@@ -278,7 +291,7 @@ function ArmorIdentity({ model }: { model: ArmorDetailViewModel }) {
             {identity.tier ? <Fact label={identity.tier} tone={/异域|exotic/i.test(identity.tier) ? "exotic" : "legendary"} /> : null}
             {identity.item_type ? <Fact label={identity.item_type} /> : null}
             {identity.class_name ? <Fact label={identity.class_name} /> : null}
-            <Fact label={context.kind === "vendor_offer" ? "当前商人 Offer" : context.kind === "account_item" ? "账号当前实例" : "护甲定义"} tone={context.kind === "definition" ? "info" : "ready"} />
+            {feature ? <Fact label={feature.label} tone={feature.tone} title={feature.title} /> : <Fact label="套装或固有能力未返回" tone="incomplete" />}
           </div>
         </div>
       </div>
@@ -289,15 +302,22 @@ function ArmorIdentity({ model }: { model: ArmorDetailViewModel }) {
           <div><dt>当前查看</dt><dd>{context.object_label}</dd></div>
           <div><dt>对象</dt><dd>{contextKindLabel(context.kind)}</dd></div>
           <div><dt>位置</dt><dd>{identity.bucket_name ?? identity.item_type ?? "护甲"}</dd></div>
-          <div className="armor-detail-context-version"><dt>版本</dt><dd>当前 Hash</dd><span data-ui-part="state" data-text-tone="status" data-info-priority="trace" data-status="success">{identity.hash}</span></div>
+          <div className="armor-detail-context-version" data-status={versionStatus}><dt>版本</dt><dd><strong>{versionLabel}</strong>{watermarks.length ? <span className="armor-detail-version-watermarks">{watermarks.map((icon, index) => <img key={`${icon}:${index}`} src={icon} alt={`官方版本水印 ${index + 1}`} title="官方定义版本水印" />)}</span> : null}</dd><span data-ui-part="state" data-text-tone="status" data-info-priority="trace" data-status={releaseStatus}>{releaseTrace}</span></div>
         </dl>
         <details className="armor-detail-definition-details">
           <summary>护甲定义信息</summary>
           <div>
             <dl><dt>装备 Hash</dt><dd>{identity.hash}</dd></dl>
+            <dl><dt>发布赛季</dt><dd>{identity.release?.description ?? "资料未返回"}</dd></dl>
+            <dl><dt>赛季 Hash</dt><dd>{identity.release?.season_hash ?? "资料未返回"}</dd></dl>
+            <dl><dt>发布标记</dt><dd>{identity.release?.release_traits?.join(" / ") ?? "资料未返回"}</dd></dl>
+            <dl><dt>定义版本</dt><dd>{identity.definition_version?.label ?? "资料未返回"}</dd></dl>
+            <dl><dt>光等上限 Hash</dt><dd>{identity.definition_version?.power_cap_hash ?? "资料未返回"}</dd></dl>
+            <dl><dt>版本水印</dt><dd>{watermarks.length ? <span className="armor-detail-definition-watermarks">{watermarks.map((icon, index) => <img key={`${icon}:${index}`} src={icon} alt={`官方版本水印 ${index + 1}`} title="官方定义版本水印" />)}</span> : "资料未返回"}</dd></dl>
             <dl><dt>职业限制</dt><dd>{identity.class_name ?? "所有职业"}</dd></dl>
             <dl><dt>护甲部位</dt><dd>{identity.bucket_name ?? identity.item_type ?? "护甲"}</dd></dl>
-            <dl><dt>固有能力</dt><dd>{model.abilities.map((ability) => ability.name).join(" / ") || "未返回固定能力"}</dd></dl>
+              <dl><dt>套装或固有能力</dt><dd>{identity.armor_set?.name ?? (model.abilities.map((ability) => ability.name).join(" / ") || "资料未返回")}</dd></dl>
+            <dl><dt>套装 Hash</dt><dd>{identity.armor_set?.hash ?? "资料未返回"}</dd></dl>
             <dl className="is-wide"><dt>定义说明</dt><dd>{identity.description || "当前游戏资料未返回额外说明"}</dd></dl>
           </div>
         </details>
@@ -338,7 +358,7 @@ function OverviewSection({ model }: { model: ArmorDetailViewModel }) {
           {model.sources.entries.length ? (
             <div className="armor-detail-source-ledger">
               {model.sources.entries.map((source) => (
-                <article key={source.id} className="armor-detail-source-row" data-surface="row" data-status={source.available_now === false ? "warning" : "success"}>
+                <article key={source.id} className="armor-detail-source-row" data-surface="row" data-status={source.available_now === true ? "success" : source.available_now === false ? "warning" : "neutral"}>
                   <strong>{source.label}</strong>
                   <p>{source.description}</p>
                   <span className={source.available_now === false ? "is-muted" : undefined}>{source.status_label ?? (source.available_now ? "当前可获得" : "来源已记录")}</span>
@@ -355,25 +375,27 @@ function OverviewSection({ model }: { model: ArmorDetailViewModel }) {
 
 function ConfigurationSection({ model }: { model: ArmorDetailViewModel }) {
   const isExotic = /异域|exotic/i.test(model.identity.tier ?? "");
+  const armorSet = model.identity.armor_set;
   const configurationSockets = model.sockets.filter((socket) => socket.kind !== "upgrade");
   const hasCurrentConfiguration = model.context.kind !== "definition";
   return (
     <>
       <SectionHeading
         eyebrow="护甲配置"
-        title={isExotic ? "异域能力与当前配置" : "固定能力与当前配置"}
-        description={hasCurrentConfiguration ? "固定能力、装备规则和当前实例实际插槽分别展示。" : "资料库定义只说明固定能力、装备规则和支持的插槽。"}
+        title={isExotic ? "异域能力与当前配置" : armorSet ? "套装效果与当前配置" : "固定能力与当前配置"}
+        description={hasCurrentConfiguration ? "固定能力、官方套装规则和当前实例实际插槽分别展示。" : "资料库定义只说明固定能力、套装规则和支持的插槽。"}
       />
       <DataBlockHeading title="配置数据" source="游戏资料 + 当前账号配置 · 当前确认" />
       <div className="armor-detail-configuration">
         <div className="armor-detail-configuration-grid">
           <div className="armor-detail-core-features">
+            {armorSet ? <ArmorSetBonus armorSet={armorSet} /> : null}
             {model.abilities.length ? model.abilities.map((ability) => (
               <article key={ability.hash} className={["armor-detail-core-feature", isExotic && "is-exotic"].filter(Boolean).join(" ")}>
                 {ability.icon ? <img src={ability.icon} alt="" /> : <span className="armor-detail-core-feature-icon" aria-hidden="true" />}
                 <div><span>{isExotic ? "异域固有能力" : "护甲能力"}</span><h4>{ability.name}</h4><p>{ability.description}</p><small>固定能力与实例随机属性分开显示。</small></div>
               </article>
-            )) : <EmptyState text="当前游戏资料未返回可确认的固定护甲能力。" />}
+            )) : !armorSet ? <EmptyState text="当前游戏资料未返回可确认的固定护甲能力。" /> : null}
           </div>
           <div className="armor-detail-capability-table">
             <CapabilityRow label="适用职业" value={model.identity.class_name ?? "所有职业"} status="装备要求" />
@@ -399,6 +421,30 @@ function ConfigurationSection({ model }: { model: ArmorDetailViewModel }) {
         </div>
       </div>
     </>
+  );
+}
+
+function ArmorSetBonus(props: { armorSet: NonNullable<ArmorDetailViewModel["identity"]["armor_set"]> }) {
+  const bonuses = props.armorSet.bonuses ?? [];
+  return (
+    <section className="armor-detail-set-bonus" aria-label={`${props.armorSet.name}套装效果`}>
+      <header>
+        <div><span>套装效果</span><h4>{props.armorSet.name}</h4></div>
+        <small>官方套装 Hash {props.armorSet.hash}</small>
+      </header>
+      {props.armorSet.description ? <p className="armor-detail-set-description">{props.armorSet.description}</p> : null}
+      {bonuses.length ? (
+        <ol>
+          {bonuses.map((bonus) => (
+            <li key={`${bonus.required_piece_count}:${bonus.perk_hash}`}>
+              <strong>{bonus.required_piece_count} 件套</strong>
+              {bonus.icon ? <img src={bonus.icon} alt="" /> : <span className="armor-detail-set-perk-icon" aria-hidden="true" />}
+              <div><b>{bonus.name ?? `套装效果 Hash ${bonus.perk_hash}`}</b><p>{bonus.description ?? "官方套装效果定义未返回说明。"}</p></div>
+            </li>
+          ))}
+        </ol>
+      ) : <EmptyState text="官方套装定义未返回可确认的套装效果。" />}
+    </section>
   );
 }
 
@@ -580,8 +626,8 @@ function DataBlockHeading(props: { title: string; source: string }) {
   return <div className="armor-detail-data-heading"><h4 data-ui-part="value" data-text-tone="primary" data-info-priority="context">{props.title}</h4><span data-ui-part="source" data-text-tone="meta" data-info-priority="trace">{props.source}</span></div>;
 }
 
-function Fact(props: { label: string; tone?: string }) {
-  return <span className={["armor-detail-fact", props.tone].filter(Boolean).join(" ")} data-ui-part="value" data-text-tone="primary" data-info-priority="support">{props.label}</span>;
+function Fact(props: { label: string; tone?: string; title?: string }) {
+  return <span className={["armor-detail-fact", props.tone].filter(Boolean).join(" ")} title={props.title} data-ui-part="value" data-text-tone="primary" data-info-priority="support">{props.label}</span>;
 }
 
 function CapabilityRow(props: { label: string; value: string; status: string }) {

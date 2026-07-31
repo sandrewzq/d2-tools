@@ -7,6 +7,8 @@ export type DefinitionComponentName =
   | "DestinyPlugSetDefinition"
   | "DestinySandboxPerkDefinition"
   | "DestinyCollectibleDefinition"
+  | "DestinySeasonDefinition"
+  | "DestinyEquipableItemSetDefinition"
   | "DestinyActivityDefinition"
   | "DestinyMilestoneDefinition"
   | "DestinyVendorDefinition"
@@ -46,6 +48,23 @@ export type DefinitionRecord = {
   equippingBlock?: {
     ammoType?: number;
     damageType?: number;
+    equipableItemSetHash?: number;
+  };
+  setItems?: number[];
+  setPerks?: Array<{
+    requiredSetCount?: number;
+    sandboxPerkHash?: number;
+  }>;
+  seasonHash?: number;
+  seasonNumber?: number;
+  startDate?: string;
+  endDate?: string;
+  quality?: {
+    currentVersion?: number;
+    displayVersionWatermarkIcons?: string[];
+    versions?: Array<{
+      powerCapHash?: number;
+    }>;
   };
   defaultDamageType?: number;
   defaultDamageTypeHash?: number;
@@ -128,6 +147,8 @@ export const requiredDefinitionComponents: DefinitionComponentName[] = [
   "DestinyPlugSetDefinition",
   "DestinySandboxPerkDefinition",
   "DestinyCollectibleDefinition",
+  "DestinySeasonDefinition",
+  "DestinyEquipableItemSetDefinition",
   "DestinyActivityDefinition",
   "DestinyMilestoneDefinition",
   "DestinyVendorDefinition",

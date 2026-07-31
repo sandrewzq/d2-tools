@@ -80,6 +80,9 @@ export type WeaponStatKey =
   | "stability"
   | "handling"
   | "reload_speed"
+  | "aim_assistance"
+  | "airborne_effectiveness"
+  | "ammo_generation"
   | "magazine"
   | "rounds_per_minute"
   | "charge_time"
@@ -563,11 +566,14 @@ const weaponStatHashMap: Record<number, WeaponStatKey> = {
   155624089: "stability",
   943549884: "handling",
   4188031367: "reload_speed",
+  1345609583: "aim_assistance",
+  2715839340: "recoil_direction",
+  2714457168: "airborne_effectiveness",
+  1931675084: "ammo_generation",
   3871231066: "magazine",
   4284893193: "rounds_per_minute",
   2961396640: "charge_time",
-  447667954: "draw_time",
-  2714457168: "recoil_direction"
+  447667954: "draw_time"
 };
 
 export async function fetchAccountSummary(options: FetchAccountSummaryOptions): Promise<AccountSummary> {

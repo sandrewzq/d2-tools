@@ -411,8 +411,8 @@ function InGameLoadoutItemRow(props: { row: InGameLoadoutItemRowView }) {
   return (
     <li data-status={located ? "success" : "warning"}>
       <ItemVisual icon={locatedItem?.icon ?? item.icon} label={item.name} bucketName={item.bucket_name} />
-      <span><strong>{item.name}</strong><small>{[item.bucket_name || "未知槽位", locationLabel, item.plugs?.length ? item.plugs.map((plug) => plug.name).join("、") : row.plug_count ? `${row.plug_count} 个 Plug` : "未返回 Plug"].join(" · ")}</small></span>
-      <em data-status={located ? "success" : "warning"}>{located ? row.equipped_on_target_character ? "当前已装备" : "已定位待装备" : "未定位"}</em>
+      <span><strong>{item.name}</strong><small>{[item.bucket_name || "未知槽位", locationLabel, item.plugs?.length ? item.plugs.map((plug) => plug.name).join("、") : props.row.plug_count ? `${props.row.plug_count} 个 Plug` : "未返回 Plug"].join(" · ")}</small></span>
+      <em data-status={located ? "success" : "warning"}>{located ? props.row.equipped_on_target_character ? "当前已装备" : "已定位待装备" : "未定位"}</em>
     </li>
   );
 }

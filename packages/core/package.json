@@ -82,6 +82,10 @@
       "types": "./dist/items/release.d.ts",
       "import": "./dist/items/release.js"
     },
+    "./items/equipableItemSet": {
+      "types": "./dist/items/equipableItemSet.d.ts",
+      "import": "./dist/items/equipableItemSet.js"
+    },
     "./items/breakerTypes": {
       "types": "./dist/items/breakerTypes.d.ts",
       "import": "./dist/items/breakerTypes.js"

@@ -58,7 +58,10 @@ export function createReaderGameDataCatalog(
           statDefinitions: context.stats,
           collectibleDefinitions: context.collectibles,
           breakerTypeDefinitions: context.breakerTypes,
-          damageTypeDefinitions: context.damageTypes
+          damageTypeDefinitions: context.damageTypes,
+          seasonDefinitions: context.seasons,
+          equipableItemSetDefinitions: context.equipableItemSets,
+          sandboxPerkDefinitions: context.sandboxPerks
         }))
         .filter((result): result is ItemSearchResult => Boolean(result));
 
@@ -109,6 +112,9 @@ export function createReaderGameDataCatalog(
         collectibleDefinitions: context.collectibles,
         breakerTypeDefinitions: context.breakerTypes,
         damageTypeDefinitions: context.damageTypes,
+        seasonDefinitions: context.seasons,
+        equipableItemSetDefinitions: context.equipableItemSets,
+        sandboxPerkDefinitions: context.sandboxPerks,
         includeAllPerks: true
       });
     },
@@ -169,6 +175,9 @@ type ItemDefinitionContext = {
   collectibles: DefinitionComponentData;
   breakerTypes: DefinitionComponentData;
   damageTypes: DefinitionComponentData;
+  seasons: DefinitionComponentData;
+  equipableItemSets: DefinitionComponentData;
+  sandboxPerks: DefinitionComponentData;
 };
 
 function hydrateItemContext(
@@ -195,6 +204,13 @@ function hydrateItemContext(
   const allItems = definitionData([...roots, ...Object.values(linkedItems), ...Object.values(plugs)]);
   const relevantRecords = Object.values(allItems);
 
+  const equipableItemSets = reader.getMany(
+    "DestinyEquipableItemSetDefinition",
+    relevantRecords
+      .map((definition) => definition.equippingBlock?.equipableItemSetHash)
+      .filter((hash): hash is number => typeof hash === "number")
+  );
+
   return {
     items: allItems,
     plugSets,
@@ -208,6 +224,9 @@ function hydrateItemContext(
     breakerTypes: reader.getMany(
       "DestinyBreakerTypeDefinition",
       [
+        // Some intrinsic Perks encode champion effects by Perk hash, so their
+        // owning item has no breaker enum to index directly.
+        ...searchIndex.getEnumHashes("breaker", [1, 2, 3]),
         ...relevantRecords
           .map((definition) => definition.breakerTypeHash)
           .filter((hash): hash is number => typeof hash === "number"),
@@ -240,6 +259,21 @@ function hydrateItemContext(
           ])
         )
       ]
+    ),
+    seasons: reader.getMany(
+      "DestinySeasonDefinition",
+      relevantRecords
+        .map((definition) => definition.seasonHash)
+        .filter((hash): hash is number => typeof hash === "number")
+    ),
+    equipableItemSets,
+    sandboxPerks: reader.getMany(
+      "DestinySandboxPerkDefinition",
+      Object.values(equipableItemSets).flatMap((set) => (
+        (set.setPerks ?? [])
+          .map((bonus) => bonus.sandboxPerkHash)
+          .filter((hash): hash is number => typeof hash === "number")
+      ))
     )
   };
 }

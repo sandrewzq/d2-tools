@@ -4,7 +4,13 @@ import { ammoTypeKey, classifyBucket, type AmmoTypeKey, type EquipmentGroupKey }
 import { summarizeItemIntrinsicTraits, type ItemIntrinsicTraitSummary } from "./intrinsics.js";
 import { summarizeItemPerks, type ItemPerkGroup } from "./perks.js";
 import { summarizeItemSource, type ItemSourceSummary } from "./source.js";
-import { summarizeItemRelease, type ItemReleaseSummary } from "./release.js";
+import {
+  summarizeItemDefinitionVersion,
+  summarizeItemRelease,
+  type ItemDefinitionVersionSummary,
+  type ItemReleaseSummary
+} from "./release.js";
+import { summarizeEquipableItemSet, type EquipableItemSetSummary } from "./equipableItemSet.js";
 import { summarizeWeaponFrame, type WeaponFrameSummary } from "./weaponFrames.js";
 import { summarizeWeaponBreakerType, type WeaponBreakerTypeSummary } from "./breakerTypes.js";
 import { summarizeItemDamageType, type DamageTypeSummary } from "./damageTypes.js";
@@ -16,6 +22,9 @@ export type ItemSearchOptions = {
   collectibleDefinitions?: DefinitionComponentData;
   breakerTypeDefinitions?: DefinitionComponentData;
   damageTypeDefinitions?: DefinitionComponentData;
+  seasonDefinitions?: DefinitionComponentData;
+  equipableItemSetDefinitions?: DefinitionComponentData;
+  sandboxPerkDefinitions?: DefinitionComponentData;
   aliases?: ItemAliases;
   includeAllPerks?: boolean;
 };
@@ -53,6 +62,8 @@ export type ItemSearchResult = {
   breaker_type?: WeaponBreakerTypeSummary;
   source: ItemSourceSummary;
   release?: ItemReleaseSummary;
+  definition_version?: ItemDefinitionVersionSummary;
+  armor_set?: EquipableItemSetSummary;
   definition_stats?: ItemDefinitionStat[];
   perks?: ItemPerkGroup[];
 };
@@ -216,9 +227,13 @@ function toItemSearchResult(
   if (breakerType) {
     result.breaker_type = breakerType;
   }
-  const release = summarizeItemRelease(definition);
+  const release = summarizeItemRelease(definition, options.seasonDefinitions);
   if (release) {
     result.release = release;
+  }
+  const definitionVersion = summarizeItemDefinitionVersion(definition);
+  if (definitionVersion) {
+    result.definition_version = definitionVersion;
   }
 
   const definitionStats = summarizeDefinitionStats(definition, options.statDefinitions);
@@ -227,6 +242,14 @@ function toItemSearchResult(
   }
 
   if (bucket?.group === "armor") {
+    const armorSet = summarizeEquipableItemSet(
+      definition,
+      options.equipableItemSetDefinitions,
+      options.sandboxPerkDefinitions
+    );
+    if (armorSet) {
+      result.armor_set = armorSet;
+    }
     const intrinsicTraits = summarizeItemIntrinsicTraits(definition, definitions);
     if (intrinsicTraits.length > 0) {
       result.intrinsic_traits = intrinsicTraits;

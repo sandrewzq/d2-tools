@@ -412,11 +412,14 @@ const vendorWeaponStatKeys: Record<number, string> = {
   155624089: "stability",
   943549884: "handling",
   4188031367: "reload_speed",
+  1345609583: "aim_assistance",
+  2715839340: "recoil_direction",
+  2714457168: "airborne_effectiveness",
+  1931675084: "ammo_generation",
   3871231066: "magazine",
   4284893193: "rounds_per_minute",
   2961396640: "charge_time",
-  447667954: "draw_time",
-  2714457168: "recoil_direction"
+  447667954: "draw_time"
 };
 
 function findCategory(categories: readonly VendorCategoryInput[], vendorItemIndex: number) {

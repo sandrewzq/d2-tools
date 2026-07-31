@@ -183,13 +183,27 @@ describe("library page workspace", () => {
         ...equipmentItems[0],
         hash: 10,
         name: "天堂暴政",
-        release: { status: "ready", label: "版本", description: "遗落之族（年 2，第 4 赛季）" }
+        release: {
+          status: "ready",
+          label: "发布赛季",
+          season_hash: 400004,
+          season_number: 4,
+          name: "锻炉赛季",
+          description: "第 4 赛季 · 锻炉赛季"
+        }
       },
       {
         ...equipmentItems[0],
         hash: 11,
         name: "天堂暴政",
-        release: { status: "ready", label: "版本", description: "深渊赛季（年 6，第 21 赛季）" }
+        release: {
+          status: "ready",
+          label: "发布赛季",
+          season_hash: 400021,
+          season_number: 21,
+          name: "深渊赛季",
+          description: "第 21 赛季 · 深渊赛季"
+        }
       }
     ];
 

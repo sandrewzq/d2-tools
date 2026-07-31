@@ -275,7 +275,7 @@ function mergeAccountItemDetail(
     armor_stats: detail.armor_stats,
     armor_stat_breakdown: detail.armor_stat_breakdown,
     armor_energy: detail.armor_energy,
-    weapon_stats: detail.weapon_stats,
+    weapon_stats: detail.weapon_stats ?? current.weapon_stats,
     instance: detail.instance,
     item_objectives: detail.item_objectives,
     sockets: detail.sockets,
