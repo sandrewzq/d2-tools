@@ -29,6 +29,24 @@ export type DefinitionRecord = {
     description?: string;
     icon?: string;
   };
+  vendorIdentifier?: string;
+  locations?: Array<{
+    destinationHash?: number;
+  }>;
+  itemList?: Array<{
+    itemHash?: number;
+    displayCategoryIndex?: number;
+    redirectToSaleIndexes?: number[];
+  }>;
+  displayCategories?: Array<{
+    identifier?: string;
+    displayProperties?: {
+      name?: string;
+    };
+  }>;
+  preview?: {
+    previewVendorHash?: number;
+  };
   categoryName?: string;
   order?: number;
   groups?: Array<{
@@ -39,6 +57,15 @@ export type DefinitionRecord = {
     description?: string;
     icon?: string;
   };
+  directActivityModeType?: number;
+  activityModeTypes?: number[];
+  matchmaking?: {
+    isMatchmade?: boolean;
+  };
+  modifiers?: Array<{
+    activityModifierHash?: number;
+  }>;
+  iconWatermark?: string;
   itemTypeDisplayName?: string;
   classType?: number;
   inventory?: {
@@ -84,6 +111,7 @@ export type DefinitionRecord = {
   completionValue?: number;
   translationBlock?: {
     artArrangementHash?: number;
+    weaponPatternHash?: number;
     arrangements?: Array<{
       artArrangementHash?: number;
       classHash?: number;

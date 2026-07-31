@@ -25,6 +25,62 @@ export type WeeklyActivityReward = {
   group_key?: "weapons" | "armor" | "equipment" | "other";
 };
 
+export type WeeklyIronBannerChallenge = {
+  objective_hash?: number;
+  progress: number;
+  completion_value: number;
+  complete: boolean;
+  progress_label?: string;
+  description?: string;
+};
+
+export type WeeklyIronBannerCharacter = {
+  character_id: string;
+  activity_hash?: number;
+  challenge?: WeeklyIronBannerChallenge;
+};
+
+export type WeeklyIronBannerRewardGroup = {
+  display_behavior?: number;
+  label: string;
+  note: string;
+  conditional: boolean;
+  items: WeeklyActivityReward[];
+};
+
+export type WeeklyIronBannerLootItem = WeeklyActivityReward & {
+  cost_label?: string;
+};
+
+export type WeeklyIronBannerLootPool = {
+  status: "ready" | "pending";
+  source: string;
+  refresh_at?: string;
+  attunement_count: number;
+  weapon_offer_count: number;
+  armor_offer_count: number;
+  featured_items: WeeklyIronBannerLootItem[];
+};
+
+export type WeeklyIronBannerSummary = {
+  status: "active" | "inactive" | "unavailable";
+  title: string;
+  detail: string;
+  activity_name?: string;
+  activity_icon?: string;
+  playlist_name?: string;
+  evidence?: string;
+  source?: string;
+  related_hashes?: number[];
+  characters: {
+    available_count: number;
+    total_count: number;
+    entries: Record<string, WeeklyIronBannerCharacter>;
+  };
+  reward_groups: WeeklyIronBannerRewardGroup[];
+  loot_pool: WeeklyIronBannerLootPool;
+};
+
 export type WeeklyActivityEntry = {
   title: string;
   detail?: string;
@@ -50,11 +106,13 @@ export type WeeklySummary = {
     time_remaining_label: string;
   };
   priorities: Record<WeeklyPriorityKind, WeeklySummaryPriority>;
+  iron_banner: WeeklyIronBannerSummary;
   public_clues: WeeklySummaryItem[];
 };
 
 export type WeeklyLiveData = {
   items?: WeeklySummaryItem[];
+  iron_banner?: WeeklyIronBannerSummary;
   public_clues?: WeeklySummaryItem[];
 };
 
@@ -110,9 +168,32 @@ export function buildWeeklySummary(
       weekly_bonus: buildPriority("weekly_bonus", items),
       special_event: buildPriority("special_event", items)
     },
+    iron_banner: liveData.iron_banner ?? createUnavailableIronBanner(),
     public_clues: (liveData.public_clues ?? [])
       .filter((item) => item.title.trim())
       .slice(0, 4)
+  };
+}
+
+function createUnavailableIronBanner(): WeeklyIronBannerSummary {
+  return {
+    status: "unavailable",
+    title: "铁旗状态待确认",
+    detail: "登录 Bungie 并完成资料库初始化后读取当前铁旗轮换。",
+    characters: {
+      available_count: 0,
+      total_count: 0,
+      entries: {}
+    },
+    reward_groups: [],
+    loot_pool: {
+      status: "pending",
+      source: "等待 Bungie Character Vendors",
+      attunement_count: 0,
+      weapon_offer_count: 0,
+      armor_offer_count: 0,
+      featured_items: []
+    }
   };
 }
 

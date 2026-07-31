@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { summarizeItemRelease } from "../src/items/release.ts";
 import { searchItemDefinitions } from "../src/items/search.ts";
 import type { DefinitionComponentData } from "../src/manifest/definitions.js";
 
@@ -349,19 +350,23 @@ describe("item definition search", () => {
     expect(results.map((item) => item.release)).toEqual([
       {
         status: "ready",
-        label: "发布赛季",
+        label: "发布版本",
+        kind: "season",
         season_hash: 400004,
         season_number: 4,
+        year_number: 2,
         name: "锻炉赛季",
-        description: "第 4 赛季 · 锻炉赛季"
+        description: "第2年 · 第4赛季 · 锻炉赛季"
       },
       {
         status: "ready",
-        label: "发布赛季",
+        label: "发布版本",
+        kind: "season",
         season_hash: 400021,
         season_number: 21,
+        year_number: 6,
         name: "深渊赛季",
-        description: "第 21 赛季 · 深渊赛季"
+        description: "第6年 · 第21赛季 · 深渊赛季"
       }
     ]);
     expect(results.map((item) => item.source)).toEqual([
@@ -382,6 +387,34 @@ describe("item definition search", () => {
         linked_definition_hash: 2721249463
       }
     ]);
+  });
+
+  it("parses annual releases and maps current content traits to their release season", () => {
+    expect(summarizeItemRelease({ traitIds: ["releases.v600.annual"] }, undefined)).toMatchObject({
+      status: "ready",
+      label: "发布版本",
+      kind: "annual",
+      year_number: 5,
+      name: "邪姬魅影",
+      description: "第5年 · 邪姬魅影"
+    });
+    expect(summarizeItemRelease({ traitIds: ["releases.v950.dlc"] }, undefined)).toMatchObject({
+      status: "ready",
+      label: "发布版本",
+      kind: "dlc",
+      season_number: 28,
+      year_number: 8,
+      name: "反叛",
+      description: "第8年 · 第28赛季 · 凯旋纪念碑 · 反叛内容包"
+    });
+    expect(summarizeItemRelease({ traitIds: ["releases.v970.core"] }, undefined)).toMatchObject({
+      status: "ready",
+      label: "发布版本",
+      kind: "core",
+      season_number: 28,
+      year_number: 8,
+      description: "第8年 · 第28赛季 · 凯旋纪念碑 · 核心内容更新"
+    });
   });
 
   it("returns confirmed bucket, group, and ammo fields for library filters", () => {

@@ -3,6 +3,7 @@
       --rail-sm:200px;--rail-md:240px;--rail-context:280px;--item-thumb:44px;
       --row-pad-x:12px;--row-pad-y:8px;--font-meta:10px;--font-body:11px;
     }
+
     html[data-density="compact"]{--space-page:12px;--space-section:12px}
     html[data-density="comfortable"]{--space-page:24px;--space-section:24px}
     html,body{width:100%;height:100%;overflow:hidden}body{font-size:13px}.app{height:100%;display:grid;grid-template-rows:var(--topbar) minmax(0,1fr)}
@@ -299,3 +300,30 @@
       .home-refresh-cell{grid-template-areas:"heading heading" "value value" "state state" "detail detail";grid-template-columns:1fr;align-items:start}
       .home-refresh-cell strong,.home-refresh-cell>small[data-ui-part="state"]{justify-self:start;white-space:normal;overflow-wrap:anywhere}
     }
+
+    /* 首页铁旗固定区：紧凑状态优先，奖励和聚焦池按需展开。 */
+    .weekly-signal-grid{grid-template-columns:1fr}
+    .home-weekly-side-signals{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:8px;min-width:0}
+    .iron-banner-card{display:grid;grid-template-columns:1fr;min-width:0;overflow:hidden;border-left:3px solid var(--amber)}
+    .iron-banner-heading{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:12px;min-width:0;padding:10px 12px;background:var(--section-bg)}
+    .iron-banner-identity{display:flex;align-items:center;gap:9px;min-width:0}.iron-banner-identity>div{display:grid;gap:2px;min-width:0}.iron-banner-identity h3{margin:1px 0 0}.iron-banner-identity small{display:block}
+    .iron-banner-mark{display:grid;place-items:center;flex:0 0 44px;width:44px;height:44px;overflow:hidden;border:1px solid var(--amber);border-radius:var(--radius-control);background:var(--amber-bg)}
+    .iron-banner-mark img{display:block;width:100%;height:100%;object-fit:cover}.iron-banner-mark svg{width:25px;height:25px;fill:none;stroke:var(--amber);stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+    .iron-banner-timing{display:grid;justify-items:end;gap:2px;min-width:132px;font-variant-numeric:tabular-nums}.iron-banner-timing>strong,.iron-banner-timing>small{white-space:nowrap}
+    .iron-banner-vendor-action{min-width:108px}.iron-banner-overview{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(360px,.9fr);min-width:0;border-top:1px solid var(--section-divider)}
+    .iron-banner-challenge{display:grid;grid-template-columns:minmax(0,1fr) minmax(140px,.42fr);gap:16px;align-items:end;min-width:0;padding:10px 12px}.iron-banner-challenge-copy,.iron-banner-challenge-progress{display:grid;gap:4px;min-width:0}.iron-banner-challenge-copy p{margin:0}.iron-banner-challenge-progress>small{text-align:right;font-variant-numeric:tabular-nums}
+    .iron-banner-progress-track{height:7px;overflow:hidden;border-radius:999px;background:var(--surface)}.iron-banner-progress-track i{display:block;height:100%;border-radius:inherit;background:var(--mint)}
+    .iron-banner-metrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));min-width:0;border-left:1px solid var(--section-divider)}.iron-banner-metric{display:grid;align-content:center;gap:2px;min-width:0;padding:8px 10px;border-right:1px solid var(--section-divider);border-bottom:1px solid var(--section-divider)}.iron-banner-metric:nth-child(even){border-right:0}.iron-banner-metric>strong{font-size:17px;font-variant-numeric:tabular-nums}.iron-banner-metric.is-pending{grid-column:1/-1;border-right:0;border-bottom:0}
+    .iron-banner-highlights{min-width:0;border-top:1px solid var(--section-divider)}.iron-banner-highlights>header{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:44px;padding:8px 12px;background:var(--surface)}.iron-banner-highlights>header>div{display:grid;gap:2px;min-width:0}.iron-banner-highlights>header>small{margin-left:auto;text-align:right}
+    .iron-banner-detail-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(360px,.9fr);min-width:0}.iron-banner-detail-grid.is-single{grid-template-columns:1fr}.iron-banner-detail-grid.is-single .iron-banner-loot{border-left:0}.iron-banner-reward-groups,.iron-banner-loot{display:grid;gap:8px;min-width:0;padding:10px 12px}.iron-banner-loot{border-left:1px solid var(--section-divider);background:var(--section-bg)}
+    .iron-banner-source{display:block;padding:6px 12px 8px;border-top:1px solid var(--section-divider)}.iron-banner-compact-state{display:grid;gap:3px;padding:9px 12px 10px;border-top:1px solid var(--section-divider)}.iron-banner-compact-state p{margin:0}
+    @media(max-width:980px){.iron-banner-overview,.iron-banner-detail-grid{grid-template-columns:1fr}.iron-banner-metrics,.iron-banner-loot{border-top:1px solid var(--section-divider);border-left:0}}
+    @media(max-width:760px){.iron-banner-heading{grid-template-columns:minmax(0,1fr) auto;align-items:start}.iron-banner-vendor-action{grid-column:1/-1;width:100%}.iron-banner-timing{min-width:0}.iron-banner-challenge,.iron-banner-loot-grid{grid-template-columns:1fr}.iron-banner-challenge-progress>small{text-align:left}.iron-banner-highlights>header{align-items:flex-start;flex-wrap:wrap}.iron-banner-highlights>header>small{width:100%;margin-left:0;text-align:left}}
+
+    /* 首页周信号：铁旗与本周加成同行，库存详情留在商人页。 */
+    .weekly-signal-grid{grid-template-columns:minmax(0,3fr) minmax(280px,2fr);align-items:stretch;gap:8px}.home-weekly-side-signals{display:contents}.home-weekly-side-signals>.weekly-signal-card:nth-child(n+2){grid-column:1/-1}
+    .weekly-signal-card,.iron-banner-card{min-width:0;min-height:108px}.weekly-signal-card{display:grid;grid-template-rows:auto 1fr;gap:8px;padding:10px 12px}.weekly-signal-card>header{margin:0}.weekly-signal-copy{display:grid;align-content:center;gap:3px;min-width:0}.weekly-signal-copy p{margin:0}
+    .iron-banner-card{display:grid;grid-template-columns:1fr;grid-template-rows:auto 1fr;overflow:hidden;border-left:3px solid var(--amber)}.iron-banner-heading{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:12px;min-width:0;padding:9px 11px 7px;background:transparent}.iron-banner-identity{gap:8px}.iron-banner-identity>div{gap:1px}.iron-banner-identity h3{margin:0}.iron-banner-mark{flex-basis:36px;width:36px;height:36px}.iron-banner-mark svg{width:21px;height:21px}.iron-banner-timing{display:flex;align-items:center;justify-content:flex-end;gap:8px;min-width:0}
+    .iron-banner-summary{display:grid;grid-template-columns:minmax(150px,.85fr) minmax(180px,1.15fr) auto;align-items:center;gap:12px;min-width:0;padding:7px 11px 10px;border-top:1px solid var(--section-divider)}.iron-banner-challenge{display:grid;grid-template-columns:1fr;align-items:center;gap:5px;min-width:0;padding:0;border-top:0}.iron-banner-challenge-line{display:grid;grid-template-columns:auto auto minmax(0,1fr);align-items:baseline;gap:6px;min-width:0}.iron-banner-challenge-line small{overflow-wrap:anywhere}.iron-banner-progress-track{height:5px}.iron-banner-reward-summary{display:grid;gap:2px;min-width:0;padding-left:12px;border-left:1px solid var(--section-divider)}.iron-banner-reward-summary strong{overflow-wrap:anywhere}.iron-banner-vendor-action{min-width:112px;white-space:nowrap}.iron-banner-compact-state{align-content:center;padding:8px 11px 10px}
+    @media(max-width:980px){.weekly-signal-grid{grid-template-columns:1fr}.home-weekly-side-signals{display:grid;grid-template-columns:1fr}.home-weekly-side-signals>.weekly-signal-card:nth-child(n+2){grid-column:auto}}
+    @media(max-width:760px){.iron-banner-summary{grid-template-columns:1fr;gap:8px}.iron-banner-reward-summary{padding-top:7px;padding-left:0;border-top:1px solid var(--section-divider);border-left:0}.iron-banner-vendor-action{width:100%}}

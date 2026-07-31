@@ -100,6 +100,7 @@ async function buildHomeBriefing(
   const weeklyLiveData = buildWeeklyLiveDataFromBungie({
     milestones: snapshot.milestones,
     profile: snapshot.profile,
+    characterVendors: snapshot.characterVendors,
     definitions
   });
   const freshDaily = buildDailySummary(now, dailyLiveData);
@@ -116,7 +117,7 @@ async function buildHomeBriefing(
     ? buildWeeklySummary(now, weeklyLiveData)
     : cached.weekly;
   return {
-    version: 1,
+    version: 2,
     context_key: contextKey,
     saved_at: now.toISOString(),
     fetched_at: snapshot.fetchedAt,
@@ -223,9 +224,12 @@ function collectProfileActivityHashes(snapshot: BungieHomeSnapshot): number[] {
 }
 
 function collectVendorHashes(response: BungieVendorsResponse): number[] {
-  return Object.entries(response.vendors?.data ?? {}).flatMap(([key, vendor]) =>
-    numberValue(vendor.vendorHash ?? Number(key))
-  );
+  return [...new Set([
+    ...Object.entries(response.vendors?.data ?? {}).flatMap(([key, vendor]) =>
+      numberValue(vendor.vendorHash ?? Number(key))
+    ),
+    ...Object.keys(response.sales?.data ?? {}).flatMap((key) => numberValue(Number(key)))
+  ])];
 }
 
 function collectVendorSales(response: BungieVendorsResponse): BungiePublicSale[] {

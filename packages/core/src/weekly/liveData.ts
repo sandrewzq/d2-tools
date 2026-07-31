@@ -1,8 +1,19 @@
 import type { BungieJsonFetcher } from "../bungie/transport.js";
+import { isIronBannerActivityMode } from "../activities/modes.js";
 import type { DefinitionComponentData, DefinitionRecord } from "../manifest/definitions.js";
 import { classifyBucket } from "../items/classification.js";
 import type { BungieOAuthToken } from "../oauth/login.js";
-import type { WeeklyActivityReward, WeeklyLiveData, WeeklyPriorityKind, WeeklySummaryItem } from "./summary.js";
+import type {
+  WeeklyActivityReward,
+  WeeklyIronBannerChallenge,
+  WeeklyIronBannerLootItem,
+  WeeklyIronBannerLootPool,
+  WeeklyIronBannerRewardGroup,
+  WeeklyIronBannerSummary,
+  WeeklyLiveData,
+  WeeklyPriorityKind,
+  WeeklySummaryItem
+} from "./summary.js";
 
 type PublicMilestone = {
   displayProperties?: {
@@ -18,6 +29,9 @@ type PublicMilestone = {
 };
 
 type DestinyProfileActivitiesResponse = {
+  characters?: {
+    data?: Record<string, { characterId?: string }>;
+  };
   characterActivities?: {
     data?: Record<string, {
       availableActivities?: DestinyAvailableActivity[];
@@ -40,9 +54,14 @@ type DestinyAvailableActivity = {
   challenges?: Array<{
     objective?: {
       objectiveHash?: number;
+      progress?: number;
+      completionValue?: number;
+      complete?: boolean;
+      visible?: boolean;
     };
   }>;
   visibleRewards?: Array<{
+    displayBehavior?: number;
     rewardItems?: Array<{
       itemQuantity?: {
         itemHash?: number;
@@ -51,12 +70,48 @@ type DestinyAvailableActivity = {
   }>;
 };
 
+type CharacterVendorResponse = {
+  characterId: string;
+  vendors?: {
+    data?: Record<string, {
+      vendorHash?: number;
+      enabled?: boolean;
+      canPurchase?: boolean;
+      nextRefreshDate?: string;
+    }>;
+  };
+  categories?: {
+    data?: Record<string, {
+      categories?: Array<{
+        displayCategoryIndex?: number;
+        itemIndexes?: number[];
+      }>;
+    }>;
+  };
+  sales?: {
+    data?: Record<string, Record<string, unknown> & {
+      saleItems?: Record<string, VendorSale>;
+    }>;
+  };
+};
+
+type VendorSale = {
+  vendorItemIndex?: number;
+  itemHash?: number;
+  costs?: Array<{
+    itemHash?: number;
+    quantity?: number;
+  }>;
+};
+
 export type BuildWeeklyLiveDataInput = {
   milestones?: Record<string, PublicMilestone>;
   profile?: DestinyProfileActivitiesResponse;
+  characterVendors?: CharacterVendorResponse[];
   definitions?: {
     activities?: DefinitionComponentData | null;
     milestones?: DefinitionComponentData | null;
+    vendors?: DefinitionComponentData | null;
     items?: DefinitionComponentData | null;
     objectives?: DefinitionComponentData | null;
   };
@@ -155,8 +210,441 @@ export function buildWeeklyLiveDataFromBungie(input: BuildWeeklyLiveDataInput): 
 
   return {
     items: uniqueByKindAndTitle(items).slice(0, 12),
+    iron_banner: buildIronBannerSummary(input, definitions),
     public_clues: uniqueByTitle(publicClues).slice(0, 4)
   };
+}
+
+function buildIronBannerSummary(
+  input: BuildWeeklyLiveDataInput,
+  definitions: NonNullable<BuildWeeklyLiveDataInput["definitions"]>
+): WeeklyIronBannerSummary {
+  const characterData = input.profile?.characterActivities?.data;
+  const totalCharacterIds = Object.keys(input.profile?.characters?.data ?? characterData ?? {});
+  const lootPool = buildIronBannerLootPool(input.characterVendors ?? [], definitions);
+  if (!input.profile || !characterData) {
+    if (lootPool.status === "ready") {
+      return createVendorConfirmedIronBanner(totalCharacterIds.length, lootPool);
+    }
+    return createIronBannerState("unavailable", totalCharacterIds.length, {
+      title: "铁旗状态待确认",
+      detail: "登录 Bungie 后读取角色活动、每周挑战和萨拉丁库存。"
+    });
+  }
+
+  const characterEntries: WeeklyIronBannerSummary["characters"]["entries"] = {};
+  const activeActivities: Array<{ characterId: string; activity: DestinyAvailableActivity; definition: DefinitionRecord }> = [];
+  for (const [characterId, component] of Object.entries(characterData)) {
+    const matches = (component.availableActivities ?? []).flatMap((activity) => {
+      const definition = definitionRecord(definitions.activities, activity.activityHash);
+      return definition && isIronBannerActivityDefinition(definition)
+        ? [{ activity, definition }]
+        : [];
+    });
+    const match = matches.find(({ activity }) => Boolean(ironBannerChallenge(activity, definitions.objectives)))
+      ?? matches[0];
+    if (!match) continue;
+    const challenge = ironBannerChallenge(match.activity, definitions.objectives);
+    characterEntries[characterId] = {
+      character_id: characterId,
+      activity_hash: match.activity.activityHash,
+      challenge
+    };
+    activeActivities.push({ characterId, activity: match.activity, definition: match.definition });
+  }
+
+  if (!activeActivities.length) {
+    if (lootPool.status === "ready") {
+      return createVendorConfirmedIronBanner(totalCharacterIds.length, lootPool);
+    }
+    return createIronBannerState("inactive", totalCharacterIds.length, {
+      title: "铁旗当前未开放",
+      detail: "固定保留此区域；当前角色活动列表没有返回铁旗玩法。"
+    });
+  }
+
+  const representative = activeActivities[0];
+  const activityName = activityDisplayName(representative.definition) ?? "铁旗";
+  const playlistName = ironBannerPlaylistName(representative.definition);
+  const relatedHashes = uniqueNumbers([
+    representative.activity.activityHash,
+    ...activityModifierHashes(representative.definition),
+    ...Object.values(characterEntries).flatMap((entry) => numberList(entry.challenge?.objective_hash))
+  ]);
+
+  return {
+    status: "active",
+    title: "铁旗已开放",
+    detail: [activityName, playlistName, "限时熔炉竞技场"].filter(Boolean).join(" · "),
+    activity_name: activityName,
+    activity_icon: representative.definition.displayProperties?.icon,
+    playlist_name: playlistName,
+    evidence: relatedHashes.length ? `活动与目标 Hash：${relatedHashes.join(" / ")}` : undefined,
+    source: "Bungie CharacterActivities + 当前 Manifest",
+    related_hashes: relatedHashes,
+    characters: {
+      available_count: activeActivities.length,
+      total_count: totalCharacterIds.length,
+      entries: characterEntries
+    },
+    reward_groups: ironBannerRewardGroups(representative.activity, definitions.items),
+    loot_pool: lootPool
+  };
+}
+
+function createVendorConfirmedIronBanner(
+  totalCharacters: number,
+  lootPool: WeeklyIronBannerLootPool
+): WeeklyIronBannerSummary {
+  return {
+    status: "active",
+    title: "铁旗已开放",
+    detail: "萨拉丁与铁旗聚焦库存已开放；当前角色挑战数据待读取。",
+    activity_name: "铁旗",
+    playlist_name: "当前玩法待读取",
+    source: "Bungie Character Vendors + 当前 Manifest",
+    characters: {
+      available_count: 0,
+      total_count: totalCharacters,
+      entries: {}
+    },
+    reward_groups: [],
+    loot_pool: lootPool
+  };
+}
+
+function createIronBannerState(
+  status: "inactive" | "unavailable",
+  totalCharacters: number,
+  copy: { title: string; detail: string }
+): WeeklyIronBannerSummary {
+  return {
+    status,
+    title: copy.title,
+    detail: copy.detail,
+    characters: {
+      available_count: 0,
+      total_count: totalCharacters,
+      entries: {}
+    },
+    reward_groups: [],
+    loot_pool: emptyIronBannerLootPool()
+  };
+}
+
+function isIronBannerActivityDefinition(definition: DefinitionRecord): boolean {
+  const directMode = typeof definition.directActivityModeType === "number"
+    ? definition.directActivityModeType
+    : undefined;
+  const modes = Array.isArray(definition.activityModeTypes)
+    ? definition.activityModeTypes.filter((mode): mode is number => typeof mode === "number")
+    : [];
+  if ([directMode, ...modes].some((mode) => mode !== undefined && isIronBannerActivityMode(mode))) {
+    return true;
+  }
+  return isIronBannerText([
+    definition.displayProperties?.name,
+    definition.displayProperties?.description,
+    definition.originalDisplayProperties?.name,
+    definition.originalDisplayProperties?.description
+  ].filter(Boolean).join(" "));
+}
+
+function ironBannerPlaylistName(definition: DefinitionRecord): string {
+  const matchmaking = definition.matchmaking as { isMatchmade?: boolean } | undefined;
+  return matchmaking?.isMatchmade === false ? "非匹配活动" : "匹配开放";
+}
+
+function activityModifierHashes(definition: DefinitionRecord): number[] {
+  const modifiers = definition.modifiers as Array<{ activityModifierHash?: number }> | undefined;
+  return (modifiers ?? []).flatMap((modifier) => numberList(modifier.activityModifierHash));
+}
+
+function ironBannerChallenge(
+  activity: DestinyAvailableActivity,
+  definitions: DefinitionComponentData | null | undefined
+): WeeklyIronBannerChallenge | undefined {
+  const challenge = (activity.challenges ?? []).find((candidate) => candidate.objective?.visible !== false)
+    ?? activity.challenges?.[0];
+  const objective = challenge?.objective;
+  if (!objective) return undefined;
+  const definition = definitionRecord(definitions, objective.objectiveHash);
+  const completionValue = positiveNumber(objective.completionValue)
+    ?? positiveNumber(definition?.completionValue)
+    ?? 1;
+  const progress = Math.max(0, finiteNumber(objective.progress) ?? 0);
+  return {
+    objective_hash: objective.objectiveHash,
+    progress,
+    completion_value: completionValue,
+    complete: objective.complete === true || progress >= completionValue,
+    progress_label: definition?.progressDescription?.trim() || undefined,
+    description: definition?.displayProperties?.description?.trim() || undefined
+  };
+}
+
+function ironBannerRewardGroups(
+  activity: DestinyAvailableActivity,
+  definitions: DefinitionComponentData | null | undefined
+): WeeklyIronBannerRewardGroup[] {
+  return (activity.visibleRewards ?? []).flatMap((group, index) => {
+    const items = rewardItems(group.rewardItems, definitions);
+    if (!items.length) return [];
+    const conditional = group.displayBehavior === 1;
+    return [{
+      display_behavior: group.displayBehavior,
+      label: conditional ? "概率掉落提示" : (index === 0 ? "活动奖励提示" : "额外奖励提示"),
+      note: conditional
+        ? "条件可见的通用熔炉掉落，不计入铁旗专属奖励。"
+        : "当前角色活动列表可见，不代表每局必定获得。",
+      conditional,
+      items
+    }];
+  });
+}
+
+function rewardItems(
+  rewards: Array<{ itemQuantity?: { itemHash?: number } }> | undefined,
+  definitions: DefinitionComponentData | null | undefined
+): WeeklyActivityReward[] {
+  return uniqueNumbers((rewards ?? []).flatMap((reward) => numberList(reward.itemQuantity?.itemHash)))
+    .map((hash) => activityReward(hash, definitions))
+    .filter((reward): reward is WeeklyActivityReward => Boolean(reward));
+}
+
+function activityReward(
+  hash: number,
+  definitions: DefinitionComponentData | null | undefined
+): WeeklyActivityReward | undefined {
+  const definition = definitionRecord(definitions, hash);
+  const name = definition?.displayProperties?.name?.trim();
+  if (!name) return undefined;
+  const reward: WeeklyActivityReward = { hash, name };
+  if (definition?.displayProperties?.icon) reward.icon = definition.displayProperties.icon;
+  if (typeof definition?.itemTypeDisplayName === "string") reward.item_type = definition.itemTypeDisplayName;
+  const group = classifyBucket(definition?.inventory?.bucketTypeHash)?.group;
+  if (group) reward.group_key = group;
+  return reward;
+}
+
+function buildIronBannerLootPool(
+  responses: CharacterVendorResponse[],
+  definitions: NonNullable<BuildWeeklyLiveDataInput["definitions"]>
+): WeeklyIronBannerLootPool {
+  if (!responses.length) return emptyIronBannerLootPool();
+  const vendorHashes = collectIronBannerVendorHashes(responses, definitions);
+  const offers = responses.flatMap((response) => collectIronBannerVendorOffers(response, vendorHashes, definitions));
+  const uniqueOffers = uniqueIronBannerOffers(offers);
+  const attunement = uniqueOffers.filter((offer) => offer.semantic === "attunement");
+  const focusing = uniqueOffers.filter((offer) => offer.semantic === "focusing");
+  const weapons = focusing.filter((offer) => offer.item.group_key === "weapons");
+  const armor = focusing.filter((offer) => offer.item.group_key === "armor");
+  const featured = [...weapons.slice(0, 3), ...armor.slice(0, 1)].map((offer) => offer.item);
+  const refreshAt = responses.flatMap((response) => Object.entries(response.vendors?.data ?? {}))
+    .filter(([key, vendor]) => vendorHashes.has(vendor.vendorHash ?? Number(key)))
+    .map(([, vendor]) => vendor.nextRefreshDate)
+    .filter((value): value is string => Boolean(value))
+    .sort()[0];
+  return {
+    status: vendorHashes.size ? "ready" : "pending",
+    source: vendorHashes.size
+      ? "Bungie Character Vendors + 当前 Manifest"
+      : "当前未读取到萨拉丁商人库存",
+    refresh_at: refreshAt,
+    attunement_count: attunement.length,
+    weapon_offer_count: weapons.length,
+    armor_offer_count: armor.length,
+    featured_items: featured
+  };
+}
+
+function emptyIronBannerLootPool(): WeeklyIronBannerLootPool {
+  return {
+    status: "pending",
+    source: "等待 Bungie Character Vendors",
+    attunement_count: 0,
+    weapon_offer_count: 0,
+    armor_offer_count: 0,
+    featured_items: []
+  };
+}
+
+type IronBannerVendorOffer = {
+  semantic: "attunement" | "focusing" | "other";
+  item: WeeklyIronBannerLootItem;
+};
+
+function collectIronBannerVendorHashes(
+  responses: CharacterVendorResponse[],
+  definitions: NonNullable<BuildWeeklyLiveDataInput["definitions"]>
+): Set<number> {
+  const hashes = new Set<number>();
+  const sales = responses.flatMap((response) => vendorSales(response));
+  for (const { vendorHash, sale } of sales) {
+    const vendorDefinition = definitionRecord(definitions.vendors, vendorHash);
+    const itemDefinition = definitionRecord(definitions.items, sale.itemHash);
+    const costDefinitions = (sale.costs ?? []).map((cost) => definitionRecord(definitions.items, cost.itemHash));
+    if (isIronBannerText(definitionText(vendorDefinition))
+      || isIronBannerText(definitionText(itemDefinition))
+      || costDefinitions.some((definition) => isIronBannerText(definitionText(definition)))) {
+      hashes.add(vendorHash);
+    }
+  }
+
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const { vendorHash, sale } of sales) {
+      const previewVendorHash = previewVendor(definitionRecord(definitions.items, sale.itemHash));
+      if (hashes.has(vendorHash) && previewVendorHash !== undefined && !hashes.has(previewVendorHash)) {
+        hashes.add(previewVendorHash);
+        changed = true;
+      }
+    }
+  }
+  return hashes;
+}
+
+function collectIronBannerVendorOffers(
+  response: CharacterVendorResponse,
+  vendorHashes: Set<number>,
+  definitions: NonNullable<BuildWeeklyLiveDataInput["definitions"]>
+): IronBannerVendorOffer[] {
+  return vendorSales(response).flatMap(({ vendorHash, sale, itemIndex }) => {
+    if (!vendorHashes.has(vendorHash) || sale.itemHash === undefined) return [];
+    const definition = definitionRecord(definitions.items, sale.itemHash);
+    const group = classifyBucket(definition?.inventory?.bucketTypeHash)?.group;
+    if (group !== "weapons" && group !== "armor") return [];
+    const baseReward = activityReward(sale.itemHash, definitions.items);
+    if (!baseReward) return [];
+    const category = vendorCategoryText(response, vendorHash, itemIndex, definitions.vendors);
+    const vendorText = definitionText(definitionRecord(definitions.vendors, vendorHash));
+    const semanticText = `${category} ${vendorText}`;
+    const semantic = /attun|同调/i.test(semanticText)
+      ? "attunement"
+      : /focus|聚焦|解码|focusing/i.test(semanticText)
+        ? "focusing"
+        : "other";
+    return [{
+      semantic,
+      item: {
+        ...baseReward,
+        cost_label: formatVendorCosts(sale, definitions.items)
+      }
+    }];
+  });
+}
+
+function vendorSales(response: CharacterVendorResponse): Array<{
+  vendorHash: number;
+  itemIndex: number;
+  sale: VendorSale;
+}> {
+  return Object.entries(response.sales?.data ?? {}).flatMap(([vendorKey, rawSales]) => {
+    const vendorHash = Number(vendorKey);
+    return collectSales(rawSales).flatMap(([itemKey, sale]) => {
+      if (!isVendorSale(sale)) return [];
+      return [{ vendorHash, itemIndex: sale.vendorItemIndex ?? Number(itemKey), sale }];
+    });
+  });
+}
+
+function collectSales(rawSales: (Record<string, unknown> & { saleItems?: Record<string, VendorSale> }) | undefined): Array<[string, VendorSale]> {
+  if (!rawSales) return [];
+  const nested = Object.entries(rawSales.saleItems ?? {});
+  const direct = Object.entries(rawSales).flatMap(([key, value]) => {
+    if (key === "saleItems") return [];
+    if (isVendorSale(value)) return [[key, value] as [string, VendorSale]];
+    if (!value || typeof value !== "object") return [];
+    return Object.entries(value as Record<string, unknown>)
+      .filter((entry): entry is [string, VendorSale] => isVendorSale(entry[1]));
+  });
+  return [...nested, ...direct];
+}
+
+function vendorCategoryText(
+  response: CharacterVendorResponse,
+  vendorHash: number,
+  itemIndex: number,
+  definitions: DefinitionComponentData | null | undefined
+): string {
+  const definition = definitionRecord(definitions, vendorHash);
+  const categoryIndex = response.categories?.data?.[String(vendorHash)]?.categories
+    ?.find((category) => category.itemIndexes?.includes(itemIndex))?.displayCategoryIndex
+    ?? vendorDefinitionItemCategory(definition, itemIndex);
+  const displayCategories = definition?.displayCategories as Array<{
+    identifier?: string;
+    displayProperties?: { name?: string };
+  }> | undefined;
+  const category = categoryIndex === undefined ? undefined : displayCategories?.[categoryIndex];
+  return [category?.identifier, category?.displayProperties?.name].filter(Boolean).join(" ");
+}
+
+function vendorDefinitionItemCategory(definition: DefinitionRecord | undefined, itemIndex: number): number | undefined {
+  const itemList = definition?.itemList as Array<{ displayCategoryIndex?: number }> | undefined;
+  return itemList?.[itemIndex]?.displayCategoryIndex;
+}
+
+function formatVendorCosts(
+  sale: VendorSale,
+  definitions: DefinitionComponentData | null | undefined
+): string | undefined {
+  const labels = (sale.costs ?? []).flatMap((cost) => {
+    const name = definitionName(definitions, cost.itemHash);
+    if (!name) return [];
+    return [`${Math.max(0, cost.quantity ?? 0)} ${name}`];
+  });
+  return labels.length ? labels.join(" · ") : undefined;
+}
+
+function uniqueIronBannerOffers(offers: IronBannerVendorOffer[]): IronBannerVendorOffer[] {
+  const seen = new Set<string>();
+  return offers.filter((offer) => {
+    const key = `${offer.semantic}:${offer.item.hash}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function previewVendor(definition: DefinitionRecord | undefined): number | undefined {
+  const preview = definition?.preview as { previewVendorHash?: number } | undefined;
+  return preview?.previewVendorHash;
+}
+
+function definitionText(definition: DefinitionRecord | undefined): string {
+  const vendorIdentifier = typeof definition?.vendorIdentifier === "string" ? definition.vendorIdentifier : undefined;
+  return [
+    vendorIdentifier,
+    definition?.displayProperties?.name,
+    definition?.displayProperties?.description,
+    definition?.itemTypeDisplayName
+  ].filter(Boolean).join(" ");
+}
+
+function isIronBannerText(value: string): boolean {
+  return /铁旗|Iron Banner|萨拉丁|Saladin|IRON_BANNER/i.test(value);
+}
+
+function isVendorSale(value: unknown): value is VendorSale {
+  return typeof value === "object" && value !== null && typeof (value as VendorSale).itemHash === "number";
+}
+
+function finiteNumber(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
+function positiveNumber(value: unknown): number | undefined {
+  const number = finiteNumber(value);
+  return number !== undefined && number > 0 ? number : undefined;
+}
+
+function numberList(value: unknown): number[] {
+  return typeof value === "number" && Number.isFinite(value) ? [value] : [];
+}
+
+function uniqueNumbers(values: Array<number | undefined>): number[] {
+  return [...new Set(values.filter((value): value is number => typeof value === "number" && Number.isFinite(value)))];
 }
 
 function mapProfileActivities(

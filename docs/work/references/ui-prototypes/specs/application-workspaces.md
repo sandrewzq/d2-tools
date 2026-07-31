@@ -51,11 +51,12 @@ Shell、页头、页面 gutter、首层分栏和全局 token 由共享层持有�
 |---|---|---|
 | 刷新节奏 | `dailySummary.daily_reset`、`weeklySummary.weekly_reset`、`isXurActiveAt`、`nextXurBoundaryAt` | 使用本地系统时区；仄边界不使用 Vendor `nextRefreshDate` 替代 |
 | 核心活动 | `weeklySummary.priorities.*.entries` | 未确认时显示 pending，不用历史或 mock 补齐 |
-| 周信号 | `special_event`、`weekly_bonus` | 分区独立表达已确认、待确认和失败 |
+| 铁旗信号 | `weeklySummary.iron_banner`、角色 Activity Challenge、VisibleRewards | 与“本周加成”按约 `60% / 40%` 同行；只展示玩法、开放状态、倒计时、当前角色挑战和明确的直接奖励。萨拉丁库存、聚焦数量、具体装备、价格和购买条件只在商人页展示；条件可见的通用熔炉掉落不进入首页奖励摘要 |
+| 周信号 | `special_event`、`weekly_bonus` | 本周加成固定展示；其他限时活动确认后独立展示，不覆盖铁旗 |
 | 仄库存 | `dailySummary.sources.vendors`、`HomeBriefing.fetched_at` | 展示全部当前可见 Offer；加载、不可用或失败时不回退旧库存 |
 | 操作 | `onRefreshDaily`、`onNavigate("vendors")`、`onOpenXurOffer`、`onOpenWeeklyActivityReward` | 只有可确认且含 Hash 的奖励或武器/护甲 Offer 可打开统一详情 |
 
-首页保持“刷新矩阵、活动摘要、周信号、商人库存”四层信息结构。Offer 是对象卡；页面章节不增加首层卡片壳。宽屏 Offer 四列，`1280px` 以下两列，`980px` 以下单列。
+首页保持“刷新矩阵、活动摘要、周信号、商人库存”四层信息结构。铁旗与本周加成在周信号层同行且等高，其他已确认限时活动另起一行；没有挑战时不显示 `0/0`，不在首页显示任何 Vendor 零值计数或具体库存。Offer 是对象卡；页面章节不增加首层卡片壳。宽屏 Offer 四列，`1280px` 以下两列，`980px` 以下单列。
 
 ## 账号
 

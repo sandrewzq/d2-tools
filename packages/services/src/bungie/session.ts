@@ -21,12 +21,15 @@ export type BungiePublicMilestone = {
 export type BungiePublicVendor = {
   vendorHash?: number;
   enabled?: boolean;
+  canPurchase?: boolean;
   nextRefreshDate?: string;
   vendorLocationIndex?: number;
 };
 
 export type BungiePublicSale = {
+  vendorItemIndex?: number;
   itemHash?: number;
+  quantity?: number;
   costs?: Array<{
     itemHash?: number;
     quantity?: number;
@@ -45,6 +48,14 @@ export type BungiePublicVendorSales = Record<
 export type BungieVendorsResponse = {
   vendors?: {
     data?: Record<string, BungiePublicVendor>;
+  };
+  categories?: {
+    data?: Record<string, {
+      categories?: Array<{
+        displayCategoryIndex?: number;
+        itemIndexes?: number[];
+      }>;
+    }>;
   };
   sales?: {
     data?: Record<string, BungiePublicVendorSales>;
@@ -66,9 +77,14 @@ export type BungieHomeProfileResponse = {
         challenges?: Array<{
           objective?: {
             objectiveHash?: number;
+            progress?: number;
+            completionValue?: number;
+            complete?: boolean;
+            visible?: boolean;
           };
         }>;
         visibleRewards?: Array<{
+          displayBehavior?: number;
           rewardItems?: Array<{
             itemQuantity?: {
               itemHash?: number;

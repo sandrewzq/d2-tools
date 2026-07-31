@@ -7,6 +7,10 @@ import type {
   WeaponStatSummary
 } from "@d2-tools/core/account/summary";
 import type { ItemPerkGroup, ItemPlugSummary } from "@d2-tools/core/items/perks";
+import type {
+  ItemDefinitionVersionSummary,
+  ItemReleaseSummary
+} from "@d2-tools/core/items/release";
 import type { ItemSourceSummary } from "@d2-tools/core/items/source";
 import type { VaultTagValue } from "@d2-tools/core/vault/tags";
 import type { SelectedItemSourceKind } from "./itemDetail.js";
@@ -36,6 +40,8 @@ export type WeaponDetailIdentity = {
   damage?: WeaponDetailDamage;
   frame?: WeaponFrameSummary;
   champion?: WeaponDetailChampionEffect;
+  release?: ItemReleaseSummary;
+  definition_version?: ItemDefinitionVersionSummary;
 };
 
 export type WeaponDetailAmmo = {
@@ -64,7 +70,7 @@ export type WeaponDetailChampionEffect = {
 export type WeaponDetailVersion = {
   hash: number;
   label: string;
-  season_label?: string;
+  release_label?: string;
   is_current: boolean;
 };
 
@@ -268,6 +274,11 @@ export type WeaponDetailInstance = {
   upgrade_status?: WeaponDetailUpgrades;
   loadout_references?: WeaponDetailLoadoutReference[];
   current: boolean;
+  plugs: Array<{
+    hash: number;
+    name: string;
+    icon?: string;
+  }>;
   plug_names: string[];
 };
 
@@ -300,6 +311,8 @@ export type WeaponDetailSelectedItemLike = {
   ammo_type?: AmmoTypeKey;
   weapon_frame?: WeaponFrameSummary;
   weapon_stats?: WeaponStatSummary;
+  release?: ItemReleaseSummary;
+  definition_version?: ItemDefinitionVersionSummary;
   socket_plugs?: AccountItemPlugSummary[];
   perks?: ItemPerkGroup[];
   source: ItemSourceSummary;
@@ -406,7 +419,9 @@ export function buildWeaponDetailViewModel(input: BuildWeaponDetailViewModelInpu
       ammo: input.ammo ?? ammoFromKey(item.ammo_type),
       damage: input.damage,
       frame: item.weapon_frame,
-      champion: input.champion
+      champion: input.champion,
+      release: item.release,
+      definition_version: item.definition_version
     },
     context,
     versions: input.versions?.length
@@ -523,7 +538,7 @@ export function classifyWeaponSocketPlugs(
 
   if (category.includes("intrinsic") || includesAny(itemTypes, ["固有", "intrinsic"])) return "intrinsic";
   if (includesAny(category, ["barrel", "scope", "sight", "bowstring", "bow.string", "blade", "haft"])) return "barrel";
-  if (includesAny(category, ["magazine", "battery", "arrow", "guard", "stock", "grip"])) return "magazine";
+  if (includesAny(category, ["magazine", "batter", "arrow", "guard", "stock", "grip"])) return "magazine";
   if (category.includes("origin") || includesAny(itemTypes, ["原始特性", "origin trait"])) return "origin";
   if (includesAny(category, ["trait", "perk"])
     || includesAny(itemTypes, ["特性", "特征", "trait", "perk"])) return "trait";
@@ -625,7 +640,15 @@ function ammoFromKey(key: AmmoTypeKey | undefined): WeaponDetailAmmo | undefined
 
 function sourceSummaryToSources(source: ItemSourceSummary): WeaponDetailSources {
   if (source.status !== "ready") {
-    return { status: "unknown", entries: [] };
+    return {
+      status: "unknown",
+      entries: [{
+        id: "manifest:missing",
+        kind: "manifest_hint",
+        label: "官方获取来源未标注",
+        description: source.description || "Bungie Manifest 未提供可确认的官方获取来源。"
+      }]
+    };
   }
   return {
     status: "partial",
@@ -669,6 +692,10 @@ function toWeaponDetailInstance(
   currentInstanceId: string | undefined,
   metadata: WeaponDetailInstanceMetadata | undefined
 ): WeaponDetailInstance {
+  const configurationPlugs = item.socket_plugs.filter((plug) => {
+    const role = classifyWeaponSocketPlugs([plug]);
+    return role === "barrel" || role === "magazine" || role === "trait";
+  }).slice(0, 4);
   return {
     item_key: item.item_key ?? item.instance_id,
     instance_id: item.instance_id,
@@ -686,7 +713,12 @@ function toWeaponDetailInstance(
     upgrade_status: item.upgrade_status ?? metadata?.upgrade_status,
     loadout_references: item.loadout_references ?? metadata?.loadout_references,
     current: item.instance_id === currentInstanceId,
-    plug_names: item.socket_plugs.map((plug) => plug.name)
+    plugs: configurationPlugs.map((plug) => ({
+      hash: plug.hash,
+      name: plug.name,
+      icon: plug.icon
+    })),
+    plug_names: configurationPlugs.map((plug) => plug.name)
   };
 }
 

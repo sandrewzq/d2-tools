@@ -151,10 +151,24 @@ function projectDisplaySummaryDefinition(
   if (component === "DestinyVendorDefinition") {
     return compactObject({
       hash: definition.hash,
+      vendorIdentifier: definition.vendorIdentifier,
       displayProperties: compactObject({
         name: definition.displayProperties?.name,
+        description: definition.displayProperties?.description,
         icon: definition.displayProperties?.icon
       }),
+      itemList: Array.isArray(definition.itemList)
+        ? definition.itemList.map((item) => compactObject({
+            displayCategoryIndex: item.displayCategoryIndex,
+            redirectToSaleIndexes: item.redirectToSaleIndexes
+          }))
+        : undefined,
+      displayCategories: Array.isArray(definition.displayCategories)
+        ? definition.displayCategories.map((category) => compactObject({
+            identifier: category.identifier,
+            displayProperties: compactObject({ name: category.displayProperties?.name })
+          }))
+        : undefined,
       locations: Array.isArray(definition.locations)
         ? definition.locations.map((location) => compactObject({
             destinationHash: location.destinationHash
@@ -207,7 +221,10 @@ function projectInventoryItemSummary(definition: DefinitionRecord): DefinitionRe
       bucketTypeHash: definition.inventory?.bucketTypeHash
     }),
     equippingBlock: compactObject({ ammoType: definition.equippingBlock?.ammoType }),
-    plug: compactObject({ plugCategoryIdentifier: definition.plug?.plugCategoryIdentifier })
+    plug: compactObject({ plugCategoryIdentifier: definition.plug?.plugCategoryIdentifier }),
+    preview: definition.preview
+      ? compactObject({ previewVendorHash: definition.preview.previewVendorHash })
+      : undefined
   });
 }
 

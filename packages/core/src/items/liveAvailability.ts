@@ -185,10 +185,11 @@ export function buildLiveItemAvailabilityFromBungie(
     collectVendorSources(response, "character_vendor", input.definitions, response.characterId)
   );
   const publicActivitySources = collectMilestoneItemSources(input.milestones ?? {}, input.definitions);
+  const availabilityTargets = buildAvailabilityTargets(itemHashes, input.definitions?.items);
 
-  applySources(items, publicActivitySources);
-  applySources(items, publicVendorSources);
-  applySources(items, characterVendorSources);
+  applySources(items, publicActivitySources, availabilityTargets);
+  applySources(items, publicVendorSources, availabilityTargets);
+  applySources(items, characterVendorSources, availabilityTargets);
 
   return {
     checked_at: (input.now ?? (() => new Date()))().toISOString(),
@@ -339,16 +340,67 @@ function milestoneLabel(
 
 function applySources(
   items: Record<string, LiveItemAvailabilityEntry>,
-  sources: Array<{ itemHash: number; source: LiveItemAvailabilitySource }>
+  sources: Array<{ itemHash: number; source: LiveItemAvailabilitySource }>,
+  availabilityTargets: Map<number, string[]>
 ): void {
   for (const { itemHash, source } of sources) {
-    const entry = items[String(itemHash)];
-    if (!entry) continue;
-    if (!entry.sources.some((item) => isSameLiveAvailabilitySource(item, source))) {
-      entry.sources.push(source);
+    for (const targetHash of availabilityTargets.get(itemHash) ?? [String(itemHash)]) {
+      const entry = items[targetHash];
+      if (!entry) continue;
+      if (!entry.sources.some((item) => isSameLiveAvailabilitySource(item, source))) {
+        entry.sources.push(source);
+      }
+      updateEntryStatus(entry);
     }
-    updateEntryStatus(entry);
   }
+}
+
+function buildAvailabilityTargets(
+  requestedHashes: number[],
+  definitions: DefinitionComponentData | null | undefined
+): Map<number, string[]> {
+  const targets = new Map<number, Set<string>>();
+  const familyTargets = new Map<number, Set<string>>();
+
+  for (const hash of requestedHashes) {
+    const targetHash = String(hash);
+    addAvailabilityTarget(targets, hash, targetHash);
+    const definition = definitionRecord(definitions, hash);
+    for (const familyHash of availabilityFamilyHashes(definition)) {
+      addAvailabilityTarget(familyTargets, familyHash, targetHash);
+    }
+  }
+
+  if (familyTargets.size && definitions) {
+    for (const [definitionKey, definition] of Object.entries(definitions)) {
+      const hash = Number(definition.hash ?? definitionKey);
+      if (!Number.isFinite(hash)) continue;
+      for (const familyHash of availabilityFamilyHashes(definition)) {
+        for (const targetHash of familyTargets.get(familyHash) ?? []) {
+          addAvailabilityTarget(targets, hash, targetHash);
+        }
+      }
+    }
+  }
+
+  return new Map([...targets].map(([hash, targetHashes]) => [hash, [...targetHashes]]));
+}
+
+function availabilityFamilyHashes(definition: DefinitionRecord | undefined): number[] {
+  const weaponPatternHash = definition?.translationBlock?.weaponPatternHash;
+  return typeof weaponPatternHash === "number" && weaponPatternHash > 0
+    ? [weaponPatternHash]
+    : [];
+}
+
+function addAvailabilityTarget(
+  targets: Map<number, Set<string>>,
+  sourceHash: number,
+  targetHash: string
+): void {
+  const current = targets.get(sourceHash) ?? new Set<string>();
+  current.add(targetHash);
+  targets.set(sourceHash, current);
 }
 
 function isSameLiveAvailabilitySource(

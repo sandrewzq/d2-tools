@@ -90,16 +90,20 @@ export function buildWeaponDetailView(
         }
       : undefined,
     versions: versions.length
-      ? versions.map((version, index) => ({
-          hash: version.hash,
-          label: `#${index + 1}${version.hash === item.hash ? " · 当前 Hash" : ""}`,
-          season_label: version.release?.description ?? (version.hash === item.hash ? item.release?.description : undefined) ?? version.tier,
-          is_current: version.hash === item.hash
-        }))
+      ? versions.map((version, index) => {
+          const releaseLabel = version.release?.description
+            ?? (version.hash === item.hash ? item.release?.description : undefined);
+          return {
+            hash: version.hash,
+            label: releaseLabel ?? version.tier ?? `版本 ${index + 1}`,
+            release_label: releaseLabel,
+            is_current: version.hash === item.hash
+          };
+        })
       : [{
           hash: item.hash,
-          label: "#1 · 当前 Hash",
-          season_label: item.release?.description,
+          label: item.release?.description ?? "当前版本",
+          release_label: item.release?.description,
           is_current: true
         }],
     definition_stats: configurationKind === "fixed"
@@ -115,13 +119,34 @@ export function buildWeaponDetailView(
     },
     pool_columns: poolColumns,
     selection_columns: buildSelectionColumns(item, poolColumns, input.selectionNames, input.pendingPerks),
-    sources: input.sources,
+    sources: withManifestSourceStatus(input.sources, item),
     upgrades,
     recommendations: input.recommendations,
     personal_targets: input.personalTargets,
     same_hash_instances: input.sameNameItems,
     instance_metadata: buildInstanceMetadata(input, upgrades)
   });
+}
+
+function withManifestSourceStatus(
+  sources: WeaponDetailSources | undefined,
+  item: SelectedItemDetail
+): WeaponDetailSources | undefined {
+  if (!sources || item.source.status === "ready" || sources.entries.some((entry) => entry.kind === "manifest_hint")) {
+    return sources;
+  }
+  return {
+    ...sources,
+    entries: [
+      ...sources.entries,
+      {
+        id: `manifest:${item.hash}:missing`,
+        kind: "manifest_hint",
+        label: "官方获取来源未标注",
+        description: item.source.description || "Bungie Manifest 未提供可确认的官方获取来源。"
+      }
+    ]
+  };
 }
 
 function buildInstanceMetadata(

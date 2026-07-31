@@ -13,6 +13,7 @@ import type {
   ArmorRecommendation,
   ArmorStatTrack
 } from "@d2-tools/app/items";
+import type { ItemReleaseKind } from "@d2-tools/core/items/release";
 import { formatStandardDateTime } from "../../time/formatTime.js";
 
 export type ArmorDetailSection = "overview" | "configuration" | "targets" | "upgrades" | "analysis";
@@ -272,10 +273,9 @@ function ArmorIdentity({ model }: { model: ArmorDetailViewModel }) {
   const versionLabel = identity.definition_version?.label ?? "定义版本资料未返回";
   const versionStatus = identity.definition_version ? "success" : "neutral";
   const releaseStatus = identity.release?.status === "ready" ? "success" : "neutral";
-  const releaseTrace = identity.release?.season_number !== undefined
-    ? `第 ${identity.release.season_number} 赛季`
-    : identity.release?.release_traits?.join(" · ") ?? "发布资料未返回";
+  const releaseTrace = identity.release?.description ?? "发布资料未返回";
   const watermarks = identity.definition_version?.watermark_icons ?? [];
+  const currentWatermark = identity.definition_version?.current_watermark_icon;
   return (
     <header className="armor-detail-identity" data-surface="section">
       <div className="armor-detail-identity-main">
@@ -302,15 +302,15 @@ function ArmorIdentity({ model }: { model: ArmorDetailViewModel }) {
           <div><dt>当前查看</dt><dd>{context.object_label}</dd></div>
           <div><dt>对象</dt><dd>{contextKindLabel(context.kind)}</dd></div>
           <div><dt>位置</dt><dd>{identity.bucket_name ?? identity.item_type ?? "护甲"}</dd></div>
-          <div className="armor-detail-context-version" data-status={versionStatus}><dt>版本</dt><dd><strong>{versionLabel}</strong>{watermarks.length ? <span className="armor-detail-version-watermarks">{watermarks.map((icon, index) => <img key={`${icon}:${index}`} src={icon} alt={`官方版本水印 ${index + 1}`} title="官方定义版本水印" />)}</span> : null}</dd><span data-ui-part="state" data-text-tone="status" data-info-priority="trace" data-status={releaseStatus}>{releaseTrace}</span></div>
+          <div className="armor-detail-context-version" data-status={versionStatus}><dt>版本</dt><dd><strong>{versionLabel}</strong>{currentWatermark ? <span className="armor-detail-version-watermarks"><img src={currentWatermark} alt="当前官方版本水印" title="当前官方定义版本水印" /></span> : null}</dd><span data-ui-part="state" data-text-tone="status" data-info-priority="trace" data-status={releaseStatus}>{releaseTrace}</span></div>
         </dl>
         <details className="armor-detail-definition-details">
           <summary>护甲定义信息</summary>
           <div>
             <dl><dt>装备 Hash</dt><dd>{identity.hash}</dd></dl>
-            <dl><dt>发布赛季</dt><dd>{identity.release?.description ?? "资料未返回"}</dd></dl>
+            <dl><dt>发布版本</dt><dd>{identity.release?.description ?? "资料未返回"}</dd></dl>
             <dl><dt>赛季 Hash</dt><dd>{identity.release?.season_hash ?? "资料未返回"}</dd></dl>
-            <dl><dt>发布标记</dt><dd>{identity.release?.release_traits?.join(" / ") ?? "资料未返回"}</dd></dl>
+            <dl><dt>发布类型</dt><dd>{armorReleaseKindLabel(identity.release?.kind)}</dd></dl>
             <dl><dt>定义版本</dt><dd>{identity.definition_version?.label ?? "资料未返回"}</dd></dl>
             <dl><dt>光等上限 Hash</dt><dd>{identity.definition_version?.power_cap_hash ?? "资料未返回"}</dd></dl>
             <dl><dt>版本水印</dt><dd>{watermarks.length ? <span className="armor-detail-definition-watermarks">{watermarks.map((icon, index) => <img key={`${icon}:${index}`} src={icon} alt={`官方版本水印 ${index + 1}`} title="官方定义版本水印" />)}</span> : "资料未返回"}</dd></dl>
@@ -324,6 +324,15 @@ function ArmorIdentity({ model }: { model: ArmorDetailViewModel }) {
       </div>
     </header>
   );
+}
+
+function armorReleaseKindLabel(kind: ItemReleaseKind | undefined): string {
+  if (kind === "season") return "赛季";
+  if (kind === "annual") return "年度资料片";
+  if (kind === "dlc") return "内容包";
+  if (kind === "core") return "核心内容";
+  if (kind === "update") return "版本更新";
+  return "官方未标注";
 }
 
 function OverviewSection({ model }: { model: ArmorDetailViewModel }) {
@@ -392,7 +401,7 @@ function ConfigurationSection({ model }: { model: ArmorDetailViewModel }) {
             {armorSet ? <ArmorSetBonus armorSet={armorSet} /> : null}
             {model.abilities.length ? model.abilities.map((ability) => (
               <article key={ability.hash} className={["armor-detail-core-feature", isExotic && "is-exotic"].filter(Boolean).join(" ")}>
-                {ability.icon ? <img src={ability.icon} alt="" /> : <span className="armor-detail-core-feature-icon" aria-hidden="true" />}
+                {ability.icon ? <img className="game-definition-icon" src={ability.icon} alt="" /> : <span className="armor-detail-core-feature-icon" aria-hidden="true" />}
                 <div><span>{isExotic ? "异域固有能力" : "护甲能力"}</span><h4>{ability.name}</h4><p>{ability.description}</p><small>固定能力与实例随机属性分开显示。</small></div>
               </article>
             )) : !armorSet ? <EmptyState text="当前游戏资料未返回可确认的固定护甲能力。" /> : null}
@@ -414,7 +423,7 @@ function ConfigurationSection({ model }: { model: ArmorDetailViewModel }) {
           {configurationSockets.length ? configurationSockets.map((socket) => (
             <article key={socket.key} className={socket.kind === "special" ? "is-special" : undefined}>
               <strong>{socket.label}</strong>
-              <div>{socket.icon ? <img src={socket.icon} alt="" /> : null}<p>{socket.name}</p></div>
+              <div>{socket.icon ? <img className="game-definition-icon" src={socket.icon} alt="" /> : null}<p>{socket.name}</p></div>
               <small>{socket.description ?? (hasCurrentConfiguration ? "当前已安装内容" : "定义支持内容")}</small>
             </article>
           )) : <EmptyState text={hasCurrentConfiguration ? "当前对象没有返回可显示的护甲配置插槽。" : "当前定义没有返回可确认的玩家配置插槽。"} />}
@@ -438,7 +447,7 @@ function ArmorSetBonus(props: { armorSet: NonNullable<ArmorDetailViewModel["iden
           {bonuses.map((bonus) => (
             <li key={`${bonus.required_piece_count}:${bonus.perk_hash}`}>
               <strong>{bonus.required_piece_count} 件套</strong>
-              {bonus.icon ? <img src={bonus.icon} alt="" /> : <span className="armor-detail-set-perk-icon" aria-hidden="true" />}
+              {bonus.icon ? <img className="game-definition-icon" src={bonus.icon} alt="" /> : <span className="armor-detail-set-perk-icon" aria-hidden="true" />}
               <div><b>{bonus.name ?? `套装效果 Hash ${bonus.perk_hash}`}</b><p>{bonus.description ?? "官方套装效果定义未返回说明。"}</p></div>
             </li>
           ))}

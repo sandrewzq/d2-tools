@@ -271,7 +271,7 @@
 }
 
 :where(.app-shell) .weekly-signal-grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: 1fr;
   gap: 8px;
 }
 
@@ -279,6 +279,13 @@
   min-width: 0;
   min-height: 68px;
   padding: 8px;
+}
+
+:where(.app-shell) .home-weekly-side-signals {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 8px;
+  min-width: 0;
 }
 
 :where(.app-shell) .weekly-signal-card > header {
@@ -296,6 +303,394 @@
 
 :where(.app-shell) .weekly-signal-card > small {
   margin-top: 3px;
+}
+
+:where(.app-shell) .iron-banner-card {
+  display: grid;
+  min-width: 0;
+  overflow: hidden;
+  border-left: 3px solid var(--amber);
+}
+
+:where(.app-shell) .iron-banner-heading,
+:where(.app-shell) .iron-banner-reward-group > header,
+:where(.app-shell) .iron-banner-loot > header {
+  display: grid;
+  align-items: center;
+  gap: 8px;
+}
+
+:where(.app-shell) .iron-banner-heading {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 12px;
+  min-width: 0;
+  padding: 10px 12px;
+  background: var(--section-bg);
+}
+
+:where(.app-shell) .iron-banner-reward-group > header,
+:where(.app-shell) .iron-banner-loot > header {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+:where(.app-shell) .iron-banner-identity {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+
+:where(.app-shell) .iron-banner-identity > div,
+:where(.app-shell) .iron-banner-reward-group > header > div,
+:where(.app-shell) .iron-banner-loot > header > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+:where(.app-shell) .iron-banner-identity h3 {
+  margin: 1px 0 0;
+}
+
+:where(.app-shell) .iron-banner-identity small {
+  display: block;
+  margin-top: 1px;
+}
+
+:where(.app-shell) .iron-banner-mark {
+  display: grid;
+  place-items: center;
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--amber);
+  border-radius: var(--radius-control);
+  color: var(--amber);
+  background: var(--status-warning-bg);
+}
+
+:where(.app-shell) .iron-banner-mark svg,
+:where(.app-shell) .iron-banner-mark img {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+:where(.app-shell) .iron-banner-mark svg {
+  width: 25px;
+  height: 25px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+:where(.app-shell) .iron-banner-mark img {
+  object-fit: cover;
+}
+
+:where(.app-shell) .iron-banner-timing {
+  display: grid;
+  justify-items: end;
+  gap: 2px;
+  min-width: 132px;
+  font-variant-numeric: tabular-nums;
+}
+
+:where(.app-shell) .iron-banner-timing > strong,
+:where(.app-shell) .iron-banner-timing > small {
+  white-space: nowrap;
+}
+
+:where(.app-shell) .iron-banner-vendor-action {
+  min-width: 108px;
+}
+
+:where(.app-shell) .iron-banner-overview {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(360px, 0.9fr);
+  min-width: 0;
+  border-top: 1px solid var(--section-divider);
+}
+
+:where(.app-shell) .iron-banner-challenge {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(140px, 0.42fr);
+  gap: 16px;
+  align-items: end;
+  min-width: 0;
+  padding: 10px 12px;
+}
+
+:where(.app-shell) .iron-banner-challenge-copy,
+:where(.app-shell) .iron-banner-challenge-progress {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+:where(.app-shell) .iron-banner-challenge-copy p {
+  margin: 0;
+}
+
+:where(.app-shell) .iron-banner-challenge-progress > small {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+:where(.app-shell) .iron-banner-progress-track {
+  height: 7px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--surface-subtle);
+}
+
+:where(.app-shell) .iron-banner-progress-track i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--status-ready);
+}
+
+:where(.app-shell) .iron-banner-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  min-width: 0;
+  border-left: 1px solid var(--section-divider);
+}
+
+:where(.app-shell) .iron-banner-metric {
+  display: grid;
+  align-content: center;
+  gap: 2px;
+  min-width: 0;
+  padding: 8px 10px;
+  border-right: 1px solid var(--section-divider);
+  border-bottom: 1px solid var(--section-divider);
+}
+
+:where(.app-shell) .iron-banner-metric:nth-child(even) {
+  border-right: 0;
+}
+
+:where(.app-shell) .iron-banner-metric:nth-last-child(-n + 2) {
+  border-bottom: 0;
+}
+
+:where(.app-shell) .iron-banner-metric > strong {
+  font-size: 17px;
+  font-variant-numeric: tabular-nums;
+}
+
+:where(.app-shell) .iron-banner-metric.is-pending {
+  grid-column: 1 / -1;
+  border-right: 0;
+  border-bottom: 0;
+}
+
+:where(.app-shell) .iron-banner-highlights {
+  min-width: 0;
+  border-top: 1px solid var(--section-divider);
+}
+
+:where(.app-shell) .iron-banner-highlights > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 44px;
+  padding: 8px 12px;
+  background: var(--surface-subtle);
+}
+
+:where(.app-shell) .iron-banner-highlights > header > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+:where(.app-shell) .iron-banner-highlights > header > small {
+  margin-left: auto;
+  text-align: right;
+}
+
+:where(.app-shell) .iron-banner-detail-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(360px, 0.9fr);
+  min-width: 0;
+}
+
+:where(.app-shell) .iron-banner-detail-grid.is-single {
+  grid-template-columns: 1fr;
+}
+
+:where(.app-shell) .iron-banner-detail-grid.is-single .iron-banner-loot {
+  border-left: 0;
+}
+
+:where(.app-shell) .iron-banner-reward-groups,
+:where(.app-shell) .iron-banner-loot {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 10px 12px;
+}
+
+:where(.app-shell) .iron-banner-loot {
+  border-left: 1px solid var(--section-divider);
+  background: var(--section-bg);
+}
+
+:where(.app-shell) .iron-banner-reward-group {
+  display: grid;
+  gap: 6px;
+  padding-bottom: 9px;
+  border-bottom: 1px solid var(--section-divider);
+}
+
+:where(.app-shell) .iron-banner-reward-items {
+  display: grid;
+}
+
+:where(.app-shell) .iron-banner-reward-item {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+  gap: 7px;
+  align-items: center;
+  min-width: 0;
+  min-height: 46px;
+  padding: 5px 0;
+  border: 0;
+  border-radius: 0;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+}
+
+:where(.app-shell) button.iron-banner-reward-item,
+:where(.app-shell) button.iron-banner-loot-item {
+  width: 100%;
+  cursor: pointer;
+}
+
+:where(.app-shell) button.iron-banner-reward-item:hover,
+:where(.app-shell) button.iron-banner-loot-item:hover {
+  background: var(--hover-bg);
+}
+
+:where(.app-shell) button.iron-banner-reward-item:focus-visible,
+:where(.app-shell) button.iron-banner-loot-item:focus-visible {
+  outline: 0;
+  box-shadow: inset 0 0 0 2px var(--focus-ring);
+}
+
+:where(.app-shell) .iron-banner-reward-icon,
+:where(.app-shell) .iron-banner-loot-icon {
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-control);
+  color: var(--text-muted);
+  background: var(--surface-subtle);
+}
+
+:where(.app-shell) .iron-banner-reward-icon img,
+:where(.app-shell) .iron-banner-loot-icon img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+:where(.app-shell) .iron-banner-reward-copy,
+:where(.app-shell) .iron-banner-loot-copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+:where(.app-shell) .iron-banner-reward-copy strong,
+:where(.app-shell) .iron-banner-reward-copy small,
+:where(.app-shell) .iron-banner-loot-copy strong,
+:where(.app-shell) .iron-banner-loot-copy small {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+:where(.app-shell) .iron-banner-reward-state {
+  white-space: nowrap;
+}
+
+:where(.app-shell) .iron-banner-loot-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+:where(.app-shell) .iron-banner-loot-counts span {
+  padding: 3px 7px;
+  border-radius: 999px;
+  color: var(--text-body);
+  background: var(--surface-subtle);
+}
+
+:where(.app-shell) .iron-banner-loot-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border-top: 1px solid var(--section-divider);
+}
+
+:where(.app-shell) .iron-banner-loot-item {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr);
+  gap: 7px;
+  align-items: center;
+  min-width: 0;
+  min-height: 50px;
+  padding: 6px;
+  border: 0;
+  border-bottom: 1px solid var(--section-divider);
+  border-radius: 0;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+}
+
+:where(.app-shell) .iron-banner-loot-item:nth-child(odd) {
+  padding-left: 0;
+  padding-right: 8px;
+}
+
+:where(.app-shell) .iron-banner-loot-item:nth-child(even) {
+  padding-left: 8px;
+  padding-right: 0;
+  border-left: 1px solid var(--section-divider);
+}
+
+:where(.app-shell) .iron-banner-empty {
+  padding: 10px 0;
+}
+
+:where(.app-shell) .iron-banner-source {
+  display: block;
+  padding: 6px 12px 8px;
+  border-top: 1px solid var(--section-divider);
+}
+
+:where(.app-shell) .iron-banner-compact-state {
+  display: grid;
+  gap: 3px;
+  padding: 9px 12px 10px;
+  border-top: 1px solid var(--section-divider);
+}
+
+:where(.app-shell) .iron-banner-compact-state > p {
+  margin: 0;
 }
 
 :where(.app-shell) .home-vendor-band {
@@ -523,6 +918,25 @@
 }
 
 @media (max-width: 980px) {
+  :where(.app-shell) .iron-banner-overview,
+  :where(.app-shell) .iron-banner-detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  :where(.app-shell) .iron-banner-metrics,
+  :where(.app-shell) .iron-banner-loot {
+    border-top: 1px solid var(--section-divider);
+    border-left: 0;
+  }
+
+  :where(.app-shell) .iron-banner-challenge {
+    grid-template-columns: minmax(0, 1fr) 180px;
+  }
+
+  :where(.app-shell) .weekly-signal-grid {
+    grid-template-columns: 1fr;
+  }
+
   :where(.app-shell) .home-refresh-strip,
   :where(.app-shell) .weekly-activity-grid {
     grid-template-columns: 1fr;
@@ -591,6 +1005,46 @@
     grid-template-columns: 1fr;
   }
 
+  :where(.app-shell) .iron-banner-heading {
+    align-items: flex-start;
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  :where(.app-shell) .iron-banner-challenge,
+  :where(.app-shell) .iron-banner-loot-grid {
+    grid-template-columns: 1fr;
+  }
+
+  :where(.app-shell) .iron-banner-vendor-action {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+
+  :where(.app-shell) .iron-banner-timing {
+    min-width: 0;
+  }
+
+  :where(.app-shell) .iron-banner-challenge-progress > small {
+    text-align: left;
+  }
+
+  :where(.app-shell) .iron-banner-highlights > header {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  :where(.app-shell) .iron-banner-highlights > header > small {
+    width: 100%;
+    margin-left: 0;
+    text-align: left;
+  }
+
+  :where(.app-shell) .iron-banner-loot-item:nth-child(odd),
+  :where(.app-shell) .iron-banner-loot-item:nth-child(even) {
+    padding-inline: 0;
+    border-left: 0;
+  }
+
   :where(.app-shell) .weekly-activity-reward {
     flex-basis: 100%;
   }
@@ -601,6 +1055,178 @@
 
   :where(.app-shell) .home-vendor-stock-state {
     grid-column: 2;
+  }
+}
+
+/* 铁旗与本周加成共用一行；首页只保留活动决策信息。 */
+:where(.app-shell) .weekly-signal-grid {
+  grid-template-columns: minmax(0, 3fr) minmax(280px, 2fr);
+  align-items: stretch;
+  gap: 8px;
+}
+
+:where(.app-shell) .home-special-event-signal {
+  grid-column: 1 / -1;
+}
+
+:where(.app-shell) .weekly-signal-card,
+:where(.app-shell) .iron-banner-card {
+  min-width: 0;
+  min-height: 108px;
+}
+
+:where(.app-shell) .weekly-signal-card {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  gap: 8px;
+  padding: 10px 12px;
+}
+
+:where(.app-shell) .weekly-signal-card > header {
+  margin: 0;
+}
+
+:where(.app-shell) .weekly-signal-copy {
+  display: grid;
+  align-content: center;
+  gap: 3px;
+  min-width: 0;
+}
+
+:where(.app-shell) .weekly-signal-copy > p {
+  margin: 0;
+}
+
+:where(.app-shell) .iron-banner-card {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  overflow: hidden;
+  border-left: 3px solid var(--amber);
+}
+
+:where(.app-shell) .iron-banner-heading {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 9px 11px 7px;
+  background: transparent;
+}
+
+:where(.app-shell) .iron-banner-identity {
+  gap: 8px;
+}
+
+:where(.app-shell) .iron-banner-identity > div {
+  gap: 1px;
+}
+
+:where(.app-shell) .iron-banner-identity h3 {
+  margin: 0;
+}
+
+:where(.app-shell) .iron-banner-mark {
+  flex-basis: 36px;
+  width: 36px;
+  height: 36px;
+}
+
+:where(.app-shell) .iron-banner-mark svg {
+  width: 21px;
+  height: 21px;
+}
+
+:where(.app-shell) .iron-banner-timing {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  min-width: 0;
+}
+
+:where(.app-shell) .iron-banner-summary {
+  display: grid;
+  grid-template-columns: minmax(150px, 0.85fr) minmax(180px, 1.15fr) auto;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 7px 11px 10px;
+  border-top: 1px solid var(--section-divider);
+}
+
+:where(.app-shell) .iron-banner-challenge {
+  display: grid;
+  grid-template-columns: 1fr;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  padding: 0;
+}
+
+:where(.app-shell) .iron-banner-challenge-line {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr);
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+
+:where(.app-shell) .iron-banner-challenge-line > small {
+  overflow-wrap: anywhere;
+}
+
+:where(.app-shell) .iron-banner-progress-track {
+  height: 5px;
+}
+
+:where(.app-shell) .iron-banner-reward-summary {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  padding-left: 12px;
+  border-left: 1px solid var(--section-divider);
+}
+
+:where(.app-shell) .iron-banner-reward-summary > strong {
+  overflow-wrap: anywhere;
+}
+
+:where(.app-shell) .iron-banner-vendor-action {
+  min-width: 112px;
+  white-space: nowrap;
+}
+
+:where(.app-shell) .iron-banner-compact-state {
+  align-content: center;
+  padding: 8px 11px 10px;
+}
+
+@media (max-width: 980px) {
+  :where(.app-shell) .weekly-signal-grid {
+    grid-template-columns: 1fr;
+  }
+
+  :where(.app-shell) .home-special-event-signal {
+    grid-column: auto;
+  }
+}
+
+@media (max-width: 760px) {
+  :where(.app-shell) .iron-banner-summary {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  :where(.app-shell) .iron-banner-reward-summary {
+    padding-top: 7px;
+    padding-left: 0;
+    border-top: 1px solid var(--section-divider);
+    border-left: 0;
+  }
+
+  :where(.app-shell) .iron-banner-vendor-action {
+    width: 100%;
   }
 }
 

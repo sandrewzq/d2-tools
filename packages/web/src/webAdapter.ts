@@ -88,6 +88,21 @@ export const unavailableHomeSnapshot: WebHomeSnapshot = {
       weekly_bonus: { status: "warning", title: "周常加成不可用", detail: "Web 服务未连接" },
       special_event: { status: "warning", title: "限时活动不可用", detail: "Web 服务未连接" }
     },
+    iron_banner: {
+      status: "unavailable",
+      title: "铁旗状态不可用",
+      detail: "Web 服务未连接。",
+      characters: { available_count: 0, total_count: 0, entries: {} },
+      reward_groups: [],
+      loot_pool: {
+        status: "pending",
+        source: "Web 服务未连接",
+        attunement_count: 0,
+        weapon_offer_count: 0,
+        armor_offer_count: 0,
+        featured_items: []
+      }
+    },
     public_clues: []
   }
 };

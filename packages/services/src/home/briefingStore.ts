@@ -4,7 +4,7 @@ import type { DailySummary } from "@d2-tools/core/daily/summary";
 import type { WeeklySummary } from "@d2-tools/core/weekly/summary";
 
 export type CachedHomeBriefing = {
-  version: 1;
+  version: 2;
   context_key: string;
   saved_at: string;
   fetched_at: string;
@@ -26,7 +26,7 @@ export async function loadCachedHomeBriefing(
 ): Promise<CachedHomeBriefing | null> {
   try {
     const parsed = JSON.parse(await readFile(cachePath(dataDir), "utf8")) as Partial<CachedHomeBriefing>;
-    if (parsed.version !== 1
+    if (parsed.version !== 2
       || parsed.context_key !== contextKey
       || !parsed.saved_at
       || !parsed.fetched_at
@@ -86,5 +86,6 @@ function isWeeklySummary(value: unknown): value is WeeklySummary {
   const summary = value as Partial<WeeklySummary>;
   return Boolean(summary.weekly_reset?.next_reset_iso)
     && Boolean(summary.priorities?.nightfall)
+    && Boolean(summary.iron_banner)
     && Array.isArray(summary.public_clues);
 }

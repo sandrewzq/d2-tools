@@ -1,3 +1,5 @@
+import type { WeeklyIronBannerSummary } from "@d2-tools/core/weekly/summary";
+
 export type WeeklyApi = {
   getWeeklySummary(): Promise<WeeklySummary>;
 };
@@ -53,5 +55,6 @@ export type WeeklySummary = {
     time_remaining_label: string;
   };
   priorities: Record<WeeklyPriorityKind, WeeklySummaryPriority>;
+  iron_banner: WeeklyIronBannerSummary;
   public_clues: WeeklySummaryItem[];
 };

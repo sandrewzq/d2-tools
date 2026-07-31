@@ -353,7 +353,13 @@
   width: 48px;
   height: 48px;
   border-radius: var(--radius-control);
+}
+
+:where(.app-shell) .library-result-row > img:not(.game-definition-icon) {
   object-fit: cover;
+}
+
+:where(.app-shell) .library-result-icon-placeholder {
   background: var(--surface-interactive);
 }
 

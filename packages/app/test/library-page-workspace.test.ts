@@ -185,11 +185,13 @@ describe("library page workspace", () => {
         name: "天堂暴政",
         release: {
           status: "ready",
-          label: "发布赛季",
+          label: "发布版本",
+          kind: "season",
           season_hash: 400004,
           season_number: 4,
+          year_number: 2,
           name: "锻炉赛季",
-          description: "第 4 赛季 · 锻炉赛季"
+          description: "第2年 · 第4赛季 · 锻炉赛季"
         }
       },
       {
@@ -198,11 +200,13 @@ describe("library page workspace", () => {
         name: "天堂暴政",
         release: {
           status: "ready",
-          label: "发布赛季",
+          label: "发布版本",
+          kind: "season",
           season_hash: 400021,
           season_number: 21,
+          year_number: 6,
           name: "深渊赛季",
-          description: "第 21 赛季 · 深渊赛季"
+          description: "第6年 · 第21赛季 · 深渊赛季"
         }
       }
     ];

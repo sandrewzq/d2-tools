@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { getLocaleCopy } from "../i18n/copy.js";
 import type { InterfaceLocale, HomeCopy } from "../i18n/types.js";
 import { isXurActiveAt, nextXurBoundaryAt, xurVendorHash } from "@d2-tools/core/daily/xurSchedule";
+import type { WeeklyIronBannerSummary } from "@d2-tools/core/weekly/summary";
 import type { ShellPageKey } from "../shell/types.js";
 import type { VendorInventoryItemView, VendorOfferContextView } from "../vendors/VendorsPageContentView.js";
 import { formatFullDateTime, formatScheduleDateTime } from "../time/formatTime.js";
@@ -71,13 +72,14 @@ export type HomeWeeklySummary = {
     time_remaining_label: string;
   };
   priorities: Record<HomeWeeklyPriorityKind, {
-    status: "ready" | "pending";
+    status: "ready" | "pending" | "warning" | "error";
     title: string;
     detail: string;
     evidence?: string;
     source?: string;
     entries?: HomeWeeklyActivityEntry[];
   }>;
+  iron_banner: WeeklyIronBannerSummary;
   public_clues: HomeDailyItem[];
 };
 export type HomeWeeklyActivityReward = {
@@ -181,6 +183,7 @@ export function HomePageContentView(props: HomePageContentViewProps) {
       weeklySummary={weeklySummary}
       clock={clock}
       xur={xur}
+      selectedCharacterId={props.selectedCharacterId}
       selectedCharacterLabel={props.selectedCharacterLabel}
       briefingFetchedAt={props.briefingFetchedAt}
       dailyMessage={props.dailyMessage ?? ""}
@@ -200,6 +203,7 @@ function HomePageContent(props: {
   weeklySummary: HomeWeeklySummary | null;
   clock: Date;
   xur: HomeConfirmedXur | null;
+  selectedCharacterId?: string;
   selectedCharacterLabel?: string;
   briefingFetchedAt?: string;
   dailyMessage: string;
@@ -247,8 +251,18 @@ function HomePageContent(props: {
       </section>
       <section className="home-content-band home-signals-band" data-surface="section" aria-label="限时活动与本周加成">
         <div className="weekly-signal-grid" data-surface="content-stack">
-          <HomeSignal label={homeText(props.copy, "限时活动")} priority={priorities?.special_event} />
+          <IronBannerCard
+            summary={props.weeklySummary?.iron_banner}
+            weeklyReset={props.weeklySummary?.weekly_reset ?? props.dailySummary?.weekly_reset}
+            selectedCharacterId={props.selectedCharacterId}
+            clock={props.clock}
+            copy={props.copy}
+            onNavigate={props.onNavigate}
+          />
           <HomeSignal label={homeText(props.copy, "本周加成")} priority={priorities?.weekly_bonus} />
+          {priorities?.special_event?.status === "ready" ? (
+            <HomeSignal className="home-special-event-signal" label={homeText(props.copy, "限时活动")} priority={priorities.special_event} />
+          ) : null}
         </div>
       </section>
       <section className="home-content-band home-vendor-band" data-surface="section" data-contract-id="home.vendor-stock" data-source="Vendor API + current library">
@@ -619,23 +633,121 @@ function homePriorityEntries(priority: HomeWeeklyPriority | undefined): HomeWeek
     : [{ title: priority.title, detail: priority.detail, source: priority.source }];
 }
 function HomeSignal(props: {
+  className?: string;
   label: string;
   priority: HomeWeeklyPriority | undefined;
 }) {
   const ready = props.priority?.status === "ready";
   const status = ready ? "success" : "pending";
   return (
-    <article className="weekly-signal-card" data-surface="frame" data-ui-kind="summary-frame" data-status={status}>
+    <article className={`weekly-signal-card${props.className ? ` ${props.className}` : ""}`} data-surface="frame" data-ui-kind="summary-frame" data-status={status}>
       <header>
         <span data-ui-part="label" data-info-priority="context" data-text-tone="primary">{props.label}</span>
         <span className="app-chip" data-ui-kind="status-chip" data-ui-part="state" data-info-priority="support" data-text-tone="status" data-status={status}>{ready ? "已确认" : "待确认"}</span>
       </header>
-      <strong data-ui-part="value" data-info-priority="decision" data-text-tone="primary">{props.priority?.title ?? "公开接口尚未确认"}</strong>
-      <p data-ui-part="detail" data-info-priority="reading" data-text-tone="body">{props.priority?.detail ?? "当前不展示历史活动或推测内容。"}</p>
-      {props.priority?.source ? <small data-ui-part="source" data-info-priority="trace" data-text-tone="meta">来源：{props.priority.source}</small> : null}
+      <div className="weekly-signal-copy">
+        <strong data-ui-part="value" data-info-priority="decision" data-text-tone="primary">{props.priority?.title ?? "公开接口尚未确认"}</strong>
+        <p data-ui-part="detail" data-info-priority="reading" data-text-tone="body">{props.priority?.detail ?? "当前不展示历史活动或推测内容。"}</p>
+      </div>
     </article>
   );
 }
+
+function IronBannerCard(props: {
+  summary: WeeklyIronBannerSummary | undefined;
+  weeklyReset: { label: string; next_reset_iso?: string; time_remaining_label: string } | undefined;
+  selectedCharacterId?: string;
+  clock: Date;
+  copy: HomeCopy;
+  onNavigate?: (page: ShellPageKey) => void;
+}) {
+  const summary = props.summary;
+  const active = summary?.status === "active";
+  const status = active ? "success" : summary?.status === "inactive" ? "warning" : "pending";
+  const characterEntries = Object.values(summary?.characters.entries ?? {});
+  const selectedCharacter = (props.selectedCharacterId
+    ? summary?.characters.entries[props.selectedCharacterId]
+    : undefined) ?? characterEntries[0];
+  const challenge = selectedCharacter?.challenge;
+  const progress = Math.max(0, challenge?.progress ?? 0);
+  const completion = Math.max(1, challenge?.completion_value ?? 1);
+  const progressPercent = Math.min(100, Math.round((progress / completion) * 100));
+  const rewardNames = [...new Set(
+    (summary?.reward_groups ?? [])
+      .filter((group) => !group.conditional)
+      .flatMap((group) => group.items.map((item) => item.name.trim()))
+      .filter(Boolean)
+  )].slice(0, 2);
+  const challengeCopy = [challenge?.description, challenge?.progress_label].filter(Boolean).join(" ");
+  const rewardLabel = [
+    /大幅提升|高阶|巅峰|powerful|pinnacle/i.test(challengeCopy) ? "高阶装备" : undefined,
+    ...rewardNames
+  ].filter((value): value is string => Boolean(value)).join(" · ")
+    || (challenge ? "完成挑战后领取奖励" : "奖励数据待读取");
+  const activityIcon = normalizeBungieIconUrl(summary?.activity_icon);
+  const resetCountdownLabel = resetCountdown(props.weeklyReset, props.clock, props.copy);
+  const statusLabel = active ? "正在开放" : summary?.status === "inactive" ? "当前未开放" : "状态待确认";
+  const activityName = active && summary?.activity_name?.trim() ? summary.activity_name.trim() : "铁旗";
+  const characterAvailability = summary && summary.characters.available_count > 0
+    ? `${summary.characters.available_count} 个角色可完成`
+    : "角色挑战待读取";
+
+  return (
+    <article className="iron-banner-card" data-surface="frame" data-ui-kind="summary-frame" data-status={status}>
+      <header className="iron-banner-heading">
+        <div className="iron-banner-identity">
+          <span className="iron-banner-mark" aria-hidden="true">
+            {activityIcon ? <img src={activityIcon} alt="" /> : (
+              <svg viewBox="0 0 24 24"><path d="M6 3v18" /><path d="M7 4h10l-2.2 4L17 12H7Z" /><path d="M10 7.5h3.5" /></svg>
+            )}
+          </span>
+          <div>
+            <span data-ui-part="label" data-info-priority="support" data-text-tone="meta">铁旗</span>
+            <h3 data-ui-part="value" data-info-priority="display" data-text-tone="primary">{activityName}</h3>
+          </div>
+        </div>
+        <div className="iron-banner-timing">
+          <span className="app-chip" data-ui-kind="status-chip" data-ui-part="state" data-info-priority="support" data-text-tone="status" data-status={status}>{statusLabel}</span>
+          <strong data-ui-part="state" data-info-priority="decision" data-text-tone="status" data-status={status}>{resetCountdownLabel}</strong>
+        </div>
+      </header>
+
+      {active ? (
+        <div className="iron-banner-summary">
+          <section className="iron-banner-challenge" aria-label="当前角色铁旗挑战">
+            <div className="iron-banner-challenge-line">
+              <span data-ui-part="label" data-info-priority="support" data-text-tone="meta">当前角色</span>
+              <strong data-ui-part="value" data-info-priority="decision" data-text-tone="primary">
+                {challenge ? challenge.complete ? "已完成" : `${progress} / ${completion}` : "挑战待读取"}
+              </strong>
+              <small data-ui-part="detail" data-info-priority="support" data-text-tone="body">{characterAvailability}</small>
+            </div>
+            {challenge ? (
+              <div className="iron-banner-progress-track" aria-label={`铁旗挑战进度 ${progress}/${completion}`}>
+                <i style={{ width: `${progressPercent}%` }} />
+              </div>
+            ) : null}
+          </section>
+          <section className="iron-banner-reward-summary" aria-label="铁旗挑战奖励">
+            <span data-ui-part="label" data-info-priority="support" data-text-tone="meta">挑战奖励</span>
+            <strong data-ui-part="value" data-info-priority="decision" data-text-tone="primary">{rewardLabel}</strong>
+          </section>
+          {props.onNavigate ? (
+            <button type="button" className="iron-banner-vendor-action" data-ui-kind="button" data-control-variant="secondary" onClick={() => props.onNavigate?.("vendors")}>
+              查看萨拉丁
+            </button>
+          ) : null}
+        </div>
+      ) : (
+        <div className="iron-banner-compact-state">
+          <strong data-ui-part="value" data-info-priority="decision" data-text-tone="primary">{summary?.title ?? "铁旗状态待确认"}</strong>
+          <p data-ui-part="detail" data-info-priority="reading" data-text-tone="body">{summary?.detail ?? "登录 Bungie 后读取当前铁旗轮换。"}</p>
+        </div>
+      )}
+    </article>
+  );
+}
+
 function HomeEmpty(props: { label: string }) {
   return <div className="weekly-activity-empty" data-ui-part="detail" data-info-priority="reading" data-text-tone="body">{props.label}</div>;
 }

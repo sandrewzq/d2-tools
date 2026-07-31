@@ -435,7 +435,7 @@ function renderPerkResult(
   const perk = row.perk;
   return (
     <article className="library-result-row library-perk-result-row" key={perk.hash}>
-      {perk.icon ? <img alt="" src={perk.icon} /> : <span className="library-result-icon-placeholder" aria-hidden="true" />}
+      {perk.icon ? <img className="game-definition-icon" alt="" src={perk.icon} /> : <span className="library-result-icon-placeholder" aria-hidden="true" />}
       <div className="library-result-body">
         <h3>{perk.name}</h3>
         {perk.description ? <p>{perk.description}</p> : null}
@@ -548,7 +548,7 @@ export function LibraryDefinitionDialog(props: {
                       <div className="library-definition-perk-list">
                         {column.plugs.map((plug) => (
                           <article className="library-definition-perk-card" key={plug.hash}>
-                            {plug.icon ? <img alt="" src={plug.icon} /> : <span aria-hidden="true" />}
+                            {plug.icon ? <img className="game-definition-icon" alt="" src={plug.icon} /> : <span aria-hidden="true" />}
                             <div>
                               <strong>{plug.name}</strong>
                               {plug.description ? <p>{plug.description}</p> : null}
@@ -571,7 +571,7 @@ export function LibraryDefinitionDialog(props: {
                     <div className="library-definition-intrinsic-list">
                       {item.intrinsic_traits.map((trait) => (
                         <article className="library-definition-intrinsic-card" key={trait.hash}>
-                          {trait.icon ? <img alt="" src={trait.icon} /> : <span aria-hidden="true" />}
+                          {trait.icon ? <img className="game-definition-icon" alt="" src={trait.icon} /> : <span aria-hidden="true" />}
                           <div>
                             <strong>{trait.name}</strong>
                             {trait.description ? <p>{trait.description}</p> : null}

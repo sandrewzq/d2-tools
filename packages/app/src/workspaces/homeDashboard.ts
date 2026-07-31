@@ -1,3 +1,5 @@
+import type { WeeklyIronBannerSummary } from "@d2-tools/core/weekly/summary";
+
 export type HomeDashboardDiagnosticRow = {
   label?: string;
   value?: string;
@@ -89,6 +91,7 @@ export type HomeDashboardWeeklySummary = {
     source?: string;
     entries?: HomeDashboardWeeklyActivityEntry[];
   }>;
+  iron_banner: WeeklyIronBannerSummary;
   public_clues: Array<{
     title: string;
     subtitle?: string;

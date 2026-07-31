@@ -127,7 +127,8 @@
 .armor-detail-core-feature { display: grid; grid-template-columns: 54px minmax(0, 1fr); gap: 12px; padding: 12px; border: 1px solid var(--object-border); border-left: 4px solid var(--accent-primary); border-radius: var(--radius-object); background: var(--card-bg); }
 .armor-detail-core-feature.is-exotic { border-left-color: var(--status-warning); }
 .armor-detail-core-feature img,
-.armor-detail-core-feature-icon { width: 54px; height: 54px; border-radius: var(--radius-control); background: var(--surface-recessed); object-fit: cover; }
+.armor-detail-core-feature-icon { width: 54px; height: 54px; border-radius: var(--radius-control); }
+.armor-detail-core-feature-icon { background: var(--surface-recessed); }
 .armor-detail-core-feature span { color: var(--accent-primary); font-size: 12px; font-weight: 700; }
 .armor-detail-core-feature h4 { margin: 2px 0 4px; color: var(--text-title); font-size: 14px; }
 .armor-detail-core-feature p { color: var(--body); font-size: 12px; line-height: 1.55; }
@@ -143,7 +144,8 @@
 .armor-detail-set-bonus li:last-child { border-bottom: 0; }
 .armor-detail-set-bonus li > strong { display: grid; min-height: 24px; place-items: center; color: var(--accent-primary); background: var(--status-pending-bg); font-size: 12px; }
 .armor-detail-set-bonus li img,
-.armor-detail-set-perk-icon { width: 34px; height: 34px; border-radius: var(--radius-control); background: var(--surface-recessed); object-fit: cover; }
+.armor-detail-set-perk-icon { width: 34px; height: 34px; border-radius: var(--radius-control); }
+.armor-detail-set-perk-icon { background: var(--surface-recessed); }
 .armor-detail-set-bonus li b { color: var(--text-title); font-size: 12px; }
 .armor-detail-set-bonus li p { margin: 3px 0 0; color: var(--body); font-size: 12px; line-height: 1.45; }
 .armor-detail-capability-table { border-top: 1px solid var(--section-divider); }
@@ -159,7 +161,7 @@
 .armor-detail-socket-block > article.is-special { background: var(--violet-bg); }
 .armor-detail-socket-block > article > strong { color: var(--text-title); font-size: 12px; }
 .armor-detail-socket-block > article > div { display: flex; min-width: 0; align-items: center; gap: 8px; }
-.armor-detail-socket-block img { width: 34px; height: 34px; flex: 0 0 auto; border-radius: var(--radius-control); object-fit: cover; }
+.armor-detail-socket-block img { width: 34px; height: 34px; flex: 0 0 auto; border-radius: var(--radius-control); }
 .armor-detail-socket-block p { margin: 0; color: var(--body); font-size: 12px; }
 .armor-detail-socket-block small { color: var(--text-muted); font-size: 12px; text-align: right; }
 

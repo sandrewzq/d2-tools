@@ -626,12 +626,9 @@
   width: 44px;
   height: 44px;
   border-radius: 6px;
-  background: var(--surface-interactive);
 }
 
-.library-definition-intrinsic-card img {
-  object-fit: cover;
-}
+.library-definition-intrinsic-card > span { background: var(--surface-interactive); }
 
 .library-definition-intrinsic-card div {
   min-width: 0;
@@ -712,12 +709,9 @@
   width: 34px;
   height: 34px;
   border-radius: 6px;
-  background: var(--surface-interactive);
 }
 
-.library-definition-perk-card img {
-  object-fit: cover;
-}
+.library-definition-perk-card > span { background: var(--surface-interactive); }
 
 .library-definition-perk-card div {
   min-width: 0;

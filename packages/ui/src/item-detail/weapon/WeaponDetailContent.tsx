@@ -15,6 +15,7 @@ import type {
   PersonalWeaponKnowledgeEntry,
   SavePersonalWeaponKnowledgeInput
 } from "@d2-tools/core/community-perks/personalWeaponKnowledge";
+import type { ItemReleaseKind } from "@d2-tools/core/items/release";
 
 export type WeaponDetailSection =
   | "overview"
@@ -311,16 +312,26 @@ function WeaponIdentity(props: {
   onSelectVersion?: (hash: number) => void;
 }) {
   const { identity, context, versions, configuration } = props.model;
-  const currentVersion = versions.find((version) => version.is_current) ?? versions[0];
+  const currentDefinition = versions.find((version) => version.is_current) ?? versions[0];
+  const releaseLabel = identity.release?.description ?? "官方发布版本未标注";
+  const releaseStatus = identity.release?.status === "ready" ? "success" : "neutral";
+  const definitionVersionLabel = identity.definition_version?.label ?? "定义版本资料未返回";
+  const watermarks = identity.definition_version?.watermark_icons ?? [];
+  const canSelectDefinitionVersion = context.kind === "definition" && versions.length > 1 && Boolean(props.onSelectVersion);
+  const versionLabel = context.kind === "account_instance"
+    ? "实例版本"
+    : context.kind === "vendor_offer"
+      ? "售卖版本"
+      : "同名版本";
   return (
     <header className="weapon-detail-identity" data-surface="section">
       <div className="weapon-detail-identity-main">
         {identity.icon ? <img src={identity.icon} alt="" /> : <span className="weapon-detail-icon-placeholder" aria-hidden="true" />}
         <div>
           <div className="weapon-detail-identity-title-line">
-            <span className="weapon-detail-version-badge" data-ui-part="state" data-text-tone="status" data-info-priority="support" data-status="success">当前装备版本</span>
+            <span className="weapon-detail-version-badge" data-ui-part="state" data-text-tone="status" data-info-priority="support" data-status={releaseStatus}>发布版本</span>
             <span className="weapon-detail-identity-version" data-ui-part="detail" data-text-tone="meta" data-info-priority="trace">
-              {currentVersion?.season_label ?? currentVersion?.label ?? "当前 Hash"}
+              {releaseLabel}
             </span>
           </div>
           <h2 data-ui-part="value" data-text-tone="primary" data-info-priority="display">{identity.name}</h2>
@@ -348,29 +359,33 @@ function WeaponIdentity(props: {
           <div><dt data-ui-part="label" data-text-tone="meta" data-info-priority="support">对象</dt><dd data-ui-part="value" data-text-tone="primary" data-info-priority="context">{contextKindLabel(context.kind)}</dd></div>
           <div><dt data-ui-part="label" data-text-tone="meta" data-info-priority="support">配置</dt><dd data-ui-part="value" data-text-tone="primary" data-info-priority="context">{configurationKindLabel(configuration.kind)}</dd></div>
           <div className="weapon-detail-version">
-            <dt data-ui-part="label" data-text-tone="meta" data-info-priority="support">版本</dt>
+            <dt data-ui-part="label" data-text-tone="meta" data-info-priority="support">{versionLabel}</dt>
             <dd data-ui-part="value" data-text-tone="primary" data-info-priority="context">
-              {versions.length > 1 && props.onSelectVersion ? (
+              {canSelectDefinitionVersion ? (
                 <select
                   aria-label="选择装备版本"
-                  value={currentVersion?.hash ?? identity.hash}
+                  value={currentDefinition?.hash ?? identity.hash}
                   onChange={(event) => props.onSelectVersion?.(Number(event.target.value))}
                 >
                   {versions.map((version) => (
                     <option key={version.hash} value={version.hash}>
-                      {version.label}{version.season_label ? ` · ${version.season_label}` : ""}
+                      {version.release_label ?? version.label}{version.is_current ? " · 当前查看" : ""}
                     </option>
                   ))}
                 </select>
-              ) : <strong>{currentVersion?.label ?? "当前 Hash"}</strong>}
+              ) : <strong>{currentDefinition?.release_label ?? releaseLabel}</strong>}
             </dd>
-            <span className="weapon-detail-version-state" data-ui-part="state" data-text-tone="status" data-info-priority="support" data-status="success">{currentVersion?.season_label ?? "当前版本"}</span>
           </div>
         </dl>
         <details className="weapon-detail-definition-details">
           <summary>武器定义信息</summary>
           <div>
             <dl><dt>官方描述</dt><dd>{identity.description || "当前 Manifest 未返回描述"}</dd></dl>
+            <dl><dt>发布版本</dt><dd>{releaseLabel}</dd></dl>
+            <dl><dt>发布类型</dt><dd>{releaseKindLabel(identity.release?.kind)}</dd></dl>
+            <dl><dt>定义版本</dt><dd>{definitionVersionLabel}</dd></dl>
+            <dl><dt>光等上限 Hash</dt><dd>{identity.definition_version?.power_cap_hash ?? "资料未返回"}</dd></dl>
+            <dl><dt>版本水印</dt><dd>{watermarks.length ? <span className="weapon-detail-definition-watermarks">{watermarks.map((icon, index) => <img key={`${icon}:${index}`} src={icon} alt={`官方版本水印 ${index + 1}`} title="官方定义版本水印" />)}</span> : "资料未返回"}</dd></dl>
             <dl><dt>Manifest Hash</dt><dd>{identity.hash}</dd></dl>
             <dl><dt>数据来源</dt><dd>当前 Manifest{context.kind === "account_instance" ? " + Profile 实例" : context.kind === "vendor_offer" ? " + Vendor Offer" : ""}</dd></dl>
             <dl><dt>操作方式</dt><dd>{context.read_only ? "只读查看" : "可管理实例"}</dd></dl>
@@ -379,6 +394,15 @@ function WeaponIdentity(props: {
       </div>
     </header>
   );
+}
+
+function releaseKindLabel(kind: ItemReleaseKind | undefined): string {
+  if (kind === "season") return "赛季";
+  if (kind === "annual") return "年度资料片";
+  if (kind === "dlc") return "内容包";
+  if (kind === "core") return "核心内容";
+  if (kind === "update") return "版本更新";
+  return "官方未标注";
 }
 
 function Fact(props: { label: string; icon?: string; tone?: string; title?: string }) {
@@ -728,7 +752,7 @@ function PerkColumn(props: {
           const stateLabel = selection
             ? selection.pending ? "待应用" : selection.selected ? "已选" : selection.can_apply ? "本实例拥有 · 可切换" : "本实例拥有"
             : undefined;
-          const content = <>{stateLabel || perk.enhanced_of_hash ? <small>{[stateLabel, perk.enhanced_of_hash ? "强化版本" : undefined].filter(Boolean).join(" · ")}</small> : null}{perk.icon ? <img src={perk.icon} alt="" /> : null}<span><strong>{perk.name}</strong><p>{perk.description}</p></span></>;
+          const content = <>{stateLabel || perk.enhanced_of_hash ? <small>{[stateLabel, perk.enhanced_of_hash ? "强化版本" : undefined].filter(Boolean).join(" · ")}</small> : null}{perk.icon ? <img className="game-definition-icon" src={perk.icon} alt="" /> : null}<span><strong>{perk.name}</strong><p>{perk.description}</p></span></>;
           return props.interactive && selection?.can_apply ? (
             <button key={perk.hash} type="button" className={["weapon-detail-perk", selection.selected && "is-selected", selection.pending && "is-pending"].filter(Boolean).join(" ")} aria-pressed={selection.selected || selection.pending} onClick={() => props.onSelect?.(perk)}>{content}</button>
           ) : <article key={perk.hash} className={["weapon-detail-perk", selection?.selected && "is-selected", selection?.pending && "is-pending"].filter(Boolean).join(" ")}>{content}</article>;
@@ -885,7 +909,7 @@ function InstancesRail(props: { model: WeaponDetailViewModel; onSelect?: (instan
       {props.model.same_hash_instances.length ? (
         <div className="weapon-detail-instance-list" role="list">
           {props.model.same_hash_instances.map((instance, index) => {
-            const perkIcons = instance.plug_names.slice(0, 4).map((name) => ({ name, icon: findPerkIcon(props.model, name) }));
+            const visiblePlugs = instance.plugs.slice(0, 4);
             const upgrade = instanceUpgradeLabel(instance);
             return (
               <button
@@ -898,12 +922,12 @@ function InstancesRail(props: { model: WeaponDetailViewModel; onSelect?: (instan
                 disabled={!props.onSelect}
               >
                 <header><strong>实例 {index + 1}</strong><span>{instance.location} · {instance.power ?? "光等未知"}</span></header>
-                <span className="weapon-detail-instance-perks" aria-label={instance.plug_names.slice(0, 4).join("、") || "配置未返回"}>
-                  {perkIcons.map((perk, perkIndex) => perk.icon
-                    ? <img key={`${perk.name}-${perkIndex}`} src={perk.icon} alt="" title={perk.name} />
-                    : <i key={`${perk.name}-${perkIndex}`} title={perk.name} aria-hidden="true" />)}
+                <span className="weapon-detail-instance-perks" aria-label={visiblePlugs.map((plug) => plug.name).join("、") || "配置未返回"}>
+                  {visiblePlugs.filter((plug) => Boolean(plug.icon)).map((plug) => (
+                    <img className="game-definition-icon" key={plug.hash} src={plug.icon} alt="" title={plug.name} />
+                  ))}
                 </span>
-                <strong className="weapon-detail-instance-roll">{instance.plug_names.slice(0, 4).join(" / ") || "配置未返回"}</strong>
+                <strong className="weapon-detail-instance-roll">{visiblePlugs.map((plug) => plug.name).join(" / ") || "配置未返回"}</strong>
                 <span className="weapon-detail-instance-meta">
                   {upgrade ? <span>{upgrade}</span> : null}
                   <span>{instanceStateLabel(instance)}</span>
@@ -1119,15 +1143,6 @@ function matchTargetPerks(model: WeaponDetailViewModel, columnKey: string, targe
 
 function matchFactLabel(hasObject: boolean, matched: boolean): string {
   return hasObject ? matched ? "命中" : "未命中" : "未选择实际对象";
-}
-
-function findPerkIcon(model: WeaponDetailViewModel, name: string): string | undefined {
-  const candidates = [
-    ...(model.configuration.intrinsic ? [model.configuration.intrinsic] : []),
-    ...model.configuration.selection_columns.flatMap((column) => column.candidates),
-    ...model.configuration.pool_columns.flatMap((column) => column.candidates)
-  ];
-  return candidates.find((candidate) => sameLabel(candidate.name, name))?.icon;
 }
 
 function splitKnowledgeValues(value: string): string[] {

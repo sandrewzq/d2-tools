@@ -59,6 +59,16 @@ const PVP_ACTIVITY_MODES = new Set([
   92 // Relic
 ]);
 
+const IRON_BANNER_ACTIVITY_MODES = new Set([
+  19, // Iron Banner
+  43, // Iron Banner Control
+  44, // Iron Banner Clash
+  45, // Iron Banner Supremacy
+  68, // Iron Banner Salvage
+  90, // Iron Banner Rift
+  91 // Iron Banner Zone Control
+]);
+
 const PVE_ACTIVITY_MODES = new Set([
   ACTIVITY_MODE_ALL_PVE,
   2, // Story
@@ -95,6 +105,10 @@ export function activityModeValues(activity: ActivityModeSource): number[] {
 
 export function isPvpActivityMode(mode: number): boolean {
   return PVP_ACTIVITY_MODES.has(mode);
+}
+
+export function isIronBannerActivityMode(mode: number): boolean {
+  return IRON_BANNER_ACTIVITY_MODES.has(mode);
 }
 
 export function isPveActivityMode(mode: number): boolean {

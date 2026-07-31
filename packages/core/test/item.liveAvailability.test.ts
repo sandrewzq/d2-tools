@@ -61,6 +61,44 @@ describe("item live availability", () => {
     expect(result.milestone_clues.map((clue) => clue.label)).toContain("Nightfall：The Glassway");
   });
 
+  it("matches vendor aliases from the same Manifest weapon pattern", () => {
+    const result = buildLiveItemAvailabilityFromBungie({
+      itemHashes: [2624561525],
+      characterVendors: [{
+        characterId: "char-1",
+        vendors: { data: { "3756955867": { vendorHash: 3756955867 } } },
+        sales: { data: { "3756955867": { saleItems: { "15": { itemHash: 3276118833 } } } } }
+      }],
+      definitions: {
+        vendors: {
+          "3756955867": { displayProperties: { name: "指挥官萨瓦拉" } }
+        },
+        items: {
+          "2624561525": {
+            hash: 2624561525,
+            displayProperties: { name: "加时交锋" },
+            translationBlock: { weaponPatternHash: 2624561525 }
+          },
+          "3276118833": {
+            hash: 3276118833,
+            displayProperties: { name: "加时交锋" },
+            translationBlock: { weaponPatternHash: 2624561525 }
+          }
+        }
+      }
+    });
+
+    expect(result.items["2624561525"]).toMatchObject({
+      status: "character_vendor",
+      label: "当前角色商人售卖",
+      sources: [{
+        kind: "character_vendor",
+        label: "指挥官萨瓦拉",
+        character_id: "char-1"
+      }]
+    });
+  });
+
   it("fetches public availability without a token and adds character vendors when logged in", async () => {
     const requested: string[] = [];
     const fetchImpl: typeof fetch = async (input, init) => {

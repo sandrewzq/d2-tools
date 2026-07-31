@@ -1,6 +1,15 @@
 
 
 /* Prototype fidelity primitives */
+.game-definition-icon {
+  box-sizing: border-box;
+  display: block;
+  padding: 3px;
+  border: 1px solid var(--game-icon-border);
+  background: var(--game-icon-surface);
+  object-fit: contain;
+}
+
 .app-page {
   display: grid;
   gap: var(--space-16);

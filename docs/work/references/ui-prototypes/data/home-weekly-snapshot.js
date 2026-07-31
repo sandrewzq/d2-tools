@@ -297,3 +297,55 @@ window.homeWeeklySnapshot = {
     ]
   }
 };
+
+window.homeWeeklySnapshot.weekly.iron_banner = {
+  status: "active",
+  title: "铁旗已开放",
+  detail: "要塞: 匹配 · 匹配开放 · 限时熔炉竞技场",
+  activity_name: "要塞: 匹配",
+  activity_icon: "/common/destiny2_content/icons/DestinyActivityDefinition_b843fe750dcb70115d677e5bc1b7070c.png",
+  playlist_name: "匹配开放",
+  source: "Bungie CharacterActivities + 当前 Manifest",
+  characters: {
+    available_count: 2,
+    total_count: 2,
+    entries: {
+      prototype: {
+        character_id: "prototype",
+        activity_hash: 2684393063,
+        challenge: {
+          objective_hash: 4246048527,
+          progress: 0,
+          completion_value: 3,
+          complete: false,
+          progress_label: "完成铁旗对局",
+          description: "完成游戏列表中的活动来获取装备，它能大幅提升能量等级。"
+        }
+      }
+    }
+  },
+  reward_groups: [{
+    display_behavior: 0,
+    label: "活动奖励提示",
+    note: "当前角色活动列表可见。",
+    conditional: false,
+    items: [{
+      hash: 364434051,
+      name: "铁旗记忆水晶",
+      item_type: "铁旗记忆水晶"
+    }]
+  }],
+  loot_pool: {
+    status: "pending",
+    source: "等待 Bungie Character Vendors",
+    attunement_count: 0,
+    weapon_offer_count: 0,
+    armor_offer_count: 0,
+    featured_items: []
+  }
+};
+window.homeWeeklySnapshot.weekly.priorities.special_event = {
+  status: "pending",
+  title: "暂无可确认特殊活动",
+  detail: "铁旗使用独立固定区域；这里只展示其他已确认限时活动。"
+};
