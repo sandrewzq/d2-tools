@@ -17,7 +17,7 @@
 | 标记 | 用途 |
 |---|---|
 | `data-contract-root="product-workspace|detail-dossier"` | 产品合同根与页面级状态 |
-| `data-surface="page|section|frame|object-card|list|row|split|content-stack|empty|menu|dialog|drawer"` | 表面和布局职责 |
+| `data-surface="page|section|frame|workspace-frame|object-card|list|row|split|content-stack|empty|menu|dialog|drawer"` | 表面和布局职责 |
 | `data-ui-kind` | 共享组件类型，如 Shell、导航、按钮、字段、对象卡、状态矩阵和弹层 |
 | `data-contract-id` | 跨规格与产品页面稳定定位，不参与业务判断 |
 | `data-ui-part="label|value|detail|state|source|action"` | 组件内部信息槽位 |
@@ -44,13 +44,14 @@
 | `ContextSwitcher` | 角色、账号、当前对象 | 控件外框，当前项使用选择背景和 `1px` 内描边 | 当成页面导航、使用方向指示线或拆成独立按钮卡 |
 | `SegmentedControl` | 同层模式切换 | 整体一圈控件边框，内部单线分隔 | 每项完整外框、文件夹 Tab |
 | `PageSection` | 页面章节 | 只画必要章节分隔，直角 | 页面 section 卡片化 |
-| `WorkspaceSplit` | 两栏、三栏工作区 | 外层无完整框，相邻栏位只有一条分隔线 | 外框和栏位双重边线 |
+| `WorkspaceFrame` | 状态条与两栏、三栏工作区的页面级宿主 | 使用 `border-control` 绘制唯一一圈直角外边界 | 缺少左右边界、使用对象卡圆角或让子分栏重复外框 |
+| `WorkspaceSplit` | `WorkspaceFrame` 内部的两栏、三栏工作区 | 自身无完整框并继承宿主边界；相邻栏位只有一条分隔线 | 外框和栏位双重边线 |
 | `SurfaceList` | 目录、台账、连续结果 | 父级拥有一次外边界或继承栏位边界；行只画底部分隔 | 每行圆角卡片 |
 | `SurfaceFrame` | 状态矩阵、摘要、独立空态 | `4px` 轻圆角和唯一外框，内部单元直角 | 嵌套首层卡片或使用对象卡圆角 |
 | `ObjectCard` | 装备、Offer、Perk、能力 | `6px` 圆角和唯一对象边框 | 用于页面、目录或普通数据行 |
 | `Callout` | 信息、警告、失败、AI 提示 | 中性对象边框，可使用左侧语义色条 | 导航、Tab、对象卡复用色条 |
 
-页面级可见边界只分为 `ShellLine`、`SplitLine`、`RowLine` 和 `ObjectOutline`。同一条边只能由一个 DOM 层绘制。
+页面级可见边界只分为 `ShellLine`、`WorkspaceOutline`、`SplitLine`、`RowLine` 和 `ObjectOutline`。`WorkspaceOutline` 由 `WorkspaceFrame` 使用 `border-control` 绘制；同一条边只能由一个 DOM 层绘制。
 
 ## 尺寸与响应式
 

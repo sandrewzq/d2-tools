@@ -1,7 +1,7 @@
 import { createElement, type AriaRole, type ReactNode } from "react";
 
 type WorkspaceElement = "div" | "section" | "main" | "aside" | "nav" | "header";
-type WorkspaceSurface = "page" | "section" | "frame" | "object-card" | "list" | "row" | "split" | "content-stack" | "empty" | "menu" | "dialog" | "drawer";
+type WorkspaceSurface = "page" | "section" | "frame" | "workspace-frame" | "object-card" | "list" | "row" | "split" | "content-stack" | "empty" | "menu" | "dialog" | "drawer";
 type ShellRole = "page-header" | "command-bar" | "side-rail";
 
 type WorkspaceProps = {
