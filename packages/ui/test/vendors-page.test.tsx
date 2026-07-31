@@ -15,11 +15,11 @@ describe("shared vendors page", () => {
   });
 
   it("keeps direct and service inventory in the vertical flow", () => {
-    render(<VendorsPageContentView model={createModel()} actions={{}} />);
+    render(<VendorsPageContentView model={createModel()} actions={{ onOpenItem: vi.fn() }} />);
 
     expect(screen.getByRole("heading", { name: "奇异装备优惠" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "查看蒙特卡洛详情" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "查看鹰月详情" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "打开装备详情：蒙特卡洛" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "打开装备详情：鹰月" })).toBeTruthy();
   });
 
   it("opens a vendor item through the shared item action", async () => {
@@ -27,7 +27,7 @@ describe("shared vendors page", () => {
     const onOpenItem = vi.fn();
     render(<VendorsPageContentView model={createModel()} actions={{ onOpenItem }} />);
 
-    await user.click(screen.getByRole("button", { name: "查看鹰月详情" }));
+    await user.click(screen.getByRole("button", { name: "打开装备详情：鹰月" }));
     expect(onOpenItem).toHaveBeenCalledWith(
       expect.objectContaining({ itemHash: 1001 }),
       expect.objectContaining({ vendorName: "仄" })
@@ -36,13 +36,13 @@ describe("shared vendors page", () => {
 
   it("keeps inventory visible while showing a partial vendor-detail failure", async () => {
     const user = userEvent.setup();
-    render(<VendorsPageContentView model={createModel({ detailFailure: true })} actions={{}} />);
+    render(<VendorsPageContentView model={createModel({ detailFailure: true })} actions={{ onOpenItem: vi.fn() }} />);
 
     expect(screen.getByRole("button", { name: /仄.*部分详情失败.*2 件/ })).toBeTruthy();
     expect(screen.getByRole("status", { name: "商人详情状态" })).toHaveTextContent(
       "1 个角色的属性与插槽详情读取失败"
     );
-    expect(screen.getByRole("button", { name: "查看鹰月详情" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "打开装备详情：鹰月" })).toBeTruthy();
 
   });
 

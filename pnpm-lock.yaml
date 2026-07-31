@@ -135,6 +135,9 @@ importers:
       '@d2-tools/app':
         specifier: workspace:*
         version: link:../app
+      '@d2-tools/core':
+        specifier: workspace:*
+        version: link:../core
       '@d2-tools/ui':
         specifier: workspace:*
         version: link:../ui

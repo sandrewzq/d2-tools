@@ -544,6 +544,7 @@ function LocalPlanEditor(props: LoadoutsPageContentViewProps & {
     ? matchLocalLoadoutPlan(draft, props.accountSummary).item_matches
     : [], [draft, props.accountSummary]);
   if (!draft) return null;
+  const activeDraft = draft;
 
   function updateDraft(next: CreateLocalLoadoutPlanInput) {
     setArmorCandidates([]);
@@ -551,16 +552,16 @@ function LocalPlanEditor(props: LoadoutsPageContentViewProps & {
     props.actions.localPlanDraftChange(next);
   }
 
-  const armorConstraints = draft.armor_constraints ?? emptyArmorConstraints();
+  const armorConstraints = activeDraft.armor_constraints ?? emptyArmorConstraints();
 
   function updateArmorConstraints(next: LoadoutPlanArmorConstraints) {
-    updateDraft({ ...draft, armor_constraints: next });
+    updateDraft({ ...activeDraft, armor_constraints: next });
   }
 
   function updateTarget(index: number, nextTarget: CreateLocalLoadoutPlanInput["item_targets"][number]) {
     updateDraft({
-      ...draft,
-      item_targets: draft.item_targets.map((target, targetIndex) => targetIndex === index ? nextTarget : target)
+      ...activeDraft,
+      item_targets: activeDraft.item_targets.map((target, targetIndex) => targetIndex === index ? nextTarget : target)
     });
   }
 
@@ -568,8 +569,8 @@ function LocalPlanEditor(props: LoadoutsPageContentViewProps & {
     const item = accountItems.find((candidate) => candidate.instance_id === instanceId);
     if (!item) return;
     updateDraft({
-      ...draft,
-      item_targets: [...draft.item_targets, {
+      ...activeDraft,
+      item_targets: [...activeDraft.item_targets, {
         slot: item.bucket_name ?? item.group_key,
         item_hash: item.hash,
         selected_instance_id: item.instance_id,
@@ -586,7 +587,7 @@ function LocalPlanEditor(props: LoadoutsPageContentViewProps & {
     }
     const result = solveLoadoutArmorCandidates({
       account: props.accountSummary,
-      target_character_id: draft.target_character_id,
+      target_character_id: activeDraft.target_character_id,
       constraints: armorConstraints
     });
     setArmorCandidates(result.candidates);
@@ -597,12 +598,12 @@ function LocalPlanEditor(props: LoadoutsPageContentViewProps & {
     const armorInstanceIds = new Set(accountItems
       .filter((item) => item.group_key === "armor" && item.instance_id)
       .map((item) => item.instance_id));
-    const existingTargets = new Map(draft.item_targets
+    const existingTargets = new Map(activeDraft.item_targets
       .filter((target) => target.selected_instance_id)
       .map((target) => [target.selected_instance_id!, target]));
-    const nonArmorTargets = draft.item_targets.filter((target) => !target.selected_instance_id || !armorInstanceIds.has(target.selected_instance_id));
+    const nonArmorTargets = activeDraft.item_targets.filter((target) => !target.selected_instance_id || !armorInstanceIds.has(target.selected_instance_id));
     updateDraft({
-      ...draft,
+      ...activeDraft,
       item_targets: [...nonArmorTargets, ...candidate.items.map((item) => ({
         slot: item.bucket_name,
         item_hash: item.item_hash,

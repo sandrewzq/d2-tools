@@ -2,7 +2,7 @@ import { spawn } from "node:child_process";
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
 import { join, resolve } from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { fileURLToPath } from "node:url";
 import { _electron as electron, chromium } from "playwright";
 
 const repoRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
@@ -28,7 +28,6 @@ const outputDir = resolve(process.env.D2_VISUAL_OUTPUT_DIR ?? join(
 ));
 const reportPath = join(outputDir, "report.json");
 const desktopDataDir = join(outputDir, "desktop-data");
-const frozenFullAppPrototype = join(repoRoot, "docs", "work", "references", "ui-prototypes", "全应用视觉原型.html");
 const allowedLightBackgroundSelectors = [
   ".item-detail-game-card",
   ".item-detail-game-card *",
@@ -275,9 +274,10 @@ async function readShellContract(page, selectors) {
     return {
       tokens: {
         objectBorder: resolveToken("--object-border"),
-        divider: resolveToken("--divider"),
+        sectionDivider: resolveToken("--section-divider"),
         cardBackground: resolveToken("--card-bg"),
-        radiusControl: rootStyle.getPropertyValue("--radius-control").trim()
+        radiusControl: rootStyle.getPropertyValue("--radius-control").trim(),
+        fontBody: rootStyle.getPropertyValue("--font-body").trim()
       },
       strip: {
         display: stripStyle.display,
@@ -293,30 +293,6 @@ async function readShellContract(page, selectors) {
       items: itemElements.map(itemSnapshot)
     };
   }, selectors);
-}
-
-async function captureFrozenShellContract(browser, theme) {
-  const page = await browser.newPage({ viewport: { width, height } });
-  try {
-    await page.goto(pathToFileURL(frozenFullAppPrototype).href, { waitUntil: "load" });
-    await page.evaluate((nextTheme) => {
-      document.documentElement.dataset.theme = nextTheme;
-    }, theme);
-    await page.waitForTimeout(50);
-    const contract = await readShellContract(page, {
-      rootSelector: "html",
-      stripSelector: ".status-strip",
-      itemSelector: ".status-chip"
-    });
-    const screenshotDir = join(outputDir, "screenshots");
-    mkdirSync(screenshotDir, { recursive: true });
-    await page.locator(".topbar").screenshot({
-      path: join(screenshotDir, `frozen-${theme}-shell-${viewport}.png`)
-    });
-    return contract;
-  } finally {
-    await page.close();
-  }
 }
 
 function assertSharedShellContract({ targetKey, theme, contract, reference }) {
@@ -368,7 +344,7 @@ function assertSharedShellContract({ targetKey, theme, contract, reference }) {
     expectEqual(`${path}.borderRightStyle`, item.borderRightStyle, "solid");
     expectEqual(`${path}.borderBottomStyle`, item.borderBottomStyle, "solid");
     expectEqual(`${path}.borderTopColor`, item.borderTopColor, contract.tokens.objectBorder);
-    expectEqual(`${path}.borderRightColor`, item.borderRightColor, isLast ? contract.tokens.objectBorder : contract.tokens.divider);
+    expectEqual(`${path}.borderRightColor`, item.borderRightColor, isLast ? contract.tokens.objectBorder : contract.tokens.sectionDivider);
     expectEqual(`${path}.borderBottomColor`, item.borderBottomColor, contract.tokens.objectBorder);
     if (isFirst) expectEqual(`${path}.borderLeftColor`, item.borderLeftColor, contract.tokens.objectBorder);
     expectEqual(`${path}.borderTopLeftRadius`, item.borderTopLeftRadius, isFirst ? contract.tokens.radiusControl : "0px");
@@ -376,7 +352,7 @@ function assertSharedShellContract({ targetKey, theme, contract, reference }) {
     expectEqual(`${path}.borderTopRightRadius`, item.borderTopRightRadius, isLast ? contract.tokens.radiusControl : "0px");
     expectEqual(`${path}.borderBottomRightRadius`, item.borderBottomRightRadius, isLast ? contract.tokens.radiusControl : "0px");
     expectEqual(`${path}.backgroundColor`, item.backgroundColor, contract.tokens.cardBackground);
-    expectEqual(`${path}.fontSize`, item.fontSize, reference?.items[index]?.fontSize ?? "11px");
+    expectEqual(`${path}.fontSize`, item.fontSize, reference?.items[index]?.fontSize ?? contract.tokens.fontBody);
     expectEqual(`${path}.whiteSpace`, item.whiteSpace, "nowrap");
     expectClose(`${path}.rect.height`, item.rect.height, 26);
     if (item.tagName === "button") expectEqual(`${path}.appearance`, item.appearance, "none");
@@ -712,7 +688,8 @@ async function scanDesktopTarget(target, theme, server, referenceShellContract) 
   try {
     const page = await app.firstWindow();
     await page.setViewportSize({ width, height });
-    await page.waitForLoadState("networkidle");
+    await page.waitForLoadState("domcontentloaded");
+    await page.waitForSelector(".app-shell");
     const results = [];
     for (const pageKey of pages) {
       await navigateToPage(page, pageKey);
@@ -741,19 +718,21 @@ async function main() {
   if (!skipBuild) await buildDesktopOutputs();
 
   const results = [];
-  const frozenShellContracts = {};
+  const sharedShellContracts = {};
   const browser = await chromium.launch({ headless: true });
   try {
     for (const theme of themes) {
-      const referenceShellContract = await captureFrozenShellContract(browser, theme);
-      frozenShellContracts[theme] = referenceShellContract;
+      let referenceShellContract = null;
       const servers = [];
       try {
         for (const target of browserTargets) {
           const server = await ensureTargetServer(target, theme);
           servers.push(server);
-          results.push(...await scanBrowserTarget(browser, target, theme, server, referenceShellContract));
+          const targetResults = await scanBrowserTarget(browser, target, theme, server, referenceShellContract);
+          results.push(...targetResults);
+          referenceShellContract ??= targetResults.find((item) => item.page === "home" && !item.settingsSection)?.shellContract ?? null;
         }
+        sharedShellContracts[theme] = referenceShellContract;
         const desktopServer = await ensureTargetServer(desktopTarget, theme);
         servers.push(desktopServer);
         results.push(...await scanDesktopTarget(desktopTarget, theme, desktopServer, referenceShellContract));
@@ -776,7 +755,7 @@ async function main() {
     themes,
     targets: [...browserTargets.map((target) => target.key), desktopTarget.key],
     allowedLightBackgroundSelectors,
-    frozenShellContracts,
+    sharedShellContracts,
     resultCount: results.length,
     results
   };

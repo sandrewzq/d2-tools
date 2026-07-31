@@ -155,10 +155,10 @@ describe("vendor workspace loading", () => {
     rerender({ active: true });
 
     await waitFor(() => expect(loadInventory).toHaveBeenCalledTimes(2));
-    await waitFor(() => expect(result.current.model.updatedLabel).toBe("更新：2026-07-12T13:00:00.000Z"));
+    await waitFor(() => expect(result.current.model.updatedAt).toBe("2026-07-12T13:00:00.000Z"));
 
     await act(async () => firstRequest.resolve(createVendorSnapshot("2026-07-12T11:00:00.000Z")));
-    expect(result.current.model.updatedLabel).toBe("更新：2026-07-12T13:00:00.000Z");
+    expect(result.current.model.updatedAt).toBe("2026-07-12T13:00:00.000Z");
   });
 
   it("loads only the selected vendor detail after the base inventory arrives", async () => {
@@ -256,7 +256,7 @@ describe("vendor workspace loading", () => {
       { initialProps: { account: createAccountSummary("membership-a") } }
     );
 
-    await waitFor(() => expect(result.current.model.updatedLabel).toBe("更新：2026-07-12T12:00:00.000Z"));
+    await waitFor(() => expect(result.current.model.updatedAt).toBe("2026-07-12T12:00:00.000Z"));
     rerender({ account: createAccountSummary("membership-b") });
 
     await waitFor(() => expect(result.current.model.statusBanner?.message).toBe("新账号商人数据读取失败"));
@@ -286,10 +286,10 @@ describe("vendor workspace loading", () => {
     await waitFor(() => expect(loadInventory).toHaveBeenCalledTimes(2));
 
     await act(async () => accountBRequest.resolve(createVendorSnapshot("2026-07-12T13:00:00.000Z")));
-    await waitFor(() => expect(result.current.model.updatedLabel).toBe("更新：2026-07-12T13:00:00.000Z"));
+    await waitFor(() => expect(result.current.model.updatedAt).toBe("2026-07-12T13:00:00.000Z"));
 
     await act(async () => accountARequest.resolve(createVendorSnapshot("2026-07-12T11:00:00.000Z")));
-    expect(result.current.model.updatedLabel).toBe("更新：2026-07-12T13:00:00.000Z");
+    expect(result.current.model.updatedAt).toBe("2026-07-12T13:00:00.000Z");
   });
 
   it("clears inventory and ignores pending responses when the account is removed", async () => {

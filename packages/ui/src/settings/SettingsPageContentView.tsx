@@ -21,7 +21,9 @@ export type SettingsActionLogTypeFilter =
   | "transfer"
   | "postmaster-pull"
   | "loadout-equip"
-  | "loadout-snapshot";
+  | "loadout-snapshot"
+  | "loadout-clear"
+  | "loadout-update-identifiers";
 export type SettingsDensity = "compact" | "standard" | "comfortable";
 
 export type SettingsLanguagePreferences = {
@@ -360,7 +362,7 @@ function DiagnosticsSection(props: any) {
     <div className="settings-log-toolbar">
       <div className="settings-log-filters">
         <label className="compact-field" data-info-priority="support" data-text-tone="meta">{settingsText(copy, "结果")}<select data-ui-kind="field" value={props.resultFilter} onChange={(event) => props.onResultFilterChange(event.target.value as SettingsActionLogResultFilter)}><option value="all">{settingsText(copy, "全部")}</option><option value="success">{settingsText(copy, "成功")}</option><option value="failed">{settingsText(copy, "失败")}</option></select></label>
-        <label className="compact-field" data-info-priority="support" data-text-tone="meta">{settingsText(copy, "类型")}<select data-ui-kind="field" value={props.typeFilter} onChange={(event) => props.onTypeFilterChange(event.target.value as SettingsActionLogTypeFilter)}><option value="all">{settingsText(copy, "全部")}</option><option value="set-lock">{settingsText(copy, "锁定状态")}</option><option value="equip">{settingsText(copy, "装备")}</option><option value="insert-socket-plug">{settingsText(copy, "切换武器 Perk")}</option><option value="transfer">{settingsText(copy, "仓库转移")}</option><option value="postmaster-pull">{settingsText(copy, "邮政官取回")}</option><option value="loadout-equip">{settingsText(copy, "应用游戏内配装栏")}</option><option value="loadout-snapshot">{settingsText(copy, "覆盖游戏内配装栏")}</option></select></label>
+        <label className="compact-field" data-info-priority="support" data-text-tone="meta">{settingsText(copy, "类型")}<select data-ui-kind="field" value={props.typeFilter} onChange={(event) => props.onTypeFilterChange(event.target.value as SettingsActionLogTypeFilter)}><option value="all">{settingsText(copy, "全部")}</option><option value="set-lock">{settingsText(copy, "锁定状态")}</option><option value="equip">{settingsText(copy, "装备")}</option><option value="insert-socket-plug">{settingsText(copy, "切换武器 Perk")}</option><option value="transfer">{settingsText(copy, "仓库转移")}</option><option value="postmaster-pull">{settingsText(copy, "邮政官取回")}</option><option value="loadout-equip">{settingsText(copy, "应用游戏内配装栏")}</option><option value="loadout-snapshot">{settingsText(copy, "覆盖游戏内配装栏")}</option><option value="loadout-clear">{settingsText(copy, "清空游戏内配装栏")}</option><option value="loadout-update-identifiers">{settingsText(copy, "更新游戏内配装标识")}</option></select></label>
       </div>
       <SettingsActions><SettingsButton data-control-variant="secondary" onClick={props.onRefreshDiagnostics}>{settingsText(copy, "运行诊断")}</SettingsButton><SettingsButton data-control-variant="secondary" onClick={props.onRefreshLog}>{settingsText(copy, "刷新日志")}</SettingsButton></SettingsActions>
     </div>

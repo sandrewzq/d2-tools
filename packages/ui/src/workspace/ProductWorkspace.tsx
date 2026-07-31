@@ -1,4 +1,4 @@
-import { createElement, type ReactNode } from "react";
+import { createElement, type AriaRole, type ReactNode } from "react";
 
 type WorkspaceElement = "div" | "section" | "main" | "aside" | "nav" | "header";
 type WorkspaceSurface = "page" | "section" | "frame" | "list" | "row" | "split" | "content-stack" | "empty";
@@ -15,6 +15,9 @@ type WorkspaceProps = {
   surface?: WorkspaceSurface;
   shellRole?: ShellRole;
   uiKind?: string;
+  role?: AriaRole;
+  ariaLive?: "off" | "polite" | "assertive";
+  ariaBusy?: boolean;
 };
 
 function classNames(...values: Array<string | undefined>): string {
@@ -36,6 +39,9 @@ function renderWorkspaceElement(
       "data-shell-role": props.shellRole,
       "data-surface": props.surface,
       "data-ui-kind": props.uiKind,
+      role: props.role,
+      "aria-live": props.ariaLive,
+      "aria-busy": props.ariaBusy,
       id: props.id
     },
     props.children

@@ -101,9 +101,9 @@ docs/        正式文档
 后续 UI 开发按“共享 UI 优先，平台壳只接能力”的方式推进：
 
 1. 视觉、布局、组件结构、状态样式、通用交互和跨端文案默认进入 `packages/ui`。
-2. 三个冻结 HTML 直接承载视觉结构、响应式行为和规格交互；它们是验收基准，不是第二套产品实现，也不提供真实业务能力。
+2. 不再维护独立 HTML 原型。`packages/ui` 的共享页面是唯一产品实现，稳定视觉、结构和交互约束记录在 `docs/work/references/ui-specs/`。
 3. Web 和 Desktop 只负责平台 adapter。Web 处理浏览器登录态、HTTP/API、部署配置；Desktop 处理 Electron IPC、本地文件、窗口、更新和打包。
-4. UI 探索先更新冻结 HTML；确认后必须实现到 `packages/ui`，再让 Web / Desktop 共同消费。不能复制冻结 HTML 中的 mock 业务逻辑。
+4. UI 探索直接在共享页面实现，通过 Web 快速预览并由 Desktop 结合真实数据验收；确认后的跨菜单约束同步更新 Markdown 合同。
 5. `ProductShellHost` 是产品外壳统一入口；Web / Desktop 都应挂同一个 Host。不得重新引入平台专用 shell wrapper 来复制页面结构。主菜单真实入口的页面根、页面标题和页面级 gap 归 `ProductShellHost` 统一管理，页面内容组件只返回内容层。
 6. 顶部状态条等跨端状态对象必须使用稳定 key 做样式和逻辑判断，例如 `account`、`library`、`app-version`；本地化后的 `label` 只用于显示，不能参与逻辑判断。
 7. 全局 AI 抽屉等产品级辅助面板也属于共享 UI：`assistantPanel` 不允许各端长期自建标题、对话结构或占位页面，必须复用 `packages/ui` 的 AI Assistant View；Desktop / Web 只提供真实服务 adapter 或预览数据。
@@ -111,13 +111,13 @@ docs/        正式文档
 9. 改 `packages/ui` 后默认不新增测试，也不自动运行 UI 测试、消费者类型检查和视觉脚本；需要快速体验时启动 Web，需要真实功能验收时启动 Desktop。用户要求本地测试时正常运行现有检查，否则普通 push 后交给 CI。
 10. 产品样式不得再复制到 Desktop 私有样式文件；需要新增 class、token、暗色规则或页面布局时，修改 `packages/ui/src/styles/` 下对应分片，并保持 `packages/ui/src/styles.css` 只作为稳定顺序的聚合入口。Desktop 私有 CSS 只能放窗口、拖拽区或 Electron 特有平台差异。
 
-冻结原型还原规则：
+共享 UI 实施规则：
 
-1. `docs/work/references/ui-prototypes/全应用视觉原型.html`、`统一武器详情原型.html` 和 `统一护甲详情原型.html` 是全应用还原的唯一视觉真相。布局、组件层级、尺寸、密度、颜色、排版、图标、状态样式、响应式行为和信息权重均以三个原型为准。
-2. 当前应用的旧 DOM、旧 CSS、旧 token、旧组件 chrome 和 `archive` 实现不作为保留目标。还原不是在旧页面上换颜色或补样式，而是在 `packages/ui` 中按原型重建唯一页面结构；无法匹配原型的旧样式应随菜单迁移删除。
-3. 当前应用的 ViewModel、props、actions、adapter、IPC、真实数据规则、错误恢复和已有工作流是功能真相。视觉重建不得减少字段、入口、状态或写操作，也不得把原型 mock 当成产品逻辑。
-4. 每个菜单开工前必须产出功能清单、原型视觉结构清单、组件到真实字段/action 的绑定表，以及加载、空、失败、部分失败、禁用、进行中的状态矩阵。四项未完成时不得修改页面 JSX。
-5. 原型没有容纳现有功能时，应先修改并确认原型，再实现产品页面；不得在产品代码里自行隐藏或删除。原型有控件但当前没有真实能力时，应先确认功能契约，不得用假回调、固定成功 toast 或静态状态冒充实现。
+1. `packages/ui` 的共享页面决定实际布局、组件层级、响应式行为和视觉表现；`docs/work/references/ui-specs/` 记录需要跨实现稳定保持的合同。
+2. 当前应用的旧 DOM、旧 CSS、旧 token、旧组件 chrome 和 `archive` 实现不作为保留目标；冲突旧样式应随页面修改删除。
+3. 当前 ViewModel、props、actions、adapter、IPC、真实数据规则、错误恢复和已有工作流是功能真相。UI 修改不得减少字段、入口、状态或写操作，也不得用 mock 冒充真实能力。
+4. 每个菜单开工前确认功能清单、页面结构、真实字段/action 绑定，以及加载、空、失败、部分失败、禁用、进行中的状态矩阵。
+5. 现有合同没有容纳某项功能时，先更新合同并确认位置；当前没有真实能力的控件不得使用假回调、固定成功 toast 或静态状态冒充实现。
 6. 每个菜单只允许一棵产品 JSX。不得新增或保留 `presentation="archive"`、`Archive*Content` 或以 `visualVariant` 切换页面结构；菜单还原完成时必须同步删除该菜单的 archive 分支、专用组件和专用 CSS。
 7. Web 和 Desktop 必须共同消费 `packages/ui` 的同一页面，只负责各自的平台 adapter、预览数据和真实能力。
 8. 验收同时检查视觉完整度和功能完整度。任何未获确认的视觉偏差、旧样式兼容层、mock 数据进入产品组件或原功能丢失，都表示该菜单尚未完成。
@@ -185,22 +185,22 @@ tools\git-preflight.cmd
 
 Renderer UI 的长期边界只在本节保留，具体视觉数值与菜单合同集中在：
 
-- `docs/work/references/ui-prototypes/specs/global-visual-contract.md`
-- `docs/work/references/ui-prototypes/specs/application-workspaces.md`
-- `docs/work/references/ui-prototypes/specs/equipment-details.md`
+- `docs/work/references/ui-specs/global-visual-contract.md`
+- `docs/work/references/ui-specs/application-workspaces.md`
+- `docs/work/references/ui-specs/equipment-details.md`
 
 实现规则：
 
-1. 三个冻结 HTML 是视觉验收基准，当前 ViewModel、actions、adapter、IPC 和状态是功能真相；不得复制原型 mock，也不得用旧产品 DOM 推导视觉。
+1. 实际共享页面是视觉验收对象，当前 ViewModel、actions、adapter、IPC 和状态是功能真相；不得用 mock 或旧产品 DOM 替代真实产品行为。
 2. 页面结构和视觉只在 `packages/ui` 实现。Web 和 Desktop 只提供预览数据、平台 adapter 和真实能力接线，共同消费 `ProductShellHost`。
 3. 全局 token 和共享 chrome 由 foundation、shell、workspace 与共享组件持有；菜单样式只负责对应领域内容，不覆盖 `.shell-*`、首层工作区、页面 gutter、全局滚动或主题 token。
 4. `ProductWorkspace*`、`ControlButton` 等共享组件输出稳定 `data-surface`、`data-ui-kind` 和 Control 语义；菜单不得用 class 重新决定全局颜色、按钮 variant、边框、圆角、文字、阴影或层级。
-5. 与原型冲突的旧 DOM、旧 CSS、archive 分支和平台私有视觉规则直接删除，不使用更高 specificity、`!important` 或后置样式维持兼容。
+5. 与当前共享结构冲突的旧 DOM、旧 CSS、archive 分支和平台私有视觉规则直接删除，不使用更高 specificity、`!important` 或后置样式维持兼容。
 6. 明暗主题必须使用同一套语义 selector，只替换 token；颜色模式由 `config.json` 的 `features.color_mode` 持久化。
-7. UI 视觉变化先更新并确认冻结 HTML，再修改共享 UI。Web 用于中间预览，Desktop 实窗在 `light / dark × 1280 / 980 / 760` 下通过后才能标记完成。
+7. UI 视觉变化直接修改共享 UI，并在需要改变稳定约束时同步更新 Markdown 合同。Web 用于中间预览，Desktop 实窗在 `light / dark × 1280 / 980 / 760` 下通过后才能标记完成。
 8. 不新增读取生产源码后匹配文案、HTML、class 或 CSS 片段的普通功能测试；废弃入口由 `scripts/check-ui-contract.mjs` 的静态质量门禁维护。
 
-配装页的本地方案、护甲优化、DIM 导入与安全应用已接入共享工作台，仍由 [T1](work/backlog/T1-loadout-plans-and-guide-import.md) 跟踪并等待验证。旧 `LoadoutTemplate` 兼容页和旧 T8 配装规格不再作为视觉基准。
+配装页的本地方案、护甲优化、DIM 导入与安全应用已接入共享工作台；旧 `LoadoutTemplate` 兼容页不再保留。
 
 ### 2.6 桌面外壳、更新和后台任务
 
@@ -268,7 +268,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev-desktop.ps1
 npx pnpm@9.15.0 dev
 ```
 
-需要确认视觉结构和规格交互时，直接打开 `docs/work/references/ui-prototypes/` 下的三个冻结 HTML。需要预览共享 React UI 时使用 Web，默认端口为 `http://127.0.0.1:53171`；需要核对真实数据、IPC 和平台能力时使用 Desktop。通过 `tools/dev-web.cmd` 或 `tools/dev-desktop.cmd` 启动时，脚本会先清理对应固定端口上的残留监听进程，再重新启动当前 dev 服务。
+需要确认视觉结构和规格交互时，查看 `docs/work/references/ui-specs/`，并直接预览共享 React UI。Web 默认端口为 `http://127.0.0.1:53171`；需要核对真实数据、IPC 和平台能力时使用 Desktop。通过 `tools/dev-web.cmd` 或 `tools/dev-desktop.cmd` 启动时，脚本会先清理对应固定端口上的残留监听进程，再重新启动当前 dev 服务。
 
 正式 Web 入口使用：
 
@@ -459,7 +459,7 @@ docs/
     references/
 ```
 
-不要把一次性设计稿、执行计划、阶段进度或临时分析文档放在 `docs/` 根目录。确实需要记录当前短期待办、验收状态、需求或 bug 时，统一更新 `docs/todo.md`；确实需要保留未完成设计或调研材料时，放进 `docs/work/backlog/` 或 `docs/work/references/`。已经作为实现依据的视觉基准原型放在 `docs/work/references/`。外部流程如果要求写入 `docs/superpowers/`，本仓库统一改写到 `docs/work/backlog/` 或 `docs/work/references/`。确实需要记录长期规则或少量长期方向结论时，更新 `docs/development.md`；已发布变化写入 `CHANGELOG.md`。
+不要把一次性设计稿、执行计划、阶段进度或临时分析文档放在 `docs/` 根目录。确实需要记录当前短期待办、验收状态、需求或 bug 时，统一更新 `docs/todo.md`；确实需要保留未完成设计或调研材料时，放进 `docs/work/backlog/` 或 `docs/work/references/`。仍作为实现依据的视觉与功能合同放在 `docs/work/references/`。外部流程如果要求写入 `docs/superpowers/`，本仓库统一改写到 `docs/work/backlog/` 或 `docs/work/references/`。确实需要记录长期规则或少量长期方向结论时，更新 `docs/development.md`；已发布变化写入 `CHANGELOG.md`。
 
 本仓库不设 `docs/work/archive/`。已完成且仍有效的规则、架构边界或长期结论应合并进正式文档；只剩历史追溯价值或已经过时的过程材料直接删除，需要追溯时使用 git 历史。
 
@@ -468,7 +468,7 @@ docs/
 当前仍有效的 reference 文件：
 
 - `docs/work/references/destiny-tool-reference.md`：竞品能力和信息组织参考。
-- `docs/work/references/equipment-detail-and-knowledge-analysis.md`：T8 装备详情还原的功能规则与数据语义参考。
+- `docs/work/references/equipment-detail-and-knowledge-analysis.md`：装备详情的功能规则与数据语义参考。
 - `docs/work/references/desktop-framework-comparison.md`：桌面技术方案对比参考。
 - `docs/work/references/2026-06-21-destiny2-weapon-sheet-analysis.md`：社区武器表和数据分析参考。
 
@@ -503,7 +503,7 @@ docs/
 - `todo.md` 是唯一当前待办、短期进度、需求和 bug 来源
 - 长期方向如确实需要保留，合并到 `docs/development.md`，不要再单独维护 `roadmap.md`
 - `work/backlog/` 保存未完成但暂不推进的设计和计划
-- `work/references/` 保存外部资料分析、数据源调研和作为实现依据的视觉基准
+- `work/references/` 保存外部资料分析、数据源调研和作为实现依据的视觉与功能合同
 - 不设 `work/archive/`；已完成且仍有效的内容合并进正式文档，过时或仅剩过程价值的材料直接删除
 - 完成、取消或改变方向且影响当前短期待办、验收状态或优先级时，必须在同一次开发收尾时更新 `todo.md`
 - 修复、确认无效或转为长期需求的 bug，必须在同一次开发收尾时更新 `todo.md` 对应条目

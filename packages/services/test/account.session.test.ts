@@ -73,6 +73,9 @@ describe("account session", () => {
       ttlMs: 60_000,
       staleMs: 60_000,
       fetchJson: async <T>(path: string) => {
+        if (path.includes("/Profile/destiny-1/") && path.includes("components=900")) {
+          return { profileRecords: { data: { records: {} } } } as T;
+        }
         if (path.includes("/Item/item-1/")) {
           itemRequests += 1;
           return { item: { data: { itemHash: 1001 } } } as T;

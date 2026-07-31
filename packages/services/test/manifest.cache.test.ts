@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import type { D2Config } from "@d2-tools/core/config/schema";
 import type { DestinyManifestMetadata } from "@d2-tools/core/manifest/metadata";
 import { selectManifestLanguagePath } from "@d2-tools/core/manifest/metadata";
+import { requiredDefinitionComponents } from "@d2-tools/core/manifest/definitions";
 import {
   checkManifestVersion,
   clearManifestCache,
@@ -110,42 +111,8 @@ describe("manifest metadata service adapter", () => {
       language: "zh-chs",
       sqlite_path: "/common/destiny2_content/sqlite/zh-chs/world_sql_content.sqlite",
       cached_at: "2026-06-18T00:00:00.000Z",
-      definitions: [
-        { initialized: false, component: "DestinyInventoryItemDefinition" },
-        { initialized: false, component: "DestinyBreakerTypeDefinition" },
-        { initialized: false, component: "DestinyDamageTypeDefinition" },
-        { initialized: false, component: "DestinyPlugSetDefinition" },
-        { initialized: false, component: "DestinySandboxPerkDefinition" },
-        { initialized: false, component: "DestinyCollectibleDefinition" },
-        { initialized: false, component: "DestinyActivityDefinition" },
-        { initialized: false, component: "DestinyMilestoneDefinition" },
-        { initialized: false, component: "DestinyVendorDefinition" },
-        { initialized: false, component: "DestinyInventoryBucketDefinition" },
-        { initialized: false, component: "DestinyLoadoutNameDefinition" },
-        { initialized: false, component: "DestinyStatDefinition" },
-        { initialized: false, component: "DestinyActivityModifierDefinition" },
-        { initialized: false, component: "DestinyDestinationDefinition" },
-        { initialized: false, component: "DestinyPlaceDefinition" },
-        { initialized: false, component: "DestinyObjectiveDefinition" }
-      ],
-      missing_required_components: [
-        "DestinyInventoryItemDefinition",
-        "DestinyBreakerTypeDefinition",
-        "DestinyDamageTypeDefinition",
-        "DestinyPlugSetDefinition",
-        "DestinySandboxPerkDefinition",
-        "DestinyCollectibleDefinition",
-        "DestinyActivityDefinition",
-        "DestinyMilestoneDefinition",
-        "DestinyVendorDefinition",
-        "DestinyInventoryBucketDefinition",
-        "DestinyLoadoutNameDefinition",
-        "DestinyStatDefinition",
-        "DestinyActivityModifierDefinition",
-        "DestinyDestinationDefinition",
-        "DestinyPlaceDefinition",
-        "DestinyObjectiveDefinition"
-      ]
+      definitions: requiredDefinitionComponents.map((component) => ({ initialized: false, component })),
+      missing_required_components: requiredDefinitionComponents
     });
   });
 
@@ -169,42 +136,8 @@ describe("manifest metadata service adapter", () => {
       language: "zh-chs",
       sqlite_path: "/common/destiny2_content/sqlite/zh-chs/world_sql_content.sqlite",
       cached_at: "2026-06-18T01:02:03.000Z",
-      definitions: [
-        { initialized: false, component: "DestinyInventoryItemDefinition" },
-        { initialized: false, component: "DestinyBreakerTypeDefinition" },
-        { initialized: false, component: "DestinyDamageTypeDefinition" },
-        { initialized: false, component: "DestinyPlugSetDefinition" },
-        { initialized: false, component: "DestinySandboxPerkDefinition" },
-        { initialized: false, component: "DestinyCollectibleDefinition" },
-        { initialized: false, component: "DestinyActivityDefinition" },
-        { initialized: false, component: "DestinyMilestoneDefinition" },
-        { initialized: false, component: "DestinyVendorDefinition" },
-        { initialized: false, component: "DestinyInventoryBucketDefinition" },
-        { initialized: false, component: "DestinyLoadoutNameDefinition" },
-        { initialized: false, component: "DestinyStatDefinition" },
-        { initialized: false, component: "DestinyActivityModifierDefinition" },
-        { initialized: false, component: "DestinyDestinationDefinition" },
-        { initialized: false, component: "DestinyPlaceDefinition" },
-        { initialized: false, component: "DestinyObjectiveDefinition" }
-      ],
-      missing_required_components: [
-        "DestinyInventoryItemDefinition",
-        "DestinyBreakerTypeDefinition",
-        "DestinyDamageTypeDefinition",
-        "DestinyPlugSetDefinition",
-        "DestinySandboxPerkDefinition",
-        "DestinyCollectibleDefinition",
-        "DestinyActivityDefinition",
-        "DestinyMilestoneDefinition",
-        "DestinyVendorDefinition",
-        "DestinyInventoryBucketDefinition",
-        "DestinyLoadoutNameDefinition",
-        "DestinyStatDefinition",
-        "DestinyActivityModifierDefinition",
-        "DestinyDestinationDefinition",
-        "DestinyPlaceDefinition",
-        "DestinyObjectiveDefinition"
-      ]
+      definitions: requiredDefinitionComponents.map((component) => ({ initialized: false, component })),
+      missing_required_components: requiredDefinitionComponents
     });
   });
 

@@ -22,6 +22,5 @@ export type {
   DailySourceStatus,
   DailySummary,
   DailySummaryItem,
-  DailySummarySource,
-  WeeklySummary
+  DailySummarySource
 };

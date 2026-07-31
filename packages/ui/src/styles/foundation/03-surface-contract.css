@@ -17,7 +17,7 @@
 
 /*
  * 颜色别名必须在主题宿主上重新计算。仅从 :root 继承会把默认深色主题的
- * --card-bg / --object-border / --divider 计算结果带入亮色 AppShell。
+ * --card-bg / --object-border / --section-divider 计算结果带入亮色 AppShell。
  */
 .app-shell[data-color-mode="light"],
 .app-shell[data-color-mode="dark"],

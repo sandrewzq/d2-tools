@@ -90,6 +90,9 @@ export function useDesktopProductShell(props: {
   } = accountWorkspace;
   const refreshAccountManually = () => refreshAccountSnapshot("manual");
   const refreshAccountAfterWrite = () => refreshAccountSnapshot("write-action");
+  const reloadAccountAfterWrite = async () => {
+    await refreshAccountSnapshot("write-action");
+  };
   const vendorsWorkspace = useVendorsWorkspace({
     accountSummary,
     selectedCharacterId,
@@ -128,7 +131,7 @@ export function useDesktopProductShell(props: {
     localTargetRules,
     itemDetailCacheScopeKey,
     setAccountError,
-    loadAccountSummary: refreshAccountAfterWrite,
+    loadAccountSummary: reloadAccountAfterWrite,
     loadoutLibrary,
     onRecentHistoryChanged: library.setLibraryHistory
   });

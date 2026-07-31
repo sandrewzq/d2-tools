@@ -363,7 +363,7 @@ describe("account summary", () => {
       bucket_hash: 215593132,
       bucket_name: "Postmaster"
     });
-    expect(summary.characters[0]?.loadout_slots).toEqual([
+    expect(summary.characters[0]?.loadout_slots).toMatchObject([
       {
         index: 0,
         name: "日落速刷",

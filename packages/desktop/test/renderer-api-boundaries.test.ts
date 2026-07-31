@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
+import ts from "typescript";
 import { describe, expect, it } from "vitest";
 
 const apiRoot = fileURLToPath(new URL("../src/renderer/api/", import.meta.url));
@@ -91,4 +92,13 @@ function listSourceFiles(root: string): string[] {
     if (entry.isDirectory()) return listSourceFiles(fullPath);
     return /\.(ts|tsx)$/.test(entry.name) ? [fullPath] : [];
   });
+}
+
+function countExportType(source: string, typeName: string): number {
+  const sourceFile = ts.createSourceFile("types.ts", source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+  return sourceFile.statements.filter((statement) => (
+    ts.isTypeAliasDeclaration(statement)
+    && statement.name.text === typeName
+    && statement.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword)
+  )).length;
 }

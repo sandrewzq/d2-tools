@@ -15,14 +15,14 @@ describe("SQLite manifest lifecycle", () => {
 
   it("stages supplements, retains the previous activation, and finalizes its backup", () => {
     expect(scenarios["staging-finalize"]).toEqual({
-      supplementCount: 13,
+      supplementCount: 15,
       missingSupplementCount: 0,
       versionBeforeActivation: "v1",
       activeVersion: "v2",
       backupVersion: "v1",
       backupExistedBeforeFinalize: true,
       backupExistsAfterFinalize: false,
-      fetchCount: 26,
+      fetchCount: 30,
       activationState: "finalized"
     });
   });

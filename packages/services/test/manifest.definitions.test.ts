@@ -269,6 +269,8 @@ describe("manifest definition pure core helpers", () => {
       "DestinyPlugSetDefinition",
       "DestinySandboxPerkDefinition",
       "DestinyCollectibleDefinition",
+      "DestinySeasonDefinition",
+      "DestinyEquipableItemSetDefinition",
       "DestinyActivityDefinition",
       "DestinyMilestoneDefinition",
       "DestinyVendorDefinition",

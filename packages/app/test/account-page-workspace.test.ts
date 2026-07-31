@@ -126,7 +126,7 @@ describe("account page workspace", () => {
       }
     ]);
     expect(workspace.accountProfileLine).toBe("Membership 1 / membership-1");
-    expect(workspace.accountInventoryLine).toBe("仓库装备：2 / 材料与消耗品：1");
+    expect(workspace.accountInventoryLine).toBe("仓库 2 件");
     expect(workspace.selectedCharacterSummary).toBe("光等 2015 / 已装备 1 件 / 背包 1 件");
     expect(workspace.selectedCharacterItems.map((entry) => entry.name)).toEqual(["已装备手炮", "背包胸甲"]);
     expect(workspace.equippedSlotCategories.map((category) => category.label)).toEqual(["武器"]);
@@ -203,7 +203,7 @@ describe("account page workspace", () => {
     expect(viewModel.profile).toMatchObject({
       accountName: "tester",
       profileLine: "Membership 1 / membership-1",
-      inventoryLine: "仓库装备：2 / 材料与消耗品：1"
+      inventoryLine: "仓库 2 件"
     });
     expect(viewModel.navigation.map((item) => item.href)).toEqual([
       "#account-gear",

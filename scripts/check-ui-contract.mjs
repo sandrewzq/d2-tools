@@ -39,7 +39,7 @@ function walkSourceFiles(dir) {
 export function collectUiContractErrors(root) {
   const roots = [
     join(root, "packages"),
-    join(root, "docs", "work", "references", "ui-prototypes")
+    join(root, "docs", "work", "references", "ui-specs")
   ];
   const errors = [];
 

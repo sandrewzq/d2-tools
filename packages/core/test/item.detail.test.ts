@@ -44,6 +44,7 @@ describe("item definition detail", () => {
       perks: [
         {
           socket_index: 0,
+          source_kinds: ["reusable_set"],
           plugs: [
             {
               hash: 100,

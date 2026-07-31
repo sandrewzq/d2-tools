@@ -17,7 +17,7 @@
 |---|---|---|---|
 | 文档、待办、README | `README.md`、`docs/`、`AGENTS.md` | Agent 默认不自动运行；用户要求时可本地检查 | 不重建 archive / superpowers 目录；不把阶段计划塞进 README |
 | 维护者脚本、Git 辅助 | `tools/*.cmd`、必要时 `scripts/` | Agent 默认不自动运行；用户要求时可本地检查 | 不提交 token、Cookie、profile、缓存库；不把用户本地数据放进仓库 |
-| 跨端 UI / Web | `packages/ui` 优先，`packages/web` 只做浏览器壳和 adapter | Agent 默认不自动运行；用户要求时可本地测试 | 不在 Web 或 Desktop 复制页面；不把冻结 HTML 当生产代码 |
+| 跨端 UI / Web | `packages/ui` 优先，`packages/web` 只做浏览器壳和 adapter | Agent 默认不自动运行；用户要求时可本地测试 | 不在 Web 或 Desktop 复制页面；不维护平行 HTML 原型 |
 | Desktop 接线、IPC、preload | `packages/desktop/src/main/ipc/*`、`api/*Api.ts`、对应 feature | Agent 默认不自动运行；用户要求时可本地测试 | 尽量不碰 `api/client.ts`、`api/types.ts`、`ipc.ts` 等高冲突聚合文件 |
 | 领域、服务、workspace | `packages/core`、`packages/services`、`packages/app` | Agent 默认不自动运行；用户要求时可本地测试 | 不跨层直接依赖平台能力；不要把业务真相写进平台壳 |
 | 发布、版本、CHANGELOG | `CHANGELOG.md`、各 package 版本、release 脚本 | 只通过 `tools\git-auto-release.cmd` 执行完整门禁 | 不手写不一致版本号；不在未确认 tag 时推 release |
@@ -61,28 +61,20 @@ Vibecoding 快路径：
 ## 跨端 UI / Web 工作流
 
 - UI 需求默认改 `packages/ui`，包括页面布局、组件结构、颜色、间距、状态样式、通用交互和跨端文案；不要只在 Desktop 或 Web 里重做一份页面。
-- 全应用 UI 还原以以下三个冻结原型为唯一视觉真相：
-  - `docs/work/references/ui-prototypes/全应用视觉原型.html`
-  - `docs/work/references/ui-prototypes/统一武器详情原型.html`
-  - `docs/work/references/ui-prototypes/统一护甲详情原型.html`
-- 配装菜单是当前例外：现有 `全应用视觉原型.html` 配装章节仍对应旧 `LoadoutTemplate` 兼容切片，最终领域模型、护甲优化、DIM 导入和页面结构由 `docs/work/backlog/T1-loadout-plans-and-guide-import.md` 管理。实施最终配装页前必须先更新并确认冻结原型，不得继续引用已经删除的旧 T8 配装规格。
+- 全应用 UI 不再维护独立 HTML 原型。`packages/ui` 的共享实现是唯一产品页面，结构和交互约束记录在 `docs/work/references/ui-specs/` 的 Markdown 合同中。
 - 全应用采用轻圆角合同：Shell、页面分栏、章节、目录、连续列表和表格保持直角；`status-matrix`、`summary-frame`、`state-frame` 使用 `4px`；独立装备、Offer、Perk 等 `object-card` 使用 `6px`；按钮、字段、分段控件和缩略图使用 `4px`；短标签、计数和进度使用胶囊。不得把所有 `frame` 统一映射为对象卡圆角，也不得由菜单 CSS 自行决定圆角。
-- 三个原型决定页面布局、组件层级、尺寸、密度、颜色、排版、图标、信息权重、交互状态和响应式行为。当前应用的 DOM、CSS、组件 chrome 和历史视觉不属于兼容目标；与原型冲突时应删除或替换，不得以“保留现有样式”为理由降低还原度。
-- 当前应用只作为功能真相：现有 ViewModel、props、actions、adapter、IPC、真实数据、加载/空/失败状态和错误恢复必须完整迁入新 UI。原型中的 mock 数组、固定数量、示例状态、假 toast 和演示按钮不是业务真相，不得直接复制到产品实现。
-- 不允许保留旧 DOM 后只替换颜色或补局部 CSS，也不允许再用 `presentation="archive"`、`Archive*Content`、`visualVariant` 等方式维护第二棵产品页面。每个菜单必须直接按原型重建唯一 `*ContentView`，并在该菜单完成时同步删除对应 archive 分支、组件和 CSS。
-- 每个菜单实施前必须完成四份对照：现有功能清单、原型视觉结构清单、原型组件到真实字段/action 的绑定表、加载/空/失败/部分失败/禁用/进行中状态矩阵。没有完成对照不得开始改 JSX。
-- 原型没有承载某项现有功能时，先更新并确认原型中的位置，再实施真实页面；不得自行隐藏或删除功能。原型出现当前应用没有真实能力的控件时，先确认需求和契约，不得伪造成功行为。
-- 三个冻结 HTML 直接承载视觉结构、响应式行为和规格交互；它们不是生产代码模板，原型中的 mock 业务逻辑不得复制到产品实现。
-- UI 探索先更新冻结 HTML；用户确认后在同一次收口中实现到 `packages/ui`，再由 Web / Desktop 共同消费。不能只改 HTML 就声称应用已改好。
+- 现有 ViewModel、props、actions、adapter、IPC、真实数据、加载/空/失败状态和错误恢复是功能真相，必须完整保留；不得用 mock 数组、固定数量、示例状态、假 toast 或演示按钮替代真实能力。
+- 不允许保留旧 DOM 后只替换颜色或补局部 CSS，也不允许使用 `presentation="archive"`、`Archive*Content`、`visualVariant` 等方式维护第二棵产品页面。每个菜单只能有唯一 `*ContentView`。
+- UI 需求开始前先检查现有功能、真实字段/action、状态矩阵和对应 Markdown 合同；合同没有承载现有功能时，先更新合同并确认位置，不得自行隐藏或删除功能。
+- UI 探索直接在 `packages/ui` 实现，由 Web 快速预览并由 Desktop 结合真实数据验收。确认后的结构、状态或跨菜单约束同步写入 Markdown 合同，不再维护平行 HTML 页面。
 - `packages/web` 和 `packages/desktop` 是平台壳：只处理 Web / Electron 特有 adapter、登录态、IPC、本地文件、窗口、更新、端口和打包能力；页面实现应通过 `ProductShellHost` 和 `packages/ui` 共享。
 - 新增或调整产品级外壳时，Web / Desktop 都应继续挂同一个 `ProductShellHost`。不得重新引入平台专用 shell wrapper，除非先更新本文件和 `docs/development.md` 说明新的边界。
 - 改 `packages/ui` 后默认不新增测试，也不自动运行 UI 测试、消费者类型检查和视觉脚本；用户要求本地测试时正常运行现有检查，否则 push 后交给 CI。
-- 三个冻结 HTML 是视觉、交互规格和验收基准；Web 用于快速预览共享 UI，Desktop 负责真实功能与最终实窗验收。所谓“不得照抄 HTML”只指不得复制 mock 业务逻辑，不代表可以偏离原型视觉。
-- UI 验收必须同时满足“视觉完整还原”和“功能零丢失”。只改样式、只还原部分页面、用 mock 替代真实数据、隐藏旧功能或保留两套页面，均不算完成。
+- UI 验收以实际共享页面为对象，同时检查视觉完整度和功能零丢失。Web 用于快速预览共享 UI，Desktop 负责真实功能与最终实窗验收；用 mock 替代真实数据、隐藏旧功能或保留两套页面均不算完成。
 
 ### 多 agent 菜单 UI 默认边界
 
-这些规则是仓库默认工作流，不需要用户每次在 prompt 里重复。任何 agent 接到“改某个菜单 UI / 原型 / 页面”的任务时，必须先按这里判断改动范围。
+这些规则是仓库默认工作流，不需要用户每次在 prompt 里重复。任何 agent 接到“改某个菜单 UI / 页面”的任务时，必须先按这里判断改动范围。
 
 - 菜单 agent 默认只改菜单内容层，不改共享 workspace chrome，不改 `.product-*` / `.shell-*` / token / Desktop 私有 CSS。
 - 默认菜单范围：

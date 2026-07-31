@@ -52,6 +52,7 @@ describe("item perk summaries", () => {
     expect(summarizeItemPerks(item, itemDefinitions, {})).toEqual([
       {
         socket_index: 0,
+        source_kinds: ["reusable_item"],
         plugs: [
           {
             hash: 100,
@@ -78,6 +79,7 @@ describe("item perk summaries", () => {
     expect(summarizeItemPerks(item, itemDefinitions, { plugSetDefinitions })).toEqual([
       {
         socket_index: 0,
+        source_kinds: ["reusable_set"],
         plugs: [
           {
             hash: 101,

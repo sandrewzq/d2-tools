@@ -177,6 +177,7 @@ describe("library filters", () => {
     expect(defaultLibraryEquipmentFilter).toEqual({
       query: "",
       group: "all",
+      ownership: "all",
       tier: "all",
       bucket: "all",
       ammo: "all",

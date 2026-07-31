@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@d2-tools/app": "workspace:*",
+    "@d2-tools/core": "workspace:*",
     "@d2-tools/ui": "workspace:*",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"

@@ -204,7 +204,13 @@ export function VendorsPageContentView(props: VendorsPageContentViewProps) {
 
   if (!selectedVendor) {
     return (
-      <ProductWorkspaceEmptyState className="vendor-page-empty" ariaLabel="商人库存状态">
+      <ProductWorkspaceEmptyState
+        className="vendor-page-empty"
+        ariaLabel="商人刷新状态"
+        role="status"
+        ariaLive={refreshStatus?.live ?? "polite"}
+        ariaBusy={refreshStatus?.busy ?? false}
+      >
         <strong>{refreshStatus?.busy ? copy.loadingTitle : copy.emptyTitle}</strong>
         <span>{refreshStatus?.message ?? copy.emptyBody}</span>
         {!refreshStatus?.busy && props.actions.refreshVendors ? <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={props.actions.refreshVendors}>{copy.inline["重新加载商人库存"] ?? "重新加载商人库存"}</button> : null}
@@ -271,14 +277,14 @@ export function VendorsPageContentView(props: VendorsPageContentViewProps) {
           <span className="vendor-status-chip" data-status={vendorStatus}>{getVendorDisplayStatusLabel(selectedVendor)}</span>
         </header>
 
-        <div className="vendor-toolbar" aria-live={refreshStatus?.live ?? "polite"} aria-busy={refreshStatus?.busy ?? false}>
+        <div className="vendor-toolbar" role="status" aria-label="商人刷新状态" aria-live={refreshStatus?.live ?? "polite"} aria-busy={refreshStatus?.busy ?? false}>
           <span>{props.model.selectedCharacterContext?.label ?? "当前机灵：未检测到护甲师模组"}</span>
           <span data-status={refreshStatus?.tone === "error" ? "error" : vendorStatus}>{toolbarMessage}</span>
         </div>
 
         <div className="vendor-detail-flow">
           {selectedVendor.detailFailureMessage ? (
-            <div className="vendor-detail-warning" data-status="warning" role="status">
+            <div className="vendor-detail-warning" data-status="warning" role="status" aria-label="商人详情状态">
               <strong>{getVendorDisplayStatusLabel(selectedVendor)}</strong>
               <span>{selectedVendor.detailFailureMessage}。当前仍显示基础销售数据，属性与插槽可能不完整。</span>
             </div>

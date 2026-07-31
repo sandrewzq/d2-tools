@@ -1,6 +1,6 @@
 # 统一装备详情合同
 
-> 本文件合并武器、护甲和共享档案骨架规格。功能语义补充参考 [`equipment-detail-and-knowledge-analysis.md`](../../equipment-detail-and-knowledge-analysis.md)。
+> 本文件合并武器、护甲和共享档案骨架规格。功能语义补充参考 [`equipment-detail-and-knowledge-analysis.md`](../equipment-detail-and-knowledge-analysis.md)。
 
 ## 共享档案骨架
 

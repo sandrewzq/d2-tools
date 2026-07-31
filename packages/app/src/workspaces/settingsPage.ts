@@ -20,7 +20,9 @@ export type SettingsActionLogTypeFilter =
   | "transfer"
   | "postmaster-pull"
   | "loadout-equip"
-  | "loadout-snapshot";
+  | "loadout-snapshot"
+  | "loadout-clear"
+  | "loadout-update-identifiers";
 
 export type SettingsLanguagePreferences = {
   interfaceLocale: "zh-CN" | "en-US";

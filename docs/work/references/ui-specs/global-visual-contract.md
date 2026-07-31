@@ -1,18 +1,18 @@
 # 全局视觉合同
 
-> 适用范围：三个冻结 HTML、`packages/ui` 共享产品 UI，以及 Web、Desktop 的最终渲染结果。
+> 适用范围：`packages/ui` 共享产品 UI，以及 Web、Desktop 的最终渲染结果。
 
 ## 真相与所有权
 
-- 三个冻结 HTML 决定视觉结构和最终表现；产品 ViewModel、actions、adapter、IPC 和状态决定真实功能。
-- `prototype-design-system.css` 负责原型公共 token、文字、控件、共享表面、状态、焦点、滚动条和层级。
-- `assets/*-prototype.css` 只负责对应页面布局、领域结构和响应式差异，不重复公共配方。
+- `packages/ui` 的共享页面决定视觉结构和最终表现；产品 ViewModel、actions、adapter、IPC 和状态决定真实功能。
+- `packages/ui/src/styles/` 的 foundation、shell、workspace 和 components 分片负责公共 token、文字、控件、共享表面、状态、焦点、滚动条和层级。
+- 菜单样式只负责对应领域布局、结构和响应式差异，不重复公共配方。
 - 产品视觉只在 `packages/ui` 实现。Web 和 Desktop 不维护第二套页面或平台专属视觉修补。
 - 一个视觉职责只能有一个所有者。发现父子重复边框、页面 CSS 覆盖公共配方或同一 token 多处定义时，先删除冲突来源。
 
 ## 稳定语义
 
-三个原型使用以下稳定标记，产品共享组件应输出同等语义：
+共享产品组件使用以下稳定标记：
 
 | 标记 | 用途 |
 |---|---|
@@ -59,7 +59,7 @@
 - 控件高度：紧凑 `30px`、标准 `34px`、主要入口 `40px`。文本命令默认 `34px`，图标按钮默认 `34px × 34px`。
 - 设置和诊断等重复操作列使用 `144px` 文本按钮；普通命令栏按内容自适应。
 - 全局验收宽度为 `1280 / 980 / 760px`。装备详情在 `1360px` 增加实例栏转 Drawer 的领域断点。
-- Shell 顶栏默认 `48px`；`760px` 及以下可按冻结原型增高为两行。侧栏、品牌轨道、页面 gutter 和页头高度只由共享 Shell token 决定。
+- Shell 顶栏默认 `48px`；`760px` 及以下可增高为两行。侧栏、品牌轨道、页面 gutter 和页头高度只由共享 Shell token 决定。
 - 页面宽度类型：账号装备和仓库为 `fluid-workspace`；设置阅读区为 `constrained-content`；首页、资料库和商人为 `hybrid-workspace`。
 - 响应式优先重排网格、换行操作区和转为单列，不缩小关键文字，不建立水平滚动轨道。
 
@@ -134,20 +134,20 @@
 - Drawer 必须有标题、关闭按钮、遮罩、`Escape` 和焦点恢复；打开时背景不可操作。
 - AI 助手在宽度大于 `980px` 时是停靠辅助栏；`980px` 及以下才是覆盖式 Drawer。
 - Popover 在失焦、`Escape` 或触发器再次点击时关闭；Toast 不抢焦点，普通结果使用 `role="status"`。
-- 层级只使用语义 token：base、sticky、popover、drawer-scrim、drawer、modal、toast、prototype-tools。页面 CSS 不写数字 `z-index`。
+- 层级只使用语义 token：base、sticky、popover、drawer-scrim、drawer、modal、toast。页面 CSS 不写数字 `z-index`。
 
 ## 滚动与溢出
 
 - 产品页面只允许纵向滚动，不允许水平滚动条；不得用 `overflow-x: hidden` 掩盖超宽布局。
 - 同一列最多只有一个纵向滚动容器。普通菜单由主内容区滚动，长目录可拥有独立纵向滚动，弹层内容使用 `overscroll-behavior: contain`。
 - 小屏分栏改为纵向堆叠，不改成水平轨道。
-- 原型滚动容器使用 `data-scroll-region="page|pane|overlay"` 标记所有权。
+- 滚动容器使用 `data-scroll-region="page|pane|overlay"` 标记所有权。
 
 ## 实施与验收
 
-1. 先确认冻结原型结构和最终计算样式，再修改产品 UI。
-2. 建立原型区域到真实字段、actions 和状态的绑定，不复制 mock 业务逻辑。
+1. 先确认当前共享页面结构、最终计算样式和对应 Markdown 合同，再修改产品 UI。
+2. 建立页面区域到真实字段、actions 和状态的绑定，不复制 mock 业务逻辑。
 3. 删除冲突旧 DOM、旧 CSS 和兼容分支，再实现共享语义；不得追加高优先级覆盖。
-4. Prototype 用于验证共享 React UI，Web 用于浏览器平台接线，Desktop 实窗作为最终完成依据。
+4. Web 用于快速预览共享 React UI 和浏览器平台接线，Desktop 实窗作为真实功能的最终验收对象。
 5. 在 `light / dark × 1280 / 980 / 760` 下检查边框所有权、布局、文字、图标、控件状态、焦点、滚动和零横向溢出。
 6. 未完成 Desktop 对照前，任务状态只能是“待视觉验收”。

@@ -84,7 +84,7 @@ export type HomeDashboardWeeklySummary = {
     time_remaining_label: string;
   };
   priorities: Record<HomeDashboardWeeklyPriorityKind, {
-    status: "ready" | "pending";
+    status: "ready" | "pending" | "warning" | "error";
     title: string;
     detail: string;
     evidence?: string;
