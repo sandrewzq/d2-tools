@@ -6,13 +6,17 @@ export type ItemPlugSummary = {
   description: string;
   icon?: string;
   category_identifier?: string;
+  trait_ids?: string[];
   source_description?: string;
   item_type?: string;
 };
 
+export type ItemPlugSourceKind = "initial" | "reusable_item" | "reusable_set" | "randomized_set";
+
 export type ItemPerkGroup = {
   socket_index: number;
   plugs: ItemPlugSummary[];
+  source_kinds?: ItemPlugSourceKind[];
 };
 
 export type SummarizeItemPerksOptions = {
@@ -35,12 +39,13 @@ export function summarizeItemPerks(
       return;
     }
 
-    const hashes = [
-      ...(typeof entry.singleInitialItemHash === "number" ? [entry.singleInitialItemHash] : []),
-      ...hashesFromReusablePlugItems(entry.reusablePlugItems),
-      ...hashesFromPlugSet(options.plugSetDefinitions, entry.reusablePlugSetHash),
-      ...hashesFromPlugSet(options.plugSetDefinitions, entry.randomizedPlugSetHash)
+    const sources: Array<{ kind: ItemPlugSourceKind; hashes: number[] }> = [
+      { kind: "initial", hashes: typeof entry.singleInitialItemHash === "number" ? [entry.singleInitialItemHash] : [] },
+      { kind: "reusable_item", hashes: hashesFromReusablePlugItems(entry.reusablePlugItems) },
+      { kind: "reusable_set", hashes: hashesFromPlugSet(options.plugSetDefinitions, entry.reusablePlugSetHash) },
+      { kind: "randomized_set", hashes: hashesFromPlugSet(options.plugSetDefinitions, entry.randomizedPlugSetHash) }
     ];
+    const hashes = sources.flatMap((source) => source.hashes);
     const plugs = uniqueNumbers(hashes)
       .map((hash) => toPlugSummary(hash, itemDefinitions[String(hash)]))
       .filter((plug): plug is ItemPlugSummary => Boolean(plug));
@@ -51,7 +56,8 @@ export function summarizeItemPerks(
     if (visiblePlugs.length > 0) {
       groups.push({
         socket_index: index,
-        plugs: visiblePlugs
+        plugs: visiblePlugs,
+        source_kinds: sources.filter((source) => source.hashes.length > 0).map((source) => source.kind)
       });
     }
   });
@@ -99,6 +105,7 @@ function toPlugSummary(
     ...(definition.plug?.plugCategoryIdentifier
       ? { category_identifier: definition.plug.plugCategoryIdentifier }
       : {}),
+    ...(definition.traitIds?.length ? { trait_ids: definition.traitIds } : {}),
     ...(definition.sourceData?.sourceString
       ? { source_description: definition.sourceData.sourceString }
       : {}),

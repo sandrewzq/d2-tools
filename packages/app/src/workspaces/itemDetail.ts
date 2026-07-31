@@ -99,6 +99,7 @@ export type SelectedItemDetail = ItemDefinitionDetailLike & {
   weapon_stats?: AccountItemSummary["weapon_stats"];
   instance?: AccountItemSummary["instance"];
   item_objectives?: AccountItemSummary["item_objectives"];
+  catalyst?: AccountItemSummary["catalyst"];
   sockets?: AccountItemSummary["sockets"];
   group_key?: AccountItemSummary["group_key"];
   bucket_name?: string;
@@ -140,6 +141,7 @@ export function selectedItemToAccountItem(item: SelectedItemDetail): AccountItem
     weapon_stats: item.weapon_stats,
     instance: item.instance,
     item_objectives: item.item_objectives,
+    catalyst: item.catalyst,
     sockets: item.sockets,
     socket_plugs: item.socket_plugs ?? []
   };
@@ -182,6 +184,7 @@ export function createSelectedItemPreview(
     weapon_stats: "weapon_stats" in item ? item.weapon_stats : undefined,
     instance: "instance" in item ? item.instance : undefined,
     item_objectives: "item_objectives" in item ? item.item_objectives : undefined,
+    catalyst: "catalyst" in item ? item.catalyst : undefined,
     sockets: "sockets" in item ? item.sockets : undefined,
     socket_plugs: "socket_plugs" in item ? item.socket_plugs : undefined,
     group_key: "group_key" in item ? item.group_key : undefined,

@@ -6,7 +6,7 @@ import type {
   WeaponStatKey,
   WeaponStatSummary
 } from "@d2-tools/core/account/summary";
-import type { ItemPerkGroup, ItemPlugSummary } from "@d2-tools/core/items/perks";
+import type { ItemPerkGroup, ItemPlugSourceKind, ItemPlugSummary } from "@d2-tools/core/items/perks";
 import type {
   ItemDefinitionVersionSummary,
   ItemReleaseSummary
@@ -35,6 +35,7 @@ export type WeaponDetailIdentity = {
   icon?: string;
   item_type?: string;
   tier?: string;
+  is_exotic: boolean;
   slot?: string;
   ammo?: WeaponDetailAmmo;
   damage?: WeaponDetailDamage;
@@ -133,6 +134,7 @@ export type WeaponPerkPoolColumn = {
   label: string;
   role: WeaponPerkColumnRole;
   candidates: WeaponPerkCandidate[];
+  source_kinds?: ItemPlugSourceKind[];
 };
 
 export type WeaponPerkSelectionColumn = {
@@ -144,15 +146,19 @@ export type WeaponPerkSelectionColumn = {
 };
 
 export type WeaponConfigurationKind = "random_roll" | "fixed" | "variable_exotic";
+export type WeaponPerkPoolKind = "none" | "randomized" | "selectable";
 
 export type WeaponDetailConfiguration = {
   kind: WeaponConfigurationKind;
+  pool_kind: WeaponPerkPoolKind;
   intrinsic?: WeaponPerkCandidate;
   selection_columns: WeaponPerkSelectionColumn[];
   pool_columns: WeaponPerkPoolColumn[];
   has_pending_changes: boolean;
   can_apply_changes: boolean;
 };
+
+export type WeaponConfigurationClassification = Pick<WeaponDetailConfiguration, "kind" | "pool_kind">;
 
 export type WeaponSourceKind = "vendor_offer" | "activity_reward" | "live_status" | "manifest_hint";
 
@@ -195,7 +201,8 @@ export type WeaponMasterworkSummary = {
 
 export type WeaponCatalystSummary = {
   name: string;
-  acquired: boolean;
+  icon?: string;
+  acquired?: boolean;
   complete: boolean;
   progress?: number;
   objective?: string;
@@ -345,6 +352,7 @@ export type BuildWeaponDetailViewModelInput = {
   ammo?: WeaponDetailAmmo;
   damage?: WeaponDetailDamage;
   champion?: WeaponDetailChampionEffect;
+  is_exotic?: boolean;
   versions?: WeaponDetailVersion[];
   definition_stats?: WeaponStatSummary;
   current_stats?: WeaponStatSummary;
@@ -406,6 +414,8 @@ export function buildWeaponDetailViewModel(input: BuildWeaponDetailViewModelInpu
     ?? (context.kind !== "definition" ? item.weapon_stats : undefined);
   const poolColumns = input.pool_columns ?? perkGroupsToPoolColumns(item.perks ?? []);
   const selectionColumns = input.selection_columns ?? [];
+  const isExotic = input.is_exotic ?? /异域|exotic/i.test(item.tier ?? "");
+  const configurationClassification = classifyWeaponConfiguration(poolColumns, isExotic);
 
   return {
     identity: {
@@ -415,6 +425,7 @@ export function buildWeaponDetailViewModel(input: BuildWeaponDetailViewModelInpu
       icon: item.icon,
       item_type: item.item_type,
       tier: item.tier,
+      is_exotic: isExotic,
       slot: input.slot ?? item.bucket_name,
       ammo: input.ammo ?? ammoFromKey(item.ammo_type),
       damage: input.damage,
@@ -435,7 +446,8 @@ export function buildWeaponDetailViewModel(input: BuildWeaponDetailViewModelInpu
       pending_stat_modifiers: input.pending_stat_modifiers
     }),
     configuration: {
-      kind: input.configuration?.kind ?? inferConfigurationKind(poolColumns),
+      kind: input.configuration?.kind ?? configurationClassification.kind,
+      pool_kind: input.configuration?.pool_kind ?? configurationClassification.pool_kind,
       intrinsic: input.configuration?.intrinsic,
       selection_columns: selectionColumns,
       pool_columns: poolColumns,
@@ -513,7 +525,8 @@ export function perkGroupsToPoolColumns(groups: readonly ItemPerkGroup[]): Weapo
       socket_index: group.socket_index,
       label: perkColumnLabel(role, group.socket_index),
       role,
-      candidates: visiblePlugs.map(toWeaponPerkCandidate)
+      candidates: visiblePlugs.map(toWeaponPerkCandidate),
+      source_kinds: group.source_kinds
     }];
   });
   let traitIndex = 0;
@@ -661,8 +674,24 @@ function sourceSummaryToSources(source: ItemSourceSummary): WeaponDetailSources 
   };
 }
 
-function inferConfigurationKind(columns: readonly WeaponPerkPoolColumn[]): WeaponConfigurationKind {
-  return columns.some((column) => column.candidates.length > 1) ? "random_roll" : "fixed";
+export function classifyWeaponConfiguration(
+  columns: readonly WeaponPerkPoolColumn[],
+  isExotic: boolean
+): WeaponConfigurationClassification {
+  const variableColumns = columns.filter((column) => column.candidates.length > 1);
+  if (!variableColumns.length) return { kind: "fixed", pool_kind: "none" };
+  const hasRandomizedPool = variableColumns.some((column) => column.source_kinds?.includes("randomized_set"));
+  const hasSelectablePool = variableColumns.some((column) => (
+    column.source_kinds?.some((kind) => kind === "reusable_item" || kind === "reusable_set")
+  ));
+  return {
+    kind: isExotic ? "variable_exotic" : "random_roll",
+    pool_kind: hasRandomizedPool
+      ? "randomized"
+      : hasSelectablePool || isExotic
+        ? "selectable"
+        : "randomized"
+  };
 }
 
 function toWeaponPerkCandidate(plug: ItemPlugSummary): WeaponPerkCandidate {

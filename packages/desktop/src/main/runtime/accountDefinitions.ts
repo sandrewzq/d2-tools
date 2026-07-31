@@ -16,15 +16,36 @@ type DefinitionQuery = (
   options?: { projection?: DefinitionProjection }
 ) => Promise<DefinitionComponentData>;
 
+type CatalystRecordCache = {
+  resolvedHashes: Set<number>;
+  definitions: DefinitionComponentData;
+  loading?: Promise<void>;
+};
+
 export function createAccountDefinitionLoader(
   getDefinitions: DefinitionQuery
 ): AccountDefinitionLoader {
-  return (request) => loadAccountDefinitions(request, getDefinitions);
+  const catalystRecordCache: CatalystRecordCache = {
+    resolvedHashes: new Set(),
+    definitions: {}
+  };
+  let cacheExpiresAt = Date.now() + 5 * 60_000;
+  return (request) => {
+    if (Date.now() >= cacheExpiresAt) {
+      catalystRecordCache.resolvedHashes.clear();
+      for (const hash of Object.keys(catalystRecordCache.definitions)) {
+        delete catalystRecordCache.definitions[hash];
+      }
+      cacheExpiresAt = Date.now() + 5 * 60_000;
+    }
+    return loadAccountDefinitions(request, getDefinitions, catalystRecordCache);
+  };
 }
 
 export async function loadAccountDefinitions(
   request: AccountDefinitionRequest,
-  getDefinitions: DefinitionQuery
+  getDefinitions: DefinitionQuery,
+  catalystRecordCache?: CatalystRecordCache
 ): Promise<AccountDefinitionData> {
   const itemHashes = new Set(request.itemHashes.map(toUnsignedHash));
   const bucketHashes = new Set(request.bucketHashes.map(toUnsignedHash));
@@ -33,6 +54,7 @@ export async function loadAccountDefinitions(
   const plugSetDefinitions: DefinitionComponentData = {};
   const queriedItemHashes = new Set<number>();
   const queriedPlugSetHashes = new Set<number>();
+  const objectiveHashes = new Set(request.objectiveHashes.map(toUnsignedHash));
   const definitionOptions = request.expandSocketPlugSets
     ? undefined
     : { projection: "account-snapshot" as const };
@@ -75,9 +97,18 @@ export async function loadAccountDefinitions(
     }
   }
 
+  const recordDefinitions = await loadCatalystRecordDefinitions(
+    request.recordHashes ?? [],
+    getDefinitions,
+    catalystRecordCache
+  );
+  for (const definition of Object.values(recordDefinitions)) {
+    for (const objectiveHash of definition.objectiveHashes ?? []) addHash(objectiveHashes, objectiveHash);
+  }
+
   const [bucketDefinitions, objectiveDefinitions, loadoutNameDefinitions] = await Promise.all([
     getDefinitions("DestinyInventoryBucketDefinition", bucketHashes, definitionOptions),
-    getDefinitions("DestinyObjectiveDefinition", request.objectiveHashes, definitionOptions),
+    getDefinitions("DestinyObjectiveDefinition", objectiveHashes, definitionOptions),
     getDefinitions("DestinyLoadoutNameDefinition", request.loadoutNameHashes, definitionOptions)
   ]);
   return {
@@ -85,8 +116,44 @@ export async function loadAccountDefinitions(
     plugSetDefinitions,
     bucketDefinitions,
     objectiveDefinitions,
+    recordDefinitions,
     loadoutNameDefinitions
   };
+}
+
+async function loadCatalystRecordDefinitions(
+  hashes: number[],
+  getDefinitions: DefinitionQuery,
+  cache?: CatalystRecordCache
+): Promise<DefinitionComponentData> {
+  const requested = [...new Set(hashes.map(toUnsignedHash))];
+  if (!requested.length) return {};
+  if (!cache) {
+    return getDefinitions("DestinyRecordDefinition", requested, { projection: "catalyst-record" });
+  }
+
+  if (cache.loading) await cache.loading;
+  const pending = requested.filter((hash) => !cache.resolvedHashes.has(hash));
+  if (pending.length) {
+    cache.loading = getDefinitions(
+      "DestinyRecordDefinition",
+      pending,
+      { projection: "catalyst-record" }
+    ).then((loaded) => {
+      Object.assign(cache.definitions, loaded);
+      for (const hash of pending) cache.resolvedHashes.add(hash);
+    }).finally(() => {
+      cache.loading = undefined;
+    });
+    await cache.loading;
+  }
+
+  const result: DefinitionComponentData = {};
+  for (const hash of requested) {
+    const definition = cache.definitions[String(hash)];
+    if (definition) result[String(hash)] = definition;
+  }
+  return result;
 }
 
 async function queryNewDefinitions(

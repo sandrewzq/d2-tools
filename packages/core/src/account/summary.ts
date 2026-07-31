@@ -36,6 +36,7 @@ export type AccountItemSummary = {
   item_objectives?: AccountItemPlugObjectiveSummary[];
   sockets?: AccountItemSocketSummary[];
   socket_plugs: AccountItemPlugSummary[];
+  catalyst?: AccountItemCatalystSummary;
 };
 
 export type AccountItemInstanceSummary = {
@@ -106,10 +107,23 @@ export type AccountItemPlugSummary = {
   icon?: string;
   description?: string;
   category_identifier?: string;
+  trait_ids?: string[];
   objectives?: AccountItemPlugObjectiveSummary[];
   stat_modifiers?: WeaponStatSummary;
   source_description?: string;
   item_type?: string;
+};
+
+export type AccountItemCatalystSummary = {
+  plug_hash?: number;
+  record_hash: number;
+  name: string;
+  description?: string;
+  icon?: string;
+  acquired: boolean;
+  complete: boolean;
+  progress: number;
+  objectives: AccountItemPlugObjectiveSummary[];
 };
 
 export type AccountItemPlugObjectiveSummary = {
@@ -221,7 +235,7 @@ export type AccountSummary = {
 
 export type AccountItemSnapshot = Omit<
   AccountItemSummary,
-  "armor_energy" | "armor_stat_breakdown" | "item_objectives" | "sockets"
+  "armor_energy" | "armor_stat_breakdown" | "catalyst" | "item_objectives" | "sockets"
 >;
 
 export type AccountCharacterSnapshot = Omit<
@@ -268,6 +282,7 @@ export type AccountDefinitionRequest = {
   bucketHashes: number[];
   plugSetHashes: number[];
   objectiveHashes: number[];
+  recordHashes?: number[];
   loadoutNameHashes: number[];
   expandSocketPlugSets?: boolean;
 };
@@ -277,6 +292,7 @@ export type AccountDefinitionData = {
   bucketDefinitions?: DefinitionComponentData;
   plugSetDefinitions?: DefinitionComponentData;
   objectiveDefinitions?: DefinitionComponentData;
+  recordDefinitions?: DefinitionComponentData;
   loadoutNameDefinitions?: DefinitionComponentData;
 };
 
@@ -291,6 +307,7 @@ export type FetchAccountSummaryOptions = {
   bucketDefinitions?: DefinitionComponentData;
   plugSetDefinitions?: DefinitionComponentData;
   objectiveDefinitions?: DefinitionComponentData;
+  recordDefinitions?: DefinitionComponentData;
   loadoutNameDefinitions?: DefinitionComponentData;
   loadDefinitions?: AccountDefinitionLoader;
 };
@@ -341,6 +358,11 @@ export type DestinyProfileResponse = {
   characterCraftables?: {
     data?: Record<string, DestinyCraftablesComponent>;
   };
+  profileRecords?: {
+    data?: {
+      records?: Record<string, DestinyRecordProgress>;
+    };
+  };
   itemComponents?: {
     instances?: {
       data?: Record<string, DestinyItemInstanceComponent>;
@@ -371,6 +393,7 @@ export type DestinyItemResponse = {
   sockets?: { data?: DestinyItemSocketsComponent };
   reusablePlugs?: { data?: DestinyItemReusablePlugsComponent };
   plugObjectives?: { data?: DestinyItemPlugObjectivesComponent };
+  profileRecords?: DestinyProfileResponse["profileRecords"];
 };
 
 type DestinyCharacter = {
@@ -438,6 +461,12 @@ type DestinyObjectiveProgress = {
   completionValue: number;
   complete: boolean;
   visible: boolean;
+};
+
+type DestinyRecordProgress = {
+  state?: number;
+  objectives?: DestinyObjectiveProgress[];
+  intervalsRedeemedCount?: number;
 };
 
 type DestinyItemPlugState = {
@@ -612,10 +641,20 @@ export async function fetchAccountItemDetail(
     throw new Error("Bungie access token is required");
   }
 
-  const response = await options.fetchJson<DestinyItemResponse>(
-    `/Destiny2/${options.query.membership_type}/Profile/${options.query.destiny_membership_id}/Item/${options.query.instance_id}/?components=${itemDetailComponents}`,
-    accessToken
-  );
+  const [itemResponse, recordsProfile] = await Promise.all([
+    options.fetchJson<DestinyItemResponse>(
+      `/Destiny2/${options.query.membership_type}/Profile/${options.query.destiny_membership_id}/Item/${options.query.instance_id}/?components=${itemDetailComponents}`,
+      accessToken
+    ),
+    options.fetchJson<DestinyProfileResponse>(
+      `/Destiny2/${options.query.membership_type}/Profile/${options.query.destiny_membership_id}/?components=900`,
+      accessToken
+    )
+  ]);
+  const response: DestinyItemResponse = {
+    ...itemResponse,
+    profileRecords: recordsProfile.profileRecords
+  };
   const { item, profile } = normalizeAccountItemDetailResponse(options.query, response);
   const hydratedOptions = await hydrateAccountDefinitions(options, profile, [item]);
   return buildAccountItemDetailFromResponse({
@@ -647,7 +686,8 @@ export function buildAccountItemDetailFromResponse(
     input.plugSetDefinitions ?? {},
     input.objectiveDefinitions ?? {},
     input.query.character_id,
-    "full"
+    "full",
+    input.recordDefinitions ?? {}
   ) as AccountItemDetail;
 }
 
@@ -671,6 +711,7 @@ function normalizeAccountItemDetailResponse(
   return {
     item,
     profile: {
+      profileRecords: response.profileRecords,
       itemComponents: {
         instances: { data: response.instance?.data ? { [query.instance_id]: response.instance.data } : {} },
         objectives: { data: response.objectives?.data ? { [query.instance_id]: response.objectives.data } : {} },
@@ -701,6 +742,7 @@ async function hydrateAccountDefinitions(
     bucketDefinitions: mergeDefinitionData(options.bucketDefinitions, loaded.bucketDefinitions),
     plugSetDefinitions: mergeDefinitionData(options.plugSetDefinitions, loaded.plugSetDefinitions),
     objectiveDefinitions: mergeDefinitionData(options.objectiveDefinitions, loaded.objectiveDefinitions),
+    recordDefinitions: mergeDefinitionData(options.recordDefinitions, loaded.recordDefinitions),
     loadoutNameDefinitions: mergeDefinitionData(
       options.loadoutNameDefinitions,
       loaded.loadoutNameDefinitions
@@ -937,7 +979,8 @@ function summarizeItem(
   plugSetDefinitions: DefinitionComponentData = {},
   objectiveDefinitions: DefinitionComponentData = {},
   characterId?: string,
-  mode: AccountSummaryMode = "full"
+  mode: AccountSummaryMode = "full",
+  recordDefinitions: DefinitionComponentData = {}
 ): AccountItemSummary {
   const components = profile.itemComponents;
   const definition = definitions[String(item.itemHash)] as DefinitionRecord | undefined;
@@ -1021,6 +1064,16 @@ function summarizeItem(
       : undefined;
   if (weaponFrame) {
     summary.weapon_frame = weaponFrame;
+  }
+  if (mode === "full" && groupKey === "weapons") {
+    const catalyst = summarizeAccountItemCatalyst({
+      itemName: summary.name,
+      selectedPlugs,
+      profileRecords: profile.profileRecords?.data?.records,
+      recordDefinitions,
+      objectiveDefinitions
+    });
+    if (catalyst) summary.catalyst = catalyst;
   }
 
   return summary;
@@ -1297,6 +1350,7 @@ function summarizeSelectedPlugPreviews(
         ...(definition?.plug?.plugCategoryIdentifier
           ? { category_identifier: definition.plug.plugCategoryIdentifier }
           : {}),
+        ...(definition?.traitIds?.length ? { trait_ids: definition.traitIds } : {}),
         ...(definition?.itemTypeDisplayName ? { item_type: definition.itemTypeDisplayName } : {})
       };
     });
@@ -1440,6 +1494,7 @@ function buildPlugSummary(
     ...(definition?.plug?.plugCategoryIdentifier
       ? { category_identifier: definition.plug.plugCategoryIdentifier }
       : {}),
+    ...(definition?.traitIds?.length ? { trait_ids: definition.traitIds } : {}),
     ...(objectiveSummaries.length ? { objectives: objectiveSummaries } : {}),
     ...(Object.keys(statModifiers).length ? { stat_modifiers: statModifiers } : {}),
     ...(definition?.sourceData?.sourceString
@@ -1447,6 +1502,76 @@ function buildPlugSummary(
       : {}),
     ...(definition?.itemTypeDisplayName ? { item_type: definition.itemTypeDisplayName } : {})
   };
+}
+
+function summarizeAccountItemCatalyst(input: {
+  itemName: string;
+  selectedPlugs: AccountItemPlugSummary[];
+  profileRecords: Record<string, DestinyRecordProgress> | undefined;
+  recordDefinitions: DefinitionComponentData;
+  objectiveDefinitions: DefinitionComponentData;
+}): AccountItemCatalystSummary | undefined {
+  const catalystPlug = input.selectedPlugs.find((plug) => (
+    plug.trait_ids?.includes("item.exotic_catalyst")
+  ));
+  const recordEntries = Object.entries(input.recordDefinitions).filter(([, definition]) => (
+    isExoticCatalystRecord(definition)
+  ));
+  const exactMatches = catalystPlug
+    ? recordEntries.filter(([, definition]) => (
+        normalizeCatalystIdentity(definition.displayProperties?.name) === normalizeCatalystIdentity(catalystPlug.name)
+      ))
+    : [];
+  const baseMatches = recordEntries.filter(([, definition]) => (
+    normalizeCatalystBaseName(definition.displayProperties?.name) === normalizeCatalystBaseName(input.itemName)
+  ));
+  const catalystRecord = [...exactMatches, ...baseMatches].find(([recordHash]) => (
+    input.profileRecords?.[String(Number(recordHash) >>> 0)]?.objectives?.length
+  ));
+  if (!catalystRecord) return undefined;
+
+  const [recordHashValue, recordDefinition] = catalystRecord;
+  const recordHash = Number(recordHashValue) >>> 0;
+  const recordProgress = input.profileRecords?.[String(recordHash)];
+  if (!recordProgress?.objectives?.length) return undefined;
+
+  const objectives = summarizePlugObjectives(recordProgress.objectives, input.objectiveDefinitions);
+  if (!objectives.length) return undefined;
+  const complete = objectives.every((objective) => objective.complete);
+  const progress = Math.round(objectives.reduce((total, objective) => {
+    if (objective.completion_value <= 0) return total + Number(objective.complete);
+    return total + Math.min(1, Math.max(0, (objective.progress ?? 0) / objective.completion_value));
+  }, 0) / objectives.length * 100);
+  const name = catalystPlug?.name
+    ?? recordDefinition.displayProperties?.name?.trim();
+  if (!name) return undefined;
+
+  return {
+    ...(catalystPlug ? { plug_hash: catalystPlug.hash } : {}),
+    record_hash: recordHash,
+    name,
+    description: recordDefinition.displayProperties?.description ?? catalystPlug?.description,
+    icon: catalystPlug?.icon ?? normalizeBungieAssetUrl(recordDefinition.displayProperties?.icon),
+    acquired: Boolean(catalystPlug || objectives.some((objective) => objective.complete || (objective.progress ?? 0) > 0)),
+    complete,
+    progress,
+    objectives
+  };
+}
+
+function isExoticCatalystRecord(definition: DefinitionRecord): boolean {
+  const type = definition.recordTypeName?.trim().toLocaleLowerCase() ?? "";
+  return type.includes("异域催化")
+    || type.includes("exotic catalyst");
+}
+
+function normalizeCatalystIdentity(value: string | undefined): string {
+  return value?.normalize("NFKC").trim().toLocaleLowerCase().replace(/[\s\p{P}\p{S}]+/gu, "") ?? "";
+}
+
+function normalizeCatalystBaseName(value: string | undefined): string {
+  return normalizeCatalystIdentity(value)
+    .replace(/exoticcatalyst|catalyst|异域催化剂?|催化剂?|催化/gu, "");
 }
 
 function summarizePlugObjectives(

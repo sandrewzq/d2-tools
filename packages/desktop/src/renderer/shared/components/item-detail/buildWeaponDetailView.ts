@@ -1,5 +1,6 @@
 import {
   buildWeaponDetailViewModel,
+  classifyWeaponConfiguration as classifyWeaponConfigurationColumns,
   classifyWeaponSocketPlugs,
   isEnhancedWeaponPerk,
   isWeaponSystemPlug,
@@ -33,20 +34,39 @@ export type BuildDesktopWeaponDetailInput = {
   versions?: Array<{ hash: number; name: string; tier?: string; release?: { description: string } }>;
 };
 
+export type WeaponAiConfigurationContext = {
+  configuration_kind: "fixed_exotic" | "variable_exotic" | "random_roll" | "fixed";
+  fixed_perks?: Array<{ socket_index: number; names: string[] }>;
+  configuration_options?: Array<{ socket_index: number; names: string[] }>;
+  perk_pool?: Array<{ socket_index: number; names: string[] }>;
+  catalyst?: {
+    name: string;
+    acquired?: boolean;
+    complete: boolean;
+    progress?: number;
+    objective?: string;
+    acquisition?: string;
+    effects: string[];
+  };
+};
+
+type WeaponConfigurationClassification = {
+  allColumns: WeaponDetailViewModel["configuration"]["pool_columns"];
+  poolColumns: WeaponDetailViewModel["configuration"]["pool_columns"];
+  isExotic: boolean;
+  kind: WeaponDetailViewModel["configuration"]["kind"];
+  poolKind: WeaponDetailViewModel["configuration"]["pool_kind"];
+};
+
 export function buildWeaponDetailView(
   input: BuildDesktopWeaponDetailInput
 ): WeaponDetailViewModel | null {
   const item = input.selectedItem;
   if (item.group_key !== "weapons") return null;
 
-  const allPoolColumns = perkGroupsToPoolColumns(item.perks ?? []);
-  const intrinsic = allPoolColumns.find((column) => column.role === "intrinsic")?.candidates[0];
-  const poolColumns = sortConfigurationColumns(allPoolColumns.filter((column) => column.role !== "intrinsic"));
-  const hasVariablePerks = poolColumns.some((column) => column.candidates.length > 1);
-  const isExotic = /异域|exotic/i.test(item.tier ?? "");
-  const configurationKind = isExotic
-    ? hasVariablePerks ? "variable_exotic" : "fixed"
-    : hasVariablePerks ? "random_roll" : "fixed";
+  const classification = classifyWeaponConfiguration(item);
+  const intrinsic = classification.allColumns.find((column) => column.role === "intrinsic")?.candidates[0];
+  const { isExotic, poolColumns } = classification;
   const currentStats = input.currentStats ?? (item.instance_id ? item.weapon_stats : undefined);
   const definitionStats = definitionStatsToSummary(item.definition_stats);
   const upgrades = buildWeaponUpgrades(item);
@@ -89,6 +109,7 @@ export function buildWeaponDetailView(
               : "plug"
         }
       : undefined,
+    is_exotic: isExotic,
     versions: versions.length
       ? versions.map((version, index) => {
           const releaseLabel = version.release?.description
@@ -106,7 +127,7 @@ export function buildWeaponDetailView(
           release_label: item.release?.description,
           is_current: true
         }],
-    definition_stats: configurationKind === "fixed"
+    definition_stats: classification.kind === "fixed"
       ? buildFixedConfigurationStandardStats(item, definitionStats)
       : definitionStats,
     current_stats: currentStats,
@@ -115,7 +136,8 @@ export function buildWeaponDetailView(
     pending_stat_modifiers: buildPendingWeaponStatModifiers(item, input.pendingPerks),
     configuration: {
       intrinsic,
-      kind: configurationKind
+      kind: classification.kind,
+      pool_kind: classification.poolKind
     },
     pool_columns: poolColumns,
     selection_columns: buildSelectionColumns(item, poolColumns, input.selectionNames, input.pendingPerks),
@@ -126,6 +148,42 @@ export function buildWeaponDetailView(
     same_hash_instances: input.sameNameItems,
     instance_metadata: buildInstanceMetadata(input, upgrades)
   });
+}
+
+export function buildWeaponAiConfigurationContext(item: Pick<
+  SelectedItemDetail,
+  "tier" | "perks" | "socket_plugs" | "sockets" | "item_objectives" | "catalyst" | "instance_id"
+>): WeaponAiConfigurationContext {
+  const classification = classifyWeaponConfiguration(item);
+  const configurationKind: WeaponAiConfigurationContext["configuration_kind"] = classification.isExotic
+    ? classification.kind === "fixed" ? "fixed_exotic" : "variable_exotic"
+    : classification.kind;
+  const summarizedColumns = classification.allColumns.map((column) => ({
+    socket_index: column.socket_index,
+    names: column.candidates.map((candidate) => candidate.name)
+  }));
+  const catalyst = buildWeaponUpgrades(item).catalyst;
+  return {
+    configuration_kind: configurationKind,
+    ...(configurationKind === "fixed_exotic" || configurationKind === "fixed"
+      ? { fixed_perks: summarizedColumns }
+      : configurationKind === "random_roll"
+        ? { perk_pool: summarizedColumns }
+        : { configuration_options: summarizedColumns }),
+    ...(catalyst
+      ? {
+          catalyst: {
+            name: catalyst.name,
+            acquired: catalyst.acquired,
+            complete: catalyst.complete,
+            progress: catalyst.progress,
+            objective: catalyst.objective,
+            acquisition: catalyst.acquisition,
+            effects: catalyst.effects
+          }
+        }
+      : {})
+  };
 }
 
 function withManifestSourceStatus(
@@ -225,6 +283,8 @@ export function buildWeaponRecommendationViews(
   personalKnowledge: PersonalWeaponKnowledgeEntry[],
   item: SelectedItemDetail
 ): WeaponDetailViewModel["recommendations"] {
+  const classification = classifyWeaponConfiguration(item);
+  const isFixedExotic = classification.isExotic && classification.kind === "fixed";
   const availableHashes = new Set([
     ...(item.socket_plugs ?? []).map((plug) => plug.hash),
     ...(item.sockets ?? []).flatMap((socket) => socket.reusable_plugs.map((plug) => plug.hash))
@@ -238,22 +298,25 @@ export function buildWeaponRecommendationViews(
     .map((plug) => plug.name.trim().toLocaleLowerCase()));
   const currentUpgradeNames = currentWeaponUpgradeNames(item);
   const personal = personalKnowledge.filter((entry) => entry.enabled).map((entry) => {
-    const matchedColumns = entry.perk_options.filter((option) => option.names.some((name) => (
+    const perkOptions = isFixedExotic ? [] : entry.perk_options;
+    const masterworkNames = isFixedExotic ? [] : entry.masterwork_names;
+    const modNames = isFixedExotic ? [] : entry.mod_names;
+    const matchedColumns = perkOptions.filter((option) => option.names.some((name) => (
       availableNames.has(name.trim().toLocaleLowerCase())
     ))).length;
-    const resolvedColumns = entry.perk_options.filter((option) => option.names.some((name) => (
+    const resolvedColumns = perkOptions.filter((option) => option.names.some((name) => (
       definitionNames.has(name.trim().toLocaleLowerCase())
     ))).length;
-    const masterworkMatched = entry.masterwork_names.length
-      ? entry.masterwork_names.some((name) => currentUpgradeNames.masterwork.has(name.trim().toLocaleLowerCase()))
+    const masterworkMatched = masterworkNames.length
+      ? masterworkNames.some((name) => currentUpgradeNames.masterwork.has(name.trim().toLocaleLowerCase()))
       : false;
-    const modMatched = entry.mod_names.length
-      ? entry.mod_names.some((name) => currentUpgradeNames.mod.has(name.trim().toLocaleLowerCase()))
+    const modMatched = modNames.length
+      ? modNames.some((name) => currentUpgradeNames.mod.has(name.trim().toLocaleLowerCase()))
       : false;
     const matched = matchedColumns + Number(masterworkMatched) + Number(modMatched);
-    const total = entry.perk_options.length + Number(entry.masterwork_names.length > 0) + Number(entry.mod_names.length > 0);
-    const versionMatches = resolvedColumns === entry.perk_options.length;
-    const match = versionMatches ? matchRecommendation(item, matched, total) : "not_applicable";
+    const total = perkOptions.length + Number(masterworkNames.length > 0) + Number(modNames.length > 0);
+    const versionMatches = resolvedColumns === perkOptions.length;
+    const match = isFixedExotic ? "not_applicable" : versionMatches ? matchRecommendation(item, matched, total) : "not_applicable";
     return {
       id: `personal:${entry.id}`,
       mode: entry.mode,
@@ -263,40 +326,44 @@ export function buildWeaponRecommendationViews(
       source_label: "个人知识",
       updated_at: entry.updated_at,
       external_url: entry.external_url,
-      perk_options: entry.perk_options,
-      masterwork_names: entry.masterwork_names,
-      mod_names: entry.mod_names,
+      perk_options: perkOptions,
+      masterwork_names: masterworkNames,
+      mod_names: modNames,
       match,
-      match_notes: [
-        ...(versionMatches
-          ? recommendationMatchNotes(item, matched, total)
-          : [`知识库推荐不适用于当前版本：仅解析到 ${resolvedColumns}/${entry.perk_options.length} 个 Perk 插槽。`]),
-        ...(entry.masterwork_names.length ? [masterworkMatched ? "大师杰作符合推荐。" : "大师杰作与推荐不同。"] : []),
-        ...(entry.mod_names.length ? [modMatched ? "武器模组符合推荐。" : "武器模组与推荐不同。"] : [])
-      ]
+      match_notes: isFixedExotic
+        ? ["固定异域不执行随机 Roll、普通大师杰作或武器模组命中；保留此条个人知识作为使用与催化剂说明。"]
+        : [
+            ...(versionMatches
+              ? recommendationMatchNotes(item, matched, total)
+              : [`知识库推荐不适用于当前版本：仅解析到 ${resolvedColumns}/${perkOptions.length} 个 Perk 插槽。`]),
+            ...(masterworkNames.length ? [masterworkMatched ? "大师杰作符合推荐。" : "大师杰作与推荐不同。"] : []),
+            ...(modNames.length ? [modMatched ? "武器模组符合推荐。" : "武器模组与推荐不同。"] : [])
+          ]
     };
   });
-  const isFixedConfiguration = Boolean(item.perks?.length)
-    && item.perks!.every((group) => group.plugs.length <= 1);
-  const builtin = (isFixedConfiguration ? [] : recommendation?.combos ?? [])
+  const builtin = (classification.kind === "fixed" && !isFixedExotic ? [] : recommendation?.combos ?? [])
     .filter((combo) => combo.source === "local_community")
     .map((combo, index) => {
       const matched = combo.perks.filter((perk) => availableHashes.has(perk.hash)).length;
       return {
         id: `${combo.source}:${combo.mode}:${index}`,
         mode: combo.mode,
-        title: combo.note || `${combo.mode.toUpperCase()} 推荐 Roll`,
-        reason: recommendation?.disclaimer || "依据本地知识与愿望单比较当前配置。",
+        title: combo.note || (isFixedExotic ? `${combo.mode.toUpperCase()} 异域使用说明` : `${combo.mode.toUpperCase()} 推荐 Roll`),
+        reason: isFixedExotic
+          ? "该社区来源仅作为固定配置异域的使用说明，不参与随机 Roll 匹配。"
+          : recommendation?.disclaimer || "依据本地知识与愿望单比较当前配置。",
         source: "builtin" as const,
         source_label: "社区推荐",
-        perk_options: combo.perks.map((perk, perkIndex) => ({
+        perk_options: isFixedExotic ? [] : combo.perks.map((perk, perkIndex) => ({
           column_key: `Perk ${perkIndex + 1}`,
           names: [perk.name]
         })),
         masterwork_names: [],
         mod_names: [],
-        match: matchRecommendation(item, matched, combo.perks.length),
-        match_notes: recommendationMatchNotes(item, matched, combo.perks.length)
+        match: isFixedExotic ? "not_applicable" as const : matchRecommendation(item, matched, combo.perks.length),
+        match_notes: isFixedExotic
+          ? ["固定异域不执行社区随机 Roll 命中；保留此条来源记录作为使用说明。"]
+          : recommendationMatchNotes(item, matched, combo.perks.length)
       };
     });
   return [...personal, ...builtin];
@@ -306,6 +373,8 @@ export function buildWeaponPersonalTargetViews(
   recommendation: CommunityWeaponRecommendation | null,
   item: SelectedItemDetail
 ): WeaponDetailViewModel["personal_targets"] {
+  const classification = classifyWeaponConfiguration(item);
+  const isFixedExotic = classification.isExotic && classification.kind === "fixed";
   const availableHashes = new Set([
     ...(item.socket_plugs ?? []).map((plug) => plug.hash),
     ...(item.sockets ?? []).flatMap((socket) => socket.reusable_plugs.map((plug) => plug.hash))
@@ -317,20 +386,38 @@ export function buildWeaponPersonalTargetViews(
       return {
         id: `dim:${combo.mode}:${index}`,
         mode: combo.mode,
-        title: combo.note || `${combo.mode.toUpperCase()} DIM 目标`,
-        reason: "这是用户导入的 DIM 愿望单目标，不属于应用默认推荐。",
+        title: combo.note || (isFixedExotic ? "固定配置收藏记录" : `${combo.mode.toUpperCase()} DIM 目标`),
+        reason: isFixedExotic
+          ? "该 DIM 条目只作为固定配置异域的收藏与来源记录，不执行随机 Roll 匹配。"
+          : "这是用户导入的 DIM 愿望单目标，不属于应用默认推荐。",
         source: "dim" as const,
         source_label: "DIM 愿望单",
-        perk_options: combo.perks.map((perk, perkIndex) => ({
+        perk_options: isFixedExotic ? [] : combo.perks.map((perk, perkIndex) => ({
           column_key: `Perk ${perkIndex + 1}`,
           names: [perk.name]
         })),
         masterwork_names: [],
         mod_names: [],
-        match: matchRecommendation(item, matched, combo.perks.length),
-        match_notes: recommendationMatchNotes(item, matched, combo.perks.length)
+        match: isFixedExotic ? "not_applicable" as const : matchRecommendation(item, matched, combo.perks.length),
+        match_notes: isFixedExotic
+          ? ["固定异域不执行 DIM 随机 Roll 命中；保留此条愿望单作为收藏与来源记录。"]
+          : recommendationMatchNotes(item, matched, combo.perks.length)
       };
     });
+}
+
+function classifyWeaponConfiguration(item: Pick<SelectedItemDetail, "tier" | "perks">): WeaponConfigurationClassification {
+  const allColumns = perkGroupsToPoolColumns(item.perks ?? []);
+  const poolColumns = sortConfigurationColumns(allColumns.filter((column) => column.role !== "intrinsic"));
+  const isExotic = /异域|exotic/i.test(item.tier ?? "");
+  const classification = classifyWeaponConfigurationColumns(poolColumns, isExotic);
+  return {
+    allColumns,
+    poolColumns,
+    isExotic,
+    kind: classification.kind,
+    poolKind: classification.pool_kind
+  };
 }
 
 function matchRecommendation(
@@ -559,7 +646,7 @@ function damageKey(label: string): string {
 
 function buildWeaponUpgrades(item: Pick<
   SelectedItemDetail,
-  "socket_plugs" | "sockets" | "item_objectives" | "perks"
+  "socket_plugs" | "sockets" | "item_objectives" | "perks" | "catalyst" | "instance_id"
 >): WeaponDetailViewModel["upgrades"] {
   const socketSelectedPlugs = (item.sockets ?? []).flatMap((socket) => socket.selected_plug ? [socket.selected_plug] : []);
   const selectedPlugs = socketSelectedPlugs.length ? socketSelectedPlugs : item.socket_plugs ?? [];
@@ -568,6 +655,7 @@ function buildWeaponUpgrades(item: Pick<
   const definitionCatalyst = item.perks
     ?.flatMap((group) => group.plugs)
     .find((plug) => plugHasSemanticType(plug, "catalyst"));
+  const definitionOnlyCatalyst = catalyst ?? definitionCatalyst;
   const mod = selectedPlugs.find((plug) => {
     return plugHasSemanticType(plug, "mod");
   });
@@ -576,6 +664,39 @@ function buildWeaponUpgrades(item: Pick<
     ...(item.item_objectives ?? []),
     ...selectedPlugs.flatMap((plug) => plug.objectives ?? [])
   ]);
+  const catalystSummary = item.catalyst
+    ? {
+        name: item.catalyst.name,
+        icon: item.catalyst.icon,
+        acquired: item.catalyst.acquired,
+        complete: item.catalyst.complete,
+        progress: item.catalyst.progress,
+        objective: item.catalyst.objectives
+          .map((objective) => {
+            const label = objective.progress_description?.trim();
+            const progress = objective.progress === undefined
+              ? undefined
+              : `${Math.min(objective.progress, objective.completion_value)}/${objective.completion_value}`;
+            return [label, progress].filter(Boolean).join(" ");
+          })
+          .filter(Boolean)
+          .join(" / "),
+        effects: item.catalyst.description ? [item.catalyst.description] : []
+      }
+    : !item.instance_id
+      ? definitionOnlyCatalyst
+        ? {
+            name: definitionOnlyCatalyst.name,
+            icon: definitionOnlyCatalyst.icon,
+            acquired: undefined,
+            complete: false,
+            acquisition: definitionOnlyCatalyst.source_description,
+            effects: definitionOnlyCatalyst.description
+              ? [definitionOnlyCatalyst.description]
+              : []
+          }
+        : undefined
+      : undefined;
 
   return {
     masterwork: masterwork
@@ -592,27 +713,7 @@ function buildWeaponUpgrades(item: Pick<
     mod: mod
       ? { hash: mod.hash, name: mod.name, description: mod.description ?? "", icon: mod.icon }
       : undefined,
-    catalyst: catalyst
-      ? {
-          name: catalyst.name,
-          acquired: true,
-          complete: catalyst.objectives?.length
-            ? catalyst.objectives.every((objective) => objective.complete)
-            : false,
-          progress: objectiveProgress(catalyst.objectives),
-          objective: catalyst.objectives?.map((objective) => objective.progress_description).filter(Boolean).join(" / "),
-          acquisition: catalyst.source_description,
-          effects: catalyst.description ? [catalyst.description] : []
-        }
-      : definitionCatalyst
-        ? {
-            name: definitionCatalyst.name,
-            acquired: false,
-            complete: false,
-            acquisition: definitionCatalyst.source_description,
-            effects: definitionCatalyst.description ? [definitionCatalyst.description] : []
-          }
-        : undefined,
+    catalyst: catalystSummary,
     enhancement: enhancement
       ? {
           name: /空的|empty/i.test(enhancement.name) ? "未强化" : enhancement.name,
@@ -634,14 +735,18 @@ function includesCategory(category: string | undefined, segment: string): boolea
 }
 
 function plugHasSemanticType(
-  plug: { name?: string; description?: string; category_identifier?: string; item_type?: string },
+  plug: { name?: string; description?: string; category_identifier?: string; trait_ids?: string[]; item_type?: string },
   kind: "masterwork" | "catalyst" | "mod" | "enhancement"
 ): boolean {
   const category = plug.category_identifier?.toLocaleLowerCase() ?? "";
   const itemType = plug.item_type?.toLocaleLowerCase() ?? "";
   const text = `${plug.name ?? ""} ${plug.description ?? ""}`.toLocaleLowerCase();
-  if (kind === "masterwork") return category.includes("masterwork") || itemType.includes("masterwork") || itemType.includes("大师杰作");
-  if (kind === "catalyst") return category.includes("catalyst") || itemType.includes("catalyst") || itemType.includes("催化剂");
+  const isCatalyst = plug.trait_ids?.includes("item.exotic_catalyst")
+    || category.includes("catalyst")
+    || itemType.includes("catalyst")
+    || itemType.includes("催化剂");
+  if (kind === "masterwork") return !isCatalyst && (category.includes("masterwork") || itemType.includes("masterwork") || itemType.includes("大师杰作"));
+  if (kind === "catalyst") return isCatalyst;
   if (kind === "enhancement") return text.includes("装备阶级升级") || /(?:^|\s)\d+阶升级/.test(text) || text.includes("empty enhancement tier");
   return (category.includes("weapon.mod") || category.includes("modguns") || category.includes("mods.weapon") || itemType.includes("weapon mod") || itemType.includes("武器模组"))
     && !category.includes("shader")
@@ -685,14 +790,6 @@ function normalizePerkVariantName(value: string): string {
     .replace(/强化(?:版|型|特性)?/g, "")
     .replace(/[\s·:：()（）_-]+/g, "")
     .trim();
-}
-
-function objectiveProgress(
-  objectives: NonNullable<SelectedItemDetail["item_objectives"]> | undefined
-): number | undefined {
-  const objective = objectives?.find((candidate) => candidate.visible) ?? objectives?.[0];
-  if (!objective || objective.progress === undefined || objective.completion_value <= 0) return undefined;
-  return Math.min(100, Math.round(objective.progress / objective.completion_value * 100));
 }
 
 function extractCraftingLevel(

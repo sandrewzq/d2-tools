@@ -278,6 +278,7 @@ function mergeAccountItemDetail(
     weapon_stats: detail.weapon_stats ?? current.weapon_stats,
     instance: detail.instance,
     item_objectives: detail.item_objectives,
+    catalyst: detail.catalyst,
     sockets: detail.sockets,
     socket_plugs: detail.socket_plugs,
     group_key: detail.group_key,

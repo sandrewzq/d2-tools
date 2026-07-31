@@ -15,6 +15,7 @@ import {
 import { useRef, useState } from "react";
 import { api } from "../../api/client";
 import type { ItemSearchResult } from "../../api/types";
+import { buildWeaponAiConfigurationContext } from "../../shared/components/item-detail/buildWeaponDetailView";
 
 export type VendorDefinitionDetailState = {
   item: ItemSearchResult;
@@ -161,6 +162,15 @@ export function useVendorDefinitionDetail(input: { vendorSourcePaths?: Map<numbe
   async function generateAi(userKnowledge = "", allowExternalSearch = false): Promise<void> {
     if (!state) return;
     const current = state;
+    const offerSocketPlugs = (current.offerItem.socketPlugs ?? []).map((plug) => ({
+      hash: plug.hash,
+      name: plug.name,
+      icon: plug.iconUrl,
+      description: plug.description,
+      category_identifier: plug.categoryIdentifier,
+      stat_modifiers: plug.statModifiers,
+      item_type: plug.itemType
+    }));
     setState((value) => value ? { ...value, isGeneratingAi: true, aiError: "" } : value);
     try {
       const result = await api.generateItemAiAdvice({
@@ -173,11 +183,7 @@ export function useVendorDefinitionDetail(input: { vendorSourcePaths?: Map<numbe
           bucket_name: current.item.bucket_name,
           group_key: current.item.group_key ?? "weapons",
           weapon_frame: current.item.weapon_frame,
-          socket_plugs: (current.offerItem.socketPlugs ?? []).map((plug) => ({
-            hash: plug.hash,
-            name: plug.name,
-            icon: plug.iconUrl
-          })),
+          socket_plugs: offerSocketPlugs,
           description: current.item.description
         },
         tags: input.vaultTags ?? { items: {} },
@@ -190,10 +196,11 @@ export function useVendorDefinitionDetail(input: { vendorSourcePaths?: Map<numbe
           official_sources: current.liveEntry?.sources.map((source) => source.label) ?? [current.context.vendorName],
           definition_stats: Object.fromEntries((current.item.definition_stats ?? []).map((stat) => [stat.name, stat.value])),
           current_stats: current.context.stats,
-          perk_pool: (current.item.perks ?? []).map((group) => ({
-            socket_index: group.socket_index,
-            names: group.plugs.map((plug) => plug.name)
-          })),
+          ...buildWeaponAiConfigurationContext({
+            tier: current.item.tier,
+            perks: current.item.perks,
+            socket_plugs: offerSocketPlugs
+          }),
           offer: {
             vendor_name: current.context.vendorName,
             cost: current.context.costLabel,

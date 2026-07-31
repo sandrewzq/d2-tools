@@ -23,7 +23,19 @@ export type ItemAiAdviceInput = {
     official_sources: string[];
     definition_stats?: Record<string, number>;
     current_stats?: Record<string, number>;
+    configuration_kind?: "fixed_exotic" | "variable_exotic" | "random_roll" | "fixed";
+    fixed_perks?: Array<{ socket_index: number; names: string[] }>;
+    configuration_options?: Array<{ socket_index: number; names: string[] }>;
     perk_pool?: Array<{ socket_index: number; names: string[] }>;
+    catalyst?: {
+      name: string;
+      acquired?: boolean;
+      complete: boolean;
+      progress?: number;
+      objective?: string;
+      acquisition?: string;
+      effects: string[];
+    };
     same_hash_instances?: Array<{ location: string; power?: number; plugs: string[] }>;
     offer?: { vendor_name: string; cost: string; affordability: string; refresh: string };
   };

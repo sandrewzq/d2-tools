@@ -19,7 +19,8 @@ export type DefinitionComponentName =
   | "DestinyActivityModifierDefinition"
   | "DestinyDestinationDefinition"
   | "DestinyPlaceDefinition"
-  | "DestinyObjectiveDefinition";
+  | "DestinyObjectiveDefinition"
+  | "DestinyRecordDefinition";
 
 export type DefinitionRecord = {
   hash?: number;
@@ -109,6 +110,8 @@ export type DefinitionRecord = {
   sourceHash?: number;
   progressDescription?: string;
   completionValue?: number;
+  objectiveHashes?: number[];
+  recordTypeName?: string;
   translationBlock?: {
     artArrangementHash?: number;
     weaponPatternHash?: number;

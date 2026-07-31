@@ -21,9 +21,9 @@
 | `data-ui-kind` | 共享组件类型，如 Shell、导航、按钮、字段、对象卡、状态矩阵和弹层 |
 | `data-contract-id` | 跨原型和产品稳定定位，不参与业务判断 |
 | `data-ui-part="label|value|detail|state|source|action"` | 组件内部信息槽位 |
-| `data-text-tone="primary|body|meta|action|status"` | 文字颜色语义 |
+| `data-text-tone="primary|body|meta|action|countdown|status"` | 文字颜色语义 |
 | `data-info-priority="display|metric|decision|context|reading|support|trace"` | 信息权重与排版 |
-| `data-value-kind="fact|status"` | 区分事实值与状态词 |
+| `data-value-kind="fact|countdown|status"` | 区分事实值、动态倒计时与状态词 |
 | `data-status="neutral|pending|success|warning|error"` | 业务状态 |
 
 按钮额外使用：
@@ -65,7 +65,7 @@
 
 ## 颜色、边框与当前状态
 
-- 蓝色只表达导航、当前对象和可跳转操作；绿色表达成功、可用和主要确认；黄色表达警告；红色表达危险或失败；紫色只用于 AI。
+- 蓝色只表达导航、当前对象和可跳转操作；绿色表达成功、可用和主要确认；黄色表达警告；红色表达危险或失败；紫色只用于 AI；珊瑚红时间强调色只表达动态倒计时，并与错误红使用不同 token 和色值。
 - Shell、章节、对象和控件分别使用对应语义边界 token，不使用弱边界代替强边界。
 - 导航当前状态、对象选择、角色上下文和分段控件是四种不同状态，不共用指示方式。
 - `hover`、`current`、`focus-visible`、`disabled` 和 `loading` 必须可同时区分。焦点环至少 `2px`，相对相邻表面达到 `3:1`。
@@ -101,7 +101,7 @@
 | 周期边界 | UTC 规则与下一个时间点 | 动态生成当地日期、星期和时间 |
 | 时长 | 目标时间减当前时间 | 动态计算，不保存会过期文案 |
 
-完整时间使用 `YYYY/MM/DD HH:mm:ss`，普通列表使用 `YYYY/MM/DD HH:mm`，Shell 紧凑时间今天使用 `HH:mm`、非今天使用 `MM/DD HH:mm`。不得写死 `Asia/Shanghai`、地域时区名或预格式化相对时间。
+完整时间使用 `YYYY/MM/DD HH:mm:ss`，普通列表使用 `YYYY/MM/DD HH:mm`，Shell 紧凑时间今天使用 `HH:mm`、非今天使用 `MM/DD HH:mm`。动态倒计时统一使用 `countdown` tone 和 `--time-accent`，绝对更新时间仍使用普通事实值颜色。不得写死 `Asia/Shanghai`、地域时区名或预格式化相对时间。
 
 ## 导航与控件
 

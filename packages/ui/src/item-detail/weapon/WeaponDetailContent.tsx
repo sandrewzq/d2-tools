@@ -78,7 +78,7 @@ const sectionLabels: Array<{ key: WeaponDetailSection; label: string }> = [
 export function WeaponDetailContent(props: WeaponDetailContentProps) {
   const { model } = props;
   const [internalSection, setInternalSection] = useState<WeaponDetailSection>("overview");
-  const [poolOpen, setPoolOpen] = useState(true);
+  const [poolOpen, setPoolOpen] = useState(false);
   const [analysisPrompt, setAnalysisPrompt] = useState("");
   const [allowExternalSearch, setAllowExternalSearch] = useState(false);
   const [targetSource, setTargetSource] = useState<WeaponTargetSource>("dim");
@@ -99,7 +99,7 @@ export function WeaponDetailContent(props: WeaponDetailContentProps) {
   });
 
   useEffect(() => {
-    setPoolOpen(true);
+    setPoolOpen(false);
     setInternalSection("overview");
     setAnalysisPrompt("");
     setAllowExternalSearch(false);
@@ -337,6 +337,7 @@ function WeaponIdentity(props: {
           <h2 data-ui-part="value" data-text-tone="primary" data-info-priority="display">{identity.name}</h2>
           <p data-ui-part="detail" data-text-tone="body" data-info-priority="reading">{[identity.item_type, identity.frame?.name].filter(Boolean).join(" · ")}</p>
           <div className="weapon-detail-facts" aria-label="武器摘要">
+            {identity.tier ? <Fact label={identity.tier} tone={identity.is_exotic ? "rarity-exotic" : "rarity"} /> : null}
             {identity.slot ? <Fact label={identity.slot} tone="slot" /> : null}
             {identity.ammo ? <Fact label={identity.ammo.label} icon={identity.ammo.icon} tone={`ammo-${identity.ammo.key}`} /> : null}
             {identity.damage ? <Fact label={identity.damage.label} icon={identity.damage.icon} title={identity.damage.description} tone={`damage-${identity.damage.key}`} /> : null}
@@ -611,8 +612,15 @@ function ConfigurationSection(props: {
   configurationWriteFeedback?: WeaponConfigurationWriteFeedback;
 }) {
   const { configuration, context } = props.model;
-  const showSelection = context.kind !== "definition" && configuration.selection_columns.length > 0;
+  const isFixedExotic = props.model.identity.is_exotic && configuration.kind === "fixed";
+  const isVariableExotic = props.model.identity.is_exotic && configuration.kind === "variable_exotic";
+  const showSelection = context.kind !== "definition"
+    && configuration.kind !== "fixed"
+    && configuration.selection_columns.length > 0;
   const columns = showSelection ? configuration.selection_columns : configuration.pool_columns;
+  const canWriteConfiguration = context.kind === "account_instance"
+    && configuration.kind !== "fixed"
+    && configuration.selection_columns.some((column) => column.candidates.some((candidate) => candidate.can_apply));
   const writeFeedback = props.configurationWriteFeedback ?? { status: "idle" as const };
   const isBusy = writeFeedback.status === "submitting" || writeFeedback.status === "refreshing";
   const pendingChangeCount = configuration.selection_columns.reduce(
@@ -622,14 +630,35 @@ function ConfigurationSection(props: {
   const panelState = writeFeedback.status === "idle" && configuration.has_pending_changes
     ? "pending"
     : writeFeedback.status;
-  const showWritePanel = panelState !== "idle";
+  const showWritePanel = canWriteConfiguration && panelState !== "idle";
   const panelContent = configurationPanelContent(panelState, pendingChangeCount, writeFeedback.message);
+  const title = isFixedExotic
+    ? "固定 Perk"
+    : context.kind === "definition"
+      ? isVariableExotic ? "异域配置候选" : "完整 Perk 池"
+      : context.kind === "vendor_offer"
+        ? "当前售卖配置"
+        : "当前实例配置";
+  const description = isFixedExotic
+    ? "固有能力与其余固定 Perk 使用同一配置网格，不提供随机池筛选、推荐 Roll 命中或远程切换。"
+    : isVariableExotic
+      ? context.kind === "account_instance"
+        ? "只展示当前实例真实拥有的异域配置选项；可写项以 Bungie 返回的插槽状态为准。"
+        : "展示当前异域定义或 Offer 可确认的配置，不把它称为普通传说武器掉落池。"
+      : context.kind === "account_instance"
+        ? "只允许切换当前实例真实拥有且可应用的 Perk。"
+        : "当前对象为只读，不提供远程配置操作。";
+  const operationLabel = canWriteConfiguration
+    ? "可远程切换 · 需要联网"
+    : context.kind === "account_instance" && configuration.kind === "fixed"
+      ? "固定配置 · 只读"
+      : "只读";
   return (
     <>
       <SectionHeading
         eyebrow="武器配置"
-        title={context.kind === "definition" ? "完整 Perk 池" : context.kind === "vendor_offer" ? "当前售卖配置" : "当前实例配置"}
-        description={context.kind === "account_instance" ? "只允许切换当前实例真实拥有且可应用的 Perk。" : "当前对象为只读，不提供远程配置操作。"}
+        title={title}
+        description={description}
       />
       <DataBlockHeading
         title="配置数据"
@@ -638,7 +667,7 @@ function ConfigurationSection(props: {
       <div className="weapon-detail-config-summary">
         <span>{context.object_label}</span>
         <span>{configurationKindLabel(configuration.kind)}</span>
-        <span>{context.read_only ? "只读" : "需要联网"}</span>
+        <span>{operationLabel}</span>
         <span>{context.kind === "account_instance" ? "Manifest + Profile 当前实例" : context.kind === "vendor_offer" ? "Manifest + Vendor Offer" : "Manifest 定义"}</span>
       </div>
       <div className="weapon-detail-config-grid">
@@ -649,7 +678,7 @@ function ConfigurationSection(props: {
             label={column.label}
             role={column.role}
             candidates={column.candidates}
-            interactive={showSelection && context.kind === "account_instance" && !isBusy}
+            interactive={showSelection && canWriteConfiguration && !isBusy}
             onSelect={(perk) => props.actions?.stagePerk?.(column as WeaponPerkSelectionColumn, perk)}
           />
         ))}
@@ -692,7 +721,7 @@ function ConfigurationSection(props: {
         </div>
       ) : null}
 
-      {context.kind !== "definition" && configuration.pool_columns.length ? (
+      {context.kind !== "definition" && configuration.kind === "random_roll" && configuration.pool_columns.length ? (
         <section className="weapon-detail-full-pool">
           <button type="button" data-ui-kind="button" data-control-variant="secondary" aria-expanded={props.poolOpen} onClick={props.onTogglePool}>
             <strong>{props.poolOpen ? "收起完整掉落池" : "查看完整掉落池"}</strong>
@@ -702,6 +731,23 @@ function ConfigurationSection(props: {
             <><div className="weapon-detail-pool-grid">
               {configuration.pool_columns.map((column) => <PerkColumn key={column.key} label={column.label} role={column.role} candidates={column.candidates} />)}
             </div><p className="weapon-detail-note">这里只展示可能掉落的候选，不标记当前已选状态；实例未拥有的 Perk 不能远程安装。</p></>
+          ) : null}
+        </section>
+      ) : null}
+
+      {context.kind !== "definition"
+      && isVariableExotic
+      && configuration.pool_kind === "randomized"
+      && configuration.pool_columns.length ? (
+        <section className="weapon-detail-full-pool">
+          <button type="button" data-ui-kind="button" data-control-variant="secondary" aria-expanded={props.poolOpen} onClick={props.onTogglePool}>
+            <strong>{props.poolOpen ? "收起异域配置候选" : "查看异域配置候选"}</strong>
+            <span>{props.poolOpen ? "收起" : `展开 ${countPool(configuration.pool_columns)} 个候选`}</span>
+          </button>
+          {props.poolOpen ? (
+            <><div className="weapon-detail-pool-grid">
+              {configuration.pool_columns.map((column) => <PerkColumn key={column.key} label={column.label} role={column.role} candidates={column.candidates} />)}
+            </div><p className="weapon-detail-note">这些是当前 Manifest 可确认的特殊异域随机配置候选，不代表当前实例已经拥有，也不属于普通传说武器掉落池。</p></>
           ) : null}
         </section>
       ) : null}
@@ -768,6 +814,7 @@ function RecommendationSection(props: {
   onSourceChange: (source: WeaponTargetSource) => void;
 }) {
   const { model } = props;
+  const isFixedExotic = model.identity.is_exotic && model.configuration.kind === "fixed";
   const panelId = useId();
   const targetsBySource: Record<WeaponTargetSource, WeaponRecommendation[]> = {
     dim: model.personal_targets.filter((target) => target.source === "dim"),
@@ -791,7 +838,7 @@ function RecommendationSection(props: {
   };
   return (
     <>
-      <SectionHeading eyebrow="目标匹配" title="独立数据源目标匹配" description="DIM Wishlist、社区推荐和个人知识分别匹配，不合并、不排序，也不生成应用结论。" />
+      <SectionHeading eyebrow="目标匹配" title="独立数据源目标匹配" description={isFixedExotic ? "固定异域不进行随机 Roll 命中；DIM、社区和个人知识只记录拥有状态、催化剂进度与使用建议。" : "DIM Wishlist、社区推荐和个人知识分别匹配，不合并、不排序，也不生成应用结论。"} />
       <div className="weapon-detail-target-tabs" data-ui-kind="segmented-control" role="tablist" aria-label="选择目标数据源">
         {([
           ["dim", "DIM Wishlist"],
@@ -837,6 +884,7 @@ function RecommendationCard(props: { model: WeaponDetailViewModel; recommendatio
   }));
   const masterworkMatch = hasObject && recommendation.masterwork_names.some((name) => sameLabel(name, model.upgrades.masterwork?.name));
   const modMatch = hasObject && recommendation.mod_names.some((name) => sameLabel(name, model.upgrades.mod?.name));
+  const isFixedExotic = model.identity.is_exotic && model.configuration.kind === "fixed";
   return (
     <article className="weapon-detail-recommendation">
       <header>
@@ -858,11 +906,21 @@ function RecommendationCard(props: { model: WeaponDetailViewModel; recommendatio
             </div>
           ))}
         </div>
-      ) : <p className="weapon-detail-match-empty">该来源没有指定随机 Perk 目标。</p>}
+      ) : <p className="weapon-detail-match-empty">{isFixedExotic ? "固定异域不使用随机 Perk 目标；此处保留来源说明和使用建议。" : "该来源没有指定随机 Perk 目标。"}</p>}
       <div className="weapon-detail-match-summary">
-        <span>Perk：{!perkMatches.length ? "未指定" : !hasObject ? "未选择实际对象" : `${perkMatches.filter((option) => option.owned).length}/${perkMatches.length} 实例拥有 · ${perkMatches.filter((option) => option.active).length}/${perkMatches.length} 当前启用`}</span>
-        <span>大师杰作：{recommendation.masterwork_names.length ? matchFactLabel(hasObject, masterworkMatch) : "未指定"}</span>
-        <span>武器模组：{recommendation.mod_names.length ? matchFactLabel(hasObject, modMatch) : "未指定"}</span>
+        {isFixedExotic ? (
+          <>
+            <span>配置：固定 Perk · 不执行 Roll 命中</span>
+            {model.upgrades.catalyst ? <span>催化剂：{catalystStateLabel(model)}</span> : null}
+            <span>当前对象：{hasObject ? model.context.object_label : "资料库定义"}</span>
+          </>
+        ) : (
+          <>
+            <span>Perk：{!perkMatches.length ? "未指定" : !hasObject ? "未选择实际对象" : `${perkMatches.filter((option) => option.owned).length}/${perkMatches.length} 实例拥有 · ${perkMatches.filter((option) => option.active).length}/${perkMatches.length} 当前启用`}</span>
+            <span>大师杰作：{recommendation.masterwork_names.length ? matchFactLabel(hasObject, masterworkMatch) : "未指定"}</span>
+            <span>武器模组：{recommendation.mod_names.length ? matchFactLabel(hasObject, modMatch) : "未指定"}</span>
+          </>
+        )}
       </div>
     </article>
   );
@@ -878,16 +936,17 @@ function UpgradeSection({ model }: { model: WeaponDetailViewModel }) {
   const rows = [
     upgrades.masterwork ? { key: "masterwork", label: "大师杰作", current: `${upgrades.masterwork.name}${upgrades.masterwork.level ? ` · ${upgrades.masterwork.level} 级` : ""}`, detail: `${upgrades.masterwork.complete ? "已完成" : "未完成"}${upgrades.masterwork.stat_amount ? ` · 属性 ${upgrades.masterwork.stat_amount > 0 ? "+" : ""}${upgrades.masterwork.stat_amount}` : ""}`, source: objectSource } : null,
     upgrades.mod ? { key: "mod", label: "武器模组", current: upgrades.mod.name, detail: upgrades.mod.description, source: objectSource } : null,
-    upgrades.catalyst ? { key: "catalyst", label: "催化剂", current: upgrades.catalyst.name, detail: upgrades.catalyst.complete ? "已完成并生效" : upgrades.catalyst.acquired ? `进度 ${upgrades.catalyst.progress ?? 0}%` : "尚未获取", source: "Profile + Manifest" } : null,
+    upgrades.catalyst ? { key: "catalyst", label: "催化剂", current: upgrades.catalyst.name, detail: catalystStateLabel(model), source: upgrades.catalyst.acquired === undefined ? "Manifest 定义" : "Profile + Manifest" } : null,
     upgrades.enhancement ? { key: "enhancement", label: "强化阶级", current: upgrades.enhancement.name, detail: upgrades.enhancement.level !== undefined ? `当前 ${upgrades.enhancement.level} 阶` : "当前装备强化状态", source: objectSource } : null,
     upgrades.crafting_level !== undefined ? { key: "crafting", label: "锻造等级", current: `${upgrades.crafting_level} 级`, detail: upgrades.enhanced ? "已包含强化能力" : "未强化", source: objectSource } : null
   ].filter((row): row is NonNullable<typeof row> => Boolean(row));
+  if (!rows.length) return null;
   return (
     <>
       <SectionHeading eyebrow="升级与锻造" title={upgrades.catalyst ? "催化剂、杰作与当前进度" : "大师杰作、模组与强化"} description="当前对象状态与定义能力分别标明来源，不把未返回的信息补成结论。" />
-      <DataBlockHeading title="升级状态" source="Profile 进度 + Manifest 定义 · 当前读取" />
+      <DataBlockHeading title="升级状态" source={upgrades.catalyst ? (upgrades.catalyst.acquired === undefined ? "Manifest 定义" : "Profile 进度 + Manifest 定义 · 当前读取") : objectSource} />
       <div className={["weapon-detail-upgrade-layout", !upgrades.catalyst && "without-catalyst"].filter(Boolean).join(" ")}>
-        {upgrades.catalyst ? <article className="weapon-detail-catalyst"><div><strong>{upgrades.catalyst.name}</strong><span>{upgrades.catalyst.objective ?? "未返回完成条件"}</span></div><progress value={upgrades.catalyst.progress ?? (upgrades.catalyst.complete ? 100 : 0)} max={100} /><p>{upgrades.catalyst.acquisition ? `获取：${upgrades.catalyst.acquisition}` : "未返回催化剂获取方式"}</p>{upgrades.catalyst.effects.length ? <ul>{upgrades.catalyst.effects.map((effect) => <li key={effect}>{effect}</li>)}</ul> : null}</article> : null}
+        {upgrades.catalyst ? <article className="weapon-detail-catalyst"><header>{upgrades.catalyst.icon ? <img className="game-definition-icon" src={upgrades.catalyst.icon} alt="" /> : null}<div><strong>{upgrades.catalyst.name}</strong><span>{upgrades.catalyst.objective || catalystStateLabel(model)}</span></div></header>{upgrades.catalyst.acquired !== undefined ? <progress value={upgrades.catalyst.progress ?? (upgrades.catalyst.complete ? 100 : 0)} max={100} /> : null}{upgrades.catalyst.acquisition ? <p>获取：{upgrades.catalyst.acquisition}</p> : null}{upgrades.catalyst.effects.length ? <ul>{upgrades.catalyst.effects.map((effect) => <li key={effect}>{effect}</li>)}</ul> : null}</article> : null}
         {rows.length ? (
           <div className="weapon-detail-upgrade-table" role="table" aria-label="升级与锻造状态">
             <div role="row"><strong role="columnheader">项目</strong><strong role="columnheader">当前对象</strong><strong role="columnheader">状态</strong><strong role="columnheader">数据来源</strong></div>
@@ -986,6 +1045,7 @@ function AnalysisSection(props: {
   onDeleteKnowledge?: (id: string) => void;
 }) {
   const status = props.analysis?.status ?? "idle";
+  const isFixedExotic = props.model.identity.is_exotic && props.model.configuration.kind === "fixed";
   const [knowledgeMode, setKnowledgeMode] = useState<"pve" | "pvp" | "general">("general");
   const [knowledgeTitle, setKnowledgeTitle] = useState("");
   const [knowledgePerks, setKnowledgePerks] = useState("");
@@ -1012,7 +1072,7 @@ function AnalysisSection(props: {
         <aside className="weapon-detail-ai-tools">
           <div className="weapon-detail-ai-input">
             <label htmlFor="weapon-analysis-prompt">询问这件武器</label>
-            <textarea id="weapon-analysis-prompt" value={props.prompt} onChange={(event) => props.onPromptChange(event.target.value)} placeholder="例如：结合我当前实例的全部可切换 Perk，分析 PvE 推荐匹配情况。" />
+            <textarea id="weapon-analysis-prompt" value={props.prompt} onChange={(event) => props.onPromptChange(event.target.value)} placeholder={isFixedExotic ? "例如：结合固定配置、当前催化剂状态和获取来源，分析 PvE 使用方向。" : "例如：结合我当前实例的全部可切换 Perk，分析 PvE 推荐匹配情况。"} />
             <label className="weapon-detail-ai-external"><input type="checkbox" checked={props.allowExternalSearch} onChange={(event) => props.onAllowExternalSearchChange(event.target.checked)} />允许 AI 查询外部知识，必须保留引用</label>
             <button type="button" data-ui-kind="button" data-control-variant="ai" data-control-size="prominent" disabled={!props.onRun || status === "running"} onClick={() => props.onRun?.({ prompt: props.prompt, allow_external_search: props.allowExternalSearch })}>{status === "running" ? "分析中..." : "结合全部来源分析"}</button>
             <small>AI 结果不会自动进入可靠数据区，保存前必须由用户确认。</small>
@@ -1051,9 +1111,9 @@ function AnalysisSection(props: {
           <div className="weapon-detail-knowledge-form">
             <label>模式<select value={knowledgeMode} onChange={(event) => setKnowledgeMode(event.target.value as typeof knowledgeMode)}><option value="general">通用</option><option value="pve">PvE</option><option value="pvp">PvP</option></select></label>
             <label>推荐名称<input value={knowledgeTitle} onChange={(event) => setKnowledgeTitle(event.target.value)} placeholder="例如：高难 PvE 通用配置" /></label>
-            <label>推荐 Perk<input value={knowledgePerks} onChange={(event) => setKnowledgePerks(event.target.value)} placeholder="枪管: A/B；Perk 1: C/D" /></label>
-            <label>大师杰作<input value={knowledgeMasterwork} onChange={(event) => setKnowledgeMasterwork(event.target.value)} /></label>
-            <label>武器模组<input value={knowledgeMod} onChange={(event) => setKnowledgeMod(event.target.value)} /></label>
+            {!isFixedExotic ? <label>推荐 Perk<input value={knowledgePerks} onChange={(event) => setKnowledgePerks(event.target.value)} placeholder="枪管: A/B；Perk 1: C/D" /></label> : null}
+            {!isFixedExotic ? <label>大师杰作<input value={knowledgeMasterwork} onChange={(event) => setKnowledgeMasterwork(event.target.value)} /></label> : null}
+            {!isFixedExotic ? <label>武器模组<input value={knowledgeMod} onChange={(event) => setKnowledgeMod(event.target.value)} /></label> : null}
             <label className="is-wide">外部依据链接<input type="url" value={knowledgeUrl} onChange={(event) => setKnowledgeUrl(event.target.value)} placeholder="可选；保存外部知识时保留原始链接" /></label>
             <label className="is-wide">理由<textarea value={knowledgeReason} onChange={(event) => setKnowledgeReason(event.target.value)} placeholder={props.analysis?.body ? "可根据上方 AI 结论整理" : "说明适用玩法和理由"} /></label>
             <button
@@ -1065,9 +1125,9 @@ function AnalysisSection(props: {
                 weapon_hash: props.model.identity.hash,
                 mode: knowledgeMode,
                 title: knowledgeTitle.trim(),
-                perk_options: parseKnowledgePerkOptions(knowledgePerks),
-                masterwork_names: splitKnowledgeValues(knowledgeMasterwork),
-                mod_names: splitKnowledgeValues(knowledgeMod),
+                perk_options: isFixedExotic ? [] : parseKnowledgePerkOptions(knowledgePerks),
+                masterwork_names: isFixedExotic ? [] : splitKnowledgeValues(knowledgeMasterwork),
+                mod_names: isFixedExotic ? [] : splitKnowledgeValues(knowledgeMod),
                 reason: knowledgeReason.trim() || props.analysis?.body || "",
                 enabled: true,
                 origin: knowledgeUrl.trim() ? "confirmed_external" : "user",
@@ -1087,6 +1147,15 @@ function EmptyState({ text }: { text: string }) {
 
 function sourceStatusLabel(status: WeaponDetailViewModel["sources"]["status"]) {
   return status === "ready" ? "来源完整" : status === "partial" ? "来源可能不完整" : "来源未知";
+}
+
+function catalystStateLabel(model: WeaponDetailViewModel): string {
+  const catalyst = model.upgrades.catalyst;
+  if (!catalyst) return "";
+  if (catalyst.complete) return "已完成并生效";
+  if (catalyst.acquired === true) return catalyst.progress !== undefined ? `进行中 · ${catalyst.progress}%` : "已获得 · 进度未返回";
+  if (catalyst.acquired === false) return "尚未获得";
+  return "仅显示催化剂定义";
 }
 
 function contextKindLabel(kind: WeaponDetailViewModel["context"]["kind"]) {

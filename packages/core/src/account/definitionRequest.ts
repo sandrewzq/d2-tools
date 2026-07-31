@@ -17,6 +17,7 @@ export function collectAccountDefinitionRequest(
   const bucketHashes = new Set<number>();
   const plugSetHashes = new Set<number>();
   const objectiveHashes = new Set<number>();
+  const recordHashes = new Set<number>();
   const loadoutNameHashes = new Set<number>();
   const addItem = (item: DestinyProfileItem): void => {
     addHash(itemHashes, item.itemHash);
@@ -45,6 +46,9 @@ export function collectAccountDefinitionRequest(
   }
   for (const objectives of Object.values(profile.itemComponents?.objectives?.data ?? {})) {
     for (const objective of objectives.objectives ?? []) addHash(objectiveHashes, objective.objectiveHash);
+  }
+  for (const recordHash of Object.keys(profile.profileRecords?.data?.records ?? {})) {
+    addHash(recordHashes, Number(recordHash));
   }
   for (const plugObjectives of Object.values(profile.itemComponents?.plugObjectives?.data ?? {})) {
     for (const [plugHash, objectives] of Object.entries(plugObjectives.objectivesPerPlug ?? {})) {
@@ -80,6 +84,7 @@ export function collectAccountDefinitionRequest(
     bucketHashes: [...bucketHashes],
     plugSetHashes: [...plugSetHashes],
     objectiveHashes: [...objectiveHashes],
+    recordHashes: [...recordHashes],
     loadoutNameHashes: [...loadoutNameHashes],
     expandSocketPlugSets: true
   };

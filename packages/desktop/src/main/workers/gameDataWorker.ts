@@ -92,6 +92,15 @@ function projectDefinitions(
   projection: DefinitionProjection | undefined
 ): DefinitionComponentData {
   if (!projection) return definitions;
+  if (projection === "catalyst-record") {
+    const projected: DefinitionComponentData = {};
+    for (const [hash, definition] of Object.entries(definitions)) {
+      if (isCatalystRecordDefinition(component, definition)) {
+        projected[hash] = projectCatalystRecordDefinition(definition);
+      }
+    }
+    return projected;
+  }
   return Object.fromEntries(Object.entries(definitions).map(([hash, definition]) => [
     hash,
     projection === "account-snapshot"
@@ -100,6 +109,29 @@ function projectDefinitions(
         ? projectCommunityMatchDefinition(component, definition)
         : projectDisplaySummaryDefinition(component, definition)
   ]));
+}
+
+function isCatalystRecordDefinition(
+  component: DefinitionComponentName,
+  definition: DefinitionRecord
+): boolean {
+  if (component !== "DestinyRecordDefinition") return false;
+  const type = definition.recordTypeName?.trim().toLocaleLowerCase() ?? "";
+  return type.includes("异域催化")
+    || type.includes("exotic catalyst");
+}
+
+function projectCatalystRecordDefinition(definition: DefinitionRecord): DefinitionRecord {
+  return compactObject({
+    hash: definition.hash,
+    displayProperties: compactObject({
+      name: definition.displayProperties?.name,
+      description: definition.displayProperties?.description,
+      icon: definition.displayProperties?.icon
+    }),
+    objectiveHashes: definition.objectiveHashes,
+    recordTypeName: definition.recordTypeName
+  });
 }
 
 function projectCommunityMatchDefinition(
@@ -214,6 +246,7 @@ function projectInventoryItemSummary(definition: DefinitionRecord): DefinitionRe
       icon: definition.displayProperties?.icon
     }),
     itemTypeDisplayName: definition.itemTypeDisplayName,
+    traitIds: definition.traitIds,
     itemType: definition.itemType,
     classType: definition.classType,
     inventory: compactObject({

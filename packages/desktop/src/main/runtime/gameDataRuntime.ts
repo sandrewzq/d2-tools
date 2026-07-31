@@ -25,7 +25,7 @@ type PendingRequest = {
   worker: Worker;
 };
 
-export type DefinitionProjection = "account-snapshot" | "community-match" | "display-summary";
+export type DefinitionProjection = "account-snapshot" | "catalyst-record" | "community-match" | "display-summary";
 
 let worker: Worker | null = null;
 let nextRequestId = 1;

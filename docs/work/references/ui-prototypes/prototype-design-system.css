@@ -39,6 +39,7 @@
   --amber-bg: #302816;
   --violet: #c2b2ed;
   --violet-bg: #25213b;
+  --time-accent: #f2a08f;
   --red: #ef9d9d;
   --red-bg: #341d20;
   --danger: #ef9d9d;
@@ -257,6 +258,7 @@ html[data-theme="light"] {
   --amber-bg: #f7edcf;
   --violet: #66519a;
   --violet-bg: #eee9f8;
+  --time-accent: #9f4637;
   --red: #a43e48;
   --red-bg: #f8e6e8;
   --danger: #a43e48;
@@ -1461,13 +1463,15 @@ html body .app [data-text-tone="primary"] { color: var(--text); }
 html body .app [data-text-tone="body"] { color: var(--body); }
 html body .app [data-text-tone="meta"] { color: var(--muted); }
 html body .app [data-text-tone="action"] { color: var(--blue); }
+html body .app [data-text-tone="countdown"] { color: var(--time-accent); }
 html body .app [data-text-tone="status"][data-status="success"] { color: var(--mint); }
 html body .app [data-text-tone="status"][data-status="pending"] { color: var(--blue); }
 html body .app [data-text-tone="status"][data-status="warning"] { color: var(--amber); }
 html body .app [data-text-tone="status"][data-status="error"] { color: var(--red); }
 html body .app [data-text-tone="status"][data-status="neutral"] { color: var(--body); }
 
-html body .app [data-value-kind="fact"] {
+html body .app [data-value-kind="fact"],
+html body .app [data-value-kind="countdown"] {
   font-variant-numeric: tabular-nums;
 }
 

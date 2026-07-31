@@ -24,6 +24,7 @@ import { buildItemChatGuideText, buildItemShareText } from "../../utils/itemShar
 import {
   useItemDetail
 } from "./useItemDetail";
+import { buildWeaponAiConfigurationContext } from "../components/item-detail/buildWeaponDetailView";
 
 type DiagnosticsBridge = {
   aiSettings: { enable_lightgg: boolean };
@@ -189,10 +190,7 @@ export function useItemDetailWorkspace(input: {
           ],
           definition_stats: Object.fromEntries((selectedItem.definition_stats ?? []).map((stat) => [stat.name, stat.value])),
           current_stats: selectedItem.weapon_stats,
-          perk_pool: (selectedItem.perks ?? []).map((group) => ({
-            socket_index: group.socket_index,
-            names: group.plugs.map((plug) => plug.name)
-          })),
+          ...buildWeaponAiConfigurationContext(selectedItem),
           same_hash_instances: selectedSameNameItems.map((item) => ({
             location: item.source_label ?? item.source_kind,
             power: item.power,

@@ -407,7 +407,7 @@ function HomeRefreshCell(props: { entry: HomeRefreshEntry }) {
         <span data-ui-part="label" data-info-priority="support" data-text-tone="body">{props.entry.label}</span>
       </div>
       <strong data-ui-part="value" data-info-priority="decision" data-text-tone="primary" data-value-kind="fact">{props.entry.moment}</strong>
-      <small data-ui-part="state" data-info-priority="decision" data-text-tone="primary" data-value-kind="fact">{props.entry.countdown}</small>
+      <small data-ui-part="state" data-info-priority="decision" data-text-tone="countdown" data-value-kind="countdown">{props.entry.countdown}</small>
       <small className="home-refresh-impact" data-ui-part="detail" data-info-priority="support" data-text-tone="body">影响：{props.entry.impact}</small>
     </div>
   );
@@ -684,31 +684,28 @@ function IronBannerCard(props: {
     ...rewardNames
   ].filter((value): value is string => Boolean(value)).join(" · ")
     || (challenge ? "完成挑战后领取奖励" : "奖励数据待读取");
-  const activityIcon = normalizeBungieIconUrl(summary?.activity_icon);
   const resetCountdownLabel = resetCountdown(props.weeklyReset, props.clock, props.copy);
   const statusLabel = active ? "正在开放" : summary?.status === "inactive" ? "当前未开放" : "状态待确认";
   const activityName = active && summary?.activity_name?.trim() ? summary.activity_name.trim() : "铁旗";
+  const modeLabel = active
+    ? activityName !== "铁旗" ? activityName : summary?.playlist_name?.trim()
+    : undefined;
   const characterAvailability = summary && summary.characters.available_count > 0
-    ? `${summary.characters.available_count} 个角色可完成`
-    : "角色挑战待读取";
+    ? `账号内 ${summary.characters.available_count} 个角色可参与`
+    : "账号角色挑战待读取";
 
   return (
     <article className="iron-banner-card" data-surface="frame" data-ui-kind="summary-frame" data-status={status}>
       <header className="iron-banner-heading">
         <div className="iron-banner-identity">
-          <span className="iron-banner-mark" aria-hidden="true">
-            {activityIcon ? <img src={activityIcon} alt="" /> : (
-              <svg viewBox="0 0 24 24"><path d="M6 3v18" /><path d="M7 4h10l-2.2 4L17 12H7Z" /><path d="M10 7.5h3.5" /></svg>
-            )}
-          </span>
           <div>
-            <span data-ui-part="label" data-info-priority="support" data-text-tone="meta">铁旗</span>
-            <h3 data-ui-part="value" data-info-priority="display" data-text-tone="primary">{activityName}</h3>
+            <h3 data-ui-part="value" data-info-priority="display" data-text-tone="primary">铁旗</h3>
+            {modeLabel ? <small data-ui-part="detail" data-info-priority="support" data-text-tone="body">当前模式：{modeLabel}</small> : null}
           </div>
         </div>
         <div className="iron-banner-timing">
           <span className="app-chip" data-ui-kind="status-chip" data-ui-part="state" data-info-priority="support" data-text-tone="status" data-status={status}>{statusLabel}</span>
-          <strong data-ui-part="state" data-info-priority="decision" data-text-tone="status" data-status={status}>{resetCountdownLabel}</strong>
+          <strong data-ui-part="state" data-info-priority="decision" data-text-tone="countdown" data-value-kind="countdown">倒计时 {resetCountdownLabel}</strong>
         </div>
       </header>
 
@@ -716,7 +713,7 @@ function IronBannerCard(props: {
         <div className="iron-banner-summary">
           <section className="iron-banner-challenge" aria-label="当前角色铁旗挑战">
             <div className="iron-banner-challenge-line">
-              <span data-ui-part="label" data-info-priority="support" data-text-tone="meta">当前角色</span>
+              <span data-ui-part="label" data-info-priority="support" data-text-tone="meta">当前角色挑战</span>
               <strong data-ui-part="value" data-info-priority="decision" data-text-tone="primary">
                 {challenge ? challenge.complete ? "已完成" : `${progress} / ${completion}` : "挑战待读取"}
               </strong>

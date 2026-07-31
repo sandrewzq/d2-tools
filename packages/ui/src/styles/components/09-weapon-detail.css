@@ -165,6 +165,7 @@
 .weapon-detail-fact.damage-solar { border-color: color-mix(in srgb, var(--status-warning) 70%, var(--chip-border)); background: color-mix(in srgb, var(--status-warning-bg) 74%, var(--chip-bg)); }
 .weapon-detail-fact.damage-arc { border-color: color-mix(in srgb, var(--accent-primary) 70%, var(--chip-border)); background: color-mix(in srgb, var(--status-pending-bg) 74%, var(--chip-bg)); }
 .weapon-detail-fact.damage-void { border-color: color-mix(in srgb, #9b72cf 70%, var(--chip-border)); background: color-mix(in srgb, #9b72cf 18%, var(--chip-bg)); }
+.weapon-detail-fact.rarity-exotic { border-color: color-mix(in srgb, var(--status-warning) 72%, var(--chip-border)); color: var(--status-warning); background: var(--status-warning-bg); }
 
 .weapon-detail-identity-context { display: grid; gap: 6px; min-width: 0; }
 .weapon-detail-context { display: flex; flex-wrap: wrap; gap: 0; margin: 0; overflow: visible; align-content: center; border: 1px solid var(--object-border); border-radius: var(--radius-control); background: var(--section-bg); }
@@ -377,7 +378,11 @@ button.weapon-detail-perk:hover { border-color: var(--state-selected-border); ba
 .weapon-detail-upgrade-table > div:not(:first-child) > strong { color: var(--text-title); }
 .weapon-detail-upgrade-table > div:not(:first-child) > span { color: var(--text-body); }
 .weapon-detail-catalyst { display: grid; gap: 8px; padding: 14px; border: 1px solid var(--status-warning); border-left: 4px solid var(--status-warning); border-radius: 0; background: var(--status-warning-bg); }
-.weapon-detail-catalyst > div { display: flex; justify-content: space-between; gap: 12px; }
+.weapon-detail-catalyst > header { display: flex; align-items: center; gap: 10px; }
+.weapon-detail-catalyst > header img { width: 44px; height: 44px; flex: 0 0 auto; border-radius: var(--radius-control); }
+.weapon-detail-catalyst > header > div { display: grid; gap: 3px; min-width: 0; }
+.weapon-detail-catalyst > header strong { color: var(--text-title); }
+.weapon-detail-catalyst > header span { color: var(--text-body); font-size: var(--font-meta); }
 .weapon-detail-catalyst progress { width: 100%; accent-color: var(--status-warning); }
 .weapon-detail-catalyst ul { margin: 0; padding-left: 18px; }
 
@@ -510,7 +515,7 @@ button.weapon-detail-perk:hover { border-color: var(--state-selected-border); ba
   .weapon-detail-source-meta { grid-column: 2; justify-content: flex-start; }
   .weapon-detail-config-grid,
   .weapon-detail-pool-grid { grid-template-columns: 1fr; }
-  .weapon-detail-catalyst > div { align-items: stretch; flex-direction: column; }
+  .weapon-detail-catalyst > header { align-items: flex-start; }
   .weapon-detail-write-panel { grid-template-columns: 10px minmax(0, 1fr); align-items: stretch; }
   .weapon-detail-write-actions { grid-column: 1 / -1; justify-content: stretch; }
   .weapon-detail-write-actions button { flex: 1 1 132px; }

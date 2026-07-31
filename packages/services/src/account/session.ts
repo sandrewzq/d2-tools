@@ -443,11 +443,26 @@ export function createAccountSession(options: CreateAccountSessionOptions): Acco
     accessToken: string,
     requestOptions?: BungieRequestOptions
   ): Promise<AccountItemDetail> {
-    const response = await fetchJson<DestinyItemResponse>(
-      `/Destiny2/${query.membership_type}/Profile/${query.destiny_membership_id}/Item/${query.instance_id}/?components=${itemDetailComponents}`,
-      accessToken,
-      requestOptions
-    );
+    const [itemResponse, recordsProfile] = await Promise.all([
+      fetchJson<DestinyItemResponse>(
+        `/Destiny2/${query.membership_type}/Profile/${query.destiny_membership_id}/Item/${query.instance_id}/?components=${itemDetailComponents}`,
+        accessToken,
+        requestOptions
+      ),
+      getProfile(
+        {
+          membershipType: query.membership_type,
+          membershipId: query.destiny_membership_id
+        },
+        accessToken,
+        new Set([900]),
+        requestOptions?.forceRefresh ?? false
+      )
+    ]);
+    const response: DestinyItemResponse = {
+      ...itemResponse,
+      profileRecords: recordsProfile.profileRecords
+    };
     const definitions = await loadDefinitions(
       collectAccountItemDetailDefinitionRequest(query, response)
     );
@@ -546,6 +561,7 @@ function mergeDefinitionData(
     bucketDefinitions: { ...base?.bucketDefinitions, ...loaded?.bucketDefinitions },
     plugSetDefinitions: { ...base?.plugSetDefinitions, ...loaded?.plugSetDefinitions },
     objectiveDefinitions: { ...base?.objectiveDefinitions, ...loaded?.objectiveDefinitions },
+    recordDefinitions: { ...base?.recordDefinitions, ...loaded?.recordDefinitions },
     loadoutNameDefinitions: { ...base?.loadoutNameDefinitions, ...loaded?.loadoutNameDefinitions }
   };
 }

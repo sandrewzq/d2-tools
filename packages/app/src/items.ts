@@ -38,6 +38,7 @@ export { buildArmorDetailViewModel } from "./workspaces/armorDetail.js";
 export type {
   BuildWeaponDetailViewModelInput,
   WeaponCatalystSummary,
+  WeaponConfigurationClassification,
   WeaponConfigurationKind,
   WeaponDetailAmmo,
   WeaponDetailChampionEffect,
@@ -56,6 +57,7 @@ export type {
   WeaponPerkCandidate,
   WeaponPerkColumnRole,
   WeaponPerkPoolColumn,
+  WeaponPerkPoolKind,
   WeaponPerkSelectionColumn,
   WeaponSocketPlugLike,
   WeaponRecommendation,
@@ -67,6 +69,7 @@ export type {
 export {
   buildWeaponDetailViewModel,
   buildWeaponStatTracks,
+  classifyWeaponConfiguration,
   classifyWeaponSocketPlugs,
   isEnhancedWeaponPerk,
   isWeaponSystemPlug,

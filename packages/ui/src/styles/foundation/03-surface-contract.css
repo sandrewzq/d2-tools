@@ -78,13 +78,15 @@ html[data-theme="light"],
 .app-shell [data-text-tone="body"] { color: var(--body); }
 .app-shell [data-text-tone="meta"] { color: var(--muted); }
 .app-shell [data-text-tone="action"] { color: var(--blue); }
+.app-shell [data-text-tone="countdown"] { color: var(--time-accent); }
 .app-shell [data-text-tone="status"][data-status="success"] { color: var(--mint); }
 .app-shell [data-text-tone="status"][data-status="pending"] { color: var(--blue); }
 .app-shell [data-text-tone="status"][data-status="warning"] { color: var(--amber); }
 .app-shell [data-text-tone="status"][data-status="error"] { color: var(--red); }
 .app-shell [data-text-tone="status"][data-status="neutral"] { color: var(--body); }
 
-.app-shell [data-value-kind="fact"] {
+.app-shell [data-value-kind="fact"],
+.app-shell [data-value-kind="countdown"] {
   font-variant-numeric: tabular-nums;
 }
 
