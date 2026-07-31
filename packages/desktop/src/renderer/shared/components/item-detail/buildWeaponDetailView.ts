@@ -15,6 +15,7 @@ import {
 import type { AccountSummary, WeaponStatKey, WeaponStatSummary } from "@d2-tools/core/account/summary";
 import type { WeaponRecommendation as CommunityWeaponRecommendation } from "@d2-tools/core/community-perks";
 import type { PersonalWeaponKnowledgeEntry } from "@d2-tools/core/community-perks/personalWeaponKnowledge";
+import type { ItemReleaseSummary } from "@d2-tools/core/items/release";
 import type { VaultTags } from "@d2-tools/core/vault/tags";
 import type { SameNameItemSummary, SelectedItemDetail } from "../../hooks/useItemDetail";
 
@@ -31,7 +32,13 @@ export type BuildDesktopWeaponDetailInput = {
   pendingPerks?: Record<number, number>;
   vaultTags?: VaultTags;
   instanceMetadata?: Record<string, WeaponDetailInstanceMetadata>;
-  versions?: Array<{ hash: number; name: string; tier?: string; release?: { description: string } }>;
+  versions?: Array<{
+    hash: number;
+    name: string;
+    tier?: string;
+    is_adept?: boolean;
+    release?: ItemReleaseSummary;
+  }>;
 };
 
 export type WeaponAiConfigurationContext = {
@@ -114,16 +121,20 @@ export function buildWeaponDetailView(
       ? versions.map((version, index) => {
           const releaseLabel = version.release?.description
             ?? (version.hash === item.hash ? item.release?.description : undefined);
+          const compactLabel = compactWeaponVersionLabel(version.release)
+            ?? (version.hash === item.hash ? compactWeaponVersionLabel(item.release) : undefined);
           return {
             hash: version.hash,
-            label: releaseLabel ?? version.tier ?? `版本 ${index + 1}`,
+            label: [compactLabel ?? releaseLabel ?? version.tier ?? `版本 ${index + 1}`, version.is_adept ? "专家" : undefined]
+              .filter(Boolean)
+              .join(" · "),
             release_label: releaseLabel,
             is_current: version.hash === item.hash
           };
         })
       : [{
           hash: item.hash,
-          label: item.release?.description ?? "当前版本",
+          label: compactWeaponVersionLabel(item.release) ?? item.release?.description ?? "当前版本",
           release_label: item.release?.description,
           is_current: true
         }],
@@ -148,6 +159,26 @@ export function buildWeaponDetailView(
     same_hash_instances: input.sameNameItems,
     instance_metadata: buildInstanceMetadata(input, upgrades)
   });
+}
+
+function compactWeaponVersionLabel(release: ItemReleaseSummary | undefined): string | undefined {
+  if (!release) return undefined;
+  if (release.kind === "annual") {
+    return [
+      release.year_number !== undefined ? `第${release.year_number}年` : undefined,
+      release.name
+    ].filter(Boolean).join(" · ") || release.description;
+  }
+  if (release.kind === "dlc") {
+    return [
+      release.season_number !== undefined ? `第${release.season_number}赛季` : undefined,
+      release.name
+    ].filter(Boolean).join(" · ") || release.description;
+  }
+  return [
+    release.season_number !== undefined ? `第${release.season_number}赛季` : undefined,
+    release.name
+  ].filter(Boolean).join(" · ") || release.description;
 }
 
 export function buildWeaponAiConfigurationContext(item: Pick<
@@ -200,8 +231,8 @@ function withManifestSourceStatus(
       {
         id: `manifest:${item.hash}:missing`,
         kind: "manifest_hint",
-        label: "官方获取来源未标注",
-        description: item.source.description || "Bungie Manifest 未提供可确认的官方获取来源。"
+        label: "历史获取途径",
+        description: item.source.description || "Bungie 官方资料没有标注这件武器的历史获取途径。"
       }
     ]
   };

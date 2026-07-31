@@ -658,8 +658,8 @@ function sourceSummaryToSources(source: ItemSourceSummary): WeaponDetailSources 
       entries: [{
         id: "manifest:missing",
         kind: "manifest_hint",
-        label: "官方获取来源未标注",
-        description: source.description || "Bungie Manifest 未提供可确认的官方获取来源。"
+        label: "历史获取途径",
+        description: source.description || "Bungie 官方资料没有标注这件武器的历史获取途径。"
       }]
     };
   }

@@ -370,11 +370,11 @@ function WeaponIdentity(props: {
                 >
                   {versions.map((version) => (
                     <option key={version.hash} value={version.hash}>
-                      {version.release_label ?? version.label}{version.is_current ? " · 当前查看" : ""}
+                      {version.label}{version.is_current ? " · 当前查看" : ""}
                     </option>
                   ))}
                 </select>
-              ) : <strong>{currentDefinition?.release_label ?? releaseLabel}</strong>}
+              ) : <strong>{currentDefinition?.label ?? releaseLabel}</strong>}
             </dd>
           </div>
         </dl>
@@ -401,7 +401,7 @@ function releaseKindLabel(kind: ItemReleaseKind | undefined): string {
   if (kind === "season") return "赛季";
   if (kind === "annual") return "年度资料片";
   if (kind === "dlc") return "内容包";
-  if (kind === "core") return "核心内容";
+  if (kind === "core") return "常规版本";
   if (kind === "update") return "版本更新";
   return "官方未标注";
 }
@@ -487,8 +487,8 @@ function OverviewSection(props: {
         <section className="weapon-detail-block" aria-labelledby="weapon-source-title">
           <DataBlockHeading
             id="weapon-source-title"
-            title="官方获取来源"
-            source={`Vendor / 活动轮换 / Manifest${props.model.sources.updated_at ? ` · ${formatUpdatedAt(props.model.sources.updated_at)}` : ""}`}
+            title="获取方式"
+            source={`依据：Bungie 官方资料与当前商人、活动数据${props.model.sources.updated_at ? ` · ${formatUpdatedAt(props.model.sources.updated_at)}` : ""}`}
           />
           {props.model.sources.entries.length ? (
             <div className="weapon-detail-source-list">
@@ -507,10 +507,23 @@ function OverviewSection(props: {
                   <div className="weapon-detail-source-copy">
                     <p data-ui-part="detail" data-text-tone="body" data-info-priority="reading">{source.description}</p>
                     {source.offer?.purchase_requirements?.length ? <small>{source.offer.purchase_requirements.join(" / ")}</small> : null}
-                    {source.offer?.can_purchase === false ? <small data-text-tone="status" data-status="warning">{source.offer.failure_messages.join(" / ") || "当前无法购买"}</small> : null}
+                    {source.offer?.can_purchase === false ? <small data-text-tone="status" data-status="warning">{source.offer.failure_messages.join(" / ") || "当前条件未满足，Bungie 未返回具体限制。"}</small> : null}
                   </div>
                   <div className="weapon-detail-source-meta">
-                    <span data-ui-part="state" data-text-tone={source.available_now === true ? "status" : "meta"} data-info-priority="support" data-status={source.available_now === true ? "success" : undefined}>{source.available_now === true ? "当前可获取" : source.kind === "live_status" ? source.available_now === false ? "当前未命中" : "实时状态未返回" : "官方来源"}</span>
+                    <span
+                      data-ui-part="state"
+                      data-text-tone={source.available_now === true || source.available_now === false ? "status" : "meta"}
+                      data-info-priority="support"
+                      data-status={source.kind === "vendor_offer" && source.offer?.can_purchase === false
+                        ? "warning"
+                        : source.available_now === true
+                          ? "success"
+                          : source.available_now === false
+                            ? "warning"
+                            : undefined}
+                    >
+                      {sourceEntryStatusLabel(source)}
+                    </span>
                     {source.offer?.inventory_path ? <span>{source.offer.inventory_path}</span> : null}
                     {source.offer?.price_labels.length ? <span>{source.offer.price_labels.join(" + ")}</span> : null}
                     {source.offer?.refresh_at ? <span>{formatStandardDateTime(source.offer.refresh_at)}</span> : null}
@@ -520,8 +533,8 @@ function OverviewSection(props: {
                 </article>
               ))}
             </div>
-          ) : <EmptyState text="暂未查询到官方来源。" />}
-          <p className="weapon-detail-data-note">{sourceStatusLabel(props.model.sources.status)}。实时来源读取失败时不显示旧 Offer。</p>
+          ) : <EmptyState text="暂时没有足够数据确认这件武器的获取方式。" />}
+          <p className="weapon-detail-data-note">{sourceStatusDescription(props.model.sources.status)}</p>
         </section>
       </div>
     </>
@@ -1145,8 +1158,25 @@ function EmptyState({ text }: { text: string }) {
   return <p className="weapon-detail-empty">{text}</p>;
 }
 
-function sourceStatusLabel(status: WeaponDetailViewModel["sources"]["status"]) {
-  return status === "ready" ? "来源完整" : status === "partial" ? "来源可能不完整" : "来源未知";
+function sourceEntryStatusLabel(source: WeaponDetailViewModel["sources"]["entries"][number]): string {
+  if (source.kind === "vendor_offer" && source.available_now === true) {
+    if (source.offer?.can_purchase === true) return "当前可购买";
+    if (source.offer?.can_purchase === false) return "当前有入口 · 条件未满足";
+    return "当前有获取入口";
+  }
+  if (source.kind === "activity_reward" && source.available_now === true) return "当前活动奖励";
+  if (source.available_now === true) return "当前有获取入口";
+  if (source.kind === "live_status") {
+    return source.available_now === false ? "暂未发现入口" : "当前状态未确认";
+  }
+  if (source.kind === "manifest_hint") return "官方历史资料";
+  return "开放时间未确认";
+}
+
+function sourceStatusDescription(status: WeaponDetailViewModel["sources"]["status"]): string {
+  if (status === "ready") return "已确认当前获取入口；价格、条件和刷新时间以对应商人或活动数据为准。";
+  if (status === "partial") return "历史获取途径和当前获取状态分开显示；“暂未发现入口”不代表永久无法获得。";
+  return "当前数据不足，暂时无法确认获取方式；不会回退显示已经过期的商人库存。";
 }
 
 function catalystStateLabel(model: WeaponDetailViewModel): string {

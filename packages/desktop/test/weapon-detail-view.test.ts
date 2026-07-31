@@ -82,7 +82,7 @@ function weapon(input: {
     item_key: "instance-1",
     instance_id: "instance-1",
     group_key: "weapons",
-    source: { status: "missing", label: "官方来源提示", description: "" },
+    source: { status: "missing", label: "历史获取途径", description: "" },
     perks: [
       { socket_index: 0, plugs: [intrinsic] },
       { socket_index: 1, plugs: input.barrels },

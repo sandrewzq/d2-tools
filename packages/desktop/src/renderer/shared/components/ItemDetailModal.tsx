@@ -598,7 +598,7 @@ function buildArmorSources(
   const entries: ArmorDetailViewModel["sources"]["entries"] = [];
   for (const [index, source] of (availability?.sources ?? []).entries()) {
     entries.push({
-      id: `live:${source.offer_id ?? `${source.kind}:${source.label}:${index}`}`,
+      id: `live:${source.kind}:${source.offer_id ?? `${source.label}:${index}`}`,
       label: source.label,
       description: [
         availability?.description,
@@ -651,7 +651,9 @@ function buildWeaponSources(
       id: `live:${source.offer_id ?? `${source.kind}:${source.label}:${index}`}`,
       kind: source.kind === "public_activity" ? "activity_reward" : "vendor_offer",
       label: source.label,
-      description: availability?.description ?? source.label,
+      description: source.kind === "public_activity"
+        ? availability?.description ?? source.label
+        : `当前在“${source.label}”中发现这件武器的获取入口。`,
       available_now: true,
       offer
     });
@@ -660,8 +662,8 @@ function buildWeaponSources(
     entries.push({
       id: `live-status:${item.hash}`,
       kind: "live_status",
-      label: availability?.label ?? "实时来源状态未返回",
-      description: availability?.description ?? "当前详情未返回可确认的商人、活动或里程碑来源。",
+      label: "当前获取状态",
+      description: availability?.description ?? "当前没有返回商人库存或活动奖励数据，暂时无法判断是否有获取入口。",
       available_now: availability ? false : undefined
     });
   }
@@ -669,7 +671,7 @@ function buildWeaponSources(
     entries.push({
       id: `manifest:${item.hash}:${item.source.source_hash ?? "hint"}`,
       kind: "manifest_hint",
-      label: item.source.label,
+      label: "历史获取途径",
       description: item.source.description
     });
   }

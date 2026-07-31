@@ -124,6 +124,7 @@ export const accountCopy: Record<InterfaceLocale, LocaleCopy["account"]> = {
         "当前角色背包候选": "Current character inventory candidates",
         "当前角色装备暂无": "No current gear",
         "当前角色背包候选暂无": "No inventory candidates",
+        "位置": "Slot",
         "暂无": "None",
         "显示全部": "Show all",
         "还有": "There are",

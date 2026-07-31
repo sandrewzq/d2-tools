@@ -56,7 +56,7 @@ describe("item live availability", () => {
     });
     expect(result.items["404"]).toMatchObject({
       status: "manifest_only",
-      label: "当前实时数据未命中"
+      label: "当前获取状态"
     });
     expect(result.milestone_clues.map((clue) => clue.label)).toContain("Nightfall：The Glassway");
   });
@@ -68,10 +68,17 @@ describe("item live availability", () => {
         characterId: "char-1",
         vendors: { data: { "3756955867": { vendorHash: 3756955867 } } },
         sales: { data: { "3756955867": { saleItems: { "15": { itemHash: 3276118833 } } } } }
+      }, {
+        characterId: "char-2",
+        vendors: { data: { "3756955867": { vendorHash: 3756955867 } } },
+        sales: { data: { "3756955867": { saleItems: { "15": { itemHash: 3276118833 } } } } }
       }],
       definitions: {
         vendors: {
-          "3756955867": { displayProperties: { name: "指挥官萨瓦拉" } }
+          "3756955867": {
+            displayProperties: { name: "武器" },
+            vendorIdentifier: "VANGUARD_WEAPON_FOCUSING"
+          }
         },
         items: {
           "2624561525": {
@@ -93,8 +100,10 @@ describe("item live availability", () => {
       label: "当前角色商人售卖",
       sources: [{
         kind: "character_vendor",
-        label: "指挥官萨瓦拉",
-        character_id: "char-1"
+        label: "先锋武器聚焦",
+        character_id: "char-1",
+        character_ids: ["char-1", "char-2"],
+        offer_id: "3756955867:15"
       }]
     });
   });

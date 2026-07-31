@@ -60,8 +60,8 @@ describe("item definition search", () => {
         group_key: "other",
         source: {
           status: "missing",
-          label: "官方来源提示",
-          description: "Bungie Manifest 未提供官方来源提示。"
+          label: "历史获取途径",
+          description: "Bungie 官方资料没有标注这件装备的历史获取途径。"
         }
       }
     ]);
@@ -373,16 +373,16 @@ describe("item definition search", () => {
     expect(results.map((item) => item.source)).toEqual([
       {
         status: "ready",
-        label: "官方来源提示",
-        description: "“救赎花园”突袭",
+        label: "历史获取途径",
+        description: "Bungie 官方资料记录的获取途径：“救赎花园”突袭。这只说明历史来源，不代表当前仍可获得。",
         source_kind: "collectible",
         source_hash: 1491707941,
         linked_definition_hash: undefined
       },
       {
         status: "ready",
-        label: "官方来源提示",
-        description: "“救赎花园”突袭",
+        label: "历史获取途径",
+        description: "Bungie 官方资料记录的获取途径：“救赎花园”突袭。这只说明历史来源，不代表当前仍可获得。",
         source_kind: "linked_collectible",
         source_hash: 1491707941,
         linked_definition_hash: 2721249463
@@ -414,7 +414,7 @@ describe("item definition search", () => {
       kind: "core",
       season_number: 28,
       year_number: 8,
-      description: "第8年 · 第28赛季 · 凯旋纪念碑 · 核心内容更新"
+      description: "第8年 · 第28赛季 · 凯旋纪念碑"
     });
   });
 

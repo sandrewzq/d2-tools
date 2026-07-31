@@ -57,8 +57,8 @@ describe("item definition detail", () => {
       ],
       source: {
         status: "missing",
-        label: "官方来源提示",
-        description: "Bungie Manifest 未提供官方来源提示。"
+        label: "历史获取途径",
+        description: "Bungie 官方资料没有标注这件装备的历史获取途径。"
       }
     });
   });

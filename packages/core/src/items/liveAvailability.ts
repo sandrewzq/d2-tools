@@ -18,6 +18,7 @@ export type LiveItemAvailabilitySource = {
   label: string;
   vendor_hash?: number;
   character_id?: string;
+  character_ids?: string[];
   offer_id?: string;
   inventory_path?: string;
   price_labels?: string[];
@@ -252,15 +253,17 @@ function collectVendorSources(
   for (const [vendorKey, vendorSales] of Object.entries(sales)) {
     const vendor = vendors[vendorKey];
     const vendorHash = vendor?.vendorHash ?? Number(vendorKey);
-    const vendorName = definitionName(definitions?.vendors, vendorHash) ?? `商人 ${vendorHash}`;
+    const vendorName = liveVendorLabel(definitions?.vendors, vendorHash);
     for (const { sale, saleKey } of collectVendorSales(vendorSales)) {
       if (sale.itemHash === undefined) continue;
       const failureMessages = vendorFailureMessages(definitions?.vendors, vendorHash, sale.failureIndexes);
-      const canPurchase = typeof vendor?.canPurchase === "boolean"
-        ? vendor.canPurchase
-          && sale.saleStatus === 0
-          && !(sale.failureIndexes?.length)
-        : undefined;
+      const hasExplicitPurchaseFailure = sale.saleStatus !== undefined && sale.saleStatus !== 0
+        || Boolean(sale.failureIndexes?.length);
+      const canPurchase = hasExplicitPurchaseFailure
+        ? false
+        : vendor?.canPurchase === true
+          ? true
+          : undefined;
       result.push({
         itemHash: sale.itemHash,
         source: {
@@ -268,8 +271,8 @@ function collectVendorSources(
           label: vendorName,
           vendor_hash: vendorHash,
           character_id: characterId,
-          offer_id: `${vendorHash}:${characterId ?? "public"}:${sale.vendorItemIndex ?? saleKey}`,
-          inventory_path: `库存条目 #${sale.vendorItemIndex ?? saleKey}`,
+          character_ids: characterId ? [characterId] : undefined,
+          offer_id: `${vendorHash}:${sale.vendorItemIndex ?? saleKey}`,
           price_labels: (sale.costs ?? []).flatMap((cost) => {
             if (typeof cost.itemHash !== "number" || typeof cost.quantity !== "number") return [];
             const currencyName = definitionName(definitions?.items, cost.itemHash) ?? `货币 ${cost.itemHash}`;
@@ -277,7 +280,7 @@ function collectVendorSources(
           }),
           refresh_at: sale.overrideNextRefreshDate ?? vendor?.nextRefreshDate,
           can_purchase: canPurchase,
-          purchase_requirements: characterId ? ["当前角色库存"] : ["公开商人库存"],
+          purchase_requirements: [],
           failure_messages: failureMessages
         }
       });
@@ -347,7 +350,10 @@ function applySources(
     for (const targetHash of availabilityTargets.get(itemHash) ?? [String(itemHash)]) {
       const entry = items[targetHash];
       if (!entry) continue;
-      if (!entry.sources.some((item) => isSameLiveAvailabilitySource(item, source))) {
+      const existing = entry.sources.find((item) => isSameLiveAvailabilitySource(item, source));
+      if (existing) {
+        mergeLiveAvailabilitySource(existing, source);
+      } else {
         entry.sources.push(source);
       }
       updateEntryStatus(entry);
@@ -417,6 +423,28 @@ function isSameLiveAvailabilitySource(
   return left.label === right.label;
 }
 
+function mergeLiveAvailabilitySource(
+  target: LiveItemAvailabilitySource,
+  source: LiveItemAvailabilitySource
+): void {
+  const characterIds = new Set([
+    ...(target.character_ids ?? (target.character_id ? [target.character_id] : [])),
+    ...(source.character_ids ?? (source.character_id ? [source.character_id] : []))
+  ]);
+  if (characterIds.size) target.character_ids = [...characterIds];
+  if (target.can_purchase === true || source.can_purchase === true) {
+    target.can_purchase = true;
+  } else if (target.can_purchase === false && source.can_purchase === false) {
+    target.can_purchase = false;
+  } else {
+    target.can_purchase = undefined;
+  }
+  target.failure_messages = [...new Set([
+    ...(target.failure_messages ?? []),
+    ...(source.failure_messages ?? [])
+  ])];
+}
+
 function updateEntryStatus(entry: LiveItemAvailabilityEntry): void {
   if (entry.sources.some((source) => source.kind === "character_vendor")) {
     entry.status = "character_vendor";
@@ -441,8 +469,8 @@ function manifestOnlyEntry(hash: number): LiveItemAvailabilityEntry {
   return {
     hash,
     status: "manifest_only",
-    label: "当前实时数据未命中",
-    description: "当前公开商人、角色商人和公共里程碑未直接命中；只保留 Manifest 来源线索。",
+    label: "当前获取状态",
+    description: "本次检查未在当前商人库存或公共活动奖励中发现这件装备。它可能暂时无法获得，也可能来自实时接口未公开的活动途径。",
     sources: []
   };
 }
@@ -486,6 +514,34 @@ function collectMilestoneItemHashes(milestone: PublicMilestone): number[] {
 function definitionName(definitions: DefinitionComponentData | null | undefined, hash: number | undefined): string | undefined {
   if (hash === undefined) return undefined;
   return definitionRecord(definitions, hash)?.displayProperties?.name?.trim() || undefined;
+}
+
+function liveVendorLabel(
+  definitions: DefinitionComponentData | null | undefined,
+  vendorHash: number
+): string {
+  const definition = definitionRecord(definitions, vendorHash);
+  const identifier = typeof definition?.vendorIdentifier === "string"
+    ? definition.vendorIdentifier.toUpperCase()
+    : "";
+  const focusingLabels: Record<string, string> = {
+    VANGUARD: "先锋",
+    CRUCIBLE: "熔炉竞技场",
+    GAMBIT: "智谋",
+    TRIALS: "奥西里斯试炼",
+    IRON_BANNER: "铁旗",
+    GUNSMITH: "枪匠"
+  };
+  for (const [prefix, label] of Object.entries(focusingLabels)) {
+    if (identifier.startsWith(`${prefix}_WEAPON_FOCUSING`)) return `${label}武器聚焦`;
+    if (identifier.startsWith(`${prefix}_ARMOR_FOCUSING`)) return `${label}护甲聚焦`;
+  }
+  if (identifier.includes("WEAPON_FOCUSING")) return "武器聚焦";
+  if (identifier.includes("ARMOR_FOCUSING")) return "护甲聚焦";
+  const name = definitionName(definitions, vendorHash);
+  if (name === "武器") return "武器兑换";
+  if (name === "护甲") return "护甲兑换";
+  return name ?? `商人 ${vendorHash}`;
 }
 
 function definitionRecord(definitions: DefinitionComponentData | null | undefined, hash: number | undefined): DefinitionRecord | undefined {

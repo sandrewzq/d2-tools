@@ -14,7 +14,8 @@ export type ItemSourceOptions = {
   collectibleDefinitions?: DefinitionComponentData;
 };
 
-const missingSourceDescription = "Bungie Manifest 未提供官方来源提示。";
+const sourceLabel = "历史获取途径";
+const missingSourceDescription = "Bungie 官方资料没有标注这件装备的历史获取途径。";
 
 export function summarizeItemSource(
   definition: DefinitionRecord | undefined,
@@ -52,7 +53,7 @@ export function summarizeItemSource(
 
   return {
     status: "missing",
-    label: "官方来源提示",
+    label: sourceLabel,
     description: missingSourceDescription
   };
 }
@@ -84,12 +85,24 @@ function createOfficialSource(
 ): ItemSourceSummary {
   return {
     status: "ready",
-    label: "官方来源提示",
-    description,
+    label: sourceLabel,
+    description: describeOfficialSource(description),
     source_kind: sourceKind,
     source_hash: sourceHash,
     linked_definition_hash: linkedDefinitionHash
   };
+}
+
+function describeOfficialSource(description: string): string {
+  const source = description.trim().replace(/[。；;]+$/, "");
+  const sourceName = source.replace(/^[“”‘’"']+|[“”‘’"']+$/g, "");
+  const isShortSourceName = sourceName.length <= 12
+    && !/[，。；;：:]/.test(sourceName)
+    && !/(获取|完成|掉落|奖励|购买|商人|任务|突袭|地牢|活动|试炼|竞技|锻造|解锁|战役|里程碑)/.test(sourceName);
+  if (isShortSourceName) {
+    return `Bungie 官方资料将这件装备标记为来自“${sourceName}”相关活动或内容。这只说明历史归属，不代表“${sourceName}”当前正在开放。`;
+  }
+  return `Bungie 官方资料记录的获取途径：${source}。这只说明历史来源，不代表当前仍可获得。`;
 }
 
 function cleanSourceString(value: unknown): string {

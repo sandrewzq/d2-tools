@@ -233,10 +233,10 @@ function summarizeRegisteredRelease(
     label: "发布版本",
     kind: release.kind,
     ...seasonFields,
-    description: [
-      ...seasonContext,
-      release.kind === "core" ? "核心内容更新" : genericReleaseDescription(release.kind)
-    ].join(" · "),
+    ...(seasonName ? { name: seasonName } : {}),
+    description: seasonContext.length
+      ? seasonContext.join(" · ")
+      : genericReleaseDescription(release.kind),
     release_traits: releaseTraits
   };
 }
@@ -281,8 +281,8 @@ function genericReleaseDescription(kind: ItemReleaseKind): string {
   if (kind === "season") return "赛季版本";
   if (kind === "annual") return "年度资料片";
   if (kind === "dlc") return "内容包版本";
-  if (kind === "core") return "核心内容版本";
-  if (kind === "update") return "版本内容更新";
+  if (kind === "core") return "常规版本";
+  if (kind === "update") return "版本更新";
   return "官方发布版本未标注";
 }
 

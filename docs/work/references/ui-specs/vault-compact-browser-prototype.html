@@ -1,0 +1,1071 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>仓库常驻筛选与装备矩阵原型</title>
+  <style>
+    :root {
+      --shell: #dce7ed;
+      --shell-current: #a8cadb;
+      --page: #f4f7f9;
+      --surface: #ffffff;
+      --surface-subtle: #f7fafb;
+      --surface-recessed: #edf3f6;
+      --text-title: #172933;
+      --text-body: #334b58;
+      --text-muted: #657b87;
+      --border-strong: #7894a3;
+      --border: #aac0cb;
+      --border-subtle: #d3e0e6;
+      --blue: #2f6682;
+      --blue-strong: #174b65;
+      --blue-soft: #dcecf4;
+      --green: #1f6d51;
+      --green-soft: #e4f1eb;
+      --yellow: #8a6718;
+      --yellow-soft: #f6eed7;
+      --red: #9b3e45;
+      --red-soft: #f6e6e7;
+      --focus: #0d72a4;
+      --sidebar-width: 176px;
+      --radius-control: 4px;
+      --radius-object: 6px;
+    }
+    * { box-sizing: border-box; } html, body { min-width: 320px; min-height: 100%; }
+    body {
+      margin: 0;
+      color: var(--text-body);
+      background: var(--page);
+      font-family: "Segoe UI", "Microsoft YaHei UI", sans-serif;
+      font-size: 14px;
+      letter-spacing: 0;
+    }
+    button, input, select { font: inherit; } button { color: inherit; }
+    button:focus-visible,
+    input:focus-visible,
+    select:focus-visible {
+      outline: 2px solid var(--focus);
+      outline-offset: 2px;
+    }
+    .app-shell {
+      display: grid;
+      grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+      grid-template-rows: 32px minmax(0, 1fr);
+      min-height: 100vh;
+    }
+
+    .topbar {
+      grid-column: 1 / -1;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 10px 0 14px;
+      border-bottom: 1px solid var(--border-strong);
+      background: var(--surface);
+      color: var(--text-muted);
+      font-size: 12px;
+    }
+
+    .topbar-brand { display: flex; align-items: center; gap: 8px; color: var(--text-title); font-weight: 600; }
+    .brand-mark {
+      width: 16px;
+      height: 16px;
+      border: 1px solid var(--border-strong);
+      border-radius: 4px;
+      background:
+        linear-gradient(90deg, transparent 46%, var(--blue) 46% 54%, transparent 54%),
+        linear-gradient(transparent 46%, var(--blue) 46% 54%, transparent 54%),
+        var(--surface-recessed);
+    }
+
+    .window-actions { display: flex; align-items: center; gap: 2px; }
+    .window-actions button {
+      display: grid;
+      place-items: center;
+      width: 28px;
+      height: 24px;
+      padding: 0;
+      border: 0;
+      background: transparent;
+      cursor: pointer;
+    }
+    .window-actions button:hover { background: var(--surface-recessed); }
+    .window-actions i { width: 13px; height: 13px; }
+
+    .sidebar {
+      grid-column: 1;
+      grid-row: 2;
+      border-right: 1px solid var(--border-strong);
+      background: var(--shell);
+    }
+
+    .account-summary {
+      display: grid;
+      gap: 4px;
+      min-height: 54px;
+      padding: 12px 10px;
+      border-bottom: 1px solid var(--border);
+    }
+    .account-summary strong { overflow: hidden; color: var(--text-title); font-size: 14px; text-overflow: ellipsis; white-space: nowrap; }
+    .account-summary span { font-size: 13px; }
+
+    .main-nav { display: grid; padding: 8px 6px; }
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-height: 42px;
+      padding: 0 8px;
+      border: 0;
+      border-bottom: 1px solid var(--border);
+      color: #486575;
+      background: transparent;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .nav-item:hover { color: var(--text-title); background: rgb(255 255 255 / 42%); }
+    .nav-item.active { color: var(--blue-strong); background: var(--shell-current); }
+    .nav-item i { width: 18px; height: 18px; stroke-width: 1.8; }
+
+    .workspace {
+      grid-column: 2;
+      grid-row: 2;
+      min-width: 0;
+      overflow: auto;
+      background: var(--page);
+    }
+
+    .page-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      min-height: 68px;
+      padding: 8px 18px 9px;
+      border-bottom: 1px solid var(--border-strong);
+      background: var(--surface-subtle);
+    }
+    .page-heading small { display: block; margin-bottom: 2px; color: var(--text-muted); font-size: 12px; }
+    .page-heading h1 { margin: 0; color: var(--text-title); font-size: 24px; line-height: 1.15; }
+    .page-heading p { margin: 4px 0 0; font-size: 13px; text-wrap: pretty; }
+
+    .button,
+    .icon-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      min-height: 34px;
+      padding: 0 11px;
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-control);
+      background: var(--surface);
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .button:hover, .icon-button:hover { background: var(--surface-recessed); }
+    .button.primary { border-color: var(--green); color: white; background: var(--green); }
+    .button.primary:hover { background: #175b43; }
+    .button.quiet { border-color: transparent; background: transparent; }
+    .icon-button { width: 32px; min-height: 32px; padding: 0; }
+    .button i, .icon-button i { width: 15px; height: 15px; }
+
+    .page-content { padding: 0 14px 18px; }
+
+    .workflow-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      min-height: 46px;
+      border-bottom: 1px solid var(--border);
+    }
+    .workflow-tabs { display: inline-flex; overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius-control); background: var(--surface); }
+    .workflow-tabs button {
+      min-height: 32px;
+      padding: 0 11px;
+      border: 0;
+      border-right: 1px solid var(--border);
+      background: transparent;
+      cursor: pointer;
+    }
+    .workflow-tabs button:last-child { border-right: 0; }
+    .workflow-tabs button:hover { background: var(--surface-recessed); }
+    .workflow-tabs button.active { color: var(--blue-strong); background: var(--blue-soft); font-weight: 600; }
+    .workflow-meta { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      min-height: 24px;
+      padding: 0 9px;
+      border-radius: 999px;
+      background: var(--surface-recessed);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+    .status-pill.current { color: var(--blue-strong); background: var(--blue-soft); }
+
+    .vault-browser {
+      display: block;
+      margin-top: 10px;
+    }
+
+    .filter-rail {
+      position: sticky;
+      top: 0;
+      z-index: 3;
+      display: grid;
+      grid-template-columns: minmax(250px, 1.25fr) minmax(230px, 1.1fr) minmax(250px, 1.15fr) minmax(360px, 1.7fr);
+      max-height: none;
+      overflow: visible;
+      border: 1px solid var(--border-strong);
+      background: var(--surface);
+    }
+
+    .filter-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      min-height: 40px;
+      padding: 6px 8px 6px 12px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface-recessed);
+      grid-column: 1 / -1;
+    }
+    .filter-head strong { color: var(--text-title); font-size: 14px; }
+    .filter-head span { color: var(--text-muted); font-size: 11px; }
+
+    .search-field {
+      position: relative;
+      display: block;
+      align-self: center;
+      grid-column: 1 / 3;
+      margin: 8px 10px;
+    }
+    .search-field > i {
+      position: absolute;
+      top: 50%;
+      left: 9px;
+      width: 16px;
+      height: 16px;
+      color: var(--text-muted);
+      transform: translateY(-50%);
+      pointer-events: none;
+    }
+    .search-field input {
+      width: 100%;
+      height: 36px;
+      padding: 0 32px 0 32px;
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-control);
+      color: var(--text-title);
+      background: var(--surface-subtle);
+    }
+    .search-clear {
+      position: absolute;
+      top: 50%;
+      right: 4px;
+      display: none;
+      place-items: center;
+      width: 28px;
+      height: 28px;
+      padding: 0;
+      border: 0;
+      border-radius: 4px;
+      background: transparent;
+      transform: translateY(-50%);
+      cursor: pointer;
+    }
+    .search-clear.visible { display: grid; }
+    .search-clear:hover { background: var(--surface-recessed); }
+    .search-clear i { width: 14px; height: 14px; }
+
+    .filter-section { min-width: 0; padding: 8px 10px 9px; border-top: 1px solid var(--border-subtle); }
+    .category-section { grid-column: 3 / -1; border-left: 1px solid var(--border-subtle); }
+    .slot-section { grid-column: 1 / 2; }
+    .signal-section { grid-column: 2 / 3; border-left: 1px solid var(--border-subtle); }
+    .common-section { grid-column: 3 / -1; border-left: 1px solid var(--border-subtle); }
+    .domain-section { grid-column: 1 / -1; }
+    .active-section { grid-column: 1 / -1; }
+    .filter-section-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 7px;
+    }
+    .filter-section-head strong { color: var(--text-title); font-size: 12px; }
+    .filter-section-head span { color: var(--text-muted); font-size: 11px; }
+
+    .category-grid,
+    .slot-grid,
+    .signal-grid,
+    .frame-grid {
+      display: grid;
+      gap: 5px;
+    }
+    .category-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+    .slot-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .signal-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .frame-grid { grid-template-columns: repeat(4, minmax(120px, 1fr)); }
+
+    .filter-option {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      min-width: 0;
+      min-height: 31px;
+      padding: 0 8px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-control);
+      color: var(--text-body);
+      background: var(--surface);
+      cursor: pointer;
+    }
+    .filter-option:hover { border-color: var(--border-strong); background: var(--surface-recessed); }
+    .filter-option.active { border-color: var(--blue); color: var(--blue-strong); background: var(--blue-soft); font-weight: 600; }
+    .filter-option small { color: var(--text-muted); font-size: 10px; }
+    .filter-option.active small { color: inherit; }
+    .filter-option i { width: 13px; height: 13px; flex: 0 0 auto; }
+    .filter-option .option-label { display: flex; align-items: center; gap: 6px; min-width: 0; }
+
+    .field-stack { display: grid; gap: 6px; }
+    .common-section .field-stack { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .filter-field { display: grid; grid-template-columns: 68px minmax(0, 1fr); align-items: center; gap: 7px; }
+    .filter-field span { color: var(--text-muted); font-size: 11px; }
+    .filter-field select {
+      width: 100%;
+      height: 31px;
+      min-width: 0;
+      padding: 0 25px 0 7px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-control);
+      color: var(--text-title);
+      background: var(--surface);
+      font-size: 12px;
+    }
+
+    .domain-section {
+      grid-template-columns: 116px minmax(220px, 280px) minmax(0, 1fr);
+      align-items: center;
+      gap: 10px;
+    }
+    .domain-section:not(.hidden) { display: grid; }
+    .domain-section .filter-section-head { margin: 0; }
+    .domain-section .field-stack { margin: 0 !important; }
+    .domain-section.hidden { display: none; }
+
+    .active-section {
+      display: grid;
+      grid-template-columns: 116px minmax(0, 1fr);
+      align-items: center;
+      gap: 10px;
+    }
+    .active-section .filter-section-head { margin: 0; }
+    .active-filters { display: flex; flex-wrap: wrap; gap: 5px; }
+    .active-filter {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      min-height: 27px;
+      padding: 0 4px 0 8px;
+      border: 1px solid #8fb4c6;
+      border-radius: var(--radius-control);
+      color: var(--blue-strong);
+      background: var(--blue-soft);
+      font-size: 11px;
+    }
+    .active-filter button {
+      display: grid;
+      place-items: center;
+      width: 22px;
+      height: 22px;
+      padding: 0;
+      border: 0;
+      border-radius: 4px;
+      background: transparent;
+      cursor: pointer;
+    }
+    .active-filter button:hover { background: rgb(23 75 101 / 12%); }
+    .active-filter i { width: 12px; height: 12px; }
+    .active-empty { color: var(--text-muted); font-size: 11px; line-height: 1.45; }
+
+    .results-panel {
+      min-width: 0;
+      margin-top: 10px;
+      border-top: 1px solid var(--border-strong);
+      border-bottom: 1px solid var(--border-strong);
+      background: var(--surface);
+    }
+    .results-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      min-height: 44px;
+      padding: 6px 8px 6px 12px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface-subtle);
+    }
+    .results-title { display: flex; align-items: baseline; gap: 9px; min-width: 0; }
+    .results-title h2 { margin: 0; color: var(--text-title); font-size: 15px; }
+    .results-title span { color: var(--text-muted); font-size: 12px; white-space: nowrap; }
+    .results-tools { display: flex; align-items: center; gap: 7px; }
+    .sort-select {
+      height: 32px;
+      padding: 0 28px 0 8px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-control);
+      color: var(--text-body);
+      background: var(--surface);
+      font-size: 12px;
+    }
+
+    .equipment-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(116px, 1fr));
+      align-content: start;
+      gap: 8px;
+      min-height: 520px;
+      padding: 10px;
+    }
+
+    .equipment-card {
+      position: relative;
+      display: grid;
+      grid-template-rows: 72px auto auto;
+      align-content: start;
+      gap: 5px;
+      min-width: 0;
+      min-height: 132px;
+      padding: 7px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-object);
+      background: var(--surface);
+      cursor: pointer;
+      transition: border-color 140ms ease, background-color 140ms ease;
+    }
+    .equipment-card:hover { border-color: var(--blue); background: #fbfdfe; }
+    .equipment-card.selected { border-color: var(--blue-strong); box-shadow: inset 0 0 0 1px var(--blue-strong); }
+    .equipment-card.hidden { display: none; }
+
+    .item-visual {
+      position: relative;
+      display: grid;
+      place-items: center;
+      min-width: 0;
+      height: 72px;
+      overflow: hidden;
+      border: 1px solid #7f96a0;
+      border-radius: 4px;
+      color: white;
+      background:
+        linear-gradient(135deg, rgb(255 255 255 / 11%) 0 38%, transparent 38% 62%, rgb(0 0 0 / 12%) 62%),
+        #667f8b;
+      font-size: 21px;
+      font-weight: 700;
+    }
+    .item-visual.energy { background-color: #596f89; }
+    .item-visual.power { background-color: #776e65; }
+    .item-visual.armor { background-color: #5d776e; }
+    .item-visual.equipment { background-color: #6f6880; }
+
+    .power-value {
+      position: absolute;
+      right: 4px;
+      bottom: 3px;
+      padding: 1px 4px;
+      border-radius: 999px;
+      color: white;
+      background: rgb(23 41 51 / 78%);
+      font-size: 9px;
+      font-weight: 600;
+    }
+    .lock-marker { position: absolute; top: 4px; right: 4px; width: 14px; height: 14px; color: #f5d77c; filter: drop-shadow(0 1px 1px rgb(0 0 0 / 45%)); }
+
+    .signal-stack { position: absolute; left: 4px; bottom: 4px; display: flex; gap: 3px; }
+    .signal-dot {
+      display: grid;
+      place-items: center;
+      min-width: 18px;
+      height: 18px;
+      padding: 0 4px;
+      border: 1px solid rgb(255 255 255 / 74%);
+      border-radius: 999px;
+      color: white;
+      background: rgb(23 75 101 / 88%);
+      font-size: 8px;
+      font-weight: 700;
+    }
+    .signal-dot.keep { background: rgb(31 109 81 / 92%); }
+    .signal-dot.cleanup { background: rgb(155 62 69 / 92%); }
+    .signal-dot.review { background: rgb(138 103 24 / 92%); }
+
+    .item-name {
+      display: -webkit-box;
+      min-width: 0;
+      overflow: hidden;
+      color: var(--text-title);
+      font-size: 12px;
+      font-weight: 600;
+      line-height: 1.3;
+      text-overflow: ellipsis;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+    }
+    .item-meta {
+      min-width: 0;
+      overflow: hidden;
+      color: var(--text-muted);
+      font-size: 10px;
+      line-height: 1.3;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .empty-state {
+      display: none;
+      min-height: 420px;
+      place-items: center;
+      color: var(--text-muted);
+      text-align: center;
+    }
+    .empty-state.visible { display: grid; }
+    .empty-state i { width: 28px; height: 28px; margin-bottom: 8px; }
+    .empty-state strong { display: block; margin-bottom: 4px; color: var(--text-title); }
+
+    .load-more-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 46px;
+      padding: 6px 10px 6px 12px;
+      border-top: 1px solid var(--border);
+      color: var(--text-muted);
+      background: var(--surface-subtle);
+      font-size: 12px;
+    }
+
+    @media (max-width: 1280px) {
+      .filter-rail { grid-template-columns: minmax(230px, 1fr) minmax(210px, 1fr) minmax(0, 1.7fr); }
+      .search-field { grid-column: 1 / 2; }
+      .category-section { grid-column: 2 / -1; }
+      .slot-section { grid-column: 1 / 2; }
+      .signal-section { grid-column: 2 / 3; }
+      .common-section { grid-column: 3 / -1; }
+      .common-section .field-stack { grid-template-columns: 1fr; }
+      .equipment-grid { grid-template-columns: repeat(auto-fill, minmax(108px, 1fr)); }
+    }
+
+    @media (max-width: 980px) {
+      :root { --sidebar-width: 58px; }
+      .account-summary strong, .account-summary span, .nav-item span { display: none; }
+      .account-summary { min-height: 54px; padding: 10px; }
+      .nav-item { justify-content: center; padding: 0; }
+      .page-heading p { display: none; }
+      .workflow-bar { align-items: flex-start; flex-direction: column; padding: 8px 0; }
+      .workflow-tabs { width: 100%; }
+      .workflow-tabs button { flex: 1; padding: 0 6px; }
+      .workflow-meta { justify-content: flex-start; }
+      .filter-rail { grid-template-columns: 1fr 1fr; }
+      .search-field { grid-column: 1 / -1; }
+      .category-section { grid-column: 1 / -1; border-left: 0; }
+      .slot-section { grid-column: 1 / 2; }
+      .signal-section { grid-column: 2 / 3; }
+      .common-section { grid-column: 1 / -1; border-left: 0; }
+      .common-section .field-stack { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .domain-section { grid-template-columns: 1fr; }
+      .domain-section .filter-section-head { margin-bottom: 7px; }
+      .frame-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+
+    @media (max-width: 760px) {
+      .app-shell { grid-template-columns: 1fr; grid-template-rows: 32px auto minmax(0, 1fr); }
+      .sidebar { grid-column: 1; grid-row: 2; display: flex; border-right: 0; border-bottom: 1px solid var(--border-strong); }
+      .account-summary { display: none; }
+      .main-nav { display: flex; width: 100%; overflow-x: auto; padding: 4px; }
+      .nav-item { flex: 0 0 46px; min-height: 38px; border: 0; }
+      .workspace { grid-column: 1; grid-row: 3; }
+      .page-header { padding: 8px 10px; }
+      .page-heading h1 { font-size: 20px; }
+      .page-content { padding: 0 8px 14px; }
+      .workflow-tabs button:nth-child(n+3) { display: none; }
+      .filter-rail { position: static; max-height: none; }
+      .category-grid { grid-template-columns: repeat(5, minmax(80px, 1fr)); overflow-x: auto; }
+      .slot-grid, .signal-grid { grid-template-columns: repeat(4, minmax(88px, 1fr)); overflow-x: auto; }
+      .field-stack { grid-template-columns: 1fr 1fr; }
+      .frame-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .equipment-grid { grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); min-height: 360px; }
+    }
+
+    @media (max-width: 520px) {
+      .page-header .button { width: 34px; padding: 0; }
+      .page-header .button span { display: none; }
+      .field-stack { grid-template-columns: 1fr; }
+      .equipment-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; padding: 7px; }
+      .equipment-card { min-height: 124px; padding: 5px; }
+      .item-visual { height: 66px; }
+      .load-more-bar { align-items: flex-start; flex-direction: column; gap: 7px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { transition-duration: 0.01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="topbar-brand"><span class="brand-mark" aria-hidden="true"></span><span>D2 装备管理</span></div>
+      <div class="window-actions" aria-label="窗口操作">
+        <button type="button" title="最小化" aria-label="最小化"><i data-lucide="minus"></i></button>
+        <button type="button" title="最大化" aria-label="最大化"><i data-lucide="square"></i></button>
+        <button type="button" title="关闭" aria-label="关闭"><i data-lucide="x"></i></button>
+      </div>
+    </header>
+
+    <aside class="sidebar">
+      <div class="account-summary"><strong>Big Brother is watching</strong><span>2 个角色 · 仓库 850 件</span></div>
+      <nav class="main-nav" aria-label="主导航">
+        <button class="nav-item" type="button"><i data-lucide="house"></i><span>首页</span></button>
+        <button class="nav-item" type="button"><i data-lucide="user-round"></i><span>账号</span></button>
+        <button class="nav-item active" type="button" aria-current="page"><i data-lucide="archive"></i><span>仓库</span></button>
+        <button class="nav-item" type="button"><i data-lucide="layers-3"></i><span>配装</span></button>
+        <button class="nav-item" type="button"><i data-lucide="book-open"></i><span>资料库</span></button>
+        <button class="nav-item" type="button"><i data-lucide="store"></i><span>商人</span></button>
+        <button class="nav-item" type="button"><i data-lucide="settings"></i><span>设置</span></button>
+      </nav>
+    </aside>
+
+    <main class="workspace">
+      <header class="page-header">
+        <div class="page-heading">
+          <small>装备管理</small>
+          <h1>仓库工作台</h1>
+          <p>通过完整筛选快速定位装备，再进入详情或同名对比。</p>
+        </div>
+        <button class="button primary" type="button"><i data-lucide="refresh-cw"></i><span>刷新账号装备</span></button>
+      </header>
+
+      <div class="page-content">
+        <div class="workflow-bar">
+          <div class="workflow-tabs" role="tablist" aria-label="仓库工作台">
+            <button class="active" type="button" role="tab" aria-selected="true">筛选列表</button>
+            <button type="button" role="tab" aria-selected="false">同名对比</button>
+            <button type="button" role="tab" aria-selected="false">推荐数据</button>
+          </div>
+          <div class="workflow-meta">
+            <span class="status-pill">已读取 850 件</span>
+            <span id="currentResultPill" class="status-pill current">当前显示 634 件</span>
+          </div>
+        </div>
+
+        <div class="vault-browser">
+          <aside class="filter-rail" aria-label="仓库筛选">
+            <header class="filter-head">
+              <div><strong>筛选装备</strong><br /><span>条件按物品范围分别保留</span></div>
+              <button id="clearFilters" class="button" type="button"><i data-lucide="list-restart"></i>重置筛选</button>
+            </header>
+
+            <label class="search-field">
+              <i data-lucide="search"></i>
+              <input id="searchInput" type="search" placeholder="名称、Perk、标签或备注" aria-label="搜索仓库装备" />
+              <button id="searchClear" class="search-clear" type="button" title="清空搜索" aria-label="清空搜索"><i data-lucide="x"></i></button>
+            </label>
+
+            <section class="filter-section category-section">
+              <div class="filter-section-head"><strong>物品范围</strong><span>高频入口</span></div>
+              <div class="category-grid">
+                <button class="filter-option active" type="button" data-category="all"><span>全部</span><small>634</small></button>
+                <button class="filter-option" type="button" data-category="weapons"><span>武器</span><small>85</small></button>
+                <button class="filter-option" type="button" data-category="armor"><span>护甲</span><small>63</small></button>
+                <button class="filter-option" type="button" data-category="equipment"><span>装备</span><small>30</small></button>
+                <button class="filter-option" type="button" data-category="other"><span>其他</span><small>0</small></button>
+              </div>
+            </section>
+
+            <section class="filter-section slot-section">
+              <div class="filter-section-head"><strong id="slotTitle">常用位置</strong><span>单选</span></div>
+              <div id="slotGrid" class="slot-grid">
+                <button class="filter-option active" type="button" data-slot="all">全部位置</button>
+                <button class="filter-option" type="button" data-slot="kinetic">动能</button>
+                <button class="filter-option" type="button" data-slot="energy">能量</button>
+                <button class="filter-option" type="button" data-slot="power">威能</button>
+                <button class="filter-option" type="button" data-slot="extra" hidden>其他</button>
+              </div>
+            </section>
+
+            <section class="filter-section signal-section">
+              <div class="filter-section-head"><strong>判断信号</strong><span>可多选</span></div>
+              <div class="signal-grid">
+                <button class="filter-option" type="button" data-signal="wishlist"><span class="option-label"><i data-lucide="bookmark"></i>愿望单</span></button>
+                <button class="filter-option" type="button" data-signal="loadout"><span class="option-label"><i data-lucide="layers-3"></i>配装引用</span></button>
+                <button class="filter-option" type="button" data-signal="keep"><span class="option-label"><i data-lucide="shield-check"></i>保留</span></button>
+                <button class="filter-option" type="button" data-signal="cleanup"><span class="option-label"><i data-lucide="trash-2"></i>可清理</span></button>
+              </div>
+            </section>
+
+            <section class="filter-section common-section">
+              <div class="filter-section-head"><strong>共同条件</strong><span>始终展开</span></div>
+              <div class="field-stack">
+                <label class="filter-field"><span>本地标签</span><select id="tagFilter"><option value="">全部标记</option><option value="keep">保留</option><option value="review">待判断</option><option value="cleanup">可清理</option></select></label>
+                <label class="filter-field"><span>锁定状态</span><select id="lockFilter"><option value="">全部状态</option><option value="locked">已锁定</option><option value="unlocked">未锁定</option></select></label>
+                <label class="filter-field"><span>物品来源</span><select id="sourceFilter"><option value="">全部来源</option><option value="vault">仓库</option><option value="inventory">角色背包</option><option value="equipped">当前装备</option></select></label>
+                <label class="filter-field"><span>结果排序</span><select id="railSort"><option>按名称</option><option>按光等</option><option>按类型</option><option>按获得时间</option></select></label>
+              </div>
+            </section>
+
+            <section id="weaponFilters" class="filter-section domain-section">
+              <div class="filter-section-head"><strong>武器条件</strong><span>可多选框架</span></div>
+              <div class="field-stack" style="margin-bottom: 7px">
+                <label class="filter-field"><span>弹药类型</span><select id="ammoFilter"><option value="">全部弹药</option><option value="primary">主要弹药</option><option value="special">特殊弹药</option><option value="heavy">重型弹药</option></select></label>
+              </div>
+              <div class="frame-grid">
+                <button class="filter-option" type="button" data-frame="lightweight">轻质框架</button>
+                <button class="filter-option" type="button" data-frame="precision">精确框架</button>
+                <button class="filter-option" type="button" data-frame="adaptive">自适应框架</button>
+                <button class="filter-option" type="button" data-frame="vortex">旋风框架</button>
+              </div>
+            </section>
+
+            <section id="armorFilters" class="filter-section domain-section hidden">
+              <div class="filter-section-head"><strong>护甲属性</strong><span>条件同时成立</span></div>
+              <div class="field-stack">
+                <label class="filter-field"><span>主要属性</span><select id="armorStat"><option value="">不限属性</option><option value="resilience">韧性</option><option value="recovery">恢复</option><option value="discipline">纪律</option><option value="intellect">智力</option></select></label>
+                <label class="filter-field"><span>最低数值</span><select id="armorMinimum"><option value="">不限</option><option value="10">10 以上</option><option value="15">15 以上</option><option value="20">20 以上</option></select></label>
+              </div>
+            </section>
+
+            <section class="filter-section active-section">
+              <div class="filter-section-head"><strong>已生效条件</strong><span id="activeCount">0 项</span></div>
+              <div id="activeFilters" class="active-filters"><span class="active-empty">当前显示全部物品。选择条件后可在这里逐项移除。</span></div>
+            </section>
+          </aside>
+
+          <section class="results-panel">
+            <header class="results-head">
+              <div class="results-title"><h2>装备矩阵</h2><span id="resultSummary">634 件 · 按名称</span></div>
+              <div class="results-tools">
+                <select id="resultSort" class="sort-select" aria-label="结果排序"><option>按名称</option><option>按光等</option><option>按类型</option><option>按获得时间</option></select>
+              </div>
+            </header>
+
+            <div id="equipmentGrid" class="equipment-grid">
+              <article class="equipment-card" tabindex="0" data-category="weapons" data-slot="kinetic" data-tags="locked wishlist keep" data-frame="lightweight" data-ammo="primary" data-source="equipped" data-search="快速命中脉冲 动能武器 轻质框架 快速命中 动能震颤 保留">
+                <div class="item-visual"><span>动</span><i class="lock-marker" data-lucide="lock"></i><span class="power-value">2022</span><span class="signal-stack"><span class="signal-dot keep">留</span><span class="signal-dot">DIM</span></span></div>
+                <span class="item-name">快速命中脉冲</span><span class="item-meta">轻质框架 · 快速命中</span>
+              </article>
+              <article class="equipment-card" tabindex="0" data-category="weapons" data-slot="energy" data-tags="wishlist review" data-frame="precision" data-ammo="primary" data-source="vault" data-search="精准手炮 能量武器 精确框架 丰盈满溢 爆炸载荷 待判断">
+                <div class="item-visual energy"><span>能</span><span class="power-value">2019</span><span class="signal-stack"><span class="signal-dot review">判</span><span class="signal-dot">DIM</span></span></div>
+                <span class="item-name">精准手炮</span><span class="item-meta">精确框架 · 爆炸载荷</span>
+              </article>
+              <article class="equipment-card" tabindex="0" data-category="weapons" data-slot="energy" data-tags="locked loadout keep" data-frame="precision" data-ammo="special" data-source="inventory" data-search="终局霰弹枪 能量武器 精确框架 威胁探测 首发射击 配装引用 保留">
+                <div class="item-visual energy"><span>能</span><i class="lock-marker" data-lucide="lock"></i><span class="power-value">2020</span><span class="signal-stack"><span class="signal-dot keep">留</span><span class="signal-dot">装</span></span></div>
+                <span class="item-name">终局霰弹枪</span><span class="item-meta">精确框架 · 首发射击</span>
+              </article>
+              <article class="equipment-card" tabindex="0" data-category="weapons" data-slot="power" data-tags="locked keep" data-frame="adaptive" data-ammo="heavy" data-source="equipped" data-search="边缘迁移火箭筒 威能武器 自适应框架 自动装填 爆炸光能 保留">
+                <div class="item-visual power"><span>威</span><i class="lock-marker" data-lucide="lock"></i><span class="power-value">2022</span><span class="signal-stack"><span class="signal-dot keep">留</span></span></div>
+                <span class="item-name">边缘迁移火箭筒</span><span class="item-meta">自适应框架 · 爆炸光能</span>
+              </article>
+              <article class="equipment-card" tabindex="0" data-category="weapons" data-slot="energy" data-tags="review" data-frame="adaptive" data-ammo="special" data-source="inventory" data-search="适配融合步枪 能量武器 适配框架 充盈 高强度备弹 待判断">
+                <div class="item-visual energy"><span>能</span><span class="power-value">2018</span><span class="signal-stack"><span class="signal-dot review">判</span></span></div>
+                <span class="item-name">适配融合步枪</span><span class="item-meta">适配框架 · 高强度备弹</span>
+              </article>
+              <article class="equipment-card" tabindex="0" data-category="weapons" data-slot="power" data-tags="cleanup" data-frame="vortex" data-ammo="heavy" data-source="vault" data-search="连锁反应刀剑 威能武器 旋风框架 无情打击 连锁反应 可清理">
+                <div class="item-visual power"><span>威</span><span class="power-value">2016</span><span class="signal-stack"><span class="signal-dot cleanup">清</span></span></div>
+                <span class="item-name">连锁反应刀剑</span><span class="item-meta">旋风框架 · 连锁反应</span>
+              </article>
+              <article class="equipment-card" tabindex="0" data-category="weapons" data-slot="kinetic" data-tags="cleanup" data-frame="adaptive" data-ammo="primary" data-source="vault" data-search="旧赛季斥候 动能武器 适配框架 移动目标 狂暴 可清理">
+                <div class="item-visual"><span>动</span><span class="power-value">2010</span><span class="signal-stack"><span class="signal-dot cleanup">清</span></span></div>
+                <span class="item-name">旧赛季斥候</span><span class="item-meta">适配框架 · 狂暴</span>
+              </article>
+              <article class="equipment-card" tabindex="0" data-category="armor" data-slot="chest" data-tags="locked keep loadout" data-source="inventory" data-armor-stat="resilience" data-armor-value="20" data-search="背包胸甲 胸甲 传说 总值 68 生命值 20 职业 16 手雷 14 保留 配装引用">
+                <div class="item-visual armor"><span>甲</span><i class="lock-marker" data-lucide="lock"></i><span class="power-value">68</span><span class="signal-stack"><span class="signal-dot keep">留</span><span class="signal-dot">装</span></span></div>
+                <span class="item-name">背包胸甲</span><span class="item-meta">总值 68 · 生命值 20</span>
+              </article>
+              <article class="equipment-card" tabindex="0" data-category="armor" data-slot="head" data-tags="wishlist review" data-source="vault" data-armor-stat="recovery" data-armor-value="15" data-search="铁骑头盔 头盔 传说 愿望单 待判断">
+                <div class="item-visual armor"><span>盔</span><span class="power-value">66</span><span class="signal-stack"><span class="signal-dot review">判</span><span class="signal-dot">目</span></span></div>
+                <span class="item-name">铁骑头盔</span><span class="item-meta">总值 66 · 韧性优先</span>
+              </article>
+              <article class="equipment-card" tabindex="0" data-category="armor" data-slot="arms" data-tags="locked keep" data-source="equipped" data-armor-stat="discipline" data-armor-value="18" data-search="炎阳护腕 臂铠 异域 已锁定 保留">
+                <div class="item-visual armor"><span>臂</span><i class="lock-marker" data-lucide="lock"></i><span class="power-value">异域</span><span class="signal-stack"><span class="signal-dot keep">留</span></span></div>
+                <span class="item-name">炎阳护腕</span><span class="item-meta">异域臂铠 · 当前装备</span>
+              </article>
+              <article class="equipment-card" tabindex="0" data-category="equipment" data-slot="ship" data-tags="cleanup" data-source="vault" data-search="旧飞船 飞船 仓库 可清理">
+                <div class="item-visual equipment"><span>船</span><span class="signal-stack"><span class="signal-dot cleanup">清</span></span></div>
+                <span class="item-name">旧飞船</span><span class="item-meta">飞船 · 仓库</span>
+              </article>
+            </div>
+
+            <div id="emptyState" class="empty-state"><div><i data-lucide="package-search"></i><strong>没有匹配的装备</strong><span>调整左侧条件或清空当前筛选。</span></div></div>
+            <div class="load-more-bar"><span>先显示 200 / 634 件，减少筛选和标记时的界面延迟。</span><button class="button" type="button">加载更多</button></div>
+          </section>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
+  <script>
+    const cards = [...document.querySelectorAll('.equipment-card')];
+    const categoryButtons = [...document.querySelectorAll('.category-grid [data-category]')];
+    const slotButtons = [...document.querySelectorAll('.slot-grid [data-slot]')];
+    const signalButtons = [...document.querySelectorAll('[data-signal]')];
+    const frameButtons = [...document.querySelectorAll('[data-frame].filter-option')];
+    const searchInput = document.getElementById('searchInput');
+    const searchClear = document.getElementById('searchClear');
+    const activeSignals = new Set();
+    const activeFrames = new Set();
+    let category = 'all';
+    let slot = 'all';
+
+    const categoryCounts = { all: 634, weapons: 85, armor: 63, equipment: 30, other: 0 };
+    const categoryLabels = { all: '全部', weapons: '武器', armor: '护甲', equipment: '装备', other: '其他' };
+    const signalLabels = { wishlist: '愿望单', loadout: '配装引用', keep: '保留', cleanup: '可清理' };
+    const frameLabels = { lightweight: '轻质框架', precision: '精确框架', adaptive: '自适应框架', vortex: '旋风框架' };
+    const slotConfigs = {
+      all: { title: '常用位置', slots: [['all', '全部位置'], ['kinetic', '动能'], ['energy', '能量'], ['power', '威能']] },
+      weapons: { title: '武器槽位', slots: [['all', '全部位置'], ['kinetic', '动能'], ['energy', '能量'], ['power', '威能']] },
+      armor: { title: '护甲部位', slots: [['all', '全部部位'], ['head', '头盔'], ['arms', '臂铠'], ['chest', '胸甲'], ['legs', '腿甲']] },
+      equipment: { title: '装备类型', slots: [['all', '全部装备'], ['ghost', '机灵'], ['vehicle', '载具'], ['ship', '飞船'], ['emblem', '名片']] },
+      other: { title: '其他分类', slots: [['all', '全部分类'], ['material', '材料'], ['engram', '记忆水晶'], ['quest', '任务'], ['consumable', '消耗品']] }
+    };
+
+    function createIcons() { if (window.lucide) window.lucide.createIcons(); }
+
+    function sortCards() {
+      const mode = document.getElementById('resultSort').value;
+      const sorted = [...cards].sort((left, right) => {
+        if (mode === '按光等') {
+          const leftPower = Number.parseInt(left.querySelector('.power-value')?.textContent ?? '0', 10) || 0;
+          const rightPower = Number.parseInt(right.querySelector('.power-value')?.textContent ?? '0', 10) || 0;
+          return rightPower - leftPower;
+        }
+        if (mode === '按类型') {
+          return `${left.dataset.category}-${left.dataset.slot}`.localeCompare(`${right.dataset.category}-${right.dataset.slot}`, 'zh-CN');
+        }
+        const leftName = left.querySelector('.item-name')?.textContent ?? '';
+        const rightName = right.querySelector('.item-name')?.textContent ?? '';
+        return leftName.localeCompare(rightName, 'zh-CN');
+      });
+      document.getElementById('equipmentGrid').append(...sorted);
+    }
+
+    function updateSlotOptions() {
+      const config = slotConfigs[category];
+      document.getElementById('slotTitle').textContent = config.title;
+      slotButtons.forEach((button, index) => {
+        const option = config.slots[index];
+        button.hidden = !option;
+        if (!option) return;
+        button.dataset.slot = option[0];
+        button.textContent = option[1];
+        button.classList.toggle('active', index === 0);
+      });
+      slot = 'all';
+      document.getElementById('weaponFilters').classList.toggle('hidden', category !== 'weapons');
+      document.getElementById('armorFilters').classList.toggle('hidden', category !== 'armor');
+    }
+
+    function applyFilters() {
+      sortCards();
+      const query = searchInput.value.trim().toLocaleLowerCase('zh-CN');
+      const tag = document.getElementById('tagFilter').value;
+      const lock = document.getElementById('lockFilter').value;
+      const source = document.getElementById('sourceFilter').value;
+      const ammo = document.getElementById('ammoFilter').value;
+      const armorStat = document.getElementById('armorStat').value;
+      const armorMinimum = Number(document.getElementById('armorMinimum').value || 0);
+      let visible = 0;
+
+      cards.forEach((card) => {
+        const tags = new Set((card.dataset.tags || '').split(' ').filter(Boolean));
+        const matches =
+          (category === 'all' || card.dataset.category === category) &&
+          (slot === 'all' || card.dataset.slot === slot) &&
+          (!query || card.dataset.search.toLocaleLowerCase('zh-CN').includes(query)) &&
+          (!tag || tags.has(tag)) &&
+          (!lock || (lock === 'locked' ? tags.has('locked') : !tags.has('locked'))) &&
+          (!source || card.dataset.source === source) &&
+          (category !== 'weapons' || !ammo || card.dataset.ammo === ammo) &&
+          (category !== 'armor' || !armorStat || card.dataset.armorStat === armorStat) &&
+          (category !== 'armor' || !armorMinimum || Number(card.dataset.armorValue || 0) >= armorMinimum) &&
+          [...activeSignals].every((value) => tags.has(value)) &&
+          (category !== 'weapons' || !activeFrames.size || activeFrames.has(card.dataset.frame));
+
+        card.classList.toggle('hidden', !matches);
+        if (matches) visible += 1;
+      });
+
+      const narrowed = query || tag || lock || source || slot !== 'all' || activeSignals.size ||
+        (category === 'weapons' && (ammo || activeFrames.size)) ||
+        (category === 'armor' && (armorStat || armorMinimum));
+      const count = narrowed ? visible : categoryCounts[category];
+      document.getElementById('currentResultPill').textContent = `当前显示 ${count} 件`;
+      document.getElementById('resultSummary').textContent = `${count} 件 · ${document.getElementById('resultSort').value}`;
+      document.getElementById('emptyState').classList.toggle('visible', visible === 0);
+      document.getElementById('equipmentGrid').style.display = visible === 0 ? 'none' : 'grid';
+      searchClear.classList.toggle('visible', Boolean(query));
+      renderActiveFilters();
+    }
+
+    function activeFilterEntries() {
+      const entries = [];
+      if (category !== 'all') entries.push(['category', `范围：${categoryLabels[category]}`]);
+      if (slot !== 'all') entries.push(['slot', `${document.getElementById('slotTitle').textContent}：${slotButtons.find((item) => item.dataset.slot === slot)?.textContent ?? slot}`]);
+      if (searchInput.value.trim()) entries.push(['query', `关键词：${searchInput.value.trim()}`]);
+      activeSignals.forEach((value) => entries.push([`signal:${value}`, signalLabels[value]]));
+      if (category === 'weapons') activeFrames.forEach((value) => entries.push([`frame:${value}`, frameLabels[value]]));
+      [['tagFilter', '标签'], ['lockFilter', '锁定'], ['sourceFilter', '来源']].forEach(([id, label]) => {
+        const field = document.getElementById(id);
+        if (field.value) entries.push([id, `${label}：${field.options[field.selectedIndex].text}`]);
+      });
+      if (category === 'weapons') {
+        const ammo = document.getElementById('ammoFilter');
+        if (ammo.value) entries.push(['ammoFilter', `弹药：${ammo.options[ammo.selectedIndex].text}`]);
+      }
+      if (category === 'armor') {
+        const armorStat = document.getElementById('armorStat');
+        const armorMinimum = document.getElementById('armorMinimum');
+        if (armorStat.value) entries.push(['armorStat', `属性：${armorStat.options[armorStat.selectedIndex].text}`]);
+        if (armorMinimum.value) entries.push(['armorMinimum', `最低值：${armorMinimum.options[armorMinimum.selectedIndex].text}`]);
+      }
+      return entries;
+    }
+
+    function renderActiveFilters() {
+      const container = document.getElementById('activeFilters');
+      const entries = activeFilterEntries();
+      document.getElementById('activeCount').textContent = `${entries.length} 项`;
+      if (!entries.length) {
+        const empty = document.createElement('span');
+        empty.className = 'active-empty';
+        empty.textContent = '当前显示全部物品。选择条件后可在这里逐项移除。';
+        container.replaceChildren(empty);
+        return;
+      }
+
+      container.replaceChildren(...entries.map(([key, label]) => {
+        const item = document.createElement('span');
+        item.className = 'active-filter';
+        item.append(document.createTextNode(label));
+        const remove = document.createElement('button');
+        remove.type = 'button';
+        remove.dataset.remove = key;
+        remove.setAttribute('aria-label', `移除 ${label}`);
+        remove.innerHTML = '<i data-lucide="x"></i>';
+        item.append(remove);
+        return item;
+      }));
+      createIcons();
+    }
+
+    categoryButtons.forEach((button) => button.addEventListener('click', () => {
+      category = button.dataset.category;
+      categoryButtons.forEach((item) => item.classList.toggle('active', item === button));
+      updateSlotOptions();
+      applyFilters();
+    }));
+
+    slotButtons.forEach((button) => button.addEventListener('click', () => {
+      slot = button.dataset.slot;
+      slotButtons.forEach((item) => item.classList.toggle('active', item === button));
+      applyFilters();
+    }));
+
+    signalButtons.forEach((button) => button.addEventListener('click', () => {
+      const value = button.dataset.signal;
+      if (activeSignals.has(value)) activeSignals.delete(value);
+      else activeSignals.add(value);
+      button.classList.toggle('active', activeSignals.has(value));
+      applyFilters();
+    }));
+
+    frameButtons.forEach((button) => button.addEventListener('click', () => {
+      const value = button.dataset.frame;
+      if (activeFrames.has(value)) activeFrames.delete(value);
+      else activeFrames.add(value);
+      button.classList.toggle('active', activeFrames.has(value));
+      applyFilters();
+    }));
+
+    ['tagFilter', 'lockFilter', 'sourceFilter', 'ammoFilter', 'armorStat', 'armorMinimum'].forEach((id) => {
+      document.getElementById(id).addEventListener('change', applyFilters);
+    });
+
+    document.getElementById('railSort').addEventListener('change', (event) => {
+      document.getElementById('resultSort').value = event.target.value;
+      applyFilters();
+    });
+    document.getElementById('resultSort').addEventListener('change', (event) => {
+      document.getElementById('railSort').value = event.target.value;
+      applyFilters();
+    });
+
+    searchInput.addEventListener('input', applyFilters);
+    searchClear.addEventListener('click', () => { searchInput.value = ''; searchInput.focus(); applyFilters(); });
+
+    document.getElementById('activeFilters').addEventListener('click', (event) => {
+      const button = event.target.closest('[data-remove]');
+      if (!button) return;
+      const key = button.dataset.remove;
+      if (key === 'category') {
+        category = 'all';
+        categoryButtons.forEach((item) => item.classList.toggle('active', item.dataset.category === 'all'));
+        updateSlotOptions();
+      } else if (key === 'slot') {
+        slot = 'all';
+        slotButtons.forEach((item) => item.classList.toggle('active', item.dataset.slot === 'all'));
+      } else if (key === 'query') {
+        searchInput.value = '';
+      } else if (key.startsWith('signal:')) {
+        const value = key.split(':')[1];
+        activeSignals.delete(value);
+        signalButtons.forEach((item) => item.classList.toggle('active', activeSignals.has(item.dataset.signal)));
+      } else if (key.startsWith('frame:')) {
+        const value = key.split(':')[1];
+        activeFrames.delete(value);
+        frameButtons.forEach((item) => item.classList.toggle('active', activeFrames.has(item.dataset.frame)));
+      } else {
+        document.getElementById(key).selectedIndex = 0;
+      }
+      applyFilters();
+    });
+
+    document.getElementById('clearFilters').addEventListener('click', () => {
+      category = 'all';
+      slot = 'all';
+      activeSignals.clear();
+      activeFrames.clear();
+      searchInput.value = '';
+      categoryButtons.forEach((item) => item.classList.toggle('active', item.dataset.category === 'all'));
+      signalButtons.forEach((item) => item.classList.remove('active'));
+      frameButtons.forEach((item) => item.classList.remove('active'));
+      ['tagFilter', 'lockFilter', 'sourceFilter', 'ammoFilter', 'armorStat', 'armorMinimum'].forEach((id) => { document.getElementById(id).selectedIndex = 0; });
+      document.getElementById('railSort').selectedIndex = 0;
+      document.getElementById('resultSort').selectedIndex = 0;
+      updateSlotOptions();
+      applyFilters();
+    });
+
+    cards.forEach((card) => {
+      card.addEventListener('click', () => card.classList.toggle('selected'));
+      card.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          card.classList.toggle('selected');
+        }
+      });
+    });
+
+    createIcons();
+    updateSlotOptions();
+    applyFilters();
+  </script>
+</body>
+</html>

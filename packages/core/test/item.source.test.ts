@@ -5,11 +5,11 @@ describe("item source summary", () => {
   it("uses Bungie sourceData sourceString when available", () => {
     expect(summarizeItemSource({
       displayProperties: { name: "Riskrunner" },
-      sourceData: { sourceString: "完成异域任务获取。" }
+      sourceData: { sourceString: "至日" }
     })).toEqual({
       status: "ready",
-      label: "官方来源提示",
-      description: "完成异域任务获取。",
+      label: "历史获取途径",
+      description: "Bungie 官方资料将这件装备标记为来自“至日”相关活动或内容。这只说明历史归属，不代表“至日”当前正在开放。",
       source_kind: "item",
       source_hash: undefined,
       linked_definition_hash: undefined
@@ -19,8 +19,8 @@ describe("item source summary", () => {
   it("falls back when Manifest does not expose a source", () => {
     expect(summarizeItemSource({ displayProperties: { name: "Unknown" } })).toEqual({
       status: "missing",
-      label: "官方来源提示",
-      description: "Bungie Manifest 未提供官方来源提示。"
+      label: "历史获取途径",
+      description: "Bungie 官方资料没有标注这件装备的历史获取途径。"
     });
   });
 
@@ -46,8 +46,8 @@ describe("item source summary", () => {
       }
     })).toEqual({
       status: "ready",
-      label: "官方来源提示",
-      description: "“救赎花园”突袭",
+      label: "历史获取途径",
+      description: "Bungie 官方资料记录的获取途径：“救赎花园”突袭。这只说明历史来源，不代表当前仍可获得。",
       source_kind: "linked_collectible",
       source_hash: 1491707941,
       linked_definition_hash: 2721249463

@@ -330,7 +330,7 @@ function armorReleaseKindLabel(kind: ItemReleaseKind | undefined): string {
   if (kind === "season") return "赛季";
   if (kind === "annual") return "年度资料片";
   if (kind === "dlc") return "内容包";
-  if (kind === "core") return "核心内容";
+  if (kind === "core") return "常规版本";
   if (kind === "update") return "版本更新";
   return "官方未标注";
 }

@@ -124,7 +124,7 @@ function isSearchableEquipmentDefinition(definition: DefinitionRecord): boolean 
   return typeof definition.itemType !== "number" || !nonEquipmentItemTypes.has(definition.itemType);
 }
 
-function selectCanonicalEquipmentDefinitions(definitions: DefinitionRecord[]): DefinitionRecord[] {
+export function selectCanonicalEquipmentDefinitions(definitions: DefinitionRecord[]): DefinitionRecord[] {
   const selected = new Map<string, DefinitionRecord>();
 
   for (const definition of definitions) {
@@ -139,6 +139,17 @@ function selectCanonicalEquipmentDefinitions(definitions: DefinitionRecord[]): D
 }
 
 function equipmentDefinitionIdentity(definition: DefinitionRecord): string {
+  const weaponPatternHash = Number(definition.translationBlock?.weaponPatternHash ?? 0);
+  if (weaponPatternHash > 0) {
+    return [
+      "weapon-pattern",
+      weaponPatternHash,
+      definition.isAdept ? "adept" : "standard",
+      definition.classType ?? "unknown",
+      definition.inventory?.bucketTypeHash ?? "unknown"
+    ].join("|");
+  }
+
   const name = definition.displayProperties?.name?.trim().toLocaleLowerCase() ?? "";
   const icon = definition.displayProperties?.icon?.trim() ?? "";
   if (!name || !icon) {

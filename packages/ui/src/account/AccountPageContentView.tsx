@@ -18,7 +18,6 @@ import {
 } from "../workspace/ProductWorkspace.js";
 
 type AccountItemSource = "equipped" | "inventory";
-const ACCOUNT_SLOT_PREVIEW_LIMIT = 2;
 
 export type AccountPageActions = {
   configureBungie: () => void;
@@ -516,7 +515,6 @@ function AccountSlotComparison(props: {
   onOpenItem: (payload: AccountOpenItemPayload) => void;
   copy: AccountCopy;
 }) {
-  const [expandedSlots, setExpandedSlots] = useState<Set<string>>(new Set());
   const categories = accountCategoryOrder
     .map((category) => ({
       key: category,
@@ -524,22 +522,6 @@ function AccountSlotComparison(props: {
       rows: props.rows.filter((row) => row.category === category)
     }))
     .filter((category) => category.rows.length > 0);
-
-  function expandedKey(rowKey: string, source: AccountItemSource): string {
-    return `${rowKey}:${source}`;
-  }
-
-  function isExpanded(rowKey: string, source: AccountItemSource): boolean {
-    return expandedSlots.has(expandedKey(rowKey, source));
-  }
-
-  function expandSlot(rowKey: string, source: AccountItemSource): void {
-    setExpandedSlots((current) => {
-      const next = new Set(current);
-      next.add(expandedKey(rowKey, source));
-      return next;
-    });
-  }
 
   if (!categories.length) {
     return <AccountInlineState title={accountText(props.copy, "当前角色没有装备位置数据")} detail={accountText(props.copy, "当前 Profile 快照未返回可按位置展示的装备或背包物品。")} />;
@@ -553,6 +535,11 @@ function AccountSlotComparison(props: {
             <strong>{category.label}</strong>
             <span>{category.rows.length} 个位置 · {category.rows.reduce((count, row) => count + row.equippedItems.length + row.inventoryItems.length, 0)} 件</span>
           </header>
+          <div className="account-slot-column-head" aria-hidden="true">
+            <span>{accountText(props.copy, "位置")}</span>
+            <span>{accountText(props.copy, "当前角色装备")}</span>
+            <span>{accountText(props.copy, "当前角色背包候选")}</span>
+          </div>
           {category.rows.map((row) => (
             <article className="account-slot-row" data-surface="row" key={row.key}>
               <div className="account-slot-heading">
@@ -560,19 +547,16 @@ function AccountSlotComparison(props: {
                 <span>{accountText(props.copy, "装备")} {row.equippedItems.length} / {accountText(props.copy, "背包")} {row.inventoryItems.length}</span>
               </div>
               <div className="account-slot-columns">
-                <section className="account-slot-column account-equipped-panel">
+                <section className="account-slot-column account-equipped-panel" aria-label={accountText(props.copy, "当前角色装备")}>
                   <h5>{accountText(props.copy, "当前角色装备")}</h5>
                   {props.isRefreshing ? <AccountSlotSkeleton /> : renderAccountItemGrid(row.equippedItems, "equipped", {
-                    isExpanded: true,
                     onOpenItem: props.onOpenItem,
                     copy: props.copy
                   })}
                 </section>
-                <section className="account-slot-column account-inventory-panel">
+                <section className="account-slot-column account-inventory-panel" aria-label={accountText(props.copy, "当前角色背包候选")}>
                   <h5>{accountText(props.copy, "当前角色背包候选")}</h5>
                   {props.isRefreshing ? <AccountSlotSkeleton /> : renderAccountItemGrid(row.inventoryItems, "inventory", {
-                    isExpanded: isExpanded(row.key, "inventory"),
-                    onExpand: () => expandSlot(row.key, "inventory"),
                     onOpenItem: props.onOpenItem,
                     copy: props.copy
                   })}
@@ -599,8 +583,6 @@ function renderAccountItemGrid(
   items: AccountItemView[],
   source: AccountItemSource,
   props: {
-    isExpanded: boolean;
-    onExpand?: () => void;
     onOpenItem: (payload: AccountOpenItemPayload) => void;
     copy: AccountCopy;
   }
@@ -612,22 +594,12 @@ function renderAccountItemGrid(
     return <div className="account-slot-empty" data-surface="frame" data-ui-kind="state-frame" data-status="neutral"><span>{emptyLabel}</span></div>;
   }
 
-  const shouldLimitItems = source === "inventory" && !props.isExpanded && items.length > ACCOUNT_SLOT_PREVIEW_LIMIT;
-  const visibleItems = shouldLimitItems ? items.slice(0, ACCOUNT_SLOT_PREVIEW_LIMIT) : items;
-  const hiddenItemCount = items.length - visibleItems.length;
-
   return (
     <div className="account-slot-item-grid">
-      {visibleItems.map((item) => renderAccountItemCard(item, source, {
+      {items.map((item) => renderAccountItemCard(item, source, {
         onOpenItem: props.onOpenItem,
         copy: props.copy
       }))}
-      {hiddenItemCount > 0 ? (
-        <button type="button" className="account-slot-show-more" data-ui-kind="button" data-control-variant="secondary" onClick={props.onExpand}>
-          <strong>{accountText(props.copy, "显示全部")} {items.length} {accountText(props.copy, "件")}</strong>
-          <span>{accountText(props.copy, "还有")} {hiddenItemCount} {accountText(props.copy, "件未展开的背包候选")}</span>
-        </button>
-      ) : null}
     </div>
   );
 }

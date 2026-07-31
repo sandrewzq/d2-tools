@@ -5,6 +5,7 @@ import {
 } from "@d2-tools/core/items/perkSearch";
 import {
   getItemSearchResultByHash,
+  selectCanonicalEquipmentDefinitions,
   type ItemSearchResult
 } from "@d2-tools/core/items/search";
 import type {
@@ -52,7 +53,10 @@ export function createReaderGameDataCatalog(
         options.searchIndex,
         Object.values(candidates)
       );
-      const results = candidateHashes
+      const canonicalHashes = selectCanonicalEquipmentDefinitions(Object.values(candidates))
+        .map((definition) => Number(definition.hash))
+        .filter((hash) => Number.isFinite(hash));
+      const results = canonicalHashes
         .map((hash) => getItemSearchResultByHash(context.items, hash, {
           plugSetDefinitions: context.plugSets,
           statDefinitions: context.stats,
