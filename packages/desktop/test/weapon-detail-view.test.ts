@@ -64,6 +64,51 @@ describe("weapon detail view", () => {
     expect(model?.configuration.selection_columns.find((column) => column.socket_index === 4))
       .toMatchObject({ role: "trait", candidates: [{ hash: selectedSecondTrait.hash, selected: true }] });
   });
+
+  it("keeps special weapon sockets in their real order and restores selected fallback plugs", () => {
+    const intrinsic = plug(100, "远程武器", "intrinsics", "固有");
+    const blade = plug(101, "平衡柄芯", "v950.new.sword0.blades", "柄芯");
+    const guard = plug(102, "平衡握把", "v950.new.sword0.guards", "握把");
+    const firstTrait = plug(103, "鸬鹚反转", "frames", "特性");
+    const core = plug(104, "冲击核心", "v950.new.sword0.perk_upgrades", "能量核心");
+    const secondTrait = plug(105, "鸬鹚连击", "frames", "特性");
+    const selectedItem: SelectedItemDetail = {
+      hash: 3049715579,
+      name: "英勇利刃",
+      description: "",
+      item_key: "special-instance",
+      instance_id: "special-instance",
+      group_key: "weapons",
+      source: { status: "missing", label: "历史获取途径", description: "" },
+      perks: [
+        { socket_index: 12, plugs: [secondTrait] },
+        { socket_index: 0, plugs: [intrinsic] },
+        { socket_index: 11, plugs: [core] },
+        { socket_index: 2, plugs: [guard] },
+        { socket_index: 3, plugs: [firstTrait] },
+        { socket_index: 1, plugs: [blade] }
+      ],
+      sockets: [socket(1, blade), socket(2, guard), socket(3, firstTrait), socket(12, secondTrait)],
+      socket_plugs: [intrinsic, blade, guard, firstTrait, core, secondTrait]
+    };
+
+    const model = buildWeaponDetailView({ selectedItem });
+
+    expect(model?.configuration.pool_columns.map((column) => ({
+      socket_index: column.socket_index,
+      label: column.label
+    }))).toEqual([
+      { socket_index: 1, label: "柄芯" },
+      { socket_index: 2, label: "握把" },
+      { socket_index: 3, label: "Perk 1" },
+      { socket_index: 11, label: "核心升级" },
+      { socket_index: 12, label: "Perk 2" }
+    ]);
+    expect(model?.configuration.selection_columns.map((column) => column.socket_index))
+      .toEqual([1, 2, 3, 11, 12]);
+    expect(model?.configuration.selection_columns.find((column) => column.socket_index === 11))
+      .toMatchObject({ label: "核心升级", candidates: [{ hash: core.hash, selected: true }] });
+  });
 });
 
 function weapon(input: {

@@ -8,37 +8,41 @@
   <style>
     :root {
       color-scheme: light;
-      --page: #f4f7f8;
-      --chrome: #f6f9fa;
-      --sidebar: #dce7ec;
-      --panel: #ffffff;
-      --panel-soft: #f0f4f6;
-      --panel-recessed: #e7eef2;
-      --hover: #e8f1f5;
-      --selected: #d9eaf2;
-      --selected-strong: #c7dfeb;
-      --shell-border: #92aab7;
-      --section-border: #c0cdd4;
-      --object-border: #9bb0bb;
-      --control-border: #668391;
-      --text: #172730;
-      --body: #3f5663;
-      --muted: #687d88;
-      --blue: #1f6f96;
-      --blue-soft: #e3f0f6;
-      --green: #176d50;
-      --green-soft: #e4f2eb;
-      --amber: #8f651d;
-      --amber-soft: #f7eedb;
-      --red: #9c3540;
-      --red-soft: #f8e7e9;
-      --focus: #0077b5;
+      --page: #dde6eb;
+      --chrome: #f8fbfd;
+      --sidebar: #dfe8ed;
+      --panel: #f8fafb;
+      --panel-elevated: #ffffff;
+      --panel-soft: #eef3f6;
+      --panel-recessed: #e3ebef;
+      --hover: #e8f0f4;
+      --selected: #dbeaf2;
+      --selected-border: #50788e;
+      --selected-strong: #accddd;
+      --shell-border: #9aaeb9;
+      --section-border: #b9c7cf;
+      --object-border: #8fa6b3;
+      --control-border: #67808e;
+      --text: #15232c;
+      --body: #354a56;
+      --muted: #526b78;
+      --blue: #17698f;
+      --blue-soft: #e4f1f7;
+      --green: #167956;
+      --green-soft: #e3f3eb;
+      --amber: #8c6514;
+      --amber-soft: #f7edcf;
+      --red: #a43e48;
+      --red-soft: #f8e6e8;
+      --focus: #17698f;
       --control-h: 34px;
       --radius-control: 4px;
       --radius-object: 6px;
       --motion: 160ms ease-out;
       --item-pad: 11px 14px;
       --item-thumb: 48px;
+      --layer-popover: 20;
+      --layer-toast: 60;
     }
 
     * { box-sizing: border-box; }
@@ -78,7 +82,7 @@
       grid-template-rows: 52px minmax(0, 1fr);
       width: 100%;
       height: 100%;
-      min-width: 1120px;
+      min-width: 0;
     }
 
     .brand {
@@ -101,7 +105,7 @@
       color: var(--green);
       background: var(--green-soft);
       font-size: 12px;
-      font-weight: 800;
+      font-weight: 700;
     }
 
     .brand strong,
@@ -137,8 +141,8 @@
 
     .icon-button {
       display: grid;
-      width: 42px;
-      height: 51px;
+      width: 46px;
+      height: 52px;
       padding: 0;
       place-items: center;
       border: 0;
@@ -208,7 +212,7 @@
 
     .page {
       display: grid;
-      grid-template-rows: 98px minmax(0, 1fr);
+      grid-template-rows: 84px minmax(0, 1fr);
       min-width: 0;
       min-height: 0;
       background: var(--panel);
@@ -219,7 +223,7 @@
       align-items: center;
       justify-content: space-between;
       gap: 20px;
-      padding: 13px 20px 12px;
+      padding: 12px 20px;
       border-bottom: 1px solid var(--shell-border);
       background: #f8fafb;
     }
@@ -288,7 +292,7 @@
     .character-button[aria-pressed="true"] {
       color: var(--text);
       background: var(--selected);
-      box-shadow: inset 0 -2px 0 var(--blue);
+      box-shadow: inset 0 0 0 1px var(--selected-border);
     }
 
     .character-button:focus-visible { position: relative; z-index: 1; outline-offset: -2px; }
@@ -301,12 +305,18 @@
       border: 1px solid currentColor;
       border-radius: 50%;
       color: var(--blue);
-      font-size: 11px;
-      font-weight: 800;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .character-button[aria-pressed="true"] .character-mark {
+      color: var(--text);
+      border-color: var(--selected-border);
+      background: var(--panel);
     }
 
     .character-button strong { color: var(--text); font-size: 13px; font-weight: 700; white-space: nowrap; }
-    .character-button small { color: var(--muted); font-size: 11px; white-space: nowrap; }
+    .character-button small { color: var(--muted); font-size: 12px; white-space: nowrap; }
 
     .context-divider { width: 1px; height: 26px; background: var(--section-border); }
 
@@ -331,7 +341,7 @@
     .segmented button + button { border-left: 1px solid var(--section-border); }
     .segmented button:hover { color: var(--text); background: var(--hover); }
     .segmented button.active { color: var(--text); background: var(--selected); font-weight: 700; }
-    .segmented small { margin-left: 4px; color: var(--muted); font-size: 11px; }
+    .segmented small { margin-left: 4px; color: var(--muted); font-size: 12px; }
 
     .content-frame {
       margin: 0 20px 28px;
@@ -400,14 +410,13 @@
 
     .loadout-entry.active {
       background: var(--selected);
-      box-shadow: inset 3px 0 0 var(--blue);
     }
 
-    .entry-index { color: var(--blue); font-size: 12px; font-weight: 800; font-variant-numeric: tabular-nums; }
+    .entry-index { color: var(--blue); font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; }
     .loadout-entry strong,
     .loadout-entry small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .loadout-entry strong { color: var(--text); font-size: 13px; }
-    .loadout-entry small { margin-top: 3px; color: var(--muted); font-size: 11px; }
+    .loadout-entry small { margin-top: 4px; color: var(--muted); font-size: 12px; }
 
     .source-badge,
     .status-badge,
@@ -424,7 +433,7 @@
       padding: 0 7px;
       color: var(--muted);
       background: var(--panel-soft);
-      font-size: 11px;
+      font-size: 12px;
       font-style: normal;
     }
 
@@ -437,8 +446,8 @@
       border-bottom: 1px solid var(--section-border);
     }
 
-    .detail-kicker { color: var(--blue); font-size: 12px; font-weight: 800; }
-    .detail-head h2 { margin: 3px 0 0; color: var(--text); font-size: 19px; line-height: 25px; }
+    .detail-kicker { color: var(--blue); font-size: 12px; font-weight: 700; }
+    .detail-head h2 { margin: 4px 0 0; color: var(--text); font-size: 18px; line-height: 24px; }
     .detail-head p { max-width: 650px; margin: 4px 0 0; color: var(--muted); font-size: 12px; line-height: 1.5; text-wrap: pretty; }
 
     .actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
@@ -494,7 +503,7 @@
       border-bottom: 1px solid var(--section-border);
       color: var(--muted);
       background: var(--panel-soft);
-      font-size: 11px;
+      font-size: 12px;
       font-weight: 700;
     }
 
@@ -541,7 +550,7 @@
       border-radius: var(--radius-control);
       color: var(--muted);
       background: var(--panel-recessed);
-      font-size: 10px;
+      font-size: 12px;
       font-weight: 700;
     }
 
@@ -553,7 +562,7 @@
     .item-copy { min-width: 0; }
     .item-copy strong { display: block; overflow: hidden; color: var(--text); font-size: 14px; text-overflow: ellipsis; white-space: nowrap; }
     .item-meta { display: flex; flex-wrap: wrap; gap: 4px 8px; margin-top: 3px; color: var(--body); font-size: 12px; }
-    .item-trace { display: block; overflow: hidden; margin-top: 3px; color: var(--muted); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+    .item-trace { display: block; overflow: hidden; margin-top: 4px; color: var(--muted); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 
     .item-facts { display: grid; min-width: 0; gap: 5px; }
     .location-line { display: flex; min-width: 0; align-items: center; gap: 7px; color: var(--body); font-size: 12px; }
@@ -569,7 +578,7 @@
       overflow: hidden;
       color: var(--body);
       background: var(--panel-soft);
-      font-size: 11px;
+      font-size: 12px;
       text-overflow: ellipsis;
     }
 
@@ -580,14 +589,14 @@
     .status-badge {
       min-height: 24px;
       padding: 0 8px;
-      font-size: 11px;
+      font-size: 12px;
       font-style: normal;
       font-weight: 700;
     }
 
     .status-badge.success { color: var(--green); border-color: #73a890; background: var(--green-soft); }
     .status-badge.warning { color: var(--amber); border-color: #c7a35c; background: var(--amber-soft); }
-    .item-state small { color: var(--muted); font-size: 10px; text-align: right; }
+    .item-state small { color: var(--muted); font-size: 12px; text-align: right; }
 
     .row-chevron {
       display: grid;
@@ -613,8 +622,8 @@
 
     .item-extra div { min-width: 0; padding: 9px 10px; }
     .item-extra div + div { border-left: 1px solid var(--section-border); }
-    .item-extra dt { color: var(--muted); font-size: 10px; font-weight: 700; }
-    .item-extra dd { margin: 3px 0 0; overflow-wrap: anywhere; color: var(--body); font-size: 11px; line-height: 1.45; }
+    .item-extra dt { color: var(--muted); font-size: 12px; font-weight: 700; }
+    .item-extra dd { margin: 4px 0 0; overflow-wrap: anywhere; color: var(--body); font-size: 12px; line-height: 1.5; }
 
     .detail-footer {
       display: flex;
@@ -624,7 +633,7 @@
       padding: 0 14px;
       color: var(--muted);
       background: #fafbfb;
-      font-size: 11px;
+      font-size: 12px;
     }
 
     .detail-footer svg { width: 14px; height: 14px; color: var(--blue); }
@@ -642,8 +651,8 @@
     }
 
     .audit-metrics dt { color: var(--body); font-size: 12px; }
-    .audit-metrics dt small { display: block; margin-top: 3px; color: var(--muted); font-size: 10px; line-height: 1.35; }
-    .audit-metrics dd { margin: 0; color: var(--text); font-size: 20px; font-weight: 800; text-align: right; font-variant-numeric: tabular-nums; }
+    .audit-metrics dt small { display: block; margin-top: 4px; color: var(--muted); font-size: 12px; line-height: 1.4; }
+    .audit-metrics dd { margin: 0; color: var(--text); font-size: 20px; font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
     .audit-metrics .good dd { color: var(--green); }
     .audit-metrics .warn dd { color: var(--amber); }
 
@@ -651,7 +660,7 @@
     .audit-block h3 { margin: 0; color: var(--text); font-size: 12px; }
 
     .audit-list { display: grid; gap: 8px; margin: 9px 0 0; padding: 0; list-style: none; }
-    .audit-list li { display: grid; grid-template-columns: 15px minmax(0, 1fr); gap: 7px; color: var(--body); font-size: 11px; line-height: 1.45; }
+    .audit-list li { display: grid; grid-template-columns: 16px minmax(0, 1fr); gap: 8px; color: var(--body); font-size: 12px; line-height: 1.5; }
     .audit-list svg { width: 14px; height: 14px; margin-top: 1px; color: var(--green); }
     .audit-list li.warning svg { color: var(--amber); }
 
@@ -660,10 +669,261 @@
       padding: 11px 12px;
       color: var(--body);
       background: var(--blue-soft);
-      font-size: 11px;
+      font-size: 12px;
       line-height: 1.5;
       text-wrap: pretty;
     }
+
+    .local-context-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-left: auto;
+    }
+
+    .view-panel[hidden],
+    .local-context-actions[hidden] { display: none !important; }
+
+    .operation-status.local .status-dot { background: var(--amber); }
+
+    .local-plan-list { background: var(--panel); }
+
+    .local-plan-entry {
+      display: grid;
+      grid-template-columns: 28px minmax(0, 1fr) auto;
+      width: 100%;
+      min-height: 62px;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      border: 0;
+      border-bottom: 1px solid var(--section-border);
+      color: var(--body);
+      background: transparent;
+      text-align: left;
+    }
+
+    .local-plan-entry:hover { background: var(--hover); }
+    .local-plan-entry[aria-pressed="true"] { background: var(--selected); }
+    .local-plan-entry > span:nth-child(2) { min-width: 0; }
+    .local-plan-entry strong,
+    .local-plan-entry small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .local-plan-entry strong { color: var(--text); font-size: 13px; }
+    .local-plan-entry small { margin-top: 4px; color: var(--muted); font-size: 12px; }
+
+    .local-plan-mark {
+      display: grid;
+      width: 25px;
+      height: 25px;
+      place-items: center;
+      border: 1px solid var(--object-border);
+      border-radius: var(--radius-control);
+      color: var(--blue);
+      background: var(--panel-soft);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .local-plan-state {
+      display: inline-flex;
+      min-height: 22px;
+      align-items: center;
+      padding: 0 7px;
+      border: 1px solid var(--object-border);
+      border-radius: 999px;
+      color: var(--muted);
+      background: var(--panel-soft);
+      font-size: 12px;
+      font-style: normal;
+      white-space: nowrap;
+    }
+
+    .local-plan-state.warning { color: var(--amber); border-color: #c7a35c; background: var(--amber-soft); }
+    .local-plan-state.ready { color: var(--green); border-color: #73a890; background: var(--green-soft); }
+
+    .local-config-head {
+      display: flex;
+      min-height: 38px;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 11px;
+      border-top: 8px solid var(--panel-recessed);
+      border-bottom: 1px solid var(--section-border);
+      color: var(--muted);
+      background: var(--panel-soft);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .local-config-nav { display: grid; padding: 5px; background: var(--panel); }
+
+    .local-config-button {
+      display: flex;
+      min-height: 34px;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 0 8px;
+      border: 0;
+      border-radius: var(--radius-control);
+      color: var(--body);
+      background: transparent;
+      text-align: left;
+    }
+
+    .local-config-button:hover { color: var(--text); background: var(--hover); }
+    .local-config-button[aria-current="true"] { color: var(--text); background: var(--selected); }
+    .local-config-button svg { width: 14px; height: 14px; color: var(--muted); }
+    .local-config-button span { flex: 1; font-size: 12px; }
+    .local-config-button small { color: var(--muted); font-size: 12px; }
+
+    .local-detail-head { align-items: center; }
+
+    .local-unsaved {
+      display: flex;
+      min-height: 38px;
+      align-items: center;
+      gap: 8px;
+      padding: 0 14px;
+      border-bottom: 1px solid var(--section-border);
+      color: var(--body);
+      background: var(--amber-soft);
+      font-size: 12px;
+    }
+
+    .local-unsaved svg { width: 14px; height: 14px; color: var(--amber); }
+    .local-unsaved strong { color: var(--text); }
+
+    .local-editor-section { border-bottom: 1px solid var(--section-border); }
+
+    .local-section-head {
+      display: flex;
+      min-height: 42px;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 0 14px;
+      background: #fafbfb;
+    }
+
+    .local-section-head > div { min-width: 0; }
+    .local-section-head strong { display: block; color: var(--text); font-size: 13px; }
+    .local-section-head small { display: block; margin-top: 4px; color: var(--muted); font-size: 12px; }
+
+    .local-form-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px 12px;
+      padding: 12px 14px 14px;
+    }
+
+    .local-field { display: grid; min-width: 0; gap: 5px; }
+    .local-field.wide { grid-column: 1 / -1; }
+    .local-field > span { color: var(--muted); font-size: 12px; font-weight: 700; }
+
+    .local-field input,
+    .local-field select,
+    .local-field textarea {
+      width: 100%;
+      min-width: 0;
+      min-height: var(--control-h);
+      padding: 6px 9px;
+      border: 1px solid var(--control-border);
+      border-radius: var(--radius-control);
+      color: var(--text);
+      background: var(--panel);
+    }
+
+    .local-field textarea { min-height: 58px; resize: vertical; line-height: 1.45; }
+    .local-field input[readonly] { color: var(--muted); background: var(--panel-soft); }
+
+    .local-target-list { display: grid; }
+
+    .local-target-row {
+      display: grid;
+      grid-template-columns: 38px minmax(150px, 0.8fr) minmax(210px, 1.2fr) 112px;
+      min-height: 64px;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 14px;
+      border-top: 1px solid var(--section-border);
+    }
+
+    .local-target-row:first-child { border-top: 0; }
+
+    .local-target-art {
+      display: grid;
+      width: 36px;
+      height: 36px;
+      place-items: center;
+      border: 1px solid var(--object-border);
+      border-radius: var(--radius-control);
+      color: var(--blue);
+      background: var(--panel-recessed);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .local-target-copy,
+    .local-target-match { min-width: 0; }
+    .local-target-copy strong,
+    .local-target-copy small,
+    .local-target-match strong,
+    .local-target-match small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .local-target-copy strong { color: var(--text); font-size: 13px; }
+    .local-target-copy small,
+    .local-target-match small { margin-top: 4px; color: var(--muted); font-size: 12px; }
+    .local-target-match strong { color: var(--body); font-size: 12px; font-weight: 600; }
+
+    .local-target-action { display: grid; justify-items: end; gap: 4px; }
+
+    .constraint-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+      padding: 12px 14px 14px;
+    }
+
+    .constraint-card {
+      padding: 9px 10px;
+      border: 1px solid var(--section-border);
+      border-radius: var(--radius-control);
+      background: var(--panel-soft);
+    }
+
+    .constraint-card span,
+    .constraint-card strong { display: block; }
+    .constraint-card span { color: var(--muted); font-size: 12px; }
+    .constraint-card strong { margin-top: 3px; color: var(--text); font-size: 13px; }
+
+    .constraint-chips { display: flex; flex-wrap: wrap; gap: 4px; padding: 0 14px 14px; }
+
+    .execution-panel {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 16px;
+      align-items: center;
+      padding: 12px 14px;
+      background: #fafbfb;
+    }
+
+    .execution-panel strong { display: block; color: var(--text); font-size: 13px; }
+    .execution-panel p { margin: 4px 0 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+
+    .local-summary-status {
+      display: grid;
+      gap: 7px;
+      padding: 12px;
+      border-bottom: 1px solid var(--section-border);
+      background: var(--panel);
+    }
+
+    .local-summary-status > span { color: var(--muted); font-size: 12px; font-weight: 700; }
+    .local-summary-status > strong { color: var(--amber); font-size: 15px; }
+    .local-summary-status > p { margin: 0; color: var(--body); font-size: 12px; line-height: 1.5; }
+
+    .local-summary-actions { display: grid; gap: 6px; padding: 12px; border-bottom: 1px solid var(--section-border); }
+    .local-summary-actions .button { width: 100%; }
 
     .tweaks-trigger {
       position: fixed;
@@ -715,7 +975,7 @@
 
     .tweaks-body { display: grid; gap: 12px; padding: 12px; }
     .tweak-field { display: grid; gap: 5px; }
-    .tweak-field span { color: var(--muted); font-size: 11px; font-weight: 700; }
+    .tweak-field span { color: var(--muted); font-size: 12px; font-weight: 700; }
     .tweak-field select {
       width: 100%;
       min-height: 34px;
@@ -860,21 +1120,26 @@
           <div class="context-block">
             <span class="context-label">视图</span>
             <div class="segmented" role="tablist" aria-label="配装类型">
-              <button class="active" type="button" role="tab" aria-selected="true" data-context-label="游戏内配装">游戏内配装 <small>Bungie</small></button>
-              <button type="button" role="tab" aria-selected="false" data-context-label="本地配装方案">本地配装方案 <small>本机</small></button>
+              <button class="active" id="modeInGame" type="button" role="tab" aria-selected="true" aria-controls="inGameWorkspace" tabindex="0" data-context-label="游戏内配装">游戏内配装 <small>Bungie</small></button>
+              <button id="modeLocal" type="button" role="tab" aria-selected="false" aria-controls="localWorkspace" tabindex="-1" data-context-label="本地配装方案">本地配装方案 <small>本机</small></button>
             </div>
           </div>
 
+          <div class="local-context-actions" id="localContextActions" hidden>
+            <button class="button" type="button"><i data-lucide="files"></i>从现有内容创建</button>
+            <button class="button" type="button"><i data-lucide="download"></i>导入 DIM</button>
+            <button class="button primary" type="button"><i data-lucide="plus"></i>新建方案</button>
+          </div>
         </section>
 
         <section class="content-frame">
-          <div class="operation-status" role="status">
+          <div class="operation-status" id="operationStatus" role="status">
             <span class="status-dot" aria-hidden="true"></span>
-            <strong>就绪</strong>
-            <span>选择游戏内配装槽位后再应用，或将当前装备保存到真实 Bungie 槽位。</span>
+            <strong id="operationTitle">就绪</strong>
+            <span id="operationMessage">选择游戏内配装槽位后再应用，或将当前装备保存到真实 Bungie 槽位。</span>
           </div>
 
-          <div class="workspace">
+          <div class="workspace view-panel" id="inGameWorkspace" role="tabpanel" aria-labelledby="modeInGame">
             <aside class="directory">
               <header class="column-head"><strong>Bungie 游戏内配装</strong><small>6 个已保存槽位</small></header>
               <div class="loadout-list">
@@ -1148,6 +1413,147 @@
               <p class="audit-note">游戏内配装由 Bungie 直接应用。未定位记录用于账号核对，不代表官方槽位不可用，也不会被本地方案自动替换。</p>
             </aside>
           </div>
+
+          <div class="workspace local-workspace view-panel" id="localWorkspace" role="tabpanel" aria-labelledby="modeLocal" hidden>
+            <aside class="directory">
+              <header class="column-head"><strong>本地配装方案</strong><small>3 个已保存方案 · 本机数据</small></header>
+              <div class="local-plan-list">
+                <button class="local-plan-entry" type="button" aria-pressed="true">
+                  <span class="local-plan-mark">术</span>
+                  <span><strong>术士 本地方案</strong><small>当前装备 · 8 项目标</small></span>
+                  <em class="local-plan-state warning">有修改</em>
+                </button>
+                <button class="local-plan-entry" type="button" aria-pressed="false">
+                  <span class="local-plan-mark">P</span>
+                  <span><strong>PvE 本地副本</strong><small>Bungie 槽位 01 · 10 项</small></span>
+                  <em class="local-plan-state ready">可核对</em>
+                </button>
+                <button class="local-plan-entry" type="button" aria-pressed="false">
+                  <span class="local-plan-mark">攻</span>
+                  <span><strong>攻略配装</strong><small>攻略解析 · 6 项条件</small></span>
+                  <em class="local-plan-state">仅记录</em>
+                </button>
+              </div>
+
+              <div class="local-config-head"><span>当前方案配置</span><span>6 个章节</span></div>
+              <nav class="local-config-nav" aria-label="本地方案配置目录">
+                <button class="local-config-button" type="button" aria-current="true"><i data-lucide="file-pen"></i><span>基础信息</span><small>完整</small></button>
+                <button class="local-config-button" type="button" aria-current="false"><i data-lucide="sparkles"></i><span>子职业与构筑</span><small>仅记录</small></button>
+                <button class="local-config-button" type="button" aria-current="false"><i data-lucide="crosshair"></i><span>武器</span><small>3</small></button>
+                <button class="local-config-button" type="button" aria-current="false"><i data-lucide="shield"></i><span>护甲</span><small>5</small></button>
+                <button class="local-config-button" type="button" aria-current="false"><i data-lucide="bar-chart-3"></i><span>属性与模组</span><small>已设置</small></button>
+                <button class="local-config-button" type="button" aria-current="false"><i data-lucide="list-checks"></i><span>核对与执行</span><small>1 缺口</small></button>
+              </nav>
+            </aside>
+
+            <section class="detail">
+              <header class="detail-head local-detail-head">
+                <div>
+                  <span class="detail-kicker">本地方案工作台 · 术士</span>
+                  <h2>术士 本地方案</h2>
+                  <p>从当前装备创建 · 保存只写入本机，应用成功并刷新核对后才能发布到 Bungie 槽位。</p>
+                </div>
+                <div class="actions">
+                  <button class="button" type="button"><i data-lucide="log-out"></i>退出工作台</button>
+                  <button class="button primary" type="button"><i data-lucide="save"></i>保存本地方案</button>
+                </div>
+              </header>
+
+              <div class="local-unsaved"><i data-lucide="triangle-alert"></i><strong>有未保存修改</strong><span>护甲属性目标和一个装备实例已发生变化。</span></div>
+
+              <section class="local-editor-section">
+                <header class="local-section-head">
+                  <div><strong>基础信息</strong><small>方案身份、目标角色和来源追溯</small></div>
+                  <span class="status-badge success">字段完整</span>
+                </header>
+                <div class="local-form-grid">
+                  <label class="local-field"><span>方案名称</span><input value="术士 本地方案" /></label>
+                  <label class="local-field"><span>目标角色</span><select><option>术士 · 当前角色</option><option>泰坦</option></select></label>
+                  <label class="local-field"><span>创建来源</span><input value="当前装备" readonly /></label>
+                  <label class="local-field"><span>方案职业</span><input value="术士" readonly /></label>
+                  <label class="local-field wide"><span>备注</span><textarea>虚空高难配装，韧性与纪律优先；子职业配置保留为攻略记录。</textarea></label>
+                </div>
+              </section>
+
+              <section class="local-editor-section">
+                <header class="local-section-head">
+                  <div><strong>装备目标</strong><small>必须绑定当前账号中的真实实例；同名多实例不自动代选</small></div>
+                  <button class="button" type="button"><i data-lucide="plus"></i>添加装备</button>
+                </header>
+                <div class="local-target-list">
+                  <div class="local-target-row">
+                    <span class="local-target-art">武</span>
+                    <span class="local-target-copy"><strong>赴险者</strong><small>能量武器 · 异域微型冲锋枪</small></span>
+                    <span class="local-target-match"><strong>术士背包 · 实例 2166136261</strong><small>固定配置，4 个已确认组件</small></span>
+                    <span class="local-target-action"><em class="status-badge success">已选实例</em><button class="button quiet" type="button">更换</button></span>
+                  </div>
+                  <div class="local-target-row">
+                    <span class="local-target-art">武</span>
+                    <span class="local-target-copy"><strong>注视焦点</strong><small>威能武器 · 线性融合步枪</small></span>
+                    <span class="local-target-match"><strong>术士 · 当前已装备</strong><small>目标配置可核对</small></span>
+                    <span class="local-target-action"><em class="status-badge success">已选实例</em><button class="button quiet" type="button">更换</button></span>
+                  </div>
+                  <div class="local-target-row">
+                    <span class="local-target-art">头</span>
+                    <span class="local-target-copy"><strong>风暴头冠</strong><small>头盔 · 术士异域护甲</small></span>
+                    <span class="local-target-match"><strong>找到 2 个同名实例</strong><small>必须选择具体实例后才能执行</small></span>
+                    <span class="local-target-action"><em class="status-badge warning">需要选择</em><button class="button" type="button">选择实例</button></span>
+                  </div>
+                  <div class="local-target-row">
+                    <span class="local-target-art">胸</span>
+                    <span class="local-target-copy"><strong>移民号陨落法袍</strong><small>胸甲 · 术士护甲</small></span>
+                    <span class="local-target-match"><strong>术士背包 · 实例 2166136261</strong><small>模组配置只记录已确认 Hash</small></span>
+                    <span class="local-target-action"><em class="status-badge success">已选实例</em><button class="button quiet" type="button">更换</button></span>
+                  </div>
+                </div>
+              </section>
+
+              <section class="local-editor-section">
+                <header class="local-section-head">
+                  <div><strong>属性与护甲候选</strong><small>六维最低目标、固定异域与模组预算</small></div>
+                  <button class="button" type="button"><i data-lucide="calculator"></i>重新计算</button>
+                </header>
+                <div class="constraint-grid">
+                  <div class="constraint-card"><span>优先属性</span><strong>韧性 / 纪律</strong></div>
+                  <div class="constraint-card"><span>最低目标</span><strong>100 / 100 / 70</strong></div>
+                  <div class="constraint-card"><span>模组预算</span><strong>+10 × 3</strong></div>
+                </div>
+                <div class="constraint-chips"><span class="fact-chip">固定异域：风暴头冠</span><span class="fact-chip">仓库与角色背包</span><span class="fact-chip">候选 4 组</span><span class="fact-chip muted">碎片变化仅记录</span></div>
+              </section>
+
+              <section class="execution-panel">
+                <div><strong>核对与执行</strong><p>7 个实例已确定，1 个护甲目标等待选择。当前方案还不能生成完整执行计划。</p></div>
+                <button class="button primary" type="button" disabled><i data-lucide="play"></i>确认并应用</button>
+              </section>
+            </section>
+
+            <aside class="audit local-summary">
+              <header class="column-head"><strong>方案摘要</strong><small>即时派生 · 不写入方案文件</small></header>
+              <section class="local-summary-status">
+                <span>当前状态</span>
+                <strong>有未保存修改</strong>
+                <p>保存本地方案后才能生成最终执行计划。保存不会写入 Bungie。</p>
+              </section>
+              <dl class="audit-metrics">
+                <div><dt>装备目标<small>武器、护甲与职业物品</small></dt><dd>8</dd></div>
+                <div class="good"><dt>已选实例<small>可进入执行计划</small></dt><dd>7</dd></div>
+                <div class="warn"><dt>待处理<small>同名多实例需要选择</small></dt><dd>1</dd></div>
+              </dl>
+              <section class="audit-block">
+                <h3>执行边界</h3>
+                <ul class="audit-list">
+                  <li><i data-lucide="circle-check"></i><span>目标角色为术士，职业与方案一致。</span></li>
+                  <li><i data-lucide="circle-check"></i><span>7 个装备实例已在账号快照中定位。</span></li>
+                  <li class="warning"><i data-lucide="triangle-alert"></i><span>风暴头冠存在两个实例，尚未明确选择。</span></li>
+                </ul>
+              </section>
+              <div class="local-summary-actions">
+                <button class="button primary" type="button"><i data-lucide="save"></i>保存本地方案</button>
+                <button class="button" type="button" disabled><i data-lucide="upload"></i>保存到游戏内槽位</button>
+              </div>
+              <p class="audit-note">只有方案应用成功并刷新账号核对后，才开放保存到 Bungie 槽位。覆盖已有槽位必须再次确认。</p>
+            </aside>
+          </div>
         </section>
       </div>
     </main>
@@ -1196,6 +1602,14 @@
     const variantSelect = document.getElementById("variantSelect");
     const densitySelect = document.getElementById("densitySelect");
     const borderSelect = document.getElementById("borderSelect");
+    const modeInGame = document.getElementById("modeInGame");
+    const modeLocal = document.getElementById("modeLocal");
+    const inGameWorkspace = document.getElementById("inGameWorkspace");
+    const localWorkspace = document.getElementById("localWorkspace");
+    const localContextActions = document.getElementById("localContextActions");
+    const operationStatus = document.getElementById("operationStatus");
+    const operationTitle = document.getElementById("operationTitle");
+    const operationMessage = document.getElementById("operationMessage");
 
     function setPanel(open) {
       panel.classList.toggle("open", open);
@@ -1232,13 +1646,40 @@
       });
     });
 
-    document.querySelectorAll(".segmented button").forEach((button) => {
+    const modeButtons = Array.from(document.querySelectorAll(".segmented button"));
+
+    function selectMode(button) {
+      modeButtons.forEach((item) => {
+        const active = item === button;
+        item.classList.toggle("active", active);
+        item.setAttribute("aria-selected", String(active));
+        item.tabIndex = active ? 0 : -1;
+      });
+      const local = button === modeLocal;
+      inGameWorkspace.hidden = local;
+      localWorkspace.hidden = !local;
+      localContextActions.hidden = !local;
+      operationStatus.classList.toggle("local", local);
+      operationTitle.textContent = local ? "本地方案有未保存修改" : "就绪";
+      operationMessage.textContent = local
+        ? "保存只写入本机；补齐实例并完成账号刷新核对后，才能应用或发布到 Bungie 槽位。"
+        : "选择游戏内配装槽位后再应用，或将当前装备保存到真实 Bungie 槽位。";
+    }
+
+    modeButtons.forEach((button, index) => {
       button.addEventListener("click", () => {
-        document.querySelectorAll(".segmented button").forEach((item) => {
-          const active = item === button;
-          item.classList.toggle("active", active);
-          item.setAttribute("aria-selected", String(active));
-        });
+        selectMode(button);
+      });
+      button.addEventListener("keydown", (event) => {
+        if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+        event.preventDefault();
+        const nextIndex = event.key === "Home"
+          ? 0
+          : event.key === "End"
+            ? modeButtons.length - 1
+            : (index + (event.key === "ArrowRight" ? 1 : -1) + modeButtons.length) % modeButtons.length;
+        selectMode(modeButtons[nextIndex]);
+        modeButtons[nextIndex].focus();
       });
     });
 
@@ -1248,6 +1689,22 @@
           const active = item === button;
           item.classList.toggle("active", active);
           item.setAttribute("aria-pressed", String(active));
+        });
+      });
+    });
+
+    document.querySelectorAll(".local-plan-entry").forEach((button) => {
+      button.addEventListener("click", () => {
+        document.querySelectorAll(".local-plan-entry").forEach((item) => {
+          item.setAttribute("aria-pressed", String(item === button));
+        });
+      });
+    });
+
+    document.querySelectorAll(".local-config-button").forEach((button) => {
+      button.addEventListener("click", () => {
+        document.querySelectorAll(".local-config-button").forEach((item) => {
+          item.setAttribute("aria-current", String(item === button));
         });
       });
     });

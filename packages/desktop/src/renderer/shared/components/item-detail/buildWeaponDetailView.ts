@@ -5,6 +5,7 @@ import {
   isEnhancedWeaponPerk,
   isWeaponSystemPlug,
   perkGroupsToPoolColumns,
+  weaponSocketColumnLabel,
   type WeaponDetailViewModel,
   type WeaponDetailInstanceMetadata,
   type WeaponPerkSelectionColumn,
@@ -492,54 +493,73 @@ function buildSelectionColumns(
 ): WeaponPerkSelectionColumn[] {
   if (item.sockets?.length) {
     const poolBySocket = new Map(poolColumns.map((column) => [column.socket_index, column]));
-    return labelTraitColumns(sortConfigurationColumns(item.sockets.flatMap((socket) => {
-      const pool = poolBySocket.get(socket.socket_index);
+    const selectedSocketHashes = new Set(item.sockets.flatMap((socket) => (
+      socket.selected_plug ? [socket.selected_plug.hash] : []
+    )));
+    const occupiedSocketIndexes = new Set(item.sockets.flatMap((socket) => (
+      socket.selected_plug && !isWeaponSystemPlug(socket.selected_plug) ? [socket.socket_index] : []
+    )));
+    const fallbackBySocket = new Map<number, NonNullable<SelectedItemDetail["socket_plugs"]>[number]>();
+    for (const plug of item.socket_plugs ?? []) {
+      if (selectedSocketHashes.has(plug.hash) || isWeaponSystemPlug(plug)) continue;
+      const normalizedName = normalizePerkVariantName(plug.name);
+      const pool = poolColumns.find((column) => (
+        !fallbackBySocket.has(column.socket_index)
+        && !occupiedSocketIndexes.has(column.socket_index)
+        && column.candidates.some((candidate) => (
+          candidate.hash === plug.hash || normalizePerkVariantName(candidate.name) === normalizedName
+        ))
+      ));
+      if (pool) fallbackBySocket.set(pool.socket_index, plug);
+    }
+
+    const socketsByIndex = new Map(item.sockets.map((socket) => [socket.socket_index, socket]));
+    const socketIndexes = new Set([...socketsByIndex.keys(), ...fallbackBySocket.keys()]);
+    return labelTraitColumns(sortConfigurationColumns([...socketIndexes].flatMap((socketIndex) => {
+      const socket = socketsByIndex.get(socketIndex);
+      const fallbackPlug = fallbackBySocket.get(socketIndex);
+      const pool = poolBySocket.get(socketIndex);
       const socketPlugs = [
-        ...(socket.selected_plug ? [socket.selected_plug] : []),
-        ...socket.reusable_plugs
+        ...(socket?.selected_plug ? [socket.selected_plug] : fallbackPlug ? [fallbackPlug] : []),
+        ...(socket?.reusable_plugs ?? [])
       ];
       const role = pool?.role ?? classifyWeaponSocketPlugs(socketPlugs);
       if (!role || role === "intrinsic") return [];
-      const reusablePlugs = socket.reusable_plugs.filter((plug) => !isWeaponSystemPlug(plug));
-      const selectedPlug = socket.selected_plug && !isWeaponSystemPlug(socket.selected_plug)
+      const reusablePlugs = (socket?.reusable_plugs ?? []).filter((plug) => !isWeaponSystemPlug(plug));
+      const selectedPlug = socket?.selected_plug && !isWeaponSystemPlug(socket.selected_plug)
         ? socket.selected_plug
-        : undefined;
+        : fallbackPlug && !isWeaponSystemPlug(fallbackPlug)
+          ? fallbackPlug
+          : undefined;
       if (!reusablePlugs.length && !selectedPlug) return [];
       const poolHashes = new Set(pool?.candidates.map((candidate) => candidate.hash) ?? []);
+      const poolNames = new Set(pool?.candidates.map((candidate) => normalizePerkVariantName(candidate.name)) ?? []);
+      const reusableHashes = new Set(reusablePlugs.map((plug) => plug.hash));
+      const selectedFallback = selectedPlug && !reusableHashes.has(selectedPlug.hash)
+        ? [selectedPlug]
+        : [];
       return [{
-        key: pool?.key ?? `socket-${socket.socket_index}`,
-        socket_index: socket.socket_index,
-        label: pool?.label ?? socketLabel(socket.socket_index, role),
+        key: pool?.key ?? `socket-${socketIndex}`,
+        socket_index: socketIndex,
+        label: pool?.label ?? weaponSocketColumnLabel(socketPlugs, role, socketIndex),
         role,
-        candidates: reusablePlugs.length
-          ? reusablePlugs.map((plug) => ({
-              hash: plug.hash,
-              name: plug.name,
-              description: plug.description ?? "",
-              icon: plug.icon,
-              enhanced_of_hash: isEnhancedWeaponPerk(plug) ? findBasePerkHash(plug.name, pool?.candidates) : undefined,
-              selected: plug.selected,
-              can_apply: socket.is_enabled
-                && plug.can_insert === true
-                && plug.enabled !== false
-                && plug.insert_fail_indexes.length === 0
-                && plug.enable_fail_indexes.length === 0,
-              pending: pendingPerks?.[socket.socket_index] === plug.hash,
-              unresolved_in_definition_pool: !poolHashes.has(plug.hash)
-            }))
-          : selectedPlug
-            ? [{
-                hash: selectedPlug.hash,
-                name: selectedPlug.name,
-                description: selectedPlug.description ?? "",
-                icon: selectedPlug.icon,
-                enhanced_of_hash: isEnhancedWeaponPerk(selectedPlug) ? findBasePerkHash(selectedPlug.name, pool?.candidates) : undefined,
-                selected: true,
-                can_apply: false,
-                pending: false,
-                unresolved_in_definition_pool: !poolHashes.has(selectedPlug.hash)
-              }]
-            : []
+        candidates: [...reusablePlugs, ...selectedFallback].map((plug) => ({
+          hash: plug.hash,
+          name: plug.name,
+          description: plug.description ?? "",
+          icon: plug.icon,
+          enhanced_of_hash: isEnhancedWeaponPerk(plug) ? findBasePerkHash(plug.name, pool?.candidates) : undefined,
+          selected: "selected" in plug ? plug.selected || selectedPlug?.hash === plug.hash : selectedPlug?.hash === plug.hash,
+          can_apply: "can_insert" in plug
+            && socket?.is_enabled === true
+            && plug.can_insert === true
+            && plug.enabled !== false
+            && plug.insert_fail_indexes.length === 0
+            && plug.enable_fail_indexes.length === 0,
+          pending: pendingPerks?.[socketIndex] === plug.hash,
+          unresolved_in_definition_pool: !poolHashes.has(plug.hash)
+            && !poolNames.has(normalizePerkVariantName(plug.name))
+        }))
       }];
     })));
   }
@@ -784,20 +804,8 @@ function plugHasSemanticType(
     && !category.includes("memento");
 }
 
-function socketLabel(socketIndex: number, role: WeaponPerkColumnRole): string {
-  if (role === "barrel") return "枪管";
-  if (role === "magazine") return "弹匣 / 电池";
-  if (role === "origin") return "起源特性";
-  if (role === "trait") return "武器特性";
-  return `Perk ${socketIndex + 1}`;
-}
-
 function sortConfigurationColumns<T extends { role: WeaponPerkColumnRole; socket_index: number }>(columns: T[]): T[] {
-  return [...columns].sort((left, right) => {
-    if (left.role === "origin" && right.role !== "origin") return 1;
-    if (right.role === "origin" && left.role !== "origin") return -1;
-    return left.socket_index - right.socket_index;
-  });
+  return [...columns].sort((left, right) => left.socket_index - right.socket_index);
 }
 
 function labelTraitColumns(columns: WeaponPerkSelectionColumn[]): WeaponPerkSelectionColumn[] {

@@ -73,5 +73,6 @@ export {
   classifyWeaponSocketPlugs,
   isEnhancedWeaponPerk,
   isWeaponSystemPlug,
-  perkGroupsToPoolColumns
+  perkGroupsToPoolColumns,
+  weaponSocketColumnLabel
 } from "./workspaces/weaponDetail.js";

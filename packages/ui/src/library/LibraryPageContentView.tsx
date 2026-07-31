@@ -13,6 +13,11 @@ import type {
   PerkSearchResult,
   VaultItemMatchInfo
 } from "@d2-tools/app/library";
+import {
+  classifyWeaponSocketPlugs,
+  isWeaponSystemPlug,
+  weaponSocketColumnLabel
+} from "@d2-tools/app/items";
 import { getLocaleCopy } from "../i18n/copy.js";
 import type { InterfaceLocale, LibraryCopy } from "../i18n/types.js";
 import type { VendorOfferContext } from "../item-detail/SharedItemDetailDialog.js";
@@ -477,7 +482,7 @@ export function LibraryDefinitionDialog(props: {
   const liveEntry = props.liveEntry;
   const communityMatch = props.communityMatch;
   const weaponPerkColumns = item.group_key === "weapons"
-    ? getLibraryWeaponPerkColumns(item.perks ?? [], item.item_type)
+    ? getLibraryWeaponPerkColumns(item.perks ?? [])
     : [];
   const vendorArmorStats = item.group_key === "armor"
     ? getVendorArmorStats(props.vendorContext?.stats)
@@ -725,64 +730,37 @@ export function getLibraryRandomPerkGroups(groups: LibraryPerkGroup[]): LibraryP
   return normalizeLibraryWeaponPerkGroups(groups);
 }
 
-export function getLibraryWeaponPerkColumns(groups: LibraryPerkGroup[], itemType = ""): LibraryWeaponPerkColumn[] {
-  const labels = getLibraryWeaponColumnLabels(itemType);
-  return normalizeLibraryWeaponPerkGroups(groups)
+export function getLibraryWeaponPerkColumns(groups: LibraryPerkGroup[]): LibraryWeaponPerkColumn[] {
+  const columns = normalizeLibraryWeaponPerkGroups(groups)
     .flatMap((group) => {
-      const label = labels[group.socket_index];
-      if (!label) {
-        return [];
-      }
+      const role = classifyWeaponSocketPlugs(group.plugs);
+      if (!role) return [];
 
       return [{
         key: `socket-${group.socket_index}`,
-        label,
+        socket_index: group.socket_index,
+        label: weaponSocketColumnLabel(group.plugs, role, group.socket_index),
+        role,
         plugs: group.plugs
       }];
-    });
+    })
+    .sort((left, right) => left.socket_index - right.socket_index);
+  let traitIndex = 0;
+  return columns.map((column) => ({
+    key: column.key,
+    label: column.role === "trait" ? `Perk ${++traitIndex}` : column.label,
+    plugs: column.plugs
+  }));
 }
 
 function normalizeLibraryWeaponPerkGroups(groups: LibraryPerkGroup[]): LibraryPerkGroup[] {
   return groups
-    .filter((group) => group.socket_index >= 0 && group.socket_index <= 5)
+    .filter((group) => group.socket_index >= 0)
     .map((group) => ({
       ...group,
-      plugs: group.plugs.filter((plug) => !isLibrarySystemPlug(plug))
+      plugs: group.plugs.filter((plug) => !isWeaponSystemPlug(plug))
     }))
     .filter((group) => group.plugs.length > 0);
-}
-
-function isLibrarySystemPlug(plug: LibraryPerkGroup["plugs"][number]): boolean {
-  const text = `${plug.name} ${plug.description}`.toLowerCase();
-  return [
-    "纪念",
-    "memento",
-    "着色器",
-    "shader",
-    "配色",
-    "外观",
-    "ornament",
-    "击杀记录",
-    "记录器",
-    "tracker",
-    "kill tracker",
-    "kill counter",
-    "大师杰作",
-    "masterwork",
-    "将其铸造为大师杰作",
-    "模组",
-    "mod",
-    "专家",
-    "adept"
-  ].some((keyword) => text.includes(keyword));
-}
-
-function getLibraryWeaponColumnLabels(itemType: string): string[] {
-  if (itemType.includes("弓")) {
-    return ["框架 / 固有", "弓弦", "箭矢", "第 4 列", "第 5 列", "起源特性"];
-  }
-
-  return ["框架 / 固有", "枪管 / 瞄具", "弹匣 / 电池", "第 4 列", "第 5 列", "起源特性"];
 }
 
 function formatLiveSource(source: LiveEntry["sources"][number], copy: LibraryCopy): string {

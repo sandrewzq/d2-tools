@@ -684,7 +684,7 @@ function ConfigurationSection(props: {
         <span>{context.kind === "account_instance" ? "Manifest + Profile 当前实例" : context.kind === "vendor_offer" ? "Manifest + Vendor Offer" : "Manifest 定义"}</span>
       </div>
       <div className="weapon-detail-config-grid">
-        {configuration.intrinsic ? <PerkColumn label="武器框架" role="intrinsic" candidates={[configuration.intrinsic]} /> : <div className="weapon-detail-intrinsic-empty">未返回武器框架</div>}
+        {configuration.intrinsic ? <PerkColumn label="固有能力" role="intrinsic" candidates={[configuration.intrinsic]} /> : <div className="weapon-detail-intrinsic-empty">未返回固有能力</div>}
         {columns.map((column) => (
           <PerkColumn
             key={column.key}
@@ -981,7 +981,7 @@ function InstancesRail(props: { model: WeaponDetailViewModel; onSelect?: (instan
       {props.model.same_hash_instances.length ? (
         <div className="weapon-detail-instance-list" role="list">
           {props.model.same_hash_instances.map((instance, index) => {
-            const visiblePlugs = instance.plugs.slice(0, 4);
+            const visiblePlugs = instance.plugs.slice(0, 5);
             const upgrade = instanceUpgradeLabel(instance);
             return (
               <button

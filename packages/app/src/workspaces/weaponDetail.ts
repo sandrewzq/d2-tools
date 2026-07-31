@@ -523,16 +523,18 @@ export function perkGroupsToPoolColumns(groups: readonly ItemPerkGroup[]): Weapo
     return [{
       key: `socket-${group.socket_index}`,
       socket_index: group.socket_index,
-      label: perkColumnLabel(role, group.socket_index),
+      label: weaponSocketColumnLabel(visiblePlugs, role, group.socket_index),
       role,
       candidates: visiblePlugs.map(toWeaponPerkCandidate),
       source_kinds: group.source_kinds
     }];
   });
   let traitIndex = 0;
-  return columns.map((column) => column.role === "trait"
-    ? { ...column, label: `Perk ${++traitIndex}` }
-    : column);
+  return [...columns]
+    .sort((left, right) => left.socket_index - right.socket_index)
+    .map((column) => column.role === "trait"
+      ? { ...column, label: `Perk ${++traitIndex}` }
+      : column);
 }
 
 export function classifyWeaponSocketPlugs(
@@ -549,10 +551,11 @@ export function classifyWeaponSocketPlugs(
     .filter(Boolean)
     .join(" ");
 
+  if (isWeaponCoreUpgradeCategory(category) || itemTypes.includes("能量核心")) return "other";
+  if (category.includes("origin") || includesAny(itemTypes, ["起源特性", "原始特性", "origin trait"])) return "origin";
   if (category.includes("intrinsic") || includesAny(itemTypes, ["固有", "intrinsic"])) return "intrinsic";
   if (includesAny(category, ["barrel", "scope", "sight", "bowstring", "bow.string", "blade", "haft"])) return "barrel";
   if (includesAny(category, ["magazine", "batter", "arrow", "guard", "stock", "grip"])) return "magazine";
-  if (category.includes("origin") || includesAny(itemTypes, ["原始特性", "origin trait"])) return "origin";
   if (includesAny(category, ["trait", "perk"])
     || includesAny(itemTypes, ["特性", "特征", "trait", "perk"])) return "trait";
   if (category.includes("frame")) return "intrinsic";
@@ -560,10 +563,48 @@ export function classifyWeaponSocketPlugs(
   return undefined;
 }
 
+export function weaponSocketColumnLabel(
+  plugs: readonly WeaponSocketPlugLike[],
+  role: WeaponPerkColumnRole,
+  socketIndex: number
+): string {
+  const category = plugs
+    .map((plug) => plug.category_identifier?.toLocaleLowerCase() ?? "")
+    .filter(Boolean)
+    .join(" ");
+  const itemTypes = plugs
+    .map((plug) => plug.item_type?.toLocaleLowerCase() ?? "")
+    .filter(Boolean)
+    .join(" ");
+
+  if (isWeaponCoreUpgradeCategory(category) || itemTypes.includes("能量核心")) return "核心升级";
+  if (includesAny(category, ["sword0.blade", "sword0_blade"]) || itemTypes.includes("柄芯")) return "柄芯";
+  if (includesAny(category, ["sword0.guard", "sword0_guard"])) return "握把";
+  if (category.includes("origin") || includesAny(itemTypes, ["起源特性", "原始特性", "origin trait"])) return "起源特性";
+  if (includesAny(category, ["bowstring", "bow.string"]) || itemTypes.includes("弓弦")) return "弓弦";
+  if (category.includes("arrow") || itemTypes.includes("箭杆")) return "箭杆";
+  if (category.includes("haft") || itemTypes.includes("偃月杆")) return "偃月杆";
+  if (includesAny(category, ["scope", "sight"]) || itemTypes.includes("瞄具")) return "瞄具";
+  if (category.includes("barrel") || itemTypes.includes("枪管")) return "枪管";
+  if (category.includes("blade") || itemTypes.includes("剑刃")) return "剑刃";
+  if (category.includes("guard") || itemTypes.includes("护手")) return "护手";
+  if (category.includes("batter") || itemTypes.includes("电池")) return "电池";
+  if (category.includes("magazine") || itemTypes.includes("弹匣")) return "弹匣";
+  if (category.includes("stock") || itemTypes.includes("枪托")) return "枪托";
+  if (category.includes("grip") || itemTypes.includes("握把")) return "握把";
+  if (role === "intrinsic") return "固有能力";
+  if (role === "barrel") return "枪管";
+  if (role === "magazine") return "弹匣";
+  if (role === "origin") return "起源特性";
+  if (role === "trait") return "武器特性";
+  return `插槽 ${socketIndex + 1}`;
+}
+
 export function isWeaponSystemPlug(plug: WeaponSocketPlugLike): boolean {
   const category = plug.category_identifier?.toLocaleLowerCase() ?? "";
   const itemType = plug.item_type?.toLocaleLowerCase() ?? "";
   const text = `${plug.name} ${plug.description ?? ""}`.toLocaleLowerCase();
+  if (isWeaponCoreUpgradeCategory(category)) return false;
   if (includesAny(category, [
     "shader", "ornament", "memento", "tracker", "masterwork", "catalyst",
     "weapon.mod", "modguns", "mods.weapon", "cosmetic", "skin", "killcounter"
@@ -707,13 +748,8 @@ function includesAny(value: string, segments: readonly string[]): boolean {
   return segments.some((segment) => value.includes(segment));
 }
 
-function perkColumnLabel(role: WeaponPerkColumnRole, socketIndex: number): string {
-  if (role === "intrinsic") return "武器框架";
-  if (role === "barrel") return "枪管";
-  if (role === "magazine") return "弹匣 / 电池";
-  if (role === "origin") return "起源特性";
-  if (role === "trait") return "武器特性";
-  return `插槽 ${socketIndex + 1}`;
+function isWeaponCoreUpgradeCategory(category: string): boolean {
+  return includesAny(category, ["perk_upgrades", "perk.upgrades", "perkupgrades"]);
 }
 
 function toWeaponDetailInstance(
@@ -723,8 +759,8 @@ function toWeaponDetailInstance(
 ): WeaponDetailInstance {
   const configurationPlugs = item.socket_plugs.filter((plug) => {
     const role = classifyWeaponSocketPlugs([plug]);
-    return role === "barrel" || role === "magazine" || role === "trait";
-  }).slice(0, 4);
+    return role !== undefined && role !== "intrinsic";
+  }).slice(0, 5);
   return {
     item_key: item.item_key ?? item.instance_id,
     instance_id: item.instance_id,
