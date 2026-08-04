@@ -13,7 +13,13 @@ import {
   type WeaponDetailObjectContext,
   type WeaponDetailSources
 } from "@d2-tools/app/items";
-import type { AccountSummary, WeaponStatKey, WeaponStatSummary } from "@d2-tools/core/account/summary";
+import type {
+  AccountItemPlugSummary,
+  AccountItemReusablePlugSummary,
+  AccountSummary,
+  WeaponStatKey,
+  WeaponStatSummary
+} from "@d2-tools/core/account/summary";
 import type { WeaponRecommendation as CommunityWeaponRecommendation } from "@d2-tools/core/community-perks";
 import type { PersonalWeaponKnowledgeEntry } from "@d2-tools/core/community-perks/personalWeaponKnowledge";
 import type { ItemReleaseSummary } from "@d2-tools/core/items/release";
@@ -463,6 +469,15 @@ function currentWeaponUpgradeNames(item: SelectedItemDetail): { masterwork: Set<
   };
 }
 
+function isReusablePlugSummary(
+  plug: AccountItemPlugSummary | AccountItemReusablePlugSummary
+): plug is AccountItemReusablePlugSummary {
+  return "selected" in plug
+    && typeof plug.selected === "boolean"
+    && Array.isArray(plug.insert_fail_indexes)
+    && Array.isArray(plug.enable_fail_indexes);
+}
+
 function buildSelectionColumns(
   item: SelectedItemDetail,
   poolColumns: WeaponDetailViewModel["configuration"]["pool_columns"],
@@ -521,23 +536,25 @@ function buildSelectionColumns(
         socket_index: socketIndex,
         label: pool?.label ?? weaponSocketColumnLabel(socketPlugs, role, socketIndex),
         role,
-        candidates: [...reusablePlugs, ...selectedFallback].map((plug) => ({
-          hash: plug.hash,
-          name: plug.name,
-          description: plug.description ?? "",
-          icon: plug.icon,
-          enhanced_of_hash: isEnhancedWeaponPerk(plug) ? findBasePerkHash(plug.name, pool?.candidates) : undefined,
-          selected: "selected" in plug ? plug.selected || selectedPlug?.hash === plug.hash : selectedPlug?.hash === plug.hash,
-          can_apply: "can_insert" in plug
-            && socket?.is_enabled === true
-            && plug.can_insert === true
-            && plug.enabled !== false
-            && plug.insert_fail_indexes.length === 0
-            && plug.enable_fail_indexes.length === 0,
-          pending: pendingPerks?.[socketIndex] === plug.hash,
-          unresolved_in_definition_pool: !poolHashes.has(plug.hash)
-            && !poolNames.has(normalizePerkVariantName(plug.name))
-        }))
+        candidates: [...reusablePlugs, ...selectedFallback].map((plug) => {
+          const reusablePlug = isReusablePlugSummary(plug) ? plug : undefined;
+          return {
+            hash: plug.hash,
+            name: plug.name,
+            description: plug.description ?? "",
+            icon: plug.icon,
+            enhanced_of_hash: isEnhancedWeaponPerk(plug) ? findBasePerkHash(plug.name, pool?.candidates) : undefined,
+            selected: reusablePlug?.selected === true || selectedPlug?.hash === plug.hash,
+            can_apply: socket?.is_enabled === true
+              && reusablePlug?.can_insert === true
+              && reusablePlug.enabled !== false
+              && reusablePlug.insert_fail_indexes.length === 0
+              && reusablePlug.enable_fail_indexes.length === 0,
+            pending: pendingPerks?.[socketIndex] === plug.hash,
+            unresolved_in_definition_pool: !poolHashes.has(plug.hash)
+              && !poolNames.has(normalizePerkVariantName(plug.name))
+          };
+        })
       }];
     })));
   }

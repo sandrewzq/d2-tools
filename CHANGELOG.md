@@ -2,6 +2,52 @@
 
 这个项目使用面向玩家的更新日志。这里优先记录”玩家能感知到什么变化”，而不是逐条展开内部实现细节。
 
+## 0.0.15 - 2026-08-04
+
+### 中文
+
+#### 新增
+
+- 配装工作台新增本地方案编辑、DIM 链接导入、护甲组合求解与分步执行，可在角色和本地方案之间集中管理配装。
+- 仓库新增护甲套装目录、持有数量筛选、同名装备整理矩阵与更完整的保护信号，支持更精细地筛选和暂存整理操作。
+
+#### 改进
+
+- 统一仓库、资料库、账号、配装和商人中的弹药、伤害属性与勇士克制图标，并优化大量装备图标跨页面复用时的加载体验。
+- 装备详情改为分阶段加载并保留有界缓存，统一武器与护甲的入口、当前位置、发布版本和追溯信息，减少重复打开时的等待和重复字段。
+- 资料库和商人来源信息现在更清楚地区分历史来源、当前获取入口、购买资格和发布版本；同图样复刻武器不再被错误合并。
+
+#### 修复
+
+- 修复装备后角色光等不刷新、详情锁定状态错误、特殊武器 Roll 列错位，以及仓库筛选切换卡顿等问题。
+- 修复新增 Manifest 物品常量定义后测试契约与生命周期计数未同步、UI 静态合同漏登记共享表面、菜单样式未使用语义 token，以及武器详情可写插件缺少明确类型守卫，导致 CI 持续失败的问题。
+
+#### 工程
+
+- 移除独立 Prototype 产品页面和过期过程文档，Web 与 Desktop 继续复用同一套共享产品 UI、状态模型和视觉合同。
+
+### English
+
+#### Added
+
+- Added local loadout plan editing, DIM link import, armor combination solving, and staged execution to the Loadouts workbench.
+- Added the armor set catalog, owned-count filtering, same-name organization matrix, and richer protection signals to Vault workflows.
+
+#### Improved
+
+- Unified ammo, damage, and Champion counter icons across Vault, Library, Account, Loadouts, and Vendors, with better cross-page reuse for game asset images.
+- Changed item details to staged loading with a bounded cache, while unifying entry context, location, release version, and trace information for weapons and armor.
+- Clarified historical sources, current acquisition paths, purchase eligibility, and release versions in Library and Vendors; reissued weapons sharing a pattern are no longer merged incorrectly.
+
+#### Fixed
+
+- Fixed stale character power after equipping, incorrect lock state in item details, misplaced roll columns for special weapon layouts, and lag when switching Vault filters.
+- Fixed CI failures caused by stale Manifest contracts, a missing shared surface in the UI checker, Vault styles bypassing semantic tokens, and missing type narrowing for writable weapon plugs.
+
+#### Engineering
+
+- Removed the standalone Prototype product pages and obsolete process documents so Web and Desktop continue to share one product UI, state model, and visual contract.
+
 ## 0.0.14 - 2026-07-24
 
 ### 中文

@@ -264,6 +264,7 @@ describe("manifest definition pure core helpers", () => {
   it("defines all runtime-required definition components in one place", () => {
     expect(requiredDefinitionComponents).toEqual([
       "DestinyInventoryItemDefinition",
+      "DestinyInventoryItemConstantsDefinition",
       "DestinyBreakerTypeDefinition",
       "DestinyDamageTypeDefinition",
       "DestinyPlugSetDefinition",

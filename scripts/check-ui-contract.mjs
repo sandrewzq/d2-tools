@@ -20,6 +20,7 @@ const allowedSurfaceValues = new Set([
   "page",
   "section",
   "frame",
+  "workspace-frame",
   "object-card",
   "list",
   "row",
