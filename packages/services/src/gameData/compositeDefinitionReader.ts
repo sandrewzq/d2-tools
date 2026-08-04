@@ -33,6 +33,12 @@ export function createCompositeDefinitionReader(
       };
     },
 
+    getAll(component) {
+      return primary.hasComponent(component)
+        ? primary.getAll(component)
+        : supplement.getAll(component);
+    },
+
     close() {
       primary.close();
       supplement.close();

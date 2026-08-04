@@ -36,6 +36,10 @@ export function createMemoryDefinitionReader(
       return definitions;
     },
 
+    getAll(component) {
+      return seed[component] ?? {};
+    },
+
     close() {}
   };
 }

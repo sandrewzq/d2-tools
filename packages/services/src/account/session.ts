@@ -564,6 +564,10 @@ function mergeDefinitionData(
     },
     bucketDefinitions: { ...base?.bucketDefinitions, ...loaded?.bucketDefinitions },
     damageTypeDefinitions: { ...base?.damageTypeDefinitions, ...loaded?.damageTypeDefinitions },
+    equipableItemSetDefinitions: {
+      ...base?.equipableItemSetDefinitions,
+      ...loaded?.equipableItemSetDefinitions
+    },
     plugSetDefinitions: { ...base?.plugSetDefinitions, ...loaded?.plugSetDefinitions },
     objectiveDefinitions: { ...base?.objectiveDefinitions, ...loaded?.objectiveDefinitions },
     recordDefinitions: { ...base?.recordDefinitions, ...loaded?.recordDefinitions },

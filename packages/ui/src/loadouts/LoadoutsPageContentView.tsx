@@ -21,6 +21,7 @@ import type { LoadoutTemplate } from "@d2-tools/core/loadouts/templates";
 import type { LoadoutTemplateAnalysis } from "@d2-tools/core/loadouts/analysis";
 import type { LoadoutActionFeedbackState } from "./loadoutActionFeedback.js";
 import type { InterfaceLocale } from "../i18n/types.js";
+import { GameAssetImage } from "../media/GameAssetImage.js";
 import {
   ProductWorkspaceEmptyState,
   ProductWorkspaceSideRail,
@@ -896,9 +897,15 @@ function LoadoutSummaryEmpty() {
 }
 
 function ItemVisual(props: { icon?: string; label: string; bucketName?: string }) {
-  return props.icon
-    ? <img className="loadout-item-visual" src={props.icon} alt="" loading="lazy" />
-    : <span className="loadout-item-visual loadout-item-placeholder" aria-hidden="true">{props.bucketName?.includes("武器") ? "W" : "A"}</span>;
+  return (
+    <GameAssetImage
+      className="loadout-item-visual"
+      src={props.icon}
+      alt=""
+      loading="eager"
+      fallback={<span className="loadout-item-visual loadout-item-placeholder" aria-hidden="true">{props.bucketName?.includes("武器") ? "W" : "A"}</span>}
+    />
+  );
 }
 
 function emptyArmorConstraints(): LoadoutPlanArmorConstraints {

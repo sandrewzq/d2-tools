@@ -1,0 +1,59 @@
+.game-combat-icon {
+  --game-combat-accent: var(--control-border);
+  display: inline-grid;
+  box-sizing: border-box;
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  place-items: center;
+  padding: 2px;
+  border: 1px solid color-mix(in srgb, var(--game-combat-accent) 72%, var(--game-surface));
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--game-combat-accent) 58%, var(--game-surface));
+}
+
+.game-combat-icon.is-compact {
+  width: 14px;
+  height: 14px;
+  flex-basis: 14px;
+  padding: 1px;
+  border-radius: 2px;
+}
+
+.game-combat-icon > img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.game-ammo-glyph {
+  display: inline-flex;
+  gap: 1px;
+  align-items: flex-end;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
+.game-ammo-glyph > i {
+  display: block;
+  width: 3px;
+  height: 100%;
+  border-radius: 2px 2px 1px 1px;
+  background: #ffffff;
+  transform: skew(-8deg);
+}
+
+.game-combat-icon[data-combat-kind="damage"][data-combat-type="kinetic"] { --game-combat-accent: var(--element-kinetic-border); }
+.game-combat-icon[data-combat-kind="damage"][data-combat-type="arc"] { --game-combat-accent: var(--element-arc-border); }
+.game-combat-icon[data-combat-kind="damage"][data-combat-type="solar"] { --game-combat-accent: var(--element-solar-border); }
+.game-combat-icon[data-combat-kind="damage"][data-combat-type="void"] { --game-combat-accent: var(--element-void-border); }
+.game-combat-icon[data-combat-kind="damage"][data-combat-type="stasis"] { --game-combat-accent: var(--element-stasis-border); }
+.game-combat-icon[data-combat-kind="damage"][data-combat-type="strand"] { --game-combat-accent: var(--element-strand-border); }
+.game-combat-icon[data-combat-kind="champion"][data-combat-type="barrier"] { --game-combat-accent: var(--status-error); }
+.game-combat-icon[data-combat-kind="champion"][data-combat-type="overload"] { --game-combat-accent: var(--status-pending); }
+.game-combat-icon[data-combat-kind="champion"][data-combat-type="unstoppable"] { --game-combat-accent: var(--status-warning); }
+.game-combat-icon[data-combat-kind="ammo"][data-combat-type="primary"] { --game-combat-accent: var(--element-kinetic-border); }
+.game-combat-icon[data-combat-kind="ammo"][data-combat-type="special"] { --game-combat-accent: var(--status-ready); }
+.game-combat-icon[data-combat-kind="ammo"][data-combat-type="heavy"] { --game-combat-accent: var(--violet); }

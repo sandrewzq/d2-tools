@@ -1,4 +1,13 @@
 export const uiPackageName = "@d2-tools/ui";
+export { GameAssetImage } from "./media/GameAssetImage.js";
+export type { GameAssetImageProps } from "./media/GameAssetImage.js";
+export { GameCombatIcon, gameDamageTypeKey } from "./media/GameCombatIcon.js";
+export type {
+  GameAmmoTypeKey,
+  GameChampionTypeKey,
+  GameCombatIconProps,
+  GameDamageTypeKey
+} from "./media/GameCombatIcon.js";
 export { ControlButton } from "./control/ControlButton.js";
 export type {
   ControlButtonProps,

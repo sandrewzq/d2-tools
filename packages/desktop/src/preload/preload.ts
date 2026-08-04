@@ -28,6 +28,7 @@ import type { ItemDefinitionDetail } from "@d2-tools/core/items/detail";
 import type { LiveItemAvailability } from "@d2-tools/core/items/liveAvailability";
 import type { PerkSearchResult } from "@d2-tools/core/items/perkSearch";
 import type { ItemSearchResult } from "@d2-tools/core/items/search";
+import type { ArmorSetCatalogItem } from "@d2-tools/core/items/equipableItemSet";
 import type { LibraryHistory, LibraryHistoryItem } from "@d2-tools/core/library/history";
 import type { CreateLoadoutTemplateInput, LoadoutTemplate } from "@d2-tools/core/loadouts/templates";
 import type {
@@ -122,6 +123,7 @@ contextBridge.exposeInMainWorld("d2", {
   repairManifest: () => invokeDesktopIpc<ManifestStatus>("manifest:repair"),
   searchItems: (query: string) => invokeDesktopIpc<ItemSearchResult[]>("items:search", query),
   searchPerks: (query: string) => invokeDesktopIpc<PerkSearchResult[]>("items:perks:search", query),
+  getArmorSetCatalog: () => invokeDesktopIpc<ArmorSetCatalogItem[]>("items:armor-sets:list"),
   getLiveItemAvailability: (itemHashes: number[]) =>
     invokeDesktopIpc<LiveItemAvailability>("items:live-availability", itemHashes),
   getItemAliases: () => ipcRenderer.invoke("aliases:get") as Promise<ItemAliases>,

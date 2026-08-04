@@ -42,6 +42,10 @@ export function createJsonDefinitionReader(
       return definitions;
     },
 
+    getAll(component) {
+      return load(component) ?? {};
+    },
+
     close() {}
   };
 }

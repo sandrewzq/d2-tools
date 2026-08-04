@@ -55,6 +55,7 @@ export async function loadAccountDefinitions(
   const queriedItemHashes = new Set<number>();
   const queriedPlugSetHashes = new Set<number>();
   const objectiveHashes = new Set(request.objectiveHashes.map(toUnsignedHash));
+  const equipableItemSetHashes = new Set<number>();
   const definitionOptions = request.expandSocketPlugSets
     ? undefined
     : { projection: "account-snapshot" as const };
@@ -73,6 +74,7 @@ export async function loadAccountDefinitions(
     );
     for (const definition of loadedItems) {
       addHash(bucketHashes, definition.inventory?.bucketTypeHash);
+      addHash(equipableItemSetHashes, definition.equippingBlock?.equipableItemSetHash);
       if (!request.expandSocketPlugSets) continue;
       for (const socket of definition.sockets?.socketEntries ?? []) {
         addHash(itemHashes, socket.singleInitialItemHash);
@@ -109,12 +111,14 @@ export async function loadAccountDefinitions(
   const [
     bucketDefinitions,
     damageTypeDefinitions,
+    equipableItemSetDefinitions,
     inventoryItemConstantsDefinitions,
     objectiveDefinitions,
     loadoutNameDefinitions
   ] = await Promise.all([
     getDefinitions("DestinyInventoryBucketDefinition", bucketHashes, definitionOptions),
     getDefinitions("DestinyDamageTypeDefinition", request.damageTypeHashes ?? [], definitionOptions),
+    getDefinitions("DestinyEquipableItemSetDefinition", equipableItemSetHashes, definitionOptions),
     getDefinitions("DestinyInventoryItemConstantsDefinition", [1], definitionOptions),
     getDefinitions("DestinyObjectiveDefinition", objectiveHashes, definitionOptions),
     getDefinitions("DestinyLoadoutNameDefinition", request.loadoutNameHashes, definitionOptions)
@@ -125,6 +129,7 @@ export async function loadAccountDefinitions(
     plugSetDefinitions,
     bucketDefinitions,
     damageTypeDefinitions,
+    equipableItemSetDefinitions,
     objectiveDefinitions,
     recordDefinitions,
     loadoutNameDefinitions

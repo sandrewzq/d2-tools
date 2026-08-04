@@ -8,6 +8,8 @@ import {
   rarityFilterLabels,
   sortLabels,
   type VaultAmmoFilter,
+  type VaultArmorSetFilter,
+  type VaultArmorSetOption,
   type VaultArmorStatRule,
   type VaultClassFilter,
   type VaultDamageFilter,
@@ -27,6 +29,7 @@ import { VaultArmorFilterPanel } from "./VaultArmorFilterPanel.js";
 import { VaultAmmoTypeIcon, VaultDamageTypeIcon } from "./VaultWeaponFactIcons.js";
 
 export type VaultSignalFilter = "wishlist" | "loadout" | "target" | "community";
+export type VaultArmorSetCatalogStatus = "loading" | "ready" | "error";
 
 const dispositionOptions: Array<{ key: VaultTagFilter; label: string }> = [
   { key: "all", label: "全部" },
@@ -68,11 +71,14 @@ export function VaultFilterToolbar(props: {
   gearTierFilter: VaultGearTierFilter;
   classFilter: VaultClassFilter;
   damageFilter: VaultDamageFilter;
+  armorSetFilter: VaultArmorSetFilter;
   frameFilters: VaultFrameFilter;
   group: VaultGroupFilter;
   groups: VaultGroupSummary[];
   slotFilters: VaultSlotSummary[];
   itemTypeFilters: Array<{ key: string; label: string; count: number }>;
+  armorSetFilters: VaultArmorSetOption[];
+  armorSetCatalogStatus: VaultArmorSetCatalogStatus;
   availableFrameFilters: VaultFrameOption[];
   onQueryChange: (value: string) => void;
   onSortKeyChange: (value: VaultSortKey) => void;
@@ -90,6 +96,7 @@ export function VaultFilterToolbar(props: {
   onGearTierFilterChange: (value: VaultGearTierFilter) => void;
   onClassFilterChange: (value: VaultClassFilter) => void;
   onDamageFilterChange: (value: VaultDamageFilter) => void;
+  onArmorSetFilterChange: (value: VaultArmorSetFilter) => void;
   onGroupChange: (value: VaultGroupFilter) => void;
   onToggleFrameFilter: (key: string) => void;
 }) {
@@ -167,7 +174,7 @@ export function VaultFilterToolbar(props: {
               label="弹药类型"
               value={props.ammoFilter}
               options={Object.entries(ammoFilterLabels).map(([key, label]) => [key, label.replace("全部弹药", "全部")])}
-              icon={(key) => isVaultAmmoType(key) ? <VaultAmmoTypeIcon type={key} /> : null}
+              icon={(key) => isVaultAmmoType(key) ? <VaultAmmoTypeIcon type={key} size="compact" /> : null}
               tone={(key) => key === "all" ? undefined : `ammo-${key}`}
               onChange={(value) => props.onAmmoFilterChange(value as VaultAmmoFilter)}
             />
@@ -175,7 +182,7 @@ export function VaultFilterToolbar(props: {
               label="伤害属性"
               value={props.damageFilter}
               options={Object.entries(damageFilterLabels)}
-              icon={(key) => key === "all" ? null : <VaultDamageTypeIcon className="vault-filter-damage-icon" damageType={damageTypeIds[key]} />}
+              icon={(key) => key === "all" ? null : <VaultDamageTypeIcon className="vault-filter-damage-icon" damageType={damageTypeIds[key]} size="compact" />}
               tone={(key) => key === "all" ? undefined : `damage-${key}`}
               wrap
               onChange={(value) => props.onDamageFilterChange(value as VaultDamageFilter)}
@@ -204,6 +211,19 @@ export function VaultFilterToolbar(props: {
             options={Object.entries(classFilterLabels)}
             onChange={(value) => props.onClassFilterChange(value as VaultClassFilter)}
           />
+          <label className="vault-filter-field">
+            <span>护甲套装</span>
+            <select
+              value={props.armorSetFilter}
+              disabled={props.armorSetCatalogStatus !== "ready" || !props.armorSetFilters.length}
+              onChange={(event) => props.onArmorSetFilterChange(event.target.value)}
+            >
+              <option value="all">{armorSetCatalogLabel(props.armorSetCatalogStatus, props.armorSetFilters.length)}</option>
+              {props.armorSetFilters.map((item) => (
+                <option key={item.key} value={item.key}>{item.label}（持有 {item.count}）</option>
+              ))}
+            </select>
+          </label>
           <VaultArmorFilterPanel
             rules={props.armorStatRules}
             onAddRule={props.onAddArmorStatRule}
@@ -289,4 +309,10 @@ function shortSlotLabel(label: string): string {
 
 function isVaultAmmoType(value: string): value is VaultAmmoType {
   return value === "primary" || value === "special" || value === "heavy";
+}
+
+function armorSetCatalogLabel(status: VaultArmorSetCatalogStatus, count: number): string {
+  if (status === "loading") return "套装目录加载中";
+  if (status === "error") return "套装目录不可用";
+  return count ? "全部套装" : "暂无套装目录";
 }

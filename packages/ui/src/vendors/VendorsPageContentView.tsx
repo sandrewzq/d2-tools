@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { getLocaleCopy } from "../i18n/copy.js";
 import type { InterfaceLocale } from "../i18n/types.js";
+import { GameAssetImage } from "../media/GameAssetImage.js";
 import { formatFullDateTime, formatScheduleDateTime } from "../time/formatTime.js";
 import {
   ProductWorkspaceEmptyState,
@@ -431,7 +432,7 @@ function VendorCosts(props: { item: VendorInventoryItemView; fallback: string })
     <span className="vendor-offer-costs">
       {props.item.costs.map((cost, index) => (
         <span key={`${cost.label}-${index}`} data-status={cost.affordable === false ? "warning" : "neutral"}>
-          {cost.iconUrl ? <img src={cost.iconUrl} alt="" loading="lazy" /> : null}
+          <GameAssetImage src={cost.iconUrl} alt="" />
           <span>{cost.required.toLocaleString("zh-CN")} {cost.label}</span>
         </span>
       ))}
@@ -443,7 +444,7 @@ function VendorItemArt(props: { item: VendorInventoryItemView }) {
   return (
     <span className={props.item.iconUrl ? "vendor-item-art" : "vendor-item-art vendor-item-art-missing"} role={props.item.iconUrl ? undefined : "img"} aria-label={props.item.iconUrl ? undefined : `${props.item.name}图标未读取`}>
       <span className="vendor-item-art-fallback" aria-hidden="true">{props.item.iconLabel.slice(0, 1)}</span>
-      {props.item.iconUrl ? <img src={props.item.iconUrl} alt="" loading="lazy" onError={(event) => { event.currentTarget.hidden = true; }} /> : null}
+      <GameAssetImage src={props.item.iconUrl} alt="" />
     </span>
   );
 }

@@ -208,7 +208,10 @@
   color: var(--text-body);
 }
 
-.library-equipment-tags span {
+.library-equipment-tags > span {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
   padding: 2px 6px;
   border: 1px solid var(--item-border);
   border-radius: 4px;
@@ -256,6 +259,42 @@
   border-color: var(--element-strand-border);
   color: var(--element-strand-text);
   background: var(--element-strand-bg);
+}
+
+.library-equipment-tags .library-champion-barrier {
+  border-color: var(--status-error);
+  color: var(--status-error);
+  background: var(--status-error-bg);
+}
+
+.library-equipment-tags .library-champion-overload {
+  border-color: var(--status-pending);
+  color: var(--status-pending);
+  background: var(--status-pending-bg);
+}
+
+.library-equipment-tags .library-champion-unstoppable {
+  border-color: var(--status-warning);
+  color: var(--status-warning);
+  background: var(--status-warning-bg);
+}
+
+.library-equipment-tags .library-ammo-primary {
+  border-color: var(--element-kinetic-border);
+  color: var(--element-kinetic-text);
+  background: var(--element-kinetic-bg);
+}
+
+.library-equipment-tags .library-ammo-special {
+  border-color: var(--status-ready);
+  color: var(--status-ready);
+  background: var(--status-ready-bg);
+}
+
+.library-equipment-tags .library-ammo-heavy {
+  border-color: var(--violet);
+  color: var(--violet);
+  background: var(--violet-bg);
 }
 
 .library-version-source dt {

@@ -21,7 +21,7 @@ import {
   type BungieHomeSnapshot,
   type BungieVendorsResponse
 } from "@d2-tools/services/bungie/session";
-import { getDefinitions, getGameDataCatalog } from "../runtime/gameDataRuntime.js";
+import { getArmorSetCatalog, getDefinitions, getGameDataCatalog } from "../runtime/gameDataRuntime.js";
 import { getSharedBungieSession } from "../runtime/bungieSession.js";
 import { loadFreshOAuthToken } from "./authSession.js";
 
@@ -43,6 +43,11 @@ export function registerLibraryIpcHandlers(): void {
       aliases: loadItemAliases(config.data.data_dir)
     });
   }, classifyGameDataIpcError));
+
+  ipcMain.handle("items:armor-sets:list", () => encodeDesktopIpcFailure(
+    () => getArmorSetCatalog(),
+    classifyGameDataIpcError
+  ));
 
   ipcMain.handle("items:live-availability", (_event, itemHashes: number[]) => encodeDesktopIpcFailure(async () => {
     const config = loadConfig();

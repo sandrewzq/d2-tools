@@ -1653,87 +1653,87 @@
   background: var(--surface-recessed);
 }
 
-:where(.app-shell) .vault-choice-strip button[data-filter-tone="rarity-legendary"][aria-pressed="true"],
-:where(.app-shell) .vault-choice-strip button[data-filter-tone="ammo-heavy"][aria-pressed="true"] {
-  border-color: var(--violet);
-  color: var(--violet);
-  background: var(--violet-bg);
-  box-shadow: inset 0 0 0 1px var(--violet);
+:where(.app-shell) .vault-choice-strip button[data-filter-tone] {
+  border-color: color-mix(in srgb, var(--vault-filter-tone-accent) 62%, var(--border-control));
+  color: var(--vault-filter-tone-text);
+  background: color-mix(in srgb, var(--vault-filter-tone-bg) 72%, var(--surface-panel));
 }
 
-:where(.app-shell) .vault-choice-strip button[data-filter-tone="rarity-exotic"][aria-pressed="true"] {
-  border-color: var(--status-warning);
-  color: var(--status-warning);
-  background: var(--status-warning-bg);
-  box-shadow: inset 0 0 0 1px var(--status-warning);
+:where(.app-shell) .vault-choice-strip button[data-filter-tone][aria-pressed="true"] {
+  border-color: var(--vault-filter-tone-accent);
+  color: var(--vault-filter-tone-text);
+  background: var(--vault-filter-tone-bg);
+  box-shadow: inset 0 0 0 1px var(--vault-filter-tone-accent);
+  font-weight: 700;
 }
 
-:where(.app-shell) .vault-choice-strip button[data-filter-tone="ammo-primary"][aria-pressed="true"] {
-  border-color: var(--element-kinetic-border);
-  color: var(--element-kinetic-text);
-  background: var(--element-kinetic-bg);
-  box-shadow: inset 0 0 0 1px var(--element-kinetic-border);
+:where(.app-shell) .vault-choice-strip button[data-filter-tone="rarity-legendary"],
+:where(.app-shell) .vault-choice-strip button[data-filter-tone="ammo-heavy"] {
+  --vault-filter-tone-accent: var(--violet);
+  --vault-filter-tone-text: var(--violet);
+  --vault-filter-tone-bg: var(--violet-bg);
 }
 
-:where(.app-shell) .vault-choice-strip button[data-filter-tone="ammo-special"][aria-pressed="true"] {
-  border-color: var(--status-ready);
-  color: var(--status-ready);
-  background: var(--status-ready-bg);
-  box-shadow: inset 0 0 0 1px var(--status-ready);
+:where(.app-shell) .vault-choice-strip button[data-filter-tone="rarity-exotic"],
+:where(.app-shell) .vault-choice-strip button[data-filter-tone="champion-unstoppable"] {
+  --vault-filter-tone-accent: var(--status-warning);
+  --vault-filter-tone-text: var(--status-warning);
+  --vault-filter-tone-bg: var(--status-warning-bg);
 }
 
-:where(.app-shell) .vault-choice-strip button[data-filter-tone="damage-kinetic"][aria-pressed="true"] {
-  border-color: var(--element-kinetic-border);
-  color: var(--element-kinetic-text);
-  background: var(--element-kinetic-bg);
-  box-shadow: inset 0 0 0 1px var(--element-kinetic-border);
+:where(.app-shell) .vault-choice-strip button[data-filter-tone="ammo-primary"],
+:where(.app-shell) .vault-choice-strip button[data-filter-tone="damage-kinetic"] {
+  --vault-filter-tone-accent: var(--element-kinetic-border);
+  --vault-filter-tone-text: var(--element-kinetic-text);
+  --vault-filter-tone-bg: var(--element-kinetic-bg);
 }
 
-:where(.app-shell) .vault-choice-strip button[data-filter-tone="damage-arc"][aria-pressed="true"] {
-  border-color: var(--element-arc-border);
-  color: var(--element-arc-text);
-  background: var(--element-arc-bg);
-  box-shadow: inset 0 0 0 1px var(--element-arc-border);
+:where(.app-shell) .vault-choice-strip button[data-filter-tone="ammo-special"] {
+  --vault-filter-tone-accent: var(--status-ready);
+  --vault-filter-tone-text: var(--status-ready);
+  --vault-filter-tone-bg: var(--status-ready-bg);
 }
 
-:where(.app-shell) .vault-choice-strip button[data-filter-tone="damage-solar"][aria-pressed="true"] {
-  border-color: var(--element-solar-border);
-  color: var(--element-solar-text);
-  background: var(--element-solar-bg);
-  box-shadow: inset 0 0 0 1px var(--element-solar-border);
+:where(.app-shell) .vault-choice-strip button[data-filter-tone="damage-arc"] {
+  --vault-filter-tone-accent: var(--element-arc-border);
+  --vault-filter-tone-text: var(--element-arc-text);
+  --vault-filter-tone-bg: var(--element-arc-bg);
 }
 
-:where(.app-shell) .vault-choice-strip button[data-filter-tone="damage-void"][aria-pressed="true"] {
-  border-color: var(--element-void-border);
-  color: var(--element-void-text);
-  background: var(--element-void-bg);
-  box-shadow: inset 0 0 0 1px var(--element-void-border);
+:where(.app-shell) .vault-choice-strip button[data-filter-tone="damage-solar"] {
+  --vault-filter-tone-accent: var(--element-solar-border);
+  --vault-filter-tone-text: var(--element-solar-text);
+  --vault-filter-tone-bg: var(--element-solar-bg);
 }
 
-:where(.app-shell) .vault-choice-strip button[data-filter-tone="damage-stasis"][aria-pressed="true"] {
-  border-color: var(--element-stasis-border);
-  color: var(--element-stasis-text);
-  background: var(--element-stasis-bg);
-  box-shadow: inset 0 0 0 1px var(--element-stasis-border);
+:where(.app-shell) .vault-choice-strip button[data-filter-tone="damage-void"] {
+  --vault-filter-tone-accent: var(--element-void-border);
+  --vault-filter-tone-text: var(--element-void-text);
+  --vault-filter-tone-bg: var(--element-void-bg);
 }
 
-:where(.app-shell) .vault-choice-strip button[data-filter-tone="damage-strand"][aria-pressed="true"] {
-  border-color: var(--element-strand-border);
-  color: var(--element-strand-text);
-  background: var(--element-strand-bg);
-  box-shadow: inset 0 0 0 1px var(--element-strand-border);
+:where(.app-shell) .vault-choice-strip button[data-filter-tone="damage-stasis"] {
+  --vault-filter-tone-accent: var(--element-stasis-border);
+  --vault-filter-tone-text: var(--element-stasis-text);
+  --vault-filter-tone-bg: var(--element-stasis-bg);
 }
 
-:where(.app-shell) .vault-choice-strip button[data-filter-tone="ammo-primary"] .vault-ammo-icon {
-  color: var(--element-kinetic-border);
+:where(.app-shell) .vault-choice-strip button[data-filter-tone="damage-strand"] {
+  --vault-filter-tone-accent: var(--element-strand-border);
+  --vault-filter-tone-text: var(--element-strand-text);
+  --vault-filter-tone-bg: var(--element-strand-bg);
 }
 
-:where(.app-shell) .vault-choice-strip button[data-filter-tone="ammo-special"] .vault-ammo-icon {
-  color: var(--status-ready);
+:where(.app-shell) .vault-choice-strip button[data-filter-tone="champion-barrier"] {
+  --vault-filter-tone-accent: var(--status-error);
+  --vault-filter-tone-text: var(--status-error);
+  --vault-filter-tone-bg: var(--status-error-bg);
 }
 
-:where(.app-shell) .vault-choice-strip button[data-filter-tone="ammo-heavy"] .vault-ammo-icon {
-  color: var(--violet);
+:where(.app-shell) .vault-choice-strip button[data-filter-tone="champion-overload"] {
+  --vault-filter-tone-accent: var(--status-pending);
+  --vault-filter-tone-text: var(--status-pending);
+  --vault-filter-tone-bg: var(--status-pending-bg);
 }
 
 :where(.app-shell) .vault-choice-strip button {
@@ -1744,10 +1744,7 @@
 }
 
 :where(.app-shell) .vault-filter-damage-icon {
-  width: 14px;
-  height: 14px;
   flex: 0 0 14px;
-  object-fit: contain;
 }
 
 :where(.app-shell) .vault-quality-stack,
@@ -2177,30 +2174,6 @@
   flex: 0 0 13px;
   object-fit: contain;
 }
-
-:where(.app-shell) .vault-ammo-icon {
-  display: inline-flex;
-  gap: 1px;
-  align-items: flex-end;
-  justify-content: center;
-  width: 13px;
-  height: 13px;
-  flex: 0 0 13px;
-  color: var(--text-body);
-}
-
-:where(.app-shell) .vault-ammo-icon i {
-  display: block;
-  width: 3px;
-  height: 10px;
-  border-radius: 2px 2px 1px 1px;
-  background: currentColor;
-  transform: skew(-8deg);
-}
-
-:where(.app-shell) .vault-ammo-icon.ammo-special { color: var(--status-ready); }
-:where(.app-shell) .vault-ammo-icon.ammo-heavy { color: var(--violet); }
-:where(.app-shell) .vault-ammo-icon.ammo-unknown { color: var(--text-disabled); }
 
 :where(.app-shell) .vault-results-column .vault-weapon-power {
   justify-content: flex-end;

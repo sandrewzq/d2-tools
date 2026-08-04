@@ -1,5 +1,6 @@
 import type {
   AmmoTypeKey,
+  ArmorSetCatalogItem,
   DamageTypeSummary,
   EquipmentGroupKey,
   ItemDefinitionStat,
@@ -15,6 +16,7 @@ import type {
 
 export type LibraryApi = {
   getItemDetail(hash: number): Promise<ItemDefinitionDetail>;
+  getArmorSetCatalog(): Promise<ArmorSetCatalogItem[]>;
   searchItems(query: string): Promise<ItemSearchResult[]>;
   searchPerks(query: string): Promise<PerkSearchResult[]>;
   getLiveItemAvailability(itemHashes: number[]): Promise<LiveItemAvailability>;

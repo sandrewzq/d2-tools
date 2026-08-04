@@ -1,4 +1,6 @@
 import { useEffect, useId, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react";
+import { GameAssetImage } from "../../media/GameAssetImage.js";
+import { GameCombatIcon } from "../../media/GameCombatIcon.js";
 import { formatStandardDateTime } from "../../time/formatTime.js";
 import type {
   WeaponDetailInstance,
@@ -327,7 +329,7 @@ function WeaponIdentity(props: {
   return (
     <header className="weapon-detail-identity" data-surface="section">
       <div className="weapon-detail-identity-main">
-        {identity.icon ? <img src={identity.icon} alt="" /> : <span className="weapon-detail-icon-placeholder" aria-hidden="true" />}
+        <GameAssetImage src={identity.icon} alt="" loading="eager" fallback={<span className="weapon-detail-icon-placeholder" aria-hidden="true" />} />
         <div>
           <div className="weapon-detail-identity-title-line">
             <span className="weapon-detail-version-badge" data-ui-part="state" data-text-tone="status" data-info-priority="support" data-status={releaseStatus}>发布版本</span>
@@ -340,12 +342,14 @@ function WeaponIdentity(props: {
           <div className="weapon-detail-facts" aria-label="武器摘要">
             {identity.tier ? <Fact label={identity.tier} tone={identity.is_exotic ? "rarity-exotic" : "rarity"} /> : null}
             {identity.slot ? <Fact label={identity.slot} tone="slot" /> : null}
-            {identity.ammo ? <Fact label={identity.ammo.label} icon={identity.ammo.icon} tone={`ammo-${identity.ammo.key}`} /> : null}
-            {identity.damage ? <Fact label={identity.damage.label} icon={identity.damage.icon} title={identity.damage.description} tone={`damage-${identity.damage.key}`} /> : null}
+            {identity.ammo ? <Fact label={identity.ammo.label} iconKind="ammo" iconType={identity.ammo.key} tone={`ammo-${identity.ammo.key}`} /> : null}
+            {identity.damage ? <Fact label={identity.damage.label} icon={identity.damage.icon} iconKind="damage" iconType={identity.damage.key} title={identity.damage.description} tone={`damage-${identity.damage.key}`} /> : null}
             {identity.champion ? (
               <Fact
                 label={identity.champion.label}
                 icon={identity.champion.icon}
+                iconKind="champion"
+                iconType={identity.champion.key}
                 title={`${identity.champion.label}：${identity.champion.effect_label}。${identity.champion.description ?? ""}`}
                 tone={`champion-${identity.champion.key}`}
               />
@@ -387,7 +391,7 @@ function WeaponIdentity(props: {
             <dl><dt>发布类型</dt><dd>{releaseKindLabel(identity.release?.kind)}</dd></dl>
             <dl><dt>定义版本</dt><dd>{definitionVersionLabel}</dd></dl>
             <dl><dt>光等上限 Hash</dt><dd>{identity.definition_version?.power_cap_hash ?? "资料未返回"}</dd></dl>
-            <dl><dt>版本水印</dt><dd>{watermarks.length ? <span className="weapon-detail-definition-watermarks">{watermarks.map((icon, index) => <img key={`${icon}:${index}`} src={icon} alt={`官方版本水印 ${index + 1}`} title="官方定义版本水印" />)}</span> : "资料未返回"}</dd></dl>
+            <dl><dt>版本水印</dt><dd>{watermarks.length ? <span className="weapon-detail-definition-watermarks">{watermarks.map((icon, index) => <GameAssetImage key={`${icon}:${index}`} src={icon} alt={`官方版本水印 ${index + 1}`} title="官方定义版本水印" loading="eager" />)}</span> : "资料未返回"}</dd></dl>
             <dl><dt>Manifest Hash</dt><dd>{identity.hash}</dd></dl>
             <dl><dt>数据来源</dt><dd>当前 Manifest{context.kind === "account_instance" ? " + Profile 实例" : context.kind === "vendor_offer" ? " + Vendor Offer" : ""}</dd></dl>
             <dl><dt>操作方式</dt><dd>{context.read_only ? "只读查看" : "可管理实例"}</dd></dl>
@@ -407,7 +411,14 @@ function releaseKindLabel(kind: ItemReleaseKind | undefined): string {
   return "官方未标注";
 }
 
-function Fact(props: { label: string; icon?: string; tone?: string; title?: string }) {
+function Fact(props: {
+  label: string;
+  icon?: string;
+  iconKind?: "damage" | "champion" | "ammo";
+  iconType?: string;
+  tone?: string;
+  title?: string;
+}) {
   return (
     <span
       className={["weapon-detail-fact", props.tone].filter(Boolean).join(" ")}
@@ -417,7 +428,9 @@ function Fact(props: { label: string; icon?: string; tone?: string; title?: stri
       title={props.title}
       tabIndex={props.title ? 0 : undefined}
     >
-      {props.icon ? <img src={props.icon} alt="" /> : null}
+      {props.iconKind && props.iconType
+        ? <GameCombatIcon kind={props.iconKind} type={props.iconType} src={props.icon} />
+        : <GameAssetImage src={props.icon} alt="" loading="eager" />}
       {props.label}
     </span>
   );
@@ -502,7 +515,7 @@ function OverviewSection(props: {
                   ].join(" ")}
                 >
                   <div className="weapon-detail-source-identity">
-                    {source.icon ? <img src={source.icon} alt="" /> : null}
+                    <GameAssetImage src={source.icon} alt="" loading="eager" />
                     <strong data-ui-part="value" data-text-tone="primary" data-info-priority="context">{source.label}</strong>
                   </div>
                   <div className="weapon-detail-source-copy">
@@ -812,7 +825,7 @@ function PerkColumn(props: {
           const stateLabel = selection
             ? selection.pending ? "待应用" : selection.selected ? "已选" : selection.can_apply ? "本实例拥有 · 可切换" : "本实例拥有"
             : undefined;
-          const content = <>{stateLabel || perk.enhanced_of_hash ? <small>{[stateLabel, perk.enhanced_of_hash ? "强化版本" : undefined].filter(Boolean).join(" · ")}</small> : null}{perk.icon ? <img className="game-definition-icon" src={perk.icon} alt="" /> : null}<span><strong>{perk.name}</strong><p>{perk.description}</p></span></>;
+          const content = <>{stateLabel || perk.enhanced_of_hash ? <small>{[stateLabel, perk.enhanced_of_hash ? "强化版本" : undefined].filter(Boolean).join(" · ")}</small> : null}<GameAssetImage className="game-definition-icon" src={perk.icon} alt="" loading="eager" /><span><strong>{perk.name}</strong><p>{perk.description}</p></span></>;
           return props.interactive && selection?.can_apply ? (
             <button key={perk.hash} type="button" className={["weapon-detail-perk", selection.selected && "is-selected", selection.pending && "is-pending"].filter(Boolean).join(" ")} aria-pressed={selection.selected || selection.pending} onClick={() => props.onSelect?.(perk)}>{content}</button>
           ) : <article key={perk.hash} className={["weapon-detail-perk", selection?.selected && "is-selected", selection?.pending && "is-pending"].filter(Boolean).join(" ")}>{content}</article>;
@@ -960,7 +973,7 @@ function UpgradeSection({ model }: { model: WeaponDetailViewModel }) {
       <SectionHeading eyebrow="升级与锻造" title={upgrades.catalyst ? "催化剂、杰作与当前进度" : "大师杰作、模组与强化"} description="当前对象状态与定义能力分别标明来源，不把未返回的信息补成结论。" />
       <DataBlockHeading title="升级状态" source={upgrades.catalyst ? (upgrades.catalyst.acquired === undefined ? "Manifest 定义" : "Profile 进度 + Manifest 定义 · 当前读取") : objectSource} />
       <div className={["weapon-detail-upgrade-layout", !upgrades.catalyst && "without-catalyst"].filter(Boolean).join(" ")}>
-        {upgrades.catalyst ? <article className="weapon-detail-catalyst"><header>{upgrades.catalyst.icon ? <img className="game-definition-icon" src={upgrades.catalyst.icon} alt="" /> : null}<div><strong>{upgrades.catalyst.name}</strong><span>{upgrades.catalyst.objective || catalystStateLabel(model)}</span></div></header>{upgrades.catalyst.acquired !== undefined ? <progress value={upgrades.catalyst.progress ?? (upgrades.catalyst.complete ? 100 : 0)} max={100} /> : null}{upgrades.catalyst.acquisition ? <p>获取：{upgrades.catalyst.acquisition}</p> : null}{upgrades.catalyst.effects.length ? <ul>{upgrades.catalyst.effects.map((effect) => <li key={effect}>{effect}</li>)}</ul> : null}</article> : null}
+        {upgrades.catalyst ? <article className="weapon-detail-catalyst"><header><GameAssetImage className="game-definition-icon" src={upgrades.catalyst.icon} alt="" loading="eager" /><div><strong>{upgrades.catalyst.name}</strong><span>{upgrades.catalyst.objective || catalystStateLabel(model)}</span></div></header>{upgrades.catalyst.acquired !== undefined ? <progress value={upgrades.catalyst.progress ?? (upgrades.catalyst.complete ? 100 : 0)} max={100} /> : null}{upgrades.catalyst.acquisition ? <p>获取：{upgrades.catalyst.acquisition}</p> : null}{upgrades.catalyst.effects.length ? <ul>{upgrades.catalyst.effects.map((effect) => <li key={effect}>{effect}</li>)}</ul> : null}</article> : null}
         {rows.length ? (
           <div className="weapon-detail-upgrade-table" role="table" aria-label="升级与锻造状态">
             <div role="row"><strong role="columnheader">项目</strong><strong role="columnheader">当前对象</strong><strong role="columnheader">状态</strong><strong role="columnheader">数据来源</strong></div>
@@ -997,7 +1010,7 @@ function InstancesRail(props: { model: WeaponDetailViewModel; onSelect?: (instan
                 <header><strong>实例 {index + 1}</strong><span>{instance.location} · {instance.power ?? "光等未知"}</span></header>
                 <span className="weapon-detail-instance-perks" aria-label={visiblePlugs.map((plug) => plug.name).join("、") || "配置未返回"}>
                   {visiblePlugs.filter((plug) => Boolean(plug.icon)).map((plug) => (
-                    <img className="game-definition-icon" key={plug.hash} src={plug.icon} alt="" title={plug.name} />
+                    <GameAssetImage className="game-definition-icon" key={plug.hash} src={plug.icon} alt="" title={plug.name} loading="eager" />
                   ))}
                 </span>
                 <strong className="weapon-detail-instance-roll">{visiblePlugs.map((plug) => plug.name).join(" / ") || "配置未返回"}</strong>

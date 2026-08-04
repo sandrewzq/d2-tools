@@ -1,10 +1,11 @@
 import { selectVaultPageModel } from "@d2-tools/app/vault";
 import { ProductWorkspaceEmptyState, VaultPageContentView } from "@d2-tools/ui";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { LoadoutTemplateLookup } from "../../shared/domain/loadouts/loadoutLookup";
 import type {
   AccountItemSummary,
   AccountSummary,
+  ArmorSetCatalogItem,
   BatchItemActionResult,
   DimWishlist,
   LocalTargetRules,
@@ -42,6 +43,27 @@ export function VaultPage(props: {
   onSaveTag: (item: AccountItemSummary, tag: VaultTagValue) => void | Promise<void>;
 }) {
   const [localCommunityTable, setLocalCommunityTable] = useState<LocalCommunityRecommendationTable | null>(null);
+  const [armorSetCatalog, setArmorSetCatalog] = useState<ArmorSetCatalogItem[]>([]);
+  const [armorSetCatalogStatus, setArmorSetCatalogStatus] = useState<"loading" | "ready" | "error">("loading");
+  useEffect(() => {
+    let active = true;
+    setArmorSetCatalogStatus("loading");
+    void api.getArmorSetCatalog().then(
+      (catalog) => {
+        if (!active) return;
+        setArmorSetCatalog(catalog);
+        setArmorSetCatalogStatus("ready");
+      },
+      () => {
+        if (!active) return;
+        setArmorSetCatalog([]);
+        setArmorSetCatalogStatus("error");
+      }
+    );
+    return () => {
+      active = false;
+    };
+  }, []);
   const model = useMemo(() => props.account ? selectVaultPageModel({
     account: props.account,
     selectedCharacterId: props.selectedCharacterId,
@@ -77,63 +99,65 @@ export function VaultPage(props: {
   if (!model) return null;
 
   return (
-        <VaultPageContentView
-        items={model.vaultItems}
-        vaultItemCount={model.vaultItemCount}
-        highlightedItemKeys={model.activeLoadoutLookup}
-        highlightedLabel={model.activeLoadoutName}
-        tags={model.tags}
-        openingItemKey={props.openingItemKey}
-        locateRequest={props.locateRequest}
-        onSaveTagBatch={props.onSaveTagBatch}
-        cleanupActions={{
-          characters: props.account.characters,
-          currentCharacterId: model.currentCharacterId,
-          currentCharacterLabel: model.currentCharacterLabel,
-          writeActionsEnabled: props.writeActionsEnabled,
-          onBatchUnlock: props.onBatchUnlock,
-          onBatchTransferToCharacter: props.onBatchTransferToCharacter
-        }}
-        wishlist={model.wishlist}
-        localTargetRules={model.targetRules}
-        communityMatch={model.communityMatch}
-        recommendationImportActions={{
-          localCommunityTable,
-          onSaveWishlist: async (wishlist) => {
-            const saved = await services.localData.saveDimWishlist(wishlist);
-            props.onWishlistChanged(saved);
-            return saved;
-          },
-          onClearWishlist: async () => {
-            await services.localData.clearDimWishlist();
-            props.onWishlistChanged(null);
-          },
-          onSaveLocalCommunity: async (table) => {
-            const saved = await services.localData.saveLocalCommunityRecommendations(table);
-            setLocalCommunityTable(saved);
-            return saved;
-          },
-          onClearLocalCommunity: async () => {
-            await services.localData.clearLocalCommunityRecommendations();
-            setLocalCommunityTable(null);
-          }
-        }}
-        targetRulesActions={{
-          onSaveRules: async (rules) => {
-            const saved = await services.localData.saveLocalTargetRules(rules);
-            props.onLocalTargetRulesChanged(saved);
-            return saved;
-          },
-          onClearRules: async () => {
-            const cleared = await services.localData.clearLocalTargetRules();
-            props.onLocalTargetRulesChanged(cleared);
-            return cleared;
-          },
-          onSearchPerks: (query) => api.searchPerks(query)
-        }}
-        onContextFactsChange={props.onContextFactsChange}
-        onOpenItem={props.onOpenItem}
-        onSaveTag={props.onSaveTag}
+    <VaultPageContentView
+      items={model.vaultItems}
+      armorSetCatalog={armorSetCatalog}
+      armorSetCatalogStatus={armorSetCatalogStatus}
+      vaultItemCount={model.vaultItemCount}
+      highlightedItemKeys={model.activeLoadoutLookup}
+      highlightedLabel={model.activeLoadoutName}
+      tags={model.tags}
+      openingItemKey={props.openingItemKey}
+      locateRequest={props.locateRequest}
+      onSaveTagBatch={props.onSaveTagBatch}
+      cleanupActions={{
+        characters: props.account.characters,
+        currentCharacterId: model.currentCharacterId,
+        currentCharacterLabel: model.currentCharacterLabel,
+        writeActionsEnabled: props.writeActionsEnabled,
+        onBatchUnlock: props.onBatchUnlock,
+        onBatchTransferToCharacter: props.onBatchTransferToCharacter
+      }}
+      wishlist={model.wishlist}
+      localTargetRules={model.targetRules}
+      communityMatch={model.communityMatch}
+      recommendationImportActions={{
+        localCommunityTable,
+        onSaveWishlist: async (wishlist) => {
+          const saved = await services.localData.saveDimWishlist(wishlist);
+          props.onWishlistChanged(saved);
+          return saved;
+        },
+        onClearWishlist: async () => {
+          await services.localData.clearDimWishlist();
+          props.onWishlistChanged(null);
+        },
+        onSaveLocalCommunity: async (table) => {
+          const saved = await services.localData.saveLocalCommunityRecommendations(table);
+          setLocalCommunityTable(saved);
+          return saved;
+        },
+        onClearLocalCommunity: async () => {
+          await services.localData.clearLocalCommunityRecommendations();
+          setLocalCommunityTable(null);
+        }
+      }}
+      targetRulesActions={{
+        onSaveRules: async (rules) => {
+          const saved = await services.localData.saveLocalTargetRules(rules);
+          props.onLocalTargetRulesChanged(saved);
+          return saved;
+        },
+        onClearRules: async () => {
+          const cleared = await services.localData.clearLocalTargetRules();
+          props.onLocalTargetRulesChanged(cleared);
+          return cleared;
+        },
+        onSearchPerks: (query) => api.searchPerks(query)
+      }}
+      onContextFactsChange={props.onContextFactsChange}
+      onOpenItem={props.onOpenItem}
+      onSaveTag={props.onSaveTag}
     />
   );
 }

@@ -1,5 +1,6 @@
 import { useEffect, useId, useMemo, useState, type KeyboardEvent } from "react";
 import type { AccountItemSummary } from "@d2-tools/core/account/summary";
+import type { ArmorSetCatalogItem } from "@d2-tools/core/items/equipableItemSet";
 import { evaluateLocalTargets } from "@d2-tools/core/analysis/targets";
 import { evaluateWishlistRoll } from "@d2-tools/core/analysis/wishlist";
 import type { DimWishlist } from "@d2-tools/core/analysis/wishlistImport";
@@ -10,6 +11,7 @@ import { matchesLoadoutTemplateItem, type LoadoutTemplateLookup } from "@d2-tool
 import {
   armorStatLabels,
   ammoFilterLabels,
+  buildVaultArmorSetFilters,
   buildVaultDuplicateSummary,
   buildVaultContextFacts,
   buildVaultFrameFilters,
@@ -27,6 +29,7 @@ import {
   sortVaultItems,
   sortLabels,
   type VaultAmmoFilter,
+  type VaultArmorSetFilter,
   type VaultArmorStatRule,
   type VaultClassFilter,
   type VaultDamageFilter,
@@ -40,7 +43,11 @@ import {
   type VaultTagFilter
 } from "@d2-tools/app/vault";
 import { VaultDuplicateGroups } from "./VaultDuplicateGroups.js";
-import { VaultFilterToolbar, type VaultSignalFilter } from "./VaultFilterToolbar.js";
+import {
+  VaultFilterToolbar,
+  type VaultArmorSetCatalogStatus,
+  type VaultSignalFilter
+} from "./VaultFilterToolbar.js";
 import { VaultItemSections } from "./VaultItemSections.js";
 import {
   VaultRecommendationImportPanel,
@@ -65,6 +72,8 @@ const ignoreVaultSelection = () => undefined;
 
 export function VaultPageContentView(props: {
   items: AccountItemSummary[];
+  armorSetCatalog: ArmorSetCatalogItem[];
+  armorSetCatalogStatus: VaultArmorSetCatalogStatus;
   vaultItemCount?: number;
   highlightedItemKeys?: LoadoutTemplateLookup | null;
   highlightedLabel?: string;
@@ -95,6 +104,7 @@ export function VaultPageContentView(props: {
   const [gearTierFilter, setGearTierFilter] = useState<VaultGearTierFilter>("all");
   const [classFilter, setClassFilter] = useState<VaultClassFilter>("all");
   const [damageFilter, setDamageFilter] = useState<VaultDamageFilter>("all");
+  const [armorSetFilter, setArmorSetFilter] = useState<VaultArmorSetFilter>("all");
   const [armorStatRules, setArmorStatRules] = useState<VaultArmorStatRule[]>([]);
   const [frameFilters, setFrameFilters] = useState<VaultFrameFilter>([]);
   const [activeVaultTab, setActiveVaultTab] = useState<VaultWorkspaceTab>("filters");
@@ -126,6 +136,7 @@ export function VaultPageContentView(props: {
         gearTier: gearTierFilter,
         classType: classFilter,
         damageType: damageFilter,
+        armorSet: armorSetFilter,
         armorStatRules,
         frames: frameFilters,
         tags: props.tags,
@@ -135,7 +146,7 @@ export function VaultPageContentView(props: {
       sortKey,
       props.tags
     ),
-    [ammoFilter, armorStatRules, classFilter, damageFilter, frameFilters, gearTierFilter, group, itemTypeFilter, lockFilter, props.items, props.localTargetRules, props.tags, props.wishlist, query, rarityFilter, slotFilter, sortKey, tagFilter]
+    [ammoFilter, armorSetFilter, armorStatRules, classFilter, damageFilter, frameFilters, gearTierFilter, group, itemTypeFilter, lockFilter, props.items, props.localTargetRules, props.tags, props.wishlist, query, rarityFilter, slotFilter, sortKey, tagFilter]
   );
   const filteredItems = useMemo(
     () => filteredVaultItems.filter((item) => matchesSignalFilters(item, signalFilters, props)),
@@ -156,13 +167,14 @@ export function VaultPageContentView(props: {
       gearTier: gearTierFilter,
       classType: classFilter,
       damageType: damageFilter,
+      armorSet: armorSetFilter,
       armorStatRules,
       frames: frameFilters,
       tags: props.tags,
       wishlist: props.wishlist,
       localTargetRules: props.localTargetRules
     })),
-    [ammoFilter, armorStatRules, classFilter, damageFilter, frameFilters, gearTierFilter, group, itemTypeFilter, lockFilter, props.items, props.localTargetRules, props.tags, props.wishlist, rarityFilter, tagFilter]
+    [ammoFilter, armorSetFilter, armorStatRules, classFilter, damageFilter, frameFilters, gearTierFilter, group, itemTypeFilter, lockFilter, props.items, props.localTargetRules, props.tags, props.wishlist, rarityFilter, tagFilter]
   );
   const availableFrameFilters = useMemo(
     () => buildVaultFrameFilters(filterVaultItems(props.items, {
@@ -177,13 +189,29 @@ export function VaultPageContentView(props: {
       gearTier: gearTierFilter,
       classType: classFilter,
       damageType: damageFilter,
+      armorSet: armorSetFilter,
       armorStatRules,
       tags: props.tags,
       wishlist: props.wishlist,
       localTargetRules: props.localTargetRules
     })),
-    [ammoFilter, armorStatRules, classFilter, damageFilter, gearTierFilter, group, itemTypeFilter, lockFilter, props.items, props.localTargetRules, props.tags, props.wishlist, rarityFilter, slotFilter, tagFilter]
+    [ammoFilter, armorSetFilter, armorStatRules, classFilter, damageFilter, gearTierFilter, group, itemTypeFilter, lockFilter, props.items, props.localTargetRules, props.tags, props.wishlist, rarityFilter, slotFilter, tagFilter]
   );
+  const armorSetFilters = useMemo(
+    () => buildVaultArmorSetFilters(props.armorSetCatalog, props.items),
+    [props.armorSetCatalog, props.items]
+  );
+  const armorSetLabel = useMemo(
+    () => armorSetFilters.find((option) => option.key === armorSetFilter)?.label,
+    [armorSetFilter, armorSetFilters]
+  );
+  useEffect(() => {
+    if (armorSetFilter === "all") return;
+    if (props.armorSetCatalogStatus !== "ready"
+      || !armorSetFilters.some((option) => option.key === armorSetFilter)) {
+      setArmorSetFilter("all");
+    }
+  }, [armorSetFilter, armorSetFilters, props.armorSetCatalogStatus]);
   const itemTypeFilters = useMemo(() => {
     const counts = new Map<string, number>();
     props.items.filter((item) => item.group_key === "weapons" && item.item_type).forEach((item) => {
@@ -210,12 +238,14 @@ export function VaultPageContentView(props: {
     ammoFilter,
     damageFilter,
     classFilter,
+    armorSetFilter,
+    armorSetLabel,
     lockFilter,
     tagFilter,
     signalFilters,
     frameFilterCount: frameFilters.length,
     armorRuleCount: armorStatRules.length
-  }), [ammoFilter, armorStatRules.length, classFilter, damageFilter, frameFilters.length, gearTierFilter, itemTypeFilter, lockFilter, query, rarityFilter, signalFilters, slotFilter, sortKey, tagFilter]);
+  }), [ammoFilter, armorSetFilter, armorSetLabel, armorStatRules.length, classFilter, damageFilter, frameFilters.length, gearTierFilter, itemTypeFilter, lockFilter, query, rarityFilter, signalFilters, slotFilter, sortKey, tagFilter]);
   const contextFacts = useMemo(() => buildVaultContextFacts({
     group,
     query,
@@ -228,11 +258,13 @@ export function VaultPageContentView(props: {
     gearTierFilter,
     classFilter,
     damageFilter,
+    armorSetFilter,
+    armorSetLabel,
     frameFilters,
     armorStatRules,
     filteredCount: filteredVaultItems.length,
     totalCount: props.items.length
-  }), [ammoFilter, armorStatRules, classFilter, damageFilter, filteredVaultItems.length, frameFilters, gearTierFilter, group, itemTypeFilter, lockFilter, props.items.length, query, rarityFilter, slotFilter, tagFilter]);
+  }), [ammoFilter, armorSetFilter, armorSetLabel, armorStatRules, classFilter, damageFilter, filteredVaultItems.length, frameFilters, gearTierFilter, group, itemTypeFilter, lockFilter, props.items.length, query, rarityFilter, slotFilter, tagFilter]);
 
   useEffect(() => {
     props.onContextFactsChange?.([
@@ -255,6 +287,7 @@ export function VaultPageContentView(props: {
     setGearTierFilter("all");
     setClassFilter("all");
     setDamageFilter("all");
+    setArmorSetFilter("all");
     setArmorStatRules([]);
     setFrameFilters([]);
     setBatchMessage("");
@@ -271,6 +304,7 @@ export function VaultPageContentView(props: {
     }
     if (nextGroup !== "armor") {
       setClassFilter("all");
+      setArmorSetFilter("all");
       setArmorStatRules([]);
     }
     if (nextGroup === "equipment") {
@@ -358,11 +392,14 @@ export function VaultPageContentView(props: {
               gearTierFilter={gearTierFilter}
               classFilter={classFilter}
               damageFilter={damageFilter}
+              armorSetFilter={armorSetFilter}
               frameFilters={frameFilters}
               group={group}
               groups={groups}
               slotFilters={slotFilters}
               itemTypeFilters={itemTypeFilters}
+              armorSetFilters={armorSetFilters}
+              armorSetCatalogStatus={props.armorSetCatalogStatus}
               availableFrameFilters={availableFrameFilters}
               onQueryChange={setQuery}
               onSortKeyChange={setSortKey}
@@ -380,6 +417,7 @@ export function VaultPageContentView(props: {
               onGearTierFilterChange={setGearTierFilter}
               onClassFilterChange={setClassFilter}
               onDamageFilterChange={setDamageFilter}
+              onArmorSetFilterChange={setArmorSetFilter}
               onGroupChange={switchVaultFilterMode}
               onToggleFrameFilter={toggleFrameFilter}
             />
@@ -470,6 +508,8 @@ function buildActiveFilterLabels(input: {
   ammoFilter: VaultAmmoFilter;
   damageFilter: VaultDamageFilter;
   classFilter: VaultClassFilter;
+  armorSetFilter: VaultArmorSetFilter;
+  armorSetLabel?: string;
   lockFilter: VaultLockFilter;
   tagFilter: VaultTagFilter;
   signalFilters: VaultSignalFilter[];
@@ -486,6 +526,7 @@ function buildActiveFilterLabels(input: {
     input.ammoFilter !== "all" ? `弹药：${ammoFilterLabels[input.ammoFilter]}` : "",
     input.damageFilter !== "all" ? `属性：${damageFilterLabels[input.damageFilter]}` : "",
     input.classFilter !== "all" ? `职业：${classFilterLabels[input.classFilter]}` : "",
+    input.armorSetFilter !== "all" ? `护甲套装：${input.armorSetLabel ?? input.armorSetFilter}` : "",
     input.lockFilter !== "all" ? lockFilterLabels[input.lockFilter] : "",
     input.tagFilter !== "all" ? `整理状态：${input.tagFilter === "untagged" ? "未标记" : input.tagFilter === "keep" ? "保留" : input.tagFilter === "review" ? "待复查" : "可清理"}` : "",
     ...input.signalFilters.map((signal) => signalLabel(signal)),

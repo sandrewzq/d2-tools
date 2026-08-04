@@ -1,4 +1,5 @@
 import type { AccountItemSummary, AccountSummary } from "@d2-tools/core/account/summary";
+import type { WeaponBreakerTypeSummary } from "@d2-tools/core/items/breakerTypes";
 import type { EquipableItemSetSummary } from "@d2-tools/core/items/equipableItemSet";
 import type { ItemDefinitionVersionSummary, ItemReleaseSummary } from "@d2-tools/core/items/release";
 import { formatLibraryVersion, matchesAnyKeyword, splitQueryTokens, uniqueInOrder, uniqueSorted } from "./libraryText.js";
@@ -15,6 +16,7 @@ export type ItemSearchResult = {
   tier?: string;
   class_name?: string;
   damage_type?: string;
+  breaker_type?: WeaponBreakerTypeSummary;
   is_adept?: boolean;
   origin_traits?: Array<{
     hash: number;

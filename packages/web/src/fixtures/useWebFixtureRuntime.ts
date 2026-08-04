@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import type { ArmorSetCatalogItem } from "@d2-tools/core/items/equipableItemSet";
 import { buildLoadoutTemplateLookup, matchesLoadoutTemplateItem, selectLoadoutsPageModel, type LoadoutTemplate, type LoadoutTemplateItem } from "@d2-tools/app/loadouts";
 import { selectAccountPageModel } from "@d2-tools/app/account";
 import { selectHomePageModel } from "@d2-tools/app/home";
@@ -180,6 +181,12 @@ export const webLocalTargetRules = { action_policy: "notify_only" as const, armo
 export const webWishlist = { title: "Web DIM Wishlist", rules: [{ item_hash: 3002, perk_hashes: [4001], mode: "pve" as const, note: "Web 推荐" }] };
 export const webVaultCommunityMatch = new Map<number, VaultCommunityMatchInfo>([[3002, { matched: 1, available: 1, modes: ["pve"], sample_perks: [{ hash: 4001, name: "爆炸载荷" }] }]]);
 export const webBatchResult = { success_count: 0, failed_count: 0, results: [] };
+export const webArmorSetCatalog: ArmorSetCatalogItem[] = [
+  { hash: 7001, name: "铁血意志套装" },
+  { hash: 7002, name: "流放者套装" },
+  { hash: 7003, name: "遗产誓言套装" },
+  { hash: 7004, name: "远古福音套装" }
+];
 export const webBackgroundTasks: ShellBackgroundTaskItem[] = [{ id: "web-task", title: "Web snapshot", status: "succeeded", message: "Web mock 已载入。", created_at: "2026-07-03T14:18:00+08:00", updated_at: "2026-07-03T14:18:00+08:00" }];
 export const webActionLog = [{ id: "web-action", created_at: "2026-07-03T14:18:00+08:00", action: "mock", item_name: "Web mock", ok: true, message: "共享设置页操作日志 mock。" }];
 export const webBungieConfig = { bungie: { api_key: "web-api-key", client_id: "web-client-id", client_secret: "web-client-secret", redirect_uri: "https://127.0.0.1:28780/oauth/callback" } };
@@ -436,6 +443,7 @@ export function useWebFixtureRuntime() {
     wishlist: webWishlist,
     vaultCommunityMatch: webVaultCommunityMatch,
     batchResult: webBatchResult,
+    armorSetCatalog: webArmorSetCatalog,
     backgroundTasks: webBackgroundTasks,
     actionLog: webActionLog,
     bungieConfig: webBungieConfig,

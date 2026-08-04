@@ -5,6 +5,7 @@ import { isXurActiveAt, nextXurBoundaryAt, xurVendorHash } from "@d2-tools/core/
 import type { WeeklyIronBannerSummary } from "@d2-tools/core/weekly/summary";
 import type { ShellPageKey } from "../shell/types.js";
 import type { VendorInventoryItemView, VendorOfferContextView } from "../vendors/VendorsPageContentView.js";
+import { GameAssetImage } from "../media/GameAssetImage.js";
 import { formatFullDateTime, formatScheduleDateTime } from "../time/formatTime.js";
 import { createXurItemIconUrl, normalizeBungieIconUrl } from "./homeIconArt.js";
 export type HomeTone = "neutral" | "ready" | "warning" | "error";
@@ -489,7 +490,7 @@ function HomeActivityReward(props: {
 }) {
   const content = <>
       {props.reward.icon ? (
-        <span className="weekly-activity-reward-icon"><img src={normalizeBungieIconUrl(props.reward.icon) ?? props.reward.icon} alt="" /></span>
+        <span className="weekly-activity-reward-icon"><GameAssetImage src={normalizeBungieIconUrl(props.reward.icon) ?? props.reward.icon} alt="" loading="eager" /></span>
       ) : <span className="weekly-activity-reward-icon is-missing" aria-label={`${props.reward.name} 无图标`}>?</span>}
       <div>
         <strong data-ui-part="value" data-info-priority="context" data-text-tone="primary">{props.reward.name}</strong>
@@ -539,7 +540,7 @@ function HomeXurOffer(props: {
   ].filter(Boolean).join(" · ");
 
   const content = <>
-      <span className="home-vendor-stock-icon"><img alt="" loading="lazy" src={iconUrl} /></span>
+      <span className="home-vendor-stock-icon"><GameAssetImage alt="" src={iconUrl} /></span>
       <span className="home-vendor-stock-copy">
         <span data-ui-part="label" data-info-priority="support" data-text-tone="meta">{typeLabel || "类型与职业备注未返回"}</span>
         <strong data-ui-part="value" data-info-priority="context" data-text-tone="primary">{props.item.title}</strong>

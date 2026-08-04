@@ -2,6 +2,7 @@ import { evaluateLocalTargets, summarizeLocalTargetMatches, type LocalTargetRule
 import { evaluateWishlistRoll } from "@d2-tools/core/analysis/wishlist";
 import type { DimWishlist } from "@d2-tools/core/analysis/wishlistImport";
 import type { AccountItemSummary, AmmoTypeKey, EquipmentGroupKey } from "@d2-tools/core/account/summary";
+import type { ArmorSetCatalogItem } from "@d2-tools/core/items/equipableItemSet";
 import type { ArmorStatKey } from "@d2-tools/core/loadouts/analysis";
 import type { VaultTags, VaultTagValue } from "@d2-tools/core/vault/tags";
 
@@ -16,6 +17,7 @@ export type VaultRarityFilter = "all" | "legendary" | "exotic";
 export type VaultGearTierFilter = "all" | "0" | "1" | "2" | "3" | "4" | "5";
 export type VaultClassFilter = "all" | "titan" | "hunter" | "warlock";
 export type VaultDamageFilter = "all" | "kinetic" | "arc" | "solar" | "void" | "stasis" | "strand";
+export type VaultArmorSetFilter = string | "all";
 export type VaultViewMode = "list" | "duplicates";
 
 export type VaultArmorStatRule = {
@@ -35,6 +37,7 @@ export type VaultFilter = {
   gearTier?: VaultGearTierFilter;
   classType?: VaultClassFilter;
   damageType?: VaultDamageFilter;
+  armorSet?: VaultArmorSetFilter;
   armorStatRules?: VaultArmorStatRule[];
   frames?: string[];
   tags?: VaultTags;
@@ -76,7 +79,14 @@ export type VaultFrameOption = {
   count: number;
 };
 
+export type VaultArmorSetOption = {
+  key: string;
+  label: string;
+  count: number;
+};
+
 export type VaultListWorkspace = {
+  armorSetFilters: VaultArmorSetOption[];
   availableFrameFilters: VaultFrameOption[];
   contextFacts: string[];
   filteredItems: AccountItemSummary[];
@@ -189,6 +199,7 @@ export const groupSortOrder: Record<EquipmentGroupKey, number> = {
 
 export function createVaultListWorkspace(input: {
   items: AccountItemSummary[];
+  armorSetCatalog?: ArmorSetCatalogItem[];
   filter: VaultFilter;
   sortKey: VaultSortKey;
   tags: VaultTags;
@@ -213,8 +224,10 @@ export function createVaultListWorkspace(input: {
   }));
   const filteredItems = sortVaultItems(filterVaultItems(input.items, baseFilter), input.sortKey, input.tags);
   const filter = input.filter;
+  const armorSetFilters = buildVaultArmorSetFilters(input.armorSetCatalog ?? [], input.items);
 
   return {
+    armorSetFilters,
     availableFrameFilters,
     contextFacts: buildVaultContextFacts({
       group: filter.group,
@@ -228,6 +241,8 @@ export function createVaultListWorkspace(input: {
       gearTierFilter: filter.gearTier ?? "all",
       classFilter: filter.classType ?? "all",
       damageFilter: filter.damageType ?? "all",
+      armorSetFilter: filter.armorSet ?? "all",
+      armorSetLabel: armorSetFilters.find((option) => option.key === filter.armorSet)?.label,
       frameFilters: filter.frames ?? [],
       armorStatRules: filter.armorStatRules ?? [],
       filteredCount: filteredItems.length,
@@ -260,6 +275,7 @@ export function filterVaultItems(items: AccountItemSummary[], filter: VaultFilte
     if (!matchesGearTier(item, filter.gearTier ?? "all")) return false;
     if (!matchesClass(item, filter.classType ?? "all")) return false;
     if (!matchesDamage(item, filter.damageType ?? "all")) return false;
+    if (!matchesArmorSet(item, filter.armorSet ?? "all")) return false;
     if (filter.frames?.length && !filter.frames.includes(item.weapon_frame?.key ?? "")) return false;
     if (parsedQuery.locked !== undefined && item.locked !== parsedQuery.locked) return false;
     if (parsedQuery.type && parsedQuery.type !== "all" && item.group_key !== parsedQuery.type) return false;
@@ -271,6 +287,7 @@ export function filterVaultItems(items: AccountItemSummary[], filter: VaultFilte
       item.item_type,
       item.tier,
       item.bucket_name,
+      item.armor_set?.name,
       item.weapon_frame?.name,
       formatArmorStatsInline(item),
       tierAlias(item.tier),
@@ -354,6 +371,32 @@ export function buildVaultFrameFilters(items: AccountItemSummary[]): VaultFrameO
   return [...frameCounts.values()].sort((left, right) => right.count - left.count || compareText(left.label, right.label));
 }
 
+export function buildVaultArmorSetFilters(
+  catalog: ArmorSetCatalogItem[],
+  items: AccountItemSummary[]
+): VaultArmorSetOption[] {
+  const heldCounts = new Map<string, number>();
+
+  for (const item of items) {
+    if (item.group_key !== "armor" || !item.armor_set) continue;
+    const key = String(item.armor_set.hash);
+    heldCounts.set(key, (heldCounts.get(key) ?? 0) + 1);
+  }
+
+  const options = new Map<string, VaultArmorSetOption>();
+  for (const item of catalog) {
+    const hash = Number(item.hash);
+    const label = item.name.trim();
+    if (!Number.isFinite(hash) || !label) continue;
+    const key = String(hash >>> 0);
+    if (!options.has(key)) {
+      options.set(key, { key, label, count: heldCounts.get(key) ?? 0 });
+    }
+  }
+
+  return [...options.values()].sort((left, right) => compareText(left.label, right.label) || left.key.localeCompare(right.key));
+}
+
 export function buildVaultSections(items: AccountItemSummary[]): VaultSection[] {
   const sectionMap = new Map<string, VaultSection>();
   for (const item of items) {
@@ -424,6 +467,8 @@ export function buildVaultContextFacts(input: {
   gearTierFilter?: VaultGearTierFilter;
   classFilter?: VaultClassFilter;
   damageFilter?: VaultDamageFilter;
+  armorSetFilter?: VaultArmorSetFilter;
+  armorSetLabel?: string;
   frameFilters: VaultFrameFilter;
   armorStatRules: VaultArmorStatRule[];
   filteredCount: number;
@@ -445,6 +490,7 @@ export function buildVaultContextFacts(input: {
     input.gearTierFilter && input.gearTierFilter !== "all" ? `装备阶级：${gearTierFilterLabels[input.gearTierFilter]}` : "",
     input.classFilter && input.classFilter !== "all" ? `职业：${classFilterLabels[input.classFilter]}` : "",
     input.damageFilter && input.damageFilter !== "all" ? `伤害属性：${damageFilterLabels[input.damageFilter]}` : "",
+    input.armorSetFilter && input.armorSetFilter !== "all" ? `护甲套装：${input.armorSetLabel ?? input.armorSetFilter}` : "",
     input.frameFilters.length ? `框架：${input.frameFilters.length} 个` : "",
     input.armorStatRules.length ? `护甲属性条件：${input.armorStatRules.length} 条` : ""
   ].filter(Boolean);
@@ -615,6 +661,10 @@ function matchesClass(item: AccountItemSummary, classType: VaultClassFilter): bo
 function matchesDamage(item: AccountItemSummary, damageType: VaultDamageFilter): boolean {
   if (damageType === "all") return true;
   return damageTypeForItem(item) === damageType;
+}
+
+function matchesArmorSet(item: AccountItemSummary, armorSet: VaultArmorSetFilter): boolean {
+  return armorSet === "all" || String(item.armor_set?.hash ?? "") === armorSet;
 }
 
 function damageTypeForItem(item: AccountItemSummary): Exclude<VaultDamageFilter, "all"> | undefined {

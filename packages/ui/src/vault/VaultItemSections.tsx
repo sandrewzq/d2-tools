@@ -71,10 +71,11 @@ export function VaultItemSections(props: {
         </div>
       ) : null}
       <div className="vault-card-grid">
-        {renderedItems.map((item) => (
+        {renderedItems.map((item, index) => (
           <VaultListItem
             item={item}
             key={`${item.hash}-${item.instance_id ?? ""}`}
+            imagePriority={index < 40}
             highlightedItemKeys={props.highlightedItemKeys}
             tags={props.tags}
             wishlist={props.wishlist}

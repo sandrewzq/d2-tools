@@ -44,6 +44,7 @@ export function createSqliteDefinitionReader(
   }
   const statements = new Map<DefinitionComponentName, StatementSync>();
   const batchStatements = new Map<string, StatementSync>();
+  const allStatements = new Map<DefinitionComponentName, StatementSync>();
   const batchSize = Math.min(900, Math.max(1, options.batchSize ?? 512));
   const cache = new DefinitionLruCache(options.cacheSize ?? 2_000);
   let closed = false;
@@ -130,6 +131,23 @@ export function createSqliteDefinitionReader(
     return definitions;
   };
 
+  const getAll = (component: DefinitionComponentName): DefinitionComponentData => {
+    if (!tableNames.has(component)) {
+      return {};
+    }
+    let statement = allStatements.get(component);
+    if (!statement) {
+      statement = database.prepare(`SELECT id, json FROM ${quoteIdentifier(component)}`);
+      allStatements.set(component, statement);
+    }
+    const definitions: DefinitionComponentData = {};
+    for (const row of statement.all() as DefinitionRow[]) {
+      const hash = toUnsignedHash(Number(row.id));
+      definitions[String(hash)] = parseDefinitionRow(row, hash);
+    }
+    return definitions;
+  };
+
   return {
     hasComponent(component) {
       return tableNames.has(component);
@@ -139,6 +157,8 @@ export function createSqliteDefinitionReader(
 
     getMany,
 
+    getAll,
+
     close() {
       if (closed) {
         return;
@@ -147,6 +167,7 @@ export function createSqliteDefinitionReader(
       cache.clear();
       statements.clear();
       batchStatements.clear();
+      allStatements.clear();
       database.close();
     }
   };

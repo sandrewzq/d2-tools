@@ -9,6 +9,7 @@ import type {
 } from "@d2-tools/app/account";
 import { getLocaleCopy } from "../i18n/copy.js";
 import type { AccountCopy, InterfaceLocale } from "../i18n/types.js";
+import { GameAssetImage } from "../media/GameAssetImage.js";
 import { formatClockTime, formatCompactDateTime } from "../time/formatTime.js";
 import {
   ProductWorkspaceContentStack,
@@ -460,9 +461,7 @@ function AccountReadonlyRow(props: { item: AccountReadonlyItemView }) {
 }
 
 function AccountReadonlyIcon(props: { item: AccountReadonlyItemView }) {
-  return props.item.icon
-    ? <img src={props.item.icon} alt="" loading="lazy" />
-    : <span className="item-icon-placeholder" aria-hidden="true" />;
+  return <GameAssetImage src={props.item.icon} alt="" fallback={<span className="item-icon-placeholder" aria-hidden="true" />} />;
 }
 
 function AccountMaterialsGroup(props: {
@@ -484,7 +483,7 @@ function AccountMaterialsGroup(props: {
         <div className="account-table-list account-material-list">
           {rows.map((row) => (
             <div key={row.key}>
-              {row.material.icon ? <img src={row.material.icon} alt="" loading="lazy" /> : <span className="item-icon-placeholder" aria-hidden="true" />}
+              <GameAssetImage src={row.material.icon} alt="" fallback={<span className="item-icon-placeholder" aria-hidden="true" />} />
               <strong>{row.material.name}</strong>
               <span>{row.material.quantity.toLocaleString(props.interfaceLocale)}</span>
               <small>{row.meta}</small>
@@ -620,15 +619,13 @@ function renderAccountItemCard(
   ].filter(Boolean).join(" ");
   const content = (
     <>
-      {item.icon ? (
-        <img
-          alt=""
-          decoding="async"
-          fetchPriority={source === "equipped" ? "high" : "auto"}
-          loading={source === "equipped" ? "eager" : "lazy"}
-          src={item.icon}
-        />
-      ) : <span className="item-icon-placeholder" aria-hidden="true" />}
+      <GameAssetImage
+        alt=""
+        fetchPriority={source === "equipped" ? "high" : "auto"}
+        loading="eager"
+        src={item.icon}
+        fallback={<span className="item-icon-placeholder" aria-hidden="true" />}
+      />
       <span className="account-slot-item-copy">
         <strong>{item.name}</strong>
         <span>{source === "equipped" ? accountText(props.copy, "当前角色装备") : accountText(props.copy, "当前角色背包候选")}</span>

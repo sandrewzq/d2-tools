@@ -8,6 +8,7 @@ export type DefinitionReader = {
   hasComponent(component: DefinitionComponentName): boolean;
   get(component: DefinitionComponentName, hash: number): DefinitionRecord | null;
   getMany(component: DefinitionComponentName, hashes: Iterable<number>): DefinitionComponentData;
+  getAll(component: DefinitionComponentName): DefinitionComponentData;
   close(): void;
 };
 

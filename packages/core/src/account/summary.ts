@@ -6,6 +6,7 @@ import {
   summarizeWeaponFrame,
   type WeaponFrameSummary
 } from "../items/weaponFrames.js";
+import { summarizeEquipableItemSet } from "../items/equipableItemSet.js";
 import type { ArmorStatKey } from "../loadouts/analysis.js";
 import type { DefinitionComponentData, DefinitionRecord } from "../manifest/definitions.js";
 import type { BungieOAuthToken } from "../oauth/login.js";
@@ -25,6 +26,10 @@ export type AccountItemSummary = {
   bucket_hash?: number;
   bucket_name?: string;
   group_key: EquipmentGroupKey;
+  armor_set?: {
+    hash: number;
+    name: string;
+  };
   weapon_frame?: WeaponFrameSummary;
   power?: number;
   locked?: boolean;
@@ -296,6 +301,7 @@ export type AccountDefinitionData = {
   inventoryItemConstantsDefinitions?: DefinitionComponentData;
   bucketDefinitions?: DefinitionComponentData;
   damageTypeDefinitions?: DefinitionComponentData;
+  equipableItemSetDefinitions?: DefinitionComponentData;
   plugSetDefinitions?: DefinitionComponentData;
   objectiveDefinitions?: DefinitionComponentData;
   recordDefinitions?: DefinitionComponentData;
@@ -313,6 +319,7 @@ export type FetchAccountSummaryOptions = {
   inventoryItemConstantsDefinitions?: DefinitionComponentData;
   bucketDefinitions?: DefinitionComponentData;
   damageTypeDefinitions?: DefinitionComponentData;
+  equipableItemSetDefinitions?: DefinitionComponentData;
   plugSetDefinitions?: DefinitionComponentData;
   objectiveDefinitions?: DefinitionComponentData;
   recordDefinitions?: DefinitionComponentData;
@@ -696,6 +703,7 @@ export function buildAccountItemDetailFromResponse(
     input.objectiveDefinitions ?? {},
     input.damageTypeDefinitions ?? {},
     input.inventoryItemConstantsDefinitions ?? {},
+    input.equipableItemSetDefinitions ?? {},
     input.query.character_id,
     "full",
     input.recordDefinitions ?? {}
@@ -759,6 +767,10 @@ async function hydrateAccountDefinitions(
       options.damageTypeDefinitions,
       loaded.damageTypeDefinitions
     ),
+    equipableItemSetDefinitions: mergeDefinitionData(
+      options.equipableItemSetDefinitions,
+      loaded.equipableItemSetDefinitions
+    ),
     plugSetDefinitions: mergeDefinitionData(options.plugSetDefinitions, loaded.plugSetDefinitions),
     objectiveDefinitions: mergeDefinitionData(options.objectiveDefinitions, loaded.objectiveDefinitions),
     recordDefinitions: mergeDefinitionData(options.recordDefinitions, loaded.recordDefinitions),
@@ -820,6 +832,7 @@ function buildAccountSummary(
     options.objectiveDefinitions ?? {},
     options.damageTypeDefinitions ?? {},
     options.inventoryItemConstantsDefinitions ?? {},
+    options.equipableItemSetDefinitions ?? {},
     mode
   );
   return {
@@ -839,6 +852,7 @@ function buildAccountSummary(
       options.objectiveDefinitions ?? {},
       options.damageTypeDefinitions ?? {},
       options.inventoryItemConstantsDefinitions ?? {},
+      options.equipableItemSetDefinitions ?? {},
       profileInventory.vault.items,
       mode
     ),
@@ -866,6 +880,7 @@ function summarizeCharacters(
   objectiveDefinitions: DefinitionComponentData,
   damageTypeDefinitions: DefinitionComponentData,
   inventoryItemConstantsDefinitions: DefinitionComponentData,
+  equipableItemSetDefinitions: DefinitionComponentData,
   vaultItems: AccountItemSummary[],
   mode: AccountSummaryMode
 ): CharacterSummary[] {
@@ -883,6 +898,7 @@ function summarizeCharacters(
         objectiveDefinitions,
         damageTypeDefinitions,
         inventoryItemConstantsDefinitions,
+        equipableItemSetDefinitions,
         character.characterId,
         mode
       ));
@@ -896,6 +912,7 @@ function summarizeCharacters(
         objectiveDefinitions,
         damageTypeDefinitions,
         inventoryItemConstantsDefinitions,
+        equipableItemSetDefinitions,
         character.characterId,
         mode
       ));
@@ -939,6 +956,7 @@ function summarizeProfileInventory(
   objectiveDefinitions: DefinitionComponentData,
   damageTypeDefinitions: DefinitionComponentData,
   inventoryItemConstantsDefinitions: DefinitionComponentData,
+  equipableItemSetDefinitions: DefinitionComponentData,
   mode: AccountSummaryMode
 ): Pick<AccountSummary, "vault" | "materials"> {
   const profileItems = profile.profileInventory?.data?.items ?? [];
@@ -953,6 +971,7 @@ function summarizeProfileInventory(
       objectiveDefinitions,
       damageTypeDefinitions,
       inventoryItemConstantsDefinitions,
+      equipableItemSetDefinitions,
       undefined,
       mode
     ));
@@ -1013,6 +1032,7 @@ function summarizeItem(
   objectiveDefinitions: DefinitionComponentData = {},
   damageTypeDefinitions: DefinitionComponentData = {},
   inventoryItemConstantsDefinitions: DefinitionComponentData = {},
+  equipableItemSetDefinitions: DefinitionComponentData = {},
   characterId?: string,
   mode: AccountSummaryMode = "full",
   recordDefinitions: DefinitionComponentData = {}
@@ -1049,6 +1069,9 @@ function summarizeItem(
         socket.is_visible && socket.selected_plug ? [socket.selected_plug] : []
       ))
     : summarizeSelectedPlugPreviews(instanceId, components, definitions);
+  const armorSet = groupKey === "armor" && definition
+    ? summarizeEquipableItemSet(definition, equipableItemSetDefinitions, undefined)
+    : undefined;
   const summary: AccountItemSummary = {
     hash: item.itemHash,
     instance_id: instanceId,
@@ -1061,6 +1084,7 @@ function summarizeItem(
     bucket_hash: bucketHash,
     bucket_name: bucket?.name ?? bucketDefinition?.displayProperties?.name?.trim(),
     group_key: groupKey,
+    ...(armorSet ? { armor_set: { hash: armorSet.hash, name: armorSet.name } } : {}),
     power: instance?.primaryStat?.value,
     locked: isLocked(item.state),
     instance: summarizeItemInstance(

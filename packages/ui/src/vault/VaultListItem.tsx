@@ -7,6 +7,7 @@ import type { ArmorStatKey } from "@d2-tools/core/loadouts/analysis";
 import type { VaultTags, VaultTagValue } from "@d2-tools/core/vault/tags";
 import { matchesLoadoutTemplateItem, type LoadoutTemplateLookup } from "@d2-tools/app/loadouts";
 import { ammoFilterLabels, armorStatLabels, formatArmorStatsInline, getVaultItemKey, tagLabels } from "@d2-tools/app/vault";
+import { GameAssetImage } from "../media/GameAssetImage.js";
 import { VaultAmmoTypeIcon, VaultDamageTypeIcon } from "./VaultWeaponFactIcons.js";
 
 export function VaultListItem(props: {
@@ -16,6 +17,7 @@ export function VaultListItem(props: {
   wishlist?: DimWishlist | null;
   localTargetRules?: LocalTargetRules | null;
   communityMatch?: VaultItemMatchInfo;
+  imagePriority?: boolean;
   isOrganizing: boolean;
   isSelected: boolean;
   isOpening?: boolean;
@@ -32,10 +34,20 @@ export function VaultListItem(props: {
   const gearTierOverlay = props.item.instance?.gear_tier_overlay ?? gearTierOverlayUrl(gearTier);
   const visual = (
     <div className="vault-card-visual" title={gearTier > 0 ? `装备阶级 T${gearTier}` : undefined}>
-      {props.item.icon ? <img alt="" decoding="async" loading="lazy" src={props.item.icon} /> : <div className="item-icon-placeholder" />}
-      {gearTierOverlay ? (
-        <img className="vault-gear-tier" alt="" aria-hidden="true" src={gearTierOverlay} />
-      ) : null}
+      <GameAssetImage
+        alt=""
+        fetchPriority={props.imagePriority ? "high" : "auto"}
+        loading={props.imagePriority ? "eager" : "lazy"}
+        src={props.item.icon}
+        fallback={<div className="item-icon-placeholder" />}
+      />
+      <GameAssetImage
+        className="vault-gear-tier"
+        alt=""
+        aria-hidden="true"
+        loading={props.imagePriority ? "eager" : "lazy"}
+        src={gearTierOverlay}
+      />
       {props.item.locked ? <span className="vault-item-lock-icon" aria-label="已锁定" title="已锁定"><i /></span> : null}
     </div>
   );
@@ -57,11 +69,11 @@ export function VaultListItem(props: {
       </div>
       <div className="vault-weapon-fact-row">
         <span className={`vault-weapon-fact ammo-${props.item.ammo_type ?? "unknown"}`} title={props.item.ammo_type ? ammoFilterLabels[props.item.ammo_type] : "弹药类型未知"}>
-          <VaultAmmoTypeIcon type={props.item.ammo_type} />
+          <VaultAmmoTypeIcon type={props.item.ammo_type} size="compact" />
           <span>{formatAmmoCompact(props.item.ammo_type)}</span>
         </span>
         <span className="vault-weapon-fact" title={formatVaultCardContext(props.item)}>
-          <VaultDamageTypeIcon damageType={props.item.instance?.damage_type} src={props.item.instance?.damage_type_icon} />
+          <VaultDamageTypeIcon damageType={props.item.instance?.damage_type} src={props.item.instance?.damage_type_icon} size="compact" />
           <span>{formatVaultCardContext(props.item) || "属性未知"}</span>
         </span>
         <span className="vault-weapon-power" title={`光等 ${props.item.power ?? "未知"}`}>

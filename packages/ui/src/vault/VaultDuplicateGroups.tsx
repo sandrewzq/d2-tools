@@ -9,6 +9,7 @@ import type { VaultItemMatchInfo } from "@d2-tools/core/community-perks";
 import type { SaveVaultTagInput, VaultTags } from "@d2-tools/core/vault/tags";
 import { matchesLoadoutTemplateItem, type LoadoutTemplateLookup } from "@d2-tools/app/loadouts";
 import { getVaultItemKey, normalizeCoreItem } from "@d2-tools/app/vault";
+import { GameAssetImage } from "../media/GameAssetImage.js";
 import { formatVaultItemMeta } from "./VaultListItem.js";
 
 type DuplicateDisposition = "none" | "keep" | "review" | "junk";
@@ -85,7 +86,7 @@ export function VaultDuplicateGroups(props: {
             const firstItem = group.items[0] ? itemByKey.get(group.items[0].item_key) : undefined;
             return (
               <button type="button" className="duplicate-group-link" key={group.group_key} aria-pressed={activeGroup?.group_key === group.group_key} onClick={() => setActiveGroupKey(group.group_key)}>
-                {firstItem?.icon ? <img src={firstItem.icon} alt="" /> : <span className="duplicate-thumb-fallback">{firstItem?.group_key === "armor" ? "甲" : "武"}</span>}
+                <GameAssetImage src={firstItem?.icon} alt="" loading="eager" fallback={<span className="duplicate-thumb-fallback">{firstItem?.group_key === "armor" ? "甲" : "武"}</span>} />
                 <span className="duplicate-group-copy"><strong>{group.name}</strong><span>{group.hash ? "同 Hash" : "同名不同 Hash"} · {group.count} 件 · 保护信号 {protectionCount}</span><small>保留 {dispositionSummary.keep} · 待复查 {dispositionSummary.review} · 可清理 {dispositionSummary.junk}</small></span>
               </button>
             );
@@ -184,7 +185,7 @@ function DuplicateComparePanel(props: {
             <article className={["duplicate-compare-row", isReference ? "reference" : "", hasProtectionConflict ? "has-protection-conflict" : "", props.openingItemKey === getVaultItemKey(item) ? "pending" : ""].filter(Boolean).join(" ")} key={entry.item_key}>
               <button type="button" data-ui-kind="button" data-control-variant="secondary" className="duplicate-reference-button" aria-pressed={isReference} onClick={() => props.onReferenceChange(entry.item_key)}>{isReference ? "已选" : "参考"}</button>
               <button type="button" className="duplicate-identity" title={formatVaultItemMeta(item)} onClick={() => props.onOpenItem(item)}>
-                {item.icon ? <img src={item.icon} alt="" /> : <span className="duplicate-thumb-fallback">{item.group_key === "armor" ? "甲" : "武"}</span>}
+                <GameAssetImage src={item.icon} alt="" loading="eager" fallback={<span className="duplicate-thumb-fallback">{item.group_key === "armor" ? "甲" : "武"}</span>} />
                 <span><strong>实例 {index + 1}</strong><small>{item.bucket_name ?? "未知位置"} · {item.locked ? "已锁定" : "未锁定"}</small></span>
               </button>
               {values.map((value, valueIndex) => {

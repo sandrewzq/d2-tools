@@ -1,4 +1,4 @@
-import { useId, useMemo, useState, type KeyboardEvent } from "react";
+import { useId, useMemo, useState, type KeyboardEvent, type ReactNode } from "react";
 import type {
   ItemSearchResult,
   LibraryDropAccessKey,
@@ -21,6 +21,8 @@ import {
 import { getLocaleCopy } from "../i18n/copy.js";
 import type { InterfaceLocale, LibraryCopy } from "../i18n/types.js";
 import type { VendorOfferContext } from "../item-detail/SharedItemDetailDialog.js";
+import { GameAssetImage } from "../media/GameAssetImage.js";
+import { GameCombatIcon, type GameDamageTypeKey } from "../media/GameCombatIcon.js";
 import { formatStandardDateTime } from "../time/formatTime.js";
 import {
   ProductWorkspaceContentStack,
@@ -40,6 +42,7 @@ type LibraryWeaponPerkColumn = {
 type LibraryEquipmentTag = {
   label: string;
   className?: string;
+  icon?: ReactNode;
 };
 
 export type LibraryPageActions = {
@@ -369,8 +372,9 @@ function renderEquipmentResult(
     toLibraryEquipmentTag(item.item_type),
     toLibraryEquipmentTag(item.bucket_name),
     toLibraryElementTag(item.damage_type),
+    toLibraryChampionTag(item.breaker_type),
     item.is_adept ? toLibraryEquipmentTag(libraryText(copy, "专家")) : undefined,
-    toLibraryEquipmentTag(formatLibraryAmmo(item.ammo_type, copy)),
+    toLibraryAmmoTag(item.ammo_type, copy),
     toLibraryEquipmentTag(item.weapon_frame?.name)
   ].filter((tag): tag is LibraryEquipmentTag => Boolean(tag));
   const versionDescription = item.release?.description ?? libraryText(copy, "暂无已验证版本");
@@ -381,13 +385,13 @@ function renderEquipmentResult(
 
   return (
     <article className="library-result-row" key={item.hash}>
-      {item.icon ? <img alt="" src={item.icon} /> : <span className="library-result-icon-placeholder" aria-hidden="true" />}
+      <GameAssetImage alt="" loading="eager" src={item.icon} fallback={<span className="library-result-icon-placeholder" aria-hidden="true" />} />
       <div className="library-result-body">
         <h3>{item.name}</h3>
         {item.description ? <p>{item.description}</p> : null}
         {equipmentTags.length ? (
           <div className="library-equipment-tags" aria-label={libraryText(copy, "装备信息")}>
-            {equipmentTags.map((tag, index) => <span className={tag.className} key={`${tag.label}-${tag.className ?? "default"}-${index}`}>{tag.label}</span>)}
+            {equipmentTags.map((tag, index) => <span className={tag.className} key={`${tag.label}-${tag.className ?? "default"}-${index}`}>{tag.icon}{tag.label}</span>)}
           </div>
         ) : null}
         {item.origin_traits?.length ? <p className="library-origin-traits">{libraryText(copy, "起源特性：")}{item.origin_traits.map((trait) => trait.name).join("、")}</p> : null}
@@ -440,7 +444,7 @@ function renderPerkResult(
   const perk = row.perk;
   return (
     <article className="library-result-row library-perk-result-row" key={perk.hash}>
-      {perk.icon ? <img className="game-definition-icon" alt="" src={perk.icon} /> : <span className="library-result-icon-placeholder" aria-hidden="true" />}
+      <GameAssetImage className="game-definition-icon" alt="" loading="eager" src={perk.icon} fallback={<span className="library-result-icon-placeholder" aria-hidden="true" />} />
       <div className="library-result-body">
         <h3>{perk.name}</h3>
         {perk.description ? <p>{perk.description}</p> : null}
@@ -516,7 +520,7 @@ export function LibraryDefinitionDialog(props: {
           </button>
         </div>
         <div className="library-definition-head">
-          {item.icon ? <img alt="" src={item.icon} /> : null}
+          <GameAssetImage alt="" loading="eager" src={item.icon} />
           <div className="library-definition-identity">
             <span className={"ui-badge " + getDropAccessBadgeClass(dropAccess)}>{formatDropAccessLabel(dropAccess, copy)}</span>
             <h3>{item.name}</h3>
@@ -553,7 +557,7 @@ export function LibraryDefinitionDialog(props: {
                       <div className="library-definition-perk-list">
                         {column.plugs.map((plug) => (
                           <article className="library-definition-perk-card" key={plug.hash}>
-                            {plug.icon ? <img className="game-definition-icon" alt="" src={plug.icon} /> : <span aria-hidden="true" />}
+                            <GameAssetImage className="game-definition-icon" alt="" loading="eager" src={plug.icon} fallback={<span aria-hidden="true" />} />
                             <div>
                               <strong>{plug.name}</strong>
                               {plug.description ? <p>{plug.description}</p> : null}
@@ -576,7 +580,7 @@ export function LibraryDefinitionDialog(props: {
                     <div className="library-definition-intrinsic-list">
                       {item.intrinsic_traits.map((trait) => (
                         <article className="library-definition-intrinsic-card" key={trait.hash}>
-                          {trait.icon ? <img className="game-definition-icon" alt="" src={trait.icon} /> : <span aria-hidden="true" />}
+                          <GameAssetImage className="game-definition-icon" alt="" loading="eager" src={trait.icon} fallback={<span aria-hidden="true" />} />
                           <div>
                             <strong>{trait.name}</strong>
                             {trait.description ? <p>{trait.description}</p> : null}
@@ -788,21 +792,49 @@ function formatLibraryAmmo(ammoType: ItemSearchResult["ammo_type"], copy: Librar
   return undefined;
 }
 
+function toLibraryAmmoTag(ammoType: ItemSearchResult["ammo_type"], copy: LibraryCopy): LibraryEquipmentTag | undefined {
+  const label = formatLibraryAmmo(ammoType, copy);
+  if (!ammoType || !label) return undefined;
+  return {
+    label,
+    className: `library-ammo-tag library-ammo-${ammoType}`,
+    icon: <GameCombatIcon kind="ammo" type={ammoType} size="compact" />
+  };
+}
+
 function toLibraryEquipmentTag(label: string | undefined): LibraryEquipmentTag | undefined {
   return label ? { label } : undefined;
 }
 
 function toLibraryElementTag(damageType: string | undefined): LibraryEquipmentTag | undefined {
-  const classNameByDamageType: Record<string, string> = {
-    "动能伤害": "library-element-tag library-element-kinetic",
-    "电弧伤害": "library-element-tag library-element-arc",
-    "烈日伤害": "library-element-tag library-element-solar",
-    "虚空伤害": "library-element-tag library-element-void",
-    "冰影伤害": "library-element-tag library-element-stasis",
-    "缚丝伤害": "library-element-tag library-element-strand"
+  const keyByDamageType: Record<string, GameDamageTypeKey> = {
+    "动能伤害": "kinetic",
+    "电弧伤害": "arc",
+    "烈日伤害": "solar",
+    "虚空伤害": "void",
+    "冰影伤害": "stasis",
+    "缚丝伤害": "strand"
   };
-  const className = damageType ? classNameByDamageType[damageType] : undefined;
-  return className && damageType ? { label: damageType, className } : toLibraryEquipmentTag(damageType);
+  const key = damageType ? keyByDamageType[damageType] : undefined;
+  return key && damageType ? {
+    label: damageType,
+    className: `library-element-tag library-element-${key}`,
+    icon: <GameCombatIcon kind="damage" type={key} size="compact" />
+  } : toLibraryEquipmentTag(damageType);
+}
+
+function toLibraryChampionTag(breakerType: ItemSearchResult["breaker_type"]): LibraryEquipmentTag | undefined {
+  if (!breakerType) return undefined;
+  const labels = {
+    barrier: "反屏障",
+    overload: "反过载",
+    unstoppable: "反势不可挡"
+  } as const;
+  return {
+    label: labels[breakerType.champion_type],
+    className: `library-champion-tag library-champion-${breakerType.champion_type}`,
+    icon: <GameCombatIcon kind="champion" type={breakerType.champion_type} src={breakerType.icon} size="compact" />
+  };
 }
 
 function formatLibraryLiveChannel(liveEntry: LiveEntry | undefined, copy: LibraryCopy): string {

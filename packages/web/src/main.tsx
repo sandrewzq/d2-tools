@@ -405,6 +405,8 @@ function WebApp() {
           {activePage === "vault" ? (
             <VaultPageContentView
               items={vaultModel.vaultItems}
+              armorSetCatalog={fixture.armorSetCatalog}
+              armorSetCatalogStatus="ready"
               vaultItemCount={vaultModel.vaultItemCount}
               highlightedItemKeys={vaultModel.activeLoadoutLookup}
               highlightedLabel={vaultModel.activeLoadoutName}

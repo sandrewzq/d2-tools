@@ -6,6 +6,8 @@ export type { VaultLocalDataState } from "./workspaces/vaultLocalData.js";
 export { loadVaultLocalData } from "./workspaces/vaultLocalData.js";
 export type {
   VaultAmmoFilter,
+  VaultArmorSetFilter,
+  VaultArmorSetOption,
   VaultArmorStatFilter,
   VaultArmorStatRule,
   VaultClassFilter,
@@ -29,6 +31,7 @@ export type {
 export {
   ammoFilterLabels,
   armorStatLabels,
+  buildVaultArmorSetFilters,
   buildVaultContextFacts,
   buildVaultFrameFilters,
   buildVaultGroups,

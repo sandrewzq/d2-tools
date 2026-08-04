@@ -131,22 +131,31 @@
 }
 
 .weapon-detail-fact {
+  --weapon-detail-fact-accent: var(--control-border);
+  --weapon-detail-fact-border: var(--control-border);
+  --weapon-detail-fact-text: var(--text);
+  --weapon-detail-fact-bg: var(--section-bg);
   display: inline-flex;
   min-height: 28px;
   align-items: center;
   gap: 6px;
   padding: 0 8px;
-  border: 1px solid var(--control-border);
+  border: 1px solid var(--weapon-detail-fact-border);
   border-radius: var(--radius-control);
-  color: var(--text);
-  background: var(--section-bg);
+  color: var(--weapon-detail-fact-text);
+  background: var(--weapon-detail-fact-bg);
   font-size: 12px;
   font-weight: 700;
 }
 
-.weapon-detail-fact img {
-  width: 17px;
-  height: 17px;
+.weapon-detail-fact > img {
+  box-sizing: border-box;
+  width: 18px;
+  height: 18px;
+  padding: 2px;
+  border: 1px solid color-mix(in srgb, var(--weapon-detail-fact-accent) 72%, var(--game-surface));
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--weapon-detail-fact-accent) 58%, var(--game-surface));
   object-fit: contain;
 }
 
@@ -160,12 +169,103 @@
   font-style: normal;
 }
 
-.weapon-detail-fact.ammo-heavy { border-color: color-mix(in srgb, #9b72cf 70%, var(--chip-border)); background: color-mix(in srgb, #9b72cf 22%, var(--chip-bg)); }
-.weapon-detail-fact.ammo-special { border-color: color-mix(in srgb, var(--status-ready) 65%, var(--chip-border)); background: color-mix(in srgb, var(--status-ready-bg) 70%, var(--chip-bg)); }
-.weapon-detail-fact.damage-solar { border-color: color-mix(in srgb, var(--status-warning) 70%, var(--chip-border)); background: color-mix(in srgb, var(--status-warning-bg) 74%, var(--chip-bg)); }
-.weapon-detail-fact.damage-arc { border-color: color-mix(in srgb, var(--accent-primary) 70%, var(--chip-border)); background: color-mix(in srgb, var(--status-pending-bg) 74%, var(--chip-bg)); }
-.weapon-detail-fact.damage-void { border-color: color-mix(in srgb, #9b72cf 70%, var(--chip-border)); background: color-mix(in srgb, #9b72cf 18%, var(--chip-bg)); }
-.weapon-detail-fact.rarity-exotic { border-color: color-mix(in srgb, var(--status-warning) 72%, var(--chip-border)); color: var(--status-warning); background: var(--status-warning-bg); }
+.weapon-detail-fact.rarity {
+  --weapon-detail-fact-accent: var(--violet);
+  --weapon-detail-fact-border: color-mix(in srgb, var(--violet) 68%, var(--chip-border));
+  --weapon-detail-fact-text: var(--violet);
+  --weapon-detail-fact-bg: var(--violet-bg);
+}
+
+.weapon-detail-fact.rarity-exotic {
+  --weapon-detail-fact-accent: var(--status-warning);
+  --weapon-detail-fact-border: color-mix(in srgb, var(--status-warning) 72%, var(--chip-border));
+  --weapon-detail-fact-text: var(--status-warning);
+  --weapon-detail-fact-bg: var(--status-warning-bg);
+}
+
+.weapon-detail-fact.ammo-primary {
+  --weapon-detail-fact-accent: var(--element-kinetic-border);
+  --weapon-detail-fact-border: var(--element-kinetic-border);
+  --weapon-detail-fact-text: var(--element-kinetic-text);
+  --weapon-detail-fact-bg: var(--element-kinetic-bg);
+}
+
+.weapon-detail-fact.ammo-special {
+  --weapon-detail-fact-accent: var(--status-ready);
+  --weapon-detail-fact-border: color-mix(in srgb, var(--status-ready) 68%, var(--chip-border));
+  --weapon-detail-fact-text: var(--status-ready);
+  --weapon-detail-fact-bg: var(--status-ready-bg);
+}
+
+.weapon-detail-fact.ammo-heavy {
+  --weapon-detail-fact-accent: var(--violet);
+  --weapon-detail-fact-border: color-mix(in srgb, var(--violet) 68%, var(--chip-border));
+  --weapon-detail-fact-text: var(--violet);
+  --weapon-detail-fact-bg: var(--violet-bg);
+}
+
+.weapon-detail-fact.damage-kinetic {
+  --weapon-detail-fact-accent: var(--element-kinetic-border);
+  --weapon-detail-fact-border: var(--element-kinetic-border);
+  --weapon-detail-fact-text: var(--element-kinetic-text);
+  --weapon-detail-fact-bg: var(--element-kinetic-bg);
+}
+
+.weapon-detail-fact.damage-arc {
+  --weapon-detail-fact-accent: var(--element-arc-border);
+  --weapon-detail-fact-border: var(--element-arc-border);
+  --weapon-detail-fact-text: var(--element-arc-text);
+  --weapon-detail-fact-bg: var(--element-arc-bg);
+}
+
+.weapon-detail-fact.damage-solar {
+  --weapon-detail-fact-accent: var(--element-solar-border);
+  --weapon-detail-fact-border: var(--element-solar-border);
+  --weapon-detail-fact-text: var(--element-solar-text);
+  --weapon-detail-fact-bg: var(--element-solar-bg);
+}
+
+.weapon-detail-fact.damage-void {
+  --weapon-detail-fact-accent: var(--element-void-border);
+  --weapon-detail-fact-border: var(--element-void-border);
+  --weapon-detail-fact-text: var(--element-void-text);
+  --weapon-detail-fact-bg: var(--element-void-bg);
+}
+
+.weapon-detail-fact.damage-stasis {
+  --weapon-detail-fact-accent: var(--element-stasis-border);
+  --weapon-detail-fact-border: var(--element-stasis-border);
+  --weapon-detail-fact-text: var(--element-stasis-text);
+  --weapon-detail-fact-bg: var(--element-stasis-bg);
+}
+
+.weapon-detail-fact.damage-strand {
+  --weapon-detail-fact-accent: var(--element-strand-border);
+  --weapon-detail-fact-border: var(--element-strand-border);
+  --weapon-detail-fact-text: var(--element-strand-text);
+  --weapon-detail-fact-bg: var(--element-strand-bg);
+}
+
+.weapon-detail-fact.champion-barrier {
+  --weapon-detail-fact-accent: var(--status-error);
+  --weapon-detail-fact-border: color-mix(in srgb, var(--status-error) 72%, var(--chip-border));
+  --weapon-detail-fact-text: var(--status-error);
+  --weapon-detail-fact-bg: var(--status-error-bg);
+}
+
+.weapon-detail-fact.champion-overload {
+  --weapon-detail-fact-accent: var(--status-pending);
+  --weapon-detail-fact-border: color-mix(in srgb, var(--status-pending) 72%, var(--chip-border));
+  --weapon-detail-fact-text: var(--status-pending);
+  --weapon-detail-fact-bg: var(--status-pending-bg);
+}
+
+.weapon-detail-fact.champion-unstoppable {
+  --weapon-detail-fact-accent: var(--status-warning);
+  --weapon-detail-fact-border: color-mix(in srgb, var(--status-warning) 72%, var(--chip-border));
+  --weapon-detail-fact-text: var(--status-warning);
+  --weapon-detail-fact-bg: var(--status-warning-bg);
+}
 
 .weapon-detail-identity-context { display: grid; gap: 6px; min-width: 0; }
 .weapon-detail-context { display: flex; flex-wrap: wrap; gap: 0; margin: 0; overflow: visible; align-content: center; border: 1px solid var(--object-border); border-radius: var(--radius-control); background: var(--section-bg); }

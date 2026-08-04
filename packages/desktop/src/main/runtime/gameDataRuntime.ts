@@ -2,6 +2,7 @@ import { Worker } from "node:worker_threads";
 import type { DefinitionComponentData, DefinitionComponentName } from "@d2-tools/core/manifest/definitions";
 import type { PerkSearchResult } from "@d2-tools/core/items/perkSearch";
 import type { ItemSearchResult } from "@d2-tools/core/items/search";
+import type { ArmorSetCatalogItem } from "@d2-tools/core/items/equipableItemSet";
 import type {
   GameDataCatalog,
   ItemDetailQuery,
@@ -15,6 +16,7 @@ type GameDataOperation =
   | "searchPerks"
   | "getItemDetail"
   | "getDefinitions"
+  | "listArmorSets"
   | "ping"
   | "close";
 
@@ -40,6 +42,7 @@ const operationTimeoutMs: Record<GameDataOperation, number> = {
   searchPerks: 15_000,
   getItemDetail: 15_000,
   getDefinitions: 30_000,
+  listArmorSets: 30_000,
   ping: 5_000,
   close: closeTimeoutMs
 };
@@ -70,6 +73,14 @@ const catalog: GameDataCatalog = {
 
 export function getGameDataCatalog(): GameDataCatalog {
   return catalog;
+}
+
+export function getArmorSetCatalog(): Promise<ArmorSetCatalogItem[]> {
+  return measureRuntime(
+    "game-data.armor-set-catalog",
+    () => request<ArmorSetCatalogItem[]>("listArmorSets"),
+    { measurePayload: true }
+  );
 }
 
 export function getDefinitions(

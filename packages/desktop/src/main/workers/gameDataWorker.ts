@@ -4,6 +4,7 @@ import type {
   DefinitionComponentName,
   DefinitionRecord
 } from "@d2-tools/core/manifest/definitions";
+import type { ArmorSetCatalogItem } from "@d2-tools/core/items/equipableItemSet";
 import { loadConfig } from "@d2-tools/services/config/store";
 import {
   createCompositeDefinitionReader,
@@ -25,6 +26,7 @@ type GameDataWorkerRequest = {
     | "searchPerks"
     | "getItemDetail"
     | "getDefinitions"
+    | "listArmorSets"
     | "ping"
     | "close";
   input?: unknown;
@@ -41,6 +43,7 @@ type OpenRuntime = {
   activation: SqliteManifestActivation;
   catalog: ReturnType<typeof createSqliteGameDataCatalog>;
   reader: DefinitionReader;
+  armorSetCatalog?: ArmorSetCatalogItem[];
 };
 
 let runtime: OpenRuntime | null = null;
@@ -83,7 +86,26 @@ async function handleRequest(request: GameDataWorkerRequest): Promise<unknown> {
     const definitions = current.reader.getMany(input.component, input.hashes);
     return projectDefinitions(input.component, definitions, input.projection);
   }
+  if (request.operation === "listArmorSets") {
+    return listArmorSets(current);
+  }
   throw new Error("未知资料库查询操作");
+}
+
+function listArmorSets(current: OpenRuntime): ArmorSetCatalogItem[] {
+  if (current.armorSetCatalog) {
+    return current.armorSetCatalog;
+  }
+  const definitions = current.reader.getAll("DestinyEquipableItemSetDefinition");
+  const catalog = Object.values(definitions)
+    .flatMap((definition) => {
+      const hash = Number(definition.hash);
+      const name = definition.displayProperties?.name?.trim();
+      return Number.isFinite(hash) && name ? [{ hash: hash >>> 0, name }] : [];
+    })
+    .sort((left, right) => left.name.localeCompare(right.name, "zh-Hans-CN") || left.hash - right.hash);
+  current.armorSetCatalog = catalog;
+  return catalog;
 }
 
 function projectDefinitions(
@@ -232,6 +254,12 @@ function projectAccountSnapshotDefinition(
       displayProperties: compactObject({ name: definition.displayProperties?.name })
     });
   }
+  if (component === "DestinyEquipableItemSetDefinition") {
+    return compactObject({
+      hash: definition.hash,
+      displayProperties: compactObject({ name: definition.displayProperties?.name })
+    });
+  }
   if (component === "DestinyObjectiveDefinition") {
     return compactObject({ hash: definition.hash, progressDescription: definition.progressDescription });
   }
@@ -253,7 +281,10 @@ function projectInventoryItemSummary(definition: DefinitionRecord): DefinitionRe
       tierTypeName: definition.inventory?.tierTypeName,
       bucketTypeHash: definition.inventory?.bucketTypeHash
     }),
-    equippingBlock: compactObject({ ammoType: definition.equippingBlock?.ammoType }),
+    equippingBlock: compactObject({
+      ammoType: definition.equippingBlock?.ammoType,
+      equipableItemSetHash: definition.equippingBlock?.equipableItemSetHash
+    }),
     plug: compactObject({ plugCategoryIdentifier: definition.plug?.plugCategoryIdentifier }),
     preview: definition.preview
       ? compactObject({ previewVendorHash: definition.preview.previewVendorHash })

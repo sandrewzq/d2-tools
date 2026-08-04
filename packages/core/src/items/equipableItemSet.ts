@@ -7,6 +7,8 @@ export type EquipableItemSetSummary = {
   bonuses?: EquipableItemSetBonus[];
 };
 
+export type ArmorSetCatalogItem = Pick<EquipableItemSetSummary, "hash" | "name">;
+
 export type EquipableItemSetBonus = {
   required_piece_count: number;
   perk_hash: number;
