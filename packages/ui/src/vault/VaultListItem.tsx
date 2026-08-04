@@ -1,13 +1,11 @@
 import { memo } from "react";
-import { evaluateWishlistRoll } from "@d2-tools/core/analysis/wishlist";
-import { evaluateLocalTargets } from "@d2-tools/core/analysis/targets";
 import type { AccountItemSummary } from "@d2-tools/core/account/summary";
 import type { DimWishlist } from "@d2-tools/core/analysis/wishlistImport";
 import type { LocalTargetRules } from "@d2-tools/core/analysis/targets";
 import type { VaultItemMatchInfo } from "@d2-tools/core/community-perks";
 import type { VaultTags, VaultTagValue } from "@d2-tools/core/vault/tags";
 import { matchesLoadoutTemplateItem, type LoadoutTemplateLookup } from "@d2-tools/app/loadouts";
-import { ammoFilterLabels, formatArmorStatsInline, getVaultItemKey, normalizeCoreItem, tagLabels } from "@d2-tools/app/vault";
+import { ammoFilterLabels, formatArmorStatsInline, getVaultItemKey, tagLabels } from "@d2-tools/app/vault";
 
 export function VaultListItem(props: {
   item: AccountItemSummary;
@@ -22,41 +20,37 @@ export function VaultListItem(props: {
   onSelectItem: (item: AccountItemSummary) => void;
   onToggleSelected: (item: AccountItemSummary) => void;
 }) {
-  const note = props.tags.items[getVaultItemKey(props.item)]?.note;
-  const wishlist = evaluateWishlistRoll(normalizeCoreItem(props.item), props.wishlist ?? undefined);
-  const localTarget = evaluateLocalTargets(normalizeCoreItem(props.item), props.localTargetRules ?? undefined);
-  const communityMatch = props.communityMatch;
   const isLoadoutMatch = matchesLoadoutTemplateItem(props.item, props.highlightedItemKeys);
   const tagValue = tagValueForItem(props.item, props.tags);
   const disposition = dispositionForTag(tagValue);
-  const evidenceLabels = [
-    isLoadoutMatch ? "配装" : "",
-    wishlist.matched ? "DIM" : "",
-    localTarget.matched ? "目标" : "",
-    communityMatch && communityMatch.matched > 0 ? "社区" : "",
-    tagValue === "farm" ? "待刷" : "",
-    tagValue === "loadout" ? "配装用" : ""
-  ].filter(Boolean);
+  const gearTier = displayGearTier(props.item.instance?.gear_tier);
   const detailAvailable = props.item.group_key === "weapons" || props.item.group_key === "armor";
   const cardContent = <>
-    <div className="vault-card-visual">
-      {props.item.icon ? <img alt="" src={props.item.icon} /> : <div className="item-icon-placeholder" />}
-      {props.item.locked ? <span className="vault-card-lock">锁</span> : null}
-      {props.item.power ? <span className="vault-card-power">{props.item.power}</span> : props.item.instance?.gear_tier !== undefined ? <span className="vault-card-power">T{props.item.instance.gear_tier}</span> : null}
-      <span className="vault-card-marker-row">
-        <span className={`vault-score-badge score-${disposition}`}>{dispositionLabel(disposition)}</span>
-        {evidenceLabels.length ? <span className="vault-card-evidence" title={evidenceLabels.join(" / ")}>{evidenceLabels[0]}{evidenceLabels.length > 1 ? ` +${evidenceLabels.length - 1}` : ""}</span> : null}
-      </span>
+    <div className="vault-card-visual-stack">
+      <div className="vault-card-visual">
+        {props.item.icon ? <img alt="" decoding="async" loading="lazy" src={props.item.icon} /> : <div className="item-icon-placeholder" />}
+        {gearTier > 0 ? (
+          <span className={`vault-gear-tier vault-gear-tier-${gearTier}`} aria-label={`装备阶级 T${gearTier}`}>
+            {Array.from({ length: gearTier }, (_, index) => <i aria-hidden="true" key={index} />)}
+          </span>
+        ) : null}
+      </div>
+      <span className="vault-card-power">{props.item.power ?? "—"}</span>
     </div>
     <div className="vault-card-body">
-      <strong>{props.item.name}</strong>
+      <strong title={props.item.name}>{props.item.name}</strong>
       <span className="vault-card-meta">{formatVaultCardMeta(props.item)}</span>
-      {props.item.socket_plugs?.length ? (
-        <small className="vault-card-roll">{props.item.socket_plugs.slice(0, 2).map((plug) => plug.name).join(" · ")}</small>
-      ) : null}
-      {note ? <small className="vault-note-snippet">备注：{note}</small> : null}
-      {props.isOpening ? <small className="vault-card-open-state">正在打开详情...</small> : null}
+      <span className="vault-card-footer">
+        <small>{props.isOpening ? "打开中" : formatVaultCardContext(props.item)}</small>
+        <span className={`vault-score-badge score-${disposition}`}>{dispositionShortLabel(disposition)}</span>
+      </span>
     </div>
+    {props.item.locked || isLoadoutMatch ? (
+      <span className="vault-card-corner-flags" aria-label={[props.item.locked ? "已锁定" : "", isLoadoutMatch ? "配装引用" : ""].filter(Boolean).join("、")}>
+        {props.item.locked ? <span title="已锁定">锁</span> : null}
+        {isLoadoutMatch ? <span title="配装引用">配</span> : null}
+      </span>
+    ) : null}
   </>;
 
   return (
@@ -64,26 +58,28 @@ export function VaultListItem(props: {
       className={[
         "vault-item-card",
         props.isSelected ? "selected" : "",
+        props.isOrganizing ? "is-organizing" : "",
         isLoadoutMatch ? "loadout-highlight" : "",
         props.isOpening ? "pending" : "",
+        `vault-item-${props.item.group_key}`,
         detailAvailable ? "" : "is-readonly"
       ].filter(Boolean).join(" ")}
+      data-ui-kind="object-card"
     >
       {props.isOrganizing ? (
-        <label className="vault-card-select">
+        <label className="vault-card-select" aria-label={`选择${props.item.name}`}>
           <input
             checked={props.isSelected}
             type="checkbox"
             onChange={() => props.onToggleSelected(props.item)}
           />
-          选择
         </label>
       ) : null}
       {detailAvailable ? (
         <button
           type="button"
           className="vault-card-main"
-          title={[formatVaultItemMeta(props.item), evidenceLabels.length ? `证据：${evidenceLabels.join(" / ")}` : "", wishlist.matched ? formatWishlistHint(wishlist.labels) : "", localTarget.matched ? localTarget.labels.join(" / ") : "", communityMatch?.modes.length ? communityMatch.modes.map(formatCommunityMode).join(" / ") : ""].filter(Boolean).join("\n")}
+          title={formatVaultCardTitle(props.item, disposition, isLoadoutMatch)}
           aria-busy={props.isOpening}
           disabled={props.isOpening}
           onClick={() => props.onSelectItem(props.item)}
@@ -96,20 +92,6 @@ export function VaultListItem(props: {
 }
 
 export const MemoizedVaultListItem = memo(VaultListItem);
-
-function formatWishlistHint(labels: string[]): string {
-  const detailLabels = labels.filter((label) => label !== "DIM Wishlist");
-  return detailLabels.length ? detailLabels.join(" / ") : "已命中";
-}
-
-function formatCommunityMode(mode: "pve" | "pvp" | "general"): string {
-  switch (mode) {
-    case "pve": return "PvE";
-    case "pvp": return "PvP";
-    case "general": return "通用";
-    default: return mode;
-  }
-}
 
 function tagValueForItem(item: AccountItemSummary, tags: VaultTags): VaultTagValue {
   const tag = tags.items[getVaultItemKey(item)]?.tag;
@@ -124,13 +106,64 @@ function dispositionLabel(tag: "none" | "keep" | "review" | "junk"): string {
   return tag === "none" ? "未标记" : tag === "review" ? "待复查" : tagLabels[tag];
 }
 
+function dispositionShortLabel(tag: "none" | "keep" | "review" | "junk"): string {
+  if (tag === "review") return "待查";
+  if (tag === "junk") return "清理";
+  return dispositionLabel(tag);
+}
+
 function formatVaultCardMeta(item: AccountItemSummary): string {
+  if (item.group_key === "weapons") {
+    return [item.item_type, item.ammo_type ? ammoFilterLabels[item.ammo_type] : undefined].filter(Boolean).join(" · ") || "武器";
+  }
+  if (item.group_key === "armor") {
+    return [classTypeLabel(item.class_type), item.bucket_name ?? item.item_type].filter(Boolean).join(" · ") || "护甲";
+  }
   return [
-    item.weapon_frame?.name,
     item.item_type,
-    item.tier,
-    item.armor_stats ? `总值 ${item.armor_stats.total}` : undefined
-  ].filter(Boolean).slice(0, 2).join(" · ");
+    item.bucket_name
+  ].filter(Boolean).slice(0, 2).join(" · ") || "装备";
+}
+
+function formatVaultCardContext(item: AccountItemSummary): string {
+  if (item.group_key !== "weapons") return "";
+  switch (item.instance?.damage_type) {
+    case 1: return "动能";
+    case 2: return "电弧";
+    case 3: return "烈日";
+    case 4: return "虚空";
+    case 6: return "冰影";
+    case 7: return "缚丝";
+    default: return "";
+  }
+}
+
+function classTypeLabel(classType: number | undefined): string | undefined {
+  if (classType === 0) return "泰坦";
+  if (classType === 1) return "猎人";
+  if (classType === 2) return "术士";
+  return undefined;
+}
+
+function displayGearTier(value: number | null | undefined): number {
+  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) return 0;
+  return Math.min(5, Math.floor(value));
+}
+
+function formatVaultCardTitle(
+  item: AccountItemSummary,
+  disposition: "none" | "keep" | "review" | "junk",
+  isLoadoutMatch: boolean
+): string {
+  return [
+    item.name,
+    formatVaultCardMeta(item),
+    formatVaultCardContext(item),
+    item.power !== undefined ? `光等 ${item.power}` : "",
+    `整理状态：${dispositionLabel(disposition)}`,
+    item.locked ? "已锁定" : "",
+    isLoadoutMatch ? "配装引用" : ""
+  ].filter(Boolean).join("\n");
 }
 
 export function formatVaultItemMeta(item: AccountItemSummary): string {

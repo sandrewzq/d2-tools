@@ -1830,18 +1830,21 @@
 }
 
 :where(.app-shell) .vault-results-column .vault-card-grid {
-  grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
-  gap: 8px;
-  padding: 10px 12px;
+  grid-template-columns: repeat(10, minmax(0, 1fr));
+  gap: 4px;
+  padding: 8px 10px;
 }
 
 :where(.app-shell) .vault-results-column .vault-item-card {
+  position: relative;
   display: block;
-  min-height: 0;
-  padding: 7px;
+  min-width: 0;
+  min-height: 118px;
+  overflow: hidden;
+  padding: 6px 4px 5px;
   border: 1px solid var(--object-border);
   border-radius: var(--radius-object);
-  background: var(--surface-subtle);
+  background: var(--card-bg);
 }
 
 :where(.app-shell) .vault-results-column .vault-item-card:hover {
@@ -1849,20 +1852,41 @@
   background: var(--item-bg-hover);
 }
 
+:where(.app-shell) .vault-results-column .vault-item-card.loadout-highlight {
+  border-color: var(--state-selected-border);
+  box-shadow: inset 0 0 0 1px var(--state-selected-border);
+}
+
+:where(.app-shell) .vault-results-column .vault-item-card.pending {
+  opacity: 0.72;
+}
+
 :where(.app-shell) .vault-results-column .vault-card-main {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 6px;
-  align-items: stretch;
+  grid-template-rows: 57px minmax(0, 1fr);
+  gap: 2px;
+  align-items: start;
+  justify-items: center;
+  width: 100%;
+  min-height: 107px;
+  text-align: center;
+}
+
+:where(.app-shell) .vault-results-column .vault-card-visual-stack {
+  display: grid;
+  grid-template-rows: var(--item-thumb) 12px;
+  gap: 1px;
+  justify-items: center;
+  width: var(--item-thumb);
+  min-width: var(--item-thumb);
 }
 
 :where(.app-shell) .vault-results-column .vault-card-visual {
   position: relative;
-  width: 100%;
-  min-width: 0;
-  height: auto;
-  min-height: 0;
-  aspect-ratio: 1 / 1;
+  width: var(--item-thumb);
+  min-width: var(--item-thumb);
+  height: var(--item-thumb);
   overflow: hidden;
   border-radius: var(--radius-control);
 }
@@ -1870,110 +1894,168 @@
 :where(.app-shell) .vault-results-column .vault-card-visual img,
 :where(.app-shell) .vault-results-column .vault-card-visual .item-icon-placeholder {
   display: block;
-  width: 100%;
-  min-width: 0;
-  height: 100%;
-  aspect-ratio: 1 / 1;
+  width: var(--item-thumb);
+  min-width: var(--item-thumb);
+  height: var(--item-thumb);
+  border: 1px solid var(--game-icon-border);
   border-radius: var(--radius-control);
   object-fit: cover;
 }
 
-:where(.app-shell) .vault-card-lock,
-:where(.app-shell) .vault-card-power {
+:where(.app-shell) .vault-results-column .vault-gear-tier {
   position: absolute;
-  top: 5px;
-  display: inline-flex;
+  top: 1px;
+  bottom: 1px;
+  left: 1px;
+  display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  min-height: 20px;
-  padding: 0 5px;
-  border-radius: var(--radius-indicator);
-  color: white;
-  background: rgb(8 12 16 / 78%);
+  justify-content: flex-end;
+  gap: 2px;
+  width: 8px;
+  padding: 3px 0;
+  background: rgb(91 48 112 / 88%);
+  box-shadow: 1px 0 0 rgb(255 255 255 / 18%);
+  pointer-events: none;
+}
+
+:where(.app-shell) .vault-results-column .vault-gear-tier i {
+  display: block;
+  width: 3px;
+  height: 3px;
+  flex: 0 0 3px;
+  transform: rotate(45deg);
+  background: #fff;
+  box-shadow: 0 0 1px rgb(0 0 0 / 55%);
+}
+
+:where(.app-shell) .vault-results-column .vault-card-power {
+  position: static;
+  display: block;
+  min-height: 12px;
+  color: var(--text-body);
+  background: transparent;
   font-size: var(--font-caption);
   font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 12px;
 }
 
-:where(.app-shell) .vault-card-lock {
-  left: 5px;
-  color: var(--status-warning);
-}
-
-:where(.app-shell) .vault-card-power {
-  right: 5px;
-}
-
-:where(.app-shell) .vault-card-marker-row {
+:where(.app-shell) .vault-results-column .vault-card-corner-flags {
   position: absolute;
-  right: 5px;
-  bottom: 5px;
-  left: 5px;
+  top: 4px;
+  right: 4px;
+  z-index: 2;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 4px;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
 }
 
-:where(.app-shell) .vault-score-badge,
-:where(.app-shell) .vault-card-evidence {
+:where(.app-shell) .vault-results-column .vault-card-corner-flags > span {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 0;
-  min-height: 21px;
-  padding: 0 6px;
-  border: 1px solid rgb(255 255 255 / 20%);
-  border-radius: var(--radius-indicator);
-  color: white;
-  background: rgb(8 12 16 / 82%);
-  font-size: var(--font-caption);
+  width: 16px;
+  height: 16px;
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-control);
+  color: var(--text-title);
+  background: var(--surface-elevated);
+  font-size: var(--font-micro);
   font-weight: 700;
   line-height: 1;
-  white-space: nowrap;
-}
-
-:where(.app-shell) .vault-score-badge.score-keep {
-  color: var(--status-ready);
-}
-
-:where(.app-shell) .vault-score-badge.score-review {
-  color: var(--status-warning);
-}
-
-:where(.app-shell) .vault-score-badge.score-junk {
-  color: var(--status-error);
-}
-
-:where(.app-shell) .vault-score-badge.score-none {
-  color: var(--text-body);
 }
 
 :where(.app-shell) .vault-results-column .vault-card-body {
   display: grid;
-  gap: 2px;
+  grid-template-rows: 15px 15px 16px;
+  gap: 1px;
+  width: 100%;
+  min-width: 0;
+  align-content: start;
 }
 
-:where(.app-shell) .vault-results-column .vault-card-body strong {
-  font-size: var(--font-content);
-  line-height: 1.35;
-}
-
+:where(.app-shell) .vault-results-column .vault-card-body strong,
 :where(.app-shell) .vault-results-column .vault-card-meta,
-:where(.app-shell) .vault-results-column .vault-card-roll,
-:where(.app-shell) .vault-results-column .vault-note-snippet,
-:where(.app-shell) .vault-results-column .vault-card-open-state {
+:where(.app-shell) .vault-results-column .vault-card-footer small {
   display: block;
   min-width: 0;
   overflow: hidden;
-  color: var(--text-muted);
-  font-size: var(--font-caption);
-  line-height: 1.35;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-:where(.app-shell) .vault-results-column .vault-note-snippet {
+:where(.app-shell) .vault-results-column .vault-card-body strong {
+  color: var(--text-title);
+  font-size: var(--font-caption);
+  line-height: 15px;
+  text-align: center;
+}
+
+:where(.app-shell) .vault-results-column .vault-card-meta,
+:where(.app-shell) .vault-results-column .vault-card-footer small {
+  color: var(--text-muted);
+  font-size: var(--font-micro);
+  line-height: 15px;
+  text-align: center;
+}
+
+:where(.app-shell) .vault-results-column .vault-card-footer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2px;
+  align-items: center;
+  min-width: 0;
+}
+
+:where(.app-shell) .vault-results-column .vault-score-badge {
+  min-height: 15px;
+  padding: 0 4px;
+  border-radius: var(--radius-indicator);
+  font-size: var(--font-micro);
+  line-height: 13px;
+}
+
+:where(.app-shell) .vault-results-column .vault-score-badge.score-keep {
+  border-color: var(--status-ready);
+  color: var(--status-ready);
+  background: var(--status-ready-bg);
+}
+
+:where(.app-shell) .vault-results-column .vault-score-badge.score-review {
+  border-color: var(--status-warning);
   color: var(--status-warning);
+  background: var(--status-warning-bg);
+}
+
+:where(.app-shell) .vault-results-column .vault-score-badge.score-junk {
+  border-color: var(--status-error);
+  color: var(--status-error);
+  background: var(--status-error-bg);
+}
+
+:where(.app-shell) .vault-results-column .vault-score-badge.score-none {
+  color: var(--text-muted);
+  background: var(--surface-recessed);
+}
+
+:where(.app-shell) .vault-results-column .vault-card-select {
+  top: 4px;
+  right: 4px;
+  left: auto;
+  z-index: 3;
+  padding: 1px;
+  border-radius: var(--radius-control);
+}
+
+:where(.app-shell) .vault-results-column .vault-card-select input {
+  width: 16px;
+  height: 16px;
+}
+
+:where(.app-shell) .vault-results-column .vault-item-card.is-organizing .vault-card-corner-flags {
+  display: none;
 }
 
 :where(.app-shell) .vault-render-limit-message {
@@ -2379,6 +2461,10 @@
 }
 
 @media (max-width: 920px) {
+  :where(.app-shell) .vault-results-column .vault-card-grid {
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+  }
+
   :where(.app-shell) .vault-browse,
   :where(.app-shell) .duplicate-workspace {
     grid-template-columns: minmax(0, 1fr);
@@ -2422,9 +2508,15 @@
   }
 }
 
+@media (max-width: 760px) {
+  :where(.app-shell) .vault-results-column .vault-card-grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+}
+
 @media (max-width: 620px) {
   :where(.app-shell) .vault-results-column .vault-card-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
   :where(.app-shell) .vault-active-filters {

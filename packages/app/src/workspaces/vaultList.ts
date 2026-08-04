@@ -603,7 +603,7 @@ function matchesRarity(item: AccountItemSummary, rarity: VaultRarityFilter): boo
 }
 
 function matchesGearTier(item: AccountItemSummary, gearTier: VaultGearTierFilter): boolean {
-  return gearTier === "all" || String(item.instance?.gear_tier ?? "") === gearTier;
+  return gearTier === "all" || String(item.instance?.gear_tier ?? 0) === gearTier;
 }
 
 function matchesClass(item: AccountItemSummary, classType: VaultClassFilter): boolean {
