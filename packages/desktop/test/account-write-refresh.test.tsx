@@ -13,7 +13,8 @@ import { useLoadoutWriteActions } from "../src/renderer/features/loadouts/useLoa
 const apiMock = vi.hoisted(() => ({
   getConfig: vi.fn(),
   setItemLockState: vi.fn(),
-  equipItem: vi.fn()
+  equipItem: vi.fn(),
+  batchEquipItems: vi.fn()
 }));
 
 vi.mock("../src/renderer/api/client.js", () => ({ api: apiMock }));
@@ -57,7 +58,7 @@ describe("account write refresh strategy", () => {
     await waitFor(() => expect(loadAccountSummary).toHaveBeenCalledTimes(1));
   });
 
-  it("Loadouts 单件装备有 patch 时不完整刷新", async () => {
+  it("Loadouts 单件装备有 patch 时仍刷新角色摘要", async () => {
     apiMock.equipItem.mockResolvedValue(equipResult(true));
     const applyPatches = vi.fn();
     const loadAccountSummary = vi.fn().mockResolvedValue(undefined);
@@ -71,7 +72,26 @@ describe("account write refresh strategy", () => {
     });
 
     expect(applyPatches).toHaveBeenCalledWith([equipResult(true).account_patch]);
-    expect(loadAccountSummary).not.toHaveBeenCalled();
+    await waitFor(() => expect(loadAccountSummary).toHaveBeenCalledTimes(1));
+  });
+
+  it("Loadouts 最高光等装备有完整 patch 时仍刷新角色摘要", async () => {
+    const summary = highestPowerAccountSummary();
+    apiMock.batchEquipItems.mockResolvedValue(batchEquipResult());
+    const applyPatches = vi.fn();
+    const loadAccountSummary = vi.fn().mockResolvedValue(undefined);
+    const { result } = renderHook(() => useLoadoutWriteActions(loadoutInput({
+      accountSummary: summary,
+      applyPatches,
+      loadAccountSummary
+    })));
+
+    await act(async () => {
+      await result.current.equipHighestPowerItems(summary.characters[0]!);
+    });
+
+    expect(applyPatches).toHaveBeenCalledWith(batchEquipResult().account_patches);
+    await waitFor(() => expect(loadAccountSummary).toHaveBeenCalledTimes(1));
   });
 
   it("Loadouts 单件装备缺 patch 时完整刷新兜底", async () => {
@@ -110,11 +130,12 @@ function vaultInput(input: {
 }
 
 function loadoutInput(input: {
+  accountSummary?: AccountSummary;
   applyPatches: ReturnType<typeof vi.fn>;
   loadAccountSummary: ReturnType<typeof vi.fn>;
 }) {
   return {
-    accountSummary: accountSummary(),
+    accountSummary: input.accountSummary ?? accountSummary(),
     applyAccountActionPatches: input.applyPatches,
     loadoutLibrary: {
       reloadTemplates: vi.fn().mockResolvedValue(undefined),
@@ -162,6 +183,21 @@ function equipResult(withPatch: boolean): ItemActionResult {
   };
 }
 
+function batchEquipResult() {
+  return {
+    ok: true as const,
+    total: 1,
+    success_count: 1,
+    failed_count: 0,
+    message: "ok",
+    account_patches: [{
+      kind: "equip" as const,
+      item_instance_id: "better-item",
+      character_id: "character-1"
+    }]
+  };
+}
+
 function vaultItem() {
   return accountSummary().vault.items[0]!;
 }
@@ -201,6 +237,45 @@ function accountSummary(): AccountSummary {
       loadout_slots: []
     }],
     vault: { item_count: 1, items: [item], sample_items: [] },
+    materials: { item_count: 0, items: [] }
+  };
+}
+
+function highestPowerAccountSummary(): AccountSummary {
+  const equippedItem = {
+    hash: 1001,
+    instance_id: "old-item",
+    name: "Old Item",
+    bucket_name: "动能武器",
+    power: 431,
+    group_key: "weapons" as const,
+    socket_plugs: []
+  };
+  const betterItem = {
+    hash: 1002,
+    instance_id: "better-item",
+    name: "Better Item",
+    bucket_name: "动能武器",
+    power: 450,
+    group_key: "weapons" as const,
+    socket_plugs: []
+  };
+  return {
+    account_name: "Guardian",
+    destiny_membership_id: "destiny-1",
+    membership_type: 3,
+    characters: [{
+      character_id: "character-1",
+      class_name: "猎人",
+      light: 431,
+      equipped_items: [equippedItem],
+      equipment_groups: [],
+      inventory_items: [betterItem],
+      inventory_groups: [],
+      postmaster_items: [],
+      loadout_slots: []
+    }],
+    vault: { item_count: 0, items: [], sample_items: [] },
     materials: { item_count: 0, items: [] }
   };
 }

@@ -12,6 +12,10 @@ export type VaultArmorStatFilter = ArmorStatKey | "total" | "all";
 export type VaultSortKey = "name" | "group" | "tier" | "power" | "armor-total" | ArmorStatKey;
 export type VaultTagFilter = Exclude<VaultTagValue, "none"> | "all" | "untagged" | "noted" | "wishlist" | "target";
 export type VaultLockFilter = "all" | "locked" | "unlocked";
+export type VaultRarityFilter = "all" | "legendary" | "exotic";
+export type VaultGearTierFilter = "all" | "0" | "1" | "2" | "3" | "4" | "5";
+export type VaultClassFilter = "all" | "titan" | "hunter" | "warlock";
+export type VaultDamageFilter = "all" | "kinetic" | "arc" | "solar" | "void" | "stasis" | "strand";
 export type VaultViewMode = "list" | "duplicates";
 
 export type VaultArmorStatRule = {
@@ -26,6 +30,11 @@ export type VaultFilter = {
   lock?: VaultLockFilter;
   slot?: VaultSlotFilter;
   ammo?: VaultAmmoFilter;
+  itemType?: string;
+  rarity?: VaultRarityFilter;
+  gearTier?: VaultGearTierFilter;
+  classType?: VaultClassFilter;
+  damageType?: VaultDamageFilter;
   armorStatRules?: VaultArmorStatRule[];
   frames?: string[];
   tags?: VaultTags;
@@ -92,7 +101,7 @@ export const defaultVaultGroupTab: VaultGroupFilter = "weapons";
 export const tagLabels: Record<VaultTagFilter, string> = {
   all: "全部标记",
   keep: "保留",
-  review: "关注",
+  review: "待复查",
   junk: "可清理",
   farm: "待刷",
   loadout: "配装用",
@@ -127,6 +136,39 @@ export const ammoFilterLabels: Record<VaultAmmoFilter, string> = {
   primary: "主弹",
   special: "特殊",
   heavy: "重弹"
+};
+
+export const rarityFilterLabels: Record<VaultRarityFilter, string> = {
+  all: "全部",
+  legendary: "传说",
+  exotic: "异域"
+};
+
+export const gearTierFilterLabels: Record<VaultGearTierFilter, string> = {
+  all: "全部",
+  "0": "T0",
+  "1": "T1",
+  "2": "T2",
+  "3": "T3",
+  "4": "T4",
+  "5": "T5"
+};
+
+export const classFilterLabels: Record<VaultClassFilter, string> = {
+  all: "全部",
+  titan: "泰坦",
+  hunter: "猎人",
+  warlock: "术士"
+};
+
+export const damageFilterLabels: Record<VaultDamageFilter, string> = {
+  all: "全部",
+  kinetic: "动能",
+  arc: "电弧",
+  solar: "烈日",
+  void: "虚空",
+  stasis: "冰影",
+  strand: "缚丝"
 };
 
 export const armorStatLabels: Record<ArmorStatKey, string> = {
@@ -181,6 +223,11 @@ export function createVaultListWorkspace(input: {
       lockFilter: filter.lock ?? "all",
       slotFilter: filter.slot ?? "all",
       ammoFilter: filter.ammo ?? "all",
+      itemTypeFilter: filter.itemType ?? "all",
+      rarityFilter: filter.rarity ?? "all",
+      gearTierFilter: filter.gearTier ?? "all",
+      classFilter: filter.classType ?? "all",
+      damageFilter: filter.damageType ?? "all",
       frameFilters: filter.frames ?? [],
       armorStatRules: filter.armorStatRules ?? [],
       filteredCount: filteredItems.length,
@@ -208,6 +255,11 @@ export function filterVaultItems(items: AccountItemSummary[], filter: VaultFilte
     if (!matchesLock(item, filter.lock ?? "all")) return false;
     if (!matchesSlot(item, filter.slot ?? "all")) return false;
     if (!matchesAmmo(item, filter.ammo ?? "all")) return false;
+    if (!matchesItemType(item, filter.itemType ?? "all")) return false;
+    if (!matchesRarity(item, filter.rarity ?? "all")) return false;
+    if (!matchesGearTier(item, filter.gearTier ?? "all")) return false;
+    if (!matchesClass(item, filter.classType ?? "all")) return false;
+    if (!matchesDamage(item, filter.damageType ?? "all")) return false;
     if (filter.frames?.length && !filter.frames.includes(item.weapon_frame?.key ?? "")) return false;
     if (parsedQuery.locked !== undefined && item.locked !== parsedQuery.locked) return false;
     if (parsedQuery.type && parsedQuery.type !== "all" && item.group_key !== parsedQuery.type) return false;
@@ -367,6 +419,11 @@ export function buildVaultContextFacts(input: {
   lockFilter: VaultLockFilter;
   slotFilter: VaultSlotFilter;
   ammoFilter: VaultAmmoFilter;
+  itemTypeFilter?: string;
+  rarityFilter?: VaultRarityFilter;
+  gearTierFilter?: VaultGearTierFilter;
+  classFilter?: VaultClassFilter;
+  damageFilter?: VaultDamageFilter;
   frameFilters: VaultFrameFilter;
   armorStatRules: VaultArmorStatRule[];
   filteredCount: number;
@@ -383,6 +440,11 @@ export function buildVaultContextFacts(input: {
     input.lockFilter !== "all" ? lockFilterLabels[input.lockFilter] : "",
     input.slotFilter !== "all" ? `位置：${input.slotFilter}` : "",
     input.ammoFilter !== "all" ? ammoFilterLabels[input.ammoFilter] : "",
+    input.itemTypeFilter && input.itemTypeFilter !== "all" ? `类型：${input.itemTypeFilter}` : "",
+    input.rarityFilter && input.rarityFilter !== "all" ? `稀有度：${rarityFilterLabels[input.rarityFilter]}` : "",
+    input.gearTierFilter && input.gearTierFilter !== "all" ? `装备阶级：${gearTierFilterLabels[input.gearTierFilter]}` : "",
+    input.classFilter && input.classFilter !== "all" ? `职业：${classFilterLabels[input.classFilter]}` : "",
+    input.damageFilter && input.damageFilter !== "all" ? `伤害属性：${damageFilterLabels[input.damageFilter]}` : "",
     input.frameFilters.length ? `框架：${input.frameFilters.length} 个` : "",
     input.armorStatRules.length ? `护甲属性条件：${input.armorStatRules.length} 条` : ""
   ].filter(Boolean);
@@ -527,6 +589,44 @@ function matchesSlot(item: AccountItemSummary, slot: VaultSlotFilter): boolean {
 
 function matchesAmmo(item: AccountItemSummary, ammo: VaultAmmoFilter): boolean {
   return ammo === "all" || item.ammo_type === ammo;
+}
+
+function matchesItemType(item: AccountItemSummary, itemType: string): boolean {
+  return itemType === "all" || item.item_type === itemType;
+}
+
+function matchesRarity(item: AccountItemSummary, rarity: VaultRarityFilter): boolean {
+  if (rarity === "all") return true;
+  const tier = item.tier?.trim().toLocaleLowerCase();
+  if (rarity === "legendary") return tier === "legendary" || tier === "传说";
+  return tier === "exotic" || tier === "异域";
+}
+
+function matchesGearTier(item: AccountItemSummary, gearTier: VaultGearTierFilter): boolean {
+  return gearTier === "all" || String(item.instance?.gear_tier ?? "") === gearTier;
+}
+
+function matchesClass(item: AccountItemSummary, classType: VaultClassFilter): boolean {
+  if (classType === "all") return true;
+  const expectedClassType = classType === "titan" ? 0 : classType === "hunter" ? 1 : 2;
+  return item.class_type === expectedClassType;
+}
+
+function matchesDamage(item: AccountItemSummary, damageType: VaultDamageFilter): boolean {
+  if (damageType === "all") return true;
+  return damageTypeForItem(item) === damageType;
+}
+
+function damageTypeForItem(item: AccountItemSummary): Exclude<VaultDamageFilter, "all"> | undefined {
+  switch (item.instance?.damage_type) {
+    case 1: return "kinetic";
+    case 2: return "arc";
+    case 3: return "solar";
+    case 4: return "void";
+    case 6: return "stasis";
+    case 7: return "strand";
+    default: return undefined;
+  }
 }
 
 function compareVaultSections(left: VaultSection, right: VaultSection): number {

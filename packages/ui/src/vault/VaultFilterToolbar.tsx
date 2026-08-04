@@ -1,15 +1,23 @@
+import type { ReactNode } from "react";
 import {
   ammoFilterLabels,
+  classFilterLabels,
+  damageFilterLabels,
+  gearTierFilterLabels,
   lockFilterLabels,
+  rarityFilterLabels,
   sortLabels,
-  tagLabels,
   type VaultAmmoFilter,
   type VaultArmorStatRule,
+  type VaultClassFilter,
+  type VaultDamageFilter,
   type VaultFrameFilter,
   type VaultFrameOption,
+  type VaultGearTierFilter,
   type VaultGroupFilter,
   type VaultGroupSummary,
   type VaultLockFilter,
+  type VaultRarityFilter,
   type VaultSlotFilter,
   type VaultSlotSummary,
   type VaultSortKey,
@@ -17,22 +25,47 @@ import {
 } from "@d2-tools/app/vault";
 import { VaultArmorFilterPanel } from "./VaultArmorFilterPanel.js";
 
+export type VaultSignalFilter = "wishlist" | "loadout" | "target" | "community";
+
+const dispositionOptions: Array<{ key: VaultTagFilter; label: string }> = [
+  { key: "all", label: "全部" },
+  { key: "untagged", label: "未标记" },
+  { key: "keep", label: "保留" },
+  { key: "review", label: "待复查" },
+  { key: "junk", label: "可清理" }
+];
+
+const signalOptions: Array<{ key: VaultSignalFilter; label: string }> = [
+  { key: "wishlist", label: "愿望单" },
+  { key: "loadout", label: "配装引用" },
+  { key: "target", label: "目标命中" },
+  { key: "community", label: "社区推荐" }
+];
+
 export function VaultFilterToolbar(props: {
   query: string;
   sortKey: VaultSortKey;
   tagFilter: VaultTagFilter;
+  signalFilters: VaultSignalFilter[];
   armorStatRules: VaultArmorStatRule[];
   lockFilter: VaultLockFilter;
   slotFilter: VaultSlotFilter;
   ammoFilter: VaultAmmoFilter;
+  itemTypeFilter: string;
+  rarityFilter: VaultRarityFilter;
+  gearTierFilter: VaultGearTierFilter;
+  classFilter: VaultClassFilter;
+  damageFilter: VaultDamageFilter;
   frameFilters: VaultFrameFilter;
   group: VaultGroupFilter;
   groups: VaultGroupSummary[];
   slotFilters: VaultSlotSummary[];
+  itemTypeFilters: Array<{ key: string; label: string; count: number }>;
   availableFrameFilters: VaultFrameOption[];
   onQueryChange: (value: string) => void;
   onSortKeyChange: (value: VaultSortKey) => void;
   onTagFilterChange: (value: VaultTagFilter) => void;
+  onSignalFilterToggle: (value: VaultSignalFilter) => void;
   onAddArmorStatRule: () => void;
   onClearArmorStatRules: () => void;
   onRemoveArmorStatRule: (index: number) => void;
@@ -40,141 +73,120 @@ export function VaultFilterToolbar(props: {
   onLockFilterChange: (value: VaultLockFilter) => void;
   onSlotFilterChange: (value: VaultSlotFilter) => void;
   onAmmoFilterChange: (value: VaultAmmoFilter) => void;
+  onItemTypeFilterChange: (value: string) => void;
+  onRarityFilterChange: (value: VaultRarityFilter) => void;
+  onGearTierFilterChange: (value: VaultGearTierFilter) => void;
+  onClassFilterChange: (value: VaultClassFilter) => void;
+  onDamageFilterChange: (value: VaultDamageFilter) => void;
   onGroupChange: (value: VaultGroupFilter) => void;
   onToggleFrameFilter: (key: string) => void;
-  onClearFilters: () => void;
 }) {
   const isWeaponMode = props.group === "weapons";
   const isArmorMode = props.group === "armor";
-  const currentGroup = props.groups.find((item) => item.key === props.group);
-  const currentGroupTitle = props.group === "all"
-    ? "全部物品装备"
-    : props.group === "equipment"
-      ? "装备"
-      : props.group === "other"
-        ? "其他物品"
-        : `${currentGroup?.label ?? "全部"}装备`;
+  const visibleGroups = props.groups.filter((item) => item.key === "weapons" || item.key === "armor" || item.key === "equipment");
+  const visibleSlotFilters = props.slotFilters.filter((item) => {
+    if (item.key === "all") return true;
+    if (isWeaponMode) return ["动能武器", "能量武器", "威能武器"].includes(item.label);
+    if (isArmorMode) return ["头盔", "臂铠", "胸甲", "腿甲", "职业物品"].includes(item.label);
+    return true;
+  });
 
   return (
-    <section className="vault-filter-workbench" aria-label="仓库筛选">
-      <header className="vault-filter-head">
-        <div className="vault-filter-title">
-          <span>筛选工作台</span>
-          <strong>{currentGroupTitle}</strong>
-        </div>
-        <div className="vault-filter-actions">
-          <span className="vault-filter-hint">条件按范围分别保留</span>
-          <button type="button" className="vault-filter-reset" data-ui-kind="button" data-control-variant="secondary" onClick={props.onClearFilters}>
-            清空当前筛选
-          </button>
-        </div>
-      </header>
+    <aside className="vault-filter-workbench" aria-label="仓库筛选" data-surface="section" data-contract-id="vault.filters">
+      <label className="vault-filter-search">
+        <span>搜索</span>
+        <input
+          type="search"
+          value={props.query}
+          onChange={(event) => props.onQueryChange(event.target.value)}
+          placeholder="名称、Perk、标签或备注"
+        />
+      </label>
 
-      <div className="vault-filter-primary">
-        <label className="vault-filter-search">
-          <span>关键词</span>
-          <input
-            type="search"
-            value={props.query}
-            onChange={(event) => props.onQueryChange(event.target.value)}
-            placeholder="搜索名称、类型、Perk、标签或备注"
-          />
-        </label>
-        <div className="vault-filter-scope-group">
-          <span>范围</span>
-          <div className="vault-filter-scope" aria-label="仓库筛选范围">
-            {props.groups.map((item) => (
-              <button
-                type="button"
-                key={item.key}
-                aria-pressed={props.group === item.key}
-                onClick={() => props.onGroupChange(item.key)}
-              >
-                <span>{item.label}</span>
-                <small>{item.count}</small>
-              </button>
-            ))}
+      <FilterSection title="物品范围" hint="高频入口">
+        <div className="vault-filter-option-grid vault-filter-category-grid" role="group" aria-label="物品范围">
+          {visibleGroups.map((item) => (
+            <button type="button" key={item.key} aria-pressed={props.group === item.key} onClick={() => props.onGroupChange(item.key)}>
+              <span>{item.label}</span><small>{item.count}</small>
+            </button>
+          ))}
+        </div>
+      </FilterSection>
+
+      <FilterSection title={isArmorMode ? "护甲部位" : isWeaponMode ? "武器槽位" : "物品位置"} hint="单选">
+        <div className="vault-filter-option-grid vault-filter-slot-grid" role="group" aria-label="物品位置">
+          {visibleSlotFilters.map((item) => (
+            <button type="button" key={item.key} aria-pressed={props.slotFilter === item.key} onClick={() => props.onSlotFilterChange(item.key)}>
+              <span>{shortSlotLabel(item.label)}</span><small>{item.count}</small>
+            </button>
+          ))}
+        </div>
+        {(isWeaponMode || isArmorMode) ? (
+          <div className="vault-quality-stack">
+            <SegmentedFilter
+              label="稀有度"
+              value={props.rarityFilter}
+              options={Object.entries(rarityFilterLabels)}
+              onChange={(value) => props.onRarityFilterChange(value as VaultRarityFilter)}
+            />
+            <SegmentedFilter
+              label="装备阶级"
+              value={props.gearTierFilter}
+              options={Object.entries(gearTierFilterLabels)}
+              compact
+              onChange={(value) => props.onGearTierFilterChange(value as VaultGearTierFilter)}
+            />
           </div>
-        </div>
-      </div>
-
-      <section className="vault-filter-common">
-        <div className="vault-filter-section-head">
-          <span>基础条件</span>
-          <span>缩小结果范围，再决定排列方式</span>
-        </div>
-        <div className="vault-filter-common-row">
-          <label className="vault-filter-field">
-            <span>槽位</span>
-            <select value={props.slotFilter} onChange={(event) => props.onSlotFilterChange(event.target.value)}>
-              {props.slotFilters.map((item) => (
-                <option key={item.key} value={item.key}>{item.label} {item.count}</option>
-              ))}
-            </select>
-          </label>
-          <label className="vault-filter-field">
-            <span>本地标签</span>
-            <select value={props.tagFilter} onChange={(event) => props.onTagFilterChange(event.target.value as VaultTagFilter)}>
-              {(Object.keys(tagLabels) as VaultTagFilter[]).map((key) => (
-                <option key={key} value={key}>{tagLabels[key]}</option>
-              ))}
-            </select>
-          </label>
-          <label className="vault-filter-field">
-            <span>锁定状态</span>
-            <select value={props.lockFilter} onChange={(event) => props.onLockFilterChange(event.target.value as VaultLockFilter)}>
-              {(Object.keys(lockFilterLabels) as VaultLockFilter[]).map((key) => (
-                <option key={key} value={key}>{lockFilterLabels[key]}</option>
-              ))}
-            </select>
-          </label>
-          <label className="vault-filter-field">
-            <span>排序</span>
-            <select value={props.sortKey} onChange={(event) => props.onSortKeyChange(event.target.value as VaultSortKey)}>
-              {(Object.keys(sortLabels) as VaultSortKey[]).map((key) => (
-                <option key={key} value={key}>{sortLabels[key]}</option>
-              ))}
-            </select>
-          </label>
-        </div>
-      </section>
+        ) : null}
+      </FilterSection>
 
       {isWeaponMode ? (
-        <section className="vault-domain-filter vault-weapon-filter">
-          <label className="vault-domain-field">
-            <span>弹药类型</span>
-            <select value={props.ammoFilter} onChange={(event) => props.onAmmoFilterChange(event.target.value as VaultAmmoFilter)}>
-              {(Object.keys(ammoFilterLabels) as VaultAmmoFilter[]).map((key) => (
-                <option key={key} value={key}>{ammoFilterLabels[key]}</option>
-              ))}
-            </select>
-          </label>
-          <details className="vault-frame-filter" open={Boolean(props.frameFilters.length)}>
-            <summary>
-              <span>武器框架</span>
-              <small>{props.frameFilters.length ? `已选 ${props.frameFilters.length} 项` : "全部框架"}</small>
-            </summary>
-            {props.availableFrameFilters.length ? (
-              <div className="vault-frame-chip-grid" aria-label="仓库武器框架筛选">
-                {props.availableFrameFilters.map((item) => (
-                  <button
-                    type="button"
-                    key={item.key}
-                    className={props.frameFilters.includes(item.key) ? "vault-frame-chip active" : "vault-frame-chip"}
-                    onClick={() => props.onToggleFrameFilter(item.key)}
-                  >
-                    <span>{item.label}</span>
-                    <small>{item.count}</small>
-                  </button>
-                ))}
-              </div>
-            ) : <p>当前范围没有可用的武器框架字段。</p>}
-          </details>
-        </section>
+        <FilterSection title="武器条件" hint="真实实例字段">
+          <div className="vault-domain-stack">
+            <label className="vault-filter-field">
+              <span>武器类型</span>
+              <select value={props.itemTypeFilter} onChange={(event) => props.onItemTypeFilterChange(event.target.value)}>
+                <option value="all">全部类型</option>
+                {props.itemTypeFilters.map((item) => <option key={item.key} value={item.key}>{item.label} {item.count}</option>)}
+              </select>
+            </label>
+            <SegmentedFilter
+              label="弹药类型"
+              value={props.ammoFilter}
+              options={Object.entries(ammoFilterLabels).map(([key, label]) => [key, label.replace("全部弹药", "全部")])}
+              onChange={(value) => props.onAmmoFilterChange(value as VaultAmmoFilter)}
+            />
+            <SegmentedFilter
+              label="伤害属性"
+              value={props.damageFilter}
+              options={Object.entries(damageFilterLabels)}
+              wrap
+              onChange={(value) => props.onDamageFilterChange(value as VaultDamageFilter)}
+            />
+            <details className="vault-frame-filter" open={Boolean(props.frameFilters.length)}>
+              <summary><span>武器框架</span><small>{props.frameFilters.length ? `已选 ${props.frameFilters.length} 项` : "全部框架"}</small></summary>
+              {props.availableFrameFilters.length ? (
+                <div className="vault-frame-chip-grid" aria-label="仓库武器框架筛选">
+                  {props.availableFrameFilters.map((item) => (
+                    <button type="button" key={item.key} className={props.frameFilters.includes(item.key) ? "active" : ""} aria-pressed={props.frameFilters.includes(item.key)} onClick={() => props.onToggleFrameFilter(item.key)}>
+                      <span>{item.label}</span><small>{item.count}</small>
+                    </button>
+                  ))}
+                </div>
+              ) : <p>当前范围没有可用的武器框架字段。</p>}
+            </details>
+          </div>
+        </FilterSection>
       ) : null}
 
       {isArmorMode ? (
-        <div className="vault-domain-filter vault-armor-filter">
+        <FilterSection title="护甲条件" hint="多个属性条件同时成立">
+          <SegmentedFilter
+            label="职业"
+            value={props.classFilter}
+            options={Object.entries(classFilterLabels)}
+            onChange={(value) => props.onClassFilterChange(value as VaultClassFilter)}
+          />
           <VaultArmorFilterPanel
             rules={props.armorStatRules}
             onAddRule={props.onAddArmorStatRule}
@@ -182,14 +194,74 @@ export function VaultFilterToolbar(props: {
             onRemoveRule={props.onRemoveArmorStatRule}
             onUpdateRule={props.onUpdateArmorStatRule}
           />
-        </div>
+        </FilterSection>
       ) : null}
 
-      {!isWeaponMode && !isArmorMode ? (
-        <section className="vault-domain-filter vault-all-filter">
-          <p>当前范围只使用关键词、槽位、本地标签和锁定状态等共同条件。</p>
-        </section>
-      ) : null}
+      <FilterSection title="共同条件" hint="始终生效">
+        <div className="vault-filter-common-row">
+          <label className="vault-filter-field">
+            <span>锁定状态</span>
+            <select value={props.lockFilter} onChange={(event) => props.onLockFilterChange(event.target.value as VaultLockFilter)}>
+              {(Object.keys(lockFilterLabels) as VaultLockFilter[]).map((key) => <option key={key} value={key}>{lockFilterLabels[key]}</option>)}
+            </select>
+          </label>
+          <label className="vault-filter-field">
+            <span>结果排序</span>
+            <select value={props.sortKey} onChange={(event) => props.onSortKeyChange(event.target.value as VaultSortKey)}>
+              {(Object.keys(sortLabels) as VaultSortKey[]).map((key) => <option key={key} value={key}>{sortLabels[key]}</option>)}
+            </select>
+          </label>
+        </div>
+      </FilterSection>
+
+      <FilterSection title="整理状态" hint="玩家决定 · 单选">
+        <div className="vault-filter-option-grid vault-disposition-grid" role="group" aria-label="玩家整理状态">
+          {dispositionOptions.map((item) => (
+            <button type="button" key={item.key} aria-pressed={props.tagFilter === item.key} onClick={() => props.onTagFilterChange(item.key)}>{item.label}</button>
+          ))}
+        </div>
+      </FilterSection>
+
+      <FilterSection title="保护与匹配" hint="只提供证据 · 可多选">
+        <div className="vault-filter-option-grid vault-signal-grid" role="group" aria-label="保护与匹配信号">
+          {signalOptions.map((item) => (
+            <button type="button" key={item.key} aria-pressed={props.signalFilters.includes(item.key)} onClick={() => props.onSignalFilterToggle(item.key)}>{item.label}</button>
+          ))}
+        </div>
+      </FilterSection>
+    </aside>
+  );
+}
+
+function FilterSection(props: { title: string; hint: string; children: ReactNode }) {
+  return (
+    <section className="vault-filter-section">
+      <div className="vault-filter-section-head"><strong>{props.title}</strong><span>{props.hint}</span></div>
+      {props.children}
     </section>
   );
+}
+
+function SegmentedFilter(props: {
+  label: string;
+  value: string;
+  options: Array<[string, string]>;
+  compact?: boolean;
+  wrap?: boolean;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div className="vault-segmented-field">
+      <span>{props.label}</span>
+      <div className={["vault-choice-strip", props.compact ? "compact" : "", props.wrap ? "wrap" : ""].filter(Boolean).join(" ")} role="group" aria-label={props.label}>
+        {props.options.map(([key, label]) => (
+          <button type="button" key={key} aria-pressed={props.value === key} onClick={() => props.onChange(key)}>{label}</button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function shortSlotLabel(label: string): string {
+  return label.replace("武器", "").replace("物品", "").replace("全部位置", "全部");
 }

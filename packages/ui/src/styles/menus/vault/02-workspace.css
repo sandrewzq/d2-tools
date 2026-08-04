@@ -1508,3 +1508,932 @@
     grid-column: auto;
   }
 }
+
+/* Approved compact vault browser */
+
+:where(.app-shell) .vault-browse {
+  grid-template-columns: 292px minmax(0, 1fr);
+  align-items: start;
+  min-height: 620px;
+  background: var(--surface-panel);
+}
+
+:where(.app-shell) .vault-browse > * + * {
+  border-top: 0;
+  border-left: 1px solid var(--border-control);
+}
+
+:where(.app-shell) .vault-filter-workbench {
+  position: sticky;
+  top: 0;
+  align-self: start;
+  width: 100%;
+  max-height: calc(100dvh - 128px);
+  overflow-y: auto;
+  border: 0;
+  border-radius: 0;
+  background: var(--surface-subtle);
+}
+
+:where(.app-shell) .vault-filter-search {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+:where(.app-shell) .vault-filter-search > span,
+:where(.app-shell) .vault-filter-field > span,
+:where(.app-shell) .vault-segmented-field > span {
+  color: var(--text-muted);
+  font-size: var(--font-caption);
+}
+
+:where(.app-shell) .vault-filter-workbench input,
+:where(.app-shell) .vault-filter-workbench select {
+  width: 100%;
+  min-width: 0;
+  min-height: 34px;
+  border-radius: var(--radius-control);
+}
+
+:where(.app-shell) .vault-filter-section {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 9px 12px 11px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+:where(.app-shell) .vault-filter-search + .vault-filter-section {
+  border-top: 0;
+}
+
+:where(.app-shell) .vault-filter-section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+:where(.app-shell) .vault-filter-section-head strong {
+  color: var(--text-title);
+  font-size: var(--font-content);
+}
+
+:where(.app-shell) .vault-filter-section-head span {
+  color: var(--text-muted);
+  font-size: var(--font-caption);
+}
+
+:where(.app-shell) .vault-filter-option-grid {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+:where(.app-shell) .vault-filter-category-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+:where(.app-shell) .vault-filter-slot-grid {
+  grid-template-columns: repeat(auto-fit, minmax(48px, 1fr));
+}
+
+:where(.app-shell) .vault-disposition-grid,
+:where(.app-shell) .vault-signal-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+:where(.app-shell) .vault-filter-option-grid button,
+:where(.app-shell) .vault-choice-strip button,
+:where(.app-shell) .vault-frame-chip-grid button,
+:where(.app-shell) .duplicate-type-filter button,
+:where(.app-shell) .duplicate-decision button {
+  min-width: 0;
+  min-height: 32px;
+  padding: 0 7px;
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-control);
+  color: var(--text-body);
+  background: var(--surface-panel);
+  box-shadow: none;
+  font-size: var(--font-caption);
+}
+
+:where(.app-shell) .vault-filter-option-grid button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+:where(.app-shell) .vault-filter-option-grid button small,
+:where(.app-shell) .vault-frame-chip-grid button small {
+  color: inherit;
+  font-size: var(--font-caption);
+  opacity: 0.68;
+}
+
+:where(.app-shell) .vault-filter-option-grid button[aria-pressed="true"],
+:where(.app-shell) .vault-choice-strip button[aria-pressed="true"],
+:where(.app-shell) .vault-frame-chip-grid button[aria-pressed="true"],
+:where(.app-shell) .duplicate-type-filter button[aria-pressed="true"] {
+  border-color: var(--state-selected-border);
+  color: var(--selected-fg);
+  background: var(--state-selected-bg);
+  box-shadow: inset 0 0 0 1px var(--state-selected-border);
+  font-weight: 700;
+}
+
+:where(.app-shell) .vault-filter-option-grid button:hover:not([aria-pressed="true"]),
+:where(.app-shell) .vault-choice-strip button:hover:not([aria-pressed="true"]),
+:where(.app-shell) .vault-frame-chip-grid button:hover:not([aria-pressed="true"]) {
+  color: var(--text-title);
+  background: var(--surface-recessed);
+}
+
+:where(.app-shell) .vault-quality-stack,
+:where(.app-shell) .vault-domain-stack,
+:where(.app-shell) .vault-filter-common-row,
+:where(.app-shell) .vault-segmented-field,
+:where(.app-shell) .vault-filter-field {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+:where(.app-shell) .vault-quality-stack,
+:where(.app-shell) .vault-domain-stack,
+:where(.app-shell) .vault-filter-common-row {
+  gap: 8px;
+}
+
+:where(.app-shell) .vault-choice-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(45px, 1fr));
+  gap: 3px;
+  min-width: 0;
+}
+
+:where(.app-shell) .vault-choice-strip.compact {
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+:where(.app-shell) .vault-choice-strip.compact button {
+  padding: 0 2px;
+}
+
+:where(.app-shell) .vault-choice-strip.wrap {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+:where(.app-shell) .vault-frame-filter {
+  min-width: 0;
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-control);
+  background: var(--surface-panel);
+}
+
+:where(.app-shell) .vault-frame-filter summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 34px;
+  padding: 0 8px;
+  color: var(--text-body);
+  font-size: var(--font-content);
+  cursor: pointer;
+}
+
+:where(.app-shell) .vault-frame-filter summary small {
+  color: var(--text-muted);
+  font-size: var(--font-caption);
+}
+
+:where(.app-shell) .vault-frame-chip-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+  padding: 6px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+:where(.app-shell) .vault-frame-chip-grid button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 5px;
+  text-align: left;
+}
+
+:where(.app-shell) .vault-armor-filter-panel {
+  gap: 8px;
+  padding-top: 2px;
+}
+
+:where(.app-shell) .vault-armor-filter-heading {
+  display: grid;
+  gap: 6px;
+}
+
+:where(.app-shell) .vault-armor-filter-heading h3 {
+  font-size: var(--font-content);
+}
+
+:where(.app-shell) .vault-armor-filter-heading p,
+:where(.app-shell) .vault-armor-rule-empty {
+  margin: 2px 0 0;
+  color: var(--text-muted);
+  font-size: var(--font-caption);
+  line-height: 1.45;
+}
+
+:where(.app-shell) .vault-armor-filter-heading .button-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+}
+
+:where(.app-shell) .vault-armor-filter-heading button {
+  min-height: 32px;
+  padding: 0 6px;
+  font-size: var(--font-caption);
+}
+
+:where(.app-shell) .vault-filter-workbench .vault-armor-rule {
+  grid-template-columns: minmax(0, 1fr) 18px 78px;
+  gap: 4px;
+  max-width: none;
+  padding: 6px;
+}
+
+:where(.app-shell) .vault-filter-workbench .vault-armor-rule-remove {
+  grid-column: 1 / -1;
+  min-height: 30px;
+}
+
+:where(.app-shell) .vault-results-column {
+  min-width: 0;
+  background: var(--surface-panel);
+}
+
+:where(.app-shell) .vault-results-column .vault-column-head {
+  min-height: 49px;
+  padding: 8px 12px;
+}
+
+:where(.app-shell) .vault-results-column .vault-column-head > div {
+  display: grid;
+  gap: 2px;
+}
+
+:where(.app-shell) .vault-results-column .vault-column-head button {
+  min-height: 32px;
+  padding: 0 10px;
+}
+
+:where(.app-shell) .vault-active-filters {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  min-height: 40px;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--surface-subtle);
+}
+
+:where(.app-shell) .vault-active-filters > strong {
+  color: var(--text-title);
+  font-size: var(--font-caption);
+}
+
+:where(.app-shell) .vault-active-filters > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  color: var(--text-muted);
+  font-size: var(--font-caption);
+}
+
+:where(.app-shell) .vault-active-filters .ui-badge {
+  min-height: 22px;
+  padding: 0 6px;
+  border-radius: var(--radius-indicator);
+  font-size: var(--font-caption);
+}
+
+:where(.app-shell) .vault-results-column .vault-section-list {
+  padding: 0;
+}
+
+:where(.app-shell) .vault-results-column .vault-card-grid {
+  grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+  gap: 8px;
+  padding: 10px 12px;
+}
+
+:where(.app-shell) .vault-results-column .vault-item-card {
+  display: block;
+  min-height: 0;
+  padding: 7px;
+  border: 1px solid var(--object-border);
+  border-radius: var(--radius-object);
+  background: var(--surface-subtle);
+}
+
+:where(.app-shell) .vault-results-column .vault-item-card:hover {
+  border-color: var(--state-selected-border);
+  background: var(--item-bg-hover);
+}
+
+:where(.app-shell) .vault-results-column .vault-card-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 6px;
+  align-items: stretch;
+}
+
+:where(.app-shell) .vault-results-column .vault-card-visual {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  height: auto;
+  min-height: 0;
+  aspect-ratio: 1 / 1;
+  overflow: hidden;
+  border-radius: var(--radius-control);
+}
+
+:where(.app-shell) .vault-results-column .vault-card-visual img,
+:where(.app-shell) .vault-results-column .vault-card-visual .item-icon-placeholder {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: var(--radius-control);
+  object-fit: cover;
+}
+
+:where(.app-shell) .vault-card-lock,
+:where(.app-shell) .vault-card-power {
+  position: absolute;
+  top: 5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 20px;
+  padding: 0 5px;
+  border-radius: var(--radius-indicator);
+  color: white;
+  background: rgb(8 12 16 / 78%);
+  font-size: var(--font-caption);
+  font-weight: 700;
+}
+
+:where(.app-shell) .vault-card-lock {
+  left: 5px;
+  color: var(--status-warning);
+}
+
+:where(.app-shell) .vault-card-power {
+  right: 5px;
+}
+
+:where(.app-shell) .vault-card-marker-row {
+  position: absolute;
+  right: 5px;
+  bottom: 5px;
+  left: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+}
+
+:where(.app-shell) .vault-score-badge,
+:where(.app-shell) .vault-card-evidence {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: 21px;
+  padding: 0 6px;
+  border: 1px solid rgb(255 255 255 / 20%);
+  border-radius: var(--radius-indicator);
+  color: white;
+  background: rgb(8 12 16 / 82%);
+  font-size: var(--font-caption);
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+:where(.app-shell) .vault-score-badge.score-keep {
+  color: var(--status-ready);
+}
+
+:where(.app-shell) .vault-score-badge.score-review {
+  color: var(--status-warning);
+}
+
+:where(.app-shell) .vault-score-badge.score-junk {
+  color: var(--status-error);
+}
+
+:where(.app-shell) .vault-score-badge.score-none {
+  color: var(--text-body);
+}
+
+:where(.app-shell) .vault-results-column .vault-card-body {
+  display: grid;
+  gap: 2px;
+}
+
+:where(.app-shell) .vault-results-column .vault-card-body strong {
+  font-size: var(--font-content);
+  line-height: 1.35;
+}
+
+:where(.app-shell) .vault-results-column .vault-card-meta,
+:where(.app-shell) .vault-results-column .vault-card-roll,
+:where(.app-shell) .vault-results-column .vault-note-snippet,
+:where(.app-shell) .vault-results-column .vault-card-open-state {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: var(--font-caption);
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+:where(.app-shell) .vault-results-column .vault-note-snippet {
+  color: var(--status-warning);
+}
+
+:where(.app-shell) .vault-render-limit-message {
+  margin: 10px 12px 0;
+}
+
+:where(.app-shell) .duplicate-workspace {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  min-height: 560px;
+  background: var(--surface-panel);
+}
+
+:where(.app-shell) .duplicate-group-browser {
+  min-width: 0;
+  border-right: 1px solid var(--border-control);
+  background: var(--surface-subtle);
+}
+
+:where(.app-shell) .duplicate-browser-head {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-control);
+}
+
+:where(.app-shell) .duplicate-browser-head strong,
+:where(.app-shell) .duplicate-browser-head span {
+  display: block;
+}
+
+:where(.app-shell) .duplicate-browser-head strong {
+  color: var(--text-title);
+  font-size: var(--font-content);
+}
+
+:where(.app-shell) .duplicate-browser-head span {
+  margin-top: 3px;
+  color: var(--text-muted);
+  font-size: var(--font-caption);
+  line-height: 1.45;
+}
+
+:where(.app-shell) .duplicate-browser-tools {
+  display: grid;
+  gap: 6px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-control);
+  background: var(--surface-panel);
+}
+
+:where(.app-shell) .duplicate-browser-tools input {
+  width: 100%;
+  min-height: 34px;
+}
+
+:where(.app-shell) .duplicate-type-filter {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+}
+
+:where(.app-shell) .duplicate-group-nav {
+  display: grid;
+}
+
+:where(.app-shell) .duplicate-group-link {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+  min-height: 64px;
+  padding: 7px 10px;
+  border: 0;
+  border-bottom: 1px solid var(--border-subtle);
+  border-radius: 0;
+  color: var(--text-body);
+  background: transparent;
+  box-shadow: none;
+  text-align: left;
+}
+
+:where(.app-shell) .duplicate-group-link:hover {
+  background: var(--surface-recessed);
+}
+
+:where(.app-shell) .duplicate-group-link[aria-pressed="true"] {
+  color: var(--selected-fg);
+  background: var(--state-selected-bg);
+  box-shadow: inset 3px 0 0 var(--state-selected-border);
+}
+
+:where(.app-shell) .duplicate-group-link img,
+:where(.app-shell) .duplicate-thumb-fallback {
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-control);
+  object-fit: cover;
+}
+
+:where(.app-shell) .duplicate-thumb-fallback {
+  display: grid;
+  place-items: center;
+  color: var(--text-title);
+  background: var(--surface-recessed);
+  font-size: var(--font-content);
+  font-weight: 700;
+}
+
+:where(.app-shell) .duplicate-group-copy,
+:where(.app-shell) .duplicate-group-copy strong,
+:where(.app-shell) .duplicate-group-copy span,
+:where(.app-shell) .duplicate-group-copy small {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+:where(.app-shell) .duplicate-group-copy strong {
+  color: var(--text-title);
+  font-size: var(--font-content);
+}
+
+:where(.app-shell) .duplicate-group-copy span,
+:where(.app-shell) .duplicate-group-copy small,
+:where(.app-shell) .duplicate-browser-empty {
+  margin-top: 2px;
+  color: var(--text-muted);
+  font-size: var(--font-caption);
+}
+
+:where(.app-shell) .duplicate-browser-empty {
+  margin: 0;
+  padding: 12px;
+  line-height: 1.5;
+}
+
+:where(.app-shell) .duplicate-compare-panel {
+  min-width: 0;
+  background: var(--surface-panel);
+}
+
+:where(.app-shell) .duplicate-compare-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 66px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-control);
+}
+
+:where(.app-shell) .duplicate-compare-head h2 {
+  margin: 0;
+  color: var(--text-title);
+  font-size: var(--font-section);
+}
+
+:where(.app-shell) .duplicate-compare-head p {
+  margin: 3px 0 0;
+  color: var(--text-muted);
+  font-size: var(--font-caption);
+  line-height: 1.45;
+}
+
+:where(.app-shell) .duplicate-compare-head-actions {
+  display: grid;
+  justify-items: end;
+  gap: 5px;
+  color: var(--text-muted);
+  font-size: var(--font-caption);
+  white-space: nowrap;
+}
+
+:where(.app-shell) .duplicate-compare-head-actions button {
+  min-height: 32px;
+}
+
+:where(.app-shell) .duplicate-compare-table {
+  min-width: 0;
+  overflow-x: auto;
+}
+
+:where(.app-shell) .duplicate-table-head,
+:where(.app-shell) .duplicate-compare-row {
+  display: grid;
+  grid-template-columns: 56px minmax(156px, 1.15fr) repeat(4, minmax(88px, 0.72fr)) minmax(130px, 0.9fr) minmax(235px, 1.25fr);
+  gap: 0;
+  align-items: center;
+  min-width: 1040px;
+}
+
+:where(.app-shell) .duplicate-table-head {
+  min-height: 34px;
+  border-bottom: 1px solid var(--border-control);
+  color: var(--text-muted);
+  background: var(--surface-subtle);
+  font-size: var(--font-caption);
+}
+
+:where(.app-shell) .duplicate-table-head span {
+  padding: 0 6px;
+}
+
+:where(.app-shell) .duplicate-compare-row {
+  min-height: 64px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: transparent;
+}
+
+:where(.app-shell) .duplicate-compare-row.reference {
+  background: var(--state-selected-bg);
+  box-shadow: inset 3px 0 0 var(--state-selected-border);
+}
+
+:where(.app-shell) .duplicate-compare-row.has-protection-conflict {
+  background: var(--status-warning-bg);
+  box-shadow: inset 3px 0 0 var(--status-warning);
+}
+
+:where(.app-shell) .duplicate-reference-button {
+  min-width: 44px;
+  min-height: 31px;
+  margin: 0 6px;
+  padding: 0 5px;
+  font-size: var(--font-caption);
+}
+
+:where(.app-shell) .duplicate-identity {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+  min-height: 64px;
+  padding: 6px;
+  border: 0;
+  border-radius: 0;
+  color: inherit;
+  background: transparent;
+  box-shadow: none;
+  text-align: left;
+}
+
+:where(.app-shell) .duplicate-identity img {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-control);
+}
+
+:where(.app-shell) .duplicate-identity strong,
+:where(.app-shell) .duplicate-identity small {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+:where(.app-shell) .duplicate-identity strong {
+  color: var(--text-title);
+  font-size: var(--font-content);
+}
+
+:where(.app-shell) .duplicate-identity small {
+  margin-top: 3px;
+  color: var(--text-muted);
+  font-size: var(--font-caption);
+}
+
+:where(.app-shell) .duplicate-cell {
+  min-width: 0;
+  padding: 5px 6px;
+  border-left: 2px solid transparent;
+  color: var(--text-body);
+  font-size: var(--font-caption);
+  line-height: 1.35;
+}
+
+:where(.app-shell) .duplicate-cell.same {
+  color: var(--text-muted);
+  opacity: 0.5;
+}
+
+:where(.app-shell) .duplicate-cell.different {
+  border-left-color: var(--state-selected-border);
+  background: var(--surface-subtle);
+  font-weight: 700;
+}
+
+:where(.app-shell) .duplicate-signals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  min-width: 0;
+  padding: 5px 6px;
+  color: var(--text-muted);
+  font-size: var(--font-caption);
+}
+
+:where(.app-shell) .duplicate-signals .ui-badge {
+  min-height: 21px;
+  padding: 0 5px;
+  border-radius: var(--radius-indicator);
+  font-size: var(--font-caption);
+}
+
+:where(.app-shell) .duplicate-decision {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) 46px;
+  margin: 5px 6px;
+  overflow: hidden;
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-control);
+}
+
+:where(.app-shell) .duplicate-decision button {
+  min-height: 32px;
+  padding: 0 4px;
+  border: 0;
+  border-right: 1px solid var(--border-control);
+  border-radius: 0;
+}
+
+:where(.app-shell) .duplicate-decision button:last-child {
+  border-right: 0;
+}
+
+:where(.app-shell) .duplicate-decision button[aria-pressed="true"][data-decision-value="keep"] {
+  color: var(--status-ready);
+  background: var(--status-ready-bg);
+  font-weight: 700;
+}
+
+:where(.app-shell) .duplicate-decision button[aria-pressed="true"][data-decision-value="review"] {
+  color: var(--status-warning);
+  background: var(--status-warning-bg);
+  font-weight: 700;
+}
+
+:where(.app-shell) .duplicate-decision button[aria-pressed="true"][data-decision-value="junk"] {
+  color: var(--status-error);
+  background: var(--status-error-bg);
+  font-weight: 700;
+}
+
+:where(.app-shell) .duplicate-decision button[aria-pressed="true"][data-decision-value="none"] {
+  color: var(--text-title);
+  background: var(--surface-recessed);
+}
+
+:where(.app-shell) .duplicate-decision-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-top: 1px solid var(--border-control);
+  background: var(--surface-subtle);
+}
+
+:where(.app-shell) .duplicate-decision-summary,
+:where(.app-shell) .duplicate-decision-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  align-items: center;
+  color: var(--text-body);
+  font-size: var(--font-caption);
+}
+
+:where(.app-shell) .duplicate-decision-summary strong {
+  color: var(--text-title);
+}
+
+:where(.app-shell) .duplicate-decision-message {
+  display: block;
+  margin-top: 4px;
+  color: var(--text-muted);
+  font-size: var(--font-caption);
+}
+
+:where(.app-shell) .duplicate-decision-actions {
+  justify-content: flex-end;
+}
+
+:where(.app-shell) .duplicate-decision-actions button {
+  min-height: 32px;
+  padding: 0 9px;
+  font-size: var(--font-caption);
+}
+
+@media (max-width: 1180px) {
+  :where(.app-shell) .vault-browse {
+    grid-template-columns: 260px minmax(0, 1fr);
+  }
+
+  :where(.app-shell) .duplicate-workspace {
+    grid-template-columns: 240px minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 920px) {
+  :where(.app-shell) .vault-browse,
+  :where(.app-shell) .duplicate-workspace {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  :where(.app-shell) .vault-browse > * + *,
+  :where(.app-shell) .duplicate-group-browser {
+    border-left: 0;
+    border-right: 0;
+    border-bottom: 1px solid var(--border-control);
+  }
+
+  :where(.app-shell) .vault-filter-workbench {
+    position: static;
+    max-height: none;
+    overflow: visible;
+  }
+
+  :where(.app-shell) .duplicate-group-nav {
+    display: flex;
+    overflow-x: auto;
+  }
+
+  :where(.app-shell) .duplicate-group-link {
+    flex: 0 0 230px;
+    border-right: 1px solid var(--border-subtle);
+  }
+
+  :where(.app-shell) .duplicate-decision-footer,
+  :where(.app-shell) .duplicate-compare-head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  :where(.app-shell) .duplicate-compare-head-actions {
+    justify-items: start;
+  }
+
+  :where(.app-shell) .duplicate-decision-actions {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 620px) {
+  :where(.app-shell) .vault-results-column .vault-card-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  :where(.app-shell) .vault-active-filters {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  :where(.app-shell) .vault-filter-category-grid,
+  :where(.app-shell) .vault-disposition-grid,
+  :where(.app-shell) .vault-signal-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

@@ -1,9 +1,6 @@
 import { memo } from "react";
 import { evaluateWishlistRoll } from "@d2-tools/core/analysis/wishlist";
 import { evaluateLocalTargets } from "@d2-tools/core/analysis/targets";
-import {
-  buildItemDecision, summarizeItemDecision
-} from "@d2-tools/core/evidence/itemDecision";
 import type { AccountItemSummary } from "@d2-tools/core/account/summary";
 import type { DimWishlist } from "@d2-tools/core/analysis/wishlistImport";
 import type { LocalTargetRules } from "@d2-tools/core/analysis/targets";
@@ -31,53 +28,31 @@ export function VaultListItem(props: {
   const communityMatch = props.communityMatch;
   const isLoadoutMatch = matchesLoadoutTemplateItem(props.item, props.highlightedItemKeys);
   const tagValue = tagValueForItem(props.item, props.tags);
-  const tagLabel = tagLabelForItem(props.item, props.tags);
-  const decision = buildItemDecision({
-    itemKey: getVaultItemKey(props.item),
-    itemName: props.item.name,
-    locked: props.item.locked,
-    localTag: tagValue,
-    wishlistMatched: wishlist.matched,
-    localTargetMatched: localTarget.matched,
-    communityMatched: Boolean(communityMatch && communityMatch.matched > 0)
-  });
+  const disposition = dispositionForTag(tagValue);
+  const evidenceLabels = [
+    isLoadoutMatch ? "配装" : "",
+    wishlist.matched ? "DIM" : "",
+    localTarget.matched ? "目标" : "",
+    communityMatch && communityMatch.matched > 0 ? "社区" : "",
+    tagValue === "farm" ? "待刷" : "",
+    tagValue === "loadout" ? "配装用" : ""
+  ].filter(Boolean);
   const detailAvailable = props.item.group_key === "weapons" || props.item.group_key === "armor";
   const cardContent = <>
     <div className="vault-card-visual">
       {props.item.icon ? <img alt="" src={props.item.icon} /> : <div className="item-icon-placeholder" />}
+      {props.item.locked ? <span className="vault-card-lock">锁</span> : null}
+      {props.item.power ? <span className="vault-card-power">{props.item.power}</span> : props.item.instance?.gear_tier !== undefined ? <span className="vault-card-power">T{props.item.instance.gear_tier}</span> : null}
+      <span className="vault-card-marker-row">
+        <span className={`vault-score-badge score-${disposition}`}>{dispositionLabel(disposition)}</span>
+        {evidenceLabels.length ? <span className="vault-card-evidence" title={evidenceLabels.join(" / ")}>{evidenceLabels[0]}{evidenceLabels.length > 1 ? ` +${evidenceLabels.length - 1}` : ""}</span> : null}
+      </span>
     </div>
     <div className="vault-card-body">
-      <div className="vault-title-row">
-        <strong>{props.item.name}</strong>
-        <span className={`vault-score-badge score-${tagValue}`}>{tagLabel}</span>
-      </div>
-      <small className={`decision-badge decision-${decision.decision}`}>
-        {summarizeItemDecision(decision)}
-      </small>
-      <span className="vault-card-meta">{formatVaultItemMeta(props.item)}</span>
-      <div className="vault-card-signals">
-        {isLoadoutMatch ? <small className="loadout-template-badge">方案命中</small> : null}
-        {wishlist.matched ? (
-          <small className="wishlist-hit">
-            <span className="wishlist-hit-badge">DIM 愿望单</span>
-            <span>{formatWishlistHint(wishlist.labels)}</span>
-          </small>
-        ) : null}
-        {localTarget.matched ? (
-          <small className="target-hit">
-            <span className="target-hit-badge">本地目标</span>
-            <span>{localTarget.labels.join(" / ")}</span>
-          </small>
-        ) : null}
-        {communityMatch && communityMatch.matched > 0 ? (
-          <small className="community-match">
-            <span className="community-match-badge">社区推荐</span>
-            <span>命中 {communityMatch.matched} 个组合{communityMatch.modes.length ? ` · ${communityMatch.modes.map(formatCommunityMode).join(" / ")}` : ""}</span>
-          </small>
-        ) : null}
-      </div>
+      <strong>{props.item.name}</strong>
+      <span className="vault-card-meta">{formatVaultCardMeta(props.item)}</span>
       {props.item.socket_plugs?.length ? (
-        <small className="vault-card-roll">{props.item.socket_plugs.slice(0, 4).map((plug) => plug.name).join(" / ")}</small>
+        <small className="vault-card-roll">{props.item.socket_plugs.slice(0, 2).map((plug) => plug.name).join(" · ")}</small>
       ) : null}
       {note ? <small className="vault-note-snippet">备注：{note}</small> : null}
       {props.isOpening ? <small className="vault-card-open-state">正在打开详情...</small> : null}
@@ -108,6 +83,7 @@ export function VaultListItem(props: {
         <button
           type="button"
           className="vault-card-main"
+          title={[formatVaultItemMeta(props.item), evidenceLabels.length ? `证据：${evidenceLabels.join(" / ")}` : "", wishlist.matched ? formatWishlistHint(wishlist.labels) : "", localTarget.matched ? localTarget.labels.join(" / ") : "", communityMatch?.modes.length ? communityMatch.modes.map(formatCommunityMode).join(" / ") : ""].filter(Boolean).join("\n")}
           aria-busy={props.isOpening}
           disabled={props.isOpening}
           onClick={() => props.onSelectItem(props.item)}
@@ -135,14 +111,26 @@ function formatCommunityMode(mode: "pve" | "pvp" | "general"): string {
   }
 }
 
-function tagLabelForItem(item: AccountItemSummary, tags: VaultTags): string {
-  const tag = tagValueForItem(item, tags);
-  return tag === "none" ? "未标记" : tagLabels[tag];
-}
-
 function tagValueForItem(item: AccountItemSummary, tags: VaultTags): VaultTagValue {
   const tag = tags.items[getVaultItemKey(item)]?.tag;
   return tag ?? "none";
+}
+
+function dispositionForTag(tag: VaultTagValue): "none" | "keep" | "review" | "junk" {
+  return tag === "keep" || tag === "review" || tag === "junk" ? tag : "none";
+}
+
+function dispositionLabel(tag: "none" | "keep" | "review" | "junk"): string {
+  return tag === "none" ? "未标记" : tag === "review" ? "待复查" : tagLabels[tag];
+}
+
+function formatVaultCardMeta(item: AccountItemSummary): string {
+  return [
+    item.weapon_frame?.name,
+    item.item_type,
+    item.tier,
+    item.armor_stats ? `总值 ${item.armor_stats.total}` : undefined
+  ].filter(Boolean).slice(0, 2).join(" · ");
 }
 
 export function formatVaultItemMeta(item: AccountItemSummary): string {

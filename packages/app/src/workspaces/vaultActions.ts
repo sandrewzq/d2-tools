@@ -18,7 +18,7 @@ const ammoFilterLabels: Record<VaultAmmoFilter, string> = {
 
 const tagLabelsForCleanup = {
   keep: "保留",
-  review: "关注",
+  review: "待复查",
   junk: "可清理",
   farm: "待刷",
   loadout: "配装用"
@@ -48,7 +48,7 @@ export function buildVaultBulkMoveResultMessage(
 export function buildVaultBatchTagCopy(tag: VaultTagValue): { action: string; loading: string } {
   switch (tag) {
     case "review":
-      return { action: "批量关注", loading: "正在批量标记为关注..." };
+      return { action: "批量待复查", loading: "正在批量标记为待复查..." };
     case "junk":
       return { action: "批量可清理", loading: "正在批量标记为可清理..." };
     case "farm":
@@ -194,9 +194,9 @@ export function buildDuplicateGroupBatchActionCopy(
 ): { action: string; loading: string; success: string } {
   if (mode === "keep-best-review-rest") {
     return {
-      action: "重复组标记为关注",
-      loading: `正在处理 ${groupName}，保留选中件，其余标记为关注...`,
-      success: `已处理 ${groupName}，保留选中件，其余标记为关注`
+      action: "重复组标记为待复查",
+      loading: `正在处理 ${groupName}，保留选中件，其余标记为待复查...`,
+      success: `已处理 ${groupName}，保留选中件，其余标记为待复查`
     };
   }
   if (mode === "keep-best-junk-rest") {

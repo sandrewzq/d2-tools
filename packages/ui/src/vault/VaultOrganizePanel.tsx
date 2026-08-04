@@ -76,7 +76,7 @@ export function VaultOrganizePanel(props: {
       {props.isOrganizing ? (
         <div className="vault-batch-panel">
           <span>{props.isBatchSaving && props.activeBatchAction ? `${props.activeBatchAction}...` : props.selectionSummary}</span>
-          <button type="button" aria-busy={props.isBatchSaving} disabled={!props.selectedItemCount || props.isBatchSaving} onClick={() => void props.onApplyBatchTag("review")}>批量关注</button>
+          <button type="button" aria-busy={props.isBatchSaving} disabled={!props.selectedItemCount || props.isBatchSaving} onClick={() => void props.onApplyBatchTag("review")}>批量待复查</button>
           <button type="button" aria-busy={props.isBatchSaving} disabled={!props.selectedItemCount || props.isBatchSaving} onClick={() => void props.onApplyBatchTag("junk")}>批量可清理</button>
           <button type="button" aria-busy={props.isBatchSaving} disabled={!props.selectedItemCount || props.isBatchSaving} onClick={() => void props.onApplyBatchTag("farm")}>批量待刷</button>
           <button type="button" aria-busy={props.isBatchSaving} disabled={!props.selectedItemCount || props.isBatchSaving} onClick={() => void props.onApplyBatchTag("loadout")}>批量配装用</button>

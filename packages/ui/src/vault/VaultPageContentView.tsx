@@ -1,40 +1,42 @@
-import { useCallback, useEffect, useId, useMemo, useState, type KeyboardEvent } from "react";
-import { buildItemDecision, type ItemDecision } from "@d2-tools/core/evidence/itemDecision";
+import { useEffect, useId, useMemo, useState, type KeyboardEvent } from "react";
 import type { AccountItemSummary } from "@d2-tools/core/account/summary";
+import { evaluateLocalTargets } from "@d2-tools/core/analysis/targets";
+import { evaluateWishlistRoll } from "@d2-tools/core/analysis/wishlist";
 import type { DimWishlist } from "@d2-tools/core/analysis/wishlistImport";
 import type { LocalTargetRules } from "@d2-tools/core/analysis/targets";
 import type { VaultItemMatchInfo } from "@d2-tools/core/community-perks";
 import type { SaveVaultTagInput, VaultTags, VaultTagValue } from "@d2-tools/core/vault/tags";
-import type { LoadoutTemplateLookup } from "@d2-tools/app/loadouts";
-import type {
-  VaultAmmoFilter,
-  VaultArmorStatRule,
-  VaultFrameFilter,
-  VaultGroupFilter,
-  VaultLockFilter,
-  VaultSlotFilter,
-  VaultSortKey,
-  VaultTagFilter
-} from "@d2-tools/app/vault";
+import { matchesLoadoutTemplateItem, type LoadoutTemplateLookup } from "@d2-tools/app/loadouts";
 import {
   armorStatLabels,
-  applyVisibleVaultSelection,
+  ammoFilterLabels,
   buildVaultDuplicateSummary,
-  buildVaultSelectionSummary,
+  buildVaultSections,
   createVaultListWorkspace,
+  classFilterLabels,
+  damageFilterLabels,
   defaultVaultGroupTab,
-  getVaultItemKey,
-  selectMarkedCleanupItems,
-  selectVaultBatchItems,
+  gearTierFilterLabels,
+  lockFilterLabels,
+  normalizeCoreItem,
+  rarityFilterLabels,
   sortLabels,
-  type VaultBatchSelectionMode,
-  type VaultVisibleSelectionMode
+  type VaultAmmoFilter,
+  type VaultArmorStatRule,
+  type VaultClassFilter,
+  type VaultDamageFilter,
+  type VaultFrameFilter,
+  type VaultGearTierFilter,
+  type VaultGroupFilter,
+  type VaultLockFilter,
+  type VaultRarityFilter,
+  type VaultSlotFilter,
+  type VaultSortKey,
+  type VaultTagFilter
 } from "@d2-tools/app/vault";
-import { matchesLoadoutTemplateItem } from "@d2-tools/app/loadouts";
 import { VaultDuplicateGroups } from "./VaultDuplicateGroups.js";
-import { VaultFilterToolbar } from "./VaultFilterToolbar.js";
+import { VaultFilterToolbar, type VaultSignalFilter } from "./VaultFilterToolbar.js";
 import { VaultItemSections } from "./VaultItemSections.js";
-import { VaultOrganizePanel } from "./VaultOrganizePanel.js";
 import {
   VaultRecommendationImportPanel,
   type VaultRecommendationImportActions
@@ -43,18 +45,14 @@ import {
   VaultTargetRulesPanel,
   type VaultTargetRulesActions
 } from "./VaultTargetRulesPanel.js";
-import {
-  useVaultBatchActions,
-  type VaultCleanupActions
-} from "./useVaultBatchActions.js";
+import type { VaultCleanupActions } from "./useVaultBatchActions.js";
 
-type VaultWorkspaceTab = "filters" | "cleanup" | "duplicates" | "recommendations";
+type VaultWorkspaceTab = "filters" | "duplicates" | "recommendations";
 
-const vaultWorkspaceTabs: Array<{ key: VaultWorkspaceTab; label: string; description: string }> = [
-  { key: "filters", label: "筛选列表", description: "按类型、perk、标签和属性快速定位装备" },
-  { key: "cleanup", label: "清理工作台", description: "处理已标记可清理装备和批量移动" },
-  { key: "duplicates", label: "同名对比", description: "比较同名或同 Hash 装备的 roll 差异" },
-  { key: "recommendations", label: "推荐数据", description: "查看 DIM 愿望单和社区推荐命中" }
+const vaultWorkspaceTabs: Array<{ key: VaultWorkspaceTab; label: string }> = [
+  { key: "filters", label: "筛选列表" },
+  { key: "duplicates", label: "同名对比" },
+  { key: "recommendations", label: "推荐数据" }
 ];
 
 export function VaultPageContentView(props: {
@@ -80,16 +78,20 @@ export function VaultPageContentView(props: {
   const [group, setGroup] = useState<VaultGroupFilter>(defaultVaultGroupTab);
   const [sortKey, setSortKey] = useState<VaultSortKey>("name");
   const [tagFilter, setTagFilter] = useState<VaultTagFilter>("all");
+  const [signalFilters, setSignalFilters] = useState<VaultSignalFilter[]>([]);
   const [lockFilter, setLockFilter] = useState<VaultLockFilter>("all");
   const [slotFilter, setSlotFilter] = useState<VaultSlotFilter>("all");
   const [ammoFilter, setAmmoFilter] = useState<VaultAmmoFilter>("all");
+  const [itemTypeFilter, setItemTypeFilter] = useState("all");
+  const [rarityFilter, setRarityFilter] = useState<VaultRarityFilter>("all");
+  const [gearTierFilter, setGearTierFilter] = useState<VaultGearTierFilter>("all");
+  const [classFilter, setClassFilter] = useState<VaultClassFilter>("all");
+  const [damageFilter, setDamageFilter] = useState<VaultDamageFilter>("all");
   const [armorStatRules, setArmorStatRules] = useState<VaultArmorStatRule[]>([]);
   const [frameFilters, setFrameFilters] = useState<VaultFrameFilter>([]);
-  const [isOrganizing, setIsOrganizing] = useState(false);
-  const [isCleanupMode, setIsCleanupMode] = useState(false);
-  const [cleanupCharacterId, setCleanupCharacterId] = useState("");
   const [activeVaultTab, setActiveVaultTab] = useState<VaultWorkspaceTab>("filters");
-  const [selectedKeys, setSelectedKeys] = useState<Set<string>>(() => new Set());
+  const [batchMessage, setBatchMessage] = useState("");
+  const [isBatchSaving, setIsBatchSaving] = useState(false);
   const workspaceId = useId();
   const tabIds = useMemo(() => Object.fromEntries(vaultWorkspaceTabs.map((tab) => [tab.key, `${workspaceId}-${tab.key}-tab`])) as Record<VaultWorkspaceTab, string>, [workspaceId]);
   const panelIds = useMemo(() => Object.fromEntries(vaultWorkspaceTabs.map((tab) => [tab.key, `${workspaceId}-${tab.key}-panel`])) as Record<VaultWorkspaceTab, string>, [workspaceId]);
@@ -97,21 +99,11 @@ export function VaultPageContentView(props: {
   useEffect(() => {
     if (!props.locateRequest) return;
     setQuery(String(props.locateRequest.hash));
-    setGroup("all");
-    setTagFilter("all");
-    setLockFilter("all");
-    setSlotFilter("all");
-    setAmmoFilter("all");
-    setArmorStatRules([]);
-    setFrameFilters([]);
+    setGroup("weapons");
+    resetFilterState(false);
     setActiveVaultTab("filters");
-    setIsCleanupMode(false);
   }, [props.locateRequest?.requestId]);
-  const cleanupCharacters = props.cleanupActions?.characters ?? [];
-  const cleanupTargetCharacterId = cleanupCharacterId
-    || props.cleanupActions?.currentCharacterId
-    || cleanupCharacters[0]?.character_id
-    || "";
+
   const listWorkspace = useMemo(
     () => createVaultListWorkspace({
       items: props.items,
@@ -122,6 +114,11 @@ export function VaultPageContentView(props: {
         lock: lockFilter,
         slot: slotFilter,
         ammo: ammoFilter,
+        itemType: itemTypeFilter,
+        rarity: rarityFilter,
+        gearTier: gearTierFilter,
+        classType: classFilter,
+        damageType: damageFilter,
         armorStatRules,
         frames: frameFilters
       },
@@ -130,437 +127,309 @@ export function VaultPageContentView(props: {
       wishlist: props.wishlist,
       localTargetRules: props.localTargetRules
     }),
-    [ammoFilter, armorStatRules, frameFilters, group, lockFilter, props.items, props.localTargetRules, props.tags, props.wishlist, query, slotFilter, sortKey, tagFilter]
+    [ammoFilter, armorStatRules, classFilter, damageFilter, frameFilters, gearTierFilter, group, itemTypeFilter, lockFilter, props.items, props.localTargetRules, props.tags, props.wishlist, query, rarityFilter, slotFilter, sortKey, tagFilter]
   );
-  const groups = listWorkspace.groups;
-  const availableFrameFilters = listWorkspace.availableFrameFilters;
-  const slotFilters = listWorkspace.slotFilters;
-  const filteredItems = listWorkspace.filteredItems;
-  const filteredSections = listWorkspace.sections;
+  const filteredItems = useMemo(
+    () => listWorkspace.filteredItems.filter((item) => matchesSignalFilters(item, signalFilters, props)),
+    [listWorkspace.filteredItems, props.communityMatch, props.highlightedItemKeys, props.localTargetRules, props.wishlist, signalFilters]
+  );
+  const filteredSections = useMemo(() => buildVaultSections(filteredItems), [filteredItems]);
+  const itemTypeFilters = useMemo(() => {
+    const counts = new Map<string, number>();
+    props.items.filter((item) => item.group_key === "weapons" && item.item_type).forEach((item) => {
+      const itemType = item.item_type ?? "";
+      counts.set(itemType, (counts.get(itemType) ?? 0) + 1);
+    });
+    return [...counts.entries()]
+      .map(([key, count]) => ({ key, label: key, count }))
+      .sort((left, right) => right.count - left.count || left.label.localeCompare(right.label, "zh-Hans-CN"));
+  }, [props.items]);
+  const duplicateSummary = useMemo(() => buildVaultDuplicateSummary(props.items, props.tags), [props.items, props.tags]);
   const vaultItemCount = props.vaultItemCount ?? props.items.length;
-  const selectedItems = useMemo(
-    () => props.items.filter((item) => selectedKeys.has(getVaultItemKey(item))),
-    [props.items, selectedKeys]
-  );
-  const markedCleanupItems = useMemo(
-    () => selectMarkedCleanupItems(props.items, props.tags),
-    [props.items, props.tags]
-  );
-  const cleanupListWorkspace = useMemo(
-    () => createVaultListWorkspace({
-      items: markedCleanupItems,
-      filter: {
-        group,
-        query: "",
-        tag: "all",
-        lock: "all",
-        slot: "all",
-        ammo: "all",
-        armorStatRules: [],
-        frames: []
-      },
-      sortKey,
-      tags: props.tags,
-      wishlist: props.wishlist,
-      localTargetRules: props.localTargetRules
-    }),
-    [group, markedCleanupItems, props.localTargetRules, props.tags, props.wishlist, sortKey]
-  );
-  const activeVisibleItems = activeVaultTab === "cleanup"
-    ? cleanupListWorkspace.filteredItems
-    : filteredItems;
-  const selectedVisibleItemCount = useMemo(
-    () => activeVisibleItems.filter((item) => selectedKeys.has(getVaultItemKey(item))).length,
-    [activeVisibleItems, selectedKeys]
-  );
-  const selectionSummary = useMemo(
-    () => buildVaultSelectionSummary({
-      selectedTotalCount: selectedKeys.size,
-      selectedVisibleCount: selectedVisibleItemCount
-    }),
-    [selectedKeys, selectedVisibleItemCount]
-  );
-  const wishlistSummaryCount = listWorkspace.wishlistMatchCount;
-  const targetSummaryCount = listWorkspace.localTargetMatchCount;
   const loadoutMatchCount = useMemo(
-    () => props.highlightedItemKeys
-      ? filteredItems.filter((item) => matchesLoadoutTemplateItem(item, props.highlightedItemKeys)).length
-      : 0,
+    () => props.highlightedItemKeys ? filteredItems.filter((item) => matchesLoadoutTemplateItem(item, props.highlightedItemKeys)).length : 0,
     [filteredItems, props.highlightedItemKeys]
   );
-  const selectedCleanupItems = useMemo(
-    () => markedCleanupItems.filter((item) => selectedKeys.has(getVaultItemKey(item))),
-    [markedCleanupItems, selectedKeys]
-  );
-  const cleanupActionItems = selectedCleanupItems.length ? selectedCleanupItems : markedCleanupItems;
-  const cleanupTargetCharacterLabel = cleanupCharacters.find((character) => character.character_id === cleanupTargetCharacterId)?.class_name
-    ?? props.cleanupActions?.currentCharacterLabel
-    ?? "";
-  const {
-    activeBatchAction,
-    applyBatchTag,
-    applyDuplicateGroupTags,
-    batchMessage,
-    isBatchSaving,
-    mergeSelectedKeys,
-    runCleanupAction,
-    runSelectedBulkMove,
-    setActiveBatchAction,
-    setBatchMessage
-  } = useVaultBatchActions({
-    selectedItems,
-    cleanupActionItems,
-    filteredItems,
-    tags: props.tags,
-    isCleanupMode,
-    cleanupActions: props.cleanupActions,
-    cleanupTargetCharacterId,
-    cleanupTargetCharacterLabel,
-    setSelectedKeys,
-    setIsOrganizing,
-    setIsCleanupMode,
-    onSaveTag: props.onSaveTag,
-    onSaveTagBatch: props.onSaveTagBatch
-  });
-  const duplicateSummary = useMemo(
-    () => buildVaultDuplicateSummary(props.items, props.tags),
-    [props.items, props.tags]
-  );
-  const decisionSummary = useMemo(
-    () => buildVaultDecisionSummary(props.items, props.tags),
-    [props.items, props.tags]
-  );
+  const activeFilterLabels = useMemo(() => buildActiveFilterLabels({
+    query,
+    sortKey,
+    slotFilter,
+    itemTypeFilter,
+    rarityFilter,
+    gearTierFilter,
+    ammoFilter,
+    damageFilter,
+    classFilter,
+    lockFilter,
+    tagFilter,
+    signalFilters,
+    frameFilterCount: frameFilters.length,
+    armorRuleCount: armorStatRules.length
+  }), [ammoFilter, armorStatRules.length, classFilter, damageFilter, frameFilters.length, gearTierFilter, itemTypeFilter, lockFilter, query, rarityFilter, signalFilters, slotFilter, sortKey, tagFilter]);
+
   useEffect(() => {
-    props.onContextFactsChange?.(listWorkspace.contextFacts);
-  }, [listWorkspace.contextFacts, props.onContextFactsChange]);
-  function setBatchSelection(mode: VaultBatchSelectionMode) {
-    setSelectedKeys(new Set(selectVaultBatchItems(activeVisibleItems, mode, props.tags, props.localTargetRules).map(getVaultItemKey)));
-    setBatchMessage("");
-  }
+    props.onContextFactsChange?.([
+      ...listWorkspace.contextFacts,
+      ...signalFilters.map((signal) => `保护与匹配：${signalLabel(signal)}`),
+      `当前结果：${filteredItems.length} 件`
+    ]);
+  }, [filteredItems.length, listWorkspace.contextFacts, props.onContextFactsChange, signalFilters]);
 
-  function updateVisibleSelection(mode: VaultVisibleSelectionMode) {
-    setSelectedKeys((current) => applyVisibleVaultSelection(current, activeVisibleItems, mode));
-    setBatchMessage("");
-  }
-
-  const toggleSelected = useCallback((item: AccountItemSummary) => {
-    const itemKey = getVaultItemKey(item);
-    setSelectedKeys((current) => {
-      const next = new Set(current);
-      if (next.has(itemKey)) {
-        next.delete(itemKey);
-      } else {
-        next.add(itemKey);
-      }
-      return next;
-    });
-    setBatchMessage("");
-  }, [setBatchMessage]);
-
-  function clearFilters() {
-    setQuery("");
-    setGroup(defaultVaultGroupTab);
+  function resetFilterState(resetQuery = true) {
+    if (resetQuery) setQuery("");
     setSortKey("name");
     setTagFilter("all");
+    setSignalFilters([]);
     setLockFilter("all");
     setSlotFilter("all");
     setAmmoFilter("all");
+    setItemTypeFilter("all");
+    setRarityFilter("all");
+    setGearTierFilter("all");
+    setClassFilter("all");
+    setDamageFilter("all");
     setArmorStatRules([]);
     setFrameFilters([]);
-    setActiveBatchAction("");
     setBatchMessage("");
   }
 
   function switchVaultFilterMode(nextGroup: VaultGroupFilter) {
-    if (nextGroup === "weapons") {
-      setGroup("weapons");
-      setArmorStatRules([]);
-    } else if (nextGroup === "armor") {
-      setGroup("armor");
+    setGroup(nextGroup);
+    setSlotFilter("all");
+    if (nextGroup !== "weapons") {
       setAmmoFilter("all");
-      setFrameFilters([]);
-    } else {
-      setGroup(nextGroup);
-      setAmmoFilter("all");
-      setArmorStatRules([]);
+      setItemTypeFilter("all");
+      setDamageFilter("all");
       setFrameFilters([]);
     }
-    setBatchMessage("");
+    if (nextGroup !== "armor") {
+      setClassFilter("all");
+      setArmorStatRules([]);
+    }
+    if (nextGroup === "equipment") {
+      setRarityFilter("all");
+      setGearTierFilter("all");
+    }
   }
 
   function addArmorStatRule() {
     setArmorStatRules((current) => {
       const used = new Set(current.map((rule) => rule.stat));
-      const nextStat = (Object.keys(armorStatLabels) as Array<Exclude<VaultArmorStatRule["stat"], "">>)
-        .find((stat) => !used.has(stat));
+      const nextStat = (Object.keys(armorStatLabels) as Array<Exclude<VaultArmorStatRule["stat"], "">>).find((stat) => !used.has(stat));
       return nextStat ? [...current, { stat: nextStat, min: 10 }] : current;
     });
   }
 
-  function updateArmorStatRule(index: number, rule: VaultArmorStatRule) {
-    setArmorStatRules((current) => current.map((item, itemIndex) => itemIndex === index ? rule : item));
-  }
-
-  function removeArmorStatRule(index: number) {
-    setArmorStatRules((current) => current.filter((_, itemIndex) => itemIndex !== index));
-  }
-
   function toggleFrameFilter(key: string) {
-    setFrameFilters((current) => (
-      current.includes(key)
-        ? current.filter((value) => value !== key)
-        : [...current, key]
-    ));
+    setFrameFilters((current) => current.includes(key) ? current.filter((value) => value !== key) : [...current, key]);
   }
 
-  function toggleOrganizingMode() {
-    setIsOrganizing(!isOrganizing);
-    setIsCleanupMode(false);
-    setSelectedKeys(new Set());
-    setBatchMessage("");
+  function toggleSignalFilter(value: VaultSignalFilter) {
+    setSignalFilters((current) => current.includes(value) ? current.filter((item) => item !== value) : [...current, value]);
   }
 
   function switchVaultTab(tab: VaultWorkspaceTab) {
     setActiveVaultTab(tab);
     setBatchMessage("");
-    if (tab === "cleanup" && !isCleanupMode) {
-      setIsCleanupMode(true);
-      setIsOrganizing(false);
-      setSelectedKeys(new Set(markedCleanupItems.map(getVaultItemKey)));
-    }
-    if (tab !== "cleanup" && isCleanupMode) {
-      setIsCleanupMode(false);
-      setSelectedKeys(new Set());
-    }
   }
 
   function handleVaultTabKeyDown(event: KeyboardEvent<HTMLButtonElement>) {
     if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
     event.preventDefault();
     const currentIndex = vaultWorkspaceTabs.findIndex((tab) => tab.key === activeVaultTab);
-    const nextIndex = event.key === "Home"
-      ? 0
-      : event.key === "End"
-        ? vaultWorkspaceTabs.length - 1
-        : (currentIndex + (event.key === "ArrowRight" ? 1 : -1) + vaultWorkspaceTabs.length) % vaultWorkspaceTabs.length;
+    const nextIndex = event.key === "Home" ? 0 : event.key === "End" ? vaultWorkspaceTabs.length - 1 : (currentIndex + (event.key === "ArrowRight" ? 1 : -1) + vaultWorkspaceTabs.length) % vaultWorkspaceTabs.length;
     const nextTab = vaultWorkspaceTabs[nextIndex]?.key ?? "filters";
     switchVaultTab(nextTab);
     event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>('[role="tab"]')[nextIndex]?.focus();
   }
 
-  function showCleanupCandidates() {
-    setBatchMessage("");
-    setTagFilter("junk");
-    switchVaultTab("filters");
-  }
-
-  function showTargetMatches() {
-    setBatchMessage("");
-    setTagFilter("target");
-    switchVaultTab("filters");
-  }
-
-  function renderVaultItems(
-    sections = filteredSections,
-    searchActive = Boolean(query.trim()),
-    emptyMessage?: string
-  ) {
-    return (
-      <VaultItemSections
-        sections={sections}
-        highlightedItemKeys={props.highlightedItemKeys}
-        tags={props.tags}
-        wishlist={props.wishlist}
-        localTargetRules={props.localTargetRules}
-        communityMatch={props.communityMatch}
-        isOrganizing={isOrganizing}
-        isSearchActive={searchActive}
-        selectedKeys={selectedKeys}
-        openingItemKey={props.openingItemKey}
-        emptyMessage={emptyMessage}
-        onSelectItem={props.onOpenItem}
-        onToggleSelected={toggleSelected}
-      />
-    );
+  async function applyDuplicateGroupTags(groupName: string, inputs: SaveVaultTagInput[]) {
+    setIsBatchSaving(true);
+    setBatchMessage(`正在应用 ${groupName} 的整理状态...`);
+    try {
+      await props.onSaveTagBatch(inputs);
+      setBatchMessage(`已应用 ${groupName} 的整理状态。`);
+    } catch (error) {
+      setBatchMessage(error instanceof Error ? error.message : "同名组整理状态保存失败");
+    } finally {
+      setIsBatchSaving(false);
+    }
   }
 
   return (
     <div className="vault-page">
-        <div className="vault-workflow-bar" data-surface="section">
-          <div className="vault-workflow-tabs" data-ui-kind="segmented-control" role="tablist" aria-label="仓库工作台">
-            {vaultWorkspaceTabs.map((tab) => (
-              <button
-                type="button"
-                data-ui-kind="button"
-                data-control-variant="quiet"
-                role="tab"
-                id={tabIds[tab.key]}
-                aria-controls={panelIds[tab.key]}
-                aria-selected={activeVaultTab === tab.key}
-                tabIndex={activeVaultTab === tab.key ? 0 : -1}
-                key={tab.key}
-                className={activeVaultTab === tab.key ? "active" : ""}
-                onClick={() => switchVaultTab(tab.key)}
-                onKeyDown={handleVaultTabKeyDown}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-          <div className="vault-workflow-meta">
-            <span className="ui-badge status-neutral" data-ui-kind="status-chip" data-ui-part="value" data-info-priority="context" data-text-tone="primary">已读取 {vaultItemCount} 件</span>
-            <span className="ui-badge status-pending" data-ui-kind="status-chip" data-ui-part="state" data-info-priority="support" data-text-tone="action">当前显示 {filteredItems.length} 件</span>
-            {props.highlightedItemKeys ? <span className="ui-badge status-success" data-ui-kind="status-chip" data-ui-part="state" data-info-priority="support" data-text-tone="status" data-status="success">配装命中 {loadoutMatchCount} 件</span> : null}
-          </div>
+      <div className="vault-workflow-bar" data-surface="section">
+        <div className="vault-workflow-tabs" data-ui-kind="segmented-control" role="tablist" aria-label="仓库工作台">
+          {vaultWorkspaceTabs.map((tab) => (
+            <button type="button" data-ui-kind="button" data-control-variant="quiet" role="tab" id={tabIds[tab.key]} aria-controls={panelIds[tab.key]} aria-selected={activeVaultTab === tab.key} tabIndex={activeVaultTab === tab.key ? 0 : -1} key={tab.key} className={activeVaultTab === tab.key ? "active" : ""} onClick={() => switchVaultTab(tab.key)} onKeyDown={handleVaultTabKeyDown}>
+              {tab.label}
+            </button>
+          ))}
         </div>
-        {batchMessage ? <p className={batchMessage.includes("失败") ? "status-message status-error" : "status-message status-ready"}>{batchMessage}</p> : null}
+        <div className="vault-workflow-meta">
+          <span className="ui-badge status-neutral" data-ui-kind="status-chip">已读取 {vaultItemCount} 件</span>
+          <span className="ui-badge status-pending" data-ui-kind="status-chip">当前显示 {filteredItems.length} 件</span>
+          {props.highlightedItemKeys ? <span className="ui-badge status-success" data-ui-kind="status-chip">配装命中 {loadoutMatchCount} 件</span> : null}
+        </div>
+      </div>
+      {batchMessage ? <p className={batchMessage.includes("失败") ? "status-message status-error" : "status-message status-ready"}>{batchMessage}</p> : null}
 
-        {activeVaultTab === "filters" ? (
-          <div id={panelIds.filters} role="tabpanel" aria-labelledby={tabIds.filters} className="vault-workspace-panel">
-            <div className="vault-command-bar vault-filter-command">
-              <strong>{groups.find((item) => item.key === group)?.label ?? "全部"}</strong>
-              <span>筛选草稿保留在当前页面；护甲属性条件同时成立。</span>
-            </div>
-            <div className="vault-browse">
-              <VaultFilterToolbar
-                query={query}
-                sortKey={sortKey}
-                tagFilter={tagFilter}
-                armorStatRules={armorStatRules}
-                lockFilter={lockFilter}
-                slotFilter={slotFilter}
-                ammoFilter={ammoFilter}
-                frameFilters={frameFilters}
-                group={group}
-                groups={groups}
-                slotFilters={slotFilters}
-                availableFrameFilters={availableFrameFilters}
-                onQueryChange={setQuery}
-                onSortKeyChange={setSortKey}
-                onTagFilterChange={setTagFilter}
-                onAddArmorStatRule={addArmorStatRule}
-                onClearArmorStatRules={() => setArmorStatRules([])}
-                onRemoveArmorStatRule={removeArmorStatRule}
-                onUpdateArmorStatRule={updateArmorStatRule}
-                onLockFilterChange={setLockFilter}
-                onSlotFilterChange={setSlotFilter}
-                onAmmoFilterChange={setAmmoFilter}
-                onGroupChange={switchVaultFilterMode}
-                onToggleFrameFilter={toggleFrameFilter}
-                onClearFilters={clearFilters}
+      {activeVaultTab === "filters" ? (
+        <div id={panelIds.filters} role="tabpanel" aria-labelledby={tabIds.filters} className="vault-workspace-panel">
+          <div className="vault-browse">
+            <VaultFilterToolbar
+              query={query}
+              sortKey={sortKey}
+              tagFilter={tagFilter}
+              signalFilters={signalFilters}
+              armorStatRules={armorStatRules}
+              lockFilter={lockFilter}
+              slotFilter={slotFilter}
+              ammoFilter={ammoFilter}
+              itemTypeFilter={itemTypeFilter}
+              rarityFilter={rarityFilter}
+              gearTierFilter={gearTierFilter}
+              classFilter={classFilter}
+              damageFilter={damageFilter}
+              frameFilters={frameFilters}
+              group={group}
+              groups={listWorkspace.groups}
+              slotFilters={listWorkspace.slotFilters}
+              itemTypeFilters={itemTypeFilters}
+              availableFrameFilters={listWorkspace.availableFrameFilters}
+              onQueryChange={setQuery}
+              onSortKeyChange={setSortKey}
+              onTagFilterChange={setTagFilter}
+              onSignalFilterToggle={toggleSignalFilter}
+              onAddArmorStatRule={addArmorStatRule}
+              onClearArmorStatRules={() => setArmorStatRules([])}
+              onRemoveArmorStatRule={(index) => setArmorStatRules((current) => current.filter((_, itemIndex) => itemIndex !== index))}
+              onUpdateArmorStatRule={(index, rule) => setArmorStatRules((current) => current.map((item, itemIndex) => itemIndex === index ? rule : item))}
+              onLockFilterChange={setLockFilter}
+              onSlotFilterChange={setSlotFilter}
+              onAmmoFilterChange={setAmmoFilter}
+              onItemTypeFilterChange={setItemTypeFilter}
+              onRarityFilterChange={setRarityFilter}
+              onGearTierFilterChange={setGearTierFilter}
+              onClassFilterChange={setClassFilter}
+              onDamageFilterChange={setDamageFilter}
+              onGroupChange={switchVaultFilterMode}
+              onToggleFrameFilter={toggleFrameFilter}
+            />
+            <section className="vault-results-column vault-browse-results" data-surface="section" data-contract-id="vault.results">
+              <div className="vault-column-head">
+                <div><h3>装备矩阵</h3><span>{filteredItems.length} 件 · {sortLabels[sortKey]}</span></div>
+                <button type="button" data-ui-kind="button" data-control-variant="secondary" disabled={!activeFilterLabels.length} onClick={() => resetFilterState()}>重置筛选</button>
+              </div>
+              <div className="vault-active-filters" aria-label="已生效筛选条件">
+                <strong>已生效条件</strong>
+                <div>{activeFilterLabels.length ? activeFilterLabels.map((label) => <span className="ui-badge status-neutral" key={label}>{label}</span>) : <span>当前范围没有附加筛选条件。</span>}</div>
+              </div>
+              <VaultItemSections
+                sections={filteredSections}
+                highlightedItemKeys={props.highlightedItemKeys}
+                tags={props.tags}
+                wishlist={props.wishlist}
+                localTargetRules={props.localTargetRules}
+                communityMatch={props.communityMatch}
+                isOrganizing={false}
+                isSearchActive={Boolean(query.trim())}
+                selectedKeys={new Set<string>()}
+                openingItemKey={props.openingItemKey}
+                emptyMessage="没有匹配的装备。请调整左侧条件或重置筛选。"
+                onSelectItem={props.onOpenItem}
+                onToggleSelected={() => undefined}
               />
-              <section className="vault-results-column vault-browse-results">
-                <div className="vault-column-head"><h3>当前筛选结果</h3><span>{filteredItems.length} 件 · {sortLabels[sortKey]}</span></div>
-                {renderVaultItems()}
-              </section>
-            </div>
+            </section>
           </div>
-        ) : null}
+        </div>
+      ) : null}
 
-        {activeVaultTab === "cleanup" ? (
-          <div id={panelIds.cleanup} role="tabpanel" aria-labelledby={tabIds.cleanup} className="vault-tab-content vault-workspace-panel">
-            <div className="vault-summary-strip">
-              <div><span>已标记可清理</span><strong>{markedCleanupItems.length} 件</strong></div>
-              <div><span>当前已选择</span><strong>{selectedCleanupItems.length} 件</strong></div>
-              <div><span>数据边界</span><strong>只使用玩家标签，不自动评价</strong></div>
-            </div>
-            <VaultOrganizePanel groups={groups} group={group} isOrganizing={isOrganizing} filteredItemCount={cleanupListWorkspace.filteredItems.length} selectedItemCount={selectedCleanupItems.length} selectionSummary={selectionSummary} activeBatchAction={activeBatchAction} isBatchSaving={isBatchSaving} cleanupActions={props.cleanupActions} cleanupCharacters={cleanupCharacters} cleanupTargetCharacterId={cleanupTargetCharacterId} markedCleanupItemCount={markedCleanupItems.length} cleanupActionItems={cleanupActionItems} tags={props.tags} onGroupChange={setGroup} onToggleOrganizing={toggleOrganizingMode} onVisibleSelectionChange={updateVisibleSelection} onBatchSelectionChange={setBatchSelection} onClearSelection={() => setSelectedKeys(new Set())} onCleanupTargetCharacterChange={setCleanupCharacterId} onApplyBatchTag={applyBatchTag} onRunSelectedBulkMove={runSelectedBulkMove} onRunCleanupAction={runCleanupAction} />
-            <div className="vault-cleanup-grid">
-              <section>
-                <div className="vault-column-head"><h3>待处理装备</h3><span>{markedCleanupItems.length ? `已标记 ${markedCleanupItems.length} 件` : "当前没有玩家标记"}</span></div>
-                {renderVaultItems(cleanupListWorkspace.sections, false, "当前没有玩家标记的清理候选。不会按未锁定、低光等或系统评分自动生成清理结论。")}
-              </section>
-              <aside>{renderVaultSideSummary({ activeTab: activeVaultTab, decisionSummary, duplicateSummary, filteredCount: filteredItems.length, totalCount: props.items.length, wishlist: props.wishlist, wishlistSummaryCount, localTargetRules: props.localTargetRules, targetSummaryCount, onCleanupClick: showCleanupCandidates, onTargetClick: showTargetMatches, onDuplicatesClick: () => switchVaultTab("duplicates") })}</aside>
-            </div>
+      {activeVaultTab === "duplicates" ? (
+        <div id={panelIds.duplicates} role="tabpanel" aria-labelledby={tabIds.duplicates} className="vault-workspace-panel">
+          <div className="vault-summary-strip">
+            <div><span>待处理同名组</span><strong>{duplicateSummary.total_duplicate_groups} 组</strong></div>
+            <div><span>当前实例</span><strong>{duplicateSummary.total_duplicate_items} 件</strong></div>
+            <div><span>处理原则</span><strong>状态只由玩家写入</strong></div>
           </div>
-        ) : null}
-
-        {activeVaultTab === "duplicates" ? <div id={panelIds.duplicates} role="tabpanel" aria-labelledby={tabIds.duplicates} className="vault-tab-content vault-workspace-panel"><div className="vault-summary-strip"><div><span>同名重复组</span><strong>{duplicateSummary.total_duplicate_groups} 组</strong></div><div><span>同 Hash 实例</span><strong>{duplicateSummary.total_duplicate_items} 件</strong></div><div><span>当前显示</span><strong>Roll、属性、来源差异</strong></div></div><VaultDuplicateGroups duplicateSummary={duplicateSummary} items={props.items} tags={props.tags} localTargetRules={props.localTargetRules} selectedKeys={selectedKeys} openingItemKey={props.openingItemKey} isBatchSaving={isBatchSaving} onOpenItem={props.onOpenItem} onMergeSelectedKeys={mergeSelectedKeys} onApplyDuplicateGroupTags={applyDuplicateGroupTags} /></div> : null}
-
-        {activeVaultTab === "recommendations" ? <div id={panelIds.recommendations} role="tabpanel" aria-labelledby={tabIds.recommendations} className="vault-recommendations vault-workspace-panel"><section><div className="vault-column-head"><h3>推荐数据源</h3><span>本地导入或授权</span></div><p className="status-message status-neutral">推荐只显示数据源匹配，不生成主观 Roll 结论。DIM Wishlist、已授权社区推荐和个人知识分别保留来源。</p><VaultRecommendationImportPanel wishlist={props.wishlist} actions={props.recommendationImportActions} /></section><aside><div className="vault-column-head"><h3>本地目标规则</h3><span>高级</span></div><VaultTargetRulesPanel items={props.items} rules={props.localTargetRules ?? { action_policy: "notify_only", armor: [], weapons: [] }} actions={props.targetRulesActions} /></aside></div> : null}
-      </div>
-  );
-}
-
-function buildVaultDecisionSummary(
-  items: AccountItemSummary[],
-  tags: VaultTags
-): Record<ItemDecision["decision"], number> {
-  return items.reduce<Record<ItemDecision["decision"], number>>(
-    (summary, item) => {
-      const itemKey = getVaultItemKey(item);
-      const decision = buildItemDecision({
-        itemKey,
-        itemName: item.name,
-        locked: item.locked,
-        localTag: tags.items[itemKey]?.tag ?? "none"
-      });
-      summary[decision.decision] += 1;
-      return summary;
-    },
-    {
-      keep: 0,
-      review: 0,
-      cleanup_candidate: 0,
-      unknown: 0
-    }
-  );
-}
-
-function renderVaultSideSummary(input: {
-  activeTab: VaultWorkspaceTab;
-  decisionSummary: Record<ItemDecision["decision"], number>;
-  duplicateSummary: ReturnType<typeof buildVaultDuplicateSummary>;
-  filteredCount: number;
-  totalCount: number;
-  wishlist?: DimWishlist | null;
-  wishlistSummaryCount: number;
-  localTargetRules?: LocalTargetRules | null;
-  targetSummaryCount: number;
-  onCleanupClick: () => void;
-  onTargetClick: () => void;
-  onDuplicatesClick: () => void;
-}) {
-  const activeTabLabel = vaultWorkspaceTabs.find((tab) => tab.key === input.activeTab)?.label ?? "筛选列表";
-  const hasLocalTargets = Boolean(input.localTargetRules?.armor.length || input.localTargetRules?.weapons?.length);
-
-  return (
-    <div className="vault-side-summary-inner">
-      <div className="vault-side-heading">
-        <span>当前任务</span>
-        <strong>{activeTabLabel}</strong>
-        <small>当前筛选命中 {input.filteredCount} / {input.totalCount} 件</small>
-      </div>
-      <div className="vault-decision-summary" aria-label="仓库整理决策摘要">
-        <strong>整理决策</strong>
-        <span data-decision="keep">必留 {input.decisionSummary.keep} 件</span>
-        <span data-decision="review">复查 {input.decisionSummary.review} 件</span>
-        <span data-decision="cleanup">可清理候选 {input.decisionSummary.cleanup_candidate} 件</span>
-        <span data-decision="unknown">未知 {input.decisionSummary.unknown} 件</span>
-      </div>
-      <div className="vault-side-signal-list">
-        <div className="vault-side-signal">
-          <span>同名重复</span>
-          <strong>{input.duplicateSummary.total_duplicate_groups} 组</strong>
-          <small>{input.duplicateSummary.total_duplicate_items} 件需要对比 roll、属性或来源。</small>
+          <VaultDuplicateGroups
+            duplicateSummary={duplicateSummary}
+            items={props.items}
+            tags={props.tags}
+            wishlist={props.wishlist}
+            localTargetRules={props.localTargetRules}
+            highlightedItemKeys={props.highlightedItemKeys}
+            communityMatch={props.communityMatch}
+            openingItemKey={props.openingItemKey}
+            isBatchSaving={isBatchSaving}
+            onOpenItem={props.onOpenItem}
+            onApplyGroupTags={applyDuplicateGroupTags}
+          />
         </div>
-        <div className="vault-side-signal">
-          <span>DIM 命中</span>
-          <strong>{input.wishlist ? `${input.wishlistSummaryCount} 件` : "未导入"}</strong>
-          <small>{input.wishlist ? "只使用你导入的 DIM 规则。" : "导入后可按愿望单命中筛选。"}</small>
+      ) : null}
+
+      {activeVaultTab === "recommendations" ? (
+        <div id={panelIds.recommendations} role="tabpanel" aria-labelledby={tabIds.recommendations} className="vault-recommendations vault-workspace-panel">
+          <section><div className="vault-column-head"><h3>推荐数据源</h3><span>本地导入或授权</span></div><p className="status-message status-neutral">推荐只显示数据源匹配，不生成主观 Roll 结论。DIM Wishlist、已授权社区推荐和个人知识分别保留来源。</p><VaultRecommendationImportPanel wishlist={props.wishlist} actions={props.recommendationImportActions} /></section>
+          <aside><div className="vault-column-head"><h3>本地目标规则</h3><span>高级</span></div><VaultTargetRulesPanel items={props.items} rules={props.localTargetRules ?? { action_policy: "notify_only", armor: [], weapons: [] }} actions={props.targetRulesActions} /></aside>
         </div>
-        {hasLocalTargets ? (
-          <button type="button" className="vault-side-signal" onClick={input.onTargetClick}>
-            <span>本地目标命中</span>
-            <strong>{input.targetSummaryCount} 件</strong>
-            <small>来自你保存的护甲阈值或武器规则。</small>
-          </button>
-        ) : null}
-      </div>
-      <div className="vault-side-actions">
-        <button type="button" onClick={input.onCleanupClick}>查看可清理候选</button>
-        <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={input.onDuplicatesClick}>进入同名对比</button>
-      </div>
+      ) : null}
     </div>
   );
+}
+
+function matchesSignalFilters(item: AccountItemSummary, filters: VaultSignalFilter[], props: {
+  wishlist?: DimWishlist | null;
+  localTargetRules?: LocalTargetRules | null;
+  highlightedItemKeys?: LoadoutTemplateLookup | null;
+  communityMatch?: Map<number, VaultItemMatchInfo>;
+}): boolean {
+  if (!filters.length) return true;
+  return filters.every((filter) => {
+    if (filter === "wishlist") return evaluateWishlistRoll(normalizeCoreItem(item), props.wishlist ?? undefined).matched;
+    if (filter === "target") return evaluateLocalTargets(normalizeCoreItem(item), props.localTargetRules ?? undefined).matched;
+    if (filter === "loadout") return matchesLoadoutTemplateItem(item, props.highlightedItemKeys);
+    return (props.communityMatch?.get(item.hash)?.matched ?? 0) > 0;
+  });
+}
+
+function buildActiveFilterLabels(input: {
+  query: string;
+  sortKey: VaultSortKey;
+  slotFilter: VaultSlotFilter;
+  itemTypeFilter: string;
+  rarityFilter: VaultRarityFilter;
+  gearTierFilter: VaultGearTierFilter;
+  ammoFilter: VaultAmmoFilter;
+  damageFilter: VaultDamageFilter;
+  classFilter: VaultClassFilter;
+  lockFilter: VaultLockFilter;
+  tagFilter: VaultTagFilter;
+  signalFilters: VaultSignalFilter[];
+  frameFilterCount: number;
+  armorRuleCount: number;
+}): string[] {
+  return [
+    input.query.trim() ? `搜索：${input.query.trim()}` : "",
+    input.sortKey !== "name" ? sortLabels[input.sortKey] : "",
+    input.slotFilter !== "all" ? `位置：${input.slotFilter}` : "",
+    input.itemTypeFilter !== "all" ? `类型：${input.itemTypeFilter}` : "",
+    input.rarityFilter !== "all" ? `稀有度：${rarityFilterLabels[input.rarityFilter]}` : "",
+    input.gearTierFilter !== "all" ? `阶级：${gearTierFilterLabels[input.gearTierFilter]}` : "",
+    input.ammoFilter !== "all" ? `弹药：${ammoFilterLabels[input.ammoFilter]}` : "",
+    input.damageFilter !== "all" ? `属性：${damageFilterLabels[input.damageFilter]}` : "",
+    input.classFilter !== "all" ? `职业：${classFilterLabels[input.classFilter]}` : "",
+    input.lockFilter !== "all" ? lockFilterLabels[input.lockFilter] : "",
+    input.tagFilter !== "all" ? `整理状态：${input.tagFilter === "untagged" ? "未标记" : input.tagFilter === "keep" ? "保留" : input.tagFilter === "review" ? "待复查" : "可清理"}` : "",
+    ...input.signalFilters.map((signal) => signalLabel(signal)),
+    input.frameFilterCount ? `武器框架：${input.frameFilterCount} 项` : "",
+    input.armorRuleCount ? `护甲属性：${input.armorRuleCount} 条` : ""
+  ].filter(Boolean);
+}
+
+function signalLabel(signal: VaultSignalFilter): string {
+  if (signal === "wishlist") return "愿望单";
+  if (signal === "loadout") return "配装引用";
+  if (signal === "target") return "目标命中";
+  return "社区推荐";
 }

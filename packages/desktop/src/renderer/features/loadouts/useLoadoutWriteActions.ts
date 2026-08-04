@@ -91,9 +91,10 @@ export function useLoadoutWriteActions(input: {
         : [];
     input.applyAccountActionPatches(patches);
     const successCount = "success_count" in result ? result.success_count : 1;
+    const hasEquipPatch = patches.some((patch) => patch.kind === "equip");
     return {
       hasSuccessfulWrite: successCount > 0,
-      requiresFullRefresh: successCount > patches.length
+      requiresFullRefresh: successCount > patches.length || (successCount > 0 && hasEquipPatch)
     };
   }
 
