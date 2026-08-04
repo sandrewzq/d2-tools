@@ -90,7 +90,7 @@ export function ItemDetailSameName(props: ItemDetailSameNameProps) {
               </div>
               <span>{formatArmorStatsSummary(item) ?? (item.socket_plugs?.slice(0, 5).map((plug) => plug.name).join(" / ") || "暂无实际 roll")}</span>
               <small>{formatAccountItemMeta(item)}</small>
-              <small>{item.locked ? "已锁定" : "未锁定"} / 标记：{formatVaultTagLabel(tag)}</small>
+              <small>{item.locked === undefined ? "锁定状态未知" : item.locked ? "已锁定" : "未锁定"} / 标记：{formatVaultTagLabel(tag)}</small>
             </button>
           );
         })}

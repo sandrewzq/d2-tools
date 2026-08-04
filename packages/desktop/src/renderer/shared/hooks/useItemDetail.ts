@@ -271,7 +271,7 @@ function mergeAccountItemDetail(
     ...current,
     instance_id: detail.instance_id,
     power: detail.power,
-    locked: detail.locked,
+    locked: detail.locked ?? current.locked,
     armor_stats: detail.armor_stats,
     armor_stat_breakdown: detail.armor_stat_breakdown,
     armor_energy: detail.armor_energy,

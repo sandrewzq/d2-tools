@@ -49,7 +49,7 @@ export function ItemDetailActions(props: ItemDetailActionsProps) {
         <button
           type="button"
           data-ui-kind="button" data-control-variant="secondary"
-          disabled={props.isRunningItemAction}
+          disabled={props.isRunningItemAction || selectedItem.locked === undefined}
           hidden={selectedItem.is_postmaster_item}
           onClick={() => props.onRunItemWriteAction(
             selectedItem.locked ? "解锁" : "锁定",
@@ -62,7 +62,7 @@ export function ItemDetailActions(props: ItemDetailActionsProps) {
             })
           )}
         >
-          {selectedItem.locked ? "解锁" : "锁定"}
+          {selectedItem.locked === undefined ? "锁定状态未知" : selectedItem.locked ? "解锁" : "锁定"}
         </button>
         {!selectedItem.is_vault_item && !selectedItem.is_postmaster_item ? (
           <button

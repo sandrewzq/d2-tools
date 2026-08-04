@@ -16,6 +16,7 @@ export function collectAccountDefinitionRequest(
   const itemHashes = new Set<number>();
   const bucketHashes = new Set<number>();
   const plugSetHashes = new Set<number>();
+  const damageTypeHashes = new Set<number>();
   const objectiveHashes = new Set<number>();
   const recordHashes = new Set<number>();
   const loadoutNameHashes = new Set<number>();
@@ -38,6 +39,9 @@ export function collectAccountDefinitionRequest(
   }
   for (const sockets of Object.values(profile.itemComponents?.sockets?.data ?? {})) {
     for (const socket of sockets.sockets ?? []) addHash(itemHashes, socket.plugHash);
+  }
+  for (const instance of Object.values(profile.itemComponents?.instances?.data ?? {})) {
+    addHash(damageTypeHashes, instance.damageTypeHash);
   }
   for (const reusablePlugs of Object.values(profile.itemComponents?.reusablePlugs?.data ?? {})) {
     for (const plugs of Object.values(reusablePlugs.plugs ?? {})) {
@@ -84,6 +88,7 @@ export function collectAccountDefinitionRequest(
     bucketHashes: [...bucketHashes],
     plugSetHashes: [...plugSetHashes],
     objectiveHashes: [...objectiveHashes],
+    damageTypeHashes: [...damageTypeHashes],
     recordHashes: [...recordHashes],
     loadoutNameHashes: [...loadoutNameHashes],
     expandSocketPlugSets: true

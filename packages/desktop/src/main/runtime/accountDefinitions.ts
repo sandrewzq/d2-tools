@@ -106,15 +106,25 @@ export async function loadAccountDefinitions(
     for (const objectiveHash of definition.objectiveHashes ?? []) addHash(objectiveHashes, objectiveHash);
   }
 
-  const [bucketDefinitions, objectiveDefinitions, loadoutNameDefinitions] = await Promise.all([
+  const [
+    bucketDefinitions,
+    damageTypeDefinitions,
+    inventoryItemConstantsDefinitions,
+    objectiveDefinitions,
+    loadoutNameDefinitions
+  ] = await Promise.all([
     getDefinitions("DestinyInventoryBucketDefinition", bucketHashes, definitionOptions),
+    getDefinitions("DestinyDamageTypeDefinition", request.damageTypeHashes ?? [], definitionOptions),
+    getDefinitions("DestinyInventoryItemConstantsDefinition", [1], definitionOptions),
     getDefinitions("DestinyObjectiveDefinition", objectiveHashes, definitionOptions),
     getDefinitions("DestinyLoadoutNameDefinition", request.loadoutNameHashes, definitionOptions)
   ]);
   return {
     itemDefinitions,
+    inventoryItemConstantsDefinitions,
     plugSetDefinitions,
     bucketDefinitions,
+    damageTypeDefinitions,
     objectiveDefinitions,
     recordDefinitions,
     loadoutNameDefinitions

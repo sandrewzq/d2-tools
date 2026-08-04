@@ -610,7 +610,7 @@ function InstancesRail(props: { model: ArmorDetailViewModel; onSelect?: (instanc
               <div className="armor-detail-instance-total"><strong>{instance.stats?.total ?? "—"}</strong><span>{energyLabel(instance.energy)}</span></div>
               {instance.stats ? <div className="armor-detail-stat-strip">{instanceStatEntries(instance).map(([label, value]) => <span key={label}>{label}<b>{value}</b></span>)}</div> : <small className="armor-detail-instance-no-stats">属性暂未获取</small>}
               <div className="armor-detail-instance-foot">
-                <span>{instance.locked ? "已锁定" : "未锁定"}</span>
+                <span>{instance.locked === undefined ? "锁定状态未知" : instance.locked ? "已锁定" : "未锁定"}</span>
                 <span>{instance.equipped ? "已装备" : "未装备"}</span>
                 {instance.plug_names.slice(0, 2).map((name, plugIndex) => <span key={`${name}-${plugIndex}`}>{name}</span>)}
               </div>

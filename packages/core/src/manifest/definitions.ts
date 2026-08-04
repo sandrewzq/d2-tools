@@ -2,6 +2,7 @@ import type { DestinyManifestMetadata } from "./metadata.js";
 
 export type DefinitionComponentName =
   | "DestinyInventoryItemDefinition"
+  | "DestinyInventoryItemConstantsDefinition"
   | "DestinyBreakerTypeDefinition"
   | "DestinyDamageTypeDefinition"
   | "DestinyPlugSetDefinition"
@@ -25,6 +26,7 @@ export type DefinitionComponentName =
 export type DefinitionRecord = {
   hash?: number;
   name?: string;
+  gearTierOverlayImagePaths?: string[];
   displayProperties?: {
     name?: string;
     description?: string;
@@ -173,6 +175,7 @@ export type DefinitionComponentStatus = {
 
 export const requiredDefinitionComponents: DefinitionComponentName[] = [
   "DestinyInventoryItemDefinition",
+  "DestinyInventoryItemConstantsDefinition",
   "DestinyBreakerTypeDefinition",
   "DestinyDamageTypeDefinition",
   "DestinyPlugSetDefinition",

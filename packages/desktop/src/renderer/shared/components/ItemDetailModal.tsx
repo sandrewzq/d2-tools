@@ -505,7 +505,12 @@ function ItemDetailInstanceActions(input: {
             }]),
         {
           key: "lock",
-          label: selectedItem.locked ? "解锁" : "锁定",
+          label: selectedItem.locked === undefined
+            ? "锁定状态未知"
+            : selectedItem.locked
+              ? "解锁"
+              : "锁定",
+          disabled: selectedItem.locked === undefined,
           onClick: () => void runDetailAction(selectedItem.locked ? "解锁" : "锁定", () => api.setItemLockState({
             membership_type: props.accountSummary?.membership_type ?? 0,
             character_id: props.selectedActionCharacterId,
@@ -538,7 +543,11 @@ function ItemDetailInstanceActions(input: {
       subtitle={`${locationLabel} · ${selectedItem.power ?? "-"} 光等`}
       statusLabels={[
         selectedItem.source_kind === "equipped" ? "已装备" : "未装备",
-        selectedItem.locked ? "已锁定" : "未锁定",
+        selectedItem.locked === undefined
+          ? "锁定状态未知"
+          : selectedItem.locked
+            ? "已锁定"
+            : "未锁定",
         currentTag ? formatVaultTagLabel(currentTag) : "未标记"
       ]}
       targetValue={props.selectedActionCharacterId}

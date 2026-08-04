@@ -3,9 +3,10 @@ import type { AccountItemSummary } from "@d2-tools/core/account/summary";
 import type { DimWishlist } from "@d2-tools/core/analysis/wishlistImport";
 import type { LocalTargetRules } from "@d2-tools/core/analysis/targets";
 import type { VaultItemMatchInfo } from "@d2-tools/core/community-perks";
+import type { ArmorStatKey } from "@d2-tools/core/loadouts/analysis";
 import type { VaultTags, VaultTagValue } from "@d2-tools/core/vault/tags";
 import { matchesLoadoutTemplateItem, type LoadoutTemplateLookup } from "@d2-tools/app/loadouts";
-import { ammoFilterLabels, formatArmorStatsInline, getVaultItemKey, tagLabels } from "@d2-tools/app/vault";
+import { ammoFilterLabels, armorStatLabels, formatArmorStatsInline, getVaultItemKey, tagLabels } from "@d2-tools/app/vault";
 
 export function VaultListItem(props: {
   item: AccountItemSummary;
@@ -24,30 +25,91 @@ export function VaultListItem(props: {
   const tagValue = tagValueForItem(props.item, props.tags);
   const disposition = dispositionForTag(tagValue);
   const gearTier = displayGearTier(props.item.instance?.gear_tier);
+  const isWeapon = props.item.group_key === "weapons";
+  const isArmor = props.item.group_key === "armor";
   const detailAvailable = props.item.group_key === "weapons" || props.item.group_key === "armor";
-  const cardContent = <>
-    <div className="vault-card-visual-stack">
-      <div className="vault-card-visual">
-        {props.item.icon ? <img alt="" decoding="async" loading="lazy" src={props.item.icon} /> : <div className="item-icon-placeholder" />}
-        {gearTier > 0 ? (
-          <span className={`vault-gear-tier vault-gear-tier-${gearTier}`} aria-label={`装备阶级 T${gearTier}`}>
-            {Array.from({ length: gearTier }, (_, index) => <i aria-hidden="true" key={index} />)}
-          </span>
-        ) : null}
+  const gearTierOverlay = props.item.instance?.gear_tier_overlay ?? gearTierOverlayUrl(gearTier);
+  const damageTypeIcon = props.item.instance?.damage_type_icon
+    ?? damageTypeIconUrl(props.item.instance?.damage_type);
+  const visual = (
+    <div className="vault-card-visual" title={gearTier > 0 ? `装备阶级 T${gearTier}` : undefined}>
+      {props.item.icon ? <img alt="" decoding="async" loading="lazy" src={props.item.icon} /> : <div className="item-icon-placeholder" />}
+      {gearTierOverlay ? (
+        <img className="vault-gear-tier" alt="" aria-hidden="true" src={gearTierOverlay} />
+      ) : null}
+      {props.item.locked ? <span className="vault-item-lock-icon" aria-label="已锁定" title="已锁定"><i /></span> : null}
+    </div>
+  );
+  const stateFlags = (
+    <span className="vault-card-state-flags">
+      {isLoadoutMatch ? <small data-status="success">配装</small> : null}
+      {props.isOpening ? <small data-status="pending">打开中</small> : null}
+    </span>
+  );
+  const strongestArmorStat = isArmor ? getStrongestArmorStat(props.item) : undefined;
+  const cardContent = isWeapon ? <>
+      <div className="vault-weapon-identity">
+        {visual}
+        <div className="vault-weapon-copy">
+          <strong title={props.item.name}>{props.item.name}</strong>
+          <span>{props.item.item_type || "武器"}</span>
+          <span title={props.item.bucket_name}>{formatWeaponSlot(props.item)}</span>
+        </div>
       </div>
-      <span className="vault-card-power">{props.item.power ?? "—"}</span>
-    </div>
-    <div className="vault-card-body">
-      <strong title={props.item.name}>{props.item.name}</strong>
-      <span className="vault-card-meta">{formatVaultCardMeta(props.item)}</span>
-      <span className="vault-card-footer">
-        <small>{props.isOpening ? "打开中" : formatVaultCardContext(props.item)}</small>
+      <div className="vault-weapon-fact-row">
+        <span className={`vault-weapon-fact ammo-${props.item.ammo_type ?? "unknown"}`} title={props.item.ammo_type ? ammoFilterLabels[props.item.ammo_type] : "弹药类型未知"}>
+          <AmmoTypeIcon type={props.item.ammo_type} />
+          <span>{formatAmmoCompact(props.item.ammo_type)}</span>
+        </span>
+        <span className="vault-weapon-fact" title={formatVaultCardContext(props.item)}>
+          {damageTypeIcon ? <img alt="" aria-hidden="true" src={damageTypeIcon} /> : null}
+          <span>{formatVaultCardContext(props.item) || "属性未知"}</span>
+        </span>
+        <span className="vault-weapon-power" title={`光等 ${props.item.power ?? "未知"}`}>
+          <small>光</small><strong>{props.item.power ?? "—"}</strong>
+        </span>
+      </div>
+      <div className="vault-weapon-status">
         <span className={`vault-score-badge score-${disposition}`}>{dispositionShortLabel(disposition)}</span>
-      </span>
-    </div>
-    {props.item.locked || isLoadoutMatch ? (
-      <span className="vault-card-corner-flags" aria-label={[props.item.locked ? "已锁定" : "", isLoadoutMatch ? "配装引用" : ""].filter(Boolean).join("、")}>
-        {props.item.locked ? <span title="已锁定">锁</span> : null}
+        {stateFlags}
+      </div>
+    </> : isArmor ? <>
+      <div className="vault-armor-identity">
+        {visual}
+        <div className="vault-armor-copy">
+          <strong title={props.item.name}>{props.item.name}</strong>
+          <span>{classTypeLabel(props.item.class_type) || "通用护甲"}</span>
+          <span title={props.item.bucket_name}>{props.item.bucket_name || props.item.item_type || "未知部位"}</span>
+        </div>
+      </div>
+      <div className="vault-armor-fact-row">
+        <span className="vault-armor-fact"><small>总值</small><strong>{props.item.armor_stats?.total ?? "—"}</strong></span>
+        <span className="vault-armor-fact" title={strongestArmorStat?.fullLabel}>
+          <small>{strongestArmorStat?.label ?? "属性"}</small><strong>{strongestArmorStat?.value ?? "—"}</strong>
+        </span>
+        <span className="vault-weapon-power" title={`光等 ${props.item.power ?? "未知"}`}>
+          <small>光</small><strong>{props.item.power ?? "—"}</strong>
+        </span>
+      </div>
+      <div className="vault-armor-status">
+        <span className={`vault-score-badge score-${disposition}`}>{dispositionShortLabel(disposition)}</span>
+        {stateFlags}
+      </div>
+    </> : <>
+      <div className="vault-card-visual-stack">
+        {visual}
+        <span className="vault-card-power">{props.item.power ?? "—"}</span>
+      </div>
+      <div className="vault-card-body">
+        <strong title={props.item.name}>{props.item.name}</strong>
+        <span className="vault-card-meta">{formatVaultCardMeta(props.item)}</span>
+        <span className="vault-card-footer">
+          <span className={`vault-score-badge score-${disposition}`}>{dispositionShortLabel(disposition)}</span>
+          {stateFlags}
+        </span>
+      </div>
+    {isLoadoutMatch ? (
+      <span className="vault-card-corner-flags" aria-label="配装引用">
         {isLoadoutMatch ? <span title="配装引用">配</span> : null}
       </span>
     ) : null}
@@ -114,7 +176,7 @@ function dispositionShortLabel(tag: "none" | "keep" | "review" | "junk"): string
 
 function formatVaultCardMeta(item: AccountItemSummary): string {
   if (item.group_key === "weapons") {
-    return [item.item_type, item.ammo_type ? ammoFilterLabels[item.ammo_type] : undefined].filter(Boolean).join(" · ") || "武器";
+    return item.item_type || "武器";
   }
   if (item.group_key === "armor") {
     return [classTypeLabel(item.class_type), item.bucket_name ?? item.item_type].filter(Boolean).join(" · ") || "护甲";
@@ -127,6 +189,7 @@ function formatVaultCardMeta(item: AccountItemSummary): string {
 
 function formatVaultCardContext(item: AccountItemSummary): string {
   if (item.group_key !== "weapons") return "";
+  if (item.instance?.damage_type_name) return item.instance.damage_type_name;
   switch (item.instance?.damage_type) {
     case 1: return "动能";
     case 2: return "电弧";
@@ -136,6 +199,73 @@ function formatVaultCardContext(item: AccountItemSummary): string {
     case 7: return "缚丝";
     default: return "";
   }
+}
+
+function formatWeaponSlot(item: AccountItemSummary): string {
+  const slot = item.bucket_name?.replace(/武器$/u, "").trim();
+  return slot || "未知槽位";
+}
+
+function formatAmmoCompact(type: AccountItemSummary["ammo_type"]): string {
+  if (type === "primary") return "主弹药";
+  if (type === "special") return "特殊";
+  if (type === "heavy") return "重型";
+  return "未知";
+}
+
+function getStrongestArmorStat(item: AccountItemSummary): {
+  label: string;
+  fullLabel: string;
+  value: number;
+} | undefined {
+  if (!item.armor_stats) return undefined;
+  const keys = Object.keys(armorStatLabels) as ArmorStatKey[];
+  const strongest = keys.reduce<ArmorStatKey | undefined>((current, key) => {
+    if (!current || item.armor_stats![key] > item.armor_stats![current]) return key;
+    return current;
+  }, undefined);
+  if (!strongest) return undefined;
+  return {
+    label: compactArmorStatLabel(strongest),
+    fullLabel: armorStatLabels[strongest],
+    value: item.armor_stats[strongest]
+  };
+}
+
+function compactArmorStatLabel(stat: ArmorStatKey): string {
+  if (stat === "health") return "生命";
+  if (stat === "grenade") return "手雷";
+  if (stat === "super") return "超能";
+  if (stat === "class") return "职业";
+  if (stat === "weapon") return "武器";
+  return "近战";
+}
+
+function AmmoTypeIcon(props: { type: AccountItemSummary["ammo_type"] }) {
+  const count = props.type === "heavy" ? 3 : props.type === "special" ? 2 : 1;
+  return (
+    <span className={`vault-ammo-icon ammo-${props.type ?? "unknown"}`} aria-hidden="true">
+      {Array.from({ length: count }, (_, index) => <i key={index} />)}
+    </span>
+  );
+}
+
+function gearTierOverlayUrl(gearTier: number): string | undefined {
+  if (gearTier <= 0) return undefined;
+  return `https://www.bungie.net/img/destiny_content/items/inventory-item-tier${gearTier}.png`;
+}
+
+function damageTypeIconUrl(damageType: number | undefined): string | undefined {
+  const paths: Partial<Record<number, string>> = {
+    1: "DestinyDamageTypeDefinition_3385a924fd3ccb92c343ade19f19a370.png",
+    2: "DestinyDamageTypeDefinition_092d066688b879c807c3b460afdd61e6.png",
+    3: "DestinyDamageTypeDefinition_2a1773e10968f2d088b97c22b22bba9e.png",
+    4: "DestinyDamageTypeDefinition_ceb2f6197dccf3958bb31cc783eb97a0.png",
+    6: "DestinyDamageTypeDefinition_530c4c3e7981dc2aefd24fd3293482bf.png",
+    7: "DestinyDamageTypeDefinition_b2fe51a94f3533f97079dfa0d27a4096.png"
+  };
+  const path = damageType === undefined ? undefined : paths[damageType];
+  return path ? `https://www.bungie.net/common/destiny2_content/icons/${path}` : undefined;
 }
 
 function classTypeLabel(classType: number | undefined): string | undefined {
@@ -158,6 +288,8 @@ function formatVaultCardTitle(
   return [
     item.name,
     formatVaultCardMeta(item),
+    item.group_key === "weapons" ? formatWeaponSlot(item) : "",
+    item.group_key === "weapons" && item.ammo_type ? ammoFilterLabels[item.ammo_type] : "",
     formatVaultCardContext(item),
     item.power !== undefined ? `光等 ${item.power}` : "",
     `整理状态：${dispositionLabel(disposition)}`,

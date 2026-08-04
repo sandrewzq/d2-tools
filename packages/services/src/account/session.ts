@@ -104,7 +104,7 @@ const snapshotComponents = new Set([
   305 // ItemSockets
 ]);
 
-const itemDetailComponents = [300, 301, 304, 305, 309, 310].join(",");
+const itemDetailComponents = [300, 301, 304, 305, 307, 309, 310].join(",");
 
 export function createAccountSession(options: CreateAccountSessionOptions): AccountSession {
   const now = options.now ?? Date.now;
@@ -558,7 +558,12 @@ function mergeDefinitionData(
 ): AccountDefinitionData {
   return {
     itemDefinitions: { ...base?.itemDefinitions, ...loaded?.itemDefinitions },
+    inventoryItemConstantsDefinitions: {
+      ...base?.inventoryItemConstantsDefinitions,
+      ...loaded?.inventoryItemConstantsDefinitions
+    },
     bucketDefinitions: { ...base?.bucketDefinitions, ...loaded?.bucketDefinitions },
+    damageTypeDefinitions: { ...base?.damageTypeDefinitions, ...loaded?.damageTypeDefinitions },
     plugSetDefinitions: { ...base?.plugSetDefinitions, ...loaded?.plugSetDefinitions },
     objectiveDefinitions: { ...base?.objectiveDefinitions, ...loaded?.objectiveDefinitions },
     recordDefinitions: { ...base?.recordDefinitions, ...loaded?.recordDefinitions },

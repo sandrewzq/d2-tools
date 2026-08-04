@@ -42,6 +42,8 @@ export type AccountItemSummary = {
 export type AccountItemInstanceSummary = {
   damage_type?: number;
   damage_type_hash?: number;
+  damage_type_name?: string;
+  damage_type_icon?: string;
   breaker_type?: number;
   breaker_type_hash?: number;
   item_level?: number;
@@ -51,6 +53,7 @@ export type AccountItemInstanceSummary = {
   equip_required_level?: number;
   cannot_equip_reason?: number;
   gear_tier?: number;
+  gear_tier_overlay?: string;
 };
 
 export type ArmorStatSummary = Record<ArmorStatKey, number> & {
@@ -282,6 +285,7 @@ export type AccountDefinitionRequest = {
   bucketHashes: number[];
   plugSetHashes: number[];
   objectiveHashes: number[];
+  damageTypeHashes?: number[];
   recordHashes?: number[];
   loadoutNameHashes: number[];
   expandSocketPlugSets?: boolean;
@@ -289,7 +293,9 @@ export type AccountDefinitionRequest = {
 
 export type AccountDefinitionData = {
   itemDefinitions?: DefinitionComponentData;
+  inventoryItemConstantsDefinitions?: DefinitionComponentData;
   bucketDefinitions?: DefinitionComponentData;
+  damageTypeDefinitions?: DefinitionComponentData;
   plugSetDefinitions?: DefinitionComponentData;
   objectiveDefinitions?: DefinitionComponentData;
   recordDefinitions?: DefinitionComponentData;
@@ -304,7 +310,9 @@ export type FetchAccountSummaryOptions = {
   token: BungieOAuthToken;
   fetchJson: BungieJsonFetcher;
   itemDefinitions?: DefinitionComponentData;
+  inventoryItemConstantsDefinitions?: DefinitionComponentData;
   bucketDefinitions?: DefinitionComponentData;
+  damageTypeDefinitions?: DefinitionComponentData;
   plugSetDefinitions?: DefinitionComponentData;
   objectiveDefinitions?: DefinitionComponentData;
   recordDefinitions?: DefinitionComponentData;
@@ -552,6 +560,7 @@ const itemDetailComponents = [
   301, // ItemObjectives
   304, // ItemStats
   305, // ItemSockets
+  307, // ItemCommonData
   309, // ItemPlugObjectives
   310 // ItemReusablePlugs
 ].join(",");
@@ -685,6 +694,8 @@ export function buildAccountItemDetailFromResponse(
     input.bucketDefinitions ?? {},
     input.plugSetDefinitions ?? {},
     input.objectiveDefinitions ?? {},
+    input.damageTypeDefinitions ?? {},
+    input.inventoryItemConstantsDefinitions ?? {},
     input.query.character_id,
     "full",
     input.recordDefinitions ?? {}
@@ -739,7 +750,15 @@ async function hydrateAccountDefinitions(
   return {
     ...options,
     itemDefinitions: mergeDefinitionData(options.itemDefinitions, loaded.itemDefinitions),
+    inventoryItemConstantsDefinitions: mergeDefinitionData(
+      options.inventoryItemConstantsDefinitions,
+      loaded.inventoryItemConstantsDefinitions
+    ),
     bucketDefinitions: mergeDefinitionData(options.bucketDefinitions, loaded.bucketDefinitions),
+    damageTypeDefinitions: mergeDefinitionData(
+      options.damageTypeDefinitions,
+      loaded.damageTypeDefinitions
+    ),
     plugSetDefinitions: mergeDefinitionData(options.plugSetDefinitions, loaded.plugSetDefinitions),
     objectiveDefinitions: mergeDefinitionData(options.objectiveDefinitions, loaded.objectiveDefinitions),
     recordDefinitions: mergeDefinitionData(options.recordDefinitions, loaded.recordDefinitions),
@@ -799,6 +818,8 @@ function buildAccountSummary(
     options.bucketDefinitions ?? {},
     options.plugSetDefinitions ?? {},
     options.objectiveDefinitions ?? {},
+    options.damageTypeDefinitions ?? {},
+    options.inventoryItemConstantsDefinitions ?? {},
     mode
   );
   return {
@@ -816,6 +837,8 @@ function buildAccountSummary(
       options.loadoutNameDefinitions ?? {},
       options.plugSetDefinitions ?? {},
       options.objectiveDefinitions ?? {},
+      options.damageTypeDefinitions ?? {},
+      options.inventoryItemConstantsDefinitions ?? {},
       profileInventory.vault.items,
       mode
     ),
@@ -841,6 +864,8 @@ function summarizeCharacters(
   loadoutNameDefinitions: DefinitionComponentData,
   plugSetDefinitions: DefinitionComponentData,
   objectiveDefinitions: DefinitionComponentData,
+  damageTypeDefinitions: DefinitionComponentData,
+  inventoryItemConstantsDefinitions: DefinitionComponentData,
   vaultItems: AccountItemSummary[],
   mode: AccountSummaryMode
 ): CharacterSummary[] {
@@ -856,6 +881,8 @@ function summarizeCharacters(
         bucketDefinitions,
         plugSetDefinitions,
         objectiveDefinitions,
+        damageTypeDefinitions,
+        inventoryItemConstantsDefinitions,
         character.characterId,
         mode
       ));
@@ -867,6 +894,8 @@ function summarizeCharacters(
         bucketDefinitions,
         plugSetDefinitions,
         objectiveDefinitions,
+        damageTypeDefinitions,
+        inventoryItemConstantsDefinitions,
         character.characterId,
         mode
       ));
@@ -908,6 +937,8 @@ function summarizeProfileInventory(
   bucketDefinitions: DefinitionComponentData,
   plugSetDefinitions: DefinitionComponentData,
   objectiveDefinitions: DefinitionComponentData,
+  damageTypeDefinitions: DefinitionComponentData,
+  inventoryItemConstantsDefinitions: DefinitionComponentData,
   mode: AccountSummaryMode
 ): Pick<AccountSummary, "vault" | "materials"> {
   const profileItems = profile.profileInventory?.data?.items ?? [];
@@ -920,6 +951,8 @@ function summarizeProfileInventory(
       bucketDefinitions,
       plugSetDefinitions,
       objectiveDefinitions,
+      damageTypeDefinitions,
+      inventoryItemConstantsDefinitions,
       undefined,
       mode
     ));
@@ -978,6 +1011,8 @@ function summarizeItem(
   bucketDefinitions: DefinitionComponentData = {},
   plugSetDefinitions: DefinitionComponentData = {},
   objectiveDefinitions: DefinitionComponentData = {},
+  damageTypeDefinitions: DefinitionComponentData = {},
+  inventoryItemConstantsDefinitions: DefinitionComponentData = {},
   characterId?: string,
   mode: AccountSummaryMode = "full",
   recordDefinitions: DefinitionComponentData = {}
@@ -1028,7 +1063,11 @@ function summarizeItem(
     group_key: groupKey,
     power: instance?.primaryStat?.value,
     locked: isLocked(item.state),
-    instance: summarizeItemInstance(instance),
+    instance: summarizeItemInstance(
+      instance,
+      damageTypeDefinitions,
+      inventoryItemConstantsDefinitions
+    ),
     socket_plugs: selectedPlugs,
     ...(mode === "full"
       ? {
@@ -1103,15 +1142,29 @@ function summarizeArmorEnergy(instance: DestinyItemInstanceComponent | undefined
 }
 
 function summarizeItemInstance(
-  instance: DestinyItemInstanceComponent | undefined
+  instance: DestinyItemInstanceComponent | undefined,
+  damageTypeDefinitions: DefinitionComponentData,
+  inventoryItemConstantsDefinitions: DefinitionComponentData
 ): AccountItemInstanceSummary | undefined {
   if (!instance) {
     return undefined;
   }
 
+  const damageTypeDefinition = resolveDamageTypeDefinition(
+    instance.damageTypeHash,
+    instance.damageType,
+    damageTypeDefinitions
+  );
+  const gearTierOverlay = resolveGearTierOverlay(
+    instance.gearTier,
+    inventoryItemConstantsDefinitions
+  );
+
   const summary: AccountItemInstanceSummary = {
     damage_type: instance.damageType,
     damage_type_hash: instance.damageTypeHash,
+    damage_type_name: damageTypeDefinition?.displayProperties?.name?.trim(),
+    damage_type_icon: normalizeBungieAssetUrl(damageTypeDefinition?.displayProperties?.icon),
     breaker_type: instance.breakerType,
     breaker_type_hash: instance.breakerTypeHash,
     item_level: instance.itemLevel,
@@ -1120,10 +1173,35 @@ function summarizeItemInstance(
     can_equip: instance.canEquip,
     equip_required_level: instance.equipRequiredLevel,
     cannot_equip_reason: instance.cannotEquipReason,
-    gear_tier: instance.gearTier
+    gear_tier: instance.gearTier,
+    gear_tier_overlay: gearTierOverlay
   };
 
   return Object.values(summary).some((value) => value !== undefined) ? summary : undefined;
+}
+
+function resolveDamageTypeDefinition(
+  hash: number | undefined,
+  enumValue: number | undefined,
+  definitions: DefinitionComponentData
+): DefinitionRecord | undefined {
+  if (typeof hash === "number") {
+    const definition = definitions[String(hash >>> 0)] as DefinitionRecord | undefined;
+    if (definition) return definition;
+  }
+  if (typeof enumValue !== "number") return undefined;
+  return Object.values(definitions).find((definition) => definition.enumValue === enumValue);
+}
+
+function resolveGearTierOverlay(
+  gearTier: number | undefined,
+  definitions: DefinitionComponentData
+): string | undefined {
+  if (typeof gearTier !== "number" || gearTier <= 0) return undefined;
+  const constants = definitions["1"] as DefinitionRecord | undefined
+    ?? Object.values(definitions)[0];
+  const path = constants?.gearTierOverlayImagePaths?.[Math.floor(gearTier) - 1];
+  return normalizeBungieAssetUrl(path);
 }
 
 function summarizeWeaponStats(
