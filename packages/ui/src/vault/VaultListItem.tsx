@@ -7,6 +7,7 @@ import type { ArmorStatKey } from "@d2-tools/core/loadouts/analysis";
 import type { VaultTags, VaultTagValue } from "@d2-tools/core/vault/tags";
 import { matchesLoadoutTemplateItem, type LoadoutTemplateLookup } from "@d2-tools/app/loadouts";
 import { ammoFilterLabels, armorStatLabels, formatArmorStatsInline, getVaultItemKey, tagLabels } from "@d2-tools/app/vault";
+import { VaultAmmoTypeIcon, VaultDamageTypeIcon } from "./VaultWeaponFactIcons.js";
 
 export function VaultListItem(props: {
   item: AccountItemSummary;
@@ -29,8 +30,6 @@ export function VaultListItem(props: {
   const isArmor = props.item.group_key === "armor";
   const detailAvailable = props.item.group_key === "weapons" || props.item.group_key === "armor";
   const gearTierOverlay = props.item.instance?.gear_tier_overlay ?? gearTierOverlayUrl(gearTier);
-  const damageTypeIcon = props.item.instance?.damage_type_icon
-    ?? damageTypeIconUrl(props.item.instance?.damage_type);
   const visual = (
     <div className="vault-card-visual" title={gearTier > 0 ? `装备阶级 T${gearTier}` : undefined}>
       {props.item.icon ? <img alt="" decoding="async" loading="lazy" src={props.item.icon} /> : <div className="item-icon-placeholder" />}
@@ -58,11 +57,11 @@ export function VaultListItem(props: {
       </div>
       <div className="vault-weapon-fact-row">
         <span className={`vault-weapon-fact ammo-${props.item.ammo_type ?? "unknown"}`} title={props.item.ammo_type ? ammoFilterLabels[props.item.ammo_type] : "弹药类型未知"}>
-          <AmmoTypeIcon type={props.item.ammo_type} />
+          <VaultAmmoTypeIcon type={props.item.ammo_type} />
           <span>{formatAmmoCompact(props.item.ammo_type)}</span>
         </span>
         <span className="vault-weapon-fact" title={formatVaultCardContext(props.item)}>
-          {damageTypeIcon ? <img alt="" aria-hidden="true" src={damageTypeIcon} /> : null}
+          <VaultDamageTypeIcon damageType={props.item.instance?.damage_type} src={props.item.instance?.damage_type_icon} />
           <span>{formatVaultCardContext(props.item) || "属性未知"}</span>
         </span>
         <span className="vault-weapon-power" title={`光等 ${props.item.power ?? "未知"}`}>
@@ -241,31 +240,9 @@ function compactArmorStatLabel(stat: ArmorStatKey): string {
   return "近战";
 }
 
-function AmmoTypeIcon(props: { type: AccountItemSummary["ammo_type"] }) {
-  const count = props.type === "heavy" ? 3 : props.type === "special" ? 2 : 1;
-  return (
-    <span className={`vault-ammo-icon ammo-${props.type ?? "unknown"}`} aria-hidden="true">
-      {Array.from({ length: count }, (_, index) => <i key={index} />)}
-    </span>
-  );
-}
-
 function gearTierOverlayUrl(gearTier: number): string | undefined {
   if (gearTier <= 0) return undefined;
   return `https://www.bungie.net/img/destiny_content/items/inventory-item-tier${gearTier}.png`;
-}
-
-function damageTypeIconUrl(damageType: number | undefined): string | undefined {
-  const paths: Partial<Record<number, string>> = {
-    1: "DestinyDamageTypeDefinition_3385a924fd3ccb92c343ade19f19a370.png",
-    2: "DestinyDamageTypeDefinition_092d066688b879c807c3b460afdd61e6.png",
-    3: "DestinyDamageTypeDefinition_2a1773e10968f2d088b97c22b22bba9e.png",
-    4: "DestinyDamageTypeDefinition_ceb2f6197dccf3958bb31cc783eb97a0.png",
-    6: "DestinyDamageTypeDefinition_530c4c3e7981dc2aefd24fd3293482bf.png",
-    7: "DestinyDamageTypeDefinition_b2fe51a94f3533f97079dfa0d27a4096.png"
-  };
-  const path = damageType === undefined ? undefined : paths[damageType];
-  return path ? `https://www.bungie.net/common/destiny2_content/icons/${path}` : undefined;
 }
 
 function classTypeLabel(classType: number | undefined): string | undefined {

@@ -11,15 +11,20 @@ import {
   armorStatLabels,
   ammoFilterLabels,
   buildVaultDuplicateSummary,
+  buildVaultContextFacts,
+  buildVaultFrameFilters,
+  buildVaultGroups,
   buildVaultSections,
-  createVaultListWorkspace,
+  buildVaultSlotFilters,
   classFilterLabels,
   damageFilterLabels,
   defaultVaultGroupTab,
+  filterVaultItems,
   gearTierFilterLabels,
   lockFilterLabels,
   normalizeCoreItem,
   rarityFilterLabels,
+  sortVaultItems,
   sortLabels,
   type VaultAmmoFilter,
   type VaultArmorStatRule,
@@ -54,6 +59,9 @@ const vaultWorkspaceTabs: Array<{ key: VaultWorkspaceTab; label: string }> = [
   { key: "duplicates", label: "同名对比" },
   { key: "recommendations", label: "推荐数据" }
 ];
+
+const emptySelectedKeys = new Set<string>();
+const ignoreVaultSelection = () => undefined;
 
 export function VaultPageContentView(props: {
   items: AccountItemSummary[];
@@ -104,10 +112,9 @@ export function VaultPageContentView(props: {
     setActiveVaultTab("filters");
   }, [props.locateRequest?.requestId]);
 
-  const listWorkspace = useMemo(
-    () => createVaultListWorkspace({
-      items: props.items,
-      filter: {
+  const filteredVaultItems = useMemo(
+    () => sortVaultItems(
+      filterVaultItems(props.items, {
         group,
         query,
         tag: tagFilter,
@@ -120,20 +127,63 @@ export function VaultPageContentView(props: {
         classType: classFilter,
         damageType: damageFilter,
         armorStatRules,
-        frames: frameFilters
-      },
+        frames: frameFilters,
+        tags: props.tags,
+        wishlist: props.wishlist,
+        localTargetRules: props.localTargetRules
+      }),
       sortKey,
-      tags: props.tags,
-      wishlist: props.wishlist,
-      localTargetRules: props.localTargetRules
-    }),
+      props.tags
+    ),
     [ammoFilter, armorStatRules, classFilter, damageFilter, frameFilters, gearTierFilter, group, itemTypeFilter, lockFilter, props.items, props.localTargetRules, props.tags, props.wishlist, query, rarityFilter, slotFilter, sortKey, tagFilter]
   );
   const filteredItems = useMemo(
-    () => listWorkspace.filteredItems.filter((item) => matchesSignalFilters(item, signalFilters, props)),
-    [listWorkspace.filteredItems, props.communityMatch, props.highlightedItemKeys, props.localTargetRules, props.wishlist, signalFilters]
+    () => filteredVaultItems.filter((item) => matchesSignalFilters(item, signalFilters, props)),
+    [filteredVaultItems, props.communityMatch, props.highlightedItemKeys, props.localTargetRules, props.wishlist, signalFilters]
   );
   const filteredSections = useMemo(() => buildVaultSections(filteredItems), [filteredItems]);
+  const groups = useMemo(() => buildVaultGroups(props.items), [props.items]);
+  const slotFilters = useMemo(
+    () => buildVaultSlotFilters(filterVaultItems(props.items, {
+      group,
+      query: "",
+      tag: tagFilter,
+      lock: lockFilter,
+      slot: "all",
+      ammo: ammoFilter,
+      itemType: itemTypeFilter,
+      rarity: rarityFilter,
+      gearTier: gearTierFilter,
+      classType: classFilter,
+      damageType: damageFilter,
+      armorStatRules,
+      frames: frameFilters,
+      tags: props.tags,
+      wishlist: props.wishlist,
+      localTargetRules: props.localTargetRules
+    })),
+    [ammoFilter, armorStatRules, classFilter, damageFilter, frameFilters, gearTierFilter, group, itemTypeFilter, lockFilter, props.items, props.localTargetRules, props.tags, props.wishlist, rarityFilter, tagFilter]
+  );
+  const availableFrameFilters = useMemo(
+    () => buildVaultFrameFilters(filterVaultItems(props.items, {
+      group,
+      query: "",
+      tag: tagFilter,
+      lock: lockFilter,
+      slot: slotFilter,
+      ammo: ammoFilter,
+      itemType: itemTypeFilter,
+      rarity: rarityFilter,
+      gearTier: gearTierFilter,
+      classType: classFilter,
+      damageType: damageFilter,
+      armorStatRules,
+      tags: props.tags,
+      wishlist: props.wishlist,
+      localTargetRules: props.localTargetRules
+    })),
+    [ammoFilter, armorStatRules, classFilter, damageFilter, gearTierFilter, group, itemTypeFilter, lockFilter, props.items, props.localTargetRules, props.tags, props.wishlist, rarityFilter, slotFilter, tagFilter]
+  );
   const itemTypeFilters = useMemo(() => {
     const counts = new Map<string, number>();
     props.items.filter((item) => item.group_key === "weapons" && item.item_type).forEach((item) => {
@@ -166,14 +216,31 @@ export function VaultPageContentView(props: {
     frameFilterCount: frameFilters.length,
     armorRuleCount: armorStatRules.length
   }), [ammoFilter, armorStatRules.length, classFilter, damageFilter, frameFilters.length, gearTierFilter, itemTypeFilter, lockFilter, query, rarityFilter, signalFilters, slotFilter, sortKey, tagFilter]);
+  const contextFacts = useMemo(() => buildVaultContextFacts({
+    group,
+    query,
+    tagFilter,
+    lockFilter,
+    slotFilter,
+    ammoFilter,
+    itemTypeFilter,
+    rarityFilter,
+    gearTierFilter,
+    classFilter,
+    damageFilter,
+    frameFilters,
+    armorStatRules,
+    filteredCount: filteredVaultItems.length,
+    totalCount: props.items.length
+  }), [ammoFilter, armorStatRules, classFilter, damageFilter, filteredVaultItems.length, frameFilters, gearTierFilter, group, itemTypeFilter, lockFilter, props.items.length, query, rarityFilter, slotFilter, tagFilter]);
 
   useEffect(() => {
     props.onContextFactsChange?.([
-      ...listWorkspace.contextFacts,
+      ...contextFacts,
       ...signalFilters.map((signal) => `保护与匹配：${signalLabel(signal)}`),
       `当前结果：${filteredItems.length} 件`
     ]);
-  }, [filteredItems.length, listWorkspace.contextFacts, props.onContextFactsChange, signalFilters]);
+  }, [contextFacts, filteredItems.length, props.onContextFactsChange, signalFilters]);
 
   function resetFilterState(resetQuery = true) {
     if (resetQuery) setQuery("");
@@ -293,10 +360,10 @@ export function VaultPageContentView(props: {
               damageFilter={damageFilter}
               frameFilters={frameFilters}
               group={group}
-              groups={listWorkspace.groups}
-              slotFilters={listWorkspace.slotFilters}
+              groups={groups}
+              slotFilters={slotFilters}
               itemTypeFilters={itemTypeFilters}
-              availableFrameFilters={listWorkspace.availableFrameFilters}
+              availableFrameFilters={availableFrameFilters}
               onQueryChange={setQuery}
               onSortKeyChange={setSortKey}
               onTagFilterChange={setTagFilter}
@@ -334,11 +401,11 @@ export function VaultPageContentView(props: {
                 communityMatch={props.communityMatch}
                 isOrganizing={false}
                 isSearchActive={Boolean(query.trim())}
-                selectedKeys={new Set<string>()}
+                selectedKeys={emptySelectedKeys}
                 openingItemKey={props.openingItemKey}
                 emptyMessage="没有匹配的装备。请调整左侧条件或重置筛选。"
                 onSelectItem={props.onOpenItem}
-                onToggleSelected={() => undefined}
+                onToggleSelected={ignoreVaultSelection}
               />
             </section>
           </div>

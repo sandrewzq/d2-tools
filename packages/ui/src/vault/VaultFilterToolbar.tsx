@@ -24,6 +24,7 @@ import {
   type VaultTagFilter
 } from "@d2-tools/app/vault";
 import { VaultArmorFilterPanel } from "./VaultArmorFilterPanel.js";
+import { VaultAmmoTypeIcon, VaultDamageTypeIcon } from "./VaultWeaponFactIcons.js";
 
 export type VaultSignalFilter = "wishlist" | "loadout" | "target" | "community";
 
@@ -41,6 +42,17 @@ const signalOptions: Array<{ key: VaultSignalFilter; label: string }> = [
   { key: "target", label: "目标命中" },
   { key: "community", label: "社区推荐" }
 ];
+
+const damageTypeIds: Record<string, number> = {
+  kinetic: 1,
+  arc: 2,
+  solar: 3,
+  void: 4,
+  stasis: 6,
+  strand: 7
+};
+
+type VaultAmmoType = Exclude<VaultAmmoFilter, "all">;
 
 export function VaultFilterToolbar(props: {
   query: string;
@@ -127,6 +139,7 @@ export function VaultFilterToolbar(props: {
               label="稀有度"
               value={props.rarityFilter}
               options={Object.entries(rarityFilterLabels)}
+              tone={(key) => key === "legendary" ? "rarity-legendary" : key === "exotic" ? "rarity-exotic" : undefined}
               onChange={(value) => props.onRarityFilterChange(value as VaultRarityFilter)}
             />
             <SegmentedFilter
@@ -154,12 +167,16 @@ export function VaultFilterToolbar(props: {
               label="弹药类型"
               value={props.ammoFilter}
               options={Object.entries(ammoFilterLabels).map(([key, label]) => [key, label.replace("全部弹药", "全部")])}
+              icon={(key) => isVaultAmmoType(key) ? <VaultAmmoTypeIcon type={key} /> : null}
+              tone={(key) => key === "all" ? undefined : `ammo-${key}`}
               onChange={(value) => props.onAmmoFilterChange(value as VaultAmmoFilter)}
             />
             <SegmentedFilter
               label="伤害属性"
               value={props.damageFilter}
               options={Object.entries(damageFilterLabels)}
+              icon={(key) => key === "all" ? null : <VaultDamageTypeIcon className="vault-filter-damage-icon" damageType={damageTypeIds[key]} />}
+              tone={(key) => key === "all" ? undefined : `damage-${key}`}
               wrap
               onChange={(value) => props.onDamageFilterChange(value as VaultDamageFilter)}
             />
@@ -248,6 +265,8 @@ function SegmentedFilter(props: {
   options: Array<[string, string]>;
   compact?: boolean;
   wrap?: boolean;
+  icon?: (key: string) => ReactNode;
+  tone?: (key: string) => string | undefined;
   onChange: (value: string) => void;
 }) {
   return (
@@ -255,7 +274,9 @@ function SegmentedFilter(props: {
       <span>{props.label}</span>
       <div className={["vault-choice-strip", props.compact ? "compact" : "", props.wrap ? "wrap" : ""].filter(Boolean).join(" ")} role="group" aria-label={props.label}>
         {props.options.map(([key, label]) => (
-          <button type="button" key={key} aria-pressed={props.value === key} onClick={() => props.onChange(key)}>{label}</button>
+          <button type="button" key={key} data-filter-tone={props.tone?.(key)} aria-pressed={props.value === key} onClick={() => props.onChange(key)}>
+            {props.icon?.(key)}<span>{label}</span>
+          </button>
         ))}
       </div>
     </div>
@@ -264,4 +285,8 @@ function SegmentedFilter(props: {
 
 function shortSlotLabel(label: string): string {
   return label.replace("武器", "").replace("物品", "").replace("全部位置", "全部");
+}
+
+function isVaultAmmoType(value: string): value is VaultAmmoType {
+  return value === "primary" || value === "special" || value === "heavy";
 }
