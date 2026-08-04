@@ -137,6 +137,7 @@ function itemDefinition(hash: number, releaseTrait: string) {
     itemType: 3,
     classType: 3,
     traitIds: [releaseTrait],
+    translationBlock: { weaponPatternHash: 9001 },
     displayProperties: {
       name: "同名武器",
       description: releaseTrait,

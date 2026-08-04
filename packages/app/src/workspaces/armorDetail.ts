@@ -246,7 +246,7 @@ function buildObjectContext(
     kind,
     entry,
     entry_label: override?.entry_label ?? entryLabel(entry),
-    object_label: override?.object_label ?? objectLabel(kind, item.instance_id),
+    object_label: override?.object_label ?? objectLabel(kind),
     object_id: override?.object_id ?? item.instance_id,
     read_only: override?.read_only ?? kind !== "account_item"
   };
@@ -267,10 +267,10 @@ function entryLabel(entry: ArmorDetailEntryKind): string {
   return "资料库";
 }
 
-function objectLabel(kind: ArmorDetailObjectKind, instanceId?: string): string {
-  if (kind === "vendor_offer") return "当前商人售卖";
-  if (kind === "account_item") return instanceId ? `账号实例 ${instanceId.slice(-6)}` : "账号实例";
-  return "装备基础信息";
+function objectLabel(kind: ArmorDetailObjectKind): string {
+  if (kind === "vendor_offer") return "商人售卖";
+  if (kind === "account_item") return "账号实例";
+  return "资料库定义";
 }
 
 function sourceSummaryToSources(source: ItemSourceSummary): ArmorDetailSources {

@@ -140,13 +140,18 @@ export function selectCanonicalEquipmentDefinitions(definitions: DefinitionRecor
 
 function equipmentDefinitionIdentity(definition: DefinitionRecord): string {
   const weaponPatternHash = Number(definition.translationBlock?.weaponPatternHash ?? 0);
+  const releaseTraits = (definition.traitIds ?? [])
+    .filter((traitId) => traitId.startsWith("releases."))
+    .sort()
+    .join(",");
   if (weaponPatternHash > 0) {
     return [
       "weapon-pattern",
       weaponPatternHash,
       definition.isAdept ? "adept" : "standard",
       definition.classType ?? "unknown",
-      definition.inventory?.bucketTypeHash ?? "unknown"
+      definition.inventory?.bucketTypeHash ?? "unknown",
+      releaseTraits
     ].join("|");
   }
 
@@ -156,10 +161,6 @@ function equipmentDefinitionIdentity(definition: DefinitionRecord): string {
     return `hash:${definition.hash ?? "unknown"}`;
   }
 
-  const releaseTraits = (definition.traitIds ?? [])
-    .filter((traitId) => traitId.startsWith("releases."))
-    .sort()
-    .join(",");
   return [
     name,
     icon,

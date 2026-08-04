@@ -26,6 +26,8 @@ import {
 } from "./useItemDetail";
 import { buildWeaponAiConfigurationContext } from "../components/item-detail/buildWeaponDetailView";
 
+const ITEM_DETAIL_SUPPORTING_REQUEST_DELAY_MS = 180;
+
 type DiagnosticsBridge = {
   aiSettings: { enable_lightgg: boolean };
   setWriteActionsEnabled: (enabled: boolean) => void;
@@ -77,6 +79,7 @@ export function useItemDetailWorkspace(input: {
         workspaceRequestSequenceRef.current === workspaceRequestSequence
         && isCurrent()
       );
+      const isWeapon = item.group_key === "weapons";
       setItemAiResult(null);
       setItemAiError("");
       setItemNoteMessage("");
@@ -89,54 +92,59 @@ export function useItemDetailWorkspace(input: {
       setSelectedActionCharacterId(defaultCharacterId);
       setCommunityRecommendations(null);
       setCommunityRecommendationError("");
-      setIsCommunityRecommendationsLoading(true);
+      setIsCommunityRecommendationsLoading(isWeapon);
       setPersonalWeaponKnowledge([]);
       setSelectedItemAvailability(null);
-      setSelectedItemVersions("description" in item && "source" in item ? [item] : []);
-      void api.getCommunityPerkRecommendations(item.hash, { item_name: item.name })
-        .then((result) => {
-          if (!isCurrentWorkspace()) return;
-          setCommunityRecommendations(result);
-        })
-        .catch((error) => {
-          if (!isCurrentWorkspace()) return;
-          console.warn("社区推荐加载失败：", error);
-          setCommunityRecommendationError("社区推荐读取失败，已保留 DIM 愿望单和本地目标判断。");
-        })
-        .finally(() => {
-          if (!isCurrentWorkspace()) return;
-          setIsCommunityRecommendationsLoading(false);
-        });
-      void api.getPersonalWeaponKnowledge(item.name)
-        .then((table) => {
-          if (!isCurrentWorkspace()) return;
-          setPersonalWeaponKnowledge(table.entries);
-        })
-        .catch((error) => {
-          if (!isCurrentWorkspace()) return;
-          console.warn("我的推荐读取失败：", error);
-        });
-      void api.getLiveItemAvailability([item.hash])
-        .then((availability) => {
-          if (!isCurrentWorkspace()) return;
-          setSelectedItemAvailability(availability.items[String(item.hash)] ?? null);
-        })
-        .catch((error) => {
-          if (!isCurrentWorkspace()) return;
-          console.warn("实时获取状态读取失败：", error);
-        });
-      void api.searchItems(item.name)
-        .then((results) => {
-          if (!isCurrentWorkspace()) return;
-          const versions = results
-            .filter((candidate) => candidate.group_key === "weapons" && candidate.name.trim() === item.name.trim())
-            .filter((candidate, index, all) => all.findIndex((entry) => entry.hash === candidate.hash) === index);
-          setSelectedItemVersions(versions);
-        })
-        .catch((error) => {
-          if (!isCurrentWorkspace()) return;
-          console.warn("同名版本读取失败：", error);
-        });
+      setSelectedItemVersions(isWeapon && "description" in item && "source" in item ? [item] : []);
+      setTimeout(() => {
+        if (!isCurrentWorkspace()) return;
+        if (isWeapon) {
+          void api.getCommunityPerkRecommendations(item.hash, { item_name: item.name })
+            .then((result) => {
+              if (!isCurrentWorkspace()) return;
+              setCommunityRecommendations(result);
+            })
+            .catch((error) => {
+              if (!isCurrentWorkspace()) return;
+              console.warn("社区推荐加载失败：", error);
+              setCommunityRecommendationError("社区推荐读取失败，已保留 DIM 愿望单和本地目标判断。");
+            })
+            .finally(() => {
+              if (!isCurrentWorkspace()) return;
+              setIsCommunityRecommendationsLoading(false);
+            });
+          void api.getPersonalWeaponKnowledge(item.name)
+            .then((table) => {
+              if (!isCurrentWorkspace()) return;
+              setPersonalWeaponKnowledge(table.entries);
+            })
+            .catch((error) => {
+              if (!isCurrentWorkspace()) return;
+              console.warn("我的推荐读取失败：", error);
+            });
+          void api.searchItems(item.name)
+            .then((results) => {
+              if (!isCurrentWorkspace()) return;
+              const versions = results
+                .filter((candidate) => candidate.group_key === "weapons" && candidate.name.trim() === item.name.trim())
+                .filter((candidate, index, all) => all.findIndex((entry) => entry.hash === candidate.hash) === index);
+              setSelectedItemVersions(versions);
+            })
+            .catch((error) => {
+              if (!isCurrentWorkspace()) return;
+              console.warn("同名版本读取失败：", error);
+            });
+        }
+        void api.getLiveItemAvailability([item.hash])
+          .then((availability) => {
+            if (!isCurrentWorkspace()) return;
+            setSelectedItemAvailability(availability.items[String(item.hash)] ?? null);
+          })
+          .catch((error) => {
+            if (!isCurrentWorkspace()) return;
+            console.warn("实时获取状态读取失败：", error);
+          });
+      }, ITEM_DETAIL_SUPPORTING_REQUEST_DELAY_MS);
     },
     onRecentHistoryChanged: input.onRecentHistoryChanged
   });

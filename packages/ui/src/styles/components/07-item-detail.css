@@ -143,6 +143,54 @@
   scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
 }
 
+.equipment-detail-context-ledger {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid var(--object-border);
+  border-radius: var(--radius-control);
+  background: var(--section-bg);
+}
+
+.equipment-detail-context-ledger > div {
+  display: flex;
+  min-width: 0;
+  min-height: 30px;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 7px;
+  border-right: 1px solid var(--section-divider);
+  background: var(--section-bg);
+}
+
+.equipment-detail-context-ledger > div:nth-child(3),
+.equipment-detail-context-ledger > div:last-child { border-right: 0; }
+.equipment-detail-context-ledger dt { flex: 0 0 auto; color: var(--muted); font-size: 12px; }
+.equipment-detail-context-ledger dd { display: inline-flex; min-width: 0; align-items: center; gap: 5px; margin: 0; overflow-wrap: anywhere; color: var(--text); font-size: 12px; font-weight: 600; }
+
+.equipment-detail-context-ledger .equipment-detail-current-view {
+  color: var(--selected-fg);
+  background: var(--selected-bg);
+}
+
+.equipment-detail-current-view dt,
+.equipment-detail-current-view dd { color: var(--selected-fg); }
+
+.equipment-detail-context-ledger .equipment-detail-version-field {
+  grid-column: 1 / -1;
+  border-top: 1px solid var(--section-divider);
+  background: var(--section-bg);
+}
+
+.equipment-detail-version-field dd { flex: 1 1 auto; }
+.equipment-detail-version-field strong { min-width: 0; overflow-wrap: anywhere; font-weight: 600; }
+.equipment-detail-version-field select { flex: 1 1 240px; width: auto; min-width: 0; max-width: 340px; min-height: 26px; border: 1px solid var(--field-border); border-radius: var(--radius-control); color: var(--text-body); background: var(--field-bg); font-size: var(--font-meta); text-overflow: ellipsis; cursor: pointer; }
+.equipment-detail-version-field select:focus-visible { outline: 2px solid var(--accent-primary); outline-offset: 2px; }
+.equipment-detail-version-watermark { display: inline-flex; flex: 0 0 auto; align-items: center; }
+.equipment-detail-version-watermark img { width: 18px; height: 18px; object-fit: contain; }
+
 .detail-instance-actions {
   display: grid;
   gap: 11px;
@@ -1063,7 +1111,6 @@
   .shared-item-detail-loading-tabs { overflow: hidden; }
   .shared-item-detail-loading-tabs span { flex: 0 0 84px; }
   .shared-item-detail-loading-content { grid-template-columns: 1fr; }
-
   .item-detail-game-card {
     grid-template-columns: 1fr;
   }

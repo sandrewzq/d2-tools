@@ -677,9 +677,9 @@ function entryLabel(entry: WeaponDetailEntryKind): string {
 }
 
 function objectLabel(kind: WeaponDetailObjectKind): string {
-  if (kind === "vendor_offer") return "商人 Offer";
+  if (kind === "vendor_offer") return "商人售卖";
   if (kind === "account_instance") return "账号实例";
-  return "装备定义";
+  return "资料库定义";
 }
 
 function ammoFromKey(key: AmmoTypeKey | undefined): WeaponDetailAmmo | undefined {

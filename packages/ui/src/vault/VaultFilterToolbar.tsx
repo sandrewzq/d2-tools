@@ -182,7 +182,7 @@ export function VaultFilterToolbar(props: {
               label="伤害属性"
               value={props.damageFilter}
               options={Object.entries(damageFilterLabels)}
-              icon={(key) => key === "all" ? null : <VaultDamageTypeIcon className="vault-filter-damage-icon" damageType={damageTypeIds[key]} size="compact" />}
+              icon={(key) => key === "all" ? null : <VaultDamageTypeIcon damageType={damageTypeIds[key]} size="compact" />}
               tone={(key) => key === "all" ? undefined : `damage-${key}`}
               wrap
               onChange={(value) => props.onDamageFilterChange(value as VaultDamageFilter)}

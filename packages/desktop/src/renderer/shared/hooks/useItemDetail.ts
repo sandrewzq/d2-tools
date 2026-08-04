@@ -108,55 +108,69 @@ export function useItemDetail(options: {
         return cachedAccountDetail ? mergeAccountItemDetail(withDefinition, cachedAccountDetail) : withDefinition;
       });
     }
-    if (cachedDetail && (!instanceId || cachedAccountDetail)) {
+    if (cachedDetail) {
       setItemDetailLoadingKey((current) => current === itemKey ? "" : current);
+    }
+    if (cachedDetail && (!instanceId || cachedAccountDetail)) {
       return;
     }
 
-    const definitionPromise: Promise<ItemDefinitionDetail> = cachedDetail
-      ? Promise.resolve(cachedDetail)
-      : api.getItemDetail(item.hash);
-    const accountPromise: Promise<AccountItemDetail | null> = instanceId
-      ? (cachedAccountDetail ? Promise.resolve(cachedAccountDetail) : api.getAccountItemDetail(instanceId))
-      : Promise.resolve(null);
-    const [definitionResult, accountResult] = await Promise.allSettled([
-      definitionPromise,
-      accountPromise
-    ] as const);
-    if (!isCurrent()) {
-      return;
-    }
-    if (definitionResult.status === "fulfilled") {
-      itemDetailCacheRef.current.set(item.hash, definitionResult.value);
-      evictOldestCacheEntry(itemDetailCacheRef.current, ITEM_DETAIL_CACHE_LIMIT);
-    }
-    if (accountResult.status === "fulfilled" && accountResult.value) {
-      accountItemDetailCacheRef.current.set(accountResult.value.instance_id, accountResult.value);
-      evictOldestCacheEntry(accountItemDetailCacheRef.current, ACCOUNT_ITEM_DETAIL_CACHE_LIMIT);
+    const pendingRequests: Promise<void>[] = [];
+    if (!cachedDetail) {
+      pendingRequests.push(api.getItemDetail(item.hash)
+        .then((detail) => {
+          if (!isCurrent()) return;
+          itemDetailCacheRef.current.set(item.hash, detail);
+          evictOldestCacheEntry(itemDetailCacheRef.current, ITEM_DETAIL_CACHE_LIMIT);
+          setSelectedItem((current) => {
+            if (current && current.item_key !== itemKey) return current;
+            const withDefinition = mergeSelectedItemDetail(current ?? preview, detail);
+            const latestAccountDetail = instanceId
+              ? accountItemDetailCacheRef.current.get(instanceId)
+              : null;
+            return latestAccountDetail
+              ? mergeAccountItemDetail(withDefinition, latestAccountDetail)
+              : withDefinition;
+          });
+        })
+        .catch((error) => {
+          if (!isCurrent()) return;
+          setSelectedItem((current) => {
+            if (current && current.item_key !== itemKey) return current;
+            return { ...(current ?? preview), is_detail_loading: false };
+          });
+          appendItemDetailError(
+            setItemDetailError,
+            errorMessage(error, "物品定义详情读取失败")
+          );
+        })
+        .finally(() => {
+          if (!isCurrent()) return;
+          setItemDetailLoadingKey((current) => current === itemKey ? "" : current);
+        }));
     }
 
-    setSelectedItem((current) => {
-      if (current && current.item_key !== itemKey) {
-        return current;
-      }
-      const base = current ?? preview;
-      const withDefinition = definitionResult.status === "fulfilled"
-        ? mergeSelectedItemDetail(base, definitionResult.value)
-        : base;
-      const withAccount = accountResult.status === "fulfilled" && accountResult.value
-        ? mergeAccountItemDetail(withDefinition, accountResult.value)
-        : withDefinition;
-      return { ...withAccount, is_detail_loading: false };
-    });
-    setItemDetailLoadingKey((current) => current === itemKey ? "" : current);
-
-    const errors = [
-      definitionResult.status === "rejected" ? errorMessage(definitionResult.reason, "物品定义详情读取失败") : "",
-      accountResult.status === "rejected" ? errorMessage(accountResult.reason, "账号实例详情读取失败") : ""
-    ].filter(Boolean);
-    if (errors.length) {
-      setItemDetailError(errors.join("；"));
+    if (instanceId && !cachedAccountDetail) {
+      pendingRequests.push(api.getAccountItemDetail(instanceId)
+        .then((detail) => {
+          if (!isCurrent()) return;
+          accountItemDetailCacheRef.current.set(detail.instance_id, detail);
+          evictOldestCacheEntry(accountItemDetailCacheRef.current, ACCOUNT_ITEM_DETAIL_CACHE_LIMIT);
+          setSelectedItem((current) => {
+            if (current && current.item_key !== itemKey) return current;
+            return mergeAccountItemDetail(current ?? preview, detail);
+          });
+        })
+        .catch((error) => {
+          if (!isCurrent()) return;
+          appendItemDetailError(
+            setItemDetailError,
+            errorMessage(error, "账号实例详情读取失败")
+          );
+        }));
     }
+
+    await Promise.allSettled(pendingRequests);
   }
 
   async function refreshSelectedItemDetail(): Promise<AccountItemDetail | null> {
@@ -200,7 +214,7 @@ export function useItemDetail(options: {
   }
 
   function closeSelectedItemDetail() {
-    invalidateRequestsAndClearCaches();
+    invalidateRequests();
     setItemDetailLoadingKey("");
     setSelectedItem(null);
     setItemDetailError("");
@@ -215,9 +229,13 @@ export function useItemDetail(options: {
   }
 
   function invalidateRequestsAndClearCaches(): void {
-    requestSequenceRef.current += 1;
+    invalidateRequests();
     itemDetailCacheRef.current.clear();
     accountItemDetailCacheRef.current.clear();
+  }
+
+  function invalidateRequests(): void {
+    requestSequenceRef.current += 1;
   }
 
   return {
@@ -290,4 +308,14 @@ function mergeAccountItemDetail(
 
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
+}
+
+function appendItemDetailError(
+  setError: (value: string | ((current: string) => string)) => void,
+  message: string
+): void {
+  setError((current) => {
+    if (!current) return message;
+    return current.split("；").includes(message) ? current : `${current}；${message}`;
+  });
 }

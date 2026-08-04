@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState, type CSSProperties, type KeyboardEv
 import { GameAssetImage } from "../../media/GameAssetImage.js";
 import { GameCombatIcon } from "../../media/GameCombatIcon.js";
 import { formatStandardDateTime } from "../../time/formatTime.js";
+import { EquipmentDetailContextLedger } from "../EquipmentDetailContextLedger.js";
 import type {
   WeaponDetailInstance,
   WeaponDetailViewModel,
@@ -314,10 +315,9 @@ function WeaponIdentity(props: {
   model: WeaponDetailViewModel;
   onSelectVersion?: (hash: number) => void;
 }) {
-  const { identity, context, versions, configuration } = props.model;
+  const { identity, context, versions } = props.model;
   const currentDefinition = versions.find((version) => version.is_current) ?? versions[0];
   const releaseLabel = identity.release?.description ?? "官方发布版本未标注";
-  const releaseStatus = identity.release?.status === "ready" ? "success" : "neutral";
   const definitionVersionLabel = identity.definition_version?.label ?? "定义版本资料未返回";
   const watermarks = identity.definition_version?.watermark_icons ?? [];
   const canSelectDefinitionVersion = context.kind === "definition" && versions.length > 1 && Boolean(props.onSelectVersion);
@@ -325,18 +325,12 @@ function WeaponIdentity(props: {
     ? "实例版本"
     : context.kind === "vendor_offer"
       ? "售卖版本"
-      : "同名版本";
+      : "发布版本";
   return (
     <header className="weapon-detail-identity" data-surface="section">
       <div className="weapon-detail-identity-main">
         <GameAssetImage src={identity.icon} alt="" loading="eager" fallback={<span className="weapon-detail-icon-placeholder" aria-hidden="true" />} />
         <div>
-          <div className="weapon-detail-identity-title-line">
-            <span className="weapon-detail-version-badge" data-ui-part="state" data-text-tone="status" data-info-priority="support" data-status={releaseStatus}>发布版本</span>
-            <span className="weapon-detail-identity-version" data-ui-part="detail" data-text-tone="meta" data-info-priority="trace">
-              {releaseLabel}
-            </span>
-          </div>
           <h2 data-ui-part="value" data-text-tone="primary" data-info-priority="display">{identity.name}</h2>
           <p data-ui-part="detail" data-text-tone="body" data-info-priority="reading">{[identity.item_type, identity.frame?.name].filter(Boolean).join(" · ")}</p>
           <div className="weapon-detail-facts" aria-label="武器摘要">
@@ -359,30 +353,19 @@ function WeaponIdentity(props: {
       </div>
 
       <div className="weapon-detail-identity-context">
-        <dl className="weapon-detail-context">
-          <div><dt data-ui-part="label" data-text-tone="meta" data-info-priority="support">入口</dt><dd data-ui-part="value" data-text-tone="primary" data-info-priority="context">{context.entry_label}</dd></div>
-          <div><dt data-ui-part="label" data-text-tone="meta" data-info-priority="support">当前查看</dt><dd data-ui-part="value" data-text-tone="primary" data-info-priority="context">{context.object_label}</dd></div>
-          <div><dt data-ui-part="label" data-text-tone="meta" data-info-priority="support">对象</dt><dd data-ui-part="value" data-text-tone="primary" data-info-priority="context">{contextKindLabel(context.kind)}</dd></div>
-          <div><dt data-ui-part="label" data-text-tone="meta" data-info-priority="support">配置</dt><dd data-ui-part="value" data-text-tone="primary" data-info-priority="context">{configurationKindLabel(configuration.kind)}</dd></div>
-          <div className="weapon-detail-version">
-            <dt data-ui-part="label" data-text-tone="meta" data-info-priority="support">{versionLabel}</dt>
-            <dd data-ui-part="value" data-text-tone="primary" data-info-priority="context">
-              {canSelectDefinitionVersion ? (
-                <select
-                  aria-label="选择装备版本"
-                  value={currentDefinition?.hash ?? identity.hash}
-                  onChange={(event) => props.onSelectVersion?.(Number(event.target.value))}
-                >
-                  {versions.map((version) => (
-                    <option key={version.hash} value={version.hash}>
-                      {version.label}{version.is_current ? " · 当前查看" : ""}
-                    </option>
-                  ))}
-                </select>
-              ) : <strong>{currentDefinition?.label ?? releaseLabel}</strong>}
-            </dd>
-          </div>
-        </dl>
+        <EquipmentDetailContextLedger
+          entryLabel={context.entry_label}
+          currentViewLabel={context.object_label}
+          locationLabel={identity.slot ?? identity.item_type ?? "武器"}
+          versionFieldLabel={canSelectDefinitionVersion ? "查看版本" : versionLabel}
+          versionValue={currentDefinition?.label ?? releaseLabel}
+          versionOptions={canSelectDefinitionVersion
+            ? versions.map((version) => ({ hash: version.hash, label: version.label }))
+            : undefined}
+          selectedVersionHash={currentDefinition?.hash ?? identity.hash}
+          watermarkIcon={identity.definition_version?.current_watermark_icon}
+          onSelectVersion={canSelectDefinitionVersion ? props.onSelectVersion : undefined}
+        />
         <details className="weapon-detail-definition-details">
           <summary>武器定义信息</summary>
           <div>
@@ -1200,12 +1183,6 @@ function catalystStateLabel(model: WeaponDetailViewModel): string {
   if (catalyst.acquired === true) return catalyst.progress !== undefined ? `进行中 · ${catalyst.progress}%` : "已获得 · 进度未返回";
   if (catalyst.acquired === false) return "尚未获得";
   return "仅显示催化剂定义";
-}
-
-function contextKindLabel(kind: WeaponDetailViewModel["context"]["kind"]) {
-  if (kind === "account_instance") return "账号实例";
-  if (kind === "vendor_offer") return "商人 Offer";
-  return "装备定义";
 }
 
 function configurationKindLabel(kind: WeaponDetailViewModel["configuration"]["kind"]) {

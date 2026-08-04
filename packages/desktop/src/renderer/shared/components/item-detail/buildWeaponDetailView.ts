@@ -122,11 +122,9 @@ export function buildWeaponDetailView(
       ? versions.map((version, index) => {
           const releaseLabel = version.release?.description
             ?? (version.hash === item.hash ? item.release?.description : undefined);
-          const compactLabel = compactWeaponVersionLabel(version.release)
-            ?? (version.hash === item.hash ? compactWeaponVersionLabel(item.release) : undefined);
           return {
             hash: version.hash,
-            label: [compactLabel ?? releaseLabel ?? version.tier ?? `版本 ${index + 1}`, version.is_adept ? "专家" : undefined]
+            label: [releaseLabel ?? version.tier ?? `版本 ${index + 1}`, version.is_adept ? "专家" : undefined]
               .filter(Boolean)
               .join(" · "),
             release_label: releaseLabel,
@@ -135,7 +133,7 @@ export function buildWeaponDetailView(
         })
       : [{
           hash: item.hash,
-          label: compactWeaponVersionLabel(item.release) ?? item.release?.description ?? "当前版本",
+          label: item.release?.description ?? "当前版本",
           release_label: item.release?.description,
           is_current: true
         }],
@@ -160,26 +158,6 @@ export function buildWeaponDetailView(
     same_hash_instances: input.sameNameItems,
     instance_metadata: buildInstanceMetadata(input, upgrades)
   });
-}
-
-function compactWeaponVersionLabel(release: ItemReleaseSummary | undefined): string | undefined {
-  if (!release) return undefined;
-  if (release.kind === "annual") {
-    return [
-      release.year_number !== undefined ? `第${release.year_number}年` : undefined,
-      release.name
-    ].filter(Boolean).join(" · ") || release.description;
-  }
-  if (release.kind === "dlc") {
-    return [
-      release.season_number !== undefined ? `第${release.season_number}赛季` : undefined,
-      release.name
-    ].filter(Boolean).join(" · ") || release.description;
-  }
-  return [
-    release.season_number !== undefined ? `第${release.season_number}赛季` : undefined,
-    release.name
-  ].filter(Boolean).join(" · ") || release.description;
 }
 
 export function buildWeaponAiConfigurationContext(item: Pick<

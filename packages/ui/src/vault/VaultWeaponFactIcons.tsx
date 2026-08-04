@@ -13,7 +13,6 @@ export function VaultAmmoTypeIcon(props: {
 export function VaultDamageTypeIcon(props: {
   damageType: number | undefined;
   src?: string;
-  className?: string;
   size?: "default" | "compact";
 }) {
   const type = gameDamageTypeKey(props.damageType);
@@ -22,7 +21,6 @@ export function VaultDamageTypeIcon(props: {
       kind="damage"
       type={type}
       src={props.src}
-      className={props.className}
       size={props.size}
     />
   ) : null;

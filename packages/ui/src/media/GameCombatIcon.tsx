@@ -9,7 +9,6 @@ export type GameCombatIconProps = {
   kind: "damage" | "champion" | "ammo";
   type: string;
   src?: string | null;
-  className?: string;
   size?: "default" | "compact";
   loading?: ImgHTMLAttributes<HTMLImageElement>["loading"];
 };
@@ -43,7 +42,7 @@ export function GameCombatIcon(props: GameCombatIconProps) {
     : 0;
   return (
     <span
-      className={["game-combat-icon", props.size === "compact" ? "is-compact" : "", props.className].filter(Boolean).join(" ")}
+      className={props.size === "compact" ? "game-combat-icon is-compact" : "game-combat-icon"}
       data-combat-kind={props.kind}
       data-combat-type={props.type}
       aria-hidden="true"

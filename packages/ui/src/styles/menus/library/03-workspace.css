@@ -380,6 +380,42 @@
   line-height: 1.35;
 }
 
+:where(.app-shell) .library-result-title-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px 8px;
+  align-items: baseline;
+  min-width: 0;
+}
+
+:where(.app-shell) .library-result-title-line h3 {
+  min-width: 0;
+}
+
+:where(.app-shell) .library-result-version {
+  display: inline-flex;
+  gap: 5px;
+  align-items: baseline;
+  max-width: 100%;
+  padding: 2px 7px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-indicator);
+  color: var(--text-body);
+  background: var(--surface-subtle);
+  font-size: var(--font-caption);
+  line-height: 1.35;
+}
+
+:where(.app-shell) .library-result-version > span {
+  color: var(--text-muted);
+}
+
+:where(.app-shell) .library-result-version > strong {
+  overflow-wrap: anywhere;
+  color: var(--text-title);
+  font-weight: 600;
+}
+
 :where(.app-shell) .library-result-body > p {
   color: var(--text-muted);
   font-size: var(--font-content);

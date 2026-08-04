@@ -16,6 +16,7 @@ import type {
 import type { ItemReleaseKind } from "@d2-tools/core/items/release";
 import { GameAssetImage } from "../../media/GameAssetImage.js";
 import { formatStandardDateTime } from "../../time/formatTime.js";
+import { EquipmentDetailContextLedger } from "../EquipmentDetailContextLedger.js";
 
 export type ArmorDetailSection = "overview" | "configuration" | "targets" | "upgrades" | "analysis";
 
@@ -273,9 +274,6 @@ function ArmorIdentity({ model }: { model: ArmorDetailViewModel }) {
       : undefined;
   const releaseLabel = identity.release?.description ?? "官方定义未提供发布信息";
   const versionLabel = identity.definition_version?.label ?? "定义版本资料未返回";
-  const versionStatus = identity.definition_version ? "success" : "neutral";
-  const releaseStatus = identity.release?.status === "ready" ? "success" : "neutral";
-  const releaseTrace = identity.release?.description ?? "发布资料未返回";
   const watermarks = identity.definition_version?.watermark_icons ?? [];
   const currentWatermark = identity.definition_version?.current_watermark_icon;
   return (
@@ -283,10 +281,6 @@ function ArmorIdentity({ model }: { model: ArmorDetailViewModel }) {
       <div className="armor-detail-identity-main">
         <GameAssetImage src={identity.icon} alt="" loading="eager" fallback={<span className="armor-detail-icon-placeholder" aria-hidden="true" />} />
         <div>
-          <div className="armor-detail-identity-title-line">
-            <span className="armor-detail-version-badge" data-ui-part="state" data-text-tone="status" data-info-priority="support" data-status={versionStatus}>当前定义版本</span>
-            <span className="armor-detail-identity-version" data-ui-part="source" data-text-tone="meta" data-info-priority="trace">{releaseLabel}</span>
-          </div>
           <h2 data-ui-part="value" data-text-tone="primary" data-info-priority="display">{identity.name}</h2>
           <p data-ui-part="detail" data-text-tone="body" data-info-priority="reading">{[identity.tier, identity.item_type, identity.class_name].filter(Boolean).join(" · ")}</p>
           <div className="armor-detail-facts" aria-label="护甲摘要">
@@ -299,13 +293,14 @@ function ArmorIdentity({ model }: { model: ArmorDetailViewModel }) {
       </div>
 
       <div className="armor-detail-identity-context">
-        <dl className="armor-detail-context-ledger">
-          <div><dt>入口</dt><dd>{context.entry_label}</dd></div>
-          <div><dt>当前查看</dt><dd>{context.object_label}</dd></div>
-          <div><dt>对象</dt><dd>{contextKindLabel(context.kind)}</dd></div>
-          <div><dt>位置</dt><dd>{identity.bucket_name ?? identity.item_type ?? "护甲"}</dd></div>
-          <div className="armor-detail-context-version" data-status={versionStatus}><dt>版本</dt><dd><strong>{versionLabel}</strong>{currentWatermark ? <span className="armor-detail-version-watermarks"><GameAssetImage src={currentWatermark} alt="当前官方版本水印" title="当前官方定义版本水印" loading="eager" /></span> : null}</dd><span data-ui-part="state" data-text-tone="status" data-info-priority="trace" data-status={releaseStatus}>{releaseTrace}</span></div>
-        </dl>
+        <EquipmentDetailContextLedger
+          entryLabel={context.entry_label}
+          currentViewLabel={context.object_label}
+          locationLabel={identity.bucket_name ?? identity.item_type ?? "护甲"}
+          versionFieldLabel={context.kind === "account_item" ? "实例版本" : context.kind === "vendor_offer" ? "售卖版本" : "发布版本"}
+          versionValue={releaseLabel}
+          watermarkIcon={currentWatermark}
+        />
         <details className="armor-detail-definition-details">
           <summary>护甲定义信息</summary>
           <div>
@@ -697,11 +692,6 @@ function energyLabel(energy: ArmorDetailViewModel["energy"]): string {
   return `${energy.capacity} 级能量 · 剩余 ${energy.unused}`;
 }
 
-function contextKindLabel(kind: ArmorDetailViewModel["context"]["kind"]): string {
-  if (kind === "vendor_offer") return "商人 Offer";
-  if (kind === "account_item") return "账号实例";
-  return "护甲定义";
-}
 
 function sourceStatusLabel(status: ArmorDetailViewModel["sources"]["status"]): string {
   if (status === "ready") return "商人实时数据 + 游戏资料 · 当前确认";

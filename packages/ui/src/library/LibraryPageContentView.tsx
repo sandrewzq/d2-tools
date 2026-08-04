@@ -377,6 +377,7 @@ function renderEquipmentResult(
     toLibraryAmmoTag(item.ammo_type, copy),
     toLibraryEquipmentTag(item.weapon_frame?.name)
   ].filter((tag): tag is LibraryEquipmentTag => Boolean(tag));
+  const visibleVersion = item.release?.description ?? item.definition_version?.label;
   const versionDescription = item.release?.description ?? libraryText(copy, "暂无已验证版本");
   const sourceDescription = item.source.status === "ready"
     ? item.source.description
@@ -387,7 +388,15 @@ function renderEquipmentResult(
     <article className="library-result-row" key={item.hash}>
       <GameAssetImage alt="" loading="eager" src={item.icon} fallback={<span className="library-result-icon-placeholder" aria-hidden="true" />} />
       <div className="library-result-body">
-        <h3>{item.name}</h3>
+        <div className="library-result-title-line">
+          <h3>{item.name}</h3>
+          {visibleVersion ? (
+            <span className="library-result-version" title={visibleVersion}>
+              <span>{libraryText(copy, "版本")}</span>
+              <strong>{visibleVersion}</strong>
+            </span>
+          ) : null}
+        </div>
         {item.description ? <p>{item.description}</p> : null}
         {equipmentTags.length ? (
           <div className="library-equipment-tags" aria-label={libraryText(copy, "装备信息")}>

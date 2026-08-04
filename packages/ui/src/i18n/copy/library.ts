@@ -183,6 +183,8 @@ export const libraryCopy: Record<InterfaceLocale, LocaleCopy["library"]> = {
         "等待实时查询": "Waiting for live query",
         "正在结合 Bungie 当前公开数据和登录角色商人数据复查。": "Checking against current Bungie public data and signed-in character vendors.",
         "定义详情": "Definition details",
+        "版本": "Version",
+        "暂无已验证版本": "No verified release",
         "关闭定义详情": "Close definition details",
         "Manifest 定义，不是当前装备实例。": "Manifest definition, not a current item instance.",
         "选择一个装备查看定义详情。": "Select an item to view definition details.",
