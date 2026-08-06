@@ -68,11 +68,17 @@ export type PerkSearchResult = {
   name: string;
   description: string;
   icon?: string;
-  related_items?: Array<{
-    hash: number;
-    name: string;
-    group_key?: EquipmentGroupKey;
-  }>;
+  related_items?: PerkRelatedItem[];
+  related_items_truncated?: boolean;
+};
+
+export type PerkRelatedItem = {
+  hash: number;
+  name: string;
+  icon?: string;
+  item_type?: string;
+  group_key?: EquipmentGroupKey;
+  release?: ItemReleaseSummary;
 };
 
 export type LibraryHistory = {
@@ -245,6 +251,8 @@ export type LibraryEquipmentResultGroupView = {
 export type LibraryPerkResultView = {
   perk: PerkSearchResult;
   relatedGroupKeys: EquipmentGroupKey[];
+  relatedItems: Array<PerkRelatedItem & { isDetailLoading: boolean }>;
+  relatedItemsTruncated: boolean;
   relatedItemNames: string[];
   hasRelatedItems: boolean;
 };
@@ -396,7 +404,7 @@ export function selectLibraryPageModel(cache: LibraryPageCache, state: LibraryPa
         ownershipAvailable: Boolean(cache.accountSummary),
         itemDetailLoadingKey: state.itemDetailLoadingKey
       }),
-      perks: visiblePerks.map((perk) => createPerkResultView(perk))
+      perks: visiblePerks.map((perk) => createPerkResultView(perk, state.itemDetailLoadingKey))
     },
     stats: {
       dropQuery: {
@@ -725,11 +733,16 @@ function addOwnedItems(
   }
 }
 
-function createPerkResultView(perk: PerkSearchResult): LibraryPerkResultView {
+function createPerkResultView(perk: PerkSearchResult, itemDetailLoadingKey: string): LibraryPerkResultView {
   const relatedItems = perk.related_items ?? [];
   return {
     perk,
     relatedGroupKeys: [...new Set(relatedItems.map((item) => item.group_key).filter((group): group is EquipmentGroupKey => Boolean(group)))],
+    relatedItems: relatedItems.map((item) => ({
+      ...item,
+      isDetailLoading: itemDetailLoadingKey === `hash:${item.hash}`
+    })),
+    relatedItemsTruncated: perk.related_items_truncated === true,
     relatedItemNames: relatedItems.map((item) => item.name),
     hasRelatedItems: relatedItems.length > 0
   };

@@ -3,6 +3,7 @@ import type { AccountItemSummary, AccountMaterialSummary, AccountSummary } from 
 import {
   createAccountPageWorkspace,
   formatAccountItemMeta,
+  formatAccountItemFacts,
   getAccountPageItemKey,
   getCharacterCombinedItems,
   groupAccountItemsBySlot,
@@ -250,6 +251,14 @@ describe("account page workspace", () => {
       .toEqual(["已装备手炮", "背包胸甲"]);
     expect(formatAccountItemMeta(equipped)).toBe("能量武器 / Legendary / 光等 2010 / 已锁定");
     expect(formatAccountItemMeta(inventory)).toBe("胸甲 / Legendary / 总值 68 / 生命值 20 / 职业 16 / 手雷 14");
+    expect(formatAccountItemFacts(equipped)).toEqual({
+      primary: ["Hand Cannon", "Legendary", "光等 2010"],
+      state: ["锁定"]
+    });
+    expect(formatAccountItemFacts(inventory)).toEqual({
+      primary: ["Legendary"],
+      state: ["总值 68"]
+    });
   });
 
   it("groups account items by slot and category in app layer", () => {

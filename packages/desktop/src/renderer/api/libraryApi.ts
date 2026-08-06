@@ -71,7 +71,15 @@ export type PerkSearchResult = {
   name: string;
   description: string;
   icon?: string;
-  related_items?: Array<{ hash: number; name: string; group_key?: EquipmentGroupKey }>;
+  related_items?: Array<{
+    hash: number;
+    name: string;
+    icon?: string;
+    item_type?: string;
+    group_key?: EquipmentGroupKey;
+    release?: ItemReleaseSummary;
+  }>;
+  related_items_truncated?: boolean;
 };
 
 export type ItemAliasEntry = {

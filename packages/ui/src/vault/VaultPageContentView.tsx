@@ -86,6 +86,7 @@ export function VaultPageContentView(props: {
   recommendationImportActions?: VaultRecommendationImportActions;
   targetRulesActions?: VaultTargetRulesActions;
   onContextFactsChange?: (facts: string[]) => void;
+  onLoadItemDetail?: (item: AccountItemSummary) => Promise<AccountItemSummary>;
   onOpenItem: (item: AccountItemSummary) => void;
   onSaveTag: (item: AccountItemSummary, tag: VaultTagValue) => void | Promise<void>;
   onSaveTagBatch: (inputs: SaveVaultTagInput[]) => void | Promise<void>;
@@ -471,6 +472,7 @@ export function VaultPageContentView(props: {
             communityMatch={props.communityMatch}
             openingItemKey={props.openingItemKey}
             isBatchSaving={isBatchSaving}
+            onLoadItemDetail={props.onLoadItemDetail}
             onOpenItem={props.onOpenItem}
             onApplyGroupTags={applyDuplicateGroupTags}
           />

@@ -46,6 +46,7 @@ export type BuildDesktopWeaponDetailInput = {
     is_adept?: boolean;
     release?: ItemReleaseSummary;
   }>;
+  versionsLoading?: boolean;
 };
 
 export type WeaponAiConfigurationContext = {
@@ -84,6 +85,7 @@ export function buildWeaponDetailView(
   const currentStats = input.currentStats ?? (item.instance_id ? item.weapon_stats : undefined);
   const definitionStats = definitionStatsToSummary(item.definition_stats);
   const upgrades = buildWeaponUpgrades(item);
+  const instanceDamage = damageFromInstance(item.instance);
   const versions = [...(input.versions ?? [])].sort((left, right) =>
     Number(right.hash === item.hash) - Number(left.hash === item.hash));
 
@@ -103,6 +105,8 @@ export function buildWeaponDetailView(
           description: item.damage_type_summary.description,
           icon: item.damage_type_summary.icon
         }
+      : instanceDamage
+      ? instanceDamage
       : item.damage_type
       ? {
           key: damageKey(item.damage_type),
@@ -122,7 +126,7 @@ export function buildWeaponDetailView(
               ? "frame_perk"
               : "plug"
         }
-      : undefined,
+      : championFromInstance(item.instance?.breaker_type),
     is_exotic: isExotic,
     versions: versions.length
       ? versions.map((version, index) => {
@@ -143,6 +147,7 @@ export function buildWeaponDetailView(
           release_label: item.release?.description,
           is_current: true
         }],
+    versions_loading: input.versionsLoading,
     definition_stats: classification.kind === "fixed"
       ? buildFixedConfigurationStandardStats(item, definitionStats)
       : definitionStats,
@@ -690,6 +695,33 @@ function damageKey(label: string): string {
   return "kinetic";
 }
 
+function damageFromInstance(
+  instance: SelectedItemDetail["instance"]
+): WeaponDetailViewModel["identity"]["damage"] {
+  if (!instance) return undefined;
+  if (instance.damage_type_name) {
+    return {
+      key: damageKey(instance.damage_type_name),
+      label: instance.damage_type_name,
+      icon: instance.damage_type_icon
+    };
+  }
+  const fallback = instance.damage_type === 1
+    ? { key: "kinetic", label: "动能" }
+    : instance.damage_type === 2
+      ? { key: "arc", label: "电弧" }
+      : instance.damage_type === 3
+        ? { key: "solar", label: "烈日" }
+        : instance.damage_type === 4
+          ? { key: "void", label: "虚空" }
+          : instance.damage_type === 6
+            ? { key: "stasis", label: "冰影" }
+            : instance.damage_type === 7
+              ? { key: "strand", label: "缚丝" }
+              : undefined;
+  return fallback ? { ...fallback, icon: instance.damage_type_icon } : undefined;
+}
+
 function buildWeaponUpgrades(item: Pick<
   SelectedItemDetail,
   "socket_plugs" | "sockets" | "item_objectives" | "perks" | "catalyst" | "instance_id"
@@ -893,3 +925,22 @@ const championEffectLabels = {
   overload: "干扰",
   unstoppable: "眩晕"
 } as const;
+
+function championFromInstance(
+  breakerType: number | undefined
+): WeaponDetailViewModel["identity"]["champion"] {
+  const championType = breakerType === 1
+    ? "barrier"
+    : breakerType === 2
+      ? "overload"
+      : breakerType === 3
+        ? "unstoppable"
+        : undefined;
+  if (!championType) return undefined;
+  return {
+    key: championType,
+    label: championLabels[championType],
+    effect_label: championEffectLabels[championType],
+    source: "weapon"
+  };
+}

@@ -32,6 +32,7 @@ import {
 } from "@d2-tools/ui";
 import type { AccountItemSummary } from "@d2-tools/core/account/summary";
 import { createHomeWeeklyActivityRewardDetailTarget } from "@d2-tools/app/home";
+import type { ItemSearchResult } from "@d2-tools/app/library";
 import {
   buildArmorDetailViewModel,
   buildWeaponDetailViewModel,
@@ -266,6 +267,19 @@ function WebApp() {
         read_only: true
       }
     }));
+  }
+
+  function openWebLibraryDetail(item: ItemSearchResult) {
+    setWeeklyRewardDetail(null);
+    if (item.group_key === "armor") {
+      setWeaponDetailModel(null);
+      setArmorDetailModel(buildArmorDetailViewModel({ item }));
+      return;
+    }
+    if (item.group_key === "weapons") {
+      setArmorDetailModel(null);
+      setWeaponDetailModel(buildWeaponDetailViewModel({ item }));
+    }
   }
 
   useEffect(() => {
@@ -538,17 +552,10 @@ function WebApp() {
                 onAliasTargetDraftChange: setAliasTargetDraft,
                 onAliasKindChange: setAliasKind,
                 onSaveAlias: () => undefined,
-                onOpenItemDetail: (item) => {
-                  setWeeklyRewardDetail(null);
-                  if (item.group_key === "armor") {
-                    setWeaponDetailModel(null);
-                    setArmorDetailModel(buildArmorDetailViewModel({ item }));
-                    return;
-                  }
-                  if (item.group_key === "weapons") {
-                    setArmorDetailModel(null);
-                    setWeaponDetailModel(buildWeaponDetailViewModel({ item }));
-                  }
+                onOpenItemDetail: openWebLibraryDetail,
+                onOpenRelatedItem: (item) => {
+                  const definition = fixture.libraryItems.find((candidate) => candidate.hash === item.hash);
+                  if (definition) openWebLibraryDetail(definition);
                 },
                 onAddFavorite: () => undefined,
                 onRemoveFavorite: () => undefined

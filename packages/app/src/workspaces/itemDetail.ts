@@ -108,6 +108,10 @@ export type SelectedItemDetail = ItemDefinitionDetailLike & {
   is_vault_item?: boolean;
   is_postmaster_item?: boolean;
   is_detail_loading?: boolean;
+  detail_loading?: {
+    definition: boolean;
+    instance: boolean;
+  };
 };
 
 export type SameNameItemSummary = AccountItemSummary & SelectedItemSource & {
@@ -193,7 +197,11 @@ export function createSelectedItemPreview(
     source_kind: source.source_kind,
     is_vault_item: source.is_vault_item,
     is_postmaster_item: source.is_postmaster_item,
-    is_detail_loading: true
+    is_detail_loading: true,
+    detail_loading: {
+      definition: true,
+      instance: Boolean("instance_id" in item && item.instance_id)
+    }
   };
 }
 

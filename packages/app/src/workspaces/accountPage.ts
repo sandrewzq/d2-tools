@@ -12,7 +12,8 @@ export type AccountItemView = {
   key: string;
   name: string;
   icon?: string;
-  meta: string;
+  primaryFacts: string[];
+  stateFacts: string[];
   canOpenDetail: boolean;
   isPending: boolean;
   isLoadoutMatch: boolean;
@@ -622,11 +623,13 @@ function toAccountItemView(input: {
 }): AccountItemView {
   const key = getAccountPageItemKey(input.item);
   const canOpenDetail = input.item.group_key === "weapons" || input.item.group_key === "armor";
+  const facts = formatAccountItemFacts(input.item);
   return {
     key,
     name: input.item.name,
     icon: input.item.icon,
-    meta: formatAccountItemMeta(input.item),
+    primaryFacts: facts.primary,
+    stateFacts: facts.state,
     canOpenDetail,
     isPending: canOpenDetail && key === input.openingItemKey,
     isLoadoutMatch: input.isLoadoutMatch(input.item),
@@ -669,6 +672,23 @@ export function formatAccountItemMeta(item: AccountItemSummary): string {
     formatArmorStatsSummary(item),
     item.locked ? "已锁定" : undefined
   ].filter(Boolean).join(" / ");
+}
+
+export function formatAccountItemFacts(item: AccountItemSummary): {
+  primary: string[];
+  state: string[];
+} {
+  return {
+    primary: [
+      item.group_key === "weapons" ? item.item_type : undefined,
+      item.tier,
+      typeof item.power === "number" ? `光等 ${item.power}` : undefined
+    ].filter((value): value is string => Boolean(value)),
+    state: [
+      item.group_key === "armor" && item.armor_stats ? `总值 ${item.armor_stats.total}` : undefined,
+      item.locked ? "锁定" : undefined
+    ].filter((value): value is string => Boolean(value))
+  };
 }
 
 export function buildAccountMaterialRows(materials: AccountMaterialSummary[]): AccountMaterialRow[] {

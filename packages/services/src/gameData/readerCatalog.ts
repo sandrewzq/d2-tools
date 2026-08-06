@@ -86,7 +86,8 @@ export function createReaderGameDataCatalog(
         "DestinySandboxPerkDefinition",
         perkHashes
       );
-      const relatedItemHashes = options.searchIndex.getRelatedItemHashes(perkHashes);
+      const relatedItemLimit = 40;
+      const relatedItemHashes = options.searchIndex.getRelatedItemHashes(perkHashes, relatedItemLimit + 1);
       const plugHashes = options.searchIndex.getPlugHashes(perkHashes);
       const relatedItems = options.reader.getMany(
         "DestinyInventoryItemDefinition",
@@ -99,6 +100,7 @@ export function createReaderGameDataCatalog(
 
       return projectPerkSearchResults(perkHashes, perkDefinitions, {
         limit,
+        relatedItemLimit,
         itemDefinitions: relatedItems,
         plugSetDefinitions: plugSets
       });
@@ -135,6 +137,7 @@ export function createReaderGameDataCatalog(
 
 type PerkProjectionOptions = {
   limit: number;
+  relatedItemLimit: number;
   itemDefinitions: DefinitionComponentData;
   plugSetDefinitions: DefinitionComponentData;
 };
@@ -158,6 +161,7 @@ function projectPerkSearchResults(
       localizedName,
       {
         limit: 1,
+        relatedItemLimit: options.relatedItemLimit,
         itemDefinitions: options.itemDefinitions,
         plugSetDefinitions: options.plugSetDefinitions
       }

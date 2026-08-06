@@ -617,6 +617,21 @@ function renderAccountItemCard(
     item.isPending ? "pending" : "",
     item.isLoadoutMatch ? "loadout-highlight" : ""
   ].filter(Boolean).join(" ");
+  const status = item.isPending
+    ? {
+        kind: "pending",
+        label: accountText(props.copy, "打开中"),
+        description: accountText(props.copy, "正在打开详情")
+      }
+    : item.isLoadoutMatch
+      ? {
+          kind: "success",
+          label: accountText(props.copy, "配装"),
+          description: accountText(props.copy, "配装引用")
+        }
+      : null;
+  const primaryFacts = item.primaryFacts.join(" · ") || accountText(props.copy, "实例摘要待补齐");
+  const stateFacts = item.stateFacts.join(" · ");
   const content = (
     <>
       <GameAssetImage
@@ -628,10 +643,15 @@ function renderAccountItemCard(
       />
       <span className="account-slot-item-copy">
         <strong>{item.name}</strong>
-        <span>{source === "equipped" ? accountText(props.copy, "当前角色装备") : accountText(props.copy, "当前角色背包候选")}</span>
-        <small>{item.meta || accountText(props.copy, "实例摘要待补齐")}</small>
-        {item.isLoadoutMatch ? <em data-status="success">{accountText(props.copy, "配装引用")}</em> : null}
-        {item.isPending ? <em data-status="pending">{accountText(props.copy, "正在打开详情")}</em> : null}
+        <span className="account-slot-item-primary-facts" title={primaryFacts}>{primaryFacts}</span>
+        <span className="account-slot-item-fact-row">
+          {stateFacts ? <small title={stateFacts}>{stateFacts}</small> : null}
+          {status ? (
+            <em data-status={status.kind} title={status.description} aria-label={status.description}>
+              {status.label}
+            </em>
+          ) : null}
+        </span>
       </span>
     </>
   );

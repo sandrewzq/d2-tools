@@ -43,6 +43,8 @@ export const libraryCopy: Record<InterfaceLocale, LocaleCopy["library"]> = {
         "资料库武器框架筛选": "Library weapon frame filter",
         "关联分类": "Related category",
         "关联装备": "Related items",
+        "件关联装备，可打开定义详情": "related items; open definition details",
+        "仅显示前": "Showing the first",
         "全部": "All",
         "有": "Yes",
         "无": "No",

@@ -3,7 +3,9 @@ import type { InterfaceLocale, LocaleCopy } from "../types.js";
 export const accountCopy: Record<InterfaceLocale, LocaleCopy["account"]> = {
     "zh-CN": {
       inline: {
-        "装备类别": "装备"
+        "装备类别": "装备",
+        "配装": "配装",
+        "打开中": "打开中"
       },
       title: "角色与账号数据",
       subtitle: "角色装备与背包保持按槽位对照，其他配置、任务和物品分别查看。",
@@ -93,6 +95,7 @@ export const accountCopy: Record<InterfaceLocale, LocaleCopy["account"]> = {
         "装备类别": "Equipment",
         "背包": "Inventory",
         "方案命中": "Template match",
+        "配装": "Loadout",
         "配装引用": "Loadout reference",
         "账号侧栏摘要": "Account side summary",
         "最近活动": "Recent activity",
@@ -134,6 +137,7 @@ export const accountCopy: Record<InterfaceLocale, LocaleCopy["account"]> = {
         "详情": " details",
         "实例摘要待补齐": "Instance summary pending",
         "正在打开详情": "Opening details",
+        "打开中": "Opening",
         "当前快照未包含活动记录": "The current snapshot has no activity history",
         "读取 Activity History 后会在这里显示真实的近期复盘。": "Recent activity will appear here after Activity History is read.",
         "Activity History 当前没有返回可展示的近期场次。": "Activity History currently returned no recent runs to display.",

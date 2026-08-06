@@ -132,6 +132,10 @@ export type ArmorDetailSelectedItemLike = {
   socket_plugs?: AccountItemPlugSummary[];
   source: ItemSourceSummary;
   is_detail_loading?: boolean;
+  detail_loading?: {
+    definition: boolean;
+    instance: boolean;
+  };
 };
 
 export type ArmorDetailInstanceLike = {
@@ -163,6 +167,10 @@ export type ArmorDetailViewModel = {
   recommendations: ArmorRecommendation[];
   same_hash_instances: ArmorDetailInstance[];
   loading: boolean;
+  loading_state: {
+    definition: boolean;
+    instance: boolean;
+  };
 };
 
 export type BuildArmorDetailViewModelInput = {
@@ -232,7 +240,11 @@ export function buildArmorDetailViewModel(input: BuildArmorDetailViewModelInput)
         instance.hash === item.hash && Boolean(instance.instance_id)
       ))
       .map((instance) => toArmorDetailInstance(instance, item.instance_id)),
-    loading: Boolean(item.is_detail_loading)
+    loading: Boolean(item.is_detail_loading),
+    loading_state: {
+      definition: item.detail_loading?.definition ?? Boolean(item.is_detail_loading),
+      instance: item.detail_loading?.instance ?? false
+    }
   };
 }
 

@@ -46,6 +46,7 @@ export {
   buildPostmasterPreviewItems,
   createAccountPageWorkspace,
   formatAccountMaterialMeta,
+  formatAccountItemFacts,
   formatAccountItemMeta,
   formatArmorStatsSummary,
   getAccountPageItemKey,

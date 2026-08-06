@@ -98,6 +98,13 @@ export function useItemDetail(options: {
     const cachedAccountDetail = instanceId
       ? touchAccountItemDetailCache(accountItemDetailCacheRef.current, instanceId)
       : null;
+    const needsDefinitionDetail = !cachedDetail;
+    const needsAccountDetail = Boolean(instanceId && !cachedAccountDetail);
+    const hasPendingCriticalDetail = needsDefinitionDetail || needsAccountDetail;
+    const initialLoadingState = {
+      definition: needsDefinitionDetail,
+      instance: needsAccountDetail
+    };
     if (cachedDetail || cachedAccountDetail) {
       setSelectedItem((current) => {
         if (current && current.item_key !== itemKey) {
@@ -105,13 +112,16 @@ export function useItemDetail(options: {
         }
         const base = current ?? preview;
         const withDefinition = cachedDetail ? mergeSelectedItemDetail(base, cachedDetail) : base;
-        return cachedAccountDetail ? mergeAccountItemDetail(withDefinition, cachedAccountDetail) : withDefinition;
+        const merged = cachedAccountDetail ? mergeAccountItemDetail(withDefinition, cachedAccountDetail) : withDefinition;
+        return {
+          ...merged,
+          is_detail_loading: hasPendingCriticalDetail,
+          detail_loading: initialLoadingState
+        };
       });
     }
-    if (cachedDetail) {
+    if (!hasPendingCriticalDetail) {
       setItemDetailLoadingKey((current) => current === itemKey ? "" : current);
-    }
-    if (cachedDetail && (!instanceId || cachedAccountDetail)) {
       return;
     }
 
@@ -128,25 +138,29 @@ export function useItemDetail(options: {
             const latestAccountDetail = instanceId
               ? accountItemDetailCacheRef.current.get(instanceId)
               : null;
-            return latestAccountDetail
+            const merged = latestAccountDetail
               ? mergeAccountItemDetail(withDefinition, latestAccountDetail)
               : withDefinition;
+            return withDetailLoadingState(merged, {
+              definition: false,
+              instance: latestAccountDetail
+                ? false
+                : current?.detail_loading?.instance ?? needsAccountDetail
+            });
           });
         })
         .catch((error) => {
           if (!isCurrent()) return;
-          setSelectedItem((current) => {
-            if (current && current.item_key !== itemKey) return current;
-            return { ...(current ?? preview), is_detail_loading: false };
-          });
+          setSelectedItem((current) => current?.item_key === itemKey
+            ? withDetailLoadingState(current, {
+                definition: false,
+                instance: current.detail_loading?.instance ?? needsAccountDetail
+              })
+            : current);
           appendItemDetailError(
             setItemDetailError,
             errorMessage(error, "物品定义详情读取失败")
           );
-        })
-        .finally(() => {
-          if (!isCurrent()) return;
-          setItemDetailLoadingKey((current) => current === itemKey ? "" : current);
         }));
     }
 
@@ -158,11 +172,20 @@ export function useItemDetail(options: {
           evictOldestCacheEntry(accountItemDetailCacheRef.current, ACCOUNT_ITEM_DETAIL_CACHE_LIMIT);
           setSelectedItem((current) => {
             if (current && current.item_key !== itemKey) return current;
-            return mergeAccountItemDetail(current ?? preview, detail);
+            return withDetailLoadingState(mergeAccountItemDetail(current ?? preview, detail), {
+              definition: current?.detail_loading?.definition ?? needsDefinitionDetail,
+              instance: false
+            });
           });
         })
         .catch((error) => {
           if (!isCurrent()) return;
+          setSelectedItem((current) => current?.item_key === itemKey
+            ? withDetailLoadingState(current, {
+                definition: current.detail_loading?.definition ?? needsDefinitionDetail,
+                instance: false
+              })
+            : current);
           appendItemDetailError(
             setItemDetailError,
             errorMessage(error, "账号实例详情读取失败")
@@ -171,6 +194,12 @@ export function useItemDetail(options: {
     }
 
     await Promise.allSettled(pendingRequests);
+    if (!isCurrent()) return;
+    setSelectedItem((current) => {
+      if (!current || current.item_key !== itemKey) return current;
+      return withDetailLoadingState(current, { definition: false, instance: false });
+    });
+    setItemDetailLoadingKey((current) => current === itemKey ? "" : current);
   }
 
   async function refreshSelectedItemDetail(): Promise<AccountItemDetail | null> {
@@ -188,7 +217,7 @@ export function useItemDetail(options: {
     setItemDetailError("");
     setItemDetailLoadingKey(itemKey);
     setSelectedItem((value) => value?.item_key === itemKey
-      ? { ...value, is_detail_loading: true }
+      ? withDetailLoadingState(value, { definition: false, instance: true })
       : value);
     try {
       const detail = await api.getAccountItemDetail(instanceId, { force: true });
@@ -196,13 +225,13 @@ export function useItemDetail(options: {
       accountItemDetailCacheRef.current.set(instanceId, detail);
       evictOldestCacheEntry(accountItemDetailCacheRef.current, ACCOUNT_ITEM_DETAIL_CACHE_LIMIT);
       setSelectedItem((value) => value?.item_key === itemKey
-        ? { ...mergeAccountItemDetail(value, detail), is_detail_loading: false }
+        ? withDetailLoadingState(mergeAccountItemDetail(value, detail), { definition: false, instance: false })
         : value);
       return detail;
     } catch (error) {
       if (!isCurrent()) return null;
       setSelectedItem((value) => value?.item_key === itemKey
-        ? { ...value, is_detail_loading: false }
+        ? withDetailLoadingState(value, { definition: false, instance: false })
         : value);
       setItemDetailError(errorMessage(error, "账号实例详情刷新失败"));
       throw error;
@@ -303,6 +332,17 @@ function mergeAccountItemDetail(
     bucket_hash: detail.bucket_hash,
     bucket_name: detail.bucket_name,
     weapon_frame: detail.weapon_frame ?? current.weapon_frame
+  };
+}
+
+function withDetailLoadingState(
+  item: SelectedItemDetail,
+  detailLoading: NonNullable<SelectedItemDetail["detail_loading"]>
+): SelectedItemDetail {
+  return {
+    ...item,
+    detail_loading: detailLoading,
+    is_detail_loading: detailLoading.definition || detailLoading.instance
   };
 }
 

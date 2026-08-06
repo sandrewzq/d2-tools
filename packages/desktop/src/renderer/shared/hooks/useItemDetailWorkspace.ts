@@ -55,6 +55,7 @@ export function useItemDetailWorkspace(input: {
   const [personalWeaponKnowledge, setPersonalWeaponKnowledge] = useState<PersonalWeaponKnowledgeEntry[]>([]);
   const [selectedItemAvailability, setSelectedItemAvailability] = useState<LiveItemAvailabilityEntry | null>(null);
   const [selectedItemVersions, setSelectedItemVersions] = useState<ItemSearchResult[]>([]);
+  const [isSelectedItemVersionsLoading, setIsSelectedItemVersionsLoading] = useState(false);
   const [itemAiResult, setItemAiResult] = useState<ItemAiAdviceResult | null>(null);
   const [itemAiError, setItemAiError] = useState("");
   const [itemNoteDraft, setItemNoteDraft] = useState("");
@@ -96,6 +97,7 @@ export function useItemDetailWorkspace(input: {
       setPersonalWeaponKnowledge([]);
       setSelectedItemAvailability(null);
       setSelectedItemVersions(isWeapon && "description" in item && "source" in item ? [item] : []);
+      setIsSelectedItemVersionsLoading(isWeapon);
       setTimeout(() => {
         if (!isCurrentWorkspace()) return;
         if (isWeapon) {
@@ -133,6 +135,10 @@ export function useItemDetailWorkspace(input: {
             .catch((error) => {
               if (!isCurrentWorkspace()) return;
               console.warn("同名版本读取失败：", error);
+            })
+            .finally(() => {
+              if (!isCurrentWorkspace()) return;
+              setIsSelectedItemVersionsLoading(false);
             });
         }
         void api.getLiveItemAvailability([item.hash])
@@ -353,6 +359,7 @@ export function useItemDetailWorkspace(input: {
     setPersonalWeaponKnowledge([]);
     setSelectedItemAvailability(null);
     setSelectedItemVersions([]);
+    setIsSelectedItemVersionsLoading(false);
     setItemAiResult(null);
     setItemAiError("");
     setItemNoteDraft("");
@@ -674,6 +681,7 @@ export function useItemDetailWorkspace(input: {
     personalWeaponKnowledge,
     selectedItemAvailability,
     selectedItemVersions,
+    isSelectedItemVersionsLoading,
     itemAiResult,
     itemAiError,
     itemNoteDraft,

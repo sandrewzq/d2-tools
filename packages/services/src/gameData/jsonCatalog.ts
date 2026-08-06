@@ -42,6 +42,7 @@ export function createJsonGameDataCatalog(options: JsonGameDataCatalogOptions): 
 
       return searchPerkDefinitions(perkDefinitions, input.query, {
         limit: input.limit ?? 20,
+        relatedItemLimit: 40,
         itemDefinitions: load("DestinyInventoryItemDefinition") ?? undefined,
         plugSetDefinitions: load("DestinyPlugSetDefinition") ?? undefined,
         aliases: input.aliases

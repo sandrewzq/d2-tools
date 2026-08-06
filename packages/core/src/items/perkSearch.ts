@@ -1,11 +1,15 @@
 import type { DefinitionComponentData, DefinitionRecord } from "../manifest/definitions.js";
 import { classifyBucket, type EquipmentGroupKey } from "./classification.js";
 import { expandAliasQuery, type ItemAliases } from "./aliases.js";
+import { summarizeItemRelease, type ItemReleaseSummary } from "./release.js";
 
 export type PerkRelatedItem = {
   hash: number;
   name: string;
+  icon?: string;
+  item_type?: string;
   group_key?: EquipmentGroupKey;
+  release?: ItemReleaseSummary;
 };
 
 export type PerkSearchResult = {
@@ -14,6 +18,7 @@ export type PerkSearchResult = {
   description: string;
   icon?: string;
   related_items?: PerkRelatedItem[];
+  related_items_truncated?: boolean;
 };
 
 export type PerkSearchOptions = {
@@ -21,6 +26,7 @@ export type PerkSearchOptions = {
   itemDefinitions?: DefinitionComponentData;
   plugSetDefinitions?: DefinitionComponentData;
   aliases?: ItemAliases;
+  relatedItemLimit?: number;
 };
 
 const bungieStaticBaseUrl = "https://www.bungie.net";
@@ -57,15 +63,19 @@ export function searchPerkDefinitions(
       description,
       icon: normalizeBungieAssetUrl(definition.displayProperties?.icon)
     };
-    const relatedItems = options.itemDefinitions
+    const related = options.itemDefinitions
       ? findRelatedItems(
         buildRelatedPlugHashes(Number(definition.hash), options.itemDefinitions),
         options.itemDefinitions,
-        options.plugSetDefinitions
+        options.plugSetDefinitions,
+        options.relatedItemLimit ?? 8
       )
-      : [];
-    if (relatedItems.length) {
-      result.related_items = relatedItems;
+      : { items: [], truncated: false };
+    if (related.items.length) {
+      result.related_items = related.items;
+    }
+    if (related.truncated) {
+      result.related_items_truncated = true;
     }
 
     results.push(result);
@@ -80,8 +90,12 @@ export function searchPerkDefinitions(
 function findRelatedItems(
   perkHashes: Set<number>,
   itemDefinitions: DefinitionComponentData,
-  plugSetDefinitions: DefinitionComponentData | undefined
-): PerkRelatedItem[] {
+  plugSetDefinitions: DefinitionComponentData | undefined,
+  requestedLimit: number
+): { items: PerkRelatedItem[]; truncated: boolean } {
+  const limit = Number.isFinite(requestedLimit)
+    ? Math.max(1, Math.trunc(requestedLimit))
+    : 8;
   const matches: PerkRelatedItem[] = [];
   for (const definition of Object.values(itemDefinitions)) {
     const name = definition.displayProperties?.name?.trim();
@@ -90,17 +104,25 @@ function findRelatedItems(
     }
 
     const groupKey = classifyBucket(definition.inventory?.bucketTypeHash)?.group;
+    const icon = normalizeBungieAssetUrl(definition.displayProperties?.icon);
+    const release = summarizeItemRelease(definition, undefined);
     matches.push({
       hash: Number(definition.hash),
       name,
-      ...(groupKey ? { group_key: groupKey } : {})
+      ...(icon ? { icon } : {}),
+      ...(definition.itemTypeDisplayName ? { item_type: definition.itemTypeDisplayName } : {}),
+      ...(groupKey ? { group_key: groupKey } : {}),
+      ...(release ? { release } : {})
     });
-    if (matches.length >= 8) {
+    if (matches.length > limit) {
       break;
     }
   }
 
-  return matches;
+  return {
+    items: matches.slice(0, limit),
+    truncated: matches.length > limit
+  };
 }
 
 function definitionContainsPlug(

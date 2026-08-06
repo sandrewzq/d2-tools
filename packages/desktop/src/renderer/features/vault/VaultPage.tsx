@@ -1,6 +1,6 @@
 import { selectVaultPageModel } from "@d2-tools/app/vault";
 import { ControlButton, ProductWorkspaceEmptyState, VaultPageContentView } from "@d2-tools/ui";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { LoadoutTemplateLookup } from "../../shared/domain/loadouts/loadoutLookup";
 import type {
   AccountItemSummary,
@@ -45,6 +45,9 @@ export function VaultPage(props: {
   const [localCommunityTable, setLocalCommunityTable] = useState<LocalCommunityRecommendationTable | null>(null);
   const [armorSetCatalog, setArmorSetCatalog] = useState<ArmorSetCatalogItem[]>([]);
   const [armorSetCatalogStatus, setArmorSetCatalogStatus] = useState<"loading" | "ready" | "error">("loading");
+  const loadItemDetail = useCallback((item: AccountItemSummary) => (
+    item.instance_id ? api.getAccountItemDetail(item.instance_id) : Promise.resolve(item)
+  ), []);
   useEffect(() => {
     let active = true;
     setArmorSetCatalogStatus("loading");
@@ -154,6 +157,7 @@ export function VaultPage(props: {
         onSearchPerks: (query) => api.searchPerks(query)
       }}
       onContextFactsChange={props.onContextFactsChange}
+      onLoadItemDetail={loadItemDetail}
       onOpenItem={props.onOpenItem}
       onSaveTag={props.onSaveTag}
     />

@@ -512,8 +512,9 @@
   gap: 7px;
   align-items: center;
   width: 100%;
+  height: 72px;
   min-width: 0;
-  min-height: 60px;
+  min-height: 72px;
   padding: 6px;
   border: 1px solid var(--object-border);
   border-radius: var(--radius-object);
@@ -554,11 +555,6 @@
 :where(.app-shell) .account-slot-item.equipped:not(.loadout-highlight) {
   border-color: var(--state-selected-border);
   background: var(--state-selected-bg);
-}
-
-:where(.app-shell) .account-slot-item.equipped .account-slot-item-copy > span {
-  color: var(--text-title);
-  font-weight: 700;
 }
 
 :where(.app-shell) .account-slot-item img,
@@ -620,6 +616,37 @@
 
 :where(.app-shell) .account-slot-item-copy em[data-status="pending"] {
   color: var(--status-pending);
+}
+
+:where(.app-shell) .account-slot-item-copy > .account-slot-item-fact-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+  min-height: 18px;
+  margin-top: 1px;
+  overflow: hidden;
+}
+
+:where(.app-shell) .account-slot-item-fact-row > small {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin-top: 0;
+}
+
+:where(.app-shell) .account-slot-item-fact-row > em {
+  flex: 0 0 auto;
+  max-width: 50%;
+  margin-top: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+:where(.app-shell) .account-slot-item-fact-row > small + em::before {
+  content: "·";
+  margin-right: 6px;
+  color: var(--text-muted);
 }
 
 :where(.app-shell) .account-slot-empty,

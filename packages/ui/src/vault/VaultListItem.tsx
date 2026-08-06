@@ -48,11 +48,11 @@ export function VaultListItem(props: {
         loading={props.imagePriority ? "eager" : "lazy"}
         src={gearTierOverlay}
       />
-      {props.item.locked ? <span className="vault-item-lock-icon" aria-label="已锁定" title="已锁定"><i /></span> : null}
     </div>
   );
   const stateFlags = (
     <span className="vault-card-state-flags">
+      {props.item.locked ? <span className="vault-item-lock-icon" aria-label="已锁定" title="已锁定"><i /></span> : null}
       {isLoadoutMatch ? <small data-status="success">配装</small> : null}
       {props.isOpening ? <small data-status="pending">打开中</small> : null}
     </span>

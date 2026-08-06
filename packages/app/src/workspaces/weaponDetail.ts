@@ -301,6 +301,11 @@ export type WeaponDetailViewModel = {
   personal_targets: WeaponRecommendation[];
   same_hash_instances: WeaponDetailInstance[];
   loading: boolean;
+  loading_state: {
+    definition: boolean;
+    instance: boolean;
+    versions: boolean;
+  };
 };
 
 export type WeaponDetailSelectedItemLike = {
@@ -328,6 +333,10 @@ export type WeaponDetailSelectedItemLike = {
   is_vault_item?: boolean;
   is_postmaster_item?: boolean;
   is_detail_loading?: boolean;
+  detail_loading?: {
+    definition: boolean;
+    instance: boolean;
+  };
 };
 
 export type WeaponDetailInstanceLike = Pick<
@@ -368,6 +377,7 @@ export type BuildWeaponDetailViewModelInput = {
   personal_targets?: WeaponRecommendation[];
   same_hash_instances?: WeaponDetailInstanceLike[];
   instance_metadata?: Record<string, WeaponDetailInstanceMetadata>;
+  versions_loading?: boolean;
 };
 
 const weaponStatOrder: readonly WeaponStatKey[] = [
@@ -471,7 +481,12 @@ export function buildWeaponDetailViewModel(input: BuildWeaponDetailViewModelInpu
         item.instance_id,
         input.instance_metadata?.[instance.instance_id]
       )),
-    loading: Boolean(item.is_detail_loading)
+    loading: Boolean(item.is_detail_loading),
+    loading_state: {
+      definition: item.detail_loading?.definition ?? Boolean(item.is_detail_loading),
+      instance: item.detail_loading?.instance ?? false,
+      versions: Boolean(input.versions_loading)
+    }
   };
 }
 

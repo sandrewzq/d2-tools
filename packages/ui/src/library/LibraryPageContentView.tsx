@@ -58,6 +58,7 @@ export type LibraryPageActions = {
   onAliasKindChange: (kind: "item" | "perk") => void;
   onSaveAlias: () => void;
   onOpenItemDetail: (item: ItemSearchResult) => void;
+  onOpenRelatedItem: (item: NonNullable<PerkSearchResult["related_items"]>[number]) => void;
   onAddFavorite: (item: ItemSearchResult | PerkSearchResult) => void;
   onRemoveFavorite: (hash: number) => void;
   onLocateOwnedItem?: (item: ItemSearchResult) => void;
@@ -248,7 +249,14 @@ export function LibraryPageContentView(props: LibraryPageContentViewProps) {
             ) : null}
             {model.results.searchTouched && !isEquipmentMode ? (
               <div className="library-result-list">
-                {model.results.perks.map((perk) => renderPerkResult(perk, favoriteHashes.has(perk.perk.hash), actions.onAddFavorite, actions.onRemoveFavorite, copy))}
+                {model.results.perks.map((perk) => renderPerkResult(
+                  perk,
+                  favoriteHashes.has(perk.perk.hash),
+                  actions.onOpenRelatedItem,
+                  actions.onAddFavorite,
+                  actions.onRemoveFavorite,
+                  copy
+                ))}
               </div>
             ) : null}
             {model.status.isSearching ? <ProductWorkspaceEmptyState className="library-searching-state"><strong>正在搜索资料库</strong><span>当前筛选和查询条件正在处理。</span></ProductWorkspaceEmptyState> : null}
@@ -446,6 +454,7 @@ function renderEquipmentResult(
 function renderPerkResult(
   row: LibraryPageModel["results"]["perks"][number],
   isFavorite: boolean,
+  onOpenRelatedItem: LibraryPageActions["onOpenRelatedItem"],
   onAddFavorite: (item: ItemSearchResult | PerkSearchResult) => void,
   onRemoveFavorite: (hash: number) => void,
   copy: LibraryCopy
@@ -461,7 +470,41 @@ function renderPerkResult(
           {row.relatedGroupKeys.map((group) => <span className="app-chip status-pending" key={group}>{formatLibraryGroupLabel(group, copy)}</span>)}
           <span className="app-chip">{row.relatedItemNames.length} 件关联装备</span>
         </div>
-        <p className="library-related-items">{row.relatedItemNames.join(" / ") || libraryText(copy, "资料库里还没有查到关联装备。")}</p>
+        {row.relatedItems.length ? (
+          <details className="library-perk-related-items">
+            <summary>
+              <strong>{libraryText(copy, "关联装备")}</strong>
+              <span>{row.relatedItemsTruncated
+                ? `${libraryText(copy, "仅显示前")} ${row.relatedItems.length} ${libraryText(copy, "件关联装备，可打开定义详情")}`
+                : `${row.relatedItems.length} ${libraryText(copy, "件关联装备，可打开定义详情")}`}</span>
+            </summary>
+            <div className="library-perk-related-list">
+              {row.relatedItems.map((item) => (
+                <button
+                  type="button"
+                  key={item.hash}
+                  disabled={item.isDetailLoading}
+                  aria-busy={item.isDetailLoading}
+                  onClick={() => onOpenRelatedItem(item)}
+                >
+                  <GameAssetImage
+                    alt=""
+                    loading="lazy"
+                    src={item.icon}
+                    fallback={<span className="library-perk-related-icon-placeholder" aria-hidden="true" />}
+                  />
+                  <span className="library-perk-related-copy">
+                    <strong>{item.name}</strong>
+                    <span>{formatPerkRelatedItemMeta(item, copy)}</span>
+                  </span>
+                  <span className="library-perk-related-action">
+                    {item.isDetailLoading ? libraryText(copy, "打开中...") : libraryText(copy, "查看详情")}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </details>
+        ) : <p className="library-related-items">{libraryText(copy, "资料库里还没有查到关联装备。")}</p>}
       </div>
       <div className="library-result-actions">
         {isFavorite ? (
@@ -472,6 +515,17 @@ function renderPerkResult(
       </div>
     </article>
   );
+}
+
+function formatPerkRelatedItemMeta(
+  item: LibraryPageModel["results"]["perks"][number]["relatedItems"][number],
+  copy: LibraryCopy
+): string {
+  return [
+    item.release?.description,
+    item.item_type,
+    item.group_key ? formatLibraryGroupLabel(item.group_key, copy) : undefined
+  ].filter((value): value is string => Boolean(value)).join(" · ") || libraryText(copy, "装备定义");
 }
 
 export function LibraryDefinitionDialog(props: {

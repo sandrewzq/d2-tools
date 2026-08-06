@@ -514,7 +514,102 @@
 }
 
 :where(.app-shell) .library-related-items {
+  color: var(--text-muted);
+  font-size: var(--font-caption);
   overflow-wrap: anywhere;
+}
+
+:where(.app-shell) .library-perk-related-items {
+  min-width: 0;
+  margin-top: 2px;
+  padding-top: 7px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+:where(.app-shell) .library-perk-related-items summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  align-items: baseline;
+  color: var(--text-body);
+  cursor: pointer;
+  font-size: var(--font-caption);
+}
+
+:where(.app-shell) .library-perk-related-items summary strong {
+  color: var(--text-title);
+}
+
+:where(.app-shell) .library-perk-related-items summary span {
+  color: var(--text-muted);
+}
+
+:where(.app-shell) .library-perk-related-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 12px;
+  margin-top: 6px;
+}
+
+:where(.app-shell) .library-perk-related-list > button {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+  min-height: 48px;
+  padding: 6px 4px;
+  border: 0;
+  border-bottom: 1px solid var(--border-subtle);
+  border-radius: 0;
+  color: inherit;
+  background: transparent;
+  text-align: left;
+}
+
+:where(.app-shell) .library-perk-related-list > button:hover:not(:disabled) {
+  background: var(--item-bg-hover);
+}
+
+:where(.app-shell) .library-perk-related-list > button > img,
+:where(.app-shell) .library-perk-related-icon-placeholder {
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-control);
+}
+
+:where(.app-shell) .library-perk-related-list > button > img {
+  object-fit: cover;
+}
+
+:where(.app-shell) .library-perk-related-icon-placeholder {
+  background: var(--surface-interactive);
+}
+
+:where(.app-shell) .library-perk-related-copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+:where(.app-shell) .library-perk-related-copy strong,
+:where(.app-shell) .library-perk-related-copy span {
+  overflow-wrap: anywhere;
+}
+
+:where(.app-shell) .library-perk-related-copy strong {
+  color: var(--text-title);
+  font-size: var(--font-content);
+}
+
+:where(.app-shell) .library-perk-related-copy span,
+:where(.app-shell) .library-perk-related-action {
+  color: var(--text-muted);
+  font-size: var(--font-caption);
+}
+
+:where(.app-shell) .library-perk-related-action {
+  white-space: nowrap;
 }
 
 :where(.app-shell) .library-empty-state,
@@ -627,6 +722,10 @@
   }
 
   :where(.app-shell) .library-version-source {
+    grid-template-columns: 1fr;
+  }
+
+  :where(.app-shell) .library-perk-related-list {
     grid-template-columns: 1fr;
   }
 

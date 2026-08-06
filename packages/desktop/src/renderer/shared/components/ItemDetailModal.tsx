@@ -51,6 +51,7 @@ export type ItemDetailModalProps = {
   itemShareMessage: string;
   itemAvailability: LiveItemAvailabilityEntry | null;
   itemVersions: ItemSearchResult[];
+  isItemVersionsLoading: boolean;
   personalWeaponKnowledge: PersonalWeaponKnowledgeEntry[];
   sameNameItems: SameNameItemSummary[];
   selectedActionCharacterId: string;
@@ -118,6 +119,7 @@ export function ItemDetailModal(props: ItemDetailModalProps) {
     vaultTags: props.vaultTags,
     pendingPerks,
     versions: props.itemVersions,
+    versionsLoading: props.isItemVersionsLoading,
     sources: buildWeaponSources(selectedItem, props.itemAvailability)
   });
   const armorModel = buildArmorDetailView({

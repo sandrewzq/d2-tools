@@ -357,13 +357,14 @@ function WeaponIdentity(props: {
           entryLabel={context.entry_label}
           currentViewLabel={context.object_label}
           locationLabel={identity.slot ?? identity.item_type ?? "武器"}
-          versionFieldLabel={canSelectDefinitionVersion ? "查看版本" : versionLabel}
+          versionFieldLabel={versionLabel}
           versionValue={currentDefinition?.label ?? releaseLabel}
           versionOptions={canSelectDefinitionVersion
             ? versions.map((version) => ({ hash: version.hash, label: version.label }))
             : undefined}
           selectedVersionHash={currentDefinition?.hash ?? identity.hash}
           watermarkIcon={identity.definition_version?.current_watermark_icon}
+          versionLoading={props.model.loading_state.versions}
           onSelectVersion={canSelectDefinitionVersion ? props.onSelectVersion : undefined}
         />
         <details className="weapon-detail-definition-details">
@@ -465,8 +466,8 @@ function OverviewSection(props: {
           {props.model.stats.length ? (
             <div className="weapon-detail-stats">
               <div className="weapon-detail-stat-legend">
-                {showCurrent ? <span><i className="is-current" />当前实际值</span> : null}
-                {showStandard ? <span><i className="is-standard" />资料库标准值</span> : null}
+                {expectCurrent ? <span><i className="is-current" />{showCurrent ? "当前实际值" : props.model.loading_state.instance ? "当前实际值读取中" : "当前实际值未返回"}</span> : null}
+                {expectCurrent || showStandard ? <span><i className="is-standard" />{showStandard ? "资料库标准值" : props.model.loading_state.definition ? "资料库标准值读取中" : "资料库标准值未返回"}</span> : null}
                 {showPending ? <span><i className="is-pending" />待应用变化</span> : null}
               </div>
               {props.model.stats.map((stat) => (
@@ -476,6 +477,8 @@ function OverviewSection(props: {
                   expectCurrent={expectCurrent}
                   showStandard={showStandard}
                   showPending={showPending}
+                  isDefinitionLoading={props.model.loading_state.definition}
+                  isInstanceLoading={props.model.loading_state.instance}
                 />
               ))}
             </div>
@@ -543,10 +546,11 @@ function StatTrack(props: {
   expectCurrent: boolean;
   showStandard: boolean;
   showPending: boolean;
+  isDefinitionLoading: boolean;
+  isInstanceLoading: boolean;
 }) {
   const { stat } = props;
   const hasCurrent = props.expectCurrent && stat.current_value !== undefined;
-  const currentUnavailable = props.expectCurrent && stat.current_value === undefined;
   const maximum = Math.max(100, stat.standard_value ?? 0, stat.current_value ?? 0, stat.pending_value ?? 0);
   const currentPercent = ((stat.current_value ?? 0) / maximum) * 100;
   const pendingPercent = ((stat.pending_value ?? stat.current_value ?? 0) / maximum) * 100;
@@ -566,13 +570,18 @@ function StatTrack(props: {
   const pendingText = stat.pending_delta
     ? `${stat.pending_delta > 0 ? "+" : ""}${stat.pending_delta} → ${stat.pending_value} · ${toneLabel(pendingTone)}`
     : "无变化";
+  const currentModifierText = stat.current_modifiers.length
+    ? formatStatModifiers(stat.current_modifiers)
+    : "";
+  const pendingModifierText = stat.pending_modifiers.length
+    ? formatStatModifiers(stat.pending_modifiers)
+    : "";
   const primaryValue = hasCurrent ? stat.current_value : stat.standard_value;
   return (
     <div className={[
       "weapon-detail-stat-row",
       !hasCurrent && "is-definition",
-      ((hasCurrent && props.showStandard) || currentUnavailable) && "has-standard",
-      props.showPending && "has-pending"
+      props.expectCurrent && "has-standard"
     ].filter(Boolean).join(" ")} style={style}>
       <strong>{stat.label}</strong>
       <span className="weapon-detail-stat-value">{primaryValue ?? "—"}</span>
@@ -581,17 +590,26 @@ function StatTrack(props: {
         {props.showStandard && stat.standard_value !== undefined ? <b /> : null}
         {props.showPending && stat.pending_delta ? <em className={stat.pending_delta > 0 ? "is-increase" : "is-decrease"} /> : null}
       </span>
-      {hasCurrent && props.showStandard ? (
+      {props.expectCurrent ? (
         <span className="weapon-detail-stat-comparison">
-          <small>标准 {stat.standard_value ?? "—"}</small>
-          {currentText ? <small className={`is-${currentTone}`}>{currentText}</small> : null}
-          {stat.current_modifiers.length ? <small>{formatStatModifiers(stat.current_modifiers)}</small> : null}
-        </span>
-      ) : currentUnavailable ? <span className="weapon-detail-stat-comparison"><small>实际值未返回，当前显示标准值</small></span> : null}
-      {props.showPending ? (
-        <span className="weapon-detail-stat-comparison">
-          <small className={`is-${pendingTone}`}>{pendingText}</small>
-          {stat.pending_modifiers.length ? <small>{formatStatModifiers(stat.pending_modifiers)}</small> : null}
+          {stat.standard_value !== undefined ? (
+            <small>标准 {stat.standard_value}</small>
+          ) : <small>{props.isDefinitionLoading ? "标准值读取中" : "标准值未返回"}</small>}
+          {hasCurrent
+            ? (
+              <small className={`is-${currentTone}`} title={currentModifierText || undefined}>
+                {[currentText ?? "当前值已读取", currentModifierText].filter(Boolean).join(" · ")}
+              </small>
+            )
+            : <small>{props.isInstanceLoading ? "实际值读取中" : "实际值未返回"}</small>}
+          {props.showPending ? (
+            <small className={`is-${pendingTone}`} title={pendingModifierText || undefined}>
+              {[
+                `待应用 ${pendingText}`,
+                pendingModifierText
+              ].filter(Boolean).join(" · ")}
+            </small>
+          ) : null}
         </span>
       ) : null}
     </div>

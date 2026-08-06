@@ -240,6 +240,7 @@ export function HomePageItemDetailModal(props: {
       itemShareMessage={itemDetail.itemShareMessage}
       itemAvailability={itemDetail.selectedItemAvailability}
       itemVersions={itemDetail.selectedItemVersions}
+      isItemVersionsLoading={itemDetail.isSelectedItemVersionsLoading}
       personalWeaponKnowledge={itemDetail.personalWeaponKnowledge}
       sameNameItems={itemDetail.selectedSameNameItems}
       selectedActionCharacterId={itemDetail.selectedActionCharacterId}

@@ -145,7 +145,12 @@ export const webLibraryItems: ItemSearchResult[] = [
     perks: []
   }
 ];
-export const webLibraryPerks: PerkSearchResult[] = [{ hash: 4001, name: "动能震颤", description: "连续命中目标后产生动能冲击波。", related_items: [] }];
+export const webLibraryPerks: PerkSearchResult[] = [{
+  hash: 4001,
+  name: "动能震颤",
+  description: "连续命中目标后产生动能冲击波。",
+  related_items: [{ hash: 3001, name: "快速命中脉冲", item_type: "脉冲步枪", group_key: "weapons" }]
+}];
 export const webLibraryHistory = { recent: [{ hash: 3001, name: "快速命中脉冲" }], favorites: [] };
 export const webLibraryCommunityMatch = new Map<number, VaultItemMatchInfo>([[3001, { available: 1, sample_perks: [{ name: "快速命中" }] }]]);
 export const webLiveAvailability = { account_scope: "character" as const, items: {} };
