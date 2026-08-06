@@ -26,7 +26,11 @@ import type { HealthStatus } from "@d2-tools/core/health";
 import type { ItemAliases, ItemAliasEntry } from "@d2-tools/core/items/aliases";
 import type { ItemDefinitionDetail } from "@d2-tools/core/items/detail";
 import type { LiveItemAvailability } from "@d2-tools/core/items/liveAvailability";
-import type { PerkSearchResult } from "@d2-tools/core/items/perkSearch";
+import type {
+  PerkRelatedEquipmentPage,
+  PerkRelatedEquipmentQuery,
+  PerkSearchResult
+} from "@d2-tools/core/items/perkSearch";
 import type { ItemSearchResult } from "@d2-tools/core/items/search";
 import type { ArmorSetCatalogItem } from "@d2-tools/core/items/equipableItemSet";
 import type { LibraryHistory, LibraryHistoryItem } from "@d2-tools/core/library/history";
@@ -123,6 +127,8 @@ contextBridge.exposeInMainWorld("d2", {
   repairManifest: () => invokeDesktopIpc<ManifestStatus>("manifest:repair"),
   searchItems: (query: string) => invokeDesktopIpc<ItemSearchResult[]>("items:search", query),
   searchPerks: (query: string) => invokeDesktopIpc<PerkSearchResult[]>("items:perks:search", query),
+  getPerkRelatedEquipment: (input: PerkRelatedEquipmentQuery) =>
+    invokeDesktopIpc<PerkRelatedEquipmentPage<ItemSearchResult>>("items:perks:related", input),
   getArmorSetCatalog: () => invokeDesktopIpc<ArmorSetCatalogItem[]>("items:armor-sets:list"),
   getLiveItemAvailability: (itemHashes: number[]) =>
     invokeDesktopIpc<LiveItemAvailability>("items:live-availability", itemHashes),

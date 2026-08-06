@@ -1,5 +1,12 @@
-import { searchPerkDefinitions } from "@d2-tools/core/items/perkSearch";
-import { getItemSearchResultByHash, searchItemDefinitions } from "@d2-tools/core/items/search";
+import {
+  findRelatedEquipmentDefinitions,
+  searchPerkDefinitions
+} from "@d2-tools/core/items/perkSearch";
+import {
+  getItemSearchResultByHash,
+  searchItemDefinitions,
+  type ItemSearchResult
+} from "@d2-tools/core/items/search";
 import type { DefinitionComponentName } from "@d2-tools/core/manifest/definitions";
 import { loadDefinitionComponent } from "../manifest/definitions.js";
 import type { GameDataCatalog } from "./catalog.js";
@@ -42,11 +49,44 @@ export function createJsonGameDataCatalog(options: JsonGameDataCatalogOptions): 
 
       return searchPerkDefinitions(perkDefinitions, input.query, {
         limit: input.limit ?? 20,
-        relatedItemLimit: 40,
         itemDefinitions: load("DestinyInventoryItemDefinition") ?? undefined,
         plugSetDefinitions: load("DestinyPlugSetDefinition") ?? undefined,
         aliases: input.aliases
       });
+    },
+
+    async getPerkRelatedEquipment(input) {
+      const definitions = load("DestinyInventoryItemDefinition");
+      if (!definitions) {
+        throw new Error("请先初始化资料库");
+      }
+      const plugSetDefinitions = load("DestinyPlugSetDefinition") ?? undefined;
+      const relatedDefinitions = findRelatedEquipmentDefinitions(
+        input.perk_hashes,
+        definitions,
+        plugSetDefinitions
+      );
+      const offset = Math.max(0, Math.trunc(input.offset ?? 0));
+      const limit = Math.max(1, Math.min(Math.trunc(input.limit ?? 20), 100));
+      const pageDefinitions = relatedDefinitions.slice(offset, offset + limit);
+      const itemOptions = {
+        plugSetDefinitions,
+        statDefinitions: load("DestinyStatDefinition") ?? undefined,
+        collectibleDefinitions: load("DestinyCollectibleDefinition") ?? undefined,
+        breakerTypeDefinitions: load("DestinyBreakerTypeDefinition") ?? undefined,
+        damageTypeDefinitions: load("DestinyDamageTypeDefinition") ?? undefined,
+        seasonDefinitions: load("DestinySeasonDefinition") ?? undefined,
+        equipableItemSetDefinitions: load("DestinyEquipableItemSetDefinition") ?? undefined,
+        sandboxPerkDefinitions: load("DestinySandboxPerkDefinition") ?? undefined
+      };
+      return {
+        total: relatedDefinitions.length,
+        items: pageDefinitions
+          .map((definition) => getItemSearchResultByHash(definitions, Number(definition.hash), itemOptions))
+          .filter((item): item is ItemSearchResult => Boolean(item)),
+        offset,
+        has_more: offset + pageDefinitions.length < relatedDefinitions.length
+      };
     },
 
     async getItemDetail(input) {

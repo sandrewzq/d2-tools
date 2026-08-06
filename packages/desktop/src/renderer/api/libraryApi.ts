@@ -19,6 +19,7 @@ export type LibraryApi = {
   getArmorSetCatalog(): Promise<ArmorSetCatalogItem[]>;
   searchItems(query: string): Promise<ItemSearchResult[]>;
   searchPerks(query: string): Promise<PerkSearchResult[]>;
+  getPerkRelatedEquipment(input: PerkRelatedEquipmentQuery): Promise<PerkRelatedEquipmentPage>;
   getLiveItemAvailability(itemHashes: number[]): Promise<LiveItemAvailability>;
   getItemAliases(): Promise<ItemAliases>;
   saveItemAlias(input: ItemAliasEntry): Promise<ItemAliases>;
@@ -67,19 +68,27 @@ export type ItemSearchResult = {
 };
 
 export type PerkSearchResult = {
+  key: string;
   hash: number;
+  hashes: number[];
   name: string;
   description: string;
   icon?: string;
-  related_items?: Array<{
-    hash: number;
-    name: string;
-    icon?: string;
-    item_type?: string;
-    group_key?: EquipmentGroupKey;
-    release?: ItemReleaseSummary;
-  }>;
-  related_items_truncated?: boolean;
+  related_count: number;
+  related_groups: EquipmentGroupKey[];
+};
+
+export type PerkRelatedEquipmentQuery = {
+  perk_hashes: number[];
+  offset?: number;
+  limit?: number;
+};
+
+export type PerkRelatedEquipmentPage = {
+  total: number;
+  items: ItemSearchResult[];
+  offset: number;
+  has_more: boolean;
 };
 
 export type ItemAliasEntry = {

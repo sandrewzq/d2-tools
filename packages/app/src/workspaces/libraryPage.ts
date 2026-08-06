@@ -64,21 +64,28 @@ export type ItemSearchResult = {
 };
 
 export type PerkSearchResult = {
+  key: string;
   hash: number;
+  hashes: number[];
   name: string;
   description: string;
   icon?: string;
-  related_items?: PerkRelatedItem[];
-  related_items_truncated?: boolean;
+  related_count: number;
+  related_groups: EquipmentGroupKey[];
 };
 
-export type PerkRelatedItem = {
-  hash: number;
-  name: string;
-  icon?: string;
-  item_type?: string;
-  group_key?: EquipmentGroupKey;
-  release?: ItemReleaseSummary;
+export type LibraryPerkRelatedEquipmentState = {
+  items: ItemSearchResult[];
+  total: number;
+  hasMore: boolean;
+  isLoading: boolean;
+  isLoaded: boolean;
+  error: string;
+};
+
+export type NormalizedLibraryPerkSearchPayload = {
+  perks: PerkSearchResult[];
+  legacyRelatedEquipment: Record<string, LibraryPerkRelatedEquipmentState>;
 };
 
 export type LibraryHistory = {
@@ -191,6 +198,7 @@ export type LibraryDropQueryGroup = {
 export type LibraryPageCache = {
   items: ItemSearchResult[];
   perks: PerkSearchResult[];
+  perkRelatedEquipment: Record<string, LibraryPerkRelatedEquipmentState>;
   libraryHistory: LibraryHistory;
   libraryCommunityMatch: Map<number, VaultItemMatchInfo>;
   liveAvailability: LiveItemAvailability | null;
@@ -251,10 +259,13 @@ export type LibraryEquipmentResultGroupView = {
 export type LibraryPerkResultView = {
   perk: PerkSearchResult;
   relatedGroupKeys: EquipmentGroupKey[];
-  relatedItems: Array<PerkRelatedItem & { isDetailLoading: boolean }>;
-  relatedItemsTruncated: boolean;
-  relatedItemNames: string[];
+  relatedItems: Array<ItemSearchResult & { isDetailLoading: boolean }>;
+  relatedCount: number;
   hasRelatedItems: boolean;
+  hasMoreRelatedItems: boolean;
+  isRelatedItemsLoading: boolean;
+  areRelatedItemsLoaded: boolean;
+  relatedItemsError: string;
 };
 
 export type LibraryPageModel = {
@@ -359,6 +370,101 @@ export const defaultLibraryPerkFilter: LibraryPerkFilter = {
   hasRelatedItems: "all"
 };
 
+export function normalizeLibraryPerkSearchPayload(value: unknown): NormalizedLibraryPerkSearchPayload {
+  if (!Array.isArray(value)) {
+    return { perks: [], legacyRelatedEquipment: {} };
+  }
+
+  const groups = new Map<string, {
+    name: string;
+    description: string;
+    icon?: string;
+    hashes: Set<number>;
+    relatedCount: number;
+    relatedGroups: Set<EquipmentGroupKey>;
+    legacyItems: Map<number, ItemSearchResult>;
+    hasLegacyPayload: boolean;
+    legacyTruncated: boolean;
+  }>();
+
+  for (const entry of value) {
+    if (!isRecord(entry)) continue;
+    const hash = finiteNumber(entry.hash);
+    const name = typeof entry.name === "string" ? entry.name.trim() : "";
+    if (hash === undefined || !name) continue;
+
+    const description = typeof entry.description === "string"
+      ? entry.description.replace(/\s+/g, " ").trim()
+      : "";
+    const icon = typeof entry.icon === "string" && entry.icon ? entry.icon : undefined;
+    const identity = [name.toLocaleLowerCase(), description, icon ?? ""].join("\u0000");
+    const group = groups.get(identity) ?? {
+      name,
+      description,
+      ...(icon ? { icon } : {}),
+      hashes: new Set<number>(),
+      relatedCount: 0,
+      relatedGroups: new Set<EquipmentGroupKey>(),
+      legacyItems: new Map<number, ItemSearchResult>(),
+      hasLegacyPayload: false,
+      legacyTruncated: false
+    };
+
+    const hashes = Array.isArray(entry.hashes)
+      ? entry.hashes.map(finiteNumber).filter((item): item is number => item !== undefined)
+      : [hash];
+    if (!hashes.length) hashes.push(hash);
+    for (const candidateHash of hashes) group.hashes.add(candidateHash);
+
+    if (Array.isArray(entry.related_groups)) {
+      for (const candidateGroup of entry.related_groups) {
+        if (isEquipmentGroupKey(candidateGroup)) group.relatedGroups.add(candidateGroup);
+      }
+    }
+
+    const legacyItems = Array.isArray(entry.related_items)
+      ? entry.related_items.map(normalizeLegacyPerkRelatedItem).filter((item): item is ItemSearchResult => Boolean(item))
+      : [];
+    if (Array.isArray(entry.related_items)) group.hasLegacyPayload = true;
+    for (const item of legacyItems) {
+      group.legacyItems.set(item.hash, item);
+      if (item.group_key) group.relatedGroups.add(item.group_key);
+    }
+    group.legacyTruncated ||= entry.related_items_truncated === true;
+    const relatedCount = finiteNumber(entry.related_count) ?? legacyItems.length;
+    group.relatedCount = Math.max(group.relatedCount, relatedCount, group.legacyItems.size);
+    groups.set(identity, group);
+  }
+
+  const legacyRelatedEquipment: Record<string, LibraryPerkRelatedEquipmentState> = {};
+  const perks = [...groups.values()].map((group) => {
+    const hashes = [...group.hashes].sort((left, right) => left - right);
+    const key = `perk:${hashes.join(",")}`;
+    if (group.hasLegacyPayload && group.legacyItems.size) {
+      legacyRelatedEquipment[key] = {
+        items: [...group.legacyItems.values()],
+        total: group.relatedCount,
+        hasMore: group.legacyTruncated || group.relatedCount > group.legacyItems.size,
+        isLoading: false,
+        isLoaded: true,
+        error: ""
+      };
+    }
+    return {
+      key,
+      hash: hashes[0]!,
+      hashes,
+      name: group.name,
+      description: group.description,
+      ...(group.icon ? { icon: group.icon } : {}),
+      related_count: group.relatedCount,
+      related_groups: [...group.relatedGroups]
+    };
+  });
+
+  return { perks, legacyRelatedEquipment };
+}
+
 export function selectLibraryPageModel(cache: LibraryPageCache, state: LibraryPageState): LibraryPageModel {
   const ownership = buildLibraryOwnership(cache.accountSummary);
   const visibleItems = filterLibraryEquipmentItems(cache.items, state.equipmentFilters, ownership);
@@ -404,7 +510,11 @@ export function selectLibraryPageModel(cache: LibraryPageCache, state: LibraryPa
         ownershipAvailable: Boolean(cache.accountSummary),
         itemDetailLoadingKey: state.itemDetailLoadingKey
       }),
-      perks: visiblePerks.map((perk) => createPerkResultView(perk, state.itemDetailLoadingKey))
+      perks: visiblePerks.map((perk) => createPerkResultView(
+        perk,
+        cache.perkRelatedEquipment[perk.key],
+        state.itemDetailLoadingKey
+      ))
     },
     stats: {
       dropQuery: {
@@ -513,18 +623,18 @@ export function filterLibraryPerks(perks: PerkSearchResult[], filter: LibraryPer
   const query = filter.query.trim().toLocaleLowerCase();
 
   return perks.filter((perk) => {
-    const relatedItems = perk.related_items ?? [];
-    if (filter.hasRelatedItems === "yes" && !relatedItems.length) return false;
-    if (filter.hasRelatedItems === "no" && relatedItems.length) return false;
-    if (filter.relatedGroup !== "all" && !relatedItems.some((item) => item.group_key === filter.relatedGroup)) {
+    const relatedCount = finiteNumber(perk.related_count) ?? 0;
+    const relatedGroups = Array.isArray(perk.related_groups) ? perk.related_groups : [];
+    if (filter.hasRelatedItems === "yes" && relatedCount === 0) return false;
+    if (filter.hasRelatedItems === "no" && relatedCount > 0) return false;
+    if (filter.relatedGroup !== "all" && !relatedGroups.includes(filter.relatedGroup)) {
       return false;
     }
     if (!query) return true;
 
     return [
       perk.name,
-      perk.description,
-      ...relatedItems.map((item) => item.name)
+      perk.description
     ]
       .filter(Boolean)
       .some((value) => value?.toLocaleLowerCase().includes(query));
@@ -567,10 +677,8 @@ export function buildLibraryPerkGroupOptions(perks: PerkSearchResult[]): Library
   const presentGroups = new Set<EquipmentGroupKey>();
 
   for (const perk of perks) {
-    for (const item of perk.related_items ?? []) {
-      if (item.group_key) {
-        presentGroups.add(item.group_key);
-      }
+    for (const group of perk.related_groups ?? []) {
+      presentGroups.add(group);
     }
   }
 
@@ -733,19 +841,63 @@ function addOwnedItems(
   }
 }
 
-function createPerkResultView(perk: PerkSearchResult, itemDetailLoadingKey: string): LibraryPerkResultView {
-  const relatedItems = perk.related_items ?? [];
+function createPerkResultView(
+  perk: PerkSearchResult,
+  relatedState: LibraryPerkRelatedEquipmentState | undefined,
+  itemDetailLoadingKey: string
+): LibraryPerkResultView {
+  const relatedItems = relatedState?.items ?? [];
+  const relatedCount = relatedState?.total ?? finiteNumber(perk.related_count) ?? 0;
   return {
     perk,
-    relatedGroupKeys: [...new Set(relatedItems.map((item) => item.group_key).filter((group): group is EquipmentGroupKey => Boolean(group)))],
+    relatedGroupKeys: perk.related_groups ?? [],
     relatedItems: relatedItems.map((item) => ({
       ...item,
       isDetailLoading: itemDetailLoadingKey === `hash:${item.hash}`
     })),
-    relatedItemsTruncated: perk.related_items_truncated === true,
-    relatedItemNames: relatedItems.map((item) => item.name),
-    hasRelatedItems: relatedItems.length > 0
+    relatedCount,
+    hasRelatedItems: relatedCount > 0,
+    hasMoreRelatedItems: relatedState?.hasMore ?? false,
+    isRelatedItemsLoading: relatedState?.isLoading ?? false,
+    areRelatedItemsLoaded: relatedState?.isLoaded ?? false,
+    relatedItemsError: relatedState?.error ?? ""
   };
+}
+
+function normalizeLegacyPerkRelatedItem(value: unknown): ItemSearchResult | null {
+  if (!isRecord(value)) return null;
+  const hash = finiteNumber(value.hash);
+  const name = typeof value.name === "string" ? value.name.trim() : "";
+  if (hash === undefined || !name) return null;
+  const groupKey = isEquipmentGroupKey(value.group_key) ? value.group_key : undefined;
+  return {
+    hash,
+    name,
+    description: typeof value.description === "string" ? value.description : "",
+    ...(typeof value.icon === "string" && value.icon ? { icon: value.icon } : {}),
+    ...(typeof value.item_type === "string" && value.item_type ? { item_type: value.item_type } : {}),
+    ...(groupKey ? { group_key: groupKey } : {}),
+    ...(isRecord(value.release) ? { release: value.release as ItemReleaseSummary } : {}),
+    source: {
+      status: "missing",
+      label: "获取来源",
+      description: "当前 Desktop 运行时只返回了旧版关联摘要。"
+    }
+  };
+}
+
+function isEquipmentGroupKey(value: unknown): value is EquipmentGroupKey {
+  return value === "weapons" || value === "armor" || value === "equipment" || value === "other";
+}
+
+function finiteNumber(value: unknown): number | undefined {
+  if (typeof value !== "number" && typeof value !== "string") return undefined;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : undefined;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
 function buildManifestAlertModel(

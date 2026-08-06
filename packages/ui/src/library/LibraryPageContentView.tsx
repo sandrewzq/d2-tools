@@ -58,7 +58,8 @@ export type LibraryPageActions = {
   onAliasKindChange: (kind: "item" | "perk") => void;
   onSaveAlias: () => void;
   onOpenItemDetail: (item: ItemSearchResult) => void;
-  onOpenRelatedItem: (item: NonNullable<PerkSearchResult["related_items"]>[number]) => void;
+  onLoadPerkRelatedEquipment: (perk: PerkSearchResult, loadMore?: boolean) => void;
+  onOpenRelatedItem: (item: ItemSearchResult) => void;
   onAddFavorite: (item: ItemSearchResult | PerkSearchResult) => void;
   onRemoveFavorite: (hash: number) => void;
   onLocateOwnedItem?: (item: ItemSearchResult) => void;
@@ -252,6 +253,7 @@ export function LibraryPageContentView(props: LibraryPageContentViewProps) {
                 {model.results.perks.map((perk) => renderPerkResult(
                   perk,
                   favoriteHashes.has(perk.perk.hash),
+                  actions.onLoadPerkRelatedEquipment,
                   actions.onOpenRelatedItem,
                   actions.onAddFavorite,
                   actions.onRemoveFavorite,
@@ -454,6 +456,7 @@ function renderEquipmentResult(
 function renderPerkResult(
   row: LibraryPageModel["results"]["perks"][number],
   isFavorite: boolean,
+  onLoadPerkRelatedEquipment: LibraryPageActions["onLoadPerkRelatedEquipment"],
   onOpenRelatedItem: LibraryPageActions["onOpenRelatedItem"],
   onAddFavorite: (item: ItemSearchResult | PerkSearchResult) => void,
   onRemoveFavorite: (hash: number) => void,
@@ -461,48 +464,62 @@ function renderPerkResult(
 ) {
   const perk = row.perk;
   return (
-    <article className="library-result-row library-perk-result-row" key={perk.hash}>
+    <article className="library-result-row library-perk-result-row" key={perk.key}>
       <GameAssetImage className="game-definition-icon" alt="" loading="eager" src={perk.icon} fallback={<span className="library-result-icon-placeholder" aria-hidden="true" />} />
       <div className="library-result-body">
         <h3>{perk.name}</h3>
         {perk.description ? <p>{perk.description}</p> : null}
         <div className="library-result-facts">
           {row.relatedGroupKeys.map((group) => <span className="app-chip status-pending" key={group}>{formatLibraryGroupLabel(group, copy)}</span>)}
-          <span className="app-chip">{row.relatedItemNames.length} 件关联装备</span>
+          <span className="app-chip">{row.relatedCount} 件关联装备</span>
         </div>
-        {row.relatedItems.length ? (
-          <details className="library-perk-related-items">
+        {row.hasRelatedItems ? (
+          <details
+            className="library-perk-related-items"
+            onToggle={(event) => {
+              if (event.currentTarget.open && !row.areRelatedItemsLoaded && !row.isRelatedItemsLoading) {
+                onLoadPerkRelatedEquipment(perk);
+              }
+            }}
+          >
             <summary>
               <strong>{libraryText(copy, "关联装备")}</strong>
-              <span>{row.relatedItemsTruncated
-                ? `${libraryText(copy, "仅显示前")} ${row.relatedItems.length} ${libraryText(copy, "件关联装备，可打开定义详情")}`
-                : `${row.relatedItems.length} ${libraryText(copy, "件关联装备，可打开定义详情")}`}</span>
+              <span>{row.relatedCount} {libraryText(copy, "件关联装备，可按版本查看详情")}</span>
             </summary>
-            <div className="library-perk-related-list">
-              {row.relatedItems.map((item) => (
+            {row.isRelatedItemsLoading && !row.relatedItems.length ? (
+              <p className="library-perk-related-status" aria-live="polite">{libraryText(copy, "正在读取关联装备...")}</p>
+            ) : null}
+            {row.relatedItemsError ? (
+              <div className="library-perk-related-status status-error">
+                <span>{row.relatedItemsError}</span>
+                <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={() => onLoadPerkRelatedEquipment(perk)}>
+                  {libraryText(copy, "重试")}
+                </button>
+              </div>
+            ) : null}
+            {row.areRelatedItemsLoaded && !row.relatedItems.length ? (
+              <p className="library-perk-related-status">{libraryText(copy, "资料库关系存在，但当前版本没有可展示的装备定义。")}</p>
+            ) : null}
+            {row.relatedItems.length ? (
+              <div className="library-perk-related-list">
+                {row.relatedItems.map((item) => renderPerkRelatedEquipment(item, onOpenRelatedItem, copy))}
+              </div>
+            ) : null}
+            {row.hasMoreRelatedItems ? (
+              <div className="library-perk-related-more">
                 <button
                   type="button"
-                  key={item.hash}
-                  disabled={item.isDetailLoading}
-                  aria-busy={item.isDetailLoading}
-                  onClick={() => onOpenRelatedItem(item)}
+                  data-ui-kind="button"
+                  data-control-variant="secondary"
+                  disabled={row.isRelatedItemsLoading}
+                  aria-busy={row.isRelatedItemsLoading}
+                  onClick={() => onLoadPerkRelatedEquipment(perk, true)}
                 >
-                  <GameAssetImage
-                    alt=""
-                    loading="lazy"
-                    src={item.icon}
-                    fallback={<span className="library-perk-related-icon-placeholder" aria-hidden="true" />}
-                  />
-                  <span className="library-perk-related-copy">
-                    <strong>{item.name}</strong>
-                    <span>{formatPerkRelatedItemMeta(item, copy)}</span>
-                  </span>
-                  <span className="library-perk-related-action">
-                    {item.isDetailLoading ? libraryText(copy, "打开中...") : libraryText(copy, "查看详情")}
-                  </span>
+                  {row.isRelatedItemsLoading ? libraryText(copy, "加载中...") : libraryText(copy, "加载更多")}
                 </button>
-              ))}
-            </div>
+                <span>{libraryText(copy, "已显示")} {row.relatedItems.length} / {row.relatedCount}</span>
+              </div>
+            ) : null}
           </details>
         ) : <p className="library-related-items">{libraryText(copy, "资料库里还没有查到关联装备。")}</p>}
       </div>
@@ -517,15 +534,60 @@ function renderPerkResult(
   );
 }
 
-function formatPerkRelatedItemMeta(
+function renderPerkRelatedEquipment(
   item: LibraryPageModel["results"]["perks"][number]["relatedItems"][number],
+  onOpenRelatedItem: LibraryPageActions["onOpenRelatedItem"],
   copy: LibraryCopy
-): string {
-  return [
-    item.release?.description,
-    item.item_type,
-    item.group_key ? formatLibraryGroupLabel(item.group_key, copy) : undefined
-  ].filter((value): value is string => Boolean(value)).join(" · ") || libraryText(copy, "装备定义");
+): ReactNode {
+  const tags = [
+    toLibraryEquipmentTag(item.tier),
+    toLibraryEquipmentTag(item.item_type),
+    toLibraryEquipmentTag(item.weapon_frame?.name),
+    toLibraryAmmoTag(item.ammo_type, copy),
+    toLibraryElementTag(item.damage_type),
+    item.is_adept ? toLibraryEquipmentTag(libraryText(copy, "专家")) : undefined
+  ].filter((tag): tag is LibraryEquipmentTag => Boolean(tag));
+  const version = item.release?.description ?? libraryText(copy, "版本待确认");
+  const source = item.source.status === "ready"
+    ? `${libraryText(copy, "历史来源：")}${item.source.description}`
+    : libraryText(copy, "当前获取状态待确认");
+
+  return (
+    <button
+      type="button"
+      key={item.hash}
+      disabled={item.isDetailLoading}
+      aria-busy={item.isDetailLoading}
+      onClick={() => onOpenRelatedItem(item)}
+    >
+      <span className="library-perk-related-icon">
+        <GameAssetImage
+          alt=""
+          loading="lazy"
+          src={item.icon}
+          fallback={<span className="library-perk-related-icon-placeholder" aria-hidden="true" />}
+        />
+        {item.definition_version?.current_watermark_icon ? (
+          <GameAssetImage className="library-perk-related-watermark" alt="" loading="lazy" src={item.definition_version.current_watermark_icon} />
+        ) : null}
+      </span>
+      <span className="library-perk-related-copy">
+        <span className="library-perk-related-title">
+          <strong>{item.name}</strong>
+          <span className="library-result-version" title={version}><span>{libraryText(copy, "版本")}</span><strong>{version}</strong></span>
+        </span>
+        {tags.length ? (
+          <span className="library-perk-related-tags" aria-label={libraryText(copy, "装备信息")}>
+            {tags.map((tag, index) => <span className={tag.className} key={`${tag.label}-${index}`}>{tag.icon}{tag.label}</span>)}
+          </span>
+        ) : null}
+        <span className="library-perk-related-source">{source}</span>
+      </span>
+      <span className="library-perk-related-action">
+        {item.isDetailLoading ? libraryText(copy, "打开中...") : libraryText(copy, "查看详情")}
+      </span>
+    </button>
+  );
 }
 
 export function LibraryDefinitionDialog(props: {
@@ -909,7 +971,7 @@ function formatLibraryLiveChannel(liveEntry: LiveEntry | undefined, copy: Librar
 }
 
 function formatLibraryGroupLabel(
-  group: ItemSearchResult["group_key"] | NonNullable<PerkSearchResult["related_items"]>[number]["group_key"],
+  group: ItemSearchResult["group_key"],
   copy: LibraryCopy
 ) {
   if (group === "weapons") return libraryText(copy, "武器");

@@ -1,7 +1,7 @@
 import { expandAliasQuery } from "@d2-tools/core/items/aliases";
 import {
-  searchPerkDefinitions,
-  type PerkSearchResult
+  collectRelatedGroups,
+  projectPerkSearchResults
 } from "@d2-tools/core/items/perkSearch";
 import {
   getItemSearchResultByHash,
@@ -80,30 +80,66 @@ export function createReaderGameDataCatalog(
       const perkHashes = options.searchIndex.search(
         "perk",
         terms,
-        Math.max(limit * 4, 40)
+        Math.max(limit * 8, 80)
       );
       const perkDefinitions = options.reader.getMany(
         "DestinySandboxPerkDefinition",
         perkHashes
       );
-      const relatedItemLimit = 40;
-      const relatedItemHashes = options.searchIndex.getRelatedItemHashes(perkHashes, relatedItemLimit + 1);
-      const plugHashes = options.searchIndex.getPlugHashes(perkHashes);
-      const relatedItems = options.reader.getMany(
+      const perkIconDefinitions = options.reader.getMany(
         "DestinyInventoryItemDefinition",
-        [...relatedItemHashes, ...plugHashes]
+        options.searchIndex.getPlugHashes(perkHashes)
       );
-      const plugSets = options.reader.getMany(
-        "DestinyPlugSetDefinition",
-        collectPlugSetHashes(Object.values(relatedItems))
-      );
-
-      return projectPerkSearchResults(perkHashes, perkDefinitions, {
+      const results = projectPerkSearchResults(perkHashes, perkDefinitions, {
         limit,
-        relatedItemLimit,
-        itemDefinitions: relatedItems,
-        plugSetDefinitions: plugSets
+        perkIconDefinitions
       });
+      return results.map((result) => {
+        const summary = options.searchIndex.getRelatedItemSummary(result.hashes);
+        const relatedDefinitions = options.reader.getMany(
+          "DestinyInventoryItemDefinition",
+          summary.hashes
+        );
+        return {
+          ...result,
+          related_count: summary.total,
+          related_groups: collectRelatedGroups(Object.values(relatedDefinitions))
+        };
+      });
+    },
+
+    async getPerkRelatedEquipment(input) {
+      const offset = Math.max(0, Math.trunc(input.offset ?? 0));
+      const limit = Math.max(1, Math.min(Math.trunc(input.limit ?? 20), 100));
+      const page = options.searchIndex.getRelatedItemPage(input.perk_hashes, offset, limit);
+      const definitions = options.reader.getMany(
+        "DestinyInventoryItemDefinition",
+        page.hashes
+      );
+      const context = hydrateItemContext(
+        options.reader,
+        options.searchIndex,
+        Object.values(definitions)
+      );
+      const items = page.hashes
+        .map((hash) => getItemSearchResultByHash(context.items, hash, {
+          plugSetDefinitions: context.plugSets,
+          statDefinitions: context.stats,
+          collectibleDefinitions: context.collectibles,
+          breakerTypeDefinitions: context.breakerTypes,
+          damageTypeDefinitions: context.damageTypes,
+          seasonDefinitions: context.seasons,
+          equipableItemSetDefinitions: context.equipableItemSets,
+          sandboxPerkDefinitions: context.sandboxPerks
+        }))
+        .filter((result): result is ItemSearchResult => Boolean(result));
+
+      return {
+        total: page.total,
+        items,
+        offset,
+        has_more: offset + page.hashes.length < page.total
+      };
     },
 
     async getItemDetail(input) {
@@ -133,47 +169,6 @@ export function createReaderGameDataCatalog(
       }
     }
   };
-}
-
-type PerkProjectionOptions = {
-  limit: number;
-  relatedItemLimit: number;
-  itemDefinitions: DefinitionComponentData;
-  plugSetDefinitions: DefinitionComponentData;
-};
-
-function projectPerkSearchResults(
-  candidateHashes: number[],
-  perkDefinitions: DefinitionComponentData,
-  options: PerkProjectionOptions
-): PerkSearchResult[] {
-  const results: PerkSearchResult[] = [];
-  for (const hash of candidateHashes) {
-    const unsignedHash = toUnsignedHash(hash);
-    const definition = perkDefinitions[String(unsignedHash)];
-    const localizedName = definition?.displayProperties?.name?.trim();
-    if (!definition || !localizedName) {
-      continue;
-    }
-
-    const [result] = searchPerkDefinitions(
-      { [String(unsignedHash)]: definition },
-      localizedName,
-      {
-        limit: 1,
-        relatedItemLimit: options.relatedItemLimit,
-        itemDefinitions: options.itemDefinitions,
-        plugSetDefinitions: options.plugSetDefinitions
-      }
-    );
-    if (result) {
-      results.push(result);
-    }
-    if (results.length >= options.limit) {
-      break;
-    }
-  }
-  return results;
 }
 
 type ItemDefinitionContext = {

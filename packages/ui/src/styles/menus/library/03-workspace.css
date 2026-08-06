@@ -546,19 +546,18 @@
 
 :where(.app-shell) .library-perk-related-list {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  column-gap: 12px;
+  grid-template-columns: minmax(0, 1fr);
   margin-top: 6px;
 }
 
 :where(.app-shell) .library-perk-related-list > button {
   display: grid;
-  grid-template-columns: 34px minmax(0, 1fr) auto;
-  gap: 8px;
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+  gap: 10px;
   align-items: center;
   min-width: 0;
-  min-height: 48px;
-  padding: 6px 4px;
+  min-height: 64px;
+  padding: 7px 4px;
   border: 0;
   border-bottom: 1px solid var(--border-subtle);
   border-radius: 0;
@@ -571,15 +570,37 @@
   background: var(--item-bg-hover);
 }
 
-:where(.app-shell) .library-perk-related-list > button > img,
+:where(.app-shell) .library-perk-related-icon,
 :where(.app-shell) .library-perk-related-icon-placeholder {
-  width: 34px;
-  height: 34px;
+  width: 40px;
+  height: 40px;
   border-radius: var(--radius-control);
 }
 
-:where(.app-shell) .library-perk-related-list > button > img {
+:where(.app-shell) .library-perk-related-icon {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  background: var(--surface-interactive);
+}
+
+:where(.app-shell) .library-perk-related-icon > img,
+:where(.app-shell) .library-perk-related-icon > .library-perk-related-icon-placeholder {
+  width: 100%;
+  height: 100%;
+}
+
+:where(.app-shell) .library-perk-related-icon > img {
   object-fit: cover;
+}
+
+:where(.app-shell) .library-perk-related-icon > .library-perk-related-watermark {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
 }
 
 :where(.app-shell) .library-perk-related-icon-placeholder {
@@ -588,21 +609,43 @@
 
 :where(.app-shell) .library-perk-related-copy {
   display: grid;
-  gap: 2px;
+  gap: 3px;
   min-width: 0;
 }
 
-:where(.app-shell) .library-perk-related-copy strong,
-:where(.app-shell) .library-perk-related-copy span {
+:where(.app-shell) .library-perk-related-title,
+:where(.app-shell) .library-perk-related-tags,
+:where(.app-shell) .library-perk-related-source {
   overflow-wrap: anywhere;
 }
 
-:where(.app-shell) .library-perk-related-copy strong {
+:where(.app-shell) .library-perk-related-title {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  align-items: baseline;
+}
+
+:where(.app-shell) .library-perk-related-title > strong {
   color: var(--text-title);
   font-size: var(--font-content);
 }
 
-:where(.app-shell) .library-perk-related-copy span,
+:where(.app-shell) .library-perk-related-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px 8px;
+  color: var(--text-body);
+  font-size: var(--font-caption);
+}
+
+:where(.app-shell) .library-perk-related-tags > span {
+  display: inline-flex;
+  gap: 3px;
+  align-items: center;
+}
+
+:where(.app-shell) .library-perk-related-source,
 :where(.app-shell) .library-perk-related-action {
   color: var(--text-muted);
   font-size: var(--font-caption);
@@ -610,6 +653,23 @@
 
 :where(.app-shell) .library-perk-related-action {
   white-space: nowrap;
+}
+
+:where(.app-shell) .library-perk-related-status,
+:where(.app-shell) .library-perk-related-more {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  margin: 6px 0 0;
+  color: var(--text-muted);
+  font-size: var(--font-caption);
+}
+
+:where(.app-shell) .library-perk-related-status button,
+:where(.app-shell) .library-perk-related-more button {
+  min-width: 104px;
 }
 
 :where(.app-shell) .library-empty-state,
@@ -725,8 +785,12 @@
     grid-template-columns: 1fr;
   }
 
-  :where(.app-shell) .library-perk-related-list {
-    grid-template-columns: 1fr;
+  :where(.app-shell) .library-perk-related-list > button {
+    grid-template-columns: 40px minmax(0, 1fr);
+  }
+
+  :where(.app-shell) .library-perk-related-action {
+    grid-column: 2;
   }
 
   :where(.app-shell) .library-source-details summary {

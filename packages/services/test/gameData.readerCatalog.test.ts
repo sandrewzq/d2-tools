@@ -20,8 +20,11 @@ describe("reader game data catalog", () => {
           expect([...itemHashes]).toEqual([101]);
           return [101, 102].slice(0, limit);
         },
-        getRelatedItemHashes() {
-          return [];
+        getRelatedItemSummary() {
+          return { total: 0, hashes: [] };
+        },
+        getRelatedItemPage() {
+          return { total: 0, hashes: [] };
         },
         getPlugHashes() {
           return [];
@@ -76,17 +79,20 @@ describe("reader game data catalog", () => {
     const chineseResults = await catalog.searchPerks({ query: "击杀弹匣" });
 
     expect(englishResults).toEqual([{
+      key: "perk:101",
       hash: 101,
+      hashes: [101],
       name: "击杀弹匣",
       description: "击杀后换弹可提高伤害。",
-      related_items: [{ hash: 301, name: "测试手炮" }]
+      related_count: 1,
+      related_groups: []
     }]);
     expect(aliasResults.map((result) => result.hash)).toEqual([101, 102]);
     expect(chineseResults.map((result) => result.hash)).toEqual([101]);
     expect(searches).toEqual([
-      { kind: "perk", terms: ["Kill Clip"], limit: 40 },
-      { kind: "perk", terms: ["kc", "Kill Clip"], limit: 80 },
-      { kind: "perk", terms: ["击杀弹匣"], limit: 80 }
+      { kind: "perk", terms: ["Kill Clip"], limit: 80 },
+      { kind: "perk", terms: ["kc", "Kill Clip"], limit: 160 },
+      { kind: "perk", terms: ["击杀弹匣"], limit: 160 }
     ]);
 
     catalog.close();
@@ -111,8 +117,13 @@ function createSearchIndex(
     getItemVersionHashes(itemHashes, limit) {
       return [...itemHashes].slice(0, limit);
     },
-    getRelatedItemHashes(perkHashes) {
-      return [...perkHashes].includes(101) ? [301] : [];
+    getRelatedItemSummary(perkHashes) {
+      const hashes = [...perkHashes].includes(101) ? [301] : [];
+      return { total: hashes.length, hashes };
+    },
+    getRelatedItemPage(perkHashes, offset, limit) {
+      const hashes = [...perkHashes].includes(101) ? [301] : [];
+      return { total: hashes.length, hashes: hashes.slice(offset, offset + limit) };
     },
     getPlugHashes(perkHashes) {
       return [...perkHashes].includes(101) ? [201] : [];

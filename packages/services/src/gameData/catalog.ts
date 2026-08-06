@@ -1,5 +1,9 @@
 import type { ItemAliases } from "@d2-tools/core/items/aliases";
-import type { PerkSearchResult } from "@d2-tools/core/items/perkSearch";
+import type {
+  PerkRelatedEquipmentPage,
+  PerkRelatedEquipmentQuery,
+  PerkSearchResult
+} from "@d2-tools/core/items/perkSearch";
 import type { ItemSearchResult } from "@d2-tools/core/items/search";
 
 export type ItemSearchQuery = {
@@ -21,5 +25,6 @@ export type ItemDetailQuery = {
 export type GameDataCatalog = {
   searchItems(input: ItemSearchQuery): Promise<ItemSearchResult[]>;
   searchPerks(input: PerkSearchQuery): Promise<PerkSearchResult[]>;
+  getPerkRelatedEquipment(input: PerkRelatedEquipmentQuery): Promise<PerkRelatedEquipmentPage<ItemSearchResult>>;
   getItemDetail(input: ItemDetailQuery): Promise<ItemSearchResult | null>;
 };

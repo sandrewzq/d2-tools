@@ -1,5 +1,9 @@
-import { useEffect, useState } from "react";
-import { mergeLibraryVendorSourcePaths } from "@d2-tools/app/library";
+import { useEffect, useRef, useState } from "react";
+import {
+  mergeLibraryVendorSourcePaths,
+  normalizeLibraryPerkSearchPayload,
+  type LibraryPerkRelatedEquipmentState
+} from "@d2-tools/app/library";
 import {
   api } from "../../api/client";
 import type { ItemSearchResult, LibraryHistory, LiveItemAvailability, PerkSearchResult, VaultItemMatchInfo } from "../../api/types";
@@ -16,6 +20,7 @@ export function useLibraryWorkspace(input: { vendorSourcePaths?: Map<number, str
   const [libraryViewMode, setLibraryViewMode] = useState<LibraryViewMode>("equipment");
   const [items, setItems] = useState<ItemSearchResult[]>([]);
   const [perks, setPerks] = useState<PerkSearchResult[]>([]);
+  const [perkRelatedEquipment, setPerkRelatedEquipment] = useState<Record<string, LibraryPerkRelatedEquipmentState>>({});
   const [equipmentFilters, setEquipmentFilters] = useState<LibraryEquipmentFilter>(defaultLibraryEquipmentFilter);
   const [perkFilters, setPerkFilters] = useState<LibraryPerkFilter>(defaultLibraryPerkFilter);
   const [equipmentSearchTouched, setEquipmentSearchTouched] = useState(false);
@@ -32,6 +37,12 @@ export function useLibraryWorkspace(input: { vendorSourcePaths?: Map<number, str
   const [liveAvailabilityError, setLiveAvailabilityError] = useState("");
   const [isLoadingLiveAvailability, setIsLoadingLiveAvailability] = useState(false);
   const manifestStatusState = useManifestStatus();
+  const relatedRequestGeneration = useRef(0);
+
+  useEffect(() => {
+    relatedRequestGeneration.current += 1;
+    setPerkRelatedEquipment({});
+  }, [manifestStatusState.manifestStatus?.version]);
 
   useEffect(() => {
     if (libraryViewMode !== "equipment" || !items.length) {
@@ -116,7 +127,21 @@ export function useLibraryWorkspace(input: { vendorSourcePaths?: Map<number, str
 
     try {
       if (libraryViewMode === "perks") {
-        setPerks(await api.searchPerks(activeQuery));
+        relatedRequestGeneration.current += 1;
+        setPerkRelatedEquipment({});
+        const rawResults = await api.searchPerks(activeQuery) as unknown;
+        const normalized = normalizeLibraryPerkSearchPayload(rawResults);
+        const supportsRelatedPaging = typeof api.getPerkRelatedEquipment === "function";
+        setPerks(normalized.perks);
+        setPerkRelatedEquipment(Object.fromEntries(
+          Object.entries(normalized.legacyRelatedEquipment).map(([key, state]) => [key, {
+            ...state,
+            hasMore: supportsRelatedPaging ? state.hasMore : false,
+            error: supportsRelatedPaging
+              ? state.error
+              : "Desktop 运行时尚未更新，当前只显示旧版关联摘要；重新构建并重启后可加载完整装备列表。"
+          }])
+        ));
         setItems([]);
       } else {
         setItems(await api.searchItems(activeQuery));
@@ -128,6 +153,80 @@ export function useLibraryWorkspace(input: { vendorSourcePaths?: Map<number, str
       setPerks([]);
     } finally {
       setIsSearching(false);
+    }
+  }
+
+  async function loadPerkRelatedEquipment(perk: PerkSearchResult, loadMore = false) {
+    const current = perkRelatedEquipment[perk.key];
+    if (current?.isLoading || (loadMore && !current?.hasMore) || (!loadMore && current?.isLoaded)) {
+      return;
+    }
+
+    const offset = loadMore ? current?.items.length ?? 0 : 0;
+    const generation = relatedRequestGeneration.current;
+    if (typeof api.getPerkRelatedEquipment !== "function") {
+      setPerkRelatedEquipment((states) => ({
+        ...states,
+        [perk.key]: {
+          items: states[perk.key]?.items ?? [],
+          total: states[perk.key]?.total ?? perk.related_count,
+          hasMore: false,
+          isLoading: false,
+          isLoaded: Boolean(states[perk.key]?.items.length),
+          error: "Desktop 运行时尚未更新，请重新构建并重启应用后再加载完整关联装备。"
+        }
+      }));
+      return;
+    }
+    setPerkRelatedEquipment((states) => ({
+      ...states,
+      [perk.key]: {
+        items: loadMore ? states[perk.key]?.items ?? [] : [],
+        total: states[perk.key]?.total ?? perk.related_count,
+        hasMore: states[perk.key]?.hasMore ?? perk.related_count > 0,
+        isLoading: true,
+        isLoaded: states[perk.key]?.isLoaded ?? false,
+        error: ""
+      }
+    }));
+
+    try {
+      const page = await api.getPerkRelatedEquipment({
+        perk_hashes: perk.hashes,
+        offset,
+        limit: 20
+      });
+      if (generation !== relatedRequestGeneration.current) return;
+      setPerkRelatedEquipment((states) => {
+        const previousItems = loadMore ? states[perk.key]?.items ?? [] : [];
+        const items = [...new Map(
+          [...previousItems, ...page.items].map((item) => [item.hash, item])
+        ).values()];
+        return {
+          ...states,
+          [perk.key]: {
+            items,
+            total: page.total,
+            hasMore: page.has_more,
+            isLoading: false,
+            isLoaded: true,
+            error: ""
+          }
+        };
+      });
+    } catch (error) {
+      if (generation !== relatedRequestGeneration.current) return;
+      setPerkRelatedEquipment((states) => ({
+        ...states,
+        [perk.key]: {
+          items: states[perk.key]?.items ?? [],
+          total: states[perk.key]?.total ?? perk.related_count,
+          hasMore: states[perk.key]?.hasMore ?? false,
+          isLoading: false,
+          isLoaded: false,
+          error: error instanceof Error ? error.message : "关联装备读取失败"
+        }
+      }));
     }
   }
 
@@ -174,6 +273,8 @@ export function useLibraryWorkspace(input: { vendorSourcePaths?: Map<number, str
     } else {
       setPerkFilters(defaultLibraryPerkFilter);
       setPerks([]);
+      relatedRequestGeneration.current += 1;
+      setPerkRelatedEquipment({});
       setPerkSearchTouched(false);
     }
   }
@@ -204,6 +305,8 @@ export function useLibraryWorkspace(input: { vendorSourcePaths?: Map<number, str
     perkFilters,
     perkSearchTouched,
     perks,
+    perkRelatedEquipment,
+    loadPerkRelatedEquipment,
     removeFavorite,
     refreshManifestStatus: manifestStatusState.refreshManifestStatus,
     repairManifest: manifestStatusState.repairManifest,

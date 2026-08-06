@@ -24,6 +24,7 @@ type GameDataWorkerRequest = {
   operation:
     | "searchItems"
     | "searchPerks"
+    | "getPerkRelatedEquipment"
     | "getItemDetail"
     | "getDefinitions"
     | "listArmorSets"
@@ -77,6 +78,11 @@ async function handleRequest(request: GameDataWorkerRequest): Promise<unknown> {
   }
   if (request.operation === "searchPerks") {
     return current.catalog.searchPerks(request.input as Parameters<typeof current.catalog.searchPerks>[0]);
+  }
+  if (request.operation === "getPerkRelatedEquipment") {
+    return current.catalog.getPerkRelatedEquipment(
+      request.input as Parameters<typeof current.catalog.getPerkRelatedEquipment>[0]
+    );
   }
   if (request.operation === "getItemDetail") {
     return current.catalog.getItemDetail(request.input as Parameters<typeof current.catalog.getItemDetail>[0]);

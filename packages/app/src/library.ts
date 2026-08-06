@@ -20,6 +20,8 @@ export type {
   LibraryPageModel,
   LibraryPageState,
   LibraryPerkFilter,
+  LibraryPerkRelatedEquipmentState,
+  NormalizedLibraryPerkSearchPayload,
   LibraryPerkPoolFilter,
   LibraryPerkResultView,
   LibraryRelatedItemsFilter,
@@ -46,5 +48,6 @@ export {
   groupLibraryDropQueryItems,
   buildLibraryVendorLiveEntry,
   mergeLibraryVendorSourcePaths,
+  normalizeLibraryPerkSearchPayload,
   selectLibraryPageModel
 } from "./workspaces/libraryPage.js";

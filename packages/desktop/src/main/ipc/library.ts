@@ -44,6 +44,16 @@ export function registerLibraryIpcHandlers(): void {
     });
   }, classifyGameDataIpcError));
 
+  ipcMain.handle("items:perks:related", (_event, input: { perk_hashes: number[]; offset?: number; limit?: number }) => (
+    encodeDesktopIpcFailure(() => getGameDataCatalog().getPerkRelatedEquipment({
+      perk_hashes: Array.isArray(input?.perk_hashes)
+        ? input.perk_hashes.map(Number).filter(Number.isFinite)
+        : [],
+      offset: Number(input?.offset ?? 0),
+      limit: Number(input?.limit ?? 20)
+    }), classifyGameDataIpcError)
+  ));
+
   ipcMain.handle("items:armor-sets:list", () => encodeDesktopIpcFailure(
     () => getArmorSetCatalog(),
     classifyGameDataIpcError

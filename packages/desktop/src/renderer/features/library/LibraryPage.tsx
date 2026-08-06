@@ -14,6 +14,7 @@ export function LibraryPage(props: LibraryPageProps) {
     [
       props.cache.items,
       props.cache.perks,
+      props.cache.perkRelatedEquipment,
       props.cache.libraryHistory,
       props.cache.libraryCommunityMatch,
       props.cache.liveAvailability,

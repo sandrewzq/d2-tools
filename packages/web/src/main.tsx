@@ -553,6 +553,7 @@ function WebApp() {
                 onAliasKindChange: setAliasKind,
                 onSaveAlias: () => undefined,
                 onOpenItemDetail: openWebLibraryDetail,
+                onLoadPerkRelatedEquipment: () => undefined,
                 onOpenRelatedItem: (item) => {
                   const definition = fixture.libraryItems.find((candidate) => candidate.hash === item.hash);
                   if (definition) openWebLibraryDetail(definition);

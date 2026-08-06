@@ -6,6 +6,7 @@ import type { GameDataCatalog, ItemSearchQuery, PerkSearchQuery } from "./catalo
 export type MemoryGameDataCatalogSeed = {
   items?: ItemSearchResult[];
   perks?: PerkSearchResult[];
+  perkRelatedEquipment?: Record<string, ItemSearchResult[]>;
   itemDetails?: Record<string, ItemSearchResult>;
 };
 
@@ -22,12 +23,30 @@ export function createMemoryGameDataCatalog(seed: MemoryGameDataCatalogSeed = {}
       return filterSearchResults(perks, input, (perk) => `${perk.name}\n${perk.description}`);
     },
 
+    async getPerkRelatedEquipment(input) {
+      const relatedItems = uniqueRelatedItems(
+        input.perk_hashes.flatMap((hash) => seed.perkRelatedEquipment?.[String(hash)] ?? [])
+      );
+      const offset = Math.max(0, Math.trunc(input.offset ?? 0));
+      const limit = Math.max(1, Math.min(Math.trunc(input.limit ?? 20), 100));
+      return {
+        total: relatedItems.length,
+        items: relatedItems.slice(offset, offset + limit),
+        offset,
+        has_more: offset + limit < relatedItems.length
+      };
+    },
+
     async getItemDetail(input) {
       return seed.itemDetails?.[String(input.hash)]
         ?? items.find((item) => item.hash === input.hash)
         ?? null;
     }
   };
+}
+
+function uniqueRelatedItems(items: ItemSearchResult[]): ItemSearchResult[] {
+  return [...new Map(items.map((item) => [item.hash, item])).values()];
 }
 
 function filterSearchResults<TResult>(

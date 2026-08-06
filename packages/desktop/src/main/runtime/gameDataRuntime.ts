@@ -1,6 +1,10 @@
 import { Worker } from "node:worker_threads";
 import type { DefinitionComponentData, DefinitionComponentName } from "@d2-tools/core/manifest/definitions";
-import type { PerkSearchResult } from "@d2-tools/core/items/perkSearch";
+import type {
+  PerkRelatedEquipmentPage,
+  PerkRelatedEquipmentQuery,
+  PerkSearchResult
+} from "@d2-tools/core/items/perkSearch";
 import type { ItemSearchResult } from "@d2-tools/core/items/search";
 import type { ArmorSetCatalogItem } from "@d2-tools/core/items/equipableItemSet";
 import type {
@@ -14,6 +18,7 @@ import { measureRuntime } from "./runtimeMetrics.js";
 type GameDataOperation =
   | "searchItems"
   | "searchPerks"
+  | "getPerkRelatedEquipment"
   | "getItemDetail"
   | "getDefinitions"
   | "listArmorSets"
@@ -40,6 +45,7 @@ const workerRestartTimeoutThreshold = 2;
 const operationTimeoutMs: Record<GameDataOperation, number> = {
   searchItems: 15_000,
   searchPerks: 15_000,
+  getPerkRelatedEquipment: 15_000,
   getItemDetail: 15_000,
   getDefinitions: 30_000,
   listArmorSets: 30_000,
@@ -59,6 +65,13 @@ const catalog: GameDataCatalog = {
     return measureRuntime(
       "game-data.search-perks",
       () => request<PerkSearchResult[]>("searchPerks", input),
+      { measurePayload: true }
+    );
+  },
+  getPerkRelatedEquipment(input: PerkRelatedEquipmentQuery) {
+    return measureRuntime(
+      "game-data.perk-related-equipment",
+      () => request<PerkRelatedEquipmentPage<ItemSearchResult>>("getPerkRelatedEquipment", input),
       { measurePayload: true }
     );
   },

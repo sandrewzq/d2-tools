@@ -13,6 +13,7 @@ export function LibraryMenuProvider() {
       cache={{
         items: library.items,
         perks: library.perks,
+        perkRelatedEquipment: library.perkRelatedEquipment,
         libraryHistory: library.libraryHistory,
         libraryCommunityMatch: library.libraryCommunityMatch,
         liveAvailability: library.liveAvailability,
@@ -51,19 +52,8 @@ export function LibraryMenuProvider() {
         onAliasKindChange: library.setAliasKind,
         onSaveAlias: () => void library.saveAlias(),
         onOpenItemDetail: (item) => void itemDetail.openItemDetail(item),
-        onOpenRelatedItem: (item) => void itemDetail.openItemDetail({
-          hash: item.hash,
-          name: item.name,
-          description: "",
-          icon: item.icon,
-          item_type: item.item_type,
-          group_key: item.group_key,
-          source: {
-            status: "missing",
-            label: "获取来源",
-            description: "正在读取装备定义。"
-          }
-        }),
+        onLoadPerkRelatedEquipment: (perk, loadMore) => void library.loadPerkRelatedEquipment(perk, loadMore),
+        onOpenRelatedItem: (item) => void itemDetail.openItemDetail(item),
         onAddFavorite: (item) => void library.addSelectedItemToFavorites(item),
         onRemoveFavorite: (hash) => void library.removeFavorite(hash),
         onLocateOwnedItem: session.locateVaultItem

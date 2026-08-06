@@ -67,19 +67,22 @@ const items: ItemSearchResult[] = [
 
 const perks: PerkSearchResult[] = [
   {
+    key: "perk:101",
     hash: 101,
+    hashes: [101],
     name: "Voltshot",
     description: "Reload after a kill to overcharge the next shot.",
-    related_items: [
-      { hash: 1, name: "Riskrunner", group_key: "weapons" },
-      { hash: 2, name: "Helmet", group_key: "armor" }
-    ]
+    related_count: 2,
+    related_groups: ["weapons", "armor"]
   },
   {
+    key: "perk:102",
     hash: 102,
+    hashes: [102],
     name: "Firefly",
     description: "Precision final blows increase reload speed.",
-    related_items: []
+    related_count: 0,
+    related_groups: []
   }
 ];
 

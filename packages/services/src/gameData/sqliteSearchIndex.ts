@@ -243,14 +243,12 @@ export function createSqliteSearchIndex(
       return queryItemVersionHashes(database, itemHashes, limit);
     },
 
-    getRelatedItemHashes(perkHashes, limitPerPerk = 8) {
-      return queryMappedHashes(
-        database,
-        "perk_related_items",
-        "item_hash",
-        perkHashes,
-        limitPerPerk
-      );
+    getRelatedItemSummary(perkHashes) {
+      return queryCanonicalRelatedItems(database, perkHashes);
+    },
+
+    getRelatedItemPage(perkHashes, offset, limit) {
+      return queryCanonicalRelatedItems(database, perkHashes, offset, limit);
     },
 
     getPlugHashes(perkHashes) {
@@ -451,8 +449,8 @@ function queryItemVersionHashes(
 
 function queryMappedHashes(
   database: DatabaseSync,
-  table: "perk_related_items" | "perk_plugs",
-  resultColumn: "item_hash" | "plug_hash",
+  table: "perk_plugs",
+  resultColumn: "plug_hash",
   perkHashes: Iterable<number>,
   limitPerPerk?: number
 ): number[] {
@@ -473,6 +471,56 @@ function queryMappedHashes(
     }
   }
   return [...result];
+}
+
+function queryCanonicalRelatedItems(
+  database: DatabaseSync,
+  perkHashes: Iterable<number>,
+  requestedOffset?: number,
+  requestedLimit?: number
+): { total: number; hashes: number[] } {
+  const normalizedHashes = [...new Set([...perkHashes].map(toUnsignedHash))];
+  if (!normalizedHashes.length) return { total: 0, hashes: [] };
+
+  const placeholders = normalizedHashes.map(() => "?").join(", ");
+  const parameters = normalizedHashes.map(toSignedHash);
+  const relatedCte = `
+    WITH related AS (
+      SELECT DISTINCT versions.canonical_hash AS hash
+      FROM perk_related_items AS relations
+      JOIN item_version_relation AS versions
+        ON versions.item_hash = relations.item_hash
+      WHERE relations.perk_hash IN (${placeholders})
+    )
+  `;
+  const totalRow = database.prepare(`
+    ${relatedCte}
+    SELECT count(*) AS total FROM related
+  `).get(...parameters) as { total: number } | undefined;
+  const total = Number(totalRow?.total ?? 0);
+
+  if (requestedLimit === undefined) {
+    const rows = database.prepare(`
+      ${relatedCte}
+      SELECT hash FROM related ORDER BY hash
+    `).all(...parameters) as Array<{ hash: number }>;
+    return { total, hashes: rows.map((row) => toUnsignedHash(row.hash)) };
+  }
+
+  const offset = Math.max(0, Math.trunc(requestedOffset ?? 0));
+  const limit = Math.max(1, Math.min(Math.trunc(requestedLimit), 100));
+  const rows = database.prepare(`
+    ${relatedCte}
+    SELECT related.hash
+    FROM related
+    LEFT JOIN search_documents AS documents
+      ON documents.kind = 'item' AND documents.hash = related.hash
+    LEFT JOIN item_version_relation AS versions
+      ON versions.item_hash = related.hash
+    ORDER BY lower(documents.name), versions.rank DESC, related.hash ASC
+    LIMIT ? OFFSET ?
+  `).all(...parameters, limit, offset) as Array<{ hash: number }>;
+  return { total, hashes: rows.map((row) => toUnsignedHash(row.hash)) };
 }
 
 function assertIndexCompatibility(

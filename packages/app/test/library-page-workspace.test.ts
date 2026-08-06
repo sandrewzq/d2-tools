@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   defaultLibraryEquipmentFilter,
   defaultLibraryPerkFilter,
+  normalizeLibraryPerkSearchPayload,
   selectLibraryPageModel,
   type ItemSearchResult,
   type LibraryPageCache,
@@ -50,19 +51,22 @@ const equipmentItems: ItemSearchResult[] = [
 
 const perkItems: PerkSearchResult[] = [
   {
+    key: "perk:101",
     hash: 101,
+    hashes: [101],
     name: "Voltshot",
     description: "Reload after a kill to overcharge the next shot.",
-    related_items: [
-      { hash: 1, name: "Riskrunner", group_key: "weapons" },
-      { hash: 4, name: "Stormchaser", group_key: "weapons" }
-    ]
+    related_count: 2,
+    related_groups: ["weapons"]
   },
   {
+    key: "perk:102",
     hash: 102,
+    hashes: [102],
     name: "Firefly",
     description: "Precision final blows increase reload speed.",
-    related_items: []
+    related_count: 0,
+    related_groups: []
   }
 ];
 
@@ -70,6 +74,19 @@ function createCache(patch: Partial<LibraryPageCache> = {}): LibraryPageCache {
   return {
     items: equipmentItems,
     perks: perkItems,
+    perkRelatedEquipment: {
+      "perk:101": {
+        items: [
+          equipmentItems[0],
+          { ...equipmentItems[0], hash: 4, name: "Stormchaser" }
+        ],
+        total: 2,
+        hasMore: false,
+        isLoading: false,
+        isLoaded: true,
+        error: ""
+      }
+    },
     libraryHistory: {
       recent: [{ hash: 1, name: "Riskrunner" }],
       favorites: [{ hash: 1, name: "Riskrunner" }]
@@ -121,6 +138,35 @@ function createState(patch: Partial<LibraryPageState> = {}): LibraryPageState {
 }
 
 describe("library page workspace", () => {
+  it("normalizes legacy perk search payloads before page selection", () => {
+    const normalized = normalizeLibraryPerkSearchPayload([
+      {
+        hash: 101,
+        name: "Voltshot",
+        description: "Reload after a kill to overcharge the next shot.",
+        related_items: [{ hash: 1, name: "Riskrunner", group_key: "weapons" }]
+      }
+    ]);
+
+    expect(normalized.perks).toEqual([expect.objectContaining({
+      key: "perk:101",
+      hashes: [101],
+      related_count: 1,
+      related_groups: ["weapons"]
+    })]);
+    expect(normalized.legacyRelatedEquipment["perk:101"]?.items[0]).toEqual(expect.objectContaining({
+      hash: 1,
+      name: "Riskrunner"
+    }));
+    expect(() => selectLibraryPageModel(createCache({
+      perks: normalized.perks,
+      perkRelatedEquipment: normalized.legacyRelatedEquipment
+    }), createState({
+      libraryViewMode: "perks",
+      perkSearchTouched: true
+    }))).not.toThrow();
+  });
+
   it("selects equipment result groups with live stats and row state", () => {
     const model = selectLibraryPageModel(createCache(), createState({
       equipmentFilters: {
@@ -171,7 +217,11 @@ describe("library page workspace", () => {
       expect.objectContaining({
         perk: expect.objectContaining({ name: "Voltshot" }),
         relatedGroupKeys: ["weapons"],
-        relatedItemNames: ["Riskrunner", "Stormchaser"],
+        relatedItems: [
+          expect.objectContaining({ name: "Riskrunner" }),
+          expect.objectContaining({ name: "Stormchaser" })
+        ],
+        relatedCount: 2,
         hasRelatedItems: true
       })
     ]);

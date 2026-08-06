@@ -133,6 +133,15 @@ export const webLibraryItems: ItemSearchResult[] = [
     bucket_name: "动能武器",
     ammo_type: "primary",
     weapon_frame: { key: "lightweight", name: "轻质框架" },
+    release: {
+      status: "ready",
+      label: "发布版本",
+      kind: "season",
+      description: "第6年 · 第21赛季 · 深渊赛季",
+      season_number: 21,
+      year_number: 6,
+      name: "深渊赛季"
+    },
     source: { status: "ready", label: "来源可确认", description: "Web provider 后续接真实来源。" },
     definition_stats: [
       { hash: 4284893193, name: "射速", value: 450, display_maximum: 1000 },
@@ -146,11 +155,24 @@ export const webLibraryItems: ItemSearchResult[] = [
   }
 ];
 export const webLibraryPerks: PerkSearchResult[] = [{
+  key: "perk:4001",
   hash: 4001,
+  hashes: [4001],
   name: "动能震颤",
   description: "连续命中目标后产生动能冲击波。",
-  related_items: [{ hash: 3001, name: "快速命中脉冲", item_type: "脉冲步枪", group_key: "weapons" }]
+  related_count: 1,
+  related_groups: ["weapons"]
 }];
+export const webPerkRelatedEquipment = {
+  "perk:4001": {
+    items: webLibraryItems,
+    total: 1,
+    hasMore: false,
+    isLoading: false,
+    isLoaded: true,
+    error: ""
+  }
+};
 export const webLibraryHistory = { recent: [{ hash: 3001, name: "快速命中脉冲" }], favorites: [] };
 export const webLibraryCommunityMatch = new Map<number, VaultItemMatchInfo>([[3001, { available: 1, sample_perks: [{ name: "快速命中" }] }]]);
 export const webLiveAvailability = { account_scope: "character" as const, items: {} };
@@ -326,6 +348,7 @@ export function createWebLibraryPageModel(input: {
   return selectLibraryPageModel({
     items: webLibraryItems,
     perks: webLibraryPerks,
+    perkRelatedEquipment: webPerkRelatedEquipment,
     libraryHistory: webLibraryHistory,
     libraryCommunityMatch: webLibraryCommunityMatch,
     liveAvailability: webLiveAvailability,

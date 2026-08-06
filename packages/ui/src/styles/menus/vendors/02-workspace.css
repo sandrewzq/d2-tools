@@ -1,6 +1,6 @@
 .app-shell .vendor-workbench.vendor-workbench-layout.product-split-workspace {
   grid-template-columns: var(--rail-md) minmax(0, 1fr) var(--rail-context);
-  min-height: calc(100dvh - var(--topbar-height) - var(--workspace-header-height));
+  min-height: calc(100dvh - var(--topbar-height) - var(--vendor-sticky-offset, var(--workspace-header-height)));
   border: 0;
   border-radius: 0;
   background: transparent;
@@ -15,10 +15,10 @@
 
 :where(.app-shell) .vendor-workbench .vendor-rail {
   position: sticky;
-  top: 0;
+  top: var(--vendor-sticky-offset, var(--workspace-header-height));
   align-self: start;
   min-width: 0;
-  max-height: calc(100dvh - var(--topbar-height) - var(--workspace-header-height));
+  max-height: calc(100dvh - var(--topbar-height) - var(--vendor-sticky-offset, var(--workspace-header-height)));
   overflow-y: auto;
   overflow-wrap: anywhere;
   border-right: 1px solid var(--border-subtle);
@@ -27,9 +27,9 @@
 
 :where(.app-shell) .vendor-context {
   position: sticky;
-  top: 0;
+  top: var(--vendor-sticky-offset, var(--workspace-header-height));
   align-self: start;
-  min-height: calc(100dvh - var(--topbar-height) - var(--workspace-header-height));
+  min-height: calc(100dvh - var(--topbar-height) - var(--vendor-sticky-offset, var(--workspace-header-height)));
   border-left: 1px solid var(--border-subtle);
   background: var(--surface-panel);
 }

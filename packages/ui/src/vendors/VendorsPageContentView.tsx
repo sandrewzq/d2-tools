@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { getLocaleCopy } from "../i18n/copy.js";
 import type { InterfaceLocale } from "../i18n/types.js";
 import { GameAssetImage } from "../media/GameAssetImage.js";
@@ -219,8 +219,7 @@ export function VendorsPageContentView(props: VendorsPageContentViewProps) {
     );
   }
 
-  const contentSections = [...getVendorContentSections(selectedVendor)]
-    .sort((left, right) => getVendorSectionOrder(left.kind) - getVendorSectionOrder(right.kind));
+  const contentSections = prioritizeVendorSections(getVendorContentSections(selectedVendor));
   const vendorStatus = getVendorStatus(selectedVendor);
   const selectedVendorResetLabel = formatVendorReset(selectedVendor, locale);
   const updatedLabel = formatFullDateTime(props.model.updatedAt, props.model.updatedLabel);
@@ -283,6 +282,8 @@ export function VendorsPageContentView(props: VendorsPageContentViewProps) {
           <span data-status={refreshStatus?.tone === "error" ? "error" : vendorStatus}>{toolbarMessage}</span>
         </div>
 
+        <VendorSectionNavigation sections={contentSections} vendor={selectedVendor} />
+
         <div className="vendor-detail-flow">
           {selectedVendor.detailFailureMessage ? (
             <div className="vendor-detail-warning" data-ui-kind="callout" data-status="warning" role="status" aria-label="商人详情状态">
@@ -324,32 +325,125 @@ function VendorContentSections(props: {
         const isSubinventory = section.kind === "subinventory";
         const currentSubinventoryIndex = isSubinventory ? ++subinventoryIndex : 0;
         const itemCount = countSectionItems(section);
-        const headingId = `vendor-section-${section.id}`;
+        const sectionAnchorId = getVendorSectionAnchorId(section);
+        const headingId = `${sectionAnchorId}-heading`;
+        const sectionTitle = getVendorSectionTitle(section);
         return (
-          <section className="vendor-content-section" key={section.id} aria-labelledby={headingId}>
+          <section
+            className="vendor-content-section"
+            id={sectionAnchorId}
+            key={section.id}
+            aria-labelledby={headingId}
+            data-vendor-section-id={section.id}
+            data-section-kind={section.kind}
+          >
             <header className="vendor-section-heading">
               <div>
                 {isSubinventory ? <small>{props.vendor.name} · 子库存 {String(currentSubinventoryIndex).padStart(2, "0")}</small> : null}
-                <h3 id={headingId}>{section.name}</h3>
+                <h3 id={headingId}>{sectionTitle}</h3>
               </div>
-              <span>{isSubinventory ? `${itemCount} 件 · ${section.groups.length} 个分类` : section.description ?? `${itemCount} 件`}</span>
+              <span>{getVendorSectionMeta(section, itemCount)}</span>
             </header>
             {isSubinventory && section.description ? <p className="vendor-section-description">{section.description}</p> : null}
             {section.kind === "reputation" ? (
               <VendorRankSummary section={section} vendor={props.vendor} />
             ) : null}
-            {section.groups.map((group) => (
-              <section className="vendor-offer-group" key={group.id} aria-label={group.name || section.name}>
-                {section.groups.length > 1 ? <div className="vendor-offer-group-head"><strong>{group.name || section.name}</strong><span>{group.items.length} 件</span></div> : null}
-                <div className="vendor-offer-grid">
-                  {group.items.map((item) => <VendorOfferButton key={item.id} item={item} vendor={props.vendor} actions={props.actions} locale={props.locale} />)}
-                </div>
-              </section>
-            ))}
+            {section.groups.map((group) => {
+              const compact = shouldUseCompactVendorRows(section, group);
+              return (
+                <section className="vendor-offer-group" key={group.id} aria-label={group.name || sectionTitle}>
+                  {section.groups.length > 1 ? <div className="vendor-offer-group-head"><strong>{group.name || sectionTitle}</strong><span>{group.items.length} 件</span></div> : null}
+                  <div className={compact ? "vendor-service-list" : "vendor-offer-grid"}>
+                    {group.items.map((item) => compact
+                      ? <VendorServiceRow key={item.id} item={item} section={section} />
+                      : <VendorOfferButton key={item.id} item={item} vendor={props.vendor} actions={props.actions} locale={props.locale} />)}
+                  </div>
+                </section>
+              );
+            })}
           </section>
         );
       })}
     </div>
+  );
+}
+
+function VendorSectionNavigation(props: {
+  sections: VendorContentSectionView[];
+  vendor: VendorInventoryGroupView;
+}) {
+  const navRef = useRef<HTMLElement>(null);
+  const sectionKey = props.sections.map((section) => section.id).join("|");
+  const firstSectionId = props.sections[0]?.id ?? "";
+  const [activeSectionId, setActiveSectionId] = useState(firstSectionId);
+
+  useLayoutEffect(() => {
+    const workbench = navRef.current?.closest<HTMLElement>(".vendor-workbench");
+    const page = navRef.current?.closest<HTMLElement>(".product-workspace-page");
+    const pageHeader = page?.querySelector<HTMLElement>(":scope > [data-shell-role='page-header']");
+    if (!workbench || !pageHeader) return undefined;
+
+    const updateStickyOffset = () => {
+      workbench.style.setProperty("--vendor-sticky-offset", `${Math.ceil(pageHeader.getBoundingClientRect().height)}px`);
+    };
+    updateStickyOffset();
+
+    if (typeof ResizeObserver === "undefined") {
+      return () => workbench.style.removeProperty("--vendor-sticky-offset");
+    }
+    const observer = new ResizeObserver(updateStickyOffset);
+    observer.observe(pageHeader);
+    return () => {
+      observer.disconnect();
+      workbench.style.removeProperty("--vendor-sticky-offset");
+    };
+  }, [props.vendor.id, sectionKey]);
+
+  useEffect(() => {
+    setActiveSectionId(firstSectionId);
+    const elements = props.sections
+      .map((section) => document.getElementById(getVendorSectionAnchorId(section)))
+      .filter((element): element is HTMLElement => Boolean(element));
+    if (!elements.length || typeof IntersectionObserver === "undefined") return undefined;
+
+    const observer = new IntersectionObserver((entries) => {
+      const visibleEntry = entries
+        .filter((entry) => entry.isIntersecting)
+        .sort((left, right) => left.boundingClientRect.top - right.boundingClientRect.top)[0];
+      const sectionId = visibleEntry?.target.getAttribute("data-vendor-section-id");
+      if (sectionId) setActiveSectionId(sectionId);
+    }, { rootMargin: "-104px 0px -62% 0px", threshold: [0, 0.1] });
+
+    elements.forEach((element) => observer.observe(element));
+    return () => observer.disconnect();
+  }, [firstSectionId, props.vendor.id, sectionKey]);
+
+  if (!props.sections.length) return null;
+
+  return (
+    <nav ref={navRef} className="vendor-section-nav" aria-label={`${props.vendor.name}内容导航`}>
+      {props.sections.map((section) => {
+        const itemCount = countSectionItems(section);
+        const active = activeSectionId === section.id;
+        return (
+          <button
+            type="button"
+            key={section.id}
+            aria-current={active ? "location" : undefined}
+            onClick={() => {
+              setActiveSectionId(section.id);
+              document.getElementById(getVendorSectionAnchorId(section))?.scrollIntoView({
+                behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+                block: "start"
+              });
+            }}
+          >
+            <span>{getVendorSectionTitle(section)}</span>
+            <small>{section.kind === "reputation" && section.progression ? `等级 ${section.progression.level}` : itemCount}</small>
+          </button>
+        );
+      })}
+    </nav>
   );
 }
 
@@ -366,10 +460,32 @@ function VendorRankSummary(props: { section: VendorContentSectionView; vendor: V
     <div className="vendor-rank-panel">
       <div className="vendor-rank-number"><span>当前等级</span><strong>{progression.level}</strong><small>{props.vendor.name}声望</small></div>
       <dl className="vendor-rank-ledger">
-        <div><dt>本级进度</dt><dd><strong>{currentStepProgress} / {progression.nextLevelAt}</strong><small>累计进度 {progression.currentProgress}</small></dd><span>{Math.round(progressPercent)}%</span></div>
+        <div><dt>本级进度</dt><dd><strong>{currentStepProgress} / {progression.nextLevelAt}</strong><span className="vendor-rank-progress" role="progressbar" aria-label={`${props.vendor.name}本级声望进度`} aria-valuemin={0} aria-valuemax={progression.nextLevelAt} aria-valuenow={currentStepProgress}><span style={{ width: `${progressPercent}%` }} /></span><small>累计进度 {progression.currentProgress}</small></dd><span>{Math.round(progressPercent)}%</span></div>
         <div><dt>距离下一等级</dt><dd><strong>{progression.progressToNextLevel} 点</strong><small>等级上限 {progression.levelCap}</small></dd><span>{rewards.length} 个奖励节点</span></div>
       </dl>
     </div>
+  );
+}
+
+function VendorServiceRow(props: {
+  item: VendorInventoryItemView;
+  section: VendorContentSectionView;
+}) {
+  const status = getVendorServiceStatus(props.item, props.section);
+  const hasCost = Boolean(props.item.costs?.length || props.item.cost);
+  return (
+    <article className="vendor-service-row" data-status={status.status}>
+      <VendorItemArt item={props.item} />
+      <span className="vendor-service-copy">
+        <strong>{props.item.name}</strong>
+        <span>{props.item.itemType || (props.section.kind === "tasks" ? "任务" : "商人服务")}</span>
+        {props.item.summary ? <small>{props.item.summary}</small> : null}
+      </span>
+      <span className="vendor-service-facts">
+        {hasCost ? <VendorCosts item={props.item} fallback={getVendorCostLabel(props.item)} /> : <small>{props.section.kind === "tasks" ? "任务条目" : "服务入口"}</small>}
+        <strong data-status={status.status}>{status.label}</strong>
+      </span>
+    </article>
   );
 }
 
@@ -452,21 +568,49 @@ function VendorItemArt(props: { item: VendorInventoryItemView }) {
 function getVendorContentSections(vendor: VendorInventoryGroupView): VendorContentSectionView[] {
   if (vendor.contentSections?.length) return vendor.contentSections;
   const sections: VendorContentSectionView[] = [];
+  if (vendor.rankRewards?.length || vendor.progression) sections.push({ id: `${vendor.id}-rank`, kind: "reputation", name: "声望与等级", layout: "rank", progression: vendor.progression, groups: [{ id: `${vendor.id}-rank-items`, name: "等级奖励", items: vendor.rankRewards ?? [] }] });
   if (vendor.items.length) sections.push({ id: `${vendor.id}-inventory`, kind: "inventory", name: "库存", layout: "featured", groups: [{ id: `${vendor.id}-inventory-items`, name: "", items: vendor.items }] });
   for (const service of vendor.services ?? []) {
     if (!service.items.length) continue;
     sections.push({ id: service.id, kind: "subinventory", name: service.name, description: service.description || `${service.items.length} 件`, layout: (service.sections?.length ?? 0) > 1 ? "columns" : "list", groups: service.sections?.length ? service.sections : [{ id: `${service.id}-items`, name: "", items: service.items }] });
   }
   if (vendor.taskItems?.length) sections.push({ id: `${vendor.id}-tasks`, kind: "tasks", name: "任务", layout: "featured", groups: [{ id: `${vendor.id}-task-items`, name: "", items: vendor.taskItems }] });
-  if (vendor.rankRewards?.length || vendor.progression) sections.push({ id: `${vendor.id}-rank`, kind: "reputation", name: "声望与等级", layout: "rank", progression: vendor.progression, groups: [{ id: `${vendor.id}-rank-items`, name: "等级奖励", items: vendor.rankRewards ?? [] }] });
   return sections;
 }
 
-function getVendorSectionOrder(kind: VendorContentSectionView["kind"]): number {
-  if (kind === "inventory") return 0;
-  if (kind === "subinventory") return 1;
-  if (kind === "tasks") return 2;
-  return 3;
+function prioritizeVendorSections(sections: VendorContentSectionView[]): VendorContentSectionView[] {
+  return [
+    ...sections.filter((section) => section.kind === "reputation"),
+    ...sections.filter((section) => section.kind !== "reputation")
+  ];
+}
+
+function getVendorSectionAnchorId(section: VendorContentSectionView): string {
+  return `vendor-section-${section.id.replace(/[^a-zA-Z0-9_-]+/g, "-")}`;
+}
+
+function getVendorSectionTitle(section: VendorContentSectionView): string {
+  if (section.name.trim() === "库存" && isVendorAuxiliaryInventory(section)) return "基础服务";
+  if (section.kind === "tasks" && section.name.trim() === "任务") return "任务与悬赏";
+  return section.name;
+}
+
+function getVendorSectionMeta(section: VendorContentSectionView, itemCount: number): string {
+  if (section.kind === "reputation") return section.description ?? `${itemCount} 个等级奖励`;
+  if (section.kind === "subinventory") return `${itemCount} 件 · ${section.groups.length} 个分类`;
+  if (section.kind === "tasks") return `${itemCount} 项 · 游戏内领取`;
+  if (isVendorAuxiliaryInventory(section)) return `${itemCount} 项 · 游戏内操作`;
+  return section.description ?? `${itemCount} 件`;
+}
+
+function shouldUseCompactVendorRows(section: VendorContentSectionView, group: VendorInventorySectionView): boolean {
+  return section.kind === "tasks"
+    || (section.kind === "inventory" && group.items.every((item) => !getVendorEquipmentKind(item)));
+}
+
+function isVendorAuxiliaryInventory(section: VendorContentSectionView): boolean {
+  return section.kind === "inventory"
+    && section.groups.every((group) => group.items.every((item) => !getVendorEquipmentKind(item)));
 }
 
 function countSectionItems(section: VendorContentSectionView): number {
@@ -493,6 +637,17 @@ function getVendorOfferAvailability(item: VendorInventoryItemView): { label: str
   if (item.canPurchase === true) return { label: "可购买", status: "success" };
   if (item.canPurchase === false) return { label: item.failureMessages?.[0] || "当前不可购买", status: "warning" };
   return { label: item.failureMessages?.[0] || "条件待确认", status: "neutral" };
+}
+
+function getVendorServiceStatus(
+  item: VendorInventoryItemView,
+  section: VendorContentSectionView
+): { label: string; status: "success" | "warning" | "neutral" } {
+  if (item.canPurchase === false) return { label: item.failureMessages?.[0] || "条件未满足", status: "warning" };
+  if (item.canPurchase === true) {
+    return { label: section.kind === "tasks" ? "可在游戏内领取" : "可在游戏内使用", status: "success" };
+  }
+  return { label: item.failureMessages?.[0] || "游戏内状态待确认", status: "neutral" };
 }
 
 function getVendorCostLabel(item: VendorInventoryItemView): string {
