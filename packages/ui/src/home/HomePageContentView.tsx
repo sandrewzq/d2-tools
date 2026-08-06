@@ -224,6 +224,7 @@ function HomePageContent(props: {
   const xur = props.xur;
   const xurItems = xur?.items ?? [];
   const refreshEntries = buildRefreshEntries(props.dailySummary, props.weeklySummary, props.clock, props.interfaceLocale, props.copy);
+  const xurTiming = buildXurTiming(props.clock, props.interfaceLocale, props.copy);
   return (
     <section className="home-page" data-page-view="home" data-surface="page">
       {props.dailyError || props.dailyMessage || props.isLoadingDaily ? (
@@ -254,7 +255,6 @@ function HomePageContent(props: {
         <div className="weekly-signal-grid" data-surface="content-stack">
           <IronBannerCard
             summary={props.weeklySummary?.iron_banner}
-            weeklyReset={props.weeklySummary?.weekly_reset ?? props.dailySummary?.weekly_reset}
             selectedCharacterId={props.selectedCharacterId}
             clock={props.clock}
             copy={props.copy}
@@ -267,72 +267,80 @@ function HomePageContent(props: {
         </div>
       </section>
       <section className="home-content-band home-vendor-band" data-surface="section" data-contract-id="home.vendor-stock" data-source="Vendor API + current library">
-        <div className="home-band-heading">
-          <div>
-            <span data-ui-part="label" data-info-priority="support" data-text-tone="meta">周末商人</span>
-            <h2 data-ui-part="value" data-info-priority="display" data-text-tone="primary">仄本周八件轮换</h2>
+        <div className="home-vendor-module" data-surface="frame" data-ui-kind="summary-frame">
+          <div className="home-band-heading">
+            <div className="home-vendor-title">
+              <span data-ui-part="label" data-info-priority="support" data-text-tone="meta">周末商人</span>
+              <h2 data-ui-part="value" data-info-priority="display" data-text-tone="primary">仄本周八件轮换</h2>
+            </div>
+            <div className="home-vendor-timing" aria-label={`${xurTiming.label}时间`}>
+              <span data-ui-part="label" data-info-priority="support" data-text-tone="meta">{xurTiming.label}</span>
+              <strong data-ui-part="value" data-info-priority="decision" data-text-tone="primary" data-value-kind="fact">{xurTiming.moment}</strong>
+              <small data-ui-part="state" data-info-priority="decision" data-text-tone="countdown" data-value-kind="countdown">{xurTiming.countdown}</small>
+            </div>
+            <button
+              type="button"
+              data-ui-kind="button" data-control-variant="secondary"
+              disabled={!props.onNavigate}
+              onClick={() => props.onNavigate?.("vendors")}
+            >
+              打开仄的完整库存
+            </button>
           </div>
-          <button
-            type="button"
-            data-ui-kind="button" data-control-variant="secondary"
-            disabled={!props.onNavigate}
-            onClick={() => props.onNavigate?.("vendors")}
-          >
-            打开仄的完整库存
-          </button>
+          <div className="home-vendor-content" data-surface="content-stack" data-status={homeVendorStatus(props)} aria-live="polite" aria-busy={props.isLoadingDaily}>
+            {xur ? (
+              <>
+                <div className="home-vendor-overview" data-surface="row">
+                  <div className="home-vendor-summary">
+                    <span data-ui-part="label" data-info-priority="support" data-text-tone="meta">本周八件轮换</span>
+                    <strong data-ui-part="value" data-info-priority="decision" data-text-tone="primary">
+                      {formatHomeVendorSummary(xur, xurItems.length)}
+                    </strong>
+                  </div>
+                  <div className="home-vendor-summary">
+                    <span data-ui-part="label" data-info-priority="support" data-text-tone="meta">当前位置</span>
+                    <strong data-ui-part="value" data-info-priority="context" data-text-tone="primary">{xur.location ?? xur.title}</strong>
+                  </div>
+                </div>
+                <div className="home-vendor-stock-grid">
+                  {xurItems.map((item, index) => (
+                    <HomeXurOffer
+                      item={item}
+                      key={`${item.title}-${item.vendorHash ?? "xur"}-${index}`}
+                      vendorName={xur.title}
+                      refreshLabel={xur.refreshLabel}
+                      onOpenXurOffer={props.onOpenXurOffer}
+                    />
+                  ))}
+                  {xur.missingItemCount ? <HomeMissingXurOffer count={xur.missingItemCount} /> : null}
+                </div>
+              </>
+            ) : (
+              <HomeXurState
+                source={props.dailySummary?.sources.vendors}
+                isLoading={props.isLoadingDaily}
+                error={props.dailyError}
+                onRetry={props.dailyError ? undefined : props.onRefreshDaily}
+              />
+            )}
+          </div>
+          <small className="home-vendor-source" data-ui-part="source" data-info-priority="trace" data-text-tone="meta">
+            {formatHomeVendorSource({
+              xur,
+              fetchedAt: props.briefingFetchedAt,
+              selectedCharacterLabel: props.selectedCharacterLabel,
+              isLoading: props.isLoadingDaily,
+              error: props.dailyError
+            })}
+          </small>
         </div>
-        <div className="home-vendor-content" data-surface="content-stack" data-status={homeVendorStatus(props)} aria-live="polite" aria-busy={props.isLoadingDaily}>
-          {xur ? (
-          <>
-            <div className="home-vendor-overview" data-surface="frame" data-ui-kind="status-matrix">
-              <div className="home-vendor-summary">
-                <span data-ui-part="label" data-info-priority="support" data-text-tone="meta">本周八件轮换</span>
-                <strong data-ui-part="value" data-info-priority="decision" data-text-tone="primary">
-                  {formatHomeVendorSummary(xur, xurItems.length)}
-                </strong>
-              </div>
-              <div className="home-vendor-summary">
-                <span data-ui-part="label" data-info-priority="support" data-text-tone="meta">当前位置</span>
-                <strong data-ui-part="value" data-info-priority="context" data-text-tone="primary">{xur.location ?? xur.title}</strong>
-              </div>
-            </div>
-            <div className="home-vendor-stock-grid">
-              {xurItems.map((item, index) => (
-                <HomeXurOffer
-                  item={item}
-                  key={`${item.title}-${item.vendorHash ?? "xur"}-${index}`}
-                  vendorName={xur.title}
-                  refreshLabel={xur.refreshLabel}
-                  onOpenXurOffer={props.onOpenXurOffer}
-                />
-              ))}
-              {xur.missingItemCount ? <HomeMissingXurOffer count={xur.missingItemCount} /> : null}
-            </div>
-          </>
-          ) : (
-            <HomeXurState
-              source={props.dailySummary?.sources.vendors}
-              isLoading={props.isLoadingDaily}
-              error={props.dailyError}
-              onRetry={props.onRefreshDaily}
-            />
-          )}
-        </div>
-        <small className="home-vendor-source" data-ui-part="source" data-info-priority="trace" data-text-tone="meta">
-          {formatHomeVendorSource({
-            xur,
-            fetchedAt: props.briefingFetchedAt,
-            selectedCharacterLabel: props.selectedCharacterLabel,
-            isLoading: props.isLoadingDaily,
-            error: props.dailyError
-          })}
-        </small>
       </section>
     </section>
   );
 }
 
-type HomeRefreshEntry = { key: "daily" | "weekly" | "xur"; label: string; moment: string; countdown: string; impact: string };
+type HomeRefreshEntry = { key: "daily" | "weekly"; label: string; moment: string; countdown: string; impact: string };
+type HomeXurTiming = { label: string; moment: string; countdown: string };
 
 function HomeFeedback(props: { status: "success" | "pending" | "error"; message: string; onRetry?: () => void }) {
   return (
@@ -344,7 +352,7 @@ function HomeFeedback(props: { status: "success" | "pending" | "error"; message:
     >
       <span data-ui-part="state" data-info-priority="decision" data-text-tone="status" data-status={props.status}>{props.message}</span>
       {props.status === "error" && props.onRetry ? (
-        <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={props.onRetry}>重新读取公开情报</button>
+        <button type="button" data-ui-kind="button" data-control-variant="primary" onClick={props.onRetry}>重新读取公开情报</button>
       ) : null}
     </div>
   );
@@ -366,13 +374,20 @@ function buildRefreshEntries(
   locale: InterfaceLocale,
   copy: HomeCopy
 ): HomeRefreshEntry[] {
-  const xurTarget = nextXurBoundaryAt(clock);
-  const xurActive = isXurActiveAt(clock);
   return [
     { key: "daily", label: homeText(copy, "每日更新"), moment: `下次：${resetMoment(daily?.daily_reset, homeText(copy, "时间待确认"), locale)}`, countdown: `倒计时：${resetCountdown(daily?.daily_reset, clock, copy)}`, impact: homeText(copy, "今日轮换、遗失区域") },
-    { key: "weekly", label: homeText(copy, "每周更新"), moment: `下次：${resetMoment(weekly?.weekly_reset ?? daily?.weekly_reset, homeText(copy, "时间待确认"), locale)}`, countdown: `倒计时：${resetCountdown(weekly?.weekly_reset ?? daily?.weekly_reset, clock, copy)}`, impact: homeText(copy, "日落、轮换、周常加成") },
-    { key: "xur", label: homeText(copy, xurActive ? "仄离开" : "仄到访"), moment: `${xurActive ? "离开" : "到访"}：${formatScheduleDateTime(xurTarget, locale, homeText(copy, "时间待确认"))}`, countdown: `倒计时：${compactDuration(clock, xurTarget, copy)}`, impact: homeText(copy, "仄八件异域轮换") }
+    { key: "weekly", label: homeText(copy, "每周更新"), moment: `下次：${resetMoment(weekly?.weekly_reset ?? daily?.weekly_reset, homeText(copy, "时间待确认"), locale)}`, countdown: `倒计时：${resetCountdown(weekly?.weekly_reset ?? daily?.weekly_reset, clock, copy)}`, impact: homeText(copy, "日落、轮换、周常加成") }
   ];
+}
+
+function buildXurTiming(clock: Date, locale: InterfaceLocale, copy: HomeCopy): HomeXurTiming {
+  const target = nextXurBoundaryAt(clock);
+  const active = isXurActiveAt(clock);
+  return {
+    label: homeText(copy, active ? "仄离开" : "仄到访"),
+    moment: formatScheduleDateTime(target, locale, homeText(copy, "时间待确认")),
+    countdown: `${homeText(copy, "倒计时")}：${compactDuration(clock, target, copy)}`
+  };
 }
 
 function resetMoment(reset: { label: string; next_reset_iso?: string } | undefined, fallback: string, locale: InterfaceLocale) {
@@ -416,8 +431,7 @@ function HomeRefreshCell(props: { entry: HomeRefreshEntry }) {
 
 function RefreshGlyph(props: { kind: HomeRefreshEntry["key"] }) {
   if (props.kind === "daily") return <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" /><path d="M12 7v5l3 2" /></svg>;
-  if (props.kind === "weekly") return <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2" /><path d="M8 3v4M16 3v4M4 10h16" /></svg>;
-  return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 5 7v5c0 4.5 3 7.7 7 9 4-1.3 7-4.5 7-9V7Z" /><path d="M9 12h6M12 9v6" /></svg>;
+  return <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2" /><path d="M8 3v4M16 3v4M4 10h16" /></svg>;
 }
 
 function HomeActivityCard(props: {
@@ -656,7 +670,6 @@ function HomeSignal(props: {
 
 function IronBannerCard(props: {
   summary: WeeklyIronBannerSummary | undefined;
-  weeklyReset: { label: string; next_reset_iso?: string; time_remaining_label: string } | undefined;
   selectedCharacterId?: string;
   clock: Date;
   copy: HomeCopy;
@@ -664,6 +677,7 @@ function IronBannerCard(props: {
 }) {
   const summary = props.summary;
   const active = summary?.status === "active";
+  const upcoming = summary?.status === "upcoming";
   const status = active ? "success" : summary?.status === "inactive" ? "warning" : "pending";
   const characterEntries = Object.values(summary?.characters.entries ?? {});
   const selectedCharacter = (props.selectedCharacterId
@@ -685,8 +699,14 @@ function IronBannerCard(props: {
     ...rewardNames
   ].filter((value): value is string => Boolean(value)).join(" · ")
     || (challenge ? "完成挑战后领取奖励" : "奖励数据待读取");
-  const resetCountdownLabel = resetCountdown(props.weeklyReset, props.clock, props.copy);
-  const statusLabel = active ? "正在开放" : summary?.status === "inactive" ? "当前未开放" : "状态待确认";
+  const timingLabel = ironBannerTimingLabel(summary, props.clock, props.copy);
+  const statusLabel = active
+    ? "正在开放"
+    : upcoming
+      ? "即将开放"
+      : summary?.status === "inactive"
+        ? "当前未开放"
+        : "状态待确认";
   const activityName = active && summary?.activity_name?.trim() ? summary.activity_name.trim() : "铁旗";
   const modeLabel = active
     ? activityName !== "铁旗" ? activityName : summary?.playlist_name?.trim()
@@ -706,7 +726,7 @@ function IronBannerCard(props: {
         </div>
         <div className="iron-banner-timing">
           <span className="app-chip" data-ui-kind="status-chip" data-ui-part="state" data-info-priority="support" data-text-tone="status" data-status={status}>{statusLabel}</span>
-          <strong data-ui-part="state" data-info-priority="decision" data-text-tone="countdown" data-value-kind="countdown">倒计时 {resetCountdownLabel}</strong>
+          <strong data-ui-part="state" data-info-priority="decision" data-text-tone="countdown" data-value-kind="countdown">{timingLabel}</strong>
         </div>
       </header>
 
@@ -744,6 +764,29 @@ function IronBannerCard(props: {
       )}
     </article>
   );
+}
+
+function ironBannerTimingLabel(
+  summary: WeeklyIronBannerSummary | undefined,
+  clock: Date,
+  copy: HomeCopy
+): string {
+  const targetValue = summary?.status === "active"
+    ? summary.ends_at
+    : summary?.status === "upcoming"
+      ? summary.starts_at
+      : undefined;
+  if (targetValue) {
+    const target = new Date(targetValue);
+    if (Number.isFinite(target.getTime())) {
+      const prefix = summary?.status === "active" ? "距结束" : "距开放";
+      return `${homeText(copy, prefix)} ${compactDuration(clock, target, copy)}`;
+    }
+  }
+  if (summary?.status === "active") return homeText(copy, "结束时间待确认");
+  if (summary?.status === "upcoming") return homeText(copy, "开放时间待确认");
+  if (summary?.status === "inactive") return homeText(copy, "下次开放时间待确认");
+  return homeText(copy, "时间待确认");
 }
 
 function HomeEmpty(props: { label: string }) {
@@ -798,10 +841,10 @@ function HomeVendorModuleState(props: {
   onRetry?: () => void;
 }) {
   return (
-    <div className="home-vendor-module-state" data-surface="frame" data-ui-kind="state-frame" data-status={props.status}>
+    <div className="home-vendor-module-state" data-status={props.status}>
       <strong data-ui-part="value" data-info-priority="decision" data-text-tone="status" data-status={props.status}>{props.title}</strong>
       <span data-ui-part="detail" data-info-priority="reading" data-text-tone="body">{props.detail}</span>
-      {props.onRetry ? <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={props.onRetry}>重新读取商人库存</button> : null}
+      {props.onRetry ? <button type="button" data-ui-kind="button" data-control-variant="primary" onClick={props.onRetry}>重新读取商人库存</button> : null}
     </div>
   );
 }
@@ -824,7 +867,7 @@ function formatHomeVendorSummary(xur: HomeConfirmedXur, visibleCount: number): s
   if (xur.isPartial || xur.missingItemCount) {
     return `${visibleCount} 件已确认 · ${xur.missingItemCount} 件定义待补齐`;
   }
-  return `${xur.inventoryCount} 件轮换商品 · ${xur.refreshLabel ?? "当前有效"}`;
+  return `${xur.inventoryCount} 件轮换商品`;
 }
 
 function formatHomeVendorSource(input: {

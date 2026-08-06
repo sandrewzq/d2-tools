@@ -16,6 +16,8 @@ import type {
 } from "./summary.js";
 
 type PublicMilestone = {
+  startDate?: string | null;
+  endDate?: string | null;
   displayProperties?: {
     name?: string;
     description?: string;
@@ -105,6 +107,7 @@ type VendorSale = {
 };
 
 export type BuildWeeklyLiveDataInput = {
+  now?: Date;
   milestones?: Record<string, PublicMilestone>;
   profile?: DestinyProfileActivitiesResponse;
   characterVendors?: CharacterVendorResponse[];
@@ -210,26 +213,35 @@ export function buildWeeklyLiveDataFromBungie(input: BuildWeeklyLiveDataInput): 
 
   return {
     items: uniqueByKindAndTitle(items).slice(0, 12),
-    iron_banner: buildIronBannerSummary(input, definitions),
+    iron_banner: buildIronBannerSummary(input, definitions, input.now ?? new Date()),
     public_clues: uniqueByTitle(publicClues).slice(0, 4)
   };
 }
 
+type IronBannerMilestoneWindow = {
+  status: "active" | "upcoming" | "inactive";
+  milestoneHash: number;
+  startsAt?: string;
+  endsAt?: string;
+};
+
 function buildIronBannerSummary(
   input: BuildWeeklyLiveDataInput,
-  definitions: NonNullable<BuildWeeklyLiveDataInput["definitions"]>
+  definitions: NonNullable<BuildWeeklyLiveDataInput["definitions"]>,
+  now: Date
 ): WeeklyIronBannerSummary {
   const characterData = input.profile?.characterActivities?.data;
   const totalCharacterIds = Object.keys(input.profile?.characters?.data ?? characterData ?? {});
   const lootPool = buildIronBannerLootPool(input.characterVendors ?? [], definitions);
+  const milestoneWindow = findIronBannerMilestoneWindow(input.milestones, definitions, now);
   if (!input.profile || !characterData) {
-    if (lootPool.status === "ready") {
-      return createVendorConfirmedIronBanner(totalCharacterIds.length, lootPool);
+    if (milestoneWindow?.status === "active" || milestoneWindow?.status === "upcoming") {
+      return createMilestoneConfirmedIronBanner(totalCharacterIds.length, lootPool, milestoneWindow);
     }
     return createIronBannerState("unavailable", totalCharacterIds.length, {
       title: "铁旗状态待确认",
       detail: "登录 Bungie 后读取角色活动、每周挑战和萨拉丁库存。"
-    });
+    }, lootPool);
   }
 
   const characterEntries: WeeklyIronBannerSummary["characters"]["entries"] = {};
@@ -254,13 +266,13 @@ function buildIronBannerSummary(
   }
 
   if (!activeActivities.length) {
-    if (lootPool.status === "ready") {
-      return createVendorConfirmedIronBanner(totalCharacterIds.length, lootPool);
+    if (milestoneWindow?.status === "active" || milestoneWindow?.status === "upcoming") {
+      return createMilestoneConfirmedIronBanner(totalCharacterIds.length, lootPool, milestoneWindow);
     }
     return createIronBannerState("inactive", totalCharacterIds.length, {
       title: "铁旗当前未开放",
       detail: "固定保留此区域；当前角色活动列表没有返回铁旗玩法。"
-    });
+    }, lootPool);
   }
 
   const representative = activeActivities[0];
@@ -281,6 +293,7 @@ function buildIronBannerSummary(
     playlist_name: playlistName,
     evidence: relatedHashes.length ? `活动与目标 Hash：${relatedHashes.join(" / ")}` : undefined,
     source: "Bungie CharacterActivities + 当前 Manifest",
+    ...ironBannerTimingFields(milestoneWindow?.status === "active" ? milestoneWindow : undefined),
     related_hashes: relatedHashes,
     characters: {
       available_count: activeActivities.length,
@@ -292,17 +305,24 @@ function buildIronBannerSummary(
   };
 }
 
-function createVendorConfirmedIronBanner(
+function createMilestoneConfirmedIronBanner(
   totalCharacters: number,
-  lootPool: WeeklyIronBannerLootPool
+  lootPool: WeeklyIronBannerLootPool,
+  milestone: IronBannerMilestoneWindow
 ): WeeklyIronBannerSummary {
+  const upcoming = milestone.status === "upcoming";
   return {
-    status: "active",
-    title: "铁旗已开放",
-    detail: "萨拉丁与铁旗聚焦库存已开放；当前角色挑战数据待读取。",
+    status: upcoming ? "upcoming" : "active",
+    title: upcoming ? "铁旗即将开放" : "铁旗已开放",
+    detail: upcoming
+      ? "Bungie 公共里程碑已提供铁旗开放时间。"
+      : "Bungie 公共里程碑已确认开放；当前角色挑战数据待读取。",
     activity_name: "铁旗",
-    playlist_name: "当前玩法待读取",
-    source: "Bungie Character Vendors + 当前 Manifest",
+    playlist_name: upcoming ? undefined : "当前玩法待读取",
+    source: "Bungie Public Milestones + 当前 Manifest",
+    evidence: `里程碑 Hash：${milestone.milestoneHash}`,
+    related_hashes: [milestone.milestoneHash],
+    ...ironBannerTimingFields(milestone),
     characters: {
       available_count: 0,
       total_count: totalCharacters,
@@ -316,7 +336,8 @@ function createVendorConfirmedIronBanner(
 function createIronBannerState(
   status: "inactive" | "unavailable",
   totalCharacters: number,
-  copy: { title: string; detail: string }
+  copy: { title: string; detail: string },
+  lootPool: WeeklyIronBannerLootPool = emptyIronBannerLootPool()
 ): WeeklyIronBannerSummary {
   return {
     status,
@@ -328,8 +349,83 @@ function createIronBannerState(
       entries: {}
     },
     reward_groups: [],
-    loot_pool: emptyIronBannerLootPool()
+    loot_pool: lootPool
   };
+}
+
+function findIronBannerMilestoneWindow(
+  milestones: Record<string, PublicMilestone> | undefined,
+  definitions: NonNullable<BuildWeeklyLiveDataInput["definitions"]>,
+  now: Date
+): IronBannerMilestoneWindow | undefined {
+  const timestamp = now.getTime();
+  const candidates = Object.entries(milestones ?? {}).flatMap(([hash, milestone]) => {
+    const milestoneHash = Number(hash);
+    if (!Number.isFinite(milestoneHash)) return [];
+    const milestoneDefinition = definitionRecord(definitions.milestones, milestoneHash);
+    const activityDefinitions = (milestone.activities ?? [])
+      .map((activity) => definitionRecord(definitions.activities, activity.activityHash))
+      .filter((definition): definition is DefinitionRecord => Boolean(definition));
+    const milestoneText = [
+      readableName(milestone),
+      milestoneDefinition?.displayProperties?.name,
+      milestoneDefinition?.displayProperties?.description,
+      ...activityDefinitions.flatMap((definition) => [
+        definition.displayProperties?.name,
+        definition.displayProperties?.description,
+        definition.originalDisplayProperties?.name,
+        definition.originalDisplayProperties?.description
+      ])
+    ].filter(Boolean).join(" ");
+    if (!isIronBannerText(milestoneText)
+      && !activityDefinitions.some((definition) => isIronBannerActivityDefinition(definition))) {
+      return [];
+    }
+
+    const startsAt = normalizedIsoDate(milestone.startDate);
+    const endsAt = normalizedIsoDate(milestone.endDate);
+    const startsTimestamp = startsAt ? Date.parse(startsAt) : undefined;
+    const endsTimestamp = endsAt ? Date.parse(endsAt) : undefined;
+    const status = startsTimestamp !== undefined && timestamp < startsTimestamp
+      ? "upcoming"
+      : endsTimestamp !== undefined && timestamp >= endsTimestamp
+        ? "inactive"
+        : "active";
+    return [{
+      status,
+      milestoneHash,
+      startsAt,
+      endsAt
+    } satisfies IronBannerMilestoneWindow];
+  });
+
+  return candidates.sort((left, right) => {
+    const statusOrder = { active: 0, upcoming: 1, inactive: 2 } as const;
+    const statusDifference = statusOrder[left.status] - statusOrder[right.status];
+    if (statusDifference) return statusDifference;
+    const leftBoundary = Date.parse(left.startsAt ?? left.endsAt ?? "");
+    const rightBoundary = Date.parse(right.startsAt ?? right.endsAt ?? "");
+    return (Number.isFinite(leftBoundary) ? leftBoundary : Number.MAX_SAFE_INTEGER)
+      - (Number.isFinite(rightBoundary) ? rightBoundary : Number.MAX_SAFE_INTEGER);
+  })[0];
+}
+
+function ironBannerTimingFields(
+  milestone: IronBannerMilestoneWindow | undefined
+): Pick<WeeklyIronBannerSummary, "starts_at" | "ends_at" | "timing_source"> {
+  if (!milestone) return {};
+  const timing: Pick<WeeklyIronBannerSummary, "starts_at" | "ends_at" | "timing_source"> = {
+    timing_source: "Bungie Public Milestones"
+  };
+  if (milestone.startsAt) timing.starts_at = milestone.startsAt;
+  if (milestone.endsAt) timing.ends_at = milestone.endsAt;
+  return timing;
+}
+
+function normalizedIsoDate(value: string | null | undefined): string | undefined {
+  if (!value) return undefined;
+  const timestamp = Date.parse(value);
+  return Number.isFinite(timestamp) ? new Date(timestamp).toISOString() : undefined;
 }
 
 function isIronBannerActivityDefinition(definition: DefinitionRecord): boolean {

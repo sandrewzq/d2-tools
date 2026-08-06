@@ -136,6 +136,9 @@ export type BatchItemActionResult = {
   failed_count: number;
   message: string;
   account_patches: AccountItemActionPatch[];
+  succeeded_item_ids?: string[];
+  failed_item_ids?: string[];
+  failure_messages?: string[];
 };
 
 export type BatchTransferPlanInput = {

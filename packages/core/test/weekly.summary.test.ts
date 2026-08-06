@@ -3,6 +3,90 @@ import { buildWeeklyLiveDataFromBungie, fetchWeeklyLiveData } from "../src/weekl
 import { buildWeeklySummary } from "../src/weekly/summary";
 
 describe("weekly summary", () => {
+  it("does not treat persistent Iron Banner focusing vendors as an active event", () => {
+    const liveData = buildWeeklyLiveDataFromBungie({
+      now: new Date("2026-08-06T03:00:00.000Z"),
+      profile: {
+        characters: { data: { "character-1": { characterId: "character-1" } } },
+        characterActivities: { data: { "character-1": { availableActivities: [] } } }
+      },
+      characterVendors: [{
+        characterId: "character-1",
+        vendors: {
+          data: {
+            "2472648659": {
+              vendorHash: 2472648659,
+              enabled: true,
+              canPurchase: false,
+              nextRefreshDate: "9999-12-31T23:59:59.999Z"
+            }
+          }
+        },
+        sales: {
+          data: {
+            "2472648659": {
+              saleItems: {
+                "0": { vendorItemIndex: 0, itemHash: 100 }
+              }
+            }
+          }
+        }
+      }],
+      definitions: {
+        vendors: {
+          "2472648659": {
+            vendorIdentifier: "IRON_BANNER_ATTUNEMENT",
+            displayProperties: { name: "铁旗同调" }
+          }
+        },
+        items: {
+          "100": { displayProperties: { name: "测试装备" } }
+        }
+      }
+    });
+
+    expect(liveData.iron_banner).toMatchObject({
+      status: "inactive",
+      title: "铁旗当前未开放",
+      characters: { available_count: 0, total_count: 1 },
+      loot_pool: { status: "ready" }
+    });
+    expect(liveData.iron_banner?.ends_at).toBeUndefined();
+  });
+
+  it("uses an Iron Banner public milestone as the confirmed activity window", () => {
+    const liveData = buildWeeklyLiveDataFromBungie({
+      now: new Date("2026-08-06T03:00:00.000Z"),
+      milestones: {
+        "42": {
+          startDate: "2026-08-04T17:00:00Z",
+          endDate: "2026-08-11T17:00:00Z",
+          activities: [{ activityHash: 19 }]
+        }
+      },
+      definitions: {
+        milestones: {
+          "42": { displayProperties: { name: "铁旗" } }
+        },
+        activities: {
+          "19": {
+            displayProperties: { name: "铁旗：控制" },
+            directActivityModeType: 19,
+            activityModeTypes: [19]
+          }
+        }
+      }
+    });
+
+    expect(liveData.iron_banner).toMatchObject({
+      status: "active",
+      starts_at: "2026-08-04T17:00:00.000Z",
+      ends_at: "2026-08-11T17:00:00.000Z",
+      timing_source: "Bungie Public Milestones",
+      related_hashes: [42]
+    });
+  });
+
   it("keeps public raid milestones as clues instead of confirmed rotating raids", () => {
     const liveData = buildWeeklyLiveDataFromBungie({
       milestones: {

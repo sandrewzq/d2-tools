@@ -103,13 +103,13 @@
 .armor-detail-source-row p { color: var(--body); font-size: 12px; }
 .armor-detail-source-row > span { color: var(--status-ready); font-size: 12px; font-weight: 700; white-space: nowrap; }
 .armor-detail-source-row > span.is-muted { color: var(--text-muted); }
-.armor-detail-note { margin: 9px 0 0; padding: 9px 11px; border-left: 3px solid var(--blue); color: var(--body); background: var(--blue-bg); font-size: 12px; line-height: 1.5; }
+.armor-detail-note { margin: 9px 0 0; padding: 9px 11px; color: var(--body); background: var(--blue-bg); font-size: 12px; line-height: 1.5; }
 
 .armor-detail-configuration { display: grid; gap: 14px; }
 .armor-detail-configuration-grid { display: grid; grid-template-columns: minmax(330px, 0.8fr) minmax(0, 1.2fr); gap: 16px; }
 .armor-detail-core-features { display: grid; align-content: start; gap: 8px; }
-.armor-detail-core-feature { display: grid; grid-template-columns: 54px minmax(0, 1fr); gap: 12px; padding: 12px; border: 1px solid var(--object-border); border-left: 4px solid var(--accent-primary); border-radius: var(--radius-object); background: var(--card-bg); }
-.armor-detail-core-feature.is-exotic { border-left-color: var(--status-warning); }
+.armor-detail-core-feature { display: grid; grid-template-columns: 54px minmax(0, 1fr); gap: 12px; padding: 12px; border: 1px solid var(--object-border); border-radius: var(--radius-object); background: var(--card-bg); }
+.armor-detail-core-feature.is-exotic { border-color: var(--status-warning); }
 .armor-detail-core-feature img,
 .armor-detail-core-feature-icon { width: 54px; height: 54px; border-radius: var(--radius-control); }
 .armor-detail-core-feature-icon { background: var(--surface-recessed); }
@@ -117,7 +117,7 @@
 .armor-detail-core-feature h4 { margin: 2px 0 4px; color: var(--text-title); font-size: 14px; }
 .armor-detail-core-feature p { color: var(--body); font-size: 12px; line-height: 1.55; }
 .armor-detail-core-feature small { display: block; margin-top: 7px; color: var(--text-muted); font-size: 12px; }
-.armor-detail-set-bonus { overflow: hidden; border: 1px solid var(--object-border); border-left: 4px solid var(--accent-primary); border-radius: var(--radius-object); background: var(--card-bg); }
+.armor-detail-set-bonus { overflow: hidden; border: 1px solid var(--object-border); border-radius: var(--radius-object); background: var(--card-bg); }
 .armor-detail-set-bonus > header { display: flex; align-items: start; justify-content: space-between; gap: 10px; padding: 10px 12px; border-bottom: 1px solid var(--section-divider); background: var(--surface-interactive); }
 .armor-detail-set-bonus header span { color: var(--accent-primary); font-size: 12px; font-weight: 700; }
 .armor-detail-set-bonus h4 { margin: 2px 0 0; color: var(--text-title); font-size: 14px; }
@@ -169,7 +169,7 @@
 .armor-detail-condition-list em.is-hit { color: var(--status-ready); }
 .armor-detail-condition-list em.is-miss { color: var(--status-warning); }
 .armor-detail-condition-list em.is-unknown { color: var(--text-muted); }
-.armor-detail-source-quote { margin: 0; padding: 8px 12px; border-left: 3px solid var(--border-control); color: var(--text-body); background: var(--surface-interactive); font-size: 12px; line-height: 1.5; }
+.armor-detail-source-quote { margin: 0; padding: 8px 12px; color: var(--text-body); background: var(--surface-interactive); font-size: 12px; line-height: 1.5; }
 
 .armor-detail-upgrade-layout { display: grid; grid-template-columns: minmax(300px, 0.7fr) minmax(0, 1.3fr); gap: 16px; }
 .armor-detail-upgrade-summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); overflow: hidden; border: 1px solid var(--object-border); background: var(--card-bg); }
@@ -187,7 +187,7 @@
 
 .armor-detail-ai-layout { display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: 16px; }
 .armor-detail-ai-analysis { display: grid; align-content: start; gap: 10px; min-width: 0; }
-.armor-detail-ai-result { min-height: 170px; padding: 14px; border: 1px solid var(--violet); border-left: 4px solid var(--violet); background: var(--violet-bg); }
+.armor-detail-ai-result { min-height: 170px; padding: 14px; background: var(--violet-bg); }
 .armor-detail-ai-result > span { color: var(--accent-primary); font-size: var(--font-body); font-weight: 700; }
 .armor-detail-ai-result h4 { margin: 8px 0 5px; color: var(--text-title); font-size: 14px; }
 .armor-detail-ai-result p { color: var(--body); font-size: 12px; line-height: 1.55; }

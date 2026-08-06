@@ -1,5 +1,5 @@
 import { selectVaultPageModel } from "@d2-tools/app/vault";
-import { ProductWorkspaceEmptyState, VaultPageContentView } from "@d2-tools/ui";
+import { ControlButton, ProductWorkspaceEmptyState, VaultPageContentView } from "@d2-tools/ui";
 import { useEffect, useMemo, useState } from "react";
 import type { LoadoutTemplateLookup } from "../../shared/domain/loadouts/loadoutLookup";
 import type {
@@ -89,9 +89,7 @@ export function VaultPage(props: {
       <ProductWorkspaceEmptyState>
         <strong>{props.accountError ? "仓库读取失败" : props.isLoadingAccount ? "正在读取账号" : "还没有账号数据"}</strong>
         <span>{props.accountError || "先读取账号数据，然后查看完整仓库列表。"}</span>
-        <button type="button" disabled={props.isLoadingAccount} onClick={props.onLoadAccount}>
-          {props.isLoadingAccount ? "读取中..." : "刷新账号"}
-        </button>
+        <ControlButton variant="primary" aria-busy={props.isLoadingAccount} disabled={props.isLoadingAccount} onClick={props.onLoadAccount}>刷新账号</ControlButton>
       </ProductWorkspaceEmptyState>
     );
   }

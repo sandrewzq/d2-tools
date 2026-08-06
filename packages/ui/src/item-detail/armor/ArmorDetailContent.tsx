@@ -372,7 +372,7 @@ function OverviewSection({ model }: { model: ArmorDetailViewModel }) {
               ))}
             </div>
           ) : <EmptyState text="这件护甲的获取方式暂未确认。" />}
-          <p className="armor-detail-note">获取方式和当前售卖状态分别展示；实时读取失败时不回退显示旧 Offer。</p>
+          <p className="armor-detail-note" data-ui-kind="callout" data-callout-tone="info">获取方式和当前售卖状态分别展示；实时读取失败时不回退显示旧 Offer。</p>
         </section>
       </div>
     </>
@@ -397,7 +397,7 @@ function ConfigurationSection({ model }: { model: ArmorDetailViewModel }) {
           <div className="armor-detail-core-features">
             {armorSet ? <ArmorSetBonus armorSet={armorSet} /> : null}
             {model.abilities.length ? model.abilities.map((ability) => (
-              <article key={ability.hash} className={["armor-detail-core-feature", isExotic && "is-exotic"].filter(Boolean).join(" ")}>
+              <article key={ability.hash} className={["armor-detail-core-feature", isExotic && "is-exotic"].filter(Boolean).join(" ")} data-ui-kind="object-card">
                 <GameAssetImage className="game-definition-icon" src={ability.icon} alt="" loading="eager" fallback={<span className="armor-detail-core-feature-icon" aria-hidden="true" />} />
                 <div><span>{isExotic ? "异域固有能力" : "护甲能力"}</span><h4>{ability.name}</h4><p>{ability.description}</p><small>固定能力与实例随机属性分开显示。</small></div>
               </article>
@@ -433,7 +433,7 @@ function ConfigurationSection({ model }: { model: ArmorDetailViewModel }) {
 function ArmorSetBonus(props: { armorSet: NonNullable<ArmorDetailViewModel["identity"]["armor_set"]> }) {
   const bonuses = props.armorSet.bonuses ?? [];
   return (
-    <section className="armor-detail-set-bonus" aria-label={`${props.armorSet.name}套装效果`}>
+    <section className="armor-detail-set-bonus" data-ui-kind="object-card" aria-label={`${props.armorSet.name}套装效果`}>
       <header>
         <div><span>套装效果</span><h4>{props.armorSet.name}</h4></div>
         <small>官方套装 Hash {props.armorSet.hash}</small>
@@ -556,14 +556,14 @@ function AnalysisSection(props: {
         <div className="armor-detail-ai-analysis">
           {props.analysis?.message || status === "running" ? <p className={`status-message status-${status === "error" ? "error" : status === "ready" ? "ready" : "pending"}`} role="status">{props.analysis?.message ?? "正在分析这件护甲..."}</p> : null}
           {props.analysis?.body ? (
-            <article className="armor-detail-ai-result">
+            <article className="armor-detail-ai-result" data-ui-kind="callout" data-callout-tone="ai">
               <span>AI 生成 · 用户尚未确认</span>
               <h4>{props.analysis.title ?? `${props.model.identity.name}分析`}</h4>
               <p>{props.analysis.body}</p>
               {props.analysis.evidence?.length ? <dl>{props.analysis.evidence.map((entry) => <div key={entry.label}><dt>{entry.label}</dt><dd>{entry.value}</dd></div>)}</dl> : null}
             </article>
           ) : <EmptyState text="运行分析后，这里会显示主观结论和使用依据。" />}
-          {props.analysis?.externalSearchMessage ? <p className="armor-detail-note">{props.analysis.externalSearchMessage}</p> : null}
+          {props.analysis?.externalSearchMessage ? <p className="armor-detail-note" data-ui-kind="callout" data-callout-tone="info">{props.analysis.externalSearchMessage}</p> : null}
           {props.analysis?.externalSources?.length ? (
             <section className="armor-detail-external-sources" aria-label="AI 外部知识来源">
               <DataBlockHeading title="外部知识来源" source="最低优先级" />
@@ -668,7 +668,7 @@ function RecommendationCard({ recommendation }: { recommendation: ArmorRecommend
         <div><span>目标条件</span><strong>{recommendation.value}</strong><em>来源定义</em></div>
         <div data-status={recommendation.match === "full" ? "success" : "warning"}><span>当前事实</span><strong>{recommendation.match ? `当前对象：${match}` : "当前对象没有可确认匹配数据"}</strong><em className={recommendation.match === "full" ? "is-hit" : recommendation.match ? "is-miss" : "is-unknown"}>{match}</em></div>
       </div>
-      <p className="armor-detail-source-quote">{recommendation.reason}</p>
+      <p className="armor-detail-source-quote" data-ui-kind="callout" data-callout-tone="info">{recommendation.reason}</p>
     </article>
   );
 }

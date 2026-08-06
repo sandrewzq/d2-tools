@@ -63,7 +63,7 @@ type VaultWorkspaceTab = "filters" | "duplicates" | "recommendations";
 
 const vaultWorkspaceTabs: Array<{ key: VaultWorkspaceTab; label: string }> = [
   { key: "filters", label: "筛选列表" },
-  { key: "duplicates", label: "同名对比" },
+  { key: "duplicates", label: "同名整理" },
   { key: "recommendations", label: "推荐数据" }
 ];
 
@@ -223,6 +223,11 @@ export function VaultPageContentView(props: {
       .sort((left, right) => right.count - left.count || left.label.localeCompare(right.label, "zh-Hans-CN"));
   }, [props.items]);
   const duplicateSummary = useMemo(() => buildVaultDuplicateSummary(props.items, props.tags), [props.items, props.tags]);
+  const pendingDuplicateGroupCount = useMemo(
+    () => duplicateSummary.groups.filter((duplicateGroup) => duplicateGroup.items.some((item) => item.tag !== "keep" && item.tag !== "review" && item.tag !== "junk")).length,
+    [duplicateSummary]
+  );
+  const completedDuplicateGroupCount = duplicateSummary.total_duplicate_groups - pendingDuplicateGroupCount;
   const vaultItemCount = props.vaultItemCount ?? props.items.length;
   const loadoutMatchCount = useMemo(
     () => props.highlightedItemKeys ? filteredItems.filter((item) => matchesLoadoutTemplateItem(item, props.highlightedItemKeys)).length : 0,
@@ -453,14 +458,13 @@ export function VaultPageContentView(props: {
       {activeVaultTab === "duplicates" ? (
         <div id={panelIds.duplicates} role="tabpanel" aria-labelledby={tabIds.duplicates} className="vault-workspace-panel">
           <div className="vault-summary-strip">
-            <div><span>待处理同名组</span><strong>{duplicateSummary.total_duplicate_groups} 组</strong></div>
-            <div><span>当前实例</span><strong>{duplicateSummary.total_duplicate_items} 件</strong></div>
-            <div><span>处理原则</span><strong>状态只由玩家写入</strong></div>
+            <div><span>待整理同名组</span><strong>{pendingDuplicateGroupCount} 组</strong></div>
+            <div><span>已整理组</span><strong>{completedDuplicateGroupCount} 组</strong></div>
+            <div><span>重复实例</span><strong>{duplicateSummary.total_duplicate_items} 件</strong></div>
           </div>
           <VaultDuplicateGroups
             duplicateSummary={duplicateSummary}
             items={props.items}
-            tags={props.tags}
             wishlist={props.wishlist}
             localTargetRules={props.localTargetRules}
             highlightedItemKeys={props.highlightedItemKeys}

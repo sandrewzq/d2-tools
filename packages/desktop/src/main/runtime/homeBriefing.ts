@@ -98,6 +98,7 @@ async function buildHomeBriefing(
     now
   });
   const weeklyLiveData = buildWeeklyLiveDataFromBungie({
+    now,
     milestones: snapshot.milestones,
     profile: snapshot.profile,
     characterVendors: snapshot.characterVendors,
@@ -117,7 +118,7 @@ async function buildHomeBriefing(
     ? buildWeeklySummary(now, weeklyLiveData)
     : cached.weekly;
   return {
-    version: 2,
+    version: 3,
     context_key: contextKey,
     saved_at: now.toISOString(),
     fetched_at: snapshot.fetchedAt,
@@ -284,10 +285,25 @@ function createRefreshPlan(
   if (force || !cached) return { activities: true, vendors: true };
   return {
     activities: cached.daily_period_key !== dailyPeriodKey(now)
-      || cached.weekly_period_key !== weeklyPeriodKey(now),
+      || cached.weekly_period_key !== weeklyPeriodKey(now)
+      || ironBannerBoundaryReached(cached.weekly.iron_banner, now),
     vendors: cached.xur_period_key !== xurPeriodKey(now)
       || isExpired(cached.xur_refresh_at, now)
   };
+}
+
+function ironBannerBoundaryReached(
+  ironBanner: CachedHomeBriefing["weekly"]["iron_banner"],
+  now: Date
+): boolean {
+  const boundary = ironBanner.status === "upcoming"
+    ? ironBanner.starts_at
+    : ironBanner.status === "active"
+      ? ironBanner.ends_at
+      : undefined;
+  if (!boundary) return false;
+  const timestamp = Date.parse(boundary);
+  return Number.isFinite(timestamp) && timestamp <= now.getTime();
 }
 
 function briefingFromCache(cached: CachedHomeBriefing, now: Date): HomeBriefing {

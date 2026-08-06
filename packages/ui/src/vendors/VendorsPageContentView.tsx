@@ -214,7 +214,7 @@ export function VendorsPageContentView(props: VendorsPageContentViewProps) {
       >
         <strong>{refreshStatus?.busy ? copy.loadingTitle : copy.emptyTitle}</strong>
         <span>{refreshStatus?.message ?? copy.emptyBody}</span>
-        {!refreshStatus?.busy && props.actions.refreshVendors ? <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={props.actions.refreshVendors}>{copy.inline["重新加载商人库存"] ?? "重新加载商人库存"}</button> : null}
+        {!refreshStatus?.busy && props.actions.refreshVendors ? <button type="button" data-ui-kind="button" data-control-variant="primary" onClick={props.actions.refreshVendors}>{copy.inline["重新加载商人库存"] ?? "重新加载商人库存"}</button> : null}
       </ProductWorkspaceEmptyState>
     );
   }
@@ -285,7 +285,7 @@ export function VendorsPageContentView(props: VendorsPageContentViewProps) {
 
         <div className="vendor-detail-flow">
           {selectedVendor.detailFailureMessage ? (
-            <div className="vendor-detail-warning" data-status="warning" role="status" aria-label="商人详情状态">
+            <div className="vendor-detail-warning" data-ui-kind="callout" data-status="warning" role="status" aria-label="商人详情状态">
               <strong>{getVendorDisplayStatusLabel(selectedVendor)}</strong>
               <span>{selectedVendor.detailFailureMessage}。当前仍显示基础销售数据，属性与插槽可能不完整。</span>
             </div>

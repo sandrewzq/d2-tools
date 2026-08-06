@@ -32,6 +32,8 @@ const allowedSurfaceValues = new Set([
   "drawer"
 ]);
 const hardcodedColorPattern = /#[\da-f]{3,8}\b|rgba?\s*\(/i;
+const thickInlineStartBorderPattern = /border-(?:left|inline-start)(?:-width)?\s*:\s*(\d+(?:\.\d+)?)px\b/g;
+const calloutBorderOwner = "packages/ui/src/styles/foundation/03-surface-contract.css";
 
 function toRepoPath(path) {
   return path.split(sep).join("/");
@@ -67,6 +69,7 @@ export function collectUiContractErrors(root) {
     const repoPath = toRepoPath(relative(root, file));
     const isCss = extname(file).toLowerCase() === ".css";
     const isMenuCss = repoPath.startsWith("packages/ui/src/styles/menus/") && isCss;
+    const isUiStyleCss = repoPath.startsWith("packages/ui/src/styles/") && isCss;
     const checksSurfaceValues = repoPath.startsWith("packages/ui/src/") && /\.(?:[jt]sx?)$/.test(repoPath);
     const lines = readFileSync(file, "utf8").split(/\r?\n/);
     lines.forEach((line, index) => {
@@ -92,6 +95,14 @@ export function collectUiContractErrors(root) {
         for (const zIndex of line.matchAll(/z-index:\s*(-?\d+)\b/g)) {
           if (zIndex[1] !== "0" && zIndex[1] !== "1") {
             errors.push(`${repoPath}:${index + 1} 页面级层级必须使用语义 token`);
+          }
+        }
+
+        if (isUiStyleCss && repoPath !== calloutBorderOwner) {
+          for (const border of line.matchAll(thickInlineStartBorderPattern)) {
+            if (Number(border[1]) > 1) {
+              errors.push(`${repoPath}:${index + 1} 粗方向语义色条只能由共享 Callout 配方持有`);
+            }
           }
         }
       }
@@ -122,5 +133,5 @@ if (errors.length) {
   errors.forEach((error) => console.error(`- ${error}`));
   process.exitCode = 1;
 } else {
-  console.log("UI 合同检查通过：共享语义、排版、层级、主题颜色和表面枚举未发现违规。");
+  console.log("UI 合同检查通过：共享语义、排版、层级、主题颜色、边框所有权和表面枚举未发现违规。");
 }

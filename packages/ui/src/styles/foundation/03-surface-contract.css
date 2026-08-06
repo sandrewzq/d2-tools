@@ -210,6 +210,22 @@ html[data-theme="light"],
   background: var(--card-bg);
 }
 
+/* Callout 是粗方向语义色条的唯一所有者。 */
+[data-ui-kind="callout"] {
+  border: 1px solid var(--object-border);
+  border-inline-start-width: 4px;
+  border-inline-start-color: var(--border-control);
+  border-radius: var(--radius-control);
+  background: var(--card-bg);
+}
+
+[data-ui-kind="callout"][data-callout-tone="info"] { border-inline-start-color: var(--accent-primary); }
+[data-ui-kind="callout"][data-callout-tone="ai"] { border-inline-start-color: var(--violet); }
+[data-ui-kind="callout"][data-status="pending"] { border-inline-start-color: var(--accent-primary); }
+[data-ui-kind="callout"][data-status="success"] { border-inline-start-color: var(--status-ready); }
+[data-ui-kind="callout"][data-status="warning"] { border-inline-start-color: var(--status-warning); }
+[data-ui-kind="callout"][data-status="error"] { border-inline-start-color: var(--status-error); }
+
 /* SurfaceList：父级拥有外框；内部行只画一条分隔线，不能再次画卡片外框。 */
 [data-surface="list"] {
   min-width: 0;

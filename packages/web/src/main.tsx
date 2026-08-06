@@ -678,11 +678,11 @@ function createVendorDetailTarget(item: VendorInventoryItemView, context: Vendor
 
 function getWebPageHeader(page: ShellPageKey) {
   const actions: Partial<Record<ShellPageKey, ReactNode>> = {
-    home: <ControlButton variant="primary">重新读取公开情报</ControlButton>,
-    account: <><ControlButton>刷新账号</ControlButton><ControlButton>重新授权</ControlButton></>,
+    home: <ControlButton variant="secondary">刷新公开情报</ControlButton>,
+    account: <><ControlButton variant="secondary">重新授权</ControlButton><ControlButton variant="primary">刷新账号</ControlButton></>,
     vault: <ControlButton variant="primary">刷新账号装备</ControlButton>,
     library: <><ControlButton>重新检查资料库</ControlButton><ControlButton variant="primary">修复资料库</ControlButton></>,
-    vendors: <ControlButton variant="primary">刷新商人库存</ControlButton>
+    vendors: <ControlButton variant="secondary">刷新商人库存</ControlButton>
   };
 
   return {

@@ -590,7 +590,7 @@ function LocalWorkspace(props: LoadoutsPageContentViewProps & {
       <section className="loadout-detail">
         {props.isDimImportOpen ? <DimImportPanel {...props} /> : null}
         {props.isGuideImportOpen ? <GuideImportPanel {...props} /> : null}
-        {props.localPlanError ? <div className="loadout-capability-notice" data-status="warning"><div><strong>本地方案操作未完成</strong><p>{props.localPlanError}</p></div></div> : null}
+        {props.localPlanError ? <div className="loadout-capability-notice" data-ui-kind="callout" data-status="warning"><div><strong>本地方案操作未完成</strong><p>{props.localPlanError}</p></div></div> : null}
         {props.localPlanDraft ? <LocalPlanEditor {...props} /> : <ProductWorkspaceEmptyState><h2>选择或新建本地方案</h2><p>本地方案先在工作台中编辑，只有显式保存后才写入本机数据。</p></ProductWorkspaceEmptyState>}
       </section>
 
@@ -720,7 +720,7 @@ function LocalPlanEditor(props: LoadoutsPageContentViewProps & {
           <label><span>+10 模组预算</span><input type="number" min="0" value={armorConstraints.ten_point_mod_budget} onChange={(event) => updateArmorConstraints({ ...armorConstraints, ten_point_mod_budget: Math.max(Number(event.target.value) || 0, 0) })} /></label>
         </div>
         <div className="loadout-armor-priority" role="group" aria-label="护甲属性优先级">{loadoutPlanArmorStatKeys.map((stat) => { const selected = armorConstraints.priority_stats.includes(stat); return <label key={stat}><input type="checkbox" checked={selected} onChange={(event) => updateArmorConstraints({ ...armorConstraints, priority_stats: event.target.checked ? [...armorConstraints.priority_stats, stat] : armorConstraints.priority_stats.filter((item) => item !== stat) })} /><span>{armorStatLabel(stat)}优先</span></label>; })}</div>
-        {armorUnavailableReasons.length ? <p className="loadout-callout" data-status="warning">{armorUnavailableReasons.join(" ")}</p> : null}
+        {armorUnavailableReasons.length ? <p className="loadout-callout" data-ui-kind="callout" data-status="warning">{armorUnavailableReasons.join(" ")}</p> : null}
         {armorCandidates.length ? <div className="loadout-armor-candidate-list">{armorCandidates.map((candidate, index) => <button type="button" key={candidate.items.map((item) => item.instance_id).join("-")} className="loadout-armor-candidate" onClick={() => selectArmorCandidate(candidate)}><span>{String(index + 1).padStart(2, "0")}</span><div><strong>属性 {loadoutPlanArmorStatKeys.map((stat) => candidate.final_stats[stat]).join(" / ")}</strong><small>{candidate.items.map((item) => item.name).join(" · ")}</small><small>{candidate.stat_mods.length ? `模组 ${candidate.stat_mods.map((mod) => `${armorStatLabel(mod.stat)} +${mod.value} × ${mod.count}`).join("，")}` : "不需要属性模组"} · 浪费 {candidate.stat_waste} · 转移 {candidate.transfer_count} 件</small></div><em>{candidate.unmet_reasons.length ? candidate.unmet_reasons.join(" ") : "选择此候选"}</em></button>)}</div> : null}
       </section>
       <LocalPlanExecutionPanel {...props} />
@@ -828,9 +828,9 @@ function LocalPlanExecutionPanel(props: LoadoutsPageContentViewProps & {
   return (
     <section className="loadout-armor-workbench" aria-label="方案应用">
       <header><div><strong>方案应用</strong><small>按实例 ID 依次转移、装备和切换可验证 Plug；失败会停止后续步骤并刷新账号。</small></div><button type="button" data-ui-kind="button" data-control-variant="primary" disabled={!props.localPlanEditingId || !plan.executable_steps.length || props.localPlanIsExecuting} onClick={props.actions.executeLocalPlan}>{props.localPlanIsExecuting ? "应用中" : props.localPlanEditingId ? "确认并应用" : "先保存方案"}</button></header>
-      {plan.executable_steps.length ? <ol className="loadout-plan-step-list">{plan.executable_steps.map((step, index) => <li key={step.id}><span>{String(index + 1).padStart(2, "0")}</span><strong>{step.label}</strong></li>)}</ol> : <p className="loadout-callout" data-status="warning">没有可执行步骤。</p>}
-      {plan.gaps.length ? <p className="loadout-callout" data-status="warning">未执行缺口：{plan.gaps.join("；")}</p> : null}
-      {report ? <p className="loadout-callout" data-status={report.refresh_verified ? "success" : "warning"}>{report.refresh_verified ? `已完成 ${report.completed_steps.length} 步，刷新核对通过。` : report.failed_step ? `已完成 ${report.completed_steps.length} 步；失败：${report.failed_step}。` : `已完成 ${report.completed_steps.length} 步，刷新核对未通过。`}</p> : null}
+      {plan.executable_steps.length ? <ol className="loadout-plan-step-list">{plan.executable_steps.map((step, index) => <li key={step.id}><span>{String(index + 1).padStart(2, "0")}</span><strong>{step.label}</strong></li>)}</ol> : <p className="loadout-callout" data-ui-kind="callout" data-status="warning">没有可执行步骤。</p>}
+      {plan.gaps.length ? <p className="loadout-callout" data-ui-kind="callout" data-status="warning">未执行缺口：{plan.gaps.join("；")}</p> : null}
+      {report ? <p className="loadout-callout" data-ui-kind="callout" data-status={report.refresh_verified ? "success" : "warning"}>{report.refresh_verified ? `已完成 ${report.completed_steps.length} 步，刷新核对通过。` : report.failed_step ? `已完成 ${report.completed_steps.length} 步；失败：${report.failed_step}。` : `已完成 ${report.completed_steps.length} 步，刷新核对未通过。`}</p> : null}
       {report?.refresh_verified ? <LocalPlanPublishPanel accountSummary={props.accountSummary} targetCharacterId={plan.target_character_id} selectedSlotIndex={publishSlotIndex} onSelectSlot={setPublishSlotIndex} isRunningItemAction={props.isRunningItemAction} onSnapshot={props.actions.snapshotCurrentLoadout} /> : null}
     </section>
   );

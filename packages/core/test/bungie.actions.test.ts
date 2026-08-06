@@ -107,10 +107,19 @@ describe("Bungie item actions", () => {
     let request: Request | undefined;
     const fetchImpl: typeof fetch = async (input, init) => {
       request = new Request(input, init);
-      return jsonResponse({ ErrorCode: 1, Message: "Ok", Response: 0 });
+      return jsonResponse({
+        ErrorCode: 1,
+        Message: "Ok",
+        Response: {
+          equipResults: [
+            { itemInstanceId: "item-1", equipStatus: 1 },
+            { itemInstanceId: "item-2", equipStatus: 1642 }
+          ]
+        }
+      });
     };
 
-    await equipItems({
+    const result = await equipItems({
       config,
       token,
       membershipType: 3,
@@ -126,6 +135,10 @@ describe("Bungie item actions", () => {
       characterId: "character-1",
       membershipType: 3
     });
+    expect(result.equipResults).toEqual([
+      { itemInstanceId: "item-1", equipStatus: 1 },
+      { itemInstanceId: "item-2", equipStatus: 1642 }
+    ]);
   });
 
   it("transfers items to and from the vault", async () => {

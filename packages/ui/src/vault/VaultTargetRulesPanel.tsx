@@ -237,7 +237,7 @@ export function VaultTargetRulesPanel(props: {
           <option value="notify_only">只提示，不自动写入</option>
         </select>
       </label>
-      <p className="muted-copy">当前只会在仓库、同名对比和装备详情里提示命中结果；不会自动收藏、加标签或改动装备。</p>
+      <p className="muted-copy">当前只会在仓库、同名整理和装备详情里提示命中结果；不会自动收藏、加标签或改动装备。</p>
 
       {(rules.armor.length || rules.weapons?.length) ? (
         <div className="target-rule-list">

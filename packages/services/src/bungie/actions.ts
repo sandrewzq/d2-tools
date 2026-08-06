@@ -14,6 +14,13 @@ export type BungieItemActionOptions = {
 
 export type SetItemLockStateOptions = BungieItemActionOptions & { state: boolean };
 export type EquipItemsOptions = Omit<BungieItemActionOptions, "itemId"> & { itemIds: string[] };
+export type EquipItemResult = {
+  itemInstanceId: string;
+  equipStatus: number;
+};
+export type EquipItemsResult = {
+  equipResults: EquipItemResult[];
+};
 export type TransferItemOptions = BungieItemActionOptions & { itemReferenceHash: number; transferToVault: boolean; stackSize?: number };
 export type InsertSocketPlugOptions = BungieItemActionOptions & { socketIndex: number; plugHash: number };
 export type PullFromPostmasterOptions = BungieItemActionOptions & { itemReferenceHash: number; stackSize?: number };
@@ -38,8 +45,8 @@ export async function equipItem(options: BungieItemActionOptions): Promise<void>
   await postBungieJson<unknown>("/Destiny2/Actions/Items/EquipItem/", { itemId: options.itemId, characterId: options.characterId, membershipType: options.membershipType }, bungieWriteOptions(options));
 }
 
-export async function equipItems(options: EquipItemsOptions): Promise<void> {
-  await postBungieJson<unknown>("/Destiny2/Actions/Items/EquipItems/", { itemIds: options.itemIds, characterId: options.characterId, membershipType: options.membershipType }, bungieWriteOptions(options));
+export async function equipItems(options: EquipItemsOptions): Promise<EquipItemsResult> {
+  return postBungieJson<EquipItemsResult>("/Destiny2/Actions/Items/EquipItems/", { itemIds: options.itemIds, characterId: options.characterId, membershipType: options.membershipType }, bungieWriteOptions(options));
 }
 
 export async function transferItem(options: TransferItemOptions): Promise<void> {

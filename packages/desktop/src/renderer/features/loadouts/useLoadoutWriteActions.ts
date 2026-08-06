@@ -196,6 +196,8 @@ export function useLoadoutWriteActions(input: {
     try {
       let transferResult = { success_count: 0, failed_count: 0 };
       let equipResult = { success_count: 0, failed_count: 0 };
+      const successfullyTransferredItemIds = new Set<string>();
+      let firstFailureReason: string | undefined;
 
       if (executionPlan.transfer_items.length) {
         input.setItemActionMessage(buildHighestPowerTransferProgressMessage(executionPlan.transfer_items.length));
@@ -212,17 +214,28 @@ export function useLoadoutWriteActions(input: {
           }))
         });
         transferResult = result;
+        firstFailureReason ??= result.failure_messages?.[0];
+        for (const itemId of result.succeeded_item_ids ?? result.account_patches
+          .filter((patch) => patch.kind === "transfer" && patch.target === "character-inventory")
+          .map((patch) => patch.item_instance_id)) {
+          successfullyTransferredItemIds.add(itemId);
+        }
         const outcome = applySuccessfulWriteResult(result);
         hasSuccessfulWrite = outcome.hasSuccessfulWrite || hasSuccessfulWrite;
         requiresFullRefresh = outcome.requiresFullRefresh || requiresFullRefresh;
       }
 
-      if (executionPlan.equip_items.length) {
-        input.setItemActionMessage(buildHighestPowerEquipProgressMessage(executionPlan.equip_items.length));
+      const equipItems = executionPlan.equip_items.filter((entry) => (
+        entry.source !== "vault"
+        || successfullyTransferredItemIds.has(entry.item.instance_id ?? "")
+      ));
+
+      if (equipItems.length) {
+        input.setItemActionMessage(buildHighestPowerEquipProgressMessage(equipItems.length));
         const result = await api.batchEquipItems({
           membership_type: input.accountSummary.membership_type,
           character_id: character.character_id,
-          items: executionPlan.equip_items.map((entry) => ({
+          items: equipItems.map((entry) => ({
             membership_type: input.accountSummary?.membership_type ?? 0,
             character_id: character.character_id,
             item_id: entry.item.instance_id ?? "",
@@ -230,6 +243,7 @@ export function useLoadoutWriteActions(input: {
           }))
         });
         equipResult = result;
+        firstFailureReason ??= result.failure_messages?.[0];
         const outcome = applySuccessfulWriteResult(result);
         hasSuccessfulWrite = outcome.hasSuccessfulWrite || hasSuccessfulWrite;
         requiresFullRefresh = outcome.requiresFullRefresh || requiresFullRefresh;
@@ -241,8 +255,9 @@ export function useLoadoutWriteActions(input: {
         transferSuccessCount: transferResult.success_count,
         transferTotalCount: executionPlan.transfer_items.length,
         equipSuccessCount: equipResult.success_count,
-        equipTotalCount: executionPlan.equip_items.length,
-        failedCount: failedSteps
+        equipTotalCount: equipItems.length,
+        failedCount: failedSteps,
+        failureReason: firstFailureReason
       }));
     } finally {
       if (hasSuccessfulWrite) finishWriteActionsInBackground(requiresFullRefresh);

@@ -1,31 +1,57 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import {
+  classifyWeaponSocketPlugs,
+  isWeaponSystemPlug,
+  weaponSocketColumnLabel,
+  type WeaponPerkColumnRole
+} from "@d2-tools/app/items";
+import type {
+  AccountItemPlugSummary,
+  AccountItemSummary
+} from "@d2-tools/core/account/summary";
 import type { DuplicateAnalysisResult, DuplicateItemGroup } from "@d2-tools/core/analysis/duplicates";
 import { evaluateLocalTargets } from "@d2-tools/core/analysis/targets";
 import { evaluateWishlistRoll } from "@d2-tools/core/analysis/wishlist";
-import type { AccountItemSummary } from "@d2-tools/core/account/summary";
 import type { DimWishlist } from "@d2-tools/core/analysis/wishlistImport";
 import type { LocalTargetRules } from "@d2-tools/core/analysis/targets";
 import type { VaultItemMatchInfo } from "@d2-tools/core/community-perks";
-import type { SaveVaultTagInput, VaultTags } from "@d2-tools/core/vault/tags";
-import { matchesLoadoutTemplateItem, type LoadoutTemplateLookup } from "@d2-tools/app/loadouts";
+import type { SaveVaultTagInput } from "@d2-tools/core/vault/tags";
+import type { LoadoutTemplateLookup } from "@d2-tools/app/loadouts";
 import { getVaultItemKey, normalizeCoreItem } from "@d2-tools/app/vault";
 import { GameAssetImage } from "../media/GameAssetImage.js";
 import { formatVaultItemMeta } from "./VaultListItem.js";
 
 type DuplicateDisposition = "none" | "keep" | "review" | "junk";
 type DuplicateTypeFilter = "all" | "weapons" | "armor";
+type DuplicateProgressFilter = "all" | "pending" | "complete" | "protected";
+
+type DuplicateEvidence = {
+  protection: string[];
+  matches: string[];
+};
+
+type DuplicateComparisonValue = {
+  key: string;
+  text: string;
+  icon?: string;
+};
+
+type DuplicateComparisonColumn = {
+  key: string;
+  label: string;
+  valueFor: (item: AccountItemSummary) => DuplicateComparisonValue;
+};
 
 const dispositionOptions: Array<{ key: DuplicateDisposition; label: string }> = [
+  { key: "none", label: "未标记" },
   { key: "keep", label: "保留" },
   { key: "review", label: "待复查" },
-  { key: "junk", label: "可清理" },
-  { key: "none", label: "清除" }
+  { key: "junk", label: "可清理" }
 ];
 
 export function VaultDuplicateGroups(props: {
   duplicateSummary: DuplicateAnalysisResult;
   items: AccountItemSummary[];
-  tags: VaultTags;
   wishlist?: DimWishlist | null;
   localTargetRules?: LocalTargetRules | null;
   highlightedItemKeys?: LoadoutTemplateLookup | null;
@@ -39,18 +65,30 @@ export function VaultDuplicateGroups(props: {
   const itemByKey = useMemo(() => new Map(props.items.map((item) => [getVaultItemKey(item), item])), [props.items]);
   const [query, setQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<DuplicateTypeFilter>("all");
+  const [progressFilter, setProgressFilter] = useState<DuplicateProgressFilter>("all");
   const [activeGroupKey, setActiveGroupKey] = useState(groups[0]?.group_key ?? "");
   const [referenceByGroup, setReferenceByGroup] = useState<Record<string, string>>({});
   const [draftByGroup, setDraftByGroup] = useState<Record<string, Record<string, DuplicateDisposition>>>({});
+  const evidenceSummaryByGroup = useMemo(() => new Map(groups.map((group) => [
+    group.group_key,
+    summarizeGroupEvidence(group, itemByKey, props)
+  ])), [groups, itemByKey, props.communityMatch, props.highlightedItemKeys, props.localTargetRules, props.wishlist]);
 
   const filteredGroups = useMemo(() => {
     const normalizedQuery = query.trim().toLocaleLowerCase();
     return groups.filter((group) => {
       const firstItem = group.items[0] ? itemByKey.get(group.items[0].item_key) : undefined;
       if (typeFilter !== "all" && firstItem?.group_key !== typeFilter) return false;
-      return !normalizedQuery || group.name.toLocaleLowerCase().includes(normalizedQuery) || String(group.hash ?? "").includes(normalizedQuery);
+      if (normalizedQuery && !group.name.toLocaleLowerCase().includes(normalizedQuery)) return false;
+
+      const isComplete = isGroupPersistedComplete(group);
+      const evidence = evidenceSummaryByGroup.get(group.group_key) ?? { protectedItems: 0, matchedItems: 0 };
+      if (progressFilter === "pending" && isComplete) return false;
+      if (progressFilter === "complete" && !isComplete) return false;
+      if (progressFilter === "protected" && evidence.protectedItems === 0) return false;
+      return true;
     });
-  }, [groups, itemByKey, query, typeFilter]);
+  }, [evidenceSummaryByGroup, groups, itemByKey, progressFilter, query, typeFilter]);
 
   useEffect(() => {
     if (!filteredGroups.some((group) => group.group_key === activeGroupKey)) {
@@ -63,48 +101,61 @@ export function VaultDuplicateGroups(props: {
   }
 
   const activeGroup = filteredGroups.find((group) => group.group_key === activeGroupKey) ?? filteredGroups[0];
+  const storedReferenceKey = activeGroup ? referenceByGroup[activeGroup.group_key] : undefined;
+  const explicitReferenceKey = activeGroup?.items.some((entry) => entry.item_key === storedReferenceKey) ? storedReferenceKey : undefined;
+  const referenceKey = activeGroup ? explicitReferenceKey ?? defaultReferenceKey(activeGroup) : "";
 
   return (
     <div className="duplicate-workspace">
       <aside className="duplicate-group-browser" aria-label="同名装备组">
-        <div className="duplicate-browser-head"><strong>同名整理队列</strong><span>先选择一组，再在右侧逐件比较和暂存状态。</span></div>
+        <div className="duplicate-browser-head"><strong>同名整理</strong><span>{groups.length} 组重复装备</span></div>
         <div className="duplicate-browser-tools">
-          <input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索同名装备" aria-label="搜索同名装备组" />
+          <input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索装备名称" aria-label="搜索同名装备组" />
           <div className="duplicate-type-filter" role="group" aria-label="同名装备类型">
             {(["all", "weapons", "armor"] as DuplicateTypeFilter[]).map((value) => (
               <button type="button" key={value} aria-pressed={typeFilter === value} onClick={() => setTypeFilter(value)}>{value === "all" ? "全部" : value === "weapons" ? "武器" : "护甲"}</button>
             ))}
           </div>
+          <select value={progressFilter} onChange={(event) => setProgressFilter(event.target.value as DuplicateProgressFilter)} aria-label="筛选同名组整理进度">
+            <option value="all">全部整理进度</option>
+            <option value="pending">仍有未标记</option>
+            <option value="complete">已完成整理</option>
+            <option value="protected">包含实例保护</option>
+          </select>
         </div>
         <nav className="duplicate-group-nav">
           {filteredGroups.map((group) => {
-            const dispositionSummary = summarizeGroupDraft(group, draftByGroup[group.group_key]);
-            const protectionCount = group.items.filter((entry) => {
-              const item = itemByKey.get(entry.item_key);
-              return item ? evidenceLabels(item, props).length > 0 : false;
-            }).length;
+            const draft = draftByGroup[group.group_key];
+            const dispositionSummary = summarizeGroupDraft(group, draft);
+            const evidence = evidenceSummaryByGroup.get(group.group_key) ?? { protectedItems: 0, matchedItems: 0 };
             const firstItem = group.items[0] ? itemByKey.get(group.items[0].item_key) : undefined;
+            const isDirty = isGroupDraftDirty(group, draft);
             return (
               <button type="button" className="duplicate-group-link" key={group.group_key} aria-pressed={activeGroup?.group_key === group.group_key} onClick={() => setActiveGroupKey(group.group_key)}>
                 <GameAssetImage src={firstItem?.icon} alt="" loading="eager" fallback={<span className="duplicate-thumb-fallback">{firstItem?.group_key === "armor" ? "甲" : "武"}</span>} />
-                <span className="duplicate-group-copy"><strong>{group.name}</strong><span>{group.hash ? "同 Hash" : "同名不同 Hash"} · {group.count} 件 · 保护信号 {protectionCount}</span><small>保留 {dispositionSummary.keep} · 待复查 {dispositionSummary.review} · 可清理 {dispositionSummary.junk}</small></span>
+                <span className="duplicate-group-copy">
+                  <span className="duplicate-group-title-line"><strong>{group.name}</strong>{isDirty ? <em>未保存</em> : null}</span>
+                  <span>{groupKindLabel(group)} · {group.count} 件 · 未标记 {dispositionSummary.none}</span>
+                  <small>保护 {evidence.protectedItems} · 证据 {evidence.matchedItems} · 已决定 {group.count - dispositionSummary.none}</small>
+                </span>
               </button>
             );
           })}
         </nav>
-        {!filteredGroups.length ? <p className="duplicate-browser-empty">没有符合当前搜索和类型条件的同名组。</p> : null}
+        {!filteredGroups.length ? <p className="duplicate-browser-empty">没有符合当前搜索和进度条件的同名组。</p> : null}
       </aside>
 
       {activeGroup ? (
         <DuplicateComparePanel
           group={activeGroup}
           itemByKey={itemByKey}
-          tags={props.tags}
           wishlist={props.wishlist}
           localTargetRules={props.localTargetRules}
           highlightedItemKeys={props.highlightedItemKeys}
           communityMatch={props.communityMatch}
-          referenceKey={referenceByGroup[activeGroup.group_key] ?? ""}
+          referenceKey={referenceKey}
+          referenceIsAutomatic={!explicitReferenceKey}
+          hasNextPendingGroup={filteredGroups.some((group) => group.group_key !== activeGroup.group_key && !isGroupPersistedComplete(group))}
           draft={draftByGroup[activeGroup.group_key]}
           openingItemKey={props.openingItemKey}
           isBatchSaving={props.isBatchSaving}
@@ -114,11 +165,12 @@ export function VaultDuplicateGroups(props: {
           onApplyGroupTags={props.onApplyGroupTags}
           onNextGroup={() => {
             const currentIndex = filteredGroups.findIndex((group) => group.group_key === activeGroup.group_key);
-            const nextGroup = filteredGroups[(currentIndex + 1) % filteredGroups.length];
+            const followingGroups = [...filteredGroups.slice(currentIndex + 1), ...filteredGroups.slice(0, currentIndex)];
+            const nextGroup = followingGroups.find((group) => !isGroupPersistedComplete(group));
             if (nextGroup) setActiveGroupKey(nextGroup.group_key);
           }}
         />
-      ) : <section className="duplicate-compare-panel"><p className="status-message status-neutral">选择左侧同名组开始比较。</p></section>}
+      ) : <section className="duplicate-compare-panel"><p className="status-message status-neutral">选择左侧同名组开始整理。</p></section>}
     </div>
   );
 }
@@ -126,12 +178,13 @@ export function VaultDuplicateGroups(props: {
 function DuplicateComparePanel(props: {
   group: DuplicateItemGroup;
   itemByKey: Map<string, AccountItemSummary>;
-  tags: VaultTags;
   wishlist?: DimWishlist | null;
   localTargetRules?: LocalTargetRules | null;
   highlightedItemKeys?: LoadoutTemplateLookup | null;
   communityMatch?: Map<number, VaultItemMatchInfo>;
   referenceKey: string;
+  referenceIsAutomatic: boolean;
+  hasNextPendingGroup: boolean;
   draft?: Record<string, DuplicateDisposition>;
   openingItemKey?: string;
   isBatchSaving: boolean;
@@ -145,12 +198,19 @@ function DuplicateComparePanel(props: {
     const item = props.itemByKey.get(entry.item_key);
     return item ? [{ entry, item }] : [];
   });
-  const draft = props.draft ?? Object.fromEntries(props.group.items.map((entry) => [entry.item_key, dispositionFromTag(entry.tag)]));
+  const savedDraft = Object.fromEntries(props.group.items.map((entry) => [entry.item_key, dispositionFromTag(entry.tag)]));
+  const draft = props.draft ?? savedDraft;
   const referenceRow = rows.find((row) => row.entry.item_key === props.referenceKey);
-  const referenceValues = referenceRow ? comparisonValues(referenceRow.item) : [];
+  const referenceIndex = Math.max(0, rows.findIndex((row) => row.entry.item_key === props.referenceKey));
+  const columns = useMemo(() => buildComparisonColumns(rows.map((row) => row.item)), [props.group.group_key, props.itemByKey]);
+  const referenceValues = referenceRow ? columns.map((column) => column.valueFor(referenceRow.item)) : [];
   const summary = summarizeGroupDraft(props.group, draft);
-  const columnLabels = rows[0]?.item.group_key === "armor" ? ["总值", "生命", "职业", "手雷"] : ["第一列", "第二列", "第三列", "第四列"];
-  const openItem = referenceRow?.item ?? rows[0]?.item;
+  const changedCount = props.group.items.filter((entry) => (draft[entry.item_key] ?? "none") !== dispositionFromTag(entry.tag)).length;
+  const gridTemplateColumns = `52px minmax(190px, 1.15fr) repeat(${columns.length}, minmax(116px, 0.78fr)) minmax(190px, 1fr) minmax(250px, 1.2fr)`;
+  const gridStyle: CSSProperties = {
+    gridTemplateColumns,
+    minWidth: 52 + 190 + (columns.length * 116) + 190 + 250
+  };
 
   function updateDisposition(itemKey: string, disposition: DuplicateDisposition) {
     props.onDraftChange({ ...draft, [itemKey]: disposition });
@@ -162,38 +222,67 @@ function DuplicateComparePanel(props: {
   }
 
   async function applyDraft() {
-    const conflicts = rows.filter(({ entry, item }) => (draft[entry.item_key] ?? "none") === "junk" && evidenceLabels(item, props).length > 0);
-    if (conflicts.length && !window.confirm(`本组有 ${conflicts.length} 件带锁定、配装、愿望单、目标或社区推荐信号的装备被标记为可清理。确认仍要应用吗？`)) return;
+    if (!changedCount) return;
+    const conflicts = rows.filter(({ entry, item }) => {
+      const evidence = itemEvidence(item, props);
+      return (draft[entry.item_key] ?? "none") === "junk" && (evidence.protection.length > 0 || evidence.matches.length > 0);
+    });
+    if (conflicts.length && !window.confirm(`本组有 ${conflicts.length} 件带实例保护或推荐证据的装备被标记为可清理。确认仍要应用吗？`)) return;
     await props.onApplyGroupTags(props.group.name, props.group.items.map((entry) => ({ item_key: entry.item_key, tag: draft[entry.item_key] ?? "none" })));
   }
 
   return (
     <section className="duplicate-compare-panel">
       <header className="duplicate-compare-head">
-        <div><h2>{props.group.name}</h2><p>{props.group.hash ? `同 Hash ${props.group.hash}` : "同名不同 Hash"} · 参考实例只用于突出差异，不会自动修改整理状态，也不等于唯一保留项。</p></div>
-        <div className="duplicate-compare-head-actions"><span>{props.referenceKey ? "已选择对比参考" : "尚未选择对比参考"}</span><button type="button" data-ui-kind="button" data-control-variant="secondary" disabled={!openItem} onClick={() => openItem && props.onOpenItem(openItem)}>打开详情</button></div>
+        <div><h2>{props.group.name}</h2><p>{groupKindLabel(props.group)} · {props.group.count} 件 · 整理状态仅保存在本地</p></div>
+        <div className="duplicate-compare-head-actions">
+          <div className="duplicate-reference-status">
+            <span>比较基准</span>
+            <strong>实例 {referenceIndex + 1}{props.referenceIsAutomatic ? " · 默认" : ""}</strong>
+          </div>
+          <div className="duplicate-compare-legend" aria-label="差异标记">
+            <span className="same">相同</span>
+            <span className="different">有差异</span>
+          </div>
+          <button type="button" data-ui-kind="button" data-control-variant="secondary" disabled={!referenceRow} onClick={() => referenceRow && props.onOpenItem(referenceRow.item)}>查看基准详情</button>
+        </div>
       </header>
       <div className="duplicate-compare-table">
-        <div className="duplicate-table-head"><span>参考</span><span>实例</span>{columnLabels.map((label) => <span key={label}>{label}</span>)}<span>保护与匹配</span><span>整理状态</span></div>
+        <div className="duplicate-table-head" style={gridStyle}><span>基准</span><span>实例</span>{columns.map((column) => <span key={column.key}>{column.label}</span>)}<span>保护与证据</span><span>整理状态</span></div>
         {rows.map(({ entry, item }, index) => {
-          const values = comparisonValues(item);
-          const evidence = evidenceLabels(item, props);
+          const values = columns.map((column) => column.valueFor(item));
+          const evidence = itemEvidence(item, props);
           const disposition = draft[entry.item_key] ?? "none";
+          const savedDisposition = dispositionFromTag(entry.tag);
           const isReference = props.referenceKey === entry.item_key;
-          const hasProtectionConflict = disposition === "junk" && evidence.length > 0;
+          const isDirty = disposition !== savedDisposition;
+          const hasProtectionConflict = disposition === "junk" && (evidence.protection.length > 0 || evidence.matches.length > 0);
           return (
-            <article className={["duplicate-compare-row", isReference ? "reference" : "", hasProtectionConflict ? "has-protection-conflict" : "", props.openingItemKey === getVaultItemKey(item) ? "pending" : ""].filter(Boolean).join(" ")} key={entry.item_key}>
-              <button type="button" data-ui-kind="button" data-control-variant="secondary" className="duplicate-reference-button" aria-pressed={isReference} onClick={() => props.onReferenceChange(entry.item_key)}>{isReference ? "已选" : "参考"}</button>
-              <button type="button" className="duplicate-identity" title={formatVaultItemMeta(item)} onClick={() => props.onOpenItem(item)}>
+            <article className={["duplicate-compare-row", isReference ? "reference" : "", isDirty ? "is-dirty" : "", hasProtectionConflict ? "has-protection-conflict" : "", props.openingItemKey === getVaultItemKey(item) ? "pending" : ""].filter(Boolean).join(" ")} style={gridStyle} key={entry.item_key}>
+              <label className="duplicate-reference-choice" title={`将实例 ${index + 1} 设为比较基准`}>
+                <input type="radio" name={`duplicate-reference-${props.group.group_key}`} checked={isReference} onChange={() => props.onReferenceChange(entry.item_key)} />
+                <span>基准</span>
+              </label>
+              <button type="button" className="duplicate-identity" title={`打开详情：${formatVaultItemMeta(item)}`} onClick={() => props.onOpenItem(item)}>
                 <GameAssetImage src={item.icon} alt="" loading="eager" fallback={<span className="duplicate-thumb-fallback">{item.group_key === "armor" ? "甲" : "武"}</span>} />
-                <span><strong>实例 {index + 1}</strong><small>{item.bucket_name ?? "未知位置"} · {item.locked ? "已锁定" : "未锁定"}</small></span>
+                <span><strong>实例 {index + 1}</strong><small>{formatInstanceMeta(item)}</small>{isDirty ? <em>状态未保存</em> : null}</span>
               </button>
               {values.map((value, valueIndex) => {
-                const compareState = !props.referenceKey || isReference ? "" : referenceValues[valueIndex] === value ? "same" : "different";
-                return <div className={`duplicate-cell ${compareState}`} key={`${entry.item_key}-${valueIndex}`}>{value || "-"}</div>;
+                const compareState = isReference ? "baseline" : referenceValues[valueIndex]?.key === value.key ? "same" : "different";
+                const stateLabel = compareState === "baseline" ? "比较基准" : compareState === "same" ? "与基准相同" : "与基准不同";
+                return (
+                  <div className={`duplicate-cell ${compareState}`} key={`${entry.item_key}-${columns[valueIndex]?.key}`} aria-label={`${columns[valueIndex]?.label ?? "比较值"}：${value.text || "未返回"}，${stateLabel}`}>
+                    {value.icon ? <GameAssetImage src={value.icon} alt="" loading="eager" /> : null}
+                    <span>{value.text || "未返回"}</span>
+                    {compareState === "different" ? <small>不同</small> : null}
+                  </div>
+                );
               })}
-              <div className="duplicate-signals">{evidence.length ? evidence.map((label) => <span className="ui-badge status-neutral" key={label}>{label}</span>) : <span>无保护或匹配信号</span>}</div>
-              <div className="duplicate-decision" role="group" aria-label={`实例 ${index + 1} 整理状态`}>
+              <div className="duplicate-signals">
+                <EvidenceGroup label="实例保护" values={evidence.protection} kind="protection" />
+                <EvidenceGroup label="推荐证据" values={evidence.matches} kind="match" />
+              </div>
+              <div className={["duplicate-decision", isDirty ? "is-dirty" : ""].filter(Boolean).join(" ")} role="group" aria-label={`实例 ${index + 1} 整理状态`}>
                 {dispositionOptions.map((option) => <button type="button" key={option.key} data-decision-value={option.key} aria-pressed={disposition === option.key} onClick={() => updateDisposition(entry.item_key, option.key)}>{option.label}</button>)}
               </div>
             </article>
@@ -201,35 +290,152 @@ function DuplicateComparePanel(props: {
         })}
       </div>
       <footer className="duplicate-decision-footer">
-        <div><div className="duplicate-decision-summary">本组状态：<span>保留 <strong>{summary.keep}</strong></span><span>待复查 <strong>{summary.review}</strong></span><span>可清理 <strong>{summary.junk}</strong></span><span>未标记 <strong>{summary.none}</strong></span></div><span className="duplicate-decision-message">这里只写入玩家整理状态，不会自动转移或拆解装备。</span></div>
-        <div className="duplicate-decision-actions"><button type="button" data-ui-kind="button" data-control-variant="secondary" disabled={!props.referenceKey || props.isBatchSaving} onClick={keepReferenceReviewRest}>保留参考，其余待复查</button><button type="button" data-ui-kind="button" data-control-variant="primary" aria-busy={props.isBatchSaving} disabled={props.isBatchSaving} onClick={() => void applyDraft()}>应用本组状态</button><button type="button" data-ui-kind="button" data-control-variant="secondary" disabled={props.isBatchSaving} onClick={props.onNextGroup}>下一组</button></div>
+        <div>
+          <div className="duplicate-decision-summary">本组状态：<span>保留 <strong>{summary.keep}</strong></span><span>待复查 <strong>{summary.review}</strong></span><span>可清理 <strong>{summary.junk}</strong></span><span>未标记 <strong>{summary.none}</strong></span></div>
+          <span className={changedCount ? "duplicate-decision-message is-dirty" : "duplicate-decision-message"}>{changedCount ? `已修改 ${changedCount} 件，尚未应用` : "当前显示已保存状态"}</span>
+        </div>
+        <div className="duplicate-decision-actions">
+          <button type="button" data-ui-kind="button" data-control-variant="secondary" disabled={!props.referenceKey || props.isBatchSaving} onClick={keepReferenceReviewRest}>填充：基准保留，其余待复查</button>
+          <button type="button" data-ui-kind="button" data-control-variant="primary" aria-busy={props.isBatchSaving} disabled={!changedCount || props.isBatchSaving} onClick={() => void applyDraft()}>应用本组状态</button>
+          <button type="button" data-ui-kind="button" data-control-variant="secondary" disabled={changedCount > 0 || props.isBatchSaving || !props.hasNextPendingGroup} onClick={props.onNextGroup}>下一未整理组</button>
+        </div>
       </footer>
     </section>
   );
 }
 
-function comparisonValues(item: AccountItemSummary): string[] {
-  if (item.group_key === "armor") {
-    return item.armor_stats ? [String(item.armor_stats.total), String(item.armor_stats.health), String(item.armor_stats.class), String(item.armor_stats.grenade)] : ["", "", "", ""];
-  }
-  return Array.from({ length: 4 }, (_, index) => item.socket_plugs[index]?.name ?? "");
+function EvidenceGroup(props: { label: string; values: string[]; kind: "protection" | "match" }) {
+  return (
+    <div className="duplicate-evidence-group" data-evidence-kind={props.kind}>
+      <small>{props.label}</small>
+      <span>{props.values.length ? props.values.map((label) => <b className="ui-badge status-neutral" key={label}>{label}</b>) : <em>无</em>}</span>
+    </div>
+  );
 }
 
-function evidenceLabels(item: AccountItemSummary, props: {
+function buildComparisonColumns(items: AccountItemSummary[]): DuplicateComparisonColumn[] {
+  if (items[0]?.group_key === "armor") {
+    const armorColumns: Array<{ key: "total" | "health" | "melee" | "grenade" | "super" | "class" | "weapon"; label: string }> = [
+      { key: "total", label: "总值" },
+      { key: "health", label: "生命" },
+      { key: "melee", label: "近战" },
+      { key: "grenade", label: "手雷" },
+      { key: "super", label: "超能" },
+      { key: "class", label: "职业" },
+      { key: "weapon", label: "武器" }
+    ];
+    return armorColumns.map((column) => ({
+      key: column.key,
+      label: column.label,
+      valueFor: (item) => {
+        const value = item.armor_stats?.[column.key];
+        return { key: value === undefined ? "missing" : String(value), text: value === undefined ? "" : String(value) };
+      }
+    }));
+  }
+
+  const plugsBySocket = new Map<number, AccountItemPlugSummary[]>();
+  for (const item of items) {
+    for (const entry of weaponComparisonPlugs(item)) {
+      plugsBySocket.set(entry.socketIndex, [...(plugsBySocket.get(entry.socketIndex) ?? []), entry.plug]);
+    }
+  }
+
+  const sortedSockets = [...plugsBySocket.entries()].sort(([left], [right]) => left - right);
+  let traitIndex = 0;
+  const columns = sortedSockets.map(([socketIndex, plugs]) => {
+    const role: WeaponPerkColumnRole = classifyWeaponSocketPlugs(plugs) ?? "other";
+    const label = role === "trait" ? `Perk ${++traitIndex}` : weaponSocketColumnLabel(plugs, role, socketIndex);
+    return {
+      key: `socket-${socketIndex}`,
+      label,
+      valueFor: (item: AccountItemSummary) => {
+        const plug = weaponComparisonPlugs(item).find((entry) => entry.socketIndex === socketIndex)?.plug;
+        return { key: plug ? String(plug.hash) : "missing", text: plug?.name ?? "", icon: plug?.icon };
+      }
+    };
+  });
+
+  return columns.length ? columns : [{
+    key: "configuration",
+    label: "配置",
+    valueFor: () => ({ key: "missing", text: "" })
+  }];
+}
+
+function weaponComparisonPlugs(item: AccountItemSummary): Array<{ socketIndex: number; plug: AccountItemPlugSummary }> {
+  const selectedSockets = (item.sockets ?? []).flatMap((socket) => {
+    const plug = socket.selected_plug;
+    return socket.is_visible && plug && !isWeaponSystemPlug(plug)
+      ? [{ socketIndex: socket.socket_index, plug }]
+      : [];
+  });
+  if (selectedSockets.length) return selectedSockets;
+
+  return item.socket_plugs.flatMap((plug, index) => isWeaponSystemPlug(plug) ? [] : [{ socketIndex: index, plug }]);
+}
+
+function itemEvidence(item: AccountItemSummary, props: {
   wishlist?: DimWishlist | null;
   localTargetRules?: LocalTargetRules | null;
   highlightedItemKeys?: LoadoutTemplateLookup | null;
   communityMatch?: Map<number, VaultItemMatchInfo>;
-}): string[] {
+}): DuplicateEvidence {
   const wishlist = evaluateWishlistRoll(normalizeCoreItem(item), props.wishlist ?? undefined);
   const target = evaluateLocalTargets(normalizeCoreItem(item), props.localTargetRules ?? undefined);
+  const exactLoadoutMatch = Boolean(item.instance_id && props.highlightedItemKeys?.instanceIds.has(item.instance_id));
+  const sameDefinitionLoadoutMatch = !exactLoadoutMatch && Boolean(
+    props.highlightedItemKeys?.bucketHashKeys.has(`${item.bucket_name ?? ""}:${item.hash}`)
+    || props.highlightedItemKeys?.hashKeys.has(item.hash)
+  );
+  return {
+    protection: [
+      item.locked ? "已锁定" : "",
+      exactLoadoutMatch ? "配装实例" : ""
+    ].filter(Boolean),
+    matches: [
+      sameDefinitionLoadoutMatch ? "配装同款" : "",
+      wishlist.matched ? "愿望单命中" : "",
+      target.matched ? "目标命中" : "",
+      (props.communityMatch?.get(item.hash)?.matched ?? 0) > 0 ? "社区同款" : ""
+    ].filter(Boolean)
+  };
+}
+
+function summarizeGroupEvidence(group: DuplicateItemGroup, itemByKey: Map<string, AccountItemSummary>, props: {
+  wishlist?: DimWishlist | null;
+  localTargetRules?: LocalTargetRules | null;
+  highlightedItemKeys?: LoadoutTemplateLookup | null;
+  communityMatch?: Map<number, VaultItemMatchInfo>;
+}): { protectedItems: number; matchedItems: number } {
+  return group.items.reduce((summary, entry) => {
+    const item = itemByKey.get(entry.item_key);
+    if (!item) return summary;
+    const evidence = itemEvidence(item, props);
+    if (evidence.protection.length) summary.protectedItems += 1;
+    if (evidence.matches.length) summary.matchedItems += 1;
+    return summary;
+  }, { protectedItems: 0, matchedItems: 0 });
+}
+
+function formatInstanceMeta(item: AccountItemSummary): string {
   return [
-    item.locked ? "已锁定" : "",
-    matchesLoadoutTemplateItem(item, props.highlightedItemKeys) ? "配装引用" : "",
-    wishlist.matched ? "愿望单" : "",
-    target.matched ? "目标命中" : "",
-    (props.communityMatch?.get(item.hash)?.matched ?? 0) > 0 ? "社区推荐" : ""
-  ].filter(Boolean);
+    item.bucket_name,
+    item.power !== undefined ? `光等 ${item.power}` : undefined,
+    item.instance?.is_equipped ? "已装备" : undefined,
+    item.locked ? "已锁定" : "未锁定",
+    item.instance_id ? `#${item.instance_id.slice(-6)}` : undefined
+  ].filter(Boolean).join(" · ") || "实例信息未返回";
+}
+
+function groupKindLabel(group: DuplicateItemGroup): string {
+  return group.hash ? "同一版本" : "同名不同版本";
+}
+
+function defaultReferenceKey(group: DuplicateItemGroup): string {
+  return group.items.find((entry) => dispositionFromTag(entry.tag) === "keep")?.item_key
+    ?? group.items[0]?.item_key
+    ?? "";
 }
 
 function dispositionFromTag(tag?: string): DuplicateDisposition {
@@ -241,4 +447,13 @@ function summarizeGroupDraft(group: DuplicateItemGroup, draft?: Record<string, D
     summary[draft?.[entry.item_key] ?? dispositionFromTag(entry.tag)] += 1;
     return summary;
   }, { none: 0, keep: 0, review: 0, junk: 0 });
+}
+
+function isGroupPersistedComplete(group: DuplicateItemGroup): boolean {
+  return group.items.every((entry) => dispositionFromTag(entry.tag) !== "none");
+}
+
+function isGroupDraftDirty(group: DuplicateItemGroup, draft?: Record<string, DuplicateDisposition>): boolean {
+  if (!draft) return false;
+  return group.items.some((entry) => (draft[entry.item_key] ?? "none") !== dispositionFromTag(entry.tag));
 }

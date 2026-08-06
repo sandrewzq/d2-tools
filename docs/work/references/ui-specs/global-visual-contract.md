@@ -19,6 +19,7 @@
 | `data-contract-root="product-workspace|detail-dossier"` | 产品合同根与页面级状态 |
 | `data-surface="page|section|frame|workspace-frame|object-card|list|row|split|content-stack|empty|menu|dialog|drawer"` | 表面和布局职责 |
 | `data-ui-kind` | 共享组件类型，如 Shell、导航、按钮、字段、对象卡、状态矩阵和弹层 |
+| `data-callout-tone="info|ai"` | 非业务状态 Callout 的信息或 AI 色条语义 |
 | `data-contract-id` | 跨规格与产品页面稳定定位，不参与业务判断 |
 | `data-ui-part="label|value|detail|state|source|action"` | 组件内部信息槽位 |
 | `data-text-tone="primary|body|meta|action|countdown|status"` | 文字颜色语义 |
@@ -49,9 +50,11 @@
 | `SurfaceList` | 目录、台账、连续结果 | 父级拥有一次外边界或继承栏位边界；行只画底部分隔 | 每行圆角卡片 |
 | `SurfaceFrame` | 状态矩阵、摘要、独立空态 | `4px` 轻圆角和唯一外框，内部单元直角 | 嵌套首层卡片或使用对象卡圆角 |
 | `ObjectCard` | 装备、Offer、Perk、能力 | `6px` 圆角和唯一对象边框 | 用于页面、目录或普通数据行 |
-| `Callout` | 信息、警告、失败、AI 提示 | 中性对象边框，可使用左侧语义色条 | 导航、Tab、对象卡复用色条 |
+| `Callout` | 信息、警告、失败、AI 提示 | 使用 `data-ui-kind="callout"` 获得中性对象边框和左侧语义色条 | 导航、Tab、对象卡复用色条；菜单或普通组件自行声明粗左边线 |
 
 页面级可见边界只分为 `ShellLine`、`WorkspaceOutline`、`SplitLine`、`RowLine` 和 `ObjectOutline`。`WorkspaceOutline` 由 `WorkspaceFrame` 使用 `border-control` 绘制；同一条边只能由一个 DOM 层绘制。
+
+粗左侧或 `inline-start` 语义色条只由 foundation 中的共享 `Callout` 配方持有。业务状态使用 `data-status="pending|success|warning|error"`，普通信息与 AI 提示使用 `data-callout-tone="info|ai"`；菜单和普通组件 CSS 不得直接声明宽度大于 `1px` 的 `border-left` 或 `border-inline-start`。
 
 ## 尺寸与响应式
 
@@ -125,6 +128,9 @@
 - 互斥内容使用完整 `tablist / tab / tabpanel`，提供 `aria-controls`、`aria-labelledby`、方向键、Home 和 End。
 - 单选筛选使用按钮组和 `aria-pressed`，不伪装为导航或 Tab。
 - Primary、Secondary、Danger、AI 和 Quiet 只改变颜色语义，不改变按钮盒模型。
+- Primary 表达当前页面或局部状态中高频且承担核心职责的唯一主操作，不按动作名称全局固定；自动机制已覆盖的常规刷新使用 Secondary，读取失败且恢复动作成为唯一出口时可在所属 Callout 内临时升为 Primary。
+- 同一操作组最多一个 Primary。低频维护动作不得与高频核心动作并列同权；主要动作位于操作组末端。内容空态或错误区已提供同一主恢复入口时，页头不重复该操作；进行中保持原标签与尺寸并使用 `aria-busy`。
+- 后台自动同步与用户手动操作必须使用独立忙碌状态。后台请求可以显示邻近状态，但不得借用手动按钮的 `disabled` 或 `aria-busy`；只有防止重复提交同一手动操作时才临时禁用按钮。
 - 禁用控件保留可读标签和紧邻原因；加载控件保留目标与进行中反馈，不提前显示成功。
 - 图标按钮必须有 tooltip 和可访问名称。产品使用同一套 Lucide 线性图标语言。
 
@@ -167,4 +173,4 @@
 4. Web 用于快速预览共享 React UI 和浏览器平台接线，Desktop 实窗作为真实功能的最终验收对象。
 5. 在 `light / dark × 1280 / 980 / 760` 下检查边框所有权、布局、文字、图标、控件状态、焦点、滚动和零横向溢出。
 6. 未完成 Desktop 对照前，任务状态只能是“待视觉验收”。
-7. `pnpm ui:contract:check` 负责拦截废弃根标记、未登记表面、非法字号和字重、页面级数字层级、菜单主题硬编码颜色及选中态方向线。
+7. `pnpm ui:contract:check` 负责拦截废弃根标记、未登记表面、非法字号和字重、页面级数字层级、菜单主题硬编码颜色、选中态方向线及私有粗左侧边线。

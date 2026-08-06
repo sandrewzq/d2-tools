@@ -6,15 +6,7 @@
 .settings-feedback {
   margin: 12px 16px 0;
   padding: 9px 10px;
-  border: 1px solid var(--object-border);
-  border-left: 3px solid var(--blue);
-  border-radius: var(--radius-control);
-  background: var(--card-bg);
 }
-
-.settings-feedback[data-status="success"] { border-left-color: var(--mint); }
-.settings-feedback[data-status="warning"] { border-left-color: var(--amber); }
-.settings-feedback[data-status="error"] { border-left-color: var(--red); }
 
 .settings-section > .settings-feedback {
   margin: 12px 0 0;
@@ -320,10 +312,6 @@
   gap: 4px;
   margin-top: 12px;
   padding: 9px 10px;
-  border: 1px solid var(--object-border);
-  border-left: 3px solid var(--amber);
-  border-radius: var(--radius-control);
-  background: var(--card-bg);
 }
 
 .settings-download-warning p {

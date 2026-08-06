@@ -26,14 +26,8 @@
   gap: 12px;
   min-height: 42px;
   padding: 7px 10px;
-  border: 1px solid var(--section-divider);
-  border-left-width: 4px;
   background: var(--section-bg);
 }
-
-:where(.app-shell) .home-feedback[data-status="success"] { border-left-color: var(--status-ready); }
-:where(.app-shell) .home-feedback[data-status="pending"] { border-left-color: var(--accent-primary); }
-:where(.app-shell) .home-feedback[data-status="error"] { border-left-color: var(--status-error); }
 
 :where(.app-shell) .home-feedback [data-control-variant="secondary"],
 :where(.app-shell) .home-vendor-module-state [data-control-variant="secondary"] {
@@ -43,7 +37,7 @@
 
 :where(.app-shell) .home-refresh-strip {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   overflow: hidden;
 }
 
@@ -336,7 +330,6 @@
   display: grid;
   min-width: 0;
   overflow: hidden;
-  border-left: 3px solid var(--amber);
 }
 
 :where(.app-shell) .iron-banner-heading,
@@ -724,12 +717,22 @@
   padding-bottom: 12px;
 }
 
-:where(.app-shell) .home-band-heading {
-  min-height: 34px;
-  margin-bottom: 7px;
+:where(.app-shell) .home-vendor-module {
+  min-width: 0;
+  overflow: hidden;
 }
 
-:where(.app-shell) .home-band-heading > div {
+:where(.app-shell) .home-band-heading {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(320px, 1.3fr) auto;
+  align-items: center;
+  column-gap: 16px;
+  min-height: 58px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--section-divider);
+}
+
+:where(.app-shell) .home-band-heading > .home-vendor-title {
   display: grid;
   min-width: 0;
   gap: 2px;
@@ -739,16 +742,41 @@
   margin: 0;
 }
 
+:where(.app-shell) .home-vendor-timing {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 10px;
+  min-width: 0;
+  min-height: 34px;
+  padding-inline: 16px;
+  border-right: 1px solid var(--section-divider);
+  border-left: 1px solid var(--section-divider);
+  white-space: nowrap;
+}
+
+:where(.app-shell) .home-vendor-timing > strong,
+:where(.app-shell) .home-vendor-timing > small {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
 :where(.app-shell) .home-band-heading [data-control-variant="secondary"] {
   flex: 0 0 auto;
   min-height: 34px;
   white-space: nowrap;
 }
 
+:where(.app-shell) .home-vendor-content {
+  padding: 10px 12px 12px;
+}
+
 :where(.app-shell) .home-vendor-overview {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  overflow: hidden;
+  margin: -10px -12px 0;
+  border-bottom: 1px solid var(--section-divider);
+  background: var(--surface-panel);
 }
 
 :where(.app-shell) .home-vendor-summary {
@@ -858,8 +886,7 @@
   align-content: center;
   gap: 3px;
   min-height: 94px;
-  margin-top: 8px;
-  padding: 9px 10px;
+  padding: 8px 0;
 }
 
 :where(.app-shell) .home-vendor-module-state > strong {
@@ -881,7 +908,8 @@
 
 :where(.app-shell) .home-vendor-source {
   display: block;
-  margin-top: 10px;
+  padding: 7px 12px 8px;
+  border-top: 1px solid var(--section-divider);
 }
 
 @keyframes home-skeleton-pulse {
@@ -890,25 +918,29 @@
 }
 
 @media (max-width: 1280px) {
-  :where(.app-shell) .home-refresh-strip {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  :where(.app-shell) .home-refresh-cell:nth-child(2) {
-    border-right: 0;
-  }
-
-  :where(.app-shell) .home-refresh-cell:last-child {
-    grid-column: 1 / -1;
-    border-top: 1px solid var(--section-divider);
-  }
-
   :where(.app-shell) .home-vendor-stock-grid {
     grid-template-columns: repeat(2, minmax(220px, 1fr));
   }
 }
 
 @media (max-width: 980px) {
+  :where(.app-shell) .home-band-heading {
+    grid-template-columns: 1fr;
+    align-items: start;
+    row-gap: 8px;
+  }
+
+  :where(.app-shell) .home-vendor-timing {
+    width: 100%;
+    min-height: 0;
+    padding: 8px 0;
+    border-right: 0;
+    border-left: 0;
+    border-top: 1px solid var(--section-divider);
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+
   :where(.app-shell) .iron-banner-overview,
   :where(.app-shell) .iron-banner-detail-grid {
     grid-template-columns: 1fr;
@@ -973,6 +1005,9 @@
   :where(.app-shell) .home-feedback,
   :where(.app-shell) .home-band-heading {
     align-items: flex-start;
+  }
+
+  :where(.app-shell) .home-feedback {
     flex-direction: column;
   }
 
@@ -1101,7 +1136,6 @@
   display: grid;
   grid-template-rows: auto 1fr;
   overflow: hidden;
-  border-left: 3px solid var(--amber);
 }
 
 :where(.app-shell) .iron-banner-heading {

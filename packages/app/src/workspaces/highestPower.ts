@@ -83,17 +83,20 @@ export function createHighestPowerEquipPlan(input: {
     && canEquipOnCharacter(candidate.item, input.character)
   ));
 
-  const bestBySlot = new Map<string, Candidate>();
+  const candidatesBySlot = new Map<string, Candidate[]>();
 
   for (const candidate of candidates) {
     const slotLabel = powerSlotLabel(candidate.item);
     if (!slotLabel) continue;
-
-    const current = bestBySlot.get(slotLabel);
-    if (!current || compareCandidates(candidate, current) < 0) {
-      bestBySlot.set(slotLabel, candidate);
-    }
+    const slotCandidates = candidatesBySlot.get(slotLabel) ?? [];
+    slotCandidates.push(candidate);
+    candidatesBySlot.set(slotLabel, slotCandidates);
   }
+
+  const bestBySlot = new Map([
+    ...selectBestCompatibleCandidates(powerSlotLabels.slice(0, 3), candidatesBySlot),
+    ...selectBestCompatibleCandidates(powerSlotLabels.slice(3), candidatesBySlot)
+  ]);
 
   const items: HighestPowerEquipPlanItem[] = [];
   for (const slotLabel of powerSlotLabels) {
@@ -187,9 +190,11 @@ export function buildHighestPowerResultMessage(input: {
   equipSuccessCount: number;
   equipTotalCount: number;
   failedCount: number;
+  failureReason?: string;
 }): string {
   if (input.failedCount > 0) {
-    return `最高光等执行完成：转移成功 ${input.transferSuccessCount}/${input.transferTotalCount}，装备成功 ${input.equipSuccessCount}/${input.equipTotalCount}，失败步骤 ${input.failedCount}。可在设置页查看操作日志。`;
+    const reason = input.failureReason?.trim();
+    return `最高光等执行完成：转移成功 ${input.transferSuccessCount}/${input.transferTotalCount}，装备成功 ${input.equipSuccessCount}/${input.equipTotalCount}，失败步骤 ${input.failedCount}。${reason ? `首个失败原因：${reason}` : "可在设置页查看操作日志。"}`;
   }
   return `已给 ${input.characterClassName} 装备 ${input.equipSuccessCount} 件最高光等装备。`;
 }
@@ -207,6 +212,91 @@ function canEquipOnCharacter(item: AccountItemSummary, character: CharacterSumma
     return true;
   }
   return item.class_type === classTypeForCharacter(character.class_name);
+}
+
+function selectBestCompatibleCandidates(
+  slotLabels: readonly string[],
+  candidatesBySlot: ReadonlyMap<string, Candidate[]>
+): Map<string, Candidate> {
+  const optionsBySlot = slotLabels.map((slotLabel) => {
+    const sorted = [...(candidatesBySlot.get(slotLabel) ?? [])].sort(compareCandidates);
+    return {
+      slotLabel,
+      options: [
+        sorted.find((candidate) => !isExotic(candidate.item)),
+        sorted.find((candidate) => isExotic(candidate.item))
+      ].filter((candidate): candidate is Candidate => Boolean(candidate))
+    };
+  });
+
+  let bestSelection: Array<Candidate | undefined> | undefined;
+
+  function visit(
+    slotIndex: number,
+    selection: Array<Candidate | undefined>,
+    exoticCount: number
+  ): void {
+    if (slotIndex >= optionsBySlot.length) {
+      if (!bestSelection || isBetterSelection(selection, bestSelection)) {
+        bestSelection = [...selection];
+      }
+      return;
+    }
+
+    const options = optionsBySlot[slotIndex].options;
+    let visitedOption = false;
+    for (const candidate of options) {
+      const nextExoticCount = exoticCount + (isExotic(candidate.item) ? 1 : 0);
+      if (nextExoticCount > 1) continue;
+      visitedOption = true;
+      selection.push(candidate);
+      visit(slotIndex + 1, selection, nextExoticCount);
+      selection.pop();
+    }
+
+    if (!visitedOption) {
+      selection.push(undefined);
+      visit(slotIndex + 1, selection, exoticCount);
+      selection.pop();
+    }
+  }
+
+  visit(0, [], 0);
+
+  const selected = new Map<string, Candidate>();
+  bestSelection?.forEach((candidate, index) => {
+    if (candidate) selected.set(optionsBySlot[index].slotLabel, candidate);
+  });
+  return selected;
+}
+
+function isBetterSelection(
+  candidate: Array<Candidate | undefined>,
+  current: Array<Candidate | undefined>
+): boolean {
+  const candidatePower = totalSelectionPower(candidate);
+  const currentPower = totalSelectionPower(current);
+  if (candidatePower !== currentPower) return candidatePower > currentPower;
+
+  const candidateCount = candidate.filter(Boolean).length;
+  const currentCount = current.filter(Boolean).length;
+  if (candidateCount !== currentCount) return candidateCount > currentCount;
+
+  const candidateExoticCount = candidate.filter((entry) => entry && isExotic(entry.item)).length;
+  const currentExoticCount = current.filter((entry) => entry && isExotic(entry.item)).length;
+  if (candidateExoticCount !== currentExoticCount) return candidateExoticCount < currentExoticCount;
+
+  const candidateSourceRank = candidate.reduce((total, entry) => total + (entry ? sourceRank(entry.source) : 0), 0);
+  const currentSourceRank = current.reduce((total, entry) => total + (entry ? sourceRank(entry.source) : 0), 0);
+  return candidateSourceRank < currentSourceRank;
+}
+
+function totalSelectionPower(selection: Array<Candidate | undefined>): number {
+  return selection.reduce((total, candidate) => total + (candidate?.item.power ?? 0), 0);
+}
+
+function isExotic(item: AccountItemSummary): boolean {
+  return /^(?:异域|exotic)$/i.test(item.tier?.trim() ?? "");
 }
 
 function classTypeForCharacter(className: string): number | undefined {

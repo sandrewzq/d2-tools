@@ -63,9 +63,12 @@ export type WeeklyIronBannerLootPool = {
 };
 
 export type WeeklyIronBannerSummary = {
-  status: "active" | "inactive" | "unavailable";
+  status: "active" | "upcoming" | "inactive" | "unavailable";
   title: string;
   detail: string;
+  starts_at?: string;
+  ends_at?: string;
+  timing_source?: string;
   activity_name?: string;
   activity_icon?: string;
   playlist_name?: string;

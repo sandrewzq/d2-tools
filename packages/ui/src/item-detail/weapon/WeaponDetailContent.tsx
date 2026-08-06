@@ -531,7 +531,7 @@ function OverviewSection(props: {
               ))}
             </div>
           ) : <EmptyState text="暂时没有足够数据确认这件武器的获取方式。" />}
-          <p className="weapon-detail-data-note">{sourceStatusDescription(props.model.sources.status)}</p>
+          <p className="weapon-detail-data-note" data-ui-kind="callout" data-callout-tone="info">{sourceStatusDescription(props.model.sources.status)}</p>
         </section>
       </div>
     </>
@@ -904,7 +904,7 @@ function RecommendationCard(props: { model: WeaponDetailViewModel; recommendatio
         </div>
         {recommendation.external_url ? <a href={recommendation.external_url} target="_blank" rel="noreferrer">查看原始来源</a> : <span>本地数据</span>}
       </header>
-      {recommendation.reason ? <p className="weapon-detail-source-quote">{recommendation.reason}</p> : null}
+      {recommendation.reason ? <p className="weapon-detail-source-quote" data-ui-kind="callout" data-callout-tone="info">{recommendation.reason}</p> : null}
       {perkMatches.length ? (
         <div className="weapon-detail-match-grid">
           <div><span>目标插槽</span><strong>实例拥有</strong><strong>当前启用</strong></div>
@@ -1070,7 +1070,7 @@ function AnalysisSection(props: {
       <div className="weapon-detail-ai-layout">
         <div className="weapon-detail-ai-analysis">
           {props.analysis?.message ? <p className={`status-message status-${status === "error" ? "error" : status === "ready" ? "ready" : "pending"}`} role="status">{props.analysis.message}</p> : null}
-          {props.analysis?.body ? <article className="weapon-detail-ai-result"><span>AI 生成 · 可以查看依据</span><h4>{props.analysis.title ?? `${props.model.identity.name}分析`}</h4><p>{props.analysis.body}</p>{props.analysis.evidence?.length ? <dl>{props.analysis.evidence.map((entry) => <div key={entry.label}><dt>{entry.label}</dt><dd>{entry.value}</dd></div>)}</dl> : null}</article> : <EmptyState text="运行分析后，这里会显示结论和使用依据。" />}
+          {props.analysis?.body ? <article className="weapon-detail-ai-result" data-ui-kind="callout" data-callout-tone="ai"><span>AI 生成 · 可以查看依据</span><h4>{props.analysis.title ?? `${props.model.identity.name}分析`}</h4><p>{props.analysis.body}</p>{props.analysis.evidence?.length ? <dl>{props.analysis.evidence.map((entry) => <div key={entry.label}><dt>{entry.label}</dt><dd>{entry.value}</dd></div>)}</dl> : null}</article> : <EmptyState text="运行分析后，这里会显示结论和使用依据。" />}
           {props.analysis?.externalSearchMessage ? <p className="weapon-detail-note">{props.analysis.externalSearchMessage}</p> : null}
           {props.analysis?.externalSources?.length ? (
             <section className="weapon-detail-external-sources" aria-label="AI 外部知识来源">

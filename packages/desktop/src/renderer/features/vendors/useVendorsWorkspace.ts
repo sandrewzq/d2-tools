@@ -51,11 +51,13 @@ export function useVendorsWorkspace(input: {
 }) {
   const [snapshot, setSnapshot] = useState<VendorInventorySnapshot | null>(null);
   const [refreshState, setRefreshState] = useState<"idle" | "refreshing" | "failed">("idle");
+  const [isManualRefreshing, setIsManualRefreshing] = useState(false);
   const [refreshError, setRefreshError] = useState("");
   const [statusMessage, setStatusMessage] = useState("");
   const [selectedVendorId, setSelectedVendorId] = useState<string | undefined>("vendor-2190858386");
   const requestContextKeyRef = useRef("__initial__");
   const requestSequenceRef = useRef(0);
+  const manualRequestSequenceRef = useRef<number | null>(null);
 
   const characterId = input.selectedCharacterId
     || input.accountSummary?.characters[0]?.character_id
@@ -69,9 +71,16 @@ export function useVendorsWorkspace(input: {
     [selectedVendorHash, snapshot]
   );
 
-  const refresh = useCallback(async () => {
+  const runRefresh = useCallback(async (source: "manual" | "background") => {
     if (!input.active || !input.accountSummary || !characterId) return;
     const requestSequence = ++requestSequenceRef.current;
+    if (source === "manual") {
+      manualRequestSequenceRef.current = requestSequence;
+      setIsManualRefreshing(true);
+    } else {
+      manualRequestSequenceRef.current = null;
+      setIsManualRefreshing(false);
+    }
     const currentSnapshot = hideInactiveXur(snapshot, input.now);
     const request = createVendorInventoryRequest(
       input.accountSummary,
@@ -108,19 +117,30 @@ export function useVendorsWorkspace(input: {
         setRefreshState("failed");
         setRefreshError(error instanceof Error ? error.message : "商人数据读取失败");
       }
+    } finally {
+      if (manualRequestSequenceRef.current === requestSequence) {
+        manualRequestSequenceRef.current = null;
+        setIsManualRefreshing(false);
+      }
     }
   }, [characterId, input.accountSummary, input.active, input.loadInventory, requestContextKey, selectedDetailVendorHashes, snapshot]);
+
+  const refresh = useCallback(() => runRefresh("manual"), [runRefresh]);
 
   useEffect(() => {
     if (!input.active) {
       requestSequenceRef.current += 1;
       requestContextKeyRef.current = "__inactive__";
+      manualRequestSequenceRef.current = null;
       setRefreshState("idle");
+      setIsManualRefreshing(false);
       return;
     }
     if (requestContextKey === requestContextKeyRef.current) return;
     requestContextKeyRef.current = requestContextKey;
     const requestSequence = ++requestSequenceRef.current;
+    manualRequestSequenceRef.current = null;
+    setIsManualRefreshing(false);
     setSnapshot(null);
     setRefreshError("");
     setStatusMessage("");
@@ -170,6 +190,8 @@ export function useVendorsWorkspace(input: {
     ) return;
 
     const requestSequence = ++requestSequenceRef.current;
+    manualRequestSequenceRef.current = null;
+    setIsManualRefreshing(false);
     setRefreshState("refreshing");
     setRefreshError("");
     const request = createVendorInventoryRequest(
@@ -213,10 +235,10 @@ export function useVendorsWorkspace(input: {
     const delay = Math.max(1_000, nextXurBoundaryAt(currentTime).getTime() - currentTime.getTime() + 5_000);
     const id = window.setTimeout(() => {
       setSnapshot((current) => hideInactiveXur(current, input.now));
-      void refresh();
+      void runRefresh("background");
     }, delay);
     return () => window.clearTimeout(id);
-  }, [input.active, refresh]);
+  }, [input.active, runRefresh]);
 
   const model: VendorsPageWorkspace = useMemo(() => selectVendorsPageModel({
     snapshot,
@@ -234,7 +256,7 @@ export function useVendorsWorkspace(input: {
   return {
     model,
     refresh,
-    isRefreshing: refreshState === "refreshing",
+    isManualRefreshing,
     statusMessage,
     selectVendor: setSelectedVendorId
   };

@@ -104,6 +104,43 @@ describe("highest power workspace", () => {
     expect(plan.items.map((entry) => entry.item.name)).toEqual(["共享武器", "泰坦头盔"]);
   });
 
+  it("selects the highest total power combination that respects exotic limits", () => {
+    const character: CharacterSummary = {
+      character_id: "char-1",
+      class_name: "术士",
+      equipped_items: [
+        item("kinetic-base", "动能基准", "动能武器", 500),
+        item("energy-base", "能量基准", "能量武器", 500),
+        item("power-base", "威能基准", "威能武器", 500),
+        item("helmet-base", "头盔基准", "头盔", 500, 2),
+        item("gauntlets-base", "臂铠基准", "臂铠", 500, 2)
+      ],
+      equipment_groups: [],
+      inventory_items: [
+        item("kinetic-exotic", "异域动能", "动能武器", 525, undefined, "异域"),
+        item("energy-exotic", "异域能量", "能量武器", 524, undefined, "Exotic"),
+        item("energy-legendary", "传说能量", "能量武器", 523),
+        item("power-legendary", "传说威能", "威能武器", 522),
+        item("helmet-exotic", "异域头盔", "头盔", 525, 2, "异域"),
+        item("gauntlets-exotic", "异域臂铠", "臂铠", 524, 2, "Exotic"),
+        item("gauntlets-legendary", "传说臂铠", "臂铠", 523, 2)
+      ],
+      inventory_groups: [],
+      postmaster_items: [],
+      loadout_slots: []
+    };
+
+    const plan = createHighestPowerEquipPlan({ character, vaultItems: [] });
+
+    expect(plan.items.map((entry) => entry.item.name)).toEqual([
+      "异域动能",
+      "传说能量",
+      "传说威能",
+      "异域头盔",
+      "传说臂铠"
+    ]);
+  });
+
   it("builds the confirm copy for highest-power write actions", () => {
     const character: CharacterSummary = {
       character_id: "char-1",
@@ -155,8 +192,9 @@ describe("highest power workspace", () => {
       transferTotalCount: 2,
       equipSuccessCount: 2,
       equipTotalCount: 3,
-      failedCount: 2
-    })).toBe("最高光等执行完成：转移成功 1/2，装备成功 2/3，失败步骤 2。可在设置页查看操作日志。");
+      failedCount: 2,
+      failureReason: "当前角色所在位置不允许更换装备。"
+    })).toBe("最高光等执行完成：转移成功 1/2，装备成功 2/3，失败步骤 2。首个失败原因：当前角色所在位置不允许更换装备。");
   });
 });
 
@@ -165,7 +203,8 @@ function item(
   name: string,
   bucketName: string,
   power: number | undefined,
-  classType?: number
+  classType?: number,
+  tier?: string
 ): AccountItemSummary {
   return {
     hash: instanceId.length,
@@ -174,6 +213,7 @@ function item(
     bucket_name: bucketName,
     group_key: bucketName.includes("武器") ? "weapons" : bucketName === "飞船" ? "equipment" : "armor",
     power,
-    class_type: classType
+    class_type: classType,
+    tier
   };
 }

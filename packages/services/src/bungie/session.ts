@@ -6,6 +6,8 @@ export type BungieMembership = {
 };
 
 export type BungiePublicMilestone = {
+  startDate?: string | null;
+  endDate?: string | null;
   displayProperties?: {
     name?: string;
     description?: string;

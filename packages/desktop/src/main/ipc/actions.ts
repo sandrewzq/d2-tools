@@ -178,20 +178,19 @@ export function registerActionIpcHandlers(): void {
   });
 
   ipcMain.handle("actions:items:batch-equip", async (_event, input: BatchEquipItemsInput) => {
-    let equipRequest: Promise<void> | null = null;
+    let equipRequest: Promise<Map<string, number>> | null = null;
     return runBatchWriteActions({
       action: "equip",
       items: input.items,
       successMessage: "批量装备完成",
       runItem: async ({ config, token }, item) => {
-        equipRequest ??= bungieEquipItems({
-          config,
-          token,
-          membershipType: input.membership_type,
-          characterId: input.character_id,
-          itemIds: input.items.map((entry) => entry.item_id)
-        });
-        await equipRequest;
+        equipRequest ??= equipItemsWithMissingResultRetry({ config, token, request: input });
+        const equipStatus = (await equipRequest).get(item.item_id);
+        if (equipStatus === 1) return;
+        if (equipStatus === undefined) {
+          throw new Error("Bungie 未返回这件装备的执行结果。装备可能尚未同步到角色背包，请刷新账号后重试。");
+        }
+        throw new Error(describeEquipFailure(equipStatus));
       },
       getItemName: (item) => item.item_name,
       getItemInstanceId: (item) => item.item_id,
@@ -582,12 +581,16 @@ async function performBatchWriteActions<T>(
   let successCount = 0;
   let failedCount = 0;
   const accountPatches: AccountItemActionPatch[] = [];
+  const succeededItemIds: string[] = [];
+  const failedItemIds: string[] = [];
+  const failureMessages = new Set<string>();
 
   for (const item of input.items) {
     try {
       await input.runItem({ config, token }, item);
       successCount += 1;
       const itemInstanceId = input.getItemInstanceId(item);
+      if (itemInstanceId) succeededItemIds.push(itemInstanceId);
       if (itemInstanceId) await invalidateAccountItemDetails([itemInstanceId]);
       const accountPatch = input.getAccountPatch?.(item);
       if (accountPatch) {
@@ -605,7 +608,10 @@ async function performBatchWriteActions<T>(
       });
     } catch (error) {
       failedCount += 1;
+      const itemInstanceId = input.getItemInstanceId(item);
+      if (itemInstanceId) failedItemIds.push(itemInstanceId);
       const message = classifyWriteActionIpcError(error).message;
+      failureMessages.add(message);
       appendActionLog(config.data.data_dir, {
         action: input.action,
         item_name: input.getItemName(item),
@@ -623,8 +629,55 @@ async function performBatchWriteActions<T>(
     success_count: successCount,
     failed_count: failedCount,
     account_patches: accountPatches,
+    succeeded_item_ids: succeededItemIds,
+    failed_item_ids: failedItemIds,
+    failure_messages: [...failureMessages],
     message: failedCount
       ? `批量操作完成：成功 ${successCount}，失败 ${failedCount}。`
       : `${input.successMessage}：共 ${successCount} 项。`
   };
+}
+
+async function equipItemsWithMissingResultRetry(input: {
+  config: D2Config;
+  token: FreshOAuthToken;
+  request: BatchEquipItemsInput;
+}): Promise<Map<string, number>> {
+  const pendingItemIds = new Set(input.request.items.map((item) => item.item_id));
+  const statuses = new Map<string, number>();
+
+  const retryWaits = [0, 750, 2_000] as const;
+  for (const [attemptIndex, waitMs] of retryWaits.entries()) {
+    if (!pendingItemIds.size) break;
+    if (waitMs) await new Promise((resolve) => setTimeout(resolve, waitMs));
+
+    const result = await bungieEquipItems({
+      config: input.config,
+      token: input.token,
+      membershipType: input.request.membership_type,
+      characterId: input.request.character_id,
+      itemIds: [...pendingItemIds]
+    });
+
+    for (const itemResult of result.equipResults ?? []) {
+      const itemInstanceId = String(itemResult.itemInstanceId);
+      if (!pendingItemIds.has(itemInstanceId)) continue;
+      statuses.set(itemInstanceId, itemResult.equipStatus);
+      const shouldRetryItemNotFound = itemResult.equipStatus === 1623
+        && attemptIndex < retryWaits.length - 1;
+      if (!shouldRetryItemNotFound) pendingItemIds.delete(itemInstanceId);
+    }
+  }
+
+  return statuses;
+}
+
+function describeEquipFailure(status: number): string {
+  if (status === 1671) {
+    return "当前角色所在位置不允许通过 Bungie API 更换装备。请返回轨道、进入社交空间或退出游戏后重试。";
+  }
+  if (status === 1623) {
+    return "目标装备不在该角色可装备的背包中。账号数据可能已过期，或仓库转移尚未同步，请刷新账号后重试。";
+  }
+  return `装备失败（Bungie 状态码 ${status}）。`;
 }
