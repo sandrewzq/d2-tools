@@ -10,8 +10,19 @@ export type PerkSearchResult = {
   name: string;
   description: string;
   icon?: string;
+  variants: PerkVariant[];
   related_count: number;
   related_groups: EquipmentGroupKey[];
+};
+
+export type PerkVariantKind = "standard" | "enhanced" | "other";
+
+export type PerkVariant = {
+  sandbox_perk_hash: number;
+  plug_hashes: number[];
+  kind: PerkVariantKind;
+  description: string;
+  related_count: number;
 };
 
 export type PerkRelatedEquipmentQuery = {
@@ -20,9 +31,15 @@ export type PerkRelatedEquipmentQuery = {
   limit?: number;
 };
 
+export type PerkRelatedEquipmentItem<TItem> = {
+  item: TItem;
+  matched_perk_hashes: number[];
+  matched_variants: PerkVariantKind[];
+};
+
 export type PerkRelatedEquipmentPage<TItem> = {
   total: number;
-  items: TItem[];
+  items: Array<PerkRelatedEquipmentItem<TItem>>;
   offset: number;
   has_more: boolean;
 };
@@ -63,7 +80,7 @@ export function searchPerkDefinitions(
   return projectPerkSearchResults(candidateHashes, perkDefinitions, {
     limit: options.limit ?? 20,
     itemDefinitions: options.itemDefinitions,
-    perkIconDefinitions: options.itemDefinitions,
+    perkIconDefinitions: options.perkIconDefinitions ?? options.itemDefinitions,
     plugSetDefinitions: options.plugSetDefinitions
   });
 }
@@ -74,9 +91,8 @@ export function projectPerkSearchResults(
   options: Pick<PerkSearchOptions, "limit" | "itemDefinitions" | "perkIconDefinitions" | "plugSetDefinitions"> = {}
 ): PerkSearchResult[] {
   const groups = new Map<string, {
-    hashes: number[];
+    variants: Map<number, PerkVariant>;
     name: string;
-    description: string;
     icon?: string;
   }>();
 
@@ -86,19 +102,33 @@ export function projectPerkSearchResults(
     const name = cleanDisplayText(definition?.displayProperties?.name);
     if (!definition || !name) continue;
 
+    const plugDefinitions = findPerkPlugDefinitions(hash, options.perkIconDefinitions);
     const description = cleanDisplayText(definition.displayProperties?.description);
-    const icon = normalizeBungieAssetUrl(definition.displayProperties?.icon)
-      ?? findPerkIcon([hash], options.perkIconDefinitions);
-    const identity = [normalizeSearchText(name), description, icon ?? ""].join("\u0000");
+    const icon = findPreferredPerkIcon(definition, plugDefinitions);
+    const identity = buildPerkFamilyIdentity(name, definition, plugDefinitions);
+    const relatedCount = options.itemDefinitions
+      ? findRelatedEquipmentDefinitions([hash], options.itemDefinitions, options.plugSetDefinitions).length
+      : 0;
+    const variant: PerkVariant = {
+      sandbox_perk_hash: hash,
+      plug_hashes: plugDefinitions
+        .map((plug) => Number(plug.hash))
+        .filter(Number.isFinite)
+        .map((plugHash) => plugHash >>> 0)
+        .sort((left, right) => left - right),
+      kind: classifyPerkVariantKind(hash, options.perkIconDefinitions),
+      description,
+      related_count: relatedCount
+    };
     const current = groups.get(identity);
     if (current) {
-      if (!current.hashes.includes(hash)) current.hashes.push(hash);
+      current.variants.set(hash, variant);
+      if (!current.icon && icon) current.icon = icon;
       continue;
     }
     groups.set(identity, {
-      hashes: [hash],
+      variants: new Map([[hash, variant]]),
       name,
-      description,
       ...(icon ? { icon } : {})
     });
   }
@@ -106,8 +136,12 @@ export function projectPerkSearchResults(
   return [...groups.values()]
     .slice(0, options.limit ?? 20)
     .map((group) => {
-      const hashes = [...group.hashes].sort((left, right) => left - right);
+      const variants = [...group.variants.values()].sort(comparePerkVariants);
+      const hashes = variants.map((variant) => variant.sandbox_perk_hash).sort((left, right) => left - right);
       const icon = group.icon ?? findPerkIcon(hashes, options.perkIconDefinitions);
+      const description = variants.find((variant) => variant.kind === "standard")?.description
+        ?? variants[0]?.description
+        ?? "";
       const relatedDefinitions = options.itemDefinitions
         ? findRelatedEquipmentDefinitions(
           hashes,
@@ -120,12 +154,75 @@ export function projectPerkSearchResults(
         hash: hashes[0]!,
         hashes,
         name: group.name,
-        description: group.description,
+        description,
         ...(icon ? { icon } : {}),
+        variants,
         related_count: relatedDefinitions.length,
         related_groups: collectRelatedGroups(relatedDefinitions)
       };
     });
+}
+
+export function classifyPerkVariantKind(
+  sandboxPerkHash: number,
+  definitions: DefinitionComponentData | undefined
+): PerkVariantKind {
+  const plugs = findPerkPlugDefinitions(sandboxPerkHash, definitions);
+  if (plugs.some((plug) => plug.inventory?.tierType === 3)) return "enhanced";
+  if (plugs.some((plug) => plug.inventory?.tierType === 2)) return "standard";
+
+  const displayTypes = plugs.map((plug) => normalizeSearchText(plug.itemTypeDisplayName ?? ""));
+  if (displayTypes.some((type) => type.includes("强化") || type.includes("enhanced"))) return "enhanced";
+  return "other";
+}
+
+function findPerkPlugDefinitions(
+  sandboxPerkHash: number,
+  definitions: DefinitionComponentData | undefined
+): DefinitionRecord[] {
+  if (!definitions) return [];
+  const hash = Number(sandboxPerkHash) >>> 0;
+  return Object.values(definitions).filter((definition) => (
+    (definition.perks ?? []).some((perk) => (
+      typeof perk.perkHash === "number" && (perk.perkHash >>> 0) === hash
+    ))
+  ));
+}
+
+function findPreferredPerkIcon(
+  definition: DefinitionRecord,
+  plugDefinitions: DefinitionRecord[]
+): string | undefined {
+  return plugDefinitions
+    .map((plug) => normalizeBungieAssetUrl(plug.displayProperties?.icon))
+    .find(Boolean)
+    ?? normalizeBungieAssetUrl(definition.displayProperties?.icon);
+}
+
+function buildPerkFamilyIdentity(
+  name: string,
+  definition: DefinitionRecord,
+  plugDefinitions: DefinitionRecord[]
+): string {
+  const plugIdentities = plugDefinitions.map((plug) => [
+    normalizeSearchText(plug.displayProperties?.name ?? name),
+    plug.displayProperties?.iconHash ?? normalizeBungieAssetUrl(plug.displayProperties?.icon) ?? "",
+    plug.plug?.plugCategoryHash ?? plug.plug?.plugCategoryIdentifier ?? "",
+    [...(plug.itemCategoryHashes ?? [])].sort((left, right) => left - right).join(",")
+  ].join("\u0000"));
+  const preferredIdentity = plugIdentities.sort()[0];
+  if (preferredIdentity) return preferredIdentity;
+
+  return [
+    normalizeSearchText(name),
+    definition.displayProperties?.iconHash ?? normalizeBungieAssetUrl(definition.displayProperties?.icon) ?? ""
+  ].join("\u0000");
+}
+
+function comparePerkVariants(left: PerkVariant, right: PerkVariant): number {
+  const order: Record<PerkVariantKind, number> = { standard: 0, enhanced: 1, other: 2 };
+  return order[left.kind] - order[right.kind]
+    || left.sandbox_perk_hash - right.sandbox_perk_hash;
 }
 
 function findPerkIcon(

@@ -244,7 +244,11 @@ export function createSqliteSearchIndex(
     },
 
     getRelatedItemSummary(perkHashes) {
-      return queryCanonicalRelatedItems(database, perkHashes);
+      const result = queryCanonicalRelatedItems(database, perkHashes);
+      return {
+        total: result.total,
+        hashes: result.items.map((item) => item.hash)
+      };
     },
 
     getRelatedItemPage(perkHashes, offset, limit) {
@@ -478,49 +482,68 @@ function queryCanonicalRelatedItems(
   perkHashes: Iterable<number>,
   requestedOffset?: number,
   requestedLimit?: number
-): { total: number; hashes: number[] } {
+): { total: number; items: Array<{ hash: number; perk_hashes: number[] }> } {
   const normalizedHashes = [...new Set([...perkHashes].map(toUnsignedHash))];
-  if (!normalizedHashes.length) return { total: 0, hashes: [] };
+  if (!normalizedHashes.length) return { total: 0, items: [] };
 
   const placeholders = normalizedHashes.map(() => "?").join(", ");
   const parameters = normalizedHashes.map(toSignedHash);
   const relatedCte = `
     WITH related AS (
-      SELECT DISTINCT versions.canonical_hash AS hash
+      SELECT DISTINCT versions.canonical_hash AS hash, relations.perk_hash
       FROM perk_related_items AS relations
       JOIN item_version_relation AS versions
         ON versions.item_hash = relations.item_hash
       WHERE relations.perk_hash IN (${placeholders})
+    ), grouped AS (
+      SELECT hash, group_concat(DISTINCT perk_hash) AS perk_hashes
+      FROM related
+      GROUP BY hash
     )
   `;
   const totalRow = database.prepare(`
     ${relatedCte}
-    SELECT count(*) AS total FROM related
+    SELECT count(*) AS total FROM grouped
   `).get(...parameters) as { total: number } | undefined;
   const total = Number(totalRow?.total ?? 0);
 
   if (requestedLimit === undefined) {
     const rows = database.prepare(`
       ${relatedCte}
-      SELECT hash FROM related ORDER BY hash
-    `).all(...parameters) as Array<{ hash: number }>;
-    return { total, hashes: rows.map((row) => toUnsignedHash(row.hash)) };
+      SELECT hash, perk_hashes FROM grouped ORDER BY hash
+    `).all(...parameters) as Array<{ hash: number; perk_hashes: string }>;
+    return { total, items: rows.map(normalizeRelatedItemRow) };
   }
 
   const offset = Math.max(0, Math.trunc(requestedOffset ?? 0));
   const limit = Math.max(1, Math.min(Math.trunc(requestedLimit), 100));
   const rows = database.prepare(`
     ${relatedCte}
-    SELECT related.hash
-    FROM related
+    SELECT grouped.hash, grouped.perk_hashes
+    FROM grouped
     LEFT JOIN search_documents AS documents
-      ON documents.kind = 'item' AND documents.hash = related.hash
+      ON documents.kind = 'item' AND documents.hash = grouped.hash
     LEFT JOIN item_version_relation AS versions
-      ON versions.item_hash = related.hash
-    ORDER BY lower(documents.name), versions.rank DESC, related.hash ASC
+      ON versions.item_hash = grouped.hash
+    ORDER BY lower(documents.name), versions.rank DESC, grouped.hash ASC
     LIMIT ? OFFSET ?
-  `).all(...parameters, limit, offset) as Array<{ hash: number }>;
-  return { total, hashes: rows.map((row) => toUnsignedHash(row.hash)) };
+  `).all(...parameters, limit, offset) as Array<{ hash: number; perk_hashes: string }>;
+  return { total, items: rows.map(normalizeRelatedItemRow) };
+}
+
+function normalizeRelatedItemRow(row: { hash: number; perk_hashes: string }): {
+  hash: number;
+  perk_hashes: number[];
+} {
+  return {
+    hash: toUnsignedHash(row.hash),
+    perk_hashes: row.perk_hashes
+      .split(",")
+      .map(Number)
+      .filter(Number.isFinite)
+      .map(toUnsignedHash)
+      .sort((left, right) => left - right)
+  };
 }
 
 function assertIndexCompatibility(

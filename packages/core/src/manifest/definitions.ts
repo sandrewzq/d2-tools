@@ -31,6 +31,7 @@ export type DefinitionRecord = {
     name?: string;
     description?: string;
     icon?: string;
+    iconHash?: number;
   };
   vendorIdentifier?: string;
   locations?: Array<{
@@ -72,9 +73,11 @@ export type DefinitionRecord = {
   itemTypeDisplayName?: string;
   classType?: number;
   inventory?: {
+    tierType?: number;
     tierTypeName?: string;
     bucketTypeHash?: number;
   };
+  itemCategoryHashes?: number[];
   equippingBlock?: {
     ammoType?: number;
     damageType?: number;
@@ -158,6 +161,7 @@ export type DefinitionRecord = {
     }>;
   };
   plug?: {
+    plugCategoryHash?: number;
     plugCategoryIdentifier?: string;
   };
   [key: string]: unknown;

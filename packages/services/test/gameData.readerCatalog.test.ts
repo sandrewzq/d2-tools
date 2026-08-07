@@ -24,7 +24,7 @@ describe("reader game data catalog", () => {
           return { total: 0, hashes: [] };
         },
         getRelatedItemPage() {
-          return { total: 0, hashes: [] };
+          return { total: 0, items: [] };
         },
         getPlugHashes() {
           return [];
@@ -84,6 +84,13 @@ describe("reader game data catalog", () => {
       hashes: [101],
       name: "击杀弹匣",
       description: "击杀后换弹可提高伤害。",
+      variants: [{
+        sandbox_perk_hash: 101,
+        plug_hashes: [201],
+        kind: "other",
+        description: "击杀后换弹可提高伤害。",
+        related_count: 1
+      }],
       related_count: 1,
       related_groups: []
     }]);
@@ -123,7 +130,10 @@ function createSearchIndex(
     },
     getRelatedItemPage(perkHashes, offset, limit) {
       const hashes = [...perkHashes].includes(101) ? [301] : [];
-      return { total: hashes.length, hashes: hashes.slice(offset, offset + limit) };
+      return {
+        total: hashes.length,
+        items: hashes.slice(offset, offset + limit).map((hash) => ({ hash, perk_hashes: [101] }))
+      };
     },
     getPlugHashes(perkHashes) {
       return [...perkHashes].includes(101) ? [201] : [];

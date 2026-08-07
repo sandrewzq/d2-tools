@@ -22,6 +22,7 @@ import type { DefinitionProjection } from "../runtime/gameDataRuntime.js";
 type GameDataWorkerRequest = {
   id: number;
   operation:
+    | "getRuntimeCapabilities"
     | "searchItems"
     | "searchPerks"
     | "getPerkRelatedEquipment"
@@ -72,6 +73,9 @@ async function handleRequest(request: GameDataWorkerRequest): Promise<unknown> {
       manifestVersion: current.activation.manifestVersion,
       activatedAt: current.activation.activatedAt
     };
+  }
+  if (request.operation === "getRuntimeCapabilities") {
+    return current.catalog.getRuntimeCapabilities();
   }
   if (request.operation === "searchItems") {
     return current.catalog.searchItems(request.input as Parameters<typeof current.catalog.searchItems>[0]);

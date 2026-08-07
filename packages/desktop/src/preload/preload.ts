@@ -125,6 +125,12 @@ contextBridge.exposeInMainWorld("d2", {
     invokeDesktopIpc<ManifestStatus>("manifest:status", options),
   initializeManifest: () => invokeDesktopIpc<ManifestStatus>("manifest:initialize"),
   repairManifest: () => invokeDesktopIpc<ManifestStatus>("manifest:repair"),
+  getLibraryRuntimeCapabilities: () => invokeDesktopIpc<{
+    contract_version: 1 | 2;
+    supports_perk_families: boolean;
+    supports_related_equipment_paging: boolean;
+    supports_related_variant_matches: boolean;
+  }>("library:capabilities"),
   searchItems: (query: string) => invokeDesktopIpc<ItemSearchResult[]>("items:search", query),
   searchPerks: (query: string) => invokeDesktopIpc<PerkSearchResult[]>("items:perks:search", query),
   getPerkRelatedEquipment: (input: PerkRelatedEquipmentQuery) =>

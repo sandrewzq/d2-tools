@@ -9,6 +9,7 @@ import type { ItemSearchResult } from "@d2-tools/core/items/search";
 import type { ArmorSetCatalogItem } from "@d2-tools/core/items/equipableItemSet";
 import type {
   GameDataCatalog,
+  GameDataRuntimeCapabilities,
   ItemDetailQuery,
   ItemSearchQuery,
   PerkSearchQuery
@@ -16,6 +17,7 @@ import type {
 import { measureRuntime } from "./runtimeMetrics.js";
 
 type GameDataOperation =
+  | "getRuntimeCapabilities"
   | "searchItems"
   | "searchPerks"
   | "getPerkRelatedEquipment"
@@ -43,6 +45,7 @@ const workerTimeoutCounts = new WeakMap<Worker, number>();
 const closeTimeoutMs = 5_000;
 const workerRestartTimeoutThreshold = 2;
 const operationTimeoutMs: Record<GameDataOperation, number> = {
+  getRuntimeCapabilities: 5_000,
   searchItems: 15_000,
   searchPerks: 15_000,
   getPerkRelatedEquipment: 15_000,
@@ -54,6 +57,10 @@ const operationTimeoutMs: Record<GameDataOperation, number> = {
 };
 
 const catalog: GameDataCatalog = {
+  getRuntimeCapabilities() {
+    return request<GameDataRuntimeCapabilities>("getRuntimeCapabilities");
+  },
+
   searchItems(input: ItemSearchQuery) {
     return measureRuntime(
       "game-data.search-items",

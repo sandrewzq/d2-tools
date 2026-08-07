@@ -1,7 +1,7 @@
 import { expandAliasQuery } from "@d2-tools/core/items/aliases";
-import type { PerkSearchResult } from "@d2-tools/core/items/perkSearch";
+import type { PerkSearchResult, PerkVariantKind } from "@d2-tools/core/items/perkSearch";
 import type { ItemSearchResult } from "@d2-tools/core/items/search";
-import type { GameDataCatalog, ItemSearchQuery, PerkSearchQuery } from "./catalog.js";
+import { getGameDataRuntimeCapabilities, type GameDataCatalog, type ItemSearchQuery, type PerkSearchQuery } from "./catalog.js";
 
 export type MemoryGameDataCatalogSeed = {
   items?: ItemSearchResult[];
@@ -15,6 +15,10 @@ export function createMemoryGameDataCatalog(seed: MemoryGameDataCatalogSeed = {}
   const perks = seed.perks ?? [];
 
   return {
+    async getRuntimeCapabilities() {
+      return getGameDataRuntimeCapabilities();
+    },
+
     async searchItems(input) {
       return filterSearchResults(items, input, (item) => `${item.name}\n${item.description}`);
     },
@@ -24,9 +28,7 @@ export function createMemoryGameDataCatalog(seed: MemoryGameDataCatalogSeed = {}
     },
 
     async getPerkRelatedEquipment(input) {
-      const relatedItems = uniqueRelatedItems(
-        input.perk_hashes.flatMap((hash) => seed.perkRelatedEquipment?.[String(hash)] ?? [])
-      );
+      const relatedItems = collectRelatedItems(input.perk_hashes, seed);
       const offset = Math.max(0, Math.trunc(input.offset ?? 0));
       const limit = Math.max(1, Math.min(Math.trunc(input.limit ?? 20), 100));
       return {
@@ -45,8 +47,29 @@ export function createMemoryGameDataCatalog(seed: MemoryGameDataCatalogSeed = {}
   };
 }
 
-function uniqueRelatedItems(items: ItemSearchResult[]): ItemSearchResult[] {
-  return [...new Map(items.map((item) => [item.hash, item])).values()];
+function collectRelatedItems(
+  perkHashes: number[],
+  seed: MemoryGameDataCatalogSeed
+): Array<{ item: ItemSearchResult; matched_perk_hashes: number[]; matched_variants: PerkVariantKind[] }> {
+  const variantKinds = new Map<number, PerkVariantKind>();
+  for (const perk of seed.perks ?? []) {
+    for (const variant of perk.variants) {
+      variantKinds.set(variant.sandbox_perk_hash, variant.kind);
+    }
+  }
+  const related = new Map<number, { item: ItemSearchResult; matched_perk_hashes: Set<number> }>();
+  for (const perkHash of perkHashes) {
+    for (const item of seed.perkRelatedEquipment?.[String(perkHash)] ?? []) {
+      const current = related.get(item.hash) ?? { item, matched_perk_hashes: new Set<number>() };
+      current.matched_perk_hashes.add(perkHash);
+      related.set(item.hash, current);
+    }
+  }
+  return [...related.values()].map((entry) => ({
+    item: entry.item,
+    matched_perk_hashes: [...entry.matched_perk_hashes].sort((left, right) => left - right),
+    matched_variants: [...new Set([...entry.matched_perk_hashes].map((hash) => variantKinds.get(hash) ?? "other"))]
+  }));
 }
 
 function filterSearchResults<TResult>(

@@ -22,9 +22,26 @@ export type ItemDetailQuery = {
   hash: number;
 };
 
+export type GameDataRuntimeCapabilities = {
+  contract_version: 2;
+  supports_perk_families: true;
+  supports_related_equipment_paging: true;
+  supports_related_variant_matches: true;
+};
+
 export type GameDataCatalog = {
+  getRuntimeCapabilities(): Promise<GameDataRuntimeCapabilities>;
   searchItems(input: ItemSearchQuery): Promise<ItemSearchResult[]>;
   searchPerks(input: PerkSearchQuery): Promise<PerkSearchResult[]>;
   getPerkRelatedEquipment(input: PerkRelatedEquipmentQuery): Promise<PerkRelatedEquipmentPage<ItemSearchResult>>;
   getItemDetail(input: ItemDetailQuery): Promise<ItemSearchResult | null>;
 };
+
+export function getGameDataRuntimeCapabilities(): GameDataRuntimeCapabilities {
+  return {
+    contract_version: 2,
+    supports_perk_families: true,
+    supports_related_equipment_paging: true,
+    supports_related_variant_matches: true
+  };
+}

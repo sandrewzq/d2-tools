@@ -15,6 +15,7 @@ import type {
 } from "./sharedTypes";
 
 export type LibraryApi = {
+  getLibraryRuntimeCapabilities(): Promise<LibraryRuntimeCapabilities>;
   getItemDetail(hash: number): Promise<ItemDefinitionDetail>;
   getArmorSetCatalog(): Promise<ArmorSetCatalogItem[]>;
   searchItems(query: string): Promise<ItemSearchResult[]>;
@@ -27,6 +28,13 @@ export type LibraryApi = {
   addRecentItem(item: Omit<LibraryHistoryItem, "viewed_at">): Promise<LibraryHistory>;
   addFavoriteItem(item: Omit<LibraryHistoryItem, "viewed_at">): Promise<LibraryHistory>;
   removeFavoriteItem(hash: number): Promise<LibraryHistory>;
+};
+
+export type LibraryRuntimeCapabilities = {
+  contract_version: 1 | 2;
+  supports_perk_families: boolean;
+  supports_related_equipment_paging: boolean;
+  supports_related_variant_matches: boolean;
 };
 
 export type ItemDefinitionDetail = ItemSearchResult & {
@@ -74,8 +82,20 @@ export type PerkSearchResult = {
   name: string;
   description: string;
   icon?: string;
+  variants: PerkVariant[];
   related_count: number;
+  related_count_status?: "exact" | "unavailable";
   related_groups: EquipmentGroupKey[];
+};
+
+export type PerkVariantKind = "standard" | "enhanced" | "other";
+
+export type PerkVariant = {
+  sandbox_perk_hash: number;
+  plug_hashes: number[];
+  kind: PerkVariantKind;
+  description: string;
+  related_count: number;
 };
 
 export type PerkRelatedEquipmentQuery = {
@@ -86,7 +106,11 @@ export type PerkRelatedEquipmentQuery = {
 
 export type PerkRelatedEquipmentPage = {
   total: number;
-  items: ItemSearchResult[];
+  items: Array<{
+    item: ItemSearchResult;
+    matched_perk_hashes: number[];
+    matched_variants: PerkVariantKind[];
+  }>;
   offset: number;
   has_more: boolean;
 };

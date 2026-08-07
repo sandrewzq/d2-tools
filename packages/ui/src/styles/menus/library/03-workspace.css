@@ -426,6 +426,16 @@
   color: var(--text-body);
 }
 
+:where(.app-shell) .library-result-body > .library-perk-enhanced-description {
+  color: var(--text-body);
+}
+
+:where(.app-shell) .library-perk-enhanced-description > strong {
+  margin-right: 4px;
+  color: var(--text-title);
+  font-weight: 600;
+}
+
 :where(.app-shell) .library-result-facts {
   display: flex;
   flex-wrap: wrap;

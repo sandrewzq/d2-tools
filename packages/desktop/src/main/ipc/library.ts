@@ -26,6 +26,28 @@ import { getSharedBungieSession } from "../runtime/bungieSession.js";
 import { loadFreshOAuthToken } from "./authSession.js";
 
 export function registerLibraryIpcHandlers(): void {
+  ipcMain.handle("library:capabilities", async () => {
+    const catalog = getGameDataCatalog() as {
+      getRuntimeCapabilities?: () => Promise<{
+        contract_version: number;
+        supports_perk_families: boolean;
+        supports_related_equipment_paging: boolean;
+        supports_related_variant_matches: boolean;
+      }>;
+    };
+    try {
+      if (catalog.getRuntimeCapabilities) return await catalog.getRuntimeCapabilities();
+    } catch {
+      // An older worker does not know this operation and must be treated as contract v1.
+    }
+    return {
+      contract_version: 1,
+      supports_perk_families: false,
+      supports_related_equipment_paging: false,
+      supports_related_variant_matches: false
+    };
+  });
+
   ipcMain.handle("items:search", (_event, query: string) => encodeDesktopIpcFailure(() => {
     const config = loadConfig();
     return getGameDataCatalog().searchItems({

@@ -62,6 +62,13 @@ describe("perk definition search", () => {
         hashes: [10],
         name: "爆破专家",
         description: "使用技能会重新装填武器。",
+        variants: [{
+          sandbox_perk_hash: 10,
+          plug_hashes: [1000],
+          kind: "other",
+          description: "使用技能会重新装填武器。",
+          related_count: 1
+        }],
         related_count: 1,
         related_groups: []
       }
@@ -82,5 +89,44 @@ describe("perk definition search", () => {
   it("includes related weapons whose plug item points back to the sandbox perk", () => {
     expect(findRelatedEquipmentDefinitions([10], items, plugSets).map((item) => Number(item.hash)))
       .toContain(102);
+  });
+
+  it("groups standard and enhanced definitions into one perk family", () => {
+    const familyPerks: DefinitionComponentData = {
+      20: { hash: 20, displayProperties: { name: "爆炸箭头", description: "箭矢在短暂延迟后爆炸。" } },
+      21: { hash: 21, displayProperties: { name: "爆炸箭头", description: "箭矢在短暂延迟后爆炸。提高精度。" } }
+    };
+    const familyPlugs: DefinitionComponentData = {
+      2000: {
+        hash: 2000,
+        displayProperties: { name: "爆炸箭头", icon: "/icons/explosive.png", iconHash: 99 },
+        inventory: { tierType: 2 },
+        itemCategoryHashes: [59, 100],
+        plug: { plugCategoryHash: 500 },
+        perks: [{ perkHash: 20 }]
+      },
+      2001: {
+        hash: 2001,
+        displayProperties: { name: "爆炸箭头", icon: "/icons/explosive.png", iconHash: 99 },
+        inventory: { tierType: 3 },
+        itemCategoryHashes: [59, 100],
+        plug: { plugCategoryHash: 500 },
+        perks: [{ perkHash: 21 }]
+      }
+    };
+
+    const results = searchPerkDefinitions(familyPerks, "爆炸箭头", {
+      perkIconDefinitions: familyPlugs
+    });
+
+    expect(results).toHaveLength(1);
+    expect(results[0]).toMatchObject({
+      name: "爆炸箭头",
+      hashes: [20, 21],
+      variants: [
+        { sandbox_perk_hash: 20, kind: "standard" },
+        { sandbox_perk_hash: 21, kind: "enhanced" }
+      ]
+    });
   });
 });

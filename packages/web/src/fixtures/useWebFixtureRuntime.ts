@@ -160,6 +160,7 @@ export const webLibraryPerks: PerkSearchResult[] = [{
   hashes: [4001],
   name: "动能震颤",
   description: "连续命中目标后产生动能冲击波。",
+  variants: [{ sandbox_perk_hash: 4001, plug_hashes: [], kind: "standard", description: "连续命中目标后产生动能冲击波。", related_count: 1 }],
   related_count: 1,
   related_groups: ["weapons"]
 }];

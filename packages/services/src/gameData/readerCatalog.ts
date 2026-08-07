@@ -1,7 +1,9 @@
 import { expandAliasQuery } from "@d2-tools/core/items/aliases";
 import {
+  classifyPerkVariantKind,
   collectRelatedGroups,
-  projectPerkSearchResults
+  projectPerkSearchResults,
+  type PerkVariantKind
 } from "@d2-tools/core/items/perkSearch";
 import {
   getItemSearchResultByHash,
@@ -12,7 +14,7 @@ import type {
   DefinitionComponentData,
   DefinitionRecord
 } from "@d2-tools/core/manifest/definitions";
-import type { GameDataCatalog } from "./catalog.js";
+import { getGameDataRuntimeCapabilities, type GameDataCatalog } from "./catalog.js";
 import type { DefinitionReader } from "./definitionReader.js";
 import { toUnsignedHash } from "./definitionReader.js";
 import type { GameDataSearchIndex } from "./searchIndex.js";
@@ -30,6 +32,10 @@ export function createReaderGameDataCatalog(
   options: ReaderGameDataCatalogOptions
 ): ManagedGameDataCatalog {
   return {
+    async getRuntimeCapabilities() {
+      return getGameDataRuntimeCapabilities();
+    },
+
     async searchItems(input) {
       const terms = input.aliases
         ? expandAliasQuery(input.query, input.aliases)
@@ -102,6 +108,12 @@ export function createReaderGameDataCatalog(
         );
         return {
           ...result,
+          variants: result.variants.map((variant) => ({
+            ...variant,
+            related_count: options.searchIndex
+              .getRelatedItemSummary([variant.sandbox_perk_hash])
+              .total
+          })),
           related_count: summary.total,
           related_groups: collectRelatedGroups(Object.values(relatedDefinitions))
         };
@@ -114,31 +126,49 @@ export function createReaderGameDataCatalog(
       const page = options.searchIndex.getRelatedItemPage(input.perk_hashes, offset, limit);
       const definitions = options.reader.getMany(
         "DestinyInventoryItemDefinition",
-        page.hashes
+        page.items.map((entry) => entry.hash)
       );
       const context = hydrateItemContext(
         options.reader,
         options.searchIndex,
         Object.values(definitions)
       );
-      const items = page.hashes
-        .map((hash) => getItemSearchResultByHash(context.items, hash, {
-          plugSetDefinitions: context.plugSets,
-          statDefinitions: context.stats,
-          collectibleDefinitions: context.collectibles,
-          breakerTypeDefinitions: context.breakerTypes,
-          damageTypeDefinitions: context.damageTypes,
-          seasonDefinitions: context.seasons,
-          equipableItemSetDefinitions: context.equipableItemSets,
-          sandboxPerkDefinitions: context.sandboxPerks
-        }))
-        .filter((result): result is ItemSearchResult => Boolean(result));
+      const perkPlugDefinitions = options.reader.getMany(
+        "DestinyInventoryItemDefinition",
+        options.searchIndex.getPlugHashes(input.perk_hashes)
+      );
+      const variantKinds = new Map(input.perk_hashes.map((perkHash) => [
+        Number(perkHash) >>> 0,
+        classifyPerkVariantKind(perkHash, perkPlugDefinitions)
+      ]));
+      const items = page.items
+        .map((entry) => {
+          const item = getItemSearchResultByHash(context.items, entry.hash, {
+            plugSetDefinitions: context.plugSets,
+            statDefinitions: context.stats,
+            collectibleDefinitions: context.collectibles,
+            breakerTypeDefinitions: context.breakerTypes,
+            damageTypeDefinitions: context.damageTypes,
+            seasonDefinitions: context.seasons,
+            equipableItemSetDefinitions: context.equipableItemSets,
+            sandboxPerkDefinitions: context.sandboxPerks
+          });
+          if (!item) return null;
+          return {
+            item,
+            matched_perk_hashes: entry.perk_hashes,
+            matched_variants: uniqueVariantKinds(entry.perk_hashes.map((hash) => (
+              variantKinds.get(hash) ?? "other"
+            )))
+          };
+        })
+        .filter((result): result is NonNullable<typeof result> => Boolean(result));
 
       return {
         total: page.total,
         items,
         offset,
-        has_more: offset + page.hashes.length < page.total
+        has_more: offset + page.items.length < page.total
       };
     },
 
@@ -169,6 +199,11 @@ export function createReaderGameDataCatalog(
       }
     }
   };
+}
+
+function uniqueVariantKinds(kinds: PerkVariantKind[]): PerkVariantKind[] {
+  const order: Record<PerkVariantKind, number> = { standard: 0, enhanced: 1, other: 2 };
+  return [...new Set(kinds)].sort((left, right) => order[left] - order[right]);
 }
 
 type ItemDefinitionContext = {

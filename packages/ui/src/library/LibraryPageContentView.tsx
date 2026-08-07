@@ -463,15 +463,41 @@ function renderPerkResult(
   copy: LibraryCopy
 ) {
   const perk = row.perk;
+  const standardVariant = perk.variants.find((variant) => variant.kind === "standard");
+  const enhancedVariant = perk.variants.find((variant) => variant.kind === "enhanced");
+  const enhancedDescription = enhancedVariant
+    ? formatEnhancedPerkDescription(perk.description, enhancedVariant.description)
+    : "";
+  const relatedCountLabel = row.isRelatedCountExact
+    ? `${row.relatedCount} ${libraryText(copy, "件关联装备")}`
+    : libraryText(copy, "关联数量需重启确认");
   return (
     <article className="library-result-row library-perk-result-row" key={perk.key}>
       <GameAssetImage className="game-definition-icon" alt="" loading="eager" src={perk.icon} fallback={<span className="library-result-icon-placeholder" aria-hidden="true" />} />
       <div className="library-result-body">
         <h3>{perk.name}</h3>
         {perk.description ? <p>{perk.description}</p> : null}
+        {enhancedDescription ? (
+          <p className="library-perk-enhanced-description">
+            <strong>{libraryText(copy, "强化：")}</strong>{enhancedDescription}
+          </p>
+        ) : null}
         <div className="library-result-facts">
+          {standardVariant ? (
+            <span className="app-chip">
+              {libraryText(copy, "普通")} {standardVariant.related_count} {libraryText(copy, "件")}
+            </span>
+          ) : null}
+          {enhancedVariant ? (
+            <span className="app-chip status-ready">
+              {libraryText(copy, "强化")} {enhancedVariant.related_count} {libraryText(copy, "件")}
+            </span>
+          ) : null}
+          {!perk.variants.some((variant) => variant.kind !== "other") && perk.variants.length > 1 ? (
+            <span className="app-chip">{perk.variants.length} {libraryText(copy, "个官方变体")}</span>
+          ) : null}
           {row.relatedGroupKeys.map((group) => <span className="app-chip status-pending" key={group}>{formatLibraryGroupLabel(group, copy)}</span>)}
-          <span className="app-chip">{row.relatedCount} 件关联装备</span>
+          <span className="app-chip">{relatedCountLabel}</span>
         </div>
         {row.hasRelatedItems ? (
           <details
@@ -484,7 +510,7 @@ function renderPerkResult(
           >
             <summary>
               <strong>{libraryText(copy, "关联装备")}</strong>
-              <span>{row.relatedCount} {libraryText(copy, "件关联装备，可按版本查看详情")}</span>
+              <span>{row.isRelatedCountExact ? `${row.relatedCount} ${libraryText(copy, "件关联装备，可按版本查看详情")}` : relatedCountLabel}</span>
             </summary>
             {row.isRelatedItemsLoading && !row.relatedItems.length ? (
               <p className="library-perk-related-status" aria-live="polite">{libraryText(copy, "正在读取关联装备...")}</p>
@@ -492,12 +518,14 @@ function renderPerkResult(
             {row.relatedItemsError ? (
               <div className="library-perk-related-status status-error">
                 <span>{row.relatedItemsError}</span>
-                <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={() => onLoadPerkRelatedEquipment(perk)}>
-                  {libraryText(copy, "重试")}
-                </button>
+                {!row.isRelatedItemsBlocked ? (
+                  <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={() => onLoadPerkRelatedEquipment(perk)}>
+                    {libraryText(copy, "重试")}
+                  </button>
+                ) : null}
               </div>
             ) : null}
-            {row.areRelatedItemsLoaded && !row.relatedItems.length ? (
+            {row.areRelatedItemsLoaded && !row.relatedItems.length && !row.relatedItemsError ? (
               <p className="library-perk-related-status">{libraryText(copy, "资料库关系存在，但当前版本没有可展示的装备定义。")}</p>
             ) : null}
             {row.relatedItems.length ? (
@@ -545,7 +573,14 @@ function renderPerkRelatedEquipment(
     toLibraryEquipmentTag(item.weapon_frame?.name),
     toLibraryAmmoTag(item.ammo_type, copy),
     toLibraryElementTag(item.damage_type),
-    item.is_adept ? toLibraryEquipmentTag(libraryText(copy, "专家")) : undefined
+    item.is_adept ? toLibraryEquipmentTag(libraryText(copy, "专家")) : undefined,
+    ...(item.matchedPerkVariants ?? []).map((variant) => toLibraryEquipmentTag(
+      variant === "standard"
+        ? libraryText(copy, "普通")
+        : variant === "enhanced"
+          ? libraryText(copy, "可强化")
+          : libraryText(copy, "其他变体")
+    ))
   ].filter((tag): tag is LibraryEquipmentTag => Boolean(tag));
   const version = item.release?.description ?? libraryText(copy, "版本待确认");
   const source = item.source.status === "ready"
@@ -588,6 +623,16 @@ function renderPerkRelatedEquipment(
       </span>
     </button>
   );
+}
+
+function formatEnhancedPerkDescription(baseDescription: string, enhancedDescription: string): string {
+  const base = baseDescription.trim();
+  const enhanced = enhancedDescription.trim();
+  if (!enhanced || enhanced === base) return "";
+  if (base && enhanced.startsWith(base)) {
+    return enhanced.slice(base.length).trim();
+  }
+  return enhanced;
 }
 
 export function LibraryDefinitionDialog(props: {

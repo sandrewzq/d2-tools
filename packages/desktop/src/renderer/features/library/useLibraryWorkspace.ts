@@ -6,7 +6,7 @@ import {
 } from "@d2-tools/app/library";
 import {
   api } from "../../api/client";
-import type { ItemSearchResult, LibraryHistory, LiveItemAvailability, PerkSearchResult, VaultItemMatchInfo } from "../../api/types";
+import type { ItemSearchResult, LibraryHistory, LibraryRuntimeCapabilities, LiveItemAvailability, PerkSearchResult, VaultItemMatchInfo } from "../../api/types";
 import { useManifestStatus } from "../../shared/hooks/useManifestStatus";
 import {
   defaultLibraryEquipmentFilter,
@@ -38,6 +38,7 @@ export function useLibraryWorkspace(input: { vendorSourcePaths?: Map<number, str
   const [isLoadingLiveAvailability, setIsLoadingLiveAvailability] = useState(false);
   const manifestStatusState = useManifestStatus();
   const relatedRequestGeneration = useRef(0);
+  const libraryRuntimeCapabilities = useRef<LibraryRuntimeCapabilities | null>(null);
 
   useEffect(() => {
     relatedRequestGeneration.current += 1;
@@ -131,16 +132,33 @@ export function useLibraryWorkspace(input: { vendorSourcePaths?: Map<number, str
         setPerkRelatedEquipment({});
         const rawResults = await api.searchPerks(activeQuery) as unknown;
         const normalized = normalizeLibraryPerkSearchPayload(rawResults);
-        const supportsRelatedPaging = typeof api.getPerkRelatedEquipment === "function";
-        setPerks(normalized.perks);
-        setPerkRelatedEquipment(Object.fromEntries(
-          Object.entries(normalized.legacyRelatedEquipment).map(([key, state]) => [key, {
-            ...state,
-            hasMore: supportsRelatedPaging ? state.hasMore : false,
-            error: supportsRelatedPaging
-              ? state.error
-              : "Desktop 运行时尚未更新，当前只显示旧版关联摘要；重新构建并重启后可加载完整装备列表。"
-          }])
+        const runtimeCapabilities = typeof api.getLibraryRuntimeCapabilities === "function"
+          ? await api.getLibraryRuntimeCapabilities().catch(() => null)
+          : null;
+        const supportsRelatedPaging = runtimeCapabilities?.contract_version === 2
+          && runtimeCapabilities.supports_perk_families
+          && runtimeCapabilities.supports_related_equipment_paging
+          && runtimeCapabilities.supports_related_variant_matches;
+        libraryRuntimeCapabilities.current = supportsRelatedPaging ? runtimeCapabilities : null;
+        const visiblePerks = supportsRelatedPaging
+          ? normalized.perks
+          : normalized.perks.map((perk) => ({
+              ...perk,
+              related_count_status: "unavailable" as const
+            }));
+        setPerks(visiblePerks);
+        setPerkRelatedEquipment(supportsRelatedPaging ? {} : Object.fromEntries(
+          visiblePerks
+            .filter((perk) => perk.related_count > 0)
+            .map((perk) => [perk.key, {
+              items: [],
+              total: perk.related_count,
+              hasMore: false,
+              isLoading: false,
+              isLoaded: true,
+              error: "Desktop 运行时合同过旧，已停止展示缺少图标和版本的关联摘要。请重新构建并重启应用。",
+              isBlocked: true
+            }])
         ));
         setItems([]);
       } else {
@@ -164,7 +182,7 @@ export function useLibraryWorkspace(input: { vendorSourcePaths?: Map<number, str
 
     const offset = loadMore ? current?.items.length ?? 0 : 0;
     const generation = relatedRequestGeneration.current;
-    if (typeof api.getPerkRelatedEquipment !== "function") {
+    if (!libraryRuntimeCapabilities.current || typeof api.getPerkRelatedEquipment !== "function") {
       setPerkRelatedEquipment((states) => ({
         ...states,
         [perk.key]: {
@@ -173,7 +191,8 @@ export function useLibraryWorkspace(input: { vendorSourcePaths?: Map<number, str
           hasMore: false,
           isLoading: false,
           isLoaded: Boolean(states[perk.key]?.items.length),
-          error: "Desktop 运行时尚未更新，请重新构建并重启应用后再加载完整关联装备。"
+          error: "Desktop 运行时合同过旧，请重新构建并重启应用后再加载完整关联装备。",
+          isBlocked: true
         }
       }));
       return;
@@ -199,8 +218,13 @@ export function useLibraryWorkspace(input: { vendorSourcePaths?: Map<number, str
       if (generation !== relatedRequestGeneration.current) return;
       setPerkRelatedEquipment((states) => {
         const previousItems = loadMore ? states[perk.key]?.items ?? [] : [];
+        const nextItems = page.items.map((entry) => ({
+          ...entry.item,
+          matchedPerkHashes: entry.matched_perk_hashes,
+          matchedPerkVariants: entry.matched_variants
+        }));
         const items = [...new Map(
-          [...previousItems, ...page.items].map((item) => [item.hash, item])
+          [...previousItems, ...nextItems].map((item) => [item.hash, item])
         ).values()];
         return {
           ...states,

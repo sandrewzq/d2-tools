@@ -25,6 +25,7 @@ export type { AiChatReplyResult, AiChatRequest } from "./types.js";
 export { createAppServices } from "./appServices.js";
 export type {
   GameDataCatalog,
+  GameDataRuntimeCapabilities,
   ItemDetailQuery,
   ItemSearchQuery,
   PerkSearchQuery

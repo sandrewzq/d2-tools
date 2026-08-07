@@ -1,5 +1,6 @@
 export type {
   GameDataCatalog,
+  GameDataRuntimeCapabilities,
   ItemDetailQuery,
   ItemSearchQuery,
   PerkSearchQuery

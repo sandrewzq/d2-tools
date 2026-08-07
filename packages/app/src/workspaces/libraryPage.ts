@@ -70,17 +70,35 @@ export type PerkSearchResult = {
   name: string;
   description: string;
   icon?: string;
+  variants: PerkVariant[];
   related_count: number;
+  related_count_status?: "exact" | "unavailable";
   related_groups: EquipmentGroupKey[];
 };
 
+export type PerkVariantKind = "standard" | "enhanced" | "other";
+
+export type PerkVariant = {
+  sandbox_perk_hash: number;
+  plug_hashes: number[];
+  kind: PerkVariantKind;
+  description: string;
+  related_count: number;
+};
+
+export type LibraryPerkRelatedEquipmentItem = ItemSearchResult & {
+  matchedPerkHashes?: number[];
+  matchedPerkVariants?: PerkVariantKind[];
+};
+
 export type LibraryPerkRelatedEquipmentState = {
-  items: ItemSearchResult[];
+  items: LibraryPerkRelatedEquipmentItem[];
   total: number;
   hasMore: boolean;
   isLoading: boolean;
   isLoaded: boolean;
   error: string;
+  isBlocked?: boolean;
 };
 
 export type NormalizedLibraryPerkSearchPayload = {
@@ -259,13 +277,15 @@ export type LibraryEquipmentResultGroupView = {
 export type LibraryPerkResultView = {
   perk: PerkSearchResult;
   relatedGroupKeys: EquipmentGroupKey[];
-  relatedItems: Array<ItemSearchResult & { isDetailLoading: boolean }>;
+  relatedItems: Array<LibraryPerkRelatedEquipmentItem & { isDetailLoading: boolean }>;
   relatedCount: number;
+  isRelatedCountExact: boolean;
   hasRelatedItems: boolean;
   hasMoreRelatedItems: boolean;
   isRelatedItemsLoading: boolean;
   areRelatedItemsLoaded: boolean;
   relatedItemsError: string;
+  isRelatedItemsBlocked: boolean;
 };
 
 export type LibraryPageModel = {
@@ -376,13 +396,15 @@ export function normalizeLibraryPerkSearchPayload(value: unknown): NormalizedLib
   }
 
   const groups = new Map<string, {
+    key?: string;
     name: string;
     description: string;
     icon?: string;
     hashes: Set<number>;
+    variants: Map<number, PerkVariant>;
     relatedCount: number;
     relatedGroups: Set<EquipmentGroupKey>;
-    legacyItems: Map<number, ItemSearchResult>;
+    legacyItems: Map<number, LibraryPerkRelatedEquipmentItem>;
     hasLegacyPayload: boolean;
     legacyTruncated: boolean;
   }>();
@@ -397,15 +419,24 @@ export function normalizeLibraryPerkSearchPayload(value: unknown): NormalizedLib
       ? entry.description.replace(/\s+/g, " ").trim()
       : "";
     const icon = typeof entry.icon === "string" && entry.icon ? entry.icon : undefined;
-    const identity = [name.toLocaleLowerCase(), description, icon ?? ""].join("\u0000");
+    const parsedVariants = normalizePerkVariants(entry, hash, description);
+    const structuredKey = Array.isArray(entry.variants)
+      && parsedVariants.length > 0
+      && typeof entry.key === "string"
+      && entry.key
+      ? entry.key
+      : undefined;
+    const identity = structuredKey ?? [name.toLocaleLowerCase(), icon ?? ""].join("\u0000");
     const group = groups.get(identity) ?? {
+      ...(structuredKey ? { key: structuredKey } : {}),
       name,
       description,
       ...(icon ? { icon } : {}),
       hashes: new Set<number>(),
+      variants: new Map<number, PerkVariant>(),
       relatedCount: 0,
       relatedGroups: new Set<EquipmentGroupKey>(),
-      legacyItems: new Map<number, ItemSearchResult>(),
+      legacyItems: new Map<number, LibraryPerkRelatedEquipmentItem>(),
       hasLegacyPayload: false,
       legacyTruncated: false
     };
@@ -415,6 +446,9 @@ export function normalizeLibraryPerkSearchPayload(value: unknown): NormalizedLib
       : [hash];
     if (!hashes.length) hashes.push(hash);
     for (const candidateHash of hashes) group.hashes.add(candidateHash);
+    for (const variant of parsedVariants) {
+      group.variants.set(variant.sandbox_perk_hash, variant);
+    }
 
     if (Array.isArray(entry.related_groups)) {
       for (const candidateGroup of entry.related_groups) {
@@ -439,7 +473,8 @@ export function normalizeLibraryPerkSearchPayload(value: unknown): NormalizedLib
   const legacyRelatedEquipment: Record<string, LibraryPerkRelatedEquipmentState> = {};
   const perks = [...groups.values()].map((group) => {
     const hashes = [...group.hashes].sort((left, right) => left - right);
-    const key = `perk:${hashes.join(",")}`;
+    const key = group.key ?? `perk:${hashes.join(",")}`;
+    const variants = [...group.variants.values()].sort(comparePerkVariants);
     if (group.hasLegacyPayload && group.legacyItems.size) {
       legacyRelatedEquipment[key] = {
         items: [...group.legacyItems.values()],
@@ -455,14 +490,61 @@ export function normalizeLibraryPerkSearchPayload(value: unknown): NormalizedLib
       hash: hashes[0]!,
       hashes,
       name: group.name,
-      description: group.description,
+      description: variants.find((variant) => variant.kind === "standard")?.description
+        ?? variants[0]?.description
+        ?? group.description,
       ...(group.icon ? { icon: group.icon } : {}),
+      variants,
       related_count: group.relatedCount,
       related_groups: [...group.relatedGroups]
     };
   });
 
   return { perks, legacyRelatedEquipment };
+}
+
+function normalizePerkVariants(
+  entry: Record<string, unknown>,
+  fallbackHash: number,
+  fallbackDescription: string
+): PerkVariant[] {
+  if (Array.isArray(entry.variants)) {
+    const variants = entry.variants.flatMap((value): PerkVariant[] => {
+      if (!isRecord(value)) return [];
+      const sandboxPerkHash = finiteNumber(value.sandbox_perk_hash);
+      if (sandboxPerkHash === undefined) return [];
+      const kind = value.kind === "standard" || value.kind === "enhanced" || value.kind === "other"
+        ? value.kind
+        : "other";
+      return [{
+        sandbox_perk_hash: sandboxPerkHash,
+        plug_hashes: Array.isArray(value.plug_hashes)
+          ? value.plug_hashes.map(finiteNumber).filter((hash): hash is number => hash !== undefined)
+          : [],
+        kind,
+        description: typeof value.description === "string" ? value.description.trim() : fallbackDescription,
+        related_count: finiteNumber(value.related_count) ?? 0
+      }];
+    });
+    if (variants.length) return variants;
+  }
+
+  const hashes = Array.isArray(entry.hashes)
+    ? entry.hashes.map(finiteNumber).filter((hash): hash is number => hash !== undefined)
+    : [fallbackHash];
+  return hashes.map((sandboxPerkHash) => ({
+    sandbox_perk_hash: sandboxPerkHash,
+    plug_hashes: [],
+    kind: "other",
+    description: fallbackDescription,
+    related_count: finiteNumber(entry.related_count) ?? 0
+  }));
+}
+
+function comparePerkVariants(left: PerkVariant, right: PerkVariant): number {
+  const order: Record<PerkVariantKind, number> = { standard: 0, enhanced: 1, other: 2 };
+  return order[left.kind] - order[right.kind]
+    || left.sandbox_perk_hash - right.sandbox_perk_hash;
 }
 
 export function selectLibraryPageModel(cache: LibraryPageCache, state: LibraryPageState): LibraryPageModel {
@@ -856,15 +938,17 @@ function createPerkResultView(
       isDetailLoading: itemDetailLoadingKey === `hash:${item.hash}`
     })),
     relatedCount,
+    isRelatedCountExact: perk.related_count_status !== "unavailable",
     hasRelatedItems: relatedCount > 0,
     hasMoreRelatedItems: relatedState?.hasMore ?? false,
     isRelatedItemsLoading: relatedState?.isLoading ?? false,
     areRelatedItemsLoaded: relatedState?.isLoaded ?? false,
-    relatedItemsError: relatedState?.error ?? ""
+    relatedItemsError: relatedState?.error ?? "",
+    isRelatedItemsBlocked: relatedState?.isBlocked ?? false
   };
 }
 
-function normalizeLegacyPerkRelatedItem(value: unknown): ItemSearchResult | null {
+function normalizeLegacyPerkRelatedItem(value: unknown): LibraryPerkRelatedEquipmentItem | null {
   if (!isRecord(value)) return null;
   const hash = finiteNumber(value.hash);
   const name = typeof value.name === "string" ? value.name.trim() : "";
@@ -882,7 +966,9 @@ function normalizeLegacyPerkRelatedItem(value: unknown): ItemSearchResult | null
       status: "missing",
       label: "获取来源",
       description: "当前 Desktop 运行时只返回了旧版关联摘要。"
-    }
+    },
+    matchedPerkHashes: [],
+    matchedPerkVariants: []
   };
 }
 

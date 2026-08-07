@@ -72,6 +72,7 @@ const perks: PerkSearchResult[] = [
     hashes: [101],
     name: "Voltshot",
     description: "Reload after a kill to overcharge the next shot.",
+    variants: [{ sandbox_perk_hash: 101, plug_hashes: [], kind: "other", description: "Reload after a kill to overcharge the next shot.", related_count: 2 }],
     related_count: 2,
     related_groups: ["weapons", "armor"]
   },
@@ -81,6 +82,7 @@ const perks: PerkSearchResult[] = [
     hashes: [102],
     name: "Firefly",
     description: "Precision final blows increase reload speed.",
+    variants: [{ sandbox_perk_hash: 102, plug_hashes: [], kind: "other", description: "Precision final blows increase reload speed.", related_count: 0 }],
     related_count: 0,
     related_groups: []
   }
