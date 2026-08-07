@@ -109,7 +109,7 @@
   overflow: hidden;
   border: 1px solid var(--border-control);
   border-radius: var(--radius-control);
-  background: var(--surface-subtle);
+  background: var(--surface-recessed);
 }
 
 :where(.app-shell) .library-mode-tabs button {
@@ -125,10 +125,10 @@
 }
 
 :where(.app-shell) .library-mode-tabs button + button {
-  border-left: 1px solid var(--border-subtle);
+  border-left: 1px solid var(--border-control);
 }
 
-:where(.app-shell) .library-mode-tabs button.active {
+:where(.app-shell) .library-mode-tabs button:not([aria-selected="true"]):hover {
   color: var(--text-title);
   background: var(--surface-interactive);
 }

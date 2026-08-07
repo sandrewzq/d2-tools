@@ -166,7 +166,7 @@ export function LibraryPageContentView(props: LibraryPageContentViewProps) {
       <ProductWorkspaceSplit className="library-workbench">
         <ProductWorkspaceSideRail element="aside" className="library-query" ariaLabel={libraryText(copy, "资料库查询")} scrollRegion="pane">
           <div className="library-search-head">
-            <div className="library-mode-tabs" role="tablist" aria-label={libraryText(copy, "资料库查询类型")}>
+            <div className="library-mode-tabs" data-ui-kind="segmented-control" role="tablist" aria-label={libraryText(copy, "资料库查询类型")}>
               <button type="button" role="tab" id={equipmentTabId} aria-controls={tabPanelId} aria-selected={isEquipmentMode} tabIndex={isEquipmentMode ? 0 : -1} className={isEquipmentMode ? "active" : ""} onClick={() => selectMode("equipment")} onKeyDown={handleModeKeyDown}>装备</button>
               <button type="button" role="tab" id={perkTabId} aria-controls={tabPanelId} aria-selected={!isEquipmentMode} tabIndex={!isEquipmentMode ? 0 : -1} className={!isEquipmentMode ? "active" : ""} onClick={() => selectMode("perks")} onKeyDown={handleModeKeyDown}>Perk 与框架</button>
             </div>
