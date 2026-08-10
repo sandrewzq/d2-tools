@@ -4,8 +4,10 @@ import { join } from "node:path";
 import type {
   CreateLocalLoadoutPlanInput,
   LocalLoadoutPlan,
+  LocalLoadoutArmorPlanReference,
   LocalLoadoutPlanSource,
   LoadoutPlanArmorConstraints,
+  LoadoutPlanArmorPlannerMode,
   LoadoutPlanItemTarget,
   LoadoutPlanSubclassTarget,
   UpdateLocalLoadoutPlanInput
@@ -14,6 +16,7 @@ import type {
 export type {
   CreateLocalLoadoutPlanInput,
   LocalLoadoutPlan,
+  LocalLoadoutArmorPlanReference,
   LocalLoadoutPlanSource,
   LoadoutPlanArmorConstraints,
   LoadoutPlanItemTarget,
@@ -102,6 +105,7 @@ function normalizeLocalLoadoutPlan(value: unknown): LocalLoadoutPlan[] {
       : [],
     subclass_target: normalizeSubclassTarget(value.subclass_target),
     armor_constraints: normalizeArmorConstraints(value.armor_constraints),
+    armor_plan: normalizeArmorPlanReference(value.armor_plan),
     notes: optionalString(value.notes),
     guidance: normalizeGuidance(value.guidance),
     created_at: value.created_at,
@@ -112,11 +116,12 @@ function normalizeLocalLoadoutPlan(value: unknown): LocalLoadoutPlan[] {
 function normalizeSource(value: unknown): LocalLoadoutPlanSource {
   if (!isRecord(value)) return { kind: "manual" };
   const kind = value.kind;
-  if (kind !== "manual" && kind !== "current-equipment" && kind !== "bungie-loadout" && kind !== "dim-link" && kind !== "guide") {
+  if (kind !== "manual" && kind !== "current-equipment" && kind !== "bungie-loadout" && kind !== "dim-link" && kind !== "guide" && kind !== "armor-plan" && kind !== "assistant-targets") {
     return { kind: "manual" };
   }
   return {
     kind,
+    source_id: optionalString(value.source_id),
     reference_url: optionalString(value.reference_url),
     label: optionalString(value.label)
   };
@@ -160,24 +165,91 @@ function normalizeArmorConstraints(value: unknown): LoadoutPlanArmorConstraints 
   const statMinimums = Object.fromEntries(statKeys.flatMap((key) => {
     const amount = optionalNumber(isRecord(value.stat_minimums) ? value.stat_minimums[key] : undefined);
     return amount === undefined ? [] : [[key, amount]];
-  }));
+  })) as LoadoutPlanArmorConstraints["stat_minimums"];
   const fragmentBonuses = Object.fromEntries(statKeys.flatMap((key) => {
     const amount = optionalNumber(isRecord(value.fragment_stat_bonuses) ? value.fragment_stat_bonuses[key] : undefined);
     return amount === undefined ? [] : [[key, amount]];
-  }));
+  })) as LoadoutPlanArmorConstraints["fragment_stat_bonuses"];
+  const allowedLocations = stringArray(value.allowed_locations).filter((location): location is LoadoutPlanArmorConstraints["allowed_locations"][number] => (
+    location === "equipped" || location === "inventory" || location === "vault" || location === "postmaster"
+  ));
   return {
+    planner_mode: normalizeArmorPlannerMode(value.planner_mode),
     stat_minimums: statMinimums,
     priority_stats: stringArray(value.priority_stats).filter((key): key is LoadoutPlanArmorConstraints["priority_stats"][number] => statKeys.includes(key as typeof statKeys[number])),
     fragment_stat_bonuses: fragmentBonuses,
     five_point_mod_budget: nonNegativeNumber(value.five_point_mod_budget),
     ten_point_mod_budget: nonNegativeNumber(value.ten_point_mod_budget),
     exotic_item_hash: optionalNumber(value.exotic_item_hash),
+    exotic_instance_id: optionalString(value.exotic_instance_id),
     locked_instance_ids: stringArray(value.locked_instance_ids),
     excluded_instance_ids: stringArray(value.excluded_instance_ids),
-    allowed_locations: stringArray(value.allowed_locations).filter((location): location is LoadoutPlanArmorConstraints["allowed_locations"][number] => (
-      location === "equipped" || location === "inventory" || location === "vault" || location === "postmaster"
-    ))
+    allowed_locations: allowedLocations.length
+      ? allowedLocations
+      : ["equipped", "inventory", "vault", "postmaster"],
+    set_constraint: normalizeArmorSetConstraint(value.set_constraint)
   };
+}
+
+function normalizeArmorPlanReference(value: unknown): LocalLoadoutArmorPlanReference | undefined {
+  if (!isRecord(value)) return undefined;
+  const explicitCacheKey = optionalString(value.cache_key);
+  const resultId = optionalString(value.result_id) ?? explicitCacheKey;
+  const cacheKey = explicitCacheKey ?? (resultId?.startsWith("armor:") ? resultId : undefined);
+  const candidateId = optionalString(value.candidate_id);
+  const rulesetVersion = optionalNumber(value.ruleset_version);
+  const sourceRevisions = isRecord(value.source_revisions) ? value.source_revisions : null;
+  const rulesetRevision = optionalString(sourceRevisions?.ruleset);
+  if (!resultId || !candidateId || (value.mode !== "owned" && value.mode !== "upgrade") || value.ruleset_id !== "armor-3.0"
+    || rulesetVersion === undefined || !rulesetRevision) {
+    return undefined;
+  }
+  return {
+    result_id: resultId,
+    ...(cacheKey ? { cache_key: cacheKey } : {}),
+    checked_at: optionalString(value.checked_at),
+    expires_at: optionalString(value.expires_at),
+    candidate_id: candidateId,
+    mode: value.mode,
+    ruleset_id: "armor-3.0",
+    ruleset_version: Math.max(1, Math.trunc(rulesetVersion)),
+    manifest_version: optionalString(value.manifest_version),
+    source_revisions: {
+      account: optionalString(sourceRevisions?.account),
+      manifest: optionalString(sourceRevisions?.manifest),
+      ruleset: rulesetRevision
+    },
+    selected_instance_ids: stringArray(value.selected_instance_ids)
+  };
+}
+
+function normalizeArmorPlannerMode(value: unknown): LoadoutPlanArmorPlannerMode {
+  return value === "theoretical" || value === "acquisition" || value === "upgrade"
+    ? value
+    : "owned";
+}
+
+function normalizeArmorSetConstraint(value: unknown): LoadoutPlanArmorConstraints["set_constraint"] {
+  if (!isRecord(value)) return { mode: "none" };
+  if (value.mode === "single") {
+    const setHash = optionalNumber(value.set_hash);
+    const pieceCount = value.piece_count === 4 ? 4 : value.piece_count === 2 ? 2 : undefined;
+    return setHash === undefined || pieceCount === undefined
+      ? { mode: "none" }
+      : { mode: "single", set_hash: setHash >>> 0, piece_count: pieceCount };
+  }
+  if (value.mode === "split-2-2") {
+    const firstSetHash = optionalNumber(value.first_set_hash);
+    const secondSetHash = optionalNumber(value.second_set_hash);
+    return firstSetHash === undefined || secondSetHash === undefined
+      ? { mode: "none" }
+      : {
+          mode: "split-2-2",
+          first_set_hash: firstSetHash >>> 0,
+          second_set_hash: secondSetHash >>> 0
+        };
+  }
+  return { mode: "none" };
 }
 
 function normalizeGuidance(value: unknown): LocalLoadoutPlan["guidance"] | undefined {

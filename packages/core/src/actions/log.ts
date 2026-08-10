@@ -7,15 +7,26 @@ export type ActionLogType =
   | "loadout-equip"
   | "loadout-snapshot"
   | "loadout-clear"
-  | "loadout-update-identifiers";
+  | "loadout-update-identifiers"
+  | "execution-verification";
 
-export type ActionLogEntry = {
+export type ActionVerificationStatus = "verified" | "partial" | "mismatch" | "unavailable";
+
+export type ActionTraceContext = {
+  plan_id?: string;
+  confirmation_id?: string;
+  execution_id?: string;
+  step_id?: string;
+};
+
+export type ActionLogEntry = ActionTraceContext & {
   id: string;
   created_at: string;
   action: ActionLogType;
   item_name?: string;
   item_instance_id?: string;
   character_id?: string;
+  verification_status?: ActionVerificationStatus;
   ok: boolean;
   message?: string;
 };
@@ -51,6 +62,11 @@ export function buildActionLogDiagnosticText(entry: ActionLogEntry): string {
     `物品：${entry.item_name ?? "-"}`,
     `物品实例：${entry.item_instance_id ?? "-"}`,
     `角色：${entry.character_id ?? "-"}`,
+    `计划：${entry.plan_id ?? "-"}`,
+    `确认：${entry.confirmation_id ?? "-"}`,
+    `执行：${entry.execution_id ?? "-"}`,
+    `步骤：${entry.step_id ?? "-"}`,
+    `验证：${entry.verification_status ?? "-"}`,
     `信息：${entry.message ?? "-"}`,
     "",
     "说明：这段诊断不会包含 token、client secret 或 API Key。"

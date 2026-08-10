@@ -8,9 +8,13 @@ const portableBackupVersion = 1;
 export const portableBackupFileNames = [
   "dim-wishlist.json",
   "target-rules.json",
+  "equipment-targets.json",
   "vault-tags.json",
   "loadout-templates.json",
   "loadout-plans.json",
+  "guide-library.json",
+  "guide-extractions.json",
+  "guide-derived-relations.json",
   "local-community-recommendations.json",
   "personal-weapon-knowledge.json"
 ] as const;

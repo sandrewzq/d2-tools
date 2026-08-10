@@ -2,6 +2,16 @@ import { useEffect, useMemo, useState } from "react";
 import { buildAiChatContext } from "@d2-tools/core/ai/chat";
 import { sendAssistantMessage } from "@d2-tools/app/assistant";
 import {
+  createAssistantArmorSolutionComparisonArtifact,
+  createAssistantEquipmentTargetCandidatesArtifact,
+  createAssistantGuideCaptureArtifact,
+  createAssistantContextSnapshot,
+  formatAssistantConversationHistory,
+  isAssistantContextSnapshotCurrent,
+  type AssistantArtifact,
+  type AssistantContextSnapshot
+} from "@d2-tools/app/capabilities";
+import {
   AiAssistantPanelView,
   type AiAssistantHistoryEntryView,
   type AiAssistantMessageView
@@ -9,6 +19,10 @@ import {
 import type { AccountItemSummary, AccountSummary, ActivityHistorySummary, DailySummary, VaultTags } from "../api/types";
 import { services } from "../api/services";
 import type { AssistantPageContext } from "../shared/domain/assistant/assistantContext";
+import {
+  getDesktopAssistantManifestVersion,
+  runDesktopAssistantCapabilityPrelude
+} from "../features/ai/assistantCapabilityRuntime";
 import {
   clearAssistantHistory,
   loadAssistantHistory,
@@ -33,6 +47,7 @@ export function AiAnalysisPanel(props: {
   tags: VaultTags;
   onLoadAccount: () => void;
   onConfigureAi: () => void;
+  onOpenArtifact: (artifact: AssistantArtifact) => void;
   onClose: () => void;
   isLoadingAccount: boolean;
 }) {
@@ -46,13 +61,36 @@ export function AiAnalysisPanel(props: {
   const [isContextDrawerOpen, setIsContextDrawerOpen] = useState(false);
   const contextFacts = useMemo(() => props.pageContext.facts.slice(0, 4), [props.pageContext]);
   const safeTags = props.tags ?? { items: {} };
+  const currentBaseContext = useMemo(() => buildAiChatContext({
+    account: props.account,
+    tags: safeTags,
+    daily: props.daily,
+    activity: props.activity,
+    pageContext: props.pageContext
+  }), [props.account, props.tags, props.daily, props.activity, props.pageContext]);
   const activeSession = activeSessionId ? history.find((entry) => entry.id === activeSessionId) : undefined;
+  const latestContextSnapshot = activeSession?.context_snapshots.at(-1);
+  const currentManifestVersion = getDesktopAssistantManifestVersion();
+  const snapshotState = !latestContextSnapshot
+    ? "unsaved"
+    : isAssistantContextSnapshotCurrent(latestContextSnapshot, {
+        baseContext: currentBaseContext,
+        manifestVersion: currentManifestVersion
+      })
+      ? "current"
+      : "historical";
+  const snapshotLabel = snapshotState === "historical"
+    ? `历史快照：${formatSnapshotTime(latestContextSnapshot?.created_at)}`
+    : snapshotState === "current"
+      ? `当前快照：${formatSnapshotTime(latestContextSnapshot?.created_at)}`
+      : "尚未创建上下文快照";
   const sessionTitle = activeSession?.title ?? (messages.length ? "当前会话" : "新会话");
   const contextChip = [
     `当前页面：${props.pageContext.page_label}`,
     `仓库 ${props.items.length} 件`,
     props.account ? `角色 ${props.account.characters.length} 个` : "账号未读取",
-    props.daily ? "今日信息已载入" : "今日信息未载入"
+    props.daily ? "今日信息已载入" : "今日信息未载入",
+    snapshotLabel
   ].join(" · ");
 
   useEffect(() => {
@@ -62,20 +100,34 @@ export function AiAnalysisPanel(props: {
   async function sendChat(nextQuestion = question) {
     const trimmedQuestion = nextQuestion.trim();
     if (!trimmedQuestion) return;
+    const previousMessages = messages;
     const userMessage: AiAssistantMessageView = { role: "user", text: trimmedQuestion };
 
     setIsSendingChat(true);
     setError("");
     setQuestion("");
-    setMessages((current) => [...current, userMessage]);
+    setMessages([...previousMessages, userMessage]);
 
     try {
-      const context = buildAiChatContext({
+      const capabilityPrelude = await runDesktopAssistantCapabilityPrelude(trimmedQuestion);
+      const conversationContext = formatAssistantConversationHistory(previousMessages);
+      const context = appendAssistantContext(
+        currentBaseContext,
+        capabilityPrelude.prompt_context,
+        conversationContext
+      );
+      const contextSnapshot = createAssistantContextSnapshot({
+        baseContext: currentBaseContext,
+        promptContext: context,
+        page: {
+          key: props.pageContext.page_key,
+          label: props.pageContext.page_label
+        },
         account: props.account,
-        tags: safeTags,
-        daily: props.daily,
-        activity: props.activity,
-        pageContext: props.pageContext
+        manifestVersion: capabilityPrelude.manifest_version,
+        capabilityResults: capabilityPrelude.results,
+        failedCapabilities: capabilityPrelude.errors.map((error) => error.capability),
+        conversationMessageCount: previousMessages.length
       });
       const chatState = await sendAssistantMessage(services, {
         question: trimmedQuestion,
@@ -88,21 +140,46 @@ export function AiAnalysisPanel(props: {
         throw new Error("AI 聊天失败");
       }
       const reply = chatState.data.reply;
-      const assistantMessage: AiAssistantMessageView = { role: "assistant", text: reply.text };
-      setMessages((current) => {
-        const nextMessages = [...current, assistantMessage];
-        saveSession(trimmedQuestion, nextMessages);
-        return nextMessages;
+      const artifact = createAssistantArmorSolutionComparisonArtifact({
+        question: trimmedQuestion,
+        snapshot: contextSnapshot,
+        capabilityResults: capabilityPrelude.results
+      }) ?? createAssistantEquipmentTargetCandidatesArtifact({
+        question: trimmedQuestion,
+        snapshot: contextSnapshot,
+        capabilityResults: capabilityPrelude.results
+      }) ?? createAssistantGuideCaptureArtifact({
+        question: trimmedQuestion,
+        reply: reply.text,
+        snapshot: contextSnapshot
       });
+      const contextualUserMessage: AiAssistantMessageView = {
+        ...userMessage,
+        context_snapshot_id: contextSnapshot.snapshot_id
+      };
+      const assistantMessage: AiAssistantMessageView = {
+        role: "assistant",
+        text: appendCapabilityTrace(reply.text, capabilityPrelude.trace_summary),
+        context_snapshot_id: contextSnapshot.snapshot_id,
+        ...(artifact ? { artifact } : {})
+      };
+      const nextMessages = [...previousMessages, contextualUserMessage, assistantMessage];
+      setMessages(nextMessages);
+      saveSession(trimmedQuestion, nextMessages, contextSnapshot);
     } catch (analysisError) {
       setError(analysisError instanceof Error ? analysisError.message : "AI 聊天失败");
       setQuestion(trimmedQuestion);
+      setMessages(previousMessages);
     } finally {
       setIsSendingChat(false);
     }
   }
 
-  function saveSession(title: string, nextMessages: AiAssistantMessageView[]) {
+  function saveSession(
+    title: string,
+    nextMessages: AiAssistantMessageView[],
+    contextSnapshot: AssistantContextSnapshot
+  ) {
     const existingSession = activeSessionId ? history.find((entry) => entry.id === activeSessionId) : undefined;
     const id = activeSessionId ?? `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     if (!activeSessionId) {
@@ -112,7 +189,8 @@ export function AiAnalysisPanel(props: {
       id,
       title: existingSession?.title ?? title,
       page_label: props.pageContext.page_label,
-      messages: nextMessages
+      messages: nextMessages,
+      context_snapshots: appendContextSnapshot(existingSession?.context_snapshots ?? [], contextSnapshot)
     }));
   }
 
@@ -170,7 +248,9 @@ export function AiAnalysisPanel(props: {
         itemCount: props.items.length,
         characterCount: props.account?.characters.length ?? 0,
         materialCount: props.account?.materials.item_count ?? 0,
-        dailyLoaded: Boolean(props.daily)
+        dailyLoaded: Boolean(props.daily),
+        snapshotState,
+        snapshotLabel
       }}
       quickPrompts={quickPrompts}
       onQuestionChange={setQuestion}
@@ -193,6 +273,46 @@ export function AiAnalysisPanel(props: {
       onClearHistory={clearHistory}
       onSwitchSession={switchSession}
       onDeleteSession={deleteSession}
+      onOpenArtifact={props.onOpenArtifact}
     />
   );
+}
+
+function appendAssistantContext(
+  baseContext: string,
+  capabilityContext: string,
+  conversationContext: string
+): string {
+  const sections = [
+    "application_context:",
+    baseContext
+  ];
+  if (capabilityContext) {
+    sections.push("", "controlled_read_only_capability_context:", capabilityContext);
+  }
+  if (conversationContext) {
+    sections.push("", "conversation_context:", conversationContext);
+  }
+  return sections.join("\n");
+}
+
+function appendCapabilityTrace(reply: string, traceSummary: string): string {
+  if (!traceSummary) return reply;
+  return `${reply.trimEnd()}\n\n数据引用：${traceSummary}`;
+}
+
+function appendContextSnapshot(
+  snapshots: readonly AssistantContextSnapshot[],
+  snapshot: AssistantContextSnapshot
+): AssistantContextSnapshot[] {
+  return [
+    ...snapshots.filter((entry) => entry.snapshot_id !== snapshot.snapshot_id),
+    snapshot
+  ].slice(-30);
+}
+
+function formatSnapshotTime(value: string | undefined): string {
+  if (!value) return "待创建";
+  const date = new Date(value);
+  return Number.isFinite(date.getTime()) ? date.toLocaleString("zh-CN", { hour12: false }) : value;
 }

@@ -10,6 +10,18 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
+    "./errors": {
+      "types": "./dist/errors.d.ts",
+      "import": "./dist/errors.js"
+    },
+    "./appServices": {
+      "types": "./dist/appServices.d.ts",
+      "import": "./dist/appServices.js"
+    },
+    "./memoryAdapter": {
+      "types": "./dist/memoryAdapter.d.ts",
+      "import": "./dist/memoryAdapter.js"
+    },
     "./config/store": {
       "types": "./dist/config/store.d.ts",
       "import": "./dist/config/store.js"
@@ -22,6 +34,14 @@
       "types": "./dist/account/session.d.ts",
       "import": "./dist/account/session.js"
     },
+    "./armor/planner": {
+      "types": "./dist/armor/planner.d.ts",
+      "import": "./dist/armor/planner.js"
+    },
+    "./armor/manifest": {
+      "types": "./dist/armor/manifest.d.ts",
+      "import": "./dist/armor/manifest.js"
+    },
     "./analysis/targetRulesStore": {
       "types": "./dist/analysis/targetRulesStore.d.ts",
       "import": "./dist/analysis/targetRulesStore.js"
@@ -29,6 +49,10 @@
     "./analysis/wishlistStore": {
       "types": "./dist/analysis/wishlistStore.d.ts",
       "import": "./dist/analysis/wishlistStore.js"
+    },
+    "./targets/equipmentTargetStore": {
+      "types": "./dist/targets/equipmentTargetStore.d.ts",
+      "import": "./dist/targets/equipmentTargetStore.js"
     },
     "./vault/tags": {
       "types": "./dist/vault/tags.d.ts",
@@ -45,6 +69,22 @@
     "./loadouts/dimImport": {
       "types": "./dist/loadouts/dimImport.d.ts",
       "import": "./dist/loadouts/dimImport.js"
+    },
+    "./guides/store": {
+      "types": "./dist/guides/store.d.ts",
+      "import": "./dist/guides/store.js"
+    },
+    "./guides/sourceReader": {
+      "types": "./dist/guides/sourceReader.d.ts",
+      "import": "./dist/guides/sourceReader.js"
+    },
+    "./guides/extractionStore": {
+      "types": "./dist/guides/extractionStore.d.ts",
+      "import": "./dist/guides/extractionStore.js"
+    },
+    "./guides/relationStore": {
+      "types": "./dist/guides/relationStore.d.ts",
+      "import": "./dist/guides/relationStore.js"
     },
     "./items/aliases": {
       "types": "./dist/items/aliases.d.ts",
@@ -159,6 +199,7 @@
   "dependencies": {
     "@d2-tools/core": "workspace:*",
     "extract-zip": "^2.0.1",
+    "parse5": "^8.0.0",
     "selfsigned": "^5.5.0"
   },
   "sideEffects": false

@@ -1,8 +1,10 @@
 import { evaluateWishlistRoll } from "@d2-tools/core/analysis/wishlist";
 import { evaluateLocalTargets } from "@d2-tools/core/analysis/targets";
+import { evaluateEquipmentTargets } from "@d2-tools/core/targets/equipmentTargets";
 import type {
   AccountSummary,
   DimWishlist,
+  EquipmentTargetStore,
   ItemActionPlanInput,
   ItemActionResult,
   ItemAiAdviceResult,
@@ -36,6 +38,7 @@ export type ItemDetailToolsProps = {
   communityRecommendationError: string;
   importedWishlist: DimWishlist | null;
   localTargetRules: LocalTargetRules;
+  equipmentTargetStore: EquipmentTargetStore;
   isCommunityRecommendationsLoading: boolean;
   isGeneratingItemAi: boolean;
   isRunningItemAction: boolean;
@@ -90,6 +93,7 @@ export function ItemDetailTools(props: ItemDetailToolsProps) {
           <ItemDetailTargetMatch
             importedWishlist={props.importedWishlist}
             localTargetRules={props.localTargetRules}
+            equipmentTargetStore={props.equipmentTargetStore}
             selectedItem={selectedItem}
             vaultTags={props.vaultTags}
             onCopyWishlistInsight={props.onCopyWishlistInsight}
@@ -190,6 +194,7 @@ function ItemDetailOverview(props: { selectedItem: SelectedItemDetail }) {
 function ItemDetailTargetMatch(props: {
   importedWishlist: DimWishlist | null;
   localTargetRules: LocalTargetRules;
+  equipmentTargetStore: EquipmentTargetStore;
   selectedItem: SelectedItemDetail;
   vaultTags: VaultTags;
   onCopyWishlistInsight: () => void;
@@ -205,18 +210,20 @@ function ItemDetailTargetMatch(props: {
     socket_plugs: accountItem.socket_plugs ?? []
   }, props.importedWishlist ?? undefined);
   const localTarget = evaluateLocalTargets(accountItem, props.localTargetRules);
+  const equipmentTarget = evaluateEquipmentTargets(accountItem, props.equipmentTargetStore);
   const hasImportedWishlist = Boolean(props.importedWishlist?.rules.length);
 
-  if (!wishlist.matched && !localTarget.matched && !hasImportedWishlist) {
+  if (!wishlist.matched && !localTarget.matched && !equipmentTarget.matched && !hasImportedWishlist) {
     return null;
   }
 
   const modeLabels = formatWishlistModeLabels(wishlist.labels);
   const tag = props.vaultTags.items[props.selectedItem.item_key]?.tag ?? "none";
-  const matched = wishlist.matched || localTarget.matched;
+  const matched = wishlist.matched || localTarget.matched || equipmentTarget.matched;
   const matchSources = formatTargetMatchSources({
     wishlistMatched: wishlist.matched,
     localTargetMatched: localTarget.matched,
+    equipmentTargetMatched: equipmentTarget.matched,
     hasImportedWishlist
   });
 
@@ -225,7 +232,7 @@ function ItemDetailTargetMatch(props: {
       <div className="target-match-header">
         <span className="source-status-badge source-status-ready">目标命中</span>
         <strong>{matched
-          ? localTarget.matched ? "本地目标命中" : wishlist.labels.includes("DIM Wishlist") ? "DIM 愿望单命中" : "疑似好 roll"
+          ? equipmentTarget.matched ? "装备目标命中" : localTarget.matched ? "本地目标命中" : wishlist.labels.includes("DIM Wishlist") ? "DIM 愿望单命中" : "疑似好 roll"
           : "未命中已导入 DIM 愿望单"}</strong>
       </div>
       <div className="target-match-meta">
@@ -233,10 +240,12 @@ function ItemDetailTargetMatch(props: {
         <span>本地标记：{formatVaultTagLabel(tag)}</span>
         {wishlist.matched ? <span>{modeLabels.length ? modeLabels.join(" / ") : wishlist.labels.join(" / ")}</span> : null}
         {localTarget.matched ? <span>{localTarget.labels.join(" / ")}</span> : null}
+        {equipmentTarget.matched ? <span>{equipmentTarget.labels.join(" / ")}</span> : null}
       </div>
       {matched ? (
         <ul>
           {localTarget.reasons.map((reason) => <li key={reason}>{reason}</li>)}
+          {equipmentTarget.reasons.map((reason) => <li key={reason}>{reason}</li>)}
           {wishlist.reasons.map((reason) => <li key={reason}>{reason}</li>)}
         </ul>
       ) : (
@@ -251,7 +260,7 @@ function ItemDetailTargetMatch(props: {
         <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={() => props.onSaveSelectedItemTag("farm")}>标记待刷</button>
         <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={() => props.onSaveSelectedItemTag("loadout")}>标记配装用</button>
       </div>
-      <small>{localTarget.matched ? localTarget.disclaimer : wishlist.disclaimer}</small>
+      <small>{equipmentTarget.matched ? equipmentTarget.disclaimer : localTarget.matched ? localTarget.disclaimer : wishlist.disclaimer}</small>
       <small>命中后不会自动收藏、加标签或改动装备；你需要手动选择标记或写操作。</small>
     </section>
   );
@@ -260,11 +269,15 @@ function ItemDetailTargetMatch(props: {
 function formatTargetMatchSources(input: {
   wishlistMatched: boolean;
   localTargetMatched: boolean;
+  equipmentTargetMatched: boolean;
   hasImportedWishlist: boolean;
 }): string[] {
   const sources = [];
   if (input.localTargetMatched) {
     sources.push("本地目标规则");
+  }
+  if (input.equipmentTargetMatched) {
+    sources.push("装备目标库");
   }
   if (input.wishlistMatched || input.hasImportedWishlist) {
     sources.push("DIM 愿望单");

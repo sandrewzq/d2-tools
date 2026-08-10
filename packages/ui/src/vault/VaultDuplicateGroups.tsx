@@ -15,6 +15,7 @@ import { evaluateLocalTargets } from "@d2-tools/core/analysis/targets";
 import { evaluateWishlistRoll } from "@d2-tools/core/analysis/wishlist";
 import type { DimWishlist } from "@d2-tools/core/analysis/wishlistImport";
 import type { LocalTargetRules } from "@d2-tools/core/analysis/targets";
+import { evaluateEquipmentTargets, type EquipmentTargetStore } from "@d2-tools/core/targets/equipmentTargets";
 import type { VaultItemMatchInfo } from "@d2-tools/core/community-perks";
 import type { SaveVaultTagInput } from "@d2-tools/core/vault/tags";
 import type { LoadoutTemplateLookup } from "@d2-tools/app/loadouts";
@@ -74,6 +75,7 @@ export function VaultDuplicateGroups(props: {
   items: AccountItemSummary[];
   wishlist?: DimWishlist | null;
   localTargetRules?: LocalTargetRules | null;
+  equipmentTargetStore?: EquipmentTargetStore | null;
   highlightedItemKeys?: LoadoutTemplateLookup | null;
   communityMatch?: Map<number, VaultItemMatchInfo>;
   openingItemKey?: string;
@@ -95,7 +97,7 @@ export function VaultDuplicateGroups(props: {
   const evidenceSummaryByGroup = useMemo(() => new Map(groups.map((group) => [
     group.group_key,
     summarizeGroupEvidence(group, itemByKey, props)
-  ])), [groups, itemByKey, props.communityMatch, props.highlightedItemKeys, props.localTargetRules, props.wishlist]);
+  ])), [groups, itemByKey, props.communityMatch, props.equipmentTargetStore, props.highlightedItemKeys, props.localTargetRules, props.wishlist]);
 
   const filteredGroups = useMemo(() => {
     const normalizedQuery = query.trim().toLocaleLowerCase();
@@ -228,6 +230,7 @@ export function VaultDuplicateGroups(props: {
           itemByKey={comparisonItemByKey}
           wishlist={props.wishlist}
           localTargetRules={props.localTargetRules}
+          equipmentTargetStore={props.equipmentTargetStore}
           highlightedItemKeys={props.highlightedItemKeys}
           communityMatch={props.communityMatch}
           referenceKey={referenceKey}
@@ -259,6 +262,7 @@ function DuplicateComparePanel(props: {
   itemByKey: Map<string, AccountItemSummary>;
   wishlist?: DimWishlist | null;
   localTargetRules?: LocalTargetRules | null;
+  equipmentTargetStore?: EquipmentTargetStore | null;
   highlightedItemKeys?: LoadoutTemplateLookup | null;
   communityMatch?: Map<number, VaultItemMatchInfo>;
   referenceKey: string;
@@ -624,11 +628,13 @@ function getGroupRollDataStatus(
 function itemEvidence(item: AccountItemSummary, props: {
   wishlist?: DimWishlist | null;
   localTargetRules?: LocalTargetRules | null;
+  equipmentTargetStore?: EquipmentTargetStore | null;
   highlightedItemKeys?: LoadoutTemplateLookup | null;
   communityMatch?: Map<number, VaultItemMatchInfo>;
 }): DuplicateEvidence {
   const wishlist = evaluateWishlistRoll(normalizeCoreItem(item), props.wishlist ?? undefined);
   const target = evaluateLocalTargets(normalizeCoreItem(item), props.localTargetRules ?? undefined);
+  const equipmentTarget = evaluateEquipmentTargets(normalizeCoreItem(item), props.equipmentTargetStore ?? undefined);
   const exactLoadoutMatch = Boolean(item.instance_id && props.highlightedItemKeys?.instanceIds.has(item.instance_id));
   const sameDefinitionLoadoutMatch = !exactLoadoutMatch && Boolean(
     props.highlightedItemKeys?.bucketHashKeys.has(`${item.bucket_name ?? ""}:${item.hash}`)
@@ -642,7 +648,7 @@ function itemEvidence(item: AccountItemSummary, props: {
     matches: [
       sameDefinitionLoadoutMatch ? "配装同款" : "",
       wishlist.matched ? "愿望单命中" : "",
-      target.matched ? "目标命中" : "",
+      equipmentTarget.matched || target.matched ? "目标命中" : "",
       (props.communityMatch?.get(item.hash)?.matched ?? 0) > 0 ? "社区同款" : ""
     ].filter(Boolean)
   };
@@ -651,6 +657,7 @@ function itemEvidence(item: AccountItemSummary, props: {
 function summarizeGroupEvidence(group: DuplicateItemGroup, itemByKey: Map<string, AccountItemSummary>, props: {
   wishlist?: DimWishlist | null;
   localTargetRules?: LocalTargetRules | null;
+  equipmentTargetStore?: EquipmentTargetStore | null;
   highlightedItemKeys?: LoadoutTemplateLookup | null;
   communityMatch?: Map<number, VaultItemMatchInfo>;
 }): { protectedItems: number; matchedItems: number } {

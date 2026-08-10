@@ -436,7 +436,9 @@ export function createWebAssistantContext(snapshot: WebHomeSnapshot): AiAssistan
     itemCount: 496,
     characterCount: hasAccountData ? 2 : 0,
     materialCount: 28,
-    dailyLoaded: true
+    dailyLoaded: true,
+    snapshotState: "unsaved",
+    snapshotLabel: "Web 预览未创建上下文快照"
   };
 }
 
@@ -445,7 +447,8 @@ export function createWebAssistantContextChip(context: AiAssistantContextView) {
     `当前页面：${context.pageLabel}`,
     `仓库 ${context.itemCount} 件`,
     `角色 ${context.characterCount} 个`,
-    context.dailyLoaded ? "今日信息已载入" : "今日信息未载入"
+    context.dailyLoaded ? "今日信息已载入" : "今日信息未载入",
+    context.snapshotLabel
   ].join(" · ");
 }
 

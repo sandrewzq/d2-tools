@@ -17,8 +17,6 @@ export const shellCopy: Record<InterfaceLocale, LocaleCopy["shell"]> = {
       assistant: {
         title: "AI 助手",
         currentPage: (page) => `当前页面：${page}`,
-        chat: "对话",
-        tasks: "任务",
         close: "关闭助手"
       },
       backgroundTasks: {
@@ -47,6 +45,7 @@ export const shellCopy: Record<InterfaceLocale, LocaleCopy["shell"]> = {
         account: "账号",
         vault: "仓库",
         loadouts: "配装",
+        guides: "攻略",
         library: "资料库",
         vendors: "商人",
         settings: "设置"
@@ -79,8 +78,6 @@ export const shellCopy: Record<InterfaceLocale, LocaleCopy["shell"]> = {
       assistant: {
         title: "AI Assistant",
         currentPage: (page) => `Current page: ${page}`,
-        chat: "Chat",
-        tasks: "Tasks",
         close: "Close assistant"
       },
       backgroundTasks: {
@@ -109,6 +106,7 @@ export const shellCopy: Record<InterfaceLocale, LocaleCopy["shell"]> = {
         account: "Account",
         vault: "Vault",
         loadouts: "Loadouts",
+        guides: "Guides",
         library: "Library",
         vendors: "Vendors",
         settings: "Settings"

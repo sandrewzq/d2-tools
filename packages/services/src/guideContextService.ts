@@ -4,7 +4,7 @@ import type { DimWishlist } from "@d2-tools/core/analysis/wishlistImport";
 import type { LocalCommunityRecommendationTable } from "@d2-tools/core/community-perks";
 import type { LocalDataService, ProfileService } from "./contracts.js";
 
-export type D2SkillGuideContext = {
+export type GuideContext = {
   account: AccountSummary;
   items: AccountItemSummary[];
   localTargetRules: LocalTargetRules;
@@ -12,16 +12,16 @@ export type D2SkillGuideContext = {
   communityRecommendations: LocalCommunityRecommendationTable | null;
 };
 
-export type D2SkillService = {
-  getBuildGuideContext(): Promise<D2SkillGuideContext>;
+export type GuideContextService = {
+  getContext(): Promise<GuideContext>;
 };
 
-export function createD2SkillService(services: {
+export function createGuideContextService(services: {
   profile: Pick<ProfileService, "getAccountSummary">;
   localData: Pick<LocalDataService, "getLocalTargetRules" | "getDimWishlist" | "getLocalCommunityRecommendations">;
-}): D2SkillService {
+}): GuideContextService {
   return {
-    async getBuildGuideContext() {
+    async getContext() {
       const [account, localTargetRules, wishlist, communityRecommendations] = await Promise.all([
         services.profile.getAccountSummary(),
         services.localData.getLocalTargetRules(),
@@ -31,7 +31,7 @@ export function createD2SkillService(services: {
 
       return {
         account,
-        items: collectBuildGuideAccountItems(account),
+        items: collectGuideAccountItems(account),
         localTargetRules,
         wishlist,
         communityRecommendations
@@ -40,7 +40,7 @@ export function createD2SkillService(services: {
   };
 }
 
-export function collectBuildGuideAccountItems(account: AccountSummary): AccountItemSummary[] {
+export function collectGuideAccountItems(account: AccountSummary): AccountItemSummary[] {
   return [
     ...account.vault.items,
     ...account.characters.flatMap((character) => [

@@ -35,6 +35,7 @@ export type ItemDefinitionDetailLike = {
   icon?: string;
   item_type?: string;
   tier?: string;
+  class_type?: number;
   class_name?: string;
   damage_type?: string;
   damage_type_summary?: DamageTypeSummary;
@@ -67,6 +68,7 @@ export type ItemSearchResultLike = {
   icon?: string;
   item_type?: string;
   tier?: string;
+  class_type?: number;
   class_name?: string;
   damage_type?: string;
   damage_type_summary?: DamageTypeSummary;
@@ -132,6 +134,7 @@ export function selectedItemToAccountItem(item: SelectedItemDetail): AccountItem
     icon: item.icon,
     item_type: item.item_type,
     tier: item.tier,
+    class_type: item.class_type,
     ammo_type: item.ammo_type,
     bucket_hash: item.bucket_hash,
     bucket_name: item.bucket_name,
@@ -162,6 +165,7 @@ export function createSelectedItemPreview(
     icon: item.icon,
     item_type: item.item_type,
     tier: item.tier,
+    class_type: "class_type" in item ? item.class_type : undefined,
     class_name: "class_name" in item ? item.class_name : undefined,
     damage_type: "damage_type" in item ? item.damage_type : undefined,
     damage_type_summary: "damage_type_summary" in item ? item.damage_type_summary : undefined,

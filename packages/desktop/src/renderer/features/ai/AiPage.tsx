@@ -5,6 +5,7 @@ import type {
   VaultTags
 } from "../../api/types";
 import { AiAssistantPanelView } from "@d2-tools/ui";
+import type { AssistantArtifact } from "@d2-tools/app/capabilities";
 import { AiAnalysisPanel } from "../../components/AiAnalysisPanel";
 import type { AssistantPageContext } from "../../shared/domain/assistant/assistantContext";
 
@@ -18,6 +19,7 @@ export function AiPage(props: {
   isLoadingAccount: boolean;
   onLoadAccount: () => void;
   onConfigureAi: () => void;
+  onOpenArtifact: (artifact: AssistantArtifact) => void;
   onClose?: () => void;
 }) {
   if (!props.isConfigured) {
@@ -42,7 +44,9 @@ export function AiPage(props: {
           itemCount: 0,
           characterCount: props.account?.characters.length ?? 0,
           materialCount: props.account?.materials.item_count ?? 0,
-          dailyLoaded: Boolean(props.daily)
+          dailyLoaded: Boolean(props.daily),
+          snapshotState: "unsaved",
+          snapshotLabel: "尚未创建上下文快照"
         }}
         quickPrompts={[]}
         onQuestionChange={() => undefined}
@@ -59,6 +63,7 @@ export function AiPage(props: {
         onClearHistory={() => undefined}
         onSwitchSession={() => undefined}
         onDeleteSession={() => undefined}
+        onOpenArtifact={() => undefined}
       />
     );
   }
@@ -74,6 +79,7 @@ export function AiPage(props: {
       isLoadingAccount={props.isLoadingAccount}
       onLoadAccount={props.onLoadAccount}
       onConfigureAi={props.onConfigureAi}
+      onOpenArtifact={props.onOpenArtifact}
       onClose={props.onClose ?? (() => undefined)}
     />
   );

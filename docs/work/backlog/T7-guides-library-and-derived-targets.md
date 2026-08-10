@@ -1,7 +1,7 @@
 # AI 工作台、原生能力与攻略配装工作流
 
-> 状态：Backlog
-> 更新时间：2026-08-07
+> 状态：进行中
+> 更新时间：2026-08-08
 
 ## 目标
 
@@ -32,6 +32,38 @@ T7 不是重新建设一套覆盖全应用的“通用能力平台”，而是�
 | AI 工作台 | 中 | 全局侧栏 | 降低查询和组合门槛，解释结果并发起交接，不拥有业务对象 |
 | 审计与诊断 | 低可见、高约束 | 计划审阅、日志与诊断入口 | 低频访问，但必须完整支撑安全、追溯和故障恢复 |
 
+## 当前实现状态
+
+- 已建立 `DomainResult<T>`、`EvidenceRef`、只读能力目录 Adapter 和有界结果缓存；AI 工作台已真实接入装备搜索、Perk 搜索、账号实例搜索、商人 Offer 搜索、本地攻略搜索、本地配装检查和 `armor.plan`，页面仍消费各领域的类型化 ViewModel。
+- Armor Core 已覆盖 Armor 3.0 规则、属性账本、理论组合、库存成装、待刷规划、升级路径，以及 Manifest 套装 `2件 / 4件 / 2+2` 约束。
+- 当前 Manifest 可推导 Armor 3.0 框架规则；规则集、套装目录和账号护甲实例由 Desktop 主进程统一补齐，renderer 不上传规则、账号数组或套装目录。
+- App 已提供平台无关 Armor workspace、自动 revision、旧请求保护和 `idle / loading / ready / stale / error` ViewModel；Services 提供输入指纹、同请求合并和有界缓存；Desktop 使用独立 Worker 执行计算。
+- 配装页已接入理论上限、库存成装、待刷目标和升级路径四种模式，支持六维目标、模组预算、优先级、套装、位置范围、固定异域、锁定和排除，并区分理论身份、待刷要求与真实实例。
+- 库存和升级候选可以预填真实实例；本地方案只保存候选缓存键、候选 ID、规则与来源 revision 和实例 ID，不持久化完整搜索结果，也不改变攻略、DIM 或手工来源身份。
+- 攻略中的护甲属性已派生为五件护甲聚合约束，不再按单件护甲属性匹配；当前六维直接映射，旧六维仅作为兼容别名并强制进入待确认。
+- 攻略可将唯一确认的异域实例预填到 Armor 约束；同名多实例、缺失实例和无法确认的模组预算保持待确认，不会任意锁定账号装备或猜测预算。
+- 原生攻略上下文、攻略 workspace 和任务状态已替代旧运行时命名；应用不调用、嵌入或复制外部攻略工具。
+- Armor Planner 已将确定性输入指纹拆分为缓存键和稳定 `result_id`；工作台传递首次计算时间与缓存过期时间，本地方案保存结果 ID、候选 ID、规则版本和账号/Manifest/规则来源 revision，不持久化完整求解结果。
+- 本地配装应用计划已拥有稳定内容标识；用户确认后、首个写操作前强制刷新账号并重新生成完整步骤，账号身份、目标角色、实例数量、装备位置、来源角色替换、可写 Plug 或缺口任一变化都会将计划标记为失效并保持零写入。
+- 本地配装确认后生成独立 `confirmation_id` 与 `execution_id`；每个转移、装备和 Plug 步骤将 `plan_id / confirmation_id / execution_id / step_id` 写入现有操作日志，设置页和复制诊断可按同一次执行追溯逐项结果。
+- 执行后刷新验证会追加独立 `execution-verification` 日志，复用同一组计划、确认和执行 ID，并区分 `verified / partial / mismatch / unavailable`；设置页可单独筛选验证结论。
+- 本地配装已支持 DIM 当前 `equipped / unequipped` 内联格式和旧 `items` 格式导入；完整真实实例方案可在本地生成 DIM 链接，实例缺失、Hash 漂移、Plug 无法映射、理论或待刷模式都会返回结构化阻断原因。
+- 全局侧栏已删除固定攻略任务 Tab、任务树和第二套解析流程，只保留单一 AI 工作台；旧 `d2-tools.assistant.task-context` 文本会在配装页攻略导入中一次性恢复，成功生成草稿后再清除。
+- AI 工作台每轮按保守关键词最多调用三个受控只读能力，将确定性结果、警告、证据和完整 `result_id` 发送给模型，并在可见回答底部追加缩短后的数据引用；宽泛整理和推荐问题继续使用页面上下文，不伪造实体查询。
+- AI 成功问答会保存轻量不可变上下文快照，记录基础上下文和实际提示指纹、页面与账号范围、Manifest 版本、能力结果引用、失败能力和前文数量；消息通过快照 ID 关联，恢复旧会话时可识别历史上下文，后续追问携带有限前文并生成新快照。快照不保存完整提示、账号装备正文或密钥。
+- 能力目录会持久化最近 100 条脱敏审计，包含能力名、输入摘要、结果引用、状态、耗时、警告码、数量和证据 ID；设置页现有脱敏诊断导出会附加最近记录，不保存完整结果、完整提示或凭证。
+- 首个 `guide_capture` 成果已接入：明确的配装、构筑或攻略问题可生成带上下文快照和结果引用的草稿卡，用户点击后只预填配装页现有攻略解析面板；解析、账号匹配、待确认项和显式保存仍由配装页负责。
+- `armor_solution_comparison` 已接入：`armor.plan` 返回候选时保存目标、模式、结果状态、前三个候选摘要、能力结果和底层 Armor `result_id`。成果卡可交给配装页，但只带入原始职业与六维目标并重新解析；候选最终属性不会被误当成新约束，也不会直接选择实例或保存方案。
+- `equipment_target_candidates` 已接入：明确要求“加入配装、作为目标、想刷或查找某件装备”时，AI 编排会同时查询账号实例与 Manifest 定义。账号真实实例优先，同 Hash 的定义不重复；成果最多保留八项，在配装页复选后生成 `assistant-targets` 未保存草稿。真实实例写入 `selected_instance_id`，仅定义候选只保存 `item_hash` 并保持待获取、待选择状态。
+- 攻略库与提取切片已接入：`GuideSource`、带章节分段的 `GuideSnapshot`、`GuideDocument` 和 `GuideExtraction` 进入 Core。Services 使用 `guide-library.json` 保存最多 200 篇文档和每篇最近 20 个不可变正文快照，使用 `guide-extractions.json` 保存快照绑定的轻量确认。共享一级页面支持文本、笔记和来源 URL、受控链接读取预览、全文搜索、分类、标签、收藏、归档、恢复、删除及候选复选确认，并纳入便携备份；损坏文件不会被当作空库覆盖，容量达到上限时不会静默淘汰旧文档。阅读、人工编辑和确定性提取不依赖 AI。
+- `armor.plan` 只在问题同时包含明确职业和 Armor 3.0 当前六维数值目标时调用，复用现有 Worker、缓存、规则集和账号护甲归一化；旧六维、缺职业和升级基线不明确时不会猜测或静默执行。能力只投影前三个候选并引用底层 Armor `result_id`。
+- 独立装备目标领域已建立：`WeaponTarget | ArmorAcquisitionTarget`、版本化 `equipment-targets.json`、用户手动创建、旧 `LocalTargetRules` 与 DIM Wishlist 单向同步、Manifest 武器/Perk 校验、同名多版本待确认、来源与 Manifest 双证据、便携备份、仓库筛选/同名整理证据及装备详情目标匹配已接入。已确认攻略中的 `weapon_specific` 可在攻略页显式同步；只有武器版本唯一且每个 Perk 在该武器定义内唯一时才落库。配装页可把用户选中的 acquisition 候选缺口保存为 `armor_planner_gap` 目标，保留 Armor `result_id`、候选 ID、槽位、框架、第三属性、调整、套装和大师杰作上下文，并只按基础属性门槛提示命中。两类转换都不会自动修改标签、锁定或整理决定。
+- 攻略确认的五件聚合属性与异域护甲要求已派生为独立 `armor_constraint_draft`：成果 ID 绑定攻略文档、正文快照和提取确认，攻略页显示聚合目标与待确认项，并经显式操作进入配装工作台形成未保存草稿；不会写入单件装备目标或自动运行 Planner。
+- `loadout_candidates` 已接入：攻略页按当前选中角色刷新账号并匹配已确认要求，成果 ID 绑定攻略提取、角色和账号匹配指纹；唯一完整命中默认选中，同名多实例、抽象要求与部分 Perk 命中保持替代候选。配装页复选后只生成未保存草稿，账号不一致或实例已消失时阻断交接。
+- `GuideDerivedRelation` 索引已接入：Core 定义稳定实体关系，Services 使用版本化 `guide-derived-relations.json` 保存轻量索引；攻略确认、候选生成、正式装备目标写入、Armor 缺口目标写入，以及 `armor_constraint_draft / loadout_candidates` 来源本地方案显式保存会维护关系，删除攻略、目标或本地方案时清理对应索引。攻略页可查看正式目标、Armor 约束、账号候选及其已保存本地方案，并可跳转到现有目标管理或配装入口；打开攻略页时会为仍有有效攻略父关系的已有本地方案补建下游索引，已删除攻略不会从残留 `source_id` 重建；便携备份已包含关系索引。
+- 派生成果反向精确定位已接入：攻略页可定位仓库中的具体装备目标行或配装页中的具体本地方案；攻略来源目标和本地方案通过 `GuideDerivedRelation` 确认有效关系后返回具体攻略，关系失效时保留业务对象并显示明确提示。Armor 缺口目标可把稳定 `result_id / candidate_id` 带回配装页核对来源，但完整求解结果不持久化，页面不得伪恢复旧候选，只能要求按当前账号、Manifest 和规则重算。
+- T7 本轮代码切片已收口，尚未完成真实账号与 Desktop 实窗验收。`guide_extraction_patch` 缺少独立的领域修订命令和人工审阅收益，暂作为后续可选增强搁置；当前确定性提取与逐项人工确认继续作为攻略要求真相，不把 AI 建议混入已确认记录。
+
 ## 设计依据
 
 `d2-skill` 只作为能力边界和安全模型参考，不作为运行时依赖，也不复制其 CLI、命令名称或实现代码。T7 吸收以下原则：
@@ -57,19 +89,19 @@ T7 不是重新建设一套覆盖全应用的“通用能力平台”，而是�
 | 商人实时库存、Offer 与页面模型 | `packages/core/src/vendors/inventory.ts`、`packages/services/src/vendors/`、`packages/app/src/workspaces/vendorsPage.ts` | 可直接复用，不重写刷新与资格判断 |
 | 仓库装备决策证据和本地目标 | `packages/core/src/evidence/itemDecision.ts`、`packages/core/src/analysis/targets.ts` | 证据可扩展；旧目标模型只适合作兼容迁移输入 |
 | 本地配装、账号匹配和执行步骤 | `packages/core/src/loadouts/plans.ts`、`localPlanExecution.ts`、`packages/app/src/workspaces/localLoadoutPlanWorkbench.ts` | 保持配装所有权，增加 Armor 候选和来源交接 |
-| DIM 配装链接 | `packages/core/src/loadouts/dimImport.ts`、`packages/services/src/loadouts/dimImport.ts` | 已有导入，缺少真实实例方案导出 |
+| DIM 配装链接 | `packages/core/src/loadouts/dimImport.ts`、`packages/services/src/loadouts/dimImport.ts` | 已支持当前与旧内联格式导入，并可从账号核对后的真实实例方案生成本地 DIM 链接；仍需真实 DIM 往返验收 |
 | Bungie 安全写操作与日志 | `packages/desktop/src/main/ipc/actions.ts`、`packages/services/src/bungie/actions.ts`、`packages/core/src/actions/log.ts`、`packages/services/src/actions/logStore.ts` | 已能执行和记录，缺少不可变计划、确认对象与独立验证 |
-| 工具元数据和 AI 会话 | `packages/core/src/tools/registry.ts`、`packages/core/src/ai/chat.ts`、`packages/app/src/workspaces/assistant.ts` | 已有声明、上下文和模型 Adapter，缺少受控内部调用循环 |
+| 工具元数据和 AI 会话 | `packages/core/src/tools/registry.ts`、`packages/core/src/ai/chat.ts`、`packages/app/src/capabilities/` | 七个只读能力、不可变会话快照和脱敏审计已接入，仍需补齐升级基线、仓库证据和更多成果交接 |
 | 攻略与基础护甲原型 | `packages/core/src/assistant/guide*.ts`、`loadoutDraft.ts`、`packages/core/src/loadouts/armorSolver.ts` | 只作为迁移输入，不能继续在旧接口外叠加 T7 全部能力 |
 
 ### 需要解决的问题
 
-- 当前工具注册表只有定义，没有统一的原生能力执行接口；页面、AI 和 IPC 仍各自拼装调用。
+- 当前装备、Perk、账号、商人、配装、攻略和 Armor 只读能力已有统一目录与 Desktop Adapter，但升级基线、仓库决策证据和更多页面结果交接仍不完整。
 - 当前 `ItemActionPlan` 与真实执行脱节，执行阶段会重新读取和判断，计划本身不能作为不可变确认对象。
 - 工具审计与写操作日志分离，无法从建议追溯到计划、确认、执行和验证。
 - 现有攻略流程固定为“解析 -> 账号匹配 -> 草稿”，名称匹配、版本处理和旧六维映射存在语义风险。
 - 当前护甲求解只覆盖账号实例、基础六维目标和模组预算，且把最终属性直接当作实例基础值组合；缺少规则版本、属性账本、理论方案、可达范围、套装、异域职业物品、调整身份、待刷规划和逐步替换顺序。
-- AI 会话没有不可变上下文快照和确定性结果引用，恢复历史时可能误用当前页面数据。
+- AI 会话已有轻量上下文快照、结果引用和历史状态提示，但尚未把模型输出转成可进入攻略、目标或配装页面审阅的类型化成果。
 
 ## 产品决策
 
@@ -248,6 +280,8 @@ AI 工作台是原生能力的自然语言入口和解释层，不拥有账号�
 
 ### 调用流程
 
+当前已接入 `manifest.search-items`、`manifest.search-perks`、`account.find-items`、`vendors.find-offers`、`loadouts.inspect`、`guides.search` 和 `armor.plan`。每轮最多执行三次，只读取当前 Manifest、账号摘要、本地方案、本地攻略摘要与确认、已缓存商人快照和 Armor Planner 确定性结果；攻略能力最多投影八篇文档、每篇三个命中章节，并绑定当前正文快照。能力失败或无结果也作为结构化状态交给模型，不触发写操作或后台刷新。成功问答生成 `AssistantContextSnapshot`，历史对话只用于理解追问，不能覆盖本轮能力事实。
+
 只读问题：
 
 ```text
@@ -287,6 +321,8 @@ AI 不能将“好的”“确认”“继续”等聊天文本转换成操作�
 - `loadout_candidates`
 
 操作计划和执行结果不是 AI 成果，分别由 `ActionPlan` 和 `ActionExecutionResult` 承载。成果可以引用确定性结果，但不能复制或篡改证据。
+
+当前已实现 `guide_capture`、`armor_solution_comparison` 和 `equipment_target_candidates`。前者根据明确的配装/攻略意图保存本轮问题、回答、`source_snapshot_id` 与底层 `result_ids`；护甲成果直接引用确定性 `armor.plan`，保存目标与候选摘要，并额外记录底层 Armor `result_id`；装备目标成果合并 `account.find-items` 与 `manifest.search-items`，区分真实实例和仅定义候选。三类成果都只能交给配装页审阅入口，不能直接保存或执行；接受后上下文快照和数据结果引用进入方案 guidance 证据。`guide_extraction_patch` 保留为未来可选类型，不属于当前 T7 完成标准。
 
 成果状态统一为 `draft / handed_off / accepted / dismissed / stale / failed`。只有目标领域命令可以将成果转成正式攻略结构、装备目标、护甲约束或配装草稿。
 
@@ -388,7 +424,7 @@ planArmor(request: ArmorPlanRequest): Promise<ArmorPlanResult>
 - 结果必须说明是否完整枚举、剪枝近似或达到搜索上限；近似结果不能显示为“唯一最优”。
 - UI 可以取消长计算，切换页面后结果仍按 request ID 归属，不串到其他配装。
 
-Armor Planner 不负责选择攻略语义、不创建装备目标、不保存配装，也不执行装备操作。
+Armor Planner 计算本身不负责选择攻略语义、不直接创建装备目标、不保存配装，也不执行装备操作。用户在配装页审阅 acquisition 候选后，可以通过目标领域命令把明确缺口保存到独立目标库；保存动作不回写或篡改 Planner 结果。
 
 ## 攻略库
 
@@ -503,7 +539,7 @@ AI 工作台可以生成攻略成果，但复杂确认、版本选择和批量�
 | DIM 配装链接导入 | 保留并补齐 | 保留确定性导入；为完整真实实例方案新增导出，理论和待刷方案只导出缺口清单 |
 | `D2ToolDefinition` 静态注册表 | 迁移后替换 | 改为 `AssistantCapabilityCatalog` 的描述投影，删除与执行脱节的第二份工具真相 |
 | 当前 AI 上下文序列化与单轮模型调用 | 深化 | 增加不可变快照、受控只读调用循环、结果引用和成果交接，不让模型直接接触写接口 |
-| 固定攻略解析、匹配和草稿流水线 | 迁移后替换 | 拆为攻略快照、待确认提取、目标候选和配装候选；迁移完成后删除固定任务入口 |
+| 固定攻略解析、匹配和草稿流水线 | 已替换 | 侧栏固定任务入口已删除；确定性解析、账号匹配和草稿生成保留在配装页攻略导入，旧本地文本通过一次性恢复交接 |
 | `solveLoadoutArmorCandidates` | 作为迁移输入后替换 | 先复用账号实例筛选经验，最终由版本化 Armor Planner 的 `owned` 模式取代 |
 | `LocalTargetRules` | 兼容读取后迁移 | 武器规则迁为 `WeaponTarget`，单件护甲阈值迁为兼容来源；新 Armor 缺口使用 `ArmorAcquisitionTarget` |
 | Desktop `runWriteAction` 与操作日志 | 渐进扩展 | 先为 T7 会触发的转移、装备、锁定、Plug 和配装动作增加计划/确认/验证关联，再收口其余现有安全动作 |
@@ -582,7 +618,7 @@ T7 不应作为一个大提交或一次性版本开发。每个切片都应保�
 - 当前 `LoadoutPlanArmorConstraints` 迁入版本化 `ArmorTargetProfile`；已有字段继续读取，但新增套装、调整、硬约束和排序策略不反向塞回旧扁平结构。
 - 当前 `solveLoadoutArmorCandidates` 作为 `owned` 模式迁移输入，替换其直接累加最终属性和贪心模组分配；不在旧函数外继续叠加理论、待刷和升级分支。
 - `LocalLoadoutPlan` 保持配装所有权，只增加接受后的 `armor_plan_result_id`、规则版本和候选快照，不持久化完整求解缓存。
-- `LocalLoadoutPlanSourceKind` 增加 `armor-plan`，DIM 导入仍为 `dim-link`；两种来源不能合并成同一含糊类型。
+- `LocalLoadoutPlanSourceKind` 增加 `armor-plan` 和 `assistant-targets`，DIM 导入仍为 `dim-link`；三种来源不能合并成同一含糊类型。
 - `ShellAssistantMode` 删除 `tasks`；现有固定任务面板、任务分支和本地任务上下文完成可恢复迁移后删除。
 - 旧任务文本可生成一次 `guide_capture` 恢复成果，由用户保存或放弃，不自动创建攻略。
 - DIM Wishlist 迁入装备目标来源；DIM 配装继续走确定性预览，不经过 AI 解析。
@@ -625,23 +661,29 @@ T7 不应作为一个大提交或一次性版本开发。每个切片都应保�
 
 ### 切片 6：攻略领域、存储与一级页面
 
-实现 `GuideSource`、`GuideSnapshot`、`GuideDocument`、搜索和本地存储；交付共享攻略页面、文本/笔记保存、收藏、分类、归档和状态恢复。攻略阅读和人工编辑不依赖 AI。
+已实现 `GuideSource`、`GuideSnapshot`、`GuideDocument`、确定性全文搜索和 `guide-library.json` 本地存储；共享攻略页面支持文本/笔记/来源保存、收藏、分类、标签、归档、恢复、删除、正文快照追溯和读取失败重试，并纳入便携备份。损坏文件与容量上限都显式阻断写入，不静默覆盖或淘汰旧文档。攻略阅读和人工编辑不依赖 AI；该切片只建立 URL 来源记录，正文读取由切片 7 的受控读取能力承接。
 
 ### 切片 7：链接读取、提取与人工确认
 
-实现受控正文读取、清洗、引用定位、`GuideExtraction`、确定性解析和可选 AI 补丁。所有装备、版本、Plug 和 Armor 属性映射进入待确认；多版本、抽象要求和旧属性语义不得静默解决。
+已实现公开 HTTP(S) 地址的受控正文读取、HTML 清洗、章节分段、引用定位、`GuideExtraction`、确定性解析和逐项复选确认。读取限制协议、凭证、内网地址、重定向、超时、内容类型和响应大小，不执行页面脚本或绕过站点限制；链接正文必须先预览、采用并保存。确认绑定正文快照与解析器版本，所有职业、装备和 Armor 属性候选都保持待确认，不直接创建目标或配装。可选 AI 补丁已搁置，确定性提取与人工确认是当前正式边界。
 
 ### 切片 8：AI 受控只读能力调用
 
-建立 `AssistantCapabilityCatalog`、`AssistantContextSnapshot`、输入白名单、结果引用和有界工具调用循环。首批只开放 Manifest、账号、商人、配装、Armor 和攻略搜索；AI 可以解释和生成成果，但不能调用 execute，也不能把聊天文本当确认。
+已建立 `AssistantCapabilityCatalog`、七个只读 Adapter、保守调用计划、有界结果缓存、可见结果引用、轻量 `AssistantContextSnapshot` 和脱敏持久化审计，并接入 Desktop AI 工作台的连续追问、历史快照提示及设置页诊断导出。`guides.search` 已接入本地攻略摘要、命中章节、当前快照和人工确认要求；`armor.plan` 已通过现有 Desktop Armor Client 接入理论、库存和待刷模式。旧六维、缺少职业/目标或升级基线不明确时不自动调用。后续补齐升级基线选择及更多成果交接；AI 仍不能调用 execute，也不能把聊天文本当确认。
 
 ### 切片 9：独立装备目标
 
 实现 `WeaponTarget` 与 `ArmorAcquisitionTarget`，兼容迁移 DIM、用户和旧 `LocalTargetRules` 来源。仓库与装备详情显示目标命中证据，但不自动修改本地标记、锁定状态或整理决策。
 
+当前已完成领域联合类型、确定性匹配、版本化本地存储、Desktop 分域 API/IPC、便携备份、用户手动创建，以及旧规则和 DIM 在显式保存时按来源单向同步。武器目标必须通过当前 Manifest 的武器与 Perk 归属校验后才参与命中；同名查询存在多个版本时保留 `ambiguous` 候选，不静默选择。护甲待刷目标保持属性、职业和槽位约束，不生成虚假实例或装备 Hash。仓库目标筛选、同名整理证据和武器/护甲详情已消费正式目标库；旧规则编辑与显示暂作为兼容区保留。
+
+攻略与 Armor Planner 的受控转换已由切片 10 接入，目标与攻略、Armor 结果、本地方案之间的双向追溯也已完成；剩余工作是使用真实账号验收命中、跳转和删除清理。
+
 ### 切片 10：攻略与 Armor Planner 派生
 
-确认后的攻略要求可以生成 Armor 约束草稿、装备目标候选和一套或多套配装候选。所有候选先进入目标页面或配装工作台审阅，保持攻略快照、结果 ID、规则版本和账号快照引用。
+已实现首批正式派生：攻略页对确认后的 `weapon_specific` 提供显式同步，主进程按精确名称检查同名武器版本，并在武器自身 Manifest 定义内逐项确认 Perk；零命中或多命中只返回问题，不自动落库。配装页对用户选中的 acquisition 候选提供“保存待刷缺口”，每个缺口保存基础六维门槛、槽位和 Planner 身份上下文，命中后仍要求回 Planner 复核框架、调整、套装与大师杰作。
+
+独立 `armor_constraint_draft` 与 `loadout_candidates` 交接已完成：两者只消费当前正文的已确认候选；前者保留攻略文档、快照、提取与解析器版本，后者额外绑定账号、角色和匹配指纹。同名多实例不会静默选择，确定命中和替代项必须在配装页复选，最终仍只形成未保存草稿。`GuideDerivedRelation` 已覆盖两类成果到显式保存本地方案的下游关系，并提供双向精确定位。
 
 ### 切片 11：T7 安全执行交接
 
@@ -649,7 +691,7 @@ T7 不应作为一个大提交或一次性版本开发。每个切片都应保�
 
 ### 切片 12：追溯、迁移与旧入口收口
 
-实现攻略、目标、Armor 方案、配装、结果和操作日志双向追溯。迁移旧任务文本和混合推荐读取边界，删除固定任务 UI、重复攻略入口和失效命名；最后集中接入导航、preload、IPC 聚合文件，并更新正式 UI 合同与用户文档。
+已实现攻略、目标、Armor 方案、配装、结果和操作日志双向追溯。旧任务文本与混合推荐读取边界已迁移，固定任务 UI、重复攻略入口和失效命名已删除；导航、preload、IPC 聚合、正式 UI 合同与用户文档已同步，当前只待真实账号与 Desktop 实窗验收。
 
 ## 不在本期范围
 

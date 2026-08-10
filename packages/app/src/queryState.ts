@@ -1,4 +1,4 @@
-import { toServiceError, type ServiceError } from "@d2-tools/services";
+import { toServiceError, type ServiceError } from "@d2-tools/services/errors";
 
 export type QueryState<TData> =
   | { status: "idle"; data: null; error: null }

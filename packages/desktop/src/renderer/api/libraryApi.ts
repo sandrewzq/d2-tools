@@ -1,6 +1,6 @@
 import type {
   AmmoTypeKey,
-  ArmorSetCatalogItem,
+  ArmorSetCatalogEntry,
   DamageTypeSummary,
   EquipmentGroupKey,
   ItemDefinitionStat,
@@ -17,7 +17,7 @@ import type {
 export type LibraryApi = {
   getLibraryRuntimeCapabilities(): Promise<LibraryRuntimeCapabilities>;
   getItemDetail(hash: number): Promise<ItemDefinitionDetail>;
-  getArmorSetCatalog(): Promise<ArmorSetCatalogItem[]>;
+  getArmorSetCatalog(): Promise<ArmorSetCatalogEntry[]>;
   searchItems(query: string): Promise<ItemSearchResult[]>;
   searchPerks(query: string): Promise<PerkSearchResult[]>;
   getPerkRelatedEquipment(input: PerkRelatedEquipmentQuery): Promise<PerkRelatedEquipmentPage>;
@@ -47,6 +47,7 @@ export type ItemSearchResult = {
   icon?: string;
   item_type?: string;
   tier?: string;
+  class_type?: number;
   release?: ItemReleaseSummary;
   definition_version?: ItemDefinitionVersionSummary;
   armor_set?: EquipableItemSetSummary;

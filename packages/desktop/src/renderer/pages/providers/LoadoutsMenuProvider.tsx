@@ -31,6 +31,10 @@ export function LoadoutsMenuProvider() {
       localPlanExecutionReport={localPlans.executionReport}
       localPlanIsExecuting={localPlans.isExecuting}
       localPlanIsImportingGuide={localPlans.isImportingGuide}
+      localPlanLegacyGuideText={localPlans.legacyGuideText}
+      localPlanAssistantPrefill={localPlans.assistantPrefill}
+      equipmentTargetStore={session.account.equipmentTargetStore}
+      armorResultTraceRequest={session.armorResultTraceRequest}
       onSelectTemplate={loadouts.selectTemplate}
       onSelectCompareTemplate={loadouts.setCompareTemplateId}
       onRenameDraftChange={loadouts.setRenameDraft}
@@ -60,7 +64,19 @@ export function LoadoutsMenuProvider() {
       onAcceptDimImport={localPlans.acceptDimImport}
       onDismissDimImport={localPlans.dismissDimImport}
       onExecuteLocalPlan={() => void localPlans.executeDraft()}
-      onImportGuideText={(rawText, character) => void localPlans.importGuideText(rawText, character)}
+      onImportGuideText={localPlans.importGuideText}
+      onAcceptAssistantEquipmentTargets={localPlans.acceptAssistantEquipmentTargets}
+      onAcceptGuideLoadoutCandidates={localPlans.acceptGuideLoadoutCandidates}
+      onDismissAssistantPrefill={localPlans.dismissAssistantPrefill}
+      onOpenGuideSource={async (sourceId) => {
+        const guideDocumentId = await session.guides.findGuideDocumentIdForDerivedEntity(sourceId);
+        if (!guideDocumentId) return false;
+        session.guides.selectDocument(guideDocumentId);
+        session.setActivePage("guides");
+        return true;
+      }}
+      onDismissArmorResultTrace={session.dismissArmorResultTrace}
+      onEquipmentTargetStoreChanged={session.account.setEquipmentTargetStore}
     />
   );
 }

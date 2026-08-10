@@ -2,6 +2,7 @@ import type { AccountSummary } from "@d2-tools/core/account/summary";
 import type { ActivityHistorySummary } from "@d2-tools/core/activities/history";
 import type { DimWishlist } from "@d2-tools/core/analysis/wishlistImport";
 import type { LocalTargetRules } from "@d2-tools/core/analysis/targets";
+import type { EquipmentTargetStore } from "@d2-tools/core/targets/equipmentTargets";
 import type { LocalCommunityRecommendationTable } from "@d2-tools/core/community-perks";
 import type {
   PersonalWeaponKnowledgeTable,
@@ -11,7 +12,7 @@ import type { VaultItemMatchInfo, WeaponRecommendation } from "@d2-tools/core/co
 import type { VaultTags, SaveVaultNoteInput, SaveVaultTagInput } from "@d2-tools/core/vault/tags";
 import type { AiChatReplyResult, AiChatRequest } from "./types.js";
 import type { D2Services } from "./contracts.js";
-import { createD2SkillService } from "./d2SkillService.js";
+import { createGuideContextService } from "./guideContextService.js";
 
 export type DesktopBridgeApi = {
   getAccountSummary(options?: { force?: boolean }): Promise<AccountSummary>;
@@ -34,6 +35,9 @@ export type DesktopBridgeApi = {
   getLocalTargetRules(): Promise<LocalTargetRules>;
   saveLocalTargetRules(rules: LocalTargetRules): Promise<LocalTargetRules>;
   clearLocalTargetRules(): Promise<LocalTargetRules>;
+  getEquipmentTargetStore(): Promise<EquipmentTargetStore>;
+  saveEquipmentTargetStore(store: EquipmentTargetStore): Promise<EquipmentTargetStore>;
+  clearEquipmentTargetStore(): Promise<EquipmentTargetStore>;
   sendAiChat(input: AiChatRequest): Promise<AiChatReplyResult>;
 };
 
@@ -60,13 +64,16 @@ export function createDesktopBridgeServices(api: DesktopBridgeApi): D2Services {
       saveVaultNote: (input) => api.saveVaultNote(input),
       getLocalTargetRules: () => api.getLocalTargetRules(),
       saveLocalTargetRules: (rules) => api.saveLocalTargetRules(rules),
-      clearLocalTargetRules: () => api.clearLocalTargetRules()
+      clearLocalTargetRules: () => api.clearLocalTargetRules(),
+      getEquipmentTargetStore: () => api.getEquipmentTargetStore(),
+      saveEquipmentTargetStore: (store) => api.saveEquipmentTargetStore(store),
+      clearEquipmentTargetStore: () => api.clearEquipmentTargetStore()
     };
 
   return {
     profile,
     localData,
-    d2Skill: createD2SkillService({ profile, localData }),
+    guide: createGuideContextService({ profile, localData }),
     ai: {
       sendChat: (input) => api.sendAiChat(input)
     }

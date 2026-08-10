@@ -1,5 +1,6 @@
 import { api } from "../../api/client";
 import type { ActionLogEntry, D2Config } from "../../api/types";
+import { formatAssistantCapabilityAuditDiagnostics } from "../../shared/domain/assistant/assistantCapabilityAudit";
 
 export type DiagnosticsBridge = {
   refreshDiagnostics: () => Promise<void>;
@@ -212,7 +213,12 @@ export async function copyDiagnosticsExport(setSettingsMessage: (value: string) 
   setSettingsMessage("");
   setSettingsError("");
   try {
-    await navigator.clipboard.writeText(await api.exportDiagnostics());
+    const diagnostics = await api.exportDiagnostics();
+    await navigator.clipboard.writeText([
+      diagnostics,
+      "",
+      formatAssistantCapabilityAuditDiagnostics()
+    ].join("\n"));
     setSettingsMessage("已复制脱敏诊断导出");
   } catch (error) {
     setSettingsError(error instanceof Error ? error.message : "诊断导出失败");
@@ -243,7 +249,7 @@ export function buildDataBackupGuide(dataDir: string): string {
     "",
     "推荐备份：",
     "1. 在设置页选择“创建便携备份”。",
-    "2. 便携备份包含偏好、愿望单、目标规则、本地标签、本地方案和我的推荐，不包含账号令牌、Bungie/AI 密钥、资料库、缓存或日志。",
+    "2. 便携备份包含偏好、愿望单、目标规则、独立装备目标、本地标签、本地方案、攻略正文、提取确认、攻略派生关系和我的推荐，不包含账号令牌、Bungie/AI 密钥、Manifest 资料库、缓存或日志。",
     "3. 把备份文件保存到安全位置，再安装新版或迁移电脑。",
     "",
     "恢复 / 迁移：",
@@ -278,6 +284,10 @@ function buildActionDiagnosticText(entry: ActionLogEntry): string {
     `物品：${entry.item_name ?? "-"}`,
     `物品实例：${entry.item_instance_id ?? "-"}`,
     `角色：${entry.character_id ?? "-"}`,
+    `计划：${entry.plan_id ?? "-"}`,
+    `确认：${entry.confirmation_id ?? "-"}`,
+    `执行：${entry.execution_id ?? "-"}`,
+    `步骤：${entry.step_id ?? "-"}`,
     `信息：${entry.message ?? "-"}`,
     "",
     "说明：这段诊断不会包含 token、client secret 或 API Key。"

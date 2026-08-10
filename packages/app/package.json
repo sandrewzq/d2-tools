@@ -18,9 +18,21 @@
       "types": "./dist/assistant.d.ts",
       "import": "./dist/assistant.js"
     },
+    "./armor": {
+      "types": "./dist/armor.d.ts",
+      "import": "./dist/armor.js"
+    },
+    "./capabilities": {
+      "types": "./dist/capabilities.d.ts",
+      "import": "./dist/capabilities.js"
+    },
     "./home": {
       "types": "./dist/home.d.ts",
       "import": "./dist/home.js"
+    },
+    "./guides": {
+      "types": "./dist/guides.d.ts",
+      "import": "./dist/guides.js"
     },
     "./items": {
       "types": "./dist/items.d.ts",

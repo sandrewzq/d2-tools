@@ -6,7 +6,8 @@ import type {
   PerkSearchResult
 } from "@d2-tools/core/items/perkSearch";
 import type { ItemSearchResult } from "@d2-tools/core/items/search";
-import type { ArmorSetCatalogItem } from "@d2-tools/core/items/equipableItemSet";
+import type { ArmorSetCatalogEntry } from "@d2-tools/core/items/equipableItemSet";
+import type { ArmorPlannerManifestData } from "@d2-tools/services/armor/manifest";
 import type {
   GameDataCatalog,
   GameDataRuntimeCapabilities,
@@ -24,6 +25,7 @@ type GameDataOperation =
   | "getItemDetail"
   | "getDefinitions"
   | "listArmorSets"
+  | "getArmorPlannerManifestData"
   | "ping"
   | "close";
 
@@ -52,6 +54,7 @@ const operationTimeoutMs: Record<GameDataOperation, number> = {
   getItemDetail: 15_000,
   getDefinitions: 30_000,
   listArmorSets: 30_000,
+  getArmorPlannerManifestData: 30_000,
   ping: 5_000,
   close: closeTimeoutMs
 };
@@ -95,10 +98,18 @@ export function getGameDataCatalog(): GameDataCatalog {
   return catalog;
 }
 
-export function getArmorSetCatalog(): Promise<ArmorSetCatalogItem[]> {
+export function getArmorSetCatalog(): Promise<ArmorSetCatalogEntry[]> {
   return measureRuntime(
     "game-data.armor-set-catalog",
-    () => request<ArmorSetCatalogItem[]>("listArmorSets"),
+    () => request<ArmorSetCatalogEntry[]>("listArmorSets"),
+    { measurePayload: true }
+  );
+}
+
+export function getArmorPlannerManifestData(): Promise<ArmorPlannerManifestData> {
+  return measureRuntime(
+    "game-data.armor-planner-manifest",
+    () => request<ArmorPlannerManifestData>("getArmorPlannerManifestData"),
     { measurePayload: true }
   );
 }

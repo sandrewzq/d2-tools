@@ -1232,52 +1232,165 @@
 }
 
 :where(.app-shell) .vault-source-row {
+  min-width: 0;
   border-bottom: 1px solid var(--border-subtle);
 }
 
-:where(.app-shell) .vault-source-row summary {
-  display: flex;
+:where(.app-shell) .vault-source-summary {
+  display: grid;
+  grid-template-columns: minmax(190px, 0.8fr) minmax(220px, 1.2fr) auto;
+  grid-template-areas: "identity status actions";
   align-items: center;
-  justify-content: space-between;
-  gap: 9px;
-  min-height: 61px;
-  padding: 8px 12px;
-  cursor: pointer;
+  gap: 12px;
+  min-height: 70px;
+  padding: 10px 12px;
 }
 
-:where(.app-shell) .vault-source-row summary span,
-:where(.app-shell) .vault-source-row summary strong,
-:where(.app-shell) .vault-source-row summary small {
+:where(.app-shell) .vault-source-identity,
+:where(.app-shell) .vault-source-status {
+  min-width: 0;
+}
+
+:where(.app-shell) .vault-source-identity {
+  grid-area: identity;
+}
+
+:where(.app-shell) .vault-source-status {
+  grid-area: status;
+}
+
+:where(.app-shell) .vault-source-identity strong,
+:where(.app-shell) .vault-source-identity small,
+:where(.app-shell) .vault-source-status > span:last-child {
   display: block;
 }
 
-:where(.app-shell) .vault-source-row summary strong {
+:where(.app-shell) .vault-source-identity strong {
   color: var(--text-title);
-  font-size: var(--font-meta);
+  font-size: var(--font-content);
 }
 
-:where(.app-shell) .vault-source-row summary small,
-:where(.app-shell) .vault-source-row summary b {
+:where(.app-shell) .vault-source-identity small,
+:where(.app-shell) .vault-source-status > span:last-child {
   margin-top: 3px;
   color: var(--text-muted);
   font-size: var(--font-caption);
-  font-weight: 400;
+  line-height: 1.45;
 }
 
-:where(.app-shell) .vault-source-row summary b {
-  margin: 0;
-  color: var(--accent-primary);
+:where(.app-shell) .vault-source-status {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+}
+
+:where(.app-shell) .vault-source-status > span:last-child {
+  margin-top: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+:where(.app-shell) .vault-source-status .ui-badge.status-pending {
+  border-color: color-mix(in srgb, var(--status-pending) 60%, var(--border-subtle));
+  color: var(--status-pending);
+  background: var(--status-pending-bg);
+}
+
+:where(.app-shell) .vault-source-status .ui-badge.status-error {
+  border-color: color-mix(in srgb, var(--status-error) 60%, var(--border-subtle));
+  color: var(--status-error);
+  background: var(--status-error-bg);
+}
+
+:where(.app-shell) .vault-source-actions,
+:where(.app-shell) .vault-source-editor-actions,
+:where(.app-shell) .vault-source-confirm > div {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+:where(.app-shell) .vault-source-actions {
+  grid-area: actions;
+  justify-content: flex-end;
 }
 
 :where(.app-shell) .vault-source-editor {
   display: grid;
-  gap: 8px;
-  padding: 0 12px 12px;
+  gap: 10px;
+  padding: 12px;
+  border-top: 1px solid var(--border-subtle);
+  background: var(--surface-sidebar);
+}
+
+:where(.app-shell) .vault-source-editor label strong,
+:where(.app-shell) .vault-source-editor label span {
+  display: block;
+}
+
+:where(.app-shell) .vault-source-editor label strong {
+  color: var(--text-title);
+  font-size: var(--font-meta);
+}
+
+:where(.app-shell) .vault-source-editor label span {
+  margin-top: 3px;
+  color: var(--text-muted);
+  font-size: var(--font-caption);
 }
 
 :where(.app-shell) .vault-source-editor textarea {
-  min-height: 88px;
+  width: 100%;
+  min-height: 110px;
   resize: vertical;
+}
+
+:where(.app-shell) .vault-source-preview {
+  display: grid;
+  grid-template-columns: max-content minmax(140px, 0.8fr) minmax(180px, 1fr);
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 4px;
+  background: var(--surface-panel);
+}
+
+:where(.app-shell) .vault-source-preview > span,
+:where(.app-shell) .vault-source-preview small {
+  color: var(--text-muted);
+  font-size: var(--font-caption);
+}
+
+:where(.app-shell) .vault-source-preview strong {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-title);
+  font-size: var(--font-meta);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+:where(.app-shell) .vault-source-confirm {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 12px;
+  border-top: 1px solid var(--status-warning);
+  background: var(--status-warning-bg);
+  color: var(--text-body);
+  font-size: var(--font-meta);
+}
+
+:where(.app-shell) .vault-source-feedback {
+  margin: 0;
+  padding: 9px 12px;
+  border-width: 1px 0 0;
+  border-radius: 0;
 }
 
 :where(.app-shell) .vault-target-rules-panel {
@@ -1339,6 +1452,13 @@
 :where(.app-shell.assistant-open) .vault-recommendations > aside {
   border-left: 0;
   border-top: 1px solid var(--border-subtle);
+}
+
+:where(.app-shell.assistant-open) .vault-source-summary {
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "identity actions"
+    "status status";
 }
 
 @media (max-width: 1120px) {
@@ -1461,6 +1581,41 @@
 
   :where(.app-shell) .vault-summary-strip > div:last-child {
     border-bottom: 0;
+  }
+
+  :where(.app-shell) .vault-source-summary {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "identity"
+      "status"
+      "actions";
+  }
+
+  :where(.app-shell) .vault-source-actions {
+    justify-content: flex-start;
+  }
+
+  :where(.app-shell) .vault-source-status {
+    align-items: start;
+    grid-template-columns: max-content minmax(0, 1fr);
+  }
+
+  :where(.app-shell) .vault-source-status > span:last-child {
+    white-space: normal;
+  }
+
+  :where(.app-shell) .vault-source-preview {
+    align-items: start;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  :where(.app-shell) .vault-source-preview strong {
+    white-space: normal;
+  }
+
+  :where(.app-shell) .vault-source-confirm {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   :where(.app-shell) .vault-cleanup-grid .vault-card-main {
@@ -3116,6 +3271,26 @@
   font-weight: 700;
 }
 
+:where(.app-shell) .vault-target-rules-panel .target-rule-actions {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  gap: 7px;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+:where(.app-shell) .vault-target-rules-panel .target-rule-row[data-trace-highlight="true"] {
+  border-color: var(--state-selected-border);
+  background: var(--state-selected-bg);
+  box-shadow: inset 0 0 0 1px var(--state-selected-border);
+}
+
+:where(.app-shell) .vault-target-rules-panel .target-rule-row[data-trace-highlight="true"]:focus {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
 :where(.app-shell) .duplicate-decision-actions {
   justify-content: flex-end;
 }
@@ -3180,6 +3355,15 @@
   }
 
   :where(.app-shell) .duplicate-decision-actions {
+    justify-content: flex-start;
+  }
+
+  :where(.app-shell) .vault-target-rules-panel .target-rule-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  :where(.app-shell) .vault-target-rules-panel .target-rule-actions {
     justify-content: flex-start;
   }
 }

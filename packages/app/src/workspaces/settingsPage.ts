@@ -22,7 +22,8 @@ export type SettingsActionLogTypeFilter =
   | "loadout-equip"
   | "loadout-snapshot"
   | "loadout-clear"
-  | "loadout-update-identifiers";
+  | "loadout-update-identifiers"
+  | "execution-verification";
 
 export type SettingsLanguagePreferences = {
   interfaceLocale: "zh-CN" | "en-US";

@@ -1,8 +1,8 @@
 import type { ReactNode } from "react";
 import type { InterfaceLocale, ProductPreferences } from "../i18n/types.js";
 
-export type ShellPageKey = "home" | "account" | "vault" | "loadouts" | "library" | "vendors" | "settings";
-export type ShellAssistantMode = "ai" | "tasks" | null;
+export type ShellPageKey = "home" | "account" | "vault" | "loadouts" | "guides" | "library" | "vendors" | "settings";
+export type ShellAssistantMode = "ai" | null;
 
 export type ShellNavItem = {
   key: ShellPageKey;

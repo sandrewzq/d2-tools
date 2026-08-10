@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { loadAccountWorkspace, loadAccountDerivedWorkspace } from "@d2-tools/app/account";
 import {
   api } from "../../api/client";
-import type { AccountItemActionPatch, AccountSummary, ActivityHistorySummary, DimWishlist, StartupState, VaultItemMatchInfo, LocalTargetRules, VaultTags } from "../../api/types";
+import type { AccountItemActionPatch, AccountSummary, ActivityHistorySummary, DimWishlist, EquipmentTargetStore, StartupState, VaultItemMatchInfo, LocalTargetRules, VaultTags } from "../../api/types";
+import { createEmptyEquipmentTargetStore } from "@d2-tools/core/targets/equipmentTargets";
 import { services } from "../../api/services";
 import {
   applyAccountEntityPatches,
@@ -37,6 +38,7 @@ export function useAccountWorkspace(input: {
     armor: [],
     weapons: []
   });
+  const [equipmentTargetStore, setEquipmentTargetStore] = useState<EquipmentTargetStore>(() => createEmptyEquipmentTargetStore());
   const [accountError, setAccountError] = useState("");
   const [accountWarning, setAccountWarning] = useState("");
   const [isLoadingAccount, setIsLoadingAccount] = useState(false);
@@ -148,11 +150,13 @@ export function useAccountWorkspace(input: {
         account: summary,
         tags,
         targetRules,
+        equipmentTargets,
         wishlist
       } = workspace.data;
       applyAccountSummary(summary);
       setVaultTags(tags);
       setLocalTargetRules(targetRules);
+      setEquipmentTargetStore(equipmentTargets);
       setImportedWishlist(wishlist);
       setActivitySummary(null);
       communityRequestSequenceRef.current += 1;
@@ -204,10 +208,13 @@ export function useAccountWorkspace(input: {
     setActivityError(derived.error?.message ?? "最近活动读取失败");
   }
 
-  async function loadVaultCommunityMatch(summary = getAccountSummarySnapshot()) {
+  async function loadVaultCommunityMatch(
+    summary = getAccountSummarySnapshot(),
+    options: { force?: boolean } = {}
+  ) {
     if (!summary) return;
     const accountKey = `${summary.membership_type}:${summary.destiny_membership_id}`;
-    if (communityMatchAccountKeyRef.current === accountKey) return;
+    if (!options.force && communityMatchAccountKeyRef.current === accountKey) return;
 
     const requestSequence = ++communityRequestSequenceRef.current;
     setIsVaultCommunityMatchLoading(true);
@@ -240,6 +247,8 @@ export function useAccountWorkspace(input: {
     setVaultTags,
     localTargetRules,
     setLocalTargetRules,
+    equipmentTargetStore,
+    setEquipmentTargetStore,
     accountError,
     setAccountError,
     accountWarning,
@@ -275,6 +284,7 @@ function formatAccountWorkspaceWarnings(warnings: Array<{ source: string; messag
 function formatAccountWarningSource(source: string): string {
   if (source === "vault-tags") return "本地标签";
   if (source === "target-rules") return "目标规则";
+  if (source === "equipment-targets") return "装备目标";
   if (source === "wishlist") return "DIM wishlist";
   return "本地数据";
 }

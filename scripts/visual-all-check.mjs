@@ -676,7 +676,10 @@ async function scanBrowserTarget(browser, target, theme, server, referenceShellC
 async function scanDesktopTarget(target, theme, server, referenceShellContract) {
   prepareDesktopData(theme);
   const app = await electron.launch({
-    args: [join(repoRoot, "packages", "desktop", "dist", "main", "main.js")],
+    args: [
+      "--force-device-scale-factor=1",
+      join(repoRoot, "packages", "desktop", "dist", "main", "main.js")
+    ],
     env: {
       ...process.env,
       NODE_ENV: "development",

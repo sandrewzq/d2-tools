@@ -168,6 +168,8 @@ function sourceLabel(source: LocalLoadoutPlan["source"]["kind"]): string {
     case "bungie-loadout": return "Bungie 槽位";
     case "dim-link": return "DIM 链接";
     case "guide": return "攻略";
+    case "armor-plan": return "护甲方案";
+    case "assistant-targets": return "AI 装备目标";
     default: return "手动创建";
   }
 }

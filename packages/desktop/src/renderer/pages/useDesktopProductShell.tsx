@@ -15,6 +15,7 @@ import { GlobalAssistantSidebar } from "../components/GlobalAssistantSidebar";
 import { useAccountWorkspace } from "../features/account/useAccountWorkspace";
 import { useDailySummary } from "../features/daily/useDailySummary";
 import { useHomePageDerivedState } from "../features/home/useHomePageDerivedState";
+import { useGuideLibrary } from "../features/guides/useGuideLibrary";
 import { useLibraryWorkspace } from "../features/library/useLibraryWorkspace";
 import { useLoadoutTemplates } from "../features/loadouts/useLoadoutTemplates";
 import { useLocalLoadoutPlans } from "../features/loadouts/useLocalLoadoutPlans";
@@ -47,6 +48,15 @@ export function useDesktopProductShell(props: {
   const [vaultLocateRequest, setVaultLocateRequest] = useState<{
     hash: number;
     name: string;
+    requestId: number;
+  } | null>(null);
+  const [vaultTargetLocateRequest, setVaultTargetLocateRequest] = useState<{
+    targetId: string;
+    requestId: number;
+  } | null>(null);
+  const [armorResultTraceRequest, setArmorResultTraceRequest] = useState<{
+    resultId: string;
+    candidateId: string;
     requestId: number;
   } | null>(null);
   const isVisualCapture = visualEnv?.VITE_D2_VISUAL_CAPTURE === "1";
@@ -86,6 +96,8 @@ export function useDesktopProductShell(props: {
     importedWishlist,
     localTargetRules,
     setLocalTargetRules,
+    equipmentTargetStore,
+    setEquipmentTargetStore,
     refreshAccountSnapshot
   } = accountWorkspace;
   const refreshAccountManually = () => refreshAccountSnapshot("manual");
@@ -119,6 +131,10 @@ export function useDesktopProductShell(props: {
     diagnostics.manifestStatus?.version
   ]);
   const library = useLibraryWorkspace({ vendorSourcePaths });
+  const guides = useGuideLibrary({
+    active: activePage === "guides",
+    onEquipmentTargetStoreChanged: setEquipmentTargetStore
+  });
   const loadoutLibrary = useLoadoutTemplates();
   const localLoadoutPlans = useLocalLoadoutPlans({ refreshAccount: refreshAccountAfterWrite });
   const writeActions = useDesktopProductWriteActions({
@@ -151,6 +167,22 @@ export function useDesktopProductShell(props: {
       requestId: (current?.requestId ?? 0) + 1
     }));
     setActivePage("vault");
+  }
+
+  function locateVaultTarget(targetId: string) {
+    setVaultTargetLocateRequest((current) => ({
+      targetId,
+      requestId: (current?.requestId ?? 0) + 1
+    }));
+    setActivePage("vault");
+  }
+
+  function locateArmorResultReference(reference: { resultId: string; candidateId: string }) {
+    setArmorResultTraceRequest((current) => ({
+      ...reference,
+      requestId: (current?.requestId ?? 0) + 1
+    }));
+    setActivePage("loadouts");
   }
 
   useEffect(() => {
@@ -266,12 +298,18 @@ export function useDesktopProductShell(props: {
     setVaultFacts,
     vaultLocateRequest,
     locateVaultItem,
+    vaultTargetLocateRequest,
+    locateVaultTarget,
+    armorResultTraceRequest,
+    locateArmorResultReference,
+    dismissArmorResultTrace: () => setArmorResultTraceRequest(null),
     lastAccountLoadedAt,
     refreshAccountManually,
     account: accountWorkspace,
     daily,
     diagnostics,
     home: homeDerivedState,
+    guides,
     library,
     loadouts: loadoutLibrary,
     localLoadoutPlans,
@@ -283,7 +321,6 @@ export function useDesktopProductShell(props: {
   const assistantPanel = (
     <GlobalAssistantSidebar
       assistantMode={assistantMode}
-      activePage={activePage}
       isConfigured={isAiConfigured}
       account={accountSummary}
       daily={daily.dailySummary}
@@ -296,8 +333,8 @@ export function useDesktopProductShell(props: {
         setActivePage("settings");
         setAssistantMode(null);
       }}
-      onSaveGuideDraft={(draft) => {
-        localLoadoutPlans.startFromGuideDraft(draft);
+      onOpenArtifact={(artifact) => {
+        localLoadoutPlans.prefillFromAssistant(artifact);
         setActivePage("loadouts");
         setAssistantMode(null);
       }}
@@ -320,6 +357,7 @@ export function useDesktopProductShell(props: {
       itemDetail,
       isRunningItemAction,
       localTargetRules,
+      equipmentTargetStore,
       onLocateOwnedItem: locateVaultItem,
       interfaceLocale: diagnostics.languagePreferences.interfaceLocale,
       vendorDefinitionDetail,
@@ -485,7 +523,7 @@ function formatAppUpdateShellStatus(snapshot: AppUpdateSnapshot | null): string 
 }
 
 function isShellPageKey(value: string | undefined): value is ShellPageKey {
-  return value === "home" || value === "account" || value === "vault" || value === "loadouts" || value === "library" || value === "vendors" || value === "settings";
+  return value === "home" || value === "account" || value === "vault" || value === "loadouts" || value === "guides" || value === "library" || value === "vendors" || value === "settings";
 }
 
 function isColorMode(value: string | undefined): value is "light" | "dark" {

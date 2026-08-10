@@ -15,6 +15,11 @@ import type {
 import type { AiSettings } from "@d2-tools/core/ai/settings";
 import type { VaultAnalysisResult } from "@d2-tools/core/analysis/vault";
 import type { LocalTargetRules } from "@d2-tools/core/analysis/targets";
+import type {
+  EquipmentTargetConversionResult,
+  EquipmentTargetStore,
+  GuideEquipmentTargetConversionRequest
+} from "@d2-tools/core/targets/equipmentTargets";
 import type { DimWishlist } from "@d2-tools/core/analysis/wishlistImport";
 import type { LocalCommunityRecommendationTable, VaultItemMatchInfo, WeaponRecommendation } from "@d2-tools/core/community-perks";
 import type {
@@ -32,8 +37,17 @@ import type {
   PerkSearchResult
 } from "@d2-tools/core/items/perkSearch";
 import type { ItemSearchResult } from "@d2-tools/core/items/search";
-import type { ArmorSetCatalogItem } from "@d2-tools/core/items/equipableItemSet";
+import type { ArmorSetCatalogEntry } from "@d2-tools/core/items/equipableItemSet";
 import type { LibraryHistory, LibraryHistoryItem } from "@d2-tools/core/library/history";
+import type {
+  CreateGuideDocumentInput,
+  GuideExtraction,
+  GuideDerivedRelation,
+  GuideLoadoutCandidatesArtifact,
+  GuideDocument,
+  GuideSourceReadPreview,
+  UpdateGuideDocumentInput
+} from "../contracts/guides.js";
 import type { CreateLoadoutTemplateInput, LoadoutTemplate } from "@d2-tools/core/loadouts/templates";
 import type {
   CreateLocalLoadoutPlanInput,
@@ -54,6 +68,7 @@ import type {
 } from "../contracts/account.js";
 import type {
   ActionLogEntry,
+  ActionVerificationRecordInput,
   ApplySocketPlugsActionInput,
   BatchEquipItemsInput,
   BatchItemActionResult,
@@ -72,6 +87,11 @@ import type {
   LoadoutSnapshotActionInput,
   PostmasterPullActionInput
 } from "../contracts/actions.js";
+import type {
+  ArmorPlannerClientRunRequest,
+  ArmorPlannerClientRunResult,
+  ArmorPlannerWorkspaceJob
+} from "../contracts/armor.js";
 import type { DailySummary, HomeBriefing } from "../contracts/daily.js";
 import type {
   ManifestStatus,
@@ -106,6 +126,10 @@ contextBridge.exposeInMainWorld("d2", {
     ipcRenderer.invoke("account:snapshot:cached") as Promise<CachedAccountSnapshot | null>,
   getAccountItemDetail: (instanceId: string, options?: AccountItemDetailRequestOptions) =>
     invokeDesktopIpc<AccountItemDetail>("account:item-detail", instanceId, options),
+  planArmor: <Job extends ArmorPlannerWorkspaceJob>(request: ArmorPlannerClientRunRequest<Job>) =>
+    invokeDesktopIpc<ArmorPlannerClientRunResult<Job>>("armor:plan", request),
+  invalidateArmorPlanner: (scopeId?: string) =>
+    invokeDesktopIpc<void>("armor:invalidate", scopeId),
   getItemDetail: (hash: number) => invokeDesktopIpc<ItemDefinitionDetail>("items:detail", hash),
   getStartupState: () => ipcRenderer.invoke("startup:get") as Promise<StartupState>,
   setWindowColorMode: (colorMode: "light" | "dark") =>
@@ -135,7 +159,7 @@ contextBridge.exposeInMainWorld("d2", {
   searchPerks: (query: string) => invokeDesktopIpc<PerkSearchResult[]>("items:perks:search", query),
   getPerkRelatedEquipment: (input: PerkRelatedEquipmentQuery) =>
     invokeDesktopIpc<PerkRelatedEquipmentPage<ItemSearchResult>>("items:perks:related", input),
-  getArmorSetCatalog: () => invokeDesktopIpc<ArmorSetCatalogItem[]>("items:armor-sets:list"),
+  getArmorSetCatalog: () => invokeDesktopIpc<ArmorSetCatalogEntry[]>("items:armor-sets:list"),
   getLiveItemAvailability: (itemHashes: number[]) =>
     invokeDesktopIpc<LiveItemAvailability>("items:live-availability", itemHashes),
   getItemAliases: () => ipcRenderer.invoke("aliases:get") as Promise<ItemAliases>,
@@ -147,6 +171,25 @@ contextBridge.exposeInMainWorld("d2", {
     ipcRenderer.invoke("library:favorite:add", item) as Promise<LibraryHistory>,
   removeFavoriteItem: (hash: number) =>
     ipcRenderer.invoke("library:favorite:remove", hash) as Promise<LibraryHistory>,
+  listGuideDocuments: () => ipcRenderer.invoke("guides:list") as Promise<GuideDocument[]>,
+  createGuideDocument: (input: CreateGuideDocumentInput) =>
+    ipcRenderer.invoke("guides:create", input) as Promise<GuideDocument>,
+  updateGuideDocument: (id: string, input: UpdateGuideDocumentInput) =>
+    ipcRenderer.invoke("guides:update", { id, document: input }) as Promise<GuideDocument>,
+  deleteGuideDocument: (id: string) =>
+    ipcRenderer.invoke("guides:delete", id) as Promise<GuideDocument[]>,
+  readGuideSource: (url: string) =>
+    ipcRenderer.invoke("guides:source:read", url) as Promise<GuideSourceReadPreview>,
+  listGuideExtractions: () =>
+    ipcRenderer.invoke("guides:extractions:list") as Promise<GuideExtraction[]>,
+  listGuideDerivedRelations: () =>
+    ipcRenderer.invoke("guides:relations:list") as Promise<GuideDerivedRelation[]>,
+  previewGuideExtraction: (id: string) =>
+    ipcRenderer.invoke("guides:extraction:preview", id) as Promise<GuideExtraction>,
+  confirmGuideExtraction: (input: { guideDocumentId: string; extractionId: string; acceptedCandidateIds: string[] }) =>
+    ipcRenderer.invoke("guides:extraction:confirm", input) as Promise<GuideExtraction>,
+  createGuideLoadoutCandidates: (input: { guideDocumentId: string; extractionId: string; characterId: string }) =>
+    ipcRenderer.invoke("guides:loadout-candidates:create", input) as Promise<GuideLoadoutCandidatesArtifact>,
   listLoadoutTemplates: () => ipcRenderer.invoke("loadouts:list") as Promise<LoadoutTemplate[]>,
   createLoadoutTemplate: (input: CreateLoadoutTemplateInput) =>
     ipcRenderer.invoke("loadouts:create", input) as Promise<LoadoutTemplate>,
@@ -175,6 +218,12 @@ contextBridge.exposeInMainWorld("d2", {
   saveLocalTargetRules: (rules: LocalTargetRules) =>
     ipcRenderer.invoke("targets:save", rules) as Promise<LocalTargetRules>,
   clearLocalTargetRules: () => ipcRenderer.invoke("targets:clear") as Promise<LocalTargetRules>,
+  getEquipmentTargetStore: () => ipcRenderer.invoke("equipment-targets:get") as Promise<EquipmentTargetStore>,
+  saveEquipmentTargetStore: (store: EquipmentTargetStore) =>
+    ipcRenderer.invoke("equipment-targets:save", store) as Promise<EquipmentTargetStore>,
+  clearEquipmentTargetStore: () => ipcRenderer.invoke("equipment-targets:clear") as Promise<EquipmentTargetStore>,
+  convertConfirmedGuideEquipmentTargets: (input: GuideEquipmentTargetConversionRequest) =>
+    ipcRenderer.invoke("equipment-targets:convert-guide", input) as Promise<EquipmentTargetConversionResult>,
   getLocalCommunityRecommendations: () =>
     ipcRenderer.invoke("community:local:get") as Promise<LocalCommunityRecommendationTable | null>,
   saveLocalCommunityRecommendations: (table: LocalCommunityRecommendationTable) =>
@@ -232,6 +281,8 @@ contextBridge.exposeInMainWorld("d2", {
   updateLoadoutIdentifiers: (input: LoadoutIdentifiersActionInput) =>
     invokeDesktopIpc<ItemActionResult>("actions:loadout:update-identifiers", input),
   getActionLog: () => ipcRenderer.invoke("actions:log:get") as Promise<ActionLogEntry[]>,
+  recordActionVerification: (input: ActionVerificationRecordInput) =>
+    ipcRenderer.invoke("actions:verification:record", input) as Promise<ActionLogEntry>,
   createItemActionPlan: (input: ItemActionPlanInput) =>
     ipcRenderer.invoke("actions:plan:item", input) as Promise<ItemActionPlan>,
   createBatchTransferPlan: (input: { character_id: string; transfer_to_vault: boolean; items: AccountSummary["vault"]["items"] }) =>

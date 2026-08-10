@@ -2,6 +2,7 @@ import type {
   AccountSummary,
   AccountItemDetail,
   DimWishlist,
+  EquipmentTargetStore,
   ItemActionPlanInput,
   ItemActionResult,
   ItemAiAdviceResult,
@@ -27,6 +28,7 @@ import { ItemDetailStats } from "./item-detail/ItemDetailStats";
 import { ItemDetailTools } from "./item-detail/ItemDetailTools";
 import { resolveItemTransferCharacterId } from "../../utils/itemActions";
 import {
+  buildEquipmentTargetWeaponViews,
   buildWeaponDetailView,
   buildWeaponPersonalTargetViews,
   buildWeaponRecommendationViews
@@ -41,6 +43,7 @@ export type ItemDetailModalProps = {
   communityRecommendationError: string;
   importedWishlist: DimWishlist | null;
   localTargetRules: LocalTargetRules;
+  equipmentTargetStore: EquipmentTargetStore;
   isCommunityRecommendationsLoading: boolean;
   isGeneratingItemAi: boolean;
   isRunningItemAction: boolean;
@@ -110,11 +113,14 @@ export function ItemDetailModal(props: ItemDetailModalProps) {
     selectedItem,
     accountSummary: props.accountSummary,
     sameNameItems: props.sameNameItems,
-    recommendations: buildWeaponRecommendationViews(
-      props.communityRecommendations,
-      props.personalWeaponKnowledge,
-      selectedItem
-    ),
+    recommendations: [
+      ...buildWeaponRecommendationViews(
+        props.communityRecommendations,
+        props.personalWeaponKnowledge,
+        selectedItem
+      ),
+      ...buildEquipmentTargetWeaponViews(props.equipmentTargetStore, selectedItem)
+    ],
     personalTargets: buildWeaponPersonalTargetViews(props.communityRecommendations, selectedItem),
     vaultTags: props.vaultTags,
     pendingPerks,
@@ -126,6 +132,7 @@ export function ItemDetailModal(props: ItemDetailModalProps) {
     selectedItem,
     sameNameItems: props.sameNameItems,
     localTargetRules: props.localTargetRules,
+    equipmentTargetStore: props.equipmentTargetStore,
     sources: buildArmorSources(selectedItem, props.itemAvailability)
   });
   const instanceActions = selectedItem.instance_id ? (
@@ -340,6 +347,7 @@ export function ItemDetailModal(props: ItemDetailModalProps) {
               communityRecommendationError={props.communityRecommendationError}
               importedWishlist={props.importedWishlist}
               localTargetRules={props.localTargetRules}
+              equipmentTargetStore={props.equipmentTargetStore}
               isCommunityRecommendationsLoading={props.isCommunityRecommendationsLoading}
               isGeneratingItemAi={props.isGeneratingItemAi}
               isRunningItemAction={props.isRunningItemAction}

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { AccountItemSummary } from "@d2-tools/core/account/summary";
 import type {
   LocalArmorTargetCondition,
@@ -7,6 +7,13 @@ import type {
 } from "@d2-tools/core/analysis/targets";
 import type { ArmorStatKey } from "@d2-tools/core/loadouts/analysis";
 import type { PerkSearchResult } from "@d2-tools/core/items/perkSearch";
+import {
+  createUserArmorAcquisitionTarget,
+  createUserWeaponTarget,
+  removeEquipmentTarget,
+  upsertEquipmentTarget,
+  type EquipmentTargetStore
+} from "@d2-tools/core/targets/equipmentTargets";
 import { armorStatLabels } from "@d2-tools/app/vault";
 
 type DraftCondition = {
@@ -29,11 +36,17 @@ export type VaultTargetRulesActions = {
   onSaveRules?: (rules: LocalTargetRules) => Promise<LocalTargetRules> | LocalTargetRules;
   onClearRules?: () => Promise<LocalTargetRules> | LocalTargetRules;
   onSearchPerks?: (query: string) => Promise<PerkSearchResult[]> | PerkSearchResult[];
+  onSaveEquipmentTargetStore?: (store: EquipmentTargetStore) => Promise<EquipmentTargetStore> | EquipmentTargetStore;
+  onClearEquipmentTargetStore?: () => Promise<EquipmentTargetStore> | EquipmentTargetStore;
+  onOpenGuide?: (targetId: string) => Promise<boolean> | boolean;
+  onOpenArmorResult?: (reference: { resultId: string; candidateId: string }) => void;
 };
 
 export function VaultTargetRulesPanel(props: {
   items: AccountItemSummary[];
   rules: LocalTargetRules;
+  equipmentTargetStore?: EquipmentTargetStore | null;
+  targetLocateRequest?: { targetId: string; requestId: number } | null;
   actions?: VaultTargetRulesActions;
 }) {
   const [displayRules, setDisplayRules] = useState(props.rules);
@@ -48,17 +61,38 @@ export function VaultTargetRulesPanel(props: {
   const [isSearchingPerks, setIsSearchingPerks] = useState(false);
   const [message, setMessage] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const targetRowRefs = useRef(new Map<string, HTMLDivElement>());
   const rules = props.actions ? props.rules : displayRules;
   const availableWeaponTargets = useMemo(
     () => buildAvailableWeaponTargets(props.items),
     [props.items]
   );
   const selectedWeapon = availableWeaponTargets.find((weapon) => String(weapon.hash) === selectedWeaponHash);
+  const equipmentTargetSummary = useMemo(() => summarizeEquipmentTargets(props.equipmentTargetStore), [props.equipmentTargetStore]);
+
+  useEffect(() => {
+    const targetId = props.targetLocateRequest?.targetId;
+    if (!targetId) return;
+    const row = targetRowRefs.current.get(targetId);
+    row?.scrollIntoView({ behavior: "smooth", block: "center" });
+    row?.focus({ preventScroll: true });
+  }, [props.targetLocateRequest?.requestId, props.targetLocateRequest?.targetId]);
 
   async function saveArmorDraft() {
     const parsedConditions = parseDraftConditions(conditions);
     if (!parsedConditions.length) {
       setMessage("请先添加至少一条有效属性最低值。");
+      return;
+    }
+
+    if (props.equipmentTargetStore && props.actions?.onSaveEquipmentTargetStore) {
+      const target = createUserArmorAcquisitionTarget({
+        name: armorName.trim() || formatRuleName(parsedConditions),
+        stat_requirements: Object.fromEntries(parsedConditions.map((condition) => [condition.stat, condition.min])) as Partial<Record<ArmorStatKey, number>>
+      });
+      await saveEquipmentTargets(upsertEquipmentTarget(props.equipmentTargetStore, target), "护甲待刷目标已保存。");
+      setArmorName("");
+      setConditions([{ stat: "", min: "" }]);
       return;
     }
 
@@ -85,6 +119,20 @@ export function VaultTargetRulesPanel(props: {
     const parsedConditions = parseWeaponDraftConditions(weaponConditions, weapon);
     if (!weapon || !parsedConditions.length) {
       setMessage("请先选择武器并添加至少一条 perk 条件。");
+      return;
+    }
+
+    if (props.equipmentTargetStore && props.actions?.onSaveEquipmentTargetStore) {
+      const target = createUserWeaponTarget({
+        name: weaponName.trim() || formatWeaponRuleName(weapon.name, parsedConditions),
+        item_hash: weapon.hash,
+        item_name: weapon.name,
+        perk_requirements: parsedConditions
+      });
+      await saveEquipmentTargets(upsertEquipmentTarget(props.equipmentTargetStore, target), "武器目标已保存，Manifest 校验状态已更新。");
+      setWeaponName("");
+      setSelectedWeaponHash("");
+      setWeaponConditions([{ perkHash: "" }]);
       return;
     }
 
@@ -157,6 +205,33 @@ export function VaultTargetRulesPanel(props: {
     }
   }
 
+  async function saveEquipmentTargets(nextStore: EquipmentTargetStore, successMessage: string) {
+    setIsSaving(true);
+    setMessage("");
+    try {
+      await props.actions?.onSaveEquipmentTargetStore?.(nextStore);
+      setMessage(successMessage);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "装备目标保存失败");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function clearEquipmentTargets() {
+    if (!props.actions?.onClearEquipmentTargetStore) return;
+    setIsSaving(true);
+    setMessage("");
+    try {
+      await props.actions.onClearEquipmentTargetStore();
+      setMessage("已清空独立装备目标库；旧兼容规则未删除。");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "装备目标清空失败");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
   function addCondition() {
     setConditions((current) => [...current, { stat: "", min: "" }]);
   }
@@ -219,7 +294,7 @@ export function VaultTargetRulesPanel(props: {
     <section className="vault-preview wishlist-import-panel vault-target-rules-panel">
       <div className="section-heading compact-heading">
         <div>
-          <p>保存护甲属性最低值或武器 perk 组合目标，命中后会在仓库卡片和装备详情里提示。</p>
+          <p>保存护甲属性最低值或武器 Perk 组合目标，命中后会在仓库筛选、同名整理和装备详情里提示。</p>
         </div>
         <button
           type="button"
@@ -227,7 +302,7 @@ export function VaultTargetRulesPanel(props: {
           disabled={!(rules.armor.length || rules.weapons?.length) || isSaving}
           onClick={() => void clearRules()}
         >
-          清空目标
+          清空兼容规则
         </button>
       </div>
 
@@ -239,8 +314,73 @@ export function VaultTargetRulesPanel(props: {
       </label>
       <p className="muted-copy">当前只会在仓库、同名整理和装备详情里提示命中结果；不会自动收藏、加标签或改动装备。</p>
 
+      {props.equipmentTargetStore ? (
+        <section className="target-rule-list" aria-label="独立装备目标库摘要">
+          <div className="target-rule-row">
+            <div>
+              <strong>独立装备目标库</strong>
+              <span>武器 {equipmentTargetSummary.weaponCount} · 护甲待刷 {equipmentTargetSummary.armorCount} · 待确认 {equipmentTargetSummary.pendingCount}</span>
+            </div>
+            <button type="button" data-ui-kind="button" data-control-variant="secondary" disabled={isSaving || !props.equipmentTargetStore.targets.length} onClick={() => void clearEquipmentTargets()}>清空目标库</button>
+          </div>
+          {props.equipmentTargetStore.targets.map((target) => {
+            const hasGuideSource = target.source.kind === "guide_confirmation";
+            const armorReference = target.kind === "armor_acquisition" && target.planner_context
+              ? {
+                  resultId: target.planner_context.result_id,
+                  candidateId: target.planner_context.candidate_id
+                }
+              : null;
+            return (
+              <div
+                className="target-rule-row"
+                key={target.id}
+                ref={(node) => {
+                  if (node) targetRowRefs.current.set(target.id, node);
+                  else targetRowRefs.current.delete(target.id);
+                }}
+                tabIndex={-1}
+                data-trace-highlight={props.targetLocateRequest?.targetId === target.id ? "true" : undefined}
+              >
+                <div>
+                  <strong>{target.name}</strong>
+                  <span>{formatEquipmentTarget(target)}</span>
+                </div>
+                <div className="target-rule-actions">
+                  {hasGuideSource && props.actions?.onOpenGuide ? (
+                    <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={() => {
+                      setMessage("");
+                      void Promise.resolve(props.actions?.onOpenGuide?.(target.id)).then((opened) => {
+                        if (!opened) setMessage("目标仍可使用，但找不到仍有效的攻略派生关系。");
+                      });
+                    }}>
+                      返回攻略
+                    </button>
+                  ) : null}
+                  {armorReference && props.actions?.onOpenArmorResult ? (
+                    <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={() => props.actions?.onOpenArmorResult?.(armorReference)}>
+                      查看 Planner 引用
+                    </button>
+                  ) : null}
+                  <button
+                    type="button"
+                    data-ui-kind="button"
+                    data-control-variant="secondary"
+                    disabled={isSaving}
+                    onClick={() => void saveEquipmentTargets(removeEquipmentTarget(props.equipmentTargetStore!, target.id), "装备目标已移除。")}
+                  >
+                    移除
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </section>
+      ) : null}
+
       {(rules.armor.length || rules.weapons?.length) ? (
         <div className="target-rule-list">
+          <p className="muted-copy">以下是旧版兼容规则；显式修改时会单向同步到独立装备目标库。</p>
           {rules.armor.map((rule) => (
             <div className="target-rule-row" key={rule.id}>
               <div>
@@ -430,6 +570,41 @@ export function VaultTargetRulesPanel(props: {
       </details>
     </section>
   );
+}
+
+function summarizeEquipmentTargets(store: EquipmentTargetStore | null | undefined): {
+  weaponCount: number;
+  armorCount: number;
+  pendingCount: number;
+} {
+  const targets = store?.targets ?? [];
+  const pendingCount = targets.filter((target) => target.kind === "weapon" && target.weapon.status !== "verified").length;
+  return {
+    weaponCount: targets.filter((target) => target.kind === "weapon").length,
+    armorCount: targets.filter((target) => target.kind === "armor_acquisition").length,
+    pendingCount
+  };
+}
+
+function formatEquipmentTarget(target: EquipmentTargetStore["targets"][number]): string {
+  if (target.kind === "armor_acquisition") {
+    const conditions = Object.entries(target.stat_requirements)
+      .map(([stat, minimum]) => `${armorStatLabels[stat as ArmorStatKey]} ${minimum}+`);
+    if (target.minimum_total !== undefined) conditions.push(`总值 ${target.minimum_total}+`);
+    const basis = target.stat_basis === "base" ? "基础属性" : "当前属性";
+    const planner = target.planner_context
+      ? ` · ${target.planner_context.archetype_name} · ${armorStatLabels[target.planner_context.tertiary_stat]}第三属性 · ${target.planner_context.tuning_label}${target.planner_context.set_name ? ` · ${target.planner_context.set_name}` : ""}`
+      : "";
+    return `${target.source.label} · ${basis}：${conditions.join(" / ")}${planner}`;
+  }
+  const status = target.weapon.status === "verified"
+    ? `Manifest 已确认 ${target.weapon.item_name}`
+    : target.weapon.status === "ambiguous"
+      ? `${target.weapon.candidates.length} 个同名版本待选择`
+      : target.weapon.reason;
+  return `${target.source.label} · ${status} · ${target.perk_requirements.length
+    ? target.perk_requirements.map((perk) => perk.perk_name).join(" + ")
+    : "任意 Roll"}`;
 }
 
 function parseDraftConditions(conditions: DraftCondition[]): LocalArmorTargetCondition[] {

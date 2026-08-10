@@ -2,7 +2,6 @@ import type { AccountItemSummary } from "../account/summary.js";
 import type {
   BuildGuideMatchResult,
   BuildGuideRequirement,
-  GuideArmorStatRequirement,
   GuideMatchedItem,
   GuideWeaponRequirement
 } from "./guideSchema.js";
@@ -13,15 +12,6 @@ export type MatchBuildGuideToAccountInput = {
   targetCharacterId?: string;
 };
 
-const armorStatToAccountKey: Record<GuideArmorStatRequirement["stat"], keyof NonNullable<AccountItemSummary["armor_stats"]>> = {
-  mobility: "class",
-  resilience: "health",
-  recovery: "weapon",
-  discipline: "grenade",
-  intellect: "super",
-  strength: "melee"
-};
-
 export function matchBuildGuideToAccount(input: MatchBuildGuideToAccountInput): BuildGuideMatchResult {
   const matchedItems: GuideMatchedItem[] = [];
   const alternativeItems: GuideMatchedItem[] = [];
@@ -29,11 +19,14 @@ export function matchBuildGuideToAccount(input: MatchBuildGuideToAccountInput): 
   const needsConfirmation = [...input.requirement.needs_confirmation];
 
   for (const exotic of input.requirement.exotic_armor) {
-    const matched = findByName(input.items, exotic.name, (item) => item.group_key === "armor");
-    if (matched) {
-      matchedItems.push(toMatchedItem(matched, "matched", "命中异域护甲要求"));
-    } else {
+    const matches = findAllByName(input.items, exotic.name, (item) => item.group_key === "armor");
+    if (!matches.length) {
       missingRequirements.push(`缺少异域护甲：${exotic.name}`);
+    } else if (matches.length === 1) {
+      matchedItems.push(toMatchedItem(matches[0]!, "matched", "命中异域护甲要求"));
+    } else {
+      alternativeItems.push(...matches.map((item) => toMatchedItem(item, "needs_confirmation", "同名异域护甲需要选择具体实例")));
+      needsConfirmation.push(`${exotic.name}匹配到 ${matches.length} 个账号实例，需要选择具体实例`);
     }
   }
 
@@ -41,19 +34,9 @@ export function matchBuildGuideToAccount(input: MatchBuildGuideToAccountInput): 
     matchWeaponRequirement(weapon, input.items, matchedItems, alternativeItems, missingRequirements, needsConfirmation);
   }
 
-  for (const stat of input.requirement.armor_stats) {
-    const accountStatKey = armorStatToAccountKey[stat.stat];
-    const matched = input.items.find((item) => item.group_key === "armor" && (item.armor_stats?.[accountStatKey] ?? 0) >= stat.minimum);
-    if (matched) {
-      matchedItems.push(toMatchedItem(matched, "matched", `满足 ${formatStat(stat.stat)} ${stat.minimum}`));
-    } else {
-      missingRequirements.push(`缺少 ${formatStat(stat.stat)} ${stat.minimum} 的护甲`);
-    }
-  }
-
   const dedupedMatchedItems = dedupeItems(matchedItems);
   const dedupedAlternatives = dedupeItems(alternativeItems);
-  const summary = `已满足 ${dedupedMatchedItems.length} 项，缺少 ${missingRequirements.length} 项，需要确认 ${needsConfirmation.length} 项。`;
+  const summary = `已匹配 ${dedupedMatchedItems.length} 件装备，识别 ${input.requirement.armor_stats.length} 项聚合护甲目标，缺少 ${missingRequirements.length} 项，需要确认 ${needsConfirmation.length} 项。`;
 
   return {
     requirement: input.requirement,
@@ -83,29 +66,52 @@ function matchWeaponRequirement(
     return;
   }
 
-  const matched = findByName(items, weapon.name, (item) => item.group_key === "weapons");
-  if (!matched) {
+  const namedItems = findAllByName(items, weapon.name, (item) => item.group_key === "weapons");
+  if (!namedItems.length) {
     missingRequirements.push(`缺少武器：${weapon.name}`);
     return;
   }
 
-  const missingPerks = (weapon.perk_names ?? []).filter((perkName) => !hasPlug(matched, perkName));
-  if (missingPerks.length) {
-    alternativeItems.push(toMatchedItem(matched, "partial", `缺少 perk：${missingPerks.join("、")}`));
-    missingRequirements.push(`${weapon.name} 缺少 perk：${missingPerks.join("、")}`);
+  const evaluated = namedItems.map((item) => ({
+    item,
+    missingPerks: (weapon.perk_names ?? []).filter((perkName) => !hasPlug(item, perkName))
+  }));
+  const complete = evaluated.filter((entry) => entry.missingPerks.length === 0);
+  const onlyComplete = complete[0];
+  if (complete.length === 1 && onlyComplete) {
+    matchedItems.push(toMatchedItem(
+      onlyComplete.item,
+      "matched",
+      weapon.perk_names?.length ? "唯一命中武器和 perk 要求" : "唯一命中武器要求"
+    ));
+    return;
+  }
+  if (complete.length > 1) {
+    alternativeItems.push(...complete.map((entry) => toMatchedItem(
+      entry.item,
+      "needs_confirmation",
+      weapon.perk_names?.length ? "多个实例命中武器和 perk 要求" : "多个同名实例命中武器要求"
+    )));
+    needsConfirmation.push(`${weapon.name}匹配到 ${complete.length} 个完整账号实例，需要选择具体实例`);
     return;
   }
 
-  matchedItems.push(toMatchedItem(matched, "matched", weapon.perk_names?.length ? "命中武器和 perk 要求" : "命中武器要求"));
+  alternativeItems.push(...evaluated.map((entry) => toMatchedItem(
+    entry.item,
+    "partial",
+    `缺少 perk：${entry.missingPerks.join("、")}`
+  )));
+  const missingPerks = [...new Set(evaluated.flatMap((entry) => entry.missingPerks))];
+  missingRequirements.push(`${weapon.name} 缺少 perk：${missingPerks.join("、")}`);
 }
 
-function findByName(
+function findAllByName(
   items: AccountItemSummary[],
   name: string,
   predicate: (item: AccountItemSummary) => boolean
-): AccountItemSummary | undefined {
+): AccountItemSummary[] {
   const normalizedName = normalize(name);
-  return items.find((item) => predicate(item) && normalize(item.name).includes(normalizedName));
+  return items.filter((item) => predicate(item) && normalize(item.name).includes(normalizedName));
 }
 
 function findWeaponAlternatives(items: AccountItemSummary[], name: string): AccountItemSummary[] {
@@ -129,6 +135,7 @@ function toMatchedItem(item: AccountItemSummary, status: GuideMatchedItem["statu
     name: item.name,
     bucket_name: item.bucket_name,
     item_type: item.item_type,
+    group_key: item.group_key,
     status,
     reason
   };
@@ -148,16 +155,4 @@ function dedupeItems(items: GuideMatchedItem[]): GuideMatchedItem[] {
 
 function normalize(value: string): string {
   return value.trim().toLocaleLowerCase();
-}
-
-function formatStat(stat: GuideArmorStatRequirement["stat"]): string {
-  const labels: Record<GuideArmorStatRequirement["stat"], string> = {
-    mobility: "敏捷",
-    resilience: "韧性",
-    recovery: "恢复",
-    discipline: "纪律",
-    intellect: "智慧",
-    strength: "力量"
-  };
-  return labels[stat];
 }

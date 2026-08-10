@@ -23,7 +23,8 @@ export type SettingsActionLogTypeFilter =
   | "loadout-equip"
   | "loadout-snapshot"
   | "loadout-clear"
-  | "loadout-update-identifiers";
+  | "loadout-update-identifiers"
+  | "execution-verification";
 export type SettingsDensity = "compact" | "standard" | "comfortable";
 
 export type SettingsLanguagePreferences = {
@@ -362,18 +363,21 @@ function DiagnosticsSection(props: any) {
     <div className="settings-log-toolbar">
       <div className="settings-log-filters">
         <label className="compact-field" data-info-priority="support" data-text-tone="meta">{settingsText(copy, "结果")}<select data-ui-kind="field" value={props.resultFilter} onChange={(event) => props.onResultFilterChange(event.target.value as SettingsActionLogResultFilter)}><option value="all">{settingsText(copy, "全部")}</option><option value="success">{settingsText(copy, "成功")}</option><option value="failed">{settingsText(copy, "失败")}</option></select></label>
-        <label className="compact-field" data-info-priority="support" data-text-tone="meta">{settingsText(copy, "类型")}<select data-ui-kind="field" value={props.typeFilter} onChange={(event) => props.onTypeFilterChange(event.target.value as SettingsActionLogTypeFilter)}><option value="all">{settingsText(copy, "全部")}</option><option value="set-lock">{settingsText(copy, "锁定状态")}</option><option value="equip">{settingsText(copy, "装备")}</option><option value="insert-socket-plug">{settingsText(copy, "切换武器 Perk")}</option><option value="transfer">{settingsText(copy, "仓库转移")}</option><option value="postmaster-pull">{settingsText(copy, "邮政官取回")}</option><option value="loadout-equip">{settingsText(copy, "应用游戏内配装栏")}</option><option value="loadout-snapshot">{settingsText(copy, "覆盖游戏内配装栏")}</option><option value="loadout-clear">{settingsText(copy, "清空游戏内配装栏")}</option><option value="loadout-update-identifiers">{settingsText(copy, "更新游戏内配装标识")}</option></select></label>
+        <label className="compact-field" data-info-priority="support" data-text-tone="meta">{settingsText(copy, "类型")}<select data-ui-kind="field" value={props.typeFilter} onChange={(event) => props.onTypeFilterChange(event.target.value as SettingsActionLogTypeFilter)}><option value="all">{settingsText(copy, "全部")}</option><option value="set-lock">{settingsText(copy, "锁定状态")}</option><option value="equip">{settingsText(copy, "装备")}</option><option value="insert-socket-plug">{settingsText(copy, "切换武器 Perk")}</option><option value="transfer">{settingsText(copy, "仓库转移")}</option><option value="postmaster-pull">{settingsText(copy, "邮政官取回")}</option><option value="loadout-equip">{settingsText(copy, "应用游戏内配装栏")}</option><option value="loadout-snapshot">{settingsText(copy, "覆盖游戏内配装栏")}</option><option value="loadout-clear">{settingsText(copy, "清空游戏内配装栏")}</option><option value="loadout-update-identifiers">{settingsText(copy, "更新游戏内配装标识")}</option><option value="execution-verification">{settingsText(copy, "执行验证")}</option></select></label>
       </div>
       <SettingsActions><SettingsButton data-control-variant="secondary" onClick={props.onRefreshDiagnostics}>{settingsText(copy, "运行诊断")}</SettingsButton><SettingsButton data-control-variant="secondary" onClick={props.onRefreshLog}>{settingsText(copy, "刷新日志")}</SettingsButton></SettingsActions>
     </div>
     {props.entries.length ? (
       <div className="settings-log-list" data-surface="list">
         {props.entries.map((entry: ActionLogEntry) => {
-          const status = entry.ok ? "success" : "error";
+          const status = entry.verification_status === "partial" || entry.verification_status === "unavailable"
+            ? "warning"
+            : entry.ok ? "success" : "error";
+          const statusLabel = actionLogStatusLabel(entry, copy);
           return <div className="settings-log-entry" data-surface="row" data-ui-kind="operation-log" data-status={status} key={entry.id}>
             <div><strong data-ui-part="value" data-info-priority="context" data-text-tone="primary">{formatActionLogTitle(entry, copy)}</strong><time data-ui-part="detail" data-info-priority="support" data-text-tone="meta">{formatFullDateTime(entry.created_at, "-")}</time></div>
-            <span className="settings-log-message" data-ui-part="detail" data-info-priority="reading" data-text-tone="body">{entry.message ?? "-"}</span>
-            <div className="settings-log-actions" data-ui-part="action"><span className="settings-status-badge" data-ui-kind="status-chip" data-ui-part="state" data-info-priority="support" data-text-tone="status" data-status={status}>{entry.ok ? settingsText(copy, "成功") : settingsText(copy, "失败")}</span>{!entry.ok ? <SettingsButton data-control-variant="secondary" onClick={() => props.onCopyEntry(entry)}>{settingsText(copy, "复制诊断")}</SettingsButton> : null}</div>
+            <span className="settings-log-message" data-ui-part="detail" data-info-priority="reading" data-text-tone="body">{entry.message ?? "-"}{entry.execution_id ? <small title={entry.execution_id}> · {settingsText(copy, "执行")} {formatActionTraceReference(entry.execution_id)}{entry.step_id ? ` / ${settingsText(copy, "步骤")} ${entry.step_id}` : ""}</small> : null}</span>
+            <div className="settings-log-actions" data-ui-part="action"><span className="settings-status-badge" data-ui-kind="status-chip" data-ui-part="state" data-info-priority="support" data-text-tone="status" data-status={status}>{statusLabel}</span>{!entry.ok ? <SettingsButton data-control-variant="secondary" onClick={() => props.onCopyEntry(entry)}>{settingsText(copy, "复制诊断")}</SettingsButton> : null}</div>
           </div>;
         })}
       </div>
@@ -420,6 +424,8 @@ function formatUpdateCheckedAt(value: string | undefined, copy: SettingsCopy): s
 function formatAppUpdateProgress(snapshot: AppUpdateSnapshot | null): number { if (!snapshot) return 0; if (snapshot.status === "downloaded") return 100; return snapshot.status === "downloading" ? Math.max(8, Math.min(100, snapshot.progress_percent ?? 8)) : 0; }
 function formatAccountSnapshot(accountSummary: AccountSummary | null, copy: SettingsCopy): string { return accountSummary ? `${settingsText(copy, "账号快照")} · ${settingsText(copy, "角色")} ${accountSummary.characters.length} · ${settingsText(copy, "仓库")} ${accountSummary.vault.item_count}` : settingsText(copy, "未读取账号"); }
 function formatAccountLoadedAt(loadedAt: Date | null, accountSummary: AccountSummary | null, copy: SettingsCopy): string { if (!accountSummary) return settingsText(copy, "未读取"); if (!loadedAt) return settingsText(copy, "本次启动已读取"); return formatFullDateTime(loadedAt, settingsText(copy, "本次启动已读取")); }
-function formatActionLogTitle(entry: ActionLogEntry, copy: SettingsCopy): string { const labels: Record<string, string> = { "set-lock": settingsText(copy, "锁定状态"), equip: settingsText(copy, "装备"), "insert-socket-plug": settingsText(copy, "切换武器 Perk"), transfer: settingsText(copy, "仓库转移"), "postmaster-pull": settingsText(copy, "邮政官取回"), "loadout-equip": settingsText(copy, "应用游戏内配装栏"), "loadout-snapshot": settingsText(copy, "覆盖游戏内配装栏") }; return [entry.ok ? settingsText(copy, "成功") : settingsText(copy, "失败"), labels[entry.action], entry.item_name].filter(Boolean).join(" / "); }
+function formatActionLogTitle(entry: ActionLogEntry, copy: SettingsCopy): string { const labels: Record<string, string> = { "set-lock": settingsText(copy, "锁定状态"), equip: settingsText(copy, "装备"), "insert-socket-plug": settingsText(copy, "切换武器 Perk"), transfer: settingsText(copy, "仓库转移"), "postmaster-pull": settingsText(copy, "邮政官取回"), "loadout-equip": settingsText(copy, "应用游戏内配装栏"), "loadout-snapshot": settingsText(copy, "覆盖游戏内配装栏"), "execution-verification": settingsText(copy, "执行验证") }; return [actionLogStatusLabel(entry, copy), labels[entry.action], entry.item_name].filter(Boolean).join(" / "); }
+function formatActionTraceReference(value: string): string { const suffix = value.split(":").at(-1) ?? value; return suffix.slice(0, 12); }
+function actionLogStatusLabel(entry: ActionLogEntry, copy: SettingsCopy): string { if (entry.verification_status === "partial") return settingsText(copy, "部分完成"); if (entry.verification_status === "unavailable") return settingsText(copy, "不可用"); if (entry.verification_status === "mismatch") return settingsText(copy, "不一致"); return entry.ok ? settingsText(copy, "成功") : settingsText(copy, "失败"); }
 function filteredActionLog(entries: ActionLogEntry[], result: SettingsActionLogResultFilter, action: SettingsActionLogTypeFilter): ActionLogEntry[] { return entries.filter((entry) => (result === "all" || (result === "success") === entry.ok) && (action === "all" || entry.action === action)); }
 function interfaceLocaleToBungieLocale(locale: SettingsLanguagePreferences["interfaceLocale"]): SettingsLanguagePreferences["bungieLocale"] { return locale === "en-US" ? "en" : "zh-chs"; }

@@ -9,17 +9,37 @@ import {
 import type { CharacterSummary } from "@d2-tools/core/account/summary";
 import type { CreateLocalLoadoutPlanInput, LocalLoadoutPlan } from "@d2-tools/core/loadouts/plans";
 import { matchLocalLoadoutPlan } from "@d2-tools/core/loadouts/plans";
-import { createLocalLoadoutPlanExecutionPlan, type LocalLoadoutPlanExecutionPlan } from "@d2-tools/core/loadouts/localPlanExecution";
+import {
+  createLocalLoadoutPlanExecutionPlan,
+  validateLocalLoadoutPlanExecutionPlan,
+  type LocalLoadoutPlanExecutionPlan
+} from "@d2-tools/core/loadouts/localPlanExecution";
 import type { DimLoadoutImportPreview } from "@d2-tools/core/loadouts/dimImport";
 import type { BuildGuideLoadoutDraft } from "@d2-tools/core/assistant/guideSchema";
+import type {
+  GuideArmorConstraintDraftArtifact,
+  GuideLoadoutCandidatesArtifact
+} from "@d2-tools/app/guides";
+import type {
+  AssistantArtifact,
+  AssistantEquipmentTargetCandidatesArtifact
+} from "@d2-tools/app/capabilities";
+import type { ActionVerificationStatus } from "@d2-tools/core/actions/log";
 import { api } from "../../api/client";
 import { useAccountSummaryStore } from "../../shared/stores/accountEntityStore";
+
+const legacyGuideTaskContextStorageKey = "d2-tools.assistant.task-context";
 
 export type LocalPlanExecutionReport = {
   plan: LocalLoadoutPlanExecutionPlan;
   completed_steps: string[];
   failed_step?: string;
   error?: string;
+  confirmation_id?: string;
+  execution_id?: string;
+  verification_status?: ActionVerificationStatus;
+  verification_logged?: boolean;
+  preflight_verified: boolean;
   refresh_verified: boolean;
 };
 
@@ -36,6 +56,10 @@ export function useLocalLoadoutPlans(input: {
   const [dimPreview, setDimPreview] = useState<DimLoadoutImportPreview | null>(null);
   const [isPreviewingDim, setIsPreviewingDim] = useState(false);
   const [isImportingGuide, setIsImportingGuide] = useState(false);
+  const [legacyGuideText, setLegacyGuideText] = useState(readLegacyGuideText);
+  const [assistantPrefill, setAssistantPrefill] = useState<(
+    (AssistantArtifact | GuideLoadoutCandidatesArtifact) & { request_id: number }
+  ) | null>(null);
   const [executionReport, setExecutionReport] = useState<LocalPlanExecutionReport | null>(null);
   const [isExecuting, setIsExecuting] = useState(false);
 
@@ -158,15 +182,27 @@ export function useLocalLoadoutPlans(input: {
 
   const dismissDimImport = useCallback(() => setDimPreview(null), []);
 
-  const startFromGuideDraft = useCallback((guide: BuildGuideLoadoutDraft) => {
+  const startFromGuideDraft = useCallback((
+    guide: BuildGuideLoadoutDraft,
+    assistantArtifact?: AssistantArtifact
+  ) => {
     const target = accountSummary?.characters.find((character) => character.character_id === guide.character_id) ?? null;
     setSelectedPlanId("");
     setEditingPlanId(null);
     setDraft({
-      name: guide.name || "攻略配装",
+      name: assistantArtifact?.kind === "armor_solution_comparison"
+        ? assistantArtifact.title
+        : guide.name || "攻略配装",
       class_name: guide.class_name || target?.class_name || "未限定职业",
       target_character_id: guide.character_id || target?.character_id,
-      source: { kind: "guide", label: "攻略解析" },
+      source: {
+        kind: assistantArtifact?.kind === "armor_solution_comparison" ? "armor-plan" : "guide",
+        label: assistantArtifact?.kind === "armor_solution_comparison"
+          ? "AI 护甲方案交接"
+          : assistantArtifact
+            ? "AI 工作台交接"
+            : "攻略解析"
+      },
       item_targets: guide.items.map((item, index) => ({
         slot: item.bucket_name || `攻略目标 ${index + 1}`,
         item_hash: item.hash,
@@ -174,11 +210,27 @@ export function useLocalLoadoutPlans(input: {
         plug_hashes: [],
         notes: item.reason
       })),
+      ...(guide.armor_constraint_draft
+        ? { armor_constraints: guide.armor_constraint_draft.constraints }
+        : {}),
       notes: guide.notes.join("\n") || undefined,
       guidance: {
         raw_text: guide.raw_text,
-        warnings: guide.missing_requirements,
-        evidence: guide.notes
+        warnings: [
+          ...guide.missing_requirements,
+          ...(guide.armor_constraint_draft?.warnings ?? []),
+          ...(guide.armor_constraint_draft?.confirmations.map((item) => `待确认：${item}`) ?? [])
+        ],
+        evidence: [
+          ...guide.notes,
+          ...(assistantArtifact ? [
+            `AI 上下文快照：${assistantArtifact.source_snapshot_id}`,
+            ...assistantArtifact.result_ids.map((resultId) => `AI 数据结果：${resultId}`),
+            ...(assistantArtifact.kind === "armor_solution_comparison"
+              ? [`Armor 底层规划结果：${assistantArtifact.source_result_id}`]
+              : [])
+          ] : [])
+        ]
       }
     });
     setDimPreview(null);
@@ -187,7 +239,7 @@ export function useLocalLoadoutPlans(input: {
   }, [accountSummary]);
 
   const importGuideText = useCallback(async (rawText: string, character: CharacterSummary | null) => {
-    if (!character || !rawText.trim() || isImportingGuide) return;
+    if (!character || !rawText.trim() || isImportingGuide) return false;
     setIsImportingGuide(true);
     setError("");
     try {
@@ -198,14 +250,204 @@ export function useLocalLoadoutPlans(input: {
         characterId: character.character_id,
         fallbackName: rawText.trim().split(/\r?\n/).find(Boolean) ?? "攻略配装"
       });
-      startFromGuideDraft(guide);
+      const assistantArtifact = assistantPrefill
+        && "raw_text" in assistantPrefill
+        && assistantPrefill.raw_text === rawText
+        ? assistantPrefill
+        : undefined;
+      startFromGuideDraft(guide, assistantArtifact);
+      clearLegacyGuideText();
+      setLegacyGuideText("");
+      setAssistantPrefill(null);
+      return true;
     } catch (guideError) {
       const message = guideError instanceof Error ? guideError.message : String(guideError);
       setError(`攻略解析失败：${message}`);
+      return false;
     } finally {
       setIsImportingGuide(false);
     }
-  }, [isImportingGuide, startFromGuideDraft]);
+  }, [assistantPrefill, isImportingGuide, startFromGuideDraft]);
+
+  const acceptAssistantEquipmentTargets = useCallback((
+    artifact: AssistantEquipmentTargetCandidatesArtifact,
+    candidateIds: string[],
+    character: CharacterSummary | null
+  ) => {
+    if (!character) return false;
+    const selectedIds = new Set(candidateIds);
+    const candidates = artifact.candidates.filter((candidate) => selectedIds.has(candidate.candidate_id));
+    if (!candidates.length) return false;
+    setSelectedPlanId("");
+    setEditingPlanId(null);
+    setDraft({
+      name: artifact.title || "AI 装备目标",
+      class_name: character.class_name,
+      target_character_id: character.character_id,
+      source: { kind: "assistant-targets", label: "AI 装备目标交接" },
+      item_targets: candidates.map((candidate) => ({
+        slot: candidate.bucket_name
+          ? `${candidate.bucket_name} · ${candidate.name}`
+          : candidate.name,
+        item_hash: candidate.item_hash,
+        ...(candidate.status === "owned-instance" && candidate.instance_id
+          ? { selected_instance_id: candidate.instance_id }
+          : {}),
+        plug_hashes: [],
+        notes: candidate.status === "owned-instance"
+          ? `AI 装备目标：${candidate.name}`
+          : `AI 装备目标：${candidate.name}（仅定义，待获取并选择实例）`
+      })),
+      guidance: {
+        raw_text: artifact.raw_text,
+        warnings: candidates
+          .filter((candidate) => candidate.status === "definition-only")
+          .map((candidate) => `${candidate.name} 当前只有装备定义，获得实例后仍需在方案中选择。`),
+        evidence: [
+          `AI 上下文快照：${artifact.source_snapshot_id}`,
+          ...[...new Set(candidates.map((candidate) => candidate.source_result_id))]
+            .map((resultId) => `AI 数据结果：${resultId}`)
+        ]
+      }
+    });
+    setDimPreview(null);
+    setExecutionReport(null);
+    setAssistantPrefill(null);
+    setError("");
+    return true;
+  }, []);
+
+  const prefillFromAssistant = useCallback((artifact: AssistantArtifact) => {
+    setAssistantPrefill((current) => ({
+      ...artifact,
+      request_id: (current?.request_id ?? 0) + 1
+    }));
+    setError("");
+  }, []);
+
+  const prefillFromGuideLoadoutCandidates = useCallback((artifact: GuideLoadoutCandidatesArtifact) => {
+    setAssistantPrefill((current) => ({
+      ...artifact,
+      request_id: (current?.request_id ?? 0) + 1
+    }));
+    setError("");
+  }, []);
+
+  const dismissAssistantPrefill = useCallback(() => {
+    setAssistantPrefill(null);
+  }, []);
+
+  const startFromGuideArmorConstraintDraft = useCallback((
+    artifact: GuideArmorConstraintDraftArtifact,
+    character: CharacterSummary | null
+  ) => {
+    setSelectedPlanId("");
+    setEditingPlanId(null);
+    setDraft({
+      name: `${artifact.guide_title} · 护甲约束`,
+      class_name: artifact.class_name || character?.class_name || "未限定职业",
+      ...(character ? { target_character_id: character.character_id } : {}),
+      source: { kind: "guide", source_id: artifact.artifact_id, label: "攻略 Armor 约束交接" },
+      item_targets: [],
+      armor_constraints: artifact.constraints,
+      guidance: {
+        raw_text: artifact.summary,
+        warnings: [
+          ...artifact.warnings,
+          ...artifact.confirmations.map((item) => `待确认：${item}`)
+        ],
+        evidence: [
+          `攻略文档：${artifact.guide_document_id}`,
+          `攻略正文快照：${artifact.source_snapshot_id}`,
+          `攻略提取：${artifact.extraction_id}`,
+          `护甲约束成果：${artifact.artifact_id}`
+        ]
+      }
+    });
+    setDimPreview(null);
+    setExecutionReport(null);
+    setAssistantPrefill(null);
+    setError("");
+  }, []);
+
+  const acceptGuideLoadoutCandidates = useCallback((
+    artifact: GuideLoadoutCandidatesArtifact,
+    candidateIds: string[]
+  ) => {
+    if (!accountSummary
+      || accountSummary.destiny_membership_id !== artifact.account_scope.destiny_membership_id
+      || accountSummary.membership_type !== artifact.account_scope.membership_type) {
+      setError("配装候选属于另一个账号快照，请回攻略页重新生成。");
+      return false;
+    }
+    const character = accountSummary.characters.find((entry) => (
+      entry.character_id === artifact.account_scope.character_id
+    ));
+    if (!character) {
+      setError("配装候选绑定的角色已不在当前账号中，请重新生成。");
+      return false;
+    }
+    const selectedIds = new Set(candidateIds);
+    const candidates = artifact.candidates.filter((candidate) => selectedIds.has(candidate.candidate_id));
+    const currentInstanceIds = new Set([
+      ...accountSummary.vault.items,
+      ...accountSummary.characters.flatMap((entry) => [
+        ...entry.equipped_items,
+        ...entry.inventory_items,
+        ...entry.postmaster_items
+      ])
+    ].flatMap((item) => item.instance_id ? [item.instance_id] : []));
+    const missingInstances = candidates.filter((candidate) => (
+      candidate.item.instance_id && !currentInstanceIds.has(candidate.item.instance_id)
+    ));
+    if (missingInstances.length) {
+      setError(`有 ${missingInstances.length} 个攻略候选实例已不在当前账号快照中，请重新生成。`);
+      return false;
+    }
+    if (!candidates.length && !artifact.armor_constraint_draft) {
+      setError("当前没有已选择的装备候选或 Armor 约束，未生成空白草稿。");
+      return false;
+    }
+    setSelectedPlanId("");
+    setEditingPlanId(null);
+    setDraft({
+      name: `${artifact.guide_title} · 配装候选`,
+      class_name: artifact.account_scope.character_class || character.class_name,
+      target_character_id: character.character_id,
+      source: { kind: "guide", source_id: artifact.artifact_id, label: "攻略配装候选交接" },
+      item_targets: candidates.map((candidate, index) => ({
+        slot: candidate.item.bucket_name || `攻略候选 ${index + 1}`,
+        item_hash: candidate.item.hash,
+        ...(candidate.item.instance_id ? { selected_instance_id: candidate.item.instance_id } : {}),
+        plug_hashes: [],
+        notes: candidate.item.reason
+      })),
+      ...(artifact.armor_constraint_draft
+        ? { armor_constraints: artifact.armor_constraint_draft.constraints }
+        : {}),
+      guidance: {
+        raw_text: artifact.summary,
+        warnings: [
+          ...artifact.missing_requirements,
+          ...artifact.confirmations.map((item) => `待确认：${item}`),
+          ...(artifact.armor_constraint_draft?.warnings ?? []),
+          ...(artifact.armor_constraint_draft?.confirmations.map((item) => `待确认：${item}`) ?? [])
+        ],
+        evidence: [
+          `攻略文档：${artifact.guide_document_id}`,
+          `攻略正文快照：${artifact.source_snapshot_id}`,
+          `攻略提取：${artifact.extraction_id}`,
+          `配装候选成果：${artifact.artifact_id}`,
+          `账号匹配指纹：${artifact.account_scope.fingerprint}`
+        ]
+      }
+    });
+    setDimPreview(null);
+    setExecutionReport(null);
+    setAssistantPrefill(null);
+    setError("");
+    return true;
+  }, [accountSummary]);
 
   const executeDraft = useCallback(async () => {
     if (!draft || !accountSummary || !draft.target_character_id || isExecuting) return;
@@ -224,7 +466,7 @@ export function useLocalLoadoutPlans(input: {
     }
     const plan = createLocalLoadoutPlanExecutionPlan({ plan: draft, account: accountSummary, target_character_id: target.character_id });
     if (!plan.executable_steps.length) {
-      setExecutionReport({ plan, completed_steps: [], refresh_verified: false });
+      setExecutionReport({ plan, completed_steps: [], preflight_verified: false, refresh_verified: false });
       setError(plan.gaps.length ? `没有可执行步骤：${plan.gaps.join("；")}` : "方案没有已确认的可执行实例。");
       return;
     }
@@ -233,27 +475,78 @@ export function useLocalLoadoutPlans(input: {
       setError("d2-tools 本地写操作开关未开启。请到设置页开启后再执行。");
       return;
     }
-    if (!window.confirm(`将按顺序执行 ${plan.executable_steps.length} 个步骤。${plan.gaps.length ? `\n仍有 ${plan.gaps.length} 项缺口不会执行。` : ""}\n任一步失败会停止后续操作并刷新账号。继续吗？`)) {
+    if (!window.confirm(`计划 ${plan.plan_id}\n将按顺序执行 ${plan.executable_steps.length} 个步骤。${plan.gaps.length ? `\n仍有 ${plan.gaps.length} 项缺口不会执行。` : ""}\n确认后先刷新账号复核；计划变化时不会执行任何写操作。任一步失败会停止后续操作并再次刷新账号。继续吗？`)) {
       return;
     }
 
+    const confirmationId = createTraceId("local-loadout-confirmation");
+    const executionId = createTraceId("local-loadout-execution");
     setIsExecuting(true);
     setError("");
+    let executionAccount = accountSummary;
+    try {
+      const latestAccount = input.refreshAccount
+        ? await input.refreshAccount()
+        : await api.getAccountSummary({ force: true });
+      if (!latestAccount) throw new Error("执行前账号刷新没有返回可用快照");
+      const observedPlan = createLocalLoadoutPlanExecutionPlan({
+        plan: draft,
+        account: latestAccount,
+        target_character_id: target.character_id
+      });
+      const validation = validateLocalLoadoutPlanExecutionPlan(plan, observedPlan);
+      if (validation.status === "stale") {
+        const message = `方案在确认后已失效：${validation.reasons.join("；")}。请检查最新账号状态并重新确认。`;
+        setExecutionReport({
+          plan,
+          completed_steps: [],
+          error: message,
+          confirmation_id: confirmationId,
+          execution_id: executionId,
+          preflight_verified: false,
+          refresh_verified: false
+        });
+        setError(message);
+        setIsExecuting(false);
+        return;
+      }
+      executionAccount = latestAccount;
+    } catch (preflightError) {
+      const message = `执行前账号复核失败：${preflightError instanceof Error ? preflightError.message : String(preflightError)}`;
+      setExecutionReport({
+        plan,
+        completed_steps: [],
+        error: message,
+        confirmation_id: confirmationId,
+        execution_id: executionId,
+        preflight_verified: false,
+        refresh_verified: false
+      });
+      setError(message);
+      setIsExecuting(false);
+      return;
+    }
     const completedSteps: string[] = [];
     let failedStep: string | undefined;
     let failure: string | undefined;
     let refreshedAccount = null as typeof accountSummary | null;
     try {
       for (const step of plan.executable_steps) {
+        const trace = {
+          plan_id: plan.plan_id,
+          confirmation_id: confirmationId,
+          execution_id: executionId,
+          step_id: step.id
+        };
         try {
           if (step.kind === "transfer-to-vault") {
-            await api.transferItem({ membership_type: accountSummary.membership_type, character_id: step.character_id, item_id: step.item_instance_id, item_reference_hash: step.item_hash, item_name: step.item_name, transfer_to_vault: true });
+            await api.transferItem({ membership_type: executionAccount.membership_type, character_id: step.character_id, item_id: step.item_instance_id, item_reference_hash: step.item_hash, item_name: step.item_name, transfer_to_vault: true, trace });
           } else if (step.kind === "transfer-from-vault") {
-            await api.transferItem({ membership_type: accountSummary.membership_type, character_id: step.character_id, item_id: step.item_instance_id, item_reference_hash: step.item_hash, item_name: step.item_name, transfer_to_vault: false });
+            await api.transferItem({ membership_type: executionAccount.membership_type, character_id: step.character_id, item_id: step.item_instance_id, item_reference_hash: step.item_hash, item_name: step.item_name, transfer_to_vault: false, trace });
           } else if (step.kind === "equip" || step.kind === "equip-source-replacement") {
-            await api.equipItem({ membership_type: accountSummary.membership_type, character_id: step.character_id, item_id: step.item_instance_id, item_name: step.item_name });
+            await api.equipItem({ membership_type: executionAccount.membership_type, character_id: step.character_id, item_id: step.item_instance_id, item_name: step.item_name, trace });
           } else if (step.socket_index !== undefined && step.plug_hash !== undefined) {
-            await api.insertSocketPlug({ membership_type: accountSummary.membership_type, character_id: step.character_id, item_id: step.item_instance_id, item_name: step.item_name, socket_index: step.socket_index, plug_hash: step.plug_hash });
+            await api.insertSocketPlug({ membership_type: executionAccount.membership_type, character_id: step.character_id, item_id: step.item_instance_id, item_name: step.item_name, socket_index: step.socket_index, plug_hash: step.plug_hash, trace });
           }
           completedSteps.push(step.id);
         } catch (stepError) {
@@ -276,9 +569,38 @@ export function useLocalLoadoutPlans(input: {
         .filter((item): item is string => Boolean(item));
       const verified = !failedStep
         && Boolean(targetAfterRefresh)
-        && matchLocalLoadoutPlan(draft, refreshedAccount ?? accountSummary).selected_count === draft.item_targets.length
+        && matchLocalLoadoutPlan(draft, refreshedAccount ?? executionAccount).selected_count === draft.item_targets.length
         && selectedInstanceIds.every((instanceId) => targetAfterRefresh?.equipped_items.some((item) => item.instance_id === instanceId));
-      const report = { plan, completed_steps: completedSteps, ...(failedStep ? { failed_step: failedStep } : {}), ...(failure ? { error: failure } : {}), refresh_verified: verified };
+      const verificationStatus: ActionVerificationStatus = !refreshedAccount
+        ? "unavailable"
+        : verified
+          ? "verified"
+          : failedStep && completedSteps.length
+            ? "partial"
+            : "mismatch";
+      const verificationMessage = buildExecutionVerificationMessage({
+        status: verificationStatus,
+        completedStepCount: completedSteps.length,
+        totalStepCount: plan.executable_steps.length,
+        failedStep,
+        error: failure
+      });
+      let verificationLogged = true;
+      try {
+        await api.recordActionVerification({
+          plan_id: plan.plan_id,
+          confirmation_id: confirmationId,
+          execution_id: executionId,
+          character_id: target.character_id,
+          status: verificationStatus,
+          message: verificationMessage
+        });
+      } catch (verificationLogError) {
+        verificationLogged = false;
+        const logMessage = `执行验证记录写入失败：${verificationLogError instanceof Error ? verificationLogError.message : String(verificationLogError)}`;
+        failure = failure ? `${failure}；${logMessage}` : logMessage;
+      }
+      const report = { plan, completed_steps: completedSteps, ...(failedStep ? { failed_step: failedStep } : {}), ...(failure ? { error: failure } : {}), confirmation_id: confirmationId, execution_id: executionId, verification_status: verificationStatus, verification_logged: verificationLogged, preflight_verified: true, refresh_verified: verified };
       setExecutionReport(report);
       if (failedStep) {
         setError(`已完成 ${completedSteps.length} 步；${failedStep} 失败，后续 ${plan.executable_steps.length - completedSteps.length - 1} 步未执行。${failure ?? ""}`);
@@ -349,12 +671,60 @@ export function useLocalLoadoutPlans(input: {
     previewDimImport,
     acceptDimImport,
     dismissDimImport,
-    startFromGuideDraft,
     isImportingGuide,
+    legacyGuideText,
+    assistantPrefill,
+    prefillFromAssistant,
+    prefillFromGuideLoadoutCandidates,
+    dismissAssistantPrefill,
+    startFromGuideArmorConstraintDraft,
+    acceptGuideLoadoutCandidates,
     importGuideText,
+    acceptAssistantEquipmentTargets,
     executionPlan,
     executionReport,
     isExecuting,
     executeDraft
   };
+}
+
+function readLegacyGuideText(): string {
+  try {
+    return window.localStorage.getItem(legacyGuideTaskContextStorageKey) ?? "";
+  } catch {
+    return "";
+  }
+}
+
+function clearLegacyGuideText(): void {
+  try {
+    window.localStorage.removeItem(legacyGuideTaskContextStorageKey);
+  } catch {
+    // 恢复文本清理失败不应影响已经生成的配装草稿。
+  }
+}
+
+function createTraceId(prefix: string): string {
+  const suffix = globalThis.crypto?.randomUUID?.()
+    ?? `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+  return `${prefix}:${suffix}`;
+}
+
+function buildExecutionVerificationMessage(input: {
+  status: ActionVerificationStatus;
+  completedStepCount: number;
+  totalStepCount: number;
+  failedStep?: string;
+  error?: string;
+}): string {
+  if (input.status === "verified") {
+    return `执行 ${input.completedStepCount}/${input.totalStepCount} 步，账号刷新验证通过。`;
+  }
+  if (input.status === "partial") {
+    return `执行 ${input.completedStepCount}/${input.totalStepCount} 步后停止${input.failedStep ? `，失败步骤：${input.failedStep}` : ""}${input.error ? `。${input.error}` : "。"}`;
+  }
+  if (input.status === "unavailable") {
+    return `执行后账号刷新不可用，无法验证最终状态${input.error ? `：${input.error}` : "。"}`;
+  }
+  return `执行后账号状态与方案预期不一致${input.error ? `：${input.error}` : "。"}`;
 }

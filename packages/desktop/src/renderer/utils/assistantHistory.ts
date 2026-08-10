@@ -1,6 +1,15 @@
+import {
+  normalizeAssistantArtifact,
+  normalizeAssistantContextSnapshot,
+  type AssistantArtifact,
+  type AssistantContextSnapshot
+} from "@d2-tools/app/capabilities";
+
 export type AssistantChatMessage = {
   role: "user" | "assistant";
   text: string;
+  context_snapshot_id?: string;
+  artifact?: AssistantArtifact;
 };
 
 export type AssistantHistoryEntry = {
@@ -8,13 +17,19 @@ export type AssistantHistoryEntry = {
   title: string;
   page_label: string;
   messages: AssistantChatMessage[];
+  context_snapshots: AssistantContextSnapshot[];
   updated_at?: string;
+};
+
+export type AssistantHistoryEntryInput = Omit<AssistantHistoryEntry, "context_snapshots"> & {
+  context_snapshots?: AssistantContextSnapshot[];
 };
 
 export type AssistantStorageLike = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 
 const historyStorageKey = "d2-tools.ai.chat-history";
 const maxHistoryEntries = 20;
+const maxContextSnapshotsPerSession = 30;
 
 export function loadAssistantHistory(storage = getDefaultStorage()): AssistantHistoryEntry[] {
   if (!storage) return [];
@@ -34,14 +49,14 @@ export function loadAssistantHistory(storage = getDefaultStorage()): AssistantHi
 
 export function addAssistantHistoryEntry(
   storage: AssistantStorageLike | undefined,
-  entry: AssistantHistoryEntry
+  entry: AssistantHistoryEntryInput
 ): AssistantHistoryEntry[] {
   return saveAssistantSession(storage, entry);
 }
 
 export function saveAssistantSession(
   storage: AssistantStorageLike | undefined,
-  entry: AssistantHistoryEntry
+  entry: AssistantHistoryEntryInput
 ): AssistantHistoryEntry[] {
   const normalized = normalizeHistoryEntry(entry);
   if (!storage || !normalized) return [];
@@ -88,7 +103,7 @@ export function removeAssistantHistoryEntry(
   return next;
 }
 
-function normalizeHistoryEntry(entry: Partial<AssistantHistoryEntry> | null | undefined): AssistantHistoryEntry | null {
+function normalizeHistoryEntry(entry: Partial<AssistantHistoryEntryInput> | null | undefined): AssistantHistoryEntry | null {
   if (!entry?.id || !entry.title || !Array.isArray(entry.messages)) {
     return null;
   }
@@ -98,12 +113,29 @@ function normalizeHistoryEntry(entry: Partial<AssistantHistoryEntry> | null | un
     page_label: entry.page_label ? String(entry.page_label) : "未知页面",
     messages: entry.messages
       .filter((message) => message?.role === "user" || message?.role === "assistant")
-      .map((message) => ({
-        role: message.role,
-        text: String(message.text ?? "")
-      })),
+      .map((message) => {
+        const artifact = normalizeAssistantArtifact(message.artifact);
+        return {
+          role: message.role,
+          text: String(message.text ?? ""),
+          ...(message.context_snapshot_id
+            ? { context_snapshot_id: String(message.context_snapshot_id) }
+            : {}),
+          ...(artifact ? { artifact } : {})
+        };
+      }),
+    context_snapshots: normalizeContextSnapshots(entry.context_snapshots),
     updated_at: entry.updated_at ? String(entry.updated_at) : undefined
   };
+}
+
+function normalizeContextSnapshots(value: unknown): AssistantContextSnapshot[] {
+  if (!Array.isArray(value)) return [];
+  const snapshots = value
+    .map(normalizeAssistantContextSnapshot)
+    .filter((snapshot): snapshot is AssistantContextSnapshot => Boolean(snapshot));
+  const unique = new Map(snapshots.map((snapshot) => [snapshot.snapshot_id, snapshot]));
+  return [...unique.values()].slice(-maxContextSnapshotsPerSession);
 }
 
 function getDefaultStorage(): AssistantStorageLike | undefined {

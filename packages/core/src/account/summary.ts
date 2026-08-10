@@ -10,6 +10,11 @@ import { summarizeEquipableItemSet } from "../items/equipableItemSet.js";
 import type { ArmorStatKey } from "../loadouts/analysis.js";
 import type { DefinitionComponentData, DefinitionRecord } from "../manifest/definitions.js";
 import type { BungieOAuthToken } from "../oauth/login.js";
+import {
+  armorStatKeyByDefinitionHash as armorStatHashMap,
+  armorStatKeys
+} from "../armor/statDefinitions.js";
+import { readArmorArchetypeStatPair } from "../armor/manifestRuleset.js";
 
 export type { AmmoTypeKey, EquipmentGroupKey } from "../items/classification.js";
 export type { WeaponFrameSummary } from "../items/weaponFrames.js";
@@ -118,6 +123,7 @@ export type AccountItemPlugSummary = {
   trait_ids?: string[];
   objectives?: AccountItemPlugObjectiveSummary[];
   stat_modifiers?: WeaponStatSummary;
+  armor_stat_modifiers?: Partial<Record<ArmorStatKey, number>>;
   source_description?: string;
   item_type?: string;
 };
@@ -243,7 +249,7 @@ export type AccountSummary = {
 
 export type AccountItemSnapshot = Omit<
   AccountItemSummary,
-  "armor_energy" | "armor_stat_breakdown" | "catalyst" | "item_objectives" | "sockets"
+  "armor_energy" | "catalyst" | "item_objectives" | "sockets"
 >;
 
 export type AccountCharacterSnapshot = Omit<
@@ -593,17 +599,6 @@ const equipmentGroupLabels: Record<EquipmentGroupKey, string> = {
 };
 
 const equipmentGroupOrder: EquipmentGroupKey[] = ["weapons", "armor", "equipment", "other"];
-
-const armorStatHashMap: Record<number, ArmorStatKey> = {
-  392767087: "health",
-  4244567218: "melee",
-  1735777505: "grenade",
-  144602215: "super",
-  1943323491: "class",
-  2996146975: "weapon"
-};
-
-const armorStatKeys: ArmorStatKey[] = ["health", "melee", "grenade", "super", "class", "weapon"];
 
 const weaponStatHashMap: Record<number, WeaponStatKey> = {
   4043523819: "impact",
@@ -1103,14 +1098,12 @@ function summarizeItem(
   const armorStats = groupKey === "armor" ? summarizeArmorStats(instanceId, components) : undefined;
   if (armorStats) {
     summary.armor_stats = armorStats;
-    if (mode === "full") {
-      summary.armor_stat_breakdown = summarizeArmorStatBreakdown(
-        armorStats,
-        instanceId,
-        components,
-        definitions
-      );
-    }
+    summary.armor_stat_breakdown = summarizeArmorStatBreakdown(
+      armorStats,
+      instanceId,
+      components,
+      definitions
+    );
   }
   const armorEnergy = mode === "full" && groupKey === "armor" ? summarizeArmorEnergy(instance) : undefined;
   if (armorEnergy) {
@@ -1340,6 +1333,9 @@ function summarizeArmorStatMods(
     }
 
     const definition = definitions[String(socket.plugHash)] as DefinitionRecord | undefined;
+    if (definition && readArmorArchetypeStatPair(definition)) {
+      continue;
+    }
     for (const stat of definition?.investmentStats ?? []) {
       if (stat.isConditionallyActive) {
         continue;
@@ -1445,6 +1441,7 @@ function summarizeSelectedPlugPreviews(
     .map((socket) => {
       const hash = socket.plugHash as number;
       const definition = definitions[String(hash)] as DefinitionRecord | undefined;
+      const modifiers = summarizePlugInvestmentStats(definition);
       return {
         hash,
         name: definition?.displayProperties?.name?.trim() || `Plug ${hash}`,
@@ -1453,7 +1450,9 @@ function summarizeSelectedPlugPreviews(
           ? { category_identifier: definition.plug.plugCategoryIdentifier }
           : {}),
         ...(definition?.traitIds?.length ? { trait_ids: definition.traitIds } : {}),
-        ...(definition?.itemTypeDisplayName ? { item_type: definition.itemTypeDisplayName } : {})
+        ...(definition?.itemTypeDisplayName ? { item_type: definition.itemTypeDisplayName } : {}),
+        ...(Object.keys(modifiers.weapon).length ? { stat_modifiers: modifiers.weapon } : {}),
+        ...(Object.keys(modifiers.armor).length ? { armor_stat_modifiers: modifiers.armor } : {})
       };
     });
 }
@@ -1582,12 +1581,7 @@ function buildPlugSummary(
 ): AccountItemPlugSummary {
   const definition = definitions[String(hash)] as DefinitionRecord | undefined;
   const objectiveSummaries = summarizePlugObjectives(objectives, objectiveDefinitions);
-  const statModifiers: WeaponStatSummary = {};
-  for (const stat of definition?.investmentStats ?? []) {
-    const key = weaponStatHashMap[Number(stat.statTypeHash)];
-    if (!key || stat.isConditionallyActive || typeof stat.value !== "number") continue;
-    statModifiers[key] = (statModifiers[key] ?? 0) + stat.value;
-  }
+  const modifiers = summarizePlugInvestmentStats(definition);
   return {
     hash,
     name: definition?.displayProperties?.name?.trim() || `Plug ${hash}`,
@@ -1598,11 +1592,31 @@ function buildPlugSummary(
       : {}),
     ...(definition?.traitIds?.length ? { trait_ids: definition.traitIds } : {}),
     ...(objectiveSummaries.length ? { objectives: objectiveSummaries } : {}),
-    ...(Object.keys(statModifiers).length ? { stat_modifiers: statModifiers } : {}),
+    ...(Object.keys(modifiers.weapon).length ? { stat_modifiers: modifiers.weapon } : {}),
+    ...(Object.keys(modifiers.armor).length ? { armor_stat_modifiers: modifiers.armor } : {}),
     ...(definition?.sourceData?.sourceString
       ? { source_description: definition.sourceData.sourceString }
       : {}),
     ...(definition?.itemTypeDisplayName ? { item_type: definition.itemTypeDisplayName } : {})
+  };
+}
+
+function summarizePlugInvestmentStats(definition: DefinitionRecord | undefined): {
+  weapon: WeaponStatSummary;
+  armor: Partial<Record<ArmorStatKey, number>>;
+} {
+  const statModifiers: WeaponStatSummary = {};
+  const armorStatModifiers: Partial<Record<ArmorStatKey, number>> = {};
+  for (const stat of definition?.investmentStats ?? []) {
+    if (stat.isConditionallyActive || typeof stat.value !== "number") continue;
+    const weaponKey = weaponStatHashMap[Number(stat.statTypeHash)];
+    if (weaponKey) statModifiers[weaponKey] = (statModifiers[weaponKey] ?? 0) + stat.value;
+    const armorKey = armorStatHashMap[Number(stat.statTypeHash)];
+    if (armorKey) armorStatModifiers[armorKey] = (armorStatModifiers[armorKey] ?? 0) + stat.value;
+  }
+  return {
+    weapon: statModifiers,
+    armor: armorStatModifiers
   };
 }
 

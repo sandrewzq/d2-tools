@@ -22,6 +22,10 @@
       "types": "./dist/analysis/targets.d.ts",
       "import": "./dist/analysis/targets.js"
     },
+    "./armor": {
+      "types": "./dist/armor/index.d.ts",
+      "import": "./dist/armor/index.js"
+    },
     "./ai/chat": {
       "types": "./dist/ai/chat.d.ts",
       "import": "./dist/ai/chat.js"
@@ -153,6 +157,38 @@
     "./evidence/itemDecision": {
       "types": "./dist/evidence/itemDecision.d.ts",
       "import": "./dist/evidence/itemDecision.js"
+    },
+    "./evidence/reference": {
+      "types": "./dist/evidence/reference.d.ts",
+      "import": "./dist/evidence/reference.js"
+    },
+    "./targets/equipmentTargets": {
+      "types": "./dist/targets/equipmentTargets.d.ts",
+      "import": "./dist/targets/equipmentTargets.js"
+    },
+    "./results/domainResult": {
+      "types": "./dist/results/domainResult.d.ts",
+      "import": "./dist/results/domainResult.js"
+    },
+    "./guides/library": {
+      "types": "./dist/guides/library.d.ts",
+      "import": "./dist/guides/library.js"
+    },
+    "./guides/source": {
+      "types": "./dist/guides/source.d.ts",
+      "import": "./dist/guides/source.js"
+    },
+    "./guides/extraction": {
+      "types": "./dist/guides/extraction.d.ts",
+      "import": "./dist/guides/extraction.js"
+    },
+    "./guides/derivedArtifacts": {
+      "types": "./dist/guides/derivedArtifacts.d.ts",
+      "import": "./dist/guides/derivedArtifacts.js"
+    },
+    "./guides/relations": {
+      "types": "./dist/guides/relations.d.ts",
+      "import": "./dist/guides/relations.js"
     },
     "./tools/registry": {
       "types": "./dist/tools/registry.d.ts",

@@ -1,5 +1,9 @@
 import type { AccountItemSummary } from "@d2-tools/core/account/summary";
-import type { ActionLogEntry } from "@d2-tools/core/actions/log";
+import type {
+  ActionLogEntry,
+  ActionTraceContext,
+  ActionVerificationStatus
+} from "@d2-tools/core/actions/log";
 import type {
   BatchTransferPlan,
   ItemActionPlan,
@@ -21,11 +25,16 @@ export type ActionsApi = {
   clearLoadout(input: LoadoutClearActionInput): Promise<ItemActionResult>;
   updateLoadoutIdentifiers(input: LoadoutIdentifiersActionInput): Promise<ItemActionResult>;
   getActionLog(): Promise<ActionLogEntry[]>;
+  recordActionVerification(input: ActionVerificationRecordInput): Promise<ActionLogEntry>;
   createItemActionPlan(input: ItemActionPlanInput): Promise<ItemActionPlan>;
   createBatchTransferPlan(input: BatchTransferPlanInput): Promise<BatchTransferPlan>;
 };
 
-export type ItemLockActionInput = {
+type ActionTraceCarrier = {
+  trace?: ActionTraceContext;
+};
+
+export type ItemLockActionInput = ActionTraceCarrier & {
   membership_type: number;
   character_id: string;
   item_id: string;
@@ -33,14 +42,14 @@ export type ItemLockActionInput = {
   state: boolean;
 };
 
-export type ItemEquipActionInput = {
+export type ItemEquipActionInput = ActionTraceCarrier & {
   membership_type: number;
   character_id: string;
   item_id: string;
   item_name?: string;
 };
 
-export type InsertSocketPlugActionInput = {
+export type InsertSocketPlugActionInput = ActionTraceCarrier & {
   membership_type: number;
   character_id: string;
   item_id: string;
@@ -50,7 +59,7 @@ export type InsertSocketPlugActionInput = {
   plug_name?: string;
 };
 
-export type ApplySocketPlugsActionInput = {
+export type ApplySocketPlugsActionInput = ActionTraceCarrier & {
   membership_type: number;
   character_id: string;
   item_id: string;
@@ -62,7 +71,7 @@ export type ApplySocketPlugsActionInput = {
   }>;
 };
 
-export type ItemTransferActionInput = {
+export type ItemTransferActionInput = ActionTraceCarrier & {
   membership_type: number;
   character_id: string;
   item_id: string;
@@ -71,7 +80,7 @@ export type ItemTransferActionInput = {
   transfer_to_vault: boolean;
 };
 
-export type PostmasterPullActionInput = {
+export type PostmasterPullActionInput = ActionTraceCarrier & {
   membership_type: number;
   character_id: string;
   item_id: string;
@@ -80,14 +89,14 @@ export type PostmasterPullActionInput = {
   stack_size?: number;
 };
 
-export type LoadoutEquipActionInput = {
+export type LoadoutEquipActionInput = ActionTraceCarrier & {
   membership_type: number;
   character_id: string;
   loadout_index: number;
   loadout_name?: string;
 };
 
-export type LoadoutSnapshotActionInput = {
+export type LoadoutSnapshotActionInput = ActionTraceCarrier & {
   membership_type: number;
   character_id: string;
   loadout_index: number;
@@ -99,7 +108,7 @@ export type LoadoutSnapshotActionInput = {
 
 export type LoadoutClearActionInput = LoadoutEquipActionInput;
 
-export type LoadoutIdentifiersActionInput = {
+export type LoadoutIdentifiersActionInput = ActionTraceCarrier & {
   membership_type: number;
   character_id: string;
   loadout_index: number;
@@ -147,8 +156,19 @@ export type BatchTransferPlanInput = {
   items: AccountItemSummary[];
 };
 
+export type ActionVerificationRecordInput = {
+  plan_id: string;
+  confirmation_id: string;
+  execution_id: string;
+  character_id?: string;
+  status: ActionVerificationStatus;
+  message: string;
+};
+
 export type {
   ActionLogEntry,
+  ActionTraceContext,
+  ActionVerificationStatus,
   BatchTransferPlan,
   ItemActionPlan,
   ItemActionPlanInput

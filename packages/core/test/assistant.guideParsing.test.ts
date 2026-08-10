@@ -38,8 +38,15 @@ describe("build guide parsing", () => {
 
     expect(result.parser).toBe("ai-json");
     expect(result.requirement.class_name?.value).toBe("术士");
-    expect(result.requirement.armor_stats).toContainEqual({ stat: "discipline", minimum: 100, confidence: "high" });
+    expect(result.requirement.armor_stats).toContainEqual({
+      stat: "grenade",
+      source_label: "discipline",
+      mapping: "legacy-alias",
+      minimum: 100,
+      confidence: "high"
+    });
     expect(result.requirement.needs_confirmation).toContain("虚空武器没有指定具体装备");
+    expect(result.requirement.needs_confirmation.some((item) => item.includes("旧护甲属性名称"))).toBe(true);
   });
 
   it("falls back to local keyword parsing when AI JSON is unusable", () => {
@@ -48,6 +55,10 @@ describe("build guide parsing", () => {
     expect(result.parser).toBe("local-fallback");
     expect(result.requirement.subclass?.value).toBe("虚空");
     expect(result.requirement.exotic_armor.map((item) => item.name)).toContain("反转手");
-    expect(result.requirement.armor_stats[0]).toMatchObject({ stat: "discipline", minimum: 100 });
+    expect(result.requirement.armor_stats[0]).toMatchObject({
+      stat: "grenade",
+      mapping: "legacy-alias",
+      minimum: 100
+    });
   });
 });

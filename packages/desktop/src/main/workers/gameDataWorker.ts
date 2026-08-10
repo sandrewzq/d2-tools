@@ -4,8 +4,16 @@ import type {
   DefinitionComponentName,
   DefinitionRecord
 } from "@d2-tools/core/manifest/definitions";
-import type { ArmorSetCatalogItem } from "@d2-tools/core/items/equipableItemSet";
+import {
+  buildArmorSetCatalog,
+  type ArmorSetCatalogEntry
+} from "@d2-tools/core/items/equipableItemSet";
 import { loadConfig } from "@d2-tools/services/config/store";
+import {
+  createArmorPlannerManifestData,
+  loadSqliteArmorRuleset,
+  type ArmorPlannerManifestData
+} from "@d2-tools/services/armor/manifest";
 import {
   createCompositeDefinitionReader,
   createJsonDefinitionReader,
@@ -29,6 +37,7 @@ type GameDataWorkerRequest = {
     | "getItemDetail"
     | "getDefinitions"
     | "listArmorSets"
+    | "getArmorPlannerManifestData"
     | "ping"
     | "close";
   input?: unknown;
@@ -45,7 +54,8 @@ type OpenRuntime = {
   activation: SqliteManifestActivation;
   catalog: ReturnType<typeof createSqliteGameDataCatalog>;
   reader: DefinitionReader;
-  armorSetCatalog?: ArmorSetCatalogItem[];
+  armorSetCatalog?: ArmorSetCatalogEntry[];
+  armorPlannerManifestData?: ArmorPlannerManifestData;
 };
 
 let runtime: OpenRuntime | null = null;
@@ -99,23 +109,49 @@ async function handleRequest(request: GameDataWorkerRequest): Promise<unknown> {
   if (request.operation === "listArmorSets") {
     return listArmorSets(current);
   }
+  if (request.operation === "getArmorPlannerManifestData") {
+    return getArmorPlannerManifestData(current);
+  }
   throw new Error("未知资料库查询操作");
 }
 
-function listArmorSets(current: OpenRuntime): ArmorSetCatalogItem[] {
+function listArmorSets(current: OpenRuntime): ArmorSetCatalogEntry[] {
   if (current.armorSetCatalog) {
     return current.armorSetCatalog;
   }
   const definitions = current.reader.getAll("DestinyEquipableItemSetDefinition");
-  const catalog = Object.values(definitions)
-    .flatMap((definition) => {
-      const hash = Number(definition.hash);
-      const name = definition.displayProperties?.name?.trim();
-      return Number.isFinite(hash) && name ? [{ hash: hash >>> 0, name }] : [];
-    })
-    .sort((left, right) => left.name.localeCompare(right.name, "zh-Hans-CN") || left.hash - right.hash);
+  const itemDefinitions = current.reader.getMany(
+    "DestinyInventoryItemDefinition",
+    Object.values(definitions).flatMap((definition) => definition.setItems ?? [])
+  );
+  const sandboxPerkDefinitions = current.reader.getMany(
+    "DestinySandboxPerkDefinition",
+    Object.values(definitions).flatMap((definition) => (
+      (definition.setPerks ?? []).flatMap((bonus) => (
+        typeof bonus.sandboxPerkHash === "number" ? [bonus.sandboxPerkHash] : []
+      ))
+    ))
+  );
+  const catalog = buildArmorSetCatalog(definitions, itemDefinitions, sandboxPerkDefinitions);
   current.armorSetCatalog = catalog;
   return catalog;
+}
+
+function getArmorPlannerManifestData(current: OpenRuntime): ArmorPlannerManifestData {
+  if (current.armorPlannerManifestData) return current.armorPlannerManifestData;
+  const rulesetBuild = loadSqliteArmorRuleset({
+    databasePath: current.activation.databasePath,
+    manifestVersion: current.activation.manifestVersion,
+    manifestLanguage: current.activation.language
+  });
+  const data = createArmorPlannerManifestData({
+    manifestVersion: current.activation.manifestVersion,
+    manifestLanguage: current.activation.language,
+    rulesetBuild,
+    armorSetCatalog: listArmorSets(current)
+  });
+  current.armorPlannerManifestData = data;
+  return data;
 }
 
 function projectDefinitions(

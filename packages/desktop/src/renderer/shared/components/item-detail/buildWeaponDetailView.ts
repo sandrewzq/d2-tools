@@ -24,6 +24,7 @@ import type { WeaponRecommendation as CommunityWeaponRecommendation } from "@d2-
 import type { PersonalWeaponKnowledgeEntry } from "@d2-tools/core/community-perks/personalWeaponKnowledge";
 import type { ItemReleaseSummary } from "@d2-tools/core/items/release";
 import type { VaultTags } from "@d2-tools/core/vault/tags";
+import type { EquipmentTargetStore } from "@d2-tools/core/targets/equipmentTargets";
 import type { SameNameItemSummary, SelectedItemDetail } from "../../hooks/useItemDetail";
 
 export type BuildDesktopWeaponDetailInput = {
@@ -425,6 +426,46 @@ export function buildWeaponPersonalTargetViews(
           : recommendationMatchNotes(item, matched, combo.perks.length)
       };
     });
+}
+
+export function buildEquipmentTargetWeaponViews(
+  store: EquipmentTargetStore,
+  item: SelectedItemDetail
+): WeaponDetailViewModel["recommendations"] {
+  if (item.group_key !== "weapons") return [];
+  const availableHashes = new Set([
+    ...(item.socket_plugs ?? []).map((plug) => plug.hash),
+    ...(item.sockets ?? []).flatMap((socket) => socket.reusable_plugs.map((plug) => plug.hash))
+  ]);
+  return store.targets.flatMap((target) => {
+    if (!target.enabled
+      || target.kind !== "weapon"
+      || target.source.kind === "dim_wishlist"
+      || target.weapon.status !== "verified") return [];
+    if (target.weapon.item_hash !== item.hash) return [];
+    const matched = target.perk_requirements.filter((perk) => availableHashes.has(perk.perk_hash)).length;
+    return [{
+      id: target.id,
+      mode: target.mode,
+      title: target.name,
+      reason: `${target.source.label}；只作为目标证据，不会自动修改装备。`,
+      source: "user" as const,
+      source_label: target.source.label,
+      updated_at: target.updated_at,
+      perk_options: target.perk_requirements.map((perk, index) => ({
+        column_key: `Perk ${index + 1}`,
+        names: [perk.perk_name]
+      })),
+      masterwork_names: [],
+      mod_names: [],
+      match: target.perk_requirements.length
+        ? matchRecommendation(item, matched, target.perk_requirements.length)
+        : "full" as const,
+      match_notes: target.perk_requirements.length
+        ? recommendationMatchNotes(item, matched, target.perk_requirements.length)
+        : ["目标只指定武器版本，不限制 Roll。"]
+    }];
+  });
 }
 
 function classifyWeaponConfiguration(item: Pick<SelectedItemDetail, "tier" | "perks">): WeaponConfigurationClassification {

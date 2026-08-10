@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
+import { useEffect, useRef, useState } from "react";
 import { getLocaleCopy } from "../i18n/copy.js";
 import { getLocalizedNavItems } from "./navigation.js";
 import type { AppShellLayoutProps, PlatformActions, ShellAssistantMode, ShellPageKey } from "./types.js";
@@ -30,21 +30,9 @@ export function AppShell(props: AppShellProps) {
     isAssistantOpen ? "assistant-open" : ""
   ].filter(Boolean).join(" ");
 
-  function toggleAssistant(mode: Exclude<ShellAssistantMode, null>) {
+  function toggleAssistant() {
     setIsMobileStatusOpen(false);
-    props.onAssistantModeChange(isAssistantOpen ? null : mode);
-  }
-
-  function selectAssistantMode(mode: Exclude<ShellAssistantMode, null>) {
-    props.onAssistantModeChange(mode);
-  }
-
-  function handleAssistantTabKeyDown(event: ReactKeyboardEvent<HTMLButtonElement>) {
-    if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
-    event.preventDefault();
-    const nextMode = props.assistantMode === "ai" ? "tasks" : "ai";
-    selectAssistantMode(nextMode);
-    requestAnimationFrame(() => document.getElementById(`shell-assistant-tab-${nextMode}`)?.focus());
+    props.onAssistantModeChange(isAssistantOpen ? null : "ai");
   }
 
   useEffect(() => {
@@ -217,7 +205,7 @@ export function AppShell(props: AppShellProps) {
             aria-pressed={isAssistantOpen}
             aria-label={copy.tools.openAiAssistant}
             title={copy.tools.aiAssistant}
-            onClick={() => toggleAssistant("ai")}
+            onClick={toggleAssistant}
           >
             AI
           </button>
@@ -333,39 +321,10 @@ export function AppShell(props: AppShellProps) {
                     </button>
                   </div>
                 </header>
-                <div className="assistant-workspace-tabs" role="tablist" aria-label={copy.assistantPanelAriaLabel}>
-                  <button
-                    id="shell-assistant-tab-ai"
-                    className={props.assistantMode === "ai" ? "active" : ""}
-                    type="button"
-                    role="tab"
-                    aria-controls="shell-assistant-panel"
-                    aria-selected={props.assistantMode === "ai"}
-                    tabIndex={props.assistantMode === "ai" ? 0 : -1}
-                    onClick={() => selectAssistantMode("ai")}
-                    onKeyDown={handleAssistantTabKeyDown}
-                  >
-                    {copy.assistant.chat}
-                  </button>
-                  <button
-                    id="shell-assistant-tab-tasks"
-                    className={props.assistantMode === "tasks" ? "active" : ""}
-                    type="button"
-                    role="tab"
-                    aria-controls="shell-assistant-panel"
-                    aria-selected={props.assistantMode === "tasks"}
-                    tabIndex={props.assistantMode === "tasks" ? 0 : -1}
-                    onClick={() => selectAssistantMode("tasks")}
-                    onKeyDown={handleAssistantTabKeyDown}
-                  >
-                    {copy.assistant.tasks}
-                  </button>
-                </div>
                 <div
                   id="shell-assistant-panel"
                   className="assistant-workspace-body"
-                  role="tabpanel"
-                  aria-labelledby={`shell-assistant-tab-${props.assistantMode}`}
+                  aria-label={copy.assistantPanelAriaLabel}
                 >
                   {props.assistantPanel}
                 </div>
@@ -397,6 +356,8 @@ function ShellNavIcon(props: { page: ShellPageKey }) {
       return <svg {...iconProps}><path d="M4 7h16v13H4zM3 3h18v4H3z" /><path d="M10 11h4" /></svg>;
     case "loadouts":
       return <svg {...iconProps}><path d="m12 2 9 5-9 5-9-5Z" /><path d="m3 12 9 5 9-5M3 17l9 5 9-5" /></svg>;
+    case "guides":
+      return <svg {...iconProps}><path d="M5 3h11a3 3 0 0 1 3 3v15H8a3 3 0 0 1-3-3Z" /><path d="M8 17h11M8 7h7M8 11h7" /></svg>;
     case "library":
       return <svg {...iconProps}><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z" /></svg>;
     case "vendors":

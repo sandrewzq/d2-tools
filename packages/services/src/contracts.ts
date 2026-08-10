@@ -2,6 +2,7 @@ import type { AccountSummary } from "@d2-tools/core/account/summary";
 import type { ActivityHistorySummary } from "@d2-tools/core/activities/history";
 import type { DimWishlist } from "@d2-tools/core/analysis/wishlistImport";
 import type { LocalTargetRules } from "@d2-tools/core/analysis/targets";
+import type { EquipmentTargetStore } from "@d2-tools/core/targets/equipmentTargets";
 import type { LocalCommunityRecommendationTable } from "@d2-tools/core/community-perks";
 import type {
   PersonalWeaponKnowledgeTable,
@@ -9,7 +10,7 @@ import type {
 } from "@d2-tools/core/community-perks/personalWeaponKnowledge";
 import type { VaultItemMatchInfo, WeaponRecommendation } from "./sharedTypes.js";
 import type { VaultTags, SaveVaultNoteInput, SaveVaultTagInput } from "@d2-tools/core/vault/tags";
-import type { D2SkillService } from "./d2SkillService.js";
+import type { GuideContextService } from "./guideContextService.js";
 import type { AiChatReplyResult, AiChatRequest } from "./types.js";
 
 export type ProfileService = {
@@ -42,6 +43,9 @@ export type LocalDataService = {
   getLocalTargetRules(): Promise<LocalTargetRules>;
   saveLocalTargetRules(rules: LocalTargetRules): Promise<LocalTargetRules>;
   clearLocalTargetRules(): Promise<LocalTargetRules>;
+  getEquipmentTargetStore(): Promise<EquipmentTargetStore>;
+  saveEquipmentTargetStore(store: EquipmentTargetStore): Promise<EquipmentTargetStore>;
+  clearEquipmentTargetStore(): Promise<EquipmentTargetStore>;
 };
 
 export type AiService = {
@@ -51,6 +55,6 @@ export type AiService = {
 export type D2Services = {
   profile: ProfileService;
   localData: LocalDataService;
-  d2Skill: D2SkillService;
+  guide: GuideContextService;
   ai: AiService;
 };

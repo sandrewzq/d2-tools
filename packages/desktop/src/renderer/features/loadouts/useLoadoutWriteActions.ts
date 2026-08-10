@@ -154,9 +154,9 @@ export function useLoadoutWriteActions(input: {
         }))
       });
       await input.loadoutLibrary.reloadTemplates();
-      input.setLoadoutMessage(`已保存小日向草稿：${template.name}`);
+      input.setLoadoutMessage(`已保存攻略草稿：${template.name}`);
     } catch (error) {
-      input.setLoadoutMessage(error instanceof Error ? error.message : "小日向草稿保存失败");
+      input.setLoadoutMessage(error instanceof Error ? error.message : "攻略草稿保存失败");
     }
   }
 

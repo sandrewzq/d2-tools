@@ -1,5 +1,5 @@
 import { ipcMain } from "electron";
-import type { ActionLogType } from "@d2-tools/core/actions/log";
+import type { ActionLogType, ActionTraceContext } from "@d2-tools/core/actions/log";
 import {
   createBatchTransferPlan,
   createItemActionPlan
@@ -21,6 +21,7 @@ import { appendActionLog, loadActionLog } from "@d2-tools/services/actions/logSt
 import { loadConfig } from "@d2-tools/services/config/store";
 import type {
   AccountItemActionPatch,
+  ActionVerificationRecordInput,
   ApplySocketPlugsActionInput,
   BatchEquipItemsInput,
   BatchItemActionResult,
@@ -56,6 +57,7 @@ export function registerActionIpcHandlers(): void {
   ipcMain.handle("actions:item:set-lock", async (_event, input: ItemLockActionInput) => {
     return runWriteAction({
       action: "set-lock",
+      trace: input.trace,
       itemName: input.item_name,
       itemInstanceId: input.item_id,
       characterId: input.character_id,
@@ -81,6 +83,7 @@ export function registerActionIpcHandlers(): void {
   ipcMain.handle("actions:item:equip", async (_event, input: ItemEquipActionInput) => {
     return runWriteAction({
       action: "equip",
+      trace: input.trace,
       itemName: input.item_name,
       itemInstanceId: input.item_id,
       characterId: input.character_id,
@@ -105,6 +108,7 @@ export function registerActionIpcHandlers(): void {
   ipcMain.handle("actions:item:insert-socket-plug", async (_event, input: InsertSocketPlugActionInput) => {
     return runWriteAction({
       action: "insert-socket-plug",
+      trace: input.trace,
       itemName: input.item_name,
       itemInstanceId: input.item_id,
       characterId: input.character_id,
@@ -119,6 +123,7 @@ export function registerActionIpcHandlers(): void {
   ipcMain.handle("actions:item:apply-socket-plugs", async (_event, input: ApplySocketPlugsActionInput) => {
     return runWriteAction({
       action: "insert-socket-plug",
+      trace: input.trace,
       itemName: input.item_name,
       itemInstanceId: input.item_id,
       characterId: input.character_id,
@@ -139,6 +144,7 @@ export function registerActionIpcHandlers(): void {
               character_id: input.character_id,
               item_id: input.item_id,
               item_name: input.item_name,
+              trace: input.trace,
               socket_index: change.socket_index,
               plug_hash: change.plug_hash,
               plug_name: change.plug_name
@@ -153,6 +159,7 @@ export function registerActionIpcHandlers(): void {
   ipcMain.handle("actions:item:transfer", async (_event, input: ItemTransferActionInput) => {
     return runWriteAction({
       action: "transfer",
+      trace: input.trace,
       itemName: input.item_name,
       itemInstanceId: input.item_id,
       characterId: input.character_id,
@@ -195,6 +202,7 @@ export function registerActionIpcHandlers(): void {
       getItemName: (item) => item.item_name,
       getItemInstanceId: (item) => item.item_id,
       getCharacterId: (item) => item.character_id,
+      getTrace: (item) => item.trace,
       getAccountPatch: (item) => ({
         kind: "equip",
         item_instance_id: item.item_id,
@@ -222,6 +230,7 @@ export function registerActionIpcHandlers(): void {
       getItemName: (item) => item.item_name,
       getItemInstanceId: (item) => item.item_id,
       getCharacterId: (item) => item.character_id,
+      getTrace: (item) => item.trace,
       getAccountPatch: (item) => ({
         kind: "transfer",
         item_instance_id: item.item_id,
@@ -234,6 +243,7 @@ export function registerActionIpcHandlers(): void {
   ipcMain.handle("actions:item:pull-postmaster", async (_event, input: PostmasterPullActionInput) => {
     return runWriteAction({
       action: "postmaster-pull",
+      trace: input.trace,
       itemName: input.item_name,
       itemInstanceId: input.item_id,
       characterId: input.character_id,
@@ -260,6 +270,7 @@ export function registerActionIpcHandlers(): void {
   ipcMain.handle("actions:loadout:equip", async (_event, input: LoadoutEquipActionInput) => {
     return runWriteAction({
       action: "loadout-equip",
+      trace: input.trace,
       itemName: input.loadout_name,
       characterId: input.character_id,
       successMessage: `已应用游戏内配装栏：${input.loadout_name ?? `槽位 ${input.loadout_index + 1}`}`,
@@ -279,6 +290,7 @@ export function registerActionIpcHandlers(): void {
   ipcMain.handle("actions:loadout:snapshot", async (_event, input: LoadoutSnapshotActionInput) => {
     return runWriteAction({
       action: "loadout-snapshot",
+      trace: input.trace,
       itemName: input.loadout_name,
       characterId: input.character_id,
       successMessage: `已用当前装备覆盖游戏内配装栏：${input.loadout_name ?? `槽位 ${input.loadout_index + 1}`}`,
@@ -300,6 +312,7 @@ export function registerActionIpcHandlers(): void {
   ipcMain.handle("actions:loadout:clear", async (_event, input: LoadoutClearActionInput) => {
     return runWriteAction({
       action: "loadout-clear",
+      trace: input.trace,
       itemName: input.loadout_name,
       characterId: input.character_id,
       successMessage: `已清空游戏内配装栏：${input.loadout_name ?? `槽位 ${input.loadout_index + 1}`}`,
@@ -319,6 +332,7 @@ export function registerActionIpcHandlers(): void {
   ipcMain.handle("actions:loadout:update-identifiers", async (_event, input: LoadoutIdentifiersActionInput) => {
     return runWriteAction({
       action: "loadout-update-identifiers",
+      trace: input.trace,
       itemName: input.loadout_name,
       characterId: input.character_id,
       successMessage: `已更新游戏内配装标识：${input.loadout_name ?? `槽位 ${input.loadout_index + 1}`}`,
@@ -342,6 +356,27 @@ export function registerActionIpcHandlers(): void {
     return loadActionLog(config.data.data_dir, 50);
   });
 
+  ipcMain.handle("actions:verification:record", (_event, input: ActionVerificationRecordInput) => {
+    const planId = requiredTraceId(input.plan_id, "plan_id");
+    const confirmationId = requiredTraceId(input.confirmation_id, "confirmation_id");
+    const executionId = requiredTraceId(input.execution_id, "execution_id");
+    const status = normalizeVerificationStatus(input.status);
+    const config = loadConfig();
+    const entries = appendActionLog(config.data.data_dir, {
+      action: "execution-verification",
+      plan_id: planId,
+      confirmation_id: confirmationId,
+      execution_id: executionId,
+      character_id: input.character_id,
+      verification_status: status,
+      ok: status === "verified",
+      message: input.message.trim() || "本地配装执行验证已记录"
+    });
+    const entry = entries[0];
+    if (!entry) throw new Error("执行验证记录写入失败");
+    return entry;
+  });
+
   ipcMain.handle("actions:plan:item", (_event, input: ItemActionPlanInput) => {
     return createItemActionPlan(input);
   });
@@ -349,6 +384,21 @@ export function registerActionIpcHandlers(): void {
   ipcMain.handle("actions:plan:batch-transfer", (_event, input: BatchTransferPlanInput) => {
     return createBatchTransferPlan(input);
   });
+}
+
+function requiredTraceId(value: string, field: string): string {
+  const normalized = value.trim();
+  if (!normalized) throw new Error(`${field} 不能为空`);
+  return normalized;
+}
+
+function normalizeVerificationStatus(
+  value: ActionVerificationRecordInput["status"]
+): ActionVerificationRecordInput["status"] {
+  if (value === "verified" || value === "partial" || value === "mismatch" || value === "unavailable") {
+    return value;
+  }
+  throw new Error("verification status 无效");
 }
 
 function assertSocketWriteLocation(location: AccountItemLocation | null): asserts location is AccountItemLocation {
@@ -481,6 +531,7 @@ function hasReusableSocketPlug(
 
 type WriteActionRunInput = {
   action: ActionLogType;
+  trace?: ActionTraceContext;
   itemName?: string;
   itemInstanceId?: string;
   characterId?: string;
@@ -522,6 +573,7 @@ async function performWriteAction(input: WriteActionRunInput): Promise<ItemActio
       if (applied) appliedAccountPatch = input.accountPatch;
     }
     appendActionLog(config.data.data_dir, {
+      ...input.trace,
       action: input.action,
       item_name: input.itemName,
       item_instance_id: input.itemInstanceId,
@@ -537,6 +589,7 @@ async function performWriteAction(input: WriteActionRunInput): Promise<ItemActio
   } catch (error) {
     const message = classifyWriteActionIpcError(error).message;
     appendActionLog(config.data.data_dir, {
+      ...input.trace,
       action: input.action,
       item_name: input.itemName,
       item_instance_id: input.itemInstanceId,
@@ -559,6 +612,7 @@ type BatchWriteActionRunInput<T> = {
   getItemName: (item: T) => string | undefined;
   getItemInstanceId: (item: T) => string | undefined;
   getCharacterId: (item: T) => string | undefined;
+  getTrace?: (item: T) => ActionTraceContext | undefined;
   getAccountPatch?: (item: T) => AccountItemActionPatch | undefined;
 };
 
@@ -599,6 +653,7 @@ async function performBatchWriteActions<T>(
         if (applied) accountPatches.push(accountPatch);
       }
       appendActionLog(config.data.data_dir, {
+        ...input.getTrace?.(item),
         action: input.action,
         item_name: input.getItemName(item),
         item_instance_id: input.getItemInstanceId(item),
@@ -613,6 +668,7 @@ async function performBatchWriteActions<T>(
       const message = classifyWriteActionIpcError(error).message;
       failureMessages.add(message);
       appendActionLog(config.data.data_dir, {
+        ...input.getTrace?.(item),
         action: input.action,
         item_name: input.getItemName(item),
         item_instance_id: input.getItemInstanceId(item),

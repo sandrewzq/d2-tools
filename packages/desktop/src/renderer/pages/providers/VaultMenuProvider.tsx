@@ -25,12 +25,24 @@ export function VaultMenuProvider() {
       tags={account.vaultTags}
       openingItemKey={writeActions.itemDetail.itemDetailLoadingKey}
       locateRequest={session.vaultLocateRequest}
+      targetLocateRequest={session.vaultTargetLocateRequest}
       wishlist={account.importedWishlist}
       localTargetRules={account.localTargetRules}
+      equipmentTargetStore={account.equipmentTargetStore}
       communityMatch={account.vaultCommunityMatch}
       onContextFactsChange={session.setVaultFacts}
       onWishlistChanged={account.setImportedWishlist}
+      onCommunityRecommendationsChanged={() => account.loadVaultCommunityMatch(undefined, { force: true })}
       onLocalTargetRulesChanged={account.setLocalTargetRules}
+      onEquipmentTargetStoreChanged={account.setEquipmentTargetStore}
+      onOpenGuide={async (targetId) => {
+        const guideDocumentId = await session.guides.findGuideDocumentIdForDerivedEntity(targetId);
+        if (!guideDocumentId) return false;
+        session.guides.selectDocument(guideDocumentId);
+        session.setActivePage("guides");
+        return true;
+      }}
+      onOpenArmorResult={session.locateArmorResultReference}
       onLoadAccount={session.refreshAccountManually}
       onSaveTagBatch={(inputs) => writeActions.vaultWriteActions.saveVaultTagsBatch(inputs)}
       onBatchUnlock={writeActions.vaultWriteActions.handleVaultCleanupUnlock}

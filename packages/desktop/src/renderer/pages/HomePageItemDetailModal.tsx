@@ -1,4 +1,4 @@
-import type { AccountSummary, DimWishlist, LocalTargetRules, VaultTags } from "../api/types";
+import type { AccountSummary, DimWishlist, EquipmentTargetStore, LocalTargetRules, VaultTags } from "../api/types";
 import type { ArmorStatSummary, WeaponStatKey, WeaponStatSummary } from "@d2-tools/core/account/summary";
 import type { ArmorStatKey } from "@d2-tools/core/loadouts/analysis";
 import { ArmorDetailContent, getLocaleCopy, LibraryDefinitionDialog, SharedItemDetailDialog, WeaponDetailContent } from "@d2-tools/ui";
@@ -7,6 +7,7 @@ import { collectSelectedSameNameItems, createSelectedItemPreview, type ArmorDeta
 import type { useVendorDefinitionDetail } from "../features/vendors/useVendorDefinitionDetail";
 import { ItemDetailModal } from "../shared/components/ItemDetailModal";
 import {
+  buildEquipmentTargetWeaponViews,
   buildWeaponDetailView,
   buildWeaponPersonalTargetViews,
   buildWeaponRecommendationViews
@@ -25,6 +26,7 @@ export function HomePageItemDetailModal(props: {
   itemDetail: ItemDetailWorkspace;
   isRunningItemAction: boolean;
   localTargetRules: LocalTargetRules;
+  equipmentTargetStore: EquipmentTargetStore;
   onLocateOwnedItem: (item: { hash: number; name: string }) => void;
   vendorDefinitionDetail: VendorDefinitionDetailWorkspace;
   vaultTags: VaultTags;
@@ -63,11 +65,14 @@ export function HomePageItemDetailModal(props: {
       selectionNames: vendorDefinitionState.context.rollLabels,
       currentStats: buildVendorWeaponStats(vendorDefinitionState.context.stats),
       sameNameItems: vendorSameNameItems,
-      recommendations: buildWeaponRecommendationViews(
-        vendorDefinitionState.recommendations ?? null,
-        vendorDefinitionState.personalKnowledge,
-        vendorSelectedItem
-      ),
+      recommendations: [
+        ...buildWeaponRecommendationViews(
+          vendorDefinitionState.recommendations ?? null,
+          vendorDefinitionState.personalKnowledge,
+          vendorSelectedItem
+        ),
+        ...buildEquipmentTargetWeaponViews(props.equipmentTargetStore, vendorSelectedItem)
+      ],
       personalTargets: buildWeaponPersonalTargetViews(
         vendorDefinitionState.recommendations ?? null,
         vendorSelectedItem
@@ -141,6 +146,7 @@ export function HomePageItemDetailModal(props: {
       },
       sources: buildVendorArmorSources(vendorDefinitionState),
       localTargetRules: props.localTargetRules,
+      equipmentTargetStore: props.equipmentTargetStore,
       currentStats: buildVendorArmorStats(vendorDefinitionState.context.stats)
     });
     if (vendorArmorModel) {
@@ -230,6 +236,7 @@ export function HomePageItemDetailModal(props: {
       communityRecommendationError={itemDetail.communityRecommendationError}
       importedWishlist={props.importedWishlist}
       localTargetRules={props.localTargetRules}
+      equipmentTargetStore={props.equipmentTargetStore}
       isCommunityRecommendationsLoading={itemDetail.isCommunityRecommendationsLoading}
       isGeneratingItemAi={itemDetail.isGeneratingItemAi}
       isRunningItemAction={props.isRunningItemAction}

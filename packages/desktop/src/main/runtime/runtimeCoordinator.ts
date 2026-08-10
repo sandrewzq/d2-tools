@@ -14,6 +14,7 @@ import {
 } from "./gameDataRuntime.js";
 import { getHomeBriefing, type HomeBriefingRefreshOptions } from "./homeBriefing.js";
 import { measureRuntime } from "./runtimeMetrics.js";
+import { closeArmorPlannerRuntime } from "./armorPlannerRuntime.js";
 
 let initialized = false;
 let runtimeGeneration = 0;
@@ -59,7 +60,7 @@ export async function shutdownRuntimeCoordinator(): Promise<void> {
   invalidateWarmupStages();
   resetAccountSession();
   resetSharedBungieSession();
-  await closeGameDataRuntime();
+  await Promise.all([closeGameDataRuntime(), closeArmorPlannerRuntime()]);
   initialized = false;
 }
 

@@ -6,6 +6,7 @@ import {
   saveDimWishlist
 } from "@d2-tools/services/analysis/wishlistStore";
 import { loadConfig } from "@d2-tools/services/config/store";
+import { syncEquipmentTargetImports } from "./targets.js";
 
 export function registerWishlistIpcHandlers(): void {
   ipcMain.handle("wishlist:get", () => {
@@ -13,14 +14,17 @@ export function registerWishlistIpcHandlers(): void {
     return loadDimWishlist(config.data.data_dir);
   });
 
-  ipcMain.handle("wishlist:save", (_event, wishlist: DimWishlist) => {
+  ipcMain.handle("wishlist:save", async (_event, wishlist: DimWishlist) => {
     const config = loadConfig();
-    return saveDimWishlist(config.data.data_dir, wishlist);
+    const saved = saveDimWishlist(config.data.data_dir, wishlist);
+    await syncEquipmentTargetImports(config.data.data_dir, ["dim_wishlist"]);
+    return saved;
   });
 
-  ipcMain.handle("wishlist:clear", () => {
+  ipcMain.handle("wishlist:clear", async () => {
     const config = loadConfig();
     clearDimWishlist(config.data.data_dir);
+    await syncEquipmentTargetImports(config.data.data_dir, ["dim_wishlist"]);
     return null;
   });
 }

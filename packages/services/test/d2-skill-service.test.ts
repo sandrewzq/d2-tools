@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createMemoryServices } from "../src/memoryAdapter.js";
 
-describe("d2 skill service", () => {
+describe("guide context service", () => {
   it("exposes account items for deterministic guide matching", async () => {
     const services = createMemoryServices({
       account: {
@@ -29,7 +29,7 @@ describe("d2 skill service", () => {
       }
     });
 
-    const context = await services.d2Skill.getBuildGuideContext();
+    const context = await services.guide.getContext();
 
     expect(context.account.account_name).toBe("tester");
     expect(context.items.map((item) => item.name)).toEqual(["纪律护甲", "反转手", "漏斗网"]);

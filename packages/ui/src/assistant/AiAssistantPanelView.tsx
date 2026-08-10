@@ -1,6 +1,10 @@
+import type { AssistantArtifact } from "@d2-tools/app/capabilities";
+
 export type AiAssistantMessageView = {
   role: "user" | "assistant";
   text: string;
+  context_snapshot_id?: string;
+  artifact?: AssistantArtifact;
 };
 
 export type AiAssistantHistoryEntryView = {
@@ -18,6 +22,8 @@ export type AiAssistantContextView = {
   characterCount: number;
   materialCount: number;
   dailyLoaded: boolean;
+  snapshotState: "current" | "historical" | "unsaved";
+  snapshotLabel: string;
 };
 
 export type AiAssistantPanelViewProps = {
@@ -50,6 +56,7 @@ export type AiAssistantPanelViewProps = {
   onClearHistory: () => void;
   onSwitchSession: (entry: AiAssistantHistoryEntryView) => void;
   onDeleteSession: (entryId: string) => void;
+  onOpenArtifact: (artifact: AssistantArtifact) => void;
 };
 
 export function AiAssistantPanelView(props: AiAssistantPanelViewProps) {
@@ -89,7 +96,11 @@ export function AiAssistantPanelView(props: AiAssistantPanelViewProps) {
           title={props.contextChip}
           onClick={props.onToggleContextDrawer}
         >
-          {props.hasAccountItems ? "已载入当前页面上下文" : props.contextChip}
+          {props.context.snapshotState === "historical"
+            ? "已恢复历史快照"
+            : props.hasAccountItems
+              ? "已载入当前页面上下文"
+              : props.contextChip}
         </button>
       </div>
 
@@ -109,6 +120,29 @@ export function AiAssistantPanelView(props: AiAssistantPanelViewProps) {
             <article className={`ai-chat-message message-${message.role}`} key={`${message.role}-${index}`}>
               <strong>{message.role === "user" ? "你" : "AI"}</strong>
               <p>{message.text}</p>
+              {message.role === "assistant" && message.artifact ? (
+                <div className="ai-message-artifact">
+                  <div>
+                    <strong>{formatArtifactKind(message.artifact)}</strong>
+                    <span>{message.artifact.title}</span>
+                    <small>{message.artifact.kind === "armor_solution_comparison"
+                      ? `${formatArmorArtifactMode(message.artifact.mode)} · ${formatArmorArtifactOutcome(message.artifact.outcome)} · ${message.artifact.reachable_candidate_count}/${message.artifact.candidate_count} 个候选达标`
+                      : message.artifact.kind === "equipment_target_candidates"
+                        ? `${message.artifact.candidates.filter((candidate) => candidate.status === "owned-instance").length} 个账号实例 · ${message.artifact.candidates.filter((candidate) => candidate.status === "definition-only").length} 个仅定义目标`
+                      : message.artifact.result_ids.length
+                        ? `引用 ${message.artifact.result_ids.length} 个确定性结果`
+                        : "未引用额外能力结果"}</small>
+                  </div>
+                  <button
+                    type="button"
+                    data-ui-kind="button"
+                    data-control-variant="secondary"
+                    onClick={() => props.onOpenArtifact(message.artifact!)}
+                  >
+                    交给配装页
+                  </button>
+                </div>
+              ) : null}
             </article>
           )) : (
             <>
@@ -213,6 +247,7 @@ export function AiAssistantPanelView(props: AiAssistantPanelViewProps) {
               <span>角色 {props.context.characterCount} 个</span>
               <span>材料 {props.context.materialCount} 种</span>
               <span>{props.context.dailyLoaded ? "今日信息已载入" : "今日信息未载入"}</span>
+              <span>{props.context.snapshotLabel}</span>
             </div>
             <div className="ai-page-context">
               <strong>页面分析重点</strong>
@@ -230,4 +265,24 @@ export function AiAssistantPanelView(props: AiAssistantPanelViewProps) {
       </div>
     </section>
   );
+}
+
+function formatArtifactKind(artifact: AssistantArtifact): string {
+  if (artifact.kind === "armor_solution_comparison") return "护甲方案对比";
+  if (artifact.kind === "equipment_target_candidates") return "装备目标候选";
+  return "配装草稿";
+}
+
+function formatArmorArtifactMode(mode: "theoretical" | "owned" | "acquisition" | "upgrade"): string {
+  if (mode === "theoretical") return "理论上限";
+  if (mode === "acquisition") return "待刷目标";
+  if (mode === "upgrade") return "升级路径";
+  return "库存成装";
+}
+
+function formatArmorArtifactOutcome(outcome: "reachable" | "unreachable" | "indeterminate" | "invalid"): string {
+  if (outcome === "reachable") return "可达";
+  if (outcome === "unreachable") return "不可达";
+  if (outcome === "indeterminate") return "未确定";
+  return "输入无效";
 }

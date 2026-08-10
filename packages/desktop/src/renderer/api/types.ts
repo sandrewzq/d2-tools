@@ -1,5 +1,6 @@
 import type { AccountApi } from "../../contracts/account.js";
 import type { ActionsApi } from "../../contracts/actions.js";
+import type { ArmorApi } from "../../contracts/armor.js";
 import type { ActivityApi } from "./activityApi";
 import type { AiApi } from "./aiApi";
 import type { AssistantApi } from "./assistantApi";
@@ -8,6 +9,7 @@ import type { CommunityApi } from "./communityApi";
 import type { ConfigApi } from "./configApi";
 import type { DailyApi } from "../../contracts/daily.js";
 import type { DiagnosticsApi } from "./diagnosticsApi";
+import type { GuideApi } from "./guideApi";
 import type { LibraryApi } from "./libraryApi";
 import type { LoadoutApi } from "./loadoutApi";
 import type { ManifestApi } from "../../contracts/manifest.js";
@@ -20,6 +22,7 @@ import type { WindowApi } from "./windowApi";
 
 export type * from "../../contracts/account.js";
 export type * from "../../contracts/actions.js";
+export type * from "./armorApi";
 export type * from "./activityApi";
 export type * from "./aiApi";
 export type * from "./assistantApi";
@@ -28,6 +31,7 @@ export type * from "./communityApi";
 export type * from "./configApi";
 export type * from "../../contracts/daily.js";
 export type * from "./diagnosticsApi";
+export type * from "./guideApi";
 export type * from "./libraryApi";
 export type * from "./loadoutApi";
 export type * from "../../contracts/manifest.js";
@@ -52,9 +56,11 @@ export type AppApi =
   & AssistantApi
   & BackgroundTaskApi
   & ActionsApi
+  & ArmorApi
   & DailyApi
   & ActivityApi
   & DiagnosticsApi
+  & GuideApi
   & UpdateApi
   & WeeklyApi
   & VendorsApi

@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
 import type { AccountSummary } from "@d2-tools/core/account/summary";
-import { createMemoryServices } from "@d2-tools/services";
-import { createKohinataBuildGuideTask } from "../src/workspaces/kohinataBot.js";
+import { createMemoryServices } from "@d2-tools/services/memoryAdapter";
+import { createBuildGuideTask } from "../src/workspaces/buildGuideTask.js";
 
-describe("kohinata bot workspace", () => {
+describe("build guide task workspace", () => {
   it("runs guide parse, account match and draft creation as one task state", async () => {
     const services = createMemoryServices({ account });
 
-    const result = await createKohinataBuildGuideTask(services, {
+    const result = await createBuildGuideTask(services, {
       rawText: "虚空术士\n反转手\n漏斗网",
       characterId: "char-1"
     });

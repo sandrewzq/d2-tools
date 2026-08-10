@@ -36,9 +36,9 @@ describe("guide matching", () => {
       ]
     });
 
-    expect(result.matched_items.map((entry) => entry.name)).toEqual(["反转手", "漏斗网", "纪律护甲"]);
+    expect(result.matched_items.map((entry) => entry.name)).toEqual(["反转手", "漏斗网"]);
     expect(result.missing_requirements).toEqual([]);
-    expect(result.summary).toContain("已满足 3 项");
+    expect(result.summary).toContain("识别 1 项聚合护甲目标");
   });
 
   it("keeps uncertain element weapon requirements as confirmation instead of facts", () => {

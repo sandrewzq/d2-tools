@@ -48,6 +48,7 @@ export type ItemSearchResult = {
   icon?: string;
   item_type?: string;
   tier?: string;
+  class_type?: number;
   class_name?: string;
   damage_type?: string;
   damage_type_summary?: DamageTypeSummary;
@@ -197,6 +198,9 @@ function toItemSearchResult(
       collectibleDefinitions: options.collectibleDefinitions
     })
   };
+  if (typeof definition.classType === "number") {
+    result.class_type = definition.classType;
+  }
   const className = classTypeLabel(definition.classType);
   if (className) {
     result.class_name = className;

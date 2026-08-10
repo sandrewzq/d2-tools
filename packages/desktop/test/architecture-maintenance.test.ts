@@ -7,7 +7,7 @@ const desktopRoot = fileURLToPath(new URL("..", import.meta.url));
 const repoRoot = fileURLToPath(new URL("../../..", import.meta.url));
 
 describe("architecture maintenance guardrails", () => {
-  it("uses one shared page label source for app workspace and desktop assistant surfaces", () => {
+  it("uses one shared page label source and passes resolved assistant context to surfaces", () => {
     const appHomeEntry = readFileSync(join(repoRoot, "packages", "app", "src", "home.ts"), "utf8");
     const homePageWorkspace = readFileSync(join(repoRoot, "packages", "app", "src", "workspaces", "homePage.ts"), "utf8");
     const assistantContext = readFileSync(join(desktopRoot, "src", "renderer", "shared", "domain", "assistant", "assistantContext.ts"), "utf8");
@@ -16,7 +16,9 @@ describe("architecture maintenance guardrails", () => {
     expect(appHomeEntry).toContain("homePageLabels");
     expect(homePageWorkspace).toContain("homePageLabels");
     expect(assistantContext).toContain("homePageLabels");
-    expect(globalAssistant).toContain("homePageLabels");
+    expect(globalAssistant).toContain("AssistantPageContext");
+    expect(globalAssistant).toContain("pageContext={props.pageContext}");
+    expect(globalAssistant).not.toContain("homePageLabels");
     expect(globalAssistant).not.toContain("const pageLabels");
     expect(assistantContext).not.toContain("const pageLabels");
   });

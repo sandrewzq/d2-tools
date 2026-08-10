@@ -1,6 +1,7 @@
 import type { AccountSummary } from "@d2-tools/core/account/summary";
 import type { DimWishlist } from "@d2-tools/core/analysis/wishlistImport";
 import type { LocalTargetRules } from "@d2-tools/core/analysis/targets";
+import { createEmptyEquipmentTargetStore, type EquipmentTargetStore } from "@d2-tools/core/targets/equipmentTargets";
 import type { VaultTags } from "@d2-tools/core/vault/tags";
 import type { D2Services } from "@d2-tools/services";
 import { runQuery, type QueryState } from "../queryState.js";
@@ -9,12 +10,13 @@ export type AccountWorkspace = {
   account: AccountSummary;
   tags: VaultTags;
   targetRules: LocalTargetRules;
+  equipmentTargets: EquipmentTargetStore;
   wishlist: DimWishlist | null;
   warnings: AccountWorkspaceWarning[];
 };
 
 export type AccountWorkspaceWarning = {
-  source: "vault-tags" | "target-rules" | "wishlist";
+  source: "vault-tags" | "target-rules" | "equipment-targets" | "wishlist";
   message: string;
 };
 
@@ -26,15 +28,17 @@ export function loadAccountWorkspace(
     const accountRequest = options?.forceAccountRefresh
       ? services.profile.getAccountSummary({ force: true })
       : services.profile.getAccountSummary();
-    const [account, tagsResult, targetRulesResult, wishlistResult] = await Promise.all([
+    const [account, tagsResult, targetRulesResult, equipmentTargetsResult, wishlistResult] = await Promise.all([
       accountRequest,
       settleLocalData("vault-tags", services.localData.getVaultTags()),
       settleLocalData("target-rules", services.localData.getLocalTargetRules()),
+      settleLocalData("equipment-targets", services.localData.getEquipmentTargetStore()),
       settleLocalData("wishlist", services.localData.getDimWishlist())
     ]);
     const warnings = [
       tagsResult.warning,
       targetRulesResult.warning,
+      equipmentTargetsResult.warning,
       wishlistResult.warning
     ].filter((warning): warning is AccountWorkspaceWarning => Boolean(warning));
 
@@ -42,6 +46,7 @@ export function loadAccountWorkspace(
       account,
       tags: tagsResult.value ?? { items: {} },
       targetRules: targetRulesResult.value ?? defaultLocalTargetRules(),
+      equipmentTargets: equipmentTargetsResult.value ?? createEmptyEquipmentTargetStore(),
       wishlist: wishlistResult.value ?? null,
       warnings
     };

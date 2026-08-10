@@ -4,7 +4,20 @@ import react from "@vitejs/plugin-react";
 
 const currentDir = fileURLToPath(new URL(".", import.meta.url));
 const appSourceDir = fileURLToPath(new URL("../app/src", import.meta.url));
-const appDomains = ["account", "assistant", "home", "items", "library", "loadouts", "settings", "vault", "vendors"];
+const appDomains = [
+  "account",
+  "armor",
+  "assistant",
+  "capabilities",
+  "guides",
+  "home",
+  "items",
+  "library",
+  "loadouts",
+  "settings",
+  "vault",
+  "vendors"
+];
 
 export default defineConfig({
   root: currentDir,

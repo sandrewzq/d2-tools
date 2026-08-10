@@ -1,3 +1,6 @@
+import type { ArmorStatKey } from "../loadouts/analysis.js";
+import type { LoadoutPlanArmorConstraints } from "../loadouts/plans.js";
+
 export type RequirementConfidence = "high" | "medium" | "low";
 
 export type ConfidentValue<T> = {
@@ -15,9 +18,18 @@ export type GuideWeaponRequirement = {
 };
 
 export type GuideArmorStatRequirement = {
-  stat: "mobility" | "resilience" | "recovery" | "discipline" | "intellect" | "strength";
+  stat: ArmorStatKey | "mobility" | "resilience" | "recovery" | "discipline" | "intellect" | "strength";
+  source_label?: string;
+  mapping?: "direct" | "legacy-alias";
   minimum: number;
   confidence: RequirementConfidence;
+};
+
+export type GuideArmorConstraintDraft = {
+  status: "ready" | "needs_confirmation";
+  constraints: LoadoutPlanArmorConstraints;
+  warnings: string[];
+  confirmations: string[];
 };
 
 export type BuildGuideRequirement = {
@@ -48,6 +60,7 @@ export type GuideMatchedItem = {
   name: string;
   bucket_name?: string;
   item_type?: string;
+  group_key?: "weapons" | "armor" | "equipment" | "other";
   status: GuideMatchStatus;
   reason: string;
 };
@@ -69,6 +82,7 @@ export type BuildGuideLoadoutDraft = {
   items: GuideMatchedItem[];
   missing_requirements: string[];
   notes: string[];
+  armor_constraint_draft?: GuideArmorConstraintDraft;
 };
 
 export type BuildGuideTaskState = {

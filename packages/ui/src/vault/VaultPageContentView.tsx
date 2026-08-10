@@ -5,6 +5,7 @@ import { evaluateLocalTargets } from "@d2-tools/core/analysis/targets";
 import { evaluateWishlistRoll } from "@d2-tools/core/analysis/wishlist";
 import type { DimWishlist } from "@d2-tools/core/analysis/wishlistImport";
 import type { LocalTargetRules } from "@d2-tools/core/analysis/targets";
+import { evaluateEquipmentTargets, type EquipmentTargetStore } from "@d2-tools/core/targets/equipmentTargets";
 import type { VaultItemMatchInfo } from "@d2-tools/core/community-perks";
 import type { SaveVaultTagInput, VaultTags, VaultTagValue } from "@d2-tools/core/vault/tags";
 import { matchesLoadoutTemplateItem, type LoadoutTemplateLookup } from "@d2-tools/app/loadouts";
@@ -80,8 +81,10 @@ export function VaultPageContentView(props: {
   tags: VaultTags;
   wishlist?: DimWishlist | null;
   localTargetRules?: LocalTargetRules | null;
+  equipmentTargetStore?: EquipmentTargetStore | null;
   openingItemKey?: string;
   locateRequest?: { hash: number; name: string; requestId: number } | null;
+  targetLocateRequest?: { targetId: string; requestId: number } | null;
   communityMatch?: Map<number, VaultItemMatchInfo>;
   recommendationImportActions?: VaultRecommendationImportActions;
   targetRulesActions?: VaultTargetRulesActions;
@@ -123,6 +126,10 @@ export function VaultPageContentView(props: {
     setActiveVaultTab("filters");
   }, [props.locateRequest?.requestId]);
 
+  useEffect(() => {
+    if (props.targetLocateRequest) setActiveVaultTab("recommendations");
+  }, [props.targetLocateRequest?.requestId]);
+
   const filteredVaultItems = useMemo(
     () => sortVaultItems(
       filterVaultItems(props.items, {
@@ -151,7 +158,7 @@ export function VaultPageContentView(props: {
   );
   const filteredItems = useMemo(
     () => filteredVaultItems.filter((item) => matchesSignalFilters(item, signalFilters, props)),
-    [filteredVaultItems, props.communityMatch, props.highlightedItemKeys, props.localTargetRules, props.wishlist, signalFilters]
+    [filteredVaultItems, props.communityMatch, props.equipmentTargetStore, props.highlightedItemKeys, props.localTargetRules, props.wishlist, signalFilters]
   );
   const filteredSections = useMemo(() => buildVaultSections(filteredItems), [filteredItems]);
   const groups = useMemo(() => buildVaultGroups(props.items), [props.items]);
@@ -468,6 +475,7 @@ export function VaultPageContentView(props: {
             items={props.items}
             wishlist={props.wishlist}
             localTargetRules={props.localTargetRules}
+            equipmentTargetStore={props.equipmentTargetStore}
             highlightedItemKeys={props.highlightedItemKeys}
             communityMatch={props.communityMatch}
             openingItemKey={props.openingItemKey}
@@ -481,8 +489,8 @@ export function VaultPageContentView(props: {
 
       {activeVaultTab === "recommendations" ? (
         <div id={panelIds.recommendations} role="tabpanel" aria-labelledby={tabIds.recommendations} className="vault-recommendations vault-workspace-panel">
-          <section><div className="vault-column-head"><h3>推荐数据源</h3><span>本地导入或授权</span></div><p className="status-message status-neutral">推荐只显示数据源匹配，不生成主观 Roll 结论。DIM Wishlist、已授权社区推荐和个人知识分别保留来源。</p><VaultRecommendationImportPanel wishlist={props.wishlist} actions={props.recommendationImportActions} /></section>
-          <aside><div className="vault-column-head"><h3>本地目标规则</h3><span>高级</span></div><VaultTargetRulesPanel items={props.items} rules={props.localTargetRules ?? { action_policy: "notify_only", armor: [], weapons: [] }} actions={props.targetRulesActions} /></aside>
+          <section><div className="vault-column-head"><h3>推荐数据源</h3><span>状态、导入与替换</span></div><p className="status-message status-neutral">这些来源只提供匹配证据，不生成主观 Roll 结论。DIM Wishlist、本地社区推荐和个人知识分别保留来源。</p><VaultRecommendationImportPanel wishlist={props.wishlist} actions={props.recommendationImportActions} /></section>
+          <aside><div className="vault-column-head"><h3>装备目标</h3><span>目标库与兼容规则</span></div><VaultTargetRulesPanel items={props.items} rules={props.localTargetRules ?? { action_policy: "notify_only", armor: [], weapons: [] }} equipmentTargetStore={props.equipmentTargetStore} targetLocateRequest={props.targetLocateRequest} actions={props.targetRulesActions} /></aside>
         </div>
       ) : null}
     </div>
@@ -492,13 +500,18 @@ export function VaultPageContentView(props: {
 function matchesSignalFilters(item: AccountItemSummary, filters: VaultSignalFilter[], props: {
   wishlist?: DimWishlist | null;
   localTargetRules?: LocalTargetRules | null;
+  equipmentTargetStore?: EquipmentTargetStore | null;
   highlightedItemKeys?: LoadoutTemplateLookup | null;
   communityMatch?: Map<number, VaultItemMatchInfo>;
 }): boolean {
   if (!filters.length) return true;
   return filters.every((filter) => {
     if (filter === "wishlist") return evaluateWishlistRoll(normalizeCoreItem(item), props.wishlist ?? undefined).matched;
-    if (filter === "target") return evaluateLocalTargets(normalizeCoreItem(item), props.localTargetRules ?? undefined).matched;
+    if (filter === "target") {
+      const coreItem = normalizeCoreItem(item);
+      return evaluateEquipmentTargets(coreItem, props.equipmentTargetStore ?? undefined).matched
+        || evaluateLocalTargets(coreItem, props.localTargetRules ?? undefined).matched;
+    }
     if (filter === "loadout") return matchesLoadoutTemplateItem(item, props.highlightedItemKeys);
     return (props.communityMatch?.get(item.hash)?.matched ?? 0) > 0;
   });

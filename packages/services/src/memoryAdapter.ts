@@ -1,12 +1,13 @@
 import type { ActivityHistorySummary } from "@d2-tools/core/activities/history";
 import type { AccountSummary } from "@d2-tools/core/account/summary";
 import type { LocalTargetRules } from "@d2-tools/core/analysis/targets";
+import { createEmptyEquipmentTargetStore, type EquipmentTargetStore } from "@d2-tools/core/targets/equipmentTargets";
 import type { DimWishlist } from "@d2-tools/core/analysis/wishlistImport";
 import type { LocalCommunityRecommendationTable, VaultItemMatchInfo } from "@d2-tools/core/community-perks";
 import type { PersonalWeaponKnowledgeTable } from "@d2-tools/core/community-perks/personalWeaponKnowledge";
 import type { SaveVaultNoteInput, SaveVaultTagInput, VaultTags } from "@d2-tools/core/vault/tags";
 import type { D2Services } from "./contracts.js";
-import { createD2SkillService } from "./d2SkillService.js";
+import { createGuideContextService } from "./guideContextService.js";
 import type { AiChatReplyResult, AiChatRequest } from "./types.js";
 
 export type MemoryServicesSeed = {
@@ -15,6 +16,7 @@ export type MemoryServicesSeed = {
   vaultTags?: VaultTags;
   wishlist?: DimWishlist | null;
   localTargetRules?: LocalTargetRules;
+  equipmentTargetStore?: EquipmentTargetStore;
   communityRecommendations?: LocalCommunityRecommendationTable | null;
   personalWeaponKnowledge?: PersonalWeaponKnowledgeTable;
   communityMatches?: Array<{ hash: number } & VaultItemMatchInfo>;
@@ -29,6 +31,7 @@ export function createMemoryServices(seed: MemoryServicesSeed): D2Services {
     armor: [],
     weapons: []
   };
+  let equipmentTargetStore = seed.equipmentTargetStore ?? createEmptyEquipmentTargetStore();
   let communityRecommendations = seed.communityRecommendations ?? null;
   let personalWeaponKnowledge = seed.personalWeaponKnowledge ?? { version: 1 as const, entries: [] };
   const activitySummary = seed.activitySummary ?? {
@@ -155,13 +158,24 @@ export function createMemoryServices(seed: MemoryServicesSeed): D2Services {
         weapons: []
       };
       return localTargetRules;
+    },
+    async getEquipmentTargetStore() {
+      return equipmentTargetStore;
+    },
+    async saveEquipmentTargetStore(store) {
+      equipmentTargetStore = store;
+      return equipmentTargetStore;
+    },
+    async clearEquipmentTargetStore() {
+      equipmentTargetStore = createEmptyEquipmentTargetStore();
+      return equipmentTargetStore;
     }
   };
 
   return {
     profile,
     localData,
-    d2Skill: createD2SkillService({ profile, localData }),
+    guide: createGuideContextService({ profile, localData }),
     ai: {
       async sendChat(input) {
         return typeof aiReply === "function" ? aiReply(input) : aiReply;

@@ -1,18 +1,18 @@
 import { describe, expect, it } from "vitest";
 import type { AccountSummary } from "@d2-tools/core/account/summary";
-import { createMemoryServices } from "@d2-tools/services";
-import { loadD2SkillWorkspace, matchD2SkillBuildGuide } from "../src/workspaces/d2Skill.js";
+import { createMemoryServices } from "@d2-tools/services/memoryAdapter";
+import { loadGuideWorkspace, matchBuildGuide } from "../src/workspaces/guideWorkspace.js";
 
-describe("d2 skill workspace", () => {
+describe("guide workspace", () => {
   it("loads account context and matches a parsed guide deterministically", async () => {
     const services = createMemoryServices({ account });
 
-    const workspace = await loadD2SkillWorkspace(services);
+    const workspace = await loadGuideWorkspace(services);
     if (workspace.status !== "success") throw new Error(workspace.error.message);
     expect(workspace.status).toBe("success");
     expect(workspace.data.items.map((item) => item.name)).toContain("漏斗网");
 
-    const match = await matchD2SkillBuildGuide(services, {
+    const match = await matchBuildGuide(services, {
       raw_text: "虚空术士 反转手 漏斗网",
       class_name: { value: "术士", confidence: "high" },
       subclass: { value: "虚空", confidence: "high" },
@@ -24,7 +24,7 @@ describe("d2 skill workspace", () => {
       fragments: [],
       notes: [],
       needs_confirmation: []
-    });
+    }, { characterId: "char-1" });
 
     if (match.status !== "success") throw new Error(match.error.message);
     expect(match.status).toBe("success");

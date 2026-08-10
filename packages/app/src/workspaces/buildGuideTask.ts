@@ -3,25 +3,25 @@ import { createBuildGuideLoadoutDraft } from "@d2-tools/core/assistant/loadoutDr
 import type { BuildGuideTaskState } from "@d2-tools/core/assistant/guideSchema";
 import type { D2Services } from "@d2-tools/services";
 import { runQuery, type QueryState } from "../queryState.js";
-import { matchD2SkillBuildGuide } from "./d2Skill.js";
+import { matchBuildGuide } from "./guideWorkspace.js";
 
-export type KohinataBuildGuideTaskInput = {
+export type BuildGuideTaskInput = {
   rawText: string;
   aiText?: string;
   characterId?: string;
 };
 
-export function createKohinataBuildGuideTask(
-  services: Pick<D2Services, "d2Skill">,
-  input: KohinataBuildGuideTaskInput
+export function createBuildGuideTask(
+  services: Pick<D2Services, "guide">,
+  input: BuildGuideTaskInput
 ): Promise<QueryState<BuildGuideTaskState>> {
   return runQuery(async () => {
     const parseResult = input.aiText
       ? parseBuildGuideFromAiJson(input.rawText, input.aiText)
       : parseBuildGuideFallback(input.rawText);
-    const context = await services.d2Skill.getBuildGuideContext();
+    const context = await services.guide.getContext();
     const characterId = input.characterId ?? context.account.characters[0]?.character_id ?? "";
-    const matchState = await matchD2SkillBuildGuide(services, parseResult.requirement, { characterId });
+    const matchState = await matchBuildGuide(services, parseResult.requirement, { characterId });
 
     if (matchState.status !== "success") {
       throw new Error(matchState.error?.message ?? "攻略账号对照失败");

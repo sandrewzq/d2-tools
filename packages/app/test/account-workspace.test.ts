@@ -35,6 +35,15 @@ describe("account workspace", () => {
             weapons: []
           };
         },
+        async getEquipmentTargetStore() {
+          return {
+            version: 1,
+            action_policy: "notify_only",
+            created_at: "2026-08-08T00:00:00.000Z",
+            updated_at: "2026-08-08T00:00:00.000Z",
+            targets: []
+          };
+        },
         async getDimWishlist() {
           return {
             title: "Test Wishlist",
@@ -69,6 +78,12 @@ describe("account workspace", () => {
           throw new Error("not used");
         },
         async clearLocalTargetRules() {
+          throw new Error("not used");
+        },
+        async saveEquipmentTargetStore() {
+          throw new Error("not used");
+        },
+        async clearEquipmentTargetStore() {
           throw new Error("not used");
         }
       }
@@ -113,6 +128,9 @@ describe("account workspace", () => {
         async getLocalTargetRules() {
           throw new Error("rules unavailable");
         },
+        async getEquipmentTargetStore() {
+          throw new Error("equipment targets unavailable");
+        },
         async getDimWishlist() {
           throw new Error("wishlist unavailable");
         },
@@ -145,6 +163,12 @@ describe("account workspace", () => {
         },
         async clearLocalTargetRules() {
           throw new Error("not used");
+        },
+        async saveEquipmentTargetStore() {
+          throw new Error("not used");
+        },
+        async clearEquipmentTargetStore() {
+          throw new Error("not used");
         }
       }
     });
@@ -165,6 +189,7 @@ describe("account workspace", () => {
     expect(result.data.warnings.map((warning) => warning.source)).toEqual([
       "vault-tags",
       "target-rules",
+      "equipment-targets",
       "wishlist"
     ]);
   });
@@ -224,6 +249,15 @@ describe("account workspace", () => {
             weapons: []
           };
         },
+        async getEquipmentTargetStore() {
+          return {
+            version: 1,
+            action_policy: "notify_only",
+            created_at: "2026-08-08T00:00:00.000Z",
+            updated_at: "2026-08-08T00:00:00.000Z",
+            targets: []
+          };
+        },
         async getDimWishlist() {
           return {
             title: "Test Wishlist",
@@ -258,6 +292,12 @@ describe("account workspace", () => {
           throw new Error("not used");
         },
         async clearLocalTargetRules() {
+          throw new Error("not used");
+        },
+        async saveEquipmentTargetStore() {
+          throw new Error("not used");
+        },
+        async clearEquipmentTargetStore() {
           throw new Error("not used");
         }
       }

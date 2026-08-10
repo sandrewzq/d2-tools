@@ -19,7 +19,7 @@ export type { ArmorStatKey } from "@d2-tools/core/loadouts/analysis";
 export type { ItemPerkGroup, ItemPlugSummary } from "@d2-tools/core/items/perks";
 export type { ItemDefinitionStat } from "@d2-tools/core/items/search";
 export type { ItemDefinitionVersionSummary, ItemReleaseSummary } from "@d2-tools/core/items/release";
-export type { ArmorSetCatalogItem, EquipableItemSetSummary } from "@d2-tools/core/items/equipableItemSet";
+export type { ArmorSetCatalogEntry, ArmorSetCatalogItem, EquipableItemSetSummary } from "@d2-tools/core/items/equipableItemSet";
 export type { WeaponBreakerTypeSummary } from "@d2-tools/core/items/breakerTypes";
 export type { DamageTypeSummary } from "@d2-tools/core/items/damageTypes";
 export type { LiveItemAvailability } from "@d2-tools/core/items/liveAvailability";
@@ -28,8 +28,7 @@ export type {
   BuildGuideLoadoutDraft,
   BuildGuideMatchResult,
   BuildGuideParseResult,
-  BuildGuideRequirement,
-  BuildGuideTaskState
+  BuildGuideRequirement
 } from "@d2-tools/core/assistant/guideSchema";
 export type { VaultItemMatchInfo, WeaponRecommendation };
 

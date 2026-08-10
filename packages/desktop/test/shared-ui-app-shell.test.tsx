@@ -31,17 +31,17 @@ describe("shared UI AppShell", () => {
     expect(openExternal).not.toHaveBeenCalled();
   });
 
-  it("keeps application background tasks out of the assistant task view", () => {
+  it("keeps application background tasks out of the AI workbench", () => {
     const html = renderToStaticMarkup(
       <AppShell
         activePage="home"
-        assistantMode="tasks"
+        assistantMode="ai"
         colorMode="dark"
         shellStatus={[
           { key: "bungie", label: "Bungie", value: "已配置", tone: "ready" },
           { key: "background", label: "后台任务", value: "1 个运行中", tone: "warning" }
         ]}
-        assistantPanel={<p>AI 任务助手</p>}
+        assistantPanel={<p>AI 工作台</p>}
         platformActions={{ openExternal: vi.fn() }}
         onNavigate={() => {}}
         onAssistantModeChange={() => {}}
@@ -51,7 +51,7 @@ describe("shared UI AppShell", () => {
       </AppShell>
     );
 
-    expect(html).toContain("AI 任务助手");
+    expect(html).toContain("AI 工作台");
     expect(html).toContain("Bungie");
     expect(html).not.toContain("后台任务");
     expect(html).not.toContain("1 个运行中");

@@ -1,40 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { buildAssistantPageContext } from "../src/renderer/shared/domain/assistant/assistantContext";
-import { buildAssistantTaskContext } from "../src/renderer/shared/domain/assistant/assistantTaskContext";
 
-describe("assistant task context", () => {
-  it("builds a task and guide tree from pasted text, account items and page facts", () => {
-    const context = buildAssistantTaskContext({
-      text: [
-        "虚空猎人配装攻略",
-        "1. 装备 金枪头 并堆纪律到 100",
-        "- 使用 Funnelweb 清怪",
-        "循环：隐身后用手雷触发易伤"
-      ].join("\n"),
-      accountItems: [
-        { hash: 1, name: "金枪头", group_key: "armor", item_type: "头盔" },
-        { hash: 2, name: "Funnelweb", group_key: "weapons", item_type: "微型冲锋枪" }
-      ],
-      pageContextFacts: ["当前角色：猎人，光等 2010。"]
-    });
-
-    expect(context.title).toBe("虚空猎人配装攻略");
-    expect(context.steps.map((step) => step.text)).toEqual([
-      "装备 金枪头 并堆纪律到 100",
-      "使用 Funnelweb 清怪",
-      "循环：隐身后用手雷触发易伤"
-    ]);
-    expect(context.linkedItems.map((item) => item.name)).toEqual(["金枪头", "Funnelweb"]);
-    expect(context.aiQuestions).toContain("根据当前账号数据，哪些攻略要求已经满足？");
-    expect(context.loadoutDraftItems).toContain("已关联装备：金枪头 / 头盔");
-    expect(context.loadoutDraftItems).toContain("已关联装备：Funnelweb / 微型冲锋枪");
-    expect(context.loadoutDraftItems).toContain("待确认要求：堆纪律到 100");
-    expect(context.treeGroups.map((group) => group.title)).toEqual(["任务文本", "攻略步骤", "关联装备", "可保存方案草稿", "AI 问答"]);
-    expect(context.treeGroups.at(3)?.items.join(" / ")).toContain("可保存方案草稿");
-    expect(context.treeGroups.at(-1)?.items.join(" / ")).toContain("当前角色：猎人");
-    expect(JSON.stringify(context)).not.toContain("\uFFFD");
-  });
-
+describe("assistant page context", () => {
   it("adds vault filters, loadout gaps and library searches to assistant page context", () => {
     const context = buildAssistantPageContext({
       activePage: "vault",

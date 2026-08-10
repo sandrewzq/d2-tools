@@ -223,7 +223,8 @@ describe("account page workspace", () => {
     expect(viewModel.loadout.slotComparisonRows[1]?.inventoryItems[0]).toMatchObject({
       key: "inventory-1",
       isPending: true,
-      meta: "胸甲 / Legendary / 总值 68 / 生命值 20 / 职业 16 / 手雷 14"
+      primaryFacts: ["Legendary"],
+      stateFacts: ["总值 68"]
     });
     expect(viewModel.activity.summary).toBeNull();
     expect(viewModel.activity.message).toBe("");

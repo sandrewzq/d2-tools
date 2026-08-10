@@ -1,4 +1,5 @@
 import type { AccountItemSummary, AccountSummary } from "../account/summary.js";
+import type { ArmorSetConstraint } from "../armor/sets.js";
 import type { ArmorStatKey } from "./analysis.js";
 
 export const loadoutPlanArmorStatKeys = [
@@ -17,10 +18,13 @@ export type LocalLoadoutPlanSourceKind =
   | "current-equipment"
   | "bungie-loadout"
   | "dim-link"
-  | "guide";
+  | "guide"
+  | "armor-plan"
+  | "assistant-targets";
 
 export type LocalLoadoutPlanSource = {
   kind: LocalLoadoutPlanSourceKind;
+  source_id?: string;
   reference_url?: string;
   label?: string;
 };
@@ -49,23 +53,45 @@ export type LoadoutPlanSubclassTarget = {
 };
 
 export type LoadoutPlanArmorLocation = "equipped" | "inventory" | "vault" | "postmaster";
+export type LoadoutPlanArmorPlannerMode = "owned" | "theoretical" | "acquisition" | "upgrade";
 
 export type LoadoutPlanArmorConstraints = {
+  planner_mode?: LoadoutPlanArmorPlannerMode;
   stat_minimums: Partial<Record<LoadoutPlanArmorStatKey, number>>;
   priority_stats: LoadoutPlanArmorStatKey[];
   fragment_stat_bonuses: Partial<Record<LoadoutPlanArmorStatKey, number>>;
   five_point_mod_budget: number;
   ten_point_mod_budget: number;
   exotic_item_hash?: number;
+  exotic_instance_id?: string;
   locked_instance_ids: string[];
   excluded_instance_ids: string[];
   allowed_locations: LoadoutPlanArmorLocation[];
+  set_constraint?: ArmorSetConstraint;
 };
 
 export type LoadoutPlanGuidance = {
   raw_text?: string;
   warnings: string[];
   evidence: string[];
+};
+
+export type LocalLoadoutArmorPlanReference = {
+  result_id: string;
+  cache_key?: string;
+  checked_at?: string;
+  expires_at?: string;
+  candidate_id: string;
+  mode: "owned" | "upgrade";
+  ruleset_id: "armor-3.0";
+  ruleset_version: number;
+  manifest_version?: string;
+  source_revisions: {
+    account?: string;
+    manifest?: string;
+    ruleset: string;
+  };
+  selected_instance_ids: string[];
 };
 
 export type LocalLoadoutPlan = {
@@ -77,6 +103,7 @@ export type LocalLoadoutPlan = {
   item_targets: LoadoutPlanItemTarget[];
   subclass_target?: LoadoutPlanSubclassTarget;
   armor_constraints?: LoadoutPlanArmorConstraints;
+  armor_plan?: LocalLoadoutArmorPlanReference;
   notes?: string;
   guidance?: LoadoutPlanGuidance;
   created_at: string;

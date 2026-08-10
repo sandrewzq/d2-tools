@@ -4,7 +4,20 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
 const appSourceDir = resolve(__dirname, "../app/src");
-const appDomains = ["account", "assistant", "home", "items", "library", "loadouts", "settings", "vault", "vendors"];
+const appDomains = [
+  "account",
+  "armor",
+  "assistant",
+  "capabilities",
+  "guides",
+  "home",
+  "items",
+  "library",
+  "loadouts",
+  "settings",
+  "vault",
+  "vendors"
+];
 const packageVersion = (JSON.parse(readFileSync(resolve(__dirname, "package.json"), "utf8")) as { version: string }).version;
 
 export default defineConfig({
