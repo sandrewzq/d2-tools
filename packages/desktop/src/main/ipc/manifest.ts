@@ -113,9 +113,13 @@ function runManifestVersionCheckTask(restartIfRetrying = false): void {
       }
       const status = await checkManifestVersion({ config: attemptConfig });
       const currentStatus = getDesktopManifestStatus();
+      const versionChanged = Boolean(
+        status.latest_version && currentStatus.version !== status.latest_version
+      );
       const needsUpdate = Boolean(
-        !currentStatus.initialized
-        || (status.latest_version && currentStatus.version !== status.latest_version)
+        status.needs_update
+        || !currentStatus.initialized
+        || versionChanged
         || manifestLanguageNeedsUpdate(currentStatus, attemptConfig.data.manifest_language)
       );
       lastManifestVersionStatus = {
@@ -132,7 +136,9 @@ function runManifestVersionCheckTask(restartIfRetrying = false): void {
       });
       update({
         message: needsUpdate
-          ? `发现资料库新版本 ${status.latest_version ?? "未知版本"}，已转入后台更新。`
+          ? versionChanged
+            ? `发现资料库新版本 ${status.latest_version ?? "未知版本"}，已转入后台更新。`
+            : "发现资料库内容更新，已转入后台更新。"
           : `资料库已是最新版本：${currentStatus.version ?? "未知版本"}。`
       });
       if (shouldAutoUpdateManifest(mergeManifestVersionStatus(

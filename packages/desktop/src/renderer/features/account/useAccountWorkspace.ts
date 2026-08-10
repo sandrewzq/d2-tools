@@ -42,6 +42,7 @@ export function useAccountWorkspace(input: {
   const [accountError, setAccountError] = useState("");
   const [accountWarning, setAccountWarning] = useState("");
   const [isLoadingAccount, setIsLoadingAccount] = useState(false);
+  const [lastAccountLoadedAt, setLastAccountLoadedAt] = useState<Date | null>(null);
   const [selectedCharacterId, setSelectedCharacterId] = useState("");
   const [activitySummary, setActivitySummary] = useState<ActivityHistorySummary | null>(null);
   const [activityMessage, setActivityMessage] = useState("");
@@ -140,7 +141,7 @@ export function useAccountWorkspace(input: {
 
     try {
       const workspace = await loadAccountWorkspace(services, {
-        forceAccountRefresh: reason !== "initial"
+        forceAccountRefresh: true
       });
       if (requestSequence !== accountRequestSequenceRef.current) return null;
       if (workspace.status !== "success") {
@@ -154,6 +155,7 @@ export function useAccountWorkspace(input: {
         wishlist
       } = workspace.data;
       applyAccountSummary(summary);
+      setLastAccountLoadedAt(new Date());
       setVaultTags(tags);
       setLocalTargetRules(targetRules);
       setEquipmentTargetStore(equipmentTargets);
@@ -253,6 +255,7 @@ export function useAccountWorkspace(input: {
     setAccountError,
     accountWarning,
     isLoadingAccount,
+    lastAccountLoadedAt,
     selectedCharacterId,
     setSelectedCharacterId,
     activitySummary,

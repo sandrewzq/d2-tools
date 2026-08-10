@@ -21,7 +21,6 @@ $rendererUrl = "http://127.0.0.1:${rendererPort}"
 $previousRendererUrl = $env:D2_RENDERER_URL
 $viteProcess = $null
 $viteCli = Join-Path $desktopDir "node_modules\vite\bin\vite.js"
-$buildStampPath = Join-Path $rootDir ".local-data\tmp\dev-desktop-build.stamp"
 
 function Invoke-Checked {
   param(
@@ -79,10 +78,18 @@ function Test-AnyPathNewerThan {
   return $false
 }
 
-function Write-BuildStamp {
-  $stampDir = Split-Path -Parent $buildStampPath
-  New-Item -ItemType Directory -Path $stampDir -Force | Out-Null
-  [IO.File]::WriteAllText($buildStampPath, [DateTime]::UtcNow.ToString("O"), [Text.UTF8Encoding]::new($false))
+function Test-OutputNeedsBuild {
+  param(
+    [string] $OutputPath,
+    [string[]] $InputPaths
+  )
+
+  if (-not (Test-Path -LiteralPath $OutputPath)) {
+    return $true
+  }
+
+  $outputTime = (Get-Item -LiteralPath $OutputPath).LastWriteTimeUtc
+  return Test-AnyPathNewerThan -Paths $InputPaths -Timestamp $outputTime
 }
 
 function Stop-ProcessTree {
@@ -184,12 +191,15 @@ try {
 
   if ($Fast) {
     $missingOutput = $requiredOutputs | Where-Object { -not (Test-Path -LiteralPath $_) } | Select-Object -First 1
-    if (-not (Test-Path -LiteralPath $buildStampPath) -or $missingOutput) {
-      Write-Host "Fast start cannot reuse build outputs; falling back to a full build." -ForegroundColor Yellow
+    if ($missingOutput) {
+      Write-Host "Required build output is missing; falling back to a full build." -ForegroundColor Yellow
       $requiresFullBuild = $true
     } else {
-      $stampTime = (Get-Item -LiteralPath $buildStampPath).LastWriteTimeUtc
-      $criticalChanged = Test-AnyPathNewerThan -Timestamp $stampTime -Paths @(
+      $oldestOutputTime = ($requiredOutputs |
+        ForEach-Object { Get-Item -LiteralPath $_ } |
+        Sort-Object LastWriteTimeUtc |
+        Select-Object -First 1).LastWriteTimeUtc
+      $criticalChanged = Test-AnyPathNewerThan -Timestamp $oldestOutputTime -Paths @(
         (Join-Path $rootDir "package.json"),
         (Join-Path $rootDir "pnpm-lock.yaml"),
         (Join-Path $rootDir "pnpm-workspace.yaml"),
@@ -202,29 +212,42 @@ try {
         Write-Host "Dependency or root build configuration changed; falling back to a full build." -ForegroundColor Yellow
         $requiresFullBuild = $true
       } else {
-        $buildCore = Test-AnyPathNewerThan -Timestamp $stampTime -Paths @(
+        $coreOutput = Join-Path $rootDir "packages\core\dist\index.js"
+        $httpOutput = Join-Path $rootDir "packages\http\dist\server.js"
+        $servicesOutput = Join-Path $rootDir "packages\services\dist\index.js"
+        $mainOutput = Join-Path $desktopDir "dist\main\main.js"
+        $preloadOutput = Join-Path $desktopDir "dist\preload\preload.cjs"
+
+        $buildCore = Test-OutputNeedsBuild -OutputPath $coreOutput -InputPaths @(
           (Join-Path $rootDir "packages\core\src"),
           (Join-Path $rootDir "packages\core\package.json"),
           (Join-Path $rootDir "packages\core\tsconfig.json")
         )
-        $buildHttp = $buildCore -or (Test-AnyPathNewerThan -Timestamp $stampTime -Paths @(
+        $buildHttp = $buildCore -or (Test-OutputNeedsBuild -OutputPath $httpOutput -InputPaths @(
+          $coreOutput,
           (Join-Path $rootDir "packages\http\src"),
           (Join-Path $rootDir "packages\http\package.json"),
           (Join-Path $rootDir "packages\http\tsconfig.json")
         ))
-        $buildServices = $buildCore -or (Test-AnyPathNewerThan -Timestamp $stampTime -Paths @(
+        $buildServices = $buildCore -or $buildHttp -or (Test-OutputNeedsBuild -OutputPath $servicesOutput -InputPaths @(
+          $coreOutput,
+          $httpOutput,
           (Join-Path $rootDir "packages\services\src"),
           (Join-Path $rootDir "packages\services\package.json"),
           (Join-Path $rootDir "packages\services\tsconfig.json")
         ))
-        $contractsChanged = Test-AnyPathNewerThan -Timestamp $stampTime -Paths @(
-          (Join-Path $desktopDir "src\contracts")
-        )
-        $buildMain = $buildCore -or $buildHttp -or $buildServices -or $contractsChanged -or (Test-AnyPathNewerThan -Timestamp $stampTime -Paths @(
+        $buildMain = $buildCore -or $buildHttp -or $buildServices -or (Test-OutputNeedsBuild -OutputPath $mainOutput -InputPaths @(
+          $coreOutput,
+          $httpOutput,
+          $servicesOutput,
+          (Join-Path $desktopDir "src\contracts"),
           (Join-Path $desktopDir "src\main"),
           (Join-Path $desktopDir "tsconfig.main.json")
         ))
-        $buildPreload = $buildCore -or $buildServices -or $contractsChanged -or (Test-AnyPathNewerThan -Timestamp $stampTime -Paths @(
+        $buildPreload = $buildCore -or $buildServices -or (Test-OutputNeedsBuild -OutputPath $preloadOutput -InputPaths @(
+          $coreOutput,
+          $servicesOutput,
+          (Join-Path $desktopDir "src\contracts"),
           (Join-Path $desktopDir "src\preload"),
           (Join-Path $desktopDir "tsconfig.preload.json"),
           (Join-Path $desktopDir "vite.preload.config.ts")
@@ -272,10 +295,6 @@ try {
     }
   } finally {
     Pop-Location
-  }
-
-  if ($buildCore -or $buildHttp -or $buildServices -or $buildMain -or $buildPreload) {
-    Write-BuildStamp
   }
 
   Write-Host ""

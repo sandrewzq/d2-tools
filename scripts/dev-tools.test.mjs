@@ -25,11 +25,13 @@ describe("dev tool scripts", () => {
 
     expect(commandScript).toContain("dev-desktop.ps1\" -Fast");
     expect(launcher).toContain("[switch] $Fast");
+    expect(launcher).toContain("function Test-OutputNeedsBuild");
     expect(launcher).toContain("function Stop-StaleRendererServer");
     expect(launcher).toContain("Get-NetTCPConnection -LocalPort $rendererPort -State Listen");
-    expect(launcher).toContain("Fast start cannot reuse build outputs; falling back to a full build.");
+    expect(launcher).toContain("Required build output is missing; falling back to a full build.");
     expect(launcher).toContain("Workspace outputs are current; skipping package builds.");
     expect(launcher).toContain("Main and preload outputs are current; reusing existing files.");
+    expect(launcher).not.toContain("dev-desktop-build.stamp");
   });
 
   it("removes local development verification aliases while keeping the release gate", () => {

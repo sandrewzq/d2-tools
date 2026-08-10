@@ -28,7 +28,10 @@ import {
   type LocalLoadoutPlanItemMatch
 } from "@d2-tools/core/loadouts/plans";
 import type { DimLoadoutExportResult, DimLoadoutImportPreview } from "@d2-tools/core/loadouts/dimImport";
-import type { LocalLoadoutPlanExecutionPlan } from "@d2-tools/core/loadouts/localPlanExecution";
+import type {
+  LocalLoadoutPlanExecutionPlan,
+  LocalLoadoutPlanPublishPlan
+} from "@d2-tools/core/loadouts/localPlanExecution";
 import type { LoadoutTemplate } from "@d2-tools/core/loadouts/templates";
 import type { LoadoutTemplateAnalysis } from "@d2-tools/core/loadouts/analysis";
 import type { LoadoutActionFeedbackState } from "./loadoutActionFeedback.js";
@@ -65,6 +68,7 @@ export type LoadoutsPageActions = {
   dismissDimImport: () => void;
   copyDimLoadoutLink: () => void;
   executeLocalPlan: () => void;
+  publishLocalPlanToSlot?: (loadoutIndex: number) => void;
   importGuideText: (rawText: string, character: AccountSummary["characters"][number] | null) => Promise<boolean>;
   acceptAssistantEquipmentTargets: (
     artifact: AssistantEquipmentTargetCandidatesArtifact,
@@ -143,6 +147,16 @@ export type LoadoutsPageContentViewProps = {
     refresh_verified: boolean;
   } | null;
   localPlanIsExecuting: boolean;
+  localPlanPublishReport?: {
+    plan: LocalLoadoutPlanPublishPlan;
+    confirmation_id: string;
+    execution_id: string;
+    preflight_verified: boolean;
+    verification_status?: "verified" | "partial" | "mismatch" | "unavailable";
+    verification_logged?: boolean;
+    error?: string;
+  } | null;
+  localPlanIsPublishing?: boolean;
   localPlanIsImportingGuide: boolean;
   localPlanLegacyGuideText: string;
   localPlanAssistantPrefill: ((AssistantArtifact | GuideLoadoutCandidatesArtifact) & { request_id: number }) | null;
@@ -1309,7 +1323,7 @@ function LocalPlanExecutionPanel(props: LoadoutsPageContentViewProps & {
       {plan.executable_steps.length ? <ol className="loadout-plan-step-list">{plan.executable_steps.map((step, index) => <li key={step.id}><span>{String(index + 1).padStart(2, "0")}</span><strong>{step.label}</strong></li>)}</ol> : <p className="loadout-callout" data-ui-kind="callout" data-status="warning">没有可执行步骤。</p>}
       {plan.gaps.length ? <p className="loadout-callout" data-ui-kind="callout" data-status="warning">未执行缺口：{plan.gaps.join("；")}</p> : null}
       {report ? <p className="loadout-callout" data-ui-kind="callout" data-status={report.refresh_verified && report.verification_logged !== false ? "success" : "warning"}>{formatExecutionReportMessage(report)}{report.execution_id ? <small title={report.execution_id}>执行 {formatTraceReference(report.execution_id)}{report.verification_status ? ` · 验证 ${formatVerificationStatus(report.verification_status)}` : ""}</small> : null}</p> : null}
-      {report?.refresh_verified ? <LocalPlanPublishPanel accountSummary={props.accountSummary} targetCharacterId={plan.target_character_id} selectedSlotIndex={publishSlotIndex} onSelectSlot={setPublishSlotIndex} isRunningItemAction={props.isRunningItemAction} onSnapshot={props.actions.snapshotCurrentLoadout} /> : null}
+      {report?.refresh_verified ? <LocalPlanPublishPanel accountSummary={props.accountSummary} targetCharacterId={plan.target_character_id} selectedSlotIndex={publishSlotIndex} onSelectSlot={setPublishSlotIndex} report={props.localPlanPublishReport} isPublishing={props.localPlanIsPublishing ?? false} onPublish={props.actions.publishLocalPlanToSlot} /> : null}
     </section>
   );
 }
@@ -1372,8 +1386,9 @@ function LocalPlanPublishPanel(props: {
   targetCharacterId: string;
   selectedSlotIndex: number | null;
   onSelectSlot: (index: number) => void;
-  isRunningItemAction: boolean;
-  onSnapshot: LoadoutsPageActions["snapshotCurrentLoadout"];
+  report?: LoadoutsPageContentViewProps["localPlanPublishReport"];
+  isPublishing: boolean;
+  onPublish?: LoadoutsPageActions["publishLocalPlanToSlot"];
 }) {
   const character = props.accountSummary?.characters.find((item) => item.character_id === props.targetCharacterId) ?? null;
   const selectedSlot = character?.loadout_slots.find((slot) => slot.index === props.selectedSlotIndex) ?? null;
@@ -1381,13 +1396,27 @@ function LocalPlanPublishPanel(props: {
   return (
     <div className="loadout-slot-picker">
       <strong>保存到游戏内槽位</strong>
-      <small>方案已应用并经账号刷新核对。选择 Bungie 槽位后才会保存当前角色状态。</small>
+      <small>方案已应用并经账号刷新核对。发布前会再次核对当前装备和目标槽位，变化时保持零写入。</small>
       <div className="loadout-slot-picker-list" data-surface="list">
         {character.loadout_slots.map((slot) => <button type="button" key={slot.index} aria-pressed={slot.index === props.selectedSlotIndex} onClick={() => props.onSelectSlot(slot.index)}><span>{String(slot.index + 1).padStart(2, "0")}</span><span><strong>{slot.name}</strong><small>{slot.item_count ? "覆盖已有槽位" : "空槽"}</small></span></button>)}
       </div>
-      <footer><button type="button" data-ui-kind="button" data-control-variant="primary" disabled={!selectedSlot || props.isRunningItemAction} onClick={() => selectedSlot && props.onSnapshot(character, selectedSlot)}>{selectedSlot?.item_count ? "确认覆盖并保存" : "保存到槽位"}</button></footer>
+      {props.report ? <p className="loadout-callout" data-ui-kind="callout" data-status={props.report.verification_status === "verified" && props.report.verification_logged !== false ? "success" : "warning"}>{formatPublishReportMessage(props.report)}<small title={props.report.execution_id}>发布 {formatTraceReference(props.report.execution_id)} · 计划 {formatTraceReference(props.report.plan.plan_id)}</small></p> : null}
+      <footer><button type="button" data-ui-kind="button" data-control-variant="primary" disabled={!selectedSlot || props.isPublishing || !props.onPublish} onClick={() => selectedSlot && props.onPublish?.(selectedSlot.index)}>{props.isPublishing ? "发布中" : selectedSlot?.item_count ? "确认覆盖并保存" : "保存到槽位"}</button></footer>
     </div>
   );
+}
+
+function formatPublishReportMessage(
+  report: NonNullable<LoadoutsPageContentViewProps["localPlanPublishReport"]>
+): string {
+  if (!report.preflight_verified) return report.error ?? "发布前账号或槽位复核未通过，未执行写入。";
+  if (report.verification_status === "verified") {
+    return report.verification_logged === false
+      ? "槽位保存后刷新核对通过，但验证记录未写入操作日志。"
+      : "槽位已保存，刷新后的 Bungie 槽位实例核对通过。";
+  }
+  if (report.verification_status === "unavailable") return report.error ?? "槽位已写入，但刷新结果不足以完成精确核对。";
+  return report.error ?? "槽位写入或刷新核对未通过。";
 }
 
 function LocalPlanSummary(props: LoadoutsPageContentViewProps) {

@@ -247,7 +247,7 @@ npx pnpm@9.15.0 install
 tools\dev-desktop.cmd
 ```
 
-它会自动清理残留 Desktop 与 `53172` 端口，根据构建产物、依赖和源码变化安全地选择增量构建或完整重建；不需要为全量或快速模式选择不同脚本。
+它会自动清理残留 Desktop 与 `53172` 端口，并按实际构建产物、依赖和源码变化安全地选择增量构建或完整重建；不需要为全量或快速模式选择不同脚本。
 
 需要在终端中启动时，也可以直接运行底层 PowerShell 脚本：
 
@@ -255,7 +255,7 @@ tools\dev-desktop.cmd
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev-desktop.ps1
 ```
 
-双击入口会复用 `.local-data/tmp/dev-desktop-build.stamp` 对应的已有产物，并根据文件修改时间只增量构建变化的 core、http、services、Electron main 或 preload。首次运行、产物缺失、根依赖或构建配置变化时自动回退完整构建；Renderer、共享 UI 和 CSS 改动不执行预构建。
+双击入口直接比较 core、http、services、Electron main 和 preload 的实际输出时间与各自源码、配置及上游产物，只增量构建过期层。首次运行、产物缺失、根依赖或构建配置变化时自动回退完整构建；Renderer、共享 App、UI 和 CSS 由 Vite 直接读取最新源码，不执行预构建。需要明确强制完整构建时，可手动运行不带 `-Fast` 的底层 PowerShell 命令。
 
 完整启动链路会：
 
@@ -264,7 +264,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev-desktop.ps1
 3. 启动 Vite 前端开发服务器，固定使用 `http://127.0.0.1:53172`
 4. 打开 Electron 开发版桌面应用
 
-这不是打包流程，不会生成或解压 `release/win-unpacked`。渲染层改动支持热更新；主进程、preload、core、http 或 services 改动后，关闭桌面窗口并重新双击 `tools\dev-desktop.cmd`，脚本会自动增量重建受影响层。开发端口启用 strict port；脚本会先清理 `53172` 的残留监听进程，不会自动跳到其他端口导致 Electron 打开错误页面。发布版不依赖这个端口；打包后的 Electron 会直接加载安装包内的 `dist/renderer/index.html`。
+这不是打包流程，不会生成或解压 `release/win-unpacked`。渲染层改动支持热更新；主进程、preload、core、http 或 services 改动后，关闭桌面窗口并重新双击 `tools\dev-desktop.cmd`，脚本会根据实际产物时间自动重建受影响层。开发端口启用 strict port；脚本会先清理 `53172` 的残留监听进程，不会自动跳到其他端口导致 Electron 打开错误页面。发布版不依赖这个端口；打包后的 Electron 会直接加载安装包内的 `dist/renderer/index.html`。
 
 如果只想单独启动前端页面：
 
@@ -294,7 +294,7 @@ npx pnpm@9.15.0 dev:electron
 
 常用脚本：
 
-- `tools/dev-desktop.cmd`：唯一的双击 Desktop 开发入口；自动清理 `53172`，并自行决定增量构建或完整重建。
+- `tools/dev-desktop.cmd`：唯一的双击 Desktop 开发入口；自动清理 `53172`，按实际产物新旧自行决定增量构建或完整重建。
 - `tools/dev-web.cmd`：清理 `53171` 残留监听进程后启动 Web。
 - `tools/git-preflight.cmd`：只读按文档、工具、跨端 UI、Desktop、core/services/app/http 分组查看 Git 改动，识别菜单 lane / 共享层风险 / 多 lane 混改，并提示当前验证策略、高冲突文件和并行安全建议。
 - `tools/git-commit-and-push.cmd`：全量提交并 push，不创建 release tag；有无关改动时不要使用。

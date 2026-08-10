@@ -25,6 +25,8 @@ import { useVendorDefinitionDetail } from "../features/vendors/useVendorDefiniti
 import type { DesktopMenuSession } from "./providers/DesktopMenuProviderContext";
 import { useDesktopProductWriteActions } from "./useDesktopProductWriteActions";
 
+const ACCOUNT_PAGE_REVALIDATE_MS = 60_000;
+
 export function useDesktopProductShell(props: {
   state: StartupState;
   onConfigure: () => void;
@@ -43,7 +45,6 @@ export function useDesktopProductShell(props: {
   const [settingsInitialSection, setSettingsInitialSection] = useState<"overview" | "account">("overview");
   const [assistantMode, setAssistantMode] = useState<ShellAssistantMode>(null);
   const [hasAutoLoadedAccount, setHasAutoLoadedAccount] = useState(false);
-  const [lastAccountLoadedAt, setLastAccountLoadedAt] = useState<Date | null>(null);
   const [vaultFacts, setVaultFacts] = useState<string[]>([]);
   const [vaultLocateRequest, setVaultLocateRequest] = useState<{
     hash: number;
@@ -91,6 +92,7 @@ export function useDesktopProductShell(props: {
     setAccountError,
     accountWarning,
     isLoadingAccount,
+    lastAccountLoadedAt,
     selectedCharacterId,
     activitySummary,
     importedWishlist,
@@ -201,6 +203,7 @@ export function useDesktopProductShell(props: {
   }, [isManifestReady, isVisualCapture]);
 
   const refreshAccountRef = useRef(refreshAccountSnapshot);
+  const accountPageRefreshAttemptedRef = useRef(false);
   refreshAccountRef.current = refreshAccountSnapshot;
   const canRefreshAccount = props.state.cards.bungieConfig.status === "ready"
     && props.state.cards.account.status === "ready"
@@ -225,10 +228,18 @@ export function useDesktopProductShell(props: {
   }, [canRefreshAccount]);
 
   useEffect(() => {
-    if (accountSummary) {
-      setLastAccountLoadedAt(new Date());
+    if (activePage !== "account") {
+      accountPageRefreshAttemptedRef.current = false;
+      return;
     }
-  }, [accountSummary]);
+    if (!hasAutoLoadedAccount || !canRefreshAccount || accountPageRefreshAttemptedRef.current) return;
+
+    accountPageRefreshAttemptedRef.current = true;
+    if (isLoadingAccount) return;
+    if (lastAccountLoadedAt && Date.now() - lastAccountLoadedAt.getTime() < ACCOUNT_PAGE_REVALIDATE_MS) return;
+
+    void refreshAccountRef.current("auto");
+  }, [activePage, canRefreshAccount, hasAutoLoadedAccount, isLoadingAccount, lastAccountLoadedAt]);
 
   const activeLoadoutTemplate = loadoutLibrary.activeTemplate;
   const homeDerivedState = useHomePageDerivedState({

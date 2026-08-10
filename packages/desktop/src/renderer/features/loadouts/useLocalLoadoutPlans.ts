@@ -11,8 +11,12 @@ import type { CreateLocalLoadoutPlanInput, LocalLoadoutPlan } from "@d2-tools/co
 import { matchLocalLoadoutPlan } from "@d2-tools/core/loadouts/plans";
 import {
   createLocalLoadoutPlanExecutionPlan,
+  createLocalLoadoutPlanPublishPlan,
   validateLocalLoadoutPlanExecutionPlan,
-  type LocalLoadoutPlanExecutionPlan
+  validateLocalLoadoutPlanPublishPlan,
+  verifyLocalLoadoutPlanPublishPlan,
+  type LocalLoadoutPlanExecutionPlan,
+  type LocalLoadoutPlanPublishPlan
 } from "@d2-tools/core/loadouts/localPlanExecution";
 import type { DimLoadoutImportPreview } from "@d2-tools/core/loadouts/dimImport";
 import type { BuildGuideLoadoutDraft } from "@d2-tools/core/assistant/guideSchema";
@@ -43,6 +47,16 @@ export type LocalPlanExecutionReport = {
   refresh_verified: boolean;
 };
 
+export type LocalPlanPublishReport = {
+  plan: LocalLoadoutPlanPublishPlan;
+  confirmation_id: string;
+  execution_id: string;
+  preflight_verified: boolean;
+  verification_status?: ActionVerificationStatus;
+  verification_logged?: boolean;
+  error?: string;
+};
+
 export function useLocalLoadoutPlans(input: {
   refreshAccount?: () => Promise<ReturnType<typeof useAccountSummaryStore> | null>;
 } = {}) {
@@ -62,6 +76,17 @@ export function useLocalLoadoutPlans(input: {
   ) | null>(null);
   const [executionReport, setExecutionReport] = useState<LocalPlanExecutionReport | null>(null);
   const [isExecuting, setIsExecuting] = useState(false);
+  const [publishReport, setPublishReport] = useState<LocalPlanPublishReport | null>(null);
+  const [isPublishing, setIsPublishing] = useState(false);
+
+  useEffect(() => {
+    setExecutionReport(null);
+    setPublishReport(null);
+  }, [draft]);
+
+  useEffect(() => {
+    setPublishReport(null);
+  }, [executionReport?.execution_id]);
 
   const applyPlans = useCallback((nextPlans: LocalLoadoutPlan[], preferredId = selectedPlanId) => {
     const selected = nextPlans.find((plan) => plan.id === preferredId) ?? nextPlans[0] ?? null;
@@ -482,6 +507,7 @@ export function useLocalLoadoutPlans(input: {
     const confirmationId = createTraceId("local-loadout-confirmation");
     const executionId = createTraceId("local-loadout-execution");
     setIsExecuting(true);
+    setPublishReport(null);
     setError("");
     let executionAccount = accountSummary;
     try {
@@ -611,6 +637,143 @@ export function useLocalLoadoutPlans(input: {
     }
   }, [accountSummary, draft, editingPlanId, input, isExecuting]);
 
+  const publishAppliedPlan = useCallback(async (loadoutIndex: number) => {
+    if (!draft || !accountSummary || !editingPlanId || !executionReport?.refresh_verified || isPublishing || isExecuting) return;
+    const config = await api.getConfig().catch(() => null);
+    if (!config?.features.write_actions_enabled) {
+      setError("d2-tools 本地写操作开关未开启。请到设置页开启后再保存 Bungie 配装槽位。");
+      return;
+    }
+
+    let plan: LocalLoadoutPlanPublishPlan;
+    try {
+      plan = createLocalLoadoutPlanPublishPlan({
+        executionPlan: executionReport.plan,
+        account: accountSummary,
+        loadoutIndex
+      });
+    } catch (planError) {
+      setError(planError instanceof Error ? planError.message : String(planError));
+      return;
+    }
+
+    if (!window.confirm([
+      `发布计划 ${plan.plan_id}`,
+      `目标：${plan.loadout_name || `槽位 ${plan.loadout_index + 1}`}`,
+      plan.overwrites_existing_slot ? "该槽位已有内容，将被当前角色状态覆盖。" : "该槽位当前为空。",
+      "确认后会再次刷新账号；装备状态或槽位内容变化时不会执行写入。继续吗？"
+    ].join("\n"))) return;
+
+    const confirmationId = createTraceId("local-loadout-publish-confirmation");
+    const executionId = createTraceId("local-loadout-publish-execution");
+    setIsPublishing(true);
+    setPublishReport(null);
+    setError("");
+
+    let latestAccount: typeof accountSummary | null = null;
+    try {
+      latestAccount = input.refreshAccount
+        ? await input.refreshAccount()
+        : await api.getAccountSummary({ force: true });
+      if (!latestAccount) throw new Error("发布前账号刷新没有返回可用快照");
+    } catch (preflightError) {
+      const message = `发布前账号复核失败：${preflightError instanceof Error ? preflightError.message : String(preflightError)}`;
+      setPublishReport({
+        plan,
+        confirmation_id: confirmationId,
+        execution_id: executionId,
+        preflight_verified: false,
+        error: message
+      });
+      setError(message);
+      setIsPublishing(false);
+      return;
+    }
+
+    const validation = validateLocalLoadoutPlanPublishPlan(plan, latestAccount);
+    if (validation.status === "stale") {
+      const message = `发布计划在确认后已失效：${validation.reasons.join("；")}。请重新选择槽位并确认。`;
+      setPublishReport({
+        plan,
+        confirmation_id: confirmationId,
+        execution_id: executionId,
+        preflight_verified: false,
+        verification_status: "mismatch",
+        error: message
+      });
+      setError(message);
+      setIsPublishing(false);
+      return;
+    }
+
+    let actionSucceeded = false;
+    let refreshedAccount: typeof accountSummary | null = null;
+    let failure = "";
+    try {
+      await api.snapshotLoadout({
+        membership_type: latestAccount.membership_type,
+        character_id: plan.target_character_id,
+        loadout_index: plan.loadout_index,
+        loadout_name: plan.loadout_name,
+        ...(plan.loadout_name_hash !== undefined ? { loadout_name_hash: plan.loadout_name_hash } : {}),
+        ...(plan.loadout_icon_hash !== undefined ? { loadout_icon_hash: plan.loadout_icon_hash } : {}),
+        ...(plan.loadout_color_hash !== undefined ? { loadout_color_hash: plan.loadout_color_hash } : {}),
+        trace: {
+          plan_id: plan.plan_id,
+          confirmation_id: confirmationId,
+          execution_id: executionId,
+          step_id: plan.step_id
+        }
+      });
+      actionSucceeded = true;
+      refreshedAccount = input.refreshAccount
+        ? await input.refreshAccount()
+        : await api.getAccountSummary({ force: true });
+    } catch (publishError) {
+      failure = publishError instanceof Error ? publishError.message : String(publishError);
+    }
+
+    const verification = !actionSucceeded
+      ? { status: "mismatch" as const, reasons: [failure || "Bungie 槽位写入失败"] }
+      : !refreshedAccount
+        ? { status: "unavailable" as const, reasons: ["写入完成后账号刷新没有返回可用快照"] }
+        : verifyLocalLoadoutPlanPublishPlan(plan, refreshedAccount);
+    const verificationStatus: ActionVerificationStatus = verification.status;
+    const verificationMessage = verification.status === "verified"
+      ? `Bungie 配装槽位 ${plan.loadout_index + 1} 已保存，并在刷新后核对到 ${plan.selected_item_instance_ids.length} 个已确认实例。`
+      : `Bungie 配装槽位 ${plan.loadout_index + 1} 发布验证${verification.status === "unavailable" ? "不可用" : "未通过"}：${verification.reasons.join("；")}`;
+    let verificationLogged = true;
+    try {
+      await api.recordActionVerification({
+        plan_id: plan.plan_id,
+        confirmation_id: confirmationId,
+        execution_id: executionId,
+        character_id: plan.target_character_id,
+        status: verificationStatus,
+        message: verificationMessage
+      });
+    } catch (verificationError) {
+      verificationLogged = false;
+      const logMessage = `发布验证记录写入失败：${verificationError instanceof Error ? verificationError.message : String(verificationError)}`;
+      failure = failure ? `${failure}；${logMessage}` : logMessage;
+    }
+
+    const errorMessage = verification.status === "verified" && verificationLogged
+      ? undefined
+      : failure || verificationMessage;
+    setPublishReport({
+      plan,
+      confirmation_id: confirmationId,
+      execution_id: executionId,
+      preflight_verified: true,
+      verification_status: verificationStatus,
+      verification_logged: verificationLogged,
+      ...(errorMessage ? { error: errorMessage } : {})
+    });
+    setError(errorMessage ?? "");
+    setIsPublishing(false);
+  }, [accountSummary, draft, editingPlanId, executionReport, input, isExecuting, isPublishing]);
+
   const saveDraft = useCallback(async () => {
     if (!draft || isSaving) return null;
     setIsSaving(true);
@@ -684,7 +847,10 @@ export function useLocalLoadoutPlans(input: {
     executionPlan,
     executionReport,
     isExecuting,
-    executeDraft
+    executeDraft,
+    publishReport,
+    isPublishing,
+    publishAppliedPlan
   };
 }
 

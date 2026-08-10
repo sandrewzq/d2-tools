@@ -249,7 +249,7 @@ export function VaultRecommendationImportPanel(props: {
 
 function ImportPreview(props: { title: string; ruleCount: number; detail: string }) {
   return (
-    <div className="vault-source-preview" data-surface="state-frame">
+    <div className="vault-source-preview" data-surface="frame" data-ui-kind="state-frame">
       <span>待启用预览</span>
       <strong>{props.title}</strong>
       <small>{props.ruleCount} 条规则 · {props.detail}</small>

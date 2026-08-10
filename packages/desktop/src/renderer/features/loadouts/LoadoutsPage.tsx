@@ -18,7 +18,7 @@ import type {
   AssistantEquipmentTargetCandidatesArtifact
 } from "@d2-tools/app/capabilities";
 import type { GuideLoadoutCandidatesArtifact } from "@d2-tools/app/guides";
-import type { LocalPlanExecutionReport } from "./useLocalLoadoutPlans";
+import type { LocalPlanExecutionReport, LocalPlanPublishReport } from "./useLocalLoadoutPlans";
 import { useArmorPlannerWorkspace } from "./useArmorPlannerWorkspace";
 import { api } from "../../api/client";
 import type { ArmorPlannerCandidateView } from "@d2-tools/app/armor";
@@ -47,6 +47,8 @@ export type LoadoutsPageProps = {
   localPlanExecutionPlan: LocalLoadoutPlanExecutionPlan | null;
   localPlanExecutionReport: LocalPlanExecutionReport | null;
   localPlanIsExecuting: boolean;
+  localPlanPublishReport: LocalPlanPublishReport | null;
+  localPlanIsPublishing: boolean;
   localPlanIsImportingGuide: boolean;
   localPlanLegacyGuideText: string;
   localPlanAssistantPrefill: ((AssistantArtifact | GuideLoadoutCandidatesArtifact) & { request_id: number }) | null;
@@ -112,6 +114,7 @@ export type LoadoutsPageProps = {
   onAcceptDimImport: (character: CharacterSummary | null) => void;
   onDismissDimImport: () => void;
   onExecuteLocalPlan: () => void;
+  onPublishLocalPlanToSlot: (loadoutIndex: number) => void;
   onImportGuideText: (rawText: string, character: CharacterSummary | null) => Promise<boolean>;
   onAcceptAssistantEquipmentTargets: (
     artifact: AssistantEquipmentTargetCandidatesArtifact,
@@ -300,6 +303,7 @@ export function LoadoutsPage(props: LoadoutsPageProps) {
     dismissDimImport: props.onDismissDimImport,
     copyDimLoadoutLink: () => void copyDimLoadoutLink(),
     executeLocalPlan: props.onExecuteLocalPlan,
+    publishLocalPlanToSlot: props.onPublishLocalPlanToSlot,
     importGuideText: props.onImportGuideText,
     acceptAssistantEquipmentTargets: props.onAcceptAssistantEquipmentTargets,
     acceptGuideLoadoutCandidates: props.onAcceptGuideLoadoutCandidates,
@@ -334,6 +338,8 @@ export function LoadoutsPage(props: LoadoutsPageProps) {
       localPlanExecutionPlan={props.localPlanExecutionPlan}
       localPlanExecutionReport={props.localPlanExecutionReport}
       localPlanIsExecuting={props.localPlanIsExecuting}
+      localPlanPublishReport={props.localPlanPublishReport}
+      localPlanIsPublishing={props.localPlanIsPublishing}
       localPlanIsImportingGuide={props.localPlanIsImportingGuide}
       localPlanLegacyGuideText={props.localPlanLegacyGuideText}
       localPlanAssistantPrefill={props.localPlanAssistantPrefill}

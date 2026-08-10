@@ -30,6 +30,8 @@ export function LoadoutsMenuProvider() {
       localPlanExecutionPlan={localPlans.executionPlan}
       localPlanExecutionReport={localPlans.executionReport}
       localPlanIsExecuting={localPlans.isExecuting}
+      localPlanPublishReport={localPlans.publishReport}
+      localPlanIsPublishing={localPlans.isPublishing}
       localPlanIsImportingGuide={localPlans.isImportingGuide}
       localPlanLegacyGuideText={localPlans.legacyGuideText}
       localPlanAssistantPrefill={localPlans.assistantPrefill}
@@ -64,6 +66,7 @@ export function LoadoutsMenuProvider() {
       onAcceptDimImport={localPlans.acceptDimImport}
       onDismissDimImport={localPlans.dismissDimImport}
       onExecuteLocalPlan={() => void localPlans.executeDraft()}
+      onPublishLocalPlanToSlot={(loadoutIndex) => void localPlans.publishAppliedPlan(loadoutIndex)}
       onImportGuideText={localPlans.importGuideText}
       onAcceptAssistantEquipmentTargets={localPlans.acceptAssistantEquipmentTargets}
       onAcceptGuideLoadoutCandidates={localPlans.acceptGuideLoadoutCandidates}
