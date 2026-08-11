@@ -109,6 +109,7 @@ export {
 export { getLocalizedNavItems, navItems } from "./shell/navigation.js";
 export { SettingsPageContentView } from "./settings/SettingsPageContentView.js";
 export { SettingsAiConfigPanel } from "./settings/SettingsAiConfigPanel.js";
+export { SettingsRecommendationSourcesPanel } from "./settings/SettingsRecommendationSourcesPanel.js";
 export type {
   SettingsActionLogResultFilter,
   SettingsActionLogTypeFilter,
@@ -118,6 +119,10 @@ export type {
   SettingsPageContentViewProps
 } from "./settings/SettingsPageContentView.js";
 export type { SettingsAiAdapter } from "./settings/SettingsAiConfigPanel.js";
+export type {
+  SettingsRecommendationSourcesAdapter,
+  SettingsRecommendationSourcesSnapshot
+} from "./settings/SettingsRecommendationSourcesPanel.js";
 export { VendorsPageContentView } from "./vendors/VendorsPageContentView.js";
 export { getVendorEquipmentKind } from "./vendors/vendorEquipment.js";
 export type { VendorEquipmentKind } from "./vendors/vendorEquipment.js";
@@ -143,8 +148,8 @@ export { VaultFilterToolbar } from "./vault/VaultFilterToolbar.js";
 export { VaultItemSections } from "./vault/VaultItemSections.js";
 export { MemoizedVaultListItem, VaultListItem, formatVaultItemMeta } from "./vault/VaultListItem.js";
 export { VaultOrganizePanel } from "./vault/VaultOrganizePanel.js";
-export { VaultRecommendationImportPanel } from "./vault/VaultRecommendationImportPanel.js";
-export type { VaultRecommendationImportActions } from "./vault/VaultRecommendationImportPanel.js";
+export { VaultRecommendationEvidencePanel } from "./vault/VaultRecommendationEvidencePanel.js";
+export type { VaultRecommendationSourceState } from "./vault/VaultRecommendationEvidencePanel.js";
 export { VaultTargetRulesPanel } from "./vault/VaultTargetRulesPanel.js";
 export type { VaultTargetRulesActions } from "./vault/VaultTargetRulesPanel.js";
 export { useVaultBatchActions } from "./vault/useVaultBatchActions.js";

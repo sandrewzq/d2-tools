@@ -92,7 +92,7 @@ export class CommunityPerkRecommendationService {
     await Promise.all(
       uniqueHashes.map(async (hash) => {
         try {
-          hashResults.set(hash, await this.getRecommendations(hash, options));
+          hashResults.set(hash, await this.getRecommendationsWithAllSources(hash, options));
         } catch {
           hashResults.set(hash, null);
         }

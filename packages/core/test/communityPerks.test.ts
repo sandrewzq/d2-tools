@@ -170,6 +170,30 @@ describe("community perk recommendations", () => {
     expect(noMatch.get(123)?.available).toBe(2);
   });
 
+  it("aggregates every enabled local source when matching vault items", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "d2-tools-community-"));
+    saveLocalCommunityRecommendations(dir, {
+      title: "Custom Picks",
+      rules: [{ item_hash: 123, perk_hashes: [11, 22], mode: "pve", note: "" }]
+    });
+    saveDimWishlist(dir, {
+      title: "DIM Picks",
+      rules: [{ item_hash: 123, perk_hashes: [33, 44], mode: "pvp", note: "" }]
+    });
+
+    const service = createDefaultCommunityPerkService({ data: { data_dir: dir } });
+    const matches = await service.matchVaultItems([
+      { hash: 123, socket_plugs: [{ hash: 11 }, { hash: 22 }] },
+      { hash: 123, socket_plugs: [{ hash: 33 }, { hash: 44 }] }
+    ]);
+
+    expect(matches.get(123)?.matched).toBe(2);
+    expect(matches.get(123)?.available).toBe(2);
+    expect(matches.get(123)?.modes).toEqual(expect.arrayContaining(["pve", "pvp"]));
+    expect(matches.get(123)?.source_label).toContain("自定义推荐规则");
+    expect(matches.get(123)?.source_label).toContain("DIM Wishlist");
+  });
+
   it("includes english perk previews for vault and library community matches", async () => {
     const dir = mkdtempSync(join(tmpdir(), "d2-tools-community-"));
     saveDimWishlist(dir, {

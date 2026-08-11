@@ -36,8 +36,6 @@ export function VaultPage(props: {
   equipmentTargetStore: EquipmentTargetStore;
   communityMatch: Map<number, VaultItemMatchInfo>;
   onContextFactsChange?: (facts: string[]) => void;
-  onWishlistChanged: (wishlist: DimWishlist | null) => void;
-  onCommunityRecommendationsChanged: () => Promise<void> | void;
   onLocalTargetRulesChanged: (rules: LocalTargetRules) => void;
   onEquipmentTargetStoreChanged: (store: EquipmentTargetStore) => void;
   onOpenGuide: (targetId: string) => Promise<boolean>;
@@ -48,6 +46,7 @@ export function VaultPage(props: {
   onBatchTransferToCharacter: (items: AccountItemSummary[], targetCharacterId: string) => Promise<BatchItemActionResult>;
   onOpenItem: (item: AccountItemSummary) => void;
   onSaveTag: (item: AccountItemSummary, tag: VaultTagValue) => void | Promise<void>;
+  onManageRecommendationSources: () => void;
 }) {
   const [localCommunityTable, setLocalCommunityTable] = useState<LocalCommunityRecommendationTable | null>(null);
   const [localCommunityLoadState, setLocalCommunityLoadState] = useState<"loading" | "ready" | "error">("loading");
@@ -66,7 +65,7 @@ export function VaultPage(props: {
       setLocalCommunityLoadState("ready");
       return table;
     } catch (error) {
-      const message = error instanceof Error ? error.message : "本地社区推荐表读取失败";
+      const message = error instanceof Error ? error.message : "自定义推荐规则读取失败";
       setLocalCommunityLoadState("error");
       setLocalCommunityLoadError(message);
       throw error;
@@ -151,38 +150,12 @@ export function VaultPage(props: {
       localTargetRules={model.targetRules}
       equipmentTargetStore={props.equipmentTargetStore}
       communityMatch={model.communityMatch}
-      recommendationImportActions={{
-        localCommunityTable,
-        localCommunityLoadState,
-        localCommunityLoadError,
-        onLoadLocalCommunity: loadLocalCommunityTable,
-        onSaveWishlist: async (wishlist) => {
-          const saved = await services.localData.saveDimWishlist(wishlist);
-          props.onWishlistChanged(saved);
-          props.onEquipmentTargetStoreChanged(await services.localData.getEquipmentTargetStore());
-          return saved;
-        },
-        onClearWishlist: async () => {
-          await services.localData.clearDimWishlist();
-          props.onWishlistChanged(null);
-          props.onEquipmentTargetStoreChanged(await services.localData.getEquipmentTargetStore());
-        },
-        onSaveLocalCommunity: async (table) => {
-          const saved = await services.localData.saveLocalCommunityRecommendations(table);
-          setLocalCommunityTable(saved);
-          setLocalCommunityLoadState("ready");
-          setLocalCommunityLoadError("");
-          await props.onCommunityRecommendationsChanged();
-          return saved;
-        },
-        onClearLocalCommunity: async () => {
-          await services.localData.clearLocalCommunityRecommendations();
-          setLocalCommunityTable(null);
-          setLocalCommunityLoadState("ready");
-          setLocalCommunityLoadError("");
-          await props.onCommunityRecommendationsChanged();
-        }
+      recommendationSourceState={{
+        customRules: localCommunityTable,
+        customRulesLoadState: localCommunityLoadState,
+        customRulesLoadError: localCommunityLoadError
       }}
+      onManageRecommendationSources={props.onManageRecommendationSources}
       targetRulesActions={{
         onSaveRules: async (rules) => {
           const saved = await services.localData.saveLocalTargetRules(rules);

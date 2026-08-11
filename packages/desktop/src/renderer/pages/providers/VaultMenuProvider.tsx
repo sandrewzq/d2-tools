@@ -31,8 +31,6 @@ export function VaultMenuProvider() {
       equipmentTargetStore={account.equipmentTargetStore}
       communityMatch={account.vaultCommunityMatch}
       onContextFactsChange={session.setVaultFacts}
-      onWishlistChanged={account.setImportedWishlist}
-      onCommunityRecommendationsChanged={() => account.loadVaultCommunityMatch(undefined, { force: true })}
       onLocalTargetRulesChanged={account.setLocalTargetRules}
       onEquipmentTargetStoreChanged={account.setEquipmentTargetStore}
       onOpenGuide={async (targetId) => {
@@ -49,6 +47,10 @@ export function VaultMenuProvider() {
       onBatchTransferToCharacter={writeActions.vaultWriteActions.handleVaultCleanupTransfer}
       onOpenItem={(item) => void writeActions.itemDetail.openItemDetail(item, { is_vault_item: true })}
       onSaveTag={(item, tag) => writeActions.vaultWriteActions.saveVaultTag(item, tag)}
+      onManageRecommendationSources={() => {
+        session.setSettingsInitialSection("recommendations");
+        session.setActivePage("settings");
+      }}
     />
   );
 }

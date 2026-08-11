@@ -16,7 +16,7 @@ export type LocalCommunityRecommendationTable = {
 export function parseLocalCommunityRecommendations(text: string): LocalCommunityRecommendationTable {
   const trimmed = text.trim();
   if (!trimmed) {
-    return { title: "本地社区表", rules: [] };
+    return { title: "自定义推荐规则", rules: [] };
   }
 
   if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
@@ -28,11 +28,11 @@ export function parseLocalCommunityRecommendations(text: string): LocalCommunity
 
 export function normalizeLocalCommunityRecommendationTable(value: unknown): LocalCommunityRecommendationTable {
   const source = Array.isArray(value)
-    ? { title: "本地社区表", rules: value }
+    ? { title: "自定义推荐规则", rules: value }
     : (value && typeof value === "object" ? value as Record<string, unknown> : {});
   const title = typeof source.title === "string" && source.title.trim()
     ? source.title.trim()
-    : "本地社区表";
+    : "自定义推荐规则";
   const rawRules = Array.isArray(source.rules) ? source.rules : [];
 
   return {
@@ -62,7 +62,7 @@ function normalizeRule(value: unknown): LocalCommunityRecommendationRule | null 
 }
 
 function parseCsvTable(text: string): LocalCommunityRecommendationTable {
-  let title = "本地社区表";
+  let title = "自定义推荐规则";
   let headers: string[] | null = null;
   const rules: LocalCommunityRecommendationRule[] = [];
 

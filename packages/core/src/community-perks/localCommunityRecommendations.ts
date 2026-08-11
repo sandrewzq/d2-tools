@@ -12,7 +12,7 @@ export type LocalCommunityRecommendationLoader = () => LocalCommunityRecommendat
 
 export function createLocalCommunitySource(loadTable: LocalCommunityRecommendationLoader): CommunityPerkSource {
   return {
-    name: "本地社区表",
+    name: "自定义推荐规则",
     isAvailable: () => {
       try {
         return loadTable() !== null;
@@ -39,7 +39,7 @@ export function createLocalCommunitySource(loadTable: LocalCommunityRecommendati
       const modes = Array.from(new Set(combos.map((combo) => combo.mode)));
       const sourceLabel = Array.from(new Set(
         matchingRules.map((rule) => rule.source_label?.trim()).filter(Boolean)
-      )).join(" / ") || "本地社区表";
+      )).join(" / ") || "自定义推荐规则";
 
       return {
         item_hash,
@@ -49,7 +49,7 @@ export function createLocalCommunitySource(loadTable: LocalCommunityRecommendati
         individual_perks: uniquePerks(combos),
         sample_size: matchingRules.length,
         source_label: sourceLabel,
-        disclaimer: `来自本地导入的 ${table.title}，仅反映表格作者的偏好。`
+        disclaimer: `来自本机启用的 ${table.title}，仅反映规则作者的偏好。`
       };
     }
   };

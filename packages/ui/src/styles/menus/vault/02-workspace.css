@@ -1211,186 +1211,132 @@
   box-shadow: none;
 }
 
-:where(.app-shell) .vault-recommendations .vault-dashboard-panel,
-:where(.app-shell) .vault-recommendations .wishlist-import-panel {
-  gap: 0;
+:where(.app-shell) .vault-evidence-panel {
+  min-width: 0;
   padding: 0;
   border: 0;
   background: transparent;
 }
 
-:where(.app-shell) .vault-recommendations > section > .status-message {
-  margin: 0;
-  padding: 9px 12px;
-  border-width: 0 0 1px;
-  border-radius: 0;
-}
-
-:where(.app-shell) .vault-source-list {
+:where(.app-shell) .vault-evidence-metrics,
+:where(.app-shell) .vault-evidence-metrics[data-surface="frame"][data-ui-kind="status-matrix"] {
   display: grid;
-  border-top: 1px solid var(--border-subtle);
-}
-
-:where(.app-shell) .vault-source-row {
-  min-width: 0;
-  border-bottom: 1px solid var(--border-subtle);
-}
-
-:where(.app-shell) .vault-source-summary {
-  display: grid;
-  grid-template-columns: minmax(190px, 0.8fr) minmax(220px, 1.2fr) auto;
-  grid-template-areas: "identity status actions";
-  align-items: center;
-  gap: 12px;
-  min-height: 70px;
-  padding: 10px 12px;
-}
-
-:where(.app-shell) .vault-source-identity,
-:where(.app-shell) .vault-source-status {
-  min-width: 0;
-}
-
-:where(.app-shell) .vault-source-identity {
-  grid-area: identity;
-}
-
-:where(.app-shell) .vault-source-status {
-  grid-area: status;
-}
-
-:where(.app-shell) .vault-source-identity strong,
-:where(.app-shell) .vault-source-identity small,
-:where(.app-shell) .vault-source-status > span:last-child {
-  display: block;
-}
-
-:where(.app-shell) .vault-source-identity strong {
-  color: var(--text-title);
-  font-size: var(--font-content);
-}
-
-:where(.app-shell) .vault-source-identity small,
-:where(.app-shell) .vault-source-status > span:last-child {
-  margin-top: 3px;
-  color: var(--text-muted);
-  font-size: var(--font-caption);
-  line-height: 1.45;
-}
-
-:where(.app-shell) .vault-source-status {
-  display: grid;
-  grid-template-columns: max-content minmax(0, 1fr);
-  align-items: center;
-  gap: 8px;
-}
-
-:where(.app-shell) .vault-source-status > span:last-child {
-  margin-top: 0;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-:where(.app-shell) .vault-source-status .ui-badge.status-pending {
-  border-color: color-mix(in srgb, var(--status-pending) 60%, var(--border-subtle));
-  color: var(--status-pending);
-  background: var(--status-pending-bg);
-}
-
-:where(.app-shell) .vault-source-status .ui-badge.status-error {
-  border-color: color-mix(in srgb, var(--status-error) 60%, var(--border-subtle));
-  color: var(--status-error);
-  background: var(--status-error-bg);
-}
-
-:where(.app-shell) .vault-source-actions,
-:where(.app-shell) .vault-source-editor-actions,
-:where(.app-shell) .vault-source-confirm > div {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-}
-
-:where(.app-shell) .vault-source-actions {
-  grid-area: actions;
-  justify-content: flex-end;
-}
-
-:where(.app-shell) .vault-source-editor {
-  display: grid;
-  gap: 10px;
-  padding: 12px;
-  border-top: 1px solid var(--border-subtle);
-  background: var(--surface-sidebar);
-}
-
-:where(.app-shell) .vault-source-editor label strong,
-:where(.app-shell) .vault-source-editor label span {
-  display: block;
-}
-
-:where(.app-shell) .vault-source-editor label strong {
-  color: var(--text-title);
-  font-size: var(--font-meta);
-}
-
-:where(.app-shell) .vault-source-editor label span {
-  margin-top: 3px;
-  color: var(--text-muted);
-  font-size: var(--font-caption);
-}
-
-:where(.app-shell) .vault-source-editor textarea {
-  width: 100%;
-  min-height: 110px;
-  resize: vertical;
-}
-
-:where(.app-shell) .vault-source-preview {
-  display: grid;
-  grid-template-columns: max-content minmax(140px, 0.8fr) minmax(180px, 1fr);
-  align-items: center;
-  gap: 10px;
-  padding: 9px 10px;
-  border: 1px solid var(--border-subtle);
-  border-radius: 4px;
+  margin: 0 12px 12px;
+  border: 1px solid var(--object-border);
+  border-radius: var(--radius-frame);
   background: var(--surface-panel);
 }
 
-:where(.app-shell) .vault-source-preview > span,
-:where(.app-shell) .vault-source-preview small {
-  color: var(--text-muted);
-  font-size: var(--font-caption);
-}
-
-:where(.app-shell) .vault-source-preview strong {
+:where(.app-shell) .vault-evidence-metrics > div {
   min-width: 0;
-  overflow: hidden;
+  padding: 12px;
+  border-right: 1px solid var(--section-divider);
+}
+
+:where(.app-shell) .vault-evidence-metrics > div:last-child {
+  border-right: 0;
+}
+
+:where(.app-shell) .vault-evidence-metrics span,
+:where(.app-shell) .vault-evidence-metrics strong,
+:where(.app-shell) .vault-evidence-metrics small {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+:where(.app-shell) .vault-evidence-metrics span,
+:where(.app-shell) .vault-evidence-metrics small {
+  color: var(--text-muted);
+}
+
+:where(.app-shell) .vault-evidence-metrics strong {
+  margin: 4px 0;
   color: var(--text-title);
-  font-size: var(--font-meta);
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  font-size: var(--font-title);
 }
 
-:where(.app-shell) .vault-source-confirm {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 9px 12px;
-  border-top: 1px solid var(--status-warning);
-  background: var(--status-warning-bg);
-  color: var(--text-body);
-  font-size: var(--font-meta);
-}
-
-:where(.app-shell) .vault-source-feedback {
-  margin: 0;
-  padding: 9px 12px;
-  border-width: 1px 0 0;
+:where(.app-shell) .vault-evidence-source-strip,
+:where(.app-shell) .vault-evidence-results {
+  display: grid;
+  gap: 0;
+  overflow: visible;
+  margin: 0 12px 12px;
+  border: 0;
+  border-top: 1px solid var(--section-divider);
   border-radius: 0;
+  background: transparent;
+}
+
+:where(.app-shell) .vault-evidence-source {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  min-height: 52px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--section-divider);
+}
+
+:where(.app-shell) .vault-evidence-source > span:first-child,
+:where(.app-shell) .vault-evidence-result-identity {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+:where(.app-shell) .vault-evidence-source small,
+:where(.app-shell) .vault-evidence-result-identity small,
+:where(.app-shell) .vault-evidence-result-source {
+  color: var(--text-muted);
+}
+
+:where(.app-shell) .vault-evidence-results {
+  margin-bottom: 0;
+}
+
+:where(.app-shell) .vault-evidence-results > button {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 110px minmax(130px, 0.55fr);
+  gap: 12px;
+  align-items: center;
+  min-height: 58px;
+  padding: 8px 0;
+  border: 0;
+  border-bottom: 1px solid var(--section-divider);
+  border-radius: 0;
+  color: var(--text-body);
+  background: transparent;
+  text-align: left;
+}
+
+:where(.app-shell) .vault-evidence-results > button:hover {
+  background: var(--hover-bg);
+}
+
+:where(.app-shell) .vault-evidence-result-modes,
+:where(.app-shell) .vault-evidence-result-source {
+  overflow-wrap: anywhere;
+}
+
+:where(.app-shell) .vault-evidence-empty,
+:where(.app-shell) .vault-evidence-empty[data-surface="empty"] {
+  display: grid;
+  gap: 4px;
+  min-height: 0;
+  margin: 0 12px;
+  padding: 18px 0;
+  border: 0;
+  border-top: 1px solid var(--section-divider);
+  border-radius: 0;
+  background: transparent;
+  text-align: left;
+}
+
+:where(.app-shell) .vault-evidence-empty span {
+  color: var(--text-muted);
 }
 
 :where(.app-shell) .vault-target-rules-panel {
@@ -1454,11 +1400,25 @@
   border-top: 1px solid var(--border-subtle);
 }
 
-:where(.app-shell.assistant-open) .vault-source-summary {
+:where(.app-shell.assistant-open) .vault-evidence-metrics {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+:where(.app-shell.assistant-open) .vault-evidence-metrics > div {
+  border-right: 0;
+  border-bottom: 1px solid var(--section-divider);
+}
+
+:where(.app-shell.assistant-open) .vault-evidence-metrics > div:last-child {
+  border-bottom: 0;
+}
+
+:where(.app-shell.assistant-open) .vault-evidence-results > button {
   grid-template-columns: minmax(0, 1fr) auto;
-  grid-template-areas:
-    "identity actions"
-    "status status";
+}
+
+:where(.app-shell.assistant-open) .vault-evidence-result-source {
+  grid-column: 1 / -1;
 }
 
 @media (max-width: 1120px) {
@@ -1583,39 +1543,22 @@
     border-bottom: 0;
   }
 
-  :where(.app-shell) .vault-source-summary {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-areas:
-      "identity"
-      "status"
-      "actions";
-  }
-
-  :where(.app-shell) .vault-source-actions {
-    justify-content: flex-start;
-  }
-
-  :where(.app-shell) .vault-source-status {
-    align-items: start;
-    grid-template-columns: max-content minmax(0, 1fr);
-  }
-
-  :where(.app-shell) .vault-source-status > span:last-child {
-    white-space: normal;
-  }
-
-  :where(.app-shell) .vault-source-preview {
-    align-items: start;
+  :where(.app-shell) .vault-evidence-metrics {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  :where(.app-shell) .vault-source-preview strong {
-    white-space: normal;
+  :where(.app-shell) .vault-evidence-metrics > div {
+    border-right: 0;
+    border-bottom: 1px solid var(--section-divider);
   }
 
-  :where(.app-shell) .vault-source-confirm {
-    align-items: flex-start;
-    flex-direction: column;
+  :where(.app-shell) .vault-evidence-metrics > div:last-child {
+    border-bottom: 0;
+  }
+
+  :where(.app-shell) .vault-evidence-results > button {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
   }
 
   :where(.app-shell) .vault-cleanup-grid .vault-card-main {

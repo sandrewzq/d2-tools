@@ -51,9 +51,9 @@ import {
 } from "./VaultFilterToolbar.js";
 import { VaultItemSections } from "./VaultItemSections.js";
 import {
-  VaultRecommendationImportPanel,
-  type VaultRecommendationImportActions
-} from "./VaultRecommendationImportPanel.js";
+  VaultRecommendationEvidencePanel,
+  type VaultRecommendationSourceState
+} from "./VaultRecommendationEvidencePanel.js";
 import {
   VaultTargetRulesPanel,
   type VaultTargetRulesActions
@@ -65,7 +65,7 @@ type VaultWorkspaceTab = "filters" | "duplicates" | "recommendations";
 const vaultWorkspaceTabs: Array<{ key: VaultWorkspaceTab; label: string }> = [
   { key: "filters", label: "筛选列表" },
   { key: "duplicates", label: "同名整理" },
-  { key: "recommendations", label: "推荐数据" }
+  { key: "recommendations", label: "目标与推荐" }
 ];
 
 const emptySelectedKeys = new Set<string>();
@@ -86,8 +86,9 @@ export function VaultPageContentView(props: {
   locateRequest?: { hash: number; name: string; requestId: number } | null;
   targetLocateRequest?: { targetId: string; requestId: number } | null;
   communityMatch?: Map<number, VaultItemMatchInfo>;
-  recommendationImportActions?: VaultRecommendationImportActions;
+  recommendationSourceState?: VaultRecommendationSourceState;
   targetRulesActions?: VaultTargetRulesActions;
+  onManageRecommendationSources?: () => void;
   onContextFactsChange?: (facts: string[]) => void;
   onLoadItemDetail?: (item: AccountItemSummary) => Promise<AccountItemSummary>;
   onOpenItem: (item: AccountItemSummary) => void;
@@ -489,7 +490,7 @@ export function VaultPageContentView(props: {
 
       {activeVaultTab === "recommendations" ? (
         <div id={panelIds.recommendations} role="tabpanel" aria-labelledby={tabIds.recommendations} className="vault-recommendations vault-workspace-panel">
-          <section><div className="vault-column-head"><h3>推荐数据源</h3><span>状态、导入与替换</span></div><p className="status-message status-neutral">这些来源只提供匹配证据，不生成主观 Roll 结论。DIM Wishlist、本地社区推荐和个人知识分别保留来源。</p><VaultRecommendationImportPanel wishlist={props.wishlist} actions={props.recommendationImportActions} /></section>
+          <VaultRecommendationEvidencePanel items={props.items} wishlist={props.wishlist} communityMatch={props.communityMatch} sourceState={props.recommendationSourceState} onOpenItem={props.onOpenItem} onManageSources={props.onManageRecommendationSources} />
           <aside><div className="vault-column-head"><h3>装备目标</h3><span>目标库与兼容规则</span></div><VaultTargetRulesPanel items={props.items} rules={props.localTargetRules ?? { action_policy: "notify_only", armor: [], weapons: [] }} equipmentTargetStore={props.equipmentTargetStore} targetLocateRequest={props.targetLocateRequest} actions={props.targetRulesActions} /></aside>
         </div>
       ) : null}
@@ -558,5 +559,5 @@ function signalLabel(signal: VaultSignalFilter): string {
   if (signal === "wishlist") return "愿望单";
   if (signal === "loadout") return "配装引用";
   if (signal === "target") return "目标命中";
-  return "社区推荐";
+  return "推荐组合";
 }

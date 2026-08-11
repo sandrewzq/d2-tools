@@ -43,7 +43,7 @@ const signalOptions: Array<{ key: VaultSignalFilter; label: string }> = [
   { key: "wishlist", label: "愿望单" },
   { key: "loadout", label: "配装引用" },
   { key: "target", label: "目标命中" },
-  { key: "community", label: "社区推荐" }
+  { key: "community", label: "推荐组合" }
 ];
 
 const damageTypeIds: Record<string, number> = {

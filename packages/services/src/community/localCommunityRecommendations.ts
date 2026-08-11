@@ -15,7 +15,7 @@ export function saveLocalCommunityRecommendations(
 ): LocalCommunityRecommendationTable {
   const next = normalizeLocalCommunityRecommendationTable(table);
   if (next.rules.length === 0) {
-    throw new Error("本地社区推荐表至少需要一条有效规则。");
+    throw new Error("自定义推荐规则至少需要一条有效规则。");
   }
 
   mkdirSync(dataDir, { recursive: true });

@@ -81,7 +81,7 @@ export function registerCommunityIpcHandlers(): void {
     startBackgroundTask({
       type: "community-analysis",
       title: "分析仓库推荐",
-      message: "正在匹配本地愿望单和社区推荐。",
+      message: "正在匹配 DIM Wishlist 和自定义推荐规则。",
       run: async () => {
         await result;
       }
@@ -99,7 +99,7 @@ export function registerCommunityIpcHandlers(): void {
 
 async function matchVaultCommunityItems(items: VaultItemMatchInput[]) {
   const config = loadConfig();
-  // 仓库/资料库匹配只使用本地 DIM wishlist，避免触发大量 AI 查询
+  // 仓库/资料库批量匹配只使用本地来源，避免触发大量 AI 查询。
   const service = createDefaultCommunityPerkService(config);
   const definitions = await loadCommunityDefinitions(items.map((item) => item.hash));
 
