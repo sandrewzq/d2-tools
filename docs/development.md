@@ -255,6 +255,20 @@ tools\dev-desktop.cmd
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev-desktop.ps1
 ```
 
+无法等待真实发布版本时，可用开发环境模拟更新状态验证顶部提示和设置页更新区。模拟只在 Vite 开发模式生效，不调用真实下载或安装流程：
+
+```powershell
+tools\dev-desktop.cmd -UpdateStatus idle
+tools\dev-desktop.cmd -UpdateStatus checking
+tools\dev-desktop.cmd -UpdateStatus available
+tools\dev-desktop.cmd -UpdateStatus downloading
+tools\dev-desktop.cmd -UpdateStatus downloaded
+tools\dev-desktop.cmd -UpdateStatus error
+tools\dev-desktop.cmd -UpdateStatus not_available
+```
+
+每次切换状态需要关闭当前桌面窗口并重新启动；默认不传 `-UpdateStatus` 时使用真实更新 IPC。
+
 双击入口直接比较 core、http、services、Electron main 和 preload 的实际输出时间与各自源码、配置及上游产物，只增量构建过期层。首次运行、产物缺失、根依赖或构建配置变化时自动回退完整构建；Renderer、共享 App、UI 和 CSS 由 Vite 直接读取最新源码，不执行预构建。需要明确强制完整构建时，可手动运行不带 `-Fast` 的底层 PowerShell 命令。
 
 完整启动链路会：

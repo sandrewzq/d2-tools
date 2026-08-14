@@ -13,7 +13,7 @@ echo Repository: %CD%
 echo Starting d2-tools desktop development app...
 echo.
 
-powershell -NoProfile -ExecutionPolicy Bypass -File "%REPO_ROOT%\scripts\dev-desktop.ps1" -Fast
+powershell -NoProfile -ExecutionPolicy Bypass -File "%REPO_ROOT%\scripts\dev-desktop.ps1" -Fast %*
 if errorlevel 1 (
   echo.
   echo Failed to start desktop development app.

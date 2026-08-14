@@ -179,6 +179,49 @@ button.shell-status-group:focus-visible {
   font-weight: 600;
 }
 
+.shell-status-group[data-kind="update"][data-priority="quiet"] {
+  padding-inline: 7px;
+}
+
+.shell-status-group[data-priority="attention"],
+.shell-status-group[data-priority="critical"] {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.shell-status-group[data-priority="attention"] {
+  border-top-color: var(--status-pending);
+  border-bottom-color: var(--status-pending);
+  background: var(--status-pending-bg);
+}
+
+.shell-status-group[data-priority="critical"] {
+  border-top-color: var(--status-warning);
+  border-bottom-color: var(--status-warning);
+  background: var(--status-warning-bg);
+}
+
+.shell-status-group[data-priority="attention"] strong,
+.shell-status-group[data-priority="attention"] .shell-status-icon {
+  color: var(--status-pending);
+}
+
+.shell-status-group[data-priority="critical"] strong,
+.shell-status-group[data-priority="critical"] .shell-status-icon {
+  color: var(--status-warning);
+}
+
+.shell-status-group[data-status="error"][data-priority="attention"] {
+  border-top-color: var(--status-error);
+  border-bottom-color: var(--status-error);
+  background: var(--status-error-bg);
+}
+
+.shell-status-group[data-status="error"][data-priority="attention"] strong,
+.shell-status-group[data-status="error"][data-priority="attention"] .shell-status-icon {
+  color: var(--status-error);
+}
+
 .shell-status-icon {
   width: 14px;
   height: 14px;
@@ -190,12 +233,31 @@ button.shell-status-group:focus-visible {
   color: var(--amber);
 }
 
+.shell-status-group.status-pending .shell-status-icon {
+  color: var(--status-pending);
+}
+
 .shell-status-group.status-error .shell-status-icon {
   color: var(--red);
 }
 
 .shell-status-group.status-neutral .shell-status-icon {
   color: var(--muted);
+}
+
+button.shell-status-group[data-priority="attention"]:hover,
+button.shell-status-group[data-priority="attention"]:focus-visible {
+  background: color-mix(in srgb, var(--status-pending-bg) 72%, var(--hover-bg));
+}
+
+button.shell-status-group[data-priority="critical"]:hover,
+button.shell-status-group[data-priority="critical"]:focus-visible {
+  background: color-mix(in srgb, var(--status-warning-bg) 72%, var(--hover-bg));
+}
+
+button.shell-status-group[data-status="error"][data-priority="attention"]:hover,
+button.shell-status-group[data-status="error"][data-priority="attention"]:focus-visible {
+  background: color-mix(in srgb, var(--status-error-bg) 72%, var(--hover-bg));
 }
 
 .shell-toolstrip,
@@ -829,6 +891,13 @@ button.shell-status-group:focus-visible {
     background: var(--hover-bg);
   }
 
+  .shell-mobile-status-trigger[data-attention="true"] {
+    color: var(--status-warning);
+    border-color: var(--status-warning);
+    background: var(--status-warning-bg);
+    font-weight: 700;
+  }
+
   .shell-status-strip {
     position: fixed;
     z-index: var(--layer-popover);
@@ -882,6 +951,14 @@ button.shell-status-group:focus-visible {
     font-size: var(--priority-context);
     text-overflow: ellipsis;
     white-space: normal;
+  }
+
+  .shell-status-group[data-kind="update"] {
+    grid-template-columns: 18px auto minmax(0, 1fr);
+  }
+
+  .shell-status-group[data-kind="update"] strong {
+    text-align: right;
   }
 
   .shell-toolstrip {

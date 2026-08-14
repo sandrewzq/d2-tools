@@ -140,8 +140,8 @@ const priorityLabels: Record<WeeklyPriorityKind, { pendingTitle: string; pending
     pendingDetail: "确认后展示可刷奖励状态。"
   },
   weekly_bonus: {
-    pendingTitle: "奖励加成待确认",
-    pendingDetail: "先锋、熔炉、智谋或日落加成确认后展示。"
+    pendingTitle: "暂无已确认的活动焦点",
+    pendingDetail: "只展示 Bungie 活动修饰词明确标记为“焦点活动”的内容。"
   },
   special_event: {
     pendingTitle: "暂无可确认特殊活动",

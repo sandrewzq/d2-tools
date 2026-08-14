@@ -251,7 +251,7 @@ function HomePageContent(props: {
           ))}
         </div>
       </section>
-      <section className="home-content-band home-signals-band" data-surface="section" aria-label="限时活动与本周加成">
+      <section className="home-content-band home-signals-band" data-surface="section" aria-label="限时活动与本周活动焦点">
         <div className="weekly-signal-grid" data-surface="content-stack">
           <IronBannerCard
             summary={props.weeklySummary?.iron_banner}
@@ -260,7 +260,7 @@ function HomePageContent(props: {
             copy={props.copy}
             onNavigate={props.onNavigate}
           />
-          <HomeSignal label={homeText(props.copy, "本周加成")} priority={priorities?.weekly_bonus} />
+          <HomeSignal label={homeText(props.copy, "本周活动焦点")} emptyLabel={homeText(props.copy, "暂无")} priority={priorities?.weekly_bonus} />
           {priorities?.special_event?.status === "ready" ? (
             <HomeSignal className="home-special-event-signal" label={homeText(props.copy, "限时活动")} priority={priorities.special_event} />
           ) : null}
@@ -376,7 +376,7 @@ function buildRefreshEntries(
 ): HomeRefreshEntry[] {
   return [
     { key: "daily", label: homeText(copy, "每日更新"), moment: `下次：${resetMoment(daily?.daily_reset, homeText(copy, "时间待确认"), locale)}`, countdown: `倒计时：${resetCountdown(daily?.daily_reset, clock, copy)}`, impact: homeText(copy, "今日轮换、遗失区域") },
-    { key: "weekly", label: homeText(copy, "每周更新"), moment: `下次：${resetMoment(weekly?.weekly_reset ?? daily?.weekly_reset, homeText(copy, "时间待确认"), locale)}`, countdown: `倒计时：${resetCountdown(weekly?.weekly_reset ?? daily?.weekly_reset, clock, copy)}`, impact: homeText(copy, "日落、轮换、周常加成") }
+    { key: "weekly", label: homeText(copy, "每周更新"), moment: `下次：${resetMoment(weekly?.weekly_reset ?? daily?.weekly_reset, homeText(copy, "时间待确认"), locale)}`, countdown: `倒计时：${resetCountdown(weekly?.weekly_reset ?? daily?.weekly_reset, clock, copy)}`, impact: homeText(copy, "日落、轮换、活动焦点") }
   ];
 }
 
@@ -650,15 +650,17 @@ function homePriorityEntries(priority: HomeWeeklyPriority | undefined): HomeWeek
 function HomeSignal(props: {
   className?: string;
   label: string;
+  emptyLabel?: string;
   priority: HomeWeeklyPriority | undefined;
 }) {
   const ready = props.priority?.status === "ready";
-  const status = ready ? "success" : "pending";
+  const empty = !ready && Boolean(props.emptyLabel);
+  const status = ready ? "success" : empty ? "neutral" : "pending";
   return (
     <article className={`weekly-signal-card${props.className ? ` ${props.className}` : ""}`} data-surface="frame" data-ui-kind="summary-frame" data-status={status}>
       <header>
         <span data-ui-part="label" data-info-priority="context" data-text-tone="primary">{props.label}</span>
-        <span className="app-chip" data-ui-kind="status-chip" data-ui-part="state" data-info-priority="support" data-text-tone="status" data-status={status}>{ready ? "已确认" : "待确认"}</span>
+        <span className="app-chip" data-ui-kind="status-chip" data-ui-part="state" data-info-priority="support" data-text-tone="status" data-status={status}>{ready ? "已确认" : props.emptyLabel ?? "待确认"}</span>
       </header>
       <div className="weekly-signal-copy">
         <strong data-ui-part="value" data-info-priority="decision" data-text-tone="primary">{props.priority?.title ?? "公开接口尚未确认"}</strong>

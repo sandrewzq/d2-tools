@@ -13,7 +13,7 @@ import {
 import type { ShellStatusItem } from "../shell/types.js";
 
 export type FixtureShellStatusState = Pick<ShellStatusItem, "value" | "tone"> &
-  Partial<Pick<ShellStatusItem, "actionLabel" | "onAction">>;
+  Partial<Pick<ShellStatusItem, "actionLabel" | "kind" | "onAction" | "priority">>;
 
 export type FixtureShellStatusInput = {
   bungie: FixtureShellStatusState;
@@ -40,6 +40,8 @@ export function createFixtureShellStatus(input: FixtureShellStatusInput): ShellS
       label: "应用版本",
       value: input.appVersion.value ?? `${appVersion}${appVersionSuffix}`,
       tone: input.appVersion.tone ?? "ready",
+      kind: input.appVersion.kind ?? "update",
+      priority: input.appVersion.priority ?? "quiet",
       actionLabel: input.appVersion.actionLabel,
       onAction: input.appVersion.onAction
     }

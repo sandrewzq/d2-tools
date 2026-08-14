@@ -76,6 +76,7 @@ export type BungieHomeProfileResponse = {
     data?: Record<string, {
       availableActivities?: Array<{
         activityHash?: number;
+        modifierHashes?: number[];
         challenges?: Array<{
           objective?: {
             objectiveHash?: number;

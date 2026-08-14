@@ -15,6 +15,17 @@ export type ShellCopy = {
   brandSubtitle: string;
   statusAriaLabel: string;
   statusMenuLabel: string;
+  update: {
+    versionLabel: string;
+    updateLabel: string;
+    reading: string;
+    checking: string;
+    available: (version?: string) => string;
+    downloading: (version?: string, progress?: number) => string;
+    downloaded: (version?: string) => string;
+    error: string;
+    open: string;
+  };
   toolstripAriaLabel: string;
   navigationAriaLabel: string;
   assistantPanelAriaLabel: string;

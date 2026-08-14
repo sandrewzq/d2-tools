@@ -32,7 +32,7 @@ export const unavailableHomeSnapshot: WebHomeSnapshot = {
     { key: "account", label: "账号", value: "不可用", tone: "warning" },
     { key: "library", label: "资料库", value: "不可用", tone: "warning" },
     { key: "ai", label: "AI", value: "不可用", tone: "warning" },
-    { key: "app-version", label: "应用版本", value: webAppVersion, tone: "ready" }
+    { key: "app-version", kind: "update", label: "版本", value: webAppVersion.startsWith("v") ? webAppVersion : `v${webAppVersion}`, tone: "ready", priority: "quiet" }
   ],
   homeState: {
     cards: {

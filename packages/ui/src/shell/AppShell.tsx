@@ -22,6 +22,8 @@ export function AppShell(props: AppShellProps) {
   const themeToggleLabel = props.colorMode === "light" ? copy.tools.switchToDark : copy.tools.switchToLight;
   const languageToggleLabel = interfaceLocale === "zh-CN" ? copy.tools.switchToEnglish : copy.tools.switchToChinese;
   const visibleShellStatus = props.shellStatus.filter((item) => item.key !== "background");
+  const attentionStatusCount = visibleShellStatus.filter((item) => item.priority === "attention" || item.priority === "critical").length;
+  const statusMenuLabel = attentionStatusCount > 0 ? `${copy.statusMenuLabel} · ${attentionStatusCount}` : copy.statusMenuLabel;
   const activePageLabel = navItems.find((item) => item.key === props.activePage)?.label ?? "";
   const isAssistantOverlay = useMediaQuery("(max-width: 980px)");
   const isAssistantOpen = props.assistantMode !== null;
@@ -142,9 +144,10 @@ export function AppShell(props: AppShellProps) {
             data-control-variant="quiet"
             aria-controls="shell-global-status"
             aria-expanded={isMobileStatusOpen}
+            data-attention={attentionStatusCount > 0 ? "true" : "false"}
             onClick={() => setIsMobileStatusOpen((current) => !current)}
           >
-            {copy.statusMenuLabel}
+            {statusMenuLabel}
           </button>
           <div
             id="shell-global-status"
@@ -395,6 +398,8 @@ function SettingsToolIcon() {
 
 function renderShellStatusItem(item: AppShellLayoutProps["shellStatus"][number]) {
   const status = item.tone ?? "neutral";
+  const priority = item.priority ?? "standard";
+  const kind = item.kind ?? "health";
   const semanticStatus = status === "ready" ? "success" : status;
   const className = [
     "shell-status-group",
@@ -405,7 +410,7 @@ function renderShellStatusItem(item: AppShellLayoutProps["shellStatus"][number])
   const accessibilityLabel = `${item.label}：${item.value}`;
   const content = (
     <>
-      <ShellStatusIcon statusKey={item.key} />
+      <ShellStatusIcon priority={priority} status={status} statusKey={item.key} />
       <span data-ui-part="label" data-info-priority="support" data-text-tone="meta">{item.label}</span>
       <strong data-ui-part="value" data-info-priority="context" data-text-tone="primary">{item.value}</strong>
     </>
@@ -413,16 +418,20 @@ function renderShellStatusItem(item: AppShellLayoutProps["shellStatus"][number])
 
   if (item.onAction && item.actionLabel) {
     return (
-      <button className={className} type="button" title={item.actionLabel} aria-label={`${item.actionLabel}：${accessibilityLabel}`} data-ui-kind="shell-status-item" data-status={semanticStatus} onClick={item.onAction} key={item.label}>
+      <button className={className} type="button" title={item.actionLabel} aria-label={`${item.actionLabel}：${accessibilityLabel}`} aria-live={kind === "update" && priority !== "quiet" ? "polite" : undefined} data-kind={kind} data-priority={priority} data-ui-kind="shell-status-item" data-status={semanticStatus} onClick={item.onAction} key={item.key ?? item.label}>
         {content}
       </button>
     );
   }
 
-  return <span className={className} title={accessibilityLabel} aria-label={accessibilityLabel} data-ui-kind="shell-status-item" data-status={semanticStatus} key={item.label}>{content}</span>;
+  return <span className={className} title={accessibilityLabel} aria-label={accessibilityLabel} aria-live={kind === "update" && priority !== "quiet" ? "polite" : undefined} data-kind={kind} data-priority={priority} data-ui-kind="shell-status-item" data-status={semanticStatus} key={item.key ?? item.label}>{content}</span>;
 }
 
-function ShellStatusIcon(props: { statusKey: AppShellLayoutProps["shellStatus"][number]["key"] }) {
+function ShellStatusIcon(props: {
+  statusKey: AppShellLayoutProps["shellStatus"][number]["key"];
+  status: NonNullable<AppShellLayoutProps["shellStatus"][number]["tone"]>;
+  priority: NonNullable<AppShellLayoutProps["shellStatus"][number]["priority"]>;
+}) {
   const commonProps = {
     "aria-hidden": true,
     viewBox: "0 0 24 24",
@@ -440,8 +449,21 @@ function ShellStatusIcon(props: { statusKey: AppShellLayoutProps["shellStatus"][
       return <svg className="shell-status-icon" {...commonProps}><ellipse cx="12" cy="5" rx="7" ry="2.5" /><path d="M5 5v7c0 1.4 3.1 2.5 7 2.5s7-1.1 7-2.5V5" /><path d="M5 12v7c0 1.4 3.1 2.5 7 2.5s7-1.1 7-2.5v-7" /></svg>;
     case "ai":
       return <svg className="shell-status-icon" {...commonProps}><path d="m12 3 1.5 5.5L19 10l-5.5 1.5L12 17l-1.5-5.5L5 10l5.5-1.5L12 3Z" /><path d="m19 15 .7 2.3L22 18l-2.3.7L19 21l-.7-2.3L16 18l2.3-.7L19 15Z" /></svg>;
-    case "app-version":
+    case "app-version": {
+      if (props.status === "error") {
+        return <svg className="shell-status-icon" {...commonProps}><path d="M12 3 2.8 20h18.4L12 3Z" /><path d="M12 9v5M12 17.5v.1" /></svg>;
+      }
+      if (props.priority === "critical") {
+        return <svg className="shell-status-icon" {...commonProps}><path d="M20 11a8 8 0 1 0-2.3 5.7" /><path d="M20 4v7h-7" /></svg>;
+      }
+      if (props.status === "pending" && props.priority === "standard") {
+        return <svg className="shell-status-icon" {...commonProps}><path d="M20 11a8 8 0 1 0-2.3 5.7" /><path d="M20 4v7h-7" /></svg>;
+      }
+      if (props.status === "pending") {
+        return <svg className="shell-status-icon" {...commonProps}><path d="M12 3v12" /><path d="m7 10 5 5 5-5" /><path d="M5 21h14" /></svg>;
+      }
       return <svg className="shell-status-icon" {...commonProps}><circle cx="12" cy="12" r="8" /><path d="m8.5 12 2.2 2.2 4.8-4.8" /></svg>;
+    }
     case "bungie":
     default:
       return <svg className="shell-status-icon" {...commonProps}><circle cx="12" cy="12" r="8" /><path d="M4 12h16M12 4a12 12 0 0 1 0 16M12 4a12 12 0 0 0 0 16" /></svg>;

@@ -118,7 +118,7 @@ async function buildHomeBriefing(
     ? buildWeeklySummary(now, weeklyLiveData)
     : cached.weekly;
   return {
-    version: 3,
+    version: 4,
     context_key: contextKey,
     saved_at: now.toISOString(),
     fetched_at: snapshot.fetchedAt,
@@ -186,6 +186,9 @@ async function loadHomeDefinitions(snapshot: BungieHomeSnapshot): Promise<{
     ((activity.modifiers as Array<{ activityModifierHash?: number }> | undefined) ?? [])
       .flatMap((modifier) => numberValue(modifier.activityModifierHash))
   );
+  const activeModifierHashes = Object.values(snapshot.profile?.characterActivities?.data ?? {}).flatMap((component) =>
+    (component.availableActivities ?? []).flatMap((activity) => activity.modifierHashes ?? [])
+  );
   const destinationHashes = [
     ...activityRecords.flatMap((activity) => numberValue(activity.destinationHash)),
     ...collectVendorDestinationHashes(vendorResponses, vendors)
@@ -196,7 +199,7 @@ async function loadHomeDefinitions(snapshot: BungieHomeSnapshot): Promise<{
       .flatMap((reward) => (reward.rewardItems ?? []).flatMap((item) => numberValue(item.itemHash)))
   );
   const [modifiers, destinations, places, activityRewardItems] = await Promise.all([
-    getDefinitions("DestinyActivityModifierDefinition", modifierHashes),
+    getDefinitions("DestinyActivityModifierDefinition", [...modifierHashes, ...activeModifierHashes]),
     getDefinitions("DestinyDestinationDefinition", destinationHashes),
     getDefinitions("DestinyPlaceDefinition", placeHashes),
     getDefinitions(

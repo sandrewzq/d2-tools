@@ -3,7 +3,9 @@
 # Keep this file ASCII-only: Windows PowerShell -File may parse UTF-8 without BOM as ANSI.
 
 param(
-  [switch] $Fast
+  [switch] $Fast,
+  [ValidateSet("idle", "checking", "available", "not_available", "downloading", "downloaded", "error")]
+  [string] $UpdateStatus
 )
 
 $ErrorActionPreference = "Stop"
@@ -19,8 +21,14 @@ $node = (Get-Command "node.exe" -ErrorAction Stop).Source
 $rendererPort = 53172
 $rendererUrl = "http://127.0.0.1:${rendererPort}"
 $previousRendererUrl = $env:D2_RENDERER_URL
+$previousVisualUpdateStatus = $env:VITE_D2_VISUAL_UPDATE_STATUS
 $viteProcess = $null
 $viteCli = Join-Path $desktopDir "node_modules\vite\bin\vite.js"
+
+if ($UpdateStatus) {
+  $env:VITE_D2_VISUAL_UPDATE_STATUS = $UpdateStatus
+  Write-Host "Using development update status simulation: $UpdateStatus" -ForegroundColor Yellow
+}
 
 function Invoke-Checked {
   param(
@@ -311,6 +319,11 @@ try {
     Remove-Item Env:\D2_RENDERER_URL -ErrorAction SilentlyContinue
   } else {
     $env:D2_RENDERER_URL = $previousRendererUrl
+  }
+  if ($null -eq $previousVisualUpdateStatus) {
+    Remove-Item Env:\VITE_D2_VISUAL_UPDATE_STATUS -ErrorAction SilentlyContinue
+  } else {
+    $env:VITE_D2_VISUAL_UPDATE_STATUS = $previousVisualUpdateStatus
   }
   Stop-ProcessTree -Process $viteProcess
   Pop-Location

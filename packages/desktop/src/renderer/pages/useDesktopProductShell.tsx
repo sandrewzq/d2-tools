@@ -1,5 +1,6 @@
 import {
   ControlButton,
+  getLocaleCopy,
   ShellSidebarAccountSummary,
   ShellSidebarActions,
   type ProductPreferences,
@@ -268,7 +269,12 @@ export function useDesktopProductShell(props: {
     isBungieConfigured: props.state.cards.bungieConfig.status === "ready",
     isAiConfigured,
     appUpdateSnapshot,
-    onRepairManifest: () => void diagnostics.repairManifest()
+    interfaceLocale: diagnostics.languagePreferences.interfaceLocale,
+    onRepairManifest: () => void diagnostics.repairManifest(),
+    onOpenAppUpdateSettings: () => {
+      setSettingsInitialSection("overview");
+      handlePageChange("settings");
+    }
   });
 
   const productPreferences: ProductPreferences = {
@@ -439,22 +445,28 @@ function buildShellStatus(input: {
   isBungieConfigured: boolean;
   isAiConfigured: boolean;
   appUpdateSnapshot: AppUpdateSnapshot | null;
+  interfaceLocale: ProductPreferences["interfaceLocale"];
   onRepairManifest: () => void;
+  onOpenAppUpdateSettings: () => void;
 }): ShellStatusItem[] {
   const needsLibraryRepair = Boolean(input.manifestStatus?.missing_required_components?.length);
+  const shellCopy = getLocaleCopy(input.interfaceLocale).shell;
+  const appUpdateStatus = getAppUpdateShellStatus(input.appUpdateSnapshot, shellCopy.update);
 
   return [
     {
       key: "bungie",
       label: "Bungie",
       value: input.isBungieConfigured ? "已配置" : "未配置",
-      tone: input.isBungieConfigured ? "ready" : "warning"
+      tone: input.isBungieConfigured ? "ready" : "warning",
+      priority: input.isBungieConfigured ? "quiet" : "attention"
     },
     {
       key: "account",
       label: "账号",
       value: formatAccountShellStatus(input.accountSummary, input.lastAccountLoadedAt, input.isLoadingAccount, input.accountError, input.accountWarning, input.canRefreshAccount),
-      tone: getAccountStatusTone(input.accountSummary, input.isLoadingAccount, input.accountError, input.accountWarning, input.canRefreshAccount)
+      tone: getAccountStatusTone(input.accountSummary, input.isLoadingAccount, input.accountError, input.accountWarning, input.canRefreshAccount),
+      priority: input.accountError || input.accountWarning ? "attention" : "standard"
     },
     {
       key: "library",
@@ -463,6 +475,7 @@ function buildShellStatus(input: {
         ? "检查失败"
         : (needsLibraryRepair ? "修复资料库" : formatManifestShellStatus(input.manifestStatus)),
       tone: input.manifestStatusError ? "error" : getManifestStatusTone(input.manifestStatus),
+      priority: input.manifestStatusError || needsLibraryRepair ? "attention" : "standard",
       actionLabel: needsLibraryRepair ? "修复资料库" : undefined,
       onAction: needsLibraryRepair ? input.onRepairManifest : undefined
     },
@@ -470,14 +483,16 @@ function buildShellStatus(input: {
       key: "ai",
       label: "AI",
       value: input.isAiConfigured ? "已配置" : "未配置",
-      tone: input.isAiConfigured ? "ready" : "warning"
+      tone: input.isAiConfigured ? "ready" : "warning",
+      priority: input.isAiConfigured ? "quiet" : "standard"
     },
     {
       key: "app-version",
-      label: "应用版本",
-      value: formatAppUpdateShellStatus(input.appUpdateSnapshot),
-      tone: getAppUpdateStatusTone(input.appUpdateSnapshot)
-    },
+      kind: "update",
+      ...appUpdateStatus,
+      actionLabel: appUpdateStatus.priority === "quiet" ? undefined : shellCopy.update.open,
+      onAction: appUpdateStatus.priority === "quiet" ? undefined : input.onOpenAppUpdateSettings
+    }
   ];
 }
 
@@ -523,14 +538,41 @@ function formatManifestShellStatus(status: ManifestStatus | null): string {
   return formatLibraryVersion(status.version) ?? "可用";
 }
 
-function formatAppUpdateShellStatus(snapshot: AppUpdateSnapshot | null): string {
-  const version = snapshot?.current_version ?? "未读取";
-  if (!snapshot) return version;
-  if (snapshot.status === "available") return `${version} 有新版`;
-  if (snapshot.status === "downloaded") return `${version} 待安装`;
-  if (snapshot.status === "downloading") return `${version} 下载中`;
-  if (snapshot.status === "error") return `${version} 检查失败`;
-  return `${version} 最新`;
+function getAppUpdateShellStatus(
+  snapshot: AppUpdateSnapshot | null,
+  copy: ReturnType<typeof getLocaleCopy>["shell"]["update"]
+): Pick<ShellStatusItem, "label" | "value" | "tone" | "priority"> {
+  if (!snapshot) {
+    return { label: copy.versionLabel, value: copy.reading, tone: "neutral", priority: "quiet" };
+  }
+
+  const currentVersion = formatAppVersion(snapshot.current_version);
+  const availableVersion = snapshot.available_version ? formatAppVersion(snapshot.available_version) : undefined;
+  const downloadedVersion = snapshot.downloaded_version
+    ? formatAppVersion(snapshot.downloaded_version)
+    : availableVersion;
+
+  switch (snapshot.status) {
+    case "idle":
+      return { label: copy.versionLabel, value: currentVersion, tone: "neutral", priority: "quiet" };
+    case "checking":
+      return { label: copy.updateLabel, value: copy.checking, tone: "pending", priority: "standard" };
+    case "available":
+      return { label: copy.updateLabel, value: copy.available(availableVersion), tone: "pending", priority: "attention" };
+    case "downloading":
+      return { label: copy.updateLabel, value: copy.downloading(availableVersion, snapshot.progress_percent), tone: "pending", priority: "attention" };
+    case "downloaded":
+      return { label: copy.updateLabel, value: copy.downloaded(downloadedVersion), tone: "warning", priority: "critical" };
+    case "error":
+      return { label: copy.updateLabel, value: copy.error, tone: "error", priority: "attention" };
+    case "not_available":
+    default:
+      return { label: copy.versionLabel, value: currentVersion, tone: "ready", priority: "quiet" };
+  }
+}
+
+function formatAppVersion(version: string): string {
+  return version.startsWith("v") ? version : `v${version}`;
 }
 
 function isShellPageKey(value: string | undefined): value is ShellPageKey {
@@ -562,12 +604,5 @@ function formatTime(date: Date | null): string | undefined {
 function getManifestStatusTone(status: ManifestStatus | null): ShellStatusItem["tone"] {
   if (!status) return "neutral";
   if (!status.initialized || status.missing_required_components?.length || status.needs_update) return "warning";
-  return "ready";
-}
-
-function getAppUpdateStatusTone(snapshot: AppUpdateSnapshot | null): ShellStatusItem["tone"] {
-  if (!snapshot) return "neutral";
-  if (snapshot.status === "error") return "error";
-  if (snapshot.status === "available" || snapshot.status === "downloaded" || snapshot.status === "downloading") return "warning";
   return "ready";
 }

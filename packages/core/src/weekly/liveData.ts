@@ -53,6 +53,7 @@ type DestinyMembership = {
 
 type DestinyAvailableActivity = {
   activityHash?: number;
+  modifierHashes?: number[];
   challenges?: Array<{
     objective?: {
       objectiveHash?: number;
@@ -117,6 +118,7 @@ export type BuildWeeklyLiveDataInput = {
     vendors?: DefinitionComponentData | null;
     items?: DefinitionComponentData | null;
     objectives?: DefinitionComponentData | null;
+    modifiers?: DefinitionComponentData | null;
   };
 };
 
@@ -768,6 +770,21 @@ function mapProfileActivities(
         continue;
       }
 
+      const focusModifiers = activityFocusModifiers(activity, definitions.modifiers);
+      if (focusModifiers.length) {
+        items.push({
+          title: activityName,
+          subtitle: "焦点活动",
+          description: focusModifiers
+            .map((modifier) => modifier.displayProperties?.description?.trim())
+            .filter(Boolean)
+            .join(" · "),
+          source: "Bungie CharacterActivities + 当前 Manifest",
+          weeklyActivityKind: "weekly_bonus",
+          related_hashes: [activityHash, ...(activity.modifierHashes ?? [])]
+        });
+      }
+
       if (objectiveTexts.some(isGrandmasterVanguardAlertObjective)) {
         items.push({
           title: activityName,
@@ -814,7 +831,6 @@ function mapProfileActivities(
 function inferWeeklyActivityKind(value: string): WeeklyPriorityKind | "public_clue" | undefined {
   if (/试炼|Trials|铁旗|Iron Banner/i.test(value)) return undefined;
   if (/日落|Nightfall/i.test(value)) return "nightfall";
-  if (/加成|双倍|声望|奖励加成|Bonus|reputation/i.test(value)) return "weekly_bonus";
   if (/特殊活动|限时活动|曙光|英灵日|守护者游戏|至日|Event|Festival|Solstice|Guardian Games/i.test(value)) return "special_event";
   if (/守望者尖塔|预言|二象性|贪婪之握|异端深渊|破碎王座|战争领主的废墟|鬼魅深渊|Spire of the Watcher|Prophecy|Duality|Grasp of Avarice|Pit of Heresy|Shattered Throne|Warlord'?s Ruin|Ghosts of the Deep/i.test(value)) {
     return "rotating_dungeon";
@@ -823,6 +839,16 @@ function inferWeeklyActivityKind(value: string): WeeklyPriorityKind | "public_cl
     return "rotating_raid";
   }
   return "public_clue";
+}
+
+function activityFocusModifiers(
+  activity: DestinyAvailableActivity,
+  modifiers: DefinitionComponentData | null | undefined
+): DefinitionRecord[] {
+  return (activity.modifierHashes ?? [])
+    .map((hash) => definitionRecord(modifiers, hash))
+    .filter((modifier): modifier is DefinitionRecord => Boolean(modifier))
+    .filter((modifier) => /焦点活动|focused activity/i.test(modifier.displayProperties?.name?.trim() ?? ""));
 }
 
 function isPublicMilestoneOnlyClue(kind: WeeklyPriorityKind): boolean {

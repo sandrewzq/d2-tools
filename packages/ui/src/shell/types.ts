@@ -13,7 +13,9 @@ export type ShellStatusItem = {
   key?: "bungie" | "account" | "library" | "ai" | "background" | "app-version";
   label: string;
   value: string;
-  tone?: "neutral" | "ready" | "warning" | "error";
+  tone?: "neutral" | "pending" | "ready" | "warning" | "error";
+  priority?: "quiet" | "standard" | "attention" | "critical";
+  kind?: "health" | "update" | "task";
   actionLabel?: string;
   onAction?: () => void;
 };
