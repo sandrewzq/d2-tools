@@ -22,10 +22,11 @@ import type { DimLoadoutImportPreview } from "@d2-tools/core/loadouts/dimImport"
 import type { BuildGuideLoadoutDraft } from "@d2-tools/core/assistant/guideSchema";
 import type {
   GuideArmorConstraintDraftArtifact,
-  GuideLoadoutCandidatesArtifact
+  GuideLoadoutCandidatesArtifact,
+  GuideSourceReadPreview
 } from "@d2-tools/app/guides";
 import type {
-  AssistantArtifact,
+  AssistantLoadoutArtifact,
   AssistantEquipmentTargetCandidatesArtifact
 } from "@d2-tools/app/capabilities";
 import type { ActionVerificationStatus } from "@d2-tools/core/actions/log";
@@ -72,7 +73,7 @@ export function useLocalLoadoutPlans(input: {
   const [isImportingGuide, setIsImportingGuide] = useState(false);
   const [legacyGuideText, setLegacyGuideText] = useState(readLegacyGuideText);
   const [assistantPrefill, setAssistantPrefill] = useState<(
-    (AssistantArtifact | GuideLoadoutCandidatesArtifact) & { request_id: number }
+    (AssistantLoadoutArtifact | GuideLoadoutCandidatesArtifact) & { request_id: number }
   ) | null>(null);
   const [executionReport, setExecutionReport] = useState<LocalPlanExecutionReport | null>(null);
   const [isExecuting, setIsExecuting] = useState(false);
@@ -209,7 +210,8 @@ export function useLocalLoadoutPlans(input: {
 
   const startFromGuideDraft = useCallback((
     guide: BuildGuideLoadoutDraft,
-    assistantArtifact?: AssistantArtifact
+    assistantArtifact?: AssistantLoadoutArtifact,
+    sourcePreview?: GuideSourceReadPreview
   ) => {
     const target = accountSummary?.characters.find((character) => character.character_id === guide.character_id) ?? null;
     setSelectedPlanId("");
@@ -222,11 +224,14 @@ export function useLocalLoadoutPlans(input: {
       target_character_id: guide.character_id || target?.character_id,
       source: {
         kind: assistantArtifact?.kind === "armor_solution_comparison" ? "armor-plan" : "guide",
+        ...(sourcePreview?.final_url ? { reference_url: sourcePreview.final_url } : {}),
         label: assistantArtifact?.kind === "armor_solution_comparison"
           ? "AI 护甲方案交接"
           : assistantArtifact
             ? "AI 工作台交接"
-            : "攻略解析"
+            : sourcePreview
+              ? [sourcePreview.title, sourcePreview.author].filter(Boolean).join(" · ") || "攻略链接"
+              : "攻略解析"
       },
       item_targets: guide.items.map((item, index) => ({
         slot: item.bucket_name || `攻略目标 ${index + 1}`,
@@ -242,11 +247,16 @@ export function useLocalLoadoutPlans(input: {
       guidance: {
         raw_text: guide.raw_text,
         warnings: [
+          ...(sourcePreview?.warnings ?? []),
           ...guide.missing_requirements,
           ...(guide.armor_constraint_draft?.warnings ?? []),
           ...(guide.armor_constraint_draft?.confirmations.map((item) => `待确认：${item}`) ?? [])
         ],
         evidence: [
+          ...(sourcePreview ? [
+            `攻略来源：${sourcePreview.final_url}`,
+            `正文读取：${sourcePreview.reader === "dynamic-page" ? "动态页面" : "静态页面"}${sourcePreview.media_count ? ` · ${sourcePreview.media_count} 个媒体内容` : ""}`
+          ] : []),
           ...guide.notes,
           ...(assistantArtifact ? [
             `AI 上下文快照：${assistantArtifact.source_snapshot_id}`,
@@ -263,31 +273,37 @@ export function useLocalLoadoutPlans(input: {
     setError("");
   }, [accountSummary]);
 
-  const importGuideText = useCallback(async (rawText: string, character: CharacterSummary | null) => {
-    if (!character || !rawText.trim() || isImportingGuide) return false;
+  const importGuideSource = useCallback(async (sourceInput: string, character: CharacterSummary | null) => {
+    const normalizedInput = sourceInput.trim();
+    if (!character || !normalizedInput || isImportingGuide) return false;
     setIsImportingGuide(true);
     setError("");
     try {
+      const sourcePreview = isHttpUrl(normalizedInput)
+        ? await api.readGuideSource(normalizedInput)
+        : undefined;
+      const rawText = sourcePreview?.body.trim() || normalizedInput;
+      if (!rawText) throw new Error("来源中没有可分析的攻略正文");
       const parsed = await api.parseBuildGuide({ rawText });
       const match = await api.matchBuildGuide({ requirement: parsed.requirement, characterId: character.character_id });
       const guide = await api.createGuideLoadoutDraft({
         match,
         characterId: character.character_id,
-        fallbackName: rawText.trim().split(/\r?\n/).find(Boolean) ?? "攻略配装"
+        fallbackName: sourcePreview?.title ?? rawText.split(/\r?\n/).find(Boolean) ?? "攻略配装"
       });
       const assistantArtifact = assistantPrefill
         && "raw_text" in assistantPrefill
         && assistantPrefill.raw_text === rawText
         ? assistantPrefill
         : undefined;
-      startFromGuideDraft(guide, assistantArtifact);
+      startFromGuideDraft(guide, assistantArtifact, sourcePreview);
       clearLegacyGuideText();
       setLegacyGuideText("");
       setAssistantPrefill(null);
       return true;
     } catch (guideError) {
       const message = guideError instanceof Error ? guideError.message : String(guideError);
-      setError(`攻略解析失败：${message}`);
+      setError(`攻略分析失败：${message}`);
       return false;
     } finally {
       setIsImportingGuide(false);
@@ -342,7 +358,7 @@ export function useLocalLoadoutPlans(input: {
     return true;
   }, []);
 
-  const prefillFromAssistant = useCallback((artifact: AssistantArtifact) => {
+  const prefillFromAssistant = useCallback((artifact: AssistantLoadoutArtifact) => {
     setAssistantPrefill((current) => ({
       ...artifact,
       request_id: (current?.request_id ?? 0) + 1
@@ -842,7 +858,7 @@ export function useLocalLoadoutPlans(input: {
     dismissAssistantPrefill,
     startFromGuideArmorConstraintDraft,
     acceptGuideLoadoutCandidates,
-    importGuideText,
+    importGuideSource,
     acceptAssistantEquipmentTargets,
     executionPlan,
     executionReport,
@@ -852,6 +868,15 @@ export function useLocalLoadoutPlans(input: {
     isPublishing,
     publishAppliedPlan
   };
+}
+
+function isHttpUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" || url.protocol === "http:";
+  } catch {
+    return false;
+  }
 }
 
 function readLegacyGuideText(): string {

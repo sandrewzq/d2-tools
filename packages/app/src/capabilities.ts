@@ -87,6 +87,7 @@ export {
 export type {
   AssistantArmorSolutionComparisonArtifact,
   AssistantArtifact,
+  AssistantLoadoutArtifact,
   AssistantEquipmentTargetCandidate,
   AssistantEquipmentTargetCandidatesArtifact,
   AssistantGuideCaptureArtifact

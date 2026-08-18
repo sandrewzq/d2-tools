@@ -65,9 +65,6 @@ export function SettingsMenuProvider() {
       }}
       languagePreferences={diagnostics.languagePreferences}
       onLanguagePreferencesChange={(preferences) => void diagnostics.saveLanguagePreferences(preferences)}
-      onWishlistChanged={account.setImportedWishlist}
-      onEquipmentTargetStoreChanged={account.setEquipmentTargetStore}
-      onCommunityRecommendationsChanged={() => account.loadVaultCommunityMatch(undefined, { force: true })}
     />
   );
 }

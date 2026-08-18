@@ -28,13 +28,12 @@ import {
   type ShellAssistantMode,
   type ShellPageKey,
   type SettingsAiAdapter,
-  type SettingsRecommendationSourcesAdapter,
+  type VaultWishlistActions,
   type VendorInventoryItemView,
   type VendorOfferContextView
 } from "@d2-tools/ui";
 import type { AccountItemSummary } from "@d2-tools/core/account/summary";
 import type { DimWishlist } from "@d2-tools/core/analysis/wishlistImport";
-import type { LocalCommunityRecommendationTable } from "@d2-tools/core/community-perks";
 import { createHomeWeeklyActivityRewardDetailTarget } from "@d2-tools/app/home";
 import {
   createEmptyGuideDocumentDraft,
@@ -84,7 +83,7 @@ function WebApp() {
     ...defaultProductPreferences,
     colorMode: initialTheme
   });
-  const [settingsSection, setSettingsSection] = useState<"overview" | "account" | "recommendations">("overview");
+  const [settingsSection, setSettingsSection] = useState<"overview" | "account">("overview");
   const [selectedAccountCharacterId, setSelectedAccountCharacterId] = useState(fixture.accountSummary.characters[0]?.character_id ?? "");
   const [selectedTemplateId, setSelectedTemplateId] = useState(fixture.loadoutTemplates[0]?.id ?? "");
   const [selectedLoadoutEntryId, setSelectedLoadoutEntryId] = useState("");
@@ -147,14 +146,13 @@ function WebApp() {
     [fixture, selectedAccountCharacterId, selectedTemplateId]
   );
   const [webRecommendationWishlist, setWebRecommendationWishlist] = useState<DimWishlist | null>(vaultModel.wishlist ?? null);
-  const [webCustomRecommendationRules, setWebCustomRecommendationRules] = useState<LocalCommunityRecommendationTable | null>(null);
-  const recommendationSourcesAdapter = useMemo<SettingsRecommendationSourcesAdapter>(() => ({
-    load: async () => ({ wishlist: webRecommendationWishlist, customRules: webCustomRecommendationRules }),
-    saveWishlist: async (wishlist) => { setWebRecommendationWishlist(wishlist); return wishlist; },
-    clearWishlist: async () => { setWebRecommendationWishlist(null); },
-    saveCustomRules: async (table) => { setWebCustomRecommendationRules(table); return table; },
-    clearCustomRules: async () => { setWebCustomRecommendationRules(null); }
-  }), [webCustomRecommendationRules, webRecommendationWishlist]);
+  const webWishlistActions = useMemo<VaultWishlistActions>(() => ({
+    save: async (wishlist) => {
+      setWebRecommendationWishlist(wishlist);
+      return wishlist;
+    },
+    clear: async () => setWebRecommendationWishlist(null)
+  }), []);
   const loadoutsModel = useMemo(
     () => fixture.createLoadoutsPageModel({
       selectedTemplateId,
@@ -462,7 +460,19 @@ function WebApp() {
           onClearHistory={() => undefined}
           onSwitchSession={() => undefined}
           onDeleteSession={() => undefined}
-          onOpenArtifact={() => undefined}
+          onOpenArtifact={(artifact) => {
+            if (artifact.kind === "guide_capture") {
+              setGuideDraft({
+                ...createEmptyGuideDocumentDraft(),
+                title: artifact.title,
+                body: artifact.raw_text,
+                source: { kind: "text", label: "AI 工作台整理" }
+              });
+              setEditingGuideDocumentId(null);
+              setActivePage("guides");
+              setAssistantMode(null);
+            }
+          }}
         />
       )}
       platformActions={platformActions}
@@ -508,8 +518,9 @@ function WebApp() {
               openingItemKey=""
               wishlist={webRecommendationWishlist}
               localTargetRules={vaultModel.targetRules}
-              communityMatch={webRecommendationWishlist || webCustomRecommendationRules ? vaultModel.communityMatch : new Map()}
-              recommendationSourceState={{ customRules: webCustomRecommendationRules, customRulesLoadState: "ready" }}
+              communityMatch={webRecommendationWishlist ? vaultModel.communityMatch : new Map()}
+              recommendationSourceState={{ customRules: null, customRulesLoadState: "ready" }}
+              wishlistActions={webWishlistActions}
               cleanupActions={{
                 characters: fixture.accountSummary.characters,
                 currentCharacterId: vaultModel.currentCharacterId,
@@ -522,10 +533,6 @@ function WebApp() {
               onOpenItem={(item) => openWebAccountItem(item, "vault")}
               onSaveTag={() => undefined}
               onSaveTagBatch={() => undefined}
-              onManageRecommendationSources={() => {
-                setSettingsSection("recommendations");
-                setActivePage("settings");
-              }}
             />
           ) : null}
           {activePage === "loadouts" ? (
@@ -758,7 +765,6 @@ function WebApp() {
                 followInterfaceLocaleForBungie: preferences.followInterfaceLocaleForBungie
               })}
               aiSettingsAdapter={aiSettingsAdapter}
-              recommendationSourcesAdapter={recommendationSourcesAdapter}
               colorMode={preferences.colorMode}
               onColorModeChange={(colorMode) => setPreferences((current) => ({ ...current, colorMode }))}
               density={preferences.density}

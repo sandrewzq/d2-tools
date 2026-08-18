@@ -397,7 +397,6 @@ export type SettingsCopy = {
     library: { label: string; hint: string };
     bungie: { label: string; hint: string };
     ai: { label: string; hint: string };
-    recommendations: { label: string; hint: string };
     backup: { label: string; hint: string };
     diagnostics: { label: string; hint: string };
   };

@@ -103,8 +103,8 @@ export function GuideLibraryPageContentView(props: GuideLibraryPageContentViewPr
             <input type="search" aria-label={copy.searchPlaceholder} value={props.filters.query} placeholder={copy.searchPlaceholder} onChange={(event) => props.actions.filtersChange({ query: event.target.value })} />
           </label>
           <div className="guide-directory-actions">
-            <button type="button" data-ui-kind="button" data-control-variant="secondary" disabled={props.isSaving} onClick={props.actions.startImportDocument}>{copy.importGuide}</button>
-            <button type="button" data-ui-kind="button" data-control-variant="primary" disabled={props.isSaving} onClick={props.actions.startNewDocument}>{copy.newGuide}</button>
+            <button type="button" data-ui-kind="button" data-control-variant="primary" disabled={props.isSaving} onClick={props.actions.startImportDocument}>{copy.importGuide}</button>
+            <button type="button" data-ui-kind="button" data-control-variant="secondary" disabled={props.isSaving} onClick={props.actions.startNewDocument}>{copy.newGuide}</button>
           </div>
         </div>
         <div className="guide-directory-summary"><span>{copy.results(props.model.entries.length)}</span>{props.isLoading ? <span data-status="pending">{copy.loading}</span> : null}</div>
@@ -279,6 +279,28 @@ function GuideExtractionSection(props: GuideLibraryPageContentViewProps & { docu
       {props.extractionError ? <p className="status-message status-error" role="alert">{props.extractionError}</p> : null}
       {!extraction && confirmed ? <div className="guide-extraction-confirmed" data-status="ready"><strong>{copy.extraction.confirmed}</strong><span>{copy.extraction.accepted(confirmed.accepted_candidate_ids.length, confirmed.candidates.length)}</span>{confirmed.confirmed_at ? <small>{copy.extraction.confirmedAt(formatFullDateTime(confirmed.confirmed_at))}</small> : null}</div> : null}
       {extraction ? <GuideExtractionReview interfaceLocale={props.interfaceLocale} extraction={extraction} isConfirming={props.isConfirmingExtraction} onConfirm={props.actions.confirmExtraction} onDismiss={props.actions.dismissExtractionPreview} /> : null}
+      {confirmed && props.actions.createLoadoutCandidates ? (
+        <div className="guide-target-conversion guide-loadout-candidates" data-surface="frame" data-ui-kind="state-frame">
+          <div>
+            <strong>{copy.extraction.loadoutCandidates.title}</strong>
+            <small>{copy.extraction.loadoutCandidates.detail}</small>
+          </div>
+          <button type="button" data-ui-kind="button" data-control-variant="primary" disabled={props.isCreatingLoadoutCandidates} onClick={() => props.actions.createLoadoutCandidates?.(confirmed)}>{props.isCreatingLoadoutCandidates ? copy.extraction.loadoutCandidates.creating : copy.extraction.loadoutCandidates.create}</button>
+          {props.loadoutCandidatesError ? <p className="status-message status-error" role="alert">{props.loadoutCandidatesError}</p> : null}
+          {loadoutCandidates ? (
+            <div className="guide-target-conversion-result" data-status={loadoutCandidates.missing_requirements.length ? "warning" : "success"}>
+              <small>{copy.extraction.loadoutCandidates.character(loadoutCandidates.account_scope.character_class)}</small>
+              <span>{copy.extraction.loadoutCandidates.result(
+                loadoutCandidates.candidates.filter((candidate) => candidate.relation === "matched").length,
+                loadoutCandidates.candidates.filter((candidate) => candidate.relation === "alternative").length,
+                loadoutCandidates.missing_requirements.length
+              )}</span>
+              {loadoutCandidates.missing_requirements.length ? <ul>{loadoutCandidates.missing_requirements.map((item) => <li key={item}>{item}</li>)}</ul> : null}
+              {openLoadoutCandidates ? <button type="button" data-ui-kind="button" data-control-variant="primary" onClick={() => openLoadoutCandidates(loadoutCandidates)}>{copy.extraction.loadoutCandidates.open}</button> : null}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
       {confirmed && props.actions.convertConfirmedTargets ? (
         <div className="guide-target-conversion" data-surface="frame" data-ui-kind="state-frame">
           <div>
@@ -301,28 +323,6 @@ function GuideExtractionSection(props: GuideLibraryPageContentViewProps & { docu
             <span>{formatArmorConstraintSummary(armorConstraintDraft, copy.extraction.armorConstraintDraft)}</span>
             {armorConstraintDraft.confirmations.length || armorConstraintDraft.warnings.length ? <ul>{[...armorConstraintDraft.confirmations.map(copy.extraction.armorConstraintDraft.confirmation), ...armorConstraintDraft.warnings].map((item, index) => <li key={`${item}:${index}`}>{item}</li>)}</ul> : null}
           </div>
-        </div>
-      ) : null}
-      {confirmed && props.actions.createLoadoutCandidates ? (
-        <div className="guide-target-conversion guide-loadout-candidates" data-surface="frame" data-ui-kind="state-frame">
-          <div>
-            <strong>{copy.extraction.loadoutCandidates.title}</strong>
-            <small>{copy.extraction.loadoutCandidates.detail}</small>
-          </div>
-          <button type="button" data-ui-kind="button" data-control-variant="secondary" disabled={props.isCreatingLoadoutCandidates} onClick={() => props.actions.createLoadoutCandidates?.(confirmed)}>{props.isCreatingLoadoutCandidates ? copy.extraction.loadoutCandidates.creating : copy.extraction.loadoutCandidates.create}</button>
-          {props.loadoutCandidatesError ? <p className="status-message status-error" role="alert">{props.loadoutCandidatesError}</p> : null}
-          {loadoutCandidates ? (
-            <div className="guide-target-conversion-result" data-status={loadoutCandidates.missing_requirements.length ? "warning" : "success"}>
-              <small>{copy.extraction.loadoutCandidates.character(loadoutCandidates.account_scope.character_class)}</small>
-              <span>{copy.extraction.loadoutCandidates.result(
-                loadoutCandidates.candidates.filter((candidate) => candidate.relation === "matched").length,
-                loadoutCandidates.candidates.filter((candidate) => candidate.relation === "alternative").length,
-                loadoutCandidates.missing_requirements.length
-              )}</span>
-              {loadoutCandidates.missing_requirements.length ? <ul>{loadoutCandidates.missing_requirements.map((item) => <li key={item}>{item}</li>)}</ul> : null}
-              {openLoadoutCandidates ? <button type="button" data-ui-kind="button" data-control-variant="primary" onClick={() => openLoadoutCandidates(loadoutCandidates)}>{copy.extraction.loadoutCandidates.open}</button> : null}
-            </div>
-          ) : null}
         </div>
       ) : null}
     </section>

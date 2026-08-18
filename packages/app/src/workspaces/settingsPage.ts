@@ -7,7 +7,6 @@ export type SettingsSectionKey =
   | "library"
   | "bungie"
   | "ai"
-  | "recommendations"
   | "backup"
   | "diagnostics";
 

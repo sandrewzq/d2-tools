@@ -74,7 +74,10 @@ export async function readGuideSourceUrl(sourceUrl: string, now = new Date()): P
     content_type: contentType,
     fetched_at: now.toISOString(),
     byte_length: bytes.byteLength,
-    warnings: [...warnings, ...extracted.warnings]
+    warnings: [...warnings, ...extracted.warnings],
+    reader: "static-html",
+    completeness: extracted.warnings.length ? "partial" : "complete",
+    media_count: 0
   };
 }
 

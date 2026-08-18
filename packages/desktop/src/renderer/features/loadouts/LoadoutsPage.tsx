@@ -14,7 +14,7 @@ import {
 import type { LocalLoadoutPlanExecutionPlan } from "@d2-tools/core/loadouts/localPlanExecution";
 import { selectLoadoutsPageModel, type LocalLoadoutPlanWorkbenchModel } from "@d2-tools/app/loadouts";
 import type {
-  AssistantArtifact,
+  AssistantLoadoutArtifact,
   AssistantEquipmentTargetCandidatesArtifact
 } from "@d2-tools/app/capabilities";
 import type { GuideLoadoutCandidatesArtifact } from "@d2-tools/app/guides";
@@ -51,7 +51,7 @@ export type LoadoutsPageProps = {
   localPlanIsPublishing: boolean;
   localPlanIsImportingGuide: boolean;
   localPlanLegacyGuideText: string;
-  localPlanAssistantPrefill: ((AssistantArtifact | GuideLoadoutCandidatesArtifact) & { request_id: number }) | null;
+  localPlanAssistantPrefill: ((AssistantLoadoutArtifact | GuideLoadoutCandidatesArtifact) & { request_id: number }) | null;
   equipmentTargetStore: EquipmentTargetStore;
   armorResultTraceRequest: { resultId: string; candidateId: string; requestId: number } | null;
   onSelectTemplate: (id: string) => void;
@@ -115,7 +115,7 @@ export type LoadoutsPageProps = {
   onDismissDimImport: () => void;
   onExecuteLocalPlan: () => void;
   onPublishLocalPlanToSlot: (loadoutIndex: number) => void;
-  onImportGuideText: (rawText: string, character: CharacterSummary | null) => Promise<boolean>;
+  onImportGuideSource: (sourceInput: string, character: CharacterSummary | null) => Promise<boolean>;
   onAcceptAssistantEquipmentTargets: (
     artifact: AssistantEquipmentTargetCandidatesArtifact,
     candidateIds: string[],
@@ -304,7 +304,7 @@ export function LoadoutsPage(props: LoadoutsPageProps) {
     copyDimLoadoutLink: () => void copyDimLoadoutLink(),
     executeLocalPlan: props.onExecuteLocalPlan,
     publishLocalPlanToSlot: props.onPublishLocalPlanToSlot,
-    importGuideText: props.onImportGuideText,
+    importGuideSource: props.onImportGuideSource,
     acceptAssistantEquipmentTargets: props.onAcceptAssistantEquipmentTargets,
     acceptGuideLoadoutCandidates: props.onAcceptGuideLoadoutCandidates,
     dismissAssistantPrefill: props.onDismissAssistantPrefill,

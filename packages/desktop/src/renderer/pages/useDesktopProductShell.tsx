@@ -43,7 +43,7 @@ export function useDesktopProductShell(props: {
   const visualColorMode = isColorMode(visualEnv?.VITE_D2_VISUAL_THEME) ? visualEnv?.VITE_D2_VISUAL_THEME : undefined;
   const initialPage: ShellPageKey = isShellPageKey(visualInitialPage) ? visualInitialPage : "home";
   const [activePage, setActivePage] = useState<ShellPageKey>(initialPage);
-  const [settingsInitialSection, setSettingsInitialSection] = useState<"overview" | "account" | "recommendations">("overview");
+  const [settingsInitialSection, setSettingsInitialSection] = useState<"overview" | "account">("overview");
   const [assistantMode, setAssistantMode] = useState<ShellAssistantMode>(null);
   const [hasAutoLoadedAccount, setHasAutoLoadedAccount] = useState(false);
   const [vaultFacts, setVaultFacts] = useState<string[]>([]);
@@ -351,6 +351,16 @@ export function useDesktopProductShell(props: {
         setAssistantMode(null);
       }}
       onOpenArtifact={(artifact) => {
+        if (artifact.kind === "guide_capture") {
+          guides.startImportText({
+            title: artifact.title,
+            body: artifact.raw_text,
+            sourceLabel: "AI 工作台整理"
+          });
+          setActivePage("guides");
+          setAssistantMode(null);
+          return;
+        }
         localLoadoutPlans.prefillFromAssistant(artifact);
         setActivePage("loadouts");
         setAssistantMode(null);

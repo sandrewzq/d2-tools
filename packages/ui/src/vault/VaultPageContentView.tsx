@@ -54,6 +54,7 @@ import {
   VaultRecommendationEvidencePanel,
   type VaultRecommendationSourceState
 } from "./VaultRecommendationEvidencePanel.js";
+import type { VaultWishlistActions } from "./VaultWishlistManager.js";
 import {
   VaultTargetRulesPanel,
   type VaultTargetRulesActions
@@ -65,7 +66,7 @@ type VaultWorkspaceTab = "filters" | "duplicates" | "recommendations";
 const vaultWorkspaceTabs: Array<{ key: VaultWorkspaceTab; label: string }> = [
   { key: "filters", label: "筛选列表" },
   { key: "duplicates", label: "同名整理" },
-  { key: "recommendations", label: "目标与推荐" }
+  { key: "recommendations", label: "目标与匹配" }
 ];
 
 const emptySelectedKeys = new Set<string>();
@@ -87,8 +88,8 @@ export function VaultPageContentView(props: {
   targetLocateRequest?: { targetId: string; requestId: number } | null;
   communityMatch?: Map<number, VaultItemMatchInfo>;
   recommendationSourceState?: VaultRecommendationSourceState;
+  wishlistActions?: VaultWishlistActions;
   targetRulesActions?: VaultTargetRulesActions;
-  onManageRecommendationSources?: () => void;
   onContextFactsChange?: (facts: string[]) => void;
   onLoadItemDetail?: (item: AccountItemSummary) => Promise<AccountItemSummary>;
   onOpenItem: (item: AccountItemSummary) => void;
@@ -490,7 +491,7 @@ export function VaultPageContentView(props: {
 
       {activeVaultTab === "recommendations" ? (
         <div id={panelIds.recommendations} role="tabpanel" aria-labelledby={tabIds.recommendations} className="vault-recommendations vault-workspace-panel">
-          <VaultRecommendationEvidencePanel items={props.items} wishlist={props.wishlist} communityMatch={props.communityMatch} sourceState={props.recommendationSourceState} onOpenItem={props.onOpenItem} onManageSources={props.onManageRecommendationSources} />
+          <VaultRecommendationEvidencePanel items={props.items} wishlist={props.wishlist} communityMatch={props.communityMatch} sourceState={props.recommendationSourceState} wishlistActions={props.wishlistActions} onOpenItem={props.onOpenItem} />
           <aside><div className="vault-column-head"><h3>装备目标</h3><span>目标库与兼容规则</span></div><VaultTargetRulesPanel items={props.items} rules={props.localTargetRules ?? { action_policy: "notify_only", armor: [], weapons: [] }} equipmentTargetStore={props.equipmentTargetStore} targetLocateRequest={props.targetLocateRequest} actions={props.targetRulesActions} /></aside>
         </div>
       ) : null}

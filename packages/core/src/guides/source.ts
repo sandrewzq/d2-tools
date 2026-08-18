@@ -10,12 +10,17 @@ export type GuideSourceReadPreview = {
   source_url: string;
   final_url: string;
   title?: string;
+  author?: string;
+  tags?: string[];
   body: string;
   sections: GuideSourceSection[];
   content_type: string;
   fetched_at: string;
   byte_length: number;
   warnings: string[];
+  reader?: "static-html" | "dynamic-page";
+  completeness?: "complete" | "text-only" | "partial";
+  media_count?: number;
 };
 
 export function createGuideSourceSections(body: string): GuideSourceSection[] {

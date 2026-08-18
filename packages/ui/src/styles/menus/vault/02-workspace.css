@@ -1218,6 +1218,89 @@
   background: transparent;
 }
 
+:where(.app-shell) .vault-wishlist-manager,
+:where(.app-shell) .vault-wishlist-manager[data-surface="section"] {
+  display: grid;
+  gap: 10px;
+  margin: 0 12px 12px;
+  padding: 12px;
+  border: 1px solid var(--object-border);
+  border-radius: var(--radius-frame);
+  background: var(--surface-subtle);
+}
+
+:where(.app-shell) .vault-wishlist-manager > header,
+:where(.app-shell) .vault-wishlist-actions,
+:where(.app-shell) .vault-wishlist-confirm,
+:where(.app-shell) .vault-wishlist-confirm > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+:where(.app-shell) .vault-wishlist-manager > header,
+:where(.app-shell) .vault-wishlist-confirm {
+  justify-content: space-between;
+}
+
+:where(.app-shell) .vault-wishlist-manager > header > div,
+:where(.app-shell) .vault-wishlist-preview > span,
+:where(.app-shell) .vault-wishlist-paste label {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+:where(.app-shell) .vault-wishlist-manager > header span,
+:where(.app-shell) .vault-wishlist-preview small,
+:where(.app-shell) .vault-wishlist-paste label > span {
+  color: var(--text-muted);
+}
+
+:where(.app-shell) .vault-wishlist-paste {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: end;
+}
+
+:where(.app-shell) .vault-wishlist-paste textarea {
+  width: 100%;
+  min-width: 0;
+  resize: vertical;
+}
+
+:where(.app-shell) .vault-wishlist-preview,
+:where(.app-shell) .vault-wishlist-preview[data-surface="frame"][data-ui-kind="state-frame"] {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(130px, auto) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 10px;
+  border: 1px solid var(--object-border);
+  border-radius: var(--radius-frame);
+  background: var(--surface-panel);
+}
+
+:where(.app-shell) .vault-wishlist-confirm {
+  padding: 10px;
+}
+
+:where(.app-shell) .vault-wishlist-feedback {
+  margin: 0;
+  padding: 8px 10px;
+  color: var(--text-body);
+}
+
+:where(.app-shell) .vault-wishlist-feedback[data-status="error"] {
+  color: var(--status-error);
+}
+
+:where(.app-shell) .vault-wishlist-feedback[data-status="success"] {
+  color: var(--status-ready);
+}
+
 :where(.app-shell) .vault-evidence-metrics,
 :where(.app-shell) .vault-evidence-metrics[data-surface="frame"][data-ui-kind="status-matrix"] {
   display: grid;
@@ -1559,6 +1642,18 @@
   :where(.app-shell) .vault-evidence-results > button {
     grid-template-columns: minmax(0, 1fr);
     gap: 4px;
+  }
+
+  :where(.app-shell) .vault-wishlist-paste,
+  :where(.app-shell) .vault-wishlist-preview {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
+  }
+
+  :where(.app-shell) .vault-wishlist-manager > header,
+  :where(.app-shell) .vault-wishlist-confirm {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   :where(.app-shell) .vault-cleanup-grid .vault-card-main {

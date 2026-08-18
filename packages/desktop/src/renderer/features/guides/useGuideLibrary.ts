@@ -201,6 +201,20 @@ export function useGuideLibrary(input: {
     clearExtractionState();
   }, [clearExtractionState, clearSourceState]);
 
+  const startImportText = useCallback((input: { title: string; body: string; sourceLabel?: string }) => {
+    setDraft({
+      ...createEmptyGuideDocumentDraft(),
+      title: input.title.trim(),
+      body: input.body,
+      source: input.sourceLabel ? { kind: "text", label: input.sourceLabel } : { kind: "text" }
+    });
+    setEditingDocumentId(null);
+    setError("");
+    setErrorKind("");
+    clearSourceState();
+    clearExtractionState();
+  }, [clearExtractionState, clearSourceState]);
+
   const startEditingDocument = useCallback((document: GuideDocument) => {
     setSelectedDocumentId(document.id);
     setDraft(toGuideDocumentDraft(document));
@@ -485,6 +499,7 @@ export function useGuideLibrary(input: {
     reload,
     selectDocument,
     startImportDocument,
+    startImportText,
     startNewDocument,
     startEditingDocument,
     cancelEditing,

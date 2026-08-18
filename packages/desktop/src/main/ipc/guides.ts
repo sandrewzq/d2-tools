@@ -34,6 +34,10 @@ import type {
   CreateGuideDocumentInput,
   UpdateGuideDocumentInput
 } from "../../contracts/guides.js";
+import {
+  isXiaoheiheGuideUrl,
+  readXiaoheiheGuideSource
+} from "../guides/dynamicSourceReader.js";
 
 export function registerGuideIpcHandlers(): void {
   ipcMain.handle("guides:list", () => {
@@ -58,7 +62,11 @@ export function registerGuideIpcHandlers(): void {
     return documents;
   });
 
-  ipcMain.handle("guides:source:read", (_event, url: string) => readGuideSourceUrl(url));
+  ipcMain.handle("guides:source:read", (_event, url: string) => (
+    isXiaoheiheGuideUrl(url)
+      ? readXiaoheiheGuideSource(url)
+      : readGuideSourceUrl(url)
+  ));
 
   ipcMain.handle("guides:extractions:list", () => {
     const config = loadConfig();

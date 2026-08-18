@@ -1,5 +1,6 @@
 import type { ArmorStatKey } from "../loadouts/analysis.js";
 import type { LoadoutPlanArmorConstraints } from "../loadouts/plans.js";
+import type { GuideSourceReadPreview } from "../guides/source.js";
 
 export type RequirementConfidence = "high" | "medium" | "low";
 
@@ -83,6 +84,26 @@ export type BuildGuideLoadoutDraft = {
   missing_requirements: string[];
   notes: string[];
   armor_constraint_draft?: GuideArmorConstraintDraft;
+};
+
+export type BuildGuideVariantSource = {
+  id: string;
+  name: string;
+  raw_text: string;
+};
+
+export type BuildGuideIntakeVariant = BuildGuideVariantSource & {
+  parse_result: BuildGuideParseResult;
+  match_result: BuildGuideMatchResult;
+  draft: BuildGuideLoadoutDraft;
+};
+
+export type BuildGuideIntakeResult = {
+  input_kind: "url" | "text";
+  title: string;
+  source?: GuideSourceReadPreview;
+  warnings: string[];
+  variants: BuildGuideIntakeVariant[];
 };
 
 export type BuildGuideTaskState = {

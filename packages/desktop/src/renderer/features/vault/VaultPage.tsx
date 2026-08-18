@@ -1,5 +1,5 @@
 import { selectVaultPageModel } from "@d2-tools/app/vault";
-import { ControlButton, ProductWorkspaceEmptyState, VaultPageContentView } from "@d2-tools/ui";
+import { ControlButton, ProductWorkspaceEmptyState, VaultPageContentView, type VaultWishlistActions } from "@d2-tools/ui";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { LoadoutTemplateLookup } from "../../shared/domain/loadouts/loadoutLookup";
 import type {
@@ -38,6 +38,8 @@ export function VaultPage(props: {
   onContextFactsChange?: (facts: string[]) => void;
   onLocalTargetRulesChanged: (rules: LocalTargetRules) => void;
   onEquipmentTargetStoreChanged: (store: EquipmentTargetStore) => void;
+  onWishlistChanged: (wishlist: DimWishlist | null) => void;
+  onCommunityRecommendationsChanged: () => Promise<void> | void;
   onOpenGuide: (targetId: string) => Promise<boolean>;
   onOpenArmorResult: (reference: { resultId: string; candidateId: string }) => void;
   onLoadAccount: () => void;
@@ -46,7 +48,6 @@ export function VaultPage(props: {
   onBatchTransferToCharacter: (items: AccountItemSummary[], targetCharacterId: string) => Promise<BatchItemActionResult>;
   onOpenItem: (item: AccountItemSummary) => void;
   onSaveTag: (item: AccountItemSummary, tag: VaultTagValue) => void | Promise<void>;
-  onManageRecommendationSources: () => void;
 }) {
   const [localCommunityTable, setLocalCommunityTable] = useState<LocalCommunityRecommendationTable | null>(null);
   const [localCommunityLoadState, setLocalCommunityLoadState] = useState<"loading" | "ready" | "error">("loading");
@@ -56,6 +57,21 @@ export function VaultPage(props: {
   const loadItemDetail = useCallback((item: AccountItemSummary) => (
     item.instance_id ? api.getAccountItemDetail(item.instance_id) : Promise.resolve(item)
   ), []);
+  const wishlistActions = useMemo<VaultWishlistActions>(() => ({
+    save: async (wishlist) => {
+      const saved = await api.saveDimWishlist(wishlist);
+      props.onWishlistChanged(saved);
+      props.onEquipmentTargetStoreChanged(await api.getEquipmentTargetStore());
+      await props.onCommunityRecommendationsChanged();
+      return saved;
+    },
+    clear: async () => {
+      await api.clearDimWishlist();
+      props.onWishlistChanged(null);
+      props.onEquipmentTargetStoreChanged(await api.getEquipmentTargetStore());
+      await props.onCommunityRecommendationsChanged();
+    }
+  }), [props.onCommunityRecommendationsChanged, props.onEquipmentTargetStoreChanged, props.onWishlistChanged]);
   const loadLocalCommunityTable = useCallback(async () => {
     setLocalCommunityLoadState("loading");
     setLocalCommunityLoadError("");
@@ -65,7 +81,7 @@ export function VaultPage(props: {
       setLocalCommunityLoadState("ready");
       return table;
     } catch (error) {
-      const message = error instanceof Error ? error.message : "自定义推荐规则读取失败";
+      const message = error instanceof Error ? error.message : "遗留自定义规则读取失败";
       setLocalCommunityLoadState("error");
       setLocalCommunityLoadError(message);
       throw error;
@@ -155,7 +171,7 @@ export function VaultPage(props: {
         customRulesLoadState: localCommunityLoadState,
         customRulesLoadError: localCommunityLoadError
       }}
-      onManageRecommendationSources={props.onManageRecommendationSources}
+      wishlistActions={wishlistActions}
       targetRulesActions={{
         onSaveRules: async (rules) => {
           const saved = await services.localData.saveLocalTargetRules(rules);

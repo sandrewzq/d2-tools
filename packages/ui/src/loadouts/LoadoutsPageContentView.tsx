@@ -12,7 +12,7 @@ import type {
   LoadoutsPageModel
 } from "@d2-tools/app/loadouts";
 import type {
-  AssistantArtifact,
+  AssistantLoadoutArtifact,
   AssistantEquipmentTargetCandidatesArtifact
 } from "@d2-tools/app/capabilities";
 import type { GuideLoadoutCandidatesArtifact } from "@d2-tools/app/guides";
@@ -69,7 +69,7 @@ export type LoadoutsPageActions = {
   copyDimLoadoutLink: () => void;
   executeLocalPlan: () => void;
   publishLocalPlanToSlot?: (loadoutIndex: number) => void;
-  importGuideText: (rawText: string, character: AccountSummary["characters"][number] | null) => Promise<boolean>;
+  importGuideSource: (sourceInput: string, character: AccountSummary["characters"][number] | null) => Promise<boolean>;
   acceptAssistantEquipmentTargets: (
     artifact: AssistantEquipmentTargetCandidatesArtifact,
     candidateIds: string[],
@@ -159,7 +159,7 @@ export type LoadoutsPageContentViewProps = {
   localPlanIsPublishing?: boolean;
   localPlanIsImportingGuide: boolean;
   localPlanLegacyGuideText: string;
-  localPlanAssistantPrefill: ((AssistantArtifact | GuideLoadoutCandidatesArtifact) & { request_id: number }) | null;
+  localPlanAssistantPrefill: ((AssistantLoadoutArtifact | GuideLoadoutCandidatesArtifact) & { request_id: number }) | null;
   armorPlannerState?: ArmorPlannerWorkspaceState;
   armorSetCatalog?: ArmorSetCatalogEntry[];
   armorSetCatalogStatus?: "loading" | "ready" | "error";
@@ -202,6 +202,13 @@ export function LoadoutsPageContentView(props: LoadoutsPageContentViewProps) {
     setIsDimImportOpen(false);
     setIsGuideImportOpen(true);
   }, [props.localPlanAssistantPrefill?.request_id]);
+
+  useEffect(() => {
+    if (!props.localPlanLegacyGuideText) return;
+    setMode("local");
+    setIsDimImportOpen(false);
+    setIsGuideImportOpen(true);
+  }, [props.localPlanLegacyGuideText]);
 
   useEffect(() => {
     if (!props.armorResultTraceRequest) return;
@@ -266,6 +273,25 @@ export function LoadoutsPageContentView(props: LoadoutsPageContentViewProps) {
     props.actions.startLocalPlanFromCharacter(activeCharacter);
   }
 
+  function openGuideImport(details: HTMLDetailsElement) {
+    details.open = false;
+    setIsDimImportOpen(false);
+    setIsGuideImportOpen(true);
+  }
+
+  function openDimImport(details: HTMLDetailsElement) {
+    details.open = false;
+    setIsGuideImportOpen(false);
+    setIsDimImportOpen(true);
+  }
+
+  function createBlankPlan(details: HTMLDetailsElement) {
+    details.open = false;
+    setIsGuideImportOpen(false);
+    setIsDimImportOpen(false);
+    props.actions.startNewLocalPlan(activeCharacter);
+  }
+
   const statusTone = props.message.includes("失败")
     ? "error"
     : props.isRunningItemAction
@@ -321,20 +347,26 @@ export function LoadoutsPageContentView(props: LoadoutsPageContentViewProps) {
         {mode === "local" ? (
           <div className="loadout-context-actions">
             <details ref={sourceMenuRef} className="loadout-create-menu">
-              <summary data-ui-kind="button" data-control-variant="secondary" aria-haspopup="true">从现有内容创建</summary>
+              <summary data-ui-kind="button" data-control-variant="primary" aria-haspopup="true">新建方案</summary>
               <div className="loadout-create-options" data-surface="menu" data-ui-kind="command-menu" aria-label="本地方案创建来源">
+                <button type="button" disabled={!activeCharacter || props.isRunningItemAction} onClick={(event) => openGuideImport(event.currentTarget.closest("details")!)}>
+                  <strong>从攻略生成</strong>
+                  <span>粘贴攻略链接或正文，分析后匹配当前角色</span>
+                </button>
                 <button type="button" disabled={!activeCharacter || props.isRunningItemAction} onClick={(event) => createFromCurrentCharacter(event.currentTarget.closest("details")!)}>
                   <strong>使用当前装备</strong>
                   <span>预填真实实例后进入本地方案工作台</span>
                 </button>
-                <button type="button" onClick={(event) => { event.currentTarget.closest("details")!.open = false; setIsGuideImportOpen(true); }}>
-                  <strong>从攻略生成</strong>
-                  <span>解析条件后预填同一本地方案工作台</span>
+                <button type="button" onClick={(event) => openDimImport(event.currentTarget.closest("details")!)}>
+                  <strong>导入 DIM</strong>
+                  <span>读取 DIM 分享链接并预览装备配置</span>
+                </button>
+                <button type="button" disabled={!activeCharacter || props.isRunningItemAction} onClick={(event) => createBlankPlan(event.currentTarget.closest("details")!)}>
+                  <strong>空白方案</strong>
+                  <span>只带入当前角色，手动填写装备和约束</span>
                 </button>
               </div>
             </details>
-            <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={() => { setIsGuideImportOpen(false); setIsDimImportOpen(true); }}>导入 DIM</button>
-            <button type="button" data-ui-kind="button" data-control-variant="primary" disabled={!activeCharacter || props.isRunningItemAction} onClick={() => props.actions.startNewLocalPlan(activeCharacter)}>新建方案</button>
           </div>
         ) : null}
       </div>
@@ -1146,14 +1178,14 @@ function GuideImportPanel(props: LoadoutsPageContentViewProps & {
   const assistantRawText = assistantPrefill && "raw_text" in assistantPrefill
     ? assistantPrefill.raw_text
     : "";
-  const [text, setText] = useState(assistantRawText || props.localPlanLegacyGuideText);
+  const [sourceInput, setSourceInput] = useState(assistantRawText || props.localPlanLegacyGuideText);
   const [selectedCandidateIds, setSelectedCandidateIds] = useState<string[]>(
     equipmentArtifact?.candidates.map((candidate) => candidate.candidate_id)
       ?? guideLoadoutArtifact?.candidates.filter((candidate) => candidate.selected_by_default).map((candidate) => candidate.candidate_id)
       ?? []
   );
   useEffect(() => {
-    setText(assistantRawText || props.localPlanLegacyGuideText);
+    setSourceInput(assistantRawText || props.localPlanLegacyGuideText);
   }, [assistantPrefill?.request_id, props.localPlanLegacyGuideText]);
   useEffect(() => {
     setSelectedCandidateIds(
@@ -1162,7 +1194,7 @@ function GuideImportPanel(props: LoadoutsPageContentViewProps & {
         ?? []
     );
   }, [assistantPrefill?.request_id]);
-  const restoredLegacyText = Boolean(props.localPlanLegacyGuideText && text === props.localPlanLegacyGuideText);
+  const restoredLegacyText = Boolean(props.localPlanLegacyGuideText && sourceInput === props.localPlanLegacyGuideText);
   if (guideLoadoutArtifact) {
     const matchedCount = guideLoadoutArtifact.candidates.filter((candidate) => candidate.relation === "matched").length;
     const alternativeCount = guideLoadoutArtifact.candidates.length - matchedCount;
@@ -1269,19 +1301,19 @@ function GuideImportPanel(props: LoadoutsPageContentViewProps & {
     );
   }
   return (
-    <section className="loadout-capability-notice" data-status="neutral" aria-label="攻略配装导入">
+    <section className="loadout-capability-notice loadout-guide-intake" data-status="neutral" aria-label="从攻略生成方案">
       <div>
-        <strong>{assistantPrefill?.kind === "armor_solution_comparison" ? "复核 AI 护甲方案" : "从攻略生成草稿"}</strong>
+        <strong>{assistantPrefill?.kind === "armor_solution_comparison" ? "复核 AI 护甲方案" : "从攻略生成方案"}</strong>
         <p>{assistantPrefill?.kind === "armor_solution_comparison"
           ? "候选来自确定性 Armor 结果；这里只带入职业和六维目标，仍需重新核对模组预算、套装、位置范围和真实实例。"
-          : "解析出的装备要求会与当前账号核对；未提及或无法确认的槽位保持为空，不会自动补全。"}</p>
-        {assistantRawText && text === assistantRawText ? <p data-status="neutral">已接收 AI 工作台成果；解析后仍需核对装备、属性和真实实例。</p> : null}
+          : `粘贴攻略链接或正文。系统会读取内容、识别装备要求并与当前${props.activeCharacter?.class_name ?? "角色"}账号装备核对。`}</p>
+        {assistantRawText && sourceInput === assistantRawText ? <p data-status="neutral">已接收 AI 工作台成果；分析后仍需核对装备、属性和真实实例。</p> : null}
         {restoredLegacyText ? <p data-status="warning">已恢复旧任务入口保存的攻略文本；成功生成草稿后会自动清除旧副本。</p> : null}
-        <label className="loadout-dim-url-field"><span>攻略文本</span><textarea value={text} onChange={(event) => setText(event.target.value)} rows={5} placeholder="粘贴攻略正文、视频文案或配装说明" /></label>
+        <label className="loadout-dim-url-field"><span>攻略链接或正文</span><textarea value={sourceInput} onChange={(event) => setSourceInput(event.target.value)} rows={6} placeholder="https://www.xiaoheihe.cn/app/bbs/link/...&#10;&#10;也可以直接粘贴攻略正文、视频文案或配装说明" /></label>
       </div>
       <div className="loadout-action-stack">
         <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={() => { if (assistantPrefill) props.actions.dismissAssistantPrefill(); props.onCloseGuideImport(); }}>取消</button>
-        <button type="button" data-ui-kind="button" data-control-variant="primary" disabled={!text.trim() || !props.activeCharacter || props.localPlanIsImportingGuide} onClick={async () => { if (await props.actions.importGuideText(text, props.activeCharacter)) props.onCloseGuideImport(); }}>{props.localPlanIsImportingGuide ? "解析中" : assistantPrefill?.kind === "armor_solution_comparison" ? "核对并预填" : "解析并预填"}</button>
+        <button type="button" data-ui-kind="button" data-control-variant="primary" disabled={!sourceInput.trim() || !props.activeCharacter || props.localPlanIsImportingGuide} onClick={async () => { if (await props.actions.importGuideSource(sourceInput, props.activeCharacter)) props.onCloseGuideImport(); }}>{props.localPlanIsImportingGuide ? "分析中" : assistantPrefill?.kind === "armor_solution_comparison" ? "核对并生成草稿" : "分析并生成草稿"}</button>
       </div>
     </section>
   );

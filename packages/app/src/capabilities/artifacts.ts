@@ -83,6 +83,8 @@ export type AssistantArtifact =
   | AssistantArmorSolutionComparisonArtifact
   | AssistantEquipmentTargetCandidatesArtifact;
 
+export type AssistantLoadoutArtifact = Exclude<AssistantArtifact, AssistantGuideCaptureArtifact>;
+
 export function createAssistantGuideCaptureArtifact(input: {
   question: string;
   reply: string;

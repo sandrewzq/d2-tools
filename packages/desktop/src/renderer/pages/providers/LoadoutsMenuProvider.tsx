@@ -67,7 +67,7 @@ export function LoadoutsMenuProvider() {
       onDismissDimImport={localPlans.dismissDimImport}
       onExecuteLocalPlan={() => void localPlans.executeDraft()}
       onPublishLocalPlanToSlot={(loadoutIndex) => void localPlans.publishAppliedPlan(loadoutIndex)}
-      onImportGuideText={localPlans.importGuideText}
+      onImportGuideSource={localPlans.importGuideSource}
       onAcceptAssistantEquipmentTargets={localPlans.acceptAssistantEquipmentTargets}
       onAcceptGuideLoadoutCandidates={localPlans.acceptGuideLoadoutCandidates}
       onDismissAssistantPrefill={localPlans.dismissAssistantPrefill}

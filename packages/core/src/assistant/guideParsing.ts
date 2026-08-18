@@ -1,11 +1,43 @@
 import type { ArmorStatKey } from "../loadouts/analysis.js";
 import type {
   BuildGuideParseResult,
+  BuildGuideVariantSource,
   BuildGuideRequirement,
   GuideArmorStatRequirement,
   GuideWeaponRequirement,
   RequirementConfidence
 } from "./guideSchema.js";
+
+export function splitBuildGuideVariants(rawText: string): BuildGuideVariantSource[] {
+  const normalized = rawText.replace(/\r\n?/g, "\n").trim();
+  if (!normalized) return [];
+  const lines = normalized.split("\n");
+  const headings = lines.flatMap((line, index) => {
+    const match = line.match(/^(#{2,4})\s+(.+)$/);
+    return match ? [{ index, level: match[1]!.length, label: match[2]!.trim() }] : [];
+  });
+  const branchHeadings = headings.filter((heading) => (
+    heading.level >= 3
+    && (/^\d+[.、]\s*/.test(heading.label) || /(配装|流派|玩法|术)$/.test(heading.label))
+    && !/(技能|星相|碎片|护甲|模组|武器选择|结语|前言)/.test(heading.label)
+  ));
+  if (branchHeadings.length < 2) {
+    return [{ id: "variant-1", name: firstMeaningfulGuideLine(normalized), raw_text: normalized }];
+  }
+  return branchHeadings.map((heading, index) => {
+    const next = branchHeadings.slice(index + 1).find((candidate) => candidate.level <= heading.level);
+    const body = lines.slice(heading.index, next?.index ?? lines.length).join("\n").trim();
+    return {
+      id: `variant-${index + 1}`,
+      name: heading.label.replace(/^\d+[.、]\s*/, "").trim(),
+      raw_text: body
+    };
+  }).filter((variant) => variant.raw_text.length >= 80);
+}
+
+function firstMeaningfulGuideLine(rawText: string): string {
+  return rawText.split(/\r?\n/).map((line) => line.trim()).find(Boolean)?.replace(/^#+\s*/, "") ?? "攻略配装";
+}
 
 const statAliases: Record<string, { stat: ArmorStatKey; mapping: "direct" | "legacy-alias" }> = {
   生命值: { stat: "health", mapping: "direct" },

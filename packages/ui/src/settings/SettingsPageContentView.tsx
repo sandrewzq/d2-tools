@@ -5,10 +5,6 @@ import type { InterfaceLocale, SettingsCopy } from "../i18n/types.js";
 import { formatFullDateTime } from "../time/formatTime.js";
 import { SettingsAiConfigPanel, type SettingsAiAdapter } from "./SettingsAiConfigPanel.js";
 import { SettingsButton } from "./SettingsButton.js";
-import {
-  SettingsRecommendationSourcesPanel,
-  type SettingsRecommendationSourcesAdapter
-} from "./SettingsRecommendationSourcesPanel.js";
 
 type AccountSummary = any;
 type ActionLogEntry = any;
@@ -67,7 +63,6 @@ export type SettingsPageContentViewProps = {
   actionLogResultFilter: SettingsActionLogResultFilter;
   actionLogTypeFilter: SettingsActionLogTypeFilter;
   aiSettingsAdapter: SettingsAiAdapter;
-  recommendationSourcesAdapter: SettingsRecommendationSourcesAdapter;
   onOpenDataDir: () => void;
   onWriteActionsEnabledChange: (enabled: boolean) => void;
   onCheckAppUpdate: () => void;
@@ -98,7 +93,7 @@ export type SettingsPageContentViewProps = {
   onSaveBungieConfig: (bungie: SettingsBungieConfigInput) => Promise<void>;
 };
 
-type SettingsSectionKey = "overview" | "language" | "account" | "library" | "bungie" | "ai" | "recommendations" | "backup" | "diagnostics";
+type SettingsSectionKey = "overview" | "language" | "account" | "library" | "bungie" | "ai" | "backup" | "diagnostics";
 type StatusTone = "neutral" | "ready" | "warning" | "error";
 
 function getSettingsMenu(copy: SettingsCopy): Array<{ key: SettingsSectionKey; label: string; hint: string }> {
@@ -109,7 +104,6 @@ function getSettingsMenu(copy: SettingsCopy): Array<{ key: SettingsSectionKey; l
     { key: "library", ...copy.menu.library },
     { key: "bungie", ...copy.menu.bungie },
     { key: "ai", ...copy.menu.ai },
-    { key: "recommendations", ...copy.menu.recommendations },
     { key: "backup", ...copy.menu.backup },
     { key: "diagnostics", ...copy.menu.diagnostics }
   ];
@@ -231,7 +225,6 @@ export function SettingsPageContentView(props: SettingsPageContentViewProps) {
           {activeSection === "library" ? <LibrarySection {...sectionProps} manifestStatus={props.manifestStatus} isInitializing={props.isInitializingManifest} onRefresh={props.onRefreshManifestStatus} onInitialize={props.onInitializeManifest} onRepair={props.onRepairManifest} /> : null}
           {activeSection === "bungie" ? <BungieSection copy={copy} bungieUi={bungieUi} dataDir={props.diagnosticDataDir} apiKey={bungieApiKey} clientId={bungieClientId} clientSecret={bungieClientSecret} redirectUri={bungieRedirectUri} isLoading={isLoadingBungieConfig} isSaving={isSavingBungieConfig} error={bungieError} message={bungieMessage} onApiKeyChange={setBungieApiKey} onClientIdChange={setBungieClientId} onClientSecretChange={setBungieClientSecret} onSave={() => void saveBungieConfig()} onOpenDataDir={props.onOpenDataDir} /> : null}
           {activeSection === "ai" ? <SettingsSection id="ai" copy={copy} title={settingsText(copy, "AI 助手")} subtitle={settingsText(copy, "可选能力，不阻断账号、仓库、资料库等本地功能。")} badge={aiUi.statusLabel} tone={aiUi.tone}><SettingsAiConfigPanel adapter={props.aiSettingsAdapter} /></SettingsSection> : null}
-          {activeSection === "recommendations" ? <SettingsSection id="recommendations" copy={copy} title={settingsText(copy, "推荐来源")} subtitle={settingsText(copy, "管理仓库和装备详情使用的本地推荐证据。")}> <SettingsRecommendationSourcesPanel adapter={props.recommendationSourcesAdapter} text={(value) => settingsText(copy, value)} /></SettingsSection> : null}
           {activeSection === "backup" ? <BackupSection copy={copy} dataDir={props.diagnosticDataDir} onOpenDataDir={props.onOpenDataDir} onExport={props.onExportConfig} onImport={props.onImportConfig} onClearCache={props.onClearCache} onCopyGuide={props.onCopyDataBackupGuide} /> : null}
           {activeSection === "diagnostics" ? <DiagnosticsSection copy={copy} interfaceLocale={interfaceLocale} entries={filteredActionLog(props.actionLog, props.actionLogResultFilter, props.actionLogTypeFilter).slice(0, 8)} resultFilter={props.actionLogResultFilter} typeFilter={props.actionLogTypeFilter} onResultFilterChange={props.onActionLogResultFilterChange} onTypeFilterChange={props.onActionLogTypeFilterChange} onRefreshDiagnostics={props.onRefreshDiagnostics} onRefreshLog={props.onRefreshActionLog} onCopyExport={props.onCopyDiagnosticsExport} onCopyEntry={props.onCopyActionDiagnostic} /> : null}
         </main>

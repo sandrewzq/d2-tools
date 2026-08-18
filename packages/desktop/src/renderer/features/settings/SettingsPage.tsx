@@ -4,12 +4,11 @@ import {
   type SettingsActionLogResultFilter,
   type SettingsActionLogTypeFilter,
   type SettingsAiAdapter,
-  type SettingsBungieConfigInput,
-  type SettingsRecommendationSourcesAdapter
+  type SettingsBungieConfigInput
 } from "@d2-tools/ui";
 import { selectSettingsPageModel } from "@d2-tools/app/settings";
 import { api } from "../../api/client";
-import type { AccountSummary, ActionLogEntry, AppUpdateSnapshot, BackgroundTaskSnapshot, DimWishlist, EquipmentTargetStore, ManifestStatus } from "../../api/types";
+import type { AccountSummary, ActionLogEntry, AppUpdateSnapshot, BackgroundTaskSnapshot, ManifestStatus } from "../../api/types";
 import type { LanguagePreferences } from "./diagnosticsModel";
 import { useMemo } from "react";
 
@@ -17,7 +16,7 @@ export type { SettingsActionLogResultFilter, SettingsActionLogTypeFilter };
 
 export function SettingsPage(props: {
   interfaceLocale?: InterfaceLocale;
-  initialSection?: "overview" | "account" | "recommendations";
+  initialSection?: "overview" | "account";
   message: string;
   error: string;
   diagnosticDataDir: string;
@@ -66,9 +65,6 @@ export function SettingsPage(props: {
   onDensityChange: (density: "compact" | "standard" | "comfortable") => void;
   languagePreferences: LanguagePreferences;
   onLanguagePreferencesChange: (preferences: LanguagePreferences) => void;
-  onWishlistChanged: (wishlist: DimWishlist | null) => void;
-  onEquipmentTargetStoreChanged: (store: EquipmentTargetStore) => void;
-  onCommunityRecommendationsChanged: () => Promise<void> | void;
 }) {
   const initialSection = (props.initialSection
     ?? (import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env?.VITE_D2_VISUAL_SETTINGS_SECTION
@@ -131,44 +127,11 @@ export function SettingsPage(props: {
     clearLightggCache: () => api.clearLightggCache(),
     onSaved: props.onAiSettingsSaved
   }), [props.onAiSettingsSaved]);
-  const recommendationSourcesAdapter = useMemo<SettingsRecommendationSourcesAdapter>(() => ({
-    load: async () => {
-      const [wishlist, customRules] = await Promise.all([
-        api.getDimWishlist(),
-        api.getLocalCommunityRecommendations()
-      ]);
-      return { wishlist, customRules };
-    },
-    saveWishlist: async (wishlist) => {
-      const saved = await api.saveDimWishlist(wishlist);
-      props.onWishlistChanged(saved);
-      props.onEquipmentTargetStoreChanged(await api.getEquipmentTargetStore());
-      await props.onCommunityRecommendationsChanged();
-      return saved;
-    },
-    clearWishlist: async () => {
-      await api.clearDimWishlist();
-      props.onWishlistChanged(null);
-      props.onEquipmentTargetStoreChanged(await api.getEquipmentTargetStore());
-      await props.onCommunityRecommendationsChanged();
-    },
-    saveCustomRules: async (table) => {
-      const saved = await api.saveLocalCommunityRecommendations(table);
-      await props.onCommunityRecommendationsChanged();
-      return saved;
-    },
-    clearCustomRules: async () => {
-      await api.clearLocalCommunityRecommendations();
-      await props.onCommunityRecommendationsChanged();
-    }
-  }), [props.onCommunityRecommendationsChanged, props.onEquipmentTargetStoreChanged, props.onWishlistChanged]);
-
   return (
     <SettingsPageContentView
       {...props}
       {...model}
       aiSettingsAdapter={aiSettingsAdapter}
-      recommendationSourcesAdapter={recommendationSourcesAdapter}
       onLoadBungieConfig={() => api.getConfig()}
       onSaveBungieConfig={saveBungieConfig}
     />
