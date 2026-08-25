@@ -7,7 +7,7 @@ describe("git-preflight verification recommendations", () => {
 
     expect(source).toContain("do not run automated validation");
     expect(source).toContain("GitHub CI runs build");
-    expect(source).toContain("tools\\\\git-auto-release.cmd runs the full local gate");
+    expect(source).toContain("platform Git Release entry runs the full local gate");
     expect(source).not.toContain("verify:vibe:");
   });
 });

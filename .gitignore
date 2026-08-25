@@ -27,3 +27,4 @@ packages/*/src/**/*.d.ts
 .claude/
 .worktrees/
 skills-lock.json
+.DS_Store

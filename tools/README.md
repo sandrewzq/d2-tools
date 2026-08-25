@@ -15,30 +15,35 @@
 
 ```text
 tools/
-  dev-*.cmd          本地开发启动脚本
-  git-*.cmd          Git 辅助脚本
+  win-dev-*.cmd      Windows 本地开发启动脚本
+  mac-dev-*.command  macOS Finder 双击开发启动脚本
+  mac-git-*.command  macOS Finder 双击 Git / Release 入口
+  win-git-*.cmd      Windows 双击 Git / Release 入口
   maintenance-*.cmd  批量维护或迁移脚本
 ```
 
 ## 当前工具
 
-- `tools/dev-desktop.cmd`：唯一的双击 Desktop 开发入口。自动清理 `53172` 残留监听进程和本仓库 Electron 进程；直接比较 Core、HTTP、Services、Electron main 与 preload 的实际产物和对应源码修改时间，自动选择增量构建或完整重建。首次运行、产物缺失、依赖或根构建配置变化时自动完整重建；仅 Renderer / UI / CSS 变化时直接启动。
-- `tools/dev-web.cmd`：启动本地 web 开发版；启动前会清理占用 `53171` 的残留监听进程，并在服务就绪后自动打开浏览器。
-- `tools/git-preflight.cmd`：只读按文档、工具、跨端 UI、Desktop、core/services/app/http 分组查看 Git 改动，识别菜单 lane / 共享层风险 / 多 lane 混改，并提示当前验证策略、高冲突文件和并行安全建议；后续 agent 开工前优先运行它。
-- `tools/git-commit-and-push.cmd`：全量 `git add -A`、提交并 push 当前分支；在工作区存在无关改动时不要使用。
-- `tools/git-auto-release.cmd`：维护者一键发布入口。发布前必须在 `CHANGELOG.md` 准备包含 `### 中文` 和 `### English` 的 `## Unreleased` 玩家更新日志；脚本先执行与 GitHub CI 一致的 `install --frozen-lockfile`、发布测试门禁和全量 `typecheck`，通过后才把该段提升为新版本、更新 package 版本、提交、推送 tag 并等待 GitHub Release workflow 成功。任一步失败都会停止发布并保留完整原因。
+- `tools/win-dev-desktop.cmd`：Windows 双击 Desktop 开发入口。自动清理 `53172` 残留监听进程和本仓库 Electron 进程；按实际产物和源码时间自动选择增量构建或完整重建，并准备 core、http、services、app、Electron main 与 preload。
+- `tools/win-dev-web.cmd`：Windows 双击 Web 开发入口；启动前会清理占用 `53171` 的残留监听进程，并在服务就绪后自动打开浏览器。
+- `tools/mac-dev-desktop.command`：macOS Finder 双击 Desktop 开发入口；失败时保留终端窗口便于查看错误。
+- `tools/mac-dev-web.command`：macOS Finder 双击 Web 开发入口；失败时保留终端窗口便于查看错误。
+- `tools/mac-git-preflight.command`：macOS Finder 双击运行 Git 预检，只读查看改动范围。
+- `tools/mac-git-commit-and-push.command`：macOS Finder 双击执行 `git add -A`、默认提交并 push 当前分支；在工作区存在无关改动时不要使用。
+- `tools/mac-git-auto-release.command`：macOS Finder 双击执行完整 Release 门禁；会运行 frozen install、测试、类型检查、版本准备、提交、推送、tag 和 GitHub Release workflow。
+- `tools/win-git-preflight.cmd`：Windows 双击运行 Git 预检，只读查看改动范围。
+- `tools/win-git-commit-and-push.cmd`：Windows 双击执行 `git add -A`、默认提交并 push 当前分支；在工作区存在无关改动时不要使用。
+- `tools/win-git-auto-release.cmd`：Windows 双击执行完整 Release 门禁、版本准备、提交、推送、tag 和 GitHub Release workflow。
 
 ## Agent 快路径
 
 弱模型或上下文不足时，先运行只读预检：
 
-```cmd
-tools\git-preflight.cmd
-```
+Windows：双击 `tools\win-git-preflight.cmd`；macOS：双击 `tools/mac-git-preflight.command`。
 
 `git-preflight` 只报告改动范围、并行风险和高冲突文件，不执行也不推荐本地验证。
 
 - 开发、完成、检查、验收、交接和普通提交：不自动运行测试、类型检查、构建、`verify:*` 或视觉脚本。
 - 普通 push：push 后由 GitHub CI 异步验证，agent 不等待结果。
-- Release：只使用 `tools\git-auto-release.cmd`，等待本地门禁和 GitHub Release 全部成功。
+- Release：只使用对应平台的 Git Release 入口，等待本地门禁和 GitHub Release 全部成功。
 - 用户明确点名某个命令时：只运行该命令，不自行追加检查。

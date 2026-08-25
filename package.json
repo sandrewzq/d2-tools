@@ -12,10 +12,13 @@
   "bugs": {
     "url": "https://github.com/sandrewzq/d2-tools/issues"
   },
+  "engines": {
+    "node": ">=24.0.0 <25"
+  },
   "packageManager": "pnpm@9.15.0",
   "scripts": {
     "dev": "pnpm --filter @d2-tools/desktop dev",
-    "dev:desktop": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev-desktop.ps1",
+    "dev:desktop": "node scripts/dev-desktop.mjs",
     "dev:electron": "pnpm --filter @d2-tools/desktop dev:electron",
     "dev:web": "pnpm --filter @d2-tools/web dev",
     "visual:ai": "node scripts/visual-ai-check.mjs",
@@ -55,7 +58,7 @@
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.1",
-    "@types/node": "^22.10.2",
+    "@types/node": "^24.0.0",
     "jsdom": "^29.1.1",
     "playwright": "^1.61.1",
     "typescript": "^5.7.2",

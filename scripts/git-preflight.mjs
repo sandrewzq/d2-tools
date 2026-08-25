@@ -5,7 +5,8 @@ const args = process.argv.slice(2);
 
 if (args.includes("--help") || args.includes("/?")) {
   console.log(`Usage:
-  tools\\git-preflight.cmd
+  tools/mac-git-preflight.command  (macOS)
+  tools/win-git-preflight.cmd      (Windows)
 
 Behavior:
   - Shows current Git changes grouped by common development area.
@@ -41,7 +42,8 @@ const groups = {
   docs: statusLines(["AGENTS.md", "README.md", "docs", "tools", "package.json", "pnpm-lock.yaml", "scripts", ".github"]),
   release: statusLines([
     "CHANGELOG.md",
-    "tools/git-auto-release.cmd",
+    "tools/win-git-auto-release.cmd",
+    "tools/mac-git-auto-release.command",
     "scripts/prepare-auto-release.mjs",
     "scripts/generate-release-notes.mjs",
     "scripts/preview-release-notes.mjs",
@@ -78,7 +80,8 @@ const lanes = [
   normalLane("tools-lane", "tools"),
   normalLane("scripts-lane", "scripts"),
   releaseLane("release-lane: changelog", "CHANGELOG.md"),
-  releaseLane("release-lane: git-auto-release", "tools/git-auto-release.cmd"),
+  releaseLane("release-lane: git-auto-release", "tools/win-git-auto-release.cmd"),
+  releaseLane("release-lane: mac-git-auto-release", "tools/mac-git-auto-release.command"),
   releaseLane("release-lane: prepare-auto-release", "scripts/prepare-auto-release.mjs"),
   releaseLane("release-lane: release-notes", "scripts/generate-release-notes.mjs"),
   releaseLane("release-lane: release-preview", "scripts/preview-release-notes.mjs"),
@@ -105,7 +108,7 @@ console.log();
 console.log("[validation policy]");
 console.log("- Local development, completion, review, handoff, and ordinary commits: do not run automated validation.");
 console.log("- Normal push: GitHub CI runs build, behavior tests, architecture tests, quality checks, and typecheck asynchronously.");
-console.log("- Release: tools\\git-auto-release.cmd runs the full local gate, then waits for the GitHub Release workflow.");
+console.log("- Release: the platform Git Release entry runs the full local gate, then waits for the GitHub Release workflow.");
 
 const hotspots = [
   "packages/desktop/src/renderer/pages/HomePage.tsx",

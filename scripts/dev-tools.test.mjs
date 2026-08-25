@@ -6,7 +6,7 @@ const repoRoot = process.cwd();
 
 describe("dev tool scripts", () => {
   const devScripts = [
-    { file: "dev-web.cmd", port: "53171", command: "dev:web" }
+    { file: "win-dev-web.cmd", port: "53171", command: "dev:web" }
   ];
 
   it.each(devScripts)("clears stale port listeners before starting $file", ({ file, port, command }) => {
@@ -19,11 +19,13 @@ describe("dev tool scripts", () => {
     expect(script).toContain(`call npx pnpm@9.15.0 ${command}`);
   });
 
-  it("provides one double-click desktop entry with automatic full-build fallback", () => {
-    const commandScript = readFileSync(join(repoRoot, "tools", "dev-desktop.cmd"), "utf8");
+  it("provides platform double-click desktop entries with automatic full-build fallback", () => {
+    const commandScript = readFileSync(join(repoRoot, "tools", "win-dev-desktop.cmd"), "utf8");
+    const macEntry = readFileSync(join(repoRoot, "tools", "mac-dev-desktop.command"), "utf8");
     const launcher = readFileSync(join(repoRoot, "scripts", "dev-desktop.ps1"), "utf8");
 
     expect(commandScript).toContain("dev-desktop.ps1\" -Fast");
+    expect(macEntry).toContain("pnpm dev:desktop");
     expect(launcher).toContain("[switch] $Fast");
     expect(launcher).toContain("function Test-OutputNeedsBuild");
     expect(launcher).toContain("function Stop-StaleRendererServer");

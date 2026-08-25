@@ -5,7 +5,7 @@
 ## 开始修改前
 
 - 先阅读本文件，再检查 `docs/todo.md` 和 `docs/development.md`。
-- 弱模型或上下文不足时，先运行 `tools\git-preflight.cmd` 判断改动范围、当前验证策略和高冲突文件，再按下方“快速执行矩阵”行动。
+- 弱模型或上下文不足时，先运行当前平台的 Git 预检入口判断改动范围、当前验证策略和高冲突文件，再按下方“快速执行矩阵”行动。
 - 不要删除用户已有工作或无关改动。
 - 修改应小而聚焦，遵循当前 package 边界。
 
@@ -20,14 +20,14 @@
 | 跨端 UI / Web | `packages/ui` 优先，`packages/web` 只做浏览器壳和 adapter | Agent 默认不自动运行；用户要求时可本地测试 | 不在 Web 或 Desktop 复制页面；不维护平行 HTML 原型 |
 | Desktop 接线、IPC、preload | `packages/desktop/src/main/ipc/*`、`api/*Api.ts`、对应 feature | Agent 默认不自动运行；用户要求时可本地测试 | 尽量不碰 `api/client.ts`、`api/types.ts`、`ipc.ts` 等高冲突聚合文件 |
 | 领域、服务、workspace | `packages/core`、`packages/services`、`packages/app` | Agent 默认不自动运行；用户要求时可本地测试 | 不跨层直接依赖平台能力；不要把业务真相写进平台壳 |
-| 发布、版本、CHANGELOG | `CHANGELOG.md`、各 package 版本、release 脚本 | 只通过 `tools\git-auto-release.cmd` 执行完整门禁 | 不手写不一致版本号；不在未确认 tag 时推 release |
+| 发布、版本、CHANGELOG | `CHANGELOG.md`、各 package 版本、release 脚本 | 只通过 `tools\win-git-auto-release.cmd` 或 `tools/mac-git-auto-release.command` 执行完整门禁 | 不手写不一致版本号；不在未确认 tag 时推 release |
 
 Vibecoding 快路径：
 
 - 用户只说“开发、修改、优化、继续做、完成、做完、检查、验收、交接、提交”时，agent 默认不自动运行测试、类型检查、构建、`verify:*` 或视觉脚本；用户明确说“本地测试”“运行测试”“本地打包”时正常执行。
 - 本地可以启动应用人工体验，也可以按用户明确要求运行现有测试、类型检查、构建或打包；agent 不得自行追加未要求的验证。
 - 普通 push 后由 GitHub CI 异步执行文档、构建、行为测试、架构测试、质量检查和类型检查；agent 报告 CI 链接后继续工作，不等待结果。
-- 用户说“发布、release、发版”时，使用 `tools\git-auto-release.cmd`。脚本运行完整本地门禁，push tag 后必须等待 GitHub Release workflow 和安装包发布成功。
+- 用户说“发布、release、发版”时，使用对应平台的 `win-git-auto-release.cmd` 或 `mac-git-auto-release.command`。脚本运行完整本地门禁，push tag 后必须等待 GitHub Release workflow 和安装包发布成功。
 - 默认禁止新增测试文件。只有严重 Bug 回归、OAuth、IPC、数据写入、发布流程和关键架构边界允许新增测试；普通 UI、文案、CSS、按钮接线和简单页面功能不新增测试。
 - 不执行本地 TDD 循环。需要新增高风险测试时只写入测试资产，首次执行交给 CI 或 Release；用户明确要求本地运行时例外。
 - 测试断言优先检查稳定行为、导出、role / label 或 ViewModel 输出；禁止新增读取生产源码后匹配中文文案、变量名、import 顺序、HTML、class 或 CSS 片段的普通功能测试，`pnpm test:quality` 会直接拦截。
@@ -49,7 +49,7 @@ Vibecoding 快路径：
 - 单个菜单私有目录改动默认不要求 worktree；例如一个 agent 只改 `features/account/`，另一个只改 `features/vault/`，且都不碰共享层时，可以在当前工作区轻量并行。
 - 菜单私有目录和共享层改动默认不自动运行本地验证；用户要求本地测试时运行现有测试，否则 push 后由 CI 判断。
 - worktree 是隔离复杂并行现场的工具，不是所有任务的默认要求。触碰 `packages/ui`、`packages/app`、`packages/desktop/src/renderer/shared/`、renderer API、主进程 IPC、release / 版本号 / CHANGELOG，或当前工作区已有多条无关脏改动时，才优先考虑 worktree 或暂停其他 agent。
-- 多 agent 共用同一工作区时，提交前必须先运行 `tools\git-preflight.cmd`；如果输出多条 lane 或高冲突文件，不要使用全量 `git add -A` 提交脚本，除非确认这些改动都属于本次提交。
+- 多 agent 共用同一工作区时，提交前必须先运行对应平台的 Git 预检入口；如果输出多条 lane 或高冲突文件，不要使用全量 `git add -A` 提交脚本，除非确认这些改动都属于本次提交。
 - 跨菜单复用能力必须先进入 `packages/desktop/src/renderer/shared/`，不要让 feature 之间直接 import。
 - `shared/` 不能 import `features/`；跨菜单复用能力必须放在 `shared/` 或 `packages/ui`，不得通过菜单桥接文件间接依赖 feature。
 - 新增 renderer API 契约时放到对应 `packages/desktop/src/renderer/api/*Api.ts`；跨领域 DTO 放到 `sharedTypes.ts`；不要把大型 DTO 塞回 `api/types.ts` 或 `api/client.ts`。
@@ -123,6 +123,6 @@ Vibecoding 快路径：
 
 - 本地开发、完成、检查、验收、交接和普通提交阶段，agent 默认不自动运行验证；用户明确要求本地测试或执行具体命令时照常运行。
 - 普通 push 触发 GitHub CI；agent 不等待 CI，除非用户明确要求查看结果。
-- Release 必须使用 `tools\git-auto-release.cmd`，并等待本地门禁、GitHub Actions、安装包和 GitHub Release 全部成功。
+- Release 必须使用对应平台的 `win-git-auto-release.cmd` 或 `mac-git-auto-release.command`，并等待本地门禁、GitHub Actions、安装包和 GitHub Release 全部成功。
 - 用户明确要求运行某条本地验证命令时可以执行，但不得自行扩大到其他命令。
 - 未获得用户要求的本地命令、CI 或 Release 成功证据时，最终回答只能说明代码改动状态，不得声称测试、构建或类型检查通过。

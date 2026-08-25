@@ -6,7 +6,7 @@ const repoRoot = process.cwd();
 
 describe("git-auto-release script", () => {
   it("retries the current package version when its GitHub release is missing", () => {
-    const script = readFileSync(join(repoRoot, "tools", "git-auto-release.cmd"), "utf8");
+    const script = readFileSync(join(repoRoot, "tools", "win-git-auto-release.cmd"), "utf8");
 
     expect(script).toContain('set "GIT_PAGER=cat"');
     expect(script).toContain('set "CURRENT_TAG=v%CURRENT_VERSION%"');
@@ -21,7 +21,7 @@ describe("git-auto-release script", () => {
   });
 
   it("runs the same local CI gate before changing release files or pushing", () => {
-    const script = readFileSync(join(repoRoot, "tools", "git-auto-release.cmd"), "utf8");
+    const script = readFileSync(join(repoRoot, "tools", "win-git-auto-release.cmd"), "utf8");
     const installIndex = script.indexOf("call npx pnpm@9.15.0 install --frozen-lockfile");
     const testIndex = script.indexOf("call npx pnpm@9.15.0 test");
     const typecheckIndex = script.indexOf("call npx pnpm@9.15.0 typecheck");
@@ -38,7 +38,7 @@ describe("git-auto-release script", () => {
   });
 
   it("pauses with a readable failure reason instead of closing immediately", () => {
-    const script = readFileSync(join(repoRoot, "tools", "git-auto-release.cmd"), "utf8");
+    const script = readFileSync(join(repoRoot, "tools", "win-git-auto-release.cmd"), "utf8");
 
     expect(script).toContain(":release_failed");
     expect(script).toContain("Failure stage: %FAILURE_STAGE%");

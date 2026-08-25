@@ -8,7 +8,7 @@
 | 检查项 | 状态 | 备注 |
 |---|---|---|
 | GitHub CI | ⏳ push 后异步执行 | 执行 frozen install、`pnpm test`、共享 Shell 视觉契约、UI 合同静态门禁和 `pnpm typecheck`；普通 push 不等待结果 |
-| Release 门禁 | ⏳ 发版时执行 | 必须通过 `tools\git-auto-release.cmd` 完成本地门禁、GitHub Actions、安装包和 GitHub Release |
+| Release 门禁 | ⏳ 发版时执行 | 必须通过对应平台的 Git Release 入口完成本地门禁、GitHub Actions、安装包和 GitHub Release |
 | Agent 自动验证 | ⛔ 默认禁用 | 只有用户明确要求本地测试、构建或打包时才执行 |
 
 ## 当前任务

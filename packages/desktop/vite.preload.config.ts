@@ -5,7 +5,7 @@ export default defineConfig({
   build: {
     outDir: "dist/preload",
     emptyOutDir: false,
-    target: "node22",
+    target: "node24",
     lib: {
       entry: fileURLToPath(new URL("src/preload/preload.ts", import.meta.url)),
       formats: ["cjs"]

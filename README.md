@@ -100,6 +100,22 @@ d2-tools-setup-<version>.exe
 
 ## 开发
 
+项目开发基线为 Node.js 24 LTS 和 pnpm 9.15.0。Windows 发布仍由 `package:win` 和 GitHub Windows runner 生成 NSIS `.exe`；macOS 只用于开发、运行和验收。
+
+macOS 启动开发链：
+
+```bash
+corepack enable pnpm
+pnpm install --frozen-lockfile
+```
+
+Finder 双击：
+
+```text
+tools/mac-dev-web.command       # Web 预览
+tools/mac-dev-desktop.command   # Electron Desktop
+```
+
 一键本地打包（install + 测试 + 类型检查 + 打包）：
 
 ```powershell

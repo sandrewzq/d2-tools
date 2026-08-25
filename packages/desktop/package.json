@@ -16,7 +16,7 @@
   "main": "dist/main/main.js",
   "scripts": {
     "dev": "vite --host 127.0.0.1 --port 53172 --strictPort",
-    "dev:electron": "set NODE_ENV=development&& electron dist/main/main.js",
+    "dev:electron": "node ../../scripts/run-electron-dev.mjs",
     "clean": "node -e \"var fs=require('node:fs');var g=require('node:path').join(__dirname,'tsconfig.');try{fs.rmSync(g+'main.tsbuildinfo',{force:true})}catch(e){}try{fs.rmSync(g+'renderer.tsbuildinfo',{force:true})}catch(e){}fs.rmSync('dist',{recursive:true,force:true})\"",
     "build": "pnpm clean && pnpm --filter @d2-tools/core build && pnpm --filter @d2-tools/http build && pnpm --filter @d2-tools/services build && vite build && tsc -p tsconfig.main.json && vite build --config vite.preload.config.ts",
     "typecheck": "tsc -p tsconfig.main.json --noEmit && tsc -p tsconfig.preload.json --noEmit && tsc -p tsconfig.renderer.json --noEmit",
@@ -35,7 +35,7 @@
     "@types/react": "^19.0.1",
     "@types/react-dom": "^19.0.2",
     "@vitejs/plugin-react": "^4.3.4",
-    "electron": "35.7.5",
+    "electron": "44.0.0",
     "electron-builder": "^25.1.8",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

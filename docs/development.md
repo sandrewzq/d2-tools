@@ -4,7 +4,7 @@
 
 ## 1. 技术栈
 
-- Node.js 22
+- Node.js 24 LTS
 - pnpm 9
 - TypeScript
 - Electron
@@ -175,13 +175,15 @@ docs/        正式文档
 
 升级为共享改动时，agent 必须先说明影响范围。不能把共享骨架问题伪装成某个菜单的私有样式补丁。
 
-菜单开发、收尾、检查、验收、交接和普通提交默认不自动运行测试、类型检查、构建、`verify:*` 或视觉脚本。用户要求本地测试或打包时正常执行现有检查；否则普通 push 后由 GitHub CI 异步验证，agent 不等待 CI。Release 通过 `tools\git-auto-release.cmd` 执行并等待完整门禁。
+菜单开发、收尾、检查、验收、交接和普通提交默认不自动运行测试、类型检查、构建、`verify:*` 或视觉脚本。用户要求本地测试或打包时正常执行现有检查；否则普通 push 后由 GitHub CI 异步验证，agent 不等待 CI。Release 通过对应平台的 Git Release 入口执行并等待完整门禁。
 
-提交或交接前，如果工作区已有多个菜单或共享层改动，必须先运行：
+提交或交接前，如果工作区已有多个菜单或共享层改动，Windows 运行：
 
 ```powershell
-tools\git-preflight.cmd
+tools\win-git-preflight.cmd
 ```
+
+macOS 双击 `tools/mac-git-preflight.command`。
 
 如果 preflight 显示多条 lane，agent 不得使用全量提交脚本或 `git add -A`，除非明确确认这些改动都属于同一交付范围。
 
@@ -241,10 +243,22 @@ Renderer UI 的长期边界只在本节保留，具体视觉数值与菜单合�
 npx pnpm@9.15.0 install
 ```
 
-日常开发桌面端时，直接双击：
+Windows 日常开发桌面端时，直接双击：
 
 ```text
-tools\dev-desktop.cmd
+tools\win-dev-desktop.cmd
+```
+
+macOS 使用 Finder 双击：
+
+```text
+tools/mac-dev-desktop.command
+```
+
+也可以在终端直接使用根目录脚本：
+
+```bash
+pnpm dev:desktop
 ```
 
 它会自动清理残留 Desktop 与 `53172` 端口，并按实际构建产物、依赖和源码变化安全地选择增量构建或完整重建；不需要为全量或快速模式选择不同脚本。
@@ -258,13 +272,13 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev-desktop.ps1
 无法等待真实发布版本时，可用开发环境模拟更新状态验证顶部提示和设置页更新区。模拟只在 Vite 开发模式生效，不调用真实下载或安装流程：
 
 ```powershell
-tools\dev-desktop.cmd -UpdateStatus idle
-tools\dev-desktop.cmd -UpdateStatus checking
-tools\dev-desktop.cmd -UpdateStatus available
-tools\dev-desktop.cmd -UpdateStatus downloading
-tools\dev-desktop.cmd -UpdateStatus downloaded
-tools\dev-desktop.cmd -UpdateStatus error
-tools\dev-desktop.cmd -UpdateStatus not_available
+tools\win-dev-desktop.cmd -UpdateStatus idle
+tools\win-dev-desktop.cmd -UpdateStatus checking
+tools\win-dev-desktop.cmd -UpdateStatus available
+tools\win-dev-desktop.cmd -UpdateStatus downloading
+tools\win-dev-desktop.cmd -UpdateStatus downloaded
+tools\win-dev-desktop.cmd -UpdateStatus error
+tools\win-dev-desktop.cmd -UpdateStatus not_available
 ```
 
 每次切换状态需要关闭当前桌面窗口并重新启动；默认不传 `-UpdateStatus` 时使用真实更新 IPC。
@@ -273,20 +287,16 @@ tools\dev-desktop.cmd -UpdateStatus not_available
 
 完整启动链路会：
 
-1. 构建 `@d2-tools/core`、`@d2-tools/http` 和 `@d2-tools/services`
+1. 构建 `@d2-tools/core`、`@d2-tools/http`、`@d2-tools/services` 和 `@d2-tools/app`
 2. 编译 Electron 主进程，并通过独立 Vite CJS 入口构建 preload
 3. 启动 Vite 前端开发服务器，固定使用 `http://127.0.0.1:53172`
 4. 打开 Electron 开发版桌面应用
 
-这不是打包流程，不会生成或解压 `release/win-unpacked`。渲染层改动支持热更新；主进程、preload、core、http 或 services 改动后，关闭桌面窗口并重新双击 `tools\dev-desktop.cmd`，脚本会根据实际产物时间自动重建受影响层。开发端口启用 strict port；脚本会先清理 `53172` 的残留监听进程，不会自动跳到其他端口导致 Electron 打开错误页面。发布版不依赖这个端口；打包后的 Electron 会直接加载安装包内的 `dist/renderer/index.html`。
+这不是打包流程，不会生成或解压 `release/win-unpacked`。渲染层改动支持热更新；主进程、preload、core、http 或 services 改动后，关闭桌面窗口并重新双击对应平台的开发入口，脚本会根据实际产物时间自动重建受影响层。开发端口启用 strict port；脚本会先清理 `53172` 的残留监听进程，不会自动跳到其他端口导致 Electron 打开错误页面。发布版不依赖这个端口；打包后的 Electron 会直接加载安装包内的 `dist/renderer/index.html`。
 
-如果只想单独启动前端页面：
+如果只想单独启动前端页面，Windows 可以双击 `tools/win-dev-web.cmd`，macOS 可以双击 `tools/mac-dev-web.command`。
 
-```powershell
-npx pnpm@9.15.0 dev
-```
-
-需要确认视觉结构和规格交互时，查看 `docs/work/references/ui-specs/`，并直接预览共享 React UI。Web 默认端口为 `http://127.0.0.1:53171`；需要核对真实数据、IPC 和平台能力时使用 Desktop。通过 `tools/dev-web.cmd` 或 `tools/dev-desktop.cmd` 启动时，脚本会先清理对应固定端口上的残留监听进程，再重新启动当前 dev 服务。
+需要确认视觉结构和规格交互时，查看 `docs/work/references/ui-specs/`，并直接预览共享 React UI。Web 默认端口为 `http://127.0.0.1:53171`；需要核对真实数据、IPC 和平台能力时使用 Desktop。通过对应平台的开发入口启动时，脚本会先清理对应固定端口上的残留监听进程，再重新启动当前 dev 服务。
 
 正式 Web 入口使用：
 
@@ -308,13 +318,18 @@ npx pnpm@9.15.0 dev:electron
 
 常用脚本：
 
-- `tools/dev-desktop.cmd`：唯一的双击 Desktop 开发入口；自动清理 `53172`，按实际产物新旧自行决定增量构建或完整重建。
-- `tools/dev-web.cmd`：清理 `53171` 残留监听进程后启动 Web。
-- `tools/git-preflight.cmd`：只读按文档、工具、跨端 UI、Desktop、core/services/app/http 分组查看 Git 改动，识别菜单 lane / 共享层风险 / 多 lane 混改，并提示当前验证策略、高冲突文件和并行安全建议。
-- `tools/git-commit-and-push.cmd`：全量提交并 push，不创建 release tag；有无关改动时不要使用。
-- `tools/git-auto-release.cmd`：发布前必须在 `CHANGELOG.md` 准备双语 `## Unreleased` 段，包含 `### 中文` 和 `### English` 的玩家更新日志。脚本先检查当前版本 GitHub Release，并在任何版本修改、commit、push 或 tag 之前执行与 GitHub CI 一致的 frozen install、发布测试门禁和全量类型检查；通过后，Release 缺失则复用当前版本更新同名 tag，已成功才自动 patch +1、将已审核的 `Unreleased` 段提升为正式版本、提交、push 并创建新 release tag。
+- `tools/win-dev-desktop.cmd`：Windows 双击 Desktop 开发入口；自动清理 `53172`，按实际产物新旧自行决定增量构建或完整重建。
+- `tools/win-dev-web.cmd`：Windows 双击 Web 开发入口，清理 `53171` 残留监听进程后启动 Web。
+- `tools/mac-dev-desktop.command`：macOS Finder 双击 Desktop 开发入口，失败时保留终端窗口便于查看错误。
+- `tools/mac-dev-web.command`：macOS Finder 双击 Web 开发入口，失败时保留终端窗口便于查看错误。
+- `tools/mac-git-preflight.command`：macOS Finder 双击运行 Git 预检，不修改工作区。
+- `tools/mac-git-commit-and-push.command`：macOS Finder 双击提交并 push 当前分支，不创建 release tag。
+- `tools/mac-git-auto-release.command`：macOS Finder 双击执行完整 Release 门禁、提交、推送、tag 和 GitHub Release workflow。
+- `tools/win-git-preflight.cmd`：Windows 双击运行 Git 预检，不修改工作区。
+- `tools/win-git-commit-and-push.cmd`：Windows 双击提交并 push 当前分支，不创建 release tag。
+- `tools/win-git-auto-release.cmd`：Windows 双击执行完整 Release 门禁、提交、推送、tag 和 GitHub Release workflow。
 
-命名规则：本地开发启动脚本使用 `dev-` 前缀，Git / Release 辅助脚本使用 `git-` 前缀，后续批量维护脚本优先使用 `maintenance-` 前缀。
+命名规则：平台入口使用 `mac-` / `win-` 前缀，macOS 可双击入口统一使用 `.command`，Windows 入口统一使用 `.cmd`；后续批量维护脚本优先使用 `maintenance-` 前缀。
 
 ## 4. 测试与检查
 
@@ -328,10 +343,10 @@ npx pnpm@9.15.0 dev:electron
 | 完成 / 检查 / 验收 / 交接 | 只读复核改动，说明风险和未验证项 | 禁止自动运行本地验证 |
 | 普通提交 | 按本次范围提交 | 禁止自动运行本地验证 |
 | 普通 push | push 后结束，不等待 GitHub CI | GitHub CI 异步验证 |
-| 发布 / release / 发版 | 使用 `tools\git-auto-release.cmd` | 必须等待本地门禁和 GitHub Release 全部成功 |
+| 发布 / release / 发版 | 使用对应平台的 Git Release 入口 | 必须等待本地门禁和 GitHub Release 全部成功 |
 | 用户要求本地测试 / 检查 / 打包 | 运行现有测试或用户点名的命令 | 不自行新增测试用例或追加其他检查 |
 
-允许为了人工体验启动 Web 或 Desktop；启动应用不等于通过测试，也不得在启动前机械追加 build、typecheck 或测试命令。`tools\git-preflight.cmd` 只负责只读识别改动 lane、高冲突文件和提交风险，不再推荐本地验证命令。
+允许为了人工体验启动 Web 或 Desktop；启动应用不等于通过测试，也不得在启动前机械追加 build、typecheck 或测试命令。Git 预检入口只负责只读识别改动 lane、高冲突文件和提交风险，不再推荐本地验证命令。
 
 默认禁止新增测试。只有以下高风险场景允许增加最小行为测试：
 
@@ -357,7 +372,7 @@ npx pnpm@9.15.0 dev:electron
 Release 必须从以下入口执行：
 
 ```powershell
-tools\git-auto-release.cmd
+tools\win-git-auto-release.cmd
 ```
 
 脚本会在修改版本、commit、push 或 tag 之前执行 frozen install、`pnpm test` 和 `pnpm typecheck`，随后执行 Release 专属校验。任一步失败都要显示失败阶段和原始原因并等待确认，不得继续发布；本地门禁通过后还必须等待 GitHub Release workflow 成功。
@@ -406,7 +421,7 @@ packages/desktop/release/
 
 ### 6.1 发版流程
 
-使用 `tools\git-auto-release.cmd` 时，脚本按以下顺序执行：
+使用对应平台的 Git Release 入口时，脚本按以下顺序执行：
 
 1. 检查 Git、GitHub CLI、当前 Release 和目标 tag 状态。
 2. 在修改发布文件之前执行本地 CI：`pnpm install --frozen-lockfile`、`pnpm test`、`pnpm typecheck`。
