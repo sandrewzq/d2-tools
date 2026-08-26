@@ -28,7 +28,6 @@ export function VaultPage(props: {
   activeLoadoutLookup: LoadoutTemplateLookup | null;
   activeLoadoutName?: string;
   selectedCharacterId: string;
-  writeActionsEnabled: boolean;
   tags: VaultTags;
   openingItemKey: string;
   locateRequest?: { hash: number; name: string; requestId: number } | null;
@@ -180,7 +179,6 @@ export function VaultPage(props: {
         characters: props.account.characters,
         currentCharacterId: model.currentCharacterId,
         currentCharacterLabel: model.currentCharacterLabel,
-        writeActionsEnabled: props.writeActionsEnabled,
         onBatchUnlock: props.onBatchUnlock,
         onBatchTransferToCharacter: props.onBatchTransferToCharacter
       }}

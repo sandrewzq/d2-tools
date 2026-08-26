@@ -16,7 +16,6 @@ import { useItemDetailWorkspace } from "../shared/hooks/useItemDetailWorkspace";
 
 type DiagnosticsBridge = {
   aiSettings: { enable_lightgg: boolean };
-  setWriteActionsEnabled: (enabled: boolean) => void;
   loadActionLog: () => Promise<void>;
 };
 
@@ -33,6 +32,9 @@ export function useDesktopProductWriteActions(input: {
   importedWishlist: DimWishlist | null;
   itemDetailCacheScopeKey: string;
   loadAccountSummary: () => Promise<void>;
+  loadAuthoritativeAccountSummary: () => Promise<AccountSummary | null>;
+  readAuthoritativeAccountSummary: () => Promise<AccountSummary | null>;
+  applyAuthoritativeAccountSummary: (summary: AccountSummary) => void;
   loadoutLibrary: LoadoutLibraryBridge;
   localTargetRules: LocalTargetRules;
   onRecentHistoryChanged: (history: LibraryHistory) => void;
@@ -76,6 +78,9 @@ export function useDesktopProductWriteActions(input: {
     setItemActionMessage,
     setIsRunningItemAction,
     loadAccountSummary: input.loadAccountSummary,
+    loadAuthoritativeAccountSummary: input.loadAuthoritativeAccountSummary,
+    readAuthoritativeAccountSummary: input.readAuthoritativeAccountSummary,
+    applyAuthoritativeAccountSummary: input.applyAuthoritativeAccountSummary,
     openItemDetail: itemDetail.openItemDetail
   });
 

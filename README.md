@@ -89,7 +89,7 @@ d2-tools-setup-<version>.exe
 - 每个玩家都使用自己的 Bungie Application
 - OAuth token 只保存在本机数据目录
 - AI 不读取、也不发送 token、`Client Secret` 或 Bungie `API Key`
-- 写操作默认关闭，需要 Bungie Scope、本地开关和确认流程
+- 写操作需要 Bungie Scope、操作确认和结果刷新；应用不再提供额外的本地总开关
 - d2-tools 不会直接分解装备，最终分解仍需进入游戏手动完成
 
 更完整的边界说明见 [安全说明](docs/security.md)。

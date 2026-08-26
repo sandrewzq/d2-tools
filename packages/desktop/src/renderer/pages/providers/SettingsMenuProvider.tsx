@@ -16,7 +16,6 @@ export function SettingsMenuProvider() {
       message={diagnostics.settingsMessage}
       error={diagnostics.settingsError}
       diagnosticDataDir={diagnostics.diagnosticDataDir}
-      writeActionsEnabled={diagnostics.writeActionsEnabled}
       appUpdateSnapshot={diagnostics.appUpdateSnapshot}
       manifestStatus={diagnostics.manifestStatus}
       manifestStatusError={diagnostics.manifestStatusError}
@@ -38,7 +37,6 @@ export function SettingsMenuProvider() {
       onBungieConfigSaved={session.onConfigChanged}
       onOpenBungiePortal={() => void api.openExternal("https://www.bungie.net/en/Application")}
       onOpenDataDir={() => void api.openDataDir()}
-      onWriteActionsEnabledChange={(enabled) => void diagnostics.saveWriteActionsEnabled(enabled)}
       onCheckAppUpdate={() => void diagnostics.checkAppUpdate()}
       onDownloadAppUpdate={() => void diagnostics.downloadAppUpdate()}
       onQuitAndInstallAppUpdate={() => void diagnostics.quitAndInstallAppUpdate()}

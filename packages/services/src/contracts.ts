@@ -14,7 +14,7 @@ import type { GuideContextService } from "./guideContextService.js";
 import type { AiChatReplyResult, AiChatRequest } from "./types.js";
 
 export type ProfileService = {
-  getAccountSummary(options?: { force?: boolean }): Promise<AccountSummary>;
+  getAccountSummary(options?: { force?: boolean; authoritative?: boolean }): Promise<AccountSummary>;
   getActivitySummary(input: {
     membership_type: number;
     membership_id: string;

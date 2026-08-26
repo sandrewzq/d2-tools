@@ -21,7 +21,6 @@ export function defaultConfig(dataDir: string): D2Config {
       force_lightgg: false
     },
     features: {
-      write_actions_enabled: false,
       color_mode: "light",
       density: "standard",
       interface_locale: "zh-CN",

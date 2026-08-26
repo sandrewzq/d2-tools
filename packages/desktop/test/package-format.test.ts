@@ -305,11 +305,12 @@ describe("desktop package format", () => {
     expect(desktopPackageJson).not.toContain("--win 7z");
   });
 
-  it("provides a PowerShell development launcher without packaging the app", () => {
+  it("provides a cross-platform development launcher without packaging the app", () => {
     const rootPackageJson = JSON.parse(readFileSync(join(repoRoot, "package.json"), "utf8")) as {
       scripts: Record<string, string>;
     };
     const scriptPath = join(repoRoot, "scripts", "dev-desktop.ps1");
+    const crossPlatformScriptPath = join(repoRoot, "scripts", "dev-desktop.mjs");
     const script = readFileSync(scriptPath, "utf8");
     const desktopPackageJson = JSON.parse(readFileSync(join(repoRoot, "packages", "desktop", "package.json"), "utf8")) as {
       scripts: Record<string, string>;
@@ -318,9 +319,8 @@ describe("desktop package format", () => {
     const developmentDoc = readFileSync(join(repoRoot, "docs", "development.md"), "utf8");
 
     expect(desktopPackageJson.scripts.build).toContain("pnpm --filter @d2-tools/services build");
-    expect(rootPackageJson.scripts["dev:desktop"]).toBe(
-      "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev-desktop.ps1"
-    );
+    expect(rootPackageJson.scripts["dev:desktop"]).toBe("node scripts/dev-desktop.mjs");
+    expect(existsSync(crossPlatformScriptPath)).toBe(true);
     expect(existsSync(join(repoRoot, "启动开发版.bat"))).toBe(false);
     expect(existsSync(scriptPath)).toBe(true);
     expect(script).toContain('Invoke-Pnpm @("--filter", "@d2-tools/core", "build")');

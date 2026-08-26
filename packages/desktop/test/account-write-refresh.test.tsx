@@ -11,7 +11,6 @@ import { useVaultWriteActions } from "../src/renderer/features/vault/useVaultWri
 import { useLoadoutWriteActions } from "../src/renderer/features/loadouts/useLoadoutWriteActions.js";
 
 const apiMock = vi.hoisted(() => ({
-  getConfig: vi.fn(),
   setItemLockState: vi.fn(),
   equipItem: vi.fn(),
   batchEquipItems: vi.fn()
@@ -21,7 +20,6 @@ vi.mock("../src/renderer/api/client.js", () => ({ api: apiMock }));
 
 beforeEach(() => {
   vi.clearAllMocks();
-  apiMock.getConfig.mockResolvedValue({ features: { write_actions_enabled: true } });
   vi.spyOn(window, "confirm").mockReturnValue(true);
 });
 
@@ -75,15 +73,23 @@ describe("account write refresh strategy", () => {
     await waitFor(() => expect(loadAccountSummary).toHaveBeenCalledTimes(1));
   });
 
-  it("Loadouts 最高光等装备有完整 patch 时仍刷新角色摘要", async () => {
+  it("Loadouts 最高光等装备在权威账号快照确认后才报告完成", async () => {
     const summary = highestPowerAccountSummary();
     apiMock.batchEquipItems.mockResolvedValue(batchEquipResult());
     const applyPatches = vi.fn();
     const loadAccountSummary = vi.fn().mockResolvedValue(undefined);
+    const loadAuthoritativeAccountSummary = vi.fn()
+      .mockResolvedValue(summary);
+    const readAuthoritativeAccountSummary = vi.fn()
+      .mockResolvedValue(highestPowerEquippedAccountSummary());
+    const applyAuthoritativeAccountSummary = vi.fn();
     const { result } = renderHook(() => useLoadoutWriteActions(loadoutInput({
       accountSummary: summary,
       applyPatches,
-      loadAccountSummary
+      loadAccountSummary,
+      loadAuthoritativeAccountSummary,
+      readAuthoritativeAccountSummary,
+      applyAuthoritativeAccountSummary
     })));
 
     await act(async () => {
@@ -91,7 +97,10 @@ describe("account write refresh strategy", () => {
     });
 
     expect(applyPatches).toHaveBeenCalledWith(batchEquipResult().account_patches);
-    await waitFor(() => expect(loadAccountSummary).toHaveBeenCalledTimes(1));
+    expect(loadAuthoritativeAccountSummary).toHaveBeenCalledTimes(1);
+    expect(readAuthoritativeAccountSummary).toHaveBeenCalledTimes(1);
+    expect(applyAuthoritativeAccountSummary).toHaveBeenCalledWith(highestPowerEquippedAccountSummary());
+    expect(loadAccountSummary).not.toHaveBeenCalled();
   });
 
   it("Loadouts 单件装备缺 patch 时完整刷新兜底", async () => {
@@ -118,7 +127,6 @@ function vaultInput(input: {
     accountSummary: accountSummary(),
     applyAccountActionPatches: input.applyPatches,
     diagnostics: {
-      setWriteActionsEnabled: vi.fn(),
       loadActionLog: vi.fn().mockResolvedValue(undefined)
     },
     setVaultTags: vi.fn(),
@@ -133,6 +141,9 @@ function loadoutInput(input: {
   accountSummary?: AccountSummary;
   applyPatches: ReturnType<typeof vi.fn>;
   loadAccountSummary: ReturnType<typeof vi.fn>;
+  loadAuthoritativeAccountSummary?: ReturnType<typeof vi.fn>;
+  readAuthoritativeAccountSummary?: ReturnType<typeof vi.fn>;
+  applyAuthoritativeAccountSummary?: ReturnType<typeof vi.fn>;
 }) {
   return {
     accountSummary: input.accountSummary ?? accountSummary(),
@@ -143,7 +154,6 @@ function loadoutInput(input: {
       deleteTemplate: vi.fn()
     },
     diagnostics: {
-      setWriteActionsEnabled: vi.fn(),
       loadActionLog: vi.fn().mockResolvedValue(undefined)
     },
     loadoutActionFeedback: { setSingleActionFeedback: vi.fn() },
@@ -151,6 +161,11 @@ function loadoutInput(input: {
     setItemActionMessage: vi.fn(),
     setIsRunningItemAction: vi.fn(),
     loadAccountSummary: input.loadAccountSummary,
+    loadAuthoritativeAccountSummary: input.loadAuthoritativeAccountSummary
+      ?? vi.fn().mockResolvedValue(input.accountSummary ?? accountSummary()),
+    readAuthoritativeAccountSummary: input.readAuthoritativeAccountSummary
+      ?? vi.fn().mockResolvedValue(input.accountSummary ?? accountSummary()),
+    applyAuthoritativeAccountSummary: input.applyAuthoritativeAccountSummary ?? vi.fn(),
     openItemDetail: vi.fn()
   };
 }
@@ -277,5 +292,20 @@ function highestPowerAccountSummary(): AccountSummary {
     }],
     vault: { item_count: 0, items: [], sample_items: [] },
     materials: { item_count: 0, items: [] }
+  };
+}
+
+function highestPowerEquippedAccountSummary(): AccountSummary {
+  const summary = highestPowerAccountSummary();
+  const character = summary.characters[0]!;
+  const betterItem = character.inventory_items[0]!;
+  const oldItem = character.equipped_items[0]!;
+  return {
+    ...summary,
+    characters: [{
+      ...character,
+      equipped_items: [betterItem],
+      inventory_items: [oldItem]
+    }]
   };
 }

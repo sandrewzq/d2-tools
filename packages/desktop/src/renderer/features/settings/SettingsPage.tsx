@@ -20,7 +20,6 @@ export function SettingsPage(props: {
   message: string;
   error: string;
   diagnosticDataDir: string;
-  writeActionsEnabled: boolean;
   appUpdateSnapshot: AppUpdateSnapshot | null;
   manifestStatus: ManifestStatus | null;
   manifestStatusError: string;
@@ -42,7 +41,6 @@ export function SettingsPage(props: {
   onBungieConfigSaved: () => void;
   onOpenBungiePortal: () => void;
   onOpenDataDir: () => void;
-  onWriteActionsEnabledChange: (enabled: boolean) => void;
   onCheckAppUpdate: () => void;
   onDownloadAppUpdate: () => void;
   onQuitAndInstallAppUpdate: () => void;
@@ -77,7 +75,6 @@ export function SettingsPage(props: {
     message: props.message,
     error: props.error,
     diagnosticDataDir: props.diagnosticDataDir,
-    writeActionsEnabled: props.writeActionsEnabled,
     appUpdateSnapshot: props.appUpdateSnapshot,
     manifestStatus: props.manifestStatus,
     manifestStatusError: props.manifestStatusError,
@@ -100,7 +97,6 @@ export function SettingsPage(props: {
     props.message,
     props.error,
     props.diagnosticDataDir,
-    props.writeActionsEnabled,
     props.appUpdateSnapshot,
     props.manifestStatus,
     props.manifestStatusError,

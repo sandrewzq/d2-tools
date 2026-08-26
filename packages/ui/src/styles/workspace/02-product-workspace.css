@@ -122,6 +122,16 @@
 :where(.app-shell) .startup-gate-step[data-status="current"] {
   border-color: var(--control-primary-border);
   background: var(--control-primary-bg);
+  color: var(--control-primary-text);
+}
+
+:where(.app-shell) .startup-gate-step[data-status="current"] .startup-gate-step-copy small {
+  color: var(--control-primary-text);
+  opacity: 0.9;
+}
+
+:where(.app-shell) .startup-gate-step[data-status="current"] .startup-gate-step-copy {
+  color: var(--control-primary-text);
 }
 
 :where(.app-shell) .startup-gate-step[data-status="ready"] {

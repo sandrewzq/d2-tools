@@ -133,7 +133,11 @@ export function useAccountWorkspace(input: {
     }
   }
 
-  async function refreshAccountSnapshot(reason: AccountRefreshReason = getAccountSummarySnapshot() ? "manual" : "initial") {
+  async function refreshAccountSnapshot(
+    reason: AccountRefreshReason = getAccountSummarySnapshot() ? "manual" : "initial",
+    options: { authoritative?: boolean } = {}
+  ) {
+    const authoritative = options.authoritative ?? (reason === "manual" || reason === "write-action");
     const requestSequence = ++accountRequestSequenceRef.current;
     setIsLoadingAccount(true);
     setAccountError("");
@@ -141,7 +145,8 @@ export function useAccountWorkspace(input: {
 
     try {
       const workspace = await loadAccountWorkspace(services, {
-        forceAccountRefresh: true
+        forceAccountRefresh: true,
+        ...(authoritative ? { authoritativeAccountRefresh: true } : {})
       });
       if (requestSequence !== accountRequestSequenceRef.current) return null;
       if (workspace.status !== "success") {
@@ -187,6 +192,41 @@ export function useAccountWorkspace(input: {
         setIsLoadingAccount(false);
       }
     }
+  }
+
+  async function refreshAuthoritativeAccountSnapshot(): Promise<AccountSummary | null> {
+    const requestSequence = ++accountRequestSequenceRef.current;
+    setIsLoadingAccount(true);
+    setAccountError("");
+
+    try {
+      const summary = await api.getAccountSummary({ force: true, authoritative: true });
+      if (requestSequence !== accountRequestSequenceRef.current) return null;
+      applyAccountSummary(summary);
+      setLastAccountLoadedAt(new Date());
+      return summary;
+    } catch (error) {
+      if (requestSequence !== accountRequestSequenceRef.current) return null;
+      const message = error instanceof Error ? error.message : "账号写操作状态核对失败";
+      setAccountError(`账号写操作状态核对失败，仍显示上次读取数据。${message}`);
+      return null;
+    } finally {
+      if (requestSequence === accountRequestSequenceRef.current) {
+        setIsLoadingAccount(false);
+      }
+    }
+  }
+
+  async function readAuthoritativeAccountSnapshot(): Promise<AccountSummary | null> {
+    try {
+      return await api.getAccountSummary({ force: true, authoritative: true });
+    } catch {
+      return null;
+    }
+  }
+
+  function applyBackgroundAccountSnapshot(summary: AccountSummary) {
+    applyAccountSummary(summary);
   }
 
   async function refreshAccountDerivedData(summary = getAccountSummarySnapshot()) {
@@ -269,6 +309,9 @@ export function useAccountWorkspace(input: {
     initializeManifest,
     loadAccountSummary: refreshAccountSnapshot,
     refreshAccountSnapshot,
+    refreshAuthoritativeAccountSnapshot,
+    readAuthoritativeAccountSnapshot,
+    applyBackgroundAccountSnapshot,
     loadActivitySummary: refreshAccountDerivedData,
     loadVaultCommunityMatch,
     refreshAccountDerivedData

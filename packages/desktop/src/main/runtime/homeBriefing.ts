@@ -302,7 +302,7 @@ function ironBannerBoundaryReached(
   const boundary = ironBanner.status === "upcoming"
     ? ironBanner.starts_at
     : ironBanner.status === "active"
-      ? ironBanner.ends_at
+      ? ironBanner.ends_at ?? ironBanner.next_refresh_at
       : undefined;
   if (!boundary) return false;
   const timestamp = Date.parse(boundary);

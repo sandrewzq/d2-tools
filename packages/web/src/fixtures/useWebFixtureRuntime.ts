@@ -208,7 +208,6 @@ export const webVaultTags = { items: { "web-handcannon-vault": { tag: "review", 
 export const webLocalTargetRules = { action_policy: "notify_only" as const, armor: [], weapons: [] };
 export const webWishlist = { title: "Web DIM Wishlist", rules: [{ item_hash: 3002, perk_hashes: [4001], mode: "pve" as const, note: "Web 推荐" }] };
 export const webVaultCommunityMatch = new Map<number, VaultCommunityMatchInfo>([[3002, { matched: 1, available: 1, modes: ["pve"], sample_perks: [{ hash: 4001, name: "爆炸载荷" }] }]]);
-export const webBatchResult = { success_count: 0, failed_count: 0, results: [] };
 export const webArmorSetCatalog: ArmorSetCatalogItem[] = [
   { hash: 7001, name: "铁血意志套装" },
   { hash: 7002, name: "流放者套装" },
@@ -289,7 +288,6 @@ export function createWebAccountPageModel(input: {
       isBungieConfigured: true,
       isAccountLoggedIn: true,
       isLoadingAccount: false,
-      writeActionsEnabled: false,
       accountStatusLabel: "账号已读取",
       accountError: "",
       accountWarning: "",
@@ -388,7 +386,6 @@ export function createWebSettingsPageModel(input: {
     message: "",
     error: "",
     diagnosticDataDir: "Web mock storage",
-    writeActionsEnabled: false,
     appUpdateSnapshot: webUpdateSnapshot,
     manifestStatus: webManifestStatus,
     manifestStatusError: "",
@@ -474,7 +471,6 @@ export function useWebFixtureRuntime() {
     localTargetRules: webLocalTargetRules,
     wishlist: webWishlist,
     vaultCommunityMatch: webVaultCommunityMatch,
-    batchResult: webBatchResult,
     armorSetCatalog: webArmorSetCatalog,
     backgroundTasks: webBackgroundTasks,
     actionLog: webActionLog,

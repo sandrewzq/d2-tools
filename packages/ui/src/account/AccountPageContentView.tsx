@@ -22,12 +22,11 @@ type AccountItemSource = "equipped" | "inventory";
 
 export type AccountPageActions = {
   configureBungie: () => void;
-  openWriteSettings: () => void;
   loginBungie: () => void;
   refreshAccount: () => void;
   refreshActivity: () => void;
   selectCharacter: (characterId: string) => void;
-  equipHighestPower: (characterId: string) => void;
+  equipHighestPower?: (characterId: string) => void;
   openItem: (payload: AccountOpenItemPayload) => void;
 };
 
@@ -63,15 +62,12 @@ export function AccountPageContentView(props: AccountPageContentViewProps) {
   const activitySummary = viewModel.activity.summary;
   const activityReview = activitySummary ? activitySummary.review : null;
   const [section, setSection] = useState<AccountSection>("gear");
-  const writeWarning = viewModel.feedback.writeActionsEnabled
-    ? ""
-    : accountText(copy, "写操作已关闭。要使用装备、转移等功能，请在“设置 → 账号 → 装备写操作”中开启“允许”。");
 
   if (!profile || !selectedCharacter) {
     return <AccountUnavailableState actions={actions} copy={copy} viewModel={viewModel} />;
   }
 
-  return <AccountPageWorkspace actions={actions} activityReview={activityReview} activitySummary={activitySummary} copy={copy} interfaceLocale={interfaceLocale} section={section} selectedCharacter={selectedCharacter} setSection={setSection} viewModel={viewModel} writeWarning={writeWarning} />;
+  return <AccountPageWorkspace actions={actions} activityReview={activityReview} activitySummary={activitySummary} copy={copy} interfaceLocale={interfaceLocale} section={section} selectedCharacter={selectedCharacter} setSection={setSection} viewModel={viewModel} />;
 }
 
 function AccountUnavailableState(props: {
@@ -124,7 +120,6 @@ function AccountPageWorkspace(props: {
   selectedCharacter: NonNullable<AccountPageViewModel["selectedCharacter"]>;
   setSection: (section: AccountSection) => void;
   viewModel: AccountPageViewModel;
-  writeWarning: string;
 }) {
   const profile = props.viewModel.profile!;
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
@@ -224,12 +219,10 @@ function AccountPageWorkspace(props: {
             ))}
           </div>
           <div className="account-actions">
-            <button type="button" data-ui-kind="button" data-control-variant="secondary" disabled={!props.viewModel.feedback.writeActionsEnabled || props.viewModel.loadout.isRunningItemAction} onClick={() => props.actions.equipHighestPower(props.selectedCharacter.characterId)}>
+            {props.actions.equipHighestPower ? <button type="button" data-ui-kind="button" data-control-variant="secondary" disabled={props.viewModel.loadout.isRunningItemAction} onClick={() => props.actions.equipHighestPower?.(props.selectedCharacter.characterId)}>
               {props.viewModel.loadout.isRunningItemAction ? props.copy.actions.running : props.copy.actions.equipHighestPower}
-            </button>
-            <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={props.actions.openWriteSettings}>写操作设置</button>
+            </button> : null}
           </div>
-          {props.writeWarning ? <p className="status-message status-warning">{props.writeWarning}</p> : null}
           {props.viewModel.feedback.loadoutMessage ? <p className="status-message status-ready">{props.viewModel.feedback.loadoutMessage}</p> : null}
           {props.viewModel.feedback.itemActionMessage ? <p className={props.viewModel.feedback.itemActionMessage.includes("失败") ? "status-message status-error" : "status-message status-ready"}>{props.viewModel.feedback.itemActionMessage}</p> : null}
         </section>

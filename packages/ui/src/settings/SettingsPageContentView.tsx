@@ -44,7 +44,6 @@ export type SettingsPageContentViewProps = {
   message: string;
   error: string;
   diagnosticDataDir: string;
-  writeActionsEnabled: boolean;
   appUpdateSnapshot: AppUpdateSnapshot | null;
   manifestStatus: ManifestStatus | null;
   manifestStatusError: string;
@@ -64,7 +63,6 @@ export type SettingsPageContentViewProps = {
   actionLogTypeFilter: SettingsActionLogTypeFilter;
   aiSettingsAdapter: SettingsAiAdapter;
   onOpenDataDir: () => void;
-  onWriteActionsEnabledChange: (enabled: boolean) => void;
   onCheckAppUpdate: () => void;
   onDownloadAppUpdate: () => void;
   onQuitAndInstallAppUpdate: () => void;
@@ -263,7 +261,7 @@ export function SettingsPageContentView(props: SettingsPageContentViewProps) {
             />
           ) : null}
           {activeSection === "language" ? <LanguageSection {...sectionProps} preferences={props.languagePreferences} colorMode={props.colorMode ?? "light"} density={props.density ?? "standard"} onPreferencesChange={props.onLanguagePreferencesChange} onColorModeChange={props.onColorModeChange} onDensityChange={props.onDensityChange ?? (() => undefined)} /> : null}
-          {activeSection === "account" ? <AccountSection {...sectionProps} writeActionsEnabled={props.writeActionsEnabled} lastAccountLoadedAt={props.lastAccountLoadedAt} accountSummary={props.accountSummary} onWriteActionsEnabledChange={props.onWriteActionsEnabledChange} onRefreshAccount={props.onRefreshAccount} onReauthorizeAccount={props.onReauthorizeAccount} isLoadingAccount={props.isLoadingAccount} /> : null}
+          {activeSection === "account" ? <AccountSection {...sectionProps} lastAccountLoadedAt={props.lastAccountLoadedAt} accountSummary={props.accountSummary} onRefreshAccount={props.onRefreshAccount} onReauthorizeAccount={props.onReauthorizeAccount} isLoadingAccount={props.isLoadingAccount} /> : null}
           {activeSection === "library" ? <LibrarySection {...sectionProps} manifestStatus={props.manifestStatus} isInitializing={props.isInitializingManifest} onRefresh={props.onRefreshManifestStatus} onInitialize={props.onInitializeManifest} onRepair={props.onRepairManifest} /> : null}
           {activeSection === "bungie" ? <BungieSection copy={copy} bungieUi={bungieUi} dataDir={props.diagnosticDataDir} apiKey={bungieApiKey} clientId={bungieClientId} clientSecret={bungieClientSecret} redirectUri={bungieRedirectUri} isLoading={isLoadingBungieConfig} isSaving={isSavingBungieConfig} isPreparingManifest={isAutoPreparingManifest || props.isInitializingManifest} hasAutoManifestFailure={hasAutoManifestFailure} manifestError={props.manifestStatusError} manifestReady={manifestIsReady} isAccountReady={Boolean(props.accountSummary)} error={bungieError} message={bungieMessage} onApiKeyChange={setBungieApiKey} onClientIdChange={setBungieClientId} onClientSecretChange={setBungieClientSecret} onSave={() => void saveBungieConfig()} onOpenDataDir={props.onOpenDataDir} onOpenBungiePortal={props.onOpenBungiePortal} onLoginBungie={props.onReauthorizeAccount} onRetryManifest={() => { setBungieError(""); setBungieMessage(""); setIsAutoPreparingManifest(true); setHasAutoManifestFailure(false); props.onInitializeManifest(); }} /> : null}
           {activeSection === "ai" ? <SettingsSection id="ai" copy={copy} title={settingsText(copy, "AI 助手")} subtitle={settingsText(copy, "可选能力，不阻断账号、仓库、资料库等本地功能。")} badge={aiUi.statusLabel} tone={aiUi.tone}><SettingsAiConfigPanel adapter={props.aiSettingsAdapter} /></SettingsSection> : null}
@@ -343,7 +341,6 @@ function AccountSection(props: any) {
     <MetricGrid><Metric label={settingsText(copy, "当前账号")} value={accountSummary?.account_name ?? settingsText(copy, "未登录")} detail={accountSummary ? settingsText(copy, "Bungie 账号已授权") : settingsText(copy, "登录后可读取账号")} /><Metric label={settingsText(copy, "账号读取")} value={accountUi.statusLabel} detail={accountUi.summary} /><Metric label={settingsText(copy, "上次刷新")} value={formatAccountLoadedAt(props.lastAccountLoadedAt, accountSummary, copy)} detail={settingsText(copy, "成功刷新账号资料的时间")} /><Metric label={settingsText(copy, "刷新规则")} value={settingsText(copy, "启动自动读取一次")} detail={settingsText(copy, "手动刷新、重新授权和切换账号不受限制")} /></MetricGrid>
     <VersionTable><VersionRow label={settingsText(copy, "当前账号")} value={accountSummary?.account_name ?? settingsText(copy, "未登录")} /><VersionRow label={settingsText(copy, "当前版本")} value={formatAccountSnapshot(accountSummary, copy)} /><VersionRow label={settingsText(copy, "最新版本")} value={settingsText(copy, "已是当前读取结果")} /><VersionRow label={settingsText(copy, "上次检查")} value={formatAccountLoadedAt(props.lastAccountLoadedAt, accountSummary, copy)} /><VersionRow label={settingsText(copy, "打开应用时")} value={settingsText(copy, "自动读取一次当前账号，避免每次进页面都重复加载")} /><VersionRow label={settingsText(copy, "需要重新读取时")} value={settingsText(copy, "首次登录、重新授权、切换账号或本地记录不可用时会重新读取；失败时保留上次成功结果")} /><VersionRow label={settingsText(copy, "手动操作")} value={settingsText(copy, "刷新账号、重新授权、管理账号和未来切换账号始终立即执行")} /><VersionRow label={settingsText(copy, "默认账号")} value={settingsText(copy, "当前账号；切换账号功能上线后可修改")} /></VersionTable>
     <div className="settings-group settings-spaced-group" data-surface="list">
-      <SettingRow label={settingsText(copy, "装备写操作")} detail={props.writeActionsEnabled ? settingsText(copy, "已开启，允许锁定、装备和转移。") : settingsText(copy, "已关闭，写操作会被阻断。")}><label className="setting-toggle" data-ui-kind="switch"><input checked={props.writeActionsEnabled} type="checkbox" onChange={(event) => props.onWriteActionsEnabledChange(event.target.checked)} />{settingsText(copy, "允许")}</label></SettingRow>
       <SettingRow label={settingsText(copy, "账号操作")} detail={settingsText(copy, "手动操作始终重新读取最新数据。")}><SettingsActions><SettingsButton data-control-variant="secondary" onClick={props.onReauthorizeAccount}>{settingsText(copy, "重新授权")}</SettingsButton><SettingsButton data-control-variant="primary" aria-busy={props.isLoadingAccount} disabled={props.isLoadingAccount} onClick={props.onRefreshAccount}>{settingsText(copy, "刷新账号")}</SettingsButton></SettingsActions></SettingRow>
     </div>
   </SettingsSection>;

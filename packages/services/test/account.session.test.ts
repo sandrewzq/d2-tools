@@ -200,6 +200,10 @@ describe("account session", () => {
     await vi.advanceTimersByTimeAsync(50);
 
     expect((await session.getSnapshot()).vault.items[0]?.locked).toBe(true);
+    expect((await session.getSnapshot({
+      freshness: "refresh",
+      authoritative: true
+    })).vault.items[0]?.locked).toBe(false);
   });
 });
 

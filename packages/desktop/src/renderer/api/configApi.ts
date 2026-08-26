@@ -36,7 +36,6 @@ export type D2Config = {
     force_lightgg: boolean;
   };
   features: {
-    write_actions_enabled: boolean;
     color_mode: "light" | "dark";
     density: "compact" | "standard" | "comfortable";
     interface_locale: "zh-CN" | "en-US";

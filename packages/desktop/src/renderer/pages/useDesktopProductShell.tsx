@@ -107,7 +107,10 @@ export function useDesktopProductShell(props: {
     setLocalTargetRules,
     equipmentTargetStore,
     setEquipmentTargetStore,
-    refreshAccountSnapshot
+    refreshAccountSnapshot,
+    refreshAuthoritativeAccountSnapshot,
+    readAuthoritativeAccountSnapshot,
+    applyBackgroundAccountSnapshot
   } = accountWorkspace;
   const refreshAccountManually = () => refreshAccountSnapshot("manual");
   const refreshAccountAfterWrite = () => refreshAccountSnapshot("write-action");
@@ -157,6 +160,9 @@ export function useDesktopProductShell(props: {
     itemDetailCacheScopeKey,
     setAccountError,
     loadAccountSummary: reloadAccountAfterWrite,
+    loadAuthoritativeAccountSummary: refreshAuthoritativeAccountSnapshot,
+    readAuthoritativeAccountSummary: readAuthoritativeAccountSnapshot,
+    applyAuthoritativeAccountSummary: applyBackgroundAccountSnapshot,
     loadoutLibrary,
     onRecentHistoryChanged: library.setLibraryHistory
   });

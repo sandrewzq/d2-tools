@@ -511,11 +511,6 @@ export function useLocalLoadoutPlans(input: {
       setError(plan.gaps.length ? `没有可执行步骤：${plan.gaps.join("；")}` : "方案没有已确认的可执行实例。");
       return;
     }
-    const config = await api.getConfig().catch(() => null);
-    if (!config?.features.write_actions_enabled) {
-      setError("d2-tools 本地写操作开关未开启。请到设置页开启后再执行。");
-      return;
-    }
     if (!window.confirm(`计划 ${plan.plan_id}\n将按顺序执行 ${plan.executable_steps.length} 个步骤。${plan.gaps.length ? `\n仍有 ${plan.gaps.length} 项缺口不会执行。` : ""}\n确认后先刷新账号复核；计划变化时不会执行任何写操作。任一步失败会停止后续操作并再次刷新账号。继续吗？`)) {
       return;
     }
@@ -655,12 +650,6 @@ export function useLocalLoadoutPlans(input: {
 
   const publishAppliedPlan = useCallback(async (loadoutIndex: number) => {
     if (!draft || !accountSummary || !editingPlanId || !executionReport?.refresh_verified || isPublishing || isExecuting) return;
-    const config = await api.getConfig().catch(() => null);
-    if (!config?.features.write_actions_enabled) {
-      setError("d2-tools 本地写操作开关未开启。请到设置页开启后再保存 Bungie 配装槽位。");
-      return;
-    }
-
     let plan: LocalLoadoutPlanPublishPlan;
     try {
       plan = createLocalLoadoutPlanPublishPlan({

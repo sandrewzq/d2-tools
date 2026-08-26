@@ -30,7 +30,7 @@ export function VaultOrganizePanel(props: {
   onRunSelectedBulkMove: () => void | Promise<void>;
   onRunCleanupAction: (action: "unlock" | "transfer") => void | Promise<void>;
 }) {
-  const canWrite = Boolean(props.cleanupActions?.writeActionsEnabled && props.cleanupTargetCharacterId && props.cleanupActionItems.length);
+  const canWrite = Boolean(props.cleanupActions && props.cleanupTargetCharacterId && props.cleanupActionItems.length);
 
   return (
     <div className="vault-organize-panel">
@@ -81,11 +81,10 @@ export function VaultOrganizePanel(props: {
           <button type="button" aria-busy={props.isBatchSaving} disabled={!props.selectedItemCount || props.isBatchSaving} onClick={() => void props.onApplyBatchTag("farm")}>批量待刷</button>
           <button type="button" aria-busy={props.isBatchSaving} disabled={!props.selectedItemCount || props.isBatchSaving} onClick={() => void props.onApplyBatchTag("loadout")}>批量配装用</button>
           <button type="button" aria-busy={props.isBatchSaving} disabled={!props.selectedItemCount || props.isBatchSaving} onClick={() => void props.onApplyBatchTag("none")}>清除标记</button>
-          {props.cleanupActions ? <button type="button" aria-busy={props.isBatchSaving} disabled={!props.selectedItemCount || !props.cleanupTargetCharacterId || props.isBatchSaving || !props.cleanupActions.writeActionsEnabled} onClick={() => void props.onRunSelectedBulkMove()}>批量移动</button> : null}
+          {props.cleanupActions ? <button type="button" aria-busy={props.isBatchSaving} disabled={!props.selectedItemCount || !props.cleanupTargetCharacterId || props.isBatchSaving} onClick={() => void props.onRunSelectedBulkMove()}>批量移动</button> : null}
         </div>
       ) : null}
 
-      {!props.cleanupActions?.writeActionsEnabled ? <p className="vault-cleanup-warning">写操作未开启。需要到设置页开启后，才能批量解锁或转移装备。</p> : null}
       <p className="vault-cleanup-boundary">已标记 {props.markedCleanupItemCount} 件可清理。不会自动拆解；转移到角色背包后，仍需在游戏内逐件确认。</p>
 
       {props.cleanupActionItems.length ? (

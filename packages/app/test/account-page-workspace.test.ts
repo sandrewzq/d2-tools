@@ -181,7 +181,6 @@ describe("account page workspace", () => {
         isBungieConfigured: true,
         isAccountLoggedIn: true,
         isLoadingAccount: false,
-        writeActionsEnabled: false,
         accountError: "",
         itemDetailError: "",
         activityMessage: "",

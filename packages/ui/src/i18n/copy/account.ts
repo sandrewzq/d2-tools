@@ -85,8 +85,6 @@ export const accountCopy: Record<InterfaceLocale, LocaleCopy["account"]> = {
         "角色切换": "Character switcher",
         "当前角色": "Current character",
         "切换到": "Switch to ",
-        "写操作已关闭。要使用装备、转移等功能，请在“设置 → 账号 → 装备写操作”中开启“允许”。": "Write actions are disabled. To equip or transfer items, enable Allow under Settings → Account → Item write actions.",
-        "前往设置开启": "Open Settings",
         "失败": "failed",
         "当前角色装备与背包": "Current character gear and inventory",
         "装备": "Equipped",

@@ -26,7 +26,6 @@ export function AccountPage(props: {
   accountWarning: string;
   itemDetailError: string;
   itemDetailLoadingKey: string;
-  writeActionsEnabled: boolean;
   activitySummary: ActivityHistorySummary | null;
   activityMessage: string;
   activityError: string;
@@ -36,7 +35,6 @@ export function AccountPage(props: {
   activeLoadoutLookup: LoadoutTemplateLookup | null;
   activeLoadoutTemplate: LoadoutTemplate | null;
   onConfigureBungie: () => void;
-  onOpenWriteSettings: () => void;
   onLoginBungie: () => void;
   onLoadAccount: () => void;
   onRefreshActivity: () => void;
@@ -66,7 +64,6 @@ export function AccountPage(props: {
       isBungieConfigured,
       isAccountLoggedIn,
       isLoadingAccount: props.isLoadingAccount,
-      writeActionsEnabled: props.writeActionsEnabled,
       accountStatusLabel: props.startupState.cards.account.label,
       accountError: props.accountError,
       accountWarning: props.accountWarning,
@@ -88,7 +85,6 @@ export function AccountPage(props: {
     isBungieConfigured,
     isAccountLoggedIn,
     props.isLoadingAccount,
-    props.writeActionsEnabled,
     props.startupState.cards.account.label,
     props.accountError,
     props.accountWarning,
@@ -119,7 +115,6 @@ export function AccountPage(props: {
       viewModel={viewModel}
       actions={{
         configureBungie: props.onConfigureBungie,
-        openWriteSettings: props.onOpenWriteSettings,
         loginBungie: props.onLoginBungie,
         refreshAccount: props.onLoadAccount,
         refreshActivity: props.onRefreshActivity,

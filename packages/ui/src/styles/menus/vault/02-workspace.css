@@ -908,7 +908,6 @@
   margin-right: auto;
 }
 
-:where(.app-shell) .vault-cleanup-warning,
 :where(.app-shell) .vault-cleanup-boundary {
   margin: 0;
   padding: 7px 10px;
@@ -916,11 +915,6 @@
   color: var(--text-muted);
   font-size: var(--font-caption);
   line-height: 1.5;
-}
-
-:where(.app-shell) .vault-cleanup-warning {
-  color: var(--status-warning);
-  background: var(--status-warning-bg);
 }
 
 :where(.app-shell) .vault-cleanup-locator {

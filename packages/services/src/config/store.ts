@@ -52,7 +52,11 @@ function parseCurrentConfig(text: string): D2Config {
   rejectUnknownFields(bungie, ["api_key", "client_id", "client_secret", "redirect_uri"], "bungie");
   rejectUnknownFields(data, ["data_dir", "manifest_language"], "data");
   rejectUnknownFields(ai, ["protocol", "provider", "api_key", "model", "base_url", "enable_lightgg", "force_lightgg"], "ai");
+  // 兼容旧配置中的本地写操作开关；写操作现在只受 Bungie 权限和操作确认约束。
   rejectUnknownFields(features, ["write_actions_enabled", "color_mode", "density", "interface_locale", "manifest_language_follows_interface"], "features");
+  if (features.write_actions_enabled !== undefined) {
+    requireBoolean(features.write_actions_enabled, "features.write_actions_enabled");
+  }
 
   return {
     bungie: {
@@ -78,7 +82,6 @@ function parseCurrentConfig(text: string): D2Config {
       force_lightgg: requireBoolean(ai.force_lightgg, "ai.force_lightgg")
     },
     features: {
-      write_actions_enabled: requireBoolean(features.write_actions_enabled, "features.write_actions_enabled"),
       color_mode: requireEnum(features.color_mode, "features.color_mode", ["light", "dark"]),
       density: requireEnum(features.density, "features.density", ["compact", "standard", "comfortable"]),
       interface_locale: requireEnum(features.interface_locale, "features.interface_locale", ["zh-CN", "en-US"]),

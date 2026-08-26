@@ -6,7 +6,6 @@ import {
   type AccountSummary,
   type BatchItemActionResult,
   type BuildGuideLoadoutDraft,
-  type D2Config,
   type ItemActionResult,
   type LoadoutTemplate
 } from "../../api/types";
@@ -60,7 +59,6 @@ type LoadoutLibraryBridge = {
 };
 
 type DiagnosticsBridge = {
-  setWriteActionsEnabled: (enabled: boolean) => void;
   loadActionLog: () => Promise<void>;
 };
 
@@ -78,6 +76,9 @@ export function useLoadoutWriteActions(input: {
   setItemActionMessage: (message: string) => void;
   setIsRunningItemAction: (isRunning: boolean) => void;
   loadAccountSummary: () => Promise<void>;
+  loadAuthoritativeAccountSummary: () => Promise<AccountSummary | null>;
+  readAuthoritativeAccountSummary: () => Promise<AccountSummary | null>;
+  applyAuthoritativeAccountSummary: (summary: AccountSummary) => void;
   openItemDetail: (item: AccountItemSummary, source?: SelectedItemSource) => void | Promise<void>;
 }) {
   function applySuccessfulWriteResult(result: ItemActionResult | BatchItemActionResult): {
@@ -103,21 +104,6 @@ export function useLoadoutWriteActions(input: {
       void input.loadAccountSummary().catch(() => undefined);
     }
     void input.diagnostics.loadActionLog().catch(() => undefined);
-  }
-
-  async function ensureWriteActionsEnabled(setMessage: (message: string) => void): Promise<D2Config | null> {
-    try {
-      const latestConfig = await api.getConfig();
-      input.diagnostics.setWriteActionsEnabled(latestConfig.features.write_actions_enabled);
-      if (!latestConfig.features.write_actions_enabled) {
-        setMessage("d2-tools 本地写操作开关未开启。请到左侧“设置”页开启后再执行。");
-        return null;
-      }
-      return latestConfig;
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "读取写操作配置失败");
-      return null;
-    }
   }
 
   async function saveCharacterLoadout(character: AccountSummary["characters"][number]) {
@@ -161,68 +147,81 @@ export function useLoadoutWriteActions(input: {
   }
 
   async function equipHighestPowerItems(character: AccountSummary["characters"][number]) {
-    if (!input.accountSummary) return;
-
-    const plan = createHighestPowerEquipPlan({
-      character,
-      vaultItems: input.accountSummary.vault.items
-    });
-    const executionPlan = createHighestPowerExecutionPlan(plan);
-
     input.setLoadoutMessage("");
-    input.setItemActionMessage("");
-
-    if (!plan.executable_items.length) {
-      input.setLoadoutMessage(buildHighestPowerAlreadyOptimalMessage(character.class_name));
-      return;
-    }
-
-    const latestConfig = await ensureWriteActionsEnabled(input.setLoadoutMessage);
-    if (!latestConfig) return;
-
-    if (!window.confirm(buildHighestPowerConfirmText({
-      characterClassName: character.class_name,
-      plan,
-      executionPlan
-    }))) {
-      input.setLoadoutMessage("已取消装备最高光等。");
-      return;
-    }
-
+    input.setItemActionMessage("正在刷新账号并复核最高光等方案...");
     input.setIsRunningItemAction(true);
     let hasSuccessfulWrite = false;
-    let requiresFullRefresh = false;
 
     try {
-      let transferResult = { success_count: 0, failed_count: 0 };
-      let equipResult = { success_count: 0, failed_count: 0 };
-      const successfullyTransferredItemIds = new Set<string>();
+      const latestAccount = await input.loadAuthoritativeAccountSummary();
+      if (!latestAccount) {
+        input.setLoadoutMessage("无法读取最新账号状态，未执行最高光等写操作。");
+        return;
+      }
+      const latestCharacter = latestAccount.characters.find((entry) => entry.character_id === character.character_id);
+      if (!latestCharacter) {
+        input.setLoadoutMessage("最新账号状态中找不到目标角色，未执行最高光等写操作。");
+        return;
+      }
+      const plan = createHighestPowerEquipPlan({
+        character: latestCharacter,
+        vaultItems: latestAccount.vault.items
+      });
+      const executionPlan = createHighestPowerExecutionPlan(plan);
+      if (!plan.executable_items.length) {
+        input.setLoadoutMessage(buildHighestPowerAlreadyOptimalMessage(latestCharacter.class_name));
+        return;
+      }
+      if (!window.confirm(buildHighestPowerConfirmText({
+        characterClassName: latestCharacter.class_name,
+        plan,
+        executionPlan
+      }))) {
+        input.setLoadoutMessage("已取消装备最高光等。");
+        return;
+      }
+
+      let transferConfirmedCount = 0;
+      let transferFailureCount = 0;
+      let successfullyTransferredItemIds = new Set<string>();
+      let equipVerificationCandidateIds = new Set<string>();
       let firstFailureReason: string | undefined;
 
       if (executionPlan.transfer_items.length) {
         input.setItemActionMessage(buildHighestPowerTransferProgressMessage(executionPlan.transfer_items.length));
         const result = await api.batchTransferItems({
-          membership_type: input.accountSummary.membership_type,
-          character_id: character.character_id,
+          membership_type: latestAccount.membership_type,
+          character_id: latestCharacter.character_id,
           items: executionPlan.transfer_items.map((entry) => ({
-            membership_type: input.accountSummary?.membership_type ?? 0,
-            character_id: character.character_id,
+            membership_type: latestAccount.membership_type,
+            character_id: latestCharacter.character_id,
             item_id: entry.item.instance_id ?? "",
             item_reference_hash: entry.item.hash,
             item_name: entry.item.name,
             transfer_to_vault: false
           }))
         });
-        transferResult = result;
         firstFailureReason ??= result.failure_messages?.[0];
-        for (const itemId of result.succeeded_item_ids ?? result.account_patches
-          .filter((patch) => patch.kind === "transfer" && patch.target === "character-inventory")
-          .map((patch) => patch.item_instance_id)) {
-          successfullyTransferredItemIds.add(itemId);
-        }
         const outcome = applySuccessfulWriteResult(result);
         hasSuccessfulWrite = outcome.hasSuccessfulWrite || hasSuccessfulWrite;
-        requiresFullRefresh = outcome.requiresFullRefresh || requiresFullRefresh;
+
+        const attemptedTransferItemIds = new Set(
+          executionPlan.transfer_items
+            .map((entry) => entry.item.instance_id)
+            .filter((itemId): itemId is string => Boolean(itemId))
+        );
+        const transferVerificationCandidateIds = resolveBatchVerificationCandidateIds(
+          attemptedTransferItemIds,
+          result
+        );
+        input.setItemActionMessage("Bungie 已受理仓库转移，正在持续确认物品已进入目标角色...");
+        successfullyTransferredItemIds = await verifyHighestPowerItemState(
+          latestCharacter.character_id,
+          transferVerificationCandidateIds,
+          "inventory-or-equipped"
+        );
+        transferConfirmedCount = successfullyTransferredItemIds.size;
+        transferFailureCount = executionPlan.transfer_items.length - transferConfirmedCount;
       }
 
       const equipItems = executionPlan.equip_items.filter((entry) => (
@@ -233,37 +232,105 @@ export function useLoadoutWriteActions(input: {
       if (equipItems.length) {
         input.setItemActionMessage(buildHighestPowerEquipProgressMessage(equipItems.length));
         const result = await api.batchEquipItems({
-          membership_type: input.accountSummary.membership_type,
-          character_id: character.character_id,
+          membership_type: latestAccount.membership_type,
+          character_id: latestCharacter.character_id,
           items: equipItems.map((entry) => ({
-            membership_type: input.accountSummary?.membership_type ?? 0,
-            character_id: character.character_id,
+            membership_type: latestAccount.membership_type,
+            character_id: latestCharacter.character_id,
             item_id: entry.item.instance_id ?? "",
             item_name: entry.item.name
           }))
         });
-        equipResult = result;
         firstFailureReason ??= result.failure_messages?.[0];
         const outcome = applySuccessfulWriteResult(result);
         hasSuccessfulWrite = outcome.hasSuccessfulWrite || hasSuccessfulWrite;
-        requiresFullRefresh = outcome.requiresFullRefresh || requiresFullRefresh;
+
+        const attemptedEquipItemIds = new Set(
+          equipItems
+            .map((entry) => entry.item.instance_id)
+            .filter((itemId): itemId is string => Boolean(itemId))
+        );
+        equipVerificationCandidateIds = resolveBatchVerificationCandidateIds(
+          attemptedEquipItemIds,
+          result
+        );
       }
 
-      const failedSteps = transferResult.failed_count + equipResult.failed_count;
+      input.setItemActionMessage("Bungie 已受理装备操作，正在持续确认游戏内实际装备状态...");
+      const verification = await verifyHighestPowerItemState(
+        latestCharacter.character_id,
+        equipVerificationCandidateIds,
+        "equipped"
+      );
+      const unverifiedEquipCount = equipItems.length - verification.size;
+      const failedSteps = transferFailureCount + unverifiedEquipCount;
       input.setLoadoutMessage(buildHighestPowerResultMessage({
-        characterClassName: character.class_name,
-        transferSuccessCount: transferResult.success_count,
+        characterClassName: latestCharacter.class_name,
+        transferSuccessCount: transferConfirmedCount,
         transferTotalCount: executionPlan.transfer_items.length,
-        equipSuccessCount: equipResult.success_count,
+        equipSuccessCount: verification.size,
         equipTotalCount: equipItems.length,
         failedCount: failedSteps,
         failureReason: firstFailureReason
       }));
+    } catch (error) {
+      if (hasSuccessfulWrite) {
+        input.setItemActionMessage("写操作部分完成，正在后台确认实际状态...");
+        await waitForHighestPowerVerification(750);
+        const account = await input.readAuthoritativeAccountSummary().catch(() => null);
+        if (account) input.applyAuthoritativeAccountSummary(account);
+      }
+      input.setLoadoutMessage(error instanceof Error ? error.message : "装备最高光等失败");
     } finally {
-      if (hasSuccessfulWrite) finishWriteActionsInBackground(requiresFullRefresh);
+      if (hasSuccessfulWrite) {
+        void input.diagnostics.loadActionLog().catch(() => undefined);
+      }
       input.setItemActionMessage("");
       input.setIsRunningItemAction(false);
     }
+  }
+
+  async function verifyHighestPowerItemState(
+    characterId: string,
+    expectedItemIds: ReadonlySet<string>,
+    expectedState: "inventory-or-equipped" | "equipped"
+  ): Promise<Set<string>> {
+    if (!expectedItemIds.size) {
+      const account = await input.readAuthoritativeAccountSummary();
+      if (account) input.applyAuthoritativeAccountSummary(account);
+      return new Set();
+    }
+
+    let verifiedItemIds = new Set<string>();
+    let attemptIndex = 0;
+    let lastAppliedStateSignature: string | undefined;
+
+    while (verifiedItemIds.size < expectedItemIds.size) {
+      const waitMs = highestPowerVerificationWaits[
+        Math.min(attemptIndex, highestPowerVerificationWaits.length - 1)
+      ] ?? 15_000;
+      await waitForHighestPowerVerification(waitMs);
+      attemptIndex += 1;
+      const account = await input.readAuthoritativeAccountSummary();
+      if (!account) continue;
+      const character = account.characters.find((entry) => entry.character_id === characterId);
+      const matchedIds = new Set(
+        (expectedState === "equipped"
+          ? character?.equipped_items
+          : [...(character?.inventory_items ?? []), ...(character?.equipped_items ?? [])])
+          ?.map((item) => item.instance_id)
+          .filter((itemId): itemId is string => Boolean(itemId))
+        ?? []
+      );
+      verifiedItemIds = new Set([...expectedItemIds].filter((itemId) => matchedIds.has(itemId)));
+      const stateSignature = [...verifiedItemIds].sort().join("\u0000");
+      if (stateSignature !== lastAppliedStateSignature) {
+        input.applyAuthoritativeAccountSummary(account);
+        lastAppliedStateSignature = stateSignature;
+      }
+    }
+
+    return verifiedItemIds;
   }
 
   async function runLoadoutWriteAction(
@@ -274,9 +341,6 @@ export function useLoadoutWriteActions(input: {
   ) {
     input.setLoadoutMessage("");
     input.setItemActionMessage(buildLoadoutSlotActionProgressMessage(label));
-
-    const latestConfig = await ensureWriteActionsEnabled(input.setLoadoutMessage);
-    if (!latestConfig) return;
 
     if (!window.confirm(buildLoadoutSlotActionConfirmText({
       label,
@@ -422,9 +486,6 @@ export function useLoadoutWriteActions(input: {
       input.setLoadoutMessage(buildMissingLoadoutNoActionMessage(transferPlan));
       return;
     }
-
-    const latestConfig = await ensureWriteActionsEnabled(input.setLoadoutMessage);
-    if (!latestConfig) return;
 
     if (!window.confirm(buildMissingLoadoutConfirmText({
       targetCharacterClassName: targetCharacter.class_name,
@@ -576,12 +637,6 @@ export function useLoadoutWriteActions(input: {
         itemName: item.name,
         transferPlan
       }));
-      return;
-    }
-
-    const latestConfig = await ensureWriteActionsEnabled(input.setLoadoutMessage);
-    if (!latestConfig) {
-      input.loadoutActionFeedback.setSingleActionFeedback(feedbackKey, "idle");
       return;
     }
 
@@ -760,12 +815,6 @@ export function useLoadoutWriteActions(input: {
       return;
     }
 
-    const latestConfig = await ensureWriteActionsEnabled(input.setLoadoutMessage);
-    if (!latestConfig) {
-      input.loadoutActionFeedback.setSingleActionFeedback(feedbackKey, "idle");
-      return;
-    }
-
     if (!window.confirm(buildSingleLoadoutEquipConfirmText(item.name))) {
       input.setLoadoutMessage("已取消单件装备。");
       return;
@@ -832,4 +881,27 @@ export function useLoadoutWriteActions(input: {
     equipSingleLoadoutItem,
     openTemplateSourceItem
   };
+}
+
+function waitForHighestPowerVerification(waitMs: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, waitMs));
+}
+
+const highestPowerVerificationWaits = [0, 750, 1_000, 1_500, 2_500, 4_000, 8_000, 15_000] as const;
+
+function resolveBatchVerificationCandidateIds(
+  attemptedItemIds: ReadonlySet<string>,
+  result: BatchItemActionResult
+): Set<string> {
+  const reportedSuccessfulItemIds = new Set(result.succeeded_item_ids ?? []);
+  if (reportedSuccessfulItemIds.size >= result.success_count) {
+    return new Set(
+      [...reportedSuccessfulItemIds].filter((itemId) => attemptedItemIds.has(itemId))
+    );
+  }
+
+  const reportedFailedItemIds = new Set(result.failed_item_ids ?? []);
+  return new Set(
+    [...attemptedItemIds].filter((itemId) => !reportedFailedItemIds.has(itemId))
+  );
 }

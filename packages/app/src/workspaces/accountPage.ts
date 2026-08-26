@@ -69,7 +69,6 @@ export type AccountFeedbackView = {
   itemActionMessage: string;
   activityMessage: string;
   activityError: string;
-  writeActionsEnabled: boolean;
 };
 
 export type AccountProfileView = {
@@ -167,7 +166,6 @@ export type AccountPageState = {
   isBungieConfigured: boolean;
   isAccountLoggedIn: boolean;
   isLoadingAccount: boolean;
-  writeActionsEnabled: boolean;
   accountStatusLabel?: string;
   accountError: string;
   accountWarning?: string;
@@ -382,8 +380,7 @@ export function selectAccountPageModel(input: AccountPageModelInput): AccountPag
       loadoutMessage: pageState.loadoutMessage,
       itemActionMessage: pageState.itemActionMessage,
       activityMessage: pageState.activityMessage,
-      activityError: pageState.activityError,
-      writeActionsEnabled: pageState.writeActionsEnabled
+      activityError: pageState.activityError
     },
     profile: cache.accountSummary
       ? {

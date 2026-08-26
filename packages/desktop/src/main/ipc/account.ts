@@ -52,5 +52,8 @@ export function registerAccountIpcHandlers(): void {
 }
 
 async function loadAccountSummary(options?: AccountSummaryRequestOptions): Promise<AccountSummary> {
-  return getAccountSnapshot(options?.force ? "refresh" : "cached");
+  return getAccountSnapshot(
+    options?.force ? "refresh" : "cached",
+    options?.authoritative ? { authoritative: true } : {}
+  );
 }

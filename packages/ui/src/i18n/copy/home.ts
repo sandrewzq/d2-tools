@@ -164,6 +164,7 @@ export const homeCopy: Record<InterfaceLocale, LocaleCopy["home"]> = {
         "可见奖励": "Visible reward",
         "周末商人 · 库存已确认": "Weekend vendor · inventory confirmed",
         "离开还有": "Leaves in",
+        "距库存刷新": "Until inventory refresh",
         "天": "days",
         "小时": "hours",
         "共读取": "Loaded",

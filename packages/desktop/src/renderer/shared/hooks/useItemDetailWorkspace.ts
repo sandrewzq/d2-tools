@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../../api/client";
-import type { AccountItemActionPatch, AccountItemDetail, AccountItemSummary, AccountSummary, D2Config, DimWishlist, ItemActionResult, ItemAiAdviceResult, ItemSearchResult, LibraryHistory, LocalTargetRules, VaultTags, VaultTagValue, WeaponRecommendation } from "../../api/types";
+import type { AccountItemActionPatch, AccountItemDetail, AccountItemSummary, AccountSummary, DimWishlist, ItemActionResult, ItemAiAdviceResult, ItemSearchResult, LibraryHistory, LocalTargetRules, VaultTags, VaultTagValue, WeaponRecommendation } from "../../api/types";
 import type { LiveItemAvailabilityEntry } from "@d2-tools/core/items/liveAvailability";
 import type {
   PersonalWeaponKnowledgeEntry,
@@ -30,7 +30,6 @@ const ITEM_DETAIL_SUPPORTING_REQUEST_DELAY_MS = 180;
 
 type DiagnosticsBridge = {
   aiSettings: { enable_lightgg: boolean };
-  setWriteActionsEnabled: (enabled: boolean) => void;
   loadActionLog: () => Promise<void>;
 };
 
@@ -548,21 +547,6 @@ export function useItemDetailWorkspace(input: {
       return { ok: false, refreshed: false, message: "装备详情已关闭或账号数据不可用。" };
     }
 
-    let latestConfig: D2Config;
-    try {
-      latestConfig = await api.getConfig();
-      input.diagnostics.setWriteActionsEnabled(latestConfig.features.write_actions_enabled);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "读取写操作配置失败";
-      publishMessage(message);
-      return { ok: false, refreshed: false, message };
-    }
-
-    if (!latestConfig.features.write_actions_enabled) {
-      const message = "d2-tools 本地写操作开关未开启。请到左侧“设置”页开启“允许单件装备写操作”。";
-      publishMessage(message);
-      return { ok: false, refreshed: false, message };
-    }
     if (!selectedItem.instance_id) {
       const message = "这个物品没有实例 ID，不能执行 Bungie 写操作。";
       publishMessage(message);

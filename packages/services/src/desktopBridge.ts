@@ -15,7 +15,7 @@ import type { D2Services } from "./contracts.js";
 import { createGuideContextService } from "./guideContextService.js";
 
 export type DesktopBridgeApi = {
-  getAccountSummary(options?: { force?: boolean }): Promise<AccountSummary>;
+  getAccountSummary(options?: { force?: boolean; authoritative?: boolean }): Promise<AccountSummary>;
   getActivitySummary(input: { membership_type: number; membership_id: string; character_ids: string[] }): Promise<ActivityHistorySummary>;
   matchCommunityVaultItems(items: Array<{ hash: number; socket_plugs?: Array<{ hash: number }> }>): Promise<Array<{ hash: number } & VaultItemMatchInfo>>;
   getDimWishlist(): Promise<DimWishlist | null>;

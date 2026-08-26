@@ -234,7 +234,7 @@ function buildIronBannerSummary(
 ): WeeklyIronBannerSummary {
   const characterData = input.profile?.characterActivities?.data;
   const totalCharacterIds = Object.keys(input.profile?.characters?.data ?? characterData ?? {});
-  const lootPool = buildIronBannerLootPool(input.characterVendors ?? [], definitions);
+  const lootPool = buildIronBannerLootPool(input.characterVendors ?? [], definitions, now);
   const milestoneWindow = findIronBannerMilestoneWindow(input.milestones, definitions, now);
   if (!input.profile || !characterData) {
     if (milestoneWindow?.status === "active" || milestoneWindow?.status === "upcoming") {
@@ -286,6 +286,12 @@ function buildIronBannerSummary(
     ...Object.values(characterEntries).flatMap((entry) => numberList(entry.challenge?.objective_hash))
   ]);
 
+  const timing = ironBannerTimingFields(milestoneWindow?.status === "active" ? milestoneWindow : undefined);
+  if (!timing.ends_at && lootPool.refresh_at) {
+    timing.next_refresh_at = lootPool.refresh_at;
+    timing.timing_source = "Bungie Character Vendors";
+  }
+
   return {
     status: "active",
     title: "铁旗已开放",
@@ -295,7 +301,7 @@ function buildIronBannerSummary(
     playlist_name: playlistName,
     evidence: relatedHashes.length ? `活动与目标 Hash：${relatedHashes.join(" / ")}` : undefined,
     source: "Bungie CharacterActivities + 当前 Manifest",
-    ...ironBannerTimingFields(milestoneWindow?.status === "active" ? milestoneWindow : undefined),
+    ...timing,
     related_hashes: relatedHashes,
     characters: {
       available_count: activeActivities.length,
@@ -414,9 +420,9 @@ function findIronBannerMilestoneWindow(
 
 function ironBannerTimingFields(
   milestone: IronBannerMilestoneWindow | undefined
-): Pick<WeeklyIronBannerSummary, "starts_at" | "ends_at" | "timing_source"> {
+): Pick<WeeklyIronBannerSummary, "starts_at" | "ends_at" | "next_refresh_at" | "timing_source"> {
   if (!milestone) return {};
-  const timing: Pick<WeeklyIronBannerSummary, "starts_at" | "ends_at" | "timing_source"> = {
+  const timing: Pick<WeeklyIronBannerSummary, "starts_at" | "ends_at" | "next_refresh_at" | "timing_source"> = {
     timing_source: "Bungie Public Milestones"
   };
   if (milestone.startsAt) timing.starts_at = milestone.startsAt;
@@ -527,7 +533,8 @@ function activityReward(
 
 function buildIronBannerLootPool(
   responses: CharacterVendorResponse[],
-  definitions: NonNullable<BuildWeeklyLiveDataInput["definitions"]>
+  definitions: NonNullable<BuildWeeklyLiveDataInput["definitions"]>,
+  now: Date
 ): WeeklyIronBannerLootPool {
   if (!responses.length) return emptyIronBannerLootPool();
   const vendorHashes = collectIronBannerVendorHashes(responses, definitions);
@@ -538,10 +545,21 @@ function buildIronBannerLootPool(
   const weapons = focusing.filter((offer) => offer.item.group_key === "weapons");
   const armor = focusing.filter((offer) => offer.item.group_key === "armor");
   const featured = [...weapons.slice(0, 3), ...armor.slice(0, 1)].map((offer) => offer.item);
-  const refreshAt = responses.flatMap((response) => Object.entries(response.vendors?.data ?? {}))
-    .filter(([key, vendor]) => vendorHashes.has(vendor.vendorHash ?? Number(key)))
-    .map(([, vendor]) => vendor.nextRefreshDate)
+  const refreshCandidates = responses.flatMap((response) => Object.entries(response.vendors?.data ?? {}))
+    .map(([key, vendor]) => ({
+      vendorHash: vendor.vendorHash ?? Number(key),
+      vendor,
+      definition: definitionRecord(definitions.vendors, vendor.vendorHash ?? Number(key))
+    }))
+    .filter(({ vendorHash }) => vendorHashes.has(vendorHash));
+  const refreshAt = refreshCandidates
+    .filter(({ definition }) => definition?.vendorIdentifier?.toUpperCase() === "IRON_BANNER")
+    .map(({ vendor }) => vendor.nextRefreshDate)
     .filter((value): value is string => Boolean(value))
+    .filter((value) => {
+      const timestamp = Date.parse(value);
+      return Number.isFinite(timestamp) && timestamp > now.getTime();
+    })
     .sort()[0];
   return {
     status: vendorHashes.size ? "ready" : "pending",

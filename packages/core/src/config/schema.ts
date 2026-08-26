@@ -18,7 +18,6 @@ export type D2Config = {
     force_lightgg: boolean;
   };
   features: {
-    write_actions_enabled: boolean;
     color_mode: "light" | "dark";
     density: "compact" | "standard" | "comfortable";
     interface_locale: "zh-CN" | "en-US";
@@ -42,7 +41,6 @@ export type ConfigEnv = Partial<Record<
   | "AI_MODEL"
   | "AI_BASE_URL"
   | "AI_ENABLE_LIGHTGG"
-  | "AI_FORCE_LIGHTGG"
-  | "D2_WRITE_ACTIONS_ENABLED",
+  | "AI_FORCE_LIGHTGG",
   string
 >>;

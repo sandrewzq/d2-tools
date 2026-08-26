@@ -9,7 +9,7 @@ import {
 } from "./diagnosticsModel";
 import {
   useActionLogState,
-  useAiWriteSettingsState,
+  useAiSettingsState,
   useColorModeState,
   useDensityState,
   useDiagnosticsStatusState,
@@ -30,7 +30,7 @@ export function useDiagnosticsSettings(input: {
   };
 }) {
   const diagnosticsStatus = useDiagnosticsStatusState();
-  const aiWriteSettings = useAiWriteSettingsState();
+  const aiSettingsState = useAiSettingsState();
   const actionLogState = useActionLogState();
   const appUpdateFlow = useAppUpdateFlow();
   const backgroundTaskState = useBackgroundTasks();
@@ -45,8 +45,7 @@ export function useDiagnosticsSettings(input: {
     setDiagnosticManifestVersion: diagnosticsStatus.setDiagnosticManifestVersion,
     setDiagnosticError: diagnosticsStatus.setDiagnosticError,
     setIsRefreshingDiagnostics: diagnosticsStatus.setIsRefreshingDiagnostics,
-    setAiSettings: aiWriteSettings.setAiSettings,
-    setWriteActionsEnabled: aiWriteSettings.setWriteActionsEnabled,
+    setAiSettings: aiSettingsState.setAiSettings,
     setColorMode: colorModeState.setColorMode,
     setDensity: densityState.setDensity,
     setLanguagePreferences: languagePreferencesState.setLanguagePreferences,
@@ -59,7 +58,7 @@ export function useDiagnosticsSettings(input: {
     actionLog: actionLogState.actionLog,
     actionLogResultFilter: actionLogState.actionLogResultFilter,
     actionLogTypeFilter: actionLogState.actionLogTypeFilter,
-    aiSettings: aiWriteSettings.aiSettings,
+    aiSettings: aiSettingsState.aiSettings,
     activeBackgroundTasks: backgroundTaskState.activeBackgroundTasks,
     backgroundTasks: backgroundTaskState.backgroundTasks,
     checkAppUpdate: appUpdateFlow.checkAppUpdate,
@@ -90,7 +89,6 @@ export function useDiagnosticsSettings(input: {
     refreshManifestStatus: manifestStatusState.refreshManifestStatus,
     repairManifest: manifestStatusState.repairManifest,
     refreshDiagnostics: settingsModel.refreshDiagnostics,
-    saveWriteActionsEnabled: settingsModel.saveWriteActionsEnabled,
     saveDensity: settingsModel.saveDensity,
     saveLanguagePreferences: settingsModel.saveLanguagePreferences,
     toggleColorMode: () => settingsModel.saveColorMode(colorModeState.colorMode === "light" ? "dark" : "light"),
@@ -107,12 +105,10 @@ export function useDiagnosticsSettings(input: {
     },
     setActionLogResultFilter: actionLogState.setActionLogResultFilter,
     setActionLogTypeFilter: actionLogState.setActionLogTypeFilter,
-    setWriteActionsEnabled: aiWriteSettings.setWriteActionsEnabled,
     settingsError: appUpdateFlow.settingsError,
     settingsMessage: appUpdateFlow.settingsMessage,
     latestBackgroundTask: backgroundTaskState.latestBackgroundTask,
-    appUpdateSnapshot: appUpdateFlow.appUpdateSnapshot,
-    writeActionsEnabled: aiWriteSettings.writeActionsEnabled
+    appUpdateSnapshot: appUpdateFlow.appUpdateSnapshot
   };
 }
 

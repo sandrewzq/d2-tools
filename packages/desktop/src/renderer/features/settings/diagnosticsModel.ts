@@ -26,7 +26,6 @@ export function createDiagnosticsSettingsState() {
       enable_lightgg: false,
       force_lightgg: false
     } as D2Config["ai"],
-    writeActionsEnabled: false,
     colorMode: "light" as D2Config["features"]["color_mode"],
     density: "standard" as D2Config["features"]["density"],
     languagePreferences: {
@@ -47,7 +46,6 @@ export function createDiagnosticsSettingsModel(input: {
   setDiagnosticError: (value: string) => void;
   setIsRefreshingDiagnostics: (value: boolean) => void;
   setAiSettings: (value: D2Config["ai"]) => void;
-  setWriteActionsEnabled: (value: boolean) => void;
   setColorMode: (value: D2Config["features"]["color_mode"]) => void;
   setDensity: (value: D2Config["features"]["density"]) => void;
   setLanguagePreferences: (value: LanguagePreferences) => void;
@@ -68,7 +66,6 @@ export function createDiagnosticsSettingsModel(input: {
       input.setDiagnosticDataDir(config.data.data_dir);
       input.setDiagnosticManifestVersion(manifest.version);
       input.setAiSettings(config.ai);
-      input.setWriteActionsEnabled(config.features.write_actions_enabled);
       input.setColorMode(config.features.color_mode);
       input.setDensity(config.features.density);
       input.setLanguagePreferences(languagePreferencesFromConfig(config));
@@ -83,30 +80,6 @@ export function createDiagnosticsSettingsModel(input: {
   function handleAiSettingsSaved() {
     input.onConfigChanged();
     void refreshDiagnostics();
-  }
-
-  async function saveWriteActionsEnabled(enabled: boolean) {
-    input.setSettingsMessage("");
-    input.setSettingsError("");
-
-    try {
-      const config = await api.getConfig();
-      const nextConfig: D2Config = {
-        ...config,
-        features: {
-          ...config.features,
-          write_actions_enabled: enabled
-        }
-      };
-      const saved = await api.saveConfig(nextConfig);
-      input.setWriteActionsEnabled(saved.features.write_actions_enabled);
-      input.setSettingsMessage(enabled
-        ? "写操作已开启。执行前仍会再次确认。"
-        : "写操作已关闭。");
-      input.onConfigChanged();
-    } catch (error) {
-      input.setSettingsError(error instanceof Error ? error.message : "写操作设置保存失败");
-    }
   }
 
   async function saveColorMode(mode: D2Config["features"]["color_mode"]) {
@@ -185,7 +158,6 @@ export function createDiagnosticsSettingsModel(input: {
   return {
     refreshDiagnostics,
     handleAiSettingsSaved,
-    saveWriteActionsEnabled,
     saveColorMode,
     saveDensity,
     saveLanguagePreferences

@@ -223,7 +223,13 @@ function validateConfigShape(value: Record<string, unknown>): D2Config {
     }
     validateConfigSection(section, sectionValue);
   }
-  return value as unknown as D2Config;
+  const features = value.features as Record<string, unknown>;
+  const currentFeatures = { ...features };
+  delete currentFeatures.write_actions_enabled;
+  return {
+    ...value,
+    features: currentFeatures
+  } as unknown as D2Config;
 }
 
 function validateConfigSection(
@@ -231,7 +237,10 @@ function validateConfigSection(
   value: Record<string, unknown>
 ): void {
   const fields = configFieldTypes[section];
-  const allowedFields = new Set(Object.keys(fields));
+  const allowedFields = new Set([
+    ...Object.keys(fields),
+    ...(section === "features" ? ["write_actions_enabled"] : [])
+  ]);
   const unknownField = Object.keys(value).find((field) => !allowedFields.has(field));
   if (unknownField) {
     throw new Error(`备份配置包含未知字段 ${section}.${unknownField}。`);
@@ -247,6 +256,9 @@ function validateConfigSection(
   }
 
   if (section === "features") {
+    if (value.write_actions_enabled !== undefined && typeof value.write_actions_enabled !== "boolean") {
+      throw new Error("备份配置中的 features.write_actions_enabled 字段类型无效。");
+    }
     if (value.color_mode !== undefined && value.color_mode !== "light" && value.color_mode !== "dark") {
       throw new Error("备份配置中的 features.color_mode 值无效。");
     }
@@ -289,7 +301,6 @@ const configFieldTypes = {
     force_lightgg: "boolean"
   },
   features: {
-    write_actions_enabled: "boolean",
     color_mode: "string",
     density: "string",
     interface_locale: "string",

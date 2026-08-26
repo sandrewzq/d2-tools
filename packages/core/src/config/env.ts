@@ -27,10 +27,6 @@ export function applyEnvOverrides(config: D2Config, env: ConfigEnv): D2Config {
       manifest_language_follows_interface: parseBooleanEnv(
         env.D2_MANIFEST_LANGUAGE_FOLLOWS_INTERFACE,
         config.features.manifest_language_follows_interface
-      ),
-      write_actions_enabled: parseBooleanEnv(
-        env.D2_WRITE_ACTIONS_ENABLED,
-        config.features.write_actions_enabled
       )
     }
   };

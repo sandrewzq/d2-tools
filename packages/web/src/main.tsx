@@ -493,15 +493,10 @@ function WebApp() {
               viewModel={accountViewModel}
               actions={{
                 configureBungie: () => setActivePage("settings"),
-                openWriteSettings: () => {
-                  setSettingsSection("account");
-                  setActivePage("settings");
-                },
                 loginBungie: () => undefined,
                 refreshAccount: () => undefined,
                 refreshActivity: () => undefined,
                 selectCharacter: setSelectedAccountCharacterId,
-                equipHighestPower: () => undefined,
                 openItem: (payload) => openWebAccountItem(payload.item, "account")
               }}
             />
@@ -521,14 +516,6 @@ function WebApp() {
               communityMatch={webRecommendationWishlist ? vaultModel.communityMatch : new Map()}
               recommendationSourceState={{ customRules: null, customRulesLoadState: "ready" }}
               wishlistActions={webWishlistActions}
-              cleanupActions={{
-                characters: fixture.accountSummary.characters,
-                currentCharacterId: vaultModel.currentCharacterId,
-                currentCharacterLabel: vaultModel.currentCharacterLabel,
-                writeActionsEnabled: false,
-                onBatchUnlock: async () => "Web mock：写操作未开启。",
-                onBatchTransferToCharacter: async () => fixture.batchResult
-              }}
               onContextFactsChange={() => undefined}
               onOpenItem={(item) => openWebAccountItem(item, "vault")}
               onSaveTag={() => undefined}
@@ -588,7 +575,7 @@ function WebApp() {
                 dismissDimImport: () => undefined,
                 copyDimLoadoutLink: () => void copyLocalPlanDimLink(),
                 executeLocalPlan: () => undefined,
-                importGuideText: async () => true,
+                importGuideSource: async () => true,
                 acceptAssistantEquipmentTargets: () => false,
                 acceptGuideLoadoutCandidates: () => false,
                 dismissAssistantPrefill: () => undefined,
@@ -772,7 +759,6 @@ function WebApp() {
               onRefreshAccount={() => undefined}
               onReauthorizeAccount={() => undefined}
               onOpenDataDir={() => undefined}
-              onWriteActionsEnabledChange={() => undefined}
               onCheckAppUpdate={() => undefined}
               onDownloadAppUpdate={() => undefined}
               onQuitAndInstallAppUpdate={() => undefined}

@@ -131,7 +131,7 @@ export function useAppUpdateFlow() {
 
 function getVisualAppUpdateStatus(): VisualAppUpdateStatus | null {
   const env = (import.meta as ImportMeta & { env?: Record<string, string | boolean | undefined> }).env;
-  if (env?.DEV !== true && env?.DEV !== "true") return null;
+  if (String(env?.DEV) !== "true") return null;
 
   const status = env.VITE_D2_VISUAL_UPDATE_STATUS;
   return status === "idle"

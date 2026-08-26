@@ -173,7 +173,6 @@ function prepareDesktopData() {
       force_lightgg: false
     },
     features: {
-      write_actions_enabled: false,
       color_mode: theme
     }
   }, null, 2), "utf8");

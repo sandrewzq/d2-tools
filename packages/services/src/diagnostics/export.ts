@@ -26,7 +26,6 @@ export function buildDiagnosticsExport(input: DiagnosticsExportInput): string {
     `AI Protocol：${input.config.ai.protocol || "-"}`,
     `AI Model：${input.config.ai.model || "-"}`,
     `AI API Key：${redactedValue(input.config.ai.api_key)}`,
-    `写操作：${input.config.features.write_actions_enabled ? "已开启" : "已关闭"}`,
     "",
     "最近写操作：",
     ...input.action_log.slice(0, 10).map((entry) => `- ${entry.created_at} / ${entry.action} / ${entry.ok ? "成功" : "失败"} / ${entry.item_name ?? "-"} / ${entry.message ?? "-"}`),

@@ -23,7 +23,6 @@ export function VaultMenuProvider() {
       activeLoadoutLookup={session.home.activeLoadoutLookup}
       activeLoadoutName={session.loadouts.activeTemplate?.name}
       selectedCharacterId={account.selectedCharacterId}
-      writeActionsEnabled={session.diagnostics.writeActionsEnabled}
       tags={account.vaultTags}
       openingItemKey={writeActions.itemDetail.itemDetailLoadingKey}
       locateRequest={session.vaultLocateRequest}

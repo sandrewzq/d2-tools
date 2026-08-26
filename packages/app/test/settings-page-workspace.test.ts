@@ -13,7 +13,6 @@ describe("settings page workspace", () => {
       message: "已保存",
       error: "",
       diagnosticDataDir: "D:/data",
-      writeActionsEnabled: true,
       appUpdateSnapshot,
       manifestStatus: {
         status: "ready",
@@ -44,7 +43,6 @@ describe("settings page workspace", () => {
     expect(model.initialSection).toBe("library");
     expect(model.message).toBe("已保存");
     expect(model.diagnosticDataDir).toBe("D:/data");
-    expect(model.writeActionsEnabled).toBe(true);
     expect(model.appUpdateSnapshot).toBe(appUpdateSnapshot);
     expect(model.backgroundTasks).toEqual([backgroundTask]);
     expect(model.actionLog).toEqual([actionLogEntry]);

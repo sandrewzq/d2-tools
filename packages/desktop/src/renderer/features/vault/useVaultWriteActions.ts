@@ -1,5 +1,5 @@
 import { api } from "../../api/client";
-import type { AccountItemActionPatch, AccountItemSummary, AccountSummary, BatchItemActionResult, D2Config, ItemActionResult, VaultTags, VaultTagValue } from "../../api/types";
+import type { AccountItemActionPatch, AccountItemSummary, AccountSummary, BatchItemActionResult, ItemActionResult, VaultTags, VaultTagValue } from "../../api/types";
 import { services } from "../../api/services";
 import {
   buildVaultBatchTransferConfirmText,
@@ -13,7 +13,6 @@ import {
 } from "../../shared/domain/vault/vaultCleanup";
 
 type DiagnosticsBridge = {
-  setWriteActionsEnabled: (enabled: boolean) => void;
   loadActionLog: () => Promise<void>;
 };
 
@@ -58,17 +57,6 @@ export function useVaultWriteActions(input: {
       return "请先读取账号数据。";
     }
 
-    let latestConfig: D2Config;
-    try {
-      latestConfig = await api.getConfig();
-      input.diagnostics.setWriteActionsEnabled(latestConfig.features.write_actions_enabled);
-    } catch (error) {
-      return error instanceof Error ? error.message : "读取写操作配置失败";
-    }
-
-    if (!latestConfig.features.write_actions_enabled) {
-      return "d2-tools 本地写操作开关未开启。请到左侧“设置”页开启后再执行。";
-    }
     if (!targetCharacterId) {
       return buildVaultCleanupNoTargetMessage();
     }
@@ -136,17 +124,6 @@ export function useVaultWriteActions(input: {
       throw new Error("请先读取账号数据。");
     }
 
-    let latestConfig: D2Config;
-    try {
-      latestConfig = await api.getConfig();
-      input.diagnostics.setWriteActionsEnabled(latestConfig.features.write_actions_enabled);
-    } catch (error) {
-      throw error instanceof Error ? error : new Error("读取写操作配置失败");
-    }
-
-    if (!latestConfig.features.write_actions_enabled) {
-      throw new Error("d2-tools 本地写操作开关未开启。请到左侧“设置”页开启后再执行。");
-    }
     if (!targetCharacterId) {
       throw new Error(buildVaultCleanupNoTargetMessage());
     }

@@ -23,16 +23,13 @@ export function useDiagnosticsStatusState() {
   };
 }
 
-export function useAiWriteSettingsState() {
+export function useAiSettingsState() {
   const initialState = createDiagnosticsSettingsState();
   const [aiSettings, setAiSettings] = useState<D2Config["ai"]>(initialState.aiSettings);
-  const [writeActionsEnabled, setWriteActionsEnabled] = useState(initialState.writeActionsEnabled);
 
   return {
     aiSettings,
-    writeActionsEnabled,
-    setAiSettings,
-    setWriteActionsEnabled
+    setAiSettings
   };
 }
 

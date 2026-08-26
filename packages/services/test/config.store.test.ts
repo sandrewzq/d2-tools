@@ -8,18 +8,40 @@ import { loadConfig, saveConfig } from "../src/config/store";
 describe("config store service adapter", () => {
   it("uses d2-tools as the default data directory", () => {
     const originalAppData = process.env.APPDATA;
+    const originalHome = process.env.HOME;
+    const originalXdgDataHome = process.env.XDG_DATA_HOME;
     const appData = mkdtempSync(join(tmpdir(), "d2-tools-appdata-"));
-    process.env.APPDATA = appData;
+    let expectedDataDir: string;
+    if (process.platform === "win32") {
+      process.env.APPDATA = appData;
+      expectedDataDir = join(appData, "d2-tools");
+    } else if (process.platform === "darwin") {
+      process.env.HOME = appData;
+      expectedDataDir = join(appData, "Library", "Application Support", "d2-tools");
+    } else {
+      process.env.XDG_DATA_HOME = appData;
+      expectedDataDir = join(appData, "d2-tools");
+    }
 
     try {
       const config = loadConfig({ env: {} });
 
-      expect(config.data.data_dir).toBe(join(appData, "d2-tools"));
+      expect(config.data.data_dir).toBe(expectedDataDir);
     } finally {
       if (originalAppData === undefined) {
         delete process.env.APPDATA;
       } else {
         process.env.APPDATA = originalAppData;
+      }
+      if (originalHome === undefined) {
+        delete process.env.HOME;
+      } else {
+        process.env.HOME = originalHome;
+      }
+      if (originalXdgDataHome === undefined) {
+        delete process.env.XDG_DATA_HOME;
+      } else {
+        process.env.XDG_DATA_HOME = originalXdgDataHome;
       }
     }
   });
@@ -52,7 +74,6 @@ describe("config store service adapter", () => {
     expect(config.data.data_dir).toBe(dir);
     expect(config.bungie.redirect_uri).toBe("https://127.0.0.1:28780/oauth/callback");
     expect(config.data.manifest_language).toBe("zh-chs");
-    expect(config.features.write_actions_enabled).toBe(false);
     expect(config.features.color_mode).toBe("light");
     expect(config.features.interface_locale).toBe("zh-CN");
     expect(config.features.manifest_language_follows_interface).toBe(true);
@@ -82,7 +103,6 @@ describe("config store service adapter", () => {
           force_lightgg: false
         },
         features: {
-          write_actions_enabled: true,
           color_mode: "dark",
           density: "standard",
           interface_locale: "en-US",
@@ -97,7 +117,6 @@ describe("config store service adapter", () => {
 
     const loaded = loadConfig({ dataDir: dir, env: {} });
     expect(loaded.bungie.client_secret).toBe("secret");
-    expect(loaded.features.write_actions_enabled).toBe(true);
     expect(loaded.features.color_mode).toBe("dark");
     expect(loaded.features.interface_locale).toBe("en-US");
     expect(loaded.features.manifest_language_follows_interface).toBe(false);
@@ -126,7 +145,6 @@ describe("config store service adapter", () => {
           force_lightgg: false
         },
         features: {
-          write_actions_enabled: false,
           color_mode: "light",
           density: "standard",
           interface_locale: "zh-CN",
@@ -188,6 +206,7 @@ describe("config store service adapter", () => {
 
     expect(loaded.ai.protocol).toBe("anthropic_messages");
     expect(loaded.ai.api_key).toBe("ai-key");
+    expect("write_actions_enabled" in loaded.features).toBe(false);
   });
 
   it("rejects config files that do not match the current schema", () => {

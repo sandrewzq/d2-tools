@@ -39,7 +39,6 @@ const config: D2Config = {
     force_lightgg: false
   },
   features: {
-    write_actions_enabled: false,
     color_mode: "light"
   }
 };

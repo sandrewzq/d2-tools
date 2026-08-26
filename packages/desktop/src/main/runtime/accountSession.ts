@@ -35,12 +35,16 @@ export type AccountItemLocation = {
 };
 
 export async function getAccountSnapshot(
-  freshness: "cached" | "refresh" = "cached"
+  freshness: "cached" | "refresh" = "cached",
+  options: { authoritative?: boolean } = {}
 ): Promise<AccountSnapshot> {
   const session = await getAccountSession();
   return measureRuntime<AccountSnapshot>(
     "account.snapshot",
-    () => session.getSnapshot({ freshness }),
+    () => session.getSnapshot({
+      freshness,
+      ...(options.authoritative ? { authoritative: true } : {})
+    }),
     { measurePayload: true }
   );
 }

@@ -553,10 +553,6 @@ async function runWriteAction(input: WriteActionRunInput): Promise<ItemActionRes
 
 async function performWriteAction(input: WriteActionRunInput): Promise<ItemActionResult> {
   const config = loadConfig();
-  if (!config.features.write_actions_enabled) {
-    throw new Error("写操作未开启。请先到设置页开启装备写操作。");
-  }
-
   const token = await loadFreshOAuthToken(config);
 
   try {
@@ -627,10 +623,6 @@ async function performBatchWriteActions<T>(
   input: BatchWriteActionRunInput<T>
 ): Promise<BatchItemActionResult> {
   const config = loadConfig();
-  if (!config.features.write_actions_enabled) {
-    throw new Error("写操作未开启。请先到设置页开启装备写操作。");
-  }
-
   const token = await loadFreshOAuthToken(config);
   let successCount = 0;
   let failedCount = 0;

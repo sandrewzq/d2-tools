@@ -185,7 +185,7 @@ describe("highest power workspace", () => {
       equipSuccessCount: 3,
       equipTotalCount: 3,
       failedCount: 0
-    })).toBe("已给 术士 装备 3 件最高光等装备。");
+    })).toBe("已确认给 术士 装备 3 件最高光等装备。");
     expect(buildHighestPowerResultMessage({
       characterClassName: "术士",
       transferSuccessCount: 1,
@@ -194,7 +194,7 @@ describe("highest power workspace", () => {
       equipTotalCount: 3,
       failedCount: 2,
       failureReason: "当前角色所在位置不允许更换装备。"
-    })).toBe("最高光等执行完成：转移成功 1/2，装备成功 2/3，失败步骤 2。首个失败原因：当前角色所在位置不允许更换装备。");
+    })).toBe("最高光等部分成功：转移成功 1/2，装备确认 2/3，失败步骤 2。首个失败原因：当前角色所在位置不允许更换装备。");
   });
 });
 

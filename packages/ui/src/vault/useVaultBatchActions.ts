@@ -30,7 +30,6 @@ export type VaultCleanupActions = {
   characters: Array<{ character_id: string; class_name: string; light?: number }>;
   currentCharacterId?: string;
   currentCharacterLabel?: string;
-  writeActionsEnabled: boolean;
   onBatchUnlock: (items: AccountItemSummary[], targetCharacterId: string) => Promise<string>;
   onBatchTransferToCharacter: (items: AccountItemSummary[], targetCharacterId: string) => Promise<BatchItemActionResult>;
 };

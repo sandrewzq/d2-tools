@@ -775,15 +775,26 @@ function ironBannerTimingLabel(
   clock: Date,
   copy: HomeCopy
 ): string {
+  const vendorRefreshTiming = summary?.timing_source?.includes("Character Vendors") ?? false;
   const targetValue = summary?.status === "active"
-    ? summary.ends_at
+    ? vendorRefreshTiming
+      ? summary.next_refresh_at ?? summary.ends_at
+      : summary.ends_at ?? summary.next_refresh_at
     : summary?.status === "upcoming"
       ? summary.starts_at
       : undefined;
   if (targetValue) {
     const target = new Date(targetValue);
     if (Number.isFinite(target.getTime())) {
-      const prefix = summary?.status === "active" ? "距结束" : "距开放";
+      const prefix = summary?.status === "active"
+        ? vendorRefreshTiming
+          ? "距库存刷新"
+          : summary.ends_at
+            ? "距结束"
+            : summary.next_refresh_at
+              ? "距库存刷新"
+              : "结束时间待确认"
+        : "距开放";
       return `${homeText(copy, prefix)} ${compactDuration(clock, target, copy)}`;
     }
   }

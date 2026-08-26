@@ -22,11 +22,14 @@ export type AccountWorkspaceWarning = {
 
 export function loadAccountWorkspace(
   services: Pick<D2Services, "profile" | "localData">,
-  options?: { forceAccountRefresh?: boolean }
+  options?: { forceAccountRefresh?: boolean; authoritativeAccountRefresh?: boolean }
 ): Promise<QueryState<AccountWorkspace>> {
   return runQuery(async () => {
     const accountRequest = options?.forceAccountRefresh
-      ? services.profile.getAccountSummary({ force: true })
+      ? services.profile.getAccountSummary({
+          force: true,
+          ...(options.authoritativeAccountRefresh ? { authoritative: true } : {})
+        })
       : services.profile.getAccountSummary();
     const [account, tagsResult, targetRulesResult, equipmentTargetsResult, wishlistResult] = await Promise.all([
       accountRequest,

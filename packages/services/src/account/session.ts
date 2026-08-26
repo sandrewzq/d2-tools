@@ -33,7 +33,10 @@ export type AccountInvalidation =
 export type { AccountItemPatch } from "./itemPatches.js";
 
 export type AccountSession = {
-  getSnapshot(input?: { freshness?: AccountSnapshotFreshness }): Promise<AccountSnapshot>;
+  getSnapshot(input?: {
+    freshness?: AccountSnapshotFreshness;
+    authoritative?: boolean;
+  }): Promise<AccountSnapshot>;
   getItemDetail(
     input: AccountItemDetailQuery,
     options?: { freshness?: AccountSnapshotFreshness }
@@ -89,6 +92,7 @@ type ItemDetailCacheEntry = {
 
 type SnapshotRequest = {
   forceRefresh: boolean;
+  authoritative: boolean;
   promise: Promise<AccountSnapshot>;
 };
 
@@ -140,7 +144,8 @@ export function createAccountSession(options: CreateAccountSessionOptions): Acco
   return {
     async getSnapshot(input = {}) {
       const freshness = input.freshness ?? "cached";
-      if (freshness === "cached" && snapshot) {
+      const authoritative = input.authoritative ?? false;
+      if (freshness === "cached" && snapshot && !authoritative) {
         if (now() >= snapshotFreshUntil && !snapshotInFlight) {
           void getScopedAccessToken()
             .then((accessToken) => refreshSnapshot(accessToken))
@@ -149,7 +154,11 @@ export function createAccountSession(options: CreateAccountSessionOptions): Acco
         return snapshot;
       }
       const accessToken = await getScopedAccessToken();
-      return refreshSnapshot(accessToken, freshness === "refresh");
+      return refreshSnapshot(
+        accessToken,
+        freshness === "refresh" || authoritative,
+        authoritative
+      );
     },
 
     async getItemDetail(input, options = {}) {
@@ -316,7 +325,7 @@ export function createAccountSession(options: CreateAccountSessionOptions): Acco
       return profileCache.profile;
     }
     if (profileInFlight?.membershipKey === membershipKey) {
-      if (isSuperset(profileInFlight.components, requestedComponents)) {
+      if (!forceRefresh && isSuperset(profileInFlight.components, requestedComponents)) {
         return profileInFlight.promise;
       }
       await profileInFlight.promise;
@@ -356,14 +365,19 @@ export function createAccountSession(options: CreateAccountSessionOptions): Acco
     return promise;
   }
 
-  function refreshSnapshot(accessToken: string, forceRefresh = false): Promise<AccountSnapshot> {
+  function refreshSnapshot(
+    accessToken: string,
+    forceRefresh = false,
+    authoritative = false
+  ): Promise<AccountSnapshot> {
     if (snapshotInFlight) {
-      if (!forceRefresh || snapshotInFlight.forceRefresh) {
+      if ((!forceRefresh || snapshotInFlight.forceRefresh)
+        && (!authoritative || snapshotInFlight.authoritative)) {
         return snapshotInFlight.promise;
       }
       return snapshotInFlight.promise.then(
-        () => refreshSnapshot(accessToken, true),
-        () => refreshSnapshot(accessToken, true)
+        () => refreshSnapshot(accessToken, true, authoritative),
+        () => refreshSnapshot(accessToken, true, authoritative)
       );
     }
     const requestEpoch = sessionEpoch;
@@ -392,7 +406,14 @@ export function createAccountSession(options: CreateAccountSessionOptions): Acco
         scheduleSnapshotRevalidate();
         return snapshot;
       }
-      snapshot = reconcilePendingItemPatches(nextSnapshot);
+      if (authoritative) {
+        pendingItemPatches.clear();
+        if (patchRevalidateTimer) clearTimeout(patchRevalidateTimer);
+        patchRevalidateTimer = undefined;
+        snapshot = nextSnapshot;
+      } else {
+        snapshot = reconcilePendingItemPatches(nextSnapshot);
+      }
       snapshotRevalidatedRevision = Math.max(
         snapshotRevalidatedRevision,
         requestMutationRevision
@@ -405,7 +426,7 @@ export function createAccountSession(options: CreateAccountSessionOptions): Acco
         snapshotInFlight = undefined;
       }
     });
-    snapshotInFlight = { forceRefresh, promise };
+    snapshotInFlight = { forceRefresh, authoritative, promise };
     return promise;
   }
 

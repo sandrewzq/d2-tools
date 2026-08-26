@@ -20,7 +20,6 @@ export function AccountMenuProvider() {
       accountWarning={account.accountWarning}
       itemDetailError={writeActions.itemDetail.itemDetailError}
       itemDetailLoadingKey={writeActions.itemDetail.itemDetailLoadingKey}
-      writeActionsEnabled={session.diagnostics.writeActionsEnabled}
       activitySummary={account.activitySummary}
       activityMessage={account.activityMessage}
       activityError={account.activityError}
@@ -30,10 +29,6 @@ export function AccountMenuProvider() {
       activeLoadoutLookup={session.home.activeLoadoutLookup}
       activeLoadoutTemplate={session.loadouts.activeTemplate}
       onConfigureBungie={session.onConfigure}
-      onOpenWriteSettings={() => {
-        session.setSettingsInitialSection("account");
-        session.setActivePage("settings");
-      }}
       onLoginBungie={() => void account.loginBungie()}
       onLoadAccount={session.refreshAccountManually}
       onRefreshActivity={() => void account.refreshAccountDerivedData()}

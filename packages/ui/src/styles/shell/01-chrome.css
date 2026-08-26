@@ -180,7 +180,7 @@ button.shell-status-group:focus-visible {
 }
 
 .shell-status-group[data-kind="update"][data-priority="quiet"] {
-  padding-inline: 7px;
+  padding-inline: 8px;
 }
 
 .shell-status-group[data-priority="attention"],

@@ -19,6 +19,7 @@ export type AccountApi = {
 
 export type AccountSummaryRequestOptions = {
   force?: boolean;
+  authoritative?: boolean;
 };
 
 export type AccountItemDetailRequestOptions = {
