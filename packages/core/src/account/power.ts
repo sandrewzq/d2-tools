@@ -101,7 +101,7 @@ export function selectMaxEquippablePowerCandidates<Source>(input: {
   ]);
 }
 
-export function selectHighestAccountPowerCandidates<Source>(input: {
+export function selectHighestSlotPowerCandidates<Source>(input: {
   candidates: Array<AccountPowerCandidate<Source>>;
   characterClassName: string;
 }): Map<AccountPowerSlotKey, AccountPowerCandidate<Source>> {

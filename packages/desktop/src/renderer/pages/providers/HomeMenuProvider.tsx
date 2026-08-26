@@ -32,12 +32,6 @@ export function HomeMenuProvider() {
       dailyError={daily.dailyError}
       isLoadingAccount={account.isLoadingAccount}
       isLoadingDaily={daily.isLoadingDaily}
-      onConfigure={session.onConfigure}
-      onLogin={() => void account.loginBungie()}
-      onLoadAccount={session.refreshAccountManually}
-      onInitializeManifest={() => void account.initializeManifest()}
-      onConfigureAi={() => session.setActivePage("settings")}
-      onRefreshDiagnostics={() => void diagnostics.refreshDiagnostics()}
       onNavigate={session.setActivePage}
       onRefreshDaily={() => void daily.loadDailySummary(true)}
       onOpenWeeklyActivityReward={(reward) => {

@@ -131,6 +131,8 @@ function createState(patch: Partial<LibraryPageState> = {}): LibraryPageState {
     aliasTargetDraft: "",
     aliasKind: "item",
     aliasMessage: "",
+    aliasError: "",
+    favoriteError: "",
     isLoadingLiveAvailability: false,
     isLoadingManifestStatus: false,
     isInitializingManifest: false,

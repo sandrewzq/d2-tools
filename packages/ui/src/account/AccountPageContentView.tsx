@@ -1,4 +1,4 @@
-import { useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent, type RefObject } from "react";
 import type {
   AccountItemView,
   AccountOpenItemPayload,
@@ -125,8 +125,11 @@ function AccountPageWorkspace(props: {
 }) {
   const profile = props.viewModel.profile!;
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const characterRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const powerTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const powerPanelRef = useRef<HTMLElement | null>(null);
   const [isPowerPanelOpen, setIsPowerPanelOpen] = useState(false);
-  const [powerMode, setPowerMode] = useState<"equippable" | "drop">("equippable");
+  const [powerMode, setPowerMode] = useState<"equippable" | "slots">("equippable");
   const displayedSlotRows = visibleAccountSlotRows(props.viewModel.loadout.slotComparisonRows);
   const displayedInventoryCount = displayedSlotRows.reduce((count, row) => count + row.inventoryItems.length, 0);
   const navigation: Array<{ key: AccountSection; label: string; count?: number }> = [
@@ -137,6 +140,39 @@ function AccountPageWorkspace(props: {
     { key: "postmaster", label: accountText(props.copy, "邮政官"), count: props.viewModel.postmaster.items.length },
     { key: "activity", label: accountText(props.copy, "活动记录") }
   ];
+
+  useEffect(() => {
+    if (!isPowerPanelOpen) return;
+
+    function handlePointerDown(event: PointerEvent): void {
+      if (!(event.target instanceof Node)) return;
+      if (powerTriggerRef.current?.contains(event.target) || powerPanelRef.current?.contains(event.target)) return;
+      setIsPowerPanelOpen(false);
+    }
+
+    function handleKeyDown(event: globalThis.KeyboardEvent): void {
+      if (event.key !== "Escape") return;
+      setIsPowerPanelOpen(false);
+      powerTriggerRef.current?.focus();
+    }
+
+    function handleFocusIn(event: FocusEvent): void {
+      if (!(event.target instanceof Node)) return;
+      if (powerTriggerRef.current?.contains(event.target) || powerPanelRef.current?.contains(event.target)) return;
+      setIsPowerPanelOpen(false);
+    }
+
+    document.addEventListener("pointerdown", handlePointerDown, true);
+    document.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("focusin", handleFocusIn);
+    const selectedModeTab = powerPanelRef.current?.querySelector<HTMLButtonElement>('[role="tab"][aria-selected="true"]');
+    selectedModeTab?.focus();
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown, true);
+      document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("focusin", handleFocusIn);
+    };
+  }, [isPowerPanelOpen]);
 
   function handleDirectoryKeyDown(event: KeyboardEvent<HTMLButtonElement>, index: number): void {
     let nextIndex = index;
@@ -150,6 +186,30 @@ function AccountPageWorkspace(props: {
     props.setSection(navigation[nextIndex].key);
     tabRefs.current[nextIndex]?.focus();
   }
+
+  function handleCharacterKeyDown(event: KeyboardEvent<HTMLButtonElement>, index: number): void {
+    let nextIndex = index;
+    if (event.key === "ArrowRight" || event.key === "ArrowDown") nextIndex = (index + 1) % props.viewModel.characterTabs.length;
+    else if (event.key === "ArrowLeft" || event.key === "ArrowUp") nextIndex = (index - 1 + props.viewModel.characterTabs.length) % props.viewModel.characterTabs.length;
+    else if (event.key === "Home") nextIndex = 0;
+    else if (event.key === "End") nextIndex = props.viewModel.characterTabs.length - 1;
+    else return;
+
+    event.preventDefault();
+    const nextCharacter = props.viewModel.characterTabs[nextIndex];
+    props.actions.selectCharacter(nextCharacter.key);
+    setIsPowerPanelOpen(false);
+    characterRefs.current[nextIndex]?.focus();
+  }
+
+  const connectionState = props.viewModel.connection.dataState;
+  const connectionLabel = connectionState === "refreshing"
+    ? accountText(props.copy, "刷新中")
+    : connectionState === "cached"
+      ? accountText(props.copy, "缓存数据")
+      : accountText(props.copy, "已同步");
+  const connectionStatus = connectionState === "refreshing" ? "pending" : connectionState === "cached" ? "warning" : "success";
+  const operationFeedback = props.viewModel.feedback.operation;
 
   return (
     <>
@@ -187,41 +247,49 @@ function AccountPageWorkspace(props: {
         <section className="account-summary" data-surface="section" aria-busy={props.viewModel.connection.isLoadingAccount}>
           <div className="account-band-heading">
             <div>
-              <span data-ui-part="label" data-info-priority="support" data-text-tone="meta">{profile.profileLine}</span>
               <h2 data-ui-part="value" data-info-priority="display" data-text-tone="primary">{profile.accountName}</h2>
               <p data-ui-part="detail" data-info-priority="reading" data-text-tone="body">
                 {props.viewModel.characterTabs.length} 个角色 · {profile.inventoryLine}
-                {profile.snapshotAt ? ` · 快照 ${formatClockTime(profile.snapshotAt)}` : ""}
+                {profile.snapshotAt ? ` · ${accountText(props.copy, "更新于")} ${formatClockTime(profile.snapshotAt)}` : ""}
               </p>
             </div>
             <span
-              className={`ui-badge ${props.viewModel.connection.isLoadingAccount ? "status-pending" : "status-ready"}`}
+              className={`ui-badge status-${connectionStatus === "success" ? "ready" : connectionStatus}`}
               data-ui-kind="status-chip"
               data-ui-part="state"
               data-info-priority="support"
               data-text-tone="status"
-              data-status={props.viewModel.connection.isLoadingAccount ? "pending" : "success"}
+              data-status={connectionStatus}
             >
-              {props.viewModel.connection.isLoadingAccount ? accountText(props.copy, "账号刷新中") : accountText(props.copy, "账号已读取")}
+              {connectionLabel}
             </span>
           </div>
           <div className="account-character-switcher" data-ui-kind="context-switcher" role="group" aria-label={accountText(props.copy, "当前角色")}>
-            {props.viewModel.characterTabs.map((tab) => (
+            {props.viewModel.characterTabs.map((tab, index) => (
               <button
                 type="button"
                 aria-pressed={tab.isSelected}
+                tabIndex={tab.isSelected ? 0 : -1}
                 key={tab.key}
+                ref={(element) => { characterRefs.current[index] = element; }}
                 title={`${accountText(props.copy, "切换到")}${tab.className}`}
                 onClick={() => {
                   props.actions.selectCharacter(tab.key);
                   setIsPowerPanelOpen(false);
                 }}
+                onKeyDown={(event) => handleCharacterKeyDown(event, index)}
               >
-                <b aria-hidden="true">{tab.className.slice(0, 1)}</b>
+                <GameAssetImage
+                  className="account-character-emblem"
+                  src={tab.emblemUrl}
+                  alt=""
+                  loading="eager"
+                  fallback={<b aria-hidden="true">{tab.className.slice(0, 1)}</b>}
+                />
                 <span>
                   <strong data-ui-part="value" data-info-priority="context" data-text-tone="primary">{tab.className}</strong>
                   <small data-ui-part="detail" data-info-priority="support" data-text-tone="body">
-                    {accountText(props.copy, "当前")} {tab.power.currentLabel} · {accountText(props.copy, "最高")} {tab.power.maxEquippable.label}
+                    {accountText(props.copy, "当前")} {tab.power.currentLabel} · {accountText(props.copy, "最高")} {tab.power.slotMaximum.label}
                   </small>
                 </span>
               </button>
@@ -230,6 +298,7 @@ function AccountPageWorkspace(props: {
           <div className="account-actions">
             <button
               type="button"
+              ref={powerTriggerRef}
               className="account-power-trigger"
               data-ui-kind="button"
               data-control-variant="quiet"
@@ -250,11 +319,17 @@ function AccountPageWorkspace(props: {
               id="account-power-panel"
               mode={powerMode}
               onModeChange={setPowerMode}
+              panelRef={powerPanelRef}
               power={props.selectedCharacter.power}
             />
           ) : null}
-          {props.viewModel.feedback.loadoutMessage ? <p className="status-message status-ready">{props.viewModel.feedback.loadoutMessage}</p> : null}
-          {props.viewModel.feedback.itemActionMessage ? <p className={props.viewModel.feedback.itemActionMessage.includes("失败") ? "status-message status-error" : "status-message status-ready"}>{props.viewModel.feedback.itemActionMessage}</p> : null}
+          {operationFeedback ? (
+            <p className={`status-message status-${operationFeedback.tone === "success" ? "ready" : operationFeedback.tone}`} role={operationFeedback.tone === "error" ? "alert" : "status"}>{operationFeedback.message}</p>
+          ) : props.viewModel.feedback.itemActionMessage ? (
+            <p className="status-message status-pending" role="status">{props.viewModel.feedback.itemActionMessage}</p>
+          ) : props.viewModel.feedback.loadoutMessage ? (
+            <p className="status-message" role="status">{props.viewModel.feedback.loadoutMessage}</p>
+          ) : null}
         </section>
 
         <section
@@ -267,10 +342,12 @@ function AccountPageWorkspace(props: {
         >
             <div className="account-column-head">
               <h3 data-ui-part="value" data-info-priority="context" data-text-tone="primary">{props.selectedCharacter.className}当前装备与背包</h3>
-              <span data-ui-part="detail" data-info-priority="support" data-text-tone="body">装备 {props.viewModel.loadout.equippedCount} 件 · 背包候选 {displayedInventoryCount} 件 · 按位置对照</span>
+              <span data-ui-part="detail" data-info-priority="support" data-text-tone="body">
+                装备 {props.viewModel.loadout.equippedCount} 件 · 背包候选 {displayedInventoryCount} 件
+                {props.viewModel.loadout.activeTemplateName ? ` · ${accountText(props.copy, "关联配装")} ${props.viewModel.loadout.activeTemplateName} · ${accountText(props.copy, "命中")} ${props.viewModel.loadout.selectedCharacterLoadoutMatchCount}` : ""}
+              </span>
             </div>
             <AccountSlotComparison
-              isRefreshing={props.viewModel.connection.isLoadingAccount}
               rows={displayedSlotRows}
               onOpenItem={props.actions.openItem}
               copy={props.copy}
@@ -521,25 +598,44 @@ function AccountMaterialsGroup(props: {
 function AccountPowerPanel(props: {
   copy: AccountCopy;
   id: string;
-  mode: "equippable" | "drop";
-  onModeChange: (mode: "equippable" | "drop") => void;
+  mode: "equippable" | "slots";
+  onModeChange: (mode: "equippable" | "slots") => void;
+  panelRef: RefObject<HTMLElement | null>;
   power: CharacterPowerView;
 }) {
-  const value = props.mode === "equippable" ? props.power.maxEquippable : props.power.dropPower;
+  const modeRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const value = props.mode === "equippable" ? props.power.maxEquippable : props.power.slotMaximum;
+  function handleModeKeyDown(event: KeyboardEvent<HTMLButtonElement>, index: number): void {
+    if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End"].includes(event.key)) return;
+    event.preventDefault();
+    const nextIndex = event.key === "Home"
+      ? 0
+      : event.key === "End"
+        ? 1
+        : event.key === "ArrowLeft" || event.key === "ArrowUp"
+          ? (index - 1 + 2) % 2
+          : (index + 1) % 2;
+    const nextMode = nextIndex === 0 ? "equippable" : "slots";
+    props.onModeChange(nextMode);
+    modeRefs.current[nextIndex]?.focus();
+  }
   return (
-    <section className="account-power-panel" id={props.id} data-surface="summary-frame" aria-label={accountText(props.copy, "光等详情")}>
+    <section ref={props.panelRef} className="account-power-panel" id={props.id} data-surface="summary-frame" aria-label={accountText(props.copy, "光等详情")}>
       <div className="account-power-panel-head">
-        <div>
-          <span>{accountText(props.copy, "DIM 式八槽计算")}</span>
-          <strong>{props.mode === "equippable" ? accountText(props.copy, "可同时装备最高光等") : accountText(props.copy, "账号掉落光等")}</strong>
-        </div>
+        <strong>{props.mode === "equippable" ? accountText(props.copy, "可同时装备最高光等") : accountText(props.copy, "八槽最高光等")}</strong>
         <PowerFractionValue value={value} />
       </div>
       <div className="account-power-mode" role="tablist" aria-label={accountText(props.copy, "光等计算方式")}>
-        <button type="button" role="tab" id={`${props.id}-tab-equippable`} aria-controls={`${props.id}-content`} aria-selected={props.mode === "equippable"} tabIndex={props.mode === "equippable" ? 0 : -1} onClick={() => props.onModeChange("equippable")}>{accountText(props.copy, "可装备最高")}</button>
-        <button type="button" role="tab" id={`${props.id}-tab-drop`} aria-controls={`${props.id}-content`} aria-selected={props.mode === "drop"} tabIndex={props.mode === "drop" ? 0 : -1} onClick={() => props.onModeChange("drop")}>{accountText(props.copy, "账号掉落")}</button>
+        <button ref={(element) => { modeRefs.current[0] = element; }} type="button" role="tab" id={`${props.id}-tab-equippable`} aria-controls={`${props.id}-content`} aria-selected={props.mode === "equippable"} tabIndex={props.mode === "equippable" ? 0 : -1} onClick={() => props.onModeChange("equippable")} onKeyDown={(event) => handleModeKeyDown(event, 0)}>{accountText(props.copy, "可装备最高")}</button>
+        <button ref={(element) => { modeRefs.current[1] = element; }} type="button" role="tab" id={`${props.id}-tab-slots`} aria-controls={`${props.id}-content`} aria-selected={props.mode === "slots"} tabIndex={props.mode === "slots" ? 0 : -1} onClick={() => props.onModeChange("slots")} onKeyDown={(event) => handleModeKeyDown(event, 1)}>{accountText(props.copy, "八槽最高")}</button>
       </div>
       <div className="account-power-rows" id={`${props.id}-content`} role="tabpanel" aria-labelledby={`${props.id}-tab-${props.mode}`}>
+        <div className="account-power-row account-power-column-head" aria-hidden="true">
+          <span>{accountText(props.copy, "位置")}</span>
+          <span>{accountText(props.copy, "装备与来源")}</span>
+          <span>{accountText(props.copy, "光等")}</span>
+          <span>{accountText(props.copy, "相对")}</span>
+        </div>
         {value.rows.map((row, index) => (
           <div className={`account-power-row ${index === 3 ? "armor-start" : ""}`} key={row.key}>
             <span className="account-power-slot">{accountText(props.copy, row.label)}</span>
@@ -561,9 +657,9 @@ function AccountPowerPanel(props: {
         <span>{accountText(props.copy, "Bungie 当前光等")} <strong>{props.power.currentLabel}</strong></span>
         <span>{accountText(props.copy, "当前可一键装备")} <PowerFractionValue value={props.power.executablePower} /></span>
       </div>
-      <p className={props.mode === "drop" || props.power.executableMatchesAccountMaximum ? "account-power-note" : "account-power-note warning"}>
-        {props.mode === "drop"
-          ? accountText(props.copy, "账号掉落光等按所选职业可用的各槽位最高值计算，不受异域同时装备限制。")
+      <p className={props.mode === "slots" || props.power.executableMatchesAccountMaximum ? "account-power-note" : "account-power-note warning"}>
+        {props.mode === "slots"
+          ? accountText(props.copy, "八槽最高按所选职业每个槽位的最高值计算，不要求这些装备能同时穿上，用于查看光等提升进度。")
           : !props.power.maxEquippable.complete || !props.power.executablePower.complete
             ? accountText(props.copy, "缺少至少一个光等槽位，当前无法得出完整的八槽结果。")
             : props.power.executableMatchesAccountMaximum
@@ -619,7 +715,6 @@ function formatActivityMode(mode: ActivityRecentItemMode, copy: AccountCopy): st
 }
 
 function AccountSlotComparison(props: {
-  isRefreshing: boolean;
   rows: AccountSlotComparisonViewRow[];
   onOpenItem: (payload: AccountOpenItemPayload) => void;
   copy: AccountCopy;
@@ -658,14 +753,14 @@ function AccountSlotComparison(props: {
               <div className="account-slot-columns">
                 <section className="account-slot-column account-equipped-panel" aria-label={accountText(props.copy, "当前角色装备")}>
                   <h5>{accountText(props.copy, "当前角色装备")}</h5>
-                  {props.isRefreshing ? <AccountSlotSkeleton /> : renderAccountItemGrid(row.equippedItems, "equipped", {
+                  {renderAccountItemGrid(row.equippedItems, "equipped", {
                     onOpenItem: props.onOpenItem,
                     copy: props.copy
                   })}
                 </section>
                 <section className="account-slot-column account-inventory-panel" aria-label={accountText(props.copy, "当前角色背包候选")}>
                   <h5>{accountText(props.copy, "当前角色背包候选")}</h5>
-                  {props.isRefreshing ? <AccountSlotSkeleton /> : renderAccountItemGrid(row.inventoryItems, "inventory", {
+                  {renderAccountItemGrid(row.inventoryItems, "inventory", {
                     onOpenItem: props.onOpenItem,
                     copy: props.copy
                   })}
@@ -675,15 +770,6 @@ function AccountSlotComparison(props: {
           ))}
         </section>
       ))}
-    </div>
-  );
-}
-
-function AccountSlotSkeleton() {
-  return (
-    <div className="account-slot-skeleton" aria-hidden="true">
-      <span />
-      <div><i /><i /><i /></div>
     </div>
   );
 }
@@ -748,7 +834,7 @@ function renderAccountItemCard(
       <GameAssetImage
         alt=""
         fetchPriority={source === "equipped" ? "high" : "auto"}
-        loading="eager"
+        loading={source === "equipped" ? "eager" : "lazy"}
         src={item.icon}
         fallback={<span className="item-icon-placeholder" aria-hidden="true" />}
       />

@@ -16,6 +16,7 @@ export function AccountMenuProvider() {
       selectedCharacterId={account.selectedCharacterId}
       lastAccountLoadedAt={session.lastAccountLoadedAt}
       isLoadingAccount={account.isLoadingAccount}
+      isShowingCachedAccount={account.isShowingCachedAccount}
       accountError={account.accountError}
       accountWarning={account.accountWarning}
       itemDetailError={writeActions.itemDetail.itemDetailError}
@@ -25,6 +26,7 @@ export function AccountMenuProvider() {
       activityError={account.activityError}
       loadoutMessage={writeActions.loadoutMessage}
       itemActionMessage={writeActions.itemActionMessage}
+      operationFeedback={writeActions.accountOperationFeedback}
       isRunningItemAction={writeActions.isRunningItemAction}
       activeLoadoutLookup={session.home.activeLoadoutLookup}
       activeLoadoutTemplate={session.loadouts.activeTemplate}

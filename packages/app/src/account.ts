@@ -27,6 +27,7 @@ export type {
   AccountMaterialRow,
   AccountMaterialsSectionView,
   AccountOpenItemPayload,
+  AccountOperationFeedbackView,
   AccountPageModelInput,
   AccountPageWorkspace,
   AccountPageNavItem,

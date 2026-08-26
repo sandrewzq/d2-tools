@@ -134,7 +134,11 @@
 }
 
 :where(.app-shell) .library-mode-tabs button:focus-visible,
-:where(.app-shell) .library-history-row:focus-visible {
+:where(.app-shell) .library-history-row:focus-visible,
+:where(.app-shell) .library-advanced-filters > summary:focus-visible,
+:where(.app-shell) .library-search-support > summary:focus-visible,
+:where(.app-shell) .library-source-details > summary:focus-visible,
+:where(.app-shell) .library-perk-related-items > summary:focus-visible {
   outline: 2px solid var(--status-pending);
   outline-offset: -2px;
 }
@@ -168,7 +172,7 @@
 }
 
 :where(.app-shell) .library-advanced-filters,
-:where(.app-shell) .library-alias-editor {
+:where(.app-shell) .library-search-support {
   border: 0;
   border-bottom: 1px solid var(--border-subtle);
   border-radius: 0;
@@ -182,8 +186,9 @@
 }
 
 :where(.app-shell) .library-advanced-filters > summary,
-:where(.app-shell) .library-alias-editor > summary {
+:where(.app-shell) .library-search-support > summary {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
@@ -196,14 +201,29 @@
 }
 
 :where(.app-shell) .library-advanced-filters > summary::marker,
-:where(.app-shell) .library-alias-editor > summary::marker {
+:where(.app-shell) .library-search-support > summary::marker {
   color: var(--text-muted);
 }
 
-:where(.app-shell) .library-alias-editor > summary span {
+:where(.app-shell) .library-search-support > summary span {
+  min-width: 0;
+  overflow-wrap: anywhere;
   color: var(--text-muted);
   font-size: var(--font-caption);
   font-weight: 400;
+}
+
+:where(.app-shell) .library-search-support-body {
+  display: grid;
+  background: var(--surface-sidebar);
+}
+
+:where(.app-shell) .library-search-support-body > section + section {
+  border-top: 1px solid var(--border-subtle);
+}
+
+:where(.app-shell) .library-alias-editor {
+  min-width: 0;
 }
 
 :where(.app-shell) .library-nested-filter-stack {
@@ -212,9 +232,14 @@
 }
 
 :where(.app-shell) .library-alias-message {
+  display: block;
   color: var(--text-muted);
   font-size: var(--font-caption);
   line-height: 1.45;
+}
+
+:where(.app-shell) .library-alias-message.status-error {
+  color: var(--status-error);
 }
 
 :where(.app-shell) .library-column-head,
@@ -342,6 +367,10 @@
   border-radius: 0;
   background: transparent;
   box-shadow: none;
+}
+
+:where(.app-shell) .library-result-row:focus-within {
+  background: var(--surface-subtle);
 }
 
 :where(.app-shell) .library-result-row:hover {
@@ -741,16 +770,22 @@
 
 @media (max-width: 760px) {
   :where(.app-shell) .library-manifest-summary {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  :where(.app-shell) .library-manifest-cell,
-  :where(.app-shell) .library-manifest-cell:nth-child(2) {
-    border-right: 0;
+  :where(.app-shell) .library-manifest-cell {
     border-bottom: 1px solid var(--border-subtle);
   }
 
-  :where(.app-shell) .library-manifest-cell:last-child {
+  :where(.app-shell) .library-manifest-cell:nth-child(odd) {
+    border-right: 1px solid var(--border-subtle);
+  }
+
+  :where(.app-shell) .library-manifest-cell:nth-child(even) {
+    border-right: 0;
+  }
+
+  :where(.app-shell) .library-manifest-cell:nth-last-child(-n + 2) {
     border-bottom: 0;
   }
 
@@ -768,7 +803,9 @@
   }
 
   :where(.app-shell) .library-query {
-    max-height: 360px;
+    max-height: none;
+    overflow-y: visible;
+    scrollbar-gutter: auto;
     border-right: 0;
     border-bottom: 1px solid var(--border-subtle);
   }
@@ -810,5 +847,21 @@
 
   :where(.app-shell) .library-source-details summary span {
     white-space: normal;
+  }
+}
+
+@media (max-width: 520px) {
+  :where(.app-shell) .library-manifest-summary {
+    grid-template-columns: 1fr;
+  }
+
+  :where(.app-shell) .library-manifest-cell,
+  :where(.app-shell) .library-manifest-cell:nth-child(odd) {
+    border-right: 0;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  :where(.app-shell) .library-manifest-cell:last-child {
+    border-bottom: 0;
   }
 }

@@ -232,6 +232,14 @@
   line-height: normal;
 }
 
+:where(.app-shell) .account-character-switcher .account-character-emblem {
+  width: 28px;
+  height: 28px;
+  object-fit: cover;
+  border-radius: var(--radius-control);
+  background: var(--surface-interactive);
+}
+
 :where(.app-shell) .account-character-switcher span,
 :where(.app-shell) .account-character-switcher strong,
 :where(.app-shell) .account-character-switcher small {
@@ -304,12 +312,6 @@
   gap: 12px;
 }
 
-:where(.app-shell) .account-power-panel-head > div {
-  display: grid;
-  gap: 2px;
-}
-
-:where(.app-shell) .account-power-panel-head span,
 :where(.app-shell) .account-power-item small,
 :where(.app-shell) .account-power-footer,
 :where(.app-shell) .account-power-note {
@@ -392,6 +394,19 @@
   align-items: center;
   min-height: 44px;
   border-bottom: 1px solid var(--border-subtle);
+}
+
+:where(.app-shell) .account-power-column-head {
+  min-height: 28px;
+  color: var(--text-muted);
+  background: var(--surface-recessed);
+  font-size: var(--priority-trace);
+  font-weight: 700;
+}
+
+:where(.app-shell) .account-power-column-head > span:nth-child(3),
+:where(.app-shell) .account-power-column-head > span:nth-child(4) {
+  text-align: right;
 }
 
 :where(.app-shell) .account-power-row:last-child {
@@ -540,6 +555,8 @@
   border-radius: 0;
   background: transparent;
   border-bottom: 1px solid var(--border-subtle);
+  content-visibility: auto;
+  contain-intrinsic-size: auto 420px;
 }
 
 :where(.app-shell) .account-slot-category:last-child {
@@ -1309,32 +1326,51 @@
   }
 
   :where(.app-shell) .account-directory {
-    position: static;
-    max-height: 240px;
+    position: sticky;
+    z-index: calc(var(--layer-sticky) + 1);
+    top: 68px;
+    max-height: none;
+    overflow: hidden;
+    border-bottom: 1px solid var(--border-control);
+    background: var(--surface-panel);
+  }
+
+  :where(.app-shell) .account-directory .account-column-head {
+    display: none;
   }
 
   :where(.app-shell) .account-directory-tabs {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    display: flex;
+    gap: 0;
+    margin: 0;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    scrollbar-width: thin;
   }
 
-  :where(.app-shell) .account-directory-tabs > button:nth-child(odd) {
+  :where(.app-shell) .account-directory-tabs > button {
+    flex: 0 0 auto;
+    width: auto;
+    min-height: 42px;
+    padding-inline: 12px;
     border-right: 1px solid var(--border-subtle);
+    border-bottom: 0;
+    white-space: nowrap;
+  }
+
+  :where(.app-shell) .account-directory-tabs > button.active {
+    box-shadow: inset 0 -3px 0 var(--nav-current-indicator);
   }
 
   :where(.app-shell) .account-character-switcher {
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    scrollbar-width: thin;
   }
 
   :where(.app-shell) .account-character-switcher button {
-    flex-basis: 50%;
-  }
-
-  :where(.app-shell) .account-character-switcher button:nth-child(odd) {
-    border-left: 0;
-  }
-
-  :where(.app-shell) .account-character-switcher button:nth-child(n + 3) {
-    border-top: 1px solid var(--border-subtle);
+    flex: 0 0 min(220px, 72vw);
   }
 
   .app-shell .account-band-heading,
@@ -1435,21 +1471,8 @@
 }
 
 @media (max-width: 480px) {
-  :where(.app-shell) .account-directory-tabs {
-    grid-template-columns: 1fr;
-  }
-
-  :where(.app-shell) .account-directory-tabs > button:nth-child(odd) {
-    border-right: 0;
-  }
-
   :where(.app-shell) .account-character-switcher button {
-    flex-basis: 100%;
-  }
-
-  :where(.app-shell) .account-character-switcher button + button {
-    border-top: 1px solid var(--border-subtle);
-    border-left: 0;
+    flex-basis: min(210px, 78vw);
   }
 
   :where(.app-shell) .account-slot-category-head,

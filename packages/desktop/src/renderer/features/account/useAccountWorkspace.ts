@@ -42,6 +42,7 @@ export function useAccountWorkspace(input: {
   const [accountError, setAccountError] = useState("");
   const [accountWarning, setAccountWarning] = useState("");
   const [isLoadingAccount, setIsLoadingAccount] = useState(false);
+  const [isShowingCachedAccount, setIsShowingCachedAccount] = useState(false);
   const [lastAccountLoadedAt, setLastAccountLoadedAt] = useState<Date | null>(null);
   const [selectedCharacterId, setSelectedCharacterId] = useState("");
   const [activitySummary, setActivitySummary] = useState<ActivityHistorySummary | null>(null);
@@ -61,6 +62,7 @@ export function useAccountWorkspace(input: {
       .then((cached) => {
         if (!active || !cached || getAccountSummarySnapshot()) return;
         applyAccountSummary(cached.snapshot);
+        setIsShowingCachedAccount(true);
         setActivityMessage(`正在显示上次账号数据（${formatCachedTime(cached.saved_at)}），后台将继续刷新`);
       })
       .catch(() => undefined);
@@ -98,6 +100,7 @@ export function useAccountWorkspace(input: {
       derivedRequestSequenceRef.current += 1;
       communityRequestSequenceRef.current += 1;
       setAccountSummaryState(null);
+      setIsShowingCachedAccount(false);
       setSelectedCharacterId("");
       setActivitySummary(null);
       setVaultCommunityMatch(new Map());
@@ -160,6 +163,7 @@ export function useAccountWorkspace(input: {
         wishlist
       } = workspace.data;
       applyAccountSummary(summary);
+      setIsShowingCachedAccount(false);
       setLastAccountLoadedAt(new Date());
       setVaultTags(tags);
       setLocalTargetRules(targetRules);
@@ -203,6 +207,7 @@ export function useAccountWorkspace(input: {
       const summary = await api.getAccountSummary({ force: true, authoritative: true });
       if (requestSequence !== accountRequestSequenceRef.current) return null;
       applyAccountSummary(summary);
+      setIsShowingCachedAccount(false);
       setLastAccountLoadedAt(new Date());
       return summary;
     } catch (error) {
@@ -227,6 +232,7 @@ export function useAccountWorkspace(input: {
 
   function applyBackgroundAccountSnapshot(summary: AccountSummary) {
     applyAccountSummary(summary);
+    setIsShowingCachedAccount(false);
   }
 
   async function refreshAccountDerivedData(summary = getAccountSummarySnapshot()) {
@@ -295,6 +301,7 @@ export function useAccountWorkspace(input: {
     setAccountError,
     accountWarning,
     isLoadingAccount,
+    isShowingCachedAccount,
     lastAccountLoadedAt,
     selectedCharacterId,
     setSelectedCharacterId,

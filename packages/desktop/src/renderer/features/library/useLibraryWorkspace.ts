@@ -30,6 +30,8 @@ export function useLibraryWorkspace(input: { vendorSourcePaths?: Map<number, str
   const [aliasTargetDraft, setAliasTargetDraft] = useState("");
   const [aliasKind, setAliasKind] = useState<"item" | "perk">("item");
   const [aliasMessage, setAliasMessage] = useState("");
+  const [aliasError, setAliasError] = useState("");
+  const [favoriteError, setFavoriteError] = useState("");
   const [searchError, setSearchError] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const [libraryCommunityMatch, setLibraryCommunityMatch] = useState<Map<number, VaultItemMatchInfo>>(new Map());
@@ -256,7 +258,7 @@ export function useLibraryWorkspace(input: { vendorSourcePaths?: Map<number, str
 
   async function saveAlias() {
     setAliasMessage("");
-    setSearchError("");
+    setAliasError("");
     try {
       await api.saveItemAlias({
         alias: aliasDraft,
@@ -267,27 +269,30 @@ export function useLibraryWorkspace(input: { vendorSourcePaths?: Map<number, str
       setAliasTargetDraft("");
       setAliasMessage("别名已保存，下次搜索会自动命中。");
     } catch (error) {
-      setSearchError(error instanceof Error ? error.message : "别名保存失败");
+      setAliasError(error instanceof Error ? error.message : "别名保存失败");
     }
   }
 
   async function addSelectedItemToFavorites(item: ItemSearchResult | PerkSearchResult) {
+    setFavoriteError("");
     try {
       setLibraryHistory(await api.addFavoriteItem({ hash: item.hash, name: item.name, icon: item.icon }));
     } catch (error) {
-      setSearchError(error instanceof Error ? error.message : "收藏失败");
+      setFavoriteError(error instanceof Error ? error.message : "收藏失败");
     }
   }
 
   async function removeFavorite(hash: number) {
+    setFavoriteError("");
     try {
       setLibraryHistory(await api.removeFavoriteItem(hash));
     } catch (error) {
-      setSearchError(error instanceof Error ? error.message : "取消收藏失败");
+      setFavoriteError(error instanceof Error ? error.message : "取消收藏失败");
     }
   }
 
   function clearLibraryFilters() {
+    setSearchError("");
     if (libraryViewMode === "equipment") {
       setEquipmentFilters(defaultLibraryEquipmentFilter);
       setItems([]);
@@ -308,10 +313,12 @@ export function useLibraryWorkspace(input: { vendorSourcePaths?: Map<number, str
     aliasDraft,
     aliasKind,
     aliasMessage,
+    aliasError,
     aliasTargetDraft,
     clearLibraryFilters,
     equipmentFilters,
     equipmentSearchTouched,
+    favoriteError,
     isLoadingLiveAvailability,
     isLoadingManifestStatus: manifestStatusState.isLoadingManifestStatus,
     isInitializingManifest: manifestStatusState.isInitializingManifest,

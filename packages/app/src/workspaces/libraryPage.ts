@@ -238,6 +238,8 @@ export type LibraryPageState = {
   aliasTargetDraft: string;
   aliasKind: "item" | "perk";
   aliasMessage: string;
+  aliasError: string;
+  favoriteError: string;
   isLoadingLiveAvailability: boolean;
   isLoadingManifestStatus: boolean;
   isInitializingManifest: boolean;
@@ -337,11 +339,13 @@ export type LibraryPageModel = {
     targetDraft: string;
     kind: "item" | "perk";
     message: string;
+    error: string;
     history: LibraryHistory;
   };
   status: {
     isSearching: boolean;
     searchError: string;
+    favoriteError: string;
     liveAvailabilityError: string;
     isLoadingLiveAvailability: boolean;
     isLoadingManifestStatus: boolean;
@@ -611,11 +615,13 @@ export function selectLibraryPageModel(cache: LibraryPageCache, state: LibraryPa
       targetDraft: state.aliasTargetDraft,
       kind: state.aliasKind,
       message: state.aliasMessage,
+      error: state.aliasError,
       history: cache.libraryHistory
     },
     status: {
       isSearching: state.isSearching,
       searchError: state.searchError,
+      favoriteError: state.favoriteError,
       liveAvailabilityError: cache.liveAvailabilityError,
       isLoadingLiveAvailability: state.isLoadingLiveAvailability,
       isLoadingManifestStatus: state.isLoadingManifestStatus,
@@ -1023,7 +1029,7 @@ function buildManifestAlertModel(
 }
 
 function isManifestBlocked(status: ManifestStatus | null): boolean {
-  return Boolean(status && (!status.initialized || status.missing_required_components?.length));
+  return !status || !status.initialized || Boolean(status.missing_required_components?.length);
 }
 
 function selectLibraryEmptyState(input: {

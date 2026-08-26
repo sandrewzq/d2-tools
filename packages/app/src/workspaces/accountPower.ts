@@ -2,7 +2,7 @@ import {
   accountPowerSlotLabels,
   accountPowerSlotOrder,
   calculateAccountPowerFraction,
-  selectHighestAccountPowerCandidates,
+  selectHighestSlotPowerCandidates,
   selectMaxEquippablePowerCandidates,
   type AccountPowerCandidate,
   type AccountPowerFraction,
@@ -46,7 +46,7 @@ export type CharacterPowerValueView = {
 export type CharacterPowerView = {
   currentLabel: string;
   maxEquippable: CharacterPowerValueView;
-  dropPower: CharacterPowerValueView;
+  slotMaximum: CharacterPowerValueView;
   executablePower: CharacterPowerValueView;
   hasExternalSources: boolean;
   executableMatchesAccountMaximum: boolean;
@@ -68,7 +68,7 @@ export function buildCharacterPowerView(
     candidates: accountCandidates,
     characterClassName: character.class_name
   });
-  const dropSelection = selectHighestAccountPowerCandidates({
+  const slotMaximumSelection = selectHighestSlotPowerCandidates({
     candidates: accountCandidates,
     characterClassName: character.class_name
   });
@@ -77,13 +77,13 @@ export function buildCharacterPowerView(
     characterClassName: character.class_name
   });
   const maxEquippable = toPowerValueView(maxEquippableSelection);
-  const dropPower = toPowerValueView(dropSelection);
+  const slotMaximum = toPowerValueView(slotMaximumSelection);
   const executablePower = toPowerValueView(executableSelection);
 
   return {
     currentLabel: typeof character.light === "number" ? String(character.light) : "-",
     maxEquippable,
-    dropPower,
+    slotMaximum,
     executablePower,
     hasExternalSources: [...maxEquippableSelection.values()].some((candidate) => (
       candidate.source.kind === "other-character-equipped"

@@ -151,12 +151,6 @@ export type HomePageContentViewProps = {
   dailyMessage?: string;
   dailyError?: string;
   isLoadingDaily?: boolean;
-  onConfigure?: () => void;
-  onLogin?: () => void;
-  onLoadAccount?: () => void;
-  onInitializeManifest?: () => void;
-  onConfigureAi?: () => void;
-  onRefreshDiagnostics?: () => void;
   onNavigate?: (page: ShellPageKey) => void;
   onRefreshDaily?: () => void;
   onOpenWeeklyActivityReward?: (reward: HomeWeeklyActivityReward) => void;
@@ -239,18 +233,6 @@ function HomePageContent(props: {
           {refreshEntries.map((entry) => <HomeRefreshCell key={entry.key} entry={entry} />)}
         </div>
       </section>
-      <section className="home-content-band home-core-band" data-surface="section" aria-label="本周核心活动">
-        <div className="weekly-activity-grid" data-surface="content-stack">
-          {activities.map((activity) => (
-            <HomeActivityCard
-              key={activity.kind}
-              {...activity}
-              featured={activity.kind === "nightfall"}
-              onOpenReward={props.onOpenWeeklyActivityReward}
-            />
-          ))}
-        </div>
-      </section>
       <section className="home-content-band home-signals-band" data-surface="section" aria-label="限时活动与本周活动焦点">
         <div className="weekly-signal-grid" data-surface="content-stack">
           <IronBannerCard
@@ -264,6 +246,18 @@ function HomePageContent(props: {
           {priorities?.special_event?.status === "ready" ? (
             <HomeSignal className="home-special-event-signal" label={homeText(props.copy, "限时活动")} priority={priorities.special_event} />
           ) : null}
+        </div>
+      </section>
+      <section className="home-content-band home-core-band" data-surface="section" aria-label="本周核心活动">
+        <div className="weekly-activity-grid" data-surface="content-stack">
+          {activities.map((activity) => (
+            <HomeActivityCard
+              key={activity.kind}
+              {...activity}
+              featured={activity.kind === "nightfall"}
+              onOpenReward={props.onOpenWeeklyActivityReward}
+            />
+          ))}
         </div>
       </section>
       <section className="home-content-band home-vendor-band" data-surface="section" data-contract-id="home.vendor-stock" data-source="Vendor API + current library">
@@ -834,7 +828,7 @@ function HomeXurState(props: {
           detail="保留模块尺寸，等待 Vendor API 和当前资料库返回；不会回退显示旧库存。"
         />
         <div className="home-vendor-stock-grid" aria-hidden="true">
-          <i className="home-vendor-skeleton" /><i className="home-vendor-skeleton" /><i className="home-vendor-skeleton" />
+          {Array.from({ length: 8 }, (_, index) => <i className="home-vendor-skeleton" key={index} />)}
         </div>
       </>
     );

@@ -1,4 +1,5 @@
 import type { analyzeLoadoutTemplate } from "@d2-tools/core/loadouts/analysis";
+import type { AccountOperationFeedbackView } from "@d2-tools/app/account";
 import { api } from "../../api/client";
 import {
   type AccountItemActionPatch,
@@ -74,6 +75,7 @@ export function useLoadoutWriteActions(input: {
   loadoutActionFeedback: LoadoutActionFeedbackBridge;
   setLoadoutMessage: (message: string) => void;
   setItemActionMessage: (message: string) => void;
+  setAccountOperationFeedback: (feedback: AccountOperationFeedbackView | undefined) => void;
   setIsRunningItemAction: (isRunning: boolean) => void;
   loadAccountSummary: () => Promise<void>;
   loadAuthoritativeAccountSummary: () => Promise<AccountSummary | null>;
@@ -149,18 +151,23 @@ export function useLoadoutWriteActions(input: {
   async function equipHighestPowerItems(character: AccountSummary["characters"][number]) {
     input.setLoadoutMessage("");
     input.setItemActionMessage("正在刷新账号并复核最高光等方案...");
+    input.setAccountOperationFeedback({ tone: "pending", message: "正在刷新账号并复核最高光等方案..." });
     input.setIsRunningItemAction(true);
     let hasSuccessfulWrite = false;
 
     try {
       const latestAccount = await input.loadAuthoritativeAccountSummary();
       if (!latestAccount) {
-        input.setLoadoutMessage("无法读取最新账号状态，未执行最高光等写操作。");
+        const message = "无法读取最新账号状态，未执行最高光等写操作。";
+        input.setLoadoutMessage(message);
+        input.setAccountOperationFeedback({ tone: "error", message });
         return;
       }
       const latestCharacter = latestAccount.characters.find((entry) => entry.character_id === character.character_id);
       if (!latestCharacter) {
-        input.setLoadoutMessage("最新账号状态中找不到目标角色，未执行最高光等写操作。");
+        const message = "最新账号状态中找不到目标角色，未执行最高光等写操作。";
+        input.setLoadoutMessage(message);
+        input.setAccountOperationFeedback({ tone: "error", message });
         return;
       }
       const plan = createHighestPowerEquipPlan({
@@ -169,7 +176,9 @@ export function useLoadoutWriteActions(input: {
       });
       const executionPlan = createHighestPowerExecutionPlan(plan);
       if (!plan.executable_items.length) {
-        input.setLoadoutMessage(buildHighestPowerAlreadyOptimalMessage(latestCharacter.class_name));
+        const message = buildHighestPowerAlreadyOptimalMessage(latestCharacter.class_name);
+        input.setLoadoutMessage(message);
+        input.setAccountOperationFeedback({ tone: "success", message });
         return;
       }
       if (!window.confirm(buildHighestPowerConfirmText({
@@ -177,7 +186,9 @@ export function useLoadoutWriteActions(input: {
         plan,
         executionPlan
       }))) {
-        input.setLoadoutMessage("已取消装备最高光等。");
+        const message = "已取消装备最高光等。";
+        input.setLoadoutMessage(message);
+        input.setAccountOperationFeedback({ tone: "neutral", message });
         return;
       }
 
@@ -188,7 +199,9 @@ export function useLoadoutWriteActions(input: {
       let firstFailureReason: string | undefined;
 
       if (executionPlan.transfer_items.length) {
-        input.setItemActionMessage(buildHighestPowerTransferProgressMessage(executionPlan.transfer_items.length));
+        const message = buildHighestPowerTransferProgressMessage(executionPlan.transfer_items.length);
+        input.setItemActionMessage(message);
+        input.setAccountOperationFeedback({ tone: "pending", message });
         const result = await api.batchTransferItems({
           membership_type: latestAccount.membership_type,
           character_id: latestCharacter.character_id,
@@ -215,6 +228,7 @@ export function useLoadoutWriteActions(input: {
           result
         );
         input.setItemActionMessage("Bungie 已受理仓库转移，正在持续确认物品已进入目标角色...");
+        input.setAccountOperationFeedback({ tone: "pending", message: "Bungie 已受理仓库转移，正在后台确认物品已进入目标角色..." });
         successfullyTransferredItemIds = await verifyHighestPowerItemState(
           latestCharacter.character_id,
           transferVerificationCandidateIds,
@@ -230,7 +244,9 @@ export function useLoadoutWriteActions(input: {
       ));
 
       if (equipItems.length) {
-        input.setItemActionMessage(buildHighestPowerEquipProgressMessage(equipItems.length));
+        const message = buildHighestPowerEquipProgressMessage(equipItems.length);
+        input.setItemActionMessage(message);
+        input.setAccountOperationFeedback({ tone: "pending", message });
         const result = await api.batchEquipItems({
           membership_type: latestAccount.membership_type,
           character_id: latestCharacter.character_id,
@@ -256,7 +272,11 @@ export function useLoadoutWriteActions(input: {
         );
       }
 
-      input.setItemActionMessage("Bungie 已受理装备操作，正在持续确认游戏内实际装备状态...");
+      const verificationMessage = equipItems.length
+        ? "Bungie 已受理装备操作，正在后台确认游戏内实际装备状态..."
+        : "正在读取权威账号状态并汇总执行结果...";
+      input.setItemActionMessage(verificationMessage);
+      input.setAccountOperationFeedback({ tone: "pending", message: verificationMessage });
       const verification = await verifyHighestPowerItemState(
         latestCharacter.character_id,
         equipVerificationCandidateIds,
@@ -264,7 +284,7 @@ export function useLoadoutWriteActions(input: {
       );
       const unverifiedEquipCount = equipItems.length - verification.size;
       const failedSteps = transferFailureCount + unverifiedEquipCount;
-      input.setLoadoutMessage(buildHighestPowerResultMessage({
+      const resultMessage = buildHighestPowerResultMessage({
         characterClassName: latestCharacter.class_name,
         transferSuccessCount: transferConfirmedCount,
         transferTotalCount: executionPlan.transfer_items.length,
@@ -272,7 +292,13 @@ export function useLoadoutWriteActions(input: {
         equipTotalCount: equipItems.length,
         failedCount: failedSteps,
         failureReason: firstFailureReason
-      }));
+      });
+      const confirmedStepCount = transferConfirmedCount + verification.size;
+      input.setLoadoutMessage(resultMessage);
+      input.setAccountOperationFeedback({
+        tone: failedSteps === 0 ? "success" : confirmedStepCount > 0 ? "warning" : "error",
+        message: resultMessage
+      });
     } catch (error) {
       if (hasSuccessfulWrite) {
         input.setItemActionMessage("写操作部分完成，正在后台确认实际状态...");
@@ -280,7 +306,12 @@ export function useLoadoutWriteActions(input: {
         const account = await input.readAuthoritativeAccountSummary().catch(() => null);
         if (account) input.applyAuthoritativeAccountSummary(account);
       }
-      input.setLoadoutMessage(error instanceof Error ? error.message : "装备最高光等失败");
+      const message = error instanceof Error ? error.message : "装备最高光等失败";
+      input.setLoadoutMessage(message);
+      input.setAccountOperationFeedback({
+        tone: hasSuccessfulWrite ? "warning" : "error",
+        message: hasSuccessfulWrite ? `写操作部分完成，但最终确认失败：${message}` : message
+      });
     } finally {
       if (hasSuccessfulWrite) {
         void input.diagnostics.loadActionLog().catch(() => undefined);

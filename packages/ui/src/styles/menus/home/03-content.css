@@ -184,7 +184,7 @@
   overflow: hidden;
   margin: 2px 0 0;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 1;
+  -webkit-line-clamp: 2;
 }
 
 :where(.app-shell) .weekly-activity-reward-panel {
@@ -918,6 +918,15 @@
 }
 
 @media (max-width: 1280px) {
+  :where(.app-shell) .weekly-activity-list {
+    grid-auto-rows: minmax(98px, auto);
+  }
+
+  :where(.app-shell) .weekly-activity-entry {
+    height: auto;
+    min-height: 98px;
+  }
+
   :where(.app-shell) .home-vendor-stock-grid {
     grid-template-columns: repeat(2, minmax(220px, 1fr));
   }

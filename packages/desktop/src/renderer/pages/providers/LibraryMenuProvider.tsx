@@ -34,6 +34,8 @@ export function LibraryMenuProvider() {
         aliasTargetDraft: library.aliasTargetDraft,
         aliasKind: library.aliasKind,
         aliasMessage: library.aliasMessage,
+        aliasError: library.aliasError,
+        favoriteError: library.favoriteError,
         isLoadingLiveAvailability: library.isLoadingLiveAvailability,
         isLoadingManifestStatus: library.isLoadingManifestStatus,
         isInitializingManifest: library.isInitializingManifest,

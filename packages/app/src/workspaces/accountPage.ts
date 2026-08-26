@@ -60,7 +60,13 @@ export type AccountConnectionView = {
   isAccountLoggedIn: boolean;
   canLoadAccount: boolean;
   isLoadingAccount: boolean;
+  dataState: "synced" | "cached" | "refreshing";
   accountStatusLabel?: string;
+};
+
+export type AccountOperationFeedbackView = {
+  tone: "neutral" | "pending" | "success" | "warning" | "error";
+  message: string;
 };
 
 export type AccountFeedbackView = {
@@ -71,6 +77,7 @@ export type AccountFeedbackView = {
   itemActionMessage: string;
   activityMessage: string;
   activityError: string;
+  operation?: AccountOperationFeedbackView;
 };
 
 export type AccountProfileView = {
@@ -169,6 +176,7 @@ export type AccountPageState = {
   isBungieConfigured: boolean;
   isAccountLoggedIn: boolean;
   isLoadingAccount: boolean;
+  isShowingCachedAccount?: boolean;
   accountStatusLabel?: string;
   accountError: string;
   accountWarning?: string;
@@ -177,6 +185,7 @@ export type AccountPageState = {
   activityError: string;
   loadoutMessage: string;
   itemActionMessage: string;
+  operationFeedback?: AccountOperationFeedbackView;
   isRunningItemAction: boolean;
   activeLoadoutTemplateName?: string;
 };
@@ -325,7 +334,11 @@ export function createAccountPageWorkspace(input: {
 
   return {
     accountProfileLine: account ? `Membership ${account.membership_type} / ${account.destiny_membership_id}` : "",
-    accountInventoryLine: account ? `仓库 ${account.vault.item_count} 件` : "",
+    accountInventoryLine: account
+      ? account.vault.capacity
+        ? `仓库 ${account.vault.item_count}/${account.vault.capacity}`
+        : `仓库 ${account.vault.item_count} 件`
+      : "",
     characterTabs: account ? buildAccountCharacterTabs(account, selectedCharacter?.character_id ?? "") : [],
     materialRows: account ? buildAccountMaterialRows(account.materials.items) : [],
     loadoutSlotRows: selectedCharacter ? buildAccountLoadoutSlotRows(selectedCharacter) : [],
@@ -376,6 +389,11 @@ export function selectAccountPageModel(input: AccountPageModelInput): AccountPag
       isAccountLoggedIn: pageState.isAccountLoggedIn,
       canLoadAccount: pageState.isBungieConfigured && pageState.isAccountLoggedIn,
       isLoadingAccount: pageState.isLoadingAccount,
+      dataState: pageState.isLoadingAccount
+        ? "refreshing"
+        : pageState.isShowingCachedAccount
+          ? "cached"
+          : "synced",
       accountStatusLabel: pageState.accountStatusLabel
     },
     feedback: {
@@ -385,7 +403,8 @@ export function selectAccountPageModel(input: AccountPageModelInput): AccountPag
       loadoutMessage: pageState.loadoutMessage,
       itemActionMessage: pageState.itemActionMessage,
       activityMessage: pageState.activityMessage,
-      activityError: pageState.activityError
+      activityError: pageState.activityError,
+      operation: pageState.operationFeedback
     },
     profile: cache.accountSummary
       ? {

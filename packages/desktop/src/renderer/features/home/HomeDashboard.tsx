@@ -13,12 +13,6 @@ import { useMemo } from "react";
 
 export function HomeDashboard(props: HomePageModelInput & {
   interfaceLocale?: "zh-CN" | "en-US";
-  onConfigure: () => void;
-  onLogin: () => void;
-  onLoadAccount: () => void;
-  onInitializeManifest: () => void;
-  onConfigureAi: () => void;
-  onRefreshDiagnostics: () => void;
   onNavigate: (page: ShellPageKey) => void;
   onRefreshDaily: () => void;
   onOpenWeeklyActivityReward: HomeDashboardActions["onOpenWeeklyActivityReward"];
@@ -47,12 +41,6 @@ export function HomeDashboard(props: HomePageModelInput & {
   return (
     <HomePageContentView
       {...model}
-      onConfigure={props.onConfigure}
-      onLogin={props.onLogin}
-      onLoadAccount={props.onLoadAccount}
-      onInitializeManifest={props.onInitializeManifest}
-      onConfigureAi={props.onConfigureAi}
-      onRefreshDiagnostics={props.onRefreshDiagnostics}
       onNavigate={props.onNavigate}
       onRefreshDaily={props.onRefreshDaily}
       onOpenWeeklyActivityReward={props.onOpenWeeklyActivityReward}

@@ -391,6 +391,8 @@ export function createWebLibraryPageModel(input: {
     aliasTargetDraft: input.aliasTargetDraft,
     aliasKind: input.aliasKind,
     aliasMessage: "Web mock：别名保存待接 provider。",
+    aliasError: "",
+    favoriteError: "",
     isLoadingLiveAvailability: false,
     isLoadingManifestStatus: false,
     isInitializingManifest: false,

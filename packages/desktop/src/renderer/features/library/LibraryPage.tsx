@@ -33,6 +33,8 @@ export function LibraryPage(props: LibraryPageProps) {
       props.state.aliasTargetDraft,
       props.state.aliasKind,
       props.state.aliasMessage,
+      props.state.aliasError,
+      props.state.favoriteError,
       props.state.isLoadingLiveAvailability,
       props.state.isLoadingManifestStatus,
       props.state.isInitializingManifest,

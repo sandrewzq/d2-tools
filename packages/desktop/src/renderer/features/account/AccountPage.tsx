@@ -6,7 +6,7 @@ import type {
   LoadoutTemplate,
   StartupState
 } from "../../api/types";
-import { selectAccountPageModel, type AccountOpenItemPayload } from "@d2-tools/app/account";
+import { selectAccountPageModel, type AccountOpenItemPayload, type AccountOperationFeedbackView } from "@d2-tools/app/account";
 import {
   matchesLoadoutTemplateItem,
   type LoadoutTemplateLookup
@@ -22,6 +22,7 @@ export function AccountPage(props: {
   selectedCharacterId: string;
   lastAccountLoadedAt?: Date | null;
   isLoadingAccount: boolean;
+  isShowingCachedAccount: boolean;
   accountError: string;
   accountWarning: string;
   itemDetailError: string;
@@ -31,6 +32,7 @@ export function AccountPage(props: {
   activityError: string;
   loadoutMessage: string;
   itemActionMessage: string;
+  operationFeedback?: AccountOperationFeedbackView;
   isRunningItemAction: boolean;
   activeLoadoutLookup: LoadoutTemplateLookup | null;
   activeLoadoutTemplate: LoadoutTemplate | null;
@@ -64,6 +66,7 @@ export function AccountPage(props: {
       isBungieConfigured,
       isAccountLoggedIn,
       isLoadingAccount: props.isLoadingAccount,
+      isShowingCachedAccount: props.isShowingCachedAccount,
       accountStatusLabel: props.startupState.cards.account.label,
       accountError: props.accountError,
       accountWarning: props.accountWarning,
@@ -72,6 +75,7 @@ export function AccountPage(props: {
       activityError: props.activityError,
       loadoutMessage: props.loadoutMessage,
       itemActionMessage: props.itemActionMessage,
+      operationFeedback: props.operationFeedback,
       isRunningItemAction: props.isRunningItemAction,
       activeLoadoutTemplateName: props.activeLoadoutTemplate?.name
     }
@@ -85,6 +89,7 @@ export function AccountPage(props: {
     isBungieConfigured,
     isAccountLoggedIn,
     props.isLoadingAccount,
+    props.isShowingCachedAccount,
     props.startupState.cards.account.label,
     props.accountError,
     props.accountWarning,
@@ -93,6 +98,7 @@ export function AccountPage(props: {
     props.activityError,
     props.loadoutMessage,
     props.itemActionMessage,
+    props.operationFeedback,
     props.isRunningItemAction,
     props.activeLoadoutTemplate?.name
   ]);

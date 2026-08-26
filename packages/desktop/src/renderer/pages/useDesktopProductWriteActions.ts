@@ -1,4 +1,5 @@
 import { useState } from "react";
+import type { AccountOperationFeedbackView } from "@d2-tools/app/account";
 import type {
   AccountSummary,
   AccountItemActionPatch,
@@ -45,6 +46,7 @@ export function useDesktopProductWriteActions(input: {
   const [loadoutMessage, setLoadoutMessage] = useState("");
   const [isRunningItemAction, setIsRunningItemAction] = useState(false);
   const [itemActionMessage, setItemActionMessage] = useState("");
+  const [accountOperationFeedback, setAccountOperationFeedback] = useState<AccountOperationFeedbackView>();
   const loadoutActionFeedback = useLoadoutActionFeedback();
 
   const itemDetail = useItemDetailWorkspace({
@@ -76,6 +78,7 @@ export function useDesktopProductWriteActions(input: {
     loadoutActionFeedback,
     setLoadoutMessage,
     setItemActionMessage,
+    setAccountOperationFeedback,
     setIsRunningItemAction,
     loadAccountSummary: input.loadAccountSummary,
     loadAuthoritativeAccountSummary: input.loadAuthoritativeAccountSummary,
@@ -96,6 +99,7 @@ export function useDesktopProductWriteActions(input: {
   });
 
   return {
+    accountOperationFeedback,
     itemActionMessage,
     itemDetail,
     isRunningItemAction,

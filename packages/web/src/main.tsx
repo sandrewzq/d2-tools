@@ -483,7 +483,6 @@ function WebApp() {
               interfaceLocale={preferences.interfaceLocale}
               {...fixture.createHomePageModel(snapshot)}
               onNavigate={setActivePage}
-              onRefreshDiagnostics={() => undefined}
               onOpenWeeklyActivityReward={openWeeklyReward}
             />
           ) : null}
