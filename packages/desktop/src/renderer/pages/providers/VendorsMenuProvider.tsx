@@ -7,6 +7,12 @@ export function VendorsMenuProvider() {
   return (
     <VendorsPage
       model={session.vendors.model}
+      availability={{
+        isBungieConfigured: session.state.cards.bungieConfig.status === "ready",
+        isAccountLoggedIn: session.state.cards.account.status === "ready",
+        onConfigureBungie: session.onConfigure,
+        onLoginBungie: () => void session.account.loginBungie()
+      }}
       actions={{
         selectVendor: session.vendors.selectVendor,
         refreshVendors: () => void session.vendors.refresh(),

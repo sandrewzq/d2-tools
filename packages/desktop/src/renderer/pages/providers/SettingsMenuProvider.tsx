@@ -35,6 +35,8 @@ export function SettingsMenuProvider() {
       actionLogResultFilter={diagnostics.actionLogResultFilter}
       actionLogTypeFilter={diagnostics.actionLogTypeFilter}
       onAiSettingsSaved={diagnostics.handleAiSettingsSaved}
+      onBungieConfigSaved={session.onConfigChanged}
+      onOpenBungiePortal={() => void api.openExternal("https://www.bungie.net/en/Application")}
       onOpenDataDir={() => void api.openDataDir()}
       onWriteActionsEnabledChange={(enabled) => void diagnostics.saveWriteActionsEnabled(enabled)}
       onCheckAppUpdate={() => void diagnostics.checkAppUpdate()}

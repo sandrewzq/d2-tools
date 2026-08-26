@@ -217,7 +217,7 @@
   box-shadow: 0 18px 50px rgb(0 0 0 / 0.36);
 }
 
-:where(.app-shell, .standalone-dark-theme) label {
+:where(.app-shell) label {
   display: grid;
   gap: 8px;
   margin: 0;
@@ -239,59 +239,9 @@
   cursor: pointer;
 }
 
-.config-help {
-  display: grid;
-  gap: 10px;
-  margin: 20px 0;
-  padding: 16px;
-  border: 1px solid var(--item-border);
-  border-radius: var(--radius-frame);
-  background: var(--item-bg);
-  border-color: var(--item-border);
-  color: var(--text-body);
-}
-
-.config-help h2,
-.config-help p,
-.config-help dl {
-  margin: 0;
-}
-
-.config-help p {
-  color: var(--text-muted);
-}
-
-.config-help dl {
-  display: grid;
-  gap: 8px;
-}
-
-.config-help dl div {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 10px;
-  align-items: center;
-}
-
-.config-help dt {
-  color: var(--text-title);
-}
-
-.config-help dd {
-  margin: 0;
-  color: var(--text-body);
-}
-
-.config-help code {
-  display: block;
-  margin-top: 6px;
-  color: var(--text-title);
-  word-break: break-all;
-}
-
-:where(.app-shell, .standalone-dark-theme) input,
-:where(.app-shell, .standalone-dark-theme) select,
-:where(.app-shell, .standalone-dark-theme) textarea {
+:where(.app-shell) input,
+:where(.app-shell) select,
+:where(.app-shell) textarea {
   min-height: var(--control-h);
   padding: 0 10px;
   border: 1px solid var(--control-border);
@@ -303,11 +253,11 @@
   transition: background-color var(--motion-fast), border-color var(--motion-fast);
 }
 
-:where(.app-shell, .standalone-dark-theme) textarea {
+:where(.app-shell) textarea {
   padding: 8px 10px;
 }
 
-:where(.app-shell, .standalone-dark-theme) select {
+:where(.app-shell) select {
   min-height: var(--control-h);
   padding-right: 32px;
   border-color: var(--field-border);
@@ -324,12 +274,12 @@
   appearance: none;
 }
 
-:where(.app-shell, .standalone-dark-theme) select:hover {
+:where(.app-shell) select:hover {
   border-color: var(--border-strong);
   background-color: var(--field-bg-hover);
 }
 
-:where(.app-shell, .standalone-dark-theme) option {
+:where(.app-shell) option {
   color: var(--text-body);
   background: var(--surface-panel);
 }
@@ -346,7 +296,7 @@
   background: var(--field-bg);
 }
 
-:where(.app-shell, .standalone-dark-theme) button {
+:where(.app-shell) button {
   min-height: var(--control-h);
   padding: 0 10px;
   border: 1px solid var(--control-secondary-border);
@@ -358,23 +308,23 @@
   transition: color var(--motion-fast), background-color var(--motion-fast), border-color var(--motion-fast), opacity var(--motion-fast);
 }
 
-:where(.app-shell, .standalone-dark-theme) [data-ui-kind="button"][data-control-size="compact"] {
+:where(.app-shell) [data-ui-kind="button"][data-control-size="compact"] {
   height: var(--control-h-compact);
   min-height: var(--control-h-compact);
 }
 
-:where(.app-shell, .standalone-dark-theme) [data-ui-kind="button"][data-control-size="standard"] {
+:where(.app-shell) [data-ui-kind="button"][data-control-size="standard"] {
   height: var(--control-h);
   min-height: var(--control-h);
   padding: 0 12px;
 }
 
-:where(.app-shell, .standalone-dark-theme) [data-ui-kind="button"][data-control-size="prominent"] {
+:where(.app-shell) [data-ui-kind="button"][data-control-size="prominent"] {
   height: var(--control-h-lg);
   min-height: var(--control-h-lg);
 }
 
-:where(.app-shell, .standalone-dark-theme) [data-ui-kind="button"][data-control-width="uniform"] {
+:where(.app-shell) [data-ui-kind="button"][data-control-width="uniform"] {
   display: inline-flex;
   flex: 0 0 var(--control-command-width);
   align-items: center;
@@ -384,18 +334,18 @@
   white-space: nowrap;
 }
 
-:where(.app-shell, .standalone-dark-theme) [data-ui-kind="button"][data-control-width="content"] {
+:where(.app-shell) [data-ui-kind="button"][data-control-width="content"] {
   width: max-content;
   max-width: 100%;
 }
 
-:where(.app-shell, .standalone-dark-theme) [data-ui-kind="button"][data-control-shape="text"] {
+:where(.app-shell) [data-ui-kind="button"][data-control-shape="text"] {
   display: inline-flex;
   align-items: center;
   justify-content: center;
 }
 
-:where(.app-shell, .standalone-dark-theme) [data-ui-kind="button"][data-control-shape="icon"] {
+:where(.app-shell) [data-ui-kind="button"][data-control-shape="icon"] {
   display: inline-grid;
   width: var(--control-h);
   min-width: var(--control-h);
@@ -404,29 +354,29 @@
   place-items: center;
 }
 
-:where(.app-shell, .standalone-dark-theme) button:not(:disabled):hover {
+:where(.app-shell) button:not(:disabled):hover {
   border-color: var(--control-secondary-border);
   color: var(--control-secondary-text);
   background: var(--control-secondary-bg-hover);
   box-shadow: none;
 }
 
-:where(.app-shell, .standalone-dark-theme) button:focus-visible,
-:where(.app-shell, .standalone-dark-theme) input:focus-visible,
-:where(.app-shell, .standalone-dark-theme) select:focus-visible,
-:where(.app-shell, .standalone-dark-theme) textarea:focus-visible {
+:where(.app-shell) button:focus-visible,
+:where(.app-shell) input:focus-visible,
+:where(.app-shell) select:focus-visible,
+:where(.app-shell) textarea:focus-visible {
   border-color: var(--selected-border);
   outline: 2px solid var(--blue);
   outline-offset: 2px;
   box-shadow: none;
 }
 
-:where(.app-shell, .standalone-dark-theme) button:disabled {
+:where(.app-shell) button:disabled {
   cursor: not-allowed;
   opacity: 0.48;
 }
 
-:where(.app-shell, .standalone-dark-theme) button[aria-busy="true"] {
+:where(.app-shell) button[aria-busy="true"] {
   cursor: progress;
   filter: saturate(0.85);
   box-shadow: inset 0 0 0 999px rgba(255, 255, 255, 0.1);
@@ -447,71 +397,71 @@
   align-items: center;
 }
 
-:where(.app-shell, .standalone-dark-theme) [data-ui-kind="button"][data-control-variant="secondary"] {
+:where(.app-shell) [data-ui-kind="button"][data-control-variant="secondary"] {
   border-color: var(--control-secondary-border);
   color: var(--control-secondary-text);
   background: var(--control-secondary-bg);
   box-shadow: none;
 }
 
-:where(.app-shell, .standalone-dark-theme) [data-ui-kind="button"][data-control-variant="secondary"]:not(:disabled):hover {
+:where(.app-shell) [data-ui-kind="button"][data-control-variant="secondary"]:not(:disabled):hover {
   border-color: var(--control-secondary-border);
   color: var(--control-secondary-text);
   background: var(--control-secondary-bg-hover);
   box-shadow: none;
 }
 
-:where(.app-shell, .standalone-dark-theme) [data-ui-kind="button"][data-control-variant="primary"] {
+:where(.app-shell) [data-ui-kind="button"][data-control-variant="primary"] {
   border-color: var(--control-primary-border);
   color: var(--control-primary-text);
   background: var(--control-primary-bg);
   box-shadow: none;
 }
 
-:where(.app-shell, .standalone-dark-theme) [data-ui-kind="button"][data-control-variant="primary"]:not(:disabled):hover {
+:where(.app-shell) [data-ui-kind="button"][data-control-variant="primary"]:not(:disabled):hover {
   border-color: var(--control-primary-border);
   color: var(--control-primary-text);
   background: var(--control-primary-bg-hover);
   box-shadow: none;
 }
 
-:where(.app-shell, .standalone-dark-theme) [data-ui-kind="button"][data-control-variant="danger"] {
+:where(.app-shell) [data-ui-kind="button"][data-control-variant="danger"] {
   border-color: var(--control-danger-border);
   color: var(--control-danger-text);
   background: var(--control-danger-bg);
 }
 
-:where(.app-shell, .standalone-dark-theme) [data-ui-kind="button"][data-control-variant="danger"]:not(:disabled):hover {
+:where(.app-shell) [data-ui-kind="button"][data-control-variant="danger"]:not(:disabled):hover {
   border-color: var(--control-danger-border);
   color: var(--control-danger-text);
   background: var(--control-danger-bg-hover);
 }
 
-:where(.app-shell, .standalone-dark-theme) [data-ui-kind="button"][data-control-variant="ai"] {
+:where(.app-shell) [data-ui-kind="button"][data-control-variant="ai"] {
   border-color: var(--control-ai-border);
   color: var(--control-ai-text);
   background: var(--control-ai-bg);
 }
 
-:where(.app-shell, .standalone-dark-theme) [data-ui-kind="button"][data-control-variant="ai"]:not(:disabled):hover {
+:where(.app-shell) [data-ui-kind="button"][data-control-variant="ai"]:not(:disabled):hover {
   border-color: var(--control-ai-border);
   color: var(--control-ai-text);
   background: var(--control-ai-bg-hover);
 }
 
-:where(.app-shell, .standalone-dark-theme) [data-ui-kind="button"][data-control-variant="quiet"] {
+:where(.app-shell) [data-ui-kind="button"][data-control-variant="quiet"] {
   border-color: var(--control-quiet-border);
   color: var(--control-quiet-text);
   background: var(--control-quiet-bg);
 }
 
-:where(.app-shell, .standalone-dark-theme) [data-ui-kind="button"][data-control-variant="quiet"]:not(:disabled):hover {
+:where(.app-shell) [data-ui-kind="button"][data-control-variant="quiet"]:not(:disabled):hover {
   border-color: var(--control-quiet-border);
   color: var(--text);
   background: var(--control-quiet-bg-hover);
 }
 
-:where(.app-shell, .standalone-dark-theme) h2 {
+:where(.app-shell) h2 {
   margin: 0;
   font-size: 20px;
 }

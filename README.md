@@ -44,8 +44,8 @@ d2-tools-setup-<version>.exe
 1. 下载安装器并运行。
 2. 按 [Bungie 配置指南](docs/bungie-setup.md) 创建你自己的 Bungie Application。
 3. 打开 d2-tools，在首次引导或设置页填写 `API Key`、`Client ID`、`Client Secret`。
-4. 点击“登录 Bungie”，在浏览器里完成授权。
-5. 点击“初始化资料库”，下载 Destiny 2 资料库。
+4. 点击“保存配置”，d2-tools 会自动准备资料库；如果准备失败，按页面提示重试。
+5. 资料库准备完成后，点击“登录 Bungie”，在浏览器里完成授权。
 6. 回到软件开始查看账号、仓库、资料库、今日 / 本周和 AI 助手。
 
 ## 核心功能

@@ -11,8 +11,9 @@ if [[ "$status" -ne 0 ]]; then
   printf '\nGit 提交推送失败，按回车关闭此窗口。'
   read -r
 else
-  printf '\nGit 提交推送完成，按回车关闭此窗口。'
-  read -r
+  # Finder 双击 .command 会打开一个独立 Terminal 窗口；成功后关闭这个脚本对应的窗口。
+  window_name="$(basename "$0")"
+  osascript -e "tell application \"Terminal\" to close (every window whose name contains \"${window_name}\")" >/dev/null 2>&1 || true
 fi
 
 exit "$status"

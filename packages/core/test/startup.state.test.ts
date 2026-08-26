@@ -31,16 +31,16 @@ function config(overrides: Partial<D2Config["bungie"]> = {}): D2Config {
 }
 
 describe("startup state", () => {
-  it("allows home when Bungie config is missing so first launch is not blocked", () => {
+  it("starts with Bungie configuration when the app is not configured", () => {
     const state = computeStartupState({ config: config(), hasToken: false, hasManifest: false });
 
-    expect(state.nextStep).toBe("home");
+    expect(state.nextStep).toBe("bungie-config");
     expect(state.cards.bungieConfig.status).toBe("missing");
     expect(state.cards.bungieConfig.label).toBe("需要填写 Bungie 配置");
     expect(state.cards.account.status).toBe("missing");
   });
 
-  it("requires login when Bungie config exists but token is absent", () => {
+  it("allows login before the background manifest is ready", () => {
     expect(computeStartupState({
       config: config({ api_key: "api", client_id: "client", client_secret: "secret" }),
       hasToken: false,
@@ -48,7 +48,7 @@ describe("startup state", () => {
     }).nextStep).toBe("login");
   });
 
-  it("allows degraded home when manifest is absent", () => {
+  it("keeps the manifest status independent from the startup step", () => {
     const state = computeStartupState({
       config: config({ api_key: "api", client_id: "client", client_secret: "secret" }),
       hasToken: true,
@@ -57,6 +57,14 @@ describe("startup state", () => {
 
     expect(state.nextStep).toBe("home");
     expect(state.cards.manifest.status).toBe("missing");
+  });
+
+  it("requires login after the manifest is ready", () => {
+    expect(computeStartupState({
+      config: config({ api_key: "api", client_id: "client", client_secret: "secret" }),
+      hasToken: false,
+      hasManifest: true
+    }).nextStep).toBe("login");
   });
 
   it("requires login when a saved Bungie token is expired or invalid", () => {

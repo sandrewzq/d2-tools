@@ -3,6 +3,7 @@ import {
   getLocaleCopy,
   ShellSidebarAccountSummary,
   ShellSidebarActions,
+  StartupGate,
   type ProductPreferences,
   type ShellAssistantMode,
   type ShellPageKey,
@@ -27,10 +28,10 @@ import type { DesktopMenuSession } from "./providers/DesktopMenuProviderContext"
 import { useDesktopProductWriteActions } from "./useDesktopProductWriteActions";
 
 const ACCOUNT_PAGE_REVALIDATE_MS = 60_000;
+type SettingsInitialSection = "overview" | "account" | "bungie";
 
 export function useDesktopProductShell(props: {
   state: StartupState;
-  onConfigure: () => void;
   onConfigChanged: () => void;
   onLoginComplete: () => void;
   onManifestInitialized: () => void;
@@ -41,9 +42,14 @@ export function useDesktopProductShell(props: {
   const visualEnv = (import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env;
   const visualInitialPage = visualEnv?.VITE_D2_VISUAL_PAGE;
   const visualColorMode = isColorMode(visualEnv?.VITE_D2_VISUAL_THEME) ? visualEnv?.VITE_D2_VISUAL_THEME : undefined;
-  const initialPage: ShellPageKey = isShellPageKey(visualInitialPage) ? visualInitialPage : "home";
+  const startupStep = props.state.nextStep;
+  const initialPage: ShellPageKey = isShellPageKey(visualInitialPage)
+    ? visualInitialPage
+    : "home";
   const [activePage, setActivePage] = useState<ShellPageKey>(initialPage);
-  const [settingsInitialSection, setSettingsInitialSection] = useState<"overview" | "account">("overview");
+  const [settingsInitialSection, setSettingsInitialSection] = useState<SettingsInitialSection>(
+    props.state.cards.bungieConfig.status === "missing" ? "bungie" : "overview"
+  );
   const [assistantMode, setAssistantMode] = useState<ShellAssistantMode>(null);
   const [hasAutoLoadedAccount, setHasAutoLoadedAccount] = useState(false);
   const [vaultFacts, setVaultFacts] = useState<string[]>([]);
@@ -159,9 +165,27 @@ export function useDesktopProductShell(props: {
   const isRunningItemAction = writeActions.isRunningItemAction;
 
   function handlePageChange(page: ShellPageKey) {
+    if (startupStep !== "home" && page !== "home" && page !== "settings") return;
     itemDetail.closeSelectedItemDetail();
     vendorDefinitionDetail.close();
+    if (page === "settings") {
+      setSettingsInitialSection("overview");
+    }
     setActivePage(page);
+  }
+
+  function openBungieSettings() {
+    setSettingsInitialSection("bungie");
+    itemDetail.closeSelectedItemDetail();
+    vendorDefinitionDetail.close();
+    setActivePage("settings");
+  }
+
+  function openStartupSettings() {
+    setSettingsInitialSection(startupStep === "bungie-config" ? "bungie" : "account");
+    itemDetail.closeSelectedItemDetail();
+    vendorDefinitionDetail.close();
+    setActivePage("settings");
   }
 
   function locateVaultItem(item: { hash: number; name: string }) {
@@ -196,7 +220,20 @@ export function useDesktopProductShell(props: {
     void library.loadLibraryHistory();
   }, [isVisualCapture]);
 
-  const isManifestReady = props.state.cards.manifest.status === "ready";
+  const isManifestReady = diagnostics.manifestStatus
+    ? Boolean(
+        diagnostics.manifestStatus.initialized
+        && !diagnostics.manifestStatus.missing_required_components?.length
+      )
+    : props.state.cards.manifest.status === "ready";
+
+  useEffect(() => {
+    if (startupStep !== "home") {
+      setActivePage("home");
+    } else {
+      setActivePage((current) => current === "settings" ? "home" : current);
+    }
+  }, [startupStep]);
 
   useEffect(() => {
     if (isVisualCapture || !isManifestReady) return;
@@ -205,10 +242,10 @@ export function useDesktopProductShell(props: {
 
   const refreshAccountRef = useRef(refreshAccountSnapshot);
   const accountPageRefreshAttemptedRef = useRef(false);
+  const previousManifestReadyRef = useRef(isManifestReady);
   refreshAccountRef.current = refreshAccountSnapshot;
   const canRefreshAccount = props.state.cards.bungieConfig.status === "ready"
-    && props.state.cards.account.status === "ready"
-    && isManifestReady;
+    && props.state.cards.account.status === "ready";
 
   useEffect(() => {
     if (hasAutoLoadedAccount || !canRefreshAccount) {
@@ -227,6 +264,13 @@ export function useDesktopProductShell(props: {
 
     return () => clearInterval(id);
   }, [canRefreshAccount]);
+
+  useEffect(() => {
+    const wasReady = previousManifestReadyRef.current;
+    previousManifestReadyRef.current = isManifestReady;
+    if (isVisualCapture || wasReady || !isManifestReady || !canRefreshAccount || !hasAutoLoadedAccount) return;
+    void refreshAccountRef.current("auto");
+  }, [canRefreshAccount, hasAutoLoadedAccount, isManifestReady, isVisualCapture]);
 
   useEffect(() => {
     if (activePage !== "account") {
@@ -308,7 +352,8 @@ export function useDesktopProductShell(props: {
 
   const menuSession: DesktopMenuSession = {
     state: props.state,
-    onConfigure: props.onConfigure,
+    onConfigure: openBungieSettings,
+    onConfigChanged: props.onConfigChanged,
     setActivePage,
     settingsInitialSection,
     setSettingsInitialSection,
@@ -391,6 +436,19 @@ export function useDesktopProductShell(props: {
       vaultTags
     },
     menuSession,
+    startupGate: startupStep !== "home" && activePage !== "settings" ? (
+      <StartupGate
+        step={startupStep}
+        isManifestReady={isManifestReady}
+        isManifestBusy={diagnostics.isInitializingManifest}
+        manifestError={diagnostics.manifestStatusError}
+        isBusy={accountWorkspace.isLoggingIn}
+        error={accountWorkspace.loginError || accountWorkspace.accountError}
+        onConfigure={openBungieSettings}
+        onLogin={() => void accountWorkspace.loginBungie()}
+        onOpenSettings={openStartupSettings}
+      />
+    ) : null,
     pageHeader: {
       title: currentPageMeta.title,
       subtitle: currentPageMeta.subtitle,
@@ -460,6 +518,7 @@ function buildShellStatus(input: {
   onOpenAppUpdateSettings: () => void;
 }): ShellStatusItem[] {
   const needsLibraryRepair = Boolean(input.manifestStatus?.missing_required_components?.length);
+  const waitingForBungieConfig = !input.isBungieConfigured;
   const shellCopy = getLocaleCopy(input.interfaceLocale).shell;
   const appUpdateStatus = getAppUpdateShellStatus(input.appUpdateSnapshot, shellCopy.update);
 
@@ -481,13 +540,15 @@ function buildShellStatus(input: {
     {
       key: "library",
       label: "资料库",
-      value: input.manifestStatusError
+      value: waitingForBungieConfig
+        ? "等待配置"
+        : input.manifestStatusError
         ? "检查失败"
         : (needsLibraryRepair ? "修复资料库" : formatManifestShellStatus(input.manifestStatus)),
-      tone: input.manifestStatusError ? "error" : getManifestStatusTone(input.manifestStatus),
-      priority: input.manifestStatusError || needsLibraryRepair ? "attention" : "standard",
-      actionLabel: needsLibraryRepair ? "修复资料库" : undefined,
-      onAction: needsLibraryRepair ? input.onRepairManifest : undefined
+      tone: waitingForBungieConfig ? "neutral" : input.manifestStatusError ? "error" : getManifestStatusTone(input.manifestStatus),
+      priority: waitingForBungieConfig ? "standard" : input.manifestStatusError || needsLibraryRepair ? "attention" : "standard",
+      actionLabel: waitingForBungieConfig || !needsLibraryRepair ? undefined : "修复资料库",
+      onAction: waitingForBungieConfig || !needsLibraryRepair ? undefined : input.onRepairManifest
     },
     {
       key: "ai",

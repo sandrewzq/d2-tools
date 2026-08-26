@@ -5,7 +5,7 @@ import type { StartupState } from "../src/renderer/api/types";
 
 function startupState(): StartupState {
   return {
-    nextStep: "home",
+    nextStep: "login",
     cards: {
       bungieConfig: { status: "ready", label: "Bungie 配置已完成" },
       account: { status: "missing", label: "需要登录 Bungie 账号" },

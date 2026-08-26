@@ -687,8 +687,8 @@
   display: grid;
   gap: 5px;
   align-content: center;
-  min-height: 112px;
   margin: 10px 12px;
+  min-height: 112px;
   padding: 14px;
   border: 1px solid var(--object-border);
   border-radius: var(--radius-frame);

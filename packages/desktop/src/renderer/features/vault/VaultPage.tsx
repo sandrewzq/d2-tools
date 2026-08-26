@@ -21,6 +21,8 @@ import { services } from "../../api/services";
 
 export function VaultPage(props: {
   account: AccountSummary | null;
+  isBungieConfigured: boolean;
+  isAccountLoggedIn: boolean;
   isLoadingAccount: boolean;
   accountError: string;
   activeLoadoutLookup: LoadoutTemplateLookup | null;
@@ -43,6 +45,8 @@ export function VaultPage(props: {
   onOpenGuide: (targetId: string) => Promise<boolean>;
   onOpenArmorResult: (reference: { resultId: string; candidateId: string }) => void;
   onLoadAccount: () => void;
+  onConfigureBungie: () => void;
+  onLoginBungie: () => void;
   onSaveTagBatch: (inputs: SaveVaultTagInput[]) => void | Promise<void>;
   onBatchUnlock: (items: AccountItemSummary[], targetCharacterId: string) => Promise<string>;
   onBatchTransferToCharacter: (items: AccountItemSummary[], targetCharacterId: string) => Promise<BatchItemActionResult>;
@@ -129,9 +133,27 @@ export function VaultPage(props: {
     props.communityMatch
   ]);
 
-  if (!props.account) {
+  if (!props.isBungieConfigured || !props.isAccountLoggedIn || !props.account) {
+    if (!props.isBungieConfigured || !props.isAccountLoggedIn) {
+      const isConfigured = props.isBungieConfigured;
+      return (
+        <ProductWorkspaceEmptyState className="account-unavailable product-workspace-empty--page" uiKind="state-frame">
+          <span className="ui-badge status-warning">未连接 Bungie</span>
+          <h2>{isConfigured ? "账号还没有登录" : "还没有配置 Bungie 应用"}</h2>
+          <p>{isConfigured ? "先登录 Bungie，读取账号数据后才能查看仓库、装备和清理候选。" : "先在设置里完成 Bungie 应用配置，再登录账号读取仓库数据。"}</p>
+          <div className="button-row">
+            {isConfigured ? (
+              <button type="button" data-ui-kind="button" data-control-variant="primary" onClick={props.onLoginBungie}>登录 Bungie</button>
+            ) : (
+              <button type="button" data-ui-kind="button" data-control-variant="primary" onClick={props.onConfigureBungie}>去设置 Bungie</button>
+            )}
+          </div>
+        </ProductWorkspaceEmptyState>
+      );
+    }
+
     return (
-      <ProductWorkspaceEmptyState>
+      <ProductWorkspaceEmptyState className="vault-empty-state product-workspace-empty--page">
         <strong>{props.accountError ? "仓库读取失败" : props.isLoadingAccount ? "正在读取账号" : "还没有账号数据"}</strong>
         <span>{props.accountError || "先读取账号数据，然后查看完整仓库列表。"}</span>
         <ControlButton variant="primary" aria-busy={props.isLoadingAccount} disabled={props.isLoadingAccount} onClick={props.onLoadAccount}>刷新账号</ControlButton>

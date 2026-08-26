@@ -108,6 +108,8 @@ export {
 } from "./workspace/ProductWorkspace.js";
 export { getLocalizedNavItems, navItems } from "./shell/navigation.js";
 export { SettingsPageContentView } from "./settings/SettingsPageContentView.js";
+export { StartupGate } from "./startup/StartupGate.js";
+export type { StartupGateProps, StartupGateStep } from "./startup/StartupGate.js";
 export { SettingsAiConfigPanel } from "./settings/SettingsAiConfigPanel.js";
 export type {
   SettingsActionLogResultFilter,

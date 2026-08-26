@@ -477,7 +477,7 @@ export function createAccountSession(options: CreateAccountSessionOptions): Acco
     request: Parameters<AccountDefinitionLoader>[0]
   ): Promise<AccountDefinitionData> {
     const loaded = options.loadDefinitions
-      ? await options.loadDefinitions(request)
+      ? await Promise.resolve(options.loadDefinitions(request)).catch(() => undefined)
       : undefined;
     return mergeDefinitionData(options.definitions, loaded);
   }

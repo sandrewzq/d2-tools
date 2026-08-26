@@ -7,7 +7,6 @@ import { useDesktopProductShell } from "./useDesktopProductShell";
 
 export function HomePage(props: {
   state: StartupState;
-  onConfigure: () => void;
   onConfigChanged: () => void;
   onLoginComplete: () => void;
   onManifestInitialized: () => void;
@@ -37,7 +36,7 @@ export function HomePage(props: {
         assistantPanel={shell.assistantPanel}
         renderPage={() => (
           <>
-            <HomePageRoutes activePage={shell.activePage} />
+            {shell.startupGate ?? <HomePageRoutes activePage={shell.activePage} />}
             <HomePageItemDetailModal {...shell.itemDetailModalProps} />
           </>
         )}

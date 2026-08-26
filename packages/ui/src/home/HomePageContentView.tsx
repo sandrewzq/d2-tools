@@ -278,14 +278,16 @@ function HomePageContent(props: {
               <strong data-ui-part="value" data-info-priority="decision" data-text-tone="primary" data-value-kind="fact">{xurTiming.moment}</strong>
               <small data-ui-part="state" data-info-priority="decision" data-text-tone="countdown" data-value-kind="countdown">{xurTiming.countdown}</small>
             </div>
-            <button
-              type="button"
-              data-ui-kind="button" data-control-variant="secondary"
-              disabled={!props.onNavigate}
-              onClick={() => props.onNavigate?.("vendors")}
-            >
-              打开仄的完整库存
-            </button>
+            {xur ? (
+              <button
+                type="button"
+                data-ui-kind="button" data-control-variant="secondary"
+                disabled={!props.onNavigate}
+                onClick={() => props.onNavigate?.("vendors")}
+              >
+                打开仄的完整库存
+              </button>
+            ) : null}
           </div>
           <div className="home-vendor-content" data-surface="content-stack" data-status={homeVendorStatus(props)} aria-live="polite" aria-busy={props.isLoadingDaily}>
             {xur ? (

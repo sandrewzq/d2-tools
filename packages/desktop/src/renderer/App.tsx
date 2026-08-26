@@ -3,12 +3,10 @@ import { api } from "./api/client";
 import type { StartupState } from "./api/types";
 
 const HomePage = lazy(() => import("./pages/HomePage").then((m) => ({ default: m.HomePage })));
-const WizardPage = lazy(() => import("./pages/WizardPage").then((m) => ({ default: m.WizardPage })));
 
 export function App() {
   const [state, setState] = useState<StartupState | null>(null);
   const [startupError, setStartupError] = useState("");
-  const [isConfiguring, setIsConfiguring] = useState(false);
 
   async function refresh() {
     // #region debug-point A:startup-refresh
@@ -29,11 +27,6 @@ export function App() {
     }
   }
 
-  async function finishConfiguring() {
-    setIsConfiguring(false);
-    await refresh();
-  }
-
   useEffect(() => {
     void refresh();
   }, []);
@@ -51,23 +44,10 @@ export function App() {
 
   if (!state) return <main className="page">正在启动 d2-tools...</main>;
 
-  if (isConfiguring) {
-    return (
-      <Suspense fallback={<main className="page">加载中...</main>}>
-        <WizardPage
-          canCancel={true}
-          onCancel={() => setIsConfiguring(false)}
-          onSaved={() => void finishConfiguring()}
-        />
-      </Suspense>
-    );
-  }
-
   return (
     <Suspense fallback={<main className="page">加载中...</main>}>
       <HomePage
         state={state}
-        onConfigure={() => setIsConfiguring(true)}
         onConfigChanged={() => void refresh()}
         onLoginComplete={() => void refresh()}
         onManifestInitialized={() => void refresh()}

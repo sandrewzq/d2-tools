@@ -16,7 +16,7 @@ export type { SettingsActionLogResultFilter, SettingsActionLogTypeFilter };
 
 export function SettingsPage(props: {
   interfaceLocale?: InterfaceLocale;
-  initialSection?: "overview" | "account";
+  initialSection?: "overview" | "account" | "bungie";
   message: string;
   error: string;
   diagnosticDataDir: string;
@@ -39,6 +39,8 @@ export function SettingsPage(props: {
   actionLogResultFilter: SettingsActionLogResultFilter;
   actionLogTypeFilter: SettingsActionLogTypeFilter;
   onAiSettingsSaved: () => void;
+  onBungieConfigSaved: () => void;
+  onOpenBungiePortal: () => void;
   onOpenDataDir: () => void;
   onWriteActionsEnabledChange: (enabled: boolean) => void;
   onCheckAppUpdate: () => void;
@@ -133,7 +135,12 @@ export function SettingsPage(props: {
       {...model}
       aiSettingsAdapter={aiSettingsAdapter}
       onLoadBungieConfig={() => api.getConfig()}
-      onSaveBungieConfig={saveBungieConfig}
+      onOpenBungiePortal={props.onOpenBungiePortal}
+      onInitializeManifest={props.onInitializeManifest}
+      onSaveBungieConfig={async (bungie) => {
+        await saveBungieConfig(bungie);
+        props.onBungieConfigSaved();
+      }}
     />
   );
 }

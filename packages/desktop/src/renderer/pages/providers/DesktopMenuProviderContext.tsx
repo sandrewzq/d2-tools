@@ -16,9 +16,10 @@ import type { useDesktopProductWriteActions } from "../useDesktopProductWriteAct
 export type DesktopMenuSession = {
   state: StartupState;
   onConfigure: () => void;
+  onConfigChanged: () => void;
   setActivePage: Dispatch<SetStateAction<ShellPageKey>>;
-  settingsInitialSection: "overview" | "account";
-  setSettingsInitialSection: Dispatch<SetStateAction<"overview" | "account">>;
+  settingsInitialSection: "overview" | "account" | "bungie";
+  setSettingsInitialSection: Dispatch<SetStateAction<"overview" | "account" | "bungie">>;
   setVaultFacts: Dispatch<SetStateAction<string[]>>;
   vaultLocateRequest: { hash: number; name: string; requestId: number } | null;
   locateVaultItem: (item: { hash: number; name: string }) => void;

@@ -11,8 +11,8 @@ if [[ "$status" -ne 0 ]]; then
   printf '\nMac Release 脚本失败，按回车关闭此窗口。'
   read -r
 else
-  printf '\nMac Release 完成，按回车关闭此窗口。'
-  read -r
+  window_name="$(basename "$0")"
+  osascript -e "tell application \"Terminal\" to close (every window whose name contains \"${window_name}\")" >/dev/null 2>&1 || true
 fi
 
 exit "$status"

@@ -6,6 +6,7 @@ import { registerIpcHandlers } from "./ipc.js";
 import { scheduleInitialManifestVersionCheck } from "./ipc/manifest.js";
 import { scheduleInitialUpdateCheck } from "./ipc/updates.js";
 import { getWindowBackgroundColor } from "./ipc/window.js";
+import { loadConfig } from "@d2-tools/services/config/store";
 import {
   initializeRuntimeCoordinator,
   shutdownRuntimeCoordinator
@@ -35,6 +36,7 @@ if (isVisualCapture) {
 
 async function createWindow(): Promise<void> {
   const [captureWidth, captureHeight] = parseVisualViewport(visualCaptureViewport);
+  const initialColorMode = loadConfig().features.color_mode;
   const window = new BrowserWindow({
     width: isVisualCapture ? captureWidth : 1920,
     height: isVisualCapture ? captureHeight : 1080,
@@ -45,7 +47,7 @@ async function createWindow(): Promise<void> {
     icon: appIcon,
     autoHideMenuBar: true,
     titleBarStyle: "hidden",
-    backgroundColor: getWindowBackgroundColor("dark"),
+    backgroundColor: getWindowBackgroundColor(initialColorMode),
     webPreferences: {
       preload: join(currentDir, "../preload/preload.cjs"),
       contextIsolation: true,

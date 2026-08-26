@@ -279,8 +279,7 @@ html[data-theme="light"] {
   --element-strand-bg: #e5f3df;
 }
 
-.app-shell[data-color-mode="dark"],
-.standalone-dark-theme {
+.app-shell[data-color-mode="dark"] {
   color-scheme: dark;
   --page: #070b10;
   --sidebar: #0b1218;
@@ -362,8 +361,7 @@ html[data-theme="light"] {
 }
 
 .app-shell[data-color-mode="light"],
-.app-shell[data-color-mode="dark"],
-.standalone-dark-theme {
+.app-shell[data-color-mode="dark"] {
   --danger: var(--red);
   --surface-page: var(--page);
   --surface-sidebar: var(--sidebar);

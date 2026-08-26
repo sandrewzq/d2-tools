@@ -54,6 +54,9 @@
 
 页面级可见边界只分为 `ShellLine`、`WorkspaceOutline`、`SplitLine`、`RowLine` 和 `ObjectOutline`。`WorkspaceOutline` 由 `WorkspaceFrame` 使用 `border-control` 绘制；同一条边只能由一个 DOM 层绘制。
 
+页面级未配置、未登录、未初始化和空结果状态使用共享 `ProductWorkspaceEmptyState` 的 `product-workspace-empty--page` 标记：内容垂直居中，状态徽标、标题、说明和唯一主操作居中排列，按钮按内容宽度显示。局部列表或分栏内空态不得套用页面级高度，避免撑开目录、工具栏或详情头。
+
+
 粗左侧或 `inline-start` 语义色条只由 foundation 中的共享 `Callout` 配方持有。业务状态使用 `data-status="pending|success|warning|error"`，普通信息与 AI 提示使用 `data-callout-tone="info|ai"`；菜单和普通组件 CSS 不得直接声明宽度大于 `1px` 的 `border-left` 或 `border-inline-start`。
 
 ## 尺寸与响应式

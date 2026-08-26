@@ -16,6 +16,8 @@ export function VaultMenuProvider() {
   return (
     <VaultPage
       account={accountSummary}
+      isBungieConfigured={session.state.cards.bungieConfig.status === "ready"}
+      isAccountLoggedIn={session.state.cards.account.status === "ready"}
       isLoadingAccount={account.isLoadingAccount}
       accountError={account.accountError}
       activeLoadoutLookup={session.home.activeLoadoutLookup}
@@ -44,6 +46,8 @@ export function VaultMenuProvider() {
       }}
       onOpenArmorResult={session.locateArmorResultReference}
       onLoadAccount={session.refreshAccountManually}
+      onConfigureBungie={session.onConfigure}
+      onLoginBungie={() => void account.loginBungie()}
       onSaveTagBatch={(inputs) => writeActions.vaultWriteActions.saveVaultTagsBatch(inputs)}
       onBatchUnlock={writeActions.vaultWriteActions.handleVaultCleanupUnlock}
       onBatchTransferToCharacter={writeActions.vaultWriteActions.handleVaultCleanupTransfer}

@@ -21,8 +21,7 @@
  */
 .app-shell[data-color-mode="light"],
 .app-shell[data-color-mode="dark"],
-html[data-theme="light"],
-.standalone-dark-theme {
+html[data-theme="light"] {
   --surface-frame-bg: var(--card-bg);
   --surface-frame-border: var(--object-border);
   --surface-list-divider: var(--section-divider);
@@ -42,6 +41,7 @@ html[data-theme="light"],
 }
 
 [data-shell-role="page-header"] {
+  box-sizing: border-box;
   position: sticky;
   z-index: var(--layer-sticky);
   top: 0;
@@ -49,6 +49,7 @@ html[data-theme="light"],
   align-items: center;
   justify-content: space-between;
   gap: var(--workspace-section-space);
+  height: var(--workspace-header-height);
   min-height: var(--workspace-header-height);
   padding: 10px var(--workspace-page-space);
   border: 0;
@@ -133,17 +134,17 @@ html[data-theme="light"],
 }
 
 /* ContextSwitcher 与 SegmentedControl 共享状态 token，但保留各自布局语义。 */
-:where(.app-shell, .standalone-dark-theme) [data-ui-kind="context-switcher"] > button[aria-pressed="true"],
-:where(.app-shell, .standalone-dark-theme) [data-ui-kind="segmented-control"] > button[aria-pressed="true"],
-:where(.app-shell, .standalone-dark-theme) [data-ui-kind="segmented-control"] > [role="tab"][aria-selected="true"] {
+:where(.app-shell) [data-ui-kind="context-switcher"] > button[aria-pressed="true"],
+:where(.app-shell) [data-ui-kind="segmented-control"] > button[aria-pressed="true"],
+:where(.app-shell) [data-ui-kind="segmented-control"] > [role="tab"][aria-selected="true"] {
   color: var(--selected-fg);
   background: var(--state-selected-bg);
   box-shadow: inset 0 0 0 1px var(--state-selected-border);
 }
 
-:where(.app-shell, .standalone-dark-theme) [data-ui-kind="context-switcher"] > button[aria-pressed="true"]:hover,
-:where(.app-shell, .standalone-dark-theme) [data-ui-kind="segmented-control"] > button[aria-pressed="true"]:hover,
-:where(.app-shell, .standalone-dark-theme) [data-ui-kind="segmented-control"] > [role="tab"][aria-selected="true"]:hover {
+:where(.app-shell) [data-ui-kind="context-switcher"] > button[aria-pressed="true"]:hover,
+:where(.app-shell) [data-ui-kind="segmented-control"] > button[aria-pressed="true"]:hover,
+:where(.app-shell) [data-ui-kind="segmented-control"] > [role="tab"][aria-selected="true"]:hover {
   background: var(--state-selected-bg-hover);
 }
 
@@ -303,6 +304,7 @@ html[data-theme="light"],
 
 @media (max-width: 760px) {
   [data-shell-role="page-header"] {
+    height: auto;
     flex-direction: column;
     gap: var(--space-16);
     align-items: flex-start;

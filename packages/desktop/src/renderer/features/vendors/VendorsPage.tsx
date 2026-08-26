@@ -7,12 +7,19 @@ export function VendorsPage(props: {
   model: VendorsPageWorkspace;
   actions: VendorsPageActions;
   interfaceLocale?: InterfaceLocale;
+  availability?: {
+    isBungieConfigured: boolean;
+    isAccountLoggedIn: boolean;
+    onConfigureBungie: () => void;
+    onLoginBungie: () => void;
+  };
 }) {
   return (
     <VendorsPageContentView
       interfaceLocale={props.interfaceLocale}
       model={props.model}
       actions={props.actions}
+      availability={props.availability}
     />
   );
 }

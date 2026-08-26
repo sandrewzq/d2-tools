@@ -1009,16 +1009,11 @@
 :where(.app-shell) .account-unavailable {
   display: grid;
   gap: 10px;
-  align-content: start;
-  min-height: 180px;
-  padding: 18px;
-  border: 1px solid var(--object-border);
-  border-radius: var(--radius-frame);
-  background: var(--surface-recessed);
+  align-content: center;
 }
 
 :where(.app-shell) .account-unavailable .ui-badge {
-  justify-self: start;
+  justify-self: center;
 }
 
 :where(.app-shell) .account-unavailable h2,

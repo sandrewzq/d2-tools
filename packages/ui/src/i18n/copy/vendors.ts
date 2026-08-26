@@ -9,7 +9,14 @@ export const vendorsCopy: Record<InterfaceLocale, LocaleCopy["vendors"]> = {
         "商人": "商人",
         "个商人": "个商人",
         "个来源": "个来源",
-        "重新加载商人库存": "重新加载商人库存"
+        "重新加载商人库存": "重新加载商人库存",
+        "未连接 Bungie": "未连接 Bungie",
+        "账号还没有登录": "账号还没有登录",
+        "还没有配置 Bungie 应用": "还没有配置 Bungie 应用",
+        "先登录 Bungie，读取账号数据后才能加载角色商人库存。": "先登录 Bungie，读取账号数据后才能加载角色商人库存。",
+        "先在设置里完成 Bungie 应用配置，再登录账号加载商人库存。": "先在设置里完成 Bungie 应用配置，再登录账号加载商人库存。",
+        "登录 Bungie": "登录 Bungie",
+        "去设置 Bungie": "去设置 Bungie"
       },
       title: "商人库存",
       subtitle: "按商人分组查看可确认库存、费用和推荐关注项。",
@@ -43,7 +50,14 @@ export const vendorsCopy: Record<InterfaceLocale, LocaleCopy["vendors"]> = {
         "属性读取中": "Loading details",
         "部分详情失败": "Some details failed",
         "详情失败": "Details failed",
-        "重新加载商人库存": "Reload vendor inventory"
+        "重新加载商人库存": "Reload vendor inventory",
+        "未连接 Bungie": "Bungie disconnected",
+        "账号还没有登录": "Bungie account is not signed in",
+        "还没有配置 Bungie 应用": "Bungie app is not configured",
+        "先登录 Bungie，读取账号数据后才能加载角色商人库存。": "Sign in to Bungie to load vendor inventory for your characters.",
+        "先在设置里完成 Bungie 应用配置，再登录账号加载商人库存。": "Configure the Bungie app in Settings, then sign in to load vendor inventory.",
+        "登录 Bungie": "Sign in to Bungie",
+        "去设置 Bungie": "Configure Bungie"
       },
       title: "Vendors",
       subtitle: "Review verified vendor inventory, costs, ownership, and recommended watch items.",

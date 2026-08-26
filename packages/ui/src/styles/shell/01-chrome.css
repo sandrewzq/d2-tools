@@ -391,6 +391,7 @@ button.shell-status-group[data-status="error"][data-priority="attention"]:focus-
 }
 
 .shell-sidebar-header {
+  box-sizing: border-box;
   height: var(--workspace-header-height);
 }
 
@@ -428,7 +429,7 @@ button.shell-status-group[data-status="error"][data-priority="attention"]:focus-
   display: grid;
   align-content: start;
   gap: 0;
-  margin: 8px 6px;
+  margin: 0 6px 8px;
   border: 0;
   border-radius: 0;
   background: transparent;

@@ -91,7 +91,7 @@ function AccountUnavailableState(props: {
       : props.copy.configMissingTitle;
 
   return (
-    <ProductWorkspaceEmptyState className="account-unavailable" uiKind="state-frame">
+    <ProductWorkspaceEmptyState className="account-unavailable product-workspace-empty--page" uiKind="state-frame">
       <span className={`ui-badge ${isLoading ? "status-pending" : "status-warning"}`}>
         {isLoading ? props.copy.loadingAccount : props.copy.disconnectedBadge}
       </span>

@@ -90,6 +90,7 @@ export type SettingsPageContentViewProps = {
   languagePreferences: SettingsLanguagePreferences;
   onLanguagePreferencesChange: (preferences: SettingsLanguagePreferences) => void;
   onLoadBungieConfig: () => Promise<SettingsBungieConfig>;
+  onOpenBungiePortal: () => void;
   onSaveBungieConfig: (bungie: SettingsBungieConfigInput) => Promise<void>;
 };
 
@@ -118,7 +119,8 @@ export function SettingsPageContentView(props: SettingsPageContentViewProps) {
   const interfaceLocale = props.interfaceLocale ?? "zh-CN";
   const settingsMenu = getSettingsMenu(copy);
   const initialSection = props.initialSection ?? "overview";
-  const [activeSection, setActiveSection] = useState<SettingsSectionKey>(settingsMenu.some((item) => item.key === initialSection) ? initialSection : "overview");
+  const resolvedInitialSection: SettingsSectionKey = settingsMenu.some((item) => item.key === initialSection) ? initialSection : "overview";
+  const [activeSection, setActiveSection] = useState<SettingsSectionKey>(resolvedInitialSection);
   const [bungieApiKey, setBungieApiKey] = useState("");
   const [bungieClientId, setBungieClientId] = useState("");
   const [bungieClientSecret, setBungieClientSecret] = useState("");
@@ -127,6 +129,8 @@ export function SettingsPageContentView(props: SettingsPageContentViewProps) {
   const [bungieError, setBungieError] = useState("");
   const [isLoadingBungieConfig, setIsLoadingBungieConfig] = useState(true);
   const [isSavingBungieConfig, setIsSavingBungieConfig] = useState(false);
+  const [isAutoPreparingManifest, setIsAutoPreparingManifest] = useState(false);
+  const [hasAutoManifestFailure, setHasAutoManifestFailure] = useState(false);
   const updateUi = getAppUpdateUi(props.appUpdateSnapshot, copy);
   const libraryUi = getLibraryUi(props.manifestStatus, props.manifestStatusError, props.isLoadingManifestStatus, copy);
   const accountUi = getAccountUi(props.accountSummary, props.accountError, props.accountWarning, props.isLoadingAccount, copy);
@@ -134,6 +138,32 @@ export function SettingsPageContentView(props: SettingsPageContentViewProps) {
   const aiUi = getAiUi(props.isAiConfigured, copy);
   const backgroundTaskUi = getBackgroundTaskUi(props.backgroundTasks, copy);
   const libraryVersion = formatLibraryVersion(props.manifestStatus?.version);
+
+  useEffect(() => {
+    setActiveSection(resolvedInitialSection);
+  }, [resolvedInitialSection]);
+
+  const manifestIsReady = Boolean(
+    props.manifestStatus?.initialized
+      && !props.manifestStatus.missing_required_components?.length
+  );
+
+  useEffect(() => {
+    if (!isAutoPreparingManifest) return;
+    if (props.manifestStatusError && !props.isInitializingManifest) {
+      setIsAutoPreparingManifest(false);
+      setHasAutoManifestFailure(true);
+      setBungieMessage("");
+      setBungieError("");
+      return;
+    }
+    if (manifestIsReady && !props.isInitializingManifest) {
+      setIsAutoPreparingManifest(false);
+      setHasAutoManifestFailure(false);
+      setBungieError("");
+      setBungieMessage(props.accountSummary ? settingsText(copy, "配置和资料库已准备完成。") : "");
+    }
+  }, [copy, isAutoPreparingManifest, manifestIsReady, props.accountSummary, props.isInitializingManifest, props.manifestStatusError]);
 
   useEffect(() => {
     let cancelled = false;
@@ -156,13 +186,25 @@ export function SettingsPageContentView(props: SettingsPageContentViewProps) {
     setBungieMessage("");
     setBungieError("");
     try {
+      if (!bungieApiKey.trim() || !bungieClientId.trim() || !bungieClientSecret.trim()) {
+        setBungieError(settingsText(copy, "请完整填写 API Key、Client ID 和 Client Secret 后再保存。"));
+        return;
+      }
       await props.onSaveBungieConfig({
         api_key: bungieApiKey.trim(),
         client_id: bungieClientId.trim(),
         client_secret: bungieClientSecret.trim(),
         redirect_uri: bungieRedirectUri.trim() || "https://127.0.0.1:28780/oauth/callback"
       });
-      setBungieMessage(settingsText(copy, "Bungie 配置已保存。"));
+      if (!manifestIsReady) {
+        setIsAutoPreparingManifest(true);
+        setHasAutoManifestFailure(false);
+        setBungieError("");
+        setBungieMessage("");
+        props.onInitializeManifest();
+      } else {
+        setBungieMessage(props.accountSummary ? settingsText(copy, "Bungie 配置已保存。") : "");
+      }
     } catch (error) {
       setBungieError(error instanceof Error ? error.message : settingsText(copy, "Bungie 配置保存失败"));
     } finally {
@@ -223,7 +265,7 @@ export function SettingsPageContentView(props: SettingsPageContentViewProps) {
           {activeSection === "language" ? <LanguageSection {...sectionProps} preferences={props.languagePreferences} colorMode={props.colorMode ?? "light"} density={props.density ?? "standard"} onPreferencesChange={props.onLanguagePreferencesChange} onColorModeChange={props.onColorModeChange} onDensityChange={props.onDensityChange ?? (() => undefined)} /> : null}
           {activeSection === "account" ? <AccountSection {...sectionProps} writeActionsEnabled={props.writeActionsEnabled} lastAccountLoadedAt={props.lastAccountLoadedAt} accountSummary={props.accountSummary} onWriteActionsEnabledChange={props.onWriteActionsEnabledChange} onRefreshAccount={props.onRefreshAccount} onReauthorizeAccount={props.onReauthorizeAccount} isLoadingAccount={props.isLoadingAccount} /> : null}
           {activeSection === "library" ? <LibrarySection {...sectionProps} manifestStatus={props.manifestStatus} isInitializing={props.isInitializingManifest} onRefresh={props.onRefreshManifestStatus} onInitialize={props.onInitializeManifest} onRepair={props.onRepairManifest} /> : null}
-          {activeSection === "bungie" ? <BungieSection copy={copy} bungieUi={bungieUi} dataDir={props.diagnosticDataDir} apiKey={bungieApiKey} clientId={bungieClientId} clientSecret={bungieClientSecret} redirectUri={bungieRedirectUri} isLoading={isLoadingBungieConfig} isSaving={isSavingBungieConfig} error={bungieError} message={bungieMessage} onApiKeyChange={setBungieApiKey} onClientIdChange={setBungieClientId} onClientSecretChange={setBungieClientSecret} onSave={() => void saveBungieConfig()} onOpenDataDir={props.onOpenDataDir} /> : null}
+          {activeSection === "bungie" ? <BungieSection copy={copy} bungieUi={bungieUi} dataDir={props.diagnosticDataDir} apiKey={bungieApiKey} clientId={bungieClientId} clientSecret={bungieClientSecret} redirectUri={bungieRedirectUri} isLoading={isLoadingBungieConfig} isSaving={isSavingBungieConfig} isPreparingManifest={isAutoPreparingManifest || props.isInitializingManifest} hasAutoManifestFailure={hasAutoManifestFailure} manifestError={props.manifestStatusError} manifestReady={manifestIsReady} isAccountReady={Boolean(props.accountSummary)} error={bungieError} message={bungieMessage} onApiKeyChange={setBungieApiKey} onClientIdChange={setBungieClientId} onClientSecretChange={setBungieClientSecret} onSave={() => void saveBungieConfig()} onOpenDataDir={props.onOpenDataDir} onOpenBungiePortal={props.onOpenBungiePortal} onLoginBungie={props.onReauthorizeAccount} onRetryManifest={() => { setBungieError(""); setBungieMessage(""); setIsAutoPreparingManifest(true); setHasAutoManifestFailure(false); props.onInitializeManifest(); }} /> : null}
           {activeSection === "ai" ? <SettingsSection id="ai" copy={copy} title={settingsText(copy, "AI 助手")} subtitle={settingsText(copy, "可选能力，不阻断账号、仓库、资料库等本地功能。")} badge={aiUi.statusLabel} tone={aiUi.tone}><SettingsAiConfigPanel adapter={props.aiSettingsAdapter} /></SettingsSection> : null}
           {activeSection === "backup" ? <BackupSection copy={copy} dataDir={props.diagnosticDataDir} onOpenDataDir={props.onOpenDataDir} onExport={props.onExportConfig} onImport={props.onImportConfig} onClearCache={props.onClearCache} onCopyGuide={props.onCopyDataBackupGuide} /> : null}
           {activeSection === "diagnostics" ? <DiagnosticsSection copy={copy} interfaceLocale={interfaceLocale} entries={filteredActionLog(props.actionLog, props.actionLogResultFilter, props.actionLogTypeFilter).slice(0, 8)} resultFilter={props.actionLogResultFilter} typeFilter={props.actionLogTypeFilter} onResultFilterChange={props.onActionLogResultFilterChange} onTypeFilterChange={props.onActionLogTypeFilterChange} onRefreshDiagnostics={props.onRefreshDiagnostics} onRefreshLog={props.onRefreshActionLog} onCopyExport={props.onCopyDiagnosticsExport} onCopyEntry={props.onCopyActionDiagnostic} /> : null}
@@ -318,26 +360,34 @@ function LibrarySection(props: any) {
 
 function BungieSection(props: any) {
   const { copy } = props;
-  const disabled = props.isLoading || props.isSaving;
+  const disabled = props.isLoading || props.isSaving || props.isPreparingManifest;
   return <SettingsSection id="bungie" copy={copy} title={settingsText(copy, "Bungie 接口配置")} subtitle={settingsText(copy, "应用级接口，不等同于当前登录账号。")} badge={props.bungieUi.statusLabel} tone={props.bungieUi.tone}>
     <div className="settings-config-help" data-ui-kind="callout">
-      <h3 data-ui-part="value" data-info-priority="context" data-text-tone="primary">{settingsText(copy, "不知道填哪个？")}</h3>
-      <p data-ui-part="detail" data-info-priority="reading" data-text-tone="body">{settingsText(copy, "在 Bungie 应用页面里按下面字段对应填写：")}</p>
+      <h3 data-ui-part="value" data-info-priority="context" data-text-tone="primary">{settingsText(copy, "第一步：创建 Bungie Application")}</h3>
+      <p data-ui-part="detail" data-info-priority="reading" data-text-tone="body">{settingsText(copy, "先打开 Bungie 官方开发者页面，登录你的 Bungie 账号，然后创建一个新的 Application。")}</p>
+      <SettingsActions>
+        <SettingsButton width="content" data-control-variant="secondary" onClick={props.onOpenBungiePortal}>{settingsText(copy, "打开 Bungie 官方开发者页面")}</SettingsButton>
+      </SettingsActions>
+      <p data-ui-part="detail" data-info-priority="reading" data-text-tone="body">{settingsText(copy, "在 Application 页面中找到下面三个字段，逐个复制到本工具：")}</p>
       <dl>
-        <div><dt data-info-priority="support" data-text-tone="primary">{settingsText(copy, "应用程序介面金钥")}</dt><dd data-info-priority="reading" data-text-tone="body">Bungie API Key</dd></div>
-        <div><dt data-info-priority="support" data-text-tone="primary">{settingsText(copy, "开放授权 client_id")}</dt><dd data-info-priority="reading" data-text-tone="body">Bungie Client ID</dd></div>
-        <div><dt data-info-priority="support" data-text-tone="primary">{settingsText(copy, "开放授权 client_secret")}</dt><dd data-info-priority="reading" data-text-tone="body">Bungie Client Secret</dd></div>
+        <div><dt data-info-priority="support" data-text-tone="primary">API Key</dt><dd data-info-priority="reading" data-text-tone="body">{settingsText(copy, "Bungie Application 页面里的 API Key")}</dd></div>
+        <div><dt data-info-priority="support" data-text-tone="primary">Client ID</dt><dd data-info-priority="reading" data-text-tone="body">{settingsText(copy, "Bungie Application 页面里的 Client ID")}</dd></div>
+        <div><dt data-info-priority="support" data-text-tone="primary">Client Secret</dt><dd data-info-priority="reading" data-text-tone="body">{settingsText(copy, "Bungie Application 页面里的 Client Secret")}</dd></div>
       </dl>
-      <p data-ui-part="detail" data-info-priority="reading" data-text-tone="body">{settingsText(copy, "不要填写“开放授权之授权 URI”，那是 Bungie 自动生成的授权地址。本工具回调地址固定是：")}<code>https://127.0.0.1:28780/oauth/callback</code></p>
+      <p data-ui-part="detail" data-info-priority="reading" data-text-tone="body">{settingsText(copy, "在 Bungie Application 页面把 OAuth 回调地址填写为：")}<code>https://127.0.0.1:28780/oauth/callback</code></p>
+      <p data-ui-part="detail" data-info-priority="support" data-text-tone="meta">{settingsText(copy, "不要填写 Bungie 自动生成的授权地址。Client Secret 只保存在你的电脑上，不要发给别人。")}</p>
     </div>
     <div className="settings-config-fields">
-      <label data-info-priority="support" data-text-tone="primary">Bungie API Key<input data-ui-kind="field" disabled={disabled} placeholder={settingsText(copy, "复制 Bungie 页面里的“应用程序介面金钥”")} type="password" value={props.apiKey} onChange={(event) => props.onApiKeyChange(event.target.value)} /></label>
-      <label data-info-priority="support" data-text-tone="primary">Bungie Client ID<input data-ui-kind="field" disabled={disabled} placeholder={settingsText(copy, "复制 Bungie 页面里的“开放授权 client_id”")} value={props.clientId} onChange={(event) => props.onClientIdChange(event.target.value)} /></label>
-      <label data-info-priority="support" data-text-tone="primary">Bungie Client Secret<input data-ui-kind="field" disabled={disabled} placeholder={settingsText(copy, "复制 Bungie 页面里的“开放授权 client_secret”")} type="password" value={props.clientSecret} onChange={(event) => props.onClientSecretChange(event.target.value)} /></label>
+      <label data-info-priority="support" data-text-tone="primary">Bungie API Key<input data-ui-kind="field" disabled={disabled} placeholder={settingsText(copy, "复制 Bungie Application 页面里的 API Key")} type="text" value={props.apiKey} onChange={(event) => props.onApiKeyChange(event.target.value)} /></label>
+      <label data-info-priority="support" data-text-tone="primary">Bungie Client ID<input data-ui-kind="field" disabled={disabled} placeholder={settingsText(copy, "复制 Bungie Application 页面里的 Client ID")} value={props.clientId} onChange={(event) => props.onClientIdChange(event.target.value)} /></label>
+      <label data-info-priority="support" data-text-tone="primary">Bungie Client Secret<input data-ui-kind="field" disabled={disabled} placeholder={settingsText(copy, "复制 Bungie Application 页面里的 Client Secret")} type="text" value={props.clientSecret} onChange={(event) => props.onClientSecretChange(event.target.value)} /></label>
       <label data-info-priority="support" data-text-tone="primary">{settingsText(copy, "回调地址")}<input data-ui-kind="field" disabled value={props.redirectUri} /></label>
       <label data-info-priority="support" data-text-tone="primary">{settingsText(copy, "数据目录")}<input data-ui-kind="field" disabled value={props.dataDir || settingsText(copy, "未读取到配置目录")} /></label>
     </div>
-    <SettingsActions><SettingsButton data-control-variant="primary" disabled={disabled} onClick={props.onSave}>{props.isSaving ? settingsText(copy, "保存中...") : settingsText(copy, "保存配置")}</SettingsButton><SettingsButton data-control-variant="secondary" onClick={props.onOpenDataDir}>{settingsText(copy, "打开数据目录")}</SettingsButton></SettingsActions>
+    <SettingsActions><SettingsButton data-control-variant="primary" disabled={disabled} onClick={props.onSave}>{props.isSaving ? settingsText(copy, "保存中...") : props.isPreparingManifest ? settingsText(copy, "正在准备资料库...") : settingsText(copy, "保存配置")}</SettingsButton><SettingsButton data-control-variant="secondary" onClick={props.onOpenDataDir}>{settingsText(copy, "打开数据目录")}</SettingsButton></SettingsActions>
+    {props.isPreparingManifest ? <p className="settings-feedback" data-ui-kind="callout" data-ui-part="state" data-info-priority="decision" data-text-tone="status" data-status="pending" role="status" aria-live="polite">{settingsText(copy, "配置已保存，正在自动准备资料库，请稍候…")}</p> : null}
+    {!props.isPreparingManifest && props.hasAutoManifestFailure && props.manifestError ? <div className="settings-feedback" data-ui-kind="callout" data-ui-part="state" data-info-priority="decision" data-text-tone="status" data-status="error" role="alert"><strong>{settingsText(copy, "资料库自动准备失败")}</strong><p>{settingsText(copy, "配置已经保存，不需要重新填写。请检查网络后重试。")}</p><small>{settingsText(copy, "失败原因：")} {props.manifestError}</small><SettingsButton data-control-variant="primary" onClick={props.onRetryManifest}>{settingsText(copy, "重试准备资料库")}</SettingsButton></div> : null}
+    {props.bungieUi.tone === "ready" && !props.isAccountReady ? <div className="settings-feedback" data-ui-kind="callout" data-info-priority="decision" data-text-tone="status" data-status="success" role="status" aria-live="polite"><strong>{settingsText(copy, "Bungie 配置已完成，现在可以登录")}</strong><p>{settingsText(copy, "登录不依赖资料库。登录后会先读取账号，资料库继续在后台准备，名称和图标会在准备完成后补齐。")}</p><SettingsButton data-control-variant="primary" onClick={props.onLoginBungie}>{settingsText(copy, "登录 Bungie")}</SettingsButton></div> : null}
     {props.error ? <p className="settings-feedback" data-ui-kind="callout" data-ui-part="state" data-info-priority="decision" data-text-tone="status" data-status="error" role="alert">{props.error}</p> : null}
     {props.message ? <p className="settings-feedback" data-ui-kind="callout" data-ui-part="state" data-info-priority="decision" data-text-tone="status" data-status="success" role="status" aria-live="polite">{props.message}</p> : null}
   </SettingsSection>;
