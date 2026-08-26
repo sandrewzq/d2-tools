@@ -1,6 +1,7 @@
-import type {
-  VendorInventoryItemView,
-  VendorOfferContextView
+import {
+  getVendorEquipmentKind,
+  type VendorInventoryItemView,
+  type VendorOfferContextView
 } from "@d2-tools/ui";
 import type { WeaponRecommendation } from "@d2-tools/core/community-perks";
 import type { PersonalWeaponKnowledgeEntry } from "@d2-tools/core/community-perks/personalWeaponKnowledge";
@@ -39,6 +40,7 @@ export function useVendorDefinitionDetail(input: { vendorSourcePaths?: Map<numbe
   async function open(item: VendorInventoryItemView, context: VendorOfferContextView) {
     if (item.itemHash === undefined) return;
     const itemHash = item.itemHash;
+    const equipmentKind = getVendorEquipmentKind(item);
     const requestSequence = ++requestSequenceRef.current;
     const sourcePaths = input.vendorSourcePaths?.get(itemHash)
       ?? (item.sourcePath ? [item.sourcePath] : [context.vendorName]);
@@ -51,7 +53,7 @@ export function useVendorDefinitionDetail(input: { vendorSourcePaths?: Map<numbe
         icon: item.iconUrl,
         item_type: item.itemType,
         tier: item.tone === "exotic" ? "异域" : undefined,
-        group_key: item.tone === "weapon" ? "weapons" : item.tone === "armor" ? "armor" : "other",
+        group_key: equipmentKind === "weapon" ? "weapons" : equipmentKind === "armor" ? "armor" : "other",
         source: {
           status: "ready",
           label: "商人售卖",
@@ -69,11 +71,19 @@ export function useVendorDefinitionDetail(input: { vendorSourcePaths?: Map<numbe
       error: ""
     });
 
+    const detailPromise = api.getItemDetail(itemHash);
+    const resolvedItemHashPromise = detailPromise
+      .then((detail) => detail.hash)
+      .catch(() => itemHash);
     const [detailResult, availabilityResult, communityResult, recommendationsResult, knowledgeResult] = await Promise.allSettled([
-      api.getItemDetail(itemHash),
+      detailPromise,
       api.getLiveItemAvailability([itemHash]),
-      api.matchCommunityVaultItems([{ hash: itemHash, socket_plugs: item.socketPlugs }]),
-      api.getCommunityPerkRecommendations(itemHash, { item_name: item.name }),
+      resolvedItemHashPromise.then((resolvedItemHash) => (
+        api.matchCommunityVaultItems([{ hash: resolvedItemHash, socket_plugs: item.socketPlugs }])
+      )),
+      resolvedItemHashPromise.then((resolvedItemHash) => (
+        api.getCommunityPerkRecommendations(resolvedItemHash, { item_name: item.name })
+      )),
       api.getPersonalWeaponKnowledge(item.name)
     ]);
     if (requestSequence !== requestSequenceRef.current) return;
@@ -82,8 +92,9 @@ export function useVendorDefinitionDetail(input: { vendorSourcePaths?: Map<numbe
       ? mergeLibraryVendorSourcePaths(availabilityResult.value, new Map([[itemHash, sourcePaths]]))
         .items[String(itemHash)] ?? fallbackLiveEntry
       : fallbackLiveEntry;
+    const resolvedItemHash = detailResult.status === "fulfilled" ? detailResult.value.hash : itemHash;
     const communityMatch = communityResult.status === "fulfilled"
-      ? communityResult.value.find((candidate) => candidate.hash === itemHash)
+      ? communityResult.value.find((candidate) => candidate.hash === resolvedItemHash)
       : undefined;
 
     setState((current) => current ? {

@@ -31,6 +31,7 @@ describe("desktop package format", () => {
     expect(rootPackageJson.scripts.typecheck).toContain("pnpm --filter @d2-tools/core build");
     expect(rootPackageJson.scripts.typecheck).toContain("pnpm -r typecheck");
     expect(rootPackageJson.scripts.typecheck).toContain("pnpm --filter @d2-tools/services build");
+    expect(rootPackageJson.scripts["typecheck:ci"]).toBe("pnpm -r typecheck");
   });
 
   it("keeps OAuth local adapters in services instead of core", () => {
@@ -309,9 +310,8 @@ describe("desktop package format", () => {
     const rootPackageJson = JSON.parse(readFileSync(join(repoRoot, "package.json"), "utf8")) as {
       scripts: Record<string, string>;
     };
-    const scriptPath = join(repoRoot, "scripts", "dev-desktop.ps1");
     const crossPlatformScriptPath = join(repoRoot, "scripts", "dev-desktop.mjs");
-    const script = readFileSync(scriptPath, "utf8");
+    const launcher = readFileSync(crossPlatformScriptPath, "utf8");
     const desktopPackageJson = JSON.parse(readFileSync(join(repoRoot, "packages", "desktop", "package.json"), "utf8")) as {
       scripts: Record<string, string>;
     };
@@ -322,22 +322,18 @@ describe("desktop package format", () => {
     expect(rootPackageJson.scripts["dev:desktop"]).toBe("node scripts/dev-desktop.mjs");
     expect(existsSync(crossPlatformScriptPath)).toBe(true);
     expect(existsSync(join(repoRoot, "启动开发版.bat"))).toBe(false);
-    expect(existsSync(scriptPath)).toBe(true);
-    expect(script).toContain('Invoke-Pnpm @("--filter", "@d2-tools/core", "build")');
-    expect(script).toContain('Invoke-Pnpm @("--filter", "@d2-tools/http", "build")');
-    expect(script).toContain('Invoke-Pnpm @("--filter", "@d2-tools/services", "build")');
-    expect(script).toContain('Invoke-Pnpm @("exec", "tsc", "-p", "tsconfig.main.json")');
-    expect(script).toContain("tsconfig.main.tsbuildinfo");
-    expect(script).toContain("dist\\main\\main.js");
-    expect(script).toContain('Invoke-Pnpm @("exec", "vite", "build", "--config", "vite.preload.config.ts")');
-    expect(script).toContain("$rendererPort = 53172");
-    expect(script).toContain("$rendererUrl = \"http://127.0.0.1:${rendererPort}\"");
-    expect(script).toContain("D2_RENDERER_URL");
-    expect(script).toContain('node_modules\\vite\\bin\\vite.js');
-    expect(script).toContain('Stop-StaleDesktopProcesses');
-    expect(script).toContain('"--port", "$rendererPort", "--strictPort"');
-    expect(script).toContain('Invoke-Pnpm @("--filter", "@d2-tools/desktop", "dev:electron")');
-    expect(script).not.toContain("http://127.0.0.1:5173");
+    expect(launcher).toContain('"@d2-tools/core", "build"');
+    expect(launcher).toContain('"@d2-tools/http", "build"');
+    expect(launcher).toContain('"@d2-tools/services", "build"');
+    expect(launcher).toContain('"tsc", "-p", "tsconfig.main.json"');
+    expect(launcher).toContain('"dist", "main", "main.js"');
+    expect(launcher).toContain('"vite", "build", "--config", "vite.preload.config.ts"');
+    expect(launcher).toContain("requestedRendererPort = options.port ?? 53172");
+    expect(launcher).toContain("D2_RENDERER_URL");
+    expect(launcher).toContain("findAvailablePort");
+    expect(launcher).toContain("--strictPort");
+    expect(launcher).toContain("run-electron-dev.mjs");
+    expect(launcher).not.toContain("http://127.0.0.1:5173");
     expect(desktopPackageJson.scripts.dev).toContain("--port 53172");
     expect(desktopPackageJson.scripts.dev).toContain("--strictPort");
     expect(mainProcess).toContain('process.env.D2_RENDERER_URL ?? "http://127.0.0.1:53172"');
@@ -349,9 +345,8 @@ describe("desktop package format", () => {
     );
     expect(desktopPackageJson.scripts["package:win"]).not.toContain("dev:electron");
     expect(desktopPackageJson.scripts["package:win"]).not.toContain("D2_RENDERER_URL");
-    expect(script).toContain("$LASTEXITCODE");
-    expect(script).not.toContain("package:win");
-    expect(developmentDoc).toContain("scripts/dev-desktop.ps1");
+    expect(launcher).not.toContain("package:win");
+    expect(developmentDoc).toContain("scripts/dev-desktop.mjs");
     expect(developmentDoc).toContain("http://127.0.0.1:53172");
     expect(developmentDoc).toContain("发布前");
   });

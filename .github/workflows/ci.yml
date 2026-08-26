@@ -49,4 +49,4 @@ jobs:
           if-no-files-found: ignore
 
       - name: Run typecheck
-        run: pnpm typecheck
+        run: pnpm typecheck:ci

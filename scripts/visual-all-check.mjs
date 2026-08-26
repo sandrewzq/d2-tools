@@ -682,8 +682,10 @@ async function scanDesktopTarget(target, theme, server, referenceShellContract) 
     env: {
       ...process.env,
       NODE_ENV: "development",
+      D2_VISUAL_TEST: "1",
       D2_RENDERER_URL: server.url,
       D2_DATA_DIR: desktopDataDir,
+      D2_VISUAL_USER_DATA_DIR: join(outputDir, "electron-user-data", theme),
       D2_COLOR_MODE: theme
     }
   });

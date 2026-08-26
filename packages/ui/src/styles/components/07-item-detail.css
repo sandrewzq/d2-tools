@@ -143,6 +143,23 @@
   scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
 }
 
+.shared-item-detail-vendor {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: var(--space-8);
+  padding: var(--space-8) var(--space-12);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-control);
+  color: var(--text-muted);
+  background: var(--surface-subtle);
+  font-size: 12px;
+}
+
+.shared-item-detail-vendor strong {
+  color: var(--text-title);
+}
+
 .equipment-detail-context-ledger {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

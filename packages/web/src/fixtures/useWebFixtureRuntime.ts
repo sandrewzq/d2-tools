@@ -35,11 +35,16 @@ export const webAccountSummary = createFixtureAccountSummary({
       light: 2022,
       equipped_items: [
         webWeaponAccountItem("web-pulse-equipped", 3001, "快速命中脉冲", "动能武器", "轻质框架", "已装备"),
-        webWeaponAccountItem("web-rocket-equipped", 3004, "边缘迁移火箭筒", "威能武器", "自适应框架", "已装备")
+        webWeaponAccountItem("web-rocket-equipped", 3004, "边缘迁移火箭筒", "威能武器", "自适应框架", "已装备"),
+        webArmorAccountItem("web-helmet-equipped", 7101, "铁血意志头盔", "头盔", "已装备", 2021),
+        webArmorAccountItem("web-chest-equipped", 7103, "铁血意志胸甲", "胸甲", "已装备", 2019),
+        webArmorAccountItem("web-class-equipped", 7105, "铁血意志披风", "职业物品", "已装备", 2022)
       ],
       equipment_groups: [],
       inventory_items: [
-        webWeaponAccountItem("web-shotgun-inventory", 3003, "终局霰弹枪", "能量武器", "精确框架", "背包")
+        webWeaponAccountItem("web-shotgun-inventory", 3003, "终局霰弹枪", "能量武器", "精确框架", "背包"),
+        webArmorAccountItem("web-gauntlets-inventory", 7102, "铁血意志臂铠", "臂铠", "背包", 2023),
+        webArmorAccountItem("web-legs-inventory", 7104, "铁血意志腿甲", "腿甲", "背包", 2020)
       ],
       inventory_groups: [],
       postmaster_items: [],
@@ -229,9 +234,28 @@ function webWeaponAccountItem(instanceId: string, hash: number, name: string, bu
     groupKey: "weapons",
     frameName,
     itemType: "武器",
+    power: 2018 + (hash % 7),
     socketPlugs: [{ hash: 4001, name: "快速命中" }, { hash: 4002, name: "爆炸载荷" }],
     sourceKind,
     sourceCharacterId: location === "术士背包" ? "web-warlock" : "web-hunter"
+  });
+}
+
+function webArmorAccountItem(instanceId: string, hash: number, name: string, bucketName: string, location: string, power: number) {
+  return createFixtureAccountItem({
+    instanceId,
+    hash,
+    name,
+    bucketName,
+    groupKey: "armor",
+    frameName: "",
+    itemType: bucketName,
+    power,
+    classType: 1,
+    armorStats: { total: 66, health: 14, melee: 10, grenade: 12, super: 8, class: 12, weapon: 10 },
+    socketPlugs: [],
+    sourceKind: location === "仓库" ? "vault" : location.includes("背包") ? "inventory" : "equipped",
+    sourceCharacterId: "web-hunter"
   });
 }
 

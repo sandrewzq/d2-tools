@@ -127,6 +127,7 @@
 }
 
 :where(.app-shell) .account-summary {
+  position: relative;
   display: grid;
   gap: 10px;
   padding: 10px;
@@ -266,6 +267,223 @@
 
 :where(.app-shell) .account-actions button {
   min-height: 34px;
+}
+
+:where(.app-shell) .account-power-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-title);
+}
+
+:where(.app-shell) .account-power-trigger > span:first-child {
+  color: var(--text-muted);
+  font-size: var(--priority-support);
+}
+
+:where(.app-shell) .account-power-panel {
+  position: absolute;
+  z-index: var(--layer-popover);
+  top: calc(100% - 4px);
+  left: 10px;
+  display: grid;
+  gap: 10px;
+  width: min(560px, calc(100% - 20px));
+  padding: 12px;
+  border: 1px solid var(--border-control);
+  border-radius: 4px;
+  background: var(--surface-elevated);
+  box-shadow: var(--shadow-overlay);
+}
+
+:where(.app-shell) .account-power-panel-head,
+:where(.app-shell) .account-power-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+:where(.app-shell) .account-power-panel-head > div {
+  display: grid;
+  gap: 2px;
+}
+
+:where(.app-shell) .account-power-panel-head span,
+:where(.app-shell) .account-power-item small,
+:where(.app-shell) .account-power-footer,
+:where(.app-shell) .account-power-note {
+  color: var(--text-muted);
+  font-size: var(--priority-support);
+}
+
+:where(.app-shell) .account-power-panel-head strong {
+  color: var(--text-title);
+  font-size: var(--priority-context);
+}
+
+:where(.app-shell) .account-power-fraction {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--text-title);
+  font-size: var(--priority-decision);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+:where(.app-shell) .account-power-fraction.incomplete {
+  color: var(--status-warning);
+  font-size: var(--priority-support);
+}
+
+:where(.app-shell) .account-power-fraction-part {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  font-size: 0.7em;
+  line-height: 1;
+}
+
+:where(.app-shell) .account-power-fraction-part sup,
+:where(.app-shell) .account-power-fraction-part sub {
+  font-size: 0.8em;
+  line-height: 1;
+}
+
+:where(.app-shell) .account-power-mode {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  overflow: hidden;
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-control);
+}
+
+:where(.app-shell) .account-power-mode button {
+  min-height: 32px;
+  border: 0;
+  border-radius: 0;
+  color: var(--text-muted);
+  background: var(--surface-recessed);
+  cursor: pointer;
+}
+
+:where(.app-shell) .account-power-mode button + button {
+  border-left: 1px solid var(--border-subtle);
+}
+
+:where(.app-shell) .account-power-mode button[aria-selected="true"] {
+  color: var(--selected-fg);
+  background: var(--selected-bg);
+  box-shadow: inset 0 -2px 0 var(--selected-border);
+}
+
+:where(.app-shell) .account-power-rows {
+  display: grid;
+  border-top: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+:where(.app-shell) .account-power-row {
+  display: grid;
+  grid-template-columns: 84px minmax(0, 1fr) 48px 34px;
+  gap: 8px;
+  align-items: center;
+  min-height: 44px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+:where(.app-shell) .account-power-row:last-child {
+  border-bottom: 0;
+}
+
+:where(.app-shell) .account-power-row.armor-start {
+  border-top: 2px solid var(--border-control);
+}
+
+:where(.app-shell) .account-power-slot {
+  color: var(--text-muted);
+  font-size: var(--priority-support);
+  font-weight: 600;
+}
+
+:where(.app-shell) .account-power-item {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+}
+
+:where(.app-shell) .account-power-item > img,
+:where(.app-shell) .account-power-item > span:first-child {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  object-fit: cover;
+  border-radius: var(--radius-control);
+  background: var(--surface-recessed);
+}
+
+:where(.app-shell) .account-power-item > span:last-child,
+:where(.app-shell) .account-power-item strong,
+:where(.app-shell) .account-power-item small {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+:where(.app-shell) .account-power-item strong,
+:where(.app-shell) .account-power-item-value {
+  color: var(--text-title);
+  font-size: var(--priority-support);
+  font-variant-numeric: tabular-nums;
+}
+
+:where(.app-shell) .account-power-delta {
+  font-size: var(--priority-support);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+:where(.app-shell) .account-power-delta.positive {
+  color: var(--status-ready);
+}
+
+:where(.app-shell) .account-power-delta.negative {
+  color: var(--status-error);
+}
+
+:where(.app-shell) .account-power-delta.neutral {
+  color: var(--text-muted);
+}
+
+:where(.app-shell) .account-power-footer {
+  flex-wrap: wrap;
+}
+
+:where(.app-shell) .account-power-footer > span {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+}
+
+:where(.app-shell) .account-power-footer .account-power-fraction {
+  font-size: var(--priority-context);
+}
+
+:where(.app-shell) .account-power-note {
+  margin: 0;
+  line-height: 1.5;
+}
+
+:where(.app-shell) .account-power-note.warning {
+  color: var(--status-warning);
 }
 
 :where(.app-shell) .account-summary > .status-message {
@@ -1204,6 +1422,16 @@
     text-align: left;
   }
 
+  :where(.app-shell) .account-power-panel {
+    position: static;
+    width: 100%;
+    box-shadow: none;
+  }
+
+  :where(.app-shell) .account-power-row {
+    grid-template-columns: 74px minmax(0, 1fr) 42px 30px;
+  }
+
 }
 
 @media (max-width: 480px) {
@@ -1233,5 +1461,19 @@
 
   :where(.app-shell) .account-inventory-panel .account-slot-item-grid {
     grid-template-columns: 1fr;
+  }
+
+  :where(.app-shell) .account-power-row {
+    grid-template-columns: 68px minmax(0, 1fr) 38px 28px;
+    gap: 6px;
+  }
+
+  :where(.app-shell) .account-power-item {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  :where(.app-shell) .account-power-item > img,
+  :where(.app-shell) .account-power-item > span:first-child {
+    display: none;
   }
 }

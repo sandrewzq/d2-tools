@@ -11,6 +11,8 @@
 - React
 - Vitest
 
+本地需要复现 GitHub CI 时执行 `pnpm ci:local`。该入口会按 CI 顺序运行冻结依赖安装、完整测试、Playwright Chromium、共享 Shell 视觉契约和构建后的全量类型检查；不要只用 Desktop 启动结果判断 CI 是否可通过。
+
 ## 2. 仓库结构
 
 ```text
@@ -261,12 +263,14 @@ tools/mac-dev-desktop.command
 pnpm dev:desktop
 ```
 
-它会自动清理残留 Desktop 与 `53172` 端口，并按实际构建产物、依赖和源码变化安全地选择增量构建或完整重建；不需要为全量或快速模式选择不同脚本。
+它只在产物缺失或源码、配置、上游产物发生变化时构建过期层；Renderer、共享 App、UI 和 CSS 由 Vite 直接读取最新源码，不执行预构建。默认使用 `53172`，如果端口被其他程序占用，会在附近端口启动并把实际地址传给 Electron，不会杀掉无关进程。
 
-需要在终端中启动时，也可以直接运行底层 PowerShell 脚本：
+需要强制重新构建时，可使用：
 
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev-desktop.ps1
+```bash
+pnpm dev:desktop --force
+pnpm dev:desktop --clean
+pnpm dev:desktop --data-dir .local-data/dev-desktop
 ```
 
 无法等待真实发布版本时，可用开发环境模拟更新状态验证顶部提示和设置页更新区。模拟只在 Vite 开发模式生效，不调用真实下载或安装流程：
@@ -283,16 +287,16 @@ tools\win-dev-desktop.cmd -UpdateStatus not_available
 
 每次切换状态需要关闭当前桌面窗口并重新启动；默认不传 `-UpdateStatus` 时使用真实更新 IPC。
 
-双击入口直接比较 core、http、services、Electron main 和 preload 的实际输出时间与各自源码、配置及上游产物，只增量构建过期层。首次运行、产物缺失、根依赖或构建配置变化时自动回退完整构建；Renderer、共享 App、UI 和 CSS 由 Vite 直接读取最新源码，不执行预构建。需要明确强制完整构建时，可手动运行不带 `-Fast` 的底层 PowerShell 命令。
+Windows 和 macOS 双击入口现在使用同一个 Node 启动器，避免两套增量判断逻辑漂移。
 
 完整启动链路会：
 
 1. 构建 `@d2-tools/core`、`@d2-tools/http`、`@d2-tools/services` 和 `@d2-tools/app`
 2. 编译 Electron 主进程，并通过独立 Vite CJS 入口构建 preload
-3. 启动 Vite 前端开发服务器，固定使用 `http://127.0.0.1:53172`
+3. 启动 Vite 前端开发服务器，默认使用 `http://127.0.0.1:53172`；发生端口冲突时自动选择附近可用端口
 4. 打开 Electron 开发版桌面应用
 
-这不是打包流程，不会生成或解压 `release/win-unpacked`。渲染层改动支持热更新；主进程、preload、core、http 或 services 改动后，关闭桌面窗口并重新双击对应平台的开发入口，脚本会根据实际产物时间自动重建受影响层。开发端口启用 strict port；脚本会先清理 `53172` 的残留监听进程，不会自动跳到其他端口导致 Electron 打开错误页面。发布版不依赖这个端口；打包后的 Electron 会直接加载安装包内的 `dist/renderer/index.html`。
+这不是打包流程，不会生成或解压 `release/win-unpacked`。渲染层改动支持热更新；主进程、preload、core、http 或 services 改动后，关闭桌面窗口并重新启动开发入口，脚本只重建受影响层。发布版不依赖开发端口；打包后的 Electron 会直接加载安装包内的 `dist/renderer/index.html`。
 
 如果只想单独启动前端页面，Windows 可以双击 `tools/win-dev-web.cmd`，macOS 可以双击 `tools/mac-dev-web.command`。
 
@@ -318,7 +322,7 @@ npx pnpm@9.15.0 dev:electron
 
 常用脚本：
 
-- `tools/win-dev-desktop.cmd`：Windows 双击 Desktop 开发入口；自动清理 `53172`，按实际产物新旧自行决定增量构建或完整重建。
+- `tools/win-dev-desktop.cmd`：Windows 双击 Desktop 开发入口；调用统一 Node 增量启动器。
 - `tools/win-dev-web.cmd`：Windows 双击 Web 开发入口，清理 `53171` 残留监听进程后启动 Web。
 - `tools/mac-dev-desktop.command`：macOS Finder 双击 Desktop 开发入口，失败时保留终端窗口便于查看错误。
 - `tools/mac-dev-web.command`：macOS Finder 双击 Web 开发入口，失败时保留终端窗口便于查看错误。
@@ -365,7 +369,7 @@ npx pnpm@9.15.0 dev:electron
 
 1. `pnpm install --frozen-lockfile`
 2. `pnpm test`
-3. `pnpm typecheck`
+3. `pnpm typecheck:ci`
 
 `pnpm test` 包含文档检查、全仓 build、行为测试、测试质量检查和架构测试。遗留源码测试层及其命令入口已经删除。
 

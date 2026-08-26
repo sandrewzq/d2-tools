@@ -74,6 +74,10 @@
       "types": "./dist/items/perkSearch.d.ts",
       "import": "./dist/items/perkSearch.js"
     },
+    "./items/classification": {
+      "types": "./dist/items/classification.d.ts",
+      "import": "./dist/items/classification.js"
+    },
     "./items/perks": {
       "types": "./dist/items/perks.d.ts",
       "import": "./dist/items/perks.js"
@@ -205,6 +209,10 @@
     "./account/summary": {
       "types": "./dist/account/summary.d.ts",
       "import": "./dist/account/summary.js"
+    },
+    "./account/power": {
+      "types": "./dist/account/power.d.ts",
+      "import": "./dist/account/power.js"
     },
     "./config/schema": {
       "types": "./dist/config/schema.d.ts",

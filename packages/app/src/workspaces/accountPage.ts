@@ -1,5 +1,6 @@
 import type { AccountItemSummary, AccountMaterialSummary, AccountSummary } from "@d2-tools/core/account/summary";
 import type { ActivityHistorySummary } from "@d2-tools/core/activities/history";
+import { buildCharacterPowerView, type CharacterPowerView } from "./accountPower.js";
 
 export type AccountOpenItemPayload = {
   item: AccountItemSummary;
@@ -40,6 +41,7 @@ export type AccountCharacterTabView = {
   key: string;
   className: string;
   lightLabel: string;
+  power: CharacterPowerView;
   emblemUrl?: string;
   isSelected: boolean;
 };
@@ -88,6 +90,7 @@ export type AccountCharacterDetailView = {
   characterId: string;
   className: string;
   lightLabel: string;
+  power: CharacterPowerView;
   emblemUrl?: string;
   summary: string;
 };
@@ -204,6 +207,7 @@ export type AccountCharacterTab = {
   character: AccountSummary["characters"][number];
   className: string;
   lightLabel: string;
+  power: CharacterPowerView;
   emblemUrl?: string;
   isSelected: boolean;
 };
@@ -358,6 +362,7 @@ export function selectAccountPageModel(input: AccountPageModelInput): AccountPag
   });
   const selectedCharacter = workspace.selectedCharacter;
   const selectedCharacterId = selectedCharacter?.character_id ?? "";
+  const selectedCharacterPower = workspace.characterTabs.find((tab) => tab.key === selectedCharacterId)?.power;
   const openingItemKey = pageState.openingItemKey ?? "";
   const isLoadoutMatch = pageState.isLoadoutMatch ?? (() => false);
   const configuration = buildAccountConfigurationSection(selectedCharacter);
@@ -395,6 +400,7 @@ export function selectAccountPageModel(input: AccountPageModelInput): AccountPag
       key: tab.key,
       className: tab.className,
       lightLabel: tab.lightLabel,
+      power: tab.power,
       emblemUrl: tab.emblemUrl,
       isSelected: tab.isSelected
     })),
@@ -403,6 +409,7 @@ export function selectAccountPageModel(input: AccountPageModelInput): AccountPag
         characterId: selectedCharacter.character_id,
         className: selectedCharacter.class_name,
         lightLabel: `光等 ${selectedCharacter.light ?? "-"}`,
+        power: selectedCharacterPower ?? buildCharacterPowerView(cache.accountSummary!, selectedCharacter),
         emblemUrl: selectedCharacter.emblem_url,
         summary: workspace.selectedCharacterSummary
       }
@@ -645,6 +652,7 @@ export function buildAccountCharacterTabs(account: AccountSummary, selectedChara
     character,
     className: character.class_name,
     lightLabel: `光等 ${character.light ?? "-"}`,
+    power: buildCharacterPowerView(account, character),
     emblemUrl: character.emblem_url,
     isSelected: character.character_id === selectedCharacterId
   }));

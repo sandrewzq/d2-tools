@@ -24,7 +24,7 @@ tools/
 
 ## 当前工具
 
-- `tools/win-dev-desktop.cmd`：Windows 双击 Desktop 开发入口。自动清理 `53172` 残留监听进程和本仓库 Electron 进程；按实际产物和源码时间自动选择增量构建或完整重建，并准备 core、http、services、app、Electron main 与 preload。
+- `tools/win-dev-desktop.cmd`：Windows 双击 Desktop 开发入口，转交统一的 `pnpm dev:desktop` 增量启动器。
 - `tools/win-dev-web.cmd`：Windows 双击 Web 开发入口；启动前会清理占用 `53171` 的残留监听进程，并在服务就绪后自动打开浏览器。
 - `tools/mac-dev-desktop.command`：macOS Finder 双击 Desktop 开发入口；失败时保留终端窗口便于查看错误。
 - `tools/mac-dev-web.command`：macOS Finder 双击 Web 开发入口；失败时保留终端窗口便于查看错误。

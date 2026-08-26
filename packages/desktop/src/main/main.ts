@@ -22,10 +22,15 @@ const visualCaptureDir = process.env.D2_VISUAL_CAPTURE_DIR;
 const visualCaptureViewport = process.env.D2_VISUAL_CAPTURE_VIEWPORT ?? "1365x900";
 const visualCaptureFile = process.env.D2_VISUAL_CAPTURE_FILE;
 const visualCapturePage = process.env.D2_VISUAL_CAPTURE_PAGE ?? "home";
+const isVisualTest = process.env.D2_VISUAL_TEST === "1";
 const rendererUrl = process.env.D2_RENDERER_URL ?? "http://127.0.0.1:53172";
 const rendererFile = join(currentDir, "../renderer/index.html");
 const appIcon = join(currentDir, "../../build/icon.ico");
 const isVisualCapture = Boolean(visualCaptureDir);
+const visualUserDataDir = process.env.D2_VISUAL_USER_DATA_DIR;
+if (visualUserDataDir) {
+  app.setPath("userData", visualUserDataDir);
+}
 const hasSingleInstanceLock = app.requestSingleInstanceLock();
 app.setAppUserModelId("local.d2-tools.desktop");
 recordStartupMilestone("startup.main-module-ready");

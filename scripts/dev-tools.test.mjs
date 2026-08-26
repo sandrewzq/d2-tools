@@ -19,21 +19,30 @@ describe("dev tool scripts", () => {
     expect(script).toContain(`call npx pnpm@9.15.0 ${command}`);
   });
 
-  it("provides platform double-click desktop entries with automatic full-build fallback", () => {
+  it("provides platform double-click desktop entries backed by one incremental launcher", () => {
     const commandScript = readFileSync(join(repoRoot, "tools", "win-dev-desktop.cmd"), "utf8");
     const macEntry = readFileSync(join(repoRoot, "tools", "mac-dev-desktop.command"), "utf8");
-    const launcher = readFileSync(join(repoRoot, "scripts", "dev-desktop.ps1"), "utf8");
+    const launcher = readFileSync(join(repoRoot, "scripts", "dev-desktop.mjs"), "utf8");
 
-    expect(commandScript).toContain("dev-desktop.ps1\" -Fast");
+    expect(commandScript).toContain("call npx pnpm@9.15.0 dev:desktop");
     expect(macEntry).toContain("pnpm dev:desktop");
-    expect(launcher).toContain("[switch] $Fast");
-    expect(launcher).toContain("function Test-OutputNeedsBuild");
-    expect(launcher).toContain("function Stop-StaleRendererServer");
-    expect(launcher).toContain("Get-NetTCPConnection -LocalPort $rendererPort -State Listen");
-    expect(launcher).toContain("Required build output is missing; falling back to a full build.");
-    expect(launcher).toContain("Workspace outputs are current; skipping package builds.");
-    expect(launcher).toContain("Main and preload outputs are current; reusing existing files.");
-    expect(launcher).not.toContain("dev-desktop-build.stamp");
+    expect(launcher).toContain("calculateBuildPlan");
+    expect(launcher).toContain("findAvailablePort");
+    expect(launcher).toContain("--force");
+    expect(launcher).toContain("--clean");
+    expect(launcher).toContain("--data-dir");
+  });
+
+  it("provides one cross-platform entry that mirrors the GitHub CI gate", () => {
+    const packageJson = JSON.parse(readFileSync(join(repoRoot, "package.json"), "utf8"));
+    const ciLocal = readFileSync(join(repoRoot, "scripts", "run-ci-local.mjs"), "utf8");
+
+    expect(packageJson.scripts["ci:local"]).toBe("node scripts/run-ci-local.mjs");
+    expect(ciLocal).toContain('"install", "--frozen-lockfile"');
+    expect(ciLocal).toContain('args: ["test"]');
+    expect(ciLocal).toContain('"playwright", "install", "chromium"');
+    expect(ciLocal).toContain('args: ["visual:shell-contract"]');
+    expect(ciLocal).toContain('args: ["typecheck:ci"]');
   });
 
   it("removes local development verification aliases while keeping the release gate", () => {

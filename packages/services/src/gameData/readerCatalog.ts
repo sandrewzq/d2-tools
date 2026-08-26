@@ -10,6 +10,7 @@ import {
   selectCanonicalEquipmentDefinitions,
   type ItemSearchResult
 } from "@d2-tools/core/items/search";
+import { classifyBucket } from "@d2-tools/core/items/classification";
 import type {
   DefinitionComponentData,
   DefinitionRecord
@@ -173,12 +174,13 @@ export function createReaderGameDataCatalog(
     },
 
     async getItemDetail(input) {
-      const definition = options.reader.get("DestinyInventoryItemDefinition", input.hash);
-      if (!definition) {
+      const requestedDefinition = options.reader.get("DestinyInventoryItemDefinition", input.hash);
+      if (!requestedDefinition) {
         return null;
       }
+      const definition = resolveItemDetailDefinition(options.reader, requestedDefinition);
       const context = hydrateItemContext(options.reader, options.searchIndex, [definition]);
-      return getItemSearchResultByHash(context.items, input.hash, {
+      return getItemSearchResultByHash(context.items, Number(definition.hash), {
         plugSetDefinitions: context.plugSets,
         statDefinitions: context.stats,
         collectibleDefinitions: context.collectibles,
@@ -199,6 +201,27 @@ export function createReaderGameDataCatalog(
       }
     }
   };
+}
+
+function resolveItemDetailDefinition(
+  reader: DefinitionReader,
+  definition: DefinitionRecord
+): DefinitionRecord {
+  if (classifyBucket(definition.inventory?.bucketTypeHash)?.group === "weapons") {
+    return definition;
+  }
+
+  const patternHash = Number(definition.translationBlock?.weaponPatternHash);
+  const definitionHash = toUnsignedHash(Number(definition.hash));
+  if (!Number.isFinite(patternHash) || patternHash <= 0 || toUnsignedHash(patternHash) === definitionHash) {
+    return definition;
+  }
+
+  const canonicalDefinition = reader.get("DestinyInventoryItemDefinition", patternHash);
+  return canonicalDefinition
+    && classifyBucket(canonicalDefinition.inventory?.bucketTypeHash)?.group === "weapons"
+    ? canonicalDefinition
+    : definition;
 }
 
 function uniqueVariantKinds(kinds: PerkVariantKind[]): PerkVariantKind[] {

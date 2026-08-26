@@ -555,7 +555,7 @@ function VendorOfferButton(props: {
         inventoryPath: props.item.sourcePath ?? [props.vendor.name, props.item.categoryName].filter(Boolean).join(" / "),
         costLabel,
         affordabilityLabel: availability.label,
-        characterLabel: props.item.characterIds?.join("、") ?? "当前角色",
+        characterLabel: formatVendorCharacterScope(props.item.characterIds),
         refreshLabel: formatVendorReset(props.vendor, props.locale),
         purchaseRequirements: props.item.failureMessages ?? [],
         rollLabels: props.item.socketPlugs?.map((plug) => plug.name).filter(Boolean),
@@ -677,6 +677,12 @@ function getVendorServiceStatus(
 
 function getVendorCostLabel(item: VendorInventoryItemView): string {
   return item.costs?.map((cost) => `${cost.required} ${cost.label}`).join(" · ") ?? item.cost ?? "无费用信息";
+}
+
+function formatVendorCharacterScope(characterIds: string[] | undefined): string {
+  const characterCount = new Set(characterIds ?? []).size;
+  if (characterCount > 1) return `${characterCount} 个角色库存`;
+  return characterCount === 1 ? "当前角色库存" : "角色范围待确认";
 }
 
 function formatVendorReset(vendor: VendorInventoryGroupView, locale: InterfaceLocale): string {

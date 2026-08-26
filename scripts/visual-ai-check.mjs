@@ -351,6 +351,7 @@ async function inspectDesktopAiDrawer(server) {
       NODE_ENV: "development",
       D2_RENDERER_URL: server.url,
       D2_DATA_DIR: desktopDataDir,
+      D2_VISUAL_USER_DATA_DIR: join(outputDir, "electron-user-data"),
       D2_COLOR_MODE: theme
     }
   });
