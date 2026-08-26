@@ -18,7 +18,7 @@ export function VaultWishlistManager(props: {
   onClose: () => void;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
-  const [draft, setDraft] = useState("");
+  const [inputText, setInputText] = useState("");
   const [fileName, setFileName] = useState("");
   const [preview, setPreview] = useState<DimWishlist | null>(null);
   const [isPasteOpen, setIsPasteOpen] = useState(false);
@@ -34,7 +34,7 @@ export function VaultWishlistManager(props: {
     }
     try {
       const content = await file.text();
-      setDraft(content);
+      setInputText(content);
       setFileName(file.name);
       createPreview(content, file.name);
       setIsPasteOpen(false);
@@ -44,7 +44,7 @@ export function VaultWishlistManager(props: {
     }
   }
 
-  function createPreview(content = draft, sourceName = fileName) {
+  function createPreview(content = inputText, sourceName = fileName) {
     const parsed = parseDimWishlist(content);
     setPreview(parsed.rules.length ? parsed : null);
     setFeedback(parsed.rules.length
@@ -57,7 +57,7 @@ export function VaultWishlistManager(props: {
     setIsBusy(true);
     try {
       const saved = await props.actions.save(preview);
-      resetDraft();
+      resetInput();
       setFeedback({ tone: "success", message: `DIM Wishlist 已启用 · ${saved.rules.length} 条规则。` });
     } catch (error) {
       setFeedback({ tone: "error", message: error instanceof Error ? error.message : "DIM Wishlist 保存失败。" });
@@ -71,7 +71,7 @@ export function VaultWishlistManager(props: {
     try {
       await props.actions.clear();
       setIsConfirmingClear(false);
-      resetDraft();
+      resetInput();
       setFeedback({ tone: "success", message: "DIM Wishlist 已移除。" });
     } catch (error) {
       setFeedback({ tone: "error", message: error instanceof Error ? error.message : "DIM Wishlist 移除失败。" });
@@ -80,8 +80,8 @@ export function VaultWishlistManager(props: {
     }
   }
 
-  function resetDraft() {
-    setDraft("");
+  function resetInput() {
+    setInputText("");
     setFileName("");
     setPreview(null);
     setIsPasteOpen(false);
@@ -107,8 +107,8 @@ export function VaultWishlistManager(props: {
 
       {isPasteOpen ? (
         <div className="vault-wishlist-paste">
-          <label><span>Wishlist 文本</span><textarea rows={6} value={draft} placeholder="粘贴 DIM Wishlist 内容" onChange={(event) => { setDraft(event.target.value); setFileName(""); setPreview(null); setFeedback(null); }} /></label>
-          <ControlButton size="compact" variant="secondary" disabled={!draft.trim() || isBusy} onClick={() => createPreview()}>解析预览</ControlButton>
+          <label><span>Wishlist 文本</span><textarea rows={6} value={inputText} placeholder="粘贴 DIM Wishlist 内容" onChange={(event) => { setInputText(event.target.value); setFileName(""); setPreview(null); setFeedback(null); }} /></label>
+          <ControlButton size="compact" variant="secondary" disabled={!inputText.trim() || isBusy} onClick={() => createPreview()}>解析预览</ControlButton>
         </div>
       ) : null}
 

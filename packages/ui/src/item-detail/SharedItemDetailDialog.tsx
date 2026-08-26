@@ -75,9 +75,9 @@ export function SharedItemDetailDialog(props: SharedItemDetailDialogProps) {
         first.focus();
       }
     };
-    document.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("keydown", handleKeyDown, true);
     return () => {
-      document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("keydown", handleKeyDown, true);
       (props.returnFocusRef?.current ?? initialFocus.current)?.focus();
     };
   }, [props.onClose, props.returnFocusRef]);

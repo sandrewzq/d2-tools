@@ -81,7 +81,7 @@
   background: var(--item-bg-hover);
 }
 
-@media (max-width: 760px) {
+@container product-workspace (max-width: 700px) {
   .account-profile-strip,
   .account-primary-workbench,
   .account-slot-comparison-columns,

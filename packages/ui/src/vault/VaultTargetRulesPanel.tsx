@@ -15,13 +15,14 @@ import {
   type EquipmentTargetStore
 } from "@d2-tools/core/targets/equipmentTargets";
 import { armorStatLabels } from "@d2-tools/app/vault";
+import { useGuardedNavigation } from "../navigation/NavigationGuard.js";
 
-type DraftCondition = {
+type ArmorConditionInput = {
   stat: ArmorStatKey | "";
   min: string;
 };
 
-type DraftWeaponCondition = {
+type WeaponConditionInput = {
   perkHash: string;
   perkName?: string;
 };
@@ -49,12 +50,13 @@ export function VaultTargetRulesPanel(props: {
   targetLocateRequest?: { targetId: string; requestId: number } | null;
   actions?: VaultTargetRulesActions;
 }) {
+  const requestNavigation = useGuardedNavigation();
   const [displayRules, setDisplayRules] = useState(props.rules);
   const [armorName, setArmorName] = useState("");
-  const [conditions, setConditions] = useState<DraftCondition[]>([{ stat: "", min: "" }]);
+  const [conditions, setConditions] = useState<ArmorConditionInput[]>([{ stat: "", min: "" }]);
   const [weaponName, setWeaponName] = useState("");
   const [selectedWeaponHash, setSelectedWeaponHash] = useState("");
-  const [weaponConditions, setWeaponConditions] = useState<DraftWeaponCondition[]>([{ perkHash: "" }]);
+  const [weaponConditions, setWeaponConditions] = useState<WeaponConditionInput[]>([{ perkHash: "" }]);
   const [perkSearchQuery, setPerkSearchQuery] = useState("");
   const [perkSearchResults, setPerkSearchResults] = useState<PerkSearchResult[]>([]);
   const [perkSearchMessage, setPerkSearchMessage] = useState("");
@@ -78,8 +80,8 @@ export function VaultTargetRulesPanel(props: {
     row?.focus({ preventScroll: true });
   }, [props.targetLocateRequest?.requestId, props.targetLocateRequest?.targetId]);
 
-  async function saveArmorDraft() {
-    const parsedConditions = parseDraftConditions(conditions);
+  async function saveArmorTarget() {
+    const parsedConditions = parseArmorConditionInputs(conditions);
     if (!parsedConditions.length) {
       setMessage("请先添加至少一条有效属性最低值。");
       return;
@@ -114,9 +116,9 @@ export function VaultTargetRulesPanel(props: {
     setConditions([{ stat: "", min: "" }]);
   }
 
-  async function saveWeaponDraft() {
+  async function saveWeaponTarget() {
     const weapon = selectedWeapon;
-    const parsedConditions = parseWeaponDraftConditions(weaponConditions, weapon);
+    const parsedConditions = parseWeaponConditionInputs(weaponConditions, weapon);
     if (!weapon || !parsedConditions.length) {
       setMessage("请先选择武器并添加至少一条 perk 条件。");
       return;
@@ -236,7 +238,7 @@ export function VaultTargetRulesPanel(props: {
     setConditions((current) => [...current, { stat: "", min: "" }]);
   }
 
-  function updateCondition(index: number, condition: DraftCondition) {
+  function updateCondition(index: number, condition: ArmorConditionInput) {
     setConditions((current) => current.map((item, itemIndex) => itemIndex === index ? condition : item));
   }
 
@@ -248,7 +250,7 @@ export function VaultTargetRulesPanel(props: {
     setWeaponConditions((current) => [...current, { perkHash: "" }]);
   }
 
-  function updateWeaponCondition(index: number, condition: DraftWeaponCondition) {
+  function updateWeaponCondition(index: number, condition: WeaponConditionInput) {
     setWeaponConditions((current) => current.map((item, itemIndex) => itemIndex === index ? condition : item));
   }
 
@@ -350,7 +352,8 @@ export function VaultTargetRulesPanel(props: {
                   {hasGuideSource && props.actions?.onOpenGuide ? (
                     <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={() => {
                       setMessage("");
-                      void Promise.resolve(props.actions?.onOpenGuide?.(target.id)).then((opened) => {
+                      requestNavigation(async () => {
+                        const opened = await props.actions?.onOpenGuide?.(target.id);
                         if (!opened) setMessage("目标仍可使用，但找不到仍有效的攻略派生关系。");
                       });
                     }}>
@@ -358,7 +361,7 @@ export function VaultTargetRulesPanel(props: {
                     </button>
                   ) : null}
                   {armorReference && props.actions?.onOpenArmorResult ? (
-                    <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={() => props.actions?.onOpenArmorResult?.(armorReference)}>
+                    <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={() => requestNavigation(() => props.actions?.onOpenArmorResult?.(armorReference))}>
                       查看 Planner 引用
                     </button>
                   ) : null}
@@ -462,7 +465,7 @@ export function VaultTargetRulesPanel(props: {
         <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={addCondition}>
           添加属性条件
         </button>
-        <button type="button" data-ui-kind="button" data-control-variant="secondary" disabled={isSaving} onClick={() => void saveArmorDraft()}>
+        <button type="button" data-ui-kind="button" data-control-variant="secondary" disabled={isSaving} onClick={() => void saveArmorTarget()}>
           保存护甲目标
         </button>
       </div>
@@ -562,7 +565,7 @@ export function VaultTargetRulesPanel(props: {
         <button type="button" data-ui-kind="button" data-control-variant="secondary" disabled={!selectedWeapon} onClick={addWeaponCondition}>
           添加 perk 条件
         </button>
-        <button type="button" data-ui-kind="button" data-control-variant="secondary" disabled={isSaving} onClick={() => void saveWeaponDraft()}>
+        <button type="button" data-ui-kind="button" data-control-variant="secondary" disabled={isSaving} onClick={() => void saveWeaponTarget()}>
           保存武器目标
         </button>
         {message ? <span className="muted-copy">{message}</span> : null}
@@ -607,7 +610,7 @@ function formatEquipmentTarget(target: EquipmentTargetStore["targets"][number]):
     : "任意 Roll"}`;
 }
 
-function parseDraftConditions(conditions: DraftCondition[]): LocalArmorTargetCondition[] {
+function parseArmorConditionInputs(conditions: ArmorConditionInput[]): LocalArmorTargetCondition[] {
   return conditions
     .map((condition) => ({ stat: condition.stat, min: Number(condition.min) }))
     .filter((condition): condition is LocalArmorTargetCondition =>
@@ -627,8 +630,8 @@ function formatRuleConditions(conditions: LocalArmorTargetCondition[]): string {
   return conditions.map((condition) => `${armorStatLabels[condition.stat]} >= ${condition.min}`).join(" / ");
 }
 
-function parseWeaponDraftConditions(
-  conditions: DraftWeaponCondition[],
+function parseWeaponConditionInputs(
+  conditions: WeaponConditionInput[],
   weapon: AvailableWeaponTarget | undefined
 ): LocalWeaponTargetCondition[] {
   const perks = new Map((weapon?.perks ?? []).map((perk) => [String(perk.hash), perk]));

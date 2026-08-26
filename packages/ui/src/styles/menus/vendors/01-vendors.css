@@ -47,6 +47,26 @@
   white-space: nowrap;
 }
 
+:where(.app-shell) .vendor-rail-search {
+  display: grid;
+  gap: 5px;
+  padding: 8px 10px 10px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--surface-panel);
+}
+
+:where(.app-shell) .vendor-rail-search > span {
+  color: var(--text-muted);
+  font-size: var(--font-caption);
+  font-weight: 600;
+}
+
+:where(.app-shell) .vendor-rail-search input {
+  width: 100%;
+  min-width: 0;
+  height: 34px;
+}
+
 :where(.app-shell) .vendor-rail-nav,
 :where(.app-shell) .vendor-content-sections {
   display: grid;
@@ -54,6 +74,19 @@
 
 :where(.app-shell) .vendor-location-group {
   border-bottom: 1px solid var(--border-subtle);
+}
+
+:where(.app-shell) .vendor-rail-empty {
+  display: grid;
+  gap: 4px;
+  padding: 16px 12px;
+  color: var(--text-muted);
+  font-size: var(--font-caption);
+}
+
+:where(.app-shell) .vendor-rail-empty strong {
+  color: var(--text-title);
+  font-size: var(--font-meta);
 }
 
 :where(.app-shell) .vendor-location-title {
@@ -146,8 +179,7 @@
   font-size: var(--font-caption);
 }
 
-:where(.app-shell) .vendor-status-chip,
-:where(.app-shell) .vendor-ledger em {
+:where(.app-shell) .vendor-status-chip {
   display: inline-flex;
   align-items: center;
   min-height: 22px;
@@ -161,29 +193,25 @@
   white-space: nowrap;
 }
 
-:where(.app-shell) .vendor-status-chip[data-status="success"],
-:where(.app-shell) .vendor-ledger em[data-status="success"] {
+:where(.app-shell) .vendor-status-chip[data-status="success"] {
   border-color: var(--status-ready-border);
   color: var(--status-ready-text);
   background: var(--status-ready-bg);
 }
 
-:where(.app-shell) .vendor-status-chip[data-status="pending"],
-:where(.app-shell) .vendor-ledger em[data-status="pending"] {
+:where(.app-shell) .vendor-status-chip[data-status="pending"] {
   border-color: var(--border-control);
   color: var(--accent-primary);
   background: var(--surface-interactive);
 }
 
-:where(.app-shell) .vendor-status-chip[data-status="warning"],
-:where(.app-shell) .vendor-ledger em[data-status="warning"] {
+:where(.app-shell) .vendor-status-chip[data-status="warning"] {
   border-color: var(--status-warning-border);
   color: var(--status-warning-text);
   background: var(--status-warning-bg);
 }
 
-:where(.app-shell) .vendor-status-chip[data-status="error"],
-:where(.app-shell) .vendor-ledger em[data-status="error"] {
+:where(.app-shell) .vendor-status-chip[data-status="error"] {
   border-color: color-mix(in srgb, var(--status-error) 48%, var(--border-subtle));
   color: var(--status-error);
   background: var(--status-error-bg);
@@ -216,6 +244,23 @@
 
 :where(.app-shell) .vendor-toolbar [data-status="error"] {
   color: var(--status-error);
+}
+
+:where(.app-shell) .vendor-character-context {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  align-items: baseline;
+}
+
+:where(.app-shell) .vendor-character-context strong {
+  color: var(--text-title);
+  font-size: var(--font-meta);
+}
+
+:where(.app-shell) .vendor-character-context small {
+  color: var(--text-muted);
+  font-size: var(--font-caption);
 }
 
 :where(.app-shell) .vendor-section-nav {
@@ -601,10 +646,30 @@
 }
 
 :where(.app-shell) .vendor-offer-costs > span {
-  display: flex;
+  display: grid;
+  grid-template-columns: 16px minmax(0, auto);
   gap: 4px;
   align-items: center;
   min-width: 0;
+}
+
+:where(.app-shell) .vendor-offer-costs > span > span,
+:where(.app-shell) .vendor-offer-costs > span > small {
+  grid-column: 2;
+  min-width: 0;
+}
+
+:where(.app-shell) .vendor-offer-costs > span > span {
+  overflow: hidden;
+  color: var(--text-title);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+:where(.app-shell) .vendor-offer-costs > span > small {
+  color: var(--text-muted);
+  font-size: var(--font-caption);
+  line-height: 1.3;
 }
 
 :where(.app-shell) .vendor-offer-costs img {
@@ -618,15 +683,31 @@
   color: var(--status-warning-text);
 }
 
-:where(.app-shell) .vendor-offer-status {
+:where(.app-shell) .vendor-offer-costs [data-status="warning"] > span,
+:where(.app-shell) .vendor-offer-costs [data-status="warning"] > small {
+  color: inherit;
+}
+
+:where(.app-shell) .vendor-offer-state {
+  display: grid;
   flex: 0 1 auto;
-  max-width: 48%;
-  overflow: hidden;
+  gap: 2px;
+  justify-items: end;
+  min-width: 0;
+}
+
+:where(.app-shell) .vendor-offer-state > small {
+  color: var(--accent-primary);
+  font-size: var(--font-caption);
+}
+
+:where(.app-shell) .vendor-offer-status {
+  max-width: 100%;
   color: var(--text-muted);
   font-size: var(--font-caption);
+  line-height: 1.3;
   text-align: right;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
 }
 
 :where(.app-shell) .vendor-offer-status[data-status="success"] {
@@ -719,65 +800,59 @@
   background: var(--accent-primary);
 }
 
-:where(.app-shell) .vendor-ledger > div {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 5px 10px;
-  align-items: start;
-  min-height: 68px;
-  padding: 9px 10px;
-  border-bottom: 1px solid var(--border-subtle);
-}
-
-:where(.app-shell) .vendor-ledger > div > strong {
-  grid-column: 1;
-  grid-row: 1;
-  color: var(--text-muted);
-  font-size: var(--font-caption);
-}
-
-:where(.app-shell) .vendor-ledger > div > span {
-  min-width: 0;
-  grid-column: 1 / -1;
-  grid-row: 2;
-}
-
-:where(.app-shell) .vendor-ledger b,
-:where(.app-shell) .vendor-ledger small {
-  display: block;
-}
-
-:where(.app-shell) .vendor-ledger b {
-  overflow-wrap: anywhere;
-  color: var(--text-title);
-  font-size: var(--font-meta);
-}
-
-:where(.app-shell) .vendor-ledger small {
-  margin-top: 3px;
-  color: var(--text-muted);
-  font-size: var(--font-caption);
-  line-height: 1.4;
-}
-
-:where(.app-shell) .vendor-ledger em {
-  grid-column: 2;
-  grid-row: 1;
-}
-
-@media (max-width: 1280px) {
+@container product-workspace (max-width: 1120px) {
   :where(.app-shell) .vendor-offer-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
-@media (max-width: 980px) {
+@container product-workspace (max-width: 920px) {
   :where(.app-shell) .vendor-offer-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
-@media (max-width: 760px) {
+@container product-workspace (max-width: 700px) {
+  :where(.app-shell) .vendor-rail-nav {
+    display: flex;
+    max-width: 100%;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    scrollbar-width: thin;
+  }
+
+  :where(.app-shell) .vendor-location-group {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: stretch;
+    border-right: 1px solid var(--border-subtle);
+    border-bottom: 0;
+  }
+
+  :where(.app-shell) .vendor-location-title {
+    display: grid;
+    min-width: 68px;
+    place-items: center;
+    padding-inline: 10px;
+    border-right: 1px solid var(--border-subtle);
+    background: var(--surface-subtle);
+  }
+
+  :where(.app-shell) .vendor-rail-item {
+    width: 150px;
+    min-height: 52px;
+    border-top: 0;
+    border-right: 1px solid var(--border-subtle);
+  }
+
+  :where(.app-shell) .vendor-rail-item[aria-current="page"] {
+    box-shadow: inset 0 0 0 1px var(--state-selected-border);
+  }
+
+  :where(.app-shell) .vendor-rail-empty {
+    min-width: 100%;
+  }
+
   :where(.app-shell) .vendor-hero,
   :where(.app-shell) .vendor-toolbar {
     align-items: flex-start;
@@ -812,6 +887,10 @@
 
   :where(.app-shell) .vendor-service-facts .vendor-offer-costs {
     justify-items: start;
+  }
+
+  :where(.app-shell) .vendor-offer-state {
+    justify-items: end;
   }
 
   :where(.app-shell) .vendor-rank-panel {

@@ -1,5 +1,10 @@
 
 
+.product-workspace-page {
+  container-name: product-workspace;
+  container-type: inline-size;
+}
+
 .product-page-head {
   position: sticky;
   z-index: var(--layer-sticky);
@@ -177,7 +182,7 @@
   justify-content: flex-start;
 }
 
-@media (max-width: 760px) {
+@container product-workspace (max-width: 700px) {
   :where(.app-shell) .startup-gate-steps {
     grid-template-columns: 1fr;
   }
@@ -442,7 +447,7 @@ button.vault-side-signal:not(:disabled):hover {
   min-width: 0;
 }
 
-@media (max-width: 760px) {
+@container product-workspace (max-width: 700px) {
   .product-page-header-actions {
     justify-content: flex-start;
     min-width: 0;

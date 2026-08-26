@@ -36,6 +36,7 @@ import type { LoadoutTemplate } from "@d2-tools/core/loadouts/templates";
 import type { LoadoutTemplateAnalysis } from "@d2-tools/core/loadouts/analysis";
 import type { LoadoutActionFeedbackState } from "./loadoutActionFeedback.js";
 import type { InterfaceLocale } from "../i18n/types.js";
+import { getRovingFocusIndex } from "../interaction/rovingFocus.js";
 import { GameAssetImage } from "../media/GameAssetImage.js";
 import {
   ProductWorkspaceEmptyState,
@@ -224,6 +225,7 @@ export function LoadoutsPageContentView(props: LoadoutsPageContentViewProps) {
     }
 
     function closeSourceMenuWithKeyboard(event: KeyboardEvent) {
+      if (event.defaultPrevented) return;
       if (event.key !== "Escape" || !sourceMenuRef.current?.open) return;
       sourceMenuRef.current.open = false;
       sourceMenuRef.current.querySelector<HTMLElement>("summary")?.focus();
@@ -268,15 +270,26 @@ export function LoadoutsPageContentView(props: LoadoutsPageContentViewProps) {
     if (entry && mode === "in-game") props.actions.selectEntry(entry.id);
   }
 
+  function handleCharacterKeyDown(event: ReactKeyboardEvent<HTMLButtonElement>, currentIndex: number) {
+    const nextIndex = getRovingFocusIndex({
+      key: event.key,
+      currentIndex,
+      itemCount: characters.length,
+      orientation: "horizontal"
+    });
+    if (nextIndex === null) return;
+    event.preventDefault();
+    const nextCharacter = characters[nextIndex];
+    if (!nextCharacter) return;
+    selectCharacter(nextCharacter.character_id);
+    event.currentTarget.parentElement
+      ?.querySelectorAll<HTMLButtonElement>("button")[nextIndex]
+      ?.focus();
+  }
+
   function createFromCurrentCharacter(details: HTMLDetailsElement) {
     details.open = false;
     props.actions.startLocalPlanFromCharacter(activeCharacter);
-  }
-
-  function openGuideImport(details: HTMLDetailsElement) {
-    details.open = false;
-    setIsDimImportOpen(false);
-    setIsGuideImportOpen(true);
   }
 
   function openDimImport(details: HTMLDetailsElement) {
@@ -315,14 +328,16 @@ export function LoadoutsPageContentView(props: LoadoutsPageContentViewProps) {
         <div className="loadout-context-group">
           <span className="loadout-context-label">角色</span>
           <div className="loadout-character-tabs" data-ui-kind="context-switcher" role="group" aria-label="配装角色上下文">
-            {characters.map((character) => {
+            {characters.map((character, index) => {
               const active = activeCharacterId === character.character_id;
               return (
                 <button
                   type="button"
                   aria-pressed={active}
+                  tabIndex={active ? 0 : -1}
                   key={character.character_id}
                   onClick={() => selectCharacter(character.character_id)}
+                  onKeyDown={(event) => handleCharacterKeyDown(event, index)}
                 >
                   <span className="loadout-character-mark" aria-hidden="true">{character.class_name.slice(0, 1)}</span>
                   <strong>{character.class_name}</strong>
@@ -349,10 +364,6 @@ export function LoadoutsPageContentView(props: LoadoutsPageContentViewProps) {
             <details ref={sourceMenuRef} className="loadout-create-menu">
               <summary data-ui-kind="button" data-control-variant="primary" aria-haspopup="true">新建方案</summary>
               <div className="loadout-create-options" data-surface="menu" data-ui-kind="command-menu" aria-label="本地方案创建来源">
-                <button type="button" disabled={!activeCharacter || props.isRunningItemAction} onClick={(event) => openGuideImport(event.currentTarget.closest("details")!)}>
-                  <strong>从攻略生成</strong>
-                  <span>粘贴攻略链接或正文，分析后匹配当前角色</span>
-                </button>
                 <button type="button" disabled={!activeCharacter || props.isRunningItemAction} onClick={(event) => createFromCurrentCharacter(event.currentTarget.closest("details")!)}>
                   <strong>使用当前装备</strong>
                   <span>预填真实实例后进入本地方案工作台</span>
@@ -908,6 +919,7 @@ function LocalPlanEditor(props: LoadoutsPageContentViewProps & {
       <section className="loadout-armor-workbench loadout-local-editor-section" aria-label="护甲优化">
         <header><div><strong>护甲规划</strong><small>同一组属性目标可分别核对理论上限、当前库存、待刷身份和现有配装升级路径。</small></div><button type="button" data-ui-kind="button" data-control-variant="primary" onClick={calculateArmorCandidates} disabled={(plannerMode !== "theoretical" && !props.accountSummary) || !props.actions.planArmor || armorClass === "unknown" || armorPlannerState?.status === "loading"}>{armorPlannerState?.status === "loading" ? "计算中" : armorPlannerActionLabel(plannerMode)}</button></header>
         <ArmorPlannerModeControl mode={plannerMode} onChange={(mode) => updateArmorConstraints({ ...armorConstraints, planner_mode: mode })} />
+        <div id="loadout-armor-planner-panel" role="tabpanel" aria-labelledby={`loadout-armor-mode-${plannerMode}`}>
         <div className="loadout-armor-constraint-grid">
           {loadoutPlanArmorStatKeys.map((stat) => <label key={stat}><span>{armorStatLabel(stat)}最低值</span><input type="number" min="0" step="5" value={armorConstraints.stat_minimums[stat] ?? 0} onChange={(event) => updateArmorConstraints({ ...armorConstraints, stat_minimums: { ...armorConstraints.stat_minimums, [stat]: Math.max(Number(event.target.value) || 0, 0) } })} /></label>)}
           <label><span>+5 模组预算</span><input type="number" min="0" value={armorConstraints.five_point_mod_budget} onChange={(event) => updateArmorConstraints({ ...armorConstraints, five_point_mod_budget: Math.max(Number(event.target.value) || 0, 0) })} /></label>
@@ -937,6 +949,7 @@ function LocalPlanEditor(props: LoadoutsPageContentViewProps & {
             : undefined}
           isSavingAcquisitionTargets={Boolean(props.isSavingArmorTargets)}
         /> : null}
+        </div>
       </section>
       <LocalPlanExecutionPanel {...props} />
     </>
@@ -953,9 +966,27 @@ function ArmorPlannerModeControl(props: {
     { mode: "acquisition", label: "待刷目标", description: "把理论组合拆成已有、待升级和待获取身份" },
     { mode: "upgrade", label: "升级路径", description: "从当前五件基线计算最少替换方案" }
   ];
+
+  function handleModeKeyDown(event: ReactKeyboardEvent<HTMLButtonElement>, currentIndex: number) {
+    const nextIndex = getRovingFocusIndex({
+      key: event.key,
+      currentIndex,
+      itemCount: options.length,
+      orientation: "horizontal"
+    });
+    if (nextIndex === null) return;
+    event.preventDefault();
+    const nextOption = options[nextIndex];
+    if (!nextOption) return;
+    props.onChange(nextOption.mode);
+    event.currentTarget.parentElement
+      ?.querySelectorAll<HTMLButtonElement>('[role="tab"]')[nextIndex]
+      ?.focus();
+  }
+
   return (
     <div className="loadout-armor-mode-control" data-ui-kind="segmented-control" role="tablist" aria-label="护甲规划模式">
-      {options.map((option) => <button type="button" key={option.mode} role="tab" aria-selected={props.mode === option.mode} onClick={() => props.onChange(option.mode)}><strong>{option.label}</strong><small>{option.description}</small></button>)}
+      {options.map((option, index) => <button type="button" id={`loadout-armor-mode-${option.mode}`} key={option.mode} role="tab" aria-controls="loadout-armor-planner-panel" aria-selected={props.mode === option.mode} tabIndex={props.mode === option.mode ? 0 : -1} onClick={() => props.onChange(option.mode)} onKeyDown={(event) => handleModeKeyDown(event, index)}><strong>{option.label}</strong><small>{option.description}</small></button>)}
     </div>
   );
 }

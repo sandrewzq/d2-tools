@@ -515,7 +515,7 @@
   font-size: var(--font-content);
 }
 
-@media (max-width: 760px) {
+@container product-workspace (max-width: 700px) {
   .loadout-compare-row {
     grid-template-columns: minmax(0, 1fr);
   }

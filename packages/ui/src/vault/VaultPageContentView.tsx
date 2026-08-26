@@ -60,6 +60,7 @@ import {
   type VaultTargetRulesActions
 } from "./VaultTargetRulesPanel.js";
 import type { VaultCleanupActions } from "./useVaultBatchActions.js";
+import { getRovingFocusIndex } from "../interaction/rovingFocus.js";
 
 type VaultWorkspaceTab = "filters" | "duplicates" | "recommendations";
 
@@ -114,6 +115,7 @@ export function VaultPageContentView(props: {
   const [armorStatRules, setArmorStatRules] = useState<VaultArmorStatRule[]>([]);
   const [frameFilters, setFrameFilters] = useState<VaultFrameFilter>([]);
   const [activeVaultTab, setActiveVaultTab] = useState<VaultWorkspaceTab>("filters");
+  const [hasVisitedDuplicateTab, setHasVisitedDuplicateTab] = useState(false);
   const [batchMessage, setBatchMessage] = useState("");
   const [isBatchSaving, setIsBatchSaving] = useState(false);
   const workspaceId = useId();
@@ -345,15 +347,21 @@ export function VaultPageContentView(props: {
   }
 
   function switchVaultTab(tab: VaultWorkspaceTab) {
+    if (tab === "duplicates") setHasVisitedDuplicateTab(true);
     setActiveVaultTab(tab);
     setBatchMessage("");
   }
 
   function handleVaultTabKeyDown(event: KeyboardEvent<HTMLButtonElement>) {
-    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
-    event.preventDefault();
     const currentIndex = vaultWorkspaceTabs.findIndex((tab) => tab.key === activeVaultTab);
-    const nextIndex = event.key === "Home" ? 0 : event.key === "End" ? vaultWorkspaceTabs.length - 1 : (currentIndex + (event.key === "ArrowRight" ? 1 : -1) + vaultWorkspaceTabs.length) % vaultWorkspaceTabs.length;
+    const nextIndex = getRovingFocusIndex({
+      key: event.key,
+      currentIndex,
+      itemCount: vaultWorkspaceTabs.length,
+      orientation: "horizontal"
+    });
+    if (nextIndex === null) return;
+    event.preventDefault();
     const nextTab = vaultWorkspaceTabs[nextIndex]?.key ?? "filters";
     switchVaultTab(nextTab);
     event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>('[role="tab"]')[nextIndex]?.focus();
@@ -465,8 +473,8 @@ export function VaultPageContentView(props: {
         </div>
       ) : null}
 
-      {activeVaultTab === "duplicates" ? (
-        <div id={panelIds.duplicates} role="tabpanel" aria-labelledby={tabIds.duplicates} className="vault-workspace-panel">
+      {hasVisitedDuplicateTab ? (
+        <div id={panelIds.duplicates} role="tabpanel" aria-labelledby={tabIds.duplicates} className="vault-workspace-panel" hidden={activeVaultTab !== "duplicates"}>
           <div className="vault-summary-strip">
             <div><span>待整理同名组</span><strong>{pendingDuplicateGroupCount} 组</strong></div>
             <div><span>已整理组</span><strong>{completedDuplicateGroupCount} 组</strong></div>

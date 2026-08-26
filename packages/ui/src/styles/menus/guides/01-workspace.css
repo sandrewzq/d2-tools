@@ -255,14 +255,14 @@
 .app-shell .guide-directory-empty,
 .app-shell .guide-detail-empty { margin: 16px; }
 
-@media (max-width: 1180px) {
+@container product-workspace (max-width: 1020px) {
   .app-shell .guide-workspace { grid-template-columns: 150px minmax(230px, 0.7fr) minmax(0, 1.3fr); }
   .app-shell .guide-directory-toolbar { grid-template-columns: minmax(0, 1fr); }
   .app-shell .guide-directory-actions > button { flex: 1 1 0; }
   .app-shell .guide-detail-header { align-items: stretch; flex-direction: column; }
 }
 
-@media (max-width: 820px) {
+@container product-workspace (max-width: 750px) {
   .app-shell .guide-workspace { display: block; height: auto; }
   .app-shell .guide-filter-rail,
   .app-shell .guide-directory { border-right: 0; border-bottom: 1px solid var(--border-subtle); }

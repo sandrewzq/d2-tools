@@ -12,10 +12,11 @@ import type {
   GuideSourceReadPreview
 } from "@d2-tools/app/guides";
 import { getGuideCurrentSnapshot, isSupportedGuideSourceUrl } from "@d2-tools/app/guides";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import type { EquipmentTargetConversionResult } from "@d2-tools/core/targets/equipmentTargets";
 import { getLocaleCopy } from "../i18n/copy.js";
 import type { InterfaceLocale } from "../i18n/types.js";
+import { getRovingFocusIndex } from "../interaction/rovingFocus.js";
 import { formatCompactDateTime, formatFullDateTime } from "../time/formatTime.js";
 import { ProductWorkspaceEmptyState } from "../workspace/ProductWorkspace.js";
 
@@ -80,6 +81,24 @@ export type GuideLibraryPageContentViewProps = {
 export function GuideLibraryPageContentView(props: GuideLibraryPageContentViewProps) {
   const copy = getLocaleCopy(props.interfaceLocale ?? "zh-CN").guides;
   const selected = props.model.selected_document;
+  const directoryTabStopId = selected?.id ?? props.model.entries[0]?.id;
+
+  function handleDirectoryKeyDown(event: ReactKeyboardEvent<HTMLButtonElement>, currentIndex: number) {
+    const nextIndex = getRovingFocusIndex({
+      key: event.key,
+      currentIndex,
+      itemCount: props.model.entries.length,
+      orientation: "vertical"
+    });
+    if (nextIndex === null) return;
+    event.preventDefault();
+    const nextEntry = props.model.entries[nextIndex];
+    if (!nextEntry) return;
+    props.actions.selectDocument(nextEntry.id);
+    event.currentTarget.closest("ul")
+      ?.querySelectorAll<HTMLButtonElement>("button[data-guide-id]")[nextIndex]
+      ?.focus();
+  }
   return (
     <section className="guide-workspace" aria-label={copy.filters.all}>
       <aside className="guide-filter-rail" data-shell-role="side-rail">
@@ -114,9 +133,9 @@ export function GuideLibraryPageContentView(props: GuideLibraryPageContentViewPr
             <ProductWorkspaceEmptyState className="guide-directory-empty"><h3>{copy.loading}</h3><p>{copy.loadingDetail}</p></ProductWorkspaceEmptyState>
           ) : props.model.entries.length ? (
             <ul className="guide-directory-list" data-surface="list">
-            {props.model.entries.map((entry) => (
+            {props.model.entries.map((entry, index) => (
               <li key={entry.id}>
-                <button type="button" className={selected?.id === entry.id && !props.draft ? "active" : ""} aria-current={selected?.id === entry.id && !props.draft ? "true" : undefined} disabled={props.isSaving} onClick={() => props.actions.selectDocument(entry.id)}>
+                <button type="button" data-guide-id={entry.id} className={selected?.id === entry.id && !props.draft ? "active" : ""} aria-current={selected?.id === entry.id && !props.draft ? "true" : undefined} tabIndex={directoryTabStopId === entry.id ? 0 : -1} disabled={props.isSaving} onClick={() => props.actions.selectDocument(entry.id)} onKeyDown={(event) => handleDirectoryKeyDown(event, index)}>
                   <span className="guide-entry-heading"><strong>{entry.title}</strong>{entry.favorite ? <span data-ui-kind="status-chip">★</span> : null}</span>
                   <span className="guide-entry-meta">{entry.category} · {entry.source_label}</span>
                   <span className="guide-entry-excerpt">{entry.excerpt}</span>

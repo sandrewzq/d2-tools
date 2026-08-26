@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type KeyboardEvent, type RefObject } from "react";
+import { Fragment, useEffect, useRef, useState, type KeyboardEvent, type RefObject } from "react";
 import type {
   AccountItemView,
   AccountOpenItemPayload,
@@ -12,6 +12,7 @@ import type {
 import { getLocaleCopy } from "../i18n/copy.js";
 import type { AccountCopy, InterfaceLocale } from "../i18n/types.js";
 import { GameAssetImage } from "../media/GameAssetImage.js";
+import { getRovingFocusIndex } from "../interaction/rovingFocus.js";
 import { formatClockTime, formatCompactDateTime } from "../time/formatTime.js";
 import {
   ProductWorkspaceContentStack,
@@ -132,13 +133,14 @@ function AccountPageWorkspace(props: {
   const [powerMode, setPowerMode] = useState<"equippable" | "slots">("equippable");
   const displayedSlotRows = visibleAccountSlotRows(props.viewModel.loadout.slotComparisonRows);
   const displayedInventoryCount = displayedSlotRows.reduce((count, row) => count + row.inventoryItems.length, 0);
-  const navigation: Array<{ key: AccountSection; label: string; count?: number }> = [
-    { key: "gear", label: accountText(props.copy, "角色装备与背包") },
-    { key: "configuration", label: accountText(props.copy, "角色配置") },
-    { key: "tasks", label: accountText(props.copy, "任务与进度"), count: props.viewModel.tasks.itemCount },
-    { key: "items", label: accountText(props.copy, "物品与货币"), count: props.viewModel.items.itemCount },
-    { key: "postmaster", label: accountText(props.copy, "邮政官"), count: props.viewModel.postmaster.items.length },
-    { key: "activity", label: accountText(props.copy, "活动记录") }
+  const directoryOrientation = useAccountDirectoryOrientation();
+  const navigation: Array<{ key: AccountSection; label: string; count?: number; groupLabel?: string }> = [
+    { key: "gear", label: accountText(props.copy, "战斗装备"), groupLabel: accountText(props.copy, "当前角色") },
+    { key: "configuration", label: accountText(props.copy, "角色物品与配置") },
+    { key: "tasks", label: accountText(props.copy, "任务与赏金") },
+    { key: "postmaster", label: accountText(props.copy, "邮政官"), count: props.viewModel.postmaster.totalCount || undefined },
+    { key: "items", label: accountText(props.copy, "材料与货币"), groupLabel: accountText(props.copy, "整个账号") },
+    { key: "activity", label: accountText(props.copy, "账号战绩") }
   ];
 
   useEffect(() => {
@@ -151,6 +153,7 @@ function AccountPageWorkspace(props: {
     }
 
     function handleKeyDown(event: globalThis.KeyboardEvent): void {
+      if (event.defaultPrevented) return;
       if (event.key !== "Escape") return;
       setIsPowerPanelOpen(false);
       powerTriggerRef.current?.focus();
@@ -175,12 +178,21 @@ function AccountPageWorkspace(props: {
   }, [isPowerPanelOpen]);
 
   function handleDirectoryKeyDown(event: KeyboardEvent<HTMLButtonElement>, index: number): void {
-    let nextIndex = index;
-    if (event.key === "ArrowDown" || event.key === "ArrowRight") nextIndex = (index + 1) % navigation.length;
-    else if (event.key === "ArrowUp" || event.key === "ArrowLeft") nextIndex = (index - 1 + navigation.length) % navigation.length;
-    else if (event.key === "Home") nextIndex = 0;
-    else if (event.key === "End") nextIndex = navigation.length - 1;
-    else return;
+    const nextIndex = getRovingFocusIndex({
+      key: event.key,
+      currentIndex: index,
+      itemCount: navigation.length,
+      orientation: directoryOrientation
+    });
+    if (nextIndex === null) {
+      const entersPanel = directoryOrientation === "horizontal"
+        ? event.key === "ArrowDown"
+        : event.key === "ArrowRight";
+      if (!entersPanel) return;
+      event.preventDefault();
+      focusAccountPanel(navigation[index].key);
+      return;
+    }
 
     event.preventDefault();
     props.setSection(navigation[nextIndex].key);
@@ -216,30 +228,32 @@ function AccountPageWorkspace(props: {
       {props.viewModel.feedback.accountError ? <p className="status-message status-error">{props.viewModel.feedback.accountError}</p> : null}
       {props.viewModel.feedback.accountWarning ? <p className="status-message status-warning">{props.viewModel.feedback.accountWarning}</p> : null}
       {props.viewModel.feedback.itemDetailError ? <p className="status-message status-error">{props.viewModel.feedback.itemDetailError}</p> : null}
-      <ProductWorkspaceSplit className="account-workspace">
+      <ProductWorkspaceSplit className="account-workspace" id="account-workspace">
       <ProductWorkspaceSideRail element="aside" className="account-directory" ariaLabel={accountText(props.copy, "账号目录")} scrollRegion="pane" surface="list">
         <div className="account-column-head">
           <h3 data-ui-part="value" data-info-priority="context" data-text-tone="primary">账号目录</h3>
           <span data-ui-part="detail" data-info-priority="trace" data-text-tone="meta">{profile.accountName}</span>
         </div>
-        <div className="account-directory-tabs" role="tablist" aria-label={accountText(props.copy, "账号数据视图")}>
+        <div className="account-directory-tabs" role="tablist" aria-orientation={directoryOrientation} aria-label={accountText(props.copy, "账号数据视图")}>
           {navigation.map((item, index) => (
-            <button
-              type="button"
-              role="tab"
-              id={`account-tab-${item.key}`}
-              aria-controls={`account-panel-${item.key}`}
-              aria-selected={props.section === item.key}
-              tabIndex={props.section === item.key ? 0 : -1}
-              className={props.section === item.key ? "active" : ""}
-              key={item.key}
-              ref={(element) => { tabRefs.current[index] = element; }}
-              onClick={() => props.setSection(item.key)}
-              onKeyDown={(event) => handleDirectoryKeyDown(event, index)}
-            >
-              <span>{item.label}</span>
-              {item.count !== undefined ? <small>{item.count}</small> : null}
-            </button>
+            <Fragment key={item.key}>
+              {item.groupLabel ? <span className="account-directory-group-label" role="presentation" aria-hidden="true">{item.groupLabel}</span> : null}
+              <button
+                type="button"
+                role="tab"
+                id={`account-tab-${item.key}`}
+                aria-controls={`account-panel-${item.key}`}
+                aria-selected={props.section === item.key}
+                tabIndex={props.section === item.key ? 0 : -1}
+                className={`${props.section === item.key ? "active" : ""} ${item.groupLabel && index > 0 ? "group-start" : ""}`.trim()}
+                ref={(element) => { tabRefs.current[index] = element; }}
+                onClick={() => props.setSection(item.key)}
+                onKeyDown={(event) => handleDirectoryKeyDown(event, index)}
+              >
+                <span>{item.label}</span>
+                {item.count !== undefined ? <small aria-label={`${item.count} ${accountText(props.copy, "件")}`}>{item.count}</small> : null}
+              </button>
+            </Fragment>
           ))}
         </div>
       </ProductWorkspaceSideRail>
@@ -338,10 +352,11 @@ function AccountPageWorkspace(props: {
           role="tabpanel"
           aria-labelledby="account-tab-gear"
           aria-busy={props.viewModel.connection.isLoadingAccount}
+          tabIndex={-1}
           hidden={props.section !== "gear"}
         >
             <div className="account-column-head">
-              <h3 data-ui-part="value" data-info-priority="context" data-text-tone="primary">{props.selectedCharacter.className}当前装备与背包</h3>
+              <h3 data-ui-part="value" data-info-priority="context" data-text-tone="primary">{props.selectedCharacter.className}{accountText(props.copy, "战斗装备")}</h3>
               <span data-ui-part="detail" data-info-priority="support" data-text-tone="body">
                 装备 {props.viewModel.loadout.equippedCount} 件 · 背包候选 {displayedInventoryCount} 件
                 {props.viewModel.loadout.activeTemplateName ? ` · ${accountText(props.copy, "关联配装")} ${props.viewModel.loadout.activeTemplateName} · ${accountText(props.copy, "命中")} ${props.viewModel.loadout.selectedCharacterLoadoutMatchCount}` : ""}
@@ -359,9 +374,10 @@ function AccountPageWorkspace(props: {
           id="account-panel-configuration"
           role="tabpanel"
           aria-labelledby="account-tab-configuration"
+          tabIndex={-1}
           hidden={props.section !== "configuration"}
         >
-          <AccountConfigurationPanel viewModel={props.viewModel} />
+          <AccountCharacterItemsPanel copy={props.copy} viewModel={props.viewModel} />
         </section>
 
         <section
@@ -369,39 +385,19 @@ function AccountPageWorkspace(props: {
           id="account-panel-tasks"
           role="tabpanel"
           aria-labelledby="account-tab-tasks"
+          tabIndex={-1}
           hidden={props.section !== "tasks"}
         >
           <div className="account-column-head">
-            <h3 data-ui-part="value" data-info-priority="context" data-text-tone="primary">{props.selectedCharacter.className}任务与进度</h3>
-            <span data-ui-part="detail" data-info-priority="support" data-text-tone="body">{props.viewModel.tasks.itemCount} 项 · 与战斗装备分开</span>
+            <h3 data-ui-part="value" data-info-priority="context" data-text-tone="primary">{props.selectedCharacter.className}{accountText(props.copy, "任务与赏金")}</h3>
+            <span data-ui-part="detail" data-info-priority="support" data-text-tone="body">{props.viewModel.tasks.itemCount} 项 · {accountText(props.copy, "按任务类型查看")}</span>
           </div>
           <AccountStatusMatrix entries={[
             { label: "任务与步骤", value: props.viewModel.tasks.questCount },
             { label: "命令与赏金", value: props.viewModel.tasks.orderCount },
             { label: "神器与赛季", value: props.viewModel.tasks.seasonalCount }
           ]} />
-          <AccountDataGroups groups={props.viewModel.tasks.groups} />
-        </section>
-
-        <section
-          className={`account-section ${props.section === "items" ? "active" : ""}`}
-          id="account-panel-items"
-          role="tabpanel"
-          aria-labelledby="account-tab-items"
-          hidden={props.section !== "items"}
-        >
-          <div className="account-column-head">
-            <h3 data-ui-part="value" data-info-priority="context" data-text-tone="primary">{props.selectedCharacter.className}物品与货币</h3>
-            <span data-ui-part="detail" data-info-priority="support" data-text-tone="body">角色携带与账号级数量分开</span>
-          </div>
-          <AccountStatusMatrix entries={[
-            { label: "角色携带", value: props.viewModel.items.carriedCount },
-            { label: "材料与货币", value: props.viewModel.items.materialCount },
-            { label: "外观与可选配置", value: props.viewModel.items.collectionCount },
-            { label: "未分类数据", value: props.viewModel.items.unknownCount, status: props.viewModel.items.unknownCount ? "warning" : "success" }
-          ]} />
-          <AccountDataGroups groups={props.viewModel.items.groups} />
-          <AccountMaterialsGroup interfaceLocale={props.interfaceLocale} viewModel={props.viewModel} copy={props.copy} />
+          <AccountDataGroups copy={props.copy} groups={props.viewModel.tasks.groups} />
         </section>
 
         <section
@@ -409,10 +405,11 @@ function AccountPageWorkspace(props: {
           id="account-panel-postmaster"
           role="tabpanel"
           aria-labelledby="account-tab-postmaster"
+          tabIndex={-1}
           hidden={props.section !== "postmaster"}
         >
-            <div className="account-column-head"><h3 data-ui-part="value" data-info-priority="context" data-text-tone="primary">邮政官只读物品</h3><span data-ui-part="detail" data-info-priority="support" data-text-tone="body">{props.viewModel.postmaster.items.length} 件 · 只读</span></div>
-            <div className="account-section-notice status-message status-warning">邮政官区域只展示当前可读取物品；取回操作会明确选择目标角色，不在列表中自动执行。</div>
+            <div className="account-column-head"><h3 data-ui-part="value" data-info-priority="context" data-text-tone="primary">{props.selectedCharacter.className}{accountText(props.copy, "邮政官")}</h3><span data-ui-part="detail" data-info-priority="support" data-text-tone="body">{props.viewModel.postmaster.totalCount} 件 · {accountText(props.copy, "完整清单")}</span></div>
+            <div className="account-section-notice status-message">{accountText(props.copy, "邮政官按当前角色独立保存；这里显示完整清单，取回操作不会自动执行。")}</div>
             {props.viewModel.postmaster.items.length ? (
               <div className="account-item-list">
                 {props.viewModel.postmaster.items.map((item) => renderAccountItemCard(item, "inventory", { onOpenItem: props.actions.openItem, copy: props.copy }))}
@@ -421,13 +418,29 @@ function AccountPageWorkspace(props: {
         </section>
 
         <section
+          className={`account-section ${props.section === "items" ? "active" : ""}`}
+          id="account-panel-items"
+          role="tabpanel"
+          aria-labelledby="account-tab-items"
+          tabIndex={-1}
+          hidden={props.section !== "items"}
+        >
+          <div className="account-column-head">
+            <h3 data-ui-part="value" data-info-priority="context" data-text-tone="primary">{accountText(props.copy, "账号材料与货币")}</h3>
+            <span data-ui-part="detail" data-info-priority="support" data-text-tone="body">{accountText(props.copy, "整个账号共享，不随角色切换")}</span>
+          </div>
+          <AccountMaterialsGroup defaultOpen interfaceLocale={props.interfaceLocale} viewModel={props.viewModel} copy={props.copy} />
+        </section>
+
+        <section
           className={`account-section ${props.section === "activity" ? "active" : ""}`}
           id="account-panel-activity"
           role="tabpanel"
           aria-labelledby="account-tab-activity"
+          tabIndex={-1}
           hidden={props.section !== "activity"}
         >
-            <div className="account-toolbar"><div><strong>活动记录</strong><span>来源：Activity History</span></div><button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={props.actions.refreshActivity}>刷新活动记录</button></div>
+            <div className="account-toolbar"><div><strong>{accountText(props.copy, "账号战绩")}</strong><span>{accountText(props.copy, "全部角色的近期活动")}</span></div><button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={props.actions.refreshActivity}>{accountText(props.copy, "刷新账号战绩")}</button></div>
             {props.viewModel.activity.error ? <p className="status-message status-error">{props.viewModel.activity.error}</p> : null}
             {props.viewModel.activity.message ? <p className="status-message status-ready">{props.viewModel.activity.message}</p> : null}
             {props.activitySummary ? (
@@ -437,7 +450,7 @@ function AccountPageWorkspace(props: {
                   <article><span>PVP 完成情况</span><strong>{props.activitySummary.recent.pvp.completed} 场</strong><p>最近记录中的 PVP 完成情况</p></article>
                   <article><span>突袭 / 地牢</span><strong>{props.activitySummary.raids.entries.filter((entry) => entry.activity_type === "raid").length} / {props.activitySummary.raids.entries.filter((entry) => entry.activity_type === "dungeon").length}</strong><p>当前可读取的完成记录</p></article>
                 </div>
-                <div className="account-column-head"><h3 data-ui-part="value" data-info-priority="context" data-text-tone="primary">最近 10 场</h3><span data-ui-part="detail" data-info-priority="support" data-text-tone="body">Activity History</span></div>
+                <div className="account-column-head"><h3 data-ui-part="value" data-info-priority="context" data-text-tone="primary">{accountText(props.copy, "最近 10 场")}</h3><span data-ui-part="detail" data-info-priority="support" data-text-tone="body">{accountText(props.copy, "全部角色")}</span></div>
                 {props.activitySummary.recent_items.length ? (
                   <div className="account-table-list">
                     {props.activitySummary.recent_items.slice(0, 10).map((item, index) => (
@@ -458,16 +471,16 @@ function AccountPageWorkspace(props: {
   );
 }
 
-function AccountConfigurationPanel(props: { viewModel: AccountPageViewModel }) {
+function AccountCharacterItemsPanel(props: { copy: AccountCopy; viewModel: AccountPageViewModel }) {
   const { primaryItems, extraItems } = props.viewModel.configuration;
   return (
     <section className="account-character-config" data-surface="section">
       <header className="account-section-heading">
         <div>
-          <span data-ui-part="label" data-info-priority="support" data-text-tone="meta">角色配置</span>
-          <h4 data-ui-part="value" data-info-priority="decision" data-text-tone="primary">当前选择</h4>
+          <span data-ui-part="label" data-info-priority="support" data-text-tone="meta">{accountText(props.copy, "角色物品与配置")}</span>
+          <h4 data-ui-part="value" data-info-priority="decision" data-text-tone="primary">{accountText(props.copy, "当前使用")}</h4>
         </div>
-        <span data-ui-part="detail" data-info-priority="support" data-text-tone="body">这些项目不是装备详情入口</span>
+        <span data-ui-part="detail" data-info-priority="support" data-text-tone="body">{accountText(props.copy, "非战斗物品和外观配置只读展示")}</span>
       </header>
       {primaryItems.length ? (
         <div className="account-config-grid">
@@ -488,6 +501,13 @@ function AccountConfigurationPanel(props: { viewModel: AccountPageViewModel }) {
           </div>
         </details>
       ) : null}
+      <div className="account-column-head account-character-items-head">
+        <h3 data-ui-part="value" data-info-priority="context" data-text-tone="primary">{accountText(props.copy, "携带物品与其他配置")}</h3>
+        <span data-ui-part="detail" data-info-priority="support" data-text-tone="body">
+          {props.viewModel.items.carriedCount + props.viewModel.items.collectionCount + props.viewModel.items.unknownCount} 项 · {accountText(props.copy, "当前角色")}
+        </span>
+      </div>
+      <AccountDataGroups copy={props.copy} groups={props.viewModel.items.groups} />
     </section>
   );
 }
@@ -520,15 +540,15 @@ function AccountStatusMatrix(props: {
   );
 }
 
-function AccountDataGroups(props: { groups: AccountReadonlyGroupView[] }) {
+function AccountDataGroups(props: { copy: AccountCopy; groups: AccountReadonlyGroupView[] }) {
   return (
     <div className="account-data-groups">
-      {props.groups.map((group) => <AccountDataGroup group={group} key={group.key} />)}
+      {props.groups.map((group) => <AccountDataGroup copy={props.copy} group={group} key={group.key} />)}
     </div>
   );
 }
 
-function AccountDataGroup(props: { group: AccountReadonlyGroupView }) {
+function AccountDataGroup(props: { copy: AccountCopy; group: AccountReadonlyGroupView }) {
   return (
     <details className="account-data-group" data-status={props.group.status}>
       <summary>
@@ -540,22 +560,33 @@ function AccountDataGroup(props: { group: AccountReadonlyGroupView }) {
       </summary>
       <div className="account-readonly-list">
         {props.group.items.length
-          ? props.group.items.map((item) => <AccountReadonlyRow item={item} key={item.key} />)
+          ? props.group.items.map((item) => <AccountReadonlyRow copy={props.copy} item={item} key={item.key} />)
           : <AccountInlineState title="当前没有数据" detail="不会生成示例条目。" />}
       </div>
     </details>
   );
 }
 
-function AccountReadonlyRow(props: { item: AccountReadonlyItemView }) {
+function AccountReadonlyRow(props: { copy: AccountCopy; item: AccountReadonlyItemView }) {
+  const stateLabel = props.item.isComplete
+    ? accountText(props.copy, "已完成")
+    : typeof props.item.progressPercent === "number"
+      ? accountText(props.copy, "进行中")
+      : accountText(props.copy, "只读");
   return (
     <div className="account-readonly-row" data-surface="row" data-interactive="false">
       <AccountReadonlyIcon item={props.item} />
       <span>
         <strong data-ui-part="value" data-info-priority="context" data-text-tone="primary">{props.item.name}</strong>
         <small data-ui-part="detail" data-info-priority="reading" data-text-tone="body">{props.item.typeLabel} · {props.item.sourceLabel}</small>
+        {typeof props.item.progressPercent === "number" ? (
+          <span className={`account-readonly-progress ${props.item.isComplete ? "complete" : ""}`.trim()}>
+            <progress max={100} value={props.item.progressPercent} aria-label={props.item.progressLabel} />
+            <small>{props.item.progressLabel}</small>
+          </span>
+        ) : null}
       </span>
-      <em data-ui-part="state" data-info-priority="support" data-text-tone="meta">只读</em>
+      <em data-ui-part="state" data-info-priority="support" data-text-tone="meta" data-status={props.item.isComplete ? "success" : typeof props.item.progressPercent === "number" ? "pending" : undefined}>{stateLabel}</em>
     </div>
   );
 }
@@ -565,13 +596,15 @@ function AccountReadonlyIcon(props: { item: AccountReadonlyItemView }) {
 }
 
 function AccountMaterialsGroup(props: {
+  defaultOpen?: boolean;
   interfaceLocale: InterfaceLocale;
   viewModel: AccountPageViewModel;
   copy: AccountCopy;
 }) {
   const rows = props.viewModel.materials.rows;
+  const [isOpen, setIsOpen] = useState(Boolean(props.defaultOpen));
   return (
-    <details className="account-data-group account-material-group">
+    <details className="account-data-group account-material-group" open={isOpen} onToggle={(event) => setIsOpen(event.currentTarget.open)}>
       <summary>
         <span>
           <strong data-ui-part="value" data-info-priority="context" data-text-tone="primary">账号材料与货币</strong>
@@ -700,6 +733,34 @@ function formatPowerSource(
     ? accountText(copy, "已装备")
     : accountText(copy, "背包");
   return `${row.sourceCharacterName ?? accountText(copy, "其他角色")} · ${location}`;
+}
+
+function focusAccountPanel(section: AccountSection): void {
+  const panel = document.getElementById(`account-panel-${section}`);
+  const firstControl = panel?.querySelector<HTMLElement>(
+    'button:not([disabled]), summary, a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex="0"]'
+  );
+  (firstControl ?? panel)?.focus();
+}
+
+function useAccountDirectoryOrientation(): "horizontal" | "vertical" {
+  const [orientation, setOrientation] = useState<"horizontal" | "vertical">("vertical");
+
+  useEffect(() => {
+    const workspace = document.getElementById("account-workspace");
+    if (!workspace) return;
+    const applyOrientation = (width: number) => setOrientation(width <= 700 ? "horizontal" : "vertical");
+    applyOrientation(workspace.getBoundingClientRect().width);
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (entry) applyOrientation(entry.contentRect.width);
+    });
+    observer.observe(workspace);
+    return () => observer.disconnect();
+  }, []);
+
+  return orientation;
 }
 
 function accountText(copy: AccountCopy, key: string): string {

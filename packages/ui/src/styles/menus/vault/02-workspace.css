@@ -3,6 +3,10 @@
   min-width: 0;
 }
 
+:where(.app-shell) .vault-workspace-panel[hidden] {
+  display: none;
+}
+
 :where(.app-shell) .vault-workflow-bar {
   display: flex;
   align-items: center;
@@ -1444,7 +1448,7 @@
   cursor: pointer;
 }
 
-@media (max-width: 1280px) {
+@container product-workspace (max-width: 1120px) {
   :where(.app-shell) .vault-filter-primary {
     grid-template-columns: minmax(240px, 1fr) minmax(360px, 0.9fr);
   }
@@ -1498,7 +1502,7 @@
   grid-column: 1 / -1;
 }
 
-@media (max-width: 1120px) {
+@container product-workspace (max-width: 960px) {
   :where(.app-shell) .vault-workflow-bar,
   :where(.app-shell) .vault-filter-primary {
     align-items: stretch;
@@ -1536,7 +1540,7 @@
   }
 }
 
-@media (max-width: 980px) {
+@container product-workspace (max-width: 920px) {
   :where(.app-shell) .vault-filter-common-row {
     grid-template-columns: repeat(2, minmax(160px, 1fr));
   }
@@ -1569,7 +1573,7 @@
   }
 }
 
-@media (max-width: 760px) {
+@container product-workspace (max-width: 700px) {
   .app-shell .vault-workflow-tabs,
   .app-shell .vault-workflow-meta,
   .app-shell .vault-filter-scope {
@@ -3333,7 +3337,7 @@
   font-size: var(--font-caption);
 }
 
-@media (max-width: 1180px) {
+@container product-workspace (max-width: 1020px) {
   :where(.app-shell) .vault-browse {
     grid-template-columns: 260px minmax(0, 1fr);
   }
@@ -3343,7 +3347,7 @@
   }
 }
 
-@media (max-width: 920px) {
+@container product-workspace (max-width: 850px) {
   :where(.app-shell) .vault-results-column .vault-card-grid {
     grid-template-columns: repeat(8, minmax(0, 1fr));
   }
@@ -3400,13 +3404,13 @@
   }
 }
 
-@media (max-width: 760px) {
+@container product-workspace (max-width: 700px) {
   :where(.app-shell) .vault-results-column .vault-card-grid {
     grid-template-columns: repeat(6, minmax(0, 1fr));
   }
 }
 
-@media (max-width: 620px) {
+@container product-workspace (max-width: 560px) {
   :where(.app-shell) .vault-results-column .vault-card-grid {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }

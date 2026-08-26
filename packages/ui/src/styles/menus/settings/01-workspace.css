@@ -639,7 +639,7 @@
   padding-bottom: 13px;
 }
 
-@media (min-width: 1281px) {
+@container product-workspace (min-width: 1121px) {
   .settings-summary-metrics .settings-metric:nth-child(3n + 1):not(:last-child),
   .settings-summary-metrics .settings-metric:nth-child(3n + 2):not(:last-child) {
     border-right: 1px solid var(--section-divider);
@@ -654,7 +654,7 @@
   }
 }
 
-@media (max-width: 1280px) {
+@container product-workspace (max-width: 1120px) {
   .settings-workspace {
     --settings-directory-width: 210px;
     --settings-control-column: 260px;
@@ -689,7 +689,7 @@
   }
 }
 
-@media (max-width: 980px) {
+@container product-workspace (max-width: 920px) {
   .settings-workspace {
     --settings-directory-width: 190px;
   }
@@ -732,7 +732,7 @@
 
 }
 
-@media (max-width: 760px) {
+@container product-workspace (max-width: 700px) {
   .settings-workspace {
     grid-template-columns: 1fr;
     min-height: 0;

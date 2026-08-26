@@ -27,6 +27,9 @@ export type AccountReadonlyItemView = {
   icon?: string;
   typeLabel: string;
   sourceLabel: string;
+  progressLabel?: string;
+  progressPercent?: number;
+  isComplete?: boolean;
 };
 
 export type AccountReadonlyGroupView = {
@@ -145,6 +148,7 @@ export type AccountMaterialsSectionView = {
 
 export type AccountPostmasterSectionView = {
   items: AccountItemView[];
+  totalCount: number;
 };
 
 export type AccountPageViewModel = {
@@ -472,14 +476,15 @@ export function selectAccountPageModel(input: AccountPageModelInput): AccountPag
     },
     postmaster: {
       items: selectedCharacter
-        ? selectedCharacter.postmaster_items.slice(0, 12).map((item) => toAccountItemView({
+        ? selectedCharacter.postmaster_items.map((item) => toAccountItemView({
           item,
           sourceCharacterId: selectedCharacter.character_id,
           openingItemKey,
           isLoadoutMatch,
           isPostmasterItem: true
         }))
-        : []
+        : [],
+      totalCount: selectedCharacter?.postmaster_items.length ?? 0
     }
   };
 }
@@ -489,8 +494,8 @@ function accountPageNavigation(): AccountPageNavItem[] {
     { key: "gear", href: "#account-gear", labelKey: "gear" },
     { key: "configuration", href: "#account-configuration", labelKey: "configuration" },
     { key: "tasks", href: "#account-tasks", labelKey: "tasks" },
-    { key: "items", href: "#account-items", labelKey: "items" },
     { key: "postmaster", href: "#account-postmaster", labelKey: "postmaster" },
+    { key: "items", href: "#account-items", labelKey: "items" },
     { key: "activity", href: "#account-activity", labelKey: "activity" }
   ];
 }
@@ -627,13 +632,37 @@ function toReadonlyGroup(
 }
 
 function toReadonlyItems(items: AccountItemSummary[], sourceLabel: string): AccountReadonlyItemView[] {
-  return items.map((item, index) => ({
-    key: `${sourceLabel}:${getAccountPageItemKey(item)}:${index}`,
-    name: item.name,
-    icon: item.icon,
-    typeLabel: item.item_type?.trim() || item.bucket_name?.trim() || "类型未识别",
-    sourceLabel
-  }));
+  return items.map((item, index) => {
+    const progress = buildReadonlyItemProgress(item);
+    return {
+      key: `${sourceLabel}:${getAccountPageItemKey(item)}:${index}`,
+      name: item.name,
+      icon: item.icon,
+      typeLabel: item.item_type?.trim() || item.bucket_name?.trim() || "类型未识别",
+      sourceLabel,
+      ...progress
+    };
+  });
+}
+
+function buildReadonlyItemProgress(item: AccountItemSummary): Pick<AccountReadonlyItemView, "progressLabel" | "progressPercent" | "isComplete"> {
+  const objectives = item.item_objectives?.filter((objective) => objective.visible) ?? [];
+  if (!objectives.length) return {};
+
+  const isComplete = objectives.every((objective) => objective.complete);
+  const progressPercent = Math.round(objectives.reduce((total, objective) => {
+    if (objective.completion_value <= 0) return total + Number(objective.complete);
+    return total + Math.min(1, Math.max(0, (objective.progress ?? 0) / objective.completion_value));
+  }, 0) / objectives.length * 100);
+  const firstObjective = objectives[0];
+  const progressLabel = objectives.length === 1
+    ? [
+        firstObjective.progress_description,
+        `${firstObjective.progress ?? 0}/${firstObjective.completion_value}`
+      ].filter(Boolean).join(" · ")
+    : `${objectives.filter((objective) => objective.complete).length}/${objectives.length} 项目标`;
+
+  return { progressLabel, progressPercent, isComplete };
 }
 
 function toAccountItemView(input: {

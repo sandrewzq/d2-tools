@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useState, type CSSProperties, type KeyboardEvent } from "react";
 import {
   classifyWeaponSocketPlugs,
   isWeaponSystemPlug,
@@ -21,6 +21,9 @@ import type { SaveVaultTagInput } from "@d2-tools/core/vault/tags";
 import type { LoadoutTemplateLookup } from "@d2-tools/app/loadouts";
 import { getVaultItemKey, normalizeCoreItem } from "@d2-tools/app/vault";
 import { GameAssetImage } from "../media/GameAssetImage.js";
+import { getRovingFocusIndex } from "../interaction/rovingFocus.js";
+import { useNavigationGuard } from "../navigation/NavigationGuard.js";
+import { ConfirmationDialog } from "../overlay/ConfirmationDialog.js";
 import { formatVaultItemMeta } from "./VaultListItem.js";
 
 type DuplicateDisposition = "none" | "keep" | "review" | "junk";
@@ -91,13 +94,25 @@ export function VaultDuplicateGroups(props: {
   const [progressFilter, setProgressFilter] = useState<DuplicateProgressFilter>("all");
   const [activeGroupKey, setActiveGroupKey] = useState(groups[0]?.group_key ?? "");
   const [referenceByGroup, setReferenceByGroup] = useState<Record<string, string>>({});
-  const [draftByGroup, setDraftByGroup] = useState<Record<string, Record<string, DuplicateDisposition>>>({});
+  const [pendingDispositionByGroup, setPendingDispositionByGroup] = useState<Record<string, Record<string, DuplicateDisposition>>>({});
   const [detailByItemKey, setDetailByItemKey] = useState<Record<string, AccountItemSummary>>({});
   const [detailLoadStatusByItemKey, setDetailLoadStatusByItemKey] = useState<Record<string, "loading" | "ready" | "error">>({});
+  const pendingChangeCount = useMemo(() => groups.reduce((count, group) => (
+    count + group.items.filter((entry) => (
+      (pendingDispositionByGroup[group.group_key]?.[entry.item_key] ?? dispositionFromTag(entry.tag)) !== dispositionFromTag(entry.tag)
+    )).length
+  ), 0), [groups, pendingDispositionByGroup]);
   const evidenceSummaryByGroup = useMemo(() => new Map(groups.map((group) => [
     group.group_key,
     summarizeGroupEvidence(group, itemByKey, props)
   ])), [groups, itemByKey, props.communityMatch, props.equipmentTargetStore, props.highlightedItemKeys, props.localTargetRules, props.wishlist]);
+
+  useNavigationGuard(pendingChangeCount > 0 ? {
+    title: "离开仓库并放弃待应用状态？",
+    description: `当前有 ${pendingChangeCount} 件装备的整理状态尚未应用。离开仓库后这些临时选择会丢失，已应用的本地标签不会改变。`,
+    confirmLabel: "放弃并离开",
+    cancelLabel: "继续整理"
+  } : null);
 
   const filteredGroups = useMemo(() => {
     const normalizedQuery = query.trim().toLocaleLowerCase();
@@ -184,6 +199,24 @@ export function VaultDuplicateGroups(props: {
     ));
   }
 
+  function handleGroupKeyDown(event: KeyboardEvent<HTMLButtonElement>, groupKey: string) {
+    const currentIndex = filteredGroups.findIndex((group) => group.group_key === groupKey);
+    const nextIndex = getRovingFocusIndex({
+      key: event.key,
+      currentIndex,
+      itemCount: filteredGroups.length,
+      orientation: "both"
+    });
+    if (nextIndex === null) return;
+    event.preventDefault();
+    const nextGroup = filteredGroups[nextIndex];
+    const nextButton = event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>(".duplicate-group-link")[nextIndex];
+    if (!nextGroup || !nextButton) return;
+    setActiveGroupKey(nextGroup.group_key);
+    nextButton.focus();
+    nextButton.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }
+
   return (
     <div className="duplicate-workspace">
       <aside className="duplicate-group-browser" aria-label="同名装备组">
@@ -204,16 +237,16 @@ export function VaultDuplicateGroups(props: {
         </div>
         <nav className="duplicate-group-nav">
           {filteredGroups.map((group) => {
-            const draft = draftByGroup[group.group_key];
-            const dispositionSummary = summarizeGroupDraft(group, draft);
+            const pendingDisposition = pendingDispositionByGroup[group.group_key];
+            const dispositionSummary = summarizeGroupDisposition(group, pendingDisposition);
             const evidence = evidenceSummaryByGroup.get(group.group_key) ?? { protectedItems: 0, matchedItems: 0 };
             const firstItem = group.items[0] ? itemByKey.get(group.items[0].item_key) : undefined;
-            const isDirty = isGroupDraftDirty(group, draft);
+            const hasPendingChanges = hasGroupPendingChanges(group, pendingDisposition);
             return (
-              <button type="button" className="duplicate-group-link" key={group.group_key} aria-pressed={activeGroup?.group_key === group.group_key} onClick={() => setActiveGroupKey(group.group_key)}>
+              <button type="button" className="duplicate-group-link" key={group.group_key} aria-pressed={activeGroup?.group_key === group.group_key} tabIndex={activeGroup?.group_key === group.group_key ? 0 : -1} onClick={() => setActiveGroupKey(group.group_key)} onKeyDown={(event) => handleGroupKeyDown(event, group.group_key)}>
                 <GameAssetImage src={firstItem?.icon} alt="" loading="eager" fallback={<span className="duplicate-thumb-fallback">{firstItem?.group_key === "armor" ? "甲" : "武"}</span>} />
                 <span className="duplicate-group-copy">
-                  <span className="duplicate-group-title-line"><strong>{group.name}</strong>{isDirty ? <em>未保存</em> : null}</span>
+                  <span className="duplicate-group-title-line"><strong>{group.name}</strong>{hasPendingChanges ? <em>待应用</em> : null}</span>
                   <span>{groupKindLabel(group)} · {group.count} 件 · 未标记 {dispositionSummary.none}</span>
                   <small>保护 {evidence.protectedItems} · 证据 {evidence.matchedItems} · 已决定 {group.count - dispositionSummary.none}</small>
                 </span>
@@ -236,12 +269,12 @@ export function VaultDuplicateGroups(props: {
           referenceKey={referenceKey}
           referenceIsAutomatic={!explicitReferenceKey}
           hasNextPendingGroup={filteredGroups.some((group) => group.group_key !== activeGroup.group_key && !isGroupPersistedComplete(group))}
-          draft={draftByGroup[activeGroup.group_key]}
+          pendingDisposition={pendingDispositionByGroup[activeGroup.group_key]}
           openingItemKey={props.openingItemKey}
           isBatchSaving={props.isBatchSaving}
           rollDataStatus={activeRollDataStatus}
           onReferenceChange={(itemKey) => setReferenceByGroup((current) => ({ ...current, [activeGroup.group_key]: itemKey }))}
-          onDraftChange={(nextDraft) => setDraftByGroup((current) => ({ ...current, [activeGroup.group_key]: nextDraft }))}
+          onPendingDispositionChange={(nextDisposition) => setPendingDispositionByGroup((current) => ({ ...current, [activeGroup.group_key]: nextDisposition }))}
           onOpenItem={props.onOpenItem}
           onRetryRollDetails={retryActiveGroupRollDetails}
           onApplyGroupTags={props.onApplyGroupTags}
@@ -268,12 +301,12 @@ function DuplicateComparePanel(props: {
   referenceKey: string;
   referenceIsAutomatic: boolean;
   hasNextPendingGroup: boolean;
-  draft?: Record<string, DuplicateDisposition>;
+  pendingDisposition?: Record<string, DuplicateDisposition>;
   openingItemKey?: string;
   isBatchSaving: boolean;
   rollDataStatus: "ready" | "loading" | "error" | "unavailable";
   onReferenceChange: (itemKey: string) => void;
-  onDraftChange: (draft: Record<string, DuplicateDisposition>) => void;
+  onPendingDispositionChange: (disposition: Record<string, DuplicateDisposition>) => void;
   onOpenItem: (item: AccountItemSummary) => void;
   onRetryRollDetails: () => void;
   onApplyGroupTags: (groupName: string, inputs: SaveVaultTagInput[]) => void | Promise<void>;
@@ -283,9 +316,10 @@ function DuplicateComparePanel(props: {
     const item = props.itemByKey.get(entry.item_key);
     return item ? [{ entry, item }] : [];
   });
-  const savedDraft = Object.fromEntries(props.group.items.map((entry) => [entry.item_key, dispositionFromTag(entry.tag)]));
-  const draft = props.draft ?? savedDraft;
+  const savedDisposition = Object.fromEntries(props.group.items.map((entry) => [entry.item_key, dispositionFromTag(entry.tag)]));
+  const pendingDisposition = props.pendingDisposition ?? savedDisposition;
   const [rollViewMode, setRollViewMode] = useState<"full" | "active">("full");
+  const [protectionConflictCount, setProtectionConflictCount] = useState(0);
   const referenceRow = rows.find((row) => row.entry.item_key === props.referenceKey);
   const referenceIndex = Math.max(0, rows.findIndex((row) => row.entry.item_key === props.referenceKey));
   const columns = useMemo(() => buildComparisonColumns(rows.map((row) => row.item)), [props.group.group_key, props.itemByKey]);
@@ -293,8 +327,8 @@ function DuplicateComparePanel(props: {
   const effectiveRollViewMode = hasRollColumns && props.rollDataStatus === "ready" ? rollViewMode : "active";
   const showsFullRoll = hasRollColumns && effectiveRollViewMode === "full";
   const referenceValues = referenceRow ? columns.map((column) => column.valueFor(referenceRow.item)) : [];
-  const summary = summarizeGroupDraft(props.group, draft);
-  const changedCount = props.group.items.filter((entry) => (draft[entry.item_key] ?? "none") !== dispositionFromTag(entry.tag)).length;
+  const summary = summarizeGroupDisposition(props.group, pendingDisposition);
+  const changedCount = props.group.items.filter((entry) => (pendingDisposition[entry.item_key] ?? "none") !== dispositionFromTag(entry.tag)).length;
   const comparisonTracks = columns.map((column) => column.kind === "roll" ? "minmax(188px, 1fr)" : "minmax(116px, 0.78fr)").join(" ");
   const comparisonMinWidth = columns.reduce((width, column) => width + (column.kind === "roll" ? 188 : 116), 0);
   const gridTemplateColumns = `52px minmax(190px, 1.15fr) ${comparisonTracks} minmax(190px, 1fr) minmax(250px, 1.2fr)`;
@@ -304,22 +338,29 @@ function DuplicateComparePanel(props: {
   };
 
   function updateDisposition(itemKey: string, disposition: DuplicateDisposition) {
-    props.onDraftChange({ ...draft, [itemKey]: disposition });
+    props.onPendingDispositionChange({ ...pendingDisposition, [itemKey]: disposition });
   }
 
   function keepReferenceReviewRest() {
     if (!props.referenceKey) return;
-    props.onDraftChange(Object.fromEntries(props.group.items.map((entry) => [entry.item_key, entry.item_key === props.referenceKey ? "keep" : "review"])));
+    props.onPendingDispositionChange(Object.fromEntries(props.group.items.map((entry) => [entry.item_key, entry.item_key === props.referenceKey ? "keep" : "review"])));
   }
 
-  async function applyDraft() {
+  function requestApplyPendingDisposition() {
     if (!changedCount) return;
     const conflicts = rows.filter(({ entry, item }) => {
       const evidence = itemEvidence(item, props);
-      return (draft[entry.item_key] ?? "none") === "junk" && (evidence.protection.length > 0 || evidence.matches.length > 0);
+      return (pendingDisposition[entry.item_key] ?? "none") === "junk" && (evidence.protection.length > 0 || evidence.matches.length > 0);
     });
-    if (conflicts.length && !window.confirm(`本组有 ${conflicts.length} 件带实例保护或推荐证据的装备被标记为可清理。确认仍要应用吗？`)) return;
-    await props.onApplyGroupTags(props.group.name, props.group.items.map((entry) => ({ item_key: entry.item_key, tag: draft[entry.item_key] ?? "none" })));
+    if (conflicts.length) {
+      setProtectionConflictCount(conflicts.length);
+      return;
+    }
+    void persistPendingDisposition();
+  }
+
+  async function persistPendingDisposition() {
+    await props.onApplyGroupTags(props.group.name, props.group.items.map((entry) => ({ item_key: entry.item_key, tag: pendingDisposition[entry.item_key] ?? "none" })));
   }
 
   return (
@@ -356,10 +397,10 @@ function DuplicateComparePanel(props: {
         {rows.map(({ entry, item }, index) => {
           const values = columns.map((column) => column.valueFor(item));
           const evidence = itemEvidence(item, props);
-          const disposition = draft[entry.item_key] ?? "none";
-          const savedDisposition = dispositionFromTag(entry.tag);
+          const disposition = pendingDisposition[entry.item_key] ?? "none";
+          const persistedDisposition = dispositionFromTag(entry.tag);
           const isReference = props.referenceKey === entry.item_key;
-          const isDirty = disposition !== savedDisposition;
+          const isDirty = disposition !== persistedDisposition;
           const hasProtectionConflict = disposition === "junk" && (evidence.protection.length > 0 || evidence.matches.length > 0);
           return (
             <article className={["duplicate-compare-row", isReference ? "reference" : "", isDirty ? "is-dirty" : "", hasProtectionConflict ? "has-protection-conflict" : "", props.openingItemKey === getVaultItemKey(item) ? "pending" : ""].filter(Boolean).join(" ")} style={gridStyle} key={entry.item_key}>
@@ -369,7 +410,7 @@ function DuplicateComparePanel(props: {
               </label>
               <button type="button" className="duplicate-identity" title={`打开详情：${formatVaultItemMeta(item)}`} onClick={() => props.onOpenItem(item)}>
                 <GameAssetImage src={item.icon} alt="" loading="eager" fallback={<span className="duplicate-thumb-fallback">{item.group_key === "armor" ? "甲" : "武"}</span>} />
-                <span><strong>实例 {index + 1}</strong><small>{formatInstanceMeta(item)}</small>{isDirty ? <em>状态未保存</em> : null}</span>
+                <span><strong>实例 {index + 1}</strong><small>{formatInstanceMeta(item)}</small>{isDirty ? <em>状态待应用</em> : null}</span>
               </button>
               {values.map((value, valueIndex) => {
                 return (
@@ -397,14 +438,31 @@ function DuplicateComparePanel(props: {
       <footer className="duplicate-decision-footer">
         <div>
           <div className="duplicate-decision-summary">本组状态：<span>保留 <strong>{summary.keep}</strong></span><span>待复查 <strong>{summary.review}</strong></span><span>可清理 <strong>{summary.junk}</strong></span><span>未标记 <strong>{summary.none}</strong></span></div>
-          <span className={changedCount ? "duplicate-decision-message is-dirty" : "duplicate-decision-message"}>{changedCount ? `已修改 ${changedCount} 件，尚未应用` : "当前显示已保存状态"}</span>
+          <span className={changedCount ? "duplicate-decision-message is-dirty" : "duplicate-decision-message"}>{changedCount ? `${changedCount} 件状态待应用` : "当前显示已应用状态"}</span>
         </div>
         <div className="duplicate-decision-actions">
           <button type="button" data-ui-kind="button" data-control-variant="secondary" disabled={!props.referenceKey || props.isBatchSaving} onClick={keepReferenceReviewRest}>填充：基准保留，其余待复查</button>
-          <button type="button" data-ui-kind="button" data-control-variant="primary" aria-busy={props.isBatchSaving} disabled={!changedCount || props.isBatchSaving} onClick={() => void applyDraft()}>应用本组状态</button>
+          <button type="button" data-ui-kind="button" data-control-variant="secondary" disabled={!changedCount || props.isBatchSaving} onClick={() => props.onPendingDispositionChange(savedDisposition)}>撤销待应用</button>
+          <button type="button" data-ui-kind="button" data-control-variant="primary" aria-busy={props.isBatchSaving} disabled={!changedCount || props.isBatchSaving} onClick={requestApplyPendingDisposition}>应用本组状态</button>
           <button type="button" data-ui-kind="button" data-control-variant="secondary" disabled={changedCount > 0 || props.isBatchSaving || !props.hasNextPendingGroup} onClick={props.onNextGroup}>下一未整理组</button>
         </div>
       </footer>
+      {protectionConflictCount > 0 ? (
+        <ConfirmationDialog
+          title="仍要应用可清理状态？"
+          description={`本组有 ${protectionConflictCount} 件装备带实例保护或推荐证据，但被标记为可清理。`}
+          confirmLabel="仍然应用"
+          cancelLabel="返回检查"
+          confirmTone="danger"
+          onCancel={() => setProtectionConflictCount(0)}
+          onConfirm={() => {
+            setProtectionConflictCount(0);
+            return persistPendingDisposition();
+          }}
+        >
+          此操作只写入本地整理状态，不会自动解锁、转移或拆解装备；后续仍需在游戏内逐件确认。
+        </ConfirmationDialog>
+      ) : null}
     </section>
   );
 }
@@ -695,9 +753,9 @@ function dispositionFromTag(tag?: string): DuplicateDisposition {
   return tag === "keep" || tag === "review" || tag === "junk" ? tag : "none";
 }
 
-function summarizeGroupDraft(group: DuplicateItemGroup, draft?: Record<string, DuplicateDisposition>): Record<DuplicateDisposition, number> {
+function summarizeGroupDisposition(group: DuplicateItemGroup, pendingDisposition?: Record<string, DuplicateDisposition>): Record<DuplicateDisposition, number> {
   return group.items.reduce<Record<DuplicateDisposition, number>>((summary, entry) => {
-    summary[draft?.[entry.item_key] ?? dispositionFromTag(entry.tag)] += 1;
+    summary[pendingDisposition?.[entry.item_key] ?? dispositionFromTag(entry.tag)] += 1;
     return summary;
   }, { none: 0, keep: 0, review: 0, junk: 0 });
 }
@@ -706,7 +764,7 @@ function isGroupPersistedComplete(group: DuplicateItemGroup): boolean {
   return group.items.every((entry) => dispositionFromTag(entry.tag) !== "none");
 }
 
-function isGroupDraftDirty(group: DuplicateItemGroup, draft?: Record<string, DuplicateDisposition>): boolean {
-  if (!draft) return false;
-  return group.items.some((entry) => (draft[entry.item_key] ?? "none") !== dispositionFromTag(entry.tag));
+function hasGroupPendingChanges(group: DuplicateItemGroup, pendingDisposition?: Record<string, DuplicateDisposition>): boolean {
+  if (!pendingDisposition) return false;
+  return group.items.some((entry) => (pendingDisposition[entry.item_key] ?? "none") !== dispositionFromTag(entry.tag));
 }

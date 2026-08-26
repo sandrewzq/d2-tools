@@ -1,9 +1,13 @@
+import { useState } from "react";
 import type { AccountItemSummary } from "@d2-tools/core/account/summary";
 import type { VaultTags, VaultTagValue } from "@d2-tools/core/vault/tags";
 import { formatVaultItemMeta } from "./VaultListItem.js";
 import { type VaultBatchSelectionMode, type VaultVisibleSelectionMode, getVaultItemKey } from "@d2-tools/app/vault";
 import type { VaultGroupFilter, VaultGroupSummary } from "@d2-tools/app/vault";
 import type { VaultCleanupActions } from "./useVaultBatchActions.js";
+import { ConfirmationDialog } from "../overlay/ConfirmationDialog.js";
+
+type PendingVaultWrite = "selected-transfer" | "cleanup-unlock" | "cleanup-transfer" | null;
 
 export function VaultOrganizePanel(props: {
   groups: VaultGroupSummary[];
@@ -30,7 +34,45 @@ export function VaultOrganizePanel(props: {
   onRunSelectedBulkMove: () => void | Promise<void>;
   onRunCleanupAction: (action: "unlock" | "transfer") => void | Promise<void>;
 }) {
+  const [pendingWrite, setPendingWrite] = useState<PendingVaultWrite>(null);
   const canWrite = Boolean(props.cleanupActions && props.cleanupTargetCharacterId && props.cleanupActionItems.length);
+  const targetCharacterLabel = props.cleanupCharacters.find((character) => character.character_id === props.cleanupTargetCharacterId)?.class_name ?? "目标角色";
+  const cleanupTransferCount = props.cleanupActionItems.filter((item) => Boolean(item.instance_id)).length;
+  const cleanupUnlockCount = props.cleanupActionItems.filter((item) => Boolean(item.instance_id) && item.locked === true).length;
+
+  function confirmPendingWrite() {
+    const action = pendingWrite;
+    setPendingWrite(null);
+    if (action === "selected-transfer") return props.onRunSelectedBulkMove();
+    if (action === "cleanup-unlock") return props.onRunCleanupAction("unlock");
+    if (action === "cleanup-transfer") return props.onRunCleanupAction("transfer");
+  }
+
+  const pendingWriteCopy = pendingWrite === "selected-transfer"
+    ? {
+        title: "确认批量移动所选装备？",
+        description: `将尝试把所选 ${props.selectedItemCount} 件装备转移到 ${targetCharacterLabel} 背包。`,
+        detail: "只处理具有真实实例 ID 且当前允许转移的装备；失败项目会保留在结果反馈中。",
+        confirmLabel: "确认移动",
+        tone: "primary" as const
+      }
+    : pendingWrite === "cleanup-unlock"
+      ? {
+          title: "确认批量解锁装备？",
+          description: `将尝试解除 ${cleanupUnlockCount} 件装备的游戏内锁定保护。`,
+          detail: "解锁不会拆解装备，但会移除游戏内锁定保护；请确认这些装备确实准备进入后续清理流程。",
+          confirmLabel: "确认解锁",
+          tone: "danger" as const
+        }
+      : pendingWrite === "cleanup-transfer"
+        ? {
+            title: "确认转移可清理装备？",
+            description: `将尝试把 ${cleanupTransferCount} 件装备转移到 ${targetCharacterLabel} 背包。`,
+            detail: "应用不会自动拆解；转移后仍需在游戏内逐件核对并处理。",
+            confirmLabel: "确认转移",
+            tone: "primary" as const
+          }
+        : null;
 
   return (
     <div className="vault-organize-panel">
@@ -69,8 +111,8 @@ export function VaultOrganizePanel(props: {
             </select>
           </label>
         ) : null}
-        <button type="button" aria-busy={props.isBatchSaving} disabled={!canWrite || props.isBatchSaving} onClick={() => void props.onRunCleanupAction("unlock")}>批量解锁</button>
-        <button type="button" data-ui-kind="button" data-control-variant="primary" aria-busy={props.isBatchSaving} disabled={!canWrite || props.isBatchSaving} onClick={() => void props.onRunCleanupAction("transfer")}>转移到角色背包</button>
+        <button type="button" aria-busy={props.isBatchSaving} disabled={!canWrite || !cleanupUnlockCount || props.isBatchSaving} onClick={() => setPendingWrite("cleanup-unlock")}>批量解锁</button>
+        <button type="button" data-ui-kind="button" data-control-variant="primary" aria-busy={props.isBatchSaving} disabled={!canWrite || !cleanupTransferCount || props.isBatchSaving} onClick={() => setPendingWrite("cleanup-transfer")}>转移到角色背包</button>
       </div>
 
       {props.isOrganizing ? (
@@ -81,7 +123,7 @@ export function VaultOrganizePanel(props: {
           <button type="button" aria-busy={props.isBatchSaving} disabled={!props.selectedItemCount || props.isBatchSaving} onClick={() => void props.onApplyBatchTag("farm")}>批量待刷</button>
           <button type="button" aria-busy={props.isBatchSaving} disabled={!props.selectedItemCount || props.isBatchSaving} onClick={() => void props.onApplyBatchTag("loadout")}>批量配装用</button>
           <button type="button" aria-busy={props.isBatchSaving} disabled={!props.selectedItemCount || props.isBatchSaving} onClick={() => void props.onApplyBatchTag("none")}>清除标记</button>
-          {props.cleanupActions ? <button type="button" aria-busy={props.isBatchSaving} disabled={!props.selectedItemCount || !props.cleanupTargetCharacterId || props.isBatchSaving} onClick={() => void props.onRunSelectedBulkMove()}>批量移动</button> : null}
+          {props.cleanupActions ? <button type="button" aria-busy={props.isBatchSaving} disabled={!props.selectedItemCount || !props.cleanupTargetCharacterId || props.isBatchSaving} onClick={() => setPendingWrite("selected-transfer")}>批量移动</button> : null}
         </div>
       ) : null}
 
@@ -101,6 +143,19 @@ export function VaultOrganizePanel(props: {
           </ul>
           {props.cleanupActionItems.length > 8 ? <span>还有 {props.cleanupActionItems.length - 8} 件未在此处展开，请按筛选结果逐件核对。</span> : null}
         </details>
+      ) : null}
+      {pendingWriteCopy ? (
+        <ConfirmationDialog
+          title={pendingWriteCopy.title}
+          description={pendingWriteCopy.description}
+          confirmLabel={pendingWriteCopy.confirmLabel}
+          cancelLabel="返回检查"
+          confirmTone={pendingWriteCopy.tone}
+          onCancel={() => setPendingWrite(null)}
+          onConfirm={confirmPendingWrite}
+        >
+          {pendingWriteCopy.detail}
+        </ConfirmationDialog>
       ) : null}
     </div>
   );

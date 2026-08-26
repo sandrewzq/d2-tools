@@ -2,11 +2,9 @@ import { api } from "../../api/client";
 import type { AccountItemActionPatch, AccountItemSummary, AccountSummary, BatchItemActionResult, ItemActionResult, VaultTags, VaultTagValue } from "../../api/types";
 import { services } from "../../api/services";
 import {
-  buildVaultBatchTransferConfirmText,
   buildVaultBatchTransferProgressMessage,
   buildVaultCleanupActionLabel,
   buildVaultCleanupNoTargetMessage,
-  buildVaultCleanupWriteConfirmText,
   buildVaultCleanupWriteResultMessage,
   getVaultActionItemKey,
   selectVaultActionableItems
@@ -65,10 +63,6 @@ export function useVaultWriteActions(input: {
     if (!actionableItems.length) {
       return "没有可执行的装备。可能已经全部解锁，或缺少实例 ID。";
     }
-    if (!window.confirm(buildVaultCleanupWriteConfirmText(label, actionableItems.length))) {
-      return "已取消操作。";
-    }
-
     input.setIsRunningItemAction(true);
     input.setItemActionMessage("");
 
@@ -132,10 +126,6 @@ export function useVaultWriteActions(input: {
     if (!actionableItems.length) {
       throw new Error("没有可执行的装备。可能缺少实例 ID。");
     }
-    if (!window.confirm(buildVaultBatchTransferConfirmText(actionableItems.length))) {
-      throw new Error("已取消操作。");
-    }
-
     input.setIsRunningItemAction(true);
     input.setItemActionMessage(buildVaultBatchTransferProgressMessage(actionableItems.length));
 

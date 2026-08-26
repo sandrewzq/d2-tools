@@ -1,0 +1,98 @@
+.confirmation-dialog-backdrop {
+  padding: 20px;
+}
+
+.confirmation-dialog {
+  width: min(480px, calc(100vw - 40px));
+  overflow: hidden;
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-frame);
+  color: var(--text-body);
+  background: var(--surface-panel);
+  box-shadow: 0 18px 60px rgb(0 0 0 / 0.45);
+}
+
+.confirmation-dialog-header {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  padding: 16px;
+}
+
+.confirmation-dialog-mark {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--status-warning);
+  border-radius: var(--radius-indicator);
+  color: var(--status-warning);
+  background: var(--status-warning-bg);
+  font-size: var(--font-section-title);
+  font-weight: 800;
+}
+
+.confirmation-dialog[data-confirm-tone="danger"] .confirmation-dialog-mark {
+  border-color: var(--status-error);
+  color: var(--status-error);
+  background: var(--status-error-bg);
+}
+
+.confirmation-dialog h2,
+.confirmation-dialog p {
+  margin: 0;
+}
+
+.confirmation-dialog h2 {
+  color: var(--text-title);
+  font-size: var(--font-section-title);
+  line-height: 1.35;
+}
+
+.confirmation-dialog p {
+  margin-top: 5px;
+  color: var(--text-muted);
+  font-size: var(--font-content);
+  line-height: 1.6;
+}
+
+.confirmation-dialog-detail {
+  margin: 0 16px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-frame);
+  color: var(--text-body);
+  background: var(--surface-subtle);
+  font-size: var(--font-content);
+  line-height: 1.55;
+}
+
+.confirmation-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--border-subtle);
+  background: var(--surface-subtle);
+}
+
+@media (max-width: 520px) {
+  .confirmation-dialog-backdrop {
+    padding: 12px;
+  }
+
+  .confirmation-dialog {
+    width: 100%;
+  }
+
+  .confirmation-dialog-actions {
+    align-items: stretch;
+    flex-direction: column-reverse;
+  }
+
+  .confirmation-dialog-actions button {
+    width: 100%;
+  }
+}

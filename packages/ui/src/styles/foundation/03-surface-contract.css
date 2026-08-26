@@ -302,7 +302,7 @@ html[data-theme="light"] {
   line-height: 1.5;
 }
 
-@media (max-width: 760px) {
+@container product-workspace (max-width: 700px) {
   [data-shell-role="page-header"] {
     height: auto;
     flex-direction: column;

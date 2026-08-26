@@ -701,6 +701,12 @@ export function LibraryDefinitionDialog(props: {
   onClose: () => void;
   onLocateOwnedItem?: () => void;
 }) {
+  const titleId = useId();
+  const dialogRef = useRef<HTMLElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const initialFocusRef = useRef<HTMLElement | null>(
+    typeof document === "undefined" ? null : document.activeElement as HTMLElement | null
+  );
   const item = props.item;
   const copy = props.copy;
   const sourceStatus = item.source.status;
@@ -722,22 +728,56 @@ export function LibraryDefinitionDialog(props: {
     item.weapon_frame?.name
   ].filter((value): value is string => Boolean(value)))];
 
+  useEffect(() => {
+    closeButtonRef.current?.focus();
+
+    function handleKeyDown(event: globalThis.KeyboardEvent) {
+      if (event.defaultPrevented) return;
+      if (event.key === "Escape") {
+        event.preventDefault();
+        props.onClose();
+        return;
+      }
+      if (event.key !== "Tab" || !dialogRef.current) return;
+      const focusable = [...dialogRef.current.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [href], [tabindex]:not([tabindex="-1"])'
+      )];
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable.at(-1)!;
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+
+    document.addEventListener("keydown", handleKeyDown, true);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown, true);
+      initialFocusRef.current?.focus();
+    };
+  }, [props.onClose]);
+
   return (
     <div className="library-definition-modal">
-      <button type="button" className="library-definition-backdrop" aria-label={libraryText(copy, "关闭定义详情")} onClick={props.onClose} />
+      <button type="button" className="library-definition-backdrop" tabIndex={-1} aria-label={libraryText(copy, "关闭定义详情")} onClick={props.onClose} />
       <section
+        ref={dialogRef}
         className="library-definition-dialog"
         role="dialog"
         aria-modal="true"
-        aria-label={libraryText(copy, "定义详情")}
+        aria-labelledby={titleId}
         aria-busy={props.isBusy ? "true" : "false"}
       >
         <div className="library-definition-toolbar">
           <div>
-            <strong>{libraryText(copy, "定义详情")}</strong>
+            <strong id={titleId}>{libraryText(copy, "定义详情")}</strong>
             <span>{libraryText(copy, "Manifest 定义，不是当前装备实例。")}</span>
           </div>
-          <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={props.onClose}>
+          <button ref={closeButtonRef} type="button" data-ui-kind="button" data-control-variant="secondary" onClick={props.onClose}>
             {libraryText(copy, "关闭")}
           </button>
         </div>

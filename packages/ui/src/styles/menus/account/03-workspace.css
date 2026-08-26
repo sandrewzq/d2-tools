@@ -68,6 +68,22 @@
   margin: 7px;
 }
 
+:where(.app-shell) .account-directory-group-label {
+  display: block;
+  padding: 9px 9px 5px;
+  color: var(--text-muted);
+  font-size: var(--priority-trace);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  line-height: 1.3;
+}
+
+:where(.app-shell) .account-directory-group-label:not(:first-child) {
+  margin-top: 7px;
+  border-top: 1px solid var(--border-subtle);
+  padding-top: 12px;
+}
+
 :where(.app-shell) .account-directory-tabs > button {
   display: flex;
   align-items: center;
@@ -112,8 +128,17 @@
 }
 
 :where(.app-shell) .account-directory-tabs small {
+  display: inline-grid;
+  min-width: 22px;
+  min-height: 20px;
+  place-items: center;
+  padding: 0 6px;
+  border: 1px solid var(--chip-border);
+  border-radius: var(--radius-indicator);
   color: var(--text-muted);
+  background: var(--chip-bg);
   font-size: var(--priority-trace);
+  font-variant-numeric: tabular-nums;
 }
 
 :where(.app-shell) .account-directory-tabs > button.active small {
@@ -1096,6 +1121,15 @@
   border-top: 1px solid var(--border-subtle);
 }
 
+.app-shell .account-character-items-head {
+  margin-top: 10px;
+  border-top: 1px solid var(--border-control);
+}
+
+.app-shell .account-character-items-head + .account-data-groups {
+  margin-top: 0;
+}
+
 .app-shell .account-data-group:first-child {
   border-top: 0;
 }
@@ -1144,6 +1178,56 @@
   color: var(--text-muted);
   font-size: var(--font-caption);
   font-style: normal;
+}
+
+.app-shell .account-readonly-row em[data-status="success"] {
+  color: var(--status-ready);
+}
+
+.app-shell .account-readonly-row em[data-status="pending"] {
+  color: var(--status-pending);
+}
+
+.app-shell .account-readonly-progress {
+  display: grid;
+  grid-template-columns: minmax(80px, 160px) minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  margin-top: 5px;
+}
+
+.app-shell .account-readonly-progress progress {
+  width: 100%;
+  height: 5px;
+  overflow: hidden;
+  border: 0;
+  border-radius: var(--radius-indicator);
+  background: var(--surface-recessed);
+  accent-color: var(--status-pending);
+}
+
+.app-shell .account-readonly-progress progress::-webkit-progress-bar {
+  background: var(--surface-recessed);
+}
+
+.app-shell .account-readonly-progress progress::-webkit-progress-value {
+  background: var(--status-pending);
+}
+
+.app-shell .account-readonly-progress.complete progress {
+  accent-color: var(--status-ready);
+}
+
+.app-shell .account-readonly-progress.complete progress::-webkit-progress-value {
+  background: var(--status-ready);
+}
+
+.app-shell .account-readonly-progress small {
+  overflow: hidden;
+  margin-top: 0;
+  color: var(--text-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .app-shell .account-material-group {
@@ -1268,7 +1352,7 @@
   line-height: 1.6;
 }
 
-@media (max-width: 1280px) {
+@container product-workspace (max-width: 1120px) {
   :where(.app-shell) .account-workspace {
     grid-template-columns: 180px minmax(0, 1fr);
   }
@@ -1283,7 +1367,7 @@
   }
 }
 
-@media (max-width: 980px) {
+@container product-workspace (max-width: 920px) {
   :where(.app-shell) .account-workspace {
     grid-template-columns: 160px minmax(0, 1fr);
   }
@@ -1314,7 +1398,7 @@
   }
 }
 
-@media (max-width: 760px) {
+@container product-workspace (max-width: 700px) {
   :where(.app-shell) .account-workspace {
     grid-template-columns: 1fr;
     min-height: 0;
@@ -1348,6 +1432,10 @@
     scrollbar-width: thin;
   }
 
+  :where(.app-shell) .account-directory-group-label {
+    display: none;
+  }
+
   :where(.app-shell) .account-directory-tabs > button {
     flex: 0 0 auto;
     width: auto;
@@ -1360,6 +1448,11 @@
 
   :where(.app-shell) .account-directory-tabs > button.active {
     box-shadow: inset 0 -3px 0 var(--nav-current-indicator);
+  }
+
+  :where(.app-shell) .account-directory-tabs > button.group-start {
+    margin-left: 8px;
+    border-left: 2px solid var(--border-control);
   }
 
   :where(.app-shell) .account-character-switcher {
@@ -1444,6 +1537,10 @@
     grid-column: 2;
   }
 
+  .app-shell .account-readonly-progress {
+    grid-template-columns: minmax(72px, 120px) minmax(0, 1fr);
+  }
+
   .app-shell .account-slot-column + .account-slot-column {
     border-top: 1px solid var(--border-subtle);
     border-left: 0;
@@ -1470,7 +1567,7 @@
 
 }
 
-@media (max-width: 480px) {
+@container product-workspace (max-width: 420px) {
   :where(.app-shell) .account-character-switcher button {
     flex-basis: min(210px, 78vw);
   }

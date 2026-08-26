@@ -1,7 +1,8 @@
-import type { ReactNode } from "react";
+import type { KeyboardEvent as ReactKeyboardEvent, ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { getLocaleCopy } from "../i18n/copy.js";
 import type { InterfaceLocale, SettingsCopy } from "../i18n/types.js";
+import { getRovingFocusIndex } from "../interaction/rovingFocus.js";
 import { formatFullDateTime } from "../time/formatTime.js";
 import { SettingsAiConfigPanel, type SettingsAiAdapter } from "./SettingsAiConfigPanel.js";
 import { SettingsButton } from "./SettingsButton.js";
@@ -212,13 +213,28 @@ export function SettingsPageContentView(props: SettingsPageContentViewProps) {
 
   const sectionProps = { copy, interfaceLocale, accountUi, libraryUi, bungieUi, aiUi, backgroundTaskUi, libraryVersion };
 
+  function handleDirectoryKeyDown(event: ReactKeyboardEvent<HTMLButtonElement>, currentIndex: number) {
+    const nextIndex = getRovingFocusIndex({
+      key: event.key,
+      currentIndex,
+      itemCount: settingsMenu.length,
+      orientation: "vertical"
+    });
+    if (nextIndex === null) return;
+    event.preventDefault();
+    const nextSection = settingsMenu[nextIndex];
+    if (!nextSection) return;
+    setActiveSection(nextSection.key);
+    document.getElementById(`settings-menu-${nextSection.key}`)?.focus();
+  }
+
   return (
     <div className="settings-page" data-reference-id="settings.workspace" data-surface="page">
       <div className="settings-workspace" data-surface="split">
         <aside className="settings-directory" data-reference-id="settings.directory" data-shell-role="side-rail" data-ui-kind="primary-navigation" data-scroll-region="pane" aria-label={copy.menuAriaLabel}>
           <div className="settings-directory-caption" data-ui-part="label" data-info-priority="support" data-text-tone="meta">{settingsText(copy, "设置目录")}</div>
           <nav className="settings-directory-list" data-surface="list" aria-label={copy.menuAriaLabel}>
-            {settingsMenu.map((item) => (
+            {settingsMenu.map((item, index) => (
               <button
                 aria-controls={`settings-${item.key}`}
                 aria-current={activeSection === item.key ? "page" : undefined}
@@ -227,8 +243,10 @@ export function SettingsPageContentView(props: SettingsPageContentViewProps) {
                 data-control-variant="quiet"
                 id={`settings-menu-${item.key}`}
                 key={item.key}
+                tabIndex={activeSection === item.key ? 0 : -1}
                 type="button"
                 onClick={() => setActiveSection(item.key)}
+                onKeyDown={(event) => handleDirectoryKeyDown(event, index)}
               >
                 <span className="settings-directory-label" data-ui-part="value" data-info-priority="support" data-text-tone="primary">{item.label}</span>
               </button>

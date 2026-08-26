@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { getLocaleCopy } from "../i18n/copy.js";
+import { getRovingFocusIndex } from "../interaction/rovingFocus.js";
 import { getLocalizedNavItems } from "./navigation.js";
 import type { AppShellLayoutProps, PlatformActions, ShellAssistantMode, ShellPageKey } from "./types.js";
 
@@ -37,6 +38,20 @@ export function AppShell(props: AppShellProps) {
     props.onAssistantModeChange(isAssistantOpen ? null : "ai");
   }
 
+  function handleNavigationKeyDown(event: ReactKeyboardEvent<HTMLButtonElement>, currentIndex: number) {
+    const nextIndex = getRovingFocusIndex({
+      key: event.key,
+      currentIndex,
+      itemCount: navItems.length,
+      orientation: "vertical"
+    });
+    if (nextIndex === null) return;
+    event.preventDefault();
+    event.currentTarget.parentElement
+      ?.querySelectorAll<HTMLButtonElement>("button")[nextIndex]
+      ?.focus();
+  }
+
   useEffect(() => {
     void props.platformActions.setColorMode?.(props.colorMode);
   }, [props.colorMode, props.platformActions]);
@@ -55,6 +70,7 @@ export function AppShell(props: AppShellProps) {
     if (!isMobileStatusOpen) return;
 
     function handleEscape(event: KeyboardEvent) {
+      if (event.defaultPrevented) return;
       if (event.key === "Escape") {
         setIsMobileStatusOpen(false);
       }
@@ -87,6 +103,7 @@ export function AppShell(props: AppShellProps) {
     focusable[0]?.focus();
 
     function handleDrawerKeyDown(event: KeyboardEvent) {
+      if (event.defaultPrevented) return;
       if (event.key === "Escape") {
         event.preventDefault();
         assistantModeChangeRef.current(null);
@@ -257,7 +274,7 @@ export function AppShell(props: AppShellProps) {
         <aside ref={sidebarRef} className="shell-sidebar" data-reference-id="shell.sidebar" data-shell-role="sidebar" data-ui-kind="shell-sidebar" aria-label={copy.navigationAriaLabel} aria-hidden={isAssistantOverlay && isAssistantOpen ? true : undefined}>
           {props.sidebarHeader ? <div className="shell-sidebar-header">{props.sidebarHeader}</div> : null}
           <nav className="shell-nav" data-ui-kind="primary-navigation">
-            {navItems.map((item) => {
+            {navItems.map((item, index) => {
               const isActive = item.key === props.activePage;
 
               return (
@@ -267,7 +284,9 @@ export function AppShell(props: AppShellProps) {
                   type="button"
                   title={item.label}
                   aria-current={isActive ? "page" : undefined}
+                  tabIndex={isActive ? 0 : -1}
                   onClick={() => props.onNavigate(item.key)}
+                  onKeyDown={(event) => handleNavigationKeyDown(event, index)}
                 >
                   <span className="shell-nav-mark" aria-hidden="true"><ShellNavIcon page={item.key} /></span>
                   <span className="shell-nav-label" data-ui-part="value" data-info-priority="context" data-text-tone="primary">{item.label}</span>

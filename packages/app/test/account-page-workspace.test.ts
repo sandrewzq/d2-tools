@@ -209,8 +209,8 @@ describe("account page workspace", () => {
       "#account-gear",
       "#account-configuration",
       "#account-tasks",
-      "#account-items",
       "#account-postmaster",
+      "#account-items",
       "#account-activity"
     ]);
     expect(viewModel.selectedCharacter?.characterId).toBe("char-1");
@@ -233,6 +233,7 @@ describe("account page workspace", () => {
       is_postmaster_item: true,
       item: postmaster
     });
+    expect(viewModel.postmaster.totalCount).toBe(1);
   });
 
   it("falls back to the first character when selected id is missing", () => {
