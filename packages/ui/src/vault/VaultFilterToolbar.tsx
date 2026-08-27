@@ -36,7 +36,7 @@ const dispositionOptions: Array<{ key: VaultTagFilter; label: string }> = [
   { key: "untagged", label: "未标记" },
   { key: "keep", label: "保留" },
   { key: "review", label: "待复查" },
-  { key: "junk", label: "可清理" }
+  { key: "junk", label: "待处理" }
 ];
 
 const signalOptions: Array<{ key: VaultSignalFilter; label: string }> = [

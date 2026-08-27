@@ -2114,7 +2114,7 @@
 }
 
 :where(.app-shell) .vault-results-column .vault-card-grid {
-  grid-template-columns: repeat(10, minmax(0, 1fr));
+  grid-template-columns: repeat(8, minmax(0, 1fr));
   gap: 4px;
   padding: 8px 10px;
 }
@@ -3342,6 +3342,23 @@
     grid-template-columns: 260px minmax(0, 1fr);
   }
 
+  :where(.app-shell) .vault-results-column .vault-card-grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+
+  :where(.app-shell) .vault-filter-common-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  :where(.app-shell) .vault-target-rules-panel .vault-armor-rule:has(> :nth-child(3)) {
+    grid-template-columns: minmax(0, 1fr) minmax(72px, 1fr);
+  }
+
+  :where(.app-shell) .vault-target-rules-panel .vault-armor-rule > button {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+
   :where(.app-shell) .duplicate-workspace {
     grid-template-columns: 240px minmax(0, 1fr);
   }
@@ -3349,7 +3366,7 @@
 
 @container product-workspace (max-width: 850px) {
   :where(.app-shell) .vault-results-column .vault-card-grid {
-    grid-template-columns: repeat(8, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
   :where(.app-shell) .vault-browse,
@@ -3406,13 +3423,13 @@
 
 @container product-workspace (max-width: 700px) {
   :where(.app-shell) .vault-results-column .vault-card-grid {
-    grid-template-columns: repeat(6, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
 
 @container product-workspace (max-width: 560px) {
   :where(.app-shell) .vault-results-column .vault-card-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   :where(.app-shell) .vault-active-filters {

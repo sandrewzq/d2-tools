@@ -66,6 +66,7 @@ export type FixtureAccountItemInput = {
   itemType?: string;
   tier?: string;
   power?: number;
+  locked?: boolean;
   classType?: number;
   armorStats?: AccountItemSummary["armor_stats"];
   socketPlugs: AccountItemSummary["socket_plugs"];
@@ -82,6 +83,7 @@ export function createFixtureAccountItem(input: FixtureAccountItemInput): Fixtur
     item_type: input.itemType ?? (isWeapon ? "武器" : input.bucketName),
     tier: input.tier ?? "传说",
     power: input.power,
+    locked: input.locked,
     class_type: input.classType,
     bucket_name: input.bucketName,
     group_key: input.groupKey,

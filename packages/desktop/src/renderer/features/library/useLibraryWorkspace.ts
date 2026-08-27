@@ -115,21 +115,22 @@ export function useLibraryWorkspace(input: { vendorSourcePaths?: Map<number, str
     }
   }
 
-  async function searchItems() {
+  async function searchItems(input: { mode?: LibraryViewMode; query?: string } = {}) {
+    const activeMode = input.mode ?? libraryViewMode;
     setIsSearching(true);
     setSearchError("");
-    if (libraryViewMode === "perks") {
+    if (activeMode === "perks") {
       setPerkSearchTouched(true);
     } else {
       setEquipmentSearchTouched(true);
     }
 
-    const activeQuery = libraryViewMode === "perks"
+    const activeQuery = input.query ?? (activeMode === "perks"
       ? perkFilters.query
-      : equipmentFilters.query;
+      : equipmentFilters.query);
 
     try {
-      if (libraryViewMode === "perks") {
+      if (activeMode === "perks") {
         relatedRequestGeneration.current += 1;
         setPerkRelatedEquipment({});
         const rawResults = await api.searchPerks(activeQuery) as unknown;
@@ -174,6 +175,12 @@ export function useLibraryWorkspace(input: { vendorSourcePaths?: Map<number, str
     } finally {
       setIsSearching(false);
     }
+  }
+
+  function selectRecentEquipmentQuery(query: string) {
+    setLibraryViewMode("equipment");
+    setEquipmentFilters((current) => ({ ...current, query }));
+    void searchItems({ mode: "equipment", query });
   }
 
   async function loadPerkRelatedEquipment(perk: PerkSearchResult, loadMore = false) {
@@ -344,6 +351,7 @@ export function useLibraryWorkspace(input: { vendorSourcePaths?: Map<number, str
     saveAlias,
     searchError,
     searchItems,
+    selectRecentEquipmentQuery,
     setAliasDraft,
     setAliasKind,
     setAliasTargetDraft,

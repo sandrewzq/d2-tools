@@ -19,6 +19,8 @@ import {
   buildVaultGroups,
   buildVaultSections,
   buildVaultSlotFilters,
+  applyVisibleVaultSelection,
+  buildVaultSelectionSummary,
   classFilterLabels,
   damageFilterLabels,
   defaultVaultGroupTab,
@@ -27,6 +29,9 @@ import {
   lockFilterLabels,
   normalizeCoreItem,
   rarityFilterLabels,
+  getVaultSelectionItemKey,
+  selectMarkedCleanupItems,
+  selectVaultBatchItems,
   sortVaultItems,
   sortLabels,
   type VaultAmmoFilter,
@@ -60,6 +65,8 @@ import {
   type VaultTargetRulesActions
 } from "./VaultTargetRulesPanel.js";
 import type { VaultCleanupActions } from "./useVaultBatchActions.js";
+import { useVaultBatchActions } from "./useVaultBatchActions.js";
+import { VaultOrganizePanel } from "./VaultOrganizePanel.js";
 import { getRovingFocusIndex } from "../interaction/rovingFocus.js";
 
 type VaultWorkspaceTab = "filters" | "duplicates" | "recommendations";
@@ -69,9 +76,6 @@ const vaultWorkspaceTabs: Array<{ key: VaultWorkspaceTab; label: string }> = [
   { key: "duplicates", label: "同名整理" },
   { key: "recommendations", label: "目标与匹配" }
 ];
-
-const emptySelectedKeys = new Set<string>();
-const ignoreVaultSelection = () => undefined;
 
 export function VaultPageContentView(props: {
   items: AccountItemSummary[];
@@ -118,6 +122,10 @@ export function VaultPageContentView(props: {
   const [hasVisitedDuplicateTab, setHasVisitedDuplicateTab] = useState(false);
   const [batchMessage, setBatchMessage] = useState("");
   const [isBatchSaving, setIsBatchSaving] = useState(false);
+  const [isOrganizing, setIsOrganizing] = useState(false);
+  const [isCleanupMode, setIsCleanupMode] = useState(false);
+  const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
+  const [cleanupTargetCharacterId, setCleanupTargetCharacterId] = useState("");
   const workspaceId = useId();
   const tabIds = useMemo(() => Object.fromEntries(vaultWorkspaceTabs.map((tab) => [tab.key, `${workspaceId}-${tab.key}-tab`])) as Record<VaultWorkspaceTab, string>, [workspaceId]);
   const panelIds = useMemo(() => Object.fromEntries(vaultWorkspaceTabs.map((tab) => [tab.key, `${workspaceId}-${tab.key}-panel`])) as Record<VaultWorkspaceTab, string>, [workspaceId]);
@@ -133,6 +141,12 @@ export function VaultPageContentView(props: {
   useEffect(() => {
     if (props.targetLocateRequest) setActiveVaultTab("recommendations");
   }, [props.targetLocateRequest?.requestId]);
+
+  useEffect(() => {
+    const characters = props.cleanupActions?.characters ?? [];
+    if (characters.some((character) => character.character_id === cleanupTargetCharacterId)) return;
+    setCleanupTargetCharacterId(props.cleanupActions?.currentCharacterId ?? characters[0]?.character_id ?? "");
+  }, [cleanupTargetCharacterId, props.cleanupActions?.characters, props.cleanupActions?.currentCharacterId]);
 
   const filteredVaultItems = useMemo(
     () => sortVaultItems(
@@ -164,6 +178,43 @@ export function VaultPageContentView(props: {
     () => filteredVaultItems.filter((item) => matchesSignalFilters(item, signalFilters, props)),
     [filteredVaultItems, props.communityMatch, props.equipmentTargetStore, props.highlightedItemKeys, props.localTargetRules, props.wishlist, signalFilters]
   );
+  const selectedItems = useMemo(
+    () => props.items.filter((item) => selectedKeys.has(getVaultSelectionItemKey(item))),
+    [props.items, selectedKeys]
+  );
+  const selectedVisibleCount = useMemo(
+    () => filteredItems.reduce((count, item) => count + (selectedKeys.has(getVaultSelectionItemKey(item)) ? 1 : 0), 0),
+    [filteredItems, selectedKeys]
+  );
+  const cleanupActionItems = useMemo(
+    () => selectedItems.length
+      ? selectMarkedCleanupItems(selectedItems, props.tags)
+      : selectMarkedCleanupItems(props.items, props.tags),
+    [props.items, props.tags, selectedItems]
+  );
+  const cleanupTargetCharacterLabel = useMemo(
+    () => props.cleanupActions?.characters.find((character) => character.character_id === cleanupTargetCharacterId)?.class_name ?? "目标角色",
+    [cleanupTargetCharacterId, props.cleanupActions?.characters]
+  );
+  const selectionSummary = useMemo(
+    () => buildVaultSelectionSummary({ selectedTotalCount: selectedItems.length, selectedVisibleCount }),
+    [selectedItems.length, selectedVisibleCount]
+  );
+  const batchActions = useVaultBatchActions({
+    selectedItems,
+    cleanupActionItems,
+    filteredItems,
+    tags: props.tags,
+    isCleanupMode,
+    cleanupActions: props.cleanupActions,
+    cleanupTargetCharacterId,
+    cleanupTargetCharacterLabel,
+    setSelectedKeys,
+    setIsOrganizing,
+    setIsCleanupMode,
+    onSaveTag: props.onSaveTag,
+    onSaveTagBatch: props.onSaveTagBatch
+  });
   const filteredSections = useMemo(() => buildVaultSections(filteredItems), [filteredItems]);
   const groups = useMemo(() => buildVaultGroups(props.items), [props.items]);
   const slotFilters = useMemo(
@@ -380,6 +431,27 @@ export function VaultPageContentView(props: {
     }
   }
 
+  function toggleSelectedItem(item: AccountItemSummary) {
+    const key = getVaultSelectionItemKey(item);
+    setSelectedKeys((current) => {
+      const next = new Set(current);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
+
+  function selectVisibleItems(mode: "replace" | "append" | "remove") {
+    setSelectedKeys((current) => applyVisibleVaultSelection(current, filteredItems, mode));
+    setIsOrganizing(true);
+    setIsCleanupMode(false);
+  }
+
+  function selectCandidateItems(mode: Parameters<typeof selectVaultBatchItems>[1]) {
+    const candidates = selectVaultBatchItems(filteredItems, mode, props.tags, props.localTargetRules);
+    batchActions.mergeSelectedKeys(candidates.map(getVaultSelectionItemKey));
+  }
+
   return (
     <div className="vault-page">
       <div className="vault-workflow-bar" data-surface="section">
@@ -396,7 +468,7 @@ export function VaultPageContentView(props: {
           {props.highlightedItemKeys ? <span className="ui-badge status-success" data-ui-kind="status-chip">配装命中 {loadoutMatchCount} 件</span> : null}
         </div>
       </div>
-      {batchMessage ? <p className={batchMessage.includes("失败") ? "status-message status-error" : "status-message status-ready"}>{batchMessage}</p> : null}
+      {(batchMessage || batchActions.batchMessage) ? <p className={(batchMessage || batchActions.batchMessage).includes("失败") ? "status-message status-error" : "status-message status-ready"}>{batchMessage || batchActions.batchMessage}</p> : null}
 
       {activeVaultTab === "filters" ? (
         <div id={panelIds.filters} role="tabpanel" aria-labelledby={tabIds.filters} className="vault-workspace-panel">
@@ -445,6 +517,31 @@ export function VaultPageContentView(props: {
               onToggleFrameFilter={toggleFrameFilter}
             />
             <section className="vault-results-column vault-browse-results" data-surface="section" data-contract-id="vault.results">
+              <VaultOrganizePanel
+                groups={groups}
+                group={group}
+                isOrganizing={isOrganizing}
+                filteredItemCount={filteredItems.length}
+                selectedItemCount={selectedItems.length}
+                selectionSummary={selectionSummary}
+                activeBatchAction={batchActions.activeBatchAction}
+                isBatchSaving={isBatchSaving || batchActions.isBatchSaving}
+                cleanupActions={props.cleanupActions}
+                cleanupCharacters={props.cleanupActions?.characters ?? []}
+                cleanupTargetCharacterId={cleanupTargetCharacterId}
+                markedCleanupItemCount={cleanupActionItems.length}
+                cleanupActionItems={cleanupActionItems}
+                tags={props.tags}
+                onGroupChange={switchVaultFilterMode}
+                onToggleOrganizing={() => setIsOrganizing((current) => !current)}
+                onVisibleSelectionChange={selectVisibleItems}
+                onBatchSelectionChange={selectCandidateItems}
+                onClearSelection={() => setSelectedKeys(new Set())}
+                onCleanupTargetCharacterChange={setCleanupTargetCharacterId}
+                onApplyBatchTag={batchActions.applyBatchTag}
+                onRunSelectedBulkMove={batchActions.runSelectedBulkMove}
+                onRunCleanupAction={batchActions.runCleanupAction}
+              />
               <div className="vault-column-head">
                 <div><h3>装备矩阵</h3><span>{filteredItems.length} 件 · {sortLabels[sortKey]}</span></div>
                 <button type="button" data-ui-kind="button" data-control-variant="secondary" disabled={!activeFilterLabels.length} onClick={() => resetFilterState()}>重置筛选</button>
@@ -460,13 +557,13 @@ export function VaultPageContentView(props: {
                 wishlist={props.wishlist}
                 localTargetRules={props.localTargetRules}
                 communityMatch={props.communityMatch}
-                isOrganizing={false}
+                isOrganizing={isOrganizing}
                 isSearchActive={Boolean(query.trim())}
-                selectedKeys={emptySelectedKeys}
+                selectedKeys={selectedKeys}
                 openingItemKey={props.openingItemKey}
                 emptyMessage="没有匹配的装备。请调整左侧条件或重置筛选。"
                 onSelectItem={props.onOpenItem}
-                onToggleSelected={ignoreVaultSelection}
+                onToggleSelected={toggleSelectedItem}
               />
             </section>
           </div>
@@ -557,7 +654,7 @@ function buildActiveFilterLabels(input: {
     input.classFilter !== "all" ? `职业：${classFilterLabels[input.classFilter]}` : "",
     input.armorSetFilter !== "all" ? `护甲套装：${input.armorSetLabel ?? input.armorSetFilter}` : "",
     input.lockFilter !== "all" ? lockFilterLabels[input.lockFilter] : "",
-    input.tagFilter !== "all" ? `整理状态：${input.tagFilter === "untagged" ? "未标记" : input.tagFilter === "keep" ? "保留" : input.tagFilter === "review" ? "待复查" : "可清理"}` : "",
+    input.tagFilter !== "all" ? `整理状态：${input.tagFilter === "untagged" ? "未标记" : input.tagFilter === "keep" ? "保留" : input.tagFilter === "review" ? "待复查" : "待处理"}` : "",
     ...input.signalFilters.map((signal) => signalLabel(signal)),
     input.frameFilterCount ? `武器框架：${input.frameFilterCount} 项` : "",
     input.armorRuleCount ? `护甲属性：${input.armorRuleCount} 条` : ""

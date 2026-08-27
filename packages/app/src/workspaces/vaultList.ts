@@ -112,7 +112,7 @@ export const tagLabels: Record<VaultTagFilter, string> = {
   all: "全部标记",
   keep: "保留",
   review: "待复查",
-  junk: "可清理",
+  junk: "待处理",
   farm: "待刷",
   loadout: "配装用",
   untagged: "未标记",

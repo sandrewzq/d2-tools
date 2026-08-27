@@ -46,6 +46,7 @@ export function LibraryMenuProvider() {
         onEquipmentFiltersChange: (patch) => library.setEquipmentFilters((current) => ({ ...current, ...patch })),
         onPerkFiltersChange: (patch) => library.setPerkFilters((current) => ({ ...current, ...patch })),
         onSearch: () => void library.searchItems(),
+        onSelectRecentQuery: library.selectRecentEquipmentQuery,
         onClearFilters: library.clearLibraryFilters,
         onRefreshManifestStatus: () => void library.refreshManifestStatus(),
         onRepairManifest: () => void library.repairManifest(),

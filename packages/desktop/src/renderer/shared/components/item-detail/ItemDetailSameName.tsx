@@ -55,13 +55,13 @@ export function ItemDetailSameName(props: ItemDetailSameNameProps) {
             保留当前，其余关注
           </button>
           <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={() => props.onApplySameNameCurrentKeepTags(props.sameNameItems, props.selectedItem.item_key, "keep-current-junk-rest")}>
-            保留当前，其余可清理
+            保留当前，其余待处理
           </button>
           <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={() => props.onApplySameNameBatchTags(props.sameNameItems, "keep-best-review-rest")}>
             其余标记关注
           </button>
           <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={() => props.onApplySameNameBatchTags(props.sameNameItems, "keep-best-junk-rest")}>
-            其余标记可清理
+            其余标记为待处理
           </button>
           <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={() => props.onApplySameNameBatchTags(props.sameNameItems, "clear-group-tags")}>
             清除本组标记

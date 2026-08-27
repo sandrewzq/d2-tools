@@ -67,6 +67,6 @@ export function formatVaultTagLabel(tag: VaultTagValue): string {
   if (tag === "review") return "关注";
   if (tag === "farm") return "待刷";
   if (tag === "loadout") return "配装用";
-  if (tag === "junk") return "可清理";
+  if (tag === "junk") return "待处理";
   return "未标记";
 }

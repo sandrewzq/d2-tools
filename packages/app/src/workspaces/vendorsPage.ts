@@ -170,6 +170,7 @@ export type VendorsPageModel = {
   verifiedItemCount: number;
   selectedVendor?: VendorInventoryGroupWorkspace;
   scopeOptions?: VendorScopeOptionWorkspace[];
+  selectedScope?: VendorScopeOptionWorkspace;
   selectedCharacterContext?: VendorCharacterContextWorkspace | null;
   search?: { query: string; resultCount: number };
   filters?: VendorFiltersWorkspace;
@@ -301,6 +302,7 @@ function selectSnapshotVendorsPageModel(input: VendorsPageInput): VendorsPageMod
       recommendationCount: 0,
       verifiedItemCount: 0,
       scopeOptions: [],
+      selectedScope: undefined,
       selectedCharacterContext: null,
       search: { query: "", resultCount: 0 },
       filters,
@@ -425,7 +427,8 @@ function selectSnapshotVendorsPageModel(input: VendorsPageInput): VendorsPageMod
       ) + (vendor.taskItems?.length ?? 0),
       0
     ),
-    scopeOptions: createScopeOptions(snapshot),
+    scopeOptions: createScopeOptions(snapshot, input.account),
+    selectedScope: createSelectedScopeOption(snapshot, input.account, input.scope),
     selectedCharacterContext,
     search: { query: "", resultCount: 0 },
     filters,
@@ -485,20 +488,52 @@ function offerMatchesScope(offer: VendorOffer, scope: VendorCharacterScope): boo
   return scope.kind === "account" || offer.characterIds.includes(scope.characterId);
 }
 
-function createScopeOptions(snapshot: VendorInventorySnapshot): VendorScopeOptionWorkspace[] {
+function createScopeOptions(snapshot: VendorInventorySnapshot, account: AccountSummary | null): VendorScopeOptionWorkspace[] {
+  const contexts = new Map(
+    Object.values(snapshot.characterContexts).map((context) => [context.characterId, context])
+  );
+  const characterIds = account?.characters.length
+    ? account.characters.map((character) => character.character_id)
+    : Object.keys(snapshot.characterContexts);
+  const classNameCounts = new Map<string, number>();
+  const classNameIndexes = new Map<string, number>();
+  for (const characterId of characterIds) {
+    const label = account?.characters.find((character) => character.character_id === characterId)?.class_name ?? "当前角色";
+    classNameCounts.set(label, (classNameCounts.get(label) ?? 0) + 1);
+  }
+
   return [
     {
       kind: "account",
       label: "账号全部",
       description: "按各角色当前机灵模组合并"
     },
-    ...Object.values(snapshot.characterContexts).map((context) => ({
-      kind: "character" as const,
-      characterId: context.characterId,
-      label: context.characterId,
-      description: context.armorerModName ? `当前机灵：${context.armorerModName}` : "当前机灵：未检测到护甲师模组"
-    }))
+    ...characterIds.map((characterId, index) => {
+      const character = account?.characters.find((candidate) => candidate.character_id === characterId);
+      const context = contexts.get(characterId);
+      const baseLabel = character?.class_name ?? `角色 ${index + 1}`;
+      const duplicateIndex = (classNameIndexes.get(baseLabel) ?? 0) + 1;
+      classNameIndexes.set(baseLabel, duplicateIndex);
+      const label = (classNameCounts.get(baseLabel) ?? 0) > 1 ? `${baseLabel} ${duplicateIndex}` : baseLabel;
+      return {
+        kind: "character" as const,
+        characterId,
+        label,
+        description: context?.armorerModName ? `当前机灵：${context.armorerModName}` : "当前机灵：未检测到护甲师模组"
+      };
+    })
   ];
+}
+
+function createSelectedScopeOption(
+  snapshot: VendorInventorySnapshot,
+  account: AccountSummary | null,
+  scope: VendorCharacterScope
+): VendorScopeOptionWorkspace {
+  const options = createScopeOptions(snapshot, account);
+  if (scope.kind === "account") return options[0] ?? { kind: "account", label: "账号全部", description: "按各角色当前机灵模组合并" };
+  return options.find((option) => option.kind === "character" && option.characterId === scope.characterId)
+    ?? { kind: "character", characterId: scope.characterId, label: "当前角色", description: "当前角色库存" };
 }
 
 function createSelectedCharacterContext(

@@ -286,8 +286,8 @@
 :where(.app-shell) .weekly-activity-empty {
   display: grid;
   place-items: center;
-  min-height: 54px;
-  padding: 7px 8px;
+  min-height: 44px;
+  padding: 6px 8px;
   text-align: center;
 }
 
@@ -885,8 +885,8 @@
   display: grid;
   align-content: center;
   gap: 3px;
-  min-height: 94px;
-  padding: 8px 0;
+  min-height: 72px;
+  padding: 6px 0;
 }
 
 :where(.app-shell) .home-vendor-module-state > strong {
@@ -899,7 +899,7 @@
 }
 
 :where(.app-shell) .home-vendor-skeleton {
-  min-height: 72px;
+  min-height: 56px;
   border: 1px solid var(--section-divider);
   border-radius: 0;
   background: var(--surface-subtle);
@@ -966,12 +966,15 @@
   }
 
   :where(.app-shell) .weekly-signal-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1.35fr) minmax(240px, 1fr);
   }
 
-  :where(.app-shell) .home-refresh-strip,
   :where(.app-shell) .weekly-activity-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  :where(.app-shell) .weekly-activity-card.is-nightfall {
+    grid-column: 1 / -1;
   }
 
   :where(.app-shell) .home-refresh-cell,
@@ -984,10 +987,6 @@
     grid-column: auto;
     border-top: 0;
     border-bottom: 0;
-  }
-
-  :where(.app-shell) .weekly-activity-card.is-nightfall {
-    grid-column: auto;
   }
 
   :where(.app-shell) .home-vendor-stock-grid,
@@ -1004,6 +1003,14 @@
 @container product-workspace (max-width: 700px) {
   :where(.app-shell) .weekly-activity-list {
     grid-auto-rows: auto;
+  }
+
+  :where(.app-shell) .weekly-activity-grid {
+    grid-template-columns: 1fr;
+  }
+
+  :where(.app-shell) .weekly-activity-card.is-nightfall {
+    grid-column: auto;
   }
 
   :where(.app-shell) .home-content-band,
@@ -1116,7 +1123,7 @@
 :where(.app-shell) .weekly-signal-card,
 :where(.app-shell) .iron-banner-card {
   min-width: 0;
-  min-height: 108px;
+  min-height: 96px;
 }
 
 :where(.app-shell) .weekly-signal-card {
@@ -1247,7 +1254,7 @@
 
 @container product-workspace (max-width: 920px) {
   :where(.app-shell) .weekly-signal-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1.35fr) minmax(240px, 1fr);
   }
 
   :where(.app-shell) .home-special-event-signal {

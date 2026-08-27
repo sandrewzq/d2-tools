@@ -70,7 +70,7 @@ const dispositionOptions: Array<{ key: DuplicateDisposition; label: string }> = 
   { key: "none", label: "未标记" },
   { key: "keep", label: "保留" },
   { key: "review", label: "待复查" },
-  { key: "junk", label: "可清理" }
+  { key: "junk", label: "待处理" }
 ];
 
 export function VaultDuplicateGroups(props: {
@@ -437,7 +437,7 @@ function DuplicateComparePanel(props: {
       </div>
       <footer className="duplicate-decision-footer">
         <div>
-          <div className="duplicate-decision-summary">本组状态：<span>保留 <strong>{summary.keep}</strong></span><span>待复查 <strong>{summary.review}</strong></span><span>可清理 <strong>{summary.junk}</strong></span><span>未标记 <strong>{summary.none}</strong></span></div>
+          <div className="duplicate-decision-summary">本组状态：<span>保留 <strong>{summary.keep}</strong></span><span>待复查 <strong>{summary.review}</strong></span><span>待处理 <strong>{summary.junk}</strong></span><span>未标记 <strong>{summary.none}</strong></span></div>
           <span className={changedCount ? "duplicate-decision-message is-dirty" : "duplicate-decision-message"}>{changedCount ? `${changedCount} 件状态待应用` : "当前显示已应用状态"}</span>
         </div>
         <div className="duplicate-decision-actions">
@@ -449,8 +449,8 @@ function DuplicateComparePanel(props: {
       </footer>
       {protectionConflictCount > 0 ? (
         <ConfirmationDialog
-          title="仍要应用可清理状态？"
-          description={`本组有 ${protectionConflictCount} 件装备带实例保护或推荐证据，但被标记为可清理。`}
+          title="仍要应用待处理状态？"
+          description={`本组有 ${protectionConflictCount} 件装备带实例保护或推荐证据，但被标记为待处理。`}
           confirmLabel="仍然应用"
           cancelLabel="返回检查"
           confirmTone="danger"

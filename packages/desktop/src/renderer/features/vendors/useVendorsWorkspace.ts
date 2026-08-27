@@ -4,6 +4,7 @@ import {
   type VendorsPageWorkspace
 } from "@d2-tools/app/vendors";
 import { isXurActiveAt, nextXurBoundaryAt, xurVendorHash } from "@d2-tools/core/daily/xurSchedule";
+import type { VendorCharacterScope } from "@d2-tools/core/vendors/inventory";
 import type { AccountSummary } from "../../api/types";
 import type {
   VendorInventoryRequest,
@@ -55,15 +56,42 @@ export function useVendorsWorkspace(input: {
   const [refreshError, setRefreshError] = useState("");
   const [statusMessage, setStatusMessage] = useState("");
   const [selectedVendorId, setSelectedVendorId] = useState<string | undefined>("vendor-2190858386");
+  const [scope, setScope] = useState<VendorCharacterScope>(() => ({ kind: "character", characterId: input.selectedCharacterId }));
+  const previousSelectedCharacterIdRef = useRef(input.selectedCharacterId);
   const requestContextKeyRef = useRef("__initial__");
   const requestSequenceRef = useRef(0);
   const manualRequestSequenceRef = useRef<number | null>(null);
 
-  const characterId = input.selectedCharacterId
+  const fallbackCharacterId = input.selectedCharacterId
     || input.accountSummary?.characters[0]?.character_id
     || "";
-  const requestContextKey = input.accountSummary && characterId
-    ? `${input.accountSummary.membership_type}:${input.accountSummary.destiny_membership_id}:${characterId}`
+  const requestCharacterIds = useMemo(() => {
+    if (scope.kind === "account") return input.accountSummary?.characters.map((character) => character.character_id) ?? [];
+    return [scope.characterId || fallbackCharacterId].filter(Boolean);
+  }, [fallbackCharacterId, input.accountSummary, scope]);
+
+  useEffect(() => {
+    if (scope.kind !== "character" || !fallbackCharacterId) return;
+    const validCharacter = input.accountSummary?.characters.some((character) => character.character_id === scope.characterId);
+    if (!scope.characterId || (input.accountSummary && !validCharacter)) {
+      setScope({ kind: "character", characterId: fallbackCharacterId });
+    }
+  }, [fallbackCharacterId, input.accountSummary, scope]);
+
+  useEffect(() => {
+    const previousSelectedCharacterId = previousSelectedCharacterIdRef.current;
+    previousSelectedCharacterIdRef.current = input.selectedCharacterId;
+    if (
+      scope.kind !== "character"
+      || !input.selectedCharacterId
+      || !previousSelectedCharacterId
+      || scope.characterId !== previousSelectedCharacterId
+      || scope.characterId === input.selectedCharacterId
+    ) return;
+    setScope({ kind: "character", characterId: input.selectedCharacterId });
+  }, [input.selectedCharacterId, scope]);
+  const requestContextKey = input.accountSummary && requestCharacterIds.length
+    ? `${input.accountSummary.membership_type}:${input.accountSummary.destiny_membership_id}:${scope.kind}:${requestCharacterIds.join(",")}`
     : "";
   const selectedVendorHash = selectVendorHash(snapshot, selectedVendorId);
   const selectedDetailVendorHashes = useMemo(
@@ -72,7 +100,7 @@ export function useVendorsWorkspace(input: {
   );
 
   const runRefresh = useCallback(async (source: "manual" | "background") => {
-    if (!input.active || !input.accountSummary || !characterId) return;
+    if (!input.active || !input.accountSummary || !requestCharacterIds.length) return;
     const requestSequence = ++requestSequenceRef.current;
     if (source === "manual") {
       manualRequestSequenceRef.current = requestSequence;
@@ -84,7 +112,7 @@ export function useVendorsWorkspace(input: {
     const currentSnapshot = hideInactiveXur(snapshot, input.now);
     const request = createVendorInventoryRequest(
       input.accountSummary,
-      characterId,
+      requestCharacterIds,
       selectedDetailVendorHashes
     );
     setRefreshState("refreshing");
@@ -123,7 +151,7 @@ export function useVendorsWorkspace(input: {
         setIsManualRefreshing(false);
       }
     }
-  }, [characterId, input.accountSummary, input.active, input.loadInventory, requestContextKey, selectedDetailVendorHashes, snapshot]);
+  }, [input.accountSummary, input.active, input.loadInventory, input.now, requestCharacterIds, requestContextKey, selectedDetailVendorHashes, snapshot]);
 
   const refresh = useCallback(() => runRefresh("manual"), [runRefresh]);
 
@@ -145,13 +173,13 @@ export function useVendorsWorkspace(input: {
     setRefreshError("");
     setStatusMessage("");
 
-    if (!input.accountSummary || !characterId) {
+    if (!input.accountSummary || !requestCharacterIds.length) {
       setRefreshState("idle");
       return;
     }
 
     setRefreshState("refreshing");
-    const request = createVendorInventoryRequest(input.accountSummary, characterId, []);
+    const request = createVendorInventoryRequest(input.accountSummary, requestCharacterIds, []);
     void (async () => {
       let availableSnapshot: VendorInventorySnapshot | null = null;
       try {
@@ -180,10 +208,10 @@ export function useVendorsWorkspace(input: {
           : "商人数据读取失败");
       }
     })();
-  }, [characterId, input.accountSummary, input.active, input.loadCachedInventory, input.loadInventory, requestContextKey]);
+  }, [input.accountSummary, input.active, input.loadCachedInventory, input.loadInventory, input.now, requestCharacterIds, requestContextKey]);
 
   useEffect(() => {
-    if (!input.active || !input.accountSummary || !characterId || !snapshot || !selectedDetailVendorHashes.length) return;
+    if (!input.active || !input.accountSummary || !requestCharacterIds.length || !snapshot || !selectedDetailVendorHashes.length) return;
     if (
       snapshot.detailVendorHashes === undefined
       || selectedDetailVendorHashes.every((vendorHash) => snapshot.detailVendorHashes?.includes(vendorHash))
@@ -196,7 +224,7 @@ export function useVendorsWorkspace(input: {
     setRefreshError("");
     const request = createVendorInventoryRequest(
       input.accountSummary,
-      characterId,
+      requestCharacterIds,
       selectedDetailVendorHashes
     );
     void (async () => {
@@ -227,7 +255,7 @@ export function useVendorsWorkspace(input: {
         setRefreshError(`继续显示上次库存。${resolved.refreshError ?? "商人详情刷新失败"}`);
       }
     })();
-  }, [characterId, input.accountSummary, input.active, input.loadCachedInventory, input.loadInventory, requestContextKey, selectedDetailVendorHashes, snapshot]);
+  }, [input.accountSummary, input.active, input.loadCachedInventory, input.loadInventory, input.now, requestCharacterIds, requestContextKey, selectedDetailVendorHashes, snapshot]);
 
   useEffect(() => {
     if (!input.active) return;
@@ -238,39 +266,45 @@ export function useVendorsWorkspace(input: {
       void runRefresh("background");
     }, delay);
     return () => window.clearTimeout(id);
-  }, [input.active, runRefresh]);
+  }, [input.active, input.now, runRefresh]);
 
   const model: VendorsPageWorkspace = useMemo(() => selectVendorsPageModel({
     snapshot,
     account: input.accountSummary,
-    scope: input.selectedCharacterId
-      ? { kind: "character", characterId: input.selectedCharacterId }
-      : { kind: "account" },
+    scope,
     selectedVendorId,
     refreshState,
     refreshError,
     statusMessage,
     now: input.now
-  }), [input.accountSummary, input.now, input.selectedCharacterId, refreshError, refreshState, selectedVendorId, snapshot, statusMessage]);
+  }), [input.accountSummary, input.now, refreshError, refreshState, scope, selectedVendorId, snapshot, statusMessage]);
 
   return {
     model,
     refresh,
     isManualRefreshing,
     statusMessage,
-    selectVendor: setSelectedVendorId
+    selectVendor: setSelectedVendorId,
+    scope,
+    selectScope: (nextScope: { kind: "character" | "account"; characterId?: string }) => {
+      if (nextScope.kind === "account") {
+        setScope({ kind: "account" });
+      } else if (nextScope.characterId) {
+        setScope({ kind: "character", characterId: nextScope.characterId });
+      }
+    }
   };
 }
 
 function createVendorInventoryRequest(
   account: AccountSummary,
-  characterId: string,
+  characterIds: string[],
   detailVendorHashes: number[]
 ): VendorInventoryRequest {
   return {
     membership_type: account.membership_type,
     membership_id: account.destiny_membership_id,
-    character_ids: [characterId],
+    character_ids: characterIds,
     detail_vendor_hashes: detailVendorHashes
   };
 }

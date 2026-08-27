@@ -4,7 +4,13 @@ import { buildLoadoutTemplateLookup, matchesLoadoutTemplateItem, selectLoadoutsP
 import { selectAccountPageModel } from "@d2-tools/app/account";
 import { selectHomePageModel } from "@d2-tools/app/home";
 import { selectLibraryPageModel } from "@d2-tools/app/library";
-import type { ItemSearchResult, PerkSearchResult, VaultItemMatchInfo } from "@d2-tools/app/library";
+import type {
+  ItemSearchResult,
+  LibraryHistory,
+  LiveItemAvailability,
+  PerkSearchResult,
+  VaultItemMatchInfo
+} from "@d2-tools/app/library";
 import { selectSettingsPageModel, type SettingsSectionKey } from "@d2-tools/app/settings";
 import { selectVaultPageModel } from "@d2-tools/app/vault";
 import type { VaultItemMatchInfo as VaultCommunityMatchInfo } from "@d2-tools/app/vault";
@@ -14,8 +20,10 @@ import type {
   AiAssistantMessageView,
   LibraryEquipmentFilter,
   LibraryPerkFilter,
-  ShellBackgroundTaskItem
+  ShellBackgroundTaskItem,
+  ShellPageKey
 } from "@d2-tools/ui";
+import type { AccountItemSummary, AccountSummary } from "@d2-tools/core/account/summary";
 import {
   createFixtureActivitySummary,
   createFixtureAccountItem,
@@ -67,6 +75,11 @@ export const webAccountSummary = createFixtureAccountSummary({
     capacity: 1000,
     items: [
       webWeaponAccountItem("web-handcannon-vault", 3002, "精准手炮", "能量武器", "精确框架", "仓库"),
+      webWeaponAccountItem("web-handcannon-vault-duplicate", 3002, "精准手炮", "能量武器", "精确框架", "仓库", {
+        power: 2024,
+        locked: true,
+        socketPlugs: [{ hash: 4003, name: "永动不歇" }, { hash: 4004, name: "狂暴" }]
+      }),
       webWeaponAccountItem("web-sword-vault", 3006, "连锁反应刀剑", "威能武器", "旋风框架", "仓库"),
       webWeaponAccountItem("web-scout-vault", 3007, "旧赛季斥候", "动能武器", "适配框架", "仓库")
     ],
@@ -127,16 +140,31 @@ const webLibraryFilters = createFixtureLibraryFilters();
 export const webEquipmentFilters: LibraryEquipmentFilter = webLibraryFilters.equipment;
 export const webPerkFilters: LibraryPerkFilter = webLibraryFilters.perks;
 
+function createWebDefinitionIcon(label: string, accent: string): string {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="8" fill="#101b24"/><path d="M8 8h48v48H8z" fill="none" stroke="${accent}" stroke-width="3"/><circle cx="32" cy="32" r="19" fill="${accent}" opacity=".35"/><text x="32" y="39" text-anchor="middle" font-family="system-ui,sans-serif" font-size="22" font-weight="700" fill="#eef6fb">${label}</text></svg>`;
+  return `data:image/svg+xml,${encodeURIComponent(svg)}`;
+}
+
+const webLibraryIcons = {
+  pulse: createWebDefinitionIcon("P", "#375a75"),
+  handCannon: createWebDefinitionIcon("H", "#67533a"),
+  armor: createWebDefinitionIcon("A", "#4f6248"),
+  ghost: createWebDefinitionIcon("G", "#5d4f69"),
+  perk: createWebDefinitionIcon("◆", "#3d5f58")
+};
+
 export const webLibraryItems: ItemSearchResult[] = [
   {
     hash: 3001,
     name: "快速命中脉冲",
-    description: "Web mock 装备。",
+    description: "当前版本的轻质脉冲步枪定义，用于检查来源、持有状态和多结果键盘导航。",
+    icon: webLibraryIcons.pulse,
     item_type: "脉冲步枪",
     tier: "传说",
     group_key: "weapons",
     bucket_name: "动能武器",
     ammo_type: "primary",
+    damage_type: "缚丝",
     weapon_frame: { key: "lightweight", name: "轻质框架" },
     release: {
       status: "ready",
@@ -147,7 +175,8 @@ export const webLibraryItems: ItemSearchResult[] = [
       year_number: 6,
       name: "深渊赛季"
     },
-    source: { status: "ready", label: "来源可确认", description: "Web provider 后续接真实来源。" },
+    source: { status: "ready", label: "历史来源", description: "深渊赛季活动奖励记录。" },
+    origin_traits: [{ hash: 5101, name: "集体行动" }],
     definition_stats: [
       { hash: 4284893193, name: "射速", value: 450, display_maximum: 1000 },
       { hash: 4043523819, name: "伤害", value: 27, display_maximum: 100 },
@@ -156,32 +185,197 @@ export const webLibraryItems: ItemSearchResult[] = [
       { hash: 943549884, name: "操控性", value: 48, display_maximum: 100 },
       { hash: 4188031367, name: "装填速度", value: 41, display_maximum: 100 }
     ],
+    perks: [
+      { socket_index: 3, plugs: [{ hash: 4001, name: "动能震颤", description: "连续命中后产生冲击波。", icon: webLibraryIcons.perk }] },
+      { socket_index: 4, plugs: [{ hash: 4002, name: "快速命中", description: "精准命中提高稳定性与装填速度。", icon: webLibraryIcons.perk }] }
+    ]
+  },
+  {
+    hash: 3011,
+    name: "快速命中脉冲",
+    description: "同名武器的旧发布版本，用于检查版本相邻排列和独立来源状态。",
+    icon: webLibraryIcons.pulse,
+    item_type: "脉冲步枪",
+    tier: "传说",
+    group_key: "weapons",
+    bucket_name: "动能武器",
+    ammo_type: "primary",
+    damage_type: "动能",
+    weapon_frame: { key: "lightweight", name: "轻质框架" },
+    release: {
+      status: "ready",
+      label: "发布版本",
+      kind: "season",
+      description: "第4年 · 第13赛季 · 天选赛季",
+      season_number: 13,
+      year_number: 4,
+      name: "天选赛季"
+    },
+    source: { status: "ready", label: "历史来源", description: "天选赛季活动奖励记录。" },
+    perks: [
+      { socket_index: 3, plugs: [{ hash: 4011, name: "禅意时刻", description: "持续造成伤害时降低后坐。", icon: webLibraryIcons.perk }] },
+      { socket_index: 4, plugs: [{ hash: 4012, name: "杀戮弹匣", description: "击杀后装填提高伤害。", icon: webLibraryIcons.perk }] }
+    ]
+  },
+  {
+    hash: 3002,
+    name: "精准手炮",
+    description: "仓库中已有的能量手炮，用于检查定位、收藏和当前商人来源。",
+    icon: webLibraryIcons.handCannon,
+    item_type: "手炮",
+    tier: "传说",
+    group_key: "weapons",
+    bucket_name: "能量武器",
+    ammo_type: "primary",
+    damage_type: "烈日",
+    weapon_frame: { key: "precision", name: "精确框架" },
+    release: {
+      status: "ready",
+      label: "发布版本",
+      kind: "season",
+      description: "第7年 · 第24赛季 · 篇章：回响",
+      season_number: 24,
+      year_number: 7,
+      name: "篇章：回响"
+    },
+    source: { status: "ready", label: "来源可确认", description: "高塔商人聚焦与活动奖励。" },
+    perks: [
+      { socket_index: 3, plugs: [{ hash: 4021, name: "丰盈满溢", description: "拾取弹药时过量装填。", icon: webLibraryIcons.perk }] },
+      { socket_index: 4, plugs: [{ hash: 4022, name: "爆炸载荷", description: "投射物在命中时产生爆炸。", icon: webLibraryIcons.perk }] }
+    ]
+  },
+  {
+    hash: 7101,
+    name: "铁血意志头盔",
+    description: "猎人护甲定义，用于检查护甲筛选、账号持有和统一护甲详情。",
+    icon: webLibraryIcons.armor,
+    item_type: "头盔",
+    tier: "传说",
+    class_name: "猎人",
+    group_key: "armor",
+    bucket_name: "头盔",
+    armor_set: { hash: 7001, name: "铁血意志套装" },
+    release: {
+      status: "ready",
+      label: "发布版本",
+      kind: "annual",
+      description: "第7年 · 终焉之形",
+      year_number: 7,
+      name: "终焉之形"
+    },
+    source: { status: "ready", label: "来源可确认", description: "铁旗活动期间可获得。" },
+    definition_stats: [
+      { hash: 2996146975, name: "机动", value: 12, display_maximum: 30 },
+      { hash: 392767087, name: "韧性", value: 18, display_maximum: 30 },
+      { hash: 1943323491, name: "恢复", value: 8, display_maximum: 30 }
+    ]
+  },
+  {
+    hash: 9001,
+    name: "远征机灵外壳",
+    description: "资料库中的其他只读定义，用于确认非武器和护甲对象不显示实例操作。",
+    icon: webLibraryIcons.ghost,
+    item_type: "机灵外壳",
+    tier: "传说",
+    group_key: "other",
+    bucket_name: "机灵",
+    source: { status: "missing", label: "来源待补", description: "当前资料库尚未返回稳定来源。" },
     perks: []
   }
 ];
-export const webLibraryPerks: PerkSearchResult[] = [{
-  key: "perk:4001",
-  hash: 4001,
-  hashes: [4001],
-  name: "动能震颤",
-  description: "连续命中目标后产生动能冲击波。",
-  variants: [{ sandbox_perk_hash: 4001, plug_hashes: [], kind: "standard", description: "连续命中目标后产生动能冲击波。", related_count: 1 }],
-  related_count: 1,
-  related_groups: ["weapons"]
-}];
+export const webLibraryPerks: PerkSearchResult[] = [
+  {
+    key: "perk:4001",
+    hash: 4001,
+    hashes: [4001, 4101],
+    name: "动能震颤",
+    description: "连续命中目标后产生动能冲击波。",
+    icon: webLibraryIcons.perk,
+    variants: [
+      { sandbox_perk_hash: 4001, plug_hashes: [4001], kind: "standard", description: "连续命中目标后产生动能冲击波。", related_count: 2 },
+      { sandbox_perk_hash: 4101, plug_hashes: [4101], kind: "enhanced", description: "更少命中次数即可产生冲击波。", related_count: 1 }
+    ],
+    related_count: 3,
+    related_groups: ["weapons"]
+  },
+  {
+    key: "perk:4022",
+    hash: 4022,
+    hashes: [4022],
+    name: "爆炸载荷",
+    description: "投射物在命中时产生范围爆炸。",
+    icon: webLibraryIcons.perk,
+    variants: [{ sandbox_perk_hash: 4022, plug_hashes: [4022], kind: "standard", description: "投射物在命中时产生范围爆炸。", related_count: 1 }],
+    related_count: 1,
+    related_groups: ["weapons"]
+  },
+  {
+    key: "perk:4999",
+    hash: 4999,
+    hashes: [4999],
+    name: "未建立关联的测试特性",
+    description: "用于检查没有关联装备时的明确空状态。",
+    icon: webLibraryIcons.perk,
+    variants: [{ sandbox_perk_hash: 4999, plug_hashes: [4999], kind: "standard", description: "当前没有可确认的关联装备。", related_count: 0 }],
+    related_count: 0,
+    related_groups: []
+  }
+];
 export const webPerkRelatedEquipment = {
   "perk:4001": {
-    items: webLibraryItems,
+    items: webLibraryItems.filter((item) => item.hash === 3001 || item.hash === 3011 || item.hash === 3002),
+    total: 3,
+    hasMore: false,
+    isLoading: false,
+    isLoaded: true,
+    error: ""
+  },
+  "perk:4022": {
+    items: webLibraryItems.filter((item) => item.hash === 3002),
     total: 1,
+    hasMore: false,
+    isLoading: false,
+    isLoaded: true,
+    error: ""
+  },
+  "perk:4999": {
+    items: [],
+    total: 0,
     hasMore: false,
     isLoading: false,
     isLoaded: true,
     error: ""
   }
 };
-export const webLibraryHistory = { recent: [{ hash: 3001, name: "快速命中脉冲" }], favorites: [] };
-export const webLibraryCommunityMatch = new Map<number, VaultItemMatchInfo>([[3001, { available: 1, sample_perks: [{ name: "快速命中" }] }]]);
-export const webLiveAvailability = { account_scope: "character" as const, items: {} };
+export const webLibraryHistory: LibraryHistory = {
+  recent: [
+    { hash: 3001, name: "快速命中脉冲", icon: webLibraryIcons.pulse, viewed_at: "2026-07-03T14:18:00+08:00" },
+    { hash: 7101, name: "铁血意志头盔", icon: webLibraryIcons.armor, viewed_at: "2026-07-02T20:35:00+08:00" },
+    { hash: 3002, name: "精准手炮", icon: webLibraryIcons.handCannon, viewed_at: "2026-07-01T09:12:00+08:00" }
+  ],
+  favorites: [{ hash: 3002, name: "精准手炮", icon: webLibraryIcons.handCannon, viewed_at: "2026-07-01T09:12:00+08:00" }]
+};
+export const webLibraryCommunityMatch = new Map<number, VaultItemMatchInfo>([
+  [3001, { matched: 1, available: 2, modes: ["pve"], sample_perks: [{ name: "动能震颤" }, { name: "快速命中" }] }],
+  [3002, { matched: 1, available: 1, modes: ["pve", "pvp"], sample_perks: [{ name: "爆炸载荷" }] }]
+]);
+export const webLiveAvailability: LiveItemAvailability = {
+  account_scope: "character",
+  items: {
+    "3001": {
+      status: "public_activity",
+      label: "当前公共活动",
+      description: "本周轮换活动奖励中发现该武器。",
+      sources: [{ kind: "public_activity", label: "本周轮换活动" }]
+    },
+    "3002": {
+      status: "character_vendor",
+      label: "当前商人售卖",
+      description: "当前角色可在高塔商人聚焦页查看。",
+      sources: [{ kind: "character_vendor", label: "高塔 / 聚焦解码", character_id: "web-hunter" }]
+    }
+  }
+};
 
 export const webManifestStatus = {
   initialized: true,
@@ -223,19 +417,29 @@ export const webBackgroundTasks: ShellBackgroundTaskItem[] = [{ id: "web-task", 
 export const webActionLog = [{ id: "web-action", created_at: "2026-07-03T14:18:00+08:00", action: "mock", item_name: "Web mock", ok: true, message: "共享设置页操作日志 mock。" }];
 export const webBungieConfig = { bungie: { api_key: "web-api-key", client_id: "web-client-id", client_secret: "web-client-secret", redirect_uri: "https://127.0.0.1:28780/oauth/callback" } };
 
-function webWeaponAccountItem(instanceId: string, hash: number, name: string, bucketName: string, frameName: string, location: string) {
+function webWeaponAccountItem(
+  instanceId: string,
+  hash: number,
+  name: string,
+  bucketName: string,
+  frameName: string,
+  location: string,
+  options: { power?: number; locked?: boolean; socketPlugs?: AccountItemSummary["socket_plugs"] } = {}
+) {
   const sourceKind = location === "仓库" ? "vault" : location.includes("背包") ? "inventory" : "equipped";
 
   return createFixtureAccountItem({
     instanceId,
     hash,
     name,
+    icon: createWebDefinitionIcon(name.slice(0, 1), "#67533a"),
     bucketName,
     groupKey: "weapons",
     frameName,
     itemType: "武器",
-    power: 2018 + (hash % 7),
-    socketPlugs: [{ hash: 4001, name: "快速命中" }, { hash: 4002, name: "爆炸载荷" }],
+    power: options.power ?? 2018 + (hash % 7),
+    locked: options.locked,
+    socketPlugs: options.socketPlugs ?? [{ hash: 4001, name: "快速命中" }, { hash: 4002, name: "爆炸载荷" }],
     sourceKind,
     sourceCharacterId: location === "术士背包" ? "web-warlock" : "web-hunter"
   });
@@ -246,6 +450,7 @@ function webArmorAccountItem(instanceId: string, hash: number, name: string, buc
     instanceId,
     hash,
     name,
+    icon: createWebDefinitionIcon(name.slice(0, 1), "#4f6248"),
     bucketName,
     groupKey: "armor",
     frameName: "",
@@ -364,6 +569,7 @@ export function createWebLibraryPageModel(input: {
   libraryViewMode: "equipment" | "perks";
   equipmentFilters: LibraryEquipmentFilter;
   perkFilters: LibraryPerkFilter;
+  libraryHistory?: LibraryHistory;
   aliasDraft: string;
   aliasTargetDraft: string;
   aliasKind: "item" | "perk";
@@ -372,7 +578,7 @@ export function createWebLibraryPageModel(input: {
     items: webLibraryItems,
     perks: webLibraryPerks,
     perkRelatedEquipment: webPerkRelatedEquipment,
-    libraryHistory: webLibraryHistory,
+    libraryHistory: input.libraryHistory ?? webLibraryHistory,
     libraryCommunityMatch: webLibraryCommunityMatch,
     liveAvailability: webLiveAvailability,
     liveAvailabilityError: "",
@@ -438,7 +644,7 @@ export function createWebSettingsPageModel(input: {
 export const webAssistantInitialMessages: AiAssistantMessageView[] = [
   {
     role: "assistant",
-    text: "Web 入口已接入共享 AI 助手界面。当前使用首页 snapshot 作为上下文，后续由 Web provider 提供真实账号和 AI 服务。"
+    text: "Web 入口已接入共享 AI 助手界面。当前会根据所在页面使用账号与公开情报作为上下文，后续由 Web provider 提供真实账号和 AI 服务。"
   }
 ];
 
@@ -449,16 +655,32 @@ export const webAssistantQuickPrompts = [
   "首页哪些状态需要优先看"
 ];
 
-export function createWebAssistantContext(snapshot: WebHomeSnapshot): AiAssistantContextView {
-  const hasAccountData = snapshot.shellStatus.some((item) => item.key === "account" && item.tone === "ready");
+export function createWebAssistantContext(snapshot: WebHomeSnapshot, account: AccountSummary = webAccountSummary, activePage: ShellPageKey = "home"): AiAssistantContextView {
+  const pageLabels: Record<ShellPageKey, string> = {
+    home: "首页工作台",
+    account: "账号页",
+    vault: "仓库页",
+    loadouts: "配装页",
+    guides: "攻略页",
+    library: "资料库",
+    vendors: "商人页",
+    settings: "设置页"
+  };
+  const pageLabel = pageLabels[activePage];
 
   return {
-    pageLabel: "首页工作台",
-    focus: "只看官方可确认的本周活动、限时事件和仄商人库存。",
-    facts: snapshot.shellStatus.map((item) => `${item.label}：${item.value}`),
-    itemCount: 496,
-    characterCount: hasAccountData ? 2 : 0,
-    materialCount: 28,
+    pageLabel,
+    focus: activePage === "account" ? "核对当前角色装备、账号物品、光等和活动记录。" : "只看官方可确认的本周活动、限时事件和商人库存。",
+    facts: [
+      ...snapshot.shellStatus.filter((item) => item.key !== "account").map((item) => `${item.label}：${item.value}`),
+      `账号：${account.account_name}（预览数据）`,
+      `角色：${account.characters.length} 个`,
+      `仓库：${account.vault.item_count} 件`,
+      `材料：${account.materials.item_count} 种`
+    ],
+    itemCount: account.vault.item_count,
+    characterCount: account.characters.length,
+    materialCount: account.materials.item_count,
     dailyLoaded: true,
     snapshotState: "unsaved",
     snapshotLabel: "Web 预览未创建上下文快照"

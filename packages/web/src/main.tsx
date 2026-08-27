@@ -47,7 +47,7 @@ import {
   type GuideExtraction,
   type GuideLibraryFilters
 } from "@d2-tools/app/guides";
-import type { ItemSearchResult } from "@d2-tools/app/library";
+import { formatLibraryVersion, type ItemSearchResult, type LibraryHistory } from "@d2-tools/app/library";
 import {
   buildArmorDetailViewModel,
   buildWeaponDetailViewModel,
@@ -73,9 +73,12 @@ import { useWebFixtureRuntime } from "./fixtures/useWebFixtureRuntime";
 
 function WebApp() {
   const fixture = useWebFixtureRuntime();
-  const env = ((import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env) ?? {};
+  const env = ((import.meta as ImportMeta & { env?: Record<string, string | boolean | undefined> }).env) ?? {};
   const initialTheme = env.VITE_D2_VISUAL_THEME === "light" ? "light" : "dark";
-  const adapter = useMemo(() => createWebShellAdapter(), []);
+  const isFixturePreview = env.DEV === true;
+  const adapter = useMemo(() => createWebShellAdapter(isFixturePreview ? {
+    fetchHomeSnapshot: async () => unavailableHomeSnapshot
+  } : {}), [isFixturePreview]);
   const [snapshot, setSnapshot] = useState<WebHomeSnapshot>(unavailableHomeSnapshot);
   const [assistantMode, setAssistantMode] = useState<ShellAssistantMode>(null);
   const [activePage, setActivePage] = useState<ShellPageKey>("home");
@@ -105,6 +108,7 @@ function WebApp() {
   const [libraryViewMode, setLibraryViewMode] = useState<LibraryViewMode>("equipment");
   const [equipmentFilters, setEquipmentFilters] = useState<LibraryEquipmentFilter>(fixture.equipmentFilters);
   const [perkFilters, setPerkFilters] = useState<LibraryPerkFilter>(fixture.perkFilters);
+  const [libraryHistory, setLibraryHistory] = useState<LibraryHistory>(() => fixture.libraryHistory);
   const [aliasDraft, setAliasDraft] = useState("ff");
   const [aliasTargetDraft, setAliasTargetDraft] = useState("喂食狂热");
   const [aliasKind, setAliasKind] = useState<"item" | "perk">("perk");
@@ -130,7 +134,19 @@ function WebApp() {
     testConnection: async () => ({ protocol: "openai_responses", model: "gpt-5-mini", message: "Web fixture 连接成功。" }),
     clearLightggCache: async () => undefined
   }), []);
-  const hasAccountData = snapshot.shellStatus.some((item) => item.key === "account" && item.tone === "ready");
+  const hasAccountData = Boolean(fixture.accountSummary);
+  const shellStatus = useMemo(() => {
+    const libraryVersion = formatLibraryVersion(fixture.manifestStatus.version) ?? "预览数据";
+    return snapshot.shellStatus.map((item) => {
+      if (item.key === "account" && hasAccountData) {
+        return { ...item, value: "预览数据", tone: "ready" as const };
+      }
+      if (item.key === "library") {
+        return { ...item, value: libraryVersion, tone: "ready" as const };
+      }
+      return item;
+    });
+  }, [fixture.manifestStatus.version, hasAccountData, snapshot.shellStatus]);
   const accountViewModel = useMemo(
     () => fixture.createAccountPageModel({
       selectedCharacterId: selectedAccountCharacterId,
@@ -273,8 +289,8 @@ function WebApp() {
       : entry));
   }
   const assistantContext = useMemo(
-    () => fixture.createAssistantContext(snapshot),
-    [fixture, snapshot]
+    () => fixture.createAssistantContext(snapshot, fixture.accountSummary, activePage),
+    [activePage, fixture, snapshot]
   );
   const assistantContextChip = fixture.createAssistantContextChip(assistantContext);
 
@@ -408,7 +424,7 @@ function WebApp() {
       onPreferencesChange={setPreferences}
       assistantMode={assistantMode}
       onAssistantModeChange={setAssistantMode}
-      shellStatus={snapshot.shellStatus}
+      shellStatus={shellStatus}
       sidebarHeader={(
         <ShellSidebarAccountSummary
           accountName={fixture.accountSummary.account_name}
@@ -705,6 +721,7 @@ function WebApp() {
                 libraryViewMode,
                 equipmentFilters,
                 perkFilters,
+                libraryHistory,
                 aliasDraft,
                 aliasTargetDraft,
                 aliasKind
@@ -714,6 +731,10 @@ function WebApp() {
                 onEquipmentFiltersChange: (patch) => setEquipmentFilters((current) => ({ ...current, ...patch })),
                 onPerkFiltersChange: (patch) => setPerkFilters((current) => ({ ...current, ...patch })),
                 onSearch: () => undefined,
+                onSelectRecentQuery: (name) => {
+                  setLibraryViewMode("equipment");
+                  setEquipmentFilters((current) => ({ ...current, query: name }));
+                },
                 onClearFilters: () => {
                   setEquipmentFilters(fixture.equipmentFilters);
                   setPerkFilters(fixture.perkFilters);
@@ -730,8 +751,21 @@ function WebApp() {
                   const definition = fixture.libraryItems.find((candidate) => candidate.hash === item.hash);
                   if (definition) openWebLibraryDetail(definition);
                 },
-                onAddFavorite: () => undefined,
-                onRemoveFavorite: () => undefined
+                onAddFavorite: (item) => setLibraryHistory((current) => current.favorites.some((favorite) => favorite.hash === item.hash)
+                  ? current
+                  : {
+                      ...current,
+                      favorites: [{
+                        hash: item.hash,
+                        name: item.name,
+                        ...(item.icon ? { icon: item.icon } : {}),
+                        viewed_at: new Date().toISOString()
+                      }, ...current.favorites]
+                    }),
+                onRemoveFavorite: (hash) => setLibraryHistory((current) => ({
+                  ...current,
+                  favorites: current.favorites.filter((favorite) => favorite.hash !== hash)
+                }))
               }}
             />
           ) : null}

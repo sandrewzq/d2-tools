@@ -1,4 +1,4 @@
-import { useId, useMemo, type KeyboardEvent, type ReactNode } from "react";
+import { useId, useMemo, useRef, type KeyboardEvent, type ReactNode } from "react";
 import type {
   ItemSearchResult,
   LibraryDropAccessKey,
@@ -13,6 +13,7 @@ import type {
   PerkSearchResult,
   VaultItemMatchInfo
 } from "@d2-tools/app/library";
+import { formatLibraryVersion } from "@d2-tools/app/library";
 import {
   classifyWeaponSocketPlugs,
   isWeaponSystemPlug,
@@ -50,6 +51,7 @@ export type LibraryPageActions = {
   onEquipmentFiltersChange: (patch: Partial<LibraryEquipmentFilter>) => void;
   onPerkFiltersChange: (patch: Partial<LibraryPerkFilter>) => void;
   onSearch: () => void;
+  onSelectRecentQuery: (name: string) => void;
   onClearFilters: () => void;
   onRefreshManifestStatus: () => void;
   onRepairManifest: () => void;
@@ -101,6 +103,7 @@ export function LibraryPageContentView(props: LibraryPageContentViewProps) {
   const recentItems = model.aliasPanel.history.recent.slice(0, 5);
   const visibleResultCount = isEquipmentMode ? equipmentRows.length : model.results.perks.length;
   const hasVisibleResults = visibleResultCount > 0;
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   function selectMode(mode: LibraryViewMode) {
     actions.onViewModeChange(mode);
@@ -125,8 +128,8 @@ export function LibraryPageContentView(props: LibraryPageContentViewProps) {
   }
 
   function fillRecentQuery(name: string) {
-    selectMode("equipment");
-    actions.onEquipmentFiltersChange({ query: name });
+    actions.onSelectRecentQuery(name);
+    searchInputRef.current?.focus();
   }
 
   const manifestAlertElement = manifestAlert ? (
@@ -171,7 +174,7 @@ export function LibraryPageContentView(props: LibraryPageContentViewProps) {
               <button type="button" role="tab" id={perkTabId} aria-controls={tabPanelId} aria-selected={!isEquipmentMode} tabIndex={!isEquipmentMode ? 0 : -1} className={!isEquipmentMode ? "active" : ""} onClick={() => selectMode("perks")} onKeyDown={handleModeKeyDown}>{libraryText(copy, "Perk 与框架")}</button>
             </div>
             <form className="library-search-actions" role="search" onSubmit={(event) => { event.preventDefault(); actions.onSearch(); }}>
-              <input autoFocus aria-label={libraryText(copy, "资料库主搜索")} value={model.queryPanel.primaryQuery} disabled={isManifestBlocked} onChange={(event) => isEquipmentMode ? actions.onEquipmentFiltersChange({ query: event.target.value }) : actions.onPerkFiltersChange({ query: event.target.value })} placeholder={isEquipmentMode ? libraryText(copy, "输入装备名称，例如加时交锋") : libraryText(copy, "输入特性或框架名称")} />
+              <input ref={searchInputRef} autoFocus aria-label={libraryText(copy, "资料库主搜索")} value={model.queryPanel.primaryQuery} disabled={isManifestBlocked} onChange={(event) => isEquipmentMode ? actions.onEquipmentFiltersChange({ query: event.target.value }) : actions.onPerkFiltersChange({ query: event.target.value })} placeholder={isEquipmentMode ? libraryText(copy, "输入装备名称，例如加时交锋") : libraryText(copy, "输入特性或框架名称")} />
               <button type="submit" data-ui-kind="button" data-control-variant="primary" disabled={model.status.isSearching || isManifestBlocked}>{model.status.isSearching ? libraryText(copy, "搜索中...") : libraryText(copy, "搜索")}</button>
             </form>
             <button type="button" className="library-clear-button" data-ui-kind="button" data-control-variant="quiet" onClick={actions.onClearFilters}>{libraryText(copy, "清空查询与筛选")}</button>
@@ -181,7 +184,7 @@ export function LibraryPageContentView(props: LibraryPageContentViewProps) {
             {isEquipmentMode ? (
               <>
                 <label>{libraryText(copy, "分类")}<select disabled={isManifestBlocked} value={libraryEquipmentFilter.group} onChange={(event) => actions.onEquipmentFiltersChange({ group: event.target.value as LibraryEquipmentFilter["group"] })}>{equipmentFilterOptions.groups.map((option) => <option key={option.value} value={option.value}>{libraryText(copy, option.label)}</option>)}</select></label>
-                <label>{libraryText(copy, "账号持有")}<select disabled={isManifestBlocked} value={libraryEquipmentFilter.ownership ?? "all"} onChange={(event) => actions.onEquipmentFiltersChange({ ownership: event.target.value as LibraryEquipmentFilter["ownership"] })}><option value="all">{libraryText(copy, "全部")}</option><option value="owned">{libraryText(copy, "当前账号持有")}</option><option value="definition">{libraryText(copy, "只有 Manifest 定义")}</option></select></label>
+                <label>{libraryText(copy, "账号持有")}<select disabled={isManifestBlocked} value={libraryEquipmentFilter.ownership ?? "all"} onChange={(event) => actions.onEquipmentFiltersChange({ ownership: event.target.value as LibraryEquipmentFilter["ownership"] })}><option value="all">{libraryText(copy, "全部")}</option><option value="owned">{libraryText(copy, "当前账号持有")}</option><option value="definition">{libraryText(copy, "仅资料库定义")}</option></select></label>
                 <details className="library-advanced-filters">
                   <summary>{libraryText(copy, "高级筛选")}</summary>
                   <div className="library-filter-stack library-nested-filter-stack">
@@ -236,11 +239,11 @@ export function LibraryPageContentView(props: LibraryPageContentViewProps) {
 
         <ProductWorkspaceContentStack element="section" className="library-results" ariaLabel={libraryText(copy, "搜索结果")}>
           <div id={tabPanelId} role="tabpanel" aria-labelledby={activeTabId} aria-busy={model.status.isSearching}>
-            <div className="library-results-head"><div><h3>{model.results.searchTouched ? (isEquipmentMode ? libraryText(copy, "装备搜索结果") : libraryText(copy, "Perk 与框架搜索结果")) : libraryText(copy, "等待查询")}</h3><span>{isEquipmentMode ? libraryText(copy, "当前 Manifest + 实时来源 + 账号快照") : libraryText(copy, "当前 Manifest")}</span></div><span className="app-chip status-pending" role="status" aria-live="polite">{model.status.isSearching ? libraryText(copy, "更新中") : `${model.results.searchTouched ? hitCount : 0} ${libraryText(copy, "条")}`}</span></div>
+            <div className="library-results-head"><div><h3>{model.results.searchTouched ? (isEquipmentMode ? libraryText(copy, "装备搜索结果") : libraryText(copy, "Perk 与框架搜索结果")) : libraryText(copy, "等待查询")}</h3><span>{isEquipmentMode ? libraryText(copy, "当前资料库 + 实时来源 + 账号快照") : libraryText(copy, "当前资料库")}</span></div><span className="app-chip status-pending" role="status" aria-live="polite">{model.status.isSearching ? libraryText(copy, "更新中") : `${model.results.searchTouched ? hitCount : 0} ${libraryText(copy, "条")}`}</span></div>
             <p className="library-result-note">{libraryText(copy, "筛选只作用于当前搜索结果；缺失的来源、分类和关联项保持缺失状态。")}</p>
             {model.status.isSearching && hasVisibleResults ? <p className="status-message status-pending" role="status">{libraryText(copy, "正在更新结果，以下暂时保留上一次可见内容。")}</p> : null}
             {model.status.isLoadingLiveAvailability && isEquipmentMode ? <p className="status-message status-pending" role="status">{libraryText(copy, "正在复查实时商人和公共活动来源。")}</p> : null}
-            {model.status.liveAvailabilityError && isEquipmentMode ? <p className="status-message status-warning" role="status">{libraryText(copy, "实时来源读取失败：")}{model.status.liveAvailabilityError}{libraryText(copy, "。Manifest 搜索结果仍可使用。")}</p> : null}
+            {model.status.liveAvailabilityError && isEquipmentMode ? <p className="status-message status-warning" role="status">{libraryText(copy, "实时来源读取失败：")}{model.status.liveAvailabilityError}{libraryText(copy, "。资料库搜索结果仍可使用。")}</p> : null}
             {model.status.searchError ? <p className="status-message status-error" role="alert">{model.status.searchError}</p> : null}
             {model.status.favoriteError ? <p className="status-message status-error" role="alert">{libraryText(copy, "收藏操作失败：")}{model.status.favoriteError}</p> : null}
             {model.results.searchTouched && isEquipmentMode ? (
@@ -352,15 +355,17 @@ function buildManifestAlert(
   }
   if (alert.kind === "missing_components") {
     return {
-      title: libraryText(copy, "缺少必要资料库组件"),
-      message: `${libraryText(copy, "缺少")} ${alert.missingComponentCount ?? 0} ${libraryText(copy, "个组件，搜索和详情可能不完整；建议立即后台更新资料库。")}`,
+      title: libraryText(copy, "资料库内容不完整"),
+      message: `${libraryText(copy, "缺少")} ${alert.missingComponentCount ?? 0} ${libraryText(copy, "项资料内容，搜索和详情可能不完整；建议立即后台更新资料库。")}`,
       className: alert.className
     };
   }
   if (alert.kind === "needs_update") {
+    const currentVersion = formatLibraryVersion(alert.version) ?? libraryText(copy, "未知版本");
+    const latestVersion = formatLibraryVersion(alert.latestVersion) ?? libraryText(copy, "未知版本");
     return {
       title: libraryText(copy, "资料库不是最新版本"),
-      message: `${libraryText(copy, "当前")} ${alert.version ?? libraryText(copy, "未知版本")}，${libraryText(copy, "最新")} ${alert.latestVersion ?? libraryText(copy, "未知版本")}${libraryText(copy, "；旧资料库可能导致来源、Perk 或详情判断错误。")}`,
+      message: `${libraryText(copy, "当前")} ${currentVersion}，${libraryText(copy, "最新")} ${latestVersion}${libraryText(copy, "；旧资料库可能导致来源、Perk 或详情判断错误。")}`,
       className: alert.className
     };
   }
@@ -373,8 +378,14 @@ function buildManifestSummary(
   locale: InterfaceLocale
 ): Array<{ label: string; value: string; detail: string; className?: string }> {
   const summary = model.manifestSummary;
-  const activeVersion = summary.version ?? (summary.initialized === false ? libraryText(copy, "未初始化") : libraryText(copy, "未读取"));
-  const latestVersion = summary.latestVersion ?? libraryText(copy, "等待检查");
+  const activeVersion = summary.version
+    ? formatLibraryVersion(summary.version) ?? libraryText(copy, "可用")
+    : summary.initialized === false
+      ? libraryText(copy, "未初始化")
+      : libraryText(copy, "未读取");
+  const latestVersion = summary.latestVersion
+    ? formatLibraryVersion(summary.latestVersion) ?? libraryText(copy, "可用")
+    : libraryText(copy, "等待检查");
   const hasMissingComponents = summary.missingComponentCount > 0;
   const activatedAt = formatStandardDateTime(summary.activatedAt, libraryText(copy, "未读取"));
   const checkedAt = formatStandardDateTime(summary.checkedAt, libraryText(copy, "未读取"));
@@ -392,15 +403,15 @@ function buildManifestSummary(
             ? { value: libraryText(copy, "需要更新"), className: "status-warning", detail: libraryText(copy, "旧资料库仍保留为当前激活版本") }
             : { value: libraryText(copy, "完整"), className: "status-ready", detail: `${libraryText(copy, "语言：")}${language}` };
   const integrity = summary.initialized === null
-    ? { value: libraryText(copy, "正在检查"), detail: libraryText(copy, "等待必要组件状态") }
+    ? { value: libraryText(copy, "正在检查"), detail: libraryText(copy, "等待资料内容状态") }
     : summary.initialized === false
-      ? { value: libraryText(copy, "尚未建立"), detail: libraryText(copy, "必要组件未初始化") }
+      ? { value: libraryText(copy, "尚未建立"), detail: libraryText(copy, "资料内容尚未建立") }
       : hasMissingComponents
         ? { value: `${libraryText(copy, "缺失")} ${summary.missingComponentCount} ${libraryText(copy, "项")}`, detail: definitionCounts }
         : { value: libraryText(copy, "定义完整"), detail: definitionCounts };
 
   return [
-    { label: libraryText(copy, "激活版本"), value: activeVersion, detail: `${libraryText(copy, "激活于")} ${activatedAt}` },
+    { label: libraryText(copy, "当前版本"), value: activeVersion, detail: `${libraryText(copy, "启用于")} ${activatedAt}` },
     { label: libraryText(copy, "最新版本"), value: latestVersion, detail: `${libraryText(copy, "检查于")} ${checkedAt}` },
     { label: libraryText(copy, "资料库状态"), ...status },
     { label: libraryText(copy, "完整性"), ...integrity }
@@ -775,7 +786,7 @@ export function LibraryDefinitionDialog(props: {
         <div className="library-definition-toolbar">
           <div>
             <strong id={titleId}>{libraryText(copy, "定义详情")}</strong>
-            <span>{libraryText(copy, "Manifest 定义，不是当前装备实例。")}</span>
+            <span>{libraryText(copy, "资料库定义，不是当前装备实例。")}</span>
           </div>
           <button ref={closeButtonRef} type="button" data-ui-kind="button" data-control-variant="secondary" onClick={props.onClose}>
             {libraryText(copy, "关闭")}
@@ -836,7 +847,7 @@ export function LibraryDefinitionDialog(props: {
                 <section className="library-definition-intrinsics" aria-label={libraryText(copy, "异域固有特性")}>
                   <div className="library-definition-section-heading">
                     <strong>{libraryText(copy, "异域固有特性")}</strong>
-                    <span>{libraryText(copy, "来自 Bungie Manifest 的固定特性，不包含护甲模组、能量或实际属性 Roll。")}</span>
+                    <span>{libraryText(copy, "来自 Bungie 资料库的固定特性，不包含护甲模组、能量或实际属性 Roll。")}</span>
                   </div>
                   {item.intrinsic_traits?.length ? (
                     <div className="library-definition-intrinsic-list">
@@ -894,7 +905,7 @@ export function LibraryDefinitionDialog(props: {
               <section className="library-definition-stats" aria-label={libraryText(copy, "定义属性")}>
                 <div className="library-definition-section-heading">
                   <strong>{libraryText(copy, "定义属性")}</strong>
-                  <span>{libraryText(copy, "来自 Manifest 定义数值，不包含已有装备 Roll。")}</span>
+                  <span>{libraryText(copy, "来自资料库定义数值，不包含已有装备 Roll。")}</span>
                 </div>
                 <div className="library-definition-stat-list">
                   {item.definition_stats.map((stat) => (
@@ -1198,7 +1209,7 @@ function formatDropActionHint(
   if (access === "archived") {
     return libraryText(copy, "谨慎投入：来源线索显示下架、传承或不可获取，除非游戏内有新入口恢复。");
   }
-  return libraryText(copy, "先补来源：当前 Manifest 没有足够来源信息，不把它列为可刷目标。");
+  return libraryText(copy, "先补来源：当前资料库没有足够来源信息，不把它列为可刷目标。");
 }
 
 function getDropAccessBadgeClass(access: LibraryDropAccessKey): string {

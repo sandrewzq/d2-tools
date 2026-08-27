@@ -134,6 +134,7 @@ export type {
   VendorContentSectionView,
   VendorProgressionView,
   VendorRailSectionView,
+  VendorScopeOptionView,
   VendorsPageActions,
   VendorsPageContentViewProps,
   VendorsPageModelView

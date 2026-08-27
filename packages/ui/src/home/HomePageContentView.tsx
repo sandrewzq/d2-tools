@@ -242,9 +242,9 @@ function HomePageContent(props: {
             copy={props.copy}
             onNavigate={props.onNavigate}
           />
-          <HomeSignal label={homeText(props.copy, "本周活动焦点")} emptyLabel={homeText(props.copy, "暂无")} priority={priorities?.weekly_bonus} />
+          <HomeSignal copy={props.copy} label={homeText(props.copy, "本周活动焦点")} emptyLabel={homeText(props.copy, "暂无")} priority={priorities?.weekly_bonus} />
           {priorities?.special_event?.status === "ready" ? (
-            <HomeSignal className="home-special-event-signal" label={homeText(props.copy, "限时活动")} priority={priorities.special_event} />
+            <HomeSignal copy={props.copy} className="home-special-event-signal" label={homeText(props.copy, "限时活动")} priority={priorities.special_event} />
           ) : null}
         </div>
       </section>
@@ -255,6 +255,7 @@ function HomePageContent(props: {
               key={activity.kind}
               {...activity}
               featured={activity.kind === "nightfall"}
+              copy={props.copy}
               onOpenReward={props.onOpenWeeklyActivityReward}
             />
           ))}
@@ -264,8 +265,8 @@ function HomePageContent(props: {
         <div className="home-vendor-module" data-surface="frame" data-ui-kind="summary-frame">
           <div className="home-band-heading">
             <div className="home-vendor-title">
-              <span data-ui-part="label" data-info-priority="support" data-text-tone="meta">周末商人</span>
-              <h2 data-ui-part="value" data-info-priority="display" data-text-tone="primary">仄本周八件轮换</h2>
+              <span data-ui-part="label" data-info-priority="support" data-text-tone="meta">{homeText(props.copy, "周末商人")}</span>
+              <h2 data-ui-part="value" data-info-priority="display" data-text-tone="primary">{homeText(props.copy, "仄本周八件轮换")}</h2>
             </div>
             <div className="home-vendor-timing" aria-label={`${xurTiming.label}时间`}>
               <span data-ui-part="label" data-info-priority="support" data-text-tone="meta">{xurTiming.label}</span>
@@ -279,7 +280,7 @@ function HomePageContent(props: {
                 disabled={!props.onNavigate}
                 onClick={() => props.onNavigate?.("vendors")}
               >
-                打开仄的完整库存
+                {homeText(props.copy, "打开仄的完整库存")}
               </button>
             ) : null}
           </div>
@@ -288,13 +289,13 @@ function HomePageContent(props: {
               <>
                 <div className="home-vendor-overview" data-surface="row">
                   <div className="home-vendor-summary">
-                    <span data-ui-part="label" data-info-priority="support" data-text-tone="meta">本周八件轮换</span>
+                    <span data-ui-part="label" data-info-priority="support" data-text-tone="meta">{homeText(props.copy, "本周八件轮换")}</span>
                     <strong data-ui-part="value" data-info-priority="decision" data-text-tone="primary">
                       {formatHomeVendorSummary(xur, xurItems.length)}
                     </strong>
                   </div>
                   <div className="home-vendor-summary">
-                    <span data-ui-part="label" data-info-priority="support" data-text-tone="meta">当前位置</span>
+                    <span data-ui-part="label" data-info-priority="support" data-text-tone="meta">{homeText(props.copy, "当前位置")}</span>
                     <strong data-ui-part="value" data-info-priority="context" data-text-tone="primary">{xur.location ?? xur.title}</strong>
                   </div>
                 </div>
@@ -304,15 +305,17 @@ function HomePageContent(props: {
                       item={item}
                       key={`${item.title}-${item.vendorHash ?? "xur"}-${index}`}
                       vendorName={xur.title}
+                      copy={props.copy}
                       refreshLabel={xur.refreshLabel}
                       onOpenXurOffer={props.onOpenXurOffer}
                     />
                   ))}
-                  {xur.missingItemCount ? <HomeMissingXurOffer count={xur.missingItemCount} /> : null}
+                  {xur.missingItemCount ? <HomeMissingXurOffer copy={props.copy} count={xur.missingItemCount} /> : null}
                 </div>
               </>
             ) : (
               <HomeXurState
+                copy={props.copy}
                 source={props.dailySummary?.sources.vendors}
                 isLoading={props.isLoadingDaily}
                 error={props.dailyError}
@@ -435,6 +438,7 @@ function HomeActivityCard(props: {
   label: string;
   priority: HomeWeeklyPriority | undefined;
   featured: boolean;
+  copy: HomeCopy;
   onOpenReward?: (reward: HomeWeeklyActivityReward) => void;
 }) {
   const entries = homePriorityEntries(props.priority);
@@ -444,7 +448,7 @@ function HomeActivityCard(props: {
       <header>
         <span data-ui-part="label" data-info-priority="context" data-text-tone="primary">{props.label}</span>
         <strong data-ui-part="state" data-info-priority="support" data-text-tone="status" data-status={status}>
-          {entries.length ? `${entries.length} 项已确认` : "待确认"}
+          {entries.length ? `${entries.length} ${homeText(props.copy, "项已确认")}` : homeText(props.copy, "待确认")}
         </strong>
       </header>
       {entries.length ? (
@@ -454,11 +458,12 @@ function HomeActivityCard(props: {
               key={`${props.kind}-${entry.title}`}
               entry={entry}
               featured={props.featured}
+              copy={props.copy}
               onOpenReward={props.onOpenReward}
             />
           ))}
         </div>
-      ) : <HomeEmpty label="公开接口暂未确认本周内容。" />}
+      ) : <HomeEmpty label={activityEmptyLabel(props.priority)} />}
     </article>
   );
 }
@@ -466,6 +471,7 @@ function HomeActivityCard(props: {
 function HomeActivityEntry(props: {
   entry: HomeWeeklyActivityEntry;
   featured: boolean;
+  copy: HomeCopy;
   onOpenReward?: (reward: HomeWeeklyActivityReward) => void;
 }) {
   const rewards = props.entry.rewards?.filter((reward) => reward.name.trim()) ?? [];
@@ -476,15 +482,15 @@ function HomeActivityEntry(props: {
         {props.entry.detail ? <p data-ui-part="detail" data-info-priority="reading" data-text-tone="body">{props.entry.detail}</p> : null}
       </div>
       <div className="weekly-activity-reward-panel">
-        <span data-ui-part="label" data-info-priority="support" data-text-tone="meta">本周奖励</span>
+        <span data-ui-part="label" data-info-priority="support" data-text-tone="meta">{homeText(props.copy, "本周奖励")}</span>
         <div className="weekly-activity-reward-list">
           {rewards.length ? rewards.map((reward) => (
             <HomeActivityReward key={reward.hash} reward={reward} onOpen={props.onOpenReward} />
           )) : (
             <div className="weekly-activity-reward is-pending">
               <div>
-                <strong data-ui-part="value" data-info-priority="context" data-text-tone="primary">奖励待确认</strong>
-                <small data-ui-part="detail" data-info-priority="reading" data-text-tone="body">公开接口尚未返回可读奖励。</small>
+                <strong data-ui-part="value" data-info-priority="context" data-text-tone="primary">{homeText(props.copy, "奖励待确认")}</strong>
+                <small data-ui-part="detail" data-info-priority="reading" data-text-tone="body">{homeText(props.copy, "公开接口尚未返回可读奖励。")}</small>
               </div>
             </div>
           )}
@@ -537,6 +543,7 @@ function isHomeEquipmentReward(reward: HomeWeeklyActivityReward): boolean {
 function HomeXurOffer(props: {
   item: HomeDailyItem;
   vendorName: string;
+  copy: HomeCopy;
   refreshLabel?: string;
   onOpenXurOffer?: (item: VendorInventoryItemView, context: VendorOfferContextView) => void;
 }) {
@@ -552,11 +559,11 @@ function HomeXurOffer(props: {
   const content = <>
       <span className="home-vendor-stock-icon"><GameAssetImage alt="" src={iconUrl} /></span>
       <span className="home-vendor-stock-copy">
-        <span data-ui-part="label" data-info-priority="support" data-text-tone="meta">{typeLabel || "类型与职业备注未返回"}</span>
+        <span data-ui-part="label" data-info-priority="support" data-text-tone="meta">{typeLabel || homeText(props.copy, "类型与职业备注未返回")}</span>
         <strong data-ui-part="value" data-info-priority="context" data-text-tone="primary">{props.item.title}</strong>
-        <small data-ui-part="detail" data-info-priority="reading" data-text-tone="body">{props.item.description || props.item.source || "当前轮换商品"}</small>
+        <small data-ui-part="detail" data-info-priority="reading" data-text-tone="body">{props.item.description || props.item.source || homeText(props.copy, "当前轮换商品")}</small>
       </span>
-      <span className="home-vendor-stock-state" data-ui-part="state" data-info-priority="support" data-text-tone="status" data-status="success">本周轮换</span>
+      <span className="home-vendor-stock-state" data-ui-part="state" data-info-priority="support" data-text-tone="status" data-status="success">{homeText(props.copy, "本周轮换")}</span>
   </>;
   if (props.item.itemHash === undefined || !props.onOpenXurOffer) {
     return <article className="home-vendor-stock-item" data-ui-kind="object-card">{content}</article>;
@@ -648,6 +655,7 @@ function HomeSignal(props: {
   label: string;
   emptyLabel?: string;
   priority: HomeWeeklyPriority | undefined;
+  copy: HomeCopy;
 }) {
   const ready = props.priority?.status === "ready";
   const empty = !ready && Boolean(props.emptyLabel);
@@ -656,11 +664,11 @@ function HomeSignal(props: {
     <article className={`weekly-signal-card${props.className ? ` ${props.className}` : ""}`} data-surface="frame" data-ui-kind="summary-frame" data-status={status}>
       <header>
         <span data-ui-part="label" data-info-priority="context" data-text-tone="primary">{props.label}</span>
-        <span className="app-chip" data-ui-kind="status-chip" data-ui-part="state" data-info-priority="support" data-text-tone="status" data-status={status}>{ready ? "已确认" : props.emptyLabel ?? "待确认"}</span>
+        <span className="app-chip" data-ui-kind="status-chip" data-ui-part="state" data-info-priority="support" data-text-tone="status" data-status={status}>{ready ? homeText(props.copy, "已确认") : props.emptyLabel ?? homeText(props.copy, "待确认")}</span>
       </header>
       <div className="weekly-signal-copy">
-        <strong data-ui-part="value" data-info-priority="decision" data-text-tone="primary">{props.priority?.title ?? "公开接口尚未确认"}</strong>
-        <p data-ui-part="detail" data-info-priority="reading" data-text-tone="body">{props.priority?.detail ?? "当前不展示历史活动或推测内容。"}</p>
+        <strong data-ui-part="value" data-info-priority="decision" data-text-tone="primary">{props.priority?.title ?? homeText(props.copy, "公开接口尚未确认")}</strong>
+        <p data-ui-part="detail" data-info-priority="reading" data-text-tone="body">{props.priority?.detail ?? homeText(props.copy, "当前不展示历史活动或推测内容。")}</p>
       </div>
     </article>
   );
@@ -802,7 +810,14 @@ function HomeEmpty(props: { label: string }) {
   return <div className="weekly-activity-empty" data-ui-part="detail" data-info-priority="reading" data-text-tone="body">{props.label}</div>;
 }
 
+function activityEmptyLabel(priority: HomeWeeklyPriority | undefined): string {
+  if (priority?.status === "error") return "本周内容暂不可用。";
+  if (priority?.status === "warning") return "本周内容部分待确认。";
+  return "本周内容待确认。";
+}
+
 function HomeXurState(props: {
+  copy: HomeCopy;
   source: HomeDailySource | undefined;
   isLoading: boolean;
   error: string;
@@ -812,8 +827,8 @@ function HomeXurState(props: {
     return (
       <HomeVendorModuleState
         status="error"
-        title="本周八件轮换读取失败"
-        detail="没有显示上一次缓存的 Offer。重新读取成功后才恢复轮换列表。"
+        title={homeText(props.copy, "本周轮换暂不可用")}
+        detail={homeText(props.copy, "本次读取失败，未显示过期库存。")}
         onRetry={props.onRetry}
       />
     );
@@ -824,8 +839,8 @@ function HomeXurState(props: {
       <>
         <HomeVendorModuleState
           status="pending"
-          title="正在读取本周八件轮换"
-          detail="保留模块尺寸，等待 Vendor API 和当前资料库返回；不会回退显示旧库存。"
+          title={homeText(props.copy, "正在读取本周八件轮换")}
+          detail={homeText(props.copy, "等待公开商人数据和当前资料库返回。")}
         />
         <div className="home-vendor-stock-grid" aria-hidden="true">
           {Array.from({ length: 8 }, (_, index) => <i className="home-vendor-skeleton" key={index} />)}
@@ -837,8 +852,8 @@ function HomeXurState(props: {
   return (
     <HomeVendorModuleState
       status="warning"
-      title="当前没有可确认的仄本周八件轮换"
-      detail="商人未开放或主商人轮换不可见。旧 Offer 已清除，请等待下一次有效读取。"
+      title={homeText(props.copy, "当前没有可确认的仄本周八件轮换")}
+      detail={homeText(props.copy, "商人未开放或本周轮换暂不可见。")}
     />
   );
 }
@@ -858,16 +873,16 @@ function HomeVendorModuleState(props: {
   );
 }
 
-function HomeMissingXurOffer(props: { count: number }) {
+function HomeMissingXurOffer(props: { count: number; copy: HomeCopy }) {
   return (
     <article className="home-vendor-stock-item" data-ui-kind="object-card" data-status="warning">
       <span className="home-vendor-stock-icon is-missing" aria-hidden="true">?</span>
       <span className="home-vendor-stock-copy">
-        <span data-ui-part="label" data-info-priority="support" data-text-tone="meta">资料库定义待补齐</span>
-        <strong data-ui-part="value" data-info-priority="context" data-text-tone="primary">{props.count} 件轮换商品暂无可读名称</strong>
-        <small data-ui-part="detail" data-info-priority="reading" data-text-tone="body">Vendor API 已确认存在，不使用猜测名称、类型或图标。</small>
+        <span data-ui-part="label" data-info-priority="support" data-text-tone="meta">{homeText(props.copy, "资料库定义待补齐")}</span>
+        <strong data-ui-part="value" data-info-priority="context" data-text-tone="primary">{props.count} {homeText(props.copy, "件轮换商品暂无可读名称")}</strong>
+        <small data-ui-part="detail" data-info-priority="reading" data-text-tone="body">{homeText(props.copy, "Vendor API 已确认存在，不使用猜测名称、类型或图标。")}</small>
       </span>
-      <span className="home-vendor-stock-state" data-ui-part="state" data-info-priority="support" data-text-tone="status" data-status="warning">部分可用</span>
+      <span className="home-vendor-stock-state" data-ui-part="state" data-info-priority="support" data-text-tone="status" data-status="warning">{homeText(props.copy, "部分可用")}</span>
     </article>
   );
 }

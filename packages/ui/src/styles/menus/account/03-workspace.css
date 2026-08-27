@@ -322,6 +322,9 @@
   display: grid;
   gap: 10px;
   width: min(560px, calc(100% - 20px));
+  max-height: min(560px, max(220px, calc(100dvh - 340px)));
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 12px;
   border: 1px solid var(--border-control);
   border-radius: 4px;
@@ -1419,6 +1422,17 @@
     background: var(--surface-panel);
   }
 
+  :where(.app-shell) .account-directory-tabs[data-scroll-overflow="true"][data-scroll-right="true"]::after {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 28px;
+    height: 42px;
+    background: linear-gradient(90deg, transparent, var(--surface-panel) 86%);
+    content: "";
+    pointer-events: none;
+  }
+
   :where(.app-shell) .account-directory .account-column-head {
     display: none;
   }
@@ -1430,10 +1444,21 @@
     overflow-x: auto;
     overscroll-behavior-inline: contain;
     scrollbar-width: thin;
+    scroll-padding-inline: 12px;
   }
 
   :where(.app-shell) .account-directory-group-label {
-    display: none;
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    min-height: 42px;
+    padding: 0 8px;
+    border-right: 1px solid var(--border-control);
+    color: var(--text-muted);
+    background: var(--surface-recessed);
+    font-size: var(--priority-trace);
+    font-weight: 700;
+    white-space: nowrap;
   }
 
   :where(.app-shell) .account-directory-tabs > button {
@@ -1451,8 +1476,8 @@
   }
 
   :where(.app-shell) .account-directory-tabs > button.group-start {
-    margin-left: 8px;
-    border-left: 2px solid var(--border-control);
+    margin-left: 0;
+    border-left: 0;
   }
 
   :where(.app-shell) .account-character-switcher {
@@ -1479,6 +1504,22 @@
 
   .app-shell .account-actions {
     justify-content: flex-start;
+  }
+
+  :where(.app-shell) .account-column-head {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  :where(.app-shell) .account-column-head h3,
+  :where(.app-shell) .account-column-head span {
+    max-width: 100%;
+  }
+
+  :where(.app-shell) .account-column-head span {
+    white-space: normal;
+    line-height: 1.4;
   }
 
   .app-shell .account-slot-columns,

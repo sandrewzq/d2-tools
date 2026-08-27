@@ -143,6 +143,13 @@ export type VendorCharacterContextView = {
   label: string;
 };
 
+export type VendorScopeOptionView = {
+  kind: "character" | "account";
+  characterId?: string;
+  label: string;
+  description: string;
+};
+
 export type VendorStatusBannerView = {
   tone: "neutral" | "error";
   message: string;
@@ -162,6 +169,8 @@ export type VendorsPageModelView = {
   nextResetAt?: string;
   recommendationCount: number;
   verifiedItemCount: number;
+  scopeOptions?: VendorScopeOptionView[];
+  selectedScope?: VendorScopeOptionView;
   selectedCharacterContext?: VendorCharacterContextView | null;
   statusBanner?: VendorStatusBannerView;
 };
@@ -180,6 +189,7 @@ export type VendorOfferContextView = {
 
 export type VendorsPageActions = {
   selectVendor?: (vendorId: string) => void;
+  selectScope?: (scope: VendorScopeOptionView) => void;
   refreshVendors?: () => void;
   onOpenItem?: (item: VendorInventoryItemView, context: VendorOfferContextView) => void;
 };
@@ -210,6 +220,7 @@ export function VendorsPageContentView(props: VendorsPageContentViewProps) {
     ?? null;
   const refreshStatus = props.model.statusBanner;
   const [vendorSearchQuery, setVendorSearchQuery] = useState("");
+  const [vendorFilters, setVendorFilters] = useState({ affordableOnly: false, recommendedOnly: false });
 
   if (props.availability && (!props.availability.isBungieConfigured || !props.availability.isAccountLoggedIn)) {
     const isConfigured = props.availability.isBungieConfigured;
@@ -246,11 +257,18 @@ export function VendorsPageContentView(props: VendorsPageContentViewProps) {
     );
   }
 
-  const contentSections = prioritizeVendorSections(getVendorContentSections(selectedVendor));
+  const normalizedVendorSearchQuery = vendorSearchQuery.trim().toLocaleLowerCase(locale);
+  const allContentSections = prioritizeVendorSections(getVendorContentSections(selectedVendor));
+  const normalizedContentSearchQuery = vendorHasItemMatch(selectedVendor, normalizedVendorSearchQuery)
+    ? normalizedVendorSearchQuery
+    : "";
+  const contentSections = filterVendorSections(allContentSections, vendorFilters, normalizedContentSearchQuery);
+  const allItemCount = countSectionItemsFromSections(allContentSections);
+  const visibleItemCount = countSectionItemsFromSections(contentSections);
+  const hasContentFilter = Boolean(normalizedContentSearchQuery || vendorFilters.affordableOnly || vendorFilters.recommendedOnly);
   const vendorStatus = getVendorStatus(selectedVendor);
   const selectedVendorResetLabel = formatVendorReset(selectedVendor, locale);
   const updatedLabel = formatFullDateTime(props.model.updatedAt, props.model.updatedLabel);
-  const normalizedVendorSearchQuery = vendorSearchQuery.trim().toLocaleLowerCase(locale);
   const visibleRailSections = props.model.railSections.flatMap((section) => {
     const vendors = section.vendors.filter((vendor) => vendorMatchesSearch(vendor, normalizedVendorSearchQuery));
     return vendors.length ? [{ ...section, vendors }] : [];
@@ -272,13 +290,24 @@ export function VendorsPageContentView(props: VendorsPageContentViewProps) {
 
   function handleVendorKeyDown(event: ReactKeyboardEvent<HTMLButtonElement>) {
     const navigation = event.currentTarget.closest("nav");
+    const isHorizontalRail = navigation && window.getComputedStyle(navigation).display === "flex";
+    if (event.key === "ArrowRight" && !isHorizontalRail) {
+      const contentTarget = event.currentTarget.closest<HTMLElement>(".vendor-workbench")
+        ?.querySelector<HTMLElement>(".vendor-section-nav button, .vendor-offer-card");
+      if (contentTarget instanceof HTMLElement) {
+        event.preventDefault();
+        contentTarget.focus();
+        contentTarget.scrollIntoView({ block: "nearest", inline: "nearest" });
+        return;
+      }
+    }
     const buttons = [...(navigation?.querySelectorAll<HTMLButtonElement>("button[data-vendor-id]") ?? [])];
     const currentIndex = buttons.indexOf(event.currentTarget);
     const nextIndex = getRovingFocusIndex({
       key: event.key,
       currentIndex,
       itemCount: buttons.length,
-      orientation: navigation && window.getComputedStyle(navigation).display === "flex" ? "horizontal" : "vertical"
+      orientation: isHorizontalRail ? "horizontal" : "vertical"
     });
     if (nextIndex === null) return;
     event.preventDefault();
@@ -354,7 +383,7 @@ export function VendorsPageContentView(props: VendorsPageContentViewProps) {
             <div className="vendor-hero-meta">
               <span>{selectedVendor.source}</span>
               <span>{selectedVendorResetLabel}</span>
-              <span>{countVendorItems(selectedVendor)} 个可见条目</span>
+              <span>{visibleItemCount}{visibleItemCount === allItemCount ? "" : ` / ${allItemCount}`} 个可见条目</span>
               <span>{updatedLabel}</span>
             </div>
           </div>
@@ -362,8 +391,64 @@ export function VendorsPageContentView(props: VendorsPageContentViewProps) {
         </header>
 
         <div className="vendor-toolbar" role="status" aria-label="商人刷新状态" aria-live={refreshStatus?.live ?? "polite"} aria-busy={refreshStatus?.busy ?? false}>
-          <span className="vendor-character-context"><strong>当前角色库存</strong><small>{props.model.selectedCharacterContext?.label ?? "当前机灵：未检测到护甲师模组"}</small></span>
+          <span className="vendor-character-context"><strong>库存范围</strong><small>{props.model.selectedCharacterContext?.label ?? "当前机灵：未检测到护甲师模组"}</small></span>
+          {props.model.scopeOptions?.length && props.actions.selectScope ? (
+            <span className="vendor-scope-switcher" role="group" aria-label="商人库存范围">
+              {props.model.scopeOptions.map((option, index) => {
+                const selected = option.kind === props.model.selectedScope?.kind
+                  && option.characterId === props.model.selectedScope?.characterId;
+                return (
+                  <button
+                    type="button"
+                    key={`${option.kind}-${option.characterId ?? "account"}`}
+                    data-ui-kind="button"
+                    data-control-variant="quiet"
+                    data-control-size="compact"
+                    aria-pressed={selected}
+                    aria-label={`${option.label}：${option.description}`}
+                    tabIndex={selected ? 0 : -1}
+                    title={option.description}
+                    onClick={() => props.actions.selectScope?.(option)}
+                    onKeyDown={(event) => {
+                      const buttons = [...(event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>("button") ?? [])];
+                      const nextIndex = getRovingFocusIndex({
+                        key: event.key,
+                        currentIndex: index,
+                        itemCount: buttons.length,
+                        orientation: "horizontal"
+                      });
+                      if (nextIndex === null) return;
+                      event.preventDefault();
+                      const nextButton = buttons[nextIndex];
+                      const nextOption = props.model.scopeOptions?.[nextIndex];
+                      if (!nextButton || !nextOption) return;
+                      props.actions.selectScope?.(nextOption);
+                      nextButton.focus();
+                    }}
+                  >{option.label}</button>
+                );
+              })}
+            </span>
+          ) : null}
           <span data-status={refreshStatus?.tone === "error" ? "error" : vendorStatus}>{toolbarMessage}</span>
+          <span className="vendor-toolbar-actions" aria-label="库存筛选">
+            <button
+              type="button"
+              data-ui-kind="button"
+              data-control-variant="quiet"
+              data-control-size="compact"
+              aria-pressed={vendorFilters.affordableOnly}
+              onClick={() => setVendorFilters((current) => ({ ...current, affordableOnly: !current.affordableOnly }))}
+            >只看可负担</button>
+            <button
+              type="button"
+              data-ui-kind="button"
+              data-control-variant="quiet"
+              data-control-size="compact"
+              aria-pressed={vendorFilters.recommendedOnly}
+              onClick={() => setVendorFilters((current) => ({ ...current, recommendedOnly: !current.recommendedOnly }))}
+            >只看推荐</button>
+          </span>
         </div>
 
         <VendorSectionNavigation sections={contentSections} vendor={selectedVendor} />
@@ -375,7 +460,7 @@ export function VendorsPageContentView(props: VendorsPageContentViewProps) {
               <span>{selectedVendor.detailFailureMessage}。当前仍显示基础销售数据，属性与插槽可能不完整。</span>
             </div>
           ) : null}
-          <VendorContentSections sections={contentSections} vendor={selectedVendor} actions={props.actions} locale={locale} />
+          <VendorContentSections sections={contentSections} vendor={selectedVendor} actions={props.actions} locale={locale} hasActiveFilters={hasContentFilter} hasSearchQuery={Boolean(normalizedContentSearchQuery)} onClearFilters={() => { setVendorFilters({ affordableOnly: false, recommendedOnly: false }); setVendorSearchQuery(""); }} />
         </div>
       </section>
 
@@ -388,9 +473,22 @@ function VendorContentSections(props: {
   vendor: VendorInventoryGroupView;
   actions: VendorsPageActions;
   locale: InterfaceLocale;
+  hasActiveFilters?: boolean;
+  hasSearchQuery?: boolean;
+  onClearFilters?: () => void;
 }) {
   if (!props.sections.length) {
-    return <ProductWorkspaceEmptyState className="vendor-empty-section"><strong>当前没有可显示的库存</strong><span>{getVendorDisplayStatusLabel(props.vendor)}</span></ProductWorkspaceEmptyState>;
+    return (
+      <ProductWorkspaceEmptyState className="vendor-empty-section">
+        <strong>{props.hasActiveFilters ? "没有符合筛选条件的库存" : "当前没有可显示的库存"}</strong>
+        <span>{props.hasActiveFilters
+          ? props.hasSearchQuery
+            ? "尝试修改搜索词，或关闭“只看可负担 / 只看推荐”。"
+            : "尝试关闭“只看可负担”或“只看推荐”。"
+          : getVendorDisplayStatusLabel(props.vendor)}</span>
+        {props.hasActiveFilters && props.onClearFilters ? <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={props.onClearFilters}>清除筛选</button> : null}
+      </ProductWorkspaceEmptyState>
+    );
   }
 
   let subinventoryIndex = 0;
@@ -415,7 +513,7 @@ function VendorContentSections(props: {
             <header className="vendor-section-heading">
               <div>
                 {isSubinventory ? <small>{props.vendor.name} · 子库存 {String(currentSubinventoryIndex).padStart(2, "0")}</small> : null}
-                <h3 id={headingId}>{sectionTitle}</h3>
+                <h3 id={headingId}>{sectionTitle}{getVendorSectionContextLabel(section) ? <small className="vendor-section-context">{getVendorSectionContextLabel(section)}</small> : null}</h3>
               </div>
               <span>{getVendorSectionMeta(section, itemCount)}</span>
             </header>
@@ -428,7 +526,7 @@ function VendorContentSections(props: {
               return (
                 <section className="vendor-offer-group" key={group.id} aria-label={group.name || sectionTitle}>
                   {section.groups.length > 1 ? <div className="vendor-offer-group-head"><strong>{group.name || sectionTitle}</strong><span>{group.items.length} 件</span></div> : null}
-                  <div className={compact ? "vendor-service-list" : "vendor-offer-grid"}>
+                  <div className={compact ? "vendor-service-list" : "vendor-offer-grid"} onKeyDown={compact ? undefined : handleOfferGridKeyDown}>
                     {group.items.map((item) => compact
                       ? <VendorServiceRow key={item.id} item={item} section={section} />
                       : <VendorOfferButton key={item.id} item={item} vendor={props.vendor} actions={props.actions} locale={props.locale} />)}
@@ -441,6 +539,39 @@ function VendorContentSections(props: {
       })}
     </div>
   );
+}
+
+function handleOfferGridKeyDown(event: ReactKeyboardEvent<HTMLDivElement>) {
+  const target = event.target;
+  if (!(target instanceof HTMLButtonElement) || !target.classList.contains("vendor-offer-card")) return;
+  const grid = event.currentTarget;
+  const buttons = [...grid.querySelectorAll<HTMLButtonElement>("button.vendor-offer-card")];
+  const currentIndex = buttons.indexOf(target);
+  if (currentIndex < 0) return;
+  if (event.key === "ArrowLeft" && currentIndex === 0) {
+    const sectionTarget = grid.closest<HTMLElement>(".vendor-content-section")
+      ?.closest<HTMLElement>(".vendor-workbench")
+      ?.querySelector<HTMLButtonElement>(".vendor-section-nav button[aria-current='location']");
+    if (sectionTarget) {
+      event.preventDefault();
+      sectionTarget.focus();
+      sectionTarget.scrollIntoView({ block: "nearest", inline: "nearest" });
+      return;
+    }
+  }
+  const columnCount = Math.max(1, getComputedStyle(grid).gridTemplateColumns.split(" ").filter(Boolean).length);
+  let nextIndex: number | null = null;
+  if (event.key === "Home") nextIndex = 0;
+  if (event.key === "End") nextIndex = buttons.length - 1;
+  if (event.key === "ArrowLeft") nextIndex = Math.max(0, currentIndex - 1);
+  if (event.key === "ArrowRight") nextIndex = Math.min(buttons.length - 1, currentIndex + 1);
+  if (event.key === "ArrowUp") nextIndex = Math.max(0, currentIndex - columnCount);
+  if (event.key === "ArrowDown") nextIndex = Math.min(buttons.length - 1, currentIndex + columnCount);
+  if (nextIndex === null || nextIndex === currentIndex) return;
+  event.preventDefault();
+  const nextButton = buttons[nextIndex];
+  nextButton?.focus();
+  nextButton?.scrollIntoView({ block: "nearest", inline: "nearest" });
 }
 
 function VendorSectionNavigation(props: {
@@ -502,6 +633,16 @@ function VendorSectionNavigation(props: {
   }
 
   function handleSectionKeyDown(event: ReactKeyboardEvent<HTMLButtonElement>, currentIndex: number) {
+    if (event.key === "ArrowLeft" && currentIndex === 0) {
+      const vendorTarget = event.currentTarget.closest<HTMLElement>(".vendor-workbench")
+        ?.querySelector<HTMLButtonElement>("button[data-vendor-id][aria-current='page']");
+      if (vendorTarget) {
+        event.preventDefault();
+        vendorTarget.focus();
+        vendorTarget.scrollIntoView({ block: "nearest", inline: "nearest" });
+        return;
+      }
+    }
     const nextIndex = getRovingFocusIndex({
       key: event.key,
       currentIndex,
@@ -551,13 +692,20 @@ function VendorRankSummary(props: { section: VendorContentSectionView; vendor: V
   const progressPercent = progression.nextLevelAt
     ? Math.min(100, Math.max(0, currentStepProgress / progression.nextLevelAt * 100))
     : 0;
+  const atLevelCap = progression.levelCap > 0 && progression.level >= progression.levelCap;
+  const claimReady = !atLevelCap && progression.progressToNextLevel <= 0;
+  const rankState = atLevelCap
+    ? { label: "已达等级上限", status: "neutral" }
+    : claimReady
+      ? { label: "可领取下一等级奖励", status: "success" }
+      : { label: `还需 ${progression.progressToNextLevel} 点声望`, status: "pending" };
 
   return (
-    <div className="vendor-rank-panel">
+    <div className="vendor-rank-panel" data-rank-state={rankState.status}>
       <div className="vendor-rank-number"><span>当前等级</span><strong>{progression.level}</strong><small>{props.vendor.name}声望</small></div>
       <dl className="vendor-rank-ledger">
         <div><dt>本级进度</dt><dd><strong>{currentStepProgress} / {progression.nextLevelAt}</strong><span className="vendor-rank-progress" role="progressbar" aria-label={`${props.vendor.name}本级声望进度`} aria-valuemin={0} aria-valuemax={progression.nextLevelAt} aria-valuenow={currentStepProgress}><span style={{ width: `${progressPercent}%` }} /></span><small>累计进度 {progression.currentProgress}</small></dd><span>{Math.round(progressPercent)}%</span></div>
-        <div><dt>距离下一等级</dt><dd><strong>{progression.progressToNextLevel} 点</strong><small>等级上限 {progression.levelCap}</small></dd><span>{rewards.length} 个奖励节点</span></div>
+        <div><dt>下一等级奖励</dt><dd><strong data-status={rankState.status}>{rankState.label}</strong><small>{atLevelCap ? "当前声望已完成" : `达到等级 ${progression.level + 1} 后可领取`}</small></dd><span>{rewards.length} 个奖励节点</span></div>
       </dl>
     </div>
   );
@@ -599,11 +747,12 @@ function VendorOfferButton(props: {
   const content = <>
     <span className="vendor-offer-header">
       <VendorItemArt item={props.item} />
-      <span className="vendor-offer-copy">
-        <span className="vendor-offer-title"><strong>{props.item.name}</strong>{props.item.quantity && props.item.quantity > 1 ? <em>× {props.item.quantity.toLocaleString("zh-CN")}</em> : null}</span>
-        <span className="vendor-offer-summary">{props.item.itemType || "类型待确认"}{props.item.summary ? ` · ${props.item.summary}` : ""}</span>
-        {rollLabel ? <span className="vendor-offer-roll">{rollLabel}</span> : null}
-      </span>
+        <span className="vendor-offer-copy">
+          <span className="vendor-offer-title"><strong>{props.item.name}</strong>{props.item.quantity && props.item.quantity > 1 ? <em>× {props.item.quantity.toLocaleString("zh-CN")}</em> : null}</span>
+          <span className="vendor-offer-summary">{props.item.itemType || "类型待确认"}{props.item.summary ? ` · ${props.item.summary}` : ""}</span>
+          {props.item.decisionLabel ? <span className="vendor-offer-decision" data-status="success">{props.item.decisionLabel}</span> : null}
+          {rollLabel ? <span className="vendor-offer-roll">{rollLabel}</span> : null}
+        </span>
     </span>
     <span className="vendor-offer-footer">
       <VendorCosts item={props.item} fallback={costLabel} />
@@ -706,6 +855,12 @@ function getVendorSectionMeta(section: VendorContentSectionView, itemCount: numb
   return section.description ?? `${itemCount} 件`;
 }
 
+function getVendorSectionContextLabel(section: VendorContentSectionView): string {
+  const scopeLabel = section.scope === "account" ? "账号" : section.scope === "clan" ? "公会" : section.scope === "character" ? "当前角色" : "";
+  const actionLabel = section.action === "purchase" ? "游戏内购买" : section.action === "focus" ? "聚焦" : section.action === "decode" ? "解码" : section.action === "claim" ? "领取" : section.action === "acquire" ? "获取" : section.action === "exchange" ? "兑换" : section.action === "inspect" ? "查看" : "";
+  return [scopeLabel, actionLabel].filter(Boolean).join(" · ");
+}
+
 function shouldUseCompactVendorRows(section: VendorContentSectionView, group: VendorInventorySectionView): boolean {
   return section.kind === "tasks"
     || (section.kind === "inventory" && group.items.every((item) => !getVendorEquipmentKind(item)));
@@ -722,6 +877,50 @@ function countSectionItems(section: VendorContentSectionView): number {
 
 function countVendorItems(vendor: VendorInventoryGroupView): number {
   return getVendorContentSections(vendor).reduce((count, section) => count + countSectionItems(section), 0);
+}
+
+function countSectionItemsFromSections(sections: VendorContentSectionView[]): number {
+  return sections.reduce((count, section) => count + countSectionItems(section), 0);
+}
+
+function filterVendorSections(
+  sections: VendorContentSectionView[],
+  filters: { affordableOnly: boolean; recommendedOnly: boolean },
+  query = ""
+): VendorContentSectionView[] {
+  if (!filters.affordableOnly && !filters.recommendedOnly && !query) return sections;
+  return sections.flatMap((section) => {
+    const groups = section.groups.flatMap((group) => {
+      const items = group.items.filter((item) => {
+        if (query && !vendorItemMatchesQuery(item, query)) return false;
+        if (filters.recommendedOnly && !item.decisionLabel) return false;
+        if (filters.affordableOnly && !isVendorItemAffordable(item)) return false;
+        return true;
+      });
+      return items.length ? [{ ...group, items }] : [];
+    });
+    if (!groups.length && section.kind !== "reputation") return [];
+    return [{ ...section, groups }];
+  });
+}
+
+function isVendorItemAffordable(item: VendorInventoryItemView): boolean {
+  if (item.canPurchase === true) return true;
+  if (item.canPurchase === false) return false;
+  return Boolean(item.costs?.length) && item.costs.every((cost) => cost.affordable === true);
+}
+
+function vendorHasItemMatch(vendor: VendorInventoryGroupView, query: string): boolean {
+  if (!query) return false;
+  return getVendorContentSections(vendor).some((section) => section.groups.some((group) => group.items.some((item) => vendorItemMatchesQuery(item, query))));
+}
+
+function vendorItemMatchesQuery(item: VendorInventoryItemView, query: string): boolean {
+  return [item.name, item.itemType, item.categoryName, item.summary, item.decisionLabel]
+    .filter((value): value is string => Boolean(value))
+    .join(" ")
+    .toLocaleLowerCase()
+    .includes(query);
 }
 
 function getVendorDisplayStatusLabel(vendor: VendorInventoryGroupView): string {

@@ -339,7 +339,7 @@ function OverviewSection({ model }: { model: ArmorDetailViewModel }) {
       <SectionHeading eyebrow="属性与获取" title="属性与获取详情" description="属性只展示基础值和当前实际值；获取来源只使用当前已确认数据。" />
       <div className={["armor-detail-overview-grid", !model.stats.length && "is-stat-empty"].filter(Boolean).join(" ")}>
         <section className="armor-detail-data-block">
-          <DataBlockHeading title="护甲属性" source={model.stats.length ? model.context.kind === "vendor_offer" ? "商人 Offer 实际值" : "账号当前实例 · 已确认" : "护甲定义没有固定属性"} />
+          <DataBlockHeading title="护甲属性" source={model.stats.length ? model.context.kind === "vendor_offer" ? "商人当前售卖实际值" : "账号当前实例 · 已确认" : "护甲定义没有固定属性"} />
           {model.stats.length ? (
             <>
               <div className="armor-detail-stat-summary">
@@ -354,8 +354,8 @@ function OverviewSection({ model }: { model: ArmorDetailViewModel }) {
             </>
           ) : (
             <EmptyState text={model.context.kind === "vendor_offer"
-              ? "当前没有可显示的售卖属性；不会回退展示旧 Offer 的属性。"
-              : "护甲定义没有固定六维属性，实际属性只存在于商人 Offer 或账号实例。"} />
+              ? "当前没有可显示的售卖属性；不会回退展示之前的售卖属性。"
+              : "护甲定义没有固定六维属性，实际属性只存在于商人售卖品或账号实例。"} />
           )}
         </section>
 
@@ -372,7 +372,7 @@ function OverviewSection({ model }: { model: ArmorDetailViewModel }) {
               ))}
             </div>
           ) : <EmptyState text="这件护甲的获取方式暂未确认。" />}
-          <p className="armor-detail-note" data-ui-kind="callout" data-callout-tone="info">获取方式和当前售卖状态分别展示；实时读取失败时不回退显示旧 Offer。</p>
+          <p className="armor-detail-note" data-ui-kind="callout" data-callout-tone="info">获取方式和当前售卖状态分别展示；实时读取失败时不回退显示之前的售卖记录。</p>
         </section>
       </div>
     </>
@@ -406,7 +406,7 @@ function ConfigurationSection({ model }: { model: ArmorDetailViewModel }) {
           <div className="armor-detail-capability-table">
             <CapabilityRow label="适用职业" value={model.identity.class_name ?? "所有职业"} status="装备要求" />
             <CapabilityRow label="护甲部位" value={model.identity.bucket_name ?? model.identity.item_type ?? "护甲"} status="部位规则" />
-            <CapabilityRow label="随机属性" value="每件商人 Offer 或账号实例可能拥有不同属性分布" status="每件可能不同" />
+            <CapabilityRow label="随机属性" value="每件商人售卖品或账号实例可能拥有不同属性分布" status="每件可能不同" />
             <CapabilityRow label="当前对象" value={model.context.object_label} status={model.context.read_only ? "只读" : "可管理"} />
             {isExotic ? <CapabilityRow label="异域限制" value="同一时间只能装备一件异域护甲" status="装备规则" /> : null}
           </div>

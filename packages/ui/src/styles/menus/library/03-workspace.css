@@ -75,7 +75,7 @@
   min-height: 34px;
 }
 
-.app-shell .library-workbench {
+:where(.app-shell) .library-workbench {
   grid-template-columns: var(--rail-md) minmax(0, 1fr);
   min-height: calc(100vh - 222px);
   margin-top: 10px;
@@ -145,7 +145,7 @@
 
 :where(.app-shell) .library-search-actions {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 76px;
+  grid-template-columns: 1fr;
   gap: 6px;
 }
 

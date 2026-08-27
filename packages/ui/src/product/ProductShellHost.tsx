@@ -13,9 +13,6 @@ import { ProductWorkspaceHeader, ProductWorkspacePage } from "../workspace/Produ
 import type { ProductShellHostProps } from "./types.js";
 
 export function ProductShellHost(props: ProductShellHostProps) {
-  // #region debug-point B:product-shell-render
-  void fetch("http://127.0.0.1:7777/event", { method: "POST", body: JSON.stringify({ sessionId: "desktop-first-load-stall", runId: "pre-fix-2", hypothesisId: "B", location: "ProductShellHost.tsx:ProductShellHost", msg: "[DEBUG] ProductShellHost render entered", data: { activePage: props.activePage }, ts: Date.now() }) }).catch(() => {});
-  // #endregion
   const [uncontrolledActivePage, setUncontrolledActivePage] = useState<ShellPageKey>(props.initialPage ?? "home");
   const [uncontrolledAssistantMode, setUncontrolledAssistantMode] = useState<ShellAssistantMode>(props.initialAssistantMode ?? null);
   const [uncontrolledPreferences, setUncontrolledPreferences] = useState<ProductPreferences>({
@@ -199,7 +196,7 @@ const productPageHeaderMeta: Record<ShellPageKey, { eyebrow: string; title: stri
   vault: { eyebrow: "装备管理", title: "仓库工作台", subtitle: "真实工作流分为筛选列表、同名整理和推荐数据。" },
   loadouts: { eyebrow: "配装", title: "配装工作台", subtitle: "集中处理本地模板和 Bungie 游戏内配装栏的补齐、应用、覆盖与差异。" },
   guides: { eyebrow: "攻略", title: "本地攻略库", subtitle: "保存、搜索和整理攻略正文、来源与版本快照，阅读和编辑不依赖 AI。" },
-  library: { eyebrow: "资料库", title: "装备与 Perk 查询", subtitle: "使用本地 Manifest 搜索定义、版本、Perk 池、获取来源和账号持有实例。" },
+  library: { eyebrow: "资料库", title: "装备与 Perk 查询", subtitle: "使用本地资料库查询装备、版本、Perk 池、获取来源和账号持有实例。" },
   vendors: { eyebrow: "商人", title: "地点与商人库存", subtitle: "先按地点分组定位商人，再查看库存、子库存、任务、声望和等级奖励。" },
   settings: { eyebrow: "设置", title: "应用与数据", subtitle: "管理界面语言、账号读取、资料库、Bungie 接口、AI、备份和诊断。" }
 };

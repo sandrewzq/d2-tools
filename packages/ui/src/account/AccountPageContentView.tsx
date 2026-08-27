@@ -95,7 +95,7 @@ function AccountUnavailableState(props: {
         {isLoading ? props.copy.loadingAccount : props.copy.disconnectedBadge}
       </span>
       <h2>{title}</h2>
-      <p>{isLoading ? accountText(props.copy, "正在读取当前 Profile 快照，完成后会保留角色和位置结构。") : props.copy.emptyBody}</p>
+      <p>{isLoading ? accountText(props.copy, "正在读取当前角色资料，完成后会保留角色和装备位置。") : props.copy.emptyBody}</p>
       {props.viewModel.feedback.accountError ? <p className="status-message status-error" role="alert">{props.viewModel.feedback.accountError}</p> : null}
       {props.viewModel.feedback.accountWarning ? <p className="status-message status-warning">{props.viewModel.feedback.accountWarning}</p> : null}
       <div className="button-row">
@@ -127,21 +127,55 @@ function AccountPageWorkspace(props: {
   const profile = props.viewModel.profile!;
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const characterRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const directoryTabsRef = useRef<HTMLDivElement | null>(null);
   const powerTriggerRef = useRef<HTMLButtonElement | null>(null);
   const powerPanelRef = useRef<HTMLElement | null>(null);
   const [isPowerPanelOpen, setIsPowerPanelOpen] = useState(false);
   const [powerMode, setPowerMode] = useState<"equippable" | "slots">("equippable");
+  const [directoryScrollState, setDirectoryScrollState] = useState({ overflow: false, canScrollRight: false });
   const displayedSlotRows = visibleAccountSlotRows(props.viewModel.loadout.slotComparisonRows);
   const displayedInventoryCount = displayedSlotRows.reduce((count, row) => count + row.inventoryItems.length, 0);
   const directoryOrientation = useAccountDirectoryOrientation();
-  const navigation: Array<{ key: AccountSection; label: string; count?: number; groupLabel?: string }> = [
-    { key: "gear", label: accountText(props.copy, "战斗装备"), groupLabel: accountText(props.copy, "当前角色") },
-    { key: "configuration", label: accountText(props.copy, "角色物品与配置") },
-    { key: "tasks", label: accountText(props.copy, "任务与赏金") },
-    { key: "postmaster", label: accountText(props.copy, "邮政官"), count: props.viewModel.postmaster.totalCount || undefined },
-    { key: "items", label: accountText(props.copy, "材料与货币"), groupLabel: accountText(props.copy, "整个账号") },
-    { key: "activity", label: accountText(props.copy, "账号战绩") }
+  const navigation: Array<{ key: AccountSection; label: string; count?: number; groupLabel?: string; scopeLabel: string }> = [
+    { key: "gear", label: accountText(props.copy, "战斗装备"), groupLabel: accountText(props.copy, "当前角色"), scopeLabel: accountText(props.copy, "当前角色") },
+    { key: "configuration", label: accountText(props.copy, "角色物品与配置"), scopeLabel: accountText(props.copy, "当前角色") },
+    { key: "tasks", label: accountText(props.copy, "任务与赏金"), scopeLabel: accountText(props.copy, "当前角色") },
+    { key: "postmaster", label: accountText(props.copy, "邮政官"), count: props.viewModel.postmaster.totalCount || undefined, scopeLabel: accountText(props.copy, "当前角色") },
+    { key: "items", label: accountText(props.copy, "材料与货币"), groupLabel: accountText(props.copy, "整个账号"), scopeLabel: accountText(props.copy, "整个账号") },
+    { key: "activity", label: accountText(props.copy, "账号战绩"), scopeLabel: accountText(props.copy, "整个账号") }
   ];
+
+  useEffect(() => {
+    const tabs = directoryTabsRef.current;
+    if (!tabs) return;
+    const updateScrollState = () => {
+      const nextState = {
+        overflow: tabs.scrollWidth > tabs.clientWidth + 1,
+        canScrollRight: tabs.scrollLeft + tabs.clientWidth < tabs.scrollWidth - 1
+      };
+      setDirectoryScrollState((current) => current.overflow === nextState.overflow && current.canScrollRight === nextState.canScrollRight ? current : nextState);
+    };
+    updateScrollState();
+    tabs.addEventListener("scroll", updateScrollState, { passive: true });
+    if (typeof ResizeObserver === "undefined") return () => tabs.removeEventListener("scroll", updateScrollState);
+    const observer = new ResizeObserver(updateScrollState);
+    observer.observe(tabs);
+    return () => {
+      tabs.removeEventListener("scroll", updateScrollState);
+      observer.disconnect();
+    };
+  }, [directoryOrientation, navigation.length]);
+
+  useEffect(() => {
+    const selectedIndex = navigation.findIndex((item) => item.key === props.section);
+    if (selectedIndex < 0) return;
+    tabRefs.current[selectedIndex]?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }, [props.section]);
+
+  function selectSection(nextSection: AccountSection): void {
+    setIsPowerPanelOpen(false);
+    props.setSection(nextSection);
+  }
 
   useEffect(() => {
     if (!isPowerPanelOpen) return;
@@ -195,7 +229,7 @@ function AccountPageWorkspace(props: {
     }
 
     event.preventDefault();
-    props.setSection(navigation[nextIndex].key);
+    selectSection(navigation[nextIndex].key);
     tabRefs.current[nextIndex]?.focus();
   }
 
@@ -234,20 +268,29 @@ function AccountPageWorkspace(props: {
           <h3 data-ui-part="value" data-info-priority="context" data-text-tone="primary">账号目录</h3>
           <span data-ui-part="detail" data-info-priority="trace" data-text-tone="meta">{profile.accountName}</span>
         </div>
-        <div className="account-directory-tabs" role="tablist" aria-orientation={directoryOrientation} aria-label={accountText(props.copy, "账号数据视图")}>
+        <div
+          ref={directoryTabsRef}
+          className="account-directory-tabs"
+          role="tablist"
+          aria-orientation={directoryOrientation}
+          aria-label={accountText(props.copy, "账号数据视图")}
+          data-scroll-overflow={directoryScrollState.overflow ? "true" : "false"}
+          data-scroll-right={directoryScrollState.canScrollRight ? "true" : "false"}
+        >
           {navigation.map((item, index) => (
             <Fragment key={item.key}>
-              {item.groupLabel ? <span className="account-directory-group-label" role="presentation" aria-hidden="true">{item.groupLabel}</span> : null}
+              {item.groupLabel ? <span className="account-directory-group-label" role="presentation">{item.groupLabel}</span> : null}
               <button
                 type="button"
                 role="tab"
                 id={`account-tab-${item.key}`}
                 aria-controls={`account-panel-${item.key}`}
+                aria-label={`${item.scopeLabel}：${item.label}`}
                 aria-selected={props.section === item.key}
                 tabIndex={props.section === item.key ? 0 : -1}
                 className={`${props.section === item.key ? "active" : ""} ${item.groupLabel && index > 0 ? "group-start" : ""}`.trim()}
                 ref={(element) => { tabRefs.current[index] = element; }}
-                onClick={() => props.setSection(item.key)}
+                onClick={() => selectSection(item.key)}
                 onKeyDown={(event) => handleDirectoryKeyDown(event, index)}
               >
                 <span>{item.label}</span>
@@ -461,9 +504,9 @@ function AccountPageWorkspace(props: {
                       </div>
                     ))}
                   </div>
-                ) : <AccountInlineState title={accountText(props.copy, "暂无最近活动记录")} detail={accountText(props.copy, "Activity History 当前没有返回可展示的近期场次。")} />}
+                ) : <AccountInlineState title={accountText(props.copy, "暂无最近活动记录")} detail={accountText(props.copy, "当前没有返回可展示的近期场次。")} />}
               </>
-            ) : <AccountInlineState title={accountText(props.copy, "当前快照未包含活动记录")} detail={accountText(props.copy, "读取 Activity History 后会在这里显示真实的近期复盘。")} />}
+            ) : <AccountInlineState title={accountText(props.copy, "当前快照未包含活动记录")} detail={accountText(props.copy, "读取账号资料后会在这里显示真实的近期复盘。")} />}
         </section>
       </ProductWorkspaceContentStack>
       </ProductWorkspaceSplit>
@@ -486,7 +529,7 @@ function AccountCharacterItemsPanel(props: { copy: AccountCopy; viewModel: Accou
         <div className="account-config-grid">
           {primaryItems.map((item) => <AccountConfigItem item={item} key={item.key} />)}
         </div>
-      ) : <AccountInlineState title="没有角色配置数据" detail="当前 Profile 未返回职业分支、机灵或外观配置。" />}
+      ) : <AccountInlineState title="没有角色配置数据" detail="当前角色资料未返回职业分支、机灵或外观配置。" />}
       {extraItems.length ? (
         <details className="account-config-more">
           <summary>
@@ -561,7 +604,7 @@ function AccountDataGroup(props: { copy: AccountCopy; group: AccountReadonlyGrou
       <div className="account-readonly-list">
         {props.group.items.length
           ? props.group.items.map((item) => <AccountReadonlyRow copy={props.copy} item={item} key={item.key} />)
-          : <AccountInlineState title="当前没有数据" detail="不会生成示例条目。" />}
+          : <AccountInlineState title="当前没有数据" detail="当前没有可显示的条目。" />}
       </div>
     </details>
   );
@@ -607,7 +650,7 @@ function AccountMaterialsGroup(props: {
     <details className="account-data-group account-material-group" open={isOpen} onToggle={(event) => setIsOpen(event.currentTarget.open)}>
       <summary>
         <span>
-          <strong data-ui-part="value" data-info-priority="context" data-text-tone="primary">账号材料与货币</strong>
+          <strong data-ui-part="value" data-info-priority="context" data-text-tone="primary">材料清单</strong>
           <small data-ui-part="detail" data-info-priority="support" data-text-tone="body">账号级数量，不属于角色装备</small>
         </span>
         <b>{rows.length} 种</b>
@@ -789,7 +832,7 @@ function AccountSlotComparison(props: {
     .filter((category) => category.rows.length > 0);
 
   if (!categories.length) {
-    return <AccountInlineState title={accountText(props.copy, "当前角色没有装备位置数据")} detail={accountText(props.copy, "当前 Profile 快照未返回可按位置展示的装备或背包物品。")} />;
+    return <AccountInlineState title={accountText(props.copy, "当前角色没有装备位置数据")} detail={accountText(props.copy, "当前角色资料未返回可按位置展示的装备或背包物品。")} />;
   }
 
   return (

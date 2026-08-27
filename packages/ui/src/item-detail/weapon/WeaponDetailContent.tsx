@@ -370,14 +370,14 @@ function WeaponIdentity(props: {
         <details className="weapon-detail-definition-details">
           <summary>武器定义信息</summary>
           <div>
-            <dl><dt>官方描述</dt><dd>{identity.description || "当前 Manifest 未返回描述"}</dd></dl>
+            <dl><dt>官方描述</dt><dd>{identity.description || "当前资料库未返回描述"}</dd></dl>
             <dl><dt>发布版本</dt><dd>{releaseLabel}</dd></dl>
             <dl><dt>发布类型</dt><dd>{releaseKindLabel(identity.release?.kind)}</dd></dl>
             <dl><dt>定义版本</dt><dd>{definitionVersionLabel}</dd></dl>
-            <dl><dt>光等上限 Hash</dt><dd>{identity.definition_version?.power_cap_hash ?? "资料未返回"}</dd></dl>
+            <dl><dt>光等上限编号</dt><dd>{identity.definition_version?.power_cap_hash ?? "资料未返回"}</dd></dl>
             <dl><dt>版本水印</dt><dd>{watermarks.length ? <span className="weapon-detail-definition-watermarks">{watermarks.map((icon, index) => <GameAssetImage key={`${icon}:${index}`} src={icon} alt={`官方版本水印 ${index + 1}`} title="官方定义版本水印" loading="eager" />)}</span> : "资料未返回"}</dd></dl>
-            <dl><dt>Manifest Hash</dt><dd>{identity.hash}</dd></dl>
-            <dl><dt>数据来源</dt><dd>当前 Manifest{context.kind === "account_instance" ? " + Profile 实例" : context.kind === "vendor_offer" ? " + Vendor Offer" : ""}</dd></dl>
+            <dl><dt>装备编号</dt><dd>{identity.hash}</dd></dl>
+            <dl><dt>数据来源</dt><dd>资料库定义{context.kind === "account_instance" ? " + 账号当前实例" : context.kind === "vendor_offer" ? " + 商人当前售卖" : ""}</dd></dl>
             <dl><dt>操作方式</dt><dd>{context.read_only ? "只读查看" : "可管理实例"}</dd></dl>
           </div>
         </details>
@@ -449,10 +449,10 @@ function OverviewSection(props: {
   const showPending = props.model.context.kind === "account_instance"
     && props.model.stats.some((stat) => stat.pending_delta !== undefined && stat.pending_delta !== 0);
   const statSource = props.model.context.kind === "account_instance"
-    ? "Manifest 定义 + Profile 当前实例"
+    ? "资料库定义 + 账号当前实例"
     : props.model.context.kind === "vendor_offer"
-      ? "Manifest 定义 + Vendor Offer"
-      : "Manifest 定义";
+      ? "资料库定义 + 商人当前售卖"
+      : "资料库定义";
   return (
     <>
       <SectionHeading eyebrow="属性与获取" title="属性与获取详情" description="区分资料库标准值、当前对象实际值和待应用配置变化。" />
@@ -672,7 +672,7 @@ function ConfigurationSection(props: {
     : isVariableExotic
       ? context.kind === "account_instance"
         ? "只展示当前实例真实拥有的异域配置选项；可写项以 Bungie 返回的插槽状态为准。"
-        : "展示当前异域定义或 Offer 可确认的配置，不把它称为普通传说武器掉落池。"
+        : "展示当前异域定义或商人售卖可确认的配置，不把它称为普通传说武器掉落池。"
       : context.kind === "account_instance"
         ? "只允许切换当前实例真实拥有且可应用的 Perk。"
         : "当前对象为只读，不提供远程配置操作。";
@@ -690,13 +690,13 @@ function ConfigurationSection(props: {
       />
       <DataBlockHeading
         title="配置数据"
-        source={context.kind === "account_instance" ? "Profile 实例插槽 + Manifest Perk 定义 · 当前读取" : context.kind === "vendor_offer" ? "Vendor Offer + Manifest Perk 定义 · 当前读取" : "Manifest Perk 定义 · 当前读取"}
+        source={context.kind === "account_instance" ? "账号当前实例插槽 + 资料库 Perk 定义 · 当前读取" : context.kind === "vendor_offer" ? "商人当前售卖 + 资料库 Perk 定义 · 当前读取" : "资料库 Perk 定义 · 当前读取"}
       />
       <div className="weapon-detail-config-summary">
         <span>{context.object_label}</span>
         <span>{configurationKindLabel(configuration.kind)}</span>
         <span>{operationLabel}</span>
-        <span>{context.kind === "account_instance" ? "Manifest + Profile 当前实例" : context.kind === "vendor_offer" ? "Manifest + Vendor Offer" : "Manifest 定义"}</span>
+        <span>{context.kind === "account_instance" ? "资料库定义 + 账号当前实例" : context.kind === "vendor_offer" ? "资料库定义 + 商人当前售卖" : "资料库定义"}</span>
       </div>
       <div className="weapon-detail-config-grid">
         {configuration.intrinsic ? <PerkColumn label="固有能力" role="intrinsic" candidates={[configuration.intrinsic]} /> : <div className="weapon-detail-intrinsic-empty">未返回固有能力</div>}
@@ -775,7 +775,7 @@ function ConfigurationSection(props: {
           {props.poolOpen ? (
             <><div className="weapon-detail-pool-grid">
               {configuration.pool_columns.map((column) => <PerkColumn key={column.key} label={column.label} role={column.role} candidates={column.candidates} />)}
-            </div><p className="weapon-detail-note">这些是当前 Manifest 可确认的特殊异域随机配置候选，不代表当前实例已经拥有，也不属于普通传说武器掉落池。</p></>
+            </div><p className="weapon-detail-note">这些是当前资料库可确认的特殊异域随机配置候选，不代表当前实例已经拥有，也不属于普通传说武器掉落池。</p></>
           ) : null}
         </section>
       ) : null}
@@ -957,14 +957,14 @@ function RecommendationCard(props: { model: WeaponDetailViewModel; recommendatio
 function UpgradeSection({ model }: { model: WeaponDetailViewModel }) {
   const { upgrades } = model;
   const objectSource = model.context.kind === "account_instance"
-    ? "Profile 当前实例"
+    ? "账号当前实例"
     : model.context.kind === "vendor_offer"
-      ? "Vendor Offer"
-      : "Manifest 定义";
+      ? "商人当前售卖"
+      : "资料库定义";
   const rows = [
     upgrades.masterwork ? { key: "masterwork", label: "大师杰作", current: `${upgrades.masterwork.name}${upgrades.masterwork.level ? ` · ${upgrades.masterwork.level} 级` : ""}`, detail: `${upgrades.masterwork.complete ? "已完成" : "未完成"}${upgrades.masterwork.stat_amount ? ` · 属性 ${upgrades.masterwork.stat_amount > 0 ? "+" : ""}${upgrades.masterwork.stat_amount}` : ""}`, source: objectSource } : null,
     upgrades.mod ? { key: "mod", label: "武器模组", current: upgrades.mod.name, detail: upgrades.mod.description, source: objectSource } : null,
-    upgrades.catalyst ? { key: "catalyst", label: "催化剂", current: upgrades.catalyst.name, detail: catalystStateLabel(model), source: upgrades.catalyst.acquired === undefined ? "Manifest 定义" : "Profile + Manifest" } : null,
+    upgrades.catalyst ? { key: "catalyst", label: "催化剂", current: upgrades.catalyst.name, detail: catalystStateLabel(model), source: upgrades.catalyst.acquired === undefined ? "资料库定义" : "账号进度 + 资料库定义" } : null,
     upgrades.enhancement ? { key: "enhancement", label: "强化阶级", current: upgrades.enhancement.name, detail: upgrades.enhancement.level !== undefined ? `当前 ${upgrades.enhancement.level} 阶` : "当前装备强化状态", source: objectSource } : null,
     upgrades.crafting_level !== undefined ? { key: "crafting", label: "锻造等级", current: `${upgrades.crafting_level} 级`, detail: upgrades.enhanced ? "已包含强化能力" : "未强化", source: objectSource } : null
   ].filter((row): row is NonNullable<typeof row> => Boolean(row));
@@ -972,7 +972,7 @@ function UpgradeSection({ model }: { model: WeaponDetailViewModel }) {
   return (
     <>
       <SectionHeading eyebrow="升级与锻造" title={upgrades.catalyst ? "催化剂、杰作与当前进度" : "大师杰作、模组与强化"} description="当前对象状态与定义能力分别标明来源，不把未返回的信息补成结论。" />
-      <DataBlockHeading title="升级状态" source={upgrades.catalyst ? (upgrades.catalyst.acquired === undefined ? "Manifest 定义" : "Profile 进度 + Manifest 定义 · 当前读取") : objectSource} />
+      <DataBlockHeading title="升级状态" source={upgrades.catalyst ? (upgrades.catalyst.acquired === undefined ? "资料库定义" : "账号进度 + 资料库定义 · 当前读取") : objectSource} />
       <div className={["weapon-detail-upgrade-layout", !upgrades.catalyst && "without-catalyst"].filter(Boolean).join(" ")}>
         {upgrades.catalyst ? <article className="weapon-detail-catalyst"><header><GameAssetImage className="game-definition-icon" src={upgrades.catalyst.icon} alt="" loading="eager" /><div><strong>{upgrades.catalyst.name}</strong><span>{upgrades.catalyst.objective || catalystStateLabel(model)}</span></div></header>{upgrades.catalyst.acquired !== undefined ? <progress value={upgrades.catalyst.progress ?? (upgrades.catalyst.complete ? 100 : 0)} max={100} /> : null}{upgrades.catalyst.acquisition ? <p>获取：{upgrades.catalyst.acquisition}</p> : null}{upgrades.catalyst.effects.length ? <ul>{upgrades.catalyst.effects.map((effect) => <li key={effect}>{effect}</li>)}</ul> : null}</article> : null}
         {rows.length ? (

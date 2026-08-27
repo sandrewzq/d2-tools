@@ -573,7 +573,7 @@ function buildAccountItemsSection(
       toReadonlyGroup(
         "unknown",
         "未分类数据",
-        "资料库暂时无法稳定归类，仅用于兼容和诊断",
+        "暂未识别的角色物品，保留原始数据供查看",
         unknown,
         "当前角色背包",
         unknown.length ? "warning" : "neutral"
