@@ -30,7 +30,7 @@
   color: var(--status-warning);
   background: var(--status-warning-bg);
   font-size: var(--font-section-title);
-  font-weight: 800;
+  font-weight: 700;
 }
 
 .confirmation-dialog[data-confirm-tone="danger"] .confirmation-dialog-mark {

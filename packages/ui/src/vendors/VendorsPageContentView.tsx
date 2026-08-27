@@ -907,7 +907,8 @@ function filterVendorSections(
 function isVendorItemAffordable(item: VendorInventoryItemView): boolean {
   if (item.canPurchase === true) return true;
   if (item.canPurchase === false) return false;
-  return Boolean(item.costs?.length) && item.costs.every((cost) => cost.affordable === true);
+  const costs = item.costs ?? [];
+  return costs.length > 0 && costs.every((cost) => cost.affordable === true);
 }
 
 function vendorHasItemMatch(vendor: VendorInventoryGroupView, query: string): boolean {
@@ -928,6 +929,7 @@ function getVendorDisplayStatusLabel(vendor: VendorInventoryGroupView): string {
 }
 
 function getVendorRailSummary(vendor: VendorInventoryGroupView): string {
+  if (vendor.railStatusLabel) return vendor.railStatusLabel;
   const itemCount = countVendorItems(vendor);
   if (vendor.detailState === "failed" || vendor.inventoryState === "unavailable") return `${itemCount} 件 · 读取失败`;
   if (vendor.detailState === "partial") return `${itemCount} 件 · 部分可用`;

@@ -656,13 +656,15 @@ function AccountMaterialsGroup(props: {
         <b>{rows.length} 种</b>
       </summary>
       {rows.length ? (
-        <div className="account-table-list account-material-list">
+        <div className="account-material-list">
           {rows.map((row) => (
-            <div key={row.key}>
-              <GameAssetImage src={row.material.icon} alt="" fallback={<span className="item-icon-placeholder" aria-hidden="true" />} />
-              <strong>{row.material.name}</strong>
-              <span>{row.material.quantity.toLocaleString(props.interfaceLocale)}</span>
-              <small>{row.meta}</small>
+            <div className="account-material-row" key={row.key}>
+              <GameAssetImage className="account-material-icon" src={row.material.icon} alt="" fallback={<span className="item-icon-placeholder" aria-hidden="true" />} />
+              <div className="account-material-main">
+                <strong>{row.material.name}</strong>
+                <small>{row.meta}</small>
+              </div>
+              <span className="account-material-quantity">{row.material.quantity.toLocaleString(props.interfaceLocale)}</span>
             </div>
           ))}
         </div>
@@ -696,7 +698,7 @@ function AccountPowerPanel(props: {
     modeRefs.current[nextIndex]?.focus();
   }
   return (
-    <section ref={props.panelRef} className="account-power-panel" id={props.id} data-surface="summary-frame" aria-label={accountText(props.copy, "光等详情")}>
+    <section ref={props.panelRef} className="account-power-panel" id={props.id} data-surface="frame" data-ui-kind="summary-frame" aria-label={accountText(props.copy, "光等详情")}>
       <div className="account-power-panel-head">
         <strong>{props.mode === "equippable" ? accountText(props.copy, "可同时装备最高光等") : accountText(props.copy, "八槽最高光等")}</strong>
         <PowerFractionValue value={value} />

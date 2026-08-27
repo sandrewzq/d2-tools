@@ -406,7 +406,6 @@
 :where(.app-shell) .account-power-mode button[aria-selected="true"] {
   color: var(--selected-fg);
   background: var(--selected-bg);
-  box-shadow: inset 0 -2px 0 var(--selected-border);
 }
 
 :where(.app-shell) .account-power-rows {
@@ -1239,6 +1238,69 @@
   border-bottom: 1px solid var(--border-subtle);
 }
 
+.app-shell .account-material-list {
+  display: grid;
+}
+
+.app-shell .account-material-row {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  min-width: 0;
+  min-height: 64px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.app-shell .account-material-row:last-child {
+  border-bottom: 0;
+}
+
+.app-shell .account-material-icon,
+.app-shell .account-material-row > .item-icon-placeholder {
+  display: block;
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-control);
+  background: var(--surface-interactive);
+  object-fit: cover;
+}
+
+.app-shell .account-material-main,
+.app-shell .account-material-main strong,
+.app-shell .account-material-main small {
+  display: block;
+  min-width: 0;
+}
+
+.app-shell .account-material-main strong {
+  overflow: hidden;
+  color: var(--text-title);
+  font-size: var(--font-content);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-shell .account-material-main small {
+  margin-top: 3px;
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: var(--font-meta);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-shell .account-material-quantity {
+  color: var(--text-title);
+  font-size: var(--priority-context);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  text-align: right;
+  white-space: nowrap;
+}
+
 .app-shell .account-activity-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1472,7 +1534,8 @@
   }
 
   :where(.app-shell) .account-directory-tabs > button.active {
-    box-shadow: inset 0 -3px 0 var(--nav-current-indicator);
+    color: var(--selected-fg);
+    background: var(--selected-bg);
   }
 
   :where(.app-shell) .account-directory-tabs > button.group-start {
@@ -1594,6 +1657,11 @@
   :where(.app-shell) .account-table-list small {
     grid-column: 1 / -1;
     text-align: left;
+  }
+
+  .app-shell .account-material-row {
+    gap: 8px;
+    padding-inline: 10px;
   }
 
   :where(.app-shell) .account-power-panel {

@@ -1,4 +1,4 @@
-import { useId, useMemo, useRef, type KeyboardEvent, type ReactNode } from "react";
+import { useEffect, useId, useMemo, useRef, type KeyboardEvent, type ReactNode } from "react";
 import type {
   ItemSearchResult,
   LibraryDropAccessKey,

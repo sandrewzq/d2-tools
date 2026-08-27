@@ -792,12 +792,12 @@
 }
 
 :where(.app-shell) .vendor-rank-panel[data-rank-state="success"] {
-  border-inline-start: 3px solid var(--status-ready-text);
+  border-inline-start: 1px solid var(--status-ready-text);
   padding-inline-start: 9px;
 }
 
 :where(.app-shell) .vendor-rank-panel[data-rank-state="pending"] {
-  border-inline-start: 3px solid var(--accent-primary);
+  border-inline-start: 1px solid var(--accent-primary);
   padding-inline-start: 9px;
 }
 

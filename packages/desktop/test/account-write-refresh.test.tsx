@@ -159,6 +159,7 @@ function loadoutInput(input: {
     loadoutActionFeedback: { setSingleActionFeedback: vi.fn() },
     setLoadoutMessage: vi.fn(),
     setItemActionMessage: vi.fn(),
+    setAccountOperationFeedback: vi.fn(),
     setIsRunningItemAction: vi.fn(),
     loadAccountSummary: input.loadAccountSummary,
     loadAuthoritativeAccountSummary: input.loadAuthoritativeAccountSummary

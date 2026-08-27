@@ -259,6 +259,7 @@ export function VaultDuplicateGroups(props: {
 
       {activeGroup ? (
         <DuplicateComparePanel
+          key={activeGroup.group_key}
           group={activeGroup}
           itemByKey={comparisonItemByKey}
           wishlist={props.wishlist}
@@ -318,8 +319,12 @@ function DuplicateComparePanel(props: {
   });
   const savedDisposition = Object.fromEntries(props.group.items.map((entry) => [entry.item_key, dispositionFromTag(entry.tag)]));
   const pendingDisposition = props.pendingDisposition ?? savedDisposition;
-  const [rollViewMode, setRollViewMode] = useState<"full" | "active">("full");
+  // 首屏保持稳定的“当前启用”视图；完整 Roll 只在详情齐全后由用户主动开启。
+  const [rollViewMode, setRollViewMode] = useState<"full" | "active">("active");
   const [protectionConflictCount, setProtectionConflictCount] = useState(0);
+  useEffect(() => {
+    if (props.rollDataStatus !== "ready") setRollViewMode("active");
+  }, [props.rollDataStatus]);
   const referenceRow = rows.find((row) => row.entry.item_key === props.referenceKey);
   const referenceIndex = Math.max(0, rows.findIndex((row) => row.entry.item_key === props.referenceKey));
   const columns = useMemo(() => buildComparisonColumns(rows.map((row) => row.item)), [props.group.group_key, props.itemByKey]);
@@ -372,15 +377,30 @@ function DuplicateComparePanel(props: {
             <span>比较基准</span>
             <strong>实例 {referenceIndex + 1}{props.referenceIsAutomatic ? " · 默认" : ""}</strong>
           </div>
-          {hasRollColumns && props.rollDataStatus === "ready" ? (
+          {hasRollColumns ? (
             <div className="duplicate-roll-view-mode" role="group" aria-label="Roll 比较范围">
-              <button type="button" aria-pressed={rollViewMode === "full"} onClick={() => setRollViewMode("full")}>完整 Roll</button>
               <button type="button" aria-pressed={rollViewMode === "active"} onClick={() => setRollViewMode("active")}>当前启用</button>
+              <button
+                type="button"
+                aria-pressed={rollViewMode === "full"}
+                disabled={props.rollDataStatus !== "ready"}
+                onClick={() => setRollViewMode("full")}
+              >
+                完整 Roll
+              </button>
             </div>
           ) : null}
-          {hasRollColumns && props.rollDataStatus !== "ready" ? (
+          {hasRollColumns ? (
             <div className="duplicate-roll-data-status" data-status={props.rollDataStatus} role={props.rollDataStatus === "error" ? "alert" : "status"}>
-              <span>{props.rollDataStatus === "loading" ? "正在读取完整 Roll，当前显示启用项" : "当前仅比较启用项"}</span>
+              <span>
+                {props.rollDataStatus === "loading"
+                  ? "正在读取完整 Roll · 当前显示启用项"
+                  : props.rollDataStatus === "error"
+                    ? "完整 Roll 读取失败 · 当前显示启用项"
+                    : props.rollDataStatus === "unavailable"
+                      ? "完整 Roll 不可用 · 当前显示启用项"
+                      : "完整 Roll 已就绪"}
+              </span>
               {props.rollDataStatus === "error" ? <button type="button" onClick={props.onRetryRollDetails}>重试</button> : null}
             </div>
           ) : null}

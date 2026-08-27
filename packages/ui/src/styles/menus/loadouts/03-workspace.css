@@ -1333,7 +1333,7 @@
 .app-shell .loadout-armor-mod-stepper > span {
   color: var(--text-title);
   font-size: var(--font-meta);
-  font-weight: 650;
+  font-weight: 600;
 }
 
 .app-shell .loadout-armor-mod-stepper > div {
