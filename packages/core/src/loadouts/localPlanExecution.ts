@@ -64,7 +64,7 @@ export type LocalLoadoutPlanPublishVerification = {
 };
 
 export function createLocalLoadoutPlanExecutionPlan(input: {
-  plan: Pick<LocalLoadoutPlan, "class_name" | "item_targets">;
+  plan: Pick<LocalLoadoutPlan, "class_name" | "item_targets" | "armor_constraints" | "armor_plan">;
   account: AccountSummary;
   target_character_id: string;
 }): LocalLoadoutPlanExecutionPlan {
@@ -72,7 +72,16 @@ export function createLocalLoadoutPlanExecutionPlan(input: {
   if (!target) throw new Error("目标角色不在当前账号快照中，请刷新账号后重试。");
   const match = matchLocalLoadoutPlan(input.plan, input.account);
   const steps: LocalLoadoutPlanExecutionStep[] = [];
-  const gaps: string[] = [];
+  const armorPlanGaps = validatePlannedArmorAssignments(input.plan, match.item_matches);
+  const gaps: string[] = [...armorPlanGaps];
+  const plannedArmorPlugHashes = new Map((input.plan.armor_plan?.planned_armor_plugs ?? []).map((assignment) => [
+    assignment.instance_id,
+    new Set([
+      ...(input.plan.item_targets.find((target) => target.selected_instance_id === assignment.instance_id)?.plug_hashes ?? []),
+      assignment.tuning_plug_hash,
+      assignment.armor_stat_mod_plug_hash
+    ].filter((hash): hash is number => hash !== undefined))
+  ]));
 
   match.item_matches.forEach((itemMatch, index) => {
     const targetLabel = itemMatch.target.slot || `装备 ${index + 1}`;
@@ -145,8 +154,14 @@ export function createLocalLoadoutPlanExecutionPlan(input: {
         label: `${matched.item.name}：装备到目标角色`
       });
     }
+    const plannedArmorPlugs = plannedArmorPlugHashes.get(instanceId);
+    const resolvedArmorSockets = plannedArmorPlugs
+      ? resolvePlannedPlugSockets(matched.item.sockets ?? [], itemMatch.target.plug_hashes)
+      : undefined;
     for (const plugHash of itemMatch.target.plug_hashes) {
-      const socket = findWritableSocket(matched, plugHash);
+      const socket = plannedArmorPlugs?.has(plugHash)
+        ? findResolvedArmorSocket(matched, plugHash, resolvedArmorSockets)
+        : findWritableSocket(matched, plugHash);
       if (socket === "already-applied") continue;
       if (!socket) {
         gaps.push(`${targetLabel}：Plug ${plugHash} 当前没有可验证的可写 Socket。`);
@@ -166,7 +181,8 @@ export function createLocalLoadoutPlanExecutionPlan(input: {
     }
   });
 
-  const executableSteps = dedupeSteps(steps);
+  const strictArmorPlan = Boolean(input.plan.armor_plan?.planned_armor_plugs.length);
+  const executableSteps = strictArmorPlan && gaps.length ? [] : dedupeSteps(steps);
   const uniqueGaps = [...new Set(gaps)];
   const selectedItemInstanceIds = match.item_matches
     .filter((itemMatch) => itemMatch.status === "selected")
@@ -189,6 +205,134 @@ export function createLocalLoadoutPlanExecutionPlan(input: {
     selected_item_count: match.selected_count,
     selected_item_instance_ids: Object.freeze(selectedItemInstanceIds)
   });
+}
+
+function validatePlannedArmorAssignments(
+  plan: Pick<LocalLoadoutPlan, "armor_constraints" | "armor_plan">,
+  matches: ReturnType<typeof matchLocalLoadoutPlan>["item_matches"]
+): string[] {
+  const assignments = plan.armor_plan?.planned_armor_plugs ?? [];
+  if (!assignments.length) return [];
+  const gaps: string[] = [];
+  let plus5 = 0;
+  let plus10 = 0;
+
+  for (const assignment of assignments) {
+    const match = matches.find((candidate) => (
+      candidate.target.selected_instance_id === assignment.instance_id
+    ));
+    const item = match?.status === "selected" ? match.candidates[0]?.item : undefined;
+    if (!match || !item) {
+      gaps.push(`护甲实例 ${assignment.instance_id.slice(-4)}：执行前无法重新定位。`);
+      continue;
+    }
+    if (!item.armor_energy || !item.sockets?.length) {
+      gaps.push(`${item.name}：缺少能量或 Socket 数据，无法复核逐部位 Plug。`);
+      continue;
+    }
+    if (item.armor_energy.capacity !== assignment.energy_capacity) {
+      gaps.push(`${item.name}：护甲能量容量已从 ${assignment.energy_capacity} 变化为 ${item.armor_energy.capacity}。`);
+    }
+    const targetPlugHashes = new Set(match.target.plug_hashes);
+    for (const requiredPlugHash of [
+      assignment.tuning_plug_hash,
+      assignment.armor_stat_mod_plug_hash
+    ]) {
+      if (requiredPlugHash !== undefined && !targetPlugHashes.has(requiredPlugHash)) {
+        gaps.push(`${item.name}：已保存的逐件 Plug 计划与装备目标不一致。`);
+      }
+    }
+
+    const plannedBySocket = resolvePlannedPlugSockets(item.sockets, match.target.plug_hashes);
+    if (!plannedBySocket) {
+      gaps.push(`${item.name}：目标 Plug 当前无法分配到互不冲突的可验证 Socket。`);
+      continue;
+    }
+    const finalEnergy = item.sockets.reduce((total, socket) => {
+      const plug = plannedBySocket.get(socket.socket_index) ?? socket.selected_plug;
+      return total + Math.max(0, plug?.energy_cost ?? 0);
+    }, 0);
+    if (finalEnergy > item.armor_energy.capacity) {
+      gaps.push(`${item.name}：逐件 Plug 需要 ${finalEnergy}/${item.armor_energy.capacity} 能量。`);
+    }
+    const armorStatModPlug = assignment.armor_stat_mod_plug_hash === undefined
+      ? undefined
+      : [...plannedBySocket.values()].find((plug) => plug?.hash === assignment.armor_stat_mod_plug_hash);
+    const currentArmorStatModValue = armorStatModPlugValue(armorStatModPlug);
+    if (currentArmorStatModValue !== assignment.armor_stat_mod_value) {
+      gaps.push(`${item.name}：属性模组 Plug 的实际数值与保存计划不一致。`);
+    }
+    const reservedEnergy = Math.max(0, finalEnergy - Math.max(0, armorStatModPlug?.energy_cost ?? 0));
+    if (reservedEnergy !== assignment.reserved_energy) {
+      gaps.push(`${item.name}：其他模组能量账本已变化（保存 ${assignment.reserved_energy}，当前 ${reservedEnergy}）。`);
+    }
+    if (finalEnergy !== assignment.final_energy) {
+      gaps.push(`${item.name}：逐件 Plug 能量账本已变化（保存 ${assignment.final_energy}，当前 ${finalEnergy}）。`);
+    }
+    if (currentArmorStatModValue === 5) plus5 += 1;
+    if (currentArmorStatModValue === 10) plus10 += 1;
+  }
+
+  if (assignments.length !== 5) {
+    gaps.push(`护甲候选只保存了 ${assignments.length}/5 个逐件 Plug 计划。`);
+  }
+  const expectedPlus5 = plan.armor_constraints?.five_point_mod_budget ?? 0;
+  const expectedPlus10 = plan.armor_constraints?.ten_point_mod_budget ?? 0;
+  if (plus5 !== expectedPlus5 || plus10 !== expectedPlus10) {
+    gaps.push(`属性模组精确数量已变化：计划 +5 × ${expectedPlus5}、+10 × ${expectedPlus10}，逐件结果为 +5 × ${plus5}、+10 × ${plus10}。`);
+  }
+  return [...new Set(gaps)];
+}
+
+function resolvePlannedPlugSockets(
+  sockets: readonly AccountItemSocketSummary[],
+  plugHashes: readonly number[]
+): Map<number, AccountItemSocketSummary["selected_plug"]> | undefined {
+  const requests = plugHashes.map((plugHash, requestIndex) => ({
+    requestIndex,
+    options: sockets.flatMap((socket) => {
+      const selected = socket.selected_plug?.hash === plugHash ? socket.selected_plug : undefined;
+      const reusable = socket.reusable_plugs.find((plug) => plug.hash === plugHash && plug.enabled !== false);
+      const plug = selected ?? reusable;
+      return plug ? [{ socketIndex: socket.socket_index, plug }] : [];
+    })
+  }));
+  if (requests.some((request) => !request.options.length)) return undefined;
+
+  const usedSockets = new Set<number>();
+  const assignments = new Array<{ socketIndex: number; plug: NonNullable<AccountItemSocketSummary["selected_plug"]> } | undefined>(plugHashes.length);
+  const ordered = [...requests].sort((left, right) => (
+    left.options.length - right.options.length
+    || left.requestIndex - right.requestIndex
+  ));
+
+  function assign(index: number): boolean {
+    if (index >= ordered.length) return true;
+    const request = ordered[index]!;
+    for (const option of request.options) {
+      if (usedSockets.has(option.socketIndex)) continue;
+      usedSockets.add(option.socketIndex);
+      assignments[request.requestIndex] = option;
+      if (assign(index + 1)) return true;
+      assignments[request.requestIndex] = undefined;
+      usedSockets.delete(option.socketIndex);
+    }
+    return false;
+  }
+
+  if (!assign(0)) return undefined;
+  return new Map(assignments.flatMap((assignment) => assignment
+    ? [[assignment.socketIndex, assignment.plug] as const]
+    : []));
+}
+
+function armorStatModPlugValue(
+  plug: AccountItemSocketSummary["selected_plug"]
+): 5 | 10 | undefined {
+  const values = Object.values(plug?.armor_stat_modifiers ?? {}).filter((value) => value !== 0);
+  return values.length === 1 && (values[0] === 5 || values[0] === 10)
+    ? values[0]
+    : undefined;
 }
 
 export function validateLocalLoadoutPlanExecutionPlan(
@@ -328,13 +472,29 @@ export function verifyLocalLoadoutPlanPublishPlan(
     : { status: "verified", reasons: [] };
 }
 
-function findWritableSocket(item: LocalLoadoutPlanMatchedItem, plugHash: number): AccountItemSocketSummary | "already-applied" | null {
+function findWritableSocket(
+  item: LocalLoadoutPlanMatchedItem,
+  plugHash: number
+): AccountItemSocketSummary | "already-applied" | null {
   for (const socket of item.item.sockets ?? []) {
     if (socket.selected_plug?.hash === plugHash) return "already-applied";
     const reusable = socket.reusable_plugs.find((plug) => plug.hash === plugHash);
-    if (reusable && reusable.can_insert !== false && reusable.enabled !== false) return socket;
+    if (reusable && reusable.enabled !== false && reusable.can_insert !== false) return socket;
   }
   return null;
+}
+
+function findResolvedArmorSocket(
+  item: LocalLoadoutPlanMatchedItem,
+  plugHash: number,
+  resolvedSockets: ReadonlyMap<number, AccountItemSocketSummary["selected_plug"]> | undefined
+): AccountItemSocketSummary | "already-applied" | null {
+  if (!resolvedSockets) return null;
+  const resolved = [...resolvedSockets.entries()].find(([, plug]) => plug?.hash === plugHash);
+  if (!resolved) return null;
+  const socket = item.item.sockets?.find((candidate) => candidate.socket_index === resolved[0]);
+  if (!socket) return null;
+  return socket.selected_plug?.hash === plugHash ? "already-applied" : socket;
 }
 
 function gapLabel(status: ReturnType<typeof matchLocalLoadoutPlan>["item_matches"][number]["status"]): string {

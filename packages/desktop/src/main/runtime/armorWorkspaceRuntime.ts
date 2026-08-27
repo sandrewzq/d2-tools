@@ -16,7 +16,7 @@ import type {
   ArmorPlannerJob,
   ArmorPlannerSourceRevision
 } from "@d2-tools/services/armor/planner";
-import { getAccountSnapshot } from "./accountSession.js";
+import { getArmorPlannerAccountSummary } from "./accountSession.js";
 import {
   invalidateArmorPlannerRuntime,
   planArmorInWorker
@@ -49,12 +49,12 @@ export async function planArmorWorkspaceInRuntime<Job extends ArmorPlannerWorksp
   }
 
   const needsAccount = request.job.mode !== "theoretical";
-  let account = needsAccount ? await getAccountSnapshot("cached") : null;
+  let account = needsAccount ? await getArmorPlannerAccountSummary("cached") : null;
   let pieces = account
     ? normalizeAccountArmorPieces(account, manifest.ruleset)
     : [];
   if (account && armorSnapshotNeedsRefresh(pieces)) {
-    account = await getAccountSnapshot("refresh");
+    account = await getArmorPlannerAccountSummary("refresh");
     pieces = normalizeAccountArmorPieces(account, manifest.ruleset);
   }
   const resolvedJob = resolvePlannerJob(request.job, manifest.ruleset, manifest.armor_set_catalog, pieces);
@@ -158,6 +158,24 @@ function accountSourceRevision(
       final: piece.stats.final,
       archetype: piece.archetype?.id,
       tuning: piece.tuning,
+      installation: {
+        gear_tier: piece.installation.gear_tier,
+        energy_capacity: piece.installation.energy_capacity,
+        reserved_energy: piece.installation.reserved_energy,
+        armor_stat_mod_options: piece.installation.armor_stat_mod_options.map((option) => ({
+          plug_hash: option.source_plug_hash,
+          value: option.value,
+          stat: option.stat,
+          energy_cost: option.energy_cost
+        })),
+        armor_stat_mod_clear_plug_hashes: piece.installation.armor_stat_mod_clear_options.map((plug) => plug.plug_hash),
+        tuning_plug_hashes: piece.installation.tuning_options.map((option) => option.tuning.source_plug_hash),
+        available_non_stat_plugs: piece.installation.available_non_stat_plugs.map((plug) => ({
+          plug_hash: plug.plug_hash,
+          socket_index: plug.socket_index,
+          energy_cost: plug.energy_cost
+        }))
+      },
       set_hash: piece.set?.hash
     })).sort((left, right) => (
       (left.instance_id ?? "").localeCompare(right.instance_id ?? "")
@@ -169,6 +187,11 @@ function accountSourceRevision(
 
 function armorSnapshotNeedsRefresh(pieces: readonly ArmorPieceSnapshot[]): boolean {
   return pieces.some((piece) => (
-    piece.quality.owned_ready && !piece.quality.checks.has_base_stats
+    piece.quality.owned_ready
+    && (!piece.quality.checks.has_base_stats
+      || !piece.quality.checks.has_energy_capacity
+      || !piece.quality.checks.has_stat_mod_socket
+      || !piece.installation.armor_stat_mod_clear_options.length
+      || (piece.installation.gear_tier === 5 && !piece.installation.tuning_options.length))
   ));
 }

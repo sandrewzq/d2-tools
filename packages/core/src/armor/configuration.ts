@@ -32,6 +32,9 @@ export type ArmorConfigurationInput = {
   masterwork_tier?: number;
   tuning: ArmorConfigurationTuning;
   armor_stat_mod?: Omit<ArmorStatModIdentity, "source_plug_hash">;
+  energy_capacity?: number;
+  reserved_energy?: number;
+  armor_stat_mod_energy_cost?: number;
   item_hash?: number;
   name?: string;
   exotic?: boolean;
@@ -67,6 +70,13 @@ export type ArmorConfiguration = {
   masterwork_tier: number;
   tuning: ArmorConfigurationTuning;
   armor_stat_mod?: Omit<ArmorStatModIdentity, "source_plug_hash">;
+  energy: {
+    capacity: number;
+    reserved: number;
+    armor_stat_mod: number;
+    final: number;
+    remaining: number;
+  };
   stats: {
     raw: ArmorStatValues;
     masterwork: ArmorStatValues;
@@ -99,6 +109,17 @@ export function buildArmorConfiguration(
   const issues: ArmorConfigurationIssue[] = [];
   const archetype = ruleset.archetypes.find((candidate) => candidate.id === input.archetype_id);
   const masterworkTier = input.masterwork_tier ?? ruleset.masterwork.maximum_tier;
+  const energyCapacity = normalizeEnergyValue(
+    input.energy_capacity,
+    ruleset.armor_mod.default_energy_capacity
+  );
+  const reservedEnergy = normalizeEnergyValue(input.reserved_energy, 0);
+  const armorStatModEnergy = input.armor_stat_mod
+    ? normalizeEnergyValue(
+        input.armor_stat_mod_energy_cost,
+        ruleset.armor_mod.energy_costs[input.armor_stat_mod.value]
+      )
+    : 0;
 
   if (!input.configuration_id.trim()) {
     issues.push({ code: "missing_configuration_id", message: "理论护甲配置缺少稳定 ID。" });
@@ -112,6 +133,11 @@ export function buildArmorConfiguration(
     issues.push({
       code: "invalid_masterwork_tier",
       message: `大师杰作等级必须位于 0-${ruleset.masterwork.maximum_tier}。`
+    });
+  } else if (masterworkTier !== ruleset.masterwork.maximum_tier) {
+    issues.push({
+      code: "tuning_requires_tier_five",
+      message: "护甲调整只在 T5 护甲上可用。"
     });
   }
   if (archetype
@@ -130,6 +156,12 @@ export function buildArmorConfiguration(
   }
   validateTuning(input.tuning, issues);
   validateArmorStatMod(input.armor_stat_mod, ruleset, issues);
+  if (reservedEnergy > energyCapacity) {
+    issues.push({ code: "reserved_energy_exceeds_capacity", message: "其他护甲模组占用超过当前能量容量。" });
+  }
+  if (reservedEnergy + armorStatModEnergy > energyCapacity) {
+    issues.push({ code: "armor_stat_mod_energy_exceeds_capacity", message: "当前部位剩余能量不足以安装指定属性模组。" });
+  }
 
   if (!archetype || issues.length) return { status: "invalid", issues };
 
@@ -187,6 +219,13 @@ export function buildArmorConfiguration(
       masterwork_tier: masterworkTier,
       tuning: { ...input.tuning },
       armor_stat_mod: input.armor_stat_mod ? { ...input.armor_stat_mod } : undefined,
+      energy: {
+        capacity: energyCapacity,
+        reserved: reservedEnergy,
+        armor_stat_mod: armorStatModEnergy,
+        final: reservedEnergy + armorStatModEnergy,
+        remaining: Math.max(0, energyCapacity - reservedEnergy - armorStatModEnergy)
+      },
       stats: {
         raw,
         masterwork,
@@ -196,6 +235,10 @@ export function buildArmorConfiguration(
       }
     }
   };
+}
+
+function normalizeEnergyValue(value: number | undefined, fallback: number): number {
+  return Number.isFinite(value) ? Math.max(0, Math.trunc(value!)) : Math.max(0, Math.trunc(fallback));
 }
 
 function validateTuning(

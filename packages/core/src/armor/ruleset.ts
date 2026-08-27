@@ -50,6 +50,8 @@ export type ArmorRuleset = {
   armor_mod: {
     allowed_values: readonly [0, 5, 10];
     maximum_per_piece: 1;
+    default_energy_capacity: 10;
+    energy_costs: Readonly<Record<5 | 10, number>>;
   };
   stat_limits: {
     minimum: 0;
@@ -119,7 +121,12 @@ export function createArmor30Ruleset(
     },
     armor_mod: {
       allowed_values: [0, 5, 10],
-      maximum_per_piece: 1
+      maximum_per_piece: 1,
+      default_energy_capacity: 10,
+      energy_costs: {
+        5: 1,
+        10: 3
+      }
     },
     stat_limits: {
       minimum: 0,

@@ -1,4 +1,9 @@
-import type { AccountItemPlugSummary, AccountItemSummary, AccountSummary } from "../account/summary.js";
+import type {
+  AccountItemPlugSummary,
+  AccountItemReusablePlugSummary,
+  AccountItemSummary,
+  AccountSummary
+} from "../account/summary.js";
 import type { ArmorStatKey } from "../loadouts/analysis.js";
 import {
   addArmorStatValues,
@@ -11,10 +16,14 @@ import {
   type ArmorMasterworkIdentity,
   type ArmorModifierSnapshot,
   type ArmorPieceDataQuality,
+  type ArmorPieceInstallationContext,
   type ArmorPieceSnapshot,
+  type ArmorPlannedPlugSnapshot,
   type ArmorSlot,
+  type ArmorStatModInstallationOption,
   type ArmorStatModIdentity,
   type ArmorStatValues,
+  type ArmorTuningInstallationOption,
   type ArmorTuningIdentity
 } from "./model.js";
 import type { ArmorArchetypeRule, ArmorRuleset } from "./ruleset.js";
@@ -56,6 +65,7 @@ export function normalizeArmorPiece(input: NormalizeArmorPieceInput): ArmorPiece
   const masterwork = masterworkMatches.length === 1
     ? createMasterworkIdentity(masterworkMatches[0]!, input.ruleset)
     : undefined;
+  const installation = buildArmorInstallationContext(input.item, input.ruleset);
   const quality = buildArmorPieceQuality({
     item: input.item,
     slot,
@@ -68,7 +78,8 @@ export function normalizeArmorPiece(input: NormalizeArmorPieceInput): ArmorPiece
     tuning,
     tuningCount: tuningMatches.length,
     armorModCount: armorModMatches.length,
-    masterworkCount: masterworkMatches.length
+    masterworkCount: masterworkMatches.length,
+    installation
   });
   const exotic = isExoticArmor(input.item);
 
@@ -94,6 +105,7 @@ export function normalizeArmorPiece(input: NormalizeArmorPieceInput): ArmorPiece
     tuning,
     armor_stat_mod: armorStatMod,
     masterwork,
+    installation,
     quality
   };
 }
@@ -294,6 +306,162 @@ function createMasterworkIdentity(
   };
 }
 
+function buildArmorInstallationContext(
+  item: AccountItemSummary,
+  ruleset: ArmorRuleset
+): ArmorPieceInstallationContext {
+  const statModOptions = new Map<string, ArmorStatModInstallationOption>();
+  const tuningOptions = new Map<number, ArmorTuningInstallationOption>();
+  const statModSocketIndexes = new Set<number>();
+  const tuningSocketIndexes = new Set<number>();
+  const selectedSpecialPlugHashes = new Set<number>();
+  const availableNonStatPlugs = new Map<string, ArmorPlannedPlugSnapshot>();
+  const plannedNonStatPlugs: ArmorPlannedPlugSnapshot[] = [];
+  let selectedArmorStatModEnergy = 0;
+
+  for (const socket of item.sockets ?? []) {
+    if (!socket.is_visible) continue;
+    const candidates: Array<AccountItemPlugSummary | AccountItemReusablePlugSummary> = [
+      ...(socket.selected_plug ? [socket.selected_plug] : []),
+      ...socket.reusable_plugs.filter((plug) => plug.enabled !== false)
+    ];
+    for (const plug of candidates) {
+      const modifiers = classifyArmorModifier(plug);
+      const armorModifier = modifiers.find((modifier) => modifier.kind === "armor_stat_mod");
+      const tuningModifier = modifiers.find((modifier) => (
+        modifier.kind === "tuning_shift" || modifier.kind === "tuning_plus3"
+      ));
+      if (armorModifier) {
+        const identity = createArmorStatModIdentity(armorModifier);
+        if (identity) {
+          const energyCost = normalizeEnergyCost(
+            plug.energy_cost,
+            ruleset.armor_mod.energy_costs[identity.value]
+          );
+          statModSocketIndexes.add(socket.socket_index);
+          statModOptions.set(`${identity.source_plug_hash}:${socket.socket_index}`, {
+            ...identity,
+            plug_name: plug.name,
+            socket_index: socket.socket_index,
+            energy_cost: energyCost
+          });
+          if (socket.selected_plug?.hash === plug.hash) {
+            selectedArmorStatModEnergy = energyCost;
+            selectedSpecialPlugHashes.add(plug.hash);
+          }
+        }
+      }
+      if (tuningModifier) {
+        const identity = createTuningIdentity(tuningModifier);
+        if (identity) {
+          tuningSocketIndexes.add(socket.socket_index);
+          tuningOptions.set(identity.source_plug_hash, {
+            tuning: identity,
+            values: cloneArmorStatValues(tuningModifier.values),
+            plug_name: plug.name,
+            socket_index: socket.socket_index,
+            energy_cost: 0
+          });
+          if (socket.selected_plug?.hash === plug.hash) {
+            selectedSpecialPlugHashes.add(plug.hash);
+          }
+        }
+      }
+      if (!armorModifier && !tuningModifier) {
+        availableNonStatPlugs.set(`${plug.hash}:${socket.socket_index}`, {
+          plug_hash: plug.hash,
+          plug_name: plug.name,
+          socket_index: socket.socket_index,
+          energy_cost: normalizeEnergyCost(plug.energy_cost, 0),
+          ...(plug.category_identifier ? { category_identifier: plug.category_identifier } : {})
+        });
+      }
+    }
+  }
+
+  for (const socket of item.sockets ?? []) {
+    const plug = socket.selected_plug;
+    if (!socket.is_visible
+      || !plug
+      || selectedSpecialPlugHashes.has(plug.hash)
+      || statModSocketIndexes.has(socket.socket_index)
+      || tuningSocketIndexes.has(socket.socket_index)) continue;
+    const energyCost = normalizeEnergyCost(plug.energy_cost, 0);
+    if (energyCost === 0) continue;
+    plannedNonStatPlugs.push({
+      plug_hash: plug.hash,
+      plug_name: plug.name,
+      socket_index: socket.socket_index,
+      energy_cost: energyCost,
+      ...(plug.category_identifier ? { category_identifier: plug.category_identifier } : {})
+    });
+  }
+
+  const energyCapacity = finiteNonNegative(item.armor_energy?.capacity);
+  const energyUsed = finiteNonNegative(item.armor_energy?.used);
+  const energyUnused = finiteNonNegative(item.armor_energy?.unused);
+  const reservedEnergy = energyUsed === undefined
+    ? undefined
+    : Math.max(0, energyUsed - selectedArmorStatModEnergy);
+  const remainingEnergy = energyCapacity === undefined || reservedEnergy === undefined
+    ? undefined
+    : Math.max(0, energyCapacity - reservedEnergy);
+  const gearTier = finiteNonNegative(item.instance?.gear_tier);
+  const needsTuningOptions = gearTier === ruleset.masterwork.maximum_tier;
+  const armorStatModClearOptions = [...availableNonStatPlugs.values()]
+    .filter((plug) => statModSocketIndexes.has(plug.socket_index) && plug.energy_cost === 0)
+    .sort((left, right) => left.socket_index - right.socket_index || left.plug_hash - right.plug_hash);
+  const complete = energyCapacity !== undefined
+    && energyUsed !== undefined
+    && statModSocketIndexes.size > 0
+    && armorStatModClearOptions.length > 0
+    && (!needsTuningOptions || tuningOptions.size > 0);
+
+  return {
+    ...(gearTier === undefined ? {} : { gear_tier: gearTier }),
+    ...(energyCapacity === undefined ? {} : { energy_capacity: energyCapacity }),
+    ...(energyUsed === undefined ? {} : { energy_used: energyUsed }),
+    ...(energyUnused === undefined ? {} : { energy_unused: energyUnused }),
+    ...(reservedEnergy === undefined ? {} : { reserved_energy: reservedEnergy }),
+    ...(remainingEnergy === undefined ? {} : { remaining_energy: remainingEnergy }),
+    stat_mod_socket_indexes: [...statModSocketIndexes].sort((left, right) => left - right),
+    tuning_socket_indexes: [...tuningSocketIndexes].sort((left, right) => left - right),
+    armor_stat_mod_options: [...statModOptions.values()].sort(compareArmorStatModOptions),
+    armor_stat_mod_clear_options: armorStatModClearOptions,
+    tuning_options: [...tuningOptions.values()].sort((left, right) => (
+      left.socket_index - right.socket_index || left.tuning.source_plug_hash - right.tuning.source_plug_hash
+    )),
+    available_non_stat_plugs: [...availableNonStatPlugs.values()]
+      .filter((plug) => (
+        !statModSocketIndexes.has(plug.socket_index)
+        && !tuningSocketIndexes.has(plug.socket_index)
+      ))
+      .sort((left, right) => (
+        left.socket_index - right.socket_index || left.plug_hash - right.plug_hash
+      )),
+    planned_non_stat_plugs: plannedNonStatPlugs.sort((left, right) => left.socket_index - right.socket_index),
+    complete
+  };
+}
+
+function compareArmorStatModOptions(
+  left: ArmorStatModInstallationOption,
+  right: ArmorStatModInstallationOption
+): number {
+  return left.value - right.value
+    || armorStatKeys.indexOf(left.stat) - armorStatKeys.indexOf(right.stat)
+    || left.energy_cost - right.energy_cost
+    || left.source_plug_hash - right.source_plug_hash;
+}
+
+function normalizeEnergyCost(value: number | undefined, fallback: number): number {
+  return Number.isFinite(value) ? Math.max(0, Math.trunc(value!)) : Math.max(0, Math.trunc(fallback));
+}
+
+function finiteNonNegative(value: number | undefined): number | undefined {
+  return Number.isFinite(value) ? Math.max(0, Math.trunc(value!)) : undefined;
+}
+
 function buildArmorPieceQuality(input: {
   item: AccountItemSummary;
   slot?: ArmorSlot;
@@ -307,6 +475,7 @@ function buildArmorPieceQuality(input: {
   tuningCount: number;
   armorModCount: number;
   masterworkCount: number;
+  installation: ArmorPieceInstallationContext;
 }): ArmorPieceDataQuality {
   const warnings: string[] = [];
   const modifierTotal = addArmorStatValues(...input.modifiers.map((modifier) => modifier.values));
@@ -331,6 +500,14 @@ function buildArmorPieceQuality(input: {
   if (!input.archetype) warnings.push("尚未从当前 Manifest 确认护甲框架。");
   if (input.archetype && !input.archetype.tertiary_stat) warnings.push("无法唯一确认第三属性。");
   if (!input.tuning) warnings.push("尚未确认调整身份。");
+  if (input.installation.energy_capacity === undefined) warnings.push("缺少护甲能量容量，无法逐部位分配属性模组。");
+  if (!input.installation.stat_mod_socket_indexes.length) warnings.push("没有读取到可验证的属性模组 Socket。");
+  if (input.installation.stat_mod_socket_indexes.length && !input.installation.armor_stat_mod_clear_options.length) {
+    warnings.push("属性模组 Socket 没有读取到可验证的零能量清空 Plug。");
+  }
+  if (input.installation.gear_tier === 5 && !input.installation.tuning_options.length) {
+    warnings.push("T5 护甲没有读取到可验证的零能量护甲调整选项。");
+  }
 
   const ownedReady = Boolean(
     input.item.instance_id
@@ -341,7 +518,8 @@ function buildArmorPieceQuality(input: {
     && input.hasBaseStats
     && modifiersReconciled
     && !hasUnclassifiedModifier
-    && !identityAmbiguous;
+    && !identityAmbiguous
+    && input.installation.complete;
   const acquisitionIdentityReady = Boolean(
     input.slot
     && input.archetype?.tertiary_stat
@@ -365,7 +543,9 @@ function buildArmorPieceQuality(input: {
       has_base_stats: input.hasBaseStats,
       modifiers_reconciled: modifiersReconciled,
       has_archetype_identity: Boolean(input.archetype?.tertiary_stat),
-      has_tuning_identity: Boolean(input.tuning)
+      has_tuning_identity: Boolean(input.tuning),
+      has_energy_capacity: input.installation.energy_capacity !== undefined,
+      has_stat_mod_socket: input.installation.stat_mod_socket_indexes.length > 0
     },
     warnings
   };

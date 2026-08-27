@@ -92,6 +92,15 @@ export type LocalLoadoutArmorPlanReference = {
     ruleset: string;
   };
   selected_instance_ids: string[];
+  planned_armor_plugs: Array<{
+    instance_id: string;
+    tuning_plug_hash?: number;
+    armor_stat_mod_plug_hash?: number;
+    armor_stat_mod_value?: 5 | 10;
+    energy_capacity: number;
+    reserved_energy: number;
+    final_energy: number;
+  }>;
 };
 
 export type LocalLoadoutPlan = {
@@ -171,11 +180,23 @@ export function createLocalLoadoutPlanFromEquippedItems(input: {
 }
 
 export function matchLocalLoadoutPlan(
-  plan: Pick<LocalLoadoutPlan, "item_targets">,
+  plan: Pick<LocalLoadoutPlan, "item_targets" | "armor_plan">,
   account: AccountSummary
 ): LocalLoadoutPlanMatch {
   const accountItems = collectAccountItems(account);
-  const itemMatches = plan.item_targets.map((target) => matchItemTarget(target, accountItems));
+  const plannedArmorPlugs = new Map((plan.armor_plan?.planned_armor_plugs ?? []).map((assignment) => [
+    assignment.instance_id,
+    new Set([
+      ...(plan.item_targets.find((target) => target.selected_instance_id === assignment.instance_id)?.plug_hashes ?? []),
+      assignment.tuning_plug_hash,
+      assignment.armor_stat_mod_plug_hash
+    ].filter((hash): hash is number => hash !== undefined))
+  ]));
+  const itemMatches = plan.item_targets.map((target) => matchItemTarget(
+    target,
+    accountItems,
+    target.selected_instance_id ? plannedArmorPlugs.get(target.selected_instance_id) : undefined
+  ));
 
   return {
     item_matches: itemMatches,
@@ -190,7 +211,8 @@ export function matchLocalLoadoutPlan(
 
 function matchItemTarget(
   target: LoadoutPlanItemTarget,
-  accountItems: LocalLoadoutPlanMatchedItem[]
+  accountItems: LocalLoadoutPlanMatchedItem[],
+  plannedArmorPlugs: ReadonlySet<number> | undefined
 ): LocalLoadoutPlanItemMatch {
   if (!target.item_hash && !target.selected_instance_id) {
     return { target, status: "unconfigured", candidates: [] };
@@ -200,7 +222,11 @@ function matchItemTarget(
     (!target.item_hash || candidate.item.hash === target.item_hash)
     && (!target.selected_instance_id || candidate.item.instance_id === target.selected_instance_id)
   ));
-  const candidates = sameDefinition.filter((candidate) => itemMatchesTarget(candidate.item, target));
+  const candidates = sameDefinition.filter((candidate) => itemMatchesTarget(
+    candidate.item,
+    target,
+    plannedArmorPlugs
+  ));
 
   if (target.selected_instance_id) {
     if (sameDefinition.length === 0) {
@@ -227,7 +253,11 @@ function matchItemTarget(
   };
 }
 
-function itemMatchesTarget(item: AccountItemSummary, target: LoadoutPlanItemTarget): boolean {
+function itemMatchesTarget(
+  item: AccountItemSummary,
+  target: LoadoutPlanItemTarget,
+  plannedArmorPlugs: ReadonlySet<number> | undefined
+): boolean {
   const requiredItemHashes = target.candidate_conditions?.allowed_item_hashes;
   if (requiredItemHashes?.length && !requiredItemHashes.includes(item.hash)) {
     return false;
@@ -236,13 +266,15 @@ function itemMatchesTarget(item: AccountItemSummary, target: LoadoutPlanItemTarg
     ...target.plug_hashes,
     ...(target.candidate_conditions?.required_plug_hashes ?? [])
   ];
-  return requiredPlugs.every((hash) => hasVerifiedPlug(item, hash));
+  return requiredPlugs.every((hash) => hasVerifiedPlug(item, hash, plannedArmorPlugs?.has(hash) ?? false));
 }
 
-function hasVerifiedPlug(item: AccountItemSummary, plugHash: number): boolean {
+function hasVerifiedPlug(item: AccountItemSummary, plugHash: number, plannedArmorPlug: boolean): boolean {
   if (item.socket_plugs.some((plug) => plug.hash === plugHash)) return true;
   return item.sockets?.some((socket) => socket.reusable_plugs.some((plug) => (
-    plug.hash === plugHash && plug.can_insert !== false && plug.enabled !== false
+    plug.hash === plugHash
+    && plug.enabled !== false
+    && (plannedArmorPlug || plug.can_insert !== false)
   ))) ?? false;
 }
 

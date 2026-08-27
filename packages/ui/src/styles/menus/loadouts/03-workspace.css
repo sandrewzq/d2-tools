@@ -1306,6 +1306,69 @@
   align-items: center;
 }
 
+.app-shell .loadout-armor-mod-plan {
+  border-top: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.app-shell .loadout-armor-mod-steppers {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  padding: 12px 16px;
+}
+
+.app-shell .loadout-armor-mod-stepper {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 10px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 4px;
+  background: var(--surface-panel);
+}
+
+.app-shell .loadout-armor-mod-stepper > span {
+  color: var(--text-title);
+  font-size: var(--font-meta);
+  font-weight: 650;
+}
+
+.app-shell .loadout-armor-mod-stepper > div {
+  display: grid;
+  grid-template-columns: 36px minmax(52px, 64px) 36px;
+  gap: 4px;
+}
+
+.app-shell .loadout-armor-mod-stepper button,
+.app-shell .loadout-armor-mod-stepper input {
+  min-width: 0;
+  min-height: 36px;
+  text-align: center;
+}
+
+.app-shell .loadout-armor-tuning-note {
+  margin: 0;
+  padding: 0 16px 12px;
+  color: var(--text-muted);
+  font-size: var(--font-caption);
+  line-height: 1.45;
+}
+
+.app-shell .loadout-armor-mod-preflight {
+  padding: 10px 16px;
+  border-top: 1px solid var(--border-subtle);
+  color: var(--text-body);
+  background: var(--surface-subtle);
+}
+
+.app-shell .loadout-armor-mod-preflight[data-status="success"] strong { color: var(--status-ready-text); }
+.app-shell .loadout-armor-mod-preflight[data-status="warning"] strong { color: var(--status-warning-text); }
+.app-shell .loadout-armor-mod-preflight strong { font-size: var(--font-meta); }
+.app-shell .loadout-armor-mod-preflight ul { margin: 6px 0 0; padding-left: 18px; color: var(--text-muted); font-size: var(--font-caption); line-height: 1.45; }
+
 .app-shell .loadout-armor-constraint-section {
   border-top: 1px solid var(--border-subtle);
 }
@@ -1674,6 +1737,15 @@
 
   .app-shell .loadout-armor-constraint-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .app-shell .loadout-armor-mod-steppers {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .app-shell .loadout-armor-mod-stepper {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .app-shell .loadout-armor-mode-control,

@@ -163,6 +163,9 @@ export type DefinitionRecord = {
   plug?: {
     plugCategoryHash?: number;
     plugCategoryIdentifier?: string;
+    energyCost?: {
+      energyCost?: number;
+    };
   };
   [key: string]: unknown;
 };

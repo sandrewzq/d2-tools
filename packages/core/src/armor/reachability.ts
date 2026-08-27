@@ -35,6 +35,8 @@ export type ArmorReachabilityPiece = {
   masterwork_tier?: number;
   tuning: ArmorReachabilityTuning;
   allowed_armor_mod_values?: readonly (0 | 5 | 10)[];
+  energy_capacity?: number;
+  reserved_energy?: number;
   item_hash?: number;
   name?: string;
   exotic?: boolean;
@@ -491,6 +493,8 @@ function configurationInput(
     masterwork_tier: piece.masterwork_tier,
     tuning,
     armor_stat_mod: armorStatMod,
+    energy_capacity: piece.energy_capacity,
+    reserved_energy: piece.reserved_energy,
     item_hash: piece.item_hash,
     name: piece.name,
     exotic: piece.exotic,

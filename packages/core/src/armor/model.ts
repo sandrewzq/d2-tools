@@ -57,6 +57,45 @@ export type ArmorStatModIdentity = {
   source_plug_hash: number;
 };
 
+export type ArmorStatModInstallationOption = ArmorStatModIdentity & {
+  plug_name: string;
+  socket_index: number;
+  energy_cost: number;
+};
+
+export type ArmorTuningInstallationOption = {
+  tuning: ArmorTuningIdentity;
+  values: ArmorStatValues;
+  plug_name: string;
+  socket_index: number;
+  energy_cost: 0;
+};
+
+export type ArmorPlannedPlugSnapshot = {
+  plug_hash: number;
+  plug_name: string;
+  socket_index: number;
+  energy_cost: number;
+  category_identifier?: string;
+};
+
+export type ArmorPieceInstallationContext = {
+  gear_tier?: number;
+  energy_capacity?: number;
+  energy_used?: number;
+  energy_unused?: number;
+  reserved_energy?: number;
+  remaining_energy?: number;
+  stat_mod_socket_indexes: number[];
+  tuning_socket_indexes: number[];
+  armor_stat_mod_options: ArmorStatModInstallationOption[];
+  armor_stat_mod_clear_options: ArmorPlannedPlugSnapshot[];
+  tuning_options: ArmorTuningInstallationOption[];
+  available_non_stat_plugs: ArmorPlannedPlugSnapshot[];
+  planned_non_stat_plugs: ArmorPlannedPlugSnapshot[];
+  complete: boolean;
+};
+
 export type ArmorMasterworkIdentity = {
   tier?: number;
   values: ArmorStatValues;
@@ -82,6 +121,8 @@ export type ArmorPieceDataQuality = {
     modifiers_reconciled: boolean;
     has_archetype_identity: boolean;
     has_tuning_identity: boolean;
+    has_energy_capacity: boolean;
+    has_stat_mod_socket: boolean;
   };
   warnings: string[];
 };
@@ -107,6 +148,7 @@ export type ArmorPieceSnapshot = {
   tuning?: ArmorTuningIdentity;
   armor_stat_mod?: ArmorStatModIdentity;
   masterwork?: ArmorMasterworkIdentity;
+  installation: ArmorPieceInstallationContext;
   quality: ArmorPieceDataQuality;
 };
 

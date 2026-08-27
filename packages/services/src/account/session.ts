@@ -1,5 +1,6 @@
 import {
   buildAccountItemDetailFromResponse,
+  buildAccountSummaryFromResponses,
   buildAccountSnapshot,
   collectAccountDefinitionRequest,
   collectAccountItemDetailDefinitionRequest,
@@ -8,6 +9,7 @@ import {
   type AccountItemDetail,
   type AccountItemDetailQuery,
   type AccountSnapshot,
+  type AccountSummary,
   type DestinyItemResponse,
   type DestinyMembership,
   type DestinyProfileResponse,
@@ -37,6 +39,9 @@ export type AccountSession = {
     freshness?: AccountSnapshotFreshness;
     authoritative?: boolean;
   }): Promise<AccountSnapshot>;
+  getArmorPlannerSummary(input?: {
+    freshness?: AccountSnapshotFreshness;
+  }): Promise<AccountSummary>;
   getItemDetail(
     input: AccountItemDetailQuery,
     options?: { freshness?: AccountSnapshotFreshness }
@@ -108,6 +113,13 @@ const snapshotComponents = new Set([
   305 // ItemSockets
 ]);
 
+const armorPlannerComponents = new Set([
+  ...snapshotComponents,
+  301, // ItemObjectives
+  309, // ItemPlugObjectives
+  310 // ItemReusablePlugs
+]);
+
 const itemDetailComponents = [300, 301, 304, 305, 307, 309, 310].join(",");
 
 export function createAccountSession(options: CreateAccountSessionOptions): AccountSession {
@@ -159,6 +171,26 @@ export function createAccountSession(options: CreateAccountSessionOptions): Acco
         freshness === "refresh" || authoritative,
         authoritative
       );
+    },
+
+    async getArmorPlannerSummary(input = {}) {
+      const accessToken = await getScopedAccessToken();
+      const membership = await getMembership(accessToken);
+      const profile = await getProfile(
+        membership.selected,
+        accessToken,
+        armorPlannerComponents,
+        input.freshness === "refresh"
+      );
+      const definitions = await loadDefinitions(
+        collectAccountDefinitionRequest(profile)
+      );
+      return buildAccountSummaryFromResponses({
+        ...definitions,
+        memberships: membership.data,
+        destinyMembership: membership.selected,
+        profile
+      });
     },
 
     async getItemDetail(input, options = {}) {

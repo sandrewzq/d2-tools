@@ -1,7 +1,8 @@
 import type {
   AccountItemDetail,
   AccountItemDetailQuery,
-  AccountSnapshot
+  AccountSnapshot,
+  AccountSummary
 } from "@d2-tools/core/account/summary";
 import {
   createAccountSession,
@@ -45,6 +46,17 @@ export async function getAccountSnapshot(
       freshness,
       ...(options.authoritative ? { authoritative: true } : {})
     }),
+    { measurePayload: true }
+  );
+}
+
+export async function getArmorPlannerAccountSummary(
+  freshness: "cached" | "refresh" = "cached"
+): Promise<AccountSummary> {
+  const session = await getAccountSession();
+  return measureRuntime<AccountSummary>(
+    "account.armor-planner-summary",
+    () => session.getArmorPlannerSummary({ freshness }),
     { measurePayload: true }
   );
 }

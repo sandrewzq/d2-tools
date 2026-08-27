@@ -773,6 +773,7 @@ function LocalPlanEditor(props: LoadoutsPageContentViewProps & {
     const plannerMode = armorConstraints.planner_mode ?? "owned";
     if (armorClass === "unknown" || !props.actions.planArmor) return;
     if (plannerMode !== "theoretical" && !props.accountSummary) return;
+    const slotEnergyPlan = buildArmorSlotEnergyPlan(activeDraft, accountItems);
     const sharedRequest = {
       class: armorClass,
       target: buildArmorPlannerTarget(armorConstraints),
@@ -780,8 +781,10 @@ function LocalPlanEditor(props: LoadoutsPageContentViewProps & {
       armor_mod_budget: {
         plus5: armorConstraints.five_point_mod_budget,
         plus10: armorConstraints.ten_point_mod_budget,
-        usage: "at-most" as const
+        usage: "exact" as const
       },
+      energy_capacity_by_slot: slotEnergyPlan.capacity,
+      reserved_energy_by_slot: slotEnergyPlan.reserved,
       set_constraint: armorConstraints.set_constraint ?? { mode: "none" },
       priority_stats: armorConstraints.priority_stats,
       limit: 5
@@ -807,11 +810,12 @@ function LocalPlanEditor(props: LoadoutsPageContentViewProps & {
     ]);
     const ownedRequest = {
       ...sharedRequest,
+      planned_non_stat_plug_hashes_by_slot: slotEnergyPlan.plugHashes,
       allowed_locations: armorConstraints.allowed_locations,
       locked_instance_ids: lockedInstanceIds,
       excluded_instance_ids: armorConstraints.excluded_instance_ids,
       target_character_id: activeDraft.target_character_id,
-      mode: "conservative" as const
+      mode: "strict" as const
     };
     if (plannerMode === "upgrade") {
       props.actions.planArmor({
@@ -837,9 +841,6 @@ function LocalPlanEditor(props: LoadoutsPageContentViewProps & {
     const armorInstanceIds = new Set(accountItems
       .filter((item) => item.group_key === "armor" && item.instance_id)
       .map((item) => item.instance_id));
-    const existingTargets = new Map(activeDraft.item_targets
-      .filter((target) => target.selected_instance_id)
-      .map((target) => [target.selected_instance_id!, target]));
     const nonArmorTargets = activeDraft.item_targets.filter((target) => !target.selected_instance_id || !armorInstanceIds.has(target.selected_instance_id));
     updateDraft({
       ...activeDraft,
@@ -847,7 +848,11 @@ function LocalPlanEditor(props: LoadoutsPageContentViewProps & {
         slot: armorSlotLabel(piece.slot),
         item_hash: piece.itemHash,
         selected_instance_id: piece.instanceId,
-        plug_hashes: existingTargets.get(piece.instanceId)?.plug_hashes ?? []
+        plug_hashes: uniqueNumbers([
+          ...piece.plannedNonStatPlugHashes,
+          ...(piece.tuning ? [piece.tuning.plugHash] : []),
+          ...(piece.armorStatModSocketPlugHash === undefined ? [] : [piece.armorStatModSocketPlugHash])
+        ])
       }))],
       armor_plan: {
         result_id: armorPlannerState.result.resultId,
@@ -863,7 +868,16 @@ function LocalPlanEditor(props: LoadoutsPageContentViewProps & {
           ...armorPlannerState.result.sources,
           ruleset: armorPlannerState.result.sources.ruleset
         },
-        selected_instance_ids: candidate.pieces.map((piece) => piece.instanceId)
+        selected_instance_ids: candidate.pieces.map((piece) => piece.instanceId),
+        planned_armor_plugs: candidate.pieces.map((piece) => ({
+          instance_id: piece.instanceId,
+          tuning_plug_hash: piece.tuning?.plugHash,
+          armor_stat_mod_plug_hash: piece.armorStatModSocketPlugHash,
+          armor_stat_mod_value: piece.armorStatMod?.value,
+          energy_capacity: piece.energy.capacity,
+          reserved_energy: piece.energy.reserved,
+          final_energy: piece.energy.final
+        }))
       }
     }, false);
   }
@@ -871,11 +885,14 @@ function LocalPlanEditor(props: LoadoutsPageContentViewProps & {
   const armorClass = resolveArmorClass(activeDraft.class_name);
   const armorItems = accountItems.filter((item) => item.group_key === "armor" && item.instance_id);
   const plannerMode = armorConstraints.planner_mode ?? "owned";
+  const armorSlotEnergyPlan = buildArmorSlotEnergyPlan(activeDraft, accountItems);
   const armorPlannerState = props.armorPlannerState;
   const armorViewModel = armorPlannerState?.status === "ready" || armorPlannerState?.status === "stale"
     ? armorPlannerState.viewModel
     : null;
   const armorCandidates = armorViewModel?.candidates ?? [];
+  const armorModTotal = armorConstraints.five_point_mod_budget + armorConstraints.ten_point_mod_budget;
+  const armorModPreflight = buildArmorModPreflight(armorItems, armorConstraints, armorSlotEnergyPlan.plugHashes);
   const armorStatusMessage = getArmorPlannerStatusMessage({
     state: armorPlannerState,
     hasAccount: Boolean(props.accountSummary),
@@ -917,14 +934,22 @@ function LocalPlanEditor(props: LoadoutsPageContentViewProps & {
         </div>
       </section>
       <section className="loadout-armor-workbench loadout-local-editor-section" aria-label="护甲优化">
-        <header><div><strong>护甲规划</strong><small>同一组属性目标可分别核对理论上限、当前库存、待刷身份和现有配装升级路径。</small></div><button type="button" data-ui-kind="button" data-control-variant="primary" onClick={calculateArmorCandidates} disabled={(plannerMode !== "theoretical" && !props.accountSummary) || !props.actions.planArmor || armorClass === "unknown" || armorPlannerState?.status === "loading"}>{armorPlannerState?.status === "loading" ? "计算中" : armorPlannerActionLabel(plannerMode)}</button></header>
+        <header><div><strong>护甲规划</strong><small>同一组属性目标可分别核对理论上限、当前库存、待刷身份和现有配装升级路径。</small></div><button type="button" data-ui-kind="button" data-control-variant="primary" onClick={calculateArmorCandidates} disabled={(plannerMode !== "theoretical" && !props.accountSummary) || !props.actions.planArmor || armorClass === "unknown" || armorPlannerState?.status === "loading" || armorModTotal > 5}>{armorPlannerState?.status === "loading" ? "计算中" : armorPlannerActionLabel(plannerMode)}</button></header>
         <ArmorPlannerModeControl mode={plannerMode} onChange={(mode) => updateArmorConstraints({ ...armorConstraints, planner_mode: mode })} />
         <div id="loadout-armor-planner-panel" role="tabpanel" aria-labelledby={`loadout-armor-mode-${plannerMode}`}>
         <div className="loadout-armor-constraint-grid">
           {loadoutPlanArmorStatKeys.map((stat) => <label key={stat}><span>{armorStatLabel(stat)}最低值</span><input type="number" min="0" step="5" value={armorConstraints.stat_minimums[stat] ?? 0} onChange={(event) => updateArmorConstraints({ ...armorConstraints, stat_minimums: { ...armorConstraints.stat_minimums, [stat]: Math.max(Number(event.target.value) || 0, 0) } })} /></label>)}
-          <label><span>+5 模组预算</span><input type="number" min="0" value={armorConstraints.five_point_mod_budget} onChange={(event) => updateArmorConstraints({ ...armorConstraints, five_point_mod_budget: Math.max(Number(event.target.value) || 0, 0) })} /></label>
-          <label><span>+10 模组预算</span><input type="number" min="0" value={armorConstraints.ten_point_mod_budget} onChange={(event) => updateArmorConstraints({ ...armorConstraints, ten_point_mod_budget: Math.max(Number(event.target.value) || 0, 0) })} /></label>
         </div>
+        <ArmorStatModPlanEditor
+          plus5={armorConstraints.five_point_mod_budget}
+          plus10={armorConstraints.ten_point_mod_budget}
+          preflight={armorModPreflight}
+          onChange={(plus5, plus10) => updateArmorConstraints({
+            ...armorConstraints,
+            five_point_mod_budget: plus5,
+            ten_point_mod_budget: plus10
+          })}
+        />
         <div className="loadout-armor-priority" role="group" aria-label="护甲属性优先级">{loadoutPlanArmorStatKeys.map((stat) => { const selected = armorConstraints.priority_stats.includes(stat); return <label key={stat}><input type="checkbox" checked={selected} onChange={(event) => updateArmorConstraints({ ...armorConstraints, priority_stats: event.target.checked ? [...armorConstraints.priority_stats, stat] : armorConstraints.priority_stats.filter((item) => item !== stat) })} /><span>{armorStatLabel(stat)}优先</span></label>; })}</div>
         <ArmorSetConstraintEditor
           constraint={armorConstraints.set_constraint ?? { mode: "none" }}
@@ -987,6 +1012,68 @@ function ArmorPlannerModeControl(props: {
   return (
     <div className="loadout-armor-mode-control" data-ui-kind="segmented-control" role="tablist" aria-label="护甲规划模式">
       {options.map((option, index) => <button type="button" id={`loadout-armor-mode-${option.mode}`} key={option.mode} role="tab" aria-controls="loadout-armor-planner-panel" aria-selected={props.mode === option.mode} tabIndex={props.mode === option.mode ? 0 : -1} onClick={() => props.onChange(option.mode)} onKeyDown={(event) => handleModeKeyDown(event, index)}><strong>{option.label}</strong><small>{option.description}</small></button>)}
+    </div>
+  );
+}
+
+type ArmorModPreflightView = {
+  status: "ready" | "warning" | "unknown";
+  summary: string;
+  details: string[];
+};
+
+function ArmorStatModPlanEditor(props: {
+  plus5: number;
+  plus10: number;
+  preflight: ArmorModPreflightView;
+  onChange: (plus5: number, plus10: number) => void;
+}) {
+  const plus5 = clampArmorModCount(props.plus5, 5);
+  const plus10 = clampArmorModCount(props.plus10, 5 - plus5);
+  const total = plus5 + plus10;
+  const totalBonus = plus5 * 5 + plus10 * 10;
+
+  function setCount(kind: "plus5" | "plus10", value: number) {
+    if (kind === "plus5") {
+      props.onChange(clampArmorModCount(value, 5 - plus10), plus10);
+      return;
+    }
+    props.onChange(plus5, clampArmorModCount(value, 5 - plus5));
+  }
+
+  return (
+    <section className="loadout-armor-mod-plan" aria-label="属性模组精确数量">
+      <div className="loadout-armor-constraint-head">
+        <div><strong>属性模组数量</strong><small>数量是必须完整安装的精确约束；计算器决定具体部位和增加的属性。</small></div>
+        <span aria-live="polite">已规划 {total}/5 · 总加成 +{totalBonus}</span>
+      </div>
+      <div className="loadout-armor-mod-steppers">
+        <ArmorModCountStepper label="+5 属性模组" value={plus5} maximum={5 - plus10} onChange={(value) => setCount("plus5", value)} />
+        <ArmorModCountStepper label="+10 属性模组" value={plus10} maximum={5 - plus5} onChange={(value) => setCount("plus10", value)} />
+      </div>
+      <p className="loadout-armor-tuning-note">T5 护甲调整由计算器逐件自动选择，不消耗能量，也不计入属性模组数量。</p>
+      <div className="loadout-armor-mod-preflight" data-status={props.preflight.status === "ready" ? "success" : props.preflight.status === "warning" ? "warning" : "neutral"}>
+        <strong>{props.preflight.summary}</strong>
+        {props.preflight.details.length ? <ul>{props.preflight.details.map((detail) => <li key={detail}>{detail}</li>)}</ul> : null}
+      </div>
+    </section>
+  );
+}
+
+function ArmorModCountStepper(props: {
+  label: string;
+  value: number;
+  maximum: number;
+  onChange: (value: number) => void;
+}) {
+  return (
+    <div className="loadout-armor-mod-stepper">
+      <span>{props.label}</span>
+      <div role="group" aria-label={`${props.label}数量`}>
+        <button type="button" data-ui-kind="button" data-control-variant="secondary" aria-label={`减少${props.label}`} disabled={props.value <= 0} onClick={() => props.onChange(props.value - 1)}>−</button>
+        <input type="number" min="0" max={props.maximum} value={props.value} aria-label={`${props.label}数量`} onChange={(event) => props.onChange(Number(event.target.value) || 0)} />
+        <button type="button" data-ui-kind="button" data-control-variant="secondary" aria-label={`增加${props.label}`} disabled={props.value >= props.maximum} onClick={() => props.onChange(props.value + 1)}>+</button>
+      </div>
     </div>
   );
 }
@@ -1119,7 +1206,7 @@ function ArmorCandidateList(props: {
             <header><span>{String(index + 1).padStart(2, "0")}</span><div><strong>{armorCandidateTitle(candidate)}</strong><small>{armorCandidateSummary(candidate)}</small></div><em>{candidate.summary.hardConstraintsMet ? "满足硬约束" : `总缺口 ${candidate.summary.totalGap}`}</em></header>
             <dl className="loadout-armor-stat-comparison">{candidate.summary.stats.map((stat) => <div key={stat.key} data-status={stat.meetsTarget ? "success" : "warning"}><dt>{armorStatLabel(stat.key)}</dt><dd><strong>{stat.value}</strong><small>{stat.minimum === undefined ? "未设下限" : stat.shortfall ? `差 ${stat.shortfall}` : `目标 ≥ ${stat.minimum}`}</small></dd></div>)}</dl>
             <div className="loadout-armor-piece-list">{armorCandidatePieceRows(candidate).map((piece) => <div key={piece.key}><span>{piece.slot}</span><strong>{piece.name}</strong><small>{piece.detail}</small></div>)}</div>
-            <footer><span>模组 +5 × {candidate.summary.armorModUsage.plus5}，+10 × {candidate.summary.armorModUsage.plus10} · 浪费 {candidate.summary.statWaste}</span><span>{armorSetCoverageLabel(candidate.summary.armorSetCoverage)}</span>{selectable ? <button type="button" data-ui-kind="button" data-control-variant="secondary" disabled={props.stale} onClick={() => props.onSelect(candidate)}>{props.stale ? "需要重新计算" : "使用此实例组合"}</button> : candidate.kind === "acquisition" && candidate.missingPieceCount > 0 && props.onSaveAcquisitionTargets ? <button type="button" data-ui-kind="button" data-control-variant="secondary" disabled={props.stale || props.isSavingAcquisitionTargets} onClick={() => props.onSaveAcquisitionTargets?.(candidate)}>{props.stale ? "需要重新计算" : props.isSavingAcquisitionTargets ? "正在保存目标" : `保存 ${candidate.missingPieceCount} 个待刷缺口`}</button> : null}</footer>
+            <footer><span>+5 属性模组 × {candidate.summary.armorModUsage.plus5}，+10 属性模组 × {candidate.summary.armorModUsage.plus10} · 浪费 {candidate.summary.statWaste}</span><span>{armorSetCoverageLabel(candidate.summary.armorSetCoverage)}</span>{selectable ? <button type="button" data-ui-kind="button" data-control-variant="secondary" disabled={props.stale} onClick={() => props.onSelect(candidate)}>{props.stale ? "需要重新计算" : "使用此实例组合"}</button> : candidate.kind === "acquisition" && candidate.missingPieceCount > 0 && props.onSaveAcquisitionTargets ? <button type="button" data-ui-kind="button" data-control-variant="secondary" disabled={props.stale || props.isSavingAcquisitionTargets} onClick={() => props.onSaveAcquisitionTargets?.(candidate)}>{props.stale ? "需要重新计算" : props.isSavingAcquisitionTargets ? "正在保存目标" : `保存 ${candidate.missingPieceCount} 个待刷缺口`}</button> : null}</footer>
           </article>
         );
       })}
@@ -1653,7 +1740,14 @@ function armorCandidatePieceRows(candidate: ArmorPlannerCandidateView): Array<{
       key: piece.configurationId,
       slot: armorSlotLabel(piece.slot),
       name: piece.name,
-      detail: `${piece.archetype.name} · ${armorStatLabel(piece.archetype.tertiaryStat)}第三属性 · ${piece.tuning.mode === "plus3" ? "+3 调整" : `${armorStatLabel(piece.tuning.fromStat)} → ${armorStatLabel(piece.tuning.toStat)}`}${piece.set ? ` · ${piece.set.name}` : ""}`
+      detail: [
+        piece.archetype.name,
+        `${armorStatLabel(piece.archetype.tertiaryStat)}第三属性`,
+        formatTheoreticalTuning(piece),
+        formatArmorStatMod(piece.armorStatMod, piece.energy.armorStatMod),
+        `能量 ${piece.energy.final}/${piece.energy.capacity}`,
+        piece.set?.name
+      ].filter(Boolean).join(" · ")
     }));
   }
   if (candidate.kind === "acquisition") {
@@ -1662,16 +1756,50 @@ function armorCandidatePieceRows(candidate: ArmorPlannerCandidateView): Array<{
       slot: armorSlotLabel(piece.slot),
       name: piece.identity.itemName ?? piece.identity.archetypeName,
       detail: piece.acquisitionRequired
-        ? `需要获取 · ${armorStatLabel(piece.identity.tertiaryStat)}第三属性${piece.identity.set ? ` · ${piece.identity.set.name}` : ""}`
-        : `${piece.exactOwnedMatches.length} 件同身份已持有 · ${piece.nearestOwnedMatches.length} 件近似候选`
+        ? `需要获取 · ${armorStatLabel(piece.identity.tertiaryStat)}第三属性 · ${formatArmorStatMod(piece.theoretical.armorStatMod, piece.theoretical.energy.armorStatMod)} · 能量 ${piece.theoretical.energy.final}/${piece.theoretical.energy.capacity}${piece.identity.set ? ` · ${piece.identity.set.name}` : ""}`
+        : `${piece.exactOwnedMatches.length} 件同身份已持有 · ${piece.nearestOwnedMatches.length} 件近似候选 · ${formatArmorStatMod(piece.theoretical.armorStatMod, piece.theoretical.energy.armorStatMod)}`
     }));
   }
   return candidate.pieces.map((piece) => ({
     key: piece.instanceId,
     slot: armorSlotLabel(piece.slot),
     name: piece.name,
-    detail: `${armorLocationLabel(piece.location)} · 实例尾号 ${piece.instanceId.slice(-4)}${piece.set ? ` · ${piece.set.name}` : ""}${candidate.kind === "upgrade" && candidate.retainedInstanceIds.includes(piece.instanceId) ? " · 保留" : ""}`
+    detail: [
+      armorLocationLabel(piece.location),
+      `实例尾号 ${piece.instanceId.slice(-4)}`,
+      formatOwnedTuning(piece),
+      formatArmorStatMod(piece.armorStatMod, piece.energy.armorStatMod),
+      `其他模组 ${piece.energy.reserved} · 最终能量 ${piece.energy.final}/${piece.energy.capacity}`,
+      piece.set?.name,
+      candidate.kind === "upgrade" && candidate.retainedInstanceIds.includes(piece.instanceId) ? "保留" : ""
+    ].filter(Boolean).join(" · ")
   }));
+}
+
+function formatTheoreticalTuning(
+  piece: Extract<ArmorPlannerCandidateView, { kind: "theoretical" }>["pieces"][number]
+): string {
+  return piece.tuning.mode === "plus3"
+    ? "+3 护甲调整，0 能量"
+    : `${armorStatLabel(piece.tuning.fromStat)} −5 → ${armorStatLabel(piece.tuning.toStat)} +5 护甲调整，0 能量`;
+}
+
+function formatOwnedTuning(
+  piece: Extract<ArmorPlannerCandidateView, { kind: "owned" }>["pieces"][number]
+): string {
+  if (!piece.tuning) return "保持当前护甲调整";
+  return piece.tuning.mode === "plus3"
+    ? "+3 护甲调整，0 能量"
+    : `${piece.tuning.fromStat ? armorStatLabel(piece.tuning.fromStat) : "属性"} −5 → ${piece.tuning.toStat ? armorStatLabel(piece.tuning.toStat) : "属性"} +5 护甲调整，0 能量`;
+}
+
+function formatArmorStatMod(
+  mod: { stat: (typeof loadoutPlanArmorStatKeys)[number]; value: 5 | 10 } | undefined,
+  energyCost: number
+): string {
+  return mod
+    ? `+${mod.value} ${armorStatLabel(mod.stat)}属性模组，${energyCost} 能量`
+    : "不安装属性模组";
 }
 
 function armorSetCoverageLabel(coverage: ArmorPlannerCandidateView["summary"]["armorSetCoverage"]): string {
@@ -1704,8 +1832,283 @@ function armorInstanceLabel(instanceId: string, items: AccountItemSummary[]): st
   return item ? armorItemOptionLabel(item) : `实例 ${instanceId.slice(-4)}`;
 }
 
+function buildArmorSlotEnergyPlan(
+  draft: CreateLocalLoadoutPlanInput,
+  accountItems: AccountItemSummary[]
+): {
+  capacity: Partial<Record<ArmorSlot, number>>;
+  reserved: Partial<Record<ArmorSlot, number>>;
+  plugHashes: Partial<Record<ArmorSlot, number[]>>;
+} {
+  const capacity: Partial<Record<ArmorSlot, number>> = {};
+  const reserved: Partial<Record<ArmorSlot, number>> = {};
+  const plugHashes: Partial<Record<ArmorSlot, number[]>> = {};
+  for (const target of draft.item_targets) {
+    if (!target.selected_instance_id) continue;
+    const item = accountItems.find((candidate) => candidate.instance_id === target.selected_instance_id);
+    const slot = item ? armorItemSlot(item) : undefined;
+    if (!item || !slot || !item.armor_energy) continue;
+    const nonStatPlugPlan = buildArmorNonStatPlugPlan(item, target.plug_hashes);
+    capacity[slot] = Math.max(0, item.armor_energy.capacity);
+    reserved[slot] = nonStatPlugPlan.complete
+      ? nonStatPlugPlan.energy
+      : armorItemReservedEnergy(item);
+    plugHashes[slot] = nonStatPlugPlan.plugHashes;
+  }
+  return { capacity, reserved, plugHashes };
+}
+
+function buildArmorNonStatPlugPlan(
+  item: AccountItemSummary,
+  targetPlugHashes: readonly number[]
+): { plugHashes: number[]; energy: number; complete: boolean } {
+  const sockets = (item.sockets ?? []).filter((socket) => socket.is_visible);
+  const requested: Array<{
+    requestIndex: number;
+    plugHash: number;
+    options: Array<{ socketIndex: number; energyCost: number }>;
+  }> = [];
+  let complete = true;
+
+  for (const rawPlugHash of targetPlugHashes) {
+    const plugHash = rawPlugHash >>> 0;
+    const allMatches = sockets.flatMap((socket) => [
+      ...(socket.selected_plug?.hash === plugHash ? [socket.selected_plug] : []),
+      ...socket.reusable_plugs.filter((plug) => plug.hash === plugHash && plug.enabled !== false)
+    ].map((plug) => ({ socket, plug })));
+    const options = allMatches
+      .filter(({ socket, plug }) => !isArmorStatOrTuningPlug(plug) && !isArmorStatOrTuningSocket(socket))
+      .map(({ socket, plug }) => ({
+        socketIndex: socket.socket_index,
+        energyCost: Math.max(0, plug.energy_cost ?? 0)
+      }))
+      .filter((option) => option.energyCost > 0);
+    if (!options.length && allMatches.length) continue;
+    requested.push({ requestIndex: requested.length, plugHash, options });
+    if (!options.length) complete = false;
+  }
+
+  if (!complete) {
+    return { plugHashes: requested.map((entry) => entry.plugHash), energy: 0, complete: false };
+  }
+
+  const assignment = new Array<{ socketIndex: number; energyCost: number } | undefined>(requested.length);
+  const usedSockets = new Set<number>();
+  const ordered = [...requested].sort((left, right) => (
+    left.options.length - right.options.length
+    || left.requestIndex - right.requestIndex
+  ));
+
+  function assign(index: number): boolean {
+    if (index >= ordered.length) return true;
+    const entry = ordered[index]!;
+    for (const option of entry.options) {
+      if (usedSockets.has(option.socketIndex)) continue;
+      usedSockets.add(option.socketIndex);
+      assignment[entry.requestIndex] = option;
+      if (assign(index + 1)) return true;
+      assignment[entry.requestIndex] = undefined;
+      usedSockets.delete(option.socketIndex);
+    }
+    return false;
+  }
+
+  const assigned = assign(0);
+  const retainedEnergy = assigned
+    ? sockets.reduce((total, socket) => {
+        if (usedSockets.has(socket.socket_index) || isArmorStatOrTuningSocket(socket)) return total;
+        const plug = socket.selected_plug;
+        return total + Math.max(0, plug?.energy_cost ?? 0);
+      }, 0)
+    : 0;
+  return {
+    plugHashes: requested.map((entry) => entry.plugHash),
+    energy: assigned
+      ? assignment.reduce((total, option) => total + (option?.energyCost ?? 0), retainedEnergy)
+      : 0,
+    complete: assigned
+  };
+}
+
+function isArmorStatOrTuningSocket(
+  socket: NonNullable<AccountItemSummary["sockets"]>[number]
+): boolean {
+  return [
+    ...(socket.selected_plug ? [socket.selected_plug] : []),
+    ...socket.reusable_plugs
+  ].some(isArmorStatOrTuningPlug);
+}
+
+function isArmorStatOrTuningPlug(
+  plug: AccountItemSummary["socket_plugs"][number]
+): boolean {
+  if (armorStatModPlugValue(plug)) return true;
+  const values = Object.values(plug.armor_stat_modifiers ?? {}).filter((value) => value !== 0);
+  return (values.length === 1 && values[0] === 3)
+    || (values.length === 2 && values.includes(5) && values.includes(-5));
+}
+
+function buildArmorModPreflight(
+  armorItems: AccountItemSummary[],
+  constraints: LoadoutPlanArmorConstraints,
+  plannedNonStatPlugHashesBySlot: Partial<Record<ArmorSlot, readonly number[]>>
+): ArmorModPreflightView {
+  const requestedPlus5 = clampArmorModCount(constraints.five_point_mod_budget, 5);
+  const requestedPlus10 = clampArmorModCount(constraints.ten_point_mod_budget, 5);
+  const lockedIds = new Set([
+    ...constraints.locked_instance_ids,
+    ...(constraints.exotic_instance_id ? [constraints.exotic_instance_id] : [])
+  ]);
+  const excludedIds = new Set(constraints.excluded_instance_ids);
+  const optionsBySlot = new Map<ArmorSlot, Set<0 | 5 | 10>>();
+  const unknownSlots: ArmorSlot[] = [];
+
+  for (const slot of ["helmet", "arms", "chest", "legs", "class"] as const) {
+    const slotItems = armorItems.filter((item) => armorItemSlot(item) === slot && !excludedIds.has(item.instance_id ?? ""));
+    const locked = slotItems.filter((item) => lockedIds.has(item.instance_id ?? ""));
+    const candidates = locked.length ? locked : slotItems;
+    const values = new Set<0 | 5 | 10>([0]);
+    let hasCompleteCandidate = false;
+    for (const item of candidates) {
+      const capability = armorItemStatModCapability(item, plannedNonStatPlugHashesBySlot[slot]);
+      if (!capability.complete) continue;
+      hasCompleteCandidate = true;
+      for (const value of capability.values) values.add(value);
+    }
+    optionsBySlot.set(slot, values);
+    if (!hasCompleteCandidate) unknownSlots.push(slot);
+  }
+
+  const canAssign = canAssignExactArmorMods(optionsBySlot, requestedPlus5, requestedPlus10);
+  const plus10Slots = [...optionsBySlot.entries()].filter(([, values]) => values.has(10)).map(([slot]) => armorSlotLabel(slot));
+  const plus5Slots = [...optionsBySlot.entries()].filter(([, values]) => values.has(5)).map(([slot]) => armorSlotLabel(slot));
+  const details = [
+    requestedPlus10 > 0 ? `需要 ${requestedPlus10} 个可安装 +10 属性模组的部位；当前可确认：${plus10Slots.join("、") || "无"}` : "",
+    requestedPlus5 > 0 ? `需要 ${requestedPlus5} 个可安装 +5 属性模组的部位；当前可确认：${plus5Slots.join("、") || "无"}` : "",
+    unknownSlots.length ? `${unknownSlots.map(armorSlotLabel).join("、")}缺少完整能量、属性模组/清空 Plug 或功能 Plug 数据。` : ""
+  ].filter(Boolean);
+
+  if (unknownSlots.length) {
+    return {
+      status: "unknown",
+      summary: "当前数据不足以确认精确属性模组数量能否安装。",
+      details
+    };
+  }
+  if (canAssign) {
+    return {
+      status: "ready",
+      summary: requestedPlus5 + requestedPlus10
+        ? "当前库存存在满足精确数量的逐部位安装排列。"
+        : "当前方案不要求安装属性模组。",
+      details
+    };
+  }
+  return {
+    status: "warning",
+    summary: "当前库存的部位能量无法承载指定的精确属性模组数量。",
+    details
+  };
+}
+
+function canAssignExactArmorMods(
+  optionsBySlot: ReadonlyMap<ArmorSlot, ReadonlySet<0 | 5 | 10>>,
+  requestedPlus5: number,
+  requestedPlus10: number
+): boolean {
+  const slots = ["helmet", "arms", "chest", "legs", "class"] as const;
+  let states = new Set(["0:0"]);
+  for (const slot of slots) {
+    const next = new Set<string>();
+    for (const state of states) {
+      const [usedPlus5, usedPlus10] = state.split(":").map(Number) as [number, number];
+      for (const value of optionsBySlot.get(slot) ?? new Set<0 | 5 | 10>([0])) {
+        const plus5 = usedPlus5 + (value === 5 ? 1 : 0);
+        const plus10 = usedPlus10 + (value === 10 ? 1 : 0);
+        if (plus5 <= requestedPlus5 && plus10 <= requestedPlus10) next.add(`${plus5}:${plus10}`);
+      }
+    }
+    states = next;
+  }
+  return states.has(`${requestedPlus5}:${requestedPlus10}`);
+}
+
+function armorItemStatModCapability(
+  item: AccountItemSummary,
+  plannedNonStatPlugHashes: readonly number[] | undefined
+): {
+  complete: boolean;
+  values: Set<0 | 5 | 10>;
+} {
+  const values = new Set<0 | 5 | 10>([0]);
+  if (!item.armor_energy || !item.sockets?.length) return { complete: false, values };
+  const plannedNonStatPlugPlan = plannedNonStatPlugHashes === undefined
+    ? undefined
+    : buildArmorNonStatPlugPlan(item, plannedNonStatPlugHashes);
+  if (plannedNonStatPlugPlan && !plannedNonStatPlugPlan.complete) return { complete: false, values };
+  const reservedEnergy = plannedNonStatPlugPlan?.energy ?? armorItemReservedEnergy(item);
+  const remaining = Math.max(0, item.armor_energy.capacity - reservedEnergy);
+  let hasStatModSocket = false;
+  let hasStatModClearOption = false;
+  for (const socket of item.sockets) {
+    const plugs = [
+      ...(socket.selected_plug ? [socket.selected_plug] : []),
+      ...socket.reusable_plugs.filter((plug) => plug.enabled !== false)
+    ];
+    const socketHasStatMod = plugs.some((plug) => Boolean(armorStatModPlugValue(plug)));
+    if (socketHasStatMod && plugs.some((plug) => (
+      !isArmorStatOrTuningPlug(plug) && Math.max(0, plug.energy_cost ?? 0) === 0
+    ))) {
+      hasStatModClearOption = true;
+    }
+    for (const plug of plugs) {
+      const value = armorStatModPlugValue(plug);
+      if (!value) continue;
+      hasStatModSocket = true;
+      const cost = Math.max(0, plug.energy_cost ?? (value === 5 ? 1 : 3));
+      if (cost <= remaining) values.add(value);
+    }
+  }
+  return { complete: hasStatModSocket && hasStatModClearOption, values };
+}
+
+function armorItemReservedEnergy(item: AccountItemSummary): number {
+  if (!item.armor_energy) return 0;
+  const selectedStatMod = item.sockets?.flatMap((socket) => socket.selected_plug ? [socket.selected_plug] : [])
+    .find((plug) => armorStatModPlugValue(plug));
+  const selectedValue = selectedStatMod ? armorStatModPlugValue(selectedStatMod) : undefined;
+  const selectedStatModCost = selectedStatMod
+    ? selectedStatMod.energy_cost ?? (selectedValue === 5 ? 1 : selectedValue === 10 ? 3 : 0)
+    : 0;
+  return Math.max(0, item.armor_energy.used - selectedStatModCost);
+}
+
+function armorStatModPlugValue(plug: AccountItemSummary["socket_plugs"][number]): 5 | 10 | undefined {
+  const entries = Object.values(plug.armor_stat_modifiers ?? {}).filter((value) => value !== 0);
+  return entries.length === 1 && (entries[0] === 5 || entries[0] === 10)
+    ? entries[0]
+    : undefined;
+}
+
+function armorItemSlot(item: AccountItemSummary): ArmorSlot | undefined {
+  if (item.bucket_hash === 3448274439 || /头盔|頭盔|helmet/i.test(item.bucket_name ?? "")) return "helmet";
+  if (item.bucket_hash === 3551918588 || /臂铠|臂鎧|gauntlets|arms/i.test(item.bucket_name ?? "")) return "arms";
+  if (item.bucket_hash === 14239492 || /胸甲|chest/i.test(item.bucket_name ?? "")) return "chest";
+  if (item.bucket_hash === 20886954 || /腿甲|leg armor|legs/i.test(item.bucket_name ?? "")) return "legs";
+  if (item.bucket_hash === 1585787867 || /职业物品|職業物品|class armor|class item/i.test(item.bucket_name ?? "")) return "class";
+  return undefined;
+}
+
+function clampArmorModCount(value: number, maximum: number): number {
+  return Math.min(Math.max(0, Math.trunc(maximum)), Math.max(0, Math.trunc(value || 0)));
+}
+
 function uniqueStrings(values: readonly string[]): string[] {
   return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
+}
+
+function uniqueNumbers(values: readonly number[]): number[] {
+  return [...new Set(values.filter((value) => Number.isFinite(value)).map((value) => value >>> 0))];
 }
 
 function uniqueValues<Value>(values: readonly Value[]): Value[] {

@@ -120,6 +120,7 @@ export type AccountItemPlugSummary = {
   icon?: string;
   description?: string;
   category_identifier?: string;
+  energy_cost?: number;
   trait_ids?: string[];
   objectives?: AccountItemPlugObjectiveSummary[];
   stat_modifiers?: WeaponStatSummary;
@@ -1449,6 +1450,9 @@ function summarizeSelectedPlugPreviews(
         ...(definition?.plug?.plugCategoryIdentifier
           ? { category_identifier: definition.plug.plugCategoryIdentifier }
           : {}),
+        ...(typeof definition?.plug?.energyCost?.energyCost === "number"
+          ? { energy_cost: Math.max(0, definition.plug.energyCost.energyCost) }
+          : {}),
         ...(definition?.traitIds?.length ? { trait_ids: definition.traitIds } : {}),
         ...(definition?.itemTypeDisplayName ? { item_type: definition.itemTypeDisplayName } : {}),
         ...(Object.keys(modifiers.weapon).length ? { stat_modifiers: modifiers.weapon } : {}),
@@ -1589,6 +1593,9 @@ function buildPlugSummary(
     description: definition?.displayProperties?.description,
     ...(definition?.plug?.plugCategoryIdentifier
       ? { category_identifier: definition.plug.plugCategoryIdentifier }
+      : {}),
+    ...(typeof definition?.plug?.energyCost?.energyCost === "number"
+      ? { energy_cost: Math.max(0, definition.plug.energyCost.energyCost) }
       : {}),
     ...(definition?.traitIds?.length ? { trait_ids: definition.traitIds } : {}),
     ...(objectiveSummaries.length ? { objectives: objectiveSummaries } : {}),

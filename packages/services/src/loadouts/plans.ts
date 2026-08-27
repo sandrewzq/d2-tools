@@ -219,7 +219,31 @@ function normalizeArmorPlanReference(value: unknown): LocalLoadoutArmorPlanRefer
       manifest: optionalString(sourceRevisions?.manifest),
       ruleset: rulesetRevision
     },
-    selected_instance_ids: stringArray(value.selected_instance_ids)
+    selected_instance_ids: stringArray(value.selected_instance_ids),
+    planned_armor_plugs: Array.isArray(value.planned_armor_plugs)
+      ? value.planned_armor_plugs.flatMap((entry) => {
+          if (!isRecord(entry)) return [];
+          const instanceId = optionalString(entry.instance_id);
+          const energyCapacity = optionalNumber(entry.energy_capacity);
+          const reservedEnergy = optionalNumber(entry.reserved_energy);
+          const finalEnergy = optionalNumber(entry.final_energy);
+          const statModValue = entry.armor_stat_mod_value === 5 || entry.armor_stat_mod_value === 10
+            ? entry.armor_stat_mod_value
+            : undefined;
+          if (!instanceId || energyCapacity === undefined || reservedEnergy === undefined || finalEnergy === undefined) {
+            return [];
+          }
+          return [{
+            instance_id: instanceId,
+            tuning_plug_hash: optionalNumber(entry.tuning_plug_hash),
+            armor_stat_mod_plug_hash: optionalNumber(entry.armor_stat_mod_plug_hash),
+            armor_stat_mod_value: statModValue,
+            energy_capacity: Math.max(0, Math.trunc(energyCapacity)),
+            reserved_energy: Math.max(0, Math.trunc(reservedEnergy)),
+            final_energy: Math.max(0, Math.trunc(finalEnergy))
+          }];
+        })
+      : []
   };
 }
 

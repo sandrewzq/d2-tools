@@ -91,6 +91,13 @@ export type ArmorPlannerTheoreticalPieceView = {
         rolledToStat?: ArmorStatKey;
       };
   armorStatMod?: { stat: ArmorStatKey; value: 5 | 10 };
+  energy: {
+    capacity: number;
+    reserved: number;
+    armorStatMod: number;
+    final: number;
+    remaining: number;
+  };
   rawStats: ArmorStatValues;
   finalStats: ArmorStatValues;
   equivalentIdentityIds: string[];
@@ -110,7 +117,28 @@ export type ArmorPlannerOwnedPieceView = {
   set?: { hash: number; name: string };
   observedFinalStats: ArmorStatValues;
   finalStats: ArmorStatValues;
-  armorStatMod?: { stat: ArmorStatKey; value: 5 | 10 };
+  tuning?: {
+    mode: "shift" | "plus3";
+    fromStat?: ArmorStatKey;
+    toStat?: ArmorStatKey;
+    plugHash: number;
+  };
+  armorStatMod?: {
+    stat: ArmorStatKey;
+    value: 5 | 10;
+    plugHash: number;
+    socketIndex: number;
+    energyCost: number;
+  };
+  armorStatModSocketPlugHash?: number;
+  plannedNonStatPlugHashes: number[];
+  energy: {
+    capacity: number;
+    reserved: number;
+    armorStatMod: number;
+    final: number;
+    remaining: number;
+  };
 };
 
 export type ArmorPlannerOwnedMatchView = {
@@ -512,6 +540,13 @@ function theoreticalPieceView(
     ...(configuration.armor_stat_mod
       ? { armorStatMod: { ...configuration.armor_stat_mod } }
       : {}),
+    energy: {
+      capacity: configuration.energy.capacity,
+      reserved: configuration.energy.reserved,
+      armorStatMod: configuration.energy.armor_stat_mod,
+      final: configuration.energy.final,
+      remaining: configuration.energy.remaining
+    },
     rawStats: configuration.stats.raw,
     finalStats: configuration.stats.final,
     equivalentIdentityIds: [...choice.equivalent_identity_ids],
@@ -533,9 +568,36 @@ function ownedPieceView(piece: ArmorOwnedPieceChoice): ArmorPlannerOwnedPieceVie
     ...(piece.set ? { set: { ...piece.set } } : {}),
     observedFinalStats: piece.observed_final,
     finalStats: piece.final,
+    ...(piece.applied_tuning ? {
+      tuning: {
+        mode: piece.applied_tuning.mode,
+        ...(piece.applied_tuning.from_stat ? { fromStat: piece.applied_tuning.from_stat } : {}),
+        ...(piece.applied_tuning.to_stat ? { toStat: piece.applied_tuning.to_stat } : {}),
+        plugHash: piece.applied_tuning.source_plug_hash
+      }
+    } : {}),
     ...(piece.applied_armor_stat_mod
-      ? { armorStatMod: { ...piece.applied_armor_stat_mod } }
-      : {})
+      ? {
+          armorStatMod: {
+            stat: piece.applied_armor_stat_mod.stat,
+            value: piece.applied_armor_stat_mod.value,
+            plugHash: piece.applied_armor_stat_mod.source_plug_hash,
+            socketIndex: piece.applied_armor_stat_mod.socket_index,
+            energyCost: piece.applied_armor_stat_mod.energy_cost
+          }
+        }
+      : {}),
+    ...(piece.armor_stat_mod_socket_plug_hash === undefined
+      ? {}
+      : { armorStatModSocketPlugHash: piece.armor_stat_mod_socket_plug_hash }),
+    plannedNonStatPlugHashes: [...piece.planned_non_stat_plug_hashes],
+    energy: {
+      capacity: piece.energy.capacity,
+      reserved: piece.energy.reserved,
+      armorStatMod: piece.energy.armor_stat_mod,
+      final: piece.energy.final,
+      remaining: piece.energy.remaining
+    }
   };
 }
 

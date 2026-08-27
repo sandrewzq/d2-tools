@@ -9,6 +9,7 @@ import {
   subtractArmorStatValues,
   type ArmorClass,
   type ArmorLocation,
+  type ArmorPlannedPlugSnapshot,
   type ArmorPieceSnapshot,
   type ArmorSlot,
   type ArmorStatValues
@@ -47,6 +48,8 @@ export type ArmorOwnedPlanRequest = {
   armor_set_catalog?: readonly ArmorSetCatalogEntry[];
   set_constraint?: ArmorSetConstraint;
   priority_stats?: readonly ArmorStatKey[];
+  reserved_energy_by_slot?: Partial<Record<ArmorSlot, number>>;
+  planned_non_stat_plug_hashes_by_slot?: Partial<Record<ArmorSlot, readonly number[]>>;
   mode?: ArmorOwnedPlanningMode;
   limit?: number;
   state_limit?: number;
@@ -65,7 +68,29 @@ export type ArmorOwnedPieceChoice = {
   set?: { hash: number; name: string };
   observed_final: ArmorStatValues;
   planning_base: ArmorStatValues;
-  applied_armor_stat_mod?: { stat: ArmorStatKey; value: 5 | 10 };
+  applied_tuning?: {
+    mode: "shift" | "plus3";
+    from_stat?: ArmorStatKey;
+    to_stat?: ArmorStatKey;
+    source_plug_hash: number;
+    values: ArmorStatValues;
+  };
+  applied_armor_stat_mod?: {
+    stat: ArmorStatKey;
+    value: 5 | 10;
+    source_plug_hash: number;
+    socket_index: number;
+    energy_cost: number;
+  };
+  armor_stat_mod_socket_plug_hash?: number;
+  planned_non_stat_plug_hashes: number[];
+  energy: {
+    capacity: number;
+    reserved: number;
+    armor_stat_mod: number;
+    final: number;
+    remaining: number;
+  };
   final: ArmorStatValues;
 };
 
@@ -487,45 +512,171 @@ function buildPieceOptions(
   if (mode === "strict" && piece.armor_stat_mod) {
     existingArmorMod[piece.armor_stat_mod.stat] = piece.armor_stat_mod.value;
   }
+  const existingTuning = mode === "strict"
+    ? piece.modifiers.find((modifier) => (
+        modifier.plug_hash === piece.tuning?.source_plug_hash
+        && (modifier.kind === "tuning_shift" || modifier.kind === "tuning_plus3")
+      ))?.values
+    : undefined;
+  const autoTune = mode === "strict"
+    && piece.installation.gear_tier === request.ruleset.masterwork.maximum_tier
+    && piece.installation.tuning_options.length > 0;
   const planningBase = mode === "strict"
-    ? subtractArmorStatValues(observedFinal, existingArmorMod)
+    ? subtractArmorStatValues(
+        subtractArmorStatValues(observedFinal, existingArmorMod),
+        autoTune && existingTuning ? existingTuning : createEmptyArmorStatValues()
+      )
     : observedFinal;
   const modValues = mode === "strict" ? normalizeAllowedMods(request.allowed_armor_mod_values) : [0] as const;
+  const tuningOptions = autoTune ? piece.installation.tuning_options : [undefined];
+  const energyCapacity = piece.installation.energy_capacity ?? 0;
+  const requestedNonStatPlugHashes = request.planned_non_stat_plug_hashes_by_slot?.[piece.slot];
+  const plannedNonStatPlugs = resolvePlannedNonStatPlugs(piece, requestedNonStatPlugHashes);
+  if (!plannedNonStatPlugs) return [];
+  const reservedEnergy = requestedNonStatPlugHashes === undefined
+    ? piece.installation.reserved_energy ?? energyCapacity
+    : plannedNonStatPlugs.reduce((total, plug) => total + plug.energy_cost, 0);
+  const remainingEnergy = Math.max(0, energyCapacity - reservedEnergy);
   const options: OwnedPieceOption[] = [];
-  for (const modValue of modValues) {
-    if (modValue === 5 && budget.plus5 === 0) continue;
-    if (modValue === 10 && budget.plus10 === 0) continue;
-    const modStats = modValue === 0 ? [undefined] : armorStatKeys;
-    for (const modStat of modStats) {
-      const appliedMod = modStat ? { stat: modStat, value: modValue as 5 | 10 } : undefined;
-      const modBlock = createEmptyArmorStatValues();
-      if (appliedMod) modBlock[appliedMod.stat] = appliedMod.value;
-      const final = addArmorStatValues(planningBase, modBlock);
-      const choice: ArmorOwnedPieceChoice = {
-        instance_id: piece.instance_id,
-        item_hash: piece.item_hash,
-        name: piece.name,
-        slot: piece.slot,
-        class: piece.class,
-        location: piece.location,
-        source_character_id: piece.source_character_id,
-        exotic: piece.exotic,
-        exotic_class_item: piece.exotic_class_item,
-        set: piece.set ? { ...piece.set } : undefined,
-        observed_final: observedFinal,
-        planning_base: cloneArmorStatValues(planningBase),
-        applied_armor_stat_mod: appliedMod,
-        final
-      };
-      options.push({
-        choice,
-        plus5: modValue === 5 ? 1 : 0,
-        plus10: modValue === 10 ? 1 : 0,
-        ...(piece.set ? { set_hash: toUnsignedHash(piece.set.hash) } : {})
-      });
+  for (const tuningOption of tuningOptions) {
+    const tunedBase = tuningOption
+      ? addArmorStatValues(planningBase, tuningOption.values)
+      : planningBase;
+    for (const modValue of modValues) {
+      if (modValue === 5 && budget.plus5 === 0) continue;
+      if (modValue === 10 && budget.plus10 === 0) continue;
+      const modStats = modValue === 0 ? [undefined] : armorStatKeys;
+      for (const modStat of modStats) {
+        const clearOption = mode === "strict" && modValue === 0
+          ? piece.installation.armor_stat_mod_clear_options[0]
+          : undefined;
+        if (mode === "strict" && modValue === 0 && !clearOption) continue;
+        const installationOption = modStat && modValue !== 0
+          ? piece.installation.armor_stat_mod_options
+              .filter((candidate) => (
+                candidate.stat === modStat
+                && candidate.value === modValue
+                && candidate.energy_cost <= remainingEnergy
+              ))
+              .sort((left, right) => (
+                left.energy_cost - right.energy_cost
+                || left.source_plug_hash - right.source_plug_hash
+              ))[0]
+          : undefined;
+        if (modStat && !installationOption) continue;
+        const appliedMod = installationOption
+          ? {
+              stat: installationOption.stat,
+              value: installationOption.value,
+              source_plug_hash: installationOption.source_plug_hash,
+              socket_index: installationOption.socket_index,
+              energy_cost: installationOption.energy_cost
+            }
+          : undefined;
+        const modBlock = createEmptyArmorStatValues();
+        if (appliedMod) modBlock[appliedMod.stat] = appliedMod.value;
+        const final = addArmorStatValues(tunedBase, modBlock);
+        const armorStatModEnergy = appliedMod?.energy_cost ?? clearOption?.energy_cost ?? 0;
+        const finalEnergy = reservedEnergy + armorStatModEnergy;
+        const choice: ArmorOwnedPieceChoice = {
+          instance_id: piece.instance_id,
+          item_hash: piece.item_hash,
+          name: piece.name,
+          slot: piece.slot,
+          class: piece.class,
+          location: piece.location,
+          source_character_id: piece.source_character_id,
+          exotic: piece.exotic,
+          exotic_class_item: piece.exotic_class_item,
+          set: piece.set ? { ...piece.set } : undefined,
+          observed_final: observedFinal,
+          planning_base: cloneArmorStatValues(planningBase),
+          ...(tuningOption ? {
+            applied_tuning: {
+              mode: tuningOption.tuning.mode,
+              ...(tuningOption.tuning.mode === "shift"
+                ? {
+                    from_stat: tuningOption.tuning.from_stat,
+                    to_stat: tuningOption.tuning.to_stat
+                  }
+                : {}),
+              source_plug_hash: tuningOption.tuning.source_plug_hash,
+              values: cloneArmorStatValues(tuningOption.values)
+            }
+          } : {}),
+          applied_armor_stat_mod: appliedMod,
+          ...((appliedMod?.source_plug_hash ?? clearOption?.plug_hash) !== undefined
+            ? { armor_stat_mod_socket_plug_hash: appliedMod?.source_plug_hash ?? clearOption?.plug_hash }
+            : {}),
+          planned_non_stat_plug_hashes: plannedNonStatPlugs.map((plug) => plug.plug_hash),
+          energy: {
+            capacity: energyCapacity,
+            reserved: reservedEnergy,
+            armor_stat_mod: armorStatModEnergy,
+            final: finalEnergy,
+            remaining: Math.max(0, energyCapacity - finalEnergy)
+          },
+          final
+        };
+        options.push({
+          choice,
+          plus5: modValue === 5 ? 1 : 0,
+          plus10: modValue === 10 ? 1 : 0,
+          ...(piece.set ? { set_hash: toUnsignedHash(piece.set.hash) } : {})
+        });
+      }
     }
   }
   return options;
+}
+
+function resolvePlannedNonStatPlugs(
+  piece: ArmorPieceSnapshot,
+  requestedPlugHashes: readonly number[] | undefined
+): ArmorPlannedPlugSnapshot[] | undefined {
+  if (requestedPlugHashes === undefined) {
+    return piece.installation.planned_non_stat_plugs.map((plug) => ({ ...plug }));
+  }
+  const candidates = requestedPlugHashes.map((plugHash, requestIndex) => ({
+    requestIndex,
+    plugHash: toUnsignedHash(plugHash),
+    options: piece.installation.available_non_stat_plugs.filter((plug) => (
+      plug.plug_hash === toUnsignedHash(plugHash)
+    ))
+  }));
+  if (candidates.some((candidate) => !candidate.plugHash || !candidate.options.length)) return undefined;
+
+  const assignment = new Array<ArmorPlannedPlugSnapshot | undefined>(requestedPlugHashes.length);
+  const usedSocketIndexes = new Set<number>();
+  const ordered = [...candidates].sort((left, right) => (
+    left.options.length - right.options.length
+    || left.requestIndex - right.requestIndex
+  ));
+
+  function assign(index: number): boolean {
+    if (index >= ordered.length) return true;
+    const candidate = ordered[index]!;
+    for (const option of candidate.options) {
+      if (usedSocketIndexes.has(option.socket_index)) continue;
+      usedSocketIndexes.add(option.socket_index);
+      assignment[candidate.requestIndex] = option;
+      if (assign(index + 1)) return true;
+      assignment[candidate.requestIndex] = undefined;
+      usedSocketIndexes.delete(option.socket_index);
+    }
+    return false;
+  }
+
+  if (!assign(0)) return undefined;
+  const planned = assignment
+    .filter((plug): plug is ArmorPlannedPlugSnapshot => Boolean(plug))
+    .map((plug) => ({ ...plug }));
+  for (const currentPlug of piece.installation.planned_non_stat_plugs) {
+    if (usedSocketIndexes.has(currentPlug.socket_index)) continue;
+    usedSocketIndexes.add(currentPlug.socket_index);
+    planned.push({ ...currentPlug });
+  }
+  return planned.sort((left, right) => left.socket_index - right.socket_index || left.plug_hash - right.plug_hash);
 }
 
 function buildRemainingBounds(
@@ -651,9 +802,7 @@ function buildCandidate(
   const totalGap = gaps.reduce((total, gap) => total + gap, 0);
   const setCoverage = buildArmorSetCoverage(setConstraint, state.set_counts);
   return {
-    candidate_id: state.choices.map((choice) => (
-      `${choice.instance_id}:${choice.applied_armor_stat_mod?.stat ?? "none"}:${choice.applied_armor_stat_mod?.value ?? 0}`
-    )).join("|"),
+    candidate_id: choiceIds(state.choices),
     hard_constraints_met: totalGap === 0 && setCoverage.satisfied,
     pieces: state.choices,
     armor_total: cloneArmorStatValues(state.totals),
@@ -854,7 +1003,12 @@ function comparePieceOptions(left: OwnedPieceOption, right: OwnedPieceOption): n
 }
 
 function pieceChoiceId(choice: ArmorOwnedPieceChoice): string {
-  return `${choice.instance_id}:${choice.applied_armor_stat_mod?.stat ?? "none"}:${choice.applied_armor_stat_mod?.value ?? 0}`;
+  return [
+    choice.instance_id,
+    choice.applied_tuning?.source_plug_hash ?? 0,
+    choice.armor_stat_mod_socket_plug_hash ?? 0,
+    choice.planned_non_stat_plug_hashes.join(",")
+  ].join(":");
 }
 
 function choiceIds(choices: readonly ArmorOwnedPieceChoice[]): string {

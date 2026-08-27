@@ -240,6 +240,7 @@ Offer 使用响应式对象卡网格：宽屏五列，`1280px` 三列，`980px` 
 - 本地方案工作台采用“配置目录 / 当前编辑区域 / 方案摘要”三栏结构。配置目录固定包含基础信息、子职业、武器、护甲、属性与模组、核对与执行。
 - 武器和护甲必须选择真实账号实例；同名多实例不静默代选。子职业、目标 Perk、星象、碎片、技能和模组只有在稳定 Hash 与可写能力可验证时才进入执行计划，其余保持“仅记录”。
 - 护甲规划保留在本地方案工作台内，不新增第三个一级页面。规划模式使用分段控件切换“库存成装 / 理论上限 / 待刷目标 / 升级路径”；同一组六维目标、碎片变化、模组预算、优先级和套装约束在四种模式间复用。
+- 属性模组输入分别使用 `+5 属性模组` 与 `+10 属性模组` 的精确数量，总数不超过五件护甲；T5 护甲调整由计算器逐件自动选择，零能量且不计入属性模组数量。库存与升级候选必须按五个具体部位的 Socket、草稿耗能功能 Plug、候选未覆盖 Socket 的现有耗能 Plug 和剩余能量分配属性模组；未安装属性模组的部位必须规划真实零能量清空 Plug。页面逐件显示护甲调整、属性模组、其他模组占用和最终能量，不得只展示五件聚合预算。
 - 护甲约束支持 Manifest 可确认的 `2件 / 4件 / 2+2`、位置范围、固定异域、锁定和排除。理论模式不要求账号且只输出理论身份；待刷模式区分已有、待升级、待核对和待获取；库存与升级模式才允许选择真实实例组合。
 - 护甲计算统一消费 `@d2-tools/app/armor` 的 `ArmorPlannerWorkspaceState`，页面不得继续直接调用旧 `solveLoadoutArmorCandidates`。Desktop Adapter 在主进程补齐当前 Manifest 规则集、套装目录和账号护甲快照；页面只提交职业、目标、约束、位置和实例选择条件。
 - 修改六维、碎片、模组预算、优先级、锁定、排除或位置范围后，必须立即废弃旧候选。计算中可以保留上一结果作为内部恢复数据，但不得继续显示为可选择候选；`stale / error / indeterminate / unreachable / invalid` 必须分别显示真实状态和领域警告。
@@ -259,7 +260,7 @@ Offer 使用响应式对象卡网格：宽屏五列，`1280px` 三列，`980px` 
 | 基础信息 | `name`、`class_name`、`target_character_id`、`source`、`notes` | 新建和当前装备复制只创建草稿；`saveLocalLoadoutPlan` 成功前不写入本地文件。 |
 | 武器与实例 | `item_targets`、`selected_instance_id`、`item_hash`、`plug_hashes`、`matchLocalLoadoutPlan` | 按实例 ID 核对；同一目标有多个真实实例时保持“需要选择实例”，不自动代选。 |
 | 子职业与构筑 | `subclass_target`、`guidance` | 仅保存稳定 Hash 和已解析条件；不能证明可写的配置在产品中保持“仅记录”。 |
-| 护甲规划 | `armor_constraints`、`ArmorPlannerWorkspaceState`、`armor_plan` | 模式、套装、锁定、排除、异域、位置范围、六维和模组预算随草稿保存；临时候选不持久化。选择库存或升级候选后只保存稳定结果 ID、可选缓存键、候选 ID、规则/来源 revision 和真实实例 ID。 |
+| 护甲规划 | `armor_constraints`、`ArmorPlannerWorkspaceState`、`armor_plan` | 模式、套装、锁定、排除、异域、位置范围、六维和精确属性模组数量随草稿保存；临时候选不持久化。选择库存或升级候选后保存稳定结果 ID、可选缓存键、候选 ID、规则/来源 revision、真实实例 ID，以及逐件护甲调整/属性模组 Plug 与能量账本；执行前必须按刷新后的实例、Socket 和能量重新预检。 |
 | 方案摘要 | `LocalLoadoutPlanMatch`、账号当前快照 | 匹配结果是即时派生值，不写入 `loadout-plans.json`；未读账号只显示等待核对。 |
 | DIM / 攻略 / AI 成果入口 | `previewDimLoadoutImport`、`createDimLoadoutExport`、`loadout_candidates`、`armor_constraint_draft`、`equipment_target_candidates` | DIM 导入必须先显示预览；攻略正文只在攻略页导入和确认。配装页只审阅类型化成果，并区分真实实例、定义候选和缺口；所有导入与成果交接都不直接写入方案。 |
 

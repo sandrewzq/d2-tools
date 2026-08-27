@@ -58,6 +58,8 @@ export type ArmorTheoreticalPlanRequest = EnumerateArmorTheoreticalIdentitiesOpt
   fragment_adjustments?: Partial<Record<ArmorStatKey, number>>;
   armor_mod_budget?: Partial<ArmorReachabilityModBudget>;
   allowed_armor_mod_values?: readonly (0 | 5 | 10)[];
+  energy_capacity_by_slot?: Partial<Record<ArmorSlot, number>>;
+  reserved_energy_by_slot?: Partial<Record<ArmorSlot, number>>;
   masterwork_tier?: number;
   fixed_pieces?: Partial<Record<ArmorSlot, ArmorReachabilityPiece>>;
   armor_set_catalog?: readonly ArmorSetCatalogEntry[];
@@ -453,7 +455,14 @@ function buildGenericPieceOptions(
   setConstraint: NormalizedArmorSetConstraint
 ): TheoreticalPieceOption[] {
   const options = new Map<string, TheoreticalPieceOption>();
-  const modValues = normalizeAllowedMods(request.allowed_armor_mod_values);
+  const energyCapacity = slotEnergyCapacity(request, slot);
+  const reservedEnergy = slotReservedEnergy(request, slot);
+  const modValues = energyCompatibleMods(
+    request.ruleset,
+    normalizeAllowedMods(request.allowed_armor_mod_values),
+    energyCapacity,
+    reservedEnergy
+  );
   const setOptions = [
     undefined,
     ...setConstraint.requirements
@@ -473,7 +482,9 @@ function buildGenericPieceOptions(
           modValues,
           budget,
           masterworkTier: request.masterwork_tier,
-          armorSet
+          armorSet,
+          energyCapacity,
+          reservedEnergy
         });
       }
     }
@@ -489,6 +500,8 @@ function buildFixedPieceOptions(
 ): TheoreticalPieceOption[] {
   const options = new Map<string, TheoreticalPieceOption>();
   const globalMods = normalizeAllowedMods(request.allowed_armor_mod_values);
+  const energyCapacity = piece.energy_capacity ?? slotEnergyCapacity(request, slot);
+  const reservedEnergy = piece.reserved_energy ?? slotReservedEnergy(request, slot);
   const pieceMods = piece.allowed_armor_mod_values === undefined
     ? globalMods
     : normalizeAllowedMods(piece.allowed_armor_mod_values).filter((value) => globalMods.includes(value));
@@ -511,10 +524,17 @@ function buildFixedPieceOptions(
       armorClass: piece.class,
       identity,
       tuning,
-      modValues: pieceMods,
       budget,
       masterworkTier: piece.masterwork_tier ?? request.masterwork_tier,
-      fixedPiece: piece
+      fixedPiece: piece,
+      energyCapacity,
+      reservedEnergy,
+      modValues: energyCompatibleMods(
+        request.ruleset,
+        pieceMods,
+        energyCapacity,
+        reservedEnergy
+      )
     });
   }
   return [...options.values()].sort(comparePieceOptions);
@@ -532,6 +552,8 @@ function addConfigurationOptions(input: {
   masterworkTier?: number;
   fixedPiece?: ArmorReachabilityPiece;
   armorSet?: { hash: number; name: string };
+  energyCapacity: number;
+  reservedEnergy: number;
 }): void {
   const armorSet = input.fixedPiece?.set ?? input.armorSet;
   for (const modValue of input.modValues) {
@@ -557,6 +579,11 @@ function addConfigurationOptions(input: {
         masterwork_tier: input.masterworkTier,
         tuning: input.tuning,
         armor_stat_mod: armorStatMod,
+        energy_capacity: input.energyCapacity,
+        reserved_energy: input.reservedEnergy,
+        armor_stat_mod_energy_cost: armorStatMod
+          ? input.ruleset.armor_mod.energy_costs[armorStatMod.value]
+          : 0,
         item_hash: input.fixedPiece?.item_hash,
         name: input.fixedPiece?.name ?? input.identity.archetype_name,
         exotic: input.fixedPiece?.exotic,
@@ -595,6 +622,39 @@ function addConfigurationOptions(input: {
       }
     }
   }
+}
+
+function slotEnergyCapacity(
+  request: ArmorTheoreticalPlanRequest,
+  slot: ArmorSlot
+): number {
+  return normalizeEnergyValue(
+    request.energy_capacity_by_slot?.[slot],
+    request.ruleset.armor_mod.default_energy_capacity
+  );
+}
+
+function slotReservedEnergy(
+  request: ArmorTheoreticalPlanRequest,
+  slot: ArmorSlot
+): number {
+  return normalizeEnergyValue(request.reserved_energy_by_slot?.[slot], 0);
+}
+
+function energyCompatibleMods(
+  ruleset: ArmorRuleset,
+  values: readonly (0 | 5 | 10)[],
+  capacity: number,
+  reserved: number
+): Array<0 | 5 | 10> {
+  const remaining = Math.max(0, capacity - reserved);
+  return values.filter((value) => (
+    value === 0 || ruleset.armor_mod.energy_costs[value] <= remaining
+  ));
+}
+
+function normalizeEnergyValue(value: number | undefined, fallback: number): number {
+  return Number.isFinite(value) ? Math.max(0, Math.trunc(value!)) : Math.max(0, Math.trunc(fallback));
 }
 
 function identityTuningAllocations(
