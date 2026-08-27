@@ -13,13 +13,14 @@ import { fetchSharedBungieJson } from "../runtime/bungieSession.js";
 import { getDefinitions } from "../runtime/gameDataRuntime.js";
 import { measureRuntime } from "../runtime/runtimeMetrics.js";
 import { loadFreshOAuthToken } from "./authSession.js";
+import { startBackgroundTask } from "../backgroundTasks.js";
 
 const vendorInventoryTimeoutMs = 30_000;
 const vendorInventoryRequests = new Map<string, Promise<Awaited<ReturnType<typeof fetchVendorInventorySnapshot>>>>();
 
 export function registerVendorIpcHandlers(): void {
-  ipcMain.handle("vendors:inventory", (_event, input: VendorInventoryRequest) => refreshVendorInventory(input));
-  ipcMain.handle("vendors:inventory:refresh", (_event, input: VendorInventoryRequest) => refreshVendorInventory(input));
+  ipcMain.handle("vendors:inventory", (_event, input: VendorInventoryRequest) => scheduleVendorRefresh(input));
+  ipcMain.handle("vendors:inventory:refresh", (_event, input: VendorInventoryRequest) => scheduleVendorRefresh(input));
   ipcMain.handle("vendors:inventory:cached", async (_event, input: VendorInventoryRequest) => {
     const config = loadConfig();
     const cached = await measureRuntime(
@@ -28,6 +29,23 @@ export function registerVendorIpcHandlers(): void {
     );
     return cached?.snapshot ?? null;
   });
+}
+
+function scheduleVendorRefresh(input: VendorInventoryRequest) {
+  const config = loadConfig();
+  const cacheContext = createCacheContext(input, config.data.manifest_language);
+  const requestKey = createVendorInventoryCacheKey(cacheContext);
+  const existing = vendorInventoryRequests.get(requestKey);
+  const request = existing ?? refreshVendorInventory(input);
+  if (!existing) {
+    startBackgroundTask({
+      type: "vendor-refresh",
+      title: "刷新商人库存",
+      message: "正在读取商人库存与角色上下文。",
+      run: async () => { await request; }
+    });
+  }
+  return request;
 }
 
 function refreshVendorInventory(input: VendorInventoryRequest) {

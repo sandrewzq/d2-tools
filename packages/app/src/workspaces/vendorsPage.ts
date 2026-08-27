@@ -175,6 +175,8 @@ export type VendorsPageModel = {
   search?: { query: string; resultCount: number };
   filters?: VendorFiltersWorkspace;
   statusBanner?: VendorStatusBannerWorkspace;
+  resourceStatus: "unavailable" | "loading" | "refreshing" | "ready" | "stale" | "error";
+  resourceSource: "local" | "remote" | "merged";
 };
 
 export type VendorsPageWorkspace = VendorsPageModel;
@@ -306,7 +308,9 @@ function selectSnapshotVendorsPageModel(input: VendorsPageInput): VendorsPageMod
       selectedCharacterContext: null,
       search: { query: "", resultCount: 0 },
       filters,
-      statusBanner: createStatusBanner(input)
+      statusBanner: createStatusBanner(input),
+      resourceStatus: input.refreshState === "refreshing" ? "loading" : input.refreshState === "failed" ? "error" : "unavailable",
+      resourceSource: "merged"
     };
   }
 
@@ -432,7 +436,9 @@ function selectSnapshotVendorsPageModel(input: VendorsPageInput): VendorsPageMod
     selectedCharacterContext,
     search: { query: "", resultCount: 0 },
     filters,
-    statusBanner: createStatusBanner(input)
+    statusBanner: createStatusBanner(input),
+    resourceStatus: input.refreshState === "refreshing" ? "refreshing" : input.refreshState === "failed" ? "stale" : "ready",
+    resourceSource: "merged"
   };
 }
 

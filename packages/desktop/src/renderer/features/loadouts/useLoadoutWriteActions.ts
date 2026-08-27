@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import type { analyzeLoadoutTemplate } from "@d2-tools/core/loadouts/analysis";
 import type { AccountOperationFeedbackView } from "@d2-tools/app/account";
 import { api } from "../../api/client";
@@ -83,6 +84,11 @@ export function useLoadoutWriteActions(input: {
   applyAuthoritativeAccountSummary: (summary: AccountSummary) => void;
   openItemDetail: (item: AccountItemSummary, source?: SelectedItemSource) => void | Promise<void>;
 }) {
+  // 配装页可能从模板条目、迁移计划等多个入口同时打开同一实例。
+  // 共享详情 hook 已负责跨页面缓存和 in-flight 去重，这里再挡住本 feature
+  // 内重复的 open 调用，避免快速连点导致弹层状态反复切换或重复启动读取。
+  const pendingSourceDetailOpens = useRef(new Map<string, Promise<void>>()).current;
+
   function applySuccessfulWriteResult(result: ItemActionResult | BatchItemActionResult): {
     hasSuccessfulWrite: boolean;
     requiresFullRefresh: boolean;
@@ -890,11 +896,25 @@ export function useLoadoutWriteActions(input: {
       return;
     }
 
-    void input.openItemDetail(matchedItem, {
+    const accountKey = input.accountSummary
+      ? `${input.accountSummary.membership_type}:${input.accountSummary.destiny_membership_id}`
+      : "signed-out";
+    const instanceKey = matchedItem.instance_id
+      ? `${accountKey}:${matchedItem.instance_id}`
+      : `${accountKey}:hash:${matchedItem.hash}`;
+    const pending = pendingSourceDetailOpens.get(instanceKey);
+    if (pending) return;
+
+    const openRequest = Promise.resolve(input.openItemDetail(matchedItem, {
       source_character_id: matchedItem.source_character_id,
       is_vault_item: matchedItem.is_vault_item,
       is_postmaster_item: matchedItem.is_postmaster_item
+    })).then(() => undefined).finally(() => {
+      if (pendingSourceDetailOpens.get(instanceKey) === openRequest) {
+        pendingSourceDetailOpens.delete(instanceKey);
+      }
     });
+    pendingSourceDetailOpens.set(instanceKey, openRequest);
   }
 
   return {

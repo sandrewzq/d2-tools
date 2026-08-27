@@ -151,6 +151,8 @@ export type HomePageContentViewProps = {
   dailyMessage?: string;
   dailyError?: string;
   isLoadingDaily?: boolean;
+  dailyResourceStatus?: "unavailable" | "loading" | "refreshing" | "ready" | "stale" | "error";
+  dailyResourceSource?: "local" | "remote" | "merged";
   onNavigate?: (page: ShellPageKey) => void;
   onRefreshDaily?: () => void;
   onOpenWeeklyActivityReward?: (reward: HomeWeeklyActivityReward) => void;
@@ -184,6 +186,8 @@ export function HomePageContentView(props: HomePageContentViewProps) {
       dailyMessage={props.dailyMessage ?? ""}
       dailyError={dailyError}
       isLoadingDaily={isLoadingDaily}
+      dailyResourceStatus={props.dailyResourceStatus ?? (dailySummary ? "ready" : isLoadingDaily ? "loading" : dailyError ? "error" : "unavailable")}
+      dailyResourceSource={props.dailyResourceSource ?? "merged"}
       onNavigate={props.onNavigate}
       onRefreshDaily={props.onRefreshDaily}
       onOpenWeeklyActivityReward={props.onOpenWeeklyActivityReward}
@@ -204,6 +208,8 @@ function HomePageContent(props: {
   dailyMessage: string;
   dailyError: string;
   isLoadingDaily: boolean;
+  dailyResourceStatus: "unavailable" | "loading" | "refreshing" | "ready" | "stale" | "error";
+  dailyResourceSource: "local" | "remote" | "merged";
   onNavigate?: (page: ShellPageKey) => void;
   onRefreshDaily?: () => void;
   onOpenWeeklyActivityReward?: (reward: HomeWeeklyActivityReward) => void;
@@ -229,6 +235,10 @@ function HomePageContent(props: {
         </section>
       ) : null}
       <section className="home-content-band" data-surface="section">
+        <div className="home-resource-summary" role="status" aria-live="polite">
+          <span data-ui-part="label" data-info-priority="support" data-text-tone="meta">公开情报</span>
+          <HomeResourceStatus status={props.dailyResourceStatus} source={props.dailyResourceSource} />
+        </div>
         <div className="home-refresh-strip" data-surface="frame" data-ui-kind="status-matrix" aria-label="首页数据刷新节奏">
           {refreshEntries.map((entry) => <HomeRefreshCell key={entry.key} entry={entry} />)}
         </div>
@@ -266,7 +276,10 @@ function HomePageContent(props: {
           <div className="home-band-heading">
             <div className="home-vendor-title">
               <span data-ui-part="label" data-info-priority="support" data-text-tone="meta">{homeText(props.copy, "周末商人")}</span>
-              <h2 data-ui-part="value" data-info-priority="display" data-text-tone="primary">{homeText(props.copy, "仄本周八件轮换")}</h2>
+              <div className="home-vendor-heading-line">
+                <h2 data-ui-part="value" data-info-priority="display" data-text-tone="primary">{homeText(props.copy, "仄本周八件轮换")}</h2>
+                <HomeResourceStatus status={props.dailyResourceStatus} source={props.dailyResourceSource} />
+              </div>
             </div>
             <div className="home-vendor-timing" aria-label={`${xurTiming.label}时间`}>
               <span data-ui-part="label" data-info-priority="support" data-text-tone="meta">{xurTiming.label}</span>
@@ -336,6 +349,22 @@ function HomePageContent(props: {
       </section>
     </section>
   );
+}
+
+function HomeResourceStatus(props: {
+  status: "unavailable" | "loading" | "refreshing" | "ready" | "stale" | "error";
+  source: "local" | "remote" | "merged";
+}) {
+  const labels: Record<typeof props.status, string> = {
+    unavailable: "暂无数据",
+    loading: "首次读取",
+    refreshing: "后台同步中",
+    ready: "已同步",
+    stale: "缓存已过期",
+    error: "读取失败"
+  };
+  const sourceLabels: Record<typeof props.source, string> = { local: "本地", remote: "远端", merged: "本地优先" };
+  return <span className="app-chip home-resource-status" data-ui-kind="status-chip" data-status={props.status} title={`来源：${sourceLabels[props.source]}`}>{labels[props.status]}</span>;
 }
 
 type HomeRefreshEntry = { key: "daily" | "weekly"; label: string; moment: string; countdown: string; impact: string };

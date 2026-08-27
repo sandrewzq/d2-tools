@@ -35,6 +35,54 @@ type ItemOpenContext = {
 const ITEM_DETAIL_CACHE_LIMIT = 80;
 const ACCOUNT_ITEM_DETAIL_CACHE_LIMIT = 24;
 
+// 进程级实例详情缓存：仓库同名整理与详情弹层可能同时请求同一实例。
+// 统一在这里做短生命周期的内存复用和 in-flight 去重，避免页面之间重复 IPC。
+const sharedAccountDetailCache = new Map<string, { detail: AccountItemDetail; expiresAt: number }>();
+const sharedAccountDetailRequests = new Map<string, Promise<AccountItemDetail>>();
+const SHARED_ACCOUNT_DETAIL_CACHE_LIMIT = 120;
+
+export function loadAccountItemDetailCached(
+  instanceId: string,
+  options: { scopeKey?: string; force?: boolean } = {}
+): Promise<AccountItemDetail> {
+  const key = `${options.scopeKey ?? "default"}:${instanceId}`;
+  if (!options.force) {
+    const cached = sharedAccountDetailCache.get(key);
+    if (cached && cached.expiresAt > Date.now()) {
+      sharedAccountDetailCache.delete(key);
+      sharedAccountDetailCache.set(key, cached);
+      return Promise.resolve(cached.detail);
+    }
+    if (cached) sharedAccountDetailCache.delete(key);
+    const pending = sharedAccountDetailRequests.get(key);
+    if (pending) return pending;
+  }
+
+  let request: Promise<AccountItemDetail>;
+  request = api.getAccountItemDetail(instanceId, options.force ? { force: true } : undefined)
+    .then((detail) => {
+      if (sharedAccountDetailRequests.get(key) === request) sharedAccountDetailRequests.delete(key);
+      sharedAccountDetailCache.delete(key);
+      sharedAccountDetailCache.set(key, { detail, expiresAt: Date.now() + 45_000 });
+      while (sharedAccountDetailCache.size > SHARED_ACCOUNT_DETAIL_CACHE_LIMIT) {
+        const oldest = sharedAccountDetailCache.keys().next().value;
+        if (oldest === undefined) break;
+        sharedAccountDetailCache.delete(oldest);
+      }
+      return detail;
+    })
+    .catch((error) => {
+      if (sharedAccountDetailRequests.get(key) === request) sharedAccountDetailRequests.delete(key);
+      throw error;
+    });
+  sharedAccountDetailRequests.set(key, request);
+  return request;
+}
+
+export function invalidateCachedAccountItemDetail(instanceId: string, scopeKey = "default"): void {
+  sharedAccountDetailCache.delete(`${scopeKey}:${instanceId}`);
+}
+
 export function useItemDetail(options: {
   cacheScopeKey?: string;
   onOpenStart?: (context: ItemOpenContext) => void;
@@ -165,7 +213,7 @@ export function useItemDetail(options: {
     }
 
     if (instanceId && !cachedAccountDetail) {
-      pendingRequests.push(api.getAccountItemDetail(instanceId)
+      pendingRequests.push(loadAccountItemDetailCached(instanceId, { scopeKey: requestScopeKey })
         .then((detail) => {
           if (!isCurrent()) return;
           accountItemDetailCacheRef.current.set(detail.instance_id, detail);
@@ -214,13 +262,14 @@ export function useItemDetail(options: {
       && cacheScopeKeyRef.current === requestScopeKey
     );
     accountItemDetailCacheRef.current.delete(instanceId);
+    invalidateCachedAccountItemDetail(instanceId, requestScopeKey);
     setItemDetailError("");
     setItemDetailLoadingKey(itemKey);
     setSelectedItem((value) => value?.item_key === itemKey
       ? withDetailLoadingState(value, { definition: false, instance: true })
       : value);
     try {
-      const detail = await api.getAccountItemDetail(instanceId, { force: true });
+      const detail = await loadAccountItemDetailCached(instanceId, { scopeKey: requestScopeKey, force: true });
       if (!isCurrent()) return null;
       accountItemDetailCacheRef.current.set(instanceId, detail);
       evictOldestCacheEntry(accountItemDetailCacheRef.current, ACCOUNT_ITEM_DETAIL_CACHE_LIMIT);

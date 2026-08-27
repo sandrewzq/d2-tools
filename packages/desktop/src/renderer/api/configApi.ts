@@ -5,7 +5,8 @@ export type ConfigApi = {
   openDataDir(): Promise<void>;
   exportConfig(): Promise<ConfigBackupResult>;
   importConfig(): Promise<ConfigBackupResult>;
-  clearCache(): Promise<ConfigBackupResult>;
+  getCacheStatus(): Promise<CacheStatus>;
+  clearCache(domains?: readonly CacheDomain[]): Promise<ConfigBackupResult>;
   listAiModels(ai: AiSettings): Promise<AiModelListResult>;
   testAiConnection(): Promise<AiConnectionTestResult>;
 };
@@ -14,6 +15,41 @@ export type ConfigBackupResult = {
   ok: true;
   message: string;
   path?: string;
+  cache?: CacheStatus;
+};
+
+export type CacheDomain =
+  | "account-snapshot"
+  | "account-item-details"
+  | "home-briefing"
+  | "vendor-inventory"
+  | "lightgg"
+  | "manifest-version-check";
+
+export type CacheStatus = {
+  data_dir: string;
+  generated_at: string;
+  domains: Array<{
+    domain: CacheDomain;
+    path: string;
+    exists: boolean;
+    bytes: number;
+    updated_at?: string;
+  }>;
+  account_cache_metrics?: {
+    generated_at: string;
+    snapshot: CacheMetricCounts;
+    item_detail: CacheMetricCounts;
+    total: CacheMetricCounts;
+  };
+};
+
+export type CacheMetricCounts = {
+  hit: number;
+  miss: number;
+  stale: number;
+  refresh: number;
+  error: number;
 };
 
 export type D2Config = {

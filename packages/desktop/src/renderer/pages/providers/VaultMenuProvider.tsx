@@ -20,6 +20,14 @@ export function VaultMenuProvider() {
       isAccountLoggedIn={session.state.cards.account.status === "ready"}
       isLoadingAccount={account.isLoadingAccount}
       accountError={account.accountError}
+      detailCacheScopeKey={[
+        accountSummary
+          ? `${accountSummary.membership_type}:${accountSummary.destiny_membership_id}`
+          : "signed-out",
+        session.diagnostics.manifestStatus?.version ?? "manifest-unavailable",
+        session.diagnostics.manifestStatus?.language ?? "",
+        session.diagnostics.manifestStatus?.cached_at ?? ""
+      ].join("\u0000")}
       activeLoadoutLookup={session.home.activeLoadoutLookup}
       activeLoadoutName={session.loadouts.activeTemplate?.name}
       selectedCharacterId={account.selectedCharacterId}

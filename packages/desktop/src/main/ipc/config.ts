@@ -1,5 +1,5 @@
-import { existsSync, mkdirSync, readFileSync, rmSync } from "node:fs";
-import { basename, join, resolve } from "node:path";
+import { mkdirSync, readFileSync } from "node:fs";
+import { basename, isAbsolute, join, relative, resolve } from "node:path";
 import { app, dialog, ipcMain, shell } from "electron";
 import type { D2Config } from "@d2-tools/core/config/schema";
 import { loadConfig, saveConfig } from "@d2-tools/services/config/store";
@@ -10,11 +10,20 @@ import {
   restorePortableBackup,
   writePortableBackup
 } from "./configBackup.js";
+import {
+  clearCache,
+  inspectCache,
+  type CacheDomain,
+  type CacheStatus
+} from "@d2-tools/services/cache/maintenance";
+import { resetAccountSession } from "../runtime/accountSession.js";
+import { resetAccountCacheMetrics } from "@d2-tools/services/account/cacheMetrics";
 
 type ConfigBackupResult = {
   ok: true;
   message: string;
   path?: string;
+  cache?: CacheStatus;
 };
 
 export function registerConfigIpcHandlers(): void {
@@ -114,23 +123,35 @@ export function registerConfigIpcHandlers(): void {
     };
   });
 
-  ipcMain.handle("config:clear-cache", (): ConfigBackupResult => {
+  ipcMain.handle("config:cache-status", (): CacheStatus => {
     const config = loadConfig();
-    const dataDir = resolve(config.data.data_dir);
-    const cacheDir = resolve(dataDir, "cache");
-    if (!cacheDir.startsWith(`${dataDir}\\`) && cacheDir !== join(dataDir, "cache")) {
-      throw new Error("缓存目录不在当前数据目录内，已取消清理。");
-    }
-
-    if (existsSync(cacheDir)) {
-      rmSync(cacheDir, { recursive: true, force: true });
-    }
-
-    return {
-      ok: true,
-      message: "缓存已清理。账号授权、配置、资料库、本地标记和日志已保留。"
-    };
+    return inspectCache(config.data.data_dir);
   });
+
+  ipcMain.handle(
+    "config:clear-cache",
+    async (_event, domains?: readonly CacheDomain[]): Promise<ConfigBackupResult> => {
+      const config = loadConfig();
+      const dataDir = resolve(config.data.data_dir);
+      const cacheDir = resolve(dataDir, "cache");
+      const relativeCachePath = relative(dataDir, cacheDir);
+      if (!relativeCachePath || relativeCachePath.startsWith("..") || isAbsolute(relativeCachePath)) {
+        throw new Error("缓存目录不在当前数据目录内，已取消清理。");
+      }
+
+      const result = await clearCache(dataDir, domains);
+      // Drop process-local snapshot/repository state as well. Otherwise a page
+      // could continue displaying data that has just been removed on disk.
+      resetAccountSession();
+      resetAccountCacheMetrics();
+
+      return {
+        ok: true,
+        message: "缓存已清理。账号授权、配置、资料库、本地标记和日志已保留。",
+        cache: result.status
+      };
+    }
+  );
 }
 
 function timestampForFileName(): string {

@@ -94,4 +94,16 @@ Current request: `$develop-web-game` 你再整体分析下资料库，是否还�
 
 - 将仓库、账号、配装、资料库、商人、首页、攻略和外部分析的缓存问题统一整理为 T15。
 - T15 规划独立账号缓存库、实例详情持久化、统一 freshness / sync 状态、跨页面复用、写操作精确失效、离线语义和资源缓存。
-- 本轮只新增 [T15 backlog](docs/work/backlog/T15-local-first-account-data-cache.md) 与 `docs/todo.md` 登记，未修改产品代码，也未运行本地自动化验证。
+- 第一阶段已新增账号实例详情持久化缓存，并接入 AccountSession：读取顺序为内存热点 → 本地持久化 → Bungie；成功详情异步落盘，实例失效时精确删除。
+- 第二阶段已补齐统一 `DataResource` 与 `AccountDataRepository` 服务门面，支持 cached / stale / refreshing / error 状态、跨页面订阅和实例预取；实例详情过期时采用 stale-while-revalidate。
+- 本轮继续接入 Desktop runtime 的共享仓库，并为账号快照增加单调 `snapshot_revision` 元数据；图标与 tier overlay 增加 CacheStorage 本地缓存，无法使用时自动回退浏览器原图加载。
+- 仓库同名整理与装备详情弹层已通过共享 hook 复用实例详情请求，增加账号作用域、in-flight 去重与短 TTL，避免同一实例并发重复 IPC。
+- Desktop 新增 `account:resource:snapshot` 与 `account:resource:item-detail` IPC，renderer 可获取统一资源状态和时间信息；配装页增加同一实例重复打开保护。
+- 资源状态接口保持原有摘要/详情 IPC 兼容；仓库、装备详情和配装入口均已增加共享请求去重或重复打开保护。
+- 完整 Roll 已增加最多 3 路批量预取、实例级 in-flight 去重和缓存命中跳过；账号缓存诊断新增 hit/miss/stale/refresh/error 统计，并接入缓存清理后的计数重置。
+- 首页与商人缓存已统一 DataResource freshness 语义；图标 CacheStorage 已按 Manifest 版本/语言隔离，避免跨版本复用旧资源。
+- 完整 Roll 批量预取、配装入口去重、缓存命中指标和静态资源版本命名空间已完成；T15 进入最终跨端验收收尾阶段。
+- 商人库存刷新已接入后台任务中心，并复用请求去重，避免重复点击产生重复任务。
+- T15 开发项已全部落地：静态资源下载具备任务中心去重与超时保护，首页 / 商人直接展示统一资源状态，缓存清理按域隔离；当前仅剩真实账号、跨端尺寸 / 主题与失败恢复场景的整体验收。
+- 修复 T15 接入后的构建阻断：补齐 `DataResource<AccountSnapshot / AccountItemDetailResult>` 泛型、快照缓存提交非空守卫、详情清理 Promise<void> 返回类型，以及 Desktop 账号 Session 状态显式类型。services build、Desktop typecheck 与 Desktop build 均已通过。
+- 本轮继续沿用 [T15 backlog](docs/work/backlog/T15-local-first-account-data-cache.md) 的分阶段计划，未运行本地自动化验证。

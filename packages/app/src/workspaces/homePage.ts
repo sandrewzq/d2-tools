@@ -41,6 +41,8 @@ export type HomePageModelInput = {
   isInitializingManifest?: boolean;
   isRefreshingDiagnostics?: boolean;
   isLoadingDaily?: boolean;
+  dailyResourceStatus?: HomePageModel["dailyResourceStatus"];
+  dailyResourceSource?: HomePageModel["dailyResourceSource"];
 };
 
 export type HomePageDerivedState = {
@@ -84,7 +86,9 @@ export function selectHomePageModel(input: HomePageModelInput): HomePageModel {
     isLoadingAccount: input.isLoadingAccount ?? false,
     isInitializingManifest: input.isInitializingManifest ?? false,
     isRefreshingDiagnostics: input.isRefreshingDiagnostics ?? false,
-    isLoadingDaily: input.isLoadingDaily ?? false
+    isLoadingDaily: input.isLoadingDaily ?? false,
+    dailyResourceStatus: input.dailyResourceStatus ?? (input.dailySummary ? "ready" : input.isLoadingDaily ? "loading" : "unavailable"),
+    dailyResourceSource: input.dailyResourceSource ?? "merged"
   };
 }
 

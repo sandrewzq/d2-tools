@@ -1,6 +1,7 @@
 import { ipcMain } from "electron";
 import type {
   AccountItemDetailRequestOptions,
+  AccountResourceRequestOptions,
   AccountSummary,
   AccountSummaryRequestOptions
 } from "../../contracts/account.js";
@@ -16,7 +17,9 @@ import { loadOAuthToken } from "@d2-tools/services/oauth/tokenStore";
 import { startBackgroundTask } from "../backgroundTasks.js";
 import {
   getAccountItemDetailByInstanceId,
-  getAccountSnapshot
+  getAccountSnapshot,
+  getAccountItemDetailResource,
+  getAccountSnapshotResource
 } from "../runtime/accountSession.js";
 
 export function registerAccountIpcHandlers(): void {
@@ -49,6 +52,19 @@ export function registerAccountIpcHandlers(): void {
 
     return getAccountItemDetailByInstanceId(instanceId, options?.force ? "refresh" : "cached");
   }, classifyAccountIpcError));
+
+  ipcMain.handle("account:resource:snapshot", (_event, options?: AccountResourceRequestOptions) => encodeDesktopIpcFailure(
+    () => getAccountSnapshotResource(options?.force ? "refresh" : "cached"),
+    classifyAccountIpcError
+  ));
+
+  ipcMain.handle("account:resource:item-detail", (_event, instanceId: string, options?: AccountResourceRequestOptions) => encodeDesktopIpcFailure(
+    () => {
+      if (!instanceId || typeof instanceId !== "string") throw new Error("装备实例 ID 无效");
+      return getAccountItemDetailResource(instanceId, options?.force ? "refresh" : "cached");
+    },
+    classifyAccountIpcError
+  ));
 }
 
 async function loadAccountSummary(options?: AccountSummaryRequestOptions): Promise<AccountSummary> {

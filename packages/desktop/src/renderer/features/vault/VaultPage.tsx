@@ -18,6 +18,9 @@ import type {
 } from "../../api/types";
 import { api } from "../../api/client";
 import { services } from "../../api/services";
+import { loadAccountItemDetailCached } from "../../shared/hooks/useItemDetail";
+import { useAccountResource } from "../../shared/hooks/useAccountResource";
+import { getAccountStoreRevision } from "../../shared/stores/accountEntityStore";
 
 export function VaultPage(props: {
   account: AccountSummary | null;
@@ -25,6 +28,7 @@ export function VaultPage(props: {
   isAccountLoggedIn: boolean;
   isLoadingAccount: boolean;
   accountError: string;
+  detailCacheScopeKey?: string;
   activeLoadoutLookup: LoadoutTemplateLookup | null;
   activeLoadoutName?: string;
   selectedCharacterId: string;
@@ -57,9 +61,21 @@ export function VaultPage(props: {
   const [localCommunityLoadError, setLocalCommunityLoadError] = useState("");
   const [armorSetCatalog, setArmorSetCatalog] = useState<ArmorSetCatalogItem[]>([]);
   const [armorSetCatalogStatus, setArmorSetCatalogStatus] = useState<"loading" | "ready" | "error">("loading");
+  const detailScopeKey = props.detailCacheScopeKey ?? (props.account
+    ? `${props.account.membership_type}:${props.account.destiny_membership_id}`
+    : "vault");
+  const accountResource = useAccountResource({
+    kind: "snapshot",
+    enabled: Boolean(props.account),
+    resourceKey: props.account
+      ? `${props.account.membership_type}:${props.account.destiny_membership_id}:${getAccountStoreRevision()}`
+      : "signed-out"
+  });
   const loadItemDetail = useCallback((item: AccountItemSummary) => (
-    item.instance_id ? api.getAccountItemDetail(item.instance_id) : Promise.resolve(item)
-  ), []);
+    item.instance_id
+      ? loadAccountItemDetailCached(item.instance_id, { scopeKey: detailScopeKey })
+      : Promise.resolve(item)
+  ), [detailScopeKey]);
   const wishlistActions = useMemo<VaultWishlistActions>(() => ({
     save: async (wishlist) => {
       const saved = await api.saveDimWishlist(wishlist);
@@ -167,6 +183,7 @@ export function VaultPage(props: {
       items={model.vaultItems}
       armorSetCatalog={armorSetCatalog}
       armorSetCatalogStatus={armorSetCatalogStatus}
+      accountResourceStatus={props.isLoadingAccount && accountResource.data ? "refreshing" : accountResource.status}
       vaultItemCount={model.vaultItemCount}
       highlightedItemKeys={model.activeLoadoutLookup}
       highlightedLabel={model.activeLoadoutName}

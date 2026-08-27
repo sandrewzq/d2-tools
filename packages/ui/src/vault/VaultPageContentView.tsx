@@ -70,6 +70,7 @@ import { VaultOrganizePanel } from "./VaultOrganizePanel.js";
 import { getRovingFocusIndex } from "../interaction/rovingFocus.js";
 
 type VaultWorkspaceTab = "filters" | "duplicates" | "recommendations";
+type VaultAccountResourceStatus = "unavailable" | "cached" | "stale" | "loading" | "refreshing" | "ready" | "error";
 
 const vaultWorkspaceTabs: Array<{ key: VaultWorkspaceTab; label: string }> = [
   { key: "filters", label: "筛选列表" },
@@ -81,6 +82,7 @@ export function VaultPageContentView(props: {
   items: AccountItemSummary[];
   armorSetCatalog: ArmorSetCatalogItem[];
   armorSetCatalogStatus: VaultArmorSetCatalogStatus;
+  accountResourceStatus?: VaultAccountResourceStatus;
   vaultItemCount?: number;
   highlightedItemKeys?: LoadoutTemplateLookup | null;
   highlightedLabel?: string;
@@ -463,6 +465,7 @@ export function VaultPageContentView(props: {
           ))}
         </div>
         <div className="vault-workflow-meta">
+          {props.accountResourceStatus ? <span className={`ui-badge ${vaultResourceStatusTone(props.accountResourceStatus)}`} data-ui-kind="status-chip" data-status={props.accountResourceStatus}>{vaultResourceStatusLabel(props.accountResourceStatus)}</span> : null}
           <span className="ui-badge status-neutral" data-ui-kind="status-chip">已读取 {vaultItemCount} 件</span>
           <span className="ui-badge status-pending" data-ui-kind="status-chip">当前显示 {filteredItems.length} 件</span>
           {props.highlightedItemKeys ? <span className="ui-badge status-success" data-ui-kind="status-chip">配装命中 {loadoutMatchCount} 件</span> : null}
@@ -602,6 +605,30 @@ export function VaultPageContentView(props: {
       ) : null}
     </div>
   );
+}
+
+function vaultResourceStatusLabel(status: VaultAccountResourceStatus): string {
+  switch (status) {
+    case "cached": return "本地缓存";
+    case "stale": return "缓存已过期";
+    case "refreshing": return "后台同步中";
+    case "loading": return "正在读取账号";
+    case "ready": return "已同步";
+    case "error": return "读取失败";
+    default: return "账号数据不可用";
+  }
+}
+
+function vaultResourceStatusTone(status: VaultAccountResourceStatus): string {
+  switch (status) {
+    case "cached":
+    case "ready": return "status-success";
+    case "stale": return "status-warning";
+    case "refreshing":
+    case "loading": return "status-pending";
+    case "error": return "status-error";
+    default: return "status-neutral";
+  }
 }
 
 function matchesSignalFilters(item: AccountItemSummary, filters: VaultSignalFilter[], props: {

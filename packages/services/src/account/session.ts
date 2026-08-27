@@ -23,6 +23,10 @@ import {
   isAccountItemPatchReflected,
   type AccountItemPatch
 } from "./itemPatches.js";
+import type {
+  AccountItemDetailCacheKey,
+  AccountItemDetailCacheStore
+} from "./itemDetailStore.js";
 
 export type AccountSnapshotFreshness = "cached" | "refresh";
 
@@ -33,6 +37,12 @@ export type AccountInvalidation =
   | { scope: "item"; instance_id: string };
 
 export type { AccountItemPatch } from "./itemPatches.js";
+
+/** Detail may be served from a stale local cache when revalidation fails. */
+export type AccountItemDetailResult = AccountItemDetail & {
+  cache_status?: "fresh" | "stale";
+  fetched_at?: string;
+};
 
 export type AccountSession = {
   getSnapshot(input?: {
@@ -45,7 +55,7 @@ export type AccountSession = {
   getItemDetail(
     input: AccountItemDetailQuery,
     options?: { freshness?: AccountSnapshotFreshness }
-  ): Promise<AccountItemDetail>;
+  ): Promise<AccountItemDetailResult>;
   invalidate(input: AccountInvalidation): void;
   patch(input: AccountItemPatch): void;
 };
@@ -67,8 +77,12 @@ export type CreateAccountSessionOptions = {
   profileTtlMs?: number;
   snapshotTtlMs?: number;
   itemDetailTtlMs?: number;
+  /** Durable cache freshness window. Defaults to 30 minutes. */
+  itemDetailPersistentTtlMs?: number;
   maxItemDetails?: number;
   patchRevalidateDelayMs?: number;
+  /** Optional durable cache. Memory remains the hot path; this is consulted before Bungie. */
+  itemDetailStore?: AccountItemDetailCacheStore;
 };
 
 type MembershipCache = {
@@ -133,6 +147,7 @@ export function createAccountSession(options: CreateAccountSessionOptions): Acco
   const profileTtlMs = options.profileTtlMs ?? 45_000;
   const snapshotTtlMs = options.snapshotTtlMs ?? 45_000;
   const itemDetailTtlMs = options.itemDetailTtlMs ?? 45_000;
+  const itemDetailPersistentTtlMs = options.itemDetailPersistentTtlMs ?? 30 * 60_000;
   const maxItemDetails = options.maxItemDetails ?? 48;
   const patchRevalidateDelayMs = options.patchRevalidateDelayMs ?? 750;
 
@@ -149,11 +164,12 @@ export function createAccountSession(options: CreateAccountSessionOptions): Acco
   let snapshotRevalidatedRevision = -1;
   let patchRevalidateTimer: ReturnType<typeof setTimeout> | undefined;
   const itemDetails = new Map<string, ItemDetailCacheEntry>();
-  const itemDetailInFlight = new Map<string, Promise<AccountItemDetail>>();
+  const itemDetailInFlight = new Map<string, Promise<AccountItemDetailResult>>();
   const itemDetailVersions = new Map<string, number>();
   const pendingItemPatches = new Map<string, AccountItemPatch>();
+  const itemDetailStore = options.itemDetailStore;
 
-  return {
+  const session: AccountSession = {
     async getSnapshot(input = {}) {
       const freshness = input.freshness ?? "cached";
       const authoritative = input.authoritative ?? false;
@@ -194,13 +210,57 @@ export function createAccountSession(options: CreateAccountSessionOptions): Acco
     },
 
     async getItemDetail(input, options = {}) {
-      const accessToken = await getScopedAccessToken();
       const forceRefresh = options.freshness === "refresh";
       const cacheKey = detailKey(input);
       const cached = itemDetails.get(cacheKey);
       if (!forceRefresh && cached && now() < cached.freshUntil) {
         touchDetail(cacheKey, cached);
-        return cached.detail;
+        return markItemDetailStatus(cached.detail, "fresh");
+      }
+      let staleFallback: AccountItemDetail | undefined = cached?.detail;
+      let staleFetchedAt: string | undefined;
+      const existingInFlight = itemDetailInFlight.get(cacheKey);
+      if (!forceRefresh && existingInFlight) {
+        return existingInFlight;
+      }
+      // Durable cache is intentionally checked before acquiring a token so a
+      // previously fetched detail can be viewed while offline or before auth
+      // refresh completes.
+      if (!forceRefresh && itemDetailStore) {
+        const persisted = await itemDetailStore.get(cacheInputKey(input)).catch(() => null);
+        if (persisted) {
+          // The durable entry may be newer than an expired in-memory entry
+          // after an app restart or another page has refreshed it.
+          staleFallback = persisted.detail;
+          staleFetchedAt = persisted.fetched_at;
+          const fetchedAt = Date.parse(persisted.fetched_at);
+          const freshUntil = Number.isFinite(fetchedAt)
+            ? fetchedAt + itemDetailPersistentTtlMs
+            : 0;
+          if (freshUntil > now()) {
+            itemDetails.set(cacheKey, {
+              detail: persisted.detail,
+              freshUntil
+            });
+            touchDetail(cacheKey, itemDetails.get(cacheKey)!);
+            trimItemDetails();
+            return markItemDetailStatus(persisted.detail, "fresh", persisted.fetched_at);
+          }
+        }
+      }
+      // Stale-while-revalidate: keep the last known detail interactive while
+      // a refresh runs in the background. The forced call below shares the
+      // existing in-flight map and therefore cannot duplicate a request.
+      if (!forceRefresh && staleFallback) {
+        void session.getItemDetail(input, { freshness: "refresh" }).catch(() => undefined);
+        return markItemDetailStatus(staleFallback, "stale", staleFetchedAt);
+      }
+      let accessToken: string;
+      try {
+        accessToken = await getScopedAccessToken();
+      } catch (error) {
+        if (staleFallback) return markItemDetailStatus(staleFallback, "stale", staleFetchedAt);
+        throw error;
       }
       const inFlight = itemDetailInFlight.get(cacheKey);
       if (!forceRefresh && inFlight) {
@@ -209,7 +269,7 @@ export function createAccountSession(options: CreateAccountSessionOptions): Acco
 
       const requestEpoch = sessionEpoch;
       const itemVersion = itemDetailVersions.get(input.instance_id) ?? 0;
-      let promise: Promise<AccountItemDetail>;
+      let promise: Promise<AccountItemDetailResult>;
       promise = loadItemDetail(input, accessToken, { forceRefresh })
         .then((detail) => {
           assertActiveRequest(accessToken, requestEpoch);
@@ -221,7 +281,17 @@ export function createAccountSession(options: CreateAccountSessionOptions): Acco
             freshUntil: now() + itemDetailTtlMs
           });
           trimItemDetails();
-          return detail;
+          if (itemDetailStore) {
+            void itemDetailStore.set(cacheInputKey(input), detail, new Date(now()))
+              .catch(() => undefined);
+          }
+          return markItemDetailStatus(detail, "fresh", new Date(now()).toISOString());
+        })
+        .catch((error) => {
+          if (staleFallback && !isRequestInvalidationError(error)) {
+            return markItemDetailStatus(staleFallback, "stale", staleFetchedAt);
+          }
+          throw error;
         })
         .finally(() => {
           if (itemDetailInFlight.get(cacheKey) === promise) {
@@ -234,9 +304,11 @@ export function createAccountSession(options: CreateAccountSessionOptions): Acco
 
     invalidate(input) {
       if (input.scope === "all") {
+        const account = currentAccountKey();
         clearAccountCaches();
         membershipCache = undefined;
         membershipInFlight = undefined;
+        void clearPersistentItemDetails(account).catch(() => undefined);
         return;
       }
       if (input.scope === "profile") {
@@ -251,6 +323,7 @@ export function createAccountSession(options: CreateAccountSessionOptions): Acco
         return;
       }
       deleteItemDetail(input.instance_id);
+      void deletePersistentItemDetail(input.instance_id).catch(() => undefined);
     },
 
     patch(input) {
@@ -266,8 +339,10 @@ export function createAccountSession(options: CreateAccountSessionOptions): Acco
         scheduleSnapshotRevalidate();
       }
       deleteItemDetail(input.item_instance_id);
+      void deletePersistentItemDetail(input.item_instance_id).catch(() => undefined);
     }
   };
+  return session;
 
   async function getScopedAccessToken(): Promise<string> {
     const accessToken = (await options.getAccessToken()).trim();
@@ -547,6 +622,72 @@ export function createAccountSession(options: CreateAccountSessionOptions): Acco
         itemDetailInFlight.delete(key);
       }
     }
+  }
+
+  function cacheInputKey(input: AccountItemDetailQuery): AccountItemDetailCacheKey {
+    return {
+      membership_type: input.membership_type,
+      destiny_membership_id: input.destiny_membership_id,
+      instance_id: input.instance_id
+    };
+  }
+
+  function deletePersistentItemDetail(instanceId: string): Promise<void> {
+    if (!itemDetailStore) return Promise.resolve();
+    const account = currentAccountKey();
+    // Invalidation only carries an instance id. Prefer the active snapshot's
+    // membership context; if it is unavailable, remove matching in-memory
+    // entries and leave durable entries untouched rather than risking another
+    // account's data.
+    if (!account) return Promise.resolve();
+    return itemDetailStore.delete({ ...account, instance_id: instanceId }).then(() => undefined);
+  }
+
+  function clearPersistentItemDetails(account?: {
+    membership_type: number;
+    destiny_membership_id: string;
+  }): Promise<void> {
+    return itemDetailStore && account
+      ? itemDetailStore.clear(account).then(() => undefined)
+      : Promise.resolve();
+  }
+
+  function currentAccountKey(): {
+    membership_type: number;
+    destiny_membership_id: string;
+  } | undefined {
+    if (snapshot) {
+      return {
+        membership_type: snapshot.membership_type,
+        destiny_membership_id: snapshot.destiny_membership_id
+      };
+    }
+    if (membershipCache) {
+      return {
+        membership_type: membershipCache.selected.membershipType,
+        destiny_membership_id: membershipCache.selected.membershipId
+      };
+    }
+    return undefined;
+  }
+
+  function markItemDetailStatus(
+    detail: AccountItemDetail,
+    status: "fresh" | "stale",
+    fetchedAt?: string
+  ): AccountItemDetailResult {
+    return {
+      ...detail,
+      cache_status: status,
+      ...(fetchedAt ? { fetched_at: fetchedAt } : {})
+    };
+  }
+
+  function isRequestInvalidationError(error: unknown): boolean {
+    return error instanceof Error && (
+      error.message === "Bungie account session changed while the request was running"
+      || error.message === "Account item detail was invalidated while the request was running"
+    );
   }
 
   function touchDetail(key: string, entry: ItemDetailCacheEntry): void {

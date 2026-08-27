@@ -35,7 +35,9 @@ export function HomeDashboard(props: HomePageModelInput & {
     props.isLoadingAccount,
     props.isInitializingManifest,
     props.isRefreshingDiagnostics,
-    props.isLoadingDaily
+    props.isLoadingDaily,
+    props.dailyResourceStatus,
+    props.dailyResourceSource
   ]);
 
   return (

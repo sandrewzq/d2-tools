@@ -60,6 +60,17 @@ export function useDailySummary() {
     () => storedDailySummary ? updateDailyResetLabels(storedDailySummary, clock) : null,
     [clock, storedDailySummary]
   );
+  const dailyResourceStatus: "unavailable" | "loading" | "refreshing" | "ready" | "stale" | "error" = dailySummary
+    ? isLoadingDaily
+      ? "refreshing"
+      : dailyError
+        ? "stale"
+        : "ready"
+    : isLoadingDaily
+      ? "loading"
+      : dailyError
+        ? "error"
+        : "unavailable";
   const weeklySummary = useMemo(
     () => storedWeeklySummary ? updateWeeklyResetLabel(storedWeeklySummary, clock) : null,
     [clock, storedWeeklySummary]
@@ -83,6 +94,8 @@ export function useDailySummary() {
     dailySummary,
     weeklySummary,
     isLoadingDaily,
+    dailyResourceStatus,
+    dailyResourceSource: "merged" as const,
     loadDailySummary
   };
 }

@@ -1,4 +1,5 @@
 export type BackgroundTaskType =
+  | "asset-cache"
   | "app-update-check"
   | "app-update-download"
   | "manifest-version-check"
@@ -10,6 +11,16 @@ export type BackgroundTaskType =
   | "daily-refresh"
   | "community-analysis"
   | "lightgg-analysis";
+
+export type AssetCacheTaskInput = {
+  src: string;
+  cache_name: string;
+};
+
+export type AssetCacheTaskCompletion = AssetCacheTaskInput & {
+  ok: boolean;
+  error?: string;
+};
 
 export type BackgroundTaskStatus =
   | "idle"
@@ -45,6 +56,8 @@ export type BackgroundTaskRunContext = {
 
 export type StartBackgroundTaskInput = {
   type: BackgroundTaskType;
+  /** Optional resource key used to deduplicate independent tasks of one type. */
+  dedupeKey?: string;
   title: string;
   message?: string;
   retryDelaysMs?: number[];
@@ -69,7 +82,7 @@ export function createBackgroundTaskStore(options: BackgroundTaskStoreOptions = 
   const now = options.now ?? (() => new Date());
   const schedule = options.schedule ?? ((callback, delayMs) => setTimeout(callback, delayMs));
   const tasks = new Map<string, BackgroundTaskSnapshot>();
-  const activeTaskByType = new Map<BackgroundTaskType, string>();
+  const activeTaskByType = new Map<string, string>();
   const retryGenerationByTask = new Map<string, number>();
 
   function listTasks(): BackgroundTaskSnapshot[] {
@@ -117,7 +130,7 @@ export function createBackgroundTaskStore(options: BackgroundTaskStoreOptions = 
         message: "任务已完成",
         can_retry: false
       });
-      activeTaskByType.delete(input.type);
+      activeTaskByType.delete(taskKey(input));
     }).catch((error) => {
       const failed = tasks.get(taskId);
       if (!failed) return;
@@ -152,12 +165,12 @@ export function createBackgroundTaskStore(options: BackgroundTaskStoreOptions = 
         finished_at: now().toISOString(),
         can_retry: true
       });
-      activeTaskByType.delete(input.type);
+      activeTaskByType.delete(taskKey(input));
     });
   }
 
   function startTask(input: StartBackgroundTaskInput): BackgroundTaskSnapshot {
-    const activeTaskId = activeTaskByType.get(input.type);
+    const activeTaskId = activeTaskByType.get(taskKey(input));
     const activeTask = activeTaskId ? tasks.get(activeTaskId) : null;
     if (activeTask && ["queued", "running", "retrying"].includes(activeTask.status)) {
       if (activeTask.status === "retrying" && input.restartIfRetrying) {
@@ -184,7 +197,7 @@ export function createBackgroundTaskStore(options: BackgroundTaskStoreOptions = 
     };
 
     tasks.set(taskId, snapshot);
-    activeTaskByType.set(input.type, taskId);
+    activeTaskByType.set(taskKey(input), taskId);
     emit();
     runExistingTask(taskId, input);
     return tasks.get(taskId) ?? snapshot;
@@ -195,6 +208,10 @@ export function createBackgroundTaskStore(options: BackgroundTaskStoreOptions = 
     getTask: (taskId) => tasks.get(taskId) ?? null,
     listTasks
   };
+}
+
+function taskKey(input: Pick<StartBackgroundTaskInput, "type" | "dedupeKey">): string {
+  return input.dedupeKey ? `${input.type}:${input.dedupeKey}` : input.type;
 }
 
 function getRetryDelayMs(retryDelaysMs: number[] | undefined, attempt: number): number | undefined {

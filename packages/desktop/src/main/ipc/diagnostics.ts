@@ -9,6 +9,7 @@ import {
   formatRuntimeMetrics
 } from "../runtime/runtimeMetrics.js";
 import { getDesktopManifestStatus } from "./manifest.js";
+import { formatAccountCacheMetrics } from "@d2-tools/services/account/cacheMetrics";
 
 export function registerDiagnosticsIpcHandlers(): void {
   ipcMain.handle("diagnostics:export", () => {
@@ -37,7 +38,10 @@ export function registerDiagnosticsIpcHandlers(): void {
       ...(processMetrics.length ? processMetrics : ["- 尚无进程内存样本"]),
       "",
       "内存预算：",
-      ...formatProcessMemoryBudgetStatus(app.getAppMetrics())
+      ...formatProcessMemoryBudgetStatus(app.getAppMetrics()),
+      "",
+      "账号缓存命中率：",
+      ...formatAccountCacheMetrics()
     ].join("\n");
   });
 }

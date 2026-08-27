@@ -2,6 +2,12 @@ import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { DailySummary } from "@d2-tools/core/daily/summary";
 import type { WeeklySummary } from "@d2-tools/core/weekly/summary";
+import {
+  createDataResource,
+  type DataResource,
+  type DataResourceError,
+  type DataResourceStateInput
+} from "../account/resource.js";
 
 export type CachedHomeBriefing = {
   version: 4;
@@ -15,6 +21,23 @@ export type CachedHomeBriefing = {
   daily: DailySummary;
   weekly: WeeklySummary;
 };
+
+/**
+ * 首页缓存统一资源包装。保留 `loadCachedHomeBriefing` 的旧返回值，
+ * 新调用方可通过该类型获得 cached/stale 等生命周期状态。
+ */
+export type CachedHomeBriefingResource = DataResource<CachedHomeBriefing>;
+
+export type HomeBriefingResourceOptions = {
+  now?: Date | number;
+  /** 本地缓存保持 cached 状态的时间，默认 5 分钟。 */
+  freshTtlMs?: number;
+  loading?: boolean;
+  refreshing?: boolean;
+  error?: DataResourceError;
+};
+
+const defaultFreshTtlMs = 5 * 60 * 1000;
 
 const fileName = "home-briefing-cache.json";
 const saveQueues = new Map<string, Promise<void>>();
@@ -41,6 +64,49 @@ export async function loadCachedHomeBriefing(
   } catch {
     return null;
   }
+}
+
+/**
+ * 将首页缓存转换为统一 DataResource。没有缓存时返回 unavailable，
+ * 过期缓存仍保留 data 并标记 stale，便于 UI 先展示再后台刷新。
+ */
+export function createHomeBriefingResource(
+  cached: CachedHomeBriefing | null,
+  options: HomeBriefingResourceOptions = {}
+): CachedHomeBriefingResource {
+  if (!cached) {
+    return createDataResource<CachedHomeBriefing>({
+      data: null,
+      source: "local",
+      unavailable: !options.loading,
+      loading: options.loading,
+      error: options.error
+    }, options.now);
+  }
+  const freshTtlMs = normalizeTtl(options.freshTtlMs);
+  const savedAt = Date.parse(cached.saved_at);
+  const staleAt = Number.isFinite(savedAt)
+    ? new Date(Math.min(savedAt + freshTtlMs, ...collectBoundaryTimestamps(cached))).toISOString()
+    : new Date(0).toISOString();
+  const input: DataResourceStateInput<CachedHomeBriefing> = {
+    data: cached,
+    source: "local",
+    fetchedAt: cached.fetched_at,
+    staleAt,
+    refreshing: options.refreshing,
+    error: options.error
+  };
+  return createDataResource(input, options.now);
+}
+
+/** 读取并包装首页缓存，供 IPC / repository 直接使用。 */
+export async function loadHomeBriefingResource(
+  dataDir: string,
+  contextKey: string,
+  options: HomeBriefingResourceOptions = {}
+): Promise<CachedHomeBriefingResource> {
+  const cached = await loadCachedHomeBriefing(dataDir, contextKey);
+  return createHomeBriefingResource(cached, options);
 }
 
 export async function saveCachedHomeBriefing(
@@ -88,4 +154,23 @@ function isWeeklySummary(value: unknown): value is WeeklySummary {
     && Boolean(summary.priorities?.nightfall)
     && Boolean(summary.iron_banner)
     && Array.isArray(summary.public_clues);
+}
+
+function normalizeTtl(value: number | undefined): number {
+  return Number.isFinite(value) && (value as number) > 0
+    ? value as number
+    : defaultFreshTtlMs;
+}
+
+function collectBoundaryTimestamps(cached: CachedHomeBriefing): number[] {
+  const values = [
+    cached.daily.daily_reset?.next_reset_iso,
+    cached.daily.weekly_reset?.next_reset_iso,
+    cached.weekly.weekly_reset?.next_reset_iso,
+    cached.xur_refresh_at
+  ];
+  return values
+    .filter((value): value is string => Boolean(value))
+    .map((value) => Date.parse(value))
+    .filter((timestamp) => Number.isFinite(timestamp));
 }

@@ -30,9 +30,29 @@
       "types": "./dist/account/snapshotStore.d.ts",
       "import": "./dist/account/snapshotStore.js"
     },
+    "./account/itemDetailStore": {
+      "types": "./dist/account/itemDetailStore.d.ts",
+      "import": "./dist/account/itemDetailStore.js"
+    },
+    "./account/resource": {
+      "types": "./dist/account/resource.d.ts",
+      "import": "./dist/account/resource.js"
+    },
     "./account/session": {
       "types": "./dist/account/session.d.ts",
       "import": "./dist/account/session.js"
+    },
+    "./account/repository": {
+      "types": "./dist/account/repository.d.ts",
+      "import": "./dist/account/repository.js"
+    },
+    "./account/cacheMetrics": {
+      "types": "./dist/account/cacheMetrics.d.ts",
+      "import": "./dist/account/cacheMetrics.js"
+    },
+    "./cache/maintenance": {
+      "types": "./dist/cache/maintenance.d.ts",
+      "import": "./dist/cache/maintenance.js"
     },
     "./armor/planner": {
       "types": "./dist/armor/planner.d.ts",

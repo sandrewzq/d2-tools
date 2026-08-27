@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties, type KeyboardEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
 import {
   classifyWeaponSocketPlugs,
   isWeaponSystemPlug,
@@ -66,6 +66,8 @@ type DuplicateRollSocket = {
   options: DuplicateRollOption[];
 };
 
+const DUPLICATE_DETAIL_CONCURRENCY = 3;
+
 const dispositionOptions: Array<{ key: DuplicateDisposition; label: string }> = [
   { key: "none", label: "未标记" },
   { key: "keep", label: "保留" },
@@ -97,6 +99,13 @@ export function VaultDuplicateGroups(props: {
   const [pendingDispositionByGroup, setPendingDispositionByGroup] = useState<Record<string, Record<string, DuplicateDisposition>>>({});
   const [detailByItemKey, setDetailByItemKey] = useState<Record<string, AccountItemSummary>>({});
   const [detailLoadStatusByItemKey, setDetailLoadStatusByItemKey] = useState<Record<string, "loading" | "ready" | "error">>({});
+  // 同一实例可能同时从仓库行、详情弹层或切换后的同名组触发读取。
+  // 在菜单层保留请求表，既能避免重复 IPC，也能把批量读取限制在可控并发内。
+  const detailRequestByItemKeyRef = useRef(new Map<string, Promise<AccountItemSummary>>());
+  const mountedRef = useRef(true);
+  useEffect(() => () => {
+    mountedRef.current = false;
+  }, []);
   const pendingChangeCount = useMemo(() => groups.reduce((count, group) => (
     count + group.items.filter((entry) => (
       (pendingDispositionByGroup[group.group_key]?.[entry.item_key] ?? dispositionFromTag(entry.tag)) !== dispositionFromTag(entry.tag)
@@ -157,20 +166,32 @@ export function VaultDuplicateGroups(props: {
       ...current,
       ...Object.fromEntries(pendingItems.map(({ key }) => [key, "loading" as const]))
     }));
-    for (const { key, item } of pendingItems) {
-      void loadItemDetail(item).then(
-        (detail) => {
-          if (detail.sockets === undefined) throw new Error("完整 Roll 数据未返回");
-          setDetailByItemKey((current) => ({ ...current, [key]: detail }));
-          setDetailLoadStatusByItemKey((current) => ({ ...current, [key]: "ready" }));
-        },
-        () => {
-          setDetailLoadStatusByItemKey((current) => ({ ...current, [key]: "error" }));
+    void runWithConcurrency(pendingItems, DUPLICATE_DETAIL_CONCURRENCY, async ({ key, item }) => {
+      try {
+        let request = detailRequestByItemKeyRef.current.get(key);
+        if (!request) {
+          request = loadItemDetail(item);
+          detailRequestByItemKeyRef.current.set(key, request);
+          void request.then(() => {
+            if (detailRequestByItemKeyRef.current.get(key) === request) {
+              detailRequestByItemKeyRef.current.delete(key);
+            }
+          }, () => {
+            if (detailRequestByItemKeyRef.current.get(key) === request) {
+              detailRequestByItemKeyRef.current.delete(key);
+            }
+          });
         }
-      ).catch(() => {
+        const detail = await request;
+        if (detail.sockets === undefined) throw new Error("完整 Roll 数据未返回");
+        if (!mountedRef.current) return;
+        setDetailByItemKey((current) => ({ ...current, [key]: detail }));
+        setDetailLoadStatusByItemKey((current) => ({ ...current, [key]: "ready" }));
+      } catch {
+        if (!mountedRef.current) return;
         setDetailLoadStatusByItemKey((current) => ({ ...current, [key]: "error" }));
-      });
-    }
+      }
+    });
   }, [activeGroup, detailByItemKey, detailLoadStatusByItemKey, itemByKey, props.onLoadItemDetail]);
 
   if (!groups.length) {
@@ -187,6 +208,7 @@ export function VaultDuplicateGroups(props: {
     detailLoadStatusByItemKey,
     Boolean(props.onLoadItemDetail)
   );
+  const activeRollProgress = getGroupRollDataProgress(activeGroup, itemByKey, detailByItemKey);
   const comparisonItemByKey = activeRollDataStatus === "ready"
     ? new Map<string, AccountItemSummary>([...itemByKey].map(([key, item]) => [key, detailByItemKey[key] ?? item] as const))
     : itemByKey;
@@ -274,6 +296,7 @@ export function VaultDuplicateGroups(props: {
           openingItemKey={props.openingItemKey}
           isBatchSaving={props.isBatchSaving}
           rollDataStatus={activeRollDataStatus}
+          rollDataProgress={activeRollProgress}
           onReferenceChange={(itemKey) => setReferenceByGroup((current) => ({ ...current, [activeGroup.group_key]: itemKey }))}
           onPendingDispositionChange={(nextDisposition) => setPendingDispositionByGroup((current) => ({ ...current, [activeGroup.group_key]: nextDisposition }))}
           onOpenItem={props.onOpenItem}
@@ -306,6 +329,7 @@ function DuplicateComparePanel(props: {
   openingItemKey?: string;
   isBatchSaving: boolean;
   rollDataStatus: "ready" | "loading" | "error" | "unavailable";
+  rollDataProgress: { ready: number; total: number };
   onReferenceChange: (itemKey: string) => void;
   onPendingDispositionChange: (disposition: Record<string, DuplicateDisposition>) => void;
   onOpenItem: (item: AccountItemSummary) => void;
@@ -394,7 +418,7 @@ function DuplicateComparePanel(props: {
             <div className="duplicate-roll-data-status" data-status={props.rollDataStatus} role={props.rollDataStatus === "error" ? "alert" : "status"}>
               <span>
                 {props.rollDataStatus === "loading"
-                  ? "正在读取完整 Roll · 当前显示启用项"
+                  ? `正在读取完整 Roll · 已读取 ${props.rollDataProgress.ready}/${props.rollDataProgress.total} · 当前显示启用项`
                   : props.rollDataStatus === "error"
                     ? "完整 Roll 读取失败 · 当前显示启用项"
                     : props.rollDataStatus === "unavailable"
@@ -703,6 +727,22 @@ function getGroupRollDataStatus(
   return "loading";
 }
 
+function getGroupRollDataProgress(
+  group: DuplicateItemGroup | undefined,
+  itemByKey: Map<string, AccountItemSummary>,
+  detailByItemKey: Record<string, AccountItemSummary>
+): { ready: number; total: number } {
+  if (!group) return { ready: 0, total: 0 };
+  const items = group.items.flatMap((entry) => {
+    const item = detailByItemKey[entry.item_key] ?? itemByKey.get(entry.item_key);
+    return item?.group_key === "weapons" ? [item] : [];
+  });
+  return {
+    ready: items.filter((item) => item.sockets !== undefined).length,
+    total: items.length
+  };
+}
+
 function itemEvidence(item: AccountItemSummary, props: {
   wishlist?: DimWishlist | null;
   localTargetRules?: LocalTargetRules | null;
@@ -787,4 +827,31 @@ function isGroupPersistedComplete(group: DuplicateItemGroup): boolean {
 function hasGroupPendingChanges(group: DuplicateItemGroup, pendingDisposition?: Record<string, DuplicateDisposition>): boolean {
   if (!pendingDisposition) return false;
   return group.items.some((entry) => (pendingDisposition[entry.item_key] ?? "none") !== dispositionFromTag(entry.tag));
+}
+
+/**
+ * 以固定并发运行批量任务。任务按传入顺序排队，单个任务失败不会阻塞后续实例。
+ * 返回 promise 仅用于让 effect 保持可追踪，不暴露内部请求结果。
+ */
+async function runWithConcurrency<T>(
+  items: T[],
+  concurrency: number,
+  worker: (item: T) => Promise<void>
+): Promise<void> {
+  if (!items.length) return;
+  const limit = Math.max(1, Math.min(concurrency, items.length));
+  let nextIndex = 0;
+  const runWorker = async () => {
+    while (nextIndex < items.length) {
+      const index = nextIndex++;
+      const item = items[index];
+      if (item === undefined) return;
+      try {
+        await worker(item);
+      } catch {
+        // worker 自己负责更新实例状态；这里吞掉异常以继续读取队列。
+      }
+    }
+  };
+  await Promise.all(Array.from({ length: limit }, () => runWorker()));
 }

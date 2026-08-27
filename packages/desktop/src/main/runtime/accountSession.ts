@@ -1,6 +1,5 @@
 import type {
   AccountItemDetail,
-  AccountItemDetailQuery,
   AccountSnapshot,
   AccountSummary
 } from "@d2-tools/core/account/summary";
@@ -10,11 +9,14 @@ import {
   type AccountItemPatch,
   type AccountSession
 } from "@d2-tools/services/account/session";
+import { createAccountDataRepository, type AccountDataRepository } from "@d2-tools/services/account/repository";
 import type { BungieRequestOptions } from "@d2-tools/services/bungie/session";
 import {
   loadCachedAccountSnapshot,
   saveCachedAccountSnapshot
 } from "@d2-tools/services/account/snapshotStore";
+import { createAccountItemDetailStore } from "@d2-tools/services/account/itemDetailStore";
+import { loadManifestMetadataCache } from "@d2-tools/services/manifest/cache";
 import { loadConfig } from "@d2-tools/services/config/store";
 import { loadOAuthToken } from "@d2-tools/services/oauth/tokenStore";
 import { loadFreshOAuthToken } from "../ipc/authSession.js";
@@ -23,11 +25,14 @@ import { getDefinitions } from "./gameDataRuntime.js";
 import { measureRuntime } from "./runtimeMetrics.js";
 import { createAccountDefinitionLoader } from "./accountDefinitions.js";
 
-let sessionState: {
+type AccountSessionState = {
   key: string;
   session: AccountSession;
-} | null = null;
-let sessionRequest: Promise<AccountSession> | null = null;
+  repository: AccountDataRepository;
+};
+
+let sessionState: AccountSessionState | null = null;
+let sessionRequest: Promise<AccountSessionState> | null = null;
 const loadAccountDefinitions = createAccountDefinitionLoader(getDefinitions);
 
 export type AccountItemLocation = {
@@ -39,15 +44,37 @@ export async function getAccountSnapshot(
   freshness: "cached" | "refresh" = "cached",
   options: { authoritative?: boolean } = {}
 ): Promise<AccountSnapshot> {
-  const session = await getAccountSession();
+  const state = await getAccountSessionState();
   return measureRuntime<AccountSnapshot>(
     "account.snapshot",
-    () => session.getSnapshot({
-      freshness,
-      ...(options.authoritative ? { authoritative: true } : {})
-    }),
+    async () => {
+      if (options.authoritative) {
+        return state.session.getSnapshot({ freshness, authoritative: true });
+      }
+      const resource = await state.repository.getSnapshot({ freshness });
+      if (freshness === "refresh" && resource.error) {
+        throw new Error(resource.error.message);
+      }
+      if (resource.data) return resource.data;
+      throw new Error(resource.error?.message ?? "账号数据暂时不可用");
+    },
     { measurePayload: true }
   );
+}
+
+export async function getAccountSnapshotResource(
+  freshness: "cached" | "refresh" = "cached"
+) {
+  const state = await getAccountSessionState();
+  return state.repository.getSnapshot({ freshness });
+}
+
+export async function getAccountItemDetailResource(
+  instanceId: string,
+  freshness: "cached" | "refresh" = "cached"
+) {
+  const state = await getAccountSessionState();
+  return state.repository.getItemDetail(instanceId, { freshness });
 }
 
 export async function getArmorPlannerAccountSummary(
@@ -72,20 +99,14 @@ export async function getAccountItemDetailByInstanceId(
   instanceId: string,
   freshness: "cached" | "refresh" = "cached"
 ): Promise<AccountItemDetail> {
-  const session = await getAccountSession();
-  let snapshot = await session.getSnapshot({ freshness: "cached" });
-  let query = findAccountItemDetailQuery(snapshot, instanceId);
-  if (!query && freshness === "refresh") {
-    snapshot = await session.getSnapshot({ freshness: "refresh" });
-    query = findAccountItemDetailQuery(snapshot, instanceId);
-  }
-  if (!query) {
-    throw new Error("当前账号快照中找不到该装备，请刷新账号后重试");
-  }
-  const detailQuery = query;
+  const repository = await getAccountDataRepository();
   return measureRuntime<AccountItemDetail>(
     "account.item-detail",
-    () => session.getItemDetail(detailQuery, { freshness }),
+    async () => {
+      const resource = await repository.getItemDetail(instanceId, { freshness });
+      if (resource.data) return resource.data;
+      throw new Error(resource.error?.message ?? "当前账号快照中找不到该装备，请刷新账号后重试");
+    },
     { measurePayload: true }
   );
 }
@@ -110,48 +131,20 @@ export async function resolveAccountItemLocation(
   return null;
 }
 
-function findAccountItemDetailQuery(
-  snapshot: AccountSnapshot,
-  instanceId: string
-): AccountItemDetailQuery | null {
-  const createQuery = (
-    item: { instance_id?: string; hash: number },
-    characterId?: string
-  ): AccountItemDetailQuery | null => item.instance_id === instanceId
-    ? {
-        destiny_membership_id: snapshot.destiny_membership_id,
-        membership_type: snapshot.membership_type,
-        instance_id: instanceId,
-        item_hash: item.hash,
-        ...(characterId ? { character_id: characterId } : {})
-      }
-    : null;
-
-  for (const item of snapshot.vault.items) {
-    const query = createQuery(item);
-    if (query) return query;
-  }
-  for (const character of snapshot.characters) {
-    for (const item of [
-      ...character.equipped_items,
-      ...character.inventory_items,
-      ...character.postmaster_items
-    ]) {
-      const query = createQuery(item, character.character_id);
-      if (query) return query;
-    }
-  }
-  return null;
-}
-
 export async function patchAccountSession(patch: AccountItemPatch): Promise<void> {
-  const session = await getAccountSession();
-  session.patch(patch);
+  const state = await getAccountSessionState();
+  state.session.patch(patch);
+  state.repository.invalidate({ scope: "item", instance_id: patch.item_instance_id });
 }
 
 export async function invalidateAccountSession(input: AccountInvalidation): Promise<void> {
-  const session = await getAccountSession();
-  session.invalidate(input);
+  const state = await getAccountSessionState();
+  state.session.invalidate(input);
+  if (input.scope === "item") {
+    state.repository.invalidate({ scope: "item", instance_id: input.instance_id });
+  } else if (input.scope === "all" || input.scope === "snapshot" || input.scope === "profile") {
+    state.repository.invalidate({ scope: input.scope === "profile" ? "all" : input.scope });
+  }
 }
 
 export async function invalidateAccountItemDetails(instanceIds?: readonly string[]): Promise<void> {
@@ -169,16 +162,28 @@ export function resetAccountSession(): void {
   sessionRequest = null;
 }
 
+async function getAccountDataRepository(): Promise<AccountDataRepository> {
+  const state = await getAccountSessionState();
+  return state.repository;
+}
+
 async function getAccountSession(): Promise<AccountSession> {
+  const state = await getAccountSessionState();
+  return state.session;
+}
+
+async function getAccountSessionState(): Promise<AccountSessionState> {
   const config = loadConfig();
+  const configuredAccountId = loadOAuthToken(config.data.data_dir)?.membership_id ?? "";
   const key = [
     config.data.data_dir,
     config.data.manifest_language,
     config.bungie.api_key,
-    config.bungie.client_id
+    config.bungie.client_id,
+    configuredAccountId
   ].join("\u0000");
   if (sessionState?.key === key) {
-    return sessionState.session;
+    return sessionState;
   }
   if (sessionRequest) {
     return sessionRequest;
@@ -208,16 +213,20 @@ async function getAccountSession(): Promise<AccountSession> {
         requestOptions
       ),
       loadDefinitions: loadAccountDefinitions,
+      itemDetailStore: createAccountItemDetailStore(config.data.data_dir),
       initialSnapshot: cached?.snapshot,
       onSnapshot: async (snapshot) => {
         if (!activeAccountId) return;
+        const manifestRevision = loadManifestMetadataCache(config.data.data_dir)?.metadata.version;
         await saveCachedAccountSnapshot(config.data.data_dir, snapshot, new Date(), {
-          accountId: activeAccountId
+          accountId: activeAccountId,
+          ...(manifestRevision ? { manifestRevision } : {})
         });
       }
     });
-    sessionState = { key, session };
-    return session;
+    const repository = createAccountDataRepository({ session });
+    sessionState = { key, session, repository };
+    return sessionState;
   })();
   sessionRequest = request;
   try {

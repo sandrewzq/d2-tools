@@ -1,6 +1,12 @@
 import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { VendorInventorySnapshot } from "@d2-tools/core/vendors/inventory";
+import {
+  createDataResource,
+  type DataResource,
+  type DataResourceError,
+  type DataResourceStateInput
+} from "../account/resource.js";
 
 export type VendorInventoryCacheContext = {
   membershipType: number;
@@ -14,6 +20,20 @@ export type CachedVendorInventory = {
   saved_at: string;
   snapshot: VendorInventorySnapshot;
 };
+
+/** 商人库存缓存的统一资源包装，保留旧缓存 DTO 兼容性。 */
+export type CachedVendorInventoryResource = DataResource<CachedVendorInventory>;
+
+export type VendorInventoryResourceOptions = {
+  now?: Date | number;
+  /** 本地库存保持 cached 状态的时间，默认 5 分钟。 */
+  freshTtlMs?: number;
+  loading?: boolean;
+  refreshing?: boolean;
+  error?: DataResourceError;
+};
+
+const defaultFreshTtlMs = 5 * 60 * 1000;
 
 type VendorInventoryCacheFile = {
   version: 1;
@@ -51,6 +71,55 @@ export async function loadCachedVendorInventory(
     .map(([, cached]) => cached)
     .sort((left, right) => right.saved_at.localeCompare(left.saved_at))[0]
     ?? null;
+}
+
+/**
+ * 将商人库存缓存转换为 DataResource。过期库存不会被丢弃，
+ * 由调用方在 stale 状态下触发后台刷新即可。
+ */
+export function createVendorInventoryResource(
+  cached: CachedVendorInventory | null,
+  options: VendorInventoryResourceOptions = {}
+): CachedVendorInventoryResource {
+  if (!cached) {
+    return createDataResource<CachedVendorInventory>({
+      data: null,
+      source: "local",
+      unavailable: !options.loading,
+      loading: options.loading,
+      error: options.error
+    }, options.now);
+  }
+  const freshTtlMs = normalizeTtl(options.freshTtlMs);
+  const savedAt = Date.parse(cached.saved_at);
+  const hasPartialFailure = cached.snapshot.status !== "ready";
+  const staleAt = Number.isFinite(savedAt)
+    ? new Date(Math.min(
+      hasPartialFailure ? savedAt - 1 : savedAt + freshTtlMs,
+      ...collectNextRefreshTimestamps(cached.snapshot)
+    )).toISOString()
+    : new Date(0).toISOString();
+  const input: DataResourceStateInput<CachedVendorInventory> = {
+    data: cached,
+    source: "local",
+    fetchedAt: cached.snapshot.fetchedAt,
+    staleAt,
+    error: options.error ?? (cached.snapshot.status === "error" && cached.snapshot.errorMessage
+      ? { code: "vendor-inventory", message: cached.snapshot.errorMessage }
+      : undefined),
+    refreshing: options.refreshing
+  };
+  return createDataResource(input, options.now);
+}
+
+/** 读取并包装商人缓存，供 IPC / repository 直接使用。 */
+export async function loadVendorInventoryResource(
+  dataDir: string,
+  context: VendorInventoryCacheContext,
+  options: VendorInventoryResourceOptions = {}
+): Promise<CachedVendorInventoryResource> {
+  const cached = await loadCachedVendorInventory(dataDir, context);
+  return createVendorInventoryResource(cached, options);
 }
 
 export async function saveCachedVendorInventory(
@@ -155,4 +224,16 @@ function isVendorInventorySnapshot(value: unknown): value is VendorInventorySnap
     && typeof snapshot.fetchedAt === "string"
     && Array.isArray(snapshot.vendors)
     && Boolean(snapshot.characterContexts && typeof snapshot.characterContexts === "object");
+}
+
+function normalizeTtl(value: number | undefined): number {
+  return Number.isFinite(value) && (value as number) > 0
+    ? value as number
+    : defaultFreshTtlMs;
+}
+
+function collectNextRefreshTimestamps(snapshot: VendorInventorySnapshot): number[] {
+  return snapshot.vendors
+    .flatMap((vendor) => vendor.nextRefreshAt ? [Date.parse(vendor.nextRefreshAt)] : [])
+    .filter((timestamp) => Number.isFinite(timestamp));
 }

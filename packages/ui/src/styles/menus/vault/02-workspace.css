@@ -93,6 +93,12 @@
   background: var(--status-ready-bg);
 }
 
+.app-shell .vault-workflow-meta .ui-badge.status-error {
+  border-color: var(--status-error);
+  color: var(--status-error);
+  background: var(--status-error-bg);
+}
+
 :where(.app-shell) .vault-page > .status-message {
   margin: 0;
   padding: 8px 10px;

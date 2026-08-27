@@ -32,6 +32,8 @@ export function HomeMenuProvider() {
       dailyError={daily.dailyError}
       isLoadingAccount={account.isLoadingAccount}
       isLoadingDaily={daily.isLoadingDaily}
+      dailyResourceStatus={daily.dailyResourceStatus}
+      dailyResourceSource={daily.dailyResourceSource}
       onNavigate={session.setActivePage}
       onRefreshDaily={() => void daily.loadDailySummary(true)}
       onOpenWeeklyActivityReward={(reward) => {

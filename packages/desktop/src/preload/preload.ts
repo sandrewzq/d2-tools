@@ -59,10 +59,13 @@ import type { SaveVaultNoteInput, SaveVaultTagInput, VaultTags } from "@d2-tools
 import type { WeeklySummary } from "@d2-tools/core/weekly/summary";
 import type {
   AccountItemDetail,
+  AccountItemDetailResource,
   AccountItemDetailRequestOptions,
   AccountItemSummary,
   AccountSummary,
   AccountSummaryRequestOptions,
+  AccountResourceRequestOptions,
+  AccountSnapshotResource,
   AuthLoginResult,
   CachedAccountSnapshot
 } from "../contracts/account.js";
@@ -106,17 +109,84 @@ import type {
   DesktopIpcErrorDetails,
   DesktopIpcErrorPayload
 } from "../contracts/errors.js";
-import type { BackgroundTaskSnapshot } from "../shared/backgroundTasks.js";
+import type {
+  AssetCacheTaskCompletion,
+  AssetCacheTaskInput,
+  BackgroundTaskSnapshot
+} from "../shared/backgroundTasks.js";
 import type { AppUpdateSnapshot } from "../shared/updateTypes.js";
+
+type PreloadCacheDomain =
+  | "asset-cache"
+  | "account-snapshot"
+  | "account-item-details"
+  | "home-briefing"
+  | "vendor-inventory"
+  | "lightgg"
+  | "manifest-version-check";
+type PreloadCacheStatus = {
+  data_dir: string;
+  generated_at: string;
+  domains: Array<{
+    domain: PreloadCacheDomain;
+    path: string;
+    exists: boolean;
+    bytes: number;
+    updated_at?: string;
+  }>;
+  account_cache_metrics?: {
+    generated_at: string;
+    snapshot: PreloadCacheMetricCounts;
+    item_detail: PreloadCacheMetricCounts;
+    total: PreloadCacheMetricCounts;
+  };
+};
+type PreloadCacheMetricCounts = {
+  hit: number;
+  miss: number;
+  stale: number;
+  refresh: number;
+  error: number;
+};
+type PreloadConfigBackupResult = { ok: true; message: string; path?: string; cache?: PreloadCacheStatus };
+
+type RendererCacheStorage = {
+  keys: () => Promise<string[]>;
+  delete: (cacheName: string) => Promise<boolean>;
+};
+
+async function clearRendererAssetCaches(): Promise<void> {
+  const rendererCaches = (globalThis as typeof globalThis & { caches?: RendererCacheStorage }).caches;
+  if (!rendererCaches) return;
+  try {
+    const names = await rendererCaches.keys();
+    await Promise.all(
+      names
+        .filter((name) => name.startsWith("d2-tools-game-assets-"))
+        .map((name) => rendererCaches.delete(name))
+    );
+  } catch {
+    // Asset cache cleanup is best effort and must never block settings actions.
+  }
+}
 
 contextBridge.exposeInMainWorld("d2", {
   getHealth: () => ipcRenderer.invoke("health:get") as Promise<HealthStatus>,
   getConfig: () => ipcRenderer.invoke("config:get") as Promise<D2Config>,
   saveConfig: (config: D2Config) => ipcRenderer.invoke("config:save", config) as Promise<D2Config>,
   openDataDir: () => ipcRenderer.invoke("config:open-data-dir") as Promise<void>,
-  exportConfig: () => ipcRenderer.invoke("config:export"),
-  importConfig: () => ipcRenderer.invoke("config:import"),
-  clearCache: () => ipcRenderer.invoke("config:clear-cache"),
+  exportConfig: () => ipcRenderer.invoke("config:export") as Promise<PreloadConfigBackupResult>,
+  importConfig: () => ipcRenderer.invoke("config:import") as Promise<PreloadConfigBackupResult>,
+  getCacheStatus: () => ipcRenderer.invoke("config:cache-status") as Promise<PreloadCacheStatus>,
+  clearCache: async (domains?: readonly PreloadCacheDomain[]) => {
+    const result = await ipcRenderer.invoke("config:clear-cache", domains) as PreloadConfigBackupResult;
+    // CacheStorage lives in the renderer process, so clear it alongside the
+    // main-process cache domains without coupling the main process to DOM APIs.
+    if (!domains || domains.includes("asset-cache")) {
+      await clearRendererAssetCaches();
+    }
+    return result;
+  },
   listAiModels: (ai: AiSettings) => ipcRenderer.invoke("ai:models", ai) as Promise<AiModelListResult>,
   testAiConnection: () => ipcRenderer.invoke("ai:test") as Promise<AiConnectionTestResult>,
   loginBungie: () => ipcRenderer.invoke("auth:login") as Promise<AuthLoginResult>,
@@ -126,6 +196,10 @@ contextBridge.exposeInMainWorld("d2", {
     ipcRenderer.invoke("account:snapshot:cached") as Promise<CachedAccountSnapshot | null>,
   getAccountItemDetail: (instanceId: string, options?: AccountItemDetailRequestOptions) =>
     invokeDesktopIpc<AccountItemDetail>("account:item-detail", instanceId, options),
+  getAccountSnapshotResource: (options?: AccountResourceRequestOptions) =>
+    invokeDesktopIpc<AccountSnapshotResource>("account:resource:snapshot", options),
+  getAccountItemDetailResource: (instanceId: string, options?: AccountResourceRequestOptions) =>
+    invokeDesktopIpc<AccountItemDetailResource>("account:resource:item-detail", instanceId, options),
   planArmor: <Job extends ArmorPlannerWorkspaceJob>(request: ArmorPlannerClientRunRequest<Job>) =>
     invokeDesktopIpc<ArmorPlannerClientRunResult<Job>>("armor:plan", request),
   invalidateArmorPlanner: (scopeId?: string) =>
@@ -145,6 +219,10 @@ contextBridge.exposeInMainWorld("d2", {
     ipcRenderer.on("background-tasks:changed", listener);
     return () => ipcRenderer.removeListener("background-tasks:changed", listener);
   },
+  queueAssetCacheTask: (input: AssetCacheTaskInput) =>
+    ipcRenderer.invoke("background-tasks:asset-cache:start", input) as Promise<BackgroundTaskSnapshot>,
+  completeAssetCacheTask: (input: AssetCacheTaskCompletion) =>
+    ipcRenderer.invoke("background-tasks:asset-cache:complete", input) as Promise<{ ok: boolean }>,
   getManifestStatus: (options?: ManifestStatusRequestOptions) =>
     invokeDesktopIpc<ManifestStatus>("manifest:status", options),
   initializeManifest: () => invokeDesktopIpc<ManifestStatus>("manifest:initialize"),

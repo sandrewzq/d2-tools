@@ -173,6 +173,8 @@ export type VendorsPageModelView = {
   selectedScope?: VendorScopeOptionView;
   selectedCharacterContext?: VendorCharacterContextView | null;
   statusBanner?: VendorStatusBannerView;
+  resourceStatus?: "unavailable" | "loading" | "refreshing" | "ready" | "stale" | "error";
+  resourceSource?: "local" | "remote" | "merged";
 };
 
 export type VendorOfferContextView = {
@@ -378,7 +380,7 @@ export function VendorsPageContentView(props: VendorsPageContentViewProps) {
         <header className="vendor-hero">
           <div>
             <span className="vendor-eyebrow">{selectedVendor.location || "地点待确认"}</span>
-            <h2>{selectedVendor.name}</h2>
+            <div className="vendor-heading-line"><h2>{selectedVendor.name}</h2><VendorResourceStatus status={props.model.resourceStatus ?? "ready"} source={props.model.resourceSource ?? "merged"} /></div>
             <p>{selectedVendor.description || "当前商人没有额外说明"}</p>
             <div className="vendor-hero-meta">
               <span>{selectedVendor.source}</span>
@@ -466,6 +468,12 @@ export function VendorsPageContentView(props: VendorsPageContentViewProps) {
 
     </ProductWorkspaceSplit>
   );
+}
+
+function VendorResourceStatus(props: { status: NonNullable<VendorsPageModelView["resourceStatus"]>; source: NonNullable<VendorsPageModelView["resourceSource"]> }) {
+  const labels: Record<typeof props.status, string> = { unavailable: "暂无库存", loading: "首次读取", refreshing: "后台同步中", ready: "已同步", stale: "缓存已过期", error: "读取失败" };
+  const sourceLabels: Record<typeof props.source, string> = { local: "本地", remote: "远端", merged: "本地优先" };
+  return <span className="app-chip vendor-resource-status" data-ui-kind="status-chip" data-status={props.status} title={`来源：${sourceLabels[props.source]}`}>{labels[props.status]}</span>;
 }
 
 function VendorContentSections(props: {
