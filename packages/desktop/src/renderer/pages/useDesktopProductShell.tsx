@@ -93,6 +93,7 @@ export function useDesktopProductShell(props: {
   const {
     accountSummary,
     applyAccountActionPatches,
+    applyPendingAccountActionPatches,
     vaultTags,
     setVaultTags,
     accountError,
@@ -152,6 +153,7 @@ export function useDesktopProductShell(props: {
   const writeActions = useDesktopProductWriteActions({
     accountSummary,
     applyAccountActionPatches,
+    applyPendingAccountActionPatches,
     diagnostics,
     vaultTags,
     setVaultTags,

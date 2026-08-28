@@ -70,6 +70,9 @@ import type {
   CachedAccountSnapshot
 } from "../contracts/account.js";
 import type {
+  ActionDebugTraceEntry,
+  ActionDebugTraceInput,
+  AccountWriteVerificationInput,
   ActionLogEntry,
   ActionVerificationRecordInput,
   ApplySocketPlugsActionInput,
@@ -348,6 +351,8 @@ contextBridge.exposeInMainWorld("d2", {
     invokeDesktopIpc<BatchItemActionResult>("actions:items:batch-equip", input),
   batchTransferItems: (input: BatchTransferItemsInput) =>
     invokeDesktopIpc<BatchItemActionResult>("actions:items:batch-transfer", input),
+  startAccountWriteVerification: (input: AccountWriteVerificationInput) =>
+    invokeDesktopIpc<BackgroundTaskSnapshot>("actions:verification:start", input),
   pullFromPostmaster: (input: PostmasterPullActionInput) =>
     invokeDesktopIpc<ItemActionResult>("actions:item:pull-postmaster", input),
   equipLoadout: (input: LoadoutEquipActionInput) =>
@@ -359,6 +364,8 @@ contextBridge.exposeInMainWorld("d2", {
   updateLoadoutIdentifiers: (input: LoadoutIdentifiersActionInput) =>
     invokeDesktopIpc<ItemActionResult>("actions:loadout:update-identifiers", input),
   getActionLog: () => ipcRenderer.invoke("actions:log:get") as Promise<ActionLogEntry[]>,
+  recordActionDebugTrace: (input: ActionDebugTraceInput) =>
+    ipcRenderer.invoke("actions:debug:record", input) as Promise<ActionDebugTraceEntry>,
   recordActionVerification: (input: ActionVerificationRecordInput) =>
     ipcRenderer.invoke("actions:verification:record", input) as Promise<ActionLogEntry>,
   createItemActionPlan: (input: ItemActionPlanInput) =>

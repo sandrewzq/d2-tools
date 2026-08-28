@@ -65,6 +65,36 @@ export {
   selectLocalLoadoutPlanWorkbench,
   toLocalLoadoutPlanDraft
 } from "./workspaces/localLoadoutPlanWorkbench.js";
+export type {
+  ApplicationLoadoutCompareCell,
+  ApplicationLoadoutCompareColumn,
+  ApplicationLoadoutCompareInput,
+  ApplicationLoadoutCompareReference,
+  ApplicationLoadoutCompareRow,
+  ApplicationLoadoutCompareViewModel,
+  ApplicationLoadoutDetailView,
+  ApplicationLoadoutDirectoryEntryView,
+  ApplicationLoadoutInGameReference,
+  ApplicationLoadoutItemDetailView,
+  ApplicationLoadoutLibraryInput,
+  ApplicationLoadoutLibraryViewModel,
+  ApplicationLoadoutNavigationState,
+  ApplicationLoadoutNavigationTransition,
+  ApplicationLoadoutScreen,
+  ApplicationLoadoutScreenFrame,
+  ApplicationLoadoutWearState
+} from "./workspaces/applicationLoadoutWorkspace.js";
+export {
+  consumeApplicationLoadoutFocusRequest,
+  createApplicationLoadoutNavigationState,
+  getActiveApplicationLoadoutScreen,
+  popApplicationLoadoutScreen,
+  pushApplicationLoadoutScreen,
+  replaceApplicationLoadoutScreen,
+  selectApplicationLoadoutCompareViewModel,
+  selectApplicationLoadoutDetailView,
+  selectApplicationLoadoutLibraryViewModel
+} from "./workspaces/applicationLoadoutWorkspace.js";
 export type { LoadoutActionResultCounts } from "./workspaces/loadoutActions.js";
 export {
   buildCharacterLoadoutTemplateName,

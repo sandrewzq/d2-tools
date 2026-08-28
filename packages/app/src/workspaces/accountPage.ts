@@ -17,6 +17,7 @@ export type AccountItemView = {
   stateFacts: string[];
   canOpenDetail: boolean;
   isPending: boolean;
+  isSyncing: boolean;
   isLoadoutMatch: boolean;
   openPayload: AccountOpenItemPayload;
 };
@@ -70,6 +71,8 @@ export type AccountConnectionView = {
 export type AccountOperationFeedbackView = {
   tone: "neutral" | "pending" | "success" | "warning" | "error";
   message: string;
+  phase?: "submitting" | "syncing" | "confirmed" | "partial" | "failed" | "delayed" | "paused";
+  itemInstanceIds?: string[];
 };
 
 export type AccountFeedbackView = {
@@ -382,6 +385,7 @@ export function selectAccountPageModel(input: AccountPageModelInput): AccountPag
   const selectedCharacterPower = workspace.characterTabs.find((tab) => tab.key === selectedCharacterId)?.power;
   const openingItemKey = pageState.openingItemKey ?? "";
   const isLoadoutMatch = pageState.isLoadoutMatch ?? (() => false);
+  const syncingItemIds = new Set(pageState.operationFeedback?.itemInstanceIds ?? []);
   const configuration = buildAccountConfigurationSection(selectedCharacter);
   const tasks = buildAccountTasksSection(selectedCharacter);
   const items = buildAccountItemsSection(selectedCharacter, workspace.materialRows.length);
@@ -452,14 +456,16 @@ export function selectAccountPageModel(input: AccountPageModelInput): AccountPag
           sourceCharacterId: selectedCharacterId,
           sourceKind: "equipped",
           openingItemKey,
-          isLoadoutMatch
+          isLoadoutMatch,
+          syncingItemIds
         })),
         inventoryItems: row.inventoryItems.map((item) => toAccountItemView({
           item,
           sourceCharacterId: selectedCharacterId,
           sourceKind: "inventory",
           openingItemKey,
-          isLoadoutMatch
+          isLoadoutMatch,
+          syncingItemIds
         }))
       }))
     },
@@ -671,6 +677,7 @@ function toAccountItemView(input: {
   sourceKind?: "equipped" | "inventory";
   openingItemKey: string;
   isLoadoutMatch: (item: AccountItemSummary) => boolean;
+  syncingItemIds: ReadonlySet<string>;
   isPostmasterItem?: boolean;
 }): AccountItemView {
   const key = getAccountPageItemKey(input.item);
@@ -684,6 +691,7 @@ function toAccountItemView(input: {
     stateFacts: facts.state,
     canOpenDetail,
     isPending: canOpenDetail && key === input.openingItemKey,
+    isSyncing: Boolean(input.item.instance_id && input.syncingItemIds.has(input.item.instance_id)),
     isLoadoutMatch: input.isLoadoutMatch(input.item),
     openPayload: {
       item: input.item,

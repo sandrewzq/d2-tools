@@ -19,6 +19,7 @@ import {
   getAllKnownAccountItemsWithSource,
   type LoadoutSourceItem
 } from "./loadoutSources.js";
+import { classifyBucket } from "@d2-tools/core/items/classification";
 import {
   buildLoadoutItemStatus,
   summarizeLoadoutItemStatuses,
@@ -90,6 +91,7 @@ export type InGameLoadoutItemRowView = {
   locatedItem: LoadoutSourceItem | null;
   locationLabel: string;
   located: boolean;
+  category: "weapon" | "armor" | "subclass" | "artifact" | "other";
   equipped_on_target_character: boolean;
   plug_count: number;
 };
@@ -317,7 +319,7 @@ function buildInGameLoadoutItemRows(
     character.class_name
   ]));
 
-  return items.map((item) => {
+  return items.map((item, index) => {
     const locatedItem = item.instance_id
       ? accountItems.find((candidate) => candidate.instance_id === item.instance_id) ?? null
       : null;
@@ -335,12 +337,30 @@ function buildInGameLoadoutItemRows(
       locatedItem,
       locationLabel,
       located: Boolean(locatedItem),
+      category: classifyInGameLoadoutItem(item, locatedItem),
       equipped_on_target_character: Boolean(
         locatedItem?.source_kind === "equipped" && locatedItem.source_character_id === targetCharacterId
       ),
       plug_count: item.plug_hashes?.length ?? 0
     };
   });
+}
+
+function classifyInGameLoadoutItem(
+  item: InGameLoadoutItemView,
+  locatedItem: LoadoutSourceItem | null
+): InGameLoadoutItemRowView["category"] {
+  const bucketClassification = classifyBucket(locatedItem?.bucket_hash);
+  if (bucketClassification?.group === "weapons") return "weapon";
+  if (bucketClassification?.group === "armor") return "armor";
+  const bucketName = (locatedItem?.bucket_name ?? item.bucket_name ?? "").toLocaleLowerCase();
+  if (/子职业|职业分支|分支|subclass/.test(bucketName)) return "subclass";
+  if (/神器|artifact/.test(bucketName)) return "artifact";
+  if (/武器|weapon|枪|刀|弓|火箭|融合|手炮|步枪|霰弹|机枪|榴弹/.test(bucketName)) return "weapon";
+  if (/头盔|臂铠|手套|胸甲|腿甲|职业物品|helmet|gauntlet|arms|chest|leg|class item|cloak|mark|bond/.test(bucketName)) return "armor";
+  // Bungie 原始 CharacterLoadouts 只返回实例 ID 和 Plug Hash；没有账号快照
+  // 或 bucket 定义时，不能根据数组顺序猜测这是武器、护甲还是其他槽位。
+  return "other";
 }
 
 function buildLoadoutTemplateItemRows(input: {

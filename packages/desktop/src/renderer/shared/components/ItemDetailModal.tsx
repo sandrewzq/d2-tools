@@ -1,4 +1,5 @@
 import type {
+  AccountItemActionPatch,
   AccountSummary,
   AccountItemDetail,
   DimWishlist,
@@ -35,6 +36,7 @@ import {
 } from "./item-detail/buildWeaponDetailView";
 import { buildArmorDetailView } from "./item-detail/buildArmorDetailView";
 import { formatVaultTagLabel } from "./item-detail/itemDetailFormatters";
+import { resolveAccountItemViewLocation } from "../domain/account/itemActionState";
 
 export type ItemDetailModalProps = {
   accountSummary: AccountSummary | null;
@@ -87,6 +89,7 @@ export type ItemDetailModalProps = {
       onProgress?: (phase: "submitting" | "refreshing", message: string) => void;
       verifyRefreshedItem?: (detail: AccountItemDetail) => boolean;
       refreshMismatchMessage?: string;
+      expectedAccountPatch?: AccountItemActionPatch;
     }
   ) => Promise<{ ok: boolean; refreshed: boolean; message: string; cancelled?: boolean }>;
   onRefreshSelectedItemDetail: () => Promise<AccountItemDetail | null>;
@@ -101,6 +104,10 @@ export type ItemDetailModalProps = {
 
 export function ItemDetailModal(props: ItemDetailModalProps) {
   const selectedItem = props.selectedItem;
+  const selectedItemLocation = resolveAccountItemViewLocation(props.accountSummary, selectedItem.instance_id);
+  const selectedItemCharacterId = selectedItemLocation && "characterId" in selectedItemLocation
+    ? selectedItemLocation.characterId
+    : selectedItem.source_character_id;
   const [pendingPerks, setPendingPerks] = useState<Record<number, number>>({});
   const [perkWriteFeedback, setPerkWriteFeedback] = useState<WeaponConfigurationWriteFeedback>({ status: "idle" });
   const [itemToolMessage, setItemToolMessage] = useState("");
@@ -232,7 +239,7 @@ export function ItemDetailModal(props: ItemDetailModalProps) {
                 setPerkWriteFeedback({ status: "submitting", message: `正在提交 ${changes.length} 项 Perk 更改...` });
                 const outcome = await props.onRunItemWriteAction("应用武器配置到", () => api.applySocketPlugs({
                   membership_type: props.accountSummary?.membership_type ?? 0,
-                  character_id: selectedItem.source_character_id ?? props.selectedActionCharacterId,
+                  character_id: selectedItemCharacterId ?? props.selectedActionCharacterId,
                   item_id: selectedItem.instance_id ?? "",
                   item_name: selectedItem.name,
                   changes: changes.map((change) => ({
@@ -408,13 +415,18 @@ function ItemDetailInstanceActions(input: {
     setActionFeedback({ status: "idle" });
   }, [selectedItem.item_key]);
 
-  const runDetailAction = async (label: string, action: () => Promise<ItemActionResult>) => {
+  const runDetailAction = async (
+    label: string,
+    action: () => Promise<ItemActionResult>,
+    expectedAccountPatch: AccountItemActionPatch
+  ) => {
     setActionFeedback({ status: "submitting", message: `${label}正在提交到 Bungie...` });
     try {
       const outcome = await props.onRunItemWriteAction(label, action, {
         keepDetailOpen: true,
         feedbackScope: "detail",
-        onProgress: (phase, message) => setActionFeedback({ status: phase, message })
+        onProgress: (phase, message) => setActionFeedback({ status: phase, message }),
+        expectedAccountPatch
       });
       if (outcome.cancelled) {
         setActionFeedback({ status: "idle" });
@@ -434,32 +446,44 @@ function ItemDetailInstanceActions(input: {
 
   const characters = props.accountSummary?.characters ?? [];
   const targetCharacter = characters.find((character) => character.character_id === props.selectedActionCharacterId);
-  const sourceCharacter = characters.find((character) => character.character_id === selectedItem.source_character_id);
+  const liveLocation = resolveAccountItemViewLocation(props.accountSummary, selectedItem.instance_id);
+  const sourceKind = liveLocation?.kind ?? selectedItem.source_kind;
+  const sourceCharacterId = liveLocation && "characterId" in liveLocation
+    ? liveLocation.characterId
+    : selectedItem.source_character_id;
+  const isVaultItem = sourceKind === "vault" || (!liveLocation && Boolean(selectedItem.is_vault_item));
+  const isPostmasterItem = sourceKind === "postmaster" || (!liveLocation && Boolean(selectedItem.is_postmaster_item));
+  const sourceCharacter = characters.find((character) => character.character_id === sourceCharacterId);
   const localEntry = props.vaultTags.items[selectedItem.item_key]
     ?? (selectedItem.instance_id ? props.vaultTags.items[selectedItem.instance_id] : undefined);
   const currentTag = localEntry?.tag;
-  const locationLabel = selectedItem.is_postmaster_item
+  const locationLabel = isPostmasterItem
     ? `${sourceCharacter?.class_name ?? "角色"}邮政官`
-    : selectedItem.is_vault_item
+    : isVaultItem
       ? "仓库"
-      : selectedItem.source_kind === "equipped"
+      : sourceKind === "equipped"
         ? `${sourceCharacter?.class_name ?? "角色"}已装备`
         : `${sourceCharacter?.class_name ?? "角色"}背包`;
-  const isAlreadyEquippedToTarget = selectedItem.source_kind === "equipped"
-    && selectedItem.source_character_id === props.selectedActionCharacterId;
+  const isAlreadyEquippedToTarget = sourceKind === "equipped"
+    && sourceCharacterId === props.selectedActionCharacterId;
+
+  const transferToVault = !isVaultItem;
+  const transferCharacterId = isVaultItem
+    ? props.selectedActionCharacterId
+    : sourceCharacterId ?? props.selectedActionCharacterId;
 
   const transferItem = () => api.transferItem({
     membership_type: props.accountSummary?.membership_type ?? 0,
     character_id: resolveItemTransferCharacterId({
       selectedCharacterId: props.selectedActionCharacterId,
-      sourceCharacterId: selectedItem.source_character_id,
-      sourceKind: selectedItem.source_kind,
-      transferToVault: !selectedItem.is_vault_item
+      sourceCharacterId,
+      sourceKind,
+      transferToVault
     }),
     item_id: selectedItem.instance_id ?? "",
     item_reference_hash: selectedItem.hash,
     item_name: selectedItem.name,
-    transfer_to_vault: !selectedItem.is_vault_item
+    transfer_to_vault: transferToVault
   });
 
   const copyTransferPlan = () => props.onCopyItemActionPlanText({
@@ -467,32 +491,41 @@ function ItemDetailInstanceActions(input: {
     item_name: selectedItem.name,
     item_instance_id: selectedItem.instance_id,
     item_reference_hash: selectedItem.hash,
-    character_id: selectedItem.is_vault_item
+    character_id: isVaultItem
       ? props.selectedActionCharacterId
-      : selectedItem.source_character_id ?? props.selectedActionCharacterId,
-    transfer_to_vault: !selectedItem.is_vault_item
+      : sourceCharacterId ?? props.selectedActionCharacterId,
+    transfer_to_vault: transferToVault
   });
 
-  const primaryActions = selectedItem.is_postmaster_item
+  const primaryActions = isPostmasterItem
     ? [{
         key: "postmaster-pull",
         label: "取回到角色背包",
         primary: true,
         onClick: () => void runDetailAction("从邮政官取回", () => api.pullFromPostmaster({
           membership_type: props.accountSummary?.membership_type ?? 0,
-          character_id: selectedItem.source_character_id ?? props.selectedActionCharacterId,
+          character_id: sourceCharacterId ?? props.selectedActionCharacterId,
           item_id: selectedItem.instance_id ?? "",
           item_reference_hash: selectedItem.hash,
           item_name: selectedItem.name
-        }))
+        }), {
+          kind: "postmaster-pull",
+          item_instance_id: selectedItem.instance_id ?? "",
+          character_id: sourceCharacterId ?? props.selectedActionCharacterId
+        })
       }]
     : [
-        selectedItem.is_vault_item
+        isVaultItem
           ? {
               key: "transfer-from-vault",
               label: `取出到${targetCharacter?.class_name ?? "角色"}`,
               primary: true,
-              onClick: () => void runDetailAction("取出到角色", transferItem)
+              onClick: () => void runDetailAction("取出到角色", transferItem, {
+                kind: "transfer",
+                item_instance_id: selectedItem.instance_id ?? "",
+                character_id: transferCharacterId,
+                target: "character-inventory"
+              })
             }
           : {
               key: "equip",
@@ -504,14 +537,23 @@ function ItemDetailInstanceActions(input: {
                 character_id: props.selectedActionCharacterId,
                 item_id: selectedItem.instance_id ?? "",
                 item_name: selectedItem.name
-              }))
+              }), {
+                kind: "equip",
+                item_instance_id: selectedItem.instance_id ?? "",
+                character_id: props.selectedActionCharacterId
+              })
             },
-        ...(selectedItem.is_vault_item
+        ...(isVaultItem
           ? [{ key: "copy-transfer", label: "复制转移计划", onClick: copyTransferPlan }]
           : [{
               key: "transfer-to-vault",
               label: "移入仓库",
-              onClick: () => void runDetailAction("移入仓库", transferItem)
+              onClick: () => void runDetailAction("移入仓库", transferItem, {
+                kind: "transfer",
+                item_instance_id: selectedItem.instance_id ?? "",
+                character_id: transferCharacterId,
+                target: "vault"
+              })
             }]),
         {
           key: "lock",
@@ -527,7 +569,11 @@ function ItemDetailInstanceActions(input: {
             item_id: selectedItem.instance_id ?? "",
             item_name: selectedItem.name,
             state: !selectedItem.locked
-          }))
+          }), {
+            kind: "lock",
+            item_instance_id: selectedItem.instance_id ?? "",
+            locked: !selectedItem.locked
+          })
         }
       ];
 
@@ -552,7 +598,7 @@ function ItemDetailInstanceActions(input: {
       title={`${selectedItem.name} · ${selectedItem.instance_id?.slice(-4) ?? "实例"}`}
       subtitle={`${locationLabel} · ${selectedItem.power ?? "-"} 光等`}
       statusLabels={[
-        selectedItem.source_kind === "equipped" ? "已装备" : "未装备",
+        sourceKind === "equipped" ? "已装备" : "未装备",
         selectedItem.locked === undefined
           ? "锁定状态未知"
           : selectedItem.locked
@@ -578,7 +624,7 @@ function ItemDetailInstanceActions(input: {
       onNoteChange={props.onSetItemNoteDraft}
       noteActions={[
         { key: "save-note", label: "保存备注", primary: true, onClick: props.onSaveSelectedItemNote },
-        ...(!selectedItem.is_postmaster_item && !selectedItem.is_vault_item
+        ...(!isPostmasterItem && !isVaultItem
           ? [{ key: "copy-transfer", label: "复制转移计划", onClick: copyTransferPlan }]
           : []),
         { key: "copy-summary", label: "复制结论", onClick: props.onCopySelectedItemSummary },
@@ -597,10 +643,10 @@ function ItemDetailInstanceActions(input: {
             <strong>{actionFeedback.status === "submitting"
               ? "正在提交装备操作"
               : actionFeedback.status === "refreshing"
-                ? "操作完成，正在刷新详情"
+                ? "Bungie 已受理，正在确认"
                 : actionFeedback.status === "success"
-                  ? "装备状态已更新"
-                  : "装备操作未完成"}</strong>
+                  ? "游戏内状态已更新"
+                  : "操作未完成"}</strong>
             <p>{actionFeedback.message}</p>
           </div>
         </div>

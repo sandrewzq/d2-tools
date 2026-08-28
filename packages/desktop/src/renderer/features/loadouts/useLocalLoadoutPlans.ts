@@ -101,7 +101,7 @@ export function useLocalLoadoutPlans(input: {
       setError("");
     } catch {
       applyPlans([]);
-      setError("本地方案读取失败，请检查本地数据目录后重试。");
+      setError("应用配装读取失败，请检查本地数据目录后重试。");
     }
   }, [applyPlans]);
 
@@ -114,6 +114,14 @@ export function useLocalLoadoutPlans(input: {
     plans,
     selectedPlanId
   }), [accountSummary, plans, selectedPlanId]);
+
+  const isDraftDirty = useMemo(() => {
+    if (!draft) return false;
+    if (!editingPlanId) return true;
+    const savedPlan = plans.find((plan) => plan.id === editingPlanId);
+    if (!savedPlan) return true;
+    return JSON.stringify(draft) !== JSON.stringify(toLocalLoadoutPlanDraft(savedPlan));
+  }, [draft, editingPlanId, plans]);
 
   const executionPlan = useMemo(() => {
     if (!draft || !accountSummary || !draft.target_character_id) return null;
@@ -129,6 +137,16 @@ export function useLocalLoadoutPlans(input: {
   }, [accountSummary, draft]);
 
   const selectPlan = useCallback((id: string) => {
+    const plan = plans.find((candidate) => candidate.id === id);
+    if (!plan) return;
+    setSelectedPlanId(plan.id);
+    setEditingPlanId(null);
+    setDraft(null);
+    setError("");
+    setExecutionReport(null);
+  }, [plans]);
+
+  const editPlan = useCallback((id: string) => {
     const plan = plans.find((candidate) => candidate.id === id);
     if (!plan) return;
     setSelectedPlanId(plan.id);
@@ -493,7 +511,7 @@ export function useLocalLoadoutPlans(input: {
   const executeDraft = useCallback(async () => {
     if (!draft || !accountSummary || !draft.target_character_id || isExecuting) return;
     if (!editingPlanId) {
-      setError("请先显式保存本地方案，再生成并执行应用计划。");
+      setError("请先保存应用配装，再生成并执行穿戴计划。");
       return;
     }
     const target = accountSummary.characters.find((character) => character.character_id === draft.target_character_id);
@@ -663,7 +681,7 @@ export function useLocalLoadoutPlans(input: {
     }
 
     if (!window.confirm([
-      `发布计划 ${plan.plan_id}`,
+      `保存到游戏内槽位 ${plan.plan_id}`,
       `目标：${plan.loadout_name || `槽位 ${plan.loadout_index + 1}`}`,
       plan.overwrites_existing_slot ? "该槽位已有内容，将被当前角色状态覆盖。" : "该槽位当前为空。",
       "确认后会再次刷新账号；装备状态或槽位内容变化时不会执行写入。继续吗？"
@@ -680,9 +698,9 @@ export function useLocalLoadoutPlans(input: {
       latestAccount = input.refreshAccount
         ? await input.refreshAccount()
         : await api.getAccountSummary({ force: true });
-      if (!latestAccount) throw new Error("发布前账号刷新没有返回可用快照");
+      if (!latestAccount) throw new Error("保存到游戏内槽位前，账号刷新没有返回可用快照");
     } catch (preflightError) {
-      const message = `发布前账号复核失败：${preflightError instanceof Error ? preflightError.message : String(preflightError)}`;
+      const message = `保存到游戏内槽位前，账号复核失败：${preflightError instanceof Error ? preflightError.message : String(preflightError)}`;
       setPublishReport({
         plan,
         confirmation_id: confirmationId,
@@ -697,7 +715,7 @@ export function useLocalLoadoutPlans(input: {
 
     const validation = validateLocalLoadoutPlanPublishPlan(plan, latestAccount);
     if (validation.status === "stale") {
-      const message = `发布计划在确认后已失效：${validation.reasons.join("；")}。请重新选择槽位并确认。`;
+      const message = `保存计划在确认后已失效：${validation.reasons.join("；")}。请重新选择游戏内槽位并确认。`;
       setPublishReport({
         plan,
         confirmation_id: confirmationId,
@@ -745,8 +763,8 @@ export function useLocalLoadoutPlans(input: {
         : verifyLocalLoadoutPlanPublishPlan(plan, refreshedAccount);
     const verificationStatus: ActionVerificationStatus = verification.status;
     const verificationMessage = verification.status === "verified"
-      ? `Bungie 配装槽位 ${plan.loadout_index + 1} 已保存，并在刷新后核对到 ${plan.selected_item_instance_ids.length} 个已确认实例。`
-      : `Bungie 配装槽位 ${plan.loadout_index + 1} 发布验证${verification.status === "unavailable" ? "不可用" : "未通过"}：${verification.reasons.join("；")}`;
+      ? `游戏内配装槽位 ${plan.loadout_index + 1} 已保存，并在刷新后核对到 ${plan.selected_item_instance_ids.length} 个已确认实例。`
+      : `游戏内配装槽位 ${plan.loadout_index + 1} 保存验证${verification.status === "unavailable" ? "不可用" : "未通过"}：${verification.reasons.join("；")}`;
     let verificationLogged = true;
     try {
       await api.recordActionVerification({
@@ -759,7 +777,7 @@ export function useLocalLoadoutPlans(input: {
       });
     } catch (verificationError) {
       verificationLogged = false;
-      const logMessage = `发布验证记录写入失败：${verificationError instanceof Error ? verificationError.message : String(verificationError)}`;
+      const logMessage = `保存到游戏内槽位的验证记录写入失败：${verificationError instanceof Error ? verificationError.message : String(verificationError)}`;
       failure = failure ? `${failure}；${logMessage}` : logMessage;
     }
 
@@ -796,7 +814,7 @@ export function useLocalLoadoutPlans(input: {
       return saved;
     } catch (saveError) {
       const message = saveError instanceof Error ? saveError.message : String(saveError);
-      setError(`保存本地方案失败：${message}`);
+      setError(`保存应用配装失败：${message}`);
       return null;
     } finally {
       setIsSaving(false);
@@ -813,20 +831,24 @@ export function useLocalLoadoutPlans(input: {
       setError("");
     } catch (deleteError) {
       const message = deleteError instanceof Error ? deleteError.message : String(deleteError);
-      setError(`删除本地方案失败：${message}`);
+      setError(`删除应用配装失败：${message}`);
     } finally {
       setIsSaving(false);
     }
   }, [applyPlans, closeEditor, editingPlanId, isSaving, selectedPlanId]);
 
   return {
+    plans,
+    selectedPlanId,
     workspace,
     draft,
+    isDraftDirty,
     editingPlanId,
     isSaving,
     error,
     reload,
     selectPlan,
+    editPlan,
     startNewPlan,
     startFromCurrentCharacter,
     startFromInGameLoadout,

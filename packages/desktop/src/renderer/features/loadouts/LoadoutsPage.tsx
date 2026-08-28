@@ -1,18 +1,40 @@
 import { useEffect, useMemo, useState } from "react";
 import { LoadoutsPageContentView, type LoadoutActionFeedbackState, type LoadoutsPageActions } from "@d2-tools/ui";
 import { analyzeLoadoutTemplate } from "@d2-tools/core/loadouts/analysis";
-import type { AccountSummary, ArmorSetCatalogEntry, CharacterSummary, LoadoutTemplate } from "../../api/types";
+import type {
+  AccountSummary,
+  ArmorSetCatalogEntry,
+  CharacterSummary,
+  DataResourceStatus,
+  LoadoutTemplate
+} from "../../api/types";
 import type { EquipmentTargetStore } from "../../api/targetApi";
 import type { ArmorClass, ArmorSlot } from "@d2-tools/core/armor";
 import type { ArmorStatKey } from "@d2-tools/core/loadouts/analysis";
-import type { CreateLocalLoadoutPlanInput } from "@d2-tools/core/loadouts/plans";
+import type { CreateLocalLoadoutPlanInput, LocalLoadoutPlan } from "@d2-tools/core/loadouts/plans";
 import {
   createDimLoadoutExport,
   type DimLoadoutExportResult,
   type DimLoadoutImportPreview
 } from "@d2-tools/core/loadouts/dimImport";
 import type { LocalLoadoutPlanExecutionPlan } from "@d2-tools/core/loadouts/localPlanExecution";
-import { selectLoadoutsPageModel, type LocalLoadoutPlanWorkbenchModel } from "@d2-tools/app/loadouts";
+import {
+  consumeApplicationLoadoutFocusRequest,
+  createApplicationLoadoutNavigationState,
+  getActiveApplicationLoadoutScreen,
+  popApplicationLoadoutScreen,
+  pushApplicationLoadoutScreen,
+  replaceApplicationLoadoutScreen,
+  selectApplicationLoadoutCompareViewModel,
+  selectApplicationLoadoutLibraryViewModel,
+  selectLoadoutsPageModel,
+  type ApplicationLoadoutCompareViewModel,
+  type ApplicationLoadoutInGameReference,
+  type ApplicationLoadoutLibraryViewModel,
+  type ApplicationLoadoutNavigationState,
+  type ApplicationLoadoutScreen,
+  type LocalLoadoutPlanWorkbenchModel
+} from "@d2-tools/app/loadouts";
 import type {
   AssistantLoadoutArtifact,
   AssistantEquipmentTargetCandidatesArtifact
@@ -26,6 +48,8 @@ import {
   createArmorPlannerGapTarget,
   upsertEquipmentTarget
 } from "@d2-tools/core/targets/equipmentTargets";
+import { useAccountResource } from "../../shared/hooks/useAccountResource";
+import { getAccountStoreRevision } from "../../shared/stores/accountEntityStore";
 
 export type LoadoutsPageProps = {
   accountSummary: AccountSummary | null;
@@ -38,7 +62,10 @@ export type LoadoutsPageProps = {
   isRunningItemAction: boolean;
   actionFeedback: Record<string, LoadoutActionFeedbackState>;
   localPlanWorkspace: LocalLoadoutPlanWorkbenchModel;
+  localPlans: LocalLoadoutPlan[];
+  selectedLocalPlanId: string;
   localPlanDraft: CreateLocalLoadoutPlanInput | null;
+  localPlanIsDirty: boolean;
   localPlanEditingId: string | null;
   localPlanIsSaving: boolean;
   localPlanError: string;
@@ -95,11 +122,13 @@ export type LoadoutsPageProps = {
     slot: AccountSummary["characters"][number]["loadout_slots"][number],
     identifiers: { name_hash?: number; icon_hash?: number; color_hash?: number }
   ) => void;
+  onOpenInGameItemDetail: (item: AccountSummary["characters"][number]["equipped_items"][number]) => void;
   onOpenTemplateSourceItem: (
     item: LoadoutTemplate["items"][number],
     templateCharacterId?: string
   ) => void;
   onSelectLocalPlan: (id: string) => void;
+  onEditLocalPlan: (id: string) => void;
   onStartNewLocalPlan: (character: CharacterSummary | null) => void;
   onStartLocalPlanFromCharacter: (character: CharacterSummary | null) => void;
   onStartLocalPlanFromInGameLoadout: (
@@ -138,7 +167,22 @@ export function LoadoutsPage(props: LoadoutsPageProps) {
   const [dimExportFeedback, setDimExportFeedback] = useState("");
   const [armorTargetFeedback, setArmorTargetFeedback] = useState("");
   const [isSavingArmorTargets, setIsSavingArmorTargets] = useState(false);
+  const [applicationLoadoutNavigation, setApplicationLoadoutNavigation] = useState<ApplicationLoadoutNavigationState>(() => (
+    createApplicationLoadoutNavigationState(props.selectedLocalPlanId
+      ? { selected_plan_id: props.selectedLocalPlanId }
+      : undefined)
+  ));
+  const [applicationLoadoutCompareIds, setApplicationLoadoutCompareIds] = useState<string[]>([]);
+  const [applicationLoadoutInGameReference, setApplicationLoadoutInGameReference] = useState<ApplicationLoadoutInGameReference | null>(null);
+  const [applicationLoadoutShowDiffOnly, setApplicationLoadoutShowDiffOnly] = useState(false);
   const armorPlanner = useArmorPlannerWorkspace();
+  const accountResource = useAccountResource({
+    kind: "snapshot",
+    enabled: Boolean(props.accountSummary),
+    resourceKey: props.accountSummary
+      ? `${props.accountSummary.membership_type}:${props.accountSummary.destiny_membership_id}:${getAccountStoreRevision()}`
+      : "signed-out"
+  });
   useEffect(() => {
     let active = true;
     setArmorSetCatalogStatus("loading");
@@ -173,6 +217,32 @@ export function LoadoutsPage(props: LoadoutsPageProps) {
     props.compareTemplateId,
     props.showDiffOnly
   ]);
+  const applicationLoadoutLibrary = useMemo<ApplicationLoadoutLibraryViewModel>(() => (
+    selectApplicationLoadoutLibraryViewModel({
+      account_summary: props.accountSummary,
+      plans: props.localPlans,
+      selected_plan_id: props.selectedLocalPlanId
+    })
+  ), [props.accountSummary, props.localPlans, props.selectedLocalPlanId]);
+  const applicationLoadoutCompare = useMemo<ApplicationLoadoutCompareViewModel>(() => (
+    selectApplicationLoadoutCompareViewModel({
+      plans: props.localPlans,
+      plan_ids: applicationLoadoutCompareIds,
+      in_game_reference: applicationLoadoutInGameReference,
+      showDiffOnly: applicationLoadoutShowDiffOnly
+    })
+  ), [applicationLoadoutCompareIds, applicationLoadoutInGameReference, applicationLoadoutShowDiffOnly, props.localPlans]);
+
+  useEffect(() => {
+    setApplicationLoadoutNavigation((current) => {
+      const screen = getActiveApplicationLoadoutScreen(current);
+      if (screen.kind !== "library" || screen.selected_plan_id === props.selectedLocalPlanId) return current;
+      return replaceApplicationLoadoutScreen(current, {
+        kind: "library",
+        ...(props.selectedLocalPlanId ? { selected_plan_id: props.selectedLocalPlanId } : {})
+      }).state;
+    });
+  }, [props.selectedLocalPlanId]);
   const dimExport = useMemo<DimLoadoutExportResult | null>(() => (
     props.localPlanDraft
       ? createDimLoadoutExport({ plan: props.localPlanDraft, account: props.accountSummary })
@@ -240,7 +310,7 @@ export function LoadoutsPage(props: LoadoutsPageProps) {
           exotic: piece.identity.exotic,
           exotic_class_item: piece.identity.exoticClassItem,
           target_masterwork_tier: piece.identity.targetMasterworkTier,
-          note: "来自已审阅的 Armor Planner 待刷候选；命中基础属性后仍需复核框架、调整、套装和大师杰作身份。"
+          note: "来自已审阅的自动配甲待刷候选；命中基础属性后仍需复核框架、调整、套装和大师杰作身份。"
         }));
         created += 1;
       }
@@ -274,10 +344,15 @@ export function LoadoutsPage(props: LoadoutsPageProps) {
     snapshotCurrentLoadout: props.onSnapshotCurrentLoadout,
     clearSavedLoadout: props.onClearSavedLoadout,
     updateSavedLoadoutIdentifiers: props.onUpdateSavedLoadoutIdentifiers,
+    openInGameItemDetail: props.onOpenInGameItemDetail,
     openTemplateSourceItem: props.onOpenTemplateSourceItem,
     selectLocalPlan: (id) => {
       armorPlanner.reset();
       props.onSelectLocalPlan(id);
+    },
+    editLocalPlan: (id) => {
+      armorPlanner.reset();
+      props.onEditLocalPlan(id);
     },
     startNewLocalPlan: (character) => {
       armorPlanner.reset();
@@ -312,7 +387,58 @@ export function LoadoutsPage(props: LoadoutsPageProps) {
     dismissArmorResultTrace: props.onDismissArmorResultTrace,
     planArmor: armorPlanner.plan,
     resetArmorPlanner: armorPlanner.reset,
-    saveArmorAcquisitionTargets: (candidate, targetClass) => void saveArmorAcquisitionTargets(candidate, targetClass)
+    saveArmorAcquisitionTargets: (candidate, targetClass) => void saveArmorAcquisitionTargets(candidate, targetClass),
+    pushApplicationLoadoutScreen: (screen: ApplicationLoadoutScreen) => {
+      setApplicationLoadoutNavigation((current) => pushApplicationLoadoutScreen(current, screen).state);
+    },
+    replaceApplicationLoadoutScreen: (screen: ApplicationLoadoutScreen) => {
+      setApplicationLoadoutNavigation((current) => replaceApplicationLoadoutScreen(current, screen).state);
+    },
+    popApplicationLoadoutScreen: () => {
+      setApplicationLoadoutNavigation((current) => popApplicationLoadoutScreen(current).state);
+    },
+    consumeApplicationLoadoutFocusRequest: () => {
+      setApplicationLoadoutNavigation((current) => consumeApplicationLoadoutFocusRequest(current).state);
+    },
+    toggleApplicationLoadoutCompare: (planId: string) => {
+      const next = applicationLoadoutCompareIds.includes(planId)
+        ? applicationLoadoutCompareIds.filter((id) => id !== planId)
+        : applicationLoadoutCompareIds.length < 3
+          ? [...applicationLoadoutCompareIds, planId]
+          : applicationLoadoutCompareIds;
+      setApplicationLoadoutCompareIds(next);
+      setApplicationLoadoutNavigation((navigation) => {
+        const screen = getActiveApplicationLoadoutScreen(navigation);
+        if (screen.kind !== "compare") return navigation;
+        return replaceApplicationLoadoutScreen(navigation, {
+          ...screen,
+          plan_ids: next,
+          show_diff_only: applicationLoadoutShowDiffOnly
+        }).state;
+      });
+    },
+    applicationLoadoutInGameReferenceChange: (reference: ApplicationLoadoutInGameReference | null) => {
+      setApplicationLoadoutInGameReference(reference);
+      setApplicationLoadoutNavigation((navigation) => {
+        const screen = getActiveApplicationLoadoutScreen(navigation);
+        if (screen.kind !== "compare") return navigation;
+        return replaceApplicationLoadoutScreen(navigation, {
+          kind: "compare",
+          plan_ids: screen.plan_ids,
+          show_diff_only: screen.show_diff_only,
+          ...(screen.return_focus_id ? { return_focus_id: screen.return_focus_id } : {}),
+          ...(reference ? { in_game_reference_id: `in-game:${reference.character.character_id}:${reference.slot.index}` } : {})
+        }).state;
+      });
+    },
+    applicationLoadoutShowDiffOnlyChange: (value: boolean) => {
+      setApplicationLoadoutShowDiffOnly(value);
+      setApplicationLoadoutNavigation((navigation) => {
+        const screen = getActiveApplicationLoadoutScreen(navigation);
+        if (screen.kind !== "compare") return navigation;
+        return replaceApplicationLoadoutScreen(navigation, { ...screen, show_diff_only: value }).state;
+      });
+    }
   };
 
   return (
@@ -327,7 +453,11 @@ export function LoadoutsPage(props: LoadoutsPageProps) {
       isRunningItemAction={props.isRunningItemAction}
       actionFeedback={props.actionFeedback}
       localPlanWorkspace={props.localPlanWorkspace}
+      applicationLoadoutNavigation={applicationLoadoutNavigation}
+      applicationLoadoutLibrary={applicationLoadoutLibrary}
+      applicationLoadoutCompare={applicationLoadoutCompare}
       localPlanDraft={props.localPlanDraft}
+      localPlanIsDirty={props.localPlanIsDirty}
       localPlanEditingId={props.localPlanEditingId}
       localPlanIsSaving={props.localPlanIsSaving}
       localPlanError={props.localPlanError}
@@ -349,8 +479,21 @@ export function LoadoutsPage(props: LoadoutsPageProps) {
       armorSetCatalogStatus={armorSetCatalogStatus}
       armorTargetFeedback={armorTargetFeedback}
       isSavingArmorTargets={isSavingArmorTargets}
+      accountDataStatus={loadoutAccountDataStatus(accountResource.status, Boolean(accountResource.data))}
+      accountDataSource={accountResource.resource?.source}
+      accountDataFetchedAt={accountResource.resource?.fetchedAt}
+      accountDataError={accountResource.error?.message}
     />
   );
+}
+
+function loadoutAccountDataStatus(
+  status: DataResourceStatus,
+  hasData: boolean
+): "cached" | "stale" | "refreshing" | "ready" | "error" | undefined {
+  if (status === "loading") return hasData ? "refreshing" : undefined;
+  if (status === "unavailable") return undefined;
+  return status;
 }
 
 function armorClassType(value: ArmorClass): number | undefined {

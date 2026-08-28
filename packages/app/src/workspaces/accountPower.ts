@@ -2,7 +2,6 @@ import {
   accountPowerSlotLabels,
   accountPowerSlotOrder,
   calculateAccountPowerFraction,
-  selectHighestSlotPowerCandidates,
   selectMaxEquippablePowerCandidates,
   type AccountPowerCandidate,
   type AccountPowerFraction,
@@ -46,7 +45,6 @@ export type CharacterPowerValueView = {
 export type CharacterPowerView = {
   currentLabel: string;
   maxEquippable: CharacterPowerValueView;
-  slotMaximum: CharacterPowerValueView;
   executablePower: CharacterPowerValueView;
   hasExternalSources: boolean;
   executableMatchesAccountMaximum: boolean;
@@ -64,11 +62,11 @@ export function buildCharacterPowerView(
     || candidate.source.kind === "inventory"
     || candidate.source.kind === "vault"
   ));
-  const maxEquippableSelection = selectMaxEquippablePowerCandidates({
-    candidates: accountCandidates,
+  const equippedSelection = selectMaxEquippablePowerCandidates({
+    candidates: accountCandidates.filter((candidate) => candidate.source.kind === "equipped"),
     characterClassName: character.class_name
   });
-  const slotMaximumSelection = selectHighestSlotPowerCandidates({
+  const maxEquippableSelection = selectMaxEquippablePowerCandidates({
     candidates: accountCandidates,
     characterClassName: character.class_name
   });
@@ -77,13 +75,16 @@ export function buildCharacterPowerView(
     characterClassName: character.class_name
   });
   const maxEquippable = toPowerValueView(maxEquippableSelection);
-  const slotMaximum = toPowerValueView(slotMaximumSelection);
   const executablePower = toPowerValueView(executableSelection);
+  const equippedPower = toPowerValueView(equippedSelection);
 
   return {
-    currentLabel: typeof character.light === "number" ? String(character.light) : "-",
+    currentLabel: equippedPower.complete
+      ? equippedPower.label
+      : typeof character.light === "number"
+        ? String(character.light)
+        : "-",
     maxEquippable,
-    slotMaximum,
     executablePower,
     hasExternalSources: [...maxEquippableSelection.values()].some((candidate) => (
       candidate.source.kind === "other-character-equipped"

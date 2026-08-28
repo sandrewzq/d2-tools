@@ -302,6 +302,41 @@
   min-height: 34px;
 }
 
+:where(.app-shell) .account-highest-power-confirmation-list {
+  display: grid;
+  gap: 1px;
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-frame);
+  background: var(--border-subtle);
+}
+
+:where(.app-shell) .account-highest-power-confirmation-row {
+  display: grid;
+  grid-template-columns: minmax(72px, 0.55fr) minmax(0, 1.45fr);
+  gap: 3px 10px;
+  padding: 9px 10px;
+  background: var(--surface-panel);
+}
+
+:where(.app-shell) .account-highest-power-confirmation-row > span,
+:where(.app-shell) .account-highest-power-confirmation-row > small {
+  color: var(--text-muted);
+  font-size: var(--priority-support);
+}
+
+:where(.app-shell) .account-highest-power-confirmation-row > strong {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-title);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+:where(.app-shell) .account-highest-power-confirmation-row > small {
+  grid-column: 2;
+}
+
 :where(.app-shell) .account-power-trigger {
   display: inline-flex;
   align-items: center;
@@ -338,6 +373,19 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+}
+
+:where(.app-shell) .account-power-panel-head > span:first-child,
+:where(.app-shell) .account-power-panel-head small,
+:where(.app-shell) .account-power-panel-head strong {
+  display: block;
+}
+
+:where(.app-shell) .account-power-panel-head small {
+  margin-top: 2px;
+  color: var(--text-muted);
+  font-size: var(--priority-trace);
+  font-weight: 600;
 }
 
 :where(.app-shell) .account-power-item small,
@@ -382,30 +430,45 @@
   line-height: 1;
 }
 
-:where(.app-shell) .account-power-mode {
+:where(.app-shell) .account-power-summary {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  overflow: hidden;
-  border: 1px solid var(--border-control);
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  padding: 8px 10px;
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-control);
-}
-
-:where(.app-shell) .account-power-mode button {
-  min-height: 32px;
-  border: 0;
-  border-radius: 0;
-  color: var(--text-muted);
   background: var(--surface-recessed);
-  cursor: pointer;
 }
 
-:where(.app-shell) .account-power-mode button + button {
-  border-left: 1px solid var(--border-subtle);
+:where(.app-shell) .account-power-summary > span:not([aria-hidden="true"]) {
+  display: grid;
+  gap: 2px;
 }
 
-:where(.app-shell) .account-power-mode button[aria-selected="true"] {
-  color: var(--selected-fg);
-  background: var(--selected-bg);
+:where(.app-shell) .account-power-summary > span[aria-hidden="true"] {
+  color: var(--text-muted);
+  font-size: var(--priority-context);
+}
+
+:where(.app-shell) .account-power-summary .target {
+  justify-items: end;
+  text-align: right;
+}
+
+:where(.app-shell) .account-power-summary small {
+  color: var(--text-muted);
+  font-size: var(--priority-trace);
+}
+
+:where(.app-shell) .account-power-summary strong {
+  color: var(--text-title);
+  font-size: var(--priority-context);
+  font-variant-numeric: tabular-nums;
+}
+
+:where(.app-shell) .account-power-summary .account-power-fraction {
+  font-size: var(--priority-context);
 }
 
 :where(.app-shell) .account-power-rows {
@@ -419,7 +482,7 @@
   grid-template-columns: 84px minmax(0, 1fr) 48px 34px;
   gap: 8px;
   align-items: center;
-  min-height: 44px;
+  min-height: 42px;
   border-bottom: 1px solid var(--border-subtle);
 }
 
@@ -529,6 +592,17 @@
 }
 
 :where(.app-shell) .account-summary > .status-message {
+  margin: 0;
+}
+
+:where(.app-shell) .account-operation-status-slot {
+  display: flex;
+  align-items: flex-start;
+  min-height: 36px;
+}
+
+:where(.app-shell) .account-operation-status-slot > .status-message {
+  width: 100%;
   margin: 0;
 }
 
@@ -806,6 +880,12 @@
 :where(.app-shell) .account-slot-item.pending {
   border-color: var(--status-pending);
   background: var(--status-pending-bg);
+}
+
+:where(.app-shell) .account-slot-item.syncing {
+  border-color: var(--status-pending);
+  background: var(--status-pending-bg);
+  box-shadow: inset 3px 0 0 var(--status-pending);
 }
 
 :where(.app-shell) .account-slot-item.loadout-highlight {

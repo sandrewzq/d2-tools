@@ -1,5 +1,7 @@
 import type { AccountItemSummary } from "@d2-tools/core/account/summary";
 import type {
+  ActionDebugTraceEntry,
+  ActionDebugTraceInput,
   ActionLogEntry,
   ActionTraceContext,
   ActionVerificationStatus
@@ -10,6 +12,7 @@ import type {
   ItemActionPlanInput
 } from "@d2-tools/core/actions/plan";
 import type { AccountItemPatch } from "@d2-tools/services/account/session";
+import type { BackgroundTaskSnapshot } from "../shared/backgroundTasks.js";
 
 export type ActionsApi = {
   setItemLockState(input: ItemLockActionInput): Promise<ItemActionResult>;
@@ -19,12 +22,14 @@ export type ActionsApi = {
   transferItem(input: ItemTransferActionInput): Promise<ItemActionResult>;
   batchEquipItems(input: BatchEquipItemsInput): Promise<BatchItemActionResult>;
   batchTransferItems(input: BatchTransferItemsInput): Promise<BatchItemActionResult>;
+  startAccountWriteVerification(input: AccountWriteVerificationInput): Promise<BackgroundTaskSnapshot>;
   pullFromPostmaster(input: PostmasterPullActionInput): Promise<ItemActionResult>;
   equipLoadout(input: LoadoutEquipActionInput): Promise<ItemActionResult>;
   snapshotLoadout(input: LoadoutSnapshotActionInput): Promise<ItemActionResult>;
   clearLoadout(input: LoadoutClearActionInput): Promise<ItemActionResult>;
   updateLoadoutIdentifiers(input: LoadoutIdentifiersActionInput): Promise<ItemActionResult>;
   getActionLog(): Promise<ActionLogEntry[]>;
+  recordActionDebugTrace(input: ActionDebugTraceInput): Promise<ActionDebugTraceEntry>;
   recordActionVerification(input: ActionVerificationRecordInput): Promise<ActionLogEntry>;
   createItemActionPlan(input: ItemActionPlanInput): Promise<ItemActionPlan>;
   createBatchTransferPlan(input: BatchTransferPlanInput): Promise<BatchTransferPlan>;
@@ -124,6 +129,13 @@ export type ItemActionResult = {
   ok: true;
   message: string;
   account_patch?: AccountItemActionPatch;
+  diagnostics?: {
+    operation_id: string;
+    duration_ms: number;
+    auth_duration_ms: number;
+    bungie_duration_ms: number;
+    postprocess_duration_ms: number;
+  };
 };
 
 export type BatchEquipItemsInput = {
@@ -136,6 +148,17 @@ export type BatchTransferItemsInput = {
   membership_type: number;
   character_id: string;
   items: ItemTransferActionInput[];
+};
+
+export type AccountWriteVerificationInput = {
+  operation_id: string;
+  membership_type: number;
+  destiny_membership_id: string;
+  character_id: string;
+  character_name?: string;
+  expected_equipped_item_ids: string[];
+  accepted_count: number;
+  failed_count: number;
 };
 
 export type BatchItemActionResult = {
@@ -166,6 +189,8 @@ export type ActionVerificationRecordInput = {
 };
 
 export type {
+  ActionDebugTraceEntry,
+  ActionDebugTraceInput,
   ActionLogEntry,
   ActionTraceContext,
   ActionVerificationStatus,

@@ -116,6 +116,7 @@ export type AccountMaterialSummary = {
 
 export type AccountItemPlugSummary = {
   hash: number;
+  socket_index?: number;
   name: string;
   icon?: string;
   description?: string;
@@ -541,6 +542,9 @@ type DestinyCharacterLoadout = {
 };
 
 const bungieStaticBaseUrl = "https://www.bungie.net";
+// DestinyCharacterLoadout uses "0" for an item slot without a real instance.
+// This is the same sentinel DIM excludes before resolving loadout items.
+const unsetLoadoutPlugHash = 2166136261;
 const fullProfileComponents = [
   100, // Profiles
   102, // ProfileInventories
@@ -1366,35 +1370,55 @@ function summarizeCharacterLoadouts(
       .map((item) => [item.instance_id as string, item] as const)
   );
 
-  return loadouts.map((loadout, index) => ({
-    index,
-    name: resolveLoadoutName(loadout.nameHash, index, loadoutNameDefinitions),
-    ...(typeof loadout.nameHash === "number" ? { name_hash: loadout.nameHash } : {}),
-    ...(typeof loadout.iconHash === "number" ? { icon_hash: loadout.iconHash } : {}),
-    ...(typeof loadout.colorHash === "number" ? { color_hash: loadout.colorHash } : {}),
-    item_count: loadout.items?.length ?? 0,
-    items: (loadout.items ?? []).map((item) => {
-      const matched = item.itemInstanceId ? itemsByInstanceId.get(item.itemInstanceId) : undefined;
-      return {
-        instance_id: item.itemInstanceId,
-        ...(matched ? { item_hash: matched.hash } : {}),
-        name: matched?.name ?? `物品 ${item.itemInstanceId ?? "未知"}`,
-        icon: matched?.icon,
-        bucket_name: matched?.bucket_name,
-        plug_hashes: (item.plugItemHashes ?? []).filter((hash) => typeof hash === "number" && Number.isFinite(hash)),
-        plugs: (item.plugItemHashes ?? []).flatMap((hash) => {
-          if (typeof hash !== "number" || !Number.isFinite(hash)) return [];
-          const definition = itemDefinitions[String(hash)] as DefinitionRecord | undefined;
-          return [{
-            hash,
-            name: definition?.displayProperties?.name?.trim() || `Plug ${hash}`,
-            icon: normalizeBungieAssetUrl(definition?.displayProperties?.icon),
-            category_identifier: definition?.plug?.plugCategoryIdentifier
-          }];
-        })
-      };
-    })
-  }));
+  return loadouts.map((loadout, index) => {
+    const loadoutItems = (loadout.items ?? []).filter((item) => isValidLoadoutItemInstanceId(item.itemInstanceId));
+    return {
+      index,
+      name: resolveLoadoutName(loadout.nameHash, index, loadoutNameDefinitions),
+      ...(typeof loadout.nameHash === "number" ? { name_hash: loadout.nameHash } : {}),
+      ...(typeof loadout.iconHash === "number" ? { icon_hash: loadout.iconHash } : {}),
+      ...(typeof loadout.colorHash === "number" ? { color_hash: loadout.colorHash } : {}),
+      item_count: loadoutItems.length,
+      items: loadoutItems.map((item) => {
+        const matched = itemsByInstanceId.get(item.itemInstanceId as string);
+        const plugItemHashes = (item.plugItemHashes ?? []).filter(isValidLoadoutPlugHash);
+        return {
+          instance_id: item.itemInstanceId,
+          ...(matched ? { item_hash: matched.hash } : {}),
+          // CharacterLoadouts 不携带装备名称；反查不到账号实例时保持未知，
+          // 由 UI 展示实例尾号和“未定位”，避免把实例 ID 冒充装备名称。
+          name: matched?.name ?? "未定位实例",
+          icon: matched?.icon,
+          bucket_name: matched?.bucket_name,
+          plug_hashes: plugItemHashes,
+          plugs: (item.plugItemHashes ?? []).flatMap((hash, socketIndex) => {
+            if (!isValidLoadoutPlugHash(hash)) return [];
+            const definition = itemDefinitions[String(hash)] as DefinitionRecord | undefined;
+            return [{
+              hash,
+              socket_index: socketIndex,
+              name: definition?.displayProperties?.name?.trim() || `Plug ${hash}`,
+              icon: normalizeBungieAssetUrl(definition?.displayProperties?.icon),
+              category_identifier: definition?.plug?.plugCategoryIdentifier
+            }];
+          })
+        };
+      })
+    };
+  });
+}
+
+function isValidLoadoutItemInstanceId(instanceId: string | undefined): boolean {
+  if (typeof instanceId !== "string") return false;
+  const normalized = instanceId.trim();
+  return normalized.length > 0 && normalized !== "0";
+}
+
+function isValidLoadoutPlugHash(hash: number): hash is number {
+  return Number.isInteger(hash)
+    && hash > 0
+    && hash <= 0xFFFFFFFF
+    && hash !== unsetLoadoutPlugHash;
 }
 
 function resolveLoadoutName(

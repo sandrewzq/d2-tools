@@ -24,6 +24,7 @@ import type {
   ShellPageKey
 } from "@d2-tools/ui";
 import type { AccountItemSummary, AccountSummary } from "@d2-tools/core/account/summary";
+import type { LocalLoadoutPlan } from "@d2-tools/core/loadouts/plans";
 import {
   createFixtureActivitySummary,
   createFixtureAccountItem,
@@ -56,7 +57,33 @@ export const webAccountSummary = createFixtureAccountSummary({
       ],
       inventory_groups: [],
       postmaster_items: [],
-      loadout_slots: []
+      loadout_slots: [
+        {
+          index: 0,
+          name: "夜幕控场",
+          item_count: 8,
+          items: [
+            { instance_id: "web-pulse-equipped", item_hash: 3001, name: "快速命中脉冲", bucket_name: "动能武器", plug_hashes: [4001, 4002] },
+            { instance_id: "web-handcannon-vault", item_hash: 3002, name: "精准手炮", bucket_name: "能量武器", plug_hashes: [4001, 4002] },
+            { instance_id: "web-rocket-equipped", item_hash: 3004, name: "边缘迁移火箭筒", bucket_name: "威能武器", plug_hashes: [4001, 4002] },
+            { instance_id: "web-helmet-equipped", item_hash: 7101, name: "铁血意志头盔", bucket_name: "头盔", plug_hashes: [] },
+            { instance_id: "web-gauntlets-inventory", item_hash: 7102, name: "铁血意志臂铠", bucket_name: "臂铠", plug_hashes: [] },
+            { instance_id: "web-chest-equipped", item_hash: 7103, name: "铁血意志胸甲", bucket_name: "胸甲", plug_hashes: [] },
+            { instance_id: "web-legs-inventory", item_hash: 7104, name: "铁血意志腿甲", bucket_name: "腿甲", plug_hashes: [] },
+            { instance_id: "web-class-equipped", item_hash: 7105, name: "铁血意志披风", bucket_name: "职业物品", plug_hashes: [] }
+          ]
+        },
+        {
+          index: 1,
+          name: "突袭输出",
+          item_count: 3,
+          items: [
+            { instance_id: "web-pulse-equipped", item_hash: 3001, name: "快速命中脉冲", bucket_name: "动能武器", plug_hashes: [4001, 4002] },
+            { instance_id: "web-shotgun-inventory", item_hash: 3003, name: "终局霰弹枪", bucket_name: "能量武器", plug_hashes: [4001, 4002] },
+            { instance_id: "web-rocket-equipped", item_hash: 3004, name: "边缘迁移火箭筒", bucket_name: "威能武器", plug_hashes: [4001, 4002] }
+          ]
+        }
+      ]
     },
     {
       character_id: "web-warlock",
@@ -120,6 +147,69 @@ export const webLoadoutTemplates: LoadoutTemplate[] = [
     ]
   }
 ];
+
+export const webApplicationLoadoutPlans: LocalLoadoutPlan[] = [
+  {
+    id: "web-app-nightfall",
+    name: "宗师夜幕 · 生存控场",
+    class_name: "猎人",
+    target_character_id: "web-hunter",
+    source: { kind: "manual", label: "应用内创建" },
+    item_targets: [
+      { slot: "动能武器", item_hash: 3001, selected_instance_id: "web-pulse-equipped", plug_hashes: [4001, 4002] },
+      { slot: "能量武器", item_hash: 3002, selected_instance_id: "web-handcannon-vault", plug_hashes: [4001, 4002] },
+      { slot: "威能武器", item_hash: 3004, selected_instance_id: "web-rocket-equipped", plug_hashes: [] },
+      { slot: "头盔", item_hash: 7101, selected_instance_id: "web-helmet-equipped", plug_hashes: [] },
+      { slot: "臂铠", item_hash: 7102, selected_instance_id: "web-gauntlets-inventory", plug_hashes: [] },
+      { slot: "胸甲", item_hash: 7103, selected_instance_id: "web-chest-equipped", plug_hashes: [] },
+      { slot: "腿甲", item_hash: 7104, selected_instance_id: "web-legs-inventory", plug_hashes: [] },
+      { slot: "职业物品", item_hash: 7105, selected_instance_id: "web-class-equipped", plug_hashes: [] }
+    ],
+    notes: "Web 预览中的完整应用配装，用于查看只读详情、比较和显式编辑流程。",
+    created_at: "2026-07-01T09:30:00.000Z",
+    updated_at: "2026-07-03T14:18:00.000Z"
+  },
+  {
+    id: "web-app-raid",
+    name: "突袭输出 · 火箭轮换",
+    class_name: "猎人",
+    target_character_id: "web-hunter",
+    source: { kind: "current-equipment", label: "从当前装备创建" },
+    item_targets: [
+      { slot: "动能武器", item_hash: 3001, selected_instance_id: "web-pulse-equipped", plug_hashes: [4001, 4002] },
+      { slot: "能量武器", item_hash: 3003, selected_instance_id: "web-shotgun-inventory", plug_hashes: [] },
+      { slot: "威能武器", item_hash: 3004, selected_instance_id: "web-rocket-equipped", plug_hashes: [] },
+      { slot: "头盔", item_hash: 7101, selected_instance_id: "web-helmet-equipped", plug_hashes: [] },
+      { slot: "臂铠", item_hash: 7102, selected_instance_id: "web-gauntlets-inventory", plug_hashes: [] },
+      { slot: "胸甲", item_hash: 7103, selected_instance_id: "web-chest-equipped", plug_hashes: [] },
+      { slot: "腿甲", item_hash: 7104, selected_instance_id: "web-legs-inventory", plug_hashes: [] },
+      { slot: "职业物品", item_hash: 7105, selected_instance_id: "web-class-equipped", plug_hashes: [] }
+    ],
+    notes: "保留近距离副武器的输出方案，可与夜幕方案逐槽位比较。",
+    created_at: "2026-07-02T11:00:00.000Z"
+  },
+  {
+    id: "web-app-pvp",
+    name: "熔炉竞技 · 手炮霰弹",
+    class_name: "猎人",
+    target_character_id: "web-hunter",
+    source: { kind: "guide", label: "攻略创建" },
+    item_targets: [
+      { slot: "动能武器", item_hash: 3001, selected_instance_id: "web-pulse-equipped", plug_hashes: [4001, 4002] },
+      { slot: "能量武器", item_hash: 3003, selected_instance_id: "web-shotgun-inventory", plug_hashes: [] },
+      { slot: "威能武器", item_hash: 3006, selected_instance_id: "web-sword-vault", plug_hashes: [] }
+    ],
+    notes: "第三个对比候选，用于验证最多三个应用配装的选择上限。",
+    created_at: "2026-07-03T08:00:00.000Z"
+  }
+];
+
+export const webAccountDataResource = {
+  status: "cached" as const,
+  source: "local" as const,
+  fetchedAt: "2026-07-03T14:18:00+08:00",
+  error: undefined as { code: string; message: string } | undefined
+};
 
 export const webSelectedAnalysis = { equipped: [webLoadoutTemplates[0].items[0]], missing: [webLoadoutTemplates[0].items[1]] };
 export const webTransferPlan = { steps: [], blocked: [] };
@@ -704,8 +794,10 @@ export function createWebAssistantReply() {
 export function useWebFixtureRuntime() {
   return useMemo(() => ({
     accountSummary: webAccountSummary,
+    accountDataResource: webAccountDataResource,
     activitySummary: webActivitySummary,
     loadoutTemplates: webLoadoutTemplates,
+    applicationLoadoutPlans: webApplicationLoadoutPlans,
     equipmentFilters: webEquipmentFilters,
     perkFilters: webPerkFilters,
     libraryItems: webLibraryItems,

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import type { AccountOperationFeedbackView } from "@d2-tools/app/account";
 import { api } from "../../api/client";
-import type { AccountItemActionPatch, AccountItemDetail, AccountItemSummary, AccountSummary, DimWishlist, ItemActionResult, ItemAiAdviceResult, ItemSearchResult, LibraryHistory, LocalTargetRules, VaultTags, VaultTagValue, WeaponRecommendation } from "../../api/types";
+import type { AccountItemActionPatch, AccountItemDetail, AccountItemSummary, AccountSummary, ActionDebugTraceInput, ActionLogType, DimWishlist, ItemActionResult, ItemAiAdviceResult, ItemSearchResult, LibraryHistory, LocalTargetRules, VaultTags, VaultTagValue, WeaponRecommendation } from "../../api/types";
 import type { LiveItemAvailabilityEntry } from "@d2-tools/core/items/liveAvailability";
 import type {
   PersonalWeaponKnowledgeEntry,
@@ -25,6 +26,7 @@ import {
   useItemDetail
 } from "./useItemDetail";
 import { buildWeaponAiConfigurationContext } from "../components/item-detail/buildWeaponDetailView";
+import { isAccountItemActionPatchReflected } from "../domain/account/itemActionState";
 
 const ITEM_DETAIL_SUPPORTING_REQUEST_DELAY_MS = 180;
 
@@ -43,9 +45,12 @@ export function useItemDetailWorkspace(input: {
   localTargetRules: LocalTargetRules;
   diagnostics: DiagnosticsBridge;
   setAccountError: (message: string) => void;
+  setAccountOperationFeedback: (feedback: AccountOperationFeedbackView | undefined) => void;
   setIsRunningItemAction: (isRunning: boolean) => void;
   setItemActionMessage: (message: string) => void;
   loadAccountSummary: () => Promise<void>;
+  readAuthoritativeAccountSummary: () => Promise<AccountSummary | null>;
+  applyAuthoritativeAccountSummary: (summary: AccountSummary) => void;
   onRecentHistoryChanged: (history: LibraryHistory) => void;
 }) {
   const [communityRecommendations, setCommunityRecommendations] = useState<WeaponRecommendation | null>(null);
@@ -63,6 +68,7 @@ export function useItemDetailWorkspace(input: {
   const [isGeneratingItemAi, setIsGeneratingItemAi] = useState(false);
   const [selectedActionCharacterId, setSelectedActionCharacterId] = useState("");
   const workspaceRequestSequenceRef = useRef(0);
+  const writeActionDebugQueueRef = useRef<Promise<unknown>>(Promise.resolve());
 
   const {
     selectedItem,
@@ -531,6 +537,7 @@ export function useItemDetailWorkspace(input: {
       onProgress?: (phase: "submitting" | "refreshing", message: string) => void;
       verifyRefreshedItem?: (detail: AccountItemDetail) => boolean;
       refreshMismatchMessage?: string;
+      expectedAccountPatch?: AccountItemActionPatch;
     }
   ): Promise<{ ok: boolean; refreshed: boolean; message: string; cancelled?: boolean }> {
     const publishMessage = (message: string) => {
@@ -562,13 +569,128 @@ export function useItemDetailWorkspace(input: {
     }
 
     input.setIsRunningItemAction(true);
-    publishProgress("submitting", `${label}正在提交到 Bungie...`);
+    const actionStartedAt = performance.now();
+    const fallbackOperationId = createWriteActionOperationId();
+    const debugAction = resolveWriteActionLogType(options?.expectedAccountPatch, label);
+    const debugBase = {
+      action: debugAction,
+      item_name: selectedItem.name,
+      item_instance_id: selectedItem.instance_id,
+      character_id: selectedActionCharacterId
+    } as const;
+    const submittingMessage = `${label}正在提交到 Bungie...`;
+    publishProgress("submitting", submittingMessage);
+    if (options?.expectedAccountPatch) {
+      input.setAccountOperationFeedback({ tone: "pending", message: submittingMessage });
+    }
     setItemShareMessage("");
 
     try {
       const result = await run();
-      if (result.account_patch) {
-        input.applyAccountActionPatches([result.account_patch]);
+      const operationId = result.diagnostics?.operation_id ?? fallbackOperationId;
+      const accountPatch = result.account_patch ?? options?.expectedAccountPatch;
+      if (accountPatch) {
+        input.applyAccountActionPatches([accountPatch]);
+        recordWriteActionDebug({
+          ...debugBase,
+          operation_id: operationId,
+          phase: "account-patch-applied",
+          elapsed_ms: performance.now() - actionStartedAt,
+          reflected: true,
+          message: "已将预计结果应用到本地账号 Store"
+        });
+        const confirmingMessage = "Bungie 已受理操作，正在确认游戏内状态...";
+        publishProgress("refreshing", confirmingMessage);
+        input.setAccountOperationFeedback({ tone: "pending", message: confirmingMessage });
+        const verificationStartedAt = performance.now();
+        recordWriteActionDebug({
+          ...debugBase,
+          operation_id: operationId,
+          phase: "verification-start",
+          elapsed_ms: verificationStartedAt - actionStartedAt,
+          message: "开始读取权威账号快照"
+        });
+        const verification = await verifyAccountPatchUntilConfirmed({
+          patch: accountPatch,
+          onRetry: (attempt, total) => publishProgress(
+            "refreshing",
+            `Bungie 正在同步游戏状态，后台确认中（${attempt}/${total}）...`
+          ),
+          onWait: (attempt, total, delayMs) => recordWriteActionDebug({
+            ...debugBase,
+            operation_id: operationId,
+            phase: "verification-wait",
+            attempt,
+            total_attempts: total,
+            delay_ms: delayMs,
+            elapsed_ms: performance.now() - actionStartedAt,
+            message: `第 ${attempt} 轮权威快照读取前等待`
+          }),
+          onAttempt: (attempt, total, durationMs, accountAvailable, reflected) => recordWriteActionDebug({
+            ...debugBase,
+            operation_id: operationId,
+            phase: "verification-read",
+            attempt,
+            total_attempts: total,
+            duration_ms: durationMs,
+            elapsed_ms: performance.now() - actionStartedAt,
+            account_available: accountAvailable,
+            reflected,
+            ok: accountAvailable,
+            message: reflected
+              ? "权威账号快照已命中目标状态"
+              : accountAvailable
+                ? "权威账号快照仍返回旧状态"
+                : "权威账号快照读取失败"
+          })
+        });
+        if (!verification.confirmed) {
+          if (verification.latestAccount) {
+            input.applyAuthoritativeAccountSummary(verification.latestAccount);
+          }
+          const message = verification.latestAccount
+            ? "操作已提交，但 Bungie 暂时没有返回新的游戏状态。页面已恢复为服务器当前数据，请重试或稍后刷新账号。"
+            : "操作已提交，但暂时无法读取 Bungie 最新账号状态。页面暂时显示预计结果，请稍后刷新账号确认。";
+          input.setAccountOperationFeedback({
+            tone: verification.latestAccount ? "warning" : "error",
+            message
+          });
+          recordWriteActionDebug({
+            ...debugBase,
+            operation_id: operationId,
+            phase: "verification-complete",
+            duration_ms: performance.now() - verificationStartedAt,
+            elapsed_ms: performance.now() - actionStartedAt,
+            account_available: Boolean(verification.latestAccount),
+            reflected: false,
+            ok: false,
+            message
+          });
+          publishMessage(message);
+          return { ok: true, refreshed: false, message };
+        }
+        input.applyAuthoritativeAccountSummary(verification.latestAccount);
+        if (options?.keepDetailOpen) {
+          await refreshSelectedItemDetail().catch(() => undefined);
+        } else {
+          closeSelectedItemDetail();
+        }
+        const message = `${result.message}，游戏内状态已确认。`;
+        recordWriteActionDebug({
+          ...debugBase,
+          operation_id: operationId,
+          phase: "verification-complete",
+          duration_ms: performance.now() - verificationStartedAt,
+          elapsed_ms: performance.now() - actionStartedAt,
+          account_available: true,
+          reflected: true,
+          ok: true,
+          message
+        });
+        input.setAccountOperationFeedback({ tone: "success", message });
+        publishMessage(message);
+        void input.diagnostics.loadActionLog().catch(() => undefined);
+        return { ok: true, refreshed: true, message };
       }
       if (options?.keepDetailOpen) {
         try {
@@ -587,11 +709,6 @@ export function useItemDetailWorkspace(input: {
             publishMessage(message);
             return { ok: true, refreshed: false, message };
           }
-          void input.loadAccountSummary().catch((error) => {
-            if (options?.feedbackScope !== "detail") {
-              input.setAccountError(error instanceof Error ? error.message : "操作完成，但账号数据刷新失败");
-            }
-          });
           publishMessage(`${result.message}，已读取服务器最新配置。`);
         } catch (error) {
           if (options?.feedbackScope !== "detail") {
@@ -606,11 +723,9 @@ export function useItemDetailWorkspace(input: {
           };
         }
       } else {
-        publishMessage(result.message);
+        await input.loadAccountSummary();
         closeSelectedItemDetail();
-        void input.loadAccountSummary().catch((error) => {
-          input.setAccountError(error instanceof Error ? error.message : "操作完成，但刷新账号数据失败");
-        });
+        publishMessage(result.message);
       }
       void input.diagnostics.loadActionLog().catch(() => undefined);
       return {
@@ -620,12 +735,12 @@ export function useItemDetailWorkspace(input: {
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : `${label}失败`;
+      if (options?.expectedAccountPatch) {
+        input.setAccountOperationFeedback({ tone: "error", message });
+      }
       if (options?.keepDetailOpen) {
-        publishProgress("refreshing", "操作未完成，正在核对服务器当前配置...");
-        await input.loadAccountSummary().catch(() => undefined);
+        publishProgress("refreshing", "操作未完成，正在读取服务器当前配置...");
         await refreshSelectedItemDetail().catch(() => undefined);
-      } else {
-        void input.loadAccountSummary().catch(() => undefined);
       }
       publishMessage(message);
       await Promise.allSettled([input.diagnostics.loadActionLog()]);
@@ -651,6 +766,80 @@ export function useItemDetailWorkspace(input: {
       if (detail && (!input.verify || input.verify(detail))) return true;
     }
     return false;
+  }
+
+  async function verifyAccountPatchUntilConfirmed(options: {
+    patch: AccountItemActionPatch;
+    onRetry: (attempt: number, total: number) => void;
+    onWait: (attempt: number, total: number, delayMs: number) => void;
+    onAttempt: (
+      attempt: number,
+      total: number,
+      durationMs: number,
+      accountAvailable: boolean,
+      reflected: boolean
+    ) => void;
+  }): Promise<{
+    confirmed: true;
+    latestAccount: AccountSummary;
+  } | {
+    confirmed: false;
+    latestAccount: AccountSummary | null;
+  }> {
+    const retryDelays = [0, 750, 1_500, 2_500, 4_000, 6_000, 8_000, 10_000] as const;
+    let latestAccount: AccountSummary | null = null;
+    for (let index = 0; index < retryDelays.length; index += 1) {
+      const delay = retryDelays[index];
+      if (delay > 0) {
+        options.onRetry(index + 1, retryDelays.length);
+        options.onWait(index + 1, retryDelays.length, delay);
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      }
+      const requestStartedAt = performance.now();
+      const account = await input.readAuthoritativeAccountSummary();
+      const reflected = account ? isAccountItemActionPatchReflected(account, options.patch) : false;
+      options.onAttempt(
+        index + 1,
+        retryDelays.length,
+        performance.now() - requestStartedAt,
+        Boolean(account),
+        reflected
+      );
+      if (!account) continue;
+      latestAccount = account;
+      if (reflected) {
+        return { confirmed: true, latestAccount: account };
+      }
+    }
+    return { confirmed: false, latestAccount };
+  }
+
+  function recordWriteActionDebug(event: ActionDebugTraceInput): void {
+    writeActionDebugQueueRef.current = writeActionDebugQueueRef.current
+      .catch(() => undefined)
+      .then(() => api.recordActionDebugTrace(event))
+      .catch((error) => {
+        console.warn("写操作诊断日志记录失败：", error);
+      });
+  }
+
+  function createWriteActionOperationId(): string {
+    return typeof globalThis.crypto?.randomUUID === "function"
+      ? globalThis.crypto.randomUUID()
+      : `item-action-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  }
+
+  function resolveWriteActionLogType(
+    patch: AccountItemActionPatch | undefined,
+    label: string
+  ): ActionLogType {
+    if (patch?.kind === "equip") return "equip";
+    if (patch?.kind === "transfer") return "transfer";
+    if (patch?.kind === "postmaster-pull") return "postmaster-pull";
+    if (patch?.kind === "lock") return "set-lock";
+    return label.includes("Perk") || label.includes("配置")
+      ? "insert-socket-plug"
+      : "equip";
   }
 
   return {

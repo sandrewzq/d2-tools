@@ -13,6 +13,7 @@ import { getLocaleCopy } from "../i18n/copy.js";
 import type { AccountCopy, InterfaceLocale } from "../i18n/types.js";
 import { GameAssetImage } from "../media/GameAssetImage.js";
 import { getRovingFocusIndex } from "../interaction/rovingFocus.js";
+import { ConfirmationDialog } from "../overlay/ConfirmationDialog.js";
 import { formatClockTime, formatCompactDateTime } from "../time/formatTime.js";
 import {
   ProductWorkspaceContentStack,
@@ -129,12 +130,16 @@ function AccountPageWorkspace(props: {
   const characterRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const directoryTabsRef = useRef<HTMLDivElement | null>(null);
   const powerTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const equipHighestPowerTriggerRef = useRef<HTMLButtonElement | null>(null);
   const powerPanelRef = useRef<HTMLElement | null>(null);
   const [isPowerPanelOpen, setIsPowerPanelOpen] = useState(false);
-  const [powerMode, setPowerMode] = useState<"equippable" | "slots">("equippable");
+  const [isHighestPowerConfirmationOpen, setIsHighestPowerConfirmationOpen] = useState(false);
   const [directoryScrollState, setDirectoryScrollState] = useState({ overflow: false, canScrollRight: false });
   const displayedSlotRows = visibleAccountSlotRows(props.viewModel.loadout.slotComparisonRows);
   const displayedInventoryCount = displayedSlotRows.reduce((count, row) => count + row.inventoryItems.length, 0);
+  const highestPowerChanges = props.selectedCharacter.power.executablePower.rows.filter((row) => (
+    row.itemName && row.sourceKind && row.sourceKind !== "equipped"
+  ));
   const directoryOrientation = useAccountDirectoryOrientation();
   const navigation: Array<{ key: AccountSection; label: string; count?: number; groupLabel?: string; scopeLabel: string }> = [
     { key: "gear", label: accountText(props.copy, "战斗装备"), groupLabel: accountText(props.copy, "当前角色"), scopeLabel: accountText(props.copy, "当前角色") },
@@ -202,8 +207,6 @@ function AccountPageWorkspace(props: {
     document.addEventListener("pointerdown", handlePointerDown, true);
     document.addEventListener("keydown", handleKeyDown);
     document.addEventListener("focusin", handleFocusIn);
-    const selectedModeTab = powerPanelRef.current?.querySelector<HTMLButtonElement>('[role="tab"][aria-selected="true"]');
-    selectedModeTab?.focus();
     return () => {
       document.removeEventListener("pointerdown", handlePointerDown, true);
       document.removeEventListener("keydown", handleKeyDown);
@@ -346,7 +349,7 @@ function AccountPageWorkspace(props: {
                 <span>
                   <strong data-ui-part="value" data-info-priority="context" data-text-tone="primary">{tab.className}</strong>
                   <small data-ui-part="detail" data-info-priority="support" data-text-tone="body">
-                    {accountText(props.copy, "当前")} {tab.power.currentLabel} · {accountText(props.copy, "最高")} {tab.power.slotMaximum.label}
+                    {accountText(props.copy, "当前")} {tab.power.currentLabel} · {accountText(props.copy, "账号最高")} {tab.power.maxEquippable.label}
                   </small>
                 </span>
               </button>
@@ -363,10 +366,24 @@ function AccountPageWorkspace(props: {
               aria-controls="account-power-panel"
               onClick={() => setIsPowerPanelOpen((current) => !current)}
             >
-              <span>{accountText(props.copy, "最高可装备")}</span>
-              <PowerFractionValue value={props.selectedCharacter.power.maxEquippable} />
+              <span>{accountText(props.copy, "一键可达")}</span>
+              <PowerFractionValue value={props.selectedCharacter.power.executablePower} />
             </button>
-            {props.actions.equipHighestPower ? <button type="button" data-ui-kind="button" data-control-variant="secondary" disabled={props.viewModel.loadout.isRunningItemAction} onClick={() => props.actions.equipHighestPower?.(props.selectedCharacter.characterId)}>
+            {props.actions.equipHighestPower ? <button
+              type="button"
+              ref={equipHighestPowerTriggerRef}
+              data-ui-kind="button"
+              data-control-variant="secondary"
+              disabled={props.viewModel.loadout.isRunningItemAction}
+              onClick={() => {
+                setIsPowerPanelOpen(false);
+                if (highestPowerChanges.length) {
+                  setIsHighestPowerConfirmationOpen(true);
+                } else {
+                  props.actions.equipHighestPower?.(props.selectedCharacter.characterId);
+                }
+              }}
+            >
               {props.viewModel.loadout.isRunningItemAction ? props.copy.actions.running : props.copy.actions.equipHighestPower}
             </button> : null}
           </div>
@@ -374,19 +391,19 @@ function AccountPageWorkspace(props: {
             <AccountPowerPanel
               copy={props.copy}
               id="account-power-panel"
-              mode={powerMode}
-              onModeChange={setPowerMode}
               panelRef={powerPanelRef}
               power={props.selectedCharacter.power}
             />
           ) : null}
-          {operationFeedback ? (
-            <p className={`status-message status-${operationFeedback.tone === "success" ? "ready" : operationFeedback.tone}`} role={operationFeedback.tone === "error" ? "alert" : "status"}>{operationFeedback.message}</p>
-          ) : props.viewModel.feedback.itemActionMessage ? (
-            <p className="status-message status-pending" role="status">{props.viewModel.feedback.itemActionMessage}</p>
-          ) : props.viewModel.feedback.loadoutMessage ? (
-            <p className="status-message" role="status">{props.viewModel.feedback.loadoutMessage}</p>
-          ) : null}
+          <div className="account-operation-status-slot">
+            {operationFeedback ? (
+              <p className={`status-message status-${operationFeedback.tone === "success" ? "ready" : operationFeedback.tone}`} role={operationFeedback.tone === "error" ? "alert" : "status"}>{operationFeedback.message}</p>
+            ) : props.viewModel.feedback.itemActionMessage ? (
+              <p className="status-message status-pending" role="status">{props.viewModel.feedback.itemActionMessage}</p>
+            ) : props.viewModel.feedback.loadoutMessage ? (
+              <p className="status-message" role="status">{props.viewModel.feedback.loadoutMessage}</p>
+            ) : null}
+          </div>
         </section>
 
         <section
@@ -510,6 +527,30 @@ function AccountPageWorkspace(props: {
         </section>
       </ProductWorkspaceContentStack>
       </ProductWorkspaceSplit>
+      {isHighestPowerConfirmationOpen ? (
+        <ConfirmationDialog
+          title={`${accountText(props.copy, "装备操作")} ${highestPowerChanges.length} ${accountText(props.copy, "件最高光等装备？")}`}
+          description={`${props.selectedCharacter.className} ${accountText(props.copy, "当前")} ${props.selectedCharacter.power.currentLabel}，${accountText(props.copy, "预计达到")} ${props.selectedCharacter.power.executablePower.label}。${accountText(props.copy, "写接口成功后页面会立即更新，账号确认在后台继续。")}`}
+          confirmLabel={`${accountText(props.copy, "装备操作")} ${highestPowerChanges.length} ${accountText(props.copy, "件")}`}
+          cancelLabel={accountText(props.copy, "取消")}
+          returnFocusRef={equipHighestPowerTriggerRef}
+          onCancel={() => setIsHighestPowerConfirmationOpen(false)}
+          onConfirm={() => {
+            setIsHighestPowerConfirmationOpen(false);
+            props.actions.equipHighestPower?.(props.selectedCharacter.characterId);
+          }}
+        >
+          <div className="account-highest-power-confirmation-list">
+            {highestPowerChanges.map((row) => (
+              <div className="account-highest-power-confirmation-row" key={row.key}>
+                <span>{accountText(props.copy, row.label)}</span>
+                <strong>{row.itemName}</strong>
+                <small>{accountText(props.copy, "光等")} {row.power ?? "—"} · {formatPowerSource(row, props.copy)}</small>
+              </div>
+            ))}
+          </div>
+        </ConfirmationDialog>
+      ) : null}
     </>
   );
 }
@@ -676,43 +717,38 @@ function AccountMaterialsGroup(props: {
 function AccountPowerPanel(props: {
   copy: AccountCopy;
   id: string;
-  mode: "equippable" | "slots";
-  onModeChange: (mode: "equippable" | "slots") => void;
   panelRef: RefObject<HTMLElement | null>;
   power: CharacterPowerView;
 }) {
-  const modeRefs = useRef<Array<HTMLButtonElement | null>>([]);
-  const value = props.mode === "equippable" ? props.power.maxEquippable : props.power.slotMaximum;
-  function handleModeKeyDown(event: KeyboardEvent<HTMLButtonElement>, index: number): void {
-    if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End"].includes(event.key)) return;
-    event.preventDefault();
-    const nextIndex = event.key === "Home"
-      ? 0
-      : event.key === "End"
-        ? 1
-        : event.key === "ArrowLeft" || event.key === "ArrowUp"
-          ? (index - 1 + 2) % 2
-          : (index + 1) % 2;
-    const nextMode = nextIndex === 0 ? "equippable" : "slots";
-    props.onModeChange(nextMode);
-    modeRefs.current[nextIndex]?.focus();
-  }
+  const value = props.power.executablePower;
   return (
     <section ref={props.panelRef} className="account-power-panel" id={props.id} data-surface="frame" data-ui-kind="summary-frame" aria-label={accountText(props.copy, "光等详情")}>
       <div className="account-power-panel-head">
-        <strong>{props.mode === "equippable" ? accountText(props.copy, "可同时装备最高光等") : accountText(props.copy, "八槽最高光等")}</strong>
-        <PowerFractionValue value={value} />
+        <span>
+          <strong>{accountText(props.copy, "一键装备方案")}</strong>
+          <small>{accountText(props.copy, "使用本角色与仓库中的装备")}</small>
+        </span>
+        <span className={`ui-badge status-${value.complete ? "ready" : "warning"}`} data-status={value.complete ? "success" : "warning"}>
+          {value.complete ? accountText(props.copy, "方案完整") : accountText(props.copy, "数据不完整")}
+        </span>
       </div>
-      <div className="account-power-mode" role="tablist" aria-label={accountText(props.copy, "光等计算方式")}>
-        <button ref={(element) => { modeRefs.current[0] = element; }} type="button" role="tab" id={`${props.id}-tab-equippable`} aria-controls={`${props.id}-content`} aria-selected={props.mode === "equippable"} tabIndex={props.mode === "equippable" ? 0 : -1} onClick={() => props.onModeChange("equippable")} onKeyDown={(event) => handleModeKeyDown(event, 0)}>{accountText(props.copy, "可装备最高")}</button>
-        <button ref={(element) => { modeRefs.current[1] = element; }} type="button" role="tab" id={`${props.id}-tab-slots`} aria-controls={`${props.id}-content`} aria-selected={props.mode === "slots"} tabIndex={props.mode === "slots" ? 0 : -1} onClick={() => props.onModeChange("slots")} onKeyDown={(event) => handleModeKeyDown(event, 1)}>{accountText(props.copy, "八槽最高")}</button>
+      <div className="account-power-summary" aria-label={accountText(props.copy, "光等方案摘要")}>
+        <span>
+          <small>{accountText(props.copy, "Bungie 当前光等")}</small>
+          <strong>{props.power.currentLabel}</strong>
+        </span>
+        <span aria-hidden="true">→</span>
+        <span className="target">
+          <small>{accountText(props.copy, "一键装备后")}</small>
+          <PowerFractionValue value={value} />
+        </span>
       </div>
-      <div className="account-power-rows" id={`${props.id}-content`} role="tabpanel" aria-labelledby={`${props.id}-tab-${props.mode}`}>
+      <div className="account-power-rows">
         <div className="account-power-row account-power-column-head" aria-hidden="true">
           <span>{accountText(props.copy, "位置")}</span>
           <span>{accountText(props.copy, "装备与来源")}</span>
           <span>{accountText(props.copy, "光等")}</span>
-          <span>{accountText(props.copy, "相对")}</span>
+          <span>{accountText(props.copy, "均值差")}</span>
         </div>
         {value.rows.map((row, index) => (
           <div className={`account-power-row ${index === 3 ? "armor-start" : ""}`} key={row.key}>
@@ -732,19 +768,16 @@ function AccountPowerPanel(props: {
         ))}
       </div>
       <div className="account-power-footer">
-        <span>{accountText(props.copy, "Bungie 当前光等")} <strong>{props.power.currentLabel}</strong></span>
-        <span>{accountText(props.copy, "当前可一键装备")} <PowerFractionValue value={props.power.executablePower} /></span>
+        <span>{accountText(props.copy, "账号可装备最高")} <PowerFractionValue value={props.power.maxEquippable} /></span>
       </div>
-      <p className={props.mode === "slots" || props.power.executableMatchesAccountMaximum ? "account-power-note" : "account-power-note warning"}>
-        {props.mode === "slots"
-          ? accountText(props.copy, "八槽最高按所选职业每个槽位的最高值计算，不要求这些装备能同时穿上，用于查看光等提升进度。")
-          : !props.power.maxEquippable.complete || !props.power.executablePower.complete
-            ? accountText(props.copy, "缺少至少一个光等槽位，当前无法得出完整的八槽结果。")
-            : props.power.executableMatchesAccountMaximum
-              ? accountText(props.copy, "当前一键装备可达到账号最高光等。")
-              : props.power.hasExternalSources
-                ? accountText(props.copy, "账号最高组合包含其他角色持有的装备；当前一键装备只使用本角色与仓库。")
-                : accountText(props.copy, "当前一键装备范围与账号最高光等不同，请先刷新账号后复核。")}
+      <p className={props.power.executableMatchesAccountMaximum ? "account-power-note" : "account-power-note warning"}>
+        {!props.power.maxEquippable.complete || !props.power.executablePower.complete
+          ? accountText(props.copy, "缺少至少一个光等槽位，当前无法生成完整的一键装备方案。")
+          : props.power.executableMatchesAccountMaximum
+            ? accountText(props.copy, "本次方案已达到账号可装备最高光等。")
+            : props.power.hasExternalSources
+              ? accountText(props.copy, "账号内还有更高组合，但装备在其他角色身上；一键装备暂不自动跨角色转移。")
+              : accountText(props.copy, "本次方案与账号最高结果不同，请刷新账号后再复核。")}
       </p>
     </section>
   );
@@ -918,6 +951,7 @@ function renderAccountItemCard(
     source === "equipped" ? "equipped" : "inventory",
     item.canOpenDetail ? "is-interactive" : "is-readonly",
     item.isPending ? "pending" : "",
+    item.isSyncing ? "syncing" : "",
     item.isLoadoutMatch ? "loadout-highlight" : ""
   ].filter(Boolean).join(" ");
   const status = item.isPending
@@ -926,7 +960,13 @@ function renderAccountItemCard(
         label: accountText(props.copy, "打开中"),
         description: accountText(props.copy, "正在打开详情")
       }
-    : item.isLoadoutMatch
+    : item.isSyncing
+      ? {
+          kind: "pending",
+          label: accountText(props.copy, "同步中"),
+          description: accountText(props.copy, "装备请求已成功，正在等待账号数据确认")
+        }
+      : item.isLoadoutMatch
       ? {
           kind: "success",
           label: accountText(props.copy, "配装"),
@@ -974,7 +1014,7 @@ function renderAccountItemCard(
       data-ui-kind="object-card"
       data-control-variant="quiet"
       key={item.key}
-      aria-busy={item.isPending}
+      aria-busy={item.isPending || item.isSyncing}
       aria-label={`${accountText(props.copy, "查看")}${item.name}${accountText(props.copy, "详情")}`}
       onClick={() => props.onOpenItem(item.openPayload)}
     >

@@ -6,16 +6,16 @@ import {
   type AccountItemActionPatch,
   type AccountItemSummary,
   type AccountSummary,
+  type AccountWriteVerificationInput,
   type BatchItemActionResult,
   type BuildGuideLoadoutDraft,
   type ItemActionResult,
+  type ItemEquipActionInput,
   type LoadoutTemplate
 } from "../../api/types";
 import {
   buildHighestPowerAlreadyOptimalMessage,
-  buildHighestPowerConfirmText,
   buildHighestPowerEquipProgressMessage,
-  buildHighestPowerResultMessage,
   buildHighestPowerTransferProgressMessage,
   createHighestPowerEquipPlan,
   createHighestPowerExecutionPlan
@@ -71,6 +71,7 @@ type LoadoutActionFeedbackBridge = {
 export function useLoadoutWriteActions(input: {
   accountSummary: AccountSummary | null;
   applyAccountActionPatches: (patches: readonly AccountItemActionPatch[]) => void;
+  applyPendingAccountActionPatches: (patches: readonly AccountItemActionPatch[]) => void;
   loadoutLibrary: LoadoutLibraryBridge;
   diagnostics: DiagnosticsBridge;
   loadoutActionFeedback: LoadoutActionFeedbackBridge;
@@ -78,10 +79,8 @@ export function useLoadoutWriteActions(input: {
   setItemActionMessage: (message: string) => void;
   setAccountOperationFeedback: (feedback: AccountOperationFeedbackView | undefined) => void;
   setIsRunningItemAction: (isRunning: boolean) => void;
+  startHighestPowerVerification: (input: AccountWriteVerificationInput) => Promise<void>;
   loadAccountSummary: () => Promise<void>;
-  loadAuthoritativeAccountSummary: () => Promise<AccountSummary | null>;
-  readAuthoritativeAccountSummary: () => Promise<AccountSummary | null>;
-  applyAuthoritativeAccountSummary: (summary: AccountSummary) => void;
   openItemDetail: (item: AccountItemSummary, source?: SelectedItemSource) => void | Promise<void>;
 }) {
   // 配装页可能从模板条目、迁移计划等多个入口同时打开同一实例。
@@ -89,7 +88,10 @@ export function useLoadoutWriteActions(input: {
   // 内重复的 open 调用，避免快速连点导致弹层状态反复切换或重复启动读取。
   const pendingSourceDetailOpens = useRef(new Map<string, Promise<void>>()).current;
 
-  function applySuccessfulWriteResult(result: ItemActionResult | BatchItemActionResult): {
+  function applySuccessfulWriteResult(
+    result: ItemActionResult | BatchItemActionResult,
+    options: { pendingSync?: boolean } = {}
+  ): {
     hasSuccessfulWrite: boolean;
     requiresFullRefresh: boolean;
   } {
@@ -98,7 +100,8 @@ export function useLoadoutWriteActions(input: {
       : result.account_patch
         ? [result.account_patch]
         : [];
-    input.applyAccountActionPatches(patches);
+    if (options.pendingSync) input.applyPendingAccountActionPatches(patches);
+    else input.applyAccountActionPatches(patches);
     const successCount = "success_count" in result ? result.success_count : 1;
     const hasEquipPatch = patches.some((patch) => patch.kind === "equip");
     return {
@@ -156,92 +159,98 @@ export function useLoadoutWriteActions(input: {
 
   async function equipHighestPowerItems(character: AccountSummary["characters"][number]) {
     input.setLoadoutMessage("");
-    input.setItemActionMessage("正在刷新账号并复核最高光等方案...");
-    input.setAccountOperationFeedback({ tone: "pending", message: "正在刷新账号并复核最高光等方案..." });
+    input.setItemActionMessage("正在提交最高光等装备请求...");
+    input.setAccountOperationFeedback({
+      tone: "pending",
+      phase: "submitting",
+      message: "正在提交最高光等装备请求..."
+    });
     input.setIsRunningItemAction(true);
     let hasSuccessfulWrite = false;
+    let hasPendingVerification = false;
+    const operationId = createHighestPowerOperationId();
 
     try {
-      const latestAccount = await input.loadAuthoritativeAccountSummary();
-      if (!latestAccount) {
-        const message = "无法读取最新账号状态，未执行最高光等写操作。";
+      const account = input.accountSummary;
+      if (!account) {
+        const message = "当前没有可用账号数据，未执行最高光等写操作。";
         input.setLoadoutMessage(message);
-        input.setAccountOperationFeedback({ tone: "error", message });
+        input.setAccountOperationFeedback({ tone: "error", phase: "failed", message });
         return;
       }
-      const latestCharacter = latestAccount.characters.find((entry) => entry.character_id === character.character_id);
-      if (!latestCharacter) {
-        const message = "最新账号状态中找不到目标角色，未执行最高光等写操作。";
+      const targetCharacter = account.characters.find((entry) => entry.character_id === character.character_id);
+      if (!targetCharacter) {
+        const message = "当前账号数据中找不到目标角色，未执行最高光等写操作。";
         input.setLoadoutMessage(message);
-        input.setAccountOperationFeedback({ tone: "error", message });
+        input.setAccountOperationFeedback({ tone: "error", phase: "failed", message });
         return;
       }
       const plan = createHighestPowerEquipPlan({
-        character: latestCharacter,
-        vaultItems: latestAccount.vault.items
+        character: targetCharacter,
+        vaultItems: account.vault.items
       });
       const executionPlan = createHighestPowerExecutionPlan(plan);
       if (!plan.executable_items.length) {
-        const message = buildHighestPowerAlreadyOptimalMessage(latestCharacter.class_name);
+        const message = buildHighestPowerAlreadyOptimalMessage(targetCharacter.class_name);
         input.setLoadoutMessage(message);
-        input.setAccountOperationFeedback({ tone: "success", message });
-        return;
-      }
-      if (!window.confirm(buildHighestPowerConfirmText({
-        characterClassName: latestCharacter.class_name,
-        plan,
-        executionPlan
-      }))) {
-        const message = "已取消装备最高光等。";
-        input.setLoadoutMessage(message);
-        input.setAccountOperationFeedback({ tone: "neutral", message });
+        input.setAccountOperationFeedback({ tone: "success", phase: "confirmed", message });
         return;
       }
 
-      let transferConfirmedCount = 0;
+      let transferAcceptedCount = 0;
       let transferFailureCount = 0;
       let successfullyTransferredItemIds = new Set<string>();
-      let equipVerificationCandidateIds = new Set<string>();
+      let acceptedEquipItemIds = new Set<string>();
       let firstFailureReason: string | undefined;
 
       if (executionPlan.transfer_items.length) {
         const message = buildHighestPowerTransferProgressMessage(executionPlan.transfer_items.length);
         input.setItemActionMessage(message);
-        input.setAccountOperationFeedback({ tone: "pending", message });
-        const result = await api.batchTransferItems({
-          membership_type: latestAccount.membership_type,
-          character_id: latestCharacter.character_id,
-          items: executionPlan.transfer_items.map((entry) => ({
-            membership_type: latestAccount.membership_type,
-            character_id: latestCharacter.character_id,
+        input.setAccountOperationFeedback({ tone: "pending", phase: "submitting", message });
+        if (executionPlan.transfer_items.length === 1) {
+          const entry = executionPlan.transfer_items[0]!;
+          const result = await api.transferItem({
+            membership_type: account.membership_type,
+            character_id: targetCharacter.character_id,
             item_id: entry.item.instance_id ?? "",
             item_reference_hash: entry.item.hash,
             item_name: entry.item.name,
-            transfer_to_vault: false
-          }))
-        });
-        firstFailureReason ??= result.failure_messages?.[0];
-        const outcome = applySuccessfulWriteResult(result);
-        hasSuccessfulWrite = outcome.hasSuccessfulWrite || hasSuccessfulWrite;
-
-        const attemptedTransferItemIds = new Set(
-          executionPlan.transfer_items
-            .map((entry) => entry.item.instance_id)
-            .filter((itemId): itemId is string => Boolean(itemId))
-        );
-        const transferVerificationCandidateIds = resolveBatchVerificationCandidateIds(
-          attemptedTransferItemIds,
-          result
-        );
-        input.setItemActionMessage("Bungie 已受理仓库转移，正在持续确认物品已进入目标角色...");
-        input.setAccountOperationFeedback({ tone: "pending", message: "Bungie 已受理仓库转移，正在后台确认物品已进入目标角色..." });
-        successfullyTransferredItemIds = await verifyHighestPowerItemState(
-          latestCharacter.character_id,
-          transferVerificationCandidateIds,
-          "inventory-or-equipped"
-        );
-        transferConfirmedCount = successfullyTransferredItemIds.size;
-        transferFailureCount = executionPlan.transfer_items.length - transferConfirmedCount;
+            transfer_to_vault: false,
+            trace: { operation_id: operationId }
+          });
+          const outcome = applySuccessfulWriteResult(result, { pendingSync: true });
+          hasSuccessfulWrite = outcome.hasSuccessfulWrite || hasSuccessfulWrite;
+          if (entry.item.instance_id) successfullyTransferredItemIds.add(entry.item.instance_id);
+          transferAcceptedCount = successfullyTransferredItemIds.size;
+        } else {
+          const result = await api.batchTransferItems({
+            membership_type: account.membership_type,
+            character_id: targetCharacter.character_id,
+            items: executionPlan.transfer_items.map((entry) => ({
+              membership_type: account.membership_type,
+              character_id: targetCharacter.character_id,
+              item_id: entry.item.instance_id ?? "",
+              item_reference_hash: entry.item.hash,
+              item_name: entry.item.name,
+              transfer_to_vault: false,
+              trace: { operation_id: operationId }
+            }))
+          });
+          firstFailureReason ??= result.failure_messages?.[0];
+          const outcome = applySuccessfulWriteResult(result, { pendingSync: true });
+          hasSuccessfulWrite = outcome.hasSuccessfulWrite || hasSuccessfulWrite;
+          const attemptedTransferItemIds = new Set(
+            executionPlan.transfer_items
+              .map((entry) => entry.item.instance_id)
+              .filter((itemId): itemId is string => Boolean(itemId))
+          );
+          successfullyTransferredItemIds = resolveBatchVerificationCandidateIds(
+            attemptedTransferItemIds,
+            result
+          );
+          transferAcceptedCount = successfullyTransferredItemIds.size;
+        }
+        transferFailureCount = executionPlan.transfer_items.length - transferAcceptedCount;
       }
 
       const equipItems = executionPlan.equip_items.filter((entry) => (
@@ -252,122 +261,99 @@ export function useLoadoutWriteActions(input: {
       if (equipItems.length) {
         const message = buildHighestPowerEquipProgressMessage(equipItems.length);
         input.setItemActionMessage(message);
-        input.setAccountOperationFeedback({ tone: "pending", message });
-        const result = await api.batchEquipItems({
-          membership_type: latestAccount.membership_type,
-          character_id: latestCharacter.character_id,
-          items: equipItems.map((entry) => ({
-            membership_type: latestAccount.membership_type,
-            character_id: latestCharacter.character_id,
+        input.setAccountOperationFeedback({ tone: "pending", phase: "submitting", message });
+        if (equipItems.length === 1) {
+          const entry = equipItems[0]!;
+          const result = await equipHighestPowerSingleItem({
+            membership_type: account.membership_type,
+            character_id: targetCharacter.character_id,
             item_id: entry.item.instance_id ?? "",
-            item_name: entry.item.name
-          }))
-        });
-        firstFailureReason ??= result.failure_messages?.[0];
-        const outcome = applySuccessfulWriteResult(result);
-        hasSuccessfulWrite = outcome.hasSuccessfulWrite || hasSuccessfulWrite;
-
-        const attemptedEquipItemIds = new Set(
-          equipItems
-            .map((entry) => entry.item.instance_id)
-            .filter((itemId): itemId is string => Boolean(itemId))
-        );
-        equipVerificationCandidateIds = resolveBatchVerificationCandidateIds(
-          attemptedEquipItemIds,
-          result
-        );
+            item_name: entry.item.name,
+            trace: { operation_id: operationId }
+          });
+          const outcome = applySuccessfulWriteResult(result, { pendingSync: true });
+          hasSuccessfulWrite = outcome.hasSuccessfulWrite || hasSuccessfulWrite;
+          if (entry.item.instance_id) acceptedEquipItemIds.add(entry.item.instance_id);
+        } else {
+          const result = await api.batchEquipItems({
+            membership_type: account.membership_type,
+            character_id: targetCharacter.character_id,
+            items: equipItems.map((entry) => ({
+              membership_type: account.membership_type,
+              character_id: targetCharacter.character_id,
+              item_id: entry.item.instance_id ?? "",
+              item_name: entry.item.name,
+              trace: { operation_id: operationId }
+            }))
+          });
+          firstFailureReason ??= result.failure_messages?.[0];
+          const outcome = applySuccessfulWriteResult(result, { pendingSync: true });
+          hasSuccessfulWrite = outcome.hasSuccessfulWrite || hasSuccessfulWrite;
+          const attemptedEquipItemIds = new Set(
+            equipItems
+              .map((entry) => entry.item.instance_id)
+              .filter((itemId): itemId is string => Boolean(itemId))
+          );
+          acceptedEquipItemIds = resolveBatchVerificationCandidateIds(
+            attemptedEquipItemIds,
+            result
+          );
+        }
       }
 
-      const verificationMessage = equipItems.length
-        ? "Bungie 已受理装备操作，正在后台确认游戏内实际装备状态..."
-        : "正在读取权威账号状态并汇总执行结果...";
-      input.setItemActionMessage(verificationMessage);
-      input.setAccountOperationFeedback({ tone: "pending", message: verificationMessage });
-      const verification = await verifyHighestPowerItemState(
-        latestCharacter.character_id,
-        equipVerificationCandidateIds,
-        "equipped"
-      );
-      const unverifiedEquipCount = equipItems.length - verification.size;
-      const failedSteps = transferFailureCount + unverifiedEquipCount;
-      const resultMessage = buildHighestPowerResultMessage({
-        characterClassName: latestCharacter.class_name,
-        transferSuccessCount: transferConfirmedCount,
-        transferTotalCount: executionPlan.transfer_items.length,
-        equipSuccessCount: verification.size,
-        equipTotalCount: equipItems.length,
-        failedCount: failedSteps,
-        failureReason: firstFailureReason
-      });
-      const confirmedStepCount = transferConfirmedCount + verification.size;
-      input.setLoadoutMessage(resultMessage);
+      const equipFailureCount = equipItems.length - acceptedEquipItemIds.size;
+      const failedSteps = transferFailureCount + equipFailureCount;
+      if (!acceptedEquipItemIds.size) {
+        const reason = firstFailureReason ? `首个失败原因：${firstFailureReason}` : "请在设置页查看操作日志。";
+        const message = `最高光等执行失败：没有装备请求成功。${reason}`;
+        input.setLoadoutMessage(message);
+        input.setAccountOperationFeedback({ tone: "error", phase: "failed", message });
+        return;
+      }
+
+      const syncingMessage = failedSteps > 0
+        ? `装备请求部分成功：已受理 ${acceptedEquipItemIds.size}/${equipItems.length} 件，账号数据同步中。`
+        : `装备请求已成功，正在后台确认 ${acceptedEquipItemIds.size} 件装备。`;
+      input.setLoadoutMessage(syncingMessage);
+      input.setItemActionMessage(syncingMessage);
       input.setAccountOperationFeedback({
-        tone: failedSteps === 0 ? "success" : confirmedStepCount > 0 ? "warning" : "error",
-        message: resultMessage
+        tone: failedSteps > 0 ? "warning" : "pending",
+        phase: failedSteps > 0 ? "partial" : "syncing",
+        itemInstanceIds: [...acceptedEquipItemIds],
+        message: syncingMessage
+      });
+      hasPendingVerification = true;
+      void input.startHighestPowerVerification({
+        operation_id: operationId,
+        membership_type: account.membership_type,
+        destiny_membership_id: account.destiny_membership_id,
+        character_id: targetCharacter.character_id,
+        character_name: targetCharacter.class_name,
+        expected_equipped_item_ids: [...acceptedEquipItemIds],
+        accepted_count: acceptedEquipItemIds.size,
+        failed_count: failedSteps
       });
     } catch (error) {
-      if (hasSuccessfulWrite) {
-        input.setItemActionMessage("写操作部分完成，正在后台确认实际状态...");
-        await waitForHighestPowerVerification(750);
-        const account = await input.readAuthoritativeAccountSummary().catch(() => null);
-        if (account) input.applyAuthoritativeAccountSummary(account);
-      }
       const message = error instanceof Error ? error.message : "装备最高光等失败";
       input.setLoadoutMessage(message);
       input.setAccountOperationFeedback({
         tone: hasSuccessfulWrite ? "warning" : "error",
-        message: hasSuccessfulWrite ? `写操作部分完成，但最终确认失败：${message}` : message
+        phase: hasSuccessfulWrite ? "partial" : "failed",
+        message: hasSuccessfulWrite ? `写操作部分完成，后续步骤失败：${message}` : message
       });
     } finally {
       if (hasSuccessfulWrite) {
         void input.diagnostics.loadActionLog().catch(() => undefined);
       }
-      input.setItemActionMessage("");
+      if (!hasPendingVerification) input.setItemActionMessage("");
       input.setIsRunningItemAction(false);
     }
   }
 
-  async function verifyHighestPowerItemState(
-    characterId: string,
-    expectedItemIds: ReadonlySet<string>,
-    expectedState: "inventory-or-equipped" | "equipped"
-  ): Promise<Set<string>> {
-    if (!expectedItemIds.size) {
-      const account = await input.readAuthoritativeAccountSummary();
-      if (account) input.applyAuthoritativeAccountSummary(account);
-      return new Set();
-    }
-
-    let verifiedItemIds = new Set<string>();
-    let attemptIndex = 0;
-    let lastAppliedStateSignature: string | undefined;
-
-    while (verifiedItemIds.size < expectedItemIds.size) {
-      const waitMs = highestPowerVerificationWaits[
-        Math.min(attemptIndex, highestPowerVerificationWaits.length - 1)
-      ] ?? 15_000;
-      await waitForHighestPowerVerification(waitMs);
-      attemptIndex += 1;
-      const account = await input.readAuthoritativeAccountSummary();
-      if (!account) continue;
-      const character = account.characters.find((entry) => entry.character_id === characterId);
-      const matchedIds = new Set(
-        (expectedState === "equipped"
-          ? character?.equipped_items
-          : [...(character?.inventory_items ?? []), ...(character?.equipped_items ?? [])])
-          ?.map((item) => item.instance_id)
-          .filter((itemId): itemId is string => Boolean(itemId))
-        ?? []
-      );
-      verifiedItemIds = new Set([...expectedItemIds].filter((itemId) => matchedIds.has(itemId)));
-      const stateSignature = [...verifiedItemIds].sort().join("\u0000");
-      if (stateSignature !== lastAppliedStateSignature) {
-        input.applyAuthoritativeAccountSummary(account);
-        lastAppliedStateSignature = stateSignature;
-      }
-    }
-
-    return verifiedItemIds;
+  function createHighestPowerOperationId(): string {
+    return typeof globalThis.crypto?.randomUUID === "function"
+      ? globalThis.crypto.randomUUID()
+      : `highest-power-${Date.now()}-${Math.random().toString(16).slice(2)}`;
   }
 
   async function runLoadoutWriteAction(
@@ -934,12 +920,6 @@ export function useLoadoutWriteActions(input: {
   };
 }
 
-function waitForHighestPowerVerification(waitMs: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, waitMs));
-}
-
-const highestPowerVerificationWaits = [0, 750, 1_000, 1_500, 2_500, 4_000, 8_000, 15_000] as const;
-
 function resolveBatchVerificationCandidateIds(
   attemptedItemIds: ReadonlySet<string>,
   result: BatchItemActionResult
@@ -955,4 +935,22 @@ function resolveBatchVerificationCandidateIds(
   return new Set(
     [...attemptedItemIds].filter((itemId) => !reportedFailedItemIds.has(itemId))
   );
+}
+
+async function equipHighestPowerSingleItem(
+  input: ItemEquipActionInput
+): Promise<ItemActionResult> {
+  const retryWaits = [0, 750, 2_000] as const;
+  let lastError: unknown;
+  for (const waitMs of retryWaits) {
+    if (waitMs) await new Promise((resolve) => setTimeout(resolve, waitMs));
+    try {
+      return await api.equipItem(input);
+    } catch (error) {
+      lastError = error;
+      const message = error instanceof Error ? error.message : String(error ?? "");
+      if (!/1623|not in.*inventory|不在.*背包/i.test(message)) throw error;
+    }
+  }
+  throw lastError;
 }

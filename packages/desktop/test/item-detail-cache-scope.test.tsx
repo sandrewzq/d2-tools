@@ -105,7 +105,8 @@ describe("item detail cache scope", () => {
     apiMocks.getAccountItemDetail
       .mockResolvedValueOnce(accountDetail("before-write"))
       .mockResolvedValueOnce(accountDetail("after-write"));
-    const { result } = renderHook(() => useItemDetail({ cacheScopeKey: "account-a\u0000manifest-a" }));
+    // 使用独立 scope，避免进程级缓存跨测试复用导致 mock 响应顺序失真。
+    const { result } = renderHook(() => useItemDetail({ cacheScopeKey: "account-refresh\u0000manifest-a" }));
 
     await act(async () => result.current.openItemDetail(accountItem));
     await act(async () => result.current.refreshSelectedItemDetail());

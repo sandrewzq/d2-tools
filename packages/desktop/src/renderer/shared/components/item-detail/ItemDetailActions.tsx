@@ -6,6 +6,7 @@ import type {
 import { api } from "../../../api/client";
 import { resolveItemTransferCharacterId } from "../../../utils/itemActions";
 import type { SelectedItemDetail } from "../../hooks/useItemDetail";
+import { resolveAccountItemViewLocation } from "../../domain/account/itemActionState";
 
 export type ItemDetailActionsProps = {
   accountSummary: AccountSummary | null;
@@ -19,6 +20,15 @@ export type ItemDetailActionsProps = {
 
 export function ItemDetailActions(props: ItemDetailActionsProps) {
   const selectedItem = props.selectedItem;
+  const liveLocation = resolveAccountItemViewLocation(props.accountSummary, selectedItem.instance_id);
+  const sourceKind = liveLocation?.kind ?? selectedItem.source_kind;
+  const sourceCharacterId = liveLocation && "characterId" in liveLocation
+    ? liveLocation.characterId
+    : selectedItem.source_character_id;
+  const isVaultItem = sourceKind === "vault" || (!liveLocation && Boolean(selectedItem.is_vault_item));
+  const isPostmasterItem = sourceKind === "postmaster" || (!liveLocation && Boolean(selectedItem.is_postmaster_item));
+  const isAlreadyEquippedToTarget = sourceKind === "equipped"
+    && sourceCharacterId === props.selectedActionCharacterId;
 
   if (!selectedItem.instance_id) {
     return null;
@@ -50,7 +60,7 @@ export function ItemDetailActions(props: ItemDetailActionsProps) {
           type="button"
           data-ui-kind="button" data-control-variant="secondary"
           disabled={props.isRunningItemAction || selectedItem.locked === undefined}
-          hidden={selectedItem.is_postmaster_item}
+          hidden={isPostmasterItem}
           onClick={() => props.onRunItemWriteAction(
             selectedItem.locked ? "解锁" : "锁定",
             () => api.setItemLockState({
@@ -64,11 +74,11 @@ export function ItemDetailActions(props: ItemDetailActionsProps) {
         >
           {selectedItem.locked === undefined ? "锁定状态未知" : selectedItem.locked ? "解锁" : "锁定"}
         </button>
-        {!selectedItem.is_vault_item && !selectedItem.is_postmaster_item ? (
+        {!isVaultItem && !isPostmasterItem ? (
           <button
             type="button"
             data-ui-kind="button" data-control-variant="secondary"
-            disabled={props.isRunningItemAction}
+            disabled={props.isRunningItemAction || isAlreadyEquippedToTarget}
             onClick={() => props.onRunItemWriteAction(
               "装备到角色",
               () => api.equipItem({
@@ -79,10 +89,10 @@ export function ItemDetailActions(props: ItemDetailActionsProps) {
               })
             )}
           >
-            装备到角色
+            {isAlreadyEquippedToTarget ? "已装备到角色" : "装备到角色"}
           </button>
         ) : null}
-        {!selectedItem.is_postmaster_item ? (
+        {!isPostmasterItem ? (
           <>
             <button
               type="button"
@@ -93,10 +103,10 @@ export function ItemDetailActions(props: ItemDetailActionsProps) {
                 item_name: selectedItem.name,
                 item_instance_id: selectedItem.instance_id,
                 item_reference_hash: selectedItem.hash,
-                character_id: selectedItem.is_vault_item
+                character_id: isVaultItem
                   ? props.selectedActionCharacterId
-                  : selectedItem.source_character_id ?? props.selectedActionCharacterId,
-                transfer_to_vault: !selectedItem.is_vault_item
+                  : sourceCharacterId ?? props.selectedActionCharacterId,
+                transfer_to_vault: !isVaultItem
               })}
             >
               复制转移计划
@@ -106,27 +116,27 @@ export function ItemDetailActions(props: ItemDetailActionsProps) {
               data-ui-kind="button" data-control-variant="secondary"
               disabled={props.isRunningItemAction}
               onClick={() => props.onRunItemWriteAction(
-                selectedItem.is_vault_item ? "取出到角色" : "移入仓库",
+                isVaultItem ? "取出到角色" : "移入仓库",
                 () => api.transferItem({
                   membership_type: props.accountSummary?.membership_type ?? 0,
                   character_id: resolveItemTransferCharacterId({
                     selectedCharacterId: props.selectedActionCharacterId,
-                    sourceCharacterId: selectedItem.source_character_id,
-                    sourceKind: selectedItem.source_kind,
-                    transferToVault: !selectedItem.is_vault_item
+                    sourceCharacterId,
+                    sourceKind,
+                    transferToVault: !isVaultItem
                   }),
                   item_id: selectedItem.instance_id ?? "",
                   item_reference_hash: selectedItem.hash,
                   item_name: selectedItem.name,
-                  transfer_to_vault: !selectedItem.is_vault_item
+                  transfer_to_vault: !isVaultItem
                 })
               )}
             >
-              {selectedItem.is_vault_item ? "取出到角色" : "移入仓库"}
+              {isVaultItem ? "取出到角色" : "移入仓库"}
             </button>
           </>
         ) : null}
-        {selectedItem.is_postmaster_item ? (
+        {isPostmasterItem ? (
           <button
             type="button"
             data-ui-kind="button" data-control-variant="secondary"
@@ -135,7 +145,7 @@ export function ItemDetailActions(props: ItemDetailActionsProps) {
               "从邮政官取回",
               () => api.pullFromPostmaster({
                 membership_type: props.accountSummary?.membership_type ?? 0,
-                character_id: selectedItem.source_character_id ?? props.selectedActionCharacterId,
+                character_id: sourceCharacterId ?? props.selectedActionCharacterId,
                 item_id: selectedItem.instance_id ?? "",
                 item_reference_hash: selectedItem.hash,
                 item_name: selectedItem.name

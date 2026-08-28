@@ -5,6 +5,7 @@ import type {
   AccountSummary,
   CharacterEquipmentGroup
 } from "../../api/types";
+import { isAccountItemActionPatchReflected } from "../domain/account/itemActionState";
 
 type AccountItemEntityKey = string;
 
@@ -52,12 +53,24 @@ let state = emptyState;
 let cachedSummaryState: NormalizedAccountState | null = null;
 let cachedSummary: AccountSummary | null = null;
 const listeners = new Set<() => void>();
+const pendingPatchesByInstanceId = new Map<string, AccountItemActionPatch>();
 
 export function replaceAccountSummary(summary: AccountSummary | null): void {
-  state = summary ? normalizeAccountSummary(summary, state.revision + 1) : {
+  if (!summary) pendingPatchesByInstanceId.clear();
+  let next = summary ? normalizeAccountSummary(summary, state.revision + 1) : {
     ...emptyState,
     revision: state.revision + 1
   };
+  if (summary) {
+    for (const [instanceId, patch] of pendingPatchesByInstanceId) {
+      if (isAccountItemActionPatchReflected(summary, patch)) {
+        pendingPatchesByInstanceId.delete(instanceId);
+      } else {
+        next = applyPatch(next, patch);
+      }
+    }
+  }
+  state = next;
   emitChange();
 }
 
@@ -70,6 +83,17 @@ export function applyAccountEntityPatches(patches: readonly AccountItemActionPat
   if (next === state) return;
   state = { ...next, revision: state.revision + 1 };
   emitChange();
+}
+
+export function applyPendingAccountEntityPatches(patches: readonly AccountItemActionPatch[]): void {
+  for (const patch of patches) {
+    pendingPatchesByInstanceId.set(patch.item_instance_id, patch);
+  }
+  applyAccountEntityPatches(patches);
+}
+
+export function confirmPendingAccountEntityPatches(instanceIds: readonly string[]): void {
+  for (const instanceId of instanceIds) pendingPatchesByInstanceId.delete(instanceId);
 }
 
 export function getAccountSummarySnapshot(): AccountSummary | null {

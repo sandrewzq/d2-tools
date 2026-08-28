@@ -21,7 +21,10 @@ export function LoadoutsMenuProvider() {
       isRunningItemAction={writeActions.isRunningItemAction}
       actionFeedback={writeActions.loadoutActionFeedback.actionFeedback}
       localPlanWorkspace={localPlans.workspace}
+      localPlans={localPlans.plans}
+      selectedLocalPlanId={localPlans.selectedPlanId}
       localPlanDraft={localPlans.draft}
+      localPlanIsDirty={localPlans.isDraftDirty}
       localPlanEditingId={localPlans.editingPlanId}
       localPlanIsSaving={localPlans.isSaving}
       localPlanError={localPlans.error}
@@ -53,8 +56,10 @@ export function LoadoutsMenuProvider() {
       onSnapshotCurrentLoadout={(character, slot) => void writeActions.loadoutWriteActions.snapshotCurrentLoadout(character, slot)}
       onClearSavedLoadout={(character, slot) => void writeActions.loadoutWriteActions.clearSavedLoadout(character, slot)}
       onUpdateSavedLoadoutIdentifiers={(character, slot, identifiers) => void writeActions.loadoutWriteActions.updateSavedLoadoutIdentifiers(character, slot, identifiers)}
+      onOpenInGameItemDetail={(item) => void writeActions.itemDetail.openItemDetail(item)}
       onOpenTemplateSourceItem={(item, characterId) => void writeActions.loadoutWriteActions.openTemplateSourceItem(item, characterId)}
       onSelectLocalPlan={localPlans.selectPlan}
+      onEditLocalPlan={localPlans.editPlan}
       onStartNewLocalPlan={localPlans.startNewPlan}
       onStartLocalPlanFromCharacter={localPlans.startFromCurrentCharacter}
       onStartLocalPlanFromInGameLoadout={localPlans.startFromInGameLoadout}

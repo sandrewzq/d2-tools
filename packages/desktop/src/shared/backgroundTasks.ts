@@ -6,6 +6,7 @@ export type BackgroundTaskType =
   | "manifest-update"
   | "manifest-repair"
   | "account-sync"
+  | "account-write-sync"
   | "account-activity"
   | "vendor-refresh"
   | "daily-refresh"

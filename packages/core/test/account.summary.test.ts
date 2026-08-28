@@ -179,7 +179,8 @@ describe("account summary", () => {
                     iconHash: 777,
                     colorHash: 888,
                     items: [
-                      { itemInstanceId: "instance-1" },
+                      { itemInstanceId: "0", plugItemHashes: [2166136261] },
+                      { itemInstanceId: "instance-1", plugItemHashes: [4001, 2166136261] },
                       { itemInstanceId: "backpack-2" }
                     ]
                   },
@@ -372,7 +373,7 @@ describe("account summary", () => {
         color_hash: 888,
         item_count: 2,
         items: [
-          { instance_id: "instance-1", name: "Riskrunner", bucket_name: "能量武器" },
+          { instance_id: "instance-1", name: "Riskrunner", bucket_name: "能量武器", plug_hashes: [4001] },
           { instance_id: "backpack-2", name: "Helmet A", bucket_name: "头盔" }
         ]
       },

@@ -1,5 +1,11 @@
 import { ipcMain } from "electron";
-import type { ActionLogType, ActionTraceContext } from "@d2-tools/core/actions/log";
+import { randomUUID } from "node:crypto";
+import { performance } from "node:perf_hooks";
+import type {
+  ActionDebugTraceInput,
+  ActionLogType,
+  ActionTraceContext
+} from "@d2-tools/core/actions/log";
 import {
   createBatchTransferPlan,
   createItemActionPlan
@@ -17,10 +23,16 @@ import {
   transferItem as bungieTransferItem
 } from "@d2-tools/services/bungie/actions";
 import type { D2Config } from "@d2-tools/core/config/schema";
-import { appendActionLog, loadActionLog } from "@d2-tools/services/actions/logStore";
+import type { DestinyProfileResponse } from "@d2-tools/core/account/summary";
+import {
+  appendActionDebugTrace,
+  appendActionLog,
+  loadActionLog
+} from "@d2-tools/services/actions/logStore";
 import { loadConfig } from "@d2-tools/services/config/store";
 import type {
   AccountItemActionPatch,
+  AccountWriteVerificationInput,
   ActionVerificationRecordInput,
   ApplySocketPlugsActionInput,
   BatchEquipItemsInput,
@@ -44,6 +56,8 @@ import {
   encodeDesktopIpcFailure
 } from "../../contracts/errors.js";
 import { loadFreshOAuthToken, type FreshOAuthToken } from "./authSession.js";
+import { startBackgroundTask } from "../backgroundTasks.js";
+import { fetchSharedBungieJson } from "../runtime/bungieSession.js";
 import {
   getAccountItemDetailByInstanceId,
   invalidateAccountItemDetails,
@@ -54,6 +68,10 @@ import {
 } from "../runtime/accountSession.js";
 
 export function registerActionIpcHandlers(): void {
+  ipcMain.handle("actions:verification:start", (_event, input: AccountWriteVerificationInput) => {
+    return startAccountWriteVerification(sanitizeAccountWriteVerificationInput(input));
+  });
+
   ipcMain.handle("actions:item:set-lock", async (_event, input: ItemLockActionInput) => {
     return runWriteAction({
       action: "set-lock",
@@ -356,6 +374,12 @@ export function registerActionIpcHandlers(): void {
     return loadActionLog(config.data.data_dir, 50);
   });
 
+  ipcMain.handle("actions:debug:record", (_event, input: ActionDebugTraceInput) => {
+    const config = loadConfig();
+    const entry = writeActionDebugTrace(config.data.data_dir, sanitizeActionDebugTrace(input));
+    return entry;
+  });
+
   ipcMain.handle("actions:verification:record", (_event, input: ActionVerificationRecordInput) => {
     const planId = requiredTraceId(input.plan_id, "plan_id");
     const confirmationId = requiredTraceId(input.confirmation_id, "confirmation_id");
@@ -553,10 +577,31 @@ async function runWriteAction(input: WriteActionRunInput): Promise<ItemActionRes
 
 async function performWriteAction(input: WriteActionRunInput): Promise<ItemActionResult> {
   const config = loadConfig();
-  const token = await loadFreshOAuthToken(config);
+  const operationId = input.trace?.operation_id ?? randomUUID();
+  const trace = { ...input.trace, operation_id: operationId };
+  writeActionDebugTrace(config.data.data_dir, {
+    operation_id: operationId,
+    action: input.action,
+    phase: "submit-start",
+    item_name: input.itemName,
+    item_instance_id: input.itemInstanceId,
+    character_id: input.characterId,
+    elapsed_ms: 0,
+    message: "开始执行 Desktop 写操作"
+  });
+  const startedAt = performance.now();
+  let authDurationMs = 0;
+  let bungieDurationMs = 0;
+  let postprocessDurationMs = 0;
 
   try {
+    const authStartedAt = performance.now();
+    const token = await loadFreshOAuthToken(config);
+    authDurationMs = performance.now() - authStartedAt;
+    const bungieStartedAt = performance.now();
     await input.run({ config, token });
+    bungieDurationMs = performance.now() - bungieStartedAt;
+    const postprocessStartedAt = performance.now();
     if (input.invalidateAllItemDetails) {
       await invalidateAccountItemDetails();
     } else if (input.itemInstanceId) {
@@ -568,33 +613,117 @@ async function performWriteAction(input: WriteActionRunInput): Promise<ItemActio
         .then(() => true, () => false);
       if (applied) appliedAccountPatch = input.accountPatch;
     }
+    postprocessDurationMs = performance.now() - postprocessStartedAt;
+    const durationMs = performance.now() - startedAt;
+    writeActionDebugTrace(config.data.data_dir, {
+      operation_id: operationId,
+      action: input.action,
+      phase: "submit-complete",
+      item_name: input.itemName,
+      item_instance_id: input.itemInstanceId,
+      character_id: input.characterId,
+      duration_ms: durationMs,
+      auth_duration_ms: authDurationMs,
+      bungie_duration_ms: bungieDurationMs,
+      postprocess_duration_ms: postprocessDurationMs,
+      elapsed_ms: durationMs,
+      ok: true,
+      message: input.successMessage
+    });
     appendActionLog(config.data.data_dir, {
-      ...input.trace,
+      ...trace,
       action: input.action,
       item_name: input.itemName,
       item_instance_id: input.itemInstanceId,
       character_id: input.characterId,
+      duration_ms: durationMs,
+      auth_duration_ms: authDurationMs,
+      bungie_duration_ms: bungieDurationMs,
+      postprocess_duration_ms: postprocessDurationMs,
       ok: true,
       message: input.successMessage
     });
     return {
       ok: true,
       message: input.successMessage,
-      ...(appliedAccountPatch ? { account_patch: appliedAccountPatch } : {})
+      ...(appliedAccountPatch ? { account_patch: appliedAccountPatch } : {}),
+      diagnostics: {
+        operation_id: operationId,
+        duration_ms: durationMs,
+        auth_duration_ms: authDurationMs,
+        bungie_duration_ms: bungieDurationMs,
+        postprocess_duration_ms: postprocessDurationMs
+      }
     };
   } catch (error) {
+    const durationMs = performance.now() - startedAt;
     const message = classifyWriteActionIpcError(error).message;
+    writeActionDebugTrace(config.data.data_dir, {
+      operation_id: operationId,
+      action: input.action,
+      phase: "submit-failed",
+      item_name: input.itemName,
+      item_instance_id: input.itemInstanceId,
+      character_id: input.characterId,
+      duration_ms: durationMs,
+      auth_duration_ms: authDurationMs,
+      bungie_duration_ms: bungieDurationMs,
+      postprocess_duration_ms: postprocessDurationMs,
+      elapsed_ms: durationMs,
+      ok: false,
+      message
+    });
     appendActionLog(config.data.data_dir, {
-      ...input.trace,
+      ...trace,
       action: input.action,
       item_name: input.itemName,
       item_instance_id: input.itemInstanceId,
       character_id: input.characterId,
+      duration_ms: durationMs,
+      auth_duration_ms: authDurationMs,
+      bungie_duration_ms: bungieDurationMs,
+      postprocess_duration_ms: postprocessDurationMs,
       ok: false,
       message
     });
     throw error;
   }
+}
+
+function sanitizeActionDebugTrace(input: ActionDebugTraceInput): ActionDebugTraceInput {
+  return {
+    operation_id: requiredTraceId(input.operation_id, "operation_id").slice(0, 120),
+    action: input.action,
+    phase: input.phase,
+    ...(input.item_name ? { item_name: input.item_name.slice(0, 200) } : {}),
+    ...(input.item_instance_id ? { item_instance_id: input.item_instance_id.slice(0, 80) } : {}),
+    ...(input.character_id ? { character_id: input.character_id.slice(0, 80) } : {}),
+    ...(isFiniteNumber(input.attempt) ? { attempt: Math.max(0, Math.trunc(input.attempt)) } : {}),
+    ...(isFiniteNumber(input.total_attempts) ? { total_attempts: Math.max(0, Math.trunc(input.total_attempts)) } : {}),
+    ...(isFiniteNumber(input.expected_count) ? { expected_count: Math.max(0, Math.trunc(input.expected_count)) } : {}),
+    ...(isFiniteNumber(input.matched_count) ? { matched_count: Math.max(0, Math.trunc(input.matched_count)) } : {}),
+    ...(input.expected_state ? { expected_state: input.expected_state } : {}),
+    ...(isFiniteNumber(input.delay_ms) ? { delay_ms: Math.max(0, input.delay_ms) } : {}),
+    ...(isFiniteNumber(input.duration_ms) ? { duration_ms: Math.max(0, input.duration_ms) } : {}),
+    ...(isFiniteNumber(input.auth_duration_ms) ? { auth_duration_ms: Math.max(0, input.auth_duration_ms) } : {}),
+    ...(isFiniteNumber(input.bungie_duration_ms) ? { bungie_duration_ms: Math.max(0, input.bungie_duration_ms) } : {}),
+    ...(isFiniteNumber(input.postprocess_duration_ms) ? { postprocess_duration_ms: Math.max(0, input.postprocess_duration_ms) } : {}),
+    ...(isFiniteNumber(input.elapsed_ms) ? { elapsed_ms: Math.max(0, input.elapsed_ms) } : {}),
+    ...(input.account_available === undefined ? {} : { account_available: input.account_available }),
+    ...(input.reflected === undefined ? {} : { reflected: input.reflected }),
+    ...(input.ok === undefined ? {} : { ok: input.ok }),
+    ...(input.message ? { message: input.message.slice(0, 500) } : {})
+  };
+}
+
+function writeActionDebugTrace(dataDir: string, input: ActionDebugTraceInput) {
+  const entry = appendActionDebugTrace(dataDir, input);
+  console.info("[write-action-debug]", JSON.stringify(entry));
+  return entry;
+}
+
+function isFiniteNumber(value: number | undefined): value is number {
+  return typeof value === "number" && Number.isFinite(value);
 }
 
 type BatchWriteActionRunInput<T> = {
@@ -623,7 +752,45 @@ async function performBatchWriteActions<T>(
   input: BatchWriteActionRunInput<T>
 ): Promise<BatchItemActionResult> {
   const config = loadConfig();
-  const token = await loadFreshOAuthToken(config);
+  const operationId = input.items
+    .map((item) => input.getTrace?.(item)?.operation_id)
+    .find((value): value is string => Boolean(value))
+    ?? randomUUID();
+  writeActionDebugTrace(config.data.data_dir, {
+    operation_id: operationId,
+    action: input.action,
+    phase: "submit-start",
+    item_name: input.items.length === 1 ? input.getItemName(input.items[0]!) : undefined,
+    item_instance_id: input.items.length === 1 ? input.getItemInstanceId(input.items[0]!) : undefined,
+    character_id: input.items[0] ? input.getCharacterId(input.items[0]) : undefined,
+    expected_count: input.items.length,
+    elapsed_ms: 0,
+    message: `开始执行批量写操作，共 ${input.items.length} 项`
+  });
+  const startedAt = performance.now();
+  const authStartedAt = performance.now();
+  let token: FreshOAuthToken;
+  try {
+    token = await loadFreshOAuthToken(config);
+  } catch (error) {
+    const durationMs = performance.now() - startedAt;
+    writeActionDebugTrace(config.data.data_dir, {
+      operation_id: operationId,
+      action: input.action,
+      phase: "submit-failed",
+      item_name: input.items.length === 1 ? input.getItemName(input.items[0]!) : undefined,
+      item_instance_id: input.items.length === 1 ? input.getItemInstanceId(input.items[0]!) : undefined,
+      character_id: input.items[0] ? input.getCharacterId(input.items[0]) : undefined,
+      expected_count: input.items.length,
+      duration_ms: durationMs,
+      auth_duration_ms: durationMs,
+      elapsed_ms: durationMs,
+      ok: false,
+      message: classifyWriteActionIpcError(error).message
+    });
+    throw error;
+  }
+  const authDurationMs = performance.now() - authStartedAt;
   let successCount = 0;
   let failedCount = 0;
   const accountPatches: AccountItemActionPatch[] = [];
@@ -671,6 +838,25 @@ async function performBatchWriteActions<T>(
     }
   }
 
+  const durationMs = performance.now() - startedAt;
+  writeActionDebugTrace(config.data.data_dir, {
+    operation_id: operationId,
+    action: input.action,
+    phase: "submit-complete",
+    item_name: input.items.length === 1 ? input.getItemName(input.items[0]!) : undefined,
+    item_instance_id: input.items.length === 1 ? input.getItemInstanceId(input.items[0]!) : undefined,
+    character_id: input.items[0] ? input.getCharacterId(input.items[0]) : undefined,
+    expected_count: input.items.length,
+    matched_count: successCount,
+    duration_ms: durationMs,
+    auth_duration_ms: authDurationMs,
+    elapsed_ms: durationMs,
+    ok: failedCount === 0,
+    message: failedCount
+      ? `批量写操作返回：成功 ${successCount}，失败 ${failedCount}`
+      : `批量写操作完成：成功 ${successCount}`
+  });
+
   return {
     ok: true,
     total: input.items.length,
@@ -693,18 +879,67 @@ async function equipItemsWithMissingResultRetry(input: {
 }): Promise<Map<string, number>> {
   const pendingItemIds = new Set(input.request.items.map((item) => item.item_id));
   const statuses = new Map<string, number>();
+  const equipSequenceStartedAt = performance.now();
+  const operationId = input.request.items
+    .map((item) => item.trace?.operation_id)
+    .find((value): value is string => Boolean(value))
+    ?? randomUUID();
 
   const retryWaits = [0, 750, 2_000] as const;
   for (const [attemptIndex, waitMs] of retryWaits.entries()) {
     if (!pendingItemIds.size) break;
     if (waitMs) await new Promise((resolve) => setTimeout(resolve, waitMs));
 
-    const result = await bungieEquipItems({
-      config: input.config,
-      token: input.token,
-      membershipType: input.request.membership_type,
-      characterId: input.request.character_id,
-      itemIds: [...pendingItemIds]
+    const pendingCount = pendingItemIds.size;
+    const requestStartedAt = performance.now();
+    let result: Awaited<ReturnType<typeof bungieEquipItems>>;
+    try {
+      result = await bungieEquipItems({
+        config: input.config,
+        token: input.token,
+        membershipType: input.request.membership_type,
+        characterId: input.request.character_id,
+        itemIds: [...pendingItemIds]
+      });
+    } catch (error) {
+      const durationMs = performance.now() - requestStartedAt;
+      writeActionDebugTrace(input.config.data.data_dir, {
+        operation_id: operationId,
+        action: "equip",
+        phase: "bungie-request",
+        character_id: input.request.character_id,
+        item_instance_id: pendingCount === 1 ? [...pendingItemIds][0] : undefined,
+        attempt: attemptIndex + 1,
+        total_attempts: retryWaits.length,
+        expected_count: pendingCount,
+        matched_count: 0,
+        delay_ms: waitMs,
+        duration_ms: durationMs,
+        elapsed_ms: performance.now() - equipSequenceStartedAt,
+        ok: false,
+        message: classifyWriteActionIpcError(error).message
+      });
+      throw error;
+    }
+    const durationMs = performance.now() - requestStartedAt;
+    const statusSummary = (result.equipResults ?? [])
+      .map((itemResult) => String(itemResult.equipStatus))
+      .join(",");
+    writeActionDebugTrace(input.config.data.data_dir, {
+      operation_id: operationId,
+      action: "equip",
+      phase: "bungie-request",
+      character_id: input.request.character_id,
+      item_instance_id: pendingCount === 1 ? [...pendingItemIds][0] : undefined,
+      attempt: attemptIndex + 1,
+      total_attempts: retryWaits.length,
+      expected_count: pendingCount,
+      matched_count: result.equipResults?.length ?? 0,
+      delay_ms: waitMs,
+      duration_ms: durationMs,
+      elapsed_ms: performance.now() - equipSequenceStartedAt,
+      ok: true,
+      message: `Bungie EquipItems 返回 ${result.equipResults?.length ?? 0}/${pendingCount} 项结果，状态码 ${statusSummary || "无"}`
     });
 
     for (const itemResult of result.equipResults ?? []) {
@@ -728,4 +963,180 @@ function describeEquipFailure(status: number): string {
     return "目标装备不在该角色可装备的背包中。账号数据可能已过期，或仓库转移尚未同步，请刷新账号后重试。";
   }
   return `装备失败（Bungie 状态码 ${status}）。`;
+}
+
+const latestWriteVerificationByCharacter = new Map<string, string>();
+const accountWriteVerificationWaits = [2_000, 5_000, 10_000, 20_000, 30_000] as const;
+
+function startAccountWriteVerification(input: AccountWriteVerificationInput) {
+  const verificationKey = [
+    input.membership_type,
+    input.destiny_membership_id,
+    input.character_id
+  ].join(":");
+  latestWriteVerificationByCharacter.set(verificationKey, input.operation_id);
+
+  return startBackgroundTask({
+    type: "account-write-sync",
+    dedupeKey: input.operation_id,
+    title: "确认游戏内装备状态",
+    message: `装备请求已成功，正在确认 ${input.expected_equipped_item_ids.length} 件装备。`,
+    run: async (context) => {
+      const config = loadConfig();
+      const startedAt = performance.now();
+      let attempt = 0;
+
+      while (true) {
+        if (latestWriteVerificationByCharacter.get(verificationKey) !== input.operation_id) {
+          context.update({
+            progress_percent: 100,
+            message: "该确认任务已被角色上的新装备操作替代。"
+          });
+          return;
+        }
+
+        const waitMs = accountWriteVerificationWaits[
+          Math.min(attempt, accountWriteVerificationWaits.length - 1)
+        ]!;
+        await waitForAccountWriteVerification(waitMs);
+        attempt += 1;
+
+        const requestStartedAt = performance.now();
+        try {
+          const token = await loadFreshOAuthToken(config);
+          const profile = await fetchSharedBungieJson<DestinyProfileResponse>(
+            config.bungie.api_key,
+            `/Destiny2/${input.membership_type}/Profile/${input.destiny_membership_id}/?components=205`,
+            token.access_token,
+            { forceRefresh: true, waitForRefresh: true }
+          );
+          const equippedItemIds = new Set(
+            (profile.characterEquipment?.data?.[input.character_id]?.items ?? [])
+              .map((item) => item.itemInstanceId)
+              .filter((itemId): itemId is string => Boolean(itemId))
+          );
+          const matchedCount = input.expected_equipped_item_ids
+            .filter((itemId) => equippedItemIds.has(itemId))
+            .length;
+          const reflected = matchedCount === input.expected_equipped_item_ids.length;
+          const elapsedMs = performance.now() - startedAt;
+
+          if (latestWriteVerificationByCharacter.get(verificationKey) !== input.operation_id) {
+            context.update({
+              progress_percent: 100,
+              message: "该确认任务已被角色上的新装备操作替代。"
+            });
+            return;
+          }
+
+          writeActionDebugTrace(config.data.data_dir, {
+            operation_id: input.operation_id,
+            action: "equip",
+            phase: "verification-read",
+            character_id: input.character_id,
+            attempt,
+            expected_count: input.expected_equipped_item_ids.length,
+            matched_count: matchedCount,
+            expected_state: "equipped",
+            delay_ms: waitMs,
+            duration_ms: performance.now() - requestStartedAt,
+            elapsed_ms: elapsedMs,
+            account_available: true,
+            reflected,
+            ok: true,
+            message: reflected
+              ? "轻量 CharacterEquipment 已包含全部目标装备"
+              : "轻量 CharacterEquipment 仍未包含全部目标装备"
+          });
+
+          if (reflected) {
+            latestWriteVerificationByCharacter.delete(verificationKey);
+            context.update({
+              attempt,
+              progress_percent: 100,
+              message: input.failed_count > 0
+                ? `已确认装备 ${matchedCount}/${input.accepted_count} 件，另有 ${input.failed_count} 件提交失败。`
+                : `已确认 ${matchedCount} 件装备已在游戏内生效。`
+            });
+            return;
+          }
+
+          context.update({
+            status: elapsedMs >= 30_000 ? "retrying" : "running",
+            attempt,
+            progress_percent: undefined,
+            message: elapsedMs >= 30_000
+              ? "装备请求已成功，Bungie 账号数据同步较慢；应用会继续后台确认。"
+              : `装备请求已成功，正在等待账号数据同步（已确认 ${matchedCount}/${input.expected_equipped_item_ids.length}）。`
+          });
+        } catch (error) {
+          const classified = classifyWriteActionIpcError(error);
+          writeActionDebugTrace(config.data.data_dir, {
+            operation_id: input.operation_id,
+            action: "equip",
+            phase: "verification-read",
+            character_id: input.character_id,
+            attempt,
+            expected_count: input.expected_equipped_item_ids.length,
+            matched_count: 0,
+            expected_state: "equipped",
+            delay_ms: waitMs,
+            duration_ms: performance.now() - requestStartedAt,
+            elapsed_ms: performance.now() - startedAt,
+            account_available: false,
+            reflected: false,
+            ok: false,
+            message: classified.message
+          });
+          if (!classified.retryable) {
+            throw new Error(`装备请求已成功，但账号确认已暂停：${classified.message}`);
+          }
+          context.update({
+            status: "retrying",
+            attempt,
+            message: `装备请求已成功，账号确认暂时不可用；应用会自动重试。${classified.message}`
+          });
+        }
+      }
+    }
+  });
+}
+
+function sanitizeAccountWriteVerificationInput(
+  input: AccountWriteVerificationInput
+): AccountWriteVerificationInput {
+  const operationId = requiredTraceId(input.operation_id, "operation_id");
+  const destinyMembershipId = requiredTraceId(input.destiny_membership_id, "destiny_membership_id");
+  const characterId = requiredTraceId(input.character_id, "character_id");
+  const membershipType = Number(input.membership_type);
+  if (!Number.isInteger(membershipType) || membershipType <= 0) {
+    throw new Error("membership_type 无效");
+  }
+  const expectedItemIds = [...new Set(
+    input.expected_equipped_item_ids
+      .filter((itemId): itemId is string => typeof itemId === "string")
+      .map((itemId) => itemId.trim())
+      .filter(Boolean)
+  )];
+  if (!expectedItemIds.length) {
+    throw new Error("没有需要确认的装备实例");
+  }
+  return {
+    operation_id: operationId,
+    membership_type: membershipType,
+    destiny_membership_id: destinyMembershipId,
+    character_id: characterId,
+    ...(input.character_name?.trim() ? { character_name: input.character_name.trim().slice(0, 120) } : {}),
+    expected_equipped_item_ids: expectedItemIds,
+    accepted_count: normalizeNonNegativeCount(input.accepted_count),
+    failed_count: normalizeNonNegativeCount(input.failed_count)
+  };
+}
+
+function normalizeNonNegativeCount(value: number): number {
+  return Number.isFinite(value) ? Math.max(0, Math.trunc(value)) : 0;
+}
+
+function waitForAccountWriteVerification(waitMs: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, waitMs));
 }

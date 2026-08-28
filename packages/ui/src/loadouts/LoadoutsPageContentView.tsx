@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react";
 import type {
   ArmorPlannerCandidateView,
   ArmorPlannerMode,
@@ -6,6 +6,12 @@ import type {
   ArmorPlannerWorkspaceState
 } from "@d2-tools/app/armor";
 import type {
+  ApplicationLoadoutCompareViewModel,
+  ApplicationLoadoutDetailView,
+  ApplicationLoadoutInGameReference,
+  ApplicationLoadoutLibraryViewModel,
+  ApplicationLoadoutNavigationState,
+  ApplicationLoadoutScreen,
   InGameLoadoutItemRowView,
   LoadoutEntryView,
   LocalLoadoutPlanWorkbenchModel,
@@ -16,7 +22,7 @@ import type {
   AssistantEquipmentTargetCandidatesArtifact
 } from "@d2-tools/app/capabilities";
 import type { GuideLoadoutCandidatesArtifact } from "@d2-tools/app/guides";
-import { getLocalLoadoutPlanAccountItems } from "@d2-tools/app/loadouts";
+import { getActiveApplicationLoadoutScreen, getLocalLoadoutPlanAccountItems } from "@d2-tools/app/loadouts";
 import type { AccountItemSummary, AccountSummary } from "@d2-tools/core/account/summary";
 import type { ArmorClass, ArmorSetConstraint, ArmorSlot } from "@d2-tools/core/armor";
 import type { ArmorSetCatalogEntry } from "@d2-tools/core/items/equipableItemSet";
@@ -38,6 +44,7 @@ import type { LoadoutActionFeedbackState } from "./loadoutActionFeedback.js";
 import type { InterfaceLocale } from "../i18n/types.js";
 import { getRovingFocusIndex } from "../interaction/rovingFocus.js";
 import { GameAssetImage } from "../media/GameAssetImage.js";
+import { useGuardedNavigation, useNavigationGuard } from "../navigation/NavigationGuard.js";
 import {
   ProductWorkspaceEmptyState,
   ProductWorkspaceSideRail,
@@ -48,6 +55,14 @@ export type LoadoutsPageActions = {
   selectEntry: (entryId: string) => void;
   selectTemplate: (id: string) => void;
   selectLocalPlan: (id: string) => void;
+  editLocalPlan: (id: string) => void;
+  pushApplicationLoadoutScreen: (screen: ApplicationLoadoutScreen) => void;
+  replaceApplicationLoadoutScreen: (screen: ApplicationLoadoutScreen) => void;
+  popApplicationLoadoutScreen: () => void;
+  consumeApplicationLoadoutFocusRequest: () => void;
+  toggleApplicationLoadoutCompare: (id: string) => void;
+  applicationLoadoutInGameReferenceChange: (reference: ApplicationLoadoutInGameReference | null) => void;
+  applicationLoadoutShowDiffOnlyChange: (value: boolean) => void;
   selectCompareTemplate: (id: string) => void;
   renameDraftChange: (value: string) => void;
   showDiffOnlyChange: (value: boolean) => void;
@@ -105,6 +120,7 @@ export type LoadoutsPageActions = {
     slot: AccountSummary["characters"][number]["loadout_slots"][number],
     identifiers: { name_hash?: number; icon_hash?: number; color_hash?: number }
   ) => void;
+  openInGameItemDetail: (item: AccountItemSummary) => void;
   openTemplateSourceItem: (item: LoadoutTemplate["items"][number], templateCharacterId?: string) => void;
   planArmor?: (job: ArmorPlannerWorkspaceJob) => void;
   resetArmorPlanner?: () => void;
@@ -126,7 +142,11 @@ export type LoadoutsPageContentViewProps = {
   isRunningItemAction: boolean;
   actionFeedback: Record<string, LoadoutActionFeedbackState>;
   localPlanWorkspace: LocalLoadoutPlanWorkbenchModel;
+  applicationLoadoutNavigation: ApplicationLoadoutNavigationState;
+  applicationLoadoutLibrary: ApplicationLoadoutLibraryViewModel;
+  applicationLoadoutCompare: ApplicationLoadoutCompareViewModel;
   localPlanDraft: CreateLocalLoadoutPlanInput | null;
+  localPlanIsDirty: boolean;
   localPlanEditingId: string | null;
   localPlanIsSaving: boolean;
   localPlanError: string;
@@ -167,17 +187,28 @@ export type LoadoutsPageContentViewProps = {
   armorTargetFeedback?: string;
   isSavingArmorTargets?: boolean;
   armorResultTraceRequest?: { resultId: string; candidateId: string; requestId: number } | null;
+  accountDataStatus?: "cached" | "stale" | "refreshing" | "ready" | "error";
+  accountDataMessage?: string;
+  accountDataSource?: "local" | "remote" | "merged";
+  accountDataFetchedAt?: string;
+  accountDataError?: string;
 };
 
 type LoadoutMode = "in-game" | "local";
 const loadoutModes: LoadoutMode[] = ["in-game", "local"];
+type LoadoutCreateFlow = "none" | "dim" | "guide";
 
 export function LoadoutsPageContentView(props: LoadoutsPageContentViewProps) {
-  const [mode, setMode] = useState<LoadoutMode>("in-game");
+  const [mode, setMode] = useState<LoadoutMode>("local");
   const [selectedCharacterId, setSelectedCharacterId] = useState("");
-  const [isDimImportOpen, setIsDimImportOpen] = useState(false);
-  const [isGuideImportOpen, setIsGuideImportOpen] = useState(false);
+  const [createFlow, setCreateFlow] = useState<LoadoutCreateFlow>("none");
   const sourceMenuRef = useRef<HTMLDetailsElement>(null);
+  useNavigationGuard(props.localPlanDraft && props.localPlanIsDirty ? {
+    title: "离开配装并放弃未保存修改？",
+    description: "当前应用配装包含尚未保存的修改。离开配装页会丢失这些草稿内容，已保存方案和游戏内槽位不会改变。",
+    confirmLabel: "放弃并离开",
+    cancelLabel: "继续编辑"
+  } : null);
   const tabId = useId();
   const panelId = `${tabId}-panel`;
   const characters = props.accountSummary?.characters ?? [];
@@ -200,22 +231,19 @@ export function LoadoutsPageContentView(props: LoadoutsPageContentViewProps) {
   useEffect(() => {
     if (!props.localPlanAssistantPrefill) return;
     setMode("local");
-    setIsDimImportOpen(false);
-    setIsGuideImportOpen(true);
+    setCreateFlow("guide");
   }, [props.localPlanAssistantPrefill?.request_id]);
 
   useEffect(() => {
     if (!props.localPlanLegacyGuideText) return;
     setMode("local");
-    setIsDimImportOpen(false);
-    setIsGuideImportOpen(true);
+    setCreateFlow("guide");
   }, [props.localPlanLegacyGuideText]);
 
   useEffect(() => {
     if (!props.armorResultTraceRequest) return;
     setMode("local");
-    setIsDimImportOpen(false);
-    setIsGuideImportOpen(false);
+    setCreateFlow("none");
   }, [props.armorResultTraceRequest?.requestId]);
 
   useEffect(() => {
@@ -241,10 +269,7 @@ export function LoadoutsPageContentView(props: LoadoutsPageContentViewProps) {
 
   function selectMode(nextMode: LoadoutMode) {
     setMode(nextMode);
-    if (nextMode !== "local") {
-      setIsDimImportOpen(false);
-      setIsGuideImportOpen(false);
-    }
+    if (nextMode !== "local") setCreateFlow("none");
     if (nextMode === "in-game" && inGameEntries[0]) {
       props.actions.selectEntry(inGameEntries[0].id);
     }
@@ -294,14 +319,12 @@ export function LoadoutsPageContentView(props: LoadoutsPageContentViewProps) {
 
   function openDimImport(details: HTMLDetailsElement) {
     details.open = false;
-    setIsGuideImportOpen(false);
-    setIsDimImportOpen(true);
+    setCreateFlow("dim");
   }
 
   function createBlankPlan(details: HTMLDetailsElement) {
     details.open = false;
-    setIsGuideImportOpen(false);
-    setIsDimImportOpen(false);
+    setCreateFlow("none");
     props.actions.startNewLocalPlan(activeCharacter);
   }
 
@@ -317,10 +340,12 @@ export function LoadoutsPageContentView(props: LoadoutsPageContentViewProps) {
     : props.message ? "操作状态" : !activeCharacter ? "等待账号" : "就绪";
   const statusMessage = props.message
     || (!activeCharacter
-      ? "账号角色尚未读取，配装查看与创建操作暂不可用。"
+      ? mode === "local"
+        ? "账号角色尚未读取；仍可查看和比较应用配装，穿戴与账号装备选择暂不可用。"
+        : "账号角色尚未读取，游戏内配装操作暂不可用。"
       : mode === "in-game"
         ? "选择游戏内配装槽位后再应用或保存当前装备。"
-        : "本地方案只保存在本机，保存不会写入 Bungie 槽位。");
+        : "应用配装保存在本应用中，只有显式穿戴或保存到游戏内槽位才会写入 Bungie。");
 
   return (
     <section className="loadout-page" aria-label="配装工作台">
@@ -355,26 +380,26 @@ export function LoadoutsPageContentView(props: LoadoutsPageContentViewProps) {
           <span className="loadout-context-label">视图</span>
           <div className="loadout-mode-tabs" data-ui-kind="segmented-control" role="tablist" aria-label="配装类型">
             <button id={`${tabId}-in-game`} type="button" role="tab" aria-controls={panelId} aria-selected={mode === "in-game"} tabIndex={mode === "in-game" ? 0 : -1} onKeyDown={handleModeKeyDown} onClick={() => selectMode("in-game")}>游戏内配装 <span>Bungie</span></button>
-            <button id={`${tabId}-local`} type="button" role="tab" aria-controls={panelId} aria-selected={mode === "local"} tabIndex={mode === "local" ? 0 : -1} onKeyDown={handleModeKeyDown} onClick={() => selectMode("local")}>本地配装方案 <span>本机</span></button>
+            <button id={`${tabId}-local`} type="button" role="tab" aria-controls={panelId} aria-selected={mode === "local"} tabIndex={mode === "local" ? 0 : -1} onKeyDown={handleModeKeyDown} onClick={() => selectMode("local")}>应用配装 <span>d2-tools</span></button>
           </div>
         </div>
 
         {mode === "local" ? (
           <div className="loadout-context-actions">
             <details ref={sourceMenuRef} className="loadout-create-menu">
-              <summary data-ui-kind="button" data-control-variant="primary" aria-haspopup="true">新建方案</summary>
-              <div className="loadout-create-options" data-surface="menu" data-ui-kind="command-menu" aria-label="本地方案创建来源">
+              <summary data-ui-kind="button" data-control-variant="primary" aria-haspopup="true">新建配装</summary>
+              <div className="loadout-create-options" data-surface="menu" data-ui-kind="command-menu" aria-label="应用配装创建方式">
                 <button type="button" disabled={!activeCharacter || props.isRunningItemAction} onClick={(event) => createFromCurrentCharacter(event.currentTarget.closest("details")!)}>
                   <strong>使用当前装备</strong>
-                  <span>预填真实实例后进入本地方案工作台</span>
+                  <span>预填当前角色的真实装备实例</span>
                 </button>
                 <button type="button" onClick={(event) => openDimImport(event.currentTarget.closest("details")!)}>
-                  <strong>导入 DIM</strong>
-                  <span>读取 DIM 分享链接并预览装备配置</span>
+                  <strong>更多：导入 DIM</strong>
+                  <span>从公开分享链接预填应用配装，不依赖 DIM 运行</span>
                 </button>
                 <button type="button" disabled={!activeCharacter || props.isRunningItemAction} onClick={(event) => createBlankPlan(event.currentTarget.closest("details")!)}>
                   <strong>空白方案</strong>
-                  <span>只带入当前角色，手动填写装备和约束</span>
+                  <span>带入目标角色后逐槽位创建</span>
                 </button>
               </div>
             </details>
@@ -397,15 +422,19 @@ export function LoadoutsPageContentView(props: LoadoutsPageContentViewProps) {
               isRunningItemAction={props.isRunningItemAction}
               model={props.model}
               actions={props.actions}
+              accountDataStatus={props.accountDataStatus}
+              accountDataMessage={props.accountDataMessage}
+              accountDataSource={props.accountDataSource}
+              accountDataFetchedAt={props.accountDataFetchedAt}
+              accountDataError={props.accountDataError}
             />
           ) : (
             <LocalWorkspace
               {...props}
               activeCharacter={activeCharacter}
-              isDimImportOpen={isDimImportOpen}
-              onCloseDimImport={() => { setIsDimImportOpen(false); props.actions.dismissDimImport(); }}
-              isGuideImportOpen={isGuideImportOpen}
-              onCloseGuideImport={() => setIsGuideImportOpen(false)}
+              createFlow={createFlow}
+              onCloseDimImport={() => { setCreateFlow("none"); props.actions.dismissDimImport(); }}
+              onCloseGuideImport={() => setCreateFlow("none")}
             />
           )}
         </div>
@@ -420,6 +449,11 @@ function InGameWorkspace(props: {
   isRunningItemAction: boolean;
   model: LoadoutsPageModel;
   actions: LoadoutsPageActions;
+  accountDataStatus?: LoadoutsPageContentViewProps["accountDataStatus"];
+  accountDataMessage?: string;
+  accountDataSource?: LoadoutsPageContentViewProps["accountDataSource"];
+  accountDataFetchedAt?: string;
+  accountDataError?: string;
 }) {
   const [isSlotPickerVisible, setIsSlotPickerVisible] = useState(false);
   const [selectedSlotIndex, setSelectedSlotIndex] = useState<number | null>(null);
@@ -455,6 +489,13 @@ function InGameWorkspace(props: {
       </ProductWorkspaceSideRail>
 
       <section className="loadout-detail">
+        <InGameAccountFreshness
+          status={props.accountDataStatus}
+          message={props.accountDataMessage}
+          source={props.accountDataSource}
+          fetchedAt={props.accountDataFetchedAt}
+          error={props.accountDataError}
+        />
         {detail && props.activeCharacter ? (
           <InGameLoadoutSlotDetail
             detail={detail}
@@ -466,7 +507,7 @@ function InGameWorkspace(props: {
         ) : (
           <div className="loadout-empty-detail-head">
             <ProductWorkspaceEmptyState><h2>没有可查看的游戏内配装</h2><p>当前角色没有包含装备的 Bungie 配装槽位，仍可把当前装备保存到任意真实槽位。</p></ProductWorkspaceEmptyState>
-            {props.activeCharacter && slots.length ? <button type="button" data-ui-kind="button" data-control-variant="primary" disabled={props.isRunningItemAction} onClick={() => setIsSlotPickerVisible((visible) => !visible)}>保存当前配装</button> : null}
+            {props.activeCharacter && slots.length ? <button type="button" data-ui-kind="button" data-control-variant="primary" disabled={props.isRunningItemAction} onClick={() => setIsSlotPickerVisible((visible) => !visible)}>用当前装备覆盖槽位</button> : null}
           </div>
         )}
         {isSlotPickerVisible && props.activeCharacter ? (
@@ -497,14 +538,29 @@ function InGameLoadoutSlotDetail(props: {
   const { character, slot } = props.detail;
   const itemGroups = [
     {
-      key: "weapons",
+      key: "weapon",
       label: "武器",
-      rows: props.detail.itemRows.filter((row, index) => isInGameWeaponRow(row, index))
+      rows: props.detail.itemRows.filter((row) => row.category === "weapon")
     },
     {
       key: "armor",
-      label: "护甲与职业物品",
-      rows: props.detail.itemRows.filter((row, index) => !isInGameWeaponRow(row, index))
+      label: "护甲",
+      rows: props.detail.itemRows.filter((row) => row.category === "armor")
+    },
+    {
+      key: "subclass",
+      label: "子职业",
+      rows: props.detail.itemRows.filter((row) => row.category === "subclass")
+    },
+    {
+      key: "artifact",
+      label: "神器",
+      rows: props.detail.itemRows.filter((row) => row.category === "artifact")
+    },
+    {
+      key: "other",
+      label: "其他",
+      rows: props.detail.itemRows.filter((row) => row.category === "other")
     }
   ].filter((group) => group.rows.length);
   return (
@@ -512,10 +568,16 @@ function InGameLoadoutSlotDetail(props: {
       <header className="loadout-detail-head">
         <div><span className="loadout-eyebrow">游戏内配装 · 槽位 {String(slot.index + 1).padStart(2, "0")}</span><h2>{slot.name || `配装栏 ${slot.index + 1}`}</h2><p>{character.class_name} · Bungie 保存的装备实例。未返回的 Perk、技能和模组不会在这里伪造显示。</p></div>
         <div className="loadout-action-stack">
-          <button type="button" data-ui-kind="button" data-control-variant="primary" disabled={props.isRunningItemAction} onClick={() => props.actions.equipSavedLoadout(character, slot)}>应用游戏内配装</button>
-          <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={() => props.actions.startLocalPlanFromInGameLoadout(character, slot)}>复制到本地方案</button>
-          <button type="button" data-ui-kind="button" data-control-variant="secondary" disabled={props.isRunningItemAction} onClick={props.onOpenSlotPicker}>保存当前配装</button>
-          <button type="button" data-ui-kind="button" data-control-variant="danger" disabled={props.isRunningItemAction || !slot.item_count} onClick={() => props.actions.clearSavedLoadout(character, slot)}>清空槽位</button>
+          <div className="loadout-action-group" aria-label="官方槽位操作">
+            <span>官方槽位</span>
+            <button type="button" data-ui-kind="button" data-control-variant="primary" disabled={props.isRunningItemAction} onClick={() => props.actions.equipSavedLoadout(character, slot)}>应用游戏内配装</button>
+            <button type="button" data-ui-kind="button" data-control-variant="secondary" disabled={props.isRunningItemAction} onClick={props.onOpenSlotPicker}>用当前装备覆盖槽位</button>
+            <button type="button" data-ui-kind="button" data-control-variant="danger" disabled={props.isRunningItemAction || !slot.item_count} onClick={() => props.actions.clearSavedLoadout(character, slot)}>清空槽位</button>
+          </div>
+          <div className="loadout-action-group" aria-label="配装辅助操作">
+            <span>配装辅助</span>
+            <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={() => props.actions.startLocalPlanFromInGameLoadout(character, slot)}>复制到应用配装</button>
+          </div>
         </div>
       </header>
       <div className="loadout-section-label"><span>保存的装备 · 当前账号状态</span><span>{slot.items.length} 件记录</span></div>
@@ -525,7 +587,7 @@ function InGameLoadoutSlotDetail(props: {
             <section className="loadout-in-game-item-group" key={group.key} aria-label={group.label}>
               <header><strong>{group.label}</strong><span>{group.rows.length} 件</span></header>
               <div className="loadout-in-game-item-list" data-surface="list">
-                {group.rows.map((row, index) => <InGameLoadoutItemRow key={`${character.character_id}-${slot.index}-${row.item.instance_id ?? row.item.item_hash ?? index}`} row={row} />)}
+                {group.rows.map((row, index) => <InGameLoadoutItemRow key={`${character.character_id}-${slot.index}-${row.item.instance_id ?? row.item.item_hash ?? index}`} row={row} onOpenItemDetail={props.actions.openInGameItemDetail} />)}
               </div>
             </section>
           ))}
@@ -537,9 +599,49 @@ function InGameLoadoutSlotDetail(props: {
   );
 }
 
-function InGameLoadoutItemRow(props: { row: InGameLoadoutItemRowView }) {
+function InGameAccountFreshness(props: {
+  status?: LoadoutsPageContentViewProps["accountDataStatus"];
+  message?: string;
+  source?: LoadoutsPageContentViewProps["accountDataSource"];
+  fetchedAt?: string;
+  error?: string;
+}) {
+  const label = props.error
+    ? `账号同步失败：${props.error}`
+    : props.message
+      || (props.status === "refreshing"
+        ? "账号快照后台同步中"
+        : props.status === "stale"
+          ? "账号快照可能已过期"
+          : props.status === "cached"
+            ? "使用本地账号快照"
+            : props.status === "ready"
+              ? "账号快照已就绪"
+              : "账号快照状态待确认");
+  const sourceLabel = props.source === "local"
+    ? "本地缓存"
+    : props.source === "remote"
+      ? "远端刷新"
+      : props.source === "merged"
+        ? "本地与远端合并"
+        : "";
+  const detail = [sourceLabel, props.fetchedAt ? `更新于 ${props.fetchedAt}` : ""].filter(Boolean).join(" · ");
+  return (
+    <div className="loadout-application-freshness loadout-in-game-freshness" data-status={props.error || props.status === "error" ? "warning" : props.status === "ready" ? "success" : "neutral"}>
+      <span aria-hidden="true" />
+      <strong>{label}</strong>
+      <small>{detail || "装备名称、位置和 Plug 是基于当前账号快照的补充信息；Bungie 槽位本身仍可直接应用。"}</small>
+    </div>
+  );
+}
+
+function InGameLoadoutItemRow(props: { row: InGameLoadoutItemRowView; onOpenItemDetail: (item: AccountItemSummary) => void }) {
   const { item, locatedItem, located, locationLabel } = props.row;
-  const plugNames = item.plugs?.map((plug) => plug.name).filter(Boolean) ?? [];
+  const plugEntries = item.plugs?.map((plug) => ({
+    name: plug.name,
+    socketIndex: plug.socket_index
+  })).filter((plug) => Boolean(plug.name)) ?? [];
+  const plugNames = plugEntries.map((plug) => plug.name);
   const stateLabel = located
     ? props.row.equipped_on_target_character ? "当前已装备" : "已定位"
     : "未定位";
@@ -558,15 +660,15 @@ function InGameLoadoutItemRow(props: { row: InGameLoadoutItemRowView }) {
     <details className="loadout-in-game-item-card" data-surface="object-card" data-ui-kind="object-card" data-status={located ? "success" : "warning"}>
       <summary className="loadout-in-game-item-row">
         <ItemVisual icon={locatedItem?.icon ?? item.icon} label={item.name} bucketName={item.bucket_name} />
-        <span className="loadout-in-game-item-copy">
-          <strong>{item.name}</strong>
-          <span className="loadout-in-game-item-meta">{item.bucket_name || "未知槽位"}</span>
+          <span className="loadout-in-game-item-copy">
+            <strong>{item.name}</strong>
+          <span className="loadout-in-game-item-meta">{item.bucket_name || `${inGameItemCategoryLabel(props.row.category)}槽位未解析`}</span>
           <span className="loadout-in-game-item-trace">{traceLabel}</span>
         </span>
         <span className="loadout-in-game-item-facts">
           <span className="loadout-in-game-location">{locationLabel}</span>
           <span className="loadout-in-game-plugs">
-            {plugNames.slice(0, 3).map((plug, index) => <span key={`${plug}-${index}`}>{plug}</span>)}
+            {plugEntries.slice(0, 3).map((plug, index) => <span key={`${plug.name}-${plug.socketIndex ?? index}`}>{formatSocketPlugLabel(plug.name, plug.socketIndex)}</span>)}
             {plugNames.length > 3 ? <span>+{plugNames.length - 3}</span> : null}
             {!plugNames.length ? <span>{props.row.plug_count ? `${props.row.plug_count} 个 Plug` : "Plug 数据未返回"}</span> : null}
           </span>
@@ -580,16 +682,28 @@ function InGameLoadoutItemRow(props: { row: InGameLoadoutItemRowView }) {
       <dl className="loadout-in-game-item-extra">
         <div><dt>当前位置</dt><dd>{locationLabel}</dd></div>
         <div><dt>配置类型</dt><dd>{plugNames.length ? "已返回可解析配置" : props.row.plug_count ? "仅返回 Plug Hash" : "未返回配置"}</dd></div>
-        <div><dt>已确认配置</dt><dd>{plugSummary}</dd></div>
+        <div><dt>已确认配置</dt><dd>{plugEntries.length ? plugEntries.map((plug) => formatSocketPlugLabel(plug.name, plug.socketIndex)).join("、") : plugSummary}</dd></div>
         <div><dt>核对结果</dt><dd>{located ? props.row.equipped_on_target_character ? "目标角色已处于槽位保存状态" : "实例已定位，应用时由 Bungie 处理" : "保留原始记录，不根据名称猜测实例"}</dd></div>
+        {locatedItem ? <div className="loadout-in-game-item-actions"><dt>装备操作</dt><dd><button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={() => props.onOpenItemDetail(locatedItem)}>查看装备详情与操作</button><small>转移、穿戴和模组修改会作用于真实装备；如需更新此槽位，完成后再覆盖保存。</small></dd></div> : null}
       </dl>
     </details>
   );
 }
 
-function isInGameWeaponRow(row: InGameLoadoutItemRowView, index: number): boolean {
-  const bucketName = row.item.bucket_name?.toLocaleLowerCase() ?? "";
-  return bucketName.includes("武器") || bucketName.includes("weapon") || (!bucketName && index < 3);
+function formatSocketPlugLabel(name: string, socketIndex?: number): string {
+  return typeof socketIndex === "number" ? `插槽 ${socketIndex + 1} · ${name}` : name;
+}
+
+function inGameItemCategoryLabel(category: InGameLoadoutItemRowView["category"]): string {
+  return category === "weapon"
+    ? "武器"
+    : category === "armor"
+      ? "护甲"
+      : category === "subclass"
+        ? "子职业"
+        : category === "artifact"
+          ? "神器"
+          : "装备";
 }
 
 function InGameIdentifierEditor(props: {
@@ -633,8 +747,8 @@ function InGameSlotPicker(props: {
   onSave: (slot: AccountSummary["characters"][number]["loadout_slots"][number]) => void;
 }) {
   return (
-    <section className="loadout-slot-picker" aria-label="保存当前配装的目标槽位">
-      <header><div><strong>保存当前配装</strong><small>选择 Bungie 真实槽位；已有内容的槽位会在写入前再次确认覆盖。</small></div></header>
+    <section className="loadout-slot-picker" aria-label="用当前装备覆盖目标槽位">
+      <header><div><strong>用当前装备覆盖槽位</strong><small>选择 Bungie 真实槽位；已有内容的槽位会在写入前再次确认覆盖。</small></div></header>
       <div className="loadout-slot-picker-list" data-surface="list">
         {props.character.loadout_slots.map((slot) => {
           const selected = props.selectedSlot?.index === slot.index;
@@ -673,60 +787,338 @@ function InGameSummary(props: { detail: Extract<LoadoutsPageModel["selectedDetai
           {missingCount ? <li data-status="warning"><span aria-hidden="true">!</span><span>{missingCount} 条记录未解析名称或实例位置。</span></li> : null}
         </ul>
       </section>
-      <p className="loadout-guidance">游戏内配装由 Bungie 直接应用。未定位记录用于账号核对，不代表官方槽位不可用，也不会被本地方案自动替换。</p>
+      <p className="loadout-guidance">游戏内配装由 Bungie 直接应用。未定位记录用于账号核对，不代表官方槽位不可用，也不会被应用配装自动替换。</p>
     </>
   );
 }
 
 function LocalWorkspace(props: LoadoutsPageContentViewProps & {
   activeCharacter: AccountSummary["characters"][number] | null;
-  isDimImportOpen: boolean;
+  createFlow: LoadoutCreateFlow;
   onCloseDimImport: () => void;
-  isGuideImportOpen: boolean;
   onCloseGuideImport: () => void;
 }) {
+  const [compactLibraryPane, setCompactLibraryPane] = useState<"directory" | "detail">("directory");
+  const requestNavigation = useGuardedNavigation();
+  const screen = getActiveApplicationLoadoutScreen(props.applicationLoadoutNavigation);
+  const compareIds = props.applicationLoadoutCompare.selected_plan_ids;
+  const selectedDetail = props.applicationLoadoutLibrary.selected_detail;
+  const selectedPlan = selectedDetail?.plan ?? null;
+  const inGameReferences = (props.accountSummary?.characters ?? []).flatMap((character) => (
+    character.loadout_slots.map((slot) => ({ character, slot }))
+  ));
+
+  useEffect(() => {
+    if (!props.localPlanDraft || screen.kind !== "library") return;
+    props.actions.pushApplicationLoadoutScreen({
+      kind: "editor",
+      draft_id: props.localPlanEditingId || "new",
+      ...(props.localPlanEditingId ? { plan_id: props.localPlanEditingId } : {})
+    });
+  }, [props.actions, props.localPlanDraft, props.localPlanEditingId, screen.kind]);
+
+  useEffect(() => {
+    const focusRequestId = props.applicationLoadoutNavigation.focus_request_id;
+    if (!focusRequestId) return;
+    const focusTarget = document.getElementById(focusRequestId);
+    if (!focusTarget) return;
+    focusTarget.focus();
+    props.actions.consumeApplicationLoadoutFocusRequest();
+  }, [props.actions, props.applicationLoadoutNavigation.focus_request_id, props.localPlanDraft]);
+
+  function openScreen(nextScreen: ApplicationLoadoutScreen) {
+    props.actions.pushApplicationLoadoutScreen(nextScreen);
+  }
+
+  function toggleCompare(planId: string) {
+    props.actions.toggleApplicationLoadoutCompare(planId);
+  }
+
+  function handleDirectoryKeyDown(event: ReactKeyboardEvent<HTMLButtonElement>, currentIndex: number) {
+    const nextIndex = getRovingFocusIndex({
+      key: event.key,
+      currentIndex,
+      itemCount: props.applicationLoadoutLibrary.entries.length,
+      orientation: "vertical"
+    });
+    if (nextIndex === null) return;
+    event.preventDefault();
+    const nextEntry = props.applicationLoadoutLibrary.entries[nextIndex];
+    if (!nextEntry) return;
+    props.actions.selectLocalPlan(nextEntry.id);
+    document.getElementById(`loadout-application-plan-${nextEntry.id}`)?.focus();
+  }
+
+  const accountDataLabel = !props.accountSummary
+    ? "账号数据尚未读取"
+    : props.accountDataError
+    ? `账号同步失败：${props.accountDataError}`
+    : props.accountDataStatus === "refreshing"
+    ? "后台同步中"
+    : props.accountDataStatus === "stale"
+      ? "缓存可能已过期"
+      : props.accountDataStatus === "cached"
+        ? "使用本地缓存"
+        : props.accountDataStatus === "error"
+          ? "账号刷新失败"
+          : props.accountDataStatus === "ready"
+            ? "账号数据已就绪"
+            : "账号状态待确认";
+  const accountDataDetail = [
+    props.accountDataSource === "local" ? "本地缓存" : props.accountDataSource === "remote" ? "远端刷新" : props.accountDataSource === "merged" ? "本地与远端合并" : "",
+    props.accountDataFetchedAt ? `更新于 ${props.accountDataFetchedAt}` : ""
+  ].filter(Boolean).join(" · ");
+
+  if (screen.kind === "compare") {
+    return (
+      <ApplicationLoadoutCompare
+        model={props.applicationLoadoutCompare}
+        onBack={props.actions.popApplicationLoadoutScreen}
+        onRemove={toggleCompare}
+        onRemoveInGameReference={() => props.actions.applicationLoadoutInGameReferenceChange(null)}
+        onShowDiffOnlyChange={props.actions.applicationLoadoutShowDiffOnlyChange}
+        onSelect={(id) => { props.actions.selectLocalPlan(id); props.actions.popApplicationLoadoutScreen(); }}
+      />
+    );
+  }
+
+  if ((screen.kind === "editor" || screen.kind === "armor-planner" || screen.kind === "wear-review" || screen.kind === "item-picker" || screen.kind === "publish") && props.localPlanDraft) {
+    const editorScreen = screen.kind === "armor-planner"
+      ? "armor"
+      : screen.kind === "wear-review"
+        ? "wear"
+        : screen.kind === "item-picker"
+          ? "picker"
+          : screen.kind === "publish"
+            ? "publish"
+            : "editor";
+    return (
+      <div className="loadout-subpage" data-screen={editorScreen}>
+        <LocalPlanEditor
+          {...props}
+          activeCharacter={props.activeCharacter}
+          editorScreen={editorScreen}
+          {...(screen.kind === "item-picker" ? { pickerSlot: screen.slot } : {})}
+          onOpenArmor={() => openScreen({ kind: "armor-planner", return_focus_id: "loadout-open-armor-planner" })}
+          onOpenWear={() => openScreen({ kind: "wear-review", plan_id: props.localPlanEditingId || "draft", return_focus_id: "loadout-open-wear-review" })}
+          onOpenItemPicker={(slot) => openScreen({ kind: "item-picker", slot, return_focus_id: `loadout-slot-${standardSlotDomId(slot)}` })}
+          onOpenPublish={() => openScreen({ kind: "publish", plan_id: props.localPlanEditingId || "draft", return_focus_id: "loadout-open-publish" })}
+          onBack={() => {
+            if (screen.kind === "armor-planner" || screen.kind === "wear-review" || screen.kind === "item-picker" || screen.kind === "publish") {
+              props.actions.popApplicationLoadoutScreen();
+              return;
+            }
+            requestNavigation(() => {
+              props.actions.closeLocalPlanEditor();
+              props.actions.popApplicationLoadoutScreen();
+            });
+          }}
+        />
+      </div>
+    );
+  }
+
+  if (screen.kind !== "library") {
+    return <section className="loadout-subpage"><header className="loadout-subpage-head"><button className="loadout-subpage-back" type="button" data-ui-kind="button" data-control-variant="secondary" onClick={props.actions.popApplicationLoadoutScreen}>返回方案库</button><div><h2>当前页面需要一个应用配装草稿</h2><p>草稿可能已关闭或删除。返回方案库后重新选择方案。</p></div></header></section>;
+  }
+
   return (
-    <ProductWorkspaceSplit className="loadout-workspace loadout-local-workspace">
+    <ProductWorkspaceSplit className={`loadout-workspace loadout-local-workspace loadout-compact-${compactLibraryPane}`}>
       <ProductWorkspaceSideRail element="aside" className="loadout-directory">
-        <div className="loadout-column-head"><div><strong>本地配装方案</strong><small>{props.localPlanWorkspace.entries.length} 个方案 · 本机数据</small></div></div>
+        <div className="loadout-column-head"><div><strong>应用配装</strong><small>{props.applicationLoadoutLibrary.entries.length} 个完整构筑方案</small></div></div>
         <div className="loadout-entry-list" data-surface="list">
-          {props.localPlanWorkspace.entries.map((entry) => {
-            const selected = props.localPlanEditingId === entry.id;
+          {props.applicationLoadoutLibrary.entries.map((entry, index) => {
+            const selected = entry.selected;
             return (
-              <button type="button" key={entry.id} aria-pressed={selected} data-status={entry.status_tone} className="loadout-directory-row" onClick={() => props.actions.selectLocalPlan(entry.id)}>
-                <span className="loadout-directory-index">{entry.status_tone === "warning" ? "!" : "L"}</span>
-                <span><strong>{entry.title}</strong><small>{entry.subtitle}</small><small>{entry.source_label}</small></span>
-                <em data-status={entry.status_tone}>{entry.status_label}</em>
-              </button>
+              <div className="loadout-application-directory-item" key={entry.id}>
+                <button
+                  id={`loadout-application-plan-${entry.id}`}
+                  type="button"
+                  aria-pressed={selected}
+                  tabIndex={selected ? 0 : -1}
+                  data-status={entry.status_tone}
+                  className="loadout-directory-row"
+                  onClick={() => { props.actions.selectLocalPlan(entry.id); setCompactLibraryPane("detail"); }}
+                  onKeyDown={(event) => handleDirectoryKeyDown(event, index)}
+                >
+                  <span className="loadout-directory-index">{entry.status_tone === "warning" ? "!" : "A"}</span>
+                  <span><strong>{entry.title}</strong><small>{entry.class_name} · {entry.item_count} 个装备目标</small><small>{entry.source_label}</small></span>
+                  <em data-status={entry.status_tone}>{entry.status_label}</em>
+                </button>
+                <label className="loadout-compare-toggle">
+                  <input type="checkbox" checked={compareIds.includes(entry.id)} disabled={!compareIds.includes(entry.id) && compareIds.length >= 3} onChange={() => toggleCompare(entry.id)} />
+                  <span>对比</span>
+                </label>
+              </div>
             );
           })}
-          {!props.localPlanWorkspace.entries.length ? <p className="loadout-rail-empty">还没有保存本地方案。新建或从当前装备创建后，显式保存的方案会显示在这里。</p> : null}
+          {props.applicationLoadoutLibrary.empty ? <p className="loadout-rail-empty">还没有应用配装。可以从当前装备或空白方案开始创建。</p> : null}
         </div>
+        {compareIds.length ? <div className="loadout-compare-dock"><span>{props.applicationLoadoutCompare.selection_message}</span>{inGameReferences.length ? <label><span>游戏内只读参照</span><select value={props.applicationLoadoutCompare.in_game_reference_id ?? ""} onChange={(event) => { const reference = inGameReferences.find((candidate) => applicationLoadoutInGameReferenceId(candidate) === event.target.value) ?? null; props.actions.applicationLoadoutInGameReferenceChange(reference); }}><option value="">不加入</option>{inGameReferences.map((reference) => <option key={applicationLoadoutInGameReferenceId(reference)} value={applicationLoadoutInGameReferenceId(reference)}>{reference.character.class_name} · {reference.slot.name || `槽位 ${reference.slot.index + 1}`}</option>)}</select></label> : null}<button type="button" data-ui-kind="button" data-control-variant="secondary" disabled={!props.applicationLoadoutCompare.can_compare} onClick={() => openScreen({ kind: "compare", plan_ids: compareIds, show_diff_only: props.applicationLoadoutCompare.showDiffOnly, ...(props.applicationLoadoutCompare.in_game_reference_id ? { in_game_reference_id: props.applicationLoadoutCompare.in_game_reference_id } : {}), ...(selectedPlan ? { return_focus_id: `loadout-application-plan-${selectedPlan.id}` } : {}) })}>比较方案</button></div> : null}
       </ProductWorkspaceSideRail>
 
       <section className="loadout-detail">
+        <button type="button" className="loadout-compact-library-back" data-ui-kind="button" data-control-variant="secondary" onClick={() => setCompactLibraryPane("directory")}>返回方案列表</button>
         {props.armorResultTraceRequest ? <ArmorResultTraceNotice {...props} /> : null}
-        {props.isDimImportOpen ? <DimImportPanel {...props} /> : null}
-        {props.isGuideImportOpen ? <GuideImportPanel {...props} /> : null}
-        {props.localPlanError ? <div className="loadout-capability-notice" data-ui-kind="callout" data-status="warning"><div><strong>本地方案操作未完成</strong><p>{props.localPlanError}</p></div></div> : null}
-        {props.localPlanDraft ? <LocalPlanEditor {...props} /> : <ProductWorkspaceEmptyState><h2>选择或新建本地方案</h2><p>本地方案先在工作台中编辑，只有显式保存后才写入本机数据。</p></ProductWorkspaceEmptyState>}
+        {props.createFlow === "dim" ? <DimImportPanel {...props} /> : null}
+        {props.createFlow === "guide" ? <GuideImportPanel {...props} /> : null}
+        {props.localPlanError ? <div className="loadout-capability-notice" data-ui-kind="callout" data-status="warning"><div><strong>应用配装操作未完成</strong><p>{props.localPlanError}</p></div></div> : null}
+        {selectedDetail ? (
+          <ApplicationLoadoutDetail
+            plan={selectedDetail.plan}
+            detail={selectedDetail}
+            accountDataLabel={[props.accountDataMessage || accountDataLabel, accountDataDetail].filter(Boolean).join(" · ")}
+            accountDataStatus={props.accountDataStatus}
+            compareSelected={compareIds.includes(selectedDetail.plan.id)}
+            compareDisabled={!compareIds.includes(selectedDetail.plan.id) && compareIds.length >= 3}
+            isExecuting={props.localPlanIsExecuting}
+            onToggleCompare={() => toggleCompare(selectedDetail.plan.id)}
+            onEdit={() => { props.actions.editLocalPlan(selectedDetail.plan.id); openScreen({ kind: "editor", draft_id: selectedDetail.plan.id, plan_id: selectedDetail.plan.id, return_focus_id: `loadout-application-plan-${selectedDetail.plan.id}` }); }}
+            onWear={() => { props.actions.editLocalPlan(selectedDetail.plan.id); openScreen({ kind: "wear-review", plan_id: selectedDetail.plan.id, return_focus_id: `loadout-wear-plan-${selectedDetail.plan.id}` }); }}
+            onDelete={() => props.actions.deleteLocalPlan(selectedDetail.plan.id)}
+          />
+        ) : <ProductWorkspaceEmptyState><h2>选择一个应用配装</h2><p>先查看方案内容和账号匹配情况，再决定比较、编辑或穿戴。</p></ProductWorkspaceEmptyState>}
       </section>
 
       <aside className="loadout-summary">
-        {props.localPlanDraft ? <LocalPlanSummary {...props} /> : <LoadoutSummaryEmpty />}
+        {selectedDetail ? (
+          <ApplicationLoadoutQuickActions
+            planId={selectedDetail.plan.id}
+            planName={selectedDetail.plan.name}
+            summary={selectedDetail.match_summary}
+            executionPlan={props.localPlanExecutionPlan}
+            wearEnabled={selectedDetail.wear_enabled && props.accountDataStatus !== "error"}
+            isExecuting={props.localPlanIsExecuting}
+            onEdit={() => { props.actions.editLocalPlan(selectedDetail.plan.id); openScreen({ kind: "editor", draft_id: selectedDetail.plan.id, plan_id: selectedDetail.plan.id, return_focus_id: `loadout-application-plan-${selectedDetail.plan.id}` }); }}
+            onWear={() => { props.actions.editLocalPlan(selectedDetail.plan.id); openScreen({ kind: "wear-review", plan_id: selectedDetail.plan.id, return_focus_id: `loadout-quick-wear-${selectedDetail.plan.id}` }); }}
+          />
+        ) : <LoadoutSummaryEmpty />}
       </aside>
     </ProductWorkspaceSplit>
   );
 }
 
+function ApplicationLoadoutDetail(props: {
+  plan: ApplicationLoadoutDetailView["plan"];
+  detail: ApplicationLoadoutDetailView;
+  accountDataLabel: string;
+  accountDataStatus?: LoadoutsPageContentViewProps["accountDataStatus"];
+  compareSelected: boolean;
+  compareDisabled: boolean;
+  isExecuting: boolean;
+  onToggleCompare: () => void;
+  onEdit: () => void;
+  onWear: () => void;
+  onDelete: () => void;
+}) {
+  const subclass = props.plan.subclass_target;
+  const selectedCount = props.detail.match_summary?.selected_count ?? 0;
+  const unresolvedCount = props.detail.wear_block_reasons.length;
+  return (
+    <div className="loadout-application-detail">
+      <header className="loadout-detail-head">
+        <div><span className="loadout-eyebrow">应用配装 · {props.plan.class_name}</span><h2>{props.plan.name}</h2><p>{props.plan.source.label || "由应用保存的完整构筑方案"} · 更新于 {props.plan.updated_at || props.plan.created_at}</p></div>
+        <div className="loadout-action-stack">
+          <button type="button" data-ui-kind="button" data-control-variant="secondary" disabled={props.compareDisabled} aria-pressed={props.compareSelected} onClick={props.onToggleCompare}>{props.compareSelected ? "移出对比" : "加入对比"}</button>
+          <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={props.onEdit}>编辑</button>
+          <button id={`loadout-wear-plan-${props.plan.id}`} type="button" data-ui-kind="button" data-control-variant="primary" disabled={props.isExecuting || !props.detail.wear_enabled || props.accountDataStatus === "error"} onClick={props.onWear}>穿戴此方案</button>
+        </div>
+      </header>
+      <div className="loadout-application-freshness" data-status={props.accountDataStatus === "error" ? "warning" : props.accountDataStatus === "ready" ? "success" : "neutral"}><span aria-hidden="true" /><strong>{props.accountDataLabel}</strong><small>穿戴前会强制刷新并重新核对实例、位置、Plug 与能量。</small></div>
+      <section className="loadout-build-overview" aria-label="构筑总览">
+        <article><span>子职业</span><strong>{subclass?.subclass_hash ? `定义 ${subclass.subclass_hash}` : "未配置"}</strong><small>{subclass ? `${subclass.aspect_hashes.length} 星相 · ${subclass.fragment_hashes.length} 碎片` : "可在编辑器中设置"}</small></article>
+        <article><span>装备目标</span><strong>{props.detail.configured_item_count} 项</strong><small>{selectedCount} 项已绑定真实实例</small></article>
+        <article data-status={unresolvedCount ? "warning" : "success"}><span>账号核对</span><strong>{props.detail.wear_label}</strong><small>{unresolvedCount ? props.detail.wear_block_reasons[0] : "基于当前账号数据"}</small></article>
+      </section>
+      <div className="loadout-section-label"><span>装备与模组</span><span>{props.detail.item_rows.length} 个目标 · {props.detail.configured_plug_count} 个 Plug</span></div>
+      <div className="loadout-readonly-slot-grid">
+        {props.detail.item_rows.map((row, index) => <ApplicationLoadoutSlot key={row.key} row={row} index={index} />)}
+      </div>
+      {!props.detail.item_rows.length ? <ProductWorkspaceEmptyState><h3>此方案尚未配置装备</h3><p>进入编辑器后可按武器和护甲槽位添加真实实例。</p></ProductWorkspaceEmptyState> : null}
+      {props.plan.notes ? <section className="loadout-plan-notes"><strong>方案备注</strong><p>{props.plan.notes}</p></section> : null}
+      <footer className="loadout-detail-footer loadout-danger-footer"><p>应用配装与游戏内配装相互独立；只有穿戴验证成功后才能保存到游戏内槽位。</p><button type="button" data-ui-kind="button" data-control-variant="danger" onClick={props.onDelete}>删除应用配装</button></footer>
+    </div>
+  );
+}
+
+function ApplicationLoadoutSlot(props: { row: ApplicationLoadoutDetailView["item_rows"][number]; index: number }) {
+  const representative = props.row.match?.candidates.find((candidate) => candidate.item.instance_id === props.row.selected_instance_id)
+    ?? props.row.match?.candidates[0]
+    ?? null;
+  return (
+    <article className="loadout-readonly-slot" data-surface="object-card" data-ui-kind="object-card" data-status={props.row.status_tone}>
+      <ItemVisual icon={representative?.item.icon} label={representative?.item.name || props.row.slot} bucketName={props.row.slot} />
+      <div><span>{props.row.slot || `装备 ${props.index + 1}`}</span><strong>{representative?.item.name || (props.row.item_hash ? `定义 ${props.row.item_hash}` : "未配置")}</strong><small>{props.row.plug_hashes.length ? `${props.row.plug_hashes.length} 个目标模组 / Plug` : "未指定模组"}</small></div>
+      <em data-status={props.row.status_tone}>{props.row.status_label}</em>
+    </article>
+  );
+}
+
+function ApplicationLoadoutQuickActions(props: {
+  planId: string;
+  planName: string;
+  summary: LocalLoadoutPlanWorkbenchModel["summary"];
+  executionPlan: LocalLoadoutPlanExecutionPlan | null;
+  wearEnabled: boolean;
+  isExecuting: boolean;
+  onEdit: () => void;
+  onWear: () => void;
+}) {
+  const issueCount = (props.summary?.missing_count ?? 0) + (props.summary?.plug_unavailable_count ?? 0) + (props.summary?.needs_selection_count ?? 0);
+  return (
+    <div className="loadout-quick-actions">
+      <div className="loadout-column-head"><div><strong>穿戴准备</strong><small>{props.planName}</small></div></div>
+      <dl className="loadout-ledger">
+        <div data-status="success"><dt>已绑定</dt><dd><b>{props.summary?.selected_count ?? 0}</b><small>真实装备实例</small></dd></div>
+        <div data-status={issueCount ? "warning" : "success"}><dt>待处理</dt><dd><b>{issueCount}</b><small>需选择或补齐</small></dd></div>
+        <div><dt>执行步骤</dt><dd><b>{props.executionPlan?.executable_steps.length ?? 0}</b><small>穿戴前重新生成</small></dd></div>
+      </dl>
+      <section className="loadout-summary-checks"><h3>安全边界</h3><ul><li data-status="success"><span>✓</span><span>穿戴前刷新账号并核对计划。</span></li><li data-status="success"><span>✓</span><span>步骤失败后停止后续写入。</span></li><li data-status="success"><span>✓</span><span>穿戴验证后才允许保存到游戏内槽位。</span></li></ul></section>
+      <div className="loadout-sticky-primary-actions"><button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={props.onEdit}>编辑方案</button><button id={`loadout-quick-wear-${props.planId}`} type="button" data-ui-kind="button" data-control-variant="primary" disabled={!props.wearEnabled || props.isExecuting} onClick={props.onWear}>穿戴此方案</button></div>
+    </div>
+  );
+}
+
+function ApplicationLoadoutCompare(props: {
+  model: ApplicationLoadoutCompareViewModel;
+  onBack: () => void;
+  onRemove: (id: string) => void;
+  onRemoveInGameReference: () => void;
+  onShowDiffOnlyChange: (value: boolean) => void;
+  onSelect: (id: string) => void;
+}) {
+  const backRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => { backRef.current?.focus(); }, []);
+  return (
+    <section className="loadout-compare-page" aria-label="应用配装对比">
+      <header className="loadout-subpage-head"><button ref={backRef} className="loadout-subpage-back" type="button" data-ui-kind="button" data-control-variant="secondary" onClick={props.onBack}>返回方案库</button><div><span className="loadout-eyebrow">应用配装</span><h2>方案对比</h2><p>{props.model.selection_message} · 共 {props.model.difference_count} 处差异。</p></div><label className="loadout-diff-toggle"><input type="checkbox" checked={props.model.showDiffOnly} onChange={(event) => props.onShowDiffOnlyChange(event.target.checked)} /><span>仅显示差异</span></label></header>
+      <div className="loadout-compare-table" style={{ "--loadout-compare-count": Math.max(props.model.columns.length, 2) } as CSSProperties}>
+        <div className="loadout-compare-table-head"><span>比较项</span>{props.model.columns.map((column) => <div key={column.id}><strong>{column.title}</strong><small>{column.subtitle}</small>{column.kind === "application" ? <footer><button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={() => props.onRemove(column.plan.id)}>移出</button><button type="button" data-ui-kind="button" data-control-variant="primary" onClick={() => props.onSelect(column.plan.id)}>查看</button></footer> : <><em>游戏内只读参照 · 部分字段未知</em><footer><button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={props.onRemoveInGameReference}>移出参照</button></footer></>}</div>)}</div>
+        {props.model.visible_rows.map((row) => <div className="loadout-compare-table-row" data-changed={row.changed || undefined} key={row.key}><strong>{row.label}</strong>{row.cells.map((cell) => <span key={cell.column_id} data-state={cell.state}>{cell.value}</span>)}</div>)}
+      </div>
+      {!props.model.visible_rows.length ? <ProductWorkspaceEmptyState><h3>当前没有可显示的差异</h3><p>关闭“仅显示差异”可查看全部子职业、装备、属性模组和备注字段。</p></ProductWorkspaceEmptyState> : null}
+    </section>
+  );
+}
+
 function LocalPlanEditor(props: LoadoutsPageContentViewProps & {
   activeCharacter: AccountSummary["characters"][number] | null;
+  editorScreen: "editor" | "armor" | "wear" | "picker" | "publish";
+  pickerSlot?: string;
+  onOpenArmor: () => void;
+  onOpenWear: () => void;
+  onOpenItemPicker: (slot: string) => void;
+  onOpenPublish: () => void;
+  onBack: () => void;
 }) {
   const draft = props.localPlanDraft;
   const accountItems = useMemo(() => getLocalLoadoutPlanAccountItems(props.accountSummary), [props.accountSummary]);
   const matches = useMemo(() => draft && props.accountSummary
     ? matchLocalLoadoutPlan(draft, props.accountSummary).item_matches
     : [], [draft, props.accountSummary]);
+  useEffect(() => {
+    document.querySelector<HTMLElement>(`.loadout-subpage[data-screen="${props.editorScreen}"] .loadout-subpage-back`)?.focus();
+  }, [props.editorScreen]);
   if (!draft) return null;
   const activeDraft = draft;
 
@@ -751,20 +1143,6 @@ function LocalPlanEditor(props: LoadoutsPageContentViewProps & {
     updateDraftClearingArmorPlan({
       ...activeDraft,
       item_targets: activeDraft.item_targets.map((target, targetIndex) => targetIndex === index ? nextTarget : target)
-    });
-  }
-
-  function addItemTarget(instanceId: string) {
-    const item = accountItems.find((candidate) => candidate.instance_id === instanceId);
-    if (!item) return;
-    updateDraftClearingArmorPlan({
-      ...activeDraft,
-      item_targets: [...activeDraft.item_targets, {
-        slot: item.bucket_name ?? item.group_key,
-        item_hash: item.hash,
-        selected_instance_id: item.instance_id,
-        plug_hashes: item.socket_plugs.map((plug) => plug.hash)
-      }]
     });
   }
 
@@ -901,84 +1279,201 @@ function LocalPlanEditor(props: LoadoutsPageContentViewProps & {
     mode: plannerMode
   });
 
+  function selectItemForStandardSlot(slot: string, instanceId: string) {
+    const item = accountItems.find((candidate) => candidate.instance_id === instanceId);
+    if (!item) return;
+    const nextTarget: CreateLocalLoadoutPlanInput["item_targets"][number] = {
+      slot,
+      item_hash: item.hash,
+      selected_instance_id: item.instance_id,
+      plug_hashes: item.socket_plugs.map((plug) => plug.hash)
+    };
+    const existingIndex = activeDraft.item_targets.findIndex((target) => standardSlotKey(target.slot) === slot);
+    updateDraftClearingArmorPlan({
+      ...activeDraft,
+      item_targets: existingIndex >= 0
+        ? activeDraft.item_targets.map((target, index) => index === existingIndex ? nextTarget : target)
+        : [...activeDraft.item_targets, nextTarget]
+    });
+    props.onBack();
+  }
+
+  if (props.editorScreen === "picker" && props.pickerSlot) {
+    const slot = props.pickerSlot;
+    const candidates = accountItems.filter((item) => standardSlotKey(item.bucket_name ?? "") === slot);
+    return (
+      <>
+        <header className="loadout-subpage-head"><button className="loadout-subpage-back" type="button" data-ui-kind="button" data-control-variant="secondary" onClick={props.onBack}>返回配装编辑器</button><div><span className="loadout-eyebrow">选择真实实例</span><h2>{slot}</h2><p>只显示当前账号中与此槽位类型一致的装备；选择后返回原槽位并恢复焦点。</p></div></header>
+        <section className="loadout-item-picker-page" aria-label={`${slot}装备选择`}>
+          {candidates.map((item) => <button type="button" key={item.instance_id} className="loadout-item-picker-row" data-surface="object-card" data-ui-kind="object-card" onClick={() => item.instance_id && selectItemForStandardSlot(slot, item.instance_id)}><ItemVisual icon={item.icon} label={item.name} bucketName={item.bucket_name} /><span><strong>{item.name}</strong><small>{item.bucket_name || item.item_type || item.group_key}</small><small>{item.socket_plugs.length} 个当前 Plug · 实例尾号 {item.instance_id?.slice(-4)}</small></span><em>选择</em></button>)}
+          {!candidates.length ? <ProductWorkspaceEmptyState><h3>当前账号没有可选装备</h3><p>账号刷新后仍为空时，可先返回并保存不完整方案。</p></ProductWorkspaceEmptyState> : null}
+        </section>
+      </>
+    );
+  }
+
+  if (props.editorScreen === "armor") {
+    return (
+      <>
+        <header className="loadout-subpage-head">
+          <button className="loadout-subpage-back" type="button" data-ui-kind="button" data-control-variant="secondary" onClick={props.onBack}>返回配装编辑器</button>
+          <div><span className="loadout-eyebrow">{draft.name || "未命名应用配装"}</span><h2>按属性目标自动配甲</h2><p>属性模组数量是精确约束；计算器只负责分配到可用的具体护甲部位。</p></div>
+        </header>
+        <section className="loadout-armor-workbench loadout-armor-planner-page" aria-label="按属性目标自动配甲">
+          <header><div><strong>目标与候选范围</strong><small>分别核对理论上限、当前库存、待刷身份或现有配装升级路径。</small></div><button type="button" data-ui-kind="button" data-control-variant="primary" onClick={calculateArmorCandidates} disabled={(plannerMode !== "theoretical" && !props.accountSummary) || !props.actions.planArmor || armorClass === "unknown" || armorPlannerState?.status === "loading" || armorModTotal > 5}>{armorPlannerState?.status === "loading" ? "计算中" : armorPlannerActionLabel(plannerMode)}</button></header>
+          <ArmorPlannerModeControl mode={plannerMode} onChange={(mode) => updateArmorConstraints({ ...armorConstraints, planner_mode: mode })} />
+          <div id="loadout-armor-planner-panel" role="tabpanel" aria-labelledby={`loadout-armor-mode-${plannerMode}`}>
+            <div className="loadout-armor-constraint-grid">
+              {loadoutPlanArmorStatKeys.map((stat) => <label key={stat}><span>{armorStatLabel(stat)}最低值</span><input type="number" min="0" step="5" value={armorConstraints.stat_minimums[stat] ?? 0} onChange={(event) => updateArmorConstraints({ ...armorConstraints, stat_minimums: { ...armorConstraints.stat_minimums, [stat]: Math.max(Number(event.target.value) || 0, 0) } })} /></label>)}
+            </div>
+            <ArmorStatModPlanEditor plus5={armorConstraints.five_point_mod_budget} plus10={armorConstraints.ten_point_mod_budget} preflight={armorModPreflight} onChange={(plus5, plus10) => updateArmorConstraints({ ...armorConstraints, five_point_mod_budget: plus5, ten_point_mod_budget: plus10 })} />
+            <div className="loadout-armor-priority" role="group" aria-label="护甲属性优先级">{loadoutPlanArmorStatKeys.map((stat) => { const selected = armorConstraints.priority_stats.includes(stat); return <label key={stat}><input type="checkbox" checked={selected} onChange={(event) => updateArmorConstraints({ ...armorConstraints, priority_stats: event.target.checked ? [...armorConstraints.priority_stats, stat] : armorConstraints.priority_stats.filter((item) => item !== stat) })} /><span>{armorStatLabel(stat)}优先</span></label>; })}</div>
+            <ArmorSetConstraintEditor constraint={armorConstraints.set_constraint ?? { mode: "none" }} catalog={props.armorSetCatalog ?? []} catalogStatus={props.armorSetCatalogStatus ?? "loading"} onChange={(setConstraint) => updateArmorConstraints({ ...armorConstraints, set_constraint: setConstraint })} />
+            {plannerMode !== "theoretical" ? <ArmorInventoryConstraintEditor mode={plannerMode} constraints={armorConstraints} armorItems={armorItems} onChange={updateArmorConstraints} /> : null}
+            {armorStatusMessage ? <p className="loadout-callout" data-ui-kind="callout" data-status={armorPlannerState?.status === "error" ? "error" : armorPlannerState?.status === "ready" && armorViewModel?.outcome === "reachable" ? "success" : "warning"}>{armorStatusMessage}</p> : null}
+            {props.armorTargetFeedback ? <p className="loadout-callout" data-ui-kind="callout" data-status={props.armorTargetFeedback.includes("失败") ? "error" : "success"}>{props.armorTargetFeedback}</p> : null}
+            {armorCandidates.length ? <ArmorCandidateList candidates={armorCandidates} stale={armorPlannerState?.status === "stale"} onSelect={selectArmorCandidate} onSaveAcquisitionTargets={props.actions.saveArmorAcquisitionTargets ? (candidate) => props.actions.saveArmorAcquisitionTargets?.(candidate, armorClass) : undefined} isSavingAcquisitionTargets={Boolean(props.isSavingArmorTargets)} /> : null}
+          </div>
+        </section>
+      </>
+    );
+  }
+
+  if (props.editorScreen === "wear") {
+    return (
+      <>
+        <header className="loadout-subpage-head">
+          <button className="loadout-subpage-back" type="button" data-ui-kind="button" data-control-variant="secondary" onClick={props.onBack}>返回配装编辑器</button>
+          <div><span className="loadout-eyebrow">{draft.name || "未命名应用配装"}</span><h2>穿戴核对</h2><p>执行前会刷新权威账号数据并重新生成不可变计划；任一步骤失败后停止。</p></div>
+        </header>
+        <LocalPlanExecutionPanel {...props} showPublish={false} />
+        {props.localPlanExecutionReport?.refresh_verified ? <div className="loadout-editor-sticky-actions"><span>穿戴后账号刷新核对通过，可以选择写入一个 Bungie 官方槽位。</span><div><button id="loadout-open-publish" type="button" data-ui-kind="button" data-control-variant="primary" onClick={props.onOpenPublish}>保存到游戏内槽位</button></div></div> : null}
+      </>
+    );
+  }
+
+  if (props.editorScreen === "publish") {
+    return (
+      <>
+        <header className="loadout-subpage-head"><button className="loadout-subpage-back" type="button" data-ui-kind="button" data-control-variant="secondary" onClick={props.onBack}>返回穿戴核对</button><div><span className="loadout-eyebrow">{draft.name || "未命名应用配装"}</span><h2>保存到游戏内槽位</h2><p>应用配装已成功穿戴并刷新核对；选择官方槽位后才会执行 Bungie 写入。</p></div></header>
+        <LocalPlanExecutionPanel {...props} showPublish />
+      </>
+    );
+  }
+
+  const otherTargets = draft.item_targets.map((target, index) => ({ target, index })).filter(({ target }) => !standardSlotKey(target.slot));
+
   return (
     <>
-      <header className="loadout-detail-head">
-        <div><span className="loadout-eyebrow">本地方案工作台 · {draft.class_name || "未限定职业"}</span><h2>{draft.name || "未命名方案"}</h2><p>{props.localPlanEditingId ? "编辑已保存方案" : "尚未保存为本地方案"} · 保存不会写入 Bungie 槽位</p></div>
+      <header className="loadout-subpage-head loadout-editor-head">
+        <button className="loadout-subpage-back" type="button" data-ui-kind="button" data-control-variant="secondary" onClick={props.onBack}>返回方案库</button>
+        <div><span className="loadout-eyebrow">应用配装编辑器 · {draft.class_name || "未限定职业"}</span><h2>{draft.name || "未命名方案"}</h2><p>{props.localPlanEditingId ? "正在编辑已保存的应用配装" : "新应用配装尚未保存"}</p></div>
         <div className="loadout-action-stack">
-          <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={props.actions.closeLocalPlanEditor}>退出工作台</button>
-          <button type="button" data-ui-kind="button" data-control-variant="primary" disabled={props.localPlanIsSaving || !draft.name.trim() || !draft.class_name.trim()} onClick={props.actions.saveLocalPlan}>{props.localPlanIsSaving ? "保存中" : "保存本地方案"}</button>
+          <button type="button" data-ui-kind="button" data-control-variant="primary" disabled={props.localPlanIsSaving || !draft.name.trim() || !draft.class_name.trim()} onClick={props.actions.saveLocalPlan}>{props.localPlanIsSaving ? "保存中" : "保存应用配装"}</button>
         </div>
       </header>
-      <div className="loadout-local-state-strip" data-status={props.localPlanIsSaving ? "pending" : props.localPlanEditingId ? "neutral" : "warning"}>
-        <strong>{props.localPlanIsSaving ? "正在保存本地方案" : props.localPlanEditingId ? "正在编辑已保存方案" : "当前方案尚未保存"}</strong>
-        <span>{props.localPlanEditingId ? "再次保存后，当前修改才会写入本机方案。" : "保存后才会写入本机数据；不会直接改动 Bungie 槽位。"}</span>
+      <div className="loadout-local-state-strip" data-status={props.localPlanIsSaving ? "pending" : props.localPlanIsDirty ? "warning" : "neutral"}>
+        <strong>{props.localPlanIsSaving ? "正在保存应用配装" : props.localPlanIsDirty ? props.localPlanEditingId ? "修改尚未保存" : "当前应用配装尚未保存" : "所有修改已保存"}</strong>
+        <span>保存只更新应用内方案，不会自动穿戴，也不会写入游戏内配装槽位。</span>
       </div>
       {draft.guidance?.warnings.length ? <section className="loadout-guide-review" data-ui-kind="callout" data-status="warning" aria-label="攻略解析待确认"><strong>攻略解析待确认</strong><ul>{draft.guidance.warnings.map((warning, index) => <li key={`${warning}-${index}`}>{warning}</li>)}</ul></section> : null}
       <section className="loadout-local-editor-section" aria-label="基础信息">
-        <header className="loadout-local-section-head"><div><strong>基础信息</strong><small>方案身份、目标职业和本地保存边界</small></div></header>
+        <header className="loadout-local-section-head"><div><strong>方案信息</strong><small>名称、目标职业和应用内保存边界</small></div></header>
         <div className="loadout-local-toolbar">
           <label><span>方案名称</span><input value={draft.name} onChange={(event) => updateDraft({ ...draft, name: event.target.value })} aria-label="配装名称" /></label>
           <label><span>目标职业</span><input value={draft.class_name} onChange={(event) => updateDraftClearingArmorPlan({ ...draft, class_name: event.target.value })} aria-label="目标职业" /></label>
         </div>
       </section>
-      <section className="loadout-local-editor-section" aria-label="装备目标">
-        <header className="loadout-local-section-head"><div><strong>装备目标</strong><small>绑定当前账号中的真实实例；同名多实例不会自动代选</small></div><span>{draft.item_targets.length} 项</span></header>
-        <ul className="loadout-item-list" data-surface="list">
-          {draft.item_targets.map((target, index) => <LocalPlanItemRow key={`${target.slot}-${target.selected_instance_id ?? target.item_hash ?? index}-${index}`} index={index} target={target} match={matches[index] ?? null} onChange={updateTarget} onRemove={() => updateDraftClearingArmorPlan({ ...draft, item_targets: draft.item_targets.filter((_, targetIndex) => targetIndex !== index) })} />)}
-        </ul>
-        {!draft.item_targets.length ? <ProductWorkspaceEmptyState><h3>尚未添加装备目标</h3><p>可以先保存不完整方案，或从当前角色装备预填真实实例。</p></ProductWorkspaceEmptyState> : null}
-        <div className="loadout-compare-controls">
-          <label><span>添加账号内装备</span><select value="" onChange={(event) => addItemTarget(event.target.value)} disabled={!accountItems.some((item) => item.instance_id)}><option value="">选择实例</option>{accountItems.filter((item) => item.instance_id).map((item) => <option key={item.instance_id} value={item.instance_id}>{item.name} · {item.bucket_name || item.group_key}</option>)}</select></label>
-          {props.localPlanEditingId ? <button type="button" data-ui-kind="button" data-control-variant="danger" disabled={props.localPlanIsSaving} onClick={() => props.actions.deleteLocalPlan(props.localPlanEditingId!)}>删除方案</button> : null}
-        </div>
+      <section className="loadout-slot-editor-section" aria-label="子职业">
+        <header className="loadout-local-section-head"><div><strong>子职业</strong><small>子职业、技能、星相和碎片保持为同一构筑槽位</small></div></header>
+        <article className="loadout-subclass-slot" data-surface="object-card" data-ui-kind="object-card" data-status={draft.subclass_target?.subclass_hash ? "success" : "neutral"}><span className="loadout-slot-index">S</span><div><strong>{draft.subclass_target?.subclass_hash ? `子职业定义 ${draft.subclass_target.subclass_hash}` : "尚未配置子职业"}</strong><small>{draft.subclass_target ? `${draft.subclass_target.ability_hashes.length} 技能 · ${draft.subclass_target.aspect_hashes.length} 星相 · ${draft.subclass_target.fragment_hashes.length} 碎片` : "从当前装备创建时会保留可读取的配置"}</small></div></article>
       </section>
-      <section className="loadout-armor-workbench loadout-local-editor-section" aria-label="护甲优化">
-        <header><div><strong>护甲规划</strong><small>同一组属性目标可分别核对理论上限、当前库存、待刷身份和现有配装升级路径。</small></div><button type="button" data-ui-kind="button" data-control-variant="primary" onClick={calculateArmorCandidates} disabled={(plannerMode !== "theoretical" && !props.accountSummary) || !props.actions.planArmor || armorClass === "unknown" || armorPlannerState?.status === "loading" || armorModTotal > 5}>{armorPlannerState?.status === "loading" ? "计算中" : armorPlannerActionLabel(plannerMode)}</button></header>
-        <ArmorPlannerModeControl mode={plannerMode} onChange={(mode) => updateArmorConstraints({ ...armorConstraints, planner_mode: mode })} />
-        <div id="loadout-armor-planner-panel" role="tabpanel" aria-labelledby={`loadout-armor-mode-${plannerMode}`}>
-        <div className="loadout-armor-constraint-grid">
-          {loadoutPlanArmorStatKeys.map((stat) => <label key={stat}><span>{armorStatLabel(stat)}最低值</span><input type="number" min="0" step="5" value={armorConstraints.stat_minimums[stat] ?? 0} onChange={(event) => updateArmorConstraints({ ...armorConstraints, stat_minimums: { ...armorConstraints.stat_minimums, [stat]: Math.max(Number(event.target.value) || 0, 0) } })} /></label>)}
-        </div>
-        <ArmorStatModPlanEditor
-          plus5={armorConstraints.five_point_mod_budget}
-          plus10={armorConstraints.ten_point_mod_budget}
-          preflight={armorModPreflight}
-          onChange={(plus5, plus10) => updateArmorConstraints({
-            ...armorConstraints,
-            five_point_mod_budget: plus5,
-            ten_point_mod_budget: plus10
-          })}
-        />
-        <div className="loadout-armor-priority" role="group" aria-label="护甲属性优先级">{loadoutPlanArmorStatKeys.map((stat) => { const selected = armorConstraints.priority_stats.includes(stat); return <label key={stat}><input type="checkbox" checked={selected} onChange={(event) => updateArmorConstraints({ ...armorConstraints, priority_stats: event.target.checked ? [...armorConstraints.priority_stats, stat] : armorConstraints.priority_stats.filter((item) => item !== stat) })} /><span>{armorStatLabel(stat)}优先</span></label>; })}</div>
-        <ArmorSetConstraintEditor
-          constraint={armorConstraints.set_constraint ?? { mode: "none" }}
-          catalog={props.armorSetCatalog ?? []}
-          catalogStatus={props.armorSetCatalogStatus ?? "loading"}
-          onChange={(setConstraint) => updateArmorConstraints({ ...armorConstraints, set_constraint: setConstraint })}
-        />
-        {plannerMode !== "theoretical" ? <ArmorInventoryConstraintEditor
-          mode={plannerMode}
-          constraints={armorConstraints}
-          armorItems={armorItems}
-          onChange={updateArmorConstraints}
-        /> : null}
-        {armorStatusMessage ? <p className="loadout-callout" data-ui-kind="callout" data-status={armorPlannerState?.status === "error" ? "error" : armorPlannerState?.status === "ready" && armorViewModel?.outcome === "reachable" ? "success" : "warning"}>{armorStatusMessage}</p> : null}
-        {props.armorTargetFeedback ? <p className="loadout-callout" data-ui-kind="callout" data-status={props.armorTargetFeedback.includes("失败") ? "error" : "success"}>{props.armorTargetFeedback}</p> : null}
-        {armorCandidates.length ? <ArmorCandidateList
-          candidates={armorCandidates}
-          stale={armorPlannerState?.status === "stale"}
-          onSelect={selectArmorCandidate}
-          onSaveAcquisitionTargets={props.actions.saveArmorAcquisitionTargets
-            ? (candidate) => props.actions.saveArmorAcquisitionTargets?.(candidate, armorClass)
-            : undefined}
-          isSavingAcquisitionTargets={Boolean(props.isSavingArmorTargets)}
-        /> : null}
-        </div>
-      </section>
-      <LocalPlanExecutionPanel {...props} />
+      <StandardSlotEditorGroup title="武器" description="动能、能量和威能三个固定槽位" group="weapon" draft={draft} matches={matches} onOpenSlot={props.onOpenItemPicker} onUpdate={updateTarget} onRemove={(index) => updateDraftClearingArmorPlan({ ...draft, item_targets: draft.item_targets.filter((_, targetIndex) => targetIndex !== index) })} />
+      <StandardSlotEditorGroup title="护甲与模组" description="头、手、胸、腿和职业物品；每件保留自己的模组配置" group="armor" draft={draft} matches={matches} onOpenSlot={props.onOpenItemPicker} onUpdate={updateTarget} onRemove={(index) => updateDraftClearingArmorPlan({ ...draft, item_targets: draft.item_targets.filter((_, targetIndex) => targetIndex !== index) })} action={<button id="loadout-open-armor-planner" type="button" data-ui-kind="button" data-control-variant="secondary" onClick={props.onOpenArmor}>按属性目标自动配甲</button>} />
+      {otherTargets.length ? <EditorTargetGroup title="其他装备目标" description="无法归入标准武器或护甲槽位的真实目标" targets={otherTargets} matches={matches} draft={draft} onUpdate={updateTarget} onRemove={(index) => updateDraftClearingArmorPlan({ ...draft, item_targets: draft.item_targets.filter((_, targetIndex) => targetIndex !== index) })} /> : null}
+      <div className="loadout-editor-sticky-actions"><span>{draft.item_targets.length} 个装备目标 · {armorConstraints.five_point_mod_budget} 个 +5 / {armorConstraints.ten_point_mod_budget} 个 +10 属性模组</span><div><button type="button" data-ui-kind="button" data-control-variant="secondary" disabled={props.localPlanIsSaving || !draft.name.trim() || !draft.class_name.trim()} onClick={props.actions.saveLocalPlan}>{props.localPlanIsSaving ? "保存中" : "保存应用配装"}</button><button id="loadout-open-wear-review" type="button" data-ui-kind="button" data-control-variant="primary" disabled={!props.localPlanEditingId} onClick={props.onOpenWear}>{props.localPlanEditingId ? "进入穿戴核对" : "保存后穿戴"}</button></div></div>
     </>
   );
+}
+
+function EditorTargetGroup(props: {
+  title: string;
+  description: string;
+  targets: Array<{ target: CreateLocalLoadoutPlanInput["item_targets"][number]; index: number }>;
+  matches: LocalLoadoutPlanItemMatch[];
+  draft: CreateLocalLoadoutPlanInput;
+  action?: ReactNode;
+  onUpdate: (index: number, target: CreateLocalLoadoutPlanInput["item_targets"][number]) => void;
+  onRemove: (index: number) => void;
+}) {
+  return (
+    <section className="loadout-slot-editor-section" aria-label={props.title}>
+      <header className="loadout-local-section-head"><div><strong>{props.title}</strong><small>{props.description}</small></div><div className="loadout-section-head-actions"><span>{props.targets.length} 项</span>{props.action}</div></header>
+      <ul className="loadout-item-list loadout-slot-editor-grid" data-surface="list">
+        {props.targets.map(({ target, index }) => <LocalPlanItemRow key={`${target.slot}-${target.selected_instance_id ?? target.item_hash ?? index}-${index}`} index={index} target={target} match={props.matches[index] ?? null} onChange={props.onUpdate} onRemove={() => props.onRemove(index)} />)}
+      </ul>
+      {!props.targets.length ? <div className="loadout-slot-group-empty"><strong>尚未配置{props.title}</strong><span>从下方账号装备选择真实实例后，会按槽位加入这里。</span></div> : null}
+    </section>
+  );
+}
+
+const standardLoadoutSlots = [
+  { key: "动能武器", group: "weapon" },
+  { key: "能量武器", group: "weapon" },
+  { key: "威能武器", group: "weapon" },
+  { key: "头盔", group: "armor" },
+  { key: "臂铠", group: "armor" },
+  { key: "胸甲", group: "armor" },
+  { key: "腿甲", group: "armor" },
+  { key: "职业物品", group: "armor" }
+] as const;
+
+function StandardSlotEditorGroup(props: {
+  title: string;
+  description: string;
+  group: "weapon" | "armor";
+  draft: CreateLocalLoadoutPlanInput;
+  matches: LocalLoadoutPlanItemMatch[];
+  action?: ReactNode;
+  onOpenSlot: (slot: string) => void;
+  onUpdate: (index: number, target: CreateLocalLoadoutPlanInput["item_targets"][number]) => void;
+  onRemove: (index: number) => void;
+}) {
+  const slots = standardLoadoutSlots.filter((slot) => slot.group === props.group);
+  return (
+    <section className="loadout-slot-editor-section" aria-label={props.title}>
+      <header className="loadout-local-section-head"><div><strong>{props.title}</strong><small>{props.description}</small></div><div className="loadout-section-head-actions"><span>{slots.length} 个固定槽位</span>{props.action}</div></header>
+      <ul className="loadout-item-list loadout-slot-editor-grid" data-surface="list">
+        {slots.map((slot) => {
+          const index = props.draft.item_targets.findIndex((target) => standardSlotKey(target.slot) === slot.key);
+          const target = index >= 0 ? props.draft.item_targets[index] : null;
+          if (target) return <LocalPlanItemRow id={`loadout-slot-${standardSlotDomId(slot.key)}`} key={slot.key} index={index} target={target} match={props.matches[index] ?? null} onChange={props.onUpdate} onRemove={() => props.onRemove(index)} onOpenPicker={() => props.onOpenSlot(slot.key)} />;
+          return <li className="loadout-empty-standard-slot" key={slot.key}><button id={`loadout-slot-${standardSlotDomId(slot.key)}`} type="button" onClick={() => props.onOpenSlot(slot.key)}><span className="loadout-slot-index">+</span><span><strong>{slot.key}</strong><small>选择账号内真实装备</small></span></button></li>;
+        })}
+      </ul>
+    </section>
+  );
+}
+
+function standardSlotDomId(slot: string): string {
+  return encodeURIComponent(slot).replaceAll("%", "-").toLocaleLowerCase();
+}
+
+function applicationLoadoutInGameReferenceId(reference: ApplicationLoadoutInGameReference): string {
+  return `in-game:${reference.character.character_id}:${reference.slot.index}`;
+}
+
+function standardSlotKey(slot: string): typeof standardLoadoutSlots[number]["key"] | undefined {
+  const normalized = slot.trim().toLocaleLowerCase();
+  if (/动能|kinetic/.test(normalized)) return "动能武器";
+  if (/能量武器|^能量$|energy weapon|^energy$/.test(normalized)) return "能量武器";
+  if (/威能|重型|power weapon|heavy/.test(normalized)) return "威能武器";
+  if (/头盔|头部|helmet/.test(normalized)) return "头盔";
+  if (/臂铠|手套|手部|gauntlet|arms/.test(normalized)) return "臂铠";
+  if (/胸甲|胸部|chest/.test(normalized)) return "胸甲";
+  if (/腿甲|腿部|leg/.test(normalized)) return "腿甲";
+  if (/职业物品|class item|hunter cloak|titan mark|warlock bond|cloak|mark|bond/.test(normalized)) return "职业物品";
+  return undefined;
 }
 
 function ArmorPlannerModeControl(props: {
@@ -1215,11 +1710,13 @@ function ArmorCandidateList(props: {
 }
 
 function LocalPlanItemRow(props: {
+  id?: string;
   index: number;
   target: CreateLocalLoadoutPlanInput["item_targets"][number];
   match: LocalLoadoutPlanItemMatch | null;
   onChange: (index: number, target: CreateLocalLoadoutPlanInput["item_targets"][number]) => void;
   onRemove: () => void;
+  onOpenPicker?: () => void;
 }) {
   const candidates = props.match?.candidates.filter((candidate) => candidate.item.instance_id) ?? [];
   const status = props.match?.status === "selected"
@@ -1245,11 +1742,11 @@ function LocalPlanItemRow(props: {
     : candidates.length ? `${candidates.length} 个候选实例` : "当前账号没有可用实例";
   const plugLabel = props.target.plug_hashes.length ? `${props.target.plug_hashes.length} 个目标 Plug` : "未指定目标 Plug";
   return (
-    <li className="loadout-item" data-status={tone}>
+    <li id={props.id} className="loadout-item" data-status={tone}>
       <ItemVisual icon={representative?.item.icon} label={itemName} bucketName={representative?.item.bucket_name ?? props.target.slot} />
       <div className="loadout-item-copy"><strong>{itemName}</strong><small>{itemMeta}</small></div>
       <div className="loadout-item-match"><strong>{instanceLabel}</strong><small>{plugLabel}</small></div>
-      <div className="loadout-item-actions"><span className="loadout-status-badge" data-status={tone}>{status}</span><select value={props.target.selected_instance_id ?? ""} onChange={(event) => props.onChange(props.index, { ...props.target, selected_instance_id: event.target.value || undefined })} aria-label={`选择${props.target.slot}实例`}><option value="">不绑定具体实例</option>{props.target.selected_instance_id && !candidates.some((candidate) => candidate.item.instance_id === props.target.selected_instance_id) ? <option value={props.target.selected_instance_id}>当前实例未定位</option> : null}{candidates.map((candidate) => <option key={candidate.item.instance_id} value={candidate.item.instance_id}>{candidate.item.name} · {candidate.location.label}</option>)}</select><button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={props.onRemove}>移除</button></div>
+      <div className="loadout-item-actions"><span className="loadout-status-badge" data-status={tone}>{status}</span>{props.onOpenPicker ? <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={props.onOpenPicker}>更换此槽位装备</button> : <select value={props.target.selected_instance_id ?? ""} onChange={(event) => props.onChange(props.index, { ...props.target, selected_instance_id: event.target.value || undefined })} aria-label={`选择${props.target.slot}实例`}><option value="">不绑定具体实例</option>{props.target.selected_instance_id && !candidates.some((candidate) => candidate.item.instance_id === props.target.selected_instance_id) ? <option value={props.target.selected_instance_id}>当前实例未定位</option> : null}{candidates.map((candidate) => <option key={candidate.item.instance_id} value={candidate.item.instance_id}>{candidate.item.name} · {candidate.location.label}</option>)}</select>}<button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={props.onRemove}>清空槽位</button></div>
     </li>
   );
 }
@@ -1264,7 +1761,7 @@ function DimImportPanel(props: LoadoutsPageContentViewProps & {
     <section className="loadout-capability-notice" data-status="neutral" aria-label="DIM 配装导入">
       <div>
         <strong>导入 DIM 配装</strong>
-        <p>输入公开分享链接后先查看解析结果；确认后才会预填本地方案工作台。</p>
+        <p>输入公开分享链接后先查看解析结果；确认后只会预填应用配装编辑器。</p>
         <label className="loadout-dim-url-field"><span>DIM 分享链接</span><input value={url} onChange={(event) => setUrl(event.target.value)} placeholder="https://dim.gg/..." /></label>
         {preview ? (
           <div className="loadout-dim-preview" data-surface="list">
@@ -1455,16 +1952,17 @@ function formatCandidateLocation(
 
 function LocalPlanExecutionPanel(props: LoadoutsPageContentViewProps & {
   activeCharacter: AccountSummary["characters"][number] | null;
+  showPublish?: boolean;
 }) {
   const [publishSlotIndex, setPublishSlotIndex] = useState<number | null>(null);
   const plan = props.localPlanExecutionPlan;
   const report = props.localPlanExecutionReport;
   if (!plan) {
-    return <section className="loadout-armor-workbench" aria-label="方案应用"><header><div><strong>方案应用</strong><small>请选择目标角色和真实实例后生成执行计划。</small></div></header><DimExportPanel result={props.localPlanDimExport} feedback={props.localPlanDimExportFeedback} onCopy={props.actions.copyDimLoadoutLink} /></section>;
+    return <section className="loadout-armor-workbench" aria-label="穿戴核对"><header><div><strong>穿戴核对</strong><small>请选择目标角色和真实实例后生成安全执行计划。</small></div></header><DimExportPanel result={props.localPlanDimExport} feedback={props.localPlanDimExportFeedback} onCopy={props.actions.copyDimLoadoutLink} /></section>;
   }
   return (
-    <section className="loadout-armor-workbench" aria-label="方案应用">
-      <header><div><strong>方案应用</strong><small>计划 {formatExecutionPlanReference(plan.plan_id)}；确认后先刷新账号复核，计划未变化才会逐步执行。</small></div><button type="button" data-ui-kind="button" data-control-variant="primary" disabled={!props.localPlanEditingId || !plan.executable_steps.length || props.localPlanIsExecuting} onClick={props.actions.executeLocalPlan}>{props.localPlanIsExecuting ? "应用中" : props.localPlanEditingId ? "确认并应用" : "先保存方案"}</button></header>
+    <section className="loadout-armor-workbench" aria-label="穿戴核对">
+      <header><div><strong>穿戴步骤</strong><small>计划 {formatExecutionPlanReference(plan.plan_id)}；确认后先刷新账号复核，计划未变化才会逐步执行。</small></div><button type="button" data-ui-kind="button" data-control-variant="primary" disabled={!props.localPlanEditingId || !plan.executable_steps.length || props.localPlanIsExecuting} onClick={props.actions.executeLocalPlan}>{props.localPlanIsExecuting ? "正在穿戴" : props.localPlanEditingId ? "穿戴此方案" : "先保存应用配装"}</button></header>
       <DimExportPanel
         result={props.localPlanDimExport}
         feedback={props.localPlanDimExportFeedback}
@@ -1473,7 +1971,7 @@ function LocalPlanExecutionPanel(props: LoadoutsPageContentViewProps & {
       {plan.executable_steps.length ? <ol className="loadout-plan-step-list">{plan.executable_steps.map((step, index) => <li key={step.id}><span>{String(index + 1).padStart(2, "0")}</span><strong>{step.label}</strong></li>)}</ol> : <p className="loadout-callout" data-ui-kind="callout" data-status="warning">没有可执行步骤。</p>}
       {plan.gaps.length ? <p className="loadout-callout" data-ui-kind="callout" data-status="warning">未执行缺口：{plan.gaps.join("；")}</p> : null}
       {report ? <p className="loadout-callout" data-ui-kind="callout" data-status={report.refresh_verified && report.verification_logged !== false ? "success" : "warning"}>{formatExecutionReportMessage(report)}{report.execution_id ? <small title={report.execution_id}>执行 {formatTraceReference(report.execution_id)}{report.verification_status ? ` · 验证 ${formatVerificationStatus(report.verification_status)}` : ""}</small> : null}</p> : null}
-      {report?.refresh_verified ? <LocalPlanPublishPanel accountSummary={props.accountSummary} targetCharacterId={plan.target_character_id} selectedSlotIndex={publishSlotIndex} onSelectSlot={setPublishSlotIndex} report={props.localPlanPublishReport} isPublishing={props.localPlanIsPublishing ?? false} onPublish={props.actions.publishLocalPlanToSlot} /> : null}
+      {report?.refresh_verified && props.showPublish !== false ? <LocalPlanPublishPanel accountSummary={props.accountSummary} targetCharacterId={plan.target_character_id} selectedSlotIndex={publishSlotIndex} onSelectSlot={setPublishSlotIndex} report={props.localPlanPublishReport} isPublishing={props.localPlanIsPublishing ?? false} onPublish={props.actions.publishLocalPlanToSlot} /> : null}
     </section>
   );
 }
@@ -1546,12 +2044,12 @@ function LocalPlanPublishPanel(props: {
   return (
     <div className="loadout-slot-picker">
       <strong>保存到游戏内槽位</strong>
-      <small>方案已应用并经账号刷新核对。发布前会再次核对当前装备和目标槽位，变化时保持零写入。</small>
+      <small>方案已穿戴并经账号刷新核对。保存前会再次核对当前装备和目标槽位，变化时保持零写入。</small>
       <div className="loadout-slot-picker-list" data-surface="list">
         {character.loadout_slots.map((slot) => <button type="button" key={slot.index} aria-pressed={slot.index === props.selectedSlotIndex} onClick={() => props.onSelectSlot(slot.index)}><span>{String(slot.index + 1).padStart(2, "0")}</span><span><strong>{slot.name}</strong><small>{slot.item_count ? "覆盖已有槽位" : "空槽"}</small></span></button>)}
       </div>
-      {props.report ? <p className="loadout-callout" data-ui-kind="callout" data-status={props.report.verification_status === "verified" && props.report.verification_logged !== false ? "success" : "warning"}>{formatPublishReportMessage(props.report)}<small title={props.report.execution_id}>发布 {formatTraceReference(props.report.execution_id)} · 计划 {formatTraceReference(props.report.plan.plan_id)}</small></p> : null}
-      <footer><button type="button" data-ui-kind="button" data-control-variant="primary" disabled={!selectedSlot || props.isPublishing || !props.onPublish} onClick={() => selectedSlot && props.onPublish?.(selectedSlot.index)}>{props.isPublishing ? "发布中" : selectedSlot?.item_count ? "确认覆盖并保存" : "保存到槽位"}</button></footer>
+      {props.report ? <p className="loadout-callout" data-ui-kind="callout" data-status={props.report.verification_status === "verified" && props.report.verification_logged !== false ? "success" : "warning"}>{formatPublishReportMessage(props.report)}<small title={props.report.execution_id}>保存 {formatTraceReference(props.report.execution_id)} · 计划 {formatTraceReference(props.report.plan.plan_id)}</small></p> : null}
+      <footer><button type="button" data-ui-kind="button" data-control-variant="primary" disabled={!selectedSlot || props.isPublishing || !props.onPublish} onClick={() => selectedSlot && props.onPublish?.(selectedSlot.index)}>{props.isPublishing ? "保存中" : selectedSlot?.item_count ? "确认覆盖并保存" : "保存到槽位"}</button></footer>
     </div>
   );
 }
@@ -1559,7 +2057,7 @@ function LocalPlanPublishPanel(props: {
 function formatPublishReportMessage(
   report: NonNullable<LoadoutsPageContentViewProps["localPlanPublishReport"]>
 ): string {
-  if (!report.preflight_verified) return report.error ?? "发布前账号或槽位复核未通过，未执行写入。";
+  if (!report.preflight_verified) return report.error ?? "保存前账号或槽位复核未通过，未执行写入。";
   if (report.verification_status === "verified") {
     return report.verification_logged === false
       ? "槽位保存后刷新核对通过，但验证记录未写入操作日志。"
@@ -1587,8 +2085,8 @@ function LocalPlanSummary(props: LoadoutsPageContentViewProps) {
       <div className="loadout-column-head"><div><strong>方案摘要</strong><small>基于当前账号快照</small></div></div>
       <section className="loadout-local-summary-status" data-status={props.localPlanEditingId ? "neutral" : "warning"}>
         <span>当前状态</span>
-        <strong>{props.localPlanEditingId ? "已保存方案编辑中" : "尚未保存到本机"}</strong>
-        <p>{props.localPlanEditingId ? "再次保存后，当前修改才会更新本机方案。" : "保存本地方案后才能稳定生成并执行后续计划。"}</p>
+        <strong>{props.localPlanEditingId ? "已保存应用配装编辑中" : "尚未保存到应用"}</strong>
+        <p>{props.localPlanEditingId ? "再次保存后，当前修改才会更新应用配装。" : "保存应用配装后才能稳定生成并执行后续计划。"}</p>
       </section>
       <dl className="loadout-ledger">
         <div><dt>已选实例</dt><dd><b>{summary?.selected_count ?? 0}</b><small>已绑定真实账号实例</small></dd></div>
@@ -1616,7 +2114,7 @@ function LocalPlanSummary(props: LoadoutsPageContentViewProps) {
           {sourceTraceMessage ? <p data-status="warning">{sourceTraceMessage}</p> : null}
         </section>
       ) : null}
-      <p className="loadout-guidance">本地保存不会写入 Bungie。应用前会按真实实例生成计划；DIM 和攻略只会预填草稿，仍需显式保存。</p>
+      <p className="loadout-guidance">应用内保存不会写入 Bungie。穿戴前会按真实实例生成计划；DIM 和攻略只会预填草稿，仍需显式保存。</p>
     </>
   );
 }
@@ -1625,11 +2123,11 @@ function ArmorResultTraceNotice(props: LoadoutsPageContentViewProps) {
   const trace = props.armorResultTraceRequest;
   if (!trace) return null;
   return (
-    <section className="loadout-capability-notice loadout-result-trace" data-ui-kind="callout" data-status="neutral" aria-label="Armor Planner 结果引用">
+    <section className="loadout-capability-notice loadout-result-trace" data-ui-kind="callout" data-status="neutral" aria-label="自动配甲结果引用">
       <div>
-        <strong>Armor Planner 结果引用</strong>
+        <strong>自动配甲结果引用</strong>
         <p title={trace.resultId}>结果 {formatArmorResultReference(trace.resultId)} · 候选 {trace.candidateId}</p>
-        <small>完整求解结果不会持久化。请在相关本地方案中按当前账号和规则重新计算；这个引用用于核对目标来源，不会恢复过期结果。</small>
+        <small>完整求解结果不会持久化。请在相关应用配装中按当前账号和规则重新计算；这个引用用于核对目标来源，不会恢复过期结果。</small>
       </div>
       {props.actions.dismissArmorResultTrace ? <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={props.actions.dismissArmorResultTrace}>关闭</button> : null}
     </section>

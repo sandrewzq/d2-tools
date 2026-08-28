@@ -55,10 +55,22 @@ import {
   type WeaponDetailViewModel
 } from "@d2-tools/app/items";
 import {
+  consumeApplicationLoadoutFocusRequest,
   createEmptyLocalLoadoutPlanDraft,
+  createApplicationLoadoutNavigationState,
   createLocalLoadoutPlanDraftFromCharacter,
+  createLocalLoadoutPlanDraftFromInGameLoadout,
+  getActiveApplicationLoadoutScreen,
+  popApplicationLoadoutScreen,
+  pushApplicationLoadoutScreen,
+  replaceApplicationLoadoutScreen,
+  selectApplicationLoadoutCompareViewModel,
+  selectApplicationLoadoutLibraryViewModel,
   selectLocalLoadoutPlanWorkbench,
-  toLocalLoadoutPlanDraft
+  toLocalLoadoutPlanDraft,
+  type ApplicationLoadoutNavigationState,
+  type ApplicationLoadoutInGameReference,
+  type ApplicationLoadoutScreen
 } from "@d2-tools/app/loadouts";
 import type { CreateLocalLoadoutPlanInput, LocalLoadoutPlan } from "@d2-tools/core/loadouts/plans";
 import { createDimLoadoutExport } from "@d2-tools/core/loadouts/dimImport";
@@ -93,11 +105,19 @@ function WebApp() {
   const [compareTemplateId, setCompareTemplateId] = useState(fixture.loadoutTemplates[1]?.id ?? "");
   const [renameDraft, setRenameDraft] = useState(fixture.loadoutTemplates[0]?.name ?? "");
   const [showDiffOnly, setShowDiffOnly] = useState(false);
-  const [localPlans, setLocalPlans] = useState<LocalLoadoutPlan[]>([]);
-  const [selectedLocalPlanId, setSelectedLocalPlanId] = useState("");
+  const [localPlans, setLocalPlans] = useState<LocalLoadoutPlan[]>(() => fixture.applicationLoadoutPlans);
+  const [selectedLocalPlanId, setSelectedLocalPlanId] = useState(fixture.applicationLoadoutPlans[0]?.id ?? "");
   const [localPlanEditingId, setLocalPlanEditingId] = useState<string | null>(null);
   const [localPlanDraft, setLocalPlanDraft] = useState<CreateLocalLoadoutPlanInput | null>(null);
   const [localPlanDimExportFeedback, setLocalPlanDimExportFeedback] = useState("");
+  const [applicationLoadoutNavigation, setApplicationLoadoutNavigation] = useState<ApplicationLoadoutNavigationState>(() => (
+    createApplicationLoadoutNavigationState(fixture.applicationLoadoutPlans[0]?.id
+      ? { selected_plan_id: fixture.applicationLoadoutPlans[0].id }
+      : undefined)
+  ));
+  const [applicationLoadoutCompareIds, setApplicationLoadoutCompareIds] = useState<string[]>([]);
+  const [applicationLoadoutInGameReference, setApplicationLoadoutInGameReference] = useState<ApplicationLoadoutInGameReference | null>(null);
+  const [applicationLoadoutShowDiffOnly, setApplicationLoadoutShowDiffOnly] = useState(false);
   const [guideDocuments, setGuideDocuments] = useState<GuideDocument[]>([]);
   const [guideExtractions, setGuideExtractions] = useState<GuideExtraction[]>([]);
   const [guideExtractionPreview, setGuideExtractionPreview] = useState<GuideExtraction | null>(null);
@@ -183,6 +203,23 @@ function WebApp() {
     plans: localPlans,
     selectedPlanId: selectedLocalPlanId
   }), [fixture.accountSummary, localPlans, selectedLocalPlanId]);
+  const applicationLoadoutLibrary = useMemo(() => selectApplicationLoadoutLibraryViewModel({
+    account_summary: fixture.accountSummary,
+    plans: localPlans,
+    selected_plan_id: selectedLocalPlanId
+  }), [fixture.accountSummary, localPlans, selectedLocalPlanId]);
+  const applicationLoadoutCompare = useMemo(() => selectApplicationLoadoutCompareViewModel({
+    plans: localPlans,
+    plan_ids: applicationLoadoutCompareIds,
+    in_game_reference: applicationLoadoutInGameReference,
+    showDiffOnly: applicationLoadoutShowDiffOnly
+  }), [applicationLoadoutCompareIds, applicationLoadoutInGameReference, applicationLoadoutShowDiffOnly, localPlans]);
+  const localPlanIsDirty = useMemo(() => {
+    if (!localPlanDraft) return false;
+    if (!localPlanEditingId) return true;
+    const savedPlan = localPlans.find((plan) => plan.id === localPlanEditingId);
+    return !savedPlan || JSON.stringify(localPlanDraft) !== JSON.stringify(toLocalLoadoutPlanDraft(savedPlan));
+  }, [localPlanDraft, localPlanEditingId, localPlans]);
   const localPlanDimExport = useMemo(() => localPlanDraft
     ? createDimLoadoutExport({ plan: localPlanDraft, account: fixture.accountSummary })
     : null, [fixture.accountSummary, localPlanDraft]);
@@ -201,6 +238,17 @@ function WebApp() {
     setLocalPlanDimExportFeedback("");
   }, [localPlanDimExport]);
 
+  useEffect(() => {
+    setApplicationLoadoutNavigation((current) => {
+      const screen = getActiveApplicationLoadoutScreen(current);
+      if (screen.kind !== "library" || screen.selected_plan_id === selectedLocalPlanId) return current;
+      return replaceApplicationLoadoutScreen(current, {
+        kind: "library",
+        ...(selectedLocalPlanId ? { selected_plan_id: selectedLocalPlanId } : {})
+      }).state;
+    });
+  }, [selectedLocalPlanId]);
+
   async function copyLocalPlanDimLink() {
     if (!localPlanDimExport || localPlanDimExport.status !== "ready") return;
     try {
@@ -212,6 +260,14 @@ function WebApp() {
   }
 
   function selectLocalPlan(id: string) {
+    const plan = localPlans.find((candidate) => candidate.id === id);
+    if (!plan) return;
+    setSelectedLocalPlanId(plan.id);
+    setLocalPlanEditingId(null);
+    setLocalPlanDraft(null);
+  }
+
+  function editLocalPlan(id: string) {
     const plan = localPlans.find((candidate) => candidate.id === id);
     if (!plan) return;
     setSelectedLocalPlanId(plan.id);
@@ -557,6 +613,7 @@ function WebApp() {
                 deleteTemplate: () => undefined,
                 createLocalPlanFromCharacter: () => undefined,
                 selectLocalPlan,
+                editLocalPlan,
                 startNewLocalPlan: (character) => {
                   if (!character) return;
                   setSelectedLocalPlanId("");
@@ -572,7 +629,15 @@ function WebApp() {
                   setLocalPlanEditingId(null);
                   setLocalPlanDraft(createLocalLoadoutPlanDraftFromCharacter(character));
                 },
-                startLocalPlanFromInGameLoadout: () => undefined,
+                startLocalPlanFromInGameLoadout: (character, slot) => {
+                  setSelectedLocalPlanId("");
+                  setLocalPlanEditingId(null);
+                  setLocalPlanDraft(createLocalLoadoutPlanDraftFromInGameLoadout({
+                    accountSummary: fixture.accountSummary,
+                    character,
+                    slot
+                  }));
+                },
                 localPlanDraftChange: (draft) => setLocalPlanDraft(draft),
                 saveLocalPlan,
                 closeLocalPlanEditor: () => {
@@ -594,6 +659,57 @@ function WebApp() {
                 acceptAssistantEquipmentTargets: () => false,
                 acceptGuideLoadoutCandidates: () => false,
                 dismissAssistantPrefill: () => undefined,
+                pushApplicationLoadoutScreen: (screen: ApplicationLoadoutScreen) => {
+                  setApplicationLoadoutNavigation((current) => pushApplicationLoadoutScreen(current, screen).state);
+                },
+                replaceApplicationLoadoutScreen: (screen: ApplicationLoadoutScreen) => {
+                  setApplicationLoadoutNavigation((current) => replaceApplicationLoadoutScreen(current, screen).state);
+                },
+                popApplicationLoadoutScreen: () => {
+                  setApplicationLoadoutNavigation((current) => popApplicationLoadoutScreen(current).state);
+                },
+                consumeApplicationLoadoutFocusRequest: () => {
+                  setApplicationLoadoutNavigation((current) => consumeApplicationLoadoutFocusRequest(current).state);
+                },
+                toggleApplicationLoadoutCompare: (planId: string) => {
+                  const next = applicationLoadoutCompareIds.includes(planId)
+                    ? applicationLoadoutCompareIds.filter((id) => id !== planId)
+                    : applicationLoadoutCompareIds.length < 3
+                      ? [...applicationLoadoutCompareIds, planId]
+                      : applicationLoadoutCompareIds;
+                  setApplicationLoadoutCompareIds(next);
+                  setApplicationLoadoutNavigation((navigation) => {
+                    const screen = getActiveApplicationLoadoutScreen(navigation);
+                    if (screen.kind !== "compare") return navigation;
+                    return replaceApplicationLoadoutScreen(navigation, {
+                      ...screen,
+                      plan_ids: next,
+                      show_diff_only: applicationLoadoutShowDiffOnly
+                    }).state;
+                  });
+                },
+                applicationLoadoutInGameReferenceChange: (reference: ApplicationLoadoutInGameReference | null) => {
+                  setApplicationLoadoutInGameReference(reference);
+                  setApplicationLoadoutNavigation((navigation) => {
+                    const screen = getActiveApplicationLoadoutScreen(navigation);
+                    if (screen.kind !== "compare") return navigation;
+                    return replaceApplicationLoadoutScreen(navigation, {
+                      kind: "compare",
+                      plan_ids: screen.plan_ids,
+                      show_diff_only: screen.show_diff_only,
+                      ...(screen.return_focus_id ? { return_focus_id: screen.return_focus_id } : {}),
+                      ...(reference ? { in_game_reference_id: `in-game:${reference.character.character_id}:${reference.slot.index}` } : {})
+                    }).state;
+                  });
+                },
+                applicationLoadoutShowDiffOnlyChange: (value: boolean) => {
+                  setApplicationLoadoutShowDiffOnly(value);
+                  setApplicationLoadoutNavigation((navigation) => {
+                    const screen = getActiveApplicationLoadoutScreen(navigation);
+                    if (screen.kind !== "compare") return navigation;
+                    return replaceApplicationLoadoutScreen(navigation, { ...screen, show_diff_only: value }).state;
+                  });
+                },
                 createTransferPlan: () => undefined,
                 copyMissingItems: () => undefined,
                 executeMissingTransfer: () => undefined,
@@ -612,7 +728,11 @@ function WebApp() {
               isRunningItemAction={false}
               actionFeedback={{}}
               localPlanWorkspace={localPlanWorkspace}
+              applicationLoadoutNavigation={applicationLoadoutNavigation}
+              applicationLoadoutLibrary={applicationLoadoutLibrary}
+              applicationLoadoutCompare={applicationLoadoutCompare}
               localPlanDraft={localPlanDraft}
+              localPlanIsDirty={localPlanIsDirty}
               localPlanEditingId={localPlanEditingId}
               localPlanIsSaving={false}
               localPlanError=""
@@ -626,6 +746,10 @@ function WebApp() {
               localPlanIsImportingGuide={false}
               localPlanLegacyGuideText=""
               localPlanAssistantPrefill={null}
+              accountDataStatus={fixture.accountDataResource.status}
+              accountDataSource={fixture.accountDataResource.source}
+              accountDataFetchedAt={fixture.accountDataResource.fetchedAt}
+              accountDataError={fixture.accountDataResource.error?.message}
             />
           ) : null}
           {activePage === "guides" ? (

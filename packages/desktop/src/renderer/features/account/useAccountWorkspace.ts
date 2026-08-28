@@ -7,6 +7,7 @@ import { createEmptyEquipmentTargetStore } from "@d2-tools/core/targets/equipmen
 import { services } from "../../api/services";
 import {
   applyAccountEntityPatches,
+  applyPendingAccountEntityPatches,
   getAccountSummarySnapshot,
   replaceAccountSummary,
   useAccountSummaryStore
@@ -87,6 +88,10 @@ export function useAccountWorkspace(input: {
 
   function applyAccountActionPatches(patches: readonly AccountItemActionPatch[]) {
     applyAccountEntityPatches(patches);
+  }
+
+  function applyPendingAccountActionPatches(patches: readonly AccountItemActionPatch[]) {
+    applyPendingAccountEntityPatches(patches);
   }
 
   async function loginBungie() {
@@ -291,6 +296,7 @@ export function useAccountWorkspace(input: {
     accountSummary,
     setAccountSummary: setAccountSummaryState,
     applyAccountActionPatches,
+    applyPendingAccountActionPatches,
     vaultTags,
     setVaultTags,
     localTargetRules,
