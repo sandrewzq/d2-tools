@@ -4,7 +4,12 @@ export type AccountItemPatch =
   | { kind: "lock"; item_instance_id: string; locked: boolean }
   | { kind: "equip"; item_instance_id: string; character_id: string }
   | { kind: "transfer"; item_instance_id: string; character_id: string; target: "vault" | "character-inventory" }
-  | { kind: "postmaster-pull"; item_instance_id: string; character_id: string };
+  | {
+      kind: "postmaster-pull";
+      item_instance_id: string;
+      character_id: string;
+      source_bucket_hash?: number;
+    };
 
 export function applyAccountItemPatch(snapshot: AccountSnapshot, patch: AccountItemPatch): AccountSnapshot {
   const next = cloneSnapshotCollections(snapshot);

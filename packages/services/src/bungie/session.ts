@@ -390,6 +390,8 @@ class RequestBroker {
     options: BungieRequestOptions = {}
   ): Promise<T> {
     if (options.forceRefresh) {
+      const existing = this.entries.get(key) as CacheEntry<T> | undefined;
+      if (existing?.inFlight) return existing.inFlight;
       this.entries.delete(key);
       return this.refresh(key, {
         freshUntil: 0,

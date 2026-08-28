@@ -57,7 +57,7 @@ export type AccountSession = {
     options?: { freshness?: AccountSnapshotFreshness }
   ): Promise<AccountItemDetailResult>;
   invalidate(input: AccountInvalidation): void;
-  patch(input: AccountItemPatch): void;
+  patch(input: AccountItemPatch, options?: { revalidate?: boolean; preserve?: boolean }): void;
 };
 
 export type CreateAccountSessionOptions = {
@@ -110,7 +110,6 @@ type ItemDetailCacheEntry = {
 };
 
 type SnapshotRequest = {
-  forceRefresh: boolean;
   authoritative: boolean;
   promise: Promise<AccountSnapshot>;
 };
@@ -326,17 +325,26 @@ export function createAccountSession(options: CreateAccountSessionOptions): Acco
       void deletePersistentItemDetail(input.instance_id).catch(() => undefined);
     },
 
-    patch(input) {
+    patch(input, patchOptions = {}) {
       if (snapshot) {
-        snapshot = applyAccountItemPatch(snapshot, input);
-        pendingItemPatches.set(input.item_instance_id, input);
-        snapshotMutationRevision += 1;
-        snapshotFreshUntil = Math.max(
-          snapshotFreshUntil,
-          now() + patchRevalidateDelayMs
-        );
-        void Promise.resolve(options.onSnapshot?.(snapshot)).catch(() => undefined);
-        scheduleSnapshotRevalidate();
+        if (patchOptions.preserve === false) {
+          if (isSameAccountItemPatch(pendingItemPatches.get(input.item_instance_id), input)) {
+            pendingItemPatches.delete(input.item_instance_id);
+          }
+        } else {
+          clearConflictingPendingItemPatches(snapshot, input, pendingItemPatches);
+          snapshot = applyAccountItemPatch(snapshot, input);
+          pendingItemPatches.set(input.item_instance_id, input);
+          snapshotMutationRevision += 1;
+          snapshotFreshUntil = Math.max(
+            snapshotFreshUntil,
+            now() + patchRevalidateDelayMs
+          );
+          void Promise.resolve(options.onSnapshot?.(snapshot)).catch(() => undefined);
+          if (patchOptions.revalidate !== false) {
+            scheduleSnapshotRevalidate();
+          }
+        }
       }
       deleteItemDetail(input.item_instance_id);
       void deletePersistentItemDetail(input.item_instance_id).catch(() => undefined);
@@ -432,7 +440,7 @@ export function createAccountSession(options: CreateAccountSessionOptions): Acco
       return profileCache.profile;
     }
     if (profileInFlight?.membershipKey === membershipKey) {
-      if (!forceRefresh && isSuperset(profileInFlight.components, requestedComponents)) {
+      if (isSuperset(profileInFlight.components, requestedComponents)) {
         return profileInFlight.promise;
       }
       await profileInFlight.promise;
@@ -478,8 +486,7 @@ export function createAccountSession(options: CreateAccountSessionOptions): Acco
     authoritative = false
   ): Promise<AccountSnapshot> {
     if (snapshotInFlight) {
-      if ((!forceRefresh || snapshotInFlight.forceRefresh)
-        && (!authoritative || snapshotInFlight.authoritative)) {
+      if (!authoritative || snapshotInFlight.authoritative) {
         return snapshotInFlight.promise;
       }
       return snapshotInFlight.promise.then(
@@ -533,12 +540,12 @@ export function createAccountSession(options: CreateAccountSessionOptions): Acco
         snapshotInFlight = undefined;
       }
     });
-    snapshotInFlight = { forceRefresh, authoritative, promise };
+    snapshotInFlight = { authoritative, promise };
     return promise;
   }
 
   function scheduleSnapshotRevalidate(): void {
-    if (!snapshot) return;
+    if (!snapshot || !pendingItemPatches.size) return;
     if (patchRevalidateTimer) clearTimeout(patchRevalidateTimer);
     const scheduledRevision = snapshotMutationRevision;
     patchRevalidateTimer = setTimeout(() => {
@@ -702,6 +709,50 @@ export function createAccountSession(options: CreateAccountSessionOptions): Acco
       itemDetails.delete(oldestKey);
     }
   }
+}
+
+function clearConflictingPendingItemPatches(
+  snapshot: AccountSnapshot,
+  patch: AccountItemPatch,
+  pendingPatches: Map<string, AccountItemPatch>
+): void {
+  if (patch.kind !== "equip") return;
+  const incomingItem = findSnapshotItem(snapshot, patch.item_instance_id);
+  if (incomingItem?.bucket_hash === undefined) return;
+  for (const [instanceId, pendingPatch] of pendingPatches) {
+    if (pendingPatch.kind !== "equip" || pendingPatch.character_id !== patch.character_id) continue;
+    const pendingItem = findSnapshotItem(snapshot, instanceId);
+    if (pendingItem?.bucket_hash === incomingItem.bucket_hash) {
+      pendingPatches.delete(instanceId);
+    }
+  }
+}
+
+function findSnapshotItem(snapshot: AccountSnapshot, instanceId: string) {
+  const vaultItem = snapshot.vault.items.find((item) => item.instance_id === instanceId);
+  if (vaultItem) return vaultItem;
+  for (const character of snapshot.characters) {
+    const item = character.equipped_items.find((candidate) => candidate.instance_id === instanceId)
+      ?? character.inventory_items.find((candidate) => candidate.instance_id === instanceId)
+      ?? character.postmaster_items.find((candidate) => candidate.instance_id === instanceId);
+    if (item) return item;
+  }
+}
+
+function isSameAccountItemPatch(
+  left: AccountItemPatch | undefined,
+  right: AccountItemPatch
+): boolean {
+  if (!left || left.kind !== right.kind || left.item_instance_id !== right.item_instance_id) return false;
+  if (left.kind === "lock" && right.kind === "lock") return left.locked === right.locked;
+  if (left.kind === "equip" && right.kind === "equip") return left.character_id === right.character_id;
+  if (left.kind === "postmaster-pull" && right.kind === "postmaster-pull") {
+    return left.character_id === right.character_id
+      && left.source_bucket_hash === right.source_bucket_hash;
+  }
+  return left.kind === "transfer" && right.kind === "transfer"
+    && left.character_id === right.character_id
+    && left.target === right.target;
 }
 
 function collectAccountSnapshotDefinitionRequest(

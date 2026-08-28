@@ -1,4 +1,6 @@
 import type {
+  AccountItemActionPatch,
+  AccountItemDetail,
   AccountSummary,
   ItemActionPlanInput,
   ItemActionResult
@@ -14,7 +16,18 @@ export type ItemDetailActionsProps = {
   selectedActionCharacterId: string;
   selectedItem: SelectedItemDetail;
   onCopyItemActionPlanText: (input: ItemActionPlanInput) => void;
-  onRunItemWriteAction: (label: string, action: () => Promise<ItemActionResult>) => void;
+  onRunItemWriteAction: (
+    label: string,
+    action: () => Promise<ItemActionResult>,
+    options?: {
+      keepDetailOpen?: boolean;
+      feedbackScope?: "global" | "detail";
+      onProgress?: (phase: "submitting" | "refreshing", message: string) => void;
+      verifyRefreshedItem?: (detail: AccountItemDetail) => boolean;
+      refreshMismatchMessage?: string;
+      expectedAccountPatch?: AccountItemActionPatch;
+    }
+  ) => Promise<{ ok: boolean; refreshed: boolean; message: string; cancelled?: boolean }>;
   onSelectedActionCharacterIdChange: (id: string) => void;
 };
 
@@ -38,7 +51,7 @@ export function ItemDetailActions(props: ItemDetailActionsProps) {
     <section className="item-action-panel">
       <div>
         <h3>装备操作</h3>
-        <p>默认关闭。开启后每次操作都会再次确认，并写入本地日志。</p>
+        <p>Bungie 返回成功后页面立即更新，账号资料在后台自动对账。</p>
       </div>
       {props.accountSummary?.characters.length ? (
         <label className="compact-field">
@@ -61,7 +74,7 @@ export function ItemDetailActions(props: ItemDetailActionsProps) {
           data-ui-kind="button" data-control-variant="secondary"
           disabled={props.isRunningItemAction || selectedItem.locked === undefined}
           hidden={isPostmasterItem}
-          onClick={() => props.onRunItemWriteAction(
+          onClick={() => void props.onRunItemWriteAction(
             selectedItem.locked ? "解锁" : "锁定",
             () => api.setItemLockState({
               membership_type: props.accountSummary?.membership_type ?? 0,
@@ -69,7 +82,14 @@ export function ItemDetailActions(props: ItemDetailActionsProps) {
               item_id: selectedItem.instance_id ?? "",
               item_name: selectedItem.name,
               state: !selectedItem.locked
-            })
+            }),
+            {
+              expectedAccountPatch: {
+                kind: "lock",
+                item_instance_id: selectedItem.instance_id ?? "",
+                locked: !selectedItem.locked
+              }
+            }
           )}
         >
           {selectedItem.locked === undefined ? "锁定状态未知" : selectedItem.locked ? "解锁" : "锁定"}
@@ -79,14 +99,21 @@ export function ItemDetailActions(props: ItemDetailActionsProps) {
             type="button"
             data-ui-kind="button" data-control-variant="secondary"
             disabled={props.isRunningItemAction || isAlreadyEquippedToTarget}
-            onClick={() => props.onRunItemWriteAction(
+            onClick={() => void props.onRunItemWriteAction(
               "装备到角色",
               () => api.equipItem({
                 membership_type: props.accountSummary?.membership_type ?? 0,
                 character_id: props.selectedActionCharacterId,
                 item_id: selectedItem.instance_id ?? "",
                 item_name: selectedItem.name
-              })
+              }),
+              {
+                expectedAccountPatch: {
+                  kind: "equip",
+                  item_instance_id: selectedItem.instance_id ?? "",
+                  character_id: props.selectedActionCharacterId
+                }
+              }
             )}
           >
             {isAlreadyEquippedToTarget ? "已装备到角色" : "装备到角色"}
@@ -115,7 +142,7 @@ export function ItemDetailActions(props: ItemDetailActionsProps) {
               type="button"
               data-ui-kind="button" data-control-variant="secondary"
               disabled={props.isRunningItemAction}
-              onClick={() => props.onRunItemWriteAction(
+              onClick={() => void props.onRunItemWriteAction(
                 isVaultItem ? "取出到角色" : "移入仓库",
                 () => api.transferItem({
                   membership_type: props.accountSummary?.membership_type ?? 0,
@@ -129,7 +156,20 @@ export function ItemDetailActions(props: ItemDetailActionsProps) {
                   item_reference_hash: selectedItem.hash,
                   item_name: selectedItem.name,
                   transfer_to_vault: !isVaultItem
-                })
+                }),
+                {
+                  expectedAccountPatch: {
+                    kind: "transfer",
+                    item_instance_id: selectedItem.instance_id ?? "",
+                    character_id: resolveItemTransferCharacterId({
+                      selectedCharacterId: props.selectedActionCharacterId,
+                      sourceCharacterId,
+                      sourceKind,
+                      transferToVault: !isVaultItem
+                    }),
+                    target: isVaultItem ? "character-inventory" : "vault"
+                  }
+                }
               )}
             >
               {isVaultItem ? "取出到角色" : "移入仓库"}
@@ -141,15 +181,24 @@ export function ItemDetailActions(props: ItemDetailActionsProps) {
             type="button"
             data-ui-kind="button" data-control-variant="secondary"
             disabled={props.isRunningItemAction}
-            onClick={() => props.onRunItemWriteAction(
+            onClick={() => void props.onRunItemWriteAction(
               "从邮政官取回",
               () => api.pullFromPostmaster({
                 membership_type: props.accountSummary?.membership_type ?? 0,
                 character_id: sourceCharacterId ?? props.selectedActionCharacterId,
                 item_id: selectedItem.instance_id ?? "",
                 item_reference_hash: selectedItem.hash,
+                source_bucket_hash: selectedItem.bucket_hash,
                 item_name: selectedItem.name
-              })
+              }),
+              {
+                expectedAccountPatch: {
+                  kind: "postmaster-pull",
+                  item_instance_id: selectedItem.instance_id ?? "",
+                  character_id: sourceCharacterId ?? props.selectedActionCharacterId,
+                  source_bucket_hash: selectedItem.bucket_hash
+                }
+              }
             )}
           >
             取回到角色背包

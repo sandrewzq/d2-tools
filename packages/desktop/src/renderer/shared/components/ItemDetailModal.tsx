@@ -12,6 +12,7 @@ import type {
   VaultTagValue,
   WeaponRecommendation
 } from "../../api/types";
+import type { AccountOperationFeedbackView } from "@d2-tools/app/account";
 import type { ItemSearchResult } from "../../api/types";
 import type { LiveItemAvailabilityEntry } from "@d2-tools/core/items/liveAvailability";
 import type {
@@ -40,6 +41,7 @@ import { resolveAccountItemViewLocation } from "../domain/account/itemActionStat
 
 export type ItemDetailModalProps = {
   accountSummary: AccountSummary | null;
+  accountOperationFeedback?: AccountOperationFeedbackView;
   aiSettingsEnableLightgg: boolean;
   communityRecommendations: WeaponRecommendation | null;
   communityRecommendationError: string;
@@ -254,7 +256,7 @@ export function ItemDetailModal(props: ItemDetailModalProps) {
                   feedbackScope: "detail",
                   onProgress: (phase, message) => setPerkWriteFeedback({ status: phase, message }),
                   verifyRefreshedItem: (detail) => hasAppliedPerkChanges(detail, changes),
-                  refreshMismatchMessage: "Perk 已写入，但连续自动读取后 Bungie 仍返回旧配置。请稍后重新读取确认。"
+                  refreshMismatchMessage: "Perk 更改请求已受理，但连续自动读取后 Bungie 仍返回旧配置，当前配置尚未确认。请稍后重新读取。"
                 });
                 if (outcome.cancelled) {
                   setPerkWriteFeedback({ status: "idle" });
@@ -407,13 +409,33 @@ function ItemDetailInstanceActions(input: {
 }) {
   const { props, selectedItem } = input;
   const [actionFeedback, setActionFeedback] = useState<{
-    status: "idle" | "submitting" | "refreshing" | "success" | "error";
+    status: "idle" | "submitting" | "refreshing" | "syncing" | "success" | "error";
     message?: string;
   }>({ status: "idle" });
 
   useEffect(() => {
     setActionFeedback({ status: "idle" });
   }, [selectedItem.item_key]);
+
+  useEffect(() => {
+    const feedback = props.accountOperationFeedback;
+    if (!selectedItem.instance_id || !feedback?.itemInstanceIds?.includes(selectedItem.instance_id)) return;
+    if (feedback.phase === "confirmed" || feedback.phase === "partial-confirmed") {
+      setActionFeedback({ status: "success", message: feedback.message });
+      return;
+    }
+    if (feedback.phase === "failed" || feedback.phase === "paused" || feedback.phase === "superseded") {
+      setActionFeedback({ status: "error", message: feedback.message });
+      return;
+    }
+    if (feedback.phase === "submitting") {
+      setActionFeedback({ status: "submitting", message: feedback.message });
+      return;
+    }
+    if (feedback.phase === "syncing" || feedback.phase === "delayed" || feedback.phase === "partial") {
+      setActionFeedback({ status: "syncing", message: feedback.message });
+    }
+  }, [props.accountOperationFeedback, selectedItem.instance_id]);
 
   const runDetailAction = async (
     label: string,
@@ -433,7 +455,7 @@ function ItemDetailInstanceActions(input: {
         return;
       }
       setActionFeedback({
-        status: outcome.ok && outcome.refreshed ? "success" : "error",
+        status: outcome.ok ? outcome.refreshed ? "success" : "syncing" : "error",
         message: outcome.message
       });
     } catch (error) {
@@ -454,6 +476,17 @@ function ItemDetailInstanceActions(input: {
   const isVaultItem = sourceKind === "vault" || (!liveLocation && Boolean(selectedItem.is_vault_item));
   const isPostmasterItem = sourceKind === "postmaster" || (!liveLocation && Boolean(selectedItem.is_postmaster_item));
   const sourceCharacter = characters.find((character) => character.character_id === sourceCharacterId);
+  const liveAccountItem = props.accountSummary
+    ? [
+        ...props.accountSummary.vault.items,
+        ...props.accountSummary.characters.flatMap((character) => [
+          ...character.equipped_items,
+          ...character.inventory_items,
+          ...character.postmaster_items
+        ])
+      ].find((item) => item.instance_id === selectedItem.instance_id)
+    : undefined;
+  const effectiveLocked = liveAccountItem?.locked ?? selectedItem.locked;
   const localEntry = props.vaultTags.items[selectedItem.item_key]
     ?? (selectedItem.instance_id ? props.vaultTags.items[selectedItem.instance_id] : undefined);
   const currentTag = localEntry?.tag;
@@ -507,11 +540,13 @@ function ItemDetailInstanceActions(input: {
           character_id: sourceCharacterId ?? props.selectedActionCharacterId,
           item_id: selectedItem.instance_id ?? "",
           item_reference_hash: selectedItem.hash,
+          source_bucket_hash: selectedItem.bucket_hash,
           item_name: selectedItem.name
         }), {
           kind: "postmaster-pull",
           item_instance_id: selectedItem.instance_id ?? "",
-          character_id: sourceCharacterId ?? props.selectedActionCharacterId
+          character_id: sourceCharacterId ?? props.selectedActionCharacterId,
+          source_bucket_hash: selectedItem.bucket_hash
         })
       }]
     : [
@@ -557,22 +592,22 @@ function ItemDetailInstanceActions(input: {
             }]),
         {
           key: "lock",
-          label: selectedItem.locked === undefined
+          label: effectiveLocked === undefined
             ? "锁定状态未知"
-            : selectedItem.locked
+            : effectiveLocked
               ? "解锁"
               : "锁定",
-          disabled: selectedItem.locked === undefined,
-          onClick: () => void runDetailAction(selectedItem.locked ? "解锁" : "锁定", () => api.setItemLockState({
+          disabled: effectiveLocked === undefined,
+          onClick: () => void runDetailAction(effectiveLocked ? "解锁" : "锁定", () => api.setItemLockState({
             membership_type: props.accountSummary?.membership_type ?? 0,
             character_id: props.selectedActionCharacterId,
             item_id: selectedItem.instance_id ?? "",
             item_name: selectedItem.name,
-            state: !selectedItem.locked
+            state: !effectiveLocked
           }), {
             kind: "lock",
             item_instance_id: selectedItem.instance_id ?? "",
-            locked: !selectedItem.locked
+            locked: !effectiveLocked
           })
         }
       ];
@@ -599,9 +634,9 @@ function ItemDetailInstanceActions(input: {
       subtitle={`${locationLabel} · ${selectedItem.power ?? "-"} 光等`}
       statusLabels={[
         sourceKind === "equipped" ? "已装备" : "未装备",
-        selectedItem.locked === undefined
+        effectiveLocked === undefined
           ? "锁定状态未知"
-          : selectedItem.locked
+          : effectiveLocked
             ? "已锁定"
             : "未锁定",
         currentTag ? formatVaultTagLabel(currentTag) : "未标记"
@@ -644,6 +679,8 @@ function ItemDetailInstanceActions(input: {
               ? "正在提交装备操作"
               : actionFeedback.status === "refreshing"
                 ? "Bungie 已受理，正在确认"
+                : actionFeedback.status === "syncing"
+                  ? "请求成功，后台确认中"
                 : actionFeedback.status === "success"
                   ? "游戏内状态已更新"
                   : "操作未完成"}</strong>

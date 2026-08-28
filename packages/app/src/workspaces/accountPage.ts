@@ -71,7 +71,7 @@ export type AccountConnectionView = {
 export type AccountOperationFeedbackView = {
   tone: "neutral" | "pending" | "success" | "warning" | "error";
   message: string;
-  phase?: "submitting" | "syncing" | "confirmed" | "partial" | "failed" | "delayed" | "paused";
+  phase?: "submitting" | "syncing" | "confirmed" | "partial" | "partial-confirmed" | "failed" | "delayed" | "paused" | "superseded";
   itemInstanceIds?: string[];
 };
 
@@ -385,7 +385,12 @@ export function selectAccountPageModel(input: AccountPageModelInput): AccountPag
   const selectedCharacterPower = workspace.characterTabs.find((tab) => tab.key === selectedCharacterId)?.power;
   const openingItemKey = pageState.openingItemKey ?? "";
   const isLoadoutMatch = pageState.isLoadoutMatch ?? (() => false);
-  const syncingItemIds = new Set(pageState.operationFeedback?.itemInstanceIds ?? []);
+  const syncingItemIds = new Set(
+    pageState.operationFeedback
+    && ["syncing", "delayed", "partial"].includes(pageState.operationFeedback.phase ?? "")
+      ? pageState.operationFeedback.itemInstanceIds ?? []
+      : []
+  );
   const configuration = buildAccountConfigurationSection(selectedCharacter);
   const tasks = buildAccountTasksSection(selectedCharacter);
   const items = buildAccountItemsSection(selectedCharacter, workspace.materialRows.length);
@@ -487,6 +492,7 @@ export function selectAccountPageModel(input: AccountPageModelInput): AccountPag
           sourceCharacterId: selectedCharacter.character_id,
           openingItemKey,
           isLoadoutMatch,
+          syncingItemIds,
           isPostmasterItem: true
         }))
         : [],

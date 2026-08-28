@@ -2,6 +2,8 @@ import { evaluateWishlistRoll } from "@d2-tools/core/analysis/wishlist";
 import { evaluateLocalTargets } from "@d2-tools/core/analysis/targets";
 import { evaluateEquipmentTargets } from "@d2-tools/core/targets/equipmentTargets";
 import type {
+  AccountItemActionPatch,
+  AccountItemDetail,
   AccountSummary,
   DimWishlist,
   EquipmentTargetStore,
@@ -68,7 +70,18 @@ export type ItemDetailToolsProps = {
   onGenerateItemAiAdvice: () => void;
   onOpenBestSameNameItem: (items: SameNameItemSummary[]) => void;
   onOpenItemDetail: (item: SameNameItemSummary, source: SelectedItemSource) => void;
-  onRunItemWriteAction: (label: string, action: () => Promise<ItemActionResult>) => void;
+  onRunItemWriteAction: (
+    label: string,
+    action: () => Promise<ItemActionResult>,
+    options?: {
+      keepDetailOpen?: boolean;
+      feedbackScope?: "global" | "detail";
+      onProgress?: (phase: "submitting" | "refreshing", message: string) => void;
+      verifyRefreshedItem?: (detail: AccountItemDetail) => boolean;
+      refreshMismatchMessage?: string;
+      expectedAccountPatch?: AccountItemActionPatch;
+    }
+  ) => Promise<{ ok: boolean; refreshed: boolean; message: string; cancelled?: boolean }>;
   onSaveSelectedItemNote: () => void;
   onSaveSelectedItemTag: (tag: VaultTagValue) => void;
   onSelectedActionCharacterIdChange: (id: string) => void;

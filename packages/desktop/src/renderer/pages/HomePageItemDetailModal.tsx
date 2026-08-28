@@ -1,3 +1,4 @@
+import type { AccountOperationFeedbackView } from "@d2-tools/app/account";
 import type { AccountSummary, DimWishlist, EquipmentTargetStore, LocalTargetRules, VaultTags } from "../api/types";
 import type { ArmorStatSummary, WeaponStatKey, WeaponStatSummary } from "@d2-tools/core/account/summary";
 import type { ArmorStatKey } from "@d2-tools/core/loadouts/analysis";
@@ -20,6 +21,7 @@ type VendorDefinitionDetailWorkspace = ReturnType<typeof useVendorDefinitionDeta
 
 export function HomePageItemDetailModal(props: {
   accountSummary: AccountSummary | null;
+  accountOperationFeedback?: AccountOperationFeedbackView;
   aiSettingsEnableLightgg: boolean;
   importedWishlist: DimWishlist | null;
   interfaceLocale: "zh-CN" | "en-US";
@@ -231,6 +233,7 @@ export function HomePageItemDetailModal(props: {
   return itemDetail.selectedItem ? (
     <ItemDetailModal
       accountSummary={props.accountSummary}
+      accountOperationFeedback={props.accountOperationFeedback}
       aiSettingsEnableLightgg={props.aiSettingsEnableLightgg}
       communityRecommendations={itemDetail.communityRecommendations}
       communityRecommendationError={itemDetail.communityRecommendationError}

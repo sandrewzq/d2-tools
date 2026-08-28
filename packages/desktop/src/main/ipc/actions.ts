@@ -79,7 +79,7 @@ export function registerActionIpcHandlers(): void {
       itemName: input.item_name,
       itemInstanceId: input.item_id,
       characterId: input.character_id,
-      successMessage: input.state ? "装备已锁定" : "装备已解锁",
+      successMessage: input.state ? "锁定成功" : "解锁成功",
       accountPatch: {
         kind: "lock",
         item_instance_id: input.item_id,
@@ -209,7 +209,7 @@ export function registerActionIpcHandlers(): void {
       items: input.items,
       successMessage: "批量装备完成",
       runItem: async ({ config, token }, item) => {
-        equipRequest ??= equipItemsWithMissingResultRetry({ config, token, request: input });
+        equipRequest ??= equipItemsOnce({ config, token, request: input });
         const equipStatus = (await equipRequest).get(item.item_id);
         if (equipStatus === 1) return;
         if (equipStatus === undefined) {
@@ -265,11 +265,12 @@ export function registerActionIpcHandlers(): void {
       itemName: input.item_name,
       itemInstanceId: input.item_id,
       characterId: input.character_id,
-      successMessage: "已从邮政官取回到角色背包",
+      successMessage: "已从邮政官取回",
       accountPatch: {
         kind: "postmaster-pull",
         item_instance_id: input.item_id,
-        character_id: input.character_id
+        character_id: input.character_id,
+        source_bucket_hash: input.source_bucket_hash
       },
       run: async ({ config, token }) => {
         await bungiePullFromPostmaster({
@@ -291,7 +292,7 @@ export function registerActionIpcHandlers(): void {
       trace: input.trace,
       itemName: input.loadout_name,
       characterId: input.character_id,
-      successMessage: `已应用游戏内配装栏：${input.loadout_name ?? `槽位 ${input.loadout_index + 1}`}`,
+      successMessage: `游戏内配装应用请求已受理：${input.loadout_name ?? `槽位 ${input.loadout_index + 1}`}`,
       invalidateAllItemDetails: true,
       run: async ({ config, token }) => {
         await bungieEquipLoadout({
@@ -311,7 +312,7 @@ export function registerActionIpcHandlers(): void {
       trace: input.trace,
       itemName: input.loadout_name,
       characterId: input.character_id,
-      successMessage: `已用当前装备覆盖游戏内配装栏：${input.loadout_name ?? `槽位 ${input.loadout_index + 1}`}`,
+      successMessage: `覆盖游戏内配装栏请求已受理：${input.loadout_name ?? `槽位 ${input.loadout_index + 1}`}`,
       run: async ({ config, token }) => {
         await bungieSnapshotLoadout({
           config,
@@ -333,7 +334,7 @@ export function registerActionIpcHandlers(): void {
       trace: input.trace,
       itemName: input.loadout_name,
       characterId: input.character_id,
-      successMessage: `已清空游戏内配装栏：${input.loadout_name ?? `槽位 ${input.loadout_index + 1}`}`,
+      successMessage: `清空游戏内配装栏请求已受理：${input.loadout_name ?? `槽位 ${input.loadout_index + 1}`}`,
       invalidateAllItemDetails: true,
       run: async ({ config, token }) => {
         await bungieClearLoadout({
@@ -353,7 +354,7 @@ export function registerActionIpcHandlers(): void {
       trace: input.trace,
       itemName: input.loadout_name,
       characterId: input.character_id,
-      successMessage: `已更新游戏内配装标识：${input.loadout_name ?? `槽位 ${input.loadout_index + 1}`}`,
+      successMessage: `游戏内配装标识更新请求已受理：${input.loadout_name ?? `槽位 ${input.loadout_index + 1}`}`,
       run: async ({ config, token }) => {
         await bungieUpdateLoadoutIdentifiers({
           config,
@@ -607,11 +608,8 @@ async function performWriteAction(input: WriteActionRunInput): Promise<ItemActio
     } else if (input.itemInstanceId) {
       await invalidateAccountItemDetails([input.itemInstanceId]);
     }
-    let appliedAccountPatch: AccountItemActionPatch | undefined;
     if (input.accountPatch) {
-      const applied = await patchAccountSession(input.accountPatch)
-        .then(() => true, () => false);
-      if (applied) appliedAccountPatch = input.accountPatch;
+      await patchAccountSession(input.accountPatch, { revalidate: false });
     }
     postprocessDurationMs = performance.now() - postprocessStartedAt;
     const durationMs = performance.now() - startedAt;
@@ -646,7 +644,7 @@ async function performWriteAction(input: WriteActionRunInput): Promise<ItemActio
     return {
       ok: true,
       message: input.successMessage,
-      ...(appliedAccountPatch ? { account_patch: appliedAccountPatch } : {}),
+      ...(input.accountPatch ? { account_patch: input.accountPatch } : {}),
       diagnostics: {
         operation_id: operationId,
         duration_ms: durationMs,
@@ -807,9 +805,8 @@ async function performBatchWriteActions<T>(
       if (itemInstanceId) await invalidateAccountItemDetails([itemInstanceId]);
       const accountPatch = input.getAccountPatch?.(item);
       if (accountPatch) {
-        const applied = await patchAccountSession(accountPatch)
-          .then(() => true, () => false);
-        if (applied) accountPatches.push(accountPatch);
+        accountPatches.push(accountPatch);
+        await patchAccountSession(accountPatch, { revalidate: false });
       }
       appendActionLog(config.data.data_dir, {
         ...input.getTrace?.(item),
@@ -872,86 +869,71 @@ async function performBatchWriteActions<T>(
   };
 }
 
-async function equipItemsWithMissingResultRetry(input: {
+async function equipItemsOnce(input: {
   config: D2Config;
   token: FreshOAuthToken;
   request: BatchEquipItemsInput;
 }): Promise<Map<string, number>> {
-  const pendingItemIds = new Set(input.request.items.map((item) => item.item_id));
-  const statuses = new Map<string, number>();
-  const equipSequenceStartedAt = performance.now();
   const operationId = input.request.items
     .map((item) => item.trace?.operation_id)
     .find((value): value is string => Boolean(value))
     ?? randomUUID();
-
-  const retryWaits = [0, 750, 2_000] as const;
-  for (const [attemptIndex, waitMs] of retryWaits.entries()) {
-    if (!pendingItemIds.size) break;
-    if (waitMs) await new Promise((resolve) => setTimeout(resolve, waitMs));
-
-    const pendingCount = pendingItemIds.size;
-    const requestStartedAt = performance.now();
-    let result: Awaited<ReturnType<typeof bungieEquipItems>>;
-    try {
-      result = await bungieEquipItems({
-        config: input.config,
-        token: input.token,
-        membershipType: input.request.membership_type,
-        characterId: input.request.character_id,
-        itemIds: [...pendingItemIds]
-      });
-    } catch (error) {
-      const durationMs = performance.now() - requestStartedAt;
-      writeActionDebugTrace(input.config.data.data_dir, {
-        operation_id: operationId,
-        action: "equip",
-        phase: "bungie-request",
-        character_id: input.request.character_id,
-        item_instance_id: pendingCount === 1 ? [...pendingItemIds][0] : undefined,
-        attempt: attemptIndex + 1,
-        total_attempts: retryWaits.length,
-        expected_count: pendingCount,
-        matched_count: 0,
-        delay_ms: waitMs,
-        duration_ms: durationMs,
-        elapsed_ms: performance.now() - equipSequenceStartedAt,
-        ok: false,
-        message: classifyWriteActionIpcError(error).message
-      });
-      throw error;
-    }
+  const requestedItemIds = new Set(input.request.items.map((item) => item.item_id));
+  const requestStartedAt = performance.now();
+  let result: Awaited<ReturnType<typeof bungieEquipItems>>;
+  try {
+    result = await bungieEquipItems({
+      config: input.config,
+      token: input.token,
+      membershipType: input.request.membership_type,
+      characterId: input.request.character_id,
+      itemIds: [...requestedItemIds]
+    });
+  } catch (error) {
     const durationMs = performance.now() - requestStartedAt;
-    const statusSummary = (result.equipResults ?? [])
-      .map((itemResult) => String(itemResult.equipStatus))
-      .join(",");
     writeActionDebugTrace(input.config.data.data_dir, {
       operation_id: operationId,
       action: "equip",
       phase: "bungie-request",
       character_id: input.request.character_id,
-      item_instance_id: pendingCount === 1 ? [...pendingItemIds][0] : undefined,
-      attempt: attemptIndex + 1,
-      total_attempts: retryWaits.length,
-      expected_count: pendingCount,
-      matched_count: result.equipResults?.length ?? 0,
-      delay_ms: waitMs,
+      item_instance_id: requestedItemIds.size === 1 ? [...requestedItemIds][0] : undefined,
+      attempt: 1,
+      total_attempts: 1,
+      expected_count: requestedItemIds.size,
+      matched_count: 0,
+      delay_ms: 0,
       duration_ms: durationMs,
-      elapsed_ms: performance.now() - equipSequenceStartedAt,
-      ok: true,
-      message: `Bungie EquipItems 返回 ${result.equipResults?.length ?? 0}/${pendingCount} 项结果，状态码 ${statusSummary || "无"}`
+      elapsed_ms: durationMs,
+      ok: false,
+      message: classifyWriteActionIpcError(error).message
     });
-
-    for (const itemResult of result.equipResults ?? []) {
-      const itemInstanceId = String(itemResult.itemInstanceId);
-      if (!pendingItemIds.has(itemInstanceId)) continue;
-      statuses.set(itemInstanceId, itemResult.equipStatus);
-      const shouldRetryItemNotFound = itemResult.equipStatus === 1623
-        && attemptIndex < retryWaits.length - 1;
-      if (!shouldRetryItemNotFound) pendingItemIds.delete(itemInstanceId);
-    }
+    throw error;
   }
-
+  const durationMs = performance.now() - requestStartedAt;
+  const statusSummary = (result.equipResults ?? [])
+    .map((itemResult) => String(itemResult.equipStatus))
+    .join(",");
+  writeActionDebugTrace(input.config.data.data_dir, {
+    operation_id: operationId,
+    action: "equip",
+    phase: "bungie-request",
+    character_id: input.request.character_id,
+    item_instance_id: requestedItemIds.size === 1 ? [...requestedItemIds][0] : undefined,
+    attempt: 1,
+    total_attempts: 1,
+    expected_count: requestedItemIds.size,
+    matched_count: result.equipResults?.length ?? 0,
+    delay_ms: 0,
+    duration_ms: durationMs,
+    elapsed_ms: durationMs,
+    ok: true,
+    message: `Bungie EquipItems 返回 ${result.equipResults?.length ?? 0}/${requestedItemIds.size} 项结果，状态码 ${statusSummary || "无"}`
+  });
+  const statuses = new Map<string, number>();
+  for (const itemResult of result.equipResults ?? []) {
+    const itemInstanceId = String(itemResult.itemInstanceId);
+    if (requestedItemIds.has(itemInstanceId)) statuses.set(itemInstanceId, itemResult.equipStatus);
+  }
   return statuses;
 }
 
@@ -965,32 +947,43 @@ function describeEquipFailure(status: number): string {
   return `装备失败（Bungie 状态码 ${status}）。`;
 }
 
-const latestWriteVerificationByCharacter = new Map<string, string>();
+const latestWriteVerificationByScope = new Map<string, string>();
 const accountWriteVerificationWaits = [2_000, 5_000, 10_000, 20_000, 30_000] as const;
 
 function startAccountWriteVerification(input: AccountWriteVerificationInput) {
-  const verificationKey = [
+  const verificationKeys = getAccountWriteVerificationScopes(input).map((scope) => [
     input.membership_type,
     input.destiny_membership_id,
-    input.character_id
-  ].join(":");
-  latestWriteVerificationByCharacter.set(verificationKey, input.operation_id);
+    scope
+  ].join(":"));
+  for (const verificationKey of verificationKeys) {
+    latestWriteVerificationByScope.set(verificationKey, input.operation_id);
+  }
+  const isLatestOperation = () => verificationKeys.every((verificationKey) => (
+    latestWriteVerificationByScope.get(verificationKey) === input.operation_id
+  ));
 
   return startBackgroundTask({
     type: "account-write-sync",
     dedupeKey: input.operation_id,
-    title: "确认游戏内装备状态",
-    message: `装备请求已成功，正在确认 ${input.expected_equipped_item_ids.length} 件装备。`,
+    title: "确认游戏内物品状态",
+    message: `写入已完成，正在后台对账 ${input.expected_patches.length} 项变化。`,
     run: async (context) => {
       const config = loadConfig();
       const startedAt = performance.now();
+      const components = getAccountWriteVerificationComponents(input.expected_patches);
+      const action = getAccountWriteVerificationAction(input.expected_patches);
+      const expectedState = input.expected_patches.every((patch) => patch.kind === "equip")
+        ? "equipped"
+        : "inventory-or-equipped";
       let attempt = 0;
 
       while (true) {
-        if (latestWriteVerificationByCharacter.get(verificationKey) !== input.operation_id) {
+        if (!isLatestOperation()) {
           context.update({
+            status: "superseded",
             progress_percent: 100,
-            message: "该确认任务已被角色上的新装备操作替代。"
+            message: "该确认任务已被同范围的新写入操作替代。"
           });
           return;
         }
@@ -1006,38 +999,37 @@ function startAccountWriteVerification(input: AccountWriteVerificationInput) {
           const token = await loadFreshOAuthToken(config);
           const profile = await fetchSharedBungieJson<DestinyProfileResponse>(
             config.bungie.api_key,
-            `/Destiny2/${input.membership_type}/Profile/${input.destiny_membership_id}/?components=205`,
+            `/Destiny2/${input.membership_type}/Profile/${input.destiny_membership_id}/?components=${components.join(",")}`,
             token.access_token,
             { forceRefresh: true, waitForRefresh: true }
           );
-          const equippedItemIds = new Set(
-            (profile.characterEquipment?.data?.[input.character_id]?.items ?? [])
-              .map((item) => item.itemInstanceId)
-              .filter((itemId): itemId is string => Boolean(itemId))
-          );
-          const matchedCount = input.expected_equipped_item_ids
-            .filter((itemId) => equippedItemIds.has(itemId))
+          const matchedCount = input.expected_patches
+            .filter((patch) => isAccountWriteVerificationPatchReflected(profile, patch))
             .length;
-          const reflected = matchedCount === input.expected_equipped_item_ids.length;
+          const reflected = matchedCount === input.expected_patches.length;
           const elapsedMs = performance.now() - startedAt;
 
-          if (latestWriteVerificationByCharacter.get(verificationKey) !== input.operation_id) {
+          if (!isLatestOperation()) {
             context.update({
+              status: "superseded",
               progress_percent: 100,
-              message: "该确认任务已被角色上的新装备操作替代。"
+              message: "该确认任务已被同范围的新写入操作替代。"
             });
             return;
           }
 
           writeActionDebugTrace(config.data.data_dir, {
             operation_id: input.operation_id,
-            action: "equip",
+            action,
             phase: "verification-read",
+            item_instance_id: input.expected_patches.length === 1
+              ? input.expected_patches[0]?.item_instance_id
+              : undefined,
             character_id: input.character_id,
             attempt,
-            expected_count: input.expected_equipped_item_ids.length,
+            expected_count: input.expected_patches.length,
             matched_count: matchedCount,
-            expected_state: "equipped",
+            expected_state: expectedState,
             delay_ms: waitMs,
             duration_ms: performance.now() - requestStartedAt,
             elapsed_ms: elapsedMs,
@@ -1045,18 +1037,25 @@ function startAccountWriteVerification(input: AccountWriteVerificationInput) {
             reflected,
             ok: true,
             message: reflected
-              ? "轻量 CharacterEquipment 已包含全部目标装备"
-              : "轻量 CharacterEquipment 仍未包含全部目标装备"
+              ? "轻量账号组件已包含全部目标状态"
+              : "轻量账号组件仍未包含全部目标状态"
           });
 
           if (reflected) {
-            latestWriteVerificationByCharacter.delete(verificationKey);
+            await Promise.all(input.expected_patches.map((patch) => (
+              patchAccountSession(patch, { revalidate: false, preserve: false })
+            )));
+            for (const verificationKey of verificationKeys) {
+              if (latestWriteVerificationByScope.get(verificationKey) === input.operation_id) {
+                latestWriteVerificationByScope.delete(verificationKey);
+              }
+            }
             context.update({
               attempt,
               progress_percent: 100,
               message: input.failed_count > 0
-                ? `已确认装备 ${matchedCount}/${input.accepted_count} 件，另有 ${input.failed_count} 件提交失败。`
-                : `已确认 ${matchedCount} 件装备已在游戏内生效。`
+                ? `已确认 ${matchedCount}/${input.accepted_count} 项变化，另有 ${input.failed_count} 项提交失败。`
+                : `已确认 ${matchedCount} 项变化已在游戏内生效。`
             });
             return;
           }
@@ -1066,20 +1065,23 @@ function startAccountWriteVerification(input: AccountWriteVerificationInput) {
             attempt,
             progress_percent: undefined,
             message: elapsedMs >= 30_000
-              ? "装备请求已成功，Bungie 账号数据同步较慢；应用会继续后台确认。"
-              : `装备请求已成功，正在等待账号数据同步（已确认 ${matchedCount}/${input.expected_equipped_item_ids.length}）。`
+              ? "写入已完成，Bungie Profile 更新较慢；应用会继续后台对账。"
+              : `写入已完成，正在后台对账（已匹配 ${matchedCount}/${input.expected_patches.length}）。`
           });
         } catch (error) {
           const classified = classifyWriteActionIpcError(error);
           writeActionDebugTrace(config.data.data_dir, {
             operation_id: input.operation_id,
-            action: "equip",
+            action,
             phase: "verification-read",
+            item_instance_id: input.expected_patches.length === 1
+              ? input.expected_patches[0]?.item_instance_id
+              : undefined,
             character_id: input.character_id,
             attempt,
-            expected_count: input.expected_equipped_item_ids.length,
+            expected_count: input.expected_patches.length,
             matched_count: 0,
-            expected_state: "equipped",
+            expected_state: expectedState,
             delay_ms: waitMs,
             duration_ms: performance.now() - requestStartedAt,
             elapsed_ms: performance.now() - startedAt,
@@ -1089,12 +1091,12 @@ function startAccountWriteVerification(input: AccountWriteVerificationInput) {
             message: classified.message
           });
           if (!classified.retryable) {
-            throw new Error(`装备请求已成功，但账号确认已暂停：${classified.message}`);
+            throw new Error(`写入已完成，但后台对账已暂停：${classified.message}`);
           }
           context.update({
             status: "retrying",
             attempt,
-            message: `装备请求已成功，账号确认暂时不可用；应用会自动重试。${classified.message}`
+            message: `写入已完成，后台对账暂时不可用；应用会自动重试。${classified.message}`
           });
         }
       }
@@ -1112,25 +1114,144 @@ function sanitizeAccountWriteVerificationInput(
   if (!Number.isInteger(membershipType) || membershipType <= 0) {
     throw new Error("membership_type 无效");
   }
-  const expectedItemIds = [...new Set(
-    input.expected_equipped_item_ids
-      .filter((itemId): itemId is string => typeof itemId === "string")
-      .map((itemId) => itemId.trim())
-      .filter(Boolean)
-  )];
-  if (!expectedItemIds.length) {
-    throw new Error("没有需要确认的装备实例");
-  }
+  const expectedPatches = Array.isArray(input.expected_patches)
+    ? input.expected_patches.map(sanitizeAccountWriteVerificationPatch)
+    : [];
+  if (!expectedPatches.length) throw new Error("没有需要确认的账号变化");
   return {
     operation_id: operationId,
     membership_type: membershipType,
     destiny_membership_id: destinyMembershipId,
     character_id: characterId,
     ...(input.character_name?.trim() ? { character_name: input.character_name.trim().slice(0, 120) } : {}),
-    expected_equipped_item_ids: expectedItemIds,
+    expected_patches: expectedPatches,
     accepted_count: normalizeNonNegativeCount(input.accepted_count),
     failed_count: normalizeNonNegativeCount(input.failed_count)
   };
+}
+
+function sanitizeAccountWriteVerificationPatch(
+  patch: AccountItemActionPatch
+): AccountItemActionPatch {
+  const itemInstanceId = requiredTraceId(patch.item_instance_id, "item_instance_id");
+  if (patch.kind === "lock") {
+    return { kind: "lock", item_instance_id: itemInstanceId, locked: Boolean(patch.locked) };
+  }
+  const characterId = requiredTraceId(patch.character_id, "character_id");
+  if (patch.kind === "equip") {
+    return { kind: "equip", item_instance_id: itemInstanceId, character_id: characterId };
+  }
+  if (patch.kind === "postmaster-pull") {
+    const sourceBucketHash = patch.source_bucket_hash;
+    return {
+      kind: "postmaster-pull",
+      item_instance_id: itemInstanceId,
+      character_id: characterId,
+      ...(typeof sourceBucketHash === "number" && Number.isInteger(sourceBucketHash)
+        ? { source_bucket_hash: sourceBucketHash }
+        : {})
+    };
+  }
+  if (patch.target !== "vault" && patch.target !== "character-inventory") {
+    throw new Error("账号变化目标位置无效");
+  }
+  return {
+    kind: "transfer",
+    item_instance_id: itemInstanceId,
+    character_id: characterId,
+    target: patch.target
+  };
+}
+
+function getAccountWriteVerificationComponents(
+  patches: readonly AccountItemActionPatch[]
+): number[] {
+  const components = new Set<number>();
+  for (const patch of patches) {
+    if (patch.kind === "equip") components.add(205);
+    if (patch.kind === "postmaster-pull") components.add(201);
+    if (patch.kind === "transfer") {
+      components.add(patch.target === "vault" ? 102 : 201);
+    }
+    if (patch.kind === "lock") {
+      components.add(102);
+      components.add(201);
+      components.add(205);
+    }
+  }
+  return [...components].sort((left, right) => left - right);
+}
+
+function getAccountWriteVerificationScopes(input: AccountWriteVerificationInput): string[] {
+  return [...new Set(input.expected_patches.map((patch) => (
+    patch.kind === "equip"
+      ? `equipment:${patch.character_id}`
+      : `${patch.kind}:${patch.item_instance_id}`
+  )))].sort();
+}
+
+function isAccountWriteVerificationPatchReflected(
+  profile: DestinyProfileResponse,
+  patch: AccountItemActionPatch
+): boolean {
+  if (patch.kind === "equip") {
+    return hasProfileItem(
+      profile.characterEquipment?.data?.[patch.character_id]?.items,
+      patch.item_instance_id
+    );
+  }
+  if (patch.kind === "postmaster-pull") {
+    const item = profile.characterInventories?.data?.[patch.character_id]?.items
+      ?.find((candidate) => candidate.itemInstanceId === patch.item_instance_id);
+    return Boolean(
+      item
+      && (patch.source_bucket_hash === undefined
+        || item.bucketHash === undefined
+        || item.bucketHash !== patch.source_bucket_hash)
+    );
+  }
+  if (patch.kind === "transfer") {
+    return patch.target === "vault"
+      ? hasProfileItem(profile.profileInventory?.data?.items, patch.item_instance_id)
+      : hasProfileItem(
+          profile.characterInventories?.data?.[patch.character_id]?.items,
+          patch.item_instance_id
+        );
+  }
+  const item = findProfileItem(profile, patch.item_instance_id);
+  return item?.state === undefined ? false : ((item.state & 1) === 1) === patch.locked;
+}
+
+function hasProfileItem(
+  items: Array<{ itemInstanceId?: string }> | undefined,
+  instanceId: string
+): boolean {
+  return items?.some((item) => item.itemInstanceId === instanceId) ?? false;
+}
+
+function findProfileItem(profile: DestinyProfileResponse, instanceId: string) {
+  const profileItem = profile.profileInventory?.data?.items
+    ?.find((item) => item.itemInstanceId === instanceId);
+  if (profileItem) return profileItem;
+  for (const inventory of Object.values(profile.characterInventories?.data ?? {})) {
+    const item = inventory.items?.find((candidate) => candidate.itemInstanceId === instanceId);
+    if (item) return item;
+  }
+  for (const equipment of Object.values(profile.characterEquipment?.data ?? {})) {
+    const item = equipment.items?.find((candidate) => candidate.itemInstanceId === instanceId);
+    if (item) return item;
+  }
+  return undefined;
+}
+
+function getAccountWriteVerificationAction(
+  patches: readonly AccountItemActionPatch[]
+): ActionLogType {
+  const first = patches[0];
+  if (first?.kind === "lock") return "set-lock";
+  if (first?.kind === "transfer") return "transfer";
+  if (first?.kind === "postmaster-pull") return "postmaster-pull";
+  return "equip";
 }
 
 function normalizeNonNegativeCount(value: number): number {

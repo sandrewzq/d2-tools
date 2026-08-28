@@ -66,6 +66,37 @@ describe("account session", () => {
     expect(profileRequests).toBe(2);
   });
 
+  it("并发强制账号刷新复用同一份快照请求", async () => {
+    let profileRequests = 0;
+    let resolveProfile!: (profile: DestinyProfileResponse) => void;
+    let markProfileRequested!: () => void;
+    const profileRequested = new Promise<void>((resolve) => {
+      markProfileRequested = resolve;
+    });
+    const profile = new Promise<DestinyProfileResponse>((resolve) => {
+      resolveProfile = resolve;
+    });
+    const session = createAccountSession({
+      apiKey: "api",
+      getAccessToken: () => "access",
+      definitions: itemDefinitions(),
+      fetchJson: async <T>(path: string) => {
+        if (path === "/User/GetMembershipsForCurrentUser/") return memberships as T;
+        profileRequests += 1;
+        markProfileRequested();
+        return profile as T;
+      }
+    });
+
+    const firstRefresh = session.getSnapshot({ freshness: "refresh" });
+    await profileRequested;
+    const secondRefresh = session.getSnapshot({ freshness: "refresh" });
+    resolveProfile(profileWithItem("item-1", false));
+
+    await Promise.all([firstRefresh, secondRefresh]);
+    expect(profileRequests).toBe(1);
+  });
+
   it("强制读取实例详情会绕过共享 Bungie Broker 中的旧 Item 响应", async () => {
     let itemRequests = 0;
     const broker = createBungieRequestBroker({
@@ -180,6 +211,32 @@ describe("account session", () => {
 
     expect(profileRequests).toBe(1);
     expect((await session.getSnapshot()).vault.items[0]?.locked).toBe(true);
+  });
+
+  it("已由轻量 Profile 确认的 patch 不再安排完整账号 revalidate", async () => {
+    vi.useFakeTimers();
+    let profileRequests = 0;
+    const session = createAccountSession({
+      apiKey: "api",
+      getAccessToken: () => "access",
+      initialSnapshot: snapshotWithItem(false),
+      definitions: itemDefinitions(),
+      patchRevalidateDelayMs: 100,
+      fetchJson: async <T>(path: string) => {
+        if (path === "/User/GetMembershipsForCurrentUser/") return memberships as T;
+        profileRequests += 1;
+        return profileWithItem("item-1", true) as T;
+      }
+    });
+
+    session.patch(
+      { kind: "lock", item_instance_id: "item-1", locked: true },
+      { revalidate: false }
+    );
+    expect((await session.getSnapshot()).vault.items[0]?.locked).toBe(true);
+    await vi.advanceTimersByTimeAsync(100);
+
+    expect(profileRequests).toBe(0);
   });
 
   it("后台 revalidate 返回旧状态时保留尚未确认的乐观 patch", async () => {

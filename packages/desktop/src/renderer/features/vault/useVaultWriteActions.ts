@@ -1,5 +1,5 @@
 import { api } from "../../api/client";
-import type { AccountItemActionPatch, AccountItemSummary, AccountSummary, BatchItemActionResult, ItemActionResult, VaultTags, VaultTagValue } from "../../api/types";
+import type { AccountItemActionPatch, AccountItemSummary, AccountSummary, AccountWriteVerificationInput, BatchItemActionResult, ItemActionResult, VaultTags, VaultTagValue } from "../../api/types";
 import { services } from "../../api/services";
 import {
   buildVaultBatchTransferProgressMessage,
@@ -16,13 +16,17 @@ type DiagnosticsBridge = {
 
 export function useVaultWriteActions(input: {
   accountSummary: AccountSummary | null;
-  applyAccountActionPatches: (patches: readonly AccountItemActionPatch[]) => void;
   diagnostics: DiagnosticsBridge;
   setVaultTags: (tags: VaultTags) => void;
   setAccountError: (message: string) => void;
   setIsRunningItemAction: (isRunning: boolean) => void;
   setItemActionMessage: (message: string) => void;
   loadAccountSummary: () => Promise<void>;
+  applyCommittedAccountActionPatches: (patches: readonly AccountItemActionPatch[]) => void;
+  startAccountWriteVerification: (
+    input: AccountWriteVerificationInput,
+    options?: { surfaceFeedback?: boolean }
+  ) => Promise<void>;
 }) {
   async function saveVaultTag(item: AccountItemSummary, tag: VaultTagValue) {
     try {
@@ -54,6 +58,7 @@ export function useVaultWriteActions(input: {
     if (!input.accountSummary) {
       return "请先读取账号数据。";
     }
+    const account = input.accountSummary;
 
     if (!targetCharacterId) {
       return buildVaultCleanupNoTargetMessage();
@@ -79,7 +84,15 @@ export function useVaultWriteActions(input: {
           failedCount += 1;
         }
       }
-      input.applyAccountActionPatches(accountPatches);
+      if (accountPatches.length) {
+        input.applyCommittedAccountActionPatches(accountPatches);
+        void input.startAccountWriteVerification(createVaultVerificationInput({
+          account,
+          characterId: targetCharacterId,
+          patches: accountPatches,
+          failedCount
+        }), { surfaceFeedback: false });
+      }
       if (successCount > accountPatches.length) {
         void input.loadAccountSummary().catch((error) => {
           input.setAccountError(error instanceof Error ? error.message : "操作完成，但刷新账号数据失败");
@@ -117,6 +130,7 @@ export function useVaultWriteActions(input: {
     if (!input.accountSummary) {
       throw new Error("请先读取账号数据。");
     }
+    const account = input.accountSummary;
 
     if (!targetCharacterId) {
       throw new Error(buildVaultCleanupNoTargetMessage());
@@ -131,10 +145,10 @@ export function useVaultWriteActions(input: {
 
     try {
       const result = await api.batchTransferItems({
-        membership_type: input.accountSummary.membership_type,
+        membership_type: account.membership_type,
         character_id: targetCharacterId,
         items: actionableItems.map((item) => ({
-          membership_type: input.accountSummary?.membership_type ?? 0,
+          membership_type: account.membership_type,
           character_id: targetCharacterId,
           item_id: item.instance_id ?? "",
           item_reference_hash: item.hash,
@@ -142,7 +156,15 @@ export function useVaultWriteActions(input: {
           transfer_to_vault: false
         }))
       });
-      input.applyAccountActionPatches(result.account_patches);
+      if (result.account_patches.length) {
+        input.applyCommittedAccountActionPatches(result.account_patches);
+        void input.startAccountWriteVerification(createVaultVerificationInput({
+          account,
+          characterId: targetCharacterId,
+          patches: result.account_patches,
+          failedCount: result.failed_count
+        }), { surfaceFeedback: false });
+      }
       if (result.success_count > result.account_patches.length) {
         void input.loadAccountSummary().catch((error) => {
           input.setAccountError(error instanceof Error ? error.message : "操作完成，但刷新账号数据失败");
@@ -164,4 +186,28 @@ export function useVaultWriteActions(input: {
     handleVaultCleanupUnlock,
     handleVaultCleanupTransfer
   };
+}
+
+function createVaultVerificationInput(input: {
+  account: AccountSummary;
+  characterId: string;
+  patches: AccountItemActionPatch[];
+  failedCount: number;
+}): AccountWriteVerificationInput {
+  return {
+    operation_id: createVaultOperationId(),
+    membership_type: input.account.membership_type,
+    destiny_membership_id: input.account.destiny_membership_id,
+    character_id: input.characterId,
+    character_name: input.account.characters.find((character) => character.character_id === input.characterId)?.class_name,
+    expected_patches: input.patches,
+    accepted_count: input.patches.length,
+    failed_count: input.failedCount
+  };
+}
+
+function createVaultOperationId(): string {
+  return typeof globalThis.crypto?.randomUUID === "function"
+    ? globalThis.crypto.randomUUID()
+    : `vault-write-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }

@@ -28,6 +28,7 @@ export type ActionDebugTracePhase =
   | "submit-failed"
   | "bungie-request"
   | "account-patch-applied"
+  | "account-confirmation-registered"
   | "verification-start"
   | "verification-wait"
   | "verification-read"

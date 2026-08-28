@@ -16,6 +16,7 @@ import {
 import {
   buildHighestPowerAlreadyOptimalMessage,
   buildHighestPowerEquipProgressMessage,
+  buildHighestPowerResultMessage,
   buildHighestPowerTransferProgressMessage,
   createHighestPowerEquipPlan,
   createHighestPowerExecutionPlan
@@ -70,8 +71,6 @@ type LoadoutActionFeedbackBridge = {
 
 export function useLoadoutWriteActions(input: {
   accountSummary: AccountSummary | null;
-  applyAccountActionPatches: (patches: readonly AccountItemActionPatch[]) => void;
-  applyPendingAccountActionPatches: (patches: readonly AccountItemActionPatch[]) => void;
   loadoutLibrary: LoadoutLibraryBridge;
   diagnostics: DiagnosticsBridge;
   loadoutActionFeedback: LoadoutActionFeedbackBridge;
@@ -79,7 +78,11 @@ export function useLoadoutWriteActions(input: {
   setItemActionMessage: (message: string) => void;
   setAccountOperationFeedback: (feedback: AccountOperationFeedbackView | undefined) => void;
   setIsRunningItemAction: (isRunning: boolean) => void;
-  startHighestPowerVerification: (input: AccountWriteVerificationInput) => Promise<void>;
+  applyCommittedAccountActionPatches: (patches: readonly AccountItemActionPatch[]) => void;
+  startHighestPowerVerification: (
+    input: AccountWriteVerificationInput,
+    options?: { surfaceFeedback?: boolean }
+  ) => Promise<void>;
   loadAccountSummary: () => Promise<void>;
   openItemDetail: (item: AccountItemSummary, source?: SelectedItemSource) => void | Promise<void>;
 }) {
@@ -89,29 +92,57 @@ export function useLoadoutWriteActions(input: {
   const pendingSourceDetailOpens = useRef(new Map<string, Promise<void>>()).current;
 
   function applySuccessfulWriteResult(
-    result: ItemActionResult | BatchItemActionResult,
-    options: { pendingSync?: boolean } = {}
+    result: ItemActionResult | BatchItemActionResult
   ): {
     hasSuccessfulWrite: boolean;
     requiresFullRefresh: boolean;
+    patches: AccountItemActionPatch[];
   } {
     const patches = "account_patches" in result
       ? result.account_patches
       : result.account_patch
         ? [result.account_patch]
         : [];
-    if (options.pendingSync) input.applyPendingAccountActionPatches(patches);
-    else input.applyAccountActionPatches(patches);
     const successCount = "success_count" in result ? result.success_count : 1;
-    const hasEquipPatch = patches.some((patch) => patch.kind === "equip");
     return {
       hasSuccessfulWrite: successCount > 0,
-      requiresFullRefresh: successCount > patches.length || (successCount > 0 && hasEquipPatch)
+      requiresFullRefresh: successCount > patches.length,
+      patches
     };
   }
 
-  function finishWriteActionsInBackground(requiresFullRefresh: boolean): void {
-    if (requiresFullRefresh) {
+  function finishWriteActionsInBackground(options: {
+    requiresFullRefresh: boolean;
+    patches?: readonly AccountItemActionPatch[];
+    characterId?: string;
+    characterName?: string;
+    failedCount?: number;
+    operationId?: string;
+  }): void {
+    const account = input.accountSummary;
+    const patches = collapseAccountWritePatches(options.patches ?? []);
+    if (account && patches.length && options.characterId) {
+      input.applyCommittedAccountActionPatches(patches);
+      const message = options.failedCount
+        ? `已更新 ${patches.length} 项，另有 ${options.failedCount} 项失败。`
+        : `已更新 ${patches.length} 项游戏内状态。`;
+      input.setAccountOperationFeedback({
+        tone: options.failedCount ? "warning" : "success",
+        phase: options.failedCount ? "partial-confirmed" : "confirmed",
+        itemInstanceIds: patches.map((patch) => patch.item_instance_id),
+        message
+      });
+      void input.startHighestPowerVerification({
+        operation_id: options.operationId ?? createLoadoutWriteOperationId(),
+        membership_type: account.membership_type,
+        destiny_membership_id: account.destiny_membership_id,
+        character_id: options.characterId,
+        character_name: options.characterName,
+        expected_patches: patches,
+        accepted_count: patches.length,
+        failed_count: options.failedCount ?? 0
+      }, { surfaceFeedback: false });
+    } else if (options.requiresFullRefresh) {
       void input.loadAccountSummary().catch(() => undefined);
     }
     void input.diagnostics.loadActionLog().catch(() => undefined);
@@ -167,7 +198,8 @@ export function useLoadoutWriteActions(input: {
     });
     input.setIsRunningItemAction(true);
     let hasSuccessfulWrite = false;
-    let hasPendingVerification = false;
+    let verificationCharacter: AccountSummary["characters"][number] | undefined;
+    const acceptedWritePatches: AccountItemActionPatch[] = [];
     const operationId = createHighestPowerOperationId();
 
     try {
@@ -185,6 +217,7 @@ export function useLoadoutWriteActions(input: {
         input.setAccountOperationFeedback({ tone: "error", phase: "failed", message });
         return;
       }
+      verificationCharacter = targetCharacter;
       const plan = createHighestPowerEquipPlan({
         character: targetCharacter,
         vaultItems: account.vault.items
@@ -218,8 +251,10 @@ export function useLoadoutWriteActions(input: {
             transfer_to_vault: false,
             trace: { operation_id: operationId }
           });
-          const outcome = applySuccessfulWriteResult(result, { pendingSync: true });
+          const outcome = applySuccessfulWriteResult(result);
           hasSuccessfulWrite = outcome.hasSuccessfulWrite || hasSuccessfulWrite;
+          acceptedWritePatches.push(...outcome.patches);
+          input.applyCommittedAccountActionPatches(outcome.patches);
           if (entry.item.instance_id) successfullyTransferredItemIds.add(entry.item.instance_id);
           transferAcceptedCount = successfullyTransferredItemIds.size;
         } else {
@@ -237,8 +272,10 @@ export function useLoadoutWriteActions(input: {
             }))
           });
           firstFailureReason ??= result.failure_messages?.[0];
-          const outcome = applySuccessfulWriteResult(result, { pendingSync: true });
+          const outcome = applySuccessfulWriteResult(result);
           hasSuccessfulWrite = outcome.hasSuccessfulWrite || hasSuccessfulWrite;
+          acceptedWritePatches.push(...outcome.patches);
+          input.applyCommittedAccountActionPatches(outcome.patches);
           const attemptedTransferItemIds = new Set(
             executionPlan.transfer_items
               .map((entry) => entry.item.instance_id)
@@ -271,8 +308,10 @@ export function useLoadoutWriteActions(input: {
             item_name: entry.item.name,
             trace: { operation_id: operationId }
           });
-          const outcome = applySuccessfulWriteResult(result, { pendingSync: true });
+          const outcome = applySuccessfulWriteResult(result);
           hasSuccessfulWrite = outcome.hasSuccessfulWrite || hasSuccessfulWrite;
+          acceptedWritePatches.push(...outcome.patches);
+          input.applyCommittedAccountActionPatches(outcome.patches);
           if (entry.item.instance_id) acceptedEquipItemIds.add(entry.item.instance_id);
         } else {
           const result = await api.batchEquipItems({
@@ -287,8 +326,10 @@ export function useLoadoutWriteActions(input: {
             }))
           });
           firstFailureReason ??= result.failure_messages?.[0];
-          const outcome = applySuccessfulWriteResult(result, { pendingSync: true });
+          const outcome = applySuccessfulWriteResult(result);
           hasSuccessfulWrite = outcome.hasSuccessfulWrite || hasSuccessfulWrite;
+          acceptedWritePatches.push(...outcome.patches);
+          input.applyCommittedAccountActionPatches(outcome.patches);
           const attemptedEquipItemIds = new Set(
             equipItems
               .map((entry) => entry.item.instance_id)
@@ -303,49 +344,87 @@ export function useLoadoutWriteActions(input: {
 
       const equipFailureCount = equipItems.length - acceptedEquipItemIds.size;
       const failedSteps = transferFailureCount + equipFailureCount;
-      if (!acceptedEquipItemIds.size) {
+      const finalExpectedPatches: AccountItemActionPatch[] = [
+        ...[...acceptedEquipItemIds].map((itemId) => ({
+          kind: "equip" as const,
+          item_instance_id: itemId,
+          character_id: targetCharacter.character_id
+        })),
+        ...[...successfullyTransferredItemIds]
+          .filter((itemId) => !acceptedEquipItemIds.has(itemId))
+          .map((itemId) => ({
+            kind: "transfer" as const,
+            item_instance_id: itemId,
+            character_id: targetCharacter.character_id,
+            target: "character-inventory" as const
+          }))
+      ];
+      if (!finalExpectedPatches.length) {
         const reason = firstFailureReason ? `首个失败原因：${firstFailureReason}` : "请在设置页查看操作日志。";
-        const message = `最高光等执行失败：没有装备请求成功。${reason}`;
+        const message = `最高光等执行失败：没有写入请求被受理。${reason}`;
         input.setLoadoutMessage(message);
         input.setAccountOperationFeedback({ tone: "error", phase: "failed", message });
         return;
       }
 
-      const syncingMessage = failedSteps > 0
-        ? `装备请求部分成功：已受理 ${acceptedEquipItemIds.size}/${equipItems.length} 件，账号数据同步中。`
-        : `装备请求已成功，正在后台确认 ${acceptedEquipItemIds.size} 件装备。`;
-      input.setLoadoutMessage(syncingMessage);
-      input.setItemActionMessage(syncingMessage);
-      input.setAccountOperationFeedback({
-        tone: failedSteps > 0 ? "warning" : "pending",
-        phase: failedSteps > 0 ? "partial" : "syncing",
-        itemInstanceIds: [...acceptedEquipItemIds],
-        message: syncingMessage
+      const resultMessage = buildHighestPowerResultMessage({
+        characterClassName: targetCharacter.class_name,
+        transferSuccessCount: transferAcceptedCount,
+        transferTotalCount: executionPlan.transfer_items.length,
+        equipSuccessCount: acceptedEquipItemIds.size,
+        equipTotalCount: equipItems.length,
+        failedCount: failedSteps,
+        failureReason: firstFailureReason
       });
-      hasPendingVerification = true;
+      input.setLoadoutMessage(resultMessage);
+      input.setAccountOperationFeedback({
+        tone: failedSteps > 0 ? "warning" : "success",
+        phase: failedSteps > 0 ? "partial-confirmed" : "confirmed",
+        itemInstanceIds: finalExpectedPatches.map((patch) => patch.item_instance_id),
+        message: resultMessage
+      });
       void input.startHighestPowerVerification({
         operation_id: operationId,
         membership_type: account.membership_type,
         destiny_membership_id: account.destiny_membership_id,
         character_id: targetCharacter.character_id,
         character_name: targetCharacter.class_name,
-        expected_equipped_item_ids: [...acceptedEquipItemIds],
-        accepted_count: acceptedEquipItemIds.size,
+        expected_patches: finalExpectedPatches,
+        accepted_count: finalExpectedPatches.length,
         failed_count: failedSteps
-      });
+      }, { surfaceFeedback: false });
     } catch (error) {
       const message = error instanceof Error ? error.message : "装备最高光等失败";
-      input.setLoadoutMessage(message);
-      input.setAccountOperationFeedback({
-        tone: hasSuccessfulWrite ? "warning" : "error",
-        phase: hasSuccessfulWrite ? "partial" : "failed",
-        message: hasSuccessfulWrite ? `写操作部分完成，后续步骤失败：${message}` : message
-      });
+      const account = input.accountSummary;
+      const finalAcceptedPatches = collapseAccountWritePatches(acceptedWritePatches);
+      if (account && verificationCharacter && finalAcceptedPatches.length) {
+        const partialMessage = `最高光等部分完成：已更新 ${finalAcceptedPatches.length} 项，后续步骤失败：${message}`;
+        input.setLoadoutMessage(partialMessage);
+        input.setAccountOperationFeedback({
+          tone: "warning",
+          phase: "partial-confirmed",
+          itemInstanceIds: finalAcceptedPatches.map((patch) => patch.item_instance_id),
+          message: partialMessage
+        });
+        void input.startHighestPowerVerification({
+          operation_id: operationId,
+          membership_type: account.membership_type,
+          destiny_membership_id: account.destiny_membership_id,
+          character_id: verificationCharacter.character_id,
+          character_name: verificationCharacter.class_name,
+          expected_patches: finalAcceptedPatches,
+          accepted_count: finalAcceptedPatches.length,
+          failed_count: 1
+        }, { surfaceFeedback: false });
+      } else {
+        input.setLoadoutMessage(message);
+        input.setAccountOperationFeedback({ tone: "error", phase: "failed", message });
+      }
     } finally {
       if (hasSuccessfulWrite) {
         void input.diagnostics.loadActionLog().catch(() => undefined);
       }
-      if (!hasPendingVerification) input.setItemActionMessage("");
+      input.setItemActionMessage("");
       input.setIsRunningItemAction(false);
     }
   }
@@ -360,7 +439,8 @@ export function useLoadoutWriteActions(input: {
     character: AccountSummary["characters"][number],
     slot: AccountSummary["characters"][number]["loadout_slots"][number],
     label: string,
-    run: () => Promise<ItemActionResult>
+    run: () => Promise<ItemActionResult>,
+    expectedPatches: readonly AccountItemActionPatch[] = []
   ) {
     input.setLoadoutMessage("");
     input.setItemActionMessage(buildLoadoutSlotActionProgressMessage(label));
@@ -378,8 +458,16 @@ export function useLoadoutWriteActions(input: {
     try {
       const result = await run();
       const outcome = applySuccessfulWriteResult(result);
-      input.setLoadoutMessage(result.message);
-      finishWriteActionsInBackground(outcome.requiresFullRefresh);
+      const patches = [...outcome.patches, ...expectedPatches];
+      input.setLoadoutMessage(patches.length
+        ? `${result.message}，页面已更新。`
+        : "写入请求已受理，正在后台刷新账号数据。");
+      finishWriteActionsInBackground({
+        requiresFullRefresh: outcome.requiresFullRefresh,
+        patches,
+        characterId: character.character_id,
+        characterName: character.class_name
+      });
     } catch (error) {
       input.setLoadoutMessage(error instanceof Error ? error.message : `${label}失败`);
       await input.diagnostics.loadActionLog();
@@ -401,7 +489,12 @@ export function useLoadoutWriteActions(input: {
         character_id: character.character_id,
         loadout_index: slot.index,
         loadout_name: slot.name
-      })
+      }),
+      slot.items.flatMap((item) => item.instance_id ? [{
+        kind: "equip" as const,
+        item_instance_id: item.instance_id,
+        character_id: character.character_id
+      }] : [])
     );
   }
 
@@ -491,9 +584,10 @@ export function useLoadoutWriteActions(input: {
       input.setLoadoutMessage("请先读取账号数据。");
       return;
     }
+    const account = input.accountSummary;
 
-    const targetCharacter = input.accountSummary.characters.find((character) => character.character_id === template.character_id)
-      ?? input.accountSummary.characters[0];
+    const targetCharacter = account.characters.find((character) => character.character_id === template.character_id)
+      ?? account.characters[0];
     if (!targetCharacter) {
       input.setLoadoutMessage("没有可用角色，无法转移缺失件。");
       return;
@@ -502,7 +596,7 @@ export function useLoadoutWriteActions(input: {
     const transferPlan = buildMissingLoadoutTransferPlan({
       template,
       missingItems: template.items,
-      accountSummary: input.accountSummary
+      accountSummary: account
     });
     const actionableItemCount = getMissingLoadoutActionableCount(transferPlan);
     if (!actionableItemCount) {
@@ -523,6 +617,9 @@ export function useLoadoutWriteActions(input: {
     input.setItemActionMessage(buildMissingLoadoutPrepareMessage(actionableItemCount));
     let hasSuccessfulWrite = false;
     let requiresFullRefresh = false;
+    let operationFailed = false;
+    const acceptedPatches: AccountItemActionPatch[] = [];
+    const operationId = createLoadoutWriteOperationId();
 
     try {
       let targetTransferCount = 0;
@@ -532,10 +629,10 @@ export function useLoadoutWriteActions(input: {
         if (step.phase === "equip-swap") {
           input.setItemActionMessage(buildMissingLoadoutStepProgressMessage(step, targetCharacter.class_name));
           const equipResult = await api.batchEquipItems({
-            membership_type: input.accountSummary.membership_type,
+            membership_type: account.membership_type,
             character_id: step.character_id,
             items: step.items.map((item) => ({
-              membership_type: input.accountSummary?.membership_type ?? 0,
+              membership_type: account.membership_type,
               character_id: step.character_id,
               item_id: item.item_id,
               item_name: item.item_name
@@ -544,6 +641,7 @@ export function useLoadoutWriteActions(input: {
           const outcome = applySuccessfulWriteResult(equipResult);
           hasSuccessfulWrite = outcome.hasSuccessfulWrite || hasSuccessfulWrite;
           requiresFullRefresh = outcome.requiresFullRefresh || requiresFullRefresh;
+          acceptedPatches.push(...outcome.patches);
 
           if (equipResult.failed_count > 0) {
             throw new Error(equipResult.message || "替代装备装备失败，请检查来源角色装备状态后重试。");
@@ -555,15 +653,17 @@ export function useLoadoutWriteActions(input: {
           input.setItemActionMessage(buildMissingLoadoutStepProgressMessage(step, targetCharacter.class_name));
           for (const item of step.items) {
             const result = await api.pullFromPostmaster({
-              membership_type: input.accountSummary.membership_type,
+              membership_type: account.membership_type,
               character_id: step.character_id,
               item_id: item.item_id,
               item_reference_hash: item.item_reference_hash,
+              source_bucket_hash: item.bucket_hash,
               item_name: item.item_name
             });
             const outcome = applySuccessfulWriteResult(result);
             hasSuccessfulWrite = outcome.hasSuccessfulWrite || hasSuccessfulWrite;
             requiresFullRefresh = outcome.requiresFullRefresh || requiresFullRefresh;
+            acceptedPatches.push(...outcome.patches);
           }
           prepStepCount += step.items.length;
           continue;
@@ -571,10 +671,10 @@ export function useLoadoutWriteActions(input: {
         if (step.phase === "equip-target") {
           input.setItemActionMessage(buildMissingLoadoutStepProgressMessage(step, targetCharacter.class_name));
           const equipResult = await api.batchEquipItems({
-            membership_type: input.accountSummary.membership_type,
+            membership_type: account.membership_type,
             character_id: step.character_id,
             items: step.items.map((item) => ({
-              membership_type: input.accountSummary?.membership_type ?? 0,
+              membership_type: account.membership_type,
               character_id: step.character_id,
               item_id: item.item_id,
               item_name: item.item_name
@@ -583,6 +683,7 @@ export function useLoadoutWriteActions(input: {
           const outcome = applySuccessfulWriteResult(equipResult);
           hasSuccessfulWrite = outcome.hasSuccessfulWrite || hasSuccessfulWrite;
           requiresFullRefresh = outcome.requiresFullRefresh || requiresFullRefresh;
+          acceptedPatches.push(...outcome.patches);
 
           autoEquipCount += equipResult.success_count;
           if (equipResult.failed_count > 0) {
@@ -593,10 +694,10 @@ export function useLoadoutWriteActions(input: {
         input.setItemActionMessage(buildMissingLoadoutStepProgressMessage(step, targetCharacter.class_name));
 
         const result = await api.batchTransferItems({
-          membership_type: input.accountSummary.membership_type,
+          membership_type: account.membership_type,
           character_id: step.character_id,
           items: step.items.map((item) => ({
-            membership_type: input.accountSummary?.membership_type ?? 0,
+            membership_type: account.membership_type,
             character_id: step.character_id,
             item_id: item.item_id,
             item_reference_hash: item.item_reference_hash,
@@ -607,6 +708,7 @@ export function useLoadoutWriteActions(input: {
         const outcome = applySuccessfulWriteResult(result);
         hasSuccessfulWrite = outcome.hasSuccessfulWrite || hasSuccessfulWrite;
         requiresFullRefresh = outcome.requiresFullRefresh || requiresFullRefresh;
+        acceptedPatches.push(...outcome.patches);
         if (step.phase === "to-character") {
           targetTransferCount += result.success_count;
         } else {
@@ -617,16 +719,24 @@ export function useLoadoutWriteActions(input: {
           throw new Error(result.message || "缺失件转移未全部成功，请检查物品状态后重试。");
         }
       }
-      input.setLoadoutMessage(buildMissingLoadoutResultMessage({
+      input.setLoadoutMessage(`${buildMissingLoadoutResultMessage({
         targetTransferCount,
         autoEquipCount,
         prepStepCount,
         blockedCount: transferPlan.blocked.length
-      }));
+      })} 页面已更新。`);
     } catch (error) {
+      operationFailed = true;
       input.setLoadoutMessage(error instanceof Error ? error.message : "缺失件转移失败");
     } finally {
-      if (hasSuccessfulWrite) finishWriteActionsInBackground(requiresFullRefresh);
+      if (hasSuccessfulWrite) finishWriteActionsInBackground({
+        requiresFullRefresh,
+        patches: acceptedPatches,
+        characterId: targetCharacter.character_id,
+        characterName: targetCharacter.class_name,
+        failedCount: operationFailed ? 1 : 0,
+        operationId
+      });
       input.setIsRunningItemAction(false);
       input.setItemActionMessage("");
     }
@@ -641,9 +751,10 @@ export function useLoadoutWriteActions(input: {
       input.setLoadoutMessage("请先读取账号数据。");
       return;
     }
+    const account = input.accountSummary;
 
-    const targetCharacter = input.accountSummary.characters.find((character) => character.character_id === template.character_id)
-      ?? input.accountSummary.characters[0];
+    const targetCharacter = account.characters.find((character) => character.character_id === template.character_id)
+      ?? account.characters[0];
     if (!targetCharacter) {
       input.setLoadoutMessage(buildSingleLoadoutTransferNoTargetMessage());
       return;
@@ -652,7 +763,7 @@ export function useLoadoutWriteActions(input: {
     const transferPlan = buildMissingLoadoutTransferPlan({
       template: { ...template, items: [item] },
       missingItems: [item],
-      accountSummary: input.accountSummary
+      accountSummary: account
     });
     const actionableItemCount = getMissingLoadoutActionableCount(transferPlan);
     if (!actionableItemCount) {
@@ -675,6 +786,8 @@ export function useLoadoutWriteActions(input: {
     let actionSucceeded = false;
     let hasSuccessfulWrite = false;
     let requiresFullRefresh = false;
+    const acceptedPatches: AccountItemActionPatch[] = [];
+    const operationId = createLoadoutWriteOperationId();
 
     try {
       let targetTransferCount = 0;
@@ -690,10 +803,10 @@ export function useLoadoutWriteActions(input: {
           input.setItemActionMessage(stepMessage);
           input.setLoadoutMessage(stepMessage);
           const equipResult = await api.batchEquipItems({
-            membership_type: input.accountSummary.membership_type,
+            membership_type: account.membership_type,
             character_id: step.character_id,
             items: step.items.map((entry) => ({
-              membership_type: input.accountSummary?.membership_type ?? 0,
+              membership_type: account.membership_type,
               character_id: step.character_id,
               item_id: entry.item_id,
               item_name: entry.item_name
@@ -702,6 +815,7 @@ export function useLoadoutWriteActions(input: {
           const outcome = applySuccessfulWriteResult(equipResult);
           hasSuccessfulWrite = outcome.hasSuccessfulWrite || hasSuccessfulWrite;
           requiresFullRefresh = outcome.requiresFullRefresh || requiresFullRefresh;
+          acceptedPatches.push(...outcome.patches);
 
           if (equipResult.failed_count > 0) {
             throw new Error(equipResult.message || "来源角色替换装备失败，请稍后重试。");
@@ -720,15 +834,17 @@ export function useLoadoutWriteActions(input: {
           input.setLoadoutMessage(stepMessage);
           for (const entry of step.items) {
             const result = await api.pullFromPostmaster({
-              membership_type: input.accountSummary.membership_type,
+              membership_type: account.membership_type,
               character_id: step.character_id,
               item_id: entry.item_id,
               item_reference_hash: entry.item_reference_hash,
+              source_bucket_hash: entry.bucket_hash,
               item_name: entry.item_name
             });
             const outcome = applySuccessfulWriteResult(result);
             hasSuccessfulWrite = outcome.hasSuccessfulWrite || hasSuccessfulWrite;
             requiresFullRefresh = outcome.requiresFullRefresh || requiresFullRefresh;
+            acceptedPatches.push(...outcome.patches);
           }
           prepStepCount += step.items.length;
           continue;
@@ -743,10 +859,10 @@ export function useLoadoutWriteActions(input: {
           input.setItemActionMessage(stepMessage);
           input.setLoadoutMessage(stepMessage);
           const equipResult = await api.batchEquipItems({
-            membership_type: input.accountSummary.membership_type,
+            membership_type: account.membership_type,
             character_id: step.character_id,
             items: step.items.map((entry) => ({
-              membership_type: input.accountSummary?.membership_type ?? 0,
+              membership_type: account.membership_type,
               character_id: step.character_id,
               item_id: entry.item_id,
               item_name: entry.item_name
@@ -755,6 +871,7 @@ export function useLoadoutWriteActions(input: {
           const outcome = applySuccessfulWriteResult(equipResult);
           hasSuccessfulWrite = outcome.hasSuccessfulWrite || hasSuccessfulWrite;
           requiresFullRefresh = outcome.requiresFullRefresh || requiresFullRefresh;
+          acceptedPatches.push(...outcome.patches);
 
           autoEquipCount += equipResult.success_count;
           if (equipResult.failed_count > 0) {
@@ -772,10 +889,10 @@ export function useLoadoutWriteActions(input: {
         input.setLoadoutMessage(stepMessage);
 
         const result = await api.batchTransferItems({
-          membership_type: input.accountSummary.membership_type,
+          membership_type: account.membership_type,
           character_id: step.character_id,
           items: step.items.map((entry) => ({
-            membership_type: input.accountSummary?.membership_type ?? 0,
+            membership_type: account.membership_type,
             character_id: step.character_id,
             item_id: entry.item_id,
             item_reference_hash: entry.item_reference_hash,
@@ -786,6 +903,7 @@ export function useLoadoutWriteActions(input: {
         const outcome = applySuccessfulWriteResult(result);
         hasSuccessfulWrite = outcome.hasSuccessfulWrite || hasSuccessfulWrite;
         requiresFullRefresh = outcome.requiresFullRefresh || requiresFullRefresh;
+        acceptedPatches.push(...outcome.patches);
 
         if (step.phase === "to-character") {
           targetTransferCount += result.success_count;
@@ -798,23 +916,27 @@ export function useLoadoutWriteActions(input: {
         }
       }
 
-      input.setLoadoutMessage(buildSingleLoadoutTransferResultMessage({
+      input.setLoadoutMessage(`${buildSingleLoadoutTransferResultMessage({
         itemName: item.name,
         targetTransferCount,
         autoEquipCount,
         prepStepCount
-      }));
+      })} 页面已更新。`);
       actionSucceeded = true;
-      input.loadoutActionFeedback.setSingleActionFeedback(feedbackKey, "success");
     } catch (error) {
       input.setLoadoutMessage(error instanceof Error ? error.message : buildLoadoutItemActionFailureMessage("transfer", item.name));
     } finally {
-      if (hasSuccessfulWrite) finishWriteActionsInBackground(requiresFullRefresh);
+      if (hasSuccessfulWrite) finishWriteActionsInBackground({
+        requiresFullRefresh,
+        patches: acceptedPatches,
+        characterId: targetCharacter.character_id,
+        characterName: targetCharacter.class_name,
+        failedCount: actionSucceeded ? 0 : 1,
+        operationId
+      });
       input.setIsRunningItemAction(false);
       input.setItemActionMessage("");
-      if (!actionSucceeded) {
-        input.loadoutActionFeedback.setSingleActionFeedback(feedbackKey, "idle");
-      }
+      input.loadoutActionFeedback.setSingleActionFeedback(feedbackKey, "idle");
     }
   }
 
@@ -827,8 +949,9 @@ export function useLoadoutWriteActions(input: {
       input.setLoadoutMessage("请先读取账号数据。");
       return;
     }
+    const account = input.accountSummary;
 
-    const sourceItem = findBestTemplateSourceItem(item, input.accountSummary, template.character_id);
+    const sourceItem = findBestTemplateSourceItem(item, account, template.character_id);
     if (!sourceItem?.instance_id) {
       input.setLoadoutMessage(buildSingleLoadoutEquipMissingSourceMessage(item.name));
       return;
@@ -847,28 +970,27 @@ export function useLoadoutWriteActions(input: {
     input.loadoutActionFeedback.setSingleActionFeedback(feedbackKey, "pending");
     input.setItemActionMessage(buildSingleLoadoutEquipProgressMessage(item.name));
     input.setLoadoutMessage(buildSingleLoadoutEquipProgressMessage(item.name));
-    let actionSucceeded = false;
-
     try {
       const result = await api.equipItem({
-        membership_type: input.accountSummary.membership_type,
+        membership_type: account.membership_type,
         character_id: template.character_id,
         item_id: sourceItem.instance_id,
         item_name: sourceItem.name
       });
       const outcome = applySuccessfulWriteResult(result);
-      finishWriteActionsInBackground(outcome.requiresFullRefresh);
-      input.setLoadoutMessage(result.message);
-      actionSucceeded = true;
-      input.loadoutActionFeedback.setSingleActionFeedback(feedbackKey, "success");
+      finishWriteActionsInBackground({
+        requiresFullRefresh: outcome.requiresFullRefresh,
+        patches: outcome.patches,
+        characterId: template.character_id,
+        characterName: account.characters.find((character) => character.character_id === template.character_id)?.class_name
+      });
+      input.setLoadoutMessage(`${result.message}，页面已更新。`);
     } catch (error) {
       input.setLoadoutMessage(error instanceof Error ? error.message : buildLoadoutItemActionFailureMessage("equip", item.name));
     } finally {
       input.setIsRunningItemAction(false);
       input.setItemActionMessage("");
-      if (!actionSucceeded) {
-        input.loadoutActionFeedback.setSingleActionFeedback(feedbackKey, "idle");
-      }
+      input.loadoutActionFeedback.setSingleActionFeedback(feedbackKey, "idle");
     }
   }
 
@@ -935,6 +1057,20 @@ function resolveBatchVerificationCandidateIds(
   return new Set(
     [...attemptedItemIds].filter((itemId) => !reportedFailedItemIds.has(itemId))
   );
+}
+
+function collapseAccountWritePatches(
+  patches: readonly AccountItemActionPatch[]
+): AccountItemActionPatch[] {
+  const finalPatchByItem = new Map<string, AccountItemActionPatch>();
+  for (const patch of patches) finalPatchByItem.set(patch.item_instance_id, patch);
+  return [...finalPatchByItem.values()];
+}
+
+function createLoadoutWriteOperationId(): string {
+  return typeof globalThis.crypto?.randomUUID === "function"
+    ? globalThis.crypto.randomUUID()
+    : `loadout-write-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
 async function equipHighestPowerSingleItem(

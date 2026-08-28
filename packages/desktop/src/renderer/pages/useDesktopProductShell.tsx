@@ -92,8 +92,8 @@ export function useDesktopProductShell(props: {
   });
   const {
     accountSummary,
-    applyAccountActionPatches,
-    applyPendingAccountActionPatches,
+    applyCommittedAccountActionPatches,
+    confirmCommittedAccountActionPatches,
     vaultTags,
     setVaultTags,
     accountError,
@@ -108,10 +108,7 @@ export function useDesktopProductShell(props: {
     setLocalTargetRules,
     equipmentTargetStore,
     setEquipmentTargetStore,
-    refreshAccountSnapshot,
-    refreshAuthoritativeAccountSnapshot,
-    readAuthoritativeAccountSnapshot,
-    applyBackgroundAccountSnapshot
+    refreshAccountSnapshot
   } = accountWorkspace;
   const refreshAccountManually = () => refreshAccountSnapshot("manual");
   const refreshAccountAfterWrite = () => refreshAccountSnapshot("write-action");
@@ -152,8 +149,8 @@ export function useDesktopProductShell(props: {
   const localLoadoutPlans = useLocalLoadoutPlans({ refreshAccount: refreshAccountAfterWrite });
   const writeActions = useDesktopProductWriteActions({
     accountSummary,
-    applyAccountActionPatches,
-    applyPendingAccountActionPatches,
+    applyCommittedAccountActionPatches,
+    confirmCommittedAccountActionPatches,
     diagnostics,
     vaultTags,
     setVaultTags,
@@ -162,9 +159,6 @@ export function useDesktopProductShell(props: {
     itemDetailCacheScopeKey,
     setAccountError,
     loadAccountSummary: reloadAccountAfterWrite,
-    loadAuthoritativeAccountSummary: refreshAuthoritativeAccountSnapshot,
-    readAuthoritativeAccountSummary: readAuthoritativeAccountSnapshot,
-    applyAuthoritativeAccountSummary: applyBackgroundAccountSnapshot,
     loadoutLibrary,
     onRecentHistoryChanged: library.setLibraryHistory
   });
@@ -432,6 +426,7 @@ export function useDesktopProductShell(props: {
     handleProductPreferencesChange,
     itemDetailModalProps: {
       accountSummary,
+      accountOperationFeedback: writeActions.accountOperationFeedback,
       aiSettingsEnableLightgg: diagnostics.aiSettings.enable_lightgg,
       importedWishlist,
       itemDetail,

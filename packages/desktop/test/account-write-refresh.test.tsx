@@ -24,20 +24,23 @@ beforeEach(() => {
 });
 
 describe("account write refresh strategy", () => {
-  it("Vault 写操作有 patch 时立即局部更新且不完整刷新", async () => {
+  it("Vault 写操作有 patch 时立即更新并启动后台对账", async () => {
     apiMock.setItemLockState.mockResolvedValue(lockResult(true));
-    const applyPatches = vi.fn();
+    const applyCommittedAccountActionPatches = vi.fn();
     const loadAccountSummary = vi.fn().mockResolvedValue(undefined);
+    const startAccountWriteVerification = vi.fn().mockResolvedValue(undefined);
     const { result } = renderHook(() => useVaultWriteActions(vaultInput({
-      applyPatches,
-      loadAccountSummary
+      loadAccountSummary,
+      applyCommittedAccountActionPatches,
+      startAccountWriteVerification
     })));
 
     await act(async () => {
       await result.current.handleVaultCleanupUnlock([vaultItem()], "character-1");
     });
 
-    expect(applyPatches).toHaveBeenCalledWith([lockResult(true).account_patch]);
+    expect(applyCommittedAccountActionPatches).toHaveBeenCalledWith([lockResult(true).account_patch]);
+    expect(startAccountWriteVerification).toHaveBeenCalledTimes(1);
     expect(loadAccountSummary).not.toHaveBeenCalled();
   });
 
@@ -45,8 +48,8 @@ describe("account write refresh strategy", () => {
     apiMock.setItemLockState.mockResolvedValue(lockResult(false));
     const loadAccountSummary = vi.fn().mockResolvedValue(undefined);
     const { result } = renderHook(() => useVaultWriteActions(vaultInput({
-      applyPatches: vi.fn(),
-      loadAccountSummary
+      loadAccountSummary,
+      applyCommittedAccountActionPatches: vi.fn()
     })));
 
     await act(async () => {
@@ -56,50 +59,54 @@ describe("account write refresh strategy", () => {
     await waitFor(() => expect(loadAccountSummary).toHaveBeenCalledTimes(1));
   });
 
-  it("Loadouts 单件装备有 patch 时仍刷新角色摘要", async () => {
+  it("Loadouts 单件装备有 patch 时立即更新并启动后台对账", async () => {
     apiMock.equipItem.mockResolvedValue(equipResult(true));
-    const applyPatches = vi.fn();
+    const applyCommittedAccountActionPatches = vi.fn();
     const loadAccountSummary = vi.fn().mockResolvedValue(undefined);
+    const startHighestPowerVerification = vi.fn().mockResolvedValue(undefined);
     const { result } = renderHook(() => useLoadoutWriteActions(loadoutInput({
-      applyPatches,
-      loadAccountSummary
+      loadAccountSummary,
+      applyCommittedAccountActionPatches,
+      startHighestPowerVerification
     })));
 
     await act(async () => {
       await result.current.equipSingleLoadoutItem(loadoutTemplate(), loadoutTemplate().items[0]!);
     });
 
-    expect(applyPatches).toHaveBeenCalledWith([equipResult(true).account_patch]);
-    await waitFor(() => expect(loadAccountSummary).toHaveBeenCalledTimes(1));
+    expect(applyCommittedAccountActionPatches).toHaveBeenCalledWith([equipResult(true).account_patch]);
+    expect(startHighestPowerVerification).toHaveBeenCalledTimes(1);
+    expect(loadAccountSummary).not.toHaveBeenCalled();
   });
 
-  it("Loadouts 最高光等装备在权威账号快照确认后才报告完成", async () => {
+  it("Loadouts 最高光等装备写入后启动后台轻量确认", async () => {
     const summary = highestPowerAccountSummary();
-    apiMock.batchEquipItems.mockResolvedValue(batchEquipResult());
-    const applyPatches = vi.fn();
+    const highestPowerResult: ItemActionResult = {
+      ok: true,
+      message: "ok",
+      account_patch: {
+        kind: "equip",
+        item_instance_id: "better-item",
+        character_id: "character-1"
+      }
+    };
+    apiMock.equipItem.mockResolvedValue(highestPowerResult);
     const loadAccountSummary = vi.fn().mockResolvedValue(undefined);
-    const loadAuthoritativeAccountSummary = vi.fn()
-      .mockResolvedValue(summary);
-    const readAuthoritativeAccountSummary = vi.fn()
-      .mockResolvedValue(highestPowerEquippedAccountSummary());
-    const applyAuthoritativeAccountSummary = vi.fn();
+    const applyCommittedAccountActionPatches = vi.fn();
+    const startHighestPowerVerification = vi.fn().mockResolvedValue(undefined);
     const { result } = renderHook(() => useLoadoutWriteActions(loadoutInput({
       accountSummary: summary,
-      applyPatches,
       loadAccountSummary,
-      loadAuthoritativeAccountSummary,
-      readAuthoritativeAccountSummary,
-      applyAuthoritativeAccountSummary
+      applyCommittedAccountActionPatches,
+      startHighestPowerVerification
     })));
 
     await act(async () => {
       await result.current.equipHighestPowerItems(summary.characters[0]!);
     });
 
-    expect(applyPatches).toHaveBeenCalledWith(batchEquipResult().account_patches);
-    expect(loadAuthoritativeAccountSummary).toHaveBeenCalledTimes(1);
-    expect(readAuthoritativeAccountSummary).toHaveBeenCalledTimes(1);
-    expect(applyAuthoritativeAccountSummary).toHaveBeenCalledWith(highestPowerEquippedAccountSummary());
+    expect(applyCommittedAccountActionPatches).toHaveBeenCalledWith([highestPowerResult.account_patch]);
+    expect(startHighestPowerVerification).toHaveBeenCalledTimes(1);
     expect(loadAccountSummary).not.toHaveBeenCalled();
   });
 
@@ -107,8 +114,8 @@ describe("account write refresh strategy", () => {
     apiMock.equipItem.mockResolvedValue(equipResult(false));
     const loadAccountSummary = vi.fn().mockResolvedValue(undefined);
     const { result } = renderHook(() => useLoadoutWriteActions(loadoutInput({
-      applyPatches: vi.fn(),
-      loadAccountSummary
+      loadAccountSummary,
+      applyCommittedAccountActionPatches: vi.fn()
     })));
 
     await act(async () => {
@@ -120,12 +127,12 @@ describe("account write refresh strategy", () => {
 });
 
 function vaultInput(input: {
-  applyPatches: ReturnType<typeof vi.fn>;
   loadAccountSummary: ReturnType<typeof vi.fn>;
+  applyCommittedAccountActionPatches: ReturnType<typeof vi.fn>;
+  startAccountWriteVerification?: ReturnType<typeof vi.fn>;
 }) {
   return {
     accountSummary: accountSummary(),
-    applyAccountActionPatches: input.applyPatches,
     diagnostics: {
       loadActionLog: vi.fn().mockResolvedValue(undefined)
     },
@@ -133,21 +140,20 @@ function vaultInput(input: {
     setAccountError: vi.fn(),
     setIsRunningItemAction: vi.fn(),
     setItemActionMessage: vi.fn(),
-    loadAccountSummary: input.loadAccountSummary
+    loadAccountSummary: input.loadAccountSummary,
+    applyCommittedAccountActionPatches: input.applyCommittedAccountActionPatches,
+    startAccountWriteVerification: input.startAccountWriteVerification ?? vi.fn().mockResolvedValue(undefined)
   };
 }
 
 function loadoutInput(input: {
   accountSummary?: AccountSummary;
-  applyPatches: ReturnType<typeof vi.fn>;
   loadAccountSummary: ReturnType<typeof vi.fn>;
-  loadAuthoritativeAccountSummary?: ReturnType<typeof vi.fn>;
-  readAuthoritativeAccountSummary?: ReturnType<typeof vi.fn>;
-  applyAuthoritativeAccountSummary?: ReturnType<typeof vi.fn>;
+  applyCommittedAccountActionPatches: ReturnType<typeof vi.fn>;
+  startHighestPowerVerification?: ReturnType<typeof vi.fn>;
 }) {
   return {
     accountSummary: input.accountSummary ?? accountSummary(),
-    applyAccountActionPatches: input.applyPatches,
     loadoutLibrary: {
       reloadTemplates: vi.fn().mockResolvedValue(undefined),
       renameTemplate: vi.fn(),
@@ -161,12 +167,9 @@ function loadoutInput(input: {
     setItemActionMessage: vi.fn(),
     setAccountOperationFeedback: vi.fn(),
     setIsRunningItemAction: vi.fn(),
+    applyCommittedAccountActionPatches: input.applyCommittedAccountActionPatches,
+    startHighestPowerVerification: input.startHighestPowerVerification ?? vi.fn().mockResolvedValue(undefined),
     loadAccountSummary: input.loadAccountSummary,
-    loadAuthoritativeAccountSummary: input.loadAuthoritativeAccountSummary
-      ?? vi.fn().mockResolvedValue(input.accountSummary ?? accountSummary()),
-    readAuthoritativeAccountSummary: input.readAuthoritativeAccountSummary
-      ?? vi.fn().mockResolvedValue(input.accountSummary ?? accountSummary()),
-    applyAuthoritativeAccountSummary: input.applyAuthoritativeAccountSummary ?? vi.fn(),
     openItemDetail: vi.fn()
   };
 }
@@ -196,21 +199,6 @@ function equipResult(withPatch: boolean): ItemActionResult {
         character_id: "character-1"
       }
     } : {})
-  };
-}
-
-function batchEquipResult() {
-  return {
-    ok: true as const,
-    total: 1,
-    success_count: 1,
-    failed_count: 0,
-    message: "ok",
-    account_patches: [{
-      kind: "equip" as const,
-      item_instance_id: "better-item",
-      character_id: "character-1"
-    }]
   };
 }
 
@@ -293,20 +281,5 @@ function highestPowerAccountSummary(): AccountSummary {
     }],
     vault: { item_count: 0, items: [], sample_items: [] },
     materials: { item_count: 0, items: [] }
-  };
-}
-
-function highestPowerEquippedAccountSummary(): AccountSummary {
-  const summary = highestPowerAccountSummary();
-  const character = summary.characters[0]!;
-  const betterItem = character.inventory_items[0]!;
-  const oldItem = character.equipped_items[0]!;
-  return {
-    ...summary,
-    characters: [{
-      ...character,
-      equipped_items: [betterItem],
-      inventory_items: [oldItem]
-    }]
   };
 }

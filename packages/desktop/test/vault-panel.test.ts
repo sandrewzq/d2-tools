@@ -171,7 +171,7 @@ describe("vault panel helpers", () => {
     };
 
     expect(buildVaultBulkMoveResultMessage("猎人", partialResult))
-      .toContain("已转移到猎人");
+      .toContain("部分转移到猎人");
     expect(buildVaultBulkMoveResultMessage("猎人", partialResult))
       .toContain("成功 3 件，失败 1 件");
     expect(buildVaultBulkMoveResultMessage("猎人", partialResult))
@@ -185,7 +185,7 @@ describe("vault panel helpers", () => {
       success_count: 2,
       failed_count: 0,
       message: "批量操作完成"
-    })).toBe("已转移到泰坦：共 2 件。");
+    })).toBe("已转移到泰坦：共 2 件，页面已更新。");
   });
 
   it("filters vault items by selected weapon frames", () => {

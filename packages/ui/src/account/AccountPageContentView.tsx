@@ -256,7 +256,7 @@ function AccountPageWorkspace(props: {
     ? accountText(props.copy, "刷新中")
     : connectionState === "cached"
       ? accountText(props.copy, "缓存数据")
-      : accountText(props.copy, "已同步");
+      : accountText(props.copy, "已读取");
   const connectionStatus = connectionState === "refreshing" ? "pending" : connectionState === "cached" ? "warning" : "success";
   const operationFeedback = props.viewModel.feedback.operation;
 
@@ -530,7 +530,7 @@ function AccountPageWorkspace(props: {
       {isHighestPowerConfirmationOpen ? (
         <ConfirmationDialog
           title={`${accountText(props.copy, "装备操作")} ${highestPowerChanges.length} ${accountText(props.copy, "件最高光等装备？")}`}
-          description={`${props.selectedCharacter.className} ${accountText(props.copy, "当前")} ${props.selectedCharacter.power.currentLabel}，${accountText(props.copy, "预计达到")} ${props.selectedCharacter.power.executablePower.label}。${accountText(props.copy, "写接口成功后页面会立即更新，账号确认在后台继续。")}`}
+          description={`${props.selectedCharacter.className} ${accountText(props.copy, "当前")} ${props.selectedCharacter.power.currentLabel}，${accountText(props.copy, "预计达到")} ${props.selectedCharacter.power.executablePower.label}。${accountText(props.copy, "Bungie 返回后按逐项结果更新页面，失败项保持原状态。")}`}
           confirmLabel={`${accountText(props.copy, "装备操作")} ${highestPowerChanges.length} ${accountText(props.copy, "件")}`}
           cancelLabel={accountText(props.copy, "取消")}
           returnFocusRef={equipHighestPowerTriggerRef}
@@ -734,7 +734,7 @@ function AccountPowerPanel(props: {
       </div>
       <div className="account-power-summary" aria-label={accountText(props.copy, "光等方案摘要")}>
         <span>
-          <small>{accountText(props.copy, "Bungie 当前光等")}</small>
+          <small>{accountText(props.copy, "当前装备平均")}</small>
           <strong>{props.power.currentLabel}</strong>
         </span>
         <span aria-hidden="true">→</span>
@@ -964,7 +964,7 @@ function renderAccountItemCard(
       ? {
           kind: "pending",
           label: accountText(props.copy, "同步中"),
-          description: accountText(props.copy, "装备请求已成功，正在等待账号数据确认")
+          description: accountText(props.copy, "写入已完成，正在后台对账")
         }
       : item.isLoadoutMatch
       ? {

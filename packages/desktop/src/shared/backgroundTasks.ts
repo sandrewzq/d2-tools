@@ -30,7 +30,8 @@ export type BackgroundTaskStatus =
   | "retrying"
   | "success"
   | "failed"
-  | "blocked";
+  | "blocked"
+  | "superseded";
 
 export type BackgroundTaskSnapshot = {
   task_id: string;
@@ -125,6 +126,15 @@ export function createBackgroundTaskStore(options: BackgroundTaskStoreOptions = 
     void input.run({
       update: (patch) => setTask(taskId, patch)
     }).then(() => {
+      const completed = tasks.get(taskId);
+      if (completed?.status === "superseded") {
+        setTask(taskId, {
+          finished_at: now().toISOString(),
+          can_retry: false
+        });
+        activeTaskByType.delete(taskKey(input));
+        return;
+      }
       setTask(taskId, {
         status: "success",
         finished_at: now().toISOString(),

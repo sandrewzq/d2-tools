@@ -39,10 +39,10 @@ export function buildVaultBulkMoveResultMessage(
 ): string {
   const targetLabel = targetCharacterLabel || "目标角色";
   if (!result.failed_count) {
-    return `已转移到${targetLabel}：共 ${result.success_count} 件。`;
+    return `已转移到${targetLabel}：共 ${result.success_count} 件，页面已更新。`;
   }
 
-  return `已转移到${targetLabel}：成功 ${result.success_count} 件，失败 ${result.failed_count} 件。可到设置 -> 操作日志查看失败详情。`;
+  return `部分转移到${targetLabel}：成功 ${result.success_count} 件，失败 ${result.failed_count} 件。可到设置 -> 操作日志查看失败详情。`;
 }
 
 export function buildVaultBatchTagCopy(tag: VaultTagValue): { action: string; loading: string } {
@@ -246,8 +246,8 @@ export function buildVaultCleanupWriteResultMessage(input: {
   failedCount: number;
 }): string {
   return input.failedCount
-    ? `${input.label}完成 ${input.successCount} 件，失败 ${input.failedCount} 件。可以在设置页查看操作日志。`
-    : `${input.label}完成 ${input.successCount} 件。`;
+    ? `${input.label}部分完成：成功 ${input.successCount} 件，失败 ${input.failedCount} 件。`
+    : `${input.label}完成：成功 ${input.successCount} 件。`;
 }
 
 export function buildVaultBatchTransferConfirmText(itemCount: number): string {

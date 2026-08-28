@@ -90,6 +90,7 @@ export type PostmasterPullActionInput = ActionTraceCarrier & {
   character_id: string;
   item_id: string;
   item_reference_hash: number;
+  source_bucket_hash?: number;
   item_name?: string;
   stack_size?: number;
 };
@@ -156,7 +157,7 @@ export type AccountWriteVerificationInput = {
   destiny_membership_id: string;
   character_id: string;
   character_name?: string;
-  expected_equipped_item_ids: string[];
+  expected_patches: AccountItemActionPatch[];
   accepted_count: number;
   failed_count: number;
 };

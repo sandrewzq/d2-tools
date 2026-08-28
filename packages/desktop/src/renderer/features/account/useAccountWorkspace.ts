@@ -6,8 +6,9 @@ import type { AccountItemActionPatch, AccountSummary, ActivityHistorySummary, Di
 import { createEmptyEquipmentTargetStore } from "@d2-tools/core/targets/equipmentTargets";
 import { services } from "../../api/services";
 import {
-  applyAccountEntityPatches,
-  applyPendingAccountEntityPatches,
+  applyCommittedAccountEntityPatches,
+  confirmCommittedAccountEntityPatches,
+  getAccountStoreRevision,
   getAccountSummarySnapshot,
   replaceAccountSummary,
   useAccountSummaryStore
@@ -56,6 +57,9 @@ export function useAccountWorkspace(input: {
   const derivedRequestSequenceRef = useRef(0);
   const communityRequestSequenceRef = useRef(0);
   const communityMatchAccountKeyRef = useRef("");
+  const accountRefreshRequestRef = useRef<Promise<AccountSummary | null> | null>(null);
+  const accountLoadingSequenceRef = useRef(0);
+  const hasLoadedLocalAccountDataRef = useRef(false);
 
   useEffect(() => {
     let active = true;
@@ -76,8 +80,8 @@ export function useAccountWorkspace(input: {
     replaceAccountSummary(summary);
   }
 
-  function applyAccountSummary(summary: AccountSummary) {
-    setAccountSummaryState(summary);
+  function applyAccountSummary(summary: AccountSummary, requestStartedRevision?: number) {
+    replaceAccountSummary(summary, { requestStartedRevision });
     setSelectedCharacterId((current) => {
       if (current && summary.characters.some((character) => character.character_id === current)) {
         return current;
@@ -86,12 +90,12 @@ export function useAccountWorkspace(input: {
     });
   }
 
-  function applyAccountActionPatches(patches: readonly AccountItemActionPatch[]) {
-    applyAccountEntityPatches(patches);
+  function applyCommittedAccountActionPatches(patches: readonly AccountItemActionPatch[]) {
+    applyCommittedAccountEntityPatches(patches);
   }
 
-  function applyPendingAccountActionPatches(patches: readonly AccountItemActionPatch[]) {
-    applyPendingAccountEntityPatches(patches);
+  function confirmCommittedAccountActionPatches(patches: readonly AccountItemActionPatch[]) {
+    confirmCommittedAccountEntityPatches(patches);
   }
 
   async function loginBungie() {
@@ -102,6 +106,8 @@ export function useAccountWorkspace(input: {
     try {
       const result = await api.loginBungie();
       accountRequestSequenceRef.current += 1;
+      accountRefreshRequestRef.current = null;
+      hasLoadedLocalAccountDataRef.current = false;
       derivedRequestSequenceRef.current += 1;
       communityRequestSequenceRef.current += 1;
       setAccountSummaryState(null);
@@ -142,102 +148,89 @@ export function useAccountWorkspace(input: {
   }
 
   async function refreshAccountSnapshot(
-    reason: AccountRefreshReason = getAccountSummarySnapshot() ? "manual" : "initial",
-    options: { authoritative?: boolean } = {}
+    reason: AccountRefreshReason = getAccountSummarySnapshot() ? "manual" : "initial"
   ) {
-    const authoritative = options.authoritative ?? (reason === "manual" || reason === "write-action");
+    const foreground = reason === "manual" || !getAccountSummarySnapshot();
+    const existingRequest = accountRefreshRequestRef.current;
+    if (existingRequest) {
+      const loadingSequence = foreground ? ++accountLoadingSequenceRef.current : 0;
+      if (foreground) setIsLoadingAccount(true);
+      try {
+        return await existingRequest;
+      } finally {
+        if (foreground && loadingSequence === accountLoadingSequenceRef.current) {
+          setIsLoadingAccount(false);
+        }
+      }
+    }
+
     const requestSequence = ++accountRequestSequenceRef.current;
-    setIsLoadingAccount(true);
+    const requestStartedRevision = getAccountStoreRevision();
+    const loadingSequence = foreground ? ++accountLoadingSequenceRef.current : 0;
+    if (foreground) setIsLoadingAccount(true);
     setAccountError("");
-    setAccountWarning("");
+
+    const request = (async (): Promise<AccountSummary | null> => {
+      try {
+        let summary: AccountSummary;
+        if (!hasLoadedLocalAccountDataRef.current) {
+          const workspace = await loadAccountWorkspace(services, {
+            forceAccountRefresh: true
+          });
+          if (requestSequence !== accountRequestSequenceRef.current) return null;
+          if (workspace.status !== "success") {
+            throw new Error(workspace.error?.message ?? "账号数据读取失败");
+          }
+          summary = workspace.data.account;
+          setVaultTags(workspace.data.tags);
+          setLocalTargetRules(workspace.data.targetRules);
+          setEquipmentTargetStore(workspace.data.equipmentTargets);
+          setImportedWishlist(workspace.data.wishlist);
+          hasLoadedLocalAccountDataRef.current = true;
+          setAccountWarning(workspace.data.warnings.length
+            ? `本地增强数据读取失败：${formatAccountWorkspaceWarnings(workspace.data.warnings)}`
+            : "");
+        } else {
+          summary = await api.getAccountSummary({ force: true });
+          if (requestSequence !== accountRequestSequenceRef.current) return null;
+        }
+
+        applyAccountSummary(summary, requestStartedRevision);
+        setIsShowingCachedAccount(false);
+        setLastAccountLoadedAt(new Date());
+        communityRequestSequenceRef.current += 1;
+        communityMatchAccountKeyRef.current = "";
+        if (reason === "initial" || reason === "manual") {
+          setActivityMessage(reason === "manual"
+            ? "账号已刷新"
+            : "账号已读取，最近活动会继续在后台刷新");
+        }
+        if (reason === "initial") void refreshAccountDerivedData(summary);
+        return summary;
+      } catch (error) {
+        if (requestSequence !== accountRequestSequenceRef.current) return null;
+        const message = error instanceof Error ? error.message : "账号数据读取失败";
+        const resolvedMessage = getAccountLoadErrorMessage(input.state, message);
+        if (getAccountSummarySnapshot()) {
+          setIsShowingCachedAccount(true);
+          setAccountError(`${formatAccountRefreshFailurePrefix(reason)}，仍显示上次读取数据。${resolvedMessage}`);
+        } else {
+          setAccountError(resolvedMessage);
+          setAccountSummaryState(null);
+        }
+        return null;
+      }
+    })();
+    accountRefreshRequestRef.current = request;
 
     try {
-      const workspace = await loadAccountWorkspace(services, {
-        forceAccountRefresh: true,
-        ...(authoritative ? { authoritativeAccountRefresh: true } : {})
-      });
-      if (requestSequence !== accountRequestSequenceRef.current) return null;
-      if (workspace.status !== "success") {
-        throw new Error(workspace.error?.message ?? "账号数据读取失败");
-      }
-      const {
-        account: summary,
-        tags,
-        targetRules,
-        equipmentTargets,
-        wishlist
-      } = workspace.data;
-      applyAccountSummary(summary);
-      setIsShowingCachedAccount(false);
-      setLastAccountLoadedAt(new Date());
-      setVaultTags(tags);
-      setLocalTargetRules(targetRules);
-      setEquipmentTargetStore(equipmentTargets);
-      setImportedWishlist(wishlist);
-      setActivitySummary(null);
-      communityRequestSequenceRef.current += 1;
-      setVaultCommunityMatch(new Map());
-      communityMatchAccountKeyRef.current = "";
-      setIsVaultCommunityMatchLoading(false);
-      setActivityMessage("账号已读取，最近活动会继续在后台刷新");
-      if (workspace.data.warnings.length) {
-        setAccountWarning(`本地增强数据读取失败：${formatAccountWorkspaceWarnings(workspace.data.warnings)}`);
-      }
-      void refreshAccountDerivedData(summary);
-      return summary;
-    } catch (error) {
-      if (requestSequence !== accountRequestSequenceRef.current) return null;
-      const message = error instanceof Error ? error.message : "账号数据读取失败";
-      const resolvedMessage = getAccountLoadErrorMessage(input.state, message);
-      if (getAccountSummarySnapshot()) {
-        setAccountError(`${formatAccountRefreshFailurePrefix(reason)}，仍显示上次读取数据。${resolvedMessage}`);
-      } else {
-        setAccountError(resolvedMessage);
-        setAccountSummaryState(null);
-      }
-      return null;
+      return await request;
     } finally {
-      if (requestSequence === accountRequestSequenceRef.current) {
+      if (accountRefreshRequestRef.current === request) accountRefreshRequestRef.current = null;
+      if (foreground && loadingSequence === accountLoadingSequenceRef.current) {
         setIsLoadingAccount(false);
       }
     }
-  }
-
-  async function refreshAuthoritativeAccountSnapshot(): Promise<AccountSummary | null> {
-    const requestSequence = ++accountRequestSequenceRef.current;
-    setIsLoadingAccount(true);
-    setAccountError("");
-
-    try {
-      const summary = await api.getAccountSummary({ force: true, authoritative: true });
-      if (requestSequence !== accountRequestSequenceRef.current) return null;
-      applyAccountSummary(summary);
-      setIsShowingCachedAccount(false);
-      setLastAccountLoadedAt(new Date());
-      return summary;
-    } catch (error) {
-      if (requestSequence !== accountRequestSequenceRef.current) return null;
-      const message = error instanceof Error ? error.message : "账号写操作状态核对失败";
-      setAccountError(`账号写操作状态核对失败，仍显示上次读取数据。${message}`);
-      return null;
-    } finally {
-      if (requestSequence === accountRequestSequenceRef.current) {
-        setIsLoadingAccount(false);
-      }
-    }
-  }
-
-  async function readAuthoritativeAccountSnapshot(): Promise<AccountSummary | null> {
-    try {
-      return await api.getAccountSummary({ force: true, authoritative: true });
-    } catch {
-      return null;
-    }
-  }
-
-  function applyBackgroundAccountSnapshot(summary: AccountSummary) {
-    applyAccountSummary(summary);
-    setIsShowingCachedAccount(false);
   }
 
   async function refreshAccountDerivedData(summary = getAccountSummarySnapshot()) {
@@ -295,8 +288,8 @@ export function useAccountWorkspace(input: {
     isInitializingManifest,
     accountSummary,
     setAccountSummary: setAccountSummaryState,
-    applyAccountActionPatches,
-    applyPendingAccountActionPatches,
+    applyCommittedAccountActionPatches,
+    confirmCommittedAccountActionPatches,
     vaultTags,
     setVaultTags,
     localTargetRules,
@@ -322,9 +315,6 @@ export function useAccountWorkspace(input: {
     initializeManifest,
     loadAccountSummary: refreshAccountSnapshot,
     refreshAccountSnapshot,
-    refreshAuthoritativeAccountSnapshot,
-    readAuthoritativeAccountSnapshot,
-    applyBackgroundAccountSnapshot,
     loadActivitySummary: refreshAccountDerivedData,
     loadVaultCommunityMatch,
     refreshAccountDerivedData

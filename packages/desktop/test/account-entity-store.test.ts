@@ -5,6 +5,8 @@ import { beforeEach, describe, expect, it } from "vitest";
 import type { AccountItemSummary, AccountSummary } from "../src/renderer/api/types.js";
 import {
   applyAccountEntityPatches,
+  applyCommittedAccountEntityPatches,
+  confirmCommittedAccountEntityPatches,
   getAccountItemEntity,
   getAccountItemEntityCount,
   getAccountStoreRevision,
@@ -122,6 +124,31 @@ describe("account entity store", () => {
       "material b"
     ]);
     expect(getAccountItemEntityCount()).toBe(6);
+  });
+
+  it("在 Profile 对账命中前阻止旧快照覆盖已提交写结果", () => {
+    replaceAccountSummary(accountSummary());
+    const staleRequestRevision = getAccountStoreRevision();
+    applyCommittedAccountEntityPatches([{
+      kind: "lock",
+      item_instance_id: "vault-item",
+      locked: true
+    }]);
+
+    replaceAccountSummary(accountSummary(), { requestStartedRevision: staleRequestRevision });
+    expect(getAccountItemEntity("vault-item")?.locked).toBe(true);
+
+    const newRequestRevision = getAccountStoreRevision();
+    replaceAccountSummary(accountSummary(), { requestStartedRevision: newRequestRevision });
+    expect(getAccountItemEntity("vault-item")?.locked).toBe(true);
+
+    confirmCommittedAccountEntityPatches([{
+      kind: "lock",
+      item_instance_id: "vault-item",
+      locked: true
+    }]);
+    replaceAccountSummary(accountSummary());
+    expect(getAccountItemEntity("vault-item")?.locked).toBe(false);
   });
 });
 

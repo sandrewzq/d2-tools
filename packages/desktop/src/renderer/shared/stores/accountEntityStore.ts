@@ -53,18 +53,22 @@ let state = emptyState;
 let cachedSummaryState: NormalizedAccountState | null = null;
 let cachedSummary: AccountSummary | null = null;
 const listeners = new Set<() => void>();
-const pendingPatchesByInstanceId = new Map<string, AccountItemActionPatch>();
+const committedPatchesByInstanceId = new Map<string, AccountItemActionPatch>();
 
-export function replaceAccountSummary(summary: AccountSummary | null): void {
-  if (!summary) pendingPatchesByInstanceId.clear();
+export function replaceAccountSummary(
+  summary: AccountSummary | null,
+  options: { requestStartedRevision?: number } = {}
+): void {
+  void options;
+  if (!summary) committedPatchesByInstanceId.clear();
   let next = summary ? normalizeAccountSummary(summary, state.revision + 1) : {
     ...emptyState,
     revision: state.revision + 1
   };
   if (summary) {
-    for (const [instanceId, patch] of pendingPatchesByInstanceId) {
+    for (const [instanceId, patch] of committedPatchesByInstanceId) {
       if (isAccountItemActionPatchReflected(summary, patch)) {
-        pendingPatchesByInstanceId.delete(instanceId);
+        committedPatchesByInstanceId.delete(instanceId);
       } else {
         next = applyPatch(next, patch);
       }
@@ -85,15 +89,23 @@ export function applyAccountEntityPatches(patches: readonly AccountItemActionPat
   emitChange();
 }
 
-export function applyPendingAccountEntityPatches(patches: readonly AccountItemActionPatch[]): void {
-  for (const patch of patches) {
-    pendingPatchesByInstanceId.set(patch.item_instance_id, patch);
-  }
+export function applyCommittedAccountEntityPatches(patches: readonly AccountItemActionPatch[]): void {
+  if (!state.account || !patches.length) return;
+  for (const patch of patches) clearConflictingCommittedPatches(patch);
   applyAccountEntityPatches(patches);
+  for (const patch of patches) {
+    committedPatchesByInstanceId.delete(patch.item_instance_id);
+    committedPatchesByInstanceId.set(patch.item_instance_id, patch);
+  }
 }
 
-export function confirmPendingAccountEntityPatches(instanceIds: readonly string[]): void {
-  for (const instanceId of instanceIds) pendingPatchesByInstanceId.delete(instanceId);
+export function confirmCommittedAccountEntityPatches(patches: readonly AccountItemActionPatch[]): void {
+  for (const patch of patches) {
+    const committedPatch = committedPatchesByInstanceId.get(patch.item_instance_id);
+    if (isSameAccountItemActionPatch(committedPatch, patch)) {
+      committedPatchesByInstanceId.delete(patch.item_instance_id);
+    }
+  }
 }
 
 export function getAccountSummarySnapshot(): AccountSummary | null {
@@ -167,6 +179,42 @@ function subscribe(listener: () => void): () => void {
 
 function selectAccountSummary(summary: AccountSummary | null): AccountSummary | null {
   return summary;
+}
+
+function clearConflictingCommittedPatches(patch: AccountItemActionPatch): void {
+  if (patch.kind !== "equip") return;
+  const incomingKey = state.itemKeyByInstanceId[patch.item_instance_id];
+  const incomingItem = incomingKey ? state.itemsByKey[incomingKey] : undefined;
+  if (!incomingItem) return;
+  for (const [instanceId, committedPatch] of committedPatchesByInstanceId) {
+    if (committedPatch.kind !== "equip" || committedPatch.character_id !== patch.character_id) continue;
+    const existingKey = state.itemKeyByInstanceId[instanceId];
+    const existingItem = existingKey ? state.itemsByKey[existingKey] : undefined;
+    if (!existingItem) continue;
+    const sameSlot = incomingItem.bucket_hash !== undefined
+      ? existingItem.bucket_hash === incomingItem.bucket_hash
+      : incomingItem.group_key !== "other"
+        && existingItem.group_key === incomingItem.group_key;
+    if (sameSlot) {
+      committedPatchesByInstanceId.delete(instanceId);
+    }
+  }
+}
+
+function isSameAccountItemActionPatch(
+  left: AccountItemActionPatch | undefined,
+  right: AccountItemActionPatch
+): boolean {
+  if (!left || left.kind !== right.kind || left.item_instance_id !== right.item_instance_id) return false;
+  if (left.kind === "lock" && right.kind === "lock") return left.locked === right.locked;
+  if (left.kind === "equip" && right.kind === "equip") return left.character_id === right.character_id;
+  if (left.kind === "postmaster-pull" && right.kind === "postmaster-pull") {
+    return left.character_id === right.character_id
+      && left.source_bucket_hash === right.source_bucket_hash;
+  }
+  return left.kind === "transfer" && right.kind === "transfer"
+    && left.character_id === right.character_id
+    && left.target === right.target;
 }
 
 function selectHasAccountData(summary: AccountSummary | null): boolean {

@@ -12,6 +12,7 @@ export type MissingLoadoutTransferItem = {
   item_id: string;
   item_reference_hash: number;
   item_name: string;
+  bucket_hash?: number;
   bucket_name?: string;
   source_kind: "equipped" | "inventory" | "vault" | "postmaster";
   source_character_id?: string;
@@ -104,6 +105,7 @@ export function buildMissingLoadoutTransferPlan(input: {
       item_id: matched.instance_id,
       item_reference_hash: matched.hash,
       item_name: matched.name,
+      bucket_hash: matched.bucket_hash,
       bucket_name: matched.bucket_name,
       source_kind: matched.source_kind,
       source_character_id: matched.source_character_id

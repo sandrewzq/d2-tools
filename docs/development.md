@@ -228,7 +228,7 @@ Renderer UI 的长期边界只在本节保留，具体视觉数值与菜单合�
 - GameData worker 的 search/detail 请求必须有有限超时和单请求 pending 清理；definition 批量读取可使用更长超时，worker error/exit/close 时必须统一拒绝并清空剩余请求。
 - 资料库更新使用当前语言 SQLite 作为主库，构建装备、Perk、关系和 canonical identity sidecar；非英文界面可离线下载英文 SQLite 构建轻量英文 sidecar，但不得长期保留第二份完整英文主库。
 - JSON Adapter 只用于 SQLite 当前未覆盖的 supplement；不得作为旧主缓存兼容层，也不得重新把大型 JSON 主缓存接回普通请求。
-- 账号读取统一通过 `AccountSession`：列表使用紧凑 `AccountSnapshot`，实例详情按需加载；写操作成功后先局部 patch，再后台 refresh 校验。账号快照缓存和 Manifest / sidecar 都属于运行缓存，不进入便携备份。
+- 账号读取统一通过 `AccountSession`：列表使用紧凑 `AccountSnapshot`，实例详情按需加载；Bungie 单件写接口明确成功，或批量接口返回单项成功状态后，立即把对应局部 patch 提交到 `AccountSession`、renderer Store 和持久化账号快照。Profile 只在后台低优先级对账并解除写结果保护；暂时返回旧数据的 Profile 不得回退已提交结果。账号快照缓存和 Manifest / sidecar 都属于运行缓存，不进入便携备份。
 - 首页、资料库实时来源和账号 Session 共享 Bungie 请求 Broker；每日与每周通过同一次 `home:briefing` 获取，避免重复 membership、Profile 和里程碑请求。
 - 首页简报使用运行缓存保存已解析数据，按每日重置、每周重置和仄商人出现/离开窗口分别判断是否需要访问 Bungie；应用重启后优先复用缓存，倒计时只在 renderer 本地重算，手动刷新可强制绕过周期缓存。
 - 商人基础库存不再依赖商人菜单挂载。账号摘要准备后由顶层 workspace 后台预热当前角色库存；仄处于开放窗口时同时预热默认仄详情。主进程按账号、角色、详情范围和资料库版本合并并缓存请求，缓存到商人 `nextRefreshAt` 后失效，手动刷新强制重新读取。

@@ -92,6 +92,7 @@ export function selectMaxEquippablePowerCandidates<Source>(input: {
   const compatibleCandidates = input.candidates.filter((candidate) => (
     candidate.item.instance_id
     && typeof candidate.item.power === "number"
+    && candidate.item.instance?.can_equip !== false
     && canEquipOnCharacter(candidate.item, input.characterClassName)
   ));
   const candidatesBySlot = groupCandidatesBySlot(compatibleCandidates);
@@ -108,6 +109,7 @@ export function selectHighestSlotPowerCandidates<Source>(input: {
   const candidatesBySlot = groupCandidatesBySlot(input.candidates.filter((candidate) => (
     candidate.item.instance_id
     && typeof candidate.item.power === "number"
+    && candidate.item.instance?.can_equip !== false
     && canEquipOnCharacter(candidate.item, input.characterClassName)
   )));
   const selected = new Map<AccountPowerSlotKey, AccountPowerCandidate<Source>>();

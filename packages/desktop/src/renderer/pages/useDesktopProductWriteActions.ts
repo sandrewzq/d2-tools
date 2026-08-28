@@ -17,15 +17,16 @@ import { useLoadoutWriteActions } from "../features/loadouts/useLoadoutWriteActi
 import { useVaultWriteActions } from "../features/vault/useVaultWriteActions";
 import { useItemDetailWorkspace } from "../shared/hooks/useItemDetailWorkspace";
 import { useBackgroundTasks } from "../shared/hooks/useBackgroundTasks";
-import { confirmPendingAccountEntityPatches } from "../shared/stores/accountEntityStore";
 
-type HighestPowerSyncState = {
+type AccountWriteSyncState = {
   taskId: string;
   operationId: string;
   characterName: string;
   acceptedCount: number;
   failedCount: number;
   itemInstanceIds: string[];
+  expectedPatches: AccountItemActionPatch[];
+  surfaceFeedback: boolean;
 };
 
 type DiagnosticsBridge = {
@@ -41,15 +42,12 @@ type LoadoutLibraryBridge = {
 
 export function useDesktopProductWriteActions(input: {
   accountSummary: AccountSummary | null;
-  applyAccountActionPatches: (patches: readonly AccountItemActionPatch[]) => void;
-  applyPendingAccountActionPatches: (patches: readonly AccountItemActionPatch[]) => void;
+  applyCommittedAccountActionPatches: (patches: readonly AccountItemActionPatch[]) => void;
+  confirmCommittedAccountActionPatches: (patches: readonly AccountItemActionPatch[]) => void;
   diagnostics: DiagnosticsBridge;
   importedWishlist: DimWishlist | null;
   itemDetailCacheScopeKey: string;
   loadAccountSummary: () => Promise<void>;
-  loadAuthoritativeAccountSummary: () => Promise<AccountSummary | null>;
-  readAuthoritativeAccountSummary: () => Promise<AccountSummary | null>;
-  applyAuthoritativeAccountSummary: (summary: AccountSummary) => void;
   loadoutLibrary: LoadoutLibraryBridge;
   localTargetRules: LocalTargetRules;
   onRecentHistoryChanged: (history: LibraryHistory) => void;
@@ -61,86 +59,129 @@ export function useDesktopProductWriteActions(input: {
   const [isRunningItemAction, setIsRunningItemAction] = useState(false);
   const [itemActionMessage, setItemActionMessage] = useState("");
   const [accountOperationFeedback, setAccountOperationFeedback] = useState<AccountOperationFeedbackView>();
-  const [highestPowerSync, setHighestPowerSync] = useState<HighestPowerSyncState | null>(null);
+  const [accountWriteSyncs, setAccountWriteSyncs] = useState<AccountWriteSyncState[]>([]);
   const { backgroundTasks } = useBackgroundTasks();
   const loadoutActionFeedback = useLoadoutActionFeedback();
 
   useEffect(() => {
-    if (!highestPowerSync) return;
-    const task = backgroundTasks.find((entry) => entry.task_id === highestPowerSync.taskId);
-    if (!task) return;
+    if (!accountWriteSyncs.length) return;
+    const resolved = accountWriteSyncs.map((sync) => ({
+      sync,
+      task: backgroundTasks.find((entry) => entry.task_id === sync.taskId)
+    }));
+    const succeededAll = resolved.filter((entry) => entry.task?.status === "success");
+    for (const entry of succeededAll) {
+      input.confirmCommittedAccountActionPatches(entry.sync.expectedPatches);
+    }
+    const visible = resolved.filter((entry) => entry.sync.surfaceFeedback);
+    const succeeded = visible.filter((entry) => entry.task?.status === "success");
+    const failed = visible.filter((entry) => entry.task?.status === "failed" || entry.task?.status === "blocked");
+    const superseded = visible.filter((entry) => entry.task?.status === "superseded");
+    const active = visible.filter((entry) => entry.task && ["queued", "running", "retrying"].includes(entry.task.status));
+    const terminalTaskIds = new Set([
+      ...resolved.filter((entry) => entry.task && ["success", "failed", "blocked", "superseded"].includes(entry.task.status))
+        .map((entry) => entry.sync.taskId)
+    ]);
+    const remainingSyncs = accountWriteSyncs.filter((sync) => !terminalTaskIds.has(sync.taskId));
+    const visibleRemainingSyncs = remainingSyncs.filter((sync) => sync.surfaceFeedback);
+    const confirmedCount = succeeded.reduce((count, entry) => count + entry.sync.acceptedCount, 0);
+    const unconfirmedCount = failed.reduce((count, entry) => count + entry.sync.acceptedCount, 0);
+    const supersededCount = superseded.reduce((count, entry) => count + entry.sync.acceptedCount, 0);
+    const submissionFailedCount = [...succeeded, ...failed, ...superseded]
+      .reduce((count, entry) => count + entry.sync.failedCount, 0);
 
-    if (task.status === "success") {
-      confirmPendingAccountEntityPatches(highestPowerSync.itemInstanceIds);
-      void input.readAuthoritativeAccountSummary()
-        .then((summary) => {
-          if (summary) input.applyAuthoritativeAccountSummary(summary);
-        })
-        .catch(() => undefined);
-      const message = highestPowerSync.failedCount > 0
-        ? `已确认给 ${highestPowerSync.characterName} 装备 ${highestPowerSync.acceptedCount} 件最高光等装备，另有 ${highestPowerSync.failedCount} 件提交失败。`
-        : `已确认给 ${highestPowerSync.characterName} 装备 ${highestPowerSync.acceptedCount} 件最高光等装备。`;
+    const latestSucceeded = succeeded.at(-1);
+    const latestFailed = failed.at(-1);
+    const latestSuperseded = superseded.at(-1);
+    const latestActive = active.at(-1);
+    if (latestFailed && !visibleRemainingSyncs.length) {
       setAccountOperationFeedback({
-        tone: highestPowerSync.failedCount > 0 ? "warning" : "success",
-        phase: highestPowerSync.failedCount > 0 ? "partial" : "confirmed",
+        tone: "warning",
+        phase: confirmedCount > 0 ? "partial-confirmed" : "paused",
+        itemInstanceIds: confirmedCount > 0
+          ? succeeded.flatMap((entry) => entry.sync.itemInstanceIds)
+          : failed.flatMap((entry) => entry.sync.itemInstanceIds),
+        message: confirmedCount > 0
+          ? `已确认 ${confirmedCount} 项变化，另有 ${unconfirmedCount} 项尚未确认${submissionFailedCount ? `，${submissionFailedCount} 项提交失败` : ""}。${latestFailed.task?.error ?? "请检查登录和网络状态。"}`
+          : latestFailed.task?.error ?? "写入已完成，但后台对账已暂停；页面继续保留 Bungie 写结果。"
+      });
+      setItemActionMessage("");
+    } else if (latestSuperseded && !visibleRemainingSyncs.length) {
+      setAccountOperationFeedback({
+        tone: "warning",
+        phase: confirmedCount > 0 ? "partial-confirmed" : "superseded",
+        itemInstanceIds: confirmedCount > 0
+          ? succeeded.flatMap((entry) => entry.sync.itemInstanceIds)
+          : latestSuperseded.sync.itemInstanceIds,
+        message: confirmedCount > 0
+          ? `已确认 ${confirmedCount} 项变化；另有 ${supersededCount} 项旧确认已被新操作替代，页面未应用旧操作结果。`
+          : "旧对账任务已由同范围的新操作替代；页面继续保留最新写结果。"
+      });
+      setItemActionMessage("");
+    } else if (latestSucceeded && !visibleRemainingSyncs.length) {
+      const characterNames = [...new Set(succeeded.map((entry) => entry.sync.characterName))];
+      const characterLabel = characterNames.length === 1 ? `${characterNames[0]}的` : "";
+      const message = submissionFailedCount > 0
+        ? `已确认${characterLabel}${confirmedCount} 项写入，另有 ${submissionFailedCount} 项提交失败。`
+        : `已确认${characterLabel}${confirmedCount} 项写入已在游戏内生效。`;
+      setAccountOperationFeedback({
+        tone: submissionFailedCount > 0 ? "warning" : "success",
+        phase: submissionFailedCount > 0 ? "partial-confirmed" : "confirmed",
+        itemInstanceIds: succeeded.flatMap((entry) => entry.sync.itemInstanceIds),
         message
       });
       setItemActionMessage("");
-      setHighestPowerSync(null);
-      return;
-    }
-
-    if (task.status === "failed" || task.status === "blocked") {
-      setAccountOperationFeedback({
-        tone: "warning",
-        phase: "paused",
-        itemInstanceIds: highestPowerSync.itemInstanceIds,
-        message: task.error ?? "装备请求已成功，但账号确认已暂停；请检查登录和网络状态。"
-      });
-      setItemActionMessage("");
-      return;
-    }
-
-    if (["queued", "running", "retrying"].includes(task.status)) {
+    } else if (latestActive?.task) {
+      const { task } = latestActive;
+      const activeFailedCount = active.reduce((count, entry) => count + entry.sync.failedCount, 0);
       const delayed = task.status === "retrying";
-      const baseMessage = task.message ?? "装备请求已成功，账号数据同步中。";
-      const message = highestPowerSync.failedCount > 0
-        ? `${baseMessage} 另有 ${highestPowerSync.failedCount} 件提交失败。`
+      const baseMessage = task.message ?? "写入已完成，账号数据正在后台对账。";
+      const message = activeFailedCount > 0
+        ? `${baseMessage} 另有 ${activeFailedCount} 项提交失败。`
         : baseMessage;
       setAccountOperationFeedback({
-        tone: delayed || highestPowerSync.failedCount > 0 ? "warning" : "pending",
-        phase: highestPowerSync.failedCount > 0 ? "partial" : delayed ? "delayed" : "syncing",
-        itemInstanceIds: highestPowerSync.itemInstanceIds,
+        tone: delayed || activeFailedCount > 0 ? "warning" : "pending",
+        phase: activeFailedCount > 0 ? "partial" : delayed ? "delayed" : "syncing",
+        itemInstanceIds: [...new Set(active.flatMap((entry) => entry.sync.itemInstanceIds))],
         message
       });
       setItemActionMessage(message);
     }
-  }, [backgroundTasks, highestPowerSync]);
+    if (terminalTaskIds.size) {
+      setAccountWriteSyncs((current) => current.filter((sync) => !terminalTaskIds.has(sync.taskId)));
+    }
+  }, [accountWriteSyncs, backgroundTasks]);
 
-  async function startHighestPowerVerification(input: AccountWriteVerificationInput): Promise<void> {
+  async function startAccountWriteVerification(
+    input: AccountWriteVerificationInput,
+    options: { surfaceFeedback?: boolean } = {}
+  ): Promise<void> {
     try {
       const task = await api.startAccountWriteVerification(input);
-      setHighestPowerSync({
+      const itemInstanceIds = [...new Set(input.expected_patches.map((patch) => patch.item_instance_id))];
+      setAccountWriteSyncs((current) => [...current.filter((entry) => entry.operationId !== input.operation_id), {
         taskId: task.task_id,
         operationId: input.operation_id,
         characterName: input.character_name ?? "当前角色",
         acceptedCount: input.accepted_count,
         failedCount: input.failed_count,
-        itemInstanceIds: input.expected_equipped_item_ids
-      });
+        itemInstanceIds,
+        expectedPatches: input.expected_patches,
+        surfaceFeedback: options.surfaceFeedback !== false
+      }]);
     } catch (error) {
+      if (options.surfaceFeedback === false) return;
       setAccountOperationFeedback({
         tone: "warning",
         phase: "paused",
-        itemInstanceIds: input.expected_equipped_item_ids,
-        message: `装备请求已成功，但未能启动账号确认：${error instanceof Error ? error.message : "后台任务不可用"}`
+        itemInstanceIds: input.expected_patches.map((patch) => patch.item_instance_id),
+        message: `写入已完成且页面已更新，但未能启动后台对账：${error instanceof Error ? error.message : "后台任务不可用"}`
       });
     }
   }
 
   const itemDetail = useItemDetailWorkspace({
     accountSummary: input.accountSummary,
-    applyAccountActionPatches: input.applyAccountActionPatches,
     vaultTags: input.vaultTags,
     setVaultTags: input.setVaultTags,
     importedWishlist: input.importedWishlist,
@@ -152,8 +193,8 @@ export function useDesktopProductWriteActions(input: {
     setIsRunningItemAction,
     setItemActionMessage,
     loadAccountSummary: input.loadAccountSummary,
-    readAuthoritativeAccountSummary: input.readAuthoritativeAccountSummary,
-    applyAuthoritativeAccountSummary: input.applyAuthoritativeAccountSummary,
+    applyCommittedAccountActionPatches: input.applyCommittedAccountActionPatches,
+    startAccountWriteVerification,
     onRecentHistoryChanged: input.onRecentHistoryChanged
   });
 
@@ -164,8 +205,6 @@ export function useDesktopProductWriteActions(input: {
 
   const loadoutWriteActions = useLoadoutWriteActions({
     accountSummary: input.accountSummary,
-    applyAccountActionPatches: input.applyAccountActionPatches,
-    applyPendingAccountActionPatches: input.applyPendingAccountActionPatches,
     loadoutLibrary: input.loadoutLibrary,
     diagnostics: input.diagnostics,
     loadoutActionFeedback,
@@ -173,20 +212,22 @@ export function useDesktopProductWriteActions(input: {
     setItemActionMessage,
     setAccountOperationFeedback,
     setIsRunningItemAction,
-    startHighestPowerVerification,
+    applyCommittedAccountActionPatches: input.applyCommittedAccountActionPatches,
+    startHighestPowerVerification: startAccountWriteVerification,
     loadAccountSummary: input.loadAccountSummary,
     openItemDetail: itemDetail.openItemDetail
   });
 
   const vaultWriteActions = useVaultWriteActions({
     accountSummary: input.accountSummary,
-    applyAccountActionPatches: input.applyAccountActionPatches,
     diagnostics: input.diagnostics,
     setVaultTags: input.setVaultTags,
     setAccountError: input.setAccountError,
     setIsRunningItemAction,
     setItemActionMessage,
-    loadAccountSummary: input.loadAccountSummary
+    loadAccountSummary: input.loadAccountSummary,
+    applyCommittedAccountActionPatches: input.applyCommittedAccountActionPatches,
+    startAccountWriteVerification
   });
 
   return {

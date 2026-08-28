@@ -131,9 +131,12 @@ export async function resolveAccountItemLocation(
   return null;
 }
 
-export async function patchAccountSession(patch: AccountItemPatch): Promise<void> {
+export async function patchAccountSession(
+  patch: AccountItemPatch,
+  options: { revalidate?: boolean; preserve?: boolean } = {}
+): Promise<void> {
   const state = await getAccountSessionState();
-  state.session.patch(patch);
+  state.session.patch(patch, options);
   state.repository.invalidate({ scope: "item", instance_id: patch.item_instance_id });
 }
 
@@ -192,6 +195,37 @@ async function getAccountSessionState(): Promise<AccountSessionState> {
   const request = (async () => {
     const storedToken = loadOAuthToken(config.data.data_dir);
     let activeAccountId = storedToken?.membership_id;
+    let pendingSnapshotSave: {
+      accountId: string;
+      snapshot: AccountSnapshot;
+      manifestRevision?: string;
+    } | null = null;
+    let snapshotSavePromise: Promise<void> | null = null;
+    const enqueueSnapshotSave = (snapshot: AccountSnapshot): Promise<void> => {
+      if (!activeAccountId) return Promise.resolve();
+      const manifestRevision = loadManifestMetadataCache(config.data.data_dir)?.metadata.version;
+      pendingSnapshotSave = {
+        accountId: activeAccountId,
+        snapshot,
+        ...(manifestRevision ? { manifestRevision } : {})
+      };
+      if (!snapshotSavePromise) {
+        snapshotSavePromise = (async () => {
+          while (pendingSnapshotSave) {
+            const nextSave = pendingSnapshotSave;
+            pendingSnapshotSave = null;
+            await saveCachedAccountSnapshot(config.data.data_dir, nextSave.snapshot, new Date(), {
+              accountId: nextSave.accountId,
+              ...(nextSave.manifestRevision ? { manifestRevision: nextSave.manifestRevision } : {})
+            });
+          }
+        })().finally(() => {
+          snapshotSavePromise = null;
+          if (pendingSnapshotSave) void enqueueSnapshotSave(pendingSnapshotSave.snapshot);
+        });
+      }
+      return snapshotSavePromise;
+    };
     const cached = activeAccountId
       ? await loadCachedAccountSnapshot(config.data.data_dir, { accountId: activeAccountId })
       : null;
@@ -215,14 +249,7 @@ async function getAccountSessionState(): Promise<AccountSessionState> {
       loadDefinitions: loadAccountDefinitions,
       itemDetailStore: createAccountItemDetailStore(config.data.data_dir),
       initialSnapshot: cached?.snapshot,
-      onSnapshot: async (snapshot) => {
-        if (!activeAccountId) return;
-        const manifestRevision = loadManifestMetadataCache(config.data.data_dir)?.metadata.version;
-        await saveCachedAccountSnapshot(config.data.data_dir, snapshot, new Date(), {
-          accountId: activeAccountId,
-          ...(manifestRevision ? { manifestRevision } : {})
-        });
-      }
+      onSnapshot: enqueueSnapshotSave
     });
     const repository = createAccountDataRepository({ session });
     sessionState = { key, session, repository };
