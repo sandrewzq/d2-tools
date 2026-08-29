@@ -1,24 +1,35 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { api } from "../../api/client";
 import type { AppUpdateSnapshot, AppUpdateStatus } from "../../api/types";
+import {
+  getAppUpdateSnapshot,
+  publishAppUpdateSnapshot,
+  subscribeAppUpdate
+} from "../../shared/stores/appUpdateStore";
 
 type VisualAppUpdateStatus = AppUpdateStatus;
 
 export function useAppUpdateFlow() {
-  const [appUpdateSnapshot, setAppUpdateSnapshot] = useState<AppUpdateSnapshot | null>(null);
+  const liveAppUpdateSnapshot = useSyncExternalStore(
+    subscribeAppUpdate,
+    getAppUpdateSnapshot,
+    getAppUpdateSnapshot
+  );
+  const [visualAppUpdateSnapshot, setVisualAppUpdateSnapshot] = useState<AppUpdateSnapshot | null>(null);
   const [settingsMessage, setSettingsMessage] = useState("");
   const [settingsError, setSettingsError] = useState("");
   const visualUpdateStatus = getVisualAppUpdateStatus();
+  const appUpdateSnapshot = visualUpdateStatus ? visualAppUpdateSnapshot : liveAppUpdateSnapshot;
 
   useEffect(() => {
     let mounted = true;
     if (visualUpdateStatus) {
       void api.getUpdateStatus()
         .then((snapshot) => {
-          if (mounted) setAppUpdateSnapshot(createVisualAppUpdateSnapshot(visualUpdateStatus, snapshot));
+          if (mounted) setVisualAppUpdateSnapshot(createVisualAppUpdateSnapshot(visualUpdateStatus, snapshot));
         })
         .catch(() => {
-          if (mounted) setAppUpdateSnapshot(createVisualAppUpdateSnapshot(visualUpdateStatus));
+          if (mounted) setVisualAppUpdateSnapshot(createVisualAppUpdateSnapshot(visualUpdateStatus));
         });
 
       return () => {
@@ -26,23 +37,8 @@ export function useAppUpdateFlow() {
       };
     }
 
-    void api.getUpdateStatus()
-      .then((snapshot) => {
-        if (mounted) setAppUpdateSnapshot(snapshot);
-      })
-      .catch((error) => {
-        if (mounted) {
-          setSettingsError(error instanceof Error ? error.message : "更新状态读取失败");
-        }
-      });
-
-    const unsubscribe = api.onUpdateStatusChanged((snapshot) => {
-      setAppUpdateSnapshot(snapshot);
-    });
-
     return () => {
       mounted = false;
-      unsubscribe();
     };
   }, [visualUpdateStatus]);
 
@@ -50,12 +46,12 @@ export function useAppUpdateFlow() {
     setSettingsMessage("");
     setSettingsError("");
     if (visualUpdateStatus) {
-      setAppUpdateSnapshot((snapshot) => createVisualAppUpdateSnapshot("available", snapshot ?? undefined));
+      setVisualAppUpdateSnapshot((snapshot) => createVisualAppUpdateSnapshot("available", snapshot ?? undefined));
       setSettingsMessage("已切换到“发现新版本”模拟状态。");
       return;
     }
     try {
-      setAppUpdateSnapshot(await api.checkForUpdates());
+      publishAppUpdateSnapshot(await api.checkForUpdates());
     } catch (error) {
       setSettingsError(error instanceof Error ? error.message : "更新检查失败");
     }
@@ -65,12 +61,12 @@ export function useAppUpdateFlow() {
     setSettingsMessage("");
     setSettingsError("");
     if (visualUpdateStatus) {
-      setAppUpdateSnapshot((snapshot) => createVisualAppUpdateSnapshot("downloading", snapshot ?? undefined));
+      setVisualAppUpdateSnapshot((snapshot) => createVisualAppUpdateSnapshot("downloading", snapshot ?? undefined));
       setSettingsMessage("已切换到“下载中”模拟状态，不会下载真实安装包。");
       return;
     }
     try {
-      setAppUpdateSnapshot(await api.downloadUpdate());
+      publishAppUpdateSnapshot(await api.downloadUpdate());
     } catch (error) {
       setSettingsError(error instanceof Error ? error.message : "更新下载失败");
     }
@@ -153,6 +149,8 @@ function createVisualAppUpdateSnapshot(
   const availableVersion = base?.available_version ?? nextPatchVersion(currentVersion);
   const snapshot: AppUpdateSnapshot = {
     status,
+    retrying: false,
+    restart_required: status === "downloaded",
     current_version: currentVersion,
     install_path: base?.install_path ?? "开发环境模拟路径",
     release_page_url: base?.release_page_url ?? "https://github.com/sandrewzq/d2-tools/releases",

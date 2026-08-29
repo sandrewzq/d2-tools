@@ -17,6 +17,8 @@ publish:
   owner: sandrewzq
   repo: d2-tools
 win:
+  # Signing is optional. Unsigned Windows packages remain supported so the
+  # updater can download them and ask the user to restart and install.
   signAndEditExecutable: false
   target:
     - target: nsis

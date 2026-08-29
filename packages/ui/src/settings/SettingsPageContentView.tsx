@@ -6,6 +6,7 @@ import { getRovingFocusIndex } from "../interaction/rovingFocus.js";
 import { formatFullDateTime } from "../time/formatTime.js";
 import { SettingsAiConfigPanel, type SettingsAiAdapter } from "./SettingsAiConfigPanel.js";
 import { SettingsButton } from "./SettingsButton.js";
+import { ConfirmationDialog } from "../overlay/ConfirmationDialog.js";
 
 type AccountSummary = any;
 type ActionLogEntry = any;
@@ -264,14 +265,12 @@ export function SettingsPageContentView(props: SettingsPageContentViewProps) {
               appVersion={props.appUpdateSnapshot?.current_version ?? settingsText(copy, "未读取")}
               updateSource={props.appUpdateSnapshot?.update_source_label ?? "GitHub Release"}
               updateCheckedAt={formatUpdateCheckedAt(props.appUpdateSnapshot?.last_checked_at, copy)}
+              appUpdateSnapshot={props.appUpdateSnapshot}
               onCheckAppUpdate={props.onCheckAppUpdate}
               onDownloadAppUpdate={props.onDownloadAppUpdate}
               onQuitAndInstallAppUpdate={props.onQuitAndInstallAppUpdate}
               onOpenAppUpdateDownloadPage={props.onOpenAppUpdateDownloadPage}
               onCopyAppUpdateDiagnostic={props.onCopyAppUpdateDiagnostic}
-              isCheckingUpdate={props.appUpdateSnapshot?.status === "checking"}
-              canDownload={props.appUpdateSnapshot?.status === "available"}
-              canInstall={props.appUpdateSnapshot?.status === "downloaded"}
               onRefreshAccount={props.onRefreshAccount}
               onRefreshManifestStatus={props.onRefreshManifestStatus}
               isLoadingManifestStatus={props.isLoadingManifestStatus}
@@ -326,7 +325,15 @@ function OverviewSection(props: any) {
         <strong data-ui-part="value" data-info-priority="decision" data-text-tone="status">{settingsText(copy, "防骗提示")}</strong>
         <p data-ui-part="detail" data-info-priority="reading" data-text-tone="body">{settingsText(copy, "官方版本永久免费。如果你是付费购买或通过收费渠道获得，请直接点击下方“打开下载页”获取官方版本。")}</p>
       </aside>
-      <div className="settings-action-row"><SettingsActions><SettingsButton data-control-variant="secondary" disabled={props.isCheckingUpdate} onClick={props.onCheckAppUpdate}>{settingsText(copy, "检查软件版本")}</SettingsButton><SettingsButton data-control-variant="secondary" disabled={!props.canDownload} onClick={props.onDownloadAppUpdate}>{settingsText(copy, "下载更新")}</SettingsButton><SettingsButton data-control-variant="primary" disabled={!props.canInstall} onClick={props.onQuitAndInstallAppUpdate}>{settingsText(copy, "重启并安装")}</SettingsButton><SettingsButton data-control-variant="secondary" onClick={props.onOpenAppUpdateDownloadPage}>{settingsText(copy, "打开下载页")}</SettingsButton><SettingsButton data-control-variant="secondary" onClick={props.onCopyAppUpdateDiagnostic}>{settingsText(copy, "复制更新诊断")}</SettingsButton></SettingsActions></div>
+      <AppUpdateActions
+        copy={copy}
+        snapshot={props.appUpdateSnapshot}
+        onCheck={props.onCheckAppUpdate}
+        onDownload={props.onDownloadAppUpdate}
+        onInstall={props.onQuitAndInstallAppUpdate}
+        onOpenDownloadPage={props.onOpenAppUpdateDownloadPage}
+        onCopyDiagnostic={props.onCopyAppUpdateDiagnostic}
+      />
     </SettingsPanel>
     <SettingsPanel title={copy.overview.commonActionsTitle} subtitle={copy.overview.commonActionsSubtitle}>
       <div className="settings-group" data-surface="list"><SettingRow label={settingsText(copy, "管理账号")} detail={settingsText(copy, "查看当前账号、刷新读取状态，并为后续切换账号预留入口。")}><SettingsButton data-control-variant="secondary" onClick={props.onRefreshAccount}>{settingsText(copy, "刷新账号")}</SettingsButton></SettingRow>
@@ -334,6 +341,62 @@ function OverviewSection(props: any) {
       <SettingRow label={settingsText(copy, "运行诊断")} detail={settingsText(copy, "检查账号、资料库、后台任务和本地数据目录。")}><SettingsButton data-control-variant="secondary" onClick={props.onOpenDiagnostics}>{settingsText(copy, "查看诊断")}</SettingsButton></SettingRow></div>
     </SettingsPanel>
   </SettingsSection>;
+}
+
+function AppUpdateActions(props: {
+  copy: SettingsCopy;
+  snapshot: AppUpdateSnapshot | null;
+  onCheck: () => void;
+  onDownload: () => void;
+  onInstall: () => void;
+  onOpenDownloadPage: () => void;
+  onCopyDiagnostic: () => void;
+}) {
+  const [isInstallConfirmationOpen, setIsInstallConfirmationOpen] = useState(false);
+  const status = props.snapshot?.status ?? "idle";
+  const version = props.snapshot?.downloaded_version ?? props.snapshot?.available_version ?? "";
+  const isChecking = status === "checking";
+  const isDownloading = status === "downloading";
+  const isDownloadError = status === "error" && props.snapshot?.operation_id?.includes(":download:");
+
+  function openInstallConfirmation() {
+    setIsInstallConfirmationOpen(true);
+  }
+
+  function cancelInstallConfirmation() {
+    setIsInstallConfirmationOpen(false);
+  }
+
+  function confirmInstall() {
+    setIsInstallConfirmationOpen(false);
+    props.onInstall();
+  }
+
+  return (
+    <>
+      <div className="settings-action-row" aria-live="polite">
+        <SettingsActions>
+          {status === "available" ? <SettingsButton data-control-variant="primary" onClick={props.onDownload}>{settingsText(props.copy, "下载更新")}</SettingsButton> : null}
+          {isDownloadError ? <SettingsButton data-control-variant="primary" onClick={props.onDownload}>{settingsText(props.copy, "重试下载")}</SettingsButton> : null}
+          {status === "downloaded" ? <SettingsButton data-control-variant="primary" onClick={openInstallConfirmation}>{settingsText(props.copy, "重启并安装")}</SettingsButton> : null}
+          {status === "idle" || status === "not_available" || (status === "error" && !isDownloadError) ? <SettingsButton data-control-variant={status === "error" ? "primary" : "secondary"} disabled={isChecking} aria-busy={isChecking} onClick={props.onCheck}>{status === "error" ? settingsText(props.copy, "重试检查") : settingsText(props.copy, "检查软件版本")}</SettingsButton> : null}
+          {isDownloading ? <SettingsButton data-control-variant="secondary" disabled aria-busy="true">{settingsText(props.copy, "下载中")}{props.snapshot?.progress_percent === undefined ? "" : ` · ${props.snapshot.progress_percent}%`}</SettingsButton> : null}
+          {status === "available" || status === "downloading" || status === "error" ? <SettingsButton data-control-variant="secondary" onClick={props.onOpenDownloadPage}>{settingsText(props.copy, "打开下载页")}</SettingsButton> : null}
+          {status !== "checking" && status !== "downloading" ? <SettingsButton data-control-variant="secondary" onClick={props.onCopyDiagnostic}>{settingsText(props.copy, "复制更新诊断")}</SettingsButton> : null}
+        </SettingsActions>
+      </div>
+      {isInstallConfirmationOpen ? (
+        <ConfirmationDialog
+          title={settingsText(props.copy, "重启并安装应用更新")}
+          description={`${settingsText(props.copy, "将关闭 d2-tools 并安装版本")} ${version || settingsText(props.copy, "已下载版本")}，${settingsText(props.copy, "安装完成后应用会自动重新打开。")}`}
+          confirmLabel={settingsText(props.copy, "重启并安装")}
+          cancelLabel={settingsText(props.copy, "稍后处理")}
+          onCancel={cancelInstallConfirmation}
+          onConfirm={confirmInstall}
+        />
+      ) : null}
+    </>
+  );
 }
 
 function LanguageSection(props: any) {
@@ -477,7 +540,10 @@ function getAppUpdateUi(snapshot: AppUpdateSnapshot | null, copy: SettingsCopy):
   }
   if (snapshot.status === "downloading") return { statusLabel: settingsText(copy, "下载中"), summary: snapshot.progress_percent === undefined ? settingsText(copy, "正在下载更新。") : `${settingsText(copy, "正在下载更新：")}${snapshot.progress_percent}%`, tone: "warning" };
   if (snapshot.status === "downloaded") return { statusLabel: settingsText(copy, "等待重启"), summary: snapshot.user_message ?? `${settingsText(copy, "更新")} ${snapshot.downloaded_version ?? snapshot.available_version ?? ""} ${settingsText(copy, "已下载。")}`, tone: "ready" };
-  if (snapshot.status === "error") return { statusLabel: settingsText(copy, "更新受阻"), summary: snapshot.user_message ?? snapshot.error ?? settingsText(copy, "更新检查失败。"), tone: "error" };
+  if (snapshot.status === "error") {
+    const retryHint = snapshot.retrying ? settingsText(copy, "应用会在后台继续重试。") : "";
+    return { statusLabel: settingsText(copy, "更新受阻"), summary: [snapshot.user_message ?? snapshot.error ?? settingsText(copy, "更新检查失败。"), retryHint].filter(Boolean).join(" "), tone: "error" };
+  }
   return { statusLabel: settingsText(copy, "未检查"), summary: settingsText(copy, "尚未检查软件版本。"), tone: "neutral" };
 }
 function getLibraryUi(status: ManifestStatus | null, error: string, isLoading: boolean, copy: SettingsCopy): { statusLabel: string; summary: string; tone: StatusTone } { if (error) return { statusLabel: settingsText(copy, "检查失败"), summary: status?.initialized ? settingsText(copy, "未能检查新版；本地资料库仍可继续使用。") : error, tone: status?.initialized ? "warning" : "error" }; if (isLoading && !status) return { statusLabel: settingsText(copy, "检查中"), summary: settingsText(copy, "正在检查资料库是否有新版。"), tone: "neutral" }; if (!status || !status.initialized) return { statusLabel: settingsText(copy, "未准备"), summary: settingsText(copy, "资料库尚未准备，部分搜索和解析功能不可用。"), tone: "warning" }; if (status.missing_required_components?.length) return { statusLabel: settingsText(copy, "需修复"), summary: `${settingsText(copy, "资料库内容不完整，缺失")} ${status.missing_required_components.length} ${settingsText(copy, "项。")}`, tone: "warning" }; if (status.missing_optional_components?.length) return { statusLabel: settingsText(copy, "可用"), summary: `${settingsText(copy, "英文辅助数据缺失")} ${status.missing_optional_components.length} ${settingsText(copy, "项，英文匹配能力可能降低。")}`, tone: "warning" }; if (status.needs_update) return { statusLabel: settingsText(copy, "可更新"), summary: settingsText(copy, "发现新版资料库，将在后台更新。"), tone: "warning" }; return { statusLabel: settingsText(copy, "可用"), summary: settingsText(copy, "装备、Perk、活动和商人数据可用。"), tone: "ready" }; }

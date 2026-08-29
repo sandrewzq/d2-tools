@@ -9,6 +9,7 @@ export type AppUpdateStatus =
 
 export type AppUpdateSnapshot = {
   status: AppUpdateStatus;
+  operation_id?: string;
   current_version: string;
   install_path: string;
   release_page_url: string;
@@ -20,6 +21,9 @@ export type AppUpdateSnapshot = {
   technical_error?: string;
   last_checked_at?: string;
   progress_percent?: number;
+  retrying: boolean;
+  next_retry_at?: string;
+  restart_required: boolean;
 };
 
 export type UpdateStatus = AppUpdateStatus;

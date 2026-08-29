@@ -141,8 +141,10 @@ export function buildHighestPowerResultMessage(input: {
 }): string {
   if (input.failedCount > 0) {
     const reason = input.failureReason?.trim();
-    const outcome = input.equipSuccessCount > 0 ? "部分成功" : "执行失败";
-    return `最高光等${outcome}：转移成功 ${input.transferSuccessCount}/${input.transferTotalCount}，装备成功 ${input.equipSuccessCount}/${input.equipTotalCount}，失败步骤 ${input.failedCount}。${reason ? `首个失败原因：${reason}` : "可在设置页查看操作日志。"}`;
+    const outcome = input.transferSuccessCount > 0 || input.equipSuccessCount > 0
+      ? "部分提交"
+      : "执行失败";
+    return `最高光等${outcome}：转移受理 ${input.transferSuccessCount}/${input.transferTotalCount}，装备受理 ${input.equipSuccessCount}/${input.equipTotalCount}，失败步骤 ${input.failedCount}。${reason ? `首个失败原因：${reason}` : "可在设置页查看操作日志。"}`;
   }
-  return `已给 ${input.characterClassName} 装备 ${input.equipSuccessCount} 件最高光等装备。`;
+  return `已提交给 ${input.characterClassName} 装备 ${input.equipSuccessCount} 件最高光等装备，正在确认游戏内状态。`;
 }

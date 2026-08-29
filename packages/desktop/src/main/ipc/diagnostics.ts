@@ -4,6 +4,7 @@ import { loadConfig } from "@d2-tools/services/config/store";
 import { buildDiagnosticsExport } from "@d2-tools/services/diagnostics/export";
 import { loadToolAuditLog } from "@d2-tools/services/tools/audit";
 import {
+  formatAccountRefreshMetrics,
   formatProcessMemoryBudgetStatus,
   formatRuntimeBudgetStatus,
   formatRuntimeMetrics
@@ -41,7 +42,10 @@ export function registerDiagnosticsIpcHandlers(): void {
       ...formatProcessMemoryBudgetStatus(app.getAppMetrics()),
       "",
       "账号缓存命中率：",
-      ...formatAccountCacheMetrics()
+      ...formatAccountCacheMetrics(),
+      "",
+      "账号刷新分阶段：",
+      ...formatAccountRefreshMetrics()
     ].join("\n");
   });
 }

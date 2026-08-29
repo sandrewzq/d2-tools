@@ -29,6 +29,8 @@ export function HomePage(props: {
         onAssistantModeChange={shell.handleAssistantModeChange}
         onPreferencesChange={shell.handleProductPreferencesChange}
         shellStatus={shell.shellStatus}
+        backgroundTasks={shell.backgroundTasks}
+        onOpenBackgroundTask={() => shell.openBackgroundTasks()}
         sidebarHeader={shell.sidebarHeader}
         sidebarFooter={shell.sidebarFooter}
         platformActions={shell.platformActions}

@@ -109,6 +109,29 @@ export function formatRuntimeMetrics(): string[] {
     });
 }
 
+export function formatAccountRefreshMetrics(): string[] {
+  const snapshot = getRuntimeMetricSnapshot();
+  const formatStage = (label: string, key: string) => {
+    const metric = snapshot[key];
+    return metric
+      ? `- ${label}：${metric.count} 次 / 最近 ${formatMs(metric.last_ms)} / 平均 ${formatMs(metric.average_ms)} / p95 ${formatMs(metric.p95_ms)}`
+      : `- ${label}：未采样`;
+  };
+  const count = (key: string) => snapshot[key]?.count ?? 0;
+  return [
+    formatStage("OAuth", "account.refresh.oauth"),
+    `${formatStage("Membership", "account.refresh.membership")} / 缓存 ${count("account.refresh.membership.cache-hit")} / in-flight 复用 ${count("account.refresh.membership.in-flight-reused")}`,
+    `${formatStage("Profile", "account.refresh.profile")} / 缓存 ${count("account.refresh.profile.cache-hit")} / in-flight 复用 ${count("account.refresh.profile.in-flight-reused")} / 排队 ${count("account.refresh.profile.queued-after-in-flight")}`,
+    formatStage("定义水合", "account.refresh.definition-hydration"),
+    formatStage("快照构建", "account.refresh.snapshot-build"),
+    formatStage("快照持久化", "account.refresh.persistence"),
+    formatStage("IPC 总耗时", "account.refresh.ipc-total"),
+    `- Session 快照请求：新建 ${count("account.refresh.snapshot-request.started")} / 缓存 ${count("account.refresh.snapshot-request.cache-hit")} / in-flight 复用 ${count("account.refresh.snapshot-request.in-flight-reused")} / 排队 ${count("account.refresh.snapshot-request.queued-after-in-flight")}`,
+    `- Repository 请求：新建 ${count("account.refresh.repository.started")} / 缓存 ${count("account.refresh.repository.cache-hit")} / in-flight 复用 ${count("account.refresh.repository.in-flight-reused")}`,
+    `- 持久化合并：${count("account.refresh.persistence.coalesced")} 次`
+  ];
+}
+
 export function formatRuntimeBudgetStatus(): string[] {
   const snapshot = getRuntimeMetricSnapshot();
   return runtimeBudgets.map((budget) => {

@@ -555,6 +555,123 @@ button.shell-status-group[data-status="error"][data-priority="attention"]:focus-
   background: var(--panel);
 }
 
+/* Long-running work stays visible while the user changes pages. The dock is
+ * intentionally an overlay so it never changes the shell grid or pushes page
+ * content around. */
+.shell-background-task-dock {
+  position: fixed;
+  z-index: var(--layer-popover);
+  right: 16px;
+  bottom: 16px;
+  width: min(420px, calc(100vw - 32px));
+  min-width: 0;
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius-frame);
+  background: var(--panel);
+  box-shadow: var(--shadow-overlay);
+}
+
+.shell-background-task-dock > button {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  min-height: 58px;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: inherit;
+  color: var(--body);
+  background: transparent;
+  text-align: left;
+}
+
+.shell-background-task-dock > button:hover,
+.shell-background-task-dock > button:focus-visible {
+  color: var(--text);
+  background: var(--hover-bg);
+  box-shadow: none;
+}
+
+.shell-background-task-mark {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius-control);
+  color: var(--mint);
+  background: var(--mint-bg);
+  font-size: 15px;
+  line-height: 1;
+}
+
+.shell-background-task-copy {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.shell-background-task-copy strong,
+.shell-background-task-copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shell-background-task-copy strong {
+  color: var(--text);
+  font-size: var(--font-content);
+}
+
+.shell-background-task-copy small {
+  color: var(--muted);
+  font-size: var(--font-meta);
+}
+
+.shell-background-task-status {
+  color: var(--muted);
+  font-size: var(--font-meta);
+  white-space: nowrap;
+}
+
+.shell-background-task-progress {
+  grid-column: 2 / -1;
+  display: block;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--section-divider);
+}
+
+.shell-background-task-progress > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--mint);
+  transition: width var(--motion-fast);
+}
+
+.shell-background-task-dock[data-status="retrying"] .shell-background-task-mark,
+.shell-background-task-dock[data-status="failed"] .shell-background-task-mark,
+.shell-background-task-dock[data-status="blocked"] .shell-background-task-mark {
+  color: var(--status-warning);
+  border-color: var(--status-warning);
+  background: var(--status-warning-bg);
+}
+
+.shell-background-task-dock[data-status="failed"] .shell-background-task-mark,
+.shell-background-task-dock[data-status="blocked"] .shell-background-task-mark {
+  color: var(--status-error);
+  border-color: var(--status-error);
+  background: var(--status-error-bg);
+}
+
+.app-shell.assistant-open .shell-background-task-dock {
+  right: calc(var(--assistant-width) + 16px);
+}
+
 .global-assistant-panel {
   position: relative;
   min-width: 0;
@@ -980,6 +1097,13 @@ button.shell-status-group[data-status="error"][data-priority="attention"]:focus-
 
   .global-assistant-scrim {
     inset: var(--topbar-height) 0 0;
+  }
+
+  .shell-background-task-dock,
+  .app-shell.assistant-open .shell-background-task-dock {
+    right: 12px;
+    bottom: 12px;
+    width: min(420px, calc(100vw - 24px));
   }
 }
 

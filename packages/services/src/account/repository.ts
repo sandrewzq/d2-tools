@@ -16,6 +16,7 @@ export type AccountDataRepositoryOptions = {
   snapshotTtlMs?: number;
   itemDetailTtlMs?: number;
   resolveItemQuery?: (snapshot: AccountSnapshot, instanceId: string) => AccountItemDetailQuery | null;
+  onSnapshotRequest?: (outcome: "started" | "cache-hit" | "in-flight-reused") => void;
 };
 
 export type AccountDataRepository = {
@@ -42,6 +43,13 @@ export function createAccountDataRepository(options: AccountDataRepositoryOption
   const itemRequests = new Map<string, Promise<DataResource<AccountItemDetailResult>>>();
   const itemEpochs = new Map<string, number>();
   const listeners = new Map<string, Set<(value: DataResource<unknown>) => void>>();
+  const reportSnapshotRequest = (outcome: "started" | "cache-hit" | "in-flight-reused") => {
+    try {
+      options.onSnapshotRequest?.(outcome);
+    } catch {
+      // Diagnostics must never alter repository reads.
+    }
+  };
 
   return {
     getSnapshot: (input = {}) => getSnapshot(input.freshness ?? "cached"),
@@ -91,7 +99,11 @@ export function createAccountDataRepository(options: AccountDataRepositoryOption
     const existing = snapshotResource;
     if (!existing && freshness !== "refresh") {
       recordAccountCacheMetric("snapshot", "miss");
-      if (snapshotRequest) return snapshotRequest;
+      if (snapshotRequest) {
+        reportSnapshotRequest("in-flight-reused");
+        return snapshotRequest;
+      }
+      reportSnapshotRequest("started");
       snapshotRequest = loadSnapshotFromSession("cached").finally(() => {
         snapshotRequest = undefined;
       });
@@ -105,6 +117,7 @@ export function createAccountDataRepository(options: AccountDataRepositoryOption
         && (!existing.staleAt || Date.parse(existing.staleAt) > now());
       if (isFresh) {
         recordAccountCacheMetric("snapshot", "hit");
+        reportSnapshotRequest("cache-hit");
         return existing;
       }
       recordAccountCacheMetric("snapshot", "stale");
@@ -113,8 +126,12 @@ export function createAccountDataRepository(options: AccountDataRepositoryOption
         return withRefreshing(existing);
       }
     }
-    if (snapshotRequest) return snapshotRequest;
+    if (snapshotRequest) {
+      reportSnapshotRequest("in-flight-reused");
+      return snapshotRequest;
+    }
     recordAccountCacheMetric("snapshot", "refresh");
+    reportSnapshotRequest("started");
     snapshotRequest = refreshSnapshot(true).finally(() => {
       snapshotRequest = undefined;
     });

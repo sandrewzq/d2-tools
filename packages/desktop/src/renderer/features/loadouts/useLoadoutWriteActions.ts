@@ -378,8 +378,8 @@ export function useLoadoutWriteActions(input: {
       });
       input.setLoadoutMessage(resultMessage);
       input.setAccountOperationFeedback({
-        tone: failedSteps > 0 ? "warning" : "success",
-        phase: failedSteps > 0 ? "partial-confirmed" : "confirmed",
+        tone: failedSteps > 0 ? "warning" : "pending",
+        phase: failedSteps > 0 ? "partial" : "syncing",
         itemInstanceIds: finalExpectedPatches.map((patch) => patch.item_instance_id),
         message: resultMessage
       });
@@ -392,7 +392,7 @@ export function useLoadoutWriteActions(input: {
         expected_patches: finalExpectedPatches,
         accepted_count: finalExpectedPatches.length,
         failed_count: failedSteps
-      }, { surfaceFeedback: false });
+      }, { surfaceFeedback: true });
     } catch (error) {
       const message = error instanceof Error ? error.message : "装备最高光等失败";
       const account = input.accountSummary;

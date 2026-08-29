@@ -483,6 +483,7 @@ export const webManifestStatus = {
 
 export const webUpdateSnapshot = {
   status: "idle",
+  operation_id: undefined,
   current_version: webAppVersion,
   available_version: null,
   downloaded_version: null,
@@ -490,7 +491,10 @@ export const webUpdateSnapshot = {
   last_checked_at: undefined,
   update_source_label: "GitHub Release",
   user_message: "尚未检查软件版本。",
-  error: ""
+  error: "",
+  retrying: false,
+  next_retry_at: undefined,
+  restart_required: false
 };
 
 export const webVaultTags = { items: { "web-handcannon-vault": { tag: "review", note: "Web mock 同名复查。" }, "web-scout-vault": { tag: "junk" } } } as const;

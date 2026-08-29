@@ -4,7 +4,11 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { registerIpcHandlers } from "./ipc.js";
 import { scheduleInitialManifestVersionCheck } from "./ipc/manifest.js";
-import { scheduleInitialUpdateCheck } from "./ipc/updates.js";
+import {
+  isUpdateInstallRequested,
+  scheduleInitialUpdateCheck,
+  startUpdateInstall
+} from "./ipc/updates.js";
 import { getWindowBackgroundColor } from "./ipc/window.js";
 import { loadConfig } from "@d2-tools/services/config/store";
 import {
@@ -118,7 +122,13 @@ app.on("before-quit", (event) => {
   }
   event.preventDefault();
   runtimeShutdownStarted = true;
-  void shutdownRuntimeCoordinator().finally(() => app.quit());
+  void shutdownRuntimeCoordinator().finally(() => {
+    if (isUpdateInstallRequested()) {
+      startUpdateInstall();
+      return;
+    }
+    app.quit();
+  });
 });
 
 app.on("window-all-closed", () => {

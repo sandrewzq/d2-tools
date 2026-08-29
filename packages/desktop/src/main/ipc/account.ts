@@ -21,6 +21,7 @@ import {
   getAccountItemDetailResource,
   getAccountSnapshotResource
 } from "../runtime/accountSession.js";
+import { measureRuntime } from "../runtime/runtimeMetrics.js";
 
 export function registerAccountIpcHandlers(): void {
   ipcMain.handle("account:snapshot:cached", async () => {
@@ -32,7 +33,11 @@ export function registerAccountIpcHandlers(): void {
   });
 
   ipcMain.handle("account:summary", (_event, options?: AccountSummaryRequestOptions) => encodeDesktopIpcFailure(async () => {
-    const summaryRequest = Promise.resolve().then(() => loadAccountSummary(options));
+    const summaryRequest = measureRuntime(
+      "account.refresh.ipc-total",
+      () => loadAccountSummary(options),
+      { measurePayload: true }
+    );
     startBackgroundTask({
       type: "account-sync",
       title: "读取账号数据",

@@ -156,6 +156,8 @@ export function ProductShellHost(props: ProductShellHostProps) {
         density={preferences.density ?? "standard"}
         interfaceLocale={preferences.interfaceLocale}
         shellStatus={props.shellStatus}
+        backgroundTasks={props.backgroundTasks}
+        onOpenBackgroundTask={props.onOpenBackgroundTask}
         sidebarHeader={props.sidebarHeader}
         sidebarFooter={props.sidebarFooter}
         assistantPanel={props.assistantPanel}

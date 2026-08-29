@@ -23,6 +23,7 @@ export type ShellStatusItem = {
 export type ShellBackgroundTaskItem = {
   id?: string;
   task_id?: string;
+  type?: string;
   title: string;
   status: "idle" | "queued" | "running" | "retrying" | "success" | "succeeded" | "failed" | "blocked";
   message?: string;
@@ -56,6 +57,8 @@ export type AppShellLayoutProps = {
   interfaceLocale?: InterfaceLocale;
   assistantPanel: ReactNode;
   shellStatus: ShellStatusItem[];
+  backgroundTasks?: ShellBackgroundTaskItem[];
+  onOpenBackgroundTask?: (task: ShellBackgroundTaskItem) => void;
   sidebarHeader?: ReactNode;
   sidebarFooter?: ReactNode;
   children: ReactNode;

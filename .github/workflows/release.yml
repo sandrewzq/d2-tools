@@ -74,6 +74,17 @@ jobs:
           if (-not $blockmap) {
             throw "Installer blockmap was not created"
           }
+          $version = "${{ github.ref_name }}".Substring(1)
+          $latestText = Get-Content $latest.FullName -Raw
+          if ($latestText -notmatch ("version:\s*" + [regex]::Escape($version))) {
+            throw "latest.yml version does not match $version"
+          }
+          if ($latestText -notmatch [regex]::Escape($installer.Name)) {
+            throw "latest.yml does not reference $($installer.Name)"
+          }
+          if ($blockmap.Name -ne ($installer.Name + ".blockmap")) {
+            throw "Installer blockmap $($blockmap.Name) does not match $($installer.Name)"
+          }
           Copy-Item $installer.FullName release-artifacts/
           Copy-Item $latest.FullName release-artifacts/
           Copy-Item $blockmap.FullName release-artifacts/

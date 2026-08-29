@@ -106,7 +106,12 @@ describe("account write refresh strategy", () => {
     });
 
     expect(applyCommittedAccountActionPatches).toHaveBeenCalledWith([highestPowerResult.account_patch]);
-    expect(startHighestPowerVerification).toHaveBeenCalledTimes(1);
+    expect(startHighestPowerVerification).toHaveBeenCalledWith(
+      expect.objectContaining({
+        expected_patches: [highestPowerResult.account_patch]
+      }),
+      { surfaceFeedback: true }
+    );
     expect(loadAccountSummary).not.toHaveBeenCalled();
   });
 

@@ -190,6 +190,11 @@ export function useDesktopProductShell(props: {
     setActivePage("settings");
   }
 
+  function openBackgroundTasks() {
+    setSettingsInitialSection("overview");
+    setActivePage("settings");
+  }
+
   function locateVaultItem(item: { hash: number; name: string }) {
     setVaultLocateRequest((current) => ({
       ...item,
@@ -421,6 +426,7 @@ export function useDesktopProductShell(props: {
     assistantMode,
     assistantPanel,
     backgroundTasks: diagnostics.backgroundTasks,
+    openBackgroundTasks,
     handleAssistantModeChange: setAssistantMode,
     handlePageChange,
     handleProductPreferencesChange,

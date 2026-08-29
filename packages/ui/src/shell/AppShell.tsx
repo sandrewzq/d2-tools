@@ -354,9 +354,55 @@ export function AppShell(props: AppShellProps) {
             </div>
           </aside>
         ) : null}
+        <BackgroundTaskDock tasks={props.backgroundTasks ?? []} copy={copy.backgroundTasks} onOpenTask={props.onOpenBackgroundTask} />
       </div>
     </main>
   );
+}
+
+function BackgroundTaskDock(props: {
+  tasks: NonNullable<AppShellLayoutProps["backgroundTasks"]>;
+  copy: ReturnType<typeof getLocaleCopy>["shell"]["backgroundTasks"];
+  onOpenTask?: (task: NonNullable<AppShellLayoutProps["backgroundTasks"]>[number]) => void;
+}) {
+  const visibleTasks = props.tasks.filter((task) => (
+    (task.type === "app-update-check" || task.type === "app-update-download")
+      && ["queued", "running", "retrying", "failed", "blocked"].includes(task.status)
+  ));
+  const task = visibleTasks[0];
+  if (!task) return null;
+
+  const progress = task.progress_percent === undefined ? undefined : Math.round(task.progress_percent);
+  const statusLabel = task.status === "running" && progress !== undefined
+    ? props.copy.status.runningProgress(progress)
+    : task.status === "retrying"
+      ? task.next_retry_at
+        ? props.copy.status.retryingAt(formatRetryTime(task.next_retry_at))
+        : props.copy.status.retrying
+      : task.status === "failed"
+        ? props.copy.status.failed
+        : task.status === "blocked"
+          ? props.copy.status.blocked
+          : task.status === "queued"
+            ? props.copy.status.queued
+            : props.copy.status.running;
+
+  return (
+    <aside className="shell-background-task-dock" data-reference-id="shell.background-task-dock" data-ui-kind="background-task-dock" data-status={task.status} aria-label={props.copy.ariaLabel}>
+      <button type="button" onClick={() => props.onOpenTask?.(task)} aria-label={`${props.copy.title}：${task.title}`}>
+        <span className="shell-background-task-mark" aria-hidden="true">↻</span>
+        <span className="shell-background-task-copy"><strong>{task.title || props.copy.fallbackTitle}</strong><small>{task.message ?? statusLabel}</small></span>
+        {progress !== undefined ? <span className="shell-background-task-progress" aria-label={`${progress}%`}><span style={{ width: `${Math.max(0, Math.min(100, progress))}%` }} /></span> : null}
+        <span className="shell-background-task-status">{statusLabel}</span>
+      </button>
+    </aside>
+  );
+}
+
+function formatRetryTime(value: string): string {
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return value;
+  return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
 function ShellNavIcon(props: { page: ShellPageKey }) {

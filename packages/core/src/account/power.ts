@@ -77,6 +77,12 @@ const bucketNameToSlot = new Map<string, AccountPowerSlotKey>([
   ["Class Armor", "class-item"]
 ]);
 
+// Bungie 的 canEquip 描述物品在“当前状态”下能否直接装备，而不是物品经过
+// 合法准备步骤后是否永远不可装备。最高光等规划会自行处理以下可恢复限制：
+// 2 = 当前异域唯一装备冲突；16 = 物品当前不在目标角色身上。
+// 其他限制（等级、未解锁、物品本身不可装备等）仍然是硬阻断。
+const recoverablePowerEquipFailureMask = 2 | 16;
+
 export function getAccountPowerSlot(item: AccountItemSummary): AccountPowerSlotKey | undefined {
   if (item.bucket_hash && bucketHashToSlot.has(item.bucket_hash)) {
     return bucketHashToSlot.get(item.bucket_hash);
@@ -92,7 +98,7 @@ export function selectMaxEquippablePowerCandidates<Source>(input: {
   const compatibleCandidates = input.candidates.filter((candidate) => (
     candidate.item.instance_id
     && typeof candidate.item.power === "number"
-    && candidate.item.instance?.can_equip !== false
+    && canBecomeEquippableForPowerPlan(candidate.item)
     && canEquipOnCharacter(candidate.item, input.characterClassName)
   ));
   const candidatesBySlot = groupCandidatesBySlot(compatibleCandidates);
@@ -109,7 +115,7 @@ export function selectHighestSlotPowerCandidates<Source>(input: {
   const candidatesBySlot = groupCandidatesBySlot(input.candidates.filter((candidate) => (
     candidate.item.instance_id
     && typeof candidate.item.power === "number"
-    && candidate.item.instance?.can_equip !== false
+    && canBecomeEquippableForPowerPlan(candidate.item)
     && canEquipOnCharacter(candidate.item, input.characterClassName)
   )));
   const selected = new Map<AccountPowerSlotKey, AccountPowerCandidate<Source>>();
@@ -236,6 +242,14 @@ function compareCandidates<Source>(
 function canEquipOnCharacter(item: AccountItemSummary, characterClassName: string): boolean {
   if (item.group_key !== "armor" || item.class_type === undefined || item.class_type === 3) return true;
   return item.class_type === classTypeForCharacter(characterClassName);
+}
+
+function canBecomeEquippableForPowerPlan(item: AccountItemSummary): boolean {
+  const instance = item.instance;
+  if (!instance || instance.can_equip !== false) return true;
+  const reason = instance.cannot_equip_reason;
+  if (typeof reason !== "number") return false;
+  return (reason & ~recoverablePowerEquipFailureMask) === 0;
 }
 
 function classTypeForCharacter(className: string): number | undefined {

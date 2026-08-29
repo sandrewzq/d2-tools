@@ -1,3 +1,4 @@
+import { performance } from "node:perf_hooks";
 import {
   buildAccountItemDetailFromResponse,
   buildAccountSummaryFromResponses,
@@ -38,6 +39,12 @@ export type AccountInvalidation =
 
 export type { AccountItemPatch } from "./itemPatches.js";
 
+export type AccountSessionDiagnosticEvent = {
+  stage: "oauth" | "membership" | "profile" | "definition-hydration" | "snapshot-build" | "snapshot-request";
+  outcome: "started" | "completed" | "failed" | "cache-hit" | "in-flight-reused" | "queued-after-in-flight";
+  duration_ms: number;
+};
+
 /** Detail may be served from a stale local cache when revalidation fails. */
 export type AccountItemDetailResult = AccountItemDetail & {
   cache_status?: "fresh" | "stale";
@@ -67,6 +74,7 @@ export type CreateAccountSessionOptions = {
   definitions?: AccountDefinitionData;
   initialSnapshot?: AccountSnapshot;
   onSnapshot?: (snapshot: AccountSnapshot) => void | Promise<void>;
+  onDiagnostic?: (event: AccountSessionDiagnosticEvent) => void;
   fetchJson?: <T>(
     path: string,
     accessToken: string,
@@ -167,20 +175,32 @@ export function createAccountSession(options: CreateAccountSessionOptions): Acco
   const itemDetailVersions = new Map<string, number>();
   const pendingItemPatches = new Map<string, AccountItemPatch>();
   const itemDetailStore = options.itemDetailStore;
+  const reportDiagnostic = (event: AccountSessionDiagnosticEvent) => {
+    try {
+      options.onDiagnostic?.(event);
+    } catch {
+      // Diagnostics must never alter account reads.
+    }
+  };
 
   const session: AccountSession = {
     async getSnapshot(input = {}) {
       const freshness = input.freshness ?? "cached";
       const authoritative = input.authoritative ?? false;
       if (freshness === "cached" && snapshot && !authoritative) {
+        reportDiagnostic({
+          stage: "snapshot-request",
+          outcome: "cache-hit",
+          duration_ms: 0
+        });
         if (now() >= snapshotFreshUntil && !snapshotInFlight) {
-          void getScopedAccessToken()
+          void getScopedAccessToken(true)
             .then((accessToken) => refreshSnapshot(accessToken))
             .catch(() => undefined);
         }
         return snapshot;
       }
-      const accessToken = await getScopedAccessToken();
+      const accessToken = await getScopedAccessToken(true);
       return refreshSnapshot(
         accessToken,
         freshness === "refresh" || authoritative,
@@ -352,14 +372,41 @@ export function createAccountSession(options: CreateAccountSessionOptions): Acco
   };
   return session;
 
-  async function getScopedAccessToken(): Promise<string> {
-    const accessToken = (await options.getAccessToken()).trim();
+  async function getScopedAccessToken(diagnoseSnapshotRefresh = false): Promise<string> {
+    const startedAt = performance.now();
+    let accessToken: string;
+    try {
+      accessToken = (await options.getAccessToken()).trim();
+    } catch (error) {
+      if (diagnoseSnapshotRefresh) {
+        reportDiagnostic({
+          stage: "oauth",
+          outcome: "failed",
+          duration_ms: performance.now() - startedAt
+        });
+      }
+      throw error;
+    }
     if (!accessToken) {
+      if (diagnoseSnapshotRefresh) {
+        reportDiagnostic({
+          stage: "oauth",
+          outcome: "failed",
+          duration_ms: performance.now() - startedAt
+        });
+      }
       throw createServiceError({
         code: "auth_required",
         message: "请先登录 Bungie",
         retryable: false,
         causeCategory: "authentication"
+      });
+    }
+    if (diagnoseSnapshotRefresh) {
+      reportDiagnostic({
+        stage: "oauth",
+        outcome: "completed",
+        duration_ms: performance.now() - startedAt
       });
     }
     if (currentAccessToken === undefined) {
@@ -394,20 +441,31 @@ export function createAccountSession(options: CreateAccountSessionOptions): Acco
     pendingItemPatches.clear();
   }
 
-  async function getMembership(accessToken: string): Promise<MembershipCache> {
+  async function getMembership(
+    accessToken: string,
+    diagnoseSnapshotRefresh = false
+  ): Promise<MembershipCache> {
     if (membershipCache && now() < membershipCache.freshUntil) {
+      if (diagnoseSnapshotRefresh) {
+        reportDiagnostic({ stage: "membership", outcome: "cache-hit", duration_ms: 0 });
+      }
       return membershipCache;
     }
     if (membershipInFlight) {
+      if (diagnoseSnapshotRefresh) {
+        reportDiagnostic({ stage: "membership", outcome: "in-flight-reused", duration_ms: 0 });
+      }
       return membershipInFlight;
     }
     const requestEpoch = sessionEpoch;
+    const startedAt = performance.now();
     let promise: Promise<MembershipCache>;
-    promise = fetchJson<UserMembershipData>(
-      "/User/GetMembershipsForCurrentUser/",
-      accessToken
-    )
-      .then((data) => {
+    promise = (async () => {
+      try {
+        const data = await fetchJson<UserMembershipData>(
+          "/User/GetMembershipsForCurrentUser/",
+          accessToken
+        );
         assertActiveRequest(accessToken, requestEpoch);
         const selected = selectMembership(data);
         membershipCache = {
@@ -415,9 +473,25 @@ export function createAccountSession(options: CreateAccountSessionOptions): Acco
           selected,
           freshUntil: now() + membershipTtlMs
         };
+        if (diagnoseSnapshotRefresh) {
+          reportDiagnostic({
+            stage: "membership",
+            outcome: "completed",
+            duration_ms: performance.now() - startedAt
+          });
+        }
         return membershipCache;
-      })
-      .finally(() => {
+      } catch (error) {
+        if (diagnoseSnapshotRefresh) {
+          reportDiagnostic({
+            stage: "membership",
+            outcome: "failed",
+            duration_ms: performance.now() - startedAt
+          });
+        }
+        throw error;
+      }
+    })().finally(() => {
         if (membershipInFlight === promise) {
           membershipInFlight = undefined;
         }
@@ -430,21 +504,37 @@ export function createAccountSession(options: CreateAccountSessionOptions): Acco
     membership: DestinyMembership,
     accessToken: string,
     requestedComponents: ReadonlySet<number>,
-    forceRefresh = false
+    forceRefresh = false,
+    diagnoseSnapshotRefresh = false
   ): Promise<DestinyProfileResponse> {
     const membershipKey = `${membership.membershipType}:${membership.membershipId}`;
     if (!forceRefresh
       && profileCache?.membershipKey === membershipKey
       && now() < profileCache.freshUntil
       && isSuperset(profileCache.components, requestedComponents)) {
+      if (diagnoseSnapshotRefresh) {
+        reportDiagnostic({ stage: "profile", outcome: "cache-hit", duration_ms: 0 });
+      }
       return profileCache.profile;
     }
     if (profileInFlight?.membershipKey === membershipKey) {
       if (isSuperset(profileInFlight.components, requestedComponents)) {
+        if (diagnoseSnapshotRefresh) {
+          reportDiagnostic({ stage: "profile", outcome: "in-flight-reused", duration_ms: 0 });
+        }
         return profileInFlight.promise;
       }
+      if (diagnoseSnapshotRefresh) {
+        reportDiagnostic({ stage: "profile", outcome: "queued-after-in-flight", duration_ms: 0 });
+      }
       await profileInFlight.promise;
-      return getProfile(membership, accessToken, requestedComponents, forceRefresh);
+      return getProfile(
+        membership,
+        accessToken,
+        requestedComponents,
+        forceRefresh,
+        diagnoseSnapshotRefresh
+      );
     }
 
     const components = new Set(requestedComponents);
@@ -455,13 +545,15 @@ export function createAccountSession(options: CreateAccountSessionOptions): Acco
     }
     const componentQuery = [...components].sort((left, right) => left - right).join(",");
     const requestEpoch = sessionEpoch;
+    const startedAt = performance.now();
     let promise: Promise<DestinyProfileResponse>;
-    promise = fetchJson<DestinyProfileResponse>(
-      `/Destiny2/${membership.membershipType}/Profile/${membership.membershipId}/?components=${componentQuery}`,
-      accessToken,
-      { forceRefresh }
-    )
-      .then((profile) => {
+    promise = (async () => {
+      try {
+        const profile = await fetchJson<DestinyProfileResponse>(
+          `/Destiny2/${membership.membershipType}/Profile/${membership.membershipId}/?components=${componentQuery}`,
+          accessToken,
+          { forceRefresh }
+        );
         assertActiveRequest(accessToken, requestEpoch);
         profileCache = {
           membershipKey,
@@ -469,9 +561,25 @@ export function createAccountSession(options: CreateAccountSessionOptions): Acco
           profile,
           freshUntil: now() + profileTtlMs
         };
+        if (diagnoseSnapshotRefresh) {
+          reportDiagnostic({
+            stage: "profile",
+            outcome: "completed",
+            duration_ms: performance.now() - startedAt
+          });
+        }
         return profile;
-      })
-      .finally(() => {
+      } catch (error) {
+        if (diagnoseSnapshotRefresh) {
+          reportDiagnostic({
+            stage: "profile",
+            outcome: "failed",
+            duration_ms: performance.now() - startedAt
+          });
+        }
+        throw error;
+      }
+    })().finally(() => {
         if (profileInFlight?.promise === promise) {
           profileInFlight = undefined;
         }
@@ -487,8 +595,18 @@ export function createAccountSession(options: CreateAccountSessionOptions): Acco
   ): Promise<AccountSnapshot> {
     if (snapshotInFlight) {
       if (!authoritative || snapshotInFlight.authoritative) {
+        reportDiagnostic({
+          stage: "snapshot-request",
+          outcome: "in-flight-reused",
+          duration_ms: 0
+        });
         return snapshotInFlight.promise;
       }
+      reportDiagnostic({
+        stage: "snapshot-request",
+        outcome: "queued-after-in-flight",
+        duration_ms: 0
+      });
       return snapshotInFlight.promise.then(
         () => refreshSnapshot(accessToken, true, authoritative),
         () => refreshSnapshot(accessToken, true, authoritative)
@@ -496,45 +614,99 @@ export function createAccountSession(options: CreateAccountSessionOptions): Acco
     }
     const requestEpoch = sessionEpoch;
     const requestMutationRevision = snapshotMutationRevision;
+    const snapshotStartedAt = performance.now();
+    reportDiagnostic({ stage: "snapshot-request", outcome: "started", duration_ms: 0 });
     let promise: Promise<AccountSnapshot>;
     promise = (async () => {
-      const membership = await getMembership(accessToken);
-      const profile = await getProfile(
-        membership.selected,
-        accessToken,
-        snapshotComponents,
-        forceRefresh
-      );
-      const definitions = await loadDefinitions(
-        collectAccountSnapshotDefinitionRequest(profile)
-      );
-      const nextSnapshot = buildAccountSnapshot({
-        ...definitions,
-        memberships: membership.data,
-        destinyMembership: membership.selected,
-        profile
-      });
-      assertActiveRequest(accessToken, requestEpoch);
-      if (snapshotMutationRevision !== requestMutationRevision && snapshot) {
-        snapshotFreshUntil = 0;
-        scheduleSnapshotRevalidate();
+      try {
+        const membership = await getMembership(accessToken, true);
+        const profile = await getProfile(
+          membership.selected,
+          accessToken,
+          snapshotComponents,
+          forceRefresh,
+          true
+        );
+        const definitionStartedAt = performance.now();
+        let definitions: AccountDefinitionData;
+        try {
+          definitions = await loadDefinitions(
+            collectAccountSnapshotDefinitionRequest(profile)
+          );
+          reportDiagnostic({
+            stage: "definition-hydration",
+            outcome: "completed",
+            duration_ms: performance.now() - definitionStartedAt
+          });
+        } catch (error) {
+          reportDiagnostic({
+            stage: "definition-hydration",
+            outcome: "failed",
+            duration_ms: performance.now() - definitionStartedAt
+          });
+          throw error;
+        }
+        const buildStartedAt = performance.now();
+        let nextSnapshot: AccountSnapshot;
+        try {
+          nextSnapshot = buildAccountSnapshot({
+            ...definitions,
+            memberships: membership.data,
+            destinyMembership: membership.selected,
+            profile
+          });
+          reportDiagnostic({
+            stage: "snapshot-build",
+            outcome: "completed",
+            duration_ms: performance.now() - buildStartedAt
+          });
+        } catch (error) {
+          reportDiagnostic({
+            stage: "snapshot-build",
+            outcome: "failed",
+            duration_ms: performance.now() - buildStartedAt
+          });
+          throw error;
+        }
+        assertActiveRequest(accessToken, requestEpoch);
+        if (snapshotMutationRevision !== requestMutationRevision && snapshot) {
+          snapshotFreshUntil = 0;
+          scheduleSnapshotRevalidate();
+          reportDiagnostic({
+            stage: "snapshot-request",
+            outcome: "completed",
+            duration_ms: performance.now() - snapshotStartedAt
+          });
+          return snapshot;
+        }
+        if (authoritative) {
+          pendingItemPatches.clear();
+          if (patchRevalidateTimer) clearTimeout(patchRevalidateTimer);
+          patchRevalidateTimer = undefined;
+          snapshot = nextSnapshot;
+        } else {
+          snapshot = reconcilePendingItemPatches(nextSnapshot);
+        }
+        snapshotRevalidatedRevision = Math.max(
+          snapshotRevalidatedRevision,
+          requestMutationRevision
+        );
+        snapshotFreshUntil = now() + snapshotTtlMs;
+        void Promise.resolve(options.onSnapshot?.(snapshot)).catch(() => undefined);
+        reportDiagnostic({
+          stage: "snapshot-request",
+          outcome: "completed",
+          duration_ms: performance.now() - snapshotStartedAt
+        });
         return snapshot;
+      } catch (error) {
+        reportDiagnostic({
+          stage: "snapshot-request",
+          outcome: "failed",
+          duration_ms: performance.now() - snapshotStartedAt
+        });
+        throw error;
       }
-      if (authoritative) {
-        pendingItemPatches.clear();
-        if (patchRevalidateTimer) clearTimeout(patchRevalidateTimer);
-        patchRevalidateTimer = undefined;
-        snapshot = nextSnapshot;
-      } else {
-        snapshot = reconcilePendingItemPatches(nextSnapshot);
-      }
-      snapshotRevalidatedRevision = Math.max(
-        snapshotRevalidatedRevision,
-        requestMutationRevision
-      );
-      snapshotFreshUntil = now() + snapshotTtlMs;
-      void Promise.resolve(options.onSnapshot?.(snapshot)).catch(() => undefined);
-      return snapshot;
     })().finally(() => {
       if (snapshotInFlight?.promise === promise) {
         snapshotInFlight = undefined;
@@ -551,7 +723,7 @@ export function createAccountSession(options: CreateAccountSessionOptions): Acco
     patchRevalidateTimer = setTimeout(() => {
       patchRevalidateTimer = undefined;
       if (snapshotRevalidatedRevision >= scheduledRevision) return;
-      void getScopedAccessToken()
+      void getScopedAccessToken(true)
         .then((accessToken) => refreshSnapshot(accessToken, true))
         .catch(() => {
           snapshotFreshUntil = 0;

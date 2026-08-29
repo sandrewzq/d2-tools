@@ -141,6 +141,56 @@ describe("highest power workspace", () => {
     ]);
   });
 
+  it("keeps vault transfers and replaceable exotic conflicts in the power plan", () => {
+    const character: CharacterSummary = {
+      character_id: "char-1",
+      class_name: "术士",
+      equipped_items: [
+        item("equipped-kinetic", "当前异域动能", "动能武器", 456, 3, "异域"),
+        item("equipped-energy", "当前传说能量", "能量武器", 444, 3, "传说")
+      ],
+      equipment_groups: [],
+      inventory_items: [
+        item("inventory-energy", "可替换异域能量", "能量武器", 475, 3, "异域", {
+          can_equip: false,
+          cannot_equip_reason: 2
+        }),
+        item("inventory-gauntlets", "可替换异域臂铠", "臂铠", 477, 2, "异域", {
+          can_equip: false,
+          cannot_equip_reason: 2
+        })
+      ],
+      inventory_groups: [],
+      postmaster_items: [],
+      loadout_slots: []
+    };
+    const plan = createHighestPowerEquipPlan({
+      character,
+      vaultItems: [
+        item("vault-kinetic", "仓库传说动能", "动能武器", 477, 3, "传说", {
+          can_equip: false,
+          cannot_equip_reason: 16
+        }),
+        item("vault-energy", "仓库传说能量", "能量武器", 477, 3, "传说", {
+          can_equip: false,
+          cannot_equip_reason: 16
+        }),
+        item("vault-helmet", "等级不足头盔", "头盔", 490, 2, "传说", {
+          can_equip: false,
+          cannot_equip_reason: 8
+        })
+      ]
+    });
+
+    expect(plan.items.map((entry) => [entry.item.name, entry.source])).toEqual([
+      ["仓库传说动能", "vault"],
+      ["仓库传说能量", "vault"],
+      ["可替换异域臂铠", "inventory"]
+    ]);
+    expect(plan.items.some((entry) => entry.item.name === "等级不足头盔")).toBe(false);
+    expect(plan.executable_items.filter((entry) => entry.needs_transfer)).toHaveLength(2);
+  });
+
   it("builds the confirm copy for highest-power write actions", () => {
     const character: CharacterSummary = {
       character_id: "char-1",
@@ -185,7 +235,7 @@ describe("highest power workspace", () => {
       equipSuccessCount: 3,
       equipTotalCount: 3,
       failedCount: 0
-    })).toBe("已确认给 术士 装备 3 件最高光等装备。");
+    })).toBe("已提交给 术士 装备 3 件最高光等装备，正在确认游戏内状态。");
     expect(buildHighestPowerResultMessage({
       characterClassName: "术士",
       transferSuccessCount: 1,
@@ -194,7 +244,7 @@ describe("highest power workspace", () => {
       equipTotalCount: 3,
       failedCount: 2,
       failureReason: "当前角色所在位置不允许更换装备。"
-    })).toBe("最高光等部分成功：转移成功 1/2，装备确认 2/3，失败步骤 2。首个失败原因：当前角色所在位置不允许更换装备。");
+    })).toBe("最高光等部分提交：转移受理 1/2，装备受理 2/3，失败步骤 2。首个失败原因：当前角色所在位置不允许更换装备。");
   });
 });
 
@@ -204,7 +254,8 @@ function item(
   bucketName: string,
   power: number | undefined,
   classType?: number,
-  tier?: string
+  tier?: string,
+  instance?: AccountItemSummary["instance"]
 ): AccountItemSummary {
   return {
     hash: instanceId.length,
@@ -214,6 +265,7 @@ function item(
     group_key: bucketName.includes("武器") ? "weapons" : bucketName === "飞船" ? "equipment" : "armor",
     power,
     class_type: classType,
-    tier
+    tier,
+    instance
   };
 }

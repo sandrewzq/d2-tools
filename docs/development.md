@@ -215,6 +215,8 @@ Renderer UI 的长期边界只在本节保留，具体视觉数值与菜单合�
 - 桌面外壳必须稳定展示应用版本和资料库状态；后台任务不进入顶部状态条，也不在每个页面渲染大横幅，只通过共享右下角任务 Dock 在运行、重试或失败时轻量提示，设置页保留完整任务详情。
 - 应用更新由主进程 `updates` IPC 和后台任务中心持有生命周期；renderer 只发起检查、下载、安装确认和订阅状态。
 - 应用更新检查失败后进入后台重试，重试策略允许最后一个有限间隔持续复用；不要在网络失败后只提示一次就停止。
+- 应用更新默认使用 GitHub Releases；设置 `D2_TOOLS_UPDATE_FEED_URL` 后，官方源失败会自动切换到该国内镜像 Feed，可同时用 `D2_TOOLS_UPDATE_DOWNLOAD_URL` 指定镜像手动下载页。
+- 应用更新状态只持久化版本、来源、操作 ID、错误和待安装标记，不写入 Token、Cookie、密钥或完整诊断；启动时只恢复稳定状态，不恢复检查中或下载中的瞬时状态。
 - 资料库版本检查由主进程 `manifest` IPC 和后台任务中心持有生命周期；每次启动应用会检查最新 Bungie Manifest。
 - 本地 Manifest 未初始化、必要 definition component 缺失或版本落后时，必须提示并允许后台更新；未初始化或组件缺失时，资料库依赖功能应阻断搜索或详情入口。
 - 面向用户的普通 UI 统一使用“资料库”命名，不展示 `Manifest`、`本地 Manifest`、`最新 Manifest`、`必要组件`、`资料包` 等开发者概念；内部 API、类型和诊断技术字段可以继续保留 Manifest 命名。
@@ -229,6 +231,9 @@ Renderer UI 的长期边界只在本节保留，具体视觉数值与菜单合�
 - 资料库更新使用当前语言 SQLite 作为主库，构建装备、Perk、关系和 canonical identity sidecar；非英文界面可离线下载英文 SQLite 构建轻量英文 sidecar，但不得长期保留第二份完整英文主库。
 - JSON Adapter 只用于 SQLite 当前未覆盖的 supplement；不得作为旧主缓存兼容层，也不得重新把大型 JSON 主缓存接回普通请求。
 - 账号读取统一通过 `AccountSession`：列表使用紧凑 `AccountSnapshot`，实例详情按需加载；Bungie 单件写接口明确成功，或批量接口返回单项成功状态后，立即把对应局部 patch 提交到 `AccountSession`、renderer Store 和持久化账号快照。Profile 只在后台低优先级对账并解除写结果保护；暂时返回旧数据的 Profile 不得回退已提交结果。账号快照缓存和 Manifest / sidecar 都属于运行缓存，不进入便携备份。
+- 最高光等候选不得把 Bungie `canEquip=false` 一律解释为永久不可装备：仓库或其他角色位置限制必须进入转移计划，当前异域唯一装备冲突必须交给组合求解；只有等级、未解锁、物品本身不可装备等无法由当前执行计划恢复的原因才排除。写请求受理后保持 `syncing`，轻量账号组件确认目标实例后再显示成功。
+- 账号刷新诊断统一进入脱敏诊断导出，至少分开记录 OAuth、Membership、Profile、定义水合、快照构建、持久化和 IPC 总耗时，并统计 Session / Repository 的缓存命中、in-flight 复用、排队与持久化合并；诊断回调不得改变账号读取结果。
+- 真实账号验收中，最近一次账号刷新 IPC 总耗时约 `580ms`，其中 Bungie Profile 约 `515ms`；定义水合、快照构建和持久化合计约 `100ms`，Repository in-flight 复用已实际命中。账号刷新性能判断应优先区分 Bungie 网络耗时与本地处理耗时，不再用前台重复完整 Profile 查询换取写后确认。
 - 首页、资料库实时来源和账号 Session 共享 Bungie 请求 Broker；每日与每周通过同一次 `home:briefing` 获取，避免重复 membership、Profile 和里程碑请求。
 - 首页简报使用运行缓存保存已解析数据，按每日重置、每周重置和仄商人出现/离开窗口分别判断是否需要访问 Bungie；应用重启后优先复用缓存，倒计时只在 renderer 本地重算，手动刷新可强制绕过周期缓存。
 - 商人基础库存不再依赖商人菜单挂载。账号摘要准备后由顶层 workspace 后台预热当前角色库存；仄处于开放窗口时同时预热默认仄详情。主进程按账号、角色、详情范围和资料库版本合并并缓存请求，缓存到商人 `nextRefreshAt` 后失效，手动刷新强制重新读取。
@@ -455,6 +460,7 @@ packages/desktop/release/
 - 只有 tag 名包含 `-beta` 或 `-rc` 时，GitHub Release 才会自动标记为 Pre-release，例如 `v0.0.8-beta.1`、`v1.0.0-rc.1`
 - Release workflow 接受两类 tag：正式版 `vX.Y.Z`，或与当前包版本一致的预发布 tag（例如 `vX.Y.Z-beta.1`、`vX.Y.Z-rc.1`）
 - Release Assets 当前包含 `d2-tools-setup-<version>.exe`、`latest.yml` 和安装器 blockmap
+- Windows 代码签名不是发布前置条件；没有证书时仍可发布、自动下载并在下载完成后提示用户手动重启安装。若未来配置签名证书，electron-builder 可通过 `CSC_LINK` / `CSC_KEY_PASSWORD` 自动签名；workflow 始终校验 `latest.yml` 版本、安装器文件名和 blockmap 对应关系。
 
 ### 6.3 发布前检查
 

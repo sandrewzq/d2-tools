@@ -7,7 +7,8 @@ import {
   createAccountSession,
   type AccountInvalidation,
   type AccountItemPatch,
-  type AccountSession
+  type AccountSession,
+  type AccountSessionDiagnosticEvent
 } from "@d2-tools/services/account/session";
 import { createAccountDataRepository, type AccountDataRepository } from "@d2-tools/services/account/repository";
 import type { BungieRequestOptions } from "@d2-tools/services/bungie/session";
@@ -22,7 +23,7 @@ import { loadOAuthToken } from "@d2-tools/services/oauth/tokenStore";
 import { loadFreshOAuthToken } from "../ipc/authSession.js";
 import { fetchSharedBungieJson } from "./bungieSession.js";
 import { getDefinitions } from "./gameDataRuntime.js";
-import { measureRuntime } from "./runtimeMetrics.js";
+import { measureRuntime, recordRuntimeMetric } from "./runtimeMetrics.js";
 import { createAccountDefinitionLoader } from "./accountDefinitions.js";
 
 type AccountSessionState = {
@@ -203,6 +204,9 @@ async function getAccountSessionState(): Promise<AccountSessionState> {
     let snapshotSavePromise: Promise<void> | null = null;
     const enqueueSnapshotSave = (snapshot: AccountSnapshot): Promise<void> => {
       if (!activeAccountId) return Promise.resolve();
+      if (snapshotSavePromise) {
+        recordRuntimeMetric("account.refresh.persistence.coalesced", 0);
+      }
       const manifestRevision = loadManifestMetadataCache(config.data.data_dir)?.metadata.version;
       pendingSnapshotSave = {
         accountId: activeAccountId,
@@ -214,10 +218,12 @@ async function getAccountSessionState(): Promise<AccountSessionState> {
           while (pendingSnapshotSave) {
             const nextSave = pendingSnapshotSave;
             pendingSnapshotSave = null;
-            await saveCachedAccountSnapshot(config.data.data_dir, nextSave.snapshot, new Date(), {
-              accountId: nextSave.accountId,
-              ...(nextSave.manifestRevision ? { manifestRevision: nextSave.manifestRevision } : {})
-            });
+            await measureRuntime("account.refresh.persistence", () => (
+              saveCachedAccountSnapshot(config.data.data_dir, nextSave.snapshot, new Date(), {
+                accountId: nextSave.accountId,
+                ...(nextSave.manifestRevision ? { manifestRevision: nextSave.manifestRevision } : {})
+              })
+            ));
           }
         })().finally(() => {
           snapshotSavePromise = null;
@@ -249,9 +255,15 @@ async function getAccountSessionState(): Promise<AccountSessionState> {
       loadDefinitions: loadAccountDefinitions,
       itemDetailStore: createAccountItemDetailStore(config.data.data_dir),
       initialSnapshot: cached?.snapshot,
-      onSnapshot: enqueueSnapshotSave
+      onSnapshot: enqueueSnapshotSave,
+      onDiagnostic: recordAccountSessionDiagnostic
     });
-    const repository = createAccountDataRepository({ session });
+    const repository = createAccountDataRepository({
+      session,
+      onSnapshotRequest: (outcome) => {
+        recordRuntimeMetric(`account.refresh.repository.${outcome}`, 0);
+      }
+    });
     sessionState = { key, session, repository };
     return sessionState;
   })();
@@ -260,5 +272,13 @@ async function getAccountSessionState(): Promise<AccountSessionState> {
     return await request;
   } finally {
     if (sessionRequest === request) sessionRequest = null;
+  }
+}
+
+function recordAccountSessionDiagnostic(event: AccountSessionDiagnosticEvent): void {
+  const stageKey = `account.refresh.${event.stage}`;
+  recordRuntimeMetric(`${stageKey}.${event.outcome}`, event.duration_ms);
+  if (event.outcome === "completed") {
+    recordRuntimeMetric(stageKey, event.duration_ms);
   }
 }
