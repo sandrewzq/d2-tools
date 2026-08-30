@@ -1372,7 +1372,7 @@ function LocalPlanEditor(props: LoadoutsPageContentViewProps & {
               {loadoutPlanArmorStatKeys.map((stat) => <label key={stat}><span>{armorStatLabel(stat)}最低值</span><input type="number" min="0" step="5" value={armorConstraints.stat_minimums[stat] ?? 0} onChange={(event) => updateArmorConstraints({ ...armorConstraints, stat_minimums: { ...armorConstraints.stat_minimums, [stat]: Math.max(Number(event.target.value) || 0, 0) } })} /></label>)}
             </div>
             <ArmorStatModSlotRulesEditor constraints={armorConstraints} preflight={armorModPreflight} onChange={updateArmorConstraints} />
-            <details className="loadout-armor-advanced-settings" defaultOpen={plannerMode !== "owned"}>
+            <details className="loadout-armor-advanced-settings" open={plannerMode !== "owned"}>
               <summary><span>更多配装条件</span><small>{armorPlannerModeLabel(plannerMode)} · 优先顺序、碎片、套装与装备范围</small></summary>
               <section className="loadout-armor-advanced-section" aria-label="规划方式">
                 <div className="loadout-armor-constraint-head"><div><strong>规划方式</strong><small>普通配装直接使用当前库存；其他方式用于理论、待刷和升级分析。</small></div></div>
@@ -1581,7 +1581,7 @@ function collectItemPickerCandidates(accountSummary: AccountSummary | null, slot
 }
 
 function itemPickerRollSummary(item: AccountItemSummary): string {
-  if (item.group_key === "weapon") {
+  if (item.group_key === "weapons") {
     const plugNames = [...new Set(item.socket_plugs.map((plug) => plug.name.trim()).filter(Boolean))].slice(0, 4);
     if (plugNames.length) return plugNames.join(" · ");
   }

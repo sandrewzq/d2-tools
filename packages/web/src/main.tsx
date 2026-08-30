@@ -719,6 +719,7 @@ function WebApp() {
                 snapshotCurrentLoadout: () => undefined,
                 clearSavedLoadout: () => undefined,
                 updateSavedLoadoutIdentifiers: () => undefined,
+                openInGameItemDetail: (item) => openWebAccountItem(item, "account"),
                 openTemplateSourceItem: () => undefined
               }}
               compareTemplateId={compareTemplateId}

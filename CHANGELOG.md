@@ -2,6 +2,46 @@
 
 这个项目使用面向玩家的更新日志。这里优先记录”玩家能感知到什么变化”，而不是逐条展开内部实现细节。
 
+## 0.0.16 - 2026-08-30
+
+### 中文
+
+#### 新增
+
+- 应用更新链路支持未签名 Windows 安装包发布、自动下载和手动重启安装，并保留 GitHub Releases 与国内镜像回退入口。
+- 配装工作台补充逐部位属性模组规则、自动配甲、迁移计划和穿戴前复核，减少玩家手动调整装备的步骤。
+- 武器和护甲详情支持当前装备、资料库版本、商人售卖等不同对象的独立信息展示。
+
+#### 改进
+
+- 首页本周活动只展示 Bungie 明确确认的轮换突袭和轮换地牢，不再把固定周常奖励或常驻活动混入轮换结果。
+- 首页轮换活动会合并所有角色的实时活动数据，避免因角色顺序漏掉守望者尖塔或其他有效挑战。
+- 账号、仓库、配装、资料库、商人和设置继续统一使用共享产品界面与亮暗色主题。
+
+#### 修复
+
+- 修复首页活动缓存使用旧解析结果的问题；活动数据模型更新后会自动失效旧缓存并重新获取。
+- 修复多角色突袭和地牢挑战只读取首个角色，导致轮换活动显示不完整的问题。
+
+### English
+
+#### Added
+
+- Added unsigned Windows package publishing, automatic downloads, and manual restart installation, with GitHub Releases and domestic mirror fallback support.
+- Expanded the Loadouts workbench with slot-aware armor mod rules, automatic armor selection, migration plans, and pre-equip review.
+- Added independent context summaries for currently equipped, Library, and Vendor weapon and armor details.
+
+#### Improved
+
+- Home now shows only Bungie-confirmed rotating raids and dungeons, keeping fixed weekly rewards and persistent activities out of rotation cards.
+- Rotating activity detection now merges live activity data from every character so valid challenges are not lost because of character order.
+- Account, Vault, Loadouts, Library, Vendors, and Settings continue to share the same product UI and light/dark theme.
+
+#### Fixed
+
+- Invalidated stale Home activity caches whenever the activity parsing model changes.
+- Fixed incomplete raid and dungeon rotation results caused by reading only the first character's activity state.
+
 ## 0.0.15 - 2026-08-04
 
 ### 中文

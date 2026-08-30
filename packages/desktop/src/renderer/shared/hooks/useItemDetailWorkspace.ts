@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { AccountOperationFeedbackView } from "@d2-tools/app/account";
 import { api } from "../../api/client";
-import type { AccountItemActionPatch, AccountItemDetail, AccountItemSummary, AccountSummary, AccountWriteVerificationInput, ActionDebugTraceInput, ActionLogType, DimWishlist, ItemActionResult, ItemAiAdviceResult, ItemSearchResult, LibraryHistory, LocalTargetRules, VaultTags, VaultTagValue, WeaponRecommendation } from "../../api/types";
+import type { ActionLogType } from "@d2-tools/core/actions/log";
+import type { AccountItemActionPatch, AccountItemDetail, AccountItemSummary, AccountSummary, AccountWriteVerificationInput, ActionDebugTraceInput, DimWishlist, ItemActionResult, ItemAiAdviceResult, ItemSearchResult, LibraryHistory, LocalTargetRules, VaultTags, VaultTagValue, WeaponRecommendation } from "../../api/types";
 import type { LiveItemAvailabilityEntry } from "@d2-tools/core/items/liveAvailability";
 import type {
   PersonalWeaponKnowledgeEntry,

@@ -1213,9 +1213,9 @@ function instanceRollDifferenceLabel(
   const currentHashes = currentInstance.plugs.slice(0, 5).map((plug) => plug.hash);
   const instanceHashes = instance.plugs.slice(0, 5).map((plug) => plug.hash);
   const slotCount = Math.max(currentHashes.length, instanceHashes.length);
-  const differenceCount = Array.from({ length: slotCount }, (_, index) => (
+  const differenceCount = Array.from({ length: slotCount }, (_, index): number => (
     currentHashes[index] === instanceHashes[index] ? 0 : 1
-  )).reduce((total, difference) => total + difference, 0);
+  )).reduce<number>((total, difference) => total + difference, 0);
   return differenceCount ? `${differenceCount} 个 Perk 不同` : "Roll 相同";
 }
 

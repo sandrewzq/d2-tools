@@ -1341,7 +1341,7 @@
 .app-shell .loadout-armor-mod-mode { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); min-width: 0; overflow: hidden; border: 1px solid var(--border-control); border-radius: var(--radius-control); background: var(--surface-recessed); }
 .app-shell .loadout-armor-mod-mode label { position: relative; display: grid; min-width: 0; min-height: 34px; place-items: center; border-right: 1px solid var(--border-subtle); color: var(--text-muted); cursor: pointer; }
 .app-shell .loadout-armor-mod-mode label:last-child { border-right: 0; }
-.app-shell .loadout-armor-mod-mode label[data-selected="true"] { color: var(--selected-fg); background: var(--state-selected-bg); box-shadow: inset 0 -2px var(--state-selected-border); }
+.app-shell .loadout-armor-mod-mode label[data-selected="true"] { color: var(--selected-fg); background: var(--state-selected-bg); box-shadow: inset 0 0 0 1px var(--state-selected-border); }
 .app-shell .loadout-armor-mod-mode input { position: absolute; width: 1px; height: 1px; overflow: hidden; opacity: 0; pointer-events: none; }
 .app-shell .loadout-armor-mod-mode label:focus-within { z-index: 1; outline: 2px solid var(--blue); outline-offset: -2px; }
 .app-shell .loadout-armor-mod-mode span { overflow: hidden; font-size: var(--font-meta); font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
@@ -1366,7 +1366,7 @@
 
 .app-shell .loadout-armor-advanced-settings { border-top: 1px solid var(--border-control); background: var(--surface-panel); }
 .app-shell .loadout-armor-advanced-settings > summary { display: grid; min-height: 48px; align-content: center; gap: 3px; padding: 8px 12px; color: var(--text-title); font-size: var(--font-meta); font-weight: 700; cursor: pointer; }
-.app-shell .loadout-armor-advanced-settings > summary small { color: var(--text-muted); font-size: var(--font-caption); font-weight: 500; line-height: 1.35; }
+.app-shell .loadout-armor-advanced-settings > summary small { color: var(--text-muted); font-size: var(--font-caption); font-weight: 400; line-height: 1.35; }
 .app-shell .loadout-armor-advanced-settings[open] > summary { border-bottom: 1px solid var(--border-subtle); background: var(--surface-subtle); }
 .app-shell .loadout-armor-advanced-section,
 .app-shell .loadout-armor-priority-editor,
@@ -2021,7 +2021,7 @@
 .app-shell .loadout-persisted-armor-pieces strong { color: var(--text-title); font-size: var(--font-meta); }
 
 .app-shell .loadout-item-picker-backdrop { position: fixed; z-index: var(--layer-modal); inset: 0; display: flex; justify-content: flex-end; background: var(--overlay-scrim); backdrop-filter: blur(2px); }
-.app-shell .loadout-item-picker-drawer { display: grid; grid-template-rows: auto auto auto auto minmax(0, 1fr); width: min(540px, calc(100vw - 24px)); height: 100%; max-height: 100dvh; min-width: 0; overflow: hidden; border-left: 1px solid var(--border-control); background: var(--surface-panel); box-shadow: -18px 0 40px color-mix(in srgb, #000 24%, transparent); overscroll-behavior: contain; }
+.app-shell .loadout-item-picker-drawer { display: grid; grid-template-rows: auto auto auto auto minmax(0, 1fr); width: min(540px, calc(100vw - 24px)); height: 100%; max-height: 100dvh; min-width: 0; overflow: hidden; border-left: 1px solid var(--border-control); background: var(--surface-panel); box-shadow: var(--shadow-overlay); overscroll-behavior: contain; }
 .app-shell .loadout-item-picker-drawer > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 16px; border-bottom: 1px solid var(--border-control); background: var(--surface-subtle); }
 .app-shell .loadout-item-picker-drawer h3 { margin: 3px 0 0; color: var(--text-title); font-size: var(--font-section-title); }
 .app-shell .loadout-item-picker-drawer p { margin: 4px 0 0; color: var(--text-muted); font-size: var(--font-meta); line-height: 1.45; }
@@ -2033,7 +2033,7 @@
 .app-shell .loadout-item-picker-filters button:last-child { border-right: 0; }
 .app-shell .loadout-item-picker-filters button:hover,
 .app-shell .loadout-item-picker-filters button:focus-visible { color: var(--text-title); background: var(--surface-interactive); }
-.app-shell .loadout-item-picker-filters button[aria-pressed="true"] { color: var(--selected-fg); background: var(--state-selected-bg); box-shadow: inset 0 -2px var(--state-selected-border); }
+.app-shell .loadout-item-picker-filters button[aria-pressed="true"] { color: var(--selected-fg); background: var(--state-selected-bg); box-shadow: inset 0 0 0 1px var(--state-selected-border); }
 .app-shell .loadout-item-picker-filters small { color: inherit; font-size: var(--font-caption); }
 .app-shell .loadout-item-picker-result-meta { display: flex; justify-content: space-between; gap: 12px; padding: 8px 16px; border-bottom: 1px solid var(--border-subtle); color: var(--text-muted); background: var(--surface-recessed); font-size: var(--font-caption); }
 .app-shell .loadout-item-picker-drawer-list { display: grid; grid-auto-rows: max-content; align-content: start; gap: 8px; min-height: 0; padding: 12px; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; }
@@ -2156,7 +2156,7 @@
   .app-shell .loadout-mobile-editor-nav { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .app-shell .loadout-mobile-decision-nav button { min-height: 42px; border: 0; border-right: 1px solid var(--border-subtle); border-radius: 0; color: var(--text-muted); background: transparent; }
   .app-shell .loadout-mobile-decision-nav button:last-child { border-right: 0; }
-  .app-shell .loadout-mobile-decision-nav button[aria-pressed="true"] { color: var(--selected-fg); background: var(--state-selected-bg); box-shadow: inset 0 -2px var(--state-selected-border); }
+  .app-shell .loadout-mobile-decision-nav button[aria-pressed="true"] { color: var(--selected-fg); background: var(--state-selected-bg); box-shadow: inset 0 0 0 1px var(--state-selected-border); }
   .app-shell .loadout-editor-decision-workspace,
   .app-shell .loadout-armor-decision-workspace { display: block; min-height: 0; }
   .app-shell .loadout-editor-decision-workspace > *,
