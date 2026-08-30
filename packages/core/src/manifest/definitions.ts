@@ -81,6 +81,7 @@ export type DefinitionRecord = {
   equippingBlock?: {
     ammoType?: number;
     damageType?: number;
+    equipmentSlotTypeHash?: number;
     equipableItemSetHash?: number;
   };
   setItems?: number[];

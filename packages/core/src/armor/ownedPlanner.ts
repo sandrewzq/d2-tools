@@ -4,14 +4,17 @@ import {
   addArmorStatValues,
   armorSlots,
   armorStatKeys,
+  armorStatModValuesForSlotRule,
   cloneArmorStatValues,
   createEmptyArmorStatValues,
+  normalizeArmorStatModSlotRules,
   subtractArmorStatValues,
   type ArmorClass,
   type ArmorLocation,
   type ArmorPlannedPlugSnapshot,
   type ArmorPieceSnapshot,
   type ArmorSlot,
+  type ArmorStatModSlotRule,
   type ArmorStatValues
 } from "./model.js";
 import {
@@ -39,6 +42,7 @@ export type ArmorOwnedPlanRequest = {
   target: Partial<Record<ArmorStatKey, ArmorReachabilityStatConstraint>>;
   fragment_adjustments?: Partial<Record<ArmorStatKey, number>>;
   armor_mod_budget?: Partial<ArmorReachabilityModBudget>;
+  armor_stat_mod_slot_rules?: readonly ArmorStatModSlotRule[];
   allowed_armor_mod_values?: readonly (0 | 5 | 10)[];
   allowed_locations?: readonly ArmorLocation[];
   locked_instance_ids?: readonly string[];
@@ -83,6 +87,7 @@ export type ArmorOwnedPieceChoice = {
     energy_cost: number;
   };
   armor_stat_mod_socket_plug_hash?: number;
+  armor_stat_mod_socket_index?: number;
   planned_non_stat_plug_hashes: number[];
   energy: {
     capacity: number;
@@ -121,6 +126,7 @@ export type ArmorOwnedPlanResult = {
   target: NormalizedArmorTarget;
   fragment_adjustments: ArmorStatValues;
   armor_mod_budget: Required<ArmorReachabilityModBudget>;
+  armor_stat_mod_slot_rules?: Record<ArmorSlot, ArmorStatModSlotRule>;
   armor_set_constraint: NormalizedArmorSetConstraint;
   candidates: ArmorOwnedCandidate[];
   nearest_feasible_values?: ArmorStatValues;
@@ -169,7 +175,11 @@ export function planOwnedArmor(request: ArmorOwnedPlanRequest): ArmorOwnedPlanRe
   const mode = request.mode === "conservative" ? "conservative" : "strict";
   const targetResult = normalizeArmorTarget(request.target, request.ruleset);
   const fragments = cloneArmorStatValues(request.fragment_adjustments);
-  const budget = normalizeModBudget(request.armor_mod_budget);
+  const hasSlotRules = request.armor_stat_mod_slot_rules !== undefined;
+  const budget = hasSlotRules
+    ? { plus5: armorSlots.length, plus10: armorSlots.length, usage: "at-most" as const }
+    : normalizeModBudget(request.armor_mod_budget);
+  const slotRules = normalizeArmorStatModSlotRules(request.armor_stat_mod_slot_rules);
   const priorityStats = uniqueStats(request.priority_stats ?? []);
   const setResult = normalizeArmorSetConstraint({
     constraint: request.set_constraint,
@@ -221,7 +231,13 @@ export function planOwnedArmor(request: ArmorOwnedPlanRequest): ArmorOwnedPlanRe
     const slotPieces = eligiblePieces.filter((piece) => (
       piece.slot === slot && (!locked || piece.instance_id === locked.instance_id)
     ));
-    const options = slotPieces.flatMap((piece) => buildPieceOptions(request, mode, piece, budget));
+    const options = slotPieces.flatMap((piece) => buildPieceOptions(
+      request,
+      mode,
+      piece,
+      budget,
+      slotRules[slot]
+    ));
     optionsBySlot.set(slot, options.sort(comparePieceOptions));
     if (!options.length) {
       issues.push({
@@ -365,6 +381,7 @@ export function planOwnedArmor(request: ArmorOwnedPlanRequest): ArmorOwnedPlanRe
     target: targetResult.target,
     fragment_adjustments: fragments,
     armor_mod_budget: budget,
+    armor_stat_mod_slot_rules: slotRules,
     armor_set_constraint: setResult.constraint,
     candidates,
     ...(!reachable && candidates[0]
@@ -504,7 +521,8 @@ function buildPieceOptions(
   request: ArmorOwnedPlanRequest,
   mode: ArmorOwnedPlanningMode,
   piece: ArmorPieceSnapshot,
-  budget: Required<ArmorReachabilityModBudget>
+  budget: Required<ArmorReachabilityModBudget>,
+  slotRule: ReturnType<typeof normalizeArmorStatModSlotRules>[ArmorSlot]
 ): OwnedPieceOption[] {
   if (!piece.instance_id || !piece.slot) return [];
   const observedFinal = cloneArmorStatValues(piece.stats.final);
@@ -527,7 +545,10 @@ function buildPieceOptions(
         autoTune && existingTuning ? existingTuning : createEmptyArmorStatValues()
       )
     : observedFinal;
-  const modValues = mode === "strict" ? normalizeAllowedMods(request.allowed_armor_mod_values) : [0] as const;
+  const modValues = mode === "strict"
+    ? normalizeAllowedMods(request.allowed_armor_mod_values)
+        .filter((value) => armorStatModValuesForSlotRule(slotRule).includes(value))
+    : [0] as const;
   const tuningOptions = autoTune ? piece.installation.tuning_options : [undefined];
   const energyCapacity = piece.installation.energy_capacity ?? 0;
   const requestedNonStatPlugHashes = request.planned_non_stat_plug_hashes_by_slot?.[piece.slot];
@@ -545,7 +566,9 @@ function buildPieceOptions(
     for (const modValue of modValues) {
       if (modValue === 5 && budget.plus5 === 0) continue;
       if (modValue === 10 && budget.plus10 === 0) continue;
-      const modStats = modValue === 0 ? [undefined] : armorStatKeys;
+      const modStats = modValue === 0
+        ? [undefined]
+        : slotRule.stat ? [slotRule.stat] : armorStatKeys;
       for (const modStat of modStats) {
         const clearOption = mode === "strict" && modValue === 0
           ? piece.installation.armor_stat_mod_clear_options[0]
@@ -607,6 +630,9 @@ function buildPieceOptions(
           applied_armor_stat_mod: appliedMod,
           ...((appliedMod?.source_plug_hash ?? clearOption?.plug_hash) !== undefined
             ? { armor_stat_mod_socket_plug_hash: appliedMod?.source_plug_hash ?? clearOption?.plug_hash }
+            : {}),
+          ...((appliedMod?.socket_index ?? clearOption?.socket_index) !== undefined
+            ? { armor_stat_mod_socket_index: appliedMod?.socket_index ?? clearOption?.socket_index }
             : {}),
           planned_non_stat_plug_hashes: plannedNonStatPlugs.map((plug) => plug.plug_hash),
           energy: {

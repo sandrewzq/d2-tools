@@ -218,8 +218,8 @@ function HomePageContent(props: {
   const priorities = props.weeklySummary?.priorities;
   const activities = [
     { kind: "nightfall", label: homeText(props.copy, "日落打击"), priority: priorities?.nightfall },
-    { kind: "raid", label: homeText(props.copy, "轮换突袭"), priority: priorities?.rotating_raid },
-    { kind: "dungeon", label: homeText(props.copy, "轮换地牢"), priority: priorities?.rotating_dungeon }
+    { kind: "raid", label: homeText(props.copy, "本周轮换突袭"), priority: priorities?.rotating_raid },
+    { kind: "dungeon", label: homeText(props.copy, "本周轮换地牢"), priority: priorities?.rotating_dungeon }
   ] as const;
   const xur = props.xur;
   const xurItems = xur?.items ?? [];

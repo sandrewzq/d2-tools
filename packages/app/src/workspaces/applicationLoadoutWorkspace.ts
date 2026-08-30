@@ -3,9 +3,12 @@ import type {
   CharacterLoadoutSlotSummary,
   CharacterSummary
 } from "@d2-tools/core/account/summary";
+import type { ArmorSlot } from "@d2-tools/core/armor";
 import {
   loadoutPlanArmorStatKeys,
   matchLocalLoadoutPlan,
+  normalizeLoadoutPlanArmorStatModSlotRules,
+  summarizeLoadoutPlanArmorStatModRules,
   type LoadoutPlanArmorStatKey,
   type LocalLoadoutPlan,
   type LocalLoadoutPlanItemMatch,
@@ -535,24 +538,44 @@ function projectApplicationLoadout(plan: LocalLoadoutPlan): CompareProjection {
       value === undefined ? "empty" : "value"
     );
   }
+  const armorModSummary = summarizeLoadoutPlanArmorStatModRules(plan.armor_constraints);
   addProjectionValue(
     projection,
     "armor:plus5",
     "armor",
-    "+5 属性模组数量",
-    plan.armor_constraints ? String(plan.armor_constraints.five_point_mod_budget) : "未设置",
+    "+5 属性模组",
+    plan.armor_constraints ? String(armorModSummary.plus5) : "未设置",
     plan.armor_constraints ? "value" : "empty",
-    plan.armor_constraints ? String(plan.armor_constraints.five_point_mod_budget) : "empty"
+    plan.armor_constraints ? String(armorModSummary.plus5) : "empty"
   );
   addProjectionValue(
     projection,
     "armor:plus10",
     "armor",
-    "+10 属性模组数量",
-    plan.armor_constraints ? String(plan.armor_constraints.ten_point_mod_budget) : "未设置",
+    "+10 属性模组",
+    plan.armor_constraints ? String(armorModSummary.plus10) : "未设置",
     plan.armor_constraints ? "value" : "empty",
-    plan.armor_constraints ? String(plan.armor_constraints.ten_point_mod_budget) : "empty"
+    plan.armor_constraints ? String(armorModSummary.plus10) : "empty"
   );
+  if (plan.armor_constraints?.armor_stat_mod_slot_rules) {
+    for (const rule of normalizeLoadoutPlanArmorStatModSlotRules(plan.armor_constraints)) {
+      const value = rule.mode === "auto"
+        ? "自动"
+        : rule.mode === "none"
+          ? "不安装"
+          : rule.mode === "plus5" ? "+5" : "+10";
+      const stat = rule.stat ? armorStatLabel(rule.stat) : "属性自动";
+      addProjectionValue(
+        projection,
+        `armor:stat-mod:${rule.slot}`,
+        "armor",
+        `${armorSlotLabel(rule.slot)}属性模组`,
+        `${value} · ${stat}`,
+        "value",
+        `${rule.mode}:${rule.stat ?? "auto"}`
+      );
+    }
+  }
   addProjectionValue(
     projection,
     "armor:mode",
@@ -806,6 +829,11 @@ function compareRowOrder(left: string, right: string): number {
     ...loadoutPlanArmorStatKeys.map((stat) => `armor:minimum:${stat}`),
     "armor:plus5",
     "armor:plus10",
+    "armor:stat-mod:helmet",
+    "armor:stat-mod:arms",
+    "armor:stat-mod:chest",
+    "armor:stat-mod:legs",
+    "armor:stat-mod:class",
     "armor:mode",
     "armor:priority",
     "armor:exotic",
@@ -830,6 +858,16 @@ function armorStatLabel(stat: LoadoutPlanArmorStatKey): string {
     case "class": return "职业技能";
     case "weapon": return "武器";
   }
+}
+
+function armorSlotLabel(slot: ArmorSlot): string {
+  return {
+    helmet: "头盔",
+    arms: "臂铠",
+    chest: "胸甲",
+    legs: "腿甲",
+    class: "职业物品"
+  }[slot];
 }
 
 function inGameReferenceId(reference: ApplicationLoadoutInGameReference): string {

@@ -53,6 +53,34 @@ describe("highest power workspace", () => {
     expect(plan.summary).not.toContain("Pretty Ship");
   });
 
+  it("recovers an exotic armor slot from cached item metadata when its bucket is unknown", () => {
+    const character: CharacterSummary = {
+      character_id: "char-1",
+      class_name: "术士",
+      light: 1800,
+      equipped_items: [item("equipped-legs", "当前腿甲", "腿甲", 1800)],
+      equipment_groups: [],
+      inventory_items: [{
+        ...item("inventory-exotic-legs", "异域腿甲", "未知", 1810, 2, "异域"),
+        item_type: "腿部护甲",
+        bucket_hash: 2422292810,
+        group_key: "other",
+        instance: { can_equip: false, cannot_equip_reason: 0 }
+      }],
+      inventory_groups: [],
+      postmaster_items: [],
+      loadout_slots: []
+    };
+
+    const plan = createHighestPowerEquipPlan({ character, vaultItems: [] });
+
+    expect(plan.items.find((entry) => entry.slot_label === "腿甲")).toMatchObject({
+      item: { name: "异域腿甲", power: 1810 },
+      source: "inventory",
+      needs_equip: true
+    });
+  });
+
   it("splits highest-power actions into transfer and equip phases", () => {
     const character: CharacterSummary = {
       character_id: "char-1",

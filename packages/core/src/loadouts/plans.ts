@@ -1,4 +1,9 @@
 import type { AccountItemSummary, AccountSummary } from "../account/summary.js";
+import {
+  armorSlots,
+  type ArmorSlot,
+  type ArmorStatModSlotRuleMode
+} from "../armor/model.js";
 import type { ArmorSetConstraint } from "../armor/sets.js";
 import type { ArmorStatKey } from "./analysis.js";
 
@@ -55,6 +60,12 @@ export type LoadoutPlanSubclassTarget = {
 export type LoadoutPlanArmorLocation = "equipped" | "inventory" | "vault" | "postmaster";
 export type LoadoutPlanArmorPlannerMode = "owned" | "theoretical" | "acquisition" | "upgrade";
 
+export type LoadoutPlanArmorStatModSlotRule = {
+  slot: ArmorSlot;
+  mode: ArmorStatModSlotRuleMode;
+  stat?: LoadoutPlanArmorStatKey;
+};
+
 export type LoadoutPlanArmorConstraints = {
   planner_mode?: LoadoutPlanArmorPlannerMode;
   stat_minimums: Partial<Record<LoadoutPlanArmorStatKey, number>>;
@@ -62,6 +73,7 @@ export type LoadoutPlanArmorConstraints = {
   fragment_stat_bonuses: Partial<Record<LoadoutPlanArmorStatKey, number>>;
   five_point_mod_budget: number;
   ten_point_mod_budget: number;
+  armor_stat_mod_slot_rules?: LoadoutPlanArmorStatModSlotRule[];
   exotic_item_hash?: number;
   exotic_instance_id?: string;
   locked_instance_ids: string[];
@@ -93,10 +105,14 @@ export type LocalLoadoutArmorPlanReference = {
   };
   selected_instance_ids: string[];
   planned_armor_plugs: Array<{
+    slot?: ArmorSlot;
     instance_id: string;
     tuning_plug_hash?: number;
     armor_stat_mod_plug_hash?: number;
     armor_stat_mod_value?: 5 | 10;
+    armor_stat_mod_stat?: LoadoutPlanArmorStatKey;
+    armor_stat_mod_socket_index?: number;
+    armor_stat_mod_energy_cost?: number;
     energy_capacity: number;
     reserved_energy: number;
     final_energy: number;
@@ -157,6 +173,57 @@ export type LocalLoadoutPlanMatch = {
   plug_unavailable_count: number;
   unconfigured_count: number;
 };
+
+export function createDefaultArmorStatModSlotRules(): LoadoutPlanArmorStatModSlotRule[] {
+  return armorSlots.map((slot) => ({ slot, mode: "auto" }));
+}
+
+export function normalizeLoadoutPlanArmorStatModSlotRules(
+  constraints: Pick<LoadoutPlanArmorConstraints, "armor_stat_mod_slot_rules"> | undefined
+): LoadoutPlanArmorStatModSlotRule[] {
+  const bySlot = new Map<ArmorSlot, LoadoutPlanArmorStatModSlotRule>();
+  for (const rule of constraints?.armor_stat_mod_slot_rules ?? []) {
+    if (!armorSlots.includes(rule.slot)) continue;
+    const mode = (["auto", "none", "plus5", "plus10"] as const).includes(rule.mode)
+      ? rule.mode
+      : "auto";
+    const stat = (mode === "plus5" || mode === "plus10")
+      && rule.stat && loadoutPlanArmorStatKeys.includes(rule.stat)
+      ? rule.stat
+      : undefined;
+    bySlot.set(rule.slot, {
+      slot: rule.slot,
+      mode,
+      ...(stat ? { stat } : {})
+    });
+  }
+  return armorSlots.map((slot) => bySlot.get(slot) ?? { slot, mode: "auto" });
+}
+
+export function summarizeLoadoutPlanArmorStatModRules(
+  constraints: Pick<
+    LoadoutPlanArmorConstraints,
+    "armor_stat_mod_slot_rules" | "five_point_mod_budget" | "ten_point_mod_budget"
+  > | undefined
+): { plus5: number; plus10: number; automatic: number; none: number; legacy: boolean } {
+  if (!constraints?.armor_stat_mod_slot_rules) {
+    return {
+      plus5: Math.max(0, Math.trunc(constraints?.five_point_mod_budget ?? 0)),
+      plus10: Math.max(0, Math.trunc(constraints?.ten_point_mod_budget ?? 0)),
+      automatic: 0,
+      none: 0,
+      legacy: true
+    };
+  }
+  const rules = normalizeLoadoutPlanArmorStatModSlotRules(constraints);
+  return {
+    plus5: rules.filter((rule) => rule.mode === "plus5").length,
+    plus10: rules.filter((rule) => rule.mode === "plus10").length,
+    automatic: rules.filter((rule) => rule.mode === "auto").length,
+    none: rules.filter((rule) => rule.mode === "none").length,
+    legacy: false
+  };
+}
 
 export function createLocalLoadoutPlanFromEquippedItems(input: {
   name: string;

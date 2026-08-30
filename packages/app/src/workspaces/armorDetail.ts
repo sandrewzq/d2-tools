@@ -55,6 +55,7 @@ export type ArmorAbility = {
 
 export type ArmorSocket = {
   key: string;
+  socket_index?: number;
   label: string;
   name: string;
   description?: string;
@@ -73,6 +74,12 @@ export type ArmorSourceEntry = {
 export type ArmorDetailSources = {
   status: "ready" | "partial" | "unknown";
   entries: ArmorSourceEntry[];
+  offer?: {
+    cost_label?: string;
+    purchase_label?: string;
+    refresh_label?: string;
+    can_purchase?: boolean;
+  };
 };
 
 export type ArmorRecommendation = {
@@ -280,9 +287,9 @@ function entryLabel(entry: ArmorDetailEntryKind): string {
 }
 
 function objectLabel(kind: ArmorDetailObjectKind): string {
-  if (kind === "vendor_offer") return "商人售卖";
-  if (kind === "account_item") return "账号实例";
-  return "资料库定义";
+  if (kind === "vendor_offer") return "当前售卖";
+  if (kind === "account_item") return "当前装备";
+  return "资料库版本";
 }
 
 function sourceSummaryToSources(source: ItemSourceSummary): ArmorDetailSources {
@@ -302,17 +309,26 @@ function buildArmorSockets(
   sockets: AccountItemSocketSummary[] | undefined,
   plugs: AccountItemPlugSummary[] | undefined
 ): ArmorSocket[] {
-  const selected = sockets?.flatMap((socket) => socket.is_visible && socket.selected_plug ? [socket.selected_plug] : []) ?? plugs ?? [];
-  return selected
-    .filter(isVisibleArmorPlug)
-    .map((plug, index) => ({
-      key: `${plug.hash}:${index}`,
-      label: armorPlugLabel(plug, index),
+  const selected = sockets?.length
+    ? sockets.flatMap((socket) => socket.is_visible && socket.selected_plug
+      ? [{ plug: socket.selected_plug, socketIndex: socket.socket_index }]
+      : [])
+    : (plugs ?? []).map((plug) => ({ plug, socketIndex: plug.socket_index }));
+  let modIndex = 0;
+  return selected.flatMap(({ plug, socketIndex }, index) => {
+    if (!isVisibleArmorPlug(plug)) return [];
+    const kind = armorPlugKind(plug);
+    if (kind === "mod") modIndex += 1;
+    return [{
+      key: `${socketIndex ?? "plug"}:${plug.hash}:${index}`,
+      socket_index: socketIndex,
+      label: armorPlugLabel(plug, kind === "mod" ? modIndex : index + 1),
       name: plug.name,
       description: plug.description,
       icon: plug.icon,
-      kind: armorPlugKind(plug)
-    }));
+      kind
+    }];
+  });
 }
 
 function isVisibleArmorPlug(plug: AccountItemPlugSummary): boolean {
@@ -335,7 +351,10 @@ function armorPlugLabel(plug: AccountItemPlugSummary, index: number): string {
   const kind = armorPlugKind(plug);
   if (kind === "upgrade") return "护甲升级";
   if (kind === "special") return "特殊插槽";
-  return `护甲模组 ${index + 1}`;
+  const value = `${plug.category_identifier ?? ""} ${plug.item_type ?? ""} ${plug.name}`.toLocaleLowerCase();
+  if (includesAny(value, ["activity", "raid", "seasonal", "活动", "突袭", "赛季"])) return "通用／活动模组位";
+  if (includesAny(value, ["tuning", "adjustment", "artifice", "stat mod", "调整", "诡计", "属性模组"])) return "调整模组位";
+  return `部位模组位 ${index}`;
 }
 
 function toArmorDetailInstance(

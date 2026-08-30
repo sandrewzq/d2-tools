@@ -19,6 +19,8 @@ export type DetailInstanceTagAction = {
 export type DetailInstanceActionPanelProps = {
   title: string;
   subtitle: string;
+  eyebrow?: string;
+  currentBadge?: string;
   statusLabels: string[];
   targetLabel?: string;
   targetValue?: string;
@@ -27,6 +29,9 @@ export type DetailInstanceActionPanelProps = {
   actions: DetailInstanceAction[];
   tags: DetailInstanceTagAction[];
   note: string;
+  noteLabel?: string;
+  noteDirty?: boolean;
+  collapseAuxiliary?: boolean;
   onTargetChange?: (value: string) => void;
   onNoteChange: (value: string) => void;
   noteActions: DetailInstanceAction[];
@@ -35,15 +40,60 @@ export type DetailInstanceActionPanelProps = {
 };
 
 export function DetailInstanceActionPanel(props: DetailInstanceActionPanelProps) {
+  const tagControls = (
+    <div className="detail-instance-tag-group">
+      <span>本地标记</span>
+      <div>
+        {props.tags.map((tag) => (
+          <button
+            key={tag.key}
+            type="button"
+            data-ui-kind="button"
+            data-control-variant="secondary"
+            aria-pressed={tag.pressed}
+            disabled={tag.disabled}
+            onClick={tag.onClick}
+          >
+            {tag.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+  const noteControls = (
+    <>
+      <textarea
+        aria-label={props.noteLabel ?? "实例备注"}
+        placeholder="记录用途、搭配或后续处理计划"
+        value={props.note}
+        onChange={(event) => props.onNoteChange(event.target.value)}
+      />
+      <div className="detail-instance-note-actions">
+        {props.noteActions.map((action) => (
+          <button
+            key={action.key}
+            type="button"
+            data-ui-kind="button"
+            data-control-variant={action.primary ? "primary" : "secondary"}
+            disabled={action.disabled}
+            onClick={action.onClick}
+          >
+            {action.label}
+          </button>
+        ))}
+      </div>
+    </>
+  );
+
   return (
     <div className="detail-instance-actions">
       <div className="detail-instance-current">
         <div>
-          <span>当前实例</span>
+          <span>{props.eyebrow ?? "当前实例"}</span>
           <h3>{props.title}</h3>
           <p>{props.subtitle}</p>
         </div>
-        <strong>正在查看</strong>
+        <strong>{props.currentBadge ?? "正在查看"}</strong>
       </div>
 
       {props.statusLabels.length ? (
@@ -84,50 +134,26 @@ export function DetailInstanceActionPanel(props: DetailInstanceActionPanelProps)
         </div>
       ) : null}
 
-      <div className="detail-instance-tag-group">
-        <span>本地标记</span>
-        <div>
-          {props.tags.map((tag) => (
-            <button
-              key={tag.key}
-              type="button"
-              data-ui-kind="button"
-              data-control-variant="secondary"
-              aria-pressed={tag.pressed}
-              disabled={tag.disabled}
-              onClick={tag.onClick}
-            >
-              {tag.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <details className="detail-instance-more">
-        <summary>备注与复用</summary>
-        <div>
-          <textarea
-            aria-label="实例备注"
-            placeholder="记录用途、搭配或后续处理计划"
-            value={props.note}
-            onChange={(event) => props.onNoteChange(event.target.value)}
-          />
-          <div className="detail-instance-note-actions">
-            {props.noteActions.map((action) => (
-              <button
-                key={action.key}
-                type="button"
-                data-ui-kind="button"
-                data-control-variant={action.primary ? "primary" : "secondary"}
-                disabled={action.disabled}
-                onClick={action.onClick}
-              >
-                {action.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      </details>
+      {props.collapseAuxiliary ? (
+        <details className="detail-instance-more">
+          <summary>
+            <span>标签、备注与复用</span>
+            {props.noteDirty ? <strong>备注未保存</strong> : null}
+          </summary>
+          <div>{tagControls}{noteControls}</div>
+        </details>
+      ) : (
+        <>
+          {tagControls}
+          <details className="detail-instance-more">
+            <summary>
+              <span>备注与复用</span>
+              {props.noteDirty ? <strong>备注未保存</strong> : null}
+            </summary>
+            <div>{noteControls}</div>
+          </details>
+        </>
+      )}
 
       {props.feedback}
       {props.messages?.filter(Boolean).map((message, index) => (

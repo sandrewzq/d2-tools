@@ -88,7 +88,25 @@ export function getAccountPowerSlot(item: AccountItemSummary): AccountPowerSlotK
     return bucketHashToSlot.get(item.bucket_hash);
   }
   const bucketName = item.bucket_name?.trim();
-  return bucketName ? bucketNameToSlot.get(bucketName) : undefined;
+  if (bucketName) {
+    const slot = bucketNameToSlot.get(bucketName);
+    if (slot) return slot;
+  }
+
+  // Cached summaries created before the bucket normalization fix may still
+  // contain a tier-specific exotic bucket (or group_key=other). Recover the
+  // power slot from stable item metadata so one-click planning works before a
+  // full account refresh replaces that stale summary.
+  if (item.ammo_type === "primary") return "kinetic";
+  if (item.ammo_type === "special") return "energy";
+  if (item.ammo_type === "heavy") return "power";
+  const itemType = item.item_type?.trim() ?? "";
+  if (/头盔|helmet/i.test(itemType)) return "helmet";
+  if (/职业物品|术士臂环|泰坦标记|猎人披风|class armor|warlock bond|titan mark|hunter cloak|bond/i.test(itemType)) return "class-item";
+  if (/臂铠|臂环|臂甲|gauntlet|arm/i.test(itemType)) return "gauntlets";
+  if (/胸甲|胸部护甲|chest/i.test(itemType)) return "chest";
+  if (/腿甲|腿部护甲|leg armor|boots/i.test(itemType)) return "legs";
+  return undefined;
 }
 
 export function selectMaxEquippablePowerCandidates<Source>(input: {

@@ -4,10 +4,13 @@ import {
   addArmorStatValues,
   armorSlots,
   armorStatKeys,
+  armorStatModValuesForSlotRule,
   cloneArmorStatValues,
   createEmptyArmorStatValues,
+  normalizeArmorStatModSlotRules,
   type ArmorClass,
   type ArmorSlot,
+  type ArmorStatModSlotRule,
   type ArmorStatValues
 } from "./model.js";
 import {
@@ -57,6 +60,7 @@ export type ArmorTheoreticalPlanRequest = EnumerateArmorTheoreticalIdentitiesOpt
   target: Partial<Record<ArmorStatKey, ArmorReachabilityStatConstraint>>;
   fragment_adjustments?: Partial<Record<ArmorStatKey, number>>;
   armor_mod_budget?: Partial<ArmorReachabilityModBudget>;
+  armor_stat_mod_slot_rules?: readonly ArmorStatModSlotRule[];
   allowed_armor_mod_values?: readonly (0 | 5 | 10)[];
   energy_capacity_by_slot?: Partial<Record<ArmorSlot, number>>;
   reserved_energy_by_slot?: Partial<Record<ArmorSlot, number>>;
@@ -102,6 +106,7 @@ export type ArmorTheoreticalPlanResult = {
   target: NormalizedArmorTarget;
   fragment_adjustments: ArmorStatValues;
   armor_mod_budget: Required<ArmorReachabilityModBudget>;
+  armor_stat_mod_slot_rules?: Record<ArmorSlot, ArmorStatModSlotRule>;
   armor_set_constraint: NormalizedArmorSetConstraint;
   candidates: ArmorTheoreticalCandidate[];
   nearest_feasible_values?: ArmorStatValues;
@@ -178,7 +183,11 @@ export function planTheoreticalArmor(
 ): ArmorTheoreticalPlanResult {
   const targetResult = normalizeArmorTarget(request.target, request.ruleset);
   const fragments = cloneArmorStatValues(request.fragment_adjustments);
-  const budget = normalizeModBudget(request.armor_mod_budget);
+  const hasSlotRules = request.armor_stat_mod_slot_rules !== undefined;
+  const budget = hasSlotRules
+    ? { plus5: armorSlots.length, plus10: armorSlots.length, usage: "at-most" as const }
+    : normalizeModBudget(request.armor_mod_budget);
+  const slotRules = normalizeArmorStatModSlotRules(request.armor_stat_mod_slot_rules);
   const priorityStats = normalizePriorityStats(request.priority_stats);
   const limit = normalizeLimit(request.limit, 5, 20);
   const stateLimit = normalizeLimit(request.state_limit, 1500, 50_000);
@@ -210,8 +219,8 @@ export function planTheoreticalArmor(
   for (const slot of armorSlots) {
     const fixedPiece = request.fixed_pieces?.[slot];
     const options = fixedPiece
-      ? buildFixedPieceOptions(request, slot, fixedPiece, budget)
-      : buildGenericPieceOptions(request, slot, identities, budget, setResult.constraint);
+      ? buildFixedPieceOptions(request, slot, fixedPiece, budget, slotRules[slot])
+      : buildGenericPieceOptions(request, slot, identities, budget, setResult.constraint, slotRules[slot]);
     if (!options.length) {
       issues.push({
         code: "missing_theoretical_piece_options",
@@ -353,6 +362,7 @@ export function planTheoreticalArmor(
     target: targetResult.target,
     fragment_adjustments: fragments,
     armor_mod_budget: budget,
+    armor_stat_mod_slot_rules: slotRules,
     armor_set_constraint: setResult.constraint,
     candidates,
     ...(!reachable && candidates[0]
@@ -452,7 +462,8 @@ function buildGenericPieceOptions(
   slot: ArmorSlot,
   identities: readonly ArmorTheoreticalIdentity[],
   budget: Required<ArmorReachabilityModBudget>,
-  setConstraint: NormalizedArmorSetConstraint
+  setConstraint: NormalizedArmorSetConstraint,
+  slotRule: ReturnType<typeof normalizeArmorStatModSlotRules>[ArmorSlot]
 ): TheoreticalPieceOption[] {
   const options = new Map<string, TheoreticalPieceOption>();
   const energyCapacity = slotEnergyCapacity(request, slot);
@@ -462,7 +473,7 @@ function buildGenericPieceOptions(
     normalizeAllowedMods(request.allowed_armor_mod_values),
     energyCapacity,
     reservedEnergy
-  );
+  ).filter((value) => armorStatModValuesForSlotRule(slotRule).includes(value));
   const setOptions = [
     undefined,
     ...setConstraint.requirements
@@ -484,7 +495,8 @@ function buildGenericPieceOptions(
           masterworkTier: request.masterwork_tier,
           armorSet,
           energyCapacity,
-          reservedEnergy
+          reservedEnergy,
+          slotRule
         });
       }
     }
@@ -496,15 +508,17 @@ function buildFixedPieceOptions(
   request: ArmorTheoreticalPlanRequest,
   slot: ArmorSlot,
   piece: ArmorReachabilityPiece,
-  budget: Required<ArmorReachabilityModBudget>
+  budget: Required<ArmorReachabilityModBudget>,
+  slotRule: ReturnType<typeof normalizeArmorStatModSlotRules>[ArmorSlot]
 ): TheoreticalPieceOption[] {
   const options = new Map<string, TheoreticalPieceOption>();
   const globalMods = normalizeAllowedMods(request.allowed_armor_mod_values);
   const energyCapacity = piece.energy_capacity ?? slotEnergyCapacity(request, slot);
   const reservedEnergy = piece.reserved_energy ?? slotReservedEnergy(request, slot);
-  const pieceMods = piece.allowed_armor_mod_values === undefined
+  const pieceMods = (piece.allowed_armor_mod_values === undefined
     ? globalMods
-    : normalizeAllowedMods(piece.allowed_armor_mod_values).filter((value) => globalMods.includes(value));
+    : normalizeAllowedMods(piece.allowed_armor_mod_values).filter((value) => globalMods.includes(value)))
+    .filter((value) => armorStatModValuesForSlotRule(slotRule).includes(value));
   const archetype = request.ruleset.archetypes.find((candidate) => candidate.id === piece.archetype_id);
   if (!archetype) return [];
   const identity: ArmorTheoreticalIdentity = {
@@ -529,6 +543,7 @@ function buildFixedPieceOptions(
       fixedPiece: piece,
       energyCapacity,
       reservedEnergy,
+      slotRule,
       modValues: energyCompatibleMods(
         request.ruleset,
         pieceMods,
@@ -554,12 +569,15 @@ function addConfigurationOptions(input: {
   armorSet?: { hash: number; name: string };
   energyCapacity: number;
   reservedEnergy: number;
+  slotRule: ReturnType<typeof normalizeArmorStatModSlotRules>[ArmorSlot];
 }): void {
   const armorSet = input.fixedPiece?.set ?? input.armorSet;
   for (const modValue of input.modValues) {
     if (modValue === 5 && input.budget.plus5 === 0) continue;
     if (modValue === 10 && input.budget.plus10 === 0) continue;
-    const modStats = modValue === 0 ? [undefined] : armorStatKeys;
+    const modStats = modValue === 0
+      ? [undefined]
+      : input.slotRule.stat ? [input.slotRule.stat] : armorStatKeys;
     for (const modStat of modStats) {
       const armorStatMod = modStat
         ? { stat: modStat, value: modValue as 5 | 10 }

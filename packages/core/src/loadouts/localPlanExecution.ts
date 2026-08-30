@@ -3,8 +3,11 @@ import type {
   AccountSummary,
   CharacterLoadoutSlotSummary
 } from "../account/summary.js";
+import type { ArmorSlot } from "../armor/model.js";
 import {
   matchLocalLoadoutPlan,
+  normalizeLoadoutPlanArmorStatModSlotRules,
+  type LoadoutPlanArmorStatKey,
   type LocalLoadoutPlan,
   type LocalLoadoutPlanMatchedItem
 } from "./plans.js";
@@ -216,6 +219,10 @@ function validatePlannedArmorAssignments(
   const gaps: string[] = [];
   let plus5 = 0;
   let plus10 = 0;
+  const hasSlotRules = Boolean(plan.armor_constraints?.armor_stat_mod_slot_rules);
+  const slotRules = hasSlotRules
+    ? normalizeLoadoutPlanArmorStatModSlotRules(plan.armor_constraints)
+    : [];
 
   for (const assignment of assignments) {
     const match = matches.find((candidate) => (
@@ -255,12 +262,50 @@ function validatePlannedArmorAssignments(
     if (finalEnergy > item.armor_energy.capacity) {
       gaps.push(`${item.name}：逐件 Plug 需要 ${finalEnergy}/${item.armor_energy.capacity} 能量。`);
     }
-    const armorStatModPlug = assignment.armor_stat_mod_plug_hash === undefined
+    const armorStatModPlugAtSavedSocket = assignment.armor_stat_mod_socket_index === undefined
       ? undefined
-      : [...plannedBySocket.values()].find((plug) => plug?.hash === assignment.armor_stat_mod_plug_hash);
+      : plannedBySocket.get(assignment.armor_stat_mod_socket_index)
+        ?? item.sockets.find((socket) => socket.socket_index === assignment.armor_stat_mod_socket_index)?.selected_plug;
+    if (assignment.armor_stat_mod_socket_index !== undefined
+      && assignment.armor_stat_mod_plug_hash !== undefined
+      && armorStatModPlugAtSavedSocket?.hash !== assignment.armor_stat_mod_plug_hash) {
+      gaps.push(`${item.name}：属性模组不再位于保存的插槽 ${assignment.armor_stat_mod_socket_index + 1}。`);
+    }
+    const armorStatModPlug = armorStatModPlugAtSavedSocket
+      ?? (assignment.armor_stat_mod_plug_hash === undefined
+        ? undefined
+        : [...plannedBySocket.values()].find((plug) => plug?.hash === assignment.armor_stat_mod_plug_hash));
     const currentArmorStatModValue = armorStatModPlugValue(armorStatModPlug);
+    const currentArmorStatModStat = armorStatModPlugStat(armorStatModPlug);
     if (currentArmorStatModValue !== assignment.armor_stat_mod_value) {
       gaps.push(`${item.name}：属性模组 Plug 的实际数值与保存计划不一致。`);
+    }
+    if (assignment.armor_stat_mod_stat !== undefined
+      && currentArmorStatModStat !== assignment.armor_stat_mod_stat) {
+      gaps.push(`${item.name}：属性模组属性与保存计划不一致。`);
+    }
+    if (assignment.armor_stat_mod_energy_cost !== undefined
+      && Math.max(0, armorStatModPlug?.energy_cost ?? 0) !== assignment.armor_stat_mod_energy_cost) {
+      gaps.push(`${item.name}：属性模组能量成本已从 ${assignment.armor_stat_mod_energy_cost} 变化为 ${Math.max(0, armorStatModPlug?.energy_cost ?? 0)}。`);
+    }
+    if (hasSlotRules) {
+      if (!assignment.slot) {
+        gaps.push(`${item.name}：旧护甲计划没有保存部位，无法复核逐部位属性模组规则。`);
+      } else {
+        const rule = slotRules.find((candidate) => candidate.slot === assignment.slot);
+        if (rule?.mode === "none" && currentArmorStatModValue !== undefined) {
+          gaps.push(`${item.name}：${armorSlotLabel(assignment.slot)}已设为不安装属性模组。`);
+        }
+        if (rule?.mode === "plus5" && currentArmorStatModValue !== 5) {
+          gaps.push(`${item.name}：${armorSlotLabel(assignment.slot)}必须安装 +5 属性模组。`);
+        }
+        if (rule?.mode === "plus10" && currentArmorStatModValue !== 10) {
+          gaps.push(`${item.name}：${armorSlotLabel(assignment.slot)}必须安装 +10 属性模组。`);
+        }
+        if (rule?.stat && currentArmorStatModValue !== undefined && currentArmorStatModStat !== rule.stat) {
+          gaps.push(`${item.name}：${armorSlotLabel(assignment.slot)}的属性模组必须增加指定属性。`);
+        }
+      }
     }
     const reservedEnergy = Math.max(0, finalEnergy - Math.max(0, armorStatModPlug?.energy_cost ?? 0));
     if (reservedEnergy !== assignment.reserved_energy) {
@@ -276,10 +321,12 @@ function validatePlannedArmorAssignments(
   if (assignments.length !== 5) {
     gaps.push(`护甲候选只保存了 ${assignments.length}/5 个逐件 Plug 计划。`);
   }
-  const expectedPlus5 = plan.armor_constraints?.five_point_mod_budget ?? 0;
-  const expectedPlus10 = plan.armor_constraints?.ten_point_mod_budget ?? 0;
-  if (plus5 !== expectedPlus5 || plus10 !== expectedPlus10) {
-    gaps.push(`属性模组精确数量已变化：计划 +5 × ${expectedPlus5}、+10 × ${expectedPlus10}，逐件结果为 +5 × ${plus5}、+10 × ${plus10}。`);
+  if (!hasSlotRules) {
+    const expectedPlus5 = plan.armor_constraints?.five_point_mod_budget ?? 0;
+    const expectedPlus10 = plan.armor_constraints?.ten_point_mod_budget ?? 0;
+    if (plus5 !== expectedPlus5 || plus10 !== expectedPlus10) {
+      gaps.push(`旧方案属性模组数量已变化：计划 +5 × ${expectedPlus5}、+10 × ${expectedPlus10}，逐件结果为 +5 × ${plus5}、+10 × ${plus10}。`);
+    }
   }
   return [...new Set(gaps)];
 }
@@ -333,6 +380,24 @@ function armorStatModPlugValue(
   return values.length === 1 && (values[0] === 5 || values[0] === 10)
     ? values[0]
     : undefined;
+}
+
+function armorStatModPlugStat(
+  plug: AccountItemSocketSummary["selected_plug"]
+): LoadoutPlanArmorStatKey | undefined {
+  const entry = Object.entries(plug?.armor_stat_modifiers ?? {})
+    .find(([, value]) => value === 5 || value === 10);
+  return entry?.[0] as LoadoutPlanArmorStatKey | undefined;
+}
+
+function armorSlotLabel(slot: ArmorSlot): string {
+  return {
+    helmet: "头盔",
+    arms: "臂铠",
+    chest: "胸甲",
+    legs: "腿甲",
+    class: "职业物品"
+  }[slot];
 }
 
 export function validateLocalLoadoutPlanExecutionPlan(

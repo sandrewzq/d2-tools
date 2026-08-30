@@ -1,9 +1,10 @@
 import type { AccountItemSummary, AccountSummary } from "../account/summary.js";
-import type {
-  CreateLocalLoadoutPlanInput,
-  LoadoutPlanArmorConstraints,
-  LoadoutPlanArmorStatKey,
-  LocalLoadoutPlan
+import {
+  createDefaultArmorStatModSlotRules,
+  type CreateLocalLoadoutPlanInput,
+  type LoadoutPlanArmorConstraints,
+  type LoadoutPlanArmorStatKey,
+  type LocalLoadoutPlan
 } from "./plans.js";
 
 export type DimLoadoutImportPreview = {
@@ -367,6 +368,7 @@ function extractArmorConstraints(
     fragment_stat_bonuses: {},
     five_point_mod_budget: 0,
     ten_point_mod_budget: 0,
+    armor_stat_mod_slot_rules: createDefaultArmorStatModSlotRules(),
     locked_instance_ids: [],
     excluded_instance_ids: [],
     allowed_locations: ["equipped", "inventory", "vault", "postmaster"]

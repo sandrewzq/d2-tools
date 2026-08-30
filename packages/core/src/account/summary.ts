@@ -1041,12 +1041,26 @@ function summarizeItem(
   const definition = definitions[String(item.itemHash)] as DefinitionRecord | undefined;
   const explicitBucketHash = item.bucketHash;
   const definitionBucketHash = definition?.inventory?.bucketTypeHash;
+  // Exotic items can use a tier-specific inventory bucket (for example
+  // 2422292810 for exotic leg armor) instead of the normal equipment bucket.
+  // The inventory bucket is a storage container, while equipmentSlotTypeHash
+  // is the authoritative slot used by EquipItem and by account power math.
+  // Prefer the equipment slot whenever the definition bucket is not one of
+  // our canonical account equipment buckets.
+  const definitionEquipmentSlotHash = definition?.equippingBlock?.equipmentSlotTypeHash;
+  const canonicalDefinitionBucketHash = (
+    typeof definitionEquipmentSlotHash === "number"
+    && definitionEquipmentSlotHash > 0
+    && !classifyBucket(definitionBucketHash)
+  )
+    ? definitionEquipmentSlotHash
+    : definitionBucketHash;
   const explicitBucketDefinition = explicitBucketHash
     ? bucketDefinitions[String(explicitBucketHash)] as DefinitionRecord | undefined
     : undefined;
   const bucketHash = isPostmasterBucketDefinition(explicitBucketDefinition)
     ? explicitBucketHash
-    : definitionBucketHash ?? explicitBucketHash;
+    : canonicalDefinitionBucketHash ?? explicitBucketHash;
   const bucket = classifyBucket(bucketHash);
   const groupKey = bucket?.group ?? "other";
   const bucketDefinition = bucketHash ? bucketDefinitions[String(bucketHash)] as DefinitionRecord | undefined : undefined;

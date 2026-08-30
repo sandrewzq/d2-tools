@@ -63,6 +63,20 @@ export type ArmorStatModInstallationOption = ArmorStatModIdentity & {
   energy_cost: number;
 };
 
+export type ArmorStatModSlotRuleMode = "auto" | "none" | "plus5" | "plus10";
+
+export type ArmorStatModSlotRule = {
+  slot: ArmorSlot;
+  mode: ArmorStatModSlotRuleMode;
+  stat?: ArmorStatKey;
+};
+
+export type NormalizedArmorStatModSlotRule = {
+  slot: ArmorSlot;
+  mode: ArmorStatModSlotRuleMode;
+  stat?: ArmorStatKey;
+};
+
 export type ArmorTuningInstallationOption = {
   tuning: ArmorTuningIdentity;
   values: ArmorStatValues;
@@ -161,6 +175,40 @@ export function createEmptyArmorStatValues(): ArmorStatValues {
     class: 0,
     weapon: 0
   };
+}
+
+export function normalizeArmorStatModSlotRules(
+  rules: readonly ArmorStatModSlotRule[] | undefined
+): Record<ArmorSlot, NormalizedArmorStatModSlotRule> {
+  const normalized = Object.fromEntries(armorSlots.map((slot) => [
+    slot,
+    { slot, mode: "auto" as const }
+  ])) as Record<ArmorSlot, NormalizedArmorStatModSlotRule>;
+  for (const rule of rules ?? []) {
+    if (!armorSlots.includes(rule.slot)) continue;
+    const mode = ["auto", "none", "plus5", "plus10"].includes(rule.mode)
+      ? rule.mode
+      : "auto";
+    const stat = (mode === "plus5" || mode === "plus10")
+      && rule.stat && armorStatKeys.includes(rule.stat)
+      ? rule.stat
+      : undefined;
+    normalized[rule.slot] = {
+      slot: rule.slot,
+      mode,
+      ...(stat ? { stat } : {})
+    };
+  }
+  return normalized;
+}
+
+export function armorStatModValuesForSlotRule(
+  rule: NormalizedArmorStatModSlotRule
+): readonly (0 | 5 | 10)[] {
+  if (rule.mode === "none") return [0];
+  if (rule.mode === "plus5") return [5];
+  if (rule.mode === "plus10") return [10];
+  return [0, 5, 10];
 }
 
 export function cloneArmorStatValues(

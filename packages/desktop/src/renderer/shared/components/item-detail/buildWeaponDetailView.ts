@@ -605,6 +605,36 @@ function buildSelectionColumns(
     })));
   }
 
+  if (!poolColumns.length && item.socket_plugs?.length) {
+    const selectedBySocket = new Map<number, AccountItemPlugSummary[]>();
+    for (const plug of item.socket_plugs) {
+      if (plug.socket_index === undefined || isWeaponSystemPlug(plug)) continue;
+      const plugs = selectedBySocket.get(plug.socket_index) ?? [];
+      plugs.push(plug);
+      selectedBySocket.set(plug.socket_index, plugs);
+    }
+    return labelTraitColumns(sortConfigurationColumns([...selectedBySocket].flatMap(([socketIndex, plugs]) => {
+      const role = classifyWeaponSocketPlugs(plugs);
+      if (!role || role === "intrinsic") return [];
+      return [{
+        key: `socket-${socketIndex}`,
+        socket_index: socketIndex,
+        label: weaponSocketColumnLabel(plugs, role, socketIndex),
+        role,
+        candidates: plugs.map((plug) => ({
+          hash: plug.hash,
+          name: plug.name,
+          description: plug.description ?? "",
+          icon: plug.icon,
+          selected: true,
+          can_apply: false,
+          pending: false,
+          unresolved_in_definition_pool: true
+        }))
+      }];
+    })));
+  }
+
   const selectedHashes = new Set(item.socket_plugs?.map((plug) => plug.hash) ?? []);
   const normalizedNames = new Set((selectionNames ?? []).map((name) => name.trim()).filter(Boolean));
   if (!selectedHashes.size && !normalizedNames.size) return [];

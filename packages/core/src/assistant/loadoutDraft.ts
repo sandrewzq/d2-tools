@@ -1,4 +1,8 @@
-import type { LoadoutPlanArmorConstraints, LoadoutPlanArmorStatKey } from "../loadouts/plans.js";
+import {
+  createDefaultArmorStatModSlotRules,
+  type LoadoutPlanArmorConstraints,
+  type LoadoutPlanArmorStatKey
+} from "../loadouts/plans.js";
 import type {
   BuildGuideLoadoutDraft,
   BuildGuideMatchResult,
@@ -80,7 +84,7 @@ export function createGuideArmorConstraintDraftFromRequirement(input: {
       ? "攻略命中了多个异域护甲实例，需要在护甲规划中选择一个具体实例"
       : "攻略要求的异域护甲没有匹配到可确认实例，需要手动选择或保留为待刷目标");
   }
-  warnings.push("攻略没有提供可确认的 +5 / +10 护甲模组预算，当前预算保持为 0，请在计算前复核。");
+  warnings.push("攻略没有提供可确认的逐部位属性模组安排，五个部位保持自动，请在计算前复核。");
 
   const constraints: LoadoutPlanArmorConstraints = {
     planner_mode: fixedExotic || Object.keys(statMinimums).length ? "owned" : "acquisition",
@@ -89,6 +93,7 @@ export function createGuideArmorConstraintDraftFromRequirement(input: {
     fragment_stat_bonuses: {},
     five_point_mod_budget: 0,
     ten_point_mod_budget: 0,
+    armor_stat_mod_slot_rules: createDefaultArmorStatModSlotRules(),
     ...(fixedExotic ? {
       exotic_item_hash: fixedExotic.hash,
       exotic_instance_id: fixedExotic.instance_id

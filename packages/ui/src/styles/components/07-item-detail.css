@@ -353,10 +353,41 @@
   cursor: pointer;
 }
 
+.weapon-detail-instance-actions .detail-instance-more > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.weapon-detail-instance-actions .detail-instance-more > summary strong {
+  color: var(--status-warning);
+  font-size: var(--font-caption);
+}
+
 .detail-instance-more > div {
   display: grid;
   gap: 7px;
   margin-top: 8px;
+}
+
+.weapon-detail-instance-actions .detail-instance-current > strong {
+  color: var(--selected-fg);
+  border-color: var(--selected-border);
+  background: var(--selected-bg);
+}
+
+.weapon-detail-instance-actions .detail-instance-primary-actions {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.weapon-detail-instance-actions .detail-instance-more > div {
+  gap: 10px;
+}
+
+.weapon-detail-instance-actions .detail-instance-more .detail-instance-tag-group {
+  padding-bottom: 9px;
+  border-bottom: 1px solid var(--section-divider);
 }
 
 .detail-instance-more textarea {

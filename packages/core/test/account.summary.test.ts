@@ -35,6 +35,17 @@ const itemDefinitions: DefinitionComponentData = {
     classType: 1,
     inventory: { tierTypeName: "Legendary", bucketTypeHash: 3448274439 }
   },
+  "3002": {
+    hash: 3002,
+    displayProperties: {
+      name: "Exotic Leg Armor",
+      icon: "/common/destiny2_content/icons/exotic-legs.png"
+    },
+    itemTypeDisplayName: "Leg Armor",
+    classType: 1,
+    inventory: { tierTypeName: "Exotic", bucketTypeHash: 2422292810 },
+    equippingBlock: { equipmentSlotTypeHash: 20886954 }
+  },
   "4001": {
     hash: 4001,
     displayProperties: {
@@ -165,6 +176,7 @@ describe("account summary", () => {
                 items: [
                   { itemHash: 2001, itemInstanceId: "backpack-1", state: 0 },
                   { itemHash: 3001, itemInstanceId: "backpack-2", state: 1 },
+                  { itemHash: 3002, itemInstanceId: "backpack-exotic-legs", state: 0 },
                   { itemHash: 3001, itemInstanceId: "postmaster-1", bucketHash: 215593132 }
                 ]
               }
@@ -346,7 +358,7 @@ describe("account summary", () => {
         item_type: "Trait"
       }
     ]);
-    expect(summary.characters[0]?.inventory_items).toHaveLength(2);
+    expect(summary.characters[0]?.inventory_items).toHaveLength(3);
     expect(summary.characters[0]?.inventory_items[0]).toMatchObject({
       hash: 2001,
       instance_id: "backpack-1",
@@ -354,6 +366,12 @@ describe("account summary", () => {
       group_key: "weapons",
       power: 1809,
       locked: false
+    });
+    expect(summary.characters[0]?.inventory_items[2]).toMatchObject({
+      instance_id: "backpack-exotic-legs",
+      bucket_hash: 20886954,
+      bucket_name: "腿甲",
+      group_key: "armor"
     });
     expect(summary.characters[0]?.inventory_groups.map((group) => group.key)).toEqual(["weapons", "armor"]);
     expect(summary.characters[0]?.inventory_groups[0]?.items.map((item) => item.instance_id)).toEqual(["backpack-1"]);

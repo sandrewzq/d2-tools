@@ -144,10 +144,36 @@ export function ItemDetailModal(props: ItemDetailModalProps) {
     equipmentTargetStore: props.equipmentTargetStore,
     sources: buildArmorSources(selectedItem, props.itemAvailability)
   });
+  const persistedNote = props.vaultTags.items[selectedItem.item_key]?.note ?? "";
+  const noteDirty = Boolean(selectedItem.instance_id) && props.itemNoteDraft !== persistedNote;
+  const hasPendingPerks = Object.keys(pendingPerks).length > 0;
+  const confirmLeaveItemDetail = () => {
+    if (!weaponModel && !armorModel) return true;
+    if ((!weaponModel || !hasPendingPerks) && !noteDirty) return true;
+    const subject = weaponModel ? "武器" : armorModel ? "护甲" : "装备";
+    const pendingMessages = [
+      weaponModel && hasPendingPerks ? `${Object.keys(pendingPerks).length} 项 Perk 更改尚未应用` : undefined,
+      noteDirty ? "装备备注尚未保存" : undefined
+    ].filter((message): message is string => Boolean(message));
+    return window.confirm([
+      `当前${subject}还有未提交的内容：`,
+      ...pendingMessages.map((message) => `• ${message}`),
+      "继续将放弃这些内容。"
+    ].join("\n"));
+  };
+  const requestClose = () => {
+    if (confirmLeaveItemDetail()) props.onClose();
+  };
+  const openItemDetail = (item: SameNameItemSummary | ItemSearchResult, source: SelectedItemSource) => {
+    if (!confirmLeaveItemDetail()) return false;
+    props.onOpenItemDetail(item, source);
+    return true;
+  };
   const instanceActions = selectedItem.instance_id ? (
     <ItemDetailInstanceActions
       props={props}
       selectedItem={selectedItem}
+      noteDirty={noteDirty}
       itemToolMessage={itemToolMessage}
       setItemToolMessage={setItemToolMessage}
     />
@@ -168,7 +194,7 @@ export function ItemDetailModal(props: ItemDetailModalProps) {
           ? (armorModel.context.read_only ? "只读查看" : "可管理装备")
           : undefined}
       closeLabel="关闭装备详情"
-      onClose={props.onClose}
+      onClose={requestClose}
       sections={(
         weaponModel ? (
           <WeaponDetailContent
@@ -188,7 +214,7 @@ export function ItemDetailModal(props: ItemDetailModalProps) {
               evidence: props.itemAiResult?.ai
                 ? [
                     { label: "模型", value: props.itemAiResult.ai.model },
-                    { label: "知识范围", value: "当前对象、官方数据与本地知识库" }
+                    { label: "知识范围", value: "这件武器、官方数据与本地知识库" }
                   ]
                 : undefined,
               externalSources: props.itemAiResult?.ai?.external_search?.sources,
@@ -198,7 +224,7 @@ export function ItemDetailModal(props: ItemDetailModalProps) {
               selectInstance: (instance) => {
                 const item = props.sameNameItems.find((candidate) => candidate.instance_id === instance.instance_id);
                 if (!item) return;
-                props.onOpenItemDetail(item, {
+                return openItemDetail(item, {
                   source_character_id: item.source_character_id,
                   source_kind: item.source_kind,
                   is_vault_item: item.is_vault_item,
@@ -207,7 +233,8 @@ export function ItemDetailModal(props: ItemDetailModalProps) {
               },
               selectVersion: (hash) => {
                 const version = props.itemVersions.find((candidate) => candidate.hash === hash);
-                if (version) props.onOpenItemDetail(version, {});
+                if (version) return openItemDetail(version, {});
+                return false;
               },
               runAnalysis: (request) => props.onGenerateItemAiAdvice(request.prompt, request.allow_external_search),
               saveKnowledge: props.onSavePersonalWeaponKnowledge,
@@ -256,7 +283,7 @@ export function ItemDetailModal(props: ItemDetailModalProps) {
                   feedbackScope: "detail",
                   onProgress: (phase, message) => setPerkWriteFeedback({ status: phase, message }),
                   verifyRefreshedItem: (detail) => hasAppliedPerkChanges(detail, changes),
-                  refreshMismatchMessage: "Perk 更改请求已受理，但连续自动读取后 Bungie 仍返回旧配置，当前配置尚未确认。请稍后重新读取。"
+                  refreshMismatchMessage: "Perk 更改请求已受理，但连续自动读取后游戏服务仍返回旧配置，当前配置尚未确认。请稍后重新读取。"
                 });
                 if (outcome.cancelled) {
                   setPerkWriteFeedback({ status: "idle" });
@@ -287,7 +314,7 @@ export function ItemDetailModal(props: ItemDetailModalProps) {
                   ))) {
                     setPerkWriteFeedback({
                       status: "refresh-error",
-                      message: "Bungie 返回的仍是旧配置，请稍后再次读取。"
+                      message: "游戏服务返回的仍是旧配置，请稍后再次读取。"
                     });
                     return;
                   }
@@ -331,7 +358,7 @@ export function ItemDetailModal(props: ItemDetailModalProps) {
               selectInstance: (instance) => {
                 const item = props.sameNameItems.find((candidate) => candidate.instance_id === instance.instance_id);
                 if (!item) return;
-                props.onOpenItemDetail(item, {
+                return openItemDetail(item, {
                   source_character_id: item.source_character_id,
                   source_kind: item.source_kind,
                   is_vault_item: item.is_vault_item,
@@ -404,6 +431,7 @@ function hasAppliedPerkChanges(
 function ItemDetailInstanceActions(input: {
   props: ItemDetailModalProps;
   selectedItem: SelectedItemDetail;
+  noteDirty: boolean;
   itemToolMessage: string;
   setItemToolMessage: (message: string) => void;
 }) {
@@ -630,8 +658,10 @@ function ItemDetailInstanceActions(input: {
 
   return (
     <DetailInstanceActionPanel
-      title={`${selectedItem.name} · ${selectedItem.instance_id?.slice(-4) ?? "实例"}`}
+      title={selectedItem.name}
       subtitle={`${locationLabel} · ${selectedItem.power ?? "-"} 光等`}
+      eyebrow="当前装备"
+      currentBadge="正在查看"
       statusLabels={[
         sourceKind === "equipped" ? "已装备" : "未装备",
         effectiveLocked === undefined
@@ -655,10 +685,13 @@ function ItemDetailInstanceActions(input: {
         onClick: () => props.onSaveSelectedItemTag(tag)
       }))}
       note={props.itemNoteDraft}
+      noteLabel="装备备注"
+      noteDirty={input.noteDirty}
+      collapseAuxiliary
       onTargetChange={props.onSelectedActionCharacterIdChange}
       onNoteChange={props.onSetItemNoteDraft}
       noteActions={[
-        { key: "save-note", label: "保存备注", primary: true, onClick: props.onSaveSelectedItemNote },
+        { key: "save-note", label: "保存备注", primary: true, disabled: !input.noteDirty, onClick: props.onSaveSelectedItemNote },
         ...(!isPostmasterItem && !isVaultItem
           ? [{ key: "copy-transfer", label: "复制转移计划", onClick: copyTransferPlan }]
           : []),

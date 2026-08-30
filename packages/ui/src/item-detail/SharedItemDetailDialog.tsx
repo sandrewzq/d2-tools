@@ -37,6 +37,8 @@ export function SharedItemDetailDialog(props: SharedItemDetailDialogProps) {
   const titleId = useId();
   const dialogRef = useRef<HTMLElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const onCloseRef = useRef(props.onClose);
+  onCloseRef.current = props.onClose;
   const initialFocus = useRef<HTMLElement | null>(
     typeof document === "undefined" ? null : document.activeElement as HTMLElement | null
   );
@@ -46,18 +48,20 @@ export function SharedItemDetailDialog(props: SharedItemDetailDialogProps) {
       ? "武器档案"
       : "装备档案";
   const canonicalDescription = props.variant === "armor"
-    ? "真实属性、获取来源、当前配置、目标匹配、升级状态和账号实例"
+    ? "真实属性、获取来源、护甲配置、目标匹配、强化状态和账号实例"
     : props.variant === "weapon"
-      ? "查看真实属性、获取来源、实例配置、目标匹配和升级状态"
+      ? "查看当前 Roll、真实属性、获取来源、目标匹配和升级状态"
       : "正在读取完整定义与装备状态";
 
   useEffect(() => {
     closeButtonRef.current?.focus();
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.defaultPrevented) return;
+      const target = event.target instanceof HTMLElement ? event.target : null;
+      if (target?.closest('[data-ui-kind="drawer"].is-open')) return;
       if (event.key === "Escape") {
         event.preventDefault();
-        props.onClose();
+        onCloseRef.current();
         return;
       }
       if (event.key !== "Tab" || !dialogRef.current) return;
@@ -80,7 +84,7 @@ export function SharedItemDetailDialog(props: SharedItemDetailDialogProps) {
       document.removeEventListener("keydown", handleKeyDown, true);
       (props.returnFocusRef?.current ?? initialFocus.current)?.focus();
     };
-  }, [props.onClose, props.returnFocusRef]);
+  }, [props.returnFocusRef]);
 
   return (
     <div className="modal-backdrop" role="presentation" onClick={props.onClose}>

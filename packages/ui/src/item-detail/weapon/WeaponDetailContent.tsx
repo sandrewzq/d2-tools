@@ -36,7 +36,7 @@ export type WeaponDetailContentActions = {
   cancelPendingPerks?: () => void;
   applyPendingPerks?: () => void | Promise<void>;
   refreshConfiguration?: () => void | Promise<void>;
-  selectInstance?: (instance: WeaponDetailInstance) => void;
+  selectInstance?: (instance: WeaponDetailInstance) => boolean | void;
   runAnalysis?: (request: { prompt: string; allow_external_search: boolean }) => void;
   saveKnowledge?: (draft: SavePersonalWeaponKnowledgeInput["entry"]) => void;
   setKnowledgeEnabled?: (id: string, enabled: boolean) => void;
@@ -71,8 +71,8 @@ export type WeaponDetailContentProps = {
 };
 
 const sectionLabels: Array<{ key: WeaponDetailSection; label: string }> = [
+  { key: "configuration", label: "当前配置" },
   { key: "overview", label: "属性与获取" },
-  { key: "configuration", label: "武器配置" },
   { key: "recommendations", label: "目标匹配" },
   { key: "upgrades", label: "升级与锻造" },
   { key: "analysis", label: "AI 分析" }
@@ -80,7 +80,7 @@ const sectionLabels: Array<{ key: WeaponDetailSection; label: string }> = [
 
 export function WeaponDetailContent(props: WeaponDetailContentProps) {
   const { model } = props;
-  const [internalSection, setInternalSection] = useState<WeaponDetailSection>("overview");
+  const [internalSection, setInternalSection] = useState<WeaponDetailSection>("configuration");
   const [poolOpen, setPoolOpen] = useState(false);
   const [analysisPrompt, setAnalysisPrompt] = useState("");
   const [allowExternalSearch, setAllowExternalSearch] = useState(false);
@@ -92,7 +92,7 @@ export function WeaponDetailContent(props: WeaponDetailContentProps) {
   const instanceRailRef = useRef<HTMLElement>(null);
   const instanceRailTriggerRef = useRef<HTMLButtonElement>(null);
   const instanceRailCloseRef = useRef<HTMLButtonElement>(null);
-  const observedSectionRef = useRef<WeaponDetailSection>("overview");
+  const observedSectionRef = useRef<WeaponDetailSection>("configuration");
   const sectionRefs = useRef<Record<WeaponDetailSection, HTMLElement | null>>({
     overview: null,
     configuration: null,
@@ -103,12 +103,12 @@ export function WeaponDetailContent(props: WeaponDetailContentProps) {
 
   useEffect(() => {
     setPoolOpen(false);
-    setInternalSection("overview");
+    setInternalSection("configuration");
     setAnalysisPrompt("");
     setAllowExternalSearch(false);
     setTargetSource("dim");
     setInstanceRailOpen(false);
-    observedSectionRef.current = "overview";
+    observedSectionRef.current = "configuration";
   }, [model.identity.hash, model.context.object_id, model.context.kind]);
 
   useEffect(() => {
@@ -128,7 +128,7 @@ export function WeaponDetailContent(props: WeaponDetailContentProps) {
     const updateActiveSection = () => {
       const rootTop = scrollRoot.getBoundingClientRect().top;
       const activationLine = rootTop + 96;
-      let nextSection: WeaponDetailSection = "overview";
+      let nextSection: WeaponDetailSection = "configuration";
       for (const item of sectionLabels) {
         const sectionElement = sectionRefs.current[item.key];
         if (sectionElement && sectionElement.getBoundingClientRect().top <= activationLine) {
@@ -220,14 +220,11 @@ export function WeaponDetailContent(props: WeaponDetailContentProps) {
           aria-expanded={instanceRailOpen}
           aria-controls={`${sectionIdPrefix}-instance-rail`}
           onClick={() => setInstanceRailOpen((value) => !value)}
-        >实例与操作</button>
+        >我的同名武器</button>
       </nav>
 
       <div className="weapon-detail-workspace" data-surface="split">
         <div className="weapon-detail-sections" data-surface="content-stack">
-          <section ref={(node) => { sectionRefs.current.overview = node; }} id={`${sectionIdPrefix}-overview`} className="weapon-detail-section">
-            <OverviewSection model={model} onOpenSource={props.actions?.openSource} />
-          </section>
           <section ref={(node) => { sectionRefs.current.configuration = node; }} id={`${sectionIdPrefix}-configuration`} className="weapon-detail-section">
             <ConfigurationSection
               model={model}
@@ -236,6 +233,9 @@ export function WeaponDetailContent(props: WeaponDetailContentProps) {
               actions={props.actions}
               configurationWriteFeedback={props.configurationWriteFeedback}
             />
+          </section>
+          <section ref={(node) => { sectionRefs.current.overview = node; }} id={`${sectionIdPrefix}-overview`} className="weapon-detail-section">
+            <OverviewSection model={model} onOpenSource={props.actions?.openSource} />
           </section>
           <section ref={(node) => { sectionRefs.current.recommendations = node; }} id={`${sectionIdPrefix}-recommendations`} className="weapon-detail-section">
             <RecommendationSection model={model} source={targetSource} onSourceChange={setTargetSource} />
@@ -266,18 +266,18 @@ export function WeaponDetailContent(props: WeaponDetailContentProps) {
           data-surface="drawer"
           data-ui-kind="drawer"
           data-scroll-region="pane"
-          aria-label="当前实例与同名武器"
+          aria-label="当前装备与我的同名武器"
           onKeyDown={handleInstanceRailKeyDown}
         >
           <header className="weapon-detail-rail-drawer-head">
-            <div><span>武器实例</span><strong>实例与操作</strong></div>
+            <div><span>武器操作</span><strong>我的同名武器</strong></div>
             <button
               ref={instanceRailCloseRef}
               type="button"
               className="weapon-detail-rail-close"
               data-ui-kind="button"
               data-control-variant="quiet"
-              aria-label="关闭实例与操作栏"
+              aria-label="关闭我的同名武器"
               title="关闭"
               onClick={() => setInstanceRailOpen(false)}
             >×</button>
@@ -286,15 +286,15 @@ export function WeaponDetailContent(props: WeaponDetailContentProps) {
             <div className="weapon-detail-instance-actions">{props.instanceActions}</div>
           ) : (
             <div className="weapon-detail-instance-readonly">
-              <h3>当前是只读对象</h3>
-              <p>选择下方当前 Hash 的账号实例后，可执行装备、转移、锁定和本地整理。</p>
+              <h3>当前内容仅供查看</h3>
+              <p>选择下方账号中已有的同版本武器后，可执行装备、转移、锁定和本地整理。</p>
             </div>
           )}
           <InstancesRail
             model={model}
             onSelect={props.actions?.selectInstance ? (instance) => {
-              props.actions?.selectInstance?.(instance);
-              setInstanceRailOpen(false);
+              const selected = props.actions?.selectInstance?.(instance);
+              if (selected !== false) setInstanceRailOpen(false);
             } : undefined}
           />
         </aside>
@@ -304,7 +304,7 @@ export function WeaponDetailContent(props: WeaponDetailContentProps) {
         className={["weapon-detail-rail-scrim", instanceRailOpen && "is-open"].filter(Boolean).join(" ")}
         data-ui-kind="button"
         data-control-variant="quiet"
-        aria-label="关闭实例与操作"
+        aria-label="关闭我的同名武器"
         onClick={() => setInstanceRailOpen(false)}
       />
     </article>
@@ -322,7 +322,7 @@ function WeaponIdentity(props: {
   const watermarks = identity.definition_version?.watermark_icons ?? [];
   const canSelectDefinitionVersion = context.kind === "definition" && versions.length > 1 && Boolean(props.onSelectVersion);
   const versionLabel = context.kind === "account_instance"
-    ? "实例版本"
+    ? "装备版本"
     : context.kind === "vendor_offer"
       ? "售卖版本"
       : "发布版本";
@@ -355,7 +355,7 @@ function WeaponIdentity(props: {
       <div className="weapon-detail-identity-context">
         <EquipmentDetailContextLedger
           entryLabel={context.entry_label}
-          currentViewLabel={context.object_label}
+          currentViewLabel={weaponObjectLabel(context.kind)}
           locationLabel={identity.slot ?? identity.item_type ?? "武器"}
           versionFieldLabel={versionLabel}
           versionValue={currentDefinition?.label ?? releaseLabel}
@@ -377,13 +377,19 @@ function WeaponIdentity(props: {
             <dl><dt>光等上限编号</dt><dd>{identity.definition_version?.power_cap_hash ?? "资料未返回"}</dd></dl>
             <dl><dt>版本水印</dt><dd>{watermarks.length ? <span className="weapon-detail-definition-watermarks">{watermarks.map((icon, index) => <GameAssetImage key={`${icon}:${index}`} src={icon} alt={`官方版本水印 ${index + 1}`} title="官方定义版本水印" loading="eager" />)}</span> : "资料未返回"}</dd></dl>
             <dl><dt>装备编号</dt><dd>{identity.hash}</dd></dl>
-            <dl><dt>数据来源</dt><dd>资料库定义{context.kind === "account_instance" ? " + 账号当前实例" : context.kind === "vendor_offer" ? " + 商人当前售卖" : ""}</dd></dl>
-            <dl><dt>操作方式</dt><dd>{context.read_only ? "只读查看" : "可管理实例"}</dd></dl>
+            <dl><dt>数据来源</dt><dd>资料库定义{context.kind === "account_instance" ? " + 当前装备" : context.kind === "vendor_offer" ? " + 商人当前售卖" : ""}</dd></dl>
+            <dl><dt>操作方式</dt><dd>{context.read_only ? "只读查看" : "可管理装备"}</dd></dl>
           </div>
         </details>
       </div>
     </header>
   );
+}
+
+function weaponObjectLabel(kind: WeaponDetailViewModel["context"]["kind"]): string {
+  if (kind === "account_instance") return "当前装备";
+  if (kind === "vendor_offer") return "当前售卖";
+  return "资料库版本";
 }
 
 function releaseKindLabel(kind: ItemReleaseKind | undefined): string {
@@ -449,13 +455,13 @@ function OverviewSection(props: {
   const showPending = props.model.context.kind === "account_instance"
     && props.model.stats.some((stat) => stat.pending_delta !== undefined && stat.pending_delta !== 0);
   const statSource = props.model.context.kind === "account_instance"
-    ? "资料库定义 + 账号当前实例"
+    ? "资料库定义 + 当前装备"
     : props.model.context.kind === "vendor_offer"
       ? "资料库定义 + 商人当前售卖"
       : "资料库定义";
   return (
     <>
-      <SectionHeading eyebrow="属性与获取" title="属性与获取详情" description="区分资料库标准值、当前对象实际值和待应用配置变化。" />
+      <SectionHeading eyebrow="属性与获取" title="属性与获取详情" description="区分资料库标准值、这件武器的实际值和待应用配置变化。" />
       <div className="weapon-detail-overview-grid">
         <section className="weapon-detail-block" aria-labelledby="weapon-stat-title">
           <DataBlockHeading
@@ -488,7 +494,7 @@ function OverviewSection(props: {
           <DataBlockHeading
             id="weapon-source-title"
             title="获取方式"
-            source={`依据：Bungie 官方资料与当前商人、活动数据${props.model.sources.updated_at ? ` · ${formatUpdatedAt(props.model.sources.updated_at)}` : ""}`}
+            source={`依据：游戏官方资料与当前商人、活动数据${props.model.sources.updated_at ? ` · ${formatUpdatedAt(props.model.sources.updated_at)}` : ""}`}
           />
           {props.model.sources.entries.length ? (
             <div className="weapon-detail-source-list">
@@ -507,7 +513,7 @@ function OverviewSection(props: {
                   <div className="weapon-detail-source-copy">
                     <p data-ui-part="detail" data-text-tone="body" data-info-priority="reading">{source.description}</p>
                     {source.offer?.purchase_requirements?.length ? <small>{source.offer.purchase_requirements.join(" / ")}</small> : null}
-                    {source.offer?.can_purchase === false ? <small data-text-tone="status" data-status="warning">{source.offer.failure_messages.join(" / ") || "当前条件未满足，Bungie 未返回具体限制。"}</small> : null}
+                    {source.offer?.can_purchase === false ? <small data-text-tone="status" data-status="warning">{source.offer.failure_messages.join(" / ") || "当前条件未满足，游戏没有返回具体限制。"}</small> : null}
                   </div>
                   <div className="weapon-detail-source-meta">
                     <span
@@ -640,12 +646,28 @@ function ConfigurationSection(props: {
   configurationWriteFeedback?: WeaponConfigurationWriteFeedback;
 }) {
   const { configuration, context } = props.model;
-  const isFixedExotic = props.model.identity.is_exotic && configuration.kind === "fixed";
+  const isDefinitionLoading = props.model.loading_state.definition;
+  const isInstanceLoading = context.kind === "account_instance" && props.model.loading_state.instance;
+  const isConfigurationLoading = isDefinitionLoading || isInstanceLoading;
+  const hasDefinitionConfigurationData = Boolean(
+    configuration.intrinsic
+    || configuration.pool_columns.length
+  );
+  const hasConfigurationData = Boolean(
+    hasDefinitionConfigurationData
+    || configuration.selection_columns.length
+  );
+  const isFixedExotic = hasDefinitionConfigurationData
+    && props.model.identity.is_exotic
+    && configuration.kind === "fixed";
   const isVariableExotic = props.model.identity.is_exotic && configuration.kind === "variable_exotic";
-  const showSelection = context.kind !== "definition"
-    && configuration.kind !== "fixed"
-    && configuration.selection_columns.length > 0;
-  const columns = showSelection ? configuration.selection_columns : configuration.pool_columns;
+  const usesSelectionColumns = context.kind !== "definition"
+    && (
+      configuration.kind !== "fixed"
+      || (isConfigurationLoading && !hasDefinitionConfigurationData && configuration.selection_columns.length > 0)
+    );
+  const showSelection = usesSelectionColumns && configuration.selection_columns.length > 0;
+  const columns = usesSelectionColumns ? configuration.selection_columns : configuration.pool_columns;
   const canWriteConfiguration = context.kind === "account_instance"
     && configuration.kind !== "fixed"
     && configuration.selection_columns.some((column) => column.candidates.some((candidate) => candidate.can_apply));
@@ -660,22 +682,27 @@ function ConfigurationSection(props: {
     : writeFeedback.status;
   const showWritePanel = canWriteConfiguration && panelState !== "idle";
   const panelContent = configurationPanelContent(panelState, pendingChangeCount, writeFeedback.message);
-  const title = isFixedExotic
-    ? "固定 Perk"
+  const loadingCopy = configurationLoadingCopy(context.kind, isDefinitionLoading, isInstanceLoading);
+  const title = isConfigurationLoading && !hasConfigurationData
+    ? loadingCopy.title
+    : isFixedExotic
+    ? "固定配置"
     : context.kind === "definition"
       ? isVariableExotic ? "异域配置候选" : "完整 Perk 池"
       : context.kind === "vendor_offer"
-        ? "当前售卖配置"
-        : "当前实例配置";
-  const description = isFixedExotic
+        ? "当前售卖 Roll"
+        : "本件 Roll";
+  const description = isConfigurationLoading
+    ? loadingCopy.description
+    : isFixedExotic
     ? "固有能力与其余固定 Perk 使用同一配置网格，不提供随机池筛选、推荐 Roll 命中或远程切换。"
     : isVariableExotic
       ? context.kind === "account_instance"
-        ? "只展示当前实例真实拥有的异域配置选项；可写项以 Bungie 返回的插槽状态为准。"
+        ? "只展示这件武器真实拥有的异域配置选项；可写项以游戏返回的插槽状态为准。"
         : "展示当前异域定义或商人售卖可确认的配置，不把它称为普通传说武器掉落池。"
       : context.kind === "account_instance"
-        ? "只允许切换当前实例真实拥有且可应用的 Perk。"
-        : "当前对象为只读，不提供远程配置操作。";
+        ? "只允许切换这件武器真实拥有且可应用的 Perk。"
+        : "当前查看内容为只读，不提供远程配置操作。";
   const operationLabel = canWriteConfiguration
     ? "可远程切换 · 需要联网"
     : context.kind === "account_instance" && configuration.kind === "fixed"
@@ -684,33 +711,61 @@ function ConfigurationSection(props: {
   return (
     <>
       <SectionHeading
-        eyebrow="武器配置"
+        eyebrow="当前配置"
         title={title}
         description={description}
       />
-      <DataBlockHeading
-        title="配置数据"
-        source={context.kind === "account_instance" ? "账号当前实例插槽 + 资料库 Perk 定义 · 当前读取" : context.kind === "vendor_offer" ? "商人当前售卖 + 资料库 Perk 定义 · 当前读取" : "资料库 Perk 定义 · 当前读取"}
-      />
-      <div className="weapon-detail-config-summary">
-        <span>{context.object_label}</span>
-        <span>{configurationKindLabel(configuration.kind)}</span>
-        <span>{operationLabel}</span>
-        <span>{context.kind === "account_instance" ? "资料库定义 + 账号当前实例" : context.kind === "vendor_offer" ? "资料库定义 + 商人当前售卖" : "资料库定义"}</span>
-      </div>
-      <div className="weapon-detail-config-grid">
-        {configuration.intrinsic ? <PerkColumn label="固有能力" role="intrinsic" candidates={[configuration.intrinsic]} /> : <div className="weapon-detail-intrinsic-empty">未返回固有能力</div>}
-        {columns.map((column) => (
-          <PerkColumn
-            key={column.key}
-            label={column.label}
-            role={column.role}
-            candidates={column.candidates}
-            interactive={showSelection && canWriteConfiguration && !isBusy}
-            onSelect={(perk) => props.actions?.stagePerk?.(column as WeaponPerkSelectionColumn, perk)}
-          />
+      <div className="weapon-detail-config-summary" aria-busy={isConfigurationLoading}>
+        {configurationSummaryItems(
+          props.model,
+          pendingChangeCount,
+          operationLabel,
+          isDefinitionLoading,
+          isInstanceLoading
+        ).map((item) => (
+          <div key={item.label}>
+            <span>{item.label}</span>
+            <strong>{item.value}</strong>
+          </div>
         ))}
       </div>
+      <p className="weapon-detail-config-source">
+        {context.kind === "account_instance"
+          ? "依据：当前装备插槽与资料库 Perk 信息"
+          : context.kind === "vendor_offer"
+            ? "依据：商人当前售卖配置与资料库 Perk 信息"
+            : "依据：资料库 Perk 信息"}
+      </p>
+      {isConfigurationLoading ? (
+        <p className="weapon-detail-config-loading-note" role="status" aria-live="polite">
+          <span aria-hidden="true" />
+          {loadingCopy.status}
+        </p>
+      ) : null}
+      {hasConfigurationData ? (
+        <div className="weapon-detail-config-grid" aria-busy={isConfigurationLoading}>
+          {configuration.intrinsic
+            ? <PerkColumn label="固有能力" role="intrinsic" candidates={[configuration.intrinsic]} />
+            : isDefinitionLoading
+              ? <ConfigurationLoadingColumn />
+              : <div className="weapon-detail-intrinsic-empty">未返回固有能力</div>}
+          {columns.map((column) => (
+            <PerkColumn
+              key={column.key}
+              label={column.label}
+              role={column.role}
+              candidates={column.candidates}
+              interactive={showSelection && canWriteConfiguration && !isBusy}
+              onSelect={(perk) => props.actions?.stagePerk?.(column as WeaponPerkSelectionColumn, perk)}
+            />
+          ))}
+          {isConfigurationLoading && columns.length === 0 ? <ConfigurationLoadingColumn /> : null}
+        </div>
+      ) : isConfigurationLoading ? (
+        <ConfigurationLoadingGrid />
+      ) : (
+        <EmptyState text={configurationEmptyText(context.kind)} />
+      )}
 
       {showWritePanel ? (
         <div
@@ -758,7 +813,7 @@ function ConfigurationSection(props: {
           {props.poolOpen ? (
             <><div className="weapon-detail-pool-grid">
               {configuration.pool_columns.map((column) => <PerkColumn key={column.key} label={column.label} role={column.role} candidates={column.candidates} />)}
-            </div><p className="weapon-detail-note">这里只展示可能掉落的候选，不标记当前已选状态；实例未拥有的 Perk 不能远程安装。</p></>
+            </div><p className="weapon-detail-note">这里只展示可能掉落的候选，不标记当前已选状态；这件武器未拥有的 Perk 不能远程安装。</p></>
           ) : null}
         </section>
       ) : null}
@@ -775,11 +830,122 @@ function ConfigurationSection(props: {
           {props.poolOpen ? (
             <><div className="weapon-detail-pool-grid">
               {configuration.pool_columns.map((column) => <PerkColumn key={column.key} label={column.label} role={column.role} candidates={column.candidates} />)}
-            </div><p className="weapon-detail-note">这些是当前资料库可确认的特殊异域随机配置候选，不代表当前实例已经拥有，也不属于普通传说武器掉落池。</p></>
+            </div><p className="weapon-detail-note">这些是当前资料库可确认的特殊异域随机配置候选，不代表这件武器已经拥有，也不属于普通传说武器掉落池。</p></>
           ) : null}
         </section>
       ) : null}
     </>
+  );
+}
+
+function configurationSummaryItems(
+  model: WeaponDetailViewModel,
+  pendingChangeCount: number,
+  operationLabel: string,
+  isDefinitionLoading: boolean,
+  isInstanceLoading: boolean
+): Array<{ label: string; value: string }> {
+  const selectedPerks = model.configuration.selection_columns.flatMap((column) => (
+    column.candidates.filter((candidate) => candidate.selected).map((candidate) => candidate.name)
+  ));
+  const fixedPerks = model.configuration.kind === "fixed"
+    ? [
+        model.configuration.intrinsic?.name,
+        ...model.configuration.pool_columns.flatMap((column) => column.candidates.map((candidate) => candidate.name))
+      ].filter((name): name is string => Boolean(name))
+    : [];
+  const currentRoll = selectedPerks.length ? selectedPerks : fixedPerks;
+  const switchableColumns = model.configuration.selection_columns.filter((column) => (
+    column.candidates.some((candidate) => candidate.can_apply)
+  )).length;
+  const candidateCount = countPool(model.configuration.pool_columns);
+
+  if (model.context.kind === "account_instance") {
+    return [
+      { label: "当前查看", value: "当前装备" },
+      { label: "本件 Roll", value: currentRoll.join(" / ") || (isInstanceLoading ? "正在读取" : "当前配置未返回") },
+      { label: "可切换", value: switchableColumns ? `${switchableColumns} 个插槽` : isInstanceLoading ? "正在核对" : "没有可远程切换项" },
+      { label: "配置状态", value: pendingChangeCount ? `${pendingChangeCount} 项待应用` : isDefinitionLoading || isInstanceLoading ? "读取中" : operationLabel }
+    ];
+  }
+
+  if (model.context.kind === "vendor_offer") {
+    return [
+      { label: "当前查看", value: "当前售卖" },
+      { label: "售卖 Roll", value: currentRoll.join(" / ") || (isDefinitionLoading ? "正在读取" : "售卖配置未返回") },
+      { label: "配置类型", value: isDefinitionLoading && !currentRoll.length ? "正在判断" : configurationKindLabel(model.configuration.kind) },
+      { label: "操作状态", value: isDefinitionLoading ? "读取中" : "购买前只读" }
+    ];
+  }
+
+  return [
+    { label: "当前查看", value: "资料库版本" },
+    { label: "配置范围", value: candidateCount ? `${model.configuration.pool_columns.length} 个插槽 · ${candidateCount} 个候选` : isDefinitionLoading ? "正在读取" : "配置候选未返回" },
+    { label: "配置类型", value: isDefinitionLoading && !candidateCount ? "正在判断" : configurationKindLabel(model.configuration.kind) },
+    { label: "操作状态", value: isDefinitionLoading ? "读取中" : "只读查看" }
+  ];
+}
+
+function configurationLoadingCopy(
+  kind: WeaponDetailViewModel["context"]["kind"],
+  isDefinitionLoading: boolean,
+  isInstanceLoading: boolean
+): { title: string; description: string; status: string } {
+  if (kind === "account_instance") {
+    if (isDefinitionLoading && isInstanceLoading) {
+      return {
+        title: "本件 Roll",
+        description: "正在读取这件武器的当前选择、可切换项和完整 Perk 信息。",
+        status: "正在读取本件 Roll 和可切换项；已确认内容会先显示，其余内容随后补齐。"
+      };
+    }
+    if (isInstanceLoading) {
+      return {
+        title: "本件 Roll",
+        description: "完整 Perk 池已经可用，正在核对这件武器实际拥有的配置。",
+        status: "正在读取本件 Roll；完整掉落池只表示可能候选，不代表这件武器已经拥有。"
+      };
+    }
+    return {
+      title: "本件 Roll",
+      description: "这件武器的当前选择已经可用，正在补齐资料库 Perk 信息。",
+      status: "本件 Roll 已读取，正在补齐 Perk 名称、说明和完整候选。"
+    };
+  }
+  if (kind === "vendor_offer") {
+    return {
+      title: "当前售卖 Roll",
+      description: "正在读取商人本次售卖配置和对应的 Perk 信息。",
+      status: "正在读取当前售卖 Roll；完成前不会用完整掉落池代替本次售卖配置。"
+    };
+  }
+  return {
+    title: "Perk 配置",
+    description: "正在读取这个版本的完整 Perk 池。",
+    status: "正在读取这个版本的固有能力和完整 Perk 池。"
+  };
+}
+
+function configurationEmptyText(kind: WeaponDetailViewModel["context"]["kind"]): string {
+  if (kind === "account_instance") return "读取完成，但游戏没有返回这件武器的可显示配置。";
+  if (kind === "vendor_offer") return "读取完成，但当前售卖内容没有返回可显示的 Roll。";
+  return "读取完成，但资料库没有返回这个版本的 Perk 配置。";
+}
+
+function ConfigurationLoadingGrid() {
+  return (
+    <div className="weapon-detail-config-grid is-loading" aria-hidden="true">
+      {Array.from({ length: 4 }, (_, index) => <ConfigurationLoadingColumn key={index} />)}
+    </div>
+  );
+}
+
+function ConfigurationLoadingColumn() {
+  return (
+    <div className="weapon-detail-config-placeholder-column" aria-hidden="true">
+      <span />
+      <div><i /><b /><em /></div>
+    </div>
   );
 }
 
@@ -796,9 +962,9 @@ function configurationPanelContent(
         message: "确认后才会写入游戏；写入成功前，当前配置保持不变。"
       };
     case "submitting":
-      return { title: "正在提交武器配置", step: "第 1/2 步", message: message ?? "正在将 Perk 更改提交到 Bungie..." };
+      return { title: "正在提交武器配置", step: "第 1/2 步", message: message ?? "正在将 Perk 更改提交到游戏服务..." };
     case "refreshing":
-      return { title: "正在同步最新配置", step: "第 2/2 步", message: message ?? "正在读取服务器返回的实例状态..." };
+      return { title: "正在同步最新配置", step: "第 2/2 步", message: message ?? "正在读取游戏返回的最新装备状态..." };
     case "success":
       return { title: "武器配置已更新", step: "已完成", message: message ?? "详情已按服务器最新状态重绘。" };
     case "error":
@@ -824,7 +990,7 @@ function PerkColumn(props: {
         {props.candidates.length ? props.candidates.map((perk) => {
           const selection = "selected" in perk ? perk as WeaponPerkSelectionColumn["candidates"][number] : undefined;
           const stateLabel = selection
-            ? selection.pending ? "待应用" : selection.selected ? "已选" : selection.can_apply ? "本实例拥有 · 可切换" : "本实例拥有"
+            ? selection.pending ? "待应用" : selection.selected ? "当前已选" : selection.can_apply ? "这件武器拥有 · 可切换" : "这件武器拥有"
             : undefined;
           const content = <>{stateLabel || perk.enhanced_of_hash ? <small>{[stateLabel, perk.enhanced_of_hash ? "强化版本" : undefined].filter(Boolean).join(" · ")}</small> : null}<GameAssetImage className="game-definition-icon" src={perk.icon} alt="" loading="eager" /><span><strong>{perk.name}</strong><p>{perk.description}</p></span></>;
           return props.interactive && selection?.can_apply ? (
@@ -925,7 +1091,7 @@ function RecommendationCard(props: { model: WeaponDetailViewModel; recommendatio
       {recommendation.reason ? <p className="weapon-detail-source-quote" data-ui-kind="callout" data-callout-tone="info">{recommendation.reason}</p> : null}
       {perkMatches.length ? (
         <div className="weapon-detail-match-grid">
-          <div><span>目标插槽</span><strong>实例拥有</strong><strong>当前启用</strong></div>
+          <div><span>目标插槽</span><strong>这件武器拥有</strong><strong>当前启用</strong></div>
           {perkMatches.map((option) => (
             <div key={option.column_key}>
               <span>{option.column_key}<small>目标：{option.names.join(" / ")}</small></span>
@@ -940,11 +1106,11 @@ function RecommendationCard(props: { model: WeaponDetailViewModel; recommendatio
           <>
             <span>配置：固定 Perk · 不执行 Roll 命中</span>
             {model.upgrades.catalyst ? <span>催化剂：{catalystStateLabel(model)}</span> : null}
-            <span>当前对象：{hasObject ? model.context.object_label : "资料库定义"}</span>
+            <span>当前查看：{weaponObjectLabel(model.context.kind)}</span>
           </>
         ) : (
           <>
-            <span>Perk：{!perkMatches.length ? "未指定" : !hasObject ? "未选择实际对象" : `${perkMatches.filter((option) => option.owned).length}/${perkMatches.length} 实例拥有 · ${perkMatches.filter((option) => option.active).length}/${perkMatches.length} 当前启用`}</span>
+            <span>Perk：{!perkMatches.length ? "未指定" : !hasObject ? "未选择账号装备" : `${perkMatches.filter((option) => option.owned).length}/${perkMatches.length} 这件武器拥有 · ${perkMatches.filter((option) => option.active).length}/${perkMatches.length} 当前启用`}</span>
             <span>大师杰作：{recommendation.masterwork_names.length ? matchFactLabel(hasObject, masterworkMatch) : "未指定"}</span>
             <span>武器模组：{recommendation.mod_names.length ? matchFactLabel(hasObject, modMatch) : "未指定"}</span>
           </>
@@ -957,7 +1123,7 @@ function RecommendationCard(props: { model: WeaponDetailViewModel; recommendatio
 function UpgradeSection({ model }: { model: WeaponDetailViewModel }) {
   const { upgrades } = model;
   const objectSource = model.context.kind === "account_instance"
-    ? "账号当前实例"
+    ? "当前装备"
     : model.context.kind === "vendor_offer"
       ? "商人当前售卖"
       : "资料库定义";
@@ -971,63 +1137,86 @@ function UpgradeSection({ model }: { model: WeaponDetailViewModel }) {
   if (!rows.length) return null;
   return (
     <>
-      <SectionHeading eyebrow="升级与锻造" title={upgrades.catalyst ? "催化剂、杰作与当前进度" : "大师杰作、模组与强化"} description="当前对象状态与定义能力分别标明来源，不把未返回的信息补成结论。" />
+      <SectionHeading eyebrow="升级与锻造" title={upgrades.catalyst ? "催化剂、杰作与当前进度" : "大师杰作、模组与强化"} description="这件武器的状态与版本能力分别标明来源，不把未返回的信息补成结论。" />
       <DataBlockHeading title="升级状态" source={upgrades.catalyst ? (upgrades.catalyst.acquired === undefined ? "资料库定义" : "账号进度 + 资料库定义 · 当前读取") : objectSource} />
       <div className={["weapon-detail-upgrade-layout", !upgrades.catalyst && "without-catalyst"].filter(Boolean).join(" ")}>
         {upgrades.catalyst ? <article className="weapon-detail-catalyst"><header><GameAssetImage className="game-definition-icon" src={upgrades.catalyst.icon} alt="" loading="eager" /><div><strong>{upgrades.catalyst.name}</strong><span>{upgrades.catalyst.objective || catalystStateLabel(model)}</span></div></header>{upgrades.catalyst.acquired !== undefined ? <progress value={upgrades.catalyst.progress ?? (upgrades.catalyst.complete ? 100 : 0)} max={100} /> : null}{upgrades.catalyst.acquisition ? <p>获取：{upgrades.catalyst.acquisition}</p> : null}{upgrades.catalyst.effects.length ? <ul>{upgrades.catalyst.effects.map((effect) => <li key={effect}>{effect}</li>)}</ul> : null}</article> : null}
         {rows.length ? (
           <div className="weapon-detail-upgrade-table" role="table" aria-label="升级与锻造状态">
-            <div role="row"><strong role="columnheader">项目</strong><strong role="columnheader">当前对象</strong><strong role="columnheader">状态</strong><strong role="columnheader">数据来源</strong></div>
+            <div role="row"><strong role="columnheader">项目</strong><strong role="columnheader">当前查看</strong><strong role="columnheader">状态</strong><strong role="columnheader">数据来源</strong></div>
             {rows.map((row) => <div key={row.key} role="row"><strong role="cell">{row.label}</strong><span role="cell">{row.current}</span><span role="cell">{row.detail}</span><span role="cell">{row.source}</span></div>)}
           </div>
-        ) : <EmptyState text="当前对象没有可显示的升级或附加能力。" />}
+        ) : <EmptyState text="这件武器没有可显示的升级或附加能力。" />}
       </div>
     </>
   );
 }
 
 function InstancesRail(props: { model: WeaponDetailViewModel; onSelect?: (instance: WeaponDetailInstance) => void }) {
+  const currentInstance = props.model.same_hash_instances.find((instance) => instance.current);
   return (
-    <section className="weapon-detail-rail-instances">
-      <div className="weapon-detail-rail-heading">
-        <div><span>当前 Hash</span><h3>同名实例</h3></div>
+    <details className="weapon-detail-rail-instances" open>
+      <summary className="weapon-detail-rail-heading">
+        <div><span>账号装备</span><h3>账号中的同版本武器</h3></div>
         <strong>{props.model.same_hash_instances.length} 件</strong>
+      </summary>
+      <div className="weapon-detail-rail-instances-body">
+        {props.model.same_hash_instances.length ? (
+          <div className="weapon-detail-instance-list" role="list">
+            {props.model.same_hash_instances.map((instance) => {
+              const visiblePlugs = instance.plugs.slice(0, 5);
+              const upgrade = instanceUpgradeLabel(instance);
+              const rollDifference = instanceRollDifferenceLabel(instance, currentInstance);
+              return (
+                <button
+                  key={instance.instance_id}
+                  type="button"
+                  role="listitem"
+                  className={instance.current ? "is-current" : undefined}
+                  aria-current={instance.current ? "true" : undefined}
+                  onClick={() => props.onSelect?.(instance)}
+                  disabled={!props.onSelect}
+                >
+                  <header>
+                    <strong>{instance.current ? "当前装备" : instance.location}</strong>
+                    <span>{instance.power !== undefined ? `${instance.power} 光等` : "光等未知"}</span>
+                  </header>
+                  <span className="weapon-detail-instance-perks" aria-label={visiblePlugs.map((plug) => plug.name).join("、") || "配置未返回"}>
+                    {visiblePlugs.filter((plug) => Boolean(plug.icon)).map((plug) => (
+                      <GameAssetImage className="game-definition-icon" key={plug.hash} src={plug.icon} alt="" title={plug.name} loading="eager" />
+                    ))}
+                  </span>
+                  <strong className="weapon-detail-instance-roll">{visiblePlugs.map((plug) => plug.name).join(" / ") || "配置未返回"}</strong>
+                  <span className="weapon-detail-instance-meta">
+                    <span>{rollDifference}</span>
+                    {upgrade ? <span>{upgrade}</span> : null}
+                    <span>{instanceStateLabel(instance)}</span>
+                    {instance.local_tag ? <span>{instanceTagLabel(instance.local_tag)}</span> : null}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        ) : <EmptyState text="账号中没有这个版本的同名武器。" />}
+        <p className="weapon-detail-rail-note">这里只列出账号中相同发布版本的武器，便于快速切换和比较 Roll。</p>
       </div>
-      {props.model.same_hash_instances.length ? (
-        <div className="weapon-detail-instance-list" role="list">
-          {props.model.same_hash_instances.map((instance, index) => {
-            const visiblePlugs = instance.plugs.slice(0, 5);
-            const upgrade = instanceUpgradeLabel(instance);
-            return (
-              <button
-                key={instance.instance_id}
-                type="button"
-                role="listitem"
-                className={instance.current ? "is-current" : undefined}
-                aria-current={instance.current ? "true" : undefined}
-                onClick={() => props.onSelect?.(instance)}
-                disabled={!props.onSelect}
-              >
-                <header><strong>实例 {index + 1}</strong><span>{instance.location} · {instance.power ?? "光等未知"}</span></header>
-                <span className="weapon-detail-instance-perks" aria-label={visiblePlugs.map((plug) => plug.name).join("、") || "配置未返回"}>
-                  {visiblePlugs.filter((plug) => Boolean(plug.icon)).map((plug) => (
-                    <GameAssetImage className="game-definition-icon" key={plug.hash} src={plug.icon} alt="" title={plug.name} loading="eager" />
-                  ))}
-                </span>
-                <strong className="weapon-detail-instance-roll">{visiblePlugs.map((plug) => plug.name).join(" / ") || "配置未返回"}</strong>
-                <span className="weapon-detail-instance-meta">
-                  {upgrade ? <span>{upgrade}</span> : null}
-                  <span>{instanceStateLabel(instance)}</span>
-                  {instance.local_tag ? <span>{instanceTagLabel(instance.local_tag)}</span> : null}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      ) : <EmptyState text="账号中没有当前版本的同名武器。" />}
-      <p className="weapon-detail-rail-note">仅显示当前版本、当前 Hash 的账号实例。</p>
-    </section>
+    </details>
   );
+}
+
+function instanceRollDifferenceLabel(
+  instance: WeaponDetailInstance,
+  currentInstance: WeaponDetailInstance | undefined
+): string {
+  if (instance.current) return "当前 Roll";
+  if (!currentInstance?.plugs.length || !instance.plugs.length) return "Roll 差异未知";
+  const currentHashes = currentInstance.plugs.slice(0, 5).map((plug) => plug.hash);
+  const instanceHashes = instance.plugs.slice(0, 5).map((plug) => plug.hash);
+  const slotCount = Math.max(currentHashes.length, instanceHashes.length);
+  const differenceCount = Array.from({ length: slotCount }, (_, index) => (
+    currentHashes[index] === instanceHashes[index] ? 0 : 1
+  )).reduce((total, difference) => total + difference, 0);
+  return differenceCount ? `${differenceCount} 个 Perk 不同` : "Roll 相同";
 }
 
 function instanceTagLabel(tag: NonNullable<WeaponDetailInstance["local_tag"]>): string {
@@ -1084,7 +1273,7 @@ function AnalysisSection(props: {
   const [editingKnowledgeId, setEditingKnowledgeId] = useState<string | undefined>();
   return (
     <>
-      <SectionHeading eyebrow="AI 分析" title="结合当前对象与知识库分析" description="用户指定知识优先，其次使用内置知识库，AI 外部查询优先级最低。" />
+      <SectionHeading eyebrow="AI 分析" title="结合这件武器与知识库分析" description="用户指定知识优先，其次使用内置知识库，AI 外部查询优先级最低。" />
       <div className="weapon-detail-ai-layout">
         <div className="weapon-detail-ai-analysis">
           {props.analysis?.message ? <p className={`status-message status-${status === "error" ? "error" : status === "ready" ? "ready" : "pending"}`} role="status">{props.analysis.message}</p> : null}
@@ -1100,7 +1289,7 @@ function AnalysisSection(props: {
         <aside className="weapon-detail-ai-tools">
           <div className="weapon-detail-ai-input">
             <label htmlFor="weapon-analysis-prompt">询问这件武器</label>
-            <textarea id="weapon-analysis-prompt" value={props.prompt} onChange={(event) => props.onPromptChange(event.target.value)} placeholder={isFixedExotic ? "例如：结合固定配置、当前催化剂状态和获取来源，分析 PvE 使用方向。" : "例如：结合我当前实例的全部可切换 Perk，分析 PvE 推荐匹配情况。"} />
+            <textarea id="weapon-analysis-prompt" value={props.prompt} onChange={(event) => props.onPromptChange(event.target.value)} placeholder={isFixedExotic ? "例如：结合固定配置、当前催化剂状态和获取来源，分析 PvE 使用方向。" : "例如：结合这件武器的全部可切换 Perk，分析 PvE 推荐匹配情况。"} />
             <label className="weapon-detail-ai-external"><input type="checkbox" checked={props.allowExternalSearch} onChange={(event) => props.onAllowExternalSearchChange(event.target.checked)} />允许 AI 查询外部知识，必须保留引用</label>
             <button type="button" data-ui-kind="button" data-control-variant="ai" data-control-size="prominent" disabled={!props.onRun || status === "running"} onClick={() => props.onRun?.({ prompt: props.prompt, allow_external_search: props.allowExternalSearch })}>{status === "running" ? "分析中..." : "结合全部来源分析"}</button>
             <small>AI 结果不会自动进入可靠数据区，保存前必须由用户确认。</small>

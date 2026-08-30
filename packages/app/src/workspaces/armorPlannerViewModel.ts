@@ -131,6 +131,7 @@ export type ArmorPlannerOwnedPieceView = {
     energyCost: number;
   };
   armorStatModSocketPlugHash?: number;
+  armorStatModSocketIndex?: number;
   plannedNonStatPlugHashes: number[];
   energy: {
     capacity: number;
@@ -590,6 +591,9 @@ function ownedPieceView(piece: ArmorOwnedPieceChoice): ArmorPlannerOwnedPieceVie
     ...(piece.armor_stat_mod_socket_plug_hash === undefined
       ? {}
       : { armorStatModSocketPlugHash: piece.armor_stat_mod_socket_plug_hash }),
+    ...(piece.armor_stat_mod_socket_index === undefined
+      ? {}
+      : { armorStatModSocketIndex: piece.armor_stat_mod_socket_index }),
     plannedNonStatPlugHashes: [...piece.planned_non_stat_plug_hashes],
     energy: {
       capacity: piece.energy.capacity,

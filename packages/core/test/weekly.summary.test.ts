@@ -239,6 +239,47 @@ describe("weekly summary", () => {
     expect(summary.priorities.rotating_dungeon.entries?.map((entry) => entry.title)).not.toContain("平衡");
   });
 
+  it("merges character activity challenges before de-duplicating a dungeon", () => {
+    const liveData = buildWeeklyLiveDataFromBungie({
+      profile: {
+        characterActivities: {
+          data: {
+            "character-1": {
+              availableActivities: [{ activityHash: 1262462921 }]
+            },
+            "character-2": {
+              availableActivities: [{
+                activityHash: 1262462921,
+                challenges: [{ objective: { objectiveHash: 3211393925 } }]
+              }]
+            }
+          }
+        }
+      },
+      definitions: {
+        activities: {
+          "1262462921": {
+            displayProperties: { name: "守望者尖塔: 标准" },
+            originalDisplayProperties: { name: "守望者尖塔" },
+            activityTypeHash: 608898761,
+            activityModeTypes: [82, 7]
+          }
+        },
+        objectives: {
+          "3211393925": { displayProperties: { name: "周常地牢挑战", description: "完成此次地牢。" } }
+        }
+      }
+    });
+
+    expect(liveData.items).toEqual([
+      expect.objectContaining({
+        title: "守望者尖塔",
+        subtitle: "周常地牢挑战",
+        weeklyActivityKind: "rotating_dungeon"
+      })
+    ]);
+  });
+
   it("fetches logged-in character activities for confirmed weekly portal activities", async () => {
     const requested: Array<{ path: string; accessToken?: string }> = [];
     const liveData = await fetchWeeklyLiveData({

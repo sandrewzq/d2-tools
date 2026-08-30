@@ -259,6 +259,10 @@ function AccountPageWorkspace(props: {
       : accountText(props.copy, "已读取");
   const connectionStatus = connectionState === "refreshing" ? "pending" : connectionState === "cached" ? "warning" : "success";
   const operationFeedback = props.viewModel.feedback.operation;
+  const isHighestPowerVerificationActive = operationFeedback?.phase === "submitting"
+    || operationFeedback?.phase === "syncing"
+    || operationFeedback?.phase === "delayed"
+    || operationFeedback?.phase === "partial";
 
   return (
     <>
@@ -349,7 +353,7 @@ function AccountPageWorkspace(props: {
                 <span>
                   <strong data-ui-part="value" data-info-priority="context" data-text-tone="primary">{tab.className}</strong>
                   <small data-ui-part="detail" data-info-priority="support" data-text-tone="body">
-                    {accountText(props.copy, "当前")} {tab.power.currentLabel} · {accountText(props.copy, "账号最高")} {tab.power.maxEquippable.label}
+                    {accountText(props.copy, "当前")} {tab.power.currentLabel} · {accountText(props.copy, "账号最高光等")} {tab.power.maxEquippable.label}
                   </small>
                 </span>
               </button>
@@ -366,7 +370,7 @@ function AccountPageWorkspace(props: {
               aria-controls="account-power-panel"
               onClick={() => setIsPowerPanelOpen((current) => !current)}
             >
-              <span>{accountText(props.copy, "一键可达")}</span>
+              <span>{accountText(props.copy, "最高光等方案")}</span>
               <PowerFractionValue value={props.selectedCharacter.power.executablePower} />
             </button>
             {props.actions.equipHighestPower ? <button
@@ -374,7 +378,7 @@ function AccountPageWorkspace(props: {
               ref={equipHighestPowerTriggerRef}
               data-ui-kind="button"
               data-control-variant="secondary"
-              disabled={props.viewModel.loadout.isRunningItemAction}
+              disabled={props.viewModel.loadout.isRunningItemAction || isHighestPowerVerificationActive}
               onClick={() => {
                 setIsPowerPanelOpen(false);
                 if (highestPowerChanges.length) {
@@ -384,7 +388,11 @@ function AccountPageWorkspace(props: {
                 }
               }}
             >
-              {props.viewModel.loadout.isRunningItemAction ? props.copy.actions.running : props.copy.actions.equipHighestPower}
+              {props.viewModel.loadout.isRunningItemAction
+                ? props.copy.actions.running
+                : isHighestPowerVerificationActive
+                  ? accountText(props.copy, "同步中")
+                  : props.copy.actions.equipHighestPower}
             </button> : null}
           </div>
           {isPowerPanelOpen ? (
@@ -725,7 +733,7 @@ function AccountPowerPanel(props: {
     <section ref={props.panelRef} className="account-power-panel" id={props.id} data-surface="frame" data-ui-kind="summary-frame" aria-label={accountText(props.copy, "光等详情")}>
       <div className="account-power-panel-head">
         <span>
-          <strong>{accountText(props.copy, "一键装备方案")}</strong>
+          <strong>{accountText(props.copy, "最高光等装备方案")}</strong>
           <small>{accountText(props.copy, "使用本角色与仓库中的装备")}</small>
         </span>
         <span className={`ui-badge status-${value.complete ? "ready" : "warning"}`} data-status={value.complete ? "success" : "warning"}>
@@ -734,12 +742,12 @@ function AccountPowerPanel(props: {
       </div>
       <div className="account-power-summary" aria-label={accountText(props.copy, "光等方案摘要")}>
         <span>
-          <small>{accountText(props.copy, "当前装备平均")}</small>
+          <small>{accountText(props.copy, "当前装备光等")}</small>
           <strong>{props.power.currentLabel}</strong>
         </span>
         <span aria-hidden="true">→</span>
         <span className="target">
-          <small>{accountText(props.copy, "一键装备后")}</small>
+          <small>{accountText(props.copy, "装备后光等")}</small>
           <PowerFractionValue value={value} />
         </span>
       </div>
@@ -768,16 +776,16 @@ function AccountPowerPanel(props: {
         ))}
       </div>
       <div className="account-power-footer">
-        <span>{accountText(props.copy, "账号可装备最高")} <PowerFractionValue value={props.power.maxEquippable} /></span>
+        <span>{accountText(props.copy, "账号最高光等")} <PowerFractionValue value={props.power.maxEquippable} /></span>
       </div>
       <p className={props.power.executableMatchesAccountMaximum ? "account-power-note" : "account-power-note warning"}>
         {!props.power.maxEquippable.complete || !props.power.executablePower.complete
-          ? accountText(props.copy, "缺少至少一个光等槽位，当前无法生成完整的一键装备方案。")
+          ? accountText(props.copy, "缺少至少一个光等槽位，当前无法生成完整的最高光等装备方案。")
           : props.power.executableMatchesAccountMaximum
-            ? accountText(props.copy, "本次方案已达到账号可装备最高光等。")
+            ? accountText(props.copy, "当前角色与仓库中的方案已达到账号最高光等。")
             : props.power.hasExternalSources
-              ? accountText(props.copy, "账号内还有更高组合，但装备在其他角色身上；一键装备暂不自动跨角色转移。")
-              : accountText(props.copy, "本次方案与账号最高结果不同，请刷新账号后再复核。")}
+              ? accountText(props.copy, "账号内还有更高光等装备在其他角色身上；本次不会自动跨角色转移。")
+              : accountText(props.copy, "当前角色方案与账号最高光等不一致，请刷新账号后再复核。")}
       </p>
     </section>
   );

@@ -11,15 +11,9 @@ export type DuplicateItemEntry = {
   roll_text: string;
 };
 
-export type DuplicateGroupKind = "same_definition" | "same_display_name" | "same_armor_context";
-
-export type DuplicateGroupItemType = "weapons" | "armor" | "equipment" | "other" | "mixed";
-
 export type DuplicateItemGroup = {
   group_key: string;
   name: string;
-  group_kind: DuplicateGroupKind;
-  item_group: DuplicateGroupItemType;
   hash?: number;
   count: number;
   items: DuplicateItemEntry[];
@@ -39,7 +33,7 @@ export function analyzeDuplicateItems(items: AccountItemSummary[], tags: VaultTa
   for (const [key, groupItems] of hashGroups) {
     if (groupItems.length > 1) {
       groupItems.forEach((item) => duplicateHashItems.add(item));
-      groups.push(buildGroup(key, groupItems, tags, groupItems[0].hash, "same_definition"));
+      groups.push(buildGroup(key, groupItems, tags, groupItems[0].hash));
     }
   }
 
@@ -47,15 +41,7 @@ export function analyzeDuplicateItems(items: AccountItemSummary[], tags: VaultTa
   const nameGroups = groupBy(remaining, (item) => `name:${normalizeName(item.name)}`);
   for (const [key, groupItems] of nameGroups) {
     if (groupItems.length > 1) {
-      const sameArmorContext = groupItems.every((item) => item.group_key === "armor")
-        && groupItems.every((item) => armorContextKey(item) === armorContextKey(groupItems[0]));
-      groups.push(buildGroup(
-        key,
-        groupItems,
-        tags,
-        undefined,
-        sameArmorContext ? "same_armor_context" : "same_display_name"
-      ));
+      groups.push(buildGroup(key, groupItems, tags));
     }
   }
 
@@ -67,13 +53,7 @@ export function analyzeDuplicateItems(items: AccountItemSummary[], tags: VaultTa
   };
 }
 
-function buildGroup(
-  groupKey: string,
-  items: AccountItemSummary[],
-  tags: VaultTags,
-  hash?: number,
-  groupKind: DuplicateGroupKind = hash === undefined ? "same_display_name" : "same_definition"
-): DuplicateItemGroup {
+function buildGroup(groupKey: string, items: AccountItemSummary[], tags: VaultTags, hash?: number): DuplicateItemGroup {
   const entries = items
     .map((item) => {
       const key = itemKey(item);
@@ -92,25 +72,10 @@ function buildGroup(
   return {
     group_key: groupKey,
     name: normalizeName(items[0]?.name ?? "未知装备"),
-    group_kind: groupKind,
-    item_group: groupItemType(items),
     hash,
     count: entries.length,
     items: entries
   };
-}
-
-function groupItemType(items: AccountItemSummary[]): DuplicateGroupItemType {
-  const groups = new Set(items.map((item) => item.group_key));
-  return groups.size === 1 ? (items[0]?.group_key ?? "other") : "mixed";
-}
-
-function armorContextKey(item: AccountItemSummary): string {
-  return [
-    item.class_type === undefined ? "unknown-class" : String(item.class_type),
-    item.bucket_hash === undefined ? "unknown-slot" : String(item.bucket_hash),
-    item.armor_set?.hash === undefined ? "unknown-set" : String(item.armor_set.hash)
-  ].join(":");
 }
 
 function groupBy<T>(items: T[], keyFor: (item: T) => string): Map<string, T[]> {

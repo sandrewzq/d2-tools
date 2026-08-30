@@ -768,82 +768,108 @@ function mapProfileActivities(
   definitions: NonNullable<BuildWeeklyLiveDataInput["definitions"]>
 ): WeeklySummaryItem[] {
   const items: WeeklySummaryItem[] = [];
-  const seenActivities = new Set<number>();
+  const activityGroups = new Map<number, DestinyAvailableActivity[]>();
 
   for (const component of Object.values(profile?.characterActivities?.data ?? {})) {
     for (const activity of component.availableActivities ?? []) {
       const activityHash = activity.activityHash;
-      if (activityHash === undefined || seenActivities.has(activityHash)) {
+      if (activityHash === undefined) {
         continue;
       }
-      seenActivities.add(activityHash);
+      const group = activityGroups.get(activityHash) ?? [];
+      group.push(activity);
+      activityGroups.set(activityHash, group);
+    }
+  }
 
-      const activityDefinition = definitionRecord(definitions.activities, activityHash);
-      const challengeObjectives = (activity.challenges ?? [])
-        .map((challenge) => challenge.objective?.objectiveHash)
-        .filter((hash): hash is number => hash !== undefined);
-      const objectiveTexts = challengeObjectives.map((hash) => objectiveText(definitions.objectives, hash));
-      const activityName = activityDisplayName(activityDefinition);
-      if (!activityName) {
-        continue;
-      }
+  for (const [activityHash, activities] of activityGroups) {
+    const activity = mergeProfileActivities(activities);
 
-      const focusModifiers = activityFocusModifiers(activity, definitions.modifiers);
-      if (focusModifiers.length) {
-        items.push({
-          title: activityName,
-          subtitle: "焦点活动",
-          description: focusModifiers
-            .map((modifier) => modifier.displayProperties?.description?.trim())
-            .filter(Boolean)
-            .join(" · "),
-          source: "Bungie CharacterActivities + 当前 Manifest",
-          weeklyActivityKind: "weekly_bonus",
-          related_hashes: [activityHash, ...(activity.modifierHashes ?? [])]
-        });
-      }
+    const activityDefinition = definitionRecord(definitions.activities, activityHash);
+    const challengeObjectives = (activity.challenges ?? [])
+      .map((challenge) => challenge.objective?.objectiveHash)
+      .filter((hash): hash is number => hash !== undefined);
+    const objectiveTexts = challengeObjectives.map((hash) => objectiveText(definitions.objectives, hash));
+    const activityName = activityDisplayName(activityDefinition);
+    if (!activityName) {
+      continue;
+    }
 
-      if (objectiveTexts.some(isGrandmasterVanguardAlertObjective)) {
-        items.push({
-          title: activityName,
-          subtitle: "先锋行动 · 宗师先锋警戒",
-          description: rewardDescription(activity, definitions.items),
-          source: "Bungie CharacterActivities",
-          weeklyActivityKind: "nightfall",
-          related_hashes: [activityHash, ...challengeObjectives],
-          rewards: activityRewards(activity, definitions.items)
-        });
-        continue;
-      }
+    const focusModifiers = activityFocusModifiers(activity, definitions.modifiers);
+    if (focusModifiers.length) {
+      items.push({
+        title: activityName,
+        subtitle: "焦点活动",
+        description: focusModifiers
+          .map((modifier) => modifier.displayProperties?.description?.trim())
+          .filter(Boolean)
+          .join(" · "),
+        source: "Bungie CharacterActivities + 当前 Manifest",
+        weeklyActivityKind: "weekly_bonus",
+        related_hashes: [activityHash, ...(activity.modifierHashes ?? [])]
+      });
+    }
 
-      if (isRaidActivity(activityDefinition) && objectiveTexts.some(isWeeklyRaidChallengeObjective)) {
-        items.push({
-          title: activityName,
-          subtitle: "周常突袭挑战",
-          description: rewardDescription(activity, definitions.items),
-          source: "Bungie CharacterActivities",
-          weeklyActivityKind: "rotating_raid",
-          related_hashes: [activityHash, ...challengeObjectives],
-          rewards: activityRewards(activity, definitions.items)
-        });
-        continue;
-      }
+    if (objectiveTexts.some(isGrandmasterVanguardAlertObjective)) {
+      items.push({
+        title: activityName,
+        subtitle: "先锋行动 · 宗师先锋警戒",
+        description: rewardDescription(activity, definitions.items),
+        source: "Bungie CharacterActivities",
+        weeklyActivityKind: "nightfall",
+        related_hashes: [activityHash, ...challengeObjectives],
+        rewards: activityRewards(activity, definitions.items)
+      });
+      continue;
+    }
 
-      if (isDungeonActivity(activityDefinition) && objectiveTexts.some(isWeeklyDungeonChallengeObjective)) {
-        items.push({
-          title: activityName,
-          subtitle: "周常地牢挑战",
-          description: rewardDescription(activity, definitions.items),
-          source: "Bungie CharacterActivities",
-          weeklyActivityKind: "rotating_dungeon",
-          related_hashes: [activityHash, ...challengeObjectives],
-          rewards: activityRewards(activity, definitions.items)
-        });
-      }
+    if (isRaidActivity(activityDefinition) && objectiveTexts.some(isWeeklyRaidChallengeObjective)) {
+      items.push({
+        title: activityName,
+        subtitle: "周常突袭挑战",
+        description: rewardDescription(activity, definitions.items),
+        source: "Bungie CharacterActivities",
+        weeklyActivityKind: "rotating_raid",
+        related_hashes: [activityHash, ...challengeObjectives],
+        rewards: activityRewards(activity, definitions.items)
+      });
+      continue;
+    }
+
+    if (isDungeonActivity(activityDefinition) && objectiveTexts.some(isWeeklyDungeonChallengeObjective)) {
+      items.push({
+        title: activityName,
+        subtitle: "周常地牢挑战",
+        description: rewardDescription(activity, definitions.items),
+        source: "Bungie CharacterActivities",
+        weeklyActivityKind: "rotating_dungeon",
+        related_hashes: [activityHash, ...challengeObjectives],
+        rewards: activityRewards(activity, definitions.items)
+      });
     }
   }
 
   return items;
+}
+
+function mergeProfileActivities(activities: DestinyAvailableActivity[]): DestinyAvailableActivity {
+  const first = activities[0] ?? {};
+  const challenges = new Map<number, NonNullable<DestinyAvailableActivity["challenges"]>[number]>();
+  for (const activity of activities) {
+    for (const challenge of activity.challenges ?? []) {
+      const objectiveHash = challenge.objective?.objectiveHash;
+      if (objectiveHash !== undefined) {
+        challenges.set(objectiveHash, challenge);
+      }
+    }
+  }
+
+  return {
+    ...first,
+    modifierHashes: uniqueNumbers(activities.flatMap((activity) => activity.modifierHashes ?? [])),
+    challenges: [...challenges.values()],
+    visibleRewards: activities.flatMap((activity) => activity.visibleRewards ?? [])
+  };
 }
 
 function inferWeeklyActivityKind(value: string): WeeklyPriorityKind | "public_clue" | undefined {

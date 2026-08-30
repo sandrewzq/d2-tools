@@ -48,7 +48,11 @@ export function HomePageItemDetailModal(props: {
           stat_modifiers: plug.statModifiers,
           item_type: plug.itemType
       })),
-      is_detail_loading: vendorDefinitionState.isBusy
+      is_detail_loading: vendorDefinitionState.isBusy,
+      detail_loading: {
+        definition: vendorDefinitionState.isBusy,
+        instance: false
+      }
     };
     const vendorSameNameItems = collectSelectedSameNameItems(props.accountSummary, vendorSelectedItem);
     const vendorWeaponModel = buildWeaponDetailView({
@@ -142,7 +146,7 @@ export function HomePageItemDetailModal(props: {
         kind: "vendor_offer",
         entry: "vendor",
         entry_label: "商人",
-        object_label: "当前商人售卖",
+        object_label: "当前售卖",
         object_id: vendorDefinitionState.offerItem.id,
         read_only: true
       },
@@ -373,7 +377,16 @@ function buildVendorArmorSources(
       status_label: "来源已记录"
     });
   }
-  return { status: "ready", entries };
+  return {
+    status: "ready",
+    entries,
+    offer: {
+      cost_label: state.context.costLabel,
+      purchase_label: state.context.affordabilityLabel,
+      refresh_label: state.context.refreshLabel,
+      can_purchase: state.offerItem.canPurchase
+    }
+  };
 }
 
 function buildVendorArmorStats(stats: Record<string, number> | undefined): ArmorStatSummary | undefined {
