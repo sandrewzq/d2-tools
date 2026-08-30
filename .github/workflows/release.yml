@@ -31,6 +31,16 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Ensure Windows Electron binary
+        shell: pwsh
+        run: |
+          $electronPackage = Join-Path $PWD "packages/desktop/node_modules/electron"
+          node (Join-Path $electronPackage "install.js")
+          $electronBinary = Join-Path $electronPackage "dist/electron.exe"
+          if (-not (Test-Path $electronBinary)) {
+            throw "Electron Windows binary was not installed: $electronBinary"
+          }
+
       - name: Verify tag matches package versions
         shell: pwsh
         run: |
