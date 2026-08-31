@@ -106,7 +106,7 @@ export function buildActionLogDiagnosticText(entry: ActionLogEntry): string {
     "d2-tools 写操作诊断",
     `时间：${entry.created_at}`,
     `操作：${entry.action}`,
-    `结果：${entry.ok ? "成功" : "失败"}`,
+    `结果：${actionLogResultLabel(entry)}`,
     `物品：${entry.item_name ?? "-"}`,
     `物品实例：${entry.item_instance_id ?? "-"}`,
     `角色：${entry.character_id ?? "-"}`,
@@ -124,6 +124,19 @@ export function buildActionLogDiagnosticText(entry: ActionLogEntry): string {
     "",
     "说明：这段诊断不会包含 token、client secret 或 API Key。"
   ].join("\n");
+}
+
+function actionLogResultLabel(entry: ActionLogEntry): string {
+  if (entry.verification_status === "verified") return "已确认";
+  if (entry.verification_status === "partial") return "部分完成";
+  if (entry.verification_status === "unavailable") return "不可用";
+  if (entry.verification_status === "mismatch") return "不一致";
+  if (
+    entry.ok
+    && entry.action !== "execution-verification"
+    && /请求已受理|正在确认/.test(entry.message ?? "")
+  ) return "已受理";
+  return entry.ok ? "成功" : "失败";
 }
 
 function formatOptionalDuration(value: number | undefined): string {

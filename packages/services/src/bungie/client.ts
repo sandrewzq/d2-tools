@@ -103,13 +103,19 @@ async function requestBungieJson<T>(
 
   if (!response.ok) {
     const details = await readBungieErrorDetails(response);
+    const itemCannotEquip = details?.includes("ErrorCode 1640") ?? false;
+    const message = itemCannotEquip
+      ? "Bungie 拒绝了这次装备请求（状态码 1640：该装备当前不可装备）。请刷新账号后重试。"
+      : details
+        ? `Bungie request failed: HTTP ${response.status} (${details})`
+        : `Bungie request failed: HTTP ${response.status}`;
     throw createServiceError({
       code: "bungie_http_failed",
-      message: details
-        ? `Bungie request failed: HTTP ${response.status} (${details})`
-        : `Bungie request failed: HTTP ${response.status}`,
-      retryable: response.status >= 500 || response.status === 429,
-      causeCategory: response.status === 401 || response.status === 403 ? "authentication" : "network",
+      message,
+      retryable: itemCannotEquip ? false : response.status >= 500 || response.status === 429,
+      causeCategory: itemCannotEquip
+        ? "validation"
+        : response.status === 401 || response.status === 403 ? "authentication" : "network",
       details: { status: response.status }
     });
   }

@@ -594,20 +594,27 @@ export function useItemDetailWorkspace(input: {
       const operationId = result.diagnostics?.operation_id ?? fallbackOperationId;
       const accountPatch = result.account_patch ?? options?.expectedAccountPatch;
       if (accountPatch) {
-        input.applyCommittedAccountActionPatches([accountPatch]);
+        const requiresEquipVerification = accountPatch.kind === "equip";
+        if (!requiresEquipVerification) {
+          input.applyCommittedAccountActionPatches([accountPatch]);
+        }
         recordWriteActionDebug({
           ...debugBase,
           operation_id: operationId,
-          phase: "account-patch-applied",
+          phase: requiresEquipVerification ? "account-confirmation-registered" : "account-patch-applied",
           elapsed_ms: performance.now() - actionStartedAt,
-          reflected: true,
-          message: "Bungie 写结果已提交到本地账号 Store"
+          reflected: !requiresEquipVerification,
+          message: requiresEquipVerification
+            ? "Bungie 写结果已提交，等待 Profile 确认后更新账号 Store"
+            : "Bungie 写结果已提交到本地账号 Store"
         });
-        const message = `${result.message}，页面已更新。`;
+        const message = requiresEquipVerification
+          ? `${result.message}，正在确认游戏内状态...`
+          : `${result.message}，页面已更新。`;
         publishMessage(message);
         input.setAccountOperationFeedback({
-          tone: "success",
-          phase: "confirmed",
+          tone: requiresEquipVerification ? "pending" : "success",
+          phase: requiresEquipVerification ? "syncing" : "confirmed",
           itemInstanceIds: [accountPatch.item_instance_id],
           message
         });
@@ -630,12 +637,13 @@ export function useItemDetailWorkspace(input: {
               ? accountPatch.character_id
               : selectedActionCharacterId)
           ))?.class_name,
+          item_name: selectedItem.name,
           expected_patches: [accountPatch],
           accepted_count: 1,
           failed_count: 0
         }, { surfaceFeedback: false });
         void input.diagnostics.loadActionLog().catch(() => undefined);
-        return { ok: true, refreshed: true, message };
+        return { ok: true, refreshed: !requiresEquipVerification, message };
       }
       if (options?.keepDetailOpen) {
         try {

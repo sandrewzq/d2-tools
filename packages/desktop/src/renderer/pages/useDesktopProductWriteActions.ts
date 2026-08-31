@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { AccountOperationFeedbackView } from "@d2-tools/app/account";
 import type {
   AccountWriteVerificationInput,
@@ -60,6 +60,7 @@ export function useDesktopProductWriteActions(input: {
   const [itemActionMessage, setItemActionMessage] = useState("");
   const [accountOperationFeedback, setAccountOperationFeedback] = useState<AccountOperationFeedbackView>();
   const [accountWriteSyncs, setAccountWriteSyncs] = useState<AccountWriteSyncState[]>([]);
+  const reloadedTerminalTaskIdsRef = useRef(new Set<string>());
   const { backgroundTasks } = useBackgroundTasks();
   const loadoutActionFeedback = useLoadoutActionFeedback();
 
@@ -82,6 +83,17 @@ export function useDesktopProductWriteActions(input: {
       ...resolved.filter((entry) => entry.task && ["success", "failed", "blocked", "superseded"].includes(entry.task.status))
         .map((entry) => entry.sync.taskId)
     ]);
+    for (const entry of resolved) {
+      if (!entry.task || !terminalTaskIds.has(entry.sync.taskId)) continue;
+      if (reloadedTerminalTaskIdsRef.current.has(entry.sync.taskId)) continue;
+      reloadedTerminalTaskIdsRef.current.add(entry.sync.taskId);
+      // 验证任务结束后必须用真实 Bungie 快照刷新页面。不能只清除本地
+      // patch，否则失败或未生效时页面仍可能显示旧的乐观状态。
+      void input.loadAccountSummary().catch(() => undefined);
+      // 对账结果会追加到操作日志；任务结束后立即拉取，避免设置页继续
+      // 只显示“请求已受理”而看不到最终“已确认/不可用”。
+      void input.diagnostics.loadActionLog().catch(() => undefined);
+    }
     const remainingSyncs = accountWriteSyncs.filter((sync) => !terminalTaskIds.has(sync.taskId));
     const visibleRemainingSyncs = remainingSyncs.filter((sync) => sync.surfaceFeedback);
     const confirmedCount = succeeded.reduce((count, entry) => count + entry.sync.acceptedCount, 0);
@@ -103,7 +115,7 @@ export function useDesktopProductWriteActions(input: {
           : failed.flatMap((entry) => entry.sync.itemInstanceIds),
         message: confirmedCount > 0
           ? `已确认 ${confirmedCount} 项变化，另有 ${unconfirmedCount} 项尚未确认${submissionFailedCount ? `，${submissionFailedCount} 项提交失败` : ""}。${latestFailed.task?.error ?? "请检查登录和网络状态。"}`
-          : latestFailed.task?.error ?? "写入已完成，但后台对账已暂停；页面继续保留 Bungie 写结果。"
+          : latestFailed.task?.error ?? "写入请求未在游戏内确认，页面已按最新账号状态刷新。"
       });
       setItemActionMessage("");
     } else if (latestSuperseded && !visibleRemainingSyncs.length) {
@@ -115,7 +127,7 @@ export function useDesktopProductWriteActions(input: {
           : latestSuperseded.sync.itemInstanceIds,
         message: confirmedCount > 0
           ? `已确认 ${confirmedCount} 项变化；另有 ${supersededCount} 项旧确认已被新操作替代，页面未应用旧操作结果。`
-          : "旧对账任务已由同范围的新操作替代；页面继续保留最新写结果。"
+          : "旧对账任务已由同范围的新操作替代；页面等待最新操作确认。"
       });
       setItemActionMessage("");
     } else if (latestSucceeded && !visibleRemainingSyncs.length) {
@@ -171,13 +183,24 @@ export function useDesktopProductWriteActions(input: {
       }]);
     } catch (error) {
       if (options.surfaceFeedback === false) return;
+      const hasEquipPatch = input.expected_patches.some((patch) => patch.kind === "equip");
       setAccountOperationFeedback({
         tone: "warning",
         phase: "paused",
         itemInstanceIds: input.expected_patches.map((patch) => patch.item_instance_id),
-        message: `写入已完成且页面已更新，但未能启动后台对账：${error instanceof Error ? error.message : "后台任务不可用"}`
+        message: hasEquipPatch
+          ? `写入请求已受理，但未能启动后台对账；页面保持原账号状态：${error instanceof Error ? error.message : "后台任务不可用"}`
+          : `写入已完成且页面已更新，但未能启动后台对账：${error instanceof Error ? error.message : "后台任务不可用"}`
       });
     }
+  }
+
+  function clearCompletedWriteFeedback(): void {
+    // 手动刷新代表用户要求重新读取权威账号状态。已结束的写入错误
+    // 不应继续覆盖刷新结果；仍在进行的同步反馈则保留给后台任务更新。
+    setAccountOperationFeedback((current) => current?.tone === "error" ? undefined : current);
+    setItemActionMessage("");
+    setLoadoutMessage("");
   }
 
   const itemDetail = useItemDetailWorkspace({
@@ -239,6 +262,7 @@ export function useDesktopProductWriteActions(input: {
     loadoutMessage,
     loadoutTemplateActions,
     loadoutWriteActions,
-    vaultWriteActions
+    vaultWriteActions,
+    clearCompletedWriteFeedback
   };
 }

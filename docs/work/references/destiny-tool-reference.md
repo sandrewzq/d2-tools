@@ -1,188 +1,331 @@
-# Destiny 2 工具参考
+# Destiny 2 工具收集
 
-> 这些项目只作为产品能力边界和交互方向参考。d2-tools 的核心数据优先来自 Bungie 官方接口、Destiny Manifest 和用户自己的本地授权数据。
+> 本文是 Destiny 2 社区工具、资料站和开源项目的地址索引，方便玩家按用途查找工具，也方便 d2-tools 做能力边界和交互参考。
+>
+> 地址说明：每个条目都直接显示完整 URL，点击即可访问。`GitHub` 用于查看源码、Issue 和版本；`在线访问` 用于直接打开网页或服务。未提供或暂未确认的地址不会用本机目录代替。
 
-## DIM
+## 导航
 
-[DIM](https://app.destinyitemmanager.com/) 是 Destiny 2 最强装备管理工具，网页端运行。核心能力：
+- [DIM 官方生态仓库](#一dim-官方生态仓库)
+- [装备、仓库与配装](#二装备仓库与配装)
+- [账号查询、公开数据与统计](#三账号查询公开数据与统计)
+- [活动、轮换、Raid 与 Dungeon](#四活动轮换raid-与-dungeon)
+- [百科、资料与官方接口](#五百科资料与官方接口)
+- [工具导航与补充发现](#六工具导航与补充发现)
+- [暂未确认地址](#七暂未确认地址)
 
-- 仓库管理：按武器、护甲、分类、位置、弹药和属性筛选，自由拖拽移动装备。
-- 同名装备对比：自动检测重复装备，展示每件的 perk / 属性差异。
-- Loadout 系统：创建、保存、一键装备配装方案，支持 DIM 链接分享。
-- 愿望单：导入社区维护的 god roll 表格，仓库中自动标记命中装备。
-- 护甲优化器：设定目标属性组合，自动从仓库中选出最优搭配。
-- 清算模式：批量标记垃圾装备，生成清理清单辅助游戏内删除。
-- 进度追踪：赛季等级、里程碑、悬赏、催化进度一览。
-- 农业模式：自动将特定物品转入仓库，保持角色背包整洁。
+## 一、DIM 官方生态仓库
 
-## D2ArmorPicker
+DIM 的官方组织仓库总览：<https://github.com/orgs/DestinyItemManager/repositories>
 
-[D2ArmorPicker](https://d2armorpicker.com/) 是专业的护甲属性优化工具。核心能力：
+这些仓库不是都适合普通玩家直接使用。下面按“对玩家的直接价值”和“对 d2-tools 的参考价值”分层，避免把维护脚本、依赖 fork 和归档客户端混进工具导航。
 
-- 属性优化：设定目标属性组合，自动计算仓库中所有护甲的最优搭配。
-- 模组支持：可指定已拥有的模组，优化结果计入模组加成。
-- 异域锁定：指定某件异域护甲后，围绕它优化其余五件。
-- 结果排序：按总属性点数、浪费点数等排序，支持多方案对比。
-- 子类加成：计入碎片属性加成。
+| 仓库 | 地址 | 价值判断 |
+| --- | --- | --- |
+| DIM | <https://github.com/DestinyItemManager/DIM> | 高：完整的仓库管理、配装、愿望单和写操作产品参考。 |
+| dim-api（DIM Sync） | <https://github.com/DestinyItemManager/dim-api> | 高：同步标签、备注和配装等 DIM 自有数据；不读取库存，也不代替 Bungie 写操作。 |
+| bungie-api-ts | <https://github.com/DestinyItemManager/bungie-api-ts> | 高：TypeScript API 类型、请求辅助和 Manifest 辅助，适合 d2-tools 开发参考。 |
+| d2-additional-info | <https://github.com/DestinyItemManager/d2-additional-info> | 高：从 Manifest 生成赛季、活动、来源、催化剂和模组等补充数据。 |
+| csv-wishlists-parser | <https://github.com/DestinyItemManager/csv-wishlists-parser> | 中：愿望单 CSV 解析器，适合参考导入和转换，不是独立玩家页面。 |
+| d2-manifest-bot | <https://github.com/DestinyItemManager/d2-manifest-bot> | 中：Manifest 更新检查的 GitHub 自动化，主要面向维护者。 |
+| dim-bungie-platform | <https://github.com/DestinyItemManager/dim-bungie-platform> | 低：已归档的旧 REST Endpoint 代码，只适合历史兼容排查。 |
+| dim-extension | <https://github.com/DestinyItemManager/dim-extension> | 低：浏览器快捷入口，不提供独立的装备管理能力。 |
+| dim-mobile / dim-mobile-client | <https://github.com/DestinyItemManager/dim-mobile>、<https://github.com/DestinyItemManager/dim-mobile-client> | 低：移动端项目已归档，不作为当前实现依据。 |
+| d2ai-module | <https://github.com/DestinyItemManager/d2ai-module> | 低：DIM 构建过程相关的数据模块，不是独立玩家工具。 |
+| dim-custom-symbols | <https://github.com/DestinyItemManager/dim-custom-symbols> | 低：DIM 自定义字体资源，和玩家工具功能无关。 |
 
-## d2-armor-solver
+其他如 `dim-release-bot`、`destiny-item-csp`、`license`、`apikey`、依赖库 fork 以及 Android/iOS 平台仓库，主要是组织维护或基础设施，不纳入玩家导航。
 
-[d2-armor-solver](https://github.com/MIGO-OvO/d2-armor-solver) 是面向 Armor 3.0 的开源 T5 六维属性配装计算器，本地参考项目位于 `D:\sandrew\d2-armor-solver`。主要参考方向：
+### dim-api（DIM Sync）
 
-- 六维目标求解：输入生命、近战、手雷、超能、职业和武器目标，结合碎片变化、`+5 / +10` 模组及可选 `+3` 调整模式枚举可行组合。
-- 框架与可达范围：展示实际总属性、理论极限、逐件护甲框架需求、目标缺口和不可满足条件。
-- 异域职业物品：按职业及左右栏特性锁定异域框架，再计算其余四件传奇护甲。
-- 已有护甲利用：录入第三属性和调整方向后按已拥有程度重排方案，可参考其“理论方案与现有库存距离”的表达。
-- 单件替换分析：对当前五件 T5 护甲逐槽位计算替换收益、六维变化、刷取条件和模组重排建议。
-- 轻量实现：核心求解器、界面和本地持久化集中在单文件原生 JavaScript 页面中，适合核对算法输入、组合枚举和结果排序逻辑。
+- 用途：同步标签、备注、保存的配装和其他不属于 Bungie API 的用户数据。
+- GitHub：<https://github.com/DestinyItemManager/dim-api>
+- 在线访问：<https://api.destinyitemmanager.com/>
+- 参考价值：如果 d2-tools 将来需要跨设备同步本地标签、备注或配装，这是比普通 UI 参考更直接的后端协议参考；它不能读取库存，也不能代替 Bungie API 执行装备操作。
 
-使用边界：只借鉴 Armor 3.0 规则建模、求解算法、数据结构和交互思路；该项目使用手工录入与浏览器 `localStorage`，d2-tools 的账号数据、Manifest 定义、真实实例和写操作仍以 Bungie 官方接口及自身领域模型为准。
+### bungie-api-ts
 
-## Destiny Recipes
+- 用途：Bungie.net API 的 TypeScript 类型定义、接口辅助函数和 Manifest 下载辅助。
+- GitHub：<https://github.com/DestinyItemManager/bungie-api-ts>
+- 在线访问：未提供
+- 参考价值：对 TypeScript 项目很有价值，可用于核对 API 请求参数、响应类型和 Manifest 辅助方法；它本身不是玩家网页工具。
 
-[Destiny Recipes](https://destinyrecipes.com/) 是综合性 Destiny 2 辅助工具集。核心能力：
+### d2-additional-info
 
-- 清单：赛季挑战、周常里程碑、催化任务等进度总览。
-- 光等进度：可视化当前光等提升路径，显示每个栏位的最优掉落来源。
-- 战利品伴侣：活动结束后弹窗提示是否保留刚获得的 roll。
-- 仓库清理：按社区推荐批量标记可清理装备。
+- 用途：从 Destiny 2 Manifest 生成 DIM 使用的补充 JSON/TypeScript 数据，例如赛季、活动、来源、催化剂和模组映射。
+- GitHub：<https://github.com/DestinyItemManager/d2-additional-info>
+- 在线访问：未提供
+- 参考价值：适合参考“官方 Manifest 没有直接给出、但产品需要补充维护”的数据生成流程。
 
-## Bray.tech
+### csv-wishlists-parser
 
-[Bray.tech](https://bray.tech/) 是账号全貌查看器。核心能力：
+- 用途：把社区愿望单 CSV 解析成 DIM 可使用的结构。
+- GitHub：<https://github.com/DestinyItemManager/csv-wishlists-parser>
+- 在线访问：未提供
+- 参考价值：如果 d2-tools 扩展愿望单导入或转换功能，这个仓库比直接复制 DIM 页面实现更值得参考。
 
-- 收藏品追踪：按类别查看武器、护甲、模组和催化剂的收集进度。
-- 地图与检查点：查看各目的地的可收集物品、地区宝箱和遗失区域。
-- 里程碑总览：当前所有可完成的里程碑和悬赏一览。
-- 赛季回顾：赛季等级、神器进度、赛季挑战完成情况。
-- 活动记录：最近的 Raid / Dungeon / PVP 活动历史。
+### d2-manifest-bot
 
-## Destiny Sets
+- 用途：通过 GitHub Actions 检查新的 Destiny 2 Manifest 版本。
+- GitHub：<https://github.com/DestinyItemManager/d2-manifest-bot>
+- 在线访问：未提供
+- 参考价值：主要用于维护者自动化，不属于玩家日常使用工具。
 
-[Destiny Sets](https://destinysets.com/) 是装备收集追踪工具。核心能力：
+## 二、装备、仓库与配装
 
-- 按赛季和活动分类：每个赛季的阵营任务和对应奖励一览。
-- 护甲套装：各职业的赛季护甲、Raid 护甲、试炼护甲等收集进度。
-- 武器列表：按活动来源列出所有可收集武器。
-- 催化与模组：催化剂和战斗风格模组的获取方式追踪。
+### Destiny Item Manager（DIM）
 
-## d2-skill
+- 用途：账号、仓库和装备管理；配装、愿望单、清理建议、装备转移和装备对比。
+- GitHub：<https://github.com/DestinyItemManager/DIM>
+- 在线访问：<https://app.destinyitemmanager.com/>
+- 参考重点：成熟的仓库筛选、同名 Roll 对比、Loadout 工作流和写操作确认。
 
-[d2-skill](https://github.com/Lin-Guanguo/d2-skill) 是面向开发者的 Python CLI 工具，d2-tools 的 OAuth / Manifest / AI 实现参考了其架构。核心能力：
+### DIM Wish List Sources
 
-- OAuth 登录：完整的 Bungie OAuth 流程，本地 HTTPS callback 获取 token。
-- Manifest 管理：下载、解析、缓存 Destiny Manifest 关系型数据库。
-- 物品搜索：按中文名、英文名、perk、别名搜索所有物品定义。
-- AI 分析：基于玩家真实账号数据，调用 LLM 分析仓库、推荐装备、解读 perk。
-- 愿望单集成：解析 DIM 格式 wishlist，本地匹配仓库中的装备。
-- 写操作框架：锁定、解锁、转移、装备，有安全边界和确认流程。
-- 工具接口：留出 HTTP API 和 MCP server 扩展能力。
+- 用途：为 DIM 提供社区维护和生成的武器愿望单来源文件，帮助标记推荐 Roll。
+- GitHub：<https://github.com/48klocs/dim-wish-list-sources>
+- 在线访问：默认 `voltron.txt` 愿望单：<https://raw.githubusercontent.com/48klocs/dim-wish-list-sources/master/voltron.txt>
+- 参考重点：社区愿望单的数据组织、默认列表与偏好列表的区分；这是数据来源仓库，不是独立的玩家网页工具。
+- 相关生成工具：<https://48klocs.github.io/wish-list-magic-wand/fingerwave.html>
 
-## Destiny2 Checkinfo
+### D2ArmorPicker
 
-[Destiny2 Checkinfo](https://github.com/hub380/Destiny2-Checkinfo) 是本地参考项目，已放在 `D:\sandrew\Destiny2-Checkinfo`。当前参考分支为 `feature/pvp-history-career-layout`。核心参考点：
+- 用途：根据属性目标、碎片、模组和异域限制计算护甲组合。
+- GitHub：<https://github.com/Mijago/D2ArmorPicker>
+- 在线访问：<https://d2armorpicker.com/>
+- 参考重点：属性目标输入、方案排序、异域锁定和多方案比较。
 
-- 轻量 Web 工具：用 Vite + React + TypeScript 多页面承载组队、玩家生涯、装备、Perk 和攻略入口。
-- 组队信息：展示小黑盒组队列表，支持定时刷新、识别 `名称#数字代码`，并复制 `/j 名称#代码` 加入队伍。
-- 公开玩家查询：不要求玩家本人 OAuth 登录，查询公开 Bungie 生涯数据、角色、Raid、地牢、PvP 分模式统计和锻造进度。
-- 装备与 Perk 查询：搜索武器、护甲、Perk，展示 Perk 池、普通 / 强化差异、Perk 反查武器和 Manifest 来源提示。
-- 后端聚合层：前端消费 `/api/*` 整理后的 DTO，可参考其“后端收口、前端少拼装”的页面数据组织方式。
-- Cloudflare 部署：Workers、KV、R2 用于边缘部署、热点缓存、活动定义、装备索引、玩家大型历史快照和攻略内容。
-- 攻略 / 资讯库骨架：`content/guides/`、R2 上传和校验流程可作为后续攻略证据工作台的轻量参考。
+### d2-armor-solver
 
-使用边界：
+- 用途：面向 Armor 3.0 的六维属性配装和可达性计算。
+- GitHub：<https://github.com/MIGO-OvO/d2-armor-solver>
+- 在线访问：<https://migo-ovo.github.io/d2-armor-solver/>
+- 参考重点：六维目标、`+5 / +10` 模组、可行组合、目标缺口和理论极限展示。
 
-- 小黑盒组队来源没有稳定公开接口文档，不把其私有接口、Cookie 或绕过鉴权逻辑作为 d2-tools 的实现依据。
-- 武器来源提示来自 Bungie Manifest 可读字段，只能参考信息组织方式，不能等同于精确掉落表。
-- d2-tools 仍以 Bungie 官方接口、Destiny Manifest 和用户本地授权数据为数据真相；该项目主要作为公开查询、轻量页面和 Cloudflare 缓存部署的参考。
+### D2 Arsenal
 
-## 命运之小日向 Bot
+- 用途：武器数据库、Perk 组合、Roll 分享和部分伤害衰减计算。
+- GitHub：<https://github.com/D2Arsenal/d2arsenal.com>
+- 在线访问：<https://www.d2arsenal.com/>
+- 参考重点：D2 Gunsmith 的开源替代方向、Roll 分享图片和武器配置预览。
 
-[命运之小日向 Bot](https://qun.qq.com/qunpro/robot/share?robot_appid=102076550) 是面向中文玩家的 QQ 群日报 / 周报机器人。核心能力：
+### Roll Report
 
-- 每日摘要：今日遗失区域、突袭轮换、商人库存、活动列表。
-- 周报：本周夜fall、试炼地图、赛季活动、双倍奖励轮换。
-- 商人详情：Xur、枪匠、艾达、圣人、拉乎尔等常用商人的售卖物品和属性。
-- 掉落查询：按武器名查询掉落来源、活动、perk 池。
-- 指令交互：通过 QQ 消息指令查询装备、统计、活动信息。
+- 用途：发现同一武器上的独特 Perk 组合和 Roll 差异。
+- GitHub：<https://github.com/cecilbowen/roll-report>
+- 在线访问：<https://roll.report/>
+- 参考重点：按武器识别稀有组合，适合作为愿望单和 Roll 分析的补充入口。
 
-## Light.gg
+### D2 Gun Locker
 
-[Light.gg](https://www.light.gg/) 是 Destiny 2 武器数据库和社区投票平台。核心能力：
+- 用途：无需登录即可浏览武器和护甲、查看 Perk、属性、催化剂并比较 Roll。
+- GitHub：未确认
+- 在线访问：<https://d2gunlocker.com/>
+- 参考重点：免登录的资料库浏览和轻量详情页；涉及账号操作时仍应回到 Bungie 授权工具。
 
-- 武器数据库：所有武器的完整 perk 池、来源、获取方式和分类浏览。
-- God Roll 推荐：社区投票选出每种武器的最佳 PVE / PVP perk 组合。
-- 装备评分：社区对每件装备的评分和评论。
-- 个人库存：关联 Bungie 账号后查看自己每件装备的 roll 质量。
-- 排行榜：玩家使用率、击杀数等统计数据。
-- 资料库搜索：按武器类型、弹药、赛季、来源等多维度筛选。
+### Ada's Armory
 
-## D2 Gunsmith
+- 用途：武器搜索、Perk 池、属性、伤害、射程和 Crucible TTK 资料浏览。
+- GitHub：未确认
+- 在线访问：<https://adasarmory.com/>
+- 参考重点：武器详情的信息分组和 PvE/PvP 对比；部分 TTK、射程数据仍在完善。
 
-[D2 Gunsmith](https://d2gunsmith.com/) 是武器 perk 模拟与预览工具。核心能力：
+### Destiny2ools
 
-- Perk 模拟：选择任意武器和 perk 组合，预览实战属性数值。
-- God Roll 对比：同时配置多个 roll 方案，并排对比数值差异。
-- Perk 池浏览：查看任意武器的完整 perk 池，含推荐组合标记。
-- 无账号需求：无需登录 Bungie，纯粹的前端模拟。
+- 用途：连接 Bungie 账号后分析库存、武器和护甲，并按 PvE/PvP、属性和 Perk 条件筛选。
+- GitHub：未确认
+- 在线访问：<https://destiny2ools.cloud/>
+- 参考重点：深度库存分析和“先选择目标、再准备方案”的流程；授权前应确认隐私和服务可信度。
 
-## destiny.report
+### Little Light
 
-[destiny.report](https://destiny.report/) 是武器数据库与 perk 反向搜索引擎。核心能力：
+- 用途：移动端库存管理、快速转移、配装、收藏品、胜利和任务追踪。
+- GitHub：<https://github.com/LittleLightForDestiny/littlelight>
+- 在线访问：未提供网页端；Android：<https://play.google.com/store/apps/details?id=me.markezine.luzinha>；iOS：<https://apps.apple.com/us/app/little-light-for-destiny/id1373037254>
+- 参考重点：移动端快速转移和跨角色配装工作流。它是移动应用，不是 d2-tools 的桌面发布替代品。
 
-- Perk 反向搜索：选择一个 perk，找出所有可刷出该 perk 的武器。
-- 多条件组合筛选：支持来源、制造商、属性、赛季等多维筛选。
-- 勇士反制标注：每把武器标注当前赛季的 Anti-Barrier / Unstoppable / Overload 属性。
-- 实时更新：标注每次更新中新增或改动的武器。
-- 双视图：列表视图和平铺视图。
+### Starside · Destiny 2 中文资料台
 
-## Engram
+- 用途：中文 Destiny 2 资料台，集中整理武器 Perk、武器框架、护甲模组、护甲套装、异域装备、职业分支、技能冷却、首领生命值、DPS、伤害机制和 Raid 攻略。
+- GitHub：未提供
+- 在线访问：<https://destiny2-starside-dea-mods-d1g0j2rile2323f73.webapps.tcloudbase.com/>
+- 重要页面：
+  - 轮换速查表：<https://destiny2-starside-dea-mods-d1g0j2rile2323f73.webapps.tcloudbase.com/rotation/index.html>
+  - 武器 Perk：<https://destiny2-starside-dea-mods-d1g0j2rile2323f73.webapps.tcloudbase.com/weapon-perks/index.html>
+  - 护甲模组：<https://destiny2-starside-dea-mods-d1g0j2rile2323f73.webapps.tcloudbase.com/armor-mods/index.html>
+  - Raid 攻略：<https://destiny2-starside-dea-mods-d1g0j2rile2323f73.webapps.tcloudbase.com/raid-guides/index.html>
+  - 数据源与鸣谢：<https://destiny2-starside-dea-mods-d1g0j2rile2323f73.webapps.tcloudbase.com/sources/index.html>
+- 参考价值：资料页的数值、机制解释和攻略组织方式很有参考价值；轮换速查表把突袭与地牢按固定顺序并列展示，适合参考导航结构和周期表表达。
+- 数据边界：轮换页是静态周期表（页面标注基准时间和更新日期），不是 Bungie 实时接口，也不要求登录账号；d2-tools 不能据此直接判定“当前轮换”，当前轮换仍只使用 Bungie 登录后的角色活动数据。
+- 维护状态：首页和多个页面标注 2026.8.30 更新；站点声明为非官方资料站，具体数据来源和更新责任以其“数据源与鸣谢”页面为准。
 
-[Engram](https://engram.blue/) 是综合性 Destiny 2 工具。核心能力：
+### Destiny Recipes
 
-- 武器制作：武器图案管理，追踪制作进度和解锁条件。
-- Perk 分析：查看武器的完整 perk 池和推荐组合。
-- 账号集成：支持 Bungie 登录，读取个人库存。
+- 用途：赛季挑战、周常内容、光等提升、战利品保留和仓库清理辅助。
+- GitHub：未提供
+- 在线访问：<https://destinyrecipes.com/>
+- 参考重点：把多个日常/周常任务聚合成可执行的玩家清单。
 
-## Today In Destiny
+### Destiny Sets
 
-[Today In Destiny](https://www.todayindestiny.com/) 是每日 / 每周轮换信息的可视化呈现。核心能力：
+- 用途：按赛季、活动和职业追踪护甲套装、武器、催化剂和收集进度。
+- GitHub：未提供
+- 在线访问：<https://destinysets.com/>
+- 参考重点：装备收集目录、活动来源和套装完成度展示。
 
-- 每日总览：遗失区域、传奇 / 大师难度和地图。
-- 每周总览：突袭 / 地牢轮换、夜fall、试炼地图、赛季挑战。
-- 商人库存：显示商人当前售卖的具体物品列表。
-- 活动时间线：以时间轴展示当天各项活动的起止时间。
-- 进度追踪：赛季等级、光等提升路径的可视化。
+### Light.gg
 
-## Destiny Tracker
+- 用途：武器资料库、Perk 池、社区 God Roll 推荐、装备评分和账号库存查看。
+- GitHub：未提供
+- 在线访问：<https://www.light.gg/>
+- 参考重点：Perk 解释、社区推荐和武器版本信息组织方式。
 
-[Destiny Tracker](https://destinytracker.com/) 是 PVP / PVE 玩家统计和排行榜。核心能力：
+### D2-Morgeth-Kick
 
-- 玩家档案：总游戏时长、击杀 / 死亡、胜率、光等历史。
-- PVP 详细统计：各模式的 KD、ELO、胜率、武器使用率。
-- PVE 统计：Raid 完成次数、最快通关时间、击杀数。
-- 排行榜：全球 / 好友排名，按模式和赛季筛选。
-- 比赛历史：最近场次的详细数据。
+- 用途：与 Morgeth 相关的 Destiny 2 社区辅助项目。
+- GitHub：<https://github.com/MIGO-OvO/D2-Morgeth-Kick/>
+- 在线访问：<https://migo-ovo.github.io/D2-Morgeth-Kick/>
+- 备注：仓库 metadata 提供了对应 GitHub Pages 地址。
 
-## Raid Report
+## 三、账号查询、公开数据与统计
 
-[Raid Report](https://raid.report/) 是专精 Raid / Dungeon 记录的复盘工具。核心能力：
+### d2-skill
 
-- Raid 记录：每个 Raid 的完成次数、最快通关时间、全程无 wipe 标记。
-- Dungeon 记录：Solo / Flawless 完成标识，详细通关历史。
-- 队友视角：查看任意队伍成员的完整 Raid 记录。
-- 赛季回顾：本季各 Raid 的活跃度、首通和效率统计。
-- 全球排行榜：速度排名、完成总数排名。
+- 用途：中文 Destiny 2 工具项目，覆盖 OAuth、Manifest、物品搜索、Perk、AI 分析和愿望单等能力。
+- GitHub：<https://github.com/Lin-Guanguo/d2-skill>
+- 在线访问：未提供
+- 参考重点：Bungie 登录、Manifest 生命周期、跨领域服务拆分和工具接口设计。
 
-## D2Checkpoint
+### Destiny2 Checkinfo
 
-[D2Checkpoint](https://d2checkpoint.com/) 是 checkpoint 共享和获取平台。核心能力：
+- 用途：玩家公开资料查询、装备与 Perk 搜索、生涯统计、组队信息和攻略入口。
+- GitHub：<https://github.com/hub380/Destiny2-Checkinfo>
+- 在线访问：<https://destiny2.check-info.org/>
+- 参考重点：公开查询不依赖本人 OAuth、后端聚合 DTO 和玩家生涯页面组织。
 
-- Checkpoint 浏览：按 Raid / Dungeon / Boss 分类查找当前可用 checkpoint。
-- 一键加入：复制 `/join` 指令，在游戏中快速加入 checkpoint 持有者的火力战队。
-- Checkpoint 提交：玩家可提交自己持有的 checkpoint 供社区使用。
-- Boss 专属：支持直接跳转到指定 Boss 的 checkpoint。
+### Destiny Tracker
 
-## 数据基础设施
+- 用途：玩家档案、PvP/PvE 统计、比赛历史和排行榜。
+- GitHub：未提供
+- 在线访问：<https://destinytracker.com/>
+- 参考重点：按玩家、模式、赛季和排行榜维度组织统计信息。
 
-- [Bungie.Net API](https://bungie-net.github.io/multi/index.html)：官方 REST API 文档，涵盖 OAuth 认证、账号读取、物品操作、活动历史、商人库存等全部接口。d2-tools 不通过任何第三方中转，直接基于此文档实现 Bungie 通信。
+### Bray.tech
+
+- 用途：收藏品、地图、里程碑、赛季进度和活动记录查询。
+- GitHub：未提供
+- 在线访问：<https://bray.tech/>
+- 参考重点：收藏进度、目的地地图和账号全貌的分层浏览。
+
+### Destiny 2 Solo Enabler
+
+- 用途：通过本地辅助方式限制匹配，让玩家进行单人活动测试或探索。
+- GitHub：<https://github.com/DrNoLife/Destiny-2-Solo-Enabler>
+- 在线访问：未提供
+- 注意：这是本地辅助工具，不属于账号查询服务；使用前应确认其与游戏规则和当前客户端版本的兼容性。
+
+## 四、活动、轮换、Raid 与 Dungeon
+
+### Today In Destiny
+
+- 用途：每日/每周轮换、遗失区域、突袭、地牢、夜fall、试炼和商人库存。
+- GitHub：未提供
+- 在线访问：<https://www.todayindestiny.com/>
+- 参考重点：活动轮换、商人库存和起止时间的玩家友好展示。
+
+### 命运之小日向 Bot
+
+- 用途：通过 QQ 群机器人提供每日/每周摘要、轮换、商人库存、掉落来源和玩家查询。
+- GitHub：未提供
+- 在线访问：<https://qun.qq.com/qunpro/robot/share?robot_appid=102076550>
+- 参考重点：把日常信息推送到玩家常用聊天工具，降低主动查询成本。
+
+### destiny.report
+
+- 用途：武器数据库、Perk 反向搜索、来源筛选和赛季反制属性提示。
+- GitHub：未提供
+- 在线访问：<https://destiny.report/>
+- 参考重点：从 Perk 反查武器和按来源聚合结果的检索方式。
+
+### Raid Report
+
+- 用途：Raid 和 Dungeon 完成记录、Solo/Flawless 标记、队友记录和排行榜。
+- GitHub：未提供
+- 在线访问：<https://raid.report/>
+- 参考重点：活动历史、通关效率、队伍成员和挑战成就的组合展示。
+
+### D2Checkpoint
+
+- 用途：查找和分享 Raid/Dungeon checkpoint，并复制加入队伍所需的游戏指令。
+- GitHub：未提供
+- 在线访问：<https://d2checkpoint.com/>
+- 参考重点：按活动、Boss 和 checkpoint 状态快速定位可用进度。
+
+### D2 Gunsmith
+
+- 用途：武器 Perk 配置、打造和数值预览工具。
+- GitHub：未确认
+- 在线访问：<https://d2gunsmith.com/>
+- 备注：已确认在线地址可访问；目前没有确认到对应的官方 GitHub 仓库。
+
+## 五、百科、资料与官方接口
+
+### Destinypedia：Engram
+
+- 用途：Destiny 世界观、物品、活动和术语百科资料。
+- GitHub：未提供
+- 在线访问：<https://www.destinypedia.com/Engram>
+- 参考重点：面向玩家的术语解释、背景资料和交叉链接。
+
+### Bungie.Net API
+
+- 用途：官方 REST API 文档，涵盖 OAuth、账号、角色、物品、活动历史、商人和写操作接口。
+- GitHub：<https://github.com/Bungie-net/api>
+- 在线访问：<https://bungie-net.github.io/multi/index.html>
+- 参考重点：d2-tools 的官方数据和授权边界；真实账号数据、写操作和接口字段以 Bungie 文档为准。
+
+## 六、工具导航与补充发现
+
+### Destiny 2 Tools
+
+- 用途：第三方工具聚合导航，按库存、统计、进度、资料和分析等用途收集社区站点。
+- GitHub：未确认
+- 在线访问：<https://destiny2.tools/>
+- 参考重点：按用途分组、搜索和快速跳转的导航结构，可作为 d2-tools 外链入口设计参考；站内条目的新鲜度仍需逐个核对。
+
+### Bungie Companion Apps
+
+- 用途：Bungie 官方登记的第三方 Companion App 列表。
+- GitHub：未提供
+- 在线访问：<https://www.bungie.net/7/en/registration/apps>
+- 参考重点：作为“官方认可的第三方应用入口”或安全提示链接；不等于 Bungie 对每个应用的功能和隐私做全面担保。
+
+## 七、暂未确认地址
+
+以下地址可以访问，但暂不作为主导航条目，原因是信息重复、维护状态不清晰或没有确认对应源码：
+
+- Destiny Tools 聚合站：<https://www.destinytools.net/>。内容以旧式链接目录为主，部分条目可能过期。
+- D2 Armor Calc：<https://d2-armor-calc-lac.vercel.app/>。在线入口可访问，但尚未确认稳定维护的源码仓库和数据更新策略。
+
+其余没有确认在线入口或对应 GitHub 仓库的条目，继续保留“未提供 / 未确认”标记，不用本机路径或未经核实的搜索结果代替。
+
+## 导航化排版建议
+
+后续做成 d2-tools 的工具导航时，每个工具建议转换成一张统一的信息卡，而不是把 GitHub 和在线地址混在一段描述里。卡片至少保留以下字段：
+
+- 工具名称与一句话用途。
+- 分类：仓库/配装、武器/Perk、账号/统计、活动/轮换、资料/百科、开发参考。
+- 使用方式：在线网页、桌面应用、移动应用、GitHub 项目。
+- 是否需要 Bungie 登录：无需登录、可选登录、必须登录、仅开发者使用。
+- GitHub：完整 URL；没有就写“未提供”或“未确认”。
+- 在线访问：完整 URL；移动应用则分别列出 Android / iOS。
+- 推荐级别：推荐、可选、仅参考、已归档。
+- 注意事项：数据新鲜度、授权范围、平台限制或维护状态。
+
+推荐的首层导航只展示“推荐”与“可选”工具，并提供分类筛选和关键词搜索；“仅参考”和“已归档”放在折叠的开发者/历史区域。卡片的主要操作应是“打开在线工具”，GitHub 作为次级操作，避免玩家误把源码仓库当成可直接使用的产品。
+
+## 使用边界
+
+- 本文只收集公开地址和能力摘要，不复制第三方源码、账号数据、Cookie、Token 或本地缓存。
+- 第三方工具的能力、数据新鲜度和服务稳定性由其维护者负责；涉及账号授权时应先查看其隐私和安全说明。
+- d2-tools 的产品实现仍以 Bungie 官方接口、Destiny Manifest 和用户自己的授权数据为准；这里的工具只用于能力参考、交互参考和玩家导航。

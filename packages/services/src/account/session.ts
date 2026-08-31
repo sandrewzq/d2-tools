@@ -738,6 +738,11 @@ export function createAccountSession(options: CreateAccountSessionOptions): Acco
     for (const [instanceId, patch] of pendingItemPatches) {
       if (isAccountItemPatchReflected(serverSnapshot, patch)) {
         pendingItemPatches.delete(instanceId);
+      } else if (patch.kind === "equip") {
+        // 装备操作必须以 Bungie Profile 的真实装备列表为准。不要把未反映
+        // 的本地装备 patch 再合并回刷新结果，否则游戏内未装备时页面仍会
+        // 伪装成已装备。
+        pendingItemPatches.delete(instanceId);
       } else {
         reconciled = applyAccountItemPatch(reconciled, patch);
       }

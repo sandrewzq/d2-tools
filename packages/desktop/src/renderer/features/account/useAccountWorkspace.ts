@@ -150,6 +150,9 @@ export function useAccountWorkspace(input: {
   async function refreshAccountSnapshot(
     reason: AccountRefreshReason = getAccountSummarySnapshot() ? "manual" : "initial"
   ) {
+    // 每次刷新开始都清除上一轮读取错误，即使本次请求会复用已有的
+    // in-flight 请求；否则手动刷新期间旧错误会一直覆盖页面。
+    setAccountError("");
     const foreground = reason === "manual" || !getAccountSummarySnapshot();
     const existingRequest = accountRefreshRequestRef.current;
     if (existingRequest) {
@@ -168,8 +171,6 @@ export function useAccountWorkspace(input: {
     const requestStartedRevision = getAccountStoreRevision();
     const loadingSequence = foreground ? ++accountLoadingSequenceRef.current : 0;
     if (foreground) setIsLoadingAccount(true);
-    setAccountError("");
-
     const request = (async (): Promise<AccountSummary | null> => {
       try {
         let summary: AccountSummary;

@@ -178,6 +178,7 @@ export function HomePageContentView(props: HomePageContentViewProps) {
       interfaceLocale={interfaceLocale}
       dailySummary={dailySummary}
       weeklySummary={weeklySummary}
+      hasAccountData={props.hasAccountData ?? false}
       clock={clock}
       xur={xur}
       selectedCharacterId={props.selectedCharacterId}
@@ -200,6 +201,7 @@ function HomePageContent(props: {
   interfaceLocale: InterfaceLocale;
   dailySummary: HomeDailySummary | null;
   weeklySummary: HomeWeeklySummary | null;
+  hasAccountData: boolean;
   clock: Date;
   xur: HomeConfirmedXur | null;
   selectedCharacterId?: string;
@@ -216,10 +218,20 @@ function HomePageContent(props: {
   onOpenXurOffer?: (item: VendorInventoryItemView, context: VendorOfferContextView) => void;
 }) {
   const priorities = props.weeklySummary?.priorities;
+  const showAccountGatedRotations = props.hasAccountData
+    && Boolean(props.weeklySummary)
+    && isCurrentWeeklyBriefing(props.briefingFetchedAt, props.clock)
+    && !props.dailyError
+    && !props.isLoadingDaily
+    && props.dailyResourceStatus === "ready";
   const activities = [
     { kind: "nightfall", label: homeText(props.copy, "日落打击"), priority: priorities?.nightfall },
-    { kind: "raid", label: homeText(props.copy, "本周轮换突袭"), priority: priorities?.rotating_raid },
-    { kind: "dungeon", label: homeText(props.copy, "本周轮换地牢"), priority: priorities?.rotating_dungeon }
+    ...(showAccountGatedRotations && priorities?.rotating_raid?.status === "ready" ? [
+      { kind: "raid" as const, label: homeText(props.copy, "本周轮换突袭"), priority: priorities?.rotating_raid },
+    ] : []),
+    ...(showAccountGatedRotations && priorities?.rotating_dungeon?.status === "ready" ? [
+      { kind: "dungeon" as const, label: homeText(props.copy, "本周轮换地牢"), priority: priorities?.rotating_dungeon }
+    ] : [])
   ] as const;
   const xur = props.xur;
   const xurItems = xur?.items ?? [];
@@ -567,6 +579,25 @@ function isHomeEquipmentReward(reward: HomeWeeklyActivityReward): boolean {
   if (reward.group_key === "weapons" || reward.group_key === "armor") return true;
   if (reward.group_key === "equipment" || reward.group_key === "other") return false;
   return /武器|步枪|手炮|弓|霰弹枪|狙击枪|榴弹发射器|机枪|火箭发射器|剑|融合步枪|冲锋枪|手枪|偃月|护甲|头盔|臂铠|胸甲|胸部护甲|腿甲|腿部护甲|职业物品|weapon|rifle|launcher|cannon|shotgun|sniper|sword|glaive|bow|armor|helmet|gauntlets|chest|leg armor|class item/i.test(reward.item_type?.trim() ?? "");
+}
+
+function isCurrentWeeklyBriefing(fetchedAt: string | undefined, now: Date): boolean {
+  if (!fetchedAt) return false;
+  const fetchedTimestamp = Date.parse(fetchedAt);
+  if (!Number.isFinite(fetchedTimestamp)) return false;
+  const currentWeeklyBoundary = new Date(Date.UTC(
+    now.getUTCFullYear(),
+    now.getUTCMonth(),
+    now.getUTCDate(),
+    17,
+    0,
+    0,
+    0
+  ));
+  const daysSinceTuesday = (currentWeeklyBoundary.getUTCDay() - 2 + 7) % 7;
+  currentWeeklyBoundary.setUTCDate(currentWeeklyBoundary.getUTCDate() - daysSinceTuesday);
+  if (currentWeeklyBoundary > now) currentWeeklyBoundary.setUTCDate(currentWeeklyBoundary.getUTCDate() - 7);
+  return fetchedTimestamp >= currentWeeklyBoundary.getTime();
 }
 
 function HomeXurOffer(props: {

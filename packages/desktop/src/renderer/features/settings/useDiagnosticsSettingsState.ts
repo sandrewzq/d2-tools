@@ -72,7 +72,7 @@ export function useLanguagePreferencesState(initialLanguagePreferences?: Languag
 export function useActionLogState() {
   const initialState = createDiagnosticsSettingsState();
   const [actionLog, setActionLog] = useState<ActionLogEntry[]>(initialState.actionLog);
-  const [actionLogResultFilter, setActionLogResultFilter] = useState<"all" | "success" | "failed">(
+  const [actionLogResultFilter, setActionLogResultFilter] = useState<"all" | "success" | "pending" | "failed">(
     initialState.actionLogResultFilter
   );
   const [actionLogTypeFilter, setActionLogTypeFilter] = useState<ActionLogEntry["action"] | "all">(

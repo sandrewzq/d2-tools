@@ -69,6 +69,10 @@ export function replaceAccountSummary(
     for (const [instanceId, patch] of committedPatchesByInstanceId) {
       if (isAccountItemActionPatchReflected(summary, patch)) {
         committedPatchesByInstanceId.delete(instanceId);
+      } else if (patch.kind === "equip") {
+        // 装备状态不能由本地乐观 patch 覆盖权威账号刷新。若 Bungie
+        // 返回的 characterEquipment 没有该实例，就清掉旧 patch 并展示真实位置。
+        committedPatchesByInstanceId.delete(instanceId);
       } else {
         next = applyPatch(next, patch);
       }

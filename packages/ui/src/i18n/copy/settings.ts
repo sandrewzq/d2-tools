@@ -257,6 +257,8 @@ export const settingsCopy: Record<InterfaceLocale, LocaleCopy["settings"]> = {
         "结果": "Result",
         "全部": "All",
         "成功": "Success",
+        "已受理": "Accepted",
+        "已确认": "Confirmed",
         "失败": "Failed",
         "类型": "Type",
         "锁定状态": "Lock state",

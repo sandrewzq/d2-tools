@@ -157,6 +157,7 @@ export type AccountWriteVerificationInput = {
   destiny_membership_id: string;
   character_id: string;
   character_name?: string;
+  item_name?: string;
   expected_patches: AccountItemActionPatch[];
   accepted_count: number;
   failed_count: number;

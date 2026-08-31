@@ -110,7 +110,6 @@ export function useDesktopProductShell(props: {
     setEquipmentTargetStore,
     refreshAccountSnapshot
   } = accountWorkspace;
-  const refreshAccountManually = () => refreshAccountSnapshot("manual");
   const refreshAccountAfterWrite = () => refreshAccountSnapshot("write-action");
   const reloadAccountAfterWrite = async () => {
     await refreshAccountSnapshot("write-action");
@@ -162,6 +161,10 @@ export function useDesktopProductShell(props: {
     loadoutLibrary,
     onRecentHistoryChanged: library.setLibraryHistory
   });
+  const refreshAccountManually = () => {
+    writeActions.clearCompletedWriteFeedback();
+    return refreshAccountSnapshot("manual");
+  };
   const itemDetail = writeActions.itemDetail;
   const vendorDefinitionDetail = useVendorDefinitionDetail({ vendorSourcePaths, vaultTags });
   const isRunningItemAction = writeActions.isRunningItemAction;

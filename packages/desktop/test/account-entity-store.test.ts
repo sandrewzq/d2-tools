@@ -112,6 +112,21 @@ describe("account entity store", () => {
     expect(character.inventory_groups[0]?.items.map((item) => item.instance_id)).toEqual(["equipped-item"]);
   });
 
+  it("权威刷新未反映装备时丢弃本地装备 patch", () => {
+    replaceAccountSummary(accountSummary());
+    applyCommittedAccountEntityPatches([{
+      kind: "equip",
+      item_instance_id: "inventory-item",
+      character_id: "character-1"
+    }]);
+
+    replaceAccountSummary(accountSummary());
+
+    const character = getAccountSummarySnapshot()!.characters[0]!;
+    expect(character.equipped_items.map((item) => item.instance_id)).toEqual(["equipped-item"]);
+    expect(character.inventory_items.map((item) => item.instance_id)).toContain("inventory-item");
+  });
+
   it("无实例物品在同一位置按出现次序保留独立实体", () => {
     const summary = accountSummary();
     summary.vault.items.push(item({ hash: 9000, instance_id: undefined, name: "material a" }));

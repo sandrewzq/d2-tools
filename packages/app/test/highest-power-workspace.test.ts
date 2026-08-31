@@ -65,7 +65,7 @@ describe("highest power workspace", () => {
         item_type: "腿部护甲",
         bucket_hash: 2422292810,
         group_key: "other",
-        instance: { can_equip: false, cannot_equip_reason: 0 }
+        instance: { can_equip: false, cannot_equip_reason: 16 }
       }],
       inventory_groups: [],
       postmaster_items: [],
@@ -79,6 +79,30 @@ describe("highest power workspace", () => {
       source: "inventory",
       needs_equip: true
     });
+  });
+
+  it("does not submit an item whose cannot-equip reason is unknown", () => {
+    const character: CharacterSummary = {
+      character_id: "char-1",
+      class_name: "术士",
+      light: 1800,
+      equipped_items: [item("equipped-legs", "当前腿甲", "腿甲", 1800)],
+      equipment_groups: [],
+      inventory_items: [{
+        ...item("blocked-legs", "不可装备腿甲", "未知", 1810, 2, "异域"),
+        item_type: "腿部护甲",
+        bucket_hash: 2422292810,
+        group_key: "other",
+        instance: { can_equip: false, cannot_equip_reason: 0 }
+      }],
+      inventory_groups: [],
+      postmaster_items: [],
+      loadout_slots: []
+    };
+
+    const plan = createHighestPowerEquipPlan({ character, vaultItems: [] });
+
+    expect(plan.items.find((entry) => entry.slot_label === "腿甲")?.item.name).toBe("当前腿甲");
   });
 
   it("splits highest-power actions into transfer and equip phases", () => {

@@ -105,7 +105,7 @@ export function registerActionIpcHandlers(): void {
       itemName: input.item_name,
       itemInstanceId: input.item_id,
       characterId: input.character_id,
-      successMessage: "装备成功",
+      successMessage: "装备请求已受理",
       accountPatch: {
         kind: "equip",
         item_instance_id: input.item_id,
@@ -207,7 +207,7 @@ export function registerActionIpcHandlers(): void {
     return runBatchWriteActions({
       action: "equip",
       items: input.items,
-      successMessage: "批量装备完成",
+      successMessage: "批量装备请求已受理",
       runItem: async ({ config, token }, item) => {
         equipRequest ??= equipItemsOnce({ config, token, request: input });
         const equipStatus = (await equipRequest).get(item.item_id);
@@ -608,7 +608,9 @@ async function performWriteAction(input: WriteActionRunInput): Promise<ItemActio
     } else if (input.itemInstanceId) {
       await invalidateAccountItemDetails([input.itemInstanceId]);
     }
-    if (input.accountPatch) {
+    if (input.accountPatch && input.accountPatch.kind !== "equip") {
+      // 装备位置必须等待真实 Profile 对账确认，不能把 EquipItem 的 HTTP
+      // 成功直接写入 Session 快照，否则缓存读取也会伪装成已装备。
       await patchAccountSession(input.accountPatch, { revalidate: false });
     }
     postprocessDurationMs = performance.now() - postprocessStartedAt;
@@ -806,7 +808,12 @@ async function performBatchWriteActions<T>(
       const accountPatch = input.getAccountPatch?.(item);
       if (accountPatch) {
         accountPatches.push(accountPatch);
-        await patchAccountSession(accountPatch, { revalidate: false });
+        // 装备写入的 HTTP 成功只代表 Bungie 接受请求，不能把实例立即
+        // 写入 Session 的装备位置。必须等后台 Profile 对账确认后再清理
+        // pending 状态；转移、锁定和邮政官取回仍可立即反映。
+        if (accountPatch.kind !== "equip") {
+          await patchAccountSession(accountPatch, { revalidate: false });
+        }
       }
       appendActionLog(config.data.data_dir, {
         ...input.getTrace?.(item),
@@ -1045,6 +1052,9 @@ function startAccountWriteVerification(input: AccountWriteVerificationInput) {
             await Promise.all(input.expected_patches.map((patch) => (
               patchAccountSession(patch, { revalidate: false, preserve: false })
             )));
+            appendAccountWriteVerificationLog(config.data.data_dir, input, "verified", input.failed_count > 0
+              ? `已确认 ${matchedCount}/${input.accepted_count} 项变化已在游戏内生效，另有 ${input.failed_count} 项提交失败。`
+              : `已确认 ${matchedCount} 项变化已在游戏内生效。`);
             for (const verificationKey of verificationKeys) {
               if (latestWriteVerificationByScope.get(verificationKey) === input.operation_id) {
                 latestWriteVerificationByScope.delete(verificationKey);
@@ -1091,6 +1101,12 @@ function startAccountWriteVerification(input: AccountWriteVerificationInput) {
             message: classified.message
           });
           if (!classified.retryable) {
+            appendAccountWriteVerificationLog(
+              config.data.data_dir,
+              input,
+              "unavailable",
+              `写入请求已受理，但后台对账不可用：${classified.message}`
+            );
             throw new Error(`写入已完成，但后台对账已暂停：${classified.message}`);
           }
           context.update({
@@ -1101,6 +1117,26 @@ function startAccountWriteVerification(input: AccountWriteVerificationInput) {
         }
       }
     }
+  });
+}
+
+function appendAccountWriteVerificationLog(
+  dataDir: string,
+  input: AccountWriteVerificationInput,
+  status: "verified" | "partial" | "mismatch" | "unavailable",
+  message: string
+): void {
+  appendActionLog(dataDir, {
+    action: "execution-verification",
+    operation_id: input.operation_id,
+    item_instance_id: input.expected_patches.length === 1
+      ? input.expected_patches[0]?.item_instance_id
+      : undefined,
+    character_id: input.character_id,
+    ...(input.item_name?.trim() ? { item_name: input.item_name.trim().slice(0, 200) } : {}),
+    verification_status: status,
+    ok: status === "verified",
+    message
   });
 }
 
@@ -1124,6 +1160,7 @@ function sanitizeAccountWriteVerificationInput(
     destiny_membership_id: destinyMembershipId,
     character_id: characterId,
     ...(input.character_name?.trim() ? { character_name: input.character_name.trim().slice(0, 120) } : {}),
+    ...(input.item_name?.trim() ? { item_name: input.item_name.trim().slice(0, 200) } : {}),
     expected_patches: expectedPatches,
     accepted_count: normalizeNonNegativeCount(input.accepted_count),
     failed_count: normalizeNonNegativeCount(input.failed_count)

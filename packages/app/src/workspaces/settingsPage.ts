@@ -10,7 +10,7 @@ export type SettingsSectionKey =
   | "backup"
   | "diagnostics";
 
-export type SettingsActionLogResultFilter = "all" | "success" | "failed";
+export type SettingsActionLogResultFilter = "all" | "success" | "pending" | "failed";
 
 export type SettingsActionLogTypeFilter =
   | "all"

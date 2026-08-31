@@ -586,6 +586,8 @@ export function createWebHomePageModel(snapshot: WebHomeSnapshot) {
   return selectHomePageModel({
     state: snapshot.homeState,
     accountError: "",
+    hasAccountData: true,
+    briefingFetchedAt: new Date().toISOString(),
     diagnosticRows: [{ tone: "warning" }],
     dailySummary: snapshot.homeDailySummary,
     weeklySummary: snapshot.homeWeeklySummary

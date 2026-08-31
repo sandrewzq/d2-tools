@@ -230,7 +230,7 @@ Renderer UI 的长期边界只在本节保留，具体视觉数值与菜单合�
 - GameData worker 的 search/detail 请求必须有有限超时和单请求 pending 清理；definition 批量读取可使用更长超时，worker error/exit/close 时必须统一拒绝并清空剩余请求。
 - 资料库更新使用当前语言 SQLite 作为主库，构建装备、Perk、关系和 canonical identity sidecar；非英文界面可离线下载英文 SQLite 构建轻量英文 sidecar，但不得长期保留第二份完整英文主库。
 - JSON Adapter 只用于 SQLite 当前未覆盖的 supplement；不得作为旧主缓存兼容层，也不得重新把大型 JSON 主缓存接回普通请求。
-- 账号读取统一通过 `AccountSession`：列表使用紧凑 `AccountSnapshot`，实例详情按需加载；Bungie 单件写接口明确成功，或批量接口返回单项成功状态后，立即把对应局部 patch 提交到 `AccountSession`、renderer Store 和持久化账号快照。Profile 只在后台低优先级对账并解除写结果保护；暂时返回旧数据的 Profile 不得回退已提交结果。账号快照缓存和 Manifest / sidecar 都属于运行缓存，不进入便携备份。
+- 账号读取统一通过 `AccountSession`：列表使用紧凑 `AccountSnapshot`，实例详情按需加载；转移、锁定等不会改变装备槽位的写操作可在接口成功后提交局部 patch，但单件和批量装备写入只能记录为“请求已受理/同步中”，不得把本地 patch 当成已装备。后台 Profile 对账必须按实例 ID确认真实位置，确认成功后触发一次权威账号刷新并追加“已确认”日志，失败或未反映时清除装备 pending 状态并追加“不可用”日志；暂时返回旧数据的 Profile 不得覆盖已确认结果，也不得让未确认的装备结果继续伪装成成功。账号快照缓存和 Manifest / sidecar 都属于运行缓存，不进入便携备份。
 - 最高光等候选不得把 Bungie `canEquip=false` 一律解释为永久不可装备：仓库或其他角色位置限制必须进入转移计划，当前异域唯一装备冲突必须交给组合求解；只有等级、未解锁、物品本身不可装备等无法由当前执行计划恢复的原因才排除。写请求受理后保持 `syncing`，轻量账号组件确认目标实例后再显示成功。
 - 账号刷新诊断统一进入脱敏诊断导出，至少分开记录 OAuth、Membership、Profile、定义水合、快照构建、持久化和 IPC 总耗时，并统计 Session / Repository 的缓存命中、in-flight 复用、排队与持久化合并；诊断回调不得改变账号读取结果。
 - 真实账号验收中，最近一次账号刷新 IPC 总耗时约 `580ms`，其中 Bungie Profile 约 `515ms`；定义水合、快照构建和持久化合计约 `100ms`，Repository in-flight 复用已实际命中。账号刷新性能判断应优先区分 Bungie 网络耗时与本地处理耗时，不再用前台重复完整 Profile 查询换取写后确认。

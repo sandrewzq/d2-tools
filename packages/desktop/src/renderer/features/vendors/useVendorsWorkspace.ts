@@ -12,6 +12,9 @@ import type {
 } from "../../../contracts/vendors.js";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+type VendorRefreshSource = "manual" | "background" | "vendor-select";
+type VendorRefreshHandler = (source: VendorRefreshSource) => Promise<void>;
+
 export type VendorRefreshState = {
   snapshot: VendorInventorySnapshot;
   refreshState: "idle" | "failed";
@@ -58,6 +61,10 @@ export function useVendorsWorkspace(input: {
   const [selectedVendorId, setSelectedVendorId] = useState<string | undefined>("vendor-2190858386");
   const [scope, setScope] = useState<VendorCharacterScope>(() => ({ kind: "character", characterId: input.selectedCharacterId }));
   const previousSelectedCharacterIdRef = useRef(input.selectedCharacterId);
+  const previousSelectedVendorIdRef = useRef(selectedVendorId);
+  const vendorSelectionRefreshPendingRef = useRef(false);
+  const vendorSelectionRefreshTimerRef = useRef<number | null>(null);
+  const runRefreshRef = useRef<VendorRefreshHandler | null>(null);
   const requestContextKeyRef = useRef("__initial__");
   const requestSequenceRef = useRef(0);
   const manualRequestSequenceRef = useRef<number | null>(null);
@@ -98,8 +105,10 @@ export function useVendorsWorkspace(input: {
     () => expandVendorDetailHashes(selectedVendorHash, snapshot),
     [selectedVendorHash, snapshot]
   );
+  const selectedVendorHashRef = useRef<number | undefined>(selectedVendorHash);
+  selectedVendorHashRef.current = selectedVendorHash;
 
-  const runRefresh = useCallback(async (source: "manual" | "background") => {
+  const runRefresh = useCallback(async (source: VendorRefreshSource) => {
     if (!input.active || !input.accountSummary || !requestCharacterIds.length) return;
     const requestSequence = ++requestSequenceRef.current;
     if (source === "manual") {
@@ -117,6 +126,7 @@ export function useVendorsWorkspace(input: {
     );
     setRefreshState("refreshing");
     setRefreshError("");
+    if (source === "vendor-select") setStatusMessage("正在更新当前商人库存");
     try {
       const next = hideInactiveXur(await input.loadInventory(request), input.now);
       if (requestSequence !== requestSequenceRef.current || requestContextKey !== requestContextKeyRef.current) return;
@@ -153,7 +163,34 @@ export function useVendorsWorkspace(input: {
     }
   }, [input.accountSummary, input.active, input.loadInventory, input.now, requestCharacterIds, requestContextKey, selectedDetailVendorHashes, snapshot]);
 
-  const refresh = useCallback(() => runRefresh("manual"), [runRefresh]);
+  runRefreshRef.current = runRefresh;
+
+  useEffect(() => {
+    const previousSelectedVendorId = previousSelectedVendorIdRef.current;
+    previousSelectedVendorIdRef.current = selectedVendorId;
+    if (!input.active || !snapshot || !selectedVendorHashRef.current || !selectedVendorId || previousSelectedVendorId === selectedVendorId) return;
+
+    vendorSelectionRefreshPendingRef.current = true;
+    const id = window.setTimeout(() => {
+      vendorSelectionRefreshTimerRef.current = null;
+      void runRefreshRef.current?.("vendor-select");
+    }, 250);
+    vendorSelectionRefreshTimerRef.current = id;
+    return () => {
+      window.clearTimeout(id);
+      if (vendorSelectionRefreshTimerRef.current === id) vendorSelectionRefreshTimerRef.current = null;
+      vendorSelectionRefreshPendingRef.current = false;
+    };
+  }, [input.active, requestContextKey, selectedVendorId]);
+
+  const refresh = useCallback(() => {
+    if (vendorSelectionRefreshTimerRef.current !== null) {
+      window.clearTimeout(vendorSelectionRefreshTimerRef.current);
+      vendorSelectionRefreshTimerRef.current = null;
+      vendorSelectionRefreshPendingRef.current = false;
+    }
+    return runRefresh("manual");
+  }, [runRefresh]);
 
   useEffect(() => {
     if (!input.active) {
@@ -212,6 +249,10 @@ export function useVendorsWorkspace(input: {
 
   useEffect(() => {
     if (!input.active || !input.accountSummary || !requestCharacterIds.length || !snapshot || !selectedDetailVendorHashes.length) return;
+    if (vendorSelectionRefreshPendingRef.current) {
+      vendorSelectionRefreshPendingRef.current = false;
+      return;
+    }
     if (
       snapshot.detailVendorHashes === undefined
       || selectedDetailVendorHashes.every((vendorHash) => snapshot.detailVendorHashes?.includes(vendorHash))
@@ -257,6 +298,7 @@ export function useVendorsWorkspace(input: {
     })();
   }, [input.accountSummary, input.active, input.loadCachedInventory, input.loadInventory, input.now, requestCharacterIds, requestContextKey, selectedDetailVendorHashes, snapshot]);
 
+  // Xur 到访 / 离开是低频的明确边界事件，保留一次性定时器，避免页面长时间打开时状态过期。
   useEffect(() => {
     if (!input.active) return;
     const currentTime = input.now ?? new Date();

@@ -111,6 +111,13 @@ export function useLoadoutWriteActions(input: {
     };
   }
 
+  function applyAcceptedAccountPatches(patches: readonly AccountItemActionPatch[]): void {
+    // 装备请求返回成功只代表 Bungie 接受了写入，不能把实例立即移动到
+    // “已装备”。装备位置必须等后台 Profile 对账确认后由权威刷新更新。
+    const confirmedNow = patches.filter((patch) => patch.kind !== "equip");
+    if (confirmedNow.length) input.applyCommittedAccountActionPatches(confirmedNow);
+  }
+
   function finishWriteActionsInBackground(options: {
     requiresFullRefresh: boolean;
     patches?: readonly AccountItemActionPatch[];
@@ -122,13 +129,13 @@ export function useLoadoutWriteActions(input: {
     const account = input.accountSummary;
     const patches = collapseAccountWritePatches(options.patches ?? []);
     if (account && patches.length && options.characterId) {
-      input.applyCommittedAccountActionPatches(patches);
+      applyAcceptedAccountPatches(patches);
       const message = options.failedCount
-        ? `已更新 ${patches.length} 项，另有 ${options.failedCount} 项失败。`
-        : `已更新 ${patches.length} 项游戏内状态。`;
+        ? `请求已受理，正在确认 ${patches.length} 项变化；另有 ${options.failedCount} 项失败。`
+        : `请求已受理，正在确认 ${patches.length} 项游戏内变化。`;
       input.setAccountOperationFeedback({
-        tone: options.failedCount ? "warning" : "success",
-        phase: options.failedCount ? "partial-confirmed" : "confirmed",
+        tone: options.failedCount ? "warning" : "pending",
+        phase: options.failedCount ? "partial" : "syncing",
         itemInstanceIds: patches.map((patch) => patch.item_instance_id),
         message
       });
@@ -254,7 +261,7 @@ export function useLoadoutWriteActions(input: {
           const outcome = applySuccessfulWriteResult(result);
           hasSuccessfulWrite = outcome.hasSuccessfulWrite || hasSuccessfulWrite;
           acceptedWritePatches.push(...outcome.patches);
-          input.applyCommittedAccountActionPatches(outcome.patches);
+          applyAcceptedAccountPatches(outcome.patches);
           if (entry.item.instance_id) successfullyTransferredItemIds.add(entry.item.instance_id);
           transferAcceptedCount = successfullyTransferredItemIds.size;
         } else {
@@ -275,7 +282,7 @@ export function useLoadoutWriteActions(input: {
           const outcome = applySuccessfulWriteResult(result);
           hasSuccessfulWrite = outcome.hasSuccessfulWrite || hasSuccessfulWrite;
           acceptedWritePatches.push(...outcome.patches);
-          input.applyCommittedAccountActionPatches(outcome.patches);
+          applyAcceptedAccountPatches(outcome.patches);
           const attemptedTransferItemIds = new Set(
             executionPlan.transfer_items
               .map((entry) => entry.item.instance_id)
@@ -311,7 +318,7 @@ export function useLoadoutWriteActions(input: {
           const outcome = applySuccessfulWriteResult(result);
           hasSuccessfulWrite = outcome.hasSuccessfulWrite || hasSuccessfulWrite;
           acceptedWritePatches.push(...outcome.patches);
-          input.applyCommittedAccountActionPatches(outcome.patches);
+          applyAcceptedAccountPatches(outcome.patches);
           if (entry.item.instance_id) acceptedEquipItemIds.add(entry.item.instance_id);
         } else {
           const result = await api.batchEquipItems({
@@ -329,7 +336,7 @@ export function useLoadoutWriteActions(input: {
           const outcome = applySuccessfulWriteResult(result);
           hasSuccessfulWrite = outcome.hasSuccessfulWrite || hasSuccessfulWrite;
           acceptedWritePatches.push(...outcome.patches);
-          input.applyCommittedAccountActionPatches(outcome.patches);
+          applyAcceptedAccountPatches(outcome.patches);
           const attemptedEquipItemIds = new Set(
             equipItems
               .map((entry) => entry.item.instance_id)
@@ -398,11 +405,12 @@ export function useLoadoutWriteActions(input: {
       const account = input.accountSummary;
       const finalAcceptedPatches = collapseAccountWritePatches(acceptedWritePatches);
       if (account && verificationCharacter && finalAcceptedPatches.length) {
-        const partialMessage = `最高光等部分完成：已更新 ${finalAcceptedPatches.length} 项，后续步骤失败：${message}`;
+        applyAcceptedAccountPatches(finalAcceptedPatches);
+        const partialMessage = `最高光等部分受理：正在确认 ${finalAcceptedPatches.length} 项变化；后续步骤失败：${message}`;
         input.setLoadoutMessage(partialMessage);
         input.setAccountOperationFeedback({
           tone: "warning",
-          phase: "partial-confirmed",
+          phase: "partial",
           itemInstanceIds: finalAcceptedPatches.map((patch) => patch.item_instance_id),
           message: partialMessage
         });
@@ -459,8 +467,11 @@ export function useLoadoutWriteActions(input: {
       const result = await run();
       const outcome = applySuccessfulWriteResult(result);
       const patches = [...outcome.patches, ...expectedPatches];
+      const hasEquipPatch = patches.some((patch) => patch.kind === "equip");
       input.setLoadoutMessage(patches.length
-        ? `${result.message}，页面已更新。`
+        ? hasEquipPatch
+          ? `${result.message}，正在确认游戏内状态。`
+          : `${result.message}，页面已更新。`
         : "写入请求已受理，正在后台刷新账号数据。");
       finishWriteActionsInBackground({
         requiresFullRefresh: outcome.requiresFullRefresh,
@@ -719,12 +730,15 @@ export function useLoadoutWriteActions(input: {
           throw new Error(result.message || "缺失件转移未全部成功，请检查物品状态后重试。");
         }
       }
-      input.setLoadoutMessage(`${buildMissingLoadoutResultMessage({
+      const resultSummary = buildMissingLoadoutResultMessage({
         targetTransferCount,
         autoEquipCount,
         prepStepCount,
         blockedCount: transferPlan.blocked.length
-      })} 页面已更新。`);
+      });
+      input.setLoadoutMessage(`${resultSummary}${acceptedPatches.some((patch) => patch.kind === "equip")
+        ? " 正在确认游戏内状态。"
+        : " 页面已更新。"}`);
     } catch (error) {
       operationFailed = true;
       input.setLoadoutMessage(error instanceof Error ? error.message : "缺失件转移失败");
@@ -916,12 +930,15 @@ export function useLoadoutWriteActions(input: {
         }
       }
 
-      input.setLoadoutMessage(`${buildSingleLoadoutTransferResultMessage({
+      const resultSummary = buildSingleLoadoutTransferResultMessage({
         itemName: item.name,
         targetTransferCount,
         autoEquipCount,
         prepStepCount
-      })} 页面已更新。`);
+      });
+      input.setLoadoutMessage(`${resultSummary}${acceptedPatches.some((patch) => patch.kind === "equip")
+        ? " 正在确认游戏内状态。"
+        : " 页面已更新。"}`);
       actionSucceeded = true;
     } catch (error) {
       input.setLoadoutMessage(error instanceof Error ? error.message : buildLoadoutItemActionFailureMessage("transfer", item.name));
@@ -984,7 +1001,9 @@ export function useLoadoutWriteActions(input: {
         characterId: template.character_id,
         characterName: account.characters.find((character) => character.character_id === template.character_id)?.class_name
       });
-      input.setLoadoutMessage(`${result.message}，页面已更新。`);
+      input.setLoadoutMessage(outcome.patches.some((patch) => patch.kind === "equip")
+        ? `${result.message}，正在确认游戏内状态。`
+        : `${result.message}，页面已更新。`);
     } catch (error) {
       input.setLoadoutMessage(error instanceof Error ? error.message : buildLoadoutItemActionFailureMessage("equip", item.name));
     } finally {

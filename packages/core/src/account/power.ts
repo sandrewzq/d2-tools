@@ -80,7 +80,8 @@ const bucketNameToSlot = new Map<string, AccountPowerSlotKey>([
 // Bungie 的 canEquip 描述物品在“当前状态”下能否直接装备，而不是物品经过
 // 合法准备步骤后是否永远不可装备。最高光等规划会自行处理以下可恢复限制：
 // 2 = 当前异域唯一装备冲突；16 = 物品当前不在目标角色身上。
-// 其他限制（等级、未解锁、物品本身不可装备等）仍然是硬阻断。
+// 其他限制（等级、未解锁、物品本身不可装备等）仍然是硬阻断；
+// can_equip=false 但原因码为 0 也按硬阻断处理，不能猜测其可恢复性。
 const recoverablePowerEquipFailureMask = 2 | 16;
 
 export function getAccountPowerSlot(item: AccountItemSummary): AccountPowerSlotKey | undefined {
@@ -266,7 +267,7 @@ function canBecomeEquippableForPowerPlan(item: AccountItemSummary): boolean {
   const instance = item.instance;
   if (!instance || instance.can_equip !== false) return true;
   const reason = instance.cannot_equip_reason;
-  if (typeof reason !== "number") return false;
+  if (typeof reason !== "number" || reason === 0) return false;
   return (reason & ~recoverablePowerEquipFailureMask) === 0;
 }
 
