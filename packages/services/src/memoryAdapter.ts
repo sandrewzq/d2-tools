@@ -3,7 +3,10 @@ import type { AccountSummary } from "@d2-tools/core/account/summary";
 import type { LocalTargetRules } from "@d2-tools/core/analysis/targets";
 import { createEmptyEquipmentTargetStore, type EquipmentTargetStore } from "@d2-tools/core/targets/equipmentTargets";
 import type { DimWishlist } from "@d2-tools/core/analysis/wishlistImport";
-import type { LocalCommunityRecommendationTable, VaultItemMatchInfo } from "@d2-tools/core/community-perks";
+import type {
+  LocalCommunityRecommendationTable,
+  VaultItemInstanceMatchInfo
+} from "@d2-tools/core/community-perks";
 import type { PersonalWeaponKnowledgeTable } from "@d2-tools/core/community-perks/personalWeaponKnowledge";
 import type { SaveVaultNoteInput, SaveVaultTagInput, VaultTags } from "@d2-tools/core/vault/tags";
 import type { D2Services } from "./contracts.js";
@@ -19,7 +22,7 @@ export type MemoryServicesSeed = {
   equipmentTargetStore?: EquipmentTargetStore;
   communityRecommendations?: LocalCommunityRecommendationTable | null;
   personalWeaponKnowledge?: PersonalWeaponKnowledgeTable;
-  communityMatches?: Array<{ hash: number } & VaultItemMatchInfo>;
+  communityMatches?: VaultItemInstanceMatchInfo[];
   aiReply?: AiChatReplyResult | ((input: AiChatRequest) => AiChatReplyResult | Promise<AiChatReplyResult>);
 };
 

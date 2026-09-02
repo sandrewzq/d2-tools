@@ -30,7 +30,11 @@ describe("memory services adapter", () => {
       },
       communityMatches: [{
         hash: 9001,
+        canonical_weapon_name: "测试武器",
+        coverage: "covered",
+        match_status: "full_match",
         matched: 1,
+        partial: 0,
         available: 1,
         modes: ["pve"],
         sample_perks: [],

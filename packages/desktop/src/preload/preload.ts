@@ -20,8 +20,23 @@ import type {
   EquipmentTargetStore,
   GuideEquipmentTargetConversionRequest
 } from "@d2-tools/core/targets/equipmentTargets";
-import type { DimWishlist } from "@d2-tools/core/analysis/wishlistImport";
-import type { LocalCommunityRecommendationTable, VaultItemMatchInfo, WeaponRecommendation } from "@d2-tools/core/community-perks";
+import type { DimWishlist, DimWishlistImportPreview } from "@d2-tools/core/analysis/wishlistImport";
+import type {
+  WeaponKnowledgeImportPreview,
+  WeaponKnowledgeImportResult,
+  WeaponRecommendationKnowledgeStatus
+} from "@d2-tools/services/community/weaponRecommendationKnowledge";
+import type {
+  DimWishlistOnlineActivationResult,
+  DimWishlistOnlinePreview,
+  DimWishlistOnlineStatus
+} from "@d2-tools/services/community/dimWishlistUpdates";
+import type {
+  LocalCommunityRecommendationTable,
+  VaultItemInstanceMatchInfo,
+  VaultItemMatchInput,
+  WeaponRecommendation
+} from "@d2-tools/core/community-perks";
 import type {
   PersonalWeaponKnowledgeTable,
   SavePersonalWeaponKnowledgeInput
@@ -295,6 +310,16 @@ contextBridge.exposeInMainWorld("d2", {
   getDimWishlist: () => ipcRenderer.invoke("wishlist:get") as Promise<DimWishlist | null>,
   saveDimWishlist: (wishlist: DimWishlist) => ipcRenderer.invoke("wishlist:save", wishlist) as Promise<DimWishlist>,
   clearDimWishlist: () => ipcRenderer.invoke("wishlist:clear") as Promise<null>,
+  selectDimWishlistFile: () =>
+    ipcRenderer.invoke("wishlist:import:select") as Promise<DimWishlistImportPreview | null>,
+  confirmDimWishlistImport: (token: string) =>
+    ipcRenderer.invoke("wishlist:import:confirm", token) as Promise<DimWishlist>,
+  getDimWishlistOnlineStatus: () =>
+    ipcRenderer.invoke("wishlist:online:status") as Promise<DimWishlistOnlineStatus>,
+  checkDimWishlistOnlineUpdate: () =>
+    ipcRenderer.invoke("wishlist:online:check") as Promise<DimWishlistOnlinePreview>,
+  confirmDimWishlistOnlineUpdate: (token: string) =>
+    ipcRenderer.invoke("wishlist:online:confirm", token) as Promise<DimWishlistOnlineActivationResult>,
   getLocalTargetRules: () => ipcRenderer.invoke("targets:get") as Promise<LocalTargetRules>,
   saveLocalTargetRules: (rules: LocalTargetRules) =>
     ipcRenderer.invoke("targets:save", rules) as Promise<LocalTargetRules>,
@@ -318,6 +343,18 @@ contextBridge.exposeInMainWorld("d2", {
     ipcRenderer.invoke("community:personal:set-enabled", id, enabled) as Promise<PersonalWeaponKnowledgeTable>,
   deletePersonalWeaponKnowledge: (id: string) =>
     ipcRenderer.invoke("community:personal:delete", id) as Promise<PersonalWeaponKnowledgeTable>,
+  exportWeaponKnowledgeCsvTemplate: () =>
+    ipcRenderer.invoke("community:knowledge:template:export") as Promise<{
+      canceled: boolean;
+      file_path?: string;
+      message: string;
+    }>,
+  selectWeaponKnowledgeCsv: () =>
+    ipcRenderer.invoke("community:knowledge:import:select") as Promise<(WeaponKnowledgeImportPreview & { token: string }) | null>,
+  confirmWeaponKnowledgeCsvImport: (token: string) =>
+    ipcRenderer.invoke("community:knowledge:import:confirm", token) as Promise<WeaponKnowledgeImportResult>,
+  getWeaponKnowledgeStatus: () =>
+    ipcRenderer.invoke("community:knowledge:status:get") as Promise<WeaponRecommendationKnowledgeStatus | null>,
   getVaultTags: () => ipcRenderer.invoke("vault:tags:get") as Promise<VaultTags>,
   saveVaultTag: (input: SaveVaultTagInput) => ipcRenderer.invoke("vault:tag:save", input) as Promise<VaultTags>,
   saveVaultTagsBatch: (inputs: SaveVaultTagInput[]) =>
@@ -397,8 +434,8 @@ contextBridge.exposeInMainWorld("d2", {
   },
   getCommunityPerkRecommendations: (item_hash: number, options?: { item_name?: string }) =>
     ipcRenderer.invoke("community:recommendations:get", item_hash, options) as Promise<WeaponRecommendation | null>,
-  matchCommunityVaultItems: (items: Array<{ hash: number; socket_plugs?: Array<{ hash: number }> }>) =>
-    ipcRenderer.invoke("community:vault:match", items) as Promise<Array<{ hash: number } & VaultItemMatchInfo>>,
+  matchCommunityVaultItems: (items: VaultItemMatchInput[]) =>
+    ipcRenderer.invoke("community:vault:match", items) as Promise<VaultItemInstanceMatchInfo[]>,
   clearLightggCache: () => ipcRenderer.invoke("community:lightgg:cache:clear") as Promise<void>
 });
 

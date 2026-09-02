@@ -131,7 +131,8 @@ const snapshotComponents = new Set([
   206, // CharacterLoadouts
   300, // ItemInstances
   304, // ItemStats
-  305 // ItemSockets
+  305, // ItemSockets
+  310 // ItemReusablePlugs
 ]);
 
 const armorPlannerComponents = new Set([
@@ -945,7 +946,8 @@ function collectAccountSnapshotDefinitionRequest(
       ? {
           instances: profile.itemComponents.instances,
           stats: profile.itemComponents.stats,
-          sockets: profile.itemComponents.sockets
+          sockets: profile.itemComponents.sockets,
+          reusablePlugs: profile.itemComponents.reusablePlugs
         }
         : undefined
     }, []),

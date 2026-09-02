@@ -142,6 +142,14 @@
       "types": "./dist/community/localCommunityRecommendations.d.ts",
       "import": "./dist/community/localCommunityRecommendations.js"
     },
+    "./community/dimWishlistUpdates": {
+      "types": "./dist/community/dimWishlistUpdates.d.ts",
+      "import": "./dist/community/dimWishlistUpdates.js"
+    },
+    "./community/weaponRecommendationKnowledge": {
+      "types": "./dist/community/weaponRecommendationKnowledge.d.ts",
+      "import": "./dist/community/weaponRecommendationKnowledge.js"
+    },
     "./community/personalWeaponKnowledge": {
       "types": "./dist/community/personalWeaponKnowledge.d.ts",
       "import": "./dist/community/personalWeaponKnowledge.js"

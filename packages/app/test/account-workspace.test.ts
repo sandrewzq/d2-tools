@@ -229,7 +229,11 @@ describe("account workspace", () => {
           return [
             {
               hash: 123,
+              canonical_weapon_name: "Test Gun",
+              coverage: "covered",
+              match_status: "full_match",
               matched: 1,
+              partial: 0,
               available: 1,
               modes: ["pve"],
               sample_perks: [],

@@ -32,7 +32,7 @@ export function VaultRecommendationEvidencePanel(props: {
     <section className="vault-evidence-panel" data-surface="section" aria-label="武器匹配">
       <div className="vault-column-head">
         <div><h3>武器匹配</h3><span>按当前账号和 Wishlist 核对</span></div>
-        {props.wishlistActions ? <ControlButton size="compact" variant="quiet" onClick={() => setIsWishlistManagerOpen((current) => !current)}>{isWishlistManagerOpen ? "收起 Wishlist" : "导入 DIM Wishlist"}</ControlButton> : null}
+        {props.wishlistActions ? <ControlButton size="compact" variant="quiet" onClick={() => setIsWishlistManagerOpen((current) => !current)}>{isWishlistManagerOpen ? "收起推荐数据" : "管理推荐数据"}</ControlButton> : null}
       </div>
 
       {isWishlistManagerOpen && props.wishlistActions ? <VaultWishlistManager wishlist={props.wishlist} actions={props.wishlistActions} onClose={() => setIsWishlistManagerOpen(false)} /> : null}

@@ -3,12 +3,16 @@ import type { ActivityHistorySummary } from "@d2-tools/core/activities/history";
 import type { DimWishlist } from "@d2-tools/core/analysis/wishlistImport";
 import type { LocalTargetRules } from "@d2-tools/core/analysis/targets";
 import type { EquipmentTargetStore } from "@d2-tools/core/targets/equipmentTargets";
-import type { LocalCommunityRecommendationTable } from "@d2-tools/core/community-perks";
+import type {
+  LocalCommunityRecommendationTable,
+  VaultItemInstanceMatchInfo,
+  VaultItemMatchInput
+} from "@d2-tools/core/community-perks";
 import type {
   PersonalWeaponKnowledgeTable,
   SavePersonalWeaponKnowledgeInput
 } from "@d2-tools/core/community-perks/personalWeaponKnowledge";
-import type { VaultItemMatchInfo, WeaponRecommendation } from "./sharedTypes.js";
+import type { WeaponRecommendation } from "./sharedTypes.js";
 import type { VaultTags, SaveVaultNoteInput, SaveVaultTagInput } from "@d2-tools/core/vault/tags";
 import type { GuideContextService } from "./guideContextService.js";
 import type { AiChatReplyResult, AiChatRequest } from "./types.js";
@@ -20,7 +24,7 @@ export type ProfileService = {
     membership_id: string;
     character_ids: string[];
   }): Promise<ActivityHistorySummary>;
-  matchCommunityVaultItems?: (items: Array<{ hash: number; socket_plugs?: Array<{ hash: number }> }>) => Promise<Array<{ hash: number } & VaultItemMatchInfo>>;
+  matchCommunityVaultItems?: (items: VaultItemMatchInput[]) => Promise<VaultItemInstanceMatchInfo[]>;
 };
 
 export type LocalDataService = {

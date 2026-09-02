@@ -262,6 +262,22 @@ export async function syncEquipmentTargetImports(
   return persistEquipmentTargetStore(dataDir, mergeImportedEquipmentTargets(current, imported, sourceKinds));
 }
 
+/** DIM Wishlist is a community match source, not a personal equipment-target generator. */
+export async function removeDimWishlistEquipmentTargets(dataDir: string): Promise<EquipmentTargetStore> {
+  const current = loadEquipmentTargetStore(dataDir) ?? await loadOrMigrateEquipmentTargetStore(dataDir, {
+    legacy_rules: loadLocalTargetRules(dataDir),
+    wishlist: null,
+    resolve_weapon: resolveWeaponByHash
+  });
+  const migration = { ...(current.migration ?? {}) };
+  delete migration.dim_wishlist_imported_at;
+  return persistEquipmentTargetStore(dataDir, normalizeEquipmentTargetStore({
+    ...current,
+    targets: current.targets.filter((target) => target.source.kind !== "dim_wishlist"),
+    migration
+  }));
+}
+
 async function validateEquipmentTargetStore(store: EquipmentTargetStore): Promise<EquipmentTargetStore> {
   const normalized = normalizeEquipmentTargetStore(store);
   const manifestVersion = currentManifestVersion();

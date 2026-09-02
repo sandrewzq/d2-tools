@@ -18,6 +18,12 @@ export type WeaponRecommendation = {
   }>;
   matched_modes: Array<"pve" | "pvp" | "general">;
   individual_perks?: Array<{ hash: number; name: string; englishName?: string; description?: string; icon?: string }>;
+  weapon_level_recommendations?: Array<{
+    source: "dim_wishlist" | "ai_lightgg" | "local_community";
+    mode: "pve" | "pvp" | "general";
+    source_label: string;
+    note?: string;
+  }>;
   sample_size?: number;
   source_label?: string;
   ai_analysis?: string;

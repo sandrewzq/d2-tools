@@ -46,6 +46,7 @@ export type AccountItemSummary = {
   item_objectives?: AccountItemPlugObjectiveSummary[];
   sockets?: AccountItemSocketSummary[];
   socket_plugs: AccountItemPlugSummary[];
+  weapon_roll?: AccountWeaponRollSummary;
   catalyst?: AccountItemCatalystSummary;
 };
 
@@ -169,6 +170,46 @@ export type AccountItemSocketSummary = {
   enable_fail_indexes: number[];
   selected_plug?: AccountItemPlugSummary;
   reusable_plugs: AccountItemReusablePlugSummary[];
+};
+
+export type AccountWeaponRollSlot =
+  | "barrel"
+  | "magazine"
+  | "masterwork"
+  | "perk1"
+  | "perk2"
+  | "origin"
+  | "other";
+
+export type AccountWeaponRollIncompleteReason =
+  | "missing_socket_data"
+  | "missing_reusable_plug_data"
+  | "missing_plug_definition"
+  | "unclassified_socket";
+
+export type AccountWeaponRollPlugSummary = {
+  hash: number;
+  name: string;
+  category_identifier?: string;
+  item_type?: string;
+  selected: boolean;
+};
+
+export type AccountWeaponRollSocketSummary = {
+  socket_index: number;
+  slot: AccountWeaponRollSlot;
+  label: string;
+  current_plug?: AccountWeaponRollPlugSummary;
+  owned_plugs: AccountWeaponRollPlugSummary[];
+  complete: boolean;
+  incomplete_reasons: AccountWeaponRollIncompleteReason[];
+};
+
+export type AccountWeaponRollSummary = {
+  fingerprint: string;
+  complete: boolean;
+  incomplete_reasons: AccountWeaponRollIncompleteReason[];
+  sockets: AccountWeaponRollSocketSummary[];
 };
 
 export type CharacterEquipmentGroup = {
@@ -570,7 +611,8 @@ const snapshotProfileComponents = [
   206, // CharacterLoadouts
   300, // ItemInstances
   304, // ItemStats
-  305 // ItemSockets
+  305, // ItemSockets
+  310 // ItemReusablePlugs
 ].join(",");
 
 const itemDetailComponents = [
@@ -1083,6 +1125,9 @@ function summarizeItem(
         socket.is_visible && socket.selected_plug ? [socket.selected_plug] : []
       ))
     : summarizeSelectedPlugPreviews(instanceId, components, definitions);
+  const weaponRoll = groupKey === "weapons"
+    ? summarizeWeaponRoll(instanceId, components, definitions)
+    : undefined;
   const armorSet = groupKey === "armor" && definition
     ? summarizeEquipableItemSet(definition, equipableItemSetDefinitions, undefined)
     : undefined;
@@ -1107,6 +1152,7 @@ function summarizeItem(
       inventoryItemConstantsDefinitions
     ),
     socket_plugs: selectedPlugs,
+    ...(weaponRoll ? { weapon_roll: weaponRoll } : {}),
     ...(mode === "full"
       ? {
           item_objectives: summarizeItemObjectives(instanceId, components, objectiveDefinitions),
@@ -1594,6 +1640,175 @@ function summarizeSockets(input: {
       reusable_plugs: [...reusableByHash.values()]
     };
   });
+}
+
+type AccountWeaponRollSemanticRole =
+  | "barrel"
+  | "magazine"
+  | "masterwork"
+  | "trait"
+  | "origin"
+  | "other";
+
+function summarizeWeaponRoll(
+  instanceId: string | undefined,
+  components: DestinyProfileResponse["itemComponents"] | undefined,
+  definitions: DefinitionComponentData
+): AccountWeaponRollSummary | undefined {
+  if (!instanceId) return undefined;
+
+  const socketComponent = components?.sockets?.data?.[instanceId];
+  const reusableData = components?.reusablePlugs?.data;
+  const reusableBySocket = reusableData?.[instanceId]?.plugs ?? {};
+  const summaryReasons = new Set<AccountWeaponRollIncompleteReason>();
+  if (!socketComponent) summaryReasons.add("missing_socket_data");
+  if (!reusableData) summaryReasons.add("missing_reusable_plug_data");
+
+  const classified = (socketComponent?.sockets ?? []).flatMap((socket, socketIndex) => {
+    const currentHash = typeof socket.plugHash === "number" ? socket.plugHash : undefined;
+    const ownedByHash = new Map<number, AccountWeaponRollPlugSummary>();
+    let missingDefinition = false;
+    const addPlug = (hash: number, selected: boolean): void => {
+      const definition = definitions[String(hash)] as DefinitionRecord | undefined;
+      if (!definition) missingDefinition = true;
+      const existing = ownedByHash.get(hash);
+      if (existing) {
+        existing.selected ||= selected;
+        return;
+      }
+      ownedByHash.set(hash, {
+        hash,
+        name: definition?.displayProperties?.name?.trim() || `Plug ${hash}`,
+        ...(definition?.plug?.plugCategoryIdentifier
+          ? { category_identifier: definition.plug.plugCategoryIdentifier }
+          : {}),
+        ...(definition?.itemTypeDisplayName ? { item_type: definition.itemTypeDisplayName } : {}),
+        selected
+      });
+    };
+
+    for (const plug of reusableBySocket[String(socketIndex)] ?? []) {
+      if (typeof plug.plugItemHash === "number") addPlug(plug.plugItemHash, plug.plugItemHash === currentHash);
+    }
+    if (currentHash !== undefined) addPlug(currentHash, true);
+
+    const ownedPlugs = [...ownedByHash.values()];
+    const role = classifyWeaponRollSocket(ownedPlugs);
+    if (!role && (socket.isVisible === false || ownedPlugs.every(isIgnoredWeaponRollPlug))) return [];
+
+    const incompleteReasons = new Set<AccountWeaponRollIncompleteReason>();
+    if (missingDefinition) incompleteReasons.add("missing_plug_definition");
+    if (!role) incompleteReasons.add("unclassified_socket");
+    for (const reason of incompleteReasons) summaryReasons.add(reason);
+
+    return [{
+      socket_index: socketIndex,
+      role: role ?? "other",
+      current_plug: currentHash === undefined ? undefined : ownedByHash.get(currentHash),
+      owned_plugs: ownedPlugs,
+      incomplete_reasons: [...incompleteReasons]
+    }];
+  });
+
+  let traitIndex = 0;
+  const sockets: AccountWeaponRollSocketSummary[] = classified
+    .sort((left, right) => left.socket_index - right.socket_index)
+    .map((socket) => {
+      const slot: AccountWeaponRollSlot = socket.role === "trait"
+        ? (++traitIndex === 1 ? "perk1" : traitIndex === 2 ? "perk2" : "other")
+        : socket.role;
+      return {
+        socket_index: socket.socket_index,
+        slot,
+        label: weaponRollSlotLabel(slot),
+        current_plug: socket.current_plug,
+        owned_plugs: socket.owned_plugs,
+        complete: socket.incomplete_reasons.length === 0,
+        incomplete_reasons: socket.incomplete_reasons
+      };
+    });
+
+  const incompleteReasons = [...summaryReasons];
+  return {
+    fingerprint: weaponRollFingerprint(sockets),
+    complete: incompleteReasons.length === 0,
+    incomplete_reasons: incompleteReasons,
+    sockets
+  };
+}
+
+function classifyWeaponRollSocket(
+  plugs: readonly AccountWeaponRollPlugSummary[]
+): AccountWeaponRollSemanticRole | undefined {
+  const visible = plugs.filter((plug) => !isIgnoredWeaponRollPlug(plug));
+  if (!visible.length) return undefined;
+  const category = visible
+    .map((plug) => plug.category_identifier?.toLocaleLowerCase() ?? "")
+    .filter(Boolean)
+    .join(" ");
+  const itemType = visible
+    .map((plug) => plug.item_type?.toLocaleLowerCase() ?? "")
+    .filter(Boolean)
+    .join(" ");
+
+  if (includesAnyText(category, ["masterwork"]) || includesAnyText(itemType, ["masterwork", "大师杰作"])) {
+    return "masterwork";
+  }
+  if (category.includes("origin") || includesAnyText(itemType, ["origin trait", "起源特性", "原始特性"])) {
+    return "origin";
+  }
+  if (includesAnyText(category, ["barrel", "scope", "sight", "bowstring", "bow.string", "blade", "haft"])) {
+    return "barrel";
+  }
+  if (includesAnyText(category, ["magazine", "batter", "arrow", "guard", "stock", "grip"])) {
+    return "magazine";
+  }
+  if (includesAnyText(category, ["trait", "perk"]) || includesAnyText(itemType, ["trait", "perk", "特性", "特征"])) {
+    return "trait";
+  }
+  return undefined;
+}
+
+function isIgnoredWeaponRollPlug(plug: AccountWeaponRollPlugSummary): boolean {
+  const category = plug.category_identifier?.toLocaleLowerCase() ?? "";
+  const itemType = plug.item_type?.toLocaleLowerCase() ?? "";
+  return includesAnyText(category, [
+    "shader", "ornament", "memento", "tracker", "catalyst", "weapon.mod", "modguns",
+    "mods.weapon", "cosmetic", "skin", "killcounter", "intrinsic", "frame", "perk_upgrades",
+    "perk.upgrades", "perkupgrades"
+  ]) || includesAnyText(itemType, [
+    "着色器", "shader", "武器模组", "weapon mod", "催化剂", "catalyst", "记录器", "tracker",
+    "装饰", "ornament", "皮肤", "skin", "固有", "intrinsic", "能量核心"
+  ]);
+}
+
+function includesAnyText(value: string, candidates: readonly string[]): boolean {
+  return candidates.some((candidate) => value.includes(candidate));
+}
+
+function weaponRollSlotLabel(slot: AccountWeaponRollSlot): string {
+  if (slot === "barrel") return "枪管/瞄具";
+  if (slot === "magazine") return "第二列";
+  if (slot === "masterwork") return "大师";
+  if (slot === "perk1") return "Perk 1";
+  if (slot === "perk2") return "Perk 2";
+  if (slot === "origin") return "起源特性";
+  return "其他插槽";
+}
+
+function weaponRollFingerprint(sockets: readonly AccountWeaponRollSocketSummary[]): string {
+  const canonical = sockets
+    .map((socket) => `${socket.socket_index}:${socket.slot}:${socket.current_plug?.hash ?? 0}:${socket.owned_plugs
+      .map((plug) => plug.hash)
+      .sort((left, right) => left - right)
+      .join(".")}`)
+    .join("|");
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < canonical.length; index++) {
+    hash ^= canonical.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return `roll-v1-${(hash >>> 0).toString(16).padStart(8, "0")}:${canonical.length}`;
 }
 
 function buildReusablePlugSummary(

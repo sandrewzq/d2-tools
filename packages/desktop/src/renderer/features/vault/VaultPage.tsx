@@ -89,6 +89,30 @@ export function VaultPage(props: {
       props.onWishlistChanged(null);
       props.onEquipmentTargetStoreChanged(await api.getEquipmentTargetStore());
       await props.onCommunityRecommendationsChanged();
+    },
+    selectDimFile: () => api.selectDimWishlistFile(),
+    confirmDimImport: async (token) => {
+      const saved = await api.confirmDimWishlistImport(token);
+      props.onWishlistChanged(saved);
+      props.onEquipmentTargetStoreChanged(await api.getEquipmentTargetStore());
+      await props.onCommunityRecommendationsChanged();
+      return saved;
+    },
+    getDimOnlineStatus: () => api.getDimWishlistOnlineStatus(),
+    checkDimOnlineUpdate: () => api.checkDimWishlistOnlineUpdate(),
+    confirmDimOnlineUpdate: async (token) => {
+      const result = await api.confirmDimWishlistOnlineUpdate(token);
+      props.onWishlistChanged(result.wishlist);
+      props.onEquipmentTargetStoreChanged(await api.getEquipmentTargetStore());
+      await props.onCommunityRecommendationsChanged();
+      return result;
+    },
+    exportKnowledgeTemplate: () => api.exportWeaponKnowledgeCsvTemplate(),
+    selectKnowledgeCsv: () => api.selectWeaponKnowledgeCsv(),
+    confirmKnowledgeImport: async (token) => {
+      const imported = await api.confirmWeaponKnowledgeCsvImport(token);
+      await props.onCommunityRecommendationsChanged();
+      return imported;
     }
   }), [props.onCommunityRecommendationsChanged, props.onEquipmentTargetStoreChanged, props.onWishlistChanged]);
   const loadLocalCommunityTable = useCallback(async () => {

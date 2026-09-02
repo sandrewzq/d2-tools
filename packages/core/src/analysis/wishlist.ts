@@ -1,5 +1,5 @@
 import type { AccountItemSummary } from "../account/summary.js";
-import type { DimWishlist, DimWishlistRule } from "./wishlistImport.js";
+import { resolveDimWishlistRuleMetadata, type DimWishlist, type DimWishlistRule } from "./wishlistImport.js";
 
 export type WishlistMatchResult = {
   matched: boolean;
@@ -73,6 +73,7 @@ function matchImportedWishlistRules(
   const rules = Array.isArray(wishlist)
     ? wishlist
     : wishlist?.rules ?? [];
+  const wishlistDocument = Array.isArray(wishlist) ? undefined : wishlist;
   const perkHashes = new Set((item.socket_plugs ?? []).map((plug) => plug.hash));
   const matchedRules = rules.filter((rule) =>
     rule.item_hash === item.hash
@@ -85,7 +86,12 @@ function matchImportedWishlistRules(
 
   return {
     labels: ["DIM Wishlist", ...new Set(matchedRules.map((rule) => labelForMode(rule.mode)))],
-    reasons: matchedRules.map((rule) => rule.note || `命中导入规则：${labelForMode(rule.mode)}`)
+    reasons: matchedRules.map((rule) => {
+      const note = wishlistDocument
+        ? resolveDimWishlistRuleMetadata(wishlistDocument, rule).note
+        : rule.note;
+      return note || `命中导入规则：${labelForMode(rule.mode)}`;
+    })
   };
 }
 

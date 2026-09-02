@@ -1,4 +1,8 @@
-import { ipcMain } from "electron";
+import { randomUUID } from "node:crypto";
+import { existsSync, readFileSync } from "node:fs";
+import { writeFile } from "node:fs/promises";
+import { join, resolve } from "node:path";
+import { app, dialog, ipcMain } from "electron";
 import type { DefinitionComponentData, DefinitionRecord } from "@d2-tools/core/manifest/definitions";
 import {
   type LocalCommunityRecommendationTable,
@@ -15,6 +19,13 @@ import {
 } from "@d2-tools/services/community/localCommunityRecommendations";
 import { createDefaultCommunityPerkService } from "@d2-tools/services/community/perkRecommendation";
 import {
+  createWeaponRecommendationCsvTemplate,
+  importWeaponRecommendationCsv,
+  previewWeaponRecommendationCsv,
+  readWeaponRecommendationKnowledgeStatus,
+  syncWeaponRecommendationKnowledge
+} from "@d2-tools/services/community/weaponRecommendationKnowledge";
+import {
   deletePersonalWeaponKnowledge,
   loadPersonalWeaponKnowledge,
   savePersonalWeaponKnowledge,
@@ -23,7 +34,65 @@ import {
 import { startBackgroundTask } from "../backgroundTasks.js";
 import { getDefinitions } from "../runtime/gameDataRuntime.js";
 
+const weaponKnowledgeSyncs = new Map<string, Promise<unknown>>();
+const pendingKnowledgeImports = new Map<string, { path: string; fingerprint: string }>();
+
 export function registerCommunityIpcHandlers(): void {
+  ipcMain.handle("community:knowledge:template:export", async () => {
+    const config = loadConfig();
+    const result = await dialog.showSaveDialog({
+      title: "导出武器推荐知识库标准模板",
+      defaultPath: join(config.data.data_dir, "武器推荐知识库标准模板.csv"),
+      filters: [{ name: "CSV 文件", extensions: ["csv"] }]
+    });
+    if (result.canceled || !result.filePath) {
+      return { canceled: true, message: "已取消导出标准模板。" };
+    }
+    await writeFile(result.filePath, createWeaponRecommendationCsvTemplate(), "utf8");
+    return {
+      canceled: false,
+      file_path: result.filePath,
+      message: "标准模板已导出。请保持 31 列表头和顺序不变，填写后再导入。"
+    };
+  });
+
+  ipcMain.handle("community:knowledge:import:select", async () => {
+    const config = loadConfig();
+    const result = await dialog.showOpenDialog({
+      title: "选择武器推荐知识库 CSV",
+      defaultPath: join(config.data.data_dir, "imports"),
+      properties: ["openFile"],
+      filters: [{ name: "武器推荐知识库 CSV", extensions: ["csv"] }]
+    });
+    const path = result.filePaths[0];
+    if (result.canceled || !path) return null;
+
+    const preview = previewWeaponRecommendationCsv(readFileSync(path, "utf8"), path);
+    const token = randomUUID();
+    pendingKnowledgeImports.clear();
+    pendingKnowledgeImports.set(token, { path, fingerprint: preview.fingerprint });
+    return { token, ...preview };
+  });
+
+  ipcMain.handle("community:knowledge:import:confirm", async (_event, token: string) => {
+    const pending = pendingKnowledgeImports.get(token);
+    if (!pending) throw new Error("武器推荐 CSV 预览已失效，请重新选择文件。");
+    pendingKnowledgeImports.delete(token);
+    const config = loadConfig();
+    const result = await importWeaponRecommendationCsv(
+      config.data.data_dir,
+      pending.path,
+      pending.fingerprint
+    );
+    weaponKnowledgeSyncs.clear();
+    return result;
+  });
+
+  ipcMain.handle("community:knowledge:status:get", () => {
+    const config = loadConfig();
+    return readWeaponRecommendationKnowledgeStatus(config.data.data_dir);
+  });
+
   ipcMain.handle("community:local:get", () => {
     const config = loadConfig();
     return loadLocalCommunityRecommendations(config.data.data_dir);
@@ -62,6 +131,7 @@ export function registerCommunityIpcHandlers(): void {
 
   ipcMain.handle("community:recommendations:get", async (_event, item_hash: number, options?: SourceOptions) => {
     const config = loadConfig();
+    await ensureWeaponRecommendationKnowledge(config.data.data_dir);
     const service = createDefaultCommunityPerkService(config);
     const definitions = await loadCommunityDefinitions([Number(item_hash)]);
 
@@ -81,7 +151,7 @@ export function registerCommunityIpcHandlers(): void {
     startBackgroundTask({
       type: "community-analysis",
       title: "分析仓库推荐",
-      message: "正在匹配 DIM Wishlist 和自定义推荐规则。",
+      message: "正在匹配内置推荐知识库、DIM Wishlist 和自定义推荐规则。",
       run: async () => {
         await result;
       }
@@ -99,37 +169,43 @@ export function registerCommunityIpcHandlers(): void {
 
 async function matchVaultCommunityItems(items: VaultItemMatchInput[]) {
   const config = loadConfig();
+  await ensureWeaponRecommendationKnowledge(config.data.data_dir);
   // 仓库/资料库批量匹配只使用本地来源，避免触发大量 AI 查询。
   const service = createDefaultCommunityPerkService(config);
   const definitions = await loadCommunityDefinitions(items.map((item) => item.hash));
 
-  const resultMap = await service.matchVaultItems(items, {
+  return service.matchVaultItemInstances(items, {
     itemDefinitions: definitions.items,
     plugSetDefinitions: definitions.plugSets
   });
-  const arr: Array<{
-    hash: number;
-    matched: number;
-    available: number;
-    modes: Array<"pve" | "pvp" | "general">;
-    sample_perks?: Array<{ hash: number; name: string; englishName?: string }>;
-    source_label?: string;
-  }> = [];
-  resultMap.forEach((value, hash) => {
-    arr.push({
-      hash,
-      matched: value.matched,
-      available: value.available,
-      modes: value.modes,
-      sample_perks: value.sample_perks?.map((perk) => ({
-        hash: perk.hash,
-        name: perk.name,
-        englishName: perk.englishName
-      })),
-      source_label: value.source_label
-    });
+}
+
+function ensureWeaponRecommendationKnowledge(dataDir: string): Promise<unknown> {
+  const csvPath = weaponKnowledgeCsvPath(dataDir);
+  const key = `${resolve(dataDir)}\u0000${csvPath}`;
+  const existing = weaponKnowledgeSyncs.get(key);
+  if (existing) return existing;
+
+  const pending = syncWeaponRecommendationKnowledge(dataDir, csvPath).catch(() => {
+    weaponKnowledgeSyncs.delete(key);
+    return null;
   });
-  return arr;
+  weaponKnowledgeSyncs.set(key, pending);
+  return pending;
+}
+
+function weaponKnowledgeCsvPath(dataDir: string): string {
+  const relativeParts = ["攻略", "T20-武器推荐知识库", "武器推荐.csv"];
+  const configuredPath = process.env.D2_WEAPON_RECOMMENDATIONS_CSV?.trim();
+  const candidates = [
+    ...(configuredPath ? [resolve(configuredPath)] : []),
+    join(dataDir, "imports", "weapon-recommendations.csv"),
+    join(process.resourcesPath, "knowledge", "weapon-recommendations.csv"),
+    resolve(app.getAppPath(), "..", "..", ...relativeParts),
+    resolve(process.cwd(), "..", "..", ...relativeParts),
+    resolve(process.cwd(), ...relativeParts)
+  ];
+  return candidates.find((candidate) => existsSync(candidate)) ?? candidates[0];
 }
 
 async function loadCommunityDefinitions(itemHashes: number[]): Promise<{

@@ -16,10 +16,28 @@ export type DimWishlistRule = {
   perk_hashes: number[];
   mode: DimWishlistMode;
   note: string;
+  tags?: string[];
+  author?: string;
+  source_note?: string;
+  source_title?: string;
+  source_description?: string;
+  source_block_id?: string;
+};
+
+export type DimWishlistSourceBlock = {
+  id: string;
+  title?: string;
+  description?: string;
+  note?: string;
+  tags?: string[];
+  author?: string;
 };
 
 export type DimWishlist = {
   title: string;
+  description?: string;
+  author?: string;
+  source_blocks?: DimWishlistSourceBlock[];
   rules: DimWishlistRule[];
 };
 

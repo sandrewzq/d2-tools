@@ -1,6 +1,6 @@
 import type { AccountSummary } from "@d2-tools/core/account/summary";
 import type { ActivityHistorySummary } from "@d2-tools/core/activities/history";
-import type { VaultItemMatchInfo } from "@d2-tools/core/community-perks";
+import type { VaultItemInstanceMatchInfo, VaultItemMatchInfo } from "@d2-tools/core/community-perks";
 import type { D2Services } from "@d2-tools/services";
 import { runQuery, type QueryState } from "../queryState.js";
 import { loadAccountWorkspace, type AccountWorkspace } from "./account.js";
@@ -8,6 +8,7 @@ import { loadAccountWorkspace, type AccountWorkspace } from "./account.js";
 export type AccountDerivedWorkspace = {
   activitySummary: ActivityHistorySummary | null;
   vaultCommunityMatch: Map<number, VaultItemMatchInfo>;
+  vaultCommunityInstanceMatch: Map<string, VaultItemInstanceMatchInfo>;
 };
 
 export type FullAccountWorkspace = AccountWorkspace & AccountDerivedWorkspace;
@@ -67,27 +68,42 @@ export async function loadAccountDerivedWorkspace(
 
     const matchCommunityVaultItems = services.profile.matchCommunityVaultItems;
     const vaultCommunityMatch = new Map<number, VaultItemMatchInfo>();
+    const vaultCommunityInstanceMatch = new Map<string, VaultItemInstanceMatchInfo>();
     if (includeCommunityMatch && matchCommunityVaultItems) {
       const result = await matchCommunityVaultItems(
         allItems.map((item) => ({
           hash: item.hash,
-          socket_plugs: item.socket_plugs?.map((plug) => ({ hash: plug.hash }))
+          instance_id: item.instance_id,
+          item_name: item.name,
+          weapon_roll: item.weapon_roll,
+          socket_plugs: item.socket_plugs?.map((plug) => ({
+            hash: plug.hash,
+            socket_index: plug.socket_index
+          }))
         }))
       );
       for (const item of result) {
-        vaultCommunityMatch.set(item.hash, {
+        const matchInfo: VaultItemMatchInfo = {
           matched: item.matched,
           available: item.available,
           modes: item.modes,
           sample_perks: item.sample_perks,
           source_label: item.source_label
-        });
+        };
+        const previous = vaultCommunityMatch.get(item.hash);
+        if (!previous || item.matched > previous.matched || (
+          item.matched === previous.matched && item.partial > 0
+        )) {
+          vaultCommunityMatch.set(item.hash, matchInfo);
+        }
+        vaultCommunityInstanceMatch.set(item.instance_id ?? `hash:${item.hash}`, item);
       }
     }
 
     return {
       activitySummary,
-      vaultCommunityMatch
+      vaultCommunityMatch,
+      vaultCommunityInstanceMatch
     };
   });
 }

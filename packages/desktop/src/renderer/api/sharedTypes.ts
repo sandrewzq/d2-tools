@@ -1,4 +1,10 @@
-import type { VaultItemMatchInfo, WeaponRecommendation } from "@d2-tools/core/community-perks";
+import type {
+  VaultItemInstanceMatchInfo,
+  VaultItemMatchInfo,
+  VaultItemMatchInput,
+  WeaponRecommendation
+} from "@d2-tools/core/community-perks";
+import type { DimWishlistImportPreview } from "@d2-tools/core/analysis/wishlistImport";
 
 export type {
   AccountItemDetail,
@@ -30,7 +36,70 @@ export type {
   BuildGuideParseResult,
   BuildGuideRequirement
 } from "@d2-tools/core/assistant/guideSchema";
-export type { VaultItemMatchInfo, WeaponRecommendation };
+export type { VaultItemInstanceMatchInfo, VaultItemMatchInfo, VaultItemMatchInput, WeaponRecommendation };
+export type {
+  DimWishlistImportPreview
+};
+
+export type DimWishlistOnlineStatus = {
+  source_url: string;
+  current_revision: string;
+  current_fingerprint: string;
+  activated_at: string;
+  checked_at: string;
+  latest_revision: string;
+  latest_commit_at: string;
+  rule_count: number;
+  weapon_count: number;
+};
+
+export type DimWishlistOnlinePreview = DimWishlistOnlineStatus & {
+  token?: string;
+  update_available: boolean;
+  file_name: string;
+  title: string;
+  preview_fingerprint: string;
+  mode_counts: Record<"pve" | "pvp" | "general", number>;
+  authors: string[];
+  tags: string[];
+};
+
+export type DimWishlistOnlineActivationResult = {
+  wishlist: import("./vaultApi").DimWishlist;
+  status: DimWishlistOnlineStatus;
+};
+
+export type WeaponRecommendationKnowledgeStatus = {
+  database_path: string;
+  source_fingerprint: string;
+  imported_at: string;
+  recommendation_count: number;
+  weapon_count: number;
+  source_count: number;
+};
+
+export type WeaponKnowledgeImportPreview = {
+  file_name: string;
+  recommendation_count: number;
+  weapon_count: number;
+  source_count: number;
+  source_labels: string[];
+  fingerprint: string;
+};
+
+export type WeaponKnowledgeImportResult = WeaponRecommendationKnowledgeStatus & {
+  file_name: string;
+};
+
+export type WeaponKnowledgeImportSelection = WeaponKnowledgeImportPreview & {
+  token: string;
+};
+
+export type FileExportResult = {
+  canceled: boolean;
+  file_path?: string;
+  message: string;
+};
 
 export type AiAdviceSections = {
   facts: string[];

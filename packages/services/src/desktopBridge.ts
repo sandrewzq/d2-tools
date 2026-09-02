@@ -3,12 +3,16 @@ import type { ActivityHistorySummary } from "@d2-tools/core/activities/history";
 import type { DimWishlist } from "@d2-tools/core/analysis/wishlistImport";
 import type { LocalTargetRules } from "@d2-tools/core/analysis/targets";
 import type { EquipmentTargetStore } from "@d2-tools/core/targets/equipmentTargets";
-import type { LocalCommunityRecommendationTable } from "@d2-tools/core/community-perks";
+import type {
+  LocalCommunityRecommendationTable,
+  VaultItemInstanceMatchInfo,
+  VaultItemMatchInput,
+  WeaponRecommendation
+} from "@d2-tools/core/community-perks";
 import type {
   PersonalWeaponKnowledgeTable,
   SavePersonalWeaponKnowledgeInput
 } from "@d2-tools/core/community-perks/personalWeaponKnowledge";
-import type { VaultItemMatchInfo, WeaponRecommendation } from "@d2-tools/core/community-perks";
 import type { VaultTags, SaveVaultNoteInput, SaveVaultTagInput } from "@d2-tools/core/vault/tags";
 import type { AiChatReplyResult, AiChatRequest } from "./types.js";
 import type { D2Services } from "./contracts.js";
@@ -17,7 +21,7 @@ import { createGuideContextService } from "./guideContextService.js";
 export type DesktopBridgeApi = {
   getAccountSummary(options?: { force?: boolean; authoritative?: boolean }): Promise<AccountSummary>;
   getActivitySummary(input: { membership_type: number; membership_id: string; character_ids: string[] }): Promise<ActivityHistorySummary>;
-  matchCommunityVaultItems(items: Array<{ hash: number; socket_plugs?: Array<{ hash: number }> }>): Promise<Array<{ hash: number } & VaultItemMatchInfo>>;
+  matchCommunityVaultItems(items: VaultItemMatchInput[]): Promise<VaultItemInstanceMatchInfo[]>;
   getDimWishlist(): Promise<DimWishlist | null>;
   saveDimWishlist(wishlist: DimWishlist): Promise<DimWishlist>;
   clearDimWishlist(): Promise<null>;

@@ -1,6 +1,6 @@
 import type { AccountItemSummary } from "../account/summary.js";
 import type { LocalTargetRules } from "../analysis/targets.js";
-import type { DimWishlist } from "../analysis/wishlistImport.js";
+import { resolveDimWishlistRuleMetadata, type DimWishlist } from "../analysis/wishlistImport.js";
 import type { EvidenceRef } from "../evidence/reference.js";
 import type { ArmorSlot } from "../armor/model.js";
 import { createArmor30Ruleset } from "../armor/ruleset.js";
@@ -590,6 +590,7 @@ function buildDimWeaponTargets(
   timestamp: string
 ): WeaponTarget[] {
   return (wishlist?.rules ?? []).map((rule, index) => {
+    const metadata = wishlist ? resolveDimWishlistRuleMetadata(wishlist, rule) : { note: "" };
     const sourceId = `${wishlist?.title ?? "DIM Wishlist"}:${index}`;
     const id = stableTargetId("dim-weapon", `${rule.item_hash}-${rule.perk_hashes.join("-")}-${rule.mode}-${index}`);
     const record = records.get(rule.item_hash) ?? null;
@@ -605,12 +606,12 @@ function buildDimWeaponTargets(
     return {
       id,
       kind: "weapon",
-      name: rule.note.trim() || `${itemName} / ${rule.mode.toUpperCase()}`,
+      name: metadata.note.trim() || `${itemName} / ${rule.mode.toUpperCase()}`,
       enabled: true,
       mode: rule.mode,
       weapon: validated.resolution,
       perk_requirements: validated.perks,
-      note: rule.note.trim() || undefined,
+      note: metadata.note.trim() || undefined,
       source: withManifestEvidence(
         buildSource("dim_wishlist", wishlist?.title?.trim() || "DIM Wishlist", sourceId, id, timestamp),
         validated.resolution,

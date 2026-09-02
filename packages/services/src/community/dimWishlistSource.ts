@@ -1,4 +1,5 @@
 import { summarizeItemPerks, type ItemPlugSummary } from "@d2-tools/core/items/perks";
+import { resolveDimWishlistRuleMetadata } from "@d2-tools/core/analysis/wishlistImport";
 import type { CommunityPerkSource, PerkCombo, PerkRef, SourceOptions, WeaponRecommendation } from "@d2-tools/core/community-perks";
 import { loadDimWishlist } from "../analysis/wishlistStore.js";
 
@@ -20,13 +21,16 @@ export function createDimWishlistSource(dataDir: string): CommunityPerkSource {
       const perkHashToRef = buildPerkRefMap(itemHash, options, matchingRules);
       const combos: PerkCombo[] = matchingRules
         .filter((rule) => rule.perk_hashes.length > 0)
-        .map((rule) => ({
-          perks: rule.perk_hashes.map((hash) => perkHashToRef.get(hash) ?? { hash, name: String(hash) }),
-          popularity: undefined,
-          source: "dim_wishlist",
-          mode: rule.mode,
-          note: rule.note || undefined
-        }));
+        .map((rule) => {
+          const metadata = resolveDimWishlistRuleMetadata(wishlist, rule);
+          return {
+            perks: rule.perk_hashes.map((hash) => perkHashToRef.get(hash) ?? { hash, name: String(hash) }),
+            popularity: undefined,
+            source: "dim_wishlist" as const,
+            mode: rule.mode,
+            note: metadata.note || metadata.source_title || undefined
+          };
+        });
       if (!combos.length) return null;
       const modeOrder = { pve: 0, pvp: 1, general: 2 } as const;
       combos.sort((a, b) => modeOrder[a.mode] - modeOrder[b.mode]);

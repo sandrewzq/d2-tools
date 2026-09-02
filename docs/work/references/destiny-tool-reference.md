@@ -88,6 +88,79 @@ DIM 的官方组织仓库总览：<https://github.com/orgs/DestinyItemManager/re
 - 参考重点：社区愿望单的数据组织、默认列表与偏好列表的区分；这是数据来源仓库，不是独立的玩家网页工具。
 - 相关生成工具：<https://48klocs.github.io/wish-list-magic-wand/fingerwave.html>
 
+### T20 武器推荐数据源结论
+
+本节保存 T20“武器推荐汇总与仓库精确清理”的外部数据源调研。任务计划和实施顺序见 [T20 backlog](../backlog/T20-weapon-recommendation-vault-cleanup.md)，这里不维护任务进度。
+
+#### 五个一级推荐来源
+
+| 来源 | 原始链接 | 已确认能力 | 使用边界 |
+|---|---|---|---|
+| `Aegis推荐` | <https://docs.google.com/spreadsheets/d/1JM-0SlxVDAi-C6rGVlLxa-J1WGewEeL8Qvq4htWZHhY/edit?gid=346832350#gid=346832350> | Tier、推荐栏位、获取来源和终局说明；本地使用 Starside 校对 CSV | 不是 Bungie 官方文本，不能直接决定玩家实例分解 |
+| `LGpig推荐` | <https://destiny2-starside-dea-mods-d1g0j2rile2323f73.webapps.tcloudbase.com/pve-farming/index.html> | 传奇与异域武器评级、Perk、DPS/总伤和中文评语 | 两张 CSV 合并为一个一级来源；页面未声明再分发许可 |
+| `YXCRALLXY推荐表` | <https://docs.qq.com/sheet/DYkR5enNIdUt1VFhK?tab=000001&_t=1788087335795&nlc=1> | 广覆盖的 PVE/PVP 第三、第四栏推荐和中文评价 | 自由文本不能自动转换成统一强度分数 |
+| `Sayalarry推荐表` | <https://sa7vp10ytxr.feishu.cn/wiki/W3ySwdahTiNRUJklJNBc0CMPnkb> | 枪管、弹匣、第三四栏、起源特性、大师属性和获取优先级 | 获取优先级不等同于 aegis Tier |
+| `DIM社区愿望单` | <https://github.com/48klocs/dim-wish-list-sources> | 精确武器/Perk Hash、作者来源块、用途标签和 DIM 交换格式 | 非 Bungie 官方，也不是展开行投票数 |
+
+本地输入的只读统计基线：
+
+- `Aegis推荐`：Starside 校对 CSV 共 748 条传奇武器记录；生成时通过当前 Manifest 的官方中英文名称与版本标记验证关联 `itemHash`，最终按官方武器名称汇总。
+- `LGpig推荐`：200 条传奇武器记录和 83 条异域武器记录；两张表作为同一个来源导入。
+- `YXCRALLXY推荐表`：461 个武器位置、454 个名称；453 个带 PVE 推荐，309 个带 PVP 推荐。
+- `Sayalarry推荐表`：72 条实际武器记录、70 个名称、116 条模式配置。
+- 五来源统一生成结果为 2,383 条唯一“官方武器名称 + 推荐来源”记录，覆盖 952 个官方武器名称和 1,627 个关联官方武器 ID；来源行分布为 Aegis 729、LGpig 280、YXCRALLXY 455、Sayalarry 70、DIM 849。生成器按 Manifest 发布标记从新到旧检查同名版本，各版本只用于证明官方 Perk 与插槽，最终按名称合并推荐池。任一同名版本能证明的附加推荐会保留并标注“部分版本具备”；例如“光明前景”的“加速突击”。名称修正仍只使用来源位置、武器类型和官方 Perk 池可唯一证明的映射。
+
+这些数量只表达覆盖和交集，不能当作推荐票数，也不能据此自动生成跨来源组合。
+
+#### DIM社区愿望单身份与时效性
+
+- 来源身份：社区维护的 DIM Wishlist 聚合。仓库 README 将其描述为 DIM 默认加载列表，但仓库不属于 Bungie 官方数据源。
+- 许可：仓库声明 MIT；使用时仍需保留仓库、作者来源块和许可信息。
+- T20 固定候选 revision：`ce2cbcc3b3b3d4b7ebc62f2ddf0502b00f4dadfd`。
+- 该 revision 提交时间：2026-08-03；提交说明：`PvE episode 173 + bonus`；核对时间：2026-09-01。
+- 文件约 26.7 MB，包含约 255,373 条展开后的正向组合和 1,234 个唯一武器 Hash。
+- 与其他四个来源存在大量武器重合，但重合数量不能解释为推荐票数。
+- 展开行主要来自枪管、弹匣和 Perk 候选排列，不能把每行解释成独立投票。
+- 文件级更新时间不代表每把旧武器都在最近提交中重新审核；单条推荐没有统一更新时间或更新 SLA。
+- 正确解析必须保留标题、作者、`//notes:...|tags:...`、用途和完整 Hash 组合。
+- DIM 官方实现将一条规则中的 Perk 解析为无序 `Set<number>`，匹配条件是该实例拥有规则中的全部 Hash；格式本身不保存“第三栏/第四栏”的显式位置，也不会把同栏多个 Hash解释成任选其一。
+- T20 提取标准两栏组合时只能使用 Manifest 插槽证明：旧 Plug Hash 可按官方名称精确映射；同时属于第三、第四栏的 Hash 只有在另一栏已经唯一确定时才能落位；同栏多个必需 Perk、缺栏和特殊异域插槽必须保留为提示，不能弱化成普通组合。
+- Trash List 默认禁用；负向 Wishlist 不作为第一版待处理依据。
+
+#### 其他数据源分级
+
+| 级别 | 来源 | T20 定位 |
+|---|---|---|
+| 官方事实 | Bungie API、Destiny Manifest | 武器、Perk、插槽、版本、账号实例和完整 Roll 的唯一权威 |
+| 批量推荐 | 五个一级推荐来源 | 生成中文知识库和实例匹配证据 |
+| 本地派生保护 | Roll Report 思路、D2Foundry 计算 | 本地计算独特组合、射程和属性；不等于专家推荐 |
+| 条件扩展 | D2Clarity | 确认 Partnership / 授权后补充倍率、触发和持续时间 |
+| 官方资料补充 | d2-additional-info | 固定 revision 补充赛季、来源、任务武器和催化剂关系 |
+| 开发核对 | Destiny2 Checkinfo、D2 Arsenal | 人工核对名称、Perk 池或站点响应，不作为运行时依赖 |
+| 按需复核 | light.gg | 单件或同名组的社区使用参考，不参与启动时全仓批量扫描 |
+
+具体结论：
+
+- Roll Report 源码为 MIT，可参考其独特组合算法并使用当前 Manifest 在本地重写；线上部署接口不是稳定公开协议。
+- D2Clarity 数据适合机制解释，但公开数据库要求核对 Partnership 条件；未确认前不打包、不镜像。
+- D2Foundry 适合射程、换弹和属性派生；历史 Felicity 推荐数据最后更新时间为 2023-08-21，不参与当前推荐共识。
+- d2-additional-info 为 MIT，可固定 revision 使用，但只补充官方资料关系，不替代 Manifest 或推荐来源。
+- Checkinfo 与 D2 Arsenal 存在站点内部 JSON 响应；没有第三方 SLA，D2 Arsenal 对部分当前样本 Hash 返回 404，因此仅用于开发核对。
+
+#### light.gg 使用边界
+
+- 当前环境直接读取 light.gg 武器页、`robots.txt` 和条款页会遇到 Cloudflare 403，不能依赖批量实时抓取。
+- light.gg 的社区流行度不能解释成专家共识，也不能覆盖五个一级来源已经确认的事实。
+- 只在玩家主动打开单件或同名组、来源冲突、单源命中或资料未覆盖时按需查询并缓存。
+- 返回结果必须先校验 `itemHash` 和官方 Perk Hash，再将武器解析到官方名称级推荐池；`hash: 0`、模糊名称和纯文本推断不得参与实例匹配。
+- 缓存需要记录来源 URL、读取时间、Manifest 版本和解析警告。
+
+#### 安全边界
+
+- 账号 OAuth Token、Cookie 和私有库存不得发送给任何第三方推荐工具。
+- 账号事实只通过本应用直接调用 Bungie 官方接口读取。
+- 外部推荐来源只接收公开 `itemHash / perkHash`，或不包含账号身份的查询。
+
 ### D2ArmorPicker
 
 - 用途：根据属性目标、碎片、模组和异域限制计算护甲组合。
