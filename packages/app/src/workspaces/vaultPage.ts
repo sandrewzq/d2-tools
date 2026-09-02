@@ -1,7 +1,7 @@
 import type { AccountItemSummary } from "@d2-tools/core/account/summary";
 import type { DimWishlist } from "@d2-tools/core/analysis/wishlistImport";
 import type { LocalTargetRules } from "@d2-tools/core/analysis/targets";
-import type { VaultItemMatchInfo } from "@d2-tools/core/community-perks";
+import type { VaultItemInstanceMatchInfo } from "@d2-tools/core/community-perks";
 import type { VaultTags } from "@d2-tools/core/vault/tags";
 import type { D2Services } from "@d2-tools/services";
 import { runQuery, type QueryState } from "../queryState.js";
@@ -21,7 +21,7 @@ export type VaultPageModel = {
   tags: VaultTags;
   targetRules: LocalTargetRules;
   wishlist: DimWishlist | null;
-  communityMatch: Map<number, VaultItemMatchInfo>;
+  communityInstanceMatch: Map<string, VaultItemInstanceMatchInfo>;
 };
 
 export type VaultPageWorkspace = VaultPageModel;
@@ -37,7 +37,7 @@ export type VaultPageInput = {
   tags: VaultTags;
   targetRules: LocalTargetRules;
   wishlist: DimWishlist | null;
-  communityMatch: Map<number, VaultItemMatchInfo>;
+  communityInstanceMatch?: Map<string, VaultItemInstanceMatchInfo>;
 };
 
 export async function loadVaultPageWorkspace(
@@ -60,7 +60,7 @@ export async function loadVaultPageWorkspace(
       tags: accountWorkspace.data.tags,
       targetRules: accountWorkspace.data.targetRules,
       wishlist: accountWorkspace.data.wishlist,
-      communityMatch: accountWorkspace.data.vaultCommunityMatch
+      communityInstanceMatch: accountWorkspace.data.vaultCommunityInstanceMatch
     };
   });
 }
@@ -85,6 +85,6 @@ export function createVaultPageWorkspace(input: VaultPageInput): VaultPageWorksp
     tags: input.tags,
     targetRules: input.targetRules,
     wishlist: input.wishlist,
-    communityMatch: input.communityMatch
+    communityInstanceMatch: input.communityInstanceMatch ?? new Map()
   };
 }

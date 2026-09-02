@@ -57,7 +57,7 @@ export function useLibraryWorkspace(input: { vendorSourcePaths?: Map<number, str
     api.matchCommunityVaultItems(inputs)
       .then((result) => {
         const map = new Map<number, VaultItemMatchInfo>();
-        for (const item of result) {
+        for (const item of result.matches) {
           map.set(item.hash, {
             matched: item.matched,
             available: item.available,

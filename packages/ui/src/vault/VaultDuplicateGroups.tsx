@@ -12,11 +12,15 @@ import type {
 } from "@d2-tools/core/account/summary";
 import type { DuplicateAnalysisResult, DuplicateItemGroup } from "@d2-tools/core/analysis/duplicates";
 import { evaluateLocalTargets } from "@d2-tools/core/analysis/targets";
-import { evaluateWishlistRoll } from "@d2-tools/core/analysis/wishlist";
 import type { DimWishlist } from "@d2-tools/core/analysis/wishlistImport";
 import type { LocalTargetRules } from "@d2-tools/core/analysis/targets";
 import { evaluateEquipmentTargets, type EquipmentTargetStore } from "@d2-tools/core/targets/equipmentTargets";
-import type { VaultItemMatchInfo } from "@d2-tools/core/community-perks";
+import type {
+  RecommendationRequirementSlot,
+  RecommendationSourceMatch,
+  RecommendationSourceSlotMatch,
+  VaultItemInstanceMatchInfo
+} from "@d2-tools/core/community-perks";
 import type { SaveVaultTagInput } from "@d2-tools/core/vault/tags";
 import type { LoadoutTemplateLookup } from "@d2-tools/app/loadouts";
 import { getVaultItemKey, normalizeCoreItem } from "@d2-tools/app/vault";
@@ -25,6 +29,11 @@ import { getRovingFocusIndex } from "../interaction/rovingFocus.js";
 import { useNavigationGuard } from "../navigation/NavigationGuard.js";
 import { ConfirmationDialog } from "../overlay/ConfirmationDialog.js";
 import { formatVaultItemMeta } from "./VaultListItem.js";
+import {
+  buildVaultRecommendationSourceSummaries,
+  displayVaultRecommendationSourceLabel,
+  getVaultCommunityInstanceKey
+} from "./vaultRecommendationMatch.js";
 
 type DuplicateDisposition = "none" | "keep" | "review" | "junk";
 type DuplicateTypeFilter = "all" | "weapons" | "armor";
@@ -51,6 +60,13 @@ type DuplicateComparisonValue = {
   kind: "roll";
   key: string;
   options: DuplicateRollOption[];
+} | {
+  kind: "source";
+  key: string;
+  state: RecommendationSourceSlotMatch["state"] | "not_covered";
+  sourceCandidates: string[];
+  instanceOwned: string[];
+  currentEnabled: string[];
 };
 
 type DuplicateComparisonColumn = {
@@ -64,6 +80,11 @@ type DuplicateRollSocket = {
   socketIndex: number;
   plugs: AccountItemPlugSummary[];
   options: DuplicateRollOption[];
+};
+
+type DuplicateSourceOption = {
+  sourceId: string;
+  sourceLabel: string;
 };
 
 const DUPLICATE_DETAIL_CONCURRENCY = 3;
@@ -82,7 +103,8 @@ export function VaultDuplicateGroups(props: {
   localTargetRules?: LocalTargetRules | null;
   equipmentTargetStore?: EquipmentTargetStore | null;
   highlightedItemKeys?: LoadoutTemplateLookup | null;
-  communityMatch?: Map<number, VaultItemMatchInfo>;
+  communityInstanceMatch?: Map<string, VaultItemInstanceMatchInfo>;
+  cleanupProtectionByItemKey?: Map<string, string[]>;
   openingItemKey?: string;
   isBatchSaving: boolean;
   onLoadItemDetail?: (item: AccountItemSummary) => Promise<AccountItemSummary>;
@@ -114,7 +136,7 @@ export function VaultDuplicateGroups(props: {
   const evidenceSummaryByGroup = useMemo(() => new Map(groups.map((group) => [
     group.group_key,
     summarizeGroupEvidence(group, itemByKey, props)
-  ])), [groups, itemByKey, props.communityMatch, props.equipmentTargetStore, props.highlightedItemKeys, props.localTargetRules, props.wishlist]);
+  ])), [groups, itemByKey, props.cleanupProtectionByItemKey, props.communityInstanceMatch, props.equipmentTargetStore, props.highlightedItemKeys, props.localTargetRules, props.wishlist]);
 
   useNavigationGuard(pendingChangeCount > 0 ? {
     title: "离开仓库并放弃待应用状态？",
@@ -288,7 +310,8 @@ export function VaultDuplicateGroups(props: {
           localTargetRules={props.localTargetRules}
           equipmentTargetStore={props.equipmentTargetStore}
           highlightedItemKeys={props.highlightedItemKeys}
-          communityMatch={props.communityMatch}
+          communityInstanceMatch={props.communityInstanceMatch}
+          cleanupProtectionByItemKey={props.cleanupProtectionByItemKey}
           referenceKey={referenceKey}
           referenceIsAutomatic={!explicitReferenceKey}
           hasNextPendingGroup={filteredGroups.some((group) => group.group_key !== activeGroup.group_key && !isGroupPersistedComplete(group))}
@@ -321,7 +344,8 @@ function DuplicateComparePanel(props: {
   localTargetRules?: LocalTargetRules | null;
   equipmentTargetStore?: EquipmentTargetStore | null;
   highlightedItemKeys?: LoadoutTemplateLookup | null;
-  communityMatch?: Map<number, VaultItemMatchInfo>;
+  communityInstanceMatch?: Map<string, VaultItemInstanceMatchInfo>;
+  cleanupProtectionByItemKey?: Map<string, string[]>;
   referenceKey: string;
   referenceIsAutomatic: boolean;
   hasNextPendingGroup: boolean;
@@ -345,21 +369,35 @@ function DuplicateComparePanel(props: {
   const pendingDisposition = props.pendingDisposition ?? savedDisposition;
   // 首屏保持稳定的“当前启用”视图；完整 Roll 只在详情齐全后由用户主动开启。
   const [rollViewMode, setRollViewMode] = useState<"full" | "active">("active");
+  const [comparisonView, setComparisonView] = useState("roll");
   const [protectionConflictCount, setProtectionConflictCount] = useState(0);
   useEffect(() => {
     if (props.rollDataStatus !== "ready") setRollViewMode("active");
   }, [props.rollDataStatus]);
   const referenceRow = rows.find((row) => row.entry.item_key === props.referenceKey);
   const referenceIndex = Math.max(0, rows.findIndex((row) => row.entry.item_key === props.referenceKey));
-  const columns = useMemo(() => buildComparisonColumns(rows.map((row) => row.item)), [props.group.group_key, props.itemByKey]);
-  const hasRollColumns = columns.some((column) => column.kind === "roll");
+  const sourceOptions = useMemo(() => buildDuplicateSourceOptions(
+    rows.map((row) => row.item),
+    props.communityInstanceMatch
+  ), [props.communityInstanceMatch, props.group.group_key, props.itemByKey]);
+  const selectedSourceId = comparisonView.startsWith("source:") ? comparisonView.slice("source:".length) : "";
+  const selectedSource = sourceOptions.find((source) => source.sourceId === selectedSourceId);
+  useEffect(() => {
+    if (selectedSourceId && !selectedSource) setComparisonView("roll");
+  }, [selectedSource, selectedSourceId]);
+  const rollColumns = useMemo(() => buildComparisonColumns(rows.map((row) => row.item)), [props.group.group_key, props.itemByKey]);
+  const sourceColumns = useMemo(() => selectedSource
+    ? buildSourceComparisonColumns(rows.map((row) => row.item), selectedSource.sourceId, props.communityInstanceMatch)
+    : [], [props.communityInstanceMatch, props.group.group_key, props.itemByKey, selectedSource]);
+  const columns = selectedSource ? sourceColumns : rollColumns;
+  const hasRollColumns = rollColumns.some((column) => column.kind === "roll");
   const effectiveRollViewMode = hasRollColumns && props.rollDataStatus === "ready" ? rollViewMode : "active";
-  const showsFullRoll = hasRollColumns && effectiveRollViewMode === "full";
+  const showsFullRoll = !selectedSource && hasRollColumns && effectiveRollViewMode === "full";
   const referenceValues = referenceRow ? columns.map((column) => column.valueFor(referenceRow.item)) : [];
   const summary = summarizeGroupDisposition(props.group, pendingDisposition);
   const changedCount = props.group.items.filter((entry) => (pendingDisposition[entry.item_key] ?? "none") !== dispositionFromTag(entry.tag)).length;
-  const comparisonTracks = columns.map((column) => column.kind === "roll" ? "minmax(188px, 1fr)" : "minmax(116px, 0.78fr)").join(" ");
-  const comparisonMinWidth = columns.reduce((width, column) => width + (column.kind === "roll" ? 188 : 116), 0);
+  const comparisonTracks = columns.map((column) => column.kind === "source" ? "minmax(220px, 1fr)" : column.kind === "roll" ? "minmax(188px, 1fr)" : "minmax(116px, 0.78fr)").join(" ");
+  const comparisonMinWidth = columns.reduce((width, column) => width + (column.kind === "source" ? 220 : column.kind === "roll" ? 188 : 116), 0);
   const gridTemplateColumns = `52px minmax(190px, 1.15fr) ${comparisonTracks} minmax(190px, 1fr) minmax(250px, 1.2fr)`;
   const gridStyle: CSSProperties = {
     gridTemplateColumns,
@@ -401,7 +439,16 @@ function DuplicateComparePanel(props: {
             <span>比较基准</span>
             <strong>实例 {referenceIndex + 1}{props.referenceIsAutomatic ? " · 默认" : ""}</strong>
           </div>
-          {hasRollColumns ? (
+          {sourceOptions.length ? (
+            <label className="duplicate-comparison-source-select">
+              <span>比较内容</span>
+              <select value={comparisonView} onChange={(event) => setComparisonView(event.target.value)}>
+                <option value="roll">实例 Roll</option>
+                {sourceOptions.map((source) => <option value={`source:${source.sourceId}`} key={source.sourceId}>{source.sourceLabel} 推荐要求</option>)}
+              </select>
+            </label>
+          ) : null}
+          {!selectedSource && hasRollColumns ? (
             <div className="duplicate-roll-view-mode" role="group" aria-label="Roll 比较范围">
               <button type="button" aria-pressed={rollViewMode === "active"} onClick={() => setRollViewMode("active")}>当前启用</button>
               <button
@@ -414,7 +461,7 @@ function DuplicateComparePanel(props: {
               </button>
             </div>
           ) : null}
-          {hasRollColumns ? (
+          {!selectedSource && hasRollColumns ? (
             <div className="duplicate-roll-data-status" data-status={props.rollDataStatus} role={props.rollDataStatus === "error" ? "alert" : "status"}>
               <span>
                 {props.rollDataStatus === "loading"
@@ -428,14 +475,25 @@ function DuplicateComparePanel(props: {
               {props.rollDataStatus === "error" ? <button type="button" onClick={props.onRetryRollDetails}>重试</button> : null}
             </div>
           ) : null}
-          <div className="duplicate-compare-legend" aria-label="差异标记">
-            <span className="same">相同</span>
-            {showsFullRoll ? <span className="partial">部分重合</span> : null}
-            <span className="different">{showsFullRoll ? "完全不同" : "不同"}</span>
-          </div>
+          {selectedSource ? (
+            <div className="duplicate-source-legend" aria-label={`${selectedSource.sourceLabel}来源对照状态`}>
+              <span data-source-state="match">符合</span>
+              <span data-source-state="different">不符</span>
+              <span data-source-state="uncheckable">无法核对</span>
+            </div>
+          ) : (
+            <div className="duplicate-compare-legend" aria-label="差异标记">
+              <span className="same">相同</span>
+              {showsFullRoll ? <span className="partial">部分重合</span> : null}
+              <span className="different">{showsFullRoll ? "完全不同" : "不同"}</span>
+            </div>
+          )}
           <button type="button" data-ui-kind="button" data-control-variant="secondary" disabled={!referenceRow} onClick={() => referenceRow && props.onOpenItem(referenceRow.item)}>查看基准详情</button>
         </div>
       </header>
+      {selectedSource && !sourceColumns.length ? (
+        <div className="duplicate-source-note" role="status">{selectedSource.sourceLabel} 只推荐这把武器，没有指定需要比较的 Perk 栏位。</div>
+      ) : null}
       <div className="duplicate-compare-table">
         <div className="duplicate-table-head" style={gridStyle}><span>基准</span><span>实例</span>{columns.map((column) => <span key={column.key}>{column.label}</span>)}<span>保护与证据</span><span>整理状态</span></div>
         {rows.map(({ entry, item }, index) => {
@@ -464,7 +522,7 @@ function DuplicateComparePanel(props: {
                     value={value}
                     referenceValue={referenceValues[valueIndex]}
                     isReference={isReference}
-                    rollViewMode={effectiveRollViewMode}
+                    rollViewMode={selectedSource ? "active" : effectiveRollViewMode}
                   />
                 );
               })}
@@ -473,7 +531,7 @@ function DuplicateComparePanel(props: {
                 <EvidenceGroup label="推荐证据" values={evidence.matches} kind="match" />
               </div>
               <div className={["duplicate-decision", isDirty ? "is-dirty" : ""].filter(Boolean).join(" ")} role="group" aria-label={`实例 ${index + 1} 整理状态`}>
-                {dispositionOptions.map((option) => <button type="button" key={option.key} data-decision-value={option.key} aria-pressed={disposition === option.key} onClick={() => updateDisposition(entry.item_key, option.key)}>{option.label}</button>)}
+                {dispositionOptions.map((option) => <button type="button" key={option.key} data-decision-value={option.key} aria-pressed={disposition === option.key} disabled={option.key === "junk" && evidence.protection.length > 0 && disposition !== "junk"} title={option.key === "junk" && evidence.protection.length ? `受保护：${evidence.protection.join("、")}` : undefined} onClick={() => updateDisposition(entry.item_key, option.key)}>{option.label}</button>)}
               </div>
             </article>
           );
@@ -527,6 +585,23 @@ function DuplicateComparisonCell(props: {
   isReference: boolean;
   rollViewMode: "full" | "active";
 }) {
+  if (props.value.kind === "source") {
+    const stateLabel = sourceSlotStateLabel(props.value.state);
+    const sourceNames = props.value.sourceCandidates.join("、") || "来源未列出具体名称";
+    const ownedNames = props.value.instanceOwned.join("、") || "本件未返回";
+    const currentNames = props.value.currentEnabled.join("、") || "当前启用项未返回";
+    return (
+      <div className={`duplicate-cell is-source source-${props.value.state}`} aria-label={`${props.label}：${stateLabel}。来源要求：${sourceNames}。本件拥有：${ownedNames}。当前启用：${currentNames}。`}>
+        <small className="duplicate-source-state">{stateLabel}</small>
+        <div className="duplicate-source-values">
+          <span><small>来源要求</small><b>{sourceNames}</b></span>
+          <span><small>本件拥有</small><b>{ownedNames}</b></span>
+          <span><small>当前启用</small><b>{currentNames}</b></span>
+        </div>
+      </div>
+    );
+  }
+
   if (props.value.kind === "scalar") {
     const referenceKey = props.referenceValue?.kind === "scalar" ? props.referenceValue.key : undefined;
     const compareState = props.isReference ? "baseline" : referenceKey === props.value.key ? "same" : "different";
@@ -651,6 +726,116 @@ function buildComparisonColumns(items: AccountItemSummary[]): DuplicateCompariso
   return columns;
 }
 
+const recommendationSlotOrder: RecommendationRequirementSlot[] = [
+  "barrel",
+  "magazine",
+  "masterwork",
+  "perk1",
+  "perk2",
+  "origin"
+];
+
+function buildDuplicateSourceOptions(
+  items: AccountItemSummary[],
+  instanceMatchMap?: Map<string, VaultItemInstanceMatchInfo>
+): DuplicateSourceOption[] {
+  const options = new Map<string, DuplicateSourceOption>();
+  for (const item of items) {
+    const sourceMatches = instanceMatchMap?.get(getVaultCommunityInstanceKey(item))?.source_matches ?? [];
+    for (const source of sourceMatches) {
+      if (source.state === "not_covered" || options.has(source.source_id)) continue;
+      options.set(source.source_id, {
+        sourceId: source.source_id,
+        sourceLabel: displayVaultRecommendationSourceLabel(source.source_id, source.source_label)
+      });
+    }
+  }
+  return [...options.values()].sort((left, right) => (
+    duplicateSourceOrder(left.sourceId) - duplicateSourceOrder(right.sourceId)
+    || left.sourceLabel.localeCompare(right.sourceLabel, "zh-Hans-CN")
+  ));
+}
+
+function buildSourceComparisonColumns(
+  items: AccountItemSummary[],
+  sourceId: string,
+  instanceMatchMap?: Map<string, VaultItemInstanceMatchInfo>
+): DuplicateComparisonColumn[] {
+  const sources = items.map((item) => sourceMatchForItem(item, sourceId, instanceMatchMap));
+  return recommendationSlotOrder.flatMap((slot) => {
+    const slotMatches = sources.flatMap((source) => source?.slots.find((entry) => entry.slot === slot) ?? []);
+    const specified = slotMatches.find((entry) => entry.state !== "source_not_specified");
+    if (!specified) return [];
+    return [{
+      key: `source-${sourceId}-${slot}`,
+      label: specified.label,
+      kind: "source" as const,
+      valueFor: (item: AccountItemSummary): DuplicateComparisonValue => {
+        const source = sourceMatchForItem(item, sourceId, instanceMatchMap);
+        const slotMatch = source?.slots.find((entry) => entry.slot === slot);
+        if (!source || !slotMatch) {
+          return {
+            kind: "source",
+            key: "not_covered",
+            state: "not_covered",
+            sourceCandidates: uniqueText(slotMatches.flatMap(sourceCandidateNames)),
+            instanceOwned: [],
+            currentEnabled: []
+          };
+        }
+        return {
+          kind: "source",
+          key: `${slotMatch.state}:${slotMatch.instance_owned.map((plug) => plug.hash).join(",")}`,
+          state: slotMatch.state,
+          sourceCandidates: sourceCandidateNames(slotMatch),
+          instanceOwned: uniqueText(slotMatch.instance_owned.map((plug) => plug.name)),
+          currentEnabled: uniqueText(slotMatch.current_enabled.map((plug) => plug.name))
+        };
+      }
+    }];
+  });
+}
+
+function sourceMatchForItem(
+  item: AccountItemSummary,
+  sourceId: string,
+  instanceMatchMap?: Map<string, VaultItemInstanceMatchInfo>
+): RecommendationSourceMatch | undefined {
+  return instanceMatchMap
+    ?.get(getVaultCommunityInstanceKey(item))
+    ?.source_matches
+    ?.find((source) => source.source_id === sourceId && source.state !== "not_covered");
+}
+
+function sourceCandidateNames(slot: RecommendationSourceSlotMatch): string[] {
+  return uniqueText([
+    ...slot.source_candidate_names,
+    ...slot.source_candidates.map((candidate) => candidate.name),
+    ...slot.unresolved_source_candidate_names
+  ]);
+}
+
+function uniqueText(values: string[]): string[] {
+  return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
+}
+
+function sourceSlotStateLabel(state: RecommendationSourceSlotMatch["state"] | "not_covered"): string {
+  if (state === "match") return "符合";
+  if (state === "different") return "不符";
+  if (state === "uncheckable") return "无法核对";
+  if (state === "source_not_specified") return "来源未要求";
+  return "该来源未收录";
+}
+
+function duplicateSourceOrder(sourceId: string): number {
+  if (sourceId === "aegis") return 0;
+  if (sourceId === "lgpig") return 1;
+  if (sourceId === "yxcrallxy") return 2;
+  if (sourceId === "sayalarry") return 3;
+  if (sourceId === "dim_voltron" || sourceId === "dim_wishlist") return 4;
+  return 99;
+}
+
 function weaponRollSockets(item: AccountItemSummary): DuplicateRollSocket[] {
   if (item.sockets?.length) {
     return item.sockets.flatMap((socket) => {
@@ -748,26 +933,30 @@ function itemEvidence(item: AccountItemSummary, props: {
   localTargetRules?: LocalTargetRules | null;
   equipmentTargetStore?: EquipmentTargetStore | null;
   highlightedItemKeys?: LoadoutTemplateLookup | null;
-  communityMatch?: Map<number, VaultItemMatchInfo>;
+  communityInstanceMatch?: Map<string, VaultItemInstanceMatchInfo>;
+  cleanupProtectionByItemKey?: Map<string, string[]>;
 }): DuplicateEvidence {
-  const wishlist = evaluateWishlistRoll(normalizeCoreItem(item), props.wishlist ?? undefined);
   const target = evaluateLocalTargets(normalizeCoreItem(item), props.localTargetRules ?? undefined);
   const equipmentTarget = evaluateEquipmentTargets(normalizeCoreItem(item), props.equipmentTargetStore ?? undefined);
+  const instanceMatch = props.communityInstanceMatch?.get(getVaultCommunityInstanceKey(item));
+  const sourceSummaries = item.group_key === "weapons"
+    ? buildVaultRecommendationSourceSummaries(item, instanceMatch, props.wishlist)
+    : [];
   const exactLoadoutMatch = Boolean(item.instance_id && props.highlightedItemKeys?.instanceIds.has(item.instance_id));
   const sameDefinitionLoadoutMatch = !exactLoadoutMatch && Boolean(
     props.highlightedItemKeys?.bucketHashKeys.has(`${item.bucket_name ?? ""}:${item.hash}`)
     || props.highlightedItemKeys?.hashKeys.has(item.hash)
   );
   return {
-    protection: [
+    protection: [...new Set([
+      ...(props.cleanupProtectionByItemKey?.get(getVaultCommunityInstanceKey(item)) ?? []),
       item.locked ? "已锁定" : "",
       exactLoadoutMatch ? "配装实例" : ""
-    ].filter(Boolean),
+    ].filter(Boolean))],
     matches: [
       sameDefinitionLoadoutMatch ? "配装同款" : "",
-      wishlist.matched ? "愿望单命中" : "",
       equipmentTarget.matched || target.matched ? "目标命中" : "",
-      (props.communityMatch?.get(item.hash)?.matched ?? 0) > 0 ? "社区同款" : ""
+      ...sourceSummaries.map((summary) => summary.text)
     ].filter(Boolean)
   };
 }
@@ -777,7 +966,8 @@ function summarizeGroupEvidence(group: DuplicateItemGroup, itemByKey: Map<string
   localTargetRules?: LocalTargetRules | null;
   equipmentTargetStore?: EquipmentTargetStore | null;
   highlightedItemKeys?: LoadoutTemplateLookup | null;
-  communityMatch?: Map<number, VaultItemMatchInfo>;
+  communityInstanceMatch?: Map<string, VaultItemInstanceMatchInfo>;
+  cleanupProtectionByItemKey?: Map<string, string[]>;
 }): { protectedItems: number; matchedItems: number } {
   return group.items.reduce((summary, entry) => {
     const item = itemByKey.get(entry.item_key);

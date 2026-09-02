@@ -43,6 +43,7 @@ export function useVaultBatchActions(input: {
   cleanupActions?: VaultCleanupActions;
   cleanupTargetCharacterId: string;
   cleanupTargetCharacterLabel: string;
+  cleanupProtectionByItemKey?: Map<string, string[]>;
   setSelectedKeys: Dispatch<SetStateAction<Set<string>>>;
   setIsOrganizing: (value: boolean) => void;
   setIsCleanupMode: (value: boolean) => void;
@@ -81,10 +82,20 @@ export function useVaultBatchActions(input: {
     setBatchMessage(copy.loading);
 
     try {
-      for (const item of input.selectedItems) {
+      const protectedItems = tag === "junk"
+        ? input.selectedItems.filter((item) => (
+            (input.cleanupProtectionByItemKey?.get(item.instance_id ?? `hash:${item.hash}`)?.length ?? 0) > 0
+          ))
+        : [];
+      const writableItems = tag === "junk"
+        ? input.selectedItems.filter((item) => !protectedItems.includes(item))
+        : input.selectedItems;
+      for (const item of writableItems) {
         await input.onSaveTag(item, tag);
       }
-      setBatchMessage(buildVaultBatchTagResultMessage(input.selectedItems.length));
+      setBatchMessage(protectedItems.length
+        ? `已处理 ${writableItems.length} 件；${protectedItems.length} 件受保护，未改为待处理。`
+        : buildVaultBatchTagResultMessage(writableItems.length));
       input.setSelectedKeys(new Set());
     } catch (error) {
       setBatchMessage(error instanceof Error ? error.message : "批量标记失败");

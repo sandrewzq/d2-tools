@@ -66,7 +66,10 @@ export function createMemoryServices(seed: MemoryServicesSeed): D2Services {
     },
     async matchCommunityVaultItems(items) {
       const requestedHashes = new Set(items.map((item) => item.hash));
-      return communityMatches.filter((item) => requestedHashes.has(item.hash));
+      return {
+        matches: communityMatches.filter((item) => requestedHashes.has(item.hash)),
+        issues: []
+      };
     }
   };
   const localData: D2Services["localData"] = {

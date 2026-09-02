@@ -26,6 +26,7 @@ export async function encodeDesktopIpcFailure<TResult>(
 
 export const classifyAccountIpcError = createDomainClassifier("ACCOUNT", "LOAD_FAILED");
 export const classifyArmorIpcError = createDomainClassifier("ARMOR", "PLAN_FAILED");
+export const classifyCommunityIpcError = createDomainClassifier("COMMUNITY", "MATCH_FAILED");
 export const classifyHomeBriefingIpcError = createDomainClassifier("HOME", "LOAD_FAILED");
 export const classifyManifestIpcError = createDomainClassifier("MANIFEST", "OPERATION_FAILED");
 export const classifyGameDataIpcError = createDomainClassifier("GAME_DATA", "QUERY_FAILED");

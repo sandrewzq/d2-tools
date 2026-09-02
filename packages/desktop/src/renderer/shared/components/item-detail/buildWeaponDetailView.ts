@@ -404,7 +404,11 @@ export function buildWeaponPersonalTargetViews(
   return (recommendation?.combos ?? [])
     .filter((combo) => combo.source === "dim_wishlist")
     .map((combo, index) => {
-      const matched = combo.perks.filter((perk) => availableHashes.has(perk.hash)).length;
+      const diagnosticPerks = combo.dim_diagnostic?.perks;
+      const requirements = diagnosticPerks?.map((perk) => (
+        perk.resolved_hashes?.length ? perk.resolved_hashes : [perk.resolved_hash ?? perk.original_hash]
+      )) ?? combo.perks.map((perk) => [perk.hash]);
+      const matched = requirements.filter((hashes) => hashes.some((hash) => availableHashes.has(hash))).length;
       return {
         id: `dim:${combo.mode}:${index}`,
         mode: combo.mode,
@@ -415,17 +419,32 @@ export function buildWeaponPersonalTargetViews(
         source: "dim" as const,
         source_label: "DIM 愿望单",
         perk_options: isFixedExotic ? [] : combo.perks.map((perk, perkIndex) => ({
-          column_key: `Perk ${perkIndex + 1}`,
+          column_key: dimDiagnosticSlotLabel(diagnosticPerks?.[perkIndex]?.slot_candidates[0]) ?? `项目 ${perkIndex + 1}`,
           names: [perk.name]
         })),
         masterwork_names: [],
         mod_names: [],
-        match: isFixedExotic ? "not_applicable" as const : matchRecommendation(item, matched, combo.perks.length),
+        match: isFixedExotic ? "not_applicable" as const : matchRecommendation(item, matched, requirements.length),
         match_notes: isFixedExotic
           ? ["固定异域不执行 DIM 随机 Roll 命中；保留此条愿望单作为收藏与来源记录。"]
-          : recommendationMatchNotes(item, matched, combo.perks.length)
+          : [
+              ...recommendationMatchNotes(item, matched, requirements.length),
+              ...(combo.dim_diagnostic ? [combo.dim_diagnostic.message] : [])
+            ]
       };
     });
+}
+
+function dimDiagnosticSlotLabel(slot: string | undefined): string | undefined {
+  if (slot === "barrel") return "枪管/瞄具";
+  if (slot === "magazine") return "第二列";
+  if (slot === "masterwork") return "大师";
+  if (slot === "perk1") return "Perk 1";
+  if (slot === "perk2") return "Perk 2";
+  if (slot === "origin") return "起源特性";
+  if (slot === "special") return "特殊插槽";
+  if (slot === "unknown") return "无法定位栏位";
+  return undefined;
 }
 
 export function buildEquipmentTargetWeaponViews(

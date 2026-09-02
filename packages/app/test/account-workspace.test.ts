@@ -226,8 +226,8 @@ describe("account workspace", () => {
           };
         },
         async matchCommunityVaultItems() {
-          return [
-            {
+          return {
+            matches: [{
               hash: 123,
               canonical_weapon_name: "Test Gun",
               coverage: "covered",
@@ -238,8 +238,9 @@ describe("account workspace", () => {
               modes: ["pve"],
               sample_perks: [],
               source_label: "本地社区表"
-            }
-          ];
+            }],
+            issues: []
+          };
         }
       },
       localData: {
@@ -317,8 +318,8 @@ describe("account workspace", () => {
     expect(result.data.targetRules.action_policy).toBe("notify_only");
     expect(result.data.wishlist?.title).toBe("Test Wishlist");
     expect(result.data.activitySummary?.recent.total).toBe(1);
-    expect(result.data.vaultCommunityMatch.get(123)?.matched).toBe(1);
-    expect(result.data.vaultCommunityMatch.get(123)?.source_label).toBe("本地社区表");
+    expect(result.data.vaultCommunityInstanceMatch.get("hash:123")?.matched).toBe(1);
+    expect(result.data.vaultCommunityInstanceMatch.get("hash:123")?.source_label).toBe("本地社区表");
   });
 
   it("loads the activity slice without triggering community matching", async () => {
@@ -337,7 +338,7 @@ describe("account workspace", () => {
         },
         async matchCommunityVaultItems() {
           communityCalls += 1;
-          return [];
+          return { matches: [], issues: [] };
         }
       }
     }, {

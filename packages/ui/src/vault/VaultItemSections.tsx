@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { AccountItemSummary } from "@d2-tools/core/account/summary";
 import type { DimWishlist } from "@d2-tools/core/analysis/wishlistImport";
 import type { LocalTargetRules } from "@d2-tools/core/analysis/targets";
-import type { VaultItemMatchInfo } from "@d2-tools/core/community-perks";
+import type { VaultItemInstanceMatchInfo } from "@d2-tools/core/community-perks";
 import type { VaultTags } from "@d2-tools/core/vault/tags";
 import type { LoadoutTemplateLookup } from "@d2-tools/app/loadouts";
 import type { VaultSection } from "@d2-tools/app/vault";
@@ -18,7 +18,7 @@ export function VaultItemSections(props: {
   tags: VaultTags;
   wishlist?: DimWishlist | null;
   localTargetRules?: LocalTargetRules | null;
-  communityMatch?: Map<number, VaultItemMatchInfo>;
+  communityInstanceMatch?: Map<string, VaultItemInstanceMatchInfo>;
   isOrganizing: boolean;
   isSearchActive: boolean;
   selectedKeys: Set<string>;
@@ -80,7 +80,7 @@ export function VaultItemSections(props: {
             tags={props.tags}
             wishlist={props.wishlist}
             localTargetRules={props.localTargetRules}
-            communityMatch={props.communityMatch?.get(item.hash)}
+            communityInstanceMatch={props.communityInstanceMatch?.get(item.instance_id ?? `hash:${item.hash}`)}
             isOrganizing={props.isOrganizing}
             isSelected={props.selectedKeys.has(getVaultItemKey(item))}
             isOpening={props.openingItemKey === getVaultItemKey(item)}

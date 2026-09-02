@@ -1642,7 +1642,7 @@ function summarizeSockets(input: {
   });
 }
 
-type AccountWeaponRollSemanticRole =
+export type AccountWeaponRollSemanticRole =
   | "barrel"
   | "magazine"
   | "masterwork"
@@ -1737,7 +1737,7 @@ function summarizeWeaponRoll(
   };
 }
 
-function classifyWeaponRollSocket(
+export function classifyWeaponRollSocket(
   plugs: readonly AccountWeaponRollPlugSummary[]
 ): AccountWeaponRollSemanticRole | undefined {
   const visible = plugs.filter((plug) => !isIgnoredWeaponRollPlug(plug));

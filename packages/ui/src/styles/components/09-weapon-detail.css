@@ -415,6 +415,29 @@ button.weapon-detail-perk:hover { border-color: var(--state-selected-border); ba
 .weapon-detail-match-summary { display: flex; flex-wrap: wrap; gap: 5px; }
 .weapon-detail-match-summary span { padding: 4px 6px; border: 1px solid var(--border-subtle); border-radius: var(--radius-control); color: var(--text-muted); background: var(--surface-interactive); font-size: var(--font-caption); }
 .weapon-detail-match-empty { margin: 0; padding: 14px; border: 1px dashed var(--border-control); color: var(--text-muted); text-align: center; }
+.weapon-detail-source-evidence { overflow: hidden; border: 1px solid var(--object-border); border-radius: var(--radius-object); background: var(--card-bg); }
+.weapon-detail-source-evidence > summary { display: flex; min-height: 54px; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; cursor: pointer; list-style: none; }
+.weapon-detail-source-evidence > summary::-webkit-details-marker { display: none; }
+.weapon-detail-source-evidence > summary::before { width: 7px; height: 7px; flex: 0 0 auto; border-right: 2px solid var(--text-muted); border-bottom: 2px solid var(--text-muted); content: ""; transform: rotate(-45deg); transition: transform 120ms ease; }
+.weapon-detail-source-evidence[open] > summary::before { transform: rotate(45deg); }
+.weapon-detail-source-evidence > summary:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+.weapon-detail-source-evidence > summary > span:first-of-type { display: grid; min-width: 0; gap: 3px; margin-right: auto; }
+.weapon-detail-source-evidence > summary strong { color: var(--text-title); font-size: var(--font-row-title); }
+.weapon-detail-source-evidence > summary small { color: var(--text-muted); font-size: var(--font-meta); line-height: 1.4; overflow-wrap: anywhere; }
+.weapon-detail-source-evidence-body { display: grid; gap: 10px; padding: 0 12px 12px; border-top: 1px solid var(--section-divider); }
+.weapon-detail-source-evidence-body > :first-child { margin-top: 10px; }
+.weapon-detail-source-trace { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; color: var(--text-muted); font-size: var(--font-meta); overflow-wrap: anywhere; }
+.weapon-detail-source-trace a { color: var(--accent-primary); }
+.weapon-detail-source-slot-list { display: grid; border-top: 1px solid var(--section-divider); }
+.weapon-detail-source-slot { display: grid; grid-template-columns: minmax(88px, 0.6fr) repeat(3, minmax(120px, 1fr)) minmax(92px, auto); align-items: stretch; border-bottom: 1px solid var(--border-subtle); }
+.weapon-detail-source-slot > strong,
+.weapon-detail-source-slot > div,
+.weapon-detail-source-slot > .ui-badge { min-width: 0; align-self: stretch; padding: 8px; }
+.weapon-detail-source-slot > strong { color: var(--text-title); font-size: var(--font-body); }
+.weapon-detail-source-slot > div { border-left: 1px solid var(--border-subtle); }
+.weapon-detail-source-slot > div > span { display: block; margin-bottom: 3px; color: var(--text-muted); font-size: var(--font-caption); }
+.weapon-detail-source-slot > div > p { margin: 0; color: var(--text-body); font-size: var(--font-meta); line-height: 1.45; overflow-wrap: anywhere; }
+.weapon-detail-source-slot > .ui-badge { align-self: center; justify-self: center; height: fit-content; text-align: center; white-space: normal; }
 
 .weapon-detail-upgrade-layout { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(360px, 0.95fr); gap: 22px; }
 .weapon-detail-upgrade-layout.without-catalyst { grid-template-columns: 1fr; }
@@ -583,6 +606,12 @@ button.weapon-detail-perk:hover { border-color: var(--state-selected-border); ba
   .weapon-detail-match-grid { grid-template-columns: minmax(76px, 0.8fr) repeat(2, minmax(0, 1fr)); max-width: 100%; overflow: visible; }
   .weapon-detail-match-grid span,
   .weapon-detail-match-grid strong { overflow-wrap: anywhere; }
+  .weapon-detail-source-evidence > summary { align-items: flex-start; flex-wrap: wrap; }
+  .weapon-detail-source-evidence > summary > .ui-badge { margin-left: 19px; }
+  .weapon-detail-source-slot { grid-template-columns: 1fr; gap: 0; padding: 8px 0; }
+  .weapon-detail-source-slot > strong { padding-bottom: 4px; }
+  .weapon-detail-source-slot > div { border-left: 0; padding-top: 4px; padding-bottom: 4px; }
+  .weapon-detail-source-slot > .ui-badge { justify-self: start; margin: 4px 8px 0; padding: 4px 7px; }
   .weapon-detail-upgrade-table > div { grid-template-columns: minmax(92px, 0.75fr) minmax(0, 1.25fr); }
   .weapon-detail-upgrade-table > div > * { overflow-wrap: anywhere; }
   .weapon-detail-knowledge-form { grid-template-columns: 1fr; }

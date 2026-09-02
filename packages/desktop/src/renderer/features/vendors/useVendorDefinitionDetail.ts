@@ -94,7 +94,7 @@ export function useVendorDefinitionDetail(input: { vendorSourcePaths?: Map<numbe
       : fallbackLiveEntry;
     const resolvedItemHash = detailResult.status === "fulfilled" ? detailResult.value.hash : itemHash;
     const communityMatch = communityResult.status === "fulfilled"
-      ? communityResult.value.find((candidate) => candidate.hash === resolvedItemHash)
+      ? communityResult.value.matches.find((candidate) => candidate.hash === resolvedItemHash)
       : undefined;
 
     setState((current) => current ? {

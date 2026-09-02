@@ -26,7 +26,17 @@ describe("vault page workspace", () => {
       tags: { items: { "item-1": { tag: "keep" } } },
       targetRules: emptyLocalTargetRules,
       wishlist: { title: "DIM", rules: [] },
-      communityMatch: new Map([[100, { matched: 1, available: 2, modes: ["pve"] }]])
+      communityInstanceMatch: new Map([["item-1", {
+        hash: 100,
+        instance_id: "item-1",
+        canonical_weapon_name: "测试武器",
+        coverage: "covered",
+        match_status: "full_match",
+        matched: 1,
+        partial: 0,
+        available: 2,
+        modes: ["pve"]
+      }]])
     });
 
     expect(model.vaultItems.map((item) => item.instance_id)).toEqual(["item-1"]);
@@ -38,7 +48,7 @@ describe("vault page workspace", () => {
     expect(model.tags.items["item-1"]?.tag).toBe("keep");
     expect(model.targetRules).toBe(emptyLocalTargetRules);
     expect(model.wishlist?.title).toBe("DIM");
-    expect(model.communityMatch.get(100)?.matched).toBe(1);
+    expect(model.communityInstanceMatch.get("item-1")?.matched).toBe(1);
   });
 });
 

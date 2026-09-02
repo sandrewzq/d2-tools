@@ -2,13 +2,14 @@ import { memo } from "react";
 import type { AccountItemSummary } from "@d2-tools/core/account/summary";
 import type { DimWishlist } from "@d2-tools/core/analysis/wishlistImport";
 import type { LocalTargetRules } from "@d2-tools/core/analysis/targets";
-import type { VaultItemMatchInfo } from "@d2-tools/core/community-perks";
+import type { VaultItemInstanceMatchInfo } from "@d2-tools/core/community-perks";
 import type { ArmorStatKey } from "@d2-tools/core/loadouts/analysis";
 import type { VaultTags, VaultTagValue } from "@d2-tools/core/vault/tags";
 import { matchesLoadoutTemplateItem, type LoadoutTemplateLookup } from "@d2-tools/app/loadouts";
 import { ammoFilterLabels, armorStatLabels, formatArmorStatsInline, getVaultItemKey, tagLabels } from "@d2-tools/app/vault";
 import { GameAssetImage } from "../media/GameAssetImage.js";
 import { VaultAmmoTypeIcon, VaultDamageTypeIcon } from "./VaultWeaponFactIcons.js";
+import { buildVaultRecommendationSourceSummaries } from "./vaultRecommendationMatch.js";
 
 export function VaultListItem(props: {
   item: AccountItemSummary;
@@ -16,7 +17,7 @@ export function VaultListItem(props: {
   tags: VaultTags;
   wishlist?: DimWishlist | null;
   localTargetRules?: LocalTargetRules | null;
-  communityMatch?: VaultItemMatchInfo;
+  communityInstanceMatch?: VaultItemInstanceMatchInfo;
   imagePriority?: boolean;
   isOrganizing: boolean;
   isSelected: boolean;
@@ -58,6 +59,9 @@ export function VaultListItem(props: {
     </span>
   );
   const strongestArmorStat = isArmor ? getStrongestArmorStat(props.item) : undefined;
+  const sourceSummaries = isWeapon
+    ? buildVaultRecommendationSourceSummaries(props.item, props.communityInstanceMatch, props.wishlist).slice(0, 2)
+    : [];
   const cardContent = isWeapon ? <>
       <div className="vault-weapon-identity">
         {visual}
@@ -80,6 +84,20 @@ export function VaultListItem(props: {
           <small>光</small><strong>{props.item.power ?? "—"}</strong>
         </span>
       </div>
+      {sourceSummaries.length ? (
+        <div className="vault-weapon-source-summary" aria-label={`推荐来源对照：${sourceSummaries.map((summary) => summary.detail).join("；")}`}>
+          {sourceSummaries.map((summary) => (
+            <span
+              className="vault-weapon-source-chip"
+              data-match-state={summary.state}
+              key={summary.sourceId}
+              title={summary.detail}
+            >
+              {summary.text}
+            </span>
+          ))}
+        </div>
+      ) : null}
       <div className="vault-weapon-status">
         <span className={`vault-score-badge score-${disposition}`}>{dispositionShortLabel(disposition)}</span>
         {stateFlags}
@@ -132,6 +150,7 @@ export function VaultListItem(props: {
         "vault-item-card",
         props.isSelected ? "selected" : "",
         props.isOrganizing ? "is-organizing" : "",
+        sourceSummaries.length ? "has-source-summary" : "",
         isLoadoutMatch ? "loadout-highlight" : "",
         props.isOpening ? "pending" : "",
         `vault-item-${props.item.group_key}`,

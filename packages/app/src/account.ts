@@ -10,7 +10,8 @@ export { buildCharacterPowerView } from "./workspaces/accountPower.js";
 export type {
   AccountDerivedWorkspace,
   FullAccountWorkspace,
-  LoadAccountDerivedWorkspaceOptions
+  LoadAccountDerivedWorkspaceOptions,
+  VaultRecommendationScanState
 } from "./workspaces/accountDerived.js";
 export { loadAccountDerivedWorkspace, loadFullAccountWorkspace } from "./workspaces/accountDerived.js";
 export type {

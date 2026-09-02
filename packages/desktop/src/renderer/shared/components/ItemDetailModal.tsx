@@ -8,11 +8,13 @@ import type {
   ItemActionResult,
   ItemAiAdviceResult,
   LocalTargetRules,
+  VaultItemInstanceMatchInfo,
   VaultTags,
   VaultTagValue,
   WeaponRecommendation
 } from "../../api/types";
 import type { AccountOperationFeedbackView } from "@d2-tools/app/account";
+import type { VaultRecommendationScanState } from "@d2-tools/app/account";
 import type { ItemSearchResult } from "../../api/types";
 import type { LiveItemAvailabilityEntry } from "@d2-tools/core/items/liveAvailability";
 import type {
@@ -45,6 +47,8 @@ export type ItemDetailModalProps = {
   aiSettingsEnableLightgg: boolean;
   communityRecommendations: WeaponRecommendation | null;
   communityRecommendationError: string;
+  communityInstanceMatch?: VaultItemInstanceMatchInfo;
+  recommendationScan: VaultRecommendationScanState;
   importedWishlist: DimWishlist | null;
   localTargetRules: LocalTargetRules;
   equipmentTargetStore: EquipmentTargetStore;
@@ -200,6 +204,22 @@ export function ItemDetailModal(props: ItemDetailModalProps) {
           <WeaponDetailContent
             model={weaponModel}
             personalKnowledge={props.personalWeaponKnowledge}
+            recommendationEvidence={{
+              sourceMatches: mergeRecommendationSourceDetails(
+                props.communityInstanceMatch?.source_matches ?? [],
+                props.communityRecommendations?.source_records ?? []
+              ).filter((source) => (
+                source.state !== "not_covered"
+                && source.source_id !== "dim_voltron"
+                && source.source_id !== "dim_wishlist"
+              )),
+              status: resolveRecommendationEvidenceStatus(
+                props.isCommunityRecommendationsLoading,
+                props.communityRecommendationError,
+                props.recommendationScan
+              ),
+              message: props.communityRecommendationError || props.recommendationScan.message
+            }}
             analysis={{
               status: props.isGeneratingItemAi
                 ? "running"
@@ -417,6 +437,41 @@ export function ItemDetailModal(props: ItemDetailModalProps) {
       )}
     />
   );
+}
+
+function mergeRecommendationSourceDetails(
+  matches: NonNullable<VaultItemInstanceMatchInfo["source_matches"]>,
+  records: NonNullable<WeaponRecommendation["source_records"]>
+): NonNullable<VaultItemInstanceMatchInfo["source_matches"]> {
+  const recordsBySource = new Map(records.map((record) => [record.source_id, record]));
+  return matches.map((match) => {
+    const record = recordsBySource.get(match.source_id);
+    if (!record) return match;
+    return {
+      ...match,
+      source_label: record.source_label || match.source_label,
+      source_url: record.source_url ?? match.source_url,
+      purposes: record.purposes.length ? record.purposes : match.purposes,
+      rating: record.rating ?? match.rating,
+      ranking: record.ranking ?? match.ranking,
+      note: record.note ?? match.note,
+      page_updated_at: record.page_updated_at ?? match.page_updated_at,
+      version: record.version ?? match.version,
+      source_location: record.source_location ?? match.source_location
+    };
+  });
+}
+
+function resolveRecommendationEvidenceStatus(
+  isDetailLoading: boolean,
+  detailError: string,
+  scan: VaultRecommendationScanState
+): "idle" | "loading" | "partial" | "ready" | "error" {
+  if (isDetailLoading || scan.phase === "scanning") return "loading";
+  if (scan.phase === "partial") return "partial";
+  if (detailError || scan.phase === "error") return "error";
+  if (scan.phase === "idle") return "idle";
+  return "ready";
 }
 
 function hasAppliedPerkChanges(

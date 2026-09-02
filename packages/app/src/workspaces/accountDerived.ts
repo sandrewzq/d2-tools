@@ -1,14 +1,36 @@
 import type { AccountSummary } from "@d2-tools/core/account/summary";
 import type { ActivityHistorySummary } from "@d2-tools/core/activities/history";
-import type { VaultItemInstanceMatchInfo, VaultItemMatchInfo } from "@d2-tools/core/community-perks";
+import type {
+  VaultItemInstanceMatchInfo,
+  VaultRecommendationDependencyIssue
+} from "@d2-tools/core/community-perks";
 import type { D2Services } from "@d2-tools/services";
 import { runQuery, type QueryState } from "../queryState.js";
 import { loadAccountWorkspace, type AccountWorkspace } from "./account.js";
 
 export type AccountDerivedWorkspace = {
   activitySummary: ActivityHistorySummary | null;
-  vaultCommunityMatch: Map<number, VaultItemMatchInfo>;
   vaultCommunityInstanceMatch: Map<string, VaultItemInstanceMatchInfo>;
+  vaultRecommendationIssues: VaultRecommendationDependencyIssue[];
+  vaultRecommendationManifestVersion?: string;
+  vaultRecommendationRevision?: string;
+  vaultRecommendationSchemaVersion?: number;
+};
+
+export type VaultRecommendationScanState = {
+  phase: "idle" | "scanning" | "partial" | "complete" | "error";
+  total_weapon_count: number;
+  scanned_weapon_count: number;
+  covered_weapon_count: number;
+  retained_result_count: number;
+  started_at?: string;
+  completed_at?: string;
+  message?: string;
+  blocking_reason?: "manifest_unavailable" | "manifest_outdated" | "recommendation_unavailable";
+  issues?: VaultRecommendationDependencyIssue[];
+  manifest_version?: string;
+  recommendation_revision?: string;
+  recommendation_schema_version?: number;
 };
 
 export type FullAccountWorkspace = AccountWorkspace & AccountDerivedWorkspace;
@@ -66,12 +88,16 @@ export async function loadAccountDerivedWorkspace(
       ...account.vault.items
     ];
 
+    const weaponItems = allItems.filter((item) => item.group_key === "weapons");
     const matchCommunityVaultItems = services.profile.matchCommunityVaultItems;
-    const vaultCommunityMatch = new Map<number, VaultItemMatchInfo>();
     const vaultCommunityInstanceMatch = new Map<string, VaultItemInstanceMatchInfo>();
+    let vaultRecommendationIssues: VaultRecommendationDependencyIssue[] = [];
+    let vaultRecommendationManifestVersion = "";
+    let vaultRecommendationRevision = "";
+    let vaultRecommendationSchemaVersion: number | undefined;
     if (includeCommunityMatch && matchCommunityVaultItems) {
       const result = await matchCommunityVaultItems(
-        allItems.map((item) => ({
+        weaponItems.map((item) => ({
           hash: item.hash,
           instance_id: item.instance_id,
           item_name: item.name,
@@ -82,28 +108,28 @@ export async function loadAccountDerivedWorkspace(
           }))
         }))
       );
-      for (const item of result) {
-        const matchInfo: VaultItemMatchInfo = {
-          matched: item.matched,
-          available: item.available,
-          modes: item.modes,
-          sample_perks: item.sample_perks,
-          source_label: item.source_label
-        };
-        const previous = vaultCommunityMatch.get(item.hash);
-        if (!previous || item.matched > previous.matched || (
-          item.matched === previous.matched && item.partial > 0
-        )) {
-          vaultCommunityMatch.set(item.hash, matchInfo);
-        }
+      vaultRecommendationIssues = result.issues;
+      vaultRecommendationManifestVersion = result.manifest_version ?? "";
+      vaultRecommendationRevision = result.recommendation_revision ?? "";
+      vaultRecommendationSchemaVersion = result.recommendation_schema_version;
+      for (const item of result.matches) {
         vaultCommunityInstanceMatch.set(item.instance_id ?? `hash:${item.hash}`, item);
       }
     }
 
     return {
       activitySummary,
-      vaultCommunityMatch,
-      vaultCommunityInstanceMatch
+      vaultCommunityInstanceMatch,
+      vaultRecommendationIssues,
+      ...(vaultRecommendationManifestVersion
+        ? { vaultRecommendationManifestVersion }
+        : {}),
+      ...(vaultRecommendationRevision
+        ? { vaultRecommendationRevision }
+        : {}),
+      ...(vaultRecommendationSchemaVersion !== undefined
+        ? { vaultRecommendationSchemaVersion }
+        : {})
     };
   });
 }

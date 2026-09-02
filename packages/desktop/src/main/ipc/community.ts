@@ -8,6 +8,7 @@ import {
   type LocalCommunityRecommendationTable,
   type SavePersonalWeaponKnowledgeInput,
   type SourceOptions,
+  type VaultCommunityMatchResult,
   type VaultItemMatchInput
 } from "@d2-tools/core/community-perks";
 import { loadConfig } from "@d2-tools/services/config/store";
@@ -33,6 +34,9 @@ import {
 } from "@d2-tools/services/community/personalWeaponKnowledge";
 import { startBackgroundTask } from "../backgroundTasks.js";
 import { getDefinitions } from "../runtime/gameDataRuntime.js";
+import { loadDimWishlist } from "@d2-tools/services/analysis/wishlistStore";
+import { getManifestStatus, loadManifestVersionCheckCache } from "@d2-tools/services/manifest/cache";
+import { classifyCommunityIpcError, encodeDesktopIpcFailure } from "../../contracts/errors.js";
 
 const weaponKnowledgeSyncs = new Map<string, Promise<unknown>>();
 const pendingKnowledgeImports = new Map<string, { path: string; fingerprint: string }>();
@@ -133,7 +137,8 @@ export function registerCommunityIpcHandlers(): void {
     const config = loadConfig();
     await ensureWeaponRecommendationKnowledge(config.data.data_dir);
     const service = createDefaultCommunityPerkService(config);
-    const definitions = await loadCommunityDefinitions([Number(item_hash)]);
+    const dimPerkHashes = dimRulePerkHashes(config.data.data_dir, [Number(item_hash)]);
+    const definitions = await loadCommunityDefinitions([Number(item_hash)], dimPerkHashes);
 
     const merged: SourceOptions = {
       itemDefinitions: options?.itemDefinitions ?? definitions.items,
@@ -147,17 +152,18 @@ export function registerCommunityIpcHandlers(): void {
   });
 
   ipcMain.handle("community:vault:match", async (_event, items: VaultItemMatchInput[]) => {
-    const result = matchVaultCommunityItems(items);
-    startBackgroundTask({
-      type: "community-analysis",
-      title: "分析仓库推荐",
-      message: "正在匹配内置推荐知识库、DIM Wishlist 和自定义推荐规则。",
-      run: async () => {
-        await result;
-      }
-    });
-
-    return result;
+    return encodeDesktopIpcFailure(() => {
+      const result = matchVaultCommunityItems(items);
+      startBackgroundTask({
+        type: "community-analysis",
+        title: "分析仓库推荐",
+        message: "正在匹配内置推荐知识库、DIM Wishlist 和自定义推荐规则。",
+        run: async () => {
+          await result;
+        }
+      });
+      return result;
+    }, classifyCommunityIpcError);
   });
 
   ipcMain.handle("community:lightgg:cache:clear", () => {
@@ -167,17 +173,69 @@ export function registerCommunityIpcHandlers(): void {
   });
 }
 
-async function matchVaultCommunityItems(items: VaultItemMatchInput[]) {
+async function matchVaultCommunityItems(items: VaultItemMatchInput[]): Promise<VaultCommunityMatchResult> {
   const config = loadConfig();
+  const manifestStatus = getManifestStatus(config.data.data_dir);
+  const versionCheck = loadManifestVersionCheckCache(config.data.data_dir);
+  if (!manifestStatus.initialized || manifestStatus.missing_required_components?.length) {
+    return {
+      matches: [],
+      issues: [{
+        code: "manifest_unavailable",
+        severity: "blocking",
+        message: "资料库尚未准备完成，暂时不能精确核对武器插槽。"
+      }],
+      ...(manifestStatus.version ? { manifest_version: manifestStatus.version } : {})
+    };
+  }
+  const manifestOutdated = Boolean(
+    versionCheck?.needs_update
+    || (versionCheck?.latest_version && versionCheck.latest_version !== manifestStatus.version)
+  );
+  if (manifestOutdated) {
+    return {
+      matches: [],
+      issues: [{
+        code: "manifest_outdated",
+        severity: "blocking",
+        message: "资料库存在新版本；更新后才能按当前官方插槽精确核对。"
+      }],
+      ...(manifestStatus.version ? { manifest_version: manifestStatus.version } : {})
+    };
+  }
   await ensureWeaponRecommendationKnowledge(config.data.data_dir);
+  const knowledgeStatus = readWeaponRecommendationKnowledgeStatus(config.data.data_dir);
+  const knowledgeAvailable = Boolean(
+    knowledgeStatus
+    && knowledgeStatus.recommendation_count > 0
+    && knowledgeStatus.source_fingerprint
+  );
+  const issues = knowledgeAvailable ? [] : [{
+    code: "recommendation_unavailable" as const,
+    severity: "warning" as const,
+    message: "中文推荐知识库当前不可用；仍会继续核对 DIM 和本机自定义推荐。"
+  }];
   // 仓库/资料库批量匹配只使用本地来源，避免触发大量 AI 查询。
   const service = createDefaultCommunityPerkService(config);
-  const definitions = await loadCommunityDefinitions(items.map((item) => item.hash));
+  const itemHashes = items.map((item) => item.hash);
+  const definitions = await loadCommunityDefinitions(
+    itemHashes,
+    dimRulePerkHashes(config.data.data_dir, itemHashes)
+  );
 
-  return service.matchVaultItemInstances(items, {
+  const matches = await service.matchVaultItemInstances(items, {
     itemDefinitions: definitions.items,
     plugSetDefinitions: definitions.plugSets
   });
+  return {
+    matches,
+    issues,
+    ...(manifestStatus.version ? { manifest_version: manifestStatus.version } : {}),
+    ...(knowledgeStatus?.source_fingerprint
+      ? { recommendation_revision: knowledgeStatus.source_fingerprint }
+      : {}),
+    ...(knowledgeStatus ? { recommendation_schema_version: knowledgeStatus.schema_version } : {})
+  };
 }
 
 function ensureWeaponRecommendationKnowledge(dataDir: string): Promise<unknown> {
@@ -208,7 +266,7 @@ function weaponKnowledgeCsvPath(dataDir: string): string {
   return candidates.find((candidate) => existsSync(candidate)) ?? candidates[0];
 }
 
-async function loadCommunityDefinitions(itemHashes: number[]): Promise<{
+async function loadCommunityDefinitions(itemHashes: number[], extraPlugHashes: number[] = []): Promise<{
   items: DefinitionComponentData;
   plugSets: DefinitionComponentData;
 }> {
@@ -245,7 +303,7 @@ async function loadCommunityDefinitions(itemHashes: number[]): Promise<{
   );
   const plugItems = await getDefinitions(
     "DestinyInventoryItemDefinition",
-    [...directPlugHashes, ...plugSetItemHashes],
+    [...directPlugHashes, ...plugSetItemHashes, ...extraPlugHashes],
     { projection: "community-match" }
   );
 
@@ -253,6 +311,17 @@ async function loadCommunityDefinitions(itemHashes: number[]): Promise<{
     items: { ...rootItems, ...plugItems },
     plugSets
   };
+}
+
+function dimRulePerkHashes(dataDir: string, itemHashes: number[]): number[] {
+  try {
+    const wanted = new Set(itemHashes);
+    return [...new Set((loadDimWishlist(dataDir)?.rules ?? [])
+      .filter((rule) => wanted.has(rule.item_hash))
+      .flatMap((rule) => rule.perk_hashes))];
+  } catch {
+    return [];
+  }
 }
 
 function numberValue(value: unknown): number[] {

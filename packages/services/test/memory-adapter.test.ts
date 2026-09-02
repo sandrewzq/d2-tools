@@ -30,6 +30,7 @@ describe("memory services adapter", () => {
       },
       communityMatches: [{
         hash: 9001,
+        instance_id: "vault-1",
         canonical_weapon_name: "测试武器",
         coverage: "covered",
         match_status: "full_match",
@@ -62,7 +63,7 @@ describe("memory services adapter", () => {
     }
 
     expect(account.data.account.account_name).toBe("memory-user");
-    expect(account.data.vaultCommunityMatch.get(9001)?.source_label).toBe("内存推荐");
+    expect(account.data.vaultCommunityInstanceMatch.get("vault-1")?.source_label).toBe("内存推荐");
     expect(vault.data.vaultItems.map((item) => item.name)).toEqual(["内存手炮"]);
     expect(vault.data.tags.items["vault-1"]?.tag).toBe("keep");
     expect(assistant.data.reply.text).toBe("内存回复");

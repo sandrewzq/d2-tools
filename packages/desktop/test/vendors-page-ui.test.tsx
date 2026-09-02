@@ -19,7 +19,7 @@ vi.mock("../src/renderer/api/client.js", () => ({
       source: { status: "ready", label: "资料库来源", description: "规范定义" }
     }),
     getLiveItemAvailability: vi.fn().mockResolvedValue({ items: {} }),
-    matchCommunityVaultItems: vi.fn().mockResolvedValue([]),
+    matchCommunityVaultItems: vi.fn().mockResolvedValue({ matches: [], issues: [] }),
     getCommunityPerkRecommendations: vi.fn().mockResolvedValue(null),
     getPersonalWeaponKnowledge: vi.fn().mockResolvedValue({ entries: [] }),
     searchItems: vi.fn().mockResolvedValue([{

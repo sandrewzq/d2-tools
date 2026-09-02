@@ -2,6 +2,8 @@ export type { VaultWorkspace } from "./workspaces/vault.js";
 export { loadVaultWorkspace } from "./workspaces/vault.js";
 export type { VaultPageInput, VaultPageModel, VaultPageWorkspace } from "./workspaces/vaultPage.js";
 export { loadVaultPageWorkspace, createVaultPageWorkspace, selectVaultPageModel } from "./workspaces/vaultPage.js";
+export type { VaultRecommendationAuditInput } from "./workspaces/vaultRecommendationAudit.js";
+export { buildVaultRecommendationAuditReport } from "./workspaces/vaultRecommendationAudit.js";
 export type { VaultLocalDataState } from "./workspaces/vaultLocalData.js";
 export { loadVaultLocalData } from "./workspaces/vaultLocalData.js";
 export type {
@@ -118,4 +120,3 @@ export {
   selectDuplicateGroupItems,
   selectVaultActionableItems
 } from "./workspaces/vaultActions.js";
-export type { VaultItemMatchInfo } from "@d2-tools/core/community-perks";

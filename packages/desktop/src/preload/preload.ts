@@ -33,7 +33,7 @@ import type {
 } from "@d2-tools/services/community/dimWishlistUpdates";
 import type {
   LocalCommunityRecommendationTable,
-  VaultItemInstanceMatchInfo,
+  VaultCommunityMatchResult,
   VaultItemMatchInput,
   WeaponRecommendation
 } from "@d2-tools/core/community-perks";
@@ -435,7 +435,7 @@ contextBridge.exposeInMainWorld("d2", {
   getCommunityPerkRecommendations: (item_hash: number, options?: { item_name?: string }) =>
     ipcRenderer.invoke("community:recommendations:get", item_hash, options) as Promise<WeaponRecommendation | null>,
   matchCommunityVaultItems: (items: VaultItemMatchInput[]) =>
-    ipcRenderer.invoke("community:vault:match", items) as Promise<VaultItemInstanceMatchInfo[]>,
+    invokeDesktopIpc<VaultCommunityMatchResult>("community:vault:match", items),
   clearLightggCache: () => ipcRenderer.invoke("community:lightgg:cache:clear") as Promise<void>
 });
 

@@ -1,5 +1,6 @@
 import type {
   VaultItemInstanceMatchInfo,
+  VaultCommunityMatchResult,
   VaultItemMatchInfo,
   VaultItemMatchInput,
   WeaponRecommendation
@@ -36,7 +37,7 @@ export type {
   BuildGuideParseResult,
   BuildGuideRequirement
 } from "@d2-tools/core/assistant/guideSchema";
-export type { VaultItemInstanceMatchInfo, VaultItemMatchInfo, VaultItemMatchInput, WeaponRecommendation };
+export type { VaultCommunityMatchResult, VaultItemInstanceMatchInfo, VaultItemMatchInfo, VaultItemMatchInput, WeaponRecommendation };
 export type {
   DimWishlistImportPreview
 };
@@ -70,6 +71,7 @@ export type DimWishlistOnlineActivationResult = {
 };
 
 export type WeaponRecommendationKnowledgeStatus = {
+  schema_version: number;
   database_path: string;
   source_fingerprint: string;
   imported_at: string;

@@ -7,7 +7,7 @@ import type { VaultGroupFilter, VaultGroupSummary } from "@d2-tools/app/vault";
 import type { VaultCleanupActions } from "./useVaultBatchActions.js";
 import { ConfirmationDialog } from "../overlay/ConfirmationDialog.js";
 
-type PendingVaultWrite = "selected-transfer" | "cleanup-transfer" | null;
+type PendingVaultWrite = "selected-junk" | "selected-transfer" | "cleanup-transfer" | null;
 
 export function VaultOrganizePanel(props: {
   groups: VaultGroupSummary[];
@@ -15,6 +15,7 @@ export function VaultOrganizePanel(props: {
   isOrganizing: boolean;
   filteredItemCount: number;
   selectedItemCount: number;
+  selectedProtectedCount: number;
   selectionSummary: string;
   activeBatchAction: string;
   isBatchSaving: boolean;
@@ -42,11 +43,22 @@ export function VaultOrganizePanel(props: {
   function confirmPendingWrite() {
     const action = pendingWrite;
     setPendingWrite(null);
+    if (action === "selected-junk") return props.onApplyBatchTag("junk");
     if (action === "selected-transfer") return props.onRunSelectedBulkMove();
     if (action === "cleanup-transfer") return props.onRunCleanupAction("transfer");
   }
 
-  const pendingWriteCopy = pendingWrite === "selected-transfer"
+  const pendingWriteCopy = pendingWrite === "selected-junk"
+    ? {
+        title: "确认批量标记为待处理？",
+        description: `所选 ${props.selectedItemCount} 件中，${props.selectedProtectedCount} 件受安全规则保护。`,
+        detail: props.selectedProtectedCount
+          ? "受保护装备会保持原状态；其余装备只写入本地“待处理”标签，不会自动解锁、转移或分解。"
+          : "只写入本地“待处理”标签，不会自动解锁、转移或分解。",
+        confirmLabel: "确认标记",
+        tone: "danger" as const
+      }
+    : pendingWrite === "selected-transfer"
     ? {
         title: "确认批量移动所选装备？",
         description: `将尝试把所选 ${props.selectedItemCount} 件装备转移到 ${targetCharacterLabel} 背包。`,
@@ -108,7 +120,7 @@ export function VaultOrganizePanel(props: {
         <div className="vault-batch-panel">
           <span>{props.isBatchSaving && props.activeBatchAction ? `${props.activeBatchAction}...` : props.selectionSummary}</span>
           <button type="button" aria-busy={props.isBatchSaving} disabled={!props.selectedItemCount || props.isBatchSaving} onClick={() => void props.onApplyBatchTag("review")}>批量待复查</button>
-          <button type="button" aria-busy={props.isBatchSaving} disabled={!props.selectedItemCount || props.isBatchSaving} onClick={() => void props.onApplyBatchTag("junk")}>批量待处理</button>
+          <button type="button" aria-busy={props.isBatchSaving} disabled={!props.selectedItemCount || props.isBatchSaving} onClick={() => setPendingWrite("selected-junk")}>批量待处理</button>
           <button type="button" aria-busy={props.isBatchSaving} disabled={!props.selectedItemCount || props.isBatchSaving} onClick={() => void props.onApplyBatchTag("farm")}>批量待刷</button>
           <button type="button" aria-busy={props.isBatchSaving} disabled={!props.selectedItemCount || props.isBatchSaving} onClick={() => void props.onApplyBatchTag("loadout")}>批量配装用</button>
           <button type="button" aria-busy={props.isBatchSaving} disabled={!props.selectedItemCount || props.isBatchSaving} onClick={() => void props.onApplyBatchTag("none")}>清除标记</button>

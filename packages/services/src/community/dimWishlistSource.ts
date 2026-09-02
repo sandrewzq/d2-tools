@@ -1,6 +1,17 @@
 import { summarizeItemPerks, type ItemPlugSummary } from "@d2-tools/core/items/perks";
+import { classifyWeaponRollSocket } from "@d2-tools/core/account/summary";
 import { resolveDimWishlistRuleMetadata } from "@d2-tools/core/analysis/wishlistImport";
-import type { CommunityPerkSource, PerkCombo, PerkRef, SourceOptions, WeaponRecommendation } from "@d2-tools/core/community-perks";
+import type {
+  CommunityPerkSource,
+  DimWishlistDiagnosticSlot,
+  DimWishlistPerkDiagnostic,
+  DimWishlistRuleDiagnostic,
+  PerkCombo,
+  PerkRef,
+  RecommendationRequirementSlot,
+  SourceOptions,
+  WeaponRecommendation
+} from "@d2-tools/core/community-perks";
 import { loadDimWishlist } from "../analysis/wishlistStore.js";
 
 export function createDimWishlistSource(dataDir: string): CommunityPerkSource {
@@ -19,16 +30,19 @@ export function createDimWishlistSource(dataDir: string): CommunityPerkSource {
       const matchingRules = wishlist.rules.filter((rule) => rule.item_hash === itemHash);
       if (!matchingRules.length) return null;
       const perkHashToRef = buildPerkRefMap(itemHash, options, matchingRules);
+      const slotCatalog = buildWeaponSlotCatalog(itemHash, options);
       const combos: PerkCombo[] = matchingRules
         .filter((rule) => rule.perk_hashes.length > 0)
         .map((rule) => {
           const metadata = resolveDimWishlistRuleMetadata(wishlist, rule);
+          const diagnostic = diagnoseDimWishlistRule(rule.perk_hashes, perkHashToRef, slotCatalog);
           return {
             perks: rule.perk_hashes.map((hash) => perkHashToRef.get(hash) ?? { hash, name: String(hash) }),
             popularity: undefined,
             source: "dim_wishlist" as const,
             mode: rule.mode,
-            note: metadata.note || metadata.source_title || undefined
+            note: metadata.note || metadata.source_title || undefined,
+            dim_diagnostic: diagnostic
           };
         });
       if (!combos.length) return null;
@@ -48,6 +62,109 @@ export function createDimWishlistSource(dataDir: string): CommunityPerkSource {
   };
 }
 
+type SlotCatalogEntry = {
+  hash: number;
+  name: string;
+  slot: DimWishlistDiagnosticSlot;
+};
+
+function buildWeaponSlotCatalog(itemHash: number, options: SourceOptions): SlotCatalogEntry[] {
+  const weaponDefinition = options.itemDefinitions?.[String(itemHash)];
+  if (!weaponDefinition || !options.itemDefinitions) return [];
+  const groups = summarizeItemPerks(weaponDefinition, options.itemDefinitions, {
+    plugSetDefinitions: options.plugSetDefinitions,
+    maxPlugsPerSocket: null
+  }).sort((left, right) => left.socket_index - right.socket_index);
+  let traitIndex = 0;
+  return groups.flatMap((group) => {
+    const role = classifyWeaponRollSocket(group.plugs.map((plug) => ({
+      hash: plug.hash,
+      name: plug.name,
+      ...(plug.category_identifier ? { category_identifier: plug.category_identifier } : {}),
+      ...(plug.item_type ? { item_type: plug.item_type } : {}),
+      selected: false
+    })));
+    const slot: DimWishlistDiagnosticSlot = role === "trait"
+      ? (++traitIndex === 1 ? "perk1" : traitIndex === 2 ? "perk2" : "special")
+      : role === "other"
+        ? "special"
+        : role ?? "special";
+    return group.plugs.map((plug) => ({ hash: plug.hash, name: plug.name, slot }));
+  });
+}
+
+function diagnoseDimWishlistRule(
+  perkHashes: number[],
+  perkRefs: Map<number, PerkRef>,
+  catalog: SlotCatalogEntry[]
+): DimWishlistRuleDiagnostic {
+  const perks = perkHashes.map((hash): DimWishlistPerkDiagnostic => {
+    const sourceName = perkRefs.get(hash)?.name ?? String(hash);
+    const exactHashMatches = catalog.filter((entry) => entry.hash === hash);
+    const nameMatches = exactHashMatches.length
+      ? exactHashMatches
+      : catalog.filter((entry) => normalizeComparableName(entry.name) === normalizeComparableName(sourceName));
+    const slots = [...new Set(nameMatches.map((entry) => entry.slot))];
+    const resolvedHashes = [...new Set(nameMatches.map((entry) => entry.hash))];
+    if (!slots.length) {
+      return {
+        original_hash: hash,
+        name: sourceName,
+        slot_candidates: ["unknown"],
+        status: "unknown_slot"
+      };
+    }
+    if (slots.length > 1) {
+      return {
+        original_hash: hash,
+        name: sourceName,
+        slot_candidates: slots,
+        status: "cross_slot_ambiguous"
+      };
+    }
+    if (slots[0] === "special") {
+      return {
+        original_hash: hash,
+        resolved_hash: resolvedHashes[0],
+        resolved_hashes: resolvedHashes,
+        name: sourceName,
+        slot_candidates: slots,
+        status: "special_socket"
+      };
+    }
+    return {
+      original_hash: hash,
+      resolved_hash: resolvedHashes[0],
+      resolved_hashes: resolvedHashes,
+      name: sourceName,
+      slot_candidates: slots,
+      status: "exact"
+    };
+  });
+  if (perks.some((perk) => perk.status === "cross_slot_ambiguous")) {
+    return { status: "cross_slot_ambiguous", message: "规则中的 Perk 无法唯一归属到一个武器栏位，保留 DIM 原始组合核对。", perks };
+  }
+  if (perks.some((perk) => perk.status === "unknown_slot")) {
+    return { status: "unknown_slot", message: "规则中有 Perk 无法在当前资料库中定位栏位，保留 DIM 原始组合核对。", perks };
+  }
+  if (perks.some((perk) => perk.status === "special_socket")) {
+    return { status: "special_socket", message: "规则涉及特殊或异域插槽，不能按普通六栏逐项核对。", perks };
+  }
+  const slotCounts = new Map<RecommendationRequirementSlot, number>();
+  for (const perk of perks) {
+    const slot = perk.slot_candidates[0] as RecommendationRequirementSlot;
+    slotCounts.set(slot, (slotCounts.get(slot) ?? 0) + 1);
+  }
+  if ([...slotCounts.values()].some((count) => count > 1)) {
+    return { status: "same_slot_multiple_required", message: "规则要求同一栏同时包含多个 Perk，不能弱化为该栏任选一个。", perks };
+  }
+  return { status: "exact", message: "规则中的每个 Perk 都已唯一映射到当前武器官方栏位。", perks };
+}
+
+function normalizeComparableName(value: string): string {
+  return value.normalize("NFKC").toLocaleLowerCase().replace(/[\p{P}\p{Z}\s]+/gu, "");
+}
+
 function uniquePerks(combos: PerkCombo[]): PerkRef[] {
   const perks = new Map<number, PerkRef>();
   for (const combo of combos) for (const perk of combo.perks) if (!perks.has(perk.hash)) perks.set(perk.hash, perk);
@@ -64,6 +181,18 @@ function buildPerkRefMap(itemHash: number, options: SourceOptions, rules: Array<
       for (const plug of perkGroups.flatMap((group) => group.plugs) as ItemPlugSummary[]) {
         if (allHashes.has(plug.hash)) map.set(plug.hash, { hash: plug.hash, name: plug.name, description: plug.description, icon: plug.icon });
       }
+    }
+    for (const hash of allHashes) {
+      if (map.has(hash)) continue;
+      const definition = options.itemDefinitions[String(hash)];
+      const name = definition?.displayProperties?.name?.trim();
+      if (!name) continue;
+      map.set(hash, {
+        hash,
+        name,
+        ...(definition.displayProperties?.description ? { description: definition.displayProperties.description } : {}),
+        ...(definition.displayProperties?.icon ? { icon: definition.displayProperties.icon } : {})
+      });
     }
   }
   if (options.englishItemDefinitions && allHashes.size > 0) {

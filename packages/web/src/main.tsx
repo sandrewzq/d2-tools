@@ -584,8 +584,17 @@ function WebApp() {
               openingItemKey=""
               wishlist={webRecommendationWishlist}
               localTargetRules={vaultModel.targetRules}
-              communityMatch={webRecommendationWishlist ? vaultModel.communityMatch : new Map()}
-              recommendationSourceState={{ customRules: null, customRulesLoadState: "ready" }}
+              recommendationSourceState={{
+                recommendationScan: {
+                  phase: "idle",
+                  total_weapon_count: 0,
+                  scanned_weapon_count: 0,
+                  covered_weapon_count: 0,
+                  retained_result_count: 0
+                },
+                customRules: null,
+                customRulesLoadState: "ready"
+              }}
               wishlistActions={webWishlistActions}
               onContextFactsChange={() => undefined}
               onOpenItem={(item) => openWebAccountItem(item, "vault")}

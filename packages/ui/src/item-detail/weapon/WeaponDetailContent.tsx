@@ -18,6 +18,7 @@ import type {
   PersonalWeaponKnowledgeEntry,
   SavePersonalWeaponKnowledgeInput
 } from "@d2-tools/core/community-perks/personalWeaponKnowledge";
+import type { RecommendationSourceMatch, RecommendationSourceSlotMatch } from "@d2-tools/core/community-perks";
 import type { ItemReleaseKind } from "@d2-tools/core/items/release";
 
 export type WeaponDetailSection =
@@ -63,6 +64,11 @@ export type WeaponDetailContentProps = {
   actions?: WeaponDetailContentActions;
   configurationWriteFeedback?: WeaponConfigurationWriteFeedback;
   analysis?: WeaponDetailAnalysis;
+  recommendationEvidence?: {
+    sourceMatches: RecommendationSourceMatch[];
+    status: "idle" | "loading" | "partial" | "ready" | "error";
+    message?: string;
+  };
   personalKnowledge?: PersonalWeaponKnowledgeEntry[];
   activeSection?: WeaponDetailSection;
   onSectionChange?: (section: WeaponDetailSection) => void;
@@ -238,7 +244,12 @@ export function WeaponDetailContent(props: WeaponDetailContentProps) {
             <OverviewSection model={model} onOpenSource={props.actions?.openSource} />
           </section>
           <section ref={(node) => { sectionRefs.current.recommendations = node; }} id={`${sectionIdPrefix}-recommendations`} className="weapon-detail-section">
-            <RecommendationSection model={model} source={targetSource} onSourceChange={setTargetSource} />
+            <RecommendationSection
+              model={model}
+              evidence={props.recommendationEvidence}
+              source={targetSource}
+              onSourceChange={setTargetSource}
+            />
           </section>
           <section ref={(node) => { sectionRefs.current.upgrades = node; }} id={`${sectionIdPrefix}-upgrades`} className="weapon-detail-section">
             <UpgradeSection model={model} />
@@ -1004,6 +1015,7 @@ function PerkColumn(props: {
 
 function RecommendationSection(props: {
   model: WeaponDetailViewModel;
+  evidence?: WeaponDetailContentProps["recommendationEvidence"];
   source: WeaponTargetSource;
   onSourceChange: (source: WeaponTargetSource) => void;
 }) {
@@ -1015,7 +1027,22 @@ function RecommendationSection(props: {
     community: model.recommendations.filter((target) => target.source === "builtin" || target.source === "external"),
     personal: model.recommendations.filter((target) => target.source === "user")
   };
+  const evidence = model.context.kind === "account_instance" ? props.evidence : undefined;
+  const sourceMatches = evidence
+    ? [...evidence.sourceMatches].sort((left, right) => (
+        recommendationSourceOrder(left.source_id) - recommendationSourceOrder(right.source_id)
+        || recommendationSourceLabel(left.source_id, left.source_label).localeCompare(
+          recommendationSourceLabel(right.source_id, right.source_label),
+          "zh-Hans-CN"
+        )
+      ))
+    : [];
   const targets = targetsBySource[props.source];
+  const sourceCounts: Record<WeaponTargetSource, number> = {
+    dim: targetsBySource.dim.length,
+    community: evidence ? sourceMatches.length : targetsBySource.community.length,
+    personal: targetsBySource.personal.length
+  };
   const sourceOrder: WeaponTargetSource[] = ["dim", "community", "personal"];
   const handleSourceKeyDown = (event: ReactKeyboardEvent<HTMLButtonElement>) => {
     if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
@@ -1032,11 +1059,11 @@ function RecommendationSection(props: {
   };
   return (
     <>
-      <SectionHeading eyebrow="目标匹配" title="独立数据源目标匹配" description={isFixedExotic ? "固定异域不进行随机 Roll 命中；DIM、社区和个人知识只记录拥有状态、催化剂进度与使用建议。" : "DIM Wishlist、社区推荐和个人知识分别匹配，不合并、不排序，也不生成应用结论。"} />
+      <SectionHeading eyebrow="目标匹配" title="独立数据源目标匹配" description={isFixedExotic ? "固定异域不进行随机 Roll 命中；DIM、推荐来源和个人知识只记录拥有状态、催化剂进度与使用建议。" : "DIM Wishlist、推荐来源和个人知识分别匹配，不合并、不排序，也不生成应用结论。"} />
       <div className="weapon-detail-target-tabs" data-ui-kind="segmented-control" role="tablist" aria-label="选择目标数据源">
         {([
           ["dim", "DIM Wishlist"],
-          ["community", "社区推荐"],
+          ["community", "推荐来源"],
           ["personal", "个人知识"]
         ] as const).map(([key, label]) => (
           <button
@@ -1050,11 +1077,30 @@ function RecommendationSection(props: {
             onClick={() => props.onSourceChange(key)}
             onKeyDown={handleSourceKeyDown}
           >
-            {label}<span>{targetsBySource[key].length}</span>
+            {label}<span>{sourceCounts[key]}</span>
           </button>
         ))}
       </div>
-      {targets.length ? (
+      {props.source === "community" && evidence ? (
+        <div
+          id={`${panelId}-panel`}
+          className="weapon-detail-recommendations"
+          role="tabpanel"
+          aria-labelledby={`${panelId}-${props.source}`}
+          aria-busy={evidence.status === "loading"}
+        >
+          {evidence.message ? <p className={`status-message status-${evidence.status === "error" ? "error" : evidence.status === "partial" ? "warning" : "pending"}`} role="status">{evidence.message}</p> : null}
+          {sourceMatches.length
+            ? sourceMatches.map((sourceMatch, index) => (
+                <RecommendationSourceEvidenceCard
+                  key={`${sourceMatch.source_id}:${sourceMatch.source_label}`}
+                  sourceMatch={sourceMatch}
+                  defaultOpen={index === 0}
+                />
+              ))
+            : <EmptyState text={recommendationEvidenceEmptyText(evidence.status)} />}
+        </div>
+      ) : targets.length ? (
         <div
           id={`${panelId}-panel`}
           className="weapon-detail-recommendations"
@@ -1066,6 +1112,132 @@ function RecommendationSection(props: {
       ) : <div id={`${panelId}-panel`} role="tabpanel" aria-labelledby={`${panelId}-${props.source}`}><EmptyState text="当前来源没有可显示的目标数据。" /></div>}
     </>
   );
+}
+
+function RecommendationSourceEvidenceCard(props: {
+  sourceMatch: RecommendationSourceMatch;
+  defaultOpen: boolean;
+}) {
+  const source = props.sourceMatch;
+  const [open, setOpen] = useState(props.defaultOpen);
+  const sourceLabel = recommendationSourceLabel(source.source_id, source.source_label);
+  const summary = recommendationSourceSummary(source);
+  const metadata = [
+    source.purposes.length ? `用途：${source.purposes.map(recommendationPurposeLabel).join(" / ")}` : undefined,
+    source.rating ? `评级：${source.rating}` : undefined,
+    source.ranking ? `排名：${source.ranking}` : undefined,
+    source.version ? `版本：${source.version}` : undefined,
+    source.page_updated_at ? `更新时间：${formatUpdatedAt(source.page_updated_at)}` : undefined
+  ].filter((entry): entry is string => Boolean(entry));
+  return (
+    <details
+      className="weapon-detail-source-evidence"
+      open={open}
+      onToggle={(event) => setOpen(event.currentTarget.open)}
+    >
+      <summary>
+        <span>
+          <strong>{sourceLabel}</strong>
+          <small>{metadata.join(" · ") || "来源没有提供额外元数据"}</small>
+        </span>
+        <span className="ui-badge" data-ui-kind="status-chip" data-status={recommendationSourceStatusTone(source)}>{summary}</span>
+      </summary>
+      <div className="weapon-detail-source-evidence-body">
+        {source.note ? <p className="weapon-detail-source-quote" data-ui-kind="callout" data-callout-tone="info">{source.note}</p> : null}
+        <div className="weapon-detail-source-trace">
+          {source.source_location ? <span>原表位置：{source.source_location}</span> : null}
+          {source.source_url
+            ? <a href={source.source_url} target="_blank" rel="noreferrer">查看原始来源</a>
+            : <span>原始链接未提供</span>}
+        </div>
+        {source.state === "weapon_only" ? (
+          <p className="weapon-detail-match-empty">该来源推荐这把武器，但没有指定需要核对的枪管、第二列、大师、Perk 或起源特性，因此不作 Roll 对照。</p>
+        ) : (
+          <div className="weapon-detail-source-slot-list" aria-label={`${sourceLabel} 六栏推荐对照`}>
+            {source.slots.map((slot) => <RecommendationSourceSlotRow key={slot.slot} slot={slot} />)}
+          </div>
+        )}
+      </div>
+    </details>
+  );
+}
+
+function RecommendationSourceSlotRow({ slot }: { slot: RecommendationSourceSlotMatch }) {
+  const sourceNames = uniqueLabels([
+    ...slot.source_candidate_names,
+    ...slot.source_candidates.map((candidate) => candidate.name),
+    ...slot.unresolved_source_candidate_names
+  ]);
+  return (
+    <div className="weapon-detail-source-slot" data-match-state={slot.state}>
+      <strong>{slot.label}</strong>
+      <div><span>来源要求</span><p>{slot.state === "source_not_specified" ? "未指定" : sourceNames.join(" / ") || "要求名称未返回"}</p></div>
+      <div><span>本件拥有</span><p>{uniqueLabels(slot.instance_owned.map((plug) => plug.name)).join(" / ") || "未返回可核对项"}</p></div>
+      <div><span>当前启用</span><p>{uniqueLabels(slot.current_enabled.map((plug) => plug.name)).join(" / ") || "未返回当前启用项"}</p></div>
+      <span className="ui-badge" data-ui-kind="status-chip" data-status={recommendationSlotStatusTone(slot.state)}>{recommendationSlotStateLabel(slot.state)}</span>
+    </div>
+  );
+}
+
+function recommendationSourceSummary(source: RecommendationSourceMatch): string {
+  if (source.state === "weapon_only") return "仅推荐武器";
+  if (source.state === "uncheckable") return `${source.matched_requirement_count}/${source.requirement_count} 项 · 无法完整核对`;
+  return `${source.matched_requirement_count}/${source.requirement_count} 项符合`;
+}
+
+function recommendationEvidenceEmptyText(status: NonNullable<WeaponDetailContentProps["recommendationEvidence"]>["status"]): string {
+  if (status === "idle") return "尚未开始账号武器推荐核对；进入仓库后会生成当前实例的逐栏对照。";
+  if (status === "loading") return "正在读取这件武器的推荐来源与逐栏对照。";
+  if (status === "partial") return "本次账号武器核对未完整完成，当前实例没有可显示的逐栏结果。";
+  if (status === "error") return "账号武器推荐来源核对失败，当前实例没有可显示的逐栏结果。";
+  return "当前实例没有可显示的推荐来源逐栏对照。";
+}
+
+function recommendationSourceStatusTone(source: RecommendationSourceMatch): "success" | "warning" | "neutral" {
+  if (source.state === "weapon_only") return "neutral";
+  if (source.state === "uncheckable") return "neutral";
+  if (source.requirement_count > 0 && source.matched_requirement_count === source.requirement_count) return "success";
+  return "warning";
+}
+
+function recommendationSlotStateLabel(state: RecommendationSourceSlotMatch["state"]): string {
+  return {
+    match: "符合",
+    different: "不符",
+    source_not_specified: "来源未要求",
+    uncheckable: "无法核对"
+  }[state];
+}
+
+function recommendationSlotStatusTone(state: RecommendationSourceSlotMatch["state"]): "success" | "warning" | "neutral" {
+  if (state === "match") return "success";
+  if (state === "different") return "warning";
+  return "neutral";
+}
+
+function recommendationPurposeLabel(purpose: RecommendationSourceMatch["purposes"][number]): string {
+  return purpose === "pve" ? "PVE" : purpose === "pvp" ? "PVP" : "通用";
+}
+
+function recommendationSourceLabel(sourceId: string, fallback: string): string {
+  if (sourceId === "aegis") return "Aegis推荐";
+  if (sourceId === "lgpig") return "LGpig推荐";
+  if (sourceId === "yxcrallxy") return "YXCRALLXY推荐表";
+  if (sourceId === "sayalarry") return "Sayalarry推荐表";
+  if (sourceId === "dim_voltron" || sourceId === "dim_wishlist") return "DIM社区愿望单";
+  return fallback || sourceId || "推荐来源";
+}
+
+function recommendationSourceOrder(sourceId: string): number {
+  if (sourceId === "aegis") return 0;
+  if (sourceId === "lgpig") return 1;
+  if (sourceId === "yxcrallxy") return 2;
+  if (sourceId === "sayalarry") return 3;
+  return 99;
+}
+
+function uniqueLabels(values: string[]): string[] {
+  return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
 }
 
 function RecommendationCard(props: { model: WeaponDetailViewModel; recommendation: WeaponRecommendation }) {

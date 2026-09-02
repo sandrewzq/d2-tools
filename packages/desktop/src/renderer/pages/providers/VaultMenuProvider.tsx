@@ -1,17 +1,31 @@
 import { VaultPage } from "../../features/vault/VaultPage";
 import { useAccountSummaryStore } from "../../shared/stores/accountEntityStore";
 import { useDesktopMenuSession } from "./DesktopMenuProviderContext";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 
 export function VaultMenuProvider() {
   const session = useDesktopMenuSession();
   const account = session.account;
   const accountSummary = useAccountSummaryStore();
   const writeActions = session.writeActions;
+  const cleanupProtectedItemKeys = useMemo(() => ({
+    instanceIds: new Set([
+      ...session.loadouts.templates.flatMap((template) => (
+        template.items.flatMap((item) => item.instance_id ? [item.instance_id] : [])
+      )),
+      ...(accountSummary?.characters.flatMap((character) => (
+        character.loadout_slots.flatMap((slot) => (
+          slot.items.flatMap((item) => item.instance_id ? [item.instance_id] : [])
+        ))
+      )) ?? [])
+    ]),
+    bucketHashKeys: new Set<string>(),
+    hashKeys: new Set<number>()
+  }), [accountSummary?.characters, session.loadouts.templates]);
 
   useEffect(() => {
     void account.loadVaultCommunityMatch();
-  }, [accountSummary?.destiny_membership_id, accountSummary?.membership_type]);
+  }, [account.lastAccountLoadedAt, accountSummary?.destiny_membership_id, accountSummary?.membership_type]);
 
   return (
     <VaultPage
@@ -29,6 +43,7 @@ export function VaultMenuProvider() {
         session.diagnostics.manifestStatus?.cached_at ?? ""
       ].join("\u0000")}
       activeLoadoutLookup={session.home.activeLoadoutLookup}
+      cleanupProtectedItemKeys={cleanupProtectedItemKeys}
       activeLoadoutName={session.loadouts.activeTemplate?.name}
       selectedCharacterId={account.selectedCharacterId}
       tags={account.vaultTags}
@@ -38,7 +53,8 @@ export function VaultMenuProvider() {
       wishlist={account.importedWishlist}
       localTargetRules={account.localTargetRules}
       equipmentTargetStore={account.equipmentTargetStore}
-      communityMatch={account.vaultCommunityMatch}
+      communityInstanceMatch={account.vaultCommunityInstanceMatch}
+      recommendationScan={account.vaultRecommendationScan}
       onContextFactsChange={session.setVaultFacts}
       onLocalTargetRulesChanged={account.setLocalTargetRules}
       onEquipmentTargetStoreChanged={account.setEquipmentTargetStore}

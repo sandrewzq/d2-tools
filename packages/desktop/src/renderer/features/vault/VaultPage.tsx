@@ -1,4 +1,5 @@
-import { selectVaultPageModel } from "@d2-tools/app/vault";
+import { buildVaultRecommendationAuditReport, selectVaultPageModel } from "@d2-tools/app/vault";
+import type { VaultRecommendationScanState } from "@d2-tools/app/account";
 import { ControlButton, ProductWorkspaceEmptyState, VaultPageContentView, type VaultWishlistActions } from "@d2-tools/ui";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { LoadoutTemplateLookup } from "../../shared/domain/loadouts/loadoutLookup";
@@ -12,7 +13,7 @@ import type {
   LocalTargetRules,
   LocalCommunityRecommendationTable,
   SaveVaultTagInput,
-  VaultItemMatchInfo,
+  VaultItemInstanceMatchInfo,
   VaultTags,
   VaultTagValue
 } from "../../api/types";
@@ -30,6 +31,7 @@ export function VaultPage(props: {
   accountError: string;
   detailCacheScopeKey?: string;
   activeLoadoutLookup: LoadoutTemplateLookup | null;
+  cleanupProtectedItemKeys?: LoadoutTemplateLookup | null;
   activeLoadoutName?: string;
   selectedCharacterId: string;
   tags: VaultTags;
@@ -39,7 +41,8 @@ export function VaultPage(props: {
   wishlist: DimWishlist | null;
   localTargetRules: LocalTargetRules;
   equipmentTargetStore: EquipmentTargetStore;
-  communityMatch: Map<number, VaultItemMatchInfo>;
+  communityInstanceMatch: Map<string, VaultItemInstanceMatchInfo>;
+  recommendationScan: VaultRecommendationScanState;
   onContextFactsChange?: (facts: string[]) => void;
   onLocalTargetRulesChanged: (rules: LocalTargetRules) => void;
   onEquipmentTargetStoreChanged: (store: EquipmentTargetStore) => void;
@@ -160,7 +163,7 @@ export function VaultPage(props: {
     tags: props.tags,
     targetRules: props.localTargetRules,
     wishlist: props.wishlist,
-    communityMatch: props.communityMatch
+    communityInstanceMatch: props.communityInstanceMatch
   }) : null, [
     props.account,
     props.selectedCharacterId,
@@ -169,7 +172,7 @@ export function VaultPage(props: {
     props.tags,
     props.localTargetRules,
     props.wishlist,
-    props.communityMatch
+    props.communityInstanceMatch
   ]);
 
   if (!props.isBungieConfigured || !props.isAccountLoggedIn || !props.account) {
@@ -200,6 +203,7 @@ export function VaultPage(props: {
     );
   }
 
+  const account = props.account;
   if (!model) return null;
 
   return (
@@ -210,6 +214,7 @@ export function VaultPage(props: {
       accountResourceStatus={props.isLoadingAccount && accountResource.data ? "refreshing" : accountResource.status}
       vaultItemCount={model.vaultItemCount}
       highlightedItemKeys={model.activeLoadoutLookup}
+      cleanupProtectedItemKeys={props.cleanupProtectedItemKeys}
       highlightedLabel={model.activeLoadoutName}
       tags={model.tags}
       openingItemKey={props.openingItemKey}
@@ -226,13 +231,28 @@ export function VaultPage(props: {
       wishlist={model.wishlist}
       localTargetRules={model.targetRules}
       equipmentTargetStore={props.equipmentTargetStore}
-      communityMatch={model.communityMatch}
+      communityInstanceMatch={model.communityInstanceMatch}
       recommendationSourceState={{
+        recommendationScan: props.recommendationScan,
         customRules: localCommunityTable,
         customRulesLoadState: localCommunityLoadState,
         customRulesLoadError: localCommunityLoadError
       }}
       wishlistActions={wishlistActions}
+      onCopyRecommendationAudit={async () => {
+        await navigator.clipboard.writeText(buildVaultRecommendationAuditReport({
+          items: [
+            ...account.characters.flatMap((character) => [
+              ...character.equipped_items,
+              ...character.inventory_items,
+              ...character.postmaster_items
+            ]),
+            ...account.vault.items
+          ],
+          instanceMatches: model.communityInstanceMatch,
+          scan: props.recommendationScan
+        }));
+      }}
       targetRulesActions={{
         onSaveRules: async (rules) => {
           const saved = await services.localData.saveLocalTargetRules(rules);

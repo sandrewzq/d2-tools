@@ -6,7 +6,7 @@ import { evaluateWishlistRoll } from "@d2-tools/core/analysis/wishlist";
 import type { DimWishlist } from "@d2-tools/core/analysis/wishlistImport";
 import type { LocalTargetRules } from "@d2-tools/core/analysis/targets";
 import { evaluateEquipmentTargets, type EquipmentTargetStore } from "@d2-tools/core/targets/equipmentTargets";
-import type { VaultItemMatchInfo } from "@d2-tools/core/community-perks";
+import type { VaultItemInstanceMatchInfo } from "@d2-tools/core/community-perks";
 import type { SaveVaultTagInput, VaultTags, VaultTagValue } from "@d2-tools/core/vault/tags";
 import { matchesLoadoutTemplateItem, type LoadoutTemplateLookup } from "@d2-tools/app/loadouts";
 import {
@@ -68,6 +68,12 @@ import type { VaultCleanupActions } from "./useVaultBatchActions.js";
 import { useVaultBatchActions } from "./useVaultBatchActions.js";
 import { VaultOrganizePanel } from "./VaultOrganizePanel.js";
 import { getRovingFocusIndex } from "../interaction/rovingFocus.js";
+import {
+  buildVaultRecommendationSourceSummaries,
+  getVaultCommunityInstanceKey,
+  hasPositiveRecommendationSummary
+} from "./vaultRecommendationMatch.js";
+import { buildVaultCleanupProtectionIndex } from "./vaultCleanupProtection.js";
 
 type VaultWorkspaceTab = "filters" | "duplicates" | "recommendations";
 type VaultAccountResourceStatus = "unavailable" | "cached" | "stale" | "loading" | "refreshing" | "ready" | "error";
@@ -85,6 +91,7 @@ export function VaultPageContentView(props: {
   accountResourceStatus?: VaultAccountResourceStatus;
   vaultItemCount?: number;
   highlightedItemKeys?: LoadoutTemplateLookup | null;
+  cleanupProtectedItemKeys?: LoadoutTemplateLookup | null;
   highlightedLabel?: string;
   tags: VaultTags;
   wishlist?: DimWishlist | null;
@@ -93,9 +100,10 @@ export function VaultPageContentView(props: {
   openingItemKey?: string;
   locateRequest?: { hash: number; name: string; requestId: number } | null;
   targetLocateRequest?: { targetId: string; requestId: number } | null;
-  communityMatch?: Map<number, VaultItemMatchInfo>;
+  communityInstanceMatch?: Map<string, VaultItemInstanceMatchInfo>;
   recommendationSourceState?: VaultRecommendationSourceState;
   wishlistActions?: VaultWishlistActions;
+  onCopyRecommendationAudit?: () => void | Promise<void>;
   targetRulesActions?: VaultTargetRulesActions;
   onContextFactsChange?: (facts: string[]) => void;
   onLoadItemDetail?: (item: AccountItemSummary) => Promise<AccountItemSummary>;
@@ -178,7 +186,7 @@ export function VaultPageContentView(props: {
   );
   const filteredItems = useMemo(
     () => filteredVaultItems.filter((item) => matchesSignalFilters(item, signalFilters, props)),
-    [filteredVaultItems, props.communityMatch, props.equipmentTargetStore, props.highlightedItemKeys, props.localTargetRules, props.wishlist, signalFilters]
+    [filteredVaultItems, props.communityInstanceMatch, props.equipmentTargetStore, props.highlightedItemKeys, props.localTargetRules, props.wishlist, signalFilters]
   );
   const selectedItems = useMemo(
     () => props.items.filter((item) => selectedKeys.has(getVaultSelectionItemKey(item))),
@@ -194,6 +202,15 @@ export function VaultPageContentView(props: {
       : selectMarkedCleanupItems(props.items, props.tags),
     [props.items, props.tags, selectedItems]
   );
+  const cleanupProtectionByItemKey = useMemo(() => buildVaultCleanupProtectionIndex({
+    items: props.items,
+    tags: props.tags,
+    highlightedItemKeys: props.cleanupProtectedItemKeys ?? props.highlightedItemKeys,
+    communityInstanceMatch: props.communityInstanceMatch
+  }), [props.cleanupProtectedItemKeys, props.communityInstanceMatch, props.highlightedItemKeys, props.items, props.tags]);
+  const selectedProtectedCount = useMemo(() => selectedItems.filter((item) => (
+    (cleanupProtectionByItemKey.get(getVaultCommunityInstanceKey(item))?.length ?? 0) > 0
+  )).length, [cleanupProtectionByItemKey, selectedItems]);
   const cleanupTargetCharacterLabel = useMemo(
     () => props.cleanupActions?.characters.find((character) => character.character_id === cleanupTargetCharacterId)?.class_name ?? "目标角色",
     [cleanupTargetCharacterId, props.cleanupActions?.characters]
@@ -211,6 +228,7 @@ export function VaultPageContentView(props: {
     cleanupActions: props.cleanupActions,
     cleanupTargetCharacterId,
     cleanupTargetCharacterLabel,
+    cleanupProtectionByItemKey,
     setSelectedKeys,
     setIsOrganizing,
     setIsCleanupMode,
@@ -526,6 +544,7 @@ export function VaultPageContentView(props: {
                 isOrganizing={isOrganizing}
                 filteredItemCount={filteredItems.length}
                 selectedItemCount={selectedItems.length}
+                selectedProtectedCount={selectedProtectedCount}
                 selectionSummary={selectionSummary}
                 activeBatchAction={batchActions.activeBatchAction}
                 isBatchSaving={isBatchSaving || batchActions.isBatchSaving}
@@ -559,7 +578,7 @@ export function VaultPageContentView(props: {
                 tags={props.tags}
                 wishlist={props.wishlist}
                 localTargetRules={props.localTargetRules}
-                communityMatch={props.communityMatch}
+                communityInstanceMatch={props.communityInstanceMatch}
                 isOrganizing={isOrganizing}
                 isSearchActive={Boolean(query.trim())}
                 selectedKeys={selectedKeys}
@@ -587,7 +606,8 @@ export function VaultPageContentView(props: {
             localTargetRules={props.localTargetRules}
             equipmentTargetStore={props.equipmentTargetStore}
             highlightedItemKeys={props.highlightedItemKeys}
-            communityMatch={props.communityMatch}
+            communityInstanceMatch={props.communityInstanceMatch}
+            cleanupProtectionByItemKey={cleanupProtectionByItemKey}
             openingItemKey={props.openingItemKey}
             isBatchSaving={isBatchSaving}
             onLoadItemDetail={props.onLoadItemDetail}
@@ -599,7 +619,7 @@ export function VaultPageContentView(props: {
 
       {activeVaultTab === "recommendations" ? (
         <div id={panelIds.recommendations} role="tabpanel" aria-labelledby={tabIds.recommendations} className="vault-recommendations vault-workspace-panel">
-          <VaultRecommendationEvidencePanel items={props.items} wishlist={props.wishlist} communityMatch={props.communityMatch} sourceState={props.recommendationSourceState} wishlistActions={props.wishlistActions} onOpenItem={props.onOpenItem} />
+          <VaultRecommendationEvidencePanel items={props.items} wishlist={props.wishlist} communityInstanceMatch={props.communityInstanceMatch} highlightedItemKeys={props.highlightedItemKeys} sourceState={props.recommendationSourceState} wishlistActions={props.wishlistActions} onCopyAuditReport={props.onCopyRecommendationAudit} onOpenItem={props.onOpenItem} />
           <aside><div className="vault-column-head"><h3>装备目标</h3><span>目标库与兼容规则</span></div><VaultTargetRulesPanel items={props.items} rules={props.localTargetRules ?? { action_policy: "notify_only", armor: [], weapons: [] }} equipmentTargetStore={props.equipmentTargetStore} targetLocateRequest={props.targetLocateRequest} actions={props.targetRulesActions} /></aside>
         </div>
       ) : null}
@@ -636,7 +656,7 @@ function matchesSignalFilters(item: AccountItemSummary, filters: VaultSignalFilt
   localTargetRules?: LocalTargetRules | null;
   equipmentTargetStore?: EquipmentTargetStore | null;
   highlightedItemKeys?: LoadoutTemplateLookup | null;
-  communityMatch?: Map<number, VaultItemMatchInfo>;
+  communityInstanceMatch?: Map<string, VaultItemInstanceMatchInfo>;
 }): boolean {
   if (!filters.length) return true;
   return filters.every((filter) => {
@@ -647,7 +667,12 @@ function matchesSignalFilters(item: AccountItemSummary, filters: VaultSignalFilt
         || evaluateLocalTargets(coreItem, props.localTargetRules ?? undefined).matched;
     }
     if (filter === "loadout") return matchesLoadoutTemplateItem(item, props.highlightedItemKeys);
-    return (props.communityMatch?.get(item.hash)?.matched ?? 0) > 0;
+    const instanceMatch = props.communityInstanceMatch?.get(getVaultCommunityInstanceKey(item));
+    if (instanceMatch) {
+      return buildVaultRecommendationSourceSummaries(item, instanceMatch, props.wishlist)
+        .some(hasPositiveRecommendationSummary);
+    }
+    return buildVaultRecommendationSourceSummaries(item, undefined, props.wishlist).some(hasPositiveRecommendationSummary);
   });
 }
 

@@ -1,5 +1,5 @@
-import type { AccountOperationFeedbackView } from "@d2-tools/app/account";
-import type { AccountSummary, DimWishlist, EquipmentTargetStore, LocalTargetRules, VaultTags } from "../api/types";
+import type { AccountOperationFeedbackView, VaultRecommendationScanState } from "@d2-tools/app/account";
+import type { AccountSummary, DimWishlist, EquipmentTargetStore, LocalTargetRules, VaultItemInstanceMatchInfo, VaultTags } from "../api/types";
 import type { ArmorStatSummary, WeaponStatKey, WeaponStatSummary } from "@d2-tools/core/account/summary";
 import type { ArmorStatKey } from "@d2-tools/core/loadouts/analysis";
 import { ArmorDetailContent, getLocaleCopy, LibraryDefinitionDialog, SharedItemDetailDialog, WeaponDetailContent } from "@d2-tools/ui";
@@ -23,6 +23,8 @@ export function HomePageItemDetailModal(props: {
   accountSummary: AccountSummary | null;
   accountOperationFeedback?: AccountOperationFeedbackView;
   aiSettingsEnableLightgg: boolean;
+  communityInstanceMatch: Map<string, VaultItemInstanceMatchInfo>;
+  recommendationScan: VaultRecommendationScanState;
   importedWishlist: DimWishlist | null;
   interfaceLocale: "zh-CN" | "en-US";
   itemDetail: ItemDetailWorkspace;
@@ -241,6 +243,10 @@ export function HomePageItemDetailModal(props: {
       aiSettingsEnableLightgg={props.aiSettingsEnableLightgg}
       communityRecommendations={itemDetail.communityRecommendations}
       communityRecommendationError={itemDetail.communityRecommendationError}
+      communityInstanceMatch={itemDetail.selectedItem.instance_id
+        ? props.communityInstanceMatch.get(itemDetail.selectedItem.instance_id)
+        : undefined}
+      recommendationScan={props.recommendationScan}
       importedWishlist={props.importedWishlist}
       localTargetRules={props.localTargetRules}
       equipmentTargetStore={props.equipmentTargetStore}

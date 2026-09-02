@@ -11,6 +11,8 @@ import type {
   CommunityPerkSource,
   PerkCombo,
   PerkRef,
+  RecommendationRequirementSlot,
+  RecommendationSourceRecord,
   SourceOptions,
   WeaponRecommendation
 } from "@d2-tools/core/community-perks";
@@ -43,6 +45,7 @@ const stableSourceUrls: Record<string, string> = {
 };
 
 export type WeaponRecommendationKnowledgeStatus = {
+  schema_version: number;
   database_path: string;
   source_fingerprint: string;
   imported_at: string;
@@ -70,12 +73,18 @@ type KnowledgeRecommendation = {
   normalized_weapon_name: string;
   english_name: string;
   normalized_english_name: string;
+  source_id: string;
   source_label: string;
+  source_url: string;
+  source_default_url: string;
   purpose: Array<"pve" | "pvp" | "general">;
   rating: string;
+  ranking: string;
   note: string;
-  perk1: string[];
-  perk2: string[];
+  page_updated_at: string;
+  version: string;
+  source_location: string;
+  requirements: Record<RecommendationRequirementSlot, string[]>;
 };
 
 type KnowledgeCache = {
@@ -223,12 +232,12 @@ export function createWeaponRecommendationKnowledgeSource(dataDir: string): Comm
       const perkMap = buildWeaponPerkMap(item_hash, options);
       const combos: PerkCombo[] = [];
       const weaponLevelRecommendations: NonNullable<WeaponRecommendation["weapon_level_recommendations"]> = [];
-      const resolvedSourceLabels = new Set<string>();
-      let resolvedRecommendationCount = 0;
+      const sourceRecords = matching.map((recommendation) => buildSourceRecord(recommendation, perkMap));
+      const resolvedSourceLabels = new Set(matching.map((recommendation) => recommendation.source_label));
       for (const recommendation of matching) {
-        if (recommendation.perk1.length === 0 && recommendation.perk2.length === 0) {
-          resolvedRecommendationCount += 1;
-          resolvedSourceLabels.add(recommendation.source_label);
+        const perk1Names = recommendation.requirements.perk1;
+        const perk2Names = recommendation.requirements.perk2;
+        if (perk1Names.length === 0 && perk2Names.length === 0) {
           for (const mode of recommendation.purpose) {
             weaponLevelRecommendations.push({
               source: "local_community",
@@ -239,12 +248,9 @@ export function createWeaponRecommendationKnowledgeSource(dataDir: string): Comm
           }
           continue;
         }
-        const first = resolveRecommendedPerks(recommendation.perk1, perkMap);
-        const second = resolveRecommendedPerks(recommendation.perk2, perkMap);
+        const first = resolveRecommendedPerks(perk1Names, perkMap);
+        const second = resolveRecommendedPerks(perk2Names, perkMap);
         if (first.length === 0 || second.length === 0) continue;
-        resolvedRecommendationCount += 1;
-        resolvedSourceLabels.add(recommendation.source_label);
-
         for (const mode of recommendation.purpose) {
           for (const perk1 of first) {
             for (const perk2 of second) {
@@ -258,11 +264,12 @@ export function createWeaponRecommendationKnowledgeSource(dataDir: string): Comm
           }
         }
       }
-      if (combos.length === 0 && weaponLevelRecommendations.length === 0) return null;
+      if (combos.length === 0 && weaponLevelRecommendations.length === 0 && sourceRecords.length === 0) return null;
 
       const modes = [
         ...combos.map((combo) => combo.mode),
-        ...weaponLevelRecommendations.map((entry) => entry.mode)
+        ...weaponLevelRecommendations.map((entry) => entry.mode),
+        ...sourceRecords.flatMap((record) => record.purposes)
       ];
 
       return {
@@ -272,7 +279,8 @@ export function createWeaponRecommendationKnowledgeSource(dataDir: string): Comm
         matched_modes: [...new Set(modes)],
         ...(combos.length ? { individual_perks: uniquePerks(combos) } : {}),
         ...(weaponLevelRecommendations.length ? { weapon_level_recommendations: weaponLevelRecommendations } : {}),
-        sample_size: resolvedRecommendationCount,
+        source_records: sourceRecords,
+        sample_size: matching.length,
         source_label: [...resolvedSourceLabels].join(" / "),
         disclaimer: "来自应用内置的本地武器推荐知识库，推荐按官方武器名称汇总，并以当前实例实际 Perk 判断。"
       };
@@ -423,11 +431,13 @@ function loadKnowledgeCache(dataDir: string): KnowledgeCache | null {
     database = new DatabaseSync(path, { readOnly: true, timeout: 5_000 });
     const recommendations = database.prepare(`
       SELECT r.id, r.weapon_name, r.normalized_weapon_name, r.english_name,
-             r.normalized_english_name, s.label AS source_label, r.rating, r.note
+             r.normalized_english_name, s.source_key AS source_id, s.label AS source_label,
+             r.source_url, s.source_url AS source_default_url, r.rating, r.ranking, r.note,
+             r.page_updated_at, r.version, r.source_location
       FROM weapon_recommendations r
       JOIN recommendation_sources s ON s.id = r.source_id
       ORDER BY r.id
-    `).all() as Array<Omit<KnowledgeRecommendation, "purpose" | "perk1" | "perk2">>;
+    `).all() as Array<Omit<KnowledgeRecommendation, "purpose" | "requirements">>;
     if (recommendations.length === 0) return null;
 
     const purposes = database.prepare(`
@@ -436,20 +446,21 @@ function loadKnowledgeCache(dataDir: string): KnowledgeCache | null {
     const perks = database.prepare(`
       SELECT recommendation_id, slot, perk_name
       FROM weapon_recommendation_perks
-      WHERE slot IN ('perk1', 'perk2')
       ORDER BY recommendation_id, slot, ordinal
-    `).all() as Array<{ recommendation_id: number; slot: "perk1" | "perk2"; perk_name: string }>;
+    `).all() as Array<{
+      recommendation_id: number;
+      slot: RecommendationRequirementSlot;
+      perk_name: string;
+    }>;
 
     const purposesById = groupValues(purposes);
-    const perk1ById = groupFilteredValues(perks, "perk1");
-    const perk2ById = groupFilteredValues(perks, "perk2");
+    const requirementsById = groupRequirements(perks);
     const byName = new Map<string, KnowledgeRecommendation[]>();
     for (const row of recommendations) {
       const recommendation: KnowledgeRecommendation = {
         ...row,
         purpose: purposesById.get(row.id) ?? ["general"],
-        perk1: perk1ById.get(row.id) ?? [],
-        perk2: perk2ById.get(row.id) ?? []
+        requirements: requirementsById.get(row.id) ?? emptyRequirements()
       };
       for (const key of [row.normalized_weapon_name, row.normalized_english_name].filter(Boolean)) {
         const bucket = byName.get(key) ?? [];
@@ -504,9 +515,61 @@ function addPerkReference(
 }
 
 function resolveRecommendedPerks(names: string[], map: Map<string, PerkRef[]>): PerkRef[] {
-  const resolved = names.flatMap((name) => map.get(normalizeName(name)) ?? []);
+  const resolved = names.flatMap((name) => resolveRecommendedPerkName(name, map));
   return [...new Map(resolved.map((perk) => [perk.hash, perk])).values()];
 }
+
+function resolveRecommendedPerkName(name: string, map: Map<string, PerkRef[]>): PerkRef[] {
+  const normalized = normalizeName(name);
+  const exact = map.get(normalized);
+  if (exact?.length) return exact;
+  if (!normalized) return [];
+
+  const matchingKeys = [...map.keys()].filter((candidate) => (
+    candidate.includes(normalized) || normalized.includes(candidate)
+  ));
+  return matchingKeys.length === 1 ? map.get(matchingKeys[0]) ?? [] : [];
+}
+
+function buildSourceRecord(
+  recommendation: KnowledgeRecommendation,
+  perkMap: Map<string, PerkRef[]>
+): RecommendationSourceRecord {
+  const requirements = recommendationSlots.flatMap(({ slot, label }) => {
+    const names = recommendation.requirements[slot];
+    if (names.length === 0) return [];
+    const unresolved = names.filter((name) => resolveRecommendedPerkName(name, perkMap).length === 0);
+    return [{
+      slot,
+      label,
+      candidate_names: names,
+      candidates: resolveRecommendedPerks(names, perkMap),
+      unresolved_candidate_names: unresolved
+    }];
+  });
+  return {
+    source_id: recommendation.source_id,
+    source_label: recommendation.source_label,
+    source_url: recommendation.source_url || recommendation.source_default_url || undefined,
+    purposes: recommendation.purpose,
+    ...(recommendation.rating ? { rating: recommendation.rating } : {}),
+    ...(recommendation.ranking ? { ranking: recommendation.ranking } : {}),
+    ...(recommendation.note ? { note: recommendation.note } : {}),
+    ...(recommendation.page_updated_at ? { page_updated_at: recommendation.page_updated_at } : {}),
+    ...(recommendation.version ? { version: recommendation.version } : {}),
+    ...(recommendation.source_location ? { source_location: recommendation.source_location } : {}),
+    requirements
+  };
+}
+
+const recommendationSlots: Array<{ slot: RecommendationRequirementSlot; label: string }> = [
+  { slot: "barrel", label: "枪管/瞄具" },
+  { slot: "magazine", label: "第二列" },
+  { slot: "masterwork", label: "大师" },
+  { slot: "perk1", label: "Perk 1" },
+  { slot: "perk2", label: "Perk 2" },
+  { slot: "origin", label: "起源特性" }
+];
 
 function recommendationNote(recommendation: KnowledgeRecommendation): string | undefined {
   return [
@@ -653,6 +716,7 @@ function knowledgeStatus(database: DatabaseSync, path: string): WeaponRecommenda
       (SELECT COUNT(*) FROM recommendation_sources) AS source_count
   `).get() as { recommendation_count: number; weapon_count: number; source_count: number };
   return {
+    schema_version: recommendationDatabaseSchemaVersion,
     database_path: path,
     source_fingerprint: recommendationMetadataValue(database, "source_fingerprint"),
     imported_at: recommendationMetadataValue(database, "imported_at"),
@@ -670,16 +734,31 @@ function groupValues(
   return grouped;
 }
 
-function groupFilteredValues(
-  rows: Array<{ recommendation_id: number; slot: "perk1" | "perk2"; perk_name: string }>,
-  slot: "perk1" | "perk2"
-): Map<number, string[]> {
-  const grouped = new Map<number, string[]>();
+function groupRequirements(
+  rows: Array<{
+    recommendation_id: number;
+    slot: RecommendationRequirementSlot;
+    perk_name: string;
+  }>
+): Map<number, Record<RecommendationRequirementSlot, string[]>> {
+  const grouped = new Map<number, Record<RecommendationRequirementSlot, string[]>>();
   for (const row of rows) {
-    if (row.slot !== slot) continue;
-    grouped.set(row.recommendation_id, [...(grouped.get(row.recommendation_id) ?? []), row.perk_name]);
+    const requirements = grouped.get(row.recommendation_id) ?? emptyRequirements();
+    requirements[row.slot].push(row.perk_name);
+    grouped.set(row.recommendation_id, requirements);
   }
   return grouped;
+}
+
+function emptyRequirements(): Record<RecommendationRequirementSlot, string[]> {
+  return {
+    barrel: [],
+    magazine: [],
+    masterwork: [],
+    perk1: [],
+    perk2: [],
+    origin: []
+  };
 }
 
 async function stageManagedCsv(path: string, contents: string): Promise<{

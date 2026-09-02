@@ -108,6 +108,7 @@ export function useDesktopProductShell(props: {
     setLocalTargetRules,
     equipmentTargetStore,
     setEquipmentTargetStore,
+    vaultCommunityInstanceMatch,
     refreshAccountSnapshot
   } = accountWorkspace;
   const refreshAccountAfterWrite = () => refreshAccountSnapshot("write-action");
@@ -442,6 +443,8 @@ export function useDesktopProductShell(props: {
       isRunningItemAction,
       localTargetRules,
       equipmentTargetStore,
+      communityInstanceMatch: vaultCommunityInstanceMatch,
+      recommendationScan: accountWorkspace.vaultRecommendationScan,
       onLocateOwnedItem: locateVaultItem,
       interfaceLocale: diagnostics.languagePreferences.interfaceLocale,
       vendorDefinitionDetail,

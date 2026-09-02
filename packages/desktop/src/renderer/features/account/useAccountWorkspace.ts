@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { loadAccountWorkspace, loadAccountDerivedWorkspace } from "@d2-tools/app/account";
+import type { VaultRecommendationScanState } from "@d2-tools/app/account";
 import {
   api } from "../../api/client";
-import type { AccountItemActionPatch, AccountSummary, ActivityHistorySummary, DimWishlist, EquipmentTargetStore, StartupState, VaultItemMatchInfo, LocalTargetRules, VaultTags } from "../../api/types";
+import type { AccountItemActionPatch, AccountSummary, ActivityHistorySummary, DimWishlist, EquipmentTargetStore, StartupState, VaultItemInstanceMatchInfo, LocalTargetRules, VaultTags } from "../../api/types";
 import { createEmptyEquipmentTargetStore } from "@d2-tools/core/targets/equipmentTargets";
 import { services } from "../../api/services";
 import {
@@ -51,12 +52,13 @@ export function useAccountWorkspace(input: {
   const [activityMessage, setActivityMessage] = useState("");
   const [activityError, setActivityError] = useState("");
   const [importedWishlist, setImportedWishlist] = useState<DimWishlist | null>(null);
-  const [vaultCommunityMatch, setVaultCommunityMatch] = useState<Map<number, VaultItemMatchInfo>>(new Map());
+  const [vaultCommunityInstanceMatch, setVaultCommunityInstanceMatch] = useState<Map<string, VaultItemInstanceMatchInfo>>(new Map());
   const [isVaultCommunityMatchLoading, setIsVaultCommunityMatchLoading] = useState(false);
+  const [vaultRecommendationScan, setVaultRecommendationScan] = useState<VaultRecommendationScanState>(() => createIdleVaultRecommendationScan());
   const accountRequestSequenceRef = useRef(0);
   const derivedRequestSequenceRef = useRef(0);
   const communityRequestSequenceRef = useRef(0);
-  const communityMatchAccountKeyRef = useRef("");
+  const recommendationScanAccountKeyRef = useRef("");
   const accountRefreshRequestRef = useRef<Promise<AccountSummary | null> | null>(null);
   const accountLoadingSequenceRef = useRef(0);
   const hasLoadedLocalAccountDataRef = useRef(false);
@@ -114,8 +116,9 @@ export function useAccountWorkspace(input: {
       setIsShowingCachedAccount(false);
       setSelectedCharacterId("");
       setActivitySummary(null);
-      setVaultCommunityMatch(new Map());
-      communityMatchAccountKeyRef.current = "";
+      setVaultCommunityInstanceMatch(new Map());
+      setVaultRecommendationScan(createIdleVaultRecommendationScan());
+      recommendationScanAccountKeyRef.current = "";
       setIsVaultCommunityMatchLoading(false);
       setActivityMessage("");
       setActivityError("");
@@ -200,7 +203,18 @@ export function useAccountWorkspace(input: {
         setIsShowingCachedAccount(false);
         setLastAccountLoadedAt(new Date());
         communityRequestSequenceRef.current += 1;
-        communityMatchAccountKeyRef.current = "";
+        recommendationScanAccountKeyRef.current = "";
+        setIsVaultCommunityMatchLoading(false);
+        setVaultRecommendationScan((current) => ({
+          phase: current.scanned_weapon_count || vaultCommunityInstanceMatch.size ? "partial" : "idle",
+          total_weapon_count: countAccountWeapons(summary),
+          scanned_weapon_count: vaultCommunityInstanceMatch.size,
+          covered_weapon_count: [...vaultCommunityInstanceMatch.values()].filter((item) => item.coverage === "covered").length,
+          retained_result_count: vaultCommunityInstanceMatch.size,
+          message: vaultCommunityInstanceMatch.size
+            ? "账号数据已更新，当前显示的是上次推荐核对结果，进入仓库后会重新核对。"
+            : undefined
+        }));
         if (reason === "initial" || reason === "manual") {
           setActivityMessage(reason === "manual"
             ? "账号已刷新"
@@ -261,21 +275,84 @@ export function useAccountWorkspace(input: {
   ) {
     if (!summary) return;
     const accountKey = `${summary.membership_type}:${summary.destiny_membership_id}`;
-    if (!options.force && communityMatchAccountKeyRef.current === accountKey) return;
+    if (!options.force && recommendationScanAccountKeyRef.current === accountKey) return;
 
     const requestSequence = ++communityRequestSequenceRef.current;
+    const totalWeaponCount = countAccountWeapons(summary);
+    const retainedInstanceMatches = vaultCommunityInstanceMatch;
+    const retainedResultCount = retainedInstanceMatches.size;
+    const startedAt = new Date().toISOString();
     setIsVaultCommunityMatchLoading(true);
+    setVaultRecommendationScan({
+      phase: "scanning",
+      total_weapon_count: totalWeaponCount,
+      scanned_weapon_count: 0,
+      covered_weapon_count: 0,
+      retained_result_count: retainedResultCount,
+      started_at: startedAt,
+      message: retainedResultCount
+        ? `正在重新核对 ${totalWeaponCount} 件账号武器，暂时保留上次 ${retainedResultCount} 件结果。`
+        : `正在核对 ${totalWeaponCount} 件账号武器。`
+    });
     const derived = await loadAccountDerivedWorkspace(services, summary, {
       includeActivity: false,
       includeCommunityMatch: true
     });
     if (requestSequence !== communityRequestSequenceRef.current) return;
     if (derived.status === "success") {
-      communityMatchAccountKeyRef.current = accountKey;
-      setVaultCommunityMatch(derived.data.vaultCommunityMatch);
+      const blockingIssue = derived.data.vaultRecommendationIssues.find((issue) => issue.severity === "blocking");
+      if (blockingIssue) {
+        setVaultRecommendationScan({
+          phase: retainedResultCount ? "partial" : "error",
+          total_weapon_count: totalWeaponCount,
+          scanned_weapon_count: retainedResultCount,
+          covered_weapon_count: [...retainedInstanceMatches.values()].filter((item) => item.coverage === "covered").length,
+          retained_result_count: retainedResultCount,
+          started_at: startedAt,
+          completed_at: new Date().toISOString(),
+          blocking_reason: blockingIssue.code,
+          issues: derived.data.vaultRecommendationIssues,
+          manifest_version: derived.data.vaultRecommendationManifestVersion,
+          recommendation_revision: derived.data.vaultRecommendationRevision,
+          recommendation_schema_version: derived.data.vaultRecommendationSchemaVersion,
+          message: retainedResultCount
+            ? `${blockingIssue.message} 继续显示上次 ${retainedResultCount} 件结果。`
+            : blockingIssue.message
+        });
+        setIsVaultCommunityMatchLoading(false);
+        return;
+      }
+      recommendationScanAccountKeyRef.current = accountKey;
+      setVaultCommunityInstanceMatch(derived.data.vaultCommunityInstanceMatch);
+      const warningMessage = derived.data.vaultRecommendationIssues.map((issue) => issue.message).join(" ");
+      setVaultRecommendationScan({
+        phase: derived.data.vaultRecommendationIssues.length ? "partial" : "complete",
+        total_weapon_count: totalWeaponCount,
+        scanned_weapon_count: derived.data.vaultCommunityInstanceMatch.size,
+        covered_weapon_count: [...derived.data.vaultCommunityInstanceMatch.values()].filter((item) => item.coverage === "covered").length,
+        retained_result_count: 0,
+        started_at: startedAt,
+        completed_at: new Date().toISOString(),
+        issues: derived.data.vaultRecommendationIssues,
+        manifest_version: derived.data.vaultRecommendationManifestVersion,
+        recommendation_revision: derived.data.vaultRecommendationRevision,
+        recommendation_schema_version: derived.data.vaultRecommendationSchemaVersion,
+        ...(warningMessage ? { message: warningMessage } : {})
+      });
     } else {
-      setVaultCommunityMatch(new Map());
-      setActivityError(derived.error?.message ?? "社区匹配读取失败");
+      const message = derived.error?.message ?? "武器推荐来源核对失败";
+      setVaultRecommendationScan({
+        phase: retainedResultCount ? "partial" : "error",
+        total_weapon_count: totalWeaponCount,
+        scanned_weapon_count: retainedResultCount,
+        covered_weapon_count: [...retainedInstanceMatches.values()].filter((item) => item.coverage === "covered").length,
+        retained_result_count: retainedResultCount,
+        started_at: startedAt,
+        completed_at: new Date().toISOString(),
+        message: retainedResultCount
+          ? `本次核对失败，继续显示上次 ${retainedResultCount} 件结果：${message}`
+          : message
+      });
     }
     setIsVaultCommunityMatchLoading(false);
   }
@@ -310,8 +387,9 @@ export function useAccountWorkspace(input: {
     activityError,
     importedWishlist,
     setImportedWishlist,
-    vaultCommunityMatch,
+    vaultCommunityInstanceMatch,
     isVaultCommunityMatchLoading,
+    vaultRecommendationScan,
     loginBungie,
     initializeManifest,
     loadAccountSummary: refreshAccountSnapshot,
@@ -320,6 +398,27 @@ export function useAccountWorkspace(input: {
     loadVaultCommunityMatch,
     refreshAccountDerivedData
   };
+}
+
+function createIdleVaultRecommendationScan(): VaultRecommendationScanState {
+  return {
+    phase: "idle",
+    total_weapon_count: 0,
+    scanned_weapon_count: 0,
+    covered_weapon_count: 0,
+    retained_result_count: 0
+  };
+}
+
+function countAccountWeapons(summary: AccountSummary): number {
+  return [
+    ...summary.characters.flatMap((character) => [
+      ...character.equipped_items,
+      ...character.inventory_items,
+      ...character.postmaster_items
+    ]),
+    ...summary.vault.items
+  ].filter((item) => item.group_key === "weapons").length;
 }
 
 function formatCachedTime(value: string): string {

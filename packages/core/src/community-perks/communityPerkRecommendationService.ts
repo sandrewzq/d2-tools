@@ -2,6 +2,9 @@ import type {
   CommunityPerkSource,
   PerkCombo,
   PerkRef,
+  RecommendationRequirementSlot,
+  RecommendationSourceMatch,
+  RecommendationSourceRecord,
   SourceOptions,
   VaultItemInstanceMatchInfo,
   VaultItemMatchInfo,
@@ -70,9 +73,13 @@ export class CommunityPerkRecommendationService {
     const weaponLevelRecommendations = valid.flatMap((recommendation) => (
       recommendation.weapon_level_recommendations ?? []
     ));
+    const sourceRecords = uniqueSourceRecords(valid.flatMap((recommendation) => (
+      recommendation.source_records ?? []
+    )));
     const modes = Array.from(new Set([
       ...combos.map((combo) => combo.mode),
-      ...weaponLevelRecommendations.map((entry) => entry.mode)
+      ...weaponLevelRecommendations.map((entry) => entry.mode),
+      ...sourceRecords.flatMap((record) => record.purposes)
     ]));
 
     return {
@@ -82,6 +89,7 @@ export class CommunityPerkRecommendationService {
       matched_modes: modes,
       individual_perks: uniquePerks(valid),
       weapon_level_recommendations: weaponLevelRecommendations,
+      ...(sourceRecords.length ? { source_records: sourceRecords } : {}),
       sample_size: valid.reduce((sum, recommendation) => sum + (recommendation.sample_size ?? recommendation.combos.length), 0),
       source_label: Array.from(new Set(valid.map((r) => r.source_label).filter(Boolean))).join(" / ") || undefined,
       ai_analysis: valid.map((r) => r.ai_analysis).filter(Boolean).join("\n\n") || undefined,
@@ -123,7 +131,7 @@ export class CommunityPerkRecommendationService {
         const combo = rec.combos[index];
         for (const item of itemsForHash) {
           const actualHashes = ownedPlugHashes(item);
-          const allIn = combo.perks.every((perk) => actualHashes.has(perk.hash));
+          const allIn = comboMatchRequirements(combo).every((hashes) => hashes.some((hash) => actualHashes.has(hash)));
           if (allIn) {
             matchedComboIndexes.add(index);
             matchedModes.add(combo.mode);
@@ -188,6 +196,17 @@ export class CommunityPerkRecommendationService {
 
       const actualHashes = ownedPlugHashes(item);
       const weaponLevelRecommendations = recommendation.weapon_level_recommendations ?? [];
+      const sourceMatches = matchSourceRecords(item, recommendation.source_records ?? []);
+      const dimWishlistMatch = matchDimWishlistCombos(item, recommendation.combos, actualHashes);
+      if (sourceMatches.length > 0) {
+        return sourceMatchCompatibilityResult(
+          item,
+          canonicalWeaponName,
+          recommendation,
+          sourceMatches,
+          dimWishlistMatch
+        );
+      }
       if (actualHashes.size === 0 && weaponLevelRecommendations.length === 0) {
         return {
           hash: item.hash,
@@ -200,7 +219,8 @@ export class CommunityPerkRecommendationService {
           available: recommendation.combos.length,
           modes: recommendation.matched_modes,
           sample_perks: previewPerks(recommendation),
-          source_label: recommendation.source_label
+          source_label: recommendation.source_label,
+          ...(dimWishlistMatch ? { dim_wishlist: dimWishlistMatch } : {})
         };
       }
 
@@ -216,16 +236,18 @@ export class CommunityPerkRecommendationService {
           available: weaponLevelRecommendations.length + recommendation.combos.length,
           modes: recommendation.matched_modes,
           sample_perks: previewPerks(recommendation),
-          source_label: recommendation.source_label
+          source_label: recommendation.source_label,
+          ...(dimWishlistMatch ? { dim_wishlist: dimWishlistMatch } : {})
         };
       }
 
       const fullMatches = recommendation.combos.filter((combo) => (
-        combo.perks.every((perk) => actualHashes.has(perk.hash))
+        comboMatchRequirements(combo).every((hashes) => hashes.some((hash) => actualHashes.has(hash)))
       ));
       const partialMatches = recommendation.combos.filter((combo) => {
-        const matchedPerks = combo.perks.filter((perk) => actualHashes.has(perk.hash)).length;
-        return matchedPerks > 0 && matchedPerks < combo.perks.length;
+        const requirements = comboMatchRequirements(combo);
+        const matchedPerks = requirements.filter((hashes) => hashes.some((hash) => actualHashes.has(hash))).length;
+        return matchedPerks > 0 && matchedPerks < requirements.length;
       });
       const matchedModes = Array.from(new Set(
         [
@@ -250,10 +272,184 @@ export class CommunityPerkRecommendationService {
         available,
         modes: matchedModes.length ? matchedModes : recommendation.matched_modes,
         sample_perks: previewPerks(recommendation),
-        source_label: recommendation.source_label
+        source_label: recommendation.source_label,
+        ...(dimWishlistMatch ? { dim_wishlist: dimWishlistMatch } : {})
       };
     }));
   }
+}
+
+const recommendationSlots: Array<{ slot: RecommendationRequirementSlot; label: string }> = [
+  { slot: "barrel", label: "枪管/瞄具" },
+  { slot: "magazine", label: "第二列" },
+  { slot: "masterwork", label: "大师" },
+  { slot: "perk1", label: "Perk 1" },
+  { slot: "perk2", label: "Perk 2" },
+  { slot: "origin", label: "起源特性" }
+];
+
+function matchSourceRecords(
+  item: VaultItemMatchInput,
+  records: readonly RecommendationSourceRecord[]
+): RecommendationSourceMatch[] {
+  return records.map((record) => {
+    const requirements = new Map(record.requirements.map((requirement) => [requirement.slot, requirement]));
+    const slots = recommendationSlots.map(({ slot, label }) => {
+      const requirement = requirements.get(slot);
+      const rollSocket = item.weapon_roll?.sockets.find((socket) => socket.slot === slot);
+      if (!requirement) {
+        return {
+          slot,
+          label,
+          state: "source_not_specified" as const,
+          source_candidate_names: [],
+          source_candidates: [],
+          unresolved_source_candidate_names: [],
+          instance_owned: rollSocket?.owned_plugs ?? [],
+          current_enabled: rollSocket?.current_plug ? [rollSocket.current_plug] : []
+        };
+      }
+
+      const matches = Boolean(rollSocket) && rollSocket!.owned_plugs.some((plug) => (
+        requirement.candidates.some((candidate) => (
+          plug.hash === candidate.hash || normalizeComparableName(plug.name) === normalizeComparableName(candidate.name)
+        ))
+        || requirement.candidate_names.some((name) => (
+          normalizeComparableName(plug.name) === normalizeComparableName(name)
+        ))
+      ));
+      const cannotCheck = !matches && (
+        requirement.unresolved_candidate_names.length > 0
+        || !item.weapon_roll
+        || (!rollSocket && !item.weapon_roll.complete)
+        || rollSocket?.complete === false
+      );
+      return {
+        slot,
+        label: requirement.label || label,
+        state: matches ? "match" as const : cannotCheck ? "uncheckable" as const : "different" as const,
+        source_candidate_names: requirement.candidate_names,
+        source_candidates: requirement.candidates,
+        unresolved_source_candidate_names: requirement.unresolved_candidate_names,
+        instance_owned: rollSocket?.owned_plugs ?? [],
+        current_enabled: rollSocket?.current_plug ? [rollSocket.current_plug] : []
+      };
+    });
+    const specified = slots.filter((slot) => slot.state !== "source_not_specified");
+    const matched = specified.filter((slot) => slot.state === "match").length;
+    const hasUncheckable = specified.some((slot) => slot.state === "uncheckable");
+    return {
+      source_id: record.source_id,
+      source_label: record.source_label,
+      ...(record.source_url ? { source_url: record.source_url } : {}),
+      state: specified.length === 0
+        ? "weapon_only" as const
+        : hasUncheckable
+          ? "uncheckable" as const
+          : "checked" as const,
+      matched_requirement_count: matched,
+      requirement_count: specified.length,
+      purposes: record.purposes,
+      ...(record.rating ? { rating: record.rating } : {}),
+      ...(record.ranking ? { ranking: record.ranking } : {}),
+      ...(record.page_updated_at ? { page_updated_at: record.page_updated_at } : {}),
+      ...(record.version ? { version: record.version } : {}),
+      slots
+    };
+  });
+}
+
+function sourceMatchCompatibilityResult(
+  item: VaultItemMatchInput,
+  canonicalWeaponName: string,
+  recommendation: WeaponRecommendation,
+  sourceMatches: RecommendationSourceMatch[],
+  dimWishlistMatch: VaultItemInstanceMatchInfo["dim_wishlist"]
+): VaultItemInstanceMatchInfo {
+  const fullyMatched = sourceMatches.filter((source) => (
+    source.state === "weapon_only"
+    || (source.state === "checked" && source.requirement_count > 0
+      && source.matched_requirement_count === source.requirement_count)
+  ));
+  const partiallyMatched = sourceMatches.filter((source) => (
+    source.state === "checked"
+    && source.matched_requirement_count > 0
+    && source.matched_requirement_count < source.requirement_count
+  ));
+  const hasCheckable = sourceMatches.some((source) => source.state === "checked" || source.state === "weapon_only");
+  const hasUncheckable = sourceMatches.some((source) => source.state === "uncheckable");
+  return {
+    hash: item.hash,
+    ...(item.instance_id ? { instance_id: item.instance_id } : {}),
+    canonical_weapon_name: canonicalWeaponName,
+    coverage: "covered",
+    match_status: fullyMatched.length > 0
+      ? "full_match"
+      : partiallyMatched.length > 0
+        ? "partial_match"
+        : !hasCheckable && hasUncheckable
+          ? "indeterminate"
+          : "no_match",
+    matched: fullyMatched.length,
+    partial: partiallyMatched.length,
+    available: sourceMatches.length,
+    modes: recommendation.matched_modes,
+    sample_perks: previewPerks(recommendation),
+    source_label: recommendation.source_label,
+    source_matches: sourceMatches,
+    ...(dimWishlistMatch ? { dim_wishlist: dimWishlistMatch } : {})
+  };
+}
+
+function matchDimWishlistCombos(
+  item: VaultItemMatchInput,
+  combos: readonly PerkCombo[],
+  actualHashes: ReadonlySet<number>
+): VaultItemInstanceMatchInfo["dim_wishlist"] {
+  const dimCombos = combos.filter((combo) => combo.source === "dim_wishlist");
+  if (!dimCombos.length) return undefined;
+  const rules = dimCombos.map((combo) => {
+    const requirements = comboMatchRequirements(combo);
+    const matched = requirements.filter((hashes) => hashes.some((hash) => actualHashes.has(hash))).length;
+    const incomplete = !item.weapon_roll || !item.weapon_roll.complete;
+    return {
+      mode: combo.mode,
+      state: matched === requirements.length
+        ? "match" as const
+        : incomplete
+          ? "uncheckable" as const
+          : matched > 0
+            ? "partial" as const
+            : "different" as const,
+      matched_requirement_count: matched,
+      requirement_count: requirements.length,
+      ...(combo.dim_diagnostic ? { diagnostic_status: combo.dim_diagnostic.status } : {})
+    };
+  });
+  return {
+    matched_combo_count: rules.filter((rule) => rule.state === "match").length,
+    partial_combo_count: rules.filter((rule) => rule.state === "partial").length,
+    uncheckable_combo_count: rules.filter((rule) => rule.state === "uncheckable").length,
+    combo_count: rules.length,
+    modes: [...new Set(rules.map((rule) => rule.mode))],
+    rules
+  };
+}
+
+function uniqueSourceRecords(records: RecommendationSourceRecord[]): RecommendationSourceRecord[] {
+  const unique = new Map<string, RecommendationSourceRecord>();
+  for (const record of records) {
+    const key = `${record.source_id}\u0000${record.source_label}`;
+    if (!unique.has(key)) unique.set(key, record);
+  }
+  return [...unique.values()];
+}
+
+function normalizeComparableName(value: string): string {
+  return value
+    .normalize("NFKC")
+    .toLocaleLowerCase()
+    .replace(/[\p{P}\p{Z}\s]+/gu, "");
 }
 
 function ownedPlugHashes(item: VaultItemMatchInput): Set<number> {
@@ -268,6 +464,7 @@ function ownedPlugHashes(item: VaultItemMatchInput): Set<number> {
 function isUsefulRecommendation(recommendation: WeaponRecommendation): boolean {
   return recommendation.combos.length > 0
     || Boolean(recommendation.weapon_level_recommendations?.length)
+    || Boolean(recommendation.source_records?.length)
     || Boolean(recommendation.ai_analysis?.trim());
 }
 
@@ -299,6 +496,15 @@ function previewPerks(recommendation: WeaponRecommendation): PerkRef[] | undefin
     }
   }
   return [...deduped.values()];
+}
+
+function comboMatchRequirements(combo: PerkCombo): number[][] {
+  if (combo.source !== "dim_wishlist" || !combo.dim_diagnostic) {
+    return combo.perks.map((perk) => [perk.hash]);
+  }
+  return combo.dim_diagnostic.perks.map((perk) => (
+    perk.resolved_hashes?.length ? perk.resolved_hashes : [perk.resolved_hash ?? perk.original_hash]
+  ));
 }
 
 export type { PerkCombo };

@@ -13,7 +13,6 @@ import type {
 } from "@d2-tools/app/library";
 import { selectSettingsPageModel, type SettingsSectionKey } from "@d2-tools/app/settings";
 import { selectVaultPageModel } from "@d2-tools/app/vault";
-import type { VaultItemMatchInfo as VaultCommunityMatchInfo } from "@d2-tools/app/vault";
 import { selectVendorsPageModel } from "@d2-tools/app/vendors";
 import type {
   AiAssistantContextView,
@@ -500,7 +499,6 @@ export const webUpdateSnapshot = {
 export const webVaultTags = { items: { "web-handcannon-vault": { tag: "review", note: "Web mock 同名复查。" }, "web-scout-vault": { tag: "junk" } } } as const;
 export const webLocalTargetRules = { action_policy: "notify_only" as const, armor: [], weapons: [] };
 export const webWishlist = { title: "Web DIM Wishlist", rules: [{ item_hash: 3002, perk_hashes: [4001], mode: "pve" as const, note: "Web 推荐" }] };
-export const webVaultCommunityMatch = new Map<number, VaultCommunityMatchInfo>([[3002, { matched: 1, available: 1, modes: ["pve"], sample_perks: [{ hash: 4001, name: "爆炸载荷" }] }]]);
 export const webArmorSetCatalog: ArmorSetCatalogItem[] = [
   { hash: 7001, name: "铁血意志套装" },
   { hash: 7002, name: "流放者套装" },
@@ -640,8 +638,7 @@ export function createWebVaultPageModel(input: {
     activeLoadoutName: selectedTemplate?.name,
     tags: webVaultTags,
     targetRules: webLocalTargetRules,
-    wishlist: webWishlist,
-    communityMatch: webVaultCommunityMatch
+    wishlist: webWishlist
   });
 }
 
@@ -816,7 +813,6 @@ export function useWebFixtureRuntime() {
     vaultTags: webVaultTags,
     localTargetRules: webLocalTargetRules,
     wishlist: webWishlist,
-    vaultCommunityMatch: webVaultCommunityMatch,
     armorSetCatalog: webArmorSetCatalog,
     backgroundTasks: webBackgroundTasks,
     actionLog: webActionLog,

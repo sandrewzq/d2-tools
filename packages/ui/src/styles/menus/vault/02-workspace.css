@@ -1433,7 +1433,7 @@
 
 :where(.app-shell) .vault-evidence-results > button {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 110px minmax(130px, 0.55fr);
+  grid-template-columns: minmax(0, 1fr) minmax(150px, 0.9fr) minmax(90px, auto);
   gap: 12px;
   align-items: center;
   min-height: 58px;
@@ -1450,8 +1450,51 @@
   background: var(--hover-bg);
 }
 
-:where(.app-shell) .vault-evidence-result-modes,
-:where(.app-shell) .vault-evidence-result-source {
+:where(.app-shell) .vault-evidence-result-sources {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+:where(.app-shell) .vault-evidence-source-match {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-body);
+  font-size: var(--font-caption);
+  line-height: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+:where(.app-shell) .vault-evidence-source-match[data-match-state="matched"] {
+  color: var(--status-ready);
+}
+
+:where(.app-shell) .vault-evidence-source-match[data-match-state="uncheckable"] {
+  color: var(--status-warning);
+}
+
+:where(.app-shell) .vault-evidence-result-sources > small,
+:where(.app-shell) .vault-evidence-result-purpose small {
+  color: var(--text-muted);
+  font-size: var(--font-micro);
+}
+
+:where(.app-shell) .vault-evidence-result-purpose {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+:where(.app-shell) .vault-evidence-result-purpose strong {
+  color: var(--text-body);
+  font-size: var(--font-caption);
+  font-weight: 600;
+}
+
+:where(.app-shell) .vault-evidence-result-sources,
+:where(.app-shell) .vault-evidence-result-purpose {
   overflow-wrap: anywhere;
 }
 
@@ -1548,11 +1591,7 @@
 }
 
 :where(.app-shell.assistant-open) .vault-evidence-results > button {
-  grid-template-columns: minmax(0, 1fr) auto;
-}
-
-:where(.app-shell.assistant-open) .vault-evidence-result-source {
-  grid-column: 1 / -1;
+  grid-template-columns: minmax(0, 1fr);
 }
 
 @container product-workspace (max-width: 960px) {
@@ -2224,6 +2263,15 @@
   align-content: start;
 }
 
+:where(.app-shell) .vault-results-column .vault-item-weapons.has-source-summary {
+  min-height: 118px;
+}
+
+:where(.app-shell) .vault-results-column .vault-item-weapons.has-source-summary .vault-card-main {
+  grid-template-rows: var(--item-thumb) 20px auto 20px;
+  min-height: 107px;
+}
+
 :where(.app-shell) .vault-results-column .vault-weapon-identity,
 :where(.app-shell) .vault-results-column .vault-armor-identity {
   display: grid;
@@ -2439,6 +2487,35 @@
   min-width: 0;
   padding-top: 3px;
   border-top: 1px solid var(--section-divider);
+}
+
+:where(.app-shell) .vault-results-column .vault-weapon-source-summary {
+  display: grid;
+  gap: 1px;
+  width: 100%;
+  min-width: 0;
+  padding-top: 2px;
+  border-top: 1px solid var(--section-divider);
+  text-align: left;
+}
+
+:where(.app-shell) .vault-results-column .vault-weapon-source-chip {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: var(--font-micro);
+  line-height: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+:where(.app-shell) .vault-results-column .vault-weapon-source-chip[data-match-state="matched"] {
+  color: var(--status-ready);
+}
+
+:where(.app-shell) .vault-results-column .vault-weapon-source-chip[data-match-state="uncheckable"] {
+  color: var(--status-warning);
 }
 
 :where(.app-shell) .vault-results-column .vault-card-power {
@@ -2819,6 +2896,29 @@
   color: inherit;
 }
 
+:where(.app-shell) .duplicate-comparison-source-select {
+  display: inline-flex;
+  min-height: 30px;
+  align-items: center;
+  gap: 6px;
+  padding-left: 8px;
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-control);
+  color: var(--text-muted);
+  background: var(--surface-panel);
+}
+
+:where(.app-shell) .duplicate-comparison-source-select select {
+  min-height: 28px;
+  max-width: 210px;
+  border: 0;
+  border-left: 1px solid var(--border-control);
+  border-radius: 0 var(--radius-control) var(--radius-control) 0;
+  color: var(--text-body);
+  background: var(--field-bg);
+  font-size: var(--font-caption);
+}
+
 :where(.app-shell) .duplicate-roll-view-mode {
   display: inline-flex;
   min-height: 30px;
@@ -2912,6 +3012,46 @@
   color: var(--status-pending);
   background: var(--status-pending-bg);
   font-weight: 700;
+}
+
+:where(.app-shell) .duplicate-source-legend {
+  display: inline-flex;
+  min-height: 30px;
+  overflow: hidden;
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-control);
+}
+
+:where(.app-shell) .duplicate-source-legend span {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 7px;
+  color: var(--text-muted);
+  background: var(--surface-panel);
+}
+
+:where(.app-shell) .duplicate-source-legend span + span {
+  border-left: 1px solid var(--border-control);
+}
+
+:where(.app-shell) .duplicate-source-legend [data-source-state="match"] {
+  color: var(--status-ready);
+}
+
+:where(.app-shell) .duplicate-source-legend [data-source-state="different"] {
+  color: var(--blue);
+}
+
+:where(.app-shell) .duplicate-source-legend [data-source-state="uncheckable"] {
+  color: var(--status-warning);
+}
+
+:where(.app-shell) .duplicate-source-note {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-control);
+  color: var(--text-muted);
+  background: var(--surface-subtle);
+  font-size: var(--font-caption);
 }
 
 :where(.app-shell) .duplicate-compare-table {
@@ -3124,6 +3264,80 @@
 
 :where(.app-shell) .duplicate-cell.is-roll .duplicate-compare-state {
   justify-self: start;
+}
+
+:where(.app-shell) .duplicate-cell.is-source {
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  align-items: stretch;
+  gap: 6px;
+  min-height: 96px;
+}
+
+:where(.app-shell) .duplicate-cell.is-source.source-match {
+  background: color-mix(in srgb, var(--status-ready-bg) 58%, transparent);
+  box-shadow: inset 3px 0 0 var(--status-ready);
+}
+
+:where(.app-shell) .duplicate-cell.is-source.source-different {
+  background: color-mix(in srgb, var(--blue-bg) 52%, transparent);
+  box-shadow: inset 3px 0 0 var(--blue);
+}
+
+:where(.app-shell) .duplicate-cell.is-source.source-uncheckable {
+  background: color-mix(in srgb, var(--status-warning-bg) 58%, transparent);
+  box-shadow: inset 3px 0 0 var(--status-warning);
+}
+
+:where(.app-shell) .duplicate-cell.is-source.source-not_covered,
+:where(.app-shell) .duplicate-cell.is-source.source-source_not_specified {
+  background: var(--surface-subtle);
+  box-shadow: inset 3px 0 0 var(--border-control);
+}
+
+:where(.app-shell) .duplicate-source-state {
+  color: var(--text-title);
+  font-size: var(--font-caption);
+  font-weight: 700;
+}
+
+:where(.app-shell) .duplicate-cell.source-match .duplicate-source-state {
+  color: var(--status-ready);
+}
+
+:where(.app-shell) .duplicate-cell.source-different .duplicate-source-state {
+  color: var(--blue);
+}
+
+:where(.app-shell) .duplicate-cell.source-uncheckable .duplicate-source-state {
+  color: var(--status-warning);
+}
+
+:where(.app-shell) .duplicate-source-values {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+:where(.app-shell) .duplicate-source-values > span {
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr);
+  gap: 6px;
+  min-width: 0;
+}
+
+:where(.app-shell) .duplicate-source-values small {
+  color: var(--text-muted);
+  font-size: var(--font-micro);
+  font-weight: 400;
+}
+
+:where(.app-shell) .duplicate-source-values b {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--text-body);
+  font-size: var(--font-caption);
+  font-weight: 600;
 }
 
 :where(.app-shell) .duplicate-roll-options {
