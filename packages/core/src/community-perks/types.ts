@@ -111,6 +111,8 @@ export type RecommendationSourceMatch = {
   state: "checked" | "weapon_only" | "not_covered" | "uncheckable";
   matched_requirement_count: number;
   requirement_count: number;
+  checkable_requirement_count: number;
+  uncheckable_requirement_count: number;
   purposes: Array<"pve" | "pvp" | "general">;
   rating?: string;
   ranking?: string;
@@ -178,6 +180,8 @@ export type DimWishlistInstanceMatch = {
   partial_combo_count: number;
   uncheckable_combo_count: number;
   combo_count: number;
+  best_matched_requirement_count: number;
+  best_requirement_count: number;
   modes: Array<"pve" | "pvp" | "general">;
   rules: DimWishlistRuleInstanceMatch[];
 };

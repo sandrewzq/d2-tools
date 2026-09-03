@@ -298,7 +298,7 @@ export function WeaponDetailContent(props: WeaponDetailContentProps) {
           ) : (
             <div className="weapon-detail-instance-readonly">
               <h3>当前内容仅供查看</h3>
-              <p>选择下方账号中已有的同版本武器后，可执行装备、转移、锁定和本地整理。</p>
+              <p>选择下方账号中已有的装备后，可执行装备、转移、锁定和本地整理。</p>
             </div>
           )}
           <InstancesRail
@@ -376,6 +376,7 @@ function WeaponIdentity(props: {
           selectedVersionHash={currentDefinition?.hash ?? identity.hash}
           watermarkIcon={identity.definition_version?.current_watermark_icon}
           versionLoading={props.model.loading_state.versions}
+          showVersionField={context.kind === "definition" && canSelectDefinitionVersion}
           onSelectVersion={canSelectDefinitionVersion ? props.onSelectVersion : undefined}
         />
         <details className="weapon-detail-definition-details">
@@ -400,7 +401,7 @@ function WeaponIdentity(props: {
 function weaponObjectLabel(kind: WeaponDetailViewModel["context"]["kind"]): string {
   if (kind === "account_instance") return "当前装备";
   if (kind === "vendor_offer") return "当前售卖";
-  return "资料库版本";
+  return "资料库武器";
 }
 
 function releaseKindLabel(kind: ItemReleaseKind | undefined): string {
@@ -1126,7 +1127,6 @@ function RecommendationSourceEvidenceCard(props: {
     source.purposes.length ? `用途：${source.purposes.map(recommendationPurposeLabel).join(" / ")}` : undefined,
     source.rating ? `评级：${source.rating}` : undefined,
     source.ranking ? `排名：${source.ranking}` : undefined,
-    source.version ? `版本：${source.version}` : undefined,
     source.page_updated_at ? `更新时间：${formatUpdatedAt(source.page_updated_at)}` : undefined
   ].filter((entry): entry is string => Boolean(entry));
   return (
@@ -1181,8 +1181,10 @@ function RecommendationSourceSlotRow({ slot }: { slot: RecommendationSourceSlotM
 
 function recommendationSourceSummary(source: RecommendationSourceMatch): string {
   if (source.state === "weapon_only") return "仅推荐武器";
-  if (source.state === "uncheckable") return `${source.matched_requirement_count}/${source.requirement_count} 项 · 无法完整核对`;
-  return `${source.matched_requirement_count}/${source.requirement_count} 项符合`;
+  const uncheckable = source.uncheckable_requirement_count
+    ?? source.slots.filter((slot) => slot.state === "uncheckable").length;
+  if (uncheckable > 0) return "Roll 数据异常";
+  return `${source.matched_requirement_count}/${source.requirement_count} 栏符合`;
 }
 
 function recommendationEvidenceEmptyText(status: NonNullable<WeaponDetailContentProps["recommendationEvidence"]>["status"]): string {
@@ -1205,7 +1207,7 @@ function recommendationSlotStateLabel(state: RecommendationSourceSlotMatch["stat
     match: "符合",
     different: "不符",
     source_not_specified: "来源未要求",
-    uncheckable: "无法核对"
+    uncheckable: "数据未读取"
   }[state];
 }
 
@@ -1260,7 +1262,7 @@ function RecommendationCard(props: { model: WeaponDetailViewModel; recommendatio
         </div>
         {recommendation.external_url ? <a href={recommendation.external_url} target="_blank" rel="noreferrer">查看原始来源</a> : <span>本地数据</span>}
       </header>
-      {recommendation.reason ? <p className="weapon-detail-source-quote" data-ui-kind="callout" data-callout-tone="info">{recommendation.reason}</p> : null}
+      {recommendation.reason ? <p className="weapon-detail-source-quote is-single-line" data-ui-kind="callout" data-callout-tone="info" title={recommendation.reason}>{recommendation.reason}</p> : null}
       {perkMatches.length ? (
         <div className="weapon-detail-match-grid">
           <div><span>目标插槽</span><strong>这件武器拥有</strong><strong>当前启用</strong></div>

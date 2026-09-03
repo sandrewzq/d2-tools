@@ -1,33 +1,28 @@
 import { memo } from "react";
 import type { AccountItemSummary } from "@d2-tools/core/account/summary";
-import type { DimWishlist } from "@d2-tools/core/analysis/wishlistImport";
-import type { LocalTargetRules } from "@d2-tools/core/analysis/targets";
-import type { VaultItemInstanceMatchInfo } from "@d2-tools/core/community-perks";
 import type { ArmorStatKey } from "@d2-tools/core/loadouts/analysis";
-import type { VaultTags, VaultTagValue } from "@d2-tools/core/vault/tags";
-import { matchesLoadoutTemplateItem, type LoadoutTemplateLookup } from "@d2-tools/app/loadouts";
-import { ammoFilterLabels, armorStatLabels, formatArmorStatsInline, getVaultItemKey, tagLabels } from "@d2-tools/app/vault";
+import type { VaultTagValue } from "@d2-tools/core/vault/tags";
+import { ammoFilterLabels, armorStatLabels, formatArmorStatsInline, tagLabels } from "@d2-tools/app/vault";
 import { GameAssetImage } from "../media/GameAssetImage.js";
 import { VaultAmmoTypeIcon, VaultDamageTypeIcon } from "./VaultWeaponFactIcons.js";
-import { buildVaultRecommendationSourceSummaries } from "./vaultRecommendationMatch.js";
+import type { VaultRecommendationSourceSummary } from "./vaultRecommendationMatch.js";
 
-export function VaultListItem(props: {
+type VaultListItemProps = {
   item: AccountItemSummary;
-  highlightedItemKeys?: LoadoutTemplateLookup | null;
-  tags: VaultTags;
-  wishlist?: DimWishlist | null;
-  localTargetRules?: LocalTargetRules | null;
-  communityInstanceMatch?: VaultItemInstanceMatchInfo;
+  tagValue: VaultTagValue;
+  isLoadoutMatch: boolean;
+  sourceSummaries: VaultRecommendationSourceSummary[];
+  additionalSourceCount: number;
   imagePriority?: boolean;
   isOrganizing: boolean;
   isSelected: boolean;
   isOpening?: boolean;
   onSelectItem: (item: AccountItemSummary) => void;
   onToggleSelected: (item: AccountItemSummary) => void;
-}) {
-  const isLoadoutMatch = matchesLoadoutTemplateItem(props.item, props.highlightedItemKeys);
-  const tagValue = tagValueForItem(props.item, props.tags);
-  const disposition = dispositionForTag(tagValue);
+};
+
+export function VaultListItem(props: VaultListItemProps) {
+  const disposition = dispositionForTag(props.tagValue);
   const gearTier = displayGearTier(props.item.instance?.gear_tier);
   const isWeapon = props.item.group_key === "weapons";
   const isArmor = props.item.group_key === "armor";
@@ -54,14 +49,12 @@ export function VaultListItem(props: {
   const stateFlags = (
     <span className="vault-card-state-flags">
       {props.item.locked ? <span className="vault-item-lock-icon" aria-label="已锁定" title="已锁定"><i /></span> : null}
-      {isLoadoutMatch ? <small data-status="success">配装</small> : null}
+      {props.isLoadoutMatch ? <small data-status="success">配装</small> : null}
       {props.isOpening ? <small data-status="pending">打开中</small> : null}
     </span>
   );
   const strongestArmorStat = isArmor ? getStrongestArmorStat(props.item) : undefined;
-  const sourceSummaries = isWeapon
-    ? buildVaultRecommendationSourceSummaries(props.item, props.communityInstanceMatch, props.wishlist).slice(0, 2)
-    : [];
+  const sourceSummaries = isWeapon ? props.sourceSummaries : [];
   const cardContent = isWeapon ? <>
       <div className="vault-weapon-identity">
         {visual}
@@ -96,6 +89,9 @@ export function VaultListItem(props: {
               {summary.text}
             </span>
           ))}
+          {props.additionalSourceCount > 0 ? (
+            <span className="vault-weapon-source-more">另有 {props.additionalSourceCount} 个来源，打开详情查看</span>
+          ) : null}
         </div>
       ) : null}
       <div className="vault-weapon-status">
@@ -137,9 +133,9 @@ export function VaultListItem(props: {
           {stateFlags}
         </span>
       </div>
-    {isLoadoutMatch ? (
+    {props.isLoadoutMatch ? (
       <span className="vault-card-corner-flags" aria-label="配装引用">
-        {isLoadoutMatch ? <span title="配装引用">配</span> : null}
+        <span title="配装引用">配</span>
       </span>
     ) : null}
   </>;
@@ -151,7 +147,7 @@ export function VaultListItem(props: {
         props.isSelected ? "selected" : "",
         props.isOrganizing ? "is-organizing" : "",
         sourceSummaries.length ? "has-source-summary" : "",
-        isLoadoutMatch ? "loadout-highlight" : "",
+        props.isLoadoutMatch ? "loadout-highlight" : "",
         props.isOpening ? "pending" : "",
         `vault-item-${props.item.group_key}`,
         detailAvailable ? "" : "is-readonly"
@@ -171,7 +167,7 @@ export function VaultListItem(props: {
         <button
           type="button"
           className="vault-card-main"
-          title={formatVaultCardTitle(props.item, disposition, isLoadoutMatch)}
+          title={formatVaultCardTitle(props.item, disposition, props.isLoadoutMatch)}
           aria-busy={props.isOpening}
           disabled={props.isOpening}
           onClick={() => props.onSelectItem(props.item)}
@@ -183,11 +179,33 @@ export function VaultListItem(props: {
   );
 }
 
-export const MemoizedVaultListItem = memo(VaultListItem);
+export const MemoizedVaultListItem = memo(VaultListItem, sameVaultListItemProps);
 
-function tagValueForItem(item: AccountItemSummary, tags: VaultTags): VaultTagValue {
-  const tag = tags.items[getVaultItemKey(item)]?.tag;
-  return tag ?? "none";
+function sameVaultListItemProps(previous: VaultListItemProps, next: VaultListItemProps): boolean {
+  return previous.item === next.item
+    && previous.tagValue === next.tagValue
+    && previous.isLoadoutMatch === next.isLoadoutMatch
+    && previous.additionalSourceCount === next.additionalSourceCount
+    && previous.imagePriority === next.imagePriority
+    && previous.isOrganizing === next.isOrganizing
+    && previous.isSelected === next.isSelected
+    && previous.isOpening === next.isOpening
+    && sameSourceSummaries(previous.sourceSummaries, next.sourceSummaries)
+    && previous.onSelectItem === next.onSelectItem
+    && previous.onToggleSelected === next.onToggleSelected;
+}
+
+function sameSourceSummaries(
+  previous: VaultRecommendationSourceSummary[],
+  next: VaultRecommendationSourceSummary[]
+): boolean {
+  return previous.length === next.length && previous.every((summary, index) => {
+    const candidate = next[index];
+    return candidate?.sourceId === summary.sourceId
+      && candidate.state === summary.state
+      && candidate.text === summary.text
+      && candidate.detail === summary.detail;
+  });
 }
 
 function dispositionForTag(tag: VaultTagValue): "none" | "keep" | "review" | "junk" {

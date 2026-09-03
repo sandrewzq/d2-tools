@@ -1774,11 +1774,12 @@ function isIgnoredWeaponRollPlug(plug: AccountWeaponRollPlugSummary): boolean {
   const itemType = plug.item_type?.toLocaleLowerCase() ?? "";
   return includesAnyText(category, [
     "shader", "ornament", "memento", "tracker", "catalyst", "weapon.mod", "modguns",
-    "mods.weapon", "cosmetic", "skin", "killcounter", "intrinsic", "frame", "perk_upgrades",
+    "mods.weapon", "cosmetic", "skin", "killcounter", "intrinsic", "weapon_tiering",
+    "kill_vfx", "perk_upgrades",
     "perk.upgrades", "perkupgrades"
   ]) || includesAnyText(itemType, [
     "着色器", "shader", "武器模组", "weapon mod", "催化剂", "catalyst", "记录器", "tracker",
-    "装饰", "ornament", "皮肤", "skin", "固有", "intrinsic", "能量核心"
+    "装饰", "ornament", "皮肤", "skin", "固有", "intrinsic", "能量核心", "战斗特效"
   ]);
 }
 

@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 
 const databaseFileName = "weapon-recommendations.sqlite";
-export const recommendationDatabaseSchemaVersion = 3;
+export const recommendationDatabaseSchemaVersion = 4;
 
 export function openRecommendationDatabase(dataDir: string): DatabaseSync {
   mkdirSync(join(dataDir, "knowledge"), { recursive: true });
@@ -42,14 +42,15 @@ function ensureRecommendationSchema(database: DatabaseSync): void {
   const versionRow = database.prepare("PRAGMA user_version").get() as { user_version?: number | bigint } | undefined;
   const currentVersion = Number(versionRow?.user_version ?? 0);
   const hasTables = hasRecommendationTables(database);
-  const canUpgradeInPlace = currentVersion === 2;
-  const shouldRebuild = hasTables
-    && currentVersion !== recommendationDatabaseSchemaVersion
-    && !canUpgradeInPlace;
+  const shouldRebuildAll = hasTables && currentVersion < 2;
+  const shouldRebuildCurated = hasTables
+    && currentVersion >= 2
+    && currentVersion !== recommendationDatabaseSchemaVersion;
 
   database.exec("BEGIN IMMEDIATE;");
   try {
-    if (shouldRebuild) dropRecommendationTables(database);
+    if (shouldRebuildAll) dropRecommendationTables(database);
+    else if (shouldRebuildCurated) dropCuratedRecommendationTables(database);
     database.exec(`
       CREATE TABLE IF NOT EXISTS knowledge_metadata (
         key TEXT PRIMARY KEY,
@@ -65,6 +66,7 @@ function ensureRecommendationSchema(database: DatabaseSync): void {
 
       CREATE TABLE IF NOT EXISTS weapon_recommendations (
         id INTEGER PRIMARY KEY,
+        identity_key TEXT NOT NULL,
         normalized_weapon_name TEXT NOT NULL,
         weapon_name TEXT NOT NULL,
         normalized_english_name TEXT NOT NULL DEFAULT '',
@@ -90,7 +92,7 @@ function ensureRecommendationSchema(database: DatabaseSync): void {
         note TEXT NOT NULL DEFAULT '',
         shield TEXT NOT NULL DEFAULT '',
         charge_efficiency TEXT NOT NULL DEFAULT '',
-        UNIQUE (normalized_weapon_name, source_id)
+        UNIQUE (identity_key, source_id)
       ) STRICT;
 
       CREATE TABLE IF NOT EXISTS weapon_recommendation_item_ids (
@@ -237,5 +239,17 @@ function dropRecommendationTables(database: DatabaseSync): void {
     DROP TABLE IF EXISTS weapon_recommendations;
     DROP TABLE IF EXISTS recommendation_sources;
     DROP TABLE IF EXISTS knowledge_metadata;
+  `);
+}
+
+function dropCuratedRecommendationTables(database: DatabaseSync): void {
+  database.exec(`
+    DROP TABLE IF EXISTS weapon_recommendation_perks;
+    DROP TABLE IF EXISTS weapon_recommendation_purposes;
+    DROP TABLE IF EXISTS weapon_recommendation_item_ids;
+    DROP TABLE IF EXISTS weapon_recommendations;
+    DROP TABLE IF EXISTS recommendation_sources;
+    DELETE FROM knowledge_metadata
+    WHERE key IN ('schema_version', 'source_fingerprint', 'imported_at');
   `);
 }

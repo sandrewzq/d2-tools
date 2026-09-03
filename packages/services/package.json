@@ -150,6 +150,10 @@
       "types": "./dist/community/weaponRecommendationKnowledge.d.ts",
       "import": "./dist/community/weaponRecommendationKnowledge.js"
     },
+    "./community/vaultRecommendationMatchCache": {
+      "types": "./dist/community/vaultRecommendationMatchCache.d.ts",
+      "import": "./dist/community/vaultRecommendationMatchCache.js"
+    },
     "./community/personalWeaponKnowledge": {
       "types": "./dist/community/personalWeaponKnowledge.d.ts",
       "import": "./dist/community/personalWeaponKnowledge.js"

@@ -37,9 +37,6 @@ const SettingsMenuProvider = lazy(async () => {
 export function HomePageRoutes(props: {
   activePage: ShellPageKey;
 }) {
-  // #region debug-point B:routes-render
-  void fetch("http://127.0.0.1:7777/event", { method: "POST", body: JSON.stringify({ sessionId: "desktop-first-load-stall", runId: "pre-fix-2", hypothesisId: "B", location: "HomePageRoutes.tsx:HomePageRoutes", msg: "[DEBUG] HomePageRoutes render entered", data: { activePage: props.activePage }, ts: Date.now() }) }).catch(() => {});
-  // #endregion
   return (
     <Suspense fallback={<div className="page-loading">加载中...</div>}>
       {props.activePage === "home" ? <HomeMenuProvider /> : null}

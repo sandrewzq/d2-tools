@@ -12,7 +12,6 @@ import type {
 } from "@d2-tools/core/account/summary";
 import type { DuplicateAnalysisResult, DuplicateItemGroup } from "@d2-tools/core/analysis/duplicates";
 import { evaluateLocalTargets } from "@d2-tools/core/analysis/targets";
-import type { DimWishlist } from "@d2-tools/core/analysis/wishlistImport";
 import type { LocalTargetRules } from "@d2-tools/core/analysis/targets";
 import { evaluateEquipmentTargets, type EquipmentTargetStore } from "@d2-tools/core/targets/equipmentTargets";
 import type {
@@ -30,9 +29,9 @@ import { useNavigationGuard } from "../navigation/NavigationGuard.js";
 import { ConfirmationDialog } from "../overlay/ConfirmationDialog.js";
 import { formatVaultItemMeta } from "./VaultListItem.js";
 import {
-  buildVaultRecommendationSourceSummaries,
   displayVaultRecommendationSourceLabel,
-  getVaultCommunityInstanceKey
+  getVaultCommunityInstanceKey,
+  type VaultRecommendationSummaryIndex
 } from "./vaultRecommendationMatch.js";
 
 type DuplicateDisposition = "none" | "keep" | "review" | "junk";
@@ -43,6 +42,8 @@ type DuplicateEvidence = {
   protection: string[];
   matches: string[];
 };
+
+const emptyDuplicateEvidence: DuplicateEvidence = { protection: [], matches: [] };
 
 type DuplicateRollOption = {
   key: string;
@@ -99,12 +100,13 @@ const dispositionOptions: Array<{ key: DuplicateDisposition; label: string }> = 
 export function VaultDuplicateGroups(props: {
   duplicateSummary: DuplicateAnalysisResult;
   items: AccountItemSummary[];
-  wishlist?: DimWishlist | null;
+  recommendationSummaryByInstance?: VaultRecommendationSummaryIndex;
   localTargetRules?: LocalTargetRules | null;
   equipmentTargetStore?: EquipmentTargetStore | null;
   highlightedItemKeys?: LoadoutTemplateLookup | null;
   communityInstanceMatch?: Map<string, VaultItemInstanceMatchInfo>;
   cleanupProtectionByItemKey?: Map<string, string[]>;
+  locateRequest?: { groupKey: string; requestId: number } | null;
   openingItemKey?: string;
   isBatchSaving: boolean;
   onLoadItemDetail?: (item: AccountItemSummary) => Promise<AccountItemSummary>;
@@ -121,6 +123,8 @@ export function VaultDuplicateGroups(props: {
   const [pendingDispositionByGroup, setPendingDispositionByGroup] = useState<Record<string, Record<string, DuplicateDisposition>>>({});
   const [detailByItemKey, setDetailByItemKey] = useState<Record<string, AccountItemSummary>>({});
   const [detailLoadStatusByItemKey, setDetailLoadStatusByItemKey] = useState<Record<string, "loading" | "ready" | "error">>({});
+  const groupNavRef = useRef<HTMLElement>(null);
+  const pendingFocusGroupKeyRef = useRef("");
   // 同一实例可能同时从仓库行、详情弹层或切换后的同名组触发读取。
   // 在菜单层保留请求表，既能避免重复 IPC，也能把批量读取限制在可控并发内。
   const detailRequestByItemKeyRef = useRef(new Map<string, Promise<AccountItemSummary>>());
@@ -133,10 +137,21 @@ export function VaultDuplicateGroups(props: {
       (pendingDispositionByGroup[group.group_key]?.[entry.item_key] ?? dispositionFromTag(entry.tag)) !== dispositionFromTag(entry.tag)
     )).length
   ), 0), [groups, pendingDispositionByGroup]);
+  const evidenceByItemKey = useMemo(() => {
+    const index = new Map<string, DuplicateEvidence>();
+    for (const group of groups) {
+      for (const entry of group.items) {
+        if (index.has(entry.item_key)) continue;
+        const item = itemByKey.get(entry.item_key);
+        if (item) index.set(entry.item_key, itemEvidence(item, props));
+      }
+    }
+    return index;
+  }, [groups, itemByKey, props.cleanupProtectionByItemKey, props.equipmentTargetStore, props.highlightedItemKeys, props.localTargetRules, props.recommendationSummaryByInstance]);
   const evidenceSummaryByGroup = useMemo(() => new Map(groups.map((group) => [
     group.group_key,
-    summarizeGroupEvidence(group, itemByKey, props)
-  ])), [groups, itemByKey, props.cleanupProtectionByItemKey, props.communityInstanceMatch, props.equipmentTargetStore, props.highlightedItemKeys, props.localTargetRules, props.wishlist]);
+    summarizeGroupEvidence(group, evidenceByItemKey)
+  ])), [evidenceByItemKey, groups]);
 
   useNavigationGuard(pendingChangeCount > 0 ? {
     title: "离开仓库并放弃待应用状态？",
@@ -162,9 +177,29 @@ export function VaultDuplicateGroups(props: {
   }, [evidenceSummaryByGroup, groups, itemByKey, progressFilter, query, typeFilter]);
 
   useEffect(() => {
+    const groupKey = props.locateRequest?.groupKey;
+    if (!groupKey || !groups.some((group) => group.group_key === groupKey)) return;
+    setQuery("");
+    setTypeFilter("weapons");
+    setProgressFilter("all");
+    setActiveGroupKey(groupKey);
+    pendingFocusGroupKeyRef.current = groupKey;
+  }, [groups, props.locateRequest?.groupKey, props.locateRequest?.requestId]);
+
+  useEffect(() => {
     if (!filteredGroups.some((group) => group.group_key === activeGroupKey)) {
       setActiveGroupKey(filteredGroups[0]?.group_key ?? "");
     }
+  }, [activeGroupKey, filteredGroups]);
+
+  useEffect(() => {
+    if (!pendingFocusGroupKeyRef.current || pendingFocusGroupKeyRef.current !== activeGroupKey) return;
+    const target = [...(groupNavRef.current?.querySelectorAll<HTMLButtonElement>(".duplicate-group-link") ?? [])]
+      .find((button) => button.dataset.groupKey === activeGroupKey);
+    if (!target) return;
+    target.focus();
+    target.scrollIntoView({ block: "nearest", inline: "nearest" });
+    pendingFocusGroupKeyRef.current = "";
   }, [activeGroupKey, filteredGroups]);
 
   const activeGroup = filteredGroups.find((group) => group.group_key === activeGroupKey) ?? filteredGroups[0];
@@ -279,7 +314,7 @@ export function VaultDuplicateGroups(props: {
             <option value="protected">包含实例保护</option>
           </select>
         </div>
-        <nav className="duplicate-group-nav">
+        <nav ref={groupNavRef} className="duplicate-group-nav">
           {filteredGroups.map((group) => {
             const pendingDisposition = pendingDispositionByGroup[group.group_key];
             const dispositionSummary = summarizeGroupDisposition(group, pendingDisposition);
@@ -287,7 +322,7 @@ export function VaultDuplicateGroups(props: {
             const firstItem = group.items[0] ? itemByKey.get(group.items[0].item_key) : undefined;
             const hasPendingChanges = hasGroupPendingChanges(group, pendingDisposition);
             return (
-              <button type="button" className="duplicate-group-link" key={group.group_key} aria-pressed={activeGroup?.group_key === group.group_key} tabIndex={activeGroup?.group_key === group.group_key ? 0 : -1} onClick={() => setActiveGroupKey(group.group_key)} onKeyDown={(event) => handleGroupKeyDown(event, group.group_key)}>
+              <button type="button" className="duplicate-group-link" data-group-key={group.group_key} key={group.group_key} aria-pressed={activeGroup?.group_key === group.group_key} tabIndex={activeGroup?.group_key === group.group_key ? 0 : -1} onClick={() => setActiveGroupKey(group.group_key)} onKeyDown={(event) => handleGroupKeyDown(event, group.group_key)}>
                 <GameAssetImage src={firstItem?.icon} alt="" loading="eager" fallback={<span className="duplicate-thumb-fallback">{firstItem?.group_key === "armor" ? "甲" : "武"}</span>} />
                 <span className="duplicate-group-copy">
                   <span className="duplicate-group-title-line"><strong>{group.name}</strong>{hasPendingChanges ? <em>待应用</em> : null}</span>
@@ -306,12 +341,8 @@ export function VaultDuplicateGroups(props: {
           key={activeGroup.group_key}
           group={activeGroup}
           itemByKey={comparisonItemByKey}
-          wishlist={props.wishlist}
-          localTargetRules={props.localTargetRules}
-          equipmentTargetStore={props.equipmentTargetStore}
-          highlightedItemKeys={props.highlightedItemKeys}
+          evidenceByItemKey={evidenceByItemKey}
           communityInstanceMatch={props.communityInstanceMatch}
-          cleanupProtectionByItemKey={props.cleanupProtectionByItemKey}
           referenceKey={referenceKey}
           referenceIsAutomatic={!explicitReferenceKey}
           hasNextPendingGroup={filteredGroups.some((group) => group.group_key !== activeGroup.group_key && !isGroupPersistedComplete(group))}
@@ -340,12 +371,8 @@ export function VaultDuplicateGroups(props: {
 function DuplicateComparePanel(props: {
   group: DuplicateItemGroup;
   itemByKey: Map<string, AccountItemSummary>;
-  wishlist?: DimWishlist | null;
-  localTargetRules?: LocalTargetRules | null;
-  equipmentTargetStore?: EquipmentTargetStore | null;
-  highlightedItemKeys?: LoadoutTemplateLookup | null;
+  evidenceByItemKey: ReadonlyMap<string, DuplicateEvidence>;
   communityInstanceMatch?: Map<string, VaultItemInstanceMatchInfo>;
-  cleanupProtectionByItemKey?: Map<string, string[]>;
   referenceKey: string;
   referenceIsAutomatic: boolean;
   hasNextPendingGroup: boolean;
@@ -416,7 +443,7 @@ function DuplicateComparePanel(props: {
   function requestApplyPendingDisposition() {
     if (!changedCount) return;
     const conflicts = rows.filter(({ entry, item }) => {
-      const evidence = itemEvidence(item, props);
+      const evidence = props.evidenceByItemKey.get(getVaultItemKey(item)) ?? emptyDuplicateEvidence;
       return (pendingDisposition[entry.item_key] ?? "none") === "junk" && (evidence.protection.length > 0 || evidence.matches.length > 0);
     });
     if (conflicts.length) {
@@ -479,7 +506,7 @@ function DuplicateComparePanel(props: {
             <div className="duplicate-source-legend" aria-label={`${selectedSource.sourceLabel}来源对照状态`}>
               <span data-source-state="match">符合</span>
               <span data-source-state="different">不符</span>
-              <span data-source-state="uncheckable">无法核对</span>
+              <span data-source-state="uncheckable">数据未读取</span>
             </div>
           ) : (
             <div className="duplicate-compare-legend" aria-label="差异标记">
@@ -498,7 +525,7 @@ function DuplicateComparePanel(props: {
         <div className="duplicate-table-head" style={gridStyle}><span>基准</span><span>实例</span>{columns.map((column) => <span key={column.key}>{column.label}</span>)}<span>保护与证据</span><span>整理状态</span></div>
         {rows.map(({ entry, item }, index) => {
           const values = columns.map((column) => column.valueFor(item));
-          const evidence = itemEvidence(item, props);
+          const evidence = props.evidenceByItemKey.get(getVaultItemKey(item)) ?? emptyDuplicateEvidence;
           const disposition = pendingDisposition[entry.item_key] ?? "none";
           const persistedDisposition = dispositionFromTag(entry.tag);
           const isReference = props.referenceKey === entry.item_key;
@@ -822,7 +849,7 @@ function uniqueText(values: string[]): string[] {
 function sourceSlotStateLabel(state: RecommendationSourceSlotMatch["state"] | "not_covered"): string {
   if (state === "match") return "符合";
   if (state === "different") return "不符";
-  if (state === "uncheckable") return "无法核对";
+  if (state === "uncheckable") return "数据未读取";
   if (state === "source_not_specified") return "来源未要求";
   return "该来源未收录";
 }
@@ -929,7 +956,7 @@ function getGroupRollDataProgress(
 }
 
 function itemEvidence(item: AccountItemSummary, props: {
-  wishlist?: DimWishlist | null;
+  recommendationSummaryByInstance?: VaultRecommendationSummaryIndex;
   localTargetRules?: LocalTargetRules | null;
   equipmentTargetStore?: EquipmentTargetStore | null;
   highlightedItemKeys?: LoadoutTemplateLookup | null;
@@ -938,9 +965,8 @@ function itemEvidence(item: AccountItemSummary, props: {
 }): DuplicateEvidence {
   const target = evaluateLocalTargets(normalizeCoreItem(item), props.localTargetRules ?? undefined);
   const equipmentTarget = evaluateEquipmentTargets(normalizeCoreItem(item), props.equipmentTargetStore ?? undefined);
-  const instanceMatch = props.communityInstanceMatch?.get(getVaultCommunityInstanceKey(item));
   const sourceSummaries = item.group_key === "weapons"
-    ? buildVaultRecommendationSourceSummaries(item, instanceMatch, props.wishlist)
+    ? props.recommendationSummaryByInstance?.get(getVaultCommunityInstanceKey(item)) ?? []
     : [];
   const exactLoadoutMatch = Boolean(item.instance_id && props.highlightedItemKeys?.instanceIds.has(item.instance_id));
   const sameDefinitionLoadoutMatch = !exactLoadoutMatch && Boolean(
@@ -961,18 +987,13 @@ function itemEvidence(item: AccountItemSummary, props: {
   };
 }
 
-function summarizeGroupEvidence(group: DuplicateItemGroup, itemByKey: Map<string, AccountItemSummary>, props: {
-  wishlist?: DimWishlist | null;
-  localTargetRules?: LocalTargetRules | null;
-  equipmentTargetStore?: EquipmentTargetStore | null;
-  highlightedItemKeys?: LoadoutTemplateLookup | null;
-  communityInstanceMatch?: Map<string, VaultItemInstanceMatchInfo>;
-  cleanupProtectionByItemKey?: Map<string, string[]>;
-}): { protectedItems: number; matchedItems: number } {
+function summarizeGroupEvidence(
+  group: DuplicateItemGroup,
+  evidenceByItemKey: ReadonlyMap<string, DuplicateEvidence>
+): { protectedItems: number; matchedItems: number } {
   return group.items.reduce((summary, entry) => {
-    const item = itemByKey.get(entry.item_key);
-    if (!item) return summary;
-    const evidence = itemEvidence(item, props);
+    const evidence = evidenceByItemKey.get(entry.item_key);
+    if (!evidence) return summary;
     if (evidence.protection.length) summary.protectedItems += 1;
     if (evidence.matches.length) summary.matchedItems += 1;
     return summary;

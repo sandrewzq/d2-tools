@@ -32,19 +32,6 @@ export function gameAssetCacheName(namespace?: GameAssetCacheNamespace): string 
 
 const pendingPersist = new Map<string, Promise<void>>();
 
-type AssetCacheTaskBridge = {
-  queueAssetCacheTask: (input: { src: string; cache_name: string }) => Promise<unknown>;
-  completeAssetCacheTask: (input: { src: string; cache_name: string; ok: boolean; error?: string }) => Promise<unknown>;
-};
-
-function getAssetCacheTaskBridge(): AssetCacheTaskBridge | undefined {
-  const candidate = (globalThis as { d2?: Partial<AssetCacheTaskBridge> }).d2;
-  if (typeof candidate?.queueAssetCacheTask !== "function" || typeof candidate.completeAssetCacheTask !== "function") {
-    return undefined;
-  }
-  return candidate as AssetCacheTaskBridge;
-}
-
 function canUseCacheStorage() {
   return typeof window !== "undefined" && typeof caches !== "undefined";
 }
@@ -62,7 +49,7 @@ export async function persistGameAsset(src: string, namespace?: GameAssetCacheNa
   const existing = pendingPersist.get(pendingKey);
   if (existing) return existing;
 
-  const task = persistGameAssetWithBackgroundTask(src, cacheName);
+  const task = persistGameAssetInternal(src, cacheName).then(() => undefined);
   pendingPersist.set(pendingKey, task);
   try {
     await task;
@@ -71,37 +58,7 @@ export async function persistGameAsset(src: string, namespace?: GameAssetCacheNa
   }
 }
 
-async function persistGameAssetWithBackgroundTask(src: string, cacheName: string): Promise<void> {
-  const bridge = getAssetCacheTaskBridge();
-  const input = { src, cache_name: cacheName };
-  let queued = false;
-  try {
-    // This is intentionally fire-and-forget from GameAssetImage's onLoad.
-    // Awaiting here only coordinates task bookkeeping and never gates <img>.
-    try {
-      await bridge?.queueAssetCacheTask(input);
-      queued = Boolean(bridge);
-    } catch {
-      // Main-process task tracking is optional; continue with CacheStorage.
-    }
-    const ok = await persistGameAssetInternal(src, cacheName);
-    if (queued) await bridge?.completeAssetCacheTask({ ...input, ok });
-  } catch (error) {
-    if (!queued) return;
-    try {
-      await bridge?.completeAssetCacheTask({
-        ...input,
-        ok: false,
-        error: error instanceof Error ? error.message : "资源缓存失败"
-      });
-    } catch {
-      // The task center is optional and must never affect rendering.
-    }
-  }
-}
-
 async function persistGameAssetInternal(src: string, cacheName: string): Promise<boolean> {
-
   try {
     const cache = await caches.open(cacheName);
     if (await cache.match(src)) return true;

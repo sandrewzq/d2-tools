@@ -69,6 +69,7 @@ export type WeaponKnowledgeImportResult = WeaponRecommendationKnowledgeStatus & 
 
 type KnowledgeRecommendation = {
   id: number;
+  identity_key: string;
   weapon_name: string;
   normalized_weapon_name: string;
   english_name: string;
@@ -84,11 +85,13 @@ type KnowledgeRecommendation = {
   page_updated_at: string;
   version: string;
   source_location: string;
+  item_hashes: number[];
   requirements: Record<RecommendationRequirementSlot, string[]>;
 };
 
 type KnowledgeCache = {
   byName: Map<string, KnowledgeRecommendation[]>;
+  byItemHash: Map<number, KnowledgeRecommendation[]>;
 };
 
 const knowledgeCaches = new Map<string, KnowledgeCache | null>();
@@ -110,7 +113,7 @@ export function previewWeaponRecommendationCsv(
   return {
     file_name: basename(fileName) || "weapon-recommendations.csv",
     recommendation_count: rows.length,
-    weapon_count: new Set(rows.map((row) => normalizeName(row["武器"]))).size,
+    weapon_count: new Set(rows.map(weaponIdentityKey)).size,
     source_count: sourceLabels.length,
     source_labels: sourceLabels,
     fingerprint: csvFingerprint(text)
@@ -221,12 +224,17 @@ export function createWeaponRecommendationKnowledgeSource(dataDir: string): Comm
       if (!knowledge) return null;
 
       const itemDefinition = options.itemDefinitions?.[String(item_hash)];
-      const names = [
+      const localizedNames = [
         options.item_name,
-        itemDefinition?.displayProperties?.name,
-        options.englishItemDefinitions?.[String(item_hash)]?.displayProperties?.name
+        itemDefinition?.displayProperties?.name
       ].filter((value): value is string => Boolean(value?.trim()));
-      const matching = uniqueById(names.flatMap((name) => knowledge.byName.get(normalizeName(name)) ?? []));
+      const englishName = options.englishItemDefinitions?.[String(item_hash)]?.displayProperties?.name;
+      const matching = selectKnowledgeRecommendations(
+        knowledge,
+        item_hash,
+        localizedNames,
+        englishName
+      );
       if (matching.length === 0) return null;
 
       const perkMap = buildWeaponPerkMap(item_hash, options);
@@ -282,10 +290,56 @@ export function createWeaponRecommendationKnowledgeSource(dataDir: string): Comm
         source_records: sourceRecords,
         sample_size: matching.length,
         source_label: [...resolvedSourceLabels].join(" / "),
-        disclaimer: "来自应用内置的本地武器推荐知识库，推荐按官方武器名称汇总，并以当前实例实际 Perk 判断。"
+        disclaimer: "来自应用内置的本地武器推荐知识库，推荐按官方武器身份汇总，并以当前实例实际 Perk 判断。"
       };
     }
   };
+}
+
+function selectKnowledgeRecommendations(
+  knowledge: KnowledgeCache,
+  itemHash: number,
+  localizedNames: string[],
+  englishName?: string
+): KnowledgeRecommendation[] {
+  const exactMatches = knowledge.byItemHash.get(itemHash) ?? [];
+  const englishKey = normalizeName(englishName ?? "");
+  const localizedKeys = [...new Set(localizedNames.map(normalizeName).filter(Boolean))];
+  const candidates = uniqueById([
+    ...exactMatches,
+    ...(englishKey ? knowledge.byName.get(englishKey) ?? [] : []),
+    ...localizedKeys.flatMap((name) => knowledge.byName.get(name) ?? [])
+  ]);
+  const bySource = new Map<string, KnowledgeRecommendation[]>();
+  for (const candidate of candidates) {
+    const bucket = bySource.get(candidate.source_id) ?? [];
+    bucket.push(candidate);
+    bySource.set(candidate.source_id, bucket);
+  }
+
+  const selected: KnowledgeRecommendation[] = [];
+  for (const sourceCandidates of bySource.values()) {
+    const sourceExactMatches = sourceCandidates.filter((candidate) => candidate.item_hashes.includes(itemHash));
+    if (sourceExactMatches.length) {
+      selected.push(...sourceExactMatches);
+      continue;
+    }
+    if (englishKey) {
+      const sourceEnglishMatches = sourceCandidates.filter((candidate) => (
+        candidate.normalized_english_name === englishKey
+      ));
+      if (sourceEnglishMatches.length) {
+        selected.push(...sourceEnglishMatches);
+        continue;
+      }
+    }
+    // Hash 只用于优先确认身份。旧版、复刻版或高阶版拥有不同 Hash 时，
+    // 只要当前来源中的官方中文名称唯一，仍共享同一条武器推荐。
+    if (sourceCandidates.length === 1) {
+      selected.push(sourceCandidates[0]);
+    }
+  }
+  return uniqueById(selected);
 }
 
 function replaceKnowledge(
@@ -302,12 +356,12 @@ function replaceKnowledge(
   const selectSource = database.prepare("SELECT id FROM recommendation_sources WHERE source_key = ?");
   const insertRecommendation = database.prepare(`
     INSERT INTO weapon_recommendations (
-      normalized_weapon_name, weapon_name, normalized_english_name, english_name, source_id,
+      identity_key, normalized_weapon_name, weapon_name, normalized_english_name, english_name, source_id,
       page, rating, ranking, category, source_url, page_updated_at, version, source_location,
       icon, icon_url, stats, frame, season, acquisition_source, champion, champion_icon_url,
       ammo_generation, note, shield, charge_efficiency
     ) VALUES (
-      ?, ?, ?, ?, ?,
+      ?, ?, ?, ?, ?, ?,
       ?, ?, ?, ?, ?, ?, ?, ?,
       ?, ?, ?, ?, ?, ?, ?, ?,
       ?, ?, ?, ?
@@ -356,6 +410,7 @@ function replaceKnowledge(
       if (!source) continue;
 
       const result = insertRecommendation.run(
+        weaponIdentityKey(row),
         normalizeName(weaponName),
         weaponName,
         normalizeName(row["英文名称"] ?? ""),
@@ -430,14 +485,14 @@ function loadKnowledgeCache(dataDir: string): KnowledgeCache | null {
   try {
     database = new DatabaseSync(path, { readOnly: true, timeout: 5_000 });
     const recommendations = database.prepare(`
-      SELECT r.id, r.weapon_name, r.normalized_weapon_name, r.english_name,
+      SELECT r.id, r.identity_key, r.weapon_name, r.normalized_weapon_name, r.english_name,
              r.normalized_english_name, s.source_key AS source_id, s.label AS source_label,
              r.source_url, s.source_url AS source_default_url, r.rating, r.ranking, r.note,
              r.page_updated_at, r.version, r.source_location
       FROM weapon_recommendations r
       JOIN recommendation_sources s ON s.id = r.source_id
       ORDER BY r.id
-    `).all() as Array<Omit<KnowledgeRecommendation, "purpose" | "requirements">>;
+    `).all() as Array<Omit<KnowledgeRecommendation, "purpose" | "requirements" | "item_hashes">>;
     if (recommendations.length === 0) return null;
 
     const purposes = database.prepare(`
@@ -452,14 +507,22 @@ function loadKnowledgeCache(dataDir: string): KnowledgeCache | null {
       slot: RecommendationRequirementSlot;
       perk_name: string;
     }>;
+    const itemIds = database.prepare(`
+      SELECT recommendation_id, item_hash
+      FROM weapon_recommendation_item_ids
+      ORDER BY recommendation_id, item_hash
+    `).all() as Array<{ recommendation_id: number; item_hash: number }>;
 
     const purposesById = groupValues(purposes);
     const requirementsById = groupRequirements(perks);
+    const itemHashesById = groupItemHashes(itemIds);
     const byName = new Map<string, KnowledgeRecommendation[]>();
+    const byItemHash = new Map<number, KnowledgeRecommendation[]>();
     for (const row of recommendations) {
       const recommendation: KnowledgeRecommendation = {
         ...row,
         purpose: purposesById.get(row.id) ?? ["general"],
+        item_hashes: itemHashesById.get(row.id) ?? [],
         requirements: requirementsById.get(row.id) ?? emptyRequirements()
       };
       for (const key of [row.normalized_weapon_name, row.normalized_english_name].filter(Boolean)) {
@@ -467,8 +530,13 @@ function loadKnowledgeCache(dataDir: string): KnowledgeCache | null {
         bucket.push(recommendation);
         byName.set(key, bucket);
       }
+      for (const itemHash of recommendation.item_hashes) {
+        const bucket = byItemHash.get(itemHash) ?? [];
+        bucket.push(recommendation);
+        byItemHash.set(itemHash, bucket);
+      }
     }
-    return { byName };
+    return { byName, byItemHash };
   } catch {
     return null;
   } finally {
@@ -536,15 +604,17 @@ function buildSourceRecord(
   perkMap: Map<string, PerkRef[]>
 ): RecommendationSourceRecord {
   const requirements = recommendationSlots.flatMap(({ slot, label }) => {
-    const names = recommendation.requirements[slot];
+    const names = recommendation.requirements[slot].filter((name) => !isUnspecifiedRequirementName(name));
     if (names.length === 0) return [];
-    const unresolved = names.filter((name) => resolveRecommendedPerkName(name, perkMap).length === 0);
+    const resolvedNames = names.filter((name) => resolveRecommendedPerkName(name, perkMap).length > 0);
     return [{
       slot,
       label,
+      // 来源中已经完成清洗的有效要求必须全部进入分母。当前 Hash 的定义池
+      // 只负责补充可用 Hash，不能删除其他同名版本提出的 Perk 要求。
       candidate_names: names,
       candidates: resolveRecommendedPerks(names, perkMap),
-      unresolved_candidate_names: unresolved
+      unresolved_candidate_names: names.filter((name) => !resolvedNames.includes(name))
     }];
   });
   return {
@@ -560,6 +630,14 @@ function buildSourceRecord(
     ...(recommendation.source_location ? { source_location: recommendation.source_location } : {}),
     requirements
   };
+}
+
+function isUnspecifiedRequirementName(value: string): boolean {
+  const normalized = normalizeName(value);
+  return normalized === "任意"
+    || normalized === "不限"
+    || normalized === "不限制"
+    || normalized === "any";
 }
 
 const recommendationSlots: Array<{ slot: RecommendationRequirementSlot; label: string }> = [
@@ -625,9 +703,10 @@ function parseKnowledgeCsv(text: string): Array<Record<string, string>> {
   for (const [index, row] of rows.entries()) {
     const weaponName = row["武器"].trim();
     const sourceLabel = row["推荐来源"].trim();
-    const uniqueKey = `${normalizeName(weaponName)}\u0000${normalizeName(sourceLabel)}`;
+    const uniqueKey = `${weaponIdentityKey(row)}\u0000${normalizeName(sourceLabel)}`;
     if (uniqueKeys.has(uniqueKey)) {
-      throw new Error(`武器推荐 CSV 第 ${index + 2} 行与前文重复：${weaponName} / ${sourceLabel}`);
+      const identityLabel = row["英文名称"]?.trim() || row["武器ID"]?.trim() || weaponName;
+      throw new Error(`武器推荐 CSV 第 ${index + 2} 行的武器身份与来源在前文已经存在：${weaponName} / ${identityLabel} / ${sourceLabel}`);
     }
     uniqueKeys.add(uniqueKey);
 
@@ -700,6 +779,17 @@ function normalizeName(value: string): string {
     .replace(/[\p{P}\p{Z}\s]+/gu, "");
 }
 
+function weaponIdentityKey(row: Record<string, string>): string {
+  const englishName = normalizeName(row["英文名称"] ?? "");
+  if (englishName) return `en:${englishName}`;
+  const itemHashes = splitValues(row["武器ID"] ?? "")
+    .map(Number)
+    .filter(isUnsignedHash)
+    .sort((left, right) => left - right);
+  if (itemHashes.length) return `hash:${itemHashes.join("|")}`;
+  return `zh:${normalizeName(row["武器"] ?? "")}`;
+}
+
 function isUnsignedHash(value: number): boolean {
   return Number.isInteger(value) && value >= 0 && value <= 0xffff_ffff;
 }
@@ -712,7 +802,7 @@ function knowledgeStatus(database: DatabaseSync, path: string): WeaponRecommenda
   const counts = database.prepare(`
     SELECT
       (SELECT COUNT(*) FROM weapon_recommendations) AS recommendation_count,
-      (SELECT COUNT(DISTINCT normalized_weapon_name) FROM weapon_recommendations) AS weapon_count,
+      (SELECT COUNT(DISTINCT identity_key) FROM weapon_recommendations) AS weapon_count,
       (SELECT COUNT(*) FROM recommendation_sources) AS source_count
   `).get() as { recommendation_count: number; weapon_count: number; source_count: number };
   return {
@@ -731,6 +821,16 @@ function groupValues(
 ): Map<number, Array<"pve" | "pvp" | "general">> {
   const grouped = new Map<number, Array<"pve" | "pvp" | "general">>();
   for (const row of rows) grouped.set(row.recommendation_id, [...(grouped.get(row.recommendation_id) ?? []), row.purpose]);
+  return grouped;
+}
+
+function groupItemHashes(
+  rows: Array<{ recommendation_id: number; item_hash: number }>
+): Map<number, number[]> {
+  const grouped = new Map<number, number[]>();
+  for (const row of rows) {
+    grouped.set(row.recommendation_id, [...(grouped.get(row.recommendation_id) ?? []), row.item_hash]);
+  }
   return grouped;
 }
 

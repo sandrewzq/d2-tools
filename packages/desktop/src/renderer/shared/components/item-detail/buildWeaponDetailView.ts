@@ -315,9 +315,6 @@ export function buildWeaponRecommendationViews(
     ...(item.socket_plugs ?? []).map((plug) => plug.name.trim().toLocaleLowerCase()),
     ...(item.sockets ?? []).flatMap((socket) => socket.reusable_plugs.map((plug) => plug.name.trim().toLocaleLowerCase()))
   ]);
-  const definitionNames = new Set((item.perks ?? [])
-    .flatMap((group) => group.plugs)
-    .map((plug) => plug.name.trim().toLocaleLowerCase()));
   const currentUpgradeNames = currentWeaponUpgradeNames(item);
   const personal = personalKnowledge.filter((entry) => entry.enabled).map((entry) => {
     const perkOptions = isFixedExotic ? [] : entry.perk_options;
@@ -325,9 +322,6 @@ export function buildWeaponRecommendationViews(
     const modNames = isFixedExotic ? [] : entry.mod_names;
     const matchedColumns = perkOptions.filter((option) => option.names.some((name) => (
       availableNames.has(name.trim().toLocaleLowerCase())
-    ))).length;
-    const resolvedColumns = perkOptions.filter((option) => option.names.some((name) => (
-      definitionNames.has(name.trim().toLocaleLowerCase())
     ))).length;
     const masterworkMatched = masterworkNames.length
       ? masterworkNames.some((name) => currentUpgradeNames.masterwork.has(name.trim().toLocaleLowerCase()))
@@ -337,8 +331,7 @@ export function buildWeaponRecommendationViews(
       : false;
     const matched = matchedColumns + Number(masterworkMatched) + Number(modMatched);
     const total = perkOptions.length + Number(masterworkNames.length > 0) + Number(modNames.length > 0);
-    const versionMatches = resolvedColumns === perkOptions.length;
-    const match = isFixedExotic ? "not_applicable" : versionMatches ? matchRecommendation(item, matched, total) : "not_applicable";
+    const match = isFixedExotic ? "not_applicable" : matchRecommendation(item, matched, total);
     return {
       id: `personal:${entry.id}`,
       mode: entry.mode,
@@ -355,9 +348,7 @@ export function buildWeaponRecommendationViews(
       match_notes: isFixedExotic
         ? ["固定异域不执行随机 Roll、普通大师杰作或武器模组命中；保留此条个人知识作为使用与催化剂说明。"]
         : [
-            ...(versionMatches
-              ? recommendationMatchNotes(item, matched, total)
-              : [`知识库推荐不适用于当前版本：仅解析到 ${resolvedColumns}/${perkOptions.length} 个 Perk 插槽。`]),
+            ...recommendationMatchNotes(item, matched, total),
             ...(masterworkNames.length ? [masterworkMatched ? "大师杰作符合推荐。" : "大师杰作与推荐不同。"] : []),
             ...(modNames.length ? [modMatched ? "武器模组符合推荐。" : "武器模组与推荐不同。"] : [])
           ]
@@ -401,7 +392,7 @@ export function buildWeaponPersonalTargetViews(
     ...(item.socket_plugs ?? []).map((plug) => plug.hash),
     ...(item.sockets ?? []).flatMap((socket) => socket.reusable_plugs.map((plug) => plug.hash))
   ]);
-  return (recommendation?.combos ?? [])
+  const dimCombos = (recommendation?.combos ?? [])
     .filter((combo) => combo.source === "dim_wishlist")
     .map((combo, index) => {
       const diagnosticPerks = combo.dim_diagnostic?.perks;
@@ -409,30 +400,60 @@ export function buildWeaponPersonalTargetViews(
         perk.resolved_hashes?.length ? perk.resolved_hashes : [perk.resolved_hash ?? perk.original_hash]
       )) ?? combo.perks.map((perk) => [perk.hash]);
       const matched = requirements.filter((hashes) => hashes.some((hash) => availableHashes.has(hash))).length;
-      return {
-        id: `dim:${combo.mode}:${index}`,
-        mode: combo.mode,
-        title: combo.note || (isFixedExotic ? "固定配置收藏记录" : `${combo.mode.toUpperCase()} DIM 目标`),
-        reason: isFixedExotic
-          ? "该 DIM 条目只作为固定配置异域的收藏与来源记录，不执行随机 Roll 匹配。"
-          : "这是用户导入的 DIM 愿望单目标，不属于应用默认推荐。",
-        source: "dim" as const,
-        source_label: "DIM 愿望单",
-        perk_options: isFixedExotic ? [] : combo.perks.map((perk, perkIndex) => ({
-          column_key: dimDiagnosticSlotLabel(diagnosticPerks?.[perkIndex]?.slot_candidates[0]) ?? `项目 ${perkIndex + 1}`,
-          names: [perk.name]
-        })),
-        masterwork_names: [],
-        mod_names: [],
-        match: isFixedExotic ? "not_applicable" as const : matchRecommendation(item, matched, requirements.length),
-        match_notes: isFixedExotic
-          ? ["固定异域不执行 DIM 随机 Roll 命中；保留此条愿望单作为收藏与来源记录。"]
-          : [
-              ...recommendationMatchNotes(item, matched, requirements.length),
-              ...(combo.dim_diagnostic ? [combo.dim_diagnostic.message] : [])
-            ]
-      };
+      return { combo, index, diagnosticPerks, requirements, matched };
     });
+  const matchedComboCount = dimCombos.filter(({ matched, requirements }) => (
+    requirements.length > 0 && matched === requirements.length
+  )).length;
+  const visibleCombos = dimCombos
+    .filter(({ matched, requirements }) => (
+      matchedComboCount === 0 || (requirements.length > 0 && matched === requirements.length)
+    ))
+    .sort((left, right) => compareDimDetailComboProgress(left, right))
+    .slice(0, 3);
+  return visibleCombos.map(({ combo, index, diagnosticPerks, requirements, matched }, visibleIndex) => {
+    const visibleSummary = matchedComboCount > 0
+      ? `DIM 共命中 ${matchedComboCount} 组，当前显示其中 ${visibleCombos.length} 组。`
+      : `DIM 没有完整命中，当前显示最接近的 ${visibleCombos.length} 组。`;
+    return {
+      id: `dim:${combo.mode}:${index}`,
+      mode: combo.mode,
+      title: combo.note || (isFixedExotic ? "固定配置收藏记录" : `${combo.mode.toUpperCase()} DIM 目标`),
+      reason: isFixedExotic
+        ? "该 DIM 条目只作为固定配置异域的收藏与来源记录，不执行随机 Roll 匹配。"
+        : visibleIndex === 0
+          ? `${visibleSummary} 这是用户导入的 DIM 愿望单目标，不属于应用默认推荐。`
+          : "这是用户导入的 DIM 愿望单目标，不属于应用默认推荐。",
+      source: "dim" as const,
+      source_label: "DIM 愿望单",
+      perk_options: isFixedExotic ? [] : combo.perks.map((perk, perkIndex) => ({
+        column_key: dimDiagnosticSlotLabel(diagnosticPerks?.[perkIndex]?.slot_candidates[0]) ?? `项目 ${perkIndex + 1}`,
+        names: [perk.name]
+      })),
+      masterwork_names: [],
+      mod_names: [],
+      match: isFixedExotic ? "not_applicable" as const : matchRecommendation(item, matched, requirements.length),
+      match_notes: isFixedExotic
+        ? ["固定异域不执行 DIM 随机 Roll 命中；保留此条愿望单作为收藏与来源记录。"]
+        : [
+            ...recommendationMatchNotes(item, matched, requirements.length),
+            ...(combo.dim_diagnostic ? [combo.dim_diagnostic.message] : [])
+          ]
+    };
+  });
+}
+
+function compareDimDetailComboProgress(
+  left: { matched: number; requirements: number[][]; index: number },
+  right: { matched: number; requirements: number[][]; index: number }
+): number {
+  const leftTotal = left.requirements.length;
+  const rightTotal = right.requirements.length;
+  const ratioDifference = right.matched * leftTotal - left.matched * rightTotal;
+  if (ratioDifference) return ratioDifference;
+  if (left.matched !== right.matched) return right.matched - left.matched;
+  if (leftTotal !== rightTotal) return rightTotal - leftTotal;
+  return left.index - right.index;
 }
 
 function dimDiagnosticSlotLabel(slot: string | undefined): string | undefined {

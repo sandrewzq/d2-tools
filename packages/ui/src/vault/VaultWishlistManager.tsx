@@ -1,5 +1,6 @@
 import { parseDimWishlist, type DimWishlist } from "@d2-tools/core/analysis/wishlistImport";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { ControlButton } from "../control/ControlButton.js";
 
 export type VaultDimWishlistImportPreview = {
@@ -75,9 +76,15 @@ type ImportFeedback = {
 export function VaultWishlistManager(props: {
   wishlist?: DimWishlist | null;
   actions: VaultWishlistActions;
+  onApplied?: (message: string) => void;
   onClose: () => void;
 }) {
+  const titleId = useId();
+  const dialogRef = useRef<HTMLElement>(null);
   const browserFileRef = useRef<HTMLInputElement>(null);
+  const initialFocusRef = useRef<HTMLElement | null>(
+    typeof document === "undefined" ? null : (document.activeElement as HTMLElement | null)
+  );
   const [inputText, setInputText] = useState("");
   const [pastePreview, setPastePreview] = useState<DimWishlist | null>(null);
   const [dimFilePreview, setDimFilePreview] = useState<VaultDimWishlistImportPreview | null>(null);
@@ -88,9 +95,14 @@ export function VaultWishlistManager(props: {
   const [isConfirmingClear, setIsConfirmingClear] = useState(false);
   const [busyAction, setBusyAction] = useState("");
   const [feedback, setFeedback] = useState<ImportFeedback>(null);
+  const busyActionRef = useRef(busyAction);
+  const onCloseRef = useRef(props.onClose);
+  const onAppliedRef = useRef(props.onApplied);
+  busyActionRef.current = busyAction;
+  onCloseRef.current = props.onClose;
+  onAppliedRef.current = props.onApplied;
   const supportsKnowledgeImport = Boolean(
-    props.actions.exportKnowledgeTemplate
-    && props.actions.selectKnowledgeCsv
+    props.actions.selectKnowledgeCsv
     && props.actions.confirmKnowledgeImport
   );
   const supportsDimOnlineUpdate = Boolean(
@@ -98,6 +110,64 @@ export function VaultWishlistManager(props: {
     && props.actions.checkDimOnlineUpdate
     && props.actions.confirmDimOnlineUpdate
   );
+  const portalHost = typeof document === "undefined"
+    ? null
+    : initialFocusRef.current?.closest<HTMLElement>(".app-shell")
+      ?? document.querySelector<HTMLElement>(".app-shell")
+      ?? document.body;
+
+  useEffect(() => {
+    const backdrop = dialogRef.current?.parentElement;
+    const backgroundElements = portalHost
+      ? [...portalHost.children].flatMap((element) => (
+          element instanceof HTMLElement && element !== backdrop
+            ? [{ element, wasInert: element.inert }]
+            : []
+        ))
+      : [];
+    backgroundElements.forEach(({ element }) => {
+      element.inert = true;
+    });
+    const preferredFocus = dialogRef.current?.querySelector<HTMLButtonElement>("[data-knowledge-import]")
+      ?? dialogRef.current?.querySelector<HTMLButtonElement>("[data-dim-update]")
+      ?? dialogRef.current?.querySelector<HTMLButtonElement>("button:not([disabled])");
+    preferredFocus?.focus();
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.defaultPrevented || !dialogRef.current) return;
+      if (event.key === "Escape") {
+        event.preventDefault();
+        if (!busyActionRef.current) onCloseRef.current();
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const focusable = [...dialogRef.current.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), summary, [href], [tabindex]:not([tabindex="-1"])'
+      )].filter((element) => !element.hidden && element.getClientRects().length > 0);
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable.at(-1)!;
+      if (!dialogRef.current.contains(document.activeElement)) {
+        event.preventDefault();
+        (event.shiftKey ? last : first).focus();
+      } else if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+
+    document.addEventListener("keydown", handleKeyDown, true);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown, true);
+      backgroundElements.forEach(({ element, wasInert }) => {
+        element.inert = wasInert;
+      });
+      if (initialFocusRef.current?.isConnected) initialFocusRef.current.focus();
+    };
+  }, [portalHost]);
 
   useEffect(() => {
     if (!props.actions.getDimOnlineStatus) return;
@@ -120,6 +190,11 @@ export function VaultWishlistManager(props: {
     } catch {
       // 本地状态刷新失败不改变已经完成的导入或清理结果。
     }
+  }
+
+  function finishApplied(message: string) {
+    onAppliedRef.current?.(message);
+    onCloseRef.current();
   }
 
   async function selectDimFile() {
@@ -178,7 +253,7 @@ export function VaultWishlistManager(props: {
       const saved = await props.actions.confirmDimImport(dimFilePreview.token);
       resetDimInput();
       await refreshDimOnlineStatus();
-      setFeedback({ tone: "success", message: `DIM Wishlist 已启用 · ${saved.rules.length} 条规则。` });
+      finishApplied(`DIM Wishlist 已启用 · ${saved.rules.length} 条规则。`);
     } catch (error) {
       setDimFilePreview(null);
       setFeedback({ tone: "error", message: errorMessage(error, "DIM Wishlist 导入失败。") });
@@ -217,10 +292,7 @@ export function VaultWishlistManager(props: {
       setDimOnlineStatus(result.status);
       setDimOnlinePreview(null);
       resetDimInput();
-      setFeedback({
-        tone: "success",
-        message: `DIM 社区推荐已更新 · ${result.status.weapon_count} 把武器、${result.status.rule_count} 条规则。`
-      });
+      finishApplied(`DIM 社区推荐已更新 · ${result.status.weapon_count} 把武器、${result.status.rule_count} 条规则。`);
     } catch (error) {
       setDimOnlinePreview(null);
       setFeedback({ tone: "error", message: errorMessage(error, "DIM 社区推荐更新失败。") });
@@ -236,7 +308,7 @@ export function VaultWishlistManager(props: {
       const saved = await props.actions.save(pastePreview);
       resetDimInput();
       await refreshDimOnlineStatus();
-      setFeedback({ tone: "success", message: `DIM Wishlist 已启用 · ${saved.rules.length} 条规则。` });
+      finishApplied(`DIM Wishlist 已启用 · ${saved.rules.length} 条规则。`);
     } catch (error) {
       setFeedback({ tone: "error", message: errorMessage(error, "DIM Wishlist 保存失败。") });
     } finally {
@@ -278,10 +350,7 @@ export function VaultWishlistManager(props: {
     try {
       const result = await props.actions.confirmKnowledgeImport(knowledgePreview.token);
       setKnowledgePreview(null);
-      setFeedback({
-        tone: "success",
-        message: `武器推荐知识库已更新 · ${result.weapon_count} 把武器、${result.recommendation_count} 条来源记录。`
-      });
+      finishApplied(`武器推荐数据已更新 · ${result.weapon_count} 把武器、${result.recommendation_count} 条来源记录。`);
     } catch (error) {
       setKnowledgePreview(null);
       setFeedback({ tone: "error", message: errorMessage(error, "知识库 CSV 导入失败。") });
@@ -316,23 +385,23 @@ export function VaultWishlistManager(props: {
 
   const isBusy = Boolean(busyAction);
 
-  return (
-    <div className="vault-wishlist-manager" data-surface="section" aria-label="推荐数据管理">
+  const dialog = (
+    <div className="modal-backdrop vault-recommendation-data-backdrop" role="presentation" onClick={() => !isBusy && props.onClose()}>
+    <section ref={dialogRef} className="vault-wishlist-manager" data-surface="dialog" role="dialog" aria-modal="true" aria-labelledby={titleId} aria-busy={isBusy ? "true" : "false"} onClick={(event) => event.stopPropagation()}>
       <header>
         <div>
-          <strong>推荐数据管理</strong>
-          <span>DIM 支持上游在线更新；知识库 CSV 和本地 Wishlist 仍按预览确认后导入。</span>
+          <strong id={titleId}>推荐数据</strong>
+          <span>中文推荐 CSV 是主要数据；DIM 社区推荐可以从 GitHub 更新，作为额外参考。</span>
         </div>
-        <ControlButton size="compact" variant="quiet" onClick={props.onClose}>收起</ControlButton>
+        <ControlButton size="compact" variant="quiet" disabled={isBusy} onClick={props.onClose}>关闭</ControlButton>
       </header>
 
       {supportsKnowledgeImport ? (
         <section className="vault-import-section" aria-label="武器推荐知识库 CSV">
           <div className="vault-import-section-head">
-            <span><strong>武器推荐知识库 CSV</strong><small>先导出应用标准模板；应用不接受缺列、换序或重复键的数据。</small></span>
+            <span><strong>中文武器推荐数据</strong><small>选择发布方提供的“武器推荐.csv”；确认前只校验和预览，不会替换当前数据。</small></span>
             <div className="vault-wishlist-actions">
-              <ControlButton size="compact" variant="quiet" disabled={isBusy} onClick={() => void exportKnowledgeTemplate()}>{busyAction === "knowledge-template" ? "导出中" : "导出标准模板"}</ControlButton>
-              <ControlButton size="compact" variant="secondary" disabled={isBusy} onClick={() => void selectKnowledgeCsv()}>{busyAction === "knowledge-select" ? "校验中" : "选择知识库 CSV"}</ControlButton>
+              <ControlButton data-knowledge-import="" size="compact" variant="primary" disabled={isBusy} onClick={() => void selectKnowledgeCsv()}>{busyAction === "knowledge-select" ? "校验中" : "选择武器推荐.csv"}</ControlButton>
             </div>
           </div>
           {knowledgePreview ? (
@@ -342,6 +411,10 @@ export function VaultWishlistManager(props: {
               <ControlButton size="compact" variant="primary" disabled={isBusy} onClick={() => void confirmKnowledgeImport()}>{busyAction === "knowledge-confirm" ? "导入中" : "确认导入"}</ControlButton>
             </div>
           ) : null}
+          <div className="vault-import-secondary-actions">
+            <p>制作或维护推荐数据时，可以导出应用标准模板。</p>
+            {props.actions.exportKnowledgeTemplate ? <ControlButton size="compact" variant="quiet" disabled={isBusy} onClick={() => void exportKnowledgeTemplate()}>{busyAction === "knowledge-template" ? "导出中" : "导出标准模板"}</ControlButton> : null}
+          </div>
         </section>
       ) : null}
 
@@ -350,10 +423,7 @@ export function VaultWishlistManager(props: {
           <span><strong>DIM 社区推荐</strong><small>可直接从上游 GitHub 更新；本地 .txt / .wishlist 文件仍作为离线和自定义入口。</small></span>
           <div className="vault-wishlist-actions">
             <input ref={browserFileRef} hidden type="file" accept=".txt,.wishlist,text/plain" onChange={(event) => void readBrowserFile(event.target.files?.[0])} />
-            {supportsDimOnlineUpdate ? <ControlButton size="compact" variant="primary" disabled={isBusy} onClick={() => void checkDimOnlineUpdate()}>{busyAction === "dim-online-check" ? "检查并读取中" : "检查社区更新"}</ControlButton> : null}
-            <ControlButton size="compact" variant="secondary" disabled={isBusy} onClick={() => void selectDimFile()}>{busyAction === "dim-select" ? "读取中" : "选择 DIM 文件"}</ControlButton>
-            <ControlButton size="compact" variant="quiet" disabled={isBusy} onClick={() => { setIsPasteOpen((current) => !current); setIsConfirmingClear(false); }}>粘贴文本</ControlButton>
-            {props.wishlist ? <ControlButton size="compact" variant="quiet" disabled={isBusy} onClick={() => { setIsConfirmingClear(true); setIsPasteOpen(false); }}>移除当前 Wishlist</ControlButton> : null}
+            {supportsDimOnlineUpdate ? <ControlButton data-dim-update="" size="compact" variant="primary" disabled={isBusy} onClick={() => void checkDimOnlineUpdate()}>{busyAction === "dim-online-check" ? "检查并读取中" : "检查社区更新"}</ControlButton> : null}
           </div>
         </div>
 
@@ -378,12 +448,20 @@ export function VaultWishlistManager(props: {
           </div>
         ) : null}
 
-        {isPasteOpen ? (
-          <div className="vault-wishlist-paste">
-            <label><span>Wishlist 文本</span><textarea rows={6} value={inputText} placeholder="粘贴 DIM Wishlist 内容" onChange={(event) => { setInputText(event.target.value); setPastePreview(null); setDimFilePreview(null); setFeedback(null); }} /></label>
-            <ControlButton size="compact" variant="secondary" disabled={!inputText.trim() || isBusy} onClick={() => createPastePreview()}>解析预览</ControlButton>
+        <div className="vault-import-secondary-actions vault-dim-secondary-actions">
+          <p>GitHub 不可用或需要导入自定义 Wishlist 时，再使用本地文件或粘贴文本。</p>
+          <div className="vault-wishlist-actions">
+            <ControlButton size="compact" variant="secondary" disabled={isBusy} onClick={() => void selectDimFile()}>{busyAction === "dim-select" ? "读取中" : "选择 DIM 文件"}</ControlButton>
+            <ControlButton size="compact" variant="quiet" disabled={isBusy} onClick={() => { setIsPasteOpen((current) => !current); setIsConfirmingClear(false); }}>粘贴文本</ControlButton>
+            {props.wishlist ? <ControlButton size="compact" variant="quiet" disabled={isBusy} onClick={() => { setIsConfirmingClear(true); setIsPasteOpen(false); }}>移除当前 Wishlist</ControlButton> : null}
           </div>
-        ) : null}
+          {isPasteOpen ? (
+            <div className="vault-wishlist-paste">
+              <label><span>Wishlist 文本</span><textarea rows={6} value={inputText} placeholder="粘贴 DIM Wishlist 内容" onChange={(event) => { setInputText(event.target.value); setPastePreview(null); setDimFilePreview(null); setFeedback(null); }} /></label>
+              <ControlButton size="compact" variant="secondary" disabled={!inputText.trim() || isBusy} onClick={() => createPastePreview()}>解析预览</ControlButton>
+            </div>
+          ) : null}
+        </div>
 
         {dimFilePreview ? (
           <div className="vault-wishlist-preview" data-surface="frame" data-ui-kind="state-frame">
@@ -410,8 +488,10 @@ export function VaultWishlistManager(props: {
       </section>
 
       {feedback ? <p className="vault-wishlist-feedback" data-status={feedback.tone} role={feedback.tone === "error" ? "alert" : "status"}>{feedback.message}</p> : null}
+    </section>
     </div>
   );
+  return portalHost ? createPortal(dialog, portalHost) : dialog;
 }
 
 function formatModes(modes: Array<"pve" | "pvp" | "general">): string {

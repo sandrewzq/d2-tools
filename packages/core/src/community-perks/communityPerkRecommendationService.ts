@@ -224,7 +224,7 @@ export class CommunityPerkRecommendationService {
         };
       }
 
-      if (item.weapon_roll && !item.weapon_roll.complete && recommendation.combos.length > 0) {
+      if (hasIncompleteRelevantRollData(item) && recommendation.combos.length > 0) {
         return {
           hash: item.hash,
           ...(item.instance_id ? { instance_id: item.instance_id } : {}),
@@ -312,17 +312,17 @@ function matchSourceRecords(
 
       const matches = Boolean(rollSocket) && rollSocket!.owned_plugs.some((plug) => (
         requirement.candidates.some((candidate) => (
-          plug.hash === candidate.hash || normalizeComparableName(plug.name) === normalizeComparableName(candidate.name)
+          plug.hash === candidate.hash || perkIdentityMatches(plug.name, candidate.name)
         ))
         || requirement.candidate_names.some((name) => (
-          normalizeComparableName(plug.name) === normalizeComparableName(name)
+          slot === "masterwork"
+            ? masterworkRequirementMatches(name, plug.name, plug.category_identifier)
+            : perkIdentityMatches(plug.name, name)
         ))
       ));
       const cannotCheck = !matches && (
-        requirement.unresolved_candidate_names.length > 0
-        || !item.weapon_roll
-        || (!rollSocket && !item.weapon_roll.complete)
-        || rollSocket?.complete === false
+        !item.weapon_roll
+        || (rollSocket ? rollSocket.complete === false : hasIncompleteRelevantRollData(item))
       );
       return {
         slot,
@@ -337,23 +337,28 @@ function matchSourceRecords(
     });
     const specified = slots.filter((slot) => slot.state !== "source_not_specified");
     const matched = specified.filter((slot) => slot.state === "match").length;
-    const hasUncheckable = specified.some((slot) => slot.state === "uncheckable");
+    const uncheckable = specified.filter((slot) => slot.state === "uncheckable").length;
+    const checkable = specified.length - uncheckable;
     return {
       source_id: record.source_id,
       source_label: record.source_label,
       ...(record.source_url ? { source_url: record.source_url } : {}),
       state: specified.length === 0
         ? "weapon_only" as const
-        : hasUncheckable
+        : uncheckable > 0
           ? "uncheckable" as const
           : "checked" as const,
       matched_requirement_count: matched,
       requirement_count: specified.length,
+      checkable_requirement_count: checkable,
+      uncheckable_requirement_count: uncheckable,
       purposes: record.purposes,
       ...(record.rating ? { rating: record.rating } : {}),
       ...(record.ranking ? { ranking: record.ranking } : {}),
+      ...(record.note ? { note: record.note } : {}),
       ...(record.page_updated_at ? { page_updated_at: record.page_updated_at } : {}),
       ...(record.version ? { version: record.version } : {}),
+      ...(record.source_location ? { source_location: record.source_location } : {}),
       slots
     };
   });
@@ -368,15 +373,14 @@ function sourceMatchCompatibilityResult(
 ): VaultItemInstanceMatchInfo {
   const fullyMatched = sourceMatches.filter((source) => (
     source.state === "weapon_only"
-    || (source.state === "checked" && source.requirement_count > 0
+    || (source.uncheckable_requirement_count === 0 && source.requirement_count > 0
       && source.matched_requirement_count === source.requirement_count)
   ));
   const partiallyMatched = sourceMatches.filter((source) => (
-    source.state === "checked"
-    && source.matched_requirement_count > 0
+    source.matched_requirement_count > 0
     && source.matched_requirement_count < source.requirement_count
   ));
-  const hasCheckable = sourceMatches.some((source) => source.state === "checked" || source.state === "weapon_only");
+  const hasCheckable = sourceMatches.some((source) => source.checkable_requirement_count > 0 || source.state === "weapon_only");
   const hasUncheckable = sourceMatches.some((source) => source.state === "uncheckable");
   return {
     hash: item.hash,
@@ -411,7 +415,7 @@ function matchDimWishlistCombos(
   const rules = dimCombos.map((combo) => {
     const requirements = comboMatchRequirements(combo);
     const matched = requirements.filter((hashes) => hashes.some((hash) => actualHashes.has(hash))).length;
-    const incomplete = !item.weapon_roll || !item.weapon_roll.complete;
+    const incomplete = hasIncompleteRelevantRollData(item);
     return {
       mode: combo.mode,
       state: matched === requirements.length
@@ -426,14 +430,74 @@ function matchDimWishlistCombos(
       ...(combo.dim_diagnostic ? { diagnostic_status: combo.dim_diagnostic.status } : {})
     };
   });
+  const bestRule = selectBestDimRuleProgress(rules);
   return {
     matched_combo_count: rules.filter((rule) => rule.state === "match").length,
     partial_combo_count: rules.filter((rule) => rule.state === "partial").length,
     uncheckable_combo_count: rules.filter((rule) => rule.state === "uncheckable").length,
     combo_count: rules.length,
+    best_matched_requirement_count: bestRule?.matched_requirement_count ?? 0,
+    best_requirement_count: bestRule?.requirement_count ?? 0,
     modes: [...new Set(rules.map((rule) => rule.mode))],
     rules
   };
+}
+
+function hasIncompleteRelevantRollData(item: VaultItemMatchInput): boolean {
+  if (!item.weapon_roll) return true;
+  if (item.weapon_roll.incomplete_reasons.some((reason) => reason !== "unclassified_socket")) return true;
+  return item.weapon_roll.sockets.some((socket) => socket.slot !== "other" && !socket.complete);
+}
+
+function masterworkRequirementMatches(
+  requirementName: string,
+  plugName: string,
+  categoryIdentifier?: string
+): boolean {
+  const requirement = masterworkStatIdentity(requirementName);
+  if (!requirement) return normalizeComparableName(requirementName) === normalizeComparableName(plugName);
+  return requirement === masterworkStatIdentity(`${categoryIdentifier ?? ""} ${plugName}`);
+}
+
+function masterworkStatIdentity(value: string): string | undefined {
+  const normalized = normalizeComparableName(value);
+  if (!normalized) return undefined;
+  if (includesComparableText(normalized, ["reload", "填装", "装填"])) return "reload";
+  if (includesComparableText(normalized, ["range", "射程"])) return "range";
+  if (includesComparableText(normalized, ["stability", "稳定"])) return "stability";
+  if (includesComparableText(normalized, ["handling", "操控"])) return "handling";
+  if (includesComparableText(normalized, ["chargetime", "充能时间", "充能"])) return "charge_time";
+  if (includesComparableText(normalized, ["drawtime", "拉弓时间", "拉弓"])) return "draw_time";
+  if (includesComparableText(normalized, ["velocity", "弹速"])) return "velocity";
+  if (includesComparableText(normalized, ["blastradius", "爆炸范围"])) return "blast_radius";
+  if (includesComparableText(normalized, ["impact", "伤害"])) return "impact";
+  if (includesComparableText(normalized, ["accuracy", "精准度", "精准"])) return "accuracy";
+  return undefined;
+}
+
+function includesComparableText(value: string, candidates: readonly string[]): boolean {
+  return candidates.some((candidate) => value.includes(normalizeComparableName(candidate)));
+}
+
+function selectBestDimRuleProgress<T extends {
+  matched_requirement_count: number;
+  requirement_count: number;
+}>(rules: readonly T[]): T | undefined {
+  return rules.reduce<T | undefined>((best, rule) => {
+    if (!best) return rule;
+    const ruleComplete = rule.requirement_count > 0
+      && rule.matched_requirement_count === rule.requirement_count;
+    const bestComplete = best.requirement_count > 0
+      && best.matched_requirement_count === best.requirement_count;
+    if (ruleComplete !== bestComplete) return ruleComplete ? rule : best;
+    const ratioDifference = rule.matched_requirement_count * best.requirement_count
+      - best.matched_requirement_count * rule.requirement_count;
+    if (ratioDifference !== 0) return ratioDifference > 0 ? rule : best;
+    if (rule.requirement_count !== best.requirement_count) {
+      return rule.requirement_count > best.requirement_count ? rule : best;
+    }
+    return rule.matched_requirement_count > best.matched_requirement_count ? rule : best;
+  }, undefined);
 }
 
 function uniqueSourceRecords(records: RecommendationSourceRecord[]): RecommendationSourceRecord[] {
@@ -450,6 +514,16 @@ function normalizeComparableName(value: string): string {
     .normalize("NFKC")
     .toLocaleLowerCase()
     .replace(/[\p{P}\p{Z}\s]+/gu, "");
+}
+
+function normalizePerkIdentity(value: string): string {
+  return normalizeComparableName(value)
+    .replace(/强化(?:版|型|特性)?/gu, "");
+}
+
+function perkIdentityMatches(left: string, right: string): boolean {
+  const leftIdentity = normalizePerkIdentity(left);
+  return Boolean(leftIdentity) && leftIdentity === normalizePerkIdentity(right);
 }
 
 function ownedPlugHashes(item: VaultItemMatchInput): Set<number> {

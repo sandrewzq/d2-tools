@@ -15,6 +15,7 @@ export type EquipmentDetailContextLedgerProps = {
   selectedVersionHash?: number;
   watermarkIcon?: string;
   versionLoading?: boolean;
+  showVersionField?: boolean;
   onSelectVersion?: (hash: number) => void;
 };
 
@@ -31,7 +32,7 @@ export function EquipmentDetailContextLedger(props: EquipmentDetailContextLedger
       <ContextFact label="入口" value={props.entryLabel} />
       <ContextFact label="当前查看" value={props.currentViewLabel} current />
       <ContextFact label="位置" value={props.locationLabel} />
-      <div className="equipment-detail-version-field">
+      {props.showVersionField !== false ? <div className="equipment-detail-version-field">
         <dt data-ui-part="label" data-text-tone="meta" data-info-priority="support">{props.versionFieldLabel}</dt>
         <dd data-ui-part="value" data-text-tone="primary" data-info-priority="context">
           <span
@@ -61,7 +62,7 @@ export function EquipmentDetailContextLedger(props: EquipmentDetailContextLedger
             ) : null}
           </span>
         </dd>
-      </div>
+      </div> : null}
     </dl>
   );
 }

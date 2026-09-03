@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useState, type KeyboardEvent } from "react";
+import { memo, useDeferredValue, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import type { AccountItemSummary } from "@d2-tools/core/account/summary";
 import type { ArmorSetCatalogItem } from "@d2-tools/core/items/equipableItemSet";
 import { evaluateLocalTargets } from "@d2-tools/core/analysis/targets";
@@ -69,20 +69,45 @@ import { useVaultBatchActions } from "./useVaultBatchActions.js";
 import { VaultOrganizePanel } from "./VaultOrganizePanel.js";
 import { getRovingFocusIndex } from "../interaction/rovingFocus.js";
 import {
-  buildVaultRecommendationSourceSummaries,
+  buildVaultRecommendationSummaryIndex,
   getVaultCommunityInstanceKey,
-  hasPositiveRecommendationSummary
+  hasPositiveRecommendationSummary,
+  type VaultRecommendationSummaryIndex
 } from "./vaultRecommendationMatch.js";
 import { buildVaultCleanupProtectionIndex } from "./vaultCleanupProtection.js";
 
 type VaultWorkspaceTab = "filters" | "duplicates" | "recommendations";
+type VaultRecommendationView = "weapons" | "targets";
 type VaultAccountResourceStatus = "unavailable" | "cached" | "stale" | "loading" | "refreshing" | "ready" | "error";
 
 const vaultWorkspaceTabs: Array<{ key: VaultWorkspaceTab; label: string }> = [
   { key: "filters", label: "筛选列表" },
-  { key: "duplicates", label: "同名整理" },
-  { key: "recommendations", label: "目标与匹配" }
+  { key: "recommendations", label: "推荐与目标" },
+  { key: "duplicates", label: "同名整理" }
 ];
+
+const DormantVaultWorkspacePanel = memo(function DormantVaultWorkspacePanel(props: {
+  active: boolean;
+  id: string;
+  labelledBy: string;
+  className: string;
+  children: ReactNode;
+}) {
+  return (
+    <div
+      id={props.id}
+      role="tabpanel"
+      aria-labelledby={props.labelledBy}
+      className={props.className}
+      hidden={!props.active}
+    >
+      {props.children}
+    </div>
+  );
+}, (previous, next) => !previous.active && !next.active
+  && previous.id === next.id
+  && previous.labelledBy === next.labelledBy
+  && previous.className === next.className);
 
 export function VaultPageContentView(props: {
   items: AccountItemSummary[];
@@ -113,6 +138,7 @@ export function VaultPageContentView(props: {
   cleanupActions?: VaultCleanupActions;
 }) {
   const [query, setQuery] = useState("");
+  const deferredQuery = useDeferredValue(query);
   const [group, setGroup] = useState<VaultGroupFilter>(defaultVaultGroupTab);
   const [sortKey, setSortKey] = useState<VaultSortKey>("name");
   const [tagFilter, setTagFilter] = useState<VaultTagFilter>("all");
@@ -129,16 +155,50 @@ export function VaultPageContentView(props: {
   const [armorStatRules, setArmorStatRules] = useState<VaultArmorStatRule[]>([]);
   const [frameFilters, setFrameFilters] = useState<VaultFrameFilter>([]);
   const [activeVaultTab, setActiveVaultTab] = useState<VaultWorkspaceTab>("filters");
+  const [activeRecommendationView, setActiveRecommendationView] = useState<VaultRecommendationView>("weapons");
   const [hasVisitedDuplicateTab, setHasVisitedDuplicateTab] = useState(false);
+  const [duplicateLocateRequest, setDuplicateLocateRequest] = useState<{ groupKey: string; requestId: number } | null>(null);
   const [batchMessage, setBatchMessage] = useState("");
   const [isBatchSaving, setIsBatchSaving] = useState(false);
   const [isOrganizing, setIsOrganizing] = useState(false);
   const [isCleanupMode, setIsCleanupMode] = useState(false);
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
   const [cleanupTargetCharacterId, setCleanupTargetCharacterId] = useState("");
+  const workspaceScrollPositionsRef = useRef<Record<VaultWorkspaceTab, number>>({
+    filters: 0,
+    recommendations: 0,
+    duplicates: 0
+  });
   const workspaceId = useId();
   const tabIds = useMemo(() => Object.fromEntries(vaultWorkspaceTabs.map((tab) => [tab.key, `${workspaceId}-${tab.key}-tab`])) as Record<VaultWorkspaceTab, string>, [workspaceId]);
   const panelIds = useMemo(() => Object.fromEntries(vaultWorkspaceTabs.map((tab) => [tab.key, `${workspaceId}-${tab.key}-panel`])) as Record<VaultWorkspaceTab, string>, [workspaceId]);
+  const recommendationTabIds: Record<VaultRecommendationView, string> = {
+    weapons: `${workspaceId}-recommendation-weapons-tab`,
+    targets: `${workspaceId}-recommendation-targets-tab`
+  };
+  const recommendationPanelIds: Record<VaultRecommendationView, string> = {
+    weapons: `${workspaceId}-recommendation-weapons-panel`,
+    targets: `${workspaceId}-recommendation-targets-panel`
+  };
+  const recommendationWorkflowStatus = vaultRecommendationWorkflowStatus(props.recommendationSourceState?.recommendationScan);
+  const recommendationSummaryByInstance = useMemo(
+    () => buildVaultRecommendationSummaryIndex(
+      props.items,
+      props.communityInstanceMatch,
+      props.wishlist
+    ),
+    [props.communityInstanceMatch, props.items, props.wishlist]
+  );
+
+  useLayoutEffect(() => {
+    if (typeof document === "undefined") return;
+    const scrollRoot = document.querySelector<HTMLElement>(".shell-content");
+    if (!scrollRoot) return;
+    const frame = requestAnimationFrame(() => {
+      scrollRoot.scrollTo({ top: workspaceScrollPositionsRef.current[activeVaultTab] ?? 0 });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [activeVaultTab]);
 
   useEffect(() => {
     if (!props.locateRequest) return;
@@ -149,7 +209,9 @@ export function VaultPageContentView(props: {
   }, [props.locateRequest?.requestId]);
 
   useEffect(() => {
-    if (props.targetLocateRequest) setActiveVaultTab("recommendations");
+    if (!props.targetLocateRequest) return;
+    setActiveVaultTab("recommendations");
+    setActiveRecommendationView("targets");
   }, [props.targetLocateRequest?.requestId]);
 
   useEffect(() => {
@@ -162,7 +224,7 @@ export function VaultPageContentView(props: {
     () => sortVaultItems(
       filterVaultItems(props.items, {
         group,
-        query,
+        query: deferredQuery,
         tag: tagFilter,
         lock: lockFilter,
         slot: slotFilter,
@@ -182,11 +244,16 @@ export function VaultPageContentView(props: {
       sortKey,
       props.tags
     ),
-    [ammoFilter, armorSetFilter, armorStatRules, classFilter, damageFilter, frameFilters, gearTierFilter, group, itemTypeFilter, lockFilter, props.items, props.localTargetRules, props.tags, props.wishlist, query, rarityFilter, slotFilter, sortKey, tagFilter]
+    [ammoFilter, armorSetFilter, armorStatRules, classFilter, damageFilter, deferredQuery, frameFilters, gearTierFilter, group, itemTypeFilter, lockFilter, props.items, props.localTargetRules, props.tags, props.wishlist, rarityFilter, slotFilter, sortKey, tagFilter]
   );
   const filteredItems = useMemo(
-    () => filteredVaultItems.filter((item) => matchesSignalFilters(item, signalFilters, props)),
-    [filteredVaultItems, props.communityInstanceMatch, props.equipmentTargetStore, props.highlightedItemKeys, props.localTargetRules, props.wishlist, signalFilters]
+    () => filteredVaultItems.filter((item) => matchesSignalFilters(
+      item,
+      signalFilters,
+      props,
+      recommendationSummaryByInstance
+    )),
+    [filteredVaultItems, props.equipmentTargetStore, props.highlightedItemKeys, props.localTargetRules, props.wishlist, recommendationSummaryByInstance, signalFilters]
   );
   const selectedItems = useMemo(
     () => props.items.filter((item) => selectedKeys.has(getVaultSelectionItemKey(item))),
@@ -306,6 +373,9 @@ export function VaultPageContentView(props: {
       .sort((left, right) => right.count - left.count || left.label.localeCompare(right.label, "zh-Hans-CN"));
   }, [props.items]);
   const duplicateSummary = useMemo(() => buildVaultDuplicateSummary(props.items, props.tags), [props.items, props.tags]);
+  const duplicateGroupKeyByItemKey = useMemo(() => new Map(
+    duplicateSummary.groups.flatMap((duplicateGroup) => duplicateGroup.items.map((entry) => [entry.item_key, duplicateGroup.group_key] as const))
+  ), [duplicateSummary]);
   const pendingDuplicateGroupCount = useMemo(
     () => duplicateSummary.groups.filter((duplicateGroup) => duplicateGroup.items.some((item) => item.tag !== "keep" && item.tag !== "review" && item.tag !== "junk")).length,
     [duplicateSummary]
@@ -418,9 +488,23 @@ export function VaultPageContentView(props: {
   }
 
   function switchVaultTab(tab: VaultWorkspaceTab) {
+    if (typeof document !== "undefined") {
+      const scrollRoot = document.querySelector<HTMLElement>(".shell-content");
+      if (scrollRoot) workspaceScrollPositionsRef.current[activeVaultTab] = scrollRoot.scrollTop;
+    }
     if (tab === "duplicates") setHasVisitedDuplicateTab(true);
     setActiveVaultTab(tab);
     setBatchMessage("");
+  }
+
+  function openDuplicateGroupForItem(item: AccountItemSummary) {
+    const groupKey = duplicateGroupKeyByItemKey.get(getVaultSelectionItemKey(item));
+    if (!groupKey) return;
+    switchVaultTab("duplicates");
+    setDuplicateLocateRequest((current) => ({
+      groupKey,
+      requestId: (current?.requestId ?? 0) + 1
+    }));
   }
 
   function handleVaultTabKeyDown(event: KeyboardEvent<HTMLButtonElement>) {
@@ -435,6 +519,20 @@ export function VaultPageContentView(props: {
     event.preventDefault();
     const nextTab = vaultWorkspaceTabs[nextIndex]?.key ?? "filters";
     switchVaultTab(nextTab);
+    event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>('[role="tab"]')[nextIndex]?.focus();
+  }
+
+  function handleRecommendationViewKeyDown(event: KeyboardEvent<HTMLButtonElement>) {
+    const views: VaultRecommendationView[] = ["weapons", "targets"];
+    const nextIndex = getRovingFocusIndex({
+      key: event.key,
+      currentIndex: views.indexOf(activeRecommendationView),
+      itemCount: views.length,
+      orientation: "horizontal"
+    });
+    if (nextIndex === null) return;
+    event.preventDefault();
+    setActiveRecommendationView(views[nextIndex] ?? "weapons");
     event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>('[role="tab"]')[nextIndex]?.focus();
   }
 
@@ -486,6 +584,7 @@ export function VaultPageContentView(props: {
           {props.accountResourceStatus ? <span className={`ui-badge ${vaultResourceStatusTone(props.accountResourceStatus)}`} data-ui-kind="status-chip" data-status={props.accountResourceStatus}>{vaultResourceStatusLabel(props.accountResourceStatus)}</span> : null}
           <span className="ui-badge status-neutral" data-ui-kind="status-chip">已读取 {vaultItemCount} 件</span>
           <span className="ui-badge status-pending" data-ui-kind="status-chip">当前显示 {filteredItems.length} 件</span>
+          <button type="button" className={`ui-badge vault-recommendation-status-link status-${recommendationWorkflowStatus.tone}`} data-ui-kind="status-chip" data-status={recommendationWorkflowStatus.tone} onClick={() => { setActiveRecommendationView("weapons"); switchVaultTab("recommendations"); }}>{recommendationWorkflowStatus.label}</button>
           {props.highlightedItemKeys ? <span className="ui-badge status-success" data-ui-kind="status-chip">配装命中 {loadoutMatchCount} 件</span> : null}
         </div>
       </div>
@@ -576,9 +675,7 @@ export function VaultPageContentView(props: {
                 sections={filteredSections}
                 highlightedItemKeys={props.highlightedItemKeys}
                 tags={props.tags}
-                wishlist={props.wishlist}
-                localTargetRules={props.localTargetRules}
-                communityInstanceMatch={props.communityInstanceMatch}
+                recommendationSummaryByInstance={recommendationSummaryByInstance}
                 isOrganizing={isOrganizing}
                 isSearchActive={Boolean(query.trim())}
                 selectedKeys={selectedKeys}
@@ -593,7 +690,12 @@ export function VaultPageContentView(props: {
       ) : null}
 
       {hasVisitedDuplicateTab ? (
-        <div id={panelIds.duplicates} role="tabpanel" aria-labelledby={tabIds.duplicates} className="vault-workspace-panel" hidden={activeVaultTab !== "duplicates"}>
+        <DormantVaultWorkspacePanel
+          id={panelIds.duplicates}
+          labelledBy={tabIds.duplicates}
+          className="vault-workspace-panel"
+          active={activeVaultTab === "duplicates"}
+        >
           <div className="vault-summary-strip">
             <div><span>待整理同名组</span><strong>{pendingDuplicateGroupCount} 组</strong></div>
             <div><span>已整理组</span><strong>{completedDuplicateGroupCount} 组</strong></div>
@@ -602,25 +704,51 @@ export function VaultPageContentView(props: {
           <VaultDuplicateGroups
             duplicateSummary={duplicateSummary}
             items={props.items}
-            wishlist={props.wishlist}
+            recommendationSummaryByInstance={recommendationSummaryByInstance}
             localTargetRules={props.localTargetRules}
             equipmentTargetStore={props.equipmentTargetStore}
             highlightedItemKeys={props.highlightedItemKeys}
             communityInstanceMatch={props.communityInstanceMatch}
             cleanupProtectionByItemKey={cleanupProtectionByItemKey}
+            locateRequest={duplicateLocateRequest}
             openingItemKey={props.openingItemKey}
             isBatchSaving={isBatchSaving}
             onLoadItemDetail={props.onLoadItemDetail}
             onOpenItem={props.onOpenItem}
             onApplyGroupTags={applyDuplicateGroupTags}
           />
-        </div>
+        </DormantVaultWorkspacePanel>
       ) : null}
 
       {activeVaultTab === "recommendations" ? (
         <div id={panelIds.recommendations} role="tabpanel" aria-labelledby={tabIds.recommendations} className="vault-recommendations vault-workspace-panel">
-          <VaultRecommendationEvidencePanel items={props.items} wishlist={props.wishlist} communityInstanceMatch={props.communityInstanceMatch} highlightedItemKeys={props.highlightedItemKeys} sourceState={props.recommendationSourceState} wishlistActions={props.wishlistActions} onCopyAuditReport={props.onCopyRecommendationAudit} onOpenItem={props.onOpenItem} />
-          <aside><div className="vault-column-head"><h3>装备目标</h3><span>目标库与兼容规则</span></div><VaultTargetRulesPanel items={props.items} rules={props.localTargetRules ?? { action_policy: "notify_only", armor: [], weapons: [] }} equipmentTargetStore={props.equipmentTargetStore} targetLocateRequest={props.targetLocateRequest} actions={props.targetRulesActions} /></aside>
+          <div className="vault-recommendation-view-tabs" data-ui-kind="segmented-control" role="tablist" aria-label="推荐与目标内容">
+            <button type="button" role="tab" id={recommendationTabIds.weapons} aria-controls={recommendationPanelIds.weapons} aria-selected={activeRecommendationView === "weapons"} tabIndex={activeRecommendationView === "weapons" ? 0 : -1} className={activeRecommendationView === "weapons" ? "active" : ""} onClick={() => setActiveRecommendationView("weapons")} onKeyDown={handleRecommendationViewKeyDown}>武器推荐</button>
+            <button type="button" role="tab" id={recommendationTabIds.targets} aria-controls={recommendationPanelIds.targets} aria-selected={activeRecommendationView === "targets"} tabIndex={activeRecommendationView === "targets" ? 0 : -1} className={activeRecommendationView === "targets" ? "active" : ""} onClick={() => setActiveRecommendationView("targets")} onKeyDown={handleRecommendationViewKeyDown}>个人目标</button>
+          </div>
+          {activeRecommendationView === "weapons" ? (
+            <div id={recommendationPanelIds.weapons} className="vault-recommendation-view-panel" role="tabpanel" aria-labelledby={recommendationTabIds.weapons}>
+              <VaultRecommendationEvidencePanel
+                items={props.items}
+                tags={props.tags}
+                wishlist={props.wishlist}
+                communityInstanceMatch={props.communityInstanceMatch}
+                recommendationSummaryByInstance={recommendationSummaryByInstance}
+                highlightedItemKeys={props.highlightedItemKeys}
+                sourceState={props.recommendationSourceState}
+                wishlistActions={props.wishlistActions}
+                canOrganizeItem={(item) => duplicateGroupKeyByItemKey.has(getVaultSelectionItemKey(item))}
+                onCopyAuditReport={props.onCopyRecommendationAudit}
+                onOpenItem={props.onOpenItem}
+                onOrganizeItem={openDuplicateGroupForItem}
+              />
+            </div>
+          ) : (
+            <section id={recommendationPanelIds.targets} className="vault-personal-targets vault-recommendation-view-panel" data-surface="section" role="tabpanel" aria-labelledby={recommendationTabIds.targets}>
+              <div className="vault-column-head"><div><h3>个人装备目标</h3><span>你自己保存的刷取目标、攻略引用和兼容规则</span></div></div>
+              <VaultTargetRulesPanel items={props.items} rules={props.localTargetRules ?? { action_policy: "notify_only", armor: [], weapons: [] }} equipmentTargetStore={props.equipmentTargetStore} targetLocateRequest={props.targetLocateRequest} actions={props.targetRulesActions} />
+            </section>
+          )}
         </div>
       ) : null}
     </div>
@@ -651,13 +779,24 @@ function vaultResourceStatusTone(status: VaultAccountResourceStatus): string {
   }
 }
 
+function vaultRecommendationWorkflowStatus(scan?: VaultRecommendationSourceState["recommendationScan"]): { label: string; tone: "neutral" | "pending" | "success" | "error" } {
+  if (scan?.blocking_reason === "recommendation_unavailable"
+    || scan?.issues?.some((issue) => issue.code === "recommendation_unavailable")) {
+    return { label: "推荐数据未准备", tone: "pending" };
+  }
+  if (scan?.phase === "scanning") return { label: "推荐核对中", tone: "pending" };
+  if (scan?.phase === "partial") return { label: "推荐部分可用", tone: "pending" };
+  if (scan?.phase === "error") return { label: "推荐核对失败", tone: "error" };
+  if (scan?.phase === "complete") return { label: `推荐已核对 ${scan.scanned_weapon_count} 件`, tone: "success" };
+  return { label: "推荐待核对", tone: "neutral" };
+}
+
 function matchesSignalFilters(item: AccountItemSummary, filters: VaultSignalFilter[], props: {
   wishlist?: DimWishlist | null;
   localTargetRules?: LocalTargetRules | null;
   equipmentTargetStore?: EquipmentTargetStore | null;
   highlightedItemKeys?: LoadoutTemplateLookup | null;
-  communityInstanceMatch?: Map<string, VaultItemInstanceMatchInfo>;
-}): boolean {
+}, recommendationSummaryByInstance: VaultRecommendationSummaryIndex): boolean {
   if (!filters.length) return true;
   return filters.every((filter) => {
     if (filter === "wishlist") return evaluateWishlistRoll(normalizeCoreItem(item), props.wishlist ?? undefined).matched;
@@ -667,12 +806,8 @@ function matchesSignalFilters(item: AccountItemSummary, filters: VaultSignalFilt
         || evaluateLocalTargets(coreItem, props.localTargetRules ?? undefined).matched;
     }
     if (filter === "loadout") return matchesLoadoutTemplateItem(item, props.highlightedItemKeys);
-    const instanceMatch = props.communityInstanceMatch?.get(getVaultCommunityInstanceKey(item));
-    if (instanceMatch) {
-      return buildVaultRecommendationSourceSummaries(item, instanceMatch, props.wishlist)
-        .some(hasPositiveRecommendationSummary);
-    }
-    return buildVaultRecommendationSourceSummaries(item, undefined, props.wishlist).some(hasPositiveRecommendationSummary);
+    return (recommendationSummaryByInstance.get(getVaultCommunityInstanceKey(item)) ?? [])
+      .some(hasPositiveRecommendationSummary);
   });
 }
 

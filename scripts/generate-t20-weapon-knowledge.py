@@ -2,8 +2,8 @@
 """生成 T20 单 CSV 武器推荐知识库。
 
 规则：
-- 来源 Hash 和 Manifest 版本只用于证明官方名称、Perk 和可用版本，不作为玩家推荐主键。
-- 正式 CSV 按官方武器名称汇总，一个武器名称 + 一个推荐来源一行，同名历史/高阶版本共用推荐池。
+- 来源 Hash 和 Manifest 版本用于证明官方身份、Perk 和可用版本，运行时仍允许同一英文身份跨版本匹配。
+- 正式 CSV 按官方英文武器身份汇总，一个武器身份 + 一个推荐来源一行；同一身份的历史/高阶版本共用推荐池，官方中文同名但英文身份不同的武器保持独立。
 - 玩家判断使用实例实际拥有的第三栏、第四栏 Perk；枪管、弹匣、大师和起源特性是加分条件。
 - 附加推荐只在部分同名版本中存在时保留并标注“部分版本具备”；所有同名版本都无法证明时标记为已忽略，不参与匹配。
 """
@@ -1189,6 +1189,13 @@ def load_lgpig(
             source_location = row.get("来源位置", "")
             source_key = f"starside:{source_location}"
             candidates, weapon_evidence = resolve_starside_weapon_candidates(manifest, row.get("武器", ""))
+            if exotic:
+                candidates = [
+                    item_hash
+                    for item_hash in candidates
+                    if int(((manifest.items.get(item_hash) or {}).get("inventory") or {}).get("tierType") or 0) == 6
+                ]
+                weapon_evidence["异域来源约束"] = "LGpig异域武器表只接受官方异域品质候选"
             if not candidates:
                 add_issue(
                     issues,
@@ -1750,13 +1757,11 @@ def collapse_family_optional_issues(
     issues: list[dict],
     records: list[SourceRecord],
 ) -> list[dict]:
-    """同名任一官方版本能证明的附加推荐不再按单一 Hash 报警。"""
+    """同一英文武器身份任一官方版本能证明的附加推荐不再按单一 Hash 报警。"""
     available: dict[tuple[str, str, str], set[str]] = defaultdict(set)
     family_hashes: dict[tuple[str, str], set[int]] = defaultdict(set)
     for record in records:
-        definition = manifest.items.get(record.item_hash) or {}
-        weapon_name = ((definition.get("displayProperties") or {}).get("name") or "")
-        key = (normalize(weapon_name), SOURCE_LABELS[record.source_id])
+        key = (weapon_family_key(manifest, record.item_hash), SOURCE_LABELS[record.source_id])
         family_hashes[key].add(record.item_hash)
         for label, values in [
             ("枪管", record.barrels),
@@ -1770,7 +1775,13 @@ def collapse_family_optional_issues(
         if issue["问题类型"] != "附加栏位无法精确映射":
             remaining.append(issue)
             continue
-        key = (normalize(issue["武器名称"]), issue["来源"])
+        candidate_families = unique(
+            weapon_family_key(manifest, int(value))
+            for value in re.findall(r"\d+", issue.get("候选武器ID", ""))
+            if int(value) in manifest.items
+        )
+        family_key = candidate_families[0] if len(candidate_families) == 1 else normalize(issue["武器名称"])
+        key = (family_key, issue["来源"])
         unresolved = []
         for value in issue["问题说明"].split("；"):
             label, separator, term = value.partition(":")

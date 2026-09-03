@@ -1,6 +1,6 @@
 import { summarizeItemPerks, type ItemPlugSummary } from "@d2-tools/core/items/perks";
 import { classifyWeaponRollSocket } from "@d2-tools/core/account/summary";
-import { resolveDimWishlistRuleMetadata } from "@d2-tools/core/analysis/wishlistImport";
+import { resolveDimWishlistRuleMetadata, type DimWishlist } from "@d2-tools/core/analysis/wishlistImport";
 import type {
   CommunityPerkSource,
   DimWishlistDiagnosticSlot,
@@ -15,19 +15,19 @@ import type {
 import { loadDimWishlist } from "../analysis/wishlistStore.js";
 
 export function createDimWishlistSource(dataDir: string): CommunityPerkSource {
+  const wishlist = safelyLoadDimWishlist(dataDir);
+  const rulesByItemHash = new Map<number, NonNullable<typeof wishlist>["rules"]>();
+  wishlist?.rules.forEach((rule) => {
+    const existing = rulesByItemHash.get(rule.item_hash);
+    if (existing) existing.push(rule);
+    else rulesByItemHash.set(rule.item_hash, [rule]);
+  });
   return {
     name: "DIM Wishlist",
-    isAvailable: () => {
-      try {
-        return loadDimWishlist(dataDir) !== null;
-      } catch {
-        return false;
-      }
-    },
+    isAvailable: () => wishlist !== null,
     async getRecommendations(itemHash: number, options: SourceOptions): Promise<WeaponRecommendation | null> {
-      const wishlist = loadDimWishlist(dataDir);
       if (!wishlist) return null;
-      const matchingRules = wishlist.rules.filter((rule) => rule.item_hash === itemHash);
+      const matchingRules = rulesByItemHash.get(itemHash) ?? [];
       if (!matchingRules.length) return null;
       const perkHashToRef = buildPerkRefMap(itemHash, options, matchingRules);
       const slotCatalog = buildWeaponSlotCatalog(itemHash, options);
@@ -60,6 +60,14 @@ export function createDimWishlistSource(dataDir: string): CommunityPerkSource {
       };
     }
   };
+}
+
+function safelyLoadDimWishlist(dataDir: string): DimWishlist | null {
+  try {
+    return loadDimWishlist(dataDir);
+  } catch {
+    return null;
+  }
 }
 
 type SlotCatalogEntry = {

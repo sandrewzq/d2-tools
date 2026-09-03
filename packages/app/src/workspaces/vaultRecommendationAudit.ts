@@ -17,19 +17,21 @@ export function buildVaultRecommendationAuditReport(input: VaultRecommendationAu
     match: input.instanceMatches.get(item.instance_id ?? `hash:${item.hash}`)
   }));
   const zeroRows = rows.flatMap(({ label, match }) => (match?.source_matches ?? []).flatMap((source) => (
-    source.state === "checked" && source.requirement_count > 0 && source.matched_requirement_count === 0
-      ? [`- ${label} · ${source.source_label} 0/${source.requirement_count}`]
+    source.requirement_count > 0
+      && source.matched_requirement_count === 0
+      && sourceUncheckableRequirementCount(source) === 0
+      ? [`- ${label} · ${source.source_label} · 0/${source.requirement_count} 栏符合`]
       : []
   )));
   const uncheckableRows = rows.flatMap(({ label, match }) => {
     const sourceRows = (match?.source_matches ?? []).flatMap((source) => (
-      source.state === "uncheckable"
-        ? [`- ${label} · ${source.source_label} · ${source.matched_requirement_count}/${source.requirement_count} 项已确认`]
+      sourceUncheckableRequirementCount(source) > 0
+        ? [`- ${label} · ${source.source_label} · Roll 数据异常，未完成栏位对照`]
         : []
     ));
     const dim = match?.dim_wishlist;
     return dim?.uncheckable_combo_count
-      ? [...sourceRows, `- ${label} · DIM · ${dim.uncheckable_combo_count}/${dim.combo_count} 组无法完整核对`]
+      ? [...sourceRows, `- ${label} · DIM · Roll 数据异常，${dim.uncheckable_combo_count} 组未完成对照`]
       : sourceRows;
   });
   const exoticRows = rows.filter(({ item }) => isExotic(item)).map(({ label, match }) => (
@@ -76,7 +78,7 @@ export function buildVaultRecommendationAuditReport(input: VaultRecommendationAu
     `0/y 来源要求（${zeroRows.length} 条）：`,
     ...(zeroRows.length ? zeroRows : ["- 无"]),
     "",
-    `无法核对（${uncheckableRows.length} 条）：`,
+    `Roll 数据异常（${uncheckableRows.length} 条）：`,
     ...(uncheckableRows.length ? uncheckableRows : ["- 无"]),
     "",
     `异域武器（${exoticRows.length} 件）：`,
@@ -88,6 +90,13 @@ export function buildVaultRecommendationAuditReport(input: VaultRecommendationAu
     "DIM 规则插槽诊断：",
     ...formatDimDiagnosticCounts(dimDiagnosticCounts)
   ].join("\n");
+}
+
+function sourceUncheckableRequirementCount(
+  source: NonNullable<VaultItemInstanceMatchInfo["source_matches"]>[number]
+): number {
+  return source.uncheckable_requirement_count
+    ?? source.slots.filter((slot) => slot.state === "uncheckable").length;
 }
 
 function formatCoverage(match: VaultItemInstanceMatchInfo): string {

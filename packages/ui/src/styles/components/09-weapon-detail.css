@@ -403,6 +403,7 @@ button.weapon-detail-perk:hover { border-color: var(--state-selected-border); ba
 .weapon-detail-recommendation header > a,
 .weapon-detail-recommendation header > span { color: var(--accent-primary); font-size: var(--font-meta); }
 .weapon-detail-source-quote { margin: 0; padding: 8px 9px; color: var(--text-body); background: var(--surface-interactive); font-size: var(--font-meta); line-height: 1.5; }
+.weapon-detail-source-quote.is-single-line { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .weapon-detail-match-grid { display: grid; grid-template-columns: 150px minmax(0, 1fr) minmax(0, 1fr); border-top: 1px solid var(--border-subtle); }
 .weapon-detail-match-grid > div { display: contents; }
 .weapon-detail-match-grid span,
