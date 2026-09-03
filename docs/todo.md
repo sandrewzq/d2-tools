@@ -8,7 +8,7 @@
 | 检查项 | 状态 | 备注 |
 |---|---|---|
 | GitHub CI | ⏳ push 后异步执行 | 执行 frozen install、`pnpm test`、共享 Shell 视觉契约、UI 合同静态门禁和构建后的 `pnpm typecheck:ci`；普通 push 不等待结果 |
-| Release 门禁 | ✅ 0.0.16 已发布 | 已通过 macOS 发布入口完成本地门禁、GitHub Actions、Windows NSIS 安装包和 GitHub Release |
+| Release 门禁 | ✅ 0.0.17 已发布 | 已通过 macOS 发布入口完成本地门禁、GitHub Actions、Windows NSIS 安装包和 GitHub Release |
 | Agent 自动验证 | ⛔ 默认禁用 | 只有用户明确要求本地测试、构建或打包时才执行 |
 
 ## 当前任务
