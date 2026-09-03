@@ -19,6 +19,8 @@ import {
   type VaultGroupFilter,
   type VaultGroupSummary,
   type VaultLockFilter,
+  type VaultLocationFilter,
+  type VaultLocationSummary,
   type VaultRarityFilter,
   type VaultSlotFilter,
   type VaultSlotSummary,
@@ -65,6 +67,7 @@ export function VaultFilterToolbar(props: {
   armorStatRules: VaultArmorStatRule[];
   lockFilter: VaultLockFilter;
   slotFilter: VaultSlotFilter;
+  locationFilter: VaultLocationFilter;
   ammoFilter: VaultAmmoFilter;
   itemTypeFilter: string;
   rarityFilter: VaultRarityFilter;
@@ -76,6 +79,7 @@ export function VaultFilterToolbar(props: {
   group: VaultGroupFilter;
   groups: VaultGroupSummary[];
   slotFilters: VaultSlotSummary[];
+  locationFilters: VaultLocationSummary[];
   itemTypeFilters: Array<{ key: string; label: string; count: number }>;
   armorSetFilters: VaultArmorSetOption[];
   armorSetCatalogStatus: VaultArmorSetCatalogStatus;
@@ -90,6 +94,7 @@ export function VaultFilterToolbar(props: {
   onUpdateArmorStatRule: (index: number, rule: VaultArmorStatRule) => void;
   onLockFilterChange: (value: VaultLockFilter) => void;
   onSlotFilterChange: (value: VaultSlotFilter) => void;
+  onLocationFilterChange: (value: VaultLocationFilter) => void;
   onAmmoFilterChange: (value: VaultAmmoFilter) => void;
   onItemTypeFilterChange: (value: string) => void;
   onRarityFilterChange: (value: VaultRarityFilter) => void;
@@ -133,7 +138,7 @@ export function VaultFilterToolbar(props: {
       </FilterSection>
 
       <FilterSection title={isArmorMode ? "护甲部位" : isWeaponMode ? "武器槽位" : "物品位置"} hint="单选">
-        <div className="vault-filter-option-grid vault-filter-slot-grid" role="group" aria-label="物品位置">
+        <div className="vault-filter-option-grid vault-filter-slot-grid" role="group" aria-label={isWeaponMode ? "武器槽位" : isArmorMode ? "护甲部位" : "物品位置"}>
           {visibleSlotFilters.map((item) => (
             <button type="button" key={item.key} aria-pressed={props.slotFilter === item.key} onClick={() => props.onSlotFilterChange(item.key)}>
               <span>{shortSlotLabel(item.label)}</span><small>{item.count}</small>
@@ -159,6 +164,18 @@ export function VaultFilterToolbar(props: {
           </div>
         ) : null}
       </FilterSection>
+
+      {isWeaponMode ? (
+        <FilterSection title="查看范围" hint="先选择这次要整理的武器">
+          <div className="vault-filter-option-grid vault-filter-location-grid" role="group" aria-label="武器查看范围">
+            {props.locationFilters.map((item) => (
+              <button type="button" key={item.key} aria-pressed={props.locationFilter === item.key} onClick={() => props.onLocationFilterChange(item.key)}>
+                <span>{item.label}</span><small>{item.count}</small>
+              </button>
+            ))}
+          </div>
+        </FilterSection>
+      ) : null}
 
       {isWeaponMode ? (
         <FilterSection title="武器条件" hint="真实实例字段">
@@ -254,7 +271,9 @@ export function VaultFilterToolbar(props: {
       <FilterSection title="整理状态" hint="玩家决定 · 单选">
         <div className="vault-filter-option-grid vault-disposition-grid" role="group" aria-label="玩家整理状态">
           {dispositionOptions.map((item) => (
-            <button type="button" key={item.key} aria-pressed={props.tagFilter === item.key} onClick={() => props.onTagFilterChange(item.key)}>{item.label}</button>
+            <button type="button" key={item.key} aria-pressed={props.tagFilter === item.key} onClick={() => props.onTagFilterChange(item.key)}>
+              {item.key === "untagged" && isWeaponMode ? "未整理" : item.label}
+            </button>
           ))}
         </div>
       </FilterSection>

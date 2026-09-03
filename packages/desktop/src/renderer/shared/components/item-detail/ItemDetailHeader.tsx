@@ -3,7 +3,7 @@ import type { SelectedItemDetail } from "../../hooks/useItemDetail";
 export function ItemDetailHeader(props: { selectedItem: SelectedItemDetail; onClose: () => void; showClose?: boolean }) {
   const selectedItem = props.selectedItem;
   const itemMeta = [
-    selectedItem.bucket_name,
+    selectedItem.equipment_bucket_name ?? selectedItem.bucket_name,
     selectedItem.item_type,
     selectedItem.tier
   ].filter(Boolean).join(" · ");

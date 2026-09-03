@@ -50,7 +50,7 @@ export function SharedItemDetailDialog(props: SharedItemDetailDialogProps) {
   const canonicalDescription = props.variant === "armor"
     ? "真实属性、获取来源、护甲配置、目标匹配、强化状态和账号实例"
     : props.variant === "weapon"
-      ? "查看当前 Roll、真实属性、获取来源、目标匹配和升级状态"
+      ? "查看当前 Roll、真实属性、获取来源、推荐 Roll 和升级状态"
       : "正在读取完整定义与装备状态";
 
   useEffect(() => {

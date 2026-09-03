@@ -9,7 +9,7 @@ import type {
 import { openRecommendationDatabase } from "./recommendationDatabase.js";
 
 const databaseFileName = "account-cache.sqlite";
-const matchAlgorithmVersion = 5;
+const matchAlgorithmVersion = 6;
 
 export type VaultRecommendationMatchCacheContext = {
   manifest_version: string;

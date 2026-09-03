@@ -240,9 +240,12 @@ export function createWeaponRecommendationKnowledgeSource(dataDir: string): Comm
       const perkMap = buildWeaponPerkMap(item_hash, options);
       const combos: PerkCombo[] = [];
       const weaponLevelRecommendations: NonNullable<WeaponRecommendation["weapon_level_recommendations"]> = [];
-      const sourceRecords = matching.map((recommendation) => buildSourceRecord(recommendation, perkMap));
-      const resolvedSourceLabels = new Set(matching.map((recommendation) => recommendation.source_label));
-      for (const recommendation of matching) {
+      // DIM Voltron 必须由原生 Wishlist 解析器保留一行一个完整组合。
+      // CSV 中的 dim_voltron 行只是阅读汇总，不能把多个组合候选池重新拼成 Roll。
+      const matchableRecommendations = matching.filter((recommendation) => recommendation.source_id !== "dim_voltron");
+      const sourceRecords = matchableRecommendations.map((recommendation) => buildSourceRecord(recommendation, perkMap));
+      const resolvedSourceLabels = new Set(matchableRecommendations.map((recommendation) => recommendation.source_label));
+      for (const recommendation of matchableRecommendations) {
         const perk1Names = recommendation.requirements.perk1;
         const perk2Names = recommendation.requirements.perk2;
         if (perk1Names.length === 0 && perk2Names.length === 0) {
@@ -288,7 +291,7 @@ export function createWeaponRecommendationKnowledgeSource(dataDir: string): Comm
         ...(combos.length ? { individual_perks: uniquePerks(combos) } : {}),
         ...(weaponLevelRecommendations.length ? { weapon_level_recommendations: weaponLevelRecommendations } : {}),
         source_records: sourceRecords,
-        sample_size: matching.length,
+        sample_size: matchableRecommendations.length,
         source_label: [...resolvedSourceLabels].join(" / "),
         disclaimer: "来自应用内置的本地武器推荐知识库，推荐按官方武器身份汇总，并以当前实例实际 Perk 判断。"
       };

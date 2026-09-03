@@ -1638,6 +1638,7 @@
 }
 
 :where(.app-shell) .vault-evidence-source-match[data-match-state="not-covered"] {
+  --vault-recommendation-accent: var(--status-neutral);
   color: var(--text-muted);
 }
 
@@ -1659,8 +1660,11 @@
 
 :where(.app-shell) .vault-evidence-source-match {
   display: block;
+  position: relative;
   min-width: 0;
+  padding-left: 12px;
   overflow: hidden;
+  --vault-recommendation-accent: var(--status-neutral);
   color: var(--text-body);
   font-size: var(--font-caption);
   line-height: 16px;
@@ -1668,12 +1672,41 @@
   white-space: nowrap;
 }
 
-:where(.app-shell) .vault-evidence-source-match[data-match-state="matched"] {
+:where(.app-shell) .vault-evidence-source-match::before {
+  position: absolute;
+  top: 50%;
+  left: 1px;
+  width: 6px;
+  height: 6px;
+  border: 1px solid var(--vault-recommendation-accent);
+  border-radius: var(--radius-indicator);
+  background: var(--vault-recommendation-accent);
+  content: "";
+  transform: translateY(-50%);
+}
+
+:where(.app-shell) .vault-evidence-source-match[data-match-state="full"] {
+  --vault-recommendation-accent: var(--status-ready);
   color: var(--status-ready);
 }
 
-:where(.app-shell) .vault-evidence-source-match[data-match-state="uncheckable"] {
+:where(.app-shell) .vault-evidence-source-match[data-match-state="partial"] {
+  --vault-recommendation-accent: var(--status-warning);
   color: var(--status-warning);
+}
+
+:where(.app-shell) .vault-evidence-source-match[data-match-state="different"] {
+  --vault-recommendation-accent: var(--status-error);
+  color: var(--status-error);
+}
+
+:where(.app-shell) .vault-evidence-source-match[data-match-state="uncheckable"] {
+  --vault-recommendation-accent: var(--status-pending);
+  color: var(--status-pending);
+}
+
+:where(.app-shell) .vault-evidence-source-match[data-match-state="uncheckable"]::before {
+  background: transparent;
 }
 
 :where(.app-shell) .vault-evidence-result-sources > small,
@@ -2494,15 +2527,6 @@
   align-content: start;
 }
 
-:where(.app-shell) .vault-results-column .vault-item-weapons.has-source-summary {
-  min-height: 118px;
-}
-
-:where(.app-shell) .vault-results-column .vault-item-weapons.has-source-summary .vault-card-main {
-  grid-template-rows: var(--item-thumb) 20px auto 20px;
-  min-height: 107px;
-}
-
 :where(.app-shell) .vault-results-column .vault-weapon-identity,
 :where(.app-shell) .vault-results-column .vault-armor-identity {
   display: grid;
@@ -2728,25 +2752,6 @@
   padding-top: 2px;
   border-top: 1px solid var(--section-divider);
   text-align: left;
-}
-
-:where(.app-shell) .vault-results-column .vault-weapon-source-chip {
-  display: block;
-  min-width: 0;
-  overflow: hidden;
-  color: var(--text-muted);
-  font-size: var(--font-micro);
-  line-height: 13px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-:where(.app-shell) .vault-results-column .vault-weapon-source-chip[data-match-state="matched"] {
-  color: var(--status-ready);
-}
-
-:where(.app-shell) .vault-results-column .vault-weapon-source-chip[data-match-state="uncheckable"] {
-  color: var(--status-warning);
 }
 
 :where(.app-shell) .vault-results-column .vault-card-power {
@@ -3942,51 +3947,64 @@
   }
 }
 
-/* 武器结果使用可读宽度；护甲继续沿用既有高密度列数。 */
-:where(.app-shell) .vault-results-column .vault-card-grid.vault-card-grid-weapons,
-:where(.app-shell) .vault-results-column .vault-card-grid.vault-card-grid-mixed {
-  grid-template-columns: repeat(auto-fill, minmax(min(220px, 100%), 1fr));
-  gap: 8px;
-  padding: 10px 12px;
+/* 武器结果使用固定几何结构，护甲与混合视图继续沿用既有布局。 */
+:where(.app-shell) .vault-results-column .vault-card-grid.vault-card-grid-weapons {
+  grid-template-columns: repeat(auto-fill, minmax(min(264px, 100%), 1fr));
+  gap: 10px;
+  padding: 12px;
 }
 
 :where(.app-shell) .vault-results-column .vault-item-card.vault-item-weapons {
   --item-thumb: 52px;
+  box-sizing: border-box;
   height: 184px;
   min-height: 184px;
-  padding: 9px 8px 7px;
-  content-visibility: auto;
-  contain-intrinsic-size: 220px 150px;
+  padding: 8px 10px;
+  border-color: var(--object-border);
+  background: var(--card-bg);
+  box-shadow: none;
 }
 
-:where(.app-shell) .vault-results-column .vault-item-weapons.has-source-summary {
-  min-height: 184px;
+:where(.app-shell) .vault-results-column .vault-item-card.vault-item-weapons:hover {
+  border-color: var(--state-selected-border);
+  background: var(--item-bg-hover);
+}
+
+:where(.app-shell) .vault-results-column .vault-item-card.vault-item-weapons:has(.vault-card-main:focus-visible) {
+  border-color: var(--focus-ring);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--focus-ring) 32%, transparent);
 }
 
 :where(.app-shell) .vault-results-column .vault-item-weapons .vault-card-main {
-  grid-template-rows: auto 24px 22px;
-  gap: 6px;
-  min-height: 132px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: 52px 22px 62px 18px;
+  gap: 4px;
+  width: 100%;
+  min-height: 0;
+  height: 100%;
   align-content: start;
+  align-items: stretch;
   justify-items: stretch;
   text-align: left;
 }
 
-:where(.app-shell) .vault-results-column .vault-item-weapons.has-source-summary .vault-card-main {
-  grid-template-rows: auto 24px auto 22px;
-  min-height: 132px;
+:where(.app-shell) .vault-results-column .vault-item-weapons .vault-card-main:focus-visible {
+  outline: 0;
 }
 
 :where(.app-shell) .vault-results-column .vault-item-weapons .vault-weapon-identity {
-  gap: 9px;
+  grid-template-columns: var(--item-thumb) minmax(0, 1fr);
+  gap: 10px;
   align-items: start;
 }
 
 :where(.app-shell) .vault-results-column .vault-item-weapons .vault-weapon-copy {
-  grid-template-rows: auto 15px 15px;
-  gap: 1px;
-  align-content: start;
+  display: grid;
+  grid-template-rows: minmax(32px, auto) 16px;
+  gap: 2px;
   min-height: var(--item-thumb);
+  align-content: start;
 }
 
 :where(.app-shell) .vault-results-column .vault-item-weapons .vault-weapon-copy strong {
@@ -4002,13 +4020,18 @@
 }
 
 :where(.app-shell) .vault-results-column .vault-item-weapons .vault-weapon-copy span {
+  overflow: hidden;
+  color: var(--text-muted);
   font-size: var(--font-caption);
-  line-height: 15px;
+  line-height: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 :where(.app-shell) .vault-results-column .vault-item-weapons .vault-weapon-fact-row {
-  gap: 7px;
-  padding-top: 5px;
+  gap: 10px;
+  padding: 0;
+  border-top: 0;
 }
 
 :where(.app-shell) .vault-results-column .vault-item-weapons .vault-weapon-fact > span:last-child,
@@ -4017,53 +4040,173 @@
 }
 
 :where(.app-shell) .vault-results-column .vault-item-weapons .vault-weapon-source-summary {
-  gap: 3px;
-  padding-top: 5px;
+  display: grid;
+  grid-template-rows: 16px minmax(0, 1fr);
+  gap: 2px;
+  width: 100%;
+  min-width: 0;
+  padding: 3px 7px;
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-frame);
+  background: var(--surface-recessed);
+  text-align: left;
 }
 
-:where(.app-shell) .vault-results-column .vault-item-weapons .vault-weapon-source-chip,
-:where(.app-shell) .vault-results-column .vault-item-weapons .vault-weapon-source-more {
+:where(.app-shell) .vault-results-column .vault-item-weapons .vault-weapon-source-head {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--text-body);
+  font-size: var(--font-caption);
+  font-weight: 700;
+  line-height: 16px;
+}
+
+:where(.app-shell) .vault-results-column .vault-item-weapons .vault-weapon-source-head small {
+  color: var(--text-muted);
+  font-size: var(--font-micro);
+  font-weight: 400;
+  line-height: 16px;
+}
+
+:where(.app-shell) .vault-results-column .vault-item-weapons .vault-weapon-source-list {
+  display: grid;
+  grid-auto-rows: 17px;
+  min-width: 0;
+  align-content: start;
+}
+
+:where(.app-shell) .vault-results-column .vault-item-weapons .vault-weapon-source-row {
+  display: grid;
+  grid-template-columns: 7px minmax(0, 1fr) auto;
+  gap: 6px;
+  min-width: 0;
+  align-items: center;
+  --vault-recommendation-accent: var(--status-neutral);
+  color: var(--text-muted);
+  font-size: var(--font-caption);
+  line-height: 17px;
+}
+
+:where(.app-shell) .vault-results-column .vault-item-weapons .vault-weapon-source-row::before {
+  width: 6px;
+  height: 6px;
+  border: 1px solid var(--vault-recommendation-accent);
+  border-radius: var(--radius-indicator);
+  background: var(--vault-recommendation-accent);
+  content: "";
+}
+
+:where(.app-shell) .vault-results-column .vault-item-weapons .vault-weapon-source-row > span,
+:where(.app-shell) .vault-results-column .vault-item-weapons .vault-weapon-source-row > strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+:where(.app-shell) .vault-results-column .vault-item-weapons .vault-weapon-source-row > strong {
+  color: var(--vault-recommendation-accent);
+  font-size: var(--font-caption);
+  font-variant-numeric: tabular-nums;
+}
+
+:where(.app-shell) .vault-results-column .vault-item-weapons .vault-weapon-source-row[data-match-state="full"] {
+  --vault-recommendation-accent: var(--status-ready);
+}
+
+:where(.app-shell) .vault-results-column .vault-item-weapons .vault-weapon-source-row[data-match-state="partial"] {
+  --vault-recommendation-accent: var(--status-warning);
+}
+
+:where(.app-shell) .vault-results-column .vault-item-weapons .vault-weapon-source-row[data-match-state="different"] {
+  --vault-recommendation-accent: var(--status-error);
+}
+
+:where(.app-shell) .vault-results-column .vault-item-weapons .vault-weapon-source-row[data-match-state="uncheckable"] {
+  --vault-recommendation-accent: var(--status-pending);
+}
+
+:where(.app-shell) .vault-results-column .vault-item-weapons .vault-weapon-source-row[data-match-state="uncheckable"]::before {
+  background: transparent;
+}
+
+:where(.app-shell) .vault-results-column .vault-item-weapons .vault-weapon-source-empty {
   display: block;
   min-width: 0;
   overflow: hidden;
   color: var(--text-muted);
   font-size: var(--font-caption);
-  line-height: 15px;
+  line-height: 17px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-:where(.app-shell) .vault-results-column .vault-item-weapons .vault-weapon-source-more {
-  color: var(--text-body);
-}
-
 :where(.app-shell) .vault-results-column .vault-item-weapons .vault-weapon-status {
-  padding-top: 5px;
+  padding: 0;
+  border-top: 0;
 }
 
-:where(.app-shell[data-density="compact"]) .vault-results-column .vault-card-grid.vault-card-grid-weapons,
-:where(.app-shell[data-density="compact"]) .vault-results-column .vault-card-grid.vault-card-grid-mixed {
-  grid-template-columns: repeat(auto-fill, minmax(min(180px, 100%), 1fr));
-  gap: 5px;
-  padding: 8px 10px;
+:where(.app-shell) .vault-results-column .vault-item-weapons .vault-weapon-location-state {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 6px;
+}
+
+:where(.app-shell) .vault-results-column .vault-item-weapons .vault-weapon-location {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-body);
+  font-size: var(--font-caption);
+  font-weight: 600;
+  line-height: 18px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+:where(.app-shell) .vault-results-column .vault-item-weapons .vault-weapon-unmarked {
+  color: var(--text-muted);
+  font-size: var(--font-micro);
+  line-height: 18px;
+}
+
+:where(.app-shell[data-density="compact"]) .vault-results-column .vault-card-grid.vault-card-grid-weapons {
+  grid-template-columns: repeat(auto-fill, minmax(min(224px, 100%), 1fr));
+  gap: 7px;
+  padding: 9px 10px;
 }
 
 :where(.app-shell[data-density="compact"]) .vault-results-column .vault-item-card.vault-item-weapons {
-  --item-thumb: 44px;
-  height: 172px;
-  min-height: 172px;
-  padding: 7px 6px 6px;
+  --item-thumb: 48px;
+  height: 176px;
+  min-height: 176px;
+  padding: 7px 8px;
 }
 
-:where(.app-shell[data-density="comfortable"]) .vault-results-column .vault-card-grid.vault-card-grid-weapons,
-:where(.app-shell[data-density="comfortable"]) .vault-results-column .vault-card-grid.vault-card-grid-mixed {
-  grid-template-columns: repeat(auto-fill, minmax(min(248px, 100%), 1fr));
+:where(.app-shell[data-density="compact"]) .vault-results-column .vault-item-weapons .vault-card-main {
+  grid-template-rows: 48px 20px 60px 18px;
+  gap: 3px;
+}
+
+:where(.app-shell[data-density="comfortable"]) .vault-results-column .vault-card-grid.vault-card-grid-weapons {
+  grid-template-columns: repeat(auto-fill, minmax(min(296px, 100%), 1fr));
+  gap: 12px;
 }
 
 :where(.app-shell[data-density="comfortable"]) .vault-results-column .vault-item-card.vault-item-weapons {
-  --item-thumb: 56px;
+  --item-thumb: 58px;
   height: 190px;
   min-height: 190px;
+  padding: 9px 11px;
+}
+
+:where(.app-shell[data-density="comfortable"]) .vault-results-column .vault-item-weapons .vault-card-main {
+  grid-template-rows: 58px 22px 60px 18px;
+  gap: 4px;
 }
 
 :where(.app-shell) .vault-results-column .vault-virtual-cell {

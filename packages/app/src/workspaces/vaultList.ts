@@ -8,6 +8,15 @@ import type { VaultTags, VaultTagValue } from "@d2-tools/core/vault/tags";
 
 export type VaultGroupFilter = EquipmentGroupKey | "all";
 export type VaultSlotFilter = string | "all";
+export type VaultLocationFilter = "vault" | "current_carry" | "all" | "current_inventory" | "current_equipped" | "current_postmaster" | "other_characters";
+export type VaultItemSourceKind = "equipped" | "inventory" | "vault" | "postmaster";
+export type VaultLocatedItem = AccountItemSummary & {
+  source_character_id?: string;
+  source_kind: VaultItemSourceKind;
+  source_label: string;
+  is_vault_item?: boolean;
+  is_postmaster_item?: boolean;
+};
 export type VaultAmmoFilter = AmmoTypeKey | "all";
 export type VaultArmorStatFilter = ArmorStatKey | "total" | "all";
 export type VaultSortKey = "name" | "group" | "tier" | "power" | "armor-total" | ArmorStatKey;
@@ -31,6 +40,8 @@ export type VaultFilter = {
   tag?: VaultTagFilter;
   lock?: VaultLockFilter;
   slot?: VaultSlotFilter;
+  location?: VaultLocationFilter;
+  currentCharacterId?: string;
   ammo?: VaultAmmoFilter;
   itemType?: string;
   rarity?: VaultRarityFilter;
@@ -60,6 +71,12 @@ export type VaultGroupSummary = {
 
 export type VaultSlotSummary = {
   key: VaultSlotFilter;
+  label: string;
+  count: number;
+};
+
+export type VaultLocationSummary = {
+  key: VaultLocationFilter;
   label: string;
   count: number;
 };
@@ -107,6 +124,16 @@ export const vaultGroupLabels: Record<VaultGroupFilter, string> = {
 
 export const vaultGroupOrder: VaultGroupFilter[] = ["all", "weapons", "armor", "equipment", "other"];
 export const defaultVaultGroupTab: VaultGroupFilter = "weapons";
+
+export const locationFilterLabels: Record<VaultLocationFilter, string> = {
+  vault: "仓库整理",
+  current_carry: "随身待检查",
+  all: "全账号武器",
+  current_inventory: "当前背包",
+  current_equipped: "当前已装备",
+  current_postmaster: "当前邮政官",
+  other_characters: "其他角色"
+};
 
 export const tagLabels: Record<VaultTagFilter, string> = {
   all: "全部标记",
@@ -235,6 +262,7 @@ export function createVaultListWorkspace(input: {
       tagFilter: filter.tag ?? "all",
       lockFilter: filter.lock ?? "all",
       slotFilter: filter.slot ?? "all",
+      locationFilter: filter.location ?? "all",
       ammoFilter: filter.ammo ?? "all",
       itemTypeFilter: filter.itemType ?? "all",
       rarityFilter: filter.rarity ?? "all",
@@ -269,6 +297,7 @@ export function filterVaultItems(items: AccountItemSummary[], filter: VaultFilte
     if (!matchesArmorStatRules(item, filter.armorStatRules ?? [])) return false;
     if (!matchesLock(item, filter.lock ?? "all")) return false;
     if (!matchesSlot(item, filter.slot ?? "all")) return false;
+    if (!matchesLocation(item, filter.location ?? "all", filter.currentCharacterId)) return false;
     if (!matchesAmmo(item, filter.ammo ?? "all")) return false;
     if (!matchesItemType(item, filter.itemType ?? "all")) return false;
     if (!matchesRarity(item, filter.rarity ?? "all")) return false;
@@ -287,6 +316,8 @@ export function filterVaultItems(items: AccountItemSummary[], filter: VaultFilte
       item.item_type,
       item.tier,
       item.bucket_name,
+      item.equipment_bucket_name,
+      getVaultItemLocationLabel(item),
       item.armor_set?.name,
       item.weapon_frame?.name,
       formatArmorStatsInline(item),
@@ -352,6 +383,20 @@ export function buildVaultSlotFilters(items: AccountItemSummary[]): VaultSlotSum
       count: section.count
     }))
   ];
+}
+
+export function buildVaultLocationFilters(
+  items: readonly AccountItemSummary[],
+  currentCharacterId?: string
+): VaultLocationSummary[] {
+  const weapons = items.filter((item) => item.group_key === "weapons");
+  return (Object.keys(locationFilterLabels) as VaultLocationFilter[]).map((key) => ({
+    key,
+    label: locationFilterLabels[key],
+    count: key === "all"
+      ? weapons.length
+      : weapons.filter((item) => matchesLocation(item, key, currentCharacterId)).length
+  }));
 }
 
 export function buildVaultFrameFilters(items: AccountItemSummary[]): VaultFrameOption[] {
@@ -461,6 +506,7 @@ export function buildVaultContextFacts(input: {
   tagFilter: VaultTagFilter;
   lockFilter: VaultLockFilter;
   slotFilter: VaultSlotFilter;
+  locationFilter?: VaultLocationFilter;
   ammoFilter: VaultAmmoFilter;
   itemTypeFilter?: string;
   rarityFilter?: VaultRarityFilter;
@@ -477,13 +523,14 @@ export function buildVaultContextFacts(input: {
   const parsedQuery = parseVaultQuery(input.query);
   const filters = [
     vaultGroupLabels[input.group],
-    parsedQuery.tag ? `查询标签：${tagLabels[parsedQuery.tag]}` : "",
+    parsedQuery.tag ? `查询标签：${vaultTagFilterLabel(parsedQuery.tag, input.group)}` : "",
     parsedQuery.locked !== undefined ? `查询锁定：${parsedQuery.locked ? lockFilterLabels.locked : lockFilterLabels.unlocked}` : "",
     parsedQuery.type ? `查询类型：${vaultGroupLabels[parsedQuery.type]}` : "",
     parsedQuery.text.trim() ? `搜索：${parsedQuery.text.trim()}` : "",
-    input.tagFilter !== "all" ? tagLabels[input.tagFilter] : "",
+    input.tagFilter !== "all" ? vaultTagFilterLabel(input.tagFilter, input.group) : "",
     input.lockFilter !== "all" ? lockFilterLabels[input.lockFilter] : "",
     input.slotFilter !== "all" ? `位置：${input.slotFilter}` : "",
+    input.locationFilter && input.locationFilter !== "all" ? `所在位置：${locationFilterLabels[input.locationFilter]}` : "",
     input.ammoFilter !== "all" ? ammoFilterLabels[input.ammoFilter] : "",
     input.itemTypeFilter && input.itemTypeFilter !== "all" ? `类型：${input.itemTypeFilter}` : "",
     input.rarityFilter && input.rarityFilter !== "all" ? `稀有度：${rarityFilterLabels[input.rarityFilter]}` : "",
@@ -500,12 +547,20 @@ export function buildVaultContextFacts(input: {
   ];
 }
 
+function vaultTagFilterLabel(tag: VaultTagFilter, group: VaultGroupFilter): string {
+  return tag === "untagged" && group === "weapons" ? "未整理" : tagLabels[tag];
+}
+
 export function getVaultItemKey(item: AccountItemSummary): string {
   return item.instance_id ?? `hash:${item.hash}`;
 }
 
 export function getAccountItemSlotLabel(item: AccountItemSummary): string {
-  return item.bucket_name?.trim() || inferOtherSlotName(item);
+  return item.equipment_bucket_name?.trim() || item.bucket_name?.trim() || inferOtherSlotName(item);
+}
+
+export function getVaultItemLocationLabel(item: AccountItemSummary): string {
+  return isVaultLocatedItem(item) ? item.source_label : "仓库";
 }
 
 export function formatArmorStatsInline(item: AccountItemSummary): string | undefined {
@@ -631,6 +686,35 @@ function matchesLock(item: AccountItemSummary, lock: VaultLockFilter): boolean {
 
 function matchesSlot(item: AccountItemSummary, slot: VaultSlotFilter): boolean {
   return slot === "all" || getAccountItemSlotLabel(item) === slot;
+}
+
+function matchesLocation(
+  item: AccountItemSummary,
+  location: VaultLocationFilter,
+  currentCharacterId?: string
+): boolean {
+  if (location === "all") return true;
+  const sourceKind = isVaultLocatedItem(item) ? item.source_kind : "vault";
+  const sourceCharacterId = isVaultLocatedItem(item) ? item.source_character_id : undefined;
+  if (location === "vault") return sourceKind === "vault";
+  if (location === "current_carry") {
+    return (sourceKind === "inventory" || sourceKind === "postmaster")
+      && sourceCharacterId === currentCharacterId;
+  }
+  if (location === "current_inventory") {
+    return sourceKind === "inventory" && sourceCharacterId === currentCharacterId;
+  }
+  if (location === "current_equipped") {
+    return sourceKind === "equipped" && sourceCharacterId === currentCharacterId;
+  }
+  if (location === "current_postmaster") {
+    return sourceKind === "postmaster" && sourceCharacterId === currentCharacterId;
+  }
+  return sourceKind !== "vault" && Boolean(sourceCharacterId) && sourceCharacterId !== currentCharacterId;
+}
+
+function isVaultLocatedItem(item: AccountItemSummary): item is VaultLocatedItem {
+  return "source_kind" in item && typeof item.source_kind === "string" && "source_label" in item;
 }
 
 function matchesAmmo(item: AccountItemSummary, ammo: VaultAmmoFilter): boolean {

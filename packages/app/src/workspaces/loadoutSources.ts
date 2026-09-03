@@ -69,7 +69,7 @@ function isTemplateSourceMatch(
   }
 
   return candidate.hash === item.hash
-    && (!item.bucket_name || candidate.bucket_name === item.bucket_name);
+    && (!item.bucket_name || getItemEquipmentBucketName(candidate) === item.bucket_name);
 }
 
 function scoreTemplateSourceCandidate(
@@ -81,7 +81,7 @@ function scoreTemplateSourceCandidate(
 
   if (item.instance_id && candidate.instance_id && item.instance_id === candidate.instance_id) {
     score += 100;
-  } else if (candidate.hash === item.hash && candidate.bucket_name === item.bucket_name) {
+  } else if (candidate.hash === item.hash && getItemEquipmentBucketName(candidate) === item.bucket_name) {
     score += 20;
   } else if (candidate.hash === item.hash) {
     score += 10;
@@ -99,4 +99,8 @@ function scoreTemplateSourceCandidate(
   };
 
   return score + sourceScores[candidate.source_kind];
+}
+
+function getItemEquipmentBucketName(item: AccountItemSummary): string | undefined {
+  return item.equipment_bucket_name ?? item.bucket_name;
 }

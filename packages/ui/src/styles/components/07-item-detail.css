@@ -184,6 +184,10 @@
 
 .equipment-detail-context-ledger > div:nth-child(3),
 .equipment-detail-context-ledger > div:last-child { border-right: 0; }
+.equipment-detail-context-ledger.has-slot-fact { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.equipment-detail-context-ledger.has-slot-fact > div:nth-child(3) { border-right: 1px solid var(--section-divider); }
+.equipment-detail-context-ledger.has-slot-fact > div:nth-child(even) { border-right: 0; }
+.equipment-detail-context-ledger.has-slot-fact > div:nth-child(n + 3) { border-top: 1px solid var(--section-divider); }
 .equipment-detail-context-ledger dt { flex: 0 0 auto; color: var(--muted); font-size: 12px; }
 .equipment-detail-context-ledger dd { display: inline-flex; min-width: 0; align-items: center; gap: 5px; margin: 0; overflow-wrap: anywhere; color: var(--text); font-size: 12px; font-weight: 600; }
 

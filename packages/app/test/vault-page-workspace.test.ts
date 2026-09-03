@@ -8,8 +8,8 @@ describe("vault page workspace", () => {
     const model = selectVaultPageModel({
       account: {
         characters: [
-          { character_id: "char-1", class_name: "猎人" },
-          { character_id: "char-2", class_name: "术士" }
+          { character_id: "char-1", class_name: "猎人", equipped_items: [], inventory_items: [], postmaster_items: [] },
+          { character_id: "char-2", class_name: "术士", equipped_items: [], inventory_items: [], postmaster_items: [] }
         ],
         vault: {
           item_count: 25,

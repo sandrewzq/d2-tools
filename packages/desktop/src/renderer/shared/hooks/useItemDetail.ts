@@ -376,6 +376,7 @@ function mergeAccountItemDetail(
     item_objectives: detail.item_objectives,
     catalyst: detail.catalyst,
     sockets: detail.sockets,
+    weapon_roll: detail.weapon_roll ?? current.weapon_roll,
     socket_plugs: detail.socket_plugs,
     group_key: detail.group_key,
     bucket_hash: detail.bucket_hash,

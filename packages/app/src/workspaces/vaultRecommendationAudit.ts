@@ -20,18 +20,18 @@ export function buildVaultRecommendationAuditReport(input: VaultRecommendationAu
     source.requirement_count > 0
       && source.matched_requirement_count === 0
       && sourceUncheckableRequirementCount(source) === 0
-      ? [`- ${label} · ${source.source_label} · 0/${source.requirement_count} 栏符合`]
+      ? [`- ${label} · ${source.source_label} · 未符合（0/${source.requirement_count} 项）`]
       : []
   )));
   const uncheckableRows = rows.flatMap(({ label, match }) => {
     const sourceRows = (match?.source_matches ?? []).flatMap((source) => (
       sourceUncheckableRequirementCount(source) > 0
-        ? [`- ${label} · ${source.source_label} · Roll 数据异常，未完成栏位对照`]
+        ? [`- ${label} · ${source.source_label} · 数据不完整，未完成推荐项核对`]
         : []
     ));
     const dim = match?.dim_wishlist;
     return dim?.uncheckable_combo_count
-      ? [...sourceRows, `- ${label} · DIM · Roll 数据异常，${dim.uncheckable_combo_count} 组未完成对照`]
+      ? [...sourceRows, `- ${label} · DIM · 数据不完整，${dim.uncheckable_combo_count} 套推荐未完成核对`]
       : sourceRows;
   });
   const exoticRows = rows.filter(({ item }) => isExotic(item)).map(({ label, match }) => (
@@ -75,10 +75,10 @@ export function buildVaultRecommendationAuditReport(input: VaultRecommendationAu
     "结构化依赖状态：",
     ...(issueRows.length ? issueRows : ["- 无"]),
     "",
-    `0/y 来源要求（${zeroRows.length} 条）：`,
+    `未符合的来源要求（${zeroRows.length} 条）：`,
     ...(zeroRows.length ? zeroRows : ["- 无"]),
     "",
-    `Roll 数据异常（${uncheckableRows.length} 条）：`,
+    `Roll 数据不完整（${uncheckableRows.length} 条）：`,
     ...(uncheckableRows.length ? uncheckableRows : ["- 无"]),
     "",
     `异域武器（${exoticRows.length} 件）：`,
@@ -101,7 +101,7 @@ function sourceUncheckableRequirementCount(
 
 function formatCoverage(match: VaultItemInstanceMatchInfo): string {
   const dim = match.dim_wishlist
-    ? `；DIM ${match.dim_wishlist.matched_combo_count}/${match.dim_wishlist.combo_count} 组`
+    ? `；DIM 符合 ${match.dim_wishlist.matched_combo_count}/${match.dim_wishlist.combo_count} 套推荐`
     : "";
   return `${match.coverage === "covered" ? "有来源覆盖" : "无来源覆盖"}；${match.source_matches?.length ?? 0} 个知识库来源${dim}`;
 }

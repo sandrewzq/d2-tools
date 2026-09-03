@@ -17,6 +17,7 @@ import {
   buildVaultContextFacts,
   buildVaultFrameFilters,
   buildVaultGroups,
+  buildVaultLocationFilters,
   buildVaultSections,
   buildVaultSlotFilters,
   applyVisibleVaultSelection,
@@ -27,6 +28,7 @@ import {
   filterVaultItems,
   gearTierFilterLabels,
   lockFilterLabels,
+  locationFilterLabels,
   normalizeCoreItem,
   rarityFilterLabels,
   getVaultSelectionItemKey,
@@ -43,6 +45,7 @@ import {
   type VaultGearTierFilter,
   type VaultGroupFilter,
   type VaultLockFilter,
+  type VaultLocationFilter,
   type VaultRarityFilter,
   type VaultSlotFilter,
   type VaultSortKey,
@@ -85,6 +88,11 @@ const vaultWorkspaceTabs: Array<{ key: VaultWorkspaceTab; label: string }> = [
   { key: "recommendations", label: "推荐与目标" },
   { key: "duplicates", label: "同名整理" }
 ];
+const emptyDuplicateSummary: ReturnType<typeof buildVaultDuplicateSummary> = {
+  total_duplicate_groups: 0,
+  total_duplicate_items: 0,
+  groups: []
+};
 
 const DormantVaultWorkspacePanel = memo(function DormantVaultWorkspacePanel(props: {
   active: boolean;
@@ -111,6 +119,7 @@ const DormantVaultWorkspacePanel = memo(function DormantVaultWorkspacePanel(prop
 
 export function VaultPageContentView(props: {
   items: AccountItemSummary[];
+  currentCharacterId?: string;
   armorSetCatalog: ArmorSetCatalogItem[];
   armorSetCatalogStatus: VaultArmorSetCatalogStatus;
   accountResourceStatus?: VaultAccountResourceStatus;
@@ -145,6 +154,7 @@ export function VaultPageContentView(props: {
   const [signalFilters, setSignalFilters] = useState<VaultSignalFilter[]>([]);
   const [lockFilter, setLockFilter] = useState<VaultLockFilter>("all");
   const [slotFilter, setSlotFilter] = useState<VaultSlotFilter>("all");
+  const [locationFilter, setLocationFilter] = useState<VaultLocationFilter>("vault");
   const [ammoFilter, setAmmoFilter] = useState<VaultAmmoFilter>("all");
   const [itemTypeFilter, setItemTypeFilter] = useState("all");
   const [rarityFilter, setRarityFilter] = useState<VaultRarityFilter>("all");
@@ -204,7 +214,7 @@ export function VaultPageContentView(props: {
     if (!props.locateRequest) return;
     setQuery(String(props.locateRequest.hash));
     setGroup("weapons");
-    resetFilterState(false);
+    resetFilterState(false, "all");
     setActiveVaultTab("filters");
   }, [props.locateRequest?.requestId]);
 
@@ -228,6 +238,8 @@ export function VaultPageContentView(props: {
         tag: tagFilter,
         lock: lockFilter,
         slot: slotFilter,
+        location: locationFilter,
+        currentCharacterId: props.currentCharacterId,
         ammo: ammoFilter,
         itemType: itemTypeFilter,
         rarity: rarityFilter,
@@ -244,7 +256,7 @@ export function VaultPageContentView(props: {
       sortKey,
       props.tags
     ),
-    [ammoFilter, armorSetFilter, armorStatRules, classFilter, damageFilter, deferredQuery, frameFilters, gearTierFilter, group, itemTypeFilter, lockFilter, props.items, props.localTargetRules, props.tags, props.wishlist, rarityFilter, slotFilter, sortKey, tagFilter]
+    [ammoFilter, armorSetFilter, armorStatRules, classFilter, damageFilter, deferredQuery, frameFilters, gearTierFilter, group, itemTypeFilter, locationFilter, lockFilter, props.currentCharacterId, props.items, props.localTargetRules, props.tags, props.wishlist, rarityFilter, slotFilter, sortKey, tagFilter]
   );
   const filteredItems = useMemo(
     () => filteredVaultItems.filter((item) => matchesSignalFilters(
@@ -259,14 +271,19 @@ export function VaultPageContentView(props: {
     () => props.items.filter((item) => selectedKeys.has(getVaultSelectionItemKey(item))),
     [props.items, selectedKeys]
   );
+  const selectedVaultItems = useMemo(
+    () => selectedItems.filter((item) => getItemSourceKind(item) === "vault"),
+    [selectedItems]
+  );
   const selectedVisibleCount = useMemo(
     () => filteredItems.reduce((count, item) => count + (selectedKeys.has(getVaultSelectionItemKey(item)) ? 1 : 0), 0),
     [filteredItems, selectedKeys]
   );
   const cleanupActionItems = useMemo(
-    () => selectedItems.length
+    () => (selectedItems.length
       ? selectMarkedCleanupItems(selectedItems, props.tags)
-      : selectMarkedCleanupItems(props.items, props.tags),
+      : selectMarkedCleanupItems(props.items, props.tags))
+      .filter((item) => getItemSourceKind(item) === "vault"),
     [props.items, props.tags, selectedItems]
   );
   const cleanupProtectionByItemKey = useMemo(() => buildVaultCleanupProtectionIndex({
@@ -288,6 +305,7 @@ export function VaultPageContentView(props: {
   );
   const batchActions = useVaultBatchActions({
     selectedItems,
+    vaultActionItems: selectedVaultItems,
     cleanupActionItems,
     filteredItems,
     tags: props.tags,
@@ -311,6 +329,8 @@ export function VaultPageContentView(props: {
       tag: tagFilter,
       lock: lockFilter,
       slot: "all",
+      location: locationFilter,
+      currentCharacterId: props.currentCharacterId,
       ammo: ammoFilter,
       itemType: itemTypeFilter,
       rarity: rarityFilter,
@@ -324,7 +344,11 @@ export function VaultPageContentView(props: {
       wishlist: props.wishlist,
       localTargetRules: props.localTargetRules
     })),
-    [ammoFilter, armorSetFilter, armorStatRules, classFilter, damageFilter, frameFilters, gearTierFilter, group, itemTypeFilter, lockFilter, props.items, props.localTargetRules, props.tags, props.wishlist, rarityFilter, tagFilter]
+    [ammoFilter, armorSetFilter, armorStatRules, classFilter, damageFilter, frameFilters, gearTierFilter, group, itemTypeFilter, locationFilter, lockFilter, props.currentCharacterId, props.items, props.localTargetRules, props.tags, props.wishlist, rarityFilter, tagFilter]
+  );
+  const locationFilters = useMemo(
+    () => buildVaultLocationFilters(props.items, props.currentCharacterId),
+    [props.currentCharacterId, props.items]
   );
   const availableFrameFilters = useMemo(
     () => buildVaultFrameFilters(filterVaultItems(props.items, {
@@ -333,6 +357,8 @@ export function VaultPageContentView(props: {
       tag: tagFilter,
       lock: lockFilter,
       slot: slotFilter,
+      location: locationFilter,
+      currentCharacterId: props.currentCharacterId,
       ammo: ammoFilter,
       itemType: itemTypeFilter,
       rarity: rarityFilter,
@@ -345,7 +371,7 @@ export function VaultPageContentView(props: {
       wishlist: props.wishlist,
       localTargetRules: props.localTargetRules
     })),
-    [ammoFilter, armorSetFilter, armorStatRules, classFilter, damageFilter, gearTierFilter, group, itemTypeFilter, lockFilter, props.items, props.localTargetRules, props.tags, props.wishlist, rarityFilter, slotFilter, tagFilter]
+    [ammoFilter, armorSetFilter, armorStatRules, classFilter, damageFilter, gearTierFilter, group, itemTypeFilter, locationFilter, lockFilter, props.currentCharacterId, props.items, props.localTargetRules, props.tags, props.wishlist, rarityFilter, slotFilter, tagFilter]
   );
   const armorSetFilters = useMemo(
     () => buildVaultArmorSetFilters(props.armorSetCatalog, props.items),
@@ -372,7 +398,10 @@ export function VaultPageContentView(props: {
       .map(([key, count]) => ({ key, label: key, count }))
       .sort((left, right) => right.count - left.count || left.label.localeCompare(right.label, "zh-Hans-CN"));
   }, [props.items]);
-  const duplicateSummary = useMemo(() => buildVaultDuplicateSummary(props.items, props.tags), [props.items, props.tags]);
+  const duplicateSummary = useMemo(
+    () => hasVisitedDuplicateTab ? buildVaultDuplicateSummary(props.items, props.tags) : emptyDuplicateSummary,
+    [hasVisitedDuplicateTab, props.items, props.tags]
+  );
   const duplicateGroupKeyByItemKey = useMemo(() => new Map(
     duplicateSummary.groups.flatMap((duplicateGroup) => duplicateGroup.items.map((entry) => [entry.item_key, duplicateGroup.group_key] as const))
   ), [duplicateSummary]);
@@ -382,14 +411,20 @@ export function VaultPageContentView(props: {
   );
   const completedDuplicateGroupCount = duplicateSummary.total_duplicate_groups - pendingDuplicateGroupCount;
   const vaultItemCount = props.vaultItemCount ?? props.items.length;
+  const accountWeaponCount = useMemo(
+    () => props.items.filter((item) => item.group_key === "weapons").length,
+    [props.items]
+  );
   const loadoutMatchCount = useMemo(
     () => props.highlightedItemKeys ? filteredItems.filter((item) => matchesLoadoutTemplateItem(item, props.highlightedItemKeys)).length : 0,
     [filteredItems, props.highlightedItemKeys]
   );
   const activeFilterLabels = useMemo(() => buildActiveFilterLabels({
+    group,
     query,
     sortKey,
     slotFilter,
+    locationFilter,
     itemTypeFilter,
     rarityFilter,
     gearTierFilter,
@@ -403,13 +438,14 @@ export function VaultPageContentView(props: {
     signalFilters,
     frameFilterCount: frameFilters.length,
     armorRuleCount: armorStatRules.length
-  }), [ammoFilter, armorSetFilter, armorSetLabel, armorStatRules.length, classFilter, damageFilter, frameFilters.length, gearTierFilter, itemTypeFilter, lockFilter, query, rarityFilter, signalFilters, slotFilter, sortKey, tagFilter]);
+  }), [ammoFilter, armorSetFilter, armorSetLabel, armorStatRules.length, classFilter, damageFilter, frameFilters.length, gearTierFilter, group, itemTypeFilter, locationFilter, lockFilter, query, rarityFilter, signalFilters, slotFilter, sortKey, tagFilter]);
   const contextFacts = useMemo(() => buildVaultContextFacts({
     group,
     query,
     tagFilter,
     lockFilter,
     slotFilter,
+    locationFilter,
     ammoFilter,
     itemTypeFilter,
     rarityFilter,
@@ -422,7 +458,7 @@ export function VaultPageContentView(props: {
     armorStatRules,
     filteredCount: filteredVaultItems.length,
     totalCount: props.items.length
-  }), [ammoFilter, armorSetFilter, armorSetLabel, armorStatRules, classFilter, damageFilter, filteredVaultItems.length, frameFilters, gearTierFilter, group, itemTypeFilter, lockFilter, props.items.length, query, rarityFilter, slotFilter, tagFilter]);
+  }), [ammoFilter, armorSetFilter, armorSetLabel, armorStatRules, classFilter, damageFilter, filteredVaultItems.length, frameFilters, gearTierFilter, group, itemTypeFilter, locationFilter, lockFilter, props.items.length, query, rarityFilter, slotFilter, tagFilter]);
 
   useEffect(() => {
     props.onContextFactsChange?.([
@@ -432,13 +468,17 @@ export function VaultPageContentView(props: {
     ]);
   }, [contextFacts, filteredItems.length, props.onContextFactsChange, signalFilters]);
 
-  function resetFilterState(resetQuery = true) {
+  function resetFilterState(
+    resetQuery = true,
+    nextLocation: VaultLocationFilter = group === "weapons" ? "vault" : "all"
+  ) {
     if (resetQuery) setQuery("");
     setSortKey("name");
     setTagFilter("all");
     setSignalFilters([]);
     setLockFilter("all");
     setSlotFilter("all");
+    setLocationFilter(nextLocation);
     setAmmoFilter("all");
     setItemTypeFilter("all");
     setRarityFilter("all");
@@ -454,6 +494,7 @@ export function VaultPageContentView(props: {
   function switchVaultFilterMode(nextGroup: VaultGroupFilter) {
     setGroup(nextGroup);
     setSlotFilter("all");
+    setLocationFilter(nextGroup === "weapons" ? "vault" : "all");
     if (nextGroup !== "weapons") {
       setAmmoFilter("all");
       setItemTypeFilter("all");
@@ -582,7 +623,9 @@ export function VaultPageContentView(props: {
         </div>
         <div className="vault-workflow-meta">
           {props.accountResourceStatus ? <span className={`ui-badge ${vaultResourceStatusTone(props.accountResourceStatus)}`} data-ui-kind="status-chip" data-status={props.accountResourceStatus}>{vaultResourceStatusLabel(props.accountResourceStatus)}</span> : null}
-          <span className="ui-badge status-neutral" data-ui-kind="status-chip">已读取 {vaultItemCount} 件</span>
+          <span className="ui-badge status-neutral" data-ui-kind="status-chip">
+            {group === "weapons" ? `账号武器 ${accountWeaponCount} 件` : `仓库已读取 ${vaultItemCount} 件`}
+          </span>
           <span className="ui-badge status-pending" data-ui-kind="status-chip">当前显示 {filteredItems.length} 件</span>
           <button type="button" className={`ui-badge vault-recommendation-status-link status-${recommendationWorkflowStatus.tone}`} data-ui-kind="status-chip" data-status={recommendationWorkflowStatus.tone} onClick={() => { setActiveRecommendationView("weapons"); switchVaultTab("recommendations"); }}>{recommendationWorkflowStatus.label}</button>
           {props.highlightedItemKeys ? <span className="ui-badge status-success" data-ui-kind="status-chip">配装命中 {loadoutMatchCount} 件</span> : null}
@@ -601,6 +644,7 @@ export function VaultPageContentView(props: {
               armorStatRules={armorStatRules}
               lockFilter={lockFilter}
               slotFilter={slotFilter}
+              locationFilter={locationFilter}
               ammoFilter={ammoFilter}
               itemTypeFilter={itemTypeFilter}
               rarityFilter={rarityFilter}
@@ -612,6 +656,7 @@ export function VaultPageContentView(props: {
               group={group}
               groups={groups}
               slotFilters={slotFilters}
+              locationFilters={locationFilters}
               itemTypeFilters={itemTypeFilters}
               armorSetFilters={armorSetFilters}
               armorSetCatalogStatus={props.armorSetCatalogStatus}
@@ -626,6 +671,7 @@ export function VaultPageContentView(props: {
               onUpdateArmorStatRule={(index, rule) => setArmorStatRules((current) => current.map((item, itemIndex) => itemIndex === index ? rule : item))}
               onLockFilterChange={setLockFilter}
               onSlotFilterChange={setSlotFilter}
+              onLocationFilterChange={setLocationFilter}
               onAmmoFilterChange={setAmmoFilter}
               onItemTypeFilterChange={setItemTypeFilter}
               onRarityFilterChange={setRarityFilter}
@@ -643,6 +689,7 @@ export function VaultPageContentView(props: {
                 isOrganizing={isOrganizing}
                 filteredItemCount={filteredItems.length}
                 selectedItemCount={selectedItems.length}
+                selectedVaultItemCount={selectedVaultItems.length}
                 selectedProtectedCount={selectedProtectedCount}
                 selectionSummary={selectionSummary}
                 activeBatchAction={batchActions.activeBatchAction}
@@ -664,7 +711,7 @@ export function VaultPageContentView(props: {
                 onRunCleanupAction={batchActions.runCleanupAction}
               />
               <div className="vault-column-head">
-                <div><h3>装备矩阵</h3><span>{filteredItems.length} 件 · {sortLabels[sortKey]}</span></div>
+                <div><h3>{group === "weapons" ? locationFilterLabels[locationFilter] : "仓库装备矩阵"}</h3><span>{filteredItems.length} 件 · {sortLabels[sortKey]}</span></div>
                 <button type="button" data-ui-kind="button" data-control-variant="secondary" disabled={!activeFilterLabels.length} onClick={() => resetFilterState()}>重置筛选</button>
               </div>
               <div className="vault-active-filters" aria-label="已生效筛选条件">
@@ -812,9 +859,11 @@ function matchesSignalFilters(item: AccountItemSummary, filters: VaultSignalFilt
 }
 
 function buildActiveFilterLabels(input: {
+  group: VaultGroupFilter;
   query: string;
   sortKey: VaultSortKey;
   slotFilter: VaultSlotFilter;
+  locationFilter: VaultLocationFilter;
   itemTypeFilter: string;
   rarityFilter: VaultRarityFilter;
   gearTierFilter: VaultGearTierFilter;
@@ -832,7 +881,8 @@ function buildActiveFilterLabels(input: {
   return [
     input.query.trim() ? `搜索：${input.query.trim()}` : "",
     input.sortKey !== "name" ? sortLabels[input.sortKey] : "",
-    input.slotFilter !== "all" ? `位置：${input.slotFilter}` : "",
+    input.slotFilter !== "all" ? `槽位：${input.slotFilter}` : "",
+    input.locationFilter !== "all" ? `所在位置：${locationFilterLabels[input.locationFilter]}` : "",
     input.itemTypeFilter !== "all" ? `类型：${input.itemTypeFilter}` : "",
     input.rarityFilter !== "all" ? `稀有度：${rarityFilterLabels[input.rarityFilter]}` : "",
     input.gearTierFilter !== "all" ? `阶级：${gearTierFilterLabels[input.gearTierFilter]}` : "",
@@ -841,7 +891,7 @@ function buildActiveFilterLabels(input: {
     input.classFilter !== "all" ? `职业：${classFilterLabels[input.classFilter]}` : "",
     input.armorSetFilter !== "all" ? `护甲套装：${input.armorSetLabel ?? input.armorSetFilter}` : "",
     input.lockFilter !== "all" ? lockFilterLabels[input.lockFilter] : "",
-    input.tagFilter !== "all" ? `整理状态：${input.tagFilter === "untagged" ? "未标记" : input.tagFilter === "keep" ? "保留" : input.tagFilter === "review" ? "待复查" : "待处理"}` : "",
+    input.tagFilter !== "all" ? `整理状态：${input.tagFilter === "untagged" ? input.group === "weapons" ? "未整理" : "未标记" : input.tagFilter === "keep" ? "保留" : input.tagFilter === "review" ? "待复查" : "待处理"}` : "",
     ...input.signalFilters.map((signal) => signalLabel(signal)),
     input.frameFilterCount ? `武器框架：${input.frameFilterCount} 项` : "",
     input.armorRuleCount ? `护甲属性：${input.armorRuleCount} 条` : ""
@@ -853,4 +903,14 @@ function signalLabel(signal: VaultSignalFilter): string {
   if (signal === "loadout") return "配装引用";
   if (signal === "target") return "目标命中";
   return "推荐组合";
+}
+
+function getItemSourceKind(item: AccountItemSummary): "equipped" | "inventory" | "vault" | "postmaster" {
+  if ("source_kind" in item) {
+    const sourceKind = item.source_kind;
+    if (sourceKind === "equipped" || sourceKind === "inventory" || sourceKind === "postmaster") {
+      return sourceKind;
+    }
+  }
+  return "vault";
 }

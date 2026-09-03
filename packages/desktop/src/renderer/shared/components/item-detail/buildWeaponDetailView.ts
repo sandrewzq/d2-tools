@@ -97,7 +97,7 @@ export function buildWeaponDetailView(
       entry: input.context?.entry ?? (item.is_vault_item ? "vault" : item.instance_id ? "account" : "library"),
       ...input.context
     },
-    slot: item.bucket_name,
+    slot: item.equipment_bucket_name ?? item.bucket_name,
     damage: item.damage_type_summary
       ? {
           hash: item.damage_type_summary.hash,
@@ -346,7 +346,7 @@ export function buildWeaponRecommendationViews(
       mod_names: modNames,
       match,
       match_notes: isFixedExotic
-        ? ["固定异域不执行随机 Roll、普通大师杰作或武器模组命中；保留此条个人知识作为使用与催化剂说明。"]
+        ? ["固定异域不执行随机 Roll、大师杰作或武器模组匹配；保留此条个人知识作为使用与催化剂说明。"]
         : [
             ...recommendationMatchNotes(item, matched, total),
             ...(masterworkNames.length ? [masterworkMatched ? "大师杰作符合推荐。" : "大师杰作与推荐不同。"] : []),
@@ -375,7 +375,7 @@ export function buildWeaponRecommendationViews(
         mod_names: [],
         match: isFixedExotic ? "not_applicable" as const : matchRecommendation(item, matched, combo.perks.length),
         match_notes: isFixedExotic
-          ? ["固定异域不执行社区随机 Roll 命中；保留此条来源记录作为使用说明。"]
+          ? ["固定异域不执行社区随机 Roll 匹配；保留此条来源记录作为使用说明。"]
           : recommendationMatchNotes(item, matched, combo.perks.length)
       };
     });
@@ -413,8 +413,8 @@ export function buildWeaponPersonalTargetViews(
     .slice(0, 3);
   return visibleCombos.map(({ combo, index, diagnosticPerks, requirements, matched }, visibleIndex) => {
     const visibleSummary = matchedComboCount > 0
-      ? `DIM 共命中 ${matchedComboCount} 组，当前显示其中 ${visibleCombos.length} 组。`
-      : `DIM 没有完整命中，当前显示最接近的 ${visibleCombos.length} 组。`;
+      ? `当前 Roll 符合 DIM 的 ${matchedComboCount} 套推荐，下面显示其中 ${visibleCombos.length} 套。`
+      : `当前 Roll 未完全符合 DIM 推荐，下面显示最接近的 ${visibleCombos.length} 套。`;
     return {
       id: `dim:${combo.mode}:${index}`,
       mode: combo.mode,
@@ -434,7 +434,7 @@ export function buildWeaponPersonalTargetViews(
       mod_names: [],
       match: isFixedExotic ? "not_applicable" as const : matchRecommendation(item, matched, requirements.length),
       match_notes: isFixedExotic
-        ? ["固定异域不执行 DIM 随机 Roll 命中；保留此条愿望单作为收藏与来源记录。"]
+        ? ["固定异域不执行 DIM 随机 Roll 匹配；保留此条愿望单作为收藏与来源记录。"]
         : [
             ...recommendationMatchNotes(item, matched, requirements.length),
             ...(combo.dim_diagnostic ? [combo.dim_diagnostic.message] : [])
@@ -464,7 +464,7 @@ function dimDiagnosticSlotLabel(slot: string | undefined): string | undefined {
   if (slot === "perk2") return "Perk 2";
   if (slot === "origin") return "起源特性";
   if (slot === "special") return "特殊插槽";
-  if (slot === "unknown") return "无法定位栏位";
+  if (slot === "unknown") return "推荐项位置未知";
   return undefined;
 }
 
@@ -534,8 +534,8 @@ function matchRecommendation(
 
 function recommendationMatchNotes(item: SelectedItemDetail, matched: number, total: number): string[] {
   return item.instance_id || item.socket_plugs?.length
-    ? [`当前对象命中 ${matched}/${total} 个推荐插槽。`]
-    : ["当前对象没有账号实例 Roll，不执行实例命中判断。"];
+    ? [`当前 Roll 符合 ${matched}/${total} 项推荐。`]
+    : ["当前对象没有账号实例 Roll，暂时无法核对推荐项。"];
 }
 
 function currentWeaponUpgradeNames(item: SelectedItemDetail): { masterwork: Set<string>; mod: Set<string> } {

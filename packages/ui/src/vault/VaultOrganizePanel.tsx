@@ -15,6 +15,7 @@ export function VaultOrganizePanel(props: {
   isOrganizing: boolean;
   filteredItemCount: number;
   selectedItemCount: number;
+  selectedVaultItemCount: number;
   selectedProtectedCount: number;
   selectionSummary: string;
   activeBatchAction: string;
@@ -61,8 +62,8 @@ export function VaultOrganizePanel(props: {
     : pendingWrite === "selected-transfer"
     ? {
         title: "确认批量移动所选装备？",
-        description: `将尝试把所选 ${props.selectedItemCount} 件装备转移到 ${targetCharacterLabel} 背包。`,
-        detail: "只处理具有真实实例 ID 且当前允许转移的装备；失败项目会保留在结果反馈中。",
+        description: `将尝试把所选中位于仓库的 ${props.selectedVaultItemCount} 件装备转移到 ${targetCharacterLabel} 背包。`,
+        detail: "角色已装备、角色背包和邮政官物品不会进入仓库批量转移；失败项目会保留在结果反馈中。",
         confirmLabel: "确认移动",
         tone: "primary" as const
       }
@@ -99,7 +100,7 @@ export function VaultOrganizePanel(props: {
                 <option value="farm">待刷</option>
                 <option value="loadout">配装用</option>
                 <option value="target">本地目标命中</option>
-                <option value="untagged">未标记</option>
+                <option value="untagged">{props.group === "weapons" ? "未整理" : "未标记"}</option>
                 <option value="noted">有备注</option>
               </select>
             </label>
@@ -124,7 +125,7 @@ export function VaultOrganizePanel(props: {
           <button type="button" aria-busy={props.isBatchSaving} disabled={!props.selectedItemCount || props.isBatchSaving} onClick={() => void props.onApplyBatchTag("farm")}>批量待刷</button>
           <button type="button" aria-busy={props.isBatchSaving} disabled={!props.selectedItemCount || props.isBatchSaving} onClick={() => void props.onApplyBatchTag("loadout")}>批量配装用</button>
           <button type="button" aria-busy={props.isBatchSaving} disabled={!props.selectedItemCount || props.isBatchSaving} onClick={() => void props.onApplyBatchTag("none")}>清除标记</button>
-          {props.cleanupActions ? <button type="button" aria-busy={props.isBatchSaving} disabled={!props.selectedItemCount || !props.cleanupTargetCharacterId || props.isBatchSaving} onClick={() => setPendingWrite("selected-transfer")}>批量移动</button> : null}
+          {props.cleanupActions ? <button type="button" aria-busy={props.isBatchSaving} disabled={!props.selectedVaultItemCount || !props.cleanupTargetCharacterId || props.isBatchSaving} onClick={() => setPendingWrite("selected-transfer")}>移动仓库所选{props.selectedVaultItemCount ? ` ${props.selectedVaultItemCount}` : ""}</button> : null}
         </div>
       ) : null}
 

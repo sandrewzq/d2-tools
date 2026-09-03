@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AccountItemSummary } from "@d2-tools/core/account/summary";
-import type { VaultTags } from "@d2-tools/core/vault/tags";
+import type { VaultTags, VaultTagValue } from "@d2-tools/core/vault/tags";
 import { matchesLoadoutTemplateItem, type LoadoutTemplateLookup } from "@d2-tools/app/loadouts";
 import type { VaultSection } from "@d2-tools/app/vault";
 import { MemoizedVaultListItem as VaultListItem } from "./VaultListItem.js";
@@ -58,9 +58,10 @@ export function VaultItemSections(props: {
     const allSourceSummaries = item.group_key === "weapons"
       ? props.recommendationSummaryByInstance?.get(item.instance_id ?? `hash:${item.hash}`) ?? []
       : [];
+    const tagValue: VaultTagValue = props.tags.items[getVaultItemKey(item)]?.tag ?? "none";
     return {
       item,
-      tagValue: props.tags.items[getVaultItemKey(item)]?.tag ?? "none",
+      tagValue,
       isLoadoutMatch: matchesLoadoutTemplateItem(item, props.highlightedItemKeys),
       sourceSummaries: allSourceSummaries.slice(0, 2),
       additionalSourceCount: Math.max(0, allSourceSummaries.length - 2)

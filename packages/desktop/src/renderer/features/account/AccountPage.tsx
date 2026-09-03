@@ -1,4 +1,4 @@
-import { AccountPageContentView, type InterfaceLocale } from "@d2-tools/ui";
+import { AccountPageContentView, buildVaultRecommendationSummaryIndex, type InterfaceLocale } from "@d2-tools/ui";
 import type {
   AccountItemSummary,
   AccountSummary,
@@ -6,6 +6,7 @@ import type {
   LoadoutTemplate,
   StartupState
 } from "../../api/types";
+import type { DimWishlist, VaultItemInstanceMatchInfo } from "../../api/types";
 import { selectAccountPageModel, type AccountOpenItemPayload, type AccountOperationFeedbackView } from "@d2-tools/app/account";
 import {
   matchesLoadoutTemplateItem,
@@ -13,7 +14,7 @@ import {
 } from "../../shared/domain/loadouts/loadoutLookup";
 import { useMemo } from "react";
 
-type AccountItemSource = "equipped" | "inventory";
+type AccountItemSource = "equipped" | "inventory" | "postmaster";
 
 export function AccountPage(props: {
   interfaceLocale?: InterfaceLocale;
@@ -36,6 +37,8 @@ export function AccountPage(props: {
   isRunningItemAction: boolean;
   activeLoadoutLookup: LoadoutTemplateLookup | null;
   activeLoadoutTemplate: LoadoutTemplate | null;
+  wishlist: DimWishlist | null;
+  communityInstanceMatch: Map<string, VaultItemInstanceMatchInfo>;
   onConfigureBungie: () => void;
   onLoginBungie: () => void;
   onLoadAccount: () => void;
@@ -102,6 +105,20 @@ export function AccountPage(props: {
     props.isRunningItemAction,
     props.activeLoadoutTemplate?.name
   ]);
+  const recommendationSummaryByInstance = useMemo(() => buildVaultRecommendationSummaryIndex(
+    props.accountSummary
+      ? [
+          ...props.accountSummary.vault.items,
+          ...props.accountSummary.characters.flatMap((character) => [
+            ...character.equipped_items,
+            ...character.inventory_items,
+            ...character.postmaster_items
+          ])
+        ]
+      : [],
+    props.communityInstanceMatch,
+    props.wishlist
+  ), [props.accountSummary, props.communityInstanceMatch, props.wishlist]);
 
   function findCharacter(characterId: string): AccountSummary["characters"][number] | null {
     return props.accountSummary?.characters.find((character) => character.character_id === characterId) ?? null;
@@ -119,6 +136,7 @@ export function AccountPage(props: {
     <AccountPageContentView
       interfaceLocale={props.interfaceLocale}
       viewModel={viewModel}
+      recommendationSummaryByInstance={recommendationSummaryByInstance}
       actions={{
         configureBungie: props.onConfigureBungie,
         loginBungie: props.onLoginBungie,

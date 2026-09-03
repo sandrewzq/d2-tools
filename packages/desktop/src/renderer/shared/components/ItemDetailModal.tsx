@@ -114,6 +114,13 @@ export function ItemDetailModal(props: ItemDetailModalProps) {
   const selectedItemCharacterId = selectedItemLocation && "characterId" in selectedItemLocation
     ? selectedItemLocation.characterId
     : selectedItem.source_character_id;
+  const selectedItemLocationLabel = formatSelectedItemLocation(
+    props.accountSummary,
+    selectedItemLocation?.kind
+      ?? selectedItem.source_kind
+      ?? (selectedItem.is_vault_item ? "vault" : selectedItem.is_postmaster_item ? "postmaster" : undefined),
+    selectedItemCharacterId
+  );
   const [pendingPerks, setPendingPerks] = useState<Record<number, number>>({});
   const [perkWriteFeedback, setPerkWriteFeedback] = useState<WeaponConfigurationWriteFeedback>({ status: "idle" });
   const [itemToolMessage, setItemToolMessage] = useState("");
@@ -139,7 +146,8 @@ export function ItemDetailModal(props: ItemDetailModalProps) {
     pendingPerks,
     versions: props.itemVersions,
     versionsLoading: props.isItemVersionsLoading,
-    sources: buildWeaponSources(selectedItem, props.itemAvailability)
+    sources: buildWeaponSources(selectedItem, props.itemAvailability),
+    context: selectedItemLocationLabel ? { location_label: selectedItemLocationLabel } : undefined
   });
   const armorModel = buildArmorDetailView({
     selectedItem,
@@ -462,6 +470,20 @@ function mergeRecommendationSourceDetails(
   });
 }
 
+function formatSelectedItemLocation(
+  account: AccountSummary | null,
+  kind: SelectedItemDetail["source_kind"] | undefined,
+  characterId: string | undefined
+): string | undefined {
+  if (!kind) return undefined;
+  if (kind === "vault") return "仓库";
+  const characterName = account?.characters.find((character) => (
+    character.character_id === characterId
+  ))?.class_name ?? "角色";
+  const place = kind === "equipped" ? "已装备" : kind === "postmaster" ? "邮政官" : "背包";
+  return `${characterName} · ${place}`;
+}
+
 function resolveRecommendationEvidenceStatus(
   isDetailLoading: boolean,
   detailError: string,
@@ -574,12 +596,12 @@ function ItemDetailInstanceActions(input: {
     ?? (selectedItem.instance_id ? props.vaultTags.items[selectedItem.instance_id] : undefined);
   const currentTag = localEntry?.tag;
   const locationLabel = isPostmasterItem
-    ? `${sourceCharacter?.class_name ?? "角色"}邮政官`
+    ? `${sourceCharacter?.class_name ?? "角色"} · 邮政官`
     : isVaultItem
       ? "仓库"
       : sourceKind === "equipped"
-        ? `${sourceCharacter?.class_name ?? "角色"}已装备`
-        : `${sourceCharacter?.class_name ?? "角色"}背包`;
+        ? `${sourceCharacter?.class_name ?? "角色"} · 已装备`
+        : `${sourceCharacter?.class_name ?? "角色"} · 背包`;
   const isAlreadyEquippedToTarget = sourceKind === "equipped"
     && sourceCharacterId === props.selectedActionCharacterId;
 
@@ -724,7 +746,7 @@ function ItemDetailInstanceActions(input: {
           : effectiveLocked
             ? "已锁定"
             : "未锁定",
-        currentTag ? formatVaultTagLabel(currentTag) : "未标记"
+        currentTag ? formatVaultTagLabel(currentTag) : "未整理"
       ]}
       targetValue={props.selectedActionCharacterId}
       targetOptions={characters.map((character) => ({

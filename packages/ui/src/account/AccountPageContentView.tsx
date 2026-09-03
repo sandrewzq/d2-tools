@@ -15,6 +15,7 @@ import { GameAssetImage } from "../media/GameAssetImage.js";
 import { getRovingFocusIndex } from "../interaction/rovingFocus.js";
 import { ConfirmationDialog } from "../overlay/ConfirmationDialog.js";
 import { formatClockTime, formatCompactDateTime } from "../time/formatTime.js";
+import type { VaultRecommendationSummaryIndex } from "../vault/vaultRecommendationMatch.js";
 import {
   ProductWorkspaceContentStack,
   ProductWorkspaceEmptyState,
@@ -22,7 +23,7 @@ import {
   ProductWorkspaceSplit
 } from "../workspace/ProductWorkspace.js";
 
-type AccountItemSource = "equipped" | "inventory";
+type AccountItemSource = "equipped" | "inventory" | "postmaster";
 
 export type AccountPageActions = {
   configureBungie: () => void;
@@ -38,6 +39,7 @@ export type AccountPageContentViewProps = {
   interfaceLocale?: InterfaceLocale;
   viewModel: AccountPageViewModel;
   actions: AccountPageActions;
+  recommendationSummaryByInstance?: VaultRecommendationSummaryIndex;
 };
 
 type AccountSection = "gear" | "configuration" | "tasks" | "items" | "postmaster" | "activity";
@@ -71,7 +73,7 @@ export function AccountPageContentView(props: AccountPageContentViewProps) {
     return <AccountUnavailableState actions={actions} copy={copy} viewModel={viewModel} />;
   }
 
-  return <AccountPageWorkspace actions={actions} activityReview={activityReview} activitySummary={activitySummary} copy={copy} interfaceLocale={interfaceLocale} section={section} selectedCharacter={selectedCharacter} setSection={setSection} viewModel={viewModel} />;
+  return <AccountPageWorkspace actions={actions} activityReview={activityReview} activitySummary={activitySummary} copy={copy} interfaceLocale={interfaceLocale} recommendationSummaryByInstance={props.recommendationSummaryByInstance} section={section} selectedCharacter={selectedCharacter} setSection={setSection} viewModel={viewModel} />;
 }
 
 function AccountUnavailableState(props: {
@@ -120,6 +122,7 @@ function AccountPageWorkspace(props: {
   activitySummary: AccountPageViewModel["activity"]["summary"];
   copy: AccountCopy;
   interfaceLocale: InterfaceLocale;
+  recommendationSummaryByInstance?: VaultRecommendationSummaryIndex;
   section: AccountSection;
   selectedCharacter: NonNullable<AccountPageViewModel["selectedCharacter"]>;
   setSection: (section: AccountSection) => void;
@@ -434,6 +437,7 @@ function AccountPageWorkspace(props: {
               rows={displayedSlotRows}
               onOpenItem={props.actions.openItem}
               copy={props.copy}
+              recommendationSummaryByInstance={props.recommendationSummaryByInstance}
             />
         </section>
 
@@ -480,7 +484,7 @@ function AccountPageWorkspace(props: {
             <div className="account-section-notice status-message">{accountText(props.copy, "邮政官按当前角色独立保存；这里显示完整清单，取回操作不会自动执行。")}</div>
             {props.viewModel.postmaster.items.length ? (
               <div className="account-item-list">
-                {props.viewModel.postmaster.items.map((item) => renderAccountItemCard(item, "inventory", { onOpenItem: props.actions.openItem, copy: props.copy }))}
+                {props.viewModel.postmaster.items.map((item) => renderAccountItemCard(item, "postmaster", { onOpenItem: props.actions.openItem, copy: props.copy, recommendationSummaryByInstance: props.recommendationSummaryByInstance }))}
               </div>
             ) : <AccountInlineState title={accountText(props.copy, "邮政官为空")} detail={accountText(props.copy, "当前角色的账号快照没有邮政官物品。")} />}
         </section>
@@ -865,6 +869,7 @@ function AccountSlotComparison(props: {
   rows: AccountSlotComparisonViewRow[];
   onOpenItem: (payload: AccountOpenItemPayload) => void;
   copy: AccountCopy;
+  recommendationSummaryByInstance?: VaultRecommendationSummaryIndex;
 }) {
   const categories = accountCategoryOrder
     .map((category) => ({
@@ -902,14 +907,16 @@ function AccountSlotComparison(props: {
                   <h5>{accountText(props.copy, "当前角色装备")}</h5>
                   {renderAccountItemGrid(row.equippedItems, "equipped", {
                     onOpenItem: props.onOpenItem,
-                    copy: props.copy
+                    copy: props.copy,
+                    recommendationSummaryByInstance: props.recommendationSummaryByInstance
                   })}
                 </section>
                 <section className="account-slot-column account-inventory-panel" aria-label={accountText(props.copy, "当前角色背包候选")}>
                   <h5>{accountText(props.copy, "当前角色背包候选")}</h5>
                   {renderAccountItemGrid(row.inventoryItems, "inventory", {
                     onOpenItem: props.onOpenItem,
-                    copy: props.copy
+                    copy: props.copy,
+                    recommendationSummaryByInstance: props.recommendationSummaryByInstance
                   })}
                 </section>
               </div>
@@ -927,6 +934,7 @@ function renderAccountItemGrid(
   props: {
     onOpenItem: (payload: AccountOpenItemPayload) => void;
     copy: AccountCopy;
+    recommendationSummaryByInstance?: VaultRecommendationSummaryIndex;
   }
 ) {
   if (!items.length) {
@@ -940,7 +948,8 @@ function renderAccountItemGrid(
     <div className="account-slot-item-grid">
       {items.map((item) => renderAccountItemCard(item, source, {
         onOpenItem: props.onOpenItem,
-        copy: props.copy
+        copy: props.copy,
+        recommendationSummaryByInstance: props.recommendationSummaryByInstance
       }))}
     </div>
   );
@@ -952,11 +961,12 @@ function renderAccountItemCard(
   props: {
     onOpenItem: (payload: AccountOpenItemPayload) => void;
     copy: AccountCopy;
+    recommendationSummaryByInstance?: VaultRecommendationSummaryIndex;
   }
 ) {
   const className = [
     "account-slot-item",
-    source === "equipped" ? "equipped" : "inventory",
+    source,
     item.canOpenDetail ? "is-interactive" : "is-readonly",
     item.isPending ? "pending" : "",
     item.isSyncing ? "syncing" : "",
@@ -983,6 +993,7 @@ function renderAccountItemCard(
       : null;
   const primaryFacts = item.primaryFacts.join(" · ") || accountText(props.copy, "实例摘要待补齐");
   const stateFacts = item.stateFacts.join(" · ");
+  const recommendation = accountRecommendationSummary(item, props.recommendationSummaryByInstance);
   const content = (
     <>
       <GameAssetImage
@@ -996,7 +1007,12 @@ function renderAccountItemCard(
         <strong>{item.name}</strong>
         <span className="account-slot-item-primary-facts" title={primaryFacts}>{primaryFacts}</span>
         <span className="account-slot-item-fact-row">
-          {stateFacts ? <small title={stateFacts}>{stateFacts}</small> : null}
+          {recommendation
+            ? <small className="account-slot-item-recommendation" data-status={recommendation.tone} title={recommendation.title}>{recommendation.text}</small>
+            : stateFacts ? <small title={stateFacts}>{stateFacts}</small> : null}
+          {recommendation && item.openPayload.item.locked ? (
+            <em data-status="success" title={accountText(props.copy, "已锁定")} aria-label={accountText(props.copy, "已锁定")}>锁定</em>
+          ) : null}
           {status ? (
             <em data-status={status.kind} title={status.description} aria-label={status.description}>
               {status.label}
@@ -1038,4 +1054,29 @@ function AccountInlineState(props: { title: string; detail: string }) {
       <span>{props.detail}</span>
     </div>
   );
+}
+
+function accountRecommendationSummary(
+  item: AccountItemView,
+  recommendationSummaryByInstance?: VaultRecommendationSummaryIndex
+): { text: string; title: string; tone: "ready" | "warning" | "error" | "pending" | "neutral" } | undefined {
+  if (item.openPayload.item.group_key !== "weapons") return undefined;
+  const instanceKey = item.openPayload.item.instance_id ?? `hash:${item.openPayload.item.hash}`;
+  const summaries = recommendationSummaryByInstance?.get(instanceKey) ?? [];
+  const strongest = summaries[0];
+  if (!strongest) return undefined;
+  const remainingSourceCount = Math.max(0, summaries.length - 1);
+  return {
+    text: `${strongest.shortLabel} ${strongest.resultText}${remainingSourceCount ? ` · 另 ${remainingSourceCount} 个来源` : ""}`,
+    title: summaries.map((summary) => summary.detail).join("\n"),
+    tone: strongest.state === "full"
+      ? "ready"
+      : strongest.state === "partial"
+        ? "warning"
+        : strongest.state === "different"
+          ? "error"
+          : strongest.state === "uncheckable"
+            ? "pending"
+            : "neutral"
+  };
 }

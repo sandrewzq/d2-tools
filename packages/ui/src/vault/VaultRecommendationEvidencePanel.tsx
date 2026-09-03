@@ -7,6 +7,7 @@ import type {
 } from "@d2-tools/core/community-perks";
 import type { VaultTags } from "@d2-tools/core/vault/tags";
 import type { LoadoutTemplateLookup } from "@d2-tools/app/loadouts";
+import { getAccountItemSlotLabel, getVaultItemLocationLabel } from "@d2-tools/app/vault";
 import { useEffect, useMemo, useState } from "react";
 import { ControlButton } from "../control/ControlButton.js";
 import { VaultWishlistManager, type VaultWishlistActions } from "./VaultWishlistManager.js";
@@ -79,7 +80,7 @@ export function VaultRecommendationEvidencePanel(props: {
   }, [activeFilter]);
 
   return (
-    <section className="vault-evidence-panel" data-surface="section" aria-label="推荐来源对照">
+    <section className="vault-evidence-panel" data-surface="section" aria-label="推荐 Roll 匹配">
       <div className="vault-column-head">
         <div><h3>武器推荐</h3><span>按每一件实际武器核对来源要求，结果只提供证据，不替你决定分解</span></div>
         <div className="button-row">
@@ -118,15 +119,15 @@ export function VaultRecommendationEvidencePanel(props: {
       ) : null}
 
       <div className="vault-recommendation-explainer" data-ui-kind="callout" data-status="neutral">
-        <strong>怎么看 x/y？</strong>
-        <span>“5/6 栏符合”表示该人工来源明确要求 6 个栏位，这把枪实际拥有其中 5 栏。DIM 单独显示命中的完整组合数；没有命中时显示同一条组合内最接近的 Perk 数。这些都是对照结果，不是评分。</span>
+        <strong>这些结果怎么看？</strong>
+        <span>“全部符合”表示当前 Roll 拥有该来源列出的所有推荐项；“符合 5/6”表示 6 项中符合 5 项。DIM 按完整推荐组合核对，显示符合几套，或最接近的一套还缺几项。这些是匹配结果，不是武器评分。</span>
       </div>
 
       <div className="vault-evidence-metrics" data-ui-kind="status-matrix" data-surface="frame">
         <div><span>已核对账号武器</span><strong>{recommendationScan?.scanned_weapon_count ?? 0}/{recommendationScan?.total_weapon_count ?? props.items.filter((item) => item.group_key === "weapons").length}</strong><small>{formatRecommendationScanDetail(recommendationScan)}</small></div>
         <div><span>已有来源记录</span><strong>{coveredRows.length} 件</strong><small>{sourceLabels.length ? `${sourceLabels.length} 个来源出现在当前账号` : recommendationScanMetricDetail(recommendationScan)}</small></div>
         <div><span>存在符合项</span><strong>{positiveInstanceCount} 件</strong><small>至少一个来源有符合项或仅推荐武器</small></div>
-        <div><span>需要人工复查</span><strong>{reviewInstanceCount} 件</strong><small>来源冲突 {conflictInstanceCount} 件 · Roll 数据异常 {uncheckableInstanceCount} 件</small></div>
+        <div><span>需要人工复查</span><strong>{reviewInstanceCount} 件</strong><small>来源结论不同 {conflictInstanceCount} 件 · 数据不完整 {uncheckableInstanceCount} 件</small></div>
       </div>
 
       <div className="vault-evidence-source-strip" data-surface="list" aria-label="匹配数据状态">
@@ -161,7 +162,7 @@ export function VaultRecommendationEvidencePanel(props: {
                     <small>{formatWeaponInstanceMeta(row.item, protectionFacts)}</small>
                     {row.dispositionLabel ? <small>人工标记：{row.dispositionLabel}</small> : null}
                   </button>
-                  <span className="vault-evidence-result-sources" aria-label={`${row.item.name}的推荐来源对照`}>
+                  <span className="vault-evidence-result-sources" aria-label={`${row.item.name}的推荐 Roll 匹配`}>
                     {visibleSummaries.length ? visibleSummaries.map((summary) => (
                       <span className="vault-evidence-source-match" data-match-state={summary.state} key={summary.sourceId} title={summary.detail}>{summary.text}</span>
                     )) : <span className="vault-evidence-source-match" data-match-state="not-covered">没有来源记录</span>}
@@ -281,7 +282,7 @@ function recommendationEvidenceEmptyState(
     return {
       title: "正在核对账号武器",
       detail: scan.retained_result_count
-        ? "正在重新生成实例来源对照；完成前继续保留上次可用结果。"
+        ? "正在重新核对每件武器的推荐 Roll；完成前继续保留上次可用结果。"
         : "核对完成后会在这里按武器实例显示各来源结果。"
     };
   }
@@ -346,9 +347,9 @@ function recommendationFilterOptions(rows: InstanceWeaponRow[]): Array<{ key: Re
     { key: "all", label: "全部武器" },
     { key: "covered", label: "有来源记录" },
     { key: "matched", label: "有符合项" },
-    { key: "zero", label: "来源 0/y" },
-    { key: "conflict", label: "来源冲突" },
-    { key: "uncheckable", label: "Roll 数据异常" },
+    { key: "zero", label: "未符合" },
+    { key: "conflict", label: "来源结论不同" },
+    { key: "uncheckable", label: "数据不完整" },
     { key: "uncovered", label: "无来源记录" },
     { key: "organized", label: "有人工标记" }
   ];
@@ -388,7 +389,8 @@ function dispositionLabel(value: NonNullable<InstanceWeaponRow["disposition"]>):
 function formatWeaponInstanceMeta(item: AccountItemSummary, protectionFacts: string[]): string {
   return [
     item.item_type || "武器",
-    item.bucket_name,
+    getAccountItemSlotLabel(item),
+    getVaultItemLocationLabel(item),
     item.power !== undefined ? `光等 ${item.power}` : "",
     ...protectionFacts
   ].filter(Boolean).join(" · ");

@@ -899,6 +899,11 @@
   background: var(--state-selected-bg);
 }
 
+:where(.app-shell) .account-slot-item.postmaster:not(.loadout-highlight) {
+  border-color: color-mix(in srgb, var(--status-warning) 42%, var(--object-border));
+  background: color-mix(in srgb, var(--status-warning-bg) 54%, var(--card-bg));
+}
+
 :where(.app-shell) .account-slot-item img,
 :where(.app-shell) .account-slot-item > .item-icon-placeholder {
   width: 40px;
@@ -976,6 +981,26 @@
   margin-top: 0;
 }
 
+:where(.app-shell) .account-slot-item-recommendation[data-status="ready"] {
+  color: var(--status-ready);
+  font-weight: 700;
+}
+
+:where(.app-shell) .account-slot-item-recommendation[data-status="warning"] {
+  color: var(--status-warning);
+  font-weight: 700;
+}
+
+:where(.app-shell) .account-slot-item-recommendation[data-status="error"] {
+  color: var(--status-error);
+  font-weight: 700;
+}
+
+:where(.app-shell) .account-slot-item-recommendation[data-status="pending"] {
+  color: var(--status-pending);
+  font-weight: 700;
+}
+
 :where(.app-shell) .account-slot-item-fact-row > em {
   flex: 0 0 auto;
   max-width: 50%;
@@ -985,7 +1010,8 @@
   white-space: nowrap;
 }
 
-:where(.app-shell) .account-slot-item-fact-row > small + em::before {
+:where(.app-shell) .account-slot-item-fact-row > small + em::before,
+:where(.app-shell) .account-slot-item-fact-row > em + em::before {
   content: "·";
   margin-right: 6px;
   color: var(--text-muted);

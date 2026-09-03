@@ -2,7 +2,7 @@ import { memo } from "react";
 import type { AccountItemSummary } from "@d2-tools/core/account/summary";
 import type { ArmorStatKey } from "@d2-tools/core/loadouts/analysis";
 import type { VaultTagValue } from "@d2-tools/core/vault/tags";
-import { ammoFilterLabels, armorStatLabels, formatArmorStatsInline, tagLabels } from "@d2-tools/app/vault";
+import { ammoFilterLabels, armorStatLabels, formatArmorStatsInline, getAccountItemSlotLabel, getVaultItemLocationLabel, tagLabels } from "@d2-tools/app/vault";
 import { GameAssetImage } from "../media/GameAssetImage.js";
 import { VaultAmmoTypeIcon, VaultDamageTypeIcon } from "./VaultWeaponFactIcons.js";
 import type { VaultRecommendationSourceSummary } from "./vaultRecommendationMatch.js";
@@ -55,13 +55,15 @@ export function VaultListItem(props: VaultListItemProps) {
   );
   const strongestArmorStat = isArmor ? getStrongestArmorStat(props.item) : undefined;
   const sourceSummaries = isWeapon ? props.sourceSummaries : [];
+  const totalSourceCount = sourceSummaries.length + props.additionalSourceCount;
   const cardContent = isWeapon ? <>
       <div className="vault-weapon-identity">
         {visual}
         <div className="vault-weapon-copy">
           <strong title={props.item.name}>{props.item.name}</strong>
-          <span>{props.item.item_type || "武器"}</span>
-          <span title={props.item.bucket_name}>{formatWeaponSlot(props.item)}</span>
+          <span title={[getAccountItemSlotLabel(props.item), props.item.item_type].filter(Boolean).join(" · ")}>
+            {[formatWeaponSlot(props.item), props.item.item_type || "武器"].filter(Boolean).join(" · ")}
+          </span>
         </div>
       </div>
       <div className="vault-weapon-fact-row">
@@ -77,25 +79,38 @@ export function VaultListItem(props: VaultListItemProps) {
           <small>光</small><strong>{props.item.power ?? "—"}</strong>
         </span>
       </div>
-      {sourceSummaries.length ? (
-        <div className="vault-weapon-source-summary" aria-label={`推荐来源对照：${sourceSummaries.map((summary) => summary.detail).join("；")}`}>
+      <div
+        className="vault-weapon-source-summary"
+        aria-label={sourceSummaries.length
+          ? `推荐 Roll 匹配：${sourceSummaries.map((summary) => summary.detail).join("；")}`
+          : "当前武器暂无推荐来源"}
+      >
+        <span className="vault-weapon-source-head">
+          <span>推荐 Roll 匹配</span>
+          <small>{totalSourceCount > 0 ? `${totalSourceCount} 个来源` : "暂无来源"}</small>
+        </span>
+        <span className="vault-weapon-source-list">
           {sourceSummaries.map((summary) => (
             <span
-              className="vault-weapon-source-chip"
+              className="vault-weapon-source-row"
               data-match-state={summary.state}
               key={summary.sourceId}
               title={summary.detail}
             >
-              {summary.text}
+              <span>{summary.shortLabel}</span>
+              <strong>{summary.resultText}</strong>
             </span>
           ))}
-          {props.additionalSourceCount > 0 ? (
-            <span className="vault-weapon-source-more">另有 {props.additionalSourceCount} 个来源，打开详情查看</span>
-          ) : null}
-        </div>
-      ) : null}
+          {!sourceSummaries.length ? <span className="vault-weapon-source-empty">暂无推荐来源</span> : null}
+        </span>
+      </div>
       <div className="vault-weapon-status">
-        <span className={`vault-score-badge score-${disposition}`}>{dispositionShortLabel(disposition)}</span>
+        <span className="vault-weapon-location-state">
+          <span className="vault-weapon-location">{getVaultItemLocationLabel(props.item)}</span>
+          {disposition === "none"
+            ? props.isOrganizing ? <span className="vault-weapon-unmarked">未整理</span> : null
+            : <span className={`vault-score-badge score-${disposition}`}>{dispositionShortLabel(disposition)}</span>}
+        </span>
         {stateFlags}
       </div>
     </> : isArmor ? <>
@@ -146,7 +161,6 @@ export function VaultListItem(props: VaultListItemProps) {
         "vault-item-card",
         props.isSelected ? "selected" : "",
         props.isOrganizing ? "is-organizing" : "",
-        sourceSummaries.length ? "has-source-summary" : "",
         props.isLoadoutMatch ? "loadout-highlight" : "",
         props.isOpening ? "pending" : "",
         `vault-item-${props.item.group_key}`,
@@ -203,6 +217,8 @@ function sameSourceSummaries(
     const candidate = next[index];
     return candidate?.sourceId === summary.sourceId
       && candidate.state === summary.state
+      && candidate.shortLabel === summary.shortLabel
+      && candidate.resultText === summary.resultText
       && candidate.text === summary.text
       && candidate.detail === summary.detail;
   });
@@ -250,8 +266,8 @@ function formatVaultCardContext(item: AccountItemSummary): string {
 }
 
 function formatWeaponSlot(item: AccountItemSummary): string {
-  const slot = item.bucket_name?.replace(/武器$/u, "").trim();
-  return slot || "未知槽位";
+  const slot = getAccountItemSlotLabel(item).replace(/武器$/u, "").trim();
+  return slot ? `${slot}位` : "未知槽位";
 }
 
 function formatAmmoCompact(type: AccountItemSummary["ammo_type"]): string {
@@ -318,7 +334,7 @@ function formatVaultCardTitle(
     item.group_key === "weapons" && item.ammo_type ? ammoFilterLabels[item.ammo_type] : "",
     formatVaultCardContext(item),
     item.power !== undefined ? `光等 ${item.power}` : "",
-    `整理状态：${dispositionLabel(disposition)}`,
+    `整理状态：${disposition === "none" && item.group_key === "weapons" ? "未整理" : dispositionLabel(disposition)}`,
     item.locked ? "已锁定" : "",
     isLoadoutMatch ? "配装引用" : ""
   ].filter(Boolean).join("\n");

@@ -24,7 +24,7 @@ const initialWindow: VirtualWindow = {
   endIndex: 30,
   topSpacer: 0,
   bottomSpacer: 0,
-  rowStride: 192
+  rowStride: 194
 };
 
 export function VaultVirtualWeaponGrid(props: {

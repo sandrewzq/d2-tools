@@ -575,6 +575,7 @@ function WebApp() {
           {activePage === "vault" ? (
             <VaultPageContentView
               items={vaultModel.vaultItems}
+              currentCharacterId={vaultModel.currentCharacterId}
               armorSetCatalog={fixture.armorSetCatalog}
               armorSetCatalogStatus="ready"
               vaultItemCount={vaultModel.vaultItemCount}

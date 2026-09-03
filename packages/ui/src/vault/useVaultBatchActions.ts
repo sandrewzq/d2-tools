@@ -36,6 +36,7 @@ export type VaultCleanupActions = {
 
 export function useVaultBatchActions(input: {
   selectedItems: AccountItemSummary[];
+  vaultActionItems?: AccountItemSummary[];
   cleanupActionItems: AccountItemSummary[];
   filteredItems: AccountItemSummary[];
   tags: VaultTags;
@@ -107,7 +108,8 @@ export function useVaultBatchActions(input: {
 
   async function runSelectedBulkMove() {
     if (!input.cleanupActions) return;
-    if (!input.selectedItems.length) {
+    const actionableItems = input.vaultActionItems ?? input.selectedItems;
+    if (!actionableItems.length) {
       setBatchMessage(buildVaultSelectedBulkMoveNoSelectionMessage());
       return;
     }
@@ -118,10 +120,10 @@ export function useVaultBatchActions(input: {
 
     setIsBatchSaving(true);
     setActiveBatchAction("批量移动");
-    setBatchMessage(buildVaultSelectedBulkMovePrepareMessage(input.selectedItems.length));
+    setBatchMessage(buildVaultSelectedBulkMovePrepareMessage(actionableItems.length));
 
     try {
-      const result = await input.cleanupActions.onBatchTransferToCharacter(input.selectedItems, input.cleanupTargetCharacterId);
+      const result = await input.cleanupActions.onBatchTransferToCharacter(actionableItems, input.cleanupTargetCharacterId);
       setBatchMessage(buildVaultBulkMoveResultMessage(input.cleanupTargetCharacterLabel, result));
       input.setSelectedKeys(new Set());
     } catch (error) {

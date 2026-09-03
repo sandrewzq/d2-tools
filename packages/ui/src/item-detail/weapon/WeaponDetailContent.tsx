@@ -79,7 +79,7 @@ export type WeaponDetailContentProps = {
 const sectionLabels: Array<{ key: WeaponDetailSection; label: string }> = [
   { key: "configuration", label: "当前配置" },
   { key: "overview", label: "属性与获取" },
-  { key: "recommendations", label: "目标匹配" },
+  { key: "recommendations", label: "推荐 Roll" },
   { key: "upgrades", label: "升级与锻造" },
   { key: "analysis", label: "AI 分析" }
 ];
@@ -90,7 +90,9 @@ export function WeaponDetailContent(props: WeaponDetailContentProps) {
   const [poolOpen, setPoolOpen] = useState(false);
   const [analysisPrompt, setAnalysisPrompt] = useState("");
   const [allowExternalSearch, setAllowExternalSearch] = useState(false);
-  const [targetSource, setTargetSource] = useState<WeaponTargetSource>("dim");
+  const [targetSource, setTargetSource] = useState<WeaponTargetSource>(() => (
+    preferredWeaponTargetSource(model, props.recommendationEvidence)
+  ));
   const [instanceRailOpen, setInstanceRailOpen] = useState(false);
   const section = props.activeSection ?? internalSection;
   const sectionIdPrefix = useId();
@@ -112,10 +114,21 @@ export function WeaponDetailContent(props: WeaponDetailContentProps) {
     setInternalSection("configuration");
     setAnalysisPrompt("");
     setAllowExternalSearch(false);
-    setTargetSource("dim");
+    setTargetSource(preferredWeaponTargetSource(model, props.recommendationEvidence));
     setInstanceRailOpen(false);
     observedSectionRef.current = "configuration";
   }, [model.identity.hash, model.context.object_id, model.context.kind]);
+
+  useEffect(() => {
+    const availableSources = availableWeaponTargetSources(model, props.recommendationEvidence);
+    if (!availableSources.length || availableSources.includes(targetSource)) return;
+    setTargetSource(availableSources[0]);
+  }, [
+    model.personal_targets,
+    model.recommendations,
+    props.recommendationEvidence?.sourceMatches,
+    targetSource
+  ]);
 
   useEffect(() => {
     if (!instanceRailOpen) return;
@@ -331,6 +344,12 @@ function WeaponIdentity(props: {
   const releaseLabel = identity.release?.description ?? "官方发布版本未标注";
   const definitionVersionLabel = identity.definition_version?.label ?? "定义版本资料未返回";
   const watermarks = identity.definition_version?.watermark_icons ?? [];
+  const currentInstance = props.model.same_hash_instances.find((instance) => instance.current);
+  const locationLabel = context.kind === "account_instance"
+    ? context.location_label ?? currentInstance?.location ?? context.entry_label
+    : context.kind === "vendor_offer"
+      ? "商人当前售卖"
+      : "资料库";
   const canSelectDefinitionVersion = context.kind === "definition" && versions.length > 1 && Boolean(props.onSelectVersion);
   const versionLabel = context.kind === "account_instance"
     ? "装备版本"
@@ -367,7 +386,10 @@ function WeaponIdentity(props: {
         <EquipmentDetailContextLedger
           entryLabel={context.entry_label}
           currentViewLabel={weaponObjectLabel(context.kind)}
-          locationLabel={identity.slot ?? identity.item_type ?? "武器"}
+          locationLabel={locationLabel}
+          locationFieldLabel="所在位置"
+          slotLabel={identity.slot ?? identity.item_type ?? "武器"}
+          slotFieldLabel="武器槽位"
           versionFieldLabel={versionLabel}
           versionValue={currentDefinition?.label ?? releaseLabel}
           versionOptions={canSelectDefinitionVersion
@@ -399,8 +421,8 @@ function WeaponIdentity(props: {
 }
 
 function weaponObjectLabel(kind: WeaponDetailViewModel["context"]["kind"]): string {
-  if (kind === "account_instance") return "当前装备";
-  if (kind === "vendor_offer") return "当前售卖";
+  if (kind === "account_instance") return "这件武器";
+  if (kind === "vendor_offer") return "本次售卖";
   return "资料库武器";
 }
 
@@ -874,7 +896,7 @@ function configurationSummaryItems(
 
   if (model.context.kind === "account_instance") {
     return [
-      { label: "当前查看", value: "当前装备" },
+      { label: "当前查看", value: "这件武器" },
       { label: "本件 Roll", value: currentRoll.join(" / ") || (isInstanceLoading ? "正在读取" : "当前配置未返回") },
       { label: "可切换", value: switchableColumns ? `${switchableColumns} 个插槽` : isInstanceLoading ? "正在核对" : "没有可远程切换项" },
       { label: "配置状态", value: pendingChangeCount ? `${pendingChangeCount} 项待应用` : isDefinitionLoading || isInstanceLoading ? "读取中" : operationLabel }
@@ -1044,7 +1066,7 @@ function RecommendationSection(props: {
     community: evidence ? sourceMatches.length : targetsBySource.community.length,
     personal: targetsBySource.personal.length
   };
-  const sourceOrder: WeaponTargetSource[] = ["dim", "community", "personal"];
+  const sourceOrder = availableWeaponTargetSources(model, evidence);
   const handleSourceKeyDown = (event: ReactKeyboardEvent<HTMLButtonElement>) => {
     if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
     const currentIndex = sourceOrder.indexOf(props.source);
@@ -1060,13 +1082,13 @@ function RecommendationSection(props: {
   };
   return (
     <>
-      <SectionHeading eyebrow="目标匹配" title="独立数据源目标匹配" description={isFixedExotic ? "固定异域不进行随机 Roll 命中；DIM、推荐来源和个人知识只记录拥有状态、催化剂进度与使用建议。" : "DIM Wishlist、推荐来源和个人知识分别匹配，不合并、不排序，也不生成应用结论。"} />
-      <div className="weapon-detail-target-tabs" data-ui-kind="segmented-control" role="tablist" aria-label="选择目标数据源">
+      <SectionHeading eyebrow="推荐 Roll" title="推荐 Roll 核对" description={isFixedExotic ? "固定异域不进行随机 Roll 核对；攻略推荐、DIM 和我的推荐只保留拥有状态、催化剂进度与使用建议。" : "各来源分别判断，不会把不同来源的 Perk 拼在一起。"} />
+      {sourceOrder.length ? <div className="weapon-detail-target-tabs" data-ui-kind="segmented-control" role="tablist" aria-label="选择推荐 Roll 来源">
         {([
-          ["dim", "DIM Wishlist"],
-          ["community", "推荐来源"],
-          ["personal", "个人知识"]
-        ] as const).map(([key, label]) => (
+          ["community", "攻略推荐"],
+          ["dim", "DIM"],
+          ["personal", "我的推荐"]
+        ] as const).filter(([key]) => sourceCounts[key] > 0).map(([key, label]) => (
           <button
             key={key}
             id={`${panelId}-${key}`}
@@ -1081,8 +1103,8 @@ function RecommendationSection(props: {
             {label}<span>{sourceCounts[key]}</span>
           </button>
         ))}
-      </div>
-      {props.source === "community" && evidence ? (
+      </div> : null}
+      {!sourceOrder.length ? <EmptyState text={evidence?.status === "loading" ? "正在读取这把武器的推荐 Roll。" : "这把武器暂时没有可核对的推荐 Roll。"} /> : props.source === "community" && evidence ? (
         <div
           id={`${panelId}-panel`}
           className="weapon-detail-recommendations"
@@ -1110,9 +1132,30 @@ function RecommendationSection(props: {
         >
           {targets.map((target) => <RecommendationCard key={target.id} model={model} recommendation={target} />)}
         </div>
-      ) : <div id={`${panelId}-panel`} role="tabpanel" aria-labelledby={`${panelId}-${props.source}`}><EmptyState text="当前来源没有可显示的目标数据。" /></div>}
+      ) : <div id={`${panelId}-panel`} role="tabpanel" aria-labelledby={`${panelId}-${props.source}`}><EmptyState text="当前来源没有可显示的推荐 Roll。" /></div>}
     </>
   );
+}
+
+function availableWeaponTargetSources(
+  model: WeaponDetailViewModel,
+  evidence: WeaponDetailContentProps["recommendationEvidence"] | undefined
+): WeaponTargetSource[] {
+  const counts: Record<WeaponTargetSource, number> = {
+    community: model.context.kind === "account_instance" && evidence
+      ? evidence.sourceMatches.length
+      : model.recommendations.filter((target) => target.source === "builtin" || target.source === "external").length,
+    dim: model.personal_targets.filter((target) => target.source === "dim").length,
+    personal: model.recommendations.filter((target) => target.source === "user").length
+  };
+  return (["community", "dim", "personal"] as const).filter((source) => counts[source] > 0);
+}
+
+function preferredWeaponTargetSource(
+  model: WeaponDetailViewModel,
+  evidence: WeaponDetailContentProps["recommendationEvidence"] | undefined
+): WeaponTargetSource {
+  return availableWeaponTargetSources(model, evidence)[0] ?? "community";
 }
 
 function RecommendationSourceEvidenceCard(props: {
@@ -1132,6 +1175,7 @@ function RecommendationSourceEvidenceCard(props: {
   return (
     <details
       className="weapon-detail-source-evidence"
+      data-match-state={recommendationSourceMatchState(source)}
       open={open}
       onToggle={(event) => setOpen(event.currentTarget.open)}
     >
@@ -1153,7 +1197,7 @@ function RecommendationSourceEvidenceCard(props: {
         {source.state === "weapon_only" ? (
           <p className="weapon-detail-match-empty">该来源推荐这把武器，但没有指定需要核对的枪管、第二列、大师、Perk 或起源特性，因此不作 Roll 对照。</p>
         ) : (
-          <div className="weapon-detail-source-slot-list" aria-label={`${sourceLabel} 六栏推荐对照`}>
+          <div className="weapon-detail-source-slot-list" aria-label={`${sourceLabel}推荐项核对`}>
             {source.slots.map((slot) => <RecommendationSourceSlotRow key={slot.slot} slot={slot} />)}
           </div>
         )}
@@ -1183,23 +1227,39 @@ function recommendationSourceSummary(source: RecommendationSourceMatch): string 
   if (source.state === "weapon_only") return "仅推荐武器";
   const uncheckable = source.uncheckable_requirement_count
     ?? source.slots.filter((slot) => slot.state === "uncheckable").length;
-  if (uncheckable > 0) return "Roll 数据异常";
-  return `${source.matched_requirement_count}/${source.requirement_count} 栏符合`;
+  if (uncheckable > 0) return "数据不完整";
+  if (source.requirement_count > 0 && source.matched_requirement_count === source.requirement_count) {
+    return "全部符合";
+  }
+  if (source.matched_requirement_count > 0) {
+    return `符合 ${source.matched_requirement_count}/${source.requirement_count}`;
+  }
+  return "未符合";
 }
 
 function recommendationEvidenceEmptyText(status: NonNullable<WeaponDetailContentProps["recommendationEvidence"]>["status"]): string {
-  if (status === "idle") return "尚未开始账号武器推荐核对；进入仓库后会生成当前实例的逐栏对照。";
-  if (status === "loading") return "正在读取这件武器的推荐来源与逐栏对照。";
-  if (status === "partial") return "本次账号武器核对未完整完成，当前实例没有可显示的逐栏结果。";
-  if (status === "error") return "账号武器推荐来源核对失败，当前实例没有可显示的逐栏结果。";
-  return "当前实例没有可显示的推荐来源逐栏对照。";
+  if (status === "idle") return "尚未开始账号武器推荐核对；进入仓库后会生成当前实例的逐项结果。";
+  if (status === "loading") return "正在读取这件武器的推荐来源与逐项结果。";
+  if (status === "partial") return "本次账号武器核对未完整完成，当前实例没有可显示的逐项结果。";
+  if (status === "error") return "账号武器推荐来源核对失败，当前实例没有可显示的逐项结果。";
+  return "当前实例没有可显示的推荐来源逐项结果。";
 }
 
-function recommendationSourceStatusTone(source: RecommendationSourceMatch): "success" | "warning" | "neutral" {
-  if (source.state === "weapon_only") return "neutral";
-  if (source.state === "uncheckable") return "neutral";
-  if (source.requirement_count > 0 && source.matched_requirement_count === source.requirement_count) return "success";
-  return "warning";
+function recommendationSourceMatchState(source: RecommendationSourceMatch): "full" | "partial" | "different" | "weapon_only" | "uncheckable" {
+  if (source.state === "weapon_only") return "weapon_only";
+  if (source.state === "uncheckable") return "uncheckable";
+  if (source.requirement_count > 0 && source.matched_requirement_count === source.requirement_count) return "full";
+  if (source.matched_requirement_count > 0) return "partial";
+  return "different";
+}
+
+function recommendationSourceStatusTone(source: RecommendationSourceMatch): "success" | "warning" | "error" | "pending" | "neutral" {
+  const state = recommendationSourceMatchState(source);
+  if (state === "full") return "success";
+  if (state === "partial") return "warning";
+  if (state === "different") return "error";
+  if (state === "uncheckable") return "pending";
+  return "neutral";
 }
 
 function recommendationSlotStateLabel(state: RecommendationSourceSlotMatch["state"]): string {
@@ -1211,9 +1271,10 @@ function recommendationSlotStateLabel(state: RecommendationSourceSlotMatch["stat
   }[state];
 }
 
-function recommendationSlotStatusTone(state: RecommendationSourceSlotMatch["state"]): "success" | "warning" | "neutral" {
+function recommendationSlotStatusTone(state: RecommendationSourceSlotMatch["state"]): "success" | "error" | "pending" | "neutral" {
   if (state === "match") return "success";
-  if (state === "different") return "warning";
+  if (state === "different") return "error";
+  if (state === "uncheckable") return "pending";
   return "neutral";
 }
 

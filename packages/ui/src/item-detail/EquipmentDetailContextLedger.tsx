@@ -9,6 +9,9 @@ export type EquipmentDetailContextLedgerProps = {
   entryLabel: string;
   currentViewLabel: string;
   locationLabel: string;
+  locationFieldLabel?: string;
+  slotLabel?: string;
+  slotFieldLabel?: string;
   versionFieldLabel: string;
   versionValue: string;
   versionOptions?: EquipmentDetailVersionOption[];
@@ -28,10 +31,11 @@ export function EquipmentDetailContextLedger(props: EquipmentDetailContextLedger
   );
 
   return (
-    <dl className="equipment-detail-context-ledger">
+    <dl className={["equipment-detail-context-ledger", props.slotLabel && "has-slot-fact"].filter(Boolean).join(" ")}>
       <ContextFact label="入口" value={props.entryLabel} />
       <ContextFact label="当前查看" value={props.currentViewLabel} current />
-      <ContextFact label="位置" value={props.locationLabel} />
+      <ContextFact label={props.locationFieldLabel ?? "位置"} value={props.locationLabel} />
+      {props.slotLabel ? <ContextFact label={props.slotFieldLabel ?? "装备槽位"} value={props.slotLabel} /> : null}
       {props.showVersionField !== false ? <div className="equipment-detail-version-field">
         <dt data-ui-part="label" data-text-tone="meta" data-info-priority="support">{props.versionFieldLabel}</dt>
         <dd data-ui-part="value" data-text-tone="primary" data-info-priority="context">

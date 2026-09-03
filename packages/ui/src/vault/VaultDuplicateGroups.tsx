@@ -503,7 +503,7 @@ function DuplicateComparePanel(props: {
             </div>
           ) : null}
           {selectedSource ? (
-            <div className="duplicate-source-legend" aria-label={`${selectedSource.sourceLabel}来源对照状态`}>
+            <div className="duplicate-source-legend" aria-label={`${selectedSource.sourceLabel}推荐 Roll 匹配状态`}>
               <span data-source-state="match">符合</span>
               <span data-source-state="different">不符</span>
               <span data-source-state="uncheckable">数据未读取</span>
@@ -519,7 +519,7 @@ function DuplicateComparePanel(props: {
         </div>
       </header>
       {selectedSource && !sourceColumns.length ? (
-        <div className="duplicate-source-note" role="status">{selectedSource.sourceLabel} 只推荐这把武器，没有指定需要比较的 Perk 栏位。</div>
+        <div className="duplicate-source-note" role="status">{selectedSource.sourceLabel} 只推荐这把武器，没有指定需要比较的 Perk 项。</div>
       ) : null}
       <div className="duplicate-compare-table">
         <div className="duplicate-table-head" style={gridStyle}><span>基准</span><span>实例</span>{columns.map((column) => <span key={column.key}>{column.label}</span>)}<span>保护与证据</span><span>整理状态</span></div>

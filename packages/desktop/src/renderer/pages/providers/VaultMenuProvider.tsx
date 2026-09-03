@@ -74,7 +74,20 @@ export function VaultMenuProvider() {
       onSaveTagBatch={(inputs) => writeActions.vaultWriteActions.saveVaultTagsBatch(inputs)}
       onBatchUnlock={writeActions.vaultWriteActions.handleVaultCleanupUnlock}
       onBatchTransferToCharacter={writeActions.vaultWriteActions.handleVaultCleanupTransfer}
-      onOpenItem={(item) => void writeActions.itemDetail.openItemDetail(item, { is_vault_item: true })}
+      onOpenItem={(item) => {
+        const located = item as typeof item & {
+          source_character_id?: string;
+          source_kind?: "equipped" | "inventory" | "vault" | "postmaster";
+          is_vault_item?: boolean;
+          is_postmaster_item?: boolean;
+        };
+        void writeActions.itemDetail.openItemDetail(item, {
+          source_character_id: located.source_character_id,
+          source_kind: located.source_kind,
+          is_vault_item: located.is_vault_item,
+          is_postmaster_item: located.is_postmaster_item
+        });
+      }}
       onSaveTag={(item, tag) => writeActions.vaultWriteActions.saveVaultTag(item, tag)}
     />
   );

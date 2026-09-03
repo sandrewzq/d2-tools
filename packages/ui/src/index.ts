@@ -150,6 +150,15 @@ export { MemoizedVaultListItem, VaultListItem, formatVaultItemMeta } from "./vau
 export { VaultOrganizePanel } from "./vault/VaultOrganizePanel.js";
 export { VaultRecommendationEvidencePanel } from "./vault/VaultRecommendationEvidencePanel.js";
 export type { VaultRecommendationSourceState } from "./vault/VaultRecommendationEvidencePanel.js";
+export {
+  buildVaultRecommendationSourceSummaries,
+  buildVaultRecommendationSummaryIndex,
+  getVaultCommunityInstanceKey
+} from "./vault/vaultRecommendationMatch.js";
+export type {
+  VaultRecommendationSourceSummary,
+  VaultRecommendationSummaryIndex
+} from "./vault/vaultRecommendationMatch.js";
 export { VaultWishlistManager } from "./vault/VaultWishlistManager.js";
 export type { VaultWishlistActions } from "./vault/VaultWishlistManager.js";
 export { VaultTargetRulesPanel } from "./vault/VaultTargetRulesPanel.js";

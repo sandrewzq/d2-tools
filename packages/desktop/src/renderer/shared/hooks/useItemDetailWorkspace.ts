@@ -28,7 +28,8 @@ import {
 } from "./useItemDetail";
 import { buildWeaponAiConfigurationContext } from "../components/item-detail/buildWeaponDetailView";
 
-const ITEM_DETAIL_SUPPORTING_REQUEST_DELAY_MS = 180;
+const ITEM_DETAIL_RECOMMENDATION_IDLE_TIMEOUT_MS = 700;
+const ITEM_DETAIL_AUXILIARY_IDLE_TIMEOUT_MS = 1_600;
 
 type DiagnosticsBridge = {
   aiSettings: { enable_lightgg: boolean };
@@ -105,7 +106,7 @@ export function useItemDetailWorkspace(input: {
       setSelectedItemAvailability(null);
       setSelectedItemVersions(isWeapon && "description" in item && "source" in item ? [item] : []);
       setIsSelectedItemVersionsLoading(isWeapon);
-      setTimeout(() => {
+      scheduleWhenRendererIdle(() => {
         if (!isCurrentWorkspace()) return;
         if (isWeapon) {
           void api.getCommunityPerkRecommendations(item.hash, { item_name: item.name })
@@ -131,6 +132,11 @@ export function useItemDetailWorkspace(input: {
               if (!isCurrentWorkspace()) return;
               console.warn("我的推荐读取失败：", error);
             });
+        }
+      }, ITEM_DETAIL_RECOMMENDATION_IDLE_TIMEOUT_MS, 280);
+      scheduleWhenRendererIdle(() => {
+        if (!isCurrentWorkspace()) return;
+        if (isWeapon) {
           void api.searchItems(item.name)
             .then((results) => {
               if (!isCurrentWorkspace()) return;
@@ -157,7 +163,7 @@ export function useItemDetailWorkspace(input: {
             if (!isCurrentWorkspace()) return;
             console.warn("实时获取状态读取失败：", error);
           });
-      }, ITEM_DETAIL_SUPPORTING_REQUEST_DELAY_MS);
+      }, ITEM_DETAIL_AUXILIARY_IDLE_TIMEOUT_MS, 900);
     },
     onRecentHistoryChanged: input.onRecentHistoryChanged
   });
@@ -794,4 +800,19 @@ export function useItemDetailWorkspace(input: {
     refreshSelectedItemDetail,
     runItemWriteAction
   };
+}
+
+function scheduleWhenRendererIdle(
+  callback: () => void,
+  timeout: number,
+  fallbackDelay: number
+): void {
+  const idleScheduler = (globalThis as typeof globalThis & {
+    requestIdleCallback?: (handler: () => void, options?: { timeout: number }) => number;
+  }).requestIdleCallback;
+  if (idleScheduler) {
+    idleScheduler(callback, { timeout });
+    return;
+  }
+  globalThis.setTimeout(callback, fallbackDelay);
 }

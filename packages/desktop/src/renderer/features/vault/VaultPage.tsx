@@ -209,6 +209,7 @@ export function VaultPage(props: {
   return (
     <VaultPageContentView
       items={model.vaultItems}
+      currentCharacterId={model.currentCharacterId}
       armorSetCatalog={armorSetCatalog}
       armorSetCatalogStatus={armorSetCatalogStatus}
       accountResourceStatus={props.isLoadingAccount && accountResource.data ? "refreshing" : accountResource.status}

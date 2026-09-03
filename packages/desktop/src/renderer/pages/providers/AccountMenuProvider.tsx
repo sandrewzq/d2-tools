@@ -1,12 +1,17 @@
 import { AccountPage } from "../../features/account/AccountPage";
 import { useAccountSummaryStore } from "../../shared/stores/accountEntityStore";
 import { useDesktopMenuSession } from "./DesktopMenuProviderContext";
+import { useEffect } from "react";
 
 export function AccountMenuProvider() {
   const session = useDesktopMenuSession();
   const account = session.account;
   const accountSummary = useAccountSummaryStore();
   const writeActions = session.writeActions;
+
+  useEffect(() => {
+    void account.loadVaultCommunityMatch();
+  }, [account.lastAccountLoadedAt, accountSummary?.destiny_membership_id, accountSummary?.membership_type]);
 
   return (
     <AccountPage
@@ -30,6 +35,8 @@ export function AccountMenuProvider() {
       isRunningItemAction={writeActions.isRunningItemAction}
       activeLoadoutLookup={session.home.activeLoadoutLookup}
       activeLoadoutTemplate={session.loadouts.activeTemplate}
+      wishlist={account.importedWishlist}
+      communityInstanceMatch={account.vaultCommunityInstanceMatch}
       onConfigureBungie={session.onConfigure}
       onLoginBungie={() => void account.loginBungie()}
       onLoadAccount={session.refreshAccountManually}

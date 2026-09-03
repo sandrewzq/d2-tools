@@ -50,6 +50,8 @@ export type ItemDefinitionDetailLike = {
   ammo_type?: AmmoTypeKey;
   bucket_hash?: number;
   bucket_name?: string;
+  equipment_bucket_hash?: number;
+  equipment_bucket_name?: string;
   group_key?: AccountItemSummary["group_key"];
   weapon_frame?: WeaponFrameSummary;
   breaker_type?: WeaponBreakerTypeSummary;
@@ -103,6 +105,7 @@ export type SelectedItemDetail = ItemDefinitionDetailLike & {
   item_objectives?: AccountItemSummary["item_objectives"];
   catalyst?: AccountItemSummary["catalyst"];
   sockets?: AccountItemSummary["sockets"];
+  weapon_roll?: AccountItemSummary["weapon_roll"];
   group_key?: AccountItemSummary["group_key"];
   bucket_name?: string;
   source_character_id?: string;
@@ -138,6 +141,8 @@ export function selectedItemToAccountItem(item: SelectedItemDetail): AccountItem
     ammo_type: item.ammo_type,
     bucket_hash: item.bucket_hash,
     bucket_name: item.bucket_name,
+    equipment_bucket_hash: item.equipment_bucket_hash,
+    equipment_bucket_name: item.equipment_bucket_name,
     group_key: item.group_key,
     weapon_frame: item.weapon_frame,
     power: item.power,
@@ -150,6 +155,7 @@ export function selectedItemToAccountItem(item: SelectedItemDetail): AccountItem
     item_objectives: item.item_objectives,
     catalyst: item.catalyst,
     sockets: item.sockets,
+    weapon_roll: item.weapon_roll,
     socket_plugs: item.socket_plugs ?? []
   };
 }
@@ -158,6 +164,10 @@ export function createSelectedItemPreview(
   item: AccountItemSummary | ItemSearchResultLike,
   source: SelectedItemSource
 ): SelectedItemDetail {
+  const weaponRoll = "weapon_roll" in item ? item.weapon_roll : undefined;
+  const sockets = "sockets" in item && item.sockets?.length
+    ? item.sockets
+    : buildPreviewSocketsFromWeaponRoll(item, weaponRoll);
   return {
     hash: item.hash,
     name: item.name,
@@ -174,6 +184,7 @@ export function createSelectedItemPreview(
     intrinsic_traits: "intrinsic_traits" in item ? item.intrinsic_traits : undefined,
     ammo_type: "ammo_type" in item ? item.ammo_type : undefined,
     bucket_hash: "bucket_hash" in item ? item.bucket_hash : undefined,
+    equipment_bucket_hash: "equipment_bucket_hash" in item ? item.equipment_bucket_hash : undefined,
     weapon_frame: "weapon_frame" in item ? item.weapon_frame : undefined,
     breaker_type: "breaker_type" in item ? item.breaker_type : undefined,
     definition_stats: "definition_stats" in item ? item.definition_stats : undefined,
@@ -193,10 +204,12 @@ export function createSelectedItemPreview(
     instance: "instance" in item ? item.instance : undefined,
     item_objectives: "item_objectives" in item ? item.item_objectives : undefined,
     catalyst: "catalyst" in item ? item.catalyst : undefined,
-    sockets: "sockets" in item ? item.sockets : undefined,
+    sockets,
+    weapon_roll: weaponRoll,
     socket_plugs: "socket_plugs" in item ? item.socket_plugs : undefined,
     group_key: "group_key" in item ? item.group_key : undefined,
     bucket_name: "bucket_name" in item ? item.bucket_name : undefined,
+    equipment_bucket_name: "equipment_bucket_name" in item ? item.equipment_bucket_name : undefined,
     source_character_id: source.source_character_id,
     source_kind: source.source_kind,
     is_vault_item: source.is_vault_item,
@@ -207,6 +220,44 @@ export function createSelectedItemPreview(
       instance: Boolean("instance_id" in item && item.instance_id)
     }
   };
+}
+
+function buildPreviewSocketsFromWeaponRoll(
+  item: AccountItemSummary | ItemSearchResultLike,
+  weaponRoll: AccountItemSummary["weapon_roll"]
+): AccountItemSummary["sockets"] {
+  if (!weaponRoll?.sockets.length) return undefined;
+  const knownPlugs = new Map(
+    ("socket_plugs" in item ? item.socket_plugs ?? [] : []).map((plug) => [plug.hash, plug])
+  );
+
+  return weaponRoll.sockets.map((socket) => {
+    const currentHash = socket.current_plug?.hash;
+    const plugByHash = new Map(socket.owned_plugs.map((plug) => [plug.hash, plug]));
+    if (socket.current_plug) plugByHash.set(socket.current_plug.hash, socket.current_plug);
+    const toPlug = (plug: (typeof socket.owned_plugs)[number]) => ({
+      ...plug,
+      ...knownPlugs.get(plug.hash),
+      socket_index: socket.socket_index
+    });
+    const selectedPlug = socket.current_plug ? toPlug(socket.current_plug) : undefined;
+    return {
+      socket_index: socket.socket_index,
+      is_visible: true,
+      is_enabled: false,
+      enable_fail_indexes: [],
+      selected_plug: selectedPlug,
+      reusable_plugs: [...plugByHash.values()].map((plug) => ({
+        ...toPlug(plug),
+        selected: plug.hash === currentHash || plug.selected,
+        can_insert: false,
+        enabled: false,
+        insert_fail_indexes: [],
+        enable_fail_indexes: [],
+        sources: ["instance" as const]
+      }))
+    };
+  });
 }
 
 export function mergeSelectedItemDetail(

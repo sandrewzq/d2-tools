@@ -5,7 +5,7 @@ import { buildCharacterPowerView, type CharacterPowerView } from "./accountPower
 export type AccountOpenItemPayload = {
   item: AccountItemSummary;
   source_character_id: string;
-  source_kind?: "equipped" | "inventory";
+  source_kind?: "equipped" | "inventory" | "postmaster";
   is_postmaster_item?: boolean;
 };
 
@@ -490,6 +490,7 @@ export function selectAccountPageModel(input: AccountPageModelInput): AccountPag
         ? selectedCharacter.postmaster_items.map((item) => toAccountItemView({
           item,
           sourceCharacterId: selectedCharacter.character_id,
+          sourceKind: "postmaster",
           openingItemKey,
           isLoadoutMatch,
           syncingItemIds,
@@ -680,7 +681,7 @@ function buildReadonlyItemProgress(item: AccountItemSummary): Pick<AccountReadon
 function toAccountItemView(input: {
   item: AccountItemSummary;
   sourceCharacterId: string;
-  sourceKind?: "equipped" | "inventory";
+  sourceKind?: "equipped" | "inventory" | "postmaster";
   openingItemKey: string;
   isLoadoutMatch: (item: AccountItemSummary) => boolean;
   syncingItemIds: ReadonlySet<string>;
@@ -733,7 +734,7 @@ export function getAccountPageItemKey(item: AccountItemSummary): string {
 
 export function formatAccountItemMeta(item: AccountItemSummary): string {
   return [
-    item.bucket_name,
+    item.equipment_bucket_name ?? item.bucket_name,
     item.tier,
     item.power ? `光等 ${item.power}` : undefined,
     formatArmorStatsSummary(item),

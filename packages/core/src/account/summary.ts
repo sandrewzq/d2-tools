@@ -30,6 +30,8 @@ export type AccountItemSummary = {
   tier?: string;
   bucket_hash?: number;
   bucket_name?: string;
+  equipment_bucket_hash?: number;
+  equipment_bucket_name?: string;
   group_key: EquipmentGroupKey;
   armor_set?: {
     hash: number;
@@ -1100,12 +1102,15 @@ function summarizeItem(
   const explicitBucketDefinition = explicitBucketHash
     ? bucketDefinitions[String(explicitBucketHash)] as DefinitionRecord | undefined
     : undefined;
-  const bucketHash = isPostmasterBucketDefinition(explicitBucketDefinition)
-    ? explicitBucketHash
-    : canonicalDefinitionBucketHash ?? explicitBucketHash;
-  const bucket = classifyBucket(bucketHash);
+  const isPostmaster = isPostmasterBucketDefinition(explicitBucketDefinition);
+  const equipmentBucketHash = canonicalDefinitionBucketHash ?? explicitBucketHash;
+  const bucketHash = isPostmaster ? explicitBucketHash : equipmentBucketHash;
+  const bucket = classifyBucket(equipmentBucketHash);
   const groupKey = bucket?.group ?? "other";
   const bucketDefinition = bucketHash ? bucketDefinitions[String(bucketHash)] as DefinitionRecord | undefined : undefined;
+  const equipmentBucketDefinition = equipmentBucketHash
+    ? bucketDefinitions[String(equipmentBucketHash)] as DefinitionRecord | undefined
+    : undefined;
   const instanceId = item.itemInstanceId;
   const instance = instanceId ? components?.instances?.data?.[instanceId] : undefined;
   const sockets = mode === "full"
@@ -1141,7 +1146,11 @@ function summarizeItem(
     ammo_type: ammoTypeKey(definition?.equippingBlock?.ammoType),
     tier: definition?.inventory?.tierTypeName,
     bucket_hash: bucketHash,
-    bucket_name: bucket?.name ?? bucketDefinition?.displayProperties?.name?.trim(),
+    bucket_name: isPostmaster
+      ? bucketDefinition?.displayProperties?.name?.trim()
+      : bucket?.name ?? bucketDefinition?.displayProperties?.name?.trim(),
+    equipment_bucket_hash: equipmentBucketHash,
+    equipment_bucket_name: bucket?.name ?? equipmentBucketDefinition?.displayProperties?.name?.trim(),
     group_key: groupKey,
     ...(armorSet ? { armor_set: { hash: armorSet.hash, name: armorSet.name } } : {}),
     power: instance?.primaryStat?.value,

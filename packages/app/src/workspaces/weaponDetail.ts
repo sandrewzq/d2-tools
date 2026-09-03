@@ -25,6 +25,7 @@ export type WeaponDetailObjectContext = {
   entry_label: string;
   object_label: string;
   object_id?: string;
+  location_label?: string;
   read_only: boolean;
 };
 
@@ -669,6 +670,7 @@ function buildObjectContext(
     entry_label: override?.entry_label ?? entryLabel(entry),
     object_label: override?.object_label ?? objectLabel(kind),
     object_id: override?.object_id ?? item.instance_id,
+    location_label: override?.location_label,
     read_only: override?.read_only ?? kind !== "account_instance"
   };
 }
