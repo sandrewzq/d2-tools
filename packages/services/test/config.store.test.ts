@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { defaultDataDirForPlatform } from "../src/config/dataDir";
@@ -207,6 +207,75 @@ describe("config store service adapter", () => {
     expect(loaded.ai.protocol).toBe("anthropic_messages");
     expect(loaded.ai.api_key).toBe("ai-key");
     expect("write_actions_enabled" in loaded.features).toBe(false);
+  });
+
+  it("loads pre-density configs after an application upgrade", () => {
+    const dir = mkdtempSync(join(tmpdir(), "d2-tools-config-"));
+    writeFileSync(
+      join(dir, "config.json"),
+      `${JSON.stringify({
+        bungie: {
+          api_key: "api",
+          client_id: "client",
+          client_secret: "secret",
+          redirect_uri: "http://127.0.0.1:28780/oauth/callback"
+        },
+        data: {
+          data_dir: dir,
+          manifest_language: "zh-chs"
+        },
+        ai: {
+          provider: "none",
+          api_key: "",
+          model: "",
+          base_url: ""
+        },
+        features: {
+          color_mode: "light",
+          interface_locale: "zh-CN"
+        }
+      }, null, 2)}\n`,
+      "utf8"
+    );
+
+    const loaded = loadConfig({ dataDir: dir, env: {} });
+
+    expect(loaded.features.density).toBe("standard");
+    expect(loaded.features.manifest_language_follows_interface).toBe(true);
+    expect(loaded.ai.enable_lightgg).toBe(false);
+    expect(loaded.ai.force_lightgg).toBe(false);
+    expect(loaded.bungie.redirect_uri).toBe("https://127.0.0.1:28780/oauth/callback");
+    expect(readFileSync(join(dir, "config.json"), "utf8")).toContain('"config_version": 1');
+    expect(readdirSync(dir).some((name) => name.startsWith("config.json.pre-migration-") && name.endsWith(".bak"))).toBe(true);
+  });
+
+  it("loads very old configs that predate the features section", () => {
+    const dir = mkdtempSync(join(tmpdir(), "d2-tools-config-"));
+    writeFileSync(
+      join(dir, "config.json"),
+      `${JSON.stringify({
+        bungie: {
+          api_key: "api",
+          client_id: "client",
+          client_secret: "secret",
+          redirect_uri: "https://127.0.0.1:28780/oauth/callback"
+        },
+        data: {
+          data_dir: dir,
+          manifest_language: "zh-chs"
+        },
+        ai: {
+          provider: ""
+        }
+      }, null, 2)}\n`,
+      "utf8"
+    );
+
+    const loaded = loadConfig({ dataDir: dir, env: {} });
+
+    expect(loaded.features.color_mode).toBe("light");
+    expect(loaded.features.density).toBe("standard");
+    expect(loaded.features.interface_locale).toBe("zh-CN");
   });
 
   it("rejects config files that do not match the current schema", () => {

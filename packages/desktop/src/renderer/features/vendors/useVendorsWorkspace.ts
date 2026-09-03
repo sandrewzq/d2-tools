@@ -59,57 +59,40 @@ export function useVendorsWorkspace(input: {
   const [refreshError, setRefreshError] = useState("");
   const [statusMessage, setStatusMessage] = useState("");
   const [selectedVendorId, setSelectedVendorId] = useState<string | undefined>("vendor-2190858386");
-  const [scope, setScope] = useState<VendorCharacterScope>(() => ({ kind: "character", characterId: input.selectedCharacterId }));
-  const previousSelectedCharacterIdRef = useRef(input.selectedCharacterId);
   const previousSelectedVendorIdRef = useRef(selectedVendorId);
   const vendorSelectionRefreshPendingRef = useRef(false);
   const vendorSelectionRefreshTimerRef = useRef<number | null>(null);
   const runRefreshRef = useRef<VendorRefreshHandler | null>(null);
   const requestContextKeyRef = useRef("__initial__");
+  const contextLoadPendingRef = useRef(false);
   const requestSequenceRef = useRef(0);
   const manualRequestSequenceRef = useRef<number | null>(null);
 
   const fallbackCharacterId = input.selectedCharacterId
     || input.accountSummary?.characters[0]?.character_id
     || "";
+  const scope = useMemo<VendorCharacterScope>(() => ({
+    kind: "character",
+    characterId: fallbackCharacterId
+  }), [fallbackCharacterId]);
   const requestCharacterIds = useMemo(() => {
-    if (scope.kind === "account") return input.accountSummary?.characters.map((character) => character.character_id) ?? [];
-    return [scope.characterId || fallbackCharacterId].filter(Boolean);
-  }, [fallbackCharacterId, input.accountSummary, scope]);
-
-  useEffect(() => {
-    if (scope.kind !== "character" || !fallbackCharacterId) return;
-    const validCharacter = input.accountSummary?.characters.some((character) => character.character_id === scope.characterId);
-    if (!scope.characterId || (input.accountSummary && !validCharacter)) {
-      setScope({ kind: "character", characterId: fallbackCharacterId });
-    }
-  }, [fallbackCharacterId, input.accountSummary, scope]);
-
-  useEffect(() => {
-    const previousSelectedCharacterId = previousSelectedCharacterIdRef.current;
-    previousSelectedCharacterIdRef.current = input.selectedCharacterId;
-    if (
-      scope.kind !== "character"
-      || !input.selectedCharacterId
-      || !previousSelectedCharacterId
-      || scope.characterId !== previousSelectedCharacterId
-      || scope.characterId === input.selectedCharacterId
-    ) return;
-    setScope({ kind: "character", characterId: input.selectedCharacterId });
-  }, [input.selectedCharacterId, scope]);
+    return [fallbackCharacterId].filter(Boolean);
+  }, [fallbackCharacterId]);
   const requestContextKey = input.accountSummary && requestCharacterIds.length
     ? `${input.accountSummary.membership_type}:${input.accountSummary.destiny_membership_id}:${scope.kind}:${requestCharacterIds.join(",")}`
     : "";
-  const selectedVendorHash = selectVendorHash(snapshot, selectedVendorId);
+  const visibleSnapshot = requestContextKey === requestContextKeyRef.current ? snapshot : null;
+  const selectedVendorHash = selectVendorHash(visibleSnapshot, selectedVendorId);
   const selectedDetailVendorHashes = useMemo(
-    () => expandVendorDetailHashes(selectedVendorHash, snapshot),
-    [selectedVendorHash, snapshot]
+    () => expandVendorDetailHashes(selectedVendorHash, visibleSnapshot),
+    [selectedVendorHash, visibleSnapshot]
   );
   const selectedVendorHashRef = useRef<number | undefined>(selectedVendorHash);
   selectedVendorHashRef.current = selectedVendorHash;
 
   const runRefresh = useCallback(async (source: VendorRefreshSource) => {
     if (!input.active || !input.accountSummary || !requestCharacterIds.length) return;
+    contextLoadPendingRef.current = false;
     const requestSequence = ++requestSequenceRef.current;
     if (source === "manual") {
       manualRequestSequenceRef.current = requestSequence;
@@ -196,6 +179,7 @@ export function useVendorsWorkspace(input: {
     if (!input.active) {
       requestSequenceRef.current += 1;
       requestContextKeyRef.current = "__inactive__";
+      contextLoadPendingRef.current = false;
       manualRequestSequenceRef.current = null;
       setRefreshState("idle");
       setIsManualRefreshing(false);
@@ -203,6 +187,7 @@ export function useVendorsWorkspace(input: {
     }
     if (requestContextKey === requestContextKeyRef.current) return;
     requestContextKeyRef.current = requestContextKey;
+    contextLoadPendingRef.current = true;
     const requestSequence = ++requestSequenceRef.current;
     manualRequestSequenceRef.current = null;
     setIsManualRefreshing(false);
@@ -211,6 +196,7 @@ export function useVendorsWorkspace(input: {
     setStatusMessage("");
 
     if (!input.accountSummary || !requestCharacterIds.length) {
+      contextLoadPendingRef.current = false;
       setRefreshState("idle");
       return;
     }
@@ -243,12 +229,17 @@ export function useVendorsWorkspace(input: {
         setRefreshError(error instanceof Error
           ? `${availableSnapshot ? "继续显示上次库存。" : ""}${error.message}`
           : "商人数据读取失败");
+      } finally {
+        if (requestSequence === requestSequenceRef.current && requestContextKey === requestContextKeyRef.current) {
+          contextLoadPendingRef.current = false;
+        }
       }
     })();
   }, [input.accountSummary, input.active, input.loadCachedInventory, input.loadInventory, input.now, requestCharacterIds, requestContextKey]);
 
   useEffect(() => {
     if (!input.active || !input.accountSummary || !requestCharacterIds.length || !snapshot || !selectedDetailVendorHashes.length) return;
+    if (contextLoadPendingRef.current) return;
     if (vendorSelectionRefreshPendingRef.current) {
       vendorSelectionRefreshPendingRef.current = false;
       return;
@@ -311,7 +302,7 @@ export function useVendorsWorkspace(input: {
   }, [input.active, input.now, runRefresh]);
 
   const model: VendorsPageWorkspace = useMemo(() => selectVendorsPageModel({
-    snapshot,
+    snapshot: visibleSnapshot,
     account: input.accountSummary,
     scope,
     selectedVendorId,
@@ -319,22 +310,14 @@ export function useVendorsWorkspace(input: {
     refreshError,
     statusMessage,
     now: input.now
-  }), [input.accountSummary, input.now, refreshError, refreshState, scope, selectedVendorId, snapshot, statusMessage]);
+  }), [input.accountSummary, input.now, refreshError, refreshState, scope, selectedVendorId, statusMessage, visibleSnapshot]);
 
   return {
     model,
     refresh,
     isManualRefreshing,
     statusMessage,
-    selectVendor: setSelectedVendorId,
-    scope,
-    selectScope: (nextScope: { kind: "character" | "account"; characterId?: string }) => {
-      if (nextScope.kind === "account") {
-        setScope({ kind: "account" });
-      } else if (nextScope.characterId) {
-        setScope({ kind: "character", characterId: nextScope.characterId });
-      }
-    }
+    selectVendor: setSelectedVendorId
   };
 }
 

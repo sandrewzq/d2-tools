@@ -28,6 +28,10 @@ export type ShellCopy = {
   };
   toolstripAriaLabel: string;
   navigationAriaLabel: string;
+  sidebar: {
+    collapse: string;
+    expand: string;
+  };
   assistantPanelAriaLabel: string;
   windowControlsAriaLabel: string;
   windowControls: {
@@ -398,6 +402,7 @@ export type SettingsCopy = {
     bungie: { label: string; hint: string };
     ai: { label: string; hint: string };
     backup: { label: string; hint: string };
+    sources: { label: string; hint: string };
     diagnostics: { label: string; hint: string };
   };
   overview: {

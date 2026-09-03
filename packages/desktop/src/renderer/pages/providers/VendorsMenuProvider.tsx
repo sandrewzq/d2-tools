@@ -15,7 +15,6 @@ export function VendorsMenuProvider() {
       }}
       actions={{
         selectVendor: session.vendors.selectVendor,
-        selectScope: session.vendors.selectScope,
         refreshVendors: () => void session.vendors.refresh(),
         onOpenItem: (item, context) => {
           session.writeActions.itemDetail.closeSelectedItemDetail();

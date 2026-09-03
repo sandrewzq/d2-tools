@@ -277,29 +277,6 @@
   font-size: var(--font-caption);
 }
 
-:where(.app-shell) .vendor-scope-switcher {
-  display: inline-flex;
-  flex: 0 0 auto;
-  gap: 2px;
-  align-items: center;
-  padding: 2px;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-control);
-  background: var(--surface-subtle);
-}
-
-:where(.app-shell) .vendor-scope-switcher button[aria-pressed="true"] {
-  color: var(--accent-primary);
-  background: var(--state-selected-bg);
-  box-shadow: inset 0 0 0 1px var(--state-selected-border);
-}
-
-:where(.app-shell) .vendor-scope-switcher button {
-  flex: 0 0 auto;
-  min-height: 28px;
-  white-space: nowrap;
-}
-
 :where(.app-shell) .vendor-section-nav {
   position: sticky;
   z-index: var(--layer-sticky);
@@ -941,13 +918,6 @@
   :where(.app-shell) .vendor-toolbar {
     align-items: flex-start;
     flex-direction: column;
-  }
-
-  :where(.app-shell) .vendor-scope-switcher {
-    max-width: 100%;
-    overflow-x: auto;
-    overscroll-behavior-inline: contain;
-    scrollbar-width: thin;
   }
 
   :where(.app-shell) .vendor-detail-flow {

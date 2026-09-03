@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Menu } from "electron";
+import { app, BrowserWindow, dialog, Menu } from "electron";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -95,18 +95,37 @@ app.whenReady().then(async () => {
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {
-      void createWindow();
+      void createWindow().catch(handleStartupFailure);
     }
   });
-});
+}).catch(handleStartupFailure);
 
 app.on("second-instance", () => {
   const window = BrowserWindow.getAllWindows()[0];
-  if (!window) return;
+  if (!window) {
+    if (app.isReady()) {
+      void createWindow().catch(handleStartupFailure);
+    }
+    return;
+  }
   if (window.isMinimized()) window.restore();
   window.show();
   window.focus();
 });
+}
+
+function handleStartupFailure(error: unknown): void {
+  const message = error instanceof Error ? error.message : String(error);
+  console.error("d2-tools 启动失败：", error);
+  if (!app.isReady()) {
+    app.exit(1);
+    return;
+  }
+  dialog.showErrorBox(
+    "d2-tools 启动失败",
+    `${message}\n\n请重新启动应用；如果问题持续，请把设置页中的诊断信息提供给开发者。`
+  );
+  app.exit(1);
 }
 
 let runtimeShutdownStarted = false;

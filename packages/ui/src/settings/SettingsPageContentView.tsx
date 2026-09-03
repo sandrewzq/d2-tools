@@ -6,6 +6,7 @@ import { getRovingFocusIndex } from "../interaction/rovingFocus.js";
 import { formatFullDateTime } from "../time/formatTime.js";
 import { SettingsAiConfigPanel, type SettingsAiAdapter } from "./SettingsAiConfigPanel.js";
 import { SettingsButton } from "./SettingsButton.js";
+import { SettingsSourcesSection } from "./SettingsSourcesSection.js";
 import { ConfirmationDialog } from "../overlay/ConfirmationDialog.js";
 
 type AccountSummary = any;
@@ -94,7 +95,7 @@ export type SettingsPageContentViewProps = {
   onSaveBungieConfig: (bungie: SettingsBungieConfigInput) => Promise<void>;
 };
 
-type SettingsSectionKey = "overview" | "language" | "account" | "library" | "bungie" | "ai" | "backup" | "diagnostics";
+type SettingsSectionKey = "overview" | "language" | "account" | "library" | "bungie" | "ai" | "backup" | "sources" | "diagnostics";
 type StatusTone = "neutral" | "ready" | "warning" | "error";
 
 function getSettingsMenu(copy: SettingsCopy): Array<{ key: SettingsSectionKey; label: string; hint: string }> {
@@ -106,6 +107,7 @@ function getSettingsMenu(copy: SettingsCopy): Array<{ key: SettingsSectionKey; l
     { key: "bungie", ...copy.menu.bungie },
     { key: "ai", ...copy.menu.ai },
     { key: "backup", ...copy.menu.backup },
+    { key: "sources", ...copy.menu.sources },
     { key: "diagnostics", ...copy.menu.diagnostics }
   ];
 }
@@ -212,7 +214,7 @@ export function SettingsPageContentView(props: SettingsPageContentViewProps) {
     }
   }
 
-  const sectionProps = { copy, interfaceLocale, accountUi, libraryUi, bungieUi, aiUi, backgroundTaskUi, libraryVersion };
+  const sectionProps = { copy, interfaceLocale, accountUi, libraryUi, bungieUi, aiUi, backgroundTaskUi, libraryVersion, onOpenSources: () => setActiveSection("sources") };
 
   function handleDirectoryKeyDown(event: ReactKeyboardEvent<HTMLButtonElement>, currentIndex: number) {
     const nextIndex = getRovingFocusIndex({
@@ -283,6 +285,7 @@ export function SettingsPageContentView(props: SettingsPageContentViewProps) {
           {activeSection === "bungie" ? <BungieSection copy={copy} bungieUi={bungieUi} dataDir={props.diagnosticDataDir} apiKey={bungieApiKey} clientId={bungieClientId} clientSecret={bungieClientSecret} redirectUri={bungieRedirectUri} isLoading={isLoadingBungieConfig} isSaving={isSavingBungieConfig} isPreparingManifest={isAutoPreparingManifest || props.isInitializingManifest} hasAutoManifestFailure={hasAutoManifestFailure} manifestError={props.manifestStatusError} manifestReady={manifestIsReady} isAccountReady={Boolean(props.accountSummary)} error={bungieError} message={bungieMessage} onApiKeyChange={setBungieApiKey} onClientIdChange={setBungieClientId} onClientSecretChange={setBungieClientSecret} onSave={() => void saveBungieConfig()} onOpenDataDir={props.onOpenDataDir} onOpenBungiePortal={props.onOpenBungiePortal} onLoginBungie={props.onReauthorizeAccount} onRetryManifest={() => { setBungieError(""); setBungieMessage(""); setIsAutoPreparingManifest(true); setHasAutoManifestFailure(false); props.onInitializeManifest(); }} /> : null}
           {activeSection === "ai" ? <SettingsSection id="ai" copy={copy} title={settingsText(copy, "AI 助手")} subtitle={settingsText(copy, "可选能力，不阻断账号、仓库、资料库等本地功能。")} badge={aiUi.statusLabel} tone={aiUi.tone}><SettingsAiConfigPanel adapter={props.aiSettingsAdapter} /></SettingsSection> : null}
           {activeSection === "backup" ? <BackupSection copy={copy} dataDir={props.diagnosticDataDir} onOpenDataDir={props.onOpenDataDir} onExport={props.onExportConfig} onImport={props.onImportConfig} onClearCache={props.onClearCache} onCopyGuide={props.onCopyDataBackupGuide} /> : null}
+          {activeSection === "sources" ? <SettingsSourcesSection interfaceLocale={interfaceLocale} /> : null}
           {activeSection === "diagnostics" ? <DiagnosticsSection copy={copy} interfaceLocale={interfaceLocale} entries={filteredActionLog(props.actionLog, props.actionLogResultFilter, props.actionLogTypeFilter).slice(0, 8)} resultFilter={props.actionLogResultFilter} typeFilter={props.actionLogTypeFilter} onResultFilterChange={props.onActionLogResultFilterChange} onTypeFilterChange={props.onActionLogTypeFilterChange} onRefreshDiagnostics={props.onRefreshDiagnostics} onRefreshLog={props.onRefreshActionLog} onCopyExport={props.onCopyDiagnosticsExport} onCopyEntry={props.onCopyActionDiagnostic} /> : null}
         </main>
       </div>
@@ -318,6 +321,15 @@ function OverviewSection(props: any) {
       <Metric label={copy.labels.appVersion} value={props.appVersion} detail={updateUi.statusLabel} />
       <Metric label={copy.labels.backgroundTasks} value={backgroundTaskUi.statusLabel} detail={backgroundTaskUi.summary} tone={backgroundTaskUi.tone} valueKind="status" />
     </MetricGrid>
+    <SettingsPanel title={settingsText(copy, "数据来源、参考项目与鸣谢")} subtitle={settingsText(copy, "公开列出应用使用的官方数据、社区资料和功能参考。") }>
+      <div className="settings-sources-summary" data-surface="row">
+        <div>
+          <strong data-ui-part="value" data-info-priority="context" data-text-tone="primary">{settingsText(copy, "来源边界清晰可查")}</strong>
+          <p data-ui-part="detail" data-info-priority="reading" data-text-tone="body">{settingsText(copy, "账号和实时轮换以 Bungie 为准；DIM、D2ArmorPicker 等项目仅作为功能或交互参考。")}</p>
+        </div>
+        <SettingsButton data-control-variant="secondary" onClick={props.onOpenSources}>{settingsText(copy, "查看来源与鸣谢")}</SettingsButton>
+      </div>
+    </SettingsPanel>
     <SettingsPanel title={settingsText(copy, "应用更新")} subtitle={updateUi.summary} badge={updateUi.statusLabel} tone={updateUi.tone}>
       <MetricGrid variant="update"><Metric label={settingsText(copy, "应用版本")} value={props.appVersion} detail={settingsText(copy, "当前安装版本")} /><Metric label={settingsText(copy, "更新来源")} value={props.updateSource} detail={settingsText(copy, "GitHub 连接失败时可打开下载页手动处理")} /><Metric label={settingsText(copy, "上次检查")} value={props.updateCheckedAt} detail={settingsText(copy, "应用更新检查时间")} /></MetricGrid>
       {props.updateProgress > 0 ? <div className="settings-progress" aria-label={settingsText(copy, "更新下载进度")}><span style={{ width: `${props.updateProgress}%` }} /></div> : null}

@@ -238,6 +238,100 @@
   background: transparent;
 }
 
+.settings-sources-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 12px 0;
+}
+
+.settings-sources-summary > div {
+  min-width: 0;
+}
+
+.settings-sources-summary p {
+  margin: 4px 0 0;
+}
+
+.settings-sources-notice {
+  margin-bottom: 18px;
+  padding: 11px 12px;
+  border: 1px solid var(--status-info, var(--control-border));
+  border-radius: var(--radius-frame);
+  background: var(--surface-panel);
+}
+
+.settings-sources-notice p {
+  margin: 4px 0 0;
+}
+
+.settings-sources-group {
+  margin-top: 18px;
+}
+
+.settings-sources-group-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--section-divider);
+}
+
+.settings-sources-group-head h3 {
+  margin: 0;
+}
+
+.settings-sources-list {
+  display: grid;
+}
+
+.settings-source-row {
+  display: grid;
+  grid-template-columns: minmax(150px, 1fr) minmax(180px, 1.35fr) minmax(160px, 1fr) minmax(220px, 1.25fr);
+  gap: 14px;
+  align-items: start;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--section-divider);
+}
+
+.settings-source-main,
+.settings-source-detail,
+.settings-source-links {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.settings-source-detail p,
+.settings-source-links small {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.settings-source-links {
+  justify-items: start;
+}
+
+.settings-source-links a {
+  color: var(--accent-primary);
+  overflow-wrap: anywhere;
+}
+
+.settings-sources-legal {
+  margin: 18px 0 0;
+}
+
+.settings-sources-credits {
+  margin-top: 18px;
+  padding-top: 2px;
+}
+
+.settings-sources-credits p {
+  margin: 10px 0 0;
+}
+
 .setting-row,
 .settings-group[data-surface="list"] > .setting-row {
   display: grid;
@@ -793,4 +887,26 @@
     flex: 1 1 150px;
   }
 
+}
+
+@container product-workspace (max-width: 980px) {
+  .settings-source-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@container product-workspace (max-width: 700px) {
+  .settings-sources-summary {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .settings-sources-summary button {
+    align-self: flex-start;
+  }
+
+  .settings-source-row {
+    grid-template-columns: 1fr;
+    gap: 9px;
+  }
 }

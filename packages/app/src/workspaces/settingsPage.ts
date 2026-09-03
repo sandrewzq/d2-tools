@@ -8,6 +8,7 @@ export type SettingsSectionKey =
   | "bungie"
   | "ai"
   | "backup"
+  | "sources"
   | "diagnostics";
 
 export type SettingsActionLogResultFilter = "all" | "success" | "pending" | "failed";

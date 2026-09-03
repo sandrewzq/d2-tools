@@ -12,6 +12,7 @@ export const settingsCopy: Record<InterfaceLocale, LocaleCopy["settings"]> = {
         bungie: { label: "Bungie 接口", hint: "接口配置" },
         ai: { label: "AI 助手", hint: "模型、上下文、安全边界" },
         backup: { label: "数据备份与迁移", hint: "数据目录、导入导出" },
+        sources: { label: "数据来源与鸣谢", hint: "来源、参考项目、许可" },
         diagnostics: { label: "诊断与操作日志", hint: "运行检查和事件记录" }
       },
       overview: {
@@ -38,6 +39,12 @@ export const settingsCopy: Record<InterfaceLocale, LocaleCopy["settings"]> = {
         "模型配置": "Model configuration",
         "备份迁移": "Backup migration",
         "导入导出": "Import/export",
+        "来源、参考项目、许可": "Sources, references, and licenses",
+        "数据来源、参考项目与鸣谢": "Sources, references & credits",
+        "公开列出应用使用的官方数据、社区资料和功能参考。": "Publicly lists the official data, community material, and feature references used by the app.",
+        "来源边界清晰可查": "Clear, traceable source boundaries",
+        "账号和实时轮换以 Bungie 为准；DIM、D2ArmorPicker 等项目仅作为功能或交互参考。": "Account facts and live rotations come from Bungie; DIM and D2ArmorPicker are feature and interaction references only.",
+        "查看来源与鸣谢": "View sources and credits",
         "日志和任务": "Logs and tasks",
         "低频配置不再常驻首页，只在异常时通过顶部状态和这里处理。": "Low-frequency settings no longer stay on the home page. Handle them here or in the top status only when needed.",
         "更新时间 14:18": "Updated 14:18",
@@ -363,6 +370,7 @@ export const settingsCopy: Record<InterfaceLocale, LocaleCopy["settings"]> = {
         bungie: { label: "Bungie API", hint: "API configuration" },
         ai: { label: "AI Assistant", hint: "Model, context, safety" },
         backup: { label: "Data backup and migration", hint: "Data folder and migration" },
+        sources: { label: "Sources and credits", hint: "Sources, references, and licenses" },
         diagnostics: { label: "Diagnostics and action log", hint: "Checks and event log" }
       },
       overview: {

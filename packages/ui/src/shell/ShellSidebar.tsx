@@ -9,7 +9,7 @@ export function ShellSidebarAccountSummary(props: {
   const vaultItemCount = props.vaultItemCount ?? 0;
 
   return (
-    <div className="shell-sidebar-account" data-ui-kind="account-summary">
+    <div className="shell-sidebar-account" data-ui-kind="account-summary" title={accountName} aria-label={accountName}>
       <strong data-ui-part="value" data-info-priority="context" data-text-tone="primary">{accountName}</strong>
       <span data-ui-part="detail" data-info-priority="reading" data-text-tone="body">{characterCount} 个角色 · 仓库 {vaultItemCount} 件</span>
     </div>

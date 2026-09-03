@@ -191,7 +191,6 @@ export type VendorOfferContextView = {
 
 export type VendorsPageActions = {
   selectVendor?: (vendorId: string) => void;
-  selectScope?: (scope: VendorScopeOptionView) => void;
   refreshVendors?: () => void;
   onOpenItem?: (item: VendorInventoryItemView, context: VendorOfferContextView) => void;
 };
@@ -393,45 +392,7 @@ export function VendorsPageContentView(props: VendorsPageContentViewProps) {
         </header>
 
         <div className="vendor-toolbar" role="status" aria-label="商人刷新状态" aria-live={refreshStatus?.live ?? "polite"} aria-busy={refreshStatus?.busy ?? false}>
-          <span className="vendor-character-context"><strong>库存范围</strong><small>{props.model.selectedCharacterContext?.label ?? "当前机灵：未检测到护甲师模组"}</small></span>
-          {props.model.scopeOptions?.length && props.actions.selectScope ? (
-            <span className="vendor-scope-switcher" role="group" aria-label="商人库存范围">
-              {props.model.scopeOptions.map((option, index) => {
-                const selected = option.kind === props.model.selectedScope?.kind
-                  && option.characterId === props.model.selectedScope?.characterId;
-                return (
-                  <button
-                    type="button"
-                    key={`${option.kind}-${option.characterId ?? "account"}`}
-                    data-ui-kind="button"
-                    data-control-variant="quiet"
-                    data-control-size="compact"
-                    aria-pressed={selected}
-                    aria-label={`${option.label}：${option.description}`}
-                    tabIndex={selected ? 0 : -1}
-                    title={option.description}
-                    onClick={() => props.actions.selectScope?.(option)}
-                    onKeyDown={(event) => {
-                      const buttons = [...(event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>("button") ?? [])];
-                      const nextIndex = getRovingFocusIndex({
-                        key: event.key,
-                        currentIndex: index,
-                        itemCount: buttons.length,
-                        orientation: "horizontal"
-                      });
-                      if (nextIndex === null) return;
-                      event.preventDefault();
-                      const nextButton = buttons[nextIndex];
-                      const nextOption = props.model.scopeOptions?.[nextIndex];
-                      if (!nextButton || !nextOption) return;
-                      props.actions.selectScope?.(nextOption);
-                      nextButton.focus();
-                    }}
-                  >{option.label}</button>
-                );
-              })}
-            </span>
-          ) : null}
+          <span className="vendor-character-context"><strong>{props.model.selectedScope?.kind === "character" ? props.model.selectedScope.label : "当前角色"}</strong><small>{props.model.selectedCharacterContext?.label ?? "当前机灵：未检测到护甲师模组"}</small></span>
           <span data-status={refreshStatus?.tone === "error" ? "error" : vendorStatus}>{toolbarMessage}</span>
           <span className="vendor-toolbar-actions" aria-label="库存筛选">
             <button

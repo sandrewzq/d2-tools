@@ -2,6 +2,30 @@
 
 这个项目使用面向玩家的更新日志。这里优先记录”玩家能感知到什么变化”，而不是逐条展开内部实现细节。
 
+## 0.0.18 - 2026-09-03
+
+### 中文
+
+#### 改进
+
+- 旧版本配置升级时会自动转换为当前格式并保留迁移备份，减少更新后无法启动或配置丢失的问题。
+- 设置页补充数据来源与鸣谢入口，侧栏支持展开 / 紧凑显示并统一亮色与暗色主题表现。
+
+#### 修复
+
+- 修复旧版本更新后应用进程已启动但窗口未显示的问题。
+
+### English
+
+#### Improved
+
+- Migrated legacy configuration files to the current format with a migration backup, reducing startup failures and configuration loss after updates.
+- Added a visible sources and credits section to Settings, and improved the sidebar's expanded / compact behavior across light and dark themes.
+
+#### Fixed
+
+- Fixed the application window not appearing after updating from an older version even though the process had started.
+
 ## 0.0.17 - 2026-09-03
 
 ### 中文

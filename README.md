@@ -59,6 +59,48 @@ d2-tools-setup-<version>.exe
 - AI 助手：支持 OpenAI Responses、OpenAI Chat Completions 和 Anthropic Messages 三种协议配置
 - 本地优先：配置、token、标签、备注和日志保存在本机
 
+## 数据来源、参考项目与鸣谢
+
+### 官方数据来源
+
+- Bungie API：账号、角色、装备、活动、商人和实时轮换状态
+  - <https://bungie-net.github.io/>
+- Destiny 2 Manifest：装备、Perk、活动、来源和版本定义
+  - <https://www.bungie.net/7/en/Manifest>
+
+### 社区资料来源
+
+- DIM Wish List Sources：社区武器推荐 Roll 和 Wishlist 规则
+  - GitHub：<https://github.com/48klocs/dim-wish-list-sources>
+  - 默认愿望单：<https://raw.githubusercontent.com/48klocs/dim-wish-list-sources/master/voltron.txt>
+
+### 参考项目与功能
+
+- DIM：仓库、配装、愿望单和写操作流程参考
+  - GitHub：<https://github.com/DestinyItemManager/DIM>
+  - 在线访问：<https://app.destinyitemmanager.com/>
+- D2ArmorPicker：护甲目标和方案比较参考
+  - GitHub：<https://github.com/Mijago/D2ArmorPicker>
+  - 在线访问：<https://d2armorpicker.com/>
+- d2-armor-solver：Armor 3.0 属性求解表达参考
+  - GitHub：<https://github.com/MIGO-OvO/d2-armor-solver>
+  - 在线访问：<https://migo-ovo.github.io/d2-armor-solver/>
+- Roll Report：Roll 差异和独特组合识别思路参考
+  - GitHub：<https://github.com/cecilbowen/roll-report>
+  - 在线访问：<https://roll.report/>
+- d2-additional-info：Manifest 补充数据流程参考
+  - GitHub：<https://github.com/DestinyItemManager/d2-additional-info>
+- Starside · Destiny 2 中文资料台：中文资料和信息组织参考
+  - 在线访问：<https://destiny2-starside-dea-mods-d1g0j2rile2323f73.webapps.tcloudbase.com/>
+  - 数据源与鸣谢：<https://destiny2-starside-dea-mods-d1g0j2rile2323f73.webapps.tcloudbase.com/sources/index.html>
+
+这些项目中的“数据来源”“功能参考”“算法参考”和“运行时依赖”是不同概念。除明确注明外，d2-tools 不复制其代码、账号数据或私有接口。本地用户导入内容暂不列入公开来源清单。
+
+鸣谢 Bungie、DIM、DIM Wish List Sources、D2ArmorPicker、d2-armor-solver、Roll Report、d2-additional-info、Starside 以及 Destiny 2 社区资料维护者。
+
+完整的来源、使用范围、许可和维护边界见 [数据来源、参考项目与鸣谢](docs/work/references/data-sources.md)。
+更多社区工具、资料站和开源项目导航见 [Destiny 2 工具收集](docs/work/references/destiny-tool-reference.md)。
+
 ## 文档导航
 
 玩家常用：
@@ -93,10 +135,6 @@ d2-tools-setup-<version>.exe
 - d2-tools 不会直接分解装备，最终分解仍需进入游戏手动完成
 
 更完整的边界说明见 [安全说明](docs/security.md)。
-
-## 参考方向
-
-参考工具分析已迁到 [Destiny 2 工具参考](docs/work/references/destiny-tool-reference.md)。README 只保留使用入口和正式文档导航；后续产品设计、竞品能力和外部数据源分析统一放在 `docs/work/references/`。
 
 ## 开发
 
