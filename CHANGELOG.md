@@ -2,6 +2,20 @@
 
 这个项目使用面向玩家的更新日志。这里优先记录”玩家能感知到什么变化”，而不是逐条展开内部实现细节。
 
+## 0.0.17 - 2026-09-03
+
+### 中文
+
+#### 工程
+
+- 清理已完成且不再推进的外部能力草案，保留正式文档中的有效规则与工具参考。
+
+### English
+
+#### Engineering
+
+- Removed completed, deferred external-capability notes while keeping the valid rules and tool references in the formal documentation.
+
 ## 0.0.16 - 2026-08-30
 
 ### 中文
